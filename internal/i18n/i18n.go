@@ -49,16 +49,23 @@ type Launcher struct {
 	// ResultsLabel names the results list for assistive technology.
 	ResultsLabel string
 	// The built-in commands the P1 catalog offers.
-	CommandSettings      string
-	CommandSettingsHint  string
-	CommandTerminal      string
-	CommandTerminalHint  string
-	CommandClipboard     string
-	CommandClipboardHint string
-	CommandBrowser       string
-	CommandBrowserHint   string
-	CommandQuit          string
-	CommandQuitHint      string
+	CommandSettings       string
+	CommandSettingsHint   string
+	CommandTerminal       string
+	CommandTerminalHint   string
+	CommandClipboard      string
+	CommandClipboardHint  string
+	CommandCalculator     string
+	CommandCalculatorHint string
+	CommandBrowser        string
+	CommandBrowserHint    string
+	CommandQuit           string
+	CommandQuitHint       string
+	// CalculatorEmpty is the calculator mode's empty state, and the two
+	// failure lines report a history write that did not land.
+	CalculatorEmpty          string
+	CalculatorRecordFailed   string
+	CalculatorFavoriteFailed string
 	// BrowserTab labels a live-tab row in the browser mode, and
 	// BrowserNoProfile is the mode's empty state when no browser profile was
 	// found at all.
@@ -231,6 +238,18 @@ type Settings struct {
 	ClipboardEnabled      string
 	ClipboardMaxItems     string
 	ClipboardMaxItemsHint string
+
+	CalculatorPlugin         string
+	CalculatorPluginHint     string
+	CalculatorMaxItems       string
+	CalculatorMaxItemsHint   string
+	CalculatorRetention      string
+	CalculatorRetentionHint  string
+	CalculatorCopyMode       string
+	CalculatorCopyModeHint   string
+	CalculatorRetentionNever string
+	CalculatorRetentionDays  func(days int) string
+	CalculatorCopyModes      []Option
 
 	// The About page.
 	AboutVersion      string

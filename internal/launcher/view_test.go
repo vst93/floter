@@ -1,6 +1,7 @@
 package launcher
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -10,6 +11,7 @@ import (
 
 	"floter/internal/apps"
 	"floter/internal/browser"
+	"floter/internal/calculator"
 	"floter/internal/clipboard"
 	"floter/internal/extensions"
 	"floter/internal/settings"
@@ -394,7 +396,7 @@ func TestClipboardModeSearchesAndCopies(t *testing.T) {
 	tt := render(t, a)
 
 	// The built-in row enters the mode.
-	tt.Type("clipboard history")
+	tt.Type("clipboard")
 	tt.Frame()
 	if !tt.HasText("Clipboard history") {
 		t.Fatalf("the clipboard row is missing: %q", tt.Texts())
@@ -575,10 +577,10 @@ func TestBrowserModeOpensAndCopies(t *testing.T) {
 		opened = url
 	}
 
+	// The trigger word enters the mode on its own, as the old build's did:
+	// the word, a space, and the rest is the needle.
 	tt := render(t, a)
-	tt.Type("browser history")
-	tt.Frame()
-	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Type("browser ")
 	tt.Frame()
 	if !a.browser || a.Query != "browser " {
 		t.Fatalf("the browser mode did not open: %v %q", a.browser, a.Query)
@@ -803,6 +805,178 @@ func TestToolAliasesJoinTheSearch(t *testing.T) {
 		tt.Frame()
 		if !tt.HasText("git") {
 			t.Errorf("query %q did not find the command: %q", query, tt.Texts())
+		}
+	}
+}
+
+// calculatorFixture is a history the calculator mode can be driven against.
+type calculatorFixture struct {
+	entries  []calculator.Entry
+	added    [][2]string
+	toggled  []string
+	deleted  []string
+	failures bool
+}
+
+func (f *calculatorFixture) Entries() []calculator.Entry { return f.entries }
+
+func (f *calculatorFixture) Add(expression, result string) (calculator.Entry, error) {
+	if f.failures {
+		return calculator.Entry{}, errors.New("write failed")
+	}
+	f.added = append(f.added, [2]string{expression, result})
+	entry := calculator.Entry{ID: "new", Expression: expression, Result: result, CreatedAt: 3}
+	f.entries = append([]calculator.Entry{entry}, f.entries...)
+	return entry, nil
+}
+
+func (f *calculatorFixture) ToggleFavorite(id string) (bool, error) {
+	if f.failures {
+		return false, errors.New("write failed")
+	}
+	f.toggled = append(f.toggled, id)
+	for i := range f.entries {
+		if f.entries[i].ID == id {
+			f.entries[i].Favorite = !f.entries[i].Favorite
+			return f.entries[i].Favorite, nil
+		}
+	}
+	return false, calculator.ErrNoEntry
+}
+
+func (f *calculatorFixture) Delete(id string) error {
+	f.deleted = append(f.deleted, id)
+	return nil
+}
+
+func TestCalculatorModeEvaluatesRecordsAndCopies(t *testing.T) {
+	a := testApp()
+	fixture := &calculatorFixture{entries: []calculator.Entry{
+		{ID: "1", Expression: "10*3", Result: "30", CreatedAt: 2},
+		{ID: "2", Expression: "sqrt(16)", Result: "4", CreatedAt: 1, Favorite: true},
+	}}
+	a.Calculator = fixture
+	a.CopyMode = calculator.CopyResult
+	copied := ""
+	a.Actions.Copy = func(text string) { copied = text; testRuns["copy"]++ }
+
+	tt := render(t, a)
+	tt.Type("calculator")
+	tt.Frame()
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if !a.calculatorMode || a.Query != "calc " {
+		t.Fatalf("the mode did not open: %v %q", a.calculatorMode, a.Query)
+	}
+	if !tt.HasText("10*3") || !tt.HasText("sqrt(16)") {
+		t.Fatalf("the history did not show: %q", tt.Texts())
+	}
+
+	// A fresh expression offers its answer first; Enter evaluates it, records
+	// it, copies per the copy mode and leaves the mode.
+	tt.Type("0.1+0.2")
+	tt.Frame()
+	if !tt.HasText("0.3") {
+		t.Fatalf("the answer row is missing: %q", tt.Texts())
+	}
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if len(fixture.added) != 1 || fixture.added[0] != [2]string{"0.1+0.2", "0.3"} {
+		t.Errorf("recorded %v", fixture.added)
+	}
+	if copied != "0.3" {
+		t.Errorf("copied %q (result mode)", copied)
+	}
+	if a.calculatorMode || a.Query != "" {
+		t.Errorf("the mode survived Enter: %v %q", a.calculatorMode, a.Query)
+	}
+
+	// A history row copies the whole line in full mode.
+	a.CopyMode = calculator.CopyFull
+	a.EnterCalculator()
+	a.Query = "calc 10*3"
+	tt.Frame()
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if copied != "10*3 = 30" {
+		t.Errorf("copied %q (full mode)", copied)
+	}
+}
+
+func TestCalculatorModeFiltersAndFavorites(t *testing.T) {
+	a := testApp()
+	fixture := &calculatorFixture{entries: []calculator.Entry{
+		{ID: "1", Expression: "10*3", Result: "30", CreatedAt: 2},
+		{ID: "2", Expression: "sqrt(16)", Result: "4", CreatedAt: 1, Favorite: true},
+	}}
+	a.Calculator = fixture
+	a.Actions.Copy = func(string) { testRuns["copy"]++ }
+
+	tt := render(t, a)
+	a.EnterCalculator()
+	tt.Frame()
+	if a.calculatorFilter != calculatorFilterAll {
+		t.Fatalf("the shipped filter is %q", a.calculatorFilter)
+	}
+
+	// Tab cycles to the starred rows and back.
+	tt.Key(0, ui.KeyTab)
+	tt.Frame()
+	if a.calculatorFilter != calculatorFilterFavorites {
+		t.Fatalf("Tab left the filter on %q", a.calculatorFilter)
+	}
+	if tt.HasText("10*3") {
+		t.Errorf("an unstarred row showed under the favourites filter: %q", tt.Texts())
+	}
+	tt.Key(0, ui.KeyTab)
+	tt.Frame()
+	if a.calculatorFilter != calculatorFilterAll {
+		t.Errorf("Tab did not cycle back: %q", a.calculatorFilter)
+	}
+
+	// The favourite key stars the selected row; the answer row is not one, so
+	// the selection moves to the history first.
+	a.Query = "calc 10*3"
+	tt.Frame()
+	tt.Key(0, ui.KeyDown)
+	tt.Frame()
+	tt.Key(ui.Super|ui.Ctrl, ui.KeyD)
+	tt.Frame()
+	if len(fixture.toggled) != 1 || fixture.toggled[0] != "1" {
+		t.Errorf("toggled %v", fixture.toggled)
+	}
+	if !tt.HasText("★") {
+		t.Errorf("the star is not shown: %q", tt.Texts())
+	}
+
+	// Escape leaves the mode.
+	tt.Key(0, ui.KeyEscape)
+	tt.Frame()
+	if a.calculatorMode {
+		t.Error("Escape did not leave the calculator mode")
+	}
+}
+
+// Every trigger word the old build accepted enters the mode, and the field
+// leaving it exits.
+func TestCalculatorModeWords(t *testing.T) {
+	a := testApp()
+	a.Calculator = &calculatorFixture{}
+	for _, word := range []string{"calc", "calculator", "计算器", "="} {
+		a.ResetQuery()
+		a.Query = word + " 2+2"
+		a.syncTypedMode()
+		if !a.calculatorMode {
+			t.Errorf("%q did not enter the mode", word)
+			continue
+		}
+		if got := a.calculatorQuery(); got != "2+2" {
+			t.Errorf("%q kept needle %q", word, got)
+		}
+		a.Query = "2+2"
+		a.syncCommandMode()
+		if a.calculatorMode {
+			t.Errorf("%q did not leave the mode when the word went", word)
 		}
 	}
 }

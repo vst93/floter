@@ -9,6 +9,7 @@ import (
 
 	"floter/internal/apps"
 	"floter/internal/browser"
+	"floter/internal/calculator"
 	"floter/internal/clipboard"
 	"floter/internal/extensions"
 	"floter/internal/settings"
@@ -170,6 +171,16 @@ type App struct {
 	// clipboard is set while the clipboard history is searched: the field
 	// holds the mode word and the query, and the list offers entries.
 	clipboard bool
+	// calculatorMode is set while the calculator history is open, with the
+	// entries the shell last handed over and the filter Tab cycles.
+	calculatorMode   bool
+	calculatorFound  []calculator.Entry
+	calculatorFilter string
+	// CopyMode is what Enter copies from a calculator row: the whole line or
+	// the result alone, from the calculator plugin's settings.
+	CopyMode string
+	// Calculator is the history the mode shows; nil leaves it empty.
+	Calculator CalculatorSource
 	// browser is set while the browsers' history is searched, with the
 	// answer the shell last gave and the query it belongs to.
 	browser      bool
@@ -205,6 +216,7 @@ func (a *App) ResetQuery() {
 	a.leaveCommand()
 	a.leaveClipboard()
 	a.leaveBrowser()
+	a.leaveCalculator()
 	a.Query = ""
 	a.Selected, a.chosenRow = 0, -1
 	a.pendingCaret = true
@@ -262,8 +274,10 @@ func (a *App) View(c *ui.Context) {
 	// old collapsed shell reasserted focus on every reveal.
 	a.FocusSearch()
 
+	a.syncTypedMode()
 	a.syncCommandMode()
 	a.askBrowser()
+	a.modeShortcuts(c)
 	results := a.Results()
 	a.clampSelection(len(results))
 
@@ -359,6 +373,8 @@ func (a *App) View(c *ui.Context) {
 	}
 	if c.Shortcut(0, ui.KeyEscape) {
 		switch {
+		case a.calculatorMode:
+			a.leaveCalculator()
 		case a.browser:
 			a.leaveBrowser()
 		case a.clipboard:
@@ -380,6 +396,8 @@ func (a *App) View(c *ui.Context) {
 		switch {
 		case a.mode != nil && item.complete != "":
 			a.appendWord(item.complete)
+		case a.calculatorMode:
+			a.cycleCalculatorFilter()
 		case a.clipboard && item.clip != nil:
 			a.pinClip(*item.clip)
 		case a.browser && item.tab != nil:
@@ -389,6 +407,18 @@ func (a *App) View(c *ui.Context) {
 		case a.mode == nil && !a.clipboard && item.entry != nil:
 			a.enterCommand(*item.entry)
 		}
+	}
+}
+
+// The mode-local keys: the history's star and delete, which belong to the
+// calculator and clipboard modes rather than to the launcher's own shortcut
+// map.
+func (a *App) modeShortcuts(c *ui.Context) {
+	if !a.calculatorMode {
+		return
+	}
+	if c.Shortcut(ui.Super|ui.Ctrl, ui.KeyD) {
+		a.toggleCalculatorFavorite()
 	}
 }
 
@@ -412,39 +442,106 @@ func (a *App) leaveCommand() {
 	a.Selected, a.chosenRow = 0, -1
 }
 
-// syncCommandMode leaves the mode when the line no longer starts with the
-// word that entered it, which is what deleting it does.
-func (a *App) syncCommandMode() {
-	if a.mode == nil && !a.clipboard && !a.browser {
+// syncTypedMode enters a built-in mode when the user types its trigger word
+// followed by a space, as the old build did: the word names the plugin and
+// everything after it is the needle, so `clip foo` is the clipboard mode
+// without a trip through the command list. A bare word stays an ordinary
+// query, which is what makes entering and leaving one keystroke.
+func (a *App) syncTypedMode() {
+	if a.mode != nil || a.clipboard || a.browser || a.calculatorMode {
 		return
 	}
-	word := firstWord(a.Query)
-	want := clipboardWord
-	switch {
-	case a.mode != nil:
-		want = a.mode.Command.ID
-	case a.browser:
-		want = browserWord
+	word, hasRest := modeWord(a.Query)
+	if !hasRest {
+		return
 	}
-	if !strings.EqualFold(word, want) {
-		a.leaveCommand()
-		a.leaveClipboard()
-		a.leaveBrowser()
+	switch {
+	case wordIn(word, clipboardWords):
+		a.enterClipboardWord(a.Query)
+	case wordIn(word, browserWords):
+		a.enterBrowserWord(a.Query)
+	case wordIn(word, calculatorWords):
+		a.enterCalculatorWord(a.Query)
 	}
 }
 
-// clipboardWord and browserWord are what the field starts with in the two
-// modes.
+// modeWord is the query's first word and whether whitespace follows it, the
+// rule every trigger word obeys. Whitespace alone is enough: `clip ` is the
+// mode with an empty needle, and a bare word stays an ordinary query.
+func modeWord(query string) (string, bool) {
+	index := strings.IndexAny(query, " \t")
+	if index <= 0 {
+		return "", false
+	}
+	return strings.ToLower(query[:index]), true
+}
+
+// syncCommandMode leaves the mode when the line no longer starts with the
+// word that entered it, which is what deleting it does.
+func (a *App) syncCommandMode() {
+	if a.mode == nil && !a.clipboard && !a.browser && !a.calculatorMode {
+		return
+	}
+	word := firstWord(a.Query)
+	keep := false
+	switch {
+	case a.mode != nil:
+		keep = strings.EqualFold(word, a.mode.Command.ID)
+	case a.browser:
+		keep = wordIn(word, browserWords)
+	case a.clipboard:
+		keep = wordIn(word, clipboardWords)
+	case a.calculatorMode:
+		keep = wordIn(word, calculatorWords)
+	}
+	if !keep {
+		a.leaveCommand()
+		a.leaveClipboard()
+		a.leaveBrowser()
+		a.leaveCalculator()
+	}
+}
+
+// wordIn reports whether a query's first word is one of a mode's trigger
+// words, so every spelling the old build accepted enters (and stays in) the
+// mode.
+func wordIn(word string, words []string) bool {
+	for _, candidate := range words {
+		if strings.EqualFold(word, candidate) {
+			return true
+		}
+	}
+	return false
+}
+
+// The words the field starts with in the built-in modes; the other spellings
+// enter the same mode (see syncCommandMode).
 const (
 	clipboardWord = "clipboard"
 	browserWord   = "browser"
 )
 
+// clipboardWords and browserWords are the trigger words the old build
+// accepted, so a habit from it still works.
+var (
+	clipboardWords = []string{"clip", "clipboard", "剪贴板", "粘贴板"}
+	browserWords   = []string{"browser", "bookmarks", "bookmark", "history", "浏览器", "书签"}
+)
+
 // enterClipboard starts searching the clipboard history.
 func (a *App) enterClipboard() {
+	a.enterClipboardWord(clipboardWord + " ")
+}
+
+// enterClipboardWord opens the clipboard mode with the field's text, which is
+// either the canonical word (from the command row) or what the user typed (a
+// trigger word and their needle).
+func (a *App) enterClipboardWord(query string) {
 	a.mode = nil
+	a.browser = false
+	a.calculatorMode = false
 	a.clipboard = true
-	a.Query = clipboardWord + " "
+	a.Query = query
 	a.Selected, a.chosenRow = 0, -1
 	a.pendingCaret = true
 }
@@ -580,6 +677,16 @@ func (a *App) activate(results []Item) {
 		a.Hide()
 		return
 	}
+	if a.calculatorMode {
+		if a.Selected >= 0 && a.Selected < len(results) {
+			if run := results[a.Selected].Run; run != nil {
+				run()
+			}
+		}
+		a.leaveCalculator()
+		a.Hide()
+		return
+	}
 	if a.Selected < 0 || a.Selected >= len(results) {
 		return
 	}
@@ -607,10 +714,16 @@ func (a *App) leaveBrowser() {
 
 // enterBrowser starts searching the browsers' history.
 func (a *App) enterBrowser() {
+	a.enterBrowserWord(browserWord + " ")
+}
+
+// enterBrowserWord opens the browser mode with the field's text.
+func (a *App) enterBrowserWord(query string) {
 	a.mode = nil
 	a.clipboard = false
+	a.calculatorMode = false
 	a.browser = true
-	a.Query = browserWord + " "
+	a.Query = query
 	a.Selected, a.chosenRow = 0, -1
 	a.pendingCaret = true
 }

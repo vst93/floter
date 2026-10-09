@@ -1,8 +1,28 @@
 package i18n
 
+import "strconv"
+
 // The custom-shortcut rejection sentence, which names the key and the reason.
 func shortcutsRejectedEN(key, reason string) string {
 	return "Could not bind " + key + ": " + reason
+}
+
+// The calculator's retention windows, as the picker labels them.
+func calculatorRetentionEN(days int) string {
+	if days <= 0 {
+		return "Never expire"
+	}
+	if days == 1 {
+		return "1 day"
+	}
+	return strconv.Itoa(days) + " days"
+}
+
+func calculatorRetentionZH(days int) string {
+	if days <= 0 {
+		return "永不过期"
+	}
+	return strconv.Itoa(days) + " 天"
 }
 
 func shortcutsRejectedZH(key, reason string) string {
@@ -13,27 +33,30 @@ func shortcutsRejectedZH(key, reason string) string {
 // is checked against.
 var en = Copy{
 	Launcher: Launcher{
-		Placeholder:          "Type a command or app name",
-		Label:                "Search",
-		Hint:                 "Type to search",
-		NoResults:            "No results",
-		Clear:                "Clear",
-		Copied:               "Copied",
-		CommandModeHint:      "Enter runs it \u00b7 Tab completes \u00b7 Esc cancels",
-		ResultsLabel:         "Results",
-		CommandSettings:      "Open settings",
-		CommandSettingsHint:  "Appearance, window behaviour and integrations",
-		CommandTerminal:      "Open terminal",
-		CommandTerminalHint:  "Start a shell session",
-		CommandBrowser:       "Browser history",
-		CommandBrowserHint:   "Search history and bookmarks",
-		CommandClipboard:     "Clipboard history",
-		CommandClipboardHint: "Search what you copied",
-		CommandQuit:          "Quit floter",
-		CommandQuitHint:      "Exit the application completely",
-		BrowserTab:           "Open tab",
-		BrowserNoProfile:     "No browser profile was found",
-		ShortcutSettings:     "Cmd+,",
+		Placeholder:              "Type a command or app name",
+		Label:                    "Search",
+		Hint:                     "Type to search",
+		NoResults:                "No results",
+		Clear:                    "Clear",
+		Copied:                   "Copied",
+		CommandModeHint:          "Enter runs it \u00b7 Tab completes \u00b7 Esc cancels",
+		ResultsLabel:             "Results",
+		CommandSettings:          "Open settings",
+		CommandSettingsHint:      "Appearance, window behaviour and integrations",
+		CommandTerminal:          "Open terminal",
+		CommandTerminalHint:      "Start a shell session",
+		CommandBrowser:           "Browser history",
+		CommandBrowserHint:       "Search history and bookmarks",
+		CommandClipboard:         "Clipboard history",
+		CommandClipboardHint:     "Search what you copied",
+		CommandQuit:              "Quit floter",
+		CommandQuitHint:          "Exit the application completely",
+		CalculatorEmpty:          "No calculations yet",
+		CalculatorRecordFailed:   "Could not save the calculation",
+		CalculatorFavoriteFailed: "Could not change the star",
+		BrowserTab:               "Open tab",
+		BrowserNoProfile:         "No browser profile was found",
+		ShortcutSettings:         "Cmd+,",
 
 		MenuView:     "View",
 		MenuLauncher: "Show floter",
@@ -235,6 +258,21 @@ var en = Copy{
 		ClipboardMaxItems:     "History size",
 		ClipboardMaxItemsHint: "How many entries to keep; favourites are never dropped.",
 
+		CalculatorPlugin:         "Calculator",
+		CalculatorPluginHint:     "Remembers what you calculate so the launcher can find it again.",
+		CalculatorMaxItems:       "History size",
+		CalculatorMaxItemsHint:   "How many entries to keep; favourites are never dropped.",
+		CalculatorRetention:      "Keep for",
+		CalculatorRetentionHint:  "How long a calculation is kept; favourites never expire.",
+		CalculatorCopyMode:       "Enter copies",
+		CalculatorCopyModeHint:   "What Enter copies from a history row.",
+		CalculatorRetentionNever: "Never expire",
+		CalculatorRetentionDays:  calculatorRetentionEN,
+		CalculatorCopyModes: []Option{
+			{"full", "Expression and result"},
+			{"result", "Result only"},
+		},
+
 		AboutVersion:      "Version",
 		AboutFramework:    "Framework",
 		AboutScheme:       "Link scheme",
@@ -253,27 +291,30 @@ var en = Copy{
 
 var zh = Copy{
 	Launcher: Launcher{
-		Placeholder:          "输入命令或应用名称",
-		Label:                "搜索",
-		Hint:                 "输入以搜索",
-		NoResults:            "没有匹配项",
-		Clear:                "清除",
-		Copied:               "已复制",
-		CommandModeHint:      "回车运行 \u00b7 Tab 补全 \u00b7 Esc 取消",
-		ResultsLabel:         "结果",
-		CommandSettings:      "打开设置",
-		CommandSettingsHint:  "外观、窗口行为与集成",
-		CommandTerminal:      "打开终端",
-		CommandTerminalHint:  "启动一个 shell 会话",
-		CommandBrowser:       "浏览器历史",
-		CommandBrowserHint:   "搜索历史记录与书签",
-		CommandClipboard:     "剪贴板历史",
-		CommandClipboardHint: "搜索复制过的内容",
-		CommandQuit:          "退出 floter",
-		CommandQuitHint:      "完全退出应用",
-		BrowserTab:           "已打开的标签页",
-		BrowserNoProfile:     "没有找到浏览器配置",
-		ShortcutSettings:     "Cmd+,",
+		Placeholder:              "输入命令或应用名称",
+		Label:                    "搜索",
+		Hint:                     "输入以搜索",
+		NoResults:                "没有匹配项",
+		Clear:                    "清除",
+		Copied:                   "已复制",
+		CommandModeHint:          "回车运行 \u00b7 Tab 补全 \u00b7 Esc 取消",
+		ResultsLabel:             "结果",
+		CommandSettings:          "打开设置",
+		CommandSettingsHint:      "外观、窗口行为与集成",
+		CommandTerminal:          "打开终端",
+		CommandTerminalHint:      "启动一个 shell 会话",
+		CommandBrowser:           "浏览器历史",
+		CommandBrowserHint:       "搜索历史记录与书签",
+		CommandClipboard:         "剪贴板历史",
+		CommandClipboardHint:     "搜索复制过的内容",
+		CommandQuit:              "退出 floter",
+		CommandQuitHint:          "完全退出应用",
+		CalculatorEmpty:          "还没有计算记录",
+		CalculatorRecordFailed:   "无法保存这条计算",
+		CalculatorFavoriteFailed: "无法修改收藏",
+		BrowserTab:               "已打开的标签页",
+		BrowserNoProfile:         "没有找到浏览器配置",
+		ShortcutSettings:         "Cmd+,",
 
 		MenuView:     "视图",
 		MenuLauncher: "显示 floter",
@@ -472,6 +513,21 @@ var zh = Copy{
 		ClipboardEnabled:      "保留剪贴板历史",
 		ClipboardMaxItems:     "历史容量",
 		ClipboardMaxItemsHint: "最多保留多少条；收藏的条目不会被淘汰。",
+
+		CalculatorPlugin:         "计算器",
+		CalculatorPluginHint:     "记住你算过的内容，方便在启动器里再次找到。",
+		CalculatorMaxItems:       "历史容量",
+		CalculatorMaxItemsHint:   "最多保留多少条；收藏的条目不会被淘汰。",
+		CalculatorRetention:      "保留时长",
+		CalculatorRetentionHint:  "计算记录保留多久；收藏的条目不会过期。",
+		CalculatorCopyMode:       "回车复制",
+		CalculatorCopyModeHint:   "回车从历史行复制什么。",
+		CalculatorRetentionNever: "永不过期",
+		CalculatorRetentionDays:  calculatorRetentionZH,
+		CalculatorCopyModes: []Option{
+			{"full", "算式与结果"},
+			{"result", "仅结果"},
+		},
 
 		AboutVersion:      "版本",
 		AboutFramework:    "框架",

@@ -8,6 +8,7 @@ import (
 	"floter/internal/apps"
 	"floter/internal/browser"
 	"floter/internal/calc"
+	"floter/internal/calculator"
 	"floter/internal/clipboard"
 	"floter/internal/extensions"
 )
@@ -44,6 +45,8 @@ type Item struct {
 	// the URL, Enter opens the page or focuses the tab.
 	web *browser.Result
 	tab *browser.Tab
+	// calc is the calculator history row the item shows, when it is one.
+	calc *calculator.Entry
 }
 
 // commands is the built-in command list, labeled in the launcher's language.
@@ -74,6 +77,12 @@ func (a *App) commands() []Item {
 			Title:  c.CommandClipboard,
 			Detail: c.CommandClipboardHint,
 			Run:    a.enterClipboard,
+		},
+		{
+			ID:     "calculator",
+			Title:  c.CommandCalculator,
+			Detail: c.CommandCalculatorHint,
+			Run:    a.enterCalculator,
 		},
 		{
 			ID:     "quit",
@@ -410,6 +419,9 @@ func (a *App) Results() []Item {
 	}
 	if a.browser {
 		return a.browserItems()
+	}
+	if a.calculatorMode {
+		return a.calculatorItems()
 	}
 	var out []Item
 	if item, ok := a.calculator(); ok {

@@ -110,6 +110,11 @@ settings 读取子集（保未知键）、glass 映射、单窗口三表面（�
   系统拒绝时如实报告；新 `internal/spawn` 统一「启动即忘」的程序启动（浏览器/静默命令/终端模拟器）；
   Shortcuts 页可录制、改动作、移除。
 
+**P4-l 计算器插件**（本轮）
+- `internal/calculator`（fold 去重 + 收藏豁免 + 写时淘汰 + 原子写）、`calculator_plugin` 设置块、
+  启动器计算器模式（触发词直接进入、算式求值入库、历史复制/收藏/过滤）、设置页计算器卡片。
+- 内置模式现在支持「输入触发词直接进入」（clip/browser/calc，含旧版中文词与 `=`）。
+
 ## 尚未做（按建议优先级）
 
 1. **终端会话快照/恢复**：`plugins/terminal` 的 `Snapshot()` 可把回滚+屏幕+光标序列化；旧版 `session_restore.rs` 是「工具会话 reattach」语义（本机无集成使用）。Sessions 页目前只能列出/关闭当前会话。
@@ -117,6 +122,8 @@ settings 读取子集（保未知键）、glass 映射、单窗口三表面（�
 3. **浏览器插件剩余**：Safari 的 `Bookmarks.plist`（二进制 plist，Go 标准库不支持）；排序/目标/
    搜索范围/标签页已接线（见 P4-j）。
 4. **扩展剩余**：orphan 的接管/删除、权限审计抽屉、导入/导出（sync）、后台运行与输出回看（旧版 run.rs 的 capture 通道）、完成提示。命令级开关已完成。
+4b. **剪贴板模式的收藏与删除**：旧版有 `⌘D` 收藏与 `⌘⌫` 删除（含收藏豁免容量）；Go 版目前是
+   Tab 钉住 + Enter 复制，收藏/删除尚未接线（计算器模式已具备同款键位，可直接照搬）。
 5. **系统通知**：长任务完成时通知（`mygo.NewNotification`，需打包应用）。
 6. **P5 打磨**：动效（转场/按压）、无障碍（行 role、announcement）、性能对照（官方数字：原生 UI ~44MB 内存 / ~7MB 二进制）。
 7. **P6 发布链**：预发布通道、签名/公证（`mygo.json` 的 `macos.sign`）、Linux/Windows 打包产物验证、删除旧 CI。

@@ -244,7 +244,7 @@ func TestShortcutsPage(t *testing.T) {
 	if !tt.HasText("Record") {
 		t.Errorf("the recorder is missing: %q", tt.Texts())
 	}
-	if !tt.HasText("More shortcuts arrive with the system integration.") {
+	if !tt.HasText("The global keys floter answers, and the ones you bind yourself.") {
 		t.Errorf("the hint did not show: %q", tt.Texts())
 	}
 }
@@ -811,5 +811,54 @@ func TestCustomShortcutsPage(t *testing.T) {
 	tt.Frame()
 	if !tt.HasText("Could not bind Cmd+J: taken") {
 		t.Errorf("the rejection is missing: %q", tt.Texts())
+	}
+}
+
+// The Plugins page carries the calculator's card and writes its three fields
+// through the store.
+func TestCalculatorCardWritesThrough(t *testing.T) {
+	store := newStore(t)
+	a := New(store, Actions{})
+	tt := render(t, a, 720, 640)
+	if err := tt.Click("Plugins"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	tt.Scroll(400, 300, 0, 900)
+	tt.Frame()
+	for _, want := range []string{"Calculator", "History size", "Keep for", "Enter copies"} {
+		if !tt.HasText(want) {
+			t.Errorf("missing %q in %q", want, tt.Texts())
+		}
+	}
+
+	// The copy mode is a segmented choice, so it writes on click.
+	if err := tt.Click("Result only"); err != nil {
+		t.Fatalf("copy mode: %v", err)
+	}
+	tt.Frame()
+	if plugin := settings.CalculatorPluginOf(store.Snapshot()); plugin.CopyMode != settings.CalculatorCopyResult {
+		t.Errorf("copy mode = %q", plugin.CopyMode)
+	}
+
+	// The retention picker opens on its trigger and stores the window.
+	if err := tt.Click("30 days"); err != nil {
+		t.Fatalf("retention trigger: %v", err)
+	}
+	tt.Frame()
+	if err := tt.Click("7 days"); err != nil {
+		t.Fatalf("retention option: %v", err)
+	}
+	tt.Frame()
+	if plugin := settings.CalculatorPluginOf(store.Snapshot()); plugin.RetentionDays != 7 {
+		t.Errorf("retention = %d", plugin.RetentionDays)
+	}
+	// The picker offers every window, including the never-expire one.
+	if err := tt.Click("7 days"); err != nil {
+		t.Fatalf("retention trigger: %v", err)
+	}
+	tt.Frame()
+	if !tt.HasText("Never expire") || !tt.HasText("1 day") {
+		t.Errorf("the windows are missing from the picker: %q", tt.Texts())
 	}
 }

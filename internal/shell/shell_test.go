@@ -1400,3 +1400,49 @@ func TestCustomShortcutsFollowTheStore(t *testing.T) {
 		t.Errorf("an unrelated change churned the shortcuts: %d registered, %d released", registered, unregistered)
 	}
 }
+
+// The calculator history is wired to the store the shell owns: a recorded
+// calculation lands in the file the old build wrote, and a retention change
+// prunes it.
+func TestCalculatorHistoryIsWired(t *testing.T) {
+	root := t.TempDir()
+	store := settings.NewStore(settings.Default())
+	a := New(Options{
+		Store:       store,
+		Paths:       extensions.FromRoot(root),
+		NewTerminal: func(terminal.Options) (*terminal.Terminal, error) { return nil, errors.New("no library in tests") },
+	})
+	if a.Calculator == nil || a.Launcher.Calculator == nil {
+		t.Fatal("the calculator history was not wired")
+	}
+
+	// Recording through the launcher's mode writes the index.
+	a.Launcher.EnterCalculator()
+	a.Launcher.SetQuery("calc 6*7")
+	a.Launcher.ResetQuery()
+	entry, err := a.Calculator.Add("6*7", "42")
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(root, "calculator-history", "index.json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("the index was not written: %v", err)
+	}
+	if !strings.Contains(string(data), "6*7") || !strings.Contains(string(data), entry.ID) {
+		t.Errorf("the index = %s", data)
+	}
+
+	// A settings change re-applies the retention and the copy mode.
+	if err := store.Update(func(s *settings.Settings) {
+		s.SetCalculatorPlugin(settings.CalculatorPlugin{MaxItems: 50, RetentionDays: 0, CopyMode: settings.CalculatorCopyResult})
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if a.Launcher.CopyMode != settings.CalculatorCopyResult {
+		t.Errorf("copy mode = %q", a.Launcher.CopyMode)
+	}
+	if a.Calculator.MaxItems() != 50 || a.Calculator.RetentionDays() != 0 {
+		t.Errorf("retention = %d / %d", a.Calculator.MaxItems(), a.Calculator.RetentionDays())
+	}
+}

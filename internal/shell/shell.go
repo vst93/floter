@@ -28,6 +28,7 @@ import (
 
 	"floter/internal/apps"
 	"floter/internal/browser"
+	"floter/internal/calculator"
 	"floter/internal/clipboard"
 	"floter/internal/extensions"
 	"floter/internal/glassmap"
@@ -199,8 +200,13 @@ type App struct {
 	unregisterShortcut func(string)
 	summonKey          string
 
-	// Clipboard is the clipboard history the launcher searches.
-	Clipboard *clipboard.Store
+	// Clipboard is the clipboard history the launcher searches, and
+	// Calculator its calculation history.
+	Clipboard  *clipboard.Store
+	Calculator *calculator.Store
+	// lastCalculatorPlugin is the calculator block the store was last synced
+	// with.
+	lastCalculatorPlugin settings.CalculatorPlugin
 	// selfCopied is the text the app itself put on the clipboard, which the
 	// watcher must not record again.
 	selfCopied string
@@ -463,6 +469,13 @@ func New(opts Options) *App {
 	a.Launcher.Clipboard = a.Clipboard
 	a.LastClipboardSettings = clipboardState(opts.Store.Snapshot())
 
+	calculatorPlugin := settings.CalculatorPluginOf(opts.Store.Snapshot())
+	a.Calculator = calculator.NewStore(calculator.FromConfigRoot(paths.Root),
+		calculatorPlugin.MaxItems, calculatorPlugin.RetentionDays)
+	a.Launcher.Calculator = a.Calculator
+	a.Launcher.CopyMode = calculatorPlugin.CopyMode
+	a.lastCalculatorPlugin = calculatorPlugin
+
 	a.Settings.Integrations = func() []settingsui.Integration { return a.integrationList() }
 	a.Settings.Sessions = func() []settingsui.Session {
 		if a.Terminal.Term == nil {
@@ -487,6 +500,23 @@ func New(opts Options) *App {
 	}
 	termActions.Pin = a.PinText
 	a.Terminal = terminalui.New(opts.Store, termActions, newTerminal)
+
+	// A settings change that touches the calculator's retention is applied to
+	// its store, so a smaller capacity or a shorter window takes effect now.
+	opts.Store.OnChange(func(s settings.Settings) {
+		plugin := settings.CalculatorPluginOf(s)
+		if plugin == a.lastCalculatorPlugin {
+			return
+		}
+		a.lastCalculatorPlugin = plugin
+		if a.Calculator != nil {
+			_ = a.Calculator.SetRetention(plugin.MaxItems, plugin.RetentionDays)
+		}
+		a.onMain(func() {
+			a.Launcher.CopyMode = plugin.CopyMode
+			a.Launcher.RefreshCalculator()
+		})
+	})
 
 	// A settings change that touches the clipboard history is applied to
 	// the store and the watcher.

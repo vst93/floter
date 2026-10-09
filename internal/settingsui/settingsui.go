@@ -383,6 +383,47 @@ func (a *App) plugins(c *ui.Context, copy i18n.Settings) {
 					})
 				})
 		})
+		a.calculatorCard(c, copy)
+	})
+}
+
+// calculatorCard draws the calculator plugin's block: the capacity, the age
+// window and what Enter copies.
+func (a *App) calculatorCard(c *ui.Context, copy i18n.Settings) {
+	calculator := settings.CalculatorPluginOf(a.Store.Snapshot())
+	retention := make([]i18n.Option, 0, len(settings.CalculatorRetentionDays))
+	for _, days := range settings.CalculatorRetentionDays {
+		retention = append(retention, i18n.Option{ID: fmt.Sprintf("%d", days), Label: copy.CalculatorRetentionDays(days)})
+	}
+	ui.Fieldset(c, copy.CalculatorPlugin, func() {
+		ui.Text(c, copy.CalculatorPluginHint).FontSize(c.Theme().FontSize - 1).TextColor(c.Theme().TextMuted)
+		a.slider(c, copy.CalculatorMaxItems, copy.CalculatorMaxItemsHint, float64(calculator.MaxItems),
+			float64(settings.MinCalculatorMaxItems), float64(settings.MaxCalculatorMaxItems),
+			func(v float64) string { return fmt.Sprintf("%d", int(v)) },
+			func(v float64) {
+				a.setCalculator(func(p *settings.CalculatorPlugin) { p.MaxItems = int(v) })
+			})
+		a.choose(c, copy.CalculatorRetention, copy.CalculatorRetentionHint, retention,
+			fmt.Sprintf("%d", calculator.RetentionDays),
+			func(id string) {
+				days, err := strconv.Atoi(id)
+				if err != nil {
+					return
+				}
+				a.setCalculator(func(p *settings.CalculatorPlugin) { p.RetentionDays = days })
+			})
+		a.pick(c, copy.CalculatorCopyMode, copy.CalculatorCopyModeHint, copy.CalculatorCopyModes,
+			calculator.CopyMode,
+			func(id string) { a.setCalculator(func(p *settings.CalculatorPlugin) { p.CopyMode = id }) })
+	})
+}
+
+// setCalculator writes one change to the calculator plugin's block.
+func (a *App) setCalculator(mutate func(*settings.CalculatorPlugin)) {
+	a.set(func(s *settings.Settings) {
+		plugin := settings.CalculatorPluginOf(*s)
+		mutate(&plugin)
+		s.SetCalculatorPlugin(plugin)
 	})
 }
 
