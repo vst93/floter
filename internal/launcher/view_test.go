@@ -1343,3 +1343,45 @@ func imageNewRGBA(size int) image.Image {
 	}
 	return img
 }
+
+// The first ten rows that can be run answer to the app modifier plus their
+// number, and the badge shows it.
+func TestResultShortcutsRunTheNumberedRow(t *testing.T) {
+	a := testApp()
+	found := make([]apps.App, 0, 12)
+	for i := 0; i < 12; i++ {
+		found = append(found, apps.App{Name: fmt.Sprintf("App %02d", i), Path: fmt.Sprintf("/Applications/App %02d.app", i)})
+	}
+	a.SetApps(found)
+	ran := []string{}
+	a.Actions.OpenApp = func(app apps.App) { ran = append(ran, app.Name) }
+
+	tt := render(t, a)
+	a.Query = "app"
+	tt.Frame()
+	// The numbers are assigned to the rows in view, 1..9 then 0.
+	if got := a.numbers[0]; got != 1 {
+		t.Errorf("the first row's number = %d", got)
+	}
+	if got := a.numbers[9]; got != 0 {
+		t.Errorf("the tenth row's number = %d", got)
+	}
+	if _, ok := a.numbers[10]; ok {
+		t.Errorf("an eleventh row was numbered: %v", a.numbers)
+	}
+	if !tt.HasText("1") {
+		t.Errorf("the badge is missing: %q", tt.Texts())
+	}
+
+	// ⌘2 runs the second row, ⌘0 the tenth.
+	tt.Key(ui.Super|ui.Ctrl, ui.Key2)
+	tt.Frame()
+	if len(ran) != 1 || ran[0] != "App 01" {
+		t.Fatalf("ran %v", ran)
+	}
+	tt.Key(ui.Super|ui.Ctrl, ui.Key0)
+	tt.Frame()
+	if len(ran) != 2 || ran[1] != "App 09" {
+		t.Errorf("ran %v", ran)
+	}
+}

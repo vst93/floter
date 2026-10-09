@@ -2,6 +2,7 @@ package launcher
 
 import (
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -179,6 +180,10 @@ type App struct {
 	// clipboard is set while the clipboard history is searched: the field
 	// holds the mode word and the query, and the list offers entries.
 	clipboard bool
+	// numbers maps a row's index to the number its result shortcut answers
+	// to, recomputed every frame: 1..9 then 0 for the tenth, over the rows
+	// that can be run.
+	numbers map[int]int
 	// icons caches the decoded application icons, by path.
 	icons map[string]*ui.Bitmap
 	// output is the captured output of a background command run, shown in
@@ -231,6 +236,51 @@ func (a *App) appIcon(app apps.App) *ui.Bitmap {
 	return bitmap
 }
 
+// assignNumbers gives the first ten rows that can be run their shortcut
+// number, recomputed each frame: the numbers follow what is on screen, so
+// scrolling renumbers them.
+func (a *App) assignNumbers(results []Item) map[int]int {
+	numbers := map[int]int{}
+	count := 0
+	for i, item := range results {
+		if item.Run == nil {
+			continue
+		}
+		count++
+		if count > 10 {
+			break
+		}
+		// The tenth row answers to 0, as a keyboard's digits end.
+		numbers[i] = count % 10
+	}
+	a.numbers = numbers
+	return numbers
+}
+
+// resultShortcuts runs the row a number names, reporting whether the key was
+// one of them.
+func (a *App) resultShortcuts(c *ui.Context, results []Item) bool {
+	for digit := 0; digit <= 9; digit++ {
+		key := ui.Key0
+		if digit > 0 {
+			key = ui.Key0 + ui.Key(digit)
+		}
+		if !c.Shortcut(ui.Super|ui.Ctrl, key) {
+			continue
+		}
+		for index, number := range a.numbers {
+			if number != digit || index >= len(results) {
+				continue
+			}
+			a.Selected = index
+			a.activate(results)
+			return true
+		}
+		return true
+	}
+	return false
+}
+
 // rowTransition is how a result row appears: a short fade, no movement, so
 // typing feels alive without the list jumping about.
 var rowTransition = ui.ElementTransition{
@@ -238,6 +288,9 @@ var rowTransition = ui.ElementTransition{
 	Colors:   false,
 	Enter:    &ui.Motion{Opacity: 0},
 }
+
+// resultNumber is the badge a row's result shortcut shows.
+func resultNumber(number int) string { return strconv.Itoa(number) }
 
 // copy is the launcher's copy in the stored language.
 func (a *App) copy() i18n.Launcher { return StringsFor(a.settings().Language) }
@@ -326,6 +379,7 @@ func (a *App) View(c *ui.Context) {
 	a.modeShortcuts(c)
 	results := a.Results()
 	a.clampSelection(len(results))
+	a.assignNumbers(results)
 
 	// The field row floats over the list; the list's top padding is the
 	// row plus the edge, so a row scrolls under the field rather than to
@@ -431,6 +485,12 @@ func (a *App) View(c *ui.Context) {
 				a.toast = copy.Copied
 			}
 		}
+		return
+	}
+
+	// The result shortcuts: the app modifier plus a number runs the n-th
+	// row that can be run, as the old build's ⌘1–⌘0 did.
+	if a.resultShortcuts(c, results) {
 		return
 	}
 
@@ -767,6 +827,9 @@ func (a *App) row(c *ui.Context, item Item, i int) {
 				removed = true
 				a.deleteSelectedHistory()
 			}
+		}
+		if number, ok := a.numbers[i]; ok {
+			ui.Text(c, resultNumber(number)).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
 		}
 		if item.Shortcut != "" {
 			ui.Text(c, item.Shortcut).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
