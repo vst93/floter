@@ -24,6 +24,7 @@ import (
 	"floter/internal/extensions"
 	"floter/internal/settings"
 	"floter/internal/shortcuts"
+	"floter/internal/tools"
 )
 
 // render draws one frame of the launcher at the given size and returns the
@@ -1498,5 +1499,65 @@ func TestFilesModeLeavesWithItsWord(t *testing.T) {
 	tt.Frame()
 	if a.InFilesMode() {
 		t.Error("the mode survived losing its word")
+	}
+}
+
+// A tool the catalog knows, which this machine does not have, is offered as an
+// install row whose Enter copies the command — never runs it.
+func TestToolInstallRows(t *testing.T) {
+	a := testApp()
+	states := tools.Look([]string{t.TempDir()}, tools.Platform())
+	a.SetToolCatalog(states)
+	copied := ""
+	ran := 0
+	a.Actions.Copy = func(text string) { copied = text }
+	a.Actions.RunInTerminal = func([]string) { ran++ }
+
+	tt := render(t, a)
+	tt.Type("ripgrep")
+	tt.Frame()
+	if !tt.HasText("Install ripgrep") {
+		t.Fatalf("the install row is missing: %q", tt.Texts())
+	}
+	// The row shows the command it would copy, and the manager it is for.
+	if !tt.HasText("cargo install ripgrep") && !tt.HasText("sudo apt install ripgrep") &&
+		!tt.HasText("brew install ripgrep") && !tt.HasText("sudo pacman -S ripgrep") {
+		t.Errorf("the command is missing: %q", tt.Texts())
+	}
+	// A Chinese keyword finds the tool too.
+	a.Query = "搜索"
+	tt.Frame()
+	if !tt.HasText("Install ripgrep") {
+		t.Errorf("a keyword did not find the tool: %q", tt.Texts())
+	}
+
+	// Enter copies the command; nothing runs.
+	a.Query = "ripgrep"
+	tt.Frame()
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if copied == "" || !strings.Contains(copied, "ripgrep") {
+		t.Errorf("copied %q", copied)
+	}
+	if ran != 0 {
+		t.Errorf("an install ran %d times", ran)
+	}
+
+	// An installed tool gets no install row: the PATH command scan covers it.
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "rg"), []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	a.SetToolCatalog(tools.Look([]string{dir}, tools.Platform()))
+	a.Query = "ripgrep"
+	tt.Frame()
+	if tt.HasText("Install ripgrep") {
+		t.Errorf("an installed tool was offered for install: %q", tt.Texts())
+	}
+	// An empty query offers no install rows.
+	a.Query = ""
+	tt.Frame()
+	if tt.HasText("Install ") {
+		t.Errorf("an empty query offered installs: %q", tt.Texts())
 	}
 }

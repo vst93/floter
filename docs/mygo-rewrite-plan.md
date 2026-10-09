@@ -607,6 +607,24 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
   另有 XML 夹具覆盖「没有 URL 的叶子跳过」「没有标题的叶子用 URL」。
 - 这是旧版**没有**的能力（旧版只读 Chromium JSON 与 Firefox places.sqlite），属补齐而非对齐。
 
+### P4-s 工具安装目录与推荐工具接管（已做）
+
+- **`internal/tools`**：旧版 `tool_catalog.rs` 的移植——12 个工具（flameshot / yt-dlp / jq / fd /
+  ripgrep / fzf / bat / eza / tldr / httpie / gh / lazygit）的名称、中文关键词、探测名与**按平台的
+  安装配方**，以及 8 个包管理器（brew/winget/pacman/apt/dnf/npm/cargo/pipx）的探测名与命令语法。
+  规则照旧：**探测是 stat，不是 spawn**（不声称版本）、配方宁缺勿猜（比如 lazygit 没有 apt 配方、
+  Windows 的 eza 走 winget）、`fdfind`/`batcat` 这类发行版改名也算命中。
+- **启动器的安装行**：查询命中某个**尚未安装**的工具时给一行「安装 X」，Detail 是**为该机器选出的**
+  命令（优先用本机已有的包管理器，没有就用该平台的第一条配方）；**回车只复制命令**，绝不执行——
+  旧版的原话是「命令只由用户在自己的 shell 里输入」，那里才有代理、镜像与环境变量。
+  已安装的工具不给安装行：PATH 命令扫描会找到可执行文件本身。
+- **推荐工具接管**：仓库里的参考包移到 `internal/extensions/recommended/v-tools` 并 `go:embed`，
+  Integrations 页列出**尚未安装**的推荐工具，一键「接管」= 落盘 → 走与其他本地工具**完全相同**的
+  安装管线（权限照旧审批、失败照旧通知）；全部装好后该区消失。
+- 未做：旧版的多来源工具清点（dpkg/rpm/pacman/flatpak/snap/nix/brew/注册表/scoop/choco/winget/WSL）
+  ——那套主要用于「已发现工具 → 接管」的列表；Go 侧 PATH 命令扫描 + 本地/npm 安装 + 推荐工具接管
+  覆盖了同一目标的主要路径。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。

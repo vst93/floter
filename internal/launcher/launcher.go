@@ -18,6 +18,7 @@ import (
 	"floter/internal/i18n"
 	"floter/internal/settings"
 	"floter/internal/shortcuts"
+	"floter/internal/tools"
 )
 
 // The launcher's window geometry: a fixed width, and a collapsed height that
@@ -161,6 +162,9 @@ type App struct {
 	// search offers them (the show_commands_in_search setting).
 	Tools     []apps.App
 	ShowTools bool
+	// InstallCatalog is the install catalog's state: the tools floter knows
+	// where to get, and whether this machine has them.
+	InstallCatalog []tools.State
 	// ToolAliases is the user's alias per command name, which a PATH command's
 	// row is matched by as well as by its name.
 	ToolAliases settings.CommandAliases

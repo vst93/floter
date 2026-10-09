@@ -90,6 +90,8 @@ type Actions struct {
 	// picks, and ImportIntegrations applies one they pick.
 	ExportIntegrations func()
 	ImportIntegrations func()
+	// ConnectRecommended installs one of the shipped tool packages.
+	ConnectRecommended func(id string)
 	// CustomShortcuts reports the user-defined global shortcuts, and
 	// SetCustomShortcuts persists a new list and registers it, returning the
 	// keys the system refused.
@@ -171,6 +173,9 @@ type App struct {
 	// Sessions reports the running sessions; nil when the shell has none
 	// (tests).
 	Sessions func() []Session
+	// Recommended reports the shipped tool packages and whether each is
+	// installed; nil when the shell has none (tests).
+	Recommended func() []RecommendedTool
 	// Integrations reports the installed extensions; nil when the shell has
 	// none (tests).
 	Integrations func() []Integration
@@ -506,6 +511,7 @@ func (a *App) integrations(c *ui.Context, copy i18n.Settings) {
 	integrations := a.installedIntegrations()
 	ui.Column(c).FillWidth().Gap(t.Space(0.5)).Children(func() {
 		ui.Text(c, copy.IntegrationsHint).FontSize(t.FontSize).TextColor(t.TextMuted).Padding(0, 0, t.Space(1), 0)
+		a.recommendedRow(c, copy)
 		a.transferRow(c, copy)
 		a.installRow(c, copy)
 		if len(integrations) == 0 {
@@ -516,6 +522,52 @@ func (a *App) integrations(c *ui.Context, copy i18n.Settings) {
 		}
 		for _, integration := range integrations {
 			a.integrationRow(c, copy, integration)
+		}
+	})
+}
+
+// RecommendedTool is one shipped package, as the page lists it.
+type RecommendedTool struct {
+	ID          string
+	Name        string
+	Description string
+	// Installed is true when the inventory already has it.
+	Installed bool
+}
+
+// recommendedRow lists the shipped tool packages that are not installed yet,
+// each with the one press that installs it. Nothing is shown once everything
+// shipped is installed.
+func (a *App) recommendedRow(c *ui.Context, copy i18n.Settings) {
+	if a.Actions.ConnectRecommended == nil || a.Recommended == nil {
+		return
+	}
+	var pending []RecommendedTool
+	for _, tool := range a.Recommended() {
+		if !tool.Installed {
+			pending = append(pending, tool)
+		}
+	}
+	if len(pending) == 0 {
+		return
+	}
+	t := c.Theme()
+	ui.Fieldset(c, copy.IntegrationsRecommended, func() {
+		ui.Text(c, copy.IntegrationsRecommendedHint).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+		for _, tool := range pending {
+			tool := tool
+			row := ui.Row(c).FillWidth().Gap(t.Space(2)).AlignItems(ui.Center).Padding(t.Space(1), 0)
+			row.Children(func() {
+				ui.Column(c).Grow(1).Children(func() {
+					ui.Text(c, tool.Name).FontSize(t.FontSize)
+					if tool.Description != "" {
+						ui.Text(c, tool.Description).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+					}
+				})
+				if ui.Button(c, copy.IntegrationsConnect).Clicked() {
+					a.Actions.ConnectRecommended(tool.ID)
+				}
+			})
 		}
 	})
 }

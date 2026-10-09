@@ -68,6 +68,16 @@ var (
 	findInterpreter = FindInterpreter
 )
 
+// StubToolLookup replaces the tool lookup for a test, and returns the function
+// that puts it back. It is the seam the tests use to install a package whose
+// toolchain is not on the machine (a fixture executable, or a tool the CI
+// runner does not have).
+func StubToolLookup(lookup func(names ...string) (string, bool)) func() {
+	previous := lookTool
+	lookTool = lookup
+	return func() { lookTool = previous }
+}
+
 // lookToolIn is LookTool over an explicit directory list, so a test can point
 // it at a fixture instead of depending on the machine's PATH.
 func lookToolIn(dirs []string, names ...string) (string, bool) {

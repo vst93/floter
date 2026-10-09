@@ -1080,3 +1080,46 @@ func TestAppShortcutRowsRecord(t *testing.T) {
 		t.Fatalf("recorded %v", recorded)
 	}
 }
+
+// The Integrations page offers the shipped tool packages that are not
+// installed, and hides the section once they all are.
+func TestRecommendedToolsConnect(t *testing.T) {
+	connected := []string{}
+	a := New(newStore(t), Actions{
+		ConnectRecommended: func(id string) { connected = append(connected, id) },
+	})
+	a.Recommended = func() []RecommendedTool {
+		return []RecommendedTool{
+			{ID: "io.github.vst93.v", Name: "V Tools", Description: "Developer tools"},
+			{ID: "other.tool", Name: "Other", Installed: true},
+		}
+	}
+	tt := render(t, a, 720, 620)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !tt.HasText("Recommended tools") || !tt.HasText("V Tools") {
+		t.Fatalf("the recommended section = %q", tt.Texts())
+	}
+	// An installed one is not offered.
+	if tt.HasText("Other") {
+		t.Errorf("an installed tool was offered: %q", tt.Texts())
+	}
+	if err := tt.Click("Connect"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if len(connected) != 1 || connected[0] != "io.github.vst93.v" {
+		t.Errorf("connected %v", connected)
+	}
+
+	// With everything installed the section is gone.
+	a.Recommended = func() []RecommendedTool {
+		return []RecommendedTool{{ID: "io.github.vst93.v", Name: "V Tools", Installed: true}}
+	}
+	tt.Frame()
+	if tt.HasText("Recommended tools") {
+		t.Errorf("the section stayed with nothing to connect: %q", tt.Texts())
+	}
+}

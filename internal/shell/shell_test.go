@@ -34,6 +34,7 @@ import (
 	"floter/internal/launcher"
 	"floter/internal/settings"
 	"floter/internal/settingsui"
+	"floter/internal/tools"
 )
 
 func newApp(t *testing.T) *App {
@@ -1718,4 +1719,101 @@ func TestFileDropOpensTheFilesMode(t *testing.T) {
 		t.Error("an empty drop opened the mode")
 	}
 	b.handleFileDrop(nil)
+}
+
+// The install catalog reaches the launcher from the machine's search path.
+func TestToolCatalogReachesTheLauncher(t *testing.T) {
+	a := newApp(t)
+	a.scanToolCatalog()
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		if len(a.Launcher.InstallCatalog) > 0 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the catalog never reached the launcher")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	byID := map[string]tools.State{}
+	for _, state := range a.Launcher.InstallCatalog {
+		byID[state.ID] = state
+	}
+	if len(byID) != len(tools.Catalog) {
+		t.Errorf("the catalog has %d entries, want %d", len(byID), len(tools.Catalog))
+	}
+	// Detection ran against the real search path, so a tool that is installed
+	// here is marked as such (whichever it is: the assertion is the shape).
+	installed := 0
+	for _, state := range byID {
+		if state.Installed {
+			installed++
+		}
+		if state.Command == "" && len(state.Recipes[tools.Platform()]) > 0 {
+			t.Errorf("%s has recipes but no command: %+v", state.ID, state)
+		}
+	}
+	t.Logf("%d of %d catalog tools are installed on this machine", installed, len(byID))
+}
+
+// The shipped package can be connected from the Integrations page, through the
+// same install pipeline as any local tool.
+func TestConnectRecommendedInstallsTheShippedPackage(t *testing.T) {
+	// The shipped package runs the V toolchain; a fixture stands in for it, so
+	// the test does not depend on the machine having V installed.
+	restore := extensions.StubToolLookup(func(names ...string) (string, bool) {
+		dir := t.TempDir()
+		path := filepath.Join(dir, "tool")
+		if err := os.WriteFile(path, []byte("#!/bin/sh\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		return path, true
+	})
+	defer restore()
+
+	paths := extensions.FromRoot(t.TempDir())
+	if err := paths.Ensure(); err != nil {
+		t.Fatal(err)
+	}
+	notified := [][2]string{}
+	store := settings.NewStore(settings.Default())
+	a := New(Options{
+		Store:                store,
+		Paths:                paths,
+		NewTerminal:          func(terminal.Options) (*terminal.Terminal, error) { return nil, errors.New("no library in tests") },
+		ConfirmPermissions:   func(extensions.PermissionApproval) bool { return true },
+		Notify:               func(title, body string) { notified = append(notified, [2]string{title, body}) },
+		RunSilentCommand:     func(string) error { return nil },
+		OpenExternalTerminal: func() error { return nil },
+	})
+
+	// Before connecting, the page is offered it.
+	list := a.recommendedTools()
+	if len(list) != 1 || list[0].Installed {
+		t.Fatalf("recommended = %+v", list)
+	}
+
+	a.connectRecommended("io.github.vst93.v")
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		if list := a.recommendedTools(); len(list) == 1 && list[0].Installed {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("the connect never landed: %+v", a.recommendedTools())
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	// The package is on disk and in the repository, and the notification says
+	// so.
+	if _, err := os.Stat(filepath.Join(paths.Extensions, "io.github.vst93.v", "floter.extension.json")); err != nil {
+		t.Errorf("the package is missing: %v", err)
+	}
+	integration, ok := a.Integrations.Inventory().WithID("io.github.vst93.v")
+	if !ok || !integration.Entry.Enabled {
+		t.Errorf("integration = %+v", integration)
+	}
+	if len(notified) != 1 || !strings.Contains(notified[0][1], "V Tools") {
+		t.Errorf("notified = %v", notified)
+	}
 }

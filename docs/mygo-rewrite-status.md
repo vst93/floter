@@ -59,6 +59,8 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 | `internal/apps` | 应用扫描（.app/.lnk/.desktop，含 Info.plist 名字与别名、图标）+ PATH 命令扫描 |
 | `internal/plist` | Apple property list 读取（XML 与 bplist00） |
 | `internal/calculator` | 计算器历史（fold 去重、收藏豁免、写时淘汰、原子写） |
+| `internal/tools` | 工具安装目录（12 工具 × 平台配方、8 个包管理器探测） |
+| `internal/drops` | 拖放路径规范化 + shell 引用 |
 | `internal/spawn` | 启动即忘的程序启动（浏览器/静默命令/终端模拟器） |
 | `internal/clipboard` | 剪贴板历史（text/image/files、去重、容量/30 天保留、原子写） |
 | `internal/browser` | 浏览器历史/书签（Chrome/Safari/Firefox，只读 SQLite） |
@@ -111,6 +113,11 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 - `shortcuts` 块（七动作、平台默认、不可解析回落），`shortcuts.Parse/Match` 反解供视图比对；
   数字键随 `select_result` 绑定走，new_command / open_external_terminal 在启动器内生效；
   Shortcuts 页「应用按键」组可逐条录制。
+
+**P4-s 工具安装目录与推荐工具接管**（本轮）
+- `internal/tools`（12 工具 × 平台配方 + 8 包管理器探测与命令语法，探测是 stat）；
+  启动器给未安装的工具一行「安装 X」，回车只复制命令；推荐工具（v-tools，go:embed）在
+  Integrations 页一键接管，走同一条本地安装管线。
 
 ## 尚未做（按建议优先级）
 

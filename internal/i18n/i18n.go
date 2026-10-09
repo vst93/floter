@@ -85,6 +85,8 @@ type Launcher struct {
 	CalculatorEmpty          string
 	CalculatorRecordFailed   string
 	CalculatorFavoriteFailed string
+	// InstallTool names the row that offers a tool's install command.
+	InstallTool func(name string) string
 	// The files mode's three actions and its folder mark.
 	FileOpen     string
 	FileCd       string
@@ -215,6 +217,10 @@ type Settings struct {
 	// not name, and deleting one.
 	IntegrationsAdopt       string
 	IntegrationsPermissions string
+	// The shipped tools a user can connect with one press.
+	IntegrationsRecommended     string
+	IntegrationsRecommendedHint string
+	IntegrationsConnect         string
 	// The export and import of the integration list.
 	IntegrationsExport       string
 	IntegrationsImport       string

@@ -32,6 +32,7 @@ import (
 	"floter/internal/clipboard"
 	"floter/internal/drops"
 	"floter/internal/extensions"
+	"floter/internal/extensions/recommended"
 	"floter/internal/glassmap"
 	"floter/internal/i18n"
 	"floter/internal/launcher"
@@ -39,6 +40,7 @@ import (
 	"floter/internal/settingsui"
 	"floter/internal/shortcuts"
 	"floter/internal/terminalui"
+	"floter/internal/tools"
 	"floter/internal/usage"
 )
 
@@ -491,6 +493,7 @@ func New(opts Options) *App {
 		},
 		CheckForUpdates:    a.checkForUpdates,
 		InstallUpdate:      a.installUpdate,
+		ConnectRecommended: a.connectRecommended,
 		ExportIntegrations: a.exportIntegrations,
 		ImportIntegrations: a.importIntegrations,
 		AdoptIntegration: func(id string) {
@@ -574,6 +577,7 @@ func New(opts Options) *App {
 		}
 	}
 	a.Settings.Integrations = func() []settingsui.Integration { return a.integrationList() }
+	a.Settings.Recommended = a.recommendedTools
 	a.Settings.Sessions = func() []settingsui.Session {
 		if a.Terminal.Term == nil {
 			return nil
@@ -750,6 +754,7 @@ func (a *App) Start() {
 	a.Launcher.FocusSearch()
 	a.scanApps()
 	a.scanTools()
+	a.scanToolCatalog()
 	if a.refreshIntegrations {
 		go a.RefreshIntegrations(context.Background())
 	}
@@ -829,6 +834,16 @@ func (a *App) scanTools() {
 	go func() {
 		found := apps.ScanCommands(apps.CommandDirs())
 		a.onMain(func() { a.Launcher.SetTools(found, true, aliases) })
+	}()
+}
+
+// scanToolCatalog resolves the install catalog against this machine's search
+// path, in the background: detection is a stat scan, and the rows only matter
+// once the launcher is open.
+func (a *App) scanToolCatalog() {
+	go func() {
+		states := tools.Look(extensions.SearchDirectories(), tools.Platform())
+		a.onMain(func() { a.Launcher.SetToolCatalog(states) })
 	}()
 }
 
@@ -1057,6 +1072,48 @@ func (a *App) browserProfileList(customBase string) []browser.Profile {
 	a.browserLoaded, a.browserBase = true, customBase
 	a.browserProfiles = browser.ProfilesIn(home, customBase)
 	return a.browserProfiles
+}
+
+// recommendedTools is the shipped packages and whether the inventory has
+// them, for the Integrations page's connect rows.
+func (a *App) recommendedTools() []settingsui.RecommendedTool {
+	installed := recommended.Installed(a.Integrations.Inventory())
+	out := make([]settingsui.RecommendedTool, 0, len(recommended.Tools))
+	for _, tool := range recommended.Tools {
+		out = append(out, settingsui.RecommendedTool{
+			ID:          tool.ID,
+			Name:        tool.Name,
+			Description: tool.Description,
+			Installed:   installed[tool.ID],
+		})
+	}
+	return out
+}
+
+// connectRecommended installs one of the shipped tool packages: its files are
+// materialized and handed to the same local install every other tool goes
+// through, so its permissions are still reviewed.
+func (a *App) connectRecommended(id string) {
+	go func() {
+		prepared, cleanup, err := recommended.Prepare(a.Paths, id)
+		if err != nil {
+			log.Printf("floter: could not prepare %s: %v", id, err)
+			return
+		}
+		defer cleanup()
+		approved := true
+		if prepared.Approval.NeedsApproval() {
+			approved = a.confirmInstallPermissions(prepared.Approval)
+		}
+		entry, err := prepared.Commit(approved)
+		if err != nil {
+			log.Printf("floter: could not connect %s: %v", id, err)
+			a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationInstallFailed(id) })
+			return
+		}
+		a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationInstalled(entry.Name) })
+		a.RefreshIntegrations(context.Background())
+	}()
 }
 
 // setCommandEnabled records a command's switch and re-hands the launcher its
