@@ -35,6 +35,8 @@ type bundleInfo struct {
 	// Aliases are the extra spellings search may match: the executable, the
 	// identifier's segments, the folder name.
 	Aliases []string
+	// IconPath is the bundle's icon file, empty when it has none.
+	IconPath string
 }
 
 // readBundle reads a bundle's names. A bundle without a readable Info.plist
@@ -63,7 +65,8 @@ func readBundle(path string) bundleInfo {
 	if localized != "" && localized != name {
 		aliases = append(aliases, localized)
 	}
-	return bundleInfo{Name: name, Localized: localized, Aliases: uniqueStrings(aliases)}
+	iconPath := iconFileIn(filepath.Join(path, "Contents", "Resources"), plist.String(info, "CFBundleIconFile"))
+	return bundleInfo{Name: name, Localized: localized, Aliases: uniqueStrings(aliases), IconPath: iconPath}
 }
 
 // resolveBundleNames decides which of the names is the Latin one and which the

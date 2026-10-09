@@ -37,6 +37,11 @@ type App struct {
 	Aliases []string
 	// Path is the bundle, desktop entry or shortcut to open.
 	Path string
+	// Icon is what the entry declares its icon to be (a Linux desktop
+	// entry's `Icon=`), and IconPath the file that resolved to, empty when
+	// the platform names none this build can read.
+	Icon     string
+	IconPath string
 	// Exec, when set, is the program and arguments to run instead of
 	// opening Path: Linux's .desktop Exec, which opening the file itself
 	// would not launch.
@@ -131,6 +136,7 @@ func ScanDarwin(root string) []App {
 			Localized: info.Localized,
 			Aliases:   info.Aliases,
 			Path:      path,
+			IconPath:  info.IconPath,
 		})
 		return false // a bundle holds its own helpers; do not descend
 	})
@@ -166,6 +172,7 @@ func ScanLinux(root string) []App {
 		if !ok {
 			return true
 		}
+		entry.IconPath = desktopIconFile(entry.Icon)
 		out = append(out, entry)
 		return true
 	})
@@ -200,7 +207,7 @@ func ParseDesktopFile(path string) (App, bool) {
 
 	inEntry := false
 	hidden, noDisplay := false, false
-	var name, exec string
+	var name, exec, icon string
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
@@ -227,6 +234,8 @@ func ParseDesktopFile(path string) (App, bool) {
 			}
 		case "Exec":
 			exec = value
+		case "Icon":
+			icon = value
 		case "Hidden":
 			hidden = strings.EqualFold(value, "true")
 		case "NoDisplay":
@@ -240,7 +249,7 @@ func ParseDesktopFile(path string) (App, bool) {
 	if name == "" || len(argv) == 0 || hidden || noDisplay {
 		return App{}, false
 	}
-	return App{Name: name, Path: path, Exec: argv}, true
+	return App{Name: name, Path: path, Exec: argv, Icon: icon}, true
 }
 
 // SplitDesktopExec splits a .desktop Exec value into argv: whitespace

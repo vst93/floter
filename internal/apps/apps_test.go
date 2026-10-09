@@ -1,9 +1,14 @@
 package apps
 
 import (
+	"bytes"
+	"encoding/binary"
+	"image"
+	"image/png"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -222,6 +227,132 @@ func TestBundleNamesFromInfoPlist(t *testing.T) {
 	plain := found["Plain.app"]
 	if plain.Name != "Plain" || plain.Localized != "" {
 		t.Errorf("plain = %+v", plain)
+	}
+}
+
+// An application's icon comes from the bundle's CFBundleIconFile (the largest
+// PNG in its .icns) or, on Linux, from the desktop entry's Icon=.
+func TestIcons(t *testing.T) {
+	// A bundle whose icon is named in Info.plist.
+	root := t.TempDir()
+	bundle := filepath.Join(root, "Iconed.app")
+	write(t, filepath.Join(bundle, "Contents", "Info.plist"), `<?xml version="1.0"?>
+<plist version="1.0"><dict>
+  <key>CFBundleName</key><string>Iconed</string>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
+</dict></plist>`)
+	small := pngBytes(t, 16)
+	large := pngBytes(t, 64)
+	writeBytes(t, filepath.Join(bundle, "Contents", "Resources", "AppIcon.icns"),
+		icnsContainer(t, []icnsEntry{{kind: "icp4", payload: small}, {kind: "ic08", payload: large}}))
+
+	found := ScanDarwin(root)
+	if len(found) != 1 {
+		t.Fatalf("apps = %+v", found)
+	}
+	if !strings.HasSuffix(found[0].IconPath, "AppIcon.icns") {
+		t.Errorf("icon path = %q", found[0].IconPath)
+	}
+	if got := Icon(found[0]); !bytes.Equal(got, large) {
+		t.Errorf("the largest PNG entry was not chosen: %d bytes", len(got))
+	}
+	// The second read is the cache, and returns the same bytes.
+	if got := Icon(found[0]); !bytes.Equal(got, large) {
+		t.Errorf("cached icon = %d bytes", len(got))
+	}
+
+	// A bundle with no icon named falls back to the only .icns it has.
+	other := filepath.Join(root, "Fallback.app")
+	write(t, filepath.Join(other, "Contents", "Info.plist"), `<?xml version="1.0"?><plist version="1.0"><dict/></plist>`)
+	writeBytes(t, filepath.Join(other, "Contents", "Resources", "Whatever.icns"),
+		icnsContainer(t, []icnsEntry{{kind: "ic07", payload: large}}))
+	found = ScanDarwin(root)
+	for _, app := range found {
+		if app.Name == "Fallback" && !strings.HasSuffix(app.IconPath, "Whatever.icns") {
+			t.Errorf("fallback icon path = %q", app.IconPath)
+		}
+	}
+
+	// A desktop entry's Icon= is resolved: an absolute path is used as it is,
+	// and a name is looked for in the icon directories.
+	iconPath := filepath.Join(t.TempDir(), "custom.png")
+	writeBytes(t, iconPath, large)
+	entry := filepath.Join(t.TempDir(), "app.desktop")
+	write(t, entry, "[Desktop Entry]\nType=Application\nName=App\nExec=app\nIcon="+iconPath+"\n")
+	app, ok := ParseDesktopFile(entry)
+	if !ok || app.Icon != iconPath {
+		t.Fatalf("desktop icon = %+v", app)
+	}
+	if got := desktopIconFile(iconPath); got != iconPath {
+		t.Errorf("absolute icon resolved to %q", got)
+	}
+	if got := desktopIconFile("no-such-icon-name-anywhere"); got != "" {
+		t.Errorf("an unknown icon name resolved to %q", got)
+	}
+	if got := desktopIconFile(""); got != "" {
+		t.Errorf("an empty icon name resolved to %q", got)
+	}
+}
+
+// icnsEntry is one entry of the container a test builds.
+type icnsEntry struct {
+	kind    string
+	payload []byte
+}
+
+// icnsContainer builds an .icns file around the given entries.
+func icnsContainer(t *testing.T, entries []icnsEntry) []byte {
+	t.Helper()
+	var body bytes.Buffer
+	for _, entry := range entries {
+		if len(entry.kind) != 4 {
+			t.Fatalf("kind %q is not four bytes", entry.kind)
+		}
+		length := make([]byte, 4)
+		binary.BigEndian.PutUint32(length, uint32(len(entry.payload)+8))
+		body.WriteString(entry.kind)
+		body.Write(length)
+		body.Write(entry.payload)
+	}
+	out := bytes.NewBufferString("icns")
+	total := make([]byte, 4)
+	binary.BigEndian.PutUint32(total, uint32(body.Len()+8))
+	out.Write(total)
+	out.Write(body.Bytes())
+	return out.Bytes()
+}
+
+// pngBytes is a real PNG of the given square size.
+func pngBytes(t *testing.T, size int) []byte {
+	t.Helper()
+	var buffer bytes.Buffer
+	img := image.NewRGBA(image.Rect(0, 0, size, size))
+	if err := png.Encode(&buffer, img); err != nil {
+		t.Fatal(err)
+	}
+	return buffer.Bytes()
+}
+
+func writeBytes(t *testing.T, path string, data []byte) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestICNSRejectsJunk(t *testing.T) {
+	for _, data := range [][]byte{
+		nil,
+		[]byte("not an icon"),
+		[]byte("icns\x00\x00\x00\x08"),
+		[]byte("icns\xff\xff\xff\xff" + "ic07"),
+	} {
+		if got := LargestPNGFromICNS(data); got != nil {
+			t.Errorf("LargestPNGFromICNS(%q) = %d bytes", data, len(got))
+		}
 	}
 }
 

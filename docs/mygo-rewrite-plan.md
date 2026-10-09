@@ -517,6 +517,16 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
   → `Safari`、`apple`），全部进启动器行的 `Search`，所以中英文名字都能搜到。
 - 未做：应用图标（旧版从 `CFBundleIconFile` 取图并在行里画图标；Go 版行还没有图标位）。
 
+### P2-j 应用图标（已做）
+
+- **`internal/apps` 读图标**：macOS 从 `CFBundleIconFile`（缺省取 bundle 里唯一的 `.icns`）读
+  `.icns`，`LargestPNGFromICNS` 取其中**最大的 PNG 条目**（`icp4`…`ic14`；老式原始位图类型跳过，
+  宁可不显示也不显示错的）；Linux 解析 `.desktop` 的 `Icon=`（绝对路径直接用，名字去 hicolor /
+  pixmaps 目录按尺寸找 PNG）。Windows 的 .lnk 图标在 shell 自己的数据库里，本构建不读。
+- **懒读 + 缓存**：`apps.Icon` 只在行真的要画时才读文件（扫描 500 个应用不会读 500 个图标），
+  解出的 `*ui.Bitmap` 在启动器里按路径缓存，重绘是查表。
+- 行布局：有图标的行在标题前画 16DIP 图标（主题 `Space(4)`），其余行不变。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。

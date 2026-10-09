@@ -179,6 +179,8 @@ type App struct {
 	// clipboard is set while the clipboard history is searched: the field
 	// holds the mode word and the query, and the list offers entries.
 	clipboard bool
+	// icons caches the decoded application icons, by path.
+	icons map[string]*ui.Bitmap
 	// output is the captured output of a background command run, shown in
 	// place of the result list; Output keeps its scroll offset.
 	output *OutputView
@@ -208,6 +210,25 @@ type App struct {
 	// Clipboard is the history the launcher searches; nil until the shell
 	// gives it one.
 	Clipboard ClipboardSource
+}
+
+// appIcon decodes an application's icon once and keeps it, so a redraw is a
+// map lookup rather than a file read and a PNG decode.
+func (a *App) appIcon(app apps.App) *ui.Bitmap {
+	if a.icons == nil {
+		a.icons = map[string]*ui.Bitmap{}
+	}
+	if bitmap, ok := a.icons[app.Path]; ok {
+		return bitmap
+	}
+	var bitmap *ui.Bitmap
+	if data := apps.Icon(app); len(data) > 0 {
+		if decoded, err := ui.DecodeBitmap(data); err == nil {
+			bitmap = decoded
+		}
+	}
+	a.icons[app.Path] = bitmap
+	return bitmap
 }
 
 // rowTransition is how a result row appears: a short fade, no movement, so
@@ -730,6 +751,11 @@ func (a *App) row(c *ui.Context, item Item, i int) {
 	// user was not looking at.
 	removed := false
 	row.Children(func() {
+		if item.icon != nil {
+			if bitmap := a.appIcon(*item.icon); bitmap != nil {
+				ui.Image(c, bitmap).Size(t.Space(4), t.Space(4))
+			}
+		}
 		ui.Column(c).Grow(1).Children(func() {
 			ui.Text(c, item.Title).FontSize(t.FontSize).TextColor(t.Text)
 			if item.Detail != "" {

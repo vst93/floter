@@ -47,6 +47,8 @@ type Item struct {
 	tab *browser.Tab
 	// calc is the calculator history row the item shows, when it is one.
 	calc *calculator.Entry
+	// icon is the application the row shows an icon for, when it is one.
+	icon *apps.App
 }
 
 // commands is the built-in command list, labeled in the launcher's language.
@@ -407,6 +409,7 @@ func appItem(app apps.App, run func()) Item {
 		Detail: detail,
 		Search: strings.Join(app.Aliases, " "),
 		Run:    run,
+		icon:   &app,
 	}
 }
 

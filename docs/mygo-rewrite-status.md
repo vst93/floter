@@ -152,6 +152,10 @@ settings 读取子集（保未知键）、glass 映射、单窗口三表面（�
 - 新包 `internal/plist`（XML + bplist00 只读），macOS 应用扫描改读 `Info.plist` 与本地化
   `InfoPlist.strings`：拉丁名可搜、本地化名作标题、identifier 段作别名。
 
+**P2-j 应用图标**（本轮）
+- macOS 读 `.icns`（最大 PNG 条目）、Linux 读 `.desktop` 的 `Icon=`（路径或主题名），
+  懒读 + 解码缓存，行内 16DIP 绘制。
+
 ## 尚未做（按建议优先级）
 
 1. **终端会话快照/恢复**：已完成（P4-n）——快照在关闭/退出时落盘、下次建会话时 Feed 回去；
