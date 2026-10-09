@@ -115,6 +115,9 @@ type Options struct {
 	// ConfirmPermissions approves an install's permissions; nil means the
 	// native dialog, and tests answer for themselves.
 	ConfirmPermissions func(extensions.PermissionApproval) bool
+	// OpenPinned replaces the pinned-window implementation; nil opens the
+	// real window, and tests record what would have been pinned.
+	OpenPinned func(title, text string)
 }
 
 // App is the running application.
@@ -144,6 +147,12 @@ type App struct {
 	// guards it: a check runs off the main thread.
 	diagnoses   map[string]settingsui.Integration
 	diagnosisMu sync.Mutex
+
+	// pins are the pinned-output windows, and openPinned replaces them in
+	// tests.
+	pins       map[*mygo.Window]*pinned
+	pinMu      sync.Mutex
+	openPinned func(title, text string)
 
 	// Clipboard is the clipboard history the launcher searches.
 	Clipboard *clipboard.Store
@@ -227,6 +236,7 @@ func New(opts Options) *App {
 		clipboardInterval:   clipboardPoll,
 		Registry:            opts.Registry,
 		confirmPermissions:  opts.ConfirmPermissions,
+		openPinned:          opts.OpenPinned,
 		appIcon:             storedAppIcon(opts.Store.Snapshot()),
 		lastAppIcon:         storedAppIcon(opts.Store.Snapshot()),
 	}
@@ -257,6 +267,7 @@ func New(opts Options) *App {
 		},
 		RunCommand: a.runCommand,
 		Complete:   a.completeCommand,
+		PinText:    a.PinText,
 	})
 	a.Settings = settingsui.New(opts.Store, settingsui.Actions{
 		Close:               func() { a.Open(SurfaceLauncher) },
@@ -353,6 +364,7 @@ func New(opts Options) *App {
 		},
 		Exit: func(int) { a.onMain(func() { a.Open(SurfaceLauncher) }) },
 	}
+	termActions.Pin = a.PinText
 	a.Terminal = terminalui.New(opts.Store, termActions, newTerminal)
 
 	// A settings change that touches the clipboard history is applied to

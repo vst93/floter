@@ -155,3 +155,36 @@ func TestOptionsFollowTheSettings(t *testing.T) {
 		}
 	}
 }
+
+func TestPinControlCopiesTheSessionText(t *testing.T) {
+	// A session whose text the test supplies, so the control can be used
+	// without a real terminal.
+	pinned := ""
+	pinnedText := ""
+	a := New(newStore(), Actions{
+		Pin: func(title, text string) { pinned, pinnedText = title, text },
+	}, nil)
+	a.Text = func() string { return "line one\nline two" }
+	a.Term = &terminal.Terminal{} // present so the control shows
+	a.Title = "zsh"
+
+	tt := render(t, a, 860, 600)
+	if _, ok := tt.Find("Pin output"); !ok {
+		t.Fatalf("the pin control is missing: %q", tt.Texts())
+	}
+	if err := tt.Click("Pin output"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if pinned != "zsh" || pinnedText != "line one\nline two" {
+		t.Errorf("pinned %q / %q", pinned, pinnedText)
+	}
+}
+
+func TestNoPinControlWithoutASession(t *testing.T) {
+	a := New(newStore(), Actions{Pin: func(string, string) {}}, nil)
+	tt := render(t, a, 860, 600)
+	if _, ok := tt.Find("Pin output"); ok {
+		t.Errorf("the pin control shows with no session: %q", tt.Texts())
+	}
+}

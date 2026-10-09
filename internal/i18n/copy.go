@@ -168,6 +168,7 @@ var en = Copy{
 	},
 	Terminal: Terminal{
 		Title: "Terminal",
+		Pin:   "Pin output",
 		Hint:  "The session has not started yet.",
 		Close: "Close terminal",
 	},
@@ -337,6 +338,7 @@ var zh = Copy{
 	},
 	Terminal: Terminal{
 		Title: "终端",
+		Pin:   "钉住输出",
 		Hint:  "会话尚未启动。",
 		Close: "关闭终端",
 	},

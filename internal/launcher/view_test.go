@@ -351,7 +351,9 @@ func TestDeletingTheCommandLeavesTheMode(t *testing.T) {
 	}
 
 	// The user deletes the command id: the mode goes with it.
-	tt.Type("\b\b\b")
+	for range "jv " {
+		tt.Key(0, ui.KeyBackspace)
+	}
 	tt.Frame()
 	if a.mode != nil {
 		t.Errorf("the mode survived deleting the id: query=%q", a.Query)
@@ -512,5 +514,31 @@ func TestDynamicCompletionsMergeIntoTheCommandMode(t *testing.T) {
 	tt.Frame()
 	if testRuns["cmd:jv"] != 3 {
 		t.Errorf("run recorded %v", testRuns)
+	}
+}
+
+func TestTabPinsAClipboardEntry(t *testing.T) {
+	a, _ := clipboardApp(t)
+	pinnedTitle, pinnedText := "", ""
+	a.Actions.PinText = func(title, text string) { pinnedTitle, pinnedText = title, text }
+	tt := render(t, a)
+
+	tt.Type("clipboard")
+	tt.Frame()
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if !a.clipboard {
+		t.Fatal("the clipboard mode did not open")
+	}
+	tt.Type("secret")
+	tt.Frame()
+	tt.Key(0, ui.KeyTab)
+	tt.Frame()
+	if pinnedText != "second clip with a secret" {
+		t.Errorf("pinned %q / %q", pinnedTitle, pinnedText)
+	}
+	// Tab pins; it does not copy or leave the mode.
+	if testRuns["copy"] != 0 || !a.clipboard {
+		t.Errorf("Tab copied or left the mode: %v clipboard=%v", testRuns, a.clipboard)
 	}
 }

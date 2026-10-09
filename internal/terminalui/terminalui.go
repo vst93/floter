@@ -27,6 +27,8 @@ type Actions struct {
 	// Exit is called when the program ends; the shell returns to the
 	// launcher.
 	Exit func(int)
+	// Pin copies the session's text into a window of its own.
+	Pin func(title, text string)
 }
 
 // App is the terminal surface's state.
@@ -47,6 +49,9 @@ type App struct {
 
 	// Focus is the terminal view's identity, so it keeps the keyboard.
 	Focus ui.Handle
+	// Text is the session's text, for the pin control; nil reads it from
+	// the terminal.
+	Text func() string
 }
 
 // New builds the terminal surface.
@@ -121,6 +126,18 @@ func (a *App) Refresh() {
 
 // FocusTerminal asks for the keyboard focus on the terminal.
 func (a *App) FocusTerminal() { a.Focus.Focus() }
+
+// sessionText is the session's text, from the injected reader or the
+// terminal itself.
+func (a *App) sessionText() string {
+	if a.Text != nil {
+		return a.Text()
+	}
+	if a.Term == nil {
+		return ""
+	}
+	return a.Term.Text()
+}
 
 // Label is the session's name: the title the program set, or the localized
 // default.
@@ -207,6 +224,11 @@ func (a *App) titleRow(c *ui.Context, copy i18n.Terminal) {
 	row := ui.Row(c).FillWidth().Gap(t.Space(1)).AlignItems(ui.Center)
 	row.Children(func() {
 		ui.Text(c, title).FontSize(t.FontSize).Bold().Grow(1)
+		if a.Actions.Pin != nil && a.Term != nil {
+			if ui.Button(c, copy.Pin).Clicked() {
+				a.Actions.Pin(title, a.sessionText())
+			}
+		}
 		if ui.Button(c, "✕").Label(copy.Close).Clicked() && a.Actions.Close != nil {
 			a.Actions.Close()
 		}

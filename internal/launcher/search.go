@@ -33,6 +33,9 @@ type Item struct {
 	// entry is the extension command the row runs, when it is one: Tab
 	// expands it into the argument mode.
 	entry *extensions.CommandEntry
+	// clip is the clipboard entry the row shows, when it is one: Tab pins
+	// its text into a window.
+	clip *clipboard.Entry
 }
 
 // commands is the built-in command list, labeled in the launcher's language.
@@ -115,6 +118,7 @@ func (a *App) clipboardItems() []Item {
 			Title:  entry.Label(),
 			Detail: entry.Time().Format("2006-01-02 15:04"),
 			Run:    func() { a.copyClip(entry) },
+			clip:   &entry,
 		})
 	}
 	return out
@@ -122,6 +126,23 @@ func (a *App) clipboardItems() []Item {
 
 // maxClipboardResults bounds the rows one clipboard search builds.
 const maxClipboardResults = 50
+
+// pinClip shows a clipboard entry's whole text in a window of its own, as
+// the old build's "pin as text window" did.
+func (a *App) pinClip(entry clipboard.Entry) {
+	if a.Actions.PinText == nil {
+		return
+	}
+	title := entry.Label()
+	switch entry.Kind {
+	case clipboard.KindText:
+		a.Actions.PinText(title, entry.Text)
+	case clipboard.KindFiles:
+		a.Actions.PinText(title, strings.Join(entry.Paths, "\n"))
+	default:
+		a.Actions.PinText(title, entry.Label())
+	}
+}
 
 // copyClip puts an entry's text on the clipboard, and reports it.
 func (a *App) copyClip(entry clipboard.Entry) {

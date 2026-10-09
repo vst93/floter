@@ -189,6 +189,9 @@ type Settings struct {
 // Terminal is the terminal surface's copy.
 type Terminal struct {
 	Title string
+	// Pin names the control that copies the session's text into a window
+	// of its own.
+	Pin string
 	// Hint is the empty state shown while no session runs.
 	Hint string
 	// Close names the close control for assistive technology.

@@ -78,6 +78,8 @@ type Actions struct {
 	// far; the shell answers on the main thread. Nil disables dynamic
 	// completion, and the static argument list stands alone.
 	Complete func(entry extensions.CommandEntry, tokens []string, done func([]extensions.Completion))
+	// PinText shows some text in a window of its own.
+	PinText func(title, text string)
 }
 
 // ClipboardSource is the clipboard history the launcher searches.
@@ -112,6 +114,9 @@ type App struct {
 
 	// toast is a message to show on the next frame, set by an action.
 	toast string
+	// pendingCaret puts the caret at the end of the field on the next
+	// build, for text the app set itself.
+	pendingCaret bool
 
 	// mode is the extension command being typed: while it is set, the field
 	// holds the command's argv and the list offers its arguments.
@@ -140,6 +145,7 @@ func (a *App) SetCommands(found []extensions.CommandEntry) { a.Commands = found 
 func (a *App) SetQuery(query string) {
 	a.Query = query
 	a.Selected, a.chosenRow = 0, -1
+	a.pendingCaret = true
 }
 
 // New builds the launcher state over a settings store and the shell's
@@ -210,6 +216,10 @@ func (a *App) View(c *ui.Context) {
 				Label(copy.Label).
 				Placeholder(copy.Placeholder).
 				Grow(1)
+			if a.pendingCaret {
+				field.SetTextSelection(len(a.Query), len(a.Query))
+				a.pendingCaret = false
+			}
 			if field.Changed() {
 				a.Selected = 0
 			}
@@ -266,14 +276,17 @@ func (a *App) View(c *ui.Context) {
 			a.Actions.Dismiss()
 		}
 	}
-	// Tab completes the chosen argument while a command is being typed, and
-	// expands a command row into the argument mode in the search.
+	// Tab completes the chosen argument while a command is being typed,
+	// pins the chosen clipboard entry, and expands a command row into the
+	// argument mode in the search.
 	if c.Shortcut(0, ui.KeyTab) && a.Selected >= 0 && a.Selected < len(results) {
 		item := results[a.Selected]
 		switch {
 		case a.mode != nil && item.complete != "":
 			a.appendWord(item.complete)
-		case a.mode == nil && item.entry != nil:
+		case a.clipboard && item.clip != nil:
+			a.pinClip(*item.clip)
+		case a.mode == nil && !a.clipboard && item.entry != nil:
 			a.enterCommand(*item.entry)
 		}
 	}
@@ -289,6 +302,7 @@ func (a *App) enterCommand(entry extensions.CommandEntry) {
 		a.Query += " "
 	}
 	a.Selected, a.chosenRow = 0, -1
+	a.pendingCaret = true
 }
 
 // leaveCommand returns to the search.
@@ -324,6 +338,7 @@ func (a *App) enterClipboard() {
 	a.clipboard = true
 	a.Query = clipboardWord + " "
 	a.Selected, a.chosenRow = 0, -1
+	a.pendingCaret = true
 }
 
 // leaveClipboard returns to the search.
