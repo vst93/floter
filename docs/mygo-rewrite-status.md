@@ -6,7 +6,12 @@
 
 ## 一句话状态
 
-用 mygo（原生 GPU 自绘 UI + Go）重写的 floter **已经是一个可打包、可运行的完整应用**：单窗口三表面（启动器 / 设置 / 终端）、搜索内核、扩展平台内核、剪贴板、浏览器、系统集成、打包与 CI 全部就位；**测试全绿**（三平台矩阵），macOS 打包产物 16.0 MB（app）/ 4.9 MB（dmg），并已在本机真实数据上验证（旧扩展仓库、剪贴板历史）。**旧的 `src/`（React）与 `src-tauri/`（Rust）已删除**（P6-b），仓库里只有 `cmd/` + `internal/` 的 Go 实现。
+用 mygo（原生 GPU 自绘 UI + Go）重写的 floter **已经是一个可打包、可运行的完整应用**：单窗口三表面
+（启动器 / 设置 / 终端）、搜索内核、扩展平台（含后台运行、列表协议、导入导出、权限审计）、剪贴板、
+浏览器、计算器、系统集成、打包与 CI 全部就位。**286 项测试全绿**，三平台都能构建，Linux 打包
+（可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
+（旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
+含测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -17,8 +22,8 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 194 项
-GOOS=linux go build ./...  && GOOS=windows go build ./...
+go test -count=1 ./...         # 286 项测试
+GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
 go run ./cmd/floter                 # 默认启动器
@@ -26,7 +31,8 @@ FLOTER_OPEN=settings go run ./cmd/floter
 FLOTER_OPEN=terminal go run ./cmd/floter
 
 # 打包（CLI 是 go.mod 里的 tool，无需 npm/bun/node）
-go tool mygo build                  # dist/darwin-arm64/floter.app + .dmg
+go tool mygo build                                  # 本机平台
+go tool mygo build -platform linux/amd64,windows/amd64,darwin/universal
 
 # 可选的真环境测试（会下载/加载原生库）
 FLOTER_TERMINAL_TEST=1 go test ./internal/terminalui      # libghostty-vt 真会话
@@ -50,141 +56,67 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 | `internal/i18n` | en/zh 全量文案（结构化 Copy，缺字段编译期报错）+ 权限名 |
 | `internal/glassmap` | 玻璃档 → 插件材质 + 雾层（以及为什么 blur/饱和没法复刻的记录） |
 | `internal/calc` | 表达式求值（计算器行） |
-| `internal/apps` | 应用扫描（.app/.lnk/.desktop）+ PATH 命令扫描 |
+| `internal/apps` | 应用扫描（.app/.lnk/.desktop，含 Info.plist 名字与别名、图标）+ PATH 命令扫描 |
+| `internal/plist` | Apple property list 读取（XML 与 bplist00） |
+| `internal/calculator` | 计算器历史（fold 去重、收藏豁免、写时淘汰、原子写） |
+| `internal/spawn` | 启动即忘的程序启动（浏览器/静默命令/终端模拟器） |
 | `internal/clipboard` | 剪贴板历史（text/image/files、去重、容量/30 天保留、原子写） |
 | `internal/browser` | 浏览器历史/书签（Chrome/Safari/Firefox，只读 SQLite） |
 | `internal/extensions` | 扩展平台：manifest、仓库（未知键保留的原子读写）、inventory、运行时解析、describe/complete/diagnose 协议、命令模式数据、配置注入、本地/npm 安装、权限审批 |
 | `internal/shortcuts` | 加速键两种拼写的互转与录制 |
 
-## 已完成（分轮，全部已提交并推送）
+## 已完成（按区域）
 
-**P6-b 清理 + 三平台修复**（本轮）
-- 删除旧实现：`src/`、`src-tauri/`、`tests/`、`package*.json`、`node_modules/`、`vite/tsconfig`、
-  `public/`、`packaging/arch`、旧 CI、`docs/phase-reports/`、旧审计文档与截图；旧设计文档移入
-  `docs/archive/`。注释里对已删文件的引用改写成行为描述。
-- README（中英）与 `docs/AGENT-NOTES.md` 重写为纯 mygo 版。
-- 修掉两处只在作者机器成立的断言：浏览器 profile 表（补齐 Windows/Linux + Edge 渠道 + profile
-  排序与显示名 + 自定义 base 目录）与扩展运行时解析（可注入，不依赖机器装了 `v`）。
+**三表面与搜索**（P0–P2）
+- 单窗口三表面（启动器/设置/终端），按壳改尺寸与可调性、失焦隐藏 + 页面驻留、`last_settings_page`。
+- 搜索：应用扫描（macOS 读 `Info.plist` 与本地化名字 + 别名 + 图标、Linux `.desktop`、Windows `.lnk`）、
+  算式求值、PATH 命令（可开关）、最近使用、扩展命令与参数模式、剪贴板/浏览器/计算器三种内置模式
+  （触发词可直接进入，含旧版中文词），结果虚拟化、编号快捷键 ⌘1–⌘0、行图标与 120ms 淡入。
+- 玻璃保真：材质阶梯 + 雾层 + `ScrollEdge`（读源码证伪了「用 glass.Blur 复刻桌面模糊」）。
 
-**P0/P1 地基与三壳**（`6a6d65c`、`281c600`）
-settings 读取子集（保未知键）、glass 映射、单窗口三表面（启动器/设置/终端）、窗口尺寸与聚焦。
+**扩展平台**（P3）
+- 与旧版同一份磁盘布局（`extension-repository.json` 未知键原样保留、包目录、`extension-data`）。
+- manifest / inventory / 运行时解析 / describe·complete·diagnose 协议 / 命令参数模式与动态补全。
+- 配置注入（envVar/argument，口令只进环境）、本地与 npm 安装（semver、SRI、安全解包）、权限审批
+  （批准绑定清单 sha256）、orphan 接管与删除、命令级开关、后台运行与输出回看（含列表协议）、
+  完成通知、权限审计、导入导出（密钥绝不进文件）。
 
-**P2 收尾**（`92da843` … `463f6ab`）
-- 玻璃保真：读源码证伪「用 `glass.Blur` 复刻 10/22/28px」（Blur 读窗口内场景而非桌面），改为材质阶梯 + 雾层 + `ScrollEdge`。
-- 真实搜索：表达式求值 + 三平台应用扫描 + 后台扫描。
-- 终端外观：字号/字体/光标/行距/边距/九档调色板/尺寸接线，可热应用。
-- 设置页成型：三组 General、Sessions/Shortcuts/About 真内容、滚动边缘、`FLOTER_OPEN`。
-- 结果虚拟化；失焦隐藏 + 页面驻留。
+**内置插件与系统集成**（P4）
+- 剪贴板历史（text/image/files、去重、收藏与删除、容量与保留）、计算器历史（fold、收藏豁免、写时淘汰）、
+  浏览器（三平台 profile 表、目标/排序/搜索范围、标签页、自定义目录）。
+- 单实例、`floter://` 深链、托盘（跟随设置）、登录项、应用菜单、全局快捷键与自定义快捷键、
+  终端会话快照与尺寸写回、钉住输出到独立窗口。
 
-**P3 扩展平台**（`5753a2f` … `4244a2f`）
-- 读既有安装：与旧版同一份 `extension-repository.json`，未知键写回不丢；本机 9 集成 / 21 命令解析成功。
-- 命令参数模式（Tab 展开、静态补全、argv 运行）。
-- 配置注入（旧 `config.json` + 密钥 + envVar/argument，口令只进环境）。
-- 本地安装/更新/卸载（staging + 备份 + rename + 原子写仓库 + 审计保留）。
-- npm 安装（semver 子集、registry 客户端、SRI 校验、安全解包）。
-- 权限审批（七权限、两条 host 强制、批准绑定清单 sha256、两阶段安装）。
-- `complete`/`diagnose` 协议 + 动态补全合并。
+**打包与质量**（P5/P6）
+- `go tool mygo build` 三平台产物（macOS .app/.dmg、Linux .deb/tar.gz+install.sh、Windows .exe）；
+  CI 矩阵跑 gofmt/vet/build/test 并打包上传；About 页更新检查（无更新源时如实说明）。
+- 一帧 67–516 µs（headless 基准），二进制 20 MB / 14 MB（stripped），常驻内存 166 MB
+  （同环境 mygo 最小窗口 137 MB）。
 
-**P4 系统集成与内置插件**（`c136945` … `41d1a0f`）
-- 单实例、`floter://` 深链、登录项、托盘、应用菜单（Edit 角色）。
-- 剪贴板历史（text/image/files 捕获、去重、保留、启动器模式、Tab 钉住）。
-- 浏览器历史/书签（只读 SQLite，Chrome/Safari/Firefox，异步搜索）。
-- 钉住输出到独立窗口。
-- 空查询的最近使用（`usage.json`）。
-- PATH 系统命令搜索（`show_commands_in_search`）。
-- 快捷键录制（`hotkey` 写回 + 重新注册）。
+## 最近几轮（详细记录见 plan）
 
-**P6 打包与 CI**（`b25e8d5`）
-- `go tool mygo build` 产出 app + dmg；bundle 内嵌 `libghostty-vt.dylib` 与 `libmygo-sqlite3.dylib`；Info.plist 带 `floter` scheme；AppIcon.icns；应用图标跟随设置。
-- `.github/workflows/go.yml`：三平台 gofmt/vet/build/test + macOS 打包上传产物。
-- 已在 bundle 内验证：移走原生库缓存后终端仍能起（用的是 bundle 里的库）；深链与登录项在 bundle 下不再有「需要 bundle」报错。
-
-**P4-j / P2-h 命令开关、别名与 Plugins 页**（本轮）
-- `plugin_command_switches`（缺省即关闭，设置页每条命令一个开关，门禁启动器行）与
-  `command_aliases`（先到先得的冲突策略，别名与命令名同阶梯打分）。
-- 新设置页 Plugins：浏览器插件（目标/目录/范围/排序/搜索范围/调试端口）与剪贴板（开关/容量）。
-- `show_menubar_icon`、`last_settings_page`、`launch_counts`、三个启动器开关收进类型化访问器。
-
-**P4-k 自定义快捷键**（本轮）
-- `custom_shortcuts`（plugin:/action:/命令行 三类动作，平台感知的按键去重），随设置重注册，
-  系统拒绝时如实报告；新 `internal/spawn` 统一「启动即忘」的程序启动（浏览器/静默命令/终端模拟器）；
-  Shortcuts 页可录制、改动作、移除。
-
-**P4-l 计算器插件**（本轮）
-- `internal/calculator`（fold 去重 + 收藏豁免 + 写时淘汰 + 原子写）、`calculator_plugin` 设置块、
-  启动器计算器模式（触发词直接进入、算式求值入库、历史复制/收藏/过滤）、设置页计算器卡片。
-- 内置模式现在支持「输入触发词直接进入」（clip/browser/calc，含旧版中文词与 `=`）。
-
-**P3-h 后台运行与输出回看**（本轮）
-- manifest `output: background` 路由接线：无 shell 捕获运行（超时/上限/退出码）、启动器输出视图
-  （状态行 + 可滚动等宽文本，Enter 复制 / Esc 关闭）、面板隐藏时的完成系统通知。
-- 未做：列表协议（stdout 为 JSON 数组时渲染成列表）。
-
-**P4-n 终端尺寸写回与会话快照**（本轮）
-- 拖拽停止后写回 `terminal_width`/`terminal_height`（夹到 640×360–2560×1800）。
-- 关闭会话/退出时把 `Snapshot()` 落盘（原子写 0600），下次启动 Feed 回去恢复滚回。
-
-**P3-i orphan 接管与删除**（上一轮）
-- `PrepareAdopt`/`Adopt`（同一套权限门禁、拒绝 id 不一致的包）与 `DeleteOrphan`（拒绝已登记 id），
-  设置页孤儿行给出「接管 / 删除」。
-
-**P5 打磨（动效/无障碍/性能）**（本轮）
-- 结果行 120ms 淡入（item id 为 key，不位移）；a11y 标签审计（图形按钮都有 Label）；
-  i18n 审计（UI 里没有裸文案）。
-- 性能基线：一帧 67–516 µs（headless），二进制 20 MB / 14 MB（stripped），常驻内存 166 MB
-  （同环境 mygo 最小窗口 137 MB，即框架+软件渲染占大头）；基准留在 `go test -bench .`。
-
-**P6-c 发布链**（本轮）
-- CI 打包矩阵（macOS app/dmg、Linux deb/tar.gz、Windows exe），三平台本机验证可离线构建；
-  安装器改为 `mygo build` 自带（删除手写脚本）；About 页更新检查（无更新源时如实说明）。
-- 维护者一次性步骤（签名/公证/更新密钥）已在 README 与计划文档写明。
-
-**P3-j 完成通知与权限审计**（本轮）
-- 安装/接管/卸载/检测完成或失败时（面板隐藏时）发系统通知；通知文案进 i18n。
-- 集成行的权限审计可展开（每条权限的说明 + enforced/declared 标注）。
-
-**P3-k 列表协议**（本轮）
-- stdout 是列表协议（JSON 数组，全有或全无）时画成可选中列表：↑↓ 走可运行行、status 行不可回车、
-  分组名、字形词表、open/copy/insert 三型 action 全部接线；否则仍是文本视图。
-- 未做：分页（cursor/hasMore + 滚动加载）与 ⌘1-⌘0 编号角标。
-
-**P2-i macOS 应用名与别名**（本轮）
-- 新包 `internal/plist`（XML + bplist00 只读），macOS 应用扫描改读 `Info.plist` 与本地化
-  `InfoPlist.strings`：拉丁名可搜、本地化名作标题、identifier 段作别名。
-
-**P2-j 应用图标**（本轮）
-- macOS 读 `.icns`（最大 PNG 条目）、Linux 读 `.desktop` 的 `Icon=`（路径或主题名），
-  懒读 + 解码缓存，行内 16DIP 绘制。
-
-**P3-l 集成导入/导出**（本轮）
-- 旧版 `version: 2` 文档格式；密钥与设备路径按字段分类排除（原始配置读取 + 占位符保留），
-  已安装只合并配置与开关，未安装则用文档携带的 manifest/脚本/descriptor 走同一套安装（权限照旧审批），
-  报告 succeeded/failed/skipped；Integrations 页导出/导入按钮。
-
-**P2-k 结果编号快捷键**（本轮）
-- 前十个可运行结果带编号角标，`⌘/Ctrl+数字`（0 = 第十个）直接运行；编号随视口重算。
+- P2-i macOS 应用名与别名（`internal/plist` 读 XML/bplist00，读 `Info.plist` 与本地化 strings）
+- P2-j 应用图标（macOS `.icns` 最大 PNG 条目、Linux `Icon=`，懒读 + 缓存）
+- P2-k 结果编号快捷键（⌘1–⌘0，随视口重算）
+- P3-h 后台运行与输出回看、P3-i orphan 接管/删除、P3-j 完成通知与权限审计、P3-k 列表协议、P3-l 导入/导出
+- P4-j 命令开关与别名、P4-k 自定义快捷键、P4-l 计算器插件、P4-n 终端尺寸写回与会话快照
+- P5 动效/无障碍/性能基线、P6-c 发布链（CI 矩阵 + 安装器 + 更新检查）
 
 ## 尚未做（按建议优先级）
 
-1. **终端会话快照/恢复**：已完成（P4-n）——快照在关闭/退出时落盘、下次建会话时 Feed 回去；
-   尺寸拖拽写回也已完成。
-2. **i18n 全量对齐**：目前只覆盖实际用到的键（约 200 条），旧 `src/i18n.ts` 有 1700+ 条（含插件页文案）。
-3. **浏览器插件剩余**：Safari 的 `Bookmarks.plist`——查过旧实现，**旧版也没读**（它只解析 Chromium
-   JSON 与 Firefox places.sqlite；`plist` crate 只用于 macOS 的 Info.plist），所以这不是保真缺口，
-   而是一个可选的新能力；现在 `internal/plist` 已经能读二进制 plist，要做时是接一个解析函数。
-   排序/目标/搜索范围/标签页已接线（见 P4-j）。
-4. **扩展剩余**：列表协议的分页（cursor/hasMore + 滚动加载，需要插件重新执行命令拿下一页）；
-   结果编号快捷键已完成（P2-k）。导入/导出已完成（不含旧文档的 `package` 归档字段，见 P3-l）。
-   命令级开关、后台运行与完成通知、orphan 接管/删除、权限审计、列表协议本体已完成。
-4b. **剪贴板模式的 kind 过滤**：旧版六档 chips（全部/收藏/文本/图片/链接/文件，Tab 循环）未接线——
-   Go 版 Tab 已定为钉住；收藏与删除已做（见 P4-m）。
-5. **系统通知**：已完成（P3-h 后台命令、P3-j 安装/卸载/检测）。
-6. **P5 打磨**：已完成（P5 轮）——动效、a11y 标签、性能基线；更细的动效（换壳过渡）受原生窗口
-   尺寸变化限制，不做应用层过渡。
-7. **P6 发布链**：CI 矩阵与安装器已完成；剩下的是一次性维护者动作——`mygo keygen` 生成更新密钥、
-   `mygo.json` 填 `updates` 与 `macos.signingIdentity`/`macos.notarize`、CI 注入私钥、发布产物到
-   GitHub Release（含预发布通道）。
-8. **小项**：终端窗口尺寸拖拽后写回 settings；设置页 General 的「开机自启」在打包应用下的真机验证；`show_menubar_icon` 等未接线的旧设置项。
+1. **列表协议的分页**：`page.cursor`/`hasMore` 与滚动加载（需要带着 cursor 重新执行命令）；旧版还有
+   `⌘1–⌘0` 的编号角标，Go 侧已完成。
+2. **i18n 全量对齐**：UI 包内没有裸文案（已审计），旧 `src/i18n.ts` 的 1700+ 键大部分属于已不存在的
+   页面（插件 iframe 页、剪贴板页、会话页），不为「对齐键数」而搬。
+3. **浏览器插件剩余**：Safari 的 `Bookmarks.plist`——旧版也没读（只解析 Chromium JSON 与 Firefox
+   places.sqlite），属可选新能力；`internal/plist` 已能读二进制 plist，要做时是接一个解析函数。
+4. **Windows 图标**：`.lnk` 的图标在 shell 数据库里，本构建不读（macOS/Linux 已支持）。
+5. **系统通知**：已完成（后台命令、安装/卸载/检测）。
+6. **P5 打磨**：已完成；更细的换壳过渡受原生窗口尺寸变化限制，不做应用层过渡。
+7. **P6 发布链**：剩下的是一次性维护者动作——`mygo keygen` 生成更新密钥、`mygo.json` 填 `updates`
+   与 `macos.signingIdentity`/`macos.notarize`、CI 注入私钥、把产物发到 GitHub Release（含预发布通道）。
+8. **小项**：`launch_counts`（旧版的启动计数）目前只是类型化读写，没有与 `usage.json` 互相导入；
+   开机自启需要在真实打包应用上验证一次；导入导出的权限审批是逐条询问而非一次汇总。
 
 ## 注意事项（踩过的坑）
 
