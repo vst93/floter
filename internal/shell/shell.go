@@ -566,6 +566,13 @@ func New(opts Options) *App {
 	a.Launcher.CopyMode = calculatorPlugin.CopyMode
 	a.lastCalculatorPlugin = calculatorPlugin
 
+	// The launch counts an earlier build kept in the settings file seed this
+	// build's usage history once, so the "most used" list survives the move.
+	if a.Usage.Seed(settings.LaunchCountsOf(opts.Store.Snapshot())) {
+		if err := a.Usage.Save(); err != nil {
+			log.Printf("floter: could not import the launch counts: %v", err)
+		}
+	}
 	a.Settings.Integrations = func() []settingsui.Integration { return a.integrationList() }
 	a.Settings.Sessions = func() []settingsui.Session {
 		if a.Terminal.Term == nil {

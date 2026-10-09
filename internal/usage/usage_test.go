@@ -81,3 +81,46 @@ func TestMissingOrBrokenFile(t *testing.T) {
 		t.Errorf("a store with no path: %v", err)
 	}
 }
+
+// The counts an earlier build kept in the settings file seed this history
+// once, and never overwrite what this build has recorded.
+func TestSeedFromAnEarlierBuild(t *testing.T) {
+	root := t.TempDir()
+	store := Open(root)
+
+	// A fresh history takes the counts over.
+	if !store.Seed(map[string]int{"/Applications/Safari.app": 9, "/Applications/Gone.app": 0, "": 3}) {
+		t.Fatal("Seed reported no change")
+	}
+	if got := store.Count("/Applications/Safari.app"); got != 9 {
+		t.Errorf("seeded count = %d", got)
+	}
+	if got := store.Count("/Applications/Gone.app"); got != 0 {
+		t.Errorf("a zero count was seeded: %d", got)
+	}
+	if err := store.Save(); err != nil {
+		t.Fatal(err)
+	}
+
+	// This build's own record wins over the seed.
+	if err := store.Record("/Applications/Safari.app"); err != nil {
+		t.Fatal(err)
+	}
+	if store.Seed(map[string]int{"/Applications/Safari.app": 100}) {
+		t.Error("Seed overwrote a recorded count")
+	}
+	if got := store.Count("/Applications/Safari.app"); got != 10 {
+		t.Errorf("count after a launch = %d", got)
+	}
+
+	// A new entry from the settings file still lands.
+	if !store.Seed(map[string]int{"/Applications/Editor.app": 4}) {
+		t.Error("a new id was not seeded")
+	}
+	if got := store.Count("/Applications/Editor.app"); got != 4 {
+		t.Errorf("later seed = %d", got)
+	}
+	if store.Seed(nil) {
+		t.Error("an empty map changed something")
+	}
+}

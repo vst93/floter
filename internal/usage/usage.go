@@ -62,6 +62,34 @@ func (s *Store) Record(id string) error {
 	return s.Save()
 }
 
+// Seed fills in the counts an earlier build recorded for ids this history has
+// never seen, and leaves the ones it has alone: the settings file's
+// `launch_counts` is where those builds kept the same information, so a user
+// moving to this build keeps the "most used" list they had. It reports whether
+// anything changed, and does not write: the caller decides when to save.
+func (s *Store) Seed(counts map[string]int) bool {
+	if len(counts) == 0 {
+		return false
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.loadLocked()
+	changed := false
+	for id, count := range counts {
+		if id == "" || count <= 0 {
+			continue
+		}
+		if _, seen := s.records[id]; seen {
+			continue
+		}
+		// No timestamp is known for these: the count is what carries them,
+		// and Top breaks a tie by recency.
+		s.records[id] = Record{Count: count}
+		changed = true
+	}
+	return changed
+}
+
 // Count is how many times an id was launched.
 func (s *Store) Count(id string) int {
 	s.mu.Lock()

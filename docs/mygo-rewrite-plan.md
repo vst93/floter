@@ -578,6 +578,12 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
   唤回键（写 `hotkey` + `shortcuts.toggle_window`）。
 - 设置页 Shortcuts 新增「应用按键」组：每个动作一行（名字 + 当前绑定 + 录制按钮，录制只改该动作）。
 
+### P4-q 旧启动计数的导入（已做）
+
+- 旧版把启动次数放在 `settings.json` 的 `launch_counts` 里；Go 版用 `usage.json`（次数 + 最近时间）。
+  `usage.Store.Seed` 在启动时把**本构建没见过**的 id 按其次数补进来（本构建自己的记录优先、不覆盖），
+  所以「最常使用」的列表不会因为换实现而消失；有变化才写盘。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。
