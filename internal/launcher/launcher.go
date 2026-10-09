@@ -7,6 +7,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/apps"
+	"floter/internal/extensions"
 	"floter/internal/settings"
 )
 
@@ -68,6 +69,8 @@ type Actions struct {
 	Copy func(text string)
 	// OpenApp launches an installed application.
 	OpenApp func(app apps.App)
+	// RunCommand runs an extension's command.
+	RunCommand func(entry extensions.CommandEntry)
 }
 
 // App is the launcher surface's state: the settings store it reads, the
@@ -80,9 +83,11 @@ type App struct {
 	Query    string
 	Selected int
 
-	// Apps is the installed applications the shell scanned, added to the
-	// results once the user types.
-	Apps []apps.App
+	// Apps is the installed applications the shell scanned, and Commands the
+	// enabled extensions' commands; both join the results once the user
+	// types.
+	Apps     []apps.App
+	Commands []extensions.CommandEntry
 
 	// Scroll keeps the result list's place; Search is the field's identity,
 	// for the focus the launcher keeps on it while the surface shows.
@@ -99,6 +104,9 @@ type App struct {
 
 // SetApps replaces the scanned applications.
 func (a *App) SetApps(found []apps.App) { a.Apps = found }
+
+// SetCommands replaces the extensions' commands.
+func (a *App) SetCommands(found []extensions.CommandEntry) { a.Commands = found }
 
 // New builds the launcher state over a settings store and the shell's
 // actions.

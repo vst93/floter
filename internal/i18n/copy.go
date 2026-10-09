@@ -118,6 +118,14 @@ var en = Copy{
 		SessionsClose:   "Close session",
 		SessionsActive:  "The terminal session stays alive in the background.",
 
+		IntegrationsEmpty:   "No integrations are installed.",
+		IntegrationsEnable:  "Enabled",
+		IntegrationsRunning: "Running",
+		IntegrationsOff:     "Disabled",
+		IntegrationsBroken:  "Broken",
+		IntegrationsOrphan:  "Installed on disk, not recorded",
+		IntegrationsHint:    "Integrations are command-line tools floter discovers and runs in the terminal.",
+
 		ShortcutsToggle: "Show / hide floter",
 		ShortcutsHint:   "More shortcuts arrive with the system integration.",
 
@@ -251,6 +259,14 @@ var zh = Copy{
 		SessionsRunning: "运行中",
 		SessionsClose:   "关闭会话",
 		SessionsActive:  "终端会话在后台继续运行。",
+
+		IntegrationsEmpty:   "没有已安装的集成。",
+		IntegrationsEnable:  "启用",
+		IntegrationsRunning: "运行中",
+		IntegrationsOff:     "已停用",
+		IntegrationsBroken:  "已损坏",
+		IntegrationsOrphan:  "磁盘上有包，但没有记录",
+		IntegrationsHint:    "「集成」是 floter 发现并在终端里运行的命令行工具。",
 
 		ShortcutsToggle: "显示 / 隐藏 floter",
 		ShortcutsHint:   "更多快捷键将随系统集成一并到来。",

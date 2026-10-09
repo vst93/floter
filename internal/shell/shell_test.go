@@ -1,16 +1,19 @@
 package shell
 
 import (
+	"context"
 	"errors"
 	"image/png"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
 	"github.com/egoist/mygo/plugins/terminal"
 	"github.com/egoist/mygo/ui"
 
+	"floter/internal/extensions"
 	"floter/internal/launcher"
 	"floter/internal/settings"
 )
@@ -289,5 +292,110 @@ func TestHideOnBlurFollowsTheSetting(t *testing.T) {
 	}
 	if s.HideOnBlur {
 		t.Error("an explicit false did not win")
+	}
+}
+
+// integrationFixture builds an extension root with one enabled integration
+// whose provider is a script that answers describe.
+func integrationFixture(t *testing.T) extensions.Paths {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("the fake provider is a shell script")
+	}
+	dir := t.TempDir()
+	paths := extensions.FromRoot(dir)
+	pkg := filepath.Join(paths.Extensions, "io.github.vst93.v")
+	if err := os.MkdirAll(pkg, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	manifest := `{
+  "schemaVersion": "2.0", "id": "io.github.vst93.v", "name": "V Tools",
+  "description": "Developer tools", "publisher": {"id": "vst93", "name": "vst"},
+  "compatibility": {"floter": ">=0.3.0", "providerProtocol": "^1.0"},
+  "distribution": {"type": "local"},
+  "runtime": {"type": "system", "executableNames": ["v"]},
+  "provider": {"type": "executable", "argsPrefix": ["--floter"]}
+}`
+	if err := os.WriteFile(filepath.Join(pkg, "floter.extension.json"), []byte(manifest), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	executable := filepath.Join(pkg, "v.sh")
+	script := "#!/bin/sh\ncat <<'JSONEOF'\n" + `{
+  "protocolVersion": "1.0",
+  "provider": {"id": "io.github.vst93.v", "name": "V Tools", "version": "0.0.12"},
+  "commands": [{"id": "jv", "name": "JSON Viewer", "description": "View JSON", "execution": {"program": "self", "argsPrefix": ["jv"], "mode": "pty"}}]
+}` + "\nJSONEOF\n"
+	if err := os.WriteFile(executable, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	repository := `{
+  "schemaVersion": 1,
+  "extensions": {
+    "io.github.vst93.v": {
+      "id": "io.github.vst93.v", "name": "V Tools", "publisherName": "vst",
+      "distributionSource": "local", "runtimeOwnership": "system", "providerKind": "executable",
+      "state": "enabled", "enabled": true, "packageVersion": "0.0.12",
+      "manifestPath": "", "executablePath": "` + executable + `", "channel": "stable",
+      "installedAt": 1, "updatedAt": 1
+    }
+  }
+}`
+	if err := os.WriteFile(paths.RepositoryFile, []byte(repository), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return paths
+}
+
+func TestIntegrationsReachTheLauncher(t *testing.T) {
+	paths := integrationFixture(t)
+	a := New(Options{
+		Store:       settings.NewStore(settings.Default()),
+		Paths:       paths,
+		NewTerminal: func(terminal.Options) (*terminal.Terminal, error) { return nil, errors.New("no library in tests") },
+	})
+
+	a.RefreshIntegrations(context.Background())
+	if got := a.Launcher.Commands; len(got) != 1 || got[0].Command.ID != "jv" {
+		t.Fatalf("launcher commands = %+v", got)
+	}
+
+	list := a.integrationList()
+	if len(list) != 1 {
+		t.Fatalf("integrations = %+v", list)
+	}
+	if list[0].Name != "V Tools" || !list[0].Running || !list[0].Enabled || list[0].Publisher != "vst" {
+		t.Errorf("integration = %+v", list[0])
+	}
+
+	// Running the command opens the terminal surface. The injected
+	// constructor fails, so the surface shows the error instead of a
+	// session: the point is that the hand-off happened.
+	a.runCommand(a.Launcher.Commands[0])
+	if a.Surf != SurfaceTerminal {
+		t.Errorf("surface = %v, want terminal", a.Surf)
+	}
+	if a.Terminal.Err == nil {
+		t.Error("the failed session was not recorded")
+	}
+}
+
+func TestIntegrationsToggle(t *testing.T) {
+	paths := integrationFixture(t)
+	a := New(Options{
+		Store:       settings.NewStore(settings.Default()),
+		Paths:       paths,
+		NewTerminal: func(terminal.Options) (*terminal.Terminal, error) { return nil, errors.New("no library in tests") },
+	})
+	a.RefreshIntegrations(context.Background())
+
+	if err := a.Integrations.SetEnabled("io.github.vst93.v", false); err != nil {
+		t.Fatal(err)
+	}
+	a.Launcher.SetCommands(a.Integrations.CommandEntries())
+	if got := a.Launcher.Commands; len(got) != 0 {
+		t.Errorf("a disabled integration still contributes %+v", got)
+	}
+	if list := a.integrationList(); len(list) != 1 || list[0].Enabled {
+		t.Errorf("integrations = %+v", list)
 	}
 }

@@ -8,6 +8,9 @@
 package terminalui
 
 import (
+	"errors"
+	"os"
+
 	"github.com/egoist/mygo/plugins/terminal"
 	"github.com/egoist/mygo/ui"
 
@@ -63,6 +66,44 @@ func (a *App) EnsureSession() {
 		return
 	}
 	a.Term, a.Err = term, nil
+}
+
+// RunCommand ends the current session and starts one that runs argv: how an
+// extension's command is handed to the terminal. dir names the working
+// directory policy the provider asked for ("home", "current", "inherit").
+func (a *App) RunCommand(argv []string, dir string) error {
+	if len(argv) == 0 {
+		return errors.New("terminalui: no command to run")
+	}
+	if a.NewTerminal == nil {
+		return errors.New("terminalui: no terminal available")
+	}
+	a.Close()
+
+	opts := a.options()
+	opts.Command = argv
+	switch dir {
+	case "", "home":
+		// The plugin's default: the user's home directory.
+	case "current", "inherit":
+		// The app's own directory; a session's cwd is not tracked here.
+		if wd, err := os.Getwd(); err == nil {
+			opts.Dir = wd
+		}
+	default:
+		if wd, err := os.Getwd(); err == nil {
+			opts.Dir = wd
+		}
+	}
+
+	term, err := a.NewTerminal(opts)
+	if err != nil {
+		a.Err = err
+		return err
+	}
+	a.Term, a.Err = term, nil
+	a.FocusTerminal()
+	return nil
 }
 
 // Refresh applies the appearance settings to a running session, for a

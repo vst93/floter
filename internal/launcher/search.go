@@ -6,6 +6,7 @@ import (
 
 	"floter/internal/apps"
 	"floter/internal/calc"
+	"floter/internal/extensions"
 )
 
 // Item is one launcher result: a built-in command, an installed
@@ -19,6 +20,9 @@ type Item struct {
 	Detail string
 	// Shortcut is the key label shown at the row's end, if any.
 	Shortcut string
+	// Search is extra text a query matches but the row does not show:
+	// an extension command's aliases and keywords.
+	Search string
 	// Run performs the item.
 	Run func()
 }
@@ -49,6 +53,36 @@ func (a *App) commands() []Item {
 	}
 }
 
+// commandItems is the enabled extensions' commands as result rows.
+func (a *App) commandItems() []Item {
+	out := make([]Item, 0, len(a.Commands))
+	for _, entry := range a.Commands {
+		command := entry.Command
+		detail := command.Description
+		if detail == "" {
+			detail = entry.IntegrationName
+		}
+		search := strings.Join(append(append([]string{}, command.Aliases...), command.Keywords...), " ")
+		if entry.IntegrationName != "" {
+			search += " " + entry.IntegrationName
+		}
+		out = append(out, Item{
+			ID:     "cmd:" + entry.IntegrationID + ":" + command.ID,
+			Title:  command.Name,
+			Detail: detail,
+			Search: search,
+			Run:    func() { a.runCommand(entry) },
+		})
+	}
+	return out
+}
+
+func (a *App) runCommand(entry extensions.CommandEntry) {
+	if a.Actions.RunCommand != nil {
+		a.Actions.RunCommand(entry)
+	}
+}
+
 // appItems is the scanned applications as result rows.
 func (a *App) appItems() []Item {
 	out := make([]Item, 0, len(a.Apps))
@@ -68,10 +102,13 @@ func (a *App) openApp(app apps.App) {
 	}
 }
 
-// Catalog is every item the launcher can show: the built-in commands and
-// the scanned applications.
+// Catalog is every item the launcher can show: the built-in commands, the
+// scanned applications and the extensions' commands.
 func (a *App) Catalog() []Item {
-	return append(a.commands(), a.appItems()...)
+	items := a.commands()
+	items = append(items, a.appItems()...)
+	items = append(items, a.commandItems()...)
+	return items
 }
 
 // Results is what the current query shows. The calculator's answer comes
@@ -180,7 +217,9 @@ func itemScore(item Item, term string) (int, bool) {
 	case strings.Contains(title, term):
 		return 2, true
 	}
-	if strings.Contains(strings.ToLower(item.Detail), term) || strings.Contains(strings.ToLower(item.ID), term) {
+	if strings.Contains(strings.ToLower(item.Detail), term) ||
+		strings.Contains(strings.ToLower(item.ID), term) ||
+		strings.Contains(strings.ToLower(item.Search), term) {
 		return 3, true
 	}
 	return 0, false

@@ -131,8 +131,8 @@ func TestSettingsSidebarRoutesAndEscapeCloses(t *testing.T) {
 	if a.Page != PageIntegrations {
 		t.Fatalf("page = %d, want integrations", a.Page)
 	}
-	if !tt.HasText("This page arrives in a later round.") {
-		t.Errorf("the placeholder did not show: %q", tt.Texts())
+	if !tt.HasText("No integrations are installed.") {
+		t.Errorf("the empty integrations state did not show: %q", tt.Texts())
 	}
 
 	tt.Key(0, ui.KeyEscape)
@@ -341,5 +341,62 @@ func TestResidencyOptions(t *testing.T) {
 	}
 	if _, ok := parseResidency("soon"); ok {
 		t.Error("a non-numeric id parsed")
+	}
+}
+
+func TestIntegrationsPage(t *testing.T) {
+	toggled := ""
+	toggledTo := false
+	a := New(newStore(t), Actions{
+		SetIntegrationEnabled: func(id string, enabled bool) { toggled, toggledTo = id, enabled },
+	})
+	a.Integrations = func() []Integration {
+		return []Integration{
+			{
+				ID: "io.github.vst93.v", Name: "V Tools", Description: "Developer tools",
+				Publisher: "vst", Version: "0.0.12", ToolVersion: "0.0.12",
+				Enabled: true, Running: true,
+			},
+			{
+				ID: "dev.floter.static", Name: "Static Tools", Publisher: "floter",
+				Version: "1.0.0", Enabled: false,
+			},
+			{
+				ID: "bad.tool", Name: "Bad", Enabled: true, Broken: true, Error: "provider exploded",
+			},
+			{ID: "orphan.pkg", Name: "orphan.pkg", Orphan: true},
+		}
+	}
+	tt := render(t, a, 720, 620)
+
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	for _, want := range []string{
+		"V Tools", "vst · 0.0.12 · io.github.vst93.v", "Running",
+		"Static Tools", "Disabled", "Bad", "Broken", "provider exploded",
+		"orphan.pkg", "Installed on disk, not recorded",
+	} {
+		if !tt.HasText(want) {
+			t.Errorf("missing %q in %q", want, tt.Texts())
+		}
+	}
+
+	// The Running row's check box turns the integration off.
+	if err := tt.Click("Enabled"); err != nil {
+		t.Fatalf("the enable check box is missing: %v", err)
+	}
+	tt.Frame()
+	if toggled != "io.github.vst93.v" || toggledTo {
+		t.Errorf("toggled %q to %v", toggled, toggledTo)
+	}
+	// An orphan has no switch: clicking its name does nothing.
+	before := toggled
+	if err := tt.Click("orphan.pkg"); err == nil {
+		tt.Frame()
+	}
+	if toggled != before {
+		t.Errorf("an orphan toggled %q", toggled)
 	}
 }

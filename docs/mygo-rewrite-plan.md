@@ -139,6 +139,29 @@
 - 无插件对位的终端项（滚轮行数、粗体模式、滚动条、选中即复制、安全粘贴）保持未接线。
 - 终端窗口大小尚未在用户拖拽后写回 settings（下次开启仍是上次保存值）。
 
+## P3 进展
+
+### P3-a 扩展内核（已做）
+
+- `internal/extensions`：按旧 Rust 的磁盘布局读同一批文件——`extensions/`、`extension-data/`、`extension-cache/`、权威状态 `extension-repository.json`（schemaVersion 1）、只读的 `tool-lock.json` / `extensions.lock.json`。
+- **Manifest**：`floter.extension.json` 的类型化子集（schemaVersion/id/name/publisher/compatibility/distribution/runtime(系统或脚本)/provider/权限/lifecycle），协议超时缺省 5000/800ms。
+- **Repository**：条目为「类型化字段 + 未知键原样保留」——`probeReport`、`runtimeIntegrity`、`signatureVerified`、审批记录、错误码等旧字段在 enable/disable 写回后一字不丢（有专门测试钉住）；写入是 temp+fsync+rename+目录 fsync 的原子替换。
+- **Inventory**：仓库 × 包目录的联表；包缺失仍列出并带 `ManifestErr`；无仓库记录的包列为 orphan；`Running()`=enabled 且非 broken 且 manifest 可读。
+- **运行时解析**：系统运行时（记录的可执行 → 搜索路径）、脚本运行时（解释器表：node/sh/pwsh+profile/python3.x/ruby/php；go/rust 是编译产物）、`joinWithin` 拒绝越出包的路径。
+- **搜索路径**：进程 PATH（去重）+ macOS 登录 shell 的 `-ilc` PATH（5s 超时、哨兵解析、best-effort）+ Homebrew/`~/.local/bin` 基线，对齐 runtime_path.rs。
+- **Provider 协议**：`describe --protocol 1.0`，带 manifest 环境与超时；`ProviderError` 带退出码与 stderr；`WaitDelay` 保证挂死的 provider 不会拖住应用；`capture` 归一化为 `pty`；static-descriptor 走包内描述文件（拒绝越界）。
+- **Store**：一次 Refresh 完成「仓库 + 各包 manifest + 各启用 provider 的 describe」，读锁外执行；`Commands()` 摊平成启动器可用的 argv 条目；`SetEnabled` 写回仓库并刷新内存，随后后台重新 describe。
+- **接线**：启动器把扩展命令并入搜索结果（名称/描述/别名/关键词/集成名都参与匹配），回车把命令交给终端表面运行（`terminalui.RunCommand` 用 `command + execution.argsPrefix` 组 argv，cwd 策略 home/current/inherit）；设置页 Integrations 列出集成（名称/发布者/版本/状态/错误 + 启用开关），orphan 只展示不可切换。
+
+**真实数据验证**：直接读用户机器上的 `extension-repository.json`——9 个集成、8 个启用、21 条命令，manifest 与 static-descriptor 全部解析成功，脚本运行时（php/node）正确解析出解释器 + provider 脚本路径，仓库文件未被改写；随后真实启动一次应用无报错。
+
+### P3 还未做
+
+- 安装/更新/卸载（graft、事务、journal、回滚）、导入导出、npm 下载与校验。
+- 命令参数模式（进入某条命令后输入参数、静态/动态补全）、`complete`/`diagnose` 操作。
+- 配置注入（host-owned schema → 环境变量/文件、config generation、模板）。
+- 权限审批 UI 与诊断抽屉、orphan 的接管/删除。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。

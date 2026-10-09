@@ -31,7 +31,7 @@ func main() {
 		log.Printf("floter: settings %s", path)
 	}
 
-	app := shell.New(shell.Options{Store: store})
+	app := shell.New(shell.Options{Store: store, RefreshIntegrations: true})
 
 	mygo.App.WhenReady(func() {
 		app.Start()

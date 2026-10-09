@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"floter/internal/apps"
+	"floter/internal/extensions"
 	"floter/internal/settings"
 )
 
@@ -20,6 +21,7 @@ func testApp() *App {
 		Dismiss:      func() { testRuns["dismiss"]++ },
 		Copy:         func(string) { testRuns["copy"]++ },
 		OpenApp:      func(app apps.App) { testRuns["app:"+app.Name]++ },
+		RunCommand:   func(entry extensions.CommandEntry) { testRuns["cmd:"+entry.Command.ID]++ },
 	})
 }
 
@@ -232,5 +234,56 @@ func TestAppsJoinTheSearchOnceTyped(t *testing.T) {
 	a.Query = "app"
 	if got := a.Results(); len(got) < 60 {
 		t.Errorf("Results returned %d rows, want the 60 applications too", len(got))
+	}
+}
+
+func TestExtensionCommandsJoinTheSearch(t *testing.T) {
+	a := testApp()
+	a.SetCommands([]extensions.CommandEntry{{
+		IntegrationID:   "io.github.vst93.v",
+		IntegrationName: "V Tools",
+		ProviderName:    "V Tools",
+		Command: extensions.Command{
+			ID:          "jv",
+			Name:        "JSON Viewer",
+			Description: "View, format and edit JSON",
+			Aliases:     []string{"jsonview"},
+			Keywords:    []string{"pretty"},
+		},
+		Program: "/usr/local/bin/v",
+		Args:    []string{"jv"},
+		Mode:    "pty",
+	}})
+
+	// An empty query shows the commands alone, not a wall of extension
+	// rows.
+	a.Query = ""
+	for _, item := range a.Results() {
+		if item.ID == "cmd:io.github.vst93.v:jv" {
+			t.Error("an extension command showed for an empty query")
+		}
+	}
+
+	// The name, the description, an alias and a keyword all match.
+	for _, query := range []string{"json viewer", "edit json", "jsonview", "pretty", "v tools"} {
+		a.Query = query
+		found := false
+		for _, item := range a.Results() {
+			if item.ID == "cmd:io.github.vst93.v:jv" {
+				found = true
+				if item.Title != "JSON Viewer" || item.Detail != "View, format and edit JSON" {
+					t.Errorf("%q: row = %q / %q", query, item.Title, item.Detail)
+				}
+			}
+		}
+		if !found {
+			t.Errorf("query %q did not match the command: %v", query, ids(a.Results()))
+		}
+	}
+
+	a.Query = "json viewer"
+	a.activate(a.Results())
+	if testRuns["cmd:jv"] != 1 {
+		t.Errorf("running the command recorded %v", testRuns)
 	}
 }

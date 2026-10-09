@@ -9,6 +9,7 @@
 package shell
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"math"
@@ -23,6 +24,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/apps"
+	"floter/internal/extensions"
 	"floter/internal/glassmap"
 	"floter/internal/launcher"
 	"floter/internal/settings"
@@ -91,6 +93,13 @@ type Options struct {
 	// WorkAreaHeight is the primary display's work area, for the settings
 	// panel's cap. Zero means "no cap" (tests, headless runs).
 	WorkAreaHeight float64
+	// Paths is where the extension directories and state live. Zero means
+	// the platform's config directory, discovered in New; tests point it at
+	// a fixture.
+	Paths extensions.Paths
+	// RefreshIntegrations runs the providers when the app starts. Tests set
+	// it to a no-op so no process is spawned.
+	RefreshIntegrations bool
 }
 
 // App is the running application.
@@ -104,6 +113,15 @@ type App struct {
 
 	// Win is the window, created by Start.
 	Win *mygo.Window
+
+	// Integrations is the extension state: the repository, the installed
+	// manifests and the providers' commands.
+	Integrations *extensions.Store
+	// Paths is where the extension directories live.
+	Paths extensions.Paths
+
+	// refreshIntegrations runs the providers at startup.
+	refreshIntegrations bool
 
 	quit     func()
 	workArea float64
@@ -134,12 +152,24 @@ func New(opts Options) *App {
 	if newTerminal == nil {
 		newTerminal = terminal.New
 	}
+	paths := opts.Paths
+	if paths.Root == "" {
+		discovered, err := extensions.DiscoverPaths()
+		if err != nil {
+			log.Printf("floter: no extension directory: %v", err)
+		} else {
+			paths = discovered
+		}
+	}
 	a := &App{
-		Store:    opts.Store,
-		Surf:     SurfaceLauncher,
-		quit:     quit,
-		workArea: opts.WorkAreaHeight,
-		now:      time.Now,
+		Store:               opts.Store,
+		Surf:                SurfaceLauncher,
+		quit:                quit,
+		workArea:            opts.WorkAreaHeight,
+		now:                 time.Now,
+		Paths:               paths,
+		Integrations:        extensions.OpenStore(paths),
+		refreshIntegrations: opts.RefreshIntegrations,
 	}
 	a.Launcher = launcher.New(opts.Store, launcher.Actions{
 		OpenSettings: func() { a.Open(SurfaceSettings) },
@@ -154,10 +184,19 @@ func New(opts Options) *App {
 			}
 			a.Hide()
 		},
+		RunCommand: a.runCommand,
 	})
 	a.Settings = settingsui.New(opts.Store, settingsui.Actions{
 		Close:        func() { a.Open(SurfaceLauncher) },
 		CloseSession: func() { a.Terminal.Close() },
+		SetIntegrationEnabled: func(id string, enabled bool) {
+			if err := a.Integrations.SetEnabled(id, enabled); err != nil {
+				log.Printf("floter: could not change %s: %v", id, err)
+			}
+			// Enabling an integration asks its provider again, in the
+			// background: its commands must appear without a restart.
+			go a.RefreshIntegrations(context.Background())
+		},
 	})
 	a.Settings.About = settingsui.About{
 		Name:         mygo.App.Name(),
@@ -168,6 +207,7 @@ func New(opts Options) *App {
 		RepoURL:      repoURL,
 	}
 	a.Settings.Shortcut = SummonShortcut(opts.Store.Snapshot())
+	a.Settings.Integrations = func() []settingsui.Integration { return a.integrationList() }
 	a.Settings.Sessions = func() []settingsui.Session {
 		if a.Terminal.Term == nil {
 			return nil
@@ -268,6 +308,55 @@ func (a *App) Start() {
 	}
 	a.Launcher.FocusSearch()
 	a.scanApps()
+	if a.refreshIntegrations {
+		go a.RefreshIntegrations(context.Background())
+	}
+}
+
+// RefreshIntegrations reloads the extension state and the providers'
+// commands, then hands them to the launcher. It blocks while providers run,
+// so the app calls it from a goroutine.
+func (a *App) RefreshIntegrations(ctx context.Context) {
+	a.Integrations.Refresh(ctx)
+	a.onMain(func() { a.Launcher.SetCommands(a.Integrations.CommandEntries()) })
+}
+
+// integrationList maps the store's inventory onto the settings list: the
+// repository's record, the manifest's copy, and why a provider failed.
+func (a *App) integrationList() []settingsui.Integration {
+	inventory := a.Integrations.Inventory()
+	out := make([]settingsui.Integration, 0, len(inventory.Integrations))
+	for _, integration := range inventory.Integrations {
+		item := settingsui.Integration{
+			ID:          integration.Entry.ID,
+			Name:        integration.Name,
+			Description: integration.Description,
+			Publisher:   integration.Publisher,
+			Version:     integration.Version,
+			ToolVersion: integration.ToolVersion,
+			Enabled:     integration.Entry.Enabled,
+			Running:     integration.Running(),
+			Broken:      integration.Broken(),
+		}
+		if err := a.Integrations.DescribeError(integration.Entry.ID); err != nil {
+			item.Error = err.Error()
+		}
+		out = append(out, item)
+	}
+	for _, id := range inventory.Orphans {
+		out = append(out, settingsui.Integration{ID: id, Name: id, Orphan: true})
+	}
+	return out
+}
+
+// runCommand runs an extension's command in the terminal surface, as the old
+// app handed a command off to its terminal.
+func (a *App) runCommand(entry extensions.CommandEntry) {
+	argv := append([]string{entry.Program}, entry.Args...)
+	if err := a.Terminal.RunCommand(argv, entry.Dir); err != nil {
+		log.Printf("floter: could not run %s: %v", entry.Command.ID, err)
+	}
+	a.Open(SurfaceTerminal)
 }
 
 // scanApps reads the installed applications in the background and hands

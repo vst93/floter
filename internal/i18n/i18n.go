@@ -134,6 +134,15 @@ type Settings struct {
 	SessionsClose   string
 	SessionsActive  string
 
+	// The Integrations page.
+	IntegrationsEmpty   string
+	IntegrationsEnable  string
+	IntegrationsRunning string
+	IntegrationsOff     string
+	IntegrationsBroken  string
+	IntegrationsOrphan  string
+	IntegrationsHint    string
+
 	// The Shortcuts page.
 	ShortcutsToggle string
 	ShortcutsHint   string

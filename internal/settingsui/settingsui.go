@@ -39,6 +39,27 @@ type Actions struct {
 	// CloseSession ends the running terminal session, from the Sessions
 	// page.
 	CloseSession func()
+	// SetIntegrationEnabled turns an installed extension on or off.
+	SetIntegrationEnabled func(id string, enabled bool)
+}
+
+// Integration is one installed extension, as the Integrations page lists it.
+type Integration struct {
+	ID          string
+	Name        string
+	Description string
+	Publisher   string
+	Version     string
+	ToolVersion string
+
+	Enabled bool
+	// Running means it contributes commands; Broken that its runtime is
+	// unusable; Error why its provider could not be asked.
+	Running bool
+	Broken  bool
+	Error   string
+	// Orphan is a package directory no repository entry names.
+	Orphan bool
 }
 
 // Session is one running session, as the Sessions page shows it.
@@ -67,6 +88,9 @@ type App struct {
 	// Sessions reports the running sessions; nil when the shell has none
 	// (tests).
 	Sessions func() []Session
+	// Integrations reports the installed extensions; nil when the shell has
+	// none (tests).
+	Integrations func() []Integration
 	// Shortcut is the global summon key the shell registered.
 	Shortcut string
 
@@ -167,6 +191,8 @@ func (a *App) body(c *ui.Context, copy i18n.Settings) {
 				a.general(c, copy)
 			case PageSessions:
 				a.sessions(c, copy)
+			case PageIntegrations:
+				a.integrations(c, copy)
 			case PageShortcuts:
 				a.shortcuts(c, copy)
 			case PageAbout:
@@ -214,6 +240,97 @@ func (a *App) sessions(c *ui.Context, copy i18n.Settings) {
 		}
 		ui.Text(c, copy.SessionsActive).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
 	})
+}
+
+// integrations lists the installed extensions, each with its state and a
+// switch.
+func (a *App) integrations(c *ui.Context, copy i18n.Settings) {
+	t := c.Theme()
+	integrations := a.installedIntegrations()
+	ui.Column(c).FillWidth().Gap(t.Space(0.5)).Children(func() {
+		ui.Text(c, copy.IntegrationsHint).FontSize(t.FontSize).TextColor(t.TextMuted).Padding(0, 0, t.Space(1), 0)
+		if len(integrations) == 0 {
+			ui.Column(c).FillWidth().Padding(t.Space(4)).Center().Children(func() {
+				ui.Text(c, copy.IntegrationsEmpty).FontSize(t.FontSize).TextColor(t.TextMuted)
+			})
+			return
+		}
+		for _, integration := range integrations {
+			a.integrationRow(c, copy, integration)
+		}
+	})
+}
+
+// integrationRow is one integration: its identity, its state, and the
+// enable switch.
+func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Integration) {
+	t := c.Theme()
+	row := ui.Row(c).FillWidth().Gap(t.Space(2)).AlignItems(ui.Start).
+		Padding(t.Space(1.5), 0).BorderWidth(0, 0, 1, 0).BorderColor(t.Border)
+	row.Children(func() {
+		ui.Column(c).Grow(1).Gap(t.Space(0.5)).Children(func() {
+			ui.Row(c).Gap(t.Space(1)).AlignItems(ui.Center).Children(func() {
+				ui.Text(c, integration.Name).FontSize(t.FontSize).Bold()
+				ui.Text(c, integration.state(copy)).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+			})
+			if integration.Description != "" {
+				ui.Text(c, integration.Description).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+			}
+			ui.Text(c, integration.identity()).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+			if integration.Error != "" {
+				ui.Text(c, integration.Error).FontSize(t.FontSize - 1).TextColor(t.Danger)
+			}
+		})
+		if !integration.Orphan && a.Actions.SetIntegrationEnabled != nil {
+			on := integration.Enabled
+			changed := false
+			if ui.Checkbox(c, &on, copy.IntegrationsEnable).Changed() {
+				changed = true
+			}
+			if changed {
+				a.Actions.SetIntegrationEnabled(integration.ID, on)
+			}
+		}
+	})
+}
+
+// state is the integration's one-word state.
+func (i Integration) state(copy i18n.Settings) string {
+	switch {
+	case i.Orphan:
+		return copy.IntegrationsOrphan
+	case i.Broken:
+		return copy.IntegrationsBroken
+	case i.Enabled:
+		return copy.IntegrationsRunning
+	default:
+		return copy.IntegrationsOff
+	}
+}
+
+// identity is the publisher and version line.
+func (i Integration) identity() string {
+	parts := []string{}
+	if i.Publisher != "" {
+		parts = append(parts, i.Publisher)
+	}
+	if i.Version != "" {
+		parts = append(parts, i.Version)
+	}
+	if i.ToolVersion != "" && i.ToolVersion != i.Version {
+		parts = append(parts, "tool "+i.ToolVersion)
+	}
+	if i.ID != "" {
+		parts = append(parts, i.ID)
+	}
+	return strings.Join(parts, " · ")
+}
+
+func (a *App) installedIntegrations() []Integration {
+	if a.Integrations == nil {
+		return nil
+	}
+	return a.Integrations()
 }
 
 // shortcuts lists the shortcuts the app answers, with the key each one
