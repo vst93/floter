@@ -11,6 +11,7 @@ package settingsui
 import (
 	"fmt"
 	"math"
+	"strings"
 
 	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
@@ -34,12 +35,39 @@ const (
 type Actions struct {
 	// Close leaves the settings surface (Escape, the close button).
 	Close func()
+	// CloseSession ends the running terminal session, from the Sessions
+	// page.
+	CloseSession func()
+}
+
+// Session is one running session, as the Sessions page shows it.
+type Session struct {
+	Title   string
+	Running bool
+}
+
+// About is what the About page shows: the identity of the build and where
+// its files live.
+type About struct {
+	Name         string
+	Version      string
+	Framework    string
+	Scheme       string
+	SettingsPath string
+	RepoURL      string
 }
 
 // App is the settings surface's state.
 type App struct {
 	Store   *settings.Store
 	Actions Actions
+	About   About
+
+	// Sessions reports the running sessions; nil when the shell has none
+	// (tests).
+	Sessions func() []Session
+	// Shortcut is the global summon key the shell registered.
+	Shortcut string
 
 	// Page is the chosen page, an index into the sidebar.
 	Page int
@@ -128,22 +156,25 @@ func (a *App) body(c *ui.Context, copy i18n.Settings) {
 	p := a.page(a.Page)
 	t := c.Theme()
 
-	if a.Page != PageGeneral {
-		ui.Column(c).Fill().Gap(t.Space(1)).Children(func() {
-			ui.Text(c, p.Hint).FontSize(t.FontSize).TextColor(t.TextMuted)
-			ui.Column(c).Fill().Grow(1).Center().Children(func() {
-				ui.Text(c, copy.PagePlaceholder).FontSize(t.FontSize).TextColor(t.TextMuted)
-			})
-		})
-		return
-	}
-
 	header := t.Space(6)
 	edge := header + t.Space(2)
 	ui.Column(c).Fill().Children(func() {
 		ui.Scroll(c.Key("settings.body")).TrackScroll(&a.Body).Fill().
 			Padding(edge, 0, 0, 0).Children(func() {
-			a.general(c, copy)
+			switch a.Page {
+			case PageGeneral:
+				a.general(c, copy)
+			case PageSessions:
+				a.sessions(c, copy)
+			case PageShortcuts:
+				a.shortcuts(c, copy)
+			case PageAbout:
+				a.about(c, copy)
+			default:
+				ui.Column(c).FillWidth().Padding(t.Space(4)).Center().Children(func() {
+					ui.Text(c, copy.PagePlaceholder).FontSize(t.FontSize).TextColor(t.TextMuted)
+				})
+			}
 		})
 		ui.Box(c).Absolute().Top(0).Left(0).Right(0).Height(edge).PassThrough().
 			Material(glass.ScrollEdge{Background: t.Background})
@@ -152,6 +183,96 @@ func (a *App) body(c *ui.Context, copy i18n.Settings) {
 			ui.Divider(c).Padding(t.Space(0.5), 0)
 		})
 	})
+}
+
+// sessions lists the running terminal sessions.
+func (a *App) sessions(c *ui.Context, copy i18n.Settings) {
+	t := c.Theme()
+	running := a.runningSessions()
+	if len(running) == 0 {
+		ui.Column(c).FillWidth().Padding(t.Space(4)).Center().Children(func() {
+			ui.Text(c, copy.SessionsNone).FontSize(t.FontSize).TextColor(t.TextMuted)
+		})
+		return
+	}
+	ui.Column(c).FillWidth().Gap(t.Space(1)).Padding(t.Space(1), 0).Children(func() {
+		for _, session := range running {
+			row := ui.Row(c).FillWidth().Gap(t.Space(2)).AlignItems(ui.Center).
+				Padding(t.Space(1.5), t.Space(2)).Radius(t.Radius)
+			row.Children(func() {
+				ui.Column(c).Grow(1).Children(func() {
+					ui.Text(c, session.Title).FontSize(t.FontSize)
+					ui.Text(c, copy.SessionsRunning).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+				})
+				if a.Actions.CloseSession != nil {
+					if ui.Button(c, copy.SessionsClose).Clicked() {
+						a.Actions.CloseSession()
+					}
+				}
+			})
+		}
+		ui.Text(c, copy.SessionsActive).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+	})
+}
+
+// shortcuts lists the shortcuts the app answers, with the key each one
+// currently holds.
+func (a *App) shortcuts(c *ui.Context, copy i18n.Settings) {
+	t := c.Theme()
+	ui.Column(c).FillWidth().Gap(t.Space(1)).Children(func() {
+		a.keyValue(c, copy.ShortcutsToggle, a.summonShortcut())
+		ui.Text(c, copy.ShortcutsHint).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+		ui.Column(c).Height(t.Space(2)).Children(func() {})
+	})
+}
+
+// about shows the build's identity and where its files live.
+func (a *App) about(c *ui.Context, copy i18n.Settings) {
+	t := c.Theme()
+	about := a.About
+	ui.Column(c).FillWidth().Gap(t.Space(1)).Children(func() {
+		ui.Text(c, strings.TrimSpace(about.Name+" "+about.Version)).FontSize(t.FontSize + 4).Bold()
+		a.keyValue(c, copy.AboutVersion, about.Version)
+		a.keyValue(c, copy.AboutFramework, about.Framework)
+		a.keyValue(c, copy.AboutScheme, about.Scheme)
+		a.keyValue(c, copy.AboutSettingsFile, about.SettingsPath)
+		if about.RepoURL != "" {
+			ui.Row(c).Gap(t.Space(2)).Children(func() {
+				ui.Text(c, copy.AboutProject).Width(120).TextColor(t.TextMuted).FontSize(t.FontSize)
+				ui.Link(c, about.RepoURL, about.RepoURL).FontSize(t.FontSize)
+			})
+		}
+	})
+}
+
+// keyValue is one labeled line of read-only information: the label in a
+// fixed column, the value beside it, selectable so it can be copied.
+func (a *App) keyValue(c *ui.Context, label, value string) {
+	t := c.Theme()
+	if value == "" {
+		return
+	}
+	ui.Row(c).Gap(t.Space(2)).Children(func() {
+		ui.Text(c, label).Width(120).TextColor(t.TextMuted).FontSize(t.FontSize)
+		ui.Text(c, value).FontSize(t.FontSize).Grow(1).Selectable()
+	})
+}
+
+// runningSessions is what the Sessions page lists.
+func (a *App) runningSessions() []Session {
+	if a.Sessions == nil {
+		return nil
+	}
+	return a.Sessions()
+}
+
+// summonShortcut is the global shortcut the shell registered, or a dash
+// while it is unknown (a test build).
+func (a *App) summonShortcut() string {
+	if a.Shortcut == "" {
+		return "-"
+	}
+	return a.Shortcut
 }
 
 // general is the General page: the settings the loader owns, each a real

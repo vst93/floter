@@ -119,6 +119,23 @@ type Settings struct {
 	Paddings     []Option
 	Palettes     []Option
 
+	// The Sessions page.
+	SessionsNone    string
+	SessionsRunning string
+	SessionsClose   string
+	SessionsActive  string
+
+	// The Shortcuts page.
+	ShortcutsToggle string
+	ShortcutsHint   string
+
+	// The About page.
+	AboutVersion      string
+	AboutFramework    string
+	AboutScheme       string
+	AboutSettingsFile string
+	AboutProject      string
+
 	// Percent renders an opacity value ("47%").
 	Percent func(n uint8) string
 }

@@ -122,12 +122,12 @@ func TestSettingsSidebarRoutesAndEscapeCloses(t *testing.T) {
 	a := New(newStore(t), Actions{Close: func() { closed++ }})
 	tt := render(t, a, 720, 580)
 
-	if err := tt.Click("Sessions"); err != nil {
+	if err := tt.Click("Integrations"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	if a.Page != PageSessions {
-		t.Fatalf("page = %d, want sessions", a.Page)
+	if a.Page != PageIntegrations {
+		t.Fatalf("page = %d, want integrations", a.Page)
 	}
 	if !tt.HasText("This page arrives in a later round.") {
 		t.Errorf("the placeholder did not show: %q", tt.Texts())
@@ -135,7 +135,7 @@ func TestSettingsSidebarRoutesAndEscapeCloses(t *testing.T) {
 
 	tt.Key(0, ui.KeyEscape)
 	tt.Frame()
-	if closed != 1 || a.Page != PageSessions {
+	if closed != 1 || a.Page != PageIntegrations {
 		t.Errorf("Escape closed %d times, page %d", closed, a.Page)
 	}
 }
@@ -192,5 +192,88 @@ func TestTerminalAppearanceControls(t *testing.T) {
 	tt.Frame()
 	if got := store.Snapshot().TerminalTheme; got != "forest" {
 		t.Errorf("palette = %q, want forest", got)
+	}
+}
+
+func TestSessionsPage(t *testing.T) {
+	store := newStore(t)
+	a := New(store, Actions{})
+	tt := render(t, a, 720, 580)
+
+	if err := tt.Click("Sessions"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !tt.HasText("No sessions are running.") {
+		t.Errorf("missing the empty session state: %q", tt.Texts())
+	}
+
+	closed := 0
+	a.Actions.CloseSession = func() { closed++ }
+	a.Sessions = func() []Session {
+		return []Session{{Title: "zsh — floter", Running: true}}
+	}
+	tt.Frame()
+	if !tt.HasText("zsh — floter") || !tt.HasText("Running") {
+		t.Errorf("the session did not show: %q", tt.Texts())
+	}
+	if err := tt.Click("Close session"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if closed != 1 {
+		t.Errorf("close session ran %d times, want 1", closed)
+	}
+}
+
+func TestShortcutsPage(t *testing.T) {
+	a := New(newStore(t), Actions{})
+	a.Shortcut = "Alt+Space"
+	tt := render(t, a, 720, 580)
+
+	if err := tt.Click("Shortcuts"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !tt.HasText("Show / hide floter") || !tt.HasText("Alt+Space") {
+		t.Errorf("the shortcut did not show: %q", tt.Texts())
+	}
+	if !tt.HasText("More shortcuts arrive with the system integration.") {
+		t.Errorf("the hint did not show: %q", tt.Texts())
+	}
+}
+
+func TestAboutPage(t *testing.T) {
+	a := New(newStore(t), Actions{})
+	a.About = About{
+		Name:         "floter",
+		Version:      "0.3.14",
+		Framework:    "mygo 0.3.5",
+		Scheme:       "floter://",
+		SettingsPath: "/Users/v/Library/Application Support/floter/settings.json",
+		RepoURL:      "https://github.com/vst93/floter",
+	}
+	tt := render(t, a, 720, 580)
+
+	if err := tt.Click("About"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	for _, want := range []string{
+		"floter 0.3.14", "0.3.14", "mygo 0.3.5", "floter://",
+		"/Users/v/Library/Application Support/floter/settings.json",
+		"https://github.com/vst93/floter",
+	} {
+		if !tt.HasText(want) {
+			t.Errorf("missing %q in %q", want, tt.Texts())
+		}
+	}
+
+	if err := tt.Click("https://github.com/vst93/floter"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if urls := tt.OpenedURLs(); len(urls) != 1 || urls[0] != "https://github.com/vst93/floter" {
+		t.Errorf("opened URLs = %v", urls)
 	}
 }

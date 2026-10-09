@@ -79,6 +79,15 @@ func (a *App) Refresh() {
 // FocusTerminal asks for the keyboard focus on the terminal.
 func (a *App) FocusTerminal() { a.Focus.Focus() }
 
+// Label is the session's name: the title the program set, or the localized
+// default.
+func (a *App) Label() string {
+	if a.Title != "" {
+		return a.Title
+	}
+	return i18n.For(a.Store.Snapshot().Language).Terminal.Title
+}
+
 // options builds the plugin options from the settings.
 func (a *App) options() terminal.Options {
 	s := a.Store.Snapshot()

@@ -9,8 +9,11 @@
 package shell
 
 import (
+	"encoding/json"
 	"log"
 	"math"
+	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 
@@ -38,6 +41,22 @@ const (
 	SurfaceTerminal
 )
 
+// ParseSurface reads a surface name, for a caller that wants to open one by
+// name (FLOTER_OPEN in cmd/floter, so a smoke test can start on any of the
+// three). The empty string is the launcher.
+func ParseSurface(name string) (Surface, bool) {
+	switch name {
+	case "", "launcher":
+		return SurfaceLauncher, true
+	case "settings":
+		return SurfaceSettings, true
+	case "terminal":
+		return SurfaceTerminal, true
+	default:
+		return SurfaceLauncher, false
+	}
+}
+
 // The window geometry per surface, from the old build: the launcher is the
 // 720-wide collapsed panel, settings is a 720×580 work panel capped to the
 // screen, and the terminal is the 860×600 default (resizable, min 640×360).
@@ -48,6 +67,9 @@ const (
 	// defaultSummonShortcut is DEFAULT_TOGGLE_WINDOW from config.rs: what
 	// the old build registered when the user never changed it.
 	defaultSummonShortcut = "Ctrl+Space"
+
+	// repoURL is where the About page points.
+	repoURL = "https://github.com/vst93/floter"
 )
 
 // Options configures the app.
@@ -120,8 +142,24 @@ func New(opts Options) *App {
 		},
 	})
 	a.Settings = settingsui.New(opts.Store, settingsui.Actions{
-		Close: func() { a.Open(SurfaceLauncher) },
+		Close:        func() { a.Open(SurfaceLauncher) },
+		CloseSession: func() { a.Terminal.Close() },
 	})
+	a.Settings.About = settingsui.About{
+		Name:         mygo.App.Name(),
+		Version:      appVersion(),
+		Framework:    "mygo " + mygo.Version,
+		Scheme:       "floter://",
+		SettingsPath: opts.Store.Path(),
+		RepoURL:      repoURL,
+	}
+	a.Settings.Shortcut = SummonShortcut(opts.Store.Snapshot())
+	a.Settings.Sessions = func() []settingsui.Session {
+		if a.Terminal.Term == nil {
+			return nil
+		}
+		return []settingsui.Session{{Title: a.Terminal.Label(), Running: true}}
+	}
 
 	// The plugin's callbacks run on the terminal's own goroutine, so they
 	// hand the main thread the work of touching the app's state.
@@ -302,6 +340,42 @@ func (a *App) surface(c *ui.Context) {
 	default:
 		a.Launcher.View(c)
 	}
+}
+
+// appVersion is the version shown on the About page: the packaged app's,
+// and, under `go run` and `go test` (where the bundle has none), the one in
+// the project file the CLI builds from, read beside the executable or in
+// the working directory.
+func appVersion() string {
+	if v := mygo.App.Version(); v != "" {
+		return v
+	}
+	candidates := []string{"mygo.json"}
+	if exe, err := os.Executable(); err == nil {
+		candidates = append(candidates, filepath.Join(filepath.Dir(exe), "mygo.json"))
+	}
+	for _, path := range candidates {
+		if v := versionInFile(path); v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+// versionInFile reads the `version` of a project file, empty when it is
+// missing or unreadable.
+func versionInFile(path string) string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	var project struct {
+		Version string `json:"version"`
+	}
+	if err := json.Unmarshal(data, &project); err != nil {
+		return ""
+	}
+	return strings.TrimSpace(project.Version)
 }
 
 // SummonShortcut is the global shortcut that opens the launcher: the user's

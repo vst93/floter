@@ -7,6 +7,7 @@ package main
 
 import (
 	"log"
+	"os"
 
 	"github.com/egoist/mygo"
 
@@ -32,7 +33,21 @@ func main() {
 
 	app := shell.New(shell.Options{Store: store})
 
-	mygo.App.WhenReady(app.Start)
+	mygo.App.WhenReady(func() {
+		app.Start()
+		// FLOTER_OPEN names the surface to start on, for a smoke test that
+		// drives the packaged app: launcher (the default), settings or
+		// terminal.
+		if name := os.Getenv("FLOTER_OPEN"); name != "" {
+			surface, ok := shell.ParseSurface(name)
+			if !ok {
+				log.Printf("floter: unknown FLOTER_OPEN %q", name)
+			}
+			if ok && surface != shell.SurfaceLauncher {
+				app.Open(surface)
+			}
+		}
+	})
 
 	if err := mygo.App.Run(); err != nil {
 		log.Fatal(err)

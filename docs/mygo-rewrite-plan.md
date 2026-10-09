@@ -107,6 +107,15 @@
 - 设置正文改为「提示固定、表单在 Soft 滚动边缘下滚动」，与启动器同一套 `glass.ScrollEdge`。
 - 交互修正：值型控件必须查询 `.Changed()` 才会在同一帧拿到新值（复选框/开关尤其），已按框架约定修正。
 
+### P2-e 设置页其余页面 + 启动壳（已做）
+
+- **Sessions**：列出运行中的终端会话（标题 + 运行中 + 关闭按钮），无会话时给空态；会话由 shell 从 terminal 表面读（`terminalui.Label()` 给本地化标题）。
+- **Shortcuts**：只列真实存在的全局快捷键（唤回收的键，来自 settings 的 `hotkey`），并说明更多快捷键随后续系统集成到来——不给尚未实现的假行。
+- **About**：应用名与版本、框架版本（mygo）、链接协议 `floter://`、设置文件路径（可选中复制）、项目链接（可点击打开）。
+- **Integrations** 仍为占位（扩展生态是 P3）。
+- 启动壳：`FLOTER_OPEN=launcher|settings|terminal` 让打包后的冒烟测试/截图工具直接开在某个表面（`shell.ParseSurface`）；版本在 `go run` 下从 `mygo.json` 兜底读取，打包后走 bundle 版本。
+- 门槛：真实启动三个表面各一次均无报错（terminal 会真的起 shell），`go test` 85 项全绿。
+
 ### P2 还未做
 
 - 结果虚拟化（目前 50 行上限）；插件命令与结果图标。

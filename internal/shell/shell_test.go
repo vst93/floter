@@ -187,3 +187,43 @@ func TestSurfaceSwitchesThemeAndLanguage(t *testing.T) {
 		t.Errorf("missing the Chinese command: %q", tt.Texts())
 	}
 }
+
+func TestParseSurface(t *testing.T) {
+	cases := map[string]struct {
+		surface Surface
+		ok      bool
+	}{
+		"":         {SurfaceLauncher, true},
+		"launcher": {SurfaceLauncher, true},
+		"settings": {SurfaceSettings, true},
+		"terminal": {SurfaceTerminal, true},
+		"bogus":    {SurfaceLauncher, false},
+	}
+	for name, want := range cases {
+		got, ok := ParseSurface(name)
+		if got != want.surface || ok != want.ok {
+			t.Errorf("ParseSurface(%q) = %v, %v; want %v, %v", name, got, ok, want.surface, want.ok)
+		}
+	}
+}
+
+func TestVersionInFile(t *testing.T) {
+	dir := t.TempDir()
+	good := filepath.Join(dir, "mygo.json")
+	if err := os.WriteFile(good, []byte(`{"name":"floter","version":"0.3.14"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := versionInFile(good); got != "0.3.14" {
+		t.Errorf("versionInFile = %q, want 0.3.14", got)
+	}
+	if got := versionInFile(filepath.Join(dir, "missing.json")); got != "" {
+		t.Errorf("missing file = %q, want empty", got)
+	}
+	bad := filepath.Join(dir, "bad.json")
+	if err := os.WriteFile(bad, []byte("{not json"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := versionInFile(bad); got != "" {
+		t.Errorf("bad file = %q, want empty", got)
+	}
+}

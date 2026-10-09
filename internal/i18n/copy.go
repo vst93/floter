@@ -105,6 +105,20 @@ var en = Copy{
 			{"amber", "Amber"},
 		},
 
+		SessionsNone:    "No sessions are running.",
+		SessionsRunning: "Running",
+		SessionsClose:   "Close session",
+		SessionsActive:  "The terminal session stays alive in the background.",
+
+		ShortcutsToggle: "Show / hide floter",
+		ShortcutsHint:   "More shortcuts arrive with the system integration.",
+
+		AboutVersion:      "Version",
+		AboutFramework:    "Framework",
+		AboutScheme:       "Link scheme",
+		AboutSettingsFile: "Settings file",
+		AboutProject:      "Project",
+
 		Percent: percentEN,
 	},
 	Terminal: Terminal{
@@ -216,6 +230,20 @@ var zh = Copy{
 			{"mist", "海雾"},
 			{"amber", "琥珀"},
 		},
+
+		SessionsNone:    "没有正在运行的会话。",
+		SessionsRunning: "运行中",
+		SessionsClose:   "关闭会话",
+		SessionsActive:  "终端会话在后台继续运行。",
+
+		ShortcutsToggle: "显示 / 隐藏 floter",
+		ShortcutsHint:   "更多快捷键将随系统集成一并到来。",
+
+		AboutVersion:      "版本",
+		AboutFramework:    "框架",
+		AboutScheme:       "链接协议",
+		AboutSettingsFile: "设置文件",
+		AboutProject:      "项目",
 
 		Percent: percentEN,
 	},
