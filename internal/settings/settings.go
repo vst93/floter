@@ -150,6 +150,7 @@ var (
 	knownKeys = map[string]bool{
 		"theme":                     true,
 		"hide_on_blur":              true,
+		"launch_at_startup":         true,
 		"surface_residency_seconds": true,
 		"glass_step":                true,
 		"language":                  true,
@@ -182,9 +183,10 @@ type Settings struct {
 	TerminalOpacity uint8
 	UIScale         string
 
-	// The window's behaviour.
+	// The window's behaviour and startup.
 	HideOnBlur              bool
 	SurfaceResidencySeconds uint32
+	LaunchAtStartup         bool
 
 	// The terminal's appearance.
 	FontSize           int
@@ -306,6 +308,9 @@ func Parse(data []byte) (Settings, error) {
 	}
 	if v, ok := raw["hide_on_blur"].(bool); ok {
 		s.HideOnBlur = v
+	}
+	if v, ok := raw["launch_at_startup"].(bool); ok {
+		s.LaunchAtStartup = v
 	}
 	if n, ok := asInt(raw["surface_residency_seconds"]); ok && n >= 0 {
 		s.SurfaceResidencySeconds = uint32(n)
@@ -432,6 +437,7 @@ func Encode(s Settings) ([]byte, error) {
 	out["terminal_paste_safe"] = s.TerminalPasteSafe
 	out["terminal_width"] = s.TerminalWidth
 	out["terminal_height"] = s.TerminalHeight
+	out["launch_at_startup"] = s.LaunchAtStartup
 	out["hide_on_blur"] = s.HideOnBlur
 	out["surface_residency_seconds"] = s.SurfaceResidencySeconds
 	return json.MarshalIndent(out, "", "  ")

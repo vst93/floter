@@ -400,3 +400,22 @@ func TestIntegrationsPage(t *testing.T) {
 		t.Errorf("an orphan toggled %q", toggled)
 	}
 }
+
+func TestLaunchAtStartupControl(t *testing.T) {
+	store := newStore(t)
+	a := New(store, Actions{})
+	tt := render(t, a, 720, 620)
+
+	tt.Scroll(400, 300, 0, 400)
+	tt.Frame()
+	if !tt.HasText("Launch at startup") {
+		t.Fatalf("the control is missing: %q", tt.Texts())
+	}
+	if err := tt.Click("Launch at startup"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !store.Snapshot().LaunchAtStartup {
+		t.Error("the switch did not write the setting")
+	}
+}

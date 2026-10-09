@@ -106,6 +106,8 @@ var en = Copy{
 			{"amber", "Amber"},
 		},
 
+		LaunchAtStartup:       "Launch at startup",
+		LaunchAtStartupHint:   "Start floter automatically when you log in.",
 		HideOnBlur:            "Hide when focus is lost",
 		HideOnBlurHint:        "Dismiss the panel when you switch to another application.",
 		SurfaceResidency:      "Keep pages open for",
@@ -249,6 +251,8 @@ var zh = Copy{
 			{"amber", "琥珀"},
 		},
 
+		LaunchAtStartup:       "开机自启动",
+		LaunchAtStartupHint:   "登录系统时自动启动 floter。",
 		HideOnBlur:            "失去焦点时隐藏",
 		HideOnBlurHint:        "切换到其他应用时自动收起面板。",
 		SurfaceResidency:      "页面驻留时间",

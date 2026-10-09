@@ -421,6 +421,8 @@ func (a *App) general(c *ui.Context, copy i18n.Settings) {
 		ui.Fieldset(c, copy.GroupWindow, func() {
 			a.pick(c, copy.Scale, copy.ScaleHint, copy.Scales, s.UIScale,
 				func(id string) { a.set(func(s *settings.Settings) { s.UIScale = id }) })
+			a.checkbox(c, copy.LaunchAtStartup, s.LaunchAtStartup,
+				func(on bool) { a.set(func(s *settings.Settings) { s.LaunchAtStartup = on }) })
 			a.checkbox(c, copy.HideOnBlur, s.HideOnBlur,
 				func(on bool) { a.set(func(s *settings.Settings) { s.HideOnBlur = on }) })
 			a.choose(c, copy.SurfaceResidency, copy.SurfaceResidencyHint,

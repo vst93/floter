@@ -16,6 +16,12 @@ import (
 )
 
 func main() {
+	// One instance: a second launch hands its arguments (and any deep link
+	// it carried) to the running app and exits.
+	if !mygo.App.RequestSingleInstanceLock() {
+		return
+	}
+
 	// Read the same settings.json the Tauri build wrote. A missing or
 	// unreadable file is not fatal: the store falls back to the shipped
 	// defaults, which is exactly what the old app did.
@@ -32,6 +38,14 @@ func main() {
 	}
 
 	app := shell.New(shell.Options{Store: store, RefreshIntegrations: true})
+
+	mygo.App.OnSecondInstance(func(args []string, workingDir string) {
+		app.Show()
+	})
+	mygo.App.OnOpenURL(func(rawURL string) {
+		log.Printf("floter: opening %s", rawURL)
+		app.HandleURL(rawURL)
+	})
 
 	mygo.App.WhenReady(func() {
 		app.Start()

@@ -3,5 +3,6 @@
   "identifier": "com.v.floter",
   "version": "0.3.14",
   "main": "./cmd/floter",
+  "urlSchemes": ["floter"],
   "macos": { "minimumSystemVersion": "13.0" }
 }

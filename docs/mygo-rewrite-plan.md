@@ -178,6 +178,16 @@
 - 配置注入（host-owned schema → 环境变量/文件、config generation、模板）。
 - 权限审批 UI 与诊断抽屉、orphan 的接管/删除。
 
+## P4 进展
+
+### P4-a 系统集成（已做）
+
+- **单实例**：`RequestSingleInstanceLock`，第二次启动把参数（含深链）交给运行中的实例并退出；`OnSecondInstance` 唤起窗口。
+- **深链**：`floter://settings` / `floter://terminal` / `floter://search?q=…`（也接受 `floter://?q=…`）路由到对应表面并预填搜索；未知/非法 URL 回落启动器且不动搜索词。包内含 `urlSchemes: ["floter"]`，运行期再 `RegisterURLScheme`（打包后由 CLI 写进 Info.plist/桌面项/注册表；`go run` 下 macOS 无 bundle，会记一条日志而非失败）。
+- **自启动**：settings 接管 `launch_at_startup`（默认 false），启动时按设置同步登录项，设置页改动即时同步；登录项读写通过可注入的 `OpenAtLogin`/`SetOpenAtLogin`，测试不碰机器状态（`go run` 无 bundle 时只记日志）。
+- **托盘**：菜单栏/通知区图标（内嵌 32×32 应用图标）+ 菜单（设置、终端、退出），点击切换窗口显示。
+- 门槛：深链路由与登录项同步单测、共 126 项测试、真实启动一次（`go run` 下两条「需要 bundle」的日志属预期，其余无报错）。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。

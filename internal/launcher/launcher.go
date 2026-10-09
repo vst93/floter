@@ -114,6 +114,13 @@ func (a *App) SetApps(found []apps.App) { a.Apps = found }
 // SetCommands replaces the extensions' commands.
 func (a *App) SetCommands(found []extensions.CommandEntry) { a.Commands = found }
 
+// SetQuery puts text in the field, for a deep link that names what to search
+// for.
+func (a *App) SetQuery(query string) {
+	a.Query = query
+	a.Selected, a.chosenRow = 0, -1
+}
+
 // New builds the launcher state over a settings store and the shell's
 // actions.
 func New(store *settings.Store, actions Actions) *App {

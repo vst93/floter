@@ -26,6 +26,9 @@ func newApp(t *testing.T) *App {
 		NewTerminal: func(terminal.Options) (*terminal.Terminal, error) {
 			return nil, errors.New("no terminal library in tests")
 		},
+		// The machine's login items are never touched by a test.
+		OpenAtLogin:    func() bool { return false },
+		SetOpenAtLogin: func(bool) error { return nil },
 	})
 	return a
 }
@@ -397,5 +400,72 @@ func TestIntegrationsToggle(t *testing.T) {
 	}
 	if list := a.integrationList(); len(list) != 1 || list[0].Enabled {
 		t.Errorf("integrations = %+v", list)
+	}
+}
+
+func TestHandleURLRoutesDeepLinks(t *testing.T) {
+	a := newApp(t)
+	a.Launcher.SetQuery("previous")
+
+	a.HandleURL("floter://settings")
+	if a.Surf != SurfaceSettings {
+		t.Errorf("floter://settings -> %v", a.Surf)
+	}
+	a.HandleURL("floter://terminal")
+	if a.Surf != SurfaceTerminal {
+		t.Errorf("floter://terminal -> %v", a.Surf)
+	}
+	a.HandleURL("FLOTER://Settings")
+	if a.Surf != SurfaceSettings {
+		t.Errorf("a case-insensitive scheme -> %v", a.Surf)
+	}
+
+	a.HandleURL("floter://search?q=json+viewer")
+	if a.Surf != SurfaceLauncher {
+		t.Errorf("floter://search -> %v", a.Surf)
+	}
+	if a.Launcher.Query != "json viewer" {
+		t.Errorf("query = %q", a.Launcher.Query)
+	}
+	a.HandleURL("floter://?q=notes")
+	if a.Launcher.Query != "notes" {
+		t.Errorf("host query = %q", a.Launcher.Query)
+	}
+
+	// Anything else opens the launcher without touching the query.
+	a.Launcher.SetQuery("keep")
+	a.HandleURL("https://example.com/")
+	if a.Surf != SurfaceLauncher || a.Launcher.Query != "keep" {
+		t.Errorf("a foreign URL -> %v, %q", a.Surf, a.Launcher.Query)
+	}
+	a.HandleURL("floter://%zz")
+	if a.Surf != SurfaceLauncher {
+		t.Errorf("a malformed URL -> %v", a.Surf)
+	}
+}
+
+func TestLaunchAtStartupFollowsTheSetting(t *testing.T) {
+	store := settings.NewStore(settings.Default())
+	calls := []bool{}
+	a := New(Options{
+		Store:          store,
+		NewTerminal:    func(terminal.Options) (*terminal.Terminal, error) { return nil, errors.New("no library in tests") },
+		OpenAtLogin:    func() bool { return false },
+		SetOpenAtLogin: func(open bool) error { calls = append(calls, open); return nil },
+	})
+	if a.lastLaunchAtStartup {
+		t.Error("the shipped default should be off")
+	}
+	// The listener syncs the login item when the setting changes. The test
+	// cannot touch the machine's login items, so it only checks that the
+	// bookkeeping follows: ApplyStartup is what talks to the system.
+	if err := store.Update(func(s *settings.Settings) { s.LaunchAtStartup = true }); err != nil {
+		t.Fatal(err)
+	}
+	if !a.lastLaunchAtStartup {
+		t.Error("the setting change did not reach the shell")
+	}
+	if len(calls) != 1 || !calls[0] {
+		t.Errorf("the login item was set %v, want one true", calls)
 	}
 }

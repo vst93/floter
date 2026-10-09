@@ -100,6 +100,11 @@ type Options struct {
 	// RefreshIntegrations runs the providers when the app starts. Tests set
 	// it to a no-op so no process is spawned.
 	RefreshIntegrations bool
+	// OpenAtLogin and SetOpenAtLogin read and write the system's login
+	// item; nil means the framework's, and tests provide stubs so they
+	// never touch the machine's login items.
+	OpenAtLogin    func() bool
+	SetOpenAtLogin func(open bool) error
 }
 
 // App is the running application.
@@ -119,6 +124,14 @@ type App struct {
 	Integrations *extensions.Store
 	// Paths is where the extension directories live.
 	Paths extensions.Paths
+
+	// Tray is the menu bar icon, nil when it could not be added.
+	Tray *mygo.Tray
+	// lastLaunchAtStartup is the setting the login item was last synced
+	// with, and the accessors that do the syncing.
+	lastLaunchAtStartup bool
+	openAtLogin         func() bool
+	setOpenAtLogin      func(bool) error
 
 	// refreshIntegrations runs the providers at startup.
 	refreshIntegrations bool
@@ -170,6 +183,15 @@ func New(opts Options) *App {
 		Paths:               paths,
 		Integrations:        extensions.OpenStore(paths),
 		refreshIntegrations: opts.RefreshIntegrations,
+		lastLaunchAtStartup: opts.Store.Snapshot().LaunchAtStartup,
+		openAtLogin:         opts.OpenAtLogin,
+		setOpenAtLogin:      opts.SetOpenAtLogin,
+	}
+	if a.openAtLogin == nil {
+		a.openAtLogin = mygo.App.OpenAtLogin
+	}
+	if a.setOpenAtLogin == nil {
+		a.setOpenAtLogin = mygo.App.SetOpenAtLogin
 	}
 	a.Launcher = launcher.New(opts.Store, launcher.Actions{
 		OpenSettings: func() { a.Open(SurfaceSettings) },
@@ -236,6 +258,10 @@ func New(opts Options) *App {
 	// and the frame redraws either way.
 	opts.Store.OnChange(func(s settings.Settings) {
 		a.onMain(func() {
+			if s.LaunchAtStartup != a.lastLaunchAtStartup {
+				a.lastLaunchAtStartup = s.LaunchAtStartup
+				a.ApplyStartup()
+			}
 			if a.Surf == SurfaceTerminal {
 				a.Terminal.Refresh()
 			}
@@ -306,6 +332,11 @@ func (a *App) Start() {
 	if a.ShortcutErr != nil {
 		log.Printf("floter: could not register %s: %v", SummonShortcut(s), a.ShortcutErr)
 	}
+	if err := a.RegisterScheme(); err != nil {
+		log.Printf("floter: could not register %s://: %v", scheme, err)
+	}
+	a.ApplyStartup()
+	a.InstallTray()
 	a.Launcher.FocusSearch()
 	a.scanApps()
 	if a.refreshIntegrations {

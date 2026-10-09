@@ -123,6 +123,8 @@ type Settings struct {
 	Palettes     []Option
 
 	// The window behaviour.
+	LaunchAtStartup       string
+	LaunchAtStartupHint   string
 	HideOnBlur            string
 	HideOnBlurHint        string
 	SurfaceResidency      string
