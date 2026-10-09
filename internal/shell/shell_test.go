@@ -26,6 +26,7 @@ import (
 	"github.com/egoist/mygo/transfer"
 	"github.com/egoist/mygo/ui"
 
+	"floter/internal/apps"
 	"floter/internal/clipboard"
 	"floter/internal/extensions"
 	"floter/internal/i18n"
@@ -1029,4 +1030,58 @@ func testPNGBytes(t *testing.T) []byte {
 		t.Fatal(err)
 	}
 	return buffer.Bytes()
+}
+
+func TestRecentsFollowTheUsageFileAndTheSetting(t *testing.T) {
+	paths := extensions.FromRoot(t.TempDir())
+	a := New(Options{
+		Store:       settings.NewStore(settings.Default()),
+		Paths:       paths,
+		NewTerminal: func(terminal.Options) (*terminal.Terminal, error) { return nil, errors.New("no library in tests") },
+		OpenAtLogin: func() bool { return false }, SetOpenAtLogin: func(bool) error { return nil },
+	})
+
+	// Two launches: the second one twice, so it leads.
+	first := apps.App{Name: "Editor", Path: "/Applications/Editor.app"}
+	second := apps.App{Name: "Safari", Path: "/Applications/Safari.app"}
+	a.Launcher.SetApps([]apps.App{first, second})
+	if err := a.Usage.Record(first.Path); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.Usage.Record(second.Path); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.Usage.Record(second.Path); err != nil {
+		t.Fatal(err)
+	}
+	a.refreshRecents()
+	if got := a.Launcher.Recent; len(got) != 2 || got[0] != second.Path {
+		t.Errorf("recents = %v", got)
+	}
+	if !a.Launcher.ShowRecent {
+		t.Error("show recent is off by default")
+	}
+
+	// An uninstalled application is dropped from the list.
+	a.Launcher.SetApps([]apps.App{first})
+	a.refreshRecents()
+	if got := a.Launcher.Recent; len(got) != 1 || got[0] != first.Path {
+		t.Errorf("recents after an uninstall = %v", got)
+	}
+
+	// The setting turns the empty state's recents off.
+	if err := a.Store.Update(func(s *settings.Settings) { s.SetExtra("show_recent_in_launcher", false) }); err != nil {
+		t.Fatal(err)
+	}
+	a.refreshRecents()
+	if a.Launcher.ShowRecent {
+		t.Error("show_recent_in_launcher false did not reach the launcher")
+	}
+	if err := a.Store.Update(func(s *settings.Settings) { s.SetExtra("show_recent_in_launcher", true) }); err != nil {
+		t.Fatal(err)
+	}
+	a.refreshRecents()
+	if !a.Launcher.ShowRecent {
+		t.Error("show_recent_in_launcher true did not reach the launcher")
+	}
 }

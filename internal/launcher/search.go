@@ -177,8 +177,12 @@ func (a *App) clipboardItems() []Item {
 	return out
 }
 
-// maxClipboardResults bounds the rows one clipboard search builds.
-const maxClipboardResults = 50
+// maxClipboardResults bounds the rows one clipboard search builds, and
+// maxRecentResults how many recent applications the empty query offers.
+const (
+	maxClipboardResults = 50
+	maxRecentResults    = 5
+)
 
 // pinClip shows a clipboard entry's whole text in a window of its own, as
 // the old build's "pin as text window" did.
@@ -296,6 +300,35 @@ func (a *App) Catalog() []Item {
 	return items
 }
 
+// recentItems is the most-launched applications as rows, in the order the
+// usage store gave, at most limit of them: the empty query shows them under
+// the built-in commands.
+func (a *App) recentItems(limit int) []Item {
+	if !a.ShowRecent || len(a.Recent) == 0 {
+		return nil
+	}
+	byPath := make(map[string]apps.App, len(a.Apps))
+	for _, app := range a.Apps {
+		byPath[app.Path] = app
+	}
+	var out []Item
+	for _, path := range a.Recent {
+		app, ok := byPath[path]
+		if !ok {
+			continue // the application is gone
+		}
+		out = append(out, Item{
+			ID:    "app:" + app.Path,
+			Title: app.Name,
+			Run:   func() { a.openApp(app) },
+		})
+	}
+	if limit > 0 && len(out) > limit {
+		out = out[:limit]
+	}
+	return out
+}
+
 // Results is what the current query shows. The calculator's answer comes
 // first when the query is a sum; an empty query shows the built-in
 // commands alone (a wall of applications is not an empty state). The rest
@@ -317,6 +350,7 @@ func (a *App) Results() []Item {
 	}
 	if strings.TrimSpace(a.Query) == "" {
 		out = append(out, a.commands()...)
+		out = append(out, a.recentItems(maxRecentResults)...)
 	} else {
 		out = append(out, Match(a.Catalog(), a.Query)...)
 	}

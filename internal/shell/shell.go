@@ -36,6 +36,7 @@ import (
 	"floter/internal/settings"
 	"floter/internal/settingsui"
 	"floter/internal/terminalui"
+	"floter/internal/usage"
 )
 
 // Surface is the body the window shows.
@@ -150,6 +151,8 @@ type App struct {
 	// Integrations is the extension state: the repository, the installed
 	// manifests and the providers' commands.
 	Integrations *extensions.Store
+	// Usage is what the user launches, for the launcher's empty state.
+	Usage *usage.Store
 	// Paths is where the extension directories live.
 	Paths extensions.Paths
 
@@ -255,6 +258,7 @@ func New(opts Options) *App {
 		now:                 time.Now,
 		Paths:               paths,
 		Integrations:        extensions.OpenStore(paths),
+		Usage:               usage.Open(paths.Root),
 		refreshIntegrations: opts.RefreshIntegrations,
 		lastLaunchAtStartup: opts.Store.Snapshot().LaunchAtStartup,
 		openAtLogin:         opts.OpenAtLogin,
@@ -294,6 +298,12 @@ func New(opts Options) *App {
 				log.Printf("floter: could not open %s: %v", app.Name, err)
 				return
 			}
+			// Remember the launch before hiding: the next empty query
+			// offers it.
+			if err := a.Usage.Record(app.Path); err != nil {
+				log.Printf("floter: could not record the launch: %v", err)
+			}
+			a.refreshRecents()
 			a.Hide()
 		},
 		RunCommand:    a.runCommand,
@@ -512,6 +522,30 @@ func (a *App) Start() {
 		go a.RefreshIntegrations(context.Background())
 	}
 }
+
+// refreshRecents hands the launcher the most-launched applications, limited
+// to the ones that are still installed, and whether the empty query should
+// show them.
+func (a *App) refreshRecents() {
+	known := map[string]bool{}
+	for _, app := range a.Launcher.Apps {
+		known[app.Path] = true
+	}
+	paths := a.Usage.Top(maxRecentApps, func(path string) bool { return known[path] })
+	a.Launcher.SetRecent(paths, a.showRecent())
+}
+
+// showRecent is the show_recent_in_launcher setting, on by default.
+func (a *App) showRecent() bool {
+	value, ok := a.Store.Snapshot().Extra()["show_recent_in_launcher"].(bool)
+	if !ok {
+		return true
+	}
+	return value
+}
+
+// maxRecentApps is how many recent applications the launcher offers.
+const maxRecentApps = 5
 
 // RefreshIntegrations reloads the extension state and the providers'
 // commands, then hands them to the launcher. It blocks while providers run,

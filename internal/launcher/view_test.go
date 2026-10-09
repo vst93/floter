@@ -638,3 +638,44 @@ func TestBrowserModeWithoutASearch(t *testing.T) {
 		t.Error("Escape did not leave the browser mode")
 	}
 }
+
+func TestEmptyQueryOffersRecentApplications(t *testing.T) {
+	a := testApp()
+	found := []apps.App{
+		{Name: "Safari", Path: "/Applications/Safari.app"},
+		{Name: "Terminal", Path: "/System/Applications/Utilities/Terminal.app"},
+		{Name: "Editor", Path: "/Applications/Editor.app"},
+	}
+	a.SetApps(found)
+	a.SetRecent([]string{"/Applications/Editor.app", "/Applications/Gone.app", "/Applications/Safari.app"}, true)
+
+	tt := render(t, a)
+	// The built-in commands come first, then the recents, most-used first,
+	// with the one that is gone left out.
+	texts := tt.Texts()
+	position := map[string]int{}
+	for i, text := range texts {
+		if _, seen := position[text]; !seen {
+			position[text] = i
+		}
+	}
+	if !tt.HasText("Editor") || !tt.HasText("Safari") {
+		t.Fatalf("the recents did not show: %q", texts)
+	}
+	if tt.HasText("Terminal") {
+		t.Errorf("an unlaunched application showed: %q", texts)
+	}
+	if position["Open settings"] > position["Editor"] {
+		t.Errorf("the commands do not come first: %q", texts)
+	}
+	if position["Editor"] > position["Safari"] {
+		t.Errorf("the recents are not in usage order: %q", texts)
+	}
+
+	// With the setting off, the empty query shows the commands alone.
+	a.SetRecent([]string{"/Applications/Editor.app"}, false)
+	tt.Frame()
+	if tt.HasText("Editor") {
+		t.Errorf("a recent showed with show_recent off: %q", tt.Texts())
+	}
+}

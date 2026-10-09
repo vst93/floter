@@ -111,6 +111,11 @@ type App struct {
 	// types.
 	Apps     []apps.App
 	Commands []extensions.CommandEntry
+	// Recent are the most-launched applications' paths, newest habit first,
+	// and ShowRecent says whether the empty query offers them. The shell
+	// keeps both in step with the usage file and the setting.
+	Recent     []string
+	ShowRecent bool
 
 	// Scroll keeps the result list's place; Search is the field's identity,
 	// for the focus the launcher keeps on it while the surface shows.
@@ -158,6 +163,12 @@ func (a *App) SetApps(found []apps.App) { a.Apps = found }
 
 // SetCommands replaces the extensions' commands.
 func (a *App) SetCommands(found []extensions.CommandEntry) { a.Commands = found }
+
+// SetRecent replaces the recent applications, and whether the empty query
+// shows them.
+func (a *App) SetRecent(paths []string, show bool) {
+	a.Recent, a.ShowRecent = paths, show
+}
 
 // SetQuery puts text in the field, for a deep link that names what to search
 // for.

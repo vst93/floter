@@ -279,6 +279,13 @@
 - 门槛：profile 发现、Chrome 书签树、时间戳换算、匹配/排序/限制、缺失与坏文件；另有 opt-in 测试用 sqlite 插件**真建一个 Chrome 形状的 History 库并读回**（本机通过）；共 181 项测试。真机上 Safari 的 History.db 因缺少「完全磁盘访问」而不可读，包内如实跳过（打包应用可由用户授权）。
 - 打包：应用现在同时内嵌 `libghostty-vt.dylib` 与 `libmygo-sqlite3.dylib`（app 15.9 MB / dmg 4.9 MB）。
 
+### P4-g 空查询的「最近使用」（已做）
+
+- `internal/usage`：`<config 根>/usage.json` 记录「启动次数 + 最后启动时间」，按 id（应用路径 / 扩展命令 id）计数；缺失或损坏的文件按空历史处理，写入是 temp+rename 原子替换；`Top(limit, keep)` 过滤掉已卸载的项、按次数（并列时按最近）排序。
+- 启动器：`SetRecent(paths, show)` + `ShowRecent`；空查询在**内置命令之后**列出最多 5 个最近应用（已卸载的自动剔除，顺序即 usage 顺序）。
+- shell：应用启动成功后记一次使用并刷新列表；扫描完应用后也刷新一次；`show_recent_in_launcher`（默认开）决定是否展示。
+- 门槛：usage 存储（计数/排序/并列/过滤/缺失/损坏/无路径）、启动器空状态顺序与开关、shell 的设置与使用文件联动；共 185 项测试。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。
