@@ -97,7 +97,7 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 - P2-i macOS 应用名与别名（`internal/plist` 读 XML/bplist00，读 `Info.plist` 与本地化 strings）
 - P2-j 应用图标（macOS `.icns` 最大 PNG 条目、Linux `Icon=`，懒读 + 缓存）
-- P2-k 结果编号快捷键（⌘1–⌘0，随视口重算）
+- P2-k 结果编号快捷键（⌘1–⌘0，随视口重算）、P2-l Windows 图标提取
 - P3-h 后台运行与输出回看、P3-i orphan 接管/删除、P3-j 完成通知与权限审计、P3-k 列表协议、P3-l 导入/导出
 - P4-j 命令开关与别名、P4-k 自定义快捷键、P4-l 计算器插件、P4-n 终端尺寸写回与会话快照、
   P4-o 文件拖放、P4-p 应用快捷键表
@@ -120,7 +120,7 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
    页面（插件 iframe 页、剪贴板页、会话页），不为「对齐键数」而搬。
 3. **浏览器插件剩余**：Safari 的 `Bookmarks.plist`——旧版也没读（只解析 Chromium JSON 与 Firefox
    places.sqlite），属可选新能力；`internal/plist` 已能读二进制 plist，要做时是接一个解析函数。
-4. **Windows 图标**：`.lnk` 的图标在 shell 数据库里，本构建不读（macOS/Linux 已支持）。
+4. **Windows 图标**：已完成（P2-l）——`.lnk` 的图标经 PowerShell 提取并缓存为 PNG。
 5. **系统通知**：已完成（后台命令、安装/卸载/检测）。
 6. **P5 打磨**：已完成；更细的换壳过渡受原生窗口尺寸变化限制，不做应用层过渡。
 7. **P6 发布链**：剩下的是一次性维护者动作——`mygo keygen` 生成更新密钥、`mygo.json` 填 `updates`

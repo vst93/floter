@@ -584,6 +584,16 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
   `usage.Store.Seed` 在启动时把**本构建没见过**的 id 按其次数补进来（本构建自己的记录优先、不覆盖），
   所以「最常使用」的列表不会因为换实现而消失；有变化才写盘。
 
+### P2-l Windows 图标（已做）
+
+- `.lnk` 的图标在 shell 自己的数据库里，唯一的 PNG 途径是问 shell：`icons_windows.go` 用
+  PowerShell 的 `[System.Drawing.Icon]::ExtractAssociatedIcon` 提取，缓存到
+  `<用户缓存>/floter/icons/<hash>.png`（hash = 快捷方式路径 + mtime，所以换了目标就会重新提取）。
+- 源码/目标路径作为**单引号参数**拼进脚本（引号按 PowerShell 规则双写），路径里有引号也逃不出去。
+- 单测：脚本引用规则在任何平台都能跑；真提取测试在 Windows 上跑（用 PowerShell 自己建一个 .lnk），
+  非 Windows 编译不到。
+- 三个平台因此都有图标：macOS `.icns` 最大 PNG 条目、Linux `Icon=`、Windows shell 提取。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。

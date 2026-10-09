@@ -44,22 +44,23 @@ func Icon(app App) []byte {
 	return icon
 }
 
-// readIcon reads the icon for one application, by platform.
+// readIcon reads the icon for one application: a file the platform named, or
+// a platform's own extraction.
 func readIcon(app App) []byte {
-	if app.IconPath == "" {
-		return nil
+	if app.IconPath != "" {
+		data, err := os.ReadFile(app.IconPath)
+		if err != nil {
+			return nil
+		}
+		if strings.HasSuffix(strings.ToLower(app.IconPath), ".icns") {
+			return LargestPNGFromICNS(data)
+		}
+		if !isPNG(data) {
+			return nil
+		}
+		return data
 	}
-	data, err := os.ReadFile(app.IconPath)
-	if err != nil {
-		return nil
-	}
-	if strings.HasSuffix(strings.ToLower(app.IconPath), ".icns") {
-		return LargestPNGFromICNS(data)
-	}
-	if !isPNG(data) {
-		return nil
-	}
-	return data
+	return extractIcon(app)
 }
 
 // isPNG reports whether data is a PNG image.
