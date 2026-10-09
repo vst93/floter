@@ -25,8 +25,16 @@ const maxApps = 500
 
 // App is one installed application.
 type App struct {
-	// Name is what the user knows the application by.
+	// Name is what the user knows the application by: the Latin spelling
+	// where a bundle has one, so it is typeable.
 	Name string
+	// Localized is the name the user's own desktop shows, when the bundle
+	// carries one that differs (a Chinese-named application on a Chinese
+	// desktop, say). A row is titled with it and subtitled with Name.
+	Localized string
+	// Aliases are extra spellings search may match: a bundle's executable,
+	// the pieces of its identifier, its folder name.
+	Aliases []string
 	// Path is the bundle, desktop entry or shortcut to open.
 	Path string
 	// Exec, when set, is the program and arguments to run instead of
@@ -117,7 +125,13 @@ func ScanDarwin(root string) []App {
 		if !d.IsDir() || !strings.HasSuffix(name, ".app") {
 			return true
 		}
-		out = append(out, App{Name: strings.TrimSuffix(name, ".app"), Path: path})
+		info := readBundle(path)
+		out = append(out, App{
+			Name:      info.Name,
+			Localized: info.Localized,
+			Aliases:   info.Aliases,
+			Path:      path,
+		})
 		return false // a bundle holds its own helpers; do not descend
 	})
 	sortApps(out)

@@ -501,6 +501,22 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
 - 未做：分页协议（`page.cursor/hasMore` 与滚动加载）、`⌘1`-`⌘0` 编号角标——这两项需要启动器的
   编号与分页机制（旧版由 `result-budget.ts` 统一分配），登记为后续。
 
+### P2-i macOS 应用名与别名（已做）
+
+- **`internal/plist`**：新包，读 Apple property list 的**两种编码**——XML 与 `bplist00`
+  （macOS 实际写给 bundle 的那种）。只读，支持 dict/array/string/int/real/bool/date/data，
+  损坏即错误（不返回半份数据）。单测用 Python `plistlib` 生成的同一份 Info.plist 两种编码做夹具
+  （含中文名、嵌套数组、整数/实数/布尔）。
+- **`internal/apps` 读 bundle 的 `Info.plist`**（此前只用文件夹名）：`CFBundleDisplayName`/
+  `CFBundleName`、`CFBundleExecutable`、`CFBundleIdentifier`，以及 `en.lproj`/`Base.lproj` 与
+  `zh-Hans.lproj` 等 `InfoPlist.strings`（plist 或 `"k" = "v";` 文本两种）。
+- **名字归属按文字系统决定，而不是按读到的位置**（旧版的经验，逐条移植）：企业微信把中文写在
+  Info.plist、英文在 `en.lproj`；Safari 反过来。`resolveBundleNames` 让**拉丁名可输入**（搜索用）、
+  **本地化名作标题**、拉丁名作副标题；本地化名与拉丁名相同则不计。
+- **别名**：bundle 名、文件夹名、`CFBundleName`、可执行名、identifier 的段（`com.apple.Safari`
+  → `Safari`、`apple`），全部进启动器行的 `Search`，所以中英文名字都能搜到。
+- 未做：应用图标（旧版从 `CFBundleIconFile` 取图并在行里画图标；Go 版行还没有图标位）。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。

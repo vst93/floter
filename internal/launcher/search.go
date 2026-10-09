@@ -371,11 +371,8 @@ func (a *App) runTool(tool apps.App) {
 func (a *App) appItems() []Item {
 	out := make([]Item, 0, len(a.Apps))
 	for _, app := range a.Apps {
-		out = append(out, Item{
-			ID:    "app:" + app.Path,
-			Title: app.Name,
-			Run:   func() { a.openApp(app) },
-		})
+		app := app
+		out = append(out, appItem(app, func() { a.openApp(app) }))
 	}
 	return out
 }
@@ -396,6 +393,23 @@ func (a *App) Catalog() []Item {
 	return items
 }
 
+// appItem is one application as a row: titled with the name the user's own
+// desktop shows (a bundle's localized name, when it has one that differs) and
+// subtitled with the Latin spelling, with every alias searchable.
+func appItem(app apps.App, run func()) Item {
+	title, detail := app.Name, ""
+	if app.Localized != "" && app.Localized != app.Name {
+		title, detail = app.Localized, app.Name
+	}
+	return Item{
+		ID:     "app:" + app.Path,
+		Title:  title,
+		Detail: detail,
+		Search: strings.Join(app.Aliases, " "),
+		Run:    run,
+	}
+}
+
 // recentItems is the most-launched applications as rows, in the order the
 // usage store gave, at most limit of them: the empty query shows them under
 // the built-in commands.
@@ -413,11 +427,7 @@ func (a *App) recentItems(limit int) []Item {
 		if !ok {
 			continue // the application is gone
 		}
-		out = append(out, Item{
-			ID:    "app:" + app.Path,
-			Title: app.Name,
-			Run:   func() { a.openApp(app) },
-		})
+		out = append(out, appItem(app, func() { a.openApp(app) }))
 	}
 	if limit > 0 && len(out) > limit {
 		out = out[:limit]

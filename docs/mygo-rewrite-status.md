@@ -148,13 +148,19 @@ settings 读取子集（保未知键）、glass 映射、单窗口三表面（�
   分组名、字形词表、open/copy/insert 三型 action 全部接线；否则仍是文本视图。
 - 未做：分页（cursor/hasMore + 滚动加载）与 ⌘1-⌘0 编号角标。
 
+**P2-i macOS 应用名与别名**（本轮）
+- 新包 `internal/plist`（XML + bplist00 只读），macOS 应用扫描改读 `Info.plist` 与本地化
+  `InfoPlist.strings`：拉丁名可搜、本地化名作标题、identifier 段作别名。
+
 ## 尚未做（按建议优先级）
 
 1. **终端会话快照/恢复**：已完成（P4-n）——快照在关闭/退出时落盘、下次建会话时 Feed 回去；
    尺寸拖拽写回也已完成。
 2. **i18n 全量对齐**：目前只覆盖实际用到的键（约 200 条），旧 `src/i18n.ts` 有 1700+ 条（含插件页文案）。
-3. **浏览器插件剩余**：Safari 的 `Bookmarks.plist`（二进制 plist，Go 标准库不支持）；排序/目标/
-   搜索范围/标签页已接线（见 P4-j）。
+3. **浏览器插件剩余**：Safari 的 `Bookmarks.plist`——查过旧实现，**旧版也没读**（它只解析 Chromium
+   JSON 与 Firefox places.sqlite；`plist` crate 只用于 macOS 的 Info.plist），所以这不是保真缺口，
+   而是一个可选的新能力；现在 `internal/plist` 已经能读二进制 plist，要做时是接一个解析函数。
+   排序/目标/搜索范围/标签页已接线（见 P4-j）。
 4. **扩展剩余**：导入/导出（sync，旧格式带密钥字段元数据，需要单独一轮）、列表协议的分页与
    ⌘1-⌘0 编号角标。命令级开关、后台运行与完成通知、orphan 接管/删除、权限审计、列表协议本体已完成。
 4b. **剪贴板模式的 kind 过滤**：旧版六档 chips（全部/收藏/文本/图片/链接/文件，Tab 循环）未接线——

@@ -160,3 +160,121 @@ func TestDedupeSortsAndCaps(t *testing.T) {
 		t.Errorf("dedupe = %v", names)
 	}
 }
+
+// A macOS bundle's names come out of its Info.plist: the Latin spelling is the
+// searchable name, the localized one is what a row shows, and the identifier's
+// pieces are aliases.
+func TestBundleNamesFromInfoPlist(t *testing.T) {
+	root := t.TempDir()
+	// A bundle whose Info.plist holds the Chinese name (as an application
+	// published for a Chinese audience does), with the English one in en.lproj.
+	bundle := filepath.Join(root, "企业微信.app")
+	write(t, filepath.Join(bundle, "Contents", "Info.plist"), `<?xml version="1.0"?>
+<plist version="1.0"><dict>
+  <key>CFBundleDisplayName</key><string>企业微信</string>
+  <key>CFBundleName</key><string>企业微信</string>
+  <key>CFBundleExecutable</key><string>WeCom</string>
+  <key>CFBundleIdentifier</key><string>com.tencent.WeWorkMac</string>
+</dict></plist>`)
+	write(t, filepath.Join(bundle, "Contents", "Resources", "en.lproj", "InfoPlist.strings"),
+		`"CFBundleDisplayName" = "WeCom";`)
+	// A bundle with a Latin name and a Chinese localization: the localization
+	// is what a Chinese desktop shows.
+	safari := filepath.Join(root, "Safari.app")
+	write(t, filepath.Join(safari, "Contents", "Info.plist"), `<?xml version="1.0"?>
+<plist version="1.0"><dict>
+  <key>CFBundleName</key><string>Safari</string>
+  <key>CFBundleIdentifier</key><string>com.apple.Safari</string>
+</dict></plist>`)
+	write(t, filepath.Join(safari, "Contents", "Resources", "zh-Hans.lproj", "InfoPlist.strings"),
+		`"CFBundleName" = "Safari 浏览器";`)
+	// A bundle with no Info.plist at all falls back to its folder name.
+	write(t, filepath.Join(root, "Plain.app", "Contents", "MacOS", "Plain"), "")
+
+	found := map[string]App{}
+	for _, app := range ScanDarwin(root) {
+		found[filepath.Base(app.Path)] = app
+	}
+	if len(found) != 3 {
+		t.Fatalf("apps = %+v", found)
+	}
+
+	wecom := found["企业微信.app"]
+	if wecom.Name != "WeCom" || wecom.Localized != "企业微信" {
+		t.Errorf("wecom = %+v", wecom)
+	}
+	for _, alias := range []string{"企业微信", "WeCom", "WeWorkMac", "tencent"} {
+		if !containsString(wecom.Aliases, alias) {
+			t.Errorf("wecom aliases %v lack %q", wecom.Aliases, alias)
+		}
+	}
+
+	safariApp := found["Safari.app"]
+	if safariApp.Name != "Safari" || safariApp.Localized != "Safari 浏览器" {
+		t.Errorf("safari = %+v", safariApp)
+	}
+	for _, alias := range []string{"Safari", "apple"} {
+		if !containsString(safariApp.Aliases, alias) {
+			t.Errorf("safari aliases %v lack %q", safariApp.Aliases, alias)
+		}
+	}
+
+	plain := found["Plain.app"]
+	if plain.Name != "Plain" || plain.Localized != "" {
+		t.Errorf("plain = %+v", plain)
+	}
+}
+
+// The name decision is made by the script each name is written in, not by
+// where it was read from, because bundles put them either way round.
+func TestResolveBundleNames(t *testing.T) {
+	cases := []struct {
+		bundle, english, chinese, name, localized string
+	}{
+		{"Safari", "Safari", "Safari 浏览器", "Safari", "Safari 浏览器"},
+		{"企业微信", "WeCom", "", "WeCom", "企业微信"},
+		{"企业微信", "WeCom", "WeCom", "WeCom", "企业微信"},
+		{"UU远程", "", "UU Remote", "UU Remote", "UU远程"},
+		{"Solo", "", "", "Solo", ""},
+		{"Solo", "Solo", "", "Solo", ""},
+	}
+	for _, tc := range cases {
+		name, localized := resolveBundleNames(tc.bundle, tc.english, tc.chinese)
+		if name != tc.name || localized != tc.localized {
+			t.Errorf("resolveBundleNames(%q, %q, %q) = %q, %q; want %q, %q",
+				tc.bundle, tc.english, tc.chinese, name, localized, tc.name, tc.localized)
+		}
+	}
+}
+
+func TestStringsValueAndAliases(t *testing.T) {
+	text := `/* comment */
+"CFBundleName" = "From strings";
+"CFBundleDisplayName" = "Displayed";
+`
+	if got := stringsValue(text, "CFBundleDisplayName", "CFBundleName"); got != "Displayed" {
+		t.Errorf("stringsValue = %q", got)
+	}
+	if got := stringsValue("nothing here", "CFBundleName"); got != "" {
+		t.Errorf("stringsValue on junk = %q", got)
+	}
+
+	if got := identifierAliases("com.apple.Safari"); !reflect.DeepEqual(got, []string{"Safari", "apple"}) {
+		t.Errorf("identifierAliases = %v", got)
+	}
+	if got := identifierAliases("firefox"); !reflect.DeepEqual(got, []string{"firefox"}) {
+		t.Errorf("identifierAliases(firefox) = %v", got)
+	}
+	if got := identifierAliases(""); got != nil {
+		t.Errorf("identifierAliases(empty) = %v", got)
+	}
+}
+
+func containsString(list []string, want string) bool {
+	for _, value := range list {
+		if value == want {
+			return true
+		}
+	}
+	return false
+}

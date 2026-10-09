@@ -320,3 +320,27 @@ func TestSplitArgs(t *testing.T) {
 		t.Errorf("firstWord of blanks = %q", got)
 	}
 }
+
+// An application row is titled with the name the user's own desktop shows and
+// subtitled with the Latin one, and every alias is searchable.
+func TestApplicationNamesAndAliases(t *testing.T) {
+	a := testApp()
+	a.SetApps([]apps.App{
+		{Name: "WeCom", Localized: "企业微信", Aliases: []string{"WeCom", "企业微信", "WeWorkMac"}, Path: "/Applications/WeCom.app"},
+	})
+	a.Query = "企业微信"
+	results := a.Results()
+	if len(results) != 1 {
+		t.Fatalf("results = %+v", results)
+	}
+	if results[0].Title != "企业微信" || results[0].Detail != "WeCom" {
+		t.Errorf("row = %+v", results[0])
+	}
+	// The Latin name and an identifier alias both find it too.
+	for _, query := range []string{"WeCom", "WeWorkMac"} {
+		a.Query = query
+		if got := a.Results(); len(got) != 1 {
+			t.Errorf("query %q found %+v", query, got)
+		}
+	}
+}
