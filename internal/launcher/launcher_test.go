@@ -107,18 +107,18 @@ func TestResolveTheme(t *testing.T) {
 }
 
 func TestWindowHeightUsesTheOldInputHeightAndScales(t *testing.T) {
-	base := InputWindowHeight() + EmptyResultsAreaHeight
+	base := InputWindowHeight() + ResultsAreaHeight
 	if got := WindowHeight("default"); got != base {
 		t.Errorf("WindowHeight(default) = %v, want %v", got, base)
 	}
-	if got, want := WindowHeight("small"), InputWindowHeight()*0.9+EmptyResultsAreaHeight; got != want {
+	if got, want := WindowHeight("small"), InputWindowHeight()*0.9+ResultsAreaHeight; got != want {
 		t.Errorf("WindowHeight(small) = %v, want %v", got, want)
 	}
-	if got, want := WindowHeight("large"), InputWindowHeight()*1.1+EmptyResultsAreaHeight; got != want {
+	if got, want := WindowHeight("large"), InputWindowHeight()*1.1+ResultsAreaHeight; got != want {
 		t.Errorf("WindowHeight(large) = %v, want %v", got, want)
 	}
 	// An unknown step lands on the shipped default, never zero.
-	if got := WindowHeight("huge"); got != InputWindowHeight()*0.9+EmptyResultsAreaHeight {
+	if got := WindowHeight("huge"); got != InputWindowHeight()*0.9+ResultsAreaHeight {
 		t.Errorf("WindowHeight(huge) = %v, want the small step", got)
 	}
 	if InputWindowWidth != 720 {

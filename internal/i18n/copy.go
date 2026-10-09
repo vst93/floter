@@ -1,0 +1,141 @@
+package i18n
+
+// The shipped copy. Keys and wording follow src/i18n.ts where the old build
+// already had them, so a user who switches languages reads the same words.
+var en = Copy{
+	Launcher: Launcher{
+		Placeholder:         "Type a command or app name",
+		Label:               "Search",
+		Hint:                "Type to search",
+		NoResults:           "No results",
+		Clear:               "Clear",
+		ResultsLabel:        "Results",
+		CommandSettings:     "Open settings",
+		CommandSettingsHint: "Appearance, window behaviour and integrations",
+		CommandTerminal:     "Open terminal",
+		CommandTerminalHint: "Start a shell session",
+		CommandQuit:         "Quit floter",
+		CommandQuitHint:     "Exit the application completely",
+		ShortcutSettings:    "Cmd+,",
+	},
+	Settings: Settings{
+		Title: "Settings",
+		Close: "Close settings",
+
+		PageGeneral:      "General",
+		PageSessions:     "Sessions",
+		PageShortcuts:    "Shortcuts",
+		PageIntegrations: "Integrations",
+		PageAbout:        "About",
+
+		PageGeneralHint:      "Appearance, startup and how the windows behave.",
+		PageSessionsHint:     "Terminal sessions still running in the background.",
+		PageShortcutsHint:    "Every global shortcut floter answers.",
+		PageIntegrationsHint: "Built-in plugins and the tools you have connected.",
+		PageAboutHint:        "Version, updates and the link scheme.",
+
+		PagePlaceholder: "This page arrives in a later round.",
+
+		GroupAppearance: "Appearance",
+		GroupWindow:     "Window behaviour",
+
+		Theme:               "Appearance",
+		ThemeAuto:           "Auto",
+		ThemeLight:          "Light",
+		ThemeDark:           "Dark",
+		Language:            "Language",
+		LanguageHint:        "Applies immediately across the app.",
+		Glass:               "Liquid glass effect",
+		GlassHint:           "From frosted glass to Apple's liquid glass at full strength. Independent of the transparency below.",
+		GlassOff:            "Off",
+		GlassFrosted:        "Frosted",
+		GlassRegular:        "Liquid",
+		GlassLiquid:         "Liquid Max",
+		MainOpacity:         "App transparency",
+		MainOpacityHint:     "How solid each window's background is, independent of the glass effect. At 100% the surface is near-opaque.",
+		TerminalOpacity:     "Terminal transparency",
+		TerminalOpacityHint: "How solid the terminal window's background is.",
+		Scale:               "Interface size",
+		ScaleHint:           "Scales every interface element — text, buttons and inputs. Small is the default.",
+		ScaleTiny:           "Tiny",
+		ScaleSmall:          "Small",
+		ScaleDefault:        "Standard",
+		ScaleLarge:          "Large",
+
+		Percent: percentEN,
+	},
+	Terminal: Terminal{
+		Title: "Terminal",
+		Hint:  "The session has not started yet.",
+		Close: "Close terminal",
+	},
+}
+
+var zh = Copy{
+	Launcher: Launcher{
+		Placeholder:         "输入命令或应用名称",
+		Label:               "搜索",
+		Hint:                "输入以搜索",
+		NoResults:           "没有匹配项",
+		Clear:               "清除",
+		ResultsLabel:        "结果",
+		CommandSettings:     "打开设置",
+		CommandSettingsHint: "外观、窗口行为与集成",
+		CommandTerminal:     "打开终端",
+		CommandTerminalHint: "启动一个 shell 会话",
+		CommandQuit:         "退出 floter",
+		CommandQuitHint:     "完全退出应用",
+		ShortcutSettings:    "Cmd+,",
+	},
+	Settings: Settings{
+		Title: "设置",
+		Close: "关闭设置",
+
+		PageGeneral:      "常规",
+		PageSessions:     "会话",
+		PageShortcuts:    "快捷键",
+		PageIntegrations: "集成",
+		PageAbout:        "关于",
+
+		PageGeneralHint:      "外观、启动方式与窗口行为。",
+		PageSessionsHint:     "仍在后台运行的终端会话。",
+		PageShortcutsHint:    "floter 响应的全部全局快捷键。",
+		PageIntegrationsHint: "内置插件与你已接入的工具。",
+		PageAboutHint:        "版本、更新与链接协议。",
+
+		PagePlaceholder: "此页面将在后续迭代中到来。",
+
+		GroupAppearance: "外观",
+		GroupWindow:     "窗口行为",
+
+		Theme:               "外观",
+		ThemeAuto:           "自动",
+		ThemeLight:          "浅色",
+		ThemeDark:           "深色",
+		Language:            "语言",
+		LanguageHint:        "选择后立即生效。",
+		Glass:               "液态玻璃效果",
+		GlassHint:           "从磨砂玻璃到苹果液态玻璃拉满。与下方透明度相互独立。",
+		GlassOff:            "关闭",
+		GlassFrosted:        "磨砂",
+		GlassRegular:        "液态",
+		GlassLiquid:         "液态拉满",
+		MainOpacity:         "应用背景透明度",
+		MainOpacityHint:     "每个窗口底色的实底程度，与玻璃效果相互独立。100% 时接近不透明。",
+		TerminalOpacity:     "终端背景透明度",
+		TerminalOpacityHint: "终端窗口底色的实底程度。",
+		Scale:               "界面大小",
+		ScaleHint:           "缩放所有界面元素——文字、按钮与输入框。默认为「小」。",
+		ScaleTiny:           "极小",
+		ScaleSmall:          "小",
+		ScaleDefault:        "标准",
+		ScaleLarge:          "大",
+
+		Percent: percentEN,
+	},
+	Terminal: Terminal{
+		Title: "终端",
+		Hint:  "会话尚未启动。",
+		Close: "关闭终端",
+	},
+}

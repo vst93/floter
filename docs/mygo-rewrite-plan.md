@@ -49,6 +49,26 @@
 - **P5 打磨**：动效、无障碍、性能对照（官方数字：原生 UI ~44MB / ~7MB 二进制）。
 - **P6 发布链**：CI Go 矩阵、打包（dmg/nsis/deb）、旧代码删除收尾、预发布通道。
 
+## 进展
+
+- **P0 地基（完成，`6a6d65c`）**：settings 读取子集（保未知键）、glass 映射、启动器第一窗口、Xvfb 截图。
+- **P1 主体（本轮完成）**：三壳立起，单窗口换壳按壳改尺寸（对齐旧版 surface-residency 模型）。
+  - `internal/settings` 增 `Store`：读→改→写回同一 JSON，未知键逐层保留，无变化不写盘，监听器通知；
+  - `internal/theme`：theme + ui_scale → `*ui.Theme`（light/dark 子集 + 半径 token）；
+  - `internal/i18n`：en/zh 全量文案（结构化 Copy，缺字段编译期报错），启动器/设置/终端共用；
+  - `internal/launcher`：真实搜索（词项全命中 + 前缀/词首/包含分级排序）、结果列表（虚拟化 `ui.List`）、↑↓ 选择 / Enter 执行 / Esc 先清空再隐藏、点击执行、常驻聚焦；内置命令=打开设置/打开终端/退出；
+  - `internal/settingsui`：侧栏页面路由（General/Sessions/Shortcuts/Integrations/About）+ General 页真控件（theme/language/glass/main_opacity/terminal_opacity/ui_scale），全部经 `Store` 写回；其余页面注明后续迭代；
+  - `internal/terminalui`：`plugins/terminal` 单会话页（标题栏 + 关闭），无会话时显示空态/错误态；
+  - `internal/shell`：应用本体——单窗口三壳切换、按壳尺寸与可调大小（720×缩放+结果带 / 720×580 上限受屏幕 72% / 860×600 最小 640×360）、玻璃面板（`glassmap.Material`，off 档铺实底）、按平台内边距、全局快捷键唤回（读用户 `hotkey`，缺省 `Ctrl+Space`）；
+  - 门槛：`gofmt`/`go vet` 净，`go test -count=1 ./...` 全绿（含 i18n 完整性、Store 往返保键、搜索排序/导航、三壳 `ui.Tester` 视图与 PNG 截图 `/tmp/floter-p1-shots/`）；真实启动一次（读取既有 settings.json：light/zh/glass off/hotkey Alt+Space）无 panic，快捷键注册无冲突。
+
+### P1 登记的保真缺口（P2 处理）
+
+- 玻璃仍是 P0 的两档映射（无 intensity）；`terminal_opacity` 已可设置但尚未作用于终端面板底色。
+- 启动器只有内置命令；应用扫描、计算器、插件命令、结果图标在 P2。
+- 设置页除 General 外为占位；终端外观（字号/字体/行距/调色板）与 `plugins/terminal` 的 Theme/Transparent 尚未接线。
+- 换壳唤回总是回到启动器；旧版的 surface-residency（保持上次页面 N 秒）留待 P2/P4。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。

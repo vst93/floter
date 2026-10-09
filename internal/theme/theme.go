@@ -1,0 +1,111 @@
+// Package theme turns floter's stored appearance settings into the concrete
+// theme the views paint with.
+//
+// The old build had a token layer of its own: CSS custom properties in
+// src/styles/base.css (surfaces, borders, radii, the glass tint) resolved
+// from `theme` and scaled by `ui_scale`. This package is that layer's Go
+// equivalent, a subset: the two appearance values the app ships, the radius
+// scale, and the interface-size factor. The rest of the palette comes from
+// the framework's light and dark themes, which already follow the desktop's
+// accent and contrast preferences.
+package theme
+
+import (
+	"github.com/egoist/mygo/ui"
+
+	"floter/internal/settings"
+)
+
+// Appearance is the concrete look a surface paints with, after resolving the
+// stored `theme` against the desktop.
+type Appearance string
+
+const (
+	// Light and Dark are the two appearances the app paints.
+	Light Appearance = "light"
+	Dark  Appearance = "dark"
+)
+
+// Resolve resolves the stored theme against the desktop's appearance. It
+// mirrors App.tsx's rule exactly: `auto` follows the system, an explicit
+// `light` or `dark` wins, and anything else (only reachable without the
+// loader's normalization) paints dark.
+func Resolve(theme string, systemDark bool) Appearance {
+	switch theme {
+	case "auto":
+		if systemDark {
+			return Dark
+		}
+		return Light
+	case "light":
+		return Light
+	default:
+		return Dark
+	}
+}
+
+// The radius scale from base.css, at scale 1: an inner chip, a control on a
+// surface, a card holding controls, and the window or a full panel.
+const (
+	RadiusXS = 6
+	RadiusSM = 9
+	RadiusMD = 12
+	RadiusLG = 14
+)
+
+// Tokens is the resolved theme: the appearance, the framework theme the
+// widgets read, and the radius scale, all at the user's interface size.
+type Tokens struct {
+	// Appearance is the resolved light or dark look.
+	Appearance Appearance
+	// Theme is the theme to set on the view's context.
+	Theme *ui.Theme
+	// Scale is the interface-size factor the tokens were scaled by
+	// (0.8/0.9/1.0/1.1; the shipped "small" step is 0.9).
+	Scale float64
+
+	RadiusXS float32
+	RadiusSM float32
+	RadiusMD float32
+	RadiusLG float32
+}
+
+// For resolves the appearance and scales the metrics for a settings value.
+// The widgets' font, spacing and radius all follow the interface-size step,
+// as the old build's CSS variables did.
+func For(s settings.Settings, systemDark bool) Tokens {
+	s = settings.Normalize(s)
+	appearance := Resolve(s.Theme, systemDark)
+
+	base := ui.LightTheme()
+	if appearance == Dark {
+		base = ui.DarkTheme()
+	}
+	// Copy so the shared theme values are never mutated in place.
+	t := *base
+
+	scale := settings.UIScaleFactor(s.UIScale)
+	if scale <= 0 {
+		scale = 1
+	}
+	f := float32(scale)
+	t.FontSize = round1(t.FontSize * f)
+	t.Spacing = round1(t.Spacing * f)
+	t.Radius = round1(t.Radius * f)
+
+	return Tokens{
+		Appearance: appearance,
+		Theme:      &t,
+		Scale:      scale,
+		RadiusXS:   round1(RadiusXS * f),
+		RadiusSM:   round1(RadiusSM * f),
+		RadiusMD:   round1(RadiusMD * f),
+		RadiusLG:   round1(RadiusLG * f),
+	}
+}
+
+// round1 rounds to one decimal, so a scaled metric stays a value a CSS
+// author could have written and the tests can compare exactly.
+func round1(v float32) float32 {
+	return float32(int(v*10+0.5)) / 10
+}

@@ -5,7 +5,6 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
-	"floter/internal/glassmap"
 	"floter/internal/settings"
 )
 
@@ -25,16 +24,11 @@ const (
 	inputWindowHeightWindows = 72
 	inputWindowHeightDefault = 58
 
-	// EmptyResultsAreaHeight is what P0 adds under the input row: the blank
-	// result area the P1 list will fill, with the empty-state hint in it.
-	// The old shell expanded to a measured height when results arrived; P0
-	// opens at the collapsed row plus this fixed area so the layout the
-	// round asked for is visible without a window manager that resizes.
-	EmptyResultsAreaHeight = 140
-
-	// shellGutter is the shell's padding around the panel (base.css's
-	// platform blocks; Linux's is 10 DIPs).
-	shellGutter = 10
+	// ResultsAreaHeight is the room under the input row for the result list:
+	// about four rows at the shipped interface size. The old shell grew the
+	// window to a measured band as results arrived; P1 opens at the collapsed
+	// row plus this fixed band so typing never resizes the window.
+	ResultsAreaHeight = 240
 )
 
 // InputWindowHeight is the collapsed launcher window's height at scale 1.
@@ -49,66 +43,166 @@ func InputWindowHeight() float64 {
 	}
 }
 
-// WindowHeight is the height P0 opens the launcher at: the collapsed input
-// window's height at the settings' interface step, plus the empty result
-// area. The step scales the input row exactly as the old native path scaled
-// its fallback height.
+// WindowHeight is the height the launcher opens at: the collapsed input
+// window's height at the settings' interface step, plus the result band. The
+// step scales the input row exactly as the old native path scaled its
+// fallback height.
 func WindowHeight(uiScale string) float64 {
-	return InputWindowHeight()*settings.UIScaleFactor(uiScale) + EmptyResultsAreaHeight
+	return InputWindowHeight()*settings.UIScaleFactor(uiScale) + ResultsAreaHeight
 }
 
-// App is the launcher's state: the settings it was opened with and the
-// query the field edits.
+// Actions are what a result can do, supplied by the shell: the launcher does
+// not know how surfaces are opened, only that the user asked for one.
+type Actions struct {
+	// OpenSettings, OpenTerminal and Quit run the built-in commands.
+	OpenSettings func()
+	OpenTerminal func()
+	Quit         func()
+	// Dismiss is Escape with an empty query: hide the launcher window, as
+	// the old shell did.
+	Dismiss func()
+}
+
+// App is the launcher surface's state: the settings store it reads, the
+// query the field edits, the chosen result, and the handles the framework
+// needs to keep the field focused across builds.
 type App struct {
-	Settings settings.Settings
+	Store   *settings.Store
+	Actions Actions
+
 	Query    string
+	Selected int
+
+	// Scroll keeps the result list's place; Search is the field's identity,
+	// for the focus the launcher keeps on it while the surface shows.
+	Scroll ui.ScrollState
+	Search ui.Handle
 }
 
-// New builds the launcher state from a settings value.
-func New(s settings.Settings) *App {
-	return &App{Settings: settings.Normalize(s)}
+// New builds the launcher state over a settings store and the shell's
+// actions.
+func New(store *settings.Store, actions Actions) *App {
+	return &App{Store: store, Actions: actions}
 }
 
-// View builds the launcher shell: the search field over the empty result
-// area and its hint, on the glass panel. It is the window's content.
+// settings is the current normalized settings.
+func (a *App) settings() settings.Settings { return a.Store.Snapshot() }
+
+// FocusSearch asks for the keyboard focus on the query field. The launcher
+// calls it every frame: the field owns the keyboard while the surface shows,
+// exactly as the old collapsed shell reasserted focus.
+func (a *App) FocusSearch() { a.Search.Focus() }
+
+// View builds the launcher: a search field that keeps the focus, over the
+// result list. The shell draws the window chrome and the glass panel; this
+// is the content inside it.
 func (a *App) View(c *ui.Context) {
-	systemDark := c.Theme().Dark
-	surface := Resolve(a.Settings, systemDark)
-
-	// Explicit settings win over the desktop's appearance; `auto` leaves the
-	// frame's own system-following theme in place.
-	switch surface.Theme {
-	case ThemeLight:
-		c.SetTheme(ui.LightTheme())
-	case ThemeDark:
-		c.SetTheme(ui.DarkTheme())
-	}
+	copy := StringsFor(a.settings().Language)
 	t := c.Theme()
 
-	// The window is transparent: only the panel paints, so the desktop (and
-	// the glass that reads it) shows through the shell's gutter.
-	c.Root().Background(ui.Transparent)
+	// The field owns the keyboard while the launcher shows, exactly as the
+	// old collapsed shell reasserted focus on every reveal.
+	a.FocusSearch()
 
-	ui.Column(c).Fill().Padding(shellGutter).Children(func() {
-		panel := ui.Column(c).Fill().Radius(t.Space(3)).Padding(t.Space(3))
-		if material := glassmap.Material(surface.Glass, t); material != nil {
-			panel.Material(material)
-		} else {
-			// The `off` stop: a plain, near-solid face and no material.
-			panel.Background(t.Surface)
+	results := a.Results()
+	a.clampSelection(len(results))
+
+	ui.Row(c).FillWidth().Gap(t.Space(1)).AlignItems(ui.Center).Children(func() {
+		field := ui.TextInput(c.Key("launcher.search"), &a.Query).
+			Bind(&a.Search).
+			Label(copy.Label).
+			Placeholder(copy.Placeholder).
+			Grow(1)
+		if field.Changed() {
+			a.Selected = 0
 		}
-		panel.Children(func() {
-			ui.TextInput(c, &a.Query).
-				Placeholder(surface.Strings.Placeholder).
-				Label(surface.Strings.Label).
-				Focus()
-			// The empty result area: blank until P1 fills it, with the hint
-			// the round asked for.
-			ui.Column(c).FillWidth().Grow(1).Center().Children(func() {
-				ui.Text(c, surface.Strings.Hint).
-					FontSize(t.FontSize).
-					TextColor(t.TextMuted)
-			})
-		})
+		if field.Submitted() {
+			a.activate(results)
+		}
+		if a.Query != "" {
+			if ui.Button(c, "✕").Label(copy.Clear).Clicked() {
+				a.Query = ""
+				a.Selected = 0
+				a.FocusSearch()
+			}
+		} else {
+			ui.Text(c, copy.Hint).FontSize(t.FontSize).TextColor(t.TextMuted)
+		}
 	})
+
+	// The field keeps the focus, so the list's arrows are read here: a
+	// single-line text input leaves plain Up and Down to shortcuts.
+	if c.Shortcut(0, ui.KeyDown) {
+		a.move(1, len(results))
+	}
+	if c.Shortcut(0, ui.KeyUp) {
+		a.move(-1, len(results))
+	}
+	if c.Shortcut(0, ui.KeyEscape) {
+		switch {
+		case a.Query != "":
+			a.Query = ""
+			a.Selected = 0
+		case a.Actions.Dismiss != nil:
+			a.Actions.Dismiss()
+		}
+	}
+
+	ui.Scroll(c.Key("launcher.results")).TrackScroll(&a.Scroll).Grow(1).Gap(t.Space(0.5)).Label(copy.ResultsLabel).Children(func() {
+		if len(results) == 0 {
+			ui.Column(c).FillWidth().Grow(1).Center().Children(func() {
+				ui.Text(c, copy.NoResults).FontSize(t.FontSize).TextColor(t.TextMuted)
+			})
+			return
+		}
+		for i, item := range results {
+			a.row(c, item, i)
+		}
+	})
+}
+
+// row builds one result: title, detail and an optional shortcut. The chosen
+// row wears the accent as a tint, as the old launcher's rows did.
+func (a *App) row(c *ui.Context, item Item, i int) {
+	t := c.Theme()
+	row := ui.Row(c).FillWidth().Focusable().Padding(t.Space(1.5), t.Space(2)).Radius(t.Radius).Gap(t.Space(2))
+	if i == a.Selected {
+		row.Background(t.Accent.Alpha(0.14))
+	} else if row.Hovered() {
+		row.Background(t.SurfaceHover)
+	}
+	row.Children(func() {
+		ui.Column(c).Grow(1).Children(func() {
+			ui.Text(c, item.Title).FontSize(t.FontSize).TextColor(t.Text)
+			if item.Detail != "" {
+				ui.Text(c, item.Detail).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+			}
+		})
+		if item.Shortcut != "" {
+			ui.Text(c, item.Shortcut).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+		}
+	})
+	if row.Clicked() {
+		a.Selected = i
+		a.activate(a.Results())
+	}
+}
+
+// activate runs the result at the current selection.
+func (a *App) activate(results []Item) {
+	if a.Selected < 0 || a.Selected >= len(results) {
+		return
+	}
+	if run := results[a.Selected].Run; run != nil {
+		run()
+	}
+}
+
+// move moves the selection by delta, wrapping around the list.
+func (a *App) move(delta, n int) {
+	a.Selected = NextIndex(a.Selected, delta, n)
+}
+
+func (a *App) clampSelection(n int) {
+	a.Selected = ClampIndex(a.Selected, n)
 }
