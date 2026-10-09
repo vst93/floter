@@ -215,6 +215,19 @@
 - shell 每 600ms 轮询 `mygo.Clipboard.ReadText()` 增量入库（空白跳过、与上一次相同跳过、**应用自己写剪贴板的内容不回灌**），有新增就重绘。
 - 门槛：读取真实索引（含未知键与三种 kind）、去重/容量/保留期/收藏豁免、搜索与增删清空、模式测试；共 143 项测试；真机启动后历史从 303 增至 304（捕获了当时剪贴板内容）。
 
+## P6 进展
+
+### P6-a 打包与 CI（已做）
+
+- go.mod 增加 `tool github.com/egoist/mygo/cmd/mygo`，项目用 `go tool mygo build` 打包（与原生模板一致，不依赖 npm/bun）。
+- **真机验证**：`go tool mygo build` 产出 `dist/darwin-arm64/floter.app`（14.3 MB）与 `floter 0.3.14.dmg`（4.3 MB）：
+  - 二进制 12.9 MB，`Contents/Resources/libghostty-vt.dylib` 由 CLI 自动嵌入（应用 import 了 terminal 插件）；
+  - Info.plist 带 `CFBundleURLTypes`（`floter`，来自 mygo.json 的 `urlSchemes`）、`CFBundleIconFile=AppIcon.icns`（由 `resources/icon.png` 生成）；
+  - 用临时 HOME 直接跑 bundle 内二进制：**不再有「需要 bundle」的两条日志**（深链注册与登录项都可用），且把原生库缓存移走后终端仍能启动 → 用的是 bundle 内的 `libghostty-vt.dylib`。
+- **应用图标**：托盘/任务栏图标跟随 `app_icon` 设置（dark 默认 / light），两套 32×32 图标内嵌，设置变更即时生效；托盘菜单、窗口图标同步；bundle 图标用深色版。
+- **CI**：新增 `.github/workflows/go.yml`——三平台（ubuntu/macos/windows）矩阵跑 gofmt/vet/build/test，macOS 任务再跑 `go tool mygo build` 并上传 .app/.dmg 产物。
+- 遗留：`mygo build` 会因仓库里仍有旧 `package.json` 而生成空的 `src/mygo.ts`（已加入 .gitignore），P6-b 删除旧前端后自然消失。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。

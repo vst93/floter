@@ -1,0 +1,79 @@
+name: Go
+
+on:
+  push:
+    branches: [mygo-rewrite, main]
+  pull_request:
+    branches: [mygo-rewrite, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: go-${{ github.ref }}-${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # The module's own packages only: the legacy frontend and Rust trees
+      # are not part of this build.
+      - name: gofmt
+        shell: bash
+        run: |
+          unformatted="$(gofmt -l cmd internal)"
+          if [ -n "$unformatted" ]; then
+            echo "gofmt needed on:" >&2
+            echo "$unformatted" >&2
+            exit 1
+          fi
+
+      - name: vet
+        run: go vet ./...
+
+      - name: build
+        run: go build ./...
+
+      - name: test
+        run: go test -count=1 ./...
+
+  package:
+    name: Package (macOS)
+    runs-on: macos-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # The CLI is a tool of the module (go.mod's `tool` directive), so this
+      # builds the .app and the .dmg the way a release does, and the
+      # terminal plugin's native library is fetched into the CLI's cache and
+      # embedded into the bundle.
+      - name: mygo build
+        run: go tool mygo build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: floter-macos
+          path: |
+            dist/*/*.app
+            dist/*/*.dmg
+          if-no-files-found: error

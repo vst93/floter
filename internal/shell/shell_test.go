@@ -641,3 +641,64 @@ func TestInstallFromRegistryReachesTheStore(t *testing.T) {
 		t.Errorf("the package did not land: %v", err)
 	}
 }
+
+func TestAppIconFollowsTheSetting(t *testing.T) {
+	if len(appIconBytes("dark")) == 0 || len(appIconBytes("light")) == 0 {
+		t.Fatal("an app icon is missing")
+	}
+	if string(appIconBytes("light")) == string(appIconBytes("dark")) {
+		t.Error("both appearances use the same icon")
+	}
+	// The shipped default is dark, and anything unknown lands on it.
+	if string(appIconBytes("bogus")) != string(appIconBytes("dark")) {
+		t.Error("an unknown icon is not the dark one")
+	}
+	if got := storedAppIcon(settings.Default()); got != "dark" {
+		t.Errorf("default app icon = %q, want dark", got)
+	}
+	s, err := settings.Parse([]byte(`{"app_icon": "light"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := storedAppIcon(s); got != "light" {
+		t.Errorf("stored app icon = %q", got)
+	}
+
+	// A settings change reaches the shell's bookkeeping.
+	store := settings.NewStore(settings.Default())
+	a := New(Options{
+		Store:          store,
+		Paths:          extensions.FromRoot(t.TempDir()),
+		NewTerminal:    func(terminal.Options) (*terminal.Terminal, error) { return nil, errors.New("no library in tests") },
+		OpenAtLogin:    func() bool { return false },
+		SetOpenAtLogin: func(bool) error { return nil },
+	})
+	if a.appIcon != "dark" {
+		t.Fatalf("initial icon = %q", a.appIcon)
+	}
+	if err := store.Update(func(s *settings.Settings) { s.SetExtra("app_icon", "light") }); err != nil {
+		t.Fatal(err)
+	}
+	if a.appIcon != "light" || a.lastAppIcon != "light" {
+		t.Errorf("icon after the change = %q/%q", a.appIcon, a.lastAppIcon)
+	}
+}
+
+func TestSetExtraRoundTripsThroughTheStore(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "settings.json")
+	store, err := settings.OpenStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Update(func(s *settings.Settings) { s.SetExtra("app_icon", "light") }); err != nil {
+		t.Fatal(err)
+	}
+	back, err := settings.Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if value, _ := back.Extra()["app_icon"].(string); value != "light" {
+		t.Errorf("app_icon = %v", back.Extra())
+	}
+}

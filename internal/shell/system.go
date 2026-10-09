@@ -15,12 +15,48 @@ import (
 	"floter/internal/settings"
 )
 
-// trayIcon is the application icon shown in the menu bar or notification
-// area: the 32×32 app icon the Tauri build shipped, copied beside this
-// package.
-//
-//go:embed assets/tray.png
-var trayIcon []byte
+// The app icons: the two the Tauri build shipped, resized to 32×32 for the
+// menu bar and the taskbar. Dark is the default, as config.rs had it.
+var (
+	//go:embed assets/tray-dark.png
+	trayIconDark []byte
+	//go:embed assets/tray-light.png
+	trayIconLight []byte
+)
+
+// appIconBytes is the icon for a stored app icon name: anything but "light"
+// is the dark icon, as the old normalization decided.
+func appIconBytes(name string) []byte {
+	if name == "light" {
+		return trayIconLight
+	}
+	return trayIconDark
+}
+
+// storedAppIcon is the app icon the settings file asks for.
+func storedAppIcon(s settings.Settings) string {
+	value, _ := s.Extra()["app_icon"].(string)
+	if value == "light" {
+		return "light"
+	}
+	return "dark"
+}
+
+// ApplyAppIcon puts the stored icon on the tray and the window, so a change
+// lands at once, as the old build's did.
+func (a *App) ApplyAppIcon() {
+	icon := appIconBytes(a.appIcon)
+	if a.Tray != nil {
+		if err := a.Tray.SetIcon(icon, false); err != nil {
+			log.Printf("floter: could not set the tray icon: %v", err)
+		}
+	}
+	if a.Win != nil {
+		if err := a.Win.SetIcon(icon); err != nil {
+			log.Printf("floter: could not set the window icon: %v", err)
+		}
+	}
+}
 
 // scheme is the URL scheme the app answers, as the old build registered
 // `floter://`.
@@ -37,7 +73,7 @@ func (a *App) InstallTray() {
 	})
 
 	tray, err := mygo.NewTray(mygo.TrayOptions{
-		Icon:    trayIcon,
+		Icon:    appIconBytes(a.appIcon),
 		ToolTip: "floter",
 		Menu:    menu,
 	})

@@ -143,6 +143,10 @@ type App struct {
 	clipboardInterval time.Duration
 	// clipboardWatching is set while the watcher goroutine runs.
 	clipboardWatching bool
+	// appIcon is the stored app icon ("dark" or "light"), and lastAppIcon
+	// what the tray and window were last given.
+	appIcon     string
+	lastAppIcon string
 	// LastClipboardSettings is the clipboard state the watcher was last
 	// synced with.
 	LastClipboardSettings clipboardSettings
@@ -210,6 +214,8 @@ func New(opts Options) *App {
 		setOpenAtLogin:      opts.SetOpenAtLogin,
 		clipboardInterval:   clipboardPoll,
 		Registry:            opts.Registry,
+		appIcon:             storedAppIcon(opts.Store.Snapshot()),
+		lastAppIcon:         storedAppIcon(opts.Store.Snapshot()),
 	}
 	if a.Registry == nil {
 		a.Registry = extensions.NewRegistry()
@@ -345,6 +351,10 @@ func New(opts Options) *App {
 				a.lastLaunchAtStartup = s.LaunchAtStartup
 				a.ApplyStartup()
 			}
+			if icon := storedAppIcon(s); icon != a.lastAppIcon {
+				a.lastAppIcon, a.appIcon = icon, icon
+				a.ApplyAppIcon()
+			}
 			if a.Surf == SurfaceTerminal {
 				a.Terminal.Refresh()
 			}
@@ -420,6 +430,7 @@ func (a *App) Start() {
 	}
 	a.ApplyStartup()
 	a.InstallTray()
+	a.ApplyAppIcon()
 	a.watchClipboard()
 	a.Launcher.FocusSearch()
 	a.scanApps()

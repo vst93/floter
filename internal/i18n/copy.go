@@ -45,6 +45,8 @@ var en = Copy{
 		GroupTerminal:   "Terminal appearance",
 
 		Theme:               "Appearance",
+		AppIcon:             "App icon",
+		AppIconHint:         "The icon shown in the menu bar / tray and on the taskbar. Dark is the default.",
 		Language:            "Language",
 		LanguageHint:        "Applies immediately across the app.",
 		Glass:               "Liquid glass effect",
@@ -65,6 +67,10 @@ var en = Copy{
 		Padding:      "Padding",
 		Palette:      "Terminal palette",
 
+		AppIcons: []Option{
+			{"dark", "Dark"},
+			{"light", "Light"},
+		},
 		Themes: []Option{
 			{"auto", "Auto"},
 			{"light", "Light"},
@@ -198,6 +204,8 @@ var zh = Copy{
 		GroupTerminal:   "终端外观",
 
 		Theme:               "外观",
+		AppIcon:             "应用图标",
+		AppIconHint:         "菜单栏 / 托盘以及任务栏上显示的图标。默认为深色。",
 		Language:            "语言",
 		LanguageHint:        "选择后立即生效。",
 		Glass:               "液态玻璃效果",
@@ -218,6 +226,10 @@ var zh = Copy{
 		Padding:      "边距",
 		Palette:      "终端配色",
 
+		AppIcons: []Option{
+			{"dark", "Dark"},
+			{"light", "Light"},
+		},
 		Themes: []Option{
 			{"auto", "自动"},
 			{"light", "浅色"},

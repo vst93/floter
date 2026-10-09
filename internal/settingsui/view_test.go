@@ -471,3 +471,34 @@ func TestInstallFromRegistryControl(t *testing.T) {
 		t.Errorf("an empty request was sent: %q", installed)
 	}
 }
+
+func TestAppIconReader(t *testing.T) {
+	store := newStore(t)
+	a := New(store, Actions{})
+
+	// The shipped icon is dark, and anything unknown lands on it.
+	if got := a.appIcon(); got != "dark" {
+		t.Errorf("default = %q, want dark", got)
+	}
+	if err := store.Update(func(s *settings.Settings) { s.SetExtra("app_icon", "light") }); err != nil {
+		t.Fatal(err)
+	}
+	if got := a.appIcon(); got != "light" {
+		t.Errorf("stored = %q, want light", got)
+	}
+	if err := store.Update(func(s *settings.Settings) { s.SetExtra("app_icon", "purple") }); err != nil {
+		t.Fatal(err)
+	}
+	if got := a.appIcon(); got != "dark" {
+		t.Errorf("unknown = %q, want dark", got)
+	}
+
+	// The control is on the page, with both appearances offered.
+	tt := render(t, a, 720, 620)
+	if !tt.HasText("App icon") {
+		t.Errorf("the control is missing: %q", tt.Texts())
+	}
+	if !tt.HasText("The icon shown in the menu bar / tray and on the taskbar. Dark is the default.") {
+		t.Errorf("the hint is missing: %q", tt.Texts())
+	}
+}

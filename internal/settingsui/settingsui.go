@@ -445,6 +445,10 @@ func (a *App) general(c *ui.Context, copy i18n.Settings) {
 		ui.Fieldset(c, copy.GroupAppearance, func() {
 			a.pick(c, copy.Theme, "", copy.Themes, s.Theme,
 				func(id string) { a.set(func(s *settings.Settings) { s.Theme = id }) })
+			a.pick(c, copy.AppIcon, copy.AppIconHint, copy.AppIcons, a.appIcon(),
+				func(id string) {
+					a.set(func(s *settings.Settings) { s.SetExtra("app_icon", id) })
+				})
 			a.pick(c, copy.Language, copy.LanguageHint, copy.Languages, s.Language,
 				func(id string) { a.set(func(s *settings.Settings) { s.Language = id }) })
 			a.pick(c, copy.Glass, copy.GlassHint, copy.GlassSteps, s.GlassStep,
@@ -613,6 +617,16 @@ func (a *App) text(c *ui.Context, label, description, placeholder, value string,
 	if description != "" {
 		field.Description(description)
 	}
+}
+
+// appIcon is the stored app icon, normalized to the two the app ships
+// (dark is the default, as config.rs shipped).
+func (a *App) appIcon() string {
+	value, _ := a.Store.Snapshot().Extra()["app_icon"].(string)
+	if value == "light" {
+		return "light"
+	}
+	return "dark"
 }
 
 // set writes one settings change through the store.

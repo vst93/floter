@@ -398,6 +398,16 @@ func (s Settings) normalized() Settings {
 	return s
 }
 
+// SetExtra records a key this package does not own, so a caller that owns it
+// (the app icon, the clipboard capacity) writes it through the same store —
+// and Encode writes it back with everything else.
+func (s *Settings) SetExtra(key string, value any) {
+	if s.extra == nil {
+		s.extra = map[string]any{}
+	}
+	s.extra[key] = value
+}
+
 // Extra returns a copy of the keys the struct does not own.
 func (s Settings) Extra() map[string]any {
 	out := make(map[string]any, len(s.extra))

@@ -94,6 +94,8 @@ type Settings struct {
 	GroupTerminal   string
 
 	Theme               string
+	AppIcon             string
+	AppIconHint         string
 	Language            string
 	LanguageHint        string
 	Glass               string
@@ -123,6 +125,7 @@ type Settings struct {
 	CursorShapes []Option
 	Paddings     []Option
 	Palettes     []Option
+	AppIcons     []Option
 
 	// The window behaviour.
 	LaunchAtStartup       string
