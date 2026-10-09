@@ -1,14 +1,18 @@
 // Package settingsui draws the settings surface: a sidebar of pages beside
-// a body, with the General page's controls bound to the settings store.
+// a body.
 //
-// P1 routes every page the old panel had and fills General; the others show
-// a short note. Every control writes through the store, which preserves the
-// keys this build does not own — see internal/settings.
+// The General page's controls bind to the settings store, which writes
+// every change back to the same JSON file while preserving the keys this
+// build does not own (see internal/settings); the terminal group drives the
+// terminal surface's appearance (see internal/terminalui). The other pages
+// route but say they arrive later.
 package settingsui
 
 import (
+	"fmt"
 	"math"
 
+	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/i18n"
@@ -42,6 +46,8 @@ type App struct {
 
 	// Sidebar holds the page list's identity, its choice and its focus.
 	Sidebar ui.ListState
+	// Body keeps the form's scroll offset across frames.
+	Body ui.ScrollState
 }
 
 // New builds the settings surface over a store.
@@ -55,14 +61,14 @@ func New(store *settings.Store, actions Actions) *App {
 // FocusSidebar asks for the keyboard focus on the page list.
 func (a *App) FocusSidebar() { a.Sidebar.Handle.Focus() }
 
+// SelectedPage is the chosen page.
+func (a *App) SelectedPage() int { return a.Page }
+
 // page describes one sidebar entry in the current language.
 type page struct {
 	Title string
 	Hint  string
 }
-
-// Page is the chosen page index.
-func (a *App) SelectedPage() int { return a.Page }
 
 // page returns the i-th page's copy.
 func (a *App) page(i int) page {
@@ -116,68 +122,108 @@ func (a *App) sidebarRow(c *ui.Context, i int) {
 	}
 }
 
-// body builds the chosen page.
+// body builds the chosen page: a hint pinned over the content, which
+// scrolls under it behind a soft scroll edge.
 func (a *App) body(c *ui.Context, copy i18n.Settings) {
 	p := a.page(a.Page)
 	t := c.Theme()
 
-	ui.Column(c).Fill().Gap(t.Space(1)).Children(func() {
-		ui.Text(c, p.Hint).FontSize(t.FontSize).TextColor(t.TextMuted)
-		ui.Divider(c)
-		if a.Page != PageGeneral {
+	if a.Page != PageGeneral {
+		ui.Column(c).Fill().Gap(t.Space(1)).Children(func() {
+			ui.Text(c, p.Hint).FontSize(t.FontSize).TextColor(t.TextMuted)
 			ui.Column(c).Fill().Grow(1).Center().Children(func() {
 				ui.Text(c, copy.PagePlaceholder).FontSize(t.FontSize).TextColor(t.TextMuted)
 			})
-			return
-		}
-		ui.Scroll(c).Grow(1).Children(func() {
+		})
+		return
+	}
+
+	header := t.Space(6)
+	edge := header + t.Space(2)
+	ui.Column(c).Fill().Children(func() {
+		ui.Scroll(c.Key("settings.body")).TrackScroll(&a.Body).Fill().
+			Padding(edge, 0, 0, 0).Children(func() {
 			a.general(c, copy)
+		})
+		ui.Box(c).Absolute().Top(0).Left(0).Right(0).Height(edge).PassThrough().
+			Material(glass.ScrollEdge{Background: t.Background})
+		ui.Column(c).Absolute().Top(0).Left(0).Right(0).Height(header).Children(func() {
+			ui.Text(c, p.Hint).FontSize(t.FontSize).TextColor(t.TextMuted)
+			ui.Divider(c).Padding(t.Space(0.5), 0)
 		})
 	})
 }
 
-// general is the General page: the six settings the P0 loader owns, each a
-// real control writing straight through the store.
+// general is the General page: the settings the loader owns, each a real
+// control writing straight through the store.
 func (a *App) general(c *ui.Context, copy i18n.Settings) {
 	s := a.Store.Snapshot()
 
 	ui.Form(c, func() {
-		a.pick(c, copy.Theme, "",
-			[]string{copy.ThemeAuto, copy.ThemeLight, copy.ThemeDark},
-			[]string{"auto", "light", "dark"}, s.Theme,
-			func(id string) { a.set(func(s *settings.Settings) { s.Theme = id }) })
+		ui.Fieldset(c, copy.GroupAppearance, func() {
+			a.pick(c, copy.Theme, "", copy.Themes, s.Theme,
+				func(id string) { a.set(func(s *settings.Settings) { s.Theme = id }) })
+			a.pick(c, copy.Language, copy.LanguageHint, copy.Languages, s.Language,
+				func(id string) { a.set(func(s *settings.Settings) { s.Language = id }) })
+			a.pick(c, copy.Glass, copy.GlassHint, copy.GlassSteps, s.GlassStep,
+				func(id string) { a.set(func(s *settings.Settings) { s.GlassStep = id }) })
+			a.slider(c, copy.MainOpacity, copy.MainOpacityHint,
+				float64(s.MainOpacity), settings.MinWindowOpacity, settings.MaxWindowOpacity,
+				func(v float64) string { return copy.Percent(clampPercent(v)) },
+				func(v float64) { a.set(func(s *settings.Settings) { s.MainOpacity = clampPercent(v) }) })
+			a.slider(c, copy.TerminalOpacity, copy.TerminalOpacityHint,
+				float64(s.TerminalOpacity), settings.MinWindowOpacity, settings.MaxWindowOpacity,
+				func(v float64) string { return copy.Percent(clampPercent(v)) },
+				func(v float64) {
+					a.set(func(s *settings.Settings) { s.TerminalOpacity = clampPercent(v) })
+				})
+		})
 
-		a.pick(c, copy.Language, copy.LanguageHint,
-			[]string{"English", "中文"},
-			[]string{"en", "zh"}, s.Language,
-			func(id string) { a.set(func(s *settings.Settings) { s.Language = id }) })
+		ui.Fieldset(c, copy.GroupWindow, func() {
+			a.pick(c, copy.Scale, copy.ScaleHint, copy.Scales, s.UIScale,
+				func(id string) { a.set(func(s *settings.Settings) { s.UIScale = id }) })
+		})
 
-		a.pick(c, copy.Glass, copy.GlassHint,
-			[]string{copy.GlassOff, copy.GlassFrosted, copy.GlassRegular, copy.GlassLiquid},
-			[]string{"off", "frosted", "regular", "liquid"}, s.GlassStep,
-			func(id string) { a.set(func(s *settings.Settings) { s.GlassStep = id }) })
-
-		a.opacity(c, copy.MainOpacity, copy.MainOpacityHint, s.MainOpacity,
-			func(v uint8) { a.set(func(s *settings.Settings) { s.MainOpacity = v }) })
-
-		a.opacity(c, copy.TerminalOpacity, copy.TerminalOpacityHint, s.TerminalOpacity,
-			func(v uint8) { a.set(func(s *settings.Settings) { s.TerminalOpacity = v }) })
-
-		a.pick(c, copy.Scale, copy.ScaleHint,
-			[]string{copy.ScaleTiny, copy.ScaleSmall, copy.ScaleDefault, copy.ScaleLarge},
-			[]string{"tiny", "small", "default", "large"}, s.UIScale,
-			func(id string) { a.set(func(s *settings.Settings) { s.UIScale = id }) })
+		ui.Fieldset(c, copy.GroupTerminal, func() {
+			a.slider(c, copy.FontSize, "", float64(s.FontSize),
+				settings.MinFontSize, settings.MaxFontSize,
+				func(v float64) string { return fmt.Sprintf("%d", int(math.Round(v))) },
+				func(v float64) {
+					a.set(func(s *settings.Settings) { s.FontSize = int(math.Round(v)) })
+				})
+			a.text(c, copy.FontFamily, "", settings.DefaultFontFamily, s.FontFamily,
+				func(v string) { a.set(func(s *settings.Settings) { s.FontFamily = v }) })
+			a.pick(c, copy.CursorShape, "", copy.CursorShapes, s.CursorShape,
+				func(id string) { a.set(func(s *settings.Settings) { s.CursorShape = id }) })
+			a.checkbox(c, copy.CursorBlink, s.CursorBlink,
+				func(on bool) { a.set(func(s *settings.Settings) { s.CursorBlink = on }) })
+			a.slider(c, copy.LineHeight, "", s.TerminalLineHeight,
+				settings.MinTerminalLineHeight, settings.MaxTerminalLineHeight,
+				func(v float64) string { return fmt.Sprintf("%.1f×", v) },
+				func(v float64) {
+					a.set(func(s *settings.Settings) { s.TerminalLineHeight = v })
+				})
+			a.pick(c, copy.Padding, "", copy.Paddings, s.TerminalPadding,
+				func(id string) { a.set(func(s *settings.Settings) { s.TerminalPadding = id }) })
+			a.choose(c, copy.Palette, copy.TerminalHint, copy.Palettes, s.TerminalTheme,
+				func(id string) { a.set(func(s *settings.Settings) { s.TerminalTheme = id }) })
+		})
 	})
 }
 
-// pick builds one labeled segmented choice: labels[i] stands for ids[i].
-func (a *App) pick(c *ui.Context, label, description string, labels, ids []string, current string, apply func(string)) {
-	index := indexOf(ids, current)
+// pick builds one labeled segmented choice: options[i].Label stands for
+// options[i].ID.
+func (a *App) pick(c *ui.Context, label, description string, options []i18n.Option, current string, apply func(string)) {
+	index := optionIndex(options, current)
+	labels := make([]string, len(options))
+	for i, option := range options {
+		labels[i] = option.Label
+	}
 	chosen := ""
 	field := ui.Field(c, label, func() {
 		e := ui.Segmented(c, &index, labels...).Label(label)
-		if e.Changed() {
-			chosen = ids[index]
+		if e.Changed() && index >= 0 && index < len(options) {
+			chosen = options[index].ID
 		}
 	})
 	if description != "" {
@@ -188,25 +234,88 @@ func (a *App) pick(c *ui.Context, label, description string, labels, ids []strin
 	}
 }
 
-// opacity builds one labeled transparency slider, 10..100 percent.
-func (a *App) opacity(c *ui.Context, label, description string, value uint8, apply func(uint8)) {
-	v := float64(value)
-	copy := i18n.For(a.Store.Snapshot().Language).Settings
+// choose builds one labeled drop-down choice, for lists too long to line up
+// as segments.
+func (a *App) choose(c *ui.Context, label, description string, options []i18n.Option, current string, apply func(string)) {
+	index := optionIndex(options, current)
+	labels := make([]string, len(options))
+	for i, option := range options {
+		labels[i] = option.Label
+	}
+	selected := ""
+	if index >= 0 && index < len(options) {
+		selected = options[index].Label
+	}
+	chosen := ""
+	field := ui.Field(c, label, func() {
+		e := ui.Select(c, &selected, labels).Label(label)
+		if e.Changed() {
+			for _, option := range options {
+				if option.Label == selected {
+					chosen = option.ID
+					break
+				}
+			}
+		}
+	})
+	if description != "" {
+		field.Description(description)
+	}
+	if chosen != "" {
+		apply(chosen)
+	}
+}
+
+// slider builds one labeled slider with its value beside it.
+func (a *App) slider(c *ui.Context, label, description string, value, lo, hi float64, format func(float64) string, apply func(float64)) {
+	v := value
 	chosen := false
 	field := ui.Field(c, label, func() {
-		ui.Row(c).Gap(c.Theme().Space(2)).Children(func() {
-			e := ui.Slider(c, &v, settings.MinWindowOpacity, settings.MaxWindowOpacity).Grow(1)
+		ui.Row(c).Gap(c.Theme().Space(2)).AlignItems(ui.Center).Children(func() {
+			e := ui.Slider(c, &v, lo, hi).Grow(1)
 			if e.Changed() {
 				chosen = true
 			}
-			ui.Text(c, copy.Percent(clampPercent(v))).FontSize(c.Theme().FontSize).TextColor(c.Theme().TextMuted)
+			ui.Text(c, format(v)).FontSize(c.Theme().FontSize).TextColor(c.Theme().TextMuted)
 		})
 	})
 	if description != "" {
 		field.Description(description)
 	}
 	if chosen {
-		apply(clampPercent(v))
+		apply(v)
+	}
+}
+
+// checkbox builds one self-labeling check box in the form's content column:
+// the switch of the old panel, in the control this toolkit makes directly
+// clickable by its own text.
+func (a *App) checkbox(c *ui.Context, label string, on bool, apply func(bool)) {
+	value := on
+	changed := false
+	ui.Field(c, "", func() {
+		// Changed applies the pending input to value before returning, so
+		// the new state is usable in this same pass.
+		if ui.Checkbox(c, &value, label).Changed() {
+			changed = true
+		}
+	})
+	if changed {
+		apply(value)
+	}
+}
+
+// text builds one labeled text field.
+func (a *App) text(c *ui.Context, label, description, placeholder, value string, apply func(string)) {
+	edit := value
+	field := ui.Field(c, label, func() {
+		e := ui.TextInput(c, &edit).Placeholder(placeholder).Label(label).Width(220)
+		if e.Submitted() {
+			apply(edit)
+		}
+	})
+	if description != "" {
+		field.Description(description)
 	}
 }
 
@@ -226,9 +335,9 @@ func clampPercent(v float64) uint8 {
 	return n
 }
 
-func indexOf(ids []string, value string) int {
-	for i, id := range ids {
-		if id == value {
+func optionIndex(options []i18n.Option, id string) int {
+	for i, option := range options {
+		if option.ID == id {
 			return i
 		}
 	}

@@ -56,6 +56,13 @@ type Launcher struct {
 	ShortcutSettings string
 }
 
+// Option is one choice of an enumerated setting: the id stored in the
+// settings file and the label the control shows.
+type Option struct {
+	ID    string
+	Label string
+}
+
 // Settings is the settings surface's copy.
 type Settings struct {
 	Title string
@@ -79,29 +86,38 @@ type Settings struct {
 
 	GroupAppearance string
 	GroupWindow     string
+	GroupTerminal   string
 
 	Theme               string
-	ThemeAuto           string
-	ThemeLight          string
-	ThemeDark           string
 	Language            string
 	LanguageHint        string
 	Glass               string
 	GlassHint           string
-	GlassOff            string
-	GlassFrosted        string
-	GlassRegular        string
-	GlassLiquid         string
 	MainOpacity         string
 	MainOpacityHint     string
 	TerminalOpacity     string
 	TerminalOpacityHint string
 	Scale               string
 	ScaleHint           string
-	ScaleTiny           string
-	ScaleSmall          string
-	ScaleDefault        string
-	ScaleLarge          string
+
+	// The terminal's appearance, from the old GeneralPage's group.
+	TerminalHint string
+	FontSize     string
+	FontFamily   string
+	CursorShape  string
+	CursorBlink  string
+	LineHeight   string
+	Padding      string
+	Palette      string
+
+	// The enumerated choices, each id paired with its label.
+	Themes       []Option
+	Languages    []Option
+	GlassSteps   []Option
+	Scales       []Option
+	CursorShapes []Option
+	Paddings     []Option
+	Palettes     []Option
 
 	// Percent renders an opacity value ("47%").
 	Percent func(n uint8) string

@@ -1,6 +1,7 @@
 package i18n
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -29,6 +30,14 @@ func checkComplete(t *testing.T, path string, base, translated reflect.Value) {
 			}
 		case reflect.Struct:
 			checkComplete(t, next, b, tr)
+		case reflect.Slice:
+			if b.Len() != tr.Len() {
+				t.Errorf("zh.%s has %d entries, want %d", next, tr.Len(), b.Len())
+				continue
+			}
+			for i := 0; i < b.Len(); i++ {
+				checkComplete(t, fmt.Sprintf("%s[%d]", next, i), b.Index(i), tr.Index(i))
+			}
 		case reflect.Func:
 			if b.IsNil() {
 				t.Errorf("en.%s is nil", next)

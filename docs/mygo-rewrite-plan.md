@@ -92,12 +92,29 @@
 - 启动器：`Results()` = 计算器行（若查询是算式）+ 排名后的目录；空查询只显示内置命令（不糊一屏应用）；结果行上限 50（真正的虚拟化留给列表式结果，见下）；Enter 复制结果并弹「已复制」toast；点击应用行经 `Actions.OpenApp` 由 shell 启动并隐藏窗口。
 - shell：启动时后台 `apps.Scan(apps.Roots())`，落地后 `win.Update` 刷新；`Copy` 走 `mygo.Clipboard`。
 
+### P2-c 终端外观接线（已做）
+
+- settings 接管终端外观字段并按 config.rs 规范化：字号 8–48、字体族（空白→monospace）、光标形状 beam|block|underline、闪烁开关、行距 0.5–2.0（非有限→1.2）、边距档、九档调色板、终端窗口尺寸 640×360–2560×1800；present key 覆盖默认、缺失键保留默认；这些键不再落在 extra。
+- terminalui 从 store 构造 `terminal.Options`：Font（family/size/lineHeight）、Cursor/NoBlink、边距档落到视图内边距（1/3/6 DIP）、调色板按 terminal-appearance.ts 的固定 bg/fg/cursor/selection 映到 `terminal.Theme`（亮/暗底分别取插件 light/dark 基色），透明度走终端自身背景 alpha；`inherit` 继续跟随窗口。`Refresh()` 把字体与配色应用到运行中的会话（settings 监听里调用）。
+- 终端窗口尺寸改读 settings。
+- 插件无对位的项（滚轮行数、粗体模式、滚动条、选中即复制、安全粘贴）未接线，也不在 UI 里给出会骗人的开关。
+- 门槛：新增 skip-by-default 的真会话端到端测试（`FLOTER_TERMINAL_TEST=1`）：加载 libghostty-vt、用映射后的参数起真 shell、等它打出提示符、再热应用一次外观。
+
+### P2-d 设置页 General 成型（已做）
+
+- General 分三组（外观 / 窗口行为 / 终端外观）用 `ui.Fieldset`；外观组：主题、语言、玻璃档、应用透明度、终端透明度；终端组：字号、字体、光标形状、闪烁、行距、边距、调色板（九项用下拉）。
+- 选择项统一为 `i18n.Option{ID,Label}` 列表（主题/语言/玻璃/界面大小/光标/边距/调色板），控件与存储 id 一一对应；i18n 完整性测试扩展到切片逐项比对。
+- 设置正文改为「提示固定、表单在 Soft 滚动边缘下滚动」，与启动器同一套 `glass.ScrollEdge`。
+- 交互修正：值型控件必须查询 `.Changed()` 才会在同一帧拿到新值（复选框/开关尤其），已按框架约定修正。
+
 ### P2 还未做
 
 - 结果虚拟化（目前 50 行上限）；插件命令与结果图标。
-- 设置页除 General 外的真内容；终端外观（字号/字体/行距/调色板/透明度）与 `plugins/terminal` 的 Theme/Transparent 接线仍未做。
+- 设置页除 General 外的真内容（Sessions / Shortcuts / Integrations / About 仍是占位）。
 - i18n 仅新增了实际用到的键，未对齐旧 i18n.ts 全量表。
 - surface-residency（保持上次页面）；唤回总回启动器。
+- 无插件对位的终端项（滚轮行数、粗体模式、滚动条、选中即复制、安全粘贴）保持未接线。
+- 终端窗口大小尚未在用户拖拽后写回 settings（下次开启仍是上次保存值）。
 
 ## 纪律（继承）
 

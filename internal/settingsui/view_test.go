@@ -139,3 +139,58 @@ func TestSettingsSidebarRoutesAndEscapeCloses(t *testing.T) {
 		t.Errorf("Escape closed %d times, page %d", closed, a.Page)
 	}
 }
+
+func TestTerminalAppearanceControls(t *testing.T) {
+	store := newStore(t)
+	a := New(store, Actions{})
+	tt := render(t, a, 720, 620)
+
+	for _, want := range []string{
+		"Terminal appearance", "Font size", "Font family", "Cursor shape",
+		"Blinking cursor", "Line height", "Padding", "Terminal palette",
+	} {
+		if !tt.HasText(want) {
+			t.Errorf("missing %q in %q", want, tt.Texts())
+		}
+	}
+
+	// The terminal group sits below the fold: scroll the body to reach it.
+	tt.Scroll(400, 300, 0, 900)
+	tt.Frame()
+
+	if err := tt.Click("Block"); err != nil {
+		t.Fatalf("cursor shape: %v", err)
+	}
+	tt.Frame()
+	if got := store.Snapshot().CursorShape; got != "block" {
+		t.Errorf("cursor shape = %q, want block", got)
+	}
+
+	if err := tt.Click("Blinking cursor"); err != nil {
+		t.Fatalf("blink: %v", err)
+	}
+	tt.Frame()
+	if store.Snapshot().CursorBlink {
+		t.Error("the blink switch did not turn off")
+	}
+
+	if err := tt.Click("Relaxed"); err != nil {
+		t.Fatalf("padding: %v", err)
+	}
+	tt.Frame()
+	if got := store.Snapshot().TerminalPadding; got != "relaxed" {
+		t.Errorf("padding = %q, want relaxed", got)
+	}
+
+	if err := tt.Click("Terminal palette"); err != nil {
+		t.Fatalf("palette trigger: %v", err)
+	}
+	tt.Frame()
+	if err := tt.Click("Forest"); err != nil {
+		t.Fatalf("palette option: %v", err)
+	}
+	tt.Frame()
+	if got := store.Snapshot().TerminalTheme; got != "forest" {
+		t.Errorf("palette = %q, want forest", got)
+	}
+}
