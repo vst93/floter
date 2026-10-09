@@ -1910,3 +1910,79 @@ func containsString(list []string, want string) bool {
 	}
 	return false
 }
+
+// A power action asks first, and only runs the system's command when the user
+// confirms. Both answers are covered, and nothing runs without a confirmation.
+func TestPowerAsksFirst(t *testing.T) {
+	ran := []string{}
+	answer := false
+	a := New(Options{
+		Store:                settings.NewStore(settings.Default()),
+		Paths:                extensions.FromRoot(t.TempDir()),
+		NewTerminal:          func(terminal.Options) (*terminal.Terminal, error) { return nil, errors.New("no library in tests") },
+		ConfirmPower:         func(title string) bool { return answer },
+		RunPowerCommand:      func(action string) error { ran = append(ran, action); return nil },
+		RunSilentCommand:     func(string) error { return nil },
+		OpenExternalTerminal: func() error { return nil },
+	})
+
+	// A refusal runs nothing.
+	a.power("restart")
+	time.Sleep(50 * time.Millisecond)
+	if len(ran) != 0 {
+		t.Fatalf("a refused action ran %v", ran)
+	}
+
+	// A confirmation runs it, once.
+	answer = true
+	deadline := time.Now().Add(5 * time.Second)
+	a.power("shutdown")
+	for {
+		if len(ran) == 1 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the confirmed action never ran")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	if ran[0] != "shutdown" {
+		t.Errorf("ran %v", ran)
+	}
+}
+
+// The platform commands are the ones each system answers.
+func TestPowerCommands(t *testing.T) {
+	cases := []struct {
+		goos    string
+		action  string
+		program string
+	}{
+		{"darwin", "restart", "osascript"},
+		{"darwin", "shutdown", "osascript"},
+		{"windows", "restart", "shutdown"},
+		{"windows", "shutdown", "shutdown"},
+		{"linux", "restart", "systemctl"},
+		{"linux", "shutdown", "systemctl"},
+	}
+	for _, tc := range cases {
+		program, args, err := powerCommand(tc.action, tc.goos)
+		if err != nil {
+			t.Fatalf("%s/%s: %v", tc.goos, tc.action, err)
+		}
+		if program != tc.program || len(args) == 0 {
+			t.Errorf("%s/%s = %s %v", tc.goos, tc.action, program, args)
+		}
+	}
+	// The macOS verb differs between the two actions, and Windows' timeout is
+	// required.
+	if _, args, _ := powerCommand("restart", "darwin"); !strings.Contains(strings.Join(args, " "), "restart") {
+		t.Errorf("macOS restart = %v", args)
+	}
+	if _, args, _ := powerCommand("shutdown", "darwin"); !strings.Contains(strings.Join(args, " "), "shut down") {
+		t.Errorf("macOS shutdown = %v", args)
+	}
+	if _, args, _ := powerCommand("shutdown", "windows"); !strings.Contains(strings.Join(args, " "), "/s") {
+		t.Errorf("windows shutdown = %v", args)
+	}
+}

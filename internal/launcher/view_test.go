@@ -1561,3 +1561,90 @@ func TestToolInstallRows(t *testing.T) {
 		t.Errorf("an empty query offered installs: %q", tt.Texts())
 	}
 }
+
+// The power words claim the query, and the action goes to the shell.
+func TestPowerRows(t *testing.T) {
+	a := testApp()
+	asked := []string{}
+	a.Actions.Power = func(action string) { asked = append(asked, action) }
+	a.SetApps([]apps.App{{Name: "Restart Helper", Path: "/Applications/Restart Helper.app"}})
+
+	tt := render(t, a)
+	tt.Type("restart")
+	tt.Frame()
+	if !tt.HasText("Restart the computer") {
+		t.Fatalf("the restart row is missing: %q", tt.Texts())
+	}
+	// The word claims the query: the application whose name contains it does
+	// not take the first row.
+	if texts := tt.Texts(); len(texts) > 0 && texts[0] == "Restart Helper" {
+		t.Errorf("the application outranked the power row: %q", texts)
+	}
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if len(asked) != 1 || asked[0] != "restart" {
+		t.Fatalf("asked %v", asked)
+	}
+
+	// The shutdown words, including the Chinese one.
+	for _, query := range []string{"shutdown", "power off", "关机"} {
+		a.ResetQuery()
+		a.Query = query
+		tt.Frame()
+		if !tt.HasText("Shut down the computer") {
+			t.Errorf("query %q did not offer shutting down: %q", query, tt.Texts())
+		}
+	}
+	// A query that merely contains the word does not claim it.
+	a.ResetQuery()
+	a.Query = "restart helper"
+	tt.Frame()
+	if tt.HasText("Restart the computer") {
+		t.Errorf("a longer query claimed the power row: %q", tt.Texts())
+	}
+}
+
+// An image clipboard entry's row carries a thumbnail, decoded once.
+func TestClipboardImageThumbnail(t *testing.T) {
+	store := clipboard.NewStore(clipboard.FromConfigRoot(t.TempDir()), 0)
+	var buffer bytes.Buffer
+	if err := png.Encode(&buffer, imageNewRGBA(24)); err != nil {
+		t.Fatal(err)
+	}
+	entry, _, err := store.AddImage(buffer.Bytes(), 24, 24)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if entry.Kind != clipboard.KindImage {
+		t.Fatalf("entry = %+v", entry)
+	}
+
+	a := testApp()
+	a.Clipboard = store
+	tt := render(t, a)
+	a.EnterClipboard()
+	tt.Frame()
+	if !tt.HasText("[image]") {
+		t.Fatalf("the image row is missing: %q", tt.Texts())
+	}
+	// The thumbnail is decoded and cached by its file's path.
+	thumb := a.clipThumb(entry)
+	if thumb == nil {
+		t.Fatal("the thumbnail was not decoded")
+	}
+	if len(a.thumbs) != 1 {
+		t.Errorf("thumbs cache = %v", a.thumbs)
+	}
+	if again := a.clipThumb(entry); again != thumb {
+		t.Error("the thumbnail was decoded twice")
+	}
+
+	// A text entry has none.
+	text, _, err := store.AddText("plain")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := a.clipThumb(text); got != nil {
+		t.Errorf("a text entry produced a thumbnail: %v", got)
+	}
+}

@@ -5,6 +5,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/egoist/mygo/ui"
+
 	"floter/internal/apps"
 	"floter/internal/browser"
 	"floter/internal/calc"
@@ -47,8 +49,10 @@ type Item struct {
 	tab *browser.Tab
 	// calc is the calculator history row the item shows, when it is one.
 	calc *calculator.Entry
-	// icon is the application the row shows an icon for, when it is one.
-	icon *apps.App
+	// icon is the application the row shows an icon for, when it is one, and
+	// thumb the clipboard entry whose image the row shows.
+	icon  *apps.App
+	thumb *ui.Bitmap
 }
 
 // commands is the built-in command list, labeled in the launcher's language.
@@ -245,6 +249,7 @@ func (a *App) clipboardItems() []Item {
 			Shortcut: shortcut,
 			Run:      func() { a.copyClip(entry) },
 			clip:     &entry,
+			thumb:    a.clipThumb(entry),
 		})
 	}
 	return out
@@ -461,6 +466,9 @@ func (a *App) Results() []Item {
 		return a.filesItems()
 	}
 	var out []Item
+	// A power word claims the query before anything else matches: a user who
+	// types "restart" means the machine.
+	out = append(out, a.powerItems()...)
 	if item, ok := a.calculator(); ok {
 		out = append(out, item)
 	}

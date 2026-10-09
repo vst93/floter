@@ -108,6 +108,9 @@ type Actions struct {
 	// OpenTerminalWindow opens the user's own terminal emulator, for the
 	// external-terminal shortcut.
 	OpenTerminalWindow func()
+	// Power restarts or shuts down the machine, after the shell has confirmed
+	// it.
+	Power func(action string)
 	// SearchBrowser searches the browser the settings name; the shell answers
 	// on the main thread, once with the file results and again when the live
 	// tabs land. Nil leaves the mode empty.
@@ -131,11 +134,13 @@ type BrowserResults struct {
 }
 
 // ClipboardSource is the clipboard history the launcher searches and edits:
-// the mode's own star and delete keys act through it.
+// the mode's own star and delete keys act through it, and an image entry's row
+// reads its thumbnail through ImagePath.
 type ClipboardSource interface {
 	Search(query string, limit int) []clipboard.Entry
 	SetFavorite(id string, favorite bool) error
 	Remove(id string) error
+	ImagePath(entry clipboard.Entry) string
 }
 
 // App is the launcher surface's state: the settings store it reads, the
@@ -199,8 +204,10 @@ type App struct {
 	// to, recomputed every frame: 1..9 then 0 for the tenth, over the rows
 	// that can be run.
 	numbers map[int]int
-	// icons caches the decoded application icons, by path.
-	icons map[string]*ui.Bitmap
+	// icons caches the decoded application icons, by path, and thumbs the
+	// clipboard images'.
+	icons  map[string]*ui.Bitmap
+	thumbs map[string]*ui.Bitmap
 	// output is the captured output of a background command run, shown in
 	// place of the result list; Output keeps its scroll offset.
 	output *OutputView
@@ -337,6 +344,15 @@ var rowTransition = ui.ElementTransition{
 
 // resultNumber is the badge a row's result shortcut shows.
 func resultNumber(number int) string { return strconv.Itoa(number) }
+
+// Feedback shows a line under the list, for a caller outside the launcher
+// (the shell's power action, when the system refused it).
+func (a *App) Feedback(message string) {
+	if message == "" {
+		return
+	}
+	a.toast = message
+}
 
 // copy is the launcher's copy in the stored language.
 func (a *App) copy() i18n.Launcher { return StringsFor(a.settings().Language) }
@@ -870,6 +886,9 @@ func (a *App) row(c *ui.Context, item Item, i int) {
 	// user was not looking at.
 	removed := false
 	row.Children(func() {
+		if item.thumb != nil {
+			ui.Image(c, item.thumb).Size(t.Space(8), t.Space(6)).Radius(t.Radius)
+		}
 		if item.icon != nil {
 			if bitmap := a.appIcon(*item.icon); bitmap != nil {
 				ui.Image(c, bitmap).Size(t.Space(4), t.Space(4))

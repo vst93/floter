@@ -149,6 +149,12 @@ type Options struct {
 	// Notify raises a system notification; nil uses the framework's, and
 	// tests record what would have been shown.
 	Notify func(title, body string)
+	// ConfirmPower answers the power confirmation; nil uses the native dialog,
+	// and tests answer for themselves.
+	ConfirmPower func(title string) bool
+	// RunPowerCommand runs a power action; nil runs the platform's own
+	// command, and tests record what would have run.
+	RunPowerCommand func(action string) error
 	// HomeDir is the user's home directory, where the browser plugin looks
 	// for profiles; empty means os.UserHomeDir, and tests point it at a
 	// fixture tree.
@@ -260,6 +266,8 @@ type App struct {
 	saveFileDialog       func(defaultName string) (string, error)
 	openFileDialog       func() (string, error)
 	notify               func(title, body string)
+	confirmPowerDialog   func(title string) bool
+	runPowerCommand      func(action string) error
 	// lastClipboardText and lastClipboardFormats are what the watcher saw
 	// last, so a poll records only what changed.
 	lastClipboardText    string
@@ -350,6 +358,8 @@ func New(opts Options) *App {
 		saveFileDialog:       opts.SaveFileDialog,
 		openFileDialog:       opts.OpenFileDialog,
 		notify:               opts.Notify,
+		confirmPowerDialog:   opts.ConfirmPower,
+		runPowerCommand:      opts.RunPowerCommand,
 		homeDir:              opts.HomeDir,
 		appIcon:              storedAppIcon(opts.Store.Snapshot()),
 		lastAppIcon:          storedAppIcon(opts.Store.Snapshot()),

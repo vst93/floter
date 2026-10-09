@@ -85,6 +85,17 @@ type Launcher struct {
 	CalculatorEmpty          string
 	CalculatorRecordFailed   string
 	CalculatorFavoriteFailed string
+	// The power rows: restart and shut down, and the confirmation the shell
+	// shows before either.
+	PowerRestart       string
+	PowerRestartHint   string
+	PowerShutdown      string
+	PowerShutdownHint  string
+	PowerConfirmTitle  func(action string) string
+	PowerConfirmDetail string
+	PowerConfirmButton string
+	PowerCancel        string
+	PowerFailed        string
 	// InstallTool names the row that offers a tool's install command.
 	InstallTool func(name string) string
 	// The files mode's three actions and its folder mark.

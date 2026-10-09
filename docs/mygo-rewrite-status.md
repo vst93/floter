@@ -123,6 +123,10 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 - 「恢复默认按键」按钮（清空映射 + 唤回键回默认并重注册）；录制期间释放全部全局键、结束再注册；
   修掉「自定义录制器没让出 Escape，Esc 会关掉设置面板」的 bug。
 
+**P4-u 电源动作与图片缩略图**（本轮）
+- 查询正好是 restart/shutdown 词时给出重启/关机行（先确认后执行，平台命令各自正确）；
+- 剪贴板图片条目显示缩略图（懒解码 + 按路径缓存）。
+
 ## 尚未做（按建议优先级）
 
 1. **列表协议的分页**：`page.cursor`/`hasMore` 与滚动加载（需要带着 cursor 重新执行命令）；旧版还有
