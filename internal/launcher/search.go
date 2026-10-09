@@ -1,6 +1,7 @@
 package launcher
 
 import (
+	"os"
 	"sort"
 	"strings"
 
@@ -138,43 +139,60 @@ func (a *App) copyClip(entry clipboard.Entry) {
 	}
 }
 
-// argumentItems is the command mode's list: the selected command's declared
-// arguments, filtered by the word being typed, plus the values of every
-// enum they declare.
+// argumentItems is the command mode's list: the completions for the tokens
+// typed so far — the command's own arguments and their values, with the
+// provider's dynamic completions merged over them when it offers any.
 func (a *App) argumentItems(entry extensions.CommandEntry) []Item {
-	word := a.currentWord()
-	var items []Item
-	for _, argument := range entry.Command.Arguments {
-		name := ""
-		if len(argument.Names) > 0 {
-			name = argument.Names[0]
-		}
-		if name != "" {
-			items = append(items, Item{
-				ID:       "arg:" + name,
-				Title:    name,
-				Detail:   argument.Description,
-				Search:   strings.Join(append(append([]string{}, argument.Names...), argument.Values...), " "),
-				complete: name,
-				Run:      func() { a.appendWord(name) },
-			})
-		}
-		for _, value := range argument.Values {
-			value := value
-			items = append(items, Item{
-				ID:       "value:" + name + ":" + value,
-				Title:    value,
-				Detail:   argument.Description,
-				Search:   strings.Join(argument.Names, " "),
-				complete: value,
-				Run:      func() { a.appendWord(value) },
+	completions := a.completions(entry)
+	items := make([]Item, 0, len(completions))
+	for _, completion := range completions {
+		value := completion.Label
+		items = append(items, Item{
+			ID:       "arg:" + value,
+			Title:    value,
+			Detail:   completion.Detail,
+			complete: value,
+			Run:      func() { a.appendWord(value) },
+		})
+	}
+	return items
+}
+
+// completions merges the static completions with the provider's, asking the
+// provider once per change of what is typed.
+func (a *App) completions(entry extensions.CommandEntry) []extensions.Completion {
+	tokens := a.commandTokens()
+	key := strings.Join(tokens, "\x00")
+	static := extensions.StaticCompletions(entry.Command, tokens, a.workingDirectory())
+
+	if a.dynamicFor == key {
+		return extensions.MergeCompletions(static, a.dynamic)
+	}
+	if a.requestedFor != key {
+		a.requestedFor = key
+		a.dynamicFor, a.dynamic = "", nil
+		if a.Actions.Complete != nil && extensions.NeedsDynamicCompletion(entry.Command, tokens) {
+			requested := append([]string{}, tokens...)
+			entry := entry
+			a.Actions.Complete(entry, requested, func(items []extensions.Completion) {
+				// A stale answer for what was typed before is dropped.
+				if a.requestedFor != key {
+					return
+				}
+				a.dynamicFor, a.dynamic = key, items
 			})
 		}
 	}
-	if word == "" {
-		return items
+	return static
+}
+
+// workingDirectory is where relative path completions are resolved: the
+// app's own directory.
+func (a *App) workingDirectory() string {
+	if wd, err := os.Getwd(); err == nil {
+		return wd
 	}
-	return Match(items, word)
+	return ""
 }
 
 // appItems is the scanned applications as result rows.

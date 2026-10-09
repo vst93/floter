@@ -808,3 +808,143 @@ func TestInstallAsksBeforeGrantingPermissions(t *testing.T) {
 		time.Sleep(20 * time.Millisecond)
 	}
 }
+
+func TestDynamicCompletionReachesTheLauncher(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the fake provider is a shell script")
+	}
+	dir := t.TempDir()
+	paths := extensions.FromRoot(dir)
+	pkg := filepath.Join(paths.Extensions, "dev.floter.completer")
+	if err := os.MkdirAll(pkg, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	manifest := `{
+  "schemaVersion": "2.0", "id": "dev.floter.completer", "name": "Completer",
+  "runtime": {"type": "system", "executableNames": ["completer"]},
+  "provider": {"type": "executable", "argsPrefix": ["--floter"], "completeTimeoutMs": 500}
+}`
+	if err := os.WriteFile(filepath.Join(pkg, "floter.extension.json"), []byte(manifest), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	executable := filepath.Join(pkg, "completer.sh")
+	script := `#!/bin/sh
+case "$*" in
+  "--floter describe --protocol 1.0")
+    echo '{"protocolVersion":"1.0","provider":{"id":"dev.floter.completer","name":"Completer","version":"1.0.0"},"commands":[{"id":"run","name":"Run","description":"Run a task","execution":{"program":"self","argsPrefix":["run"],"mode":"pty"},"arguments":[{"names":["-task"],"kind":"command","takesValue":true,"description":"Task"}]}]}'
+    ;;
+  "--floter complete --protocol 1.0")
+    cat >/dev/null
+    echo '{"completions":[{"label":"deploy","kind":"command","detail":"Deploy it"}]}'
+    ;;
+  *) exit 0 ;;
+esac
+`
+	if err := os.WriteFile(executable, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(paths.RepositoryFile, []byte(`{
+  "schemaVersion": 1,
+  "extensions": {
+    "dev.floter.completer": {
+      "id": "dev.floter.completer", "name": "Completer", "state": "enabled", "enabled": true,
+      "packageVersion": "1.0.0", "manifestPath": "", "executablePath": "`+executable+`",
+      "channel": "stable", "installedAt": 1, "updatedAt": 1
+    }
+  }
+}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	a := New(Options{
+		Store:       settings.NewStore(settings.Default()),
+		Paths:       paths,
+		NewTerminal: func(terminal.Options) (*terminal.Terminal, error) { return nil, errors.New("no library in tests") },
+		OpenAtLogin: func() bool { return false }, SetOpenAtLogin: func(bool) error { return nil },
+	})
+	a.RefreshIntegrations(context.Background())
+	if got := a.Launcher.Commands; len(got) != 1 {
+		t.Fatalf("commands = %+v", got)
+	}
+	entry := a.Launcher.Commands[0]
+
+	// The shell answers the launcher's request on the main thread.
+	done := make(chan []extensions.Completion, 1)
+	a.Launcher.Actions.Complete(entry, []string{"-task", ""}, func(items []extensions.Completion) {
+		done <- items
+	})
+	select {
+	case items := <-done:
+		if len(items) != 1 || items[0].Label != "deploy" {
+			t.Errorf("completions = %+v", items)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("the completion never came back")
+	}
+}
+
+func TestDiagnoseIntegrationRecordsTheResult(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the fake provider is a shell script")
+	}
+	dir := t.TempDir()
+	paths := extensions.FromRoot(dir)
+	pkg := filepath.Join(paths.Extensions, "dev.floter.diagnosed")
+	if err := os.MkdirAll(pkg, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(pkg, "floter.extension.json"), []byte(`{
+  "schemaVersion": "2.0", "id": "dev.floter.diagnosed", "name": "Diagnosed",
+  "runtime": {"type": "system", "executableNames": ["diagnosed"]},
+  "provider": {"type": "executable", "argsPrefix": []}
+}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	executable := filepath.Join(pkg, "diagnosed.sh")
+	script := `#!/bin/sh
+case "$*" in
+  "describe --protocol 1.0") echo '{"protocolVersion":"1.0","provider":{"id":"dev.floter.diagnosed","name":"Diagnosed","version":"1.0.0"},"commands":[]}' ;;
+  "diagnose --protocol 1.0") echo '{"status":"problem","checks":[{"id":"tool","status":"problem","message":"the tool is outdated"}]}' ;;
+  *) exit 0 ;;
+esac
+`
+	if err := os.WriteFile(executable, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(paths.RepositoryFile, []byte(`{
+  "schemaVersion": 1,
+  "extensions": {
+    "dev.floter.diagnosed": {
+      "id": "dev.floter.diagnosed", "name": "Diagnosed", "state": "enabled", "enabled": true,
+      "packageVersion": "1.0.0", "manifestPath": "", "executablePath": "`+executable+`",
+      "channel": "stable", "installedAt": 1, "updatedAt": 1
+    }
+  }
+}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	a := New(Options{
+		Store:       settings.NewStore(settings.Default()),
+		Paths:       paths,
+		NewTerminal: func(terminal.Options) (*terminal.Terminal, error) { return nil, errors.New("no library in tests") },
+		OpenAtLogin: func() bool { return false }, SetOpenAtLogin: func(bool) error { return nil },
+	})
+	a.RefreshIntegrations(context.Background())
+	a.diagnoseIntegration("dev.floter.diagnosed")
+
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		list := a.integrationList()
+		if len(list) == 1 && list[0].Diagnosis != "" {
+			if !list[0].DiagnosisFailed || !strings.Contains(list[0].Diagnosis, "outdated") {
+				t.Errorf("diagnosis = %+v", list[0])
+			}
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("the diagnosis never landed: %+v", list)
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+}

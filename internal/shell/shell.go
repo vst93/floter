@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/egoist/mygo"
@@ -139,6 +140,10 @@ type App struct {
 	// confirmPermissions approves an install's permissions, nil for the
 	// native dialog.
 	confirmPermissions func(extensions.PermissionApproval) bool
+	// diagnoses is the last health check per integration, and diagnosisMu
+	// guards it: a check runs off the main thread.
+	diagnoses   map[string]settingsui.Integration
+	diagnosisMu sync.Mutex
 
 	// Clipboard is the clipboard history the launcher searches.
 	Clipboard *clipboard.Store
@@ -251,10 +256,12 @@ func New(opts Options) *App {
 			a.Hide()
 		},
 		RunCommand: a.runCommand,
+		Complete:   a.completeCommand,
 	})
 	a.Settings = settingsui.New(opts.Store, settingsui.Actions{
-		Close:        func() { a.Open(SurfaceLauncher) },
-		CloseSession: func() { a.Terminal.Close() },
+		Close:               func() { a.Open(SurfaceLauncher) },
+		CloseSession:        func() { a.Terminal.Close() },
+		DiagnoseIntegration: a.diagnoseIntegration,
 		InstallFromRegistry: func(name, constraint string) {
 			go func() {
 				prepared, err := extensions.PrepareRegistry(context.Background(), a.Paths, a.Registry, name, constraint)
@@ -501,12 +508,94 @@ func (a *App) integrationList() []settingsui.Integration {
 				item.Enforced[permission] = extensions.PermissionEnforced(permission)
 			}
 		}
+		a.diagnosisMu.Lock()
+		if diagnosis, ok := a.diagnoses[item.ID]; ok {
+			item.Diagnosis, item.DiagnosisFailed = diagnosis.Diagnosis, diagnosis.DiagnosisFailed
+		}
+		a.diagnosisMu.Unlock()
 		out = append(out, item)
 	}
 	for _, id := range inventory.Orphans {
 		out = append(out, settingsui.Integration{ID: id, Name: id, Orphan: true})
 	}
 	return out
+}
+
+// diagnoseIntegration asks a provider to check itself, off the main thread,
+// and remembers what it said for the list.
+func (a *App) diagnoseIntegration(id string) {
+	go func() {
+		integration, ok := a.Integrations.Inventory().WithID(id)
+		if !ok {
+			return
+		}
+		result := settingsui.Integration{Diagnosis: "ok"}
+		diagnosis, err := extensions.Diagnose(context.Background(), integration)
+		switch {
+		case err != nil:
+			result.Diagnosis, result.DiagnosisFailed = err.Error(), true
+		default:
+			var problems []string
+			for _, check := range diagnosis.Checks {
+				if check.Status != "ok" {
+					message := check.Message
+					if message == "" {
+						message = check.ID
+					}
+					problems = append(problems, message)
+				}
+			}
+			if diagnosis.Status != "" && diagnosis.Status != "ok" || len(problems) > 0 {
+				result.DiagnosisFailed = true
+				result.Diagnosis = strings.Join(problems, "; ")
+				if result.Diagnosis == "" {
+					result.Diagnosis = diagnosis.Status
+				}
+			} else if diagnosis.Status != "" {
+				result.Diagnosis = diagnosis.Status
+			} else {
+				result.Diagnosis = "ok"
+			}
+		}
+		a.diagnosisMu.Lock()
+		if a.diagnoses == nil {
+			a.diagnoses = map[string]settingsui.Integration{}
+		}
+		a.diagnoses[id] = result
+		a.diagnosisMu.Unlock()
+		a.onMain(func() {
+			if a.Win != nil {
+				a.Win.Invalidate()
+			}
+		})
+	}()
+}
+
+// completeCommand asks a provider for completions of what is being typed.
+// It runs off the main thread and hands the answer back to it; a provider
+// that does not implement the operation, or answers too slowly, leaves the
+// static completions alone.
+func (a *App) completeCommand(entry extensions.CommandEntry, tokens []string, done func([]extensions.Completion)) {
+	go func() {
+		integration, ok := a.Integrations.Inventory().WithID(entry.IntegrationID)
+		if !ok || integration.ManifestErr != nil {
+			return
+		}
+		cwd, err := os.Getwd()
+		if err != nil {
+			cwd = ""
+		}
+		items, err := extensions.Complete(context.Background(), integration, extensions.CompletionRequest{
+			Command: entry.Command.ID,
+			Tokens:  tokens,
+			CWD:     cwd,
+		})
+		if err != nil {
+			log.Printf("floter: %s offered no completions: %v", entry.Command.ID, err)
+			return
+		}
+		a.onMain(func() { done(items) })
+	}()
 }
 
 // confirmInstallPermissions asks the user about an install's permissions,

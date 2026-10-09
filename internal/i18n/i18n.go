@@ -164,6 +164,7 @@ type Settings struct {
 	IntegrationsOrphan       string
 	IntegrationsHint         string
 	IntegrationsUninstall    string
+	IntegrationsCheck        string
 	IntegrationsInstall      string
 	IntegrationsPackageHint  string
 	IntegrationsVersionHint  string

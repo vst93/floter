@@ -74,6 +74,10 @@ type Actions struct {
 	// RunCommand runs an extension's command with the arguments the user
 	// typed in the command mode (none when the row was clicked).
 	RunCommand func(entry extensions.CommandEntry, args []string)
+	// Complete asks the provider for completions of the tokens typed so
+	// far; the shell answers on the main thread. Nil disables dynamic
+	// completion, and the static argument list stands alone.
+	Complete func(entry extensions.CommandEntry, tokens []string, done func([]extensions.Completion))
 }
 
 // ClipboardSource is the clipboard history the launcher searches.
@@ -112,6 +116,11 @@ type App struct {
 	// mode is the extension command being typed: while it is set, the field
 	// holds the command's argv and the list offers its arguments.
 	mode *extensions.CommandEntry
+	// dynamicFor is the token key the provider's completions belong to, and
+	// requestedFor the last key asked for, so one edit asks once.
+	dynamicFor   string
+	dynamic      []extensions.Completion
+	requestedFor string
 	// clipboard is set while the clipboard history is searched: the field
 	// holds the mode word and the query, and the list offers entries.
 	clipboard bool
@@ -343,6 +352,21 @@ func (a *App) commandArgs() []string {
 		return nil
 	}
 	return words[1:]
+}
+
+// commandTokens is what the completions are asked about: the argument words,
+// with an empty last token while a new word is being typed (the field ends
+// in a space), as a completion request needs.
+func (a *App) commandTokens() []string {
+	words := splitArgs(a.Query)
+	tokens := []string{}
+	if len(words) > 1 {
+		tokens = append(tokens, words[1:]...)
+	}
+	if a.Query != "" && strings.TrimRight(a.Query, " \t") != a.Query {
+		tokens = append(tokens, "")
+	}
+	return tokens
 }
 
 // currentWord is the argument being typed: the last word when the line does

@@ -43,6 +43,8 @@ type Actions struct {
 	SetIntegrationEnabled func(id string, enabled bool)
 	// UninstallIntegration removes an installed extension.
 	UninstallIntegration func(id string, name string)
+	// DiagnoseIntegration asks an integration's provider to check itself.
+	DiagnoseIntegration func(id string)
 	// InstallFromRegistry installs a package from the npm registry.
 	InstallFromRegistry func(name, constraint string)
 }
@@ -68,6 +70,10 @@ type Integration struct {
 	// them the host itself decides.
 	Permissions []string
 	Enforced    map[string]bool
+	// Diagnosis is what the last health check said, empty when none ran.
+	Diagnosis string
+	// DiagnosisFailed marks a check that reported a problem.
+	DiagnosisFailed bool
 }
 
 // Session is one running session, as the Sessions page shows it.
@@ -318,6 +324,13 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			if len(integration.Permissions) > 0 {
 				ui.Text(c, a.permissionLine(integration, copy)).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
 			}
+			if integration.Diagnosis != "" {
+				color := t.TextMuted
+				if integration.DiagnosisFailed {
+					color = t.Danger
+				}
+				ui.Text(c, integration.Diagnosis).FontSize(t.FontSize - 1).TextColor(color)
+			}
 			if integration.Error != "" {
 				ui.Text(c, integration.Error).FontSize(t.FontSize - 1).TextColor(t.Danger)
 			}
@@ -332,6 +345,11 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 					}
 					if changed {
 						a.Actions.SetIntegrationEnabled(integration.ID, on)
+					}
+				}
+				if a.Actions.DiagnoseIntegration != nil {
+					if ui.Button(c, copy.IntegrationsCheck).Clicked() {
+						a.Actions.DiagnoseIntegration(integration.ID)
 					}
 				}
 				if a.Actions.UninstallIntegration != nil {

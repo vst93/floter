@@ -199,6 +199,15 @@
 - 设置页集成行新增权限行（本地化名称 + enforced 标注）。
 - 门槛：权限模型与审批规则单测、需要批准/拒绝/同意的安装流程测试、设置页展示测试；共 160 项测试。
 
+### P3-g complete / diagnose 协议（已做）
+
+- **complete**：`<program> <argsPrefix> complete --protocol 1.0`，请求 JSON 走 stdin（`{command,tokens,cwd}`），按 manifest 的 `completeTimeoutMs` 超时，解析 `{completions:[{label,kind,detail}]}`；provider 不实现（非零退出）、超时或答案非法都是**可降级的错误**（命令模式退回静态补全），且不会被挂死的 provider 拖住。
+- **diagnose**：`diagnose --protocol 1.0`（5s），解析 `{status,checks:[{id,status,message}]}`。
+- **静态补全**（对齐 catalog.rs）：正在输入的词前缀匹配参数名；若前一个 token 是取值参数，则按 kind 给出 enum 候选、路径/目录候选（目录带尾分隔符）或交由 provider（kind=command 时静态为空）；`NeedsDynamicCompletion` 只在确实是 command 型参数时才请求动态补全。
+- **命令模式接线**：token 变化才请求一次（带 token key 防止过期结果回填），动态结果优先合并、去重后接静态结果；Tab 补全、Enter 运行不变。
+- **设置页**：每个集成行加「检测」按钮，结果记在行上（status/问题消息，失败用 Danger 色）。
+- 门槛：静态补全/合并/动态判定单测、假 provider 的 complete/diagnose/超时/非零退出/坏 JSON 测试、命令模式的动态合并测试、shell 的 complete 与 diagnose 端到端测试；共 167 项测试。
+
 ### P3 还未做
 
 - 安装/更新/卸载（graft、事务、journal、回滚）、导入导出、npm 下载与校验。

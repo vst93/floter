@@ -83,14 +83,14 @@ type Provider struct {
 // Lifecycle is what the host does around an install: completions,
 // configuration templates, health probes and how a command launches.
 type Lifecycle struct {
-	Completions            []Completion `json:"completions"`
-	ConfigurationTemplates []Template   `json:"configurationTemplates"`
-	Probes                 []Probe      `json:"probes"`
-	Launch                 Launch       `json:"launch"`
+	Completions            []ShellCompletion `json:"completions"`
+	ConfigurationTemplates []Template        `json:"configurationTemplates"`
+	Probes                 []Probe           `json:"probes"`
+	Launch                 Launch            `json:"launch"`
 }
 
-// Completion installs a shell completion definition.
-type Completion struct {
+// ShellCompletion installs a shell completion definition.
+type ShellCompletion struct {
 	Shell     string   `json:"shell"`
 	Source    string   `json:"source"`
 	Args      []string `json:"args"`

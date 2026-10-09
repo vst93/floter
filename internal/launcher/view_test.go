@@ -251,20 +251,37 @@ func TestTabExpandsAnExtensionCommandIntoItsArguments(t *testing.T) {
 	if a.Query != "jv " {
 		t.Errorf("the field holds %q, want the command id and a space", a.Query)
 	}
-	// The row shows each argument's first name; its other names are
-	// searchable (see the pure test below).
-	for _, want := range []string{"-f", "-c", "-mode", "pretty", "plain"} {
+	// The list offers the command's arguments (every name), not the enum
+	// values, until the argument that takes them is typed.
+	for _, want := range []string{"-f", "--format", "-c", "-mode"} {
 		if !tt.HasText(want) {
 			t.Errorf("missing argument %q in %q", want, tt.Texts())
 		}
 	}
-	// An alias of a flag matches it.
-	tt.Type("--format")
-	tt.Frame()
-	if !tt.HasText("-f") {
-		t.Errorf("the alias did not match: %q", tt.Texts())
+	if tt.HasText("pretty") {
+		t.Errorf("an enum value showed before its argument: %q", tt.Texts())
 	}
-	tt.Type(strings.Repeat("\b", len("--format")))
+
+	// Typing narrows the list to what prefixes it.
+	tt.Type("-m")
+	tt.Frame()
+	if !tt.HasText("-mode") || tt.HasText("-c") {
+		t.Errorf("typing did not narrow the list: %q", tt.Texts())
+	}
+	for range "-m" {
+		tt.Key(0, ui.KeyBackspace)
+	}
+	tt.Frame()
+
+	// After the argument that takes a value, its values are what is left.
+	tt.Type("-mode ")
+	tt.Frame()
+	if !tt.HasText("pretty") || !tt.HasText("plain") {
+		t.Errorf("the enum values did not show: %q", tt.Texts())
+	}
+	if tt.HasText("--format") {
+		t.Errorf("argument names are still listed after a value argument: %q", tt.Texts())
+	}
 	tt.Frame()
 }
 
@@ -280,7 +297,7 @@ func TestCommandModeFiltersCompletesAndRuns(t *testing.T) {
 	if !tt.HasText("-mode") {
 		t.Fatalf("typing did not filter: %q", tt.Texts())
 	}
-	if tt.HasText("Format JSON") {
+	if tt.HasText("-c") {
 		t.Errorf("a flag that does not match is still listed: %q", tt.Texts())
 	}
 
@@ -446,5 +463,54 @@ func TestClipboardModeWithoutAStore(t *testing.T) {
 	a.activate(nil)
 	if a.clipboard {
 		t.Error("activating nothing did not leave the mode")
+	}
+}
+
+func TestDynamicCompletionsMergeIntoTheCommandMode(t *testing.T) {
+	a := commandApp()
+	// The command declares one argument the provider completes.
+	a.Commands[0].Command.Arguments = append(a.Commands[0].Command.Arguments,
+		extensions.Argument{Names: []string{"-run"}, Kind: "command", TakesValue: true, Description: "Run a task"})
+	asked := [][]string{}
+	a.Actions.Complete = func(entry extensions.CommandEntry, tokens []string, done func([]extensions.Completion)) {
+		asked = append(asked, tokens)
+		done([]extensions.Completion{{Label: "deploy", Kind: "command", Detail: "Deploy it"}})
+	}
+	a.Query = "json"
+	tt := render(t, a)
+	tt.Key(0, ui.KeyTab)
+	tt.Frame()
+
+	// Nothing is asked for a plain flag.
+	tt.Type("-f")
+	tt.Frame()
+	if len(asked) != 0 {
+		t.Errorf("the provider was asked about a flag: %v", asked)
+	}
+	for range "-f" {
+		tt.Key(0, ui.KeyBackspace)
+	}
+	tt.Frame()
+
+	// A command-kind argument is what the provider completes.
+	tt.Type("-run ")
+	tt.Frame()
+	if len(asked) == 0 {
+		t.Fatalf("the provider was not asked: %q", tt.Texts())
+	}
+	tt.Frame()
+	if !tt.HasText("deploy") {
+		t.Errorf("the dynamic completion did not merge in: %q", tt.Texts())
+	}
+	// Tab takes it, and Enter runs the argv.
+	tt.Key(0, ui.KeyTab)
+	tt.Frame()
+	if a.Query != "jv -run deploy " {
+		t.Fatalf("completion left %q", a.Query)
+	}
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if testRuns["cmd:jv"] != 3 {
+		t.Errorf("run recorded %v", testRuns)
 	}
 }
