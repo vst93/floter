@@ -1446,3 +1446,99 @@ func TestCalculatorHistoryIsWired(t *testing.T) {
 		t.Errorf("retention = %d / %d", a.Calculator.MaxItems(), a.Calculator.RetentionDays())
 	}
 }
+
+// A command whose manifest sends its output to the background runs headless
+// and its output reaches the launcher.
+func TestCapturedCommandReachesTheLauncher(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the fixture runs through sh")
+	}
+	paths := integrationFixture(t)
+	store := settings.NewStore(settings.Default())
+	if err := store.Update(func(s *settings.Settings) { s.SetCommandSwitch("io.github.vst93.v", "jv", true) }); err != nil {
+		t.Fatal(err)
+	}
+	a := New(Options{
+		Store:       store,
+		Paths:       paths,
+		NewTerminal: func(terminal.Options) (*terminal.Terminal, error) { return nil, errors.New("no library in tests") },
+	})
+	a.RefreshIntegrations(context.Background())
+	if len(a.Launcher.Commands) != 1 {
+		t.Fatalf("commands = %+v", a.Launcher.Commands)
+	}
+	entry := a.Launcher.Commands[0]
+	entry.Route = extensions.RouteBackground
+	entry.Program = "/bin/sh"
+	entry.Args = []string{"-c", "echo captured"}
+	entry.Dir = ""
+
+	done := make(chan struct{})
+	a.Launcher.Actions.RunCommandCaptured(entry, nil, func(run extensions.CapturedRun, err error) {
+		if err != nil {
+			t.Errorf("run: %v", err)
+		}
+		if strings.TrimSpace(run.Stdout) != "captured" {
+			t.Errorf("stdout = %q", run.Stdout)
+		}
+		if !run.Success || run.ExitCode != 0 {
+			t.Errorf("run = %+v", run)
+		}
+		close(done)
+	})
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the captured run never answered")
+	}
+}
+
+// A background run that finishes while the panel is hidden raises one system
+// notification; a visible panel shows the output itself.
+func TestCapturedRunNotifiesOnlyWhenHidden(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the fixture runs through sh")
+	}
+	notified := [][2]string{}
+	a := New(Options{
+		Store:                settings.NewStore(settings.Default()),
+		Paths:                extensions.FromRoot(t.TempDir()),
+		NewTerminal:          func(terminal.Options) (*terminal.Terminal, error) { return nil, errors.New("no library in tests") },
+		RunSilentCommand:     func(string) error { return nil },
+		OpenExternalTerminal: func() error { return nil },
+		Notify:               func(title, body string) { notified = append(notified, [2]string{title, body}) },
+	})
+	entry := extensions.CommandEntry{
+		Command: extensions.Command{ID: "run", Name: "Run things"},
+		Program: "/bin/sh",
+		Args:    []string{"-c", "echo done"},
+		Route:   extensions.RouteBackground,
+	}
+	done := make(chan struct{})
+	a.runCommandCaptured(entry, nil, func(extensions.CapturedRun, error) { close(done) })
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the captured run never answered")
+	}
+	if len(notified) != 1 {
+		t.Fatalf("notifications = %v", notified)
+	}
+	if notified[0][0] != "Run things finished" || !strings.HasPrefix(notified[0][1], "Finished") {
+		t.Errorf("notification = %v", notified[0])
+	}
+
+	// A failing run says so in the notification.
+	notified = nil
+	entry.Args = []string{"-c", "exit 4"}
+	done = make(chan struct{})
+	a.runCommandCaptured(entry, nil, func(extensions.CapturedRun, error) { close(done) })
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the second run never answered")
+	}
+	if len(notified) != 1 || !strings.HasPrefix(notified[0][1], "Exit code 4") {
+		t.Errorf("notifications = %v", notified)
+	}
+}

@@ -121,8 +121,23 @@ func (a *App) commandItems() []Item {
 }
 
 func (a *App) runCommand(entry extensions.CommandEntry) {
+	a.runCommandWith(entry, nil)
+}
+
+// runCommandWith runs a command by the route its manifest declares: the
+// terminal surface, or a headless run whose output the launcher shows.
+func (a *App) runCommandWith(entry extensions.CommandEntry, args []string) {
+	if entry.Route == extensions.RouteBackground {
+		if a.Actions.RunCommandCaptured == nil {
+			return
+		}
+		a.Actions.RunCommandCaptured(entry, args, func(run extensions.CapturedRun, err error) {
+			a.showOutput(run, err)
+		})
+		return
+	}
 	if a.Actions.RunCommand != nil {
-		a.Actions.RunCommand(entry, nil)
+		a.Actions.RunCommand(entry, args)
 	}
 }
 

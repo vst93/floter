@@ -89,8 +89,13 @@ func TestSurfaceCrossProduct(t *testing.T) {
 }
 
 func TestStringsForUnknownLanguageIsEnglish(t *testing.T) {
-	if got := StringsFor("fr"); got != StringsFor("en") {
-		t.Errorf("StringsFor(fr) = %+v, want the English copy", got)
+	// The copy struct holds function fields (a sentence with a value in it),
+	// so it is compared field by field rather than whole.
+	if got, want := StringsFor("fr").Placeholder, StringsFor("en").Placeholder; got != want {
+		t.Errorf("StringsFor(fr) placeholder = %q, want %q", got, want)
+	}
+	if got, want := StringsFor("fr").CommandQuit, StringsFor("en").CommandQuit; got != want {
+		t.Errorf("StringsFor(fr) quit = %q, want %q", got, want)
 	}
 }
 

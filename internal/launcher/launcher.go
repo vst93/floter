@@ -12,6 +12,7 @@ import (
 	"floter/internal/calculator"
 	"floter/internal/clipboard"
 	"floter/internal/extensions"
+	"floter/internal/i18n"
 	"floter/internal/settings"
 )
 
@@ -73,6 +74,9 @@ type Actions struct {
 	// RunCommand runs an extension's command with the arguments the user
 	// typed in the command mode (none when the row was clicked).
 	RunCommand func(entry extensions.CommandEntry, args []string)
+	// RunCommandCaptured runs a command whose manifest sends its output to
+	// the background, and hands the captured output back on the main thread.
+	RunCommandCaptured func(entry extensions.CommandEntry, args []string, done func(extensions.CapturedRun, error))
 	// Complete asks the provider for completions of the tokens typed so
 	// far; the shell answers on the main thread. Nil disables dynamic
 	// completion, and the static argument list stands alone.
@@ -174,6 +178,10 @@ type App struct {
 	// clipboard is set while the clipboard history is searched: the field
 	// holds the mode word and the query, and the list offers entries.
 	clipboard bool
+	// output is the captured output of a background command run, shown in
+	// place of the result list; Output keeps its scroll offset.
+	output *OutputView
+	Output ui.ScrollState
 	// calculatorMode is set while the calculator history is open, with the
 	// entries the shell last handed over and the filter Tab cycles.
 	calculatorMode   bool
@@ -198,6 +206,9 @@ type App struct {
 	// gives it one.
 	Clipboard ClipboardSource
 }
+
+// copy is the launcher's copy in the stored language.
+func (a *App) copy() i18n.Launcher { return StringsFor(a.settings().Language) }
 
 // InClipboardMode reports whether the clipboard history mode is open, for a
 // test or a caller that has to know where a custom shortcut landed.
@@ -291,6 +302,10 @@ func (a *App) View(c *ui.Context) {
 	edge := fieldRow + t.Space(2)
 
 	ui.Box(c).Fill().Children(func() {
+		if a.output != nil {
+			a.outputBody(c, copy, edge)
+			return
+		}
 		if len(results) == 0 {
 			ui.Column(c).FillWidth().Padding(t.Space(3)).Center().Children(func() {
 				message := copy.NoResults
@@ -373,6 +388,18 @@ func (a *App) View(c *ui.Context) {
 	}
 	if c.Shortcut(0, ui.KeyUp) {
 		a.move(-1, len(results))
+	}
+	if a.output != nil {
+		switch {
+		case c.Shortcut(0, ui.KeyEscape):
+			a.leaveOutput()
+		case c.Shortcut(0, ui.KeyEnter):
+			if a.Actions.Copy != nil {
+				a.Actions.Copy(a.output.Text)
+				a.toast = copy.Copied
+			}
+		}
+		return
 	}
 	if c.Shortcut(0, ui.KeyEscape) {
 		switch {
@@ -859,9 +886,7 @@ func (a *App) runMode() {
 	entry := *a.mode
 	args := a.commandArgs()
 	a.leaveCommand()
-	if a.Actions.RunCommand != nil {
-		a.Actions.RunCommand(entry, args)
-	}
+	a.runCommandWith(entry, args)
 }
 
 // move moves the selection by delta, wrapping around the list.

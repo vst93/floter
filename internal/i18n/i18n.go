@@ -61,6 +61,19 @@ type Launcher struct {
 	CommandBrowserHint    string
 	CommandQuit           string
 	CommandQuitHint       string
+	// The captured-output view: its empty state, its status words and its
+	// key hint.
+	OutputEmpty     string
+	OutputSucceeded string
+	OutputTimedOut  string
+	OutputTruncated string
+	OutputHint      string
+	OutputFailed    string
+	// OutputNotification titles the system notification a background run
+	// raises when the panel is hidden; OutputNotificationBody is its line.
+	OutputNotification     func(command string) string
+	OutputNotificationBody func(status string) string
+
 	// The clipboard mode's own feedback lines: the star and the delete.
 	ClipboardFavoriteFailed string
 	ClipboardDeleteFailed   string

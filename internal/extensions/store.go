@@ -230,6 +230,9 @@ type CommandEntry struct {
 	// the provider asked for.
 	Mode string
 	Dir  string
+	// Route is where the output goes: the terminal surface, or a headless
+	// run the launcher shows (the manifest's `output` mode).
+	Route string
 
 	// Env is the integration's configured environment ("KEY=value"),
 	// injected when the command runs.

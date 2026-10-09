@@ -403,6 +403,22 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
 - 旧版剪贴板模式的六档 kind 过滤（全部/收藏/文本/图片/链接/文件，Tab 循环）**未接线**：Go 版
   Tab 已定为「钉住」（见 P2/P4-d），两种语义只能留一个；收藏/删除已可用，kind 过滤登记为未做。
 
+### P3-h 后台运行与输出回看（capture 通道，已做）
+
+- **路由**：manifest 的 `output`（`terminal` | `background`，缺省 terminal）决定命令输出去哪；
+  `CommandEntry.Route` 带上它。旧版这个字段一直存在，Go 侧此前忽略（capture 被归一化成 pty）。
+- **`extensions.RunCaptured`**：无 shell 直接 spawn（argv 与终端路由同源）、stdin 为 null、
+  带上配置环境与 cwd、`RUN_TIMEOUT` 300s（可被调用方 ctx 收紧）、`WaitDelay` 兜住不听话的子进程、
+  每条流 1 MiB 上限并在超限时置 `Truncated`（旧版不截断却带着这个字段，这里让它说实话）；
+  **非零退出是答案不是错误**（`ExitCode` + `Success=false`），超时/起不来才是错误。
+- **启动器的输出视图**：状态行（完成/超时/退出码 + 耗时 + 是否截断）+ 可滚动、可选中的等宽文本
+  （字体跟随终端字体设置），`Enter` 复制、`Esc` 关闭——对应旧版的 PluginTextView（最小三行、
+  上限十行高度、内部滚动）的语义。
+- **完成提示**：面板隐藏时后台运行完成会发一条系统通知（`mygo.NewNotification`），面板可见时
+  不重复通知（旧版「系统通知只用于后台完成，绝不做屏幕上 toast 的第二份」）；通知文案走 i18n，
+  测试可注入 `Notify`。
+- 未做：旧版的**列表协议**（stdout 是 JSON 数组时渲染成带编号/分页的列表）——目前一律按文本展示。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。

@@ -138,6 +138,9 @@ type Options struct {
 	// RunSilentCommand runs a custom shortcut's command line; nil spawns the
 	// user's shell, and tests record the command.
 	RunSilentCommand func(command string) error
+	// Notify raises a system notification; nil uses the framework's, and
+	// tests record what would have been shown.
+	Notify func(title, body string)
 	// HomeDir is the user's home directory, where the browser plugin looks
 	// for profiles; empty means os.UserHomeDir, and tests point it at a
 	// fixture tree.
@@ -232,6 +235,7 @@ type App struct {
 	// uses the platform's own paths.
 	openExternalTerminal func() error
 	silentCommand        func(command string) error
+	notify               func(title, body string)
 	// lastClipboardText and lastClipboardFormats are what the watcher saw
 	// last, so a poll records only what changed.
 	lastClipboardText    string
@@ -319,6 +323,7 @@ func New(opts Options) *App {
 		unregisterShortcut:   opts.UnregisterShortcut,
 		openExternalTerminal: opts.OpenExternalTerminal,
 		silentCommand:        opts.RunSilentCommand,
+		notify:               opts.Notify,
 		homeDir:              opts.HomeDir,
 		appIcon:              storedAppIcon(opts.Store.Snapshot()),
 		lastAppIcon:          storedAppIcon(opts.Store.Snapshot()),
@@ -368,10 +373,11 @@ func New(opts Options) *App {
 			a.refreshRecents()
 			a.Hide()
 		},
-		RunCommand: a.runCommand,
-		Complete:   a.completeCommand,
-		PinText:    a.PinText,
-		OpenURL:    a.openURL,
+		RunCommand:         a.runCommand,
+		RunCommandCaptured: a.runCommandCaptured,
+		Complete:           a.completeCommand,
+		PinText:            a.PinText,
+		OpenURL:            a.openURL,
 		ActivateTab: func(tab browser.Tab) {
 			options := settings.BrowserPluginOf(a.Store.Snapshot())
 			go func() {
@@ -1084,6 +1090,53 @@ func (a *App) runCommand(entry extensions.CommandEntry, args []string) {
 		log.Printf("floter: could not run %s: %v", entry.Command.ID, err)
 	}
 	a.Open(SurfaceTerminal)
+}
+
+// runCommandCaptured runs a command whose manifest sends its output to the
+// background: headless, with both streams captured, and the answer handed back
+// on the main thread so the launcher can show it. The run is time-boxed, so a
+// program that hangs is killed rather than pinning the app.
+func (a *App) runCommandCaptured(entry extensions.CommandEntry, args []string, done func(extensions.CapturedRun, error)) {
+	go func() {
+		run, err := extensions.RunCaptured(context.Background(), entry, args)
+		a.onMain(func() {
+			done(run, err)
+			a.notifyRun(entry, run, err)
+		})
+	}()
+}
+
+// notifyRun raises a system notification for a background run that finished
+// while the panel was hidden. A visible panel shows the output itself, so a
+// notification there would be a second copy of the same news.
+func (a *App) notifyRun(entry extensions.CommandEntry, run extensions.CapturedRun, err error) {
+	if a.Win != nil && a.Win.IsVisible() {
+		return
+	}
+	copy := a.Launcher.Copy()
+	status := a.Launcher.RunStatus(run, err)
+	title := copy.OutputNotification(entry.Command.Name)
+	if title == "" {
+		title = entry.Command.ID
+	}
+	a.Notify(title, copy.OutputNotificationBody(status))
+}
+
+// Notify shows a system notification, through the framework unless a test
+// provided its own.
+func (a *App) Notify(title, body string) {
+	if a.notify != nil {
+		a.notify(title, body)
+		return
+	}
+	notification := mygo.NewNotification(mygo.NotificationOptions{
+		Title: title,
+		Body:  body,
+		Group: "floter.commands",
+	})
+	if err := notification.Show(); err != nil {
+		log.Printf("floter: could not show a notification: %v", err)
+	}
 }
 
 // scanApps reads the installed applications in the background and hands

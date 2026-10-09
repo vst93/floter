@@ -1045,3 +1045,95 @@ func TestCalculatorDeleteControl(t *testing.T) {
 		t.Errorf("the feedback line is missing: %q", tt.Texts())
 	}
 }
+
+// A command whose manifest sends its output to the background runs headless
+// and shows its output in the launcher, where Enter copies it and Escape
+// closes it.
+func TestCapturedCommandOutputView(t *testing.T) {
+	a := testApp()
+	entry := extensions.CommandEntry{
+		IntegrationID: "test.ext",
+		Command:       extensions.Command{ID: "list", Name: "List things"},
+		Program:       "/bin/sh",
+		Args:          []string{"-c", "echo hi"},
+		Route:         extensions.RouteBackground,
+	}
+	a.SetCommands([]extensions.CommandEntry{entry})
+	captured := 0
+	a.Actions.RunCommandCaptured = func(got extensions.CommandEntry, args []string, done func(extensions.CapturedRun, error)) {
+		captured++
+		done(extensions.CapturedRun{
+			Command: []string{"/bin/sh", "-c", "echo hi"},
+			Stdout:  "hi\n",
+			Success: true,
+		}, nil)
+	}
+	copied := ""
+	a.Actions.Copy = func(text string) { copied = text }
+
+	tt := render(t, a)
+	a.Query = "list"
+	tt.Frame()
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if captured != 1 {
+		t.Fatalf("the command did not run: %d", captured)
+	}
+	if !a.InOutputView() {
+		t.Fatal("the output view did not open")
+	}
+	if !tt.HasText("hi") {
+		t.Errorf("the output is missing: %q", tt.Texts())
+	}
+	if !tt.HasText("Finished") {
+		t.Errorf("the status line is missing: %q", tt.Texts())
+	}
+
+	// Enter copies the text and keeps the view open.
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if copied != "hi" {
+		t.Errorf("copied %q", copied)
+	}
+	if !a.InOutputView() {
+		t.Error("Enter closed the view")
+	}
+
+	// Escape closes it and returns to the search.
+	tt.Key(0, ui.KeyEscape)
+	tt.Frame()
+	if a.InOutputView() || a.Query != "" {
+		t.Errorf("Escape left the view open: %v %q", a.InOutputView(), a.Query)
+	}
+}
+
+// A command that only complains still shows something, and a failed one says
+// its exit code.
+func TestCapturedCommandFailure(t *testing.T) {
+	a := testApp()
+	entry := extensions.CommandEntry{
+		IntegrationID: "test.ext",
+		Command:       extensions.Command{ID: "fail", Name: "Fail"},
+		Program:       "/bin/sh",
+		Route:         extensions.RouteBackground,
+	}
+	a.SetCommands([]extensions.CommandEntry{entry})
+	a.Actions.RunCommandCaptured = func(_ extensions.CommandEntry, _ []string, done func(extensions.CapturedRun, error)) {
+		done(extensions.CapturedRun{
+			Command:  []string{"tool"},
+			Stderr:   "boom\n",
+			ExitCode: 2,
+		}, nil)
+	}
+	tt := render(t, a)
+	a.Query = "fail"
+	tt.Frame()
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if !tt.HasText("boom") {
+		t.Errorf("standard error is missing: %q", tt.Texts())
+	}
+	if !tt.HasText("Exit code 2") {
+		t.Errorf("the exit code is missing: %q", tt.Texts())
+	}
+}

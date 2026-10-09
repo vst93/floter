@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"strings"
 )
 
 // Manifest is an extension package manifest (floter.extension.json), the
@@ -30,6 +31,23 @@ type Manifest struct {
 	Permissions []string  `json:"permissions"`
 	Output      string    `json:"output"`
 	Lifecycle   Lifecycle `json:"lifecycle"`
+}
+
+// The two routes a command's output can take: the terminal surface, or a
+// headless run whose output the launcher shows.
+const (
+	RouteTerminal   = "terminal"
+	RouteBackground = "background"
+)
+
+// Route is where a command's output goes: the manifest's `output` mode, with
+// anything this build does not know treated as the terminal (the shipped
+// default).
+func (m Manifest) Route() string {
+	if strings.EqualFold(strings.TrimSpace(m.Output), RouteBackground) {
+		return RouteBackground
+	}
+	return RouteTerminal
 }
 
 // Publisher identifies who ships the extension.
