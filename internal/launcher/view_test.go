@@ -5,6 +5,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"floter/internal/apps"
 	"floter/internal/settings"
 )
 
@@ -128,5 +129,49 @@ func TestLauncherLanguageFollowsTheStore(t *testing.T) {
 	tt := render(t, a)
 	if !tt.HasText("打开终端") {
 		t.Errorf("missing the Chinese command: %q", tt.Texts())
+	}
+}
+
+func TestCalculatorRowRendersAndCopiesOnEnter(t *testing.T) {
+	a := testApp()
+	tt := render(t, a)
+
+	tt.Type("3*7")
+	tt.Frame()
+	if !tt.HasText("21") {
+		t.Fatalf("the calculator row did not show: %q", tt.Texts())
+	}
+	if !tt.HasText("3*7") {
+		t.Errorf("the expression is not shown: %q", tt.Texts())
+	}
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if testRuns["copy"] != 1 {
+		t.Errorf("Enter did not copy: %v", testRuns)
+	}
+	if !tt.HasText("Copied") {
+		t.Errorf("no copy feedback: %q", tt.Texts())
+	}
+}
+
+func TestScannedAppsAppearInTheList(t *testing.T) {
+	a := testApp()
+	a.SetApps([]apps.App{{Name: "Safari", Path: "/Applications/Safari.app"}})
+	tt := render(t, a)
+
+	if tt.HasText("Safari") {
+		t.Errorf("an application showed before the user typed: %q", tt.Texts())
+	}
+	tt.Type("saf")
+	tt.Frame()
+	if !tt.HasText("Safari") {
+		t.Errorf("the application did not show: %q", tt.Texts())
+	}
+	if err := tt.Click("Safari"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if testRuns["app:Safari"] != 1 {
+		t.Errorf("the click did not open the app: %v", testRuns)
 	}
 }

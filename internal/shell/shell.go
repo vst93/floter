@@ -18,6 +18,7 @@ import (
 	"github.com/egoist/mygo/plugins/terminal"
 	"github.com/egoist/mygo/ui"
 
+	"floter/internal/apps"
 	"floter/internal/glassmap"
 	"floter/internal/launcher"
 	"floter/internal/settings"
@@ -113,6 +114,14 @@ func New(opts Options) *App {
 		OpenTerminal: func() { a.Open(SurfaceTerminal) },
 		Quit:         quit,
 		Dismiss:      a.Hide,
+		Copy:         func(text string) { mygo.Clipboard.WriteText(text) },
+		OpenApp: func(app apps.App) {
+			if err := app.Open(); err != nil {
+				log.Printf("floter: could not open %s: %v", app.Name, err)
+				return
+			}
+			a.Hide()
+		},
 	})
 	a.Settings = settingsui.New(opts.Store, settingsui.Actions{
 		Close: func() { a.Open(SurfaceLauncher) },
@@ -192,6 +201,17 @@ func (a *App) Start() {
 		log.Printf("floter: could not register %s: %v", SummonShortcut(s), a.ShortcutErr)
 	}
 	a.Launcher.FocusSearch()
+	a.scanApps()
+}
+
+// scanApps reads the installed applications in the background and hands
+// them to the launcher, so the window opens at once and the search grows as
+// the scan lands.
+func (a *App) scanApps() {
+	go func() {
+		found := apps.Scan(apps.Roots())
+		a.onMain(func() { a.Launcher.SetApps(found) })
+	}()
 }
 
 // Open switches to a surface, sizing and focusing it.

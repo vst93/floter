@@ -40,6 +40,8 @@ type Launcher struct {
 	NoResults string
 	// Clear names the field's clear button for assistive technology.
 	Clear string
+	// Copied is shown after the calculator's answer goes to the clipboard.
+	Copied string
 	// ResultsLabel names the results list for assistive technology.
 	ResultsLabel string
 	// The built-in commands the P1 catalog offers.

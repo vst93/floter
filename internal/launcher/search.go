@@ -3,10 +3,13 @@ package launcher
 import (
 	"sort"
 	"strings"
+
+	"floter/internal/apps"
+	"floter/internal/calc"
 )
 
-// Item is one launcher result. P1 ships the built-in commands; later rounds
-// add applications, plugin commands and the calculator to the same shape.
+// Item is one launcher result: a built-in command, an installed
+// application, or the calculator's answer.
 type Item struct {
 	// ID is the stable identity, also searched.
 	ID string
@@ -20,8 +23,8 @@ type Item struct {
 	Run func()
 }
 
-// Catalog is the built-in command list, labeled in the launcher's language.
-func (a *App) Catalog() []Item {
+// commands is the built-in command list, labeled in the launcher's language.
+func (a *App) commands() []Item {
 	c := StringsFor(a.settings().Language)
 	return []Item{
 		{
@@ -46,10 +49,78 @@ func (a *App) Catalog() []Item {
 	}
 }
 
-// Results filters and ranks the catalog for the current query. An empty
-// query shows the whole catalog in its authored order.
+// appItems is the scanned applications as result rows.
+func (a *App) appItems() []Item {
+	out := make([]Item, 0, len(a.Apps))
+	for _, app := range a.Apps {
+		out = append(out, Item{
+			ID:    "app:" + app.Path,
+			Title: app.Name,
+			Run:   func() { a.openApp(app) },
+		})
+	}
+	return out
+}
+
+func (a *App) openApp(app apps.App) {
+	if a.Actions.OpenApp != nil {
+		a.Actions.OpenApp(app)
+	}
+}
+
+// Catalog is every item the launcher can show: the built-in commands and
+// the scanned applications.
+func (a *App) Catalog() []Item {
+	return append(a.commands(), a.appItems()...)
+}
+
+// Results is what the current query shows. The calculator's answer comes
+// first when the query is a sum; an empty query shows the built-in
+// commands alone (a wall of applications is not an empty state). The rest
+// is the ranked catalog, capped so a broad query stays a cheap frame.
 func (a *App) Results() []Item {
-	return Match(a.Catalog(), a.Query)
+	var out []Item
+	if item, ok := a.calculator(); ok {
+		out = append(out, item)
+	}
+	if strings.TrimSpace(a.Query) == "" {
+		out = append(out, a.commands()...)
+	} else {
+		out = append(out, Match(a.Catalog(), a.Query)...)
+	}
+	if len(out) > maxResults {
+		out = out[:maxResults]
+	}
+	return out
+}
+
+// calculator is the answer row for an arithmetic query, if the query is
+// one. Enter copies the answer and clears the field, as the old launcher's
+// calculator did.
+func (a *App) calculator() (Item, bool) {
+	value, err := calc.Eval(a.Query)
+	if err != nil {
+		return Item{}, false
+	}
+	result := calc.Format(value)
+	expression := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(a.Query), "="))
+	detail := expression
+	if detail == result {
+		detail = ""
+	}
+	return Item{
+		ID:     "calc",
+		Title:  result,
+		Detail: detail,
+		Run: func() {
+			if a.Actions.Copy != nil {
+				a.Actions.Copy(result)
+			}
+			a.toast = StringsFor(a.settings().Language).Copied
+			a.Query = ""
+			a.Selected = 0
+		},
+	}, true
 }
 
 // Match ranks items for a query: every whitespace-separated term must appear

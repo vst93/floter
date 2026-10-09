@@ -85,6 +85,20 @@
 - shell 按「雾图层在下、玻璃在上」叠放（旧版 `--glass-step-dim` 合成于 `--glass-tint-alpha` 之下）。
 - `glass.ScrollEdge` 用在它真正有效的地方：启动器结果列表在搜索行下滚动，行内容经 Soft 边缘渐隐（`PassThrough` 让指针仍可命中被覆盖的行）。
 
+### P2-b 真实搜索（已做）
+
+- `internal/calc`：递归下降的表达式求值（`+ - * / % ^`、括号、一元符号、小数、e 记数），带 `=` 前缀；`ErrNotAnExpression` 区分「在搜索」与「表达式写错」；`hasArithmetic` 要求同时含数字与运算符，所以搜 `1`、`1Password`、`C++` 不会弹计算器行；`Format` 给整体数与 10 位有效数字（`0.1+0.2 → 0.3`）。
+- `internal/apps`：按平台扫描已安装应用——macOS 的 `.app`（不进入 bundle 内部，覆盖 `Utilities` 子目录）、Windows 的 `.lnk`、Linux 的 `.desktop`（解析 `[Desktop Entry]` 的 Name/Exec/隐藏标志，`Exec` 按 Desktop Entry 规范切分并去字段码）；`Open()` 有 Exec 就 spawn，否则走 `Shell.OpenPath`；`Roots()` 只返回真实存在的目录；按名排序去重，上限 500。
+- 启动器：`Results()` = 计算器行（若查询是算式）+ 排名后的目录；空查询只显示内置命令（不糊一屏应用）；结果行上限 50（真正的虚拟化留给列表式结果，见下）；Enter 复制结果并弹「已复制」toast；点击应用行经 `Actions.OpenApp` 由 shell 启动并隐藏窗口。
+- shell：启动时后台 `apps.Scan(apps.Roots())`，落地后 `win.Update` 刷新；`Copy` 走 `mygo.Clipboard`。
+
+### P2 还未做
+
+- 结果虚拟化（目前 50 行上限）；插件命令与结果图标。
+- 设置页除 General 外的真内容；终端外观（字号/字体/行距/调色板/透明度）与 `plugins/terminal` 的 Theme/Transparent 接线仍未做。
+- i18n 仅新增了实际用到的键，未对齐旧 i18n.ts 全量表。
+- surface-residency（保持上次页面）；唤回总回启动器。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。

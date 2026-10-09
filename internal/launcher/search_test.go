@@ -3,6 +3,7 @@ package launcher
 import (
 	"testing"
 
+	"floter/internal/apps"
 	"floter/internal/settings"
 )
 
@@ -17,6 +18,8 @@ func testApp() *App {
 		OpenTerminal: func() { testRuns["terminal"]++ },
 		Quit:         func() { testRuns["quit"]++ },
 		Dismiss:      func() { testRuns["dismiss"]++ },
+		Copy:         func(string) { testRuns["copy"]++ },
+		OpenApp:      func(app apps.App) { testRuns["app:"+app.Name]++ },
 	})
 }
 
@@ -150,4 +153,83 @@ func ids(items []Item) []string {
 		out[i] = item.ID
 	}
 	return out
+}
+
+func TestCalculatorRowComesFirstAndCopies(t *testing.T) {
+	a := testApp()
+	a.Query = "2+2"
+	got := a.Results()
+	if len(got) == 0 || got[0].ID != "calc" {
+		t.Fatalf("Results(2+2) = %v", ids(got))
+	}
+	if got[0].Title != "4" || got[0].Detail != "2+2" {
+		t.Errorf("calc row = %q / %q", got[0].Title, got[0].Detail)
+	}
+	a.activate(got)
+	if testRuns["copy"] != 1 {
+		t.Errorf("copy ran %v", testRuns)
+	}
+	if a.Query != "" {
+		t.Errorf("the field was not cleared: %q", a.Query)
+	}
+	if a.toast == "" {
+		t.Error("no copy feedback was queued")
+	}
+
+	// A bare number is a search, not a sum.
+	a.Query = "1"
+	for _, item := range a.Results() {
+		if item.ID == "calc" {
+			t.Error("a bare number produced a calculator row")
+		}
+	}
+	// A broken sum shows no row either, and does not panic.
+	a.Query = "1+"
+	for _, item := range a.Results() {
+		if item.ID == "calc" {
+			t.Error("a broken sum produced a calculator row")
+		}
+	}
+}
+
+func TestAppsJoinTheSearchOnceTyped(t *testing.T) {
+	a := testApp()
+	a.SetApps([]apps.App{
+		{Name: "Safari", Path: "/Applications/Safari.app"},
+		{Name: "Terminal", Path: "/System/Applications/Utilities/Terminal.app"},
+	})
+
+	// An empty query shows the commands alone.
+	if got := a.Results(); len(got) != 3 {
+		t.Errorf("empty query shows %d rows (%v)", len(got), ids(got))
+	}
+
+	a.Query = "safari"
+	got := a.Results()
+	if len(got) == 0 || got[0].Title != "Safari" {
+		t.Fatalf("Results(safari) = %v", ids(got))
+	}
+	a.activate(got)
+	if testRuns["app:Safari"] != 1 {
+		t.Errorf("open ran %v", testRuns)
+	}
+
+	// The application ranks above the command that merely contains the
+	// word: a title prefix (score 0) beats a word prefix (score 1).
+	a.Query = "terminal"
+	got = a.Results()
+	if len(got) < 2 || got[0].Title != "Terminal" || got[1].ID != "terminal" {
+		t.Errorf("Results(terminal) = %v", ids(got))
+	}
+
+	// The cap keeps a broad query bounded.
+	many := make([]apps.App, 0, maxResults+10)
+	for i := 0; i < maxResults+10; i++ {
+		many = append(many, apps.App{Name: "App", Path: "/Applications/App.app"})
+	}
+	a.SetApps(many)
+	a.Query = "app"
+	if got := a.Results(); len(got) > maxResults {
+		t.Errorf("Results returned %d rows, want at most %d", len(got), maxResults)
+	}
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
 
+	"floter/internal/apps"
 	"floter/internal/settings"
 )
 
@@ -53,7 +54,8 @@ func WindowHeight(uiScale string) float64 {
 }
 
 // Actions are what a result can do, supplied by the shell: the launcher does
-// not know how surfaces are opened, only that the user asked for one.
+// not know how surfaces are opened or how an application launches, only
+// that the user asked for one.
 type Actions struct {
 	// OpenSettings, OpenTerminal and Quit run the built-in commands.
 	OpenSettings func()
@@ -62,6 +64,10 @@ type Actions struct {
 	// Dismiss is Escape with an empty query: hide the launcher window, as
 	// the old shell did.
 	Dismiss func()
+	// Copy puts text on the clipboard, for the calculator row.
+	Copy func(text string)
+	// OpenApp launches an installed application.
+	OpenApp func(app apps.App)
 }
 
 // App is the launcher surface's state: the settings store it reads, the
@@ -74,11 +80,27 @@ type App struct {
 	Query    string
 	Selected int
 
+	// Apps is the installed applications the shell scanned, added to the
+	// results once the user types.
+	Apps []apps.App
+
 	// Scroll keeps the result list's place; Search is the field's identity,
 	// for the focus the launcher keeps on it while the surface shows.
 	Scroll ui.ScrollState
 	Search ui.Handle
+
+	// toast is a message to show on the next frame, set by an action.
+	toast string
 }
+
+// SetApps replaces the scanned applications.
+func (a *App) SetApps(found []apps.App) { a.Apps = found }
+
+// maxResults bounds how many rows one query builds, so a broad search stays
+// a frame like any other. Real virtualization is the list-based results'
+// job, a later round; the built-in commands, the calculator and a search
+// over a scanned catalog fit well under this.
+const maxResults = 50
 
 // New builds the launcher state over a settings store and the shell's
 // actions.
@@ -159,6 +181,13 @@ func (a *App) View(c *ui.Context) {
 			}
 		})
 	})
+
+	// An action that asks for feedback (the calculator's copy) shows it
+	// once, on the frame after it ran.
+	if a.toast != "" {
+		c.Toast(a.toast)
+		a.toast = ""
+	}
 
 	// The field keeps the focus, so the list's arrows are read here: a
 	// single-line text input leaves plain Up and Down to shortcuts.
