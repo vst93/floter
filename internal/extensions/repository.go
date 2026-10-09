@@ -10,7 +10,7 @@ import (
 )
 
 // RepositorySchemaVersion is the extension-repository.json schema this build
-// reads and writes (repository.rs: REPOSITORY_SCHEMA_VERSION).
+// reads and writes.
 const RepositorySchemaVersion = 1
 
 // Entry is one extension's state in the repository: the fields this build
@@ -180,9 +180,8 @@ func LoadRepository(path string) (Repository, error) {
 }
 
 // SaveRepository writes the repository atomically: a temporary file in the
-// same directory, flushed, then renamed over the target, as repository.rs
-// does. A reader therefore sees the old file or the new one, never a partial
-// write.
+// same directory, flushed, then renamed over the target. A reader therefore
+// sees the old file or the new one, never a partial write.
 func SaveRepository(path string, repo Repository) error {
 	if repo.SchemaVersion != RepositorySchemaVersion {
 		return fmt.Errorf("extensions: refusing to write schema %d", repo.SchemaVersion)

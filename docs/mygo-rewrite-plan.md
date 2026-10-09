@@ -303,6 +303,39 @@
 - shell：重新注册全局快捷键——系统拒绝（被别的应用占用）时保留旧的且不落盘；成功则写回 `hotkey` 与 `shortcuts.toggle_window`，下次启动沿用。
 - 门槛：拼写转换表与拒绝用例、`FromKey` 覆盖各键组、Tester 驱动的录制器交互、shell 的注册/拒绝/持久化路径；共 194 项测试。
 
+### P6-b 删除旧实现 + 纯 mygo 树（已做）
+
+- **删除**：`src/`（React）、`src-tauri/`（Rust）、`tests/`（旧 node 套件）、`index.html`、
+  `vite.config.ts`、`tsconfig*.json`、`package.json`/`package-lock.json`/`pnpm-workspace.yaml`、
+  `node_modules/`、`public/`、`packaging/arch`（Tauri 时代的 deb 重打包）、
+  `scripts/verify-tray-identity.sh`（读 `tauri.conf.json`）、旧 CI
+  （`pull-request.yml`/`release.yml`/`windows-smoke.yml`）、`IMPLEMENTATION_REPORT.md`、
+  `docs/phase-reports/`、`docs/plugin-system-audit.md`、`docs/screenshots/`、根目录的旧任务便签。
+- **保留**：`cmd/` + `internal/`（唯一实现）、`mygo.json`（CLI 的构建输入）、
+  `resources/icon.png`（bundle 图标）、`extensions/v-tools`（参考扩展包）、
+  `docs/extensions/`（FEP 协议规范，Go 侧实现的依据）、`CHANGELOG.md`（发布史）。
+- `docs/DEVELOPMENT_PLAN.md` 与 `docs/tool-binding-design.md` 移入 `docs/archive/` 并加历史标注
+  （它们描述的是重构前的实现，代码引用已失效）。
+- 注释里对已删文件的引用（`config.rs`、`store.rs`、`src/i18n.ts` 等）全部改写为描述行为本身，
+  不再指向不存在的路径。
+- README（中英）重写：原生 UI、Go 工具链、三表面、扩展与数据兼容说明；去掉 webview 时代的
+  安装/EGL/更新器章节。
+- `docs/AGENT-NOTES.md` 重写为面向 Go 树的备忘：产品方向、**磁盘格式零迁移清单**、
+  门槛命令、平台无关性纪律、反馈通道与三态。
+
+### P6-c 三平台测试修复（已做）
+
+CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上直接失败：
+
+- `internal/browser` 的 profile 发现表**按宿主平台**返回，测试却只写 macOS 布局 → 把表写成
+  `(goos, home, localAppData)` 的纯函数（`chromiumBrowsers`/`firefoxRoot`/`joinFor`），
+  并补齐 Windows（`%LOCALAPPDATA%` 下的 `User Data`）与 Linux 布局；测试改为**在任何宿主上断言
+  三个平台**。顺带按旧实现补齐：Edge 四个渠道（Beta/Dev/Canary）、Arc、profile 排序
+  （Default → Profile N 按数字 → 其它按名）、`Local State` 里的 profile 显示名、
+  自定义 base 目录（可以是浏览器 base 也可以是单个 profile）。
+- `internal/extensions` 的 npm 安装测试依赖机器上装了 `v`（fixture manifest 的运行时）→
+  运行期解析走可注入的 `lookTool`/`findInterpreter`，测试用 fixture 可执行文件，不再看机器 PATH。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。

@@ -1,210 +1,75 @@
 # AGENT NOTES — floter 迭代上下文
 
-给在本仓库工作的 AI agent（Hermes / Codex / pi 等）看的项目级备忘。项目通用操作流程（构建、测试、验证管线）见 Hermes 侧 skill `software-development/floter-iteration`，这里只记产品方向和约定。
+给在本仓库工作的 AI agent 看的项目级备忘：产品方向、磁盘格式约定、门槛与纪律。
+构建/运行命令见 [`mygo-rewrite-status.md`](mygo-rewrite-status.md)，分轮决策记录见
+[`mygo-rewrite-plan.md`](mygo-rewrite-plan.md)。
 
-## 插件体系方向（2026-08-23 用户确认）
+## 这是什么
 
-1. **去 NPM 强依赖**。NPM 分发不稳定，不作为核心路径；围绕它建的信任栈（SRI/Ed25519/官方签名索引）优先级下降，未来分发方案待定。（2026-09-15 补记：NPM 分发及其 SRI/Ed25519 校验栈已于 `350e2d6`（后端）/`96870c4`（前端）物理移除；仅官方签名索引 `official_index.rs` 以半冻结状态保留，唯一消费方是 `extensions_refresh_official_status`。）
-2. **发现优先，用户介入越少越好**：PATH 扫描 + 约定位置 manifest + 本地连接都应能自动识别注入工具；开发者负担也要小，不强制一套规则适配所有工具。
-3. **v-tools 平权**：内置 V Tools 不做特殊逻辑，只是"推荐工具"，和其他扩展走同一套代码路径。
-4. **管理面板尽量轻**：安装/连接、开关、卸载；更新/回滚/修复等尽量自动化，不做商店式 Discover。
-5. **权限=诚实披露**：声明权限 + 明确告知非沙箱，不假装能强制执行。
+floter = 一个常驻的浮动面板，一个快捷键唤出，面板里三件事：**启动器**（搜应用 / 文件 /
+算式 / 扩展命令）、**终端**（ghostty 内核）、**设置**。用
+[mygo](https://mygo.egoist.dev)（原生 GPU 自绘 UI，无 webview）+ Go 实现。
 
-## 工作方式（2026-08-24 更新）
+仓库里**只有 Go**：`cmd/floter` 入口，`internal/*` 各功能包。历史上曾用
+Tauri + Rust + React 实现（见 `docs/archive/` 与 git 历史），那套代码已删除。
 
-- 2026-08-24 起：Hermes 负责规格、派发、审查、验证、提交；代码修改由 pi 执行（优先 openrouter 的 xAI 模型，无余额时用 tar-sub2api + deepseek-v4-flash）。
-- 历史调整可作参考但不必延续其逻辑——`docs/plugin-system-audit.md` 的 Phase 划分是旧方向下的产物，与上面第 1-3 条冲突时以本文件为准。
-- 2026-09-15：`docs/plugin-system-audit.md` 已在顶部标注 Phase 3-8 为历史参考，并新增「能力矩阵校准 / 冻结区/待删区 / 已知缺口索引（G1-G7）」三节；方向仍以本文件与 `docs/tool-binding-design.md` 为准。
-- 每次改动后：`git pull --rebase origin main` → 验证管线全绿 → commit → push。
+## 插件体系方向（2026-08-23 用户确认，仍然有效）
 
-## 测试门控规则：CI 只有 Linux，平台相关断言必须 Linux 门控（2026-10 / R104）
+1. **去 NPM 强依赖**：NPM 分发不作为核心路径；围绕它建的信任栈优先级下降。
+   （npm 安装能力保留，用于自建 registry / 私有包，但产品叙事不依赖它。）
+2. **发现优先，用户介入越少越好**：PATH 扫描 + 约定位置 manifest + 本地连接都应能自动
+   识别注入工具；不强制一套规则适配所有工具。
+3. **v-tools 平权**：`extensions/v-tools` 只是"推荐工具"的参考包，和其他扩展走同一套代码路径。
+4. **管理面板尽量轻**：安装/连接、开关、卸载；不做商店式 Discover。
+5. **权限=诚实披露**：声明权限 + 明确告知非沙箱（`environment` / `process-spawn` 两条宿主
+   真的拦，其余只披露，UI 上如实标注），不假装能强制执行。
 
-1. **CI 只有 Linux**。`.github/workflows/pull-request.yml` 的两个 job（`frontend` / `rust`）都跑在 `ubuntu-latest` / `ubuntu-22.04`；**macOS 没有任何自动化测试覆盖**。macOS 上「本机绿」不代表任何东西——没有 CI 跑它。
-2. **`#[cfg(unix)]` 不是平台门控，是平台假设**。凡断言依赖 `/proc`（`/proc/<pid>`、`/proc/<pid>/task/<pid>/children`）的测试，必须写 `#[cfg(target_os = "linux")]`，不得写 `#[cfg(unix)]`。在 macOS 上 `/proc` 恒不存在，`#[cfg(unix)]` 的测试会照常编译、照常运行、并**恒真通过**——这是假绿，比没有测试更糟，因为它让人以为有覆盖。先例：`src-tauri/src/process_launch.rs` 的 `/proc` 测试用 `#[cfg(target_os = "linux")]`；R104 修掉了 `extensions/probe_runner.rs`、`extensions/capability_probe.rs`、`extensions/run.rs` 三处。
-3. **两种修法择一，优先门控**。要么给该断言/测试加 `#[cfg(target_os = "linux")]`，要么改用平台无关探测（如 `kill(pid, 0)`）。选门控的理由：CI 只在 Linux 跑，平台无关探测在 macOS 上无人验证，等于用一个未测代码路径换掉一个恒真断言。**不为测试新增依赖**（`sysinfo` 不在依赖树里，别加；`libc` 有，但别只为测试用它）。
-4. **门控只动测试**。门控的是断言 / 测试函数 / 测试专用 helper，不是被测的生产代码；若门控会让某个 helper 在 macOS 上变成死代码，就把它的平台专属部分也一并门控（别留 `dead_code` 警告）。
+## 磁盘格式：零迁移是硬约束
 
-## 反馈通道（全应用一套 Toast，2026-09-17 / R7-5 起约束）
+用户数据文件**格式不变**，换实现不能让用户重配。任何动这些文件的重构，先看这条：
 
-> **2026-10 / R96 退役注记**：本节下面的 1-4 条描述的是已删除的插件页 bridge
-> （`host-notify` / `notify-retry` / `createRetryRegistry`）。内置 iframe 页 R33 退役、
-> R76 物理删除，对外协议与 hello-page 示例 R96 物理删除；今天没有任何页面侧生产者，
-> 宿主 toast 只由宿主自身的代码调用。保留这些历史条目只为解释 `notify(kind, text, action?)`
-> 的 action 槽与 `#floter-app-toasts` 单栈约束的来源。
+| 文件 | 位置（`<config dir>` = `os.UserConfigDir()`） | 谁写 |
+|---|---|---|
+| `floter/settings.json` | 应用与终端全部设置 | 设置页 / 快捷键录制 |
+| `floter/extension-repository.json` | 扩展权威状态（未知键原样保留） | 安装 / 启停 |
+| `floter/extensions/<id>/` | 扩展包目录 | graft 安装 |
+| `floter/extension-data/<id>/config.json` | 扩展配置（含密钥代数） | 配置注入 |
+| `floter/clipboard-history/index.json` + `images/` | 剪贴板历史 | 剪贴板监听 |
+| `floter/usage.json` | 启动次数（最近使用） | 每次启动应用/命令 |
 
-**唯一反馈面**是宿主 toast（`src/components/ToastStack.tsx` + `src/toast-state.ts`）。任何表面——包括沙箱 iframe 里的插件页——都只发消息、不画自己的提示条。时长、位置、视觉只有一份来源：`TOAST_DISMISS_MS`（error 8s / success 4s）与 `#floter-app-toasts`。
+**未知键逐层保留**是这套约定的实现方式：读进来 → 改自己认识的键 → 原样写回。
+新增设置项时不要"重写整个文件"，也不要删掉不认识的值。
 
-1. **插件页不得自绘任何 notice/toast/banner**。页内提示条（如已删除的 `.clipboard-panel__notice`）与自有 dismiss 定时器都不再有位置；失败一律走 bridge 的 `host-notify` 消息（该 bridge 已于 R96 删除）。
-2. **线上只传字典 key，不传文案**。`host-notify` 的 `messageKey` 由宿主用 `src/i18n.ts` 自己解析，未知 key 直接丢弃（`isMessageKey`）。宿主侧调用 `notify(kind, text, action?)` 时已是译文；插件页侧永远不持有宿主文案，也不增加宿主字典的耦合面。
-3. **重试语义单向**：页说「这个失败了，可以重试」→ 宿主 toast 出一个动作按钮 → 用户按下 → 宿主回发 `notify-retry` → 页自己重跑。宿主绝不替页重放命令（它不知道页失败的是哪一次动作、也不持有页的状态）。**重试带关联 id**（2026-09-17 微修）：`host-notify` 由页生成 `id`，宿主的 `notify-retry` 原样回传；页内用 `createRetryRegistry()`（容量 = `MAX_TOASTS`）按 id 找 thunk，过期/未注册/已消费的 id 静默丢弃。此前单槽 `pendingRetry` 会让旧 toast 的 Retry 执行最新动作。
-4. **位置按表面归属，不按表面另起一套**。`#floter-app-toasts[data-surface=…]` 只做「在这个窗口里落哪」的修正，不做第二套栈：全高窗口（settings / terminal / plugin）共用默认 `top:64px; right:16px`（插件页 28px 顶栏之下仍余 36px）；只有 ~58px 的 collapsed 需要专门规则。**新增表面默认复用默认值，除非实测遮挡**。
+## 门槛（每次改动都要过）
 
-## 三态规范（空 / 加载 / 错误，2026-09-17 / R7-5 起）
-
-适用对象：任何会拉取数据的表面（插件页、面板、抽屉）。三态都必须能互相切换，且不闪布局。
-
-1. **空态** = 标题 + 说明 + （可选）主操作。标题说「没有东西」，说明说「为什么 / 怎么办」（如 `clipboard.empty`），有可执行的下一步才放按钮；不要用空态承载错误（错误有自己的态）。形状用宿主的 `.settings-empty` 基元（`SettingsEmpty`：`__title` / `__hint` / `__icon` / `__action`）；插件页自绘时沿用同一套 class 名，不要另发明形状。
-2. **加载态** = **行内 spinner，不是整块替换内容**。只要有旧内容在场就不换掉它（后台轮询、刷新、重试一律如此），只有“首屏还没东西可显示”才画 spinner 行；行本身要有固定高度（避免到达时跳）。判据落成代码：一个 `loaded` 标志 + 「已是 spinner 就不重建节点」（重建会重启动画）。
-3. **错误态** = 标题 + 为什么 + **两个控件槽：重试 + 关闭**。重试只在「重试真的可能成功」时出现（后端被关掉、命令不存在 → 只给说明和关闭，不给死路按钮）；关闭永远在，且语义是「不再画这个态」，不是假装加载成功了。同一错误重复渲染要复用已画节点（`data-failure-state`），否则重绘会丢焦点并重放进入动画。
-
-参考实现：宿主侧 `src/settings/SettingsRows.tsx` 的 `SettingsEmpty`（`.settings-empty` 家族，样式在 `src/styles/settings.css`）。旧的 `src/plugins/clipboard/main.ts` 参考实现已随 R76 物理删除；后续新增表面照宿主基元沿用，不要另发明形状。
-
-### 微修补记（2026-09-17，R7-5 复核后）
-
-- **错误态节点复用 ⇒ 不要手动 disable 控件**。`renderLoadFailure` 的节点靠 `data-failure-state` 跨重绘复用，所以 `retry.disabled = true` 会活过点击：重试再失败时节点不重建，按钮永久禁用。重入由 `reload()` 的 `reloadPending` 去重兜住，数据态决定按钮外观。新增任何「复用已画节点」的态都适用此条。
-- **自动轮询的失败要按 key 去重**。`createFailureDeduper()` 默认 30s 窗口；只给 `clipboard.loadFailed`（2s 轮询那条）用，用户手势失败（copy/delete/clear）每次都报，成功加载后 `clear()` 重新武装。
-- **M4 不改（有意语义）**：错误态 dismiss 后若列表为空会画空态（「Nothing copied yet」）。这是「不再画这个错误态」的可辩语义，不是假装加载成功；2s 后轮询仍失败会弹回错误态并（去重后）再报一次。若未来要更诚实，应给「已关闭的错误」单独记忆，而不是把它并入空态。
-- **N1 不改（有意取舍）**：`messageKey` 形状门允许任意宿主字典 key（页可令宿主弹 `settings.*` 等文案）。这是「宿主 own words + 未知 key 丢弃」的设计取舍，非注入；未来收紧可换 per-plugin key 允许清单。
-
-## HIG-2 记（2026-09-17）：elevation 接线 / accent 预算 / 层纪律 / a11y 兜底 / 浅色主题
-
-1. **elevation 阶梯是唯一阴影来源**。`--elev-0`（平面上控件：inset edge+rim）、`--elev-1`（按平，none）、`--elev-2`（浮起 pane，`--glass-raised-shadow` 的基座）、`--elev-3`（浮层：drawer/dialog/toast/menu）四档；派生档 `--elev-hover(-soft)`、`--elev-3-edge/-compact`、`--elev-bar`、`--elev-track`、`--elev-keycap`、`--elev-halo` 都写成 `var(--elev-*)`/已有 token 的组合。宿主表里不得再出现阴影字面量：tint 必须是 token，带 cast 的层必须点名 rung（`tests/hig-craft.test.ts` 的 wiring 断言）。唯二例外：`.platform-*` 的窗口服务器边框阴影（另一套 shadow authority，已 token 化）、以及 `var(--glass-field-shadow)` 这类纯 token 别名（在定义处审计）。
-2. **accent 预算 = `--accent-budget: 2`**，单位是「accent 色**填充**的面」（background 为 `--accent`/`--accent-tint`/`--glass-raised` 家族）。文字/描边/焦点环/状态点/进度条不算填充，不耗预算。「选中的分段控件」（theme/language/cursor/glass step）是**状态不是主操作**，一律走 `--glass-raised-quiet`（中性 raised pane + accent 1px keyline）；同一个视图可能有 4 个选中态，若都给 tint 就爆预算。**计数按选择器计，不按实例计**（同一选择器可多实例同屏，如 6 个 switch 可同时 on；实例级由像素面积取证兜底）。`tests/accent-budget.test.ts` 做**全表扫描**：解析 `src/styles/*.css` 全部规则体、按 file→view 映射聚合，除逐视图 ≤ budget 的正面断言外，还有**补集断言**——凡命中 accent 填充家族、非 hover/active/focus、非伪元素、非状态点/进度条的选择器，若不在任何 view 的清单里即红。所以「新增一个 accent 面」会直接红，而不是被封闭清单漏掉。新增任何 accent 填充前先跑该测试。
-3. **层纪律的真断言**。`tests/hig-craft.test.ts` 的 `the material stays on the functional layer` 现在断言**内容面画的是 standard material**（`--surface-*`/控件阶梯或 transparent），且内容面规则体不得出现 `backdrop-filter` 或 `--glass-tint*`/`--glass-float`（frame/floater 的 tint）；**`background-image` 一并解析**——内容面只允许 `var(--scroll-edge-band*)` 这类 token 化值，raw 色/hex/inline gradient → 红。同一选择器的**每条**规则都检查（后置重复规则不能绕）。这取代了旧版「规则体不含 backdrop-filter 字样」的同义反复断言——旧版对几乎任何规则都成立，无法因它声称的原因变红。
-4. **a11y 三兜底必须覆盖新表面**。`.app-toast`、`.settings-save-alert--toast` 等宿主表面已补进 RT（`--surface-opaque` + 去 blur）、IC（`--stroke-contrast` 描边/边框）、RM（`animation: none`）三个块；`tests/a11y-backstops.test.ts` 逐一断言 + 「宿主表里每个带 animation 的选择器都要在 RM 块里被 neutralize」的结构断言。**扫描范围是宿主目录 `src/styles/` + `src/extensions/`**（`ComponentizedUninstallDialog.css` 这类组件私有但消费宿主 token 的表也在内）。R76 删除了退役插件页及其宿主 chrome（`.plugin-page-host*` / `.clipboard-panel*`），扫描范围不再需要页边界例外。新增动画表面时必须同步三块。
-5. **浅色主题是「起步」不是完整设计**。真实调色板在 `[data-theme="light"]`（App.tsx 写入）；`@media (prefers-color-scheme: light) { html:not([data-theme]) { … } }` 是首帧兜底（`auto` 为默认，属性落盘前不能闪深色）。两个块的取值由 `tests/light-theme.test.ts` 钉死一致；MUST_COVER 清单（文字/表面/描边/accent/terminal 五组）必须全覆盖，palette-independent 清单（radius/type/duration/elev/step）不得重复。**可读性红线一句话**：light 下 primary/secondary/muted/accent 全部 ≥4.5:1（muted 本轮从 0.74 提到 0.78，复算 4.98:1 on recess、4.57:1 on hover 面，不再是 AA 正文边缘）。**未覆盖**：完整浅色设计、第三方案例、窗台平台阴影的浅色微调。列为后续独立轮。
-6. **`--glass-raised-quiet` 是中性 raised pane**（暗= `--glass-control-hover`，亮同左），用于所有「选中/激活状态」以及同类状态/通知面（`.extension-status--recommended`、`.extension-health__tag`、`.extension-row__progress` 等）。`--glass-raised`（= accent tint）从此只留给真正的 accent pane（launcher 选中行、clipboard 选中行、sidebar 当前页）。旧的 `--glass-raised-quiet-rim` 因全仓零消费已删。
-
-## 桌面手感：浏览器习惯的取舍（2026-10 / R151，参考 Raycast 2.0 技术深潜）
-
-Raycast 那篇「A Technical Deep Dive Into the New Raycast」的 Platform conventions 一节点名了几个让 WebView 应用「一看就是网页」的细节。它是个 macOS 应用，我们三端共用一套 UI，所以：**风格可以整体偏向 macOS**（形状、材质、控件状态、排版），但**不引入 macOS 独有的属性 / 平台专属实现**（独立原生设置窗、原生弹层、traffic lights 那类）。macOS 专属的**行为/架构**不采纳，macOS 的**视觉语言**采纳。守卫 `tests/native-feel.test.ts` 做全表普查。
-
-1. **交互控件不用手型光标**。AppKit / WinUI / GTK 的按钮与列表都是箭头，手型是浏览器给**超链接**的信号，本应用没有超链接。`cursor: pointer` 从各表面表里删除，并在 `base.css` 的控件基线上显式写 `cursor: default`（因为设置卡 / 终端标题栏在**容器**上写了 `cursor: grab`，控件只删 pointer 会继承到 grab）；`grab`/`grabbing`（拖动带本身）、`text`（文本面）、`wait`/`not-allowed`（忙碌/禁用）是原生信号，保留。非文本 input（range/checkbox/radio）也归到箭头。
-2. **chrome 不可选中文字**。`base.css` 的 `button` / `[role="button|switch|tab|radio|checkbox|menuitem|option"]` 统一 `user-select: none`；文本面（查询框、终端、命令输出）用 `user-select: text` 反向开启；`input`/`textarea` 刻意不在基线里。
-3. **图标不是拖拽源**。`img, svg { -webkit-user-drag: none }`，去掉浏览器的图片拖拽幽灵。
-4. **关掉拼写检查与触屏高亮**。`index.html` 的 `<body spellcheck="false" autocorrect="off" autocapitalize="off">`（`spellcheck` 可继承，一处覆盖全应用），`-webkit-tap-highlight-color: transparent`。
-5. **不采纳的部分（有意）**：macOS 的独立设置窗口、原生弹层/提示窗——这些是 macOS 专属的**实现方式**，不是视觉风格，三端各写一套不划算；以及「大多数控件不要 hover 高亮」——本应用是单面板跨平台应用，设置页就是同一个面板，hover 是 Windows/Linux 上唯一的可发现性提示，且 R8-5 已把列表 hover 定为「一层 tint 而非一整块 pane」。新表面沿用既有 hover 语言，不要为「更像 mac」而砍掉它。
-6. **视觉上向 macOS 靠齐（R151）**。开关的「开」态改成 macOS NSSwitch 的写法：accent 填充的轨道 + 白色滑块（`--switch-thumb`，两个主题都是白色）。这是**预算中性**的：accent 原本骑在滑块上，现在骑在轨道上，accent 普查的选择器从 `.settings-switch--active .settings-switch__thumb` 换成 `.settings-switch--active`，计数不变（ledger 已同步）。已 macOS 化的部分保持：设置侧栏是 App Store 式的中性 pill + 图标取 accent，分段控件是选中态中性 raised pane，原生 range/checkbox 走 `accent-color`，标题已带负字距。**形状语言（pill 控件、`--radius-*` 阶梯）是既定决定，不要为「更像 macOS」而回退成方角**——那是用户在 ROUND-PASS 里明确要的圆润。
-7. **程序性聚焦不得画焦点环（R152）**。进入设置页时 surface policy 会把键盘交给当前页的侧栏按钮（让 ↑/↓ 立即生效），但浏览器把这种 `focus()` 当成 `:focus-visible`，会在当前页 pill 旁边多画一个蓝色框（用户的「蓝色选中框很违和」）。约定：**自动的、非用户发起的聚焦要打上 `data-entry-focus` 标记并抑制 outline**，标记在第一次真实交互（`keydown`/`pointerdown`/`focusout`）时清除，所以用户自己 Tab 回侧栏时焦点环照常出现。新增任何“进入某表面就自动聚焦某个控件”的路径都适用此条。
-
-## 独立窗口（detached plugin window）路线裁决（2026-10，R84-R86）
-
-- R84 `19acc29`：external 插件输出可钉独立窗口（label `plugin-detached`，二次 Pin 替换内容）；R85 `bdddb2b`：几何/位置持久化（拔副屏回退默认位、size 仍恢复）。
-- **内建模式 Pin 明确不做**：内建 iframe 页 R33 已退役，descriptor 的 `page` 字段与测试锁在 R96 一并物理删除，内建模式是交互式搜索 UI 非答案面；snapshot 便宜但无用（动作全丢），live 需为三数据源新建变更事件通道（触碰「不为边际功能新开通道」边界）。**Pin 保持 external-only。**
-- 多实例、设置广播：暂缓，触发条件见 R86 报告（`/tmp/floter-r86-report.md`）。
-- 若未来需要「钉住单条内容」：snapshot-text 最小切法（复用 `PluginTextView`，~80-120 行 / 3 文件，无新命令无事件，退役干净）。
-
-## 依赖政策：声明宽度、收紧判定、豁免与 npm 侧纪律（2026-10 / R110）
-
-R105→R109 把供应链的**现状**清完了（rustls patch、6 个死依赖出清、rusqlite 0.40、audit 归零），
-留下的是**政策债**：`src-tauri/Cargo.toml` 的声明面普遍是裸 major（`"1"`/`"3"`/`"5"`）或裸 minor
-（`"0.4"`/`"0.28"`），`cargo update` 没有任何「已审计下限」挡着。R110 把高风险声明收到 patch 位并
-落成守卫 `tests/r110-deps-policy.test.ts`。以下是此后新增/修改依赖时的规则。
-
-1. **新依赖默认宽度 = 带 patch 位的 caret**（`"0.28.1"`、`"1.53.1"`），不写裸 major/minor。
-   理由不是「更安全」，是**把已审计的版本记进声明**：裸 `"1"` 让 `cargo update` 的下限是 1.0.0，
-   一次 update 可以把整条 1.x 线拉走；带 patch 位后下限就是我们编译并跑过测试的那个版本。
-   **禁止**默认写 `=X.Y.Z`——等号 pin 是维护税，不是安全；只在下面第 2 条命中且确有需要时才用。
-   **Cargo caret 语义要点**（决定「收紧」到底收什么）：`^1.53.1` = `>=1.53.1, <2.0.0`（1.x 的
-   ceiling 挡不住跨 minor，只有 `=` 或显式范围能挡）；`^0.28.1` = `>=0.28.1, <0.29.0`（0.x 的
-   ceiling 本来就把 minor 钉住了，加 patch 位只抬下限）。所以对 1.x crate，「收紧」的实际效果是
-   **抬下限 + 记录审计版本**，不是封 minor；报告里必须如实这么写，不要假装封住了。
-2. **收紧判定 = 命中以下任一条**，否则不动（避免把全表升级成 `=X.Y.Z`）：
-   - **传递依赖树大**：tokio、serde、alacritty_terminal、reqwest 这类一次 update 能牵动几十个
-     `[[package]]` 的；
-   - **历史上有破坏性 minor**：chrono 0.4 线、crossterm 0.26→0.28、base64 0.21→0.22 这类
-     0.x 上真发生过 breaking 的；
-   - **安全敏感**：`libc`（unsafe FFI）、`png`（解码剪贴板里的不可信图像）、`jsonschema`
-     （解析不可信插件 manifest）、`serde_json`（IPC/配置的不可信输入）、reqwest/rusqlite
-     （TLS 栈 / 解析不可信数据库）。
-   R110 实际收紧 8 条：serde、serde_json、chrono、tokio、crossterm、jsonschema、libc、png
-   （≤8 是当轮预算，守卫把条数钉住）。
-3. **豁免：tauri 家族（`tauri`、`tauri-build`、`tauri-plugin-*`、`tauri-nspanel`）一律不 pin**。
-   理由：Tauri 自己的 release train 背 semver，官方 pin 会与未来 C3 升级轮直接冲突；`tauri-nspanel`
-   等 git 依赖已用 `rev` 钉死（比任何 caret 都紧）。守卫**反向**断言这族不得出现 `=` 等号 pin，
-   npm 侧 `@tauri-apps/*` 同样保持 `^`/`~` 范围、不得精确 pin。**`portable-pty` 同理零触碰**
-   （它是 vendored `qscreen-daemon` 的依赖，不在本仓声明面）。rusqlite 保持 `"0.40"` 不加等号
-   （0.x 已锁 minor，加 patch 位只抬下限，不值得动；R109 守卫已钉死这一行）。
-4. **npm 侧：`npm update` 必须限定到 dev 闭包**（R106 教训）。裸 `npm update` 实测会同时升
-   `react`/`react-dom`/`lucide-react`/`@tauri-apps/api` 四个**运行时**依赖，vite 产物从 671,272 B
-   涨到 704,492 B（+33 KB），直接撞「前端零改动 / js/css 逐字节不变」红线。修补 dev advisory 时
-   把包名逐个列出来（`npm update vite esbuild postcss …`），**永不**裸跑 `npm update`，也**不**跑
-   `npm audit fix`（它会顺手动 lock 的运行时边）。判据：`git diff package.json` 必须为空、
-   `dist/assets/*` 必须逐字节不变。
-
-## Tauri 2 命令 panic 传播语义（R111/R112）
-
-R111 只读普查了生产代码的 panic 面（10 处），结论是全部落在 S5「合同式」上，唯一例外风险是
-`clipboard_history/mod.rs` 的 `mutate_history`——那里的 `expect` 落在**同步命令链**上，R112 已
-消除。以下是为什么「同步命令链上的 panic」比普通 panic 严重，以及此后写命令的规则。
-
-1. **同步命令（79 个）panic ⇒ 进程 abort**。证据链（tauri 2.12.1 / tauri-macros 2.7.1 /
-   wry 0.57.0 / webkit2gtk 2.0.2，即 lock 现值）：
-   - `tauri-macros` 的 `src/command/wrapper.rs:398` `body_blocking` 直接调用命令函数并
-     `kind.block(result, resolver)`，没有任务边界；
-   - 这个 wrapper 由 `Webview::on_message`（`tauri/src/webview/mod.rs:1742`，
-     `manager/mod.rs:471` 的 `run_invoke_handler`）在**同步**路径上执行；
-   - 入口是自定义协议处理器 `tauri/src/ipc/protocol.rs:75` 的 `webview.on_message(...)`；
-   - 它在 Linux 上最终落到 webkit2gtk 的 `unsafe extern "C" fn callback_func`
-     （`webkit2gtk-2.0.2/src/auto/web_context.rs:534`，`register_uri_scheme` 的 C 回调）。
-   panic 从 `extern "C"` 帧里逃逸**不能 unwind**，只能 abort；R111 已实测进程 `exit 134`
-   （SIGABRT）。前端拿到的是连接断开，不是错误。
-2. **异步命令（38 个）panic ⇒ 该命令 promise 永久挂起**。`src/command/wrapper.rs:355` 的 `body_async`
-   走 `respond_async_serialized`（`tauri/src/ipc/mod.rs:343-380`），最终
-   `async_runtime::spawn`（`ipc/mod.rs:375`）把 future 交给 tokio；panic 在 tokio task 边界被
-   吞掉，`return_result` 永不执行——前端 `invoke` 既不 resolve 也不 reject，**连错误提示都没有**。
-3. **规则**：**同步命令链上禁止新增 `expect`/`unwrap`**（要么 `ok_or`/`?` 返回 `Err`，要么用
-   `lock_or_recover` 这类 S5 兜底）；**异步命令优先返回 `Err`，不要用 panic 把 promise 挂死**。
-   `clippy::unreachable` 在 `src-tauri/src/commands/*` 上的命中是 `tauri-macros`
-   `wrapper.rs:221-229` 里 `if false` 类型检查宏的 span 错位，不是本仓代码，别照着它改。
-   源码级守卫：`tests/r112-panic-surface.test.ts`（同步链唯一 abort 点零出现 + 本节锚点在场）。
-
-## 事件契约：两端成对（R121）
-
-事件必须两端成对：删前端订阅时同步删后端 emit；新事件先有订阅方再发。`extensions-changed`
-曾 5 发 0 收（前端靠 invoke 返回值刷新，R121 删，git 历史 `6ff82aa..`）。源码级守卫：
-`tests/r121-dead-event.test.ts`（被禁字面在 `src-tauri/src` 零出现 + 真实事件仍在）。
-
-## 退役 key 登记（R141）
-
-R140 普查判定 19 个 i18n key 无生产消费，R141 物理删除（`src/i18n.ts` 两侧各 −19 行）：
-
-- `extensions.source`（残留；活键是 `settings.extensions.source`）
-- `launcher.browserTabsUnavailable`（生产只发 `browserNoProfile`/`browserEmpty`）
-- `settings.group.link`（设置分组未使用；活键是 `settings.deepLink*`）
-- `settings.language.en/zh`（`LANGUAGE_OPTIONS[].descriptionKey` 字段无人读取，随键一并删除）
-- `settings.browserTarget/Auto/CustomDir/HistoryDays/Sort/SortHint`
-  —— **`settings.browser*` 退役页双写随 `plugins.config.*` 重写（R140）删除**；
-  `settings.browser`/`settings.browserHint` 仍活，`settings.browserSortRelevance…` 四值键仍活
-- `clipboard.title/filter/clear/loadFailed/typeColor`（R33/R76 退役剪贴板页）
-- `settings.shortcuts`（页面用 `settings.group.shortcuts`/`settings.shortcutsHint`）
-- `settings.extensions.customRunning`（生产用 `customRun`/`customRunUnavailable`）
-- `settings.extensions.customRunRememberHint`（生产用 `customRunValuesHint`）
-
-防复活守卫：`tests/r141-export-task-failed-keyed.test.ts`（第 3 条，`src/**` + `src-tauri/src/**`
-去注释后三种引号字面量零出现）。同轮把 export 家族的 join 失败句 keyed 化
-（`settings.extensions.exportTaskFailed.<extension|script|config>`）。
-
-## CHANGELOG 维护约定（R146）
-
-`CHANGELOG.md`（Keep a Changelog 轻量版，无工具链）是面向用户的变更记录，**按周期收官时人工补账**：
-
-- `[Unreleased]` 累积下一版的内容，发版时改名为版本号并落日期；分组按 Changed / Fixed /
-  Performance / Security（必要时 Internal），**按用户可感知的影响归组，不逐条搬运 commit**。
-- **release 工作流不改写本文件**。`.github/workflows/release.yml` 的 `prepare` job 继续从
-  `git log` 自动生成 GitHub release notes（`[Unreleased]` 存在也不影响），发布 commit 因此
-  不会夹带 CHANGELOG 噪声；两者是并行的两条面，人工补账保证归档可读。
-- 版本一致性守卫：`tests/r146-release-hygiene.test.ts`（六处载体相等 + semver 形状 +
-  按 name 定位 `Cargo.lock`；版本无关，bump 后仍绿）。改版本载体时先跑它。
-
-## 供应链审计：`cargo-audit` 已可用（R147）
-
-R145 快速面核查时 `cargo audit` 未安装（当时只登记）。R147 补装 **`cargo-audit 0.22.2`**
-（`cargo install cargo-audit --locked`，落在 `~/.cargo/bin`，已在 PATH），并对
-`src-tauri/Cargo.lock` 首跑。**此后每个周期收官例行跑**：
-
-```
-cargo audit --file src-tauri/Cargo.lock
+```sh
+gofmt -l cmd internal     # 必须为空
+go vet ./...
+go test -count=1 ./...    # 全绿；平台相关断言必须在任何平台都成立
+GOOS=linux go build ./... && GOOS=windows go build ./...
+go tool mygo build        # macOS 打包产物（可选，改动打包相关时跑）
 ```
 
-- **只读工具面**：不改 lock、不加依赖；cargo-audit 装在本机、不进仓库、不影响门槛表。
-- **有 advisory 时只登记不修**（依赖升级另派轮——宁可少改），按 reachable / unreachable
-  + 严重度列清；只有出现真漏洞才升级为当轮事项。
-- R147 首跑基线：**0 vulnerability**，4 条 warning，均已定性登记（勿重复 triage）：
+**平台无关性**：CI 跑 ubuntu / macos / windows 三平台矩阵。任何平台相关的断言要么
+按 `runtime.GOOS` 门控，要么把平台表写成 `(goos, home, ...)` 的**纯函数**，让每个平台的
+布局在任何宿主上都能被断言（`internal/browser` 的 `chromiumBrowsers` 就是这么做的——
+旧实现曾因"只在 macOS 编译"的路径表把 Edge 的目录写错而没人发现）。
 
-| ID | crate | 类型 | 可达性 | 说明 |
-|---|---|---|---|---|
-| RUSTSEC-2024-0370 | `proc-macro-error 1.0.4` | unmaintained | 可达（**仅构建期**） | `glib-macros` → `glib` → `gtk` → `tauri`/`tray-icon`；proc-macro，不产出运行时代码 |
-| RUSTSEC-2017-0008 | `serial 0.4.0` | unmaintained | 可达 | `portable-pty`（default feature）→ `qscreen-daemon`；串口支持路径，floter 未用 |
-| RUSTSEC-2024-0429 | `glib 0.18.5` | unsound | 可达（Linux GTK 栈） | `glib::VariantStrIter` 迭代器实现不健全；floter 无直接 glib 依赖、不调该 API |
-| （yanked） | `chacha20 0.10.1` | yanked | **不可达** | 仅 `quinn-proto` → `rand 0.10.2` 的 lock 孤儿条目；解析树中无 `quinn`/`rand 0.10.2`，不参与构建 |
+**测试不碰真实系统资源**：剪贴板、登录项、窗口、原生库（libghostty-vt / sqlite）都要能注入
+（`shell.Options` 里的 `WriteClipboard` / `RegisterShortcut` / `OpenAtLogin` / `OpenPinned` /
+`ConfirmPermissions` / `Registry` / `NewTerminal` / `Paths`）。需要真资源的测试用环境变量
+opt-in（`FLOTER_TERMINAL_TEST=1`、`FLOTER_SQLITE_TEST=1`、`FLOTER_REGISTRY_TEST=1`）。
+
+## 反馈通道与三态
+
+- **唯一反馈面是宿主 toast**（`launcher` 的 `toast` 字段 + 窗口底部提示）。任何表面都只发
+  消息、不画自己的提示条；时长与视觉只有一份来源。
+- **三态**（空 / 加载 / 错误）适用于任何会拉数据的表面：空态说"没有东西 + 为什么/怎么办"；
+  加载态是**行内** spinner，有旧内容就不换掉它；错误态给"重试（重试真可能成功时才有）+ 关闭"，
+  同一错误重复渲染要复用已画节点，否则重绘会丢焦点。
+
+## 纪律
+
+- 每轮改动自带测试；先跑门槛再提交。
+- 报告里"已做 / 未做"要如实分开写，未做的不要写成半成品。
+- 用户可见文案走 `internal/i18n`（en/zh 结构体，缺字段编译期报错），不要散落字面量。

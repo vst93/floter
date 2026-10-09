@@ -1,10 +1,8 @@
 // Package extensions reads floter's extension state: the installed
 // integrations, their manifests, and the repository file that records them.
 //
-// The disk format is the one the Tauri/Rust build shipped — see
-// src-tauri/src/extensions/mod.rs (ExtensionPaths), lock.rs
-// (ExtensionLockEntry) and repository.rs (extension-repository.json) — so an
-// existing user's integrations are found without any migration:
+// The disk format is the one every earlier build wrote, so an existing
+// user's integrations are found without any migration:
 //
 //	<config dir>/floter/extensions/               installed packages
 //	<config dir>/floter/extension-data/           per-integration data

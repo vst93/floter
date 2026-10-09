@@ -14,7 +14,7 @@ An extension declares configuration in the `configuration` field of its
 descriptor has `owner: "host"` and a non-empty `schema`; a tool-managed
 descriptor has `owner: "tool"`, no host schema, and an `openCommand` that the
 Host runs in a PTY. This is the same descriptor consumed by
-`src-tauri/src/extensions/config.rs` and rendered by `src/ExtensionsPanel.tsx`.
+`internal/extensions/config.go` and rendered by `internal/settingsui/settingsui.go`.
 
 ```json
 {
@@ -63,7 +63,7 @@ Host runs in a PTY. This is the same descriptor consumed by
 ```
 
 The required Draft 1 field types are `text`, `number`, `password`, `select`,
-and `boolean`. The current Rust and TypeScript implementations additionally
+and `boolean`. The current implementation additionally
 support `path` and `multi-select`; these extensions use the same validation and
 rendering rules.
 
@@ -90,7 +90,7 @@ The Host validates, in order:
    these constraints.
 
 Unknown value keys and invalid values are rejected by `validate_values` in
-`src-tauri/src/extensions/config.rs`. It enforces type, required, enum, numeric
+`internal/extensions/config.go`. It enforces type, required, enum, numeric
 range, and text length checks. A custom validation rule, when supported by a
 future protocol version, MUST be deterministic, side-effect free, and run before
 persistence.
@@ -107,7 +107,7 @@ extensions/<id>/config.json
 In the current Floter layout, the data root is deliberately separate from the
 program root, so the concrete path is
 `extension-data/<id>/config.json` (see `ExtensionPaths::from_root` and
-`values_path` in `src-tauri/src/extensions/config.rs`). The stored object
+`values_path` in `internal/extensions/config.go`). The stored object
 contains `configVersion`, redacted public `values`, and the schema snapshot used
 for migration and compatibility:
 
@@ -184,6 +184,6 @@ attempt to parse or persist tool-owned settings.
 
 ## References
 
-- Configuration model, validation, storage, and injection: `src-tauri/src/extensions/config.rs`
-- Provider process protocol and `config` operation: `src-tauri/src/extensions/provider.rs`
-- Automatic form rendering: `src/ExtensionsPanel.tsx`
+- Configuration model, validation, storage, and injection: `internal/extensions/config.go`
+- Provider process protocol and `config` operation: `internal/extensions/provider.go`
+- Automatic form rendering: `internal/settingsui/settingsui.go`

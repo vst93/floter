@@ -48,14 +48,14 @@ func ResolveRuntime(integration Integration) (RuntimeBinding, error) {
 		if len(names) == 0 {
 			names = []string{manifest.ID}
 		}
-		if path, ok := LookTool(names...); ok {
+		if path, ok := lookTool(names...); ok {
 			return RuntimeBinding{Program: path}, nil
 		}
 		return RuntimeBinding{}, fmt.Errorf("extensions: %s: %s is not on the search path", integration.Entry.ID, strings.Join(names, " or "))
 
 	case "script":
 		language := manifest.Runtime.Language
-		interpreter, ok := FindInterpreter(language)
+		interpreter, ok := findInterpreter(language)
 		if !ok {
 			return RuntimeBinding{}, fmt.Errorf("extensions: %s: no %s interpreter is available", integration.Entry.ID, language)
 		}

@@ -4,8 +4,7 @@ import (
 	"errors"
 )
 
-// The permission ids a manifest may declare, from the manifest schema and
-// config.rs.
+// The permission ids a manifest may declare, in the schema's order.
 const (
 	PermissionFilesystemRead  = "filesystem-read"
 	PermissionFilesystemWrite = "filesystem-write"
@@ -27,9 +26,9 @@ var AllPermissions = []string{
 	PermissionEnvironment,
 }
 
-// The two permissions the host itself decides, from HOST_ENFORCED_PERMISSION_NAMES
-// in manifest.rs. The rest are disclosed to the user and not intercepted:
-// the host is not a sandbox, and saying so is the point of the split.
+// The two permissions the host itself decides. The rest are disclosed to the
+// user and not intercepted: the host is not a sandbox, and saying so is the
+// point of the split.
 var hostEnforcedPermissions = map[string]bool{
 	PermissionEnvironment:  true,
 	PermissionProcessSpawn: true,

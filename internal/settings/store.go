@@ -6,8 +6,8 @@ import (
 )
 
 // Store owns the app's settings for the life of a run: it loads once, hands
-// out normalized snapshots, and writes a change back to the same file the
-// Tauri build used, preserving every key this package does not own.
+// out normalized snapshots, and writes a change back to the same file it read,
+// preserving every key this package does not own.
 //
 // It is safe from any goroutine. Views read Snapshot; the settings surface
 // calls Update from the UI thread.

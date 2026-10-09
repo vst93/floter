@@ -22,16 +22,41 @@ import (
 	"floter/internal/shortcuts"
 )
 
-// The settings pages, in sidebar order. P1 fills General.
+// The settings pages, in sidebar order.
 const (
 	PageGeneral = iota
 	PageSessions
 	PageShortcuts
+	PagePlugins
 	PageIntegrations
 	PageAbout
 
 	pageCount
 )
+
+// pageNames are the ids the `last_settings_page` setting stores, in the same
+// order as the pages: reopening the settings surface returns to the page the
+// user last looked at.
+var pageNames = [pageCount]string{"general", "sessions", "shortcuts", "plugins", "integrations", "about"}
+
+// PageByName resolves a stored page id, reporting whether it is one this build
+// knows.
+func PageByName(name string) (int, bool) {
+	for i, page := range pageNames {
+		if page == name {
+			return i, true
+		}
+	}
+	return PageGeneral, false
+}
+
+// PageName is the stored id of a page index.
+func PageName(page int) string {
+	if page < 0 || page >= pageCount {
+		return pageNames[PageGeneral]
+	}
+	return pageNames[page]
+}
 
 // Actions are the shell's callbacks.
 type Actions struct {
@@ -50,6 +75,12 @@ type Actions struct {
 	SetShortcut func(id, accelerator string)
 	// InstallFromRegistry installs a package from the npm registry.
 	InstallFromRegistry func(name, constraint string)
+	// SetPage records the page the user switched to (the
+	// `last_settings_page` setting).
+	SetPage func(name string)
+	// BrowserTargets lists the browsers the browser plugin can be pointed at,
+	// discovered from the machine; nil offers only the automatic choice.
+	BrowserTargets func() []i18n.Option
 }
 
 // Integration is one installed extension, as the Integrations page lists it.
@@ -156,6 +187,8 @@ func (a *App) page(i int) page {
 		return page{c.PageSessions, c.PageSessionsHint}
 	case PageShortcuts:
 		return page{c.PageShortcuts, c.PageShortcutsHint}
+	case PagePlugins:
+		return page{c.PagePlugins, c.PagePluginsHint}
 	case PageIntegrations:
 		return page{c.PageIntegrations, c.PageIntegrationsHint}
 	case PageAbout:
@@ -198,7 +231,16 @@ func (a *App) sidebarRow(c *ui.Context, i int) {
 		ui.Text(c, a.page(i).Title).FontSize(t.FontSize)
 	})
 	if row.Clicked() {
-		a.Page = i
+		a.selectPage(i)
+	}
+}
+
+// selectPage switches pages and remembers the choice, so the next visit to
+// the settings surface reopens where the user left off.
+func (a *App) selectPage(page int) {
+	a.Page = page
+	if a.Actions.SetPage != nil {
+		a.Actions.SetPage(PageName(page))
 	}
 }
 
@@ -222,6 +264,8 @@ func (a *App) body(c *ui.Context, copy i18n.Settings) {
 				a.integrations(c, copy)
 			case PageShortcuts:
 				a.shortcuts(c, copy)
+			case PagePlugins:
+				a.plugins(c, copy)
 			case PageAbout:
 				a.about(c, copy)
 			default:
@@ -237,6 +281,92 @@ func (a *App) body(c *ui.Context, copy i18n.Settings) {
 			ui.Divider(c).Padding(t.Space(0.5), 0)
 		})
 	})
+}
+
+// plugins draws the built-in plugins' own settings: the browser plugin's
+// block and the clipboard's switch and capacity. Every control writes through
+// the store, so a change lands in settings.json at once and the shell's
+// listener applies it.
+func (a *App) plugins(c *ui.Context, copy i18n.Settings) {
+	t := c.Theme()
+	browser := settings.BrowserPluginOf(a.Store.Snapshot())
+	clipboard := settings.ClipboardOf(a.Store.Snapshot())
+
+	ui.Column(c).FillWidth().Gap(t.Space(3)).Children(func() {
+		ui.Fieldset(c, copy.BrowserPlugin, func() {
+			a.checkbox(c, copy.BrowserEnabled, browser.Enabled, func(on bool) {
+				a.setBrowser(func(p *settings.BrowserPlugin) { p.Enabled = on })
+			})
+			a.choose(c, copy.BrowserTarget, copy.BrowserTargetHint, a.browserTargets(), browser.Target,
+				func(id string) { a.setBrowser(func(p *settings.BrowserPlugin) { p.Target = id }) })
+			a.text(c, copy.BrowserCustomDir, copy.BrowserCustomDirHint, "/path/to/profile", browser.CustomBaseDir,
+				func(value string) { a.setBrowser(func(p *settings.BrowserPlugin) { p.CustomBaseDir = value }) })
+			a.slider(c, copy.BrowserHistoryDays, copy.BrowserHistoryDaysHint, float64(browser.HistoryDays), 0, 365,
+				func(v float64) string {
+					if v < 1 {
+						return copy.BrowserHistoryAll
+					}
+					return fmt.Sprintf("%d", int(v))
+				},
+				func(v float64) { a.setBrowser(func(p *settings.BrowserPlugin) { p.HistoryDays = int(v) }) })
+			a.choose(c, copy.BrowserSort, copy.BrowserSortHint, copy.BrowserSortOrders, browser.SortOrder,
+				func(id string) { a.setBrowser(func(p *settings.BrowserPlugin) { p.SortOrder = id }) })
+			a.choose(c, copy.BrowserSearchField, copy.BrowserSearchFieldHint, copy.BrowserSearchFields, browser.SearchField,
+				func(id string) { a.setBrowser(func(p *settings.BrowserPlugin) { p.SearchField = id }) })
+			ui.Fieldset(c, copy.BrowserCDP, func() {
+				a.checkbox(c, copy.BrowserCDPEnabled, browser.CDPEnabled, func(on bool) {
+					a.setBrowser(func(p *settings.BrowserPlugin) { p.CDPEnabled = on })
+				})
+				a.text(c, copy.BrowserCDPPort, copy.BrowserCDPPortHint, "9222", fmt.Sprintf("%d", browser.CDPPort),
+					func(value string) {
+						port, err := strconv.Atoi(strings.TrimSpace(value))
+						if err != nil {
+							return
+						}
+						a.setBrowser(func(p *settings.BrowserPlugin) { p.CDPPort = port })
+					})
+			})
+		})
+		ui.Fieldset(c, copy.ClipboardPlugin, func() {
+			a.checkbox(c, copy.ClipboardEnabled, clipboard.Enabled, func(on bool) {
+				a.set(func(s *settings.Settings) {
+					state := settings.ClipboardOf(*s)
+					state.Enabled = on
+					s.SetClipboard(state)
+				})
+			})
+			a.slider(c, copy.ClipboardMaxItems, copy.ClipboardMaxItemsHint, float64(clipboard.MaxItems),
+				float64(settings.MinClipboardMaxItems), float64(settings.MaxClipboardMaxItems),
+				func(v float64) string { return fmt.Sprintf("%d", int(v)) },
+				func(v float64) {
+					a.set(func(s *settings.Settings) {
+						state := settings.ClipboardOf(*s)
+						state.MaxItems = int(v)
+						s.SetClipboard(state)
+					})
+				})
+		})
+	})
+}
+
+// setBrowser writes one change to the browser plugin's block.
+func (a *App) setBrowser(mutate func(*settings.BrowserPlugin)) {
+	a.set(func(s *settings.Settings) {
+		plugin := settings.BrowserPluginOf(*s)
+		mutate(&plugin)
+		s.SetBrowserPlugin(plugin)
+	})
+}
+
+// browserTargets lists the target choices: the automatic one first, then the
+// browsers discovery found.
+func (a *App) browserTargets() []i18n.Option {
+	copy := i18n.For(a.Store.Snapshot().Language).Settings
+	options := []i18n.Option{{ID: settings.DefaultBrowserTarget, Label: copy.BrowserAuto}}
+	if a.Actions.BrowserTargets != nil {
+		options = append(options, a.Actions.BrowserTargets()...)
+	}
+	return options
 }
 
 // sessions lists the running terminal sessions.
@@ -708,8 +838,8 @@ func (a *App) text(c *ui.Context, label, description, placeholder, value string,
 	}
 }
 
-// appIcon is the stored app icon, normalized to the two the app ships
-// (dark is the default, as config.rs shipped).
+// appIcon is the stored app icon, normalized to the two the app ships (dark
+// is the default).
 func (a *App) appIcon() string {
 	value, _ := a.Store.Snapshot().Extra()["app_icon"].(string)
 	if value == "light" {

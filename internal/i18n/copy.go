@@ -1,7 +1,7 @@
 package i18n
 
-// The shipped copy. Keys and wording follow src/i18n.ts where the old build
-// already had them, so a user who switches languages reads the same words.
+// The shipped copy, English first: the source of truth every other language
+// is checked against.
 var en = Copy{
 	Launcher: Launcher{
 		Placeholder:          "Type a command or app name",
@@ -22,6 +22,8 @@ var en = Copy{
 		CommandClipboardHint: "Search what you copied",
 		CommandQuit:          "Quit floter",
 		CommandQuitHint:      "Exit the application completely",
+		BrowserTab:           "Open tab",
+		BrowserNoProfile:     "No browser profile was found",
 		ShortcutSettings:     "Cmd+,",
 
 		MenuView:     "View",
@@ -42,12 +44,14 @@ var en = Copy{
 		PageGeneral:      "General",
 		PageSessions:     "Sessions",
 		PageShortcuts:    "Shortcuts",
+		PagePlugins:      "Plugins",
 		PageIntegrations: "Integrations",
 		PageAbout:        "About",
 
 		PageGeneralHint:      "Appearance, startup and how the windows behave.",
 		PageSessionsHint:     "Terminal sessions still running in the background.",
 		PageShortcutsHint:    "Every global shortcut floter answers.",
+		PagePluginsHint:      "The built-in plugins' own settings.",
 		PageIntegrationsHint: "Built-in plugins and the tools you have connected.",
 		PageAboutHint:        "Version, updates and the link scheme.",
 
@@ -162,6 +166,43 @@ var en = Copy{
 		ShortcutRecord:    "Record",
 		ShortcutRecording: "Press keys\u2026",
 
+		BrowserPlugin:          "Browser history",
+		BrowserPluginHint:      "Searches the installed browsers' history, bookmarks and open tabs from the launcher.",
+		BrowserEnabled:         "Search browser data",
+		BrowserTarget:          "Browser",
+		BrowserTargetHint:      "Which browser the launcher searches, and which one a result opens in.",
+		BrowserAuto:            "Automatic",
+		BrowserCustomDir:       "Extra profile directory",
+		BrowserCustomDirHint:   "A browser base directory or a single profile to search as well.",
+		BrowserHistoryDays:     "History window",
+		BrowserHistoryDaysHint: "How far back history goes; bookmarks are never filtered.",
+		BrowserHistoryAll:      "All",
+		BrowserSort:            "Order",
+		BrowserSortHint:        "How the results are ordered.",
+		BrowserSearchField:     "Search in",
+		BrowserSearchFieldHint: "Which part of a row the query is matched against.",
+		BrowserCDP:             "Open tabs",
+		BrowserCDPEnabled:      "Read tabs through the debug port",
+		BrowserCDPEnabledHint:  "Needs the browser started with --remote-debugging-port. On macOS tabs are read through AppleScript instead.",
+		BrowserCDPPort:         "Debug port",
+		BrowserCDPPortHint:     "The port the browser's DevTools endpoint listens on.",
+		BrowserSortOrders: []Option{
+			{"relevance", "Launcher ranking"},
+			{"recent", "Most recent"},
+			{"alphabetical", "A to Z"},
+			{"visits", "Most visited"},
+		},
+		BrowserSearchFields: []Option{
+			{"all", "Title and address"},
+			{"title", "Title only"},
+			{"url", "Address only"},
+		},
+		ClipboardPlugin:       "Clipboard history",
+		ClipboardPluginHint:   "Keeps what you copy so the launcher can find it again.",
+		ClipboardEnabled:      "Keep a clipboard history",
+		ClipboardMaxItems:     "History size",
+		ClipboardMaxItemsHint: "How many entries to keep; favourites are never dropped.",
+
 		AboutVersion:      "Version",
 		AboutFramework:    "Framework",
 		AboutScheme:       "Link scheme",
@@ -198,6 +239,8 @@ var zh = Copy{
 		CommandClipboardHint: "搜索复制过的内容",
 		CommandQuit:          "退出 floter",
 		CommandQuitHint:      "完全退出应用",
+		BrowserTab:           "已打开的标签页",
+		BrowserNoProfile:     "没有找到浏览器配置",
 		ShortcutSettings:     "Cmd+,",
 
 		MenuView:     "视图",
@@ -216,12 +259,14 @@ var zh = Copy{
 		PageGeneral:      "常规",
 		PageSessions:     "会话",
 		PageShortcuts:    "快捷键",
+		PagePlugins:      "插件",
 		PageIntegrations: "集成",
 		PageAbout:        "关于",
 
 		PageGeneralHint:      "外观、启动方式与窗口行为。",
 		PageSessionsHint:     "仍在后台运行的终端会话。",
 		PageShortcutsHint:    "floter 响应的全部全局快捷键。",
+		PagePluginsHint:      "内置插件各自的设置。",
 		PageIntegrationsHint: "内置插件与你已接入的工具。",
 		PageAboutHint:        "版本、更新与链接协议。",
 
@@ -335,6 +380,43 @@ var zh = Copy{
 		ShortcutsHint:     "更多快捷键将随系统集成一并到来。",
 		ShortcutRecord:    "录制",
 		ShortcutRecording: "请按组合键…",
+
+		BrowserPlugin:          "浏览器历史",
+		BrowserPluginHint:      "在启动器里搜索已安装浏览器的历史、书签与已打开的标签页。",
+		BrowserEnabled:         "搜索浏览器数据",
+		BrowserTarget:          "浏览器",
+		BrowserTargetHint:      "启动器搜索哪个浏览器，结果就在哪个浏览器里打开。",
+		BrowserAuto:            "自动",
+		BrowserCustomDir:       "额外配置目录",
+		BrowserCustomDirHint:   "额外的浏览器 base 目录，或单个 profile 目录。",
+		BrowserHistoryDays:     "历史范围",
+		BrowserHistoryDaysHint: "历史往前查多久；书签不受此限制。",
+		BrowserHistoryAll:      "全部",
+		BrowserSort:            "排序",
+		BrowserSortHint:        "结果的排序方式。",
+		BrowserSearchField:     "搜索范围",
+		BrowserSearchFieldHint: "查询匹配行里的哪些字段。",
+		BrowserCDP:             "已打开标签页",
+		BrowserCDPEnabled:      "通过调试端口读取标签页",
+		BrowserCDPEnabledHint:  "需要浏览器以 --remote-debugging-port 启动。macOS 上改用 AppleScript 读取。",
+		BrowserCDPPort:         "调试端口",
+		BrowserCDPPortHint:     "浏览器 DevTools 端点监听的端口。",
+		BrowserSortOrders: []Option{
+			{"relevance", "启动器排序"},
+			{"recent", "最近访问"},
+			{"alphabetical", "按名称"},
+			{"visits", "访问最多"},
+		},
+		BrowserSearchFields: []Option{
+			{"all", "标题与地址"},
+			{"title", "仅标题"},
+			{"url", "仅地址"},
+		},
+		ClipboardPlugin:       "剪贴板历史",
+		ClipboardPluginHint:   "记录你复制的内容，方便在启动器里再次找到。",
+		ClipboardEnabled:      "保留剪贴板历史",
+		ClipboardMaxItems:     "历史容量",
+		ClipboardMaxItemsHint: "最多保留多少条；收藏的条目不会被淘汰。",
 
 		AboutVersion:      "版本",
 		AboutFramework:    "框架",

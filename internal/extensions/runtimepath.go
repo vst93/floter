@@ -10,9 +10,9 @@ import (
 	"time"
 )
 
-// The conventional tool directories a Finder/Dock launch never inherits,
-// from runtime_path.rs. The process PATH comes first, so a directory the user
-// actually has can never be shadowed by a fallback.
+// The conventional tool directories a Finder/Dock launch never inherits. The
+// process PATH comes first, so a directory the user actually has can never be
+// shadowed by a fallback.
 var baselineDirs = map[string][]string{
 	"darwin": {"/usr/local/bin", "/usr/local/sbin", "/opt/homebrew/bin", "/opt/homebrew/sbin"},
 	"linux":  {"/usr/local/bin", "/usr/local/sbin"},
@@ -59,6 +59,14 @@ func SearchDirectories() []string {
 func LookTool(names ...string) (string, bool) {
 	return lookToolIn(SearchDirectories(), names...)
 }
+
+// lookTool and findInterpreter are the two lookups runtime resolution goes
+// through. They are variables so a test can resolve against a fixture instead
+// of depending on the machine having the package's tool installed.
+var (
+	lookTool        = LookTool
+	findInterpreter = FindInterpreter
+)
 
 // lookToolIn is LookTool over an explicit directory list, so a test can point
 // it at a fixture instead of depending on the machine's PATH.

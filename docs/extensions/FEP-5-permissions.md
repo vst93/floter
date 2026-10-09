@@ -53,7 +53,7 @@ corresponding kebab-case wire values shown in the table.
 
 The canonical enum and parsing behavior are defined in
 `docs/extensions/schemas/floter-extension.schema.json` and
-`src-tauri/src/extensions/manifest.rs` (`Permission`).
+`internal/extensions/manifest.go` (`Permission`).
 
 ## Isolation Boundary
 
@@ -91,7 +91,7 @@ and terminates a process that exceeds its deadline:
 | `diagnose` | 10 s |
 
 The current Phase 1-6 implementation uses a stricter 5 s deadline for
-`diagnose` as well (`src-tauri/src/extensions/provider.rs`, `diagnose`); a
+`diagnose` as well (`internal/extensions/provider.go`, `diagnose`); a
 provider MUST therefore be correct when stopped after 5 s. `describe` and
 `complete` use manifest-configured values within their schema bounds
 (`describeTimeoutMs` up to 5,000 ms and `completeTimeoutMs` up to 3,000 ms);
@@ -99,7 +99,7 @@ the default complete budget remains 800 ms.
 
 ## Package and Archive Security
 
-Before extraction, `src-tauri/src/extensions/install.rs` verifies the tarball's
+Before extraction, `internal/extensions/install.go` verifies the tarball's
 NPM SRI digest and rejects absolute paths, `..` components, entries outside the
 `package/` root, symbolic links, hard links, unsupported entry types, and archive
 size/entry-count limits. This is the path-escape protection implemented by
@@ -121,7 +121,7 @@ permissions embedded in an import document are not user approval.
 
 ## References
 
-- Manifest permission enum and compatibility validation: `src-tauri/src/extensions/manifest.rs`
-- Provider process, timeout, and output limits: `src-tauri/src/extensions/provider.rs`
-- Tar extraction and SRI verification: `src-tauri/src/extensions/install.rs`
+- Manifest permission enum and compatibility validation: `internal/extensions/manifest.go`
+- Provider process, timeout, and output limits: `internal/extensions/provider.go`
+- Tar extraction and SRI verification: `internal/extensions/install.go`
 - Lifecycle security baseline: `docs/extensions/FEP-3-lifecycle.md`

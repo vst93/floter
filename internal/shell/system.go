@@ -14,14 +14,13 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/transfer"
 
-	"floter/internal/clipboard"
 	"floter/internal/extensions"
 	"floter/internal/i18n"
 	"floter/internal/settings"
 )
 
-// The app icons: the two the Tauri build shipped, resized to 32×32 for the
-// menu bar and the taskbar. Dark is the default, as config.rs had it.
+// The app icons, resized to 32×32 for the menu bar and the taskbar. Dark is
+// the default.
 var (
 	//go:embed assets/tray-dark.png
 	trayIconDark []byte
@@ -125,62 +124,48 @@ func (a *App) HandleURL(rawURL string) {
 	}
 }
 
-// browserOptions is the browser plugin's settings: whether it is on, how far
-// back its history goes, and how many results one search returns.
+// browserOptions is the browser plugin's settings, as the search uses them.
 type browserOptions struct {
-	enabled     bool
-	historyDays int
-	limit       int
+	enabled       bool
+	target        string
+	customBaseDir string
+	historyDays   int
+	limit         int
+	sortOrder     string
+	searchField   string
+	cdpEnabled    bool
+	cdpPort       int
 }
 
-// browserState reads the browser settings, with the shipped defaults: on,
-// thirty days of history, at most fifty results.
+// browserState reads the browser plugin's settings block.
 func browserState(s settings.Settings) browserOptions {
-	options := browserOptions{enabled: true, historyDays: 30, limit: 50}
-	plugin, ok := s.Extra()["browser_plugin"].(map[string]any)
-	if !ok {
-		return options
+	plugin := settings.BrowserPluginOf(s)
+	return browserOptions{
+		enabled:       plugin.Enabled,
+		target:        plugin.Target,
+		customBaseDir: plugin.CustomBaseDir,
+		historyDays:   plugin.HistoryDays,
+		limit:         browserResultLimit,
+		sortOrder:     plugin.SortOrder,
+		searchField:   plugin.SearchField,
+		cdpEnabled:    plugin.CDPEnabled,
+		cdpPort:       plugin.CDPPort,
 	}
-	if enabled, ok := plugin["enabled"].(bool); ok {
-		options.enabled = enabled
-	}
-	if days, ok := numeric(plugin["history_days"]); ok && days >= 0 {
-		options.historyDays = int(days)
-	}
-	return options
 }
+
+// browserResultLimit is how many rows one browser search returns: the old
+// build's default page size.
+const browserResultLimit = 50
 
 // clipboardPoll is how often the watcher reads the clipboard: often enough
 // that a copy lands in the history before the panel opens, rare enough to
 // cost nothing.
 const clipboardPoll = 600 * time.Millisecond
 
-// clipboardSettings is the clipboard state the settings file carries: the
-// keys are ones the app does not own, so they ride in the carried-through
-// map.
-type clipboardSettings struct {
-	enabled  bool
-	maxItems int
+// clipboardState reads the clipboard history's settings.
+func clipboardState(s settings.Settings) settings.ClipboardSettings {
+	return settings.ClipboardOf(s)
 }
-
-// clipboardState reads the clipboard settings, with the shipped defaults:
-// the history is on, holding three hundred entries.
-func clipboardState(s settings.Settings) clipboardSettings {
-	state := clipboardSettings{enabled: true, maxItems: clipboard.DefaultMaxItems}
-	extra := s.Extra()
-	if value, ok := extra["clipboard_history_enabled"].(bool); ok {
-		state.enabled = value
-	}
-	if value, ok := extra["clipboard_history_max_items"]; ok {
-		if number, ok := numeric(value); ok {
-			state.maxItems = int(number)
-		}
-	}
-	return state
-}
-
-// clipboardMaxItems is the capacity the settings file asks for.
-func clipboardMaxItems(s settings.Settings) int { return clipboardState(s).maxItems }
 
 // numeric reads a JSON number of either shape the decoder may produce.
 func numeric(value any) (float64, bool) {
@@ -198,7 +183,7 @@ func numeric(value any) (float64, bool) {
 // watchClipboard records what the user copies while the app runs: the store
 // owns the history, the watcher only feeds it.
 func (a *App) watchClipboard() {
-	if a.clipboardWatching || !clipboardState(a.Store.Snapshot()).enabled {
+	if a.clipboardWatching || !clipboardState(a.Store.Snapshot()).Enabled {
 		return
 	}
 	a.clipboardWatching = true
@@ -210,7 +195,7 @@ func (a *App) watchClipboard() {
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
 		for range ticker.C {
-			if !clipboardState(a.Store.Snapshot()).enabled {
+			if !clipboardState(a.Store.Snapshot()).Enabled {
 				a.clipboardWatching = false
 				return
 			}

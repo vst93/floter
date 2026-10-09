@@ -22,9 +22,8 @@ func main() {
 		return
 	}
 
-	// Read the same settings.json the Tauri build wrote. A missing or
-	// unreadable file is not fatal: the store falls back to the shipped
-	// defaults, which is exactly what the old app did.
+	// Read the user's settings.json. A missing or unreadable file is not
+	// fatal: the store falls back to the shipped defaults.
 	path, pathErr := settings.Path()
 	if pathErr != nil {
 		log.Printf("floter: no settings directory: %v", pathErr)

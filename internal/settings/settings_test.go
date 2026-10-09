@@ -258,7 +258,7 @@ func TestPathIsTheOldSettingsFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Path: %v", err)
 	}
-	// config.rs: dirs::config_dir()/floter/settings.json.
+	// The file lives at <config dir>/floter/settings.json.
 	if filepath.Base(path) != "settings.json" {
 		t.Errorf("base = %q, want settings.json", filepath.Base(path))
 	}

@@ -37,6 +37,10 @@ type Item struct {
 	// clip is the clipboard entry the row shows, when it is one: Tab pins
 	// its text into a window.
 	clip *clipboard.Entry
+	// web and tab are the browser row's sources, when it is one: Tab copies
+	// the URL, Enter opens the page or focuses the tab.
+	web *browser.Result
+	tab *browser.Tab
 }
 
 // commands is the built-in command list, labeled in the launcher's language.
@@ -110,13 +114,16 @@ func (a *App) runCommand(entry extensions.CommandEntry) {
 	}
 }
 
-// browserItems is the browser mode's list: the history and bookmark
-// results for the query, newest first.
+// browserItems is the browser mode's list: the bookmarks and history for the
+// query, then the browser's live tabs.
 func (a *App) browserItems() []Item {
-	query := a.browserQuery()
-	results := a.browserResults(query)
-	out := make([]Item, 0, len(results))
-	for _, result := range results {
+	answer := a.browserResults(a.browserQuery())
+	if !answer.Found {
+		return nil
+	}
+	copy := StringsFor(a.settings().Language)
+	out := make([]Item, 0, len(answer.Results)+len(answer.Tabs))
+	for _, result := range answer.Results {
 		result := result
 		detail := result.URL
 		if !result.Visited.IsZero() {
@@ -127,15 +134,47 @@ func (a *App) browserItems() []Item {
 			Title:  result.Label(),
 			Detail: detail,
 			Run:    func() { a.openResult(result) },
+			web:    &result,
+		})
+	}
+	for _, tab := range answer.Tabs {
+		tab := tab
+		detail := tab.URL
+		if detail == "" {
+			detail = copy.BrowserTab
+		} else {
+			detail = detail + "  \u00b7  " + copy.BrowserTab
+		}
+		out = append(out, Item{
+			ID:     "tab:" + tab.BrowserID + ":" + tab.URL,
+			Title:  tab.Label(),
+			Detail: detail,
+			Run:    func() { a.activateTab(tab) },
+			tab:    &tab,
 		})
 	}
 	return out
 }
 
-// openResult opens a browser result's page, and reports it.
+// openResult opens a browser result's page in the browser it came from.
 func (a *App) openResult(result browser.Result) {
 	if a.Actions.OpenURL != nil {
-		a.Actions.OpenURL(result.URL)
+		a.Actions.OpenURL(result.BrowserID, result.URL)
+	}
+}
+
+// activateTab brings one of the browser's live tabs to the front.
+func (a *App) activateTab(tab browser.Tab) {
+	if a.Actions.ActivateTab != nil {
+		a.Actions.ActivateTab(tab)
+	}
+}
+
+// copyURL puts a URL on the clipboard, and says so.
+func (a *App) copyURL(url string) {
+	if a.Actions.Copy != nil {
+		a.Actions.Copy(url)
+		a.toast = StringsFor(a.settings().Language).Copied
 	}
 }
 
@@ -147,13 +186,13 @@ func (a *App) copyResult(result browser.Result) {
 	}
 }
 
-// browserResults returns the results for the query: the shell's, when they
-// are for this query, and an empty list while the first search runs.
-func (a *App) browserResults(query string) []browser.Result {
+// browserResults returns the answer for the query: the shell's, when it is for
+// this query, and an empty one while the first search runs.
+func (a *App) browserResults(query string) BrowserResults {
 	if a.browserAsked && a.browserAskedFor == query {
 		return a.browserFound
 	}
-	return nil
+	return BrowserResults{}
 }
 
 // clipboardItems is the clipboard mode's list: the history entries matching

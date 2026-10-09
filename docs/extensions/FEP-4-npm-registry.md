@@ -92,7 +92,7 @@ The Host reads `dist.tarball` and `dist.integrity` from registry metadata,
 downloads the tarball directly over HTTPS, and verifies the NPM Subresource
 Integrity value before extraction. It does not run `npm install`, NPM lifecycle
 scripts, or package JavaScript, and it does not require Node.js. The current
-implementation performs this in `src-tauri/src/extensions/install.rs`
+implementation performs this in `internal/extensions/install.go`
 (`download_tarball`, `verify_integrity`, and `safe_unpack`).
 
 Publishers SHOULD provide a `sha512-<base64>` digest in NPM's
@@ -205,4 +205,4 @@ not the same as an NPM unpublish and does not alter repository-based rollback be
 
 - FEP-1 package entry and platform package resolution (`docs/extensions/FEP-1-package.md`)
 - FEP-3 install transaction and integrity baseline (`docs/extensions/FEP-3-lifecycle.md`)
-- Registry parsing and download implementation (`src-tauri/src/extensions/install.rs`)
+- Registry parsing and download implementation (`internal/extensions/install.go`)

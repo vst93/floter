@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-// The configuration filenames under extension-data/<id>/, from config.rs.
+// The configuration filenames under extension-data/<id>/.
 const (
 	configFile           = "config.json"
 	legacySecretsFile    = "config.secrets.json"

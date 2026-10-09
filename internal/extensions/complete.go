@@ -14,8 +14,8 @@ import (
 	"time"
 )
 
-// CompletionRequest is what the provider's complete operation is asked, as
-// catalog.rs sent it: the command, the tokens typed so far, and where.
+// CompletionRequest is what the provider's complete operation is asked: the
+// command, the tokens typed so far, and where.
 type CompletionRequest struct {
 	Command string   `json:"command"`
 	Tokens  []string `json:"tokens"`
@@ -124,9 +124,8 @@ func runOperation(ctx context.Context, integration Integration, op string, paylo
 }
 
 // StaticCompletions is what a command's declared arguments offer for the
-// tokens typed so far, as catalog.rs built it: after an argument that takes a
-// value, that argument's enum values or path names; otherwise the argument
-// names themselves.
+// tokens typed so far: after an argument that takes a value, that argument's
+// enum values or path names; otherwise the argument names themselves.
 func StaticCompletions(command Command, tokens []string, cwd string) []Completion {
 	fragment := ""
 	if len(tokens) > 0 {

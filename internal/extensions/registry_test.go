@@ -294,10 +294,25 @@ func npmPackageEntries(version string) []tarEntry {
 	}
 }
 
-func TestInstallFromRegistry(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("the fixture's runtime is resolved through sh")
+// stubTool makes runtime resolution find a fixture executable instead of
+// depending on the machine having the package's own tool installed (the
+// example manifest runs the V toolchain's `v`).
+func stubTool(t *testing.T, names ...string) {
+	t.Helper()
+	dir := t.TempDir()
+	for _, name := range names {
+		path := filepath.Join(dir, name)
+		if err := os.WriteFile(path, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
 	}
+	previous := lookTool
+	lookTool = func(wanted ...string) (string, bool) { return lookToolIn([]string{dir}, wanted...) }
+	t.Cleanup(func() { lookTool = previous })
+}
+
+func TestInstallFromRegistry(t *testing.T) {
+	stubTool(t, "v")
 	entries := npmPackageEntries("1.2.0")
 	tarball := buildTarball(t, entries)
 	server, served := registryFixture(t, entries, sri(tarball))

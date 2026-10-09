@@ -1,11 +1,12 @@
 # floter × mygo 重构：当前进度与后续规划
 
 > 交接文档。状态时间：2026-10-09，分支 `mygo-rewrite`（已推送）。
+> **仓库现在只有 Go 实现**：Tauri/Rust/React 时代的代码已删除（P6-b）。
 > 详细的分轮记录见 `docs/mygo-rewrite-plan.md`（含每轮的决策与「未做」清单）。
 
 ## 一句话状态
 
-用 mygo（原生 GPU 自绘 UI + Go）重写的 floter **已经是一个可打包、可运行的完整应用**：单窗口三表面（启动器 / 设置 / 终端）、搜索内核、扩展平台内核、剪贴板、浏览器、系统集成、打包与 CI 全部就位；**194 项测试全绿**，macOS 打包产物 16.0 MB（app）/ 4.9 MB（dmg），并已在本机真实数据上验证（旧扩展仓库、剪贴板历史）。旧的 `src/`（React）与 `src-tauri/`（Rust）**尚未删除**，作为参考实现保留。
+用 mygo（原生 GPU 自绘 UI + Go）重写的 floter **已经是一个可打包、可运行的完整应用**：单窗口三表面（启动器 / 设置 / 终端）、搜索内核、扩展平台内核、剪贴板、浏览器、系统集成、打包与 CI 全部就位；**测试全绿**（三平台矩阵），macOS 打包产物 16.0 MB（app）/ 4.9 MB（dmg），并已在本机真实数据上验证（旧扩展仓库、剪贴板历史）。**旧的 `src/`（React）与 `src-tauri/`（Rust）已删除**（P6-b），仓库里只有 `cmd/` + `internal/` 的 Go 实现。
 
 ## 快速上手（换到新电脑后）
 
@@ -35,7 +36,7 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 约定：`gofmt` / `go vet` 必须净；三平台都能 `build`；每轮改动自带测试；用户数据文件（settings / extension-repository / clipboard-history）**磁盘格式不变**。
 
-## 目录结构（Go 侧，约 15k 行）
+## 目录结构（全部实现，约 15k 行）
 
 | 包 | 职责 |
 |---|---|
@@ -56,6 +57,14 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 | `internal/shortcuts` | 加速键两种拼写的互转与录制 |
 
 ## 已完成（分轮，全部已提交并推送）
+
+**P6-b 清理 + 三平台修复**（本轮）
+- 删除旧实现：`src/`、`src-tauri/`、`tests/`、`package*.json`、`node_modules/`、`vite/tsconfig`、
+  `public/`、`packaging/arch`、旧 CI、`docs/phase-reports/`、旧审计文档与截图；旧设计文档移入
+  `docs/archive/`。注释里对已删文件的引用改写成行为描述。
+- README（中英）与 `docs/AGENT-NOTES.md` 重写为纯 mygo 版。
+- 修掉两处只在作者机器成立的断言：浏览器 profile 表（补齐 Windows/Linux + Edge 渠道 + profile
+  排序与显示名 + 自定义 base 目录）与扩展运行时解析（可注入，不依赖机器装了 `v`）。
 
 **P0/P1 地基与三壳**（`6a6d65c`、`281c600`）
 settings 读取子集（保未知键）、glass 映射、单窗口三表面（启动器/设置/终端）、窗口尺寸与聚焦。
@@ -92,15 +101,14 @@ settings 读取子集（保未知键）、glass 映射、单窗口三表面（�
 
 ## 尚未做（按建议优先级）
 
-1. **删除旧实现（P6-b）**：`src/`、`src-tauri/`、`package.json`、旧 workflow。删之前请确认下列功能缺口是否可接受（或先补齐）。
-2. **终端会话快照/恢复**：`plugins/terminal` 的 `Snapshot()` 可把回滚+屏幕+光标序列化；旧版 `session_restore.rs` 是「工具会话 reattach」语义（本机无集成使用）。Sessions 页目前只能列出/关闭当前会话。
-3. **i18n 全量对齐**：目前只覆盖实际用到的键（约 200 条），旧 `src/i18n.ts` 有 1700+ 条（含插件页文案）。
-4. **浏览器插件剩余**：`sort_order`（relevance/alphabetical/visits）与 `target`（选哪个浏览器）、`search_fields`、CDP 读取已打开标签页；Safari 的 `Bookmarks.plist`（二进制 plist，Go 标准库不支持）。
-5. **扩展剩余**：orphan 的接管/删除、权限审计抽屉、导入/导出（sync）、后台运行与输出回看（旧版 run.rs 的 capture 通道）、完成提示。
-6. **系统通知**：长任务完成时通知（`mygo.NewNotification`，需打包应用）。
-7. **P5 打磨**：动效（转场/按压）、无障碍（行 role、announcement）、性能对照（官方数字：原生 UI ~44MB 内存 / ~7MB 二进制）。
-8. **P6 发布链**：预发布通道、签名/公证（`mygo.json` 的 `macos.sign`）、Linux/Windows 打包产物验证、删除旧 CI。
-9. **小项**：终端窗口尺寸拖拽后写回 settings；设置页 General 的「开机自启」在打包应用下的真机验证；`show_menubar_icon` 等未接线的旧设置项。
+1. **终端会话快照/恢复**：`plugins/terminal` 的 `Snapshot()` 可把回滚+屏幕+光标序列化；旧版 `session_restore.rs` 是「工具会话 reattach」语义（本机无集成使用）。Sessions 页目前只能列出/关闭当前会话。
+2. **i18n 全量对齐**：目前只覆盖实际用到的键（约 200 条），旧 `src/i18n.ts` 有 1700+ 条（含插件页文案）。
+3. **浏览器插件剩余**：`sort_order`（relevance/alphabetical/visits）与 `target`（选哪个浏览器）、`search_fields`、CDP 读取已打开标签页；Safari 的 `Bookmarks.plist`（二进制 plist，Go 标准库不支持）。
+4. **扩展剩余**：orphan 的接管/删除、权限审计抽屉、导入/导出（sync）、后台运行与输出回看（旧版 run.rs 的 capture 通道）、完成提示。
+5. **系统通知**：长任务完成时通知（`mygo.NewNotification`，需打包应用）。
+6. **P5 打磨**：动效（转场/按压）、无障碍（行 role、announcement）、性能对照（官方数字：原生 UI ~44MB 内存 / ~7MB 二进制）。
+7. **P6 发布链**：预发布通道、签名/公证（`mygo.json` 的 `macos.sign`）、Linux/Windows 打包产物验证、删除旧 CI。
+8. **小项**：终端窗口尺寸拖拽后写回 settings；设置页 General 的「开机自启」在打包应用下的真机验证；`show_menubar_icon` 等未接线的旧设置项。
 
 ## 注意事项（踩过的坑）
 
@@ -108,5 +116,8 @@ settings 读取子集（保未知键）、glass 映射、单窗口三表面（�
 - **视图里的快捷键先于聚焦元素的 `HandleInput`**：录制器必须在自己录的时候让出 Escape（已处理）。
 - **程序设置文本后要显式把光标移到末尾**（`SetTextSelection`），否则打字会插进命令词中间导致模式退出。
 - **测试不要碰真实系统资源**（剪贴板、登录项、窗口、原生库）：相关能力都在 `shell.Options` 里可注入（`WriteClipboard`、`RegisterShortcut`、`OpenAtLogin`、`OpenPinned`、`ConfirmPermissions`、`Registry`、`NewTerminal`、`Paths`）。
-- **`mygo build` 会因仓库里仍有旧 `package.json` 生成空的 `src/mygo.ts`**（已加入 .gitignore），删掉旧前端后自然消失。
+- **`mygo build` 曾因旧 `package.json` 生成空的 `src/mygo.ts`**；旧前端删除后已消失。
+- **平台表要写成纯函数**：`internal/browser` 的浏览器路径表以前按宿主平台返回，Linux CI 直接红；
+  现在是 `(goos, home, …)` 的纯函数，任何宿主都能断言三个平台的布局。运行期解析同理
+  （`internal/extensions` 的 `lookTool`/`findInterpreter` 可注入，测试不看机器 PATH）。
 - **原生库依赖**：终端插件要 libghostty-vt、浏览器插件要 libsqlite3；`go test` 首次会按需下载到 `~/Library/Caches/mygo/natives/`，打包时由 CLI 内嵌。

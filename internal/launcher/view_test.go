@@ -548,12 +548,15 @@ func TestTabPinsAClipboardEntry(t *testing.T) {
 func TestBrowserModeOpensAndCopies(t *testing.T) {
 	a := testApp()
 	found := []browser.Result{
-		{URL: "https://go.dev/doc", Title: "Go Documentation", Kind: "history", Browser: "Chrome", Visited: time.Unix(1_700_000_000, 0)},
-		{URL: "https://rust-lang.org", Title: "Rust", Kind: "bookmark", Browser: "Chrome"},
+		{URL: "https://go.dev/doc", Title: "Go Documentation", Kind: "history", BrowserID: "chrome", Browser: "Chrome", Visited: time.Unix(1_700_000_000, 0)},
+		{URL: "https://rust-lang.org", Title: "Rust", Kind: "bookmark", BrowserID: "chrome", Browser: "Chrome"},
 	}
-	a.Actions.SearchBrowser = func(query string, done func([]browser.Result)) {
+	tabs := []browser.Tab{
+		{BrowserID: "chrome", Index: 0, Title: "Rust Playground", URL: "https://play.rust-lang.org"},
+	}
+	a.Actions.SearchBrowser = func(query string, done func(BrowserResults)) {
 		if query == "" {
-			done(found)
+			done(BrowserResults{Found: true, Results: found, Tabs: tabs})
 			return
 		}
 		var out []browser.Result
@@ -562,10 +565,15 @@ func TestBrowserModeOpensAndCopies(t *testing.T) {
 				out = append(out, result)
 			}
 		}
-		done(out)
+		done(BrowserResults{Found: true, Results: out, Tabs: tabs})
 	}
 	opened := ""
-	a.Actions.OpenURL = func(url string) { opened = url }
+	a.Actions.OpenURL = func(browserID, url string) {
+		if browserID != "chrome" {
+			t.Errorf("opened %q in %q", url, browserID)
+		}
+		opened = url
+	}
 
 	tt := render(t, a)
 	tt.Type("browser history")
@@ -577,6 +585,10 @@ func TestBrowserModeOpensAndCopies(t *testing.T) {
 	}
 	if !tt.HasText("Go Documentation") || !tt.HasText("Rust") {
 		t.Fatalf("the results did not show: %q", tt.Texts())
+	}
+	// The live tabs follow the file results, in their own group.
+	if !tt.HasText("Rust Playground") {
+		t.Fatalf("the tabs did not show: %q", tt.Texts())
 	}
 	// The detail line carries the URL and the visit time for history.
 	// The detail carries the URL and the visit time (in the machine's own
@@ -614,6 +626,50 @@ func TestBrowserModeOpensAndCopies(t *testing.T) {
 	}
 	if testRuns["dismiss"] != 1 {
 		t.Errorf("the window was not hidden: %v", testRuns)
+	}
+}
+
+// A live tab is its own action: Enter focuses the tab rather than opening its
+// URL again.
+func TestBrowserModeFocusesATab(t *testing.T) {
+	a := testApp()
+	tabs := []browser.Tab{{BrowserID: "chrome", Index: 1, Title: "Playground", URL: "https://play.example"}}
+	a.Actions.SearchBrowser = func(query string, done func(BrowserResults)) {
+		done(BrowserResults{Found: true, Tabs: tabs})
+	}
+	focused, opened := "", ""
+	a.Actions.ActivateTab = func(tab browser.Tab) { focused = tab.URL }
+	a.Actions.OpenURL = func(browserID, url string) { opened = url }
+
+	tt := render(t, a)
+	tt.Type("browser")
+	tt.Frame()
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if !tt.HasText("Playground") {
+		t.Fatalf("the tab did not show: %q", tt.Texts())
+	}
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if focused != "https://play.example" || opened != "" {
+		t.Errorf("focused %q, opened %q", focused, opened)
+	}
+}
+
+// The browser mode with no profile at all says so rather than claiming the
+// query matched nothing.
+func TestBrowserModeWithoutAProfile(t *testing.T) {
+	a := testApp()
+	a.Actions.SearchBrowser = func(query string, done func(BrowserResults)) {
+		done(BrowserResults{})
+	}
+	tt := render(t, a)
+	tt.Type("browser")
+	tt.Frame()
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if !tt.HasText("No browser profile was found") {
+		t.Errorf("the empty state = %q", tt.Texts())
 	}
 }
 

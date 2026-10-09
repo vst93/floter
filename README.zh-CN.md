@@ -1,159 +1,73 @@
 # floter
 
-跨平台悬浮终端与应用启动器，一个快捷键随叫随到。
+跨平台的浮动启动器与终端，一个快捷键随叫随到。
 
 [English](README.md) · **简体中文**
 
+floter 是原生应用：一个无边框面板在**启动器**、**设置**与**终端**三个表面之间切换。
+界面由 [mygo](https://mygo.egoist.dev) 在 GPU 上自绘——二进制里没有 webview、没有浏览器
+内核——其余全部是 Go。
+
 ## 功能
 
-- **悬浮终端：** 默认按 `Ctrl+Space`，即可随时显示或隐藏完整的 256 色 shell。
-- **智能应用启动器：** 自动扫描 macOS、Linux 和 Windows 中已安装的应用，支持模糊匹配及中文应用名的拼音首字母搜索。
-- **操作栏：** 自动识别 URL、文件系统路径和 shell 输入；按 `Cmd+Enter`（macOS）或 `Ctrl+Enter`（其他平台）即可打开或运行。
-- **多显示器支持：** 在当前使用的显示器上出现，也可在系统终端中继续处理终端任务。
-- **终端会话持久化：** PTY 由 Floter 后台 broker 持有，移交后的会话仍可重新连接。
-- **个性化设置：** 可选择深色、浅色或自动主题，调整透明度和界面语言，并重新绑定快捷键。
-- **内置更新：** 自动检查新版本，并可直接在应用内完成安装。
-
-## 截图
-
-![终端模式](docs/screenshots/screenshot-1.png)
-
-![应用启动器](docs/screenshots/screenshot-2.png)
-
-![设置](docs/screenshots/screenshot-3.png)
+- **启动器**：一个快捷键（默认 `Ctrl+Space`）唤出搜索框，可匹配已安装应用
+  （`.app` / `.lnk` / `.desktop`）、算式（`0.1+0.2` 得 `0.3`）、剪贴板历史、浏览器历史与
+  书签、已装扩展声明的命令，以及（可选的）`PATH` 上的可执行文件。
+- **终端**：真正的终端，VT 内核来自 [ghostty](https://ghostty.org)：字体、字号、光标、
+  行距、边距与九档调色板都是设置项，改动会作用到正在运行的会话。
+- **设置**：主题（深/浅/跟随系统）、界面大小、玻璃档、面板透明度、语言（English / 简体中文）、
+  窗口行为（失焦隐藏、表面驻留时长）、终端外观、全局快捷键（按键录制）、集成列表。
+- **扩展**：工具提供 manifest + provider 程序，floter 通过 `describe` 得知它的命令，在终端
+  表面运行，注入用户填写的配置，并在安装声明权限的包之前请求批准。本地包与 npm 包都支持，
+  带 SRI 校验与安全的解包器。
+- **剪贴板历史**：文本、图片、文件列表在你复制时入库、去重、可在启动器搜索、可钉成独立窗口。
+- **系统集成**：单实例、`floter://` 深链、托盘图标、开机自启、标准应用菜单，以及把终端输出
+  钉进独立窗口。
 
 ## 安装
 
-### 一键安装（推荐）
+从源码构建（需要 Go 1.27 或更新）：
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/vst93/floter/main/scripts/install.sh | bash
+```sh
+go run ./cmd/floter        # 直接运行
+go tool mygo build         # 打包（macOS 产出 dist/<platform>/floter.app 与 .dmg）
 ```
 
-选项：
+`go tool mygo build` 用的是本模块声明的 mygo CLI 工具，不需要 Node、Bun 或 Rust 工具链。
 
-```bash
-# 安装最新版本（含预览版）
-curl -fsSL ... | bash -s -- --pre-release
+## 开发
 
-# 安装指定版本
-curl -fsSL ... | bash -s -- --version 0.3.0
-
-# 非交互式安装（跳过所有确认，适合自动化）
-curl -fsSL ... | bash -s -- --yes
-
-# 无提示安装预览版
-curl -fsSL ... | bash -s -- --pre-release --yes
+```sh
+gofmt -l cmd internal      # 必须没有输出
+go vet ./...
+go test -count=1 ./...     # 全量测试
+GOOS=linux go build ./... && GOOS=windows go build ./...
 ```
 
-### 手动下载
+部分测试要驱动真实资源，需显式开启：
 
-前往 [GitHub Releases](https://github.com/vst93/floter/releases) 下载最新版本。
-
-| 平台 | 下载文件 | 安装方式 |
-| --- | --- | --- |
-| macOS | `.dmg` | 打开镜像，将 **floter** 拖入「应用程序」。 |
-| Linux | `.deb` 或 `.rpm` | 用发行版的包管理器安装。 |
-| Arch / CachyOS / Manjaro | — | `cd packaging/arch && makepkg -si`（[PKGBUILD](packaging/arch/PKGBUILD)，基于发布的 `.deb` 重新打包）。 |
-| Windows | `.exe` | 运行安装程序。 |
-
-同时也提供 `.AppImage`，供上述安装包都不适用的发行版使用。能用原生包就用原生包：AppImage
-自带构建时的 GTK 与 WebKit 库，在滚动发行版上，这些库会比系统里的显卡驱动更旧——下面那个
-EGL 报错通常就是这么来的。
-
-### macOS：未签名应用
-
-floter 目前尚未进行代码签名。若安装后 macOS 提示应用「已损坏」，请运行：
-
-```bash
-xattr -cr /Applications/floter.app
+```sh
+FLOTER_TERMINAL_TEST=1 go test ./internal/terminalui   # 真 libghostty-vt 会话
+FLOTER_SQLITE_TEST=1  go test ./internal/browser ./internal/extensions
+FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry
 ```
 
-然后从「应用程序」中重新打开 floter。
+设 `FLOTER_OPEN=settings`（或 `terminal`）可让打包后的应用直接开在某个表面。
 
-### Linux：floter 启动不起来
+## 你的数据
 
-如果窗口始终不出现，终端里出现类似这样的报错：
+floter 读写的是既有版本用的同一批文件，无需迁移：`settings.json`、`extension-repository.json`、
+已安装扩展目录、剪贴板历史、使用记录都保持原格式；写回时 floter 不认识的键一律原样保留。
+逐文件清单见 [`docs/AGENT-NOTES.md`](AGENT-NOTES.md)。
 
-```text
-Could not create default EGL display: EGL_BAD_PARAMETER
-```
+## 文档
 
-说明 WebKitGTK 拿不到 GPU。这在 Wayland + AMD 显卡 + 较新 Mesa 的组合上很常见。
+- [`docs/mygo-rewrite-status.md`](mygo-rewrite-status.md) —— 当前状态、包导览、未做清单。
+- [`docs/mygo-rewrite-plan.md`](mygo-rewrite-plan.md) —— 分轮决策记录。
+- [`docs/extensions/`](extensions/README.zh-CN.md) —— 扩展格式（manifest、provider 协议、
+  权限、声明式配置）。
+- [`docs/plugin-development.md`](plugin-development.md) —— 如何写一个 floter 能驱动的工具。
 
-floter 会识别出「上一次启动没能走到窗口」，并让下一次启动自动不用 GPU，所以**先再启动一次**
-试试。也可以直接指定：
+## 许可
 
-```bash
-floter --software-rendering   # 始终不用 GPU
-floter --gpu                  # 始终用 GPU，即使上次启动失败
-```
-
-同样的开关也可以写成环境变量 `FLOTER_SOFTWARE_RENDERING=1`（或 `=0`），便于写进桌面项或
-service 文件。如果软件渲染也无济于事，可以让 floter 走 XWayland：
-
-```bash
-GDK_BACKEND=x11 floter
-```
-
-如果你用的是 AppImage，请改装发行版对应的安装包——用系统自身的库链接出来的 WebKit 才是根治办法。
-
-## 从链接或命令接入
-
-Floter 响应 `floter://` 链接，因此可以直接从浏览器、README 或 shell 别名把一个
-工具带到集成审阅界面：
-
-| 链接 | 作用 |
-| --- | --- |
-| `floter://open` | 唤起（或聚焦）窗口。 |
-| `floter://connect?manifest=/path/to/tool.json` | 为本地绝对 `.json` 清单或 `https://` 清单打开审阅对话框。 |
-| `floter://register?cmd=rg` | 在**检测到**列表中高亮名为 `rg` 的工具。 |
-
-链接永不安装、也永不绑定。`register` 只是在 `PATH` 上已有的工具里解析该名字，然后
-停在审阅界面——接入仍然需要你自己点行上的按钮，走常规权限审阅。`cmd` 是纯命令名：
-不含路径、不含 shell 语法；可选参数 `args` 只作为提示展示，宿主从不执行。设备上没有
-该名字时，「检测到」区域会直接说明原因，而不是静默失败。
-
-同样的动作也有命令行写法，由同一个解析器归一化成相同的 URL：
-
-```bash
-floter open
-floter connect /path/to/tool.json
-floter register rg
-```
-
-## 终端会话
-
-点击启动器输入框旁的终端图标，或打开「设置 → 会话」，即可恢复或终止持久化
-会话。未连接的会话仍会继续运行；“未连接”只表示当前没有终端客户端在显示它。
-
-也可以无需打开界面，直接查看和管理后台会话：
-
-```bash
-floter terminal list
-floter terminal attach <session-id>
-floter terminal switch <session-id> --terminal kitty
-floter terminal kill <session-id>
-```
-
-Unix 平台上的 `switch` 可指定已安装的 `kitty`、`ghostty`、`alacritty`、`wezterm`
-等终端。关闭 attach 的终端客户端只会 detach；只有显式执行 `kill` 才会终止 PTY 会话。
-
-## 更新
-
-floter 会在启动时检查更新。发现新版本后，打开「设置」并选择「下载并安装」。更新完成后，floter 会自动重新启动。
-
-## Wayland
-
-Wayland 的全局快捷键由合成器管理。请将以下命令绑定为自定义快捷键：
-
-```bash
-floter --toggle
-```
-
-- **GNOME：** 设置 → 键盘 → 自定义快捷键
-- **KDE：** 系统设置 → 快捷键 → 自定义快捷键
-
-## 许可证
-
-[GPL-3.0](LICENSE)
+[GPL-3.0](../LICENSE)

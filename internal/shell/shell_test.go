@@ -492,7 +492,7 @@ func TestLaunchAtStartupFollowsTheSetting(t *testing.T) {
 func TestClipboardSettings(t *testing.T) {
 	// The shipped defaults: on, three hundred entries.
 	state := clipboardState(settings.Default())
-	if !state.enabled || state.maxItems != clipboard.DefaultMaxItems {
+	if !state.Enabled || state.MaxItems != settings.DefaultClipboardMaxItems {
 		t.Errorf("defaults = %+v", state)
 	}
 
@@ -503,23 +503,24 @@ func TestClipboardSettings(t *testing.T) {
 		t.Fatal(err)
 	}
 	state = clipboardState(s)
-	if state.enabled || state.maxItems != 120 {
+	if state.Enabled || state.MaxItems != 120 {
 		t.Errorf("parsed = %+v", state)
 	}
 	if extra := s.Extra(); extra["clipboard_history_max_items"] == nil {
 		t.Errorf("the key is not carried through: %v", extra)
 	}
 
-	// A hand-edited number outside the band is clamped by the store.
+	// A hand-edited number outside the band is clamped on read, as the old
+	// build's settings normalizer did.
 	loose, err := settings.Parse([]byte(`{"clipboard_history_max_items": 100000}`))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := clipboardMaxItems(loose); got != 100000 {
-		t.Errorf("max items = %d, want the setting passed through", got)
+	if got := clipboardState(loose).MaxItems; got != settings.MaxClipboardMaxItems {
+		t.Errorf("max items = %d, want the %d ceiling", got, settings.MaxClipboardMaxItems)
 	}
-	store := clipboard.NewStore(clipboard.FromConfigRoot(t.TempDir()), clipboardMaxItems(loose))
-	if err := store.SetMaxItems(clipboardMaxItems(loose)); err != nil {
+	store := clipboard.NewStore(clipboard.FromConfigRoot(t.TempDir()), clipboardState(loose).MaxItems)
+	if err := store.SetMaxItems(clipboardState(loose).MaxItems); err != nil {
 		t.Fatal(err)
 	}
 }

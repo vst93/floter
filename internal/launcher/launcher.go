@@ -14,11 +14,8 @@ import (
 	"floter/internal/settings"
 )
 
-// The launcher's window geometry. The width and the collapsed height are the
-// old shell's contract — `INPUT_WINDOW_WIDTH` and `INPUT_WINDOW_HEIGHT` in
-// src-tauri/src/lib.rs — and the collapsed height is a scale-1 measurement
-// multiplied by the interface-size factor, exactly as
-// `scaled_input_window_height` did.
+// The launcher's window geometry: a fixed width, and a collapsed height that
+// is a scale-1 measurement multiplied by the interface-size factor.
 const (
 	// InputWindowWidth is the launcher's fixed width, in DIPs.
 	InputWindowWidth = 720
@@ -84,14 +81,34 @@ type Actions struct {
 	// CopyClip puts a clipboard entry back on the clipboard, whatever its
 	// kind. Nil falls back to Copy for text.
 	CopyClip func(entry clipboard.Entry)
-	// OpenURL opens a page in the user's browser.
-	OpenURL func(url string)
+	// OpenURL opens a page in the browser the result came from, falling back
+	// to the system's default browser for an empty id.
+	OpenURL func(browserID, url string)
+	// ActivateTab brings one of the browser's live tabs to the front.
+	ActivateTab func(tab browser.Tab)
 	// RunInTerminal runs a command in the terminal surface: a tool found on
 	// the PATH.
 	RunInTerminal func(argv []string)
-	// SearchBrowser searches the installed browsers' history and bookmarks;
-	// the shell answers on the main thread. Nil leaves the mode empty.
-	SearchBrowser func(query string, done func([]browser.Result))
+	// SearchBrowser searches the browser the settings name; the shell answers
+	// on the main thread, once with the file results and again when the live
+	// tabs land. Nil leaves the mode empty.
+	SearchBrowser func(query string, done func(BrowserResults))
+}
+
+// BrowserResults is one browser search's answer: the merged bookmarks and
+// history, and the browser's live tabs.
+type BrowserResults struct {
+	// Found is false when no browser profile was found at all.
+	Found bool
+	// Profile is the profile the search ran against.
+	Profile browser.Profile
+	// Results are the bookmarks and history rows, already merged, ordered and
+	// capped.
+	Results []browser.Result
+	// Tabs are the tabs the browser has open right now, when they could be
+	// read. A tab that is also a bookmark stays two rows: switching to it and
+	// opening it again are two different actions.
+	Tabs []browser.Tab
 }
 
 // ClipboardSource is the clipboard history the launcher searches.
@@ -151,9 +168,9 @@ type App struct {
 	// holds the mode word and the query, and the list offers entries.
 	clipboard bool
 	// browser is set while the browsers' history is searched, with the
-	// results the shell last answered with and the query they belong to.
+	// answer the shell last gave and the query it belongs to.
 	browser      bool
-	browserFound []browser.Result
+	browserFound BrowserResults
 	// browserAskedFor is the query the results belong to and browserAsked
 	// whether any arrived (the empty query is a real query, so a bool is
 	// needed); browserPending is the query the shell is working on.
@@ -232,7 +249,12 @@ func (a *App) View(c *ui.Context) {
 		if len(results) == 0 {
 			ui.Column(c).FillWidth().Padding(t.Space(3)).Center().Children(func() {
 				message := copy.NoResults
-				if a.mode != nil || a.clipboard || a.browser {
+				switch {
+				case a.browser && !a.browserResults(a.browserQuery()).Found:
+					// The browser mode with no profile at all says why rather
+					// than claiming the query matched nothing.
+					message = copy.BrowserNoProfile
+				case a.mode != nil || a.clipboard || a.browser:
 					message = copy.CommandModeHint
 				}
 				ui.Text(c, message).FontSize(t.FontSize).TextColor(t.TextMuted)
@@ -332,10 +354,10 @@ func (a *App) View(c *ui.Context) {
 			a.appendWord(item.complete)
 		case a.clipboard && item.clip != nil:
 			a.pinClip(*item.clip)
-		case a.browser:
-			if a.Selected < len(a.browserFound) {
-				a.copyResult(a.browserFound[a.Selected])
-			}
+		case a.browser && item.tab != nil:
+			a.copyURL(item.tab.URL)
+		case a.browser && item.web != nil:
+			a.copyResult(*item.web)
 		case a.mode == nil && !a.clipboard && item.entry != nil:
 			a.enterCommand(*item.entry)
 		}
@@ -589,12 +611,17 @@ func (a *App) askBrowser() {
 	a.browserPending = true
 	if a.Actions.SearchBrowser == nil {
 		a.browserPending = false
-		a.browserAsked, a.browserAskedFor, a.browserFound = true, query, nil
+		a.browserAsked, a.browserAskedFor, a.browserFound = true, query, BrowserResults{}
 		return
 	}
-	a.Actions.SearchBrowser(query, func(results []browser.Result) {
+	a.Actions.SearchBrowser(query, func(answer BrowserResults) {
+		// An answer for a query the user has typed past is dropped, so a slow
+		// tab read cannot replace the results of a newer one.
+		if !a.browser || a.browserQuery() != query {
+			return
+		}
 		a.browserPending = false
-		a.browserAsked, a.browserAskedFor, a.browserFound = true, query, results
+		a.browserAsked, a.browserAskedFor, a.browserFound = true, query, answer
 	})
 }
 

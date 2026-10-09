@@ -1,11 +1,10 @@
 // Package i18n holds floter's user-facing copy for the languages the app
 // ships (en, zh).
 //
-// The shape follows the Rust/TypeScript build's src/i18n.ts: English is the
-// source of truth, and a key missing from the other language is a bug rather
-// than a blank label. Here that is enforced by the type system — every
-// language builds the same Copy struct, so a field cannot be left out; the
-// tests pin the strings a screen is allowed to show.
+// English is the source of truth, and a key missing from the other language
+// is a bug rather than a blank label. That is enforced by the type system —
+// every language builds the same Copy struct, so a field cannot be left out;
+// the tests pin the strings a screen is allowed to show.
 package i18n
 
 // Language is a normalized language id: exactly the two the settings
@@ -29,8 +28,7 @@ func Normalize(language string) Language {
 
 // Launcher is the launcher surface's copy.
 type Launcher struct {
-	// Placeholder is the search field's placeholder (src/i18n.ts
-	// input.placeholder).
+	// Placeholder is the search field's placeholder.
 	Placeholder string
 	// Label names the field for assistive technology.
 	Label string
@@ -61,6 +59,11 @@ type Launcher struct {
 	CommandBrowserHint   string
 	CommandQuit          string
 	CommandQuitHint      string
+	// BrowserTab labels a live-tab row in the browser mode, and
+	// BrowserNoProfile is the mode's empty state when no browser profile was
+	// found at all.
+	BrowserTab       string
+	BrowserNoProfile string
 	// ShortcutSettings and ShortcutTerminal are the accelerator labels the
 	// rows show for the two surfaces that have one.
 	ShortcutSettings string
@@ -81,12 +84,14 @@ type Settings struct {
 	PageGeneral      string
 	PageSessions     string
 	PageShortcuts    string
+	PagePlugins      string
 	PageIntegrations string
 	PageAbout        string
 
 	PageGeneralHint      string
 	PageSessionsHint     string
 	PageShortcutsHint    string
+	PagePluginsHint      string
 	PageIntegrationsHint string
 	PageAboutHint        string
 
@@ -178,6 +183,36 @@ type Settings struct {
 	ShortcutsHint     string
 	ShortcutRecord    string
 	ShortcutRecording string
+
+	// The Plugins page: the built-in plugins' own settings.
+	BrowserPlugin          string
+	BrowserPluginHint      string
+	BrowserEnabled         string
+	BrowserTarget          string
+	BrowserTargetHint      string
+	BrowserAuto            string
+	BrowserCustomDir       string
+	BrowserCustomDirHint   string
+	BrowserHistoryDays     string
+	BrowserHistoryDaysHint string
+	BrowserHistoryAll      string
+	BrowserSort            string
+	BrowserSortHint        string
+	BrowserSearchField     string
+	BrowserSearchFieldHint string
+	BrowserCDP             string
+	BrowserCDPEnabled      string
+	BrowserCDPEnabledHint  string
+	BrowserCDPPort         string
+	BrowserCDPPortHint     string
+	BrowserSortOrders      []Option
+	BrowserSearchFields    []Option
+
+	ClipboardPlugin       string
+	ClipboardPluginHint   string
+	ClipboardEnabled      string
+	ClipboardMaxItems     string
+	ClipboardMaxItemsHint string
 
 	// The About page.
 	AboutVersion      string

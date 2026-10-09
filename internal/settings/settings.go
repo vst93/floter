@@ -1,21 +1,17 @@
-// Package settings reads floter's settings file.
+// Package settings reads and writes floter's settings file.
 //
-// The disk format is the one the Tauri/Rust build shipped — see
-// src-tauri/src/commands/config.rs in this repository. The file is JSON at
+// The file is JSON at
 //
 //	<config dir>/floter/settings.json
 //
-// where <config dir> is what Rust's `dirs::config_dir()` resolves to:
-// %APPDATA% on Windows, ~/Library/Application Support on macOS, and
-// $XDG_CONFIG_HOME (falling back to ~/.config) on Linux. Go's
-// os.UserConfigDir returns exactly the same directories, so an existing
-// user's file is found without any migration.
+// where <config dir> is os.UserConfigDir: %APPDATA% on Windows,
+// ~/Library/Application Support on macOS, and $XDG_CONFIG_HOME (falling back
+// to ~/.config) on Linux. That is where every earlier build put it, so an
+// existing user's file is found with nothing to migrate.
 //
-// P0 reads the six fields the launcher shell needs (theme, glass_step,
-// language, main_opacity, terminal_opacity, ui_scale) and normalizes them
-// with the same whitelists the Rust side used. Every other key in the file
-// is kept verbatim so a later write-back cannot drop a setting this round
-// does not know about.
+// The keys this package owns are normalized on read (the whitelists are
+// below) and written back on change. Every other key in the file is kept
+// verbatim, so a setting this build does not know about survives a write.
 package settings
 
 import (
@@ -29,14 +25,12 @@ import (
 )
 
 const (
-	// dirName and fileName match config.rs (`dirs::config_dir().join("floter")`
-	// and SETTINGS_FILE_NAME).
+	// dirName and fileName are the file's place under the config dir.
 	dirName  = "floter"
 	fileName = "settings.json"
 )
 
-// The shipped defaults, mirrored from config.rs. A file that predates a key
-// lands on these, exactly as the Rust `#[serde(default)]` fields did.
+// The shipped defaults. A file that predates a key lands on these.
 const (
 	DefaultTheme           = "auto"
 	DefaultGlassStep       = "regular"
@@ -45,14 +39,13 @@ const (
 	DefaultTerminalOpacity = 46
 	DefaultUIScale         = "small"
 
-	// The window-transparency band, from config.rs's MIN/MAX_WINDOW_OPACITY.
+	// The window-transparency band.
 	MinWindowOpacity = 10
 	MaxWindowOpacity = 100
 )
 
-// The terminal's appearance, mirrored from config.rs (and, through it,
-// src/terminal/terminal-appearance.ts): the font, the cursor, the line
-// height, the inset step, the palette rack and the interaction axes.
+// The terminal's appearance: the font, the cursor, the line height, the
+// inset step, the palette rack and the interaction axes.
 const (
 	MinFontSize     = 8
 	MaxFontSize     = 48
@@ -97,10 +90,9 @@ const (
 	DefaultTerminalHeight = 600
 )
 
-// The window behaviour, from config.rs and src/surface-residency.ts: whether
-// the panel hides when it loses focus, and how long a surface (settings or
-// the terminal) survives an automatic hide before a summon returns the
-// launcher.
+// The window behaviour: whether the panel hides when it loses focus, and how
+// long a surface (settings or the terminal) survives an automatic hide
+// before a summon returns the launcher.
 const (
 	DefaultSurfaceResidencySeconds = 10
 	MaxSurfaceResidencySeconds     = 86_400
@@ -124,8 +116,8 @@ var (
 	terminalPalettes = []string{"inherit", "contrast", "paper", "ink", "fog", "forest", "dusk", "mist", "amber"}
 	boldModes        = []string{"font", "bright"}
 
-	// The pre-GLASS-3STOP five-stop vocabulary and its survivors. Mirrors
-	// LEGACY_GLASS_STEPS in config.rs and glass-material.ts.
+	// The pre-GLASS-3STOP five-stop vocabulary and its survivors: an older
+	// settings file's step maps onto the nearest one this build has.
 	legacyGlassSteps = map[string]string{
 		"low":   "frosted",
 		"mid":   "regular",
@@ -134,7 +126,7 @@ var (
 		"jelly": "liquid",
 	}
 
-	// UI_SCALE_STEPS in config.rs (and UI_SCALE_FACTORS in src/ui-scale.ts).
+	// The interface-size steps and their multipliers.
 	uiScaleFactors = map[string]float64{
 		"tiny":    0.8,
 		"small":   0.9,
@@ -250,9 +242,8 @@ func Path() (string, error) {
 }
 
 // Load reads the settings file at path. A missing file is not an error: it
-// yields the defaults, as the Rust loader did. A file that cannot be read or
-// parsed also yields the defaults, with the error reported so the caller can
-// log it.
+// yields the defaults. A file that cannot be read or parsed also yields the
+// defaults, with the error reported so the caller can log it.
 func Load(path string) (Settings, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -317,7 +308,7 @@ func Parse(data []byte) (Settings, error) {
 	}
 
 	// The terminal's appearance: a present key overrides the shipped
-	// default, exactly as the Rust fields' serde defaults did.
+	// default.
 	if n, ok := asInt(raw["font_size"]); ok {
 		s.FontSize = n
 	}
@@ -515,9 +506,8 @@ func NormalizeUIScale(step string) string {
 	return DefaultUIScale
 }
 
-// UIScaleFactor is the --ui-scale multiplier a step writes, from
-// UI_SCALE_STEPS in config.rs. An unknown step yields the shipped step's
-// factor, never zero.
+// UIScaleFactor is the --ui-scale multiplier a step writes. An unknown step
+// yields the shipped step's factor, never zero.
 func UIScaleFactor(step string) float64 {
 	return uiScaleFactors[NormalizeUIScale(step)]
 }
@@ -534,9 +524,9 @@ func NormalizeResidencySeconds(seconds uint32) uint32 {
 	return seconds
 }
 
-// DefaultHideOnBlur is the shipped window behaviour: the panel hides when
-// it loses focus, except under Hyprland, where the compositor's own
-// handling makes that harmful (see hyprland.rs).
+// DefaultHideOnBlur is the shipped window behaviour: the panel hides when it
+// loses focus, except under Hyprland, where a tiled compositor's focus
+// hand-off makes the panel read as vanishing for no reason.
 func DefaultHideOnBlur() bool {
 	return os.Getenv("HYPRLAND_INSTANCE_SIGNATURE") == ""
 }
@@ -568,8 +558,8 @@ func Pick(allowed []string, value, fallback string) string {
 	return fallback
 }
 
-// NormalizeFontSize clamps the terminal font size to the shipped band, as
-// config.rs did (a stored 0 lands on the floor, not on the default).
+// NormalizeFontSize clamps the terminal font size to the shipped band: a
+// stored 0 lands on the floor, not on the default.
 func NormalizeFontSize(size int) int {
 	if size < MinFontSize {
 		return MinFontSize
@@ -636,6 +626,12 @@ func asInt(value any) (int, bool) {
 		}
 		return int(n), true
 	case float64:
+		return int(v), true
+	case int:
+		return v, true
+	case int64:
+		return int(v), true
+	case uint64:
 		return int(v), true
 	default:
 		return 0, false

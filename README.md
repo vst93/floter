@@ -1,169 +1,90 @@
 # floter
 
-A cross-platform floating terminal and app launcher, always one shortcut away.
+A cross-platform floating launcher and terminal, always one shortcut away.
 
 **English** · [简体中文](README.zh-CN.md)
 
+floter is a native app: one frameless panel that swaps between a launcher, a
+settings surface and a real terminal. The UI is drawn by
+[mygo](https://mygo.egoist.dev) on the GPU — there is no webview and no browser
+engine in the binary — and everything else is Go.
+
 ## Features
 
-- **Floating terminal:** toggle a full 256-color shell from anywhere with `Ctrl+Space` by default.
-- **Smart app launcher:** scans installed apps on macOS, Linux, and Windows, with fuzzy matching and pinyin-initial search for Chinese names.
-- **Action bar:** detects URLs, filesystem paths, and shell input; press `Cmd+Enter` on macOS or `Ctrl+Enter` elsewhere to open or run it.
-- **Multi-monitor workflow:** appears on the display you are using and can continue terminal work in your system terminal.
-- **Persistent terminal sessions:** the PTY lives in Floter's background broker, so a handed-off session can be resumed later.
-- **Personalized settings:** choose Dark, Light, or Auto theme, adjust opacity and language, and rebind shortcuts.
-- **Built-in updater:** checks for new releases and installs them from inside the app.
-
-## Screenshots
-
-![Terminal mode](docs/screenshots/screenshot-1.png)
-
-![App launcher](docs/screenshots/screenshot-2.png)
-
-![Settings](docs/screenshots/screenshot-3.png)
+- **Launcher** — one shortcut (default `Ctrl+Space`) summons a search field that
+  matches installed applications (`.app` / `.lnk` / `.desktop`), expressions
+  (`0.1+0.2` answers `0.3`), your clipboard history, browser history and
+  bookmarks, the commands installed extensions declare, and optionally the
+  executables on your `PATH`.
+- **Terminal** — a real terminal with the [ghostty](https://ghostty.org) VT core:
+  font, size, cursor, line height, padding and nine colour palettes are settings,
+  and a change applies to the running session.
+- **Settings** — theme (dark / light / auto), interface size, the glass material
+  step, panel opacity, language (English / 简体中文), window behaviour (hide on
+  blur, how long a surface survives a hide), terminal appearance, the global
+  shortcut (recorded by pressing it) and the integration list.
+- **Extensions** — a tool ships a manifest and a provider program; floter reads
+  its `describe` answer to learn its commands, runs them in the terminal
+  surface, injects the configuration the user filled in, and asks for approval
+  before installing anything that declares permissions. Local packages and npm
+  packages are both supported, with SRI verification and a safe tarball
+  extractor.
+- **Clipboard history** — text, images and file lists are captured as you copy,
+  deduplicated, searchable from the launcher, and pinnable into their own window.
+- **System integration** — one instance, `floter://` deep links, a tray icon, a
+  login item, a standard application menu, and a pin-to-window action for
+  terminal output.
 
 ## Install
 
-### One-line installer (recommended)
+Build from source (Go 1.27 or newer):
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/vst93/floter/main/scripts/install.sh | bash
+```sh
+go run ./cmd/floter        # run it
+go tool mygo build         # package it (dist/<platform>/floter.app + .dmg on macOS)
 ```
 
-Options:
+`go tool mygo build` uses the mygo CLI, which is a tool of this module — no
+Node, Bun or Rust toolchain is involved.
 
-```bash
-# Install the latest release (including previews)
-curl -fsSL ... | bash -s -- --pre-release
+## Development
 
-# Install a specific version
-curl -fsSL ... | bash -s -- --version 0.3.0
-
-# Non-interactive (skip all prompts, for automation)
-curl -fsSL ... | bash -s -- --yes
-
-# Preview a pre-release without prompts
-curl -fsSL ... | bash -s -- --pre-release --yes
+```sh
+gofmt -l cmd internal      # must print nothing
+go vet ./...
+go test -count=1 ./...     # the whole suite
+GOOS=linux go build ./... && GOOS=windows go build ./...
 ```
 
-### Manual download
+Some tests drive real resources and are opt-in:
 
-Download the latest version from [GitHub Releases](https://github.com/vst93/floter/releases).
-
-| Platform | Download | Install |
-| --- | --- | --- |
-| macOS | `.dmg` | Open the image and drag **floter** to **Applications**. |
-| Linux | `.deb` or `.rpm` | Install with your package manager. |
-| Arch / CachyOS / Manjaro | — | `cd packaging/arch && makepkg -si` ([PKGBUILD](packaging/arch/PKGBUILD), repackages the release `.deb`). |
-| Windows | `.exe` | Run the setup file. |
-
-An `.AppImage` is published as well, for distributions none of the packages fit.
-Prefer a native package where you can: the AppImage carries the GTK and WebKit
-libraries it was built with, and on a rolling distribution those are older than
-the graphics drivers installed on the system — which is what the EGL failure
-below is usually about.
-
-### macOS: unsigned app
-
-floter is not currently code-signed. If macOS reports that the app is damaged after installation, run:
-
-```bash
-xattr -cr /Applications/floter.app
+```sh
+FLOTER_TERMINAL_TEST=1 go test ./internal/terminalui   # a real libghostty-vt session
+FLOTER_SQLITE_TEST=1  go test ./internal/browser ./internal/extensions
+FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry
 ```
 
-Then open floter again from **Applications**.
+Set `FLOTER_OPEN=settings` (or `terminal`) to start the packaged app on a
+surface other than the launcher.
 
-### Linux: floter does not start
+## Your data
 
-If the window never appears and the terminal shows something like
+floter reads and writes the same files earlier builds used, so nothing has to be
+migrated: `settings.json`, `extension-repository.json`, the installed extension
+directories, the clipboard history and the usage record all keep their format,
+and every key floter does not understand is preserved verbatim when it writes.
+See [`docs/AGENT-NOTES.md`](docs/AGENT-NOTES.md) for the file-by-file list.
 
-```text
-Could not create default EGL display: EGL_BAD_PARAMETER
-```
+## Documentation
 
-then WebKitGTK could not reach the GPU. This is common on AMD hardware under
-Wayland with a recent Mesa.
-
-floter notices a start that never reached its window and runs the next one
-without the GPU by itself, so **try starting it a second time** first. To decide
-for it:
-
-```bash
-floter --software-rendering   # never use the GPU
-floter --gpu                  # always use it, even after a failed start
-```
-
-The same choice is available as `FLOTER_SOFTWARE_RENDERING=1` (or `=0`), for a
-desktop entry or a service file. If software rendering does not help either,
-run floter through XWayland:
-
-```bash
-GDK_BACKEND=x11 floter
-```
-
-And if you are on the AppImage, install the package for your distribution
-instead — a WebKit built against your own system's libraries is the real fix.
-
-## Integrations from a link or a command
-
-Floter answers `floter://` links, so a tool can be brought to the integrations
-review surface from a browser, a README, or a shell alias:
-
-| Link | What it does |
-| --- | --- |
-| `floter://open` | Focus (or summon) the window. |
-| `floter://connect?manifest=/path/to/tool.json` | Open the review dialog for a local absolute `.json` manifest, or for an `https://` one. |
-| `floter://register?cmd=rg` | Highlight the tool named `rg` on the **Detected** list. |
-
-A link never installs and never binds. `register` resolves the name against the
-tools already on `PATH` and stops at the review surface — connecting is still
-your own press on the row, which runs the ordinary permission review. `cmd` is a
-bare command name: no path, no shell syntax, and no arguments beyond an optional
-shell-inert `args` hint that is displayed and never executed. If the name is not
-on this device, the Detected section says so instead of failing silently.
-
-The same actions have CLI spellings, normalized into the same URLs by the one
-parser:
-
-```bash
-floter open
-floter connect /path/to/tool.json
-floter register rg
-```
-
-## Terminal sessions
-
-Use the terminal icon beside the launcher input, or open **Settings → Sessions**,
-to resume and terminate persistent sessions. A detached session keeps running;
-detached only means that no terminal client is currently displaying it.
-
-The broker can also be inspected without opening the UI:
-
-```bash
-floter terminal list
-floter terminal attach <session-id>
-floter terminal switch <session-id> --terminal kitty
-floter terminal kill <session-id>
-```
-
-`switch` accepts installed terminal emulators such as `kitty`, `ghostty`,
-`alacritty`, and `wezterm` on Unix. Closing the attached terminal client
-detaches it; `kill` is the explicit operation that terminates the PTY session.
-
-## Updates
-
-floter checks for updates when it starts. When a new version is available, open **Settings** and choose **Download & Install**. floter relaunches after the update completes.
-
-## Wayland
-
-Wayland compositors manage global shortcuts. Bind the following command as a custom shortcut:
-
-```bash
-floter --toggle
-```
-
-- **GNOME:** Settings → Keyboard → Custom Shortcuts
-- **KDE:** System Settings → Shortcuts → Custom Shortcuts
+- [`docs/mygo-rewrite-status.md`](docs/mygo-rewrite-status.md) — current state,
+  the package map, what is left to do.
+- [`docs/mygo-rewrite-plan.md`](docs/mygo-rewrite-plan.md) — the round-by-round
+  decision record.
+- [`docs/extensions/`](docs/extensions/README.zh-CN.md) — the extension format
+  (manifest, provider protocol, permissions, declarative configuration).
+- [`docs/plugin-development.md`](docs/plugin-development.md) — writing a tool
+  that floter can drive.
 
 ## License
 

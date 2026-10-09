@@ -3,9 +3,9 @@
 // they read and write, the theme they paint with, and the global shortcut
 // that summons the window.
 //
-// The old Tauri build used the same model — a single panel that swapped its
-// body and resized per surface (see src/surface-residency.ts) — so the
-// transition behaviour and the window geometry carry over.
+// The panel swaps its body and resizes per surface, and a surface that is not
+// the launcher survives a hide for the residency window, so a summon returns
+// the user to where they were.
 package shell
 
 import (
@@ -68,15 +68,15 @@ func ParseSurface(name string) (Surface, bool) {
 	}
 }
 
-// The window geometry per surface, from the old build: the launcher is the
-// 720-wide collapsed panel, settings is a 720×580 work panel capped to the
-// screen, and the terminal is the 860×600 default (resizable, min 640×360).
+// The window geometry per surface: the launcher is the 720-wide collapsed
+// panel, settings is a 720×580 work panel capped to the screen, and the
+// terminal is the 860×600 default (resizable, min 640×360).
 const (
 	settingsWindowHeight = 580
 	settingsMinHeight    = 420
 
-	// defaultSummonShortcut is DEFAULT_TOGGLE_WINDOW from config.rs: what
-	// the old build registered when the user never changed it.
+	// defaultSummonShortcut is what the app registers when the user never
+	// changed it.
 	defaultSummonShortcut = "Ctrl+Space"
 
 	// repoURL is where the About page points.
@@ -130,6 +130,10 @@ type Options struct {
 	// framework's global shortcuts, and tests record what would have been
 	// registered.
 	RegisterShortcut func(accelerator string, fn func()) error
+	// HomeDir is the user's home directory, where the browser plugin looks
+	// for profiles; empty means os.UserHomeDir, and tests point it at a
+	// fixture tree.
+	HomeDir string
 }
 
 // ClipboardPayload is one clipboard entry, ready to be written back: its
@@ -144,6 +148,9 @@ type ClipboardPayload struct {
 // App is the running application.
 type App struct {
 	Store *settings.Store
+
+	// homeDir is where the browser plugin looks for profiles.
+	homeDir string
 
 	Surf     Surface
 	Launcher *launcher.App
@@ -202,13 +209,16 @@ type App struct {
 	lastClipboardText    string
 	lastClipboardFormats string
 	// browserProfiles is the discovered browser profiles, and browserMu
-	// guards it: the first search discovers them.
+	// guards it: the first search discovers them. browserBase is the custom
+	// base directory they were discovered with, so a settings change
+	// rediscovers.
 	browserProfiles []browser.Profile
+	browserBase     string
 	browserMu       sync.Mutex
 	browserLoaded   bool
 	// LastClipboardSettings is the clipboard state the watcher was last
 	// synced with.
-	LastClipboardSettings clipboardSettings
+	LastClipboardSettings settings.ClipboardSettings
 
 	// Tray is the menu bar icon, nil when it could not be added.
 	Tray *mygo.Tray
@@ -278,6 +288,7 @@ func New(opts Options) *App {
 		openPinned:          opts.OpenPinned,
 		writeClipboard:      opts.WriteClipboard,
 		registerShortcut:    opts.RegisterShortcut,
+		homeDir:             opts.HomeDir,
 		appIcon:             storedAppIcon(opts.Store.Snapshot()),
 		lastAppIcon:         storedAppIcon(opts.Store.Snapshot()),
 	}
@@ -324,7 +335,15 @@ func New(opts Options) *App {
 		RunCommand: a.runCommand,
 		Complete:   a.completeCommand,
 		PinText:    a.PinText,
-		OpenURL:    func(url string) { mygo.Shell.OpenExternal(url) },
+		OpenURL:    a.openURL,
+		ActivateTab: func(tab browser.Tab) {
+			options := settings.BrowserPluginOf(a.Store.Snapshot())
+			go func() {
+				if err := browser.ActivateTab(context.Background(), tab, options.CDPEnabled, options.CDPPort); err != nil {
+					log.Printf("floter: could not focus the tab: %v", err)
+				}
+			}()
+		},
 		RunInTerminal: func(argv []string) {
 			if err := a.Terminal.RunCommand(argv, "current", nil); err != nil {
 				log.Printf("floter: could not run %v: %v", argv, err)
@@ -338,6 +357,8 @@ func New(opts Options) *App {
 		CloseSession:        func() { a.Terminal.Close() },
 		DiagnoseIntegration: a.diagnoseIntegration,
 		SetShortcut:         a.setShortcut,
+		SetPage:             a.rememberSettingsPage,
+		BrowserTargets:      a.browserTargets,
 		InstallFromRegistry: func(name, constraint string) {
 			go func() {
 				prepared, err := extensions.PrepareRegistry(context.Background(), a.Paths, a.Registry, name, constraint)
@@ -405,7 +426,7 @@ func New(opts Options) *App {
 	a.Settings.Shortcut = SummonShortcut(opts.Store.Snapshot())
 	a.Settings.ShortcutID = shortcutToggleWindow
 	a.summonKey = shortcuts.NormalizeOr(SummonShortcut(opts.Store.Snapshot()))
-	a.Clipboard = clipboard.NewStore(clipboard.FromConfigRoot(paths.Root), clipboardMaxItems(opts.Store.Snapshot()))
+	a.Clipboard = clipboard.NewStore(clipboard.FromConfigRoot(paths.Root), clipboardState(opts.Store.Snapshot()).MaxItems)
 	a.Launcher.Clipboard = a.Clipboard
 	a.LastClipboardSettings = clipboardState(opts.Store.Snapshot())
 
@@ -441,8 +462,8 @@ func New(opts Options) *App {
 		if state != a.LastClipboardSettings {
 			a.LastClipboardSettings = state
 			a.onMain(func() {
-				a.Clipboard.SetMaxItems(state.maxItems)
-				if state.enabled && !a.clipboardWatching {
+				a.Clipboard.SetMaxItems(state.MaxItems)
+				if state.Enabled && !a.clipboardWatching {
 					a.watchClipboard()
 				}
 			})
@@ -750,38 +771,102 @@ func (a *App) diagnoseIntegration(id string) {
 	}()
 }
 
-// searchBrowser searches the installed browsers' history and bookmarks, off
-// the main thread, and hands the results back to it.
-func (a *App) searchBrowser(query string, done func([]browser.Result)) {
+// searchBrowser searches the browser the settings name, off the main thread,
+// and hands the answer back to it.
+//
+// The file read (bookmarks and history) is published the moment it is in; the
+// live-tab read is the one that can be slow — AppleScript against a busy
+// browser, up to its own three-second deadline — so it fills its group in with
+// a second answer instead of holding the first one back. A plugin list that
+// arrives a second late reads as a plugin list that does not work.
+func (a *App) searchBrowser(query string, done func(launcher.BrowserResults)) {
 	options := browserState(a.Store.Snapshot())
 	if !options.enabled {
-		a.onMain(func() { done(nil) })
+		a.onMain(func() { done(launcher.BrowserResults{}) })
 		return
 	}
 	go func() {
-		profiles := a.browserProfileList()
-		results := browser.Search(context.Background(), profiles, query, browser.Options{
-			Days:  options.historyDays,
-			Limit: options.limit,
+		profiles := a.browserProfileList(options.customBaseDir)
+		profile, found := browser.DefaultProfile(profiles, options.target)
+		if !found {
+			a.onMain(func() { done(launcher.BrowserResults{}) })
+			return
+		}
+		results := browser.Search(context.Background(), []browser.Profile{profile}, query, browser.Options{
+			Days:      options.historyDays,
+			Limit:     options.limit,
+			SortOrder: browser.SortOrder(options.sortOrder),
+			Field:     browser.SearchField(options.searchField),
 		})
-		a.onMain(func() { done(results) })
+		answer := launcher.BrowserResults{Found: true, Profile: profile, Results: results}
+		a.onMain(func() { done(answer) })
+
+		tabs, err := browser.Tabs(context.Background(), profile.BrowserID, options.cdpEnabled, options.cdpPort)
+		if err != nil {
+			// An unreachable tab source is the expected state, not an error
+			// the user needs: the guidance lives in the plugin's settings.
+			log.Printf("floter: browser tabs: %v", err)
+			return
+		}
+		tabs = browser.FilterTabs(tabs, query, browser.SearchField(options.searchField))
+		if options.limit > 0 && len(tabs) > options.limit {
+			tabs = tabs[:options.limit]
+		}
+		answer.Tabs = tabs
+		a.onMain(func() { done(answer) })
 	}()
 }
 
-// browserProfileList discovers the browser profiles once.
-func (a *App) browserProfileList() []browser.Profile {
+// browserProfileList discovers the browser profiles once per custom base
+// directory: a settings change to that directory rediscovers.
+func (a *App) browserProfileList(customBase string) []browser.Profile {
 	a.browserMu.Lock()
 	defer a.browserMu.Unlock()
-	if a.browserLoaded {
+	if a.browserLoaded && a.browserBase == customBase {
 		return a.browserProfiles
 	}
-	a.browserLoaded = true
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return nil
+	home := a.homeDir
+	if home == "" {
+		found, err := os.UserHomeDir()
+		if err != nil {
+			return nil
+		}
+		home = found
 	}
-	a.browserProfiles = browser.Profiles(home)
+	a.browserLoaded, a.browserBase = true, customBase
+	a.browserProfiles = browser.ProfilesIn(home, customBase)
 	return a.browserProfiles
+}
+
+// browserTargets lists the browsers the browser plugin can be pointed at, as
+// the settings page's picker shows them: one entry per installed browser, in
+// discovery order.
+func (a *App) browserTargets() []i18n.Option {
+	profiles := a.browserProfileList(browserState(a.Store.Snapshot()).customBaseDir)
+	seen := map[string]bool{}
+	var options []i18n.Option
+	for _, profile := range profiles {
+		if profile.BrowserID == "" || seen[profile.BrowserID] {
+			continue
+		}
+		seen[profile.BrowserID] = true
+		options = append(options, i18n.Option{ID: profile.BrowserID, Label: profile.Browser})
+	}
+	return options
+}
+
+// openURL opens a page in the browser a result came from, so a search of one
+// browser does not open its pages in another. An unknown or empty browser id
+// opens it in the system's default browser.
+func (a *App) openURL(browserID, url string) {
+	if browserID != "" {
+		if err := browser.OpenURL(browserID, url); err == nil {
+			return
+		} else {
+			log.Printf("floter: could not open %s in %s: %v", url, browserID, err)
+		}
+	}
+	mygo.Shell.OpenExternal(url)
 }
 
 // copyClipboardEntry puts a clipboard entry back on the clipboard: its text,
@@ -917,6 +1002,7 @@ func (a *App) Open(s Surface) {
 	a.Surf = s
 	switch s {
 	case SurfaceSettings:
+		a.restoreSettingsPage()
 		a.Settings.FocusSidebar()
 	case SurfaceTerminal:
 		a.Terminal.EnsureSession()
@@ -926,6 +1012,25 @@ func (a *App) Open(s Surface) {
 	}
 	a.resize()
 	a.Show()
+}
+
+// restoreSettingsPage reopens the settings surface on the page the user last
+// looked at (the `last_settings_page` key), falling back to General for a
+// missing or unknown value.
+func (a *App) restoreSettingsPage() {
+	name, _ := a.Store.Snapshot().Extra()["last_settings_page"].(string)
+	if page, ok := settingsui.PageByName(name); ok {
+		a.Settings.Page = page
+	}
+}
+
+// rememberSettingsPage records the page the user switched to, so the next
+// visit reopens it.
+func (a *App) rememberSettingsPage(name string) {
+	if name == "" {
+		return
+	}
+	_ = a.Store.Update(func(s *settings.Settings) { s.SetExtra("last_settings_page", name) })
 }
 
 // Toggle shows the launcher, or hides the window when it is already the

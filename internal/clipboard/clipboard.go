@@ -1,10 +1,9 @@
 // Package clipboard reads and writes floter's clipboard history.
 //
-// The disk format is the old build's — see
-// src-tauri/src/clipboard_history/store.rs: `clipboard-history/index.json`
-// holds the entries and `clipboard-history/images/` one PNG per image entry,
-// so an existing history is found as it is and a new entry is one the older
-// build can still read.
+// The disk format is the one every earlier build wrote:
+// `clipboard-history/index.json` holds the entries and
+// `clipboard-history/images/` one PNG per image entry, so an existing history
+// is found as it is and a new entry is one an older build can still read.
 //
 // Retention is the old build's too: favourites are never dropped, the newest
 // `maxItems` (the `clipboard_history_max_items` setting, 300 by default)
@@ -25,14 +24,14 @@ import (
 	"time"
 )
 
-// The directory and file names, from store.rs.
+// The directory and file names under the config root.
 const (
 	dirName       = "clipboard-history"
 	indexFileName = "index.json"
 	imagesDirName = "images"
 )
 
-// The shipped retention, from store.rs and config.rs.
+// The shipped retention.
 const (
 	DefaultMaxItems = 300
 	MinMaxItems     = 10
@@ -483,7 +482,7 @@ func (s *Store) pruneLocked() {
 }
 
 // saveLocked writes the index atomically: a temporary file in the same
-// directory, then a rename, as store.rs did.
+// directory, then a rename over the target.
 func (s *Store) saveLocked() error {
 	if err := os.MkdirAll(s.paths.Root, 0o755); err != nil {
 		return err

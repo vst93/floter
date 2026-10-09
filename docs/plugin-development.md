@@ -25,7 +25,7 @@
 4. 你的命令往 stdout 打印：
    - 一个 JSON 数组（符合 §3 的列表协议）→ Floter 画成和内置插件一样的列表；
    - 其它任何内容 → 原样文本，最小 3 行；超过十行列表的高度后块内滚动。
-5. 你不需要写 HTML、不需要碰 Tauri API、不需要自己画行、不需要处理快捷键。
+5. 你不需要写 HTML、不需要碰宿主 API、不需要自己画行、不需要处理快捷键。
 
 ---
 
@@ -73,7 +73,7 @@ resolvePluginView(emission)                                   ← 能力层，�
 回车（当视图没有可交互列表时）→ external_plugin_run
         │
         ▼
-Rust：provider::execution_plan → run::execute_plan_background（无 shell）
+宿主（`internal/extensions` 构建执行计划 → 终端表面运行，无 shell）
         │
         ▼
 PluginCommandOutput { success, exitCode, stdout, stderr, truncated }
@@ -144,7 +144,7 @@ manifest 与 descriptor 的完整 schema 见 `docs/extensions/`（FEP 系列与
 集成页（设置 → 集成 → 选中一个集成 → 命令列表）为**每个**命令渲染一个开关。
 
 - 开关状态持久化在 `AppSettings.plugin_command_switches`：
-  `extensionId -> commandId -> enabled`（Rust 侧 `BTreeMap<String, BTreeMap<String, bool>>`）。
+  `extensionId -> commandId -> enabled`（`internal/settings` 的 extra 键，逐层保留）。
 - **缺省即关闭**。没有条目的命令从未被用户打开过，因此不可呼出；显式 `false` 与缺省
   同义。用户的原话是「打开后就可以允许在搜索框内呼出插件」。
 - 一个插件**没有任何**开启的命令 → 它在搜索框里**不出现**（触发器词落回普通搜索）。
@@ -153,7 +153,7 @@ manifest 与 descriptor 的完整 schema 见 `docs/extensions/`（FEP 系列与
 
 ### 2.3 权限与执行路径
 
-- 你的命令由 Rust 侧构建执行计划（`provider::execution_plan`）并**直接 spawn**：
+- 你的命令由宿主构建执行计划（`internal/extensions` 的 `CommandEntry`）并**直接 spawn**：
   没有 shell，没有字符串拼接，每个参数是一个独立的 argv 项。
 - `execution.program` 不是 `self` 时，需要 `process-spawn` 权限，且路径必须是
   runtime root 下的相对路径（不允许绝对路径或 `..`）。
