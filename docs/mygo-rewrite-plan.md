@@ -358,6 +358,23 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
   控件不撒谎；「运行时不可用」等状态如实标注。
 - `last_settings_page` 接线：切页写回，进设置面恢复上次页面（未知值落 General）。
 
+### P4-k 自定义快捷键（已做）
+
+- **`custom_shortcuts`**：类型化读写 + 规范化（空 key/空 action 视为草稿不入库；同一按键去重，
+  先到先得，比较时把 `CmdOrCtrl` 按**平台**解析成真实修饰键——macOS 上它等于 Cmd，别处等于
+  Ctrl，所以「哪些键算重复」与系统实际行为一致）。动作词表与旧版一致：
+  `plugin:<id>`（可见地打开插件模式）、`action:<id>`（应用自身动作）、其余当作**静默命令行**。
+- **注册**：随设置变更重注册（先释放再注册），被系统占用或与唤回键冲突的键**如实报告**在页面上，
+  不假装绑定成功；`Options.RegisterShortcut`/`UnregisterShortcut` 可注入，测试不碰真实全局键。
+- **动作**：`plugin:clipboard`/`plugin:browser` 打开启动器对应模式；`action:toggle_window`、
+  `new_command`、`open_settings`、`open_external_terminal`（打开系统终端窗口——Go 版终端是进程内
+  会话，所以这是**新开**一个 shell，不是旧版的会话移交，已在代码里写明）；其余走 `spawn.Command`
+  （Unix 用 `$SHELL -c`，Windows 用 `cmd /C`，脱离会话、无窗口）。
+- **新 `internal/spawn`**：全应用唯一的「启动一个不等它的程序」入口（浏览器打开、静默命令、终端
+  模拟器），平台差异（Unix `setsid` / Windows `DETACHED_PROCESS`）只写一次。
+- 设置页 Shortcuts 新增「自定义快捷键」区：已绑定的行（键位 + 动作下拉 + 移除）、新建行
+  （录制按键 + 动作下拉，动作选「命令行…」时出现文本框 + 添加）、失败提示行。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。

@@ -3,9 +3,10 @@ package browser
 import (
 	"errors"
 	"fmt"
-	"os/exec"
 	"runtime"
 	"strings"
+
+	"floter/internal/spawn"
 )
 
 // AutoTarget is the `target` setting's default: the first profile that
@@ -69,36 +70,19 @@ func OpenURL(browserID, url string) error {
 	switch runtime.GOOS {
 	case "darwin":
 		if app, ok := macAppName(browserID); ok {
-			if err := spawnDetached("open", "-a", app, url); err == nil {
+			if err := spawn.Program("open", "-a", app, url); err == nil {
 				return nil
 			}
 		}
-		return spawnDetached("open", url)
+		return spawn.Program("open", url)
 	case "windows":
 		// `start` is a cmd builtin, not an executable; the empty argument is
 		// the window-title slot, which `start` would otherwise take the URL
 		// for.
-		return spawnDetached("cmd", "/c", "start", "", url)
+		return spawn.Program("cmd", "/c", "start", "", url)
 	case "linux":
-		return spawnDetached("xdg-open", url)
+		return spawn.Program("xdg-open", url)
 	default:
 		return fmt.Errorf("browser: opening %s is not supported on this platform", url)
 	}
-}
-
-// spawnDetached starts a program the app does not wait for and that must
-// outlive it: the browser owns no console of the app's and no process group of
-// its own.
-func spawnDetached(program string, args ...string) error {
-	cmd := exec.Command(program, args...)
-	cmd.Stdin, cmd.Stdout, cmd.Stderr = nil, nil, nil
-	detach(cmd)
-	if err := cmd.Start(); err != nil {
-		return err
-	}
-	// The child is the browser's (or the opener's) and is not ours to reap:
-	// releasing it here keeps a long-lived browser from being a zombie of
-	// this process.
-	go func() { _ = cmd.Wait() }()
-	return nil
 }

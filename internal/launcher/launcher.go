@@ -185,6 +185,31 @@ type App struct {
 	Clipboard ClipboardSource
 }
 
+// InClipboardMode reports whether the clipboard history mode is open, for a
+// test or a caller that has to know where a custom shortcut landed.
+func (a *App) InClipboardMode() bool { return a.clipboard }
+
+// InBrowserMode reports whether the browser search mode is open.
+func (a *App) InBrowserMode() bool { return a.browser }
+
+// EnterClipboard opens the clipboard history mode, for a custom shortcut that
+// summons it directly.
+func (a *App) EnterClipboard() { a.enterClipboard() }
+
+// EnterBrowser opens the browser search mode.
+func (a *App) EnterBrowser() { a.enterBrowser() }
+
+// ResetQuery clears the field and the selection, for an action that wants the
+// search back rather than the last query.
+func (a *App) ResetQuery() {
+	a.leaveCommand()
+	a.leaveClipboard()
+	a.leaveBrowser()
+	a.Query = ""
+	a.Selected, a.chosenRow = 0, -1
+	a.pendingCaret = true
+}
+
 // SetApps replaces the scanned applications.
 func (a *App) SetApps(found []apps.App) { a.Apps = found }
 

@@ -9,6 +9,7 @@
 package shortcuts
 
 import (
+	"runtime"
 	"strings"
 
 	"github.com/egoist/mygo/ui"
@@ -315,4 +316,50 @@ func itoa(value int) string {
 		value /= 10
 	}
 	return string(digits)
+}
+
+// Equal reports whether two accelerators are the same *binding on this
+// platform*. The two spellings the app has stored ("Cmd+Comma" and "Cmd+,")
+// resolve to one, and `CmdOrCtrl` is resolved to the modifier the platform
+// actually binds (Cmd on macOS, Ctrl elsewhere) — so `CmdOrCtrl+Shift+P` and
+// `Cmd+Shift+P` are one key on macOS and two different keys on Linux, which is
+// exactly what the system will do with them. An accelerator neither side can
+// parse compares as trimmed, case-folded text.
+func Equal(left, right string) bool {
+	normalizedLeft, okLeft := Normalize(left)
+	normalizedRight, okRight := Normalize(right)
+	if okLeft && okRight {
+		return resolvePlatformModifier(normalizedLeft) == resolvePlatformModifier(normalizedRight)
+	}
+	return strings.EqualFold(strings.TrimSpace(left), strings.TrimSpace(right))
+}
+
+// resolvePlatformModifier replaces the portable `CmdOrCtrl` with the modifier
+// this platform binds, leaving everything else alone.
+func resolvePlatformModifier(accelerator string) string {
+	if !strings.Contains(accelerator, "CmdOrCtrl") {
+		return accelerator
+	}
+	resolved := modCtrl
+	if runtime.GOOS == "darwin" {
+		resolved = modCmd
+	}
+	return strings.ReplaceAll(accelerator, "CmdOrCtrl", resolved)
+}
+
+// Duplicate returns the first key in keys that is the same binding as key, or
+// an empty string. ignoreIndex skips the row being edited.
+func Duplicate(key string, keys []string, ignoreIndex int) string {
+	if strings.TrimSpace(key) == "" {
+		return ""
+	}
+	for index, existing := range keys {
+		if index == ignoreIndex {
+			continue
+		}
+		if Equal(existing, key) {
+			return existing
+		}
+	}
+	return ""
 }

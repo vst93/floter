@@ -78,6 +78,11 @@ type Actions struct {
 	// SetCommandEnabled turns one of an integration's commands on or off: a
 	// command only appears in the launcher while its switch is on.
 	SetCommandEnabled func(extensionID, commandID string, enabled bool)
+	// CustomShortcuts reports the user-defined global shortcuts, and
+	// SetCustomShortcuts persists a new list and registers it, returning the
+	// keys the system refused.
+	CustomShortcuts    func() []settings.CustomShortcut
+	SetCustomShortcuts func([]settings.CustomShortcut) []CustomShortcutRejection
 	// SetPage records the page the user switched to (the
 	// `last_settings_page` setting).
 	SetPage func(name string)
@@ -175,6 +180,20 @@ type App struct {
 	// installName and installVersion are the npm install field's contents.
 	installName    string
 	installVersion string
+
+	// The custom-shortcut row being made: the recorded key, the chosen action
+	// and, for a command line, its text. customFeedback is the last rejection.
+	customRecording bool
+	customKey       string
+	customAction    string
+	customCommand   string
+	customFeedback  string
+}
+
+// CustomShortcutRejection is a key the system would not bind.
+type CustomShortcutRejection struct {
+	Key    string
+	Reason string
 }
 
 // New builds the settings surface over a store.
@@ -600,9 +619,12 @@ func (a *App) installedIntegrations() []Integration {
 // currently holds and a recorder for the one the app can change.
 func (a *App) shortcuts(c *ui.Context, copy i18n.Settings) {
 	t := c.Theme()
-	ui.Column(c).FillWidth().Gap(t.Space(1)).Children(func() {
-		a.shortcutRow(c, copy)
-		ui.Text(c, copy.ShortcutsHint).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+	ui.Column(c).FillWidth().Gap(t.Space(2)).Children(func() {
+		ui.Column(c).FillWidth().Gap(t.Space(1)).Children(func() {
+			a.shortcutRow(c, copy)
+			ui.Text(c, copy.ShortcutsHint).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+		})
+		a.customSection(c, copy)
 	})
 }
 

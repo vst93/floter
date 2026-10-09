@@ -126,10 +126,17 @@ type Options struct {
 	// clipboard; nil uses the framework's clipboard, and tests record what
 	// would have been written.
 	WriteClipboard func(payload ClipboardPayload)
-	// RegisterShortcut registers the summon shortcut; nil uses the
-	// framework's global shortcuts, and tests record what would have been
-	// registered.
+	// RegisterShortcut registers a global shortcut; nil uses the framework's
+	// global shortcuts, and tests record what would have been registered.
 	RegisterShortcut func(accelerator string, fn func()) error
+	// UnregisterShortcut releases a global shortcut; nil uses the framework's.
+	UnregisterShortcut func(accelerator string)
+	// OpenExternalTerminal opens the user's terminal emulator; nil uses the
+	// platform's own list, and tests record the call.
+	OpenExternalTerminal func() error
+	// RunSilentCommand runs a custom shortcut's command line; nil spawns the
+	// user's shell, and tests record the command.
+	RunSilentCommand func(command string) error
 	// HomeDir is the user's home directory, where the browser plugin looks
 	// for profiles; empty means os.UserHomeDir, and tests point it at a
 	// fixture tree.
@@ -185,10 +192,12 @@ type App struct {
 	openPinned func(title, text string)
 	// writeClipboard puts a payload back on the system clipboard.
 	writeClipboard func(ClipboardPayload)
-	// registerShortcut registers the global summon shortcut, and
-	// summonKey is the accelerator currently registered.
-	registerShortcut func(string, func()) error
-	summonKey        string
+	// registerShortcut and unregisterShortcut bind and release global
+	// shortcuts, and summonKey is the summon accelerator currently
+	// registered.
+	registerShortcut   func(string, func()) error
+	unregisterShortcut func(string)
+	summonKey          string
 
 	// Clipboard is the clipboard history the launcher searches.
 	Clipboard *clipboard.Store
@@ -207,6 +216,16 @@ type App struct {
 	// lastMenubarIcon is the show_menubar_icon value the tray was last
 	// synced with.
 	lastMenubarIcon bool
+	// customKeys are the user-defined shortcuts currently registered, so a
+	// settings change can release exactly those; customSignature is the list
+	// they were registered from.
+	customKeys      []string
+	customSignature string
+	// openExternalTerminal is how the external-terminal action starts an
+	// emulator, and runSilentCommand how a command-line shortcut runs; nil
+	// uses the platform's own paths.
+	openExternalTerminal func() error
+	silentCommand        func(command string) error
 	// lastClipboardText and lastClipboardFormats are what the watcher saw
 	// last, so a poll records only what changed.
 	lastClipboardText    string
@@ -273,27 +292,30 @@ func New(opts Options) *App {
 		}
 	}
 	a := &App{
-		Store:               opts.Store,
-		Surf:                SurfaceLauncher,
-		quit:                quit,
-		workArea:            opts.WorkAreaHeight,
-		now:                 time.Now,
-		Paths:               paths,
-		Integrations:        extensions.OpenStore(paths),
-		Usage:               usage.Open(paths.Root),
-		refreshIntegrations: opts.RefreshIntegrations,
-		lastLaunchAtStartup: opts.Store.Snapshot().LaunchAtStartup,
-		openAtLogin:         opts.OpenAtLogin,
-		setOpenAtLogin:      opts.SetOpenAtLogin,
-		clipboardInterval:   clipboardPoll,
-		Registry:            opts.Registry,
-		confirmPermissions:  opts.ConfirmPermissions,
-		openPinned:          opts.OpenPinned,
-		writeClipboard:      opts.WriteClipboard,
-		registerShortcut:    opts.RegisterShortcut,
-		homeDir:             opts.HomeDir,
-		appIcon:             storedAppIcon(opts.Store.Snapshot()),
-		lastAppIcon:         storedAppIcon(opts.Store.Snapshot()),
+		Store:                opts.Store,
+		Surf:                 SurfaceLauncher,
+		quit:                 quit,
+		workArea:             opts.WorkAreaHeight,
+		now:                  time.Now,
+		Paths:                paths,
+		Integrations:         extensions.OpenStore(paths),
+		Usage:                usage.Open(paths.Root),
+		refreshIntegrations:  opts.RefreshIntegrations,
+		lastLaunchAtStartup:  opts.Store.Snapshot().LaunchAtStartup,
+		openAtLogin:          opts.OpenAtLogin,
+		setOpenAtLogin:       opts.SetOpenAtLogin,
+		clipboardInterval:    clipboardPoll,
+		Registry:             opts.Registry,
+		confirmPermissions:   opts.ConfirmPermissions,
+		openPinned:           opts.OpenPinned,
+		writeClipboard:       opts.WriteClipboard,
+		registerShortcut:     opts.RegisterShortcut,
+		unregisterShortcut:   opts.UnregisterShortcut,
+		openExternalTerminal: opts.OpenExternalTerminal,
+		silentCommand:        opts.RunSilentCommand,
+		homeDir:              opts.HomeDir,
+		appIcon:              storedAppIcon(opts.Store.Snapshot()),
+		lastAppIcon:          storedAppIcon(opts.Store.Snapshot()),
 	}
 	if a.writeClipboard == nil {
 		a.writeClipboard = systemClipboardWrite
@@ -301,6 +323,11 @@ func New(opts Options) *App {
 	if a.registerShortcut == nil {
 		a.registerShortcut = func(accelerator string, fn func()) error {
 			return mygo.GlobalShortcut.Register(accelerator, fn)
+		}
+	}
+	if a.unregisterShortcut == nil {
+		a.unregisterShortcut = func(accelerator string) {
+			mygo.GlobalShortcut.Unregister(accelerator)
 		}
 	}
 	if a.Registry == nil {
@@ -363,6 +390,8 @@ func New(opts Options) *App {
 		SetPage:             a.rememberSettingsPage,
 		BrowserTargets:      a.browserTargets,
 		SetCommandEnabled:   a.setCommandEnabled,
+		CustomShortcuts:     func() []settings.CustomShortcut { return settings.CustomShortcutsOf(a.Store.Snapshot()) },
+		SetCustomShortcuts:  a.setCustomShortcuts,
 		InstallFromRegistry: func(name, constraint string) {
 			go func() {
 				prepared, err := extensions.PrepareRegistry(context.Background(), a.Paths, a.Registry, name, constraint)
@@ -491,6 +520,9 @@ func New(opts Options) *App {
 				a.lastMenubarIcon = settings.ShowMenubarIcon(s)
 				a.ApplyMenubarIcon()
 			}
+			if customShortcutSignature(s) != a.customSignature {
+				a.ApplyCustomShortcuts()
+			}
 			if a.Surf == SurfaceTerminal {
 				a.Terminal.Refresh()
 			}
@@ -563,6 +595,7 @@ func (a *App) Start() {
 	}
 	a.summonKey = accelerator
 	a.ShortcutErr = a.registerShortcut(accelerator, a.Toggle)
+	a.ApplyCustomShortcuts()
 	if a.ShortcutErr != nil {
 		log.Printf("floter: could not register %s: %v", accelerator, a.ShortcutErr)
 	}

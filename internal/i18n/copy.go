@@ -1,5 +1,14 @@
 package i18n
 
+// The custom-shortcut rejection sentence, which names the key and the reason.
+func shortcutsRejectedEN(key, reason string) string {
+	return "Could not bind " + key + ": " + reason
+}
+
+func shortcutsRejectedZH(key, reason string) string {
+	return "无法绑定 " + key + "：" + reason
+}
+
 // The shipped copy, English first: the source of truth every other language
 // is checked against.
 var en = Copy{
@@ -165,9 +174,29 @@ var en = Copy{
 		IntegrationsUnavailable:  "runtime unavailable",
 
 		ShortcutsToggle:   "Show / hide floter",
-		ShortcutsHint:     "More shortcuts arrive with the system integration.",
+		ShortcutsHint:     "The global keys floter answers, and the ones you bind yourself.",
 		ShortcutRecord:    "Record",
 		ShortcutRecording: "Press keys\u2026",
+
+		ShortcutsCustom:      "Custom shortcuts",
+		ShortcutsCustomHint:  "Bind a key to a plugin, an action, or a command line. A command line runs with no window at all.",
+		ShortcutsNone:        "No custom shortcuts yet.",
+		ShortcutsAdd:         "Add",
+		ShortcutsRemove:      "Remove",
+		ShortcutsAction:      "Action",
+		ShortcutsCommand:     "Command line",
+		ShortcutsCommandHint: "Run silently, e.g. say done",
+		ShortcutsRecordKey:   "Record key",
+		ShortcutsRejected:    shortcutsRejectedEN,
+		ShortcutsActions: []Option{
+			{"plugin:clipboard", "Clipboard history"},
+			{"plugin:browser", "Browser history"},
+			{"action:toggle_window", "Show / hide floter"},
+			{"action:new_command", "New command"},
+			{"action:open_settings", "Open settings"},
+			{"action:open_external_terminal", "Open a terminal window"},
+			{"command", "Command line\u2026"},
+		},
 
 		BrowserPlugin:          "Browser history",
 		BrowserPluginHint:      "Searches the installed browsers' history, bookmarks and open tabs from the launcher.",
@@ -383,9 +412,29 @@ var zh = Copy{
 		IntegrationsUnavailable:  "运行时不可用",
 
 		ShortcutsToggle:   "显示 / 隐藏 floter",
-		ShortcutsHint:     "更多快捷键将随系统集成一并到来。",
+		ShortcutsHint:     "floter 响应的全局按键，以及你自己绑定的按键。",
 		ShortcutRecord:    "录制",
 		ShortcutRecording: "请按组合键…",
+
+		ShortcutsCustom:      "自定义快捷键",
+		ShortcutsCustomHint:  "把一个按键绑定到插件、动作或命令行；命令行会完全静默地运行。",
+		ShortcutsNone:        "还没有自定义快捷键。",
+		ShortcutsAdd:         "添加",
+		ShortcutsRemove:      "移除",
+		ShortcutsAction:      "动作",
+		ShortcutsCommand:     "命令行",
+		ShortcutsCommandHint: "静默运行，例如 say done",
+		ShortcutsRecordKey:   "录制按键",
+		ShortcutsRejected:    shortcutsRejectedZH,
+		ShortcutsActions: []Option{
+			{"plugin:clipboard", "剪贴板历史"},
+			{"plugin:browser", "浏览器历史"},
+			{"action:toggle_window", "显示 / 隐藏 floter"},
+			{"action:new_command", "新命令"},
+			{"action:open_settings", "打开设置"},
+			{"action:open_external_terminal", "打开终端窗口"},
+			{"command", "命令行…"},
+		},
 
 		BrowserPlugin:          "浏览器历史",
 		BrowserPluginHint:      "在启动器里搜索已安装浏览器的历史、书签与已打开的标签页。",

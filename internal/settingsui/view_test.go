@@ -732,3 +732,84 @@ func TestPageSelectionIsRemembered(t *testing.T) {
 		t.Errorf("PageName = %q", got)
 	}
 }
+
+// The Shortcuts page lists the custom shortcuts and can add, retarget and
+// remove them.
+func TestCustomShortcutsPage(t *testing.T) {
+	store := newStore(t)
+	entries := []settings.CustomShortcut{{Key: "Cmd+Shift+P", Action: "plugin:clipboard"}}
+	rejections := []CustomShortcutRejection{}
+	var committed [][]settings.CustomShortcut
+	a := New(store, Actions{
+		CustomShortcuts: func() []settings.CustomShortcut { return entries },
+		SetCustomShortcuts: func(list []settings.CustomShortcut) []CustomShortcutRejection {
+			committed = append(committed, list)
+			entries = list
+			return rejections
+		},
+	})
+	tt := render(t, a, 720, 620)
+	if err := tt.Click("Shortcuts"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !tt.HasText("Custom shortcuts") || !tt.HasText("Cmd + Shift + P") {
+		t.Fatalf("the custom section = %q", tt.Texts())
+	}
+
+	// Recording a key fills the new row, and Add persists the binding.
+	if err := tt.Click("Record key"); err != nil {
+		t.Fatalf("record: %v", err)
+	}
+	tt.Frame()
+	if !tt.HasText("Press keys\u2026") {
+		t.Fatalf("the recorder did not open: %q", tt.Texts())
+	}
+	tt.Key(ui.Super, ui.KeyJ)
+	tt.Frame()
+	if len(committed) != 0 {
+		t.Fatalf("a half-made row was persisted: %+v", committed)
+	}
+	if err := tt.Click("Add"); err != nil {
+		t.Fatalf("add: %v", err)
+	}
+	tt.Frame()
+	if len(committed) != 1 || len(committed[0]) != 2 {
+		t.Fatalf("committed = %+v", committed)
+	}
+	if committed[0][1].Action != "plugin:clipboard" {
+		t.Errorf("the new row's action = %q", committed[0][1].Action)
+	}
+
+	// Retargeting a row writes the new action; removing one drops it.
+	if err := tt.Click("Clipboard history"); err != nil {
+		t.Fatalf("action trigger: %v", err)
+	}
+	tt.Frame()
+	if err := tt.Click("Browser history"); err != nil {
+		t.Fatalf("action option: %v", err)
+	}
+	tt.Frame()
+	last := committed[len(committed)-1]
+	if last[0].Action != "plugin:browser" {
+		t.Errorf("retargeted action = %q", last[0].Action)
+	}
+	if err := tt.Click("Remove"); err != nil {
+		t.Fatalf("remove: %v", err)
+	}
+	tt.Frame()
+	last = committed[len(committed)-1]
+	if len(last) != 1 {
+		t.Errorf("after a removal = %+v", last)
+	}
+
+	// A key the system refused is reported rather than looking bound.
+	rejections = []CustomShortcutRejection{{Key: "Cmd+J", Reason: "taken"}}
+	if err := tt.Click("Remove"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !tt.HasText("Could not bind Cmd+J: taken") {
+		t.Errorf("the rejection is missing: %q", tt.Texts())
+	}
+}

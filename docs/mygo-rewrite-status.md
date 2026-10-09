@@ -105,6 +105,11 @@ settings 读取子集（保未知键）、glass 映射、单窗口三表面（�
 - 新设置页 Plugins：浏览器插件（目标/目录/范围/排序/搜索范围/调试端口）与剪贴板（开关/容量）。
 - `show_menubar_icon`、`last_settings_page`、`launch_counts`、三个启动器开关收进类型化访问器。
 
+**P4-k 自定义快捷键**（本轮）
+- `custom_shortcuts`（plugin:/action:/命令行 三类动作，平台感知的按键去重），随设置重注册，
+  系统拒绝时如实报告；新 `internal/spawn` 统一「启动即忘」的程序启动（浏览器/静默命令/终端模拟器）；
+  Shortcuts 页可录制、改动作、移除。
+
 ## 尚未做（按建议优先级）
 
 1. **终端会话快照/恢复**：`plugins/terminal` 的 `Snapshot()` 可把回滚+屏幕+光标序列化；旧版 `session_restore.rs` 是「工具会话 reattach」语义（本机无集成使用）。Sessions 页目前只能列出/关闭当前会话。

@@ -1,6 +1,7 @@
 package shortcuts
 
 import (
+	"runtime"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
@@ -96,5 +97,47 @@ func TestDisplay(t *testing.T) {
 	}
 	if got := Display("not a shortcut"); got != "not a shortcut" {
 		t.Errorf("Display of junk = %q", got)
+	}
+}
+
+func TestEqualAndDuplicate(t *testing.T) {
+	// The two spellings of one binding are the same key.
+	for _, pair := range [][2]string{
+		{"Cmd+Comma", "Cmd+,"},
+		{"Alt+Space", "Alt+Space"},
+	} {
+		if !Equal(pair[0], pair[1]) {
+			t.Errorf("Equal(%q, %q) = false", pair[0], pair[1])
+		}
+	}
+	// `CmdOrCtrl` is the modifier the platform binds: the same key as Cmd on
+	// macOS and as Ctrl elsewhere.
+	portable := "CmdOrCtrl+Shift+P"
+	if runtime.GOOS == "darwin" {
+		if !Equal(portable, "Cmd+Shift+P") || Equal(portable, "Ctrl+Shift+P") {
+			t.Error("CmdOrCtrl did not resolve to Cmd on macOS")
+		}
+	} else {
+		if !Equal(portable, "Ctrl+Shift+P") || Equal(portable, "Cmd+Shift+P") {
+			t.Error("CmdOrCtrl did not resolve to Ctrl off macOS")
+		}
+	}
+	if Equal("Cmd+A", "Cmd+B") {
+		t.Error("two different keys compared equal")
+	}
+	// A key neither side can parse compares as trimmed text.
+	if !Equal("not a key", " NOT A KEY ") {
+		t.Error("unparseable keys did not compare by text")
+	}
+
+	keys := []string{"Cmd+Comma", "Alt+Space"}
+	if got := Duplicate("Cmd+,", keys, -1); got != "Cmd+Comma" {
+		t.Errorf("Duplicate = %q", got)
+	}
+	if got := Duplicate("Cmd+,", keys, 0); got != "" {
+		t.Errorf("Duplicate ignoring its own row = %q", got)
+	}
+	if got := Duplicate("", keys, -1); got != "" {
+		t.Errorf("an empty key = %q", got)
 	}
 }

@@ -1,13 +1,13 @@
 //go:build windows
 
-package browser
+package spawn
 
 import (
 	"os/exec"
 	"syscall"
 )
 
-// detach gives the child no console of its own to inherit, so a browser
+// detach gives the child no console of its own to inherit, so a program
 // started from the app does not flash a console window or hold the app's.
 func detach(cmd *exec.Cmd) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{

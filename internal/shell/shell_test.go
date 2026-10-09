@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -1265,5 +1266,137 @@ func TestLastSettingsPageIsRestored(t *testing.T) {
 	a.restoreSettingsPage()
 	if a.Settings.Page != settingsui.PageGeneral {
 		t.Errorf("an unknown page restored %d", a.Settings.Page)
+	}
+}
+
+// A custom shortcut is registered on start, re-registered when the list
+// changes, and released when it goes away; a key the system refuses is
+// reported rather than left looking bound.
+func TestCustomShortcutsRegisterAndRun(t *testing.T) {
+	live := map[string]func(){}
+	taken := map[string]bool{"Cmd+Shift+T": true}
+	silent := []string{}
+	external := 0
+
+	initial := settings.Default()
+	initial.SetCustomShortcuts([]settings.CustomShortcut{
+		{Key: "Cmd+Shift+P", Action: "plugin:clipboard"},
+		{Key: "Cmd+Shift+T", Action: "plugin:browser"},
+		{Key: "Cmd+Shift+R", Action: "action:open_settings"},
+		{Key: "Cmd+Shift+N", Action: "action:new_command"},
+		{Key: "Cmd+Shift+E", Action: "action:open_external_terminal"},
+		{Key: "Cmd+Shift+C", Action: "say done"},
+	})
+	store := settings.NewStore(initial)
+	a := New(Options{
+		Store: store,
+		Paths: extensions.FromRoot(t.TempDir()),
+		RegisterShortcut: func(accelerator string, fn func()) error {
+			if taken[accelerator] {
+				return errors.New("taken")
+			}
+			live[accelerator] = fn
+			return nil
+		},
+		UnregisterShortcut:   func(accelerator string) { delete(live, accelerator) },
+		RunSilentCommand:     func(command string) error { silent = append(silent, command); return nil },
+		OpenExternalTerminal: func() error { external++; return nil },
+	})
+
+	rejections := a.ApplyCustomShortcuts()
+	if len(rejections) != 1 || rejections[0].Key != "Cmd+Shift+T" {
+		t.Fatalf("rejections = %+v", rejections)
+	}
+	for _, accelerator := range []string{"Cmd+Shift+P", "Cmd+Shift+R", "Cmd+Shift+N", "Cmd+Shift+E", "Cmd+Shift+C"} {
+		if live[accelerator] == nil {
+			t.Errorf("%s was not registered", accelerator)
+		}
+	}
+	if live["Cmd+Shift+T"] != nil {
+		t.Error("a taken key was registered")
+	}
+
+	// The plugin action shows the panel in that mode.
+	live["Cmd+Shift+P"]()
+	if a.Surf != SurfaceLauncher || !a.Launcher.InClipboardMode() {
+		t.Errorf("clipboard action: surface %v", a.Surf)
+	}
+
+	// The app actions run theirs.
+	a.Launcher.ResetQuery()
+	live["Cmd+Shift+R"]()
+	if a.Surf != SurfaceSettings {
+		t.Errorf("open_settings: surface %v", a.Surf)
+	}
+	a.Launcher.SetQuery("leftover")
+	live["Cmd+Shift+N"]()
+	if a.Surf != SurfaceLauncher || a.Launcher.Query != "" {
+		t.Errorf("new_command: surface %v query %q", a.Surf, a.Launcher.Query)
+	}
+	live["Cmd+Shift+E"]()
+	if external != 1 {
+		t.Errorf("external terminal ran %d times", external)
+	}
+
+	// Anything else is a command line, run silently.
+	live["Cmd+Shift+C"]()
+	if len(silent) != 1 || silent[0] != "say done" {
+		t.Errorf("silent commands = %v", silent)
+	}
+
+	// A shorter list releases what is gone and keeps what stayed. The store's
+	// own listener re-registers, so the caller does not have to ask.
+	if err := store.Update(func(s *settings.Settings) {
+		s.SetCustomShortcuts([]settings.CustomShortcut{{Key: "Cmd+Shift+P", Action: "plugin:clipboard"}})
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if len(live) != 1 || live["Cmd+Shift+P"] == nil {
+		t.Errorf("the registrations after a shorter list = %v", keysOf(live))
+	}
+}
+
+// keysOf lists a registration map's keys, for a failure message.
+func keysOf(live map[string]func()) []string {
+	out := make([]string, 0, len(live))
+	for key := range live {
+		out = append(out, key)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// The settings change that rewrites the list re-registers without the caller
+// asking, and a list that did not change does not churn the registrations.
+func TestCustomShortcutsFollowTheStore(t *testing.T) {
+	registered := 0
+	unregistered := 0
+	store := settings.NewStore(settings.Default())
+	a := New(Options{
+		Store:                store,
+		Paths:                extensions.FromRoot(t.TempDir()),
+		RegisterShortcut:     func(string, func()) error { registered++; return nil },
+		UnregisterShortcut:   func(string) { unregistered++ },
+		RunSilentCommand:     func(string) error { return nil },
+		OpenExternalTerminal: func() error { return nil },
+	})
+	a.ApplyCustomShortcuts()
+	before := registered
+
+	if err := store.Update(func(s *settings.Settings) {
+		s.SetCustomShortcuts([]settings.CustomShortcut{{Key: "Cmd+Shift+P", Action: "plugin:clipboard"}})
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if registered != before+1 {
+		t.Errorf("the store change did not register the key: %d -> %d", before, registered)
+	}
+
+	// A write that leaves the list alone must not re-register it.
+	if err := store.Update(func(s *settings.Settings) { s.Theme = "dark" }); err != nil {
+		t.Fatal(err)
+	}
+	if registered != before+1 || unregistered != 0 {
+		t.Errorf("an unrelated change churned the shortcuts: %d registered, %d released", registered, unregistered)
 	}
 }

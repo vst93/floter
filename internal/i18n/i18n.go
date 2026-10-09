@@ -189,6 +189,19 @@ type Settings struct {
 	ShortcutRecord    string
 	ShortcutRecording string
 
+	// The user-defined shortcuts.
+	ShortcutsCustom      string
+	ShortcutsCustomHint  string
+	ShortcutsNone        string
+	ShortcutsAdd         string
+	ShortcutsRemove      string
+	ShortcutsAction      string
+	ShortcutsCommand     string
+	ShortcutsCommandHint string
+	ShortcutsRecordKey   string
+	ShortcutsRejected    func(key, reason string) string
+	ShortcutsActions     []Option
+
 	// The Plugins page: the built-in plugins' own settings.
 	BrowserPlugin          string
 	BrowserPluginHint      string
