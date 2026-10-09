@@ -168,6 +168,12 @@ func HashText(text string) string {
 	return hex.EncodeToString(sum[:])
 }
 
+// hashBytes is the digest the index records for an image entry.
+func hashBytes(data []byte) string {
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:])
+}
+
 // ErrNotFound is what an operation on an unknown id reports.
 var ErrNotFound = errors.New("clipboard: no such entry")
 
@@ -268,7 +274,85 @@ func (s *Store) AddText(text string) (Entry, bool, error) {
 		CreatedAt: s.now().UnixMilli(),
 		extra:     map[string]any{},
 	}
-	// A clip already in the history moves to the front.
+	s.insertLocked(entry)
+	s.pruneLocked()
+	return entry, true, s.saveLocked()
+}
+
+// AddImage records an image clip: the PNG is written under images/ with the
+// entry's id as its name, and an entry with the same digest moves to the
+// front.
+func (s *Store) AddImage(png []byte, width, height int) (Entry, bool, error) {
+	if len(png) == 0 {
+		return Entry{}, false, nil
+	}
+	hash := hashBytes(png)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.loadLocked()
+	if len(s.entries) > 0 && s.entries[0].Kind == KindImage && s.entries[0].Hash == hash {
+		return s.entries[0], false, nil
+	}
+
+	id := newID()
+	file := id + ".png"
+	if err := os.MkdirAll(s.paths.Images(), 0o755); err != nil {
+		return Entry{}, false, err
+	}
+	if err := os.WriteFile(filepath.Join(s.paths.Images(), file), png, 0o600); err != nil {
+		return Entry{}, false, err
+	}
+	entry := Entry{
+		ID:        id,
+		Kind:      KindImage,
+		ImageFile: file,
+		Width:     width,
+		Height:    height,
+		Hash:      hash,
+		CreatedAt: s.now().UnixMilli(),
+		extra:     map[string]any{},
+	}
+	s.insertLocked(entry)
+	s.pruneLocked()
+	return entry, true, s.saveLocked()
+}
+
+// AddFiles records a file-list clip.
+func (s *Store) AddFiles(paths []string) (Entry, bool, error) {
+	cleaned := make([]string, 0, len(paths))
+	for _, path := range paths {
+		if trimmed := strings.TrimSpace(path); trimmed != "" {
+			cleaned = append(cleaned, trimmed)
+		}
+	}
+	if len(cleaned) == 0 {
+		return Entry{}, false, nil
+	}
+	hash := HashText(strings.Join(cleaned, "\n"))
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.loadLocked()
+	if len(s.entries) > 0 && s.entries[0].Kind == KindFiles && s.entries[0].Hash == hash {
+		return s.entries[0], false, nil
+	}
+	entry := Entry{
+		ID:        newID(),
+		Kind:      KindFiles,
+		Paths:     cleaned,
+		Hash:      hash,
+		CreatedAt: s.now().UnixMilli(),
+		extra:     map[string]any{},
+	}
+	s.insertLocked(entry)
+	s.pruneLocked()
+	return entry, true, s.saveLocked()
+}
+
+// insertLocked puts an entry at the front, dropping an earlier copy of the
+// same clip.
+func (s *Store) insertLocked(entry Entry) {
 	kept := make([]Entry, 0, len(s.entries)+1)
 	kept = append(kept, entry)
 	for _, existing := range s.entries {
@@ -278,8 +362,14 @@ func (s *Store) AddText(text string) (Entry, bool, error) {
 		kept = append(kept, existing)
 	}
 	s.entries = kept
-	s.pruneLocked()
-	return entry, true, s.saveLocked()
+}
+
+// ImagePath is where an image entry's PNG lives.
+func (s *Store) ImagePath(entry Entry) string {
+	if entry.ImageFile == "" {
+		return ""
+	}
+	return filepath.Join(s.paths.Images(), filepath.Base(entry.ImageFile))
 }
 
 // SetFavorite pins or unpins an entry. Favourites are never pruned.
@@ -379,10 +469,11 @@ func (s *Store) pruneLocked() {
 			kept = append(kept, entry)
 			continue
 		}
-		if entry.CreatedAt < cutoff {
-			continue
-		}
-		if nonFavorites >= s.maxItems {
+		if entry.CreatedAt < cutoff || nonFavorites >= s.maxItems {
+			// A dropped image takes its file with it.
+			if entry.ImageFile != "" {
+				_ = os.Remove(filepath.Join(s.paths.Images(), filepath.Base(entry.ImageFile)))
+			}
 			continue
 		}
 		nonFavorites++

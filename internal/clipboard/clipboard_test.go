@@ -1,7 +1,11 @@
 package clipboard
 
 import (
+	"bytes"
 	"encoding/json"
+	"image"
+	"image/color"
+	"image/png"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -290,4 +294,109 @@ func TestClampMaxItems(t *testing.T) {
 			t.Errorf("clampMaxItems(%d) = %d, want %d", in, got, want)
 		}
 	}
+}
+
+func TestAddImage(t *testing.T) {
+	dir := t.TempDir()
+	paths := FromConfigRoot(dir)
+	store := NewStore(paths, 0)
+	now := time.UnixMilli(1_700_000_000_000)
+	store.now = func() time.Time { return now }
+
+	png := testPNG(t, 8, 4)
+	entry, added, err := store.AddImage(png, 8, 4)
+	if err != nil || !added {
+		t.Fatalf("AddImage = %v, %v", added, err)
+	}
+	if entry.Kind != KindImage || entry.Width != 8 || entry.Height != 4 {
+		t.Errorf("entry = %+v", entry)
+	}
+	if entry.ImageFile != entry.ID+".png" {
+		t.Errorf("image file = %q", entry.ImageFile)
+	}
+	// The PNG is on disk, at the path the store reports.
+	path := store.ImagePath(entry)
+	if data, err := os.ReadFile(path); err != nil || len(data) != len(png) {
+		t.Fatalf("image file = %d bytes, %v", len(data), err)
+	}
+	if !strings.HasSuffix(path, filepath.Join("images", entry.ImageFile)) {
+		t.Errorf("path = %q", path)
+	}
+
+	// The same image twice moves to the front instead of duplicating.
+	now = now.Add(time.Second)
+	if _, added, err := store.AddImage(png, 8, 4); err != nil || added {
+		t.Errorf("the same image was added twice: %v", added)
+	}
+	if _, _, err := store.AddImage(nil, 0, 0); err != nil {
+		t.Errorf("an empty image: %v", err)
+	}
+	entries := store.Entries()
+	if len(entries) != 1 {
+		t.Fatalf("entries = %+v", entries)
+	}
+
+	// Pruning a capacity eviction takes the file with it.
+	now = now.Add(time.Second)
+	if _, _, err := store.AddImage(testPNG(t, 9, 9), 9, 9); err != nil {
+		t.Fatal(err)
+	}
+	first := store.Entries()[1]
+	if err := store.SetMaxItems(MinMaxItems); err != nil {
+		t.Fatal(err)
+	}
+	// Fill past the capacity so the oldest entries are evicted.
+	for i := 0; i < MinMaxItems+2; i++ {
+		now = now.Add(time.Second)
+		if _, _, err := store.AddText(string(rune('a'+i%26)) + string(rune('0'+i%10))); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := os.Stat(store.ImagePath(first)); !os.IsNotExist(err) {
+		t.Errorf("an evicted image's file stayed: %v", err)
+	}
+}
+
+func TestAddFiles(t *testing.T) {
+	dir := t.TempDir()
+	store := NewStore(FromConfigRoot(dir), 0)
+	now := time.UnixMilli(1_700_000_000_000)
+	store.now = func() time.Time { return now }
+
+	entry, added, err := store.AddFiles([]string{"  /tmp/a.png ", "/tmp/b.png", ""})
+	if err != nil || !added {
+		t.Fatalf("AddFiles = %v, %v", added, err)
+	}
+	if entry.Kind != KindFiles || len(entry.Paths) != 2 || entry.Paths[0] != "/tmp/a.png" {
+		t.Errorf("entry = %+v", entry)
+	}
+	if entry.Label() != "a.png" {
+		t.Errorf("label = %q", entry.Label())
+	}
+	now = now.Add(time.Second)
+	if _, added, err := store.AddFiles([]string{"/tmp/a.png", "/tmp/b.png"}); err != nil || added {
+		t.Errorf("the same file list was added twice: %v", added)
+	}
+	if _, added, err := store.AddFiles(nil); err != nil || added {
+		t.Errorf("an empty file list added: %v", added)
+	}
+	if got := store.Search("b.png", 0); len(got) != 1 {
+		t.Errorf("search by path = %+v", got)
+	}
+}
+
+// testPNG builds a real PNG of the given size.
+func testPNG(t *testing.T, width, height int) []byte {
+	t.Helper()
+	var buffer bytes.Buffer
+	img := image.NewRGBA(image.Rect(0, 0, width, height))
+	for x := 0; x < width; x++ {
+		for y := 0; y < height; y++ {
+			img.Set(x, y, color.RGBA{R: uint8(x * 8), G: uint8(y * 8), B: 128, A: 255})
+		}
+	}
+	if err := png.Encode(&buffer, img); err != nil {
+		t.Fatal(err)
+	}
+	return buffer.Bytes()
 }

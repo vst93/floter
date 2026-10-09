@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"image"
 	"image/png"
 	"os"
 	"path/filepath"
@@ -22,6 +23,7 @@ import (
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/plugins/terminal"
+	"github.com/egoist/mygo/transfer"
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/clipboard"
@@ -947,4 +949,84 @@ esac
 		}
 		time.Sleep(20 * time.Millisecond)
 	}
+}
+
+func TestClipboardFormatHelpers(t *testing.T) {
+	formats := []transfer.Format{transfer.Text, transfer.PNG}
+	if !containsFormat(formats, "image/png") {
+		t.Error("the PNG format was not found")
+	}
+	if containsFormat(formats, "text/html") {
+		t.Error("an absent format was reported")
+	}
+	// The key is order-insensitive, so reordered formats are one state.
+	if formatKey(formats) != formatKey([]transfer.Format{transfer.PNG, transfer.Text}) {
+		t.Errorf("keys differ: %q vs %q", formatKey(formats), formatKey([]transfer.Format{transfer.PNG, transfer.Text}))
+	}
+
+	// A real PNG's size, and zero for junk.
+	img := image.NewRGBA(image.Rect(0, 0, 12, 5))
+	var buffer bytes.Buffer
+	if err := png.Encode(&buffer, img); err != nil {
+		t.Fatal(err)
+	}
+	if width, height := imageSize(buffer.Bytes()); width != 12 || height != 5 {
+		t.Errorf("size = %dx%d", width, height)
+	}
+	if width, height := imageSize([]byte("not a png")); width != 0 || height != 0 {
+		t.Errorf("junk size = %dx%d", width, height)
+	}
+}
+
+func TestCopyClipboardEntryRestoresTheKind(t *testing.T) {
+	var written []ClipboardPayload
+	store := settings.NewStore(settings.Default())
+	a := New(Options{
+		Store:       store,
+		Paths:       extensions.FromRoot(t.TempDir()),
+		NewTerminal: func(terminal.Options) (*terminal.Terminal, error) { return nil, errors.New("no library in tests") },
+		OpenAtLogin: func() bool { return false }, SetOpenAtLogin: func(bool) error { return nil },
+		WriteClipboard: func(payload ClipboardPayload) { written = append(written, payload) },
+	})
+
+	// A file list goes back as files, an image as bytes, text as text.
+	entry, _, err := a.Clipboard.AddFiles([]string{"/tmp/one.txt", "/tmp/two.txt"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.copyClipboardEntry(entry)
+	if len(written) != 1 || written[0].Kind != clipboard.KindFiles || len(written[0].Paths) != 2 {
+		t.Fatalf("files payload = %+v", written)
+	}
+	if a.selfCopied != "" {
+		t.Errorf("a file copy recorded text: %q", a.selfCopied)
+	}
+
+	png := testPNGBytes(t)
+	image, _, err := a.Clipboard.AddImage(png, 4, 4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.copyClipboardEntry(image)
+	if len(written) != 2 || written[1].Kind != clipboard.KindImage || len(written[1].Image) != len(png) {
+		t.Errorf("image payload = %+v", written[1].Kind)
+	}
+
+	a.copyClipboardEntry(clipboard.Entry{Kind: clipboard.KindText, Text: "hello"})
+	if len(written) != 3 || written[2].Text != "hello" {
+		t.Errorf("text payload = %+v", written[2])
+	}
+	if a.selfCopied != "hello" {
+		t.Errorf("selfCopied = %q", a.selfCopied)
+	}
+}
+
+func testPNGBytes(t *testing.T) []byte {
+	t.Helper()
+	img := image.NewRGBA(image.Rect(0, 0, 4, 4))
+	var buffer bytes.Buffer
+	if err := png.Encode(&buffer, img); err != nil {
+		t.Fatal(err)
+	}
+	return buffer.Bytes()
 }

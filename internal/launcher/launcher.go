@@ -80,6 +80,9 @@ type Actions struct {
 	Complete func(entry extensions.CommandEntry, tokens []string, done func([]extensions.Completion))
 	// PinText shows some text in a window of its own.
 	PinText func(title, text string)
+	// CopyClip puts a clipboard entry back on the clipboard, whatever its
+	// kind. Nil falls back to Copy for text.
+	CopyClip func(entry clipboard.Entry)
 }
 
 // ClipboardSource is the clipboard history the launcher searches.

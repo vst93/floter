@@ -1,14 +1,18 @@
 package shell
 
 import (
+	"bytes"
 	_ "embed"
 	"encoding/json"
+	stdpng "image/png"
 	"log"
 	"net/url"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/egoist/mygo"
+	"github.com/egoist/mygo/transfer"
 
 	"floter/internal/clipboard"
 	"floter/internal/extensions"
@@ -185,22 +189,80 @@ func (a *App) watchClipboard() {
 				a.clipboardWatching = false
 				return
 			}
-			text := mygo.Clipboard.ReadText()
-			if strings.TrimSpace(text) == "" || text == a.selfCopied {
-				continue
+			if a.captureClipboard() {
+				a.onMain(func() {
+					if a.Win != nil {
+						a.Win.Invalidate()
+					}
+				})
 			}
-			entry, added, err := a.Clipboard.AddText(text)
-			if err != nil || !added {
-				continue
-			}
-			_ = entry
-			a.onMain(func() {
-				if a.Win != nil {
-					a.Win.Invalidate()
-				}
-			})
 		}
 	}()
+}
+
+// captureClipboard records what is on the clipboard now, if it is something
+// new: an image, a file list, or text. It reports whether the history grew.
+//
+// The formats decide first because reading a large image on every poll would
+// be wasteful: text is cheap to read and compare every time, and the image
+// path is only taken when the clipboard's format list changed.
+func (a *App) captureClipboard() bool {
+	text := mygo.Clipboard.ReadText()
+	if strings.TrimSpace(text) != "" && text != a.selfCopied && text != a.lastClipboardText {
+		a.lastClipboardText = text
+		_, added, err := a.Clipboard.AddText(text)
+		return err == nil && added
+	}
+
+	formats := mygo.Clipboard.Formats()
+	key := formatKey(formats)
+	if key == a.lastClipboardFormats {
+		return false
+	}
+	a.lastClipboardFormats = key
+
+	if containsFormat(formats, "image/png") {
+		if data, err := mygo.Clipboard.Read(transfer.PNG); err == nil {
+			if png, err := data.Read(transfer.PNG); err == nil && len(png) > 0 {
+				width, height := imageSize(png)
+				_, added, err := a.Clipboard.AddImage(png, width, height)
+				return err == nil && added
+			}
+		}
+	}
+	if paths, err := mygo.Clipboard.ReadFiles(); err == nil && len(paths) > 0 {
+		_, added, err := a.Clipboard.AddFiles(paths)
+		return err == nil && added
+	}
+	return false
+}
+
+// formatKey is a comparable summary of a format list.
+func formatKey(formats []transfer.Format) string {
+	names := make([]string, 0, len(formats))
+	for _, format := range formats {
+		names = append(names, string(format))
+	}
+	sort.Strings(names)
+	return strings.Join(names, ",")
+}
+
+func containsFormat(formats []transfer.Format, name string) bool {
+	for _, format := range formats {
+		if string(format) == name {
+			return true
+		}
+	}
+	return false
+}
+
+// imageSize reads a PNG's dimensions, zero when it cannot be decoded.
+func imageSize(png []byte) (int, int) {
+	config, err := stdpng.DecodeConfig(bytes.NewReader(png))
+	if err != nil {
+		return 0, 0
+	}
+	return config.Width, config.Height
 }
 
 // ApplyStartup syncs the system's login item with the setting, so a change

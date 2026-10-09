@@ -144,19 +144,18 @@ func (a *App) pinClip(entry clipboard.Entry) {
 	}
 }
 
-// copyClip puts an entry's text on the clipboard, and reports it.
+// copyClip puts an entry back on the clipboard, whatever its kind, and
+// reports it.
 func (a *App) copyClip(entry clipboard.Entry) {
-	switch entry.Kind {
-	case clipboard.KindText:
-		if a.Actions.Copy != nil {
-			a.Actions.Copy(entry.Text)
-		}
+	if a.Actions.CopyClip != nil {
+		a.Actions.CopyClip(entry)
 		a.toast = StringsFor(a.settings().Language).Copied
-	case clipboard.KindFiles:
-		if len(entry.Paths) > 0 && a.Actions.Copy != nil {
-			a.Actions.Copy(entry.Paths[0])
-			a.toast = StringsFor(a.settings().Language).Copied
-		}
+		return
+	}
+	// Without the richer action, text is all that can be restored.
+	if entry.Kind == clipboard.KindText && a.Actions.Copy != nil {
+		a.Actions.Copy(entry.Text)
+		a.toast = StringsFor(a.settings().Language).Copied
 	}
 }
 

@@ -23,6 +23,7 @@ import (
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/plugins/terminal"
+	"github.com/egoist/mygo/transfer"
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/apps"
@@ -118,6 +119,19 @@ type Options struct {
 	// OpenPinned replaces the pinned-window implementation; nil opens the
 	// real window, and tests record what would have been pinned.
 	OpenPinned func(title, text string)
+	// WriteClipboard puts a clipboard payload back on the system
+	// clipboard; nil uses the framework's clipboard, and tests record what
+	// would have been written.
+	WriteClipboard func(payload ClipboardPayload)
+}
+
+// ClipboardPayload is one clipboard entry, ready to be written back: its
+// kind, its text, its paths or its image's bytes.
+type ClipboardPayload struct {
+	Kind  string
+	Text  string
+	Paths []string
+	Image []byte
 }
 
 // App is the running application.
@@ -153,6 +167,8 @@ type App struct {
 	pins       map[*mygo.Window]*pinned
 	pinMu      sync.Mutex
 	openPinned func(title, text string)
+	// writeClipboard puts a payload back on the system clipboard.
+	writeClipboard func(ClipboardPayload)
 
 	// Clipboard is the clipboard history the launcher searches.
 	Clipboard *clipboard.Store
@@ -168,6 +184,10 @@ type App struct {
 	// what the tray and window were last given.
 	appIcon     string
 	lastAppIcon string
+	// lastClipboardText and lastClipboardFormats are what the watcher saw
+	// last, so a poll records only what changed.
+	lastClipboardText    string
+	lastClipboardFormats string
 	// LastClipboardSettings is the clipboard state the watcher was last
 	// synced with.
 	LastClipboardSettings clipboardSettings
@@ -237,8 +257,12 @@ func New(opts Options) *App {
 		Registry:            opts.Registry,
 		confirmPermissions:  opts.ConfirmPermissions,
 		openPinned:          opts.OpenPinned,
+		writeClipboard:      opts.WriteClipboard,
 		appIcon:             storedAppIcon(opts.Store.Snapshot()),
 		lastAppIcon:         storedAppIcon(opts.Store.Snapshot()),
+	}
+	if a.writeClipboard == nil {
+		a.writeClipboard = systemClipboardWrite
 	}
 	if a.Registry == nil {
 		a.Registry = extensions.NewRegistry()
@@ -258,6 +282,7 @@ func New(opts Options) *App {
 			a.selfCopied = text
 			mygo.Clipboard.WriteText(text)
 		},
+		CopyClip: a.copyClipboardEntry,
 		OpenApp: func(app apps.App) {
 			if err := app.Open(); err != nil {
 				log.Printf("floter: could not open %s: %v", app.Name, err)
@@ -581,6 +606,60 @@ func (a *App) diagnoseIntegration(id string) {
 			}
 		})
 	}()
+}
+
+// copyClipboardEntry puts a clipboard entry back on the clipboard: its text,
+// its file list, or its image. The payload is built here (an image is read
+// from the history) and written by the injected writer.
+func (a *App) copyClipboardEntry(entry clipboard.Entry) {
+	payload := ClipboardPayload{Kind: entry.Kind, Text: entry.Text}
+	switch entry.Kind {
+	case clipboard.KindFiles:
+		payload.Paths = append([]string{}, entry.Paths...)
+	case clipboard.KindImage:
+		path := a.Clipboard.ImagePath(entry)
+		if path == "" {
+			return
+		}
+		png, err := os.ReadFile(path)
+		if err != nil {
+			log.Printf("floter: could not read the pinned image: %v", err)
+			return
+		}
+		payload.Image = png
+	}
+	// The watcher must not record what the app itself wrote.
+	if entry.Kind == clipboard.KindText {
+		a.selfCopied = entry.Text
+	} else {
+		a.selfCopied = ""
+	}
+	if a.writeClipboard != nil {
+		a.writeClipboard(payload)
+	}
+}
+
+// systemClipboardWrite is the default clipboard writer: the system clipboard
+// through the framework.
+func systemClipboardWrite(payload ClipboardPayload) {
+	switch payload.Kind {
+	case clipboard.KindFiles:
+		if len(payload.Paths) > 0 {
+			if err := mygo.Clipboard.WriteFiles(payload.Paths...); err != nil {
+				log.Printf("floter: could not copy the files back: %v", err)
+			}
+		}
+	case clipboard.KindImage:
+		if len(payload.Image) == 0 {
+			return
+		}
+		data := transfer.New(transfer.NewItem(transfer.Bytes(transfer.PNG, payload.Image)))
+		if err := mygo.Clipboard.Write(data); err != nil {
+			log.Printf("floter: could not copy the image back: %v", err)
+		}
+	default:
+		mygo.Clipboard.WriteText(payload.Text)
+	}
 }
 
 // completeCommand asks a provider for completions of what is being typed.
