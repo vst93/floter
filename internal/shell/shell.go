@@ -24,6 +24,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/apps"
+	"floter/internal/clipboard"
 	"floter/internal/extensions"
 	"floter/internal/glassmap"
 	"floter/internal/i18n"
@@ -126,6 +127,20 @@ type App struct {
 	// Paths is where the extension directories live.
 	Paths extensions.Paths
 
+	// Clipboard is the clipboard history the launcher searches.
+	Clipboard *clipboard.Store
+	// selfCopied is the text the app itself put on the clipboard, which the
+	// watcher must not record again.
+	selfCopied string
+	// clipboardInterval is how often the watcher reads the clipboard;
+	// tests shorten it.
+	clipboardInterval time.Duration
+	// clipboardWatching is set while the watcher goroutine runs.
+	clipboardWatching bool
+	// LastClipboardSettings is the clipboard state the watcher was last
+	// synced with.
+	LastClipboardSettings clipboardSettings
+
 	// Tray is the menu bar icon, nil when it could not be added.
 	Tray *mygo.Tray
 	// lastLaunchAtStartup is the setting the login item was last synced
@@ -187,6 +202,7 @@ func New(opts Options) *App {
 		lastLaunchAtStartup: opts.Store.Snapshot().LaunchAtStartup,
 		openAtLogin:         opts.OpenAtLogin,
 		setOpenAtLogin:      opts.SetOpenAtLogin,
+		clipboardInterval:   clipboardPoll,
 	}
 	if a.openAtLogin == nil {
 		a.openAtLogin = mygo.App.OpenAtLogin
@@ -199,7 +215,10 @@ func New(opts Options) *App {
 		OpenTerminal: func() { a.Open(SurfaceTerminal) },
 		Quit:         quit,
 		Dismiss:      a.Hide,
-		Copy:         func(text string) { mygo.Clipboard.WriteText(text) },
+		Copy: func(text string) {
+			a.selfCopied = text
+			mygo.Clipboard.WriteText(text)
+		},
 		OpenApp: func(app apps.App) {
 			if err := app.Open(); err != nil {
 				log.Printf("floter: could not open %s: %v", app.Name, err)
@@ -253,6 +272,10 @@ func New(opts Options) *App {
 		RepoURL:      repoURL,
 	}
 	a.Settings.Shortcut = SummonShortcut(opts.Store.Snapshot())
+	a.Clipboard = clipboard.NewStore(clipboard.FromConfigRoot(paths.Root), clipboardMaxItems(opts.Store.Snapshot()))
+	a.Launcher.Clipboard = a.Clipboard
+	a.LastClipboardSettings = clipboardState(opts.Store.Snapshot())
+
 	a.Settings.Integrations = func() []settingsui.Integration { return a.integrationList() }
 	a.Settings.Sessions = func() []settingsui.Session {
 		if a.Terminal.Term == nil {
@@ -276,6 +299,21 @@ func New(opts Options) *App {
 		Exit: func(int) { a.onMain(func() { a.Open(SurfaceLauncher) }) },
 	}
 	a.Terminal = terminalui.New(opts.Store, termActions, newTerminal)
+
+	// A settings change that touches the clipboard history is applied to
+	// the store and the watcher.
+	opts.Store.OnChange(func(s settings.Settings) {
+		state := clipboardState(s)
+		if state != a.LastClipboardSettings {
+			a.LastClipboardSettings = state
+			a.onMain(func() {
+				a.Clipboard.SetMaxItems(state.maxItems)
+				if state.enabled && !a.clipboardWatching {
+					a.watchClipboard()
+				}
+			})
+		}
+	})
 
 	// A settings change lands on the open surface: the panel re-measures
 	// (a new interface size), the terminal takes its new font and palette,
@@ -361,6 +399,7 @@ func (a *App) Start() {
 	}
 	a.ApplyStartup()
 	a.InstallTray()
+	a.watchClipboard()
 	a.Launcher.FocusSearch()
 	a.scanApps()
 	if a.refreshIntegrations {

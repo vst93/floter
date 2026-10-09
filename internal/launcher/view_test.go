@@ -8,6 +8,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/apps"
+	"floter/internal/clipboard"
 	"floter/internal/extensions"
 	"floter/internal/settings"
 )
@@ -349,5 +350,101 @@ func TestClickingACommandRunsItWithNoArguments(t *testing.T) {
 	tt.Frame()
 	if testRuns["cmd:jv"] != 1 {
 		t.Errorf("clicking ran %v, want the bare command", testRuns)
+	}
+}
+
+// clipboardApp is a launcher whose clipboard history holds two entries.
+func clipboardApp(t *testing.T) (*App, *clipboard.Store) {
+	t.Helper()
+	store := clipboard.NewStore(clipboard.FromConfigRoot(t.TempDir()), 0)
+	if _, _, err := store.AddText("first clip"); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := store.AddText("second clip with a secret"); err != nil {
+		t.Fatal(err)
+	}
+	a := testApp()
+	a.Clipboard = store
+	return a, store
+}
+
+func TestClipboardModeSearchesAndCopies(t *testing.T) {
+	a, _ := clipboardApp(t)
+	tt := render(t, a)
+
+	// The built-in row enters the mode.
+	tt.Type("clipboard history")
+	tt.Frame()
+	if !tt.HasText("Clipboard history") {
+		t.Fatalf("the clipboard row is missing: %q", tt.Texts())
+	}
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if a.Query != "clipboard " || !a.clipboard {
+		t.Fatalf("Enter left query %q, clipboard=%v", a.Query, a.clipboard)
+	}
+	// Both entries show while the query is empty.
+	if !tt.HasText("first clip") || !tt.HasText("second clip with a secret") {
+		t.Errorf("the entries did not show: %q", tt.Texts())
+	}
+
+	// The query filters the history.
+	tt.Type("secret")
+	tt.Frame()
+	if tt.HasText("first clip") {
+		t.Errorf("a non-matching entry is still listed: %q", tt.Texts())
+	}
+	if !tt.HasText("second clip with a secret") {
+		t.Fatalf("the entry did not match: %q", tt.Texts())
+	}
+
+	// Enter copies it, leaves the mode and dismisses the window.
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if testRuns["copy"] != 1 {
+		t.Errorf("copy ran %v", testRuns)
+	}
+	if a.clipboard || a.Query != "" {
+		t.Errorf("the mode survived: clipboard=%v query=%q", a.clipboard, a.Query)
+	}
+	if testRuns["dismiss"] != 1 {
+		t.Errorf("the window was not dismissed: %v", testRuns)
+	}
+}
+
+func TestClipboardModeLeavesWhenTheWordGoes(t *testing.T) {
+	a, _ := clipboardApp(t)
+	tt := render(t, a)
+	tt.Type("clipboard")
+	tt.Frame()
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if !a.clipboard {
+		t.Fatal("the mode did not open")
+	}
+	tt.Key(0, ui.KeyEscape)
+	tt.Frame()
+	if a.clipboard || a.Query != "" {
+		t.Errorf("Escape left clipboard=%v query=%q", a.clipboard, a.Query)
+	}
+}
+
+func TestClipboardModeWithoutAStore(t *testing.T) {
+	a := testApp()
+	tt := render(t, a)
+	tt.Type("clipboard")
+	tt.Frame()
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	// No store: the mode opens and shows nothing rather than crashing.
+	if !a.clipboard {
+		t.Fatal("the mode did not open")
+	}
+	if !tt.HasText("Enter runs it") {
+		t.Errorf("the mode hint did not show: %q", tt.Texts())
+	}
+	a.activate(nil)
+	if a.clipboard {
+		t.Error("activating nothing did not leave the mode")
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/apps"
+	"floter/internal/clipboard"
 	"floter/internal/extensions"
 	"floter/internal/settings"
 )
@@ -75,6 +76,11 @@ type Actions struct {
 	RunCommand func(entry extensions.CommandEntry, args []string)
 }
 
+// ClipboardSource is the clipboard history the launcher searches.
+type ClipboardSource interface {
+	Search(query string, limit int) []clipboard.Entry
+}
+
 // App is the launcher surface's state: the settings store it reads, the
 // query the field edits, the chosen result, and the handles the framework
 // needs to keep the field focused across builds.
@@ -106,6 +112,12 @@ type App struct {
 	// mode is the extension command being typed: while it is set, the field
 	// holds the command's argv and the list offers its arguments.
 	mode *extensions.CommandEntry
+	// clipboard is set while the clipboard history is searched: the field
+	// holds the mode word and the query, and the list offers entries.
+	clipboard bool
+	// Clipboard is the history the launcher searches; nil until the shell
+	// gives it one.
+	Clipboard ClipboardSource
 }
 
 // SetApps replaces the scanned applications.
@@ -161,7 +173,7 @@ func (a *App) View(c *ui.Context) {
 		if len(results) == 0 {
 			ui.Column(c).FillWidth().Padding(t.Space(3)).Center().Children(func() {
 				message := copy.NoResults
-				if a.mode != nil {
+				if a.mode != nil || a.clipboard {
 					message = copy.CommandModeHint
 				}
 				ui.Text(c, message).FontSize(t.FontSize).TextColor(t.TextMuted)
@@ -196,7 +208,7 @@ func (a *App) View(c *ui.Context) {
 				a.activate(results)
 			}
 			switch {
-			case a.mode != nil:
+			case a.mode != nil || a.clipboard:
 				ui.Text(c, copy.CommandModeHint).FontSize(t.FontSize).TextColor(t.TextMuted)
 			case a.Query != "":
 				if ui.Button(c, "✕").Label(copy.Clear).Clicked() {
@@ -234,6 +246,8 @@ func (a *App) View(c *ui.Context) {
 	}
 	if c.Shortcut(0, ui.KeyEscape) {
 		switch {
+		case a.clipboard:
+			a.leaveClipboard()
 		case a.mode != nil:
 			a.leaveCommand()
 		case a.Query != "":
@@ -276,15 +290,50 @@ func (a *App) leaveCommand() {
 }
 
 // syncCommandMode leaves the mode when the line no longer starts with the
-// command's id, which is what deleting it does.
+// word that entered it, which is what deleting it does.
 func (a *App) syncCommandMode() {
-	if a.mode == nil {
+	if a.mode == nil && !a.clipboard {
 		return
 	}
 	word := firstWord(a.Query)
-	if !strings.EqualFold(word, a.mode.Command.ID) {
-		a.leaveCommand()
+	want := clipboardWord
+	if a.mode != nil {
+		want = a.mode.Command.ID
 	}
+	if !strings.EqualFold(word, want) {
+		a.leaveCommand()
+		a.leaveClipboard()
+	}
+}
+
+// clipboardWord is what the field starts with in the clipboard mode.
+const clipboardWord = "clipboard"
+
+// enterClipboard starts searching the clipboard history.
+func (a *App) enterClipboard() {
+	a.mode = nil
+	a.clipboard = true
+	a.Query = clipboardWord + " "
+	a.Selected, a.chosenRow = 0, -1
+}
+
+// leaveClipboard returns to the search.
+func (a *App) leaveClipboard() {
+	if !a.clipboard {
+		return
+	}
+	a.clipboard = false
+	a.Query = ""
+	a.Selected, a.chosenRow = 0, -1
+}
+
+// clipboardQuery is what the user typed after the mode word.
+func (a *App) clipboardQuery() string {
+	words := splitArgs(a.Query)
+	if len(words) <= 1 {
+		return ""
+	}
+	return strings.Join(words[1:], " ")
 }
 
 // commandArgs is the typed argument words, without the command itself.
@@ -370,11 +419,29 @@ func (a *App) activate(results []Item) {
 		a.runMode()
 		return
 	}
+	if a.clipboard {
+		a.runClipboard(results)
+		return
+	}
 	if a.Selected < 0 || a.Selected >= len(results) {
 		return
 	}
 	if run := results[a.Selected].Run; run != nil {
 		run()
+	}
+}
+
+// runClipboard copies the chosen entry and leaves the mode, as picking a
+// clip means pasting it next.
+func (a *App) runClipboard(results []Item) {
+	if a.Selected >= 0 && a.Selected < len(results) {
+		if run := results[a.Selected].Run; run != nil {
+			run()
+		}
+	}
+	a.leaveClipboard()
+	if a.Actions.Dismiss != nil {
+		a.Actions.Dismiss()
 	}
 }
 

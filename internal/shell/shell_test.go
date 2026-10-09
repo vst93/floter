@@ -13,6 +13,7 @@ import (
 	"github.com/egoist/mygo/plugins/terminal"
 	"github.com/egoist/mygo/ui"
 
+	"floter/internal/clipboard"
 	"floter/internal/extensions"
 	"floter/internal/launcher"
 	"floter/internal/settings"
@@ -23,6 +24,9 @@ func newApp(t *testing.T) *App {
 	store := settings.NewStore(settings.Default())
 	a := New(Options{
 		Store: store,
+		// Every directory a test touches is a fixture: the machine's real
+		// clipboard history and extension state are never opened.
+		Paths: extensions.FromRoot(t.TempDir()),
 		NewTerminal: func(terminal.Options) (*terminal.Terminal, error) {
 			return nil, errors.New("no terminal library in tests")
 		},
@@ -467,5 +471,56 @@ func TestLaunchAtStartupFollowsTheSetting(t *testing.T) {
 	}
 	if len(calls) != 1 || !calls[0] {
 		t.Errorf("the login item was set %v, want one true", calls)
+	}
+}
+
+func TestClipboardSettings(t *testing.T) {
+	// The shipped defaults: on, three hundred entries.
+	state := clipboardState(settings.Default())
+	if !state.enabled || state.maxItems != clipboard.DefaultMaxItems {
+		t.Errorf("defaults = %+v", state)
+	}
+
+	// The keys are ones this app does not own, so they ride in the
+	// carried-through map.
+	s, err := settings.Parse([]byte(`{"clipboard_history_enabled": false, "clipboard_history_max_items": 120}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	state = clipboardState(s)
+	if state.enabled || state.maxItems != 120 {
+		t.Errorf("parsed = %+v", state)
+	}
+	if extra := s.Extra(); extra["clipboard_history_max_items"] == nil {
+		t.Errorf("the key is not carried through: %v", extra)
+	}
+
+	// A hand-edited number outside the band is clamped by the store.
+	loose, err := settings.Parse([]byte(`{"clipboard_history_max_items": 100000}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := clipboardMaxItems(loose); got != 100000 {
+		t.Errorf("max items = %d, want the setting passed through", got)
+	}
+	store := clipboard.NewStore(clipboard.FromConfigRoot(t.TempDir()), clipboardMaxItems(loose))
+	if err := store.SetMaxItems(clipboardMaxItems(loose)); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestClipboardReachesTheLauncher(t *testing.T) {
+	a := newApp(t)
+	if a.Launcher.Clipboard == nil {
+		t.Fatal("the launcher has no clipboard history")
+	}
+	if a.Clipboard.Paths().Root != clipboard.FromConfigRoot(a.Paths.Root).Root {
+		t.Errorf("the clipboard store reads %q, want the fixture", a.Clipboard.Paths().Root)
+	}
+	if _, _, err := a.Clipboard.AddText("a clip"); err != nil {
+		t.Fatal(err)
+	}
+	if got := a.Launcher.Clipboard.Search("a clip", 0); len(got) != 1 || got[0].Text != "a clip" {
+		t.Errorf("search = %+v", got)
 	}
 }

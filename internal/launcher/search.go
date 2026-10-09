@@ -6,6 +6,7 @@ import (
 
 	"floter/internal/apps"
 	"floter/internal/calc"
+	"floter/internal/clipboard"
 	"floter/internal/extensions"
 )
 
@@ -51,6 +52,12 @@ func (a *App) commands() []Item {
 			Run:    a.Actions.OpenTerminal,
 		},
 		{
+			ID:     "clipboard",
+			Title:  c.CommandClipboard,
+			Detail: c.CommandClipboardHint,
+			Run:    a.enterClipboard,
+		},
+		{
 			ID:     "quit",
 			Title:  c.CommandQuit,
 			Detail: c.CommandQuitHint,
@@ -89,6 +96,45 @@ func (a *App) commandItems() []Item {
 func (a *App) runCommand(entry extensions.CommandEntry) {
 	if a.Actions.RunCommand != nil {
 		a.Actions.RunCommand(entry, nil)
+	}
+}
+
+// clipboardItems is the clipboard mode's list: the history entries matching
+// what the user typed after the mode word.
+func (a *App) clipboardItems() []Item {
+	if a.Clipboard == nil {
+		return nil
+	}
+	entries := a.Clipboard.Search(a.clipboardQuery(), maxClipboardResults)
+	out := make([]Item, 0, len(entries))
+	for _, entry := range entries {
+		entry := entry
+		out = append(out, Item{
+			ID:     "clip:" + entry.ID,
+			Title:  entry.Label(),
+			Detail: entry.Time().Format("2006-01-02 15:04"),
+			Run:    func() { a.copyClip(entry) },
+		})
+	}
+	return out
+}
+
+// maxClipboardResults bounds the rows one clipboard search builds.
+const maxClipboardResults = 50
+
+// copyClip puts an entry's text on the clipboard, and reports it.
+func (a *App) copyClip(entry clipboard.Entry) {
+	switch entry.Kind {
+	case clipboard.KindText:
+		if a.Actions.Copy != nil {
+			a.Actions.Copy(entry.Text)
+		}
+		a.toast = StringsFor(a.settings().Language).Copied
+	case clipboard.KindFiles:
+		if len(entry.Paths) > 0 && a.Actions.Copy != nil {
+			a.Actions.Copy(entry.Paths[0])
+			a.toast = StringsFor(a.settings().Language).Copied
+		}
 	}
 }
 
@@ -167,6 +213,9 @@ func (a *App) Catalog() []Item {
 func (a *App) Results() []Item {
 	if a.mode != nil {
 		return a.argumentItems(*a.mode)
+	}
+	if a.clipboard {
+		return a.clipboardItems()
 	}
 	var out []Item
 	if item, ok := a.calculator(); ok {

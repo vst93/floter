@@ -48,12 +48,14 @@ type Launcher struct {
 	// ResultsLabel names the results list for assistive technology.
 	ResultsLabel string
 	// The built-in commands the P1 catalog offers.
-	CommandSettings     string
-	CommandSettingsHint string
-	CommandTerminal     string
-	CommandTerminalHint string
-	CommandQuit         string
-	CommandQuitHint     string
+	CommandSettings      string
+	CommandSettingsHint  string
+	CommandTerminal      string
+	CommandTerminalHint  string
+	CommandClipboard     string
+	CommandClipboardHint string
+	CommandQuit          string
+	CommandQuitHint      string
 	// ShortcutSettings and ShortcutTerminal are the accelerator labels the
 	// rows show for the two surfaces that have one.
 	ShortcutSettings string
