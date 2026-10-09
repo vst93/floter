@@ -141,3 +141,57 @@ func TestEqualAndDuplicate(t *testing.T) {
 		t.Errorf("an empty key = %q", got)
 	}
 }
+
+func TestParseAndMatch(t *testing.T) {
+	cases := []struct {
+		accelerator string
+		mods        ui.Modifiers
+		key         ui.Key
+	}{
+		{"Cmd+G", ui.Super, ui.KeyG},
+		{"Ctrl+Shift+C", ui.Ctrl | ui.Shift, ui.KeyC},
+		{"Alt+Space", ui.Alt, ui.KeySpace},
+		{"Cmd+,", ui.Super, ui.KeyComma},
+		{"Cmd+1", ui.Super, ui.Key1},
+		{"F5", 0, ui.KeyF5},
+		{"Cmd+Up", ui.Super, ui.KeyUp},
+	}
+	for _, tc := range cases {
+		mods, key, ok := Parse(tc.accelerator)
+		if !ok || mods != tc.mods || key != tc.key {
+			t.Errorf("Parse(%q) = %v, %v, %v", tc.accelerator, mods, key, ok)
+		}
+		if !Match(tc.accelerator, tc.mods, tc.key) {
+			t.Errorf("Match(%q) = false", tc.accelerator)
+		}
+	}
+	// The portable modifier resolves to the platform's.
+	mods, key, ok := Parse("CmdOrCtrl+1")
+	if !ok || key != ui.Key1 {
+		t.Fatalf("Parse(CmdOrCtrl+1) = %v, %v, %v", mods, key, ok)
+	}
+	if runtime.GOOS == "darwin" && mods != ui.Super {
+		t.Errorf("CmdOrCtrl = %v on macOS", mods)
+	}
+	if runtime.GOOS != "darwin" && mods != ui.Ctrl {
+		t.Errorf("CmdOrCtrl = %v off macOS", mods)
+	}
+
+	// A binding without Shift accepts the letter either way; one with Shift
+	// requires it.
+	if !Match("Cmd+G", ui.Super|ui.Shift, ui.KeyG) {
+		t.Error("a shifted letter did not match a binding without Shift")
+	}
+	if Match("Cmd+Shift+G", ui.Super, ui.KeyG) {
+		t.Error("a binding with Shift matched an unshifted letter")
+	}
+	if Match("Cmd+G", ui.Ctrl, ui.KeyG) {
+		t.Error("the wrong modifier matched")
+	}
+	if Match("Cmd+G", ui.Super, ui.KeyH) {
+		t.Error("the wrong key matched")
+	}
+	if _, _, ok := Parse("not an accelerator"); ok {
+		t.Error("junk parsed")
+	}
+}

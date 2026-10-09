@@ -762,6 +762,9 @@ func TestCustomShortcutsPage(t *testing.T) {
 	if !tt.HasText("Custom shortcuts") || !tt.HasText("Cmd + Shift + P") {
 		t.Fatalf("the custom section = %q", tt.Texts())
 	}
+	// The custom section sits below the app-keys list: scroll it into view.
+	tt.Scroll(400, 300, 0, 900)
+	tt.Frame()
 
 	// Recording a key fills the new row, and Add persists the binding.
 	if err := tt.Click("Record key"); err != nil {
@@ -1036,5 +1039,44 @@ func TestIntegrationTransferButtons(t *testing.T) {
 	tt.Frame()
 	if !tt.HasText("2 integrations exported to /tmp/backup.json") {
 		t.Errorf("the status line is missing: %q", tt.Texts())
+	}
+}
+
+// The Shortcuts page lists the app's own keys with their bindings, and a
+// recorder rebinds one.
+func TestAppShortcutRowsRecord(t *testing.T) {
+	store := newStore(t)
+	recorded := [][2]string{}
+	a := New(store, Actions{
+		SetShortcut: func(id, accelerator string) { recorded = append(recorded, [2]string{id, accelerator}) },
+	})
+	a.Shortcut, a.ShortcutID = "Ctrl+Space", "toggle_window"
+	tt := render(t, a, 720, 620)
+	if err := tt.Click("Shortcuts"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	for _, want := range []string{"App keys", "New command", "Open a terminal window", "Run the n-th result"} {
+		if !tt.HasText(want) {
+			t.Errorf("missing %q in %q", want, tt.Texts())
+		}
+	}
+
+	// Each row has its own recorder: click the one beside the "New command"
+	// row's binding (the tester finds elements by text, and several rows say
+	// "Record").
+	binding, ok := tt.Find("Ctrl + W")
+	if !ok {
+		t.Fatalf("the new command's binding is missing: %q", tt.Texts())
+	}
+	tt.ClickAt(binding.X+binding.W+20, binding.Y+binding.H/2)
+	tt.Frame()
+	if !tt.HasText("Press keys\u2026") {
+		t.Fatalf("the recorder did not open: %q", tt.Texts())
+	}
+	tt.Key(ui.Super, ui.KeyK)
+	tt.Frame()
+	if len(recorded) != 1 || recorded[0][0] != "new_command" {
+		t.Fatalf("recorded %v", recorded)
 	}
 }

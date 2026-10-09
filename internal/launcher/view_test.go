@@ -23,6 +23,7 @@ import (
 	"floter/internal/drops"
 	"floter/internal/extensions"
 	"floter/internal/settings"
+	"floter/internal/shortcuts"
 )
 
 // render draws one frame of the launcher at the given size and returns the
@@ -1374,16 +1375,38 @@ func TestResultShortcutsRunTheNumberedRow(t *testing.T) {
 		t.Errorf("the badge is missing: %q", tt.Texts())
 	}
 
-	// ⌘2 runs the second row, ⌘0 the tenth.
-	tt.Key(ui.Super|ui.Ctrl, ui.Key2)
+	// The digit keys run the numbered rows; the modifiers are the settings'
+	// select_result binding (Cmd on macOS, Ctrl elsewhere).
+	mods, _, ok := shortcuts.Parse(settings.SelectResultDigit(a.settings(), 2))
+	if !ok {
+		t.Fatal("the second result's key did not parse")
+	}
+	tt.Key(mods, ui.Key2)
 	tt.Frame()
 	if len(ran) != 1 || ran[0] != "App 01" {
 		t.Fatalf("ran %v", ran)
 	}
-	tt.Key(ui.Super|ui.Ctrl, ui.Key0)
+	mods, _, ok = shortcuts.Parse(settings.SelectResultDigit(a.settings(), 0))
+	if !ok {
+		t.Fatal("the tenth result's key did not parse")
+	}
+	tt.Key(mods, ui.Key0)
 	tt.Frame()
 	if len(ran) != 2 || ran[1] != "App 09" {
 		t.Errorf("ran %v", ran)
+	}
+
+	// Rebinding the family moves the numbers with it.
+	if err := a.Store.Update(func(s *settings.Settings) {
+		s.SetShortcut(settings.ShortcutSelectResult, "Alt+1")
+	}); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	tt.Key(ui.Alt, ui.Key3)
+	tt.Frame()
+	if len(ran) != 3 || ran[2] != "App 02" {
+		t.Errorf("after rebinding: ran %v", ran)
 	}
 }
 

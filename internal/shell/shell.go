@@ -759,12 +759,27 @@ const shortcutToggleWindow = "toggle_window"
 // A registration the system refuses (another app holds the combination)
 // leaves the old one in place, and nothing is written.
 func (a *App) setShortcut(id, accelerator string) {
-	if id != shortcutToggleWindow {
-		return
-	}
 	normalized, ok := shortcuts.Normalize(accelerator)
 	if !ok {
 		log.Printf("floter: %q is not a shortcut", accelerator)
+		return
+	}
+	if id != shortcutToggleWindow {
+		// The app's own keys are handled by the window, not the system: they
+		// only have to be stored (and be one this build can parse).
+		probe := settings.Default()
+		if !probe.SetShortcut(id, normalized) {
+			log.Printf("floter: %q is not an action this build knows", id)
+			return
+		}
+		if err := a.Store.Update(func(s *settings.Settings) { s.SetShortcut(id, normalized) }); err != nil {
+			log.Printf("floter: could not save %s: %v", id, err)
+		}
+		a.onMain(func() {
+			if a.Win != nil {
+				a.Win.Invalidate()
+			}
+		})
 		return
 	}
 	if normalized == a.summonKey {

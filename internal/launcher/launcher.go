@@ -17,6 +17,7 @@ import (
 	"floter/internal/extensions"
 	"floter/internal/i18n"
 	"floter/internal/settings"
+	"floter/internal/shortcuts"
 )
 
 // The launcher's window geometry: a fixed width, and a collapsed height that
@@ -103,6 +104,9 @@ type Actions struct {
 	// OpenInTerminal opens the terminal surface in a directory, for a
 	// dropped file's "cd" action.
 	OpenInTerminal func(dir string)
+	// OpenTerminalWindow opens the user's own terminal emulator, for the
+	// external-terminal shortcut.
+	OpenTerminalWindow func()
 	// SearchBrowser searches the browser the settings name; the shell answers
 	// on the main thread, once with the file results and again when the live
 	// tabs land. Nil leaves the mode empty.
@@ -269,14 +273,19 @@ func (a *App) assignNumbers(results []Item) map[int]int {
 }
 
 // resultShortcuts runs the row a number names, reporting whether the key was
-// one of them.
+// one of them. The modifiers come from the settings' select_result binding, so
+// rebinding the family moves every number with it.
 func (a *App) resultShortcuts(c *ui.Context, results []Item) bool {
 	for digit := 0; digit <= 9; digit++ {
 		key := ui.Key0
 		if digit > 0 {
 			key = ui.Key0 + ui.Key(digit)
 		}
-		if !c.Shortcut(ui.Super|ui.Ctrl, key) {
+		mods, wanted, ok := shortcuts.Parse(settings.SelectResultDigit(a.settings(), digit))
+		if !ok || wanted != key {
+			continue
+		}
+		if !c.Shortcut(mods, key) {
 			continue
 		}
 		for index, number := range a.numbers {
@@ -286,6 +295,28 @@ func (a *App) resultShortcuts(c *ui.Context, results []Item) bool {
 			a.Selected = index
 			a.activate(results)
 			return true
+		}
+		return true
+	}
+	return false
+}
+
+// appShortcuts runs the app's own rebindable keys: a new command clears the
+// field, and the external-terminal action opens a terminal window.
+func (a *App) appShortcuts(c *ui.Context) bool {
+	m := a.settings()
+	for _, action := range []string{settings.ShortcutNewCommand, settings.ShortcutOpenExternalTerminal} {
+		mods, key, ok := shortcuts.Parse(settings.Shortcut(m, action))
+		if !ok || !c.Shortcut(mods, key) {
+			continue
+		}
+		switch action {
+		case settings.ShortcutNewCommand:
+			a.ResetQuery()
+		case settings.ShortcutOpenExternalTerminal:
+			if a.Actions.OpenTerminalWindow != nil {
+				a.Actions.OpenTerminalWindow()
+			}
 		}
 		return true
 	}
@@ -500,8 +531,12 @@ func (a *App) View(c *ui.Context) {
 		return
 	}
 
-	// The result shortcuts: the app modifier plus a number runs the n-th
-	// row that can be run, as the old build's ⌘1–⌘0 did.
+	// The app's own keys (new command, external terminal), then the result
+	// shortcuts: the app modifier plus a number runs the n-th row that can be
+	// run, as the old build's ⌘1–⌘0 did.
+	if a.appShortcuts(c) {
+		return
+	}
 	if a.resultShortcuts(c, results) {
 		return
 	}

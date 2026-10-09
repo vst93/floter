@@ -763,8 +763,64 @@ func (a *App) shortcuts(c *ui.Context, copy i18n.Settings) {
 			a.shortcutRow(c, copy)
 			ui.Text(c, copy.ShortcutsHint).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
 		})
+		ui.Fieldset(c, copy.ShortcutsApp, func() {
+			ui.Text(c, copy.ShortcutsAppHint).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+			for _, action := range settings.ShortcutActions {
+				if action == settings.ShortcutToggleWindow {
+					continue // the summon key has its own row above
+				}
+				a.shortcutMapRow(c, copy, action)
+			}
+		})
 		a.customSection(c, copy)
 	})
+}
+
+// shortcutMapRow is one of the app's own keys: its name, its binding, and a
+// recorder that rebinds that action.
+func (a *App) shortcutMapRow(c *ui.Context, copy i18n.Settings, action string) {
+	t := c.Theme()
+	row := ui.Row(c).FillWidth().Gap(t.Space(2)).AlignItems(ui.Center).
+		Padding(t.Space(1), 0).BorderWidth(0, 0, 1, 0).BorderColor(t.Border)
+	row.Children(func() {
+		ui.Text(c, copy.ShortcutNames[action]).Grow(1).FontSize(t.FontSize)
+		if a.recording && a.ShortcutID == action {
+			capture := ui.Box(c).Focusable().Padding(t.Space(1), t.Space(2)).Radius(t.Radius).
+				Background(t.Surface).Border(1, t.Accent).Label(copy.ShortcutRecording)
+			capture.Children(func() {
+				ui.Text(c, copy.ShortcutRecording).FontSize(t.FontSize)
+			})
+			capture.HandleInput(func(ev ui.InputEvent) bool {
+				if ev.Kind != ui.InputKeyDown {
+					return false
+				}
+				if ev.Key == ui.KeyEscape {
+					a.recording = false
+					return true
+				}
+				accelerator, ok := shortcuts.FromKey(ev.Mods, ev.Key)
+				if !ok {
+					return true
+				}
+				a.recording = false
+				if a.Actions.SetShortcut != nil {
+					a.Actions.SetShortcut(action, accelerator)
+				}
+				return true
+			})
+			capture.Focus()
+			return
+		}
+		ui.Text(c, shortcuts.Display(a.binding(action))).FontSize(t.FontSize).TextColor(t.TextMuted)
+		if ui.Button(c, copy.ShortcutRecord).Clicked() {
+			a.recording, a.ShortcutID = true, action
+		}
+	})
+}
+
+// binding is one action's accelerator, from the settings.
+func (a *App) binding(action string) string {
+	return settings.Shortcut(a.Store.Snapshot(), action)
 }
 
 // shortcutRow is one shortcut: its name, its keys, and the recorder.

@@ -262,6 +262,18 @@ var en = Copy{
 		ShortcutRecord:    "Record",
 		ShortcutRecording: "Press keys\u2026",
 
+		ShortcutsApp:     "App keys",
+		ShortcutsAppHint: "These are answered while floter's window has the keyboard; the summon key above is the one the system holds.",
+		ShortcutNames: map[string]string{
+			"toggle_window":          "Show / hide floter",
+			"new_command":            "New command",
+			"open_external_terminal": "Open a terminal window",
+			"copy_selection":         "Copy the selection",
+			"paste":                  "Paste",
+			"open_settings":          "Open settings",
+			"select_result":          "Run the n-th result",
+		},
+
 		ShortcutsCustom:      "Custom shortcuts",
 		ShortcutsCustomHint:  "Bind a key to a plugin, an action, or a command line. A command line runs with no window at all.",
 		ShortcutsNone:        "No custom shortcuts yet.",
@@ -567,6 +579,18 @@ var zh = Copy{
 		ShortcutsHint:     "floter 响应的全局按键，以及你自己绑定的按键。",
 		ShortcutRecord:    "录制",
 		ShortcutRecording: "请按组合键…",
+
+		ShortcutsApp:     "应用按键",
+		ShortcutsAppHint: "这些按键在 floter 窗口拥有键盘时生效；上面那条唤回键是系统持有的那一个。",
+		ShortcutNames: map[string]string{
+			"toggle_window":          "显示 / 隐藏 floter",
+			"new_command":            "新命令",
+			"open_external_terminal": "打开终端窗口",
+			"copy_selection":         "复制选中内容",
+			"paste":                  "粘贴",
+			"open_settings":          "打开设置",
+			"select_result":          "运行第 N 个结果",
+		},
 
 		ShortcutsCustom:      "自定义快捷键",
 		ShortcutsCustomHint:  "把一个按键绑定到插件、动作或命令行；命令行会完全静默地运行。",

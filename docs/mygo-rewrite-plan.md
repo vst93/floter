@@ -564,6 +564,20 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
 - 与旧版的差异：旧版把动作放在「动作条」（ActionBar）上、一行文件切换三个动作；Go 版没有动作条，
   改成每个文件三行——同样的三个选择，写在行本来就在的地方。
 
+### P4-p 应用快捷键表（已做）
+
+- **`shortcuts` 设置块**（类型化）：七个动作（toggle_window / new_command / open_external_terminal /
+  copy_selection / paste / open_settings / select_result）各有平台默认值（`CmdOrCtrl` 语义：
+  macOS 是 Cmd、别处是 Ctrl；非 macOS 的复制/粘贴用 `Ctrl+Shift+C/V`，以免抢走终端的 Ctrl+C）；
+  存了不可解析的绑定就回落到默认（不会让动作没有键）。
+- **`shortcuts.Parse`/`Match`**：把归一化的加速键**反解**成 `ui.Modifiers` + `ui.Key`，视图才能直接与
+  键盘事件比对（不必维护第二张表）；无 Shift 的绑定接受大写字母，有 Shift 的必须按 Shift。
+- **接线**：`select_result` 的数字键由该绑定推导（`SelectResultDigit`），改绑定即整套数字跟着走；
+  `new_command` 清空输入、`open_external_terminal` 打开系统终端窗口在启动器内生效；`open_settings`
+  同时是应用菜单的加速键；`copy_selection`/`paste` 由终端插件自己处理；`toggle_window` 是系统持有的
+  唤回键（写 `hotkey` + `shortcuts.toggle_window`）。
+- 设置页 Shortcuts 新增「应用按键」组：每个动作一行（名字 + 当前绑定 + 录制按钮，录制只改该动作）。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。

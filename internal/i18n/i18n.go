@@ -232,6 +232,11 @@ type Settings struct {
 	ShortcutRecord    string
 	ShortcutRecording string
 
+	// The app's own rebindable keys, by action id.
+	ShortcutsApp     string
+	ShortcutsAppHint string
+	ShortcutNames    map[string]string
+
 	// The user-defined shortcuts.
 	ShortcutsCustom      string
 	ShortcutsCustomHint  string
