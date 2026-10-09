@@ -150,6 +150,9 @@ type Settings struct {
 	IntegrationsOrphan       string
 	IntegrationsHint         string
 	IntegrationsUninstall    string
+	IntegrationsInstall      string
+	IntegrationsPackageHint  string
+	IntegrationsVersionHint  string
 	IntegrationsRemoveTitle  func(name string) string
 	IntegrationsRemoveDetail string
 

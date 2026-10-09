@@ -107,6 +107,9 @@ type Options struct {
 	// never touch the machine's login items.
 	OpenAtLogin    func() bool
 	SetOpenAtLogin func(open bool) error
+	// Registry is the npm registry the install action uses; nil means the
+	// shipped one, and tests point it at a fixture server.
+	Registry *extensions.Registry
 }
 
 // App is the running application.
@@ -126,6 +129,9 @@ type App struct {
 	Integrations *extensions.Store
 	// Paths is where the extension directories live.
 	Paths extensions.Paths
+
+	// Registry is the npm registry the install action reads.
+	Registry *extensions.Registry
 
 	// Clipboard is the clipboard history the launcher searches.
 	Clipboard *clipboard.Store
@@ -203,6 +209,10 @@ func New(opts Options) *App {
 		openAtLogin:         opts.OpenAtLogin,
 		setOpenAtLogin:      opts.SetOpenAtLogin,
 		clipboardInterval:   clipboardPoll,
+		Registry:            opts.Registry,
+	}
+	if a.Registry == nil {
+		a.Registry = extensions.NewRegistry()
 	}
 	if a.openAtLogin == nil {
 		a.openAtLogin = mygo.App.OpenAtLogin
@@ -231,6 +241,17 @@ func New(opts Options) *App {
 	a.Settings = settingsui.New(opts.Store, settingsui.Actions{
 		Close:        func() { a.Open(SurfaceLauncher) },
 		CloseSession: func() { a.Terminal.Close() },
+		InstallFromRegistry: func(name, constraint string) {
+			go func() {
+				entry, err := extensions.InstallFromRegistry(context.Background(), a.Paths, a.Registry, name, constraint)
+				if err != nil {
+					log.Printf("floter: could not install %s: %v", name, err)
+					return
+				}
+				log.Printf("floter: installed %s %s", entry.Name, entry.PackageVersion)
+				a.RefreshIntegrations(context.Background())
+			}()
+		},
 		UninstallIntegration: func(id, name string) {
 			// The dialog blocks, so it runs off the main thread and the
 			// result comes back to it.

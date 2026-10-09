@@ -180,6 +180,15 @@
 - 设置页 Integrations 每行加「卸载」按钮，shell 用原生确认对话框后执行并后台刷新（默认保留用户数据）。
 - 门槛：安装/更新保留审计字段/卸载（含数据保留与删除）/digest/id 校验/越界包拒绝等单测；真实启动一次，仓库文件未被改写（14:04 未变）。
 
+### P3-e npm 安装/更新（已做）
+
+- **semver 子集**：`^ ~ >= <= > < =` 与精确版本、`*`、`||` 备选、空格交集；预发布排序按规范（数字标识符优先、release > prerelease）；**范围不匹配预发布**（除非约束自身带 `-` 或 dist-tag 指向），避免 `^1.0.0` 悄悄装上 `2.0.0-beta.1`。
+- **registry 客户端**：`GET <registry>/<name>`（scope 的 `/` 转义），dist-tags（latest/beta）优先、其余按范围选最高版本；`dist.integrity` **SRI 校验**（sha512/sha256，多哈希任一命中，参数忽略），无 integrity 时回落到 `dist.shasum` 的 sha1 SRI。
+- **tarball 解包**：gzip+tar，剥掉 npm 的一层包装目录；**拒绝绝对路径与任何逃逸**，符号链接/硬链接/设备文件一律跳过不跟随；文件权限带上属主可执行位（旧版 make_executable 语义）。
+- **包入口**：`package.json` 的 `floter.manifest`（相对路径、拒绝越界），版本取 `package.json` 的 version；随后走与本地安装同一套 graft（staging/备份/rename/原子写仓库/模板）。
+- **接线**：设置页 Integrations 顶部新增「npm 包名 + 版本（可空）+ 安装」一行；shell 后台安装并刷新（`Options.Registry` 可注入，测试指向 httptest）。
+- 门槛：semver/SRI/解包（含逃逸与链接）/选择版本/registry httptest 端到端安装与拒绝用例，以及「设置按钮 → shell → registry → 入库 → 列表」全链路测试；共 153 项测试；另有 opt-in 真 registry 测试（拉真实 is-number：元数据→选择→下载→**真 SRI 校验**→解包），并确认文档示例包 `@vst93/floter-v` **尚未发布**（404）。
+
 ### P3 还未做
 
 - 安装/更新/卸载（graft、事务、journal、回滚）、导入导出、npm 下载与校验。

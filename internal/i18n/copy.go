@@ -131,6 +131,9 @@ var en = Copy{
 		IntegrationsOrphan:       "Installed on disk, not recorded",
 		IntegrationsHint:         "Integrations are command-line tools floter discovers and runs in the terminal.",
 		IntegrationsUninstall:    "Uninstall",
+		IntegrationsInstall:      "Install",
+		IntegrationsPackageHint:  "npm package, e.g. @scope/name",
+		IntegrationsVersionHint:  "version or range (optional)",
 		IntegrationsRemoveTitle:  removeTitleEN,
 		IntegrationsRemoveDetail: "The package is removed. The integration's data in extension-data stays.",
 
@@ -281,6 +284,9 @@ var zh = Copy{
 		IntegrationsOrphan:       "磁盘上有包，但没有记录",
 		IntegrationsHint:         "「集成」是 floter 发现并在终端里运行的命令行工具。",
 		IntegrationsUninstall:    "卸载",
+		IntegrationsInstall:      "安装",
+		IntegrationsPackageHint:  "npm 包名，例如 @scope/name",
+		IntegrationsVersionHint:  "版本或范围（可空）",
 		IntegrationsRemoveTitle:  removeTitleZH,
 		IntegrationsRemoveDetail: "将删除扩展包；extension-data 中的集成数据会保留。",
 

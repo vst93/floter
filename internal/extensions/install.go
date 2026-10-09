@@ -11,15 +11,47 @@ import (
 	"time"
 )
 
+// installSpec is what an install needs to know about the package: where it
+// is, which manifest describes it, and what the repository should record.
+type installSpec struct {
+	// PackageDir is the package's directory, already extracted or local.
+	PackageDir string
+	// ManifestPath is the manifest inside it.
+	ManifestPath string
+	// Distribution is "local" or "npm".
+	Distribution string
+	// PackageName, Version and Integrity come from a package.json and its
+	// registry entry; a plain local directory has none.
+	PackageName string
+	Version     string
+	Integrity   string
+}
+
 // InstallLocal installs (or updates) an integration from a package
 // directory: the distribution type every "connect a tool" flow uses, where
-// the package is already on the machine.
-//
-// It stages the package beside the installed ones and renames it into place,
-// writes the repository atomically, and applies the manifest's configuration
-// templates. An existing entry keeps its audit trail (approvals, error
-// state) while its version and paths move forward.
+// the package is already on the machine. A package.json that names a floter
+// manifest is respected, and its version is the integration's.
 func InstallLocal(paths Paths, packageDir string) (Entry, error) {
+	spec := installSpec{
+		PackageDir:   packageDir,
+		ManifestPath: filepath.Join(packageDir, manifestFileName),
+		Distribution: "local",
+	}
+	if pkg, manifestPath, err := LoadPackageManifest(packageDir); err == nil {
+		spec.ManifestPath = manifestPath
+		spec.PackageName = pkg.Name
+		spec.Version = pkg.Version
+	}
+	return install(paths, spec)
+}
+
+// install grafts a package into the extension directory: it stages the
+// package beside the installed ones and renames it into place, writes the
+// repository atomically, and applies the manifest's configuration templates.
+// An existing entry keeps its audit trail (approvals, error state) while its
+// version and paths move forward.
+func install(paths Paths, spec installSpec) (Entry, error) {
+	packageDir := spec.PackageDir
 	info, err := os.Stat(packageDir)
 	if err != nil {
 		return Entry{}, err
@@ -27,8 +59,7 @@ func InstallLocal(paths Paths, packageDir string) (Entry, error) {
 	if !info.IsDir() {
 		return Entry{}, fmt.Errorf("extensions: %s is not a directory", packageDir)
 	}
-	manifestPath := filepath.Join(packageDir, manifestFileName)
-	manifest, err := LoadManifest(manifestPath)
+	manifest, err := LoadManifest(spec.ManifestPath)
 	if err != nil {
 		return Entry{}, err
 	}
@@ -81,7 +112,7 @@ func InstallLocal(paths Paths, packageDir string) (Entry, error) {
 		return Entry{}, err
 	}
 
-	entry := buildEntry(manifest, target, binding, previous, existed)
+	entry := buildEntry(manifest, target, binding, spec, previous, existed)
 	repo.Extensions[manifest.ID] = entry
 	if err := SaveRepository(paths.RepositoryFile, repo); err != nil {
 		// Put the previous install back: the repository is the source of
@@ -106,7 +137,7 @@ func InstallLocal(paths Paths, packageDir string) (Entry, error) {
 
 // buildEntry is the repository record for a freshly installed package,
 // carrying over what an existing entry must keep.
-func buildEntry(manifest Manifest, packageDir string, binding RuntimeBinding, previous Entry, existed bool) Entry {
+func buildEntry(manifest Manifest, packageDir string, binding RuntimeBinding, spec installSpec, previous Entry, existed bool) Entry {
 	now := uint64(time.Now().Unix())
 	runtimeOwnership := "system"
 	var runtimeRoot *string
@@ -122,19 +153,28 @@ func buildEntry(manifest Manifest, packageDir string, binding RuntimeBinding, pr
 	case "bundled-static":
 		providerKind = "bundled-static"
 	}
-	version := manifestPackageVersion(manifest)
+	version := spec.Version
+	if version == "" {
+		version = manifestPackageVersion(manifest)
+	}
+	distribution := spec.Distribution
+	if distribution == "" {
+		distribution = "local"
+	}
 
 	entry := Entry{
 		ID:                 manifest.ID,
 		Name:               manifest.Name,
 		PublisherID:        manifest.Publisher.ID,
 		PublisherName:      manifest.Publisher.Name,
-		DistributionSource: "local",
+		DistributionSource: distribution,
 		RuntimeOwnership:   runtimeOwnership,
 		ProviderKind:       providerKind,
 		State:              "enabled",
 		Enabled:            true,
 		PackageVersion:     version,
+		PackageName:        optionalString(spec.PackageName),
+		Integrity:          optionalString(spec.Integrity),
 		CurrentVersion:     version,
 		ManifestPath:       filepath.Join(packageDir, manifestFileName),
 		ExecutablePath:     binding.Program,
@@ -167,6 +207,15 @@ func buildEntry(manifest Manifest, packageDir string, binding RuntimeBinding, pr
 		}
 	}
 	return entry
+}
+
+// optionalString is a pointer to a non-empty string, nil otherwise: the
+// repository's optional fields.
+func optionalString(value string) *string {
+	if value == "" {
+		return nil
+	}
+	return &value
 }
 
 // manifestPackageVersion is a package's version: a manifest may carry one

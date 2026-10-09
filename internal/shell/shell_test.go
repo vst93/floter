@@ -1,7 +1,13 @@
 package shell
 
 import (
+	"archive/tar"
+	"bytes"
+	"compress/gzip"
 	"context"
+	"crypto/sha512"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"image/png"
 	"os"
@@ -9,6 +15,9 @@ import (
 	"runtime"
 	"testing"
 	"time"
+
+	"net/http"
+	"net/http/httptest"
 
 	"github.com/egoist/mygo/plugins/terminal"
 	"github.com/egoist/mygo/ui"
@@ -522,5 +531,113 @@ func TestClipboardReachesTheLauncher(t *testing.T) {
 	}
 	if got := a.Launcher.Clipboard.Search("a clip", 0); len(got) != 1 || got[0].Text != "a clip" {
 		t.Errorf("search = %+v", got)
+	}
+}
+
+// npmFixture serves a registry with one package whose tarball holds a floter
+// manifest, and returns the server and the package name.
+func npmFixture(t *testing.T) (*httptest.Server, string) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("the fixture's runtime is resolved through sh")
+	}
+	manifest := `{
+  "schemaVersion": "2.0", "id": "dev.floter.npm", "name": "NPM Tool", "version": "1.0.0",
+  "publisher": {"id": "floter", "name": "floter"},
+  "compatibility": {"floter": ">=0.3.0", "providerProtocol": "^1.0"},
+  "distribution": {"type": "npm"},
+  "runtime": {"type": "script", "language": "shell", "path": "tool.sh"},
+  "provider": {"type": "static-descriptor", "descriptor": "description.json", "argsPrefix": []}
+}`
+	description := `{"protocolVersion": "1.0", "provider": {"id": "dev.floter.npm", "name": "NPM Tool", "version": "1.0.0"}, "commands": []}`
+	packageJSON := `{"name": "@vst93/fixture", "version": "1.0.0", "floter": {"manifest": "floter.extension.json"}}`
+
+	var buffer bytes.Buffer
+	gzipWriter := gzip.NewWriter(&buffer)
+	writer := tar.NewWriter(gzipWriter)
+	files := map[string]struct {
+		body string
+		mode int64
+	}{
+		"package/package.json":          {packageJSON, 0o644},
+		"package/floter.extension.json": {manifest, 0o644},
+		"package/description.json":      {description, 0o644},
+		"package/tool.sh":               {"#!/bin/sh\necho tool\n", 0o755},
+	}
+	for name, file := range files {
+		if err := writer.WriteHeader(&tar.Header{Name: name, Mode: file.mode, Size: int64(len(file.body)), Typeflag: tar.TypeReg}); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := writer.Write([]byte(file.body)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := gzipWriter.Close(); err != nil {
+		t.Fatal(err)
+	}
+	tarball := buffer.Bytes()
+	sum := sha512.Sum512(tarball)
+	integrity := "sha512-" + base64.StdEncoding.EncodeToString(sum[:])
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/@vst93/fixture":
+			json.NewEncoder(w).Encode(map[string]any{
+				"name":      "@vst93/fixture",
+				"dist-tags": map[string]string{"latest": "1.0.0"},
+				"versions": map[string]any{
+					"1.0.0": map[string]any{"version": "1.0.0", "dist": map[string]string{
+						"tarball":   "http://" + r.Host + "/tarball",
+						"integrity": integrity,
+					}},
+				},
+			})
+		case "/tarball":
+			w.Write(tarball)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(server.Close)
+	return server, "@vst93/fixture"
+}
+
+func TestInstallFromRegistryReachesTheStore(t *testing.T) {
+	server, name := npmFixture(t)
+	paths := extensions.FromRoot(t.TempDir())
+	a := New(Options{
+		Store:       settings.NewStore(settings.Default()),
+		Paths:       paths,
+		Registry:    &extensions.Registry{BaseURL: server.URL, Client: server.Client()},
+		NewTerminal: func(terminal.Options) (*terminal.Terminal, error) { return nil, errors.New("no library in tests") },
+		OpenAtLogin: func() bool { return false }, SetOpenAtLogin: func(bool) error { return nil },
+	})
+
+	// The settings action installs in the background and refreshes, so the
+	// test waits for the inventory to catch up.
+	a.Settings.Actions.InstallFromRegistry(name, "1.0.0")
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		if integration, ok := a.Integrations.Inventory().WithID("dev.floter.npm"); ok && integration.Entry.PackageVersion == "1.0.0" {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("the install did not land: %+v", a.Integrations.Inventory().Integrations)
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+
+	integration, _ := a.Integrations.Inventory().WithID("dev.floter.npm")
+	if integration.Entry.DistributionSource != "npm" || integration.Name != "NPM Tool" {
+		t.Errorf("integration = %+v", integration.Entry)
+	}
+	if list := a.integrationList(); len(list) != 1 || !list[0].Running {
+		t.Errorf("the settings list = %+v", list)
+	}
+	if _, err := os.Stat(filepath.Join(paths.Extensions, "dev.floter.npm", "tool.sh")); err != nil {
+		t.Errorf("the package did not land: %v", err)
 	}
 }

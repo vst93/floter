@@ -430,3 +430,44 @@ func TestLaunchAtStartupControl(t *testing.T) {
 		t.Error("the switch did not write the setting")
 	}
 }
+
+func TestInstallFromRegistryControl(t *testing.T) {
+	installed := ""
+	constraint := ""
+	a := New(newStore(t), Actions{
+		InstallFromRegistry: func(name, version string) { installed, constraint = name, version },
+	})
+	a.Integrations = func() []Integration { return nil }
+	tt := render(t, a, 720, 620)
+
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	// The field's contents are the app's own state, so a test can set them
+	// the way typing would.
+	a.installName = "@vst93/floter-v"
+	a.installVersion = "^1.0.0"
+	tt.Frame()
+
+	if err := tt.Click("Install"); err != nil {
+		t.Fatalf("the install button is missing: %v", err)
+	}
+	tt.Frame()
+	if installed != "@vst93/floter-v" || constraint != "^1.0.0" {
+		t.Errorf("install recorded %q / %q", installed, constraint)
+	}
+	// The fields clear for the next install.
+	if a.installName != "" || a.installVersion != "" {
+		t.Errorf("the fields were not cleared: %q / %q", a.installName, a.installVersion)
+	}
+
+	// An empty name asks for nothing.
+	if err := tt.Click("Install"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if constraint != "^1.0.0" {
+		t.Errorf("an empty request was sent: %q", installed)
+	}
+}

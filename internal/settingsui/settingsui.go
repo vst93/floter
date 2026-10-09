@@ -43,6 +43,8 @@ type Actions struct {
 	SetIntegrationEnabled func(id string, enabled bool)
 	// UninstallIntegration removes an installed extension.
 	UninstallIntegration func(id string, name string)
+	// InstallFromRegistry installs a package from the npm registry.
+	InstallFromRegistry func(name, constraint string)
 }
 
 // Integration is one installed extension, as the Integrations page lists it.
@@ -103,6 +105,10 @@ type App struct {
 	Sidebar ui.ListState
 	// Body keeps the form's scroll offset across frames.
 	Body ui.ScrollState
+
+	// installName and installVersion are the npm install field's contents.
+	installName    string
+	installVersion string
 }
 
 // New builds the settings surface over a store.
@@ -251,6 +257,7 @@ func (a *App) integrations(c *ui.Context, copy i18n.Settings) {
 	integrations := a.installedIntegrations()
 	ui.Column(c).FillWidth().Gap(t.Space(0.5)).Children(func() {
 		ui.Text(c, copy.IntegrationsHint).FontSize(t.FontSize).TextColor(t.TextMuted).Padding(0, 0, t.Space(1), 0)
+		a.installRow(c, copy)
 		if len(integrations) == 0 {
 			ui.Column(c).FillWidth().Padding(t.Space(4)).Center().Children(func() {
 				ui.Text(c, copy.IntegrationsEmpty).FontSize(t.FontSize).TextColor(t.TextMuted)
@@ -261,6 +268,31 @@ func (a *App) integrations(c *ui.Context, copy i18n.Settings) {
 			a.integrationRow(c, copy, integration)
 		}
 	})
+}
+
+// installRow is the npm install field: a package name, an optional version,
+// and the button that asks the shell to install it.
+func (a *App) installRow(c *ui.Context, copy i18n.Settings) {
+	if a.Actions.InstallFromRegistry == nil {
+		return
+	}
+	t := c.Theme()
+	name, version := a.installName, a.installVersion
+	requested := false
+	ui.Row(c).FillWidth().Gap(t.Space(1)).AlignItems(ui.Center).
+		Padding(0, 0, t.Space(1), 0).Children(func() {
+		ui.TextInput(c, &name).Placeholder(copy.IntegrationsPackageHint).Label(copy.IntegrationsPackageHint).Grow(1)
+		ui.TextInput(c, &version).Placeholder(copy.IntegrationsVersionHint).Width(160)
+		if ui.Button(c, copy.IntegrationsInstall).Clicked() {
+			requested = true
+		}
+	})
+	a.installName, a.installVersion = name, version
+	if requested && strings.TrimSpace(name) != "" {
+		a.Actions.InstallFromRegistry(strings.TrimSpace(name), strings.TrimSpace(version))
+		a.installName, a.installVersion = "", ""
+		a.Body.Y = 0
+	}
 }
 
 // integrationRow is one integration: its identity, its state, and the
