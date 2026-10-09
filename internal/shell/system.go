@@ -66,6 +66,25 @@ func (a *App) ApplyAppIcon() {
 // `floter://`.
 const scheme = "floter"
 
+// ApplyMenubarIcon installs or removes the tray icon, following the
+// show_menubar_icon setting, so a change made in the settings file or the
+// settings surface takes effect at once.
+func (a *App) ApplyMenubarIcon() {
+	if a.Win == nil {
+		// Before the window exists the app is not ready to hold a tray icon;
+		// Start applies the setting once it is.
+		return
+	}
+	want := settings.ShowMenubarIcon(a.Store.Snapshot())
+	switch {
+	case want && a.Tray == nil:
+		a.InstallTray()
+	case !want && a.Tray != nil:
+		a.Tray.Destroy()
+		a.Tray = nil
+	}
+}
+
 // InstallTray adds the menu bar icon: show, settings, terminal, quit.
 func (a *App) InstallTray() {
 	copy := i18n.For(a.Store.Snapshot().Language).Launcher

@@ -336,6 +336,28 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
 - `internal/extensions` 的 npm 安装测试依赖机器上装了 `v`（fixture manifest 的运行时）→
   运行期解析走可注入的 `lookTool`/`findInterpreter`，测试用 fixture 可执行文件，不再看机器 PATH。
 
+### P4-j 命令开关与命令别名（已做）
+
+- **`plugin_command_switches`（命令级开关）**：`internal/settings` 新增类型化读写（缺省即关闭、
+  空 id 丢弃、写回保留其它扩展的条目）；启动器只列出**开关打开**的命令——旧版的开关门禁的是
+  「插件模式」通路，Go 侧命令行本身既是模式入口（Tab 进参数模式），所以门禁落在行上；
+  设置页 Integrations 每个集成下给出**每条命令的开关**，并标注「运行时不可用」（运行时不解析
+  的命令仍可开关，只是运行会失败）。开关改动即时重发命令表给启动器，不需要 provider 往返。
+- **`command_aliases`（命令别名）**：类型化读写 + `ResolveCommandAliases`（按命令名升序，先到
+  先得、大小写不敏感去重、空别名忽略）；启动器里别名与命令名走**同一条打分阶梯**（别名命中
+  不降级），别名只参与匹配不参与显示；清空别名即删除条目。
+- 顺带把三个启动器开关（`show_commands_in_search` / `show_recent_in_launcher` /
+  `show_menubar_icon`）与 `last_settings_page`、`launch_counts` 收进类型化访问器，
+  `show_menubar_icon` 真正接线（托盘随设置安装/销毁，窗口未就绪时不碰托盘）。
+
+### P2-h 设置页 Plugins（已做）
+
+- 新页 **Plugins**（内置插件各自的设置）：浏览器插件卡片（开关、目标浏览器、额外 profile
+  目录、历史范围、排序、搜索范围、调试端口与开关）与剪贴板卡片（开关、容量）。
+- 目标浏览器的候选来自实际发现（`Actions.BrowserTargets`），没发现就只给「自动」——
+  控件不撒谎；「运行时不可用」等状态如实标注。
+- `last_settings_page` 接线：切页写回，进设置面恢复上次页面（未知值落 General）。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。

@@ -160,6 +160,9 @@ var en = Copy{
 		IntegrationsVersionHint:  "version or range (optional)",
 		IntegrationsRemoveTitle:  removeTitleEN,
 		IntegrationsRemoveDetail: "The package is removed. The integration's data in extension-data stays.",
+		IntegrationsCommands:     "Commands",
+		IntegrationsCommandsHint: "A command only appears in the launcher while its switch is on.",
+		IntegrationsUnavailable:  "runtime unavailable",
 
 		ShortcutsToggle:   "Show / hide floter",
 		ShortcutsHint:     "More shortcuts arrive with the system integration.",
@@ -375,6 +378,9 @@ var zh = Copy{
 		IntegrationsVersionHint:  "版本或范围（可空）",
 		IntegrationsRemoveTitle:  removeTitleZH,
 		IntegrationsRemoveDetail: "将删除扩展包；extension-data 中的集成数据会保留。",
+		IntegrationsCommands:     "命令",
+		IntegrationsCommandsHint: "只有开关打开的命令才会出现在启动器里。",
+		IntegrationsUnavailable:  "运行时不可用",
 
 		ShortcutsToggle:   "显示 / 隐藏 floter",
 		ShortcutsHint:     "更多快捷键将随系统集成一并到来。",

@@ -140,6 +140,9 @@ type App struct {
 	// search offers them (the show_commands_in_search setting).
 	Tools     []apps.App
 	ShowTools bool
+	// ToolAliases is the user's alias per command name, which a PATH command's
+	// row is matched by as well as by its name.
+	ToolAliases settings.CommandAliases
 
 	// Scroll keeps the result list's place; Search is the field's identity,
 	// for the focus the launcher keeps on it while the surface shows.
@@ -194,10 +197,10 @@ func (a *App) SetRecent(paths []string, show bool) {
 	a.Recent, a.ShowRecent = paths, show
 }
 
-// SetTools replaces the commands found on the PATH, and whether the search
-// offers them.
-func (a *App) SetTools(tools []apps.App, show bool) {
-	a.Tools, a.ShowTools = tools, show
+// SetTools replaces the commands found on the PATH, whether the search offers
+// them, and the aliases the user gave them (command name -> alias).
+func (a *App) SetTools(tools []apps.App, show bool, aliases settings.CommandAliases) {
+	a.Tools, a.ShowTools, a.ToolAliases = tools, show, aliases
 }
 
 // SetQuery puts text in the field, for a deep link that names what to search

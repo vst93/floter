@@ -26,6 +26,9 @@ type Item struct {
 	// Search is extra text a query matches but the row does not show:
 	// an extension command's aliases and keywords.
 	Search string
+	// alias is the user's alias for a PATH command, matched at the same tiers
+	// as the command's own name.
+	alias string
 	// Run performs the item.
 	Run func()
 	// complete is the text Tab inserts for the row: an extension command's
@@ -322,6 +325,7 @@ func (a *App) toolItems() []Item {
 		out = append(out, Item{
 			ID:    "tool:" + tool.Path,
 			Title: tool.Name,
+			alias: a.ToolAliases[tool.Name],
 			Run:   func() { a.runTool(tool) },
 		})
 	}
@@ -498,20 +502,38 @@ func Match(items []Item, query string) []Item {
 }
 
 // itemScore scores one term against an item, and reports whether it matched.
+//
+// A PATH command's alias runs through the same ladder as its name, so an alias
+// hit ranks exactly where the name would (an exact alias is not second class).
 func itemScore(item Item, term string) (int, bool) {
 	title := strings.ToLower(item.Title)
-	switch {
-	case strings.HasPrefix(title, term):
-		return 0, true
-	case wordPrefixMatch(title, term):
-		return 1, true
-	case strings.Contains(title, term):
-		return 2, true
+	score, matched := candidateScore(title, term)
+	if item.alias != "" {
+		if aliasScore, aliasMatched := candidateScore(strings.ToLower(item.alias), term); aliasMatched && (!matched || aliasScore < score) {
+			score, matched = aliasScore, true
+		}
+	}
+	if matched {
+		return score, true
 	}
 	if strings.Contains(strings.ToLower(item.Detail), term) ||
 		strings.Contains(strings.ToLower(item.ID), term) ||
 		strings.Contains(strings.ToLower(item.Search), term) {
 		return 3, true
+	}
+	return 0, false
+}
+
+// candidateScore is the ladder one candidate string is scored by: the string
+// starts with the term, a word of it does, or it contains it.
+func candidateScore(candidate, term string) (int, bool) {
+	switch {
+	case strings.HasPrefix(candidate, term):
+		return 0, true
+	case wordPrefixMatch(candidate, term):
+		return 1, true
+	case strings.Contains(candidate, term):
+		return 2, true
 	}
 	return 0, false
 }

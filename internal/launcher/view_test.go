@@ -742,7 +742,7 @@ func TestSystemCommandsJoinTheSearchWhenEnabled(t *testing.T) {
 		{Name: "ripgrep", Path: "/usr/local/bin/ripgrep"},
 		{Name: "tmux", Path: "/opt/homebrew/bin/tmux"},
 	}
-	a.SetTools(tools, true)
+	a.SetTools(tools, true, nil)
 
 	// An empty query stays the commands and the recents.
 	tt := render(t, a)
@@ -763,10 +763,46 @@ func TestSystemCommandsJoinTheSearchWhenEnabled(t *testing.T) {
 	}
 
 	// With the setting off, the search does not offer them.
-	a.SetTools(tools, false)
+	a.SetTools(tools, false, nil)
 	a.Query = "ripgrep"
 	tt.Frame()
 	if tt.HasText("ripgrep") {
 		t.Errorf("a tool showed with the setting off: %q", tt.Texts())
+	}
+}
+
+// An alias finds a PATH command, and an exact alias ranks as high as an exact
+// name.
+func TestToolAliasesJoinTheSearch(t *testing.T) {
+	a := testApp()
+	tools := []apps.App{
+		{Name: "git", Path: "/usr/bin/git"},
+		{Name: "ripgrep", Path: "/usr/local/bin/ripgrep"},
+	}
+	a.SetTools(tools, true, settings.CommandAliases{"git": "gfm", "ripgrep": "rg"})
+
+	tt := render(t, a)
+	tt.Type("gfm")
+	tt.Frame()
+	if !tt.HasText("git") {
+		t.Fatalf("the alias did not find the command: %q", tt.Texts())
+	}
+	if tt.HasText("ripgrep") {
+		t.Errorf("an unrelated command showed: %q", tt.Texts())
+	}
+
+	// The alias is matched, not shown: the row still reads as the command.
+	if tt.HasText("gfm") {
+		t.Errorf("the alias is drawn as a row: %q", tt.Texts())
+	}
+
+	// A prefix of the alias finds it too, and the command's own name keeps
+	// working.
+	for _, query := range []string{"gf", "git"} {
+		a.Query = query
+		tt.Frame()
+		if !tt.HasText("git") {
+			t.Errorf("query %q did not find the command: %q", query, tt.Texts())
+		}
 	}
 }

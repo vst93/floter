@@ -204,6 +204,9 @@ type App struct {
 	// what the tray and window were last given.
 	appIcon     string
 	lastAppIcon string
+	// lastMenubarIcon is the show_menubar_icon value the tray was last
+	// synced with.
+	lastMenubarIcon bool
 	// lastClipboardText and lastClipboardFormats are what the watcher saw
 	// last, so a poll records only what changed.
 	lastClipboardText    string
@@ -359,6 +362,7 @@ func New(opts Options) *App {
 		SetShortcut:         a.setShortcut,
 		SetPage:             a.rememberSettingsPage,
 		BrowserTargets:      a.browserTargets,
+		SetCommandEnabled:   a.setCommandEnabled,
 		InstallFromRegistry: func(name, constraint string) {
 			go func() {
 				prepared, err := extensions.PrepareRegistry(context.Background(), a.Paths, a.Registry, name, constraint)
@@ -483,6 +487,10 @@ func New(opts Options) *App {
 				a.lastAppIcon, a.appIcon = icon, icon
 				a.ApplyAppIcon()
 			}
+			if settings.ShowMenubarIcon(s) != a.lastMenubarIcon {
+				a.lastMenubarIcon = settings.ShowMenubarIcon(s)
+				a.ApplyMenubarIcon()
+			}
 			if a.Surf == SurfaceTerminal {
 				a.Terminal.Refresh()
 			}
@@ -563,7 +571,8 @@ func (a *App) Start() {
 	}
 	a.ApplyStartup()
 	a.InstallMenu()
-	a.InstallTray()
+	a.lastMenubarIcon = settings.ShowMenubarIcon(a.Store.Snapshot())
+	a.ApplyMenubarIcon()
 	a.ApplyAppIcon()
 	a.watchClipboard()
 	a.Launcher.FocusSearch()
@@ -624,24 +633,31 @@ func (a *App) setShortcut(id, accelerator string) {
 // scanTools lists the commands on the PATH, in the background, when the
 // show_commands_in_search setting asks for them.
 func (a *App) scanTools() {
-	if !a.showTools() {
-		a.Launcher.SetTools(nil, false)
+	snapshot := a.Store.Snapshot()
+	if !settings.ShowCommandsInSearch(snapshot) {
+		a.Launcher.SetTools(nil, false, nil)
 		return
 	}
+	aliases := settings.ResolveCommandAliases(settings.CommandAliasesOf(snapshot))
 	go func() {
 		found := apps.ScanCommands(apps.CommandDirs())
-		a.onMain(func() { a.Launcher.SetTools(found, true) })
+		a.onMain(func() { a.Launcher.SetTools(found, true, aliases) })
 	}()
 }
 
-// showTools is the show_commands_in_search setting, off by default as the
-// old build shipped it.
-func (a *App) showTools() bool {
-	value, ok := a.Store.Snapshot().Extra()["show_commands_in_search"].(bool)
-	if !ok {
-		return false
+// launcherCommands is the extensions' commands the user has switched on. A
+// command with no switch entry has never been enabled, so the launcher does
+// not offer it: the per-command switches are the gate, exactly as the old
+// build's integrations panel was.
+func (a *App) launcherCommands() []extensions.CommandEntry {
+	switches := settings.CommandSwitchesOf(a.Store.Snapshot())
+	var out []extensions.CommandEntry
+	for _, entry := range a.Integrations.CommandEntries() {
+		if switches.Enabled(entry.IntegrationID, entry.Command.ID) {
+			out = append(out, entry)
+		}
 	}
-	return value
+	return out
 }
 
 // refreshRecents hands the launcher the most-launched applications, limited
@@ -673,13 +689,24 @@ const maxRecentApps = 5
 // so the app calls it from a goroutine.
 func (a *App) RefreshIntegrations(ctx context.Context) {
 	a.Integrations.Refresh(ctx)
-	a.onMain(func() { a.Launcher.SetCommands(a.Integrations.CommandEntries()) })
+	a.onMain(func() { a.Launcher.SetCommands(a.launcherCommands()) })
 }
 
 // integrationList maps the store's inventory onto the settings list: the
 // repository's record, the manifest's copy, and why a provider failed.
 func (a *App) integrationList() []settingsui.Integration {
 	inventory := a.Integrations.Inventory()
+	switches := settings.CommandSwitchesOf(a.Store.Snapshot())
+	commands := map[string][]settingsui.Command{}
+	for _, info := range a.Integrations.CommandRegistry() {
+		commands[info.ExtensionID] = append(commands[info.ExtensionID], settingsui.Command{
+			ID:          info.CommandID,
+			Name:        info.Name,
+			Description: info.Description,
+			Enabled:     switches.Enabled(info.ExtensionID, info.CommandID),
+			Available:   info.Available,
+		})
+	}
 	out := make([]settingsui.Integration, 0, len(inventory.Integrations))
 	for _, integration := range inventory.Integrations {
 		item := settingsui.Integration{
@@ -708,6 +735,7 @@ func (a *App) integrationList() []settingsui.Integration {
 				item.Enforced[permission] = extensions.PermissionEnforced(permission)
 			}
 		}
+		item.Commands = commands[item.ID]
 		a.diagnosisMu.Lock()
 		if diagnosis, ok := a.diagnoses[item.ID]; ok {
 			item.Diagnosis, item.DiagnosisFailed = diagnosis.Diagnosis, diagnosis.DiagnosisFailed
@@ -836,6 +864,18 @@ func (a *App) browserProfileList(customBase string) []browser.Profile {
 	a.browserLoaded, a.browserBase = true, customBase
 	a.browserProfiles = browser.ProfilesIn(home, customBase)
 	return a.browserProfiles
+}
+
+// setCommandEnabled records a command's switch and re-hands the launcher its
+// command list, so a switch takes effect without a provider round trip.
+func (a *App) setCommandEnabled(extensionID, commandID string, enabled bool) {
+	if err := a.Store.Update(func(s *settings.Settings) {
+		s.SetCommandSwitch(extensionID, commandID, enabled)
+	}); err != nil {
+		log.Printf("floter: could not save the command switch: %v", err)
+		return
+	}
+	a.onMain(func() { a.Launcher.SetCommands(a.launcherCommands()) })
 }
 
 // browserTargets lists the browsers the browser plugin can be pointed at, as
@@ -1018,10 +1058,10 @@ func (a *App) Open(s Surface) {
 // looked at (the `last_settings_page` key), falling back to General for a
 // missing or unknown value.
 func (a *App) restoreSettingsPage() {
-	name, _ := a.Store.Snapshot().Extra()["last_settings_page"].(string)
-	if page, ok := settingsui.PageByName(name); ok {
-		a.Settings.Page = page
-	}
+	// An unknown or missing id lands on General, which is what the old
+	// build's settings normalizer did with the key.
+	page, _ := settingsui.PageByName(settings.LastSettingsPage(a.Store.Snapshot()))
+	a.Settings.Page = page
 }
 
 // rememberSettingsPage records the page the user switched to, so the next
@@ -1030,7 +1070,7 @@ func (a *App) rememberSettingsPage(name string) {
 	if name == "" {
 		return
 	}
-	_ = a.Store.Update(func(s *settings.Settings) { s.SetExtra("last_settings_page", name) })
+	_ = a.Store.Update(func(s *settings.Settings) { s.SetLastSettingsPage(name) })
 }
 
 // Toggle shows the launcher, or hides the window when it is already the

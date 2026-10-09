@@ -30,7 +30,7 @@ func TestSettingsShowsThePagesAndTheGeneralControls(t *testing.T) {
 	tt := render(t, a, 720, 580)
 
 	for _, want := range []string{
-		"Settings", "General", "Sessions", "Shortcuts", "Integrations", "About",
+		"Settings", "General", "Sessions", "Shortcuts", "Plugins", "Integrations", "About",
 		"Appearance", "Language", "Liquid glass effect", "App transparency",
 		"Terminal transparency", "Interface size",
 	} {
@@ -593,5 +593,142 @@ func TestShortcutRecorder(t *testing.T) {
 	tt.Frame()
 	if recorded != "" || !a.recording {
 		t.Errorf("a bare key recorded %q, recording=%v", recorded, a.recording)
+	}
+}
+
+// The Plugins page shows the built-in plugins' settings and writes every
+// change through the store.
+func TestPluginsPageWritesThroughTheStore(t *testing.T) {
+	store := newStore(t)
+	a := New(store, Actions{})
+	tt := render(t, a, 720, 620)
+
+	if err := tt.Click("Plugins"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	for _, want := range []string{"Browser history", "Clipboard history", "Search browser data", "History window", "Order"} {
+		if !tt.HasText(want) {
+			t.Errorf("missing %q in %q", want, tt.Texts())
+		}
+	}
+
+	// The browser switch writes the plugin's block.
+	if err := tt.Click("Search browser data"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if plugin := settings.BrowserPluginOf(store.Snapshot()); plugin.Enabled {
+		t.Errorf("the browser switch did not land: %+v", plugin)
+	}
+
+	// The order picker opens on its trigger and stores the choice.
+	if err := tt.Click("Order"); err != nil {
+		t.Fatalf("order trigger: %v", err)
+	}
+	tt.Frame()
+	if err := tt.Click("Most visited"); err != nil {
+		t.Fatalf("order option: %v", err)
+	}
+	tt.Frame()
+	if plugin := settings.BrowserPluginOf(store.Snapshot()); plugin.SortOrder != "visits" {
+		t.Errorf("sort order = %q", plugin.SortOrder)
+	}
+
+	// The clipboard group sits below the fold: scroll the body to reach it.
+	tt.Scroll(400, 300, 0, 900)
+	tt.Frame()
+	if err := tt.Click("Keep a clipboard history"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if state := settings.ClipboardOf(store.Snapshot()); state.Enabled {
+		t.Errorf("the clipboard switch did not land: %+v", state)
+	}
+	tt.Scroll(400, 300, 0, -900)
+	tt.Frame()
+
+	// The target picker offers the automatic choice plus the discovered
+	// browsers, and stores the id.
+	a.Actions.BrowserTargets = func() []i18n.Option {
+		return []i18n.Option{{ID: "brave", Label: "Brave"}}
+	}
+	tt.Frame()
+	if !tt.HasText("Automatic") {
+		t.Fatalf("the automatic target is missing: %q", tt.Texts())
+	}
+	if err := tt.Click("Automatic"); err != nil {
+		t.Fatalf("target trigger: %v", err)
+	}
+	tt.Frame()
+	if err := tt.Click("Brave"); err != nil {
+		t.Fatalf("target option: %v", err)
+	}
+	tt.Frame()
+	if plugin := settings.BrowserPluginOf(store.Snapshot()); plugin.Target != "brave" {
+		t.Errorf("target = %q", plugin.Target)
+	}
+}
+
+// The Integrations page lists one switch per command and reports a toggle.
+func TestIntegrationCommandSwitches(t *testing.T) {
+	store := newStore(t)
+	toggled := [][3]string{}
+	a := New(store, Actions{
+		SetCommandEnabled: func(extensionID, commandID string, enabled bool) {
+			toggled = append(toggled, [3]string{extensionID, commandID, strconv.FormatBool(enabled)})
+		},
+	})
+	a.Integrations = func() []Integration {
+		return []Integration{{
+			ID: "io.github.vst93.v", Name: "V Tools", Enabled: true, Running: true,
+			Commands: []Command{
+				{ID: "jv", Name: "Just run", Enabled: true, Available: true},
+				{ID: "build", Name: "Build", Enabled: false},
+			},
+		}}
+	}
+	tt := render(t, a, 720, 620)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !tt.HasText("Just run") || !tt.HasText("Build") {
+		t.Fatalf("the command switches = %q", tt.Texts())
+	}
+	// A command whose runtime does not resolve says so rather than lying
+	// about being ready.
+	if !tt.HasText("Build  \u00b7  runtime unavailable") {
+		t.Errorf("the unavailable note is missing: %q", tt.Texts())
+	}
+	if err := tt.Click("Build  \u00b7  runtime unavailable"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if len(toggled) != 1 || toggled[0] != [3]string{"io.github.vst93.v", "build", "true"} {
+		t.Errorf("toggled = %v", toggled)
+	}
+}
+
+// Switching pages records the choice, so the next visit reopens the page.
+func TestPageSelectionIsRemembered(t *testing.T) {
+	pages := []string{}
+	a := New(newStore(t), Actions{SetPage: func(name string) { pages = append(pages, name) }})
+	tt := render(t, a, 720, 580)
+	if err := tt.Click("About"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if len(pages) != 1 || pages[0] != "about" {
+		t.Errorf("pages = %v", pages)
+	}
+	if page, ok := PageByName("plugins"); !ok || page != PagePlugins {
+		t.Errorf("PageByName(plugins) = %d, %v", page, ok)
+	}
+	if _, ok := PageByName("nope"); ok {
+		t.Error("an unknown page id resolved")
+	}
+	if got := PageName(PageIntegrations); got != "integrations" {
+		t.Errorf("PageName = %q", got)
 	}
 }

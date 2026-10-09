@@ -32,6 +32,7 @@ import (
 	"floter/internal/i18n"
 	"floter/internal/launcher"
 	"floter/internal/settings"
+	"floter/internal/settingsui"
 )
 
 func newApp(t *testing.T) *App {
@@ -370,12 +371,22 @@ func integrationFixture(t *testing.T) extensions.Paths {
 
 func TestIntegrationsReachTheLauncher(t *testing.T) {
 	paths := integrationFixture(t)
+	store := settings.NewStore(settings.Default())
 	a := New(Options{
-		Store:       settings.NewStore(settings.Default()),
+		Store:       store,
 		Paths:       paths,
 		NewTerminal: func(terminal.Options) (*terminal.Terminal, error) { return nil, errors.New("no library in tests") },
 	})
 
+	// A command with no switch entry has never been enabled, so the launcher
+	// does not offer it: the per-command switches are the gate.
+	a.RefreshIntegrations(context.Background())
+	if got := a.Launcher.Commands; len(got) != 0 {
+		t.Fatalf("a command with its switch off reached the launcher: %+v", got)
+	}
+	if err := store.Update(func(s *settings.Settings) { s.SetCommandSwitch("io.github.vst93.v", "jv", true) }); err != nil {
+		t.Fatal(err)
+	}
 	a.RefreshIntegrations(context.Background())
 	if got := a.Launcher.Commands; len(got) != 1 || got[0].Command.ID != "jv" {
 		t.Fatalf("launcher commands = %+v", got)
@@ -860,8 +871,12 @@ esac
 		t.Fatal(err)
 	}
 
+	store := settings.NewStore(settings.Default())
+	if err := store.Update(func(s *settings.Settings) { s.SetCommandSwitch("dev.floter.completer", "run", true) }); err != nil {
+		t.Fatal(err)
+	}
 	a := New(Options{
-		Store:       settings.NewStore(settings.Default()),
+		Store:       store,
 		Paths:       paths,
 		NewTerminal: func(terminal.Options) (*terminal.Terminal, error) { return nil, errors.New("no library in tests") },
 		OpenAtLogin: func() bool { return false }, SetOpenAtLogin: func(bool) error { return nil },
@@ -1071,14 +1086,14 @@ func TestRecentsFollowTheUsageFileAndTheSetting(t *testing.T) {
 	}
 
 	// The setting turns the empty state's recents off.
-	if err := a.Store.Update(func(s *settings.Settings) { s.SetExtra("show_recent_in_launcher", false) }); err != nil {
+	if err := a.Store.Update(func(s *settings.Settings) { s.SetShowRecentInLauncher(false) }); err != nil {
 		t.Fatal(err)
 	}
 	a.refreshRecents()
 	if a.Launcher.ShowRecent {
 		t.Error("show_recent_in_launcher false did not reach the launcher")
 	}
-	if err := a.Store.Update(func(s *settings.Settings) { s.SetExtra("show_recent_in_launcher", true) }); err != nil {
+	if err := a.Store.Update(func(s *settings.Settings) { s.SetShowRecentInLauncher(true) }); err != nil {
 		t.Fatal(err)
 	}
 	a.refreshRecents()
@@ -1089,7 +1104,7 @@ func TestRecentsFollowTheUsageFileAndTheSetting(t *testing.T) {
 
 func TestSystemCommandsFollowTheSetting(t *testing.T) {
 	a := newApp(t)
-	if a.showTools() {
+	if settings.ShowCommandsInSearch(a.Store.Snapshot()) {
 		t.Error("show_commands_in_search is on by default")
 	}
 	a.scanTools()
@@ -1100,7 +1115,7 @@ func TestSystemCommandsFollowTheSetting(t *testing.T) {
 	// Turning it on scans the PATH. The scan runs in the background, so the
 	// test waits for the launcher to hear about it, and only checks that
 	// something plausible arrived: the machine's own PATH decides what.
-	if err := a.Store.Update(func(s *settings.Settings) { s.SetExtra("show_commands_in_search", true) }); err != nil {
+	if err := a.Store.Update(func(s *settings.Settings) { s.SetShowCommandsInSearch(true) }); err != nil {
 		t.Fatal(err)
 	}
 	a.scanTools()
@@ -1182,5 +1197,73 @@ func TestSetShortcutRegistersAndPersists(t *testing.T) {
 	a.setShortcut("something_else", "Cmd+K")
 	if a.summonKey != before {
 		t.Errorf("the key changed to %q", a.summonKey)
+	}
+}
+
+// A command switch is the gate the launcher reads, and toggling one from the
+// settings surface re-hands the launcher its command list.
+func TestCommandSwitchGatesAndUpdatesTheLauncher(t *testing.T) {
+	paths := integrationFixture(t)
+	store := settings.NewStore(settings.Default())
+	a := New(Options{
+		Store:       store,
+		Paths:       paths,
+		NewTerminal: func(terminal.Options) (*terminal.Terminal, error) { return nil, errors.New("no library in tests") },
+	})
+	a.RefreshIntegrations(context.Background())
+	if got := a.Launcher.Commands; len(got) != 0 {
+		t.Fatalf("commands with the switch off = %+v", got)
+	}
+
+	// The integrations list shows the command with its switch state.
+	list := a.integrationList()
+	if len(list) != 1 || len(list[0].Commands) != 1 {
+		t.Fatalf("integration list = %+v", list)
+	}
+	if list[0].Commands[0].ID != "jv" || list[0].Commands[0].Enabled {
+		t.Errorf("command row = %+v", list[0].Commands[0])
+	}
+
+	// Turning it on persists and reaches the launcher without a refresh.
+	a.setCommandEnabled("io.github.vst93.v", "jv", true)
+	if !settings.CommandSwitchesOf(store.Snapshot()).Enabled("io.github.vst93.v", "jv") {
+		t.Error("the switch did not persist")
+	}
+	if got := a.Launcher.Commands; len(got) != 1 || got[0].Command.ID != "jv" {
+		t.Errorf("the launcher did not hear about the switch: %+v", got)
+	}
+	if got := a.integrationList()[0].Commands[0]; !got.Enabled {
+		t.Errorf("the row still reads off: %+v", got)
+	}
+
+	// Turning it back off removes it again.
+	a.setCommandEnabled("io.github.vst93.v", "jv", false)
+	if got := a.Launcher.Commands; len(got) != 0 {
+		t.Errorf("the command stayed after its switch went off: %+v", got)
+	}
+}
+
+// The settings surface reopens on the page the user last looked at.
+func TestLastSettingsPageIsRestored(t *testing.T) {
+	store := settings.NewStore(settings.Default())
+	a := New(Options{Store: store, Paths: extensions.FromRoot(t.TempDir())})
+	a.rememberSettingsPage("plugins")
+	if got := settings.LastSettingsPage(store.Snapshot()); got != "plugins" {
+		t.Errorf("stored page = %q", got)
+	}
+	a.Settings.Page = settingsui.PageGeneral
+	a.restoreSettingsPage()
+	if a.Settings.Page != settingsui.PagePlugins {
+		t.Errorf("restored page = %d", a.Settings.Page)
+	}
+
+	// An unknown or missing page falls back to General.
+	if err := store.Update(func(s *settings.Settings) { s.SetLastSettingsPage("nope") }); err != nil {
+		t.Fatal(err)
+	}
+	a.Settings.Page = settingsui.PageAbout
+	a.restoreSettingsPage()
+	if a.Settings.Page != settingsui.PageGeneral {
+		t.Errorf("an unknown page restored %d", a.Settings.Page)
 	}
 }

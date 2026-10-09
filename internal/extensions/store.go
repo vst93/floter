@@ -3,6 +3,7 @@ package extensions
 import (
 	"context"
 	"errors"
+	"sort"
 	"sync"
 )
 
@@ -155,6 +156,61 @@ func (s *Store) SetEnabled(id string, enabled bool) error {
 // ErrNoIntegration is what an operation reports for an id the repository
 // does not know.
 var ErrNoIntegration = errors.New("extensions: no such integration")
+
+// CommandInfo is one command of one integration, as the settings panel's
+// switch list shows it: the identity the switch map is keyed by, and whether
+// the integration's runtime resolves right now. A command whose runtime is
+// missing is still listed — the switch keeps its state either way.
+type CommandInfo struct {
+	ExtensionID   string
+	ExtensionName string
+	CommandID     string
+	Name          string
+	Description   string
+	Aliases       []string
+	Available     bool
+}
+
+// CommandRegistry lists every command of every integration that has a
+// provider description, sorted by (extension id, command id) so the panel's
+// rows are deterministic.
+func (s *Store) CommandRegistry() []CommandInfo {
+	s.mu.Lock()
+	inventory, descriptions := s.inventory, s.descriptions
+	s.mu.Unlock()
+
+	var out []CommandInfo
+	for _, integration := range inventory.Integrations {
+		description, ok := descriptions[integration.Entry.ID]
+		if !ok {
+			continue
+		}
+		_, resolveErr := ResolveRuntime(integration)
+		available := resolveErr == nil
+		commands := description.Commands
+		if configuration, ok := ConfigurationCommand(integration, description); ok {
+			commands = append(append([]Command{}, commands...), configuration)
+		}
+		for _, command := range commands {
+			out = append(out, CommandInfo{
+				ExtensionID:   integration.Entry.ID,
+				ExtensionName: integration.Name,
+				CommandID:     command.ID,
+				Name:          command.Name,
+				Description:   command.Description,
+				Aliases:       append([]string{}, command.Aliases...),
+				Available:     available,
+			})
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].ExtensionID != out[j].ExtensionID {
+			return out[i].ExtensionID < out[j].ExtensionID
+		}
+		return out[i].CommandID < out[j].CommandID
+	})
+	return out
+}
 
 // CommandEntry is one runnable command of one integration, ready for the
 // launcher: the argv the command runs, without caller arguments.

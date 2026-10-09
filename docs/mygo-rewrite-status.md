@@ -99,12 +99,19 @@ settings 读取子集（保未知键）、glass 映射、单窗口三表面（�
 - `.github/workflows/go.yml`：三平台 gofmt/vet/build/test + macOS 打包上传产物。
 - 已在 bundle 内验证：移走原生库缓存后终端仍能起（用的是 bundle 里的库）；深链与登录项在 bundle 下不再有「需要 bundle」报错。
 
+**P4-j / P2-h 命令开关、别名与 Plugins 页**（本轮）
+- `plugin_command_switches`（缺省即关闭，设置页每条命令一个开关，门禁启动器行）与
+  `command_aliases`（先到先得的冲突策略，别名与命令名同阶梯打分）。
+- 新设置页 Plugins：浏览器插件（目标/目录/范围/排序/搜索范围/调试端口）与剪贴板（开关/容量）。
+- `show_menubar_icon`、`last_settings_page`、`launch_counts`、三个启动器开关收进类型化访问器。
+
 ## 尚未做（按建议优先级）
 
 1. **终端会话快照/恢复**：`plugins/terminal` 的 `Snapshot()` 可把回滚+屏幕+光标序列化；旧版 `session_restore.rs` 是「工具会话 reattach」语义（本机无集成使用）。Sessions 页目前只能列出/关闭当前会话。
 2. **i18n 全量对齐**：目前只覆盖实际用到的键（约 200 条），旧 `src/i18n.ts` 有 1700+ 条（含插件页文案）。
-3. **浏览器插件剩余**：`sort_order`（relevance/alphabetical/visits）与 `target`（选哪个浏览器）、`search_fields`、CDP 读取已打开标签页；Safari 的 `Bookmarks.plist`（二进制 plist，Go 标准库不支持）。
-4. **扩展剩余**：orphan 的接管/删除、权限审计抽屉、导入/导出（sync）、后台运行与输出回看（旧版 run.rs 的 capture 通道）、完成提示。
+3. **浏览器插件剩余**：Safari 的 `Bookmarks.plist`（二进制 plist，Go 标准库不支持）；排序/目标/
+   搜索范围/标签页已接线（见 P4-j）。
+4. **扩展剩余**：orphan 的接管/删除、权限审计抽屉、导入/导出（sync）、后台运行与输出回看（旧版 run.rs 的 capture 通道）、完成提示。命令级开关已完成。
 5. **系统通知**：长任务完成时通知（`mygo.NewNotification`，需打包应用）。
 6. **P5 打磨**：动效（转场/按压）、无障碍（行 role、announcement）、性能对照（官方数字：原生 UI ~44MB 内存 / ~7MB 二进制）。
 7. **P6 发布链**：预发布通道、签名/公证（`mygo.json` 的 `macos.sign`）、Linux/Windows 打包产物验证、删除旧 CI。

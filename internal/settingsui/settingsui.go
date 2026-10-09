@@ -75,6 +75,9 @@ type Actions struct {
 	SetShortcut func(id, accelerator string)
 	// InstallFromRegistry installs a package from the npm registry.
 	InstallFromRegistry func(name, constraint string)
+	// SetCommandEnabled turns one of an integration's commands on or off: a
+	// command only appears in the launcher while its switch is on.
+	SetCommandEnabled func(extensionID, commandID string, enabled bool)
 	// SetPage records the page the user switched to (the
 	// `last_settings_page` setting).
 	SetPage func(name string)
@@ -108,6 +111,21 @@ type Integration struct {
 	Diagnosis string
 	// DiagnosisFailed marks a check that reported a problem.
 	DiagnosisFailed bool
+	// Commands are the commands the integration declares, each with the
+	// switch state the launcher reads.
+	Commands []Command
+}
+
+// Command is one of an integration's commands, as the switch list shows it.
+type Command struct {
+	ID          string
+	Name        string
+	Description string
+	// Enabled is whether the command may be summoned from the launcher.
+	Enabled bool
+	// Available is whether the integration's runtime resolves right now: a
+	// command whose runtime is missing is still listed, and says so.
+	Available bool
 }
 
 // Session is one running session, as the Sessions page shows it.
@@ -472,6 +490,29 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			}
 			if integration.Error != "" {
 				ui.Text(c, integration.Error).FontSize(t.FontSize - 1).TextColor(t.Danger)
+			}
+			if len(integration.Commands) > 0 && !integration.Orphan {
+				ui.Text(c, copy.IntegrationsCommandsHint).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+				ui.Column(c).Gap(t.Space(0.5)).Children(func() {
+					for _, command := range integration.Commands {
+						command := command
+						label := command.Name
+						if label == "" {
+							label = command.ID
+						}
+						if !command.Available {
+							label += "  \u00b7  " + copy.IntegrationsUnavailable
+						}
+						on := command.Enabled
+						changed := false
+						if ui.Checkbox(c, &on, label).Changed() {
+							changed = true
+						}
+						if changed && a.Actions.SetCommandEnabled != nil {
+							a.Actions.SetCommandEnabled(integration.ID, command.ID, on)
+						}
+					}
+				})
 			}
 		})
 		if !integration.Orphan {

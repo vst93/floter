@@ -177,6 +177,11 @@ type Settings struct {
 	IntegrationsVersionHint  string
 	IntegrationsRemoveTitle  func(name string) string
 	IntegrationsRemoveDetail string
+	// IntegrationsCommands is the per-command switch list's caption, and
+	// IntegrationsCommandsHint explains what a switch does.
+	IntegrationsCommands     string
+	IntegrationsCommandsHint string
+	IntegrationsUnavailable  string
 
 	// The Shortcuts page.
 	ShortcutsToggle   string
