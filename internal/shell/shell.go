@@ -233,6 +233,9 @@ type App struct {
 	// lastMenubarIcon is the show_menubar_icon value the tray was last
 	// synced with.
 	lastMenubarIcon bool
+	// shortcutsSuspended is true while a settings recorder holds the keyboard:
+	// the global shortcuts are released then.
+	shortcutsSuspended bool
 	// The terminal's size write-back: the size the last resize settled on,
 	// its generation, and the timer that writes it.
 	sizeMu         sync.Mutex
@@ -491,11 +494,13 @@ func New(opts Options) *App {
 				a.RefreshIntegrations(context.Background())
 			}()
 		},
-		CheckForUpdates:    a.checkForUpdates,
-		InstallUpdate:      a.installUpdate,
-		ConnectRecommended: a.connectRecommended,
-		ExportIntegrations: a.exportIntegrations,
-		ImportIntegrations: a.importIntegrations,
+		CheckForUpdates:       a.checkForUpdates,
+		InstallUpdate:         a.installUpdate,
+		ConnectRecommended:    a.connectRecommended,
+		ResetShortcuts:        a.resetShortcuts,
+		SetShortcutsSuspended: a.setShortcutsSuspended,
+		ExportIntegrations:    a.exportIntegrations,
+		ImportIntegrations:    a.importIntegrations,
 		AdoptIntegration: func(id string) {
 			// The approval dialog blocks, so the whole adoption runs off the
 			// main thread and refreshes from there.
@@ -1072,6 +1077,66 @@ func (a *App) browserProfileList(customBase string) []browser.Profile {
 	a.browserLoaded, a.browserBase = true, customBase
 	a.browserProfiles = browser.ProfilesIn(home, customBase)
 	return a.browserProfiles
+}
+
+// resetShortcuts restores the shipped bindings: the app's own map is dropped
+// (so every action falls back to its default) and the summon key goes back to
+// the default one, re-registered with the system.
+func (a *App) resetShortcuts() {
+	if err := a.Store.Update(func(s *settings.Settings) {
+		s.SetExtra("shortcuts", map[string]any{})
+		s.SetExtra("hotkey", settings.DefaultSummonShortcut)
+	}); err != nil {
+		log.Printf("floter: could not reset the shortcuts: %v", err)
+		return
+	}
+	a.ApplySummonShortcut()
+	a.ApplyCustomShortcuts()
+}
+
+// ApplySummonShortcut re-registers the global summon key from the settings,
+// releasing the previous one. A key the system refuses leaves the old one in
+// place: a shortcut that stops working because of a rejected change would be
+// worse than one that did not change.
+func (a *App) ApplySummonShortcut() {
+	accelerator := shortcuts.NormalizeOr(SummonShortcut(a.Store.Snapshot()))
+	if accelerator == a.summonKey {
+		return
+	}
+	if err := a.registerShortcut(accelerator, a.Toggle); err != nil {
+		log.Printf("floter: could not register %s: %v", accelerator, err)
+		return
+	}
+	if a.summonKey != "" {
+		a.unregisterShortcut(a.summonKey)
+	}
+	a.summonKey = accelerator
+	a.Settings.Shortcut = accelerator
+	a.ShortcutErr = nil
+}
+
+// setShortcutsSuspended releases the global shortcuts while a settings
+// recorder waits for a key, and takes them back afterwards: pressing the key
+// that currently summons floter must be recorded, not acted on.
+func (a *App) setShortcutsSuspended(suspended bool) {
+	if suspended {
+		if a.summonKey != "" {
+			a.unregisterShortcut(a.summonKey)
+		}
+		for _, key := range a.customKeys {
+			a.unregisterShortcut(key)
+		}
+		a.customKeys = nil
+		a.shortcutsSuspended = true
+		return
+	}
+	a.shortcutsSuspended = false
+	if a.summonKey != "" {
+		if err := a.registerShortcut(a.summonKey, a.Toggle); err != nil {
+			log.Printf("floter: could not re-register %s: %v", a.summonKey, err)
+		}
+	}
+	a.ApplyCustomShortcuts()
 }
 
 // recommendedTools is the shipped packages and whether the inventory has

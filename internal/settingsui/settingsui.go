@@ -92,6 +92,12 @@ type Actions struct {
 	ImportIntegrations func()
 	// ConnectRecommended installs one of the shipped tool packages.
 	ConnectRecommended func(id string)
+	// ResetShortcuts restores the shipped bindings, and
+	// SetShortcutsSuspended releases the global shortcuts while a recorder
+	// waits for a key (so pressing the current one is recorded rather than
+	// acted on).
+	ResetShortcuts        func()
+	SetShortcutsSuspended func(suspended bool)
 	// CustomShortcuts reports the user-defined global shortcuts, and
 	// SetCustomShortcuts persists a new list and registers it, returning the
 	// keys the system refused.
@@ -195,6 +201,9 @@ type App struct {
 	UpdateReady  bool
 	// auditOpen is which integrations have their permission audit unfolded.
 	auditOpen map[string]bool
+	// shortcutsSuspended is the last state reported to the shell, so the
+	// recorder releases the global keys once and takes them back once.
+	shortcutsSuspended bool
 	// TransferStatus is what the last export or import said.
 	TransferStatus string
 
@@ -261,14 +270,31 @@ func (a *App) page(i int) page {
 	}
 }
 
+// syncShortcutSuspension tells the shell whether a recorder is waiting for a
+// key. While one is, the global shortcuts are released: pressing the key that
+// currently summons floter must be recorded, not acted on.
+func (a *App) syncShortcutSuspension() {
+	if a.Actions.SetShortcutsSuspended == nil {
+		return
+	}
+	suspended := a.recording || a.customRecording
+	if suspended == a.shortcutsSuspended {
+		return
+	}
+	a.shortcutsSuspended = suspended
+	a.Actions.SetShortcutsSuspended(suspended)
+}
+
 // View builds the settings surface: the page list beside the body.
 func (a *App) View(c *ui.Context) {
+	defer a.syncShortcutSuspension()
 	copy := i18n.For(a.Store.Snapshot().Language).Settings
 	t := c.Theme()
 
-	// While the recorder waits, Escape belongs to it: a shortcut of the
-	// view is handled before the focused element's input.
-	if !a.recording && c.Shortcut(0, ui.KeyEscape) && a.Actions.Close != nil {
+	// While a recorder waits, Escape belongs to it: a shortcut of the view is
+	// handled before the focused element's input, so both recorders have to
+	// yield or their cancel key would close the panel instead.
+	if !a.recording && !a.customRecording && c.Shortcut(0, ui.KeyEscape) && a.Actions.Close != nil {
 		a.Actions.Close()
 	}
 
@@ -814,6 +840,11 @@ func (a *App) shortcuts(c *ui.Context, copy i18n.Settings) {
 		ui.Column(c).FillWidth().Gap(t.Space(1)).Children(func() {
 			a.shortcutRow(c, copy)
 			ui.Text(c, copy.ShortcutsHint).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+			if a.Actions.ResetShortcuts != nil {
+				if ui.Button(c, copy.ShortcutsReset).Clicked() {
+					a.Actions.ResetShortcuts()
+				}
+			}
 		})
 		ui.Fieldset(c, copy.ShortcutsApp, func() {
 			ui.Text(c, copy.ShortcutsAppHint).FontSize(t.FontSize - 1).TextColor(t.TextMuted)

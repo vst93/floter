@@ -253,6 +253,7 @@ type Settings struct {
 	ShortcutsCommand     string
 	ShortcutsCommandHint string
 	ShortcutsRecordKey   string
+	ShortcutsReset       string
 	ShortcutsRejected    func(key, reason string) string
 	ShortcutsActions     []Option
 

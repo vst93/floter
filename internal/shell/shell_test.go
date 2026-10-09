@@ -1817,3 +1817,96 @@ func TestConnectRecommendedInstallsTheShippedPackage(t *testing.T) {
 		t.Errorf("notified = %v", notified)
 	}
 }
+
+// Restoring the shipped keys drops the stored map and puts the summon key back
+// to the default, re-registered with the system.
+func TestResetShortcuts(t *testing.T) {
+	registered := []string{}
+	unregistered := []string{}
+	store := settings.NewStore(settings.Default())
+	if err := store.Update(func(s *settings.Settings) {
+		s.SetExtra("hotkey", "Alt+Space")
+		s.SetShortcut(settings.ShortcutNewCommand, "Alt+N")
+	}); err != nil {
+		t.Fatal(err)
+	}
+	a := New(Options{
+		Store:                store,
+		Paths:                extensions.FromRoot(t.TempDir()),
+		RegisterShortcut:     func(accelerator string, fn func()) error { registered = append(registered, accelerator); return nil },
+		UnregisterShortcut:   func(accelerator string) { unregistered = append(unregistered, accelerator) },
+		RunSilentCommand:     func(string) error { return nil },
+		OpenExternalTerminal: func() error { return nil },
+	})
+	a.summonKey = "Alt+Space"
+	if got := settings.Shortcut(store.Snapshot(), settings.ShortcutNewCommand); got != "Alt+N" {
+		t.Fatalf("the stored binding = %q", got)
+	}
+
+	a.resetShortcuts()
+	if got := settings.Shortcut(store.Snapshot(), settings.ShortcutNewCommand); got != settings.ShortcutsOf(settings.Default())[settings.ShortcutNewCommand] {
+		t.Errorf("the app key was not restored: %q", got)
+	}
+	hotkey, _ := store.Snapshot().Extra()["hotkey"].(string)
+	if hotkey != settings.DefaultSummonShortcut {
+		t.Errorf("hotkey = %q", hotkey)
+	}
+	if a.summonKey != settings.DefaultSummonShortcut {
+		t.Errorf("the summon key = %q", a.summonKey)
+	}
+	if len(registered) == 0 || registered[len(registered)-1] != settings.DefaultSummonShortcut {
+		t.Errorf("registered = %v", registered)
+	}
+	if len(unregistered) == 0 || unregistered[len(unregistered)-1] != "Alt+Space" {
+		t.Errorf("released = %v", unregistered)
+	}
+}
+
+// While a settings recorder waits for a key, the global shortcuts are released
+// and then taken back.
+func TestShortcutsAreSuspendedWhileRecording(t *testing.T) {
+	registered := []string{}
+	unregistered := []string{}
+	store := settings.NewStore(settings.Default())
+	a := New(Options{
+		Store:              store,
+		Paths:              extensions.FromRoot(t.TempDir()),
+		RegisterShortcut:   func(accelerator string, fn func()) error { registered = append(registered, accelerator); return nil },
+		UnregisterShortcut: func(accelerator string) { unregistered = append(unregistered, accelerator) },
+	})
+	// A summon key and one custom key are held.
+	a.summonKey = "Ctrl+Space"
+	if err := store.Update(func(s *settings.Settings) {
+		s.SetCustomShortcuts([]settings.CustomShortcut{{Key: "Cmd+Shift+P", Action: "plugin:clipboard"}})
+	}); err != nil {
+		t.Fatal(err)
+	}
+	a.ApplyCustomShortcuts()
+
+	a.setShortcutsSuspended(true)
+	if !a.shortcutsSuspended {
+		t.Fatal("the shell did not record the suspension")
+	}
+	for _, key := range []string{"Ctrl+Space", "Cmd+Shift+P"} {
+		if !containsString(unregistered, key) {
+			t.Errorf("%s was not released: %v", key, unregistered)
+		}
+	}
+	registered = nil
+	a.setShortcutsSuspended(false)
+	if a.shortcutsSuspended {
+		t.Error("the shell stayed suspended")
+	}
+	if !containsString(registered, "Ctrl+Space") || !containsString(registered, "Cmd+Shift+P") {
+		t.Errorf("registered = %v", registered)
+	}
+}
+
+func containsString(list []string, want string) bool {
+	for _, value := range list {
+		if value == want {
+			return true
+		}
+	}
+	return false
+}

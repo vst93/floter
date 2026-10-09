@@ -25,6 +25,10 @@ const (
 	ShortcutSelectResult         = "select_result"
 )
 
+// DefaultSummonShortcut is the key the app registers when the user never
+// changed it: the one action whose binding the system holds.
+const DefaultSummonShortcut = "Ctrl+Space"
+
 // ShortcutActions lists every action, in the order a settings page shows them.
 var ShortcutActions = []string{
 	ShortcutToggleWindow,
@@ -44,7 +48,7 @@ func defaultShortcuts() map[string]string {
 		app = "Cmd"
 	}
 	return map[string]string{
-		ShortcutToggleWindow:         "Ctrl+Space",
+		ShortcutToggleWindow:         DefaultSummonShortcut,
 		ShortcutNewCommand:           app + "+W",
 		ShortcutOpenExternalTerminal: app + "+N",
 		ShortcutCopySelection:        copySelectionDefault(),

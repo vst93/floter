@@ -1123,3 +1123,63 @@ func TestRecommendedToolsConnect(t *testing.T) {
 		t.Errorf("the section stayed with nothing to connect: %q", tt.Texts())
 	}
 }
+
+// A recorder releases the global shortcuts while it waits for a key, and takes
+// them back when it is done: pressing the key that summons floter must be
+// recorded, not acted on.
+func TestRecorderSuspendsTheGlobalShortcuts(t *testing.T) {
+	suspended := []bool{}
+	a := New(newStore(t), Actions{
+		SetShortcut:           func(string, string) {},
+		SetShortcutsSuspended: func(on bool) { suspended = append(suspended, on) },
+	})
+	a.Shortcut, a.ShortcutID = "Ctrl+Space", "toggle_window"
+	tt := render(t, a, 720, 620)
+	if err := tt.Click("Shortcuts"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if len(suspended) != 0 {
+		t.Fatalf("the shortcuts were released before recording: %v", suspended)
+	}
+
+	// The summon key's recorder suspends, and a captured key resumes.
+	if err := tt.Click("Record"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if len(suspended) != 1 || suspended[0] != true {
+		t.Fatalf("suspended = %v", suspended)
+	}
+	tt.Key(ui.Super, ui.KeyG)
+	tt.Frame()
+	if len(suspended) != 2 || suspended[1] != false {
+		t.Errorf("suspended = %v", suspended)
+	}
+
+	// Escape cancels and resumes too.
+	suspended = nil
+	if err := tt.Click("Record"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	tt.Key(0, ui.KeyEscape)
+	tt.Frame()
+	if len(suspended) != 2 || suspended[0] != true || suspended[1] != false {
+		t.Errorf("suspended = %v", suspended)
+	}
+
+	// The custom section's recorder does the same.
+	suspended = nil
+	tt.Scroll(400, 300, 0, 900)
+	tt.Frame()
+	if err := tt.Click("Record key"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	tt.Key(0, ui.KeyEscape)
+	tt.Frame()
+	if len(suspended) != 2 || suspended[0] != true || suspended[1] != false {
+		t.Errorf("suspended = %v", suspended)
+	}
+}

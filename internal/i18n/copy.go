@@ -287,6 +287,7 @@ var en = Copy{
 		ShortcutsCommand:     "Command line",
 		ShortcutsCommandHint: "Run silently, e.g. say done",
 		ShortcutsRecordKey:   "Record key",
+		ShortcutsReset:       "Restore the shipped keys",
 		ShortcutsRejected:    shortcutsRejectedEN,
 		ShortcutsActions: []Option{
 			{"plugin:clipboard", "Clipboard history"},
@@ -609,6 +610,7 @@ var zh = Copy{
 		ShortcutsCommand:     "命令行",
 		ShortcutsCommandHint: "静默运行，例如 say done",
 		ShortcutsRecordKey:   "录制按键",
+		ShortcutsReset:       "恢复默认按键",
 		ShortcutsRejected:    shortcutsRejectedZH,
 		ShortcutsActions: []Option{
 			{"plugin:clipboard", "剪贴板历史"},
