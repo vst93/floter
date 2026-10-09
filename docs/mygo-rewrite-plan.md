@@ -595,6 +595,18 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
   非 Windows 编译不到。
 - 三个平台因此都有图标：macOS `.icns` 最大 PNG 条目、Linux `Icon=`、Windows shell 提取。
 
+### P4-r Safari 书签（已做）
+
+- Safari 的书签在 `~/Library/Safari/Bookmarks.plist`（二进制 plist）。`internal/plist` 已经能读，
+  于是补上 `readSafariBookmarks`：按 Safari 自己的节点类型递归——`WebBookmarkTypeList` 与
+  `WebBookmarkTypeProxy`（Safari 自己的文件夹，用户的书签栏就在这里）都下钻，`WebBookmarkTypeLeaf`
+  取 `URLString` 与 `URIDictionary.title`（缺省回落到 `Title`）。
+- Safari 的 profile 现在**历史或书签存在任一**就列出（此前只有历史文件存在时才有 profile），
+  书签文件缺失时只读历史。
+- 夹具是 Python `plistlib` 生成的**真二进制 plist**（含嵌套文件夹、proxy 文件夹、根层书签），
+  另有 XML 夹具覆盖「没有 URL 的叶子跳过」「没有标题的叶子用 URL」。
+- 这是旧版**没有**的能力（旧版只读 Chromium JSON 与 Firefox places.sqlite），属补齐而非对齐。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。

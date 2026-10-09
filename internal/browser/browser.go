@@ -164,14 +164,21 @@ func profilesFor(goos, home, appData, localAppData, customBase string) []Profile
 	if goos == "darwin" {
 		safari := joinFor(goos, home, "Library", "Safari")
 		history := joinFor(goos, safari, "History.db")
-		if exists(history) {
-			profiles = append(profiles, Profile{
+		bookmarks := joinFor(goos, safari, "Bookmarks.plist")
+		if exists(history) || exists(bookmarks) {
+			profile := Profile{
 				BrowserID: BrowserSafari,
 				Browser:   "Safari",
 				Dir:       "Safari",
 				BaseDir:   safari,
-				HistoryDB: history,
-			})
+			}
+			if exists(history) {
+				profile.HistoryDB = history
+			}
+			if exists(bookmarks) {
+				profile.BookmarksFile = bookmarks
+			}
+			profiles = append(profiles, profile)
 		}
 	}
 	for _, dir := range subdirectories(firefoxRoot(goos, home, appData)) {
@@ -551,13 +558,17 @@ func historyQueries(profile Profile) []historyQuery {
 	}
 }
 
-// readBookmarks reads a profile's bookmarks: Chrome's JSON file, or
-// Firefox's places database.
+// readBookmarks reads a profile's bookmarks: Chrome's JSON file, Firefox's
+// places database, or Safari's property list.
 func readBookmarks(profile Profile) []Result {
-	if strings.HasSuffix(profile.BookmarksFile, "places.sqlite") {
+	switch {
+	case strings.HasSuffix(profile.BookmarksFile, "places.sqlite"):
 		return readFirefoxBookmarks(profile)
+	case strings.HasSuffix(profile.BookmarksFile, ".plist"):
+		return readSafariBookmarks(profile)
+	default:
+		return readChromiumBookmarks(profile)
 	}
-	return readChromiumBookmarks(profile)
 }
 
 // chromiumBookmarks is the shape of Chrome's Bookmarks file.

@@ -118,8 +118,9 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
    `⌘1–⌘0` 的编号角标，Go 侧已完成。
 2. **i18n 全量对齐**：UI 包内没有裸文案（已审计），旧 `src/i18n.ts` 的 1700+ 键大部分属于已不存在的
    页面（插件 iframe 页、剪贴板页、会话页），不为「对齐键数」而搬。
-3. **浏览器插件剩余**：Safari 的 `Bookmarks.plist`——旧版也没读（只解析 Chromium JSON 与 Firefox
-   places.sqlite），属可选新能力；`internal/plist` 已能读二进制 plist，要做时是接一个解析函数。
+3. **浏览器插件**：已完成——Safari 的 `Bookmarks.plist`（二进制 plist，`internal/plist` + Safari
+   自己的节点类型）现在也读了；这是旧版**没有**的能力（它只解析 Chromium JSON 与 Firefox
+   places.sqlite），属于补上而不是对齐。
 4. **Windows 图标**：已完成（P2-l）——`.lnk` 的图标经 PowerShell 提取并缓存为 PNG。
 5. **系统通知**：已完成（后台命令、安装/卸载/检测）。
 6. **P5 打磨**：已完成；更细的换壳过渡受原生窗口尺寸变化限制，不做应用层过渡。
