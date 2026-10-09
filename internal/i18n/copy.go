@@ -67,6 +67,7 @@ var en = Copy{
 		OutputTimedOut:       "Timed out",
 		OutputTruncated:      "output truncated",
 		OutputHint:           "Enter copies \u00b7 Esc closes",
+		OutputListHint:       "\u2191\u2193 choose \u00b7 Enter runs \u00b7 Esc closes",
 		OutputFailed:         "Exit code %d",
 
 		ClipboardFavoriteFailed:  "Could not change the star",
@@ -363,6 +364,7 @@ var zh = Copy{
 		OutputTimedOut:       "已超时",
 		OutputTruncated:      "输出已截断",
 		OutputHint:           "回车复制 · Esc 关闭",
+		OutputListHint:       "↑↓ 选择 · 回车执行 · Esc 关闭",
 		OutputFailed:         "退出码 %d",
 
 		ClipboardFavoriteFailed:  "无法修改收藏",

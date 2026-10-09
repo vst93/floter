@@ -1137,3 +1137,123 @@ func TestCapturedCommandFailure(t *testing.T) {
 		t.Errorf("the exit code is missing: %q", tt.Texts())
 	}
 }
+
+// A command that prints the list protocol is drawn as a list: its rows are
+// walkable, Enter runs the chosen row's action, and a status row is not a
+// door.
+func TestCapturedCommandListProtocol(t *testing.T) {
+	a := testApp()
+	entry := extensions.CommandEntry{
+		IntegrationID: "test.ext",
+		Command:       extensions.Command{ID: "search", Name: "Search"},
+		Program:       "/bin/sh",
+		Route:         extensions.RouteBackground,
+	}
+	a.SetCommands([]extensions.CommandEntry{entry})
+	a.Actions.RunCommandCaptured = func(_ extensions.CommandEntry, _ []string, done func(extensions.CapturedRun, error)) {
+		done(extensions.CapturedRun{
+			Command: []string{"tool", "search"},
+			Success: true,
+			Stdout: `[
+			  {"id":"a","title":"First result","subtitle":"context","icon":"star",
+			   "action":{"type":"open","url":"https://example.com"}},
+			  {"id":"b","title":"Copy me","action":{"type":"copy","text":"copied text"}},
+			  {"id":"c","title":"Insert me","action":{"type":"insert","text":"typed"}},
+			  {"id":"d","title":"No matches","kind":"status"}
+			]`,
+		}, nil)
+	}
+	opened := ""
+	copied := ""
+	a.Actions.OpenURL = func(browserID, url string) { opened = url }
+	a.Actions.Copy = func(text string) { copied = text }
+
+	tt := render(t, a)
+	a.Query = "search"
+	tt.Frame()
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if !a.InOutputView() {
+		t.Fatal("the output view did not open")
+	}
+	for _, want := range []string{"First result", "Copy me", "Insert me", "No matches"} {
+		if !tt.HasText(want) {
+			t.Fatalf("row %q is missing: %q", want, tt.Texts())
+		}
+	}
+	if !tt.HasText("\u2191\u2193 choose") {
+		t.Errorf("the list hint is missing: %q", tt.Texts())
+	}
+
+	// The first runnable row is chosen; Enter opens it and closes the view.
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if opened != "https://example.com" {
+		t.Errorf("opened %q", opened)
+	}
+	if a.InOutputView() {
+		t.Error("the view survived running a row")
+	}
+
+	// Down moves to the copy row; Enter copies it and leaves the view open.
+	tt.Key(0, ui.KeyEscape)
+	tt.Frame()
+	a.Query = "search"
+	tt.Frame()
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	tt.Key(0, ui.KeyDown)
+	tt.Frame()
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if copied != "copied text" {
+		t.Errorf("copied %q", copied)
+	}
+
+	// The insert row puts its text back in the field and closes the view.
+	tt.Key(0, ui.KeyEscape)
+	tt.Frame()
+	a.Query = "search"
+	tt.Frame()
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	tt.Key(0, ui.KeyDown)
+	tt.Frame()
+	tt.Key(0, ui.KeyDown)
+	tt.Frame()
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if a.Query != "typed" || a.InOutputView() {
+		t.Errorf("insert left %q, view %v", a.Query, a.InOutputView())
+	}
+}
+
+// Output that is not the list protocol stays text, even when it looks like
+// JSON.
+func TestCapturedCommandNonListStaysText(t *testing.T) {
+	a := testApp()
+	entry := extensions.CommandEntry{
+		IntegrationID: "test.ext",
+		Command:       extensions.Command{ID: "dump", Name: "Dump"},
+		Route:         extensions.RouteBackground,
+	}
+	a.SetCommands([]extensions.CommandEntry{entry})
+	a.Actions.RunCommandCaptured = func(_ extensions.CommandEntry, _ []string, done func(extensions.CapturedRun, error)) {
+		done(extensions.CapturedRun{
+			Command: []string{"tool"},
+			Success: true,
+			Stdout:  `{"not":"a list"}` + "\n",
+		}, nil)
+	}
+	tt := render(t, a)
+	a.Query = "dump"
+	tt.Frame()
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if !tt.HasText(`{"not":"a list"}`) {
+		t.Errorf("the text is missing: %q", tt.Texts())
+	}
+	if !tt.HasText("Enter copies") {
+		t.Errorf("the text hint is missing: %q", tt.Texts())
+	}
+}

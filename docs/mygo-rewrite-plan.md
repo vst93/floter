@@ -488,6 +488,19 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
 - **权限审计**：集成行新增「权限」按钮，展开后逐条列出权限名、说明与 **enforced / declared** 标注
   （`i18n.PermissionDescription`，中英）；默认折叠，行本身保持是一行。
 
+### P3-k 列表协议（已做）
+
+- **`extensions.ParseRows`**：把命令的 stdout 按列表协议解析（`[{id,title,subtitle,icon,group,kind,disabled,action}]`），
+  规则是**全有或全无**——不是 JSON 数组、某一项缺 id/title、未知 icon、未知 kind、未知 action.type 或缺字段，
+  整份输出退回文本（协议原话）；**空数组是「没有话说」的合法列表**，不是文本。
+  行族、字形词表（link/file/folder/globe/star/clock/text/image/command）、action 三型
+  （open/copy/insert）都按文档实现，并有正反两组单测。
+- **启动器输出视图**：输出是列表时改画列表（可选中、↑↓ 走可运行行、跳过 status 行、分组名只印一次、
+  status/disabled 行弱化且不可回车），回车按 action 执行：open 交给系统打开并收起、copy 写剪贴板、
+  insert 把文本放回搜索框；列表与文本各有自己的按键提示行。文本形态不变（选中复制）。
+- 未做：分页协议（`page.cursor/hasMore` 与滚动加载）、`⌘1`-`⌘0` 编号角标——这两项需要启动器的
+  编号与分页机制（旧版由 `result-budget.ts` 统一分配），登记为后续。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。

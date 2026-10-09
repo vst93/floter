@@ -68,6 +68,7 @@ type Launcher struct {
 	OutputTimedOut  string
 	OutputTruncated string
 	OutputHint      string
+	OutputListHint  string
 	OutputFailed    string
 
 	// The clipboard mode's own feedback lines: the star and the delete.

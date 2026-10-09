@@ -17,13 +17,21 @@ import (
 // and scrolled inside it; this is the same shape, and the two keys are the
 // old ones: Enter copies the text, Escape closes the view.
 
-// OutputView is one captured run, ready to show.
+// OutputView is one captured run, ready to show: its rows when the output is
+// the list protocol, its text otherwise.
 type OutputView struct {
 	// Title is the command line that ran.
 	Title string
 	// Text is what it wrote (standard output, with standard error appended
 	// when there is any).
 	Text string
+	// Rows are the list protocol's rows, when the output is a list; a nil
+	// slice with IsList false means the output is text.
+	Rows []extensions.Row
+	// IsList reports whether the output is a list (which may be empty).
+	IsList bool
+	// Selected is the chosen row in a list, -1 while none is.
+	Selected int
 	// Status is the one-line summary: the exit code, the duration, and
 	// whether the output was cut or the run timed out.
 	Status string
@@ -46,7 +54,8 @@ func (a *App) RunStatus(run extensions.CapturedRun, err error) string {
 	return a.runStatus(copy, run)
 }
 
-// showOutput puts a captured run's output in front of the user.
+// showOutput puts a captured run's output in front of the user: as a list when
+// the command printed the list protocol, as text otherwise.
 func (a *App) showOutput(run extensions.CapturedRun, err error) {
 	copy := a.copy()
 	view := &OutputView{
@@ -54,15 +63,116 @@ func (a *App) showOutput(run extensions.CapturedRun, err error) {
 		Text:       run.Text(),
 		Status:     a.runStatus(copy, run),
 		FontFamily: a.settings().FontFamily,
+		Selected:   -1,
 	}
-	if err != nil && view.Text == "" {
-		view.Text = err.Error()
+	// A list is read from standard output alone: standard error beside it is
+	// a warning, not part of the protocol.
+	if rows, ok := extensions.ParseRows(run.Stdout); ok {
+		view.Rows, view.IsList = rows, true
+		view.Selected = firstRunnable(rows)
 	}
-	if view.Text == "" {
-		view.Text = copy.OutputEmpty
+	if !view.IsList {
+		if err != nil && view.Text == "" {
+			view.Text = err.Error()
+		}
+		if view.Text == "" {
+			view.Text = copy.OutputEmpty
+		}
 	}
 	a.output = view
 	a.Selected, a.chosenRow = 0, -1
+}
+
+// firstRunnable is the first row Enter could run, -1 when none is.
+func firstRunnable(rows []extensions.Row) int {
+	for i, row := range rows {
+		if row.Runnable() {
+			return i
+		}
+	}
+	return -1
+}
+
+// moveOutputSelection moves the list's choice by one, skipping rows that
+// cannot be run.
+func (a *App) moveOutputSelection(delta int) {
+	if a.output == nil || !a.output.IsList {
+		return
+	}
+	rows := a.output.Rows
+	index := a.output.Selected
+	for i := 0; i < len(rows); i++ {
+		index += delta
+		if index < 0 {
+			index = len(rows) - 1
+		}
+		if index >= len(rows) {
+			index = 0
+		}
+		if rows[index].Runnable() {
+			a.output.Selected = index
+			a.OutputList.ScrollIntoView(index)
+			return
+		}
+	}
+}
+
+// runOutputRow does what Enter does on the chosen row: open a page, copy text,
+// or put it back in the field. A row with no action does nothing.
+func (a *App) runOutputRow() {
+	if a.output == nil || !a.output.IsList {
+		return
+	}
+	rows := a.output.Rows
+	if a.output.Selected < 0 || a.output.Selected >= len(rows) {
+		return
+	}
+	row := rows[a.output.Selected]
+	if !row.Runnable() {
+		return
+	}
+	copy := a.copy()
+	switch row.Action.Type {
+	case "open":
+		if a.Actions.OpenURL != nil {
+			a.Actions.OpenURL("", row.Action.URL)
+		}
+		a.leaveOutput()
+		a.Hide()
+	case "copy":
+		if a.Actions.Copy != nil {
+			a.Actions.Copy(row.Action.Text)
+			a.toast = copy.Copied
+		}
+	case "insert":
+		// Leaving clears the field, so the text goes in after it.
+		a.leaveOutput()
+		a.Query = row.Action.Text
+		a.pendingCaret = true
+	}
+}
+
+// outputText is what Enter copies from the view: the text, or the chosen row's
+// text in a list.
+func (a *App) outputText() string {
+	if a.output == nil {
+		return ""
+	}
+	if !a.output.IsList {
+		return a.output.Text
+	}
+	rows := a.output.Rows
+	if a.output.Selected < 0 || a.output.Selected >= len(rows) {
+		return ""
+	}
+	row := rows[a.output.Selected]
+	if row.Action != nil && row.Action.Type != "open" {
+		return row.Action.Text
+	}
+	if row.Subtitle != "" {
+		return row.Title + " \u2014 " + row.Subtitle
+	}
+	return row.Title
 }
 
 // runStatus is the output view's summary line.
@@ -99,20 +209,103 @@ func (a *App) leaveOutput() {
 func (a *App) InOutputView() bool { return a.output != nil }
 
 // outputBody draws the captured output in place of the result list: the
-// status line pinned under the field, and the text scrolling under it.
+// status line pinned under the field, and the text or the rows scrolling under
+// it.
 func (a *App) outputBody(c *ui.Context, copy i18n.Launcher, edge float32) {
 	view := a.output
 	t := c.Theme()
 	header := t.Space(4)
 	ui.Column(c).Fill().Children(func() {
-		ui.Scroll(c.Key("launcher.output")).TrackScroll(&a.Output).Fill().
-			Padding(edge+header, t.Space(2), t.Space(1), t.Space(2)).Children(func() {
-			ui.Text(c, view.Text).Font(view.FontFamily).FontSize(t.FontSize).
-				TextColor(t.Text).Selectable()
-		})
+		if view.IsList {
+			ui.List(c.Key("launcher.output.list"), &a.OutputList, len(view.Rows), func(i int) {
+				a.outputRow(c, view.Rows[i], i)
+			}).Fill().Padding(edge+header, t.Space(1), 0, 0).Label(view.Title)
+		} else {
+			ui.Scroll(c.Key("launcher.output")).TrackScroll(&a.Output).Fill().
+				Padding(edge+header, t.Space(2), t.Space(1), t.Space(2)).Children(func() {
+				ui.Text(c, view.Text).Font(view.FontFamily).FontSize(t.FontSize).
+					TextColor(t.Text).Selectable()
+			})
+		}
 		ui.Column(c).Absolute().Top(edge).Left(t.Space(2)).Right(t.Space(2)).Children(func() {
 			ui.Text(c, view.Title).FontSize(t.FontSize).TextColor(t.Text).Ellipsis("\u2026").SingleLine()
-			ui.Text(c, view.Status+"  \u00b7  "+copy.OutputHint).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+			ui.Text(c, view.Status+"  \u00b7  "+a.outputHint(copy, view)).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
 		})
 	})
+}
+
+// outputHint is the key line: a list can be walked and run, text can only be
+// copied.
+func (a *App) outputHint(copy i18n.Launcher, view *OutputView) string {
+	if view.IsList {
+		return copy.OutputListHint
+	}
+	return copy.OutputHint
+}
+
+// outputRow draws one list row: its group heading when it starts a group, its
+// icon, and its two lines. A status row is muted and cannot be chosen.
+func (a *App) outputRow(c *ui.Context, row extensions.Row, i int) {
+	t := c.Theme()
+	if i > 0 && row.Group != "" && row.Group != a.output.Rows[i-1].Group {
+		ui.Text(c, row.Group).FontSize(t.FontSize-1).TextColor(t.TextMuted).
+			Padding(t.Space(1), t.Space(2), 0, t.Space(2))
+	}
+	style := ui.Row(c).Key(row.ID).FillWidth().Padding(t.Space(1.5), t.Space(2)).Radius(t.Radius).Gap(t.Space(2))
+	switch {
+	case i == a.output.Selected && row.Runnable():
+		style.Background(t.Accent.Alpha(0.14))
+	case row.Status || row.Disabled:
+		// A note is not a door: it stays muted and never highlights.
+	default:
+		if style.Hovered() {
+			style.Background(t.SurfaceHover)
+		}
+	}
+	style.Children(func() {
+		if row.Icon != "" {
+			ui.Text(c, rowIcon(row.Icon)).FontSize(t.FontSize).TextColor(t.TextMuted)
+		}
+		ui.Column(c).Grow(1).Children(func() {
+			color := t.Text
+			if row.Status || row.Disabled {
+				color = t.TextMuted
+			}
+			ui.Text(c, row.Title).FontSize(t.FontSize).TextColor(color)
+			if row.Subtitle != "" {
+				ui.Text(c, row.Subtitle).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+			}
+		})
+	})
+	if style.Clicked() && row.Runnable() {
+		a.output.Selected = i
+		a.runOutputRow()
+	}
+}
+
+// rowIcon is the glyph a row's icon name draws. The vocabulary is closed (see
+// extensions.RowIcons), so a name that is not here cannot reach this far.
+func rowIcon(name string) string {
+	switch name {
+	case "link":
+		return "\u2197"
+	case "file":
+		return "\u25a4"
+	case "folder":
+		return "\u25b1"
+	case "globe":
+		return "\u25f4"
+	case "star":
+		return "\u2605"
+	case "clock":
+		return "\u25f4"
+	case "text":
+		return "\u2261"
+	case "image":
+		return "\u25a3"
+	case "command":
+		return "\u203a"
+	default:
+		return "\u00b7"
+	}
 }

@@ -183,6 +183,8 @@ type App struct {
 	// place of the result list; Output keeps its scroll offset.
 	output *OutputView
 	Output ui.ScrollState
+	// OutputList is the output list's own scrolling and selection state.
+	OutputList ui.ListState
 	// calculatorMode is set while the calculator history is open, with the
 	// entries the shell last handed over and the filter Tab cycles.
 	calculatorMode   bool
@@ -390,6 +392,27 @@ func (a *App) View(c *ui.Context) {
 		a.toast = ""
 	}
 
+	// The output view owns the keys while it is open: its list walks, its
+	// text copies, and Escape closes it.
+	if a.output != nil {
+		switch {
+		case c.Shortcut(0, ui.KeyEscape):
+			a.leaveOutput()
+		case c.Shortcut(0, ui.KeyDown):
+			a.moveOutputSelection(1)
+		case c.Shortcut(0, ui.KeyUp):
+			a.moveOutputSelection(-1)
+		case c.Shortcut(0, ui.KeyEnter):
+			if a.output.IsList {
+				a.runOutputRow()
+			} else if a.Actions.Copy != nil {
+				a.Actions.Copy(a.output.Text)
+				a.toast = copy.Copied
+			}
+		}
+		return
+	}
+
 	// The field keeps the focus, so the list's arrows are read here: a
 	// single-line text input leaves plain Up and Down to shortcuts.
 	if c.Shortcut(0, ui.KeyDown) {
@@ -397,18 +420,6 @@ func (a *App) View(c *ui.Context) {
 	}
 	if c.Shortcut(0, ui.KeyUp) {
 		a.move(-1, len(results))
-	}
-	if a.output != nil {
-		switch {
-		case c.Shortcut(0, ui.KeyEscape):
-			a.leaveOutput()
-		case c.Shortcut(0, ui.KeyEnter):
-			if a.Actions.Copy != nil {
-				a.Actions.Copy(a.output.Text)
-				a.toast = copy.Copied
-			}
-		}
-		return
 	}
 	if c.Shortcut(0, ui.KeyEscape) {
 		switch {
