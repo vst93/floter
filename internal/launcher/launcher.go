@@ -13,6 +13,7 @@ import (
 	"floter/internal/browser"
 	"floter/internal/calculator"
 	"floter/internal/clipboard"
+	"floter/internal/drops"
 	"floter/internal/extensions"
 	"floter/internal/i18n"
 	"floter/internal/settings"
@@ -96,6 +97,12 @@ type Actions struct {
 	// RunInTerminal runs a command in the terminal surface: a tool found on
 	// the PATH.
 	RunInTerminal func(argv []string)
+	// OpenPath hands a path to the system's own opener, for a dropped file's
+	// "open" action.
+	OpenPath func(path string)
+	// OpenInTerminal opens the terminal surface in a directory, for a
+	// dropped file's "cd" action.
+	OpenInTerminal func(dir string)
 	// SearchBrowser searches the browser the settings name; the shell answers
 	// on the main thread, once with the file results and again when the live
 	// tabs land. Nil leaves the mode empty.
@@ -192,6 +199,10 @@ type App struct {
 	Output ui.ScrollState
 	// OutputList is the output list's own scrolling and selection state.
 	OutputList ui.ListState
+	// files is set while a drop's rows are listed, with Dropped the files the
+	// desktop handed over.
+	files   bool
+	Dropped []drops.File
 	// calculatorMode is set while the calculator history is open, with the
 	// entries the shell last handed over and the filter Tab cycles.
 	calculatorMode   bool
@@ -316,6 +327,7 @@ func (a *App) ResetQuery() {
 	a.leaveClipboard()
 	a.leaveBrowser()
 	a.leaveCalculator()
+	a.leaveFiles()
 	a.Query = ""
 	a.Selected, a.chosenRow = 0, -1
 	a.pendingCaret = true
@@ -504,6 +516,8 @@ func (a *App) View(c *ui.Context) {
 	}
 	if c.Shortcut(0, ui.KeyEscape) {
 		switch {
+		case a.files:
+			a.leaveFiles()
 		case a.calculatorMode:
 			a.leaveCalculator()
 		case a.browser:
@@ -608,7 +622,7 @@ func (a *App) leaveCommand() {
 // without a trip through the command list. A bare word stays an ordinary
 // query, which is what makes entering and leaving one keystroke.
 func (a *App) syncTypedMode() {
-	if a.mode != nil || a.clipboard || a.browser || a.calculatorMode {
+	if a.mode != nil || a.clipboard || a.browser || a.calculatorMode || a.files {
 		return
 	}
 	word, hasRest := modeWord(a.Query)
@@ -622,6 +636,9 @@ func (a *App) syncTypedMode() {
 		a.enterBrowserWord(a.Query)
 	case wordIn(word, calculatorWords):
 		a.enterCalculatorWord(a.Query)
+	case wordIn(word, filesWords):
+		a.files = true
+		a.Selected, a.chosenRow = 0, -1
 	}
 }
 
@@ -639,7 +656,7 @@ func modeWord(query string) (string, bool) {
 // syncCommandMode leaves the mode when the line no longer starts with the
 // word that entered it, which is what deleting it does.
 func (a *App) syncCommandMode() {
-	if a.mode == nil && !a.clipboard && !a.browser && !a.calculatorMode {
+	if a.mode == nil && !a.clipboard && !a.browser && !a.calculatorMode && !a.files {
 		return
 	}
 	word := firstWord(a.Query)
@@ -653,12 +670,15 @@ func (a *App) syncCommandMode() {
 		keep = wordIn(word, clipboardWords)
 	case a.calculatorMode:
 		keep = wordIn(word, calculatorWords)
+	case a.files:
+		keep = wordIn(word, filesWords)
 	}
 	if !keep {
 		a.leaveCommand()
 		a.leaveClipboard()
 		a.leaveBrowser()
 		a.leaveCalculator()
+		a.leaveFiles()
 	}
 }
 
@@ -889,6 +909,14 @@ func (a *App) activate(results []Item) {
 		}
 		a.leaveBrowser()
 		a.Hide()
+		return
+	}
+	if a.files {
+		if a.Selected >= 0 && a.Selected < len(results) {
+			if run := results[a.Selected].Run; run != nil {
+				run()
+			}
+		}
 		return
 	}
 	if a.calculatorMode {

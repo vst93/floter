@@ -99,8 +99,13 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 - P2-j 应用图标（macOS `.icns` 最大 PNG 条目、Linux `Icon=`，懒读 + 缓存）
 - P2-k 结果编号快捷键（⌘1–⌘0，随视口重算）
 - P3-h 后台运行与输出回看、P3-i orphan 接管/删除、P3-j 完成通知与权限审计、P3-k 列表协议、P3-l 导入/导出
-- P4-j 命令开关与别名、P4-k 自定义快捷键、P4-l 计算器插件、P4-n 终端尺寸写回与会话快照
+- P4-j 命令开关与别名、P4-k 自定义快捷键、P4-l 计算器插件、P4-n 终端尺寸写回与会话快照、
+  P4-o 文件拖放
 - P5 动效/无障碍/性能基线、P6-c 发布链（CI 矩阵 + 安装器 + 更新检查）
+
+**P4-o 文件拖放**（本轮）
+- 新包 `internal/drops`（规范化 + shell 引用），启动器 files 模式：每个文件三行安全动作
+  （打开 / 在此打开终端 / 复制路径），落地不执行；`RunShellIn` 以目录起新会话。
 
 ## 尚未做（按建议优先级）
 

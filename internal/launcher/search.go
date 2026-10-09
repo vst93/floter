@@ -456,6 +456,9 @@ func (a *App) Results() []Item {
 	if a.calculatorMode {
 		return a.calculatorItems()
 	}
+	if a.files {
+		return a.filesItems()
+	}
 	var out []Item
 	if item, ok := a.calculator(); ok {
 		out = append(out, item)

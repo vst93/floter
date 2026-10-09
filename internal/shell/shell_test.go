@@ -1685,3 +1685,37 @@ func waitForStatus(t *testing.T, a *App) {
 		time.Sleep(5 * time.Millisecond)
 	}
 }
+
+// A drop on the window becomes the files mode, with the paths normalized, and
+// nothing runs on arrival.
+func TestFileDropOpensTheFilesMode(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "report.pdf")
+	if err := os.WriteFile(file, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	store := settings.NewStore(settings.Default())
+	a := New(Options{
+		Store:       store,
+		Paths:       extensions.FromRoot(t.TempDir()),
+		NewTerminal: func(terminal.Options) (*terminal.Terminal, error) { return nil, errors.New("no library in tests") },
+	})
+	a.handleFileDrop(&mygo.FileDropEvent{Paths: []string{file, filepath.Join(dir, "gone.txt")}})
+	if !a.Launcher.InFilesMode() {
+		t.Fatal("the files mode did not open")
+	}
+	if len(a.Launcher.Dropped) != 1 || a.Launcher.Dropped[0].Name != "report.pdf" {
+		t.Fatalf("dropped = %+v", a.Launcher.Dropped)
+	}
+	// A drop of nothing readable leaves the launcher where it was.
+	b := New(Options{
+		Store:       settings.NewStore(settings.Default()),
+		Paths:       extensions.FromRoot(t.TempDir()),
+		NewTerminal: func(terminal.Options) (*terminal.Terminal, error) { return nil, errors.New("no library in tests") },
+	})
+	b.handleFileDrop(&mygo.FileDropEvent{Paths: []string{filepath.Join(dir, "gone.txt")}})
+	if b.Launcher.InFilesMode() {
+		t.Error("an empty drop opened the mode")
+	}
+	b.handleFileDrop(nil)
+}

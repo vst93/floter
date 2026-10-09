@@ -30,6 +30,7 @@ import (
 	"floter/internal/browser"
 	"floter/internal/calculator"
 	"floter/internal/clipboard"
+	"floter/internal/drops"
 	"floter/internal/extensions"
 	"floter/internal/glassmap"
 	"floter/internal/i18n"
@@ -699,6 +700,7 @@ func (a *App) Start() {
 	})
 	a.Win.OnFocus(func() { a.shownAt = a.now() })
 	a.Win.OnResize(a.trackTerminalSize)
+	a.Win.OnFileDrop(a.handleFileDrop)
 	a.Win.OnBlur(func() {
 		// A blur right after a reveal is the platform settling; only a
 		// real focused-to-unfocused leave hides the panel.
@@ -1333,6 +1335,24 @@ func (a *App) scheduleTerminalSize(width, height float64) {
 		}
 	})
 	a.sizeMu.Unlock()
+}
+
+// handleFileDrop turns a drop into the files mode: the paths are normalized
+// (a `~`, a relative path, a file that is gone), and the launcher lists what
+// can be done with them. Nothing runs on arrival.
+func (a *App) handleFileDrop(event *mygo.FileDropEvent) {
+	if event == nil || len(event.Paths) == 0 {
+		return
+	}
+	home, _ := os.UserHomeDir()
+	cwd, _ := os.Getwd()
+	files := drops.Normalize(event.Paths, home, cwd)
+	if len(files) == 0 {
+		return
+	}
+	a.Launcher.SetDropped(files)
+	a.Open(SurfaceLauncher)
+	a.Launcher.EnterFiles()
 }
 
 // restoreSettingsPage reopens the settings surface on the page the user last

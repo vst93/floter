@@ -85,6 +85,11 @@ type Launcher struct {
 	CalculatorEmpty          string
 	CalculatorRecordFailed   string
 	CalculatorFavoriteFailed string
+	// The files mode's three actions and its folder mark.
+	FileOpen     string
+	FileCd       string
+	FileCopyPath string
+	FileFolder   string
 	// BrowserTab labels a live-tab row in the browser mode, and
 	// BrowserNoProfile is the mode's empty state when no browser profile was
 	// found at all.

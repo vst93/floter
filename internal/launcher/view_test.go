@@ -20,6 +20,7 @@ import (
 	"floter/internal/browser"
 	"floter/internal/calculator"
 	"floter/internal/clipboard"
+	"floter/internal/drops"
 	"floter/internal/extensions"
 	"floter/internal/settings"
 )
@@ -1383,5 +1384,96 @@ func TestResultShortcutsRunTheNumberedRow(t *testing.T) {
 	tt.Frame()
 	if len(ran) != 2 || ran[1] != "App 09" {
 		t.Errorf("ran %v", ran)
+	}
+}
+
+// A drop offers the three safe actions per file, and none of them runs the
+// file itself.
+func TestFilesModeOffersTheDropActions(t *testing.T) {
+	a := testApp()
+	opened, cdTo, copied := "", "", ""
+	a.Actions.OpenPath = func(path string) { opened = path }
+	a.Actions.OpenInTerminal = func(dir string) { cdTo = dir }
+	a.Actions.Copy = func(text string) { copied = text }
+	a.SetDropped([]drops.File{
+		{Path: "/tmp/report.pdf", Name: "report.pdf", Directory: "/tmp"},
+		{Path: "/tmp/projects", Name: "projects", Directory: "/tmp", IsDirectory: true},
+	})
+
+	tt := render(t, a)
+	tt.Type("files ")
+	tt.Frame()
+	if !a.InFilesMode() {
+		t.Fatal("the files mode did not open")
+	}
+	for _, want := range []string{"Open  report.pdf", "Open a terminal in  report.pdf", "Copy the path of  report.pdf"} {
+		if !tt.HasText(want) {
+			t.Fatalf("row %q is missing: %q", want, tt.Texts())
+		}
+	}
+	// A folder says so, and its cd enters it.
+	if !tt.HasText("Folder") {
+		t.Errorf("the folder mark is missing: %q", tt.Texts())
+	}
+
+	// Open hands the path to the system, and leaves the mode.
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if opened != "/tmp/report.pdf" || a.InFilesMode() {
+		t.Errorf("open: %q, mode %v", opened, a.InFilesMode())
+	}
+
+	// A file's cd stands next to it; a folder's enters it.
+	a.EnterFiles()
+	a.Query = "files report"
+	tt.Frame()
+	tt.Key(0, ui.KeyDown)
+	tt.Frame()
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if cdTo != "/tmp" {
+		t.Errorf("cd = %q", cdTo)
+	}
+	a.EnterFiles()
+	a.Query = "files projects"
+	tt.Frame()
+	tt.Key(0, ui.KeyDown)
+	tt.Frame()
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if cdTo != "/tmp/projects" {
+		t.Errorf("a folder's cd = %q", cdTo)
+	}
+
+	// Copy puts the absolute path on the clipboard.
+	a.EnterFiles()
+	a.Query = "files report"
+	tt.Frame()
+	tt.Key(0, ui.KeyDown)
+	tt.Frame()
+	tt.Key(0, ui.KeyDown)
+	tt.Frame()
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if copied != "/tmp/report.pdf" {
+		t.Errorf("copied %q", copied)
+	}
+}
+
+// A drop of nothing the app can read leaves the launcher alone, and the mode
+// leaves with its word.
+func TestFilesModeLeavesWithItsWord(t *testing.T) {
+	a := testApp()
+	a.SetDropped([]drops.File{{Path: "/tmp/a.txt", Name: "a.txt", Directory: "/tmp"}})
+	tt := render(t, a)
+	tt.Type("files ")
+	tt.Frame()
+	if !a.InFilesMode() {
+		t.Fatal("the mode did not open")
+	}
+	a.Query = "a.txt"
+	tt.Frame()
+	if a.InFilesMode() {
+		t.Error("the mode survived losing its word")
 	}
 }
