@@ -248,23 +248,37 @@ func (a *App) View(c *ui.Context) {
 	t := c.Theme()
 	top, right, bottom, left := a.inset()
 	ui.Column(c).Fill().Padding(top, right, bottom, left).Children(func() {
-		panel := ui.Column(c).Fill().Radius(surface.Tokens.RadiusLG).Padding(t.Space(2.5)).DragWindow()
-		if material := glassmap.Material(surface.Glass, t); material != nil {
-			panel.Material(material)
-		} else {
-			panel.Background(t.Surface)
+		radius := surface.Tokens.RadiusLG
+		card := ui.Column(c).Fill().Radius(radius).DragWindow()
+		material := glassmap.Material(surface.Glass, t)
+		if material == nil {
+			// The `off` stop: a plain, near-solid face and no material.
+			card.Background(t.Surface).Padding(t.Space(2.5))
+			card.Children(func() { a.surface(c) })
+			return
 		}
-		panel.Children(func() {
-			switch a.Surf {
-			case SurfaceSettings:
-				a.Settings.View(c)
-			case SurfaceTerminal:
-				a.Terminal.View(c)
-			default:
-				a.Launcher.View(c)
+		card.Children(func() {
+			// The haze veil is composited *under* the glass, as the old
+			// `--glass-step-dim` was under `--glass-tint-alpha`.
+			if haze := glassmap.Haze(surface.Glass, t); haze != ui.Transparent {
+				ui.Box(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).Radius(radius).Background(haze)
 			}
+			face := ui.Column(c).Fill().Radius(radius).Material(material).Padding(t.Space(2.5)).DragWindow()
+			face.Children(func() { a.surface(c) })
 		})
 	})
+}
+
+// surface builds the body of the window: the active surface's content.
+func (a *App) surface(c *ui.Context) {
+	switch a.Surf {
+	case SurfaceSettings:
+		a.Settings.View(c)
+	case SurfaceTerminal:
+		a.Terminal.View(c)
+	default:
+		a.Launcher.View(c)
+	}
 }
 
 // SummonShortcut is the global shortcut that opens the launcher: the user's

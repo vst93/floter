@@ -21,6 +21,18 @@ func TestSurfaceCrossProduct(t *testing.T) {
 	languages := []string{"en", "zh"}
 	themes := []string{"auto", "light", "dark"}
 
+	// The effect ladder the plugin can carry, per stop: material and haze.
+	type ladder struct {
+		style glass.Style
+		haze  float32
+	}
+	ladders := map[string]ladder{
+		"off":     {glass.Clear, 0},
+		"frosted": {glass.Clear, 0.6},
+		"regular": {glass.Regular, 0.5},
+		"liquid":  {glass.Regular, 0.2},
+	}
+
 	for _, step := range steps {
 		for _, language := range languages {
 			for _, theme := range themes {
@@ -63,12 +75,12 @@ func TestSurfaceCrossProduct(t *testing.T) {
 					if got.Glass.Enabled != wantEnabled {
 						t.Errorf("%s: Glass.Enabled = %v, want %v", label, got.Glass.Enabled, wantEnabled)
 					}
-					wantStyle := glass.Regular
-					if step == "off" || step == "frosted" {
-						wantStyle = glass.Clear
+					want := ladders[step]
+					if got.Glass.Style != want.style {
+						t.Errorf("%s: Glass.Style = %v, want %v", label, got.Glass.Style, want.style)
 					}
-					if got.Glass.Style != wantStyle {
-						t.Errorf("%s: Glass.Style = %v, want %v", label, got.Glass.Style, wantStyle)
+					if got.Glass.HazeAlpha != want.haze {
+						t.Errorf("%s: Glass.HazeAlpha = %v, want %v", label, got.Glass.HazeAlpha, want.haze)
 					}
 				}
 			}

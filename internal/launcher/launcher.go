@@ -3,6 +3,7 @@ package launcher
 import (
 	"runtime"
 
+	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/settings"
@@ -93,8 +94,9 @@ func (a *App) settings() settings.Settings { return a.Store.Snapshot() }
 // exactly as the old collapsed shell reasserted focus.
 func (a *App) FocusSearch() { a.Search.Focus() }
 
-// View builds the launcher: a search field that keeps the focus, over the
-// result list. The shell draws the window chrome and the glass panel; this
+// View builds the launcher: a search field pinned over the result list,
+// which scrolls under it behind a soft scroll edge, as the old shell's
+// results did. The shell draws the window chrome and the glass panel; this
 // is the content inside it.
 func (a *App) View(c *ui.Context) {
 	copy := StringsFor(a.settings().Language)
@@ -107,27 +109,55 @@ func (a *App) View(c *ui.Context) {
 	results := a.Results()
 	a.clampSelection(len(results))
 
-	ui.Row(c).FillWidth().Gap(t.Space(1)).AlignItems(ui.Center).Children(func() {
-		field := ui.TextInput(c.Key("launcher.search"), &a.Query).
-			Bind(&a.Search).
-			Label(copy.Label).
-			Placeholder(copy.Placeholder).
-			Grow(1)
-		if field.Changed() {
-			a.Selected = 0
-		}
-		if field.Submitted() {
-			a.activate(results)
-		}
-		if a.Query != "" {
-			if ui.Button(c, "✕").Label(copy.Clear).Clicked() {
-				a.Query = ""
+	// The field row floats over the list; the list's top padding is the
+	// row plus the edge, so a row scrolls under the field rather than to
+	// its edge.
+	fieldRow := t.Space(7)
+	edge := fieldRow + t.Space(2)
+
+	ui.Box(c).Fill().Children(func() {
+		ui.Scroll(c.Key("launcher.results")).TrackScroll(&a.Scroll).Fill().
+			Padding(edge, 0, 0, 0).Gap(t.Space(0.5)).Label(copy.ResultsLabel).
+			Children(func() {
+				if len(results) == 0 {
+					ui.Column(c).FillWidth().Padding(t.Space(3)).Center().Children(func() {
+						ui.Text(c, copy.NoResults).FontSize(t.FontSize).TextColor(t.TextMuted)
+					})
+					return
+				}
+				for i, item := range results {
+					a.row(c, item, i)
+				}
+			})
+
+		// The rows fade into the panel under the field. PassThrough lets
+		// the pointer reach a row the strip covers.
+		ui.Box(c).Absolute().Top(0).Left(0).Right(0).Height(edge).PassThrough().
+			Material(glass.ScrollEdge{Background: t.Background})
+
+		ui.Row(c).Absolute().Top(0).Left(0).Right(0).Height(fieldRow).
+			AlignItems(ui.Center).Gap(t.Space(1)).Children(func() {
+			field := ui.TextInput(c.Key("launcher.search"), &a.Query).
+				Bind(&a.Search).
+				Label(copy.Label).
+				Placeholder(copy.Placeholder).
+				Grow(1)
+			if field.Changed() {
 				a.Selected = 0
-				a.FocusSearch()
 			}
-		} else {
-			ui.Text(c, copy.Hint).FontSize(t.FontSize).TextColor(t.TextMuted)
-		}
+			if field.Submitted() {
+				a.activate(results)
+			}
+			if a.Query != "" {
+				if ui.Button(c, "✕").Label(copy.Clear).Clicked() {
+					a.Query = ""
+					a.Selected = 0
+					a.FocusSearch()
+				}
+			} else {
+				ui.Text(c, copy.Hint).FontSize(t.FontSize).TextColor(t.TextMuted)
+			}
+		})
 	})
 
 	// The field keeps the focus, so the list's arrows are read here: a
@@ -147,18 +177,6 @@ func (a *App) View(c *ui.Context) {
 			a.Actions.Dismiss()
 		}
 	}
-
-	ui.Scroll(c.Key("launcher.results")).TrackScroll(&a.Scroll).Grow(1).Gap(t.Space(0.5)).Label(copy.ResultsLabel).Children(func() {
-		if len(results) == 0 {
-			ui.Column(c).FillWidth().Grow(1).Center().Children(func() {
-				ui.Text(c, copy.NoResults).FontSize(t.FontSize).TextColor(t.TextMuted)
-			})
-			return
-		}
-		for i, item := range results {
-			a.row(c, item, i)
-		}
-	})
 }
 
 // row builds one result: title, detail and an optional shortcut. The chosen

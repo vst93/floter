@@ -69,6 +69,22 @@
 - 设置页除 General 外为占位；终端外观（字号/字体/行距/调色板）与 `plugins/terminal` 的 Theme/Transparent 尚未接线。
 - 换壳唤回总是回到启动器；旧版的 surface-residency（保持上次页面 N 秒）留待 P2/P4。
 
+## P2 进展
+
+### P2-a 玻璃保真（已核实，已改）
+
+计划里「用 `glass.Blur{Radius}` 逐档复刻 10/22/28px」的前提经读源码证伪：
+
+- `glass.Blur` / `glass.Glass` 的 backdrop 是 `internal/scene.BackdropOf`——**同一窗口内、元素之下已绘制的像素**，不是窗口后的桌面；
+- 桌面模糊在 mygo 里是 `WindowOptions.Vibrancy`（macOS 是 behind-window 的 `NSVisualEffectView`），而 material 是**窗口级矩形**，与本项目圆角卡片（macOS 无 gutter，卡片＝窗口）会在四角露出未裁切的模糊，旧版 Windows 的同类问题有案可查（`8949418`）。
+
+所以本轮的做法：
+
+- `glassmap.Spec` 改为 `{Enabled, Style, HazeAlpha, TintAlpha}`：每档保留插件**能承载**的两轴——材质（Clear/Clear/Regular/Regular 的透镜阶梯）与雾图层 `dim`（0.6/0.5/0.2，旧 GLASS_STEP_TOKENS）；`main_opacity` 仍只作 tint alpha。
+- 亮度/饱和度（130/170/200%）与 blur 10/22/28 无对位：前者插件无此旋钮，后者只能作用于窗口内内容（已在包注释与测试里登记为事实，不再假装可复刻）。
+- shell 按「雾图层在下、玻璃在上」叠放（旧版 `--glass-step-dim` 合成于 `--glass-tint-alpha` 之下）。
+- `glass.ScrollEdge` 用在它真正有效的地方：启动器结果列表在搜索行下滚动，行内容经 Soft 边缘渐隐（`PassThrough` 让指针仍可命中被覆盖的行）。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。
