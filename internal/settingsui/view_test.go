@@ -862,3 +862,49 @@ func TestCalculatorCardWritesThrough(t *testing.T) {
 		t.Errorf("the windows are missing from the picker: %q", tt.Texts())
 	}
 }
+
+// An orphan package directory is listed with the two operations it can take,
+// and nothing that needs a repository record.
+func TestOrphanRowsOfferAdoptAndDelete(t *testing.T) {
+	adopted := []string{}
+	deleted := []string{}
+	a := New(newStore(t), Actions{
+		AdoptIntegration: func(id string) { adopted = append(adopted, id) },
+		DeleteOrphan:     func(id string) { deleted = append(deleted, id) },
+	})
+	a.Integrations = func() []Integration {
+		return []Integration{
+			{ID: "dev.floter.installed", Name: "Installed", Enabled: true, Running: true},
+			{ID: "dev.floter.orphan", Name: "dev.floter.orphan", Orphan: true},
+		}
+	}
+	tt := render(t, a, 720, 620)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !tt.HasText("dev.floter.orphan") {
+		t.Fatalf("the orphan is missing: %q", tt.Texts())
+	}
+	if !tt.HasText("Adopt") || !tt.HasText("Delete") {
+		t.Fatalf("the orphan operations are missing: %q", tt.Texts())
+	}
+	if err := tt.Click("Adopt"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if len(adopted) != 1 || adopted[0] != "dev.floter.orphan" {
+		t.Errorf("adopted = %v", adopted)
+	}
+	if err := tt.Click("Delete"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if len(deleted) != 1 || deleted[0] != "dev.floter.orphan" {
+		t.Errorf("deleted = %v", deleted)
+	}
+	// The orphan has no enable switch: there is no record to enable.
+	if tt.HasText("Search browser data") {
+		t.Error("an unrelated control appeared")
+	}
+}

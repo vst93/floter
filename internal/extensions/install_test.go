@@ -380,3 +380,83 @@ func TestPermissionsGateTheInstall(t *testing.T) {
 		t.Errorf("an added permission was not asked about: %+v", after)
 	}
 }
+
+// An orphan package directory can be adopted into the repository, and deleted
+// while it is not one. An installed integration is refused by both.
+func TestAdoptAndDeleteOrphans(t *testing.T) {
+	paths := FromRoot(t.TempDir())
+	if err := paths.Ensure(); err != nil {
+		t.Fatal(err)
+	}
+	// A package directory with a manifest and a tool, but no repository entry.
+	dir := filepath.Join(paths.Extensions, "dev.floter.orphan")
+	writeFile(t, filepath.Join(dir, manifestFileName), `{
+  "schemaVersion": "2.0", "id": "dev.floter.orphan", "name": "Orphan",
+  "runtime": {"type": "script", "language": "shell", "path": "tool.sh"},
+  "provider": {"type": "executable", "argsPrefix": ["--floter"]}
+}`)
+	writeFile(t, filepath.Join(dir, "tool.sh"), "#!/bin/sh\nexit 0\n")
+
+	if inventory := LoadInventory(paths); len(inventory.Orphans) != 1 || inventory.Orphans[0] != "dev.floter.orphan" {
+		t.Fatalf("orphans = %+v", inventory.Orphans)
+	}
+
+	// Adopting grafts it into the repository and clears the orphan list.
+	entry, err := Adopt(paths, "dev.floter.orphan")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if entry.ID != "dev.floter.orphan" || !entry.Enabled {
+		t.Errorf("entry = %+v", entry)
+	}
+	if _, err := os.Stat(filepath.Join(dir, manifestFileName)); err != nil {
+		t.Errorf("the package is gone: %v", err)
+	}
+	inventory := LoadInventory(paths)
+	if len(inventory.Orphans) != 0 || len(inventory.Integrations) != 1 {
+		t.Errorf("after an adopt: %+v / %+v", inventory.Orphans, inventory.Integrations)
+	}
+
+	// A package the repository names is not an orphan: both operations refuse
+	// it rather than stepping around the repository.
+	if err := DeleteOrphan(paths, "dev.floter.orphan"); !errors.Is(err, ErrNotOrphan) {
+		t.Errorf("DeleteOrphan on an installed package = %v", err)
+	}
+	if _, err := Adopt(paths, "dev.floter.orphan"); !errors.Is(err, ErrNotOrphan) {
+		t.Errorf("Adopt on an installed package = %v", err)
+	}
+
+	// Uninstalling leaves no orphan behind, and a missing directory is refused.
+	if err := Uninstall(paths, "dev.floter.orphan", false); err != nil {
+		t.Fatal(err)
+	}
+	if err := DeleteOrphan(paths, "dev.floter.orphan"); !errors.Is(err, ErrNoOrphan) {
+		t.Errorf("DeleteOrphan on a missing directory = %v", err)
+	}
+
+	// A dropped-in package can be deleted.
+	orphan := filepath.Join(paths.Extensions, "dev.floter.dropped")
+	writeFile(t, filepath.Join(orphan, manifestFileName), `{"id": "dev.floter.dropped", "name": "Dropped"}`)
+	if err := DeleteOrphan(paths, "dev.floter.dropped"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(orphan); !os.IsNotExist(err) {
+		t.Errorf("the directory survived: %v", err)
+	}
+
+	// A manifest claiming another id is refused rather than filed wrongly.
+	mismatch := filepath.Join(paths.Extensions, "dev.floter.mismatch")
+	writeFile(t, filepath.Join(mismatch, manifestFileName), `{
+  "id": "dev.floter.other", "name": "Other",
+  "runtime": {"type": "script", "language": "shell", "path": "tool.sh"},
+  "provider": {"type": "executable"}
+}`)
+	writeFile(t, filepath.Join(mismatch, "tool.sh"), "#!/bin/sh\nexit 0\n")
+	if _, err := Adopt(paths, "dev.floter.mismatch"); err == nil {
+		t.Error("a mismatched manifest was adopted")
+	}
+	// An invalid id is refused before anything is touched.
+	if err := DeleteOrphan(paths, "../escape"); err == nil {
+		t.Error("an invalid id was accepted")
+	}
+}

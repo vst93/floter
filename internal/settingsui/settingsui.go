@@ -78,6 +78,10 @@ type Actions struct {
 	// SetCommandEnabled turns one of an integration's commands on or off: a
 	// command only appears in the launcher while its switch is on.
 	SetCommandEnabled func(extensionID, commandID string, enabled bool)
+	// AdoptIntegration grafts an orphan package into the repository, and
+	// DeleteOrphan removes an orphan package directory.
+	AdoptIntegration func(id string)
+	DeleteOrphan     func(id string)
 	// CustomShortcuts reports the user-defined global shortcuts, and
 	// SetCustomShortcuts persists a new list and registers it, returning the
 	// keys the system refused.
@@ -478,7 +482,8 @@ func (a *App) sessions(c *ui.Context, copy i18n.Settings) {
 }
 
 // integrations lists the installed extensions, each with its state and a
-// switch.
+// switch. An orphan package directory is listed too, with the two operations
+// it can take.
 func (a *App) integrations(c *ui.Context, copy i18n.Settings) {
 	t := c.Theme()
 	integrations := a.installedIntegrations()
@@ -575,7 +580,25 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 				})
 			}
 		})
-		if !integration.Orphan {
+		if integration.Orphan {
+			// An orphan is a package directory the repository does not name:
+			// the row offers to graft it in or to remove it, and nothing
+			// else — there is no record to enable, check or uninstall.
+			ui.Row(c).Gap(t.Space(1)).AlignItems(ui.Center).Children(func() {
+				if a.Actions.AdoptIntegration != nil {
+					if ui.Button(c, copy.IntegrationsAdopt).Clicked() {
+						a.Actions.AdoptIntegration(integration.ID)
+					}
+				}
+				if a.Actions.DeleteOrphan != nil {
+					if ui.Button(c, copy.IntegrationsDeleteOrphan).Clicked() {
+						a.Actions.DeleteOrphan(integration.ID)
+					}
+				}
+			})
+			return
+		}
+		{
 			ui.Row(c).Gap(t.Space(1)).AlignItems(ui.Center).Children(func() {
 				if a.Actions.SetIntegrationEnabled != nil {
 					on := integration.Enabled

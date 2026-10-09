@@ -451,6 +451,44 @@ func New(opts Options) *App {
 				a.RefreshIntegrations(context.Background())
 			}()
 		},
+		AdoptIntegration: func(id string) {
+			// The approval dialog blocks, so the whole adoption runs off the
+			// main thread and refreshes from there.
+			go func() {
+				prepared, err := extensions.PrepareAdopt(a.Paths, id)
+				if err != nil {
+					log.Printf("floter: could not adopt %s: %v", id, err)
+					return
+				}
+				approved := true
+				if prepared.Approval.NeedsApproval() {
+					approved = a.confirmInstallPermissions(prepared.Approval)
+				}
+				if _, err := prepared.Commit(approved); err != nil {
+					log.Printf("floter: could not adopt %s: %v", id, err)
+					return
+				}
+				a.RefreshIntegrations(context.Background())
+			}()
+		},
+		DeleteOrphan: func(id string) {
+			go func() {
+				copy := i18n.For(a.Store.Snapshot().Language).Settings
+				result, err := mygo.Dialog.Message(mygo.MessageOptions{
+					Type:    mygo.MessageWarning,
+					Message: copy.IntegrationsRemoveTitle(id),
+					Detail:  copy.IntegrationsRemoveDetail,
+					Buttons: []string{copy.IntegrationsDeleteOrphan, "Cancel"},
+				})
+				if err != nil || result.Button != 0 {
+					return
+				}
+				if err := extensions.DeleteOrphan(a.Paths, id); err != nil {
+					log.Printf("floter: could not delete %s: %v", id, err)
+				}
+				a.RefreshIntegrations(context.Background())
+			}()
+		},
 		SetIntegrationEnabled: func(id string, enabled bool) {
 			if err := a.Integrations.SetEnabled(id, enabled); err != nil {
 				log.Printf("floter: could not change %s: %v", id, err)

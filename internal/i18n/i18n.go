@@ -208,7 +208,12 @@ type Settings struct {
 	IntegrationsRemoveDetail string
 	// IntegrationsCommands is the per-command switch list's caption, and
 	// IntegrationsCommandsHint explains what a switch does.
-	IntegrationsCommands     string
+	IntegrationsCommands string
+	// The orphan operations: adopting a package directory the repository does
+	// not name, and deleting one.
+	IntegrationsAdopt        string
+	IntegrationsAdoptHint    string
+	IntegrationsDeleteOrphan string
 	IntegrationsCommandsHint string
 	IntegrationsUnavailable  string
 
