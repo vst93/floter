@@ -82,6 +82,10 @@ type Actions struct {
 	// DeleteOrphan removes an orphan package directory.
 	AdoptIntegration func(id string)
 	DeleteOrphan     func(id string)
+	// CheckForUpdates asks the build's update feed for a newer version, and
+	// InstallUpdate downloads and installs the one it found.
+	CheckForUpdates func()
+	InstallUpdate   func()
 	// CustomShortcuts reports the user-defined global shortcuts, and
 	// SetCustomShortcuts persists a new list and registers it, returning the
 	// keys the system refused.
@@ -175,6 +179,11 @@ type App struct {
 
 	// Page is the chosen page, an index into the sidebar.
 	Page int
+
+	// UpdateStatus is what the last update check said, and UpdateReady
+	// whether an update is waiting to be installed.
+	UpdateStatus string
+	UpdateReady  bool
 
 	// Sidebar holds the page list's identity, its choice and its focus.
 	Sidebar ui.ListState
@@ -733,12 +742,38 @@ func (a *App) shortcutRow(c *ui.Context, copy i18n.Settings) {
 	})
 }
 
+// updateRow is the About page's update check: the button, the line the last
+// check left behind, and the install button when there is something to
+// install.
+func (a *App) updateRow(c *ui.Context, copy i18n.Settings) {
+	t := c.Theme()
+	ui.Row(c).Gap(t.Space(2)).AlignItems(ui.Center).Children(func() {
+		if a.Actions.CheckForUpdates != nil {
+			if ui.Button(c, copy.UpdateCheck).Clicked() {
+				a.UpdateStatus = copy.UpdateChecking
+				a.UpdateReady = false
+				a.Actions.CheckForUpdates()
+			}
+		}
+		if a.UpdateReady && a.Actions.InstallUpdate != nil {
+			if ui.Button(c, copy.UpdateInstall).Clicked() {
+				a.UpdateStatus = copy.UpdateInstalling(0)
+				a.Actions.InstallUpdate()
+			}
+		}
+		if a.UpdateStatus != "" {
+			ui.Text(c, a.UpdateStatus).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+		}
+	})
+}
+
 // about shows the build's identity and where its files live.
 func (a *App) about(c *ui.Context, copy i18n.Settings) {
 	t := c.Theme()
 	about := a.About
 	ui.Column(c).FillWidth().Gap(t.Space(1)).Children(func() {
 		ui.Text(c, strings.TrimSpace(about.Name+" "+about.Version)).FontSize(t.FontSize + 4).Bold()
+		a.updateRow(c, copy)
 		a.keyValue(c, copy.AboutVersion, about.Version)
 		a.keyValue(c, copy.AboutFramework, about.Framework)
 		a.keyValue(c, copy.AboutScheme, about.Scheme)

@@ -134,6 +134,11 @@ settings 读取子集（保未知键）、glass 映射、单窗口三表面（�
 - 性能基线：一帧 67–516 µs（headless），二进制 20 MB / 14 MB（stripped），常驻内存 166 MB
   （同环境 mygo 最小窗口 137 MB，即框架+软件渲染占大头）；基准留在 `go test -bench .`。
 
+**P6-c 发布链**（本轮）
+- CI 打包矩阵（macOS app/dmg、Linux deb/tar.gz、Windows exe），三平台本机验证可离线构建；
+  安装器改为 `mygo build` 自带（删除手写脚本）；About 页更新检查（无更新源时如实说明）。
+- 维护者一次性步骤（签名/公证/更新密钥）已在 README 与计划文档写明。
+
 ## 尚未做（按建议优先级）
 
 1. **终端会话快照/恢复**：已完成（P4-n）——快照在关闭/退出时落盘、下次建会话时 Feed 回去；
@@ -149,7 +154,9 @@ settings 读取子集（保未知键）、glass 映射、单窗口三表面（�
 5. **系统通知**：后台运行完成已有（P3-h）；其余长任务（安装/更新）完成时的通知待补。
 6. **P5 打磨**：已完成（P5 轮）——动效、a11y 标签、性能基线；更细的动效（换壳过渡）受原生窗口
    尺寸变化限制，不做应用层过渡。
-7. **P6 发布链**：预发布通道、签名/公证（`mygo.json` 的 `macos.sign`）、Linux/Windows 打包产物验证、删除旧 CI。
+7. **P6 发布链**：CI 矩阵与安装器已完成；剩下的是一次性维护者动作——`mygo keygen` 生成更新密钥、
+   `mygo.json` 填 `updates` 与 `macos.signingIdentity`/`macos.notarize`、CI 注入私钥、发布产物到
+   GitHub Release（含预发布通道）。
 8. **小项**：终端窗口尺寸拖拽后写回 settings；设置页 General 的「开机自启」在打包应用下的真机验证；`show_menubar_icon` 等未接线的旧设置项。
 
 ## 注意事项（踩过的坑）

@@ -463,6 +463,21 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
     这里如实记录本机数字与测量条件（Xvfb + llvmpipe 会分配大块软件光栅缓冲）。
   - 基准以 `go test -bench .` 保留（`internal/launcher`、`internal/settingsui`），供回归对照。
 
+### P6-c 发布链（已做，签名/公证留给维护者）
+
+- **CI 三平台打包**：`.github/workflows/go.yml` 的 package job 改成矩阵——macOS（`darwin/universal`
+  → .app + .dmg）、Linux（`linux/amd64` → 可执行文件 + .deb + 带 `install.sh` 的 .tar.gz）、
+  Windows（`windows/amd64` → .exe，有 NSIS 时另有安装程序），各自上传产物。三平台都验证过本机
+  可离线构建（Linux 6.5s / Windows 8.4s，Windows 会自动取 `ghostty-vt.dll`）。
+- **安装器**：删除手写的 `scripts/install.sh`（它是 webview 时代下载 .dmg/.deb 的脚本）；
+  现在 `mygo build` 在 tar.gz 里自带 `install.sh`（装到 `~/.local`、写桌面项、支持
+  `--uninstall`），README 中英同步改写产物表。
+- **更新检查**：About 页新增「检查更新 / 下载并安装」，走 `mygo.Updater`（签名校验 + 可选增量），
+  检查与下载都在后台、进度回主线程；**没有更新源的构建如实显示「此构建没有更新源」**，不假装检查。
+- **留给维护者的一次性步骤**（文档已写明）：`mygo keygen` 生成密钥、`mygo.json` 填 `updates`
+  （github + publicKey）、`macos.signingIdentity`/`macos.notarize` 签名与公证、CI 里注入
+  `MYGO_UPDATER_PRIVATE_KEY`；在此之前构建不带更新源。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。

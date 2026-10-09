@@ -291,6 +291,16 @@ var en = Copy{
 			{"result", "Result only"},
 		},
 
+		UpdateCheck:      "Check for updates",
+		UpdateChecking:   "Checking\u2026",
+		UpdateCurrent:    "floter is up to date",
+		UpdateDisabled:   "This build has no update feed",
+		UpdateFailed:     "Could not check for updates",
+		UpdateAvailable:  func(version string) string { return "floter " + version + " is available" },
+		UpdateInstall:    "Download and install",
+		UpdateInstalling: func(percent int) string { return "Downloading\u2026 " + strconv.Itoa(percent) + "%" },
+		UpdateInstalled:  "The update is installed; floter restarts on the next launch",
+
 		AboutVersion:      "Version",
 		AboutFramework:    "Framework",
 		AboutScheme:       "Link scheme",
@@ -564,6 +574,16 @@ var zh = Copy{
 			{"full", "算式与结果"},
 			{"result", "仅结果"},
 		},
+
+		UpdateCheck:      "检查更新",
+		UpdateChecking:   "正在检查…",
+		UpdateCurrent:    "floter 已是最新版本",
+		UpdateDisabled:   "此构建没有更新源",
+		UpdateFailed:     "无法检查更新",
+		UpdateAvailable:  func(version string) string { return "有新版本 floter " + version },
+		UpdateInstall:    "下载并安装",
+		UpdateInstalling: func(percent int) string { return "正在下载… " + strconv.Itoa(percent) + "%" },
+		UpdateInstalled:  "更新已安装，下次启动 floter 时生效",
 
 		AboutVersion:      "版本",
 		AboutFramework:    "框架",

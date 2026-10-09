@@ -40,12 +40,27 @@ engine in the binary — and everything else is Go.
 Build from source (Go 1.27 or newer):
 
 ```sh
-go run ./cmd/floter        # run it
-go tool mygo build         # package it (dist/<platform>/floter.app + .dmg on macOS)
+go run ./cmd/floter                      # run it
+go tool mygo build                       # package for this machine
+go tool mygo build -platform linux/amd64,windows/amd64,darwin/universal
 ```
 
 `go tool mygo build` uses the mygo CLI, which is a tool of this module — no
-Node, Bun or Rust toolchain is involved.
+Node, Bun or Rust toolchain is involved, and any platform can be built from any
+machine. What it writes into `dist/<platform>/`:
+
+| Platform | Artifacts |
+| --- | --- |
+| macOS | `floter.app` (with the native libraries inside) and a `.dmg` |
+| Linux | `floter`, a `.deb`, and a `.tar.gz` whose `install.sh` installs the app for the current user in `~/.local` |
+| Windows | `floter.exe` (and a setup `.exe` when NSIS is available) |
+
+Release-time steps a maintainer has to take, once: `mygo keygen` to create the
+update signing key, `updates` in `mygo.json` (the repository, the public key),
+`macos.signingIdentity` and `macos.notarize` to sign and notarize the disk
+image, and the private key in `MYGO_UPDATER_PRIVATE_KEY` when building. Until
+then a build carries no update feed, and the About page says so instead of
+pretending to check.
 
 ## Development
 

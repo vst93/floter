@@ -278,6 +278,17 @@ type Settings struct {
 	CalculatorRetentionDays  func(days int) string
 	CalculatorCopyModes      []Option
 
+	// The About page's update check.
+	UpdateCheck      string
+	UpdateChecking   string
+	UpdateCurrent    string
+	UpdateDisabled   string
+	UpdateFailed     string
+	UpdateAvailable  func(version string) string
+	UpdateInstall    string
+	UpdateInstalling func(percent int) string
+	UpdateInstalled  string
+
 	// The About page.
 	AboutVersion      string
 	AboutFramework    string

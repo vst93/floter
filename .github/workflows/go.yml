@@ -30,8 +30,6 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      # The module's own packages only: the legacy frontend and Rust trees
-      # are not part of this build.
       - name: gofmt
         shell: bash
         run: |
@@ -52,9 +50,30 @@ jobs:
         run: go test -count=1 ./...
 
   package:
-    name: Package (macOS)
-    runs-on: macos-latest
+    name: Package (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
     needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS
+            os: macos-latest
+            platform: darwin/universal
+            artifacts: |
+              dist/*/*.app
+              dist/*/*.dmg
+          - name: Linux
+            os: ubuntu-latest
+            platform: linux/amd64
+            artifacts: |
+              dist/*/*.deb
+              dist/*/*.tar.gz
+          - name: Windows
+            os: windows-latest
+            platform: windows/amd64
+            artifacts: |
+              dist/*/*.exe
     steps:
       - uses: actions/checkout@v4
 
@@ -64,16 +83,15 @@ jobs:
           cache: true
 
       # The CLI is a tool of the module (go.mod's `tool` directive), so this
-      # builds the .app and the .dmg the way a release does, and the
-      # terminal plugin's native library is fetched into the CLI's cache and
-      # embedded into the bundle.
+      # builds each platform's packages the way a release does: the bundle on
+      # macOS, the .deb and the user-installable tarball on Linux, the setup
+      # .exe on Windows. The terminal plugin's native library is fetched into
+      # the CLI's cache and shipped with the app.
       - name: mygo build
-        run: go tool mygo build
+        run: go tool mygo build -platform ${{ matrix.platform }}
 
       - uses: actions/upload-artifact@v4
         with:
-          name: floter-macos
-          path: |
-            dist/*/*.app
-            dist/*/*.dmg
+          name: floter-${{ matrix.name }}
+          path: ${{ matrix.artifacts }}
           if-no-files-found: error

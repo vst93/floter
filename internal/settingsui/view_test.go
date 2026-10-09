@@ -914,3 +914,44 @@ func TestOrphanRowsOfferAdoptAndDelete(t *testing.T) {
 		t.Error("an unrelated control appeared")
 	}
 }
+
+// The About page offers the update check, and shows what it found.
+func TestAboutUpdateCheck(t *testing.T) {
+	checked, installed := 0, 0
+	a := New(newStore(t), Actions{
+		CheckForUpdates: func() { checked++ },
+		InstallUpdate:   func() { installed++ },
+	})
+	a.About = About{Name: "floter", Version: "0.3.14"}
+	tt := render(t, a, 720, 620)
+	if err := tt.Click("About"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if err := tt.Click("Check for updates"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if checked != 1 {
+		t.Fatalf("checked %d times", checked)
+	}
+	// The button leaves a line behind while the check runs.
+	if !tt.HasText("Checking\u2026") {
+		t.Errorf("the status line is missing: %q", tt.Texts())
+	}
+
+	// An update that was found offers to install it.
+	a.UpdateStatus = "floter 0.4.0 is available"
+	a.UpdateReady = true
+	tt.Frame()
+	if !tt.HasText("Download and install") {
+		t.Fatalf("the install button is missing: %q", tt.Texts())
+	}
+	if err := tt.Click("Download and install"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if installed != 1 {
+		t.Errorf("installed %d times", installed)
+	}
+}

@@ -474,6 +474,8 @@ func New(opts Options) *App {
 				a.RefreshIntegrations(context.Background())
 			}()
 		},
+		CheckForUpdates: a.checkForUpdates,
+		InstallUpdate:   a.installUpdate,
 		AdoptIntegration: func(id string) {
 			// The approval dialog blocks, so the whole adoption runs off the
 			// main thread and refreshes from there.

@@ -29,11 +29,23 @@ floter 是原生应用：一个无边框面板在**启动器**、**设置**与**
 从源码构建（需要 Go 1.27 或更新）：
 
 ```sh
-go run ./cmd/floter        # 直接运行
-go tool mygo build         # 打包（macOS 产出 dist/<platform>/floter.app 与 .dmg）
+go run ./cmd/floter                      # 直接运行
+go tool mygo build                       # 为本机打包
+go tool mygo build -platform linux/amd64,windows/amd64,darwin/universal
 ```
 
-`go tool mygo build` 用的是本模块声明的 mygo CLI 工具，不需要 Node、Bun 或 Rust 工具链。
+`go tool mygo build` 用的是本模块声明的 mygo CLI 工具，不需要 Node、Bun 或 Rust 工具链，
+且任何平台都能在任意机器上构建。产物在 `dist/<platform>/`：
+
+| 平台 | 产物 |
+| --- | --- |
+| macOS | `floter.app`（原生库已内嵌）与 `.dmg` |
+| Linux | `floter`、`.deb`，以及带 `install.sh` 的 `.tar.gz`（为当前用户装到 `~/.local`） |
+| Windows | `floter.exe`（有 NSIS 时另有安装程序 `.exe`） |
+
+发布前需要维护者做一次的事：`mygo keygen` 生成更新签名密钥、在 `mygo.json` 写 `updates`
+（仓库与公钥）、`macos.signingIdentity` 与 `macos.notarize` 做签名与公证，构建时提供
+`MYGO_UPDATER_PRIVATE_KEY`。在此之前构建不带更新源，About 页会如实说明。
 
 ## 开发
 
