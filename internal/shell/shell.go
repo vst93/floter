@@ -432,6 +432,7 @@ func New(opts Options) *App {
 				prepared, err := extensions.PrepareRegistry(context.Background(), a.Paths, a.Registry, name, constraint)
 				if err != nil {
 					log.Printf("floter: could not install %s: %v", name, err)
+					a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationInstallFailed(name) })
 					return
 				}
 				approved := true
@@ -445,9 +446,11 @@ func New(opts Options) *App {
 						return
 					}
 					log.Printf("floter: could not install %s: %v", name, err)
+					a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationInstallFailed(name) })
 					return
 				}
 				log.Printf("floter: installed %s %s", entry.Name, entry.PackageVersion)
+				a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationInstalled(entry.Name) })
 				a.RefreshIntegrations(context.Background())
 			}()
 		},
@@ -468,8 +471,10 @@ func New(opts Options) *App {
 				a.onMain(func() {
 					if err := extensions.Uninstall(a.Paths, id, false); err != nil {
 						log.Printf("floter: could not uninstall %s: %v", id, err)
+						a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationRemoveFailed(name) })
 						return
 					}
+					a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationRemoved(name) })
 				})
 				a.RefreshIntegrations(context.Background())
 			}()
@@ -483,16 +488,20 @@ func New(opts Options) *App {
 				prepared, err := extensions.PrepareAdopt(a.Paths, id)
 				if err != nil {
 					log.Printf("floter: could not adopt %s: %v", id, err)
+					a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationInstallFailed(id) })
 					return
 				}
 				approved := true
 				if prepared.Approval.NeedsApproval() {
 					approved = a.confirmInstallPermissions(prepared.Approval)
 				}
-				if _, err := prepared.Commit(approved); err != nil {
+				entry, err := prepared.Commit(approved)
+				if err != nil {
 					log.Printf("floter: could not adopt %s: %v", id, err)
+					a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationInstallFailed(id) })
 					return
 				}
+				a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationInstalled(entry.Name) })
 				a.RefreshIntegrations(context.Background())
 			}()
 		},
@@ -934,6 +943,12 @@ func (a *App) diagnoseIntegration(id string) {
 		}
 		a.diagnoses[id] = result
 		a.diagnosisMu.Unlock()
+		a.notifyCompletion(func(c i18n.Notifications) string {
+			if result.DiagnosisFailed {
+				return c.IntegrationCheckFailed(integration.Name)
+			}
+			return c.IntegrationChecked(integration.Name)
+		})
 		a.onMain(func() {
 			if a.Win != nil {
 				a.Win.Invalidate()
@@ -1187,13 +1202,24 @@ func (a *App) notifyRun(entry extensions.CommandEntry, run extensions.CapturedRu
 	if a.Win != nil && a.Win.IsVisible() {
 		return
 	}
-	copy := a.Launcher.Copy()
-	status := a.Launcher.RunStatus(run, err)
-	title := copy.OutputNotification(entry.Command.Name)
-	if title == "" {
-		title = entry.Command.ID
+	copy := i18n.NotificationsFor(a.Store.Snapshot().Language)
+	name := entry.Command.Name
+	if name == "" {
+		name = entry.Command.ID
 	}
-	a.Notify(title, copy.OutputNotificationBody(status))
+	a.Notify(copy.Title, copy.CommandFinished(name)+"  \u00b7  "+copy.CommandStatus(a.Launcher.RunStatus(run, err)))
+}
+
+// notifyCompletion raises a system notification for a background integration
+// task that finished while the panel was hidden. A visible panel shows the
+// result itself, so a notification there would be a second copy of the same
+// news.
+func (a *App) notifyCompletion(render func(i18n.Notifications) string) {
+	if a.Win != nil && a.Win.IsVisible() {
+		return
+	}
+	copy := i18n.NotificationsFor(a.Store.Snapshot().Language)
+	a.Notify(copy.Title, render(copy))
 }
 
 // Notify shows a system notification, through the framework unless a test
@@ -1201,6 +1227,11 @@ func (a *App) notifyRun(entry extensions.CommandEntry, run extensions.CapturedRu
 func (a *App) Notify(title, body string) {
 	if a.notify != nil {
 		a.notify(title, body)
+		return
+	}
+	if a.Win == nil {
+		// No window means no running app to notify from: a test, or a
+		// headless run. The framework's notification needs the app.
 		return
 	}
 	notification := mygo.NewNotification(mygo.NotificationOptions{

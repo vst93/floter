@@ -955,3 +955,50 @@ func TestAboutUpdateCheck(t *testing.T) {
 		t.Errorf("installed %d times", installed)
 	}
 }
+
+// A row's permission list unfolds into an audit that says what each permission
+// allows and whether the host itself decides it.
+func TestPermissionAuditUnfolds(t *testing.T) {
+	a := New(newStore(t), Actions{})
+	a.Integrations = func() []Integration {
+		return []Integration{{
+			ID: "io.github.vst93.v", Name: "V Tools", Enabled: true, Running: true,
+			Permissions: []string{"filesystem-read", "environment"},
+			Enforced:    map[string]bool{"environment": true},
+		}}
+	}
+	tt := render(t, a, 720, 620)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !tt.HasText("Read files") || !tt.HasText("Read the environment") {
+		t.Fatalf("the permission line is missing: %q", tt.Texts())
+	}
+	// The explanations are folded away until asked for.
+	if tt.HasText("The tool may read files your user can read.") {
+		t.Error("the audit is open before it was asked for")
+	}
+	if err := tt.Click("Permissions"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !tt.HasText("The tool may read files your user can read.") {
+		t.Errorf("the audit did not open: %q", tt.Texts())
+	}
+	// The enforced permission says so, and so does its explanation.
+	if !tt.HasText("Read the environment  \u00b7  Floter enforces") {
+		t.Errorf("the enforced mark is missing: %q", tt.Texts())
+	}
+	if !tt.HasText("Floter enforces this one: the host decides what the tool receives.") {
+		t.Errorf("the enforced explanation is missing: %q", tt.Texts())
+	}
+	// Asking again folds it away.
+	if err := tt.Click("Permissions"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if tt.HasText("The tool may read files your user can read.") {
+		t.Error("the audit did not fold away")
+	}
+}

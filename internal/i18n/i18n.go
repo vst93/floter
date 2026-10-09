@@ -69,10 +69,6 @@ type Launcher struct {
 	OutputTruncated string
 	OutputHint      string
 	OutputFailed    string
-	// OutputNotification titles the system notification a background run
-	// raises when the panel is hidden; OutputNotificationBody is its line.
-	OutputNotification     func(command string) string
-	OutputNotificationBody func(status string) string
 
 	// The clipboard mode's own feedback lines: the star and the delete.
 	ClipboardFavoriteFailed string
@@ -212,6 +208,7 @@ type Settings struct {
 	// The orphan operations: adopting a package directory the repository does
 	// not name, and deleting one.
 	IntegrationsAdopt        string
+	IntegrationsPermissions  string
 	IntegrationsAdoptHint    string
 	IntegrationsDeleteOrphan string
 	IntegrationsCommandsHint string
@@ -300,6 +297,25 @@ type Settings struct {
 	Percent func(n uint8) string
 }
 
+// Notifications is the copy of the system notifications a background action
+// raises when the panel is hidden. A visible panel shows the result itself, so
+// these never duplicate what is on screen.
+type Notifications struct {
+	// Title is the notification's title: the app's own name.
+	Title string
+	// The integration tasks, by outcome.
+	IntegrationInstalled     func(name string) string
+	IntegrationInstallFailed func(name string) string
+	IntegrationRemoved       func(name string) string
+	IntegrationRemoveFailed  func(name string) string
+	IntegrationChecked       func(name string) string
+	IntegrationCheckFailed   func(name string) string
+	// A command that ran in the background: its name, and the status line the
+	// output view shows.
+	CommandFinished func(name string) string
+	CommandStatus   func(status string) string
+}
+
 // Terminal is the terminal surface's copy.
 type Terminal struct {
 	Title string
@@ -314,9 +330,15 @@ type Terminal struct {
 
 // Copy is every language's string set.
 type Copy struct {
-	Launcher Launcher
-	Settings Settings
-	Terminal Terminal
+	Launcher      Launcher
+	Settings      Settings
+	Terminal      Terminal
+	Notifications Notifications
+}
+
+// NotificationsFor returns the system notifications' copy for a language.
+func NotificationsFor(language string) Notifications {
+	return For(language).Notifications
 }
 
 // For returns the copy of a language, normalized like the settings loader.

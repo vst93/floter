@@ -1524,7 +1524,8 @@ func TestCapturedRunNotifiesOnlyWhenHidden(t *testing.T) {
 	if len(notified) != 1 {
 		t.Fatalf("notifications = %v", notified)
 	}
-	if notified[0][0] != "Run things finished" || !strings.HasPrefix(notified[0][1], "Finished") {
+	if notified[0][0] != "floter" || !strings.Contains(notified[0][1], "Run things finished") ||
+		!strings.Contains(notified[0][1], "Finished") {
 		t.Errorf("notification = %v", notified[0])
 	}
 
@@ -1538,7 +1539,7 @@ func TestCapturedRunNotifiesOnlyWhenHidden(t *testing.T) {
 	case <-time.After(10 * time.Second):
 		t.Fatal("the second run never answered")
 	}
-	if len(notified) != 1 || !strings.HasPrefix(notified[0][1], "Exit code 4") {
+	if len(notified) != 1 || !strings.Contains(notified[0][1], "Exit code 4") {
 		t.Errorf("notifications = %v", notified)
 	}
 }

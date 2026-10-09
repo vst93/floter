@@ -184,6 +184,8 @@ type App struct {
 	// whether an update is waiting to be installed.
 	UpdateStatus string
 	UpdateReady  bool
+	// auditOpen is which integrations have their permission audit unfolded.
+	auditOpen map[string]bool
 
 	// Sidebar holds the page list's identity, its choice and its focus.
 	Sidebar ui.ListState
@@ -554,6 +556,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			ui.Text(c, integration.identity()).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
 			if len(integration.Permissions) > 0 {
 				ui.Text(c, a.permissionLine(integration, copy)).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+				a.permissionAudit(c, copy, integration)
 			}
 			if integration.Diagnosis != "" {
 				color := t.TextMuted
@@ -628,6 +631,38 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 					if ui.Button(c, copy.IntegrationsUninstall).Clicked() {
 						a.Actions.UninstallIntegration(integration.ID, integration.Name)
 					}
+				}
+			})
+		}
+	})
+}
+
+// permissionAudit draws the per-permission explanation under a row: what each
+// permission allows, and whether the host itself decides it. The list is folded
+// away until the user asks for it, so a row stays a row.
+func (a *App) permissionAudit(c *ui.Context, copy i18n.Settings, integration Integration) {
+	t := c.Theme()
+	language := a.Store.Snapshot().Language
+	if ui.Button(c, copy.IntegrationsPermissions).Clicked() {
+		if a.auditOpen == nil {
+			a.auditOpen = map[string]bool{}
+		}
+		a.auditOpen[integration.ID] = !a.auditOpen[integration.ID]
+	}
+	if !a.auditOpen[integration.ID] {
+		return
+	}
+	ui.Column(c).FillWidth().Gap(t.Space(0.5)).Padding(0, t.Space(2), 0, 0).Children(func() {
+		for _, permission := range integration.Permissions {
+			mark := copy.PermissionsDeclared
+			if integration.Enforced[permission] {
+				mark = copy.PermissionsEnforced
+			}
+			ui.Column(c).FillWidth().Children(func() {
+				ui.Text(c, i18n.PermissionLabel(language, permission)+"  \u00b7  "+mark).
+					FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+				if description := i18n.PermissionDescription(language, permission); description != "" {
+					ui.Text(c, description).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
 				}
 			})
 		}
