@@ -19,7 +19,7 @@ func TestStoreUpdateWritesBackAndKeepsUnknownKeys(t *testing.T) {
   "main_opacity": 47,
   "terminal_opacity": 46,
   "ui_scale": "small",
-  "surface_residency_seconds": 10,
+  "some_future_setting": 10,
   "custom_shortcuts": {"toggle": "Cmd+Shift+Space"},
   "some_future_key": 7
 }`
@@ -58,7 +58,7 @@ func TestStoreUpdateWritesBackAndKeepsUnknownKeys(t *testing.T) {
 		t.Errorf("untouched fields drifted: %+v", reloaded)
 	}
 	extra := reloaded.Extra()
-	if extra["surface_residency_seconds"] == nil || extra["some_future_key"] == nil {
+	if extra["some_future_setting"] == nil || extra["some_future_key"] == nil {
 		t.Errorf("unknown keys dropped: %v", extra)
 	}
 	if nested, ok := extra["custom_shortcuts"].(map[string]any); !ok || nested["toggle"] != "Cmd+Shift+Space" {

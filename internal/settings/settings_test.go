@@ -450,3 +450,50 @@ func TestTerminalAppearanceRoundTrips(t *testing.T) {
 		t.Errorf("owned keys leaked into extra: %v", back.Extra())
 	}
 }
+
+func TestWindowBehaviourDefaultsAndParsing(t *testing.T) {
+	got := Default()
+	if got.SurfaceResidencySeconds != DefaultSurfaceResidencySeconds {
+		t.Errorf("residency = %d, want %d", got.SurfaceResidencySeconds, DefaultSurfaceResidencySeconds)
+	}
+	if got.HideOnBlur != DefaultHideOnBlur() {
+		t.Errorf("hide on blur = %v, want the platform default %v", got.HideOnBlur, DefaultHideOnBlur())
+	}
+
+	// A missing key keeps the shipped default rather than zero.
+	s, err := Parse([]byte(`{"theme": "dark"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.SurfaceResidencySeconds != DefaultSurfaceResidencySeconds {
+		t.Errorf("missing residency = %d", s.SurfaceResidencySeconds)
+	}
+	if !s.HideOnBlur {
+		t.Error("missing hide_on_blur fell to false")
+	}
+
+	// Present keys win, and 0 is a real value (off).
+	s, err = Parse([]byte(`{"hide_on_blur": false, "surface_residency_seconds": 0}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.HideOnBlur || s.SurfaceResidencySeconds != 0 {
+		t.Errorf("parsed = %+v", s)
+	}
+
+	// The sentinel survives; anything above the day cap is clamped.
+	if got := NormalizeResidencySeconds(SurfaceResidencyNever); got != SurfaceResidencyNever {
+		t.Errorf("never = %d, want the sentinel", got)
+	}
+	if got := NormalizeResidencySeconds(999_999); got != MaxSurfaceResidencySeconds {
+		t.Errorf("above the cap = %d, want %d", got, MaxSurfaceResidencySeconds)
+	}
+	if got := NormalizeResidencySeconds(45); got != 45 {
+		t.Errorf("a custom value = %d, want 45", got)
+	}
+
+	// Both keys are ours now: they must not ride along in extra.
+	if len(s.Extra()) != 0 {
+		t.Errorf("owned keys leaked into extra: %v", s.Extra())
+	}
+}

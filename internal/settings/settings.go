@@ -97,6 +97,19 @@ const (
 	DefaultTerminalHeight = 600
 )
 
+// The window behaviour, from config.rs and src/surface-residency.ts: whether
+// the panel hides when it loses focus, and how long a surface (settings or
+// the terminal) survives an automatic hide before a summon returns the
+// launcher.
+const (
+	DefaultSurfaceResidencySeconds = 10
+	MaxSurfaceResidencySeconds     = 86_400
+	// SurfaceResidencyNever is the sentinel for "the surface survives any
+	// dismissal until the user leaves it explicitly": the top of uint32,
+	// exempt from the custom ceiling, exactly as the old build kept it.
+	SurfaceResidencyNever = ^uint32(0)
+)
+
 // The shipped value domains. `glassSteps` includes `off`, the no-material
 // stop R162 added: it is a real stored value and has to round-trip.
 var (
@@ -135,26 +148,28 @@ var (
 	// The keys this package owns. Everything else in the file is carried
 	// through untouched.
 	knownKeys = map[string]bool{
-		"theme":                 true,
-		"glass_step":            true,
-		"language":              true,
-		"main_opacity":          true,
-		"terminal_opacity":      true,
-		"ui_scale":              true,
-		"font_size":             true,
-		"font_family":           true,
-		"cursor_shape":          true,
-		"terminal_cursor_blink": true,
-		"terminal_line_height":  true,
-		"terminal_padding":      true,
-		"terminal_theme":        true,
-		"terminal_scrollbar":    true,
-		"terminal_wheel_lines":  true,
-		"terminal_bold":         true,
-		"terminal_select_copy":  true,
-		"terminal_paste_safe":   true,
-		"terminal_width":        true,
-		"terminal_height":       true,
+		"theme":                     true,
+		"hide_on_blur":              true,
+		"surface_residency_seconds": true,
+		"glass_step":                true,
+		"language":                  true,
+		"main_opacity":              true,
+		"terminal_opacity":          true,
+		"ui_scale":                  true,
+		"font_size":                 true,
+		"font_family":               true,
+		"cursor_shape":              true,
+		"terminal_cursor_blink":     true,
+		"terminal_line_height":      true,
+		"terminal_padding":          true,
+		"terminal_theme":            true,
+		"terminal_scrollbar":        true,
+		"terminal_wheel_lines":      true,
+		"terminal_bold":             true,
+		"terminal_select_copy":      true,
+		"terminal_paste_safe":       true,
+		"terminal_width":            true,
+		"terminal_height":           true,
 	}
 )
 
@@ -166,6 +181,10 @@ type Settings struct {
 	MainOpacity     uint8
 	TerminalOpacity uint8
 	UIScale         string
+
+	// The window's behaviour.
+	HideOnBlur              bool
+	SurfaceResidencySeconds uint32
 
 	// The terminal's appearance.
 	FontSize           int
@@ -192,27 +211,29 @@ type Settings struct {
 // AppSettings::default(), restricted to the P0 subset.
 func Default() Settings {
 	return Settings{
-		Theme:              DefaultTheme,
-		GlassStep:          DefaultGlassStep,
-		Language:           DefaultLanguage,
-		MainOpacity:        DefaultMainOpacity,
-		TerminalOpacity:    DefaultTerminalOpacity,
-		UIScale:            DefaultUIScale,
-		FontSize:           DefaultFontSize,
-		FontFamily:         DefaultFontFamily,
-		CursorShape:        DefaultCursorShape,
-		CursorBlink:        DefaultCursorBlink,
-		TerminalLineHeight: DefaultTerminalLineHeight,
-		TerminalPadding:    DefaultTerminalPadding,
-		TerminalTheme:      DefaultTerminalTheme,
-		TerminalScrollbar:  DefaultTerminalScrollbar,
-		TerminalWheelLines: DefaultTerminalWheelLines,
-		TerminalBold:       DefaultTerminalBold,
-		TerminalSelectCopy: DefaultTerminalSelectCopy,
-		TerminalPasteSafe:  DefaultTerminalPasteSafe,
-		TerminalWidth:      DefaultTerminalWidth,
-		TerminalHeight:     DefaultTerminalHeight,
-		extra:              map[string]any{},
+		Theme:                   DefaultTheme,
+		GlassStep:               DefaultGlassStep,
+		Language:                DefaultLanguage,
+		MainOpacity:             DefaultMainOpacity,
+		TerminalOpacity:         DefaultTerminalOpacity,
+		UIScale:                 DefaultUIScale,
+		HideOnBlur:              DefaultHideOnBlur(),
+		SurfaceResidencySeconds: DefaultSurfaceResidencySeconds,
+		FontSize:                DefaultFontSize,
+		FontFamily:              DefaultFontFamily,
+		CursorShape:             DefaultCursorShape,
+		CursorBlink:             DefaultCursorBlink,
+		TerminalLineHeight:      DefaultTerminalLineHeight,
+		TerminalPadding:         DefaultTerminalPadding,
+		TerminalTheme:           DefaultTerminalTheme,
+		TerminalScrollbar:       DefaultTerminalScrollbar,
+		TerminalWheelLines:      DefaultTerminalWheelLines,
+		TerminalBold:            DefaultTerminalBold,
+		TerminalSelectCopy:      DefaultTerminalSelectCopy,
+		TerminalPasteSafe:       DefaultTerminalPasteSafe,
+		TerminalWidth:           DefaultTerminalWidth,
+		TerminalHeight:          DefaultTerminalHeight,
+		extra:                   map[string]any{},
 	}
 }
 
@@ -282,6 +303,12 @@ func Parse(data []byte) (Settings, error) {
 	}
 	if v, ok := raw["ui_scale"].(string); ok {
 		s.UIScale = v
+	}
+	if v, ok := raw["hide_on_blur"].(bool); ok {
+		s.HideOnBlur = v
+	}
+	if n, ok := asInt(raw["surface_residency_seconds"]); ok && n >= 0 {
+		s.SurfaceResidencySeconds = uint32(n)
 	}
 
 	// The terminal's appearance: a present key overrides the shipped
@@ -359,6 +386,7 @@ func (s Settings) normalized() Settings {
 	s.TerminalWheelLines = NormalizeWheelLines(s.TerminalWheelLines)
 	s.TerminalBold = Pick(boldModes, s.TerminalBold, DefaultTerminalBold)
 	s.TerminalWidth, s.TerminalHeight = NormalizeTerminalSize(s.TerminalWidth, s.TerminalHeight)
+	s.SurfaceResidencySeconds = NormalizeResidencySeconds(s.SurfaceResidencySeconds)
 	if s.extra == nil {
 		s.extra = map[string]any{}
 	}
@@ -404,6 +432,8 @@ func Encode(s Settings) ([]byte, error) {
 	out["terminal_paste_safe"] = s.TerminalPasteSafe
 	out["terminal_width"] = s.TerminalWidth
 	out["terminal_height"] = s.TerminalHeight
+	out["hide_on_blur"] = s.HideOnBlur
+	out["surface_residency_seconds"] = s.SurfaceResidencySeconds
 	return json.MarshalIndent(out, "", "  ")
 }
 
@@ -474,6 +504,25 @@ func NormalizeUIScale(step string) string {
 // factor, never zero.
 func UIScaleFactor(step string) float64 {
 	return uiScaleFactors[NormalizeUIScale(step)]
+}
+
+// NormalizeResidencySeconds clamps the residency window: 0 is off, the
+// sentinel passes through untouched, and anything else is capped at a day.
+func NormalizeResidencySeconds(seconds uint32) uint32 {
+	if seconds == SurfaceResidencyNever {
+		return seconds
+	}
+	if seconds > MaxSurfaceResidencySeconds {
+		return MaxSurfaceResidencySeconds
+	}
+	return seconds
+}
+
+// DefaultHideOnBlur is the shipped window behaviour: the panel hides when
+// it loses focus, except under Hyprland, where the compositor's own
+// handling makes that harmful (see hyprland.rs).
+func DefaultHideOnBlur() bool {
+	return os.Getenv("HYPRLAND_INSTANCE_SIGNATURE") == ""
 }
 
 // NormalizeOpacity clamps a transparency percentage to the shipped band. A

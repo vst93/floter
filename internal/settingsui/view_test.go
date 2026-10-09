@@ -1,10 +1,12 @@
 package settingsui
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
 
+	"floter/internal/i18n"
 	"floter/internal/settings"
 )
 
@@ -275,5 +277,69 @@ func TestAboutPage(t *testing.T) {
 	tt.Frame()
 	if urls := tt.OpenedURLs(); len(urls) != 1 || urls[0] != "https://github.com/vst93/floter" {
 		t.Errorf("opened URLs = %v", urls)
+	}
+}
+
+func TestWindowBehaviourControls(t *testing.T) {
+	store := newStore(t)
+	a := New(store, Actions{})
+	tt := render(t, a, 720, 620)
+
+	tt.Scroll(400, 300, 0, 400)
+	tt.Frame()
+
+	if err := tt.Click("Hide when focus is lost"); err != nil {
+		t.Fatalf("hide on blur: %v", err)
+	}
+	tt.Frame()
+	if store.Snapshot().HideOnBlur {
+		t.Error("the hide-on-blur check box did not turn off")
+	}
+
+	// The residency control shows what is stored; a custom value the
+	// presets do not name shows as itself, so the control never lies.
+	if err := store.Update(func(s *settings.Settings) { s.SurfaceResidencySeconds = 45 }); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !tt.HasText("45 s") {
+		t.Errorf("the custom residency did not show: %q", tt.Texts())
+	}
+	if err := store.Update(func(s *settings.Settings) { s.SurfaceResidencySeconds = 120 }); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !tt.HasText("120 s") {
+		t.Errorf("the preset residency did not show: %q", tt.Texts())
+	}
+}
+
+func TestResidencyOptions(t *testing.T) {
+	copy := i18n.For("en").Settings
+	options := residencyOptions(copy, 10)
+	if got := options[1].Label; got != "10 s" {
+		t.Errorf("first preset = %q", got)
+	}
+	last := options[len(options)-1]
+	if last.ID != strconv.FormatUint(uint64(settings.SurfaceResidencyNever), 10) || last.Label != "Never" {
+		t.Errorf("last option = %+v", last)
+	}
+
+	// A custom value is prepended, and parsing round-trips every id.
+	custom := residencyOptions(copy, 45)
+	if custom[0].Label != "45 s" {
+		t.Errorf("custom first option = %+v", custom[0])
+	}
+	for _, option := range custom {
+		seconds, ok := parseResidency(option.ID)
+		if !ok {
+			t.Errorf("option id %q did not parse", option.ID)
+		}
+		if option.ID == custom[0].ID && seconds != 45 {
+			t.Errorf("custom id parsed as %d", seconds)
+		}
+	}
+	if _, ok := parseResidency("soon"); ok {
+		t.Error("a non-numeric id parsed")
 	}
 }

@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/plugins/terminal"
@@ -70,6 +71,10 @@ const (
 
 	// repoURL is where the About page points.
 	repoURL = "https://github.com/vst93/floter"
+
+	// showGrace is how long after a reveal a blur is ignored, as the old
+	// shell suppressed blur for a moment after showing the panel.
+	showGrace = 400 * time.Millisecond
 )
 
 // Options configures the app.
@@ -109,6 +114,14 @@ type App struct {
 
 	// ShortcutErr is why the global shortcut could not be registered.
 	ShortcutErr error
+
+	// now is the clock the residency rule reads; tests replace it.
+	now func() time.Time
+	// enteredAt is when the current surface was opened, and shownAt when
+	// the window was last revealed (a blur within the grace period after a
+	// reveal is the platform settling, not the user leaving).
+	enteredAt time.Time
+	shownAt   time.Time
 }
 
 // New builds the app and its surfaces.
@@ -126,6 +139,7 @@ func New(opts Options) *App {
 		Surf:     SurfaceLauncher,
 		quit:     quit,
 		workArea: opts.WorkAreaHeight,
+		now:      time.Now,
 	}
 	a.Launcher = launcher.New(opts.Store, launcher.Actions{
 		OpenSettings: func() { a.Open(SurfaceSettings) },
@@ -236,6 +250,17 @@ func (a *App) Start() {
 			a.quit()
 		}
 	})
+	a.Win.OnFocus(func() { a.shownAt = a.now() })
+	a.Win.OnBlur(func() {
+		// A blur right after a reveal is the platform settling; only a
+		// real focused-to-unfocused leave hides the panel.
+		if a.now().Sub(a.shownAt) < showGrace {
+			return
+		}
+		if a.Store.Snapshot().HideOnBlur {
+			a.Hide()
+		}
+	})
 
 	a.ShortcutErr = mygo.GlobalShortcut.Register(SummonShortcut(s), a.Toggle)
 	if a.ShortcutErr != nil {
@@ -257,6 +282,10 @@ func (a *App) scanApps() {
 
 // Open switches to a surface, sizing and focusing it.
 func (a *App) Open(s Surface) {
+	if s != SurfaceLauncher {
+		// Entering a surface starts the residency clock (see summon).
+		a.enteredAt = a.now()
+	}
 	a.Surf = s
 	switch s {
 	case SurfaceSettings:
@@ -268,11 +297,7 @@ func (a *App) Open(s Surface) {
 		a.Launcher.FocusSearch()
 	}
 	a.resize()
-	if a.Win != nil {
-		a.Win.Show()
-		a.Win.Focus()
-		a.Win.Invalidate()
-	}
+	a.Show()
 }
 
 // Toggle shows the launcher, or hides the window when it is already the
@@ -285,7 +310,43 @@ func (a *App) Toggle() {
 		a.Hide()
 		return
 	}
+	if a.residencyHolds() {
+		// The surface the user was on is still "where they left it": show
+		// it again rather than throwing it away.
+		a.Show()
+		return
+	}
 	a.Open(SurfaceLauncher)
+	a.Show()
+}
+
+// Show reveals the window and takes the focus, arming the blur grace.
+func (a *App) Show() {
+	if a.Win == nil {
+		return
+	}
+	a.shownAt = a.now()
+	a.Win.Show()
+	a.Win.Focus()
+	a.Win.Invalidate()
+}
+
+// residencyHolds reports whether the current surface survives this summon:
+// the shipped ten seconds since it was opened, a custom window, "never", or
+// nothing at all (0). See src/surface-residency.ts.
+func (a *App) residencyHolds() bool {
+	if a.Surf == SurfaceLauncher {
+		return false
+	}
+	seconds := a.Store.Snapshot().SurfaceResidencySeconds
+	switch {
+	case seconds == 0:
+		return false
+	case seconds >= settings.SurfaceResidencyNever:
+		return true
+	default:
+		return a.now().Sub(a.enteredAt) <= time.Duration(seconds)*time.Second
+	}
 }
 
 // Hide hides the window, leaving the app running with its shortcut.

@@ -119,6 +119,15 @@ type Settings struct {
 	Paddings     []Option
 	Palettes     []Option
 
+	// The window behaviour.
+	HideOnBlur            string
+	HideOnBlurHint        string
+	SurfaceResidency      string
+	SurfaceResidencyHint  string
+	SurfaceResidencyOff   string
+	SurfaceResidencyNever string
+	SurfaceResidencyValue func(seconds uint32) string
+
 	// The Sessions page.
 	SessionsNone    string
 	SessionsRunning string

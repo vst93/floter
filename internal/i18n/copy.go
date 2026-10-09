@@ -105,6 +105,14 @@ var en = Copy{
 			{"amber", "Amber"},
 		},
 
+		HideOnBlur:            "Hide when focus is lost",
+		HideOnBlurHint:        "Dismiss the panel when you switch to another application.",
+		SurfaceResidency:      "Keep pages open for",
+		SurfaceResidencyHint:  "A settings page or the terminal stays put when the panel is dismissed, until this long has passed. 0 turns it off.",
+		SurfaceResidencyOff:   "Off",
+		SurfaceResidencyNever: "Never",
+		SurfaceResidencyValue: secondsEN,
+
 		SessionsNone:    "No sessions are running.",
 		SessionsRunning: "Running",
 		SessionsClose:   "Close session",
@@ -231,6 +239,14 @@ var zh = Copy{
 			{"amber", "琥珀"},
 		},
 
+		HideOnBlur:            "失去焦点时隐藏",
+		HideOnBlurHint:        "切换到其他应用时自动收起面板。",
+		SurfaceResidency:      "页面驻留时间",
+		SurfaceResidencyHint:  "设置页或终端在面板收起后会保留这么久；设为 0 则关闭。",
+		SurfaceResidencyOff:   "关闭",
+		SurfaceResidencyNever: "永不关闭",
+		SurfaceResidencyValue: secondsZH,
+
 		SessionsNone:    "没有正在运行的会话。",
 		SessionsRunning: "运行中",
 		SessionsClose:   "关闭会话",
@@ -252,4 +268,23 @@ var zh = Copy{
 		Hint:  "会话尚未启动。",
 		Close: "关闭终端",
 	},
+}
+
+func secondsEN(n uint32) string { return itoa32(n) + " s" }
+func secondsZH(n uint32) string { return itoa32(n) + " 秒" }
+
+// itoa32 renders a number, for the residency labels (a value up to a day,
+// or the "never" sentinel).
+func itoa32(n uint32) string {
+	if n == 0 {
+		return "0"
+	}
+	var digits [10]byte
+	i := len(digits)
+	for n > 0 {
+		i--
+		digits[i] = byte('0' + n%10)
+		n /= 10
+	}
+	return string(digits[i:])
 }

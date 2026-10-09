@@ -131,6 +131,7 @@ func equal(a, b Settings) bool {
 	if a.Theme != b.Theme || a.GlassStep != b.GlassStep || a.Language != b.Language ||
 		a.MainOpacity != b.MainOpacity || a.TerminalOpacity != b.TerminalOpacity ||
 		a.UIScale != b.UIScale ||
+		a.HideOnBlur != b.HideOnBlur || a.SurfaceResidencySeconds != b.SurfaceResidencySeconds ||
 		a.FontSize != b.FontSize || a.FontFamily != b.FontFamily ||
 		a.CursorShape != b.CursorShape || a.CursorBlink != b.CursorBlink ||
 		a.TerminalLineHeight != b.TerminalLineHeight || a.TerminalPadding != b.TerminalPadding ||

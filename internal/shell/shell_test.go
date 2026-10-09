@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/plugins/terminal"
 	"github.com/egoist/mygo/ui"
@@ -225,5 +226,68 @@ func TestVersionInFile(t *testing.T) {
 	}
 	if got := versionInFile(bad); got != "" {
 		t.Errorf("bad file = %q, want empty", got)
+	}
+}
+
+func TestResidencyRule(t *testing.T) {
+	a := newApp(t)
+	clock := time.Unix(1_700_000_000, 0)
+	a.now = func() time.Time { return clock }
+
+	// A surface entered now holds for the shipped ten seconds.
+	a.Open(SurfaceSettings)
+	clock = clock.Add(5 * time.Second)
+	if !a.residencyHolds() {
+		t.Error("settings did not survive a summon five seconds later")
+	}
+	clock = clock.Add(6 * time.Second)
+	if a.residencyHolds() {
+		t.Error("settings survived a summon eleven seconds later")
+	}
+
+	// Re-entering restarts the clock.
+	a.Open(SurfaceSettings)
+	clock = clock.Add(time.Second)
+	if !a.residencyHolds() {
+		t.Error("re-entering did not restart the clock")
+	}
+
+	// 0 turns the window off; the sentinel keeps it forever.
+	if err := a.Store.Update(func(s *settings.Settings) { s.SurfaceResidencySeconds = 0 }); err != nil {
+		t.Fatal(err)
+	}
+	if a.residencyHolds() {
+		t.Error("residency 0 kept the surface")
+	}
+	if err := a.Store.Update(func(s *settings.Settings) {
+		s.SurfaceResidencySeconds = settings.SurfaceResidencyNever
+	}); err != nil {
+		t.Fatal(err)
+	}
+	clock = clock.Add(48 * time.Hour)
+	if !a.residencyHolds() {
+		t.Error("the never sentinel did not keep the surface")
+	}
+
+	// The launcher never holds a residency.
+	a.Surf = SurfaceLauncher
+	if a.residencyHolds() {
+		t.Error("the launcher held a residency")
+	}
+}
+
+func TestHideOnBlurFollowsTheSetting(t *testing.T) {
+	if !settings.DefaultHideOnBlur() {
+		t.Skip("this machine's session disables hide on blur")
+	}
+	if !settings.Default().HideOnBlur {
+		t.Error("the shipped default is not hide on blur")
+	}
+	s, err := settings.Parse([]byte(`{"hide_on_blur": false}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.HideOnBlur {
+		t.Error("an explicit false did not win")
 	}
 }

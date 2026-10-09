@@ -11,6 +11,7 @@ package settingsui
 import (
 	"fmt"
 	"math"
+	"strconv"
 	"strings"
 
 	"github.com/egoist/mygo/plugins/glass"
@@ -303,6 +304,18 @@ func (a *App) general(c *ui.Context, copy i18n.Settings) {
 		ui.Fieldset(c, copy.GroupWindow, func() {
 			a.pick(c, copy.Scale, copy.ScaleHint, copy.Scales, s.UIScale,
 				func(id string) { a.set(func(s *settings.Settings) { s.UIScale = id }) })
+			a.checkbox(c, copy.HideOnBlur, s.HideOnBlur,
+				func(on bool) { a.set(func(s *settings.Settings) { s.HideOnBlur = on }) })
+			a.choose(c, copy.SurfaceResidency, copy.SurfaceResidencyHint,
+				residencyOptions(copy, s.SurfaceResidencySeconds),
+				strconv.FormatUint(uint64(s.SurfaceResidencySeconds), 10),
+				func(id string) {
+					seconds, ok := parseResidency(id)
+					if !ok {
+						return
+					}
+					a.set(func(s *settings.Settings) { s.SurfaceResidencySeconds = seconds })
+				})
 		})
 
 		ui.Fieldset(c, copy.GroupTerminal, func() {
@@ -454,6 +467,43 @@ func clampPercent(v float64) uint8 {
 		return settings.MaxWindowOpacity
 	}
 	return n
+}
+
+// parseResidency reads a residency option id: the presets' seconds, the
+// "never" sentinel, or a custom number, all as decimal text.
+func parseResidency(id string) (uint32, bool) {
+	seconds, err := strconv.ParseUint(id, 10, 32)
+	if err != nil {
+		return 0, false
+	}
+	return uint32(seconds), true
+}
+
+// residencyOptions is the residency select's choices: the presets, the
+// "never" sentinel, and the stored value when it is a custom number the
+// presets do not name (shown first, so the control never lies about what
+// is stored).
+func residencyOptions(copy i18n.Settings, current uint32) []i18n.Option {
+	options := []i18n.Option{
+		{ID: "0", Label: copy.SurfaceResidencyOff},
+	}
+	for _, seconds := range []uint32{10, 20, 30, 60, 120} {
+		options = append(options, i18n.Option{
+			ID:    strconv.FormatUint(uint64(seconds), 10),
+			Label: copy.SurfaceResidencyValue(seconds),
+		})
+	}
+	options = append(options, i18n.Option{
+		ID:    strconv.FormatUint(uint64(settings.SurfaceResidencyNever), 10),
+		Label: copy.SurfaceResidencyNever,
+	})
+	id := strconv.FormatUint(uint64(current), 10)
+	for _, option := range options {
+		if option.ID == id {
+			return options
+		}
+	}
+	return append([]i18n.Option{{ID: id, Label: copy.SurfaceResidencyValue(current)}}, options...)
 }
 
 func optionIndex(options []i18n.Option, id string) int {
