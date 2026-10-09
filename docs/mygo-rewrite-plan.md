@@ -1,5 +1,8 @@
 # floter × mygo 重构总计划（mygo-rewrite 分支）
 
+> **交接优先看 [`docs/mygo-rewrite-status.md`](mygo-rewrite-status.md)**：当前进度、上手命令、目录导览、
+> 未做清单与踩过的坑都在那里；本文是分轮决策与门槛的完整记录。
+
 ## 决策记录（2026-10-09）
 
 - 用户指令：停止 v0.3.x 迭代；用 mygo（github.com/egoist/mygo）全量重构；主分支备份；新分支推进。
@@ -292,6 +295,13 @@
 - 启动器：`Tools` + `ShowTools`；仅当 **`show_commands_in_search`（默认关，与旧版一致）** 为真时，非空查询把命令并入结果；运行命令交给终端表面（`RunInTerminal` → 终端会话）。
 - shell：启动时按设置后台扫描 PATH；设置为真才展示。
 - 门槛：目录扫描（首目录优先/权限/点文件/产物文件/缺失目录）、dirs 拆分、启动器（默认不展示、开启后可搜可运行、关闭后消失）、shell（默认关、开启后扫描到达启动器并交接终端）；共 189 项测试。
+
+### P4-i 快捷键录制（已做）
+
+- `internal/shortcuts`：旧拼写（`Cmd+Comma`、`Option+Space`、`CommandOrControl`）→ 框架接受的拼写（`Cmd+,`、`Alt+Space`、`CmdOrCtrl`）互转，修饰键顺序固定、幂等、未知名拒绝；`FromKey` 把键盘事件转成同一拼写（要求 Shift 之外至少一个修饰键，避免抢走普通输入）。
+- 设置页 Shortcuts 页：当前加速键 + 「录制」按钮；录制时捕获下一个组合键（**录制期间 Escape 归录制器**，不关面板），Esc 取消，无修饰键的按键被忽略。
+- shell：重新注册全局快捷键——系统拒绝（被别的应用占用）时保留旧的且不落盘；成功则写回 `hotkey` 与 `shortcuts.toggle_window`，下次启动沿用。
+- 门槛：拼写转换表与拒绝用例、`FromKey` 覆盖各键组、Tester 驱动的录制器交互、shell 的注册/拒绝/持久化路径；共 194 项测试。
 
 ## 纪律（继承）
 
