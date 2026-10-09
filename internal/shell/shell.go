@@ -355,7 +355,7 @@ func (a *App) integrationList() []settingsui.Integration {
 func (a *App) runCommand(entry extensions.CommandEntry, args []string) {
 	argv := append([]string{entry.Program}, entry.Args...)
 	argv = append(argv, args...)
-	if err := a.Terminal.RunCommand(argv, entry.Dir); err != nil {
+	if err := a.Terminal.RunCommand(argv, entry.Dir, entry.Env); err != nil {
 		log.Printf("floter: could not run %s: %v", entry.Command.ID, err)
 	}
 	a.Open(SurfaceTerminal)

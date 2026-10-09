@@ -70,8 +70,9 @@ func (a *App) EnsureSession() {
 
 // RunCommand ends the current session and starts one that runs argv: how an
 // extension's command is handed to the terminal. dir names the working
-// directory policy the provider asked for ("home", "current", "inherit").
-func (a *App) RunCommand(argv []string, dir string) error {
+// directory policy the provider asked for ("home", "current", "inherit"),
+// and env is the integration's configured environment ("KEY=value").
+func (a *App) RunCommand(argv []string, dir string, env []string) error {
 	if len(argv) == 0 {
 		return errors.New("terminalui: no command to run")
 	}
@@ -82,6 +83,7 @@ func (a *App) RunCommand(argv []string, dir string) error {
 
 	opts := a.options()
 	opts.Command = argv
+	opts.Env = append([]string{}, env...)
 	switch dir {
 	case "", "home":
 		// The plugin's default: the user's home directory.

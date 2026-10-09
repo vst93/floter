@@ -174,6 +174,10 @@ type CommandEntry struct {
 	// the provider asked for.
 	Mode string
 	Dir  string
+
+	// Env is the integration's configured environment ("KEY=value"),
+	// injected when the command runs.
+	Env []string
 }
 
 // CommandEntries flattens every running integration's commands.
@@ -192,7 +196,17 @@ func (s *Store) CommandEntries() []CommandEntry {
 		if err != nil {
 			continue
 		}
-		for _, command := range description.Commands {
+		stored, err := LoadStoredConfiguration(s.paths.Data, integration.Entry.ID)
+		if err != nil {
+			stored = StoredConfiguration{Values: map[string]any{}}
+		}
+		injection := Inject(description.Configuration, stored.Values, Injection{})
+
+		commands := description.Commands
+		if configuration, ok := ConfigurationCommand(integration, description); ok {
+			commands = append(append([]Command{}, commands...), configuration)
+		}
+		for _, command := range commands {
 			entry := CommandEntry{
 				IntegrationID:   integration.Entry.ID,
 				IntegrationName: integration.Name,
@@ -202,7 +216,9 @@ func (s *Store) CommandEntries() []CommandEntry {
 				Args:            append(append([]string{}, binding.Args...), command.Execution.ArgsPrefix...),
 				Mode:            command.Execution.NormalizedMode(),
 				Dir:             command.Execution.WorkingDirectory,
+				Env:             append([]string{}, injection.Env...),
 			}
+			entry.Args = append(entry.Args, injection.Args...)
 			out = append(out, entry)
 		}
 	}

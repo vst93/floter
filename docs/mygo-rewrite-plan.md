@@ -163,6 +163,14 @@
 - `splitArgs` 支持引号与反斜杠转义（未闭合引号取到行尾，不吞掉半写参数），有单测。
 - 门槛：Tester 驱动的模式测试（Tab 展开、过滤、别名匹配、补全、运行 argv、Esc/删除退出、点击直接运行），共 118 项测试。
 
+### P3-c 配置注入（已做）
+
+- 读旧版写入的宿主配置：`extension-data/<id>/config.json`（当前 envelope `{configVersion,secretGeneration,values,schema}` 与旧版裸 values map 都支持），密钥从 `config-secrets/<generation>.json` 或旧版 `config.secrets.json` 合并；口令占位 `[REDACTED]` 在没有密钥时被删掉而不是当成值；id 越界拒绝。
+- 注入（对齐 config.rs）：schema 字段有值就按 `envVar` 或 `environmentMapping` 进环境变量，`argument` 进 argv（`true` 只给 flag、`false`/null 跳过、列表以逗号连接）；**口令只进环境变量，绝不进 argv**。
+- 工具自管配置（`owner: "tool"`）生成一条可运行的 `Configuration` 命令（provider 的 `openCommand`）。
+- 命令条目因此带上 `Env`（配置环境）与配置参数；终端运行时会应用它们。
+- 门槛：配置读取（envelope/遗留/密钥代数/占位符/越界 id）、注入规则（含口令不入 argv）、tool 配置命令、以及 store 端到端（命令条目带 Env 与参数）单测全绿，共 123 项测试。
+
 ### P3 还未做
 
 - 安装/更新/卸载（graft、事务、journal、回滚）、导入导出、npm 下载与校验。

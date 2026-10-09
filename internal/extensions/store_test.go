@@ -207,3 +207,100 @@ func TestStoreRecordsProviderFailures(t *testing.T) {
 		t.Errorf("a failing provider contributed %+v", entries)
 	}
 }
+
+// TestCommandEntriesCarryTheConfiguration covers the host-owned
+// configuration: the stored values reach the command as environment and
+// arguments, and a password reaches only the environment.
+func TestCommandEntriesCarryTheConfiguration(t *testing.T) {
+	dir := t.TempDir()
+	paths := FromRoot(dir)
+	pkg := filepath.Join(paths.Extensions, "dev.floter.configured")
+	writeFile(t, filepath.Join(pkg, manifestFileName), `{
+  "schemaVersion": "2.0", "id": "dev.floter.configured", "name": "Configured",
+  "publisher": {"id": "floter", "name": "floter"},
+  "compatibility": {"floter": ">=0.3.0", "providerProtocol": "^1.0"},
+  "distribution": {"type": "local"},
+  "runtime": {"type": "system", "executableNames": ["configured"]},
+  "provider": {"type": "static-descriptor", "descriptor": "description.json", "argsPrefix": []}
+}`)
+	writeFile(t, filepath.Join(pkg, "description.json"), `{
+  "protocolVersion": "1.0",
+  "provider": {"id": "dev.floter.configured", "name": "Configured", "version": "1.0.0"},
+  "commands": [{"id": "run", "name": "Run", "description": "Run it", "execution": {"program": "self", "argsPrefix": [], "mode": "pty"}}],
+  "configuration": {
+    "configVersion": 1,
+    "owner": "host",
+    "environmentMapping": {"endpoint": "TOOL_ENDPOINT"},
+    "schema": [
+      {"key": "endpoint", "type": "text"},
+      {"key": "mode", "type": "select", "argument": "--mode", "options": ["pretty", "plain"]},
+      {"key": "token", "type": "password", "envVar": "TOOL_TOKEN", "argument": "--token"}
+    ]
+  }
+}`)
+	tool := filepath.Join(dir, "configured-tool")
+	writeFile(t, tool, "#!/bin/sh\n")
+	if err := os.Chmod(tool, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(paths.Data, "dev.floter.configured", "config.json"), `{
+  "configVersion": 1,
+  "values": {"endpoint": "https://example.com", "mode": "pretty", "token": "s3cret"}
+}`)
+	writeFile(t, paths.RepositoryFile, `{
+  "schemaVersion": 1,
+  "extensions": {
+    "dev.floter.configured": {
+      "id": "dev.floter.configured", "name": "Configured", "state": "enabled", "enabled": true,
+      "packageVersion": "1.0.0", "manifestPath": "", "executablePath": "`+tool+`", "channel": "stable",
+      "installedAt": 1, "updatedAt": 1
+    }
+  }
+}`)
+
+	store := OpenStore(paths)
+	store.Refresh(context.Background())
+	entries := store.CommandEntries()
+	if len(entries) != 1 {
+		t.Fatalf("commands = %+v", entries)
+	}
+	entry := entries[0]
+	wantEnv := []string{"TOOL_ENDPOINT=https://example.com", "TOOL_TOKEN=s3cret"}
+	if len(entry.Env) != len(wantEnv) {
+		t.Fatalf("env = %v, want %v", entry.Env, wantEnv)
+	}
+	for i, want := range wantEnv {
+		if entry.Env[i] != want {
+			t.Errorf("env[%d] = %q, want %q", i, entry.Env[i], want)
+		}
+	}
+	if len(entry.Args) != 2 || entry.Args[0] != "--mode" || entry.Args[1] != "pretty" {
+		t.Errorf("args = %v, want the configured mode only", entry.Args)
+	}
+
+	// A tool-owned configuration contributes a runnable Configuration
+	// command instead.
+	writeFile(t, filepath.Join(pkg, "description.json"), `{
+  "protocolVersion": "1.0",
+  "provider": {"id": "dev.floter.configured", "name": "Configured", "version": "1.0.0"},
+  "commands": [{"id": "run", "name": "Run", "description": "Run it", "execution": {"program": "self", "argsPrefix": [], "mode": "pty"}}],
+  "configuration": {"configVersion": 1, "owner": "tool", "openCommand": ["config", "edit"]}
+}`)
+	store.Refresh(context.Background())
+	entries = store.CommandEntries()
+	if len(entries) != 2 {
+		t.Fatalf("commands = %+v", entries)
+	}
+	found := false
+	for _, entry := range entries {
+		if entry.Command.ID == "configuration" {
+			found = true
+			if len(entry.Args) != 2 || entry.Args[0] != "config" {
+				t.Errorf("configuration command args = %v", entry.Args)
+			}
+		}
+	}
+	if !found {
+		t.Error("the tool-owned configuration command is missing")
+	}
+}
