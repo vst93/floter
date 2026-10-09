@@ -112,9 +112,12 @@ type BrowserResults struct {
 	Tabs []browser.Tab
 }
 
-// ClipboardSource is the clipboard history the launcher searches.
+// ClipboardSource is the clipboard history the launcher searches and edits:
+// the mode's own star and delete keys act through it.
 type ClipboardSource interface {
 	Search(query string, limit int) []clipboard.Entry
+	SetFavorite(id string, favorite bool) error
+	Remove(id string) error
 }
 
 // App is the launcher surface's state: the settings store it reads, the
@@ -412,14 +415,43 @@ func (a *App) View(c *ui.Context) {
 
 // The mode-local keys: the history's star and delete, which belong to the
 // calculator and clipboard modes rather than to the launcher's own shortcut
-// map.
+// map. Both are the old build's keys — the app modifier plus D to star, plus
+// Backspace to delete — and neither is rebindable, because a control the user
+// never asked to rebind does not belong in the settings map.
 func (a *App) modeShortcuts(c *ui.Context) {
-	if !a.calculatorMode {
+	switch {
+	case a.calculatorMode:
+		if c.Shortcut(ui.Super|ui.Ctrl, ui.KeyD) {
+			a.toggleCalculatorFavorite()
+		}
+	case a.clipboard:
+		if c.Shortcut(ui.Super|ui.Ctrl, ui.KeyD) {
+			a.toggleClipFavorite()
+		}
+	}
+}
+
+// toggleClipFavorite stars or unstars the chosen clipboard entry.
+func (a *App) toggleClipFavorite() {
+	if a.Clipboard == nil {
 		return
 	}
-	if c.Shortcut(ui.Super|ui.Ctrl, ui.KeyD) {
-		a.toggleCalculatorFavorite()
+	entry, ok := a.selectedClip()
+	if !ok {
+		return
 	}
+	if err := a.Clipboard.SetFavorite(entry.ID, !entry.Favorite); err != nil {
+		a.toast = StringsFor(a.settings().Language).ClipboardFavoriteFailed
+	}
+}
+
+// selectedClip is the clipboard entry the selection is on.
+func (a *App) selectedClip() (clipboard.Entry, bool) {
+	results := a.Results()
+	if a.Selected < 0 || a.Selected >= len(results) || results[a.Selected].clip == nil {
+		return clipboard.Entry{}, false
+	}
+	return *results[a.Selected].clip, true
 }
 
 // enterCommand starts typing an extension command's arguments: the field
@@ -633,12 +665,18 @@ func replaceLastWord(line, word string) string {
 // row wears the accent as a tint, as the old launcher's rows did.
 func (a *App) row(c *ui.Context, item Item, i int) {
 	t := c.Theme()
+	copy := StringsFor(a.settings().Language)
 	row := ui.Row(c).FillWidth().Focusable().Padding(t.Space(1.5), t.Space(2)).Radius(t.Radius).Gap(t.Space(2))
 	if i == a.Selected {
 		row.Background(t.Accent.Alpha(0.14))
 	} else if row.Hovered() {
 		row.Background(t.SurfaceHover)
 	}
+	// A history row's own delete control: the focused text field owns the
+	// editing keys, so the delete the old build put on a key is a button here
+	// — on the selected row only, so a stray click cannot remove a row the
+	// user was not looking at.
+	removed := false
 	row.Children(func() {
 		ui.Column(c).Grow(1).Children(func() {
 			ui.Text(c, item.Title).FontSize(t.FontSize).TextColor(t.Text)
@@ -646,14 +684,49 @@ func (a *App) row(c *ui.Context, item Item, i int) {
 				ui.Text(c, item.Detail).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
 			}
 		})
+		if i == a.Selected && (item.clip != nil || item.calc != nil) {
+			if ui.Button(c, "✕").Label(copy.HistoryDelete).Clicked() {
+				removed = true
+				a.deleteSelectedHistory()
+			}
+		}
 		if item.Shortcut != "" {
 			ui.Text(c, item.Shortcut).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
 		}
 	})
-	if row.Clicked() {
+	if row.Clicked() && !removed {
 		a.Selected = i
 		a.activate(a.Results())
 	}
+}
+
+// deleteSelectedHistory removes the chosen history row — a clipboard entry or
+// a calculation — and keeps the selection on the first row.
+func (a *App) deleteSelectedHistory() {
+	results := a.Results()
+	if a.Selected < 0 || a.Selected >= len(results) {
+		return
+	}
+	copy := StringsFor(a.settings().Language)
+	item := results[a.Selected]
+	switch {
+	case item.clip != nil && a.Clipboard != nil:
+		if err := a.Clipboard.Remove(item.clip.ID); err != nil {
+			a.toast = copy.ClipboardDeleteFailed
+			return
+		}
+		a.toast = copy.ClipboardDeleted
+	case item.calc != nil && a.Calculator != nil:
+		if err := a.Calculator.Delete(item.calc.ID); err != nil {
+			a.toast = copy.CalculatorDeleteFailed
+			return
+		}
+		a.toast = copy.CalculatorDeleted
+		a.refreshCalculator()
+	default:
+		return
+	}
+	a.Selected, a.chosenRow = 0, -1
 }
 
 // activate runs the result at the current selection — or the command being

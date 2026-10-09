@@ -61,6 +61,15 @@ type Launcher struct {
 	CommandBrowserHint    string
 	CommandQuit           string
 	CommandQuitHint       string
+	// The clipboard mode's own feedback lines: the star and the delete.
+	ClipboardFavoriteFailed string
+	ClipboardDeleteFailed   string
+	ClipboardDeleted        string
+	// HistoryDelete names a history row's delete control, and
+	// CalculatorDeleted reports one that went.
+	HistoryDelete          string
+	CalculatorDeleted      string
+	CalculatorDeleteFailed string
 	// CalculatorEmpty is the calculator mode's empty state, and the two
 	// failure lines report a history write that did not land.
 	CalculatorEmpty          string

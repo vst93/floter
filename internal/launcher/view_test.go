@@ -980,3 +980,68 @@ func TestCalculatorModeWords(t *testing.T) {
 		}
 	}
 }
+
+// The clipboard mode's own keys and controls: the star key, and the delete
+// control the selected row carries.
+func TestClipboardModeFavoritesAndDelete(t *testing.T) {
+	a, store := clipboardApp(t)
+	a.Actions.Copy = func(string) { testRuns["copy"]++ }
+	tt := render(t, a)
+
+	a.EnterClipboard()
+	tt.Frame()
+	entries := store.Entries()
+	if len(entries) != 2 {
+		t.Fatalf("entries = %+v", entries)
+	}
+
+	// The star key toggles the selected entry, and the row shows it.
+	tt.Key(ui.Super|ui.Ctrl, ui.KeyD)
+	tt.Frame()
+	if !store.Entries()[a.Selected].Favorite {
+		t.Fatalf("the star did not land: %+v", store.Entries())
+	}
+	if !tt.HasText("★") {
+		t.Errorf("the star is not shown: %q", tt.Texts())
+	}
+
+	// The selected row carries the delete control; pressing it removes the
+	// row and leaves the mode open.
+	if !tt.HasText("Delete") {
+		t.Fatalf("the delete control is missing: %q", tt.Texts())
+	}
+	if err := tt.Click("Delete"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if got := len(store.Entries()); got != 1 {
+		t.Errorf("the delete did not land: %d entries", got)
+	}
+	if !a.clipboard {
+		t.Error("deleting a row left the mode")
+	}
+}
+
+// The calculator mode's rows carry the same delete control.
+func TestCalculatorDeleteControl(t *testing.T) {
+	a := testApp()
+	fixture := &calculatorFixture{entries: []calculator.Entry{
+		{ID: "1", Expression: "10*3", Result: "30", CreatedAt: 2},
+	}}
+	a.Calculator = fixture
+	a.Actions.Copy = func(string) { testRuns["copy"]++ }
+	tt := render(t, a)
+	a.EnterCalculator()
+	a.Query = "calc "
+	tt.Frame()
+	if err := tt.Click("Delete"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if len(fixture.deleted) != 1 || fixture.deleted[0] != "1" {
+		t.Errorf("deleted %v", fixture.deleted)
+	}
+	if !tt.HasText("Calculation deleted") {
+		t.Errorf("the feedback line is missing: %q", tt.Texts())
+	}
+}

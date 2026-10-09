@@ -217,12 +217,17 @@ func (a *App) clipboardItems() []Item {
 	out := make([]Item, 0, len(entries))
 	for _, entry := range entries {
 		entry := entry
+		shortcut := ""
+		if entry.Favorite {
+			shortcut = "★"
+		}
 		out = append(out, Item{
-			ID:     "clip:" + entry.ID,
-			Title:  entry.Label(),
-			Detail: entry.Time().Format("2006-01-02 15:04"),
-			Run:    func() { a.copyClip(entry) },
-			clip:   &entry,
+			ID:       "clip:" + entry.ID,
+			Title:    entry.Label(),
+			Detail:   entry.Time().Format("2006-01-02 15:04"),
+			Shortcut: shortcut,
+			Run:      func() { a.copyClip(entry) },
+			clip:     &entry,
 		})
 	}
 	return out
