@@ -216,3 +216,55 @@ func (a *App) ApplyStartup() {
 		log.Printf("floter: could not set the login item: %v", err)
 	}
 }
+
+// menuActions are what the application menu's own items do.
+type menuActions struct {
+	Settings func()
+	Terminal func()
+	Launcher func()
+}
+
+// menuTemplate is the application menu: the standard macOS app menu, the
+// Edit menu whose roles every text field and the terminal need, a small View
+// menu for the app's own surfaces, and the window list.
+//
+// The template is a plain value so a test can check its shape on any
+// platform; the roles mygo filters (the macOS-only ones) are left out by the
+// platform, not here.
+func menuTemplate(copy i18n.Launcher, actions menuActions) []*mygo.MenuItem {
+	settings := &mygo.MenuItem{Label: copy.CommandSettings, Accelerator: "CmdOrCtrl+,", Click: func(*mygo.MenuItem, *mygo.Window) { actions.Settings() }}
+	terminal := &mygo.MenuItem{Label: copy.CommandTerminal, Accelerator: "CmdOrCtrl+Shift+T", Click: func(*mygo.MenuItem, *mygo.Window) { actions.Terminal() }}
+	launcher := &mygo.MenuItem{Label: copy.MenuLauncher, Click: func(*mygo.MenuItem, *mygo.Window) { actions.Launcher() }}
+
+	return []*mygo.MenuItem{
+		{Role: mygo.RoleAppMenu, Submenu: []*mygo.MenuItem{
+			settings,
+			mygo.Separator(),
+			{Role: mygo.RoleHide},
+			{Role: mygo.RoleHideOthers},
+			{Role: mygo.RoleUnhide},
+			mygo.Separator(),
+			{Role: mygo.RoleQuit},
+		}},
+		{Label: copy.MenuView, Submenu: []*mygo.MenuItem{
+			launcher,
+			terminal,
+			mygo.Separator(),
+			{Role: mygo.RoleToggleFullScreen},
+		}},
+		{Role: mygo.RoleEditMenu},
+		{Role: mygo.RoleWindowMenu},
+	}
+}
+
+// InstallMenu sets the application menu, so the app has the standard menus
+// (the Edit menu's roles are what a text field and the terminal expect) and
+// its own ways back to each surface.
+func (a *App) InstallMenu() {
+	copy := i18n.For(a.Store.Snapshot().Language).Launcher
+	mygo.App.SetMenu(mygo.NewMenu(menuTemplate(copy, menuActions{
+		Settings: func() { a.Open(SurfaceSettings) },
+		Terminal: func() { a.Open(SurfaceTerminal) },
+		Launcher: func() { a.Open(SurfaceLauncher) },
+	})))
+}

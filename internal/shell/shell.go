@@ -429,6 +429,7 @@ func (a *App) Start() {
 		log.Printf("floter: could not register %s://: %v", scheme, err)
 	}
 	a.ApplyStartup()
+	a.InstallMenu()
 	a.InstallTray()
 	a.ApplyAppIcon()
 	a.watchClipboard()

@@ -228,6 +228,12 @@
 - **CI**：新增 `.github/workflows/go.yml`——三平台（ubuntu/macos/windows）矩阵跑 gofmt/vet/build/test，macOS 任务再跑 `go tool mygo build` 并上传 .app/.dmg 产物。
 - 遗留：`mygo build` 会因仓库里仍有旧 `package.json` 而生成空的 `src/mygo.ts`（已加入 .gitignore），P6-b 删除旧前端后自然消失。
 
+### P4-c 应用菜单（已做）
+
+- `InstallMenu()`：标准 macOS 应用菜单（设置 `Cmd+,`、隐藏/隐藏其他/全部显示、退出）+ **Edit 菜单的角色**（撤销/重做/剪切/复制/粘贴/全选——原生文本框与终端插件都依赖它）+ View 菜单（显示 floter / 终端 `Cmd+Shift+T` / 全屏）+ Window 菜单。
+- 模板是纯函数（`menuTemplate`），单测检查结构与回调；平台专属角色（macOS-only）由框架过滤，一套模板跨平台。
+- 门槛：新增模板测试，共 157 项测试；真机启动无报错（`go run` 下无 bundle 的两条日志属预期）。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。

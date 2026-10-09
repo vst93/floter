@@ -19,11 +19,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 
+	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/plugins/terminal"
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/clipboard"
 	"floter/internal/extensions"
+	"floter/internal/i18n"
 	"floter/internal/launcher"
 	"floter/internal/settings"
 )
@@ -700,5 +702,46 @@ func TestSetExtraRoundTripsThroughTheStore(t *testing.T) {
 	}
 	if value, _ := back.Extra()["app_icon"].(string); value != "light" {
 		t.Errorf("app_icon = %v", back.Extra())
+	}
+}
+
+func TestMenuTemplate(t *testing.T) {
+	copy := i18n.For("en").Launcher
+	var settingsCalls, terminalCalls, launcherCalls int
+	items := menuTemplate(copy, menuActions{
+		Settings: func() { settingsCalls++ },
+		Terminal: func() { terminalCalls++ },
+		Launcher: func() { launcherCalls++ },
+	})
+	if len(items) != 4 {
+		t.Fatalf("menus = %d, want 4", len(items))
+	}
+	// The app menu carries the settings item and the standard items; the
+	// Edit menu is the roles every text field needs.
+	if items[0].Role != mygo.RoleAppMenu {
+		t.Errorf("first menu role = %q", items[0].Role)
+	}
+	if len(items[0].Submenu) == 0 || items[0].Submenu[0].Label != copy.CommandSettings {
+		t.Errorf("the app menu does not lead with settings: %+v", items[0].Submenu)
+	}
+	if items[2].Role != mygo.RoleEditMenu {
+		t.Errorf("the edit menu is missing: %q", items[2].Role)
+	}
+	// The view menu's items run their actions.
+	view := items[1]
+	if view.Label != copy.MenuView || len(view.Submenu) != 4 {
+		t.Fatalf("view menu = %+v", view)
+	}
+	view.Submenu[0].Click(nil, nil)
+	view.Submenu[1].Click(nil, nil)
+	if launcherCalls != 1 || terminalCalls != 1 || settingsCalls != 0 {
+		t.Errorf("calls = %d/%d/%d", launcherCalls, terminalCalls, settingsCalls)
+	}
+	items[0].Submenu[0].Click(nil, nil)
+	if settingsCalls != 1 {
+		t.Errorf("settings calls = %d", settingsCalls)
+	}
+	if items[1].Submenu[1].Accelerator != "CmdOrCtrl+Shift+T" {
+		t.Errorf("terminal accelerator = %q", items[1].Submenu[1].Accelerator)
 	}
 }

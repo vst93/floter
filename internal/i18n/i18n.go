@@ -42,6 +42,9 @@ type Launcher struct {
 	Clear string
 	// Copied is shown after the calculator's answer goes to the clipboard.
 	Copied string
+	// MenuView and MenuLauncher label the application menu's own items.
+	MenuView     string
+	MenuLauncher string
 	// CommandModeHint is the field's hint while an extension command's
 	// arguments are typed.
 	CommandModeHint string

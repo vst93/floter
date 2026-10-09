@@ -21,6 +21,9 @@ var en = Copy{
 		CommandQuit:          "Quit floter",
 		CommandQuitHint:      "Exit the application completely",
 		ShortcutSettings:     "Cmd+,",
+
+		MenuView:     "View",
+		MenuLauncher: "Show floter",
 	},
 	Settings: Settings{
 		Title: "Settings",
@@ -180,6 +183,9 @@ var zh = Copy{
 		CommandQuit:          "退出 floter",
 		CommandQuitHint:      "完全退出应用",
 		ShortcutSettings:     "Cmd+,",
+
+		MenuView:     "视图",
+		MenuLauncher: "显示 floter",
 	},
 	Settings: Settings{
 		Title: "设置",
