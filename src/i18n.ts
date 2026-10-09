@@ -674,6 +674,9 @@ const en = {
   "settings.extensions.customModeScript": "Script",
   "settings.extensions.customName": "Name",
   "settings.extensions.customDescription": "Description (optional)",
+  // R159 · the empty description is honest now: the manifest stores `""` and
+  // the detail/launcher views print no subtitle, so the placeholder says so.
+  "settings.extensions.customDescriptionPlaceholder": "Leave blank to show no description",
   "settings.extensions.customId": "Integration ID",
   "settings.extensions.customVersion": "Version",
   "settings.extensions.customVersionHint": "A successful version probe overwrites this value; if the probe fails, this is the fallback.",
@@ -1549,6 +1552,7 @@ const zh: Record<MessageKey, string> = {
   "settings.extensions.customModeScript": "脚本",
   "settings.extensions.customName": "名称",
   "settings.extensions.customDescription": "描述（可选）",
+  "settings.extensions.customDescriptionPlaceholder": "留空则不显示描述",
   "settings.extensions.customId": "集成 ID",
   "settings.extensions.customVersion": "版本",
   "settings.extensions.customVersionHint": "探测到真实版本会自动覆盖；探测失败时用你填的值兜底。",

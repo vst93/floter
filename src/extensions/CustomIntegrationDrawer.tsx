@@ -136,7 +136,7 @@ export function CustomIntegrationDrawer({ open, editingId, loading, error, integ
           script manifest hardcodes its own description and never reads the
           request's, so the control would be editable, silently dropped, and
           prefilled with the internal string. The value stays in the form, so
-          switching back to executable restores it. */}{integration.mode === "executable" && <label><span>{t("settings.extensions.customDescription")}</span><input value={integration.description} onChange={(event) => update((current) => ({ ...current, description: event.target.value }))} /></label>}
+          switching back to executable restores it. */}{integration.mode === "executable" && <label><span>{t("settings.extensions.customDescription")}</span><input value={integration.description} placeholder={t("settings.extensions.customDescriptionPlaceholder")} onChange={(event) => update((current) => ({ ...current, description: event.target.value }))} /></label>}
       {/* R9-3 · the id is minted by the backend at creation and is immutable
           afterwards, so the frontend never shows a value it could derive. On
           create the line is hidden entirely (there is no id yet); on edit it is

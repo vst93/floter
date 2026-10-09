@@ -71,8 +71,12 @@ const COMMANDS_SITES = [2837, 2930, 3005, 3095, 3163, 3333, 3892];
 // `description` field (+7) and its manifest fill (+1) above these, so every pin
 // here moved down by 8 from the R135 numbering. R158 made that fill
 // executable-only (a three-line comment on the read-back), so every pin here
-// moved down by 3 from the R153 numbering.
-const INSTALL_LINK_SITES = [3364, 3405, 3985, 4033, 4085, 4121, 4215, 4263, 4401, 4546];
+// moved down by 3 from the R153 numbering. R159 removed the executable
+// description's generated fallback (the doc comment above the struct grew by
+// one line and the write branch by eight), so the first two pins moved down by
+// 9; the R159 test rewrite added 15 more lines above the remaining pins, which
+// therefore moved down by 24.
+const INSTALL_LINK_SITES = [3373, 3414, 4009, 4057, 4109, 4145, 4239, 4287, 4425, 4570];
 const COMMANDS_LINK_SITES = [3211, 3564, 3653, 3701, 3790, 3825];
 // The A-class targets: five new fixtures (same bytes, basename-load-bearing)
 // plus the external-tool fixture that replaced the last run-time `fs::write`.

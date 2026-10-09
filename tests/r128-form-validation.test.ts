@@ -69,19 +69,24 @@ const OLD_FORM: Record<string, string> = {
  * the now-block-free `Ok(..)` arm (-2) moved `task_failed` to -6. The read-back
  * became executable-only with a three-line comment, so the five install sites
  * after it moved 3 lines lower than the R153 numbering.
+ *
+ * R159 removed the executable description's generated fallback: the struct
+ * doc comment above the sites grew by one line, so the six early pins moved
+ * down by 1, and the write branch grew by eight more lines before the
+ * remaining five, which moved down by 9.
  */
 const FORM_SITES: Array<[number, string]> = [
-  [250, "nameLength"],
-  [263, "commandShape"],
-  [268, "platformRequired"],
-  [273, "modeInvalid"],
-  [307, "scriptEmpty"],
-  [310, "scriptLanguageInvalid"],
-  [1173, "discoveredNameLength"],
-  [1182, "cannotDeriveCommand"],
-  [2484, "packageKeywordMissing"],
-  [2505, "localDistributionRequired"],
-  [2511, "localRuntimeRequired"],
+  [251, "nameLength"],
+  [264, "commandShape"],
+  [269, "platformRequired"],
+  [274, "modeInvalid"],
+  [308, "scriptEmpty"],
+  [311, "scriptLanguageInvalid"],
+  [1182, "discoveredNameLength"],
+  [1191, "cannotDeriveCommand"],
+  [2493, "packageKeywordMissing"],
+  [2514, "localDistributionRequired"],
+  [2520, "localRuntimeRequired"],
 ];
 
 /** The three run refusals' English, keyed by their short name. */

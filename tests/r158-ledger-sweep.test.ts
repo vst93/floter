@@ -17,6 +17,10 @@
 //      (`DWMWCP_ROUND`), so the two comments are corrected while every
 //      declaration is left byte-identical (the bundled CSS hash must not move).
 //
+// R159 adds a fourth: R153-R4 — the executable description's generated
+// fallback made a blank field impossible to clear. The fallback is gone and
+// the drawer's placeholder says so (see §4).
+//
 // All three are source-scan: the gate has no Windows runtime, and the orphan is
 // a call-site fact rather than a behaviour.
 import assert from "node:assert/strict";
@@ -80,7 +84,7 @@ test("the description control renders only for the executable runtime", async ()
   // Exactly one site: the gated one. A second, unconditional copy would revive
   // the dead control the guard exists to catch.
   assert.equal(
-    (drawer.match(/customDescription/g) ?? []).length,
+    (drawer.match(/customDescription"/g) ?? []).length,
     1,
     "the description label must have exactly one site",
   );
@@ -120,4 +124,52 @@ test("base.css comments no longer claim DWM rounding is off", async () => {
   // The declarations are untouched: both radii are the same numbers as before.
   assert.match(css, /--window-radius: 14px;/, "the default radius stays 14px");
   assert.match(css, /--window-radius: 8px;/, "the Windows radius stays 8px");
+});
+
+// ── 4 · R159 · the description is honestly clearable ──────────────────────
+//
+// R153-R4 — the executable fallback (`Local integration for <exe>`) was
+// written to disk when the field was blank, read back as real content, and
+// therefore impossible for the user to clear: every save resurrected the
+// sentence. R159 removes the fallback at its single write point, so a blank
+// description stays `""` and the drawer's placeholder can honestly say that a
+// blank field hides the description.
+
+test("a blank description is stored as an empty string, not a generated sentence", async () => {
+  const install = await read("src-tauri/src/extensions/install.rs");
+  // The generated sentence is gone from the *code* (the comments still name it
+  // to explain what R159 removed), so it can never reach disk again.
+  assert.ok(
+    !/format!\("Local integration for/.test(install),
+    "the generated `Local integration for …` fallback must be gone — it was the value the user could never clear",
+  );
+  // The executable branch writes exactly what the caller sent, trimmed.
+  assert.match(
+    install,
+    /\.description\s*\.as_deref\(\)\s*\.unwrap_or_default\(\)\s*\.trim\(\)\s*\.to_string\(\)/,
+    "the executable branch must write the trimmed request description (empty when blank)",
+  );
+  // The script branch keeps its own fixed sentence — R158's rule, unchanged.
+  assert.match(
+    install,
+    /description: if script_mode \{\s*"Local script integration"\.to_string\(\)/,
+    "script mode must still hardcode its own description",
+  );
+});
+
+test("the drawer's description field says a blank value hides the description", async () => {
+  const drawer = await read("src/extensions/CustomIntegrationDrawer.tsx");
+  assert.match(
+    drawer,
+    /placeholder=\{t\("settings\.extensions\.customDescriptionPlaceholder"\)\}/,
+    "the description input must carry the R159 placeholder",
+  );
+  const i18n = await read("src/i18n.ts");
+  // The symmetry sweep owns the en/zh value pair; this only pins that the key
+  // the drawer reads is declared (twice: once per dictionary).
+  assert.equal(
+    (i18n.match(/"settings\.extensions\.customDescriptionPlaceholder":/g) ?? []).length,
+    2,
+    "the placeholder key must be declared in both dictionaries",
+  );
 });

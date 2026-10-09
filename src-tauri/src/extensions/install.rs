@@ -85,9 +85,10 @@ pub struct CustomIntegrationRequest {
     #[serde(default)]
     pub version_args: Vec<String>,
     /// Best-effort human description inferred by the discovery layer (for
-    /// example a Linux desktop entry's `Comment`). `None` (or blank) keeps the
-    /// generated `Local integration for <executable>` fallback, so a missing
-    /// description never blocks a connection.
+    /// example a Linux desktop entry's `Comment`). R159 · `None` and blank both
+    /// mean "no description": the manifest is written with `""` rather than a
+    /// generated `Local integration for <executable>` sentence, so clearing the
+    /// drawer's field stays cleared instead of springing back (R153-R4).
     #[serde(default)]
     pub description: Option<String>,
     #[serde(default)]
@@ -340,13 +341,21 @@ async fn create_custom_integration_locked(
         description: if script_mode {
             "Local script integration".to_string()
         } else {
+            // R159 · honest empty description (R153-R4): a blank or absent
+            // input stays `""` instead of collapsing into the generated
+            // `Local integration for <exe>` sentence. That sentence was
+            // written to disk, read back as real content, and therefore
+            // impossible for the user to clear — the drawer showed it again
+            // after every save. Every consumer already renders an empty
+            // description as "no description" (`|| t("…noDescription")`) or a
+            // blank subtitle line, and the manifest schema accepts `""`
+            // (`default: ""`, no `minLength`).
             request
                 .description
                 .as_deref()
-                .map(str::trim)
-                .filter(|value| !value.is_empty())
-                .map(str::to_string)
-                .unwrap_or_else(|| format!("Local integration for {executable_name}"))
+                .unwrap_or_default()
+                .trim()
+                .to_string()
         },
         homepage: None,
         icon: None,
@@ -3601,8 +3610,9 @@ mod tests {
         assert_eq!(entry.tool_version.as_deref(), Some("no version here"));
     }
 
-    /// S1-b end-to-end: a discovery-supplied description replaces the generic
-    /// "Local integration for X" fallback in both the manifest and descriptor.
+    /// S1-b end-to-end: a discovery-supplied description lands in both the
+    /// manifest and descriptor (R159 · a blank one is no longer replaced by a
+    /// generated fallback; see the test below).
     #[cfg(unix)]
     #[tokio::test]
     async fn connecting_a_tool_uses_the_inferred_description() {
@@ -3658,14 +3668,19 @@ mod tests {
         );
     }
 
-    /// S1-b best-effort: a blank description falls back to the generic text.
+    /// R159 · a blank description is written as an honest `""`, not the old
+    /// generated `Local integration for <exe>` sentence. The sentence was the
+    /// bug: it landed on disk, the edit drawer read it back as real content,
+    /// and clearing the field could never stick (R153-R4). Both the manifest
+    /// and the descriptor keep the empty string, which every consumer renders
+    /// as "no description".
     #[cfg(unix)]
     #[tokio::test]
-    async fn connecting_a_tool_without_a_description_keeps_the_fallback() {
+    async fn connecting_a_tool_without_a_description_stores_an_empty_one() {
         let directory = tempfile::tempdir().unwrap();
         let state = test_state(directory.path());
-        // The fallback description embeds the executable's file name, so the
-        // committed fixture is named `plain.sh` (assertion below).
+        // A real executable with no `Comment`; the old fallback embedded its
+        // file name, so this fixture used to read `plain.sh` back.
         let executable = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/plain.sh");
         make_executable(&executable).unwrap();
 
@@ -3692,15 +3707,24 @@ mod tests {
         .await
         .unwrap();
 
-        let manifest_path = state
-            .paths
-            .data
-            .join(&entry.id)
-            .join("integration")
-            .join("floter.extension.json");
+        let root = state.paths.data.join(&entry.id).join("integration");
         let manifest: serde_json::Value =
-            serde_json::from_slice(&std::fs::read(&manifest_path).unwrap()).unwrap();
-        assert_eq!(manifest["description"], "Local integration for plain.sh");
+            serde_json::from_slice(&std::fs::read(root.join("floter.extension.json")).unwrap())
+                .unwrap();
+        assert_eq!(manifest["description"], "");
+        let descriptor: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(root.join("provider-description.json")).unwrap())
+                .unwrap();
+        assert_eq!(descriptor["provider"]["description"], "");
+        // …and the drawer's read-back sees the empty value, so clearing the
+        // field round-trips instead of resurrecting a sentence.
+        assert_eq!(
+            custom_integration_definition(&state, &entry.id)
+                .unwrap()
+                .description
+                .as_deref(),
+            Some(""),
+        );
     }
 
     #[cfg(unix)]
@@ -7993,8 +8017,10 @@ mod tests {
             Some("Takes a screenshot of the whole screen"),
         );
 
-        // A blank description is "not set": the generated sentence is the
-        // fallback, exactly as on create.
+        // R159 · a blank description is an honest empty one, not the old
+        // generated sentence: the user cleared the field, and the drawer must
+        // read back what they saved. This is the R153-R4 regression — the
+        // fallback used to spring back after every save.
         let mut blank = request();
         blank.description = Some("   ".into());
         update_custom_integration(&state, &id, blank).await.unwrap();
@@ -8003,7 +8029,8 @@ mod tests {
                 .unwrap()
                 .description
                 .as_deref(),
-            Some("Local integration for subber-tool.sh"),
+            Some(""),
         );
+        assert_eq!(manifest_of(&state, &id).description, "");
     }
 }
