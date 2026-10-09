@@ -2,6 +2,8 @@ package terminalui
 
 import (
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/egoist/mygo/plugins/terminal"
@@ -186,5 +188,44 @@ func TestNoPinControlWithoutASession(t *testing.T) {
 	tt := render(t, a, 860, 600)
 	if _, ok := tt.Find("Pin output"); ok {
 		t.Errorf("the pin control shows with no session: %q", tt.Texts())
+	}
+}
+
+// The session's screen is saved when it closes and fed back into the next
+// session, so the last session's scrollback comes back.
+func TestSnapshotSaveAndRestore(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "terminal-snapshot")
+	store := settings.NewStore(settings.Default())
+	a := New(store, Actions{}, func(terminal.Options) (*terminal.Terminal, error) {
+		return nil, errors.New("no library in tests")
+	})
+	a.SnapshotPath = path
+
+	// With no session there is nothing to save, and no error.
+	if err := a.SaveSnapshot(); err != nil {
+		t.Errorf("SaveSnapshot with no session = %v", err)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Errorf("a snapshot was written with no session: %v", err)
+	}
+
+	// The write is atomic and private: a temporary file in the same
+	// directory, renamed over the target.
+	if err := writeFileAtomically(path, []byte("screen")); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0o600 {
+		t.Errorf("snapshot mode = %v", info.Mode().Perm())
+	}
+	entries, err := os.ReadDir(filepath.Dir(path))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 {
+		t.Errorf("temporary files were left behind: %v", entries)
 	}
 }

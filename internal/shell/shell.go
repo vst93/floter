@@ -225,6 +225,17 @@ type App struct {
 	// lastMenubarIcon is the show_menubar_icon value the tray was last
 	// synced with.
 	lastMenubarIcon bool
+	// The terminal's size write-back: the size the last resize settled on,
+	// its generation, and the timer that writes it.
+	sizeMu         sync.Mutex
+	pendingWidth   float64
+	pendingHeight  float64
+	sizeGeneration int
+	sizeTimer      *time.Timer
+	// terminalSizeDelay is how long a resize waits before it is stored; tests
+	// shorten it.
+	terminalSizeDelay time.Duration
+
 	// customKeys are the user-defined shortcuts currently registered, so a
 	// settings change can release exactly those; customSignature is the list
 	// they were registered from.
@@ -350,10 +361,22 @@ func New(opts Options) *App {
 	if a.setOpenAtLogin == nil {
 		a.setOpenAtLogin = mygo.App.SetOpenAtLogin
 	}
+	// The quit path saves the terminal's screen first, so the next start
+	// restores what the user was looking at. Every way out goes through
+	// a.quit (the launcher row, the tray menu, the application menu).
+	innerQuit := a.quit
+	a.quit = func() {
+		if a.Terminal != nil {
+			if err := a.Terminal.SaveSnapshot(); err != nil {
+				log.Printf("floter: could not save the terminal snapshot: %v", err)
+			}
+		}
+		innerQuit()
+	}
 	a.Launcher = launcher.New(opts.Store, launcher.Actions{
 		OpenSettings: func() { a.Open(SurfaceSettings) },
 		OpenTerminal: func() { a.Open(SurfaceTerminal) },
-		Quit:         quit,
+		Quit:         a.quit,
 		Dismiss:      a.Hide,
 		Copy: func(text string) {
 			a.selfCopied = text
@@ -544,6 +567,7 @@ func New(opts Options) *App {
 	}
 	termActions.Pin = a.PinText
 	a.Terminal = terminalui.New(opts.Store, termActions, newTerminal)
+	a.Terminal.SnapshotPath = filepath.Join(paths.Root, "terminal-snapshot")
 
 	// A settings change that touches the calculator's retention is applied to
 	// its store, so a smaller capacity or a shorter window takes effect now.
@@ -652,6 +676,7 @@ func (a *App) Start() {
 		}
 	})
 	a.Win.OnFocus(func() { a.shownAt = a.now() })
+	a.Win.OnResize(a.trackTerminalSize)
 	a.Win.OnBlur(func() {
 		// A blur right after a reveal is the platform settling; only a
 		// real focused-to-unfocused leave hides the panel.
@@ -676,6 +701,15 @@ func (a *App) Start() {
 	if err := a.RegisterScheme(); err != nil {
 		log.Printf("floter: could not register %s://: %v", scheme, err)
 	}
+	// Every way out saves the terminal's screen: the app-level hook covers
+	// the menu's quit role, which the framework handles itself.
+	mygo.App.OnQuit(func() {
+		if a.Terminal != nil {
+			if err := a.Terminal.SaveSnapshot(); err != nil {
+				log.Printf("floter: could not save the terminal snapshot: %v", err)
+			}
+		}
+	})
 	a.ApplyStartup()
 	a.InstallMenu()
 	a.lastMenubarIcon = settings.ShowMenubarIcon(a.Store.Snapshot())
@@ -1206,6 +1240,55 @@ func (a *App) Open(s Surface) {
 	}
 	a.resize()
 	a.Show()
+}
+
+// The terminal's window is the one surface the user can resize, so a drag is
+// what the terminal's stored size follows: the next launch opens the size the
+// user left it at.
+const terminalSizeSettle = 600 * time.Millisecond
+
+// trackTerminalSize notes a window resize. Only the terminal surface is
+// resizable, so a resize there is the user's own.
+func (a *App) trackTerminalSize() {
+	if a.Win == nil || a.Surf != SurfaceTerminal {
+		return
+	}
+	width, height := a.Win.Size()
+	if width <= 0 || height <= 0 {
+		return
+	}
+	a.scheduleTerminalSize(float64(width), float64(height))
+}
+
+// scheduleTerminalSize writes a settled resize back to the settings.
+func (a *App) scheduleTerminalSize(width, height float64) {
+	settle := a.terminalSizeDelay
+	if settle <= 0 {
+		settle = terminalSizeSettle
+	}
+	a.sizeMu.Lock()
+	a.pendingWidth, a.pendingHeight = width, height
+	a.sizeGeneration++
+	generation := a.sizeGeneration
+	if a.sizeTimer != nil {
+		a.sizeTimer.Stop()
+	}
+	// A drag fires a resize per frame; the write happens once it settles.
+	a.sizeTimer = time.AfterFunc(settle, func() {
+		a.sizeMu.Lock()
+		if generation != a.sizeGeneration {
+			a.sizeMu.Unlock()
+			return
+		}
+		storedW, storedH := a.pendingWidth, a.pendingHeight
+		a.sizeMu.Unlock()
+		if err := a.Store.Update(func(s *settings.Settings) {
+			s.TerminalWidth, s.TerminalHeight = storedW, storedH
+		}); err != nil {
+			log.Printf("floter: could not store the terminal size: %v", err)
+		}
+	})
+	a.sizeMu.Unlock()
 }
 
 // restoreSettingsPage reopens the settings surface on the page the user last

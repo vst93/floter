@@ -9,7 +9,9 @@ package terminalui
 
 import (
 	"errors"
+	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/egoist/mygo/plugins/terminal"
 	"github.com/egoist/mygo/ui"
@@ -52,6 +54,11 @@ type App struct {
 	// Text is the session's text, for the pin control; nil reads it from
 	// the terminal.
 	Text func() string
+
+	// SnapshotPath is where the session's screen is saved when it closes and
+	// read back when the next one starts, so the last session's scrollback
+	// comes back. Empty disables it.
+	SnapshotPath string
 }
 
 // New builds the terminal surface.
@@ -71,6 +78,67 @@ func (a *App) EnsureSession() {
 		return
 	}
 	a.Term, a.Err = term, nil
+	a.restoreSnapshot(term)
+}
+
+// SaveSnapshot writes the session's screen to SnapshotPath: the escape
+// sequences that reproduce what the terminal shows, which is what the next
+// session is fed. A session with nothing on screen writes nothing, and a
+// missing path is not an error.
+func (a *App) SaveSnapshot() error {
+	if a.SnapshotPath == "" || a.Term == nil {
+		return nil
+	}
+	data := a.Term.Snapshot()
+	if len(data) == 0 {
+		return nil
+	}
+	return writeFileAtomically(a.SnapshotPath, data)
+}
+
+// restoreSnapshot feeds the saved screen into a fresh session, so the last
+// session's scrollback comes back above the new shell's prompt. The file is
+// left where it is: the next close overwrites it, and a crash therefore
+// restores the state the user last saw.
+func (a *App) restoreSnapshot(term *terminal.Terminal) {
+	if a.SnapshotPath == "" || term == nil {
+		return
+	}
+	data, err := os.ReadFile(a.SnapshotPath)
+	if err != nil || len(data) == 0 {
+		return
+	}
+	term.Feed(data)
+}
+
+// writeFileAtomically writes data to path: a temporary file in the same
+// directory, flushed, then renamed over the target.
+func writeFileAtomically(path string, data []byte) error {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	temporary, err := os.CreateTemp(dir, ".snapshot-*")
+	if err != nil {
+		return err
+	}
+	name := temporary.Name()
+	defer os.Remove(name)
+	if _, err := temporary.Write(data); err != nil {
+		temporary.Close()
+		return err
+	}
+	if err := temporary.Sync(); err != nil {
+		temporary.Close()
+		return err
+	}
+	if err := temporary.Close(); err != nil {
+		return err
+	}
+	if err := os.Chmod(name, 0o600); err != nil {
+		return err
+	}
+	return os.Rename(name, path)
 }
 
 // RunCommand ends the current session and starts one that runs argv: how an
@@ -185,6 +253,11 @@ func (a *App) Pad() float32 {
 // Close ends the session, if any.
 func (a *App) Close() {
 	if a.Term != nil {
+		// Save before closing: the session the user closed is the one the
+		// next start restores.
+		if err := a.SaveSnapshot(); err != nil {
+			log.Printf("floter: could not save the terminal snapshot: %v", err)
+		}
 		a.Term.Close()
 		a.Term = nil
 	}

@@ -1542,3 +1542,47 @@ func TestCapturedRunNotifiesOnlyWhenHidden(t *testing.T) {
 		t.Errorf("notifications = %v", notified)
 	}
 }
+
+// A settled terminal resize is written back to the settings, so the next
+// launch opens the size the user left it at; a drag that keeps moving costs
+// one write.
+func TestTerminalResizeIsStored(t *testing.T) {
+	store := settings.NewStore(settings.Default())
+	a := New(Options{
+		Store:       store,
+		Paths:       extensions.FromRoot(t.TempDir()),
+		NewTerminal: func(terminal.Options) (*terminal.Terminal, error) { return nil, errors.New("no library in tests") },
+	})
+	a.terminalSizeDelay = 20 * time.Millisecond
+
+	// A drag's frames: only the last one lands.
+	a.scheduleTerminalSize(900, 600)
+	a.scheduleTerminalSize(1000, 700)
+	a.scheduleTerminalSize(1200, 800)
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		snapshot := store.Snapshot()
+		if snapshot.TerminalWidth == 1200 && snapshot.TerminalHeight == 800 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("the size never settled: %v x %v", snapshot.TerminalWidth, snapshot.TerminalHeight)
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+
+	// The stored size is clamped into the shipped band, so a drag below the
+	// minimum cannot store an unusable window.
+	a.scheduleTerminalSize(100, 100)
+	deadline = time.Now().Add(5 * time.Second)
+	for {
+		snapshot := store.Snapshot()
+		if snapshot.TerminalWidth == settings.MinTerminalWidth && snapshot.TerminalHeight == settings.MinTerminalHeight {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("the size was not clamped: %v x %v", snapshot.TerminalWidth, snapshot.TerminalHeight)
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+}
