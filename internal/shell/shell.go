@@ -350,9 +350,11 @@ func (a *App) integrationList() []settingsui.Integration {
 }
 
 // runCommand runs an extension's command in the terminal surface, as the old
-// app handed a command off to its terminal.
-func (a *App) runCommand(entry extensions.CommandEntry) {
+// app handed a command off to its terminal. args are the argument words the
+// user typed in the command mode.
+func (a *App) runCommand(entry extensions.CommandEntry, args []string) {
 	argv := append([]string{entry.Program}, entry.Args...)
+	argv = append(argv, args...)
 	if err := a.Terminal.RunCommand(argv, entry.Dir); err != nil {
 		log.Printf("floter: could not run %s: %v", entry.Command.ID, err)
 	}

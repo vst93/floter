@@ -2,6 +2,7 @@ package launcher
 
 import (
 	"runtime"
+	"strings"
 
 	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
@@ -69,8 +70,9 @@ type Actions struct {
 	Copy func(text string)
 	// OpenApp launches an installed application.
 	OpenApp func(app apps.App)
-	// RunCommand runs an extension's command.
-	RunCommand func(entry extensions.CommandEntry)
+	// RunCommand runs an extension's command with the arguments the user
+	// typed in the command mode (none when the row was clicked).
+	RunCommand func(entry extensions.CommandEntry, args []string)
 }
 
 // App is the launcher surface's state: the settings store it reads, the
@@ -100,6 +102,10 @@ type App struct {
 
 	// toast is a message to show on the next frame, set by an action.
 	toast string
+
+	// mode is the extension command being typed: while it is set, the field
+	// holds the command's argv and the list offers its arguments.
+	mode *extensions.CommandEntry
 }
 
 // SetApps replaces the scanned applications.
@@ -134,6 +140,7 @@ func (a *App) View(c *ui.Context) {
 	// old collapsed shell reasserted focus on every reveal.
 	a.FocusSearch()
 
+	a.syncCommandMode()
 	results := a.Results()
 	a.clampSelection(len(results))
 
@@ -146,7 +153,11 @@ func (a *App) View(c *ui.Context) {
 	ui.Box(c).Fill().Children(func() {
 		if len(results) == 0 {
 			ui.Column(c).FillWidth().Padding(t.Space(3)).Center().Children(func() {
-				ui.Text(c, copy.NoResults).FontSize(t.FontSize).TextColor(t.TextMuted)
+				message := copy.NoResults
+				if a.mode != nil {
+					message = copy.CommandModeHint
+				}
+				ui.Text(c, message).FontSize(t.FontSize).TextColor(t.TextMuted)
 			})
 		} else {
 			// The list builds only the rows in view, so a catalog of
@@ -177,13 +188,16 @@ func (a *App) View(c *ui.Context) {
 			if field.Submitted() {
 				a.activate(results)
 			}
-			if a.Query != "" {
+			switch {
+			case a.mode != nil:
+				ui.Text(c, copy.CommandModeHint).FontSize(t.FontSize).TextColor(t.TextMuted)
+			case a.Query != "":
 				if ui.Button(c, "✕").Label(copy.Clear).Clicked() {
 					a.Query = ""
 					a.Selected = 0
 					a.FocusSearch()
 				}
-			} else {
+			default:
 				ui.Text(c, copy.Hint).FontSize(t.FontSize).TextColor(t.TextMuted)
 			}
 		})
@@ -213,6 +227,8 @@ func (a *App) View(c *ui.Context) {
 	}
 	if c.Shortcut(0, ui.KeyEscape) {
 		switch {
+		case a.mode != nil:
+			a.leaveCommand()
 		case a.Query != "":
 			a.Query = ""
 			a.Selected = 0
@@ -220,6 +236,97 @@ func (a *App) View(c *ui.Context) {
 			a.Actions.Dismiss()
 		}
 	}
+	// Tab completes the chosen argument while a command is being typed, and
+	// expands a command row into the argument mode in the search.
+	if c.Shortcut(0, ui.KeyTab) && a.Selected >= 0 && a.Selected < len(results) {
+		item := results[a.Selected]
+		switch {
+		case a.mode != nil && item.complete != "":
+			a.appendWord(item.complete)
+		case a.mode == nil && item.entry != nil:
+			a.enterCommand(*item.entry)
+		}
+	}
+}
+
+// enterCommand starts typing an extension command's arguments: the field
+// holds its argv, and the list offers the command's declared arguments.
+func (a *App) enterCommand(entry extensions.CommandEntry) {
+	copied := entry
+	a.mode = &copied
+	a.Query = entry.Command.ID
+	if entry.Command.ID != "" {
+		a.Query += " "
+	}
+	a.Selected, a.chosenRow = 0, -1
+}
+
+// leaveCommand returns to the search.
+func (a *App) leaveCommand() {
+	a.mode = nil
+	a.Query = ""
+	a.Selected, a.chosenRow = 0, -1
+}
+
+// syncCommandMode leaves the mode when the line no longer starts with the
+// command's id, which is what deleting it does.
+func (a *App) syncCommandMode() {
+	if a.mode == nil {
+		return
+	}
+	word := firstWord(a.Query)
+	if !strings.EqualFold(word, a.mode.Command.ID) {
+		a.leaveCommand()
+	}
+}
+
+// commandArgs is the typed argument words, without the command itself.
+func (a *App) commandArgs() []string {
+	words := splitArgs(a.Query)
+	if len(words) <= 1 {
+		return nil
+	}
+	return words[1:]
+}
+
+// currentWord is the argument being typed: the last word when the line does
+// not end in whitespace, and nothing after a space.
+func (a *App) currentWord() string {
+	if strings.TrimRight(a.Query, " \t") != a.Query {
+		return ""
+	}
+	words := splitArgs(a.Query)
+	if len(words) <= 1 {
+		return ""
+	}
+	return words[len(words)-1]
+}
+
+// appendWord adds a completed argument to the line: it finishes the word
+// being typed, or starts a new one after a space, and leaves a space ready
+// for the next.
+func (a *App) appendWord(word string) {
+	if word == "" {
+		return
+	}
+	trimmed := strings.TrimRight(a.Query, " \t")
+	if trimmed != a.Query {
+		a.Query = trimmed + " " + word + " "
+	} else {
+		a.Query = replaceLastWord(trimmed, word) + " "
+	}
+	a.Selected, a.chosenRow = 0, -1
+	a.FocusSearch()
+}
+
+// replaceLastWord swaps the word being typed for a completion, keeping what
+// came before it.
+func replaceLastWord(line, word string) string {
+	index := strings.LastIndexAny(line, " \t")
+	if index < 0 {
+		return word
+	}
+	return line[:index+1] + word
 }
 
 // row builds one result: title, detail and an optional shortcut. The chosen
@@ -249,13 +356,29 @@ func (a *App) row(c *ui.Context, item Item, i int) {
 	}
 }
 
-// activate runs the result at the current selection.
+// activate runs the result at the current selection — or the command being
+// typed, in the command mode, where Enter means "run what is typed".
 func (a *App) activate(results []Item) {
+	if a.mode != nil {
+		a.runMode()
+		return
+	}
 	if a.Selected < 0 || a.Selected >= len(results) {
 		return
 	}
 	if run := results[a.Selected].Run; run != nil {
 		run()
+	}
+}
+
+// runMode leaves the command mode and runs the command with the arguments
+// the user typed.
+func (a *App) runMode() {
+	entry := *a.mode
+	args := a.commandArgs()
+	a.leaveCommand()
+	if a.Actions.RunCommand != nil {
+		a.Actions.RunCommand(entry, args)
 	}
 }
 

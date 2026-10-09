@@ -1,6 +1,7 @@
 package launcher
 
 import (
+	"reflect"
 	"testing"
 
 	"floter/internal/apps"
@@ -21,7 +22,7 @@ func testApp() *App {
 		Dismiss:      func() { testRuns["dismiss"]++ },
 		Copy:         func(string) { testRuns["copy"]++ },
 		OpenApp:      func(app apps.App) { testRuns["app:"+app.Name]++ },
-		RunCommand:   func(entry extensions.CommandEntry) { testRuns["cmd:"+entry.Command.ID]++ },
+		RunCommand:   func(entry extensions.CommandEntry, args []string) { testRuns["cmd:"+entry.Command.ID] += len(args) + 1 },
 	})
 }
 
@@ -285,5 +286,33 @@ func TestExtensionCommandsJoinTheSearch(t *testing.T) {
 	a.activate(a.Results())
 	if testRuns["cmd:jv"] != 1 {
 		t.Errorf("running the command recorded %v", testRuns)
+	}
+}
+
+func TestSplitArgs(t *testing.T) {
+	cases := []struct {
+		in   string
+		want []string
+	}{
+		{"", nil},
+		{"   ", nil},
+		{"jv", []string{"jv"}},
+		{"jv -f", []string{"jv", "-f"}},
+		{"jv  -f   file.json", []string{"jv", "-f", "file.json"}},
+		{`jv -file "my file.json"`, []string{"jv", "-file", "my file.json"}},
+		{`jv -file 'my file.json'`, []string{"jv", "-file", "my file.json"}},
+		{`jv "unterminated`, []string{"jv", "unterminated"}},
+		{`jv a\ b`, []string{"jv", "a b"}},
+	}
+	for _, tc := range cases {
+		if got := splitArgs(tc.in); !reflect.DeepEqual(got, tc.want) {
+			t.Errorf("splitArgs(%q) = %#v, want %#v", tc.in, got, tc.want)
+		}
+	}
+	if got := firstWord("  jv -f"); got != "jv" {
+		t.Errorf("firstWord = %q", got)
+	}
+	if got := firstWord("   "); got != "" {
+		t.Errorf("firstWord of blanks = %q", got)
 	}
 }

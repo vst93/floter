@@ -8,6 +8,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/apps"
+	"floter/internal/extensions"
 	"floter/internal/settings"
 )
 
@@ -208,5 +209,145 @@ func TestBigCatalogBuildsOnlyTheRowsInView(t *testing.T) {
 	// beyond, not all 500.
 	if built > 40 {
 		t.Errorf("built %d rows, want only those in view", built)
+	}
+}
+
+// commandApp is a launcher with one extension command that declares two
+// arguments, for the command mode.
+func commandApp() *App {
+	a := testApp()
+	a.SetCommands([]extensions.CommandEntry{{
+		IntegrationID:   "io.github.vst93.v",
+		IntegrationName: "V Tools",
+		ProviderName:    "V Tools",
+		Command: extensions.Command{
+			ID:          "jv",
+			Name:        "JSON Viewer",
+			Description: "View, format and edit JSON",
+			Arguments: []extensions.Argument{
+				{Names: []string{"-f", "--format"}, Kind: "flag", Description: "Format JSON"},
+				{Names: []string{"-c"}, Kind: "flag", Description: "Compress JSON"},
+				{Names: []string{"-mode"}, Kind: "enum", TakesValue: true, Description: "Output mode", Values: []string{"pretty", "plain"}},
+			},
+		},
+		Program: "/usr/local/bin/v",
+		Args:    []string{"jv"},
+		Mode:    "pty",
+	}})
+	a.Query = "json"
+	return a
+}
+
+func TestTabExpandsAnExtensionCommandIntoItsArguments(t *testing.T) {
+	a := commandApp()
+	tt := render(t, a)
+
+	tt.Key(0, ui.KeyTab)
+	tt.Frame()
+	if a.mode == nil {
+		t.Fatalf("Tab did not enter the command mode: %q", tt.Texts())
+	}
+	if a.Query != "jv " {
+		t.Errorf("the field holds %q, want the command id and a space", a.Query)
+	}
+	// The row shows each argument's first name; its other names are
+	// searchable (see the pure test below).
+	for _, want := range []string{"-f", "-c", "-mode", "pretty", "plain"} {
+		if !tt.HasText(want) {
+			t.Errorf("missing argument %q in %q", want, tt.Texts())
+		}
+	}
+	// An alias of a flag matches it.
+	tt.Type("--format")
+	tt.Frame()
+	if !tt.HasText("-f") {
+		t.Errorf("the alias did not match: %q", tt.Texts())
+	}
+	tt.Type(strings.Repeat("\b", len("--format")))
+	tt.Frame()
+}
+
+func TestCommandModeFiltersCompletesAndRuns(t *testing.T) {
+	a := commandApp()
+	tt := render(t, a)
+	tt.Key(0, ui.KeyTab)
+	tt.Frame()
+
+	// Typing filters the arguments.
+	tt.Type("-m")
+	tt.Frame()
+	if !tt.HasText("-mode") {
+		t.Fatalf("typing did not filter: %q", tt.Texts())
+	}
+	if tt.HasText("Format JSON") {
+		t.Errorf("a flag that does not match is still listed: %q", tt.Texts())
+	}
+
+	// Tab completes the chosen argument into the line.
+	tt.Key(0, ui.KeyTab)
+	tt.Frame()
+	if a.Query != "jv -mode " {
+		t.Fatalf("completion left %q, want \"jv -mode \"", a.Query)
+	}
+
+	// Enter runs the typed argv.
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if testRuns["cmd:jv"] != 2 { // one run, plus the argument counted by the recorder
+		t.Errorf("run recorded %v", testRuns)
+	}
+	if a.mode != nil || a.Query != "" {
+		t.Errorf("the mode survived a run: mode=%v query=%q", a.mode, a.Query)
+	}
+}
+
+func TestEscapeLeavesTheCommandMode(t *testing.T) {
+	a := commandApp()
+	tt := render(t, a)
+	tt.Key(0, ui.KeyTab)
+	tt.Frame()
+	tt.Type("-f")
+	tt.Frame()
+
+	tt.Key(0, ui.KeyEscape)
+	tt.Frame()
+	if a.mode != nil {
+		t.Error("Escape did not leave the command mode")
+	}
+	if a.Query != "" {
+		t.Errorf("the field holds %q", a.Query)
+	}
+	if !tt.HasText("Open settings") {
+		t.Errorf("the search did not come back: %q", tt.Texts())
+	}
+}
+
+func TestDeletingTheCommandLeavesTheMode(t *testing.T) {
+	a := commandApp()
+	a.Query = "j"
+	tt := render(t, a)
+	tt.Key(0, ui.KeyTab)
+	tt.Frame()
+	if a.mode == nil {
+		t.Fatal("Tab did not enter the mode")
+	}
+
+	// The user deletes the command id: the mode goes with it.
+	tt.Type("\b\b\b")
+	tt.Frame()
+	if a.mode != nil {
+		t.Errorf("the mode survived deleting the id: query=%q", a.Query)
+	}
+}
+
+func TestClickingACommandRunsItWithNoArguments(t *testing.T) {
+	a := commandApp()
+	tt := render(t, a)
+	if err := tt.Click("JSON Viewer"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if testRuns["cmd:jv"] != 1 {
+		t.Errorf("clicking ran %v, want the bare command", testRuns)
 	}
 }

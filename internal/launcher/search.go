@@ -25,6 +25,12 @@ type Item struct {
 	Search string
 	// Run performs the item.
 	Run func()
+	// complete is the text Tab inserts for the row: an extension command's
+	// argument, in the command mode.
+	complete string
+	// entry is the extension command the row runs, when it is one: Tab
+	// expands it into the argument mode.
+	entry *extensions.CommandEntry
 }
 
 // commands is the built-in command list, labeled in the launcher's language.
@@ -66,12 +72,15 @@ func (a *App) commandItems() []Item {
 		if entry.IntegrationName != "" {
 			search += " " + entry.IntegrationName
 		}
+		entry := entry
 		out = append(out, Item{
-			ID:     "cmd:" + entry.IntegrationID + ":" + command.ID,
-			Title:  command.Name,
-			Detail: detail,
-			Search: search,
-			Run:    func() { a.runCommand(entry) },
+			ID:       "cmd:" + entry.IntegrationID + ":" + command.ID,
+			Title:    command.Name,
+			Detail:   detail,
+			Search:   search,
+			Shortcut: "Tab",
+			Run:      func() { a.runCommand(entry) },
+			entry:    &entry,
 		})
 	}
 	return out
@@ -79,8 +88,47 @@ func (a *App) commandItems() []Item {
 
 func (a *App) runCommand(entry extensions.CommandEntry) {
 	if a.Actions.RunCommand != nil {
-		a.Actions.RunCommand(entry)
+		a.Actions.RunCommand(entry, nil)
 	}
+}
+
+// argumentItems is the command mode's list: the selected command's declared
+// arguments, filtered by the word being typed, plus the values of every
+// enum they declare.
+func (a *App) argumentItems(entry extensions.CommandEntry) []Item {
+	word := a.currentWord()
+	var items []Item
+	for _, argument := range entry.Command.Arguments {
+		name := ""
+		if len(argument.Names) > 0 {
+			name = argument.Names[0]
+		}
+		if name != "" {
+			items = append(items, Item{
+				ID:       "arg:" + name,
+				Title:    name,
+				Detail:   argument.Description,
+				Search:   strings.Join(append(append([]string{}, argument.Names...), argument.Values...), " "),
+				complete: name,
+				Run:      func() { a.appendWord(name) },
+			})
+		}
+		for _, value := range argument.Values {
+			value := value
+			items = append(items, Item{
+				ID:       "value:" + name + ":" + value,
+				Title:    value,
+				Detail:   argument.Description,
+				Search:   strings.Join(argument.Names, " "),
+				complete: value,
+				Run:      func() { a.appendWord(value) },
+			})
+		}
+	}
+	if word == "" {
+		return items
+	}
+	return Match(items, word)
 }
 
 // appItems is the scanned applications as result rows.
@@ -117,6 +165,9 @@ func (a *App) Catalog() []Item {
 // is the ranked catalog: the list view builds only the rows in view, so a
 // broad query is as cheap a frame as a narrow one.
 func (a *App) Results() []Item {
+	if a.mode != nil {
+		return a.argumentItems(*a.mode)
+	}
 	var out []Item
 	if item, ok := a.calculator(); ok {
 		out = append(out, item)

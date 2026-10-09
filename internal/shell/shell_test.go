@@ -370,7 +370,7 @@ func TestIntegrationsReachTheLauncher(t *testing.T) {
 	// Running the command opens the terminal surface. The injected
 	// constructor fails, so the surface shows the error instead of a
 	// session: the point is that the hand-off happened.
-	a.runCommand(a.Launcher.Commands[0])
+	a.runCommand(a.Launcher.Commands[0], nil)
 	if a.Surf != SurfaceTerminal {
 		t.Errorf("surface = %v, want terminal", a.Surf)
 	}

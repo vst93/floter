@@ -42,6 +42,9 @@ type Launcher struct {
 	Clear string
 	// Copied is shown after the calculator's answer goes to the clipboard.
 	Copied string
+	// CommandModeHint is the field's hint while an extension command's
+	// arguments are typed.
+	CommandModeHint string
 	// ResultsLabel names the results list for assistive technology.
 	ResultsLabel string
 	// The built-in commands the P1 catalog offers.
