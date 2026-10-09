@@ -19,6 +19,7 @@ import (
 
 	"floter/internal/i18n"
 	"floter/internal/settings"
+	"floter/internal/shortcuts"
 )
 
 // The settings pages, in sidebar order. P1 fills General.
@@ -45,6 +46,8 @@ type Actions struct {
 	UninstallIntegration func(id string, name string)
 	// DiagnoseIntegration asks an integration's provider to check itself.
 	DiagnoseIntegration func(id string)
+	// SetShortcut records a new accelerator for an action id.
+	SetShortcut func(id, accelerator string)
 	// InstallFromRegistry installs a package from the npm registry.
 	InstallFromRegistry func(name, constraint string)
 }
@@ -105,8 +108,12 @@ type App struct {
 	// Integrations reports the installed extensions; nil when the shell has
 	// none (tests).
 	Integrations func() []Integration
-	// Shortcut is the global summon key the shell registered.
-	Shortcut string
+	// Shortcut is the global summon key the shell registered, and
+	// ShortcutID the action it belongs to.
+	Shortcut   string
+	ShortcutID string
+	// recording is set while the recorder waits for a key combination.
+	recording bool
 
 	// Page is the chosen page, an index into the sidebar.
 	Page int
@@ -163,7 +170,9 @@ func (a *App) View(c *ui.Context) {
 	copy := i18n.For(a.Store.Snapshot().Language).Settings
 	t := c.Theme()
 
-	if c.Shortcut(0, ui.KeyEscape) && a.Actions.Close != nil {
+	// While the recorder waits, Escape belongs to it: a shortcut of the
+	// view is handled before the focused element's input.
+	if !a.recording && c.Shortcut(0, ui.KeyEscape) && a.Actions.Close != nil {
 		a.Actions.Close()
 	}
 
@@ -417,13 +426,53 @@ func (a *App) installedIntegrations() []Integration {
 }
 
 // shortcuts lists the shortcuts the app answers, with the key each one
-// currently holds.
+// currently holds and a recorder for the one the app can change.
 func (a *App) shortcuts(c *ui.Context, copy i18n.Settings) {
 	t := c.Theme()
 	ui.Column(c).FillWidth().Gap(t.Space(1)).Children(func() {
-		a.keyValue(c, copy.ShortcutsToggle, a.summonShortcut())
+		a.shortcutRow(c, copy)
 		ui.Text(c, copy.ShortcutsHint).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
-		ui.Column(c).Height(t.Space(2)).Children(func() {})
+	})
+}
+
+// shortcutRow is one shortcut: its name, its keys, and the recorder.
+func (a *App) shortcutRow(c *ui.Context, copy i18n.Settings) {
+	t := c.Theme()
+	row := ui.Row(c).FillWidth().Gap(t.Space(2)).AlignItems(ui.Center).
+		Padding(t.Space(1), 0).BorderWidth(0, 0, 1, 0).BorderColor(t.Border)
+	row.Children(func() {
+		ui.Text(c, copy.ShortcutsToggle).Grow(1).FontSize(t.FontSize)
+		if a.recording {
+			capture := ui.Box(c).Focusable().Padding(t.Space(1), t.Space(2)).Radius(t.Radius).
+				Background(t.Surface).Border(1, t.Accent).Label(copy.ShortcutRecording)
+			capture.Children(func() {
+				ui.Text(c, copy.ShortcutRecording).FontSize(t.FontSize)
+			})
+			capture.HandleInput(func(ev ui.InputEvent) bool {
+				if ev.Kind != ui.InputKeyDown {
+					return false
+				}
+				if ev.Key == ui.KeyEscape {
+					a.recording = false
+					return true
+				}
+				accelerator, ok := shortcuts.FromKey(ev.Mods, ev.Key)
+				if !ok {
+					return true // a key without a modifier is not a shortcut
+				}
+				a.recording = false
+				if a.Actions.SetShortcut != nil && a.ShortcutID != "" {
+					a.Actions.SetShortcut(a.ShortcutID, accelerator)
+				}
+				return true
+			})
+			capture.Focus()
+			return
+		}
+		ui.Text(c, shortcuts.Display(a.summonShortcut())).FontSize(t.FontSize).TextColor(t.TextMuted)
+		if ui.Button(c, copy.ShortcutRecord).Clicked() {
+			a.recording = true
+		}
 	})
 }
 

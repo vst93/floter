@@ -1,0 +1,100 @@
+package shortcuts
+
+import (
+	"testing"
+
+	"github.com/egoist/mygo/ui"
+)
+
+func TestNormalize(t *testing.T) {
+	cases := map[string]string{
+		"Alt+Space":             "Alt+Space",
+		"Cmd+Comma":             "Cmd+,",
+		"CmdOrCtrl+Shift+Space": "CmdOrCtrl+Shift+Space",
+		"CommandOrControl+N":    "CmdOrCtrl+N",
+		"Ctrl+Shift+Space":      "Ctrl+Shift+Space",
+		"Option+Space":          "Alt+Space",
+		"Super+Period":          "Cmd+.",
+		"cmdorctrl+shift+t":     "CmdOrCtrl+Shift+T",
+		"Cmd+Shift+Space":       "Cmd+Shift+Space",
+		"Ctrl+Alt+Delete":       "Ctrl+Alt+Delete",
+		"F5":                    "F5",
+		"Cmd+F12":               "Cmd+F12",
+		"Ctrl+BracketLeft":      "Ctrl+[",
+		"Cmd+Semicolon":         "Cmd+;",
+		"Alt+Quote":             "Alt+'",
+	}
+	for input, want := range cases {
+		got, ok := Normalize(input)
+		if !ok {
+			t.Errorf("Normalize(%q) failed", input)
+			continue
+		}
+		if got != want {
+			t.Errorf("Normalize(%q) = %q, want %q", input, got, want)
+		}
+	}
+	// The normalization is idempotent, and the modifier order is canonical.
+	if got, _ := Normalize("Shift+Super+Space"); got != "Cmd+Shift+Space" {
+		t.Errorf("modifier order = %q", got)
+	}
+	if got, _ := Normalize("Cmd+,"); got != "Cmd+," {
+		t.Errorf("idempotent = %q", got)
+	}
+
+	for _, input := range []string{"", "   ", "Cmd", "Cmd+", "Cmd+A+B", "Hyper+X", "Cmd+Unknown"} {
+		if got, ok := Normalize(input); ok {
+			t.Errorf("Normalize(%q) = %q, want a rejection", input, got)
+		}
+	}
+}
+
+func TestFromKey(t *testing.T) {
+	cases := []struct {
+		mods ui.Modifiers
+		key  ui.Key
+		want string
+	}{
+		{ui.Super, ui.KeySpace, "Cmd+Space"},
+		{ui.Ctrl, ui.KeySpace, "Ctrl+Space"},
+		{ui.Super | ui.Shift, ui.KeyS, "Cmd+Shift+S"},
+		{ui.Ctrl | ui.Alt, ui.KeyComma, "Ctrl+Alt+,"},
+		{ui.Super, ui.KeyF5, "Cmd+F5"},
+		{ui.Alt, ui.KeyEscape, "Alt+Esc"},
+		{ui.Super, ui.Key0, "Cmd+0"},
+	}
+	for _, tc := range cases {
+		got, ok := FromKey(tc.mods, tc.key)
+		if !ok {
+			t.Errorf("FromKey(%v, %v) failed", tc.mods, tc.key)
+			continue
+		}
+		if got != tc.want {
+			t.Errorf("FromKey(%v, %v) = %q, want %q", tc.mods, tc.key, got, tc.want)
+		}
+		// What the recorder produces normalizes to itself.
+		if normalized, ok := Normalize(got); !ok || normalized != got {
+			t.Errorf("FromKey(%v, %v) = %q, which does not normalize: %q", tc.mods, tc.key, got, normalized)
+		}
+	}
+
+	// A bare key, or Shift alone, is not a shortcut.
+	if _, ok := FromKey(0, ui.KeyS); ok {
+		t.Error("a bare key was accepted")
+	}
+	if _, ok := FromKey(ui.Shift, ui.KeyS); ok {
+		t.Error("shift alone was accepted")
+	}
+	if _, ok := FromKey(ui.Super, ui.KeyUnknown); ok {
+		t.Error("an unknown key was accepted")
+	}
+}
+
+func TestDisplay(t *testing.T) {
+	if got := Display("Cmd+Comma"); got != "Cmd + ," {
+		t.Errorf("Display = %q", got)
+	}
+	if got := Display("not a shortcut"); got != "not a shortcut" {
+		t.Errorf("Display of junk = %q", got)
+	}
+}

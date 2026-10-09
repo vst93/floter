@@ -157,8 +157,10 @@ var en = Copy{
 		IntegrationsRemoveTitle:  removeTitleEN,
 		IntegrationsRemoveDetail: "The package is removed. The integration's data in extension-data stays.",
 
-		ShortcutsToggle: "Show / hide floter",
-		ShortcutsHint:   "More shortcuts arrive with the system integration.",
+		ShortcutsToggle:   "Show / hide floter",
+		ShortcutsHint:     "More shortcuts arrive with the system integration.",
+		ShortcutRecord:    "Record",
+		ShortcutRecording: "Press keys\u2026",
 
 		AboutVersion:      "Version",
 		AboutFramework:    "Framework",
@@ -329,8 +331,10 @@ var zh = Copy{
 		IntegrationsRemoveTitle:  removeTitleZH,
 		IntegrationsRemoveDetail: "将删除扩展包；extension-data 中的集成数据会保留。",
 
-		ShortcutsToggle: "显示 / 隐藏 floter",
-		ShortcutsHint:   "更多快捷键将随系统集成一并到来。",
+		ShortcutsToggle:   "显示 / 隐藏 floter",
+		ShortcutsHint:     "更多快捷键将随系统集成一并到来。",
+		ShortcutRecord:    "录制",
+		ShortcutRecording: "请按组合键…",
 
 		AboutVersion:      "版本",
 		AboutFramework:    "框架",

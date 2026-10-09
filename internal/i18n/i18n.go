@@ -174,8 +174,10 @@ type Settings struct {
 	IntegrationsRemoveDetail string
 
 	// The Shortcuts page.
-	ShortcutsToggle string
-	ShortcutsHint   string
+	ShortcutsToggle   string
+	ShortcutsHint     string
+	ShortcutRecord    string
+	ShortcutRecording string
 
 	// The About page.
 	AboutVersion      string

@@ -35,6 +35,7 @@ import (
 	"floter/internal/launcher"
 	"floter/internal/settings"
 	"floter/internal/settingsui"
+	"floter/internal/shortcuts"
 	"floter/internal/terminalui"
 	"floter/internal/usage"
 )
@@ -125,6 +126,10 @@ type Options struct {
 	// clipboard; nil uses the framework's clipboard, and tests record what
 	// would have been written.
 	WriteClipboard func(payload ClipboardPayload)
+	// RegisterShortcut registers the summon shortcut; nil uses the
+	// framework's global shortcuts, and tests record what would have been
+	// registered.
+	RegisterShortcut func(accelerator string, fn func()) error
 }
 
 // ClipboardPayload is one clipboard entry, ready to be written back: its
@@ -173,6 +178,10 @@ type App struct {
 	openPinned func(title, text string)
 	// writeClipboard puts a payload back on the system clipboard.
 	writeClipboard func(ClipboardPayload)
+	// registerShortcut registers the global summon shortcut, and
+	// summonKey is the accelerator currently registered.
+	registerShortcut func(string, func()) error
+	summonKey        string
 
 	// Clipboard is the clipboard history the launcher searches.
 	Clipboard *clipboard.Store
@@ -268,11 +277,17 @@ func New(opts Options) *App {
 		confirmPermissions:  opts.ConfirmPermissions,
 		openPinned:          opts.OpenPinned,
 		writeClipboard:      opts.WriteClipboard,
+		registerShortcut:    opts.RegisterShortcut,
 		appIcon:             storedAppIcon(opts.Store.Snapshot()),
 		lastAppIcon:         storedAppIcon(opts.Store.Snapshot()),
 	}
 	if a.writeClipboard == nil {
 		a.writeClipboard = systemClipboardWrite
+	}
+	if a.registerShortcut == nil {
+		a.registerShortcut = func(accelerator string, fn func()) error {
+			return mygo.GlobalShortcut.Register(accelerator, fn)
+		}
 	}
 	if a.Registry == nil {
 		a.Registry = extensions.NewRegistry()
@@ -322,6 +337,7 @@ func New(opts Options) *App {
 		Close:               func() { a.Open(SurfaceLauncher) },
 		CloseSession:        func() { a.Terminal.Close() },
 		DiagnoseIntegration: a.diagnoseIntegration,
+		SetShortcut:         a.setShortcut,
 		InstallFromRegistry: func(name, constraint string) {
 			go func() {
 				prepared, err := extensions.PrepareRegistry(context.Background(), a.Paths, a.Registry, name, constraint)
@@ -387,6 +403,8 @@ func New(opts Options) *App {
 		RepoURL:      repoURL,
 	}
 	a.Settings.Shortcut = SummonShortcut(opts.Store.Snapshot())
+	a.Settings.ShortcutID = shortcutToggleWindow
+	a.summonKey = shortcuts.NormalizeOr(SummonShortcut(opts.Store.Snapshot()))
 	a.Clipboard = clipboard.NewStore(clipboard.FromConfigRoot(paths.Root), clipboardMaxItems(opts.Store.Snapshot()))
 	a.Launcher.Clipboard = a.Clipboard
 	a.LastClipboardSettings = clipboardState(opts.Store.Snapshot())
@@ -510,9 +528,14 @@ func (a *App) Start() {
 		}
 	})
 
-	a.ShortcutErr = mygo.GlobalShortcut.Register(SummonShortcut(s), a.Toggle)
+	accelerator := SummonShortcut(s)
+	if normalized, ok := shortcuts.Normalize(accelerator); ok {
+		accelerator = normalized
+	}
+	a.summonKey = accelerator
+	a.ShortcutErr = a.registerShortcut(accelerator, a.Toggle)
 	if a.ShortcutErr != nil {
-		log.Printf("floter: could not register %s: %v", SummonShortcut(s), a.ShortcutErr)
+		log.Printf("floter: could not register %s: %v", accelerator, a.ShortcutErr)
 	}
 	if err := a.RegisterScheme(); err != nil {
 		log.Printf("floter: could not register %s://: %v", scheme, err)
@@ -527,6 +550,53 @@ func (a *App) Start() {
 	a.scanTools()
 	if a.refreshIntegrations {
 		go a.RefreshIntegrations(context.Background())
+	}
+}
+
+// shortcutToggleWindow is the action id of the summon shortcut, as the
+// settings file names it.
+const shortcutToggleWindow = "toggle_window"
+
+// setShortcut records a new accelerator for an action: the summon key is
+// re-registered, and the settings file keeps it, so the next launch answers
+// the same way.
+//
+// A registration the system refuses (another app holds the combination)
+// leaves the old one in place, and nothing is written.
+func (a *App) setShortcut(id, accelerator string) {
+	if id != shortcutToggleWindow {
+		return
+	}
+	normalized, ok := shortcuts.Normalize(accelerator)
+	if !ok {
+		log.Printf("floter: %q is not a shortcut", accelerator)
+		return
+	}
+	if normalized == a.summonKey {
+		return
+	}
+	if err := a.registerShortcut(normalized, a.Toggle); err != nil {
+		log.Printf("floter: could not register %s: %v", normalized, err)
+		return
+	}
+	if a.summonKey != "" {
+		mygo.GlobalShortcut.Unregister(a.summonKey)
+	}
+	a.summonKey = normalized
+	a.Settings.Shortcut = normalized
+	a.ShortcutErr = nil
+
+	if err := a.Store.Update(func(s *settings.Settings) {
+		s.SetExtra("hotkey", normalized)
+		shortcutsMap, _ := s.Extra()["shortcuts"].(map[string]any)
+		updated := map[string]any{}
+		for key, value := range shortcutsMap {
+			updated[key] = value
+		}
+		updated[shortcutToggleWindow] = normalized
+		s.SetExtra("shortcuts", updated)
+	}); err != nil {
+		log.Printf("floter: could not save %s: %v", normalized, err)
 	}
 }
 

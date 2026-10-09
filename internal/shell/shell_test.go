@@ -1130,3 +1130,56 @@ func TestSystemCommandsFollowTheSetting(t *testing.T) {
 		t.Errorf("surface = %v, want terminal", a.Surf)
 	}
 }
+
+func TestSetShortcutRegistersAndPersists(t *testing.T) {
+	registered := []string{}
+	failing := false
+	store := settings.NewStore(settings.Default())
+	a := New(Options{
+		Store:       store,
+		Paths:       extensions.FromRoot(t.TempDir()),
+		NewTerminal: func(terminal.Options) (*terminal.Terminal, error) { return nil, errors.New("no library in tests") },
+		OpenAtLogin: func() bool { return false }, SetOpenAtLogin: func(bool) error { return nil },
+		RegisterShortcut: func(accelerator string, fn func()) error {
+			if failing {
+				return errors.New("taken")
+			}
+			registered = append(registered, accelerator)
+			return nil
+		},
+	})
+	// Start registers the shipped default (or the stored hotkey).
+	a.summonKey = "Ctrl+Space"
+	a.Settings.ShortcutID = shortcutToggleWindow
+
+	a.setShortcut(shortcutToggleWindow, "Cmd+Shift+G")
+	if len(registered) != 1 || registered[0] != "Cmd+Shift+G" {
+		t.Fatalf("registered = %v", registered)
+	}
+	if a.summonKey != "Cmd+Shift+G" {
+		t.Errorf("summon key = %q", a.summonKey)
+	}
+	// The old spelling normalizes on the way in, and the file keeps it.
+	a.setShortcut(shortcutToggleWindow, "Alt+Comma")
+	if got := store.Snapshot().Extra()["hotkey"]; got != "Alt+," {
+		t.Errorf("hotkey = %v", got)
+	}
+	if got := store.Snapshot().Extra()["shortcuts"]; got == nil {
+		t.Error("the shortcuts map was not written")
+	}
+	// A registration the system refuses changes nothing.
+	failing = true
+	a.setShortcut(shortcutToggleWindow, "Cmd+F1")
+	if a.summonKey != "Alt+," {
+		t.Errorf("a refused registration changed the key to %q", a.summonKey)
+	}
+	failing = false
+
+	// Junk and unknown actions are ignored.
+	before := a.summonKey
+	a.setShortcut(shortcutToggleWindow, "Hyper+X")
+	a.setShortcut("something_else", "Cmd+K")
+	if a.summonKey != before {
+		t.Errorf("the key changed to %q", a.summonKey)
+	}
+}

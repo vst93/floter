@@ -238,8 +238,11 @@ func TestShortcutsPage(t *testing.T) {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	if !tt.HasText("Show / hide floter") || !tt.HasText("Alt+Space") {
+	if !tt.HasText("Show / hide floter") || !tt.HasText("Alt + Space") {
 		t.Errorf("the shortcut did not show: %q", tt.Texts())
+	}
+	if !tt.HasText("Record") {
+		t.Errorf("the recorder is missing: %q", tt.Texts())
 	}
 	if !tt.HasText("More shortcuts arrive with the system integration.") {
 		t.Errorf("the hint did not show: %q", tt.Texts())
@@ -529,5 +532,66 @@ func TestIntegrationPermissionsLine(t *testing.T) {
 	zh := New(settings.NewStore(settings.Settings{Language: "zh"}), Actions{})
 	if got := zh.permissionLine(Integration{Permissions: []string{"process-spawn"}, Enforced: map[string]bool{"process-spawn": true}}, i18n.For("zh").Settings); !strings.Contains(got, "启动进程") || !strings.Contains(got, "强制拦截") {
 		t.Errorf("zh line = %q", got)
+	}
+}
+
+func TestShortcutRecorder(t *testing.T) {
+	recorded := ""
+	a := New(newStore(t), Actions{
+		SetShortcut: func(id, accelerator string) { recorded = id + "=" + accelerator },
+	})
+	a.Shortcut, a.ShortcutID = "Alt+Space", "toggle_window"
+	tt := render(t, a, 720, 620)
+
+	if err := tt.Click("Shortcuts"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	// The row shows the current key, and Record starts the recorder.
+	if !tt.HasText("Alt + Space") {
+		t.Fatalf("the current shortcut is missing: %q", tt.Texts())
+	}
+	if err := tt.Click("Record"); err != nil {
+		t.Fatalf("the record button is missing: %v", err)
+	}
+	tt.Frame()
+	if !tt.HasText("Press keys…") {
+		t.Fatalf("the recorder did not start: %q", tt.Texts())
+	}
+
+	// A combination with a modifier is recorded...
+	tt.Key(ui.Super, ui.KeyG)
+	tt.Frame()
+	if recorded != "toggle_window=Cmd+G" {
+		t.Errorf("recorded %q", recorded)
+	}
+	if !a.recording == false {
+		t.Error("the recorder stayed on")
+	}
+
+	// ...and Escape cancels without recording.
+	recorded = ""
+	if err := tt.Click("Record"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	tt.Key(0, ui.KeyEscape)
+	tt.Frame()
+	if recorded != "" {
+		t.Errorf("Escape recorded %q", recorded)
+	}
+	if !tt.HasText("Record") {
+		t.Errorf("the recorder did not close: %q", tt.Texts())
+	}
+
+	// A key without a modifier is not a shortcut, and the recorder waits.
+	if err := tt.Click("Record"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	tt.Key(0, ui.KeyG)
+	tt.Frame()
+	if recorded != "" || !a.recording {
+		t.Errorf("a bare key recorded %q, recording=%v", recorded, a.recording)
 	}
 }

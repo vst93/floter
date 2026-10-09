@@ -1,0 +1,318 @@
+// Package shortcuts translates between the accelerator spellings floter
+// stores and the ones the framework registers.
+//
+// The old build wrote its own names — "Cmd+Comma", "Alt+Space",
+// "CmdOrCtrl+Shift+Space" — and the framework takes a similar but not
+// identical vocabulary ("Cmd+,", "Space", …). Normalize is the bridge, and
+// FromKey turns a key event into the same spelling, for the settings page's
+// recorder.
+package shortcuts
+
+import (
+	"strings"
+
+	"github.com/egoist/mygo/ui"
+)
+
+// Modifier names, in the order an accelerator writes them.
+const (
+	modCmd   = "Cmd"
+	modCtrl  = "Ctrl"
+	modAlt   = "Alt"
+	modShift = "Shift"
+)
+
+// keyNames maps the names the old build wrote to the spelling the framework
+// accepts. A name that is already a single character passes through.
+var keyNames = map[string]string{
+	"comma":              ",",
+	"period":             ".",
+	"dot":                ".",
+	"slash":              "/",
+	"semicolon":          ";",
+	"quote":              "'",
+	"apostrophe":         "'",
+	"bracketleft":        "[",
+	"bracketright":       "]",
+	"backslash":          "\\",
+	"backquote":          "`",
+	"grave":              "`",
+	"minus":              "-",
+	"equal":              "=",
+	"equals":             "=",
+	"plus":               "Plus",
+	"space":              "Space",
+	"spacebar":           "Space",
+	"enter":              "Enter",
+	"return":             "Enter",
+	"escape":             "Esc",
+	"esc":                "Esc",
+	"backspace":          "Backspace",
+	"delete":             "Delete",
+	"del":                "Delete",
+	"tab":                "Tab",
+	"up":                 "Up",
+	"down":               "Down",
+	"left":               "Left",
+	"right":              "Right",
+	"home":               "Home",
+	"end":                "End",
+	"pageup":             "PageUp",
+	"pagedown":           "PageDown",
+	"insert":             "Insert",
+	"ins":                "Insert",
+	"printscreen":        "PrintScreen",
+	"capslock":           "CapsLock",
+	"numlock":            "NumLock",
+	"scrolllock":         "ScrollLock",
+	"volumeup":           "VolumeUp",
+	"volumedown":         "VolumeDown",
+	"volumemute":         "VolumeMute",
+	"mediaplaypause":     "MediaPlayPause",
+	"medianexttrack":     "MediaNextTrack",
+	"mediaprevioustrack": "MediaPreviousTrack",
+	"mediastop":          "MediaStop",
+}
+
+// modifierNames maps the modifiers the old build wrote onto the framework's.
+var modifierNames = map[string]string{
+	"cmd":              modCmd,
+	"command":          modCmd,
+	"super":            modCmd,
+	"meta":             modCmd,
+	"win":              modCmd,
+	"cmdorctrl":        "CmdOrCtrl",
+	"commandorcontrol": "CmdOrCtrl",
+	"ctrl":             modCtrl,
+	"control":          modCtrl,
+	"alt":              modAlt,
+	"option":           modAlt,
+	"altgr":            modAlt,
+	"shift":            modShift,
+}
+
+// Normalize rewrites an accelerator into the framework's spelling, and
+// reports whether it is one the framework can register.
+func Normalize(accelerator string) (string, bool) {
+	parts := strings.Split(strings.TrimSpace(accelerator), "+")
+	if len(parts) == 0 {
+		return "", false
+	}
+	var modifiers []string
+	key := ""
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		if name, ok := modifierNames[strings.ToLower(part)]; ok {
+			if !containsFold(modifiers, name) {
+				modifiers = append(modifiers, name)
+			}
+			continue
+		}
+		if key != "" {
+			return "", false // two keys
+		}
+		normalized, ok := normalizeKey(part)
+		if !ok {
+			return "", false
+		}
+		key = normalized
+	}
+	if key == "" {
+		return "", false
+	}
+	return join(modifiers, key), true
+}
+
+// normalizeKey rewrites one key name.
+func normalizeKey(name string) (string, bool) {
+	lower := strings.ToLower(name)
+	if mapped, ok := keyNames[lower]; ok {
+		return mapped, true
+	}
+	if strings.HasPrefix(lower, "num") && len(lower) == 4 {
+		return "Num" + strings.ToUpper(lower[3:]), true
+	}
+	if len(lower) >= 2 && lower[0] == 'f' {
+		if number, ok := digits(lower[1:]); ok && number >= 1 && number <= 24 {
+			return "F" + lower[1:], true
+		}
+	}
+	if len([]rune(name)) == 1 {
+		// A letter is written upper case, as every example does; digits and
+		// signs keep themselves.
+		if r := []rune(name)[0]; r >= 'a' && r <= 'z' {
+			return strings.ToUpper(name), true
+		}
+		return name, true
+	}
+	// A modifier on its own, or a name the framework does not know.
+	return "", false
+}
+
+// digits parses a plain decimal string, reporting false for anything else.
+func digits(text string) (int, bool) {
+	if text == "" {
+		return 0, false
+	}
+	value := 0
+	for _, r := range text {
+		if r < '0' || r > '9' {
+			return 0, false
+		}
+		value = value*10 + int(r-'0')
+	}
+	return value, true
+}
+
+// join writes the modifiers in the framework's order, then the key.
+func join(modifiers []string, key string) string {
+	order := []string{"CmdOrCtrl", modCmd, modCtrl, modAlt, modShift}
+	ordered := make([]string, 0, len(modifiers)+1)
+	for _, name := range order {
+		for _, modifier := range modifiers {
+			if modifier == name {
+				ordered = append(ordered, name)
+			}
+		}
+	}
+	ordered = append(ordered, key)
+	return strings.Join(ordered, "+")
+}
+
+// FromKey builds an accelerator from a key event, for the recorder. It
+// requires a modifier other than Shift: a bare key would take over ordinary
+// typing.
+func FromKey(mods ui.Modifiers, key ui.Key) (string, bool) {
+	if mods&(ui.Super|ui.Ctrl|ui.Alt) == 0 {
+		return "", false
+	}
+	name, ok := KeyName(key)
+	if !ok {
+		return "", false
+	}
+	var modifiers []string
+	if mods&ui.Super != 0 {
+		modifiers = append(modifiers, modCmd)
+	}
+	if mods&ui.Ctrl != 0 {
+		modifiers = append(modifiers, modCtrl)
+	}
+	if mods&ui.Alt != 0 {
+		modifiers = append(modifiers, modAlt)
+	}
+	if mods&ui.Shift != 0 {
+		modifiers = append(modifiers, modShift)
+	}
+	return join(modifiers, name), true
+}
+
+// KeyName is the accelerator spelling of a key, and whether it has one.
+func KeyName(key ui.Key) (string, bool) {
+	switch {
+	case key >= ui.KeyA && key <= ui.KeyZ:
+		return string(rune('A' + int(key-ui.KeyA))), true
+	case key >= ui.Key0 && key <= ui.Key9:
+		return string(rune('0' + int(key-ui.Key0))), true
+	case key >= ui.KeyF1 && key <= ui.KeyF12:
+		return "F" + itoa(int(key-ui.KeyF1)+1), true
+	}
+	switch key {
+	case ui.KeySpace:
+		return "Space", true
+	case ui.KeyEnter:
+		return "Enter", true
+	case ui.KeyEscape:
+		return "Esc", true
+	case ui.KeyBackspace:
+		return "Backspace", true
+	case ui.KeyDelete:
+		return "Delete", true
+	case ui.KeyInsert:
+		return "Insert", true
+	case ui.KeyTab:
+		return "Tab", true
+	case ui.KeyUp:
+		return "Up", true
+	case ui.KeyDown:
+		return "Down", true
+	case ui.KeyLeft:
+		return "Left", true
+	case ui.KeyRight:
+		return "Right", true
+	case ui.KeyHome:
+		return "Home", true
+	case ui.KeyEnd:
+		return "End", true
+	case ui.KeyPageUp:
+		return "PageUp", true
+	case ui.KeyPageDown:
+		return "PageDown", true
+	case ui.KeyMinus:
+		return "-", true
+	case ui.KeyEqual:
+		return "=", true
+	case ui.KeyComma:
+		return ",", true
+	case ui.KeyPeriod:
+		return ".", true
+	case ui.KeySlash:
+		return "/", true
+	case ui.KeySemicolon:
+		return ";", true
+	case ui.KeyQuote:
+		return "'", true
+	case ui.KeyBracketLeft:
+		return "[", true
+	case ui.KeyBracketRight:
+		return "]", true
+	case ui.KeyBackslash:
+		return "\\", true
+	case ui.KeyBackquote:
+		return "`", true
+	}
+	return "", false
+}
+
+// NormalizeOr normalizes an accelerator, returning it unchanged when the
+// framework would not take it: a settings file with a value from another
+// build must not lose it just because this one cannot parse it.
+func NormalizeOr(accelerator string) string {
+	if normalized, ok := Normalize(accelerator); ok {
+		return normalized
+	}
+	return accelerator
+}
+
+// Display renders an accelerator the way a list shows it: the old build's
+// spelling, with Command written as the platform's symbol.
+func Display(accelerator string) string {
+	normalized, ok := Normalize(accelerator)
+	if !ok {
+		return accelerator
+	}
+	return strings.ReplaceAll(normalized, "+", " + ")
+}
+
+func containsFold(list []string, value string) bool {
+	for _, item := range list {
+		if strings.EqualFold(item, value) {
+			return true
+		}
+	}
+	return false
+}
+
+func itoa(value int) string {
+	if value == 0 {
+		return "0"
+	}
+	var digits []byte
+	for value > 0 {
+		digits = append([]byte{byte('0' + value%10)}, digits...)
+		value /= 10
+	}
+	return string(digits)
+}
