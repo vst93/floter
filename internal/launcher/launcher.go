@@ -3,6 +3,7 @@ package launcher
 import (
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
@@ -205,6 +206,14 @@ type App struct {
 	// Clipboard is the history the launcher searches; nil until the shell
 	// gives it one.
 	Clipboard ClipboardSource
+}
+
+// rowTransition is how a result row appears: a short fade, no movement, so
+// typing feels alive without the list jumping about.
+var rowTransition = ui.ElementTransition{
+	Duration: 120 * time.Millisecond,
+	Colors:   false,
+	Enter:    &ui.Motion{Opacity: 0},
 }
 
 // copy is the launcher's copy in the stored language.
@@ -693,7 +702,12 @@ func replaceLastWord(line, word string) string {
 func (a *App) row(c *ui.Context, item Item, i int) {
 	t := c.Theme()
 	copy := StringsFor(a.settings().Language)
-	row := ui.Row(c).FillWidth().Focusable().Padding(t.Space(1.5), t.Space(2)).Radius(t.Radius).Gap(t.Space(2))
+	// The row is keyed by the item, so a row that stays keeps its identity
+	// (and its place) while the rows around it come and go; a row that
+	// appears fades in rather than flashing into place.
+	row := ui.Row(c).Key(item.ID).FillWidth().Focusable().
+		Padding(t.Space(1.5), t.Space(2)).Radius(t.Radius).Gap(t.Space(2)).
+		Transition(rowTransition)
 	if i == a.Selected {
 		row.Background(t.Accent.Alpha(0.14))
 	} else if row.Hovered() {

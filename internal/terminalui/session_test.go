@@ -2,6 +2,7 @@ package terminalui
 
 import (
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -58,4 +59,52 @@ func TestRealSessionStartsWithTheSettings(t *testing.T) {
 		t.Fatal(err)
 	}
 	a.Refresh()
+}
+
+// TestRealSnapshotRoundTrip proves the snapshot really carries a session's
+// screen: one terminal prints something, its snapshot is fed into a second
+// terminal, and the second shows the same text.
+//
+// Opt-in for the same reason as the test above.
+func TestRealSnapshotRoundTrip(t *testing.T) {
+	if os.Getenv("FLOTER_TERMINAL_TEST") == "" {
+		t.Skip("set FLOTER_TERMINAL_TEST=1 to load libghostty-vt")
+	}
+	source, err := terminal.New(terminal.Options{
+		Command: []string{"/bin/sh", "-c", "echo snapshot-content; sleep 2"},
+	})
+	if err != nil {
+		t.Fatalf("the source session did not start: %v", err)
+	}
+	defer source.Close()
+	waitForText(t, source, "snapshot-content")
+
+	snapshot := source.Snapshot()
+	if len(snapshot) == 0 {
+		t.Fatal("the snapshot is empty")
+	}
+
+	// A quiet session of the same size, so the snapshot is all it shows.
+	target, err := terminal.New(terminal.Options{Command: []string{"/bin/sh", "-c", "sleep 2"}})
+	if err != nil {
+		t.Fatalf("the target session did not start: %v", err)
+	}
+	defer target.Close()
+	cols, rows := source.Size()
+	target.Resize(cols, rows)
+	target.Feed(snapshot)
+	waitForText(t, target, "snapshot-content")
+}
+
+// waitForText waits until the terminal's text holds want.
+func waitForText(t *testing.T, term *terminal.Terminal, want string) {
+	t.Helper()
+	deadline := time.Now().Add(10 * time.Second)
+	for time.Now().Before(deadline) {
+		if strings.Contains(term.Text(), want) {
+			return
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	t.Fatalf("the terminal never showed %q: %q", want, term.Text())
 }

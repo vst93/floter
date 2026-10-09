@@ -16,6 +16,12 @@ func newStore(t *testing.T) *settings.Store {
 	return settings.NewStore(settings.Default())
 }
 
+// newStoreFor is newStore for a benchmark, which has no *testing.T.
+func newStoreFor(b *testing.B) *settings.Store {
+	b.Helper()
+	return settings.NewStore(settings.Default())
+}
+
 func render(t *testing.T, a *App, w, h int) *ui.Tester {
 	t.Helper()
 	tt := ui.NewTester(func(c *ui.Context) {
