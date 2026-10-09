@@ -1301,6 +1301,29 @@ canvas {
   }
 }
 
+/* R161 · the wildcard backstop for the reduce-motion preference.
+
+   The block above neutralizes the animations and transitions this sheet knows
+   about by name, and it is the authority for those. But `transition` lives in
+   every surface sheet, and a newly added one (or one of the twenty-odd short
+   hover/state transitions that were never listed) can outrun the preference
+   silently. The standard accessibility recipe is a wildcard that collapses
+   every duration instead: 0.01ms rather than 0s because a zero duration can
+   skip `transitionend` / `animationend`, which some code waits on. It is
+   deliberately additive — the named block above is still what turns an
+   entrance animation off entirely — and it changes nothing when the system
+   preference is off, because the whole rule lives inside the query. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 @media (prefers-contrast: more) {
   /* "Increase contrast" has to mean the material, not only the borders. At
      the low end of the transparency slider the frame is genuinely

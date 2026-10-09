@@ -1,4 +1,4 @@
-import { AlertCircle, Check, Copy, Download, LoaderCircle, Plus, ShieldCheck, TriangleAlert, X } from "lucide-react";
+import { AlertCircle, Check, ChevronRight, Copy, Download, LoaderCircle, Plus, ShieldCheck, TriangleAlert, X } from "lucide-react";
 import type { FormEvent, KeyboardEvent, RefObject } from "react";
 import type { Translate } from "../i18n";
 import type { CustomIntegrationForm, ExecutableToolCandidate } from "../ExtensionsPanel";
@@ -156,8 +156,24 @@ export function CustomIntegrationDrawer({ open, editingId, loading, error, integ
       <ScriptParamEditor params={integration.params} t={t} onChange={(params) => update((current) => ({ ...current, params }))} />
       </div>
       <fieldset className="extension-custom-permissions"><legend>{t("settings.extensions.customPlatforms")}</legend>{PLATFORMS.map((platform) => <label key={platform}><input type="checkbox" checked={integration.platforms.includes(platform)} onChange={(event) => update((current) => ({ ...current, platforms: event.target.checked ? [...current.platforms, platform] : current.platforms.filter((item) => item !== platform) }))} /><span>{platform === "darwin" ? "macOS" : platform === "linux" ? "Linux" : "Windows"}</span></label>)}</fieldset>
-      <div className="extension-custom-permission-boundary" role="note"><ShieldCheck size={15} strokeWidth={2} aria-hidden="true" /><span>{t("settings.extensions.permissionBoundary")}</span></div>
-      {[ ["customEnforcedPermissions", ENFORCED], ["customDeclaredPermissions", DECLARED] ].map(([key, permissions]) => <fieldset className="extension-custom-permissions" key={key as string}><legend>{t(`settings.extensions.${key as string}` as Parameters<Translate>[0])}</legend><p className="extension-custom-permissions__hint">{t(key === "customEnforcedPermissions" ? "settings.extensions.permissionEnforcedHint" : "settings.extensions.permissionDeclaredHint")}</p>{(permissions as readonly string[]).map((permission) => <label key={permission}><input type="checkbox" checked={integration.permissions.includes(permission as never)} onChange={(event) => update((current) => ({ ...current, permissions: event.target.checked ? [...current.permissions, permission as never] : current.permissions.filter((item) => item !== permission) }))} /><span>{t(`settings.extensions.permission.${permission}` as Parameters<Translate>[0])}</span></label>)}</fieldset>)}
+      {/* R161 · the declaration/audit fieldsets are *disclosure*, and their own
+          hint says so in both languages (“does not provide operating-system
+          isolation”). Rendered at the same weight as the fields the host
+          actually reads, they made a brand-new integration open on a
+          ceremonial form. They now sit behind an Advanced disclosure, closed
+          by default. Nothing is unmounted — `<details>` hides its children and
+          the values stay in the form state — so collapsing changes nothing
+          about what is submitted, and an author who already declared
+          permissions can still open the section and edit them. The real
+          permission review (`LocalInstallDialog` / `PermissionTierList`), where
+          a third party's permissions are consumed, is deliberately untouched. */}
+      <details className="extension-custom-advanced">
+        <summary className="extension-custom-advanced__summary"><ChevronRight className="extension-custom-advanced__chevron" size={14} strokeWidth={2} aria-hidden="true" /><span>{t("settings.extensions.customAdvanced")}</span><em>{t("settings.extensions.customAdvancedPermissions")}</em></summary>
+        <div className="extension-custom-advanced__body">
+          <div className="extension-custom-permission-boundary" role="note"><ShieldCheck size={15} strokeWidth={2} aria-hidden="true" /><span>{t("settings.extensions.permissionBoundary")}</span></div>
+          {[ ["customEnforcedPermissions", ENFORCED], ["customDeclaredPermissions", DECLARED] ].map(([key, permissions]) => <fieldset className="extension-custom-permissions" key={key as string}><legend>{t(`settings.extensions.${key as string}` as Parameters<Translate>[0])}</legend><p className="extension-custom-permissions__hint">{t(key === "customEnforcedPermissions" ? "settings.extensions.permissionEnforcedHint" : "settings.extensions.permissionDeclaredHint")}</p>{(permissions as readonly string[]).map((permission) => <label key={permission}><input type="checkbox" checked={integration.permissions.includes(permission as never)} onChange={(event) => update((current) => ({ ...current, permissions: event.target.checked ? [...current.permissions, permission as never] : current.permissions.filter((item) => item !== permission) }))} /><span>{t(`settings.extensions.permission.${permission}` as Parameters<Translate>[0])}</span></label>)}</fieldset>)}
+        </div>
+      </details>
       </fieldset>
       <footer><button type="button" className="extensions-action-button" onClick={onClose}>{t("settings.extensions.cancel")}</button><button type="submit" className="extensions-action-button extensions-action-button--primary" disabled={busy || integration.platforms.length === 0 || (integration.mode === "executable" ? !integration.executablePath.trim() : !integration.scriptContent.trim())}>{busy ? t(editingId ? "settings.extensions.saving" : "settings.extensions.installing") : t(editingId ? "settings.extensions.saveCustom" : "settings.extensions.createAndVerify")}</button></footer>
     </form>}

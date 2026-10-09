@@ -1827,6 +1827,21 @@
 .extension-custom-permissions input { width: 14px; min-height: 14px; accent-color: var(--accent); }
 .extension-custom-permission-boundary { padding: 8px 10px; display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 8px; align-items: start; border: var(--ext-border); border-radius: var(--ext-radius); background: var(--glass-control); color: var(--text-muted); font-size: var(--text-caption); line-height: 1.4; }
 .extension-custom-permission-boundary svg { margin-top: 1px; color: var(--text-tertiary); }
+/* R161 · the Advanced disclosure that carries the declaration/audit fieldsets.
+   A quiet summary row on the form's own control material — the same border and
+   radius language as the boundary note inside it — so the collapsed section
+   reads as an optional group rather than as a second form. The marker is a
+   rotating chevron (the native triangle is suppressed), which is the one cue
+   that says "closed"; it rotates with the sheet's own motion token so a
+   reduce-motion user still gets the state swap. */
+.extension-custom-advanced { min-width: 0; border: var(--ext-border); border-radius: var(--ext-radius); background: var(--glass-control); }
+.extension-custom-advanced__summary { min-height: 28px; padding: 6px 10px; display: flex; align-items: center; gap: 8px; list-style: none; color: var(--text-secondary); font-size: var(--text-caption); font-weight: 620; }
+.extension-custom-advanced__summary::-webkit-details-marker { display: none; }
+.extension-custom-advanced__summary > span { color: var(--text-secondary); }
+.extension-custom-advanced__summary em { color: var(--text-tertiary); font-style: normal; font-weight: 500; }
+.extension-custom-advanced__chevron { flex: 0 0 auto; color: var(--text-tertiary); transition: transform var(--dur-2) ease; }
+.extension-custom-advanced[open] > .extension-custom-advanced__summary .extension-custom-advanced__chevron { transform: rotate(90deg); }
+.extension-custom-advanced__body { padding: 0 10px 10px; display: grid; gap: 10px; }
 .extension-removal-dialog { width: min(440px, 100%); max-height: calc(100% - 32px); padding: 16px; display: grid; gap: 16px; overflow-y: auto; border: var(--ext-border); border-radius: var(--ext-radius); background: var(--glass-float); box-shadow: var(--elev-3); }
 .extension-removal-dialog > header { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 8px; align-items: start; color: var(--text-primary); }
 .extension-removal-dialog > header > svg { margin-top: 2px; color: var(--text-warning); }
