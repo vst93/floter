@@ -1085,3 +1085,48 @@ func TestRecentsFollowTheUsageFileAndTheSetting(t *testing.T) {
 		t.Error("show_recent_in_launcher true did not reach the launcher")
 	}
 }
+
+func TestSystemCommandsFollowTheSetting(t *testing.T) {
+	a := newApp(t)
+	if a.showTools() {
+		t.Error("show_commands_in_search is on by default")
+	}
+	a.scanTools()
+	if a.Launcher.ShowTools {
+		t.Error("the tools were offered with the setting off")
+	}
+
+	// Turning it on scans the PATH. The scan runs in the background, so the
+	// test waits for the launcher to hear about it, and only checks that
+	// something plausible arrived: the machine's own PATH decides what.
+	if err := a.Store.Update(func(s *settings.Settings) { s.SetExtra("show_commands_in_search", true) }); err != nil {
+		t.Fatal(err)
+	}
+	a.scanTools()
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		if a.Launcher.ShowTools {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the scan never reached the launcher")
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if len(a.Launcher.Tools) == 0 {
+		t.Skip("this machine's PATH has no commands to find")
+	}
+	for _, tool := range a.Launcher.Tools {
+		if tool.Name == "" || tool.Path == "" {
+			t.Errorf("a tool without a name or path: %+v", tool)
+		}
+	}
+
+	// Running one goes to the terminal surface. The injected constructor
+	// fails, so the surface shows the error instead of a session: the point
+	// is the hand-off.
+	a.Launcher.Actions.RunInTerminal([]string{a.Launcher.Tools[0].Path})
+	if a.Surf != SurfaceTerminal {
+		t.Errorf("surface = %v, want terminal", a.Surf)
+	}
+}

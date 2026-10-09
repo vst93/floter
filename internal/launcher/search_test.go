@@ -16,13 +16,14 @@ var testRuns map[string]int
 func testApp() *App {
 	testRuns = map[string]int{}
 	return New(settings.NewStore(settings.Default()), Actions{
-		OpenSettings: func() { testRuns["settings"]++ },
-		OpenTerminal: func() { testRuns["terminal"]++ },
-		Quit:         func() { testRuns["quit"]++ },
-		Dismiss:      func() { testRuns["dismiss"]++ },
-		Copy:         func(string) { testRuns["copy"]++ },
-		OpenApp:      func(app apps.App) { testRuns["app:"+app.Name]++ },
-		RunCommand:   func(entry extensions.CommandEntry, args []string) { testRuns["cmd:"+entry.Command.ID] += len(args) + 1 },
+		OpenSettings:  func() { testRuns["settings"]++ },
+		OpenTerminal:  func() { testRuns["terminal"]++ },
+		Quit:          func() { testRuns["quit"]++ },
+		Dismiss:       func() { testRuns["dismiss"]++ },
+		Copy:          func(string) { testRuns["copy"]++ },
+		OpenApp:       func(app apps.App) { testRuns["app:"+app.Name]++ },
+		RunCommand:    func(entry extensions.CommandEntry, args []string) { testRuns["cmd:"+entry.Command.ID] += len(args) + 1 },
+		RunInTerminal: func(argv []string) { testRuns["tool"]++ },
 	})
 }
 

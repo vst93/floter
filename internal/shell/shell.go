@@ -306,10 +306,16 @@ func New(opts Options) *App {
 			a.refreshRecents()
 			a.Hide()
 		},
-		RunCommand:    a.runCommand,
-		Complete:      a.completeCommand,
-		PinText:       a.PinText,
-		OpenURL:       func(url string) { mygo.Shell.OpenExternal(url) },
+		RunCommand: a.runCommand,
+		Complete:   a.completeCommand,
+		PinText:    a.PinText,
+		OpenURL:    func(url string) { mygo.Shell.OpenExternal(url) },
+		RunInTerminal: func(argv []string) {
+			if err := a.Terminal.RunCommand(argv, "current", nil); err != nil {
+				log.Printf("floter: could not run %v: %v", argv, err)
+			}
+			a.Open(SurfaceTerminal)
+		},
 		SearchBrowser: a.searchBrowser,
 	})
 	a.Settings = settingsui.New(opts.Store, settingsui.Actions{
@@ -518,9 +524,33 @@ func (a *App) Start() {
 	a.watchClipboard()
 	a.Launcher.FocusSearch()
 	a.scanApps()
+	a.scanTools()
 	if a.refreshIntegrations {
 		go a.RefreshIntegrations(context.Background())
 	}
+}
+
+// scanTools lists the commands on the PATH, in the background, when the
+// show_commands_in_search setting asks for them.
+func (a *App) scanTools() {
+	if !a.showTools() {
+		a.Launcher.SetTools(nil, false)
+		return
+	}
+	go func() {
+		found := apps.ScanCommands(apps.CommandDirs())
+		a.onMain(func() { a.Launcher.SetTools(found, true) })
+	}()
+}
+
+// showTools is the show_commands_in_search setting, off by default as the
+// old build shipped it.
+func (a *App) showTools() bool {
+	value, ok := a.Store.Snapshot().Extra()["show_commands_in_search"].(bool)
+	if !ok {
+		return false
+	}
+	return value
 }
 
 // refreshRecents hands the launcher the most-launched applications, limited

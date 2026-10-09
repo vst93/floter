@@ -86,6 +86,9 @@ type Actions struct {
 	CopyClip func(entry clipboard.Entry)
 	// OpenURL opens a page in the user's browser.
 	OpenURL func(url string)
+	// RunInTerminal runs a command in the terminal surface: a tool found on
+	// the PATH.
+	RunInTerminal func(argv []string)
 	// SearchBrowser searches the installed browsers' history and bookmarks;
 	// the shell answers on the main thread. Nil leaves the mode empty.
 	SearchBrowser func(query string, done func([]browser.Result))
@@ -116,6 +119,10 @@ type App struct {
 	// keeps both in step with the usage file and the setting.
 	Recent     []string
 	ShowRecent bool
+	// Tools are the commands found on the PATH, and ShowTools whether the
+	// search offers them (the show_commands_in_search setting).
+	Tools     []apps.App
+	ShowTools bool
 
 	// Scroll keeps the result list's place; Search is the field's identity,
 	// for the focus the launcher keeps on it while the surface shows.
@@ -168,6 +175,12 @@ func (a *App) SetCommands(found []extensions.CommandEntry) { a.Commands = found 
 // shows them.
 func (a *App) SetRecent(paths []string, show bool) {
 	a.Recent, a.ShowRecent = paths, show
+}
+
+// SetTools replaces the commands found on the PATH, and whether the search
+// offers them.
+func (a *App) SetTools(tools []apps.App, show bool) {
+	a.Tools, a.ShowTools = tools, show
 }
 
 // SetQuery puts text in the field, for a deep link that names what to search

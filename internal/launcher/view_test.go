@@ -679,3 +679,38 @@ func TestEmptyQueryOffersRecentApplications(t *testing.T) {
 		t.Errorf("a recent showed with show_recent off: %q", tt.Texts())
 	}
 }
+
+func TestSystemCommandsJoinTheSearchWhenEnabled(t *testing.T) {
+	a := testApp()
+	tools := []apps.App{
+		{Name: "ripgrep", Path: "/usr/local/bin/ripgrep"},
+		{Name: "tmux", Path: "/opt/homebrew/bin/tmux"},
+	}
+	a.SetTools(tools, true)
+
+	// An empty query stays the commands and the recents.
+	tt := render(t, a)
+	if tt.HasText("ripgrep") {
+		t.Errorf("a tool showed for an empty query: %q", tt.Texts())
+	}
+
+	// A typed query matches them, and the row runs it in the terminal.
+	tt.Type("ripgrep")
+	tt.Frame()
+	if !tt.HasText("ripgrep") {
+		t.Fatalf("the tool did not show: %q", tt.Texts())
+	}
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if testRuns["tool"] != 1 {
+		t.Errorf("running the tool recorded %v", testRuns)
+	}
+
+	// With the setting off, the search does not offer them.
+	a.SetTools(tools, false)
+	a.Query = "ripgrep"
+	tt.Frame()
+	if tt.HasText("ripgrep") {
+		t.Errorf("a tool showed with the setting off: %q", tt.Texts())
+	}
+}

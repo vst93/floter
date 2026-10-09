@@ -272,6 +272,29 @@ func (a *App) workingDirectory() string {
 	return ""
 }
 
+// toolItems is the commands found on the PATH as result rows, only when the
+// setting asks for them.
+func (a *App) toolItems() []Item {
+	if !a.ShowTools {
+		return nil
+	}
+	out := make([]Item, 0, len(a.Tools))
+	for _, tool := range a.Tools {
+		out = append(out, Item{
+			ID:    "tool:" + tool.Path,
+			Title: tool.Name,
+			Run:   func() { a.runTool(tool) },
+		})
+	}
+	return out
+}
+
+func (a *App) runTool(tool apps.App) {
+	if a.Actions.RunInTerminal != nil {
+		a.Actions.RunInTerminal([]string{tool.Path})
+	}
+}
+
 // appItems is the scanned applications as result rows.
 func (a *App) appItems() []Item {
 	out := make([]Item, 0, len(a.Apps))
@@ -296,6 +319,7 @@ func (a *App) openApp(app apps.App) {
 func (a *App) Catalog() []Item {
 	items := a.commands()
 	items = append(items, a.appItems()...)
+	items = append(items, a.toolItems()...)
 	items = append(items, a.commandItems()...)
 	return items
 }
