@@ -222,14 +222,15 @@ func TestAppsJoinTheSearchOnceTyped(t *testing.T) {
 		t.Errorf("Results(terminal) = %v", ids(got))
 	}
 
-	// The cap keeps a broad query bounded.
-	many := make([]apps.App, 0, maxResults+10)
-	for i := 0; i < maxResults+10; i++ {
-		many = append(many, apps.App{Name: "App", Path: "/Applications/App.app"})
+	// A broad query returns every match; the list view builds only the rows
+	// in view (see TestBigCatalogBuildsOnlyTheRowsInView).
+	many := make([]apps.App, 0, 60)
+	for i := 0; i < 60; i++ {
+		many = append(many, apps.App{Name: "App " + string(rune('a'+i%26)), Path: "/Applications/App.app"})
 	}
 	a.SetApps(many)
 	a.Query = "app"
-	if got := a.Results(); len(got) > maxResults {
-		t.Errorf("Results returned %d rows, want at most %d", len(got), maxResults)
+	if got := a.Results(); len(got) < 60 {
+		t.Errorf("Results returned %d rows, want the 60 applications too", len(got))
 	}
 }

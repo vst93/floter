@@ -77,7 +77,8 @@ func (a *App) Catalog() []Item {
 // Results is what the current query shows. The calculator's answer comes
 // first when the query is a sum; an empty query shows the built-in
 // commands alone (a wall of applications is not an empty state). The rest
-// is the ranked catalog, capped so a broad query stays a cheap frame.
+// is the ranked catalog: the list view builds only the rows in view, so a
+// broad query is as cheap a frame as a narrow one.
 func (a *App) Results() []Item {
 	var out []Item
 	if item, ok := a.calculator(); ok {
@@ -87,9 +88,6 @@ func (a *App) Results() []Item {
 		out = append(out, a.commands()...)
 	} else {
 		out = append(out, Match(a.Catalog(), a.Query)...)
-	}
-	if len(out) > maxResults {
-		out = out[:maxResults]
 	}
 	return out
 }

@@ -86,8 +86,12 @@ type App struct {
 
 	// Scroll keeps the result list's place; Search is the field's identity,
 	// for the focus the launcher keeps on it while the surface shows.
-	Scroll ui.ScrollState
+	List   ui.ListState
 	Search ui.Handle
+
+	// chosenRow tracks the row the keyboard last moved to, so the list is
+	// scrolled only when the choice changed.
+	chosenRow int
 
 	// toast is a message to show on the next frame, set by an action.
 	toast string
@@ -95,12 +99,6 @@ type App struct {
 
 // SetApps replaces the scanned applications.
 func (a *App) SetApps(found []apps.App) { a.Apps = found }
-
-// maxResults bounds how many rows one query builds, so a broad search stays
-// a frame like any other. Real virtualization is the list-based results'
-// job, a later round; the built-in commands, the calculator and a search
-// over a scanned catalog fit well under this.
-const maxResults = 50
 
 // New builds the launcher state over a settings store and the shell's
 // actions.
@@ -138,19 +136,20 @@ func (a *App) View(c *ui.Context) {
 	edge := fieldRow + t.Space(2)
 
 	ui.Box(c).Fill().Children(func() {
-		ui.Scroll(c.Key("launcher.results")).TrackScroll(&a.Scroll).Fill().
-			Padding(edge, 0, 0, 0).Gap(t.Space(0.5)).Label(copy.ResultsLabel).
-			Children(func() {
-				if len(results) == 0 {
-					ui.Column(c).FillWidth().Padding(t.Space(3)).Center().Children(func() {
-						ui.Text(c, copy.NoResults).FontSize(t.FontSize).TextColor(t.TextMuted)
-					})
-					return
-				}
-				for i, item := range results {
-					a.row(c, item, i)
-				}
+		if len(results) == 0 {
+			ui.Column(c).FillWidth().Padding(t.Space(3)).Center().Children(func() {
+				ui.Text(c, copy.NoResults).FontSize(t.FontSize).TextColor(t.TextMuted)
 			})
+		} else {
+			// The list builds only the rows in view, so a catalog of
+			// hundreds costs a frame like a catalog of three. The choice is
+			// painted by the row itself (see row), not by the list's own
+			// selection. Padding puts the first row below the field, and
+			// scrolls with the content, so rows pass under the field.
+			ui.List(c.Key("launcher.results"), &a.List, len(results), func(i int) {
+				a.row(c, results[i], i)
+			}).Fill().Padding(edge, 0, 0, 0).Label(copy.ResultsLabel)
+		}
 
 		// The rows fade into the panel under the field. PassThrough lets
 		// the pointer reach a row the strip covers.
@@ -181,6 +180,13 @@ func (a *App) View(c *ui.Context) {
 			}
 		})
 	})
+
+	// Keep the chosen row in view when the keyboard moved the choice (the
+	// list leaves the scrolling to the app when it has no selection).
+	if a.Selected != a.chosenRow {
+		a.chosenRow = a.Selected
+		a.List.ScrollIntoView(a.Selected)
+	}
 
 	// An action that asks for feedback (the calculator's copy) shows it
 	// once, on the frame after it ran.

@@ -1,6 +1,8 @@
 package launcher
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
@@ -173,5 +175,38 @@ func TestScannedAppsAppearInTheList(t *testing.T) {
 	tt.Frame()
 	if testRuns["app:Safari"] != 1 {
 		t.Errorf("the click did not open the app: %v", testRuns)
+	}
+}
+
+func TestBigCatalogBuildsOnlyTheRowsInView(t *testing.T) {
+	a := testApp()
+	found := make([]apps.App, 0, 500)
+	for i := 0; i < 500; i++ {
+		found = append(found, apps.App{
+			Name: fmt.Sprintf("App %03d", i),
+			Path: fmt.Sprintf("/Applications/App %03d.app", i),
+		})
+	}
+	a.SetApps(found)
+	a.Query = "app"
+
+	if got := a.Results(); len(got) < 500 {
+		t.Fatalf("Results returned %d rows, want the 500 applications", len(got))
+	}
+
+	tt := render(t, a)
+	built := 0
+	for _, text := range tt.Texts() {
+		if strings.HasPrefix(text, "App ") {
+			built++
+		}
+	}
+	if built == 0 {
+		t.Fatalf("no result rows were built: %q", tt.Texts())
+	}
+	// The window shows about six rows; the list builds those and a few
+	// beyond, not all 500.
+	if built > 40 {
+		t.Errorf("built %d rows, want only those in view", built)
 	}
 }
