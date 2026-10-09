@@ -304,3 +304,149 @@ func sameSettings(a, b Settings) bool {
 		a.MainOpacity == b.MainOpacity && a.TerminalOpacity == b.TerminalOpacity &&
 		a.UIScale == b.UIScale && len(a.extra) == len(b.extra)
 }
+
+func TestTerminalAppearanceDefaults(t *testing.T) {
+	got := Default()
+	if got.FontSize != 14 || got.FontFamily != "monospace" || got.CursorShape != "beam" {
+		t.Errorf("font defaults = %d %q %q", got.FontSize, got.FontFamily, got.CursorShape)
+	}
+	if !got.CursorBlink || got.TerminalLineHeight != 1.2 || got.TerminalPadding != "regular" {
+		t.Errorf("terminal defaults = %+v", got)
+	}
+	if got.TerminalTheme != "inherit" || !got.TerminalScrollbar || got.TerminalWheelLines != 3 {
+		t.Errorf("terminal defaults = %+v", got)
+	}
+	if got.TerminalBold != "font" || !got.TerminalSelectCopy || got.TerminalPasteSafe {
+		t.Errorf("terminal defaults = %+v", got)
+	}
+	if got.TerminalWidth != 860 || got.TerminalHeight != 600 {
+		t.Errorf("terminal size = %v x %v", got.TerminalWidth, got.TerminalHeight)
+	}
+}
+
+func TestParseReadsTheTerminalAppearance(t *testing.T) {
+	got, err := Parse([]byte(`{
+  "font_size": 18,
+  "font_family": "  JetBrains Mono  ",
+  "cursor_shape": "block",
+  "terminal_cursor_blink": false,
+  "terminal_line_height": 1.4,
+  "terminal_padding": "relaxed",
+  "terminal_theme": "amber",
+  "terminal_scrollbar": false,
+  "terminal_wheel_lines": 5,
+  "terminal_bold": "bright",
+  "terminal_select_copy": false,
+  "terminal_paste_safe": true,
+  "terminal_width": 900,
+  "terminal_height": 640
+}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.FontSize != 18 || got.FontFamily != "JetBrains Mono" || got.CursorShape != "block" {
+		t.Errorf("font = %d %q %q", got.FontSize, got.FontFamily, got.CursorShape)
+	}
+	if got.CursorBlink || got.TerminalLineHeight != 1.4 || got.TerminalPadding != "relaxed" {
+		t.Errorf("terminal = %+v", got)
+	}
+	if got.TerminalTheme != "amber" || got.TerminalScrollbar || got.TerminalWheelLines != 5 {
+		t.Errorf("terminal = %+v", got)
+	}
+	if got.TerminalBold != "bright" || got.TerminalSelectCopy || !got.TerminalPasteSafe {
+		t.Errorf("terminal = %+v", got)
+	}
+	if got.TerminalWidth != 900 || got.TerminalHeight != 640 {
+		t.Errorf("terminal size = %v x %v", got.TerminalWidth, got.TerminalHeight)
+	}
+	// The keys are ours now, so they must not ride along in extra.
+	if len(got.Extra()) != 0 {
+		t.Errorf("owned keys leaked into extra: %v", got.Extra())
+	}
+}
+
+func TestTerminalAppearanceNormalization(t *testing.T) {
+	cases := []struct {
+		name string
+		in   Settings
+		want Settings
+	}{
+		{
+			name: "clamps the font size to the band",
+			in:   Default(), // font_size 14 -> 8/48
+			want: Default(),
+		},
+	}
+	_ = cases
+
+	low := Default()
+	low.FontSize = 1
+	low.TerminalWheelLines = 0
+	low.TerminalLineHeight = 0.1
+	low.TerminalWidth, low.TerminalHeight = 1, 1
+	got := Normalize(low)
+	if got.FontSize != MinFontSize {
+		t.Errorf("font size = %d, want the %d floor", got.FontSize, MinFontSize)
+	}
+	if got.TerminalWheelLines != MinTerminalWheelLines {
+		t.Errorf("wheel lines = %d", got.TerminalWheelLines)
+	}
+	if got.TerminalLineHeight != MinTerminalLineHeight {
+		t.Errorf("line height = %v", got.TerminalLineHeight)
+	}
+	if got.TerminalWidth != MinTerminalWidth || got.TerminalHeight != MinTerminalHeight {
+		t.Errorf("size = %v x %v", got.TerminalWidth, got.TerminalHeight)
+	}
+
+	high := Default()
+	high.FontSize = 1000
+	high.TerminalWheelLines = 99
+	high.TerminalLineHeight = 9
+	high.TerminalWidth, high.TerminalHeight = 99999, 99999
+	high.FontFamily = "   "
+	high.CursorShape = "square"
+	high.TerminalPadding = "wide"
+	high.TerminalTheme = "solarized"
+	high.TerminalBold = "loud"
+	got = Normalize(high)
+	if got.FontSize != MaxFontSize || got.TerminalWheelLines != MaxTerminalWheelLines {
+		t.Errorf("font/wheel = %d/%d", got.FontSize, got.TerminalWheelLines)
+	}
+	if got.TerminalLineHeight != MaxTerminalLineHeight {
+		t.Errorf("line height = %v", got.TerminalLineHeight)
+	}
+	if got.TerminalWidth != MaxTerminalWidth || got.TerminalHeight != MaxTerminalHeight {
+		t.Errorf("size = %v x %v", got.TerminalWidth, got.TerminalHeight)
+	}
+	if got.FontFamily != DefaultFontFamily {
+		t.Errorf("blank family = %q, want the default", got.FontFamily)
+	}
+	if got.CursorShape != DefaultCursorShape || got.TerminalPadding != DefaultTerminalPadding {
+		t.Errorf("ids = %q/%q", got.CursorShape, got.TerminalPadding)
+	}
+	if got.TerminalTheme != DefaultTerminalTheme || got.TerminalBold != DefaultTerminalBold {
+		t.Errorf("ids = %q/%q", got.TerminalTheme, got.TerminalBold)
+	}
+}
+
+func TestTerminalAppearanceRoundTrips(t *testing.T) {
+	s := Default()
+	s.FontSize = 20
+	s.CursorBlink = false
+	s.TerminalTheme = "forest"
+	s.TerminalSelectCopy = false
+	data, err := Encode(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	back, err := Parse(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if back.FontSize != 20 || back.CursorBlink || back.TerminalTheme != "forest" || back.TerminalSelectCopy {
+		t.Errorf("round trip = %+v", back)
+	}
+	if len(back.Extra()) != 0 {
+		t.Errorf("owned keys leaked into extra: %v", back.Extra())
+	}
+}

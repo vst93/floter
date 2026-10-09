@@ -130,7 +130,14 @@ func clone(s Settings) Settings {
 func equal(a, b Settings) bool {
 	if a.Theme != b.Theme || a.GlassStep != b.GlassStep || a.Language != b.Language ||
 		a.MainOpacity != b.MainOpacity || a.TerminalOpacity != b.TerminalOpacity ||
-		a.UIScale != b.UIScale {
+		a.UIScale != b.UIScale ||
+		a.FontSize != b.FontSize || a.FontFamily != b.FontFamily ||
+		a.CursorShape != b.CursorShape || a.CursorBlink != b.CursorBlink ||
+		a.TerminalLineHeight != b.TerminalLineHeight || a.TerminalPadding != b.TerminalPadding ||
+		a.TerminalTheme != b.TerminalTheme || a.TerminalScrollbar != b.TerminalScrollbar ||
+		a.TerminalWheelLines != b.TerminalWheelLines || a.TerminalBold != b.TerminalBold ||
+		a.TerminalSelectCopy != b.TerminalSelectCopy || a.TerminalPasteSafe != b.TerminalPasteSafe ||
+		a.TerminalWidth != b.TerminalWidth || a.TerminalHeight != b.TerminalHeight {
 		return false
 	}
 	return reflect.DeepEqual(a.extra, b.extra)

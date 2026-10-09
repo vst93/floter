@@ -45,11 +45,6 @@ const (
 	settingsWindowHeight = 580
 	settingsMinHeight    = 420
 
-	terminalWidth     = 860
-	terminalHeight    = 600
-	terminalMinWidth  = 640
-	terminalMinHeight = 360
-
 	// defaultSummonShortcut is DEFAULT_TOGGLE_WINDOW from config.rs: what
 	// the old build registered when the user never changed it.
 	defaultSummonShortcut = "Ctrl+Space"
@@ -61,7 +56,8 @@ type Options struct {
 	Store *settings.Store
 	// NewTerminal creates a terminal session; nil means the terminal
 	// plugin's terminal.New. Tests replace it so no native library is
-	// needed.
+	// needed. The options come from the terminal surface, which owns the
+	// appearance mapping.
 	NewTerminal func(terminal.Options) (*terminal.Terminal, error)
 	// Quit ends the app.
 	Quit func()
@@ -141,16 +137,23 @@ func New(opts Options) *App {
 		},
 		Exit: func(int) { a.onMain(func() { a.Open(SurfaceLauncher) }) },
 	}
-	a.Terminal = terminalui.New(opts.Store, termActions, func() (*terminal.Terminal, error) {
-		return newTerminal(terminal.Options{OnTitle: termActions.Title, OnExit: termActions.Exit})
-	})
+	a.Terminal = terminalui.New(opts.Store, termActions, newTerminal)
 
-	// A language or interface-size change while settings are open must
-	// re-measure the panel; the view reads the rest itself.
+	// A settings change lands on the open surface: the panel re-measures
+	// (a new interface size), the terminal takes its new font and palette,
+	// and the frame redraws either way.
 	opts.Store.OnChange(func(s settings.Settings) {
-		if a.Surf != SurfaceLauncher {
-			a.onMain(a.resize)
-		}
+		a.onMain(func() {
+			if a.Surf == SurfaceTerminal {
+				a.Terminal.Refresh()
+			}
+			if a.Surf != SurfaceLauncher {
+				a.resize()
+			}
+			if a.Win != nil {
+				a.Win.Invalidate()
+			}
+		})
 	})
 	return a
 }
@@ -339,7 +342,7 @@ func (a *App) targetSize(s settings.Settings) (int, int) {
 	case SurfaceSettings:
 		return launcher.InputWindowWidth, SettingsHeight(s.UIScale, a.workArea)
 	case SurfaceTerminal:
-		return terminalWidth, terminalHeight
+		return int(math.Round(s.TerminalWidth)), int(math.Round(s.TerminalHeight))
 	default:
 		return launcher.InputWindowWidth, int(math.Round(launcher.WindowHeight(s.UIScale)))
 	}
@@ -371,7 +374,7 @@ func (a *App) resize() {
 	}
 	minW, minH := 0, 0
 	if resizable {
-		minW, minH = terminalMinWidth, terminalMinHeight
+		minW, minH = settings.MinTerminalWidth, settings.MinTerminalHeight
 	}
 	if minW != a.lastMinW || minH != a.lastMinH {
 		a.Win.SetMinimumSize(minW, minH)

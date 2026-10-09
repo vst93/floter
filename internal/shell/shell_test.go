@@ -79,7 +79,7 @@ func TestTargetSizePerSurface(t *testing.T) {
 		t.Errorf("settings size = %dx%d", w, h)
 	}
 	a.Surf = SurfaceTerminal
-	if w, h := a.targetSize(s); w != terminalWidth || h != terminalHeight {
+	if w, h := a.targetSize(s); w != int(s.TerminalWidth) || h != int(s.TerminalHeight) {
 		t.Errorf("terminal size = %dx%d", w, h)
 	}
 }
@@ -139,8 +139,8 @@ func TestSurfaceSnapshots(t *testing.T) {
 		{
 			name:    "terminal",
 			surface: SurfaceTerminal,
-			w:       terminalWidth,
-			h:       terminalHeight,
+			w:       int(s.TerminalWidth),
+			h:       int(s.TerminalHeight),
 			want:    []string{"Terminal", "The session has not started yet."},
 		},
 	}
