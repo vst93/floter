@@ -261,16 +261,20 @@ func ReadSync(data []byte) (SyncDocument, error) {
 
 // ImportSync applies a document.
 //
-// An integration that is installed keeps its secrets and its package: only
-// its enabled flag and its exported configuration values change. One that is
-// not installed is installed from the manifest the document carries, when it
-// carries one — which needs the user's approval for whatever permissions it
-// declares, so the caller passes the answer in.
+// An integration that is installed keeps its secrets and its package: only its
+// enabled flag and its exported configuration values change. One that is not
+// installed is installed from the manifest the document carries, when it
+// carries one.
+//
+// The permissions of everything about to be installed are collected first and
+// asked about **once** — the old build's behaviour — so the user answers one
+// question rather than one per integration. A refusal installs nothing and
+// reports each of those entries as skipped.
 //
 // Every entry is reported: what was applied, what was refused and why, and
 // what was skipped because the machine has neither the integration nor a
 // package for it.
-func ImportSync(paths Paths, document SyncDocument, approve func(PermissionApproval) bool) (SyncReport, error) {
+func ImportSync(paths Paths, document SyncDocument, approve func([]PermissionApproval) bool) (SyncReport, error) {
 	report := SyncReport{}
 	inventory := LoadInventory(paths)
 	installed := map[string]Integration{}
@@ -278,6 +282,16 @@ func ImportSync(paths Paths, document SyncDocument, approve func(PermissionAppro
 		installed[integration.Entry.ID] = integration
 	}
 
+	// The staging directories of the packages that have to be installed, kept
+	// until the user has answered.
+	var pending []pendingInstall
+	defer func() {
+		for _, item := range pending {
+			os.RemoveAll(item.staging)
+		}
+	}()
+
+	var approvals []PermissionApproval
 	for _, entry := range document.Extensions {
 		if integration, ok := installed[entry.ID]; ok {
 			if err := applySyncEntry(paths, integration, entry); err != nil {
@@ -294,13 +308,45 @@ func ImportSync(paths Paths, document SyncDocument, approve func(PermissionAppro
 			})
 			continue
 		}
-		if err := installFromSyncEntry(paths, entry, approve); err != nil {
+		staging, approval, err := stageSyncEntry(paths, entry)
+		if err != nil {
 			report.Failed = append(report.Failed, SyncFailure{ID: entry.ID, Reason: err.Error()})
 			continue
 		}
-		report.Succeeded = append(report.Succeeded, entry.ID)
+		pending = append(pending, pendingInstall{entry: entry, staging: staging})
+		if approval.NeedsApproval() {
+			approvals = append(approvals, approval)
+		}
+	}
+
+	approved := true
+	if len(approvals) > 0 {
+		if approve == nil {
+			approved = false
+		} else {
+			approved = approve(approvals)
+		}
+	}
+
+	for _, item := range pending {
+		if !approved {
+			report.Skipped = append(report.Skipped, SyncFailure{ID: item.entry.ID, Reason: "the permissions were not approved"})
+			continue
+		}
+		if err := commitSyncEntry(paths, item); err != nil {
+			report.Failed = append(report.Failed, SyncFailure{ID: item.entry.ID, Reason: err.Error()})
+			continue
+		}
+		report.Succeeded = append(report.Succeeded, item.entry.ID)
 	}
 	return report, nil
+}
+
+// pendingInstall is one package staged for import, waiting for the user's
+// answer about its permissions.
+type pendingInstall struct {
+	entry   SyncEntry
+	staging string
 }
 
 // applySyncEntry updates an installed integration: its enabled flag and the
@@ -343,64 +389,77 @@ func applySyncEntry(paths Paths, integration Integration, entry SyncEntry) error
 	})
 }
 
-// installFromSyncEntry installs an integration the document carries.
-func installFromSyncEntry(paths Paths, entry SyncEntry, approve func(PermissionApproval) bool) error {
+// stageSyncEntry writes an entry's package into a staging directory and works
+// out what the user must approve, without touching the repository.
+func stageSyncEntry(paths Paths, entry SyncEntry) (string, PermissionApproval, error) {
 	staging, err := os.MkdirTemp("", "floter-sync-")
 	if err != nil {
-		return err
+		return "", PermissionApproval{}, err
 	}
-	defer os.RemoveAll(staging)
-
 	if err := os.WriteFile(filepath.Join(staging, manifestFileName), entry.Manifest, 0o644); err != nil {
-		return err
+		os.RemoveAll(staging)
+		return "", PermissionApproval{}, err
 	}
 	manifest, err := LoadManifest(filepath.Join(staging, manifestFileName))
 	if err != nil {
-		return err
+		os.RemoveAll(staging)
+		return "", PermissionApproval{}, err
 	}
 	if manifest.ID != entry.ID {
-		return fmt.Errorf("extensions: the package declares %s, not %s", manifest.ID, entry.ID)
+		os.RemoveAll(staging)
+		return "", PermissionApproval{}, fmt.Errorf("extensions: the package declares %s, not %s", manifest.ID, entry.ID)
 	}
 	if manifest.Runtime.Type == "script" {
 		if entry.ScriptContent == "" {
-			return errors.New("extensions: the export carries no script for this integration")
+			os.RemoveAll(staging)
+			return "", PermissionApproval{}, errors.New("extensions: the export carries no script for this integration")
 		}
 		script := filepath.Join(staging, filepath.FromSlash(manifest.Runtime.Path))
 		if err := os.MkdirAll(filepath.Dir(script), 0o755); err != nil {
-			return err
+			os.RemoveAll(staging)
+			return "", PermissionApproval{}, err
 		}
 		if err := os.WriteFile(script, []byte(entry.ScriptContent), 0o755); err != nil {
-			return err
+			os.RemoveAll(staging)
+			return "", PermissionApproval{}, err
 		}
 	}
 	if descriptor := manifest.Provider.Descriptor; descriptor != "" {
 		if len(entry.ProviderDescriptor) == 0 {
-			return errors.New("extensions: the export carries no descriptor for this integration")
+			os.RemoveAll(staging)
+			return "", PermissionApproval{}, errors.New("extensions: the export carries no descriptor for this integration")
 		}
 		path := filepath.Join(staging, filepath.FromSlash(descriptor))
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-			return err
+			os.RemoveAll(staging)
+			return "", PermissionApproval{}, err
 		}
 		if err := os.WriteFile(path, entry.ProviderDescriptor, 0o644); err != nil {
-			return err
+			os.RemoveAll(staging)
+			return "", PermissionApproval{}, err
 		}
 	}
-
 	prepared, err := PrepareLocal(paths, staging)
+	if err != nil {
+		os.RemoveAll(staging)
+		return "", PermissionApproval{}, err
+	}
+	return staging, prepared.Approval, nil
+}
+
+// commitSyncEntry installs a staged package and applies its configuration.
+func commitSyncEntry(paths Paths, item pendingInstall) error {
+	prepared, err := PrepareLocal(paths, item.staging)
 	if err != nil {
 		return err
 	}
-	approved := true
-	if prepared.Approval.NeedsApproval() && approve != nil {
-		approved = approve(prepared.Approval)
-	}
-	installed, err := prepared.Commit(approved)
+	installed, err := prepared.Commit(true)
 	if err != nil {
 		return err
 	}
 	// The document's configuration goes in after the package, so the
 	// integration arrives configured.
-	return applySyncEntry(paths, Integration{Entry: installed, Paths: paths}, entry)
+	return applySyncEntry(paths, Integration{Entry: installed, Paths: paths}, item.entry)
 }
 
 // loadRawConfiguration reads an integration's stored configuration *without*

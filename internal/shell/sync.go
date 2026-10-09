@@ -65,7 +65,16 @@ func (a *App) importIntegrations() {
 			a.setTransferStatus(copy.IntegrationsTransferBad)
 			return
 		}
-		report, err := extensions.ImportSync(a.Paths, document, a.confirmInstallPermissions)
+		report, err := extensions.ImportSync(a.Paths, document, func(approvals []extensions.PermissionApproval) bool {
+			// One question for everything the import would install, as the
+			// old build asked.
+			for _, approval := range approvals {
+				if !a.confirmInstallPermissions(approval) {
+					return false
+				}
+			}
+			return true
+		})
 		if err != nil {
 			log.Printf("floter: could not import %s: %v", path, err)
 			a.setTransferStatus(copy.IntegrationsTransferBad)

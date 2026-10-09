@@ -125,8 +125,8 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 6. **P5 打磨**：已完成；更细的换壳过渡受原生窗口尺寸变化限制，不做应用层过渡。
 7. **P6 发布链**：剩下的是一次性维护者动作——`mygo keygen` 生成更新密钥、`mygo.json` 填 `updates`
    与 `macos.signingIdentity`/`macos.notarize`、CI 注入私钥、把产物发到 GitHub Release（含预发布通道）。
-8. **小项**：开机自启需要在真实打包应用上验证一次；导入导出的权限审批是逐条询问而非一次汇总。
-   （旧版 `launch_counts` 已在启动时一次性导入 `usage.json`，本构建的记录优先。）
+8. **小项**：开机自启需要在真实打包应用上验证一次。（导入导出的权限审批已改为**一次汇总**，
+   与旧版一致；旧版 `launch_counts` 已在启动时一次性导入 `usage.json`，本构建的记录优先。）
 
 ## 注意事项（踩过的坑）
 

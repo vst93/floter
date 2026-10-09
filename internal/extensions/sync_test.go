@@ -20,7 +20,8 @@ func syncFixture(t *testing.T) (Paths, string) {
 	writeFile(t, filepath.Join(scriptDir, manifestFileName), `{
 	  "schemaVersion": "2.0", "id": "dev.floter.scripted", "name": "Scripted", "version": "1.2.0",
 	  "runtime": {"type": "script", "language": "shell", "path": "tool.sh"},
-	  "provider": {"type": "executable", "argsPrefix": ["--floter"]}
+	  "provider": {"type": "executable", "argsPrefix": ["--floter"]},
+	  "permissions": ["environment", "filesystem-read"]
 	}`)
 	writeFile(t, filepath.Join(scriptDir, "tool.sh"), "#!/bin/sh\necho hi\n")
 
@@ -133,12 +134,18 @@ func TestImportSyncInstallsAndConfigures(t *testing.T) {
 		t.Fatal(err)
 	}
 	asked := 0
-	report, err := ImportSync(fresh, read, func(PermissionApproval) bool { asked++; return true })
+	report, err := ImportSync(fresh, read, func(approvals []PermissionApproval) bool {
+		asked++
+		return true
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(report.Succeeded) != 2 || len(report.Failed) != 0 || len(report.Skipped) != 0 {
 		t.Fatalf("report = %+v", report)
+	}
+	if asked > 1 {
+		t.Errorf("the user was asked %d times, want at most one", asked)
 	}
 	inventory := LoadInventory(fresh)
 	if len(inventory.Integrations) != 2 {
@@ -280,5 +287,55 @@ func TestClassifyConfigField(t *testing.T) {
 	}
 	if got := ClassifyConfigField("dir", "~/.config"); got != CategoryDevicePath {
 		t.Errorf("home path = %q", got)
+	}
+}
+
+// Everything the import would install is asked about once, and a refusal
+// installs nothing.
+func TestImportSyncAsksOnceAndRefusalInstallsNothing(t *testing.T) {
+	paths, _ := syncFixture(t)
+	document, err := ExportSync(paths)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fresh := FromRoot(t.TempDir())
+	if err := fresh.Ensure(); err != nil {
+		t.Fatal(err)
+	}
+	asked := 0
+	report, err := ImportSync(fresh, document, func(approvals []PermissionApproval) bool {
+		asked++
+		if len(approvals) == 0 {
+			t.Error("a question was asked with nothing to approve")
+		}
+		return false
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if asked != 1 {
+		t.Errorf("the user was asked %d times, want one", asked)
+	}
+	// The question carried the permissions the document's packages declare.
+	if asked == 1 && len(report.Skipped) != 2 {
+		t.Errorf("report = %+v", report)
+	}
+	if len(report.Succeeded) != 0 || len(report.Skipped) != 2 {
+		t.Fatalf("report = %+v", report)
+	}
+	if !strings.Contains(report.Skipped[0].Reason, "not approved") {
+		t.Errorf("reason = %q", report.Skipped[0].Reason)
+	}
+	// Nothing landed: neither package directory nor repository entry.
+	if inventory := LoadInventory(fresh); len(inventory.Integrations) != 0 {
+		t.Errorf("a refused import installed %+v", inventory.Integrations)
+	}
+	entries, err := os.ReadDir(fresh.Extensions)
+	if err == nil {
+		for _, entry := range entries {
+			if !strings.HasPrefix(entry.Name(), ".") {
+				t.Errorf("a package directory was left behind: %s", entry.Name())
+			}
+		}
 	}
 }
