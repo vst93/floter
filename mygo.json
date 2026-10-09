@@ -1,0 +1,7 @@
+{
+  "name": "floter",
+  "identifier": "com.v.floter",
+  "version": "0.3.14",
+  "main": "./cmd/floter",
+  "macos": { "minimumSystemVersion": "13.0" }
+}
