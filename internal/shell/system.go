@@ -125,6 +125,31 @@ func (a *App) HandleURL(rawURL string) {
 	}
 }
 
+// browserOptions is the browser plugin's settings: whether it is on, how far
+// back its history goes, and how many results one search returns.
+type browserOptions struct {
+	enabled     bool
+	historyDays int
+	limit       int
+}
+
+// browserState reads the browser settings, with the shipped defaults: on,
+// thirty days of history, at most fifty results.
+func browserState(s settings.Settings) browserOptions {
+	options := browserOptions{enabled: true, historyDays: 30, limit: 50}
+	plugin, ok := s.Extra()["browser_plugin"].(map[string]any)
+	if !ok {
+		return options
+	}
+	if enabled, ok := plugin["enabled"].(bool); ok {
+		options.enabled = enabled
+	}
+	if days, ok := numeric(plugin["history_days"]); ok && days >= 0 {
+		options.historyDays = int(days)
+	}
+	return options
+}
+
 // clipboardPoll is how often the watcher reads the clipboard: often enough
 // that a copy lands in the history before the panel opens, rare enough to
 // cost nothing.

@@ -27,6 +27,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/apps"
+	"floter/internal/browser"
 	"floter/internal/clipboard"
 	"floter/internal/extensions"
 	"floter/internal/glassmap"
@@ -188,6 +189,11 @@ type App struct {
 	// last, so a poll records only what changed.
 	lastClipboardText    string
 	lastClipboardFormats string
+	// browserProfiles is the discovered browser profiles, and browserMu
+	// guards it: the first search discovers them.
+	browserProfiles []browser.Profile
+	browserMu       sync.Mutex
+	browserLoaded   bool
 	// LastClipboardSettings is the clipboard state the watcher was last
 	// synced with.
 	LastClipboardSettings clipboardSettings
@@ -290,9 +296,11 @@ func New(opts Options) *App {
 			}
 			a.Hide()
 		},
-		RunCommand: a.runCommand,
-		Complete:   a.completeCommand,
-		PinText:    a.PinText,
+		RunCommand:    a.runCommand,
+		Complete:      a.completeCommand,
+		PinText:       a.PinText,
+		OpenURL:       func(url string) { mygo.Shell.OpenExternal(url) },
+		SearchBrowser: a.searchBrowser,
 	})
 	a.Settings = settingsui.New(opts.Store, settingsui.Actions{
 		Close:               func() { a.Open(SurfaceLauncher) },
@@ -606,6 +614,40 @@ func (a *App) diagnoseIntegration(id string) {
 			}
 		})
 	}()
+}
+
+// searchBrowser searches the installed browsers' history and bookmarks, off
+// the main thread, and hands the results back to it.
+func (a *App) searchBrowser(query string, done func([]browser.Result)) {
+	options := browserState(a.Store.Snapshot())
+	if !options.enabled {
+		a.onMain(func() { done(nil) })
+		return
+	}
+	go func() {
+		profiles := a.browserProfileList()
+		results := browser.Search(context.Background(), profiles, query, browser.Options{
+			Days:  options.historyDays,
+			Limit: options.limit,
+		})
+		a.onMain(func() { done(results) })
+	}()
+}
+
+// browserProfileList discovers the browser profiles once.
+func (a *App) browserProfileList() []browser.Profile {
+	a.browserMu.Lock()
+	defer a.browserMu.Unlock()
+	if a.browserLoaded {
+		return a.browserProfiles
+	}
+	a.browserLoaded = true
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil
+	}
+	a.browserProfiles = browser.Profiles(home)
+	return a.browserProfiles
 }
 
 // copyClipboardEntry puts a clipboard entry back on the clipboard: its text,

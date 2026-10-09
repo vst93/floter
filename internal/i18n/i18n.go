@@ -57,6 +57,8 @@ type Launcher struct {
 	CommandTerminalHint  string
 	CommandClipboard     string
 	CommandClipboardHint string
+	CommandBrowser       string
+	CommandBrowserHint   string
 	CommandQuit          string
 	CommandQuitHint      string
 	// ShortcutSettings and ShortcutTerminal are the accelerator labels the

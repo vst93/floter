@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"floter/internal/apps"
+	"floter/internal/browser"
 	"floter/internal/calc"
 	"floter/internal/clipboard"
 	"floter/internal/extensions"
@@ -56,6 +57,12 @@ func (a *App) commands() []Item {
 			Run:    a.Actions.OpenTerminal,
 		},
 		{
+			ID:     "browser",
+			Title:  c.CommandBrowser,
+			Detail: c.CommandBrowserHint,
+			Run:    a.enterBrowser,
+		},
+		{
 			ID:     "clipboard",
 			Title:  c.CommandClipboard,
 			Detail: c.CommandClipboardHint,
@@ -101,6 +108,52 @@ func (a *App) runCommand(entry extensions.CommandEntry) {
 	if a.Actions.RunCommand != nil {
 		a.Actions.RunCommand(entry, nil)
 	}
+}
+
+// browserItems is the browser mode's list: the history and bookmark
+// results for the query, newest first.
+func (a *App) browserItems() []Item {
+	query := a.browserQuery()
+	results := a.browserResults(query)
+	out := make([]Item, 0, len(results))
+	for _, result := range results {
+		result := result
+		detail := result.URL
+		if !result.Visited.IsZero() {
+			detail = result.URL + "  \u00b7  " + result.Visited.Local().Format("2006-01-02 15:04")
+		}
+		out = append(out, Item{
+			ID:     "web:" + result.URL,
+			Title:  result.Label(),
+			Detail: detail,
+			Run:    func() { a.openResult(result) },
+		})
+	}
+	return out
+}
+
+// openResult opens a browser result's page, and reports it.
+func (a *App) openResult(result browser.Result) {
+	if a.Actions.OpenURL != nil {
+		a.Actions.OpenURL(result.URL)
+	}
+}
+
+// copyResult puts a browser result's URL on the clipboard.
+func (a *App) copyResult(result browser.Result) {
+	if a.Actions.Copy != nil {
+		a.Actions.Copy(result.URL)
+		a.toast = StringsFor(a.settings().Language).Copied
+	}
+}
+
+// browserResults returns the results for the query: the shell's, when they
+// are for this query, and an empty list while the first search runs.
+func (a *App) browserResults(query string) []browser.Result {
+	if a.browserAsked && a.browserAskedFor == query {
+		return a.browserFound
+	}
+	return nil
 }
 
 // clipboardItems is the clipboard mode's list: the history entries matching
@@ -254,6 +307,9 @@ func (a *App) Results() []Item {
 	}
 	if a.clipboard {
 		return a.clipboardItems()
+	}
+	if a.browser {
+		return a.browserItems()
 	}
 	var out []Item
 	if item, ok := a.calculator(); ok {

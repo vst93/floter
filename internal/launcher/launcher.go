@@ -8,6 +8,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/apps"
+	"floter/internal/browser"
 	"floter/internal/clipboard"
 	"floter/internal/extensions"
 	"floter/internal/settings"
@@ -83,6 +84,11 @@ type Actions struct {
 	// CopyClip puts a clipboard entry back on the clipboard, whatever its
 	// kind. Nil falls back to Copy for text.
 	CopyClip func(entry clipboard.Entry)
+	// OpenURL opens a page in the user's browser.
+	OpenURL func(url string)
+	// SearchBrowser searches the installed browsers' history and bookmarks;
+	// the shell answers on the main thread. Nil leaves the mode empty.
+	SearchBrowser func(query string, done func([]browser.Result))
 }
 
 // ClipboardSource is the clipboard history the launcher searches.
@@ -132,6 +138,16 @@ type App struct {
 	// clipboard is set while the clipboard history is searched: the field
 	// holds the mode word and the query, and the list offers entries.
 	clipboard bool
+	// browser is set while the browsers' history is searched, with the
+	// results the shell last answered with and the query they belong to.
+	browser      bool
+	browserFound []browser.Result
+	// browserAskedFor is the query the results belong to and browserAsked
+	// whether any arrived (the empty query is a real query, so a bool is
+	// needed); browserPending is the query the shell is working on.
+	browserAskedFor string
+	browserAsked    bool
+	browserPending  bool
 	// Clipboard is the history the launcher searches; nil until the shell
 	// gives it one.
 	Clipboard ClipboardSource
@@ -178,6 +194,7 @@ func (a *App) View(c *ui.Context) {
 	a.FocusSearch()
 
 	a.syncCommandMode()
+	a.askBrowser()
 	results := a.Results()
 	a.clampSelection(len(results))
 
@@ -191,7 +208,7 @@ func (a *App) View(c *ui.Context) {
 		if len(results) == 0 {
 			ui.Column(c).FillWidth().Padding(t.Space(3)).Center().Children(func() {
 				message := copy.NoResults
-				if a.mode != nil || a.clipboard {
+				if a.mode != nil || a.clipboard || a.browser {
 					message = copy.CommandModeHint
 				}
 				ui.Text(c, message).FontSize(t.FontSize).TextColor(t.TextMuted)
@@ -230,7 +247,7 @@ func (a *App) View(c *ui.Context) {
 				a.activate(results)
 			}
 			switch {
-			case a.mode != nil || a.clipboard:
+			case a.mode != nil || a.clipboard || a.browser:
 				ui.Text(c, copy.CommandModeHint).FontSize(t.FontSize).TextColor(t.TextMuted)
 			case a.Query != "":
 				if ui.Button(c, "✕").Label(copy.Clear).Clicked() {
@@ -268,6 +285,8 @@ func (a *App) View(c *ui.Context) {
 	}
 	if c.Shortcut(0, ui.KeyEscape) {
 		switch {
+		case a.browser:
+			a.leaveBrowser()
 		case a.clipboard:
 			a.leaveClipboard()
 		case a.mode != nil:
@@ -289,6 +308,10 @@ func (a *App) View(c *ui.Context) {
 			a.appendWord(item.complete)
 		case a.clipboard && item.clip != nil:
 			a.pinClip(*item.clip)
+		case a.browser:
+			if a.Selected < len(a.browserFound) {
+				a.copyResult(a.browserFound[a.Selected])
+			}
 		case a.mode == nil && !a.clipboard && item.entry != nil:
 			a.enterCommand(*item.entry)
 		}
@@ -318,22 +341,30 @@ func (a *App) leaveCommand() {
 // syncCommandMode leaves the mode when the line no longer starts with the
 // word that entered it, which is what deleting it does.
 func (a *App) syncCommandMode() {
-	if a.mode == nil && !a.clipboard {
+	if a.mode == nil && !a.clipboard && !a.browser {
 		return
 	}
 	word := firstWord(a.Query)
 	want := clipboardWord
-	if a.mode != nil {
+	switch {
+	case a.mode != nil:
 		want = a.mode.Command.ID
+	case a.browser:
+		want = browserWord
 	}
 	if !strings.EqualFold(word, want) {
 		a.leaveCommand()
 		a.leaveClipboard()
+		a.leaveBrowser()
 	}
 }
 
-// clipboardWord is what the field starts with in the clipboard mode.
-const clipboardWord = "clipboard"
+// clipboardWord and browserWord are what the field starts with in the two
+// modes.
+const (
+	clipboardWord = "clipboard"
+	browserWord   = "browser"
+)
 
 // enterClipboard starts searching the clipboard history.
 func (a *App) enterClipboard() {
@@ -465,12 +496,82 @@ func (a *App) activate(results []Item) {
 		a.runClipboard(results)
 		return
 	}
+	if a.browser {
+		if a.Selected >= 0 && a.Selected < len(results) {
+			if run := results[a.Selected].Run; run != nil {
+				run()
+			}
+		}
+		a.leaveBrowser()
+		a.Hide()
+		return
+	}
 	if a.Selected < 0 || a.Selected >= len(results) {
 		return
 	}
 	if run := results[a.Selected].Run; run != nil {
 		run()
 	}
+}
+
+// Hide hides the launcher window, for an action that finished its job.
+func (a *App) Hide() {
+	if a.Actions.Dismiss != nil {
+		a.Actions.Dismiss()
+	}
+}
+
+// leaveBrowser returns to the search.
+func (a *App) leaveBrowser() {
+	if !a.browser {
+		return
+	}
+	a.browser = false
+	a.Query = ""
+	a.Selected, a.chosenRow = 0, -1
+}
+
+// enterBrowser starts searching the browsers' history.
+func (a *App) enterBrowser() {
+	a.mode = nil
+	a.clipboard = false
+	a.browser = true
+	a.Query = browserWord + " "
+	a.Selected, a.chosenRow = 0, -1
+	a.pendingCaret = true
+}
+
+// browserQuery is what the user typed after the mode word.
+func (a *App) browserQuery() string {
+	words := splitArgs(a.Query)
+	if len(words) <= 1 {
+		return ""
+	}
+	return strings.Join(words[1:], " ")
+}
+
+// askBrowser asks the shell for results once per query.
+func (a *App) askBrowser() {
+	if !a.browser {
+		return
+	}
+	query := a.browserQuery()
+	if a.browserAsked && a.browserAskedFor == query {
+		return
+	}
+	if a.browserPending {
+		return // one query is in flight; the next build asks again
+	}
+	a.browserPending = true
+	if a.Actions.SearchBrowser == nil {
+		a.browserPending = false
+		a.browserAsked, a.browserAskedFor, a.browserFound = true, query, nil
+		return
+	}
+	a.Actions.SearchBrowser(query, func(results []browser.Result) {
+		a.browserPending = false
+		a.browserAsked, a.browserAskedFor, a.browserFound = true, query, results
+	})
 }
 
 // runClipboard copies the chosen entry and leaves the mode, as picking a

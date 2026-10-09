@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/apps"
+	"floter/internal/browser"
 	"floter/internal/clipboard"
 	"floter/internal/extensions"
 	"floter/internal/settings"
@@ -540,5 +542,99 @@ func TestTabPinsAClipboardEntry(t *testing.T) {
 	// Tab pins; it does not copy or leave the mode.
 	if testRuns["copy"] != 0 || !a.clipboard {
 		t.Errorf("Tab copied or left the mode: %v clipboard=%v", testRuns, a.clipboard)
+	}
+}
+
+func TestBrowserModeOpensAndCopies(t *testing.T) {
+	a := testApp()
+	found := []browser.Result{
+		{URL: "https://go.dev/doc", Title: "Go Documentation", Kind: "history", Browser: "Chrome", Visited: time.Unix(1_700_000_000, 0)},
+		{URL: "https://rust-lang.org", Title: "Rust", Kind: "bookmark", Browser: "Chrome"},
+	}
+	a.Actions.SearchBrowser = func(query string, done func([]browser.Result)) {
+		if query == "" {
+			done(found)
+			return
+		}
+		var out []browser.Result
+		for _, result := range found {
+			if strings.Contains(strings.ToLower(result.Title), strings.ToLower(query)) {
+				out = append(out, result)
+			}
+		}
+		done(out)
+	}
+	opened := ""
+	a.Actions.OpenURL = func(url string) { opened = url }
+
+	tt := render(t, a)
+	tt.Type("browser history")
+	tt.Frame()
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if !a.browser || a.Query != "browser " {
+		t.Fatalf("the browser mode did not open: %v %q", a.browser, a.Query)
+	}
+	if !tt.HasText("Go Documentation") || !tt.HasText("Rust") {
+		t.Fatalf("the results did not show: %q", tt.Texts())
+	}
+	// The detail line carries the URL and the visit time for history.
+	// The detail carries the URL and the visit time (in the machine's own
+	// zone, so only the separator is pinned).
+	if !tt.HasText("https://go.dev/doc  \u00b7  ") {
+		t.Errorf("the history detail is missing: %q", tt.Texts())
+	}
+	if !tt.HasText("https://rust-lang.org") {
+		t.Errorf("a bookmark's detail is missing: %q", tt.Texts())
+	}
+
+	// Typing asks the shell again and shows what it answers.
+	tt.Type("rust")
+	tt.Frame()
+	if tt.HasText("Go Documentation") {
+		t.Errorf("the query did not narrow the results: %q", tt.Texts())
+	}
+	tt.Frame()
+
+	// Tab copies the chosen URL without leaving the mode.
+	tt.Key(0, ui.KeyTab)
+	tt.Frame()
+	if testRuns["copy"] != 1 || !a.browser {
+		t.Errorf("Tab did not copy: %v mode=%v", testRuns, a.browser)
+	}
+
+	// Enter opens it and leaves.
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if opened != "https://rust-lang.org" {
+		t.Errorf("opened %q", opened)
+	}
+	if a.browser || a.Query != "" {
+		t.Errorf("the mode survived Enter: %v %q", a.browser, a.Query)
+	}
+	if testRuns["dismiss"] != 1 {
+		t.Errorf("the window was not hidden: %v", testRuns)
+	}
+}
+
+func TestBrowserModeWithoutASearch(t *testing.T) {
+	a := testApp()
+	tt := render(t, a)
+	tt.Type("browser")
+	tt.Frame()
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if !a.browser {
+		t.Fatal("the mode did not open")
+	}
+	// No action: the list is empty, and the hint explains the mode.
+	if !tt.HasText("Enter runs it") {
+		t.Errorf("the hint did not show: %q", tt.Texts())
+	}
+	// Escape leaves it.
+	tt.Key(0, ui.KeyEscape)
+	tt.Frame()
+	if a.browser {
+		t.Error("Escape did not leave the browser mode")
 	}
 }

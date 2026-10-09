@@ -269,6 +269,16 @@
 - 回写：`Actions.CopyClip` 按 kind 还原（文本/文件列表/图片字节），并通过**可注入的 `WriteClipboard`** 落到系统剪贴板；应用自己写入的内容不会被监听器再次记录（`selfCopied`）。
 - 门槛：图片/文件存储（含淘汰删文件）、回写 payload 三态、纯函数；共 174 项测试；**真机验证**：把一张 40×24 PNG 放进系统剪贴板，启动应用后历史 22→23 张图片，条目宽高与文件名均正确。
 
+### P4-f 浏览器插件内核（已做）
+
+- `internal/browser`：**只读**读取各浏览器自己的文件——Chrome 家族（Chrome/Chromium/Brave/Edge/Arc）的 `History`(SQLite) 与 `Bookmarks`(JSON)、Safari 的 `History.db`、Firefox 的 `places.sqlite`；SQLite 走 mygo 的 `plugins/sqlite`（purego 加载预编译库，无 cgo）。每个 profile 独立失败：锁住/无权限/schema 不认识只跳过它自己。
+- 时间戳按各家纪元转换（Chrome 1601 微秒、Safari 2001 秒、Firefox 1970 微秒），缺失时为零值（书签无日期）。
+- 查询：先取各 profile 最新 N 行，再在 Go 里做多词全命中（标题+URL，大小写不敏感），按访问时间倒序、书签按标题；`Options{Days,Limit}` 支持「只搜最近 N 天」（书签不受限）与结果上限。
+- 设置接线：读 `browser_plugin.enabled`（默认开）与 `history_days`（默认 30），上限 50 条。
+- 启动器新增内置行「浏览器历史」→ 浏览器模式（字段词 `browser`）：**Enter 用默认浏览器打开**该页并收起窗口，**Tab 复制 URL**；结果异步搜索（生 sqlite 读取不阻塞 UI，按查询去重、过期答案丢弃）。
+- 门槛：profile 发现、Chrome 书签树、时间戳换算、匹配/排序/限制、缺失与坏文件；另有 opt-in 测试用 sqlite 插件**真建一个 Chrome 形状的 History 库并读回**（本机通过）；共 181 项测试。真机上 Safari 的 History.db 因缺少「完全磁盘访问」而不可读，包内如实跳过（打包应用可由用户授权）。
+- 打包：应用现在同时内嵌 `libghostty-vt.dylib` 与 `libmygo-sqlite3.dylib`（app 15.9 MB / dmg 4.9 MB）。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。
