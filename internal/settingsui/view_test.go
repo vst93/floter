@@ -2,6 +2,7 @@ package settingsui
 
 import (
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
@@ -500,5 +501,33 @@ func TestAppIconReader(t *testing.T) {
 	}
 	if !tt.HasText("The icon shown in the menu bar / tray and on the taskbar. Dark is the default.") {
 		t.Errorf("the hint is missing: %q", tt.Texts())
+	}
+}
+
+func TestIntegrationPermissionsLine(t *testing.T) {
+	a := New(newStore(t), Actions{})
+	a.Integrations = func() []Integration {
+		return []Integration{{
+			ID: "io.github.vst93.v", Name: "V Tools", Enabled: true, Running: true,
+			Permissions: []string{"filesystem-read", "process-spawn"},
+			Enforced:    map[string]bool{"process-spawn": true},
+		}}
+	}
+	tt := render(t, a, 720, 620)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	// The line names every permission, marking the enforced one.
+	if !tt.HasText("Read files") {
+		t.Errorf("a permission is missing: %q", tt.Texts())
+	}
+	if !tt.HasText("Start processes (Floter enforces)") {
+		t.Errorf("the enforced permission is not marked: %q", tt.Texts())
+	}
+	// The dialog copy is localized too.
+	zh := New(settings.NewStore(settings.Settings{Language: "zh"}), Actions{})
+	if got := zh.permissionLine(Integration{Permissions: []string{"process-spawn"}, Enforced: map[string]bool{"process-spawn": true}}, i18n.For("zh").Settings); !strings.Contains(got, "启动进程") || !strings.Contains(got, "强制拦截") {
+		t.Errorf("zh line = %q", got)
 	}
 }

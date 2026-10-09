@@ -64,6 +64,10 @@ type Integration struct {
 	Error   string
 	// Orphan is a package directory no repository entry names.
 	Orphan bool
+	// Permissions are the ids the package declares, and Enforced which of
+	// them the host itself decides.
+	Permissions []string
+	Enforced    map[string]bool
 }
 
 // Session is one running session, as the Sessions page shows it.
@@ -311,6 +315,9 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 				ui.Text(c, integration.Description).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
 			}
 			ui.Text(c, integration.identity()).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+			if len(integration.Permissions) > 0 {
+				ui.Text(c, a.permissionLine(integration, copy)).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+			}
 			if integration.Error != "" {
 				ui.Text(c, integration.Error).FontSize(t.FontSize - 1).TextColor(t.Danger)
 			}
@@ -335,6 +342,21 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			})
 		}
 	})
+}
+
+// permissionLine names the package's permissions, marking the ones the host
+// itself decides.
+func (a *App) permissionLine(integration Integration, copy i18n.Settings) string {
+	language := a.Store.Snapshot().Language
+	parts := make([]string, 0, len(integration.Permissions))
+	for _, permission := range integration.Permissions {
+		label := i18n.PermissionLabel(language, permission)
+		if integration.Enforced[permission] {
+			label += " (" + copy.PermissionsEnforced + ")"
+		}
+		parts = append(parts, label)
+	}
+	return strings.Join(parts, " · ")
 }
 
 // state is the integration's one-word state.

@@ -304,9 +304,35 @@ func TestInstallFromRegistry(t *testing.T) {
 
 	paths := FromRoot(t.TempDir())
 	registry := &Registry{BaseURL: server.URL, Client: server.Client()}
-	entry, err := InstallFromRegistry(context.Background(), paths, registry, "@vst93/floter-v", "^1.0.0")
+
+	// The package declares permissions, so the caller is asked before
+	// anything is grafted, and the record keeps the approval.
+	prepared, err := PrepareRegistry(context.Background(), paths, registry, "@vst93/floter-v", "^1.0.0")
 	if err != nil {
 		t.Fatal(err)
+	}
+	if !prepared.Approval.NeedsApproval() || len(prepared.Approval.Declared) != 7 {
+		t.Fatalf("approval = %+v", prepared.Approval)
+	}
+	if _, err := prepared.Commit(false); !errors.Is(err, ErrPermissionApprovalRequired) {
+		t.Fatalf("an unapproved install = %v", err)
+	}
+	if inventory := LoadInventory(paths); len(inventory.Integrations) != 0 {
+		t.Fatalf("an unapproved install landed: %+v", inventory.Integrations)
+	}
+
+	// A refused commit discards its staged download, so an approved one
+	// prepares again.
+	prepared, err = PrepareRegistry(context.Background(), paths, registry, "@vst93/floter-v", "^1.0.0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	entry, err := prepared.Commit(true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entry.ApprovedPermissions) != 7 || entry.ApprovedAt == 0 || entry.ApprovedManifestDigest == nil {
+		t.Errorf("the approval was not recorded: %+v", entry)
 	}
 	if entry.DistributionSource != "npm" || entry.PackageVersion != "1.2.0" {
 		t.Errorf("entry = %+v", entry)

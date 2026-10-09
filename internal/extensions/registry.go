@@ -197,53 +197,16 @@ func LoadPackageManifest(root string) (PackageManifest, string, error) {
 // InstallFromRegistry installs (or updates) a package from the npm registry:
 // metadata, version selection, the tarball, its integrity, extraction, and
 // then the same graft a local install uses.
+//
+// It is PrepareRegistry and Commit in one call, for a caller that has
+// already approved what the package declares: a package that needs approval
+// is refused with ErrPermissionApprovalRequired.
 func InstallFromRegistry(ctx context.Context, paths Paths, registry *Registry, name, constraint string) (Entry, error) {
-	if registry == nil {
-		registry = NewRegistry()
-	}
-	packument, err := registry.Packument(ctx, name)
+	prepared, err := PrepareRegistry(ctx, paths, registry, name, constraint)
 	if err != nil {
 		return Entry{}, err
 	}
-	info, err := packument.Resolve(constraint)
-	if err != nil {
-		return Entry{}, err
-	}
-	data, err := registry.Download(ctx, info)
-	if err != nil {
-		return Entry{}, err
-	}
-	if err := paths.Ensure(); err != nil {
-		return Entry{}, err
-	}
-
-	// Extract beside the installed packages, so the graft is a rename on
-	// one filesystem, and remove the download either way.
-	download, err := os.MkdirTemp(paths.Root, ".download-*")
-	if err != nil {
-		return Entry{}, err
-	}
-	defer os.RemoveAll(download)
-	if err := ExtractTarball(data, download); err != nil {
-		return Entry{}, err
-	}
-	pkg, manifestPath, err := LoadPackageManifest(download)
-	if err != nil {
-		return Entry{}, err
-	}
-	if _, err := LoadManifest(manifestPath); err != nil {
-		return Entry{}, err
-	}
-
-	spec := installSpec{
-		PackageDir:   download,
-		ManifestPath: manifestPath,
-		Distribution: "npm",
-		PackageName:  name,
-		Version:      pkg.Version,
-		Integrity:    info.Dist.Integrity,
-	}
-	return install(paths, spec)
+	return prepared.Commit(!prepared.Approval.NeedsApproval())
 }
 
 // base64OfHex converts a hexadecimal digest to the base64 SRI spelling.

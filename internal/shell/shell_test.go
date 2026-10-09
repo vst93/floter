@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -538,10 +539,18 @@ func TestClipboardReachesTheLauncher(t *testing.T) {
 
 // npmFixture serves a registry with one package whose tarball holds a floter
 // manifest, and returns the server and the package name.
-func npmFixture(t *testing.T) (*httptest.Server, string) {
+func npmFixture(t *testing.T, permissions ...string) (*httptest.Server, string) {
 	t.Helper()
 	if runtime.GOOS == "windows" {
 		t.Skip("the fixture's runtime is resolved through sh")
+	}
+	declared := ""
+	if len(permissions) > 0 {
+		quoted := make([]string, 0, len(permissions))
+		for _, permission := range permissions {
+			quoted = append(quoted, `"`+permission+`"`)
+		}
+		declared = `, "permissions": [` + strings.Join(quoted, ", ") + `]`
 	}
 	manifest := `{
   "schemaVersion": "2.0", "id": "dev.floter.npm", "name": "NPM Tool", "version": "1.0.0",
@@ -549,7 +558,7 @@ func npmFixture(t *testing.T) (*httptest.Server, string) {
   "compatibility": {"floter": ">=0.3.0", "providerProtocol": "^1.0"},
   "distribution": {"type": "npm"},
   "runtime": {"type": "script", "language": "shell", "path": "tool.sh"},
-  "provider": {"type": "static-descriptor", "descriptor": "description.json", "argsPrefix": []}
+  "provider": {"type": "static-descriptor", "descriptor": "description.json", "argsPrefix": []}` + declared + `
 }`
 	description := `{"protocolVersion": "1.0", "provider": {"id": "dev.floter.npm", "name": "NPM Tool", "version": "1.0.0"}, "commands": []}`
 	packageJSON := `{"name": "@vst93/fixture", "version": "1.0.0", "floter": {"manifest": "floter.extension.json"}}`
@@ -743,5 +752,59 @@ func TestMenuTemplate(t *testing.T) {
 	}
 	if items[1].Submenu[1].Accelerator != "CmdOrCtrl+Shift+T" {
 		t.Errorf("terminal accelerator = %q", items[1].Submenu[1].Accelerator)
+	}
+}
+
+func TestInstallAsksBeforeGrantingPermissions(t *testing.T) {
+	server, name := npmFixture(t, "environment", "network-fetch")
+
+	asked := extensions.PermissionApproval{}
+	answer := false
+	a := New(Options{
+		Store:       settings.NewStore(settings.Default()),
+		Paths:       extensions.FromRoot(t.TempDir()),
+		Registry:    &extensions.Registry{BaseURL: server.URL, Client: server.Client()},
+		NewTerminal: func(terminal.Options) (*terminal.Terminal, error) { return nil, errors.New("no library in tests") },
+		OpenAtLogin: func() bool { return false }, SetOpenAtLogin: func(bool) error { return nil },
+		ConfirmPermissions: func(approval extensions.PermissionApproval) bool {
+			asked = approval
+			return answer
+		},
+	})
+
+	// Declining installs nothing.
+	a.Settings.Actions.InstallFromRegistry(name, "1.0.0")
+	deadline := time.Now().Add(10 * time.Second)
+	for len(asked.Added) == 0 {
+		if time.Now().After(deadline) {
+			t.Fatal("the approval was never asked for")
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if len(asked.Added) != 2 || asked.Name != "NPM Tool" {
+		t.Fatalf("approval = %+v", asked)
+	}
+	time.Sleep(200 * time.Millisecond) // let the declined install finish
+	if inventory := a.Integrations.Inventory(); len(inventory.Integrations) != 0 {
+		t.Fatalf("a declined install landed: %+v", inventory.Integrations)
+	}
+
+	// Approving installs it, with the approval recorded.
+	answer = true
+	a.Settings.Actions.InstallFromRegistry(name, "1.0.0")
+	for {
+		if integration, ok := a.Integrations.Inventory().WithID("dev.floter.npm"); ok && integration.Entry.ApprovedAt != 0 {
+			if len(integration.Entry.ApprovedPermissions) != 2 {
+				t.Errorf("approved permissions = %v", integration.Entry.ApprovedPermissions)
+			}
+			if integration.Entry.ApprovedManifestDigest == nil {
+				t.Error("the approval is not bound to a manifest digest")
+			}
+			break
+		}
+		if time.Now().After(deadline.Add(20 * time.Second)) {
+			t.Fatalf("the approved install did not land: %+v", a.Integrations.Inventory().Integrations)
+		}
+		time.Sleep(20 * time.Millisecond)
 	}
 }

@@ -11,6 +11,7 @@ package shell
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log"
 	"math"
 	"os"
@@ -110,6 +111,9 @@ type Options struct {
 	// Registry is the npm registry the install action uses; nil means the
 	// shipped one, and tests point it at a fixture server.
 	Registry *extensions.Registry
+	// ConfirmPermissions approves an install's permissions; nil means the
+	// native dialog, and tests answer for themselves.
+	ConfirmPermissions func(extensions.PermissionApproval) bool
 }
 
 // App is the running application.
@@ -132,6 +136,9 @@ type App struct {
 
 	// Registry is the npm registry the install action reads.
 	Registry *extensions.Registry
+	// confirmPermissions approves an install's permissions, nil for the
+	// native dialog.
+	confirmPermissions func(extensions.PermissionApproval) bool
 
 	// Clipboard is the clipboard history the launcher searches.
 	Clipboard *clipboard.Store
@@ -214,6 +221,7 @@ func New(opts Options) *App {
 		setOpenAtLogin:      opts.SetOpenAtLogin,
 		clipboardInterval:   clipboardPoll,
 		Registry:            opts.Registry,
+		confirmPermissions:  opts.ConfirmPermissions,
 		appIcon:             storedAppIcon(opts.Store.Snapshot()),
 		lastAppIcon:         storedAppIcon(opts.Store.Snapshot()),
 	}
@@ -249,8 +257,21 @@ func New(opts Options) *App {
 		CloseSession: func() { a.Terminal.Close() },
 		InstallFromRegistry: func(name, constraint string) {
 			go func() {
-				entry, err := extensions.InstallFromRegistry(context.Background(), a.Paths, a.Registry, name, constraint)
+				prepared, err := extensions.PrepareRegistry(context.Background(), a.Paths, a.Registry, name, constraint)
 				if err != nil {
+					log.Printf("floter: could not install %s: %v", name, err)
+					return
+				}
+				approved := true
+				if prepared.Approval.NeedsApproval() {
+					approved = a.confirmInstallPermissions(prepared.Approval)
+				}
+				entry, err := prepared.Commit(approved)
+				if err != nil {
+					if errors.Is(err, extensions.ErrPermissionApprovalRequired) {
+						log.Printf("floter: %s was not approved, so it was not installed", prepared.Name())
+						return
+					}
 					log.Printf("floter: could not install %s: %v", name, err)
 					return
 				}
@@ -465,8 +486,20 @@ func (a *App) integrationList() []settingsui.Integration {
 			Running:     integration.Running(),
 			Broken:      integration.Broken(),
 		}
+		for _, permission := range integration.Manifest.Permissions {
+			if !knownPermission(permission) {
+				continue
+			}
+			item.Permissions = append(item.Permissions, permission)
+		}
 		if err := a.Integrations.DescribeError(integration.Entry.ID); err != nil {
 			item.Error = err.Error()
+		}
+		if len(item.Permissions) > 0 {
+			item.Enforced = map[string]bool{}
+			for _, permission := range item.Permissions {
+				item.Enforced[permission] = extensions.PermissionEnforced(permission)
+			}
 		}
 		out = append(out, item)
 	}
@@ -474,6 +507,27 @@ func (a *App) integrationList() []settingsui.Integration {
 		out = append(out, settingsui.Integration{ID: id, Name: id, Orphan: true})
 	}
 	return out
+}
+
+// confirmInstallPermissions asks the user about an install's permissions,
+// through the injected answer or the native dialog.
+func (a *App) confirmInstallPermissions(approval extensions.PermissionApproval) bool {
+	if a.confirmPermissions != nil {
+		return a.confirmPermissions(approval)
+	}
+	language := a.Store.Snapshot().Language
+	copy := i18n.For(language)
+	return permissionDialog(approval, copy.Settings, language)
+}
+
+// knownPermission is the schema's permission ids, for the settings list.
+func knownPermission(permission string) bool {
+	for _, candidate := range extensions.AllPermissions {
+		if candidate == permission {
+			return true
+		}
+	}
+	return false
 }
 
 // runCommand runs an extension's command in the terminal surface, as the old

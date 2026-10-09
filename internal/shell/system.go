@@ -11,6 +11,7 @@ import (
 	"github.com/egoist/mygo"
 
 	"floter/internal/clipboard"
+	"floter/internal/extensions"
 	"floter/internal/i18n"
 	"floter/internal/settings"
 )
@@ -215,6 +216,29 @@ func (a *App) ApplyStartup() {
 	if err := a.setOpenAtLogin(want); err != nil {
 		log.Printf("floter: could not set the login item: %v", err)
 	}
+}
+
+// permissionDialog asks the user to approve an install's permissions. It is
+// a value so a test can answer without a native dialog, and a goroutine
+// caller (the dialog blocks).
+func permissionDialog(approval extensions.PermissionApproval, copy i18n.Settings, language string) bool {
+	var lines []string
+	for _, permission := range approval.Added {
+		line := "\u2022 " + i18n.PermissionLabel(language, permission)
+		if extensions.PermissionEnforced(permission) {
+			line += " \u2014 " + copy.PermissionsEnforced
+		} else {
+			line += " \u2014 " + copy.PermissionsDeclared
+		}
+		lines = append(lines, line)
+	}
+	result, err := mygo.Dialog.Message(mygo.MessageOptions{
+		Type:    mygo.MessageQuestion,
+		Message: copy.PermissionsTitle(approval.Name),
+		Detail:  strings.Join(lines, "\n"),
+		Buttons: []string{copy.PermissionsAllow, copy.PermissionsCancel},
+	})
+	return err == nil && result.Button == 0
 }
 
 // menuActions are what the application menu's own items do.

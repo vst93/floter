@@ -317,3 +317,66 @@ func TestInstallLocalWithASystemRuntime(t *testing.T) {
 		t.Errorf("provider = %+v", description.Provider)
 	}
 }
+
+func TestPermissionsGateTheInstall(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the fixture's runtime is a shell script")
+	}
+	paths := FromRoot(t.TempDir())
+	dir := t.TempDir()
+	pkg := filepath.Join(dir, "dev.floter.gated")
+	writeFile(t, filepath.Join(pkg, manifestFileName), `{
+  "schemaVersion": "2.0", "id": "dev.floter.gated", "name": "Gated",
+  "runtime": {"type": "script", "language": "shell", "path": "tool.sh"},
+  "provider": {"type": "static-descriptor", "descriptor": "description.json", "argsPrefix": []},
+  "permissions": ["environment", "network-fetch", "not-a-permission"]
+}`)
+	writeFile(t, filepath.Join(pkg, "tool.sh"), "#!/bin/sh\n")
+	os.Chmod(filepath.Join(pkg, "tool.sh"), 0o755)
+	writeFile(t, filepath.Join(pkg, "description.json"), `{"protocolVersion":"1.0","provider":{"id":"dev.floter.gated","name":"Gated","version":"1.0.0"},"commands":[]}`)
+
+	prepared, err := PrepareLocal(paths, pkg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// An unknown permission id is dropped; the rest are in the schema's
+	// order, and the enforced ones are marked as such.
+	// The list is in the schema's order, unknown ids dropped.
+	if got := prepared.Approval.Added; len(got) != 2 || got[0] != PermissionNetworkFetch || got[1] != PermissionEnvironment {
+		t.Errorf("added = %v", got)
+	}
+	if prepared.Approval.Declared[0] != PermissionNetworkFetch || prepared.Approval.Declared[1] != PermissionEnvironment {
+		t.Errorf("declared = %v", prepared.Approval.Declared)
+	}
+	if !PermissionEnforced(PermissionEnvironment) || !PermissionEnforced(PermissionProcessSpawn) {
+		t.Error("the host does not decide environment and process-spawn")
+	}
+	if PermissionEnforced(PermissionNetworkFetch) || PermissionEnforced(PermissionClipboardRead) {
+		t.Error("a disclosed permission is marked enforced")
+	}
+
+	// Without approval nothing lands; with it, the record keeps the set.
+	if _, err := prepared.Commit(false); !errors.Is(err, ErrPermissionApprovalRequired) {
+		t.Fatalf("unapproved = %v", err)
+	}
+	entry, err := prepared.Commit(true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entry.ApprovedPermissions) != 2 || entry.ApprovedManifestDigest == nil {
+		t.Errorf("entry = %+v", entry)
+	}
+
+	// Re-installing the same manifest needs no new approval...
+	same := Integration{Entry: entry, Paths: paths}
+	if before := RequiresApproval(&same.Entry, prepared.Manifest, *entry.ApprovedManifestDigest); before.NeedsApproval() {
+		t.Errorf("an unchanged manifest asked again: %+v", before)
+	}
+	// ...and one with an added permission does.
+	wider := prepared.Manifest
+	wider.Permissions = append(append([]string{}, wider.Permissions...), PermissionClipboardRead)
+	after := RequiresApproval(&same.Entry, wider, *entry.ApprovedManifestDigest)
+	if !after.NeedsApproval() || len(after.Added) != 1 || after.Added[0] != PermissionClipboardRead {
+		t.Errorf("an added permission was not asked about: %+v", after)
+	}
+}

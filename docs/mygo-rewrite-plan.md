@@ -189,6 +189,16 @@
 - **接线**：设置页 Integrations 顶部新增「npm 包名 + 版本（可空）+ 安装」一行；shell 后台安装并刷新（`Options.Registry` 可注入，测试指向 httptest）。
 - 门槛：semver/SRI/解包（含逃逸与链接）/选择版本/registry httptest 端到端安装与拒绝用例，以及「设置按钮 → shell → registry → 入库 → 列表」全链路测试；共 153 项测试；另有 opt-in 真 registry 测试（拉真实 is-number：元数据→选择→下载→**真 SRI 校验**→解包），并确认文档示例包 `@vst93/floter-v` **尚未发布**（404）。
 
+### P3-f 权限审批（已做）
+
+- 权限模型对齐 FEP-5/manifest.rs：七个 id、schema 顺序、未知 id 丢弃；**两条 host 自己决策**（`environment`、`process-spawn`）标 enforced，其余是 disclosed（不是沙箱，这一点如实展示）。
+- `RequiresApproval(previous, manifest, digest)`：批准绑定**清单字节的 sha256**；清单变了（新增权限或内容变化）要重新批准，未变则沿用旧批准。
+- `Prepare* / Commit` 两阶段安装：`PrepareLocal`/`PrepareRegistry` 完成下载与校验并给出「需要批准什么」，`Commit(approved)` 才真正 graft；未批准时返回 `ErrPermissionApprovalRequired` 且**什么都不落盘**（下载目录也清掉）。`InstallLocal`/`InstallFromRegistry` 是「无待批权限时才成功」的便捷封装。
+- 记录写入 `approvedPermissions` / `approvedAt` / `approvedManifestDigest`（旧字段，写回时本来就会被保留）。
+- shell：npm 安装走 prepare → 需要时弹原生对话框（逐条列出权限并标注 enforced/disclosed）→ commit；`ConfirmPermissions` 可注入，测试两个分支（拒绝 → 不落地；同意 → 落地且记录批准）。
+- 设置页集成行新增权限行（本地化名称 + enforced 标注）。
+- 门槛：权限模型与审批规则单测、需要批准/拒绝/同意的安装流程测试、设置页展示测试；共 160 项测试。
+
 ### P3 还未做
 
 - 安装/更新/卸载（graft、事务、journal、回滚）、导入导出、npm 下载与校验。

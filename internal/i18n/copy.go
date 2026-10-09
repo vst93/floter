@@ -29,6 +29,14 @@ var en = Copy{
 		Title: "Settings",
 		Close: "Close settings",
 
+		// The install approval dialog, and the permissions line in
+		// the integrations list.
+		PermissionsTitle:    permissionsTitleEN,
+		PermissionsAllow:    "Allow",
+		PermissionsCancel:   "Cancel",
+		PermissionsEnforced: "Floter enforces",
+		PermissionsDeclared: "Declared, not blocked",
+
 		PageGeneral:      "General",
 		PageSessions:     "Sessions",
 		PageShortcuts:    "Shortcuts",
@@ -191,6 +199,12 @@ var zh = Copy{
 		Title: "设置",
 		Close: "关闭设置",
 
+		PermissionsTitle:    permissionsTitleZH,
+		PermissionsAllow:    "允许",
+		PermissionsCancel:   "取消",
+		PermissionsEnforced: "Floter 强制拦截",
+		PermissionsDeclared: "仅声明，不拦截",
+
 		PageGeneral:      "常规",
 		PageSessions:     "会话",
 		PageShortcuts:    "快捷键",
@@ -347,3 +361,6 @@ func itoa32(n uint32) string {
 	}
 	return string(digits[i:])
 }
+
+func permissionsTitleEN(name string) string { return "Allow " + name + " to run?" }
+func permissionsTitleZH(name string) string { return "允许 " + name + " 运行？" }

@@ -147,6 +147,14 @@ type Settings struct {
 	SessionsClose   string
 	SessionsActive  string
 
+	// The permission dialog the installer shows, and the permission line
+	// the integrations list draws.
+	PermissionsTitle    func(name string) string
+	PermissionsAllow    string
+	PermissionsCancel   string
+	PermissionsEnforced string
+	PermissionsDeclared string
+
 	// The Integrations page.
 	IntegrationsEmpty        string
 	IntegrationsEnable       string

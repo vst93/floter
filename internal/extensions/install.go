@@ -1,6 +1,7 @@
 package extensions
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -25,13 +26,29 @@ type installSpec struct {
 	PackageName string
 	Version     string
 	Integrity   string
+	// Approved says the user approved the manifest's permissions for this
+	// exact manifest.
+	Approved bool
 }
 
-// InstallLocal installs (or updates) an integration from a package
-// directory: the distribution type every "connect a tool" flow uses, where
-// the package is already on the machine. A package.json that names a floter
-// manifest is respected, and its version is the integration's.
-func InstallLocal(paths Paths, packageDir string) (Entry, error) {
+// Prepared is an install that has been staged but not committed: the
+// package is ready, and the caller can show the user what it declares before
+// anything is grafted into place.
+type Prepared struct {
+	paths   Paths
+	spec    installSpec
+	cleanup func()
+	// Manifest is the package's manifest.
+	Manifest Manifest
+	// Approval is what the user must approve (its Added list is empty when
+	// nothing is needed).
+	Approval PermissionApproval
+	// Digest is the manifest digest the approval would be bound to.
+	Digest string
+}
+
+// PrepareLocal stages a package directory for install.
+func PrepareLocal(paths Paths, packageDir string) (Prepared, error) {
 	spec := installSpec{
 		PackageDir:   packageDir,
 		ManifestPath: filepath.Join(packageDir, manifestFileName),
@@ -42,7 +59,129 @@ func InstallLocal(paths Paths, packageDir string) (Entry, error) {
 		spec.PackageName = pkg.Name
 		spec.Version = pkg.Version
 	}
-	return install(paths, spec)
+	return prepare(paths, spec, nil)
+}
+
+// PrepareRegistry downloads a package and stages it for install.
+func PrepareRegistry(ctx context.Context, paths Paths, registry *Registry, name, constraint string) (Prepared, error) {
+	if registry == nil {
+		registry = NewRegistry()
+	}
+	packument, err := registry.Packument(ctx, name)
+	if err != nil {
+		return Prepared{}, err
+	}
+	info, err := packument.Resolve(constraint)
+	if err != nil {
+		return Prepared{}, err
+	}
+	data, err := registry.Download(ctx, info)
+	if err != nil {
+		return Prepared{}, err
+	}
+	if err := paths.Ensure(); err != nil {
+		return Prepared{}, err
+	}
+	download, err := os.MkdirTemp(paths.Root, ".download-*")
+	if err != nil {
+		return Prepared{}, err
+	}
+	cleanup := func() { os.RemoveAll(download) }
+	if err := ExtractTarball(data, download); err != nil {
+		cleanup()
+		return Prepared{}, err
+	}
+	pkg, manifestPath, err := LoadPackageManifest(download)
+	if err != nil {
+		cleanup()
+		return Prepared{}, err
+	}
+	spec := installSpec{
+		PackageDir:   download,
+		ManifestPath: manifestPath,
+		Distribution: "npm",
+		PackageName:  name,
+		Version:      pkg.Version,
+		Integrity:    info.Dist.Integrity,
+	}
+	return prepare(paths, spec, cleanup)
+}
+
+// prepare loads and validates a staged package and works out what the user
+// must approve.
+func prepare(paths Paths, spec installSpec, cleanup func()) (Prepared, error) {
+	manifest, err := LoadManifest(spec.ManifestPath)
+	if err != nil {
+		if cleanup != nil {
+			cleanup()
+		}
+		return Prepared{}, err
+	}
+	if err := validID(manifest.ID); err != nil {
+		if cleanup != nil {
+			cleanup()
+		}
+		return Prepared{}, err
+	}
+	digest, err := ManifestDigest(spec.ManifestPath)
+	if err != nil {
+		if cleanup != nil {
+			cleanup()
+		}
+		return Prepared{}, err
+	}
+	repo, err := LoadRepository(paths.RepositoryFile)
+	if err != nil {
+		if cleanup != nil {
+			cleanup()
+		}
+		return Prepared{}, err
+	}
+	var previous *Entry
+	if entry, ok := repo.Extensions[manifest.ID]; ok {
+		previous = &entry
+	}
+	return Prepared{
+		paths:    paths,
+		spec:     spec,
+		cleanup:  cleanup,
+		Manifest: manifest,
+		Approval: RequiresApproval(previous, manifest, digest),
+		Digest:   digest,
+	}, nil
+}
+
+// Name and Version describe the prepared package.
+func (p Prepared) Name() string    { return p.Manifest.Name }
+func (p Prepared) Version() string { return p.spec.Version }
+
+// Commit installs the prepared package. approved says whether the user
+// approved the permissions RequiresApproval asked about; without it, a
+// package that declares permissions is refused.
+func (p Prepared) Commit(approved bool) (Entry, error) {
+	if p.cleanup != nil {
+		defer p.cleanup()
+	}
+	spec := p.spec
+	spec.Approved = approved
+	return install(p.paths, spec)
+}
+
+// InstallLocal installs (or updates) an integration from a package
+// directory: the distribution type every "connect a tool" flow uses, where
+// the package is already on the machine. A package.json that names a floter
+// manifest is respected, and its version is the integration's.
+//
+// It is PrepareLocal and Commit in one call, for a caller that has already
+// approved what the package declares: a package that needs approval is
+// refused with ErrPermissionApprovalRequired, and the caller shows the user
+// what RequiresApproval listed.
+func InstallLocal(paths Paths, packageDir string) (Entry, error) {
+	prepared, err := PrepareLocal(paths, packageDir)
+	if err != nil {
+		return Entry{}, err
+	}
+	return prepared.Commit(!prepared.Approval.NeedsApproval())
 }
 
 // install grafts a package into the extension directory: it stages the
@@ -69,6 +208,10 @@ func install(paths Paths, spec installSpec) (Entry, error) {
 	if err := paths.Ensure(); err != nil {
 		return Entry{}, err
 	}
+	digest, err := ManifestDigest(spec.ManifestPath)
+	if err != nil {
+		return Entry{}, err
+	}
 
 	// Resolve the runtime before touching the disk: a package whose program
 	// cannot be found must not replace a working install.
@@ -83,6 +226,17 @@ func install(paths Paths, spec installSpec) (Entry, error) {
 		return Entry{}, err
 	}
 	previous, existed := repo.Extensions[manifest.ID]
+
+	// A package that declares permissions is installed only with an
+	// approval bound to this manifest's bytes.
+	var existing *Entry
+	if existed {
+		existing = &previous
+	}
+	approval := RequiresApproval(existing, manifest, digest)
+	if approval.NeedsApproval() && !spec.Approved {
+		return Entry{}, fmt.Errorf("%w: %s declares %s", ErrPermissionApprovalRequired, manifest.Name, strings.Join(approval.Added, ", "))
+	}
 
 	target := filepath.Join(paths.Extensions, manifest.ID)
 	staging, err := os.MkdirTemp(paths.Extensions, ".staging-"+manifest.ID+"-")
@@ -113,6 +267,11 @@ func install(paths Paths, spec installSpec) (Entry, error) {
 	}
 
 	entry := buildEntry(manifest, target, binding, spec, previous, existed)
+	if len(manifest.Permissions) > 0 {
+		entry.ApprovedPermissions = filterKnownPermissions(manifest.Permissions)
+		entry.ApprovedAt = uint64(time.Now().Unix())
+		entry.ApprovedManifestDigest = optionalString(digest)
+	}
 	repo.Extensions[manifest.ID] = entry
 	if err := SaveRepository(paths.RepositoryFile, repo); err != nil {
 		// Put the previous install back: the repository is the source of
