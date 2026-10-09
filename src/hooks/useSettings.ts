@@ -50,7 +50,7 @@ import {
 import { DEFAULT_SHORTCUTS, withShortcutDefaults } from "../shortcuts";
 import { normalizeLanguage, type Language } from "../i18n";
 import type { AppSettings } from "../App";
-import { normalizeGlassStep, clampWindowOpacity, glassIntensitySettings, type GlassIntensity } from "../glass-material";
+import { normalizeGlassStep, clampWindowOpacity, glassIntensitySettings, type GlassSelection } from "../glass-material";
 import { DEFAULT_RESIDENCY_SECONDS, normalizeResidencySeconds } from "../surface-residency";
 import { withCommandAlias } from "../command-aliases";
 import { normalizeCalculatorSettings } from "../calculator";
@@ -420,10 +420,11 @@ export function useSettings(options: {
    * the stops on the tint axis (writing both opacities); the user rejected
    * that, so the stop and the transparency sliders are decoupled again. A stop
    * is a discrete choice, so it persists immediately like `changeGeneralSetting`
-   * rather than through the slider debounce.
+   * rather than through the slider debounce. R162 adds `off` as the control's
+   * fourth position; it writes the same one field.
    */
   const changeGlassIntensity = useCallback(
-    (level: GlassIntensity) => {
+    (level: GlassSelection) => {
       const next = glassIntensitySettings(level);
       const current = settingsRef.current;
       if (next.glass_step === current.glass_step) return;

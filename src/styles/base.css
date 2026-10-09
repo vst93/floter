@@ -757,7 +757,7 @@
 }
 
 /* ── Glass effect steps (R8; re-axised by GLASS-REAXIS; three-stop by
-   GLASS-3STOP) ────────────────────────────────────────────────────────────
+   GLASS-3STOP; a fourth `off` position by R162) ──────────────────────────
    Three effect stops, as token overrides selected by one attribute on <html>.
    The stop is the *liquid-glass effect*: blur (how much the desktop behind is
    refracted), saturation (how much the glass colour-grades it), the control
@@ -771,7 +771,8 @@
    Liquid Glass resting balance (22px, 170%). `liquid` is the heaviest
    refraction this app draws: the 28px blur budget, the full 200% saturation
    and the strongest control lens — the old `jelly` material, promoted to the
-   top stop.
+   top stop. `off` (R162) is not a stop but the control's first position: it
+   neutralises every effect token so the shells render a plain face.
 
    Every other material token derives from these — see the `:root` block — so
    a step switch is a token swap and nothing in any surface file mentions a
@@ -795,6 +796,65 @@
   --glass-step-saturate: 200%;
   --glass-step-dim: 0.2;
   --glass-lens-scale: 1.6;
+}
+
+/* R162 · `off`: the fourth position, and the one this round exists for.
+
+   The user's macOS report is scroll jank (「仍然非常卡，设置页/列表滚动掉帧」),
+   and the cost is the nine `backdrop-filter` shells re-sampling the window on
+   every scrolled frame. Neither OS lever can reach it: `prefers-reduced-motion`
+   only shortens durations, and `prefers-reduced-transparency` has never shipped
+   in WebKit (R104/R161 verified this twice, and R104 deleted the tombstone
+   block rather than re-plant one). So the switch is the app's own.
+
+   Every effect token goes to its neutral value: no blur, no saturation lift,
+   no control lens and no haze. The haze is 0 for the reason the
+   `prefers-contrast: more` override already documents — the veil is what
+   stands in for a *thin* panel's readability, and off mode's panels are not
+   thin: the three shells below take `--surface-opaque`, so a veil on top of
+   them would be exactly the "mud" `--glass-tint-alpha` warns about. What is
+   left painting is the frame's own alpha, which stays the transparency
+   sliders' job on every step.
+
+   The `[data-glass]` block only swaps tokens; the filter itself is removed in
+   the rule below, because `blur(0px)` still costs a composited layer per
+   shell and the round is about the compositing, not about the radius. */
+[data-glass="off"] {
+  --glass-step-blur: 0px;
+  --glass-step-saturate: 100%;
+  --glass-step-dim: 0;
+  --glass-lens-scale: 0;
+}
+
+/* The shells. A token swap alone cannot turn a filter off — `--glass-blur` is
+   consumed by `blur(...)` in three surface sheets — so the three frame shells
+   drop the filter here and take the near-solid stand-in instead. Two things
+   about the selector shape are deliberate:
+
+     · it is written from `base.css` as `[data-glass="off"] .shell` rather than
+       in each surface sheet, because at 0-2-0 it outranks those sheets' own
+       0-1-0 rules regardless of import order (a `[data-glass]` block in
+       `launcher.css` would have had to win on source order alone);
+     · it names the shells, not every filtered surface. `off` is the scrolling
+       shells' switch; the sheets that float over them keep the material model
+       (their fill is still `--glass-tint`, i.e. the transparency sliders).
+
+   `--surface-opaque` is the token the reduced-transparency fallback already
+   uses for "the surface stops being see-through", so the palette and the light
+   theme follow it with no colour of their own here. The terminal shell reads
+   the aliased `--glass-blur-terminal`, which resolves to the same
+   `--glass-step-blur: 0px` above; its filter is dropped for the same reason as
+   the other two (and `App.tsx` re-reads the token through
+   `renderer.updateTheme()` on a step change, so the canvas needs no edit). */
+[data-glass="off"] .collapsed-card,
+[data-glass="off"] .settings-card,
+[data-glass="off"] .terminal-panel {
+  /* Both spellings: WebKit treats the prefixed property as its own, so `none`
+     has to be said twice or a WebKitGTK port would keep blurring while this
+     sheet claims it does not. */
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background: var(--surface-opaque);
 }
 
 [data-theme="light"] {

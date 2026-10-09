@@ -41,6 +41,7 @@ import {
   glassIntensityOf,
   glassIntensitySettings,
   type GlassIntensity,
+  type GlassSelection,
   type GlassStep,
 } from "../src/glass-material.ts";
 
@@ -227,12 +228,15 @@ test("the stops are monotonic: blur, saturation and lens never fall", async () =
 
 // ── C. the reverse lookup over the whole space ─────────────────────────────
 
-test("every stored step lands on exactly one stop, whatever the transparency", () => {
+test("every stored step lands on exactly one position, whatever the transparency", () => {
   // The reverse lookup is *opacity-independent*: the stop is the effect axis,
   // so no transparency value can move it. Sweep every step × every integer
   // percentage the Rust u8 fields can hold (0-100) and assert the answer is
   // constant per step — this is the mutation lock for "滑杆改档位显示 → 红".
-  const expected: Record<GlassStep, GlassIntensity> = {
+  // R162: the answer set is the control's four positions, so `off` maps to the
+  // off position rather than to the thinnest effect stop.
+  const expected: Record<GlassStep, GlassSelection> = {
+    off: "off",
     frosted: 1,
     regular: 2,
     liquid: 3,
@@ -244,16 +248,16 @@ test("every stored step lands on exactly one stop, whatever the transparency", (
       assert.equal(
         level,
         expected[step],
-        `${step}@${percent}% resolved to stop ${level}, not ${expected[step]} — the lookup must ignore opacity`,
+        `${step}@${percent}% resolved to position ${level}, not ${expected[step]} — the lookup must ignore opacity`,
       );
       cells += 1;
     }
   }
-  assert.equal(cells, 3 * 101, "the sweep must cover every step × percentage");
-  // Every stop is reachable from some stored step, or a segment would be dead.
-  const reached = new Set<GlassIntensity>();
+  assert.equal(cells, 4 * 101, "the sweep must cover every step × percentage");
+  // Every position is reachable from some stored step, or a segment would be dead.
+  const reached = new Set<GlassSelection>();
   for (const step of GLASS_STEPS) reached.add(glassIntensityOf(step, 0.5));
-  assert.deepEqual([...reached].sort(), [1, 2, 3], "all three stops must be reachable");
+  assert.deepEqual([...reached].sort(), [1, 2, 3, "off"], "all four positions must be reachable");
   // A garbage step rests on the balanced stop, the same rule the Rust loader
   // uses; the lookup must not throw.
   assert.equal(glassIntensityOf("ultra" as GlassStep), 2, "an unknown step rests on stop 2");
@@ -352,12 +356,15 @@ test("switching the step never moves the frame alpha", async () => {
   const frames = GLASS_STEPS.map(() => frameAlpha(0.47, floor, solidTop));
   assert.equal(new Set(frames).size, 1, "the step must not change the frame alpha");
   // …while the step's haze *does* move the painted tint: that is the
-  // readability compensation for the thin frosted end.
-  const hazes = GLASS_STEPS.map((step) => number(stepBlock(css, step), "glass-step-dim"));
+  // readability compensation for the thin frosted end. R162's `off` sits
+  // outside this ladder — it carries no haze, because its panels are painted
+  // opaque — so the sweep runs over the three effect stops.
+  const effectSteps = GLASS_STEPS.filter((step) => step !== "off");
+  const hazes = effectSteps.map((step) => number(stepBlock(css, step), "glass-step-dim"));
   assert.ok(hazes[0] > hazes[1] && hazes[1] >= hazes[2], "the frosted end carries the most haze");
   const tintAlpha = (haze: number, t: number, frame: number) =>
     1 - (1 - haze * (1 - t)) * (1 - frame);
-  const painted = GLASS_STEPS.map((step) => tintAlpha(number(stepBlock(css, step), "glass-step-dim"), 0.1, frameAlpha(0.1, floor, solidTop)));
+  const painted = effectSteps.map((step) => tintAlpha(number(stepBlock(css, step), "glass-step-dim"), 0.1, frameAlpha(0.1, floor, solidTop)));
   assert.ok(
     painted[0] > painted[2],
     `at 10% the frosted haze must make its panel denser than liquid's; got ${painted[0].toFixed(3)} vs ${painted[2].toFixed(3)}`,
@@ -574,8 +581,15 @@ test("the lens family exists, is stop-driven, and ascends with the stop", async 
     assert.match(layer, /^inset/, `every lens layer must be inset, got "${layer}"`);
   }
   // No backdrop-filter or filter in the lens definition — the performance red
-  // line: the lens is drawn, never filtered.
-  const lensSlice = rootBlockText.slice(rootBlockText.indexOf("--glass-lens-rim-base"));
+  // line: the lens is drawn, never filtered. The slice is bounded by the next
+  // `:root` token after the lens family (`--glass-raised-shadow`), because
+  // R162's `[data-glass="off"]` block sits later in the sheet and legitimately
+  // does carry `backdrop-filter: none`.
+  const lensSlice = rootBlockText.slice(
+    rootBlockText.indexOf("--glass-lens-rim-base"),
+    rootBlockText.indexOf("--glass-raised-shadow"),
+  );
+  assert.ok(lensSlice.length > 0, "the lens family slice must not be empty");
   assert.ok(!/backdrop-filter|filter:/.test(lensSlice), "the lens family must carry no filter");
 
   // The stop's scale ascends in the shipped blocks, which is what makes the

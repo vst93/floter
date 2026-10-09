@@ -10,7 +10,7 @@ import {
   GLASS_INTENSITY,
   clampWindowOpacity,
   glassIntensityOf,
-  type GlassIntensity,
+  type GlassSelection,
 } from "../glass-material";
 import {
   RESIDENCY_CUSTOM_MAX_SECONDS,
@@ -61,16 +61,21 @@ const UI_SCALE_OPTIONS: { value: UiScale; labelKey: MessageKey }[] = UI_SCALE_ST
   (value) => ({ value, labelKey: `settings.uiScale.${value}` as MessageKey }),
 );
 
-/** The three glass-effect stops (GLASS-3STOP). The label names the *effect*,
- *  not a tint: Frosted → Liquid → Liquid Max. One control drives the
- *  liquid-glass effect (blur / saturation / control-lens quality); the two
- *  transparency sliders below are the app's own background opacity and stay
- *  independent of it. Each stop's `(blur, saturate, lens)` triple lives in
- *  `glass-material.ts`; `settings.glassIntensity.*` carries the labels. */
-const GLASS_INTENSITY_OPTIONS = GLASS_INTENSITIES.map((value) => ({
-  value,
-  labelKey: GLASS_INTENSITY[value].label as MessageKey,
-}));
+/** The glass-effect control's four positions (GLASS-3STOP's three effect stops
+ *  plus R162's `off`). The label names the *effect*, not a tint: Off → Frosted
+ *  → Liquid → Liquid Max. One control drives the liquid-glass effect (blur /
+ *  saturation / control-lens quality); the two transparency sliders below are
+ *  the app's own background opacity and stay independent of it. Each stop's
+ *  `(blur, saturate, lens)` triple lives in `glass-material.ts`;
+ *  `settings.glassIntensity.*` carries the labels. `off` leads because it is
+ *  the thinnest position — the same order `GLASS_STEPS` declares. */
+const GLASS_INTENSITY_OPTIONS: { value: GlassSelection; labelKey: MessageKey }[] = [
+  { value: "off", labelKey: "settings.glassIntensity.off" },
+  ...GLASS_INTENSITIES.map((value) => ({
+    value,
+    labelKey: GLASS_INTENSITY[value].label as MessageKey,
+  })),
+];
 
 const MIN_OPACITY = 10;
 const MAX_OPACITY = 100;
@@ -138,7 +143,7 @@ type GeneralPageProps = {
   onChangeLineHeight: (value: number) => void;
   onChangeUiScale: (step: UiScale) => void;
   onChangeOpacity: (target: "main" | "terminal", value: number) => void;
-  onChangeGlassIntensity: (level: GlassIntensity) => void;
+  onChangeGlassIntensity: (level: GlassSelection) => void;
 };
 
 /** R41 · the page-residency control. The R35 select offered six fixed steps;
@@ -246,19 +251,20 @@ function SurfaceResidencyControl({
   );
 }
 
-/** The single glass-effect control: three segments in the shared track, the
+/** The single glass-effect control: four segments in the shared track, the
  *  same selection language the theme/cursor pickers use (accent tint, lit top
- *  rim, accent edge). The chosen stop is derived from the stored `glass_step`
- *  by `glassIntensityOf`, which ignores the transparency values — the two axes
- *  are independent, so nudging a slider never moves the highlighted stop. */
+ *  rim, accent edge). The chosen position is derived from the stored
+ *  `glass_step` by `glassIntensityOf`, which ignores the transparency values —
+ *  the two axes are independent, so nudging a slider never moves the
+ *  highlighted segment. */
 function GlassIntensityControl({
   t,
   value,
   onChange,
 }: {
   t: Translate;
-  value: GlassIntensity;
-  onChange: (level: GlassIntensity) => void;
+  value: GlassSelection;
+  onChange: (level: GlassSelection) => void;
 }) {
   return (
     <div className="glass-intensity">

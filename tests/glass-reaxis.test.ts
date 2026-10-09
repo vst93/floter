@@ -212,12 +212,17 @@ test("a GLASS-UNIFY (step, tint) pair loses no information", async () => {
   assert.equal(GLASS_INTENSITY[3].step, "liquid", "the top stop is the liquid material");
 });
 
-test("the stop value domain is three ids in both the stylesheet and the loader", async () => {
+test("the effect-stop value domain is three ids in both the stylesheet and the loader", async () => {
   const { GLASS_STEPS } = await import("../src/glass-material.ts");
-  assert.deepEqual([...GLASS_STEPS], ["frosted", "regular", "liquid"]);
+  // R162 put `off` at the front of the frontend's list as the control's
+  // thinnest *position*; the three effect *stops* are that list minus it, and
+  // they are what the loader's own vocabulary is about. The sweep below is
+  // therefore scoped to the stops rather than to the whole list.
+  assert.deepEqual([...GLASS_STEPS], ["off", "frosted", "regular", "liquid"]);
+  const effectStops = GLASS_STEPS.filter((step) => step !== "off");
   // The Rust loader accepts all three (and migrates the old five).
   const rust = await read("src-tauri/src/commands/config.rs");
-  for (const step of GLASS_STEPS) {
+  for (const step of effectStops) {
     assert.ok(rust.includes(`"${step}"`), `Rust must know the ${step} step`);
   }
   // R96 · the plugin-page bridge that used to be the third side of this
@@ -227,7 +232,7 @@ test("the stop value domain is three ids in both the stylesheet and the loader",
     await read("src/builtin-plugins.ts"),
     await read("src/failure-deduper.ts"),
   ].join("\n");
-  for (const step of GLASS_STEPS) {
+  for (const step of effectStops) {
     assert.ok(
       !pluginPages.includes(`"${step}"`),
       `the deleted bridge must not name the ${step} step again`,

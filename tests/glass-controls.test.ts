@@ -505,9 +505,9 @@ test("the content layer never collapses into the standard-material band", async 
 // future work for the published protocol.
 test("the step reaches every surface but is never branched on in a surface file", async () => {
   const base = stripComments(await read("src/styles/base.css"));
-  // Exactly three blocks, one per effect step.
+  // Exactly four blocks: one per effect step, plus R162's `off`.
   const declared = [...base.matchAll(/\[data-glass="(\w+)"\]/g)].map((m) => m[1]);
-  assert.deepEqual([...new Set(declared)].sort(), ["frosted", "liquid", "regular"]);
+  assert.deepEqual([...new Set(declared)].sort(), ["frosted", "liquid", "off", "regular"]);
 
   // The material aliases are what every surface consumes; none of them may be
   // a literal, or a step switch would silently miss that surface.
@@ -535,11 +535,12 @@ test("the step reaches every surface but is never branched on in a surface file"
 });
 
 test("the two controls survive a round trip through the settings shape", async () => {
-  // The data model: the step is a discrete 3-valued string, the transparency
-  // values are percentages, and neither is derived from the other. This is the
-  // contract the Rust side and the frontend have to agree on.
+  // The data model: the step is a discrete string drawn from the shipped id
+  // list, the transparency values are percentages, and neither is derived from
+  // the other. This is the contract the Rust side and the frontend have to
+  // agree on. R162 added `off` as the list's first (thinnest) id.
   const { normalizeGlassStep, GLASS_STEPS } = await import("../src/glass-material.ts");
-  assert.deepEqual([...GLASS_STEPS], ["frosted", "regular", "liquid"]);
+  assert.deepEqual([...GLASS_STEPS], ["off", "frosted", "regular", "liquid"]);
   for (const step of GLASS_STEPS) assert.equal(normalizeGlassStep(step), step);
   // Unknown values rest on Regular rather than on a random variant.
   for (const unknown of [undefined, null, "", "clear", "solid", 0, {}, "999"]) {
@@ -562,7 +563,7 @@ test("the two controls survive a round trip through the settings shape", async (
   // migrates a pre-R8 file by splitting its single slider in half.
   const rust = await read("src-tauri/src/commands/config.rs");
   assert.match(rust, /pub glass_step: String/, "the Rust settings struct must carry the step");
-  assert.match(rust, /const GLASS_STEPS: \[&str; 3\] = \["frosted", "regular", "liquid"\]/);
+  assert.match(rust, /const GLASS_STEPS: \[&str; 4\] = \["off", "frosted", "regular", "liquid"\]/);
   assert.match(rust, /const LEGACY_GLASS_STEPS/, "the pre-GLASS-3STOP map must exist");
   assert.match(rust, /fn migrate_legacy_glass_strength/, "the legacy split must exist");
   assert.match(

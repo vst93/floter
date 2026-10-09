@@ -341,10 +341,10 @@ test("the step is an html attribute, and no surface file names a step", async ()
     );
   }
   // base.css is the only file that defines the blocks, and it defines exactly
-  // three: a fourth would be an undocumented effect step.
+  // four: the three effect steps plus R162's `off` position.
   const base = stripComments(await read("src/styles/base.css"));
   const blocks = [...base.matchAll(/\[data-glass="(\w+)"\]/g)].map((m) => m[1]);
-  assert.deepEqual([...new Set(blocks)].sort(), ["frosted", "liquid", "regular"]);
+  assert.deepEqual([...new Set(blocks)].sort(), ["frosted", "liquid", "off", "regular"]);
 });
 
 

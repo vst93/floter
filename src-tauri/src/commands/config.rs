@@ -44,8 +44,11 @@ const DEFAULT_GLASS_STEP: &str = "regular";
 /// and decoupled the frame's alpha from the step entirely. The struct field,
 /// its default and the pre-R8 migration are all unchanged — only the set of
 /// accepted step ids changed, from five (`low`/`mid`/`high`/`deep`/`jelly`)
-/// to three (`frosted`/`regular`/`liquid`).
-const GLASS_STEPS: [&str; 3] = ["frosted", "regular", "liquid"];
+/// to three (`frosted`/`regular`/`liquid`), and R162 added the no-material
+/// `off` stop the frontend renders first. `off` is a real stored value, not a
+/// frontend-only alias: the loader must round-trip it or a restart would
+/// silently rewrite the user's choice back to the default.
+const GLASS_STEPS: [&str; 4] = ["off", "frosted", "regular", "liquid"];
 /// The pre-GLASS-3STOP five-stop vocabulary, and the three-stop step each id
 /// becomes on read. The two thin stops collapse onto `frosted`/`regular`; every
 /// heavy stop (`high`/`deep`/`jelly`) collapses onto `liquid`, so an upgrading
@@ -2804,6 +2807,10 @@ mod tests {
         assert_eq!(normalize_glass_step("frosted"), "frosted");
         assert_eq!(normalize_glass_step("REGULAR"), "regular");
         assert_eq!(normalize_glass_step(" liquid "), "liquid");
+        // R162 · `off` is a shipped step, not an unknown: it must survive the
+        // normalizer untouched (a frontend-only alias would lose the user's
+        // choice on the first restart).
+        assert_eq!(normalize_glass_step("off"), "off");
         for unknown in ["", "clear", "balanced", "strong", "999", "ultra"] {
             assert_eq!(
                 normalize_glass_step(unknown),

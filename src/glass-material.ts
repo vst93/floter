@@ -1,5 +1,5 @@
 // The Liquid Glass material model (R8; re-axised by GLASS-REAXIS; collapsed to
-// three stops by GLASS-3STOP).
+// three stops by GLASS-3STOP; a fourth `off` position by R162).
 //
 // The **material** is two independent inputs, and they never touch each other
 // inside the stylesheet:
@@ -44,9 +44,9 @@
 //     thin frosted glass readable over bright content; it is composited into
 //     `--glass-tint-alpha`, not into the frame alpha.
 //
-// Because the stops must survive a restart as three distinct states and the
-// Rust struct carries no extra field, the `glass_step` **value domain** is
-// now three ids (`frosted`/`regular`/`liquid`). The Rust field, its default
+// Because the stops must survive a restart as distinct states and the
+// Rust struct carries no extra field, the `glass_step` **value domain** is the
+// stop ids (`off`/`frosted`/`regular`/`liquid`). The Rust field, its default
 // and its "not an alpha" contract are unchanged; only the set of accepted
 // string values changed. A pre-GLASS-3STOP file (`low`/`mid`/`high`/`deep`/
 // `jelly`) is migrated on read — see the legacy map below and its Rust twin.
@@ -55,7 +55,7 @@
 // it swaps a *set* of tokens (`--glass-step-*` and `--glass-lens-*` in
 // base.css) rather than a single value, and because the accessibility override
 // blocks key off the same attribute. This module owns the vocabulary: the
-// three step ids, the three effect stops, and the normalization/reverse-lookup
+// four step ids, the three effect stops, and the normalization/reverse-lookup
 // rules the persistence layer and the settings UI both need.
 //
 // The numeric truth lives in base.css, not here — the steps' blur, saturation,
@@ -65,15 +65,25 @@
 // the lens monotonicity without re-deriving them.
 
 /**
- * The three Liquid Glass effect steps, thinnest first. `frosted` is the
- * traditional frosted-glass end (small blur, low saturation, no refraction
- * cue), `regular` is Apple's Liquid Glass resting balance, and `liquid` is the
+ * The Liquid Glass effect steps, thinnest first. `off` is the round's new
+ * fourth position and the thinnest of all: no blur, no saturation lift, no
+ * control lens and no haze, so the shells paint a plain near-solid face and
+ * carry no `backdrop-filter` at all. `frosted` is the traditional
+ * frosted-glass end (small blur, low saturation, no refraction cue),
+ * `regular` is Apple's Liquid Glass resting balance, and `liquid` is the
  * heaviest refraction + control-lens this app draws.
+ *
+ * R162 added `off` because the OS lever the app would otherwise use does not
+ * exist: WebKit has still never shipped `prefers-reduced-transparency`
+ * (R104/R161 both checked), and "reduce motion" only shortens animations — it
+ * cannot stop the nine `backdrop-filter` shells from re-sampling the window on
+ * every scroll frame. So the off switch has to be the app's own.
  */
-export type GlassStep = "frosted" | "regular" | "liquid";
+export type GlassStep = "off" | "frosted" | "regular" | "liquid";
 
-/** In display order: thinnest effect first. */
-export const GLASS_STEPS: readonly GlassStep[] = ["frosted", "regular", "liquid"] as const;
+/** In display order: thinnest effect first. `off` is first because it is the
+ *  thinnest position of the control, not because it is an effect stop. */
+export const GLASS_STEPS: readonly GlassStep[] = ["off", "frosted", "regular", "liquid"] as const;
 
 /**
  * The pre-GLASS-3STOP five-stop vocabulary, and the three-stop step each id
@@ -98,7 +108,8 @@ const LEGACY_GLASS_STEPS: Record<string, GlassStep> = {
  * know, a hand-edited JSON) rests on the balanced Regular step rather than on
  * whichever variant happens to be first — a wrong-but-plausible material is a
  * better failure than an unintended frosted panel over a photo. A legacy id is
- * migrated rather than treated as unknown.
+ * migrated rather than treated as unknown. `off` is a shipped id, not a
+ * missing one, so it normalizes to itself like the other three.
  */
 export const normalizeGlassStep = (value: unknown): GlassStep => {
   if (typeof value !== "string") return "regular";
@@ -117,6 +128,8 @@ export const normalizeGlassStep = (value: unknown): GlassStep => {
  * that hand-off's source, kept next to the step ids so a new step cannot be
  * added without its haze. `tests/glass-controls.test.ts` asserts these equal the
  * `[data-glass]` blocks, so this mirror can never drift from the stylesheet.
+ * `off` is in the table like any other id (its haze is 0), so the hand-off
+ * needs no branch of its own — `glassStepStyle` reads the table.
  *
  * `dim` is the step's **haze** layer: the frosted end carries a strong veil so
  * thin, lightly-blurred glass stays readable over bright content, and the
@@ -124,8 +137,19 @@ export const normalizeGlassStep = (value: unknown): GlassStep => {
  * work. It is composited *under* the frame in `--glass-tint-alpha`; it is
  * deliberately **not** a fill floor, because the transparency slider is the
  * frame's only alpha truth.
+ *
+ * `off` carries **no** haze, and that is the value R162 read off the existing
+ * comments rather than picked: the one precedent for "the surface stops being
+ * see-through" — the `prefers-contrast: more` override — drops the haze to 0
+ * because the panel's density then comes from its fill, and off mode is the
+ * same shape (the shells take `--surface-opaque`, so a veil on top of them
+ * would be the "mud" `--glass-tint-alpha`'s comment warns about). It is also
+ * the neutral reading of the switch: off neutralises every effect token
+ * (blur 0, saturation 100%, lens 0, haze 0), so the frame's own alpha — the
+ * transparency sliders — is the only thing left painting.
  */
 export const GLASS_STEP_TOKENS: Record<GlassStep, { dim: number }> = {
+  off: { dim: 0 },
   frosted: { dim: 0.6 },
   regular: { dim: 0.5 },
   liquid: { dim: 0.2 },
@@ -186,6 +210,15 @@ export const clampWindowOpacity = (value: number): number =>
 /** One of three effect stops, thinnest (1) to heaviest (3). */
 export type GlassIntensity = 1 | 2 | 3;
 
+/**
+ * The glass control's four positions: the three effect stops plus `off`. It is
+ * deliberately not `GlassIntensity` — `off` is not a fourth *stop* (it has no
+ * blur/saturation/lens triple and no label in the stop table), it is the
+ * position that removes the material, and keeping the two types apart is what
+ * stops a later round from reading `GLASS_INTENSITY["off"]`.
+ */
+export type GlassSelection = GlassIntensity | "off";
+
 /** In display order: thinnest effect first. */
 export const GLASS_INTENSITIES: readonly GlassIntensity[] = [1, 2, 3] as const;
 
@@ -197,8 +230,10 @@ export type GlassLens = 1 | 2 | 3;
  * A stop's frozen effect. `step` is the only settings field it writes; `blur`
  * and `saturate` are the material numbers the CSS blocks must carry (asserted
  * against base.css so they cannot drift); `lens` is the control-lens level;
- * `label` is the i18n key, kept beside the stop so a fourth stop cannot be
- * added without a label.
+ * `label` is the i18n key, kept beside the stop so a fourth *stop* cannot be
+ * added without a label. (R162's `off` is a fourth *position* of the control,
+ * not a stop: it has no effect triple and carries no `label` here — its label
+ * key lives with the control in `GeneralPage.tsx`.)
  *
  * The mapping is the user's arc: 磨砂玻璃 → 苹果液态玻璃 → 液态拉满. The three
  * stops are deliberately far apart — blur 10 / 22 / 28px, saturation
@@ -222,8 +257,8 @@ export const GLASS_INTENSITY: Record<
  * exactly the "档位做在 tint 轴上" mistake the user rejected. GLASS-3STOP keeps
  * that contract: the step never writes an alpha.
  */
-export const glassIntensitySettings = (level: GlassIntensity): { glass_step: GlassStep } => ({
-  glass_step: GLASS_INTENSITY[level].step,
+export const glassIntensitySettings = (level: GlassSelection): { glass_step: GlassStep } => ({
+  glass_step: level === "off" ? "off" : GLASS_INTENSITY[level].step,
 });
 
 /**
@@ -238,8 +273,18 @@ export const glassIntensitySettings = (level: GlassIntensity): { glass_step: Gla
  * stop for every `t`. A later round that reintroduced a tint-based lookup
  * would have to read this argument, and the sweep in
  * `tests/glass-intensity.test.ts` would go red.
+ *
+ * R162: the lookup now returns the control's own four-position vocabulary, so
+ * a stored `off` lights the off segment instead of the thinnest effect stop.
+ * The answer is read off the stop table rather than off `GLASS_STEPS`' index,
+ * because `off` occupies the first slot and an index-based lookup would have
+ * reported it as stop 1.
  */
-export const glassIntensityOf = (step: GlassStep, _transparency?: number): GlassIntensity => {
-  const index = GLASS_STEPS.indexOf(normalizeGlassStep(step));
-  return (index >= 0 ? index + 1 : 2) as GlassIntensity;
+export const glassIntensityOf = (step: GlassStep, _transparency?: number): GlassSelection => {
+  const normalized = normalizeGlassStep(step);
+  if (normalized === "off") return "off";
+  const level = GLASS_INTENSITIES.find(
+    (candidate) => GLASS_INTENSITY[candidate].step === normalized,
+  );
+  return level ?? 2;
 };

@@ -337,6 +337,9 @@ const en = {
   "settings.theme.auto": "Auto",
   "settings.material": "Glass",
   "settings.glassIntensity": "Liquid glass effect",
+  // R162 · the fourth position. `Off` is the performance switch: no blur, no
+  // refraction, no lens — the scrolling shells paint a plain face.
+  "settings.glassIntensity.off": "Off",
   "settings.glassIntensity.1": "Frosted",
   "settings.glassIntensity.2": "Liquid",
   "settings.glassIntensity.3": "Liquid Max",
@@ -1222,6 +1225,8 @@ const zh: Record<MessageKey, string> = {
   "settings.theme.auto": "自动",
   "settings.material": "玻璃",
   "settings.glassIntensity": "液态玻璃效果",
+  // R162 · 第四档。关闭即性能开关：无模糊、无折射、无透镜，滚动中的外壳直接铺一层实底。
+  "settings.glassIntensity.off": "关闭",
   "settings.glassIntensity.1": "磨砂",
   "settings.glassIntensity.2": "液态",
   "settings.glassIntensity.3": "液态拉满",
