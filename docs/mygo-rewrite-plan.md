@@ -527,6 +527,24 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
   解出的 `*ui.Bitmap` 在启动器里按路径缓存，重绘是查表。
 - 行布局：有图标的行在标题前画 16DIP 图标（主题 `Space(4)`），其余行不变。
 
+### P3-l 集成导入/导出（已做，范围如实说明）
+
+- **文档格式**：旧版的 `version: 2` 文档（camelCase 字段名），本构建可读旧文档、旧构建也能读本构建的：
+  `{version, exportedAt, extensions[{id, version, enabled, config, distributionSource,
+  runtimeOwnership, fieldMetadata, manifest?, scriptContent?, providerDescriptor?}]}`。
+- **什么会走**：身份/版本/启用状态/配置值；**包的要点**（manifest、脚本运行时的脚本、静态 provider 的
+  descriptor），所以没有装过的机器也能装上；每个配置字段的分类记录（说明哪些被排除、为什么）。
+- **什么绝不走**：密钥。字段名像凭据（secret/password/token/key/credential…）或值就是 `[REDACTED]`
+  占位符 → 分类为 `secret` 且排除；绝对路径/`~`/Windows 盘符 → `device_path` 排除；版本约束单独分类。
+  导出读的是**未合并密钥的原始配置**，导入写回时保留占位符与密钥代数，所以密钥始终留在 secrets 文件里
+  （测试钉住：本机密钥不丢、不写进 values 文件）。
+- **导入语义**：已安装的集成 → 只改启用状态与文档里的配置值（本机密钥与本机包保持）；未安装且文档带包
+  → 用文档的 manifest/脚本/descriptor 走**与安装同一套** `PrepareLocal`（权限仍要用户批准，回调可注入）；
+  未安装且文档不带包（旧构建可能的形态）→ 跳过并说明原因。每条都有 succeeded/failed/skipped 报告。
+- **UI**：Integrations 页「导出 / 导入」两个按钮 + 一行结果；文件选择走 `mygo.Dialog`（测试注入）。
+- **未做**：旧文档的 `package` 字段（旧构建写的包归档）本构建既不写也不读，但**原样保留**以便往返；
+  导入的权限审批是逐条询问而不是旧版的一次汇总。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。

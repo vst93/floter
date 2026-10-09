@@ -1002,3 +1002,39 @@ func TestPermissionAuditUnfolds(t *testing.T) {
 		t.Error("the audit did not fold away")
 	}
 }
+
+// The Integrations page offers the export and import of the whole list, and
+// shows what the last one did.
+func TestIntegrationTransferButtons(t *testing.T) {
+	exported, imported := 0, 0
+	a := New(newStore(t), Actions{
+		ExportIntegrations: func() { exported++ },
+		ImportIntegrations: func() { imported++ },
+	})
+	tt := render(t, a, 720, 620)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if err := tt.Click("Export"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if exported != 1 {
+		t.Fatalf("exported %d times", exported)
+	}
+	if err := tt.Click("Import"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if imported != 1 {
+		t.Errorf("imported %d times", imported)
+	}
+
+	// The line the shell sets is what the page shows.
+	a.TransferStatus = "2 integrations exported to /tmp/backup.json"
+	tt.Frame()
+	if !tt.HasText("2 integrations exported to /tmp/backup.json") {
+		t.Errorf("the status line is missing: %q", tt.Texts())
+	}
+}

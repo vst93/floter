@@ -1,8 +1,15 @@
 package launcher
 
 import (
+	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
+	"image"
+	"image/color"
+	"image/png"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -1256,4 +1263,83 @@ func TestCapturedCommandNonListStaysText(t *testing.T) {
 	if !tt.HasText("Enter copies") {
 		t.Errorf("the text hint is missing: %q", tt.Texts())
 	}
+}
+
+// A row with an application icon draws it, and the icon is decoded once.
+func TestApplicationIconIsDrawn(t *testing.T) {
+	root := t.TempDir()
+	bundle := filepath.Join(root, "Iconed.app")
+	if err := os.MkdirAll(filepath.Join(bundle, "Contents", "Resources"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeFixture(t, filepath.Join(bundle, "Contents", "Info.plist"), `<?xml version="1.0"?>
+<plist version="1.0"><dict>
+  <key>CFBundleName</key><string>Iconed</string>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
+</dict></plist>`)
+	// A real PNG inside a real .icns container.
+	var image bytes.Buffer
+	if err := png.Encode(&image, imageNewRGBA(32)); err != nil {
+		t.Fatal(err)
+	}
+	writeFixture(t, filepath.Join(bundle, "Contents", "Resources", "AppIcon.icns"), string(icnsFile(t, image.Bytes())))
+
+	found := apps.ScanDarwin(root)
+	if len(found) != 1 {
+		t.Fatalf("apps = %+v", found)
+	}
+	a := testApp()
+	a.SetApps(found)
+	tt := render(t, a)
+	tt.Type("iconed")
+	tt.Frame()
+	if !tt.HasText("Iconed") {
+		t.Fatalf("the row did not show: %q", tt.Texts())
+	}
+	// The bitmap is cached after the first draw.
+	if a.appIcon(found[0]) == nil {
+		t.Error("the icon was not decoded")
+	}
+	if len(a.icons) != 1 {
+		t.Errorf("icons cache = %v", a.icons)
+	}
+}
+
+// writeFixture writes a file under a fixture directory.
+func writeFixture(t *testing.T, path, content string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// icnsFile wraps a PNG payload in an .icns container.
+func icnsFile(t *testing.T, pngData []byte) []byte {
+	t.Helper()
+	var body bytes.Buffer
+	body.WriteString("ic08")
+	length := make([]byte, 4)
+	binary.BigEndian.PutUint32(length, uint32(len(pngData)+8))
+	body.Write(length)
+	body.Write(pngData)
+	out := bytes.NewBufferString("icns")
+	total := make([]byte, 4)
+	binary.BigEndian.PutUint32(total, uint32(body.Len()+8))
+	out.Write(total)
+	out.Write(body.Bytes())
+	return out.Bytes()
+}
+
+// imageNewRGBA is a plain square image for the fixture.
+func imageNewRGBA(size int) image.Image {
+	img := image.NewRGBA(image.Rect(0, 0, size, size))
+	for x := 0; x < size; x++ {
+		for y := 0; y < size; y++ {
+			img.Set(x, y, color.RGBA{R: uint8(x * 4), G: uint8(y * 4), B: 200, A: 255})
+		}
+	}
+	return img
 }

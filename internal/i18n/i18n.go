@@ -208,8 +208,14 @@ type Settings struct {
 	IntegrationsCommands string
 	// The orphan operations: adopting a package directory the repository does
 	// not name, and deleting one.
-	IntegrationsAdopt        string
-	IntegrationsPermissions  string
+	IntegrationsAdopt       string
+	IntegrationsPermissions string
+	// The export and import of the integration list.
+	IntegrationsExport       string
+	IntegrationsImport       string
+	IntegrationsExported     func(count int, path string) string
+	IntegrationsImported     func(succeeded, failed, skipped int) string
+	IntegrationsTransferBad  string
 	IntegrationsAdoptHint    string
 	IntegrationsDeleteOrphan string
 	IntegrationsCommandsHint string

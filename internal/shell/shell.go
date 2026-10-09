@@ -138,6 +138,11 @@ type Options struct {
 	// RunSilentCommand runs a custom shortcut's command line; nil spawns the
 	// user's shell, and tests record the command.
 	RunSilentCommand func(command string) error
+	// SaveFileDialog and OpenFileDialog pick a path for the integrations
+	// export and import; nil uses the native dialogs, and tests answer for
+	// themselves.
+	SaveFileDialog func(defaultName string) (string, error)
+	OpenFileDialog func() (string, error)
 	// Notify raises a system notification; nil uses the framework's, and
 	// tests record what would have been shown.
 	Notify func(title, body string)
@@ -246,6 +251,8 @@ type App struct {
 	// uses the platform's own paths.
 	openExternalTerminal func() error
 	silentCommand        func(command string) error
+	saveFileDialog       func(defaultName string) (string, error)
+	openFileDialog       func() (string, error)
 	notify               func(title, body string)
 	// lastClipboardText and lastClipboardFormats are what the watcher saw
 	// last, so a poll records only what changed.
@@ -334,6 +341,8 @@ func New(opts Options) *App {
 		unregisterShortcut:   opts.UnregisterShortcut,
 		openExternalTerminal: opts.OpenExternalTerminal,
 		silentCommand:        opts.RunSilentCommand,
+		saveFileDialog:       opts.SaveFileDialog,
+		openFileDialog:       opts.OpenFileDialog,
 		notify:               opts.Notify,
 		homeDir:              opts.HomeDir,
 		appIcon:              storedAppIcon(opts.Store.Snapshot()),
@@ -479,8 +488,10 @@ func New(opts Options) *App {
 				a.RefreshIntegrations(context.Background())
 			}()
 		},
-		CheckForUpdates: a.checkForUpdates,
-		InstallUpdate:   a.installUpdate,
+		CheckForUpdates:    a.checkForUpdates,
+		InstallUpdate:      a.installUpdate,
+		ExportIntegrations: a.exportIntegrations,
+		ImportIntegrations: a.importIntegrations,
 		AdoptIntegration: func(id string) {
 			// The approval dialog blocks, so the whole adoption runs off the
 			// main thread and refreshes from there.

@@ -86,6 +86,10 @@ type Actions struct {
 	// InstallUpdate downloads and installs the one it found.
 	CheckForUpdates func()
 	InstallUpdate   func()
+	// ExportIntegrations writes the installed integrations to a file the user
+	// picks, and ImportIntegrations applies one they pick.
+	ExportIntegrations func()
+	ImportIntegrations func()
 	// CustomShortcuts reports the user-defined global shortcuts, and
 	// SetCustomShortcuts persists a new list and registers it, returning the
 	// keys the system refused.
@@ -186,6 +190,8 @@ type App struct {
 	UpdateReady  bool
 	// auditOpen is which integrations have their permission audit unfolded.
 	auditOpen map[string]bool
+	// TransferStatus is what the last export or import said.
+	TransferStatus string
 
 	// Sidebar holds the page list's identity, its choice and its focus.
 	Sidebar ui.ListState
@@ -500,6 +506,7 @@ func (a *App) integrations(c *ui.Context, copy i18n.Settings) {
 	integrations := a.installedIntegrations()
 	ui.Column(c).FillWidth().Gap(t.Space(0.5)).Children(func() {
 		ui.Text(c, copy.IntegrationsHint).FontSize(t.FontSize).TextColor(t.TextMuted).Padding(0, 0, t.Space(1), 0)
+		a.transferRow(c, copy)
 		a.installRow(c, copy)
 		if len(integrations) == 0 {
 			ui.Column(c).FillWidth().Padding(t.Space(4)).Center().Children(func() {
@@ -509,6 +516,30 @@ func (a *App) integrations(c *ui.Context, copy i18n.Settings) {
 		}
 		for _, integration := range integrations {
 			a.integrationRow(c, copy, integration)
+		}
+	})
+}
+
+// transferRow is the export and import of the whole list: a backup of what is
+// installed and how it is configured, and the way back in on another machine.
+func (a *App) transferRow(c *ui.Context, copy i18n.Settings) {
+	t := c.Theme()
+	ui.Row(c).FillWidth().Gap(t.Space(1)).AlignItems(ui.Center).
+		Padding(0, 0, t.Space(1), 0).Children(func() {
+		if a.Actions.ExportIntegrations != nil {
+			if ui.Button(c, copy.IntegrationsExport).Clicked() {
+				a.TransferStatus = ""
+				a.Actions.ExportIntegrations()
+			}
+		}
+		if a.Actions.ImportIntegrations != nil {
+			if ui.Button(c, copy.IntegrationsImport).Clicked() {
+				a.TransferStatus = ""
+				a.Actions.ImportIntegrations()
+			}
+		}
+		if a.TransferStatus != "" {
+			ui.Text(c, a.TransferStatus).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
 		}
 	})
 }

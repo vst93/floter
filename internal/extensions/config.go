@@ -90,6 +90,69 @@ func LoadStoredConfiguration(dataRoot, id string) (StoredConfiguration, error) {
 	return stored, nil
 }
 
+// SaveStoredConfiguration writes an integration's configuration back, in the
+// shape the file already had: the current envelope (a config generation and
+// its secrets generation beside the values) when the file carried one, the
+// legacy bare values map otherwise. The write is atomic — a temporary file in
+// the same directory, flushed, then renamed — so a crash leaves the previous
+// configuration intact.
+//
+// The secrets file is never touched: a value whose secret lives there stays
+// there, and the loader keeps merging it by generation.
+func SaveStoredConfiguration(dataRoot, id string, stored StoredConfiguration) error {
+	dir, err := safeJoin(dataRoot, id)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	values := stored.Values
+	if values == nil {
+		values = map[string]any{}
+	}
+
+	var data []byte
+	if stored.ConfigVersion > 0 || stored.SecretGeneration != "" || len(stored.Schema) > 0 {
+		envelope := map[string]any{
+			"configVersion":    stored.ConfigVersion,
+			"secretGeneration": stored.SecretGeneration,
+			"values":           values,
+		}
+		if len(stored.Schema) > 0 {
+			envelope["schema"] = stored.Schema
+		}
+		data, err = json.MarshalIndent(envelope, "", "  ")
+	} else {
+		data, err = json.MarshalIndent(values, "", "  ")
+	}
+	if err != nil {
+		return err
+	}
+
+	temporary, err := os.CreateTemp(dir, ".config-*")
+	if err != nil {
+		return err
+	}
+	name := temporary.Name()
+	defer os.Remove(name)
+	if _, err := temporary.Write(append(data, '\n')); err != nil {
+		temporary.Close()
+		return err
+	}
+	if err := temporary.Sync(); err != nil {
+		temporary.Close()
+		return err
+	}
+	if err := temporary.Close(); err != nil {
+		return err
+	}
+	if err := os.Chmod(name, 0o600); err != nil {
+		return err
+	}
+	return os.Rename(name, filepath.Join(dir, configFile))
+}
+
 // parseStoredConfiguration accepts both shapes the old app wrote: the
 // current envelope, and the legacy bare values map.
 func parseStoredConfiguration(data []byte) (StoredConfiguration, error) {

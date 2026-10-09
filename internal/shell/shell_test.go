@@ -1612,3 +1612,76 @@ func TestUpdateCheckWithoutAFeed(t *testing.T) {
 	// Installing with nothing pending is a no-op, not a panic.
 	a.installUpdate()
 }
+
+// The integrations export writes a document of what is installed, and the
+// import applies one, both through injected file dialogs.
+func TestIntegrationExportAndImport(t *testing.T) {
+	paths := integrationFixture(t)
+	store := settings.NewStore(settings.Default())
+	if err := store.Update(func(s *settings.Settings) { s.SetCommandSwitch("io.github.vst93.v", "jv", true) }); err != nil {
+		t.Fatal(err)
+	}
+	exportPath := filepath.Join(t.TempDir(), "backup.json")
+	a := New(Options{
+		Store:                store,
+		Paths:                paths,
+		NewTerminal:          func(terminal.Options) (*terminal.Terminal, error) { return nil, errors.New("no library in tests") },
+		SaveFileDialog:       func(string) (string, error) { return exportPath, nil },
+		OpenFileDialog:       func() (string, error) { return exportPath, nil },
+		ConfirmPermissions:   func(extensions.PermissionApproval) bool { return true },
+		RunSilentCommand:     func(string) error { return nil },
+		OpenExternalTerminal: func() error { return nil },
+	})
+	a.RefreshIntegrations(context.Background())
+
+	a.exportIntegrations()
+	waitForStatus(t, a)
+	data, err := os.ReadFile(exportPath)
+	if err != nil {
+		t.Fatalf("the export was not written: %v", err)
+	}
+	document, err := extensions.ReadSync(data)
+	if err != nil {
+		t.Fatalf("the export is not readable: %v", err)
+	}
+	if len(document.Extensions) != 1 || document.Extensions[0].ID != "io.github.vst93.v" {
+		t.Fatalf("document = %+v", document.Extensions)
+	}
+	if !strings.Contains(a.Settings.TransferStatus, "1 integrations exported") {
+		t.Errorf("status = %q", a.Settings.TransferStatus)
+	}
+
+	// An import of the same document lands, and reports it.
+	a.Settings.TransferStatus = ""
+	a.importIntegrations()
+	waitForStatus(t, a)
+	if !strings.Contains(a.Settings.TransferStatus, "1 imported") {
+		t.Errorf("status = %q", a.Settings.TransferStatus)
+	}
+
+	// A file that is not a document is refused with a line, not a crash.
+	if err := os.WriteFile(exportPath, []byte("not a document"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	a.Settings.TransferStatus = ""
+	a.importIntegrations()
+	waitForStatus(t, a)
+	if a.Settings.TransferStatus != "The file is not an integrations export" {
+		t.Errorf("status = %q", a.Settings.TransferStatus)
+	}
+}
+
+// waitForStatus waits for an export or import to leave its line.
+func waitForStatus(t *testing.T, a *App) {
+	t.Helper()
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		if a.Settings.TransferStatus != "" {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the transfer never reported")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+}

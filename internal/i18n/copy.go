@@ -3,6 +3,29 @@ package i18n
 import "strconv"
 
 // The custom-shortcut rejection sentence, which names the key and the reason.
+// The import report line: what landed, and what did not.
+func integrationsImportedEN(succeeded, failed, skipped int) string {
+	line := strconv.Itoa(succeeded) + " imported"
+	if failed > 0 {
+		line += ", " + strconv.Itoa(failed) + " failed"
+	}
+	if skipped > 0 {
+		line += ", " + strconv.Itoa(skipped) + " skipped"
+	}
+	return line
+}
+
+func integrationsImportedZH(succeeded, failed, skipped int) string {
+	line := "已导入 " + strconv.Itoa(succeeded) + " 个"
+	if failed > 0 {
+		line += "，失败 " + strconv.Itoa(failed)
+	}
+	if skipped > 0 {
+		line += "，跳过 " + strconv.Itoa(skipped)
+	}
+	return line
+}
+
 func shortcutsRejectedEN(key, reason string) string {
 	return "Could not bind " + key + ": " + reason
 }
@@ -219,6 +242,11 @@ var en = Copy{
 		IntegrationsRemoveDetail: "The package is removed. The integration's data in extension-data stays.",
 		IntegrationsAdopt:        "Adopt",
 		IntegrationsPermissions:  "Permissions",
+		IntegrationsExport:       "Export",
+		IntegrationsImport:       "Import",
+		IntegrationsExported:     func(count int, path string) string { return strconv.Itoa(count) + " integrations exported to " + path },
+		IntegrationsImported:     integrationsImportedEN,
+		IntegrationsTransferBad:  "The file is not an integrations export",
 		IntegrationsAdoptHint:    "This package directory has no record in the extension repository. Adopting grafts it in, with the same permission review an install has.",
 		IntegrationsDeleteOrphan: "Delete",
 		IntegrationsCommands:     "Commands",
@@ -514,6 +542,13 @@ var zh = Copy{
 		IntegrationsRemoveDetail: "将删除扩展包；extension-data 中的集成数据会保留。",
 		IntegrationsAdopt:        "接管",
 		IntegrationsPermissions:  "权限",
+		IntegrationsExport:       "导出",
+		IntegrationsImport:       "导入",
+		IntegrationsExported: func(count int, path string) string {
+			return "已导出 " + strconv.Itoa(count) + " 个集成到 " + path
+		},
+		IntegrationsImported:     integrationsImportedZH,
+		IntegrationsTransferBad:  "这个文件不是集成导出文件",
 		IntegrationsAdoptHint:    "这个包目录在扩展仓库里没有记录。接管会把它正式登记进来，权限审查与安装一致。",
 		IntegrationsDeleteOrphan: "删除",
 		IntegrationsCommands:     "命令",
