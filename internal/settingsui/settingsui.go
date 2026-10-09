@@ -41,6 +41,8 @@ type Actions struct {
 	CloseSession func()
 	// SetIntegrationEnabled turns an installed extension on or off.
 	SetIntegrationEnabled func(id string, enabled bool)
+	// UninstallIntegration removes an installed extension.
+	UninstallIntegration func(id string, name string)
 }
 
 // Integration is one installed extension, as the Integrations page lists it.
@@ -281,15 +283,24 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 				ui.Text(c, integration.Error).FontSize(t.FontSize - 1).TextColor(t.Danger)
 			}
 		})
-		if !integration.Orphan && a.Actions.SetIntegrationEnabled != nil {
-			on := integration.Enabled
-			changed := false
-			if ui.Checkbox(c, &on, copy.IntegrationsEnable).Changed() {
-				changed = true
-			}
-			if changed {
-				a.Actions.SetIntegrationEnabled(integration.ID, on)
-			}
+		if !integration.Orphan {
+			ui.Row(c).Gap(t.Space(1)).AlignItems(ui.Center).Children(func() {
+				if a.Actions.SetIntegrationEnabled != nil {
+					on := integration.Enabled
+					changed := false
+					if ui.Checkbox(c, &on, copy.IntegrationsEnable).Changed() {
+						changed = true
+					}
+					if changed {
+						a.Actions.SetIntegrationEnabled(integration.ID, on)
+					}
+				}
+				if a.Actions.UninstallIntegration != nil {
+					if ui.Button(c, copy.IntegrationsUninstall).Clicked() {
+						a.Actions.UninstallIntegration(integration.ID, integration.Name)
+					}
+				}
+			})
 		}
 	})
 }

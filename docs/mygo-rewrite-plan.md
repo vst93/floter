@@ -171,6 +171,15 @@
 - 命令条目因此带上 `Env`（配置环境）与配置参数；终端运行时会应用它们。
 - 门槛：配置读取（envelope/遗留/密钥代数/占位符/越界 id）、注入规则（含口令不入 argv）、tool 配置命令、以及 store 端到端（命令条目带 Env 与参数）单测全绿，共 123 项测试。
 
+### P3-d 本地安装/更新/卸载（已做）
+
+- `InstallLocal`：从本机包目录安装（distribution=local，用户机上全部集成都是这一类）——校验 id、**先解析运行时**（找不到解释器/可执行就不动盘）、staging 目录 → 备份旧包 → rename 上台 → 原子写仓库 → 删备份；任一步失败都保留旧安装可用。
+- 条目生成：id/name/publisher/distribution=local/runtimeOwnership（system 或 script→bundled + runtimeRoot）/providerKind/enabled/versions/manifestPath/executablePath/时间戳；**更新时保留**审批记录、channel、pinned、configGeneration，broken 状态与错误码继续挂着，旧版本写进 previousVersion。
+- 生命周期模板：`configurationTemplates` 在安装时复制进 `extension-data/<id>/`，已存在的不覆盖；源/目标都做越界校验。
+- `Uninstall`：包先改名到 `.removing` → 写仓库 → 删目录 → （可选）删数据；仓库不认识 id 返回 `ErrNoIntegration`；`SetToolVersion` 记录 provider 报的版本；`ManifestDigest` 给审批用。
+- 设置页 Integrations 每行加「卸载」按钮，shell 用原生确认对话框后执行并后台刷新（默认保留用户数据）。
+- 门槛：安装/更新保留审计字段/卸载（含数据保留与删除）/digest/id 校验/越界包拒绝等单测；真实启动一次，仓库文件未被改写（14:04 未变）。
+
 ### P3 还未做
 
 - 安装/更新/卸载（graft、事务、journal、回滚）、导入导出、npm 下载与校验。

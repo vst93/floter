@@ -121,13 +121,16 @@ var en = Copy{
 		SessionsClose:   "Close session",
 		SessionsActive:  "The terminal session stays alive in the background.",
 
-		IntegrationsEmpty:   "No integrations are installed.",
-		IntegrationsEnable:  "Enabled",
-		IntegrationsRunning: "Running",
-		IntegrationsOff:     "Disabled",
-		IntegrationsBroken:  "Broken",
-		IntegrationsOrphan:  "Installed on disk, not recorded",
-		IntegrationsHint:    "Integrations are command-line tools floter discovers and runs in the terminal.",
+		IntegrationsEmpty:        "No integrations are installed.",
+		IntegrationsEnable:       "Enabled",
+		IntegrationsRunning:      "Running",
+		IntegrationsOff:          "Disabled",
+		IntegrationsBroken:       "Broken",
+		IntegrationsOrphan:       "Installed on disk, not recorded",
+		IntegrationsHint:         "Integrations are command-line tools floter discovers and runs in the terminal.",
+		IntegrationsUninstall:    "Uninstall",
+		IntegrationsRemoveTitle:  removeTitleEN,
+		IntegrationsRemoveDetail: "The package is removed. The integration's data in extension-data stays.",
 
 		ShortcutsToggle: "Show / hide floter",
 		ShortcutsHint:   "More shortcuts arrive with the system integration.",
@@ -266,13 +269,16 @@ var zh = Copy{
 		SessionsClose:   "关闭会话",
 		SessionsActive:  "终端会话在后台继续运行。",
 
-		IntegrationsEmpty:   "没有已安装的集成。",
-		IntegrationsEnable:  "启用",
-		IntegrationsRunning: "运行中",
-		IntegrationsOff:     "已停用",
-		IntegrationsBroken:  "已损坏",
-		IntegrationsOrphan:  "磁盘上有包，但没有记录",
-		IntegrationsHint:    "「集成」是 floter 发现并在终端里运行的命令行工具。",
+		IntegrationsEmpty:        "没有已安装的集成。",
+		IntegrationsEnable:       "启用",
+		IntegrationsRunning:      "运行中",
+		IntegrationsOff:          "已停用",
+		IntegrationsBroken:       "已损坏",
+		IntegrationsOrphan:       "磁盘上有包，但没有记录",
+		IntegrationsHint:         "「集成」是 floter 发现并在终端里运行的命令行工具。",
+		IntegrationsUninstall:    "卸载",
+		IntegrationsRemoveTitle:  removeTitleZH,
+		IntegrationsRemoveDetail: "将删除扩展包；extension-data 中的集成数据会保留。",
 
 		ShortcutsToggle: "显示 / 隐藏 floter",
 		ShortcutsHint:   "更多快捷键将随系统集成一并到来。",
@@ -291,6 +297,9 @@ var zh = Copy{
 		Close: "关闭终端",
 	},
 }
+
+func removeTitleEN(name string) string { return "Remove " + name + "?" }
+func removeTitleZH(name string) string { return "移除 " + name + "？" }
 
 func secondsEN(n uint32) string { return itoa32(n) + " s" }
 func secondsZH(n uint32) string { return itoa32(n) + " 秒" }

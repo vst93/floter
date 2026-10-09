@@ -347,8 +347,10 @@ func TestResidencyOptions(t *testing.T) {
 func TestIntegrationsPage(t *testing.T) {
 	toggled := ""
 	toggledTo := false
+	removedID, removedName := "", ""
 	a := New(newStore(t), Actions{
 		SetIntegrationEnabled: func(id string, enabled bool) { toggled, toggledTo = id, enabled },
+		UninstallIntegration:  func(id, name string) { removedID, removedName = id, name },
 	})
 	a.Integrations = func() []Integration {
 		return []Integration{
@@ -391,6 +393,15 @@ func TestIntegrationsPage(t *testing.T) {
 	if toggled != "io.github.vst93.v" || toggledTo {
 		t.Errorf("toggled %q to %v", toggled, toggledTo)
 	}
+	// The first row's Uninstall button asks the shell to remove it.
+	if err := tt.Click("Uninstall"); err != nil {
+		t.Fatalf("the uninstall button is missing: %v", err)
+	}
+	tt.Frame()
+	if removedID != "io.github.vst93.v" || removedName != "V Tools" {
+		t.Errorf("uninstall recorded %q/%q", removedID, removedName)
+	}
+
 	// An orphan has no switch: clicking its name does nothing.
 	before := toggled
 	if err := tt.Click("orphan.pkg"); err == nil {

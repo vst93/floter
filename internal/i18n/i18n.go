@@ -140,13 +140,16 @@ type Settings struct {
 	SessionsActive  string
 
 	// The Integrations page.
-	IntegrationsEmpty   string
-	IntegrationsEnable  string
-	IntegrationsRunning string
-	IntegrationsOff     string
-	IntegrationsBroken  string
-	IntegrationsOrphan  string
-	IntegrationsHint    string
+	IntegrationsEmpty        string
+	IntegrationsEnable       string
+	IntegrationsRunning      string
+	IntegrationsOff          string
+	IntegrationsBroken       string
+	IntegrationsOrphan       string
+	IntegrationsHint         string
+	IntegrationsUninstall    string
+	IntegrationsRemoveTitle  func(name string) string
+	IntegrationsRemoveDetail string
 
 	// The Shortcuts page.
 	ShortcutsToggle string

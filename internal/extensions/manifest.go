@@ -16,6 +16,9 @@ type Manifest struct {
 	Description   string `json:"description"`
 	Homepage      string `json:"homepage"`
 	Icon          string `json:"icon"`
+	// Version is the package version when the manifest carries one; the
+	// schema does not require it, and a local package may not.
+	Version string `json:"version"`
 
 	Publisher     Publisher     `json:"publisher"`
 	Compatibility Compatibility `json:"compatibility"`

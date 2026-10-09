@@ -26,6 +26,7 @@ import (
 	"floter/internal/apps"
 	"floter/internal/extensions"
 	"floter/internal/glassmap"
+	"floter/internal/i18n"
 	"floter/internal/launcher"
 	"floter/internal/settings"
 	"floter/internal/settingsui"
@@ -211,6 +212,29 @@ func New(opts Options) *App {
 	a.Settings = settingsui.New(opts.Store, settingsui.Actions{
 		Close:        func() { a.Open(SurfaceLauncher) },
 		CloseSession: func() { a.Terminal.Close() },
+		UninstallIntegration: func(id, name string) {
+			// The dialog blocks, so it runs off the main thread and the
+			// result comes back to it.
+			go func() {
+				copy := i18n.For(a.Store.Snapshot().Language).Settings
+				result, err := mygo.Dialog.Message(mygo.MessageOptions{
+					Type:    mygo.MessageWarning,
+					Message: copy.IntegrationsRemoveTitle(name),
+					Detail:  copy.IntegrationsRemoveDetail,
+					Buttons: []string{copy.IntegrationsUninstall, "Cancel"},
+				})
+				if err != nil || result.Button != 0 {
+					return
+				}
+				a.onMain(func() {
+					if err := extensions.Uninstall(a.Paths, id, false); err != nil {
+						log.Printf("floter: could not uninstall %s: %v", id, err)
+						return
+					}
+				})
+				a.RefreshIntegrations(context.Background())
+			}()
+		},
 		SetIntegrationEnabled: func(id string, enabled bool) {
 			if err := a.Integrations.SetEnabled(id, enabled); err != nil {
 				log.Printf("floter: could not change %s: %v", id, err)
