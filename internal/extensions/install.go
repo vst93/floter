@@ -29,6 +29,10 @@ type installSpec struct {
 	// Approved says the user approved the manifest's permissions for this
 	// exact manifest.
 	Approved bool
+	// ExecutablePath is the program the caller resolved, when the manifest
+	// names a system runtime by name and the program is not on the search
+	// path (the connect flow's own file).
+	ExecutablePath string
 }
 
 // Prepared is an install that has been staged but not committed: the
@@ -45,6 +49,11 @@ type Prepared struct {
 	Approval PermissionApproval
 	// Digest is the manifest digest the approval would be bound to.
 	Digest string
+	// ExecutablePath is the program the caller already resolved, for a
+	// generated package whose manifest names a system runtime by name: the
+	// connect flow knows exactly which file the user pointed at, and the
+	// search path may not carry it.
+	ExecutablePath string
 }
 
 // PrepareLocal stages a package directory for install.
@@ -164,6 +173,9 @@ func (p Prepared) Commit(approved bool) (Entry, error) {
 	}
 	spec := p.spec
 	spec.Approved = approved
+	if p.ExecutablePath != "" {
+		spec.ExecutablePath = p.ExecutablePath
+	}
 	return install(p.paths, spec)
 }
 
@@ -214,8 +226,13 @@ func install(paths Paths, spec installSpec) (Entry, error) {
 	}
 
 	// Resolve the runtime before touching the disk: a package whose program
-	// cannot be found must not replace a working install.
-	probe := Integration{Entry: Entry{ID: manifest.ID}, Paths: paths, Manifest: manifest}
+	// cannot be found must not replace a working install. A caller that
+	// already resolved the program (the connect flow) hands it in.
+	probe := Integration{
+		Entry:    Entry{ID: manifest.ID, ExecutablePath: spec.ExecutablePath},
+		Paths:    paths,
+		Manifest: manifest,
+	}
 	binding, err := ResolveRuntime(probe)
 	if err != nil {
 		return Entry{}, err
