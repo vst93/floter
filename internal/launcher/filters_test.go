@@ -8,6 +8,7 @@ import (
 	"floter/internal/apps"
 	"floter/internal/drops"
 	"floter/internal/extensions"
+	"floter/internal/settings"
 	"floter/internal/tools"
 
 	clipboardpkg "floter/internal/clipboard"
@@ -351,4 +352,41 @@ func hasItem(items []Item, id string) bool {
 		}
 	}
 	return false
+}
+
+// A built-in mode's chips row carries the door to its own options: the gear
+// names the plugin and hands it to the shell, which opens the settings on the
+// page that owns it. An extension command's list has no such door (its options
+// are the manifest's).
+func TestModeOptionsGear(t *testing.T) {
+	a, _ := clipboardApp(t)
+	configured := []string{}
+	a.Actions.ConfigurePlugin = func(plugin string) { configured = append(configured, plugin) }
+	tt := render(t, a)
+	tt.Type("clipboard")
+	tt.Frame()
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if !a.clipboard {
+		t.Fatal("the clipboard mode did not open")
+	}
+	if !tt.HasText("Options") {
+		t.Fatalf("the gear is missing: %q", tt.Texts())
+	}
+	if err := tt.Click("Options"); err != nil {
+		t.Fatalf("the gear: %v", err)
+	}
+	tt.Frame()
+	if len(configured) != 1 || configured[0] != settings.CustomPluginClipboard {
+		t.Errorf("configured = %v", configured)
+	}
+	// An extension command's own list has no gear: its options are its
+	// manifest's.
+	a.clipboard = false
+	a.mode = &extensions.CommandEntry{Command: extensions.Command{ID: "jv", Name: "JSON Viewer"}}
+	a.Query = "jv "
+	tt.Frame()
+	if tt.HasText("Options") {
+		t.Errorf("an extension command's list offered options: %q", tt.Texts())
+	}
 }

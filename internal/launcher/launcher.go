@@ -68,8 +68,11 @@ func WindowHeight(uiScale string) float64 {
 type Actions struct {
 	// OpenSettings, OpenTerminal and Quit run the built-in commands.
 	OpenSettings func()
-	OpenTerminal func()
-	Quit         func()
+	// ConfigurePlugin opens the settings where a built-in plugin's own options
+	// live, so a mode's list has a way to its configuration.
+	ConfigurePlugin func(plugin string)
+	OpenTerminal    func()
+	Quit            func()
 	// Dismiss is Escape with an empty query: hide the launcher window, as
 	// the old shell did.
 	Dismiss func()

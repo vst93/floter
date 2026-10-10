@@ -38,10 +38,12 @@ type Launcher struct {
 	// BareTerminal is the held modifier's own row: a terminal session with no
 	// command, and the line under it that says so.
 	// The tray menu: show the panel, open the settings, re-scan, quit.
-	TrayShow         string
-	TraySettings     string
-	TrayReload       string
-	TrayQuit         string
+	TrayShow     string
+	TraySettings string
+	TrayReload   string
+	TrayQuit     string
+	// ConfigurePlugin is the gear's own word in a mode's chips row.
+	ConfigurePlugin  string
 	BareTerminal     string
 	BareTerminalHint string
 	TriggerHint      func(name string) string

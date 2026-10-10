@@ -15,6 +15,7 @@ import (
 
 	clipboardpkg "floter/internal/clipboard"
 	"floter/internal/i18n"
+	"floter/internal/settings"
 )
 
 // FilterAxis is one dimension a mode's list can be filtered by.
@@ -198,7 +199,46 @@ func (a *App) filtersRow(c *ui.Context, top float32) {
 				a.setFilter(value)
 			}
 		}
+		// The mode's own door to its configuration: the chips filter the list,
+		// and the gear opens the settings where the plugin's options live.
+		// (The old build drew the form in the launcher; this build keeps one
+		// form, on the page that owns the settings — the gear is the path
+		// there rather than a second surface to keep in step.)
+		if a.Actions.ConfigurePlugin != nil {
+			id := a.filterPluginID()
+			if id != "" {
+				chip := ui.Row(c).Focusable().Shrink(0).
+					Padding(t.Space(0.75), t.Space(1.5)).Radius(t.Radius).Gap(t.Space(1)).
+					AlignItems(ui.Center)
+				if chip.Hovered() {
+					chip.Background(t.SurfaceHover)
+				}
+				chip.Children(func() {
+					if glyph, ok := Glyph("settings"); ok {
+						ui.Icon(c, glyph).Size(t.Space(3.5), t.Space(3.5)).TextColor(t.TextMuted)
+					}
+					ui.Text(c, copy.ConfigurePlugin).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+				})
+				if chip.Clicked() {
+					a.Actions.ConfigurePlugin(id)
+				}
+			}
+		}
 	})
+}
+
+// filterPluginID is the built-in plugin whose options the gear opens, or ""
+// for a mode that has none (an extension command's own list).
+func (a *App) filterPluginID() string {
+	switch {
+	case a.browser:
+		return settings.CustomPluginBrowser
+	case a.clipboard:
+		return settings.CustomPluginClipboard
+	case a.calculatorMode:
+		return "calculator"
+	}
+	return ""
 }
 
 // setFilter chooses one value of the active mode's axis.
