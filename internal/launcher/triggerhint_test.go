@@ -3,6 +3,8 @@ package launcher
 import (
 	"testing"
 
+	"github.com/egoist/mygo/ui"
+
 	"floter/internal/extensions"
 )
 
@@ -82,5 +84,28 @@ func TestTriggerHintIsTheOrdinaryPageOnly(t *testing.T) {
 	a.mode = &a.Commands[0]
 	if got := a.triggerHintText(); got != "" {
 		t.Errorf("a command mode nudged: %q", got)
+	}
+}
+
+// The nudge is dropped when the field would be squeezed under its floor: a
+// truncated stub is worse than no hint, and a wrong hide is the only way to
+// lose the nudge for good.
+func TestTriggerHintFits(t *testing.T) {
+	// One App per window: a bound Handle cannot be focused from two windows.
+	wideApp := hintApp()
+	wideApp.Query = "clip"
+	wide := ui.NewTester(func(c *ui.Context) { wideApp.View(c) },
+		InputWindowWidth, int(WindowHeight("small")))
+	wide.Frame()
+	if !wide.HasText("Clipboard history \u00b7 enter") {
+		t.Errorf("the nudge is missing in a wide window: %q", wide.Texts())
+	}
+	narrowApp := hintApp()
+	narrowApp.Query = "clip"
+	narrow := ui.NewTester(func(c *ui.Context) { narrowApp.View(c) },
+		200, int(WindowHeight("small")))
+	narrow.Frame()
+	if narrow.HasText("Clipboard history \u00b7 enter") {
+		t.Errorf("the nudge was kept in a narrow window: %q", narrow.Texts())
 	}
 }

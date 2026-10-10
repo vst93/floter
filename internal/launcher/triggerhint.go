@@ -13,6 +13,8 @@ package launcher
 import (
 	"strings"
 
+	"github.com/egoist/mygo/ui"
+
 	"floter/internal/extensions"
 )
 
@@ -78,6 +80,27 @@ func (a *App) externalTriggerHint(query string) (triggerHint, bool) {
 		return triggerHint{}, false
 	}
 	return triggerHint{entry: matches[0], count: len(matches)}, true
+}
+
+// triggerHintMinField is the room the query field keeps before the nudge is
+// dropped: the nudge rides whatever the field leaves, and a field squeezed
+// under a quarter of the row is worse than a missing hint.
+const triggerHintMinField = 160
+
+// triggerHintFits reports whether the nudge has room to be read in a row of
+// the window's own width. A font that cannot be measured keeps the hint: a
+// wrong *hide* loses the nudge for good, while a wrong *show* costs one line
+// of muted text.
+func triggerHintFits(c *ui.Context, text string) bool {
+	if text == "" {
+		return false
+	}
+	hint, _ := c.MeasureText(0, ui.Span{Text: text})
+	if hint <= 0 {
+		return true
+	}
+	width, _ := c.Size()
+	return width-hint >= triggerHintMinField
 }
 
 // triggerHintText is the nudge's wording, or "" when there is none. It is the

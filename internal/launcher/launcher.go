@@ -628,7 +628,7 @@ func (a *App) View(c *ui.Context) {
 				// costs no band and never moves the window. The clear button
 				// follows it, so the nudge and the button share the row's
 				// tail.
-				if hint := a.triggerHintText(); hint != "" {
+				if hint := a.triggerHintText(); hint != "" && triggerHintFits(c, hint) {
 					ui.Text(c, hint).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
 				}
 				if a.Query != "" {
