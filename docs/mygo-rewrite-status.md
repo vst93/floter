@@ -225,6 +225,15 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 - `internal/inventory`：桌面条目 + flatpak/snap/nix/Homebrew/LaunchServices/Chocolatey/Scoop/
   WinGet 多来源发现、同工具合并、策展排序、指纹、TTL 缓存。
 
+## 已知差距（框架不支持，诚实记录）
+
+- 终端外观的四个设置**磁盘上存在、会被保留，但当前无 UI、也不起作用**：
+  `terminal_bold`（加粗模式：粗体字/亮色）、`terminal_scrollbar`、`terminal_select_copy`（选中即复制）、
+  `terminal_paste_safe`、`terminal_wheel_lines`。mygo v0.3.7 的 terminal 插件（`plugins/terminal`）
+  没有暴露这些旋钮（内部固定：滚动条总画、滚轮步长固定、复制仅 ⌘C、无 bracketed-paste 开关、
+  bold 由字体权重决定），所以 Go 侧既不能渲染（渲染了就是骗人）也不能接线。等框架暴露后再补。
+  字号/字体族/光标形状/闪烁/行高/内边距/调色板/透明度**已全部接线**，字体族还带真实安装探测。
+
 ## 尚未做（按建议优先级）
 
 1. **列表协议的分页**：`page.cursor`/`hasMore` 与滚动加载（需要带着 cursor 重新执行命令）；旧版还有
