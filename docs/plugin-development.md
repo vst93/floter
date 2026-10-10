@@ -161,6 +161,42 @@ manifest 与 descriptor 的完整 schema 见 `docs/extensions/`（FEP 系列与
 - 输出有超时与字节上限（`RUN_TIMEOUT` / `MAX_RUN_OUTPUT_BYTES`），超限截断并置
   `truncated: true`。
 
+### 2.4 声明式输入：manifest 的 `params`
+
+如果你的命令需要用户先填值，**在 manifest 里声明**，宿主会渲染表单并把答案变成 argv —
+用户不需要自己拼命令行：
+
+```json
+"params": [
+  { "id": "target", "label": "目标", "kind": "text", "flag": "--target", "required": true },
+  { "id": "mode", "kind": "select", "options": ["fast", "slow"] },
+  { "id": "verbose", "kind": "boolean", "flag": "--verbose" },
+  { "id": "file", "kind": "path", "flag": "--file" }
+]
+```
+
+| 字段 | 必填 | 作用 |
+| --- | --- | --- |
+| `id` | 是 | 值的键（字母数字与 `. _ -`）。**永不传给工具**，只用于表单与持久化。 |
+| `kind` | 是 | `text` / `number` / `boolean` / `select` / `path`。 |
+| `label` | 否 | 显示名；空则用 `id`。 |
+| `default` | 否 | 预填。**不是豁免**：`required` 的字段有默认值仍然必填。 |
+| `required` | 否 | 未填则表单拒绝运行。 |
+| `placeholder` | 否 | 输入框的提示。 |
+| `options` | `select` 必填 | 选项列表（非空）。 |
+| `flag` | 否 | argv 前缀（`--target`）。省略则是**位置参数**；`boolean` **必须**有 flag。 |
+
+argv 的规则（宿主保证，你不需要做任何拼接）：
+
+- 每个 flag 是**独立的一个 argv 项**，每个值也是独立的一项；
+- `boolean` 为真时只出现 flag，为假时**完全不出现**；
+- 值为空则整个参数不出现（`required` 的由表单拦住）；
+- `flag` 必须是一个 token（`-` 开头，只含字母数字与 `- _ .`）——能拆成两项的 flag 在
+  安装时就会被拒绝，这是注入防御的地基。
+
+**改 `params` 会让已批准的摘要失效**，用户需要重新确认权限：这是故意的——你改了它接受的
+输入，审批就得重来。
+
 ---
 
 ## 3 · 列表协议
