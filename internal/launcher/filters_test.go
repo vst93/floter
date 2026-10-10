@@ -390,3 +390,38 @@ func TestModeOptionsGear(t *testing.T) {
 		t.Errorf("an extension command's list offered options: %q", tt.Texts())
 	}
 }
+
+// A clipboard entry's whole text can be shown in a window of its own, from the
+// selected row's own control: the old build's "pin one entry" (R90), whose Tab
+// key the filter chips took over.
+func TestPinningAClipboardEntry(t *testing.T) {
+	a, _ := clipboardApp(t)
+	pinned := [][2]string{}
+	a.Actions.PinText = func(title, text string) { pinned = append(pinned, [2]string{title, text}) }
+	tt := render(t, a)
+	tt.Type("clipboard")
+	tt.Frame()
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if !a.clipboard {
+		t.Fatal("the clipboard mode did not open")
+	}
+	// The control rides the selected row.
+	if !tt.HasText("Pin as a window") {
+		t.Fatalf("the pin control is missing: %q", tt.Texts())
+	}
+	if err := tt.Click("Pin as a window"); err != nil {
+		t.Fatalf("pin: %v", err)
+	}
+	tt.Frame()
+	if len(pinned) != 1 {
+		t.Fatalf("pinned = %v", pinned)
+	}
+	if pinned[0][1] == "" {
+		t.Errorf("the pinned text is empty: %v", pinned)
+	}
+	// The pin does not run the row (it is a control, not the row's action).
+	if testRuns["copy"] != 0 {
+		t.Errorf("the pin also ran the row: %v", testRuns)
+	}
+}

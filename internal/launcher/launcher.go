@@ -806,8 +806,6 @@ func (a *App) View(c *ui.Context) {
 			a.appendWord(item.complete)
 		case a.calculatorMode:
 			a.cycleCalculatorFilter()
-		case a.clipboard && item.clip != nil:
-			a.pinClip(*item.clip)
 		case a.browser && item.tab != nil:
 			a.copyURL(item.tab.URL)
 		case a.browser && item.web != nil:
@@ -1203,6 +1201,16 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 			}
 		})
 		if i == a.Selected && (item.clip != nil || item.calc != nil) {
+			// A clipboard entry's whole text can be shown in a window of its
+			// own: the row's text is the smallest honest cut of "pin one
+			// entry", and the control rides the selected row so a stray click
+			// cannot pin something the user was not looking at.
+			if item.clip != nil && a.Actions.PinText != nil {
+				if ui.Button(c, "\u2197").Label(copy.HistoryPin).Clicked() {
+					a.pinClip(*item.clip)
+					removed = true
+				}
+			}
 			if ui.Button(c, "✕").Label(copy.HistoryDelete).Clicked() {
 				removed = true
 				a.deleteSelectedHistory()

@@ -97,7 +97,10 @@ type Launcher struct {
 	ClipboardDeleted        string
 	// HistoryDelete names a history row's delete control, and
 	// CalculatorDeleted reports one that went.
-	HistoryDelete          string
+	HistoryDelete string
+	// HistoryPin shows a selected clipboard entry's whole text in a window of
+	// its own.
+	HistoryPin             string
 	CalculatorDeleted      string
 	CalculatorDeleteFailed string
 	// CalculatorEmpty is the calculator mode's empty state, and the two
