@@ -955,7 +955,10 @@ func (a *App) row(c *ui.Context, item Item, i int) {
 		Padding(t.Space(1.5), t.Space(2)).Radius(t.Radius).Gap(t.Space(2)).
 		Transition(rowTransition)
 	if i == a.Selected {
-		row.Background(t.Accent.Alpha(0.14))
+		// The old build's selection: a quiet accent tint, and the emphasis
+		// is the row's own type — the title at 700 — rather than a ring or
+		// a shadow. The tint places the row; the weight announces it.
+		row.Background(t.Accent.Alpha(0.085))
 	} else if row.Hovered() {
 		row.Background(t.SurfaceHover)
 	}
@@ -974,9 +977,17 @@ func (a *App) row(c *ui.Context, item Item, i int) {
 			}
 		}
 		ui.Column(c).Grow(1).Children(func() {
-			ui.Text(c, item.Title).FontSize(t.FontSize).TextColor(t.Text)
+			title := ui.Text(c, item.Title).FontSize(t.FontSize).TextColor(t.Text)
+			// The selected row's emphasis is its own type: the title at 700,
+			// as `.launcher-result--selected .launcher-result__title` did.
+			if i == a.Selected {
+				title.FontWeight(700)
+			}
 			if item.Detail != "" {
-				ui.Text(c, item.Detail).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+				subtitle := ui.Text(c, item.Detail).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+				if i == a.Selected {
+					subtitle.TextColor(t.Text)
+				}
 			}
 		})
 		if i == a.Selected && (item.clip != nil || item.calc != nil) {
