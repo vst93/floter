@@ -2017,9 +2017,16 @@ func (a *App) View(c *ui.Context) {
 
 	t := c.Theme()
 	top, right, bottom, left := a.inset()
+	// The card's one edge (base.css's --input-stroke): a plain 1px stroke,
+	// lit one step while the window has the keyboard — the rim the old
+	// build's R72 kept when it deleted the second one.
+	stroke := surface.Tokens.InputStroke
+	if a.Win != nil && a.Win.IsFocused() {
+		stroke = surface.Tokens.InputStrokeActive
+	}
 	ui.Column(c).Fill().Padding(top, right, bottom, left).Children(func() {
 		radius := surface.Tokens.RadiusLG
-		card := ui.Column(c).Fill().Radius(radius).DragWindow()
+		card := ui.Column(c).Fill().Radius(radius).DragWindow().Border(1, stroke)
 		material := glassmap.Material(surface.Glass, t)
 		if material == nil {
 			// The `off` stop: a plain, near-solid face and no material.

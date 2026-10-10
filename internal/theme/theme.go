@@ -68,6 +68,12 @@ type Tokens struct {
 	RadiusSM float32
 	RadiusMD float32
 	RadiusLG float32
+
+	// InputStroke is the one edge a card or a control draws (base.css's
+	// `--input-stroke`), and InputStrokeActive its focused step — the lit
+	// edge a focused card takes, as `.collapsed-card:focus-within` did.
+	InputStroke       ui.Color
+	InputStrokeActive ui.Color
 }
 
 // For resolves the appearance and scales the metrics for a settings value.
@@ -93,14 +99,23 @@ func For(s settings.Settings, systemDark bool) Tokens {
 	t.Spacing = round1(t.Spacing * f)
 	t.Radius = round1(t.Radius * f)
 
+	// The strokes are alphas over white or black, per appearance, exactly as
+	// base.css wrote them: a lit hairline in the dark, a dark one in the
+	// light, and the focused step takes the accent.
+	stroke, strokeActive := ui.RGBA(255, 255, 255, 0.08), ui.RGBA(143, 183, 255, 0.24)
+	if appearance == Light {
+		stroke, strokeActive = ui.RGBA(0, 0, 0, 0.1), ui.RGBA(10, 108, 255, 0.28)
+	}
 	return Tokens{
-		Appearance: appearance,
-		Theme:      &t,
-		Scale:      scale,
-		RadiusXS:   round1(RadiusXS * f),
-		RadiusSM:   round1(RadiusSM * f),
-		RadiusMD:   round1(RadiusMD * f),
-		RadiusLG:   round1(RadiusLG * f),
+		Appearance:        appearance,
+		Theme:             &t,
+		Scale:             scale,
+		RadiusXS:          round1(RadiusXS * f),
+		RadiusSM:          round1(RadiusSM * f),
+		RadiusMD:          round1(RadiusMD * f),
+		RadiusLG:          round1(RadiusLG * f),
+		InputStroke:       stroke,
+		InputStrokeActive: strokeActive,
 	}
 }
 

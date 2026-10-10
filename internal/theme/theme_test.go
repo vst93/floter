@@ -84,3 +84,26 @@ func TestForDoesNotMutateTheSharedTheme(t *testing.T) {
 		t.Errorf("For mutated the shared light theme: %+v", *shared)
 	}
 }
+
+// The strokes are the two appearances' edge colors, per appearance, as
+// base.css wrote them: a lit hairline in the dark, a dark one in the light.
+func TestStrokes(t *testing.T) {
+	dark := For(settings.Settings{Theme: "dark"}, true)
+	if dark.Appearance != Dark {
+		t.Fatalf("appearance = %v", dark.Appearance)
+	}
+	if dark.InputStroke.A >= 255 {
+		t.Errorf("dark stroke = %v, want translucent", dark.InputStroke)
+	}
+	light := For(settings.Settings{Theme: "light"}, false)
+	if light.Appearance != Light {
+		t.Fatalf("appearance = %v", light.Appearance)
+	}
+	if light.InputStroke.R != 0 {
+		t.Errorf("light stroke = %v, want the dark-on-light one", light.InputStroke)
+	}
+	// The focused step takes the accent in both.
+	if dark.InputStrokeActive == dark.InputStroke {
+		t.Error("the active stroke is the idle one")
+	}
+}
