@@ -98,3 +98,29 @@ func TestTerminalNewCommandRowReturns(t *testing.T) {
 		t.Errorf("surf = %v, want launcher", a.Surf)
 	}
 }
+
+// The panel is placed in the display's own coordinates, centred, and clamped
+// so the window the terminal grows into still fits: a multi-display desktop
+// must not open the launcher on whichever screen the platform picks.
+func TestPlacementIsCentredAndClamped(t *testing.T) {
+	cases := []struct {
+		name                string
+		areaX, areaY, w, h  int
+		scale               float64
+		windowW, referenceH float64
+		wantX, wantY        int
+	}{
+		{"an ordinary display", 0, 0, 1920, 1080, 1, 720, 700, 600, 190},
+		{"a display to the right", 1920, 0, 2560, 1440, 1, 720, 700, 2840, 370},
+		{"a display scaled 2", 0, 0, 2560, 1440, 2, 720, 700, 280, 10},
+		{"a display too short for the reference", 0, 0, 1920, 600, 1, 720, 700, 600, 0},
+	}
+	for _, c := range cases {
+		gotX, gotY := placement(
+			float64(c.areaX), float64(c.areaY), float64(c.w), float64(c.h),
+			c.scale, c.windowW, c.referenceH)
+		if gotX != c.wantX || gotY != c.wantY {
+			t.Errorf("%s: placement = (%d, %d), want (%d, %d)", c.name, gotX, gotY, c.wantX, c.wantY)
+		}
+	}
+}

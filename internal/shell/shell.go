@@ -811,6 +811,11 @@ func (a *App) Start() {
 		}
 	})
 	a.Win.OnFocus(func() { a.shownAt = a.now() })
+	// The panel is placed in the primary display's work area, centred, rather
+	// than left to the platform's own default: a multi-display desktop would
+	// otherwise open it on whichever screen the platform picks, and the
+	// launcher is a summon — it belongs where the user's attention is.
+	a.placeWindow()
 	a.Win.OnResize(a.trackTerminalSize)
 	a.Win.OnFileDrop(a.handleFileDrop)
 	a.Win.OnBlur(func() {
@@ -1960,6 +1965,56 @@ func (a *App) Toggle() {
 	}
 	a.Open(SurfaceLauncher)
 	a.Show()
+}
+
+// placeWindow centres the panel in the primary display's work area, in that
+// display's own coordinates: the old build placed it on the focused monitor
+// and clamped against the *terminal* height so the expanded window still fits
+// after the panel grows into it.
+func (a *App) placeWindow() {
+	if a.Win == nil {
+		return
+	}
+	display := mygo.Screen.PrimaryDisplay()
+	area := display.WorkArea
+	scale := display.ScaleFactor
+	if scale <= 0 {
+		scale = 1
+	}
+	areaX := float64(area.X) / scale
+	areaY := float64(area.Y) / scale
+	areaWidth := float64(area.Width) / scale
+	areaHeight := float64(area.Height) / scale
+	if areaWidth <= 0 || areaHeight <= 0 {
+		return
+	}
+	width := float64(launcher.InputWindowWidth)
+	// The reference height is the terminal's, not the launcher's: the window
+	// grows into the terminal when a session opens, and it must still fit.
+	reference := a.Store.Snapshot().TerminalHeight
+	x, y := placement(areaX, areaY, areaWidth, areaHeight, scale, width, reference)
+	a.Win.SetPosition(x, y)
+}
+
+// placement is where a panel of windowW by referenceH goes on a work area, in
+// the area's own coordinates: centred, and clamped so it never runs off the
+// display. The reference height is the tallest the window will grow, so the
+// placement is stable across a surface change.
+func placement(areaX, areaY, areaWidth, areaHeight, scale, windowW, referenceH float64) (int, int) {
+	if scale <= 0 {
+		scale = 1
+	}
+	areaX, areaY = areaX/scale, areaY/scale
+	areaWidth, areaHeight = areaWidth/scale, areaHeight/scale
+	if areaWidth <= 0 || areaHeight <= 0 {
+		return 0, 0
+	}
+	maxX := areaX + math.Max(areaWidth-windowW, 0)
+	maxY := areaY + math.Max(areaHeight-referenceH, 0)
+	x := areaX + (areaWidth-windowW)/2
+	y := areaY + (areaHeight-referenceH)/2
+	return int(math.Round(math.Min(math.Max(x, areaX), maxX))),
+		int(math.Round(math.Min(math.Max(y, areaY), maxY)))
 }
 
 // Show reveals the window and takes the focus, arming the blur grace.
