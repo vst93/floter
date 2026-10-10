@@ -2439,7 +2439,7 @@ func (a *App) View(c *ui.Context) {
 			// the face it paints over it — and a plain box over the rows
 			// would eat their clicks, so the veil lets the pointer through:
 			// it is a color, never a control.
-			if haze := glassmap.Haze(surface.Glass, t); haze != ui.Transparent {
+			if haze := glassmap.Haze(surface.Glass, t, c.Vibrancy()); haze != ui.Transparent {
 				ui.Box(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).Radius(radius).Background(haze).PassThrough()
 			}
 			face := ui.Column(c).Fill().Radius(radius).Material(material).Padding(t.Space(2.5)).DragWindow()

@@ -73,7 +73,7 @@ func TestOffCarriesNoMaterialAndNoHaze(t *testing.T) {
 	if Material(spec, lightTheme()) != nil {
 		t.Error("the off stop must not build a material")
 	}
-	if Haze(spec, lightTheme()) != (ui.Color{}) {
+	if Haze(spec, lightTheme(), true) != (ui.Color{}) {
 		t.Error("the off stop must not build a haze")
 	}
 }
@@ -92,7 +92,22 @@ func TestMaterialAndHazeUseTheTheme(t *testing.T) {
 	if want := theme.Background.Alpha(0.8); g.Tint != want {
 		t.Errorf("tint = %v, want %v", g.Tint, want)
 	}
-	if got := Haze(spec, theme); got != theme.Background.Alpha(0.5) {
+	if got := Haze(spec, theme, true); got != theme.Background.Alpha(0.5) {
 		t.Errorf("haze = %v", got)
+	}
+}
+
+// The veil is only for a blurred backdrop: a platform with no backdrop has no
+// smear under the panel to cover, so half a screen of veil would just be
+// opacity — a solid slab where glass should be. The tint's own alpha (the
+// user's setting) is what shows the desktop through there.
+func TestHazeNeedsABackdrop(t *testing.T) {
+	spec := SpecFor("regular", 80)
+	theme := lightTheme()
+	if got := Haze(spec, theme, false); got != (ui.Color{}) {
+		t.Errorf("a platform without a backdrop got a veil: %v", got)
+	}
+	if got := Haze(spec, theme, true); got == (ui.Color{}) {
+		t.Error("a platform with a backdrop got no veil")
 	}
 }

@@ -38,6 +38,9 @@ type OutputView struct {
 	// FontFamily is the family the text is drawn in: the terminal's own, so
 	// a command's output reads the way it would in the terminal.
 	FontFamily string
+	// Entry is the command the output came from, when it came from one: the
+	// window that can be opened for it re-runs the same command.
+	Entry *extensions.CommandEntry
 }
 
 // Copy is the launcher's copy in the stored language, for a caller outside
@@ -56,9 +59,10 @@ func (a *App) RunStatus(run extensions.CapturedRun, err error) string {
 
 // showOutput puts a captured run's output in front of the user: as a list when
 // the command printed the list protocol, as text otherwise.
-func (a *App) showOutput(run extensions.CapturedRun, err error) {
+func (a *App) showOutput(run extensions.CapturedRun, err error, entry *extensions.CommandEntry) {
 	copy := a.copy()
 	view := &OutputView{
+		Entry:      entry,
 		Title:      strings.Join(run.Command, " "),
 		Text:       run.Text(),
 		Status:     a.runStatus(copy, run),
@@ -235,6 +239,14 @@ func (a *App) outputBody(c *ui.Context, copy i18n.Launcher, edge float32) {
 				if a.Actions.PinText != nil {
 					if ui.Button(c, "\u2197").Label(copy.HistoryPin).Clicked() {
 						a.Actions.PinText(view.Title, view.Text)
+					}
+				}
+				// And a command's page can be detached into a window that
+				// stays put: the old build's second window, which never hides
+				// on blur and re-runs the command from its own controls.
+				if a.Actions.DetachOutput != nil && view.Entry != nil {
+					if ui.Button(c, "\u29c9").Label(copy.OutputDetach).Clicked() {
+						a.Actions.DetachOutput(*view)
 					}
 				}
 			})

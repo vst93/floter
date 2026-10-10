@@ -114,8 +114,17 @@ func Material(spec Spec, theme *ui.Theme) ui.Material {
 // stop's dim alpha, or Transparent when there is none. It is a color rather
 // than a material so the caller can lay it under the glass pane, as the old
 // `--glass-step-dim` composited under `--glass-tint-alpha`.
-func Haze(spec Spec, theme *ui.Theme) ui.Color {
-	if !spec.Enabled || spec.HazeAlpha <= 0 {
+//
+// The veil exists to keep text readable over a *blurred backdrop* — the
+// desktop the old build's `backdrop-filter` smeared. A platform with no
+// backdrop (Linux, and Windows before 11: `Context.Vibrancy` is false there)
+// has no blur under the panel, so the veil is not covering a smear; it is
+// only opacity, and half a screen of it turns glass into a solid slab. The
+// veil is dropped there and the tint's own alpha — the user's setting — is
+// what shows the desktop through, which is the honest reading of "glass"
+// when the renderer cannot blur what is behind the window.
+func Haze(spec Spec, theme *ui.Theme, backdrop bool) ui.Color {
+	if !spec.Enabled || spec.HazeAlpha <= 0 || !backdrop {
 		return ui.Transparent
 	}
 	return theme.Background.Alpha(spec.HazeAlpha)

@@ -100,7 +100,9 @@ type Launcher struct {
 	HistoryDelete string
 	// HistoryPin shows a selected clipboard entry's whole text in a window of
 	// its own.
-	HistoryPin             string
+	HistoryPin string
+	// OutputDetach opens a command's page in a window of its own.
+	OutputDetach           string
 	CalculatorDeleted      string
 	CalculatorDeleteFailed string
 	// CalculatorEmpty is the calculator mode's empty state, and the two

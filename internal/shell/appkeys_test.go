@@ -197,3 +197,16 @@ func TestTrayLabelsFollowTheLanguage(t *testing.T) {
 	a := appKeysApp()
 	a.Rescan()
 }
+
+// A menu bar belongs in macOS's system menu bar and nowhere else: on Linux and
+// Windows the framework draws it *inside* the window — a File/Edit/View bar
+// across a floating panel, which is not what this app is — and the old build
+// installed no application menu at all (the tray is the menu).
+func TestMenuBarBelongsOnMacOnly(t *testing.T) {
+	for _, goos := range []string{"darwin", "linux", "windows"} {
+		want := goos == "darwin"
+		if got := menuBarBelongs(goos); got != want {
+			t.Errorf("menuBarBelongs(%q) = %v, want %v", goos, got, want)
+		}
+	}
+}

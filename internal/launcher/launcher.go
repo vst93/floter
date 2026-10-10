@@ -94,8 +94,10 @@ type Actions struct {
 	// far; the shell answers on the main thread. Nil disables dynamic
 	// completion, and the static argument list stands alone.
 	Complete func(entry extensions.CommandEntry, tokens []string, done func([]extensions.Completion))
-	// PinText shows some text in a window of its own.
-	PinText func(title, text string)
+	// PinText shows some text in a window of its own, and DetachOutput opens
+	// a command's page in a window that stays put and can re-run it.
+	PinText      func(title, text string)
+	DetachOutput func(view OutputView)
 	// CopyClip puts a clipboard entry back on the clipboard, whatever its
 	// kind. Nil falls back to Copy for text.
 	CopyClip func(entry clipboard.Entry)

@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/url"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -396,6 +397,11 @@ type menuActions struct {
 	Launcher func()
 }
 
+// menuBarBelongs reports whether an application menu bar belongs on this
+// platform: macOS draws it in the system menu bar, and Linux and Windows draw
+// it inside the window, where a floating panel wants none.
+func menuBarBelongs(goos string) bool { return goos == "darwin" }
+
 // menuTemplate is the application menu: the standard macOS app menu, the
 // Edit menu whose roles every text field and the terminal need, a small View
 // menu for the app's own surfaces, and the window list.
@@ -429,10 +435,20 @@ func menuTemplate(copy i18n.Launcher, actions menuActions) []*mygo.MenuItem {
 	}
 }
 
-// InstallMenu sets the application menu, so the app has the standard menus
-// (the Edit menu's roles are what a text field and the terminal expect) and
-// its own ways back to each surface.
+// InstallMenu sets the application menu where a menu bar belongs: macOS draws
+// it in the system menu bar, which is where a Mac app's menus live. On Linux
+// and Windows the framework's menu bar is drawn *inside* the window — a bar of
+// File/Edit/View across the top of a floating panel, which is not what this app
+// is — so the menu is removed there and the tray is the menu, exactly as the
+// old build had it (it installed no application menu at all).
 func (a *App) InstallMenu() {
+	if !menuBarBelongs(runtime.GOOS) {
+		// Not merely skipping our own menu: without a call to SetMenu the
+		// framework installs a default one, so the bar has to be taken away
+		// on purpose.
+		mygo.App.SetMenu(nil)
+		return
+	}
 	copy := i18n.For(a.Store.Snapshot().Language).Launcher
 	mygo.App.SetMenu(mygo.NewMenu(menuTemplate(copy, menuActions{
 		Settings: func() { a.Open(SurfaceSettings) },
