@@ -303,12 +303,29 @@ func (a *App) View(c *ui.Context) {
 	ui.Column(c).Fill().Gap(t.Space(1)).Children(func() {
 		a.titleRow(c, copy)
 		if a.Term == nil {
-			ui.Column(c).Fill().Grow(1).Center().Children(func() {
+			// The empty state: what the page is, the control that opens a
+			// blank session, and the one that returns to the search. A spawn
+			// error replaces the hint, since that is what the user needs to
+			// read.
+			ui.Column(c).Fill().Grow(1).Center().Gap(t.Space(2)).Children(func() {
+				title := copy.EmptyTitle
 				hint := copy.Hint
 				if a.Err != nil {
-					hint = a.Err.Error()
+					title, hint = copy.EmptyTitle, a.Err.Error()
 				}
+				ui.Text(c, title).FontSize(t.FontSize + 2).Bold()
 				ui.Text(c, hint).FontSize(t.FontSize).TextColor(t.TextMuted)
+				if a.Actions.Close == nil {
+					return
+				}
+				ui.Row(c).Gap(t.Space(1)).AlignItems(ui.Center).Children(func() {
+					if ui.Button(c, copy.EmptyNew).Clicked() {
+						a.EnsureSession()
+					}
+					if ui.Button(c, copy.EmptyBack).Clicked() && a.Actions.Close != nil {
+						a.Actions.Close()
+					}
+				})
 			})
 			return
 		}

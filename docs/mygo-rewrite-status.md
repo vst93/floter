@@ -176,6 +176,9 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 **P2-u 剪贴板「清空历史」**（本轮）
 - Plugins 页的清空控件：确认后移除所有未收藏条目（收藏豁免），确认与清除可注入。
 
+**P4-w 终端空态的控制**（本轮）
+- 终端页无会话时的空态有标题 +「新建空白会话」+「回到搜索」两个控件；spawn 失败的错误替换说明。
+
 ## 尚未做（按建议优先级）
 
 1. **列表协议的分页**：`page.cursor`/`hasMore` 与滚动加载（需要带着 cursor 重新执行命令）；旧版还有

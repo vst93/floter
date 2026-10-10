@@ -397,10 +397,13 @@ var en = Copy{
 		Percent: percentEN,
 	},
 	Terminal: Terminal{
-		Title: "Terminal",
-		Pin:   "Pin output",
-		Hint:  "The session has not started yet.",
-		Close: "Close terminal",
+		Title:      "Terminal",
+		Pin:        "Pin output",
+		Hint:       "The session has not started yet.",
+		EmptyTitle: "No terminal session yet",
+		EmptyNew:   "New blank session",
+		EmptyBack:  "Back to search",
+		Close:      "Close terminal",
 	},
 }
 
@@ -747,10 +750,13 @@ var zh = Copy{
 		Percent: percentEN,
 	},
 	Terminal: Terminal{
-		Title: "终端",
-		Pin:   "钉住输出",
-		Hint:  "会话尚未启动。",
-		Close: "关闭终端",
+		Title:      "终端",
+		Pin:        "钉住输出",
+		Hint:       "会话尚未启动。",
+		EmptyTitle: "暂无终端会话",
+		EmptyNew:   "新建空白会话",
+		EmptyBack:  "回到搜索",
+		Close:      "关闭终端",
 	},
 }
 

@@ -381,6 +381,12 @@ type Terminal struct {
 	Pin string
 	// Hint is the empty state shown while no session runs.
 	Hint string
+	// EmptyTitle, EmptyNew and EmptyBack are the empty state's title, the
+	// control that opens a blank session, and the one that returns to the
+	// launcher.
+	EmptyTitle string
+	EmptyNew   string
+	EmptyBack  string
 	// Close names the close control for assistive technology.
 	Close string
 }

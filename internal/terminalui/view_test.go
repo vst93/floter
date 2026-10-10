@@ -229,3 +229,25 @@ func TestSnapshotSaveAndRestore(t *testing.T) {
 		t.Errorf("temporary files were left behind: %v", entries)
 	}
 }
+
+// The terminal page's empty state offers a new session and a way back.
+func TestTerminalEmptyStateControls(t *testing.T) {
+	closeCalls := 0
+	a := New(newStore(), Actions{
+		Close: func() { closeCalls++ },
+	}, func(terminal.Options) (*terminal.Terminal, error) {
+		return nil, errors.New("no library in tests")
+	})
+	tt := render(t, a, 860, 600)
+	if !tt.HasText("No terminal session yet") {
+		t.Fatalf("the empty title is missing: %q", tt.Texts())
+	}
+	if err := tt.Click("New blank session"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	// The session attempt failed (no library), and the error replaces the hint.
+	if !tt.HasText("no library in tests") {
+		t.Errorf("the error did not show: %q", tt.Texts())
+	}
+}
