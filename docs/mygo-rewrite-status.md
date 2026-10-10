@@ -246,6 +246,10 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
   `claimed` 守卫）。删除的**能力**保留在选中行自己的 ✕ 按钮上（`row()` 里已经实现），只是键位换成了控件。
   等框架允许快捷键先于编辑器裁决，或暴露编辑器的 claimed 守卫后再补键位。
 
+**P4-ab 本机工具连接 + 窗口放置**（本轮）
+- 后端 `CreateCustom`/`PrepareCustom`（铸造 id、写包、help 推导、本地安装、版本探测）+ 前端表单 + shell 接线。
+- 窗口放置纯函数 + 多显示器居中夹取；About 页 deep-link 卡片；held-modifier 的裸终端行。
+
 ## 尚未做（按建议优先级）
 
 1. **列表协议的分页**：`page.cursor`/`hasMore` 与滚动加载（需要带着 cursor 重新执行命令）；旧版还有
