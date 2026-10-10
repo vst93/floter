@@ -107,6 +107,9 @@ type Actions struct {
 	// picks, and ImportIntegrations applies one they pick.
 	ExportIntegrations func()
 	ImportIntegrations func()
+	// RunWithParams runs an integration's command with the answers to its
+	// declared inputs; the host turns them into argv. Nil hides the form.
+	RunWithParams func(id string, values map[string]string)
 	// InstallFromFolder installs a package directory the user picks, and
 	// ChooseFolder asks them for one. Nil hides the row.
 	InstallFromFolder func(dir string)
@@ -194,6 +197,21 @@ type Integration struct {
 	// tool's own help: only these can be re-probed, so only these get the
 	// button.
 	Generated bool
+	// Params are the declared inputs a run needs: the card renders a form for
+	// them, and the answers become argv.
+	Params []Param
+}
+
+// Param is one declared input, as the form renders it.
+type Param struct {
+	ID          string
+	Label       string
+	Kind        string // text, number, boolean, select, path
+	Default     string
+	Required    bool
+	Placeholder string
+	Options     []string
+	Flag        string
 }
 
 // ConfigField is one field of an integration's host-owned configuration, as
@@ -273,8 +291,11 @@ type App struct {
 	cardRows int
 
 	// disableConfirm marks the integrations whose switch was turned off and
-	// is waiting for the user's answer.
+	// is waiting for the user's answer. runValues holds the run form's
+	// answers per integration and runError its last refusal.
 	disableConfirm map[string]bool
+	runValues      map[string]map[string]string
+	runError       string
 
 	// The local-tool form's draft: what the user has typed, and the
 	// permissions they have ticked. It lives on the panel so a keystroke
@@ -986,6 +1007,10 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 					a.Actions.SetCommandEnabled(integration.ID, command.ID, on)
 				}
 			}
+		}
+
+		if len(integration.Params) > 0 {
+			a.runForm(c, copy, integration)
 		}
 
 		if integration.Orphan {
@@ -1972,4 +1997,107 @@ func (a *App) installFolderRow(c *ui.Context, copy i18n.Settings) {
 			}
 		})
 	})
+}
+
+// runForm is the run-time parameter form for an integration that declares its
+// inputs: one control per parameter, the values collected here, and the Run
+// button. No value is ever turned into a command string here — the map goes to
+// the shell, which builds the argv — so a value with a space or a quote
+// reaches the tool exactly as typed.
+func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration) {
+	if a.Actions.RunWithParams == nil || len(integration.Params) == 0 {
+		return
+	}
+	params := make([]extensions.ParamDefinition, 0, len(integration.Params))
+	for _, param := range integration.Params {
+		params = append(params, extensions.ParamDefinition{
+			ID: param.ID, Label: param.Label, Kind: param.Kind,
+			Default: param.Default, Required: param.Required,
+			Placeholder: param.Placeholder, Options: param.Options, Flag: param.Flag,
+		})
+	}
+	if a.runValues == nil {
+		a.runValues = map[string]map[string]string{}
+	}
+	values, ok := a.runValues[integration.ID]
+	if !ok {
+		values = extensions.ParamDefaults(params)
+		a.runValues[integration.ID] = values
+	}
+	a.card(c, func() {
+		for _, param := range integration.Params {
+			param := param
+			label := param.Label
+			if label == "" {
+				label = param.ID
+			}
+			sublabel := param.Placeholder
+			if param.Required {
+				sublabel = strings.TrimSpace(sublabel + "  ·  " + copy.ConfigRequired)
+			}
+			switch param.Kind {
+			case extensions.ParamBoolean:
+				on := truthyValue(values[param.ID])
+				labelClicked := a.row(c, label, sublabel, func() {
+					if ui.Switch(c, &on).Label(label).Changed() {
+						values[param.ID] = boolValue(on)
+					}
+				})
+				if labelClicked {
+					values[param.ID] = boolValue(!on)
+				}
+			case extensions.ParamSelect:
+				index := 0
+				for i, option := range param.Options {
+					if option == values[param.ID] {
+						index = i
+					}
+				}
+				a.row(c, label, sublabel, func() {
+					if ui.Segmented(c, &index, param.Options...).Changed() &&
+						index >= 0 && index < len(param.Options) {
+						values[param.ID] = param.Options[index]
+					}
+				})
+			default:
+				value := values[param.ID]
+				a.row(c, label, sublabel, func() {
+					ui.TextInput(c, &value).Label(label).Width(220).Placeholder(param.Placeholder)
+				})
+				values[param.ID] = value
+			}
+		}
+	})
+	theme := c.Theme()
+	ui.Row(c).Gap(theme.Space(1)).AlignItems(ui.Center).Children(func() {
+		if ui.Button(c, copy.RunLabel).Clicked() {
+			issues := extensions.ParamIssues(params, values)
+			if len(issues) == 0 {
+				a.Actions.RunWithParams(integration.ID, values)
+				return
+			}
+			a.runError = copy.RunIncomplete
+		}
+		ui.Text(c, copy.RunOutputHint).FontSize(theme.FontSize - 1).TextColor(theme.TextMuted)
+	})
+	if a.runError != "" {
+		ui.Text(c, a.runError).FontSize(theme.FontSize - 1).TextColor(theme.Danger)
+	}
+}
+
+// truthyValue and boolValue are a parameter's own two spellings.
+func truthyValue(value string) bool {
+	switch strings.ToLower(value) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
+}
+
+func boolValue(on bool) string {
+	if on {
+		return "true"
+	}
+	return "false"
 }

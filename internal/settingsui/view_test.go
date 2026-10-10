@@ -1635,3 +1635,62 @@ func TestInstallFromFolderRow(t *testing.T) {
 		t.Errorf("the row shows without a picker: %q", tt.Texts())
 	}
 }
+
+// The run form: one control per declared input, the required values refused
+// until they are filled, and the answers handed to the shell as a map — never
+// turned into a command string here.
+func TestRunParamForm(t *testing.T) {
+	type run struct {
+		id     string
+		values map[string]string
+	}
+	runs := []run{}
+	a := New(settings.NewStore(settings.Default()), Actions{
+		RunWithParams: func(id string, values map[string]string) { runs = append(runs, run{id, values}) },
+	})
+	a.Integrations = func() []Integration {
+		return []Integration{{
+			ID: "io.github.vst93.v", Name: "V Tools", Enabled: true, Running: true,
+			Params: []Param{
+				{ID: "target", Label: "Target", Kind: "text", Required: true, Flag: "--target"},
+				{ID: "verbose", Label: "Verbose", Kind: "boolean", Flag: "--verbose"},
+				{ID: "mode", Label: "Mode", Kind: "select", Options: []string{"fast", "slow"}},
+			},
+		}}
+	}
+	tt := render(t, a, 720, 900)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	for _, want := range []string{"Target", "Verbose", "Mode"} {
+		if !tt.HasText(want) {
+			t.Fatalf("the form is missing %q: %q", want, tt.Texts())
+		}
+	}
+	// A required value that is empty refuses the run.
+	if err := tt.Click("Run with these values"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if len(runs) != 0 {
+		t.Fatalf("an incomplete form ran: %v", runs)
+	}
+	if !tt.HasText("Fill the required values first.") {
+		t.Errorf("the refusal is missing: %q", tt.Texts())
+	}
+	// Filling it runs, with the select's default seeded.
+	a.runValues["io.github.vst93.v"]["target"] = "here"
+	tt.Frame()
+	if err := tt.Click("Run with these values"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if len(runs) != 1 {
+		t.Fatalf("runs = %v", runs)
+	}
+	values := runs[0].values
+	if values["target"] != "here" || values["mode"] != "fast" {
+		t.Errorf("values = %v", values)
+	}
+}

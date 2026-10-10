@@ -217,6 +217,11 @@ func install(paths Paths, spec installSpec) (Entry, error) {
 	if err := validID(manifest.ID); err != nil {
 		return Entry{}, err
 	}
+	// A declared input is checked wherever a manifest is installed, so a
+	// hand-written one and one the connect form produced meet the same rule.
+	if err := ValidateParams(manifest.Params); err != nil {
+		return Entry{}, err
+	}
 	if err := paths.Ensure(); err != nil {
 		return Entry{}, err
 	}

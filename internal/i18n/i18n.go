@@ -326,6 +326,11 @@ type Settings struct {
 	// note that another command claimed the alias first.
 	IntegrationsReprobe   string
 	IntegrationsInstalled string
+	// The run-time parameter form: the button, the "not yet complete" refusal,
+	// and the line that says where the output will land.
+	RunLabel      string
+	RunIncomplete string
+	RunOutputHint string
 	// The disable confirmation: stopping an integration is a mark, not a
 	// delete, and the notice says so.
 	DisableTitle       func(name string) string

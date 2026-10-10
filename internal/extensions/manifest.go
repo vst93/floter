@@ -28,10 +28,15 @@ type Manifest struct {
 	Runtime       Runtime       `json:"runtime"`
 	Provider      Provider      `json:"provider"`
 
-	Platforms   []string  `json:"platforms"`
-	Permissions []string  `json:"permissions"`
-	Output      string    `json:"output"`
-	Lifecycle   Lifecycle `json:"lifecycle"`
+	Platforms   []string `json:"platforms"`
+	Permissions []string `json:"permissions"`
+	Output      string   `json:"output"`
+	// Params are the manifest's declared inputs: the values a run needs,
+	// which the host renders a form for and turns into argv. They travel with
+	// the manifest — the digest, the export, the approval — so editing them
+	// invalidates an approval on purpose.
+	Params    []ParamDefinition `json:"params"`
+	Lifecycle Lifecycle         `json:"lifecycle"`
 }
 
 // The two routes a command's output can take: the terminal surface, or a

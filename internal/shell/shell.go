@@ -484,6 +484,7 @@ func New(opts Options) *App {
 		Detected:            a.detectedTools,
 		ConnectDetected:     a.connectDetected,
 		InstallFromFolder:   a.installPackageFolder,
+		RunWithParams:       a.runWithParams,
 		ChooseFolder:        a.chooseProgram,
 		CopyText:            func(text string) { mygo.Clipboard.WriteText(text) },
 		ChooseProgram:       a.chooseProgram,
@@ -1058,6 +1059,14 @@ func (a *App) integrationList() []settingsui.Integration {
 			}
 		}
 		item.Commands = commands[item.ID]
+		// The manifest's declared inputs, for the card's run form.
+		for _, param := range integration.Manifest.Params {
+			item.Params = append(item.Params, settingsui.Param{
+				ID: param.ID, Label: param.Label, Kind: param.Kind,
+				Default: param.Default, Required: param.Required,
+				Placeholder: param.Placeholder, Options: param.Options, Flag: param.Flag,
+			})
+		}
 		// Only the host's own generated integrations can be re-probed: the
 		// button rebuilds a descriptor it wrote, never publisher content.
 		item.Generated = integration.Entry.PublisherID == "local-user" &&
@@ -1549,6 +1558,25 @@ func (a *App) detectedTools() []settingsui.DetectedTool {
 // inventory knows thousands, and a page that lists them all is a file browser,
 // not a settings panel.
 const maxDetectedTools = 12
+
+// runWithParams runs an integration's command with the answers to its declared
+// inputs: the host turns them into argv (never into a command string), and the
+// run goes to the surface the manifest's output mode names.
+func (a *App) runWithParams(id string, values map[string]string) {
+	integration, ok := a.Integrations.Inventory().WithID(id)
+	if !ok {
+		return
+	}
+	argv := extensions.ParamArgv(integration.Manifest.Params, values)
+	for _, entry := range a.Integrations.CommandEntries() {
+		if entry.IntegrationID != id {
+			continue
+		}
+		a.runCommand(entry, argv)
+		return
+	}
+	log.Printf("floter: %s declares parameters but contributes no command", id)
+}
 
 // installPackageFolder installs a local package directory: the same review
 // and the same install the connect flows use, for a package the user already
