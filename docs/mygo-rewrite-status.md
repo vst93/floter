@@ -164,6 +164,10 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 - 修正安装行的行为：Enter 打开**裸终端会话并打出命令**（旧版 R68 语义，会话在安装后仍是交互式的），
   不是复制到剪贴板；`terminalui.RunShellWithCommand` 带 5s 提示符等待。
 
+**P2-q 查询历史**（本轮）
+- 用户在终端跑过的命令行进历史（去重、上限 20）；**无结果时** ↑/↓ 走历史，草稿保留（↑ 先记住
+  正在打的，↓ 回到现在）；有结果时 ↑/↓ 仍是结果导航。
+
 ## 尚未做（按建议优先级）
 
 1. **应用名的拼音与子序列匹配**（受阻）：旧版 `compute_initials` 用 `pinyin` 表（2 万+字）把

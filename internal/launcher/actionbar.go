@@ -152,6 +152,7 @@ func (a *App) actionBarItemsWith(other []Item) []Item {
 			Title:  copy.RunInShell,
 			Detail: value,
 			Run: func() {
+				a.historyRemember(value)
 				if a.Actions.RunInTerminalWithEnv != nil {
 					env := make([]string, 0, len(parsed.Environment))
 					for key, set := range parsed.Environment {
@@ -167,6 +168,7 @@ func (a *App) actionBarItemsWith(other []Item) []Item {
 		Title:  copy.RunInShell,
 		Detail: value,
 		Run: func() {
+			a.historyRemember(value)
 			if a.Actions.RunInTerminal != nil {
 				a.Actions.RunInTerminal(argv)
 			}

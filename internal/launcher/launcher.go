@@ -207,6 +207,12 @@ type App struct {
 	// clipboard is set while the clipboard history is searched: the field
 	// holds the mode word and the query, and the list offers entries.
 	clipboard bool
+	// History is the query history, newest first, and historyIndex the line
+	// the field is showing (-1 when it shows the user's own draft). The draft
+	// the user was typing is kept, so ↓ can bring it back.
+	History            []string
+	historyIndex       int
+	draftBeforeHistory string
 	// numbers maps a row's index to the number its result shortcut answers
 	// to, recomputed every frame: 1..9 then 0 for the tenth, over the rows
 	// that can be run.
@@ -569,11 +575,19 @@ func (a *App) View(c *ui.Context) {
 	}
 
 	// The field keeps the focus, so the list's arrows are read here: a
-	// single-line text input leaves plain Up and Down to shortcuts.
+	// single-line text input leaves plain Up and Down to shortcuts. With no
+	// results and no action bar, they fall through to the query history.
+	hasList := len(results) > 0 || a.output != nil
 	if c.Shortcut(0, ui.KeyDown) {
+		if !hasList && a.historyDown() {
+			return
+		}
 		a.move(1, len(results))
 	}
 	if c.Shortcut(0, ui.KeyUp) {
+		if !hasList && a.historyUp() {
+			return
+		}
 		a.move(-1, len(results))
 	}
 	if c.Shortcut(0, ui.KeyEscape) {

@@ -1813,3 +1813,74 @@ func TestShellLineCarriesEnvironment(t *testing.T) {
 		t.Errorf("env = %v", gotEnv)
 	}
 }
+
+// The shell history: a command the user ran is remembered, ↑ walks into it,
+// and ↓ brings the half-typed draft back. The walk is driven directly, not
+// through the field's editor (whose internal buffer the framework keeps per
+// window): the walker's decisions are what this pins.
+func TestShellHistory(t *testing.T) {
+	a := testApp()
+	ran := 0
+	a.Actions.RunInTerminal = func([]string) { ran++ }
+
+	tt := render(t, a)
+	tt.Type("git status")
+	tt.Frame()
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if len(a.History) != 1 || a.History[0] != "git status" {
+		t.Fatalf("history = %v", a.History)
+	}
+
+	// ↑ recalls the command; ↓ past the newest entry brings the draft back.
+	a.Query = "draft"
+	a.pendingCaret = true
+	if !a.historyUp() {
+		t.Fatal("↑ did not walk into the history")
+	}
+	if a.Query != "git status" {
+		t.Errorf("↑ = %q, want the recalled command", a.Query)
+	}
+	if !a.historyDown() {
+		t.Fatal("↓ did not walk out of the history")
+	}
+	if a.Query != "draft" {
+		t.Errorf("↓ = %q, want the draft back", a.Query)
+	}
+	if a.historyDown() {
+		t.Error("↓ walked past the present")
+	}
+
+	// A second command is promoted rather than stacked, and the walk covers
+	// both.
+	a.historyRemember("cargo build")
+	if len(a.History) != 2 || a.History[0] != "cargo build" {
+		t.Fatalf("history = %v", a.History)
+	}
+	a.Query = "x"
+	if !a.historyUp() {
+		t.Fatal("↑ did not walk")
+	}
+	if a.Query != "cargo build" {
+		t.Errorf("newest = %q", a.Query)
+	}
+	if !a.historyUp() {
+		t.Fatal("↑ did not walk to the oldest")
+	}
+	if a.Query != "git status" {
+		t.Errorf("oldest = %q", a.Query)
+	}
+	if a.historyUp() {
+		t.Error("↑ walked past the oldest entry")
+	}
+
+	// An empty history has nothing to walk.
+	a.History = nil
+	a.Query = "untouched"
+	if a.historyUp() {
+		t.Error("an empty history walked")
+	}
+	if a.Query != "untouched" {
+		t.Errorf("an empty history changed the field: %q", a.Query)
+	}
+}
