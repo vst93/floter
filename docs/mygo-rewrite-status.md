@@ -142,6 +142,9 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 - **受阻**：应用名的拼音表（`compute_initials` 需 2 万字表）——无网络、无本地数据源，嵌入未验证的
   表不可接受；同列的子序列匹配（`scoreNormalized` 第四档）与应用名拼音一起做。
 
+**P4-v connect / register 深链**（本轮）
+- `floter://connect?manifest=…`（审查后接入，拒绝不装）、`floter://register?cmd=…`（带出集成页即止）。
+
 ## 尚未做（按建议优先级）
 
 1. **列表协议的分页**：`page.cursor`/`hasMore` 与滚动加载（需要带着 cursor 重新执行命令）；旧版还有
@@ -156,7 +159,10 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 6. **P5 打磨**：已完成；更细的换壳过渡受原生窗口尺寸变化限制，不做应用层过渡。
 7. **P6 发布链**：剩下的是一次性维护者动作——`mygo keygen` 生成更新密钥、`mygo.json` 填 `updates`
    与 `macos.signingIdentity`/`macos.notarize`、CI 注入私钥、把产物发到 GitHub Release（含预发布通道）。
-8. **小项**：开机自启需要在真实打包应用上验证一次。（导入导出的权限审批已改为**一次汇总**，
+8. **小项**：开机自启需要在真实打包应用上验证一次；集成的**命令别名编辑**（`command_aliases`
+   的匹配已实现，设置页的逐命令输入框未做）；**多来源工具清点**（dpkg/rpm/flatpak/snap/nix/…）；
+   **能力探测**（manifest `lifecycle.probes` 的执行与 `probeReport`，Go 侧「检查」目前走 diagnose）；
+   旧版 `package.json` 归档字段。（导入导出的权限审批已改为**一次汇总**，
    与旧版一致；旧版 `launch_counts` 已在启动时一次性导入 `usage.json`，本构建的记录优先。）
 
 ## 注意事项（踩过的坑）

@@ -17,6 +17,7 @@ import (
 	"floter/internal/extensions"
 	"floter/internal/i18n"
 	"floter/internal/settings"
+	"floter/internal/settingsui"
 )
 
 // The app icons, resized to 32×32 for the menu bar and the taskbar. Dark is
@@ -129,6 +130,20 @@ func (a *App) HandleURL(rawURL string) {
 		a.Open(SurfaceSettings)
 	case "terminal":
 		a.Open(SurfaceTerminal)
+	case "connect", "register":
+		// A tool ships these links in its README: `connect` carries a manifest
+		// that is reviewed here (connecting is still the user's own
+		// approval), and `register` names a tool already on the PATH, which
+		// this build answers by bringing the integrations page up — it
+		// highlights nothing, which is honest: the old build's Detected list
+		// is not part of this build.
+		a.Open(SurfaceSettings)
+		a.Settings.Page = settingsui.PageIntegrations
+		if strings.EqualFold(parsed.Host, "connect") {
+			if manifest := parsed.Query().Get("manifest"); manifest != "" {
+				a.connectFromLink(manifest)
+			}
+		}
 	default:
 		a.Open(SurfaceLauncher)
 		// The query rides either the host (floter://?q=x) or the path

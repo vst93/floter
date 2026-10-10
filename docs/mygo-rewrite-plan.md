@@ -685,6 +685,18 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
 - **子序列匹配**（`vsc` → Visual Studio Code，旧版 `scoreNormalized` 的第四档）同属此列：它只对
   应用名有意义（内置命令是精确词），和应用名拼音一起做。
 
+### P4-v connect / register 深链（已做）
+
+- 旧版 README 的「一条链接接入工具」：`floter://connect?manifest=/path/tool.json` 与
+  `floter://register?cmd=rg`。Go 版此前只路由 settings/terminal/search。
+- **connect**：manifest 路径（支持 `~`，相对路径按 home 解析）→ **同一个安装审查**：先准备、
+  声明了权限就弹原生审批，批准才落盘；拒绝则什么都不装。manifest 可以是文件（包取其所在目录）
+  或目录本身。
+- **register**：工具已在 PATH 上、不需要 manifest——按旧版的语义「高亮集成页然后停住」，Go 版
+  没有 Detected 列表，如实做法是**只把集成页带上来**，不高亮、不安装。
+- 差异：旧版的审查是一个专门的 review surface（链接绝不安装，用户再按一次），Go 版用权限对话框
+  完成同一次审查——同一道门，少一个界面。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。

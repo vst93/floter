@@ -1232,6 +1232,50 @@ func optionsAsStrings(options []any) []string {
 	return out
 }
 
+// connectFromLink installs (after the user's approval) a manifest a
+// `floter://connect` link carried. A relative path resolves against the home
+// directory, and a missing or unreadable manifest is refused rather than
+// installed.
+func (a *App) connectFromLink(manifest string) {
+	go func() {
+		expanded := manifest
+		if rest, ok := strings.CutPrefix(expanded, "~"); ok {
+			home, _ := os.UserHomeDir()
+			expanded = filepath.Join(home, strings.TrimPrefix(rest, "/"))
+		} else if !filepath.IsAbs(expanded) {
+			home, _ := os.UserHomeDir()
+			expanded = filepath.Join(home, expanded)
+		}
+		info, err := os.Stat(expanded)
+		if err != nil {
+			log.Printf("floter: the connected manifest is not there: %v", err)
+			return
+		}
+		staged := expanded
+		if !info.IsDir() {
+			// The install takes a package directory: the manifest's own
+			// directory is the package.
+			staged = filepath.Dir(expanded)
+		}
+		prepared, err := extensions.PrepareLocal(a.Paths, staged)
+		if err != nil {
+			log.Printf("floter: could not review %s: %v", expanded, err)
+			return
+		}
+		approved := true
+		if prepared.Approval.NeedsApproval() {
+			approved = a.confirmInstallPermissions(prepared.Approval)
+		}
+		entry, err := prepared.Commit(approved)
+		if err != nil {
+			log.Printf("floter: %s was not connected: %v", prepared.Name(), err)
+			return
+		}
+		log.Printf("floter: connected %s %s", entry.Name, entry.PackageVersion)
+		a.RefreshIntegrations(context.Background())
+	}()
+}
+
 // recommendedTools is the shipped packages and whether the inventory has
 // them, for the Integrations page's connect rows.
 func (a *App) recommendedTools() []settingsui.RecommendedTool {

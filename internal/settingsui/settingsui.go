@@ -50,6 +50,9 @@ func PageByName(name string) (int, bool) {
 	return PageGeneral, false
 }
 
+// IntegrationsPage is the page index for a caller outside the package.
+func IntegrationsPage() int { return PageIntegrations }
+
 // PageName is the stored id of a page index.
 func PageName(page int) string {
 	if page < 0 || page >= pageCount {

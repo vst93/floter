@@ -22,6 +22,7 @@ import (
 
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/plugins/terminal"
@@ -2107,5 +2108,89 @@ func TestPowerFallbacksRun(t *testing.T) {
 	}
 	if len(started) == 0 {
 		t.Fatal("nothing was started")
+	}
+}
+
+// A `floter://connect?manifest=…` link reviews the manifest through the same
+// permission dialog an install uses, and a refusal connects nothing. The
+// register link brings the integrations page up and stops there.
+func TestDeepLinkConnectAndRegister(t *testing.T) {
+	paths := extensions.FromRoot(t.TempDir())
+	if err := paths.Ensure(); err != nil {
+		t.Fatal(err)
+	}
+	pkg := filepath.Join(paths.Extensions, "dev.floter.linked")
+	if err := os.MkdirAll(pkg, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	manifest := `{
+	  "schemaVersion": "2.0", "id": "dev.floter.linked", "name": "Linked",
+	  "runtime": {"type": "script", "language": "shell", "path": "tool.sh"},
+	  "provider": {"type": "executable", "argsPrefix": ["--floter"]},
+	  "permissions": ["environment"]
+	}`
+	if err := os.WriteFile(filepath.Join(pkg, "floter.extension.json"), []byte(manifest), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(pkg, "tool.sh"), []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	answer := false
+	asked := 0
+	store := settings.NewStore(settings.Default())
+	a := New(Options{
+		Store:                store,
+		Paths:                paths,
+		NewTerminal:          func(terminal.Options) (*terminal.Terminal, error) { return nil, errors.New("no library in tests") },
+		ConfirmPermissions:   func(extensions.PermissionApproval) bool { asked++; return answer },
+		RunSilentCommand:     func(string) error { return nil },
+		OpenExternalTerminal: func() error { return nil },
+	})
+
+	// The register link only opens the integrations page.
+	if _, err := url.Parse("floter://register?cmd=rg"); err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	a.HandleURL("floter://register?cmd=rg")
+	if a.Surf != SurfaceSettings || a.Settings.Page != settingsui.PageIntegrations {
+		t.Fatalf("register: surface %v page %d", a.Surf, a.Settings.Page)
+	}
+
+	// A refusal connects nothing.
+	a.HandleURL("floter://connect?manifest=" + filepath.Join(pkg, "floter.extension.json"))
+	answer = false
+	deadline := time.Now().Add(5 * time.Second)
+	for asked == 0 {
+		if time.Now().After(deadline) {
+			t.Fatal("the review never ran")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	time.Sleep(50 * time.Millisecond)
+	if _, ok := a.Integrations.Inventory().WithID("dev.floter.linked"); ok {
+		t.Fatal("a refused link installed the integration")
+	}
+
+	// An approval connects it, and the page is the integrations one.
+	answer = true
+	a.HandleURL("floter://connect?manifest=" + filepath.Join(pkg, "floter.extension.json"))
+	deadline = time.Now().Add(10 * time.Second)
+	for {
+		if _, ok := a.Integrations.Inventory().WithID("dev.floter.linked"); ok {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the link never connected the integration")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if asked != 2 {
+		t.Errorf("asked %d times", asked)
+	}
+	// The manifest link may name a directory or its manifest file.
+	a.HandleURL("floter://connect?manifest=" + pkg)
+	time.Sleep(100 * time.Millisecond)
+	if got := settingsui.IntegrationsPage(); got != settingsui.PageIntegrations {
+		t.Errorf("page = %d", got)
 	}
 }
