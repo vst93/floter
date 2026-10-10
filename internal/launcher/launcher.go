@@ -1031,14 +1031,32 @@ func (a *App) row(c *ui.Context, item Item, i int) {
 	// user was not looking at.
 	removed := false
 	row.Children(func() {
-		if item.thumb != nil {
-			ui.Image(c, item.thumb).Size(t.Space(8), t.Space(6)).Radius(t.Radius)
-		}
-		if item.icon != nil {
-			if bitmap := a.appIcon(*item.icon); bitmap != nil {
-				ui.Image(c, bitmap).Size(t.Space(4), t.Space(4))
+		// The icon plate: every row leads with the same 28u cell — the resting
+		// control fill, a small radius and a hairline shadow — so a list of
+		// rows reads as one column whatever each row is. Its content is the
+		// row's own icon, a clipboard thumbnail, or a glyph from the closed
+		// set (see glyphs.go).
+		warm := strings.HasPrefix(item.ID, "cmd:power-")
+		plate := a.iconPlate(c, warm)
+		plate.Children(func() {
+			switch {
+			case item.icon != nil:
+				if bitmap := a.appIcon(*item.icon); bitmap != nil {
+					ui.Image(c, bitmap).Size(t.Space(5.75), t.Space(5.75))
+				}
+			case item.thumb != nil:
+				ui.Image(c, item.thumb).Size(t.Space(5.75), t.Space(5.75)).Radius(t.Space(0.75))
+			default:
+				if glyph, ok := rowGlyph(item); ok {
+					icon := ui.Icon(c, glyph).Size(t.Space(4), t.Space(4))
+					if warm {
+						icon.TextColor(t.Warning)
+					} else {
+						icon.TextColor(t.TextMuted)
+					}
+				}
 			}
-		}
+		})
 		ui.Column(c).Grow(1).Children(func() {
 			title := ui.Text(c, item.Title).FontSize(t.FontSize).TextColor(t.Text)
 			// The selected row's emphasis is its own type: the title at 700,
