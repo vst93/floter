@@ -60,6 +60,9 @@ type Item struct {
 	// section is the title printed above this row, when it starts a block —
 	// an external plugin's own group name, a dropped file's block.
 	section string
+	// warning marks a row that carries a warning dot: a command word two
+	// integrations share, so the row the launcher will not enter says so.
+	warning bool
 }
 
 // commands is the built-in command list, labeled in the launcher's language.
@@ -153,6 +156,7 @@ func (a *App) commandItems() []Item {
 			Shortcut: "Tab",
 			Run:      func() { a.runCommand(entry) },
 			entry:    &entry,
+			warning:  a.commandConflicts[strings.ToLower(strings.TrimSpace(command.ID))],
 		})
 	}
 	return out

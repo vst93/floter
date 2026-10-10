@@ -175,6 +175,9 @@ type App struct {
 	// keeps both in step with the usage file and the setting.
 	Recent     []string
 	ShowRecent bool
+	// commandConflicts marks the command words two integrations share, so a
+	// row whose word is shadowed says so.
+	commandConflicts map[string]bool
 	// Tools are the commands found on the PATH, and ShowTools whether the
 	// search offers them (the show_commands_in_search setting).
 	Tools     []apps.App
@@ -445,7 +448,22 @@ func (a *App) ResetQuery() {
 func (a *App) SetApps(found []apps.App) { a.Apps = found }
 
 // SetCommands replaces the extensions' commands.
-func (a *App) SetCommands(found []extensions.CommandEntry) { a.Commands = found }
+func (a *App) SetCommands(found []extensions.CommandEntry) {
+	a.Commands = found
+	// Two integrations may declare the same command word; the launcher enters
+	// the first, so the rows say the word is shared rather than letting the
+	// shadowed one look like the only answer.
+	counts := map[string]int{}
+	for _, entry := range found {
+		counts[strings.ToLower(strings.TrimSpace(entry.Command.ID))]++
+	}
+	a.commandConflicts = map[string]bool{}
+	for word, count := range counts {
+		if count > 1 {
+			a.commandConflicts[word] = true
+		}
+	}
+}
 
 // SetRecent replaces the recent applications, and whether the empty query
 // shows them.
@@ -1102,12 +1120,22 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 			}
 		})
 		ui.Column(c).Grow(1).Children(func() {
-			title := ui.Text(c, item.Title).FontSize(t.FontSize).TextColor(t.Text)
-			// The selected row's emphasis is its own type: the title at 700,
-			// as `.launcher-result--selected .launcher-result__title` did.
-			if i == a.Selected {
-				title.FontWeight(700)
-			}
+			// The title line: the title itself, and — beside it — the warning
+			// dot a row carries when its command word is one two integrations
+			// share (always visible, so a narrow window cannot truncate it
+			// away).
+			ui.Row(c).Gap(t.Space(1)).AlignItems(ui.Center).Children(func() {
+				title := ui.Text(c, item.Title).FontSize(t.FontSize).TextColor(t.Text)
+				// The selected row's emphasis is its own type: the title at
+				// 700, as `.launcher-result--selected .launcher-result__title`
+				// did.
+				if i == a.Selected {
+					title.FontWeight(700)
+				}
+				if item.warning {
+					ui.Text(c, "\u25cf").FontSize(t.FontSize - 3).TextColor(t.Warning)
+				}
+			})
 			if item.Detail != "" {
 				subtitle := ui.Text(c, item.Detail).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
 				if i == a.Selected {

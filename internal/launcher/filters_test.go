@@ -7,6 +7,7 @@ import (
 
 	"floter/internal/apps"
 	"floter/internal/drops"
+	"floter/internal/extensions"
 
 	clipboardpkg "floter/internal/clipboard"
 	"floter/internal/i18n"
@@ -172,5 +173,30 @@ func TestFeedbackRow(t *testing.T) {
 	tt.Frame()
 	if !tt.HasText("it failed") || !a.toastWarning {
 		t.Errorf("the warning row: %q warning=%v", tt.Texts(), a.toastWarning)
+	}
+}
+
+// A command word two integrations share is marked on the rows: the launcher
+// enters the first, so the shadowed one says the word is shared rather than
+// looking like the only answer.
+func TestSharedCommandWordIsMarked(t *testing.T) {
+	a := testApp()
+	a.SetCommands([]extensions.CommandEntry{
+		{IntegrationID: "one", Command: extensions.Command{ID: "jv", Name: "JSON Viewer"}},
+		{IntegrationID: "two", Command: extensions.Command{ID: "jv", Name: "JSON Viewer (other)"}},
+		{IntegrationID: "three", Command: extensions.Command{ID: "diff", Name: "Diff"}},
+	})
+	if !a.commandConflicts["jv"] || a.commandConflicts["diff"] {
+		t.Errorf("conflicts = %v", a.commandConflicts)
+	}
+	warned := map[string]bool{}
+	for _, item := range a.commandItems() {
+		warned[item.Title] = item.warning
+	}
+	if !warned["JSON Viewer"] || !warned["JSON Viewer (other)"] {
+		t.Errorf("the shared word's rows are not marked: %v", warned)
+	}
+	if warned["Diff"] {
+		t.Error("an unshared word was marked")
 	}
 }
