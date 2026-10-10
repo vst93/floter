@@ -46,10 +46,15 @@ type Launcher struct {
 	// ConfigurePluginClose the same control once its panel is open.
 	ConfigurePlugin      string
 	ConfigurePluginClose string
-	BareTerminal         string
-	BareTerminalHint     string
-	TriggerHint          func(name string) string
-	TriggerHintMore      func(name string, more int) string
+	// FieldSessions and FieldSettings label the field row's two own buttons
+	// (the sessions page and the settings), for assistive technology: the old
+	// build kept them beside the field, one click from the search row.
+	FieldSessions    string
+	FieldSettings    string
+	BareTerminal     string
+	BareTerminalHint string
+	TriggerHint      func(name string) string
+	TriggerHintMore  func(name string, more int) string
 	// FilesSection heads the block of rows a dropped file's actions make,
 	// and RecentSection the empty page's most-launched applications.
 	FilesSection  string

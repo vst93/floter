@@ -70,6 +70,9 @@ func WindowHeight(uiScale string) float64 {
 type Actions struct {
 	// OpenSettings, OpenTerminal and Quit run the built-in commands.
 	OpenSettings func()
+	// OpenSessions opens the settings on the sessions page: the field row's
+	// own terminal button, as the old build kept beside the field.
+	OpenSessions func()
 	// ConfigFor is what a plugin's configuration is: the schema and the
 	// values its settings hold, or nil for a plugin with none.
 	ConfigFor func(plugin string) *Config
@@ -719,6 +722,10 @@ func (a *App) View(c *ui.Context) {
 					ui.Text(c, copy.Hint).FontSize(t.FontSize).TextColor(t.TextMuted)
 				}
 			}
+			// The field's own buttons, at the row's tail: the old build kept
+			// the sessions page and the settings one click from the search
+			// row, so neither needs a typed command.
+			a.fieldButtons(c, copy)
 		})
 	})
 
@@ -1570,4 +1577,31 @@ func (a *App) heldTerminalItem() (Item, bool) {
 			}
 		},
 	}, true
+}
+
+// fieldButtons draws the field row's trailing controls: the two ways in the
+// old build kept beside the field — the sessions page and the settings — each
+// a glyph button whose own label names it for assistive technology.
+func (a *App) fieldButtons(c *ui.Context, copy i18n.Launcher) {
+	t := c.Theme()
+	button := func(glyphName, label string, run func()) {
+		if run == nil {
+			return
+		}
+		e := ui.Row(c).Focusable().Shrink(0).Padding(t.Space(1)).Radius(t.Radius).
+			AlignItems(ui.Center).Label(label)
+		if e.Hovered() {
+			e.Background(t.SurfaceHover)
+		}
+		e.Children(func() {
+			if glyph, ok := Glyph(glyphName); ok {
+				ui.Icon(c, glyph).Size(t.Space(4), t.Space(4)).TextColor(t.TextMuted)
+			}
+		})
+		if e.Clicked() {
+			run()
+		}
+	}
+	button("terminal", copy.FieldSessions, a.Actions.OpenSessions)
+	button("settings", copy.FieldSettings, a.Actions.OpenSettings)
 }

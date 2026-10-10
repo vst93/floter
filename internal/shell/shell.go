@@ -414,6 +414,12 @@ func New(opts Options) *App {
 	}
 	a.Launcher = launcher.New(opts.Store, launcher.Actions{
 		OpenSettings: func() { a.Open(SurfaceSettings) },
+		OpenSessions: func() {
+			// The field row's terminal button: the settings, on the page
+			// that lists the sessions, as the old build's own button did.
+			a.Settings.Page = settingsui.PageSessions
+			a.Open(SurfaceSettings)
+		},
 		ConfigFor:    a.pluginConfig,
 		ConfigChange: a.changePluginConfig,
 		ConfigAction: a.runPluginAction,

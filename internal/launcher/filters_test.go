@@ -508,3 +508,33 @@ func TestOutputViewPin(t *testing.T) {
 		t.Errorf("the window's title = %q", pinned[0][0])
 	}
 }
+
+// The field row's own buttons, as the old build kept them beside the field:
+// the sessions page and the settings, each one click from the search row and
+// each named for assistive technology. Neither needs a typed command.
+func TestFieldRowButtons(t *testing.T) {
+	a := testApp()
+	settings, sessions := 0, 0
+	a.Actions.OpenSettings = func() { settings++ }
+	a.Actions.OpenSessions = func() { sessions++ }
+	tt := render(t, a)
+	for _, label := range []string{"Settings", "Sessions"} {
+		if _, ok := tt.Find(label); !ok {
+			t.Fatalf("the field row has no %q button: %q", label, tt.Texts())
+		}
+	}
+	if err := tt.Click("Sessions"); err != nil {
+		t.Fatalf("sessions: %v", err)
+	}
+	tt.Frame()
+	if sessions != 1 || settings != 0 {
+		t.Errorf("sessions = %d, settings = %d", sessions, settings)
+	}
+	if err := tt.Click("Settings"); err != nil {
+		t.Fatalf("settings: %v", err)
+	}
+	tt.Frame()
+	if settings != 1 {
+		t.Errorf("settings = %d", settings)
+	}
+}
