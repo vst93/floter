@@ -31,9 +31,12 @@ import (
 // tester, so a test can type, click and read what shows.
 func render(t *testing.T, a *App) *ui.Tester {
 	t.Helper()
+	// The frame is the window the shell opens plus the band a full list needs:
+	// the launcher resizes itself to its content in the app (`ResizeTo`), and
+	// a test frame is fixed, so it is given the room a ten-row list asks for.
 	tt := ui.NewTester(func(c *ui.Context) {
 		a.View(c)
-	}, InputWindowWidth, int(WindowHeight("small")))
+	}, InputWindowWidth, int(WindowHeight("small"))+120)
 	tt.Frame()
 	return tt
 }

@@ -28,12 +28,13 @@ const (
 	// InputWindowWidth is the launcher's fixed width, in DIPs.
 	InputWindowWidth = 720
 
-	// The collapsed launcher's height at scale 1, per platform: 78 on Linux
-	// (a 58px card in the shell's 10px gutters), 72 on Windows (a 56px card
-	// in the 4px + 12px gutters) and 58 elsewhere (the card alone).
-	inputWindowHeightLinux   = 78
-	inputWindowHeightWindows = 72
-	inputWindowHeightDefault = 58
+	// The collapsed launcher's height at scale 1, per platform: the card's own
+	// chrome (66u — the field's 56u row, the 4u breath under it and the panel's
+	// 4u/2u insets) in the shell's gutters: 10px a side on Linux, 4px + 12px
+	// vertically on Windows, none elsewhere.
+	inputWindowHeightLinux   = 86
+	inputWindowHeightWindows = 82
+	inputWindowHeightDefault = 66
 
 	// ResultsAreaHeight is the room under the input row for the result list:
 	// about four rows at the shipped interface size. The old shell grew the
@@ -614,8 +615,8 @@ func (a *App) View(c *ui.Context) {
 	// The field row floats over the list; the list's top padding is the
 	// row plus the edge, so a row scrolls under the field rather than to
 	// its edge.
-	fieldRow := t.Space(7)
-	edge := fieldRow + t.Space(2)
+	fieldRow := t.Space(fieldRowUnits)
+	edge := fieldRow + t.Space(breathUnits)
 	// A plugin list mode carries its filter chips under the field: the list
 	// starts below them, and the window's height charges their band too.
 	chips := a.filtersHeight(c)
@@ -659,7 +660,7 @@ func (a *App) View(c *ui.Context) {
 				// `.collapsed-card__input` took `--text-display` (17px at
 				// scale 1) against the rows' body text — one step above —
 				// at weight 460.
-				FontSize(t.FontSize + 3).
+				FontSize(t.FontSize + 6).
 				FontWeight(460).
 				Grow(1)
 			if a.pendingCaret {
@@ -1125,7 +1126,15 @@ func (a *App) row(c *ui.Context, item Item, i int) {
 // rowBody is the row itself: the plate, the text column, the controls.
 func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 	t := c.Theme()
-	row := ui.Row(c).Key(item.ID).FillWidth().Focusable().
+	// The row's own floor: the old app's rows were fixed heights, 42u with a
+	// subtitle and 34u without, and a one-line row of body text is shorter
+	// than 34u — the height the window is charged must be the height the row
+	// draws, so the floor is set here and read there.
+	floor := t.Space(rowOneLineUnits)
+	if item.Detail != "" {
+		floor = t.Space(rowTwoLineUnits)
+	}
+	row := ui.Row(c).Key(item.ID).FillWidth().Focusable().MinHeight(floor).
 		Padding(t.Space(1.5), t.Space(2)).Radius(t.Radius).Gap(t.Space(2)).
 		Transition(rowTransition)
 	// The action bar is the one row that is not a result: its selection is

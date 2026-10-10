@@ -2429,7 +2429,11 @@ func (a *App) View(c *ui.Context) {
 		material := glassmap.Material(surface.Glass, t)
 		if material == nil {
 			// The `off` stop: a plain, near-solid face and no material.
-			card.Background(t.Surface).Padding(t.Space(2.5))
+			padTop, padBottom := t.Space(2.5), t.Space(2.5)
+			if a.Surf == SurfaceLauncher {
+				padTop, padBottom = t.Space(launcher.TopInsetUnits), t.Space(launcher.TailUnits)
+			}
+			card.Background(t.Surface).Padding(padTop, t.Space(2.5), padBottom, t.Space(2.5))
 			card.Children(func() { a.surface(c) })
 			return
 		}
@@ -2442,7 +2446,17 @@ func (a *App) View(c *ui.Context) {
 			if haze := glassmap.Haze(surface.Glass, t, c.Vibrancy()); haze != ui.Transparent {
 				ui.Box(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).Radius(radius).Background(haze).PassThrough()
 			}
-			face := ui.Column(c).Fill().Radius(radius).Material(material).Padding(t.Space(2.5)).DragWindow()
+			// The launcher's own insets are the old panel's: 4u above and 2u
+			// below (`.launcher-bottom`), with the field's row and its breath
+			// inside the card — `66 + rows` is the window. The other surfaces
+			// are panels, not a panel that grows a row at a time, and keep the
+			// roomier pair they were built with.
+			padTop, padBottom := t.Space(2.5), t.Space(2.5)
+			if a.Surf == SurfaceLauncher {
+				padTop, padBottom = t.Space(launcher.TopInsetUnits), t.Space(launcher.TailUnits)
+			}
+			face := ui.Column(c).Fill().Radius(radius).Material(material).
+				Padding(padTop, t.Space(2.5), padBottom, t.Space(2.5)).DragWindow()
 			face.Children(func() { a.surface(c) })
 		})
 	})

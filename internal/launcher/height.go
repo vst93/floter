@@ -13,6 +13,24 @@ import (
 // the geometry here is the theme's, so the drawn card and the charged
 // window are one decision.
 
+// The launcher's chrome, in the old app's units: the field's row, the breath
+// under it, the panel's top inset and its tail, and a row's own floor with and
+// without a subtitle. See `launcher.css` (`.collapsed-card__input-row` at 56u,
+// `.launcher-bottom`'s 4u/2u padding) and `result-budget.ts`.
+const (
+	fieldRowUnits   = 14   // 56u
+	breathUnits     = 1    // 4u
+	rowTwoLineUnits = 10.5 // 42u
+	rowOneLineUnits = 8.5  // 34u
+
+	// TopInsetUnits and TailUnits are the card's own padding above the field's
+	// row and below the last one; the shell draws the card, so it reads them
+	// here rather than keeping a second copy that could drift from the window's
+	// height.
+	TopInsetUnits = 1   // 4u
+	TailUnits     = 0.5 // 2u
+)
+
 // rowBudget is the rows the window holds at most: a broad query scrolls
 // inside the window instead of growing it past a screen.
 const rowBudget = 10
@@ -92,11 +110,13 @@ type Geometry struct {
 	Cap float64
 }
 
-// Height is the window height a geometry asks for: the card's own band —
-// the field row (Space 7), the edge above the first row (Space 2), the
-// rows at their own heights (Space 1.5 padding a side plus their lines)
-// and the card's padding pair (Space 2.5 a side) — plus the platform
-// inset, and never above the cap.
+// Height is the window height a geometry asks for: the card's own chrome —
+// the field's row (56u), the breath under it (4u) and the panel's insets (4u
+// above, 2u below) — the rows at their own heights (a 12u padding pair plus
+// their lines, never under the 42u/34u a row draws at), the chips or feedback
+// bands when they show, and the platform's transparent margin; never above the
+// cap. The old app resolved the same arithmetic on the browser side and wrote
+// it as `66 + rows × 42` (see `result-budget.ts`).
 func (g Geometry) Height() int {
 	spacing := g.Spacing
 	if spacing <= 0 {
@@ -107,10 +127,15 @@ func (g Geometry) Height() int {
 		font = 14
 	}
 	const lineLeading = 1.4 // the text's own line box, as the theme draws it
-	fieldRow := 7 * spacing
-	edge := 2 * spacing
+	// The old app's own chrome, in its units (`--u`), which this codebase
+	// divides by four: the field's row (56u, the height the settings pages'
+	// header band shares), the breath under it (4u), the panel's top inset
+	// (4u) and its tail (2u) — `66 + rows × 42` is a window height, exactly as
+	// `result-budget.ts` wrote it. The field row is the same band the input is
+	// drawn in, so the number the window is measured with is the number the
+	// field occupies.
+	chrome := (fieldRowUnits + breathUnits + TopInsetUnits + TailUnits) * spacing
 	rowPadding := 3 * spacing
-	cardPadding := 5 * spacing
 
 	lines := 0.0
 	rows := RowCount(g.Held)
@@ -122,7 +147,14 @@ func (g Geometry) Height() int {
 				count = 1
 			}
 		}
-		lines += rowPadding + float64(count)*font*lineLeading
+		// A row is its content or its own floor, whichever is taller: the old
+		// app's rows were fixed heights — 42u with a subtitle, 34u without —
+		// and a one-line row of body text is shorter than 34u.
+		floor := rowOneLineUnits * spacing
+		if count >= 2 {
+			floor = rowTwoLineUnits * spacing
+		}
+		lines += math.Max(rowPadding+float64(count)*font*lineLeading, floor)
 	}
 	filterBand := 0.0
 	if g.Filter {
@@ -134,7 +166,7 @@ func (g Geometry) Height() int {
 	if g.Feedback {
 		feedbackBand = 7 * spacing
 	}
-	height := math.Round(fieldRow + edge + lines + cardPadding + filterBand + feedbackBand + windowInset())
+	height := math.Round(chrome + lines + filterBand + feedbackBand + windowInset())
 	if g.Cap > 0 && height > g.Cap {
 		height = math.Round(g.Cap)
 	}

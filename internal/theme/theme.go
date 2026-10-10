@@ -51,6 +51,12 @@ const (
 	RadiusSM = 9
 	RadiusMD = 12
 	RadiusLG = 14
+
+	// BodyUnits is the body text size in the old app's unit, `--text-body`:
+	// 11px at scale 1. Every size in this codebase is in the same unit (a
+	// `Space(n)` is four of them), so the framework theme's point size is set
+	// from it rather than from the framework's own default.
+	BodyUnits = 11
 )
 
 // Tokens is the resolved theme: the appearance, the framework theme the
@@ -106,7 +112,14 @@ func For(s settings.Settings, systemDark bool) Tokens {
 		scale = 1
 	}
 	f := float32(scale)
-	t.FontSize = round1(t.FontSize * f)
+	// The old app's ladder is in its own unit: `--u: 1px * ui-scale` with
+	// `--text-body: 11px * ui-scale`, so a body line is eleven units and every
+	// `Space(n)` in this codebase is four of them (`--u * 4n`). The framework's
+	// default is 13 or 14 points, which is a quarter larger than this design
+	// and made every row taller than the one it copied; the body size is the
+	// old app's eleven units, and the ladder around it (caption, emphasis,
+	// title, display) follows from there.
+	t.FontSize = round1(BodyUnits * f)
 	t.Spacing = round1(t.Spacing * f)
 	t.Radius = round1(t.Radius * f)
 
