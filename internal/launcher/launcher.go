@@ -18,6 +18,7 @@ import (
 	"floter/internal/i18n"
 	"floter/internal/settings"
 	"floter/internal/shortcuts"
+	"floter/internal/theme"
 	"floter/internal/tools"
 )
 
@@ -207,8 +208,15 @@ type App struct {
 	// the first View measured the list.
 	HeldRows int
 
-	// toast is a message to show on the next frame, set by an action.
-	toast string
+	// toast is a message to show in the panel's docked status row, set by an
+	// action, and toastWarning marks it a warning — the blocking tone the old
+	// build's `.launcher-feedback--warning` carried.
+	toast        string
+	toastWarning bool
+	// toastUntil is when the message expires and toastShown the text the
+	// deadline was armed for, so a *new* message restarts the clock.
+	toastUntil time.Time
+	toastShown string
 	// pendingCaret puts the caret at the end of the field on the next
 	// build, for text the app set itself.
 	pendingCaret bool
@@ -389,6 +397,18 @@ func (a *App) Feedback(message string) {
 		return
 	}
 	a.toast = message
+	a.toastWarning = false
+}
+
+// WarnFeedback is Feedback's blocking tone: a message that says something did
+// not work, drawn with the warning edge so it reads as a problem rather than a
+// note.
+func (a *App) WarnFeedback(message string) {
+	if message == "" {
+		return
+	}
+	a.toast = message
+	a.toastWarning = true
 }
 
 // copy is the launcher's copy in the stored language.
@@ -502,7 +522,8 @@ func (a *App) View(c *ui.Context) {
 	if a.Actions.ResizeTo != nil {
 		height := Geometry{
 			Font: a.Font, Spacing: a.Spacing, RowLines: rowLines, Held: a.HeldRows,
-			Filter: a.filtersVisible(),
+			Filter:   a.filtersVisible(),
+			Feedback: a.toast != "",
 		}.Height()
 		a.Actions.ResizeTo(height)
 	}
@@ -611,10 +632,10 @@ func (a *App) View(c *ui.Context) {
 
 	// An action that asks for feedback (the calculator's copy) shows it
 	// once, on the frame after it ran.
-	if a.toast != "" {
-		c.Toast(a.toast)
-		a.toast = ""
-	}
+	// The feedback is the panel's own docked row, never a floating toast: a
+	// message under the list belongs to the list, and the old build moved it
+	// there for exactly that reason.
+	a.feedbackRow(c)
 
 	// The output view owns the keys while it is open: its list walks, its
 	// text copies, and Escape closes it.
@@ -753,7 +774,7 @@ func (a *App) toggleClipFavorite() {
 		return
 	}
 	if err := a.Clipboard.SetFavorite(entry.ID, !entry.Favorite); err != nil {
-		a.toast = StringsFor(a.settings().Language).ClipboardFavoriteFailed
+		a.WarnFeedback(StringsFor(a.settings().Language).ClipboardFavoriteFailed)
 	}
 }
 
@@ -1125,13 +1146,13 @@ func (a *App) deleteSelectedHistory() {
 	switch {
 	case item.clip != nil && a.Clipboard != nil:
 		if err := a.Clipboard.Remove(item.clip.ID); err != nil {
-			a.toast = copy.ClipboardDeleteFailed
+			a.WarnFeedback(copy.ClipboardDeleteFailed)
 			return
 		}
 		a.toast = copy.ClipboardDeleted
 	case item.calc != nil && a.Calculator != nil:
 		if err := a.Calculator.Delete(item.calc.ID); err != nil {
-			a.toast = copy.CalculatorDeleteFailed
+			a.WarnFeedback(copy.CalculatorDeleteFailed)
 			return
 		}
 		a.toast = copy.CalculatorDeleted
@@ -1322,3 +1343,47 @@ func (a *App) clampSelection(n int) {
 		}
 	}
 }
+
+// feedbackDuration is how long the docked status row stays readable. The old
+// build's feedback line lived on a timer of its own; three seconds is long
+// enough to read a short sentence and short enough that the row does not
+// outstay its message.
+const feedbackDuration = 3 * time.Second
+
+// feedbackRow draws the panel's docked status row: a message under the list,
+// with an icon and — for a warning — the warm blocking tone. The row is
+// charged to the window's height (see Geometry.Feedback) and its band is the
+// same whether it is drawn or not within one message's life; the frames keep
+// coming while it shows, so it expires on time.
+func (a *App) feedbackRow(c *ui.Context) {
+	if a.toast == "" {
+		return
+	}
+	now := c.Now()
+	if a.toast != a.toastShown {
+		a.toastShown = a.toast
+		a.toastUntil = now.Add(feedbackDuration)
+	}
+	if now.After(a.toastUntil) {
+		a.toast, a.toastWarning, a.toastShown, a.toastUntil = "", false, "", time.Time{}
+		return
+	}
+	c.AnimationFrame()
+	t := c.Theme()
+	tokens := theme.For(a.settings(), t.Dark)
+	tone := t.Warning
+	background := t.Warning.Alpha(0.12)
+	if a.toastWarning {
+		background = t.Warning.Alpha(0.2)
+	}
+	ui.Row(c).Absolute().Bottom(0).Left(0).Right(0).Height(t.Space(7)).
+		Padding(0, t.Space(3)).Gap(t.Space(2)).AlignItems(ui.Center).
+		Radius(tokens.RadiusSM).Background(background).Children(func() {
+		ui.Icon(c, glyphAlert).Size(t.Space(4), t.Space(4)).TextColor(tone)
+		ui.Text(c, a.toast).FontSize(t.FontSize).FontWeight(580).TextColor(tone).Grow(1)
+	})
+}
+
+// FeedbackVisible reports whether the docked status row is showing, for the
+// shell's window sizing.
+func (a *App) FeedbackVisible() bool { return a.toast != "" }

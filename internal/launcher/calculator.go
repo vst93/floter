@@ -149,7 +149,7 @@ func (a *App) calculatorItems() []Item {
 func (a *App) runCalculation(expression, result string) {
 	if a.Calculator != nil {
 		if _, err := a.Calculator.Add(expression, result); err != nil {
-			a.toast = StringsFor(a.settings().Language).CalculatorRecordFailed
+			a.WarnFeedback(StringsFor(a.settings().Language).CalculatorRecordFailed)
 		} else {
 			a.refreshCalculator()
 		}

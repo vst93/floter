@@ -141,3 +141,36 @@ func TestSectionHeadings(t *testing.T) {
 		t.Errorf("the dropped block's heading is missing: %+v", files)
 	}
 }
+
+// The docked status row: a message shows under the list with the warning tone
+// when it reports a failure, it is charged to the window's height, and it
+// expires on its own clock.
+func TestFeedbackRow(t *testing.T) {
+	a := testApp()
+	tt := render(t, a)
+	if a.FeedbackVisible() {
+		t.Fatal("the row shows before any message")
+	}
+	base := Geometry{Font: a.Font, Spacing: a.Spacing, RowLines: a.RowLines, Held: a.HeldRows}.Height()
+	withRow := Geometry{Font: a.Font, Spacing: a.Spacing, RowLines: a.RowLines, Held: a.HeldRows, Feedback: true}.Height()
+	if withRow <= base {
+		t.Errorf("the feedback band is not charged: %d vs %d", withRow, base)
+	}
+	a.Feedback("copied")
+	if !a.FeedbackVisible() {
+		t.Fatal("the message did not show")
+	}
+	tt.Frame()
+	if !tt.HasText("copied") {
+		t.Errorf("the row did not draw: %q", tt.Texts())
+	}
+	if a.toastWarning {
+		t.Error("a plain message took the warning tone")
+	}
+	// A failure message takes the warning tone.
+	a.WarnFeedback("it failed")
+	tt.Frame()
+	if !tt.HasText("it failed") || !a.toastWarning {
+		t.Errorf("the warning row: %q warning=%v", tt.Texts(), a.toastWarning)
+	}
+}

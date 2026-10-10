@@ -85,6 +85,9 @@ type Geometry struct {
 	// Filter says a plugin mode's chips row is drawn under the field, which
 	// adds its band to the height (the old build's LAUNCHER_FILTER_UNITS).
 	Filter bool
+	// Feedback says the docked status row is showing under the list, which
+	// adds its band (the old build's LAUNCHER_STATUS_UNITS).
+	Feedback bool
 	// Cap is the display ceiling in pixels; zero means none.
 	Cap float64
 }
@@ -127,7 +130,11 @@ func (g Geometry) Height() int {
 		// draws: five spacing units at the step.
 		filterBand = 5 * spacing
 	}
-	height := math.Round(fieldRow + edge + lines + cardPadding + filterBand + windowInset())
+	feedbackBand := 0.0
+	if g.Feedback {
+		feedbackBand = 7 * spacing
+	}
+	height := math.Round(fieldRow + edge + lines + cardPadding + filterBand + feedbackBand + windowInset())
 	if g.Cap > 0 && height > g.Cap {
 		height = math.Round(g.Cap)
 	}

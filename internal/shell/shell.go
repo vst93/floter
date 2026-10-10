@@ -2165,6 +2165,7 @@ func (a *App) launcherHeight(s settings.Settings) int {
 		RowLines: a.Launcher.RowLines,
 		Held:     a.Launcher.HeldRows,
 		Filter:   a.Launcher.FiltersVisible(),
+		Feedback: a.Launcher.FeedbackVisible(),
 		Cap:      cap,
 	}.Height()
 }

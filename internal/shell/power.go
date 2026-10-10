@@ -36,7 +36,7 @@ func (a *App) power(action string) {
 		}
 		if err := a.runPower(action); err != nil {
 			log.Printf("floter: could not %s: %v", action, err)
-			a.onMain(func() { a.Launcher.Feedback(copy.PowerFailed) })
+			a.onMain(func() { a.Launcher.WarnFeedback(copy.PowerFailed) })
 		}
 	}()
 }
