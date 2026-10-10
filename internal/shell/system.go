@@ -2,6 +2,7 @@ package shell
 
 import (
 	"bytes"
+	"context"
 	_ "embed"
 	"encoding/json"
 	stdpng "image/png"
@@ -87,14 +88,17 @@ func (a *App) ApplyMenubarIcon() {
 	}
 }
 
-// InstallTray adds the menu bar icon: show, settings, terminal, quit.
+// InstallTray adds the menu bar icon: show the panel, open the settings,
+// re-scan what is installed, and quit — the four things a tray icon is for.
+// The labels follow the stored language, so the tray never lags behind the UI.
 func (a *App) InstallTray() {
 	copy := i18n.For(a.Store.Snapshot().Language).Launcher
 	menu := mygo.NewMenu([]*mygo.MenuItem{
-		{Label: copy.CommandSettings, Click: func(*mygo.MenuItem, *mygo.Window) { a.Open(SurfaceSettings) }},
-		{Label: copy.CommandTerminal, Click: func(*mygo.MenuItem, *mygo.Window) { a.Open(SurfaceTerminal) }},
+		{Label: copy.TrayShow, Click: func(*mygo.MenuItem, *mygo.Window) { a.Toggle() }},
+		{Label: copy.TraySettings, Click: func(*mygo.MenuItem, *mygo.Window) { a.Open(SurfaceSettings) }},
+		{Label: copy.TrayReload, Click: func(*mygo.MenuItem, *mygo.Window) { a.Rescan() }},
 		mygo.Separator(),
-		{Label: copy.CommandQuit, Click: func(*mygo.MenuItem, *mygo.Window) { a.quit() }},
+		{Label: copy.TrayQuit, Click: func(*mygo.MenuItem, *mygo.Window) { a.quit() }},
 	})
 
 	tray, err := mygo.NewTray(mygo.TrayOptions{
@@ -435,4 +439,15 @@ func (a *App) InstallMenu() {
 		Terminal: func() { a.Open(SurfaceTerminal) },
 		Launcher: func() { a.Open(SurfaceLauncher) },
 	})))
+}
+
+// Rescan re-reads what is installed: the integrations' providers, the PATH
+// commands, the install catalog and the applications. It is the tray's own
+// "I changed something on this machine" press, and it is safe from the tray's
+// goroutine.
+func (a *App) Rescan() {
+	a.scanApps()
+	a.scanTools()
+	a.scanToolCatalog()
+	a.RefreshIntegrations(context.Background())
 }

@@ -247,6 +247,9 @@ type App struct {
 	// change re-hands the recents, or re-scans the PATH.
 	lastShowRecent   bool
 	lastShowCommands bool
+	// lastTrayLanguage is the language the tray's labels were built with: a
+	// change rebuilds them, so the tray never lags the UI.
+	lastTrayLanguage string
 	// shortcutsSuspended is true while a settings recorder holds the keyboard:
 	// the global shortcuts are released then.
 	shortcutsSuspended bool
@@ -748,6 +751,15 @@ func New(opts Options) *App {
 				a.lastAppIcon, a.appIcon = icon, icon
 				a.ApplyAppIcon()
 			}
+			if s.Language != a.lastTrayLanguage && a.Tray != nil {
+				// The tray outlives a language change, so its labels are
+				// rebuilt with it: a menu that lags the UI is worse than no
+				// menu.
+				a.lastTrayLanguage = s.Language
+				a.Tray.Destroy()
+				a.Tray = nil
+				a.ApplyMenubarIcon()
+			}
 			if settings.ShowMenubarIcon(s) != a.lastMenubarIcon {
 				a.lastMenubarIcon = settings.ShowMenubarIcon(s)
 				a.ApplyMenubarIcon()
@@ -861,6 +873,7 @@ func (a *App) Start() {
 	a.ApplyStartup()
 	a.InstallMenu()
 	a.lastMenubarIcon = settings.ShowMenubarIcon(a.Store.Snapshot())
+	a.lastTrayLanguage = a.Store.Snapshot().Language
 	a.lastShowRecent = settings.ShowRecentInLauncher(a.Store.Snapshot())
 	a.lastShowCommands = settings.ShowCommandsInSearch(a.Store.Snapshot())
 	a.ApplyMenubarIcon()

@@ -179,3 +179,21 @@ func TestCompletionGoesWhereTheUserIsLooking(t *testing.T) {
 		t.Errorf("the message = %q", notifications[0])
 	}
 }
+
+// The tray menu is the four things a tray icon is for — show, settings,
+// re-scan, quit — and its labels follow the stored language, so the tray never
+// lags behind the UI.
+func TestTrayLabelsFollowTheLanguage(t *testing.T) {
+	en := i18n.For("en").Launcher
+	if en.TrayShow == "" || en.TraySettings == "" || en.TrayReload == "" || en.TrayQuit == "" {
+		t.Errorf("a tray label is empty: %+v", en)
+	}
+	zh := i18n.For("zh").Launcher
+	if zh.TrayShow == en.TrayShow {
+		t.Errorf("the tray labels do not follow the language: %q", zh.TrayShow)
+	}
+	// Rescan re-reads what is installed, and is safe to call with no window
+	// (the tray's own world before the panel exists).
+	a := appKeysApp()
+	a.Rescan()
+}

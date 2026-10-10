@@ -37,6 +37,11 @@ type Launcher struct {
 	// count of commands it could still become.
 	// BareTerminal is the held modifier's own row: a terminal session with no
 	// command, and the line under it that says so.
+	// The tray menu: show the panel, open the settings, re-scan, quit.
+	TrayShow         string
+	TraySettings     string
+	TrayReload       string
+	TrayQuit         string
 	BareTerminal     string
 	BareTerminalHint string
 	TriggerHint      func(name string) string
