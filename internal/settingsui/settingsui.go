@@ -1338,6 +1338,23 @@ func (a *App) general(c *ui.Context, copy i18n.Settings) {
 						}
 						a.set(func(s *settings.Settings) { s.SurfaceResidencySeconds = seconds })
 					})
+				// The presets plus a free-form duration: the field says how
+				// long, in seconds, and the button applies it — the old
+				// panel's "Custom duration in seconds" row.
+				seconds := ""
+				if s.SurfaceResidencySeconds != 0 {
+					seconds = strconv.FormatUint(uint64(s.SurfaceResidencySeconds), 10)
+				}
+				a.row(c, copy.SurfaceResidencyCustomLabel, "", func() {
+					edit := seconds
+					ui.TextInput(c, &edit).Label(copy.SurfaceResidencyCustomLabel).
+						Placeholder(copy.SurfaceResidencyCustomUnit).Width(90)
+					if ui.Button(c, copy.SurfaceResidencyCustomApply).Clicked() {
+						if value, err := strconv.ParseUint(strings.TrimSpace(edit), 10, 32); err == nil {
+							a.set(func(s *settings.Settings) { s.SurfaceResidencySeconds = uint32(value) })
+						}
+					}
+				})
 			})
 		})
 

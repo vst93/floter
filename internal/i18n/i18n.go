@@ -220,7 +220,12 @@ type Settings struct {
 	SurfaceResidencyHint  string
 	SurfaceResidencyOff   string
 	SurfaceResidencyNever string
-	SurfaceResidencyValue func(seconds uint32) string
+	// The custom duration row: its label, the unit beside the field, and the
+	// button that applies it.
+	SurfaceResidencyCustomLabel string
+	SurfaceResidencyCustomUnit  string
+	SurfaceResidencyCustomApply string
+	SurfaceResidencyValue       func(seconds uint32) string
 
 	// The Sessions page.
 	// The launcher's own switches: whether an empty query offers the recent
