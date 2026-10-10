@@ -171,9 +171,7 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 尚未做（按建议优先级）
 
-1. **子序列匹配**：旧版 `scoreNormalized` 的第四档（`vsc` → Visual Studio Code，对拼音 initials
-   也有效）。应用名的拼音表已完成（P2-r）。
-2. **列表协议的分页**：`page.cursor`/`hasMore` 与滚动加载（需要带着 cursor 重新执行命令）；旧版还有
+1. **列表协议的分页**：`page.cursor`/`hasMore` 与滚动加载（需要带着 cursor 重新执行命令）；旧版还有
    `⌘1–⌘0` 的编号角标，Go 侧已完成。
 2. **i18n 全量对齐**：UI 包内没有裸文案（已审计），旧 `src/i18n.ts` 的 1700+ 键大部分属于已不存在的
    页面（插件 iframe 页、剪贴板页、会话页），不为「对齐键数」而搬。

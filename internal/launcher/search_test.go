@@ -325,9 +325,8 @@ func TestSplitArgs(t *testing.T) {
 // subtitled with the Latin one, and every alias is searchable.
 func TestApplicationNamesAndAliases(t *testing.T) {
 	a := testApp()
-	a.SetApps([]apps.App{
-		{Name: "WeCom", Localized: "企业微信", Aliases: []string{"WeCom", "企业微信", "WeWorkMac"}, Path: "/Applications/WeCom.app"},
-	})
+	app := apps.App{Name: "WeCom", Localized: "企业微信", Aliases: []string{"WeCom", "企业微信", "WeWorkMac"}, Initials: "wecomqywx", Path: "/Applications/WeCom.app"}
+	a.SetApps([]apps.App{app})
 	a.Query = "企业微信"
 	results := a.Results()
 	if len(results) != 1 {
@@ -337,10 +336,20 @@ func TestApplicationNamesAndAliases(t *testing.T) {
 		t.Errorf("row = %+v", results[0])
 	}
 	// The Latin name and an identifier alias both find it too.
-	for _, query := range []string{"WeCom", "WeWorkMac"} {
+	// The alias and the pinyin initials find it; a subsequence match may pull
+	// in other rows whose names share the letters, but the application is
+	// among them.
+	for _, query := range []string{"WeCom", "WeWorkMac", "qywx"} {
 		a.Query = query
-		if got := a.Results(); len(got) != 1 {
-			t.Errorf("query %q found %+v", query, got)
+		got := a.Results()
+		found := false
+		for _, item := range got {
+			if item.ID == "app:"+app.Path {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("query %q did not reach the application: %v", query, got)
 		}
 	}
 }
