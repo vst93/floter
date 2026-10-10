@@ -591,8 +591,11 @@ func (a *App) body(c *ui.Context, copy i18n.Settings) {
 	// The page's own header: its name at the display register and the one-line
 	// hint under it, as the reference's `.settings-page__title` /
 	// `.settings-page__subtitle` did.
-	header := t.Space(10)
-	edge := header + t.Space(2)
+	// The page's header band is 56u — the height the launcher's field row
+	// carries, and the one the old build pinned both to in R37, so switching
+	// surfaces does not move the window's first band.
+	header := t.Space(14)
+	edge := header + t.Space(1)
 	ui.Column(c).Fill().Children(func() {
 		ui.Scroll(c.Key("settings.body")).TrackScroll(&a.Body).Fill().
 			Padding(edge, 0, 0, 0).Children(func() {

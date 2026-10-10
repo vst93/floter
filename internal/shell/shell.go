@@ -2477,11 +2477,14 @@ func (a *App) View(c *ui.Context) {
 			// The launcher's own insets are the old panel's: 4u above and 2u
 			// below (`.launcher-bottom`), with the field's row and its breath
 			// inside the card — `66 + rows` is the window. The other surfaces
-			// are panels, not a panel that grows a row at a time, and keep the
-			// roomier pair they were built with.
-			padTop, padBottom := t.Space(2.5), t.Space(2.5)
+			// are panels, not a panel that grows a row at a time, but they
+			// share the top inset: the old build pinned the launcher's field
+			// row and the settings pages' header to the same band (R37), and a
+			// band that starts elsewhere is a band that jumps when the surface
+			// changes.
+			padTop, padBottom := t.Space(launcher.TopInsetUnits), t.Space(2.5)
 			if a.Surf == SurfaceLauncher {
-				padTop, padBottom = t.Space(launcher.TopInsetUnits), t.Space(launcher.TailUnits)
+				padBottom = t.Space(launcher.TailUnits)
 			}
 			face := ui.Column(c).Fill().Radius(radius).Material(material).
 				Padding(padTop, t.Space(2.5), padBottom, t.Space(2.5)).DragWindow()
