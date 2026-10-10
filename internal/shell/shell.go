@@ -36,6 +36,7 @@ import (
 	"floter/internal/extensions/recommended"
 	"floter/internal/glassmap"
 	"floter/internal/i18n"
+	"floter/internal/inventory"
 	"floter/internal/launcher"
 	"floter/internal/settings"
 	"floter/internal/settingsui"
@@ -480,6 +481,8 @@ func New(opts Options) *App {
 		ReprobeCommands:     a.reprobeCommands,
 		ConnectLocalTool:    a.connectLocalTool,
 		Freshness:           a.integrationFreshness,
+		Detected:            a.detectedTools,
+		ConnectDetected:     a.connectDetected,
 		CopyText:            func(text string) { mygo.Clipboard.WriteText(text) },
 		ChooseProgram:       a.chooseProgram,
 		SetShortcut:         a.setShortcut,
@@ -1504,6 +1507,71 @@ func (a *App) connectRecommended(id string) {
 		a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationInstalled(entry.Name) })
 		a.RefreshIntegrations(context.Background())
 	}()
+}
+
+// detectedTools is the programs this machine has that nothing has connected
+// yet: the inventory's own ranking, cut to the ones a person would recognise
+// and capped so the page stays a list of what is installed.
+func (a *App) detectedTools() []settingsui.DetectedTool {
+	candidates := inventory.Shared().Candidates()
+	connected := map[string]bool{}
+	for _, integration := range a.Integrations.Inventory().Integrations {
+		if path := integration.Entry.ExecutablePath; path != "" {
+			connected[path] = true
+			if resolved, err := filepath.EvalSymlinks(path); err == nil {
+				connected[resolved] = true
+			}
+		}
+	}
+	out := make([]settingsui.DetectedTool, 0, maxDetectedTools)
+	for _, candidate := range candidates {
+		if !candidate.Available || candidate.Path == "" || connected[candidate.Path] {
+			continue
+		}
+		// A GUI bundle's own helper executables are not "tools a person
+		// connects": the curated ranking already puts the recognisable names
+		// first, so the cap collects them.
+		out = append(out, settingsui.DetectedTool{
+			Name:        candidate.Name,
+			Path:        candidate.Path,
+			Description: candidate.Description,
+		})
+		if len(out) >= maxDetectedTools {
+			break
+		}
+	}
+	return out
+}
+
+// maxDetectedTools is how many discovered programs the page offers: the
+// inventory knows thousands, and a page that lists them all is a file browser,
+// not a settings panel.
+const maxDetectedTools = 12
+
+// connectDetected connects one of the discovered programs, with the words the
+// discovery already knows about it.
+func (a *App) connectDetected(tool settingsui.DetectedTool) {
+	name := strings.TrimSpace(tool.Name)
+	if name == "" {
+		name = executableName(tool.Path)
+	}
+	a.connectLocalTool(settingsui.CustomTool{
+		Name:        name,
+		Program:     tool.Path,
+		Description: tool.Description,
+		VersionArgs: "--version",
+	})
+}
+
+// executableName is a program's own file name without its launcher suffix.
+func executableName(path string) string {
+	name := filepath.Base(path)
+	for _, suffix := range []string{".exe", ".cmd", ".bat", ".com"} {
+		if trimmed, ok := strings.CutSuffix(strings.ToLower(name), suffix); ok {
+			return trimmed
+		}
+	}
+	return name
 }
 
 // integrationFreshness reports what is known about one integration's command

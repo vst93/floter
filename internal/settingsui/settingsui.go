@@ -107,6 +107,11 @@ type Actions struct {
 	// picks, and ImportIntegrations applies one they pick.
 	ExportIntegrations func()
 	ImportIntegrations func()
+	// Detected lists the programs the machine has that are not yet connected,
+	// and ConnectDetected connects the one the user picked. Nil hides the
+	// section.
+	Detected        func() []DetectedTool
+	ConnectDetected func(tool DetectedTool)
 	// Freshness reports what is known about one integration's command list
 	// (the help-probe sidecar and the health report); nil hides the row.
 	Freshness func(id string) (extensions.Freshness, bool)
@@ -757,6 +762,7 @@ func (a *App) integrations(c *ui.Context, copy i18n.Settings) {
 	ui.Column(c).FillWidth().Gap(t.Space(4)).Children(func() {
 		ui.Text(c, copy.IntegrationsHint).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
 		a.localToolSection(c, copy)
+		a.detectedSection(c, copy)
 		a.recommendedRow(c, copy)
 		a.transferRow(c, copy)
 		a.installRow(c, copy)
@@ -1849,4 +1855,40 @@ func humanAge(age time.Duration) string {
 	default:
 		return "1m"
 	}
+}
+
+// DetectedTool is one program the machine has that is not yet connected.
+type DetectedTool struct {
+	// Name is what the user calls it and Path where it lives.
+	Name        string
+	Path        string
+	Description string
+}
+
+// detectedSection lists the programs this machine has that nothing has
+// connected yet, each with the one press that connects it: discovery is the
+// first link of the same loop the install and invoke rows close, so a tool
+// the machine already has does not need its path typed by hand.
+func (a *App) detectedSection(c *ui.Context, copy i18n.Settings) {
+	if a.Actions.Detected == nil || a.Actions.ConnectDetected == nil {
+		return
+	}
+	tools := a.Actions.Detected()
+	if len(tools) == 0 {
+		return
+	}
+	a.section(c, copy.DetectedTitle, copy.DetectedHint, func() {
+		a.card(c, func() {
+			for _, tool := range tools {
+				tool := tool
+				a.row(c, tool.Name, tool.Description, func() {
+					if ui.Button(c, copy.IntegrationsConnect).Clicked() {
+						a.Actions.ConnectDetected(tool)
+					}
+				}, func() {
+					a.row(c, tool.Path, "", func() {})
+				})
+			}
+		})
+	})
 }

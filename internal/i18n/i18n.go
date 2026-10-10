@@ -326,6 +326,10 @@ type Settings struct {
 	// note that another command claimed the alias first.
 	IntegrationsReprobe   string
 	IntegrationsInstalled string
+	// The detected-programs section: what this machine already has and
+	// nothing has connected.
+	DetectedTitle string
+	DetectedHint  string
 	// The freshness display: when the command list was last derived, how the
 	// derivation went, and how the list moved. "Unknown" is its own word
 	// everywhere — a fabricated zero or "no change" is a lie.

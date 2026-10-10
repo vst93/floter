@@ -1509,3 +1509,43 @@ func TestFreshnessRow(t *testing.T) {
 		t.Errorf("a never-probed integration shows a freshness row: %q", tt.Texts())
 	}
 }
+
+// The detected section lists what the machine has and nothing has connected,
+// and its Connect press hands the tool on with the discovery's own words.
+func TestDetectedToolsSection(t *testing.T) {
+	connected := []DetectedTool{}
+	a := New(settings.NewStore(settings.Default()), Actions{
+		Detected: func() []DetectedTool {
+			return []DetectedTool{{
+				Name:        "ripgrep",
+				Path:        "/usr/bin/rg",
+				Description: "Fast search",
+			}}
+		},
+		ConnectDetected: func(tool DetectedTool) { connected = append(connected, tool) },
+	})
+	tt := render(t, a, 720, 900)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !tt.HasText("Found on this machine") || !tt.HasText("ripgrep") {
+		t.Fatalf("the detected section is missing: %q", tt.Texts())
+	}
+	if !tt.HasText("Fast search") {
+		t.Errorf("the description is missing: %q", tt.Texts())
+	}
+	if err := tt.Click("Connect"); err != nil {
+		t.Fatalf("connect: %v", err)
+	}
+	tt.Frame()
+	if len(connected) != 1 || connected[0].Path != "/usr/bin/rg" {
+		t.Errorf("connected = %+v", connected)
+	}
+	// Nothing detected: no section at all.
+	a.Actions.Detected = func() []DetectedTool { return nil }
+	tt.Frame()
+	if tt.HasText("Found on this machine") {
+		t.Errorf("an empty section was drawn: %q", tt.Texts())
+	}
+}
