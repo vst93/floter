@@ -580,14 +580,24 @@ func (a *App) View(c *ui.Context) {
 			switch {
 			case a.mode != nil || a.clipboard || a.browser:
 				ui.Text(c, copy.CommandModeHint).FontSize(t.FontSize).TextColor(t.TextMuted)
-			case a.Query != "":
-				if ui.Button(c, "✕").Label(copy.Clear).Clicked() {
-					a.Query = ""
-					a.Selected = 0
-					a.FocusSearch()
-				}
 			default:
-				ui.Text(c, copy.Hint).FontSize(t.FontSize).TextColor(t.TextMuted)
+				// The inline trigger nudge (R48): a word on its way to a
+				// command's mode says so here, in the field row, where it
+				// costs no band and never moves the window. The clear button
+				// follows it, so the nudge and the button share the row's
+				// tail.
+				if hint := a.triggerHintText(); hint != "" {
+					ui.Text(c, hint).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+				}
+				if a.Query != "" {
+					if ui.Button(c, "✕").Label(copy.Clear).Clicked() {
+						a.Query = ""
+						a.Selected = 0
+						a.FocusSearch()
+					}
+				} else {
+					ui.Text(c, copy.Hint).FontSize(t.FontSize).TextColor(t.TextMuted)
+				}
 			}
 		})
 	})

@@ -32,6 +32,11 @@ type Launcher struct {
 	Placeholder string
 	// Label names the field for assistive technology.
 	Label string
+	// TriggerHint nudges that a typed word is a plugin command's trigger and
+	// a space enters its mode ("{name} · enter"), TriggerHintMore adding the
+	// count of commands it could still become.
+	TriggerHint     func(name string) string
+	TriggerHintMore func(name string, more int) string
 	// Hint is the empty result area's message.
 	Hint string
 	// NoResults is shown when a query matches nothing.

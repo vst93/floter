@@ -70,6 +70,8 @@ var en = Copy{
 		Placeholder:          "Type a command or app name",
 		Label:                "Search",
 		Hint:                 "Type to search",
+		TriggerHint:          func(name string) string { return name + " \u00b7 enter" },
+		TriggerHintMore:      func(name string, more int) string { return name + " \u00b7 enter (+" + strconv.Itoa(more) + " more)" },
 		NoResults:            "No results",
 		Clear:                "Clear",
 		Copied:               "Copied",
@@ -441,7 +443,11 @@ var zh = Copy{
 		CommandStatus:            func(status string) string { return status },
 	},
 	Launcher: Launcher{
-		Placeholder:          "输入命令或应用名称",
+		Placeholder: "输入命令或应用名称",
+		TriggerHint: func(name string) string { return name + " \u00b7 进入" },
+		TriggerHintMore: func(name string, more int) string {
+			return name + " \u00b7 进入（还有 " + strconv.Itoa(more) + " 个）"
+		},
 		Label:                "搜索",
 		Hint:                 "输入以搜索",
 		NoResults:            "没有匹配项",
