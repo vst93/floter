@@ -165,3 +165,36 @@ func TestCreateCustomNeedsApproval(t *testing.T) {
 		t.Fatalf("entries = %v (%v)", entries, readErr)
 	}
 }
+
+// A connection may declare the tool's inputs: they travel into the manifest,
+// and a bad declaration is refused before any package is written.
+func TestCreateCustomCarriesParams(t *testing.T) {
+	paths, program := customToolFixture(t)
+	entry, err := CreateCustom(context.Background(), paths, CustomRequest{
+		Name: "My Gadget", Command: "gadget", ExecutablePath: program,
+		Params: []ParamDefinition{
+			{ID: "target", Label: "Target", Kind: ParamText, Flag: "--target"},
+			{ID: "verbose", Kind: ParamBoolean, Flag: "--verbose"},
+		},
+	}, true)
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	integration, ok := LoadInventory(paths).WithID(entry.ID)
+	if !ok {
+		t.Fatal("the integration does not load")
+	}
+	if len(integration.Manifest.Params) != 2 {
+		t.Fatalf("params = %+v", integration.Manifest.Params)
+	}
+	if integration.Manifest.Params[0].Flag != "--target" {
+		t.Errorf("the flag did not survive: %+v", integration.Manifest.Params[0])
+	}
+	// A bad declaration is refused before anything is written.
+	if _, err := CreateCustom(context.Background(), paths, CustomRequest{
+		Name: "Bad", ExecutablePath: program,
+		Params: []ParamDefinition{{ID: "a", Kind: "colour"}},
+	}, true); err == nil {
+		t.Error("a bad declaration was accepted")
+	}
+}

@@ -942,6 +942,17 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
 - 窗口放置：`placement` 纯函数 + `placeWindow`——在工作区里居中、按显示自身坐标与缩放、用**终端的**
   高度作参考并夹取，多显示器不再由平台随手决定。
 
+### P4-ac 声明式输入（params）与本机发现闭环（已做）
+
+- `params`：manifest 的 `Params`（id/label/kind/default/required/placeholder/options/flag）+ 一处校验
+  （id 字符集、去重、select 必须有选项、boolean 必须有 flag、flag 必须是一个 argv token——注入防御的地基）
+  + `ParamArgv`（每个 flag 自己一个元素、每个值自己一个元素、布尔只在真时出现 flag，永不拼命令字符串）
+  + `ParamIssues`/`ParamDefaults`（表单自己的校验与预填）。
+- Integrations 卡片的运行表单：每个输入一个控件，必填未填则拒绝运行，答案以 map 交给 shell（shell 构 argv）。
+- 连接的请求也可携带 params，连同坏声明在写包之前就被拒绝。
+- 本机发现闭环：`Detected`（多源 inventory 的候选，排掉仓库已有的，封顶）+ 一键连接；`floter://register`
+  现在真的解析名字并连接；「从文件夹安装」加入本地包安装的门。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。

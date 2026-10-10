@@ -53,6 +53,9 @@ type CustomRequest struct {
 	Platforms []string
 	// Output is where a run sends its output: "terminal" or "background".
 	Output string
+	// Params are the inputs the connected tool declares: the host renders a
+	// form for them and turns the answers into argv (see params.go).
+	Params []ParamDefinition
 }
 
 // ErrBadRequest is what a connection reports for a request that cannot be
@@ -202,6 +205,11 @@ func normalizeCustom(request CustomRequest) (CustomRequest, error) {
 			return request, fmt.Errorf("%w: unknown permission %q", ErrBadRequest, permission)
 		}
 	}
+	// A declared input is checked before a package is written, so a bad one
+	// never reaches the disk.
+	if err := ValidateParams(request.Params); err != nil {
+		return request, err
+	}
 	return request, nil
 }
 
@@ -342,6 +350,7 @@ func customManifest(id string, request CustomRequest) Manifest {
 		},
 		Permissions: append([]string{}, request.Permissions...),
 		Platforms:   append([]string{}, request.Platforms...),
+		Params:      append([]ParamDefinition{}, request.Params...),
 	}
 	if request.Output != "" {
 		manifest.Output = request.Output
