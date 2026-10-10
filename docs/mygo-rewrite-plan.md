@@ -710,6 +710,16 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
 - 探针报告持久化在仓库条目的 `probeReport` 字段（旧版的字段名），未知键测试改为用其它键做未知样例，
   并新增「类型化的报告在写回后保留」的断言（旧构建未知形状的报告解析成空报告后依然保留）。
 
+### P3-o lifecycle.launch 的接线（已做）
+
+- manifest `lifecycle.launch` 是「集成整体怎么跑」的声明：program + 前置参数 + cwd 策略 +
+  终端环境。此前 Go 版在 manifest 里有模型但从未接线——每个命令仍按自己的 execution 跑。
+- 接线规则照旧版 `declared_execution`：**runtime binding 解析出的可执行在前**
+  （解释器 + 脚本，或工具本身）；`program: "self"`（schema 默认）就是它；声明的程序替换它时，
+  解释器参数一并替换；launch 的前置参数在其后，然后才是命令自己的 argsPrefix；
+  cwd 策略解析（home / toolData（集成自己的数据目录）/ fixed:<绝对路径> / 其余继承）；
+  终端环境 `TERM=floter-256color`、`COLORTERM=truecolor`、`TERM_PROGRAM=floter`。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。

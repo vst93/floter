@@ -3,7 +3,10 @@ package extensions
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 )
 
@@ -157,6 +160,41 @@ func (s *Store) SetEnabled(id string, enabled bool) error {
 // does not know.
 var ErrNoIntegration = errors.New("extensions: no such integration")
 
+// launchOverrides reads the manifest's lifecycle.launch: the program and
+// leading arguments every command of this integration runs with (an empty
+// program means the commands' own execution stands), the directory its cwd
+// policy resolves to, and the terminal environment it asks for.
+//
+// The policy follows the old build's: `home` is the user's home, `toolData`
+// the integration's own data directory, `fixed` a declared absolute path (kept
+// as declared), and anything else — including the default — inherits, which is
+// the empty answer here.
+func launchOverrides(integration Integration) (program string, args []string, dir string, env []string) {
+	config := integration.Manifest.Lifecycle.Launch
+	program = config.Command.Program
+	args = append([]string{}, config.Command.Args...)
+	switch strings.TrimSpace(strings.ToLower(config.CWDPolicy)) {
+	case "home":
+		if home, err := os.UserHomeDir(); err == nil {
+			dir = home
+		}
+	case "tooldata":
+		dir = filepath.Join(integration.Paths.Data, integration.Entry.ID)
+	case "fixed":
+		if path, ok := integration.Manifest.Lifecycle.Launch.FixedPath(); ok {
+			dir = path
+		}
+	}
+	// The terminal environment: a tool that declares what its terminal must
+	// support gets exactly that, and every launch is named as floter's.
+	env = append(env,
+		"TERM=floter-256color",
+		"COLORTERM=truecolor",
+		"TERM_PROGRAM=floter",
+	)
+	return program, args, dir, env
+}
+
 // CommandInfo is one command of one integration, as the settings panel's
 // switch list shows it: the identity the switch map is keyed by, and whether
 // the integration's runtime resolves right now. A command whose runtime is
@@ -265,17 +303,42 @@ func (s *Store) CommandEntries() []CommandEntry {
 		if configuration, ok := ConfigurationCommand(integration, description); ok {
 			commands = append(append([]Command{}, commands...), configuration)
 		}
+		// The manifest's lifecycle.launch is how the integration as a whole
+		// runs: its program and leading arguments replace each command's own
+		// execution, and its cwd policy and terminal environment come with it.
+		launchProgram, launchArgs, launchDir, launchEnv := launchOverrides(integration)
 		for _, command := range commands {
+			// The runtime binding runs the integration's own executable (an
+			// interpreter and its script, or the tool itself), so those leading
+			// arguments come first.
+			program, args := binding.Program, append([]string{}, binding.Args...)
+			dir := command.Execution.WorkingDirectory
+			env := append([]string{}, injection.Env...)
+			if launchProgram != "" {
+				// `program: "self"` — the schema's default — is what the
+				// binding resolved. A declared program replaces it, and the
+				// interpreter arguments with it.
+				if launchProgram != "self" {
+					program = launchProgram
+					args = []string{}
+				}
+				args = append(args, launchArgs...)
+				if launchDir != "" {
+					dir = launchDir
+				}
+				env = append(env, launchEnv...)
+			}
+			args = append(args, command.Execution.ArgsPrefix...)
 			entry := CommandEntry{
 				IntegrationID:   integration.Entry.ID,
 				IntegrationName: integration.Name,
 				ProviderName:    description.Provider.Name,
 				Command:         command,
-				Program:         binding.Program,
-				Args:            append(append([]string{}, binding.Args...), command.Execution.ArgsPrefix...),
+				Program:         program,
+				Args:            args,
 				Mode:            command.Execution.NormalizedMode(),
-				Dir:             command.Execution.WorkingDirectory,
-				Env:             append([]string{}, injection.Env...),
+				Dir:             dir,
+				Env:             env,
 			}
 			entry.Args = append(entry.Args, injection.Args...)
 			out = append(out, entry)

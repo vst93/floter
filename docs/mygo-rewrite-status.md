@@ -149,6 +149,10 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 - manifest `lifecycle.probes` 的执行与 `probeReport` 持久化：required 失败 → broken、optional 失败 →
   degraded、全过 → healthy、空集 → `ErrNoProbes` 不抹旧报告；集成页「检查」先探针后 diagnose。
 
+**P3-o lifecycle.launch 接线**（本轮）
+- manifest 声明的「集成整体怎么跑」现在生效：launch 程序/前置参数（self = runtime 解析的可执行）、
+  cwd 策略（home/toolData/fixed）、终端环境（TERM/COLORTERM/TERM_PROGRAM）。
+
 ## 尚未做（按建议优先级）
 
 1. **应用名的拼音与子序列匹配**（受阻）：旧版 `compute_initials` 用 `pinyin` 表（2 万+字）把

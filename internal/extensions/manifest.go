@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -141,6 +142,16 @@ type Launch struct {
 type LaunchCommand struct {
 	Program string   `json:"program"`
 	Args    []string `json:"args"`
+}
+
+// FixedPath is the absolute directory a `fixed` cwd policy names, and whether
+// the policy actually declares one. The old manifests carried it as
+// "fixed:<path>" inside the launch's cwdPolicy string.
+func (l Launch) FixedPath() (string, bool) {
+	if rest, ok := strings.CutPrefix(l.CWDPolicy, "fixed:"); ok && filepath.IsAbs(rest) {
+		return rest, true
+	}
+	return "", false
 }
 
 // The shipped protocol defaults, from the schema.
