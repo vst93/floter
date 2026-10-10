@@ -465,7 +465,10 @@ func (a *App) body(c *ui.Context, copy i18n.Settings) {
 	p := a.page(a.Page)
 	t := c.Theme()
 
-	header := t.Space(6)
+	// The page's own header: its name at the display register and the one-line
+	// hint under it, as the reference's `.settings-page__title` /
+	// `.settings-page__subtitle` did.
+	header := t.Space(10)
 	edge := header + t.Space(2)
 	ui.Column(c).Fill().Children(func() {
 		ui.Scroll(c.Key("settings.body")).TrackScroll(&a.Body).Fill().
@@ -491,9 +494,13 @@ func (a *App) body(c *ui.Context, copy i18n.Settings) {
 		})
 		ui.Box(c).Absolute().Top(0).Left(0).Right(0).Height(edge).PassThrough().
 			Material(glass.ScrollEdge{Background: t.Background})
-		ui.Column(c).Absolute().Top(0).Left(0).Right(0).Height(header).Children(func() {
-			ui.Text(c, p.Hint).FontSize(t.FontSize).TextColor(t.TextMuted)
-			ui.Divider(c).Padding(t.Space(0.5), 0)
+		ui.Column(c).Absolute().Top(0).Left(0).Right(0).Height(header).
+			Padding(0, 0, t.Space(1), 0).Children(func() {
+			ui.Text(c, p.Title).FontSize(t.FontSize + 4).FontWeight(650).TextColor(t.Text)
+			if p.Hint != "" {
+				ui.Text(c, p.Hint).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+			}
+			ui.Divider(c).Padding(t.Space(1), 0)
 		})
 	})
 }
