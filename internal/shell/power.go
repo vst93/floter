@@ -41,6 +41,22 @@ func (a *App) power(action string) {
 	}()
 }
 
+// confirmClearClipboard asks the user, through the framework's dialog unless a
+// test answered for itself.
+func (a *App) confirmClearClipboard(title string) bool {
+	copy := a.SettingsCopy()
+	if a.confirmPowerDialog != nil {
+		return a.confirmPowerDialog(title)
+	}
+	result, err := mygo.Dialog.Message(mygo.MessageOptions{
+		Type:    mygo.MessageWarning,
+		Message: title,
+		Detail:  copy.ClipboardClearDetail,
+		Buttons: []string{copy.ClipboardClearButton, copy.ClipboardClearCancel},
+	})
+	return err == nil && result.Button == 0
+}
+
 // confirmPower asks the user, through the framework's dialog unless a test
 // answered for itself.
 func (a *App) confirmPower(title string) (bool, error) {

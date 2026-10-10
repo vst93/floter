@@ -1280,3 +1280,26 @@ func TestConfigurationForm(t *testing.T) {
 }
 
 func intPtr(v int) *int { return &v }
+
+// The Plugins page's clear-history control reports a press.
+func TestClipboardClearControl(t *testing.T) {
+	cleared := 0
+	a := New(newStore(t), Actions{ClearClipboardHistory: func() { cleared++ }})
+	tt := render(t, a, 720, 640)
+	if err := tt.Click("Plugins"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	tt.Scroll(400, 300, 0, 900)
+	tt.Frame()
+	if !tt.HasText("Clear history") {
+		t.Fatalf("the clear control is missing: %q", tt.Texts())
+	}
+	if err := tt.Click("Clear history"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if cleared != 1 {
+		t.Errorf("cleared %d times", cleared)
+	}
+}

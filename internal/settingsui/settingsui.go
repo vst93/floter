@@ -98,6 +98,9 @@ type Actions struct {
 	// SaveConfiguration validates and stores an integration's configuration
 	// values, moving its password fields into the secrets file.
 	SaveConfiguration func(id string, values map[string]any) error
+	// ClearClipboardHistory drops every clipboard entry that is not a
+	// favourite.
+	ClearClipboardHistory func()
 	// ResetShortcuts restores the shipped bindings, and
 	// SetShortcutsSuspended releases the global shortcuts while a recorder
 	// waits for a key (so pressing the current one is recorded rather than
@@ -471,6 +474,14 @@ func (a *App) plugins(c *ui.Context, copy i18n.Settings) {
 						s.SetClipboard(state)
 					})
 				})
+			if a.Actions.ClearClipboardHistory != nil {
+				ui.Row(c).FillWidth().AlignItems(ui.Center).Children(func() {
+					if ui.Button(c, copy.ClipboardClear).Clicked() {
+						a.Actions.ClearClipboardHistory()
+					}
+					ui.Text(c, copy.ClipboardClearHint).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+				})
+			}
 		})
 		a.calculatorCard(c, copy)
 	})

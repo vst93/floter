@@ -173,6 +173,9 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 - 签名（FNV-1a：排序去重的路径 + 长度 + mtime，限频 30s）未变时 launcher 立即用上一次扫描；
   变了才后台重扫。进程内缓存（旧版另有磁盘持久化缓存，未做）。
 
+**P2-u 剪贴板「清空历史」**（本轮）
+- Plugins 页的清空控件：确认后移除所有未收藏条目（收藏豁免），确认与清除可注入。
+
 ## 尚未做（按建议优先级）
 
 1. **列表协议的分页**：`page.cursor`/`hasMore` 与滚动加载（需要带着 cursor 重新执行命令）；旧版还有

@@ -2304,3 +2304,45 @@ func TestDebugPersistedReport(t *testing.T) {
 	integration, _ := inventory.WithID("dev.floter.health")
 	t.Logf("probeReport=%+v state=%q", integration.Entry.ProbeReport, integration.Entry.State)
 }
+
+// The clear-history action asks first, and only clears when the user confirms.
+func TestClearClipboardHistoryAsksFirst(t *testing.T) {
+	dir := t.TempDir()
+	clipStore := clipboard.NewStore(clipboard.FromConfigRoot(dir), 0)
+	if _, _, err := clipStore.AddText("plain"); err != nil {
+		t.Fatal(err)
+	}
+	starred, _, err := clipStore.AddText("keep me")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := clipStore.SetFavorite(starred.ID, true); err != nil {
+		t.Fatal(err)
+	}
+	confirmed := false
+	a := New(Options{
+		Store:                settings.NewStore(settings.Default()),
+		Paths:                extensions.FromRoot(t.TempDir()),
+		NewTerminal:          func(terminal.Options) (*terminal.Terminal, error) { return nil, errors.New("no library in tests") },
+		RunSilentCommand:     func(string) error { return nil },
+		OpenExternalTerminal: func() error { return nil },
+	})
+	a.Clipboard = clipStore
+	a.clearClipboardHistoryAsks(func(title string) bool { confirmed = true; return confirmed })
+
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		if len(clipStore.Entries()) == 1 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("the clear never landed: %v", clipStore.Entries())
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	entries := clipStore.Entries()
+	if len(entries) != 1 || !entries[0].Favorite || entries[0].ID != starred.ID {
+		t.Errorf("after the clear = %+v", entries)
+	}
+	_ = confirmed
+}

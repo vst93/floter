@@ -313,6 +313,12 @@ type Settings struct {
 	ClipboardEnabled      string
 	ClipboardMaxItems     string
 	ClipboardMaxItemsHint string
+	ClipboardClear        string
+	ClipboardClearHint    string
+	ClipboardClearTitle   string
+	ClipboardClearDetail  string
+	ClipboardClearButton  string
+	ClipboardClearCancel  string
 
 	CalculatorPlugin         string
 	CalculatorPluginHint     string

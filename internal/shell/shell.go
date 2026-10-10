@@ -515,6 +515,7 @@ func New(opts Options) *App {
 		InstallUpdate:         a.installUpdate,
 		ConnectRecommended:    a.connectRecommended,
 		SaveConfiguration:     a.saveIntegrationConfiguration,
+		ClearClipboardHistory: func() { a.clearClipboardHistoryAsks(a.confirmClearClipboard) },
 		ResetShortcuts:        a.resetShortcuts,
 		SetShortcutsSuspended: a.setShortcutsSuspended,
 		ExportIntegrations:    a.exportIntegrations,
@@ -1337,6 +1338,27 @@ func (a *App) connectFromLink(manifest string) {
 		}
 		log.Printf("floter: connected %s %s", entry.Name, entry.PackageVersion)
 		a.RefreshIntegrations(context.Background())
+	}()
+}
+
+// clearClipboardHistory drops every clipboard entry that is not a favourite,
+// after the user has confirmed it: the removal cannot be undone. The confirm
+// is injectable, so a test answers for itself.
+func (a *App) clearClipboardHistoryAsks(confirm func(title string) bool) {
+	go func() {
+		copy := a.SettingsCopy()
+		if !confirm(copy.ClipboardClearTitle) {
+			return
+		}
+		a.onMain(func() {
+			if err := a.Clipboard.Clear(); err != nil {
+				log.Printf("floter: could not clear the clipboard history: %v", err)
+				return
+			}
+			if a.Win != nil {
+				a.Win.Invalidate()
+			}
+		})
 	}()
 }
 
