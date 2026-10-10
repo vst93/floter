@@ -57,43 +57,68 @@ type Item struct {
 
 // commands is the built-in command list, labeled in the launcher's language.
 func (a *App) commands() []Item {
-	c := StringsFor(a.settings().Language)
+	c := a.copy()
+	power := c
+	// The search vocabulary is every language's wording plus the pinyin
+	// initials of the Chinese ones: the UI language says nothing about the
+	// keyboard the query is typed on, so 重启 has to be found by "restart" on
+	// a Chinese UI and by `cq` on a Latin one. The initials are written out —
+	// these are the app's own commands, not a table-sized set.
 	return []Item{
 		{
-			ID:       "settings",
-			Title:    c.CommandSettings,
-			Detail:   c.CommandSettingsHint,
-			Shortcut: c.ShortcutSettings,
-			Run:      a.Actions.OpenSettings,
+			ID:     "settings",
+			Title:  c.CommandSettings,
+			Detail: c.CommandSettingsHint,
+			Search: settingsSearch,
+			Run:    a.Actions.OpenSettings,
 		},
 		{
 			ID:     "terminal",
 			Title:  c.CommandTerminal,
 			Detail: c.CommandTerminalHint,
+			Search: terminalSearch,
 			Run:    a.Actions.OpenTerminal,
 		},
 		{
 			ID:     "browser",
 			Title:  c.CommandBrowser,
 			Detail: c.CommandBrowserHint,
+			Search: browserSearch,
 			Run:    a.enterBrowser,
 		},
 		{
 			ID:     "clipboard",
 			Title:  c.CommandClipboard,
 			Detail: c.CommandClipboardHint,
+			Search: clipboardSearch,
 			Run:    a.enterClipboard,
 		},
 		{
 			ID:     "calculator",
 			Title:  c.CommandCalculator,
 			Detail: c.CommandCalculatorHint,
+			Search: calculatorSearch,
 			Run:    a.enterCalculator,
+		},
+		{
+			ID:     "power-restart",
+			Title:  power.PowerRestart,
+			Detail: power.PowerRestartHint,
+			Search: restartSearch,
+			Run:    func() { a.runPower(PowerRestart) },
+		},
+		{
+			ID:     "power-shutdown",
+			Title:  power.PowerShutdown,
+			Detail: power.PowerShutdownHint,
+			Search: shutdownSearch,
+			Run:    func() { a.runPower(PowerShutdown) },
 		},
 		{
 			ID:     "quit",
 			Title:  c.CommandQuit,
 			Detail: c.CommandQuitHint,
+			Search: quitSearch,
 			Run:    a.Actions.Quit,
 		},
 	}

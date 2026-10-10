@@ -30,10 +30,10 @@ func testApp() *App {
 func TestCatalogIsAuthoredOrderAndLocalized(t *testing.T) {
 	a := testApp()
 	got := a.Catalog()
-	if len(got) != 6 {
-		t.Fatalf("catalog has %d items, want 6", len(got))
+	if len(got) != 8 {
+		t.Fatalf("catalog has %d items, want 8", len(got))
 	}
-	want := []string{"settings", "terminal", "browser", "clipboard", "calculator", "quit"}
+	want := []string{"settings", "terminal", "browser", "clipboard", "calculator", "power-restart", "power-shutdown", "quit"}
 	for i, id := range want {
 		if got[i].ID != id {
 			t.Errorf("catalog[%d] = %s, want %s", i, got[i].ID, id)
@@ -56,8 +56,8 @@ func TestMatchEmptyQueryKeepsTheCatalog(t *testing.T) {
 	a := testApp()
 	for _, query := range []string{"", "   "} {
 		got := a.Match(query)
-		if len(got) != 6 {
-			t.Errorf("query %q matched %d, want all 6", query, len(got))
+		if len(got) != 8 {
+			t.Errorf("query %q matched %d, want all 8", query, len(got))
 		}
 	}
 }
@@ -207,7 +207,7 @@ func TestAppsJoinTheSearchOnceTyped(t *testing.T) {
 	})
 
 	// An empty query shows the built-in commands alone.
-	if got := a.Results(); len(got) != 6 {
+	if got := a.Results(); len(got) != 8 {
 		t.Errorf("empty query shows %d rows (%v)", len(got), ids(got))
 	}
 

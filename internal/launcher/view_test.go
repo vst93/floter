@@ -719,7 +719,11 @@ func TestEmptyQueryOffersRecentApplications(t *testing.T) {
 	a.SetApps(found)
 	a.SetRecent([]string{"/Applications/Editor.app", "/Applications/Gone.app", "/Applications/Safari.app"}, true)
 
-	tt := render(t, a)
+	// A taller window: the built-in list grew with the power rows, and the
+	// recents come after them.
+	tt := ui.NewTester(func(c *ui.Context) { a.View(c) },
+		InputWindowWidth, int(WindowHeight("small"))+140)
+	tt.Frame()
 	// The built-in commands come first, then the recents, most-used first,
 	// with the one that is gone left out.
 	texts := tt.Texts()
@@ -1735,5 +1739,45 @@ func TestActionBarRows(t *testing.T) {
 	tt.Frame()
 	if ran != 1 {
 		t.Errorf("the shell row ran %d times", ran)
+	}
+}
+
+// The built-in commands are searchable in both languages and by the pinyin
+// initials of their Chinese names.
+func TestBuiltinCommandsPinyinAndLanguage(t *testing.T) {
+	a := testApp()
+	for _, tc := range []struct{ query, id string }{
+		{"重启", "power-restart"},
+		{"cq", "power-restart"},      // 重启 → cq
+		{"cxqd", "power-restart"},    // 重新启动 → cxqd
+		{"zxqd", "power-restart"},    // 重's other reading
+		{"gj", "power-shutdown"},     // 关机 → gj
+		{"gbdn", "power-shutdown"},   // 关闭电脑 → gbdn
+		{"剪贴板", "clipboard"},         // the word itself
+		{"jtb", "clipboard"},         // 剪贴板 → jtb
+		{"浏览器", "browser"},           // the word itself
+		{"llq", "browser"},           // 浏览器 → llq
+		{"jsq", "calculator"},        // 计算器 → jsq
+		{"终端", "terminal"},           // the word itself
+		{"zd", "terminal"},           // 终端 → zd
+		{"设置", "settings"},           // the word itself
+		{"sz", "settings"},           // 设置 → sz
+		{"退出", "quit"},               // the word itself
+		{"tc", "quit"},               // 退出 → tc
+		{"restart", "power-restart"}, // the English wording on a Chinese UI
+		{"关机", "power-shutdown"},     // the Chinese wording on an English UI
+	} {
+		a.ResetQuery()
+		a.Query = tc.query
+		got := a.Results()
+		found := false
+		for _, item := range got {
+			if item.ID == tc.id {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("query %q did not reach %s: %v", tc.query, tc.id, ids(got))
+		}
 	}
 }

@@ -763,6 +763,22 @@ var (
 	browserWords   = []string{"browser", "bookmarks", "bookmark", "history", "浏览器", "书签"}
 )
 
+// The built-in commands' search vocabulary: every language's wording plus the
+// pinyin initials of the Chinese ones, written out because these are the app's
+// own commands rather than a table-sized set. The readings follow the old
+// build's notes, including 重's second one (chóng/zhòng), which an IME trains
+// either way.
+const (
+	settingsSearch   = "设置 shezhi sz options preferences"
+	terminalSearch   = "终端 终端机 tzdzdj term terminal"
+	browserSearch    = "浏览器 浏览器书签 书签 历史记录 llq llqsq sq lsjl browser bookmarks bookmark history"
+	clipboardSearch  = "剪贴板 剪贴板历史 粘贴历史 jtb jtbls ntls ch clipboard paste"
+	calculatorSearch = "计算器 计算 jsq js c calculator calculate"
+	restartSearch    = "重启 重新启动 cq cxqd zq zxqd restart reboot"
+	shutdownSearch   = "关机 关闭电脑 gj gbdn shutdown power off"
+	quitSearch       = "退出 tuichu tc quit exit"
+)
+
 // enterClipboard starts searching the clipboard history.
 func (a *App) enterClipboard() {
 	a.enterClipboardWord(clipboardWord + " ")
