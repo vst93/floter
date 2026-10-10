@@ -77,6 +77,10 @@ type Actions struct {
 	UninstallComponents func(id string, name string, components UninstallComponents)
 	// DiagnoseIntegration asks an integration's provider to check itself.
 	DiagnoseIntegration func(id string)
+	// ReprobeCommands re-runs the connect-time help derivation of a
+	// generated custom integration and rebuilds its command list. Nil
+	// hides the button.
+	ReprobeCommands func(id string)
 	// SetShortcut records a new accelerator for an action id.
 	SetShortcut func(id, accelerator string)
 	// InstallFromRegistry installs a package from the npm registry.
@@ -164,6 +168,10 @@ type Integration struct {
 	// empty when the integration declares none.
 	Config       []ConfigField
 	ConfigValues map[string]any
+	// Generated marks an integration the host itself created from a local
+	// tool's own help: only these can be re-probed, so only these get the
+	// button.
+	Generated bool
 }
 
 // ConfigField is one field of an integration's host-owned configuration, as
@@ -839,6 +847,15 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 					}
 				}
 			})
+			// A generated custom integration's command list came from the
+			// tool's own help at connect time; the button re-runs that
+			// derivation, so a tool that shipped new subcommands comes back
+			// with them without a disconnect.
+			if integration.Generated && a.Actions.ReprobeCommands != nil {
+				if ui.Button(c, copy.IntegrationsReprobe).Clicked() {
+					a.Actions.ReprobeCommands(integration.ID)
+				}
+			}
 		}
 	})
 }

@@ -457,6 +457,7 @@ func New(opts Options) *App {
 		Close:               func() { a.Open(SurfaceLauncher) },
 		CloseSession:        func() { a.Terminal.Close() },
 		DiagnoseIntegration: a.diagnoseIntegration,
+		ReprobeCommands:     a.reprobeCommands,
 		SetShortcut:         a.setShortcut,
 		SetPage:             a.rememberSettingsPage,
 		BrowserTargets:      a.browserTargets,
@@ -1010,6 +1011,10 @@ func (a *App) integrationList() []settingsui.Integration {
 			}
 		}
 		item.Commands = commands[item.ID]
+		// Only the host's own generated integrations can be re-probed: the
+		// button rebuilds a descriptor it wrote, never publisher content.
+		item.Generated = integration.Entry.PublisherID == "local-user" &&
+			integration.Entry.ProviderKind == "static-descriptor"
 		// The stored lifecycle health survives across runs, so a row shows how
 		// the tool was last found to be even before a check runs.
 		if report := integration.Entry.ProbeReport; report != nil && report.Status != "" {
@@ -1456,6 +1461,34 @@ func (a *App) connectRecommended(id string) {
 		}
 		a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationInstalled(entry.Name) })
 		a.RefreshIntegrations(context.Background())
+	}()
+}
+
+// reprobeCommands re-runs a generated custom integration's help derivation
+// off the main thread: the command list is rebuilt from the tool's own
+// --help, and the launcher's command list follows. A failure says so as a
+// diagnosis, and the previous descriptor stays.
+func (a *App) reprobeCommands(id string) {
+	go func() {
+		report, err := extensions.ReprobeCommands(context.Background(), a.Paths, id)
+		if err != nil {
+			log.Printf("floter: could not re-probe %s: %v", id, err)
+			a.diagnosisMu.Lock()
+			if a.diagnoses == nil {
+				a.diagnoses = map[string]settingsui.Integration{}
+			}
+			a.diagnoses[id] = settingsui.Integration{Diagnosis: err.Error(), DiagnosisFailed: true}
+			a.diagnosisMu.Unlock()
+		} else {
+			log.Printf("floter: re-probed %s (commands=%d, was %v)", id, report.CommandCount, report.PreviousCommandCount)
+		}
+		a.onMain(func() {
+			a.Launcher.SetCommands(a.launcherCommands())
+			a.RefreshIntegrations(context.Background())
+			if a.Win != nil {
+				a.Win.Invalidate()
+			}
+		})
 	}()
 }
 
