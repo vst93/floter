@@ -252,9 +252,12 @@ func (a *App) outputRow(c *ui.Context, row extensions.Row, i int) {
 			Padding(t.Space(1), t.Space(2), 0, t.Space(2))
 	}
 	style := ui.Row(c).Key(row.ID).FillWidth().Padding(t.Space(1.5), t.Space(2)).Radius(t.Radius).Gap(t.Space(2))
+	selected := i == a.output.Selected && row.Runnable()
 	switch {
-	case i == a.output.Selected && row.Runnable():
-		style.Background(t.Accent.Alpha(0.14))
+	case selected:
+		// The list's own selection: a quiet accent tint with the emphasis in
+		// the row's type, exactly as the launcher's rows draw it.
+		style.Background(t.Accent.Alpha(0.085))
 	case row.Status || row.Disabled:
 		// A note is not a door: it stays muted and never highlights.
 	default:
@@ -263,49 +266,35 @@ func (a *App) outputRow(c *ui.Context, row extensions.Row, i int) {
 		}
 	}
 	style.Children(func() {
-		if row.Icon != "" {
-			ui.Text(c, rowIcon(row.Icon)).FontSize(t.FontSize).TextColor(t.TextMuted)
+		dim := row.Status || row.Disabled
+		plate := a.iconPlate(c, false)
+		if dim {
+			plate.Opacity(0.62)
 		}
+		plate.Children(func() {
+			if glyph, ok := outputGlyph(row.Icon); ok {
+				ui.Icon(c, glyph).Size(t.Space(4), t.Space(4)).TextColor(t.TextMuted)
+			}
+		})
 		ui.Column(c).Grow(1).Children(func() {
 			color := t.Text
-			if row.Status || row.Disabled {
+			if dim {
 				color = t.TextMuted
 			}
-			ui.Text(c, row.Title).FontSize(t.FontSize).TextColor(color)
+			title := ui.Text(c, row.Title).FontSize(t.FontSize).TextColor(color)
+			if selected {
+				title.FontWeight(700)
+			}
 			if row.Subtitle != "" {
-				ui.Text(c, row.Subtitle).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+				subtitle := ui.Text(c, row.Subtitle).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+				if selected {
+					subtitle.TextColor(t.Text)
+				}
 			}
 		})
 	})
 	if style.Clicked() && row.Runnable() {
 		a.output.Selected = i
 		a.runOutputRow()
-	}
-}
-
-// rowIcon is the glyph a row's icon name draws. The vocabulary is closed (see
-// extensions.RowIcons), so a name that is not here cannot reach this far.
-func rowIcon(name string) string {
-	switch name {
-	case "link":
-		return "\u2197"
-	case "file":
-		return "\u25a4"
-	case "folder":
-		return "\u25b1"
-	case "globe":
-		return "\u25f4"
-	case "star":
-		return "\u2605"
-	case "clock":
-		return "\u25f4"
-	case "text":
-		return "\u2261"
-	case "image":
-		return "\u25a3"
-	case "command":
-		return "\u203a"
-	default:
-		return "\u00b7"
 	}
 }

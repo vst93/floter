@@ -138,3 +138,30 @@ func (a *App) iconPlate(c *ui.Context, warm bool) ui.Element {
 func (a *App) enterBadge() string {
 	return shortcuts.Badge(settings.Shortcut(a.settings(), settings.ShortcutSelectResult), "enter")
 }
+
+// outputGlyph maps a list-protocol row's icon name onto the glyph set. The
+// vocabulary is closed (the protocol's own `RowIcons`), so a name outside it
+// draws no mark rather than a guessed one.
+func outputGlyph(name string) (*ui.SVG, bool) {
+	switch name {
+	case "link":
+		return glyphLink, true
+	case "file":
+		return glyphFile, true
+	case "folder":
+		return glyphFolder, true
+	case "globe":
+		return glyphGlobe, true
+	case "star":
+		return glyphStar, true
+	case "clock":
+		return glyphClock, true
+	case "text":
+		return glyphText, true
+	case "image":
+		return glyphImage, true
+	case "command":
+		return glyphTerminal, true
+	}
+	return nil, false
+}
