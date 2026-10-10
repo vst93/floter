@@ -8,7 +8,7 @@
 
 用 mygo（原生 GPU 自绘 UI + Go）重写的 floter **已经是一个可打包、可运行的完整应用**：单窗口三表面
 （启动器 / 设置 / 终端）、搜索内核、扩展平台（含后台运行、列表协议、导入导出、权限审计）、剪贴板、
-浏览器、计算器、系统集成、打包与 CI 全部就位。**327 项测试全绿**，三平台都能构建，Linux 打包
+浏览器、计算器、系统集成、打包与 CI 全部就位。**331 项测试全绿**，三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
 含测试）。
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 327 项测试
+go test -count=1 ./...         # 331 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -147,7 +147,12 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 尚未做（按建议优先级）
 
-1. **列表协议的分页**：`page.cursor`/`hasMore` 与滚动加载（需要带着 cursor 重新执行命令）；旧版还有
+1. **应用名的拼音与子序列匹配**（受阻）：旧版 `compute_initials` 用 `pinyin` 表（2 万+字）把
+   「网易云音乐」变成 `wyyyy`，`scoreNormalized` 还有第四档子序列匹配（`vsc` → Visual Studio Code）。
+   本机无网络、模块缓存无拼音数据，嵌入一个无法验证的表会拿「缺失功能」换「错误映射」。
+   受阻步骤：生成表（pinyin 分组区间）+ 用已知词表校验 → 接入 `apps.computeInitials` 与
+   `launcher.Match` 的评分阶梯。
+2. **列表协议的分页**：`page.cursor`/`hasMore` 与滚动加载（需要带着 cursor 重新执行命令）；旧版还有
    `⌘1–⌘0` 的编号角标，Go 侧已完成。
 2. **i18n 全量对齐**：UI 包内没有裸文案（已审计），旧 `src/i18n.ts` 的 1700+ 键大部分属于已不存在的
    页面（插件 iframe 页、剪贴板页、会话页），不为「对齐键数」而搬。
