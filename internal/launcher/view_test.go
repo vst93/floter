@@ -1625,10 +1625,30 @@ func TestPowerRows(t *testing.T) {
 	if texts := tt.Texts(); len(texts) > 0 && texts[0] == "Restart Helper" {
 		t.Errorf("the application outranked the power row: %q", texts)
 	}
+	// Enter asks rather than runs: the panel's own confirmation row appears,
+	// and nothing reaches the shell until its own button is pressed (the old
+	// build's `.launcher-system-confirm`).
 	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if len(asked) != 0 {
+		t.Fatalf("the row ran without a confirmation: %v", asked)
+	}
+	if a.PowerPending() != PowerRestart {
+		t.Fatalf("pending = %q", a.PowerPending())
+	}
+	copy := a.copy()
+	if !tt.HasText(copy.PowerConfirmMessage(PowerRestart)) {
+		t.Fatalf("the confirmation is not drawn: %q", tt.Texts())
+	}
+	if err := tt.Click(copy.PowerRestartAction); err != nil {
+		t.Fatalf("the confirmation's button: %v", err)
+	}
 	tt.Frame()
 	if len(asked) != 1 || asked[0] != "restart" {
 		t.Fatalf("asked %v", asked)
+	}
+	if a.PowerPending() != "" {
+		t.Errorf("the confirmation stayed up: %q", a.PowerPending())
 	}
 
 	// The shutdown words, including the Chinese one.

@@ -201,6 +201,28 @@ func (a *App) RunShellWithCommand(command string) {
 	}()
 }
 
+// RunShellIn opens a bare session (the user's own shell) in a directory: a
+// dropped file's "cd" action and the action bar's own path action. An empty
+// directory keeps the session's own default.
+func (a *App) RunShellIn(dir string) {
+	if a.NewTerminal == nil {
+		return
+	}
+	a.Close()
+	opts := a.options()
+	opts.Command = nil
+	if strings.TrimSpace(dir) != "" {
+		opts.Dir = dir
+	}
+	term, err := a.NewTerminal(opts)
+	if err != nil {
+		a.Err = err
+		return
+	}
+	a.Term, a.Err = term, nil
+	a.FocusTerminal()
+}
+
 func (a *App) RunCommand(argv []string, dir string, env []string) error {
 	if len(argv) == 0 {
 		return errors.New("terminalui: no command to run")

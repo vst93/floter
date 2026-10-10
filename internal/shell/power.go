@@ -13,27 +13,17 @@ import (
 
 // Restarting and shutting down, from the launcher's power rows.
 //
-// Both end the session, so both ask first: a native dialog with the platform's
-// own words, and only then the system's command. Nothing here runs on arrival —
-// the row is offered, the user confirms, and the command goes to the system.
+// Both end the session, so both ask first — but the panel asks, in its own
+// docked confirmation (the launcher's `.launcher-system-confirm`: the action's
+// words, the action's own button, and the way back), so nothing here asks a
+// second time. A system dialog after the user has already answered the panel's
+// own question would be asking twice.
 
-// power confirms a power action and runs it. The dialog blocks, so the whole
-// thing runs off the main thread.
+// power runs a power action the panel has confirmed. The system's command is
+// the system's, so it runs off the main thread.
 func (a *App) power(action string) {
 	go func() {
 		copy := a.Launcher.Copy()
-		name := copy.PowerRestart
-		if action == launcher.PowerShutdown {
-			name = copy.PowerShutdown
-		}
-		confirmed, err := a.confirmPower(copy.PowerConfirmTitle(name))
-		if err != nil {
-			log.Printf("floter: could not ask about %s: %v", action, err)
-			return
-		}
-		if !confirmed {
-			return
-		}
 		if err := a.runPower(action); err != nil {
 			log.Printf("floter: could not %s: %v", action, err)
 			a.onMain(func() { a.Launcher.WarnFeedback(copy.PowerFailed) })
@@ -55,25 +45,6 @@ func (a *App) confirmClearClipboard(title string) bool {
 		Buttons: []string{copy.ClipboardClearButton, copy.ClipboardClearCancel},
 	})
 	return err == nil && result.Button == 0
-}
-
-// confirmPower asks the user, through the framework's dialog unless a test
-// answered for itself.
-func (a *App) confirmPower(title string) (bool, error) {
-	copy := a.Launcher.Copy()
-	if a.confirmPowerDialog != nil {
-		return a.confirmPowerDialog(title), nil
-	}
-	result, err := mygo.Dialog.Message(mygo.MessageOptions{
-		Type:    mygo.MessageWarning,
-		Message: title,
-		Detail:  copy.PowerConfirmDetail,
-		Buttons: []string{copy.PowerConfirmButton, copy.PowerCancel},
-	})
-	if err != nil {
-		return false, err
-	}
-	return result.Button == 0, nil
 }
 
 // runPower runs the platform's own command, through the injected runner when

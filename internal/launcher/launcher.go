@@ -294,6 +294,9 @@ type App struct {
 	// config is the open plugin-configuration overlay, which takes the result
 	// list's place (see config.go).
 	config *Config
+	// pendingPower is the power action the panel is asking about: the
+	// confirmation row shows until the user answers it (see power.go).
+	pendingPower string
 	// OutputList is the output list's own scrolling and selection state.
 	OutputList ui.ListState
 	// files is set while a drop's rows are listed, with Dropped the files the
@@ -626,7 +629,7 @@ func (a *App) View(c *ui.Context) {
 		geometry := Geometry{
 			Font: a.Font, Spacing: a.Spacing, RowLines: rowLines, Held: a.HeldRows,
 			Filter:   a.filtersVisible(),
-			Feedback: a.toast != "",
+			Feedback: a.toast != "" || a.pendingPower != "",
 			Config:   a.configSchema(),
 		}
 		a.Actions.ResizeTo(geometry.Height())
@@ -742,6 +745,9 @@ func (a *App) View(c *ui.Context) {
 	// message under the list belongs to the list, and the old build moved it
 	// there for exactly that reason.
 	a.feedbackRow(c)
+	// The power confirmation is docked in the same band: the panel asks, the
+	// list keeps its place, and the answer is one of the row's two buttons.
+	a.confirmPowerRow(c)
 
 	// The output view owns the keys while it is open: its list walks, its
 	// text copies, and Escape closes it.
@@ -767,6 +773,14 @@ func (a *App) View(c *ui.Context) {
 	// The overlay's own keys come first: Escape closes the sheet rather than
 	// leaving the mode, as the old build's dismiss table did.
 	if a.configKeys(c) {
+		return
+	}
+	// A pending power confirmation answers Escape the same way its own cancel
+	// button does: nothing runs, and the panel goes back to what it was. The
+	// predicate comes first: asking for a key consumes it, and a panel with
+	// nothing pending must leave Escape to the handlers below.
+	if a.pendingPower != "" && c.Shortcut(0, ui.KeyEscape) {
+		a.pendingPower = ""
 		return
 	}
 

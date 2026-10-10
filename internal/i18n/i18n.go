@@ -134,6 +134,13 @@ type Launcher struct {
 	PowerConfirmButton string
 	PowerCancel        string
 	PowerFailed        string
+	// PowerRestartAction and PowerShutdownAction are the actions' own words,
+	// which the confirmation's button carries: the old build's confirm row
+	// said "Restart", not "Continue".
+	PowerRestartAction  string
+	PowerShutdownAction string
+	// PowerConfirmMessage is the confirmation's one sentence, per action.
+	PowerConfirmMessage func(action string) string
 	// InstallTool names the row that offers a tool's install command, and
 	// InvokeFailed reports a tool that could not be started.
 	InstallTool  func(name string) string

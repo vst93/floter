@@ -1933,43 +1933,71 @@ func containsString(list []string, want string) bool {
 	return false
 }
 
-// A power action asks first, and only runs the system's command when the user
-// confirms. Both answers are covered, and nothing runs without a confirmation.
-func TestPowerAsksFirst(t *testing.T) {
+// A power action asks first — in the panel, in the launcher's own confirmation
+// row — and only runs the system's command when the user presses that row's own
+// button. Nothing runs without an answer.
+func TestPowerAsksInThePanelFirst(t *testing.T) {
 	ran := []string{}
-	answer := false
 	a := New(Options{
 		Store:                settings.NewStore(settings.Default()),
 		Paths:                extensions.FromRoot(t.TempDir()),
 		NewTerminal:          func(terminal.Options) (*terminal.Terminal, error) { return nil, errors.New("no library in tests") },
-		ConfirmPower:         func(title string) bool { return answer },
 		RunPowerCommand:      func(action string) error { ran = append(ran, action); return nil },
 		RunSilentCommand:     func(string) error { return nil },
 		OpenExternalTerminal: func() error { return nil },
 	})
-
-	// A refusal runs nothing.
-	a.power("restart")
-	time.Sleep(50 * time.Millisecond)
+	copy := i18n.For("en").Launcher
+	tt := ui.NewTester(func(c *ui.Context) { a.View(c) }, 720, 520)
+	tt.Frame()
+	tt.Type("restart")
+	tt.Frame()
+	if err := tt.Click(copy.PowerRestart); err != nil {
+		t.Fatalf("the power row: %v (texts %v)", err, tt.Texts())
+	}
+	tt.Frame()
+	// The row only asked: the panel shows the confirmation and nothing ran.
+	if got := a.Launcher.PowerPending(); got != launcher.PowerRestart {
+		t.Fatalf("pending = %q", got)
+	}
 	if len(ran) != 0 {
-		t.Fatalf("a refused action ran %v", ran)
+		t.Fatalf("an unanswered action ran %v", ran)
+	}
+	if !tt.HasText(copy.PowerConfirmMessage(launcher.PowerRestart)) {
+		t.Errorf("the confirmation is not drawn: %q", tt.Texts())
 	}
 
-	// A confirmation runs it, once.
-	answer = true
+	// Escape answers the confirmation the way its cancel button does.
+	tt.TypeKey(0, ui.KeyEscape, "")
+	tt.Frame()
+	if a.Launcher.PowerPending() != "" {
+		t.Errorf("Escape left the confirmation up: %q", a.Launcher.PowerPending())
+	}
+	if len(ran) != 0 {
+		t.Fatalf("a cancelled action ran %v", ran)
+	}
+
+	// Asking again, the confirmation's own button runs it, once.
+	a.Launcher.SetQuery("shutdown")
+	tt.Frame()
+	if err := tt.Click(copy.PowerShutdown); err != nil {
+		t.Fatalf("the power row: %v", err)
+	}
+	tt.Frame()
+	if err := tt.Click(copy.PowerShutdownAction); err != nil {
+		t.Fatalf("the confirmation's button: %v", err)
+	}
 	deadline := time.Now().Add(5 * time.Second)
-	a.power("shutdown")
-	for {
-		if len(ran) == 1 {
-			break
-		}
+	for len(ran) == 0 {
 		if time.Now().After(deadline) {
 			t.Fatal("the confirmed action never ran")
 		}
 		time.Sleep(5 * time.Millisecond)
 	}
-	if ran[0] != "shutdown" {
+	if len(ran) != 1 || ran[0] != launcher.PowerShutdown {
 		t.Errorf("ran %v", ran)
+	}
+	if a.Launcher.PowerPending() != "" {
+		t.Errorf("the confirmation stayed up after running")
 	}
 }
 

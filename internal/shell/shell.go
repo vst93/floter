@@ -158,6 +158,9 @@ type Options struct {
 	// ConfirmPower answers the power confirmation; nil uses the native dialog,
 	// and tests answer for themselves.
 	ConfirmPower func(title string) bool
+	// OpenPath hands a path to the system's own opener; nil runs the
+	// platform's own opener, and tests record what would have been opened.
+	OpenPath func(path string) error
 	// RunPowerCommand runs a power action; nil runs the platform's own
 	// command, and tests record what would have run.
 	RunPowerCommand func(action string) error
@@ -286,6 +289,7 @@ type App struct {
 	notify               func(title, body string)
 	confirmPowerDialog   func(title string) bool
 	runPowerCommand      func(action string) error
+	openPathCommand      func(path string) error
 	// lastClipboardText and lastClipboardFormats are what the watcher saw
 	// last, so a poll records only what changed.
 	lastClipboardText    string
@@ -382,6 +386,7 @@ func New(opts Options) *App {
 		notify:               opts.Notify,
 		confirmPowerDialog:   opts.ConfirmPower,
 		runPowerCommand:      opts.RunPowerCommand,
+		openPathCommand:      opts.OpenPath,
 		homeDir:              opts.HomeDir,
 		appIcon:              storedAppIcon(opts.Store.Snapshot()),
 		lastAppIcon:          storedAppIcon(opts.Store.Snapshot()),
@@ -459,6 +464,11 @@ func New(opts Options) *App {
 		},
 		RunCommand:         a.runCommand,
 		RunCommandCaptured: a.runCommandCaptured,
+		Power:              a.power,
+		OpenPath:           a.openPath,
+		OpenInTerminal:     a.openInTerminal,
+		OpenTerminalWindow: a.openTerminalWindow,
+		OpenInstallSession: a.openInstallSession,
 		Complete:           a.completeCommand,
 		PinText:            a.PinText,
 		DetachOutput:       a.detachOutput,
