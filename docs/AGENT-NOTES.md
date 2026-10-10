@@ -93,3 +93,13 @@ opt-in（`FLOTER_TERMINAL_TEST=1`、`FLOTER_SQLITE_TEST=1`、`FLOTER_REGISTRY_TE
   action"，其他包也可以照做。
 - **mygo 的 `Tester.Texts()` 只包含这一帧构建过的元素**：视图里的早退 `return` 会把它后面的所有
   元素都跳过（输入行曾经因此整行消失）。
+
+## 2026-10-11 · 追加：ANSI、尺寸账本、选项重命名
+
+- **输出里的 ANSI**：`internal/ansi` 把 CLI 的 SGR 读成 span，非 SGR 转义丢弃；输出视图用
+  `theme.ANSI(appearance)` 的 16 色画，复制走 `ansi.Plain`。
+- **画出来的必须等于记账的**：行高要用 `c.MeasureText` 实测（框架行盒 = 字体 ascent+descent+gap，
+  14pt → 22px，不是 1.4×）；新增的 `TestChargedHeightHoldsTheList` 把每个状态渲染在记账高度的窗口里，
+  任何一行出界即失败。加新带（chips/status/sheet/…）时先加进这个测试。
+- **`shell.Options.ConfirmPower` 改名 `ConfirmDialog`**：电源确认已经是面板内的行，这个 seam 只服务
+  设置页的"清空剪贴板历史"。

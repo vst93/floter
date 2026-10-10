@@ -155,9 +155,11 @@ type Options struct {
 	// Notify raises a system notification; nil uses the framework's, and
 	// tests record what would have been shown.
 	Notify func(title, body string)
-	// ConfirmPower answers the power confirmation; nil uses the native dialog,
-	// and tests answer for themselves.
-	ConfirmPower func(title string) bool
+	// ConfirmDialog answers a confirmation the settings ask for (clearing the
+	// clipboard history); nil uses the framework's own dialog, and tests
+	// answer for themselves. The launcher's confirmations are the panel's own
+	// docked rows and never reach here.
+	ConfirmDialog func(title string) bool
 	// OpenPath hands a path to the system's own opener; nil runs the
 	// platform's own opener, and tests record what would have been opened.
 	OpenPath func(path string) error
@@ -287,7 +289,7 @@ type App struct {
 	saveFileDialog       func(defaultName string) (string, error)
 	openFileDialog       func() (string, error)
 	notify               func(title, body string)
-	confirmPowerDialog   func(title string) bool
+	confirmDialog        func(title string) bool
 	runPowerCommand      func(action string) error
 	openPathCommand      func(path string) error
 	// lastClipboardText and lastClipboardFormats are what the watcher saw
@@ -384,7 +386,7 @@ func New(opts Options) *App {
 		saveFileDialog:       opts.SaveFileDialog,
 		openFileDialog:       opts.OpenFileDialog,
 		notify:               opts.Notify,
-		confirmPowerDialog:   opts.ConfirmPower,
+		confirmDialog:        opts.ConfirmDialog,
 		runPowerCommand:      opts.RunPowerCommand,
 		openPathCommand:      opts.OpenPath,
 		homeDir:              opts.HomeDir,

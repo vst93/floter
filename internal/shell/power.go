@@ -32,11 +32,12 @@ func (a *App) power(action string) {
 }
 
 // confirmClearClipboard asks the user, through the framework's dialog unless a
-// test answered for itself.
+// test answered for itself: the settings' own destructive action, which is a
+// dialog because it is not the panel's own row.
 func (a *App) confirmClearClipboard(title string) bool {
 	copy := a.SettingsCopy()
-	if a.confirmPowerDialog != nil {
-		return a.confirmPowerDialog(title)
+	if a.confirmDialog != nil {
+		return a.confirmDialog(title)
 	}
 	result, err := mygo.Dialog.Message(mygo.MessageOptions{
 		Type:    mygo.MessageWarning,
