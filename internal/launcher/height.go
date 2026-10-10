@@ -82,6 +82,9 @@ type Geometry struct {
 	// window holding four rows in a five-row band has the room the next
 	// row arrives into.
 	Held int
+	// Filter says a plugin mode's chips row is drawn under the field, which
+	// adds its band to the height (the old build's LAUNCHER_FILTER_UNITS).
+	Filter bool
 	// Cap is the display ceiling in pixels; zero means none.
 	Cap float64
 }
@@ -118,7 +121,13 @@ func (g Geometry) Height() int {
 		}
 		lines += rowPadding + float64(count)*font*lineLeading
 	}
-	height := math.Round(fieldRow + edge + lines + cardPadding + windowInset())
+	filterBand := 0.0
+	if g.Filter {
+		// The chips row's own band plus the breath below it, as the sheet
+		// draws: five spacing units at the step.
+		filterBand = 5 * spacing
+	}
+	height := math.Round(fieldRow + edge + lines + cardPadding + filterBand + windowInset())
 	if g.Cap > 0 && height > g.Cap {
 		height = math.Round(g.Cap)
 	}

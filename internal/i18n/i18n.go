@@ -113,6 +113,20 @@ type Launcher struct {
 	// found at all.
 	BrowserTab       string
 	BrowserNoProfile string
+	// The plugin modes' filter chips: the browser's range, the clipboard's
+	// six kinds and the calculator's two.
+	BrowserAll                string
+	BrowserBookmarks          string
+	BrowserHistory            string
+	BrowserTabs               string
+	ClipboardFilterAll        string
+	ClipboardFilterFavorites  string
+	ClipboardTypeText         string
+	ClipboardTypeImage        string
+	ClipboardTypeLink         string
+	ClipboardTypeFiles        string
+	CalculatorFilterAll       string
+	CalculatorFilterFavorites string
 	// ShortcutSettings and ShortcutTerminal are the accelerator labels the
 	// rows show for the two surfaces that have one.
 	ShortcutSettings string

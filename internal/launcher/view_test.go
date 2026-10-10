@@ -533,10 +533,8 @@ func TestDynamicCompletionsMergeIntoTheCommandMode(t *testing.T) {
 	}
 }
 
-func TestTabPinsAClipboardEntry(t *testing.T) {
+func TestClipboardFilterChipsCycleOnTab(t *testing.T) {
 	a, _ := clipboardApp(t)
-	pinnedTitle, pinnedText := "", ""
-	a.Actions.PinText = func(title, text string) { pinnedTitle, pinnedText = title, text }
 	tt := render(t, a)
 
 	tt.Type("clipboard")
@@ -546,16 +544,41 @@ func TestTabPinsAClipboardEntry(t *testing.T) {
 	if !a.clipboard {
 		t.Fatal("the clipboard mode did not open")
 	}
-	tt.Type("secret")
-	tt.Frame()
+	// The chips row shows the axis, the chosen chip lit.
+	for _, label := range []string{"All", "Favorites", "Text", "Images", "Links", "Files"} {
+		if !tt.HasText(label) {
+			t.Errorf("the chips row is missing %q: %q", label, tt.Texts())
+		}
+	}
+	if a.clipboardFilter != filterAll {
+		t.Errorf("the mode opened on %q", a.clipboardFilter)
+	}
+	// Tab walks the axis, Shift+Tab walks it back, and both wrap.
 	tt.Key(0, ui.KeyTab)
 	tt.Frame()
-	if pinnedText != "second clip with a secret" {
-		t.Errorf("pinned %q / %q", pinnedTitle, pinnedText)
+	if a.clipboardFilter != filterFavorites {
+		t.Errorf("Tab landed on %q, want favorites", a.clipboardFilter)
 	}
-	// Tab pins; it does not copy or leave the mode.
+	tt.Key(ui.Shift, ui.KeyTab)
+	tt.Frame()
+	if a.clipboardFilter != filterAll {
+		t.Errorf("Shift+Tab landed on %q, want all", a.clipboardFilter)
+	}
+	tt.Key(ui.Shift, ui.KeyTab)
+	tt.Frame()
+	if a.clipboardFilter != filterFiles {
+		t.Errorf("Shift+Tab did not wrap: %q", a.clipboardFilter)
+	}
+	// Tab does not copy and does not leave the mode.
 	if testRuns["copy"] != 0 || !a.clipboard {
 		t.Errorf("Tab copied or left the mode: %v clipboard=%v", testRuns, a.clipboard)
+	}
+	// Clicking a chip chooses it.
+	if err := tt.Click("Favorites"); err != nil {
+		t.Fatalf("chip click: %v", err)
+	}
+	if a.clipboardFilter != filterFavorites {
+		t.Errorf("the chip click chose %q", a.clipboardFilter)
 	}
 }
 
@@ -622,11 +645,20 @@ func TestBrowserModeOpensAndCopies(t *testing.T) {
 	}
 	tt.Frame()
 
-	// Tab copies the chosen URL without leaving the mode.
+	// Tab walks the browser's range chips without leaving the mode; the
+	// chips row shows the axis.
+	for _, label := range []string{"All", "Bookmarks", "History", "Tabs"} {
+		if !tt.HasText(label) {
+			t.Errorf("the chips row is missing %q: %q", label, tt.Texts())
+		}
+	}
+	if a.browserFilter != filterAll {
+		t.Errorf("the mode opened on %q", a.browserFilter)
+	}
 	tt.Key(0, ui.KeyTab)
 	tt.Frame()
-	if testRuns["copy"] != 1 || !a.browser {
-		t.Errorf("Tab did not copy: %v mode=%v", testRuns, a.browser)
+	if a.browserFilter != filterBookmarks || !a.browser {
+		t.Errorf("Tab did not cycle the range: %q mode=%v", a.browserFilter, a.browser)
 	}
 
 	// Enter opens it and leaves.

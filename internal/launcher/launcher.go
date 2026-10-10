@@ -224,6 +224,11 @@ type App struct {
 	// clipboard is set while the clipboard history is searched: the field
 	// holds the mode word and the query, and the list offers entries.
 	clipboard bool
+	// clipboardFilter is the clipboard mode's chosen chip, and browserFilter
+	// the browser mode's — the axes' current values, walked by Tab and by the
+	// chips row.
+	clipboardFilter string
+	browserFilter   string
 	// History is the query history, newest first, and historyIndex the line
 	// the field is showing (-1 when it shows the user's own draft). The draft
 	// the user was typing is kept, so ↓ can bring it back.
@@ -495,7 +500,10 @@ func (a *App) View(c *ui.Context) {
 	// other windows keep.
 	a.HeldRows = HoldRows(a.HeldRows, len(results))
 	if a.Actions.ResizeTo != nil {
-		height := Geometry{Font: a.Font, Spacing: a.Spacing, RowLines: rowLines, Held: a.HeldRows}.Height()
+		height := Geometry{
+			Font: a.Font, Spacing: a.Spacing, RowLines: rowLines, Held: a.HeldRows,
+			Filter: a.filtersVisible(),
+		}.Height()
 		a.Actions.ResizeTo(height)
 	}
 
@@ -504,6 +512,10 @@ func (a *App) View(c *ui.Context) {
 	// its edge.
 	fieldRow := t.Space(7)
 	edge := fieldRow + t.Space(2)
+	// A plugin list mode carries its filter chips under the field: the list
+	// starts below them, and the window's height charges their band too.
+	chips := a.filtersHeight(c)
+	listEdge := edge + chips
 
 	ui.Box(c).Fill().Children(func() {
 		if a.output != nil {
@@ -531,8 +543,11 @@ func (a *App) View(c *ui.Context) {
 			// scrolls with the content, so rows pass under the field.
 			ui.List(c.Key("launcher.results"), &a.List, len(results), func(i int) {
 				a.row(c, results[i], i)
-			}).Fill().Padding(edge, 0, 0, 0).Label(copy.ResultsLabel)
+			}).Fill().Padding(listEdge, 0, 0, 0).Label(copy.ResultsLabel)
 		}
+
+		// The chips row floats under the field, the list scrolling beneath it.
+		a.filtersRow(c, fieldRow+t.Space(1))
 
 		// The rows fade into the panel under the field. PassThrough lets
 		// the pointer reach a row the strip covers.
@@ -660,7 +675,28 @@ func (a *App) View(c *ui.Context) {
 	// Tab completes the chosen argument while a command is being typed,
 	// pins the chosen clipboard entry, and expands a command row into the
 	// argument mode in the search.
-	if c.Shortcut(0, ui.KeyTab) && a.Selected >= 0 && a.Selected < len(results) {
+	// Tab walks the active mode's filter axis (the browser's ranges, the
+	// clipboard's kinds, the calculator's two), wrapping at both ends; on the
+	// ordinary page it completes the chosen argument, pins the chosen
+	// clipboard entry, or expands a command row into the argument mode.
+	// (Each Shortcut call consumes the press, so the chord is asked once and
+	// the answer carried.)
+	shiftTab := c.Shortcut(ui.Shift, ui.KeyTab)
+	tab := false
+	if !shiftTab {
+		tab = c.Shortcut(0, ui.KeyTab)
+	}
+	if tab || shiftTab {
+		if _, _, ok := a.filterAxisFor(); ok {
+			direction := 1
+			if shiftTab {
+				direction = -1
+			}
+			a.cycleFilter(direction)
+			return
+		}
+	}
+	if tab && a.Selected >= 0 && a.Selected < len(results) {
 		item := results[a.Selected]
 		switch {
 		case a.mode != nil && item.complete != "":
@@ -861,6 +897,7 @@ func (a *App) enterClipboardWord(query string) {
 	a.browser = false
 	a.calculatorMode = false
 	a.clipboard = true
+	a.clipboardFilter = filterAll
 	a.Query = query
 	a.Selected, a.chosenRow = 0, -1
 	a.pendingCaret = true
@@ -1128,6 +1165,7 @@ func (a *App) enterBrowserWord(query string) {
 	a.mode = nil
 	a.clipboard = false
 	a.calculatorMode = false
+	a.browserFilter = filterAll
 	a.browser = true
 	a.Query = query
 	a.Selected, a.chosenRow = 0, -1

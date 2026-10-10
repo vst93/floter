@@ -2156,11 +2156,15 @@ func (a *App) launcherHeight(s settings.Settings) int {
 	if a.workArea > 0 {
 		cap = a.workArea - 24
 	}
+	// The target height's filter band is the launcher's own: a mode's chips
+	// row is on screen exactly while that mode owns the field, which the
+	// launcher's state knows and the shell does not.
 	return launcher.Geometry{
 		Font:     a.Launcher.Font,
 		Spacing:  a.Launcher.Spacing,
 		RowLines: a.Launcher.RowLines,
 		Held:     a.Launcher.HeldRows,
+		Filter:   a.Launcher.FiltersVisible(),
 		Cap:      cap,
 	}.Height()
 }

@@ -173,15 +173,28 @@ func (a *App) runCommandWith(entry extensions.CommandEntry, args []string) {
 }
 
 // browserItems is the browser mode's list: the bookmarks and history for the
-// query, then the browser's live tabs.
+// query, then the browser's live tabs — narrowed by the mode's range chip.
 func (a *App) browserItems() []Item {
 	answer := a.browserResults(a.browserQuery())
 	if !answer.Found {
 		return nil
 	}
 	copy := StringsFor(a.settings().Language)
+	wantTabs := a.browserFilter == filterAll || a.browserFilter == filterTabs
 	out := make([]Item, 0, len(answer.Results)+len(answer.Tabs))
 	for _, result := range answer.Results {
+		switch a.browserFilter {
+		case filterBookmarks:
+			if result.Kind != browser.KindBookmark {
+				continue
+			}
+		case filterHistory:
+			if result.Kind != browser.KindHistory {
+				continue
+			}
+		case filterTabs:
+			continue // the range is the live tabs alone
+		}
 		result := result
 		detail := result.URL
 		if !result.Visited.IsZero() {
@@ -194,6 +207,9 @@ func (a *App) browserItems() []Item {
 			Run:    func() { a.openResult(result) },
 			web:    &result,
 		})
+	}
+	if !wantTabs {
+		return out
 	}
 	for _, tab := range answer.Tabs {
 		tab := tab
@@ -263,6 +279,9 @@ func (a *App) clipboardItems() []Item {
 	out := make([]Item, 0, len(entries))
 	for _, entry := range entries {
 		entry := entry
+		if !a.clipboardFilterAllows(entry) {
+			continue
+		}
 		shortcut := ""
 		if entry.Favorite {
 			shortcut = "★"
