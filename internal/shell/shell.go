@@ -1340,6 +1340,14 @@ func (a *App) connectFromLink(manifest string) {
 	}()
 }
 
+// openInstallSession opens a bare terminal session with the install command
+// typed into it: the shell is the user's (their proxy, mirror and environment
+// already in effect), and it outlives the install.
+func (a *App) openInstallSession(command string) {
+	a.Terminal.RunShellWithCommand(command)
+	a.Open(SurfaceTerminal)
+}
+
 // recommendedTools is the shipped packages and whether the inventory has
 // them, for the Integrations page's connect rows.
 func (a *App) recommendedTools() []settingsui.RecommendedTool {

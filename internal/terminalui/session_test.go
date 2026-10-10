@@ -108,3 +108,34 @@ func waitForText(t *testing.T, term *terminal.Terminal, want string) {
 	}
 	t.Fatalf("the terminal never showed %q: %q", want, term.Text())
 }
+
+// TestRealShellWithCommand proves the install-session hand-off: a bare session
+// (the user's own shell) is opened and the command typed into it, so the
+// session stays interactive after the command finishes.
+//
+// Opt-in for the same reason as the session test above.
+func TestRealShellWithCommand(t *testing.T) {
+	if os.Getenv("FLOTER_TERMINAL_TEST") == "" {
+		t.Skip("set FLOTER_TERMINAL_TEST=1 to load libghostty-vt")
+	}
+	store := settings.NewStore(settings.Default())
+	a := New(store, Actions{Title: func(string) {}, Exit: func(int) {}}, terminal.New)
+	a.RunShellWithCommand("echo install-session-marker")
+	if a.Err != nil {
+		t.Fatalf("the session did not start: %v", a.Err)
+	}
+	defer a.Close()
+	deadline := time.Now().Add(10 * time.Second)
+	for time.Now().Before(deadline) && !strings.Contains(a.Term.Text(), "install-session-marker") {
+		time.Sleep(50 * time.Millisecond)
+	}
+	if !strings.Contains(a.Term.Text(), "install-session-marker") {
+		t.Fatalf("the command never landed: %q", a.Term.Text())
+	}
+	// The session stays interactive: the shell's prompt comes back after the
+	// command, rather than the session exiting when it finished.
+	time.Sleep(300 * time.Millisecond)
+	if strings.Contains(a.Term.Text(), "exited") {
+		t.Errorf("the session exited after the command: %q", a.Term.Text())
+	}
+}

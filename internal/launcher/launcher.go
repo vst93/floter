@@ -112,6 +112,9 @@ type Actions struct {
 	// OpenTerminalWindow opens the user's own terminal emulator, for the
 	// external-terminal shortcut.
 	OpenTerminalWindow func()
+	// OpenInstallSession opens a bare terminal session with a command typed
+	// into it, for the tool catalog's install rows.
+	OpenInstallSession func(command string)
 	// Power restarts or shuts down the machine, after the shell has confirmed
 	// it.
 	Power func(action string)

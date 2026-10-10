@@ -9,9 +9,11 @@ import (
 // The install rows: a tool the catalog knows, which this machine does not have,
 // matched by what the user typed.
 //
-// Floter is not a package manager and never runs an install: the row **copies**
-// the command for the user's own shell, where their proxy, mirror and
-// environment are already in effect. Nothing here spawns anything.
+// Floter is not a package manager and never runs an install. Enter opens a
+// **bare terminal session and types the command into it** — the shell is the
+// user's, with their proxy, mirror and environment already in effect, and it
+// outlives the install. Nothing here runs the command itself, and nothing
+// waits for it.
 //
 // A tool that *is* installed needs no row from the catalog: the PATH command
 // scan finds the executable itself, which is the thing the user wants to run.
@@ -46,17 +48,19 @@ func (a *App) toolInstallItems() []Item {
 			Detail:   state.Command,
 			Search:   search,
 			Shortcut: state.Manager,
-			Run:      func() { a.copyInstallCommand(state) },
+			Run:      func() { a.openInstallSession(state) },
 		})
 	}
 	return out
 }
 
-// copyInstallCommand puts a tool's install command on the clipboard, and says
-// so. The command is never run: it belongs in the user's own shell.
-func (a *App) copyInstallCommand(state tools.State) {
-	if a.Actions.Copy != nil {
-		a.Actions.Copy(state.Command)
-		a.toast = a.copy().Copied
+// openInstallSession opens a bare terminal session with the install command
+// typed into it. The session is the user's own shell and outlives the install;
+// the command is typed, never run by floter.
+func (a *App) openInstallSession(state tools.State) {
+	if a.Actions.OpenInstallSession != nil {
+		a.Actions.OpenInstallSession(state.Command)
+		return
 	}
+	a.Hide()
 }

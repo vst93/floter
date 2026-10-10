@@ -12,6 +12,8 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/egoist/mygo/plugins/terminal"
 	"github.com/egoist/mygo/ui"
@@ -145,6 +147,35 @@ func writeFileAtomically(path string, data []byte) error {
 // extension's command is handed to the terminal. dir names the working
 // directory policy the provider asked for ("home", "current", "inherit"),
 // and env is the integration's configured environment ("KEY=value").
+// RunShellWithCommand opens a new bare session (no command: the user's own
+// shell) and types a command line into it. The install rows use it: the shell
+// is the user's and outlives the install, and the command is typed rather than
+// run, so the session is interactive when the install finishes.
+//
+// The command is typed once the session has produced its first output (a
+// prompt); the deadline keeps a shell that never prints from holding the app.
+func (a *App) RunShellWithCommand(command string) {
+	if a.NewTerminal == nil || strings.TrimSpace(command) == "" {
+		return
+	}
+	a.Close()
+	opts := a.options()
+	opts.Command = nil
+	term, err := a.NewTerminal(opts)
+	if err != nil {
+		a.Err = err
+		return
+	}
+	a.Term, a.Err = term, nil
+	go func() {
+		deadline := time.Now().Add(5 * time.Second)
+		for time.Now().Before(deadline) && a.Term.Text() == "" {
+			time.Sleep(50 * time.Millisecond)
+		}
+		a.Term.Send([]byte(command + "\r"))
+	}()
+}
+
 func (a *App) RunCommand(argv []string, dir string, env []string) error {
 	if len(argv) == 0 {
 		return errors.New("terminalui: no command to run")

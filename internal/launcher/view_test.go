@@ -1521,10 +1521,9 @@ func TestToolInstallRows(t *testing.T) {
 	a := testApp()
 	states := tools.Look([]string{t.TempDir()}, tools.Platform())
 	a.SetToolCatalog(states)
-	copied := ""
 	ran := 0
-	a.Actions.Copy = func(text string) { copied = text }
-	a.Actions.RunInTerminal = func([]string) { ran++ }
+	lastInstall := ""
+	a.Actions.OpenInstallSession = func(command string) { ran++; lastInstall = command }
 
 	tt := render(t, a)
 	tt.Type("ripgrep")
@@ -1544,16 +1543,14 @@ func TestToolInstallRows(t *testing.T) {
 		t.Errorf("a keyword did not find the tool: %q", tt.Texts())
 	}
 
-	// Enter copies the command; nothing runs.
+	// Enter opens a bare terminal session with the install command typed into
+	// it: the shell is the user's, and it outlives the install.
 	a.Query = "ripgrep"
 	tt.Frame()
 	tt.TypeKey(0, ui.KeyEnter, "")
 	tt.Frame()
-	if copied == "" || !strings.Contains(copied, "ripgrep") {
-		t.Errorf("copied %q", copied)
-	}
-	if ran != 0 {
-		t.Errorf("an install ran %d times", ran)
+	if ran != 1 || lastInstall != "cargo install ripgrep" && !strings.Contains(lastInstall, "ripgrep") {
+		t.Errorf("install session ran %d times, command %q", ran, lastInstall)
 	}
 
 	// An installed tool gets no install row: the PATH command scan covers it.
