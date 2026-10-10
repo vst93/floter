@@ -479,6 +479,7 @@ func New(opts Options) *App {
 		DiagnoseIntegration: a.diagnoseIntegration,
 		ReprobeCommands:     a.reprobeCommands,
 		ConnectLocalTool:    a.connectLocalTool,
+		Freshness:           a.integrationFreshness,
 		CopyText:            func(text string) { mygo.Clipboard.WriteText(text) },
 		ChooseProgram:       a.chooseProgram,
 		SetShortcut:         a.setShortcut,
@@ -1503,6 +1504,20 @@ func (a *App) connectRecommended(id string) {
 		a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationInstalled(entry.Name) })
 		a.RefreshIntegrations(context.Background())
 	}()
+}
+
+// integrationFreshness reports what is known about one integration's command
+// list, for the card's freshness row.
+func (a *App) integrationFreshness(id string) (extensions.Freshness, bool) {
+	integration, ok := a.Integrations.Inventory().WithID(id)
+	if !ok {
+		return extensions.Freshness{}, false
+	}
+	freshness := extensions.FreshnessOf(a.Paths, integration)
+	if !freshness.Known() {
+		return extensions.Freshness{}, false
+	}
+	return freshness, true
 }
 
 // chooseProgram asks the user to point at a program on this machine, through

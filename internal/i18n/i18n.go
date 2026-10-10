@@ -326,6 +326,26 @@ type Settings struct {
 	// note that another command claimed the alias first.
 	IntegrationsReprobe   string
 	IntegrationsInstalled string
+	// The freshness display: when the command list was last derived, how the
+	// derivation went, and how the list moved. "Unknown" is its own word
+	// everywhere — a fabricated zero or "no change" is a lie.
+	Freshness                string
+	FreshnessNever           string
+	FreshnessJustNow         string
+	FreshnessAgo             func(text string) string
+	FreshnessProbeSource     string
+	FreshnessHealthSource    string
+	FreshnessResultRunning   string
+	FreshnessResultSuccess   string
+	FreshnessResultDegraded  string
+	FreshnessResultFailed    string
+	FreshnessResultUnknown   string
+	FreshnessCommands        string
+	FreshnessCommandsUnknown string
+	FreshnessDeltaIncrease   func(count int) string
+	FreshnessDeltaDecrease   func(count int) string
+	FreshnessDeltaUnchanged  string
+	FreshnessDeltaUnknown    string
 	// The About page's deep-link card: the two forms worth copying.
 	DeepLinkTitle  string
 	DeepLinkHint   string

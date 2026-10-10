@@ -12,6 +12,7 @@ import (
 	"floter/internal/i18n"
 	"floter/internal/settings"
 	"floter/internal/shortcuts"
+	"time"
 )
 
 func newStore(t *testing.T) *settings.Store {
@@ -1455,5 +1456,56 @@ func TestLocalToolForm(t *testing.T) {
 	}
 	if !found {
 		t.Errorf("permissions = %v", tool.Permissions)
+	}
+}
+
+// The freshness row: what is known about the command list, with "unknown"
+// spelled out rather than painted as a zero.
+func TestFreshnessRow(t *testing.T) {
+	count := 3
+	previous := 1
+	a := New(settings.NewStore(settings.Default()), Actions{
+		Freshness: func(id string) (extensions.Freshness, bool) {
+			if id != "io.github.vst93.v" {
+				return extensions.Freshness{}, false
+			}
+			return extensions.Freshness{
+				AtSeconds:            time.Now().Add(-3 * time.Minute).Unix(),
+				Source:               extensions.FreshnessProbe,
+				Result:               extensions.FreshnessSuccess,
+				CommandCount:         &count,
+				PreviousCommandCount: &previous,
+				Delta:                extensions.DeltaIncrease,
+			}, true
+		},
+	})
+	a.Integrations = func() []Integration {
+		return []Integration{{
+			ID: "io.github.vst93.v", Name: "V Tools", Enabled: true, Running: true,
+		}}
+	}
+	tt := render(t, a, 720, 900)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !tt.HasText("Command list") {
+		t.Fatalf("the freshness row is missing: %q", tt.Texts())
+	}
+	if !tt.HasText("Succeeded") {
+		t.Errorf("the result is missing: %q", tt.Texts())
+	}
+	// The delta says how far the list moved, and the count is the real one.
+	if !tt.HasText("Commands 3") {
+		t.Errorf("the count is missing: %q", tt.Texts())
+	}
+	if !tt.HasText("+2 since the scan before") {
+		t.Errorf("the delta is missing: %q", tt.Texts())
+	}
+	// A never-probed integration shows no row at all.
+	a.Actions.Freshness = func(string) (extensions.Freshness, bool) { return extensions.Freshness{}, false }
+	tt.Frame()
+	if tt.HasText("Command list") {
+		t.Errorf("a never-probed integration shows a freshness row: %q", tt.Texts())
 	}
 }

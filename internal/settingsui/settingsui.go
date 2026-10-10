@@ -107,6 +107,9 @@ type Actions struct {
 	// picks, and ImportIntegrations applies one they pick.
 	ExportIntegrations func()
 	ImportIntegrations func()
+	// Freshness reports what is known about one integration's command list
+	// (the help-probe sidecar and the health report); nil hides the row.
+	Freshness func(id string) (extensions.Freshness, bool)
 	// CopyText puts text on the clipboard, for the About page's deep links.
 	CopyText func(text string)
 	// ConnectRecommended installs one of the shipped tool packages, and
@@ -887,6 +890,16 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			if labelClicked {
 				a.toggleAudit(integration.ID)
 			}
+		}
+
+		// The freshness of the command list: when it was last derived, how
+		// that went, and how the list moved. Nothing is shown for an
+		// integration nothing has ever probed — "unknown" is its own state,
+		// not a row of zeroes.
+		if freshness, ok := a.freshnessOf(integration); ok {
+			a.row(c, copy.Freshness, a.freshnessDetail(copy, freshness), func() {
+				ui.Text(c, freshnessState(copy, freshness)).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+			})
 		}
 
 		if integration.Diagnosis != "" {
@@ -1756,3 +1769,84 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 // routeBackground is the manifest's own spelling for a command whose output
 // the launcher shows instead of the terminal.
 const routeBackground = "background"
+
+// freshnessOf reads what is known about an integration's command list, for
+// the card's own row. Nothing is shown for an integration nothing has probed.
+func (a *App) freshnessOf(integration Integration) (extensions.Freshness, bool) {
+	freshness := a.Actions.Freshness
+	if freshness == nil {
+		return extensions.Freshness{}, false
+	}
+	value, ok := freshness(integration.ID)
+	if !ok {
+		return extensions.Freshness{}, false
+	}
+	return value, true
+}
+
+// freshnessState is the row's trailing word: how the last derivation went.
+func freshnessState(copy i18n.Settings, freshness extensions.Freshness) string {
+	switch freshness.Result {
+	case extensions.FreshnessRunning:
+		return copy.FreshnessResultRunning
+	case extensions.FreshnessSuccess:
+		return copy.FreshnessResultSuccess
+	case extensions.FreshnessDegraded:
+		return copy.FreshnessResultDegraded
+	case extensions.FreshnessFailed:
+		return copy.FreshnessResultFailed
+	default:
+		return copy.FreshnessResultUnknown
+	}
+}
+
+// freshnessDetail is the row's grey line: when the list was last derived and
+// how it moved. Every "we do not know" has its own words — a first scan has
+// nothing to compare against, and a never-probed integration has no time at
+// all.
+func (a *App) freshnessDetail(copy i18n.Settings, freshness extensions.Freshness) string {
+	parts := []string{}
+	if freshness.AtSeconds > 0 {
+		when := copy.FreshnessJustNow
+		if age := time.Since(time.Unix(freshness.AtSeconds, 0)); age > time.Minute {
+			when = copy.FreshnessAgo(humanAge(age))
+		}
+		source := copy.FreshnessProbeSource
+		if freshness.Source == extensions.FreshnessHealth {
+			source = copy.FreshnessHealthSource
+		}
+		parts = append(parts, when+"  \u00b7  "+source)
+	} else {
+		parts = append(parts, copy.FreshnessNever)
+	}
+	commands := copy.FreshnessCommandsUnknown
+	if freshness.CommandCount != nil {
+		commands = strconv.Itoa(*freshness.CommandCount)
+	}
+	parts = append(parts, copy.FreshnessCommands+" "+commands)
+	switch freshness.Delta {
+	case extensions.DeltaIncrease:
+		parts = append(parts, copy.FreshnessDeltaIncrease(freshness.DeltaCount()))
+	case extensions.DeltaDecrease:
+		parts = append(parts, copy.FreshnessDeltaDecrease(freshness.DeltaCount()))
+	case extensions.DeltaUnchanged:
+		parts = append(parts, copy.FreshnessDeltaUnchanged)
+	default:
+		parts = append(parts, copy.FreshnessDeltaUnknown)
+	}
+	return strings.Join(parts, "  \u00b7  ")
+}
+
+// humanAge is a coarse age a person reads: minutes, hours, days.
+func humanAge(age time.Duration) string {
+	switch {
+	case age >= 48*time.Hour:
+		return strconv.Itoa(int(age.Hours()/24)) + "d"
+	case age >= 2*time.Hour:
+		return strconv.Itoa(int(age.Hours())) + "h"
+	case age >= 2*time.Minute:
+		return strconv.Itoa(int(age.Minutes())) + "m"
+	default:
+		return "1m"
+	}
+}
