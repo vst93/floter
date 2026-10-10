@@ -186,6 +186,10 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 - `extensions.UninstallComponentized`（程序必移、三个数据类别按勾选、全选=移除数据根）；集成行
   「卸载…」展开对话框（标题/说明/三个勾选/卸载/取消），shell 确认后执行。
 
+**P3-q 能力探测**（本轮）
+- `ProbeCapabilities`：version/help 结构探针 + manifest 自定义探针，退出码与 stdout 对照预期，
+  报告聚合出版本号/支持功能/限制；「检查」流程变为探针 → diagnose。
+
 ## 尚未做（按建议优先级）
 
 1. **列表协议的分页**：`page.cursor`/`hasMore` 与滚动加载（需要带着 cursor 重新执行命令）；旧版还有

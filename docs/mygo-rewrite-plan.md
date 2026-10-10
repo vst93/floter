@@ -817,6 +817,15 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
 - 集成行的「卸载…」按钮展开对话框（标题 + 说明 + 三个勾选 + 卸载/取消），shell 的确认对话框照旧。
 - i18n：en/zh 的对话框标题/说明/类别名/提示全部就位。
 
+### P3-q 能力探测（已做）
+
+- 旧版 `capability_probe.rs` 的移植：version/help 两个结构性探针 + manifest 声明的自定义探针。
+  每条探针给工具传一组参数，退出码与 stdout 对照预期（expectedExitCode 缺省 0、expectedOutput
+  是子串）；stdout 封顶 64KB、每条 5s 超时。
+- 报告聚合：version 探针通过时取第一行非空输出为版本号（否则 `unknown`）、通过的探针 id 进
+  `SupportedFeatures`、失败的进 `Limitations`（带参数与原因）。
+- 集成页「检查」的流程现在是：探针（健康状况+能力）→ diagnose（工具自检）。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。
