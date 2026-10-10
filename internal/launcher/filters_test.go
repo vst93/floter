@@ -1,10 +1,12 @@
 package launcher
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
 
+	"floter/internal/ansi"
 	"floter/internal/apps"
 	"floter/internal/drops"
 	"floter/internal/extensions"
@@ -578,5 +580,50 @@ func TestOutputViewDetach(t *testing.T) {
 	tt.Frame()
 	if tt.HasText("Open in a window") {
 		t.Errorf("a run with no command offered a window: %q", tt.Texts())
+	}
+}
+
+// A command's output is read as a terminal reads it: the colours and weights
+// it asked for are styles, the characters without the sequences are what shows
+// and what a copy takes. Rendered verbatim the bytes would be visible garbage
+// (`^[[31m`), which is what the old build's R65 set out to stop.
+func TestOutputReadsAnsiStyles(t *testing.T) {
+	a := testApp()
+	run := extensions.CapturedRun{
+		Command: []string{"git", "diff"},
+		Stdout:  "\x1b[32m+added\x1b[0m\n\x1b[31m-removed\x1b[0m",
+	}
+	view := a.OutputFor(run, nil, nil)
+	if strings.Contains(view.Text, "\x1b") {
+		t.Fatalf("the text kept its escapes: %q", view.Text)
+	}
+	if view.Text != "+added\n-removed" {
+		t.Errorf("text = %q", view.Text)
+	}
+	if len(view.Spans) != 3 {
+		t.Fatalf("spans = %+v", view.Spans)
+	}
+	if view.Spans[0].Style.FG.Kind != ansi.Named || view.Spans[0].Style.FG.N != 2 {
+		t.Errorf("the first run is not green: %+v", view.Spans[0].Style)
+	}
+	if view.Spans[2].Style.FG.N != 1 {
+		t.Errorf("the second run is not red: %+v", view.Spans[2].Style)
+	}
+
+	// Drawn, the escape bytes are nowhere: the runs are their own text.
+	a.output = &view
+	tt := render(t, a)
+	tt.Frame()
+	for _, text := range tt.Texts() {
+		if strings.Contains(text, "\x1b") || strings.Contains(text, "[32m") {
+			t.Errorf("an escape reached the frame: %q", text)
+		}
+	}
+	if !tt.HasText("+added") || !tt.HasText("-removed") {
+		t.Errorf("the output is not showing: %q", tt.Texts())
+	}
+	// Enter copies the text without the sequences.
+	if got := a.outputText(); got != "+added\n-removed" {
+		t.Errorf("a copy would take %q", got)
 	}
 }

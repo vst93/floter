@@ -156,3 +156,63 @@ func For(s settings.Settings, systemDark bool) Tokens {
 func round1(v float32) float32 {
 	return float32(int(v*10+0.5)) / 10
 }
+
+// ANSI is the sixteen program colours a command's own output is drawn with,
+// per appearance: base.css's `--ansi-black` through `--ansi-bright-white`.
+//
+// A CLI's stdout carries SGR sequences — `git diff`, `ls --color` — and the
+// text form has to read them as a terminal would (the old build's R65:
+// 「有些是带格式的终端字符」). The colours are the app's own rather than the
+// user's terminal palette, which is what the old build's CSS variables were:
+// the sheet and the terminal each have their own sixteen, and neither drifts
+// with the other's settings.
+func ANSI(appearance Appearance) [16]ui.Color {
+	if appearance == Light {
+		return [16]ui.Color{
+			ui.Hex("#1d1f21"), ui.Hex("#c72e3c"), ui.Hex("#19733a"), ui.Hex("#7a5c00"),
+			ui.Hex("#1659b7"), ui.Hex("#9c2ca0"), ui.Hex("#007c86"), ui.Hex("#535762"),
+			ui.Hex("#767b86"), ui.Hex("#d63d4b"), ui.Hex("#1a6e38"), ui.Hex("#7a5900"),
+			ui.Hex("#246fd1"), ui.Hex("#ac38a9"), ui.Hex("#006e7a"), ui.Hex("#2c3037"),
+		}
+	}
+	return [16]ui.Color{
+		ui.Hex("#4b5563"), ui.Hex("#f38ba8"), ui.Hex("#a6e3a1"), ui.Hex("#f9e2af"),
+		ui.Hex("#89b4fa"), ui.Hex("#f5c2e7"), ui.Hex("#94e2d5"), ui.Hex("#cdd6f4"),
+		ui.Hex("#6b7280"), ui.Hex("#f38ba8"), ui.Hex("#a6e3a1"), ui.Hex("#f9e2af"),
+		ui.Hex("#89b4fa"), ui.Hex("#f5c2e7"), ui.Hex("#94e2d5"), ui.Hex("#eef2ff"),
+	}
+}
+
+// ANSIColor resolves one program colour for an appearance: the sixteen named
+// ones by index, the 256-colour cube and 24-bit forms by value.
+func ANSIColor(appearance Appearance, kind int, n uint8, r, g, b uint8) ui.Color {
+	switch kind {
+	case 1: // named
+		palette := ANSI(appearance)
+		if int(n) < len(palette) {
+			return palette[n]
+		}
+		return ui.Transparent
+	case 2: // the 256-colour cube
+		return cubeColor(n)
+	case 3: // truecolour
+		return ui.RGBA(r, g, b, 1)
+	}
+	return ui.Transparent
+}
+
+// cubeColor resolves a 256-colour index: the first sixteen are the named
+// colours, then a 6×6×6 cube, then a grey ramp.
+func cubeColor(n uint8) ui.Color {
+	if n < 16 {
+		// The named colours again; the caller resolves them by appearance.
+		return ui.Transparent
+	}
+	if n < 232 {
+		index := int(n) - 16
+		steps := [6]uint8{0, 95, 135, 175, 215, 255}
+		return ui.RGBA(steps[index/36], steps[(index/6)%6], steps[index%6], 1)
+	}
+	grey := uint8(8 + 10*(int(n)-232))
+	return ui.RGBA(grey, grey, grey, 1)
+}

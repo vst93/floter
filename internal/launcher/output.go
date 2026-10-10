@@ -6,8 +6,10 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"floter/internal/ansi"
 	"floter/internal/extensions"
 	"floter/internal/i18n"
+	"floter/internal/theme"
 )
 
 // The captured-output view: what a command whose manifest sends its output to
@@ -38,6 +40,11 @@ type OutputView struct {
 	// FontFamily is the family the text is drawn in: the terminal's own, so
 	// a command's output reads the way it would in the terminal.
 	FontFamily string
+	// Spans are the text's runs with the styles its own ANSI sequences asked
+	// for: a CLI writes colour and weight for a terminal, and the text form
+	// reads them rather than printing the bytes (see internal/ansi). Text
+	// holds the same characters with every sequence removed, for copying.
+	Spans []ansi.Span
 	// Entry is the command the output came from, when it came from one: the
 	// window that can be opened for it re-runs the same command.
 	Entry *extensions.CommandEntry
@@ -71,10 +78,14 @@ func (a *App) showOutput(run extensions.CapturedRun, err error, entry *extension
 // window of its own (see the shell's detached window).
 func (a *App) OutputFor(run extensions.CapturedRun, err error, entry *extensions.CommandEntry) OutputView {
 	copy := a.copy()
+	// The text is read as a terminal reads it: the styles it asked for are
+	// kept as spans, and the characters without them are what a copy takes.
+	raw := run.Text()
 	view := OutputView{
 		Entry:      entry,
 		Title:      strings.Join(run.Command, " "),
-		Text:       run.Text(),
+		Text:       ansi.Plain(raw),
+		Spans:      ansi.Parse(raw),
 		Status:     a.runStatus(copy, run),
 		FontFamily: a.settings().FontFamily,
 		Selected:   -1,
@@ -236,8 +247,8 @@ func (a *App) outputBody(c *ui.Context, copy i18n.Launcher, edge float32) {
 		} else {
 			ui.Scroll(c.Key("launcher.output")).TrackScroll(&a.Output).Fill().
 				Padding(edge+header, t.Space(2), t.Space(1), t.Space(2)).Children(func() {
-				ui.Text(c, view.Text).Font(view.FontFamily).FontSize(t.FontSize).
-					TextColor(t.Text).Selectable()
+				ui.RichText(c, a.outputSpans(c, view)...).Font(view.FontFamily).
+					FontSize(t.FontSize).TextColor(t.Text).Selectable()
 			})
 		}
 		ui.Column(c).Absolute().Top(edge).Left(t.Space(2)).Right(t.Space(2)).Children(func() {
@@ -327,4 +338,65 @@ func (a *App) outputRow(c *ui.Context, row extensions.Row, i int) {
 		a.output.Selected = i
 		a.runOutputRow()
 	}
+}
+
+// outputSpans maps a command's own ANSI output to the spans the text element
+// draws: the sixteen program colours of the current appearance, the weights
+// and the decorations, with the surface's own colour for whatever the command
+// left unsaid.
+func (a *App) outputSpans(c *ui.Context, view *OutputView) []ui.Span {
+	appearance := theme.For(a.settings(), c.Theme().Dark).Appearance
+	base := c.Theme().Text
+	out := make([]ui.Span, 0, len(view.Spans))
+	for _, span := range view.Spans {
+		if span.Text == "" {
+			continue
+		}
+		style := span.Style
+		fg := ansiColor(appearance, style.FG, base)
+		bg := ansiColor(appearance, style.BG, ui.Transparent)
+		if style.Inverse {
+			fg, bg = ansiColor(appearance, style.BG, base), ansiColor(appearance, style.FG, c.Theme().Background)
+		}
+		if style.Dim && style.FG.Kind == ansi.Default {
+			// Dim on the surface's own colour is a lighter one, since there
+			// is no brightness to halve.
+			fg = fg.Alpha(0.7)
+		}
+		weight := 400
+		if style.Bold {
+			weight = 700
+		}
+		out = append(out, ui.Span{
+			Text:          span.Text,
+			Size:          c.Theme().FontSize,
+			Weight:        weight,
+			Italic:        style.Italic,
+			Color:         fg,
+			Underline:     style.Underline,
+			Strikethrough: style.Strike,
+			Background:    bg,
+		})
+	}
+	if len(out) == 0 {
+		out = append(out, ui.Span{Text: view.Text, Size: c.Theme().FontSize, Color: base})
+	}
+	return out
+}
+
+// ansiColor resolves one parsed colour, falling back to the surface's own for
+// a colour the command did not name.
+func ansiColor(appearance theme.Appearance, color ansi.Color, fallback ui.Color) ui.Color {
+	switch color.Kind {
+	case ansi.Named:
+		return theme.ANSIColor(appearance, 1, color.N, 0, 0, 0)
+	case ansi.Indexed:
+		if color.N < 16 {
+			return theme.ANSIColor(appearance, 1, color.N, 0, 0, 0)
+		}
+		return theme.ANSIColor(appearance, 2, color.N, 0, 0, 0)
+	case ansi.RGB:
+		return theme.ANSIColor(appearance, 3, 0, color.R, color.G, color.B)
+	}
+	return fallback
 }
