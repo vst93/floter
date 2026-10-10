@@ -3,6 +3,7 @@ package shell
 import (
 	"errors"
 	"os"
+	"reflect"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
@@ -96,4 +97,23 @@ func TestExternalTerminalShortcutOpensATerminal(t *testing.T) {
 		t.Errorf("the terminal was opened %d times", calls.external)
 	}
 	_ = launcher.PowerRestart
+}
+
+// Every action the launcher declares is answered by the shell. A callback the
+// shell never sets is a feature that silently does nothing — five were, before
+// this test: the power rows, opening a path, the terminal in a directory, the
+// user's own terminal, and the install rows.
+func TestEveryLauncherActionIsWired(t *testing.T) {
+	a := launchTestApp(t, &launchCalls{})
+	actions := reflect.ValueOf(a.Launcher.Actions)
+	kind := actions.Type()
+	for i := 0; i < kind.NumField(); i++ {
+		field := kind.Field(i)
+		if field.Type.Kind() != reflect.Func {
+			continue
+		}
+		if actions.Field(i).IsNil() {
+			t.Errorf("the shell never answered launcher.Actions.%s", field.Name)
+		}
+	}
 }
