@@ -3,6 +3,11 @@ package launcher
 import (
 	"testing"
 
+	"github.com/egoist/mygo/ui"
+
+	"floter/internal/apps"
+	"floter/internal/drops"
+
 	clipboardpkg "floter/internal/clipboard"
 	"floter/internal/i18n"
 )
@@ -89,5 +94,50 @@ func TestClipboardEntryKind(t *testing.T) {
 		if got := clipboardEntryKind(c.entry); got != c.want {
 			t.Errorf("kind(%q, %q) = %q, want %q", c.entry.Kind, c.entry.Text, got, c.want)
 		}
+	}
+}
+
+// The list's own section headings: a heading row is a label the keyboard steps
+// over and never numbers, and a block's first row prints its title above
+// itself.
+func TestSectionHeadings(t *testing.T) {
+	a := testApp()
+	a.SetApps([]apps.App{{Name: "Editor", Path: "/Applications/Editor.app"}})
+	a.SetRecent([]string{"/Applications/Editor.app"}, true)
+	// A taller window: the recents and their heading sit below the built-ins.
+	tt := ui.NewTester(func(c *ui.Context) { a.View(c) },
+		InputWindowWidth, int(WindowHeight("small"))+200)
+	tt.Frame()
+	if !tt.HasText("Recently launched") {
+		t.Errorf("the recents' heading is missing: %q", tt.Texts())
+	}
+	results := a.Results()
+	headingAt := -1
+	for i, item := range results {
+		if item.heading {
+			headingAt = i
+		}
+	}
+	if headingAt < 0 {
+		t.Fatal("no heading row in the list")
+	}
+	// The keyboard never lands on a heading.
+	a.Selected = 0
+	for i := 0; i < len(results)+2; i++ {
+		a.Selected = a.nextSelectable(a.Selected, 1)
+		if results[a.Selected].heading {
+			t.Fatalf("the arrows landed on the heading at %d", a.Selected)
+		}
+	}
+	// A heading has no action: Enter on it does nothing.
+	if results[headingAt].Run != nil {
+		t.Error("a heading is runnable")
+	}
+	// The dropped-file block prints its own heading.
+	a.SetDropped([]drops.File{{Name: "a.txt", Path: "/tmp/a.txt", Directory: "/tmp"}})
+	a.files = true
+	files := a.filesItems()
+	if len(files) == 0 || !files[0].heading || files[0].Title != a.copy().FilesSection {
+		t.Errorf("the dropped block's heading is missing: %+v", files)
 	}
 }

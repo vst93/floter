@@ -1001,9 +1001,32 @@ func replaceLastWord(line, word string) string {
 func (a *App) row(c *ui.Context, item Item, i int) {
 	t := c.Theme()
 	copy := StringsFor(a.settings().Language)
+	// A block's title line: the list's own label, drawn in the row's own
+	// column, never selectable and never numbered.
+	if item.heading {
+		ui.Row(c).FillWidth().Padding(t.Space(1.5), t.Space(2)).Children(func() {
+			ui.Text(c, item.Title).FontSize(t.FontSize - 1).FontWeight(650).TextColor(t.TextMuted)
+		})
+		return
+	}
 	// The row is keyed by the item, so a row that stays keeps its identity
 	// (and its place) while the rows around it come and go; a row that
 	// appears fades in rather than flashing into place.
+	ui.Column(c).FillWidth().Children(func() {
+		// A block's heading, when this row starts one: an external plugin's
+		// own group name, a dropped file's block.
+		if item.section != "" {
+			ui.Row(c).FillWidth().Padding(t.Space(1.5), t.Space(2)).Children(func() {
+				ui.Text(c, item.section).FontSize(t.FontSize - 1).FontWeight(650).TextColor(t.TextMuted)
+			})
+		}
+		a.rowBody(c, item, i, copy)
+	})
+}
+
+// rowBody is the row itself: the plate, the text column, the controls.
+func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
+	t := c.Theme()
 	row := ui.Row(c).Key(item.ID).FillWidth().Focusable().
 		Padding(t.Space(1.5), t.Space(2)).Radius(t.Radius).Gap(t.Space(2)).
 		Transition(rowTransition)
@@ -1263,9 +1286,39 @@ func (a *App) runMode() {
 
 // move moves the selection by delta, wrapping around the list.
 func (a *App) move(delta, n int) {
-	a.Selected = NextIndex(a.Selected, delta, n)
+	a.Selected = a.nextSelectable(a.Selected, delta)
+	if a.Selected >= n && n > 0 {
+		a.Selected = ClampIndex(a.Selected, n)
+	}
 }
 
+// nextSelectable moves one step and lands on a row the keyboard can act on: a
+// block's heading line is a label, never a choice, so the arrows step over it.
+func (a *App) nextSelectable(from, delta int) int {
+	results := a.Results()
+	n := len(results)
+	if n == 0 {
+		return 0
+	}
+	index := from
+	for i := 0; i < n; i++ {
+		index = NextIndex(index, delta, n)
+		if !results[index].heading {
+			return index
+		}
+	}
+	return from
+}
+
+// clampSelection keeps the choice on a row the keyboard can act on: a heading
+// the list shrank onto is stepped past.
 func (a *App) clampSelection(n int) {
 	a.Selected = ClampIndex(a.Selected, n)
+	results := a.Results()
+	if a.Selected < len(results) && results[a.Selected].heading {
+		a.Selected = a.nextSelectable(a.Selected, 1)
+		if a.Selected >= len(results) {
+			a.Selected = ClampIndex(a.Selected-1, n)
+		}
+	}
 }

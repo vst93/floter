@@ -37,6 +37,10 @@ type Launcher struct {
 	// count of commands it could still become.
 	TriggerHint     func(name string) string
 	TriggerHintMore func(name string, more int) string
+	// FilesSection heads the block of rows a dropped file's actions make,
+	// and RecentSection the empty page's most-launched applications.
+	FilesSection  string
+	RecentSection string
 	// Hint is the empty result area's message.
 	Hint string
 	// NoResults is shown when a query matches nothing.

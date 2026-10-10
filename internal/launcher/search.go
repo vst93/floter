@@ -53,6 +53,13 @@ type Item struct {
 	// thumb the clipboard entry whose image the row shows.
 	icon  *apps.App
 	thumb *ui.Bitmap
+	// heading marks a block's title line: a row the list prints above a
+	// block and never selects or runs (a row *with* a section instead prints
+	// the title above itself).
+	heading bool
+	// section is the title printed above this row, when it starts a block —
+	// an external plugin's own group name, a dropped file's block.
+	section string
 }
 
 // commands is the built-in command list, labeled in the launcher's language.
@@ -534,7 +541,12 @@ func (a *App) otherResults() []Item {
 	}
 	if strings.TrimSpace(a.Query) == "" {
 		out = append(out, a.commands()...)
-		out = append(out, a.recentItems(maxRecentResults)...)
+		// The empty page's own heading: the most-launched applications are a
+		// block, and the list names it above the first of them.
+		if recents := a.recentItems(maxRecentResults); len(recents) > 0 {
+			out = append(out, Item{ID: "section:recent", heading: true, Title: a.copy().RecentSection})
+			out = append(out, recents...)
+		}
 	} else {
 		out = append(out, Match(a.Catalog(), a.Query)...)
 	}

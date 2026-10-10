@@ -70,7 +70,12 @@ func (a *App) filesQuery() string {
 func (a *App) filesItems() []Item {
 	copy := a.copy()
 	terms := strings.Fields(strings.ToLower(a.filesQuery()))
-	out := make([]Item, 0, len(a.Dropped)*3)
+	out := make([]Item, 0, len(a.Dropped)*3+1)
+	// The block's own heading: a dropped file's rows are one group, and the
+	// list says so above them (the old build's `list-sections`).
+	if len(a.Dropped) > 0 {
+		out = append(out, Item{ID: "section:dropped", heading: true, Title: copy.FilesSection})
+	}
 	for _, file := range a.Dropped {
 		file := file
 		detail := file.Directory
