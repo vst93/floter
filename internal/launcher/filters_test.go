@@ -255,3 +255,41 @@ func TestToolInvokeRows(t *testing.T) {
 		t.Errorf("install rows = %+v", rows)
 	}
 }
+
+// The plugin modes name their own empty state rather than claiming a search
+// found nothing: nothing copied yet, no favorites, no matches.
+func TestModeEmptyMessages(t *testing.T) {
+	a, _ := clipboardApp(t)
+	copy := a.copy()
+	// The clipboard, with nothing copied.
+	a.clipboard = true
+	if got := a.emptyMessage(copy); got != copy.ClipboardEmpty {
+		t.Errorf("clipboard empty = %q", got)
+	}
+	// A needle that matched nothing.
+	a.Query = "clipboard zzz"
+	if got := a.emptyMessage(copy); got != copy.ClipboardEmptyFilter {
+		t.Errorf("clipboard filter = %q", got)
+	}
+	// The favorites chip.
+	a.Query = "clipboard "
+	a.clipboardFilter = filterFavorites
+	if got := a.emptyMessage(copy); got != copy.ClipboardEmptyFavorites {
+		t.Errorf("clipboard favorites = %q", got)
+	}
+	// The calculator's two.
+	a.clipboard, a.calculatorMode = false, true
+	a.calculatorFilter = filterAll
+	if got := a.emptyMessage(copy); got != copy.CalculatorEmpty {
+		t.Errorf("calculator empty = %q", got)
+	}
+	a.calculatorFilter = filterFavorites
+	if got := a.emptyMessage(copy); got != copy.CalculatorEmptyFavorites {
+		t.Errorf("calculator favorites = %q", got)
+	}
+	// The ordinary page says plainly that a search found nothing.
+	a.calculatorMode = false
+	if got := a.emptyMessage(copy); got != copy.NoResults {
+		t.Errorf("ordinary = %q", got)
+	}
+}

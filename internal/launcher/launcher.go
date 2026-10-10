@@ -385,6 +385,41 @@ func (a *App) appShortcuts(c *ui.Context) bool {
 	return false
 }
 
+// emptyMessage is what the list says when it has nothing: a plugin mode names
+// its own state (nothing copied yet, no favorites, no matches) rather than
+// claiming a search found nothing, and the ordinary page says so plainly.
+func (a *App) emptyMessage(copy i18n.Launcher) string {
+	switch {
+	case a.mode != nil:
+		return copy.CommandModeHint
+	case a.clipboard:
+		switch {
+		case a.clipboardQuery() != "":
+			return copy.ClipboardEmptyFilter
+		case a.clipboardFilter == filterFavorites:
+			return copy.ClipboardEmptyFavorites
+		default:
+			return copy.ClipboardEmpty
+		}
+	case a.browser:
+		if !a.browserResults(a.browserQuery()).Found {
+			// No profile at all says why rather than claiming the query
+			// matched nothing.
+			return copy.BrowserNoProfile
+		}
+		return copy.BrowserEmpty
+	case a.calculatorMode:
+		if a.calculatorFilter == filterFavorites {
+			return copy.CalculatorEmptyFavorites
+		}
+		return copy.CalculatorEmpty
+	case a.files:
+		return copy.NoResults
+	default:
+		return copy.NoResults
+	}
+}
+
 // rowTransition is how a result row appears: a short fade, no movement, so
 // typing feels alive without the list jumping about.
 var rowTransition = ui.ElementTransition{
@@ -566,16 +601,7 @@ func (a *App) View(c *ui.Context) {
 		}
 		if len(results) == 0 {
 			ui.Column(c).FillWidth().Padding(t.Space(3)).Center().Children(func() {
-				message := copy.NoResults
-				switch {
-				case a.browser && !a.browserResults(a.browserQuery()).Found:
-					// The browser mode with no profile at all says why rather
-					// than claiming the query matched nothing.
-					message = copy.BrowserNoProfile
-				case a.mode != nil || a.clipboard || a.browser:
-					message = copy.CommandModeHint
-				}
-				ui.Text(c, message).FontSize(t.FontSize).TextColor(t.TextMuted)
+				ui.Text(c, a.emptyMessage(copy)).FontSize(t.FontSize).TextColor(t.TextMuted)
 			})
 		} else {
 			// The list builds only the rows in view, so a catalog of

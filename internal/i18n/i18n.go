@@ -124,6 +124,13 @@ type Launcher struct {
 	// found at all.
 	BrowserTab       string
 	BrowserNoProfile string
+	// The plugin modes' own empty states: a fact about the mode, not a search
+	// outcome.
+	ClipboardEmpty           string
+	ClipboardEmptyFilter     string
+	ClipboardEmptyFavorites  string
+	CalculatorEmptyFavorites string
+	BrowserEmpty             string
 	// The plugin modes' filter chips: the browser's range, the clipboard's
 	// six kinds and the calculator's two.
 	BrowserAll                string
