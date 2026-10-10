@@ -318,3 +318,34 @@ func TestResidentSessionHoldsItsOutput(t *testing.T) {
 		t.Error("a held session does not read as ended")
 	}
 }
+
+// The bar's gear is the door to the options that shape the terminal: it is a
+// control of its own, and a caller that provides none draws none.
+func TestTerminalBarSettingsDoor(t *testing.T) {
+	opened := 0
+	a := New(newStore(), Actions{Settings: func() { opened++ }}, func(terminal.Options) (*terminal.Terminal, error) {
+		return nil, errors.New("no library in tests")
+	})
+	a.Term = &terminal.Terminal{}
+	a.Title = "vim"
+	tt := render(t, a, 860, 600)
+	tt.Frame()
+	if !tt.HasText("Terminal appearance\u2026") {
+		t.Fatalf("the gear is missing: %q", tt.Texts())
+	}
+	if err := tt.Click("Terminal appearance\u2026"); err != nil {
+		t.Fatalf("the gear: %v", err)
+	}
+	tt.Frame()
+	if opened != 1 {
+		t.Errorf("the gear opened the settings %d times", opened)
+	}
+	// Without the action the bar draws no gear at all.
+	b := New(newStore(), Actions{}, nil)
+	b.Term = &terminal.Terminal{}
+	tt2 := render(t, b, 860, 600)
+	tt2.Frame()
+	if tt2.HasText("Terminal appearance\u2026") {
+		t.Errorf("a gear was drawn with no action: %q", tt2.Texts())
+	}
+}

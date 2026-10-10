@@ -518,6 +518,7 @@ var en = Copy{
 	Terminal: Terminal{
 		Title:             "Terminal",
 		Pin:               "Pin output",
+		SettingsLabel:     "Terminal appearance\u2026",
 		Hint:              "The session has not started yet.",
 		EmptyTitle:        "No terminal session yet",
 		EmptyNew:          "New blank session",
@@ -998,6 +999,7 @@ var zh = Copy{
 	Terminal: Terminal{
 		Title:             "终端",
 		Pin:               "钉住输出",
+		SettingsLabel:     "终端外观\u2026",
 		Hint:              "会话尚未启动。",
 		EmptyTitle:        "暂无终端会话",
 		EmptyNew:          "新建空白会话",

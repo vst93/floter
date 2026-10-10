@@ -709,6 +709,13 @@ func New(opts Options) *App {
 		Exit: func(code int) { a.onMain(func() { a.Terminal.Resident(code) }) },
 	}
 	termActions.Pin = a.PinText
+	// The bar's gear opens the settings where the terminal's appearance is
+	// set. The old build drew the strip in the terminal itself; this build
+	// keeps one form, on the page that owns the setting.
+	termActions.Settings = func() {
+		a.Settings.Page = settingsui.PageGeneral
+		a.Open(SurfaceSettings)
+	}
 	a.Terminal = terminalui.New(opts.Store, termActions, newTerminal)
 	a.Terminal.SnapshotPath = filepath.Join(paths.Root, "terminal-snapshot")
 

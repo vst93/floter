@@ -39,6 +39,9 @@ type Actions struct {
 	Exit func(int)
 	// Pin copies the session's text into a window of its own.
 	Pin func(title, text string)
+	// Settings opens the panel where the terminal's appearance is set: the
+	// bar's own gear, so the session has a way to the options that shape it.
+	Settings func()
 }
 
 // App is the terminal surface's state.
@@ -419,6 +422,12 @@ func (a *App) titleBar(c *ui.Context, copy i18n.Terminal) {
 			ui.Text(c, title).FontSize(t.FontSize - 1).FontWeight(580).
 				TextColor(t.TextMuted).Ellipsis("\u2026").SingleLine()
 		})
+		if a.Actions.Settings != nil {
+			gear := ui.Button(c, copy.SettingsLabel).Label(copy.SettingsLabel)
+			if gear.Clicked() {
+				a.Actions.Settings()
+			}
+		}
 		if a.Actions.Pin != nil && a.Term != nil {
 			if ui.Button(c, copy.Pin).Clicked() {
 				a.Actions.Pin(a.Title, a.sessionText())

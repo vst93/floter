@@ -546,6 +546,9 @@ type Terminal struct {
 	// Pin names the control that copies the session's text into a window
 	// of its own.
 	Pin string
+	// SettingsLabel names the bar's gear: the door to the options that shape
+	// the terminal.
+	SettingsLabel string
 	// Hint is the empty state shown while no session runs.
 	Hint string
 	// EmptyTitle, EmptyNew and EmptyBack are the empty state's title, the
