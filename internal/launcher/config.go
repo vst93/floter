@@ -32,6 +32,10 @@ type Config struct {
 // configOpen reports whether the overlay owns the list's band.
 func (a *App) configOpen() bool { return a.config != nil && a.config.Schema != nil }
 
+// OpenConfig opens a plugin's configuration sheet, for a caller outside (the
+// shell's own tests, the deep-link handling): the same thing the gear does.
+func (a *App) OpenConfig(plugin string) { a.openConfig(plugin) }
+
 // ConfigOpen reports whether a plugin's configuration sheet is showing.
 func (a *App) ConfigOpen() bool { return a.configOpen() }
 

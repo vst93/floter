@@ -181,8 +181,12 @@ func (a *App) filtersRow(c *ui.Context, top float32) {
 		Padding(0, t.Space(2)).Gap(t.Space(1)).AlignItems(ui.Center).Children(func() {
 		for _, value := range axis.Values {
 			value := value
+			// The chip is its own line box and no padding (R72): the row's
+			// 20u is the line plus the breath below it, so a chip with a
+			// padding pair of its own would be taller than the band the
+			// window charges for it.
 			chip := ui.Row(c).Focusable().Shrink(0).
-				Padding(t.Space(0.75), t.Space(2)).Radius(t.Radius).
+				Padding(0, t.Space(2)).Radius(t.Radius).
 				Transition(ui.ElementTransition{Colors: true, Duration: 120 * time.Millisecond})
 			if value == current {
 				chip.Background(t.Accent.Alpha(0.14))
