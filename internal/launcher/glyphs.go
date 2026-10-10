@@ -165,3 +165,43 @@ func outputGlyph(name string) (*ui.SVG, bool) {
 	}
 	return nil, false
 }
+
+// Glyph returns one of the shared marks by name, for the surfaces outside the
+// launcher that lead with the same vocabulary (the settings sidebar, the
+// integration rows). The set is the module's own, so a caller cannot invent a
+// mark the rest of the app does not speak.
+func Glyph(name string) (*ui.SVG, bool) {
+	switch name {
+	case "terminal":
+		return glyphTerminal, true
+	case "settings":
+		return glyphSettings, true
+	case "globe":
+		return glyphGlobe, true
+	case "text":
+		return glyphText, true
+	case "calculator":
+		return glyphCalculator, true
+	case "window":
+		return glyphWindow, true
+	case "clock":
+		return glyphClock, true
+	case "star":
+		return glyphStar, true
+	case "power":
+		return glyphPower, true
+	case "alert":
+		return glyphAlert, true
+	case "file":
+		return glyphFile, true
+	case "folder":
+		return glyphFolder, true
+	case "link":
+		return glyphLink, true
+	case "image":
+		return glyphImage, true
+	case "bookmark":
+		return glyphBookmark, true
+	}
+	return nil, false
+}

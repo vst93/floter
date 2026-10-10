@@ -1345,3 +1345,39 @@ func TestLauncherSwitchesWriteThroughTheStore(t *testing.T) {
 		t.Error("the commands switch did not turn on")
 	}
 }
+
+// The sidebar leads every page with a mark and paints the chosen page on the
+// resting control fill; the page's own navigation still switches.
+func TestSidebarRowsCarryMarksAndSelection(t *testing.T) {
+	store := settings.NewStore(settings.Default())
+	a := New(store, Actions{})
+	tt := render(t, a, 720, 900)
+	tt.Frame()
+	// Every page's label is there, and each row is the sidebar's own height.
+	for _, title := range []string{"General", "Sessions", "Shortcuts", "Plugins", "Integrations", "About"} {
+		rect, ok := tt.Find(title)
+		if !ok {
+			t.Fatalf("the sidebar is missing %q: %v", title, tt.Texts())
+		}
+		if rect.H < 24 {
+			t.Errorf("%q is not a full row: %+v", title, rect)
+		}
+	}
+	// Every page leads with a mark from the shared vocabulary.
+	for page := PageGeneral; page < pageCount; page++ {
+		if _, ok := pageGlyph(page); !ok {
+			t.Errorf("page %d has no mark", page)
+		}
+	}
+	// The chosen page is the one showing; clicking another switches both.
+	if a.Page != PageGeneral {
+		t.Fatalf("the panel opened on page %v", a.Page)
+	}
+	if err := tt.Click("Plugins"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if a.Page != PagePlugins {
+		t.Errorf("page = %v, want plugins", a.Page)
+	}
+}

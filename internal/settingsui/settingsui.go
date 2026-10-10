@@ -13,11 +13,13 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/i18n"
+	"floter/internal/launcher"
 	"floter/internal/settings"
 	"floter/internal/shortcuts"
 	"floter/internal/terminalui"
@@ -396,16 +398,56 @@ func (a *App) View(c *ui.Context) {
 	})
 }
 
-// sidebarRow builds one page entry. The list paints the chosen row.
+// sidebarRow builds one page entry: a leading mark, the page's name at weight
+// 580, and the chosen page on the resting control fill — the sidebar's own
+// selection, since the list is not asked to paint one.
 func (a *App) sidebarRow(c *ui.Context, i int) {
 	t := c.Theme()
-	row := ui.Row(c).Padding(t.Space(1.5), t.Space(1.5))
+	tokens := a.tokens(c)
+	selected := i == a.Page
+	row := ui.Row(c).FillWidth().MinHeight(t.Space(8.5)).
+		Padding(0, t.Space(2)).Gap(t.Space(2)).
+		Radius(tokens.RadiusSM).AlignItems(ui.Center).
+		Transition(ui.ElementTransition{Colors: true, Duration: 120 * time.Millisecond})
+	if selected {
+		row.Background(tokens.Control)
+	} else if row.Hovered() {
+		row.Background(t.SurfaceHover)
+	}
+	color := t.TextMuted
+	if selected {
+		color = tokens.TextStrong
+	}
 	row.Children(func() {
-		ui.Text(c, a.page(i).Title).FontSize(t.FontSize)
+		if glyph, ok := pageGlyph(i); ok {
+			ui.Icon(c, glyph).Size(t.Space(4), t.Space(4)).TextColor(color)
+		}
+		ui.Text(c, a.page(i).Title).FontSize(t.FontSize).FontWeight(580).
+			TextColor(color).Ellipsis("\u2026").SingleLine()
 	})
 	if row.Clicked() {
 		a.selectPage(i)
 	}
+}
+
+// pageGlyph is the mark a settings page leads with: the same vocabulary the
+// launcher's rows speak, so a page and the thing it configures look alike.
+func pageGlyph(page int) (*ui.SVG, bool) {
+	switch page {
+	case PageGeneral:
+		return launcher.Glyph("settings")
+	case PageSessions:
+		return launcher.Glyph("terminal")
+	case PageShortcuts:
+		return launcher.Glyph("star")
+	case PagePlugins:
+		return launcher.Glyph("globe")
+	case PageIntegrations:
+		return launcher.Glyph("file")
+	case PageAbout:
+		return launcher.Glyph("alert")
+	}
+	return nil, false
 }
 
 // selectPage switches pages and remembers the choice, so the next visit to
