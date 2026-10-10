@@ -10,6 +10,7 @@ import (
 
 	"floter/internal/i18n"
 	"floter/internal/settings"
+	"floter/internal/shortcuts"
 )
 
 func newStore(t *testing.T) *settings.Store {
@@ -764,7 +765,9 @@ func TestCustomShortcutsPage(t *testing.T) {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	if !tt.HasText("Custom shortcuts") || !tt.HasText("Cmd + Shift + P") {
+	// The binding prints through the platform's own formatter (the glyphs on
+	// macOS, the modifier words elsewhere).
+	if !tt.HasText("Custom shortcuts") || !tt.HasText(shortcuts.Display("Cmd+Shift+P")) {
 		t.Fatalf("the custom section = %q", tt.Texts())
 	}
 	// The custom section sits below the app-keys list: scroll it into view.

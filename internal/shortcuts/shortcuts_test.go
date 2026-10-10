@@ -92,11 +92,41 @@ func TestFromKey(t *testing.T) {
 }
 
 func TestDisplay(t *testing.T) {
-	if got := Display("Cmd+Comma"); got != "Cmd + ," {
-		t.Errorf("Display = %q", got)
+	// The display follows the platform, as the old build's formatShortcut
+	// did: the glyphs on macOS, the modifier words (and Super for the meta
+	// key) elsewhere.
+	want := "Super + ,"
+	if runtime.GOOS == "darwin" {
+		want = "\u2318,"
+	}
+	if got := Display("Cmd+Comma"); got != want {
+		t.Errorf("Display = %q, want %q", got, want)
 	}
 	if got := Display("not a shortcut"); got != "not a shortcut" {
 		t.Errorf("Display of junk = %q", got)
+	}
+}
+
+// The badge is compact and platform-formatted: the modifiers joined to the
+// key with no spaces, and Enter as ↩ everywhere.
+func TestBadge(t *testing.T) {
+	// A digit badge carries the binding's modifiers: the old build's ⌘1.
+	if runtime.GOOS == "darwin" {
+		if got := Badge("Cmd+1", "1"); got != "\u23181" {
+			t.Errorf("Badge = %q", got)
+		}
+	} else {
+		if got := Badge("Ctrl+1", "1"); got != "Ctrl+1" {
+			t.Errorf("Badge = %q", got)
+		}
+	}
+	// Enter is the return arrow on every platform.
+	if got := Badge("Ctrl+1", "enter"); got != "Ctrl+\u21a9" {
+		t.Errorf("Badge(enter) = %q", got)
+	}
+	// An unparseable binding still prints the key alone.
+	if got := Badge("nonsense", "3"); got != "3" {
+		t.Errorf("Badge(junk) = %q", got)
 	}
 }
 

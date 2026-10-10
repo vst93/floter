@@ -13,6 +13,8 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	clipboardpkg "floter/internal/clipboard"
+	"floter/internal/settings"
+	"floter/internal/shortcuts"
 	"floter/internal/theme"
 )
 
@@ -73,6 +75,14 @@ func rowGlyph(item Item) (*ui.SVG, bool) {
 		return glyphTerminal, true
 	}
 	switch item.ID {
+	case "bar:url":
+		return glyphGlobe, true
+	case "bar:shell", "bar:path-cd":
+		return glyphTerminal, true
+	case "bar:path-open":
+		return glyphFolder, true
+	case "bar:path-copy":
+		return glyphFile, true
 	case "cmd:terminal":
 		return glyphTerminal, true
 	case "cmd:settings":
@@ -119,4 +129,11 @@ func (a *App) iconPlate(c *ui.Context, warm bool) ui.Element {
 		plate.Background(tokens.Control)
 	}
 	return plate
+}
+
+// enterBadge is the key the action bar's row runs on: the select-result
+// binding's modifiers with Enter, formatted as a key badge — `⌘↩` on macOS,
+// `Ctrl+↩` elsewhere, exactly as the old build's action bar printed it.
+func (a *App) enterBadge() string {
+	return shortcuts.Badge(settings.Shortcut(a.settings(), settings.ShortcutSelectResult), "enter")
 }

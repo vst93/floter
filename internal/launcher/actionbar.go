@@ -107,9 +107,10 @@ func (a *App) actionBarItemsWith(other []Item) []Item {
 			return nil
 		}
 		return []Item{{
-			ID:     "bar:url",
-			Title:  copy.OpenInBrowser,
-			Detail: value,
+			ID:       "bar:url",
+			Title:    copy.OpenInBrowser,
+			Detail:   value,
+			Shortcut: a.enterBadge(),
 			Run: func() {
 				if a.Actions.OpenURL != nil {
 					a.Actions.OpenURL("", value)
@@ -148,9 +149,10 @@ func (a *App) actionBarItemsWith(other []Item) []Item {
 	}
 	if len(parsed.Environment) > 0 {
 		return []Item{{
-			ID:     "bar:shell",
-			Title:  copy.RunInShell,
-			Detail: value,
+			ID:       "bar:shell",
+			Title:    copy.RunInShell,
+			Detail:   value,
+			Shortcut: a.enterBadge(),
 			Run: func() {
 				a.historyRemember(value)
 				if a.Actions.RunInTerminalWithEnv != nil {
@@ -164,9 +166,10 @@ func (a *App) actionBarItemsWith(other []Item) []Item {
 		}}
 	}
 	return []Item{{
-		ID:     "bar:shell",
-		Title:  copy.RunInShell,
-		Detail: value,
+		ID:       "bar:shell",
+		Title:    copy.RunInShell,
+		Detail:   value,
+		Shortcut: a.enterBadge(),
 		Run: func() {
 			a.historyRemember(value)
 			if a.Actions.RunInTerminal != nil {
@@ -188,9 +191,10 @@ func (a *App) barPathRows(expanded, raw string, isDir bool, copy i18nLauncher) [
 	quoted := shellQuoteForCD(directory)
 	return []Item{
 		{
-			ID:     "bar:path-open",
-			Title:  title,
-			Detail: expanded,
+			ID:       "bar:path-open",
+			Title:    title,
+			Detail:   expanded,
+			Shortcut: a.enterBadge(),
 			Run: func() {
 				if a.Actions.OpenPath != nil {
 					a.Actions.OpenPath(expanded)
@@ -200,9 +204,10 @@ func (a *App) barPathRows(expanded, raw string, isDir bool, copy i18nLauncher) [
 			},
 		},
 		{
-			ID:     "bar:path-cd",
-			Title:  copy.FileCd,
-			Detail: directory,
+			ID:       "bar:path-cd",
+			Title:    copy.FileCd,
+			Detail:   directory,
+			Shortcut: a.enterBadge(),
 			Run: func() {
 				if a.Actions.OpenInTerminal != nil {
 					a.Actions.OpenInTerminal(directory)
