@@ -61,41 +61,57 @@ func (a *App) confirmPower(title string) (bool, error) {
 }
 
 // runPower runs the platform's own command, through the injected runner when
-// there is one.
+// there is one. The candidates are tried in order: the first that **starts**
+// wins, since a failure after that (polkit refusing, the dialog cancelled)
+// would only be doubled by the next.
 func (a *App) runPower(action string) error {
 	if a.runPowerCommand != nil {
 		return a.runPowerCommand(action)
 	}
-	program, args, err := powerCommand(action, runtime.GOOS)
+	candidates, err := powerCommands(action, runtime.GOOS)
 	if err != nil {
 		return err
 	}
-	return spawn.Program(program, args...)
+	var lastErr error
+	for _, candidate := range candidates {
+		if err := spawn.Program(candidate[0], candidate[1:]...); err == nil {
+			return nil
+		} else {
+			lastErr = err
+		}
+	}
+	return lastErr
 }
 
-// powerCommand is the platform's way to restart or shut down.
-func powerCommand(action, goos string) (string, []string, error) {
-	restart := action == launcher.PowerRestart
+// powerCommands is the platform's way to restart or shut down, most likely
+// first: `systemctl` is accepted from an unprivileged seat session through
+// polkit on every systemd distribution, and the SysV binaries follow it for
+// the rare init that is not systemd.
+func powerCommands(action, goos string) ([][]string, error) {
+	if action != launcher.PowerRestart && action != launcher.PowerShutdown {
+		return nil, errNoPowerAction
+	}
 	switch goos {
 	case "darwin":
-		// AppleScript asks the system, which is what the menu's own items do.
-		verb := "restart"
-		if !restart {
-			verb = "shut down"
+		// The Apple event is what GUI applications are expected to use: it
+		// goes through loginwindow, which asks the user to confirm exactly
+		// as the Apple menu does; the `shutdown` binary would need root.
+		if action == launcher.PowerRestart {
+			return [][]string{{"osascript", "-e", `tell application "System Events" to restart`}}, nil
 		}
-		return "osascript", []string{"-e", `tell application "System Events" to ` + verb}, nil
+		return [][]string{{"osascript", "-e", `tell application "System Events" to shut down`}}, nil
 	case "windows":
-		// `shutdown` wants a timeout: 0 means "now", and the flag is required
-		// or the call refuses to run without one.
-		if restart {
-			return "shutdown", []string{"/r", "/t", "0"}, nil
+		// `shutdown.exe` needs no elevation to end the calling user's own
+		// session, and `/t 0` skips the default grace period.
+		if action == launcher.PowerRestart {
+			return [][]string{{"shutdown", "/r", "/t", "0"}}, nil
 		}
-		return "shutdown", []string{"/s", "/t", "0"}, nil
+		return [][]string{{"shutdown", "/s", "/t", "0"}}, nil
 	default:
-		if restart {
-			return "systemctl", []string{"reboot"}, nil
+		if action == launcher.PowerRestart {
+			return [][]string{{"systemctl", "reboot"}, {"reboot"}}, nil
 		}
-		return "systemctl", []string{"poweroff"}, nil
+		return [][]string{{"systemctl", "poweroff"}, {"poweroff"}}, nil
 	}
 }
 

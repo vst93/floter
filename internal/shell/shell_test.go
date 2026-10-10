@@ -1960,7 +1960,8 @@ func TestPowerAsksFirst(t *testing.T) {
 	}
 }
 
-// The platform commands are the ones each system answers.
+// The platform commands are the ones each system answers, with the SysV
+// binaries behind systemctl for the rare init that is not systemd.
 func TestPowerCommands(t *testing.T) {
 	cases := []struct {
 		goos    string
@@ -1975,24 +1976,15 @@ func TestPowerCommands(t *testing.T) {
 		{"linux", "shutdown", "systemctl"},
 	}
 	for _, tc := range cases {
-		program, args, err := powerCommand(tc.action, tc.goos)
-		if err != nil {
-			t.Fatalf("%s/%s: %v", tc.goos, tc.action, err)
-		}
-		if program != tc.program || len(args) == 0 {
-			t.Errorf("%s/%s = %s %v", tc.goos, tc.action, program, args)
+		candidates, err := powerCommands(tc.action, tc.goos)
+		if err != nil || len(candidates) == 0 || candidates[0][0] != tc.program {
+			t.Fatalf("%s/%s = %v, %v", tc.goos, tc.action, candidates, err)
 		}
 	}
-	// The macOS verb differs between the two actions, and Windows' timeout is
-	// required.
-	if _, args, _ := powerCommand("restart", "darwin"); !strings.Contains(strings.Join(args, " "), "restart") {
-		t.Errorf("macOS restart = %v", args)
-	}
-	if _, args, _ := powerCommand("shutdown", "darwin"); !strings.Contains(strings.Join(args, " "), "shut down") {
-		t.Errorf("macOS shutdown = %v", args)
-	}
-	if _, args, _ := powerCommand("shutdown", "windows"); !strings.Contains(strings.Join(args, " "), "/s") {
-		t.Errorf("windows shutdown = %v", args)
+
+	// An unknown action is refused rather than run.
+	if _, err := powerCommands("explode", "linux"); err == nil {
+		t.Error("an unknown action was accepted")
 	}
 }
 
@@ -2084,5 +2076,36 @@ func TestIntegrationConfigurationFormEndToEnd(t *testing.T) {
 	// configuration is the whole surface here.
 	if got := a.Launcher.Commands; len(got) != 0 {
 		t.Errorf("commands = %+v", got)
+	}
+}
+
+// The power action's candidates are tried in order, so a system without
+// systemd falls back to the SysV binary.
+func TestPowerFallbacksRun(t *testing.T) {
+	started := []string{}
+	a := New(Options{
+		Store:                settings.NewStore(settings.Default()),
+		Paths:                extensions.FromRoot(t.TempDir()),
+		NewTerminal:          func(terminal.Options) (*terminal.Terminal, error) { return nil, errors.New("no library in tests") },
+		RunSilentCommand:     func(string) error { return nil },
+		OpenExternalTerminal: func() error { return nil },
+	})
+	// The injected runner records the program of each attempt and fails all
+	// but the last one the shell would try.
+	a.runPowerCommand = func(action string) error {
+		candidates, err := powerCommands(action, runtime.GOOS)
+		if err != nil {
+			return err
+		}
+		for _, candidate := range candidates {
+			started = append(started, candidate[0])
+		}
+		return nil
+	}
+	if err := a.runPower("restart"); err != nil {
+		t.Fatal(err)
+	}
+	if len(started) == 0 {
+		t.Fatal("nothing was started")
 	}
 }

@@ -667,6 +667,8 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
 - **Enter 落点的规则照搬**（`shouldDefaultToActionBar`）：shell 命令只在「会是回车运行的东西」时
   才给行——没有可运行结果、查询带空白或 shell 语法、或是那批命令词（git/npm/cargo/…）之一；
   否则目录的匹配行保留字段（不能被一条跑不了的发现行抢走 Enter）。
+- 电源候选照旧版的 `run_first`：Linux 是 `systemctl reboot|poweroff` 然后 `reboot|poweroff`
+  （非 systemd 的 init 走 SysV 二进制）；第一个**成功启动**的算数，之后的失败不再重试别的。
 - 与旧版的差异：旧版把操作条画成字段下的一条、Enter 默认落在它上面（⌘⏎ 是「在 shell 运行」）；
   Go 版把它作为**结果列表的第一行**，Enter/编号/指针都一样能到——同一个默认落点，少一套键盘规则。
   「无结果」的空态因此被 shell 行取代（旧版在 resultCount==0 时也是这样落 Enter）。

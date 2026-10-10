@@ -152,7 +152,7 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
    自己的节点类型）现在也读了；这是旧版**没有**的能力（它只解析 Chromium JSON 与 Firefox
    places.sqlite），属于补上而不是对齐。
 4. **Windows 图标**：已完成（P2-l）——`.lnk` 的图标经 PowerShell 提取并缓存为 PNG。
-5. **系统通知**：已完成（后台命令、安装/卸载/检测）。
+5. **系统通知**：已完成（后台命令、安装/卸载/检测）。电源动作带 SysV 回退（旧版 `run_first` 语义）。
 6. **P5 打磨**：已完成；更细的换壳过渡受原生窗口尺寸变化限制，不做应用层过渡。
 7. **P6 发布链**：剩下的是一次性维护者动作——`mygo keygen` 生成更新密钥、`mygo.json` 填 `updates`
    与 `macos.signingIdentity`/`macos.notarize`、CI 注入私钥、把产物发到 GitHub Release（含预发布通道）。
