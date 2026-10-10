@@ -997,9 +997,12 @@ func TestPermissionAuditUnfolds(t *testing.T) {
 	if !tt.HasText("The tool may read files your user can read.") {
 		t.Errorf("the audit did not open: %q", tt.Texts())
 	}
-	// The enforced permission says so, and so does its explanation.
-	if !tt.HasText("Read the environment  \u00b7  Floter enforces") {
-		t.Errorf("the enforced mark is missing: %q", tt.Texts())
+	// The two tiers are named, and each permission sits under its own.
+	if !tt.HasText("Floter enforces") || !tt.HasText("Declared, not blocked") {
+		t.Errorf("the tiers are missing: %q", tt.Texts())
+	}
+	if !tt.HasText("Read the environment") || !tt.HasText("Read files") {
+		t.Errorf("a permission is missing: %q", tt.Texts())
 	}
 	if !tt.HasText("Floter enforces this one: the host decides what the tool receives.") {
 		t.Errorf("the enforced explanation is missing: %q", tt.Texts())

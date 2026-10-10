@@ -276,6 +276,12 @@ type Settings struct {
 	// not name, and deleting one.
 	IntegrationsAdopt       string
 	IntegrationsPermissions string
+	// The permission tiers: what Floter itself refuses, and what it only
+	// discloses.
+	PermissionsEnforcedLabel   string
+	PermissionsEnforcedHint    string
+	PermissionsDisclosureLabel string
+	PermissionsDisclosureHint  string
 	// The shipped tools a user can connect with one press.
 	IntegrationsRecommended     string
 	IntegrationsRecommendedHint string

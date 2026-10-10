@@ -398,6 +398,53 @@ func (a *App) View(c *ui.Context) {
 	})
 }
 
+// permissionTier draws one tier of the permission audit: its label and the
+// one-line explanation of what the tier means, then a row per permission. An
+// enforced permission's row is a plane with the accent edge — a *check* the
+// host owns — while a declared one is the plain neutral pane: an FYI, not a
+// promise.
+func (a *App) permissionTier(c *ui.Context, label, hint string, enforced bool, language string, permissions []string) {
+	if len(permissions) == 0 {
+		return
+	}
+	t := c.Theme()
+	tokens := a.tokens(c)
+	ui.Column(c).FillWidth().Gap(t.Space(1)).Children(func() {
+		ui.Text(c, label).FontSize(t.FontSize - 1).FontWeight(650).TextColor(tokens.TextStrong)
+		if hint != "" {
+			ui.Text(c, hint).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+		}
+		a.card(c, func() {
+			for _, permission := range permissions {
+				permission := permission
+				a.row(c, i18n.PermissionLabel(language, permission), i18n.PermissionDescription(language, permission), func() {
+					mark := "\u25cb"
+					if enforced {
+						mark = "\u25cf"
+					}
+					color := t.TextMuted
+					if enforced {
+						color = t.Accent
+					}
+					ui.Icon(c, mustGlyph("alert")).Size(t.Space(4), t.Space(4)).TextColor(color)
+					ui.Text(c, mark).FontSize(t.FontSize - 3).TextColor(color)
+				})
+			}
+		})
+	})
+}
+
+// mustGlyph is the shared glyph vocabulary with a hard failure: the names here
+// are program constants, so a missing one is a bug rather than a runtime
+// condition.
+func mustGlyph(name string) *ui.SVG {
+	glyph, ok := launcher.Glyph(name)
+	if !ok {
+		glyph, _ = launcher.Glyph("alert")
+	}
+	return glyph
+}
+
 // sidebarRow builds one page entry: a leading mark, the page's name at weight
 // 580, and the chosen page on the resting control fill — the sidebar's own
 // selection, since the list is not asked to paint one.
@@ -940,20 +987,20 @@ func (a *App) permissionAudit(c *ui.Context, copy i18n.Settings, integration Int
 	if !a.auditOpen[integration.ID] {
 		return
 	}
-	ui.Column(c).FillWidth().Gap(t.Space(0.5)).Padding(0, t.Space(2), 0, 0).Children(func() {
-		for _, permission := range integration.Permissions {
-			mark := copy.PermissionsDeclared
-			if integration.Enforced[permission] {
-				mark = copy.PermissionsEnforced
-			}
-			ui.Column(c).FillWidth().Children(func() {
-				ui.Text(c, i18n.PermissionLabel(language, permission)+"  \u00b7  "+mark).
-					FontSize(t.FontSize - 1).TextColor(t.TextMuted)
-				if description := i18n.PermissionDescription(language, permission); description != "" {
-					ui.Text(c, description).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
-				}
-			})
+	// Two tiers, the host's own decision first: what floter refuses until it
+	// is approved, then what the tool merely declares. The split is the
+	// message — a user must be able to tell a check from an FYI.
+	var enforced, disclosure []string
+	for _, permission := range integration.Permissions {
+		if integration.Enforced[permission] {
+			enforced = append(enforced, permission)
+			continue
 		}
+		disclosure = append(disclosure, permission)
+	}
+	ui.Column(c).FillWidth().Gap(t.Space(3)).Padding(0, 0, t.Space(1), 0).Children(func() {
+		a.permissionTier(c, copy.PermissionsEnforcedLabel, copy.PermissionsEnforcedHint, true, language, enforced)
+		a.permissionTier(c, copy.PermissionsDisclosureLabel, copy.PermissionsDisclosureHint, false, language, disclosure)
 	})
 }
 
