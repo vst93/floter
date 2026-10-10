@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"floter/internal/pinyin"
 	"floter/internal/plist"
 )
 
@@ -217,6 +218,19 @@ func firstString(value any, keys ...string) string {
 		}
 	}
 	return ""
+}
+
+// computeInitials is the launcher's Latin search key for a name: every ASCII
+// letter and digit kept as it is, every CJK character replaced by the first
+// letter of its pinyin, and everything else dropped. The original and the
+// localized name are folded into one key, because either can be the one the
+// user thinks in.
+func computeInitials(name, localized string) string {
+	combined := name
+	if localized != "" {
+		combined = name + " " + localized
+	}
+	return pinyin.Initials(combined)
 }
 
 // uniqueStrings drops empty and repeated entries, keeping the order.

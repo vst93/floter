@@ -35,6 +35,11 @@ type App struct {
 	// Aliases are extra spellings search may match: a bundle's executable,
 	// the pieces of its identifier, its folder name.
 	Aliases []string
+	// Initials is the Latin search key of the name: every letter and digit as
+	// it is, every CJK character replaced by the first letter of its pinyin
+	// ("网易云音乐" → "wyyyy"). It is how a Chinese name is reachable from a
+	// Latin keyboard.
+	Initials string
 	// Path is the bundle, desktop entry or shortcut to open.
 	Path string
 	// Icon is what the entry declares its icon to be (a Linux desktop
@@ -135,6 +140,7 @@ func ScanDarwin(root string) []App {
 			Name:      info.Name,
 			Localized: info.Localized,
 			Aliases:   info.Aliases,
+			Initials:  computeInitials(info.Name, info.Localized),
 			Path:      path,
 			IconPath:  info.IconPath,
 		})
@@ -173,6 +179,7 @@ func ScanLinux(root string) []App {
 			return true
 		}
 		entry.IconPath = desktopIconFile(entry.Icon)
+		entry.Initials = computeInitials(entry.Name, "")
 		out = append(out, entry)
 		return true
 	})

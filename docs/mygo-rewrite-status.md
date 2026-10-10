@@ -58,6 +58,7 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 | `internal/calc` | 表达式求值（计算器行） |
 | `internal/apps` | 应用扫描（.app/.lnk/.desktop，含 Info.plist 名字与别名、图标）+ PATH 命令扫描 |
 | `internal/plist` | Apple property list 读取（XML 与 bplist00） |
+| `internal/pinyin` | 常用字的拼音首字母表（GB2312 一级集） |
 | `internal/calculator` | 计算器历史（fold 去重、收藏豁免、写时淘汰、原子写） |
 | `internal/tools` | 工具安装目录（12 工具 × 平台配方、8 个包管理器探测） |
 | `internal/drops` | 拖放路径规范化 + shell 引用 |
@@ -170,11 +171,8 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 尚未做（按建议优先级）
 
-1. **应用名的拼音与子序列匹配**（受阻）：旧版 `compute_initials` 用 `pinyin` 表（2 万+字）把
-   「网易云音乐」变成 `wyyyy`，`scoreNormalized` 还有第四档子序列匹配（`vsc` → Visual Studio Code）。
-   本机无网络、模块缓存无拼音数据，嵌入一个无法验证的表会拿「缺失功能」换「错误映射」。
-   受阻步骤：生成表（pinyin 分组区间）+ 用已知词表校验 → 接入 `apps.computeInitials` 与
-   `launcher.Match` 的评分阶梯。
+1. **子序列匹配**：旧版 `scoreNormalized` 的第四档（`vsc` → Visual Studio Code，对拼音 initials
+   也有效）。应用名的拼音表已完成（P2-r）。
 2. **列表协议的分页**：`page.cursor`/`hasMore` 与滚动加载（需要带着 cursor 重新执行命令）；旧版还有
    `⌘1–⌘0` 的编号角标，Go 侧已完成。
 2. **i18n 全量对齐**：UI 包内没有裸文案（已审计），旧 `src/i18n.ts` 的 1700+ 键大部分属于已不存在的

@@ -428,7 +428,8 @@ func (a *App) Catalog() []Item {
 
 // appItem is one application as a row: titled with the name the user's own
 // desktop shows (a bundle's localized name, when it has one that differs) and
-// subtitled with the Latin spelling, with every alias searchable.
+// subtitled with the Latin spelling, with every alias and the pinyin initials
+// searchable.
 func appItem(app apps.App, run func()) Item {
 	title, detail := app.Name, ""
 	if app.Localized != "" && app.Localized != app.Name {
@@ -438,7 +439,7 @@ func appItem(app apps.App, run func()) Item {
 		ID:     "app:" + app.Path,
 		Title:  title,
 		Detail: detail,
-		Search: strings.Join(app.Aliases, " "),
+		Search: strings.Join(append([]string{app.Initials}, app.Aliases...), " "),
 		Run:    run,
 		icon:   &app,
 	}

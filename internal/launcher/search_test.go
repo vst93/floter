@@ -344,3 +344,29 @@ func TestApplicationNamesAndAliases(t *testing.T) {
 		}
 	}
 }
+
+// A Chinese-named application is reachable from a Latin keyboard through the
+// pinyin initials its scan computed.
+func TestPinyinInitialsJoinTheSearch(t *testing.T) {
+	a := testApp()
+	a.SetApps([]apps.App{
+		{Name: "WeCom", Localized: "企业微信", Initials: "qywxwecom", Path: "/Applications/WeCom.app"},
+		{Name: "网易云音乐", Initials: "wyyyy", Path: "/Applications/Netease.app"},
+	})
+	for _, tc := range []struct{ query, id string }{
+		{"wyyyy", "app:/Applications/Netease.app"},
+		{"qywx", "app:/Applications/WeCom.app"},
+	} {
+		a.Query = tc.query
+		got := a.Results()
+		found := false
+		for _, item := range got {
+			if item.ID == tc.id {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("query %q did not reach %s: %v", tc.query, tc.id, ids(got))
+		}
+	}
+}

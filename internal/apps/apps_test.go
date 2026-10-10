@@ -409,3 +409,24 @@ func containsString(list []string, want string) bool {
 	}
 	return false
 }
+
+// A bundle's pinyin initials: the Latin search key of a Chinese name, and the
+// initials key of the localized name folded into the same string.
+func TestComputeInitials(t *testing.T) {
+	if got := computeInitials("网易云音乐", ""); got != "wyyyy" {
+		t.Errorf("initials = %q", got)
+	}
+	if got := computeInitials("企业微信", ""); got != "qywx" {
+		t.Errorf("initials = %q", got)
+	}
+	// The localized name is folded into the same key: either can be the one
+	// the user thinks in.
+	if got := computeInitials("WeCom", "企业微信"); got != "wecomqywx" {
+		t.Errorf("folded = %q", got)
+	}
+	// Separators contribute nothing, so a query typed as one word still
+	// matches across them.
+	if got := computeInitials("Visual Studio Code", ""); got != "visualstudiocode" {
+		t.Errorf("latin = %q", got)
+	}
+}
