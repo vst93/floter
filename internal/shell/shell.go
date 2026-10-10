@@ -1943,12 +1943,69 @@ func (a *App) Hide() {
 	}
 }
 
+// appShortcuts runs the old build's dismiss table, surface by surface. The
+// literal ⌘W is not rebindable, and neither is its meaning everywhere: on
+// the launcher and the settings it hides (or closes), on the terminal it is
+// the shell's own delete-word and is left alone. The user's new-command
+// binding (⌘W by default) has a rule of its own per surface: on the
+// launcher it hides, from the terminal it returns to the launcher, from
+// the settings it closes them. Escape is the launcher's and the settings'
+// own, and the terminal shell keeps it.
+func (a *App) appShortcuts(c *ui.Context) {
+	// One Shortcut() call per key per frame consumes the delivered press, so
+	// the triggers are resolved per surface: the terminal asks only the
+	// new-command binding (the literal ⌘W is the shell's delete-word), the
+	// settings ask all three, the launcher folds the literal ⌘W into the
+	// new-command rule (the same key by default) and leaves Escape to the
+	// launcher's own view (an empty field's Escape hides, one with text
+	// clears).
+	switch a.Surf {
+	case SurfaceTerminal:
+		if mods, key, ok := shortcuts.Parse(settings.Shortcut(a.Store.Snapshot(), settings.ShortcutNewCommand)); ok && c.Shortcut(mods, key) {
+			a.returnToInput()
+		}
+	case SurfaceSettings:
+		if c.Shortcut(ui.Cmd, ui.KeyW) {
+			a.Open(SurfaceLauncher)
+			return
+		}
+		if mods, key, ok := shortcuts.Parse(settings.Shortcut(a.Store.Snapshot(), settings.ShortcutNewCommand)); ok && c.Shortcut(mods, key) {
+			a.Open(SurfaceLauncher)
+			return
+		}
+		if c.Shortcut(0, ui.KeyEscape) {
+			a.Open(SurfaceLauncher)
+		}
+	default:
+		if c.Shortcut(ui.Cmd, ui.KeyW) {
+			a.Hide()
+			return
+		}
+		if mods, key, ok := shortcuts.Parse(settings.Shortcut(a.Store.Snapshot(), settings.ShortcutNewCommand)); ok && c.Shortcut(mods, key) {
+			a.Hide()
+		}
+	}
+}
+
+// returnToInput is the way back from another surface: the launcher, with
+// an empty field, the way the old build's returnToInputMode did.
+func (a *App) returnToInput() {
+	a.Launcher.ResetQuery()
+	a.Open(SurfaceLauncher)
+}
+
 // View builds the window: the transparent root, the inset card, its glass
 // material (or plain face for the `off` stop), and the active surface.
 func (a *App) View(c *ui.Context) {
 	s := a.Store.Snapshot()
 	surface := launcher.Resolve(s, c.Theme().Dark)
 	c.SetTheme(surface.Tokens.Theme)
+
+	// The app's own keys answer on every surface: ⌘W hides whatever the
+	// window is showing (the old build's dismiss table was surface-wide),
+	// and a new command returns to the launcher from the terminal or the
+	// settings as well as from the launcher's own modes.
+	a.appShortcuts(c)
 
 	// The launcher's window walks to its target height here, where the
 	// animation has a frame to live in.

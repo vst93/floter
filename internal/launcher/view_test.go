@@ -1885,27 +1885,20 @@ func TestShellHistory(t *testing.T) {
 	}
 }
 
-// ⌘W hides the window whatever the query or a mode holds, as the old
-// launcher's dismiss table did.
-func TestModWDismissesWhateverTheStateHolds(t *testing.T) {
+// A plain W is a letter in the field, not the shell's ⌘W hide: the hide
+// is the shell's appShortcuts (shell_test.go), and the launcher only
+// answers its own rebindable keys.
+func TestPlainWIsALetterNotTheHide(t *testing.T) {
 	a := testApp()
 	tt := render(t, a)
-	tt.Type("terminal")
-	tt.Frame()
-	tt.Key(ui.Cmd, ui.KeyW)
-	tt.Frame()
-	if testRuns["dismiss"] != 1 {
-		t.Errorf("⌘W dismissed %v, want once", testRuns)
-	}
-	// The query survives the hide: a reveal lands where the search stood.
-	if a.Query != "terminal" {
-		t.Errorf("query = %q", a.Query)
-	}
-	// The plain W is not the key.
 	tt.Type("x")
-	tt.Key(0, ui.KeyW)
 	tt.Frame()
-	if testRuns["dismiss"] != 1 {
+	tt.TypeKey(0, ui.KeyW, "w")
+	tt.Frame()
+	if testRuns["dismiss"] != 0 {
 		t.Errorf("a plain W dismissed %v", testRuns)
+	}
+	if a.Query != "xw" {
+		t.Errorf("query = %q, want the w in the field", a.Query)
 	}
 }
