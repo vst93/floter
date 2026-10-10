@@ -99,6 +99,10 @@ type Actions struct {
 	// RunInTerminal runs a command in the terminal surface: a tool found on
 	// the PATH.
 	RunInTerminal func(argv []string)
+	// RunInTerminalWithEnv runs a command with extra environment variables
+	// (the leading NAME=value assignments the user typed), when the shell
+	// action's parse found some.
+	RunInTerminalWithEnv func(argv []string, env []string)
 	// OpenPath hands a path to the system's own opener, for a dropped file's
 	// "open" action.
 	OpenPath func(path string)

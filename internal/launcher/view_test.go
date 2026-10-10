@@ -1781,3 +1781,38 @@ func TestBuiltinCommandsPinyinAndLanguage(t *testing.T) {
 		}
 	}
 }
+
+// A shell line with leading environment assignments rides them: the tokens
+// are the structured parse's, and the assignments reach the terminal as env.
+func TestShellLineCarriesEnvironment(t *testing.T) {
+	a := testApp()
+	gotArgv, gotEnv := []string{}, map[string]string{}
+	a.Actions.RunInTerminalWithEnv = func(argv []string, env []string) {
+		// A redraw of the result list re-arms the row; only the first run
+		// counts.
+		if len(gotArgv) > 0 {
+			return
+		}
+		gotArgv = argv
+		for _, pair := range env {
+			key, value, _ := strings.Cut(pair, "=")
+			gotEnv[key] = value
+		}
+	}
+	a.Actions.RunInTerminal = func([]string) { t.Error("the plain run was used") }
+
+	tt := render(t, a)
+	tt.Type(`FOO='a b' PATH=/usr/bin git status`)
+	tt.Frame()
+	if !tt.HasText("Run in terminal") {
+		t.Fatalf("the shell row is missing: %q", tt.Texts())
+	}
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if len(gotArgv) != 2 || gotArgv[0] != "git" || gotArgv[1] != "status" {
+		t.Errorf("argv = %v", gotArgv)
+	}
+	if gotEnv["FOO"] != "a b" || gotEnv["PATH"] != "/usr/bin" {
+		t.Errorf("env = %v", gotEnv)
+	}
+}

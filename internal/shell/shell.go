@@ -441,6 +441,12 @@ func New(opts Options) *App {
 			}
 			a.Open(SurfaceTerminal)
 		},
+		RunInTerminalWithEnv: func(argv []string, env []string) {
+			if err := a.Terminal.RunCommand(argv, "current", env); err != nil {
+				log.Printf("floter: could not run %v: %v", argv, err)
+			}
+			a.Open(SurfaceTerminal)
+		},
 		SearchBrowser: a.searchBrowser,
 	})
 	a.Settings = settingsui.New(opts.Store, settingsui.Actions{

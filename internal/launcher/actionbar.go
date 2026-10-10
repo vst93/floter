@@ -133,17 +133,43 @@ func (a *App) actionBarItemsWith(other []Item) []Item {
 		return out
 	}
 	// A shell command: run it in the terminal surface, whose session is the
-	// user's own.
+	// user's own. The tokens come from the structured parse (so a quote never
+	// splits a path), and the leading NAME=value assignments ride the
+	// command's environment rather than being re-interpreted by a shell.
+	parsed := ParseCommandLine(value)
+	argv := parsed.Tokens
+	if parsed.CommandIndex < 0 {
+		return nil // assignments and nothing to run
+	}
+	if parsed.CommandIndex > 0 {
+		// The leading NAME=value assignments ride the command's environment;
+		// the tokens that remain are the command and its arguments.
+		argv = parsed.Tokens[parsed.CommandIndex:]
+	}
+	if len(parsed.Environment) > 0 {
+		return []Item{{
+			ID:     "bar:shell",
+			Title:  copy.RunInShell,
+			Detail: value,
+			Run: func() {
+				if a.Actions.RunInTerminalWithEnv != nil {
+					env := make([]string, 0, len(parsed.Environment))
+					for key, set := range parsed.Environment {
+						env = append(env, key+"="+set)
+					}
+					a.Actions.RunInTerminalWithEnv(argv, env)
+				}
+			},
+		}}
+	}
 	return []Item{{
 		ID:     "bar:shell",
 		Title:  copy.RunInShell,
 		Detail: value,
 		Run: func() {
 			if a.Actions.RunInTerminal != nil {
-				a.Actions.RunInTerminal(strings.Fields(value))
+				a.Actions.RunInTerminal(argv)
 			}
-			a.ResetQuery()
-			a.Hide()
 		},
 	}}
 }
