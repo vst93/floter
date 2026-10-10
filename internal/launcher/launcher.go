@@ -72,6 +72,10 @@ type Actions struct {
 	// Dismiss is Escape with an empty query: hide the launcher window, as
 	// the old shell did.
 	Dismiss func()
+	// ResizeTo grows or shrinks the window to the rows the list holds: the
+	// old shell walked its window edge to the measured band, and the shell
+	// does the same walking here. Nil (tests) skips it.
+	ResizeTo func(height int)
 	// Copy puts text on the clipboard, for the calculator row.
 	Copy func(text string)
 	// OpenApp launches an installed application.
@@ -189,6 +193,19 @@ type App struct {
 	// chosenRow tracks the row the keyboard last moved to, so the list is
 	// scrolled only when the choice changed.
 	chosenRow int
+
+	// RowLines is the text lines of each visible row, as the last View built
+	// them — two for a row with a subtitle, one without — and Font and
+	// Spacing the theme's own values. The shell reads them to size the
+	// window to the list it holds (see Geometry).
+	RowLines []float64
+	Font     float64
+	Spacing  float64
+	// HeldRows is the row count the window is sized for, with the shrink
+	// hysteresis applied: a keystroke that removes one row of two does not
+	// walk the window edge for it, and a growth is immediate. Zero until
+	// the first View measured the list.
+	HeldRows int
 
 	// toast is a message to show on the next frame, set by an action.
 	toast string
@@ -456,6 +473,29 @@ func (a *App) View(c *ui.Context) {
 	results := a.Results()
 	a.clampSelection(len(results))
 	a.assignNumbers(results)
+
+	// The window's height is the content's own: measure every row's lines
+	// off the theme, so the shell can size the window to the list it holds.
+	a.Font = float64(t.FontSize)
+	a.Spacing = float64(t.Spacing)
+	rowLines := make([]float64, len(results))
+	for i, item := range results {
+		if item.Detail != "" {
+			rowLines[i] = 2
+		} else {
+			rowLines[i] = 1
+		}
+	}
+	a.RowLines = rowLines
+	// The window follows the list: grow as soon as a row arrives, and wait
+	// for a row of margin before walking the edge back down (the old
+	// launcher's hysteresis). The cap is the work area less the room the
+	// other windows keep.
+	a.HeldRows = HoldRows(a.HeldRows, len(results))
+	if a.Actions.ResizeTo != nil {
+		height := Geometry{Font: a.Font, Spacing: a.Spacing, RowLines: rowLines, Held: a.HeldRows}.Height()
+		a.Actions.ResizeTo(height)
+	}
 
 	// The field row floats over the list; the list's top padding is the
 	// row plus the edge, so a row scrolls under the field rather than to

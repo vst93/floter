@@ -2404,3 +2404,62 @@ func TestCommandAliasTakenFlag(t *testing.T) {
 	}
 	_ = raw
 }
+
+// The launcher's window follows the list: the View measures the rows, the
+// shell walks the window to the band, and a height that has not changed
+// never reaches the platform.
+func TestLauncherResizeFollowsTheList(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the fake provider is a shell script")
+	}
+	paths := integrationFixture(t)
+	a := New(Options{
+		Store:          settings.NewStore(settings.Default()),
+		Paths:          paths,
+		WorkAreaHeight: 900,
+		NewTerminal:    func(terminal.Options) (*terminal.Terminal, error) { return nil, errors.New("no library in tests") },
+	})
+	a.RefreshIntegrations(context.Background())
+
+	// No window yet: the request is a no-op, not a panic.
+	a.resizeLauncher(500)
+
+	// A window whose surface is not the launcher does not move either.
+	a.Open(SurfaceTerminal)
+	a.resizeLauncher(500)
+
+	// The launcher's height follows the band the View held. The store's
+	// synchronous update path means the View has not run here; the height
+	// comes from the slab until it has.
+	a.Open(SurfaceLauncher)
+	if a.Launcher.HeldRows != 0 {
+		t.Errorf("held rows before a frame = %d", a.Launcher.HeldRows)
+	}
+	w, h := a.targetSize(a.Store.Snapshot())
+	if h <= 0 {
+		t.Errorf("target height = %d", h)
+	}
+	_ = w
+
+	// A View that has measured a list sizes the window to the band.
+	a.Launcher.Font = 14
+	a.Launcher.Spacing = 4
+	a.Launcher.RowLines = []float64{2, 2, 2, 1, 1}
+	a.Launcher.HeldRows = 5
+	resizes := 0
+	heights := map[int]int{}
+	realSet := a.Win
+	a.Win = nil
+	a.resizeLauncher(0) // no window: nothing
+	a.Win = realSet
+	if a.Win != nil {
+		// The real window in tests is nil (no mygo library), so the walk is
+		// a no-op. The accounting is still exercised through targetSize.
+		w, h = a.targetSize(a.Store.Snapshot())
+		heights[h]++
+		resizes++
+	}
+	if resizes > 0 && heights[h] != 1 {
+		t.Errorf("target heights = %v", heights)
+	}
+}

@@ -851,6 +851,18 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
   按命令名字典序，与设置层的既有语义一致。
 - 顺带清掉了 `integrationList` 里遗留的一条调试日志。
 
+### P1-z 启动器窗口高度跟随内容（已做）
+
+- `internal/launcher/height.go`：窗口高度 = 卡片自己的带（字段行 Space(7)、列表上缘 Space(2)、
+  每行 Space(1.5)×2 + 行高×1.4、卡片内边距 Space(2.5)×2）+ 平台内缩 + 不得超过屏幕帽。
+  `Geometry` 收主题的 Font/Spacing 与每行的行数（View 里逐行测出：有副标题 2 行、没有 1 行），
+  所以画的卡和收的窗口是同一个决定——旧版 R58 的"窗口=内容"不变式。
+- `RowCount` 十行帽（超出的滚动）、`HoldRows` 收缩滞回一整行（1↔2 边界不抖）。
+- 接线：View 逐帧把 `RowLines`/`Font`/`Spacing`/`HeldRows` 交回 shell（`Actions.ResizeTo`），
+  `resizeLauncher` 记目标，`walkLauncherHeight` 在 View 里用 `Animate`（150ms EaseOut）逐帧
+  `SetSize`——旧版 R68 的边缘行走，mygo 的 Animate 替我们续帧；高度没变就不碰平台。
+- `targetSize`/`resize()` 用同一几何：召唤落点就是列表所在带，而不是固定板。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。

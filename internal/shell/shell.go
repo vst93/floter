@@ -302,6 +302,9 @@ type App struct {
 	lastW, lastH       int
 	lastResizable      bool
 	lastMinW, lastMinH int
+	// launcherTarget is the height the launcher's list asked for (the View
+	// measures it); walkLauncherHeight eases the window there.
+	launcherTarget int
 
 	// ShortcutErr is why the global shortcut could not be registered.
 	ShortcutErr error
@@ -404,6 +407,7 @@ func New(opts Options) *App {
 		OpenTerminal: func() { a.Open(SurfaceTerminal) },
 		Quit:         a.quit,
 		Dismiss:      a.Hide,
+		ResizeTo:     a.resizeLauncher,
 		Copy: func(text string) {
 			a.selfCopied = text
 			mygo.Clipboard.WriteText(text)
@@ -1865,6 +1869,40 @@ func (a *App) residencyHolds() bool {
 	}
 }
 
+// resizeLauncher records the height the launcher's list asks for. The
+// walk to it happens in the View (see walkLauncherHeight), where the
+// animation has a frame to live in; a height the window already carries
+// never starts one.
+func (a *App) resizeLauncher(height int) {
+	if a.Surf != SurfaceLauncher {
+		return
+	}
+	a.launcherTarget = height
+}
+
+// walkLauncherHeight moves the window to the launcher's target height, one
+// eased step per frame: the old shell's edge walk. The element's Animate
+// keeps the frames coming until the value lands, and the last step's
+// SetSize is the only one the platform sees at the end. A window that is
+// already there does nothing — the common case, a keystroke that left the
+// list the same size.
+func (a *App) walkLauncherHeight(c *ui.Context) {
+	if a.Win == nil || a.Surf != SurfaceLauncher || a.launcherTarget == 0 {
+		return
+	}
+	current := float32(a.lastH)
+	target := float32(a.launcherTarget)
+	// The animation's carrier: a zero-size element that lays out nothing,
+	// whose Animate state lives across the frames the walk needs.
+	animated := ui.Box(c).Size(0, 0).Opacity(0)
+	height := animated.Animate("launcher.height", target, 150*time.Millisecond)
+	if int(math.Round(float64(height))) == int(current) {
+		return
+	}
+	a.Win.SetSize(launcher.InputWindowWidth, int(math.Round(float64(height))))
+	a.lastW, a.lastH = launcher.InputWindowWidth, int(math.Round(float64(height)))
+}
+
 // Hide hides the window, leaving the app running with its shortcut.
 func (a *App) Hide() {
 	if a.Win != nil {
@@ -1878,6 +1916,10 @@ func (a *App) View(c *ui.Context) {
 	s := a.Store.Snapshot()
 	surface := launcher.Resolve(s, c.Theme().Dark)
 	c.SetTheme(surface.Tokens.Theme)
+
+	// The launcher's window walks to its target height here, where the
+	// animation has a frame to live in.
+	a.walkLauncherHeight(c)
 
 	// Only the card paints; the window's transparent margin shows the
 	// desktop, which the glass reads through.
@@ -1987,7 +2029,10 @@ func (a *App) inset() (top, right, bottom, left float32) {
 	}
 }
 
-// targetSize is the window size for the current surface and settings.
+// targetSize is the window size for the current surface and settings. The
+// launcher opens at the band its last query left it at (the height follows
+// the list once the View has measured it), so a summon lands where the
+// search stood rather than at a fixed slab.
 func (a *App) targetSize(s settings.Settings) (int, int) {
 	switch a.Surf {
 	case SurfaceSettings:
@@ -1995,8 +2040,29 @@ func (a *App) targetSize(s settings.Settings) (int, int) {
 	case SurfaceTerminal:
 		return int(math.Round(s.TerminalWidth)), int(math.Round(s.TerminalHeight))
 	default:
-		return launcher.InputWindowWidth, int(math.Round(launcher.WindowHeight(s.UIScale)))
+		return launcher.InputWindowWidth, a.launcherHeight(s)
 	}
+}
+
+// launcherHeight is the launcher window's height: the band its held row
+// count asks for when the View has measured the list, and the full slab
+// before the first frame (a window opens at its query's height, not at a
+// placeholder's).
+func (a *App) launcherHeight(s settings.Settings) int {
+	if a.Launcher == nil || a.Launcher.HeldRows == 0 {
+		return int(math.Round(launcher.WindowHeight(s.UIScale)))
+	}
+	cap := 0.0
+	if a.workArea > 0 {
+		cap = a.workArea - 24
+	}
+	return launcher.Geometry{
+		Font:     a.Launcher.Font,
+		Spacing:  a.Launcher.Spacing,
+		RowLines: a.Launcher.RowLines,
+		Held:     a.Launcher.HeldRows,
+		Cap:      cap,
+	}.Height()
 }
 
 // SettingsHeight is the settings panel's height at an interface step, capped
@@ -2037,4 +2103,10 @@ func (a *App) resize() {
 	}
 	a.lastW, a.lastH = w, h
 	a.Win.SetSize(w, h)
+	// The launcher's walk follows the surface's own resize: without this a
+	// summon would land the window at the slab and the next View frame
+	// would walk it somewhere else.
+	if a.Surf == SurfaceLauncher {
+		a.launcherTarget = h
+	}
 }

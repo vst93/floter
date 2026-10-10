@@ -203,6 +203,11 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 - Integrations 页每命令一个别名输入框，提交写入 `command_aliases`（清空即删），冲突时行内
   标注"别名已被其他命令占用"；写入后重交启动器命令列表并重扫 PATH 工具。
 
+**P1-z 启动器窗口高度跟随内容**（本轮）
+- 窗口高度 = 卡片带（字段行 + 列表上缘 + 逐行高度 + 卡片内边距）+ 平台内缩，主题值逐行测量；
+  十行帽 + 一行收缩滞回。View 用 `Animate`（150ms EaseOut）逐帧走窗口边缘，高度没变不碰平台。
+  `internal/launcher/height.go` 是唯一来源。
+
 ## 尚未做（按建议优先级）
 
 1. **列表协议的分页**：`page.cursor`/`hasMore` 与滚动加载（需要带着 cursor 重新执行命令）；旧版还有
