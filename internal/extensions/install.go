@@ -33,6 +33,11 @@ type installSpec struct {
 	// names a system runtime by name and the program is not on the search
 	// path (the connect flow's own file).
 	ExecutablePath string
+	// InPlace installs the package where it already is instead of copying it
+	// into the extensions directory: the connect flow writes a generated
+	// package into the *data* directory (the old build's
+	// `<data>/<id>/integration`), and that directory is its home.
+	InPlace bool
 }
 
 // Prepared is an install that has been staged but not committed: the
@@ -54,6 +59,9 @@ type Prepared struct {
 	// connect flow knows exactly which file the user pointed at, and the
 	// search path may not carry it.
 	ExecutablePath string
+	// InPlace installs the package where it already is, for the connect flow's
+	// generated packages (see installSpec.InPlace).
+	InPlace bool
 }
 
 // PrepareLocal stages a package directory for install.
@@ -176,6 +184,9 @@ func (p Prepared) Commit(approved bool) (Entry, error) {
 	if p.ExecutablePath != "" {
 		spec.ExecutablePath = p.ExecutablePath
 	}
+	if p.InPlace {
+		spec.InPlace = true
+	}
 	return install(p.paths, spec)
 }
 
@@ -261,31 +272,38 @@ func install(paths Paths, spec installSpec) (Entry, error) {
 	}
 
 	target := filepath.Join(paths.Extensions, manifest.ID)
-	staging, err := os.MkdirTemp(paths.Extensions, ".staging-"+manifest.ID+"-")
-	if err != nil {
-		return Entry{}, err
-	}
-	defer os.RemoveAll(staging)
-
-	if err := copyTree(packageDir, staging); err != nil {
-		return Entry{}, fmt.Errorf("extensions: staging %s: %w", packageDir, err)
-	}
-
-	// Move the old package aside, put the new one in place, and only then
-	// drop the backup: a failure leaves the old install usable.
 	backup := ""
-	if _, err := os.Stat(target); err == nil {
-		backup = target + ".backup"
-		os.RemoveAll(backup)
-		if err := os.Rename(target, backup); err != nil {
+	if spec.InPlace {
+		// The package is already where it belongs (the connect flow writes it
+		// into the data directory): there is nothing to copy and nothing to
+		// move, and the entry points at it as it stands.
+		target = packageDir
+	} else {
+		staging, err := os.MkdirTemp(paths.Extensions, ".staging-"+manifest.ID+"-")
+		if err != nil {
 			return Entry{}, err
 		}
-	}
-	if err := os.Rename(staging, target); err != nil {
-		if backup != "" {
-			os.Rename(backup, target)
+		defer os.RemoveAll(staging)
+
+		if err := copyTree(packageDir, staging); err != nil {
+			return Entry{}, fmt.Errorf("extensions: staging %s: %w", packageDir, err)
 		}
-		return Entry{}, err
+
+		// Move the old package aside, put the new one in place, and only then
+		// drop the backup: a failure leaves the old install usable.
+		if _, err := os.Stat(target); err == nil {
+			backup = target + ".backup"
+			os.RemoveAll(backup)
+			if err := os.Rename(target, backup); err != nil {
+				return Entry{}, err
+			}
+		}
+		if err := os.Rename(staging, target); err != nil {
+			if backup != "" {
+				os.Rename(backup, target)
+			}
+			return Entry{}, err
+		}
 	}
 
 	entry := buildEntry(manifest, target, binding, spec, previous, existed)
@@ -298,7 +316,9 @@ func install(paths Paths, spec installSpec) (Entry, error) {
 	if err := SaveRepository(paths.RepositoryFile, repo); err != nil {
 		// Put the previous install back: the repository is the source of
 		// truth and it did not change.
-		os.RemoveAll(target)
+		if !spec.InPlace {
+			os.RemoveAll(target)
+		}
 		if backup != "" {
 			os.Rename(backup, target)
 		}

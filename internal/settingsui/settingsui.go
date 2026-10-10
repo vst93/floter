@@ -124,6 +124,12 @@ type Actions struct {
 	Freshness func(id string) (extensions.Freshness, bool)
 	// CopyText puts text on the clipboard, for the About page's deep links.
 	CopyText func(text string)
+	// EditCustomTool rewrites a generated integration from the same form the
+	// connect flow uses (the id names it, so its identity is kept), and
+	// ToolForEdit hands the form what that integration declares now. Both nil
+	// hides the button.
+	EditCustomTool func(id string, tool CustomTool)
+	ToolForEdit    func(id string) (CustomTool, bool)
 	// ConnectRecommended installs one of the shipped tool packages, and
 	// ConnectLocalTool connects a program already on this machine.
 	ConnectRecommended func(id string)
@@ -312,6 +318,9 @@ type App struct {
 	toolPermissions map[string]bool
 	// toolParams is the declared inputs the form is editing, one per row.
 	toolParams []toolParam
+	// toolEditing is the integration the form is rewriting, empty when it is
+	// connecting something new.
+	toolEditing string
 
 	// Sessions reports the running sessions; nil when the shell has none
 	// (tests).
@@ -1065,6 +1074,13 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 					a.Actions.ReprobeCommands(integration.ID)
 				}
 			}
+			if integration.Generated && a.Actions.EditCustomTool != nil && a.Actions.ToolForEdit != nil {
+				if ui.Button(c, copy.EditLabel).Clicked() {
+					if tool, ok := a.Actions.ToolForEdit(integration.ID); ok {
+						a.beginEdit(integration.ID, tool)
+					}
+				}
+			}
 			if a.Actions.UninstallComponents != nil {
 				a.uninstallComponentsRow(c, copy, integration)
 			} else if a.Actions.UninstallIntegration != nil {
@@ -1792,7 +1808,11 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 			}
 		})
 		a.toolParamsEditor(c, copy)
-		requested := ui.Button(c, copy.LocalToolConnect).Clicked()
+		action := copy.LocalToolConnect
+		if a.toolEditing != "" {
+			action = copy.LocalToolSave
+		}
+		requested := ui.Button(c, action).Clicked()
 		a.toolName, a.toolProgram, a.toolCommand = name, program, command
 		a.toolArgs, a.toolVersionArgs, a.toolVersion = args, versionArgs, version
 		a.toolDescription = description
@@ -1818,12 +1838,13 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 			if tool.Name == "" || tool.Program == "" {
 				return // the form says what is missing by staying put
 			}
-			a.Actions.ConnectLocalTool(tool)
+			if a.toolEditing != "" {
+				a.Actions.EditCustomTool(a.toolEditing, tool)
+			} else {
+				a.Actions.ConnectLocalTool(tool)
+			}
 			a.toolOpen = false
-			a.toolParams = nil
-			a.toolName, a.toolProgram, a.toolCommand = "", "", ""
-			a.toolArgs, a.toolVersionArgs, a.toolVersion, a.toolDescription = "", "", "", ""
-			a.toolPermissions = map[string]bool{}
+			a.endEdit()
 		}
 	})
 }
@@ -2228,4 +2249,39 @@ func (a *App) declaredParams() []extensions.ParamDefinition {
 		params = append(params, definition)
 	}
 	return params
+}
+
+// beginEdit fills the local-tool form from what an integration declares and
+// remembers that the form is editing it rather than connecting something new.
+func (a *App) beginEdit(id string, tool CustomTool) {
+	a.toolOpen = true
+	a.toolEditing = id
+	a.toolName = tool.Name
+	a.toolProgram = tool.Program
+	a.toolCommand = tool.Command
+	a.toolArgs = tool.Args
+	a.toolVersionArgs = tool.VersionArgs
+	a.toolVersion = tool.Version
+	a.toolDescription = tool.Description
+	a.toolOutput = tool.Output
+	a.toolPermissions = map[string]bool{}
+	for _, permission := range tool.Permissions {
+		a.toolPermissions[permission] = true
+	}
+	a.toolParams = nil
+	for _, param := range tool.Params {
+		a.toolParams = append(a.toolParams, toolParam{
+			ID: param.ID, Label: param.Label, Kind: param.Kind, Flag: param.Flag,
+			Required: param.Required, Options: strings.Join(param.Options, ", "),
+		})
+	}
+}
+
+// endEdit clears the edit state, so the next connection starts a new package.
+func (a *App) endEdit() {
+	a.toolEditing = ""
+	a.toolName, a.toolProgram, a.toolCommand = "", "", ""
+	a.toolArgs, a.toolVersionArgs, a.toolVersion, a.toolDescription = "", "", "", ""
+	a.toolParams = nil
+	a.toolPermissions = map[string]bool{}
 }

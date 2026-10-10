@@ -60,8 +60,17 @@ func TestCreateCustomTool(t *testing.T) {
 	if entry.ID == "" || entry.Name != "My Gadget" {
 		t.Fatalf("entry = %+v", entry)
 	}
-	// The package is where the host keeps its own generated integrations.
+	// The package is where the host keeps its own generated integrations —
+	// and it stays there: nothing is copied into the extensions directory, so
+	// the generated integration is the same directory the old build's
+	// `is_generated_custom_integration` looks for.
 	packageDir := filepath.Join(paths.Data, entry.ID, "integration")
+	if entry.ManifestPath != filepath.Join(packageDir, manifestFileName) {
+		t.Errorf("the entry points at %q, want the data directory's package", entry.ManifestPath)
+	}
+	if _, err := os.Stat(filepath.Join(paths.Extensions, entry.ID)); err == nil {
+		t.Error("the package was also copied into the extensions directory")
+	}
 	for _, name := range []string{manifestFileName, "package.json", "provider-description.json"} {
 		if _, err := os.Stat(filepath.Join(packageDir, name)); err != nil {
 			t.Errorf("%s is missing: %v", name, err)
@@ -196,5 +205,68 @@ func TestCreateCustomCarriesParams(t *testing.T) {
 		Params: []ParamDefinition{{ID: "a", Kind: "colour"}},
 	}, true); err == nil {
 		t.Error("a bad declaration was accepted")
+	}
+}
+
+// Editing a generated integration keeps its identity, rebuilds the manifest
+// from the request, and re-derives the command list; publisher content is
+// never rewritten.
+func TestUpdateCustomTool(t *testing.T) {
+	paths, program := customToolFixture(t)
+	entry, err := CreateCustom(context.Background(), paths, CustomRequest{
+		Name: "My Gadget", Command: "gadget", ExecutablePath: program,
+	}, true)
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	// Rewrite it: a new name, a new argument prefix, a declared input.
+	updated, err := UpdateCustom(context.Background(), paths, entry.ID, CustomRequest{
+		Name:           "My Gadget Renamed",
+		Command:        "gadget",
+		ExecutablePath: program,
+		ArgsPrefix:     []string{"--floter"},
+		Description:    "renamed",
+		Params:         []ParamDefinition{{ID: "target", Kind: ParamText, Flag: "--target"}},
+	}, true)
+	if err != nil {
+		t.Fatalf("update: %v", err)
+	}
+	if updated.ID != entry.ID {
+		t.Errorf("the identity changed: %q -> %q", entry.ID, updated.ID)
+	}
+	integration, ok := LoadInventory(paths).WithID(entry.ID)
+	if !ok {
+		t.Fatal("the integration does not load")
+	}
+	if integration.Name != "My Gadget Renamed" || len(integration.Manifest.Provider.ArgsPrefix) != 1 {
+		t.Errorf("integration = %+v", integration.Manifest)
+	}
+	if len(integration.Manifest.Params) != 1 {
+		t.Errorf("params = %+v", integration.Manifest.Params)
+	}
+	// The descriptor was re-derived: the plugin the help lists is still there.
+	data, readErr := os.ReadFile(filepath.Join(integration.PackageDir(), "provider-description.json"))
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	descriptor, parseErr := ParseDescription(data)
+	if parseErr != nil {
+		t.Fatal(parseErr)
+	}
+	if len(descriptor.Commands) != 2 {
+		t.Errorf("commands = %+v", descriptor.Commands)
+	}
+	// Only a generated integration may be edited.
+	repo, _ := LoadRepository(paths.RepositoryFile)
+	repoEntry := repo.Extensions[entry.ID]
+	repoEntry.PublisherID = "vst"
+	repo.Extensions[entry.ID] = repoEntry
+	if err := SaveRepository(paths.RepositoryFile, repo); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := UpdateCustom(context.Background(), paths, entry.ID, CustomRequest{
+		Name: "Nope", ExecutablePath: program,
+	}, true); err == nil {
+		t.Error("a publisher integration was edited")
 	}
 }

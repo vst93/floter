@@ -1746,3 +1746,71 @@ func TestConnectFormDeclaresInputs(t *testing.T) {
 		t.Errorf("the row survived its removal: %+v", a.toolParams)
 	}
 }
+
+// Editing a generated integration: the button fills the same form from what
+// the integration declares now, and the submit rewrites it (the id names it)
+// rather than connecting a second one.
+func TestEditGeneratedIntegration(t *testing.T) {
+	edited := []struct {
+		id   string
+		tool CustomTool
+	}{}
+	connected := []CustomTool{}
+	a := New(settings.NewStore(settings.Default()), Actions{
+		EditCustomTool: func(id string, tool CustomTool) {
+			edited = append(edited, struct {
+				id   string
+				tool CustomTool
+			}{id, tool})
+		},
+		ConnectLocalTool: func(tool CustomTool) { connected = append(connected, tool) },
+		ToolForEdit: func(id string) (CustomTool, bool) {
+			if id != "local.abc" {
+				return CustomTool{}, false
+			}
+			return CustomTool{
+				Name: "Ripgrep", Program: "/usr/bin/rg", Command: "rg",
+				Args: "--floter", Version: "1.0.0",
+				Params: []extensions.ParamDefinition{{ID: "target", Kind: "text", Flag: "--target"}},
+			}, true
+		},
+	})
+	a.Integrations = func() []Integration {
+		return []Integration{{
+			ID: "local.abc", Name: "Ripgrep", Enabled: true, Running: true, Generated: true,
+		}}
+	}
+	tt := render(t, a, 720, 2200)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if err := tt.Click("Edit\u2026"); err != nil {
+		t.Fatalf("edit: %v", err)
+	}
+	tt.Frame()
+	// The form is open and filled from the integration.
+	if !tt.HasText("Ripgrep") || !tt.HasText("Input 1") {
+		t.Fatalf("the form was not filled: %q", tt.Texts())
+	}
+	if a.toolEditing != "local.abc" || a.toolProgram != "/usr/bin/rg" {
+		t.Fatalf("editing=%q program=%q", a.toolEditing, a.toolProgram)
+	}
+	// Saving rewrites it, and does not connect a second package.
+	if err := tt.Click("Save"); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	tt.Frame()
+	if len(edited) != 1 || edited[0].id != "local.abc" {
+		t.Fatalf("edited = %+v", edited)
+	}
+	if len(connected) != 0 {
+		t.Errorf("editing also connected: %+v", connected)
+	}
+	if edited[0].tool.Command != "rg" || edited[0].tool.Args != "--floter" {
+		t.Errorf("the draft lost its fields: %+v", edited[0].tool)
+	}
+	if a.toolEditing != "" {
+		t.Errorf("the form stayed in edit mode: %q", a.toolEditing)
+	}
+}

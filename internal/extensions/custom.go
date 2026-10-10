@@ -107,6 +107,10 @@ func PrepareCustom(ctx context.Context, paths Paths, request CustomRequest) (Pre
 	if request.Mode == "executable" {
 		prepared.ExecutablePath = request.ExecutablePath
 	}
+	// The package the host just wrote is its home: nothing is copied into the
+	// extensions directory, so the generated integration lives where the old
+	// build kept it (`<data>/<id>/integration`).
+	prepared.InPlace = true
 	return PreparedCustom{Prepared: prepared, ID: id, Request: request, paths: paths, cleanup: cleanup}, nil
 }
 
@@ -128,6 +132,70 @@ func (p PreparedCustom) Commit(approved bool) (Entry, error) {
 		entry.ToolVersion = &version
 	}
 	return entry, nil
+}
+
+// UpdateCustom rewrites a generated integration from a new request, keeping
+// its identity: the manifest is rebuilt (so a changed declaration invalidates
+// the approval on purpose), the command list is re-derived from the tool's own
+// help, and the same install path records the result. Only integrations the
+// host itself generated can be edited this way — publisher content is never
+// rewritten.
+func UpdateCustom(ctx context.Context, paths Paths, id string, request CustomRequest, approved bool) (Entry, error) {
+	integration, ok := LoadInventory(paths).WithID(id)
+	if !ok {
+		return Entry{}, ErrNoIntegration
+	}
+	if !isGeneratedIntegration(integration) {
+		return Entry{}, ErrNotGenerated
+	}
+	request, err := normalizeCustom(request)
+	if err != nil {
+		return Entry{}, err
+	}
+	root := integration.PackageDir()
+	if root == "" {
+		return Entry{}, ErrNotGenerated
+	}
+	// The manifest keeps its identity and its version fields; everything the
+	// form owns comes from the request.
+	if err := writeCustomPackage(ctx, paths, root, id, request); err != nil {
+		return Entry{}, err
+	}
+	prepared, err := PrepareLocal(paths, root)
+	if err != nil {
+		return Entry{}, err
+	}
+	if request.Mode == "executable" {
+		prepared.ExecutablePath = request.ExecutablePath
+	}
+	prepared.InPlace = true
+	entry, err := prepared.Commit(approved)
+	if err != nil {
+		return Entry{}, err
+	}
+	if version := probeVersion(ctx, paths, entry.ID); version != "" {
+		_ = SetToolVersion(paths, entry.ID, version)
+		entry.ToolVersion = &version
+	}
+	return entry, nil
+}
+
+// ApprovalForCustom is what rewriting a generated integration would ask the
+// user to approve: the permissions the new request declares that the recorded
+// entry does not already carry. It is the preview the edit form shows before
+// the rewrite, so the answer can be given once.
+func ApprovalForCustom(paths Paths, id string, request CustomRequest) PermissionApproval {
+	integration, ok := LoadInventory(paths).WithID(id)
+	if !ok {
+		return PermissionApproval{}
+	}
+	normalized, err := normalizeCustom(request)
+	if err != nil {
+		return PermissionApproval{}
+	}
+	manifest := customManifest(id, normalized)
+	previous := integration.Entry
+	return RequiresApproval(&previous, manifest, "")
 }
 
 // Discard removes a prepared tool's package: what a caller does when the user

@@ -331,6 +331,11 @@ type Settings struct {
 	// note that another command claimed the alias first.
 	IntegrationsReprobe   string
 	IntegrationsInstalled string
+	// EditLabel opens the form again on an integration the host generated.
+	EditLabel string
+	// LocalToolSave is the form's button while it is rewriting rather than
+	// connecting.
+	LocalToolSave string
 	// The run-time parameter form: the button, the "not yet complete" refusal,
 	// and the line that says where the output will land.
 	// The declared-inputs editor.

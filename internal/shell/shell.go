@@ -483,6 +483,8 @@ func New(opts Options) *App {
 		DiagnoseIntegration: a.diagnoseIntegration,
 		ReprobeCommands:     a.reprobeCommands,
 		ConnectLocalTool:    a.connectLocalTool,
+		EditCustomTool:      a.editCustomTool,
+		ToolForEdit:         a.toolForEdit,
 		Freshness:           a.integrationFreshness,
 		Detected:            a.detectedTools,
 		ConnectDetected:     a.connectDetected,
@@ -1676,6 +1678,69 @@ func (a *App) integrationFreshness(id string) (extensions.Freshness, bool) {
 		return extensions.Freshness{}, false
 	}
 	return freshness, true
+}
+
+// toolForEdit is what a generated integration declares now, for the form to
+// pre-fill: the same fields the connect flow collects, read back from the
+// manifest, the descriptor and the repository.
+func (a *App) toolForEdit(id string) (settingsui.CustomTool, bool) {
+	integration, ok := a.Integrations.Inventory().WithID(id)
+	if !ok {
+		return settingsui.CustomTool{}, false
+	}
+	manifest := integration.Manifest
+	descriptor, err := extensions.Describe(context.Background(), integration)
+	if err != nil || len(descriptor.Commands) == 0 {
+		return settingsui.CustomTool{}, false
+	}
+	root := descriptor.Commands[0]
+	tool := settingsui.CustomTool{
+		Name:        integration.Name,
+		Program:     integration.Entry.ExecutablePath,
+		Command:     root.ID,
+		Args:        strings.Join(manifest.Provider.ArgsPrefix, " "),
+		VersionArgs: strings.Join(manifest.Runtime.VersionArgs, " "),
+		Version:     integration.Version,
+		Description: manifest.Description,
+		Output:      manifest.Output,
+		Permissions: append([]string{}, manifest.Permissions...),
+		Params:      append([]extensions.ParamDefinition{}, manifest.Params...),
+	}
+	return tool, true
+}
+
+// editCustomTool rewrites a generated integration from the form: the package
+// is regenerated in place, its command list re-derived, and the same install
+// path records it — with the permission review a changed manifest requires.
+func (a *App) editCustomTool(id string, tool settingsui.CustomTool) {
+	go func() {
+		request := extensions.CustomRequest{
+			Name:           tool.Name,
+			Command:        tool.Command,
+			Version:        tool.Version,
+			ExecutablePath: tool.Program,
+			Description:    tool.Description,
+			ArgsPrefix:     strings.Fields(tool.Args),
+			VersionArgs:    strings.Fields(tool.VersionArgs),
+			Permissions:    tool.Permissions,
+			Output:         tool.Output,
+			Params:         tool.Params,
+		}
+		// The approval is checked against the *new* manifest before anything
+		// is written: a changed declaration is exactly what invalidates the
+		// old one, and the user answers once.
+		approved := true
+		if approval := extensions.ApprovalForCustom(a.Paths, id, request); approval.NeedsApproval() {
+			approved = a.confirmInstallPermissions(approval)
+		}
+		entry, err := extensions.UpdateCustom(context.Background(), a.Paths, id, request, approved)
+		if err != nil {
+			log.Printf("floter: could not edit %s: %v", id, err)
+			return
+		}
+		a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationInstalled(entry.Name) })
+		a.RefreshIntegrations(context.Background())
+	}()
 }
 
 // chooseProgram asks the user to point at a program on this machine, through
