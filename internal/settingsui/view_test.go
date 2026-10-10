@@ -1310,3 +1310,38 @@ func TestClipboardClearControl(t *testing.T) {
 		t.Errorf("cleared %d times", cleared)
 	}
 }
+
+// The launcher's own switches are reachable and write through the store: the
+// recent applications, the menu bar icon, and the PATH commands joining the
+// search.
+func TestLauncherSwitchesWriteThroughTheStore(t *testing.T) {
+	store := settings.NewStore(settings.Default())
+	a := New(store, Actions{})
+	tt := render(t, a, 720, 1400)
+	if err := tt.Click("Show recently launched apps"); err != nil {
+		t.Fatalf("recent switch: %v", err)
+	}
+	tt.Frame()
+	if settings.ShowRecentInLauncher(store.Snapshot()) {
+		t.Error("the recent switch did not turn off")
+	}
+	if err := tt.Click("Show menu bar icon"); err != nil {
+		t.Fatalf("tray switch: %v", err)
+	}
+	tt.Frame()
+	if settings.ShowMenubarIcon(store.Snapshot()) {
+		t.Error("the tray switch did not turn off")
+	}
+	// The commands switch lives on the Integrations page.
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if err := tt.Click("Show PATH commands in search"); err != nil {
+		t.Fatalf("commands switch: %v", err)
+	}
+	tt.Frame()
+	if !settings.ShowCommandsInSearch(store.Snapshot()) {
+		t.Error("the commands switch did not turn on")
+	}
+}

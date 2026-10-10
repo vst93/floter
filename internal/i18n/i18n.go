@@ -221,10 +221,19 @@ type Settings struct {
 	SurfaceResidencyValue func(seconds uint32) string
 
 	// The Sessions page.
-	SessionsNone    string
-	SessionsRunning string
-	SessionsClose   string
-	SessionsActive  string
+	// The launcher's own switches: whether an empty query offers the recent
+	// applications, whether the tray icon shows, and whether the PATH commands
+	// join the search.
+	ShowRecentInLauncher     string
+	ShowRecentInLauncherHint string
+	ShowMenubarIcon          string
+	ShowMenubarIconHint      string
+	ShowCommandsInSearch     string
+	ShowCommandsInSearchHint string
+	SessionsNone             string
+	SessionsRunning          string
+	SessionsClose            string
+	SessionsActive           string
 
 	// The permission dialog the installer shows, and the permission line
 	// the integrations list draws.

@@ -639,6 +639,14 @@ func (a *App) integrations(c *ui.Context, copy i18n.Settings) {
 		a.recommendedRow(c, copy)
 		a.transferRow(c, copy)
 		a.installRow(c, copy)
+		// The PATH commands' own switch sits with the integrations, as the old
+		// panel had it: it decides whether the search offers them at all.
+		a.card(c, func() {
+			a.checkbox(c, copy.ShowCommandsInSearch, settings.ShowCommandsInSearch(a.Store.Snapshot()),
+				func(on bool) {
+					a.set(func(s *settings.Settings) { s.SetShowCommandsInSearch(on) })
+				})
+		})
 		if len(integrations) == 0 {
 			ui.Column(c).FillWidth().Padding(t.Space(4)).Center().Children(func() {
 				ui.Text(c, copy.IntegrationsEmpty).FontSize(t.FontSize).TextColor(t.TextMuted)
@@ -1178,6 +1186,10 @@ func (a *App) general(c *ui.Context, copy i18n.Settings) {
 					func(on bool) { a.set(func(s *settings.Settings) { s.LaunchAtStartup = on }) })
 				a.checkbox(c, copy.HideOnBlur, s.HideOnBlur,
 					func(on bool) { a.set(func(s *settings.Settings) { s.HideOnBlur = on }) })
+				a.checkbox(c, copy.ShowRecentInLauncher, settings.ShowRecentInLauncher(s),
+					func(on bool) { a.set(func(s *settings.Settings) { s.SetShowRecentInLauncher(on) }) })
+				a.checkbox(c, copy.ShowMenubarIcon, settings.ShowMenubarIcon(s),
+					func(on bool) { a.set(func(s *settings.Settings) { s.SetShowMenubarIcon(on) }) })
 				a.choose(c, copy.SurfaceResidency, copy.SurfaceResidencyHint,
 					residencyOptions(copy, s.SurfaceResidencySeconds),
 					strconv.FormatUint(uint64(s.SurfaceResidencySeconds), 10),

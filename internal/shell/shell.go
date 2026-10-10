@@ -240,6 +240,11 @@ type App struct {
 	// lastMenubarIcon is the show_menubar_icon value the tray was last
 	// synced with.
 	lastMenubarIcon bool
+	// lastShowRecent and lastShowCommands are the show_recent_in_launcher and
+	// show_commands_in_search values the launcher was last synced with: a
+	// change re-hands the recents, or re-scans the PATH.
+	lastShowRecent   bool
+	lastShowCommands bool
 	// shortcutsSuspended is true while a settings recorder holds the keyboard:
 	// the global shortcuts are released then.
 	shortcutsSuspended bool
@@ -719,6 +724,14 @@ func New(opts Options) *App {
 				a.lastMenubarIcon = settings.ShowMenubarIcon(s)
 				a.ApplyMenubarIcon()
 			}
+			if settings.ShowRecentInLauncher(s) != a.lastShowRecent {
+				a.lastShowRecent = settings.ShowRecentInLauncher(s)
+				a.refreshRecents()
+			}
+			if settings.ShowCommandsInSearch(s) != a.lastShowCommands {
+				a.lastShowCommands = settings.ShowCommandsInSearch(s)
+				a.scanTools()
+			}
 			if customShortcutSignature(s) != a.customSignature {
 				a.ApplyCustomShortcuts()
 			}
@@ -815,6 +828,8 @@ func (a *App) Start() {
 	a.ApplyStartup()
 	a.InstallMenu()
 	a.lastMenubarIcon = settings.ShowMenubarIcon(a.Store.Snapshot())
+	a.lastShowRecent = settings.ShowRecentInLauncher(a.Store.Snapshot())
+	a.lastShowCommands = settings.ShowCommandsInSearch(a.Store.Snapshot())
 	a.ApplyMenubarIcon()
 	a.ApplyAppIcon()
 	a.watchClipboard()
