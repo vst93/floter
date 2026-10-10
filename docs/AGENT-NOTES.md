@@ -73,3 +73,23 @@ opt-in（`FLOTER_TERMINAL_TEST=1`、`FLOTER_SQLITE_TEST=1`、`FLOTER_REGISTRY_TE
 - 每轮改动自带测试；先跑门槛再提交。
 - 报告里"已做 / 未做"要如实分开写，未做的不要写成半成品。
 - 用户可见文案走 `internal/i18n`（en/zh 结构体，缺字段编译期报错），不要散落字面量。
+
+## 2026-10-11 · P7（mygo v0.4.0、单位、插件表单、五个没接线的动作）
+
+- **升级到 mygo v0.4.0**（新增 `ui.WebView`/`Window.NewWebView`、`OnPaste`、`Dismissed`、
+  `InsetShadow`；本应用不需要 WebView，插件是 CLI 工具不是网页）。
+- **不要忘了 `SetMenu(nil)`**：框架在从未调用 `SetMenu` 时会装一份默认应用菜单，Linux/Windows 上
+  它画在窗口*内部*（浮动面板顶上一条 File/Edit/View）。非 macOS 显式清掉。
+- **没有 backdrop 的平台不要画 haze**：`c.Vibrancy()` 为 false 时（Linux、Windows 11 之前），
+  面纱不是"盖住模糊"而只是"加不透明"，半屏面纱会把玻璃变成实心板。
+- **单位**：本仓库的 `Space(n)` = 旧版 4u；正文 `t.FontSize` 必须是 `11 * ui-scale`（框架默认
+  13/14pt 大了四分之一，会让每行都比原型高）。`internal/theme.BodyUnits` 是那个 11。
+- **启动器窗口高度**：`66 + rows × 42`（u）——输入行 56u + 呼吸 4u + 面板上内边距 4u + 尾 2u。
+  `internal/launcher/height.go` 的常量与 shell 画的卡片内边距必须同时改，否则卡片比窗口高/矮。
+- **`Shortcut()` 会消费按键**：`if a.pending != "" && c.Shortcut(...)` 而不是反过来，否则一个
+  总是被问的 Escape 会把后面所有 Escape 处理都吃掉（踩过一次）。
+- **审计 action 接线**：曾经有 5 个 `launcher.Actions` 字段在 shell 里是 nil（电源、打开路径、
+  在目录里开终端、外部终端、安装会话），功能静默失效。现在有反射测试钉住"shell 必须回答每个
+  action"，其他包也可以照做。
+- **mygo 的 `Tester.Texts()` 只包含这一帧构建过的元素**：视图里的早退 `return` 会把它后面的所有
+  元素都跳过（输入行曾经因此整行消失）。

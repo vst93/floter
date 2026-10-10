@@ -1,6 +1,6 @@
 # floter × mygo 重构：当前进度与后续规划
 
-> 交接文档。状态时间：2026-10-09，分支 `mygo-rewrite`（已推送）。
+> 交接文档。状态时间：2026-10-11，分支 `mygo-rewrite`（已推送）。
 > **仓库现在只有 Go 实现**：Tauri/Rust/React 时代的代码已删除（P6-b）。
 > 详细的分轮记录见 `docs/mygo-rewrite-plan.md`（含每轮的决策与「未做」清单）。
 
@@ -8,7 +8,7 @@
 
 用 mygo（原生 GPU 自绘 UI + Go）重写的 floter **已经是一个可打包、可运行的完整应用**：单窗口三表面
 （启动器 / 设置 / 终端）、搜索内核、扩展平台（含后台运行、列表协议、导入导出、权限审计）、剪贴板、
-浏览器、计算器、系统集成、打包与 CI 全部就位。**343 项测试全绿**，三平台都能构建，Linux 打包
+浏览器、计算器、系统集成、打包与 CI 全部就位。**492 项测试全绿**，三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
 含测试）。
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 343 项测试
+go test -count=1 ./...         # 492 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -97,6 +97,45 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
   （同环境 mygo 最小窗口 137 MB）。
 
 ## 最近几轮（详细记录见 plan）
+
+**P7-a mygo v0.4.0 + 菜单栏与透明**（本轮）
+- mygo `v0.3.7 → v0.4.0`：新增 `ui.WebView`（页面内嵌原生 WebView，配 `Window.NewWebView`）、
+  `OnPaste`、`Dismissed`、`InsetShadow`。本应用不需要（插件是 CLI 工具，不是网页），但升级后三平台全绿。
+- **菜单栏**：mygo 在从未调用 `SetMenu` 时会安装一份*默认*应用菜单，Linux/Windows 上它被画在窗口**内部**
+  —— 浮动面板顶上一条 File/Edit/View。旧版根本没有应用菜单（托盘即菜单），所以现在非 macOS 上显式
+  `SetMenu(nil)`，macOS 保留（那里的菜单进系统菜单栏，不占窗口）。
+- **玻璃面纱**：`haze` 是为了盖住旧版 `backdrop-filter` 模糊出来的桌面；没有 backdrop 的平台
+  （Linux，以及 Windows 11 之前，`c.Vibrancy()` 为 false）下面纱不是"盖模糊"而只是"加不透明"，
+  于是半屏面纱把玻璃变成了实心板。这些平台不再画面纱，只有 tint 的 alpha（用户设置的不透明度）透出桌面。
+
+**P7-b 单位与启动器几何（本轮）**
+- **字号**：框架默认正文 13/14pt，而本设计是旧版的 `--text-body: 11px * ui-scale`（本仓库的每个
+  `Space(n)` 都是它的 4 倍）。字号大了四分之一，导致每行都比原型高、文字与框的比例整体走样。
+  现在正文就是 11u，整条阶梯（caption/emphasis/title/display）随之落位。
+- **启动器几何**：输入行 56u（R37 那个和设置页头部等高的带）、面板内边距 4u 上 / 2u 下（`.launcher-bottom`）、
+  行高不低于 42u（两行）/ 34u（一行）。于是 `66 + rows × 42` 就是窗口高度，和旧版 `result-budget.ts` 一字不差。
+
+**P7-c 插件配置覆盖层（本轮）**
+- 「配置页面通用化：点击设置之后，弹出一个基于通用规则的配置页面，而不是一个新的完全独立的页面。」
+  旧版 R29 用声明式 schema + 一个通用覆盖层回答了它；本仓库此前用"每个插件一个设置页"回答，
+  而那正是 R29 取代的东西。现在齿轮在启动器自己的带里打开表单，用设置页自己的卡片语言渲染。
+  - 新包 `internal/plugincfg`：字段（kind = toggle/select/radio/checkboxes/slider/number/text/action）、
+    标签、帮助、边界/选项、分组，加上三个内置插件的 schema 与旧版的高度预算。
+  - `settingsui.PluginSheet` 渲染任意 schema，不认识任何插件名。
+  - 启动器持有带、armed action 与失败行；齿轮在打开时变成 ✕（R41：打开它的控件是唯一关闭它的控件）。
+  - shell 持有"一个改动意味着什么"：每个字段写插件自己的块，回给表单的是**存储里的值**而不是请求的值。
+  - `action` 字段是命令不是值：第一次按只 arm，第二次才执行（不弹系统对话框）。
+  - 随之删掉 settings 的 Plugins 页（旧版 R33 也删了自己的插件页）；磁盘上遗留的
+    `last_settings_page: "plugins"` 落到第一页而不是报错。
+
+**P7-d 输入行按钮 + 分离输出窗口 + 五个没接线的动作（本轮）**
+- 输入行尾部恢复旧版的两个字形按钮（会话页 / 设置），点一下就走，不用打命令。
+- 命令的输出可以「在窗口中打开」：一个不随面板召唤/隐藏的窗口，记住命令并可从自己的头部重跑。
+- **审计发现五个 launcher action 在 shell 里从未接线**（电源行、打开路径、在目录里开终端、
+  外部终端、安装会话）——即五个功能静默失效。全部接上，并加了反射测试：shell 必须回答
+  launcher 声明的每一个 action，下一个不会再静默。
+- 电源确认改回旧版的面板内确认行（`.launcher-system-confirm`）：动作自己的按钮（"重启"而不是"继续"）
+  + 返回，回车不再直接执行；Esc 即取消。
 
 - P2-i macOS 应用名与别名（`internal/plist` 读 XML/bplist00，读 `Info.plist` 与本地化 strings）
 - P2-j 应用图标（macOS `.icns` 最大 PNG 条目、Linux `Icon=`，懒读 + 缓存）
@@ -227,6 +266,13 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 已知差距（框架不支持，诚实记录）
 
+- **终端多会话**：旧版终端表面自带会话列表（切换/恢复/结束、排序、刷新），本构建是"单会话 + 已结束
+  会话保留"（`Resident`），设置里的 Sessions 页只列当前会话。要做成多会话需要终端插件支持多个
+  session 句柄，框架目前没有。
+- **终端选中即复制 / 滚动条 / bracketed paste**：见下面的终端外观条目。
+- **设置里的 Plugins 页已删**：内置插件的配置现在是启动器里的通用表单（P7-c），与旧版 R33 一致；
+  遗留的 `last_settings_page: "plugins"` 会落到第一页。
+
 - 终端外观的四个设置**磁盘上存在、会被保留，但当前无 UI、也不起作用**：
   `terminal_bold`（加粗模式：粗体字/亮色）、`terminal_scrollbar`、`terminal_select_copy`（选中即复制）、
   `terminal_paste_safe`、`terminal_wheel_lines`。mygo v0.3.7 的 terminal 插件（`plugins/terminal`）
@@ -272,8 +318,8 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 6. **P5 打磨**：已完成；更细的换壳过渡受原生窗口尺寸变化限制，不做应用层过渡。
 7. **P6 发布链**：剩下的是一次性维护者动作——`mygo keygen` 生成更新密钥、`mygo.json` 填 `updates`
    与 `macos.signingIdentity`/`macos.notarize`、CI 注入私钥、把产物发到 GitHub Release（含预发布通道）。
-8. **小项**：开机自启需要在真实打包应用上验证一次；集成的**命令别名编辑**（`command_aliases`
-   的匹配已实现，设置页的逐命令输入框未做）；
+8. **小项**：开机自启需要在真实打包应用上验证一次；
+   （命令别名编辑已完成：Integrations 页每命令一个输入框，P4-y。）
    **能力探测**（manifest `lifecycle.probes` 的执行与 `probeReport`，Go 侧「检查」目前走 diagnose）；
    旧版 `package.json` 归档字段。（导入导出的权限审批已改为**一次汇总**，
    与旧版一致；旧版 `launch_counts` 已在启动时一次性导入 `usage.json`，本构建的记录优先。）
