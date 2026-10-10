@@ -343,8 +343,14 @@ func (a *App) resultShortcuts(c *ui.Context, results []Item) bool {
 }
 
 // appShortcuts runs the app's own rebindable keys: a new command clears the
-// field, and the external-terminal action opens a terminal window.
+// field, and the external-terminal action opens a terminal window. The old
+// launcher's ⌘W is the one non-rebindable key: it hides the window whatever
+// the query or mode holds, as the platform's own close does.
 func (a *App) appShortcuts(c *ui.Context) bool {
+	if c.Shortcut(ui.Cmd, ui.KeyW) && a.Actions.Dismiss != nil {
+		a.Actions.Dismiss()
+		return true
+	}
 	m := a.settings()
 	for _, action := range []string{settings.ShortcutNewCommand, settings.ShortcutOpenExternalTerminal} {
 		mods, key, ok := shortcuts.Parse(settings.Shortcut(m, action))

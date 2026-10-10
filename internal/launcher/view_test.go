@@ -1884,3 +1884,28 @@ func TestShellHistory(t *testing.T) {
 		t.Errorf("an empty history changed the field: %q", a.Query)
 	}
 }
+
+// ⌘W hides the window whatever the query or a mode holds, as the old
+// launcher's dismiss table did.
+func TestModWDismissesWhateverTheStateHolds(t *testing.T) {
+	a := testApp()
+	tt := render(t, a)
+	tt.Type("terminal")
+	tt.Frame()
+	tt.Key(ui.Cmd, ui.KeyW)
+	tt.Frame()
+	if testRuns["dismiss"] != 1 {
+		t.Errorf("⌘W dismissed %v, want once", testRuns)
+	}
+	// The query survives the hide: a reveal lands where the search stood.
+	if a.Query != "terminal" {
+		t.Errorf("query = %q", a.Query)
+	}
+	// The plain W is not the key.
+	tt.Type("x")
+	tt.Key(0, ui.KeyW)
+	tt.Frame()
+	if testRuns["dismiss"] != 1 {
+		t.Errorf("a plain W dismissed %v", testRuns)
+	}
+}
