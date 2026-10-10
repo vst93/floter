@@ -91,6 +91,12 @@ type Geometry struct {
 	// Font is the theme's FontSize, the unit every text line is measured
 	// with.
 	Font float64
+	// Line is the height of one line of that text in pixels, as the
+	// framework lays it out (the font's own ascent, descent and gap, not a
+	// multiple of the size): the view measures it and the window is charged
+	// with it, so a font whose line box is taller than the size cannot make
+	// the card taller than its window.
+	Line float64
 	// Spacing is the theme's Spacing unit, which Space multiplies.
 	Spacing float64
 	// RowLines are the text lines of each visible row: two for a row with a
@@ -132,7 +138,12 @@ func (g Geometry) Height() int {
 	if font <= 0 {
 		font = 14
 	}
-	const lineLeading = 1.4 // the text's own line box, as the theme draws it
+	line := g.Line
+	if line <= 0 {
+		// The framework's own fallback line box, for a caller that has not
+		// measured: ascent 0.8, descent 0.2.
+		line = font
+	}
 	// The old app's own chrome, in its units (`--u`), which this codebase
 	// divides by four: the field's row (56u, the height the settings pages'
 	// header band shares), the breath under it (4u), the panel's top inset
@@ -160,7 +171,7 @@ func (g Geometry) Height() int {
 		if count >= 2 {
 			floor = rowTwoLineUnits * spacing
 		}
-		lines += math.Max(rowPadding+float64(count)*font*lineLeading, floor)
+		lines += math.Max(rowPadding+float64(count)*line, floor)
 	}
 	filterBand := 0.0
 	if g.Filter {

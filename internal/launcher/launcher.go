@@ -221,11 +221,13 @@ type App struct {
 	chosenRow int
 
 	// RowLines is the text lines of each visible row, as the last View built
-	// them — two for a row with a subtitle, one without — and Font and
-	// Spacing the theme's own values. The shell reads them to size the
-	// window to the list it holds (see Geometry).
+	// them — two for a row with a subtitle, one without — and Font, Line and
+	// Spacing the theme's own values, Line being the height of one line as
+	// the framework lays it out. The shell reads them to size the window to
+	// the list it holds (see Geometry).
 	RowLines []float64
 	Font     float64
+	Line     float64
 	Spacing  float64
 	// HeldRows is the row count the window is sized for, with the shrink
 	// hysteresis applied: a keystroke that removes one row of two does not
@@ -611,6 +613,13 @@ func (a *App) View(c *ui.Context) {
 	// off the theme, so the shell can size the window to the list it holds.
 	a.Font = float64(t.FontSize)
 	a.Spacing = float64(t.Spacing)
+	// The line box is the framework's, measured rather than assumed: the
+	// window is charged with the height a line of this theme's text actually
+	// draws at, so a font whose box is taller than its size cannot make the
+	// card taller than its window.
+	if _, height := c.MeasureText(0, ui.Span{Text: "Ag", Size: t.FontSize}); height > 0 {
+		a.Line = float64(height)
+	}
 	rowLines := make([]float64, len(results))
 	for i, item := range results {
 		if item.Detail != "" {
@@ -627,7 +636,7 @@ func (a *App) View(c *ui.Context) {
 	a.HeldRows = HoldRows(a.HeldRows, len(results))
 	if a.Actions.ResizeTo != nil {
 		geometry := Geometry{
-			Font: a.Font, Spacing: a.Spacing, RowLines: rowLines, Held: a.HeldRows,
+			Font: a.Font, Line: a.Line, Spacing: a.Spacing, RowLines: rowLines, Held: a.HeldRows,
 			Filter:   a.filtersVisible(),
 			Feedback: a.toast != "" || a.pendingPower != "",
 			Config:   a.configSchema(),

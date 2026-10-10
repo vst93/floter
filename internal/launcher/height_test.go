@@ -78,3 +78,24 @@ func TestGeometryHeight(t *testing.T) {
 		prev = height
 	}
 }
+
+// The window is charged with the height a line of text actually draws at: the
+// framework's line box is the font's own ascent, descent and gap, which is
+// taller than the size (14 points lay out at 22), and a model that assumed a
+// multiple of the size left the card taller than its window.
+func TestGeometryUsesTheMeasuredLineBox(t *testing.T) {
+	// The measured box and the fallback differ: the model must use the first.
+	measured := Geometry{Font: 14, Line: 22, Spacing: 4, RowLines: []float64{2}, Held: 1}.Height()
+	assumed := Geometry{Font: 14, Spacing: 4, RowLines: []float64{2}, Held: 1}.Height()
+	if measured <= assumed {
+		t.Errorf("a measured line box of 22 gives %d, not more than the %d a font-sized one gives", measured, assumed)
+	}
+	// The measured box is what the drawn card is: two lines, the row's 12u
+	// padding pair, the card's 66u chrome and the platform's margin.
+	want := int(roundHalf(66 + 12 + 2*22 + windowInset()))
+	if measured != want {
+		t.Errorf("height = %d, want %d", measured, want)
+	}
+}
+
+func roundHalf(v float64) float64 { return float64(int(v + 0.5)) }
