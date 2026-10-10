@@ -70,10 +70,15 @@ func (a *App) configSection(c *ui.Context, copy i18n.Settings, integration Integ
 		return
 	}
 	draft := a.draft(integration)
-	ui.Column(c).FillWidth().Gap(t.Space(1)).Padding(0, t.Space(2), 0, 0).Children(func() {
-		for _, field := range integration.Config {
-			a.configField(c, copy, integration, *draft, field)
-		}
+	ui.Column(c).FillWidth().Gap(t.Space(2)).Padding(0, t.Space(2), 0, 0).Children(func() {
+		// The configuration is one card of rows, the same grouped-card
+		// language every other settings surface speaks: a field reads
+		// exactly like a setting.
+		a.card(c, func() {
+			for _, field := range integration.Config {
+				a.configField(c, copy, integration, *draft, field)
+			}
+		})
 		if a.configError[integration.ID] != "" {
 			ui.Text(c, a.configError[integration.ID]).FontSize(t.FontSize - 1).TextColor(t.Danger)
 		}
@@ -122,20 +127,30 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 				}
 			}
 		}
-		ui.Column(c).FillWidth().Children(func() {
-			ui.Text(c, label).FontSize(t.FontSize)
-			for _, option := range field.Options {
-				on := ticked[option]
-				changed := false
-				if ui.Checkbox(c, &on, option).Changed() {
-					changed = true
+		// The field's own label heads its options, then one row per option:
+		// the label at the start and the check box at the end, so a list of
+		// tick boxes reads as the list of rows it is.
+		a.row(c, label, description, func() {})
+		for _, option := range field.Options {
+			option := option
+			on := ticked[option]
+			boxChanged := false
+			labelClicked := a.row(c, option, "", func() {
+				if ui.Checkbox(c, &on, option).Label(option).Clicked() {
+					boxChanged = true
 				}
-				if changed {
-					ticked[option] = on
-					draft.values[field.Key] = tickedToValues(field.Options, ticked)
-				}
+			})
+			if labelClicked {
+				// The row's own label is a hit target: clicking it ticks the
+				// option, as the framework's Field does for its control.
+				on = !on
+				boxChanged = true
 			}
-		})
+			if boxChanged {
+				ticked[option] = on
+				draft.values[field.Key] = tickedToValues(field.Options, ticked)
+			}
+		}
 	case "number":
 		value := ""
 		if number, ok := draft.values[field.Key].(float64); ok {
@@ -152,7 +167,7 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 	default: // text, password, path
 		value, _ := draft.values[field.Key].(string)
 		edit := value
-		field_ := ui.Field(c, label, func() {
+		a.row(c, label, description, func() {
 			input := ui.TextInput(c, &edit).Placeholder(field.Key).Label(label).Width(220)
 			if kind == "password" {
 				input = input.Password()
@@ -161,9 +176,6 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 				draft.values[field.Key] = edit
 			}
 		})
-		if description != "" {
-			field_.Description(description)
-		}
 	}
 	_ = t
 }
