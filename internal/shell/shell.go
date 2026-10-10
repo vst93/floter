@@ -956,6 +956,19 @@ func (a *App) integrationList() []settingsui.Integration {
 			}
 		}
 		item.Commands = commands[item.ID]
+		// The stored lifecycle health survives across runs, so a row shows how
+		// the tool was last found to be even before a check runs.
+		if report := integration.Entry.ProbeReport; report != nil && report.Status != "" {
+			copy := i18n.For(a.Store.Snapshot().Language).Settings
+			switch report.Status {
+			case extensions.HealthHealthy:
+				item.Health = copy.IntegrationsHealthy
+			case extensions.HealthDegraded:
+				item.Health = copy.IntegrationsDegraded
+			case extensions.HealthUnhealthy:
+				item.Health = copy.IntegrationsUnhealthy
+			}
+		}
 		if a.Integrations == nil {
 			log.Printf("floter: the extension store is nil in integrationList")
 		}
@@ -963,6 +976,7 @@ func (a *App) integrationList() []settingsui.Integration {
 		a.diagnosisMu.Lock()
 		if diagnosis, ok := a.diagnoses[item.ID]; ok {
 			item.Diagnosis, item.DiagnosisFailed = diagnosis.Diagnosis, diagnosis.DiagnosisFailed
+			item.Health = diagnosis.Health
 		}
 		a.diagnosisMu.Unlock()
 		out = append(out, item)
@@ -1034,6 +1048,19 @@ func (a *App) diagnoseIntegration(id string) {
 				result.Diagnosis = "ok"
 			}
 		}
+		// The stored lifecycle health survives across runs, so a row shows how
+		// the tool was last found to be even before a check runs.
+		if report := integration.Entry.ProbeReport; report != nil && report.Status != "" {
+			copy := i18n.For(a.Store.Snapshot().Language).Settings
+			switch report.Status {
+			case extensions.HealthHealthy:
+				result.Health = copy.IntegrationsHealthy
+			case extensions.HealthDegraded:
+				result.Health = copy.IntegrationsDegraded
+			case extensions.HealthUnhealthy:
+				result.Health = copy.IntegrationsUnhealthy
+			}
+		}
 		a.diagnosisMu.Lock()
 		if a.diagnoses == nil {
 			a.diagnoses = map[string]settingsui.Integration{}
@@ -1046,6 +1073,12 @@ func (a *App) diagnoseIntegration(id string) {
 			}
 			return c.IntegrationChecked(integration.Name)
 		})
+		// The probes may have written a report (and marked the integration
+		// broken): the list is re-read from the repository, so the row shows
+		// it.
+		if len(integration.Manifest.Lifecycle.Probes) > 0 {
+			a.Integrations.Refresh(context.Background())
+		}
 		a.onMain(func() {
 			if a.Win != nil {
 				a.Win.Invalidate()

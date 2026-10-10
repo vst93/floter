@@ -720,6 +720,13 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
   cwd 策略解析（home / toolData（集成自己的数据目录）/ fixed:<绝对路径> / 其余继承）；
   终端环境 `TERM=floter-256color`、`COLORTERM=truecolor`、`TERM_PROGRAM=floter`。
 
+### P3-p 健康状态的行上显示（已做）
+
+- 仓库条目里持久化的 `probeReport.status`（healthy / degraded / unhealthy）现在显示在集成行上：
+  「健康状态: 健康 / 部分功能可用 / 无法工作」。它是**跨运行**的——探针是仓库数据，列表从仓库读，
+  所以不用等下一次检查也能看到上次的结果；「检查」会刷新它（先探针后 diagnose）。
+- broken 的集成贡献的命令数为零（此前已有），这里再加断言钉住。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。

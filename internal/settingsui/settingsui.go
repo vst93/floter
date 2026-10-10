@@ -142,6 +142,10 @@ type Integration struct {
 	Diagnosis string
 	// DiagnosisFailed marks a check that reported a problem.
 	DiagnosisFailed bool
+	// Health is the stored lifecycle probe report's status, empty when the
+	// manifest declares no probes. It survives across runs (the repository
+	// keeps it), so a row shows how the tool was last found to be.
+	Health string
 	// Commands are the commands the integration declares, each with the
 	// switch state the launcher reads.
 	Commands []Command

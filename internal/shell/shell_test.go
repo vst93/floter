@@ -2194,3 +2194,113 @@ func TestDeepLinkConnectAndRegister(t *testing.T) {
 		t.Errorf("page = %d", got)
 	}
 }
+
+// A stored lifecycle health is shown on the row, from the repository entry the
+// reprobe persisted.
+func TestHealthShowsOnTheRow(t *testing.T) {
+	paths := extensions.FromRoot(t.TempDir())
+	if err := paths.Ensure(); err != nil {
+		t.Fatal(err)
+	}
+	pkg := filepath.Join(paths.Extensions, "dev.floter.health")
+	if err := os.MkdirAll(pkg, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(pkg, "floter.extension.json"), []byte(`{
+	  "schemaVersion": "2.0", "id": "dev.floter.health", "name": "Healthy",
+	  "runtime": {"type": "script", "language": "shell", "path": "tool.sh"},
+	  "provider": {"type": "executable", "argsPrefix": ["--floter"]},
+	  "lifecycle": {"probes": [{"id": "up", "args": ["--up"], "required": true}]}
+	}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(pkg, "tool.sh"), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(paths.RepositoryFile, []byte(`{
+	  "schemaVersion": 1,
+	  "extensions": {"dev.floter.health": {"id": "dev.floter.health", "name": "Healthy",
+	    "state": "enabled", "enabled": true, "manifestPath": "`+filepath.Join(pkg, "floter.extension.json")+`",
+	    "installedAt": 1, "updatedAt": 1}}
+	}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	store := settings.NewStore(settings.Default())
+	if err := store.Update(func(s *settings.Settings) { s.Language = "en" }); err != nil {
+		t.Fatal(err)
+	}
+	a := New(Options{
+		Store:                store,
+		Paths:                paths,
+		NewTerminal:          func(terminal.Options) (*terminal.Terminal, error) { return nil, errors.New("no library in tests") },
+		RunSilentCommand:     func(string) error { return nil },
+		OpenExternalTerminal: func() error { return nil },
+	})
+	a.RefreshIntegrations(context.Background())
+	if got := a.integrationList()[0].Health; got != "" {
+		t.Errorf("health before a reprobe = %q", got)
+	}
+
+	// A reprobe persists the health; the shell's view of the repository is
+	// refreshed, and the row shows it.
+	if _, err := extensions.Reprobe(context.Background(), paths, "dev.floter.health"); err != nil {
+		t.Fatal(err)
+	}
+	a.RefreshIntegrations(context.Background())
+	if got := a.integrationList()[0].Health; got != "healthy" {
+		t.Errorf("health after a reprobe = %q", got)
+	}
+
+	// A failing required probe marks the integration broken and says so.
+	if err := os.WriteFile(filepath.Join(pkg, "tool.sh"), []byte("#!/bin/sh\nexit 9\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := extensions.Reprobe(context.Background(), paths, "dev.floter.health"); err != nil {
+		t.Fatal(err)
+	}
+	a.RefreshIntegrations(context.Background())
+	if got := a.integrationList()[0].Health; got != "not working" {
+		t.Errorf("broken health = %q", got)
+	}
+	// A broken integration contributes no commands.
+	if got := a.Launcher.Commands; len(got) != 0 {
+		t.Errorf("a broken integration contributed %+v", got)
+	}
+}
+
+// The persisted report, for the debugging of the health display.
+func TestDebugPersistedReport(t *testing.T) {
+	paths := extensions.FromRoot(t.TempDir())
+	if err := paths.Ensure(); err != nil {
+		t.Fatal(err)
+	}
+	pkg := filepath.Join(paths.Extensions, "dev.floter.health")
+	if err := os.MkdirAll(pkg, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(pkg, "floter.extension.json"), []byte(`{
+	  "schemaVersion": "2.0", "id": "dev.floter.health", "name": "Healthy",
+	  "runtime": {"type": "script", "language": "shell", "path": "tool.sh"},
+	  "provider": {"type": "executable", "argsPrefix": ["--floter"]},
+	  "lifecycle": {"probes": [{"id": "up", "args": ["--up"], "required": true}]}
+	}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(pkg, "tool.sh"), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(paths.RepositoryFile, []byte(`{
+	  "schemaVersion": 1,
+	  "extensions": {"dev.floter.health": {"id": "dev.floter.health", "name": "Healthy",
+	    "state": "enabled", "enabled": true, "manifestPath": "`+filepath.Join(pkg, "floter.extension.json")+`",
+	    "installedAt": 1, "updatedAt": 1}}
+	}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := extensions.Reprobe(context.Background(), paths, "dev.floter.health"); err != nil {
+		t.Fatal(err)
+	}
+	inventory := extensions.LoadInventory(paths)
+	integration, _ := inventory.WithID("dev.floter.health")
+	t.Logf("probeReport=%+v state=%q", integration.Entry.ProbeReport, integration.Entry.State)
+}

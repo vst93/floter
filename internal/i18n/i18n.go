@@ -237,6 +237,11 @@ type Settings struct {
 	IntegrationsRecommended     string
 	IntegrationsRecommendedHint string
 	IntegrationsConnect         string
+	// The stored health from the lifecycle probes.
+	IntegrationsHealthy   string
+	IntegrationsHealth    string
+	IntegrationsDegraded  string
+	IntegrationsUnhealthy string
 	// The configuration form.
 	ConfigOpen     string
 	ConfigSave     string
