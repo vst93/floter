@@ -20,6 +20,7 @@ import (
 
 	"floter/internal/i18n"
 	"floter/internal/settings"
+	"floter/internal/theme"
 )
 
 // Actions are the shell's callbacks.
@@ -55,6 +56,11 @@ type App struct {
 	Title string
 	// Err is why the session could not start.
 	Err error
+	// resident marks a session whose program has ended: the output is held on
+	// screen until the user closes it, and the note at the bottom says so.
+	// exitCode is what the program returned.
+	resident bool
+	exitCode int
 
 	// Focus is the terminal view's identity, so it keeps the keyboard.
 	Focus ui.Handle
@@ -76,7 +82,18 @@ func New(store *settings.Store, actions Actions, newTerminal func(terminal.Optio
 // EnsureSession starts the session if none runs. The shell calls it as the
 // surface opens.
 func (a *App) EnsureSession() {
-	if a.Term != nil || a.NewTerminal == nil {
+	if a.NewTerminal == nil {
+		return
+	}
+	// A held session has ended: entering the page again starts a fresh one
+	// rather than showing the same finished frame.
+	if a.resident {
+		if a.Term != nil {
+			_ = a.Term.Close()
+		}
+		a.Term, a.resident, a.exitCode = nil, false, 0
+	}
+	if a.Term != nil {
 		return
 	}
 	term, err := a.NewTerminal(a.options())
@@ -344,6 +361,36 @@ func (a *App) View(c *ui.Context) {
 		pad := a.Pad()
 		terminal.View(c, a.Term).Fill().Padding(pad).Bind(&a.Focus)
 		a.titleBar(c, copy)
+		a.residentNote(c, copy)
+	})
+}
+
+// Resident marks the session ended: the output stays on screen and the note
+// says how the program went, until the user closes it or starts another.
+func (a *App) Resident(code int) {
+	a.resident = true
+	a.exitCode = code
+}
+
+// residentNote is the floating note a held session carries: what happened and
+// that closing is the user's own decision, in the warning colour when the
+// program returned non-zero.
+func (a *App) residentNote(c *ui.Context, copy i18n.Terminal) {
+	if !a.resident || a.Term == nil {
+		return
+	}
+	t := c.Theme()
+	color := t.TextMuted
+	if a.exitCode != 0 {
+		color = t.Warning
+	}
+	ui.Row(c).Absolute().Bottom(t.Space(3)).Left(t.Space(3)).Right(t.Space(3)).
+		Gap(t.Space(2)).AlignItems(ui.Center).Padding(t.Space(2), t.Space(2.5)).
+		Radius(theme.For(a.Store.Snapshot(), t.Dark).RadiusMD).
+		Background(theme.For(a.Store.Snapshot(), t.Dark).Control).Children(func() {
+		ui.Text(c, copy.ProcessExited(a.exitCode)).FontSize(t.FontSize - 1).
+			FontWeight(580).TextColor(color)
+		ui.Text(c, copy.ProcessExitedHint).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
 	})
 }
 
@@ -398,7 +445,7 @@ func (a *App) titleBar(c *ui.Context, copy i18n.Terminal) {
 func (a *App) statusDot(c *ui.Context) {
 	t := c.Theme()
 	dot := ui.Box(c).Size(t.Space(1.75), t.Space(1.75)).Radius(t.Space(1.75)).Shrink(0)
-	if a.exited() {
+	if a.resident || a.exited() {
 		dot.Background(t.TextMuted).Opacity(0.7)
 		return
 	}
@@ -413,13 +460,13 @@ func (a *App) statusDot(c *ui.Context) {
 // on show until the surface closes).
 func (a *App) exited() bool {
 	if a.Term == nil {
-		return false
+		return a.resident
 	}
 	select {
 	case <-a.Term.Done():
 		return true
 	default:
-		return false
+		return a.resident
 	}
 }
 

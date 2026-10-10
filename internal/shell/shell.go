@@ -669,7 +669,10 @@ func New(opts Options) *App {
 				}
 			})
 		},
-		Exit: func(int) { a.onMain(func() { a.Open(SurfaceLauncher) }) },
+		// The program ended: the surface *holds* the final frame instead of
+		// leaving, so the output stays readable until the user closes it or
+		// starts another — the old build's resident page.
+		Exit: func(code int) { a.onMain(func() { a.Terminal.Resident(code) }) },
 	}
 	termActions.Pin = a.PinText
 	a.Terminal = terminalui.New(opts.Store, termActions, newTerminal)

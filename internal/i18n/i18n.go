@@ -444,6 +444,11 @@ type Terminal struct {
 	NewCommandHint   string
 	OpenExternal     string
 	OpenExternalHint string
+	// ProcessExited and ProcessExitedHint are the resident note: the program
+	// ended, the output is held on screen, and closing is the user's own
+	// decision.
+	ProcessExited     func(code int) string
+	ProcessExitedHint string
 }
 
 // Copy is every language's string set.

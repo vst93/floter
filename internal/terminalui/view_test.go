@@ -287,3 +287,34 @@ func TestTerminalHeaderControls(t *testing.T) {
 		t.Errorf("close ran %d times", closeCalls)
 	}
 }
+
+// A session whose program ended is held with its output on screen: the note
+// says how it went, the dot goes still, and entering the page again starts a
+// fresh session rather than showing the same finished frame.
+func TestResidentSessionHoldsItsOutput(t *testing.T) {
+	a := New(newStore(), Actions{}, func(terminal.Options) (*terminal.Terminal, error) {
+		return nil, errors.New("no library in tests")
+	})
+	tt := render(t, a, 860, 600)
+	// No session yet: the empty state.
+	if !tt.HasText("No terminal session yet") {
+		t.Fatalf("the empty state: %q", tt.Texts())
+	}
+	// The shell reports the program ended; with no session to hold, the page
+	// still says nothing false — but the note is a session's own.
+	a.Resident(0)
+	tt.Frame()
+	if tt.HasText("Process exited") {
+		t.Error("a note showed with no session")
+	}
+	// The note is drawn for a held session, in the warning tone on a bad code.
+	a.resident, a.exitCode = true, 3
+	a.Term = &terminal.Terminal{}
+	tt.Frame()
+	if !tt.HasText("Process exited") || !tt.HasText("Output retained") {
+		t.Errorf("the resident note is missing: %q", tt.Texts())
+	}
+	if !a.exited() {
+		t.Error("a held session does not read as ended")
+	}
+}
