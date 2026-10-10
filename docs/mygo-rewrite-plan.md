@@ -863,6 +863,19 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
   `SetSize`——旧版 R68 的边缘行走，mygo 的 Animate 替我们续帧；高度没变就不碰平台。
 - `targetSize`/`resize()` 用同一几何：召唤落点就是列表所在带，而不是固定板。
 
+### P3-r `--help` 推断（已做）
+
+- `internal/extensions/helpargs.go`：旧版 `help_args.rs` 的移植——`DeriveArguments`（clap/argparse/
+  Go flag/cobra 四种风格的选项行 + 紧凑旗标摘要行 `I/O: -pipe (auto) · -file <path>`）、
+  `DeriveSubcommands`（v 风格插件行 + cobra `Available Commands:` 段）、`stripANSI`（CSI/OSC/双字节
+  转义）、`(aliases: …)` 组提取、字形装饰剥离、严格命令名 charset、`usage:`/URL/段落头/元行剔除。
+- `ProbeDerive`：连接时一次 `--help` 探测根参数，发现是子命令列表时对每个子命令（至多 12 个）
+  再探测自己的 `--help`（空了再试 `-h`）。尽力而为契约：任何失败静默降级，绝不阻塞连接。
+  修了一个潜在 bug：`PackageDir()` 不存在时 `cmd.Dir` 会让 exec 直接失败（chdir before fork），
+  现在只有目录真存在才设置（生命周期探测同样受益）。
+- `SemverFromVersionOutput`：从 `--version` 输出提取第一个真 semver（容忍 `v` 前缀、噪声词、
+  两段补齐、预发布保留）；垃圾进空出。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。
