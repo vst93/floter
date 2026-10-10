@@ -62,7 +62,7 @@ func (a *App) card(c *ui.Context, fn func()) {
 // to the label's own column. It reports whether the label was clicked — the
 // label is a hit target that activates the row's control, as the framework's
 // own Field does, so a switch row can be toggled from either end.
-func (a *App) row(c *ui.Context, label, sublabel string, control func()) bool {
+func (a *App) row(c *ui.Context, label, sublabel string, control func(), below ...func()) bool {
 	tokens := a.tokens(c)
 	t := c.Theme()
 	inset := t.Space(3.5)
@@ -91,6 +91,14 @@ func (a *App) row(c *ui.Context, label, sublabel string, control func()) bool {
 			}
 			ui.Row(c).Shrink(0).Gap(t.Space(2)).AlignItems(ui.Center).Children(control)
 		})
+		// What belongs *under* the row but inside the card: an unfolding
+		// audit, a configuration form. It keeps the card's own rhythm and its
+		// row counter, so a following row still draws its rule.
+		for _, extra := range below {
+			if extra != nil {
+				extra()
+			}
+		}
 	})
 	return clicked
 }

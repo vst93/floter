@@ -50,21 +50,16 @@ func (a *App) draft(integration Integration) *configDraft {
 	return draft
 }
 
-// configSection draws the form for one integration's configuration.
-func (a *App) configSection(c *ui.Context, copy i18n.Settings, integration Integration) {
+// configFields draws the form for one integration's configuration: the
+// fields and the save button, shown while the form is open. The toggle that
+// opens it is the integration row's own (see integrationRow).
+func (a *App) configFields(c *ui.Context, copy i18n.Settings, integration Integration) {
 	t := c.Theme()
 	if len(integration.Config) == 0 {
 		return
 	}
-	if a.configOpen == nil {
-		a.configOpen = map[string]bool{}
-	}
 	if a.configError == nil {
 		a.configError = map[string]string{}
-	}
-	if ui.Button(c, copy.ConfigOpen).Clicked() {
-		a.configOpen[integration.ID] = !a.configOpen[integration.ID]
-		a.configError[integration.ID] = ""
 	}
 	if !a.configOpen[integration.ID] {
 		return

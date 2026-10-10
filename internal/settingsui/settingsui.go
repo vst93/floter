@@ -845,82 +845,104 @@ func (a *App) installRow(c *ui.Context, copy i18n.Settings) {
 	}
 }
 
-// integrationRow is one integration: its identity, its state, and the
-// enable switch.
+// integrationRow is one integration as a card: its identity and state, what
+// it declares, what it can run (each command a row with its switch and its
+// alias), and the row of doors — check, re-scan, uninstall.
 func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Integration) {
 	t := c.Theme()
-	row := ui.Row(c).FillWidth().Gap(t.Space(2)).AlignItems(ui.Start).
-		Padding(t.Space(1.5), 0).BorderWidth(0, 0, 1, 0).BorderColor(t.Border)
-	row.Children(func() {
-		ui.Column(c).Grow(1).Gap(t.Space(0.5)).Children(func() {
-			ui.Row(c).Gap(t.Space(1)).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, integration.Name).FontSize(t.FontSize).Bold()
-				ui.Text(c, integration.state(copy)).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
-			})
-			if integration.Description != "" {
-				ui.Text(c, integration.Description).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
-			}
-			ui.Text(c, integration.identity()).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
-			if len(integration.Permissions) > 0 {
-				ui.Text(c, a.permissionLine(integration, copy)).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
-				a.permissionAudit(c, copy, integration)
-			}
-			if len(integration.Config) > 0 && !integration.Orphan {
-				a.configSection(c, copy, integration)
-			}
-			if integration.Diagnosis != "" {
-				color := t.TextMuted
-				if integration.DiagnosisFailed {
-					color = t.Danger
-				}
-				ui.Text(c, integration.Diagnosis).FontSize(t.FontSize - 1).TextColor(color)
-			}
-			if integration.Error != "" {
-				ui.Text(c, integration.Error).FontSize(t.FontSize - 1).TextColor(t.Danger)
-			}
-			if len(integration.Commands) > 0 && !integration.Orphan {
-				ui.Text(c, copy.IntegrationsCommandsHint).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
-				ui.Column(c).Gap(t.Space(0.5)).Children(func() {
-					for _, command := range integration.Commands {
-						command := command
-						label := command.Name
-						if label == "" {
-							label = command.ID
-						}
-						if !command.Available {
-							label += "  \u00b7  " + copy.IntegrationsUnavailable
-						}
-						on := command.Enabled
-						changed := false
-						if ui.Checkbox(c, &on, label).Changed() {
-							changed = true
-						}
-						if changed && a.Actions.SetCommandEnabled != nil {
-							a.Actions.SetCommandEnabled(integration.ID, command.ID, on)
-						}
-						// The alias editor rides the command list itself — one
-						// input per command — so "this command, this alias" is
-						// edited where the command is already named. The value
-						// lands on submit, not on every keystroke.
-						ui.Row(c).Gap(t.Space(0.5)).AlignItems(ui.Center).Children(func() {
-							alias := command.Alias
-							if ui.TextInput(c, &alias).Placeholder(copy.IntegrationsCommandAliasPlaceholder).
-								Label(copy.IntegrationsCommandAlias).Width(180).Submitted() && a.Actions.SetCommandAlias != nil {
-								a.Actions.SetCommandAlias(integration.ID, command.ID, alias)
-							}
-							if command.Taken {
-								ui.Text(c, copy.IntegrationsCommandAliasTaken).FontSize(t.FontSize - 1).TextColor(t.Danger)
-							}
-						})
-					}
-				})
-			}
+	a.card(c, func() {
+		a.row(c, integration.Name, integration.Description, func() {
+			ui.Text(c, integration.state(copy)).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
 		})
+		a.row(c, integration.identity(), "", func() {})
+
+		if len(integration.Permissions) > 0 && !integration.Orphan {
+			labelClicked := a.row(c, copy.IntegrationsPermissions, a.permissionLine(integration, copy), func() {
+				if ui.Button(c, copy.IntegrationsPermissions).Clicked() {
+					a.toggleAudit(integration.ID)
+				}
+			}, func() { a.permissionAudit(c, copy, integration) })
+			if labelClicked {
+				a.toggleAudit(integration.ID)
+			}
+		}
+
+		if integration.Diagnosis != "" {
+			color := t.TextMuted
+			if integration.DiagnosisFailed {
+				color = t.Danger
+			}
+			a.row(c, copy.IntegrationsHealth, integration.Diagnosis, func() {
+				ui.Text(c, integration.state(copy)).FontSize(t.FontSize - 1).TextColor(color)
+			})
+		}
+		if integration.Error != "" {
+			a.row(c, copy.IntegrationsHealth, integration.Error, func() {
+				ui.Text(c, "\u25cf").FontSize(t.FontSize - 3).TextColor(t.Danger)
+			})
+		}
+
+		if len(integration.Config) > 0 && !integration.Orphan {
+			opened := a.row(c, copy.ConfigOpen, "", func() {
+				if ui.Button(c, copy.ConfigOpen).Clicked() {
+					a.toggleConfig(integration.ID)
+				}
+			}, func() { a.configFields(c, copy, integration) })
+			if opened {
+				a.toggleConfig(integration.ID)
+			}
+		}
+
+		if len(integration.Commands) > 0 && !integration.Orphan {
+			for _, command := range integration.Commands {
+				command := command
+				label := command.Name
+				if label == "" {
+					label = command.ID
+				}
+				// A command whose runtime does not resolve says so on its own
+				// line rather than lying about being ready.
+				if !command.Available {
+					label += "  \u00b7  " + copy.IntegrationsUnavailable
+				}
+				on := command.Enabled
+				changed := false
+				labelClicked := a.row(c, label, "", func() {
+					if ui.Switch(c, &on).Label(label).Changed() {
+						changed = true
+					}
+				}, func() {
+					// The alias editor rides the command list itself: "this
+					// command, this alias" is edited where the command is
+					// already named, and the value lands on submit.
+					a.row(c, copy.IntegrationsCommandAlias, "", func() {
+						alias := command.Alias
+						if ui.TextInput(c, &alias).Placeholder(copy.IntegrationsCommandAliasPlaceholder).
+							Label(copy.IntegrationsCommandAlias).Width(180).Submitted() &&
+							a.Actions.SetCommandAlias != nil {
+							a.Actions.SetCommandAlias(integration.ID, command.ID, alias)
+						}
+						if command.Taken {
+							ui.Text(c, copy.IntegrationsCommandAliasTaken).
+								FontSize(t.FontSize - 1).TextColor(t.Danger)
+						}
+					})
+				})
+				if labelClicked {
+					on = !on
+					changed = true
+				}
+				if changed && a.Actions.SetCommandEnabled != nil {
+					a.Actions.SetCommandEnabled(integration.ID, command.ID, on)
+				}
+			}
+		}
+
 		if integration.Orphan {
 			// An orphan is a package directory the repository does not name:
 			// the row offers to graft it in or to remove it, and nothing
 			// else — there is no record to enable, check or uninstall.
-			ui.Row(c).Gap(t.Space(1)).AlignItems(ui.Center).Children(func() {
+			a.row(c, copy.IntegrationsOrphan, "", func() {
 				if a.Actions.AdoptIntegration != nil {
 					if ui.Button(c, copy.IntegrationsAdopt).Clicked() {
 						a.Actions.AdoptIntegration(integration.ID)
@@ -934,31 +956,21 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			})
 			return
 		}
-		{
-			ui.Row(c).Gap(t.Space(1)).AlignItems(ui.Center).Children(func() {
-				if a.Actions.SetIntegrationEnabled != nil {
-					on := integration.Enabled
-					changed := false
-					if ui.Checkbox(c, &on, copy.IntegrationsEnable).Changed() {
-						changed = true
-					}
-					if changed {
-						a.Actions.SetIntegrationEnabled(integration.ID, on)
-					}
+
+		enabled := integration.Enabled
+		enableChanged := false
+		enableLabelClicked := a.row(c, copy.IntegrationsEnable, "", func() {
+			if a.Actions.SetIntegrationEnabled != nil {
+				on := enabled
+				if ui.Switch(c, &on).Label(copy.IntegrationsEnable).Changed() {
+					enabled, enableChanged = on, true
 				}
-				if a.Actions.DiagnoseIntegration != nil {
-					if ui.Button(c, copy.IntegrationsCheck).Clicked() {
-						a.Actions.DiagnoseIntegration(integration.ID)
-					}
+			}
+			if a.Actions.DiagnoseIntegration != nil {
+				if ui.Button(c, copy.IntegrationsCheck).Clicked() {
+					a.Actions.DiagnoseIntegration(integration.ID)
 				}
-				if a.Actions.UninstallComponents != nil {
-					a.uninstallComponentsRow(c, copy, integration)
-				} else if a.Actions.UninstallIntegration != nil {
-					if ui.Button(c, copy.IntegrationsUninstall).Clicked() {
-						a.Actions.UninstallIntegration(integration.ID, integration.Name)
-					}
-				}
-			})
+			}
 			// A generated custom integration's command list came from the
 			// tool's own help at connect time; the button re-runs that
 			// derivation, so a tool that shipped new subcommands comes back
@@ -968,8 +980,38 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 					a.Actions.ReprobeCommands(integration.ID)
 				}
 			}
+			if a.Actions.UninstallComponents != nil {
+				a.uninstallComponentsRow(c, copy, integration)
+			} else if a.Actions.UninstallIntegration != nil {
+				if ui.Button(c, copy.IntegrationsUninstall).Clicked() {
+					a.Actions.UninstallIntegration(integration.ID, integration.Name)
+				}
+			}
+		})
+		if enableLabelClicked {
+			enabled, enableChanged = !enabled, true
+		}
+		if enableChanged && a.Actions.SetIntegrationEnabled != nil {
+			a.Actions.SetIntegrationEnabled(integration.ID, enabled)
 		}
 	})
+}
+
+// toggleConfig folds or unfolds one integration's configuration form.
+func (a *App) toggleConfig(id string) {
+	if a.configOpen == nil {
+		a.configOpen = map[string]bool{}
+	}
+	a.configOpen[id] = !a.configOpen[id]
+	a.configError[id] = ""
+}
+
+// toggleAudit folds or unfolds one integration's permission audit.
+func (a *App) toggleAudit(id string) {
+	if a.auditOpen == nil {
+		a.auditOpen = map[string]bool{}
+	}
+	a.auditOpen[id] = !a.auditOpen[id]
 }
 
 // permissionAudit draws the per-permission explanation under a row: what each
