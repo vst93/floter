@@ -335,7 +335,11 @@ type Settings struct {
 	// The detected-programs section: what this machine already has and
 	// nothing has connected.
 	DetectedTitle string
-	DetectedHint  string
+	// The local-package install row: a package folder on this machine.
+	InstallFolderLabel  string
+	InstallFolderHint   string
+	InstallFolderChoose string
+	DetectedHint        string
 	// The freshness display: when the command list was last derived, how the
 	// derivation went, and how the list moved. "Unknown" is its own word
 	// everywhere — a fabricated zero or "no change" is a lie.

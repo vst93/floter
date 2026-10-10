@@ -107,6 +107,10 @@ type Actions struct {
 	// picks, and ImportIntegrations applies one they pick.
 	ExportIntegrations func()
 	ImportIntegrations func()
+	// InstallFromFolder installs a package directory the user picks, and
+	// ChooseFolder asks them for one. Nil hides the row.
+	InstallFromFolder func(dir string)
+	ChooseFolder      func() (string, error)
 	// Detected lists the programs the machine has that are not yet connected,
 	// and ConnectDetected connects the one the user picked. Nil hides the
 	// section.
@@ -770,6 +774,7 @@ func (a *App) integrations(c *ui.Context, copy i18n.Settings) {
 		a.recommendedRow(c, copy)
 		a.transferRow(c, copy)
 		a.installRow(c, copy)
+		a.installFolderRow(c, copy)
 		// The PATH commands' own switch sits with the integrations, as the old
 		// panel had it: it decides whether the search offers them at all.
 		a.card(c, func() {
@@ -1944,6 +1949,25 @@ func (a *App) disableConfirmation(c *ui.Context, copy i18n.Settings, integration
 				a.disableConfirm[integration.ID] = false
 				if a.Actions.SetIntegrationEnabled != nil {
 					a.Actions.SetIntegrationEnabled(integration.ID, false)
+				}
+			}
+		})
+	})
+}
+
+// installFolderRow installs a package directory the user points at: the same
+// local install every other tool goes through, with the permission review
+// intact. It is the package form's door, where the local-tool form is the
+// program's.
+func (a *App) installFolderRow(c *ui.Context, copy i18n.Settings) {
+	if a.Actions.InstallFromFolder == nil || a.Actions.ChooseFolder == nil {
+		return
+	}
+	a.card(c, func() {
+		a.row(c, copy.InstallFolderLabel, copy.InstallFolderHint, func() {
+			if ui.Button(c, copy.InstallFolderChoose).Clicked() {
+				if dir, err := a.Actions.ChooseFolder(); err == nil && dir != "" {
+					a.Actions.InstallFromFolder(dir)
 				}
 			}
 		})

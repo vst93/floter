@@ -1604,3 +1604,34 @@ func TestDisableAsksFirst(t *testing.T) {
 		t.Errorf("enabling asked or failed: %v", toggled)
 	}
 }
+
+// The package form's door: a folder the user picks goes to the shell, which
+// reviews and installs it.
+func TestInstallFromFolderRow(t *testing.T) {
+	installed := []string{}
+	a := New(settings.NewStore(settings.Default()), Actions{
+		InstallFromFolder: func(dir string) { installed = append(installed, dir) },
+		ChooseFolder:      func() (string, error) { return "/tmp/my-package", nil },
+	})
+	tt := render(t, a, 720, 900)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !tt.HasText("Install from a folder") {
+		t.Fatalf("the row is missing: %q", tt.Texts())
+	}
+	if err := tt.Click("Choose\u2026"); err != nil {
+		t.Fatalf("the picker: %v", err)
+	}
+	tt.Frame()
+	if len(installed) != 1 || installed[0] != "/tmp/my-package" {
+		t.Errorf("installed = %v", installed)
+	}
+	// A caller with no picker hides the row entirely.
+	a.Actions.ChooseFolder = nil
+	tt.Frame()
+	if tt.HasText("Install from a folder") {
+		t.Errorf("the row shows without a picker: %q", tt.Texts())
+	}
+}

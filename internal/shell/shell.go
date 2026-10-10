@@ -483,6 +483,8 @@ func New(opts Options) *App {
 		Freshness:           a.integrationFreshness,
 		Detected:            a.detectedTools,
 		ConnectDetected:     a.connectDetected,
+		InstallFromFolder:   a.installPackageFolder,
+		ChooseFolder:        a.chooseProgram,
 		CopyText:            func(text string) { mygo.Clipboard.WriteText(text) },
 		ChooseProgram:       a.chooseProgram,
 		SetShortcut:         a.setShortcut,
@@ -1547,6 +1549,36 @@ func (a *App) detectedTools() []settingsui.DetectedTool {
 // inventory knows thousands, and a page that lists them all is a file browser,
 // not a settings panel.
 const maxDetectedTools = 12
+
+// installPackageFolder installs a local package directory: the same review
+// and the same install the connect flows use, for a package the user already
+// has on disk.
+func (a *App) installPackageFolder(dir string) {
+	go func() {
+		prepared, err := extensions.PrepareLocal(a.Paths, dir)
+		if err != nil {
+			log.Printf("floter: could not review %s: %v", dir, err)
+			a.onMain(func() {
+				a.Launcher.WarnFeedback(i18n.For(a.Store.Snapshot().Language).Settings.LocalToolFailed)
+			})
+			return
+		}
+		approved := true
+		if prepared.Approval.NeedsApproval() {
+			approved = a.confirmInstallPermissions(prepared.Approval)
+		}
+		entry, err := prepared.Commit(approved)
+		if err != nil {
+			log.Printf("floter: %s was not installed: %v", dir, err)
+			a.onMain(func() {
+				a.Launcher.WarnFeedback(i18n.For(a.Store.Snapshot().Language).Settings.LocalToolFailed)
+			})
+			return
+		}
+		a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationInstalled(entry.Name) })
+		a.RefreshIntegrations(context.Background())
+	}()
+}
 
 // connectDetected connects one of the discovered programs, with the words the
 // discovery already knows about it.
