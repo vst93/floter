@@ -464,28 +464,32 @@ func (a *App) plugins(c *ui.Context, copy i18n.Settings) {
 	browser := settings.BrowserPluginOf(a.Store.Snapshot())
 	clipboard := settings.ClipboardOf(a.Store.Snapshot())
 
-	ui.Column(c).FillWidth().Gap(t.Space(3)).Children(func() {
-		ui.Fieldset(c, copy.BrowserPlugin, func() {
-			a.checkbox(c, copy.BrowserEnabled, browser.Enabled, func(on bool) {
-				a.setBrowser(func(p *settings.BrowserPlugin) { p.Enabled = on })
+	ui.Column(c).FillWidth().Gap(t.Space(4)).Children(func() {
+		a.section(c, copy.BrowserPlugin, "", func() {
+			a.card(c, func() {
+				a.checkbox(c, copy.BrowserEnabled, browser.Enabled, func(on bool) {
+					a.setBrowser(func(p *settings.BrowserPlugin) { p.Enabled = on })
+				})
+				a.choose(c, copy.BrowserTarget, copy.BrowserTargetHint, a.browserTargets(), browser.Target,
+					func(id string) { a.setBrowser(func(p *settings.BrowserPlugin) { p.Target = id }) })
+				a.text(c, copy.BrowserCustomDir, copy.BrowserCustomDirHint, "/path/to/profile", browser.CustomBaseDir,
+					func(value string) { a.setBrowser(func(p *settings.BrowserPlugin) { p.CustomBaseDir = value }) })
+				a.slider(c, copy.BrowserHistoryDays, copy.BrowserHistoryDaysHint, float64(browser.HistoryDays), 0, 365,
+					func(v float64) string {
+						if v < 1 {
+							return copy.BrowserHistoryAll
+						}
+						return fmt.Sprintf("%d", int(v))
+					},
+					func(v float64) { a.setBrowser(func(p *settings.BrowserPlugin) { p.HistoryDays = int(v) }) })
+				a.choose(c, copy.BrowserSort, copy.BrowserSortHint, copy.BrowserSortOrders, browser.SortOrder,
+					func(id string) { a.setBrowser(func(p *settings.BrowserPlugin) { p.SortOrder = id }) })
+				a.choose(c, copy.BrowserSearchField, copy.BrowserSearchFieldHint, copy.BrowserSearchFields, browser.SearchField,
+					func(id string) { a.setBrowser(func(p *settings.BrowserPlugin) { p.SearchField = id }) })
 			})
-			a.choose(c, copy.BrowserTarget, copy.BrowserTargetHint, a.browserTargets(), browser.Target,
-				func(id string) { a.setBrowser(func(p *settings.BrowserPlugin) { p.Target = id }) })
-			a.text(c, copy.BrowserCustomDir, copy.BrowserCustomDirHint, "/path/to/profile", browser.CustomBaseDir,
-				func(value string) { a.setBrowser(func(p *settings.BrowserPlugin) { p.CustomBaseDir = value }) })
-			a.slider(c, copy.BrowserHistoryDays, copy.BrowserHistoryDaysHint, float64(browser.HistoryDays), 0, 365,
-				func(v float64) string {
-					if v < 1 {
-						return copy.BrowserHistoryAll
-					}
-					return fmt.Sprintf("%d", int(v))
-				},
-				func(v float64) { a.setBrowser(func(p *settings.BrowserPlugin) { p.HistoryDays = int(v) }) })
-			a.choose(c, copy.BrowserSort, copy.BrowserSortHint, copy.BrowserSortOrders, browser.SortOrder,
-				func(id string) { a.setBrowser(func(p *settings.BrowserPlugin) { p.SortOrder = id }) })
-			a.choose(c, copy.BrowserSearchField, copy.BrowserSearchFieldHint, copy.BrowserSearchFields, browser.SearchField,
-				func(id string) { a.setBrowser(func(p *settings.BrowserPlugin) { p.SearchField = id }) })
-			ui.Fieldset(c, copy.BrowserCDP, func() {
+			// The CDP block is its own card: it configures a different
+			// transport, not another browser option.
+			a.card(c, func() {
 				a.checkbox(c, copy.BrowserCDPEnabled, browser.CDPEnabled, func(on bool) {
 					a.setBrowser(func(p *settings.BrowserPlugin) { p.CDPEnabled = on })
 				})
@@ -499,32 +503,36 @@ func (a *App) plugins(c *ui.Context, copy i18n.Settings) {
 					})
 			})
 		})
-		ui.Fieldset(c, copy.ClipboardPlugin, func() {
-			a.checkbox(c, copy.ClipboardEnabled, clipboard.Enabled, func(on bool) {
-				a.set(func(s *settings.Settings) {
-					state := settings.ClipboardOf(*s)
-					state.Enabled = on
-					s.SetClipboard(state)
-				})
-			})
-			a.slider(c, copy.ClipboardMaxItems, copy.ClipboardMaxItemsHint, float64(clipboard.MaxItems),
-				float64(settings.MinClipboardMaxItems), float64(settings.MaxClipboardMaxItems),
-				func(v float64) string { return fmt.Sprintf("%d", int(v)) },
-				func(v float64) {
+		a.section(c, copy.ClipboardPlugin, "", func() {
+			a.card(c, func() {
+				a.checkbox(c, copy.ClipboardEnabled, clipboard.Enabled, func(on bool) {
 					a.set(func(s *settings.Settings) {
 						state := settings.ClipboardOf(*s)
-						state.MaxItems = int(v)
+						state.Enabled = on
 						s.SetClipboard(state)
 					})
 				})
-			if a.Actions.ClearClipboardHistory != nil {
-				ui.Row(c).FillWidth().AlignItems(ui.Center).Children(func() {
-					if ui.Button(c, copy.ClipboardClear).Clicked() {
+				a.slider(c, copy.ClipboardMaxItems, copy.ClipboardMaxItemsHint, float64(clipboard.MaxItems),
+					float64(settings.MinClipboardMaxItems), float64(settings.MaxClipboardMaxItems),
+					func(v float64) string { return fmt.Sprintf("%d", int(v)) },
+					func(v float64) {
+						a.set(func(s *settings.Settings) {
+							state := settings.ClipboardOf(*s)
+							state.MaxItems = int(v)
+							s.SetClipboard(state)
+						})
+					})
+				if a.Actions.ClearClipboardHistory != nil {
+					labelClicked := a.row(c, copy.ClipboardClear, copy.ClipboardClearHint, func() {
+						if ui.Button(c, copy.ClipboardClear).Clicked() {
+							a.Actions.ClearClipboardHistory()
+						}
+					})
+					if labelClicked {
 						a.Actions.ClearClipboardHistory()
 					}
-					ui.Text(c, copy.ClipboardClearHint).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
-				})
-			}
+				}
+			})
 		})
 		a.calculatorCard(c, copy)
 	})
@@ -538,26 +546,27 @@ func (a *App) calculatorCard(c *ui.Context, copy i18n.Settings) {
 	for _, days := range settings.CalculatorRetentionDays {
 		retention = append(retention, i18n.Option{ID: fmt.Sprintf("%d", days), Label: copy.CalculatorRetentionDays(days)})
 	}
-	ui.Fieldset(c, copy.CalculatorPlugin, func() {
-		ui.Text(c, copy.CalculatorPluginHint).FontSize(c.Theme().FontSize - 1).TextColor(c.Theme().TextMuted)
-		a.slider(c, copy.CalculatorMaxItems, copy.CalculatorMaxItemsHint, float64(calculator.MaxItems),
-			float64(settings.MinCalculatorMaxItems), float64(settings.MaxCalculatorMaxItems),
-			func(v float64) string { return fmt.Sprintf("%d", int(v)) },
-			func(v float64) {
-				a.setCalculator(func(p *settings.CalculatorPlugin) { p.MaxItems = int(v) })
-			})
-		a.choose(c, copy.CalculatorRetention, copy.CalculatorRetentionHint, retention,
-			fmt.Sprintf("%d", calculator.RetentionDays),
-			func(id string) {
-				days, err := strconv.Atoi(id)
-				if err != nil {
-					return
-				}
-				a.setCalculator(func(p *settings.CalculatorPlugin) { p.RetentionDays = days })
-			})
-		a.pick(c, copy.CalculatorCopyMode, copy.CalculatorCopyModeHint, copy.CalculatorCopyModes,
-			calculator.CopyMode,
-			func(id string) { a.setCalculator(func(p *settings.CalculatorPlugin) { p.CopyMode = id }) })
+	a.section(c, copy.CalculatorPlugin, copy.CalculatorPluginHint, func() {
+		a.card(c, func() {
+			a.slider(c, copy.CalculatorMaxItems, copy.CalculatorMaxItemsHint, float64(calculator.MaxItems),
+				float64(settings.MinCalculatorMaxItems), float64(settings.MaxCalculatorMaxItems),
+				func(v float64) string { return fmt.Sprintf("%d", int(v)) },
+				func(v float64) {
+					a.setCalculator(func(p *settings.CalculatorPlugin) { p.MaxItems = int(v) })
+				})
+			a.choose(c, copy.CalculatorRetention, copy.CalculatorRetentionHint, retention,
+				fmt.Sprintf("%d", calculator.RetentionDays),
+				func(id string) {
+					days, err := strconv.Atoi(id)
+					if err != nil {
+						return
+					}
+					a.setCalculator(func(p *settings.CalculatorPlugin) { p.RetentionDays = days })
+				})
+			a.pick(c, copy.CalculatorCopyMode, copy.CalculatorCopyModeHint, copy.CalculatorCopyModes,
+				calculator.CopyMode,
+				func(id string) { a.setCalculator(func(p *settings.CalculatorPlugin) { p.CopyMode = id }) })
+		})
 	})
 }
 
