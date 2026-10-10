@@ -74,6 +74,17 @@ type Tokens struct {
 	// edge a focused card takes, as `.collapsed-card:focus-within` did.
 	InputStroke       ui.Color
 	InputStrokeActive ui.Color
+
+	// Control is the resting plane a grouped card or a control sits on
+	// (base.css's `--glass-control`), ControlEdge its hairline edge, and
+	// Hairline the rule a row draws between itself and the next. The
+	// settings panel's card language is these three plus TextStrong.
+	Control     ui.Color
+	ControlEdge ui.Color
+	Hairline    ui.Color
+	// TextStrong is a row's own label color, one step above the body text
+	// (base.css's `--text-strong`).
+	TextStrong ui.Color
 }
 
 // For resolves the appearance and scales the metrics for a settings value.
@@ -99,12 +110,16 @@ func For(s settings.Settings, systemDark bool) Tokens {
 	t.Spacing = round1(t.Spacing * f)
 	t.Radius = round1(t.Radius * f)
 
-	// The strokes are alphas over white or black, per appearance, exactly as
-	// base.css wrote them: a lit hairline in the dark, a dark one in the
-	// light, and the focused step takes the accent.
+	// The strokes and planes are alphas over white or black, per appearance,
+	// exactly as base.css wrote them: a lit hairline in the dark, a dark one
+	// in the light, and the focused step takes the accent.
 	stroke, strokeActive := ui.RGBA(255, 255, 255, 0.08), ui.RGBA(143, 183, 255, 0.24)
+	control, controlEdge, hairline := ui.RGBA(255, 255, 255, 0.055), ui.RGBA(255, 255, 255, 0.06), ui.RGBA(255, 255, 255, 0.07)
+	textStrong := ui.RGBA(244, 245, 247, 0.96)
 	if appearance == Light {
 		stroke, strokeActive = ui.RGBA(0, 0, 0, 0.1), ui.RGBA(10, 108, 255, 0.28)
+		control, controlEdge, hairline = ui.RGBA(0, 0, 0, 0.035), ui.RGBA(0, 0, 0, 0.07), ui.RGBA(0, 0, 0, 0.08)
+		textStrong = ui.RGBA(23, 23, 26, 0.96)
 	}
 	return Tokens{
 		Appearance:        appearance,
@@ -116,6 +131,10 @@ func For(s settings.Settings, systemDark bool) Tokens {
 		RadiusLG:          round1(RadiusLG * f),
 		InputStroke:       stroke,
 		InputStrokeActive: strokeActive,
+		Control:           control,
+		ControlEdge:       controlEdge,
+		Hairline:          hairline,
+		TextStrong:        textStrong,
 	}
 }
 

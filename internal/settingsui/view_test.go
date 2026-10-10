@@ -50,7 +50,7 @@ func TestSettingsShowsThePagesAndTheGeneralControls(t *testing.T) {
 func TestSettingsControlsWriteThroughTheStore(t *testing.T) {
 	store := newStore(t)
 	a := New(store, Actions{})
-	tt := render(t, a, 720, 580)
+	tt := render(t, a, 720, 1400)
 
 	if err := tt.Click("Dark"); err != nil {
 		t.Fatal(err)
@@ -153,7 +153,7 @@ func TestSettingsSidebarRoutesAndEscapeCloses(t *testing.T) {
 func TestTerminalAppearanceControls(t *testing.T) {
 	store := newStore(t)
 	a := New(store, Actions{})
-	tt := render(t, a, 720, 620)
+	tt := render(t, a, 720, 1400)
 
 	for _, want := range []string{
 		"Terminal appearance", "Font size", "Font family", "Cursor shape",
@@ -192,7 +192,9 @@ func TestTerminalAppearanceControls(t *testing.T) {
 		t.Errorf("padding = %q, want relaxed", got)
 	}
 
-	if err := tt.Click("Terminal palette"); err != nil {
+	// The trailing select's trigger shows its current value ("Follow app"),
+	// not the row label; clicking it opens the drop-down.
+	if err := tt.Click("Follow app"); err != nil {
 		t.Fatalf("palette trigger: %v", err)
 	}
 	tt.Frame()
@@ -294,7 +296,7 @@ func TestAboutPage(t *testing.T) {
 func TestWindowBehaviourControls(t *testing.T) {
 	store := newStore(t)
 	a := New(store, Actions{})
-	tt := render(t, a, 720, 620)
+	tt := render(t, a, 720, 1400)
 
 	tt.Scroll(400, 300, 0, 400)
 	tt.Frame()
@@ -426,7 +428,7 @@ func TestIntegrationsPage(t *testing.T) {
 func TestLaunchAtStartupControl(t *testing.T) {
 	store := newStore(t)
 	a := New(store, Actions{})
-	tt := render(t, a, 720, 620)
+	tt := render(t, a, 720, 1400)
 
 	tt.Scroll(400, 300, 0, 400)
 	tt.Frame()
@@ -608,7 +610,7 @@ func TestShortcutRecorder(t *testing.T) {
 func TestPluginsPageWritesThroughTheStore(t *testing.T) {
 	store := newStore(t)
 	a := New(store, Actions{})
-	tt := render(t, a, 720, 620)
+	tt := render(t, a, 720, 1400)
 
 	if err := tt.Click("Plugins"); err != nil {
 		t.Fatal(err)
@@ -630,7 +632,9 @@ func TestPluginsPageWritesThroughTheStore(t *testing.T) {
 	}
 
 	// The order picker opens on its trigger and stores the choice.
-	if err := tt.Click("Order"); err != nil {
+	// The trailing select's trigger shows its current value, not the row
+	// label; clicking it opens the drop-down.
+	if err := tt.Click("Launcher ranking"); err != nil {
 		t.Fatalf("order trigger: %v", err)
 	}
 	tt.Frame()

@@ -245,6 +245,11 @@ type App struct {
 	Actions Actions
 	About   About
 
+	// cardRows counts the rows the card being built has drawn, so each row
+	// after the first draws the rule above itself. It is the build's own
+	// cursor, reset by card and never read outside it.
+	cardRows int
+
 	// Sessions reports the running sessions; nil when the shell has none
 	// (tests).
 	Sessions func() []Session
@@ -1141,72 +1146,83 @@ func (a *App) summonShortcut() string {
 func (a *App) general(c *ui.Context, copy i18n.Settings) {
 	s := a.Store.Snapshot()
 
-	ui.Form(c, func() {
-		ui.Fieldset(c, copy.GroupAppearance, func() {
-			a.pick(c, copy.Theme, "", copy.Themes, s.Theme,
-				func(id string) { a.set(func(s *settings.Settings) { s.Theme = id }) })
-			a.pick(c, copy.AppIcon, copy.AppIconHint, copy.AppIcons, a.appIcon(),
-				func(id string) {
-					a.set(func(s *settings.Settings) { s.SetExtra("app_icon", id) })
-				})
-			a.pick(c, copy.Language, copy.LanguageHint, copy.Languages, s.Language,
-				func(id string) { a.set(func(s *settings.Settings) { s.Language = id }) })
-			a.pick(c, copy.Glass, copy.GlassHint, copy.GlassSteps, s.GlassStep,
-				func(id string) { a.set(func(s *settings.Settings) { s.GlassStep = id }) })
-			a.slider(c, copy.MainOpacity, copy.MainOpacityHint,
-				float64(s.MainOpacity), settings.MinWindowOpacity, settings.MaxWindowOpacity,
-				func(v float64) string { return copy.Percent(clampPercent(v)) },
-				func(v float64) { a.set(func(s *settings.Settings) { s.MainOpacity = clampPercent(v) }) })
-			a.slider(c, copy.TerminalOpacity, copy.TerminalOpacityHint,
-				float64(s.TerminalOpacity), settings.MinWindowOpacity, settings.MaxWindowOpacity,
-				func(v float64) string { return copy.Percent(clampPercent(v)) },
-				func(v float64) {
-					a.set(func(s *settings.Settings) { s.TerminalOpacity = clampPercent(v) })
-				})
+	ui.Column(c).FillWidth().Gap(c.Theme().Space(4)).Children(func() {
+		a.section(c, copy.GroupAppearance, "", func() {
+			a.card(c, func() {
+				a.pick(c, copy.Theme, "", copy.Themes, s.Theme,
+					func(id string) { a.set(func(s *settings.Settings) { s.Theme = id }) })
+				a.pick(c, copy.AppIcon, copy.AppIconHint, copy.AppIcons, a.appIcon(),
+					func(id string) {
+						a.set(func(s *settings.Settings) { s.SetExtra("app_icon", id) })
+					})
+				a.pick(c, copy.Language, copy.LanguageHint, copy.Languages, s.Language,
+					func(id string) { a.set(func(s *settings.Settings) { s.Language = id }) })
+				a.pick(c, copy.Glass, copy.GlassHint, copy.GlassSteps, s.GlassStep,
+					func(id string) { a.set(func(s *settings.Settings) { s.GlassStep = id }) })
+			})
+			// The two transparency sliders are their own card under the same
+			// title — the old panel's "two transparency groups", spaced like
+			// cards rather than like rows.
+			a.card(c, func() {
+				a.slider(c, copy.MainOpacity, copy.MainOpacityHint,
+					float64(s.MainOpacity), settings.MinWindowOpacity, settings.MaxWindowOpacity,
+					func(v float64) string { return copy.Percent(clampPercent(v)) },
+					func(v float64) { a.set(func(s *settings.Settings) { s.MainOpacity = clampPercent(v) }) })
+				a.slider(c, copy.TerminalOpacity, copy.TerminalOpacityHint,
+					float64(s.TerminalOpacity), settings.MinWindowOpacity, settings.MaxWindowOpacity,
+					func(v float64) string { return copy.Percent(clampPercent(v)) },
+					func(v float64) {
+						a.set(func(s *settings.Settings) { s.TerminalOpacity = clampPercent(v) })
+					})
+			})
 		})
 
-		ui.Fieldset(c, copy.GroupWindow, func() {
-			a.pick(c, copy.Scale, copy.ScaleHint, copy.Scales, s.UIScale,
-				func(id string) { a.set(func(s *settings.Settings) { s.UIScale = id }) })
-			a.checkbox(c, copy.LaunchAtStartup, s.LaunchAtStartup,
-				func(on bool) { a.set(func(s *settings.Settings) { s.LaunchAtStartup = on }) })
-			a.checkbox(c, copy.HideOnBlur, s.HideOnBlur,
-				func(on bool) { a.set(func(s *settings.Settings) { s.HideOnBlur = on }) })
-			a.choose(c, copy.SurfaceResidency, copy.SurfaceResidencyHint,
-				residencyOptions(copy, s.SurfaceResidencySeconds),
-				strconv.FormatUint(uint64(s.SurfaceResidencySeconds), 10),
-				func(id string) {
-					seconds, ok := parseResidency(id)
-					if !ok {
-						return
-					}
-					a.set(func(s *settings.Settings) { s.SurfaceResidencySeconds = seconds })
-				})
+		a.section(c, copy.GroupWindow, "", func() {
+			a.card(c, func() {
+				a.pick(c, copy.Scale, copy.ScaleHint, copy.Scales, s.UIScale,
+					func(id string) { a.set(func(s *settings.Settings) { s.UIScale = id }) })
+				a.checkbox(c, copy.LaunchAtStartup, s.LaunchAtStartup,
+					func(on bool) { a.set(func(s *settings.Settings) { s.LaunchAtStartup = on }) })
+				a.checkbox(c, copy.HideOnBlur, s.HideOnBlur,
+					func(on bool) { a.set(func(s *settings.Settings) { s.HideOnBlur = on }) })
+				a.choose(c, copy.SurfaceResidency, copy.SurfaceResidencyHint,
+					residencyOptions(copy, s.SurfaceResidencySeconds),
+					strconv.FormatUint(uint64(s.SurfaceResidencySeconds), 10),
+					func(id string) {
+						seconds, ok := parseResidency(id)
+						if !ok {
+							return
+						}
+						a.set(func(s *settings.Settings) { s.SurfaceResidencySeconds = seconds })
+					})
+			})
 		})
 
-		ui.Fieldset(c, copy.GroupTerminal, func() {
-			a.slider(c, copy.FontSize, "", float64(s.FontSize),
-				settings.MinFontSize, settings.MaxFontSize,
-				func(v float64) string { return fmt.Sprintf("%d", int(math.Round(v))) },
-				func(v float64) {
-					a.set(func(s *settings.Settings) { s.FontSize = int(math.Round(v)) })
-				})
-			a.text(c, copy.FontFamily, "", settings.DefaultFontFamily, s.FontFamily,
-				func(v string) { a.set(func(s *settings.Settings) { s.FontFamily = v }) })
-			a.pick(c, copy.CursorShape, "", copy.CursorShapes, s.CursorShape,
-				func(id string) { a.set(func(s *settings.Settings) { s.CursorShape = id }) })
-			a.checkbox(c, copy.CursorBlink, s.CursorBlink,
-				func(on bool) { a.set(func(s *settings.Settings) { s.CursorBlink = on }) })
-			a.slider(c, copy.LineHeight, "", s.TerminalLineHeight,
-				settings.MinTerminalLineHeight, settings.MaxTerminalLineHeight,
-				func(v float64) string { return fmt.Sprintf("%.1f×", v) },
-				func(v float64) {
-					a.set(func(s *settings.Settings) { s.TerminalLineHeight = v })
-				})
-			a.pick(c, copy.Padding, "", copy.Paddings, s.TerminalPadding,
-				func(id string) { a.set(func(s *settings.Settings) { s.TerminalPadding = id }) })
-			a.choose(c, copy.Palette, copy.TerminalHint, copy.Palettes, s.TerminalTheme,
-				func(id string) { a.set(func(s *settings.Settings) { s.TerminalTheme = id }) })
+		a.section(c, copy.GroupTerminal, "", func() {
+			a.card(c, func() {
+				a.slider(c, copy.FontSize, "", float64(s.FontSize),
+					settings.MinFontSize, settings.MaxFontSize,
+					func(v float64) string { return fmt.Sprintf("%d", int(math.Round(v))) },
+					func(v float64) {
+						a.set(func(s *settings.Settings) { s.FontSize = int(math.Round(v)) })
+					})
+				a.text(c, copy.FontFamily, "", settings.DefaultFontFamily, s.FontFamily,
+					func(v string) { a.set(func(s *settings.Settings) { s.FontFamily = v }) })
+				a.pick(c, copy.CursorShape, "", copy.CursorShapes, s.CursorShape,
+					func(id string) { a.set(func(s *settings.Settings) { s.CursorShape = id }) })
+				a.checkbox(c, copy.CursorBlink, s.CursorBlink,
+					func(on bool) { a.set(func(s *settings.Settings) { s.CursorBlink = on }) })
+				a.slider(c, copy.LineHeight, "", s.TerminalLineHeight,
+					settings.MinTerminalLineHeight, settings.MaxTerminalLineHeight,
+					func(v float64) string { return fmt.Sprintf("%.1f×", v) },
+					func(v float64) {
+						a.set(func(s *settings.Settings) { s.TerminalLineHeight = v })
+					})
+				a.pick(c, copy.Padding, "", copy.Paddings, s.TerminalPadding,
+					func(id string) { a.set(func(s *settings.Settings) { s.TerminalPadding = id }) })
+				a.choose(c, copy.Palette, copy.TerminalHint, copy.Palettes, s.TerminalTheme,
+					func(id string) { a.set(func(s *settings.Settings) { s.TerminalTheme = id }) })
+			})
 		})
 	})
 }
@@ -1220,15 +1236,12 @@ func (a *App) pick(c *ui.Context, label, description string, options []i18n.Opti
 		labels[i] = option.Label
 	}
 	chosen := ""
-	field := ui.Field(c, label, func() {
+	a.row(c, label, description, func() {
 		e := ui.Segmented(c, &index, labels...).Label(label)
 		if e.Changed() && index >= 0 && index < len(options) {
 			chosen = options[index].ID
 		}
 	})
-	if description != "" {
-		field.Description(description)
-	}
 	if chosen != "" {
 		apply(chosen)
 	}
@@ -1247,8 +1260,8 @@ func (a *App) choose(c *ui.Context, label, description string, options []i18n.Op
 		selected = options[index].Label
 	}
 	chosen := ""
-	field := ui.Field(c, label, func() {
-		e := ui.Select(c, &selected, labels).Label(label)
+	a.row(c, label, description, func() {
+		e := ui.Select(c, &selected, labels).Label(label).Width(180)
 		if e.Changed() {
 			for _, option := range options {
 				if option.Label == selected {
@@ -1258,30 +1271,39 @@ func (a *App) choose(c *ui.Context, label, description string, options []i18n.Op
 			}
 		}
 	})
-	if description != "" {
-		field.Description(description)
-	}
 	if chosen != "" {
 		apply(chosen)
 	}
 }
 
-// slider builds one labeled slider with its value beside it.
+// slider builds one stacked row: the label and its hint above, the track and
+// its value at full width under them, as the reference's range row.
 func (a *App) slider(c *ui.Context, label, description string, value, lo, hi float64, format func(float64) string, apply func(float64)) {
+	tokens := a.tokens(c)
+	t := c.Theme()
+	inset := t.Space(3.5)
 	v := value
 	chosen := false
-	field := ui.Field(c, label, func() {
-		ui.Row(c).Gap(c.Theme().Space(2)).AlignItems(ui.Center).Children(func() {
-			e := ui.Slider(c, &v, lo, hi).Grow(1)
-			if e.Changed() {
-				chosen = true
+	first := a.cardRows == 0
+	a.cardRows++
+	ui.Column(c).FillWidth().Children(func() {
+		if !first {
+			ui.Box(c).FillWidth().Height(1).Background(tokens.Hairline).MarginX(inset).Shrink(0)
+		}
+		ui.Column(c).FillWidth().Gap(t.Space(1)).Padding(t.Space(2.25), inset).Children(func() {
+			ui.Text(c, label).FontSize(t.FontSize).FontWeight(580).TextColor(tokens.TextStrong)
+			if description != "" {
+				ui.Text(c, description).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
 			}
-			ui.Text(c, format(v)).FontSize(c.Theme().FontSize).TextColor(c.Theme().TextMuted)
+			ui.Row(c).FillWidth().Gap(t.Space(2)).AlignItems(ui.Center).Children(func() {
+				e := ui.Slider(c, &v, lo, hi).Grow(1)
+				if e.Changed() {
+					chosen = true
+				}
+				ui.Text(c, format(v)).FontSize(t.FontSize).TextColor(t.TextMuted)
+			})
 		})
 	})
-	if description != "" {
-		field.Description(description)
-	}
 	if chosen {
 		apply(v)
 	}
@@ -1293,13 +1315,19 @@ func (a *App) slider(c *ui.Context, label, description string, value, lo, hi flo
 func (a *App) checkbox(c *ui.Context, label string, on bool, apply func(bool)) {
 	value := on
 	changed := false
-	ui.Field(c, "", func() {
-		// Changed applies the pending input to value before returning, so
-		// the new state is usable in this same pass.
-		if ui.Checkbox(c, &value, label).Changed() {
+	// The label is the row's own (the reference puts it at the start) and
+	// the control is the switch at the end, so the check box here is the
+	// switch alone.
+	if a.row(c, label, "", func() {
+		if ui.Switch(c, &value).Label(label).Changed() {
 			changed = true
 		}
-	})
+	}) {
+		// The row's own label is a hit target: clicking it toggles, as the
+		// framework's Field does for its control.
+		value = !value
+		changed = true
+	}
 	if changed {
 		apply(value)
 	}
@@ -1308,15 +1336,12 @@ func (a *App) checkbox(c *ui.Context, label string, on bool, apply func(bool)) {
 // text builds one labeled text field.
 func (a *App) text(c *ui.Context, label, description, placeholder, value string, apply func(string)) {
 	edit := value
-	field := ui.Field(c, label, func() {
+	a.row(c, label, description, func() {
 		e := ui.TextInput(c, &edit).Placeholder(placeholder).Label(label).Width(220)
 		if e.Submitted() {
 			apply(edit)
 		}
 	})
-	if description != "" {
-		field.Description(description)
-	}
 }
 
 // appIcon is the stored app icon, normalized to the two the app ships (dark
