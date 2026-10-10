@@ -59,53 +59,91 @@ type CustomRequest struct {
 // honoured (no name, no program, a script with no language).
 var ErrBadRequest = errors.New("extensions: the connection request is not usable")
 
-// CreateCustom writes a local tool's package and installs it. `approved` says
-// the user has seen and accepted the permissions (see PermissionApproval for
-// the flow); the returned entry is the repository's record.
-func CreateCustom(ctx context.Context, paths Paths, request CustomRequest, approved bool) (Entry, error) {
+// PreparedCustom is a local tool's package written and staged, waiting for
+// the user's answer about what it declares. The UI flow holds it while it asks
+// (see Prepared.Approval); the one-call flow commits it at once.
+type PreparedCustom struct {
+	Prepared
+	// ID is the identity the host minted for it.
+	ID string
+	// Request is the normalized request the package was written from.
+	Request CustomRequest
+	paths   Paths
+	cleanup func()
+}
+
+// PrepareCustom writes a local tool's package and stages the install. It is
+// the half of CreateCustom a caller needs when the user has not yet answered
+// about the manifest's permissions: the returned value carries the approval to
+// show, and Commit finishes the job.
+func PrepareCustom(ctx context.Context, paths Paths, request CustomRequest) (PreparedCustom, error) {
 	request, err := normalizeCustom(request)
 	if err != nil {
-		return Entry{}, err
+		return PreparedCustom{}, err
 	}
 	if err := paths.Ensure(); err != nil {
-		return Entry{}, err
+		return PreparedCustom{}, err
 	}
 	id, packageDir, err := reserveCustomPackage(paths)
 	if err != nil {
-		return Entry{}, err
+		return PreparedCustom{}, err
 	}
 	// A package that fails to write leaves nothing behind: the reserved
-	// directory goes with the failure.
+	// directory goes with the failure. Once it is staged, the files stay
+	// until the user's answer, so a refusal can be reviewed again.
 	cleanup := func() { _ = os.RemoveAll(filepath.Dir(packageDir)) }
 	if err := writeCustomPackage(ctx, paths, packageDir, id, request); err != nil {
 		cleanup()
-		return Entry{}, err
+		return PreparedCustom{}, err
 	}
 	prepared, err := PrepareLocal(paths, packageDir)
 	if err != nil {
 		cleanup()
-		return Entry{}, err
+		return PreparedCustom{}, err
 	}
 	if request.Mode == "executable" {
 		prepared.ExecutablePath = request.ExecutablePath
 	}
-	entry, err := prepared.Commit(approved)
+	return PreparedCustom{Prepared: prepared, ID: id, Request: request, paths: paths, cleanup: cleanup}, nil
+}
+
+// Commit finishes a prepared local tool: the repository records it, and the
+// tool's own version is probed and stored when it reports one.
+func (p PreparedCustom) Commit(approved bool) (Entry, error) {
+	entry, err := p.Prepared.Commit(approved)
 	if err != nil {
-		// A package the user did not approve keeps its files: the refusal was
-		// about *this* manifest, and the next attempt reviews the same one.
 		if errors.Is(err, ErrPermissionApprovalRequired) {
 			return Entry{}, err
 		}
-		cleanup()
+		if p.cleanup != nil {
+			p.cleanup()
+		}
 		return Entry{}, err
 	}
-	// The tool's own version, when it reports one: the recorded version is
-	// what the drift re-probe compares against.
-	if version := probeVersion(ctx, paths, entry.ID); version != "" {
-		_ = SetToolVersion(paths, entry.ID, version)
+	if version := probeVersion(context.Background(), p.paths, entry.ID); version != "" {
+		_ = SetToolVersion(p.paths, entry.ID, version)
 		entry.ToolVersion = &version
 	}
 	return entry, nil
+}
+
+// Discard removes a prepared tool's package: what a caller does when the user
+// abandons the connection rather than refusing it.
+func (p PreparedCustom) Discard() {
+	if p.cleanup != nil {
+		p.cleanup()
+	}
+}
+
+// CreateCustom writes a local tool's package and installs it in one call.
+// `approved` says the user has already seen and accepted what the package
+// declares; a caller that must ask uses PrepareCustom and Commit.
+func CreateCustom(ctx context.Context, paths Paths, request CustomRequest, approved bool) (Entry, error) {
+	prepared, err := PrepareCustom(ctx, paths, request)
+	if err != nil {
+		return Entry{}, err
+	}
+	return prepared.Commit(approved)
 }
 
 // normalizeCustom checks a request and fills its defaults.

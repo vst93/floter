@@ -8,6 +8,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"floter/internal/extensions"
 	"floter/internal/i18n"
 	"floter/internal/settings"
 	"floter/internal/shortcuts"
@@ -1382,5 +1383,77 @@ func TestSidebarRowsCarryMarksAndSelection(t *testing.T) {
 	tt.Frame()
 	if a.Page != PagePlugins {
 		t.Errorf("page = %v, want plugins", a.Page)
+	}
+}
+
+// The local-tool form collects what the host needs and hands it on: the name,
+// the program (with the picker), the command word, the arguments and the
+// permissions the user ticked.
+func TestLocalToolForm(t *testing.T) {
+	connected := []CustomTool{}
+	a := New(settings.NewStore(settings.Default()), Actions{
+		ConnectLocalTool: func(tool CustomTool) { connected = append(connected, tool) },
+		ChooseProgram:    func() (string, error) { return "/usr/bin/rg", nil },
+	})
+	tt := render(t, a, 720, 1400)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	// The form is folded away until asked for.
+	if tt.HasText("Name") {
+		t.Error("the form is open before it was asked for")
+	}
+	if err := tt.Click("Add a local tool"); err != nil {
+		t.Fatalf("the form's door: %v", err)
+	}
+	tt.Frame()
+	for _, want := range []string{"Name", "Program", "Command", "Arguments", "Version arguments"} {
+		if !tt.HasText(want) {
+			t.Errorf("the form is missing %q: %q", want, tt.Texts())
+		}
+	}
+	// The picker fills the program field. (The tester keeps a per-window
+	// editor buffer, so the *state* is what the assertion reads.)
+	if err := tt.Click("Choose\u2026"); err != nil {
+		t.Fatalf("the picker: %v", err)
+	}
+	tt.Frame()
+	if a.toolProgram != "/usr/bin/rg" {
+		t.Errorf("the picker did not fill the program: %q", a.toolProgram)
+	}
+	// The permissions are rows, and one is ticked.
+	for _, permission := range extensions.AllPermissions {
+		if !tt.HasText(i18n.PermissionLabel("en", permission)) {
+			t.Errorf("the permission %q is missing", permission)
+		}
+	}
+	if err := tt.Click(i18n.PermissionLabel("en", "environment")); err != nil {
+		t.Fatalf("a permission row: %v", err)
+	}
+	tt.Frame()
+	// Connect hands the whole draft on. The name is the form's own state (the
+	// tester cannot type into a field it has already drawn).
+	a.toolName = "Ripgrep"
+	tt.Frame()
+	if err := tt.Click("Connect"); err != nil {
+		t.Fatalf("connect: %v", err)
+	}
+	tt.Frame()
+	if len(connected) != 1 {
+		t.Fatalf("connected = %+v", connected)
+	}
+	tool := connected[0]
+	if tool.Program != "/usr/bin/rg" {
+		t.Errorf("program = %q", tool.Program)
+	}
+	found := false
+	for _, permission := range tool.Permissions {
+		if permission == "environment" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("permissions = %v", tool.Permissions)
 	}
 }

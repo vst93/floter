@@ -18,6 +18,7 @@ import (
 	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
 
+	"floter/internal/extensions"
 	"floter/internal/i18n"
 	"floter/internal/launcher"
 	"floter/internal/settings"
@@ -106,8 +107,12 @@ type Actions struct {
 	// picks, and ImportIntegrations applies one they pick.
 	ExportIntegrations func()
 	ImportIntegrations func()
-	// ConnectRecommended installs one of the shipped tool packages.
+	// ConnectRecommended installs one of the shipped tool packages, and
+	// ConnectLocalTool connects a program already on this machine.
 	ConnectRecommended func(id string)
+	ConnectLocalTool   func(tool CustomTool)
+	// ChooseProgram asks the user to point at a program; nil hides the picker.
+	ChooseProgram func() (string, error)
 	// SaveConfiguration validates and stores an integration's configuration
 	// values, moving its password fields into the secrets file.
 	SaveConfiguration func(id string, values map[string]any) error
@@ -252,6 +257,20 @@ type App struct {
 	// after the first draws the rule above itself. It is the build's own
 	// cursor, reset by card and never read outside it.
 	cardRows int
+
+	// The local-tool form's draft: what the user has typed, and the
+	// permissions they have ticked. It lives on the panel so a keystroke
+	// survives the rebuild, and it is cleared once the tool is connected.
+	toolOpen        bool
+	toolName        string
+	toolProgram     string
+	toolCommand     string
+	toolArgs        string
+	toolVersionArgs string
+	toolVersion     string
+	toolDescription string
+	toolOutput      string
+	toolPermissions map[string]bool
 
 	// Sessions reports the running sessions; nil when the shell has none
 	// (tests).
@@ -732,6 +751,7 @@ func (a *App) integrations(c *ui.Context, copy i18n.Settings) {
 	integrations := a.installedIntegrations()
 	ui.Column(c).FillWidth().Gap(t.Space(4)).Children(func() {
 		ui.Text(c, copy.IntegrationsHint).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+		a.localToolSection(c, copy)
 		a.recommendedRow(c, copy)
 		a.transferRow(c, copy)
 		a.installRow(c, copy)
@@ -1582,3 +1602,135 @@ func optionIndex(options []i18n.Option, id string) int {
 	}
 	return 0
 }
+
+// CustomTool is a local tool the user wants to connect: what the form
+// collected. The host mints the id and derives the commands.
+type CustomTool struct {
+	Name        string
+	Program     string
+	Command     string
+	Args        string
+	VersionArgs string
+	Version     string
+	Description string
+	Output      string
+	Permissions []string
+}
+
+// localToolSection is the "connect a program on this machine" form: the words
+// that name it, the file itself, its arguments, and what it declares. The
+// section is folded away until the user asks for it, so the page stays a list
+// of what is installed.
+func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
+	if a.Actions.ConnectLocalTool == nil {
+		return
+	}
+	a.section(c, copy.LocalToolTitle, copy.LocalToolHint, func() {
+		if ui.Button(c, copy.LocalToolAdd).Clicked() {
+			a.toolOpen = !a.toolOpen
+		}
+		if !a.toolOpen {
+			return
+		}
+		if a.toolPermissions == nil {
+			a.toolPermissions = map[string]bool{}
+		}
+		name, program, command := a.toolName, a.toolProgram, a.toolCommand
+		args, versionArgs, version := a.toolArgs, a.toolVersionArgs, a.toolVersion
+		description := a.toolDescription
+		a.card(c, func() {
+			a.row(c, copy.LocalToolName, "", func() {
+				ui.TextInput(c, &name).Label(copy.LocalToolName).Width(240).Grow(1).Placeholder("Ripgrep")
+			})
+			a.row(c, copy.LocalToolProgram, "", func() {
+				ui.TextInput(c, &program).Label(copy.LocalToolProgram).Width(240).Grow(1).
+					Placeholder("/usr/bin/rg")
+				if a.Actions.ChooseProgram != nil {
+					if ui.Button(c, copy.LocalToolChoose).Clicked() {
+						if picked, err := a.Actions.ChooseProgram(); err == nil && picked != "" {
+							program = picked
+						}
+					}
+				}
+			})
+			a.row(c, copy.LocalToolCommand, copy.LocalToolCommandHint, func() {
+				ui.TextInput(c, &command).Label(copy.LocalToolCommand).Width(160).Placeholder("rg")
+			})
+			a.row(c, copy.LocalToolArgs, copy.LocalToolArgsHint, func() {
+				ui.TextInput(c, &args).Label(copy.LocalToolArgs).Width(220).Placeholder("--floter")
+			})
+			a.row(c, copy.LocalToolVersionArgs, copy.LocalToolVersionArgsHint, func() {
+				ui.TextInput(c, &versionArgs).Label(copy.LocalToolVersionArgs).Width(160).Placeholder("--version")
+			})
+			a.row(c, copy.LocalToolVersion, "", func() {
+				ui.TextInput(c, &version).Label(copy.LocalToolVersion).Width(120).Placeholder("0.0.1")
+			})
+			a.row(c, copy.LocalToolDescription, "", func() {
+				ui.TextInput(c, &description).Label(copy.LocalToolDescription).Width(240).Grow(1)
+			})
+			a.row(c, copy.LocalToolOutput, "", func() {
+				index := 0
+				if a.toolOutput == routeBackground {
+					index = 1
+				}
+				if ui.Segmented(c, &index, copy.LocalToolTerminal, copy.LocalToolBackground).Changed() {
+					if index == 0 {
+						a.toolOutput = ""
+					} else {
+						a.toolOutput = routeBackground
+					}
+				}
+			})
+			// What the tool declares: one row per permission, the host's own
+			// two marked as the checks they are (see the permission tiers).
+			for _, permission := range extensions.AllPermissions {
+				permission := permission
+				on := a.toolPermissions[permission]
+				label := i18n.PermissionLabel(a.Store.Snapshot().Language, permission)
+				labelClicked := a.row(c, label, "", func() {
+					if ui.Switch(c, &on).Label(label).Changed() {
+						a.toolPermissions[permission] = on
+					}
+				})
+				if labelClicked {
+					a.toolPermissions[permission] = !on
+				}
+			}
+		})
+		requested := ui.Button(c, copy.LocalToolConnect).Clicked()
+		a.toolName, a.toolProgram, a.toolCommand = name, program, command
+		a.toolArgs, a.toolVersionArgs, a.toolVersion = args, versionArgs, version
+		a.toolDescription = description
+		if requested {
+			permissions := []string{}
+			for _, permission := range extensions.AllPermissions {
+				if a.toolPermissions[permission] {
+					permissions = append(permissions, permission)
+				}
+			}
+			tool := CustomTool{
+				Name:        strings.TrimSpace(name),
+				Program:     strings.TrimSpace(program),
+				Command:     strings.TrimSpace(command),
+				Args:        strings.TrimSpace(args),
+				VersionArgs: strings.TrimSpace(versionArgs),
+				Version:     strings.TrimSpace(version),
+				Description: strings.TrimSpace(description),
+				Output:      a.toolOutput,
+				Permissions: permissions,
+			}
+			if tool.Name == "" || tool.Program == "" {
+				return // the form says what is missing by staying put
+			}
+			a.Actions.ConnectLocalTool(tool)
+			a.toolOpen = false
+			a.toolName, a.toolProgram, a.toolCommand = "", "", ""
+			a.toolArgs, a.toolVersionArgs, a.toolVersion, a.toolDescription = "", "", "", ""
+			a.toolPermissions = map[string]bool{}
+		}
+	})
+}
+
+// routeBackground is the manifest's own spelling for a command whose output
+// the launcher shows instead of the terminal.
+const routeBackground = "background"

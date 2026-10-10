@@ -478,6 +478,8 @@ func New(opts Options) *App {
 		CloseSession:        func() { a.Terminal.Close() },
 		DiagnoseIntegration: a.diagnoseIntegration,
 		ReprobeCommands:     a.reprobeCommands,
+		ConnectLocalTool:    a.connectLocalTool,
+		ChooseProgram:       a.chooseProgram,
 		SetShortcut:         a.setShortcut,
 		SetPage:             a.rememberSettingsPage,
 		BrowserTargets:      a.browserTargets,
@@ -1490,6 +1492,59 @@ func (a *App) connectRecommended(id string) {
 		if err != nil {
 			log.Printf("floter: could not connect %s: %v", id, err)
 			a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationInstallFailed(id) })
+			return
+		}
+		a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationInstalled(entry.Name) })
+		a.RefreshIntegrations(context.Background())
+	}()
+}
+
+// chooseProgram asks the user to point at a program on this machine, through
+// the framework's own file dialog unless a test answered for itself.
+func (a *App) chooseProgram() (string, error) {
+	if a.openFileDialog != nil {
+		return a.openFileDialog()
+	}
+	return "", errors.New("floter: no file dialog on this build")
+}
+
+// connectLocalTool connects a program already on this machine as an
+// integration: the package is written, the user is asked about what it
+// declares, and the same local install every other tool goes through records
+// it. The work happens off the main thread, since writing the package runs
+// the tool's own help for its command list.
+func (a *App) connectLocalTool(tool settingsui.CustomTool) {
+	go func() {
+		paths := a.Paths
+		request := extensions.CustomRequest{
+			Name:           tool.Name,
+			Command:        tool.Command,
+			Version:        tool.Version,
+			ExecutablePath: tool.Program,
+			Description:    tool.Description,
+			ArgsPrefix:     strings.Fields(tool.Args),
+			VersionArgs:    strings.Fields(tool.VersionArgs),
+			Permissions:    tool.Permissions,
+			Output:         tool.Output,
+		}
+		prepared, err := extensions.PrepareCustom(context.Background(), paths, request)
+		if err != nil {
+			log.Printf("floter: could not prepare the local tool %s: %v", tool.Name, err)
+			a.onMain(func() {
+				a.Launcher.WarnFeedback(i18n.For(a.Store.Snapshot().Language).Settings.LocalToolFailed)
+			})
+			return
+		}
+		approved := true
+		if prepared.Approval.NeedsApproval() {
+			approved = a.confirmInstallPermissions(prepared.Approval)
+		}
+		entry, err := prepared.Commit(approved)
+		if err != nil {
+			log.Printf("floter: could not connect %s: %v", tool.Name, err)
+			a.onMain(func() {
+				a.Launcher.WarnFeedback(i18n.For(a.Store.Snapshot().Language).Settings.LocalToolFailed)
+			})
 			return
 		}
 		a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationInstalled(entry.Name) })

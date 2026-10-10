@@ -320,8 +320,28 @@ type Settings struct {
 	IntegrationsCommandsHint string
 	// The command alias editor: the field's label, its placeholder and the
 	// note that another command claimed the alias first.
-	IntegrationsReprobe                 string
-	IntegrationsInstalled               string
+	IntegrationsReprobe   string
+	IntegrationsInstalled string
+	// The local-tool connection form.
+	LocalToolTitle                      string
+	LocalToolHint                       string
+	LocalToolAdd                        string
+	LocalToolName                       string
+	LocalToolProgram                    string
+	LocalToolChoose                     string
+	LocalToolCommand                    string
+	LocalToolCommandHint                string
+	LocalToolArgs                       string
+	LocalToolArgsHint                   string
+	LocalToolVersionArgs                string
+	LocalToolVersionArgsHint            string
+	LocalToolVersion                    string
+	LocalToolDescription                string
+	LocalToolOutput                     string
+	LocalToolTerminal                   string
+	LocalToolBackground                 string
+	LocalToolConnect                    string
+	LocalToolFailed                     string
 	IntegrationsCommandAlias            string
 	IntegrationsCommandAliasPlaceholder string
 	IntegrationsCommandAliasTaken       string
