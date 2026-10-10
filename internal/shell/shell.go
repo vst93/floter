@@ -982,6 +982,31 @@ func (a *App) diagnoseIntegration(id string) {
 			return
 		}
 		result := settingsui.Integration{Diagnosis: "ok"}
+		// The lifecycle probes run first: they are the tool's own health
+		// check, and a required failure marks the integration broken. The
+		// diagnose protocol runs after it, when the integration is still
+		// usable.
+		if len(integration.Manifest.Lifecycle.Probes) > 0 {
+			report, err := extensions.Reprobe(context.Background(), a.Paths, id)
+			switch {
+			case errors.Is(err, extensions.ErrNoProbes):
+			case err != nil:
+				result.Diagnosis, result.DiagnosisFailed = err.Error(), true
+			default:
+				result.Diagnosis, result.DiagnosisFailed = report.Status, report.Status != extensions.HealthHealthy && report.Status != extensions.HealthDegraded
+				a.diagnosisMu.Lock()
+				if a.diagnoses == nil {
+					a.diagnoses = map[string]settingsui.Integration{}
+				}
+				a.diagnoses[id] = result
+				a.diagnosisMu.Unlock()
+				a.onMain(func() {
+					if a.Win != nil {
+						a.Win.Invalidate()
+					}
+				})
+			}
+		}
 		diagnosis, err := extensions.Diagnose(context.Background(), integration)
 		switch {
 		case err != nil:

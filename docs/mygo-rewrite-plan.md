@@ -697,6 +697,19 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
 - 差异：旧版的审查是一个专门的 review surface（链接绝不安装，用户再按一次），Go 版用权限对话框
   完成同一次审查——同一道门，少一个界面。
 
+### P3-n 生命周期探针（已做）
+
+- 旧版 `probe_executor.rs` 的移植：manifest `lifecycle.probes` 的执行与 `probeReport` 的持久化。
+  规则照搬——**探针参数是工具自己的参数**（与 provider 协议前缀无关：runtime 前缀 + probe.args），
+  空声明不执行任何东西（v1 manifest 也是）；`stat` 级检测、stdout/stderr 捕获并封顶、
+  每条探针自己的超时（缺省 10s）、required 失败 → `unhealthy` + 集成标记 broken
+  （`lastErrorCode=probe_failed` + detail），optional 失败 → `degraded`（仍可用），
+  全过 → `healthy`；空探针集证明不了什么，也不会抹掉早前的失败（`ErrNoProbes`）。
+- 集成页「检查」现在**先跑探针再跑 diagnose**：探针是工具自己的健康检查，其状态（healthy/degraded/
+  unhealthy）显示在行上，broken 的集成不再贡献命令（CommandEntries 已按 `Running()` 过滤）。
+- 探针报告持久化在仓库条目的 `probeReport` 字段（旧版的字段名），未知键测试改为用其它键做未知样例，
+  并新增「类型化的报告在写回后保留」的断言（旧构建未知形状的报告解析成空报告后依然保留）。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。

@@ -57,6 +57,9 @@ type Entry struct {
 	LastErrorDetail *string `json:"lastErrorDetail,omitempty"`
 	LastErrorAt     *uint64 `json:"lastErrorAt,omitempty"`
 	BrokenReason    *string `json:"brokenReason,omitempty"`
+	// ProbeReport is the last lifecycle probe run's outcome, when the
+	// manifest declares probes.
+	ProbeReport *HealthReport `json:"probeReport,omitempty"`
 
 	ConfigGeneration uint64 `json:"configGeneration,omitempty"`
 
@@ -74,7 +77,7 @@ var knownEntryKeys = []string{
 	"manifestPath", "executablePath", "runtimeRoot",
 	"installedAt", "updatedAt", "pinned", "channel",
 	"approvedPermissions", "approvedAt", "approvedManifestDigest",
-	"lastErrorCode", "lastErrorDetail", "lastErrorAt", "brokenReason",
+	"lastErrorCode", "lastErrorDetail", "lastErrorAt", "brokenReason", "probeReport",
 	"configGeneration",
 }
 

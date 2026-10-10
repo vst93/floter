@@ -136,8 +136,10 @@ func TestRepositoryRoundTripKeepsUnknownKeys(t *testing.T) {
 	if entry.Name != "V Tools" || !entry.Enabled || entry.State != "enabled" {
 		t.Errorf("entry = %+v", entry)
 	}
+	// probeReport is typed now (a HealthReport, the old build's field), so it
+	// is asserted below rather than as a carried-through key.
 	extra := entry.Extra()
-	for _, key := range []string{"runtimeIntegrity", "previousIntegrity", "signatureVerified", "probeReport", "enabledBeforeBroken"} {
+	for _, key := range []string{"runtimeIntegrity", "previousIntegrity", "signatureVerified", "enabledBeforeBroken"} {
 		if _, ok := extra[key]; !ok {
 			t.Errorf("unknown key %q was not carried through: %v", key, extra)
 		}
@@ -161,8 +163,13 @@ func TestRepositoryRoundTripKeepsUnknownKeys(t *testing.T) {
 	if entry.PackageVersion != "0.0.12" || entry.ExecutablePath != "/usr/local/bin/v" {
 		t.Errorf("known fields drifted: %+v", entry)
 	}
+	// The typed report survived the write: an unknown-shaped probeReport from
+	// an older build parses into an empty one, and the write keeps it.
+	if entry.ProbeReport == nil {
+		t.Fatal("the stored probe report was dropped")
+	}
 	extra = entry.Extra()
-	for _, key := range []string{"runtimeIntegrity", "previousIntegrity", "signatureVerified", "probeReport"} {
+	for _, key := range []string{"runtimeIntegrity", "previousIntegrity", "signatureVerified"} {
 		if _, ok := extra[key]; !ok {
 			t.Errorf("key %q was dropped by the write: %v", key, extra)
 		}
