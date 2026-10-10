@@ -212,20 +212,29 @@ type Settings struct {
 	PermissionsDeclared string
 
 	// The Integrations page.
-	IntegrationsEmpty        string
-	IntegrationsEnable       string
-	IntegrationsRunning      string
-	IntegrationsOff          string
-	IntegrationsBroken       string
-	IntegrationsOrphan       string
-	IntegrationsHint         string
-	IntegrationsUninstall    string
-	IntegrationsCheck        string
-	IntegrationsInstall      string
-	IntegrationsPackageHint  string
-	IntegrationsVersionHint  string
-	IntegrationsRemoveTitle  func(name string) string
-	IntegrationsRemoveDetail string
+	IntegrationsEmpty     string
+	IntegrationsEnable    string
+	IntegrationsRunning   string
+	IntegrationsOff       string
+	IntegrationsBroken    string
+	IntegrationsOrphan    string
+	IntegrationsHint      string
+	IntegrationsUninstall string
+	// The componentized uninstall dialog.
+	IntegrationsUninstallTitle       string
+	IntegrationsUninstallDescription string
+	UninstallHostConfig              string
+	UninstallHostConfigHint          string
+	UninstallToolData                string
+	UninstallToolDataHint            string
+	UninstallArtifacts               string
+	UninstallArtifactsHint           string
+	IntegrationsCheck                string
+	IntegrationsInstall              string
+	IntegrationsPackageHint          string
+	IntegrationsVersionHint          string
+	IntegrationsRemoveTitle          func(name string) string
+	IntegrationsRemoveDetail         string
 	// IntegrationsCommands is the per-command switch list's caption, and
 	// IntegrationsCommandsHint explains what a switch does.
 	IntegrationsCommands string

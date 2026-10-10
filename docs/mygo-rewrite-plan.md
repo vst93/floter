@@ -808,6 +808,15 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
   这个差异写在 Actions 里。
 - 「在终端打开」的 `OpenExternal` 与自定义快捷键/应用菜单共用同一个入口（`OpenExternalTerminal`）。
 
+### P3-p 组件化卸载（已做）
+
+- 旧版的组件化卸载对话框：**程序总是移除**，三个数据类别（宿主配置 / 工具数据 / 生成的产物）是
+  用户的勾选；三个都选 = 移除整个数据目录（旧版 `remove_entire_data` 的语义）。
+  `extensions.UninstallComponentized` 走与普通卸载同一个 rename-aside-then-delete 的程序移除，
+  数据类别按自己的路径移除；拒绝非法 id 与未知集成。
+- 集成行的「卸载…」按钮展开对话框（标题 + 说明 + 三个勾选 + 卸载/取消），shell 的确认对话框照旧。
+- i18n：en/zh 的对话框标题/说明/类别名/提示全部就位。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。

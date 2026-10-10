@@ -182,6 +182,10 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 **P4-x 终端标题栏的旧控件**（本轮）
 - 标题行回到旧版的两个控制：「新命令」（回启动器+清空输入）与「在终端打开」（开系统终端窗口）。
 
+**P3-p 组件化卸载**（本轮）
+- `extensions.UninstallComponentized`（程序必移、三个数据类别按勾选、全选=移除数据根）；集成行
+  「卸载…」展开对话框（标题/说明/三个勾选/卸载/取消），shell 确认后执行。
+
 ## 尚未做（按建议优先级）
 
 1. **列表协议的分页**：`page.cursor`/`hasMore` 与滚动加载（需要带着 cursor 重新执行命令）；旧版还有

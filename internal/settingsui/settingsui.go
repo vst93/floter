@@ -72,6 +72,9 @@ type Actions struct {
 	SetIntegrationEnabled func(id string, enabled bool)
 	// UninstallIntegration removes an installed extension.
 	UninstallIntegration func(id string, name string)
+	// UninstallComponents removes the parts of an installed extension the
+	// checkboxes name. Nil falls back to UninstallIntegration.
+	UninstallComponents func(id string, name string, components UninstallComponents)
 	// DiagnoseIntegration asks an integration's provider to check itself.
 	DiagnoseIntegration func(id string)
 	// SetShortcut records a new accelerator for an action id.
@@ -188,6 +191,20 @@ type Command struct {
 	Available bool
 }
 
+// UninstallComponents says which parts of an installed integration to remove.
+// The program always goes; the three data categories are the user's choice.
+type UninstallComponents struct {
+	// RemoveHostConfig removes the host-owned configuration (config.json and
+	// the secrets generations).
+	RemoveHostConfig bool
+	// RemoveToolData removes the tool's own data (sessions, completions,
+	// health).
+	RemoveToolData bool
+	// RemoveArtifacts removes generated artifacts (logs, caches,
+	// user-generated files).
+	RemoveArtifacts bool
+}
+
 // Session is one running session, as the Sessions page shows it.
 type Session struct {
 	Title   string
@@ -234,6 +251,10 @@ type App struct {
 	// whether an update is waiting to be installed.
 	UpdateStatus string
 	UpdateReady  bool
+	// uninstallOpen is which integrations have the componentized uninstall
+	// dialog open, and uninstallDraft its checkboxes.
+	uninstallOpen  map[string]bool
+	uninstallDraft map[string]UninstallComponents
 	// auditOpen is which integrations have their permission audit unfolded,
 	// configOpen which configuration forms are open, configDrafts their form
 	// state, and configError the last save's error.
@@ -787,7 +808,9 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 						a.Actions.DiagnoseIntegration(integration.ID)
 					}
 				}
-				if a.Actions.UninstallIntegration != nil {
+				if a.Actions.UninstallComponents != nil {
+					a.uninstallComponentsRow(c, copy, integration)
+				} else if a.Actions.UninstallIntegration != nil {
 					if ui.Button(c, copy.IntegrationsUninstall).Clicked() {
 						a.Actions.UninstallIntegration(integration.ID, integration.Name)
 					}

@@ -486,6 +486,34 @@ func New(opts Options) *App {
 				a.RefreshIntegrations(context.Background())
 			}()
 		},
+		UninstallComponents: func(id, name string, components settingsui.UninstallComponents) {
+			// The dialog blocks, so the removal runs off the main thread.
+			go func() {
+				copy := i18n.For(a.Store.Snapshot().Language).Settings
+				result, err := mygo.Dialog.Message(mygo.MessageOptions{
+					Type:    mygo.MessageWarning,
+					Message: copy.IntegrationsRemoveTitle(name),
+					Detail:  copy.IntegrationsRemoveDetail,
+					Buttons: []string{copy.IntegrationsUninstall, "Cancel"},
+				})
+				if err != nil || result.Button != 0 {
+					return
+				}
+				result2, err := extensions.UninstallComponentized(a.Paths, id, extensions.UninstallComponents{
+					RemoveHostConfig: components.RemoveHostConfig,
+					RemoveToolData:   components.RemoveToolData,
+					RemoveArtifacts:  components.RemoveArtifacts,
+				})
+				if err != nil {
+					log.Printf("floter: could not uninstall %s: %v", id, err)
+					return
+				}
+				a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationRemoved(name) })
+				log.Printf("floter: uninstalled %s (config=%v data=%v artifacts=%v)",
+					id, result2.RemovedHostConfig, result2.RemovedToolData, result2.RemovedArtifacts)
+				a.RefreshIntegrations(context.Background())
+			}()
+		},
 		UninstallIntegration: func(id, name string) {
 			// The dialog blocks, so it runs off the main thread and the
 			// result comes back to it.
