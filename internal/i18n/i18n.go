@@ -389,6 +389,13 @@ type Terminal struct {
 	EmptyBack  string
 	// Close names the close control for assistive technology.
 	Close string
+	// NewCommand and OpenExternal name the two controls the old terminal
+	// header carried: return to the launcher, and hand the session to the
+	// system's own terminal.
+	NewCommand       string
+	NewCommandHint   string
+	OpenExternal     string
+	OpenExternalHint string
 }
 
 // Copy is every language's string set.

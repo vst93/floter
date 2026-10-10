@@ -612,7 +612,16 @@ func New(opts Options) *App {
 	// The plugin's callbacks run on the terminal's own goroutine, so they
 	// hand the main thread the work of touching the app's state.
 	termActions := terminalui.Actions{
-		Close: func() { a.Open(SurfaceLauncher) },
+		Close:      func() { a.Open(SurfaceLauncher) },
+		NewCommand: func() { a.Launcher.ResetQuery(); a.Open(SurfaceLauncher) },
+		OpenExternal: func() {
+			// The session is handed to the system's own terminal: the Go
+			// build runs its terminal in-process, so this opens a new window
+			// rather than attaching to the running one.
+			if err := a.OpenExternalTerminal(); err != nil {
+				log.Printf("floter: could not open a terminal: %v", err)
+			}
+		},
 		Title: func(title string) {
 			a.onMain(func() {
 				a.Terminal.Title = title

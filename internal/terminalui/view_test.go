@@ -251,3 +251,39 @@ func TestTerminalEmptyStateControls(t *testing.T) {
 		t.Errorf("the error did not show: %q", tt.Texts())
 	}
 }
+
+// The terminal header carries the old build's two controls: a return to the
+// launcher and a hand-off to the system's own terminal.
+func TestTerminalHeaderControls(t *testing.T) {
+	newCommands, externals := 0, 0
+	closeCalls := 0
+	a := New(newStore(), Actions{
+		NewCommand:   func() { newCommands++ },
+		OpenExternal: func() { externals++ },
+		Close:        func() { closeCalls++ },
+	}, func(terminal.Options) (*terminal.Terminal, error) {
+		return nil, errors.New("no library in tests")
+	})
+	tt := render(t, a, 860, 600)
+	if err := tt.Click("New command"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if newCommands != 1 {
+		t.Errorf("new command ran %d times", newCommands)
+	}
+	if err := tt.Click("Open in terminal"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if externals != 1 {
+		t.Errorf("open external ran %d times", externals)
+	}
+	if err := tt.Click("✕"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if closeCalls != 1 {
+		t.Errorf("close ran %d times", closeCalls)
+	}
+}

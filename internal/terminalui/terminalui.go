@@ -26,6 +26,11 @@ import (
 type Actions struct {
 	// Close leaves the terminal surface.
 	Close func()
+	// NewCommand returns to the launcher with an empty field, and
+	// OpenExternal hands the session to the system's own terminal. Both are
+	// the old terminal header's controls; either may be nil in tests.
+	NewCommand   func()
+	OpenExternal func()
 	// Title is called when the program sets the terminal's title.
 	Title func(string)
 	// Exit is called when the program ends; the shell returns to the
@@ -348,6 +353,16 @@ func (a *App) titleRow(c *ui.Context, copy i18n.Terminal) {
 		if a.Actions.Pin != nil && a.Term != nil {
 			if ui.Button(c, copy.Pin).Clicked() {
 				a.Actions.Pin(title, a.sessionText())
+			}
+		}
+		if a.Actions.NewCommand != nil {
+			if ui.Button(c, copy.NewCommand).Label(copy.NewCommandHint).Clicked() {
+				a.Actions.NewCommand()
+			}
+		}
+		if a.Actions.OpenExternal != nil {
+			if ui.Button(c, copy.OpenExternal).Label(copy.OpenExternalHint).Clicked() {
+				a.Actions.OpenExternal()
 			}
 		}
 		if ui.Button(c, "✕").Label(copy.Close).Clicked() && a.Actions.Close != nil {
