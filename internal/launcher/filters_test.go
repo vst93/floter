@@ -425,3 +425,31 @@ func TestPinningAClipboardEntry(t *testing.T) {
 		t.Errorf("the pin also ran the row: %v", testRuns)
 	}
 }
+
+// A captured run's text can be shown in a window of its own: the pin rides the
+// output view's own title row, on the surface that holds the text.
+func TestOutputViewPin(t *testing.T) {
+	a := testApp()
+	pinned := [][2]string{}
+	a.Actions.PinText = func(title, text string) { pinned = append(pinned, [2]string{title, text}) }
+	a.output = &OutputView{
+		Title:  "jv --floter",
+		Text:   "{\"a\": 1}",
+		Status: "ok",
+	}
+	tt := render(t, a)
+	tt.Frame()
+	if !tt.HasText("jv --floter") || !tt.HasText("{\"a\": 1}") {
+		t.Fatalf("the output view is not showing: %q", tt.Texts())
+	}
+	if err := tt.Click("Pin as a window"); err != nil {
+		t.Fatalf("pin: %v", err)
+	}
+	tt.Frame()
+	if len(pinned) != 1 || pinned[0][1] != "{\"a\": 1}" {
+		t.Fatalf("pinned = %v", pinned)
+	}
+	if pinned[0][0] != "jv --floter" {
+		t.Errorf("the window's title = %q", pinned[0][0])
+	}
+}

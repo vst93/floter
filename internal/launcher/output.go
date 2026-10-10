@@ -228,7 +228,16 @@ func (a *App) outputBody(c *ui.Context, copy i18n.Launcher, edge float32) {
 			})
 		}
 		ui.Column(c).Absolute().Top(edge).Left(t.Space(2)).Right(t.Space(2)).Children(func() {
-			ui.Text(c, view.Title).FontSize(t.FontSize).TextColor(t.Text).Ellipsis("\u2026").SingleLine()
+			ui.Row(c).FillWidth().Gap(t.Space(1)).AlignItems(ui.Center).Children(func() {
+				ui.Text(c, view.Title).FontSize(t.FontSize).TextColor(t.Text).Ellipsis("\u2026").SingleLine().Grow(1)
+				// The output can be shown in a window of its own: the old
+				// build's own pin, on the surface that holds the text.
+				if a.Actions.PinText != nil {
+					if ui.Button(c, "\u2197").Label(copy.HistoryPin).Clicked() {
+						a.Actions.PinText(view.Title, view.Text)
+					}
+				}
+			})
 			ui.Text(c, view.Status+"  \u00b7  "+a.outputHint(copy, view)).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
 		})
 	})
