@@ -221,6 +221,10 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 - `ReprobeCommands` + Integrations 页按钮：重新推导生成的自定义集成的命令列表，原子刷新描述符，
   sidecar 记录新鲜度；工具哑了保留旧描述符。发布者内容永不覆盖。
 
+**P4-aa 多来源工具清点**（本轮）
+- `internal/inventory`：桌面条目 + flatpak/snap/nix/Homebrew/LaunchServices/Chocolatey/Scoop/
+  WinGet 多来源发现、同工具合并、策展排序、指纹、TTL 缓存。
+
 ## 尚未做（按建议优先级）
 
 1. **列表协议的分页**：`page.cursor`/`hasMore` 与滚动加载（需要带着 cursor 重新执行命令）；旧版还有
@@ -236,7 +240,7 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 7. **P6 发布链**：剩下的是一次性维护者动作——`mygo keygen` 生成更新密钥、`mygo.json` 填 `updates`
    与 `macos.signingIdentity`/`macos.notarize`、CI 注入私钥、把产物发到 GitHub Release（含预发布通道）。
 8. **小项**：开机自启需要在真实打包应用上验证一次；集成的**命令别名编辑**（`command_aliases`
-   的匹配已实现，设置页的逐命令输入框未做）；**多来源工具清点**（dpkg/rpm/flatpak/snap/nix/…）；
+   的匹配已实现，设置页的逐命令输入框未做）；
    **能力探测**（manifest `lifecycle.probes` 的执行与 `probeReport`，Go 侧「检查」目前走 diagnose）；
    旧版 `package.json` 归档字段。（导入导出的权限审批已改为**一次汇总**，
    与旧版一致；旧版 `launch_counts` 已在启动时一次性导入 `usage.json`，本构建的记录优先。）

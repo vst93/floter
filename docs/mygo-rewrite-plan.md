@@ -909,6 +909,18 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
 - 设置 Integrations 页对 `Generated` 集成显示按钮；shell 侧 `reprobeCommands` 后台执行，
   完成后重交启动器命令列表并刷新 Integrations 页。
 
+### P4-aa 多来源工具清点（已做）
+
+- 新包 `internal/inventory`：旧版 `inventory.rs` + `curated_tools.rs` 的移植。发现源超出裸
+  PATH——Linux 桌面条目（Name/Comment/Exec，NoDisplay 隐藏，字段码剔除）+ flatpak/snap/nix
+  导出、macOS 的 Homebrew 与 LaunchServices 应用、Windows 的 Chocolatey/Scoop/WinGet。
+- 同一可执行文件被两个来源发现 = 一个候选（两来源、取更优质量）——PATH 上的 `rg` 和有桌面条目
+  的 `rg` 是一行不是两行。
+- 排序：策展清单（+300，唯一手写输入）> OS 发布的条目（+200）> 描述（+60）> 用户自有目录（+40），
+  变体名（最后一段 `-` 组是版本号：`gcc-12`、`xml2-config`）-200、单字符 -100，截零不翻车。
+  只影响前十二行的顺序，永不隐藏任何候选。
+- 指纹（规范路径:大小:mtime）识别原地升级；快照 5 分钟 TTL + 搜索路径变化即失效。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。
