@@ -430,3 +430,41 @@ func TestComputeInitials(t *testing.T) {
 		t.Errorf("latin = %q", got)
 	}
 }
+
+// A .strings file in UTF-16 (what Xcode writes for Chinese names) is decoded,
+// and its display name is read.
+func TestStringsFileUTF16(t *testing.T) {
+	dir := t.TempDir()
+	utf16 := encodeUTF16LE(`"CFBundleDisplayName" = "图形编辑器";`)
+	if err := os.MkdirAll(filepath.Join(dir, "zh.lproj"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "zh.lproj", "InfoPlist.strings"), utf16, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := readStringsFile(filepath.Join(dir, "zh.lproj", "InfoPlist.strings")); got != "图形编辑器" {
+		t.Errorf("utf-16 name = %q", got)
+	}
+	// The unquoted key form is read too.
+	write(t, filepath.Join(dir, "en.lproj", "InfoPlist.strings"),
+		"CFBundleDisplayName = WeCom;\n")
+	if got := readStringsFile(filepath.Join(dir, "en.lproj", "InfoPlist.strings")); got != "WeCom" {
+		t.Errorf("unquoted key = %q", got)
+	}
+	// A comment is stripped rather than read as an entry.
+	write(t, filepath.Join(dir, "Base.lproj", "InfoPlist.strings"),
+		"/* \"CFBundleDisplayName\" = \"not the name\"; */\n"+
+			`"CFBundleDisplayName" = "Real Name";`+"\n")
+	if got := readStringsFile(filepath.Join(dir, "Base.lproj", "InfoPlist.strings")); got != "Real Name" {
+		t.Errorf("after a comment = %q", got)
+	}
+}
+
+// encodeUTF16LE is a string's UTF-16LE bytes with the BOM, as Xcode writes.
+func encodeUTF16LE(text string) []byte {
+	out := []byte{0xff, 0xfe}
+	for _, char := range text {
+		out = append(out, byte(char), byte(char>>8))
+	}
+	return out
+}

@@ -144,34 +144,135 @@ func readStringsFile(path string) string {
 			return name
 		}
 	}
-	return stringsValue(string(data), "CFBundleDisplayName", "CFBundleName")
+	// An old-style .strings file: the text may be UTF-16 (Xcode writes that
+	// for Chinese and Japanese names), decoded below.
+	return stringsValue(decodeStringsText(data), "CFBundleDisplayName", "CFBundleName")
+}
+
+// decodeStringsText decodes a .strings file's bytes to text: a UTF-16 BOM is
+// decoded as such (Xcode writes those for Chinese and Japanese names), and
+// anything else is read as UTF-8.
+func decodeStringsText(data []byte) string {
+	switch {
+	case len(data) >= 2 && data[0] == 0xff && data[1] == 0xfe:
+		units := make([]uint16, 0, len(data)/2)
+		for i := 2; i+1 < len(data); i += 2 {
+			units = append(units, uint16(data[i])|uint16(data[i+1])<<8)
+		}
+		runes := make([]rune, 0, len(units))
+		for _, unit := range units {
+			runes = append(runes, rune(unit))
+		}
+		return string(runes)
+	case len(data) >= 2 && data[0] == 0xfe && data[1] == 0xff:
+		units := make([]uint16, 0, len(data)/2)
+		for i := 2; i+1 < len(data); i += 2 {
+			units = append(units, uint16(data[i])<<8|uint16(data[i+1]))
+		}
+		runes := make([]rune, 0, len(units))
+		for _, unit := range units {
+			runes = append(runes, rune(unit))
+		}
+		return string(runes)
+	default:
+		return string(data)
+	}
 }
 
 // stringsValue pulls a `"key" = "value";` pair out of a .strings file's text,
 // for the files that are not property lists.
 func stringsValue(text string, keys ...string) string {
-	pairs := map[string]string{}
-	for _, line := range strings.Split(text, "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "/*") || strings.HasPrefix(line, "//") {
-			continue
+	// Strip block comments (every one of these files opens with one).
+	for {
+		start := strings.Index(text, "/*")
+		if start < 0 {
+			break
 		}
-		name, value, ok := strings.Cut(line, "=")
-		if !ok {
-			continue
+		end := strings.Index(text[start:], "*/")
+		if end < 0 {
+			break
 		}
-		key := strings.Trim(strings.TrimSpace(name), "\"")
-		value = strings.TrimSuffix(strings.TrimSpace(value), ";")
-		pairs[key] = strings.Trim(strings.TrimSpace(value), "\"")
+		text = text[:start] + text[start+end+2:]
 	}
-	// The keys are asked for in preference order, so a file carrying both
-	// names answers with the display name.
+	// Collect every `key = value;` pair, quoted or not, then answer with the
+	// first key that carries a value, in the preference order they were asked
+	// for.
 	for _, key := range keys {
-		if value := pairs[key]; value != "" {
-			return value
+		for _, line := range strings.Split(text, ";") {
+			line = strings.TrimSpace(line)
+			if line == "" {
+				continue
+			}
+			name, value, ok := strings.Cut(line, "=")
+			if !ok {
+				continue
+			}
+			if strings.Trim(strings.TrimSpace(name), "\"") != key {
+				continue
+			}
+			value = strings.Trim(strings.TrimSpace(value), "\"")
+			value = decodeStringsEscapes(value)
+			if strings.TrimSpace(value) != "" {
+				return value
+			}
 		}
 	}
 	return ""
+}
+
+// decodeStringsEscapes decodes the escapes a .strings value carries:
+// \" \\\\ \\n \\t and the \\UXXXX form.
+func decodeStringsEscapes(value string) string {
+	chars := []rune(value)
+	var output strings.Builder
+	for i := 0; i < len(chars); i++ {
+		if chars[i] != '\\' {
+			output.WriteRune(chars[i])
+			continue
+		}
+		if i+1 >= len(chars) {
+			output.WriteRune('\\')
+			continue
+		}
+		i++
+		switch chars[i] {
+		case 'n':
+			output.WriteRune('\n')
+		case 't':
+			output.WriteRune('\t')
+		case 'r':
+			output.WriteRune('\r')
+		case '"':
+			output.WriteRune('"')
+		case '\\':
+			output.WriteRune('\\')
+		case 'U', 'u':
+			if i+4 < len(chars) {
+				var code rune
+				for j := 1; j <= 4; j++ {
+					code = code*16 + hexDigit(chars[i+j])
+				}
+				i += 4
+				output.WriteRune(code)
+			}
+		default:
+			output.WriteRune(chars[i])
+		}
+	}
+	return output.String()
+}
+
+// hexDigit is a hex digit's value, 0 for anything else.
+func hexDigit(char rune) rune {
+	switch {
+	case char >= '0' && char <= '9':
+		return char - '0'
+	case char >= 'a' && char <= 'f':
+		return char - 'a' + 10
+	case char >= 'A' && char <= 'F':
+		return char - 'A' + 10
+	}
+	return 0
 }
 
 // identifierAliases are the searchable pieces of a bundle identifier:

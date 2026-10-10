@@ -190,6 +190,10 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 - `ProbeCapabilities`：version/help 结构探针 + manifest 自定义探针，退出码与 stdout 对照预期，
   报告聚合出版本号/支持功能/限制；「检查」流程变为探针 → diagnose。
 
+**P2-v .strings 的 UTF-16 与无引号键**（本轮）
+- `.strings` 文本的 UTF-16 BOM 检测解码（LE/BE）、无引号键、块注释剥离、转义解码——旧版
+  `localized_name_from_strings_text` 的完整移植。企业微信的英文名（无引号键）因此可达。
+
 ## 尚未做（按建议优先级）
 
 1. **列表协议的分页**：`page.cursor`/`hasMore` 与滚动加载（需要带着 cursor 重新执行命令）；旧版还有

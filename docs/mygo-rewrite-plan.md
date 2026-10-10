@@ -826,6 +826,14 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
   `SupportedFeatures`、失败的进 `Limitations`（带参数与原因）。
 - 集成页「检查」的流程现在是：探针（健康状况+能力）→ diagnose（工具自检）。
 
+### P2-v .strings 的 UTF-16 与无引号键（已做）
+
+- 旧版 `localized_name_from_strings_text` 的移植：`.strings` 文本的编码可能是 UTF-16（Xcode 为
+  中文/日文名写出），带 BOM 检测（LE/BE）解码；键的**两种拼法**都读——Xcode 写引号形式，但格式
+  允许无引号，手写的文件用那种形式（企业微信的英文名 `CFBundleDisplayName = "WeCom";` 就是无引号键）。
+  块注释剥离避免注释里的键名被误读为条目。转义（`\"`、`\\`、`\\UXXXX`）解码。
+- P2-r 的 `.strings` 读取此前只支持引号键的简单逐行格式——企业微信的英文名会因此读不到。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。
