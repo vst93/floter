@@ -20,6 +20,7 @@ import (
 	"floter/internal/i18n"
 	"floter/internal/settings"
 	"floter/internal/shortcuts"
+	"floter/internal/terminalui"
 )
 
 // The settings pages, in sidebar order.
@@ -1198,7 +1199,14 @@ func (a *App) general(c *ui.Context, copy i18n.Settings) {
 					func(v float64) {
 						a.set(func(s *settings.Settings) { s.FontSize = int(math.Round(v)) })
 					})
-				a.text(c, copy.FontFamily, "", settings.DefaultFontFamily, s.FontFamily,
+				// The family is a picker of the faces this machine actually
+				// has (detected from its font files), plus the current value
+				// so a hand-set family is never lost.
+				families := make([]i18n.Option, 0, len(terminalui.FontFamilyOptions(s.FontFamily)))
+				for _, family := range terminalui.FontFamilyOptions(s.FontFamily) {
+					families = append(families, i18n.Option{ID: family, Label: family})
+				}
+				a.choose(c, copy.FontFamily, "", families, s.FontFamily,
 					func(v string) { a.set(func(s *settings.Settings) { s.FontFamily = v }) })
 				a.pick(c, copy.CursorShape, "", copy.CursorShapes, s.CursorShape,
 					func(id string) { a.set(func(s *settings.Settings) { s.CursorShape = id }) })
