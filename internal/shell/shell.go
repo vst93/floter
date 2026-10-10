@@ -1555,11 +1555,15 @@ func (a *App) connectDetected(tool settingsui.DetectedTool) {
 	if name == "" {
 		name = executableName(tool.Path)
 	}
+	versionArgs := tool.VersionArgs
+	if versionArgs == "" {
+		versionArgs = "--version"
+	}
 	a.connectLocalTool(settingsui.CustomTool{
 		Name:        name,
 		Program:     tool.Path,
 		Description: tool.Description,
-		VersionArgs: "--version",
+		VersionArgs: versionArgs,
 	})
 }
 

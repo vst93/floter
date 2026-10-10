@@ -7,6 +7,7 @@ import (
 	stdpng "image/png"
 	"log"
 	"net/url"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -132,16 +133,22 @@ func (a *App) HandleURL(rawURL string) {
 		a.Open(SurfaceTerminal)
 	case "connect", "register":
 		// A tool ships these links in its README: `connect` carries a manifest
-		// that is reviewed here (connecting is still the user's own
-		// approval), and `register` names a tool already on the PATH, which
-		// this build answers by bringing the integrations page up — it
-		// highlights nothing, which is honest: the old build's Detected list
-		// is not part of this build.
+		// that is reviewed here, and `register` names a program already on the
+		// machine — either way, connecting is still the user's own approval.
 		a.Open(SurfaceSettings)
 		a.Settings.Page = settingsui.PageIntegrations
-		if strings.EqualFold(parsed.Host, "connect") {
+		switch {
+		case strings.EqualFold(parsed.Host, "connect"):
 			if manifest := parsed.Query().Get("manifest"); manifest != "" {
 				a.connectFromLink(manifest)
+			}
+		default:
+			// The register form names the program: `cmd`, `tool` or `program`
+			// (the old build's three spellings), or a positional path.
+			name := firstNonEmpty(parsed.Query().Get("cmd"), parsed.Query().Get("tool"),
+				parsed.Query().Get("program"), strings.TrimPrefix(parsed.Path, "/"))
+			if name != "" {
+				a.registerFromLink(name)
 			}
 		}
 	default:
@@ -156,6 +163,37 @@ func (a *App) HandleURL(rawURL string) {
 			a.Launcher.SetQuery(query)
 		}
 	}
+}
+
+// registerFromLink connects a program a `floter://register` link named: a
+// name is resolved on the search path, and an absolute path is taken as it
+// is. A name nothing can resolve is logged rather than silently ignored, and
+// the page is already up either way.
+func (a *App) registerFromLink(name string) {
+	path := name
+	if !filepath.IsAbs(path) {
+		resolved, ok := extensions.LookTool(name)
+		if !ok {
+			log.Printf("floter: no program named %q on the search path", name)
+			return
+		}
+		path = resolved
+	}
+	a.connectDetected(settingsui.DetectedTool{
+		Name:        filepath.Base(path),
+		Path:        path,
+		VersionArgs: "--version",
+	})
+}
+
+// firstNonEmpty is the first non-blank of the values.
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
 }
 
 // browserOptions is the browser plugin's settings, as the search uses them.

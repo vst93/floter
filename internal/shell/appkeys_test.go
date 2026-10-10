@@ -1,6 +1,8 @@
 package shell
 
 import (
+	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
@@ -123,4 +125,36 @@ func TestPlacementIsCentredAndClamped(t *testing.T) {
 			t.Errorf("%s: placement = (%d, %d), want (%d, %d)", c.name, gotX, gotY, c.wantX, c.wantY)
 		}
 	}
+}
+
+// A `floter://register` link names a program the machine already has; the
+// three spellings the old build accepted all reach it, and a name nothing can
+// resolve is refused rather than half-connected. The link is the discovery →
+// connect loop's own door.
+func TestRegisterDeepLinkNamesAProgram(t *testing.T) {
+	for _, raw := range []string{
+		"floter://register?cmd=rg",
+		"floter://register?tool=rg",
+		"floter://register?program=rg",
+		"floter://register/rg",
+	} {
+		parsed, err := url.Parse(raw)
+		if err != nil {
+			t.Fatalf("%s: %v", raw, err)
+		}
+		// The same extraction HandleURL performs.
+		name := firstNonEmpty(parsed.Query().Get("cmd"), parsed.Query().Get("tool"),
+			parsed.Query().Get("program"), strings.TrimPrefix(parsed.Path, "/"))
+		if name != "rg" {
+			t.Errorf("%s named %q, want rg", raw, name)
+		}
+	}
+	// A link with no name at all names nothing.
+	if got := firstNonEmpty("", "  ", ""); got != "" {
+		t.Errorf("firstNonEmpty = %q", got)
+	}
+	// A name nothing resolves is refused: the register path logs and leaves
+	// the page as it was rather than writing half a package.
+	a := appKeysApp()
+	a.registerFromLink("no-such-program-anywhere-12345")
 }

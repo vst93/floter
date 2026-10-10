@@ -1863,6 +1863,9 @@ type DetectedTool struct {
 	Name        string
 	Path        string
 	Description string
+	// VersionArgs is how the tool reports its version, when the caller knows
+	// better than the default.
+	VersionArgs string
 }
 
 // detectedSection lists the programs this machine has that nothing has
