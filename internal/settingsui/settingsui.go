@@ -310,6 +310,8 @@ type App struct {
 	toolDescription string
 	toolOutput      string
 	toolPermissions map[string]bool
+	// toolParams is the declared inputs the form is editing, one per row.
+	toolParams []toolParam
 
 	// Sessions reports the running sessions; nil when the shell has none
 	// (tests).
@@ -1705,6 +1707,8 @@ type CustomTool struct {
 	Description string
 	Output      string
 	Permissions []string
+	// Params are the inputs the connected tool declares.
+	Params []extensions.ParamDefinition
 }
 
 // localToolSection is the "connect a program on this machine" form: the words
@@ -1787,6 +1791,7 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 				}
 			}
 		})
+		a.toolParamsEditor(c, copy)
 		requested := ui.Button(c, copy.LocalToolConnect).Clicked()
 		a.toolName, a.toolProgram, a.toolCommand = name, program, command
 		a.toolArgs, a.toolVersionArgs, a.toolVersion = args, versionArgs, version
@@ -1808,12 +1813,14 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 				Description: strings.TrimSpace(description),
 				Output:      a.toolOutput,
 				Permissions: permissions,
+				Params:      a.declaredParams(),
 			}
 			if tool.Name == "" || tool.Program == "" {
 				return // the form says what is missing by staying put
 			}
 			a.Actions.ConnectLocalTool(tool)
 			a.toolOpen = false
+			a.toolParams = nil
 			a.toolName, a.toolProgram, a.toolCommand = "", "", ""
 			a.toolArgs, a.toolVersionArgs, a.toolVersion, a.toolDescription = "", "", "", ""
 			a.toolPermissions = map[string]bool{}
@@ -2100,4 +2107,125 @@ func boolValue(on bool) string {
 		return "true"
 	}
 	return "false"
+}
+
+// toolParam is one declared input the connect form is editing.
+type toolParam struct {
+	ID       string
+	Label    string
+	Kind     string
+	Flag     string
+	Required bool
+	Options  string
+}
+
+// paramKinds are the kinds the editor offers, in the schema's order.
+var paramKinds = []string{
+	extensions.ParamText, extensions.ParamNumber, extensions.ParamBoolean,
+	extensions.ParamSelect, extensions.ParamPath,
+}
+
+// toolParamsEditor edits the declared inputs of a connection: one row per
+// parameter — its id, its kind, its flag (the argv prefix it becomes) and
+// whether a value is required — plus the door to add another. A flag that is
+// not one argv token is refused at connect time, so the editor does not have
+// to police the spelling here.
+func (a *App) toolParamsEditor(c *ui.Context, copy i18n.Settings) {
+	t := c.Theme()
+	a.section(c, copy.ParamsTitle, copy.ParamsHint, func() {
+		if len(a.toolParams) == 0 {
+			ui.Text(c, copy.ParamsEmpty).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+		}
+		removed := -1
+		if len(a.toolParams) > 0 {
+			a.card(c, func() {
+				for index := range a.toolParams {
+					index := index
+					param := &a.toolParams[index]
+					id, label, flag, options := param.ID, param.Label, param.Flag, param.Options
+					kindIndex := 0
+					for i, kind := range paramKinds {
+						if kind == param.Kind {
+							kindIndex = i
+						}
+					}
+					required := param.Required
+					labelClicked := a.row(c, copy.ParamsRow(index+1), "", func() {
+						ui.TextInput(c, &id).Label(copy.ParamsID).Width(120).Placeholder("target")
+						ui.Segmented(c, &kindIndex, paramKindLabels(copy)...).Label(copy.ParamsKind)
+						ui.TextInput(c, &flag).Label(copy.ParamsFlag).Width(120).Placeholder("--target")
+					}, func() {
+						a.row(c, copy.ParamsLabel, "", func() {
+							ui.TextInput(c, &label).Label(copy.ParamsLabel).Width(180)
+						})
+						if paramKinds[kindIndex] == extensions.ParamSelect {
+							a.row(c, copy.ParamsOptions, copy.ParamsOptionsHint, func() {
+								ui.TextInput(c, &options).Label(copy.ParamsOptions).Width(240).
+									Placeholder("fast, slow")
+							})
+						}
+						a.row(c, copy.ParamsRequired, "", func() {
+							if ui.Switch(c, &required).Label(copy.ParamsRequired).Changed() {
+								param.Required = required
+							}
+						})
+						// The row carries no label of its own: the button is
+						// the whole of it, so the label the pointer and the
+						// keyboard find is the button.
+						a.row(c, "", "", func() {
+							if ui.Button(c, copy.ParamsRemove).Clicked() {
+								removed = index
+							}
+						})
+					})
+					if labelClicked {
+						param.Required = !required
+					}
+					param.ID, param.Label, param.Flag, param.Options = id, label, flag, options
+					param.Kind = paramKinds[kindIndex]
+				}
+			})
+		}
+		if removed >= 0 {
+			a.toolParams = append(a.toolParams[:removed], a.toolParams[removed+1:]...)
+			return
+		}
+		if ui.Button(c, copy.ParamsAdd).Clicked() {
+			a.toolParams = append(a.toolParams, toolParam{Kind: extensions.ParamText})
+		}
+	})
+}
+
+// paramKindLabels are the kind picker's words.
+func paramKindLabels(copy i18n.Settings) []string {
+	return []string{
+		copy.ParamsKindText, copy.ParamsKindNumber, copy.ParamsKindBoolean,
+		copy.ParamsKindSelect, copy.ParamsKindPath,
+	}
+}
+
+// declaredParams turns the editor's rows into the declarations a request
+// carries: a row with no id is skipped rather than refused, because a row
+// being typed is not yet a declaration.
+func (a *App) declaredParams() []extensions.ParamDefinition {
+	var params []extensions.ParamDefinition
+	for _, param := range a.toolParams {
+		if strings.TrimSpace(param.ID) == "" {
+			continue
+		}
+		definition := extensions.ParamDefinition{
+			ID:       strings.TrimSpace(param.ID),
+			Label:    strings.TrimSpace(param.Label),
+			Kind:     param.Kind,
+			Flag:     strings.TrimSpace(param.Flag),
+			Required: param.Required,
+		}
+		for _, option := range strings.Split(param.Options, ",") {
+			if trimmed := strings.TrimSpace(option); trimmed != "" {
+				definition.Options = append(definition.Options, trimmed)
+			}
+		}
+		params = append(params, definition)
+	}
+	return params
 }

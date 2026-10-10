@@ -1679,6 +1679,7 @@ func (a *App) connectLocalTool(tool settingsui.CustomTool) {
 			VersionArgs:    strings.Fields(tool.VersionArgs),
 			Permissions:    tool.Permissions,
 			Output:         tool.Output,
+			Params:         tool.Params,
 		}
 		prepared, err := extensions.PrepareCustom(context.Background(), paths, request)
 		if err != nil {

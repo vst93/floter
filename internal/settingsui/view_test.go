@@ -1694,3 +1694,55 @@ func TestRunParamForm(t *testing.T) {
 		t.Errorf("values = %v", values)
 	}
 }
+
+// The connect form's declared inputs: a row per parameter, add and remove, and
+// the rows a request carries — a row still being typed (no id) is skipped
+// rather than refused.
+func TestConnectFormDeclaresInputs(t *testing.T) {
+	connected := []CustomTool{}
+	a := New(settings.NewStore(settings.Default()), Actions{
+		ConnectLocalTool: func(tool CustomTool) { connected = append(connected, tool) },
+	})
+	tt := render(t, a, 720, 1400)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if err := tt.Click("Add a local tool"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !tt.HasText("Parameters") || !tt.HasText("None declared") {
+		t.Fatalf("the inputs editor is missing: %q", tt.Texts())
+	}
+	if err := tt.Click("Add an input"); err != nil {
+		t.Fatalf("add: %v", err)
+	}
+	tt.Frame()
+	if !tt.HasText("Input 1") {
+		t.Fatalf("the row is missing: %q", tt.Texts())
+	}
+	// The row exists but has no id yet: it is not a declaration.
+	a.toolName, a.toolProgram = "Gadget", "/usr/bin/rg"
+	tool := a.declaredParams()
+	if len(tool) != 0 {
+		t.Errorf("an id-less row became a declaration: %+v", tool)
+	}
+	// Filling it in makes it one.
+	a.toolParams[0].ID = "target"
+	a.toolParams[0].Flag = "--target"
+	a.toolParams[0].Kind = extensions.ParamText
+	params := a.declaredParams()
+	if len(params) != 1 || params[0].ID != "target" || params[0].Flag != "--target" {
+		t.Fatalf("declared = %+v", params)
+	}
+	// Removing the row takes it back out.
+	tt.Frame()
+	if err := tt.Click("Remove"); err != nil {
+		t.Fatalf("remove: %v", err)
+	}
+	tt.Frame()
+	if len(a.toolParams) != 0 {
+		t.Errorf("the row survived its removal: %+v", a.toolParams)
+	}
+}

@@ -328,9 +328,28 @@ type Settings struct {
 	IntegrationsInstalled string
 	// The run-time parameter form: the button, the "not yet complete" refusal,
 	// and the line that says where the output will land.
-	RunLabel      string
-	RunIncomplete string
-	RunOutputHint string
+	// The declared-inputs editor.
+	ParamsTitle       string
+	ParamsHint        string
+	ParamsEmpty       string
+	ParamsAdd         string
+	ParamsRemove      string
+	ParamsID          string
+	ParamsLabel       string
+	ParamsKind        string
+	ParamsFlag        string
+	ParamsRequired    string
+	ParamsOptions     string
+	ParamsOptionsHint string
+	ParamsRow         func(number int) string
+	ParamsKindText    string
+	ParamsKindNumber  string
+	ParamsKindBoolean string
+	ParamsKindSelect  string
+	ParamsKindPath    string
+	RunLabel          string
+	RunIncomplete     string
+	RunOutputHint     string
 	// The disable confirmation: stopping an integration is a mark, not a
 	// delete, and the notice says so.
 	DisableTitle       func(name string) string
