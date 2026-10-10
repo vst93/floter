@@ -1939,9 +1939,12 @@ func (a *App) View(c *ui.Context) {
 		}
 		card.Children(func() {
 			// The haze veil is composited *under* the glass, as the old
-			// `--glass-step-dim` was under `--glass-tint-alpha`.
+			// `--glass-step-dim` was under `--glass-tint-alpha`. Built after
+			// the face it paints over it — and a plain box over the rows
+			// would eat their clicks, so the veil lets the pointer through:
+			// it is a color, never a control.
 			if haze := glassmap.Haze(surface.Glass, t); haze != ui.Transparent {
-				ui.Box(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).Radius(radius).Background(haze)
+				ui.Box(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).Radius(radius).Background(haze).PassThrough()
 			}
 			face := ui.Column(c).Fill().Radius(radius).Material(material).Padding(t.Space(2.5)).DragWindow()
 			face.Children(func() { a.surface(c) })
