@@ -414,10 +414,10 @@ func New(opts Options) *App {
 	}
 	a.Launcher = launcher.New(opts.Store, launcher.Actions{
 		OpenSettings: func() { a.Open(SurfaceSettings) },
-		ConfigurePlugin: func(plugin string) {
-			a.Settings.Page = settingsui.PagePlugins
-			a.Open(SurfaceSettings)
-		},
+		ConfigFor:    a.pluginConfig,
+		ConfigChange: a.changePluginConfig,
+		ConfigAction: a.runPluginAction,
+		DrawConfig:   a.drawPluginConfig,
 		OpenTerminal: func() { a.Open(SurfaceTerminal) },
 		Quit:         a.quit,
 		Dismiss:      a.Hide,

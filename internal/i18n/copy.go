@@ -75,6 +75,7 @@ var en = Copy{
 		TrayReload:           "Re-scan",
 		TrayQuit:             "Quit",
 		ConfigurePlugin:      "Options",
+		ConfigurePluginClose: "Close options",
 		BareTerminal:         "Open a terminal",
 		BareTerminalHint:     "A new session with no command typed",
 		TriggerHint:          func(name string) string { return name + " \u00b7 enter" },
@@ -184,6 +185,7 @@ var en = Copy{
 		PageAboutHint:        "Version, updates and the link scheme.",
 
 		PagePlaceholder: "This page arrives in a later round.",
+		SaveFailed:      "Could not save that change.",
 
 		GroupAppearance: "Appearance",
 		GroupWindow:     "Window behaviour",
@@ -461,6 +463,12 @@ var en = Copy{
 		BrowserCDPEnabledHint:  "Needs the browser started with --remote-debugging-port. On macOS tabs are read through AppleScript instead.",
 		BrowserCDPPort:         "Debug port",
 		BrowserCDPPortHint:     "The port the browser's DevTools endpoint listens on.",
+		BrowserSectionData:     "Data source",
+		BrowserSectionSearch:   "Search scope",
+		BrowserSectionTabs:     "Open tabs",
+		SectionGeneral:         "General",
+		UnitItems:              "items",
+		UnitDays:               "days",
 		BrowserSortOrders: []Option{
 			{"relevance", "Launcher ranking"},
 			{"recent", "Most recent"},
@@ -483,6 +491,7 @@ var en = Copy{
 		ClipboardClearDetail:  "Every entry that is not a favourite is removed. This cannot be undone.",
 		ClipboardClearButton:  "Clear",
 		ClipboardClearCancel:  "Cancel",
+		ClipboardClearFailed:  "Could not clear the history. Try again.",
 
 		CalculatorPlugin:         "Calculator",
 		CalculatorPluginHint:     "Remembers what you calculate so the launcher can find it again.",
@@ -498,6 +507,7 @@ var en = Copy{
 			{"full", "Expression and result"},
 			{"result", "Result only"},
 		},
+		CalculatorClearFailed: "Could not clear the calculations. Try again.",
 
 		UpdateCheck:      "Check for updates",
 		UpdateChecking:   "Checking\u2026",
@@ -548,17 +558,18 @@ var zh = Copy{
 		CommandStatus:            func(status string) string { return status },
 	},
 	Launcher: Launcher{
-		Placeholder:      "输入命令或应用名称",
-		TrayShow:         "显示 floter",
-		TraySettings:     "设置\u2026",
-		TrayReload:       "重新扫描",
-		TrayQuit:         "退出",
-		ConfigurePlugin:  "选项",
-		BareTerminal:     "打开终端",
-		BareTerminalHint: "一个新的会话，不输入任何命令",
-		TriggerHint:      func(name string) string { return name + " \u00b7 进入" },
-		FilesSection:     "拖入的文件",
-		RecentSection:    "最近启动",
+		Placeholder:          "输入命令或应用名称",
+		TrayShow:             "显示 floter",
+		TraySettings:         "设置\u2026",
+		TrayReload:           "重新扫描",
+		TrayQuit:             "退出",
+		ConfigurePlugin:      "选项",
+		ConfigurePluginClose: "关闭选项",
+		BareTerminal:         "打开终端",
+		BareTerminalHint:     "一个新的会话，不输入任何命令",
+		TriggerHint:          func(name string) string { return name + " \u00b7 进入" },
+		FilesSection:         "拖入的文件",
+		RecentSection:        "最近启动",
 		TriggerHintMore: func(name string, more int) string {
 			return name + " \u00b7 进入（还有 " + strconv.Itoa(more) + " 个）"
 		},
@@ -665,6 +676,7 @@ var zh = Copy{
 		PageAboutHint:        "版本、更新与链接协议。",
 
 		PagePlaceholder: "此页面将在后续迭代中到来。",
+		SaveFailed:      "无法保存该修改。",
 
 		GroupAppearance: "外观",
 		GroupWindow:     "窗口行为",
@@ -944,6 +956,12 @@ var zh = Copy{
 		BrowserCDPEnabledHint:  "需要浏览器以 --remote-debugging-port 启动。macOS 上改用 AppleScript 读取。",
 		BrowserCDPPort:         "调试端口",
 		BrowserCDPPortHint:     "浏览器 DevTools 端点监听的端口。",
+		BrowserSectionData:     "数据来源",
+		BrowserSectionSearch:   "搜索范围",
+		BrowserSectionTabs:     "已打开标签页",
+		SectionGeneral:         "通用",
+		UnitItems:              "项",
+		UnitDays:               "天",
 		BrowserSortOrders: []Option{
 			{"relevance", "启动器排序"},
 			{"recent", "最近访问"},
@@ -966,6 +984,7 @@ var zh = Copy{
 		ClipboardClearDetail:  "所有未收藏的条目都会被移除，无法撤销。",
 		ClipboardClearButton:  "清空",
 		ClipboardClearCancel:  "取消",
+		ClipboardClearFailed:  "无法清空历史，请重试。",
 
 		CalculatorPlugin:         "计算器",
 		CalculatorPluginHint:     "记住你算过的内容，方便在启动器里再次找到。",
@@ -981,6 +1000,7 @@ var zh = Copy{
 			{"full", "算式与结果"},
 			{"result", "仅结果"},
 		},
+		CalculatorClearFailed: "无法清空计算记录，请重试。",
 
 		UpdateCheck:      "检查更新",
 		UpdateChecking:   "正在检查…",

@@ -31,8 +31,9 @@ const (
 	CustomActionPrefix = "action:"
 
 	// The plugin ids the picker offers.
-	CustomPluginClipboard = "clipboard"
-	CustomPluginBrowser   = "browser"
+	CustomPluginClipboard  = "clipboard"
+	CustomPluginBrowser    = "browser"
+	CustomPluginCalculator = "calculator"
 
 	// The app actions the picker offers.
 	CustomActionToggleWindow         = "toggle_window"

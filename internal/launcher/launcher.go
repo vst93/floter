@@ -16,6 +16,7 @@ import (
 	"floter/internal/drops"
 	"floter/internal/extensions"
 	"floter/internal/i18n"
+	"floter/internal/plugincfg"
 	"floter/internal/settings"
 	"floter/internal/shortcuts"
 	"floter/internal/theme"
@@ -69,11 +70,20 @@ func WindowHeight(uiScale string) float64 {
 type Actions struct {
 	// OpenSettings, OpenTerminal and Quit run the built-in commands.
 	OpenSettings func()
-	// ConfigurePlugin opens the settings where a built-in plugin's own options
-	// live, so a mode's list has a way to its configuration.
-	ConfigurePlugin func(plugin string)
-	OpenTerminal    func()
-	Quit            func()
+	// ConfigFor is what a plugin's configuration is: the schema and the
+	// values its settings hold, or nil for a plugin with none.
+	ConfigFor func(plugin string) *Config
+	// ConfigChange writes one field and returns the values the plugin's
+	// settings hold afterwards, or nil when the write was refused.
+	ConfigChange func(plugin, key string, value any) plugincfg.Values
+	// ConfigAction runs an action field's command, reporting whether it was
+	// accepted.
+	ConfigAction func(plugin, key string) bool
+	// DrawConfig draws the sheet's body: the fields, in the settings pages'
+	// own card language. The launcher owns the band; the shell owns the form.
+	DrawConfig   func(c *ui.Context, config *Config)
+	OpenTerminal func()
+	Quit         func()
 	// Dismiss is Escape with an empty query: hide the launcher window, as
 	// the old shell did.
 	Dismiss func()
@@ -278,6 +288,9 @@ type App struct {
 	// place of the result list; Output keeps its scroll offset.
 	output *OutputView
 	Output ui.ScrollState
+	// config is the open plugin-configuration overlay, which takes the result
+	// list's place (see config.go).
+	config *Config
 	// OutputList is the output list's own scrolling and selection state.
 	OutputList ui.ListState
 	// files is set while a drop's rows are listed, with Dropped the files the
@@ -568,6 +581,9 @@ func (a *App) View(c *ui.Context) {
 
 	a.syncTypedMode()
 	a.syncCommandMode()
+	// Leaving a plugin's mode leaves its configuration sheet: the sheet is
+	// that mode's own face, not a page of the app's.
+	a.syncConfig()
 	a.askBrowser()
 	a.modeShortcuts(c)
 	// The held-modifier row's premise: the app modifier down on an empty field
@@ -604,12 +620,13 @@ func (a *App) View(c *ui.Context) {
 	// other windows keep.
 	a.HeldRows = HoldRows(a.HeldRows, len(results))
 	if a.Actions.ResizeTo != nil {
-		height := Geometry{
+		geometry := Geometry{
 			Font: a.Font, Spacing: a.Spacing, RowLines: rowLines, Held: a.HeldRows,
 			Filter:   a.filtersVisible(),
 			Feedback: a.toast != "",
-		}.Height()
-		a.Actions.ResizeTo(height)
+			Config:   a.configSchema(),
+		}
+		a.Actions.ResizeTo(geometry.Height())
 	}
 
 	// The field row floats over the list; the list's top padding is the
@@ -627,7 +644,14 @@ func (a *App) View(c *ui.Context) {
 			a.outputBody(c, copy, edge)
 			return
 		}
-		if len(results) == 0 {
+		// The configuration sheet takes the result list's place: same band,
+		// same card, the mode's own face (the old build's R29 overlay). It
+		// starts below the chips row, which stays — the gear that opened the
+		// sheet is there, and it is the sheet's only close control — and so
+		// does the field, which the sheet's own budget is measured above.
+		if a.configOpen() {
+			a.configBody(c, listEdge)
+		} else if len(results) == 0 {
 			ui.Column(c).FillWidth().Padding(t.Space(3)).Center().Children(func() {
 				ui.Text(c, a.emptyMessage(copy)).FontSize(t.FontSize).TextColor(t.TextMuted)
 			})
@@ -730,6 +754,12 @@ func (a *App) View(c *ui.Context) {
 				a.toast = copy.Copied
 			}
 		}
+		return
+	}
+
+	// The overlay's own keys come first: Escape closes the sheet rather than
+	// leaving the mode, as the old build's dismiss table did.
+	if a.configKeys(c) {
 		return
 	}
 

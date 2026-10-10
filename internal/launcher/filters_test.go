@@ -8,6 +8,7 @@ import (
 	"floter/internal/apps"
 	"floter/internal/drops"
 	"floter/internal/extensions"
+	"floter/internal/plugincfg"
 	"floter/internal/settings"
 	"floter/internal/tools"
 
@@ -354,14 +355,26 @@ func hasItem(items []Item, id string) bool {
 	return false
 }
 
-// A built-in mode's chips row carries the door to its own options: the gear
-// names the plugin and hands it to the shell, which opens the settings on the
-// page that owns it. An extension command's list has no such door (its options
-// are the manifest's).
+// A built-in mode's chips row carries the door to its own configuration: the
+// gear opens the plugin's schema in the launcher's own band (the old build's
+// R29 overlay), and the gear flips to an ✕ while it shows, so the control that
+// opened the sheet is the control that closes it. An extension command's list
+// has no such door (its options are the manifest's).
 func TestModeOptionsGear(t *testing.T) {
 	a, _ := clipboardApp(t)
-	configured := []string{}
-	a.Actions.ConfigurePlugin = func(plugin string) { configured = append(configured, plugin) }
+	asked := []string{}
+	a.Actions.ConfigFor = func(plugin string) *Config {
+		asked = append(asked, plugin)
+		return &Config{
+			Schema: &plugincfg.Schema{Plugin: plugin, Title: "Clipboard history", Fields: []plugincfg.Field{
+				{Key: "enabled", Kind: plugincfg.Toggle, Label: "Keep a clipboard history"},
+			}},
+			Values: plugincfg.Values{"enabled": true},
+		}
+	}
+	a.Actions.DrawConfig = func(c *ui.Context, config *Config) {
+		ui.Text(c, config.Schema.Title)
+	}
 	tt := render(t, a)
 	tt.Type("clipboard")
 	tt.Frame()
@@ -377,8 +390,28 @@ func TestModeOptionsGear(t *testing.T) {
 		t.Fatalf("the gear: %v", err)
 	}
 	tt.Frame()
-	if len(configured) != 1 || configured[0] != settings.CustomPluginClipboard {
-		t.Errorf("configured = %v", configured)
+	if len(asked) != 1 || asked[0] != settings.CustomPluginClipboard {
+		t.Errorf("asked for %v", asked)
+	}
+	if !a.configOpen() {
+		t.Fatal("the sheet did not open")
+	}
+	// The sheet took the list's place and the gear became its own close
+	// control.
+	if !tt.HasText("Clipboard history") {
+		t.Errorf("the sheet is not drawn: %q", tt.Texts())
+	}
+	if !tt.HasText("Close options") || tt.HasText("Options") {
+		t.Errorf("the gear did not flip: %q", tt.Texts())
+	}
+	// Escape closes it and the gear is a gear again.
+	tt.TypeKey(0, ui.KeyEscape, "")
+	tt.Frame()
+	if a.configOpen() {
+		t.Error("Escape left the sheet open")
+	}
+	if !tt.HasText("Options") {
+		t.Errorf("the gear did not come back: %q", tt.Texts())
 	}
 	// An extension command's own list has no gear: its options are its
 	// manifest's.
@@ -388,6 +421,28 @@ func TestModeOptionsGear(t *testing.T) {
 	tt.Frame()
 	if tt.HasText("Options") {
 		t.Errorf("an extension command's list offered options: %q", tt.Texts())
+	}
+}
+
+// Leaving a plugin's mode leaves its sheet: the sheet is that mode's own face.
+func TestConfigClosesWithItsMode(t *testing.T) {
+	a, _ := clipboardApp(t)
+	a.Actions.ConfigFor = func(plugin string) *Config {
+		return &Config{
+			Schema: &plugincfg.Schema{Plugin: plugin, Title: "Clipboard history"},
+			Values: plugincfg.Values{},
+		}
+	}
+	a.Actions.DrawConfig = func(c *ui.Context, config *Config) { ui.Text(c, config.Schema.Title) }
+	a.openConfig(settings.CustomPluginClipboard)
+	if !a.configOpen() {
+		t.Fatal("the sheet did not open")
+	}
+	a.clipboard = false
+	a.Query = ""
+	a.syncConfig()
+	if a.configOpen() {
+		t.Error("the sheet outlived its mode")
 	}
 }
 

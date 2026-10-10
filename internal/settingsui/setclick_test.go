@@ -24,11 +24,11 @@ func TestClickingASidebarRowSwitchesThePage(t *testing.T) {
 		t.Errorf("page = %v, want integrations", a.Page)
 	}
 	// And again to another page.
-	if err := tt.Click("Plugins"); err != nil {
+	if err := tt.Click("About"); err != nil {
 		t.Fatalf("click: %v", err)
 	}
 	tt.Frame()
-	if a.Page != PagePlugins {
-		t.Errorf("page = %v, want plugins", a.Page)
+	if a.Page != PageAbout {
+		t.Errorf("page = %v, want about", a.Page)
 	}
 }

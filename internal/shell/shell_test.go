@@ -1259,14 +1259,26 @@ func TestCommandSwitchGatesAndUpdatesTheLauncher(t *testing.T) {
 func TestLastSettingsPageIsRestored(t *testing.T) {
 	store := settings.NewStore(settings.Default())
 	a := New(Options{Store: store, Paths: extensions.FromRoot(t.TempDir())})
-	a.rememberSettingsPage("plugins")
-	if got := settings.LastSettingsPage(store.Snapshot()); got != "plugins" {
+	a.rememberSettingsPage("integrations")
+	if got := settings.LastSettingsPage(store.Snapshot()); got != "integrations" {
 		t.Errorf("stored page = %q", got)
 	}
 	a.Settings.Page = settingsui.PageGeneral
 	a.restoreSettingsPage()
-	if a.Settings.Page != settingsui.PagePlugins {
+	if a.Settings.Page != settingsui.PageIntegrations {
 		t.Errorf("restored page = %d", a.Settings.Page)
+	}
+
+	// A file that still names the retired plugins page opens on the first
+	// page: the page is gone, and a stored id the build does not know is not
+	// an error.
+	if err := store.Update(func(s *settings.Settings) { s.SetLastSettingsPage("plugins") }); err != nil {
+		t.Fatal(err)
+	}
+	a.Settings.Page = settingsui.PageAbout
+	a.restoreSettingsPage()
+	if a.Settings.Page != settingsui.PageGeneral {
+		t.Errorf("the retired plugins page restored %d", a.Settings.Page)
 	}
 
 	// An unknown or missing page falls back to General.

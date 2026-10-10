@@ -200,28 +200,38 @@ func (a *App) filtersRow(c *ui.Context, top float32) {
 			}
 		}
 		// The mode's own door to its configuration: the chips filter the list,
-		// and the gear opens the settings where the plugin's options live.
-		// (The old build drew the form in the launcher; this build keeps one
-		// form, on the page that owns the settings — the gear is the path
-		// there rather than a second surface to keep in step.)
-		if a.Actions.ConfigurePlugin != nil {
-			id := a.filterPluginID()
-			if id != "" {
-				chip := ui.Row(c).Focusable().Shrink(0).
-					Padding(t.Space(0.75), t.Space(1.5)).Radius(t.Radius).Gap(t.Space(1)).
-					AlignItems(ui.Center)
-				if chip.Hovered() {
-					chip.Background(t.SurfaceHover)
+		// and the gear opens the plugin's own sheet in this band (the old
+		// build's R29 overlay — one generic form from the plugin's schema,
+		// inside the launcher rather than a page of its own).
+		//
+		// R41 · the sheet carries no close button: the gear flips to an ✕
+		// while it is open, so there is exactly one place to close what it
+		// opened — the place it was opened from.
+		if id := a.filterPluginID(); id != "" {
+			open := a.configOpen() && a.config.Schema.Plugin == id
+			chip := ui.Row(c).Focusable().Shrink(0).
+				Padding(t.Space(0.75), t.Space(1.5)).Radius(t.Radius).Gap(t.Space(1)).
+				AlignItems(ui.Center)
+			switch {
+			case open:
+				chip.Background(t.Accent.Alpha(0.14))
+			case chip.Hovered():
+				chip.Background(t.SurfaceHover)
+			}
+			label, glyphName := copy.ConfigurePlugin, "settings"
+			color := t.TextMuted
+			if open {
+				label, glyphName = copy.ConfigurePluginClose, "close"
+				color = t.Text
+			}
+			chip.Children(func() {
+				if glyph, ok := Glyph(glyphName); ok {
+					ui.Icon(c, glyph).Size(t.Space(3.5), t.Space(3.5)).TextColor(color)
 				}
-				chip.Children(func() {
-					if glyph, ok := Glyph("settings"); ok {
-						ui.Icon(c, glyph).Size(t.Space(3.5), t.Space(3.5)).TextColor(t.TextMuted)
-					}
-					ui.Text(c, copy.ConfigurePlugin).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
-				})
-				if chip.Clicked() {
-					a.Actions.ConfigurePlugin(id)
-				}
+				ui.Text(c, label).FontSize(t.FontSize - 1).TextColor(color)
+			})
+			if chip.Clicked() {
+				a.toggleConfig(id)
 			}
 		}
 	})
@@ -236,7 +246,7 @@ func (a *App) filterPluginID() string {
 	case a.clipboard:
 		return settings.CustomPluginClipboard
 	case a.calculatorMode:
-		return "calculator"
+		return settings.CustomPluginCalculator
 	}
 	return ""
 }

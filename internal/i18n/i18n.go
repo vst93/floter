@@ -42,12 +42,14 @@ type Launcher struct {
 	TraySettings string
 	TrayReload   string
 	TrayQuit     string
-	// ConfigurePlugin is the gear's own word in a mode's chips row.
-	ConfigurePlugin  string
-	BareTerminal     string
-	BareTerminalHint string
-	TriggerHint      func(name string) string
-	TriggerHintMore  func(name string, more int) string
+	// ConfigurePlugin is the gear's own word in a mode's chips row, and
+	// ConfigurePluginClose the same control once its panel is open.
+	ConfigurePlugin      string
+	ConfigurePluginClose string
+	BareTerminal         string
+	BareTerminalHint     string
+	TriggerHint          func(name string) string
+	TriggerHintMore      func(name string, more int) string
 	// FilesSection heads the block of rows a dropped file's actions make,
 	// and RecentSection the empty page's most-launched applications.
 	FilesSection  string
@@ -195,6 +197,9 @@ type Settings struct {
 	// PagePlaceholder is the body of the pages P1 routes but does not fill
 	// yet: the sidebar route exists, the page says so plainly.
 	PagePlaceholder string
+	// SaveFailed is a write the plugin refused: the sheet paints the value
+	// either way and says so here.
+	SaveFailed string
 
 	GroupAppearance string
 	GroupWindow     string
@@ -479,6 +484,17 @@ type Settings struct {
 	BrowserCDPPortHint     string
 	BrowserSortOrders      []Option
 	BrowserSearchFields    []Option
+	// The browser overlay's section headings, as the old schema grouped it:
+	// the switch, the data source, what the search matches, open tabs.
+	BrowserSectionData   string
+	BrowserSectionSearch string
+	BrowserSectionTabs   string
+
+	// SectionGeneral is the heading of a configuration's first group.
+	SectionGeneral string
+	// UnitItems and UnitDays trail a bounded value ("300 items", "30 days").
+	UnitItems string
+	UnitDays  string
 
 	ClipboardPlugin       string
 	ClipboardPluginHint   string
@@ -491,6 +507,7 @@ type Settings struct {
 	ClipboardClearDetail  string
 	ClipboardClearButton  string
 	ClipboardClearCancel  string
+	ClipboardClearFailed  string
 
 	CalculatorPlugin         string
 	CalculatorPluginHint     string
@@ -503,6 +520,7 @@ type Settings struct {
 	CalculatorRetentionNever string
 	CalculatorRetentionDays  func(days int) string
 	CalculatorCopyModes      []Option
+	CalculatorClearFailed    string
 
 	// The About page's update check.
 	UpdateCheck      string

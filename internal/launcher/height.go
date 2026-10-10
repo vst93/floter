@@ -3,6 +3,8 @@ package launcher
 import (
 	"math"
 	"runtime"
+
+	"floter/internal/plugincfg"
 )
 
 // The launcher window's height is the content's own: the field band, the
@@ -108,6 +110,10 @@ type Geometry struct {
 	Feedback bool
 	// Cap is the display ceiling in pixels; zero means none.
 	Cap float64
+	// Config is the open plugin-configuration overlay, which takes the
+	// list's place: the window is then the field's row and the sheet's own
+	// content, never the rows the list is holding behind it.
+	Config *plugincfg.Schema
 }
 
 // Height is the window height a geometry asks for: the card's own chrome —
@@ -166,7 +172,18 @@ func (g Geometry) Height() int {
 	if g.Feedback {
 		feedbackBand = 7 * spacing
 	}
-	height := math.Round(chrome + lines + filterBand + feedbackBand + windowInset())
+	height := chrome + lines + filterBand + feedbackBand
+	if g.Config != nil {
+		// The sheet's own content, in the same units: the field's row and the
+		// card's insets are the chrome above, so a schema can never grow the
+		// window past the band the launcher gave it.
+		cap := 0.0
+		if g.Cap > 0 {
+			cap = g.Cap - chrome - windowInset()
+		}
+		height = chrome + g.Config.Height(float64(spacing/4), cap)
+	}
+	height = math.Round(height + windowInset())
 	if g.Cap > 0 && height > g.Cap {
 		height = math.Round(g.Cap)
 	}

@@ -40,7 +40,7 @@ func TestSettingsShowsThePagesAndTheGeneralControls(t *testing.T) {
 	tt := render(t, a, 720, 580)
 
 	for _, want := range []string{
-		"Settings", "General", "Sessions", "Shortcuts", "Plugins", "Integrations", "About",
+		"Settings", "General", "Sessions", "Shortcuts", "Integrations", "About",
 		"Appearance", "Language", "Liquid glass effect", "App transparency",
 		"Terminal transparency", "Interface size",
 	} {
@@ -621,80 +621,6 @@ func TestShortcutRecorder(t *testing.T) {
 
 // The Plugins page shows the built-in plugins' settings and writes every
 // change through the store.
-func TestPluginsPageWritesThroughTheStore(t *testing.T) {
-	store := newStore(t)
-	a := New(store, Actions{})
-	tt := render(t, a, 720, 1400)
-
-	if err := tt.Click("Plugins"); err != nil {
-		t.Fatal(err)
-	}
-	tt.Frame()
-	for _, want := range []string{"Browser history", "Clipboard history", "Search browser data", "History window", "Order"} {
-		if !tt.HasText(want) {
-			t.Errorf("missing %q in %q", want, tt.Texts())
-		}
-	}
-
-	// The browser switch writes the plugin's block.
-	if err := tt.Click("Search browser data"); err != nil {
-		t.Fatal(err)
-	}
-	tt.Frame()
-	if plugin := settings.BrowserPluginOf(store.Snapshot()); plugin.Enabled {
-		t.Errorf("the browser switch did not land: %+v", plugin)
-	}
-
-	// The order picker opens on its trigger and stores the choice.
-	// The trailing select's trigger shows its current value, not the row
-	// label; clicking it opens the drop-down.
-	if err := tt.Click("Launcher ranking"); err != nil {
-		t.Fatalf("order trigger: %v", err)
-	}
-	tt.Frame()
-	if err := tt.Click("Most visited"); err != nil {
-		t.Fatalf("order option: %v", err)
-	}
-	tt.Frame()
-	if plugin := settings.BrowserPluginOf(store.Snapshot()); plugin.SortOrder != "visits" {
-		t.Errorf("sort order = %q", plugin.SortOrder)
-	}
-
-	// The clipboard group sits below the fold: scroll the body to reach it.
-	tt.Scroll(400, 300, 0, 900)
-	tt.Frame()
-	if err := tt.Click("Keep a clipboard history"); err != nil {
-		t.Fatal(err)
-	}
-	tt.Frame()
-	if state := settings.ClipboardOf(store.Snapshot()); state.Enabled {
-		t.Errorf("the clipboard switch did not land: %+v", state)
-	}
-	tt.Scroll(400, 300, 0, -900)
-	tt.Frame()
-
-	// The target picker offers the automatic choice plus the discovered
-	// browsers, and stores the id.
-	a.Actions.BrowserTargets = func() []i18n.Option {
-		return []i18n.Option{{ID: "brave", Label: "Brave"}}
-	}
-	tt.Frame()
-	if !tt.HasText("Automatic") {
-		t.Fatalf("the automatic target is missing: %q", tt.Texts())
-	}
-	if err := tt.Click("Automatic"); err != nil {
-		t.Fatalf("target trigger: %v", err)
-	}
-	tt.Frame()
-	if err := tt.Click("Brave"); err != nil {
-		t.Fatalf("target option: %v", err)
-	}
-	tt.Frame()
-	if plugin := settings.BrowserPluginOf(store.Snapshot()); plugin.Target != "brave" {
-		t.Errorf("target = %q", plugin.Target)
-	}
-}
-
 // The Integrations page lists one switch per command and reports a toggle.
 func TestIntegrationCommandSwitches(t *testing.T) {
 	store := newStore(t)
@@ -747,8 +673,14 @@ func TestPageSelectionIsRemembered(t *testing.T) {
 	if len(pages) != 1 || pages[0] != "about" {
 		t.Errorf("pages = %v", pages)
 	}
-	if page, ok := PageByName("plugins"); !ok || page != PagePlugins {
-		t.Errorf("PageByName(plugins) = %d, %v", page, ok)
+	if page, ok := PageByName("integrations"); !ok || page != PageIntegrations {
+		t.Errorf("PageByName(integrations) = %d, %v", page, ok)
+	}
+	// The plugins page is gone: its settings are the launcher's own sheet.
+	// A file that still names it resolves to nothing, and the settings open
+	// on the first page.
+	if _, ok := PageByName("plugins"); ok {
+		t.Error("the retired plugins page still resolves")
 	}
 	if _, ok := PageByName("nope"); ok {
 		t.Error("an unknown page id resolved")
@@ -846,53 +778,6 @@ func TestCustomShortcutsPage(t *testing.T) {
 
 // The Plugins page carries the calculator's card and writes its three fields
 // through the store.
-func TestCalculatorCardWritesThrough(t *testing.T) {
-	store := newStore(t)
-	a := New(store, Actions{})
-	tt := render(t, a, 720, 640)
-	if err := tt.Click("Plugins"); err != nil {
-		t.Fatal(err)
-	}
-	tt.Frame()
-	tt.Scroll(400, 300, 0, 900)
-	tt.Frame()
-	for _, want := range []string{"Calculator", "History size", "Keep for", "Enter copies"} {
-		if !tt.HasText(want) {
-			t.Errorf("missing %q in %q", want, tt.Texts())
-		}
-	}
-
-	// The copy mode is a segmented choice, so it writes on click.
-	if err := tt.Click("Result only"); err != nil {
-		t.Fatalf("copy mode: %v", err)
-	}
-	tt.Frame()
-	if plugin := settings.CalculatorPluginOf(store.Snapshot()); plugin.CopyMode != settings.CalculatorCopyResult {
-		t.Errorf("copy mode = %q", plugin.CopyMode)
-	}
-
-	// The retention picker opens on its trigger and stores the window.
-	if err := tt.Click("30 days"); err != nil {
-		t.Fatalf("retention trigger: %v", err)
-	}
-	tt.Frame()
-	if err := tt.Click("7 days"); err != nil {
-		t.Fatalf("retention option: %v", err)
-	}
-	tt.Frame()
-	if plugin := settings.CalculatorPluginOf(store.Snapshot()); plugin.RetentionDays != 7 {
-		t.Errorf("retention = %d", plugin.RetentionDays)
-	}
-	// The picker offers every window, including the never-expire one.
-	if err := tt.Click("7 days"); err != nil {
-		t.Fatalf("retention trigger: %v", err)
-	}
-	tt.Frame()
-	if !tt.HasText("Never expire") || !tt.HasText("1 day") {
-		t.Errorf("the windows are missing from the picker: %q", tt.Texts())
-	}
-}
-
 // An orphan package directory is listed with the two operations it can take,
 // and nothing that needs a repository record.
 func TestOrphanRowsOfferAdoptAndDelete(t *testing.T) {
@@ -1305,28 +1190,6 @@ func TestConfigurationForm(t *testing.T) {
 func intPtr(v int) *int { return &v }
 
 // The Plugins page's clear-history control reports a press.
-func TestClipboardClearControl(t *testing.T) {
-	cleared := 0
-	a := New(newStore(t), Actions{ClearClipboardHistory: func() { cleared++ }})
-	tt := render(t, a, 720, 640)
-	if err := tt.Click("Plugins"); err != nil {
-		t.Fatal(err)
-	}
-	tt.Frame()
-	tt.Scroll(400, 300, 0, 900)
-	tt.Frame()
-	if !tt.HasText("Clear history") {
-		t.Fatalf("the clear control is missing: %q", tt.Texts())
-	}
-	if err := tt.Click("Clear history"); err != nil {
-		t.Fatal(err)
-	}
-	tt.Frame()
-	if cleared != 1 {
-		t.Errorf("cleared %d times", cleared)
-	}
-}
-
 // The launcher's own switches are reachable and write through the store: the
 // recent applications, the menu bar icon, and the PATH commands joining the
 // search.
@@ -1370,7 +1233,7 @@ func TestSidebarRowsCarryMarksAndSelection(t *testing.T) {
 	tt := render(t, a, 720, 900)
 	tt.Frame()
 	// Every page's label is there, and each row is the sidebar's own height.
-	for _, title := range []string{"General", "Sessions", "Shortcuts", "Plugins", "Integrations", "About"} {
+	for _, title := range []string{"General", "Sessions", "Shortcuts", "Integrations", "About"} {
 		rect, ok := tt.Find(title)
 		if !ok {
 			t.Fatalf("the sidebar is missing %q: %v", title, tt.Texts())
@@ -1389,12 +1252,12 @@ func TestSidebarRowsCarryMarksAndSelection(t *testing.T) {
 	if a.Page != PageGeneral {
 		t.Fatalf("the panel opened on page %v", a.Page)
 	}
-	if err := tt.Click("Plugins"); err != nil {
+	if err := tt.Click("About"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	if a.Page != PagePlugins {
-		t.Errorf("page = %v, want plugins", a.Page)
+	if a.Page != PageAbout {
+		t.Errorf("page = %v, want about", a.Page)
 	}
 }
 

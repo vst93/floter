@@ -27,11 +27,17 @@ import (
 )
 
 // The settings pages, in sidebar order.
+//
+// The built-in plugins have no page: their configuration is the launcher's own
+// sheet, rendered from the schema a plugin declares (see `PluginSheet`). The
+// old build retired its plugin pages for the same reason in R33 — 「配置页面通用
+// 化：点击设置之后，弹出一个基于通用规则的配置页面，而不是一个新的完全独立的
+// 页面」 — and a page here would be a second form of the same settings, free to
+// drift from the first.
 const (
 	PageGeneral = iota
 	PageSessions
 	PageShortcuts
-	PagePlugins
 	PageIntegrations
 	PageAbout
 
@@ -40,8 +46,10 @@ const (
 
 // pageNames are the ids the `last_settings_page` setting stores, in the same
 // order as the pages: reopening the settings surface returns to the page the
-// user last looked at.
-var pageNames = [pageCount]string{"general", "sessions", "shortcuts", "plugins", "integrations", "about"}
+// user last looked at. A file that still names `plugins` (a build that had the
+// page) resolves to the first page, since `PageByName` refuses what it does not
+// know.
+var pageNames = [pageCount]string{"general", "sessions", "shortcuts", "integrations", "about"}
 
 // PageByName resolves a stored page id, reporting whether it is one this build
 // knows.
@@ -366,6 +374,9 @@ type App struct {
 	Sidebar ui.ListState
 	// Body keeps the form's scroll offset across frames.
 	Body ui.ScrollState
+	// PluginScroll keeps the plugin configuration sheet's offset, so a long
+	// schema scrolls where the user left it.
+	PluginScroll ui.ScrollState
 
 	// installName and installVersion are the npm install field's contents.
 	installName    string
@@ -414,8 +425,6 @@ func (a *App) page(i int) page {
 		return page{c.PageSessions, c.PageSessionsHint}
 	case PageShortcuts:
 		return page{c.PageShortcuts, c.PageShortcutsHint}
-	case PagePlugins:
-		return page{c.PagePlugins, c.PagePluginsHint}
 	case PageIntegrations:
 		return page{c.PageIntegrations, c.PageIntegrationsHint}
 	case PageAbout:
@@ -556,8 +565,6 @@ func pageGlyph(page int) (*ui.SVG, bool) {
 		return launcher.Glyph("terminal")
 	case PageShortcuts:
 		return launcher.Glyph("star")
-	case PagePlugins:
-		return launcher.Glyph("globe")
 	case PageIntegrations:
 		return launcher.Glyph("file")
 	case PageAbout:
@@ -598,8 +605,6 @@ func (a *App) body(c *ui.Context, copy i18n.Settings) {
 				a.integrations(c, copy)
 			case PageShortcuts:
 				a.shortcuts(c, copy)
-			case PagePlugins:
-				a.plugins(c, copy)
 			case PageAbout:
 				a.about(c, copy)
 			default:
@@ -618,89 +623,6 @@ func (a *App) body(c *ui.Context, copy i18n.Settings) {
 			}
 			ui.Divider(c).Padding(t.Space(1), 0)
 		})
-	})
-}
-
-// plugins draws the built-in plugins' own settings: the browser plugin's
-// block and the clipboard's switch and capacity. Every control writes through
-// the store, so a change lands in settings.json at once and the shell's
-// listener applies it.
-func (a *App) plugins(c *ui.Context, copy i18n.Settings) {
-	t := c.Theme()
-	browser := settings.BrowserPluginOf(a.Store.Snapshot())
-	clipboard := settings.ClipboardOf(a.Store.Snapshot())
-
-	ui.Column(c).FillWidth().Gap(t.Space(4)).Children(func() {
-		a.section(c, copy.BrowserPlugin, "", func() {
-			a.card(c, func() {
-				a.checkbox(c, copy.BrowserEnabled, browser.Enabled, func(on bool) {
-					a.setBrowser(func(p *settings.BrowserPlugin) { p.Enabled = on })
-				})
-				a.choose(c, copy.BrowserTarget, copy.BrowserTargetHint, a.browserTargets(), browser.Target,
-					func(id string) { a.setBrowser(func(p *settings.BrowserPlugin) { p.Target = id }) })
-				a.text(c, copy.BrowserCustomDir, copy.BrowserCustomDirHint, "/path/to/profile", browser.CustomBaseDir,
-					func(value string) { a.setBrowser(func(p *settings.BrowserPlugin) { p.CustomBaseDir = value }) })
-				a.slider(c, copy.BrowserHistoryDays, copy.BrowserHistoryDaysHint, float64(browser.HistoryDays), 0, 365,
-					func(v float64) string {
-						if v < 1 {
-							return copy.BrowserHistoryAll
-						}
-						return fmt.Sprintf("%d", int(v))
-					},
-					func(v float64) { a.setBrowser(func(p *settings.BrowserPlugin) { p.HistoryDays = int(v) }) })
-				a.choose(c, copy.BrowserSort, copy.BrowserSortHint, copy.BrowserSortOrders, browser.SortOrder,
-					func(id string) { a.setBrowser(func(p *settings.BrowserPlugin) { p.SortOrder = id }) })
-				a.choose(c, copy.BrowserSearchField, copy.BrowserSearchFieldHint, copy.BrowserSearchFields, browser.SearchField,
-					func(id string) { a.setBrowser(func(p *settings.BrowserPlugin) { p.SearchField = id }) })
-			})
-			// The CDP block is its own card: it configures a different
-			// transport, not another browser option.
-			a.card(c, func() {
-				a.checkbox(c, copy.BrowserCDPEnabled, browser.CDPEnabled, func(on bool) {
-					a.setBrowser(func(p *settings.BrowserPlugin) { p.CDPEnabled = on })
-				})
-				a.text(c, copy.BrowserCDPPort, copy.BrowserCDPPortHint, "9222", fmt.Sprintf("%d", browser.CDPPort),
-					func(value string) {
-						port, err := strconv.Atoi(strings.TrimSpace(value))
-						if err != nil {
-							return
-						}
-						a.setBrowser(func(p *settings.BrowserPlugin) { p.CDPPort = port })
-					})
-			})
-		})
-		a.section(c, copy.ClipboardPlugin, "", func() {
-			a.card(c, func() {
-				a.checkbox(c, copy.ClipboardEnabled, clipboard.Enabled, func(on bool) {
-					a.set(func(s *settings.Settings) {
-						state := settings.ClipboardOf(*s)
-						state.Enabled = on
-						s.SetClipboard(state)
-					})
-				})
-				a.slider(c, copy.ClipboardMaxItems, copy.ClipboardMaxItemsHint, float64(clipboard.MaxItems),
-					float64(settings.MinClipboardMaxItems), float64(settings.MaxClipboardMaxItems),
-					func(v float64) string { return fmt.Sprintf("%d", int(v)) },
-					func(v float64) {
-						a.set(func(s *settings.Settings) {
-							state := settings.ClipboardOf(*s)
-							state.MaxItems = int(v)
-							s.SetClipboard(state)
-						})
-					})
-				if a.Actions.ClearClipboardHistory != nil {
-					labelClicked := a.row(c, copy.ClipboardClear, copy.ClipboardClearHint, func() {
-						if ui.Button(c, copy.ClipboardClear).Clicked() {
-							a.Actions.ClearClipboardHistory()
-						}
-					})
-					if labelClicked {
-						a.Actions.ClearClipboardHistory()
-					}
-				}
-			})
-		})
-		a.calculatorCard(c, copy)
 	})
 }
 
