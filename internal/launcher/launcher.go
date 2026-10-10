@@ -809,6 +809,11 @@ func (a *App) modeShortcuts(c *ui.Context) {
 			a.toggleClipFavorite()
 		}
 	}
+	// Deleting a history row has no key of its own: the focused field claims
+	// every Backspace and Delete (the framework's editor takes them as edits,
+	// and a window shortcut is asked after it), so the selected row carries
+	// its own ✕ instead — see row(). The old build's Control+Backspace is
+	// therefore the one gesture that moved to a control.
 }
 
 // toggleClipFavorite stars or unstars the chosen clipboard entry.

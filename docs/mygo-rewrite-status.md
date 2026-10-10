@@ -240,6 +240,12 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
   筛选 chip 轴、共享命令词警告点、调用行。
 - 终端：浮动栏 + 呼吸点 + 已结束会话保留 + 字体系探测。
 
+**已知差距：历史行的删除键（框架限制）**
+- 旧版的 `⌃⌫` 删除选中的剪贴板/计算器行在本框架不可达：聚焦的文本框编辑器会先取走所有 Backspace/Delete
+  （`editor.wants` 对 m≠0 的 Backspace 与 Delete 都返回 true，且编辑器的分支在窗口快捷键之前，没有
+  `claimed` 守卫）。删除的**能力**保留在选中行自己的 ✕ 按钮上（`row()` 里已经实现），只是键位换成了控件。
+  等框架允许快捷键先于编辑器裁决，或暴露编辑器的 claimed 守卫后再补键位。
+
 ## 尚未做（按建议优先级）
 
 1. **列表协议的分页**：`page.cursor`/`hasMore` 与滚动加载（需要带着 cursor 重新执行命令）；旧版还有
