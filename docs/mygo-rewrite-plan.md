@@ -888,6 +888,16 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
 - `TestClickingASidebarRowSwitchesThePage`（侧栏点击换页）与 `TestScrollingTheSettingsBody`
   （设置主体滚轮滚动，`ScrollState.Y`/`MaxY` 钉住）——设置面板的点击与滚动同启动器一起有测试了。
 
+### P1-ac 毛玻璃雾层的 PassThrough（已做，修「点不动」）
+
+- **根因**：shell 卡片的雾层（haze veil）构建在 face 之后（paint order 在行上面），Absolute
+  全卡覆盖，且没带 `PassThrough`——指针的 hit chain 命中雾层（祖先链只有 card→root），而普通
+  box 自己没有动作。行全都**看得见**（Find 读的是标签），但点击永远到不了——用户报的
+  「连基本的鼠标点击都没法进行」就是它。
+- 修复：雾层是颜色不是控件，`PassThrough()` 让指针穿透——与启动器自己 scroll edge 的同一规则。
+- `TestHazeVeilLetsThePointerThrough`（启动器行穿透雾层生效）与
+  `TestSettingsRowsAnswerThroughTheVeil`（设置页同卡片）钉住整条路径。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。
