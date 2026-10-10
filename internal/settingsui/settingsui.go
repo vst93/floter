@@ -609,23 +609,21 @@ func (a *App) sessions(c *ui.Context, copy i18n.Settings) {
 		})
 		return
 	}
-	ui.Column(c).FillWidth().Gap(t.Space(1)).Padding(t.Space(1), 0).Children(func() {
-		for _, session := range running {
-			row := ui.Row(c).FillWidth().Gap(t.Space(2)).AlignItems(ui.Center).
-				Padding(t.Space(1.5), t.Space(2)).Radius(t.Radius)
-			row.Children(func() {
-				ui.Column(c).Grow(1).Children(func() {
-					ui.Text(c, session.Title).FontSize(t.FontSize)
-					ui.Text(c, copy.SessionsRunning).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
-				})
-				if a.Actions.CloseSession != nil {
-					if ui.Button(c, copy.SessionsClose).Clicked() {
-						a.Actions.CloseSession()
-					}
+	ui.Column(c).FillWidth().Gap(t.Space(4)).Children(func() {
+		a.section(c, copy.PageSessions, copy.SessionsActive, func() {
+			a.card(c, func() {
+				for _, session := range running {
+					session := session
+					a.row(c, session.Title, copy.SessionsRunning, func() {
+						if a.Actions.CloseSession != nil {
+							if ui.Button(c, copy.SessionsClose).Clicked() {
+								a.Actions.CloseSession()
+							}
+						}
+					})
 				}
 			})
-		}
-		ui.Text(c, copy.SessionsActive).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+		})
 	})
 }
 
@@ -964,24 +962,29 @@ func (a *App) installedIntegrations() []Integration {
 // currently holds and a recorder for the one the app can change.
 func (a *App) shortcuts(c *ui.Context, copy i18n.Settings) {
 	t := c.Theme()
-	ui.Column(c).FillWidth().Gap(t.Space(2)).Children(func() {
-		ui.Column(c).FillWidth().Gap(t.Space(1)).Children(func() {
-			a.shortcutRow(c, copy)
-			ui.Text(c, copy.ShortcutsHint).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+	ui.Column(c).FillWidth().Gap(t.Space(4)).Children(func() {
+		a.section(c, copy.ShortcutsToggle, copy.ShortcutsHint, func() {
+			a.card(c, func() {
+				a.shortcutRow(c, copy)
+			})
 			if a.Actions.ResetShortcuts != nil {
-				if ui.Button(c, copy.ShortcutsReset).Clicked() {
-					a.Actions.ResetShortcuts()
-				}
+				a.card(c, func() {
+					labelClicked := a.row(c, copy.ShortcutsReset, "", func() {
+						a.action(c, copy.ShortcutsReset, func() {})
+					})
+					_ = labelClicked
+				})
 			}
 		})
-		ui.Fieldset(c, copy.ShortcutsApp, func() {
-			ui.Text(c, copy.ShortcutsAppHint).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
-			for _, action := range settings.ShortcutActions {
-				if action == settings.ShortcutToggleWindow {
-					continue // the summon key has its own row above
+		a.section(c, copy.ShortcutsApp, copy.ShortcutsAppHint, func() {
+			a.card(c, func() {
+				for _, action := range settings.ShortcutActions {
+					if action == settings.ShortcutToggleWindow {
+						continue // the summon key has its own card above
+					}
+					a.shortcutMapRow(c, copy, action)
 				}
-				a.shortcutMapRow(c, copy, action)
-			}
+			})
 		})
 		a.customSection(c, copy)
 	})
@@ -990,42 +993,8 @@ func (a *App) shortcuts(c *ui.Context, copy i18n.Settings) {
 // shortcutMapRow is one of the app's own keys: its name, its binding, and a
 // recorder that rebinds that action.
 func (a *App) shortcutMapRow(c *ui.Context, copy i18n.Settings, action string) {
-	t := c.Theme()
-	row := ui.Row(c).FillWidth().Gap(t.Space(2)).AlignItems(ui.Center).
-		Padding(t.Space(1), 0).BorderWidth(0, 0, 1, 0).BorderColor(t.Border)
-	row.Children(func() {
-		ui.Text(c, copy.ShortcutNames[action]).Grow(1).FontSize(t.FontSize)
-		if a.recording && a.ShortcutID == action {
-			capture := ui.Box(c).Focusable().Padding(t.Space(1), t.Space(2)).Radius(t.Radius).
-				Background(t.Surface).Border(1, t.Accent).Label(copy.ShortcutRecording)
-			capture.Children(func() {
-				ui.Text(c, copy.ShortcutRecording).FontSize(t.FontSize)
-			})
-			capture.HandleInput(func(ev ui.InputEvent) bool {
-				if ev.Kind != ui.InputKeyDown {
-					return false
-				}
-				if ev.Key == ui.KeyEscape {
-					a.recording = false
-					return true
-				}
-				accelerator, ok := shortcuts.FromKey(ev.Mods, ev.Key)
-				if !ok {
-					return true
-				}
-				a.recording = false
-				if a.Actions.SetShortcut != nil {
-					a.Actions.SetShortcut(action, accelerator)
-				}
-				return true
-			})
-			capture.Focus()
-			return
-		}
-		ui.Text(c, shortcuts.Display(a.binding(action))).FontSize(t.FontSize).TextColor(t.TextMuted)
-		if ui.Button(c, copy.ShortcutRecord).Clicked() {
-			a.recording, a.ShortcutID = true, action
-		}
+	a.row(c, copy.ShortcutNames[action], "", func() {
+		a.shortcutControl(c, copy, action, a.binding(action))
 	})
 }
 
@@ -1036,43 +1005,52 @@ func (a *App) binding(action string) string {
 
 // shortcutRow is one shortcut: its name, its keys, and the recorder.
 func (a *App) shortcutRow(c *ui.Context, copy i18n.Settings) {
-	t := c.Theme()
-	row := ui.Row(c).FillWidth().Gap(t.Space(2)).AlignItems(ui.Center).
-		Padding(t.Space(1), 0).BorderWidth(0, 0, 1, 0).BorderColor(t.Border)
-	row.Children(func() {
-		ui.Text(c, copy.ShortcutsToggle).Grow(1).FontSize(t.FontSize)
-		if a.recording {
-			capture := ui.Box(c).Focusable().Padding(t.Space(1), t.Space(2)).Radius(t.Radius).
-				Background(t.Surface).Border(1, t.Accent).Label(copy.ShortcutRecording)
-			capture.Children(func() {
-				ui.Text(c, copy.ShortcutRecording).FontSize(t.FontSize)
-			})
-			capture.HandleInput(func(ev ui.InputEvent) bool {
-				if ev.Kind != ui.InputKeyDown {
-					return false
-				}
-				if ev.Key == ui.KeyEscape {
-					a.recording = false
-					return true
-				}
-				accelerator, ok := shortcuts.FromKey(ev.Mods, ev.Key)
-				if !ok {
-					return true // a key without a modifier is not a shortcut
-				}
-				a.recording = false
-				if a.Actions.SetShortcut != nil && a.ShortcutID != "" {
-					a.Actions.SetShortcut(a.ShortcutID, accelerator)
-				}
-				return true
-			})
-			capture.Focus()
-			return
-		}
-		ui.Text(c, shortcuts.Display(a.summonShortcut())).FontSize(t.FontSize).TextColor(t.TextMuted)
-		if ui.Button(c, copy.ShortcutRecord).Clicked() {
-			a.recording = true
-		}
+	a.row(c, copy.ShortcutsToggle, "", func() {
+		a.shortcutControl(c, copy, "", a.summonShortcut())
 	})
+}
+
+// shortcutControl is a row's trailing slot: the recorder while the action is
+// being recorded (capturing the next chord, Escape to give up), the current
+// keys and the Record button otherwise.
+func (a *App) shortcutControl(c *ui.Context, copy i18n.Settings, action, value string) {
+	t := c.Theme()
+	recording := a.recording && (action == "" || a.ShortcutID == action)
+	if recording {
+		capture := ui.Box(c).Focusable().Padding(t.Space(1), t.Space(2)).Radius(a.tokens(c).RadiusSM).
+			Background(t.Surface).Border(1, t.Accent).Label(copy.ShortcutRecording)
+		capture.Children(func() {
+			ui.Text(c, copy.ShortcutRecording).FontSize(t.FontSize)
+		})
+		capture.HandleInput(func(ev ui.InputEvent) bool {
+			if ev.Kind != ui.InputKeyDown {
+				return false
+			}
+			if ev.Key == ui.KeyEscape {
+				a.recording = false
+				return true
+			}
+			accelerator, ok := shortcuts.FromKey(ev.Mods, ev.Key)
+			if !ok {
+				return true // a key without a modifier is not a shortcut
+			}
+			a.recording = false
+			if a.Actions.SetShortcut != nil {
+				if action == "" {
+					a.Actions.SetShortcut(settings.ShortcutToggleWindow, accelerator)
+				} else {
+					a.Actions.SetShortcut(action, accelerator)
+				}
+			}
+			return true
+		})
+		capture.Focus()
+		return
+	}
+	ui.Text(c, shortcuts.Display(value)).FontSize(t.FontSize).TextColor(t.TextMuted)
+	if ui.Button(c, copy.ShortcutRecord).Clicked() {
+		a.recording, a.ShortcutID = true, action
+	}
 }
 
 // updateRow is the About page's update check: the button, the line the last
@@ -1104,32 +1082,42 @@ func (a *App) updateRow(c *ui.Context, copy i18n.Settings) {
 func (a *App) about(c *ui.Context, copy i18n.Settings) {
 	t := c.Theme()
 	about := a.About
-	ui.Column(c).FillWidth().Gap(t.Space(1)).Children(func() {
-		ui.Text(c, strings.TrimSpace(about.Name+" "+about.Version)).FontSize(t.FontSize + 4).Bold()
-		a.updateRow(c, copy)
-		a.keyValue(c, copy.AboutVersion, about.Version)
-		a.keyValue(c, copy.AboutFramework, about.Framework)
-		a.keyValue(c, copy.AboutScheme, about.Scheme)
-		a.keyValue(c, copy.AboutSettingsFile, about.SettingsPath)
-		if about.RepoURL != "" {
-			ui.Row(c).Gap(t.Space(2)).Children(func() {
-				ui.Text(c, copy.AboutProject).Width(120).TextColor(t.TextMuted).FontSize(t.FontSize)
-				ui.Link(c, about.RepoURL, about.RepoURL).FontSize(t.FontSize)
-			})
-		}
+	ui.Column(c).FillWidth().Gap(t.Space(4)).Children(func() {
+		// The build's identity reads as the panel's large title; everything
+		// else is rows of one card, and the update check is the card that
+		// acts.
+		ui.Column(c).FillWidth().Gap(t.Space(1)).Children(func() {
+			ui.Text(c, strings.TrimSpace(about.Name+" "+about.Version)).FontSize(t.FontSize + 4).FontWeight(650)
+			ui.Text(c, copy.PageAbout).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+		})
+		a.card(c, func() {
+			a.keyValue(c, copy.AboutVersion, about.Version)
+			a.keyValue(c, copy.AboutFramework, about.Framework)
+			a.keyValue(c, copy.AboutScheme, about.Scheme)
+			a.keyValue(c, copy.AboutSettingsFile, about.SettingsPath)
+			if about.RepoURL != "" {
+				a.row(c, copy.AboutProject, "", func() {
+					ui.Link(c, about.RepoURL, about.RepoURL).FontSize(t.FontSize)
+				})
+			}
+		})
+		a.card(c, func() {
+			a.updateRow(c, copy)
+		})
 	})
 }
 
 // keyValue is one labeled line of read-only information: the label in a
 // fixed column, the value beside it, selectable so it can be copied.
+// keyValue is one About row: the label at the start, the selectable value at
+// the end (wrapped so a long path still reads).
 func (a *App) keyValue(c *ui.Context, label, value string) {
 	t := c.Theme()
 	if value == "" {
 		return
 	}
-	ui.Row(c).Gap(t.Space(2)).Children(func() {
-		ui.Text(c, label).Width(120).TextColor(t.TextMuted).FontSize(t.FontSize)
-		ui.Text(c, value).FontSize(t.FontSize).Grow(1).Selectable()
+	a.row(c, label, "", func() {
+		ui.Text(c, value).FontSize(t.FontSize).TextColor(t.TextMuted).Selectable()
 	})
 }
 
