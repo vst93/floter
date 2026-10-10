@@ -84,6 +84,9 @@ type Actions struct {
 	// SetCommandEnabled turns one of an integration's commands on or off: a
 	// command only appears in the launcher while its switch is on.
 	SetCommandEnabled func(extensionID, commandID string, enabled bool)
+	// SetCommandAlias records one command's alias (an empty alias removes
+	// the entry) and re-hands the launcher its command list.
+	SetCommandAlias func(extensionID, commandID, alias string)
 	// AdoptIntegration grafts an orphan package into the repository, and
 	// DeleteOrphan removes an orphan package directory.
 	AdoptIntegration func(id string)
@@ -189,6 +192,12 @@ type Command struct {
 	// Available is whether the integration's runtime resolves right now: a
 	// command whose runtime is missing is still listed, and says so.
 	Available bool
+	// Alias is what the user types to summon this command. Taken marks an
+	// alias another command claimed first — the conflict policy is first
+	// come first served, so the field keeps the user's text but the row says
+	// it is not live.
+	Alias string
+	Taken bool
 }
 
 // UninstallComponents says which parts of an installed integration to remove.
@@ -769,6 +778,20 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 						if changed && a.Actions.SetCommandEnabled != nil {
 							a.Actions.SetCommandEnabled(integration.ID, command.ID, on)
 						}
+						// The alias editor rides the command list itself — one
+						// input per command — so "this command, this alias" is
+						// edited where the command is already named. The value
+						// lands on submit, not on every keystroke.
+						ui.Row(c).Gap(t.Space(0.5)).AlignItems(ui.Center).Children(func() {
+							alias := command.Alias
+							if ui.TextInput(c, &alias).Placeholder(copy.IntegrationsCommandAliasPlaceholder).
+								Label(copy.IntegrationsCommandAlias).Width(180).Submitted() && a.Actions.SetCommandAlias != nil {
+								a.Actions.SetCommandAlias(integration.ID, command.ID, alias)
+							}
+							if command.Taken {
+								ui.Text(c, copy.IntegrationsCommandAliasTaken).FontSize(t.FontSize - 1).TextColor(t.Danger)
+							}
+						})
 					}
 				})
 			}

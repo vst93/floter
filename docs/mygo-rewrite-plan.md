@@ -841,6 +841,16 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
   找到网易云音乐（首字母正是名字的子序列）。
 - `Match` 的逐词 AND 逻辑保持不变：多词查询的每个词都各自走梯子，子序列只在最深层兜底。
 
+### P4-y 命令别名编辑器（已做）
+
+- 设置 Integrations 页的每命令别名输入框（旧版 `ExtensionsPanel` 的 `extension-command-alias`）：
+  `ui.TextInput` 挂在每个命令行下方，提交时经 `shell.setCommandAlias` 写入
+  `settings.command_aliases`（键为命令名，清空即删除），随后重交启动器命令列表并重扫 PATH 工具。
+- 冲突标记：列表填充时同时读原始 map 与 `ResolveCommandAliases` 的生效 map——字段保留用户
+  输入（map 从不重写），但另一命令先占了别名时行内标注"别名已被其他命令占用"。先到先得、
+  按命令名字典序，与设置层的既有语义一致。
+- 顺带清掉了 `integrationList` 里遗留的一条调试日志。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。

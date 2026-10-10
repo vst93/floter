@@ -457,6 +457,7 @@ func New(opts Options) *App {
 		SetPage:             a.rememberSettingsPage,
 		BrowserTargets:      a.browserTargets,
 		SetCommandEnabled:   a.setCommandEnabled,
+		SetCommandAlias:     a.setCommandAlias,
 		CustomShortcuts:     func() []settings.CustomShortcut { return settings.CustomShortcutsOf(a.Store.Snapshot()) },
 		SetCustomShortcuts:  a.setCustomShortcuts,
 		InstallFromRegistry: func(name, constraint string) {
@@ -960,15 +961,20 @@ func (a *App) RefreshIntegrations(ctx context.Context) {
 func (a *App) integrationList() []settingsui.Integration {
 	inventory := a.Integrations.Inventory()
 	switches := settings.CommandSwitchesOf(a.Store.Snapshot())
+	aliases := settings.CommandAliasesOf(a.Store.Snapshot())
+	resolved := settings.ResolveCommandAliases(aliases)
 	commands := map[string][]settingsui.Command{}
 	for _, info := range a.Integrations.CommandRegistry() {
-		log.Printf("floter: dbg registry %s ok", info.CommandID)
+		alias := aliases[info.CommandID]
+		_, live := resolved[info.CommandID]
 		commands[info.ExtensionID] = append(commands[info.ExtensionID], settingsui.Command{
 			ID:          info.CommandID,
 			Name:        info.Name,
 			Description: info.Description,
 			Enabled:     switches.Enabled(info.ExtensionID, info.CommandID),
 			Available:   info.Available,
+			Alias:       alias,
+			Taken:       strings.TrimSpace(alias) != "" && !live,
 		})
 	}
 	out := make([]settingsui.Integration, 0, len(inventory.Integrations))
@@ -1459,6 +1465,23 @@ func (a *App) setCommandEnabled(extensionID, commandID string, enabled bool) {
 		return
 	}
 	a.onMain(func() { a.Launcher.SetCommands(a.launcherCommands()) })
+}
+
+// setCommandAlias records one command's alias and re-hands the launcher its
+// command list. The alias map is keyed by command name (not extension), as
+// the old settings card's was.
+func (a *App) setCommandAlias(extensionID, commandID, alias string) {
+	_ = extensionID
+	if err := a.Store.Update(func(s *settings.Settings) {
+		s.SetCommandAlias(commandID, alias)
+	}); err != nil {
+		log.Printf("floter: could not save the command alias: %v", err)
+		return
+	}
+	a.onMain(func() {
+		a.Launcher.SetCommands(a.launcherCommands())
+		a.scanTools()
+	})
 }
 
 // browserTargets lists the browsers the browser plugin can be pointed at, as

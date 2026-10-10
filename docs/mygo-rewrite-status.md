@@ -199,6 +199,10 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
   网易云音乐。评 3 分，低于包含、高于无匹配。
 - mygo v0.3.5 → v0.3.7（go.mod 已升级，三平台构建全绿）。
 
+**P4-y 命令别名编辑器**（本轮）
+- Integrations 页每命令一个别名输入框，提交写入 `command_aliases`（清空即删），冲突时行内
+  标注"别名已被其他命令占用"；写入后重交启动器命令列表并重扫 PATH 工具。
+
 ## 尚未做（按建议优先级）
 
 1. **列表协议的分页**：`page.cursor`/`hasMore` 与滚动加载（需要带着 cursor 重新执行命令）；旧版还有

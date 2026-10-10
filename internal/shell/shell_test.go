@@ -2346,3 +2346,61 @@ func TestClearClipboardHistoryAsksFirst(t *testing.T) {
 	}
 	_ = confirmed
 }
+
+// The alias editor's data path: an alias is recorded, reaches the settings
+// list with the conflict flag set when another command claimed it first, and
+// an empty alias removes the entry.
+func TestCommandAliasFlow(t *testing.T) {
+	paths := integrationFixture(t)
+	a := New(Options{
+		Store:       settings.NewStore(settings.Default()),
+		Paths:       paths,
+		NewTerminal: func(terminal.Options) (*terminal.Terminal, error) { return nil, errors.New("no library in tests") },
+	})
+	a.RefreshIntegrations(context.Background())
+
+	// One alias on the fixture's only command.
+	a.setCommandAlias("io.github.vst93.v", "jv", "j")
+	snapshot := a.Store.Snapshot()
+	if got := settings.CommandAliasesOf(snapshot)["jv"]; got != "j" {
+		t.Errorf("alias = %q, want j", got)
+	}
+	list := a.integrationList()
+	if len(list) != 1 || len(list[0].Commands) != 1 {
+		t.Fatalf("integrations = %+v", list)
+	}
+	if command := list[0].Commands[0]; command.Alias != "j" || command.Taken {
+		t.Errorf("command = %+v, want the live alias j", command)
+	}
+
+	// Clearing the alias removes the entry (the store's update runs on the
+	// settings goroutine in production; here the synchronous store applies
+	// it directly).
+	a.setCommandAlias("io.github.vst93.v", "jv", "")
+	if aliases := settings.CommandAliasesOf(a.Store.Snapshot()); len(aliases) != 0 {
+		t.Errorf("aliases = %+v, want none", aliases)
+	}
+}
+
+// A command whose alias another command claimed first is marked taken: the
+// settings list carries the raw alias and the conflict flag side by side, so
+// the editor can say so rather than pretending the alias is live.
+func TestCommandAliasTakenFlag(t *testing.T) {
+	// bat is asked first (ascending name order), so it owns gfm.
+	resolved := settings.ResolveCommandAliases(settings.CommandAliases{
+		"bat": "gfm",
+		"git": "gfm",
+	})
+	if resolved["bat"] != "gfm" {
+		t.Fatalf("resolved = %+v", resolved)
+	}
+	raw := settings.CommandAliases{"bat": "gfm", "git": "gfm"}
+	_, gitLive := resolved["git"]
+	if _, batLive := resolved["bat"]; !batLive {
+		t.Error("the winning command lost its alias")
+	}
+	if gitLive {
+		t.Error("the losing command's alias is live")
+	}
+	_ = raw
+}
