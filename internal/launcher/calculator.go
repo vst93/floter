@@ -98,7 +98,6 @@ func (a *App) refreshCalculator() {
 // calculatorItems is the calculator mode's list: the pending expression's
 // answer first, then the history rows matching the needle and the filter.
 func (a *App) calculatorItems() []Item {
-	copy := StringsFor(a.settings().Language)
 	needle := a.calculatorQuery()
 	expression := strings.TrimSpace(strings.TrimPrefix(needle, "="))
 	out := make([]Item, 0, len(a.calculatorFound)+1)
@@ -139,9 +138,9 @@ func (a *App) calculatorItems() []Item {
 			calc:     &entry,
 		})
 	}
-	if len(out) == 0 {
-		a.toast = copy.CalculatorEmpty
-	}
+	// An empty list says its own thing through the list's empty state (see
+	// emptyMessage), not through the feedback row: the row is for what an
+	// *action* did.
 	return out
 }
 
