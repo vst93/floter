@@ -29,21 +29,22 @@ func (a *App) customSection(c *ui.Context, copy i18n.Settings) {
 	if a.customAction == "" && len(copy.ShortcutsActions) > 0 {
 		a.customAction = copy.ShortcutsActions[0].ID
 	}
-	ui.Fieldset(c, copy.ShortcutsCustom, func() {
-		ui.Text(c, copy.ShortcutsCustomHint).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+	a.section(c, copy.ShortcutsCustom, copy.ShortcutsCustomHint, func() {
 		if len(entries) == 0 {
 			ui.Text(c, copy.ShortcutsNone).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
 		}
-		for index, entry := range entries {
-			index, entry := index, entry
-			row := ui.Row(c).FillWidth().Gap(t.Space(2)).AlignItems(ui.Center).Padding(t.Space(1), 0)
-			row.Children(func() {
-				ui.Text(c, shortcuts.Display(entry.Key)).Width(160).FontSize(t.FontSize)
-				a.customActionPicker(c, copy, entry.Action, func(action string) {
-					a.updateCustomShortcut(index, settings.CustomShortcut{Key: entry.Key, Action: action})
-				})
-				if ui.Button(c, copy.ShortcutsRemove).Clicked() {
-					a.removeCustomShortcut(index)
+		if len(entries) > 0 {
+			a.card(c, func() {
+				for index, entry := range entries {
+					index, entry := index, entry
+					a.row(c, shortcuts.Display(entry.Key), "", func() {
+						a.customActionPicker(c, copy, entry.Action, func(action string) {
+							a.updateCustomShortcut(index, settings.CustomShortcut{Key: entry.Key, Action: action})
+						})
+						if ui.Button(c, copy.ShortcutsRemove).Clicked() {
+							a.removeCustomShortcut(index)
+						}
+					})
 				}
 			})
 		}
@@ -52,7 +53,11 @@ func (a *App) customSection(c *ui.Context, copy i18n.Settings) {
 			ui.Text(c, a.customFeedback).FontSize(t.FontSize - 1).TextColor(t.Danger)
 		}
 
-		row := ui.Row(c).FillWidth().Gap(t.Space(2)).AlignItems(ui.Center).Padding(t.Space(1), 0)
+		// The draft row: the key recorder, the action picker (and its command
+		// field when the action is a typed line), and Add.
+		row := ui.Row(c).FillWidth().Gap(t.Space(2)).AlignItems(ui.Center).
+			Padding(t.Space(2.25), t.Space(3.5)).Radius(a.tokens(c).RadiusMD).
+			Background(a.tokens(c).Control).Border(1, a.tokens(c).ControlEdge)
 		row.Children(func() {
 			if a.customRecording {
 				capture := ui.Box(c).Focusable().Padding(t.Space(1), t.Space(2)).Radius(t.Radius).

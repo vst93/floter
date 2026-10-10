@@ -633,8 +633,8 @@ func (a *App) sessions(c *ui.Context, copy i18n.Settings) {
 func (a *App) integrations(c *ui.Context, copy i18n.Settings) {
 	t := c.Theme()
 	integrations := a.installedIntegrations()
-	ui.Column(c).FillWidth().Gap(t.Space(0.5)).Children(func() {
-		ui.Text(c, copy.IntegrationsHint).FontSize(t.FontSize).TextColor(t.TextMuted).Padding(0, 0, t.Space(1), 0)
+	ui.Column(c).FillWidth().Gap(t.Space(4)).Children(func() {
+		ui.Text(c, copy.IntegrationsHint).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
 		a.recommendedRow(c, copy)
 		a.transferRow(c, copy)
 		a.installRow(c, copy)
@@ -644,9 +644,11 @@ func (a *App) integrations(c *ui.Context, copy i18n.Settings) {
 			})
 			return
 		}
-		for _, integration := range integrations {
-			a.integrationRow(c, copy, integration)
-		}
+		a.section(c, copy.IntegrationsInstalled, "", func() {
+			for _, integration := range integrations {
+				a.integrationRow(c, copy, integration)
+			}
+		})
 	})
 }
 
@@ -675,24 +677,17 @@ func (a *App) recommendedRow(c *ui.Context, copy i18n.Settings) {
 	if len(pending) == 0 {
 		return
 	}
-	t := c.Theme()
-	ui.Fieldset(c, copy.IntegrationsRecommended, func() {
-		ui.Text(c, copy.IntegrationsRecommendedHint).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
-		for _, tool := range pending {
-			tool := tool
-			row := ui.Row(c).FillWidth().Gap(t.Space(2)).AlignItems(ui.Center).Padding(t.Space(1), 0)
-			row.Children(func() {
-				ui.Column(c).Grow(1).Children(func() {
-					ui.Text(c, tool.Name).FontSize(t.FontSize)
-					if tool.Description != "" {
-						ui.Text(c, tool.Description).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+	a.section(c, copy.IntegrationsRecommended, copy.IntegrationsRecommendedHint, func() {
+		a.card(c, func() {
+			for _, tool := range pending {
+				tool := tool
+				a.row(c, tool.Name, tool.Description, func() {
+					if ui.Button(c, copy.IntegrationsConnect).Clicked() {
+						a.Actions.ConnectRecommended(tool.ID)
 					}
 				})
-				if ui.Button(c, copy.IntegrationsConnect).Clicked() {
-					a.Actions.ConnectRecommended(tool.ID)
-				}
-			})
-		}
+			}
+		})
 	})
 }
 

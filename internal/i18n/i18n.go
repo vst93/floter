@@ -269,6 +269,7 @@ type Settings struct {
 	// The command alias editor: the field's label, its placeholder and the
 	// note that another command claimed the alias first.
 	IntegrationsReprobe                 string
+	IntegrationsInstalled               string
 	IntegrationsCommandAlias            string
 	IntegrationsCommandAliasPlaceholder string
 	IntegrationsCommandAliasTaken       string
