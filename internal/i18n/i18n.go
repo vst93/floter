@@ -109,7 +109,13 @@ type Launcher struct {
 	// its own.
 	HistoryPin string
 	// OutputDetach opens a command's page in a window of its own.
-	OutputDetach           string
+	OutputDetach string
+	// The window that opens for it: its title when the command has no name,
+	// the re-run and close controls, and what it says before a run.
+	OutputWindowFallback   string
+	OutputWindowRerun      string
+	OutputWindowClose      string
+	OutputWindowIdle       string
 	CalculatorDeleted      string
 	CalculatorDeleteFailed string
 	// CalculatorEmpty is the calculator mode's empty state, and the two

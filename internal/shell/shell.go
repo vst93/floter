@@ -129,6 +129,9 @@ type Options struct {
 	// OpenPinned replaces the pinned-window implementation; nil opens the
 	// real window, and tests record what would have been pinned.
 	OpenPinned func(title, text string)
+	// OpenDetached replaces the detached-output-window implementation; nil
+	// opens the real window, and tests record what would have been opened.
+	OpenDetached func(view launcher.OutputView) *mygo.Window
 	// WriteClipboard puts a clipboard payload back on the system
 	// clipboard; nil uses the framework's clipboard, and tests record what
 	// would have been written.
@@ -187,6 +190,9 @@ type App struct {
 
 	// Win is the window, created by Start.
 	Win *mygo.Window
+	// detached are the output windows the user pinned: each one stays up
+	// whatever the panel does (see detach.go).
+	detached []*detachedOutput
 
 	// Integrations is the extension state: the repository, the installed
 	// manifests and the providers' commands.
@@ -208,9 +214,10 @@ type App struct {
 
 	// pins are the pinned-output windows, and openPinned replaces them in
 	// tests.
-	pins       map[*mygo.Window]*pinned
-	pinMu      sync.Mutex
-	openPinned func(title, text string)
+	pins         map[*mygo.Window]*pinned
+	pinMu        sync.Mutex
+	openPinned   func(title, text string)
+	openDetached func(view launcher.OutputView) *mygo.Window
 	// writeClipboard puts a payload back on the system clipboard.
 	writeClipboard func(ClipboardPayload)
 	// registerShortcut and unregisterShortcut bind and release global
@@ -364,6 +371,7 @@ func New(opts Options) *App {
 		Registry:             opts.Registry,
 		confirmPermissions:   opts.ConfirmPermissions,
 		openPinned:           opts.OpenPinned,
+		openDetached:         opts.OpenDetached,
 		writeClipboard:       opts.WriteClipboard,
 		registerShortcut:     opts.RegisterShortcut,
 		unregisterShortcut:   opts.UnregisterShortcut,
@@ -410,6 +418,9 @@ func New(opts Options) *App {
 				log.Printf("floter: could not save the terminal snapshot: %v", err)
 			}
 		}
+		// A detached output window outlives the panel by design, but not the
+		// app: quitting closes them with everything else.
+		a.closeDetached()
 		innerQuit()
 	}
 	a.Launcher = launcher.New(opts.Store, launcher.Actions{
@@ -450,6 +461,7 @@ func New(opts Options) *App {
 		RunCommandCaptured: a.runCommandCaptured,
 		Complete:           a.completeCommand,
 		PinText:            a.PinText,
+		DetachOutput:       a.detachOutput,
 		OpenURL:            a.openURL,
 		ActivateTab: func(tab browser.Tab) {
 			options := settings.BrowserPluginOf(a.Store.Snapshot())

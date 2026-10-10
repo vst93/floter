@@ -538,3 +538,45 @@ func TestFieldRowButtons(t *testing.T) {
 		t.Errorf("settings = %d", settings)
 	}
 }
+
+// A captured run that came from a command can be detached into a window of its
+// own, which stays put and re-runs it (the old build's second window). The
+// control rides the output view's title row, and it is offered only when the
+// run came from a command — there is nothing to re-run otherwise.
+func TestOutputViewDetach(t *testing.T) {
+	a := testApp()
+	detached := []OutputView{}
+	a.Actions.DetachOutput = func(view OutputView) { detached = append(detached, view) }
+	entry := &extensions.CommandEntry{Command: extensions.Command{ID: "jv", Name: "JSON Viewer"}}
+	a.output = &OutputView{
+		Title:  "jv --floter",
+		Text:   "{\"a\": 1}",
+		Status: "ok",
+		Entry:  entry,
+	}
+	tt := render(t, a)
+	tt.Frame()
+	if !tt.HasText("Open in a window") {
+		t.Fatalf("the detach control is missing: %q", tt.Texts())
+	}
+	if err := tt.Click("Open in a window"); err != nil {
+		t.Fatalf("detach: %v", err)
+	}
+	tt.Frame()
+	if len(detached) != 1 {
+		t.Fatalf("detached = %+v", detached)
+	}
+	if detached[0].Entry == nil || detached[0].Entry.Command.ID != "jv" {
+		t.Errorf("the detached view lost its command: %+v", detached[0].Entry)
+	}
+	if detached[0].Text != "{\"a\": 1}" {
+		t.Errorf("the detached text = %q", detached[0].Text)
+	}
+
+	// A run with no command behind it has nothing to re-run.
+	a.output = &OutputView{Title: "x", Text: "y", Status: "ok"}
+	tt.Frame()
+	if tt.HasText("Open in a window") {
+		t.Errorf("a run with no command offered a window: %q", tt.Texts())
+	}
+}

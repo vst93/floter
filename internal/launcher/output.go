@@ -60,8 +60,18 @@ func (a *App) RunStatus(run extensions.CapturedRun, err error) string {
 // showOutput puts a captured run's output in front of the user: as a list when
 // the command printed the list protocol, as text otherwise.
 func (a *App) showOutput(run extensions.CapturedRun, err error, entry *extensions.CommandEntry) {
+	view := a.OutputFor(run, err, entry)
+	a.output = &view
+	a.Selected, a.chosenRow = 0, -1
+}
+
+// OutputFor builds the view of one captured run: its text (or the list
+// protocol's rows), its status, and the command it came from. The launcher
+// shows it in its own band; a caller outside can show the same view in a
+// window of its own (see the shell's detached window).
+func (a *App) OutputFor(run extensions.CapturedRun, err error, entry *extensions.CommandEntry) OutputView {
 	copy := a.copy()
-	view := &OutputView{
+	view := OutputView{
 		Entry:      entry,
 		Title:      strings.Join(run.Command, " "),
 		Text:       run.Text(),
@@ -83,8 +93,7 @@ func (a *App) showOutput(run extensions.CapturedRun, err error, entry *extension
 			view.Text = copy.OutputEmpty
 		}
 	}
-	a.output = view
-	a.Selected, a.chosenRow = 0, -1
+	return view
 }
 
 // firstRunnable is the first row Enter could run, -1 when none is.
