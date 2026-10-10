@@ -750,6 +750,19 @@ func New(opts Options) *App {
 			if icon := storedAppIcon(s); icon != a.lastAppIcon {
 				a.lastAppIcon, a.appIcon = icon, icon
 				a.ApplyAppIcon()
+				// The tray carries the same mark: switching the app icon has
+				// to switch the tray's, or the two disagree.
+				if a.Tray != nil {
+					a.Tray.Destroy()
+					a.Tray = nil
+					a.ApplyMenubarIcon()
+				}
+			}
+			if s.Language != a.lastTrayLanguage {
+				// The app menu and the tray outlive a language change, so
+				// both are rebuilt with it: a menu that lags the UI is worse
+				// than no menu.
+				a.InstallMenu()
 			}
 			if s.Language != a.lastTrayLanguage && a.Tray != nil {
 				// The tray outlives a language change, so its labels are
