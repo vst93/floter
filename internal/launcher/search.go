@@ -552,6 +552,10 @@ func (a *App) otherResults() []Item {
 			out = append(out, Item{ID: "section:recent", heading: true, Title: a.copy().RecentSection})
 			out = append(out, recents...)
 		}
+		// The held modifier's own line, at the list's end.
+		if item, ok := a.heldTerminalItem(); ok {
+			out = append(out, item)
+		}
 	} else {
 		out = append(out, Match(a.Catalog(), a.Query)...)
 	}

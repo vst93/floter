@@ -293,3 +293,62 @@ func TestModeEmptyMessages(t *testing.T) {
 		t.Errorf("ordinary = %q", got)
 	}
 }
+
+// The held modifier's row: while the app modifier is down on an empty field,
+// the list ends with a bare terminal session and the selection is on it, so
+// Enter reaches it without a second key. A query, or a mode, shows nothing.
+func TestHeldModifierBareTerminalRow(t *testing.T) {
+	a := testApp()
+	opened := 0
+	a.Actions.OpenTerminal = func() { opened++ }
+	tt := render(t, a)
+	tt.Frame()
+	if got := a.Results(); hasItem(got, "system-terminal-bare") {
+		t.Errorf("the row shows with the modifier up: %+v", got)
+	}
+	tt.HoldModifiers(ui.Cmd)
+	tt.Frame()
+	results := a.Results()
+	if !hasItem(results, "system-terminal-bare") {
+		t.Fatalf("the row is missing while the modifier is held: %+v", results)
+	}
+	// It is the list's last line, and the selection is on it.
+	if results[len(results)-1].ID != "system-terminal-bare" {
+		t.Errorf("the row is not last: %+v", results)
+	}
+	if a.Selected != len(results)-1 {
+		t.Errorf("the selection is on %d, want the held row %d", a.Selected, len(results)-1)
+	}
+	// The chord that put the row there opens it: the modifier is still held
+	// when Enter is pressed.
+	tt.Key(ui.Cmd, ui.KeyEnter)
+	tt.Frame()
+	if opened != 1 {
+		t.Errorf("Enter opened %d sessions", opened)
+	}
+	// Releasing the modifier gives the selection back and drops the row.
+	tt.HoldModifiers(0)
+	tt.Frame()
+	if hasItem(a.Results(), "system-terminal-bare") {
+		t.Errorf("the row survived the release: %+v", a.Results())
+	}
+	if a.Selected != 0 {
+		t.Errorf("the selection did not come back: %d", a.Selected)
+	}
+	// A typed query is a search: the row stays away.
+	tt.HoldModifiers(ui.Cmd)
+	tt.Type("zzz")
+	tt.Frame()
+	if hasItem(a.Results(), "system-terminal-bare") {
+		t.Errorf("the row showed over a query: %+v", a.Results())
+	}
+}
+
+func hasItem(items []Item, id string) bool {
+	for _, item := range items {
+		if item.ID == id {
+			return true
+		}
+	}
+	return false
+}

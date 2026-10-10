@@ -214,6 +214,17 @@ type App struct {
 	// the first View measured the list.
 	HeldRows int
 
+	// modifierHeld is the app modifier's state as the last frame saw it, and
+	// heldPrevious the selection the held row took over. While the modifier
+	// is down on an empty field, the list ends with a row that opens a bare
+	// terminal session — the row the user asked for, and the one the keyboard
+	// lands on so Enter reaches it without a second key.
+	modifierHeld bool
+	heldPrevious int
+	// heldWasDown is the modifier's state the frame before, so the press and
+	// release edges are one transition each.
+	heldWasDown bool
+
 	// toast is a message to show in the panel's docked status row, set by an
 	// action, and toastWarning marks it a warning — the blocking tone the old
 	// build's `.launcher-feedback--warning` carried.
@@ -553,6 +564,17 @@ func (a *App) View(c *ui.Context) {
 	a.syncCommandMode()
 	a.askBrowser()
 	a.modeShortcuts(c)
+	// The held-modifier row's premise: the app modifier down on an empty field
+	// puts a "new terminal session" line at the list's end and hands it the
+	// selection, so Enter reaches it. Releasing the modifier gives the
+	// selection back.
+	a.syncHeldModifier(c)
+	// The chord that put the row on screen is the chord that opens it: the
+	// modifier is still down when the user presses Enter, so the plain
+	// Enter's own path (the field's submit) is not the one that fires.
+	if item, ok := a.heldTerminalItem(); ok && c.Shortcut(ui.Cmd, ui.KeyEnter) {
+		item.Run()
+	}
 	results := a.Results()
 	a.clampSelection(len(results))
 	a.assignNumbers(results)
@@ -1449,3 +1471,51 @@ func (a *App) feedbackRow(c *ui.Context) {
 // FeedbackVisible reports whether the docked status row is showing, for the
 // shell's window sizing.
 func (a *App) FeedbackVisible() bool { return a.toast != "" }
+
+// syncHeldModifier reads the app modifier's state for this frame and moves the
+// selection to (or away from) the held row at the edge where the modifier goes
+// down or up. The row itself is part of Results (see otherResults), so the
+// window's height and the row's own presence are one decision.
+func (a *App) syncHeldModifier(c *ui.Context) {
+	down := c.Modifiers()&ui.Cmd == ui.Cmd
+	// The row's own predicate reads modifierHeld, so the state lands before
+	// the edge is handled.
+	a.modifierHeld = down
+	if down != a.heldWasDown {
+		a.heldWasDown = down
+		if down {
+			if _, ok := a.heldTerminalItem(); ok {
+				a.heldPrevious = a.Selected
+				a.Selected = len(a.Results()) - 1
+			}
+		} else {
+			a.Selected = a.heldPrevious
+		}
+	}
+}
+
+// heldTerminalItem is the row the held modifier offers: a bare terminal
+// session, on the ordinary page with an empty field and nothing typed. A query
+// is a search, and a search has its own answers; a mode owns its own list.
+func (a *App) heldTerminalItem() (Item, bool) {
+	if !a.modifierHeld || a.mode != nil || a.clipboard || a.browser || a.calculatorMode || a.files || a.output != nil {
+		return Item{}, false
+	}
+	if strings.TrimSpace(a.Query) != "" {
+		return Item{}, false
+	}
+	copy := a.copy()
+	return Item{
+		ID:     "system-terminal-bare",
+		Title:  copy.BareTerminal,
+		Detail: copy.BareTerminalHint,
+		// The chord that put the row on screen is the chord that opens it, so
+		// the hint is the action bar's own.
+		Shortcut: a.enterBadge(),
+		Run: func() {
+			if a.Actions.OpenTerminal != nil {
+				a.Actions.OpenTerminal()
+			}
+		},
+	}, true
+}

@@ -35,8 +35,12 @@ type Launcher struct {
 	// TriggerHint nudges that a typed word is a plugin command's trigger and
 	// a space enters its mode ("{name} · enter"), TriggerHintMore adding the
 	// count of commands it could still become.
-	TriggerHint     func(name string) string
-	TriggerHintMore func(name string, more int) string
+	// BareTerminal is the held modifier's own row: a terminal session with no
+	// command, and the line under it that says so.
+	BareTerminal     string
+	BareTerminalHint string
+	TriggerHint      func(name string) string
+	TriggerHintMore  func(name string, more int) string
 	// FilesSection heads the block of rows a dropped file's actions make,
 	// and RecentSection the empty page's most-launched applications.
 	FilesSection  string

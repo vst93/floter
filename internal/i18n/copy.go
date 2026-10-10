@@ -70,6 +70,8 @@ var en = Copy{
 		Placeholder:          "Type a command or app name",
 		Label:                "Search",
 		Hint:                 "Type to search",
+		BareTerminal:         "Open a terminal",
+		BareTerminalHint:     "A new session with no command typed",
 		TriggerHint:          func(name string) string { return name + " \u00b7 enter" },
 		FilesSection:         "Dropped files",
 		RecentSection:        "Recently launched",
@@ -485,10 +487,12 @@ var zh = Copy{
 		CommandStatus:            func(status string) string { return status },
 	},
 	Launcher: Launcher{
-		Placeholder:   "输入命令或应用名称",
-		TriggerHint:   func(name string) string { return name + " \u00b7 进入" },
-		FilesSection:  "拖入的文件",
-		RecentSection: "最近启动",
+		Placeholder:      "输入命令或应用名称",
+		BareTerminal:     "打开终端",
+		BareTerminalHint: "一个新的会话，不输入任何命令",
+		TriggerHint:      func(name string) string { return name + " \u00b7 进入" },
+		FilesSection:     "拖入的文件",
+		RecentSection:    "最近启动",
 		TriggerHintMore: func(name string, more int) string {
 			return name + " \u00b7 进入（还有 " + strconv.Itoa(more) + " 个）"
 		},
