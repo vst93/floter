@@ -2605,11 +2605,13 @@ func (a *App) launcherHeight(s settings.Settings) int {
 	// launcher's state knows and the shell does not.
 	return launcher.Geometry{
 		Font:     a.Launcher.Font,
+		Line:     a.Launcher.Line,
 		Spacing:  a.Launcher.Spacing,
 		RowLines: a.Launcher.RowLines,
 		Held:     a.Launcher.HeldRows,
 		Filter:   a.Launcher.FiltersVisible(),
 		Feedback: a.Launcher.FeedbackVisible(),
+		Config:   a.Launcher.ConfigSchema(),
 		Cap:      cap,
 	}.Height()
 }

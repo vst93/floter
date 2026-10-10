@@ -43,6 +43,10 @@ func (a *App) ConfigOpen() bool { return a.configOpen() }
 // values the sheet is holding.
 func (a *App) Config() *Config { return a.config }
 
+// ConfigSchema is the open sheet's schema, nil when none is open: the shell
+// sizes the window with it, exactly as the view does.
+func (a *App) ConfigSchema() *plugincfg.Schema { return a.configSchema() }
+
 // configSchema is the open sheet's schema, nil when none is open: the window's
 // height is the sheet's own then, not the list's.
 func (a *App) configSchema() *plugincfg.Schema {

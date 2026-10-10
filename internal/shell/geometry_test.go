@@ -73,3 +73,45 @@ func TestChargedHeightHoldsTheList(t *testing.T) {
 		})
 	}
 }
+
+// The shell sizes the window with the same geometry the view measures with:
+// the line box it measured and the sheet it is showing, so the window opens at
+// the right height rather than converging on it a frame later.
+func TestTargetSizeUsesTheMeasuredGeometry(t *testing.T) {
+	a := New(Options{Store: settings.NewStore(settings.Default()), WorkAreaHeight: 900})
+	tt := ui.NewTester(func(c *ui.Context) { a.View(c) }, launcher.InputWindowWidth, 1000)
+	tt.Frame()
+	if a.Launcher.Line <= a.Launcher.Font {
+		t.Fatalf("the line box was not measured: %v", a.Launcher.Line)
+	}
+	_, height := a.targetSize(a.Store.Snapshot())
+	// The view's own target and the shell's agree: the same geometry.
+	want := launcher.Geometry{
+		Font: a.Launcher.Font, Line: a.Launcher.Line, Spacing: a.Launcher.Spacing,
+		RowLines: a.Launcher.RowLines, Held: a.Launcher.HeldRows,
+		Filter: a.Launcher.FiltersVisible(), Feedback: a.Launcher.FeedbackVisible(),
+		Cap: 900 - 24,
+	}.Height()
+	if height != want {
+		t.Errorf("the shell sizes %d, the view asks for %d", height, want)
+	}
+	// And with a sheet open, the shell's height is the sheet's.
+	a.Launcher.EnterClipboard()
+	a.Launcher.OpenConfig(settings.CustomPluginClipboard)
+	tt.Frame()
+	_, sheetHeight := a.targetSize(a.Store.Snapshot())
+	wantSheet := launcher.Geometry{
+		Font: a.Launcher.Font, Line: a.Launcher.Line, Spacing: a.Launcher.Spacing,
+		RowLines: a.Launcher.RowLines, Held: a.Launcher.HeldRows,
+		Filter: a.Launcher.FiltersVisible(), Feedback: a.Launcher.FeedbackVisible(),
+		Config: a.Launcher.ConfigSchema(), Cap: 900 - 24,
+	}.Height()
+	if sheetHeight != wantSheet {
+		t.Errorf("with a sheet the shell sizes %d, the view asks for %d", sheetHeight, wantSheet)
+	}
+	// The sheet's height is the sheet's own: the rows the list is holding
+	// behind it are not charged, since the sheet takes the list's place.
+	if sheetHeight == height {
+		t.Errorf("the sheet's window is the list's %d", height)
+	}
+}
