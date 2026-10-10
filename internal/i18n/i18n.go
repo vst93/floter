@@ -105,8 +105,10 @@ type Launcher struct {
 	PowerConfirmButton string
 	PowerCancel        string
 	PowerFailed        string
-	// InstallTool names the row that offers a tool's install command.
-	InstallTool func(name string) string
+	// InstallTool names the row that offers a tool's install command, and
+	// InvokeFailed reports a tool that could not be started.
+	InstallTool  func(name string) string
+	InvokeFailed string
 	// The action bar: what the field itself is asking for.
 	OpenInBrowser string
 	OpenInFiles   string

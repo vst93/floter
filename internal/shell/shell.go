@@ -40,6 +40,7 @@ import (
 	"floter/internal/settings"
 	"floter/internal/settingsui"
 	"floter/internal/shortcuts"
+	"floter/internal/spawn"
 	"floter/internal/terminalui"
 	"floter/internal/tools"
 	"floter/internal/usage"
@@ -449,6 +450,20 @@ func New(opts Options) *App {
 				log.Printf("floter: could not run %v: %v", argv, err)
 			}
 			a.Open(SurfaceTerminal)
+		},
+		// SpawnDetached starts a tool's own GUI action: no terminal, no
+		// capture, and the launcher clears and hides the way any row does.
+		SpawnDetached: func(argv []string) {
+			if len(argv) == 0 {
+				return
+			}
+			if err := spawn.Program(argv[0], argv[1:]...); err != nil {
+				log.Printf("floter: could not start %v: %v", argv, err)
+				a.Launcher.WarnFeedback(i18n.For(a.Store.Snapshot().Language).Launcher.InvokeFailed)
+				return
+			}
+			a.Launcher.ResetQuery()
+			a.Hide()
 		},
 		RunInTerminalWithEnv: func(argv []string, env []string) {
 			if err := a.Terminal.RunCommand(argv, "current", env); err != nil {

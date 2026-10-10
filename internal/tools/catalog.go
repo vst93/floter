@@ -76,6 +76,11 @@ type Entry struct {
 	Recipes map[string][]Recipe
 	// NeedsTerminal marks a full-screen tool, which has to run in a terminal.
 	NeedsTerminal bool
+	// Launch is how the tool may be called out from the launcher: the argv of
+	// the program to start, for a tool with a GUI or TUI action of its own. A
+	// pure CLI filter — jq, fd, rg — carries none: it reads standard input,
+	// and its honest home is the user's own shell.
+	Launch []string
 }
 
 // Catalog is the tool table. Recipes are omitted rather than guessed: a
@@ -86,6 +91,8 @@ var Catalog = []Entry{
 		ID: "flameshot", Name: "Flameshot",
 		Keywords: []string{"截图", "screenshot", "screen", "jietu"},
 		Probes:   []string{"flameshot"},
+		// Its own GUI action, started detached: `flameshot gui`.
+		Launch: []string{"flameshot", "gui"},
 		Recipes: map[string][]Recipe{
 			PlatformMacOS:   {{"brew", "flameshot"}},
 			PlatformLinux:   {{"pacman", "flameshot"}, {"apt", "flameshot"}, {"dnf", "flameshot"}},
@@ -209,6 +216,7 @@ var Catalog = []Entry{
 		},
 		// A full-screen TUI: it needs a real terminal or it exits at once.
 		NeedsTerminal: true,
+		Launch:        []string{"lazygit"},
 	},
 }
 

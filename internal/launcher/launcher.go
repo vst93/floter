@@ -108,6 +108,9 @@ type Actions struct {
 	// (the leading NAME=value assignments the user typed), when the shell
 	// action's parse found some.
 	RunInTerminalWithEnv func(argv []string, env []string)
+	// SpawnDetached starts a program of its own with no terminal and no
+	// capture: a tool's own GUI action (the flameshot precedent).
+	SpawnDetached func(argv []string)
 	// OpenPath hands a path to the system's own opener, for a dropped file's
 	// "open" action.
 	OpenPath func(path string)

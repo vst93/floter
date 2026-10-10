@@ -452,6 +452,7 @@ func (a *App) Catalog() []Item {
 	items = append(items, a.appItems()...)
 	items = append(items, a.toolItems()...)
 	items = append(items, a.toolInstallItems()...)
+	items = append(items, a.toolInvokeItems()...)
 	items = append(items, a.commandItems()...)
 	return items
 }

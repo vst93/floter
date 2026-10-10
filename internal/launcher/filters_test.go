@@ -8,6 +8,7 @@ import (
 	"floter/internal/apps"
 	"floter/internal/drops"
 	"floter/internal/extensions"
+	"floter/internal/tools"
 
 	clipboardpkg "floter/internal/clipboard"
 	"floter/internal/i18n"
@@ -198,5 +199,59 @@ func TestSharedCommandWordIsMarked(t *testing.T) {
 	}
 	if warned["Diff"] {
 		t.Error("an unshared word was marked")
+	}
+}
+
+// The invoke row: a tool the catalog knows, that *is* installed, and that
+// carries a launch action of its own offers the argv; a pure CLI filter and a
+// missing tool offer nothing; and the two rows are mutually exclusive.
+func TestToolInvokeRows(t *testing.T) {
+	a := testApp()
+	spawned := [][]string{}
+	terminal := [][]string{}
+	a.Actions.SpawnDetached = func(argv []string) { spawned = append(spawned, argv) }
+	a.Actions.RunInTerminal = func(argv []string) { terminal = append(terminal, argv) }
+	a.SetToolCatalog([]tools.State{
+		{Entry: tools.Entry{ID: "flameshot", Name: "Flameshot", Probes: []string{"flameshot"},
+			Keywords: []string{"screenshot"}, Launch: []string{"flameshot", "gui"}}, Installed: true},
+		{Entry: tools.Entry{ID: "lazygit", Name: "lazygit", Probes: []string{"lazygit"},
+			Keywords: []string{"git"}, Launch: []string{"lazygit"}, NeedsTerminal: true}, Installed: true},
+		{Entry: tools.Entry{ID: "jq", Name: "jq", Probes: []string{"jq"}, Keywords: []string{"json"}}, Installed: true},
+		{Entry: tools.Entry{ID: "fd", Name: "fd", Probes: []string{"fd"}, Keywords: []string{"find"},
+			Recipes: map[string][]tools.Recipe{"linux": {{Manager: "pacman", Package: "fd"}}}},
+			Command: "pacman -S fd", Installed: false},
+	})
+	// A detected GUI tool offers its argv, and the row starts it detached.
+	a.Query = "flameshot"
+	rows := a.toolInvokeItems()
+	if len(rows) != 1 || rows[0].Title != "Flameshot" || rows[0].Detail != "flameshot gui" {
+		t.Fatalf("invoke rows = %+v", rows)
+	}
+	rows[0].Run()
+	if len(spawned) != 1 || spawned[0][0] != "flameshot" {
+		t.Errorf("spawned = %v", spawned)
+	}
+	// A full-screen TUI goes to the terminal instead.
+	a.Query = "lazygit"
+	rows = a.toolInvokeItems()
+	if len(rows) != 1 {
+		t.Fatalf("lazygit rows = %+v", rows)
+	}
+	rows[0].Run()
+	if len(terminal) != 1 || terminal[0][0] != "lazygit" {
+		t.Errorf("terminal = %v", terminal)
+	}
+	// A pure CLI filter carries no launch action: no row.
+	a.Query = "jq"
+	if rows := a.toolInvokeItems(); len(rows) != 0 {
+		t.Errorf("jq produced an invoke row: %+v", rows)
+	}
+	// A missing tool is the install row's business, not this one.
+	a.Query = "fd"
+	if rows := a.toolInvokeItems(); len(rows) != 0 {
+		t.Errorf("an uninstalled tool produced an invoke row: %+v", rows)
+	}
+	if rows := a.toolInstallItems(); len(rows) != 1 {
+		t.Errorf("install rows = %+v", rows)
 	}
 }
