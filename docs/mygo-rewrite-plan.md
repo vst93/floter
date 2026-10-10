@@ -883,6 +883,11 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
 - 真实窗口的交互验证受限于 Xvfb 无窗口管理器（窗口无法 map/聚焦，事件到不了）——headless
   tester 与真实窗口走同一条 `ui.List`/`row.Clicked()` 路径，测试即证明。
 
+### P1-ab 设置面板的指针路径（已做）
+
+- `TestClickingASidebarRowSwitchesThePage`（侧栏点击换页）与 `TestScrollingTheSettingsBody`
+  （设置主体滚轮滚动，`ScrollState.Y`/`MaxY` 钉住）——设置面板的点击与滚动同启动器一起有测试了。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。
