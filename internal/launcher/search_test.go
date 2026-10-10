@@ -379,3 +379,98 @@ func TestPinyinInitialsJoinTheSearch(t *testing.T) {
 		}
 	}
 }
+
+// The subsequence tier of the search ladder: a term whose characters appear
+// in order (starting at a word boundary) finds the row, while a mid-word
+// start does not.
+func TestSubsequenceMatching(t *testing.T) {
+	a := testApp()
+	a.SetApps([]apps.App{
+		{Name: "Visual Studio Code", Path: "/Applications/Visual Studio Code.app"},
+	})
+	var found bool
+	// `vsc` is a word-started subsequence of Visual Studio Code.
+	a.Query = "vsc"
+	got := a.Results()
+	if len(got) == 0 || got[0].Title != "Visual Studio Code" {
+		t.Errorf("vsc = %+v", got)
+	}
+	// A CJK name's pinyin initials work the same way: the scan fills the
+	// initials, and the launcher matches against them.
+	a.SetApps([]apps.App{
+		{Name: "网易云音乐", Path: "/Applications/Netease.app", Initials: "wyyyy"},
+	})
+	a.Query = "wyyyy"
+	got = a.Results()
+	found = false
+	for _, item := range got {
+		if item.Title == "网易云音乐" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("wyyyy = %+v", got)
+	}
+	// A single term that is the whole name is the ordinary path.
+	a.SetApps([]apps.App{
+		{Name: "Visual Studio Code", Path: "/Applications/Visual Studio Code.app"},
+	})
+	a.Query = "visual studio code"
+	got = a.Results()
+	found = false
+	for _, item := range got {
+		if item.Title == "Visual Studio Code" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("full name = %+v", got)
+	}
+	// A mid-word subsequence still finds the row: it ranks below the
+	// contained and word-prefix tiers.
+	a.SetApps([]apps.App{
+		{Name: "Visual Studio Code", Path: "/Applications/Visual Studio Code.app"},
+	})
+	a.Query = "sual"
+	got = a.Results()
+	found = false
+	for _, item := range got {
+		if item.Title == "Visual Studio Code" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("a mid-word subsequence = %+v", got)
+	}
+}
+
+func TestIsSubsequence(t *testing.T) {
+	candidate := "visual studio code"
+	// Subsequences match at any position.
+	for _, term := range []string{"v", "vs", "vsc", "sc", "studio", "sual", "vcde"} {
+		if !isSubsequence(term, candidate) {
+			t.Errorf("isSubsequence(%q, %q) = false, want true", term, candidate)
+		}
+	}
+	// Non-subsequences do not.
+	for _, term := range []string{"x", "codex", "edoc"} {
+		if isSubsequence(term, candidate) {
+			t.Errorf("isSubsequence(%q) = true, want false", term)
+		}
+	}
+	// A term longer than the candidate cannot be a subsequence.
+	if isSubsequence(candidate+"x", candidate) {
+		t.Error("a longer term matched")
+	}
+	// An empty term is trivially a subsequence.
+	if !isSubsequence("", candidate) {
+		t.Error("an empty term did not match")
+	}
+	// CJK characters participate as runes.
+	if !isSubsequence("网易", "网易云音乐") {
+		t.Error("CJK subsequence did not match")
+	}
+	if isSubsequence("网易易", "网易云音乐") {
+		t.Error("a non-existent CJK subsequence matched")
+	}
+}

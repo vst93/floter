@@ -623,7 +623,11 @@ func itemScore(item Item, term string) (int, bool) {
 }
 
 // candidateScore is the ladder one candidate string is scored by: the string
-// starts with the term, a word of it does, or it contains it.
+// starts with the term, a word of it does, or it contains it. A term that is a
+// subsequence of the candidate (its characters in order, with anything
+// between) matches too, one rung below a contained term — that is what makes
+// `vsc` find Visual Studio Code and `wyyyy` find 网易云音乐 (the pinyin
+// initials are a subsequence of the name).
 func candidateScore(candidate, term string) (int, bool) {
 	switch {
 	case strings.HasPrefix(candidate, term):
@@ -633,7 +637,34 @@ func candidateScore(candidate, term string) (int, bool) {
 	case strings.Contains(candidate, term):
 		return 2, true
 	}
+	if isSubsequence(term, candidate) {
+		return 3, true
+	}
 	return 0, false
+}
+
+// isSubsequence reports whether every rune of term appears in candidate, in
+// order, with anything between.
+func isSubsequence(term, candidate string) bool {
+	if len([]rune(term)) > len([]rune(candidate)) {
+		return false
+	}
+	candidateRunes := []rune(candidate)
+	cursor := 0
+	for _, char := range term {
+		matched := false
+		for ; cursor < len(candidateRunes); cursor++ {
+			if candidateRunes[cursor] == char {
+				matched = true
+				cursor++
+				break
+			}
+		}
+		if !matched {
+			return false
+		}
+	}
+	return true
 }
 
 // wordPrefixMatch reports whether any word of s starts with term.

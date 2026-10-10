@@ -194,6 +194,11 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 - `.strings` 文本的 UTF-16 BOM 检测解码（LE/BE）、无引号键、块注释剥离、转义解码——旧版
   `localized_name_from_strings_text` 的完整移植。企业微信的英文名（无引号键）因此可达。
 
+**P2-w 子序列搜索**（本轮）
+- `isSubsequence` 加进 `candidateScore` 的梯子：`vsc` → Visual Studio Code，`wyyyy` →
+  网易云音乐。评 3 分，低于包含、高于无匹配。
+- mygo v0.3.5 → v0.3.7（go.mod 已升级，三平台构建全绿）。
+
 ## 尚未做（按建议优先级）
 
 1. **列表协议的分页**：`page.cursor`/`hasMore` 与滚动加载（需要带着 cursor 重新执行命令）；旧版还有
