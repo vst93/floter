@@ -217,6 +217,10 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 - 雾层盖在行上且无 PassThrough → hit chain 命中雾层 → 所有行看得见点不着。加 PassThrough 修复，
   两个测试钉住启动器与设置两条路径。
 
+**P4-z 重探命令**（本轮）
+- `ReprobeCommands` + Integrations 页按钮：重新推导生成的自定义集成的命令列表，原子刷新描述符，
+  sidecar 记录新鲜度；工具哑了保留旧描述符。发布者内容永不覆盖。
+
 ## 尚未做（按建议优先级）
 
 1. **列表协议的分页**：`page.cursor`/`hasMore` 与滚动加载（需要带着 cursor 重新执行命令）；旧版还有

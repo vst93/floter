@@ -898,6 +898,17 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
 - `TestHazeVeilLetsThePointerThrough`（启动器行穿透雾层生效）与
   `TestSettingsRowsAnswerThroughTheVeil`（设置页同卡片）钉住整条路径。
 
+### P4-z 重探命令（已做）
+
+- 旧版 `reprobe_tool_commands` 的移植：`internal/extensions/reprobe.go`。生成的自定义集成
+  （publisher=local-user + static-descriptor + integration 目录）可重跑连接时的 `--help` 推导：
+  根参数 + 每个子命令一次探测（至多 12 个），原子替换（temp+rename）刷新
+  `provider-description.json`，`help-probe.json` sidecar 记录上次推导时间与命令数变化
+  （首次探测 previousCommandCount 缺省——"未知"而不是伪造的差值）。
+- 工具不再产出可用 help 时报错、保留旧描述符（连接时静默降级，重探把它当作"工具变了"的信号）。
+- 设置 Integrations 页对 `Generated` 集成显示按钮；shell 侧 `reprobeCommands` 后台执行，
+  完成后重交启动器命令列表并刷新 Integrations 页。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。
