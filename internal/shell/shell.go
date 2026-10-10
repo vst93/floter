@@ -1610,12 +1610,19 @@ func (a *App) Notify(title, body string) {
 	}
 }
 
-// scanApps reads the installed applications in the background and hands
-// them to the launcher, so the window opens at once and the search grows as
-// the scan lands.
+// scanApps hands the launcher the installed applications: the previous scan
+// immediately when the sources have not changed, otherwise a fresh scan in the
+// background. Either way the search grows or stays without the window waiting
+// on a filesystem walk.
 func (a *App) scanApps() {
+	roots := apps.Roots()
+	if found, upToDate := apps.CachedScan(roots); upToDate {
+		a.onMain(func() { a.Launcher.SetApps(found) })
+		return
+	}
 	go func() {
-		found := apps.Scan(apps.Roots())
+		found := apps.Scan(roots)
+		apps.StoreScan(roots, found)
 		a.onMain(func() { a.Launcher.SetApps(found) })
 	}()
 }

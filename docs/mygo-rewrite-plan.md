@@ -779,6 +779,15 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
 - 测试：拼音 initials（`qywx` → 企业微信，来自 `App.Initials`）、别名、以及「子序列可能拖进
   共享字母的行，但应用在其中」的如实断言。
 
+### P2-t 应用扫描的缓存（已做）
+
+- 旧版 `check_applications` 的性能语义：launcher 打开时**立即**用上一次的扫描结果，只有磁盘上的
+  来源（根目录与前两级的条目）变了才重新扫描；签名检查限频 30 秒（突发 reveal 最多一批 stat）。
+- `apps.CachedScan` / `StoreScan` / `SourceSignature`：签名是 FNV-1a（排序去重的路径 + 每条路径的
+  长度与 mtime），与旧版 `paths_signature` 相同；缓存在进程内（旧版另有磁盘持久化缓存，这里没有——
+  磁盘缓存的好处是冷启动更快，进程内缓存在同一运行里已经足够）。
+- shell 的 `scanApps`：先问缓存，up-to-date 就直接交给 launcher；否则后台扫描并入库。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。
