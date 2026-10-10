@@ -960,11 +960,21 @@ func (a *App) row(c *ui.Context, item Item, i int) {
 	row := ui.Row(c).Key(item.ID).FillWidth().Focusable().
 		Padding(t.Space(1.5), t.Space(2)).Radius(t.Radius).Gap(t.Space(2)).
 		Transition(rowTransition)
+	// The action bar is the one row that is not a result: its selection is
+	// the neutral raised pane the old build's settings used (`.launcher-
+	// action-bar--selected`), not the accent tint a match takes, and the
+	// ⌘↩ badge is what says it runs on Enter.
+	isBar := strings.HasPrefix(item.ID, "bar:")
 	if i == a.Selected {
-		// The old build's selection: a quiet accent tint, and the emphasis
-		// is the row's own type — the title at 700 — rather than a ring or
-		// a shadow. The tint places the row; the weight announces it.
-		row.Background(t.Accent.Alpha(0.085))
+		if isBar {
+			row.Background(t.SurfaceHover)
+		} else {
+			// The old build's selection: a quiet accent tint, and the
+			// emphasis is the row's own type — the title at 700 — rather
+			// than a ring or a shadow. The tint places the row; the weight
+			// announces it.
+			row.Background(t.Accent.Alpha(0.085))
+		}
 	} else if row.Hovered() {
 		row.Background(t.SurfaceHover)
 	}
