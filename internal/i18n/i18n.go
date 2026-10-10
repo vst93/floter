@@ -326,6 +326,12 @@ type Settings struct {
 	// note that another command claimed the alias first.
 	IntegrationsReprobe   string
 	IntegrationsInstalled string
+	// The disable confirmation: stopping an integration is a mark, not a
+	// delete, and the notice says so.
+	DisableTitle       func(name string) string
+	DisableDescription string
+	DisableCancel      string
+	DisableConfirm     string
 	// The detected-programs section: what this machine already has and
 	// nothing has connected.
 	DetectedTitle string

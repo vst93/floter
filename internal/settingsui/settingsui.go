@@ -268,6 +268,10 @@ type App struct {
 	// cursor, reset by card and never read outside it.
 	cardRows int
 
+	// disableConfirm marks the integrations whose switch was turned off and
+	// is waiting for the user's answer.
+	disableConfirm map[string]bool
+
 	// The local-tool form's draft: what the user has typed, and the
 	// permissions they have ticked. It lives on the panel so a keystroke
 	// survives the rebuild, and it is cleared once the tool is connected.
@@ -1004,7 +1008,15 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			if a.Actions.SetIntegrationEnabled != nil {
 				on := enabled
 				if ui.Switch(c, &on).Label(copy.IntegrationsEnable).Changed() {
-					enabled, enableChanged = on, true
+					// Turning an integration *off* stops whatever it is
+					// running, so it asks first — a mark the user did not mean
+					// is a command dead mid-flight. Turning one on is no
+					// question at all.
+					if !on {
+						a.requestDisable(integration.ID)
+					} else {
+						enabled, enableChanged = on, true
+					}
 				}
 			}
 			if a.Actions.DiagnoseIntegration != nil {
@@ -1030,10 +1042,17 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			}
 		})
 		if enableLabelClicked {
-			enabled, enableChanged = !enabled, true
+			if enabled {
+				a.requestDisable(integration.ID)
+			} else {
+				enabled, enableChanged = !enabled, true
+			}
 		}
 		if enableChanged && a.Actions.SetIntegrationEnabled != nil {
 			a.Actions.SetIntegrationEnabled(integration.ID, enabled)
+		}
+		if a.disableConfirm[integration.ID] {
+			a.disableConfirmation(c, copy, integration)
 		}
 	})
 }
@@ -1891,6 +1910,41 @@ func (a *App) detectedSection(c *ui.Context, copy i18n.Settings) {
 				}, func() {
 					a.row(c, tool.Path, "", func() {})
 				})
+			}
+		})
+	})
+}
+
+// requestDisable opens the confirmation for turning an integration off.
+func (a *App) requestDisable(id string) {
+	if a.disableConfirm == nil {
+		a.disableConfirm = map[string]bool{}
+	}
+	a.disableConfirm[id] = true
+}
+
+// disableConfirmation is the notice under an integration's switch: stopping it
+// is a mark, not a delete — the files and data stay, and it can be turned back
+// on whenever the user likes — but whatever it is running stops at once, so
+// the question is asked rather than assumed.
+func (a *App) disableConfirmation(c *ui.Context, copy i18n.Settings, integration Integration) {
+	t := c.Theme()
+	tokens := a.tokens(c)
+	ui.Column(c).FillWidth().Gap(t.Space(1)).Padding(t.Space(2), t.Space(3.5)).
+		Margin(0, t.Space(3.5)).Radius(tokens.RadiusSM).
+		Background(tokens.Control).Border(1, tokens.ControlEdge).Children(func() {
+		ui.Text(c, copy.DisableTitle(integration.Name)).FontSize(t.FontSize).FontWeight(580).
+			TextColor(tokens.TextStrong)
+		ui.Text(c, copy.DisableDescription).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+		ui.Row(c).Gap(t.Space(1)).AlignItems(ui.Center).Children(func() {
+			if ui.Button(c, copy.DisableCancel).Clicked() {
+				a.disableConfirm[integration.ID] = false
+			}
+			if ui.Button(c, copy.DisableConfirm).Clicked() {
+				a.disableConfirm[integration.ID] = false
+				if a.Actions.SetIntegrationEnabled != nil {
+					a.Actions.SetIntegrationEnabled(integration.ID, false)
+				}
 			}
 		})
 	})

@@ -401,9 +401,20 @@ func TestIntegrationsPage(t *testing.T) {
 		}
 	}
 
-	// The Running row's check box turns the integration off.
+	// The Running row's switch asks before turning the integration off, and
+	// the confirmation is what performs it.
 	if err := tt.Click("Enabled"); err != nil {
-		t.Fatalf("the enable check box is missing: %v", err)
+		t.Fatalf("the enable switch is missing: %v", err)
+	}
+	tt.Frame()
+	if toggled != "" {
+		t.Errorf("turning off happened without asking: %q", toggled)
+	}
+	if !tt.HasText("Disable V Tools?") {
+		t.Fatalf("the confirmation is missing: %q", tt.Texts())
+	}
+	if err := tt.Click("Disable"); err != nil {
+		t.Fatalf("the confirm button: %v", err)
 	}
 	tt.Frame()
 	if toggled != "io.github.vst93.v" || toggledTo {
@@ -1547,5 +1558,49 @@ func TestDetectedToolsSection(t *testing.T) {
 	tt.Frame()
 	if tt.HasText("Found on this machine") {
 		t.Errorf("an empty section was drawn: %q", tt.Texts())
+	}
+}
+
+// Disabling asks first — stopping an integration kills whatever it is running
+// — while enabling is no question at all, and Cancel leaves the state alone.
+func TestDisableAsksFirst(t *testing.T) {
+	toggled := []bool{}
+	a := New(newStore(t), Actions{
+		SetIntegrationEnabled: func(id string, enabled bool) { toggled = append(toggled, enabled) },
+	})
+	a.Integrations = func() []Integration {
+		return []Integration{{ID: "io.github.vst93.v", Name: "V Tools", Enabled: true, Running: true}}
+	}
+	tt := render(t, a, 720, 900)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	// Cancel: nothing happens.
+	if err := tt.Click("Enabled"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if err := tt.Click("Cancel"); err != nil {
+		t.Fatalf("cancel: %v", err)
+	}
+	tt.Frame()
+	if len(toggled) != 0 {
+		t.Errorf("Cancel toggled: %v", toggled)
+	}
+	if tt.HasText("Disable V Tools?") {
+		t.Errorf("the confirmation stayed up: %q", tt.Texts())
+	}
+	// Enabling a disabled integration is immediate.
+	a.Integrations = func() []Integration {
+		return []Integration{{ID: "io.github.vst93.v", Name: "V Tools", Enabled: false}}
+	}
+	tt.Frame()
+	if err := tt.Click("Enabled"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if len(toggled) != 1 || !toggled[0] {
+		t.Errorf("enabling asked or failed: %v", toggled)
 	}
 }
