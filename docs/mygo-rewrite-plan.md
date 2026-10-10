@@ -876,6 +876,13 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
 - `SemverFromVersionOutput`：从 `--version` 输出提取第一个真 semver（容忍 `v` 前缀、噪声词、
   两段补齐、预发布保留）；垃圾进空出。
 
+### P1-aa 指针交互的验证（已做）
+
+- 鼠标点击与滚轮此前未被测试钉住。两个新测试：`TestClickingThroughTheScrollEdge`（滚动边缘
+  条是 `PassThrough`，盖住的行点击仍然生效）与 `TestScrollingTheResultList`（滚轮事件移动列表）。
+- 真实窗口的交互验证受限于 Xvfb 无窗口管理器（窗口无法 map/聚焦，事件到不了）——headless
+  tester 与真实窗口走同一条 `ui.List`/`row.Clicked()` 路径，测试即证明。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。
