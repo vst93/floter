@@ -545,6 +545,12 @@ func (a *App) View(c *ui.Context) {
 				Bind(&a.Search).
 				Label(copy.Label).
 				Placeholder(copy.Placeholder).
+				// The query is the card's display register: the old build's
+				// `.collapsed-card__input` took `--text-display` (17px at
+				// scale 1) against the rows' body text — one step above —
+				// at weight 460.
+				FontSize(t.FontSize + 3).
+				FontWeight(460).
 				Grow(1)
 			if a.pendingCaret {
 				field.SetTextSelection(len(a.Query), len(a.Query))
