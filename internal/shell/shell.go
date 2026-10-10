@@ -1942,11 +1942,16 @@ func (a *App) notifyRun(entry extensions.CommandEntry, run extensions.CapturedRu
 // result itself, so a notification there would be a second copy of the same
 // news.
 func (a *App) notifyCompletion(render func(i18n.Notifications) string) {
+	copy := i18n.NotificationsFor(a.Store.Snapshot().Language)
+	message := render(copy)
+	// The window that is on screen is told in its own panel: a system
+	// notification for something the user is already looking at is noise, and
+	// a completion that says nothing at all is worse.
 	if a.Win != nil && a.Win.IsVisible() {
+		a.onMain(func() { a.Launcher.Feedback(message) })
 		return
 	}
-	copy := i18n.NotificationsFor(a.Store.Snapshot().Language)
-	a.Notify(copy.Title, render(copy))
+	a.Notify(copy.Title, message)
 }
 
 // Notify shows a system notification, through the framework unless a test

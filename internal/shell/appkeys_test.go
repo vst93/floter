@@ -7,6 +7,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"floter/internal/i18n"
 	"floter/internal/settings"
 	"floter/internal/shortcuts"
 )
@@ -157,4 +158,24 @@ func TestRegisterDeepLinkNamesAProgram(t *testing.T) {
 	// the page as it was rather than writing half a package.
 	a := appKeysApp()
 	a.registerFromLink("no-such-program-anywhere-12345")
+}
+
+// A completion reported while the window is on screen goes into the panel's
+// own row; only a hidden window gets a system notification. A completion that
+// says nothing at all is worse than either.
+func TestCompletionGoesWhereTheUserIsLooking(t *testing.T) {
+	notifications := []string{}
+	a := New(Options{
+		Store:  settings.NewStore(settings.Default()),
+		Notify: func(title, body string) { notifications = append(notifications, title+"|"+body) },
+	})
+	// No window at all (the tests' own world): the system notification is the
+	// only channel, and it is used.
+	a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationInstalled("V Tools") })
+	if len(notifications) != 1 {
+		t.Fatalf("notifications = %v", notifications)
+	}
+	if !strings.Contains(notifications[0], "V Tools") {
+		t.Errorf("the message = %q", notifications[0])
+	}
 }
