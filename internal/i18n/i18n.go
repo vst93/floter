@@ -326,6 +326,11 @@ type Settings struct {
 	// note that another command claimed the alias first.
 	IntegrationsReprobe   string
 	IntegrationsInstalled string
+	// The About page's deep-link card: the two forms worth copying.
+	DeepLinkTitle  string
+	DeepLinkHint   string
+	DeepLinkCopy   string
+	DeepLinkCopied string
 	// The local-tool connection form.
 	LocalToolTitle                      string
 	LocalToolHint                       string

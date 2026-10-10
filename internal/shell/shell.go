@@ -479,6 +479,7 @@ func New(opts Options) *App {
 		DiagnoseIntegration: a.diagnoseIntegration,
 		ReprobeCommands:     a.reprobeCommands,
 		ConnectLocalTool:    a.connectLocalTool,
+		CopyText:            func(text string) { mygo.Clipboard.WriteText(text) },
 		ChooseProgram:       a.chooseProgram,
 		SetShortcut:         a.setShortcut,
 		SetPage:             a.rememberSettingsPage,

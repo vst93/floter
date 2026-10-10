@@ -107,6 +107,8 @@ type Actions struct {
 	// picks, and ImportIntegrations applies one they pick.
 	ExportIntegrations func()
 	ImportIntegrations func()
+	// CopyText puts text on the clipboard, for the About page's deep links.
+	CopyText func(text string)
 	// ConnectRecommended installs one of the shipped tool packages, and
 	// ConnectLocalTool connects a program already on this machine.
 	ConnectRecommended func(id string)
@@ -1265,6 +1267,26 @@ func (a *App) about(c *ui.Context, copy i18n.Settings) {
 		})
 		a.card(c, func() {
 			a.updateRow(c, copy)
+		})
+		// The deep-link lines: a URL scheme is invisible when it works and
+		// invisible when it does not, so the About page is the one place a
+		// user can find out that floter answers `floter://` at all.
+		a.section(c, copy.DeepLinkTitle, copy.DeepLinkHint, func() {
+			a.card(c, func() {
+				for _, link := range []string{
+					"floter://connect?manifest=/path/to/tool.json",
+					"floter://register?cmd=rg",
+				} {
+					link := link
+					a.row(c, link, "", func() {
+						if ui.Button(c, copy.DeepLinkCopy).Clicked() {
+							if a.Actions.CopyText != nil {
+								a.Actions.CopyText(link)
+							}
+						}
+					})
+				}
+			})
 		})
 	})
 }
