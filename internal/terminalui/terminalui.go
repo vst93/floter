@@ -305,14 +305,13 @@ func (a *App) View(c *ui.Context) {
 	copy := i18n.For(a.Store.Snapshot().Language).Terminal
 	t := c.Theme()
 
-	ui.Column(c).Fill().Gap(t.Space(1)).Children(func() {
-		a.titleRow(c, copy)
+	ui.Box(c).Fill().Children(func() {
 		if a.Term == nil {
 			// The empty state: what the page is, the control that opens a
 			// blank session, and the one that returns to the search. A spawn
 			// error replaces the hint, since that is what the user needs to
 			// read.
-			ui.Column(c).Fill().Grow(1).Center().Gap(t.Space(2)).Children(func() {
+			ui.Column(c).Fill().Center().Gap(t.Space(2)).Children(func() {
 				title := copy.EmptyTitle
 				hint := copy.Hint
 				if a.Err != nil {
@@ -332,27 +331,50 @@ func (a *App) View(c *ui.Context) {
 					}
 				})
 			})
+			// The bar floats over the blank page too: its close control is
+			// the way out the user asked for, and its dot says the page holds
+			// no live session.
+			a.titleBar(c, copy)
 			return
 		}
+		// The canvas fills the whole panel; the bar floats above it, so no
+		// layout height is reserved and the first output line sits at the very
+		// top edge (the old build's `.terminal-panel__body` over
+		// `.terminal-bar`).
 		pad := a.Pad()
-		terminal.View(c, a.Term).Fill().Grow(1).Padding(pad).Bind(&a.Focus)
+		terminal.View(c, a.Term).Fill().Padding(pad).Bind(&a.Focus)
+		a.titleBar(c, copy)
 	})
 }
 
-// titleRow is the terminal's own header: the session title and a close
-// button, since the window is frameless.
-func (a *App) titleRow(c *ui.Context, copy i18n.Terminal) {
+// titleBar is the floating bar at the panel's top edge: the session's
+// identity (a live dot and the title) at the start, revealed while the bar is
+// hovered or something on it has the keyboard, and the controls at the end.
+// It is the window's drag handle, so the panel moves by its own header.
+func (a *App) titleBar(c *ui.Context, copy i18n.Terminal) {
 	t := c.Theme()
-	title := a.Title
-	if title == "" {
-		title = copy.Title
-	}
-	row := ui.Row(c).FillWidth().Gap(t.Space(1)).AlignItems(ui.Center)
-	row.Children(func() {
-		ui.Text(c, title).FontSize(t.FontSize).Bold().Grow(1)
+	bar := ui.Row(c).Absolute().Top(0).Left(0).Right(0).Height(t.Space(7)).
+		Padding(0, t.Space(3)).Gap(t.Space(2)).AlignItems(ui.Center).DragWindow()
+	revealed := bar.Hovered()
+	bar.Children(func() {
+		// The identity is hidden until the bar is hovered, so the title never
+		// sits on top of the first lines of output.
+		identity := ui.Row(c).Grow(1).Gap(t.Space(1.75)).AlignItems(ui.Center).Shrink(0)
+		if !revealed {
+			identity.Opacity(0)
+		}
+		identity.Children(func() {
+			a.statusDot(c)
+			title := a.Title
+			if title == "" {
+				title = copy.Title
+			}
+			ui.Text(c, title).FontSize(t.FontSize - 1).FontWeight(580).
+				TextColor(t.TextMuted).Ellipsis("\u2026").SingleLine()
+		})
 		if a.Actions.Pin != nil && a.Term != nil {
 			if ui.Button(c, copy.Pin).Clicked() {
-				a.Actions.Pin(title, a.sessionText())
+				a.Actions.Pin(a.Title, a.sessionText())
 			}
 		}
 		if a.Actions.NewCommand != nil {
@@ -365,10 +387,40 @@ func (a *App) titleRow(c *ui.Context, copy i18n.Terminal) {
 				a.Actions.OpenExternal()
 			}
 		}
-		if ui.Button(c, "✕").Label(copy.Close).Clicked() && a.Actions.Close != nil {
+		if ui.Button(c, "\u2715").Label(copy.Close).Clicked() && a.Actions.Close != nil {
 			a.Actions.Close()
 		}
 	})
+}
+
+// statusDot is the bar's status light: the accent, breathing while the
+// session runs, and a still grey dot once the program has ended.
+func (a *App) statusDot(c *ui.Context) {
+	t := c.Theme()
+	dot := ui.Box(c).Size(t.Space(1.75), t.Space(1.75)).Radius(t.Space(1.75)).Shrink(0)
+	if a.exited() {
+		dot.Background(t.TextMuted).Opacity(0.7)
+		return
+	}
+	dot.Background(t.Accent)
+	// The breath is the old build's own animation: the light fades and
+	// shrinks a little, twice over five seconds, so a running session reads
+	// as alive without a spinner.
+	dot.Opacity(0.75 + 0.25*dot.Loop("terminal.dot", 2400*time.Millisecond, ui.Bounce(ui.EaseInOut)))
+}
+
+// exited reports whether the session's program has ended (its screen is still
+// on show until the surface closes).
+func (a *App) exited() bool {
+	if a.Term == nil {
+		return false
+	}
+	select {
+	case <-a.Term.Done():
+		return true
+	default:
+		return false
+	}
 }
 
 // cursorStyle maps the stored cursor shape onto the plugin's.
