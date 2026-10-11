@@ -54,18 +54,20 @@ func (a *App) PluginSheet(c *ui.Context, sheet PluginSheet) {
 	}
 	t := c.Theme()
 	tokens := a.tokens(c)
-	inset := t.Space(4)
+	inset := t.Space(3.5)
 
 	// The sheet's own scroller: a schema longer than the band scrolls inside
 	// it rather than growing the window past the band it was given.
 	ui.Scroll(c.Key("plugin.config")).TrackScroll(&a.PluginScroll).FillWidth().
 		Padding(t.Space(1), inset, t.Space(2), inset).Children(func() {
 		ui.Column(c).FillWidth().Gap(t.Space(3)).Children(func() {
-			// The header: the plugin's own name, at the settings pages'
-			// display register.
+			// The header: the plugin's own name at the meta register — one
+			// step *below* a section heading, so the hierarchy a reader sees
+			// is name (meta) > section (title) > field (label) > help, as the
+			// old build's `.plugin-config__title` had it.
 			ui.Row(c).FillWidth().Height(t.Space(7)).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, sheet.Schema.Title).FontSize(t.FontSize + 3).FontWeight(650).
-					TextColor(tokens.TextStrong)
+				ui.Text(c, sheet.Schema.Title).FontSize(t.FontSize + 2).FontWeight(620).
+					TextColor(tokens.TextStrong).SingleLine()
 			})
 			if sheet.Failed {
 				ui.Text(c, i18n.For(a.language()).Settings.SaveFailed).
@@ -83,9 +85,12 @@ func (a *App) PluginSheet(c *ui.Context, sheet PluginSheet) {
 // holding its fields.
 func (a *App) sheetSection(c *ui.Context, sheet PluginSheet, section plugincfg.Section) {
 	t := c.Theme()
-	ui.Column(c).FillWidth().Gap(t.Space(1.5)).Children(func() {
+	// The section is the settings pages' own: an 8u gap between the title and
+	// its card, and the title at the title step (620, strong) — the old build's
+	// `.plugin-config__section` / `__section-title`.
+	ui.Column(c).FillWidth().Gap(t.Space(2)).Children(func() {
 		if section.Title != "" {
-			ui.Text(c, section.Title).FontSize(t.FontSize + 1).FontWeight(650).
+			ui.Text(c, section.Title).FontSize(t.FontSize + 2).FontWeight(620).
 				TextColor(a.tokens(c).TextStrong)
 		}
 		a.card(c, func() {
