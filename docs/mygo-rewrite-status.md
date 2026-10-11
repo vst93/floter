@@ -365,6 +365,19 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 **P7-m 行内寄存器补齐（本轮）**
 
+## 液态玻璃（mygo 内置材质，本轮重构）
+
+- **桌面模糊回来了**：面板的窗口带 `VibrancyUnderWindow`——macOS 的 NSVisualEffectView、
+  Windows 11 的系统背板（Linux 无，玻璃的 tint 与雾层就是全部材质）。旧版的 CSS
+  `backdrop-filter` 模糊的就是桌面，此前桌面在材质之外原样可见。
+- **材质栈 = 旧版的重述**：桌面（vibrancy 模糊）→ 玻璃材质的 tint → 插件自己的 bezel /
+  折射 / 边缘光（旧版 CSS 手画的 sheen 渐变）→ 雾层 → 内容。雾层保持在 tint 之下
+  （旧版 `--glass-step-dim` 在 `--glass-tint-alpha` 里的同一合成）。
+- **阶梯的映射**：`frosted = Clear 材质 + 0.6 雾`、`regular = Regular + 0.5`、`liquid = Regular + 0.2`；
+  旧版的 blur 阶梯成了 OS 材质（整个窗口一种强度），saturation 无旋钮，lens-scale 无旋钮。
+- **不采用**：`Interactive: true`（按压生长）——旧版 `.collapsed-card:active { transform: none }`
+  是刻意关掉的；`glass.Blur`（场景内 backdrop blur）——面板下是透明的根，没有东西可模糊。
+
 ## 视觉核验（本轮）
 
 - **scope 标记与输入框**：标记 x 20–85、输入 x 89 起、首行 y 86（字段 56u + chips 之下）——无重叠。
