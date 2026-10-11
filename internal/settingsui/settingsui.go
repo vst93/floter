@@ -510,18 +510,31 @@ func (a *App) View(c *ui.Context) {
 			// application and the way back to the launcher, as the old panel's
 			// `.settings-card__actions` carried them.
 			ui.Box(c).Grow(1)
-			if a.Actions.Quit != nil {
-				quit := ui.Button(c, "⏻").Label(copy.Quit)
-				if quit.Clicked() {
-					a.Actions.Quit()
+			// The header's own two controls, at its end: the way out of the
+			// application and the way back to the launcher. They are the
+			// reference's `.toolbar-button` — 28u transparent squares with a
+			// 16u mark — never filled pills in the header band.
+			headerButton := func(glyphName, label string, run func()) {
+				if run == nil {
+					return
+				}
+				tokens := a.tokens(c)
+				button := ui.Row(c).Focusable().Shrink(0).Size(t.Space(7), t.Space(7)).
+					Radius(tokens.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).Label(label)
+				if button.Hovered() {
+					button.Background(tokens.ControlHover)
+				}
+				button.Children(func() {
+					if glyph, ok := launcher.Glyph(glyphName); ok {
+						ui.Icon(c, glyph).Size(t.Space(4), t.Space(4)).TextColor(t.TextMuted)
+					}
+				})
+				if button.Clicked() {
+					run()
 				}
 			}
-			if a.Actions.Close != nil {
-				close := ui.Button(c, "✕").Label(copy.Close)
-				if close.Clicked() {
-					a.Actions.Close()
-				}
-			}
+			headerButton("power", copy.Quit, a.Actions.Quit)
+			headerButton("close", copy.Close, a.Actions.Close)
 		})
 		ui.Divider(c)
 		// The content pane carries its own fill (`.settings-card__body`'s
@@ -602,9 +615,15 @@ func (a *App) sidebarRow(c *ui.Context, i int) {
 		Radius(tokens.RadiusSM).AlignItems(ui.Center).
 		Transition(ui.ElementTransition{Colors: true, Duration: 120 * time.Millisecond})
 	if selected {
-		row.Background(tokens.Control)
+		// The current page is the reference's quiet raised pill
+		// (`--glass-raised-quiet`): the accent survives only as the leading
+		// glyph's colour, so a page and a hovered row are the same weight of
+		// mark. It is the *opaque* rung, because the framework paints the
+		// accent behind a chosen list row and a translucent lift would let
+		// it through.
+		row.Background(tokens.RaisedQuiet)
 	} else if row.Hovered() {
-		row.Background(t.SurfaceHover)
+		row.Background(tokens.ControlHover)
 	}
 	color := t.TextMuted
 	if selected {
@@ -612,9 +631,12 @@ func (a *App) sidebarRow(c *ui.Context, i int) {
 	}
 	row.Children(func() {
 		if glyph, ok := pageGlyph(i); ok {
-			ui.Icon(c, glyph).Size(t.Space(4), t.Space(4)).TextColor(color)
+			icon := ui.Icon(c, glyph).Size(t.Space(4), t.Space(4)).TextColor(color)
+			if selected {
+				icon.TextColor(t.Accent)
+			}
 		}
-		ui.Text(c, a.page(i).Title).FontSize(t.FontSize).FontWeight(580).
+		ui.Text(c, a.page(i).Title).FontSize(tokens.Emphasis).FontWeight(580).
 			TextColor(color).Ellipsis("\u2026").SingleLine()
 	})
 	if row.Clicked() {
@@ -666,22 +688,27 @@ func (a *App) body(c *ui.Context, copy i18n.Settings) {
 	ui.Column(c).Fill().Children(func() {
 		ui.Scroll(c.Key("settings.body")).TrackScroll(&a.Body).Fill().
 			Padding(edge, 0, 0, 0).Children(func() {
-			switch a.Page {
-			case PageGeneral:
-				a.general(c, copy)
-			case PageSessions:
-				a.sessions(c, copy)
-			case PageIntegrations:
-				a.integrations(c, copy)
-			case PageShortcuts:
-				a.shortcuts(c, copy)
-			case PageAbout:
-				a.about(c, copy)
-			default:
-				ui.Column(c).FillWidth().Padding(t.Space(4)).Center().Children(func() {
-					ui.Text(c, copy.PagePlaceholder).FontSize(t.FontSize).TextColor(t.TextMuted)
-				})
-			}
+			// The horizontal inset lives on the content column, not on the
+			// scroller, so the scrollbar still hugs the panel's edge
+			// (`.settings-content > *`).
+			ui.Column(c).FillWidth().Padding(0, t.Space(4.5)).Children(func() {
+				switch a.Page {
+				case PageGeneral:
+					a.general(c, copy)
+				case PageSessions:
+					a.sessions(c, copy)
+				case PageIntegrations:
+					a.integrations(c, copy)
+				case PageShortcuts:
+					a.shortcuts(c, copy)
+				case PageAbout:
+					a.about(c, copy)
+				default:
+					ui.Column(c).FillWidth().Padding(t.Space(4)).Center().Children(func() {
+						ui.Text(c, copy.PagePlaceholder).FontSize(t.FontSize).TextColor(t.TextMuted)
+					})
+				}
+			})
 		})
 		ui.Box(c).Absolute().Top(0).Left(0).Right(0).Height(edge).PassThrough().
 			Material(glass.ScrollEdge{Background: t.Background})
@@ -1623,7 +1650,12 @@ func (a *App) slider(c *ui.Context, label, description string, value, lo, hi flo
 				if e.Changed() {
 					chosen = true
 				}
-				ui.Text(c, format(v)).FontSize(t.FontSize).TextColor(t.TextMuted)
+				// The live readout rolls its digits as the slider moves
+				// (`ui.ContentTransition{Numeric: true}`): the number is a
+				// value being chosen, and a rolling counter is how the motion
+				// system shows a value changing in place.
+				ui.Text(c, format(v)).FontSize(t.FontSize).TextColor(t.TextMuted).
+					ContentTransition(ui.ContentTransition{Numeric: true})
 			})
 		})
 	})

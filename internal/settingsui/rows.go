@@ -52,15 +52,18 @@ func (a *App) card(c *ui.Context, fn func()) {
 	saved := a.cardRows
 	a.cardRows = 0
 	defer func() { a.cardRows = saved }()
-	// The card wears the window's own edge and radius (`.settings-card`:
-	// `--input-stroke` and `--window-radius`) over the resting control fill,
-	// with the clip that keeps the first and last rows inside the corners.
-	ui.Column(c).FillWidth().
-		Border(1, tokens.InputStroke).
-		Radius(tokens.RadiusLG).
+	// The card wears the reference's plane: the resting control fill, the
+	// control edge (not the window's stronger `--input-stroke`), the card
+	// radius step and the lens (`--elev-0`). It is a *plane*, never glass —
+	// the material belongs to the window shell — and the clip keeps the
+	// first and last rows inside the rounded corners.
+	card := ui.Column(c).FillWidth().
+		Border(1, tokens.ControlEdge).
+		Radius(tokens.RadiusMD).
 		Background(tokens.Control).
-		Clip().
-		Children(fn)
+		Clip()
+	tokens.Lens(card)
+	card.Children(fn)
 }
 
 // row draws one row of a card: the label and its optional grey second line
