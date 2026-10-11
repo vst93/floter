@@ -6,6 +6,9 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/plugins/terminal"
+	"github.com/egoist/mygo/ui"
+
+	"floter/internal/i18n"
 )
 
 // countingTerminal is a NewTerminal that hands out sessions the test can tell
@@ -228,4 +231,34 @@ func TestCloseAll(t *testing.T) {
 		t.Errorf("sessions = %d, active = %d", len(a.Sessions), a.Active)
 	}
 	_ = time.Now()
+}
+
+// The empty state's two lines are its own keys: Enter starts a session and
+// Escape leaves the surface, and each line prints the key that works, in a
+// badge beside its label — the old build's `.terminal-empty__line`.
+func TestEmptyStateLines(t *testing.T) {
+	closed := 0
+	a := New(newStore(), Actions{Close: func() { closed++ }}, nil)
+	tt := render(t, a, 860, 600)
+	tt.Frame()
+	copy := i18n.For("en").Terminal
+	for _, want := range []string{"\u21a9", "esc", copy.EmptyNew, copy.EmptyBack} {
+		if !tt.HasText(want) {
+			t.Errorf("missing %q in %q", want, tt.Texts())
+		}
+	}
+	// Escape leaves the surface, as its own line says.
+	tt.Key(0, ui.KeyEscape)
+	tt.Frame()
+	if closed != 1 {
+		t.Errorf("Escape left the surface %d times", closed)
+	}
+	// Clicking a line runs it too.
+	if err := tt.Click(copy.EmptyBack); err != nil {
+		t.Fatalf("the back line: %v", err)
+	}
+	tt.Frame()
+	if closed != 2 {
+		t.Errorf("the line ran %d times", closed)
+	}
 }

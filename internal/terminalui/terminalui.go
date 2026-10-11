@@ -522,29 +522,30 @@ func (a *App) View(c *ui.Context) {
 	ui.Box(c).Fill().Children(func() {
 		session := a.Current()
 		if session == nil || session.Term == nil {
-			// The empty state: what the page is, the control that opens a
-			// blank session, and the one that returns to the search. A spawn
-			// error replaces the hint, since that is what the user needs to
-			// read.
-			ui.Column(c).Fill().Center().Gap(t.Space(2)).Children(func() {
+			// The empty state: what the page is, and the two lines that leave
+			// it — each its own key and label, as the old build's
+			// `.terminal-empty__line` drew them (the key in a badge, the label
+			// beside it, neutral text rather than a filled control).
+			ui.Column(c).Fill().Center().Gap(t.Space(2.5)).Children(func() {
 				title := copy.EmptyTitle
 				hint := copy.Hint
 				if a.Err != nil {
 					title, hint = copy.EmptyTitle, a.Err.Error()
 				}
-				ui.Text(c, title).FontSize(t.FontSize + 2).Bold()
+				ui.Text(c, title).FontSize(t.FontSize + 1).TextColor(t.TextMuted)
 				ui.Text(c, hint).FontSize(t.FontSize).TextColor(t.TextMuted)
-				if a.Actions.Close == nil {
-					return
+				// The keys the lines print are the keys that work: Enter
+				// starts a session, Escape leaves the surface.
+				if c.Shortcut(0, ui.KeyEnter) {
+					a.EnsureSession()
 				}
-				ui.Row(c).Gap(t.Space(1)).AlignItems(ui.Center).Children(func() {
-					if ui.Button(c, copy.EmptyNew).Clicked() {
-						a.EnsureSession()
-					}
-					if ui.Button(c, copy.EmptyBack).Clicked() && a.Actions.Close != nil {
-						a.Actions.Close()
-					}
-				})
+				if c.Shortcut(0, ui.KeyEscape) && a.Actions.Close != nil {
+					a.Actions.Close()
+				}
+				a.emptyLine(c, copy, "enter", copy.EmptyNew, func() { a.EnsureSession() })
+				if a.Actions.Close != nil {
+					a.emptyLine(c, copy, "esc", copy.EmptyBack, a.Actions.Close)
+				}
 			})
 			// The bar floats over the blank page too: its close control is
 			// the way out the user asked for, and its dot says the page holds
@@ -561,6 +562,46 @@ func (a *App) View(c *ui.Context) {
 		a.titleBar(c, copy)
 		a.residentNote(c, copy)
 	})
+}
+
+// emptyLine is one of the empty state's two lines: its key in a badge and its
+// label beside it, the whole line a hit target. Neutral text, never a filled
+// control — the line is furniture, not a primary button.
+func (a *App) emptyLine(c *ui.Context, copy i18n.Terminal, key, label string, run func()) {
+	t := c.Theme()
+	line := ui.Row(c).Focusable().Padding(t.Space(0.5), t.Space(1)).
+		Radius(t.Radius).Gap(t.Space(1)).AlignItems(ui.Center)
+	if line.Hovered() {
+		line.Background(t.SurfaceHover)
+	}
+	line.Children(func() {
+		badge := ui.Row(c).Padding(t.Space(0.25), t.Space(1)).Radius(tokensOf(a, c).RadiusSM).
+			Background(tokensOf(a, c).Control).Children(func() {
+			ui.Text(c, keyBadge(key)).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+		})
+		_ = badge
+		ui.Text(c, label).FontSize(t.FontSize).TextColor(t.TextMuted)
+	})
+	if line.Clicked() {
+		run()
+	}
+}
+
+// keyBadge is one of the empty state's keys as the platform spells it: `↩` and
+// `esc` are the same word everywhere.
+func keyBadge(key string) string {
+	switch key {
+	case "enter":
+		return "\u21a9"
+	case "esc":
+		return "esc"
+	}
+	return key
+}
+
+// tokensOf resolves the card language's own tokens for the stored appearance.
+func tokensOf(a *App, c *ui.Context) theme.Tokens {
+	return theme.For(a.Store.Snapshot(), c.Theme().Dark)
 }
 
 // Resident marks the session on screen ended: the output stays on screen and
@@ -586,13 +627,18 @@ func (a *App) residentNote(c *ui.Context, copy i18n.Terminal) {
 	if session.ExitCode != 0 {
 		color = t.Warning
 	}
+	// The reference's own note: a floating card 12u from the panel's edges,
+	// a 7u/10u padding pair, the control hairline and the floater's shadow,
+	// with the title at the body step in 560 — the warning colour when the
+	// program returned non-zero.
+	tokens := theme.For(a.Store.Snapshot(), t.Dark)
 	ui.Row(c).Absolute().Bottom(t.Space(3)).Left(t.Space(3)).Right(t.Space(3)).
-		Gap(t.Space(2)).AlignItems(ui.Center).Padding(t.Space(2), t.Space(2.5)).
-		Radius(theme.For(a.Store.Snapshot(), t.Dark).RadiusMD).
-		Background(theme.For(a.Store.Snapshot(), t.Dark).Control).Children(func() {
-		ui.Text(c, copy.ProcessExited(session.ExitCode)).FontSize(t.FontSize - 1).
-			FontWeight(580).TextColor(color)
-		ui.Text(c, copy.ProcessExitedHint).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+		Gap(t.Space(2)).AlignItems(ui.Center).Padding(t.Space(1.75), t.Space(2.5)).
+		Radius(tokens.RadiusMD).Border(1, tokens.ControlEdge).Shadow(0, t.Space(1), t.Space(3), 0, ui.RGBA(0, 0, 0, 0.35)).
+		Background(tokens.Control).Children(func() {
+		ui.Text(c, copy.ProcessExited(session.ExitCode)).FontSize(t.FontSize).
+			FontWeight(560).TextColor(color)
+		ui.Text(c, copy.ProcessExitedHint).FontSize(t.FontSize).TextColor(t.TextMuted)
 	})
 }
 
