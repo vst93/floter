@@ -178,8 +178,11 @@ var en = Copy{
 		MenuLauncher: "Show floter",
 	},
 	Settings: Settings{
-		Title: "Settings",
-		Close: "Close settings",
+		Title:     "Settings",
+		Close:     "Close settings",
+		CloseHint: "Close settings (Esc)",
+		Quit:      "Quit floter",
+		QuitHint:  "Exit the application completely",
 
 		// The install approval dialog, and the permissions line in
 		// the integrations list.
@@ -711,8 +714,11 @@ var zh = Copy{
 		MenuLauncher: "显示 floter",
 	},
 	Settings: Settings{
-		Title: "设置",
-		Close: "关闭设置",
+		Title:     "设置",
+		Close:     "关闭设置",
+		CloseHint: "关闭设置（Esc）",
+		Quit:      "退出 floter",
+		QuitHint:  "完全退出应用程序",
 
 		PermissionsTitle:    permissionsTitleZH,
 		PermissionsAllow:    "允许",

@@ -1616,16 +1616,23 @@ func (a *App) feedbackRow(c *ui.Context) {
 	c.AnimationFrame()
 	t := c.Theme()
 	tokens := theme.For(a.settings(), t.Dark)
+	// The old build's own row: a 30u band, the panel's 12u inset, the body
+	// step at 560 (600 for a warning), and the alert glyph at 16u. A warning
+	// is the stronger face — a border in the warning colour and a heavier
+	// weight — so it reads as a blocking message rather than a status hint.
 	tone := t.Warning
+	weight := 560
 	background := t.Warning.Alpha(0.12)
-	if a.toastWarning {
-		background = t.Warning.Alpha(0.2)
-	}
-	ui.Row(c).Absolute().Bottom(0).Left(0).Right(0).Height(t.Space(7)).
+	feedback := ui.Row(c).Absolute().Bottom(0).Left(0).Right(0).Height(t.Space(7.5)).
 		Padding(0, t.Space(3)).Gap(t.Space(2)).AlignItems(ui.Center).
-		Radius(tokens.RadiusSM).Background(background).Children(func() {
+		Radius(tokens.RadiusSM).Background(background)
+	if a.toastWarning {
+		background, weight = t.Warning.Alpha(0.2), 600
+		feedback.Border(1, tone)
+	}
+	feedback.Children(func() {
 		ui.Icon(c, glyphAlert).Size(t.Space(4), t.Space(4)).TextColor(tone)
-		ui.Text(c, a.toast).FontSize(t.FontSize).FontWeight(580).TextColor(tone).Grow(1)
+		ui.Text(c, a.toast).FontSize(t.FontSize).FontWeight(weight).TextColor(tone).Grow(1)
 	})
 }
 

@@ -76,8 +76,10 @@ func PageName(page int) string {
 
 // Actions are the shell's callbacks.
 type Actions struct {
-	// Close leaves the settings surface (Escape, the close button).
+	// Close leaves the settings surface (Escape, the header's close button),
+	// and Quit leaves the application.
 	Close func()
+	Quit  func()
 	// CloseSession ends the running terminal session, from the Sessions
 	// page.
 	CloseSession func()
@@ -489,20 +491,50 @@ func (a *App) View(c *ui.Context) {
 		a.Actions.Close()
 	}
 
-	// The reference's own two columns: a 148px sidebar over the content, with
-	// the sidebar's 12u/8u padding, its 3u rhythm and the hairline where it
-	// ends. The column pads 8u, so a row's own 8u lands on the card's 16u text
-	// column — the line the header title and the launcher's field sit on.
-	ui.Row(c).Fill().AlignItems(ui.Stretch).Gap(t.Space(3)).Children(func() {
-		ui.Column(c).Width(148).Padding(t.Space(3), t.Space(2)).Gap(t.Space(0.75)).Children(func() {
-			ui.Text(c, copy.Title).FontSize(t.FontSize+4).Bold().Padding(0, t.Space(2), t.Space(1), t.Space(2))
-			ui.List(c.Key("settings.sidebar"), &a.Sidebar, pageCount, func(i int) {
-				a.sidebarRow(c, i)
-			}).Grow(1).Label(copy.Title)
+	// The panel is the reference's own: a 56u header band carrying the app's
+	// name and its version, the hairline under it, and below them the two
+	// columns — a 148px sidebar and the content. The header band is the same
+	// one the launcher's field row and every page's header use, so the window's
+	// first line does not move when the surface changes.
+	ui.Column(c).Fill().Children(func() {
+		ui.Row(c).FillWidth().Height(t.Space(14)).Padding(0, t.Space(4)).
+			Gap(t.Space(2)).AlignItems(ui.Center).Children(func() {
+			ui.Text(c, copy.Title).FontSize(t.FontSize + 2).FontWeight(600).
+				TextColor(a.tokens(c).TextStrong)
+			if version := strings.TrimSpace(a.About.Version); version != "" {
+				ui.Text(c, "v"+version).FontSize(t.FontSize).TextColor(t.TextMuted)
+			}
+			// The header's own two controls, at its end: the way out of the
+			// application and the way back to the launcher, as the old panel's
+			// `.settings-card__actions` carried them.
+			ui.Box(c).Grow(1)
+			if a.Actions.Quit != nil {
+				quit := ui.Button(c, "⏻").Label(copy.Quit)
+				if quit.Clicked() {
+					a.Actions.Quit()
+				}
+			}
+			if a.Actions.Close != nil {
+				close := ui.Button(c, "✕").Label(copy.Close)
+				if close.Clicked() {
+					a.Actions.Close()
+				}
+			}
 		})
-		ui.Divider(c).FillHeight()
-		ui.Column(c).Grow(1).Children(func() {
-			a.body(c, copy)
+		ui.Divider(c)
+		// The sidebar column pads 8u, so a row's own 8u lands on the card's 16u
+		// text column — the line the header title and the launcher's field sit
+		// on.
+		ui.Row(c).Fill().AlignItems(ui.Stretch).Gap(t.Space(3)).Children(func() {
+			ui.Column(c).Width(148).Padding(t.Space(3), t.Space(2)).Gap(t.Space(0.75)).Children(func() {
+				ui.List(c.Key("settings.sidebar"), &a.Sidebar, pageCount, func(i int) {
+					a.sidebarRow(c, i)
+				}).Grow(1).Label(copy.Title)
+			})
+			ui.Divider(c).FillHeight()
+			ui.Column(c).Grow(1).Children(func() {
+				a.body(c, copy)
+			})
 		})
 	})
 }
@@ -651,9 +683,12 @@ func (a *App) body(c *ui.Context, copy i18n.Settings) {
 			Material(glass.ScrollEdge{Background: t.Background})
 		ui.Column(c).Absolute().Top(0).Left(0).Right(0).Height(header).
 			Padding(0, 0, t.Space(1), 0).Children(func() {
-			ui.Text(c, p.Title).FontSize(t.FontSize + 4).FontWeight(650).TextColor(t.Text)
+			// The page's own registers: the title at the display step (650)
+			// and the one-line hint at the body step (500), as
+			// `.settings-page__title` / `__subtitle` had them.
+			ui.Text(c, p.Title).FontSize(t.FontSize + 6).FontWeight(650).TextColor(t.Text)
 			if p.Hint != "" {
-				ui.Text(c, p.Hint).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+				ui.Text(c, p.Hint).FontSize(t.FontSize).FontWeight(500).TextColor(t.TextMuted)
 			}
 			ui.Divider(c).Padding(t.Space(1), 0)
 		})
@@ -736,7 +771,7 @@ func (a *App) sessions(c *ui.Context, copy i18n.Settings) {
 		})
 		return
 	}
-	ui.Column(c).FillWidth().Gap(t.Space(4)).Children(func() {
+	ui.Column(c).FillWidth().Gap(t.Space(5.5)).Children(func() {
 		a.section(c, copy.PageSessions, copy.SessionsActive, func() {
 			a.card(c, func() {
 				for _, session := range sessions {
@@ -799,7 +834,7 @@ func (a *App) sessions(c *ui.Context, copy i18n.Settings) {
 func (a *App) integrations(c *ui.Context, copy i18n.Settings) {
 	t := c.Theme()
 	integrations := a.installedIntegrations()
-	ui.Column(c).FillWidth().Gap(t.Space(4)).Children(func() {
+	ui.Column(c).FillWidth().Gap(t.Space(5.5)).Children(func() {
 		ui.Text(c, copy.IntegrationsHint).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
 		a.localToolSection(c, copy)
 		a.detectedSection(c, copy)
@@ -1212,7 +1247,7 @@ func (a *App) installedIntegrations() []Integration {
 // currently holds and a recorder for the one the app can change.
 func (a *App) shortcuts(c *ui.Context, copy i18n.Settings) {
 	t := c.Theme()
-	ui.Column(c).FillWidth().Gap(t.Space(4)).Children(func() {
+	ui.Column(c).FillWidth().Gap(t.Space(5.5)).Children(func() {
 		a.section(c, copy.ShortcutsToggle, copy.ShortcutsHint, func() {
 			a.card(c, func() {
 				a.shortcutRow(c, copy)
@@ -1332,14 +1367,10 @@ func (a *App) updateRow(c *ui.Context, copy i18n.Settings) {
 func (a *App) about(c *ui.Context, copy i18n.Settings) {
 	t := c.Theme()
 	about := a.About
-	ui.Column(c).FillWidth().Gap(t.Space(4)).Children(func() {
-		// The build's identity reads as the panel's large title; everything
-		// else is rows of one card, and the update check is the card that
-		// acts.
-		ui.Column(c).FillWidth().Gap(t.Space(1)).Children(func() {
-			ui.Text(c, strings.TrimSpace(about.Name+" "+about.Version)).FontSize(t.FontSize + 4).FontWeight(650)
-			ui.Text(c, copy.PageAbout).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
-		})
+	ui.Column(c).FillWidth().Gap(t.Space(5.5)).Children(func() {
+		// The build's identity is the panel's own header band (see View); the
+		// page's rows carry the same facts in the card the update check acts
+		// from.
 		a.card(c, func() {
 			a.keyValue(c, copy.AboutVersion, about.Version)
 			a.keyValue(c, copy.AboutFramework, about.Framework)

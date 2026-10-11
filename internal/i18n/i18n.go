@@ -205,7 +205,13 @@ type Option struct {
 // Settings is the settings surface's copy.
 type Settings struct {
 	Title string
-	Close string
+	// Close names the close control for assistive technology, CloseHint the
+	// same control's own line, and Quit/QuitHint the header's way out of the
+	// application.
+	Close     string
+	CloseHint string
+	Quit      string
+	QuitHint  string
 
 	PageGeneral      string
 	PageSessions     string

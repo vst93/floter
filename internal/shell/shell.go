@@ -523,6 +523,7 @@ func New(opts Options) *App {
 	})
 	a.Settings = settingsui.New(opts.Store, settingsui.Actions{
 		Close:        func() { a.Open(SurfaceLauncher) },
+		Quit:         a.quit,
 		CloseSession: func() { a.Terminal.Close() },
 		// Resuming a session is showing it: the settings page hands the
 		// index back, and the terminal surface comes to the front with that

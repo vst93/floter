@@ -222,7 +222,9 @@ func (g Geometry) Height() int {
 	}
 	feedbackBand := 0.0
 	if g.Feedback {
-		feedbackBand = 7 * spacing
+		// The docked status row's own band: 30u, the old build's
+		// `LAUNCHER_STATUS_UNITS`.
+		feedbackBand = 7.5 * spacing
 	}
 	height := chrome + lines + filterBand + feedbackBand
 	if g.Config != nil {

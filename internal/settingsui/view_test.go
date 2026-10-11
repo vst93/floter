@@ -156,7 +156,7 @@ func TestSettingsSidebarRoutesAndEscapeCloses(t *testing.T) {
 func TestTerminalAppearanceControls(t *testing.T) {
 	store := newStore(t)
 	a := New(store, Actions{})
-	tt := render(t, a, 720, 1400)
+	tt := render(t, a, 720, 1800)
 
 	for _, want := range []string{
 		"Terminal appearance", "Font size", "Font family", "Cursor shape",
@@ -213,7 +213,7 @@ func TestTerminalAppearanceControls(t *testing.T) {
 func TestSessionsPage(t *testing.T) {
 	store := newStore(t)
 	a := New(store, Actions{})
-	tt := render(t, a, 720, 580)
+	tt := render(t, a, 720, 760)
 
 	if err := tt.Click("Sessions"); err != nil {
 		t.Fatal(err)
@@ -327,7 +327,7 @@ func TestAboutPage(t *testing.T) {
 	}
 	tt.Frame()
 	for _, want := range []string{
-		"floter 0.3.14", "0.3.14", "mygo 0.3.5", "floter://",
+		"v0.3.14", "0.3.14", "mygo 0.3.5", "floter://",
 		"/Users/v/Library/Application Support/floter/settings.json",
 		"https://github.com/vst93/floter",
 	} {
@@ -754,7 +754,7 @@ func TestCustomShortcutsPage(t *testing.T) {
 			return rejections
 		},
 	})
-	tt := render(t, a, 720, 620)
+	tt := render(t, a, 720, 1000)
 	if err := tt.Click("Shortcuts"); err != nil {
 		t.Fatal(err)
 	}
@@ -1092,7 +1092,7 @@ func TestRecorderSuspendsTheGlobalShortcuts(t *testing.T) {
 		SetShortcutsSuspended: func(on bool) { suspended = append(suspended, on) },
 	})
 	a.Shortcut, a.ShortcutID = "Ctrl+Space", "toggle_window"
-	tt := render(t, a, 720, 620)
+	tt := render(t, a, 720, 1000)
 	if err := tt.Click("Shortcuts"); err != nil {
 		t.Fatal(err)
 	}
@@ -1171,7 +1171,7 @@ func TestConfigurationForm(t *testing.T) {
 			ConfigValues: map[string]any{"endpoint": "https://example.com", "token": "s3cret", "region": "us"},
 		}}
 	}
-	tt := render(t, a, 720, 900)
+	tt := render(t, a, 720, 1100)
 	if err := tt.Click("Integrations"); err != nil {
 		t.Fatal(err)
 	}
@@ -1726,5 +1726,45 @@ func TestEditGeneratedIntegration(t *testing.T) {
 	}
 	if a.toolEditing != "" {
 		t.Errorf("the form stayed in edit mode: %q", a.toolEditing)
+	}
+}
+
+// The settings panel's own header band: the app's name and version at the
+// start, and the two ways out at the end — quit, and back to the launcher.
+// It is the same 56u band the launcher's field row and every page's header
+// use, so the window's first line does not move when the surface changes.
+func TestSettingsHeaderBand(t *testing.T) {
+	quit, closed := 0, 0
+	a := New(newStore(t), Actions{
+		Quit:  func() { quit++ },
+		Close: func() { closed++ },
+	})
+	a.About = About{Name: "floter", Version: "0.3.14"}
+	tt := render(t, a, 720, 580)
+	for _, want := range []string{"Settings", "v0.3.14", "Quit floter", "Close settings"} {
+		if !tt.HasText(want) {
+			t.Errorf("missing %q in %q", want, tt.Texts())
+		}
+	}
+	if err := tt.Click("Quit floter"); err != nil {
+		t.Fatalf("quit: %v", err)
+	}
+	tt.Frame()
+	if quit != 1 || closed != 0 {
+		t.Errorf("quit = %d, close = %d", quit, closed)
+	}
+	if err := tt.Click("Close settings"); err != nil {
+		t.Fatalf("close: %v", err)
+	}
+	tt.Frame()
+	if closed != 1 {
+		t.Errorf("close = %d", closed)
+	}
+	// A panel with no actions draws no buttons for them.
+	b := New(newStore(t), Actions{})
+	b.About = About{Name: "floter"}
+	tt = render(t, b, 720, 580)
+	if tt.HasText("Quit floter") || tt.HasText("Close settings") {
+		t.Errorf("buttons were drawn with no actions: %q", tt.Texts())
 	}
 }
