@@ -363,6 +363,10 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
   tab 标记一致。
 - **内置模式的行**：type word 由 scope 标记承载（本构建同一）。
 - **设置面板**：不可用户调整大小、无尺寸持久化（旧版同）；启动器查询历史内存态（旧版同）。
+- **i18n 覆盖**：`i18n.Launcher` 111 个字段对旧版 73 个 `launcher.*` 键（超集）；旧版 1030 个
+  `settings.*` 键里的大多数属于已不存在的页面/能力（iframe 页、会话 broker、Web 版本号），不为
+  "对齐键数"而搬。旧版的 files 模式只有拖拽（`files` 触发词是本构建的加项）；`CD` 命令行在本构建
+  是"以目录起会话"（同一个去处）。
 - **设置变更的实时应用**：启动项、应用图标（托盘同换）、菜单/托盘语言、托盘可见性、最近启动、
   PATH 命令、自定义快捷键、终端字体/调色板——全部经 store 监听即时生效。
 - **会话页的状态行**：旧版 `.session-manager` 的三句（`Running · attached` / `Running · detached` /
