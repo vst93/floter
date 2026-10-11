@@ -1965,19 +1965,20 @@ func (a *App) browserTargets() []i18n.Option {
 // openURL opens a page in the browser a result came from, so a search of one
 // browser does not open its pages in another. An unknown or empty browser id
 // opens it in the system's default browser.
-func (a *App) openURL(browserID, url string) {
+func (a *App) openURL(browserID, url string) error {
 	if a.openURLCommand != nil {
 		a.openURLCommand(browserID, url)
-		return
+		return nil
 	}
 	if browserID != "" {
 		if err := browser.OpenURL(browserID, url); err == nil {
-			return
+			return nil
 		} else {
 			log.Printf("floter: could not open %s in %s: %v", url, browserID, err)
+			return err
 		}
 	}
-	mygo.Shell.OpenExternal(url)
+	return mygo.Shell.OpenExternal(url)
 }
 
 // copyClipboardEntry puts a clipboard entry back on the clipboard: its text,

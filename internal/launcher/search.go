@@ -252,8 +252,11 @@ func (a *App) browserItems() []Item {
 
 // openResult opens a browser result's page in the browser it came from.
 func (a *App) openResult(result browser.Result) {
-	if a.Actions.OpenURL != nil {
-		a.Actions.OpenURL(result.BrowserID, result.URL)
+	if a.Actions.OpenURL == nil {
+		return
+	}
+	if err := a.Actions.OpenURL(result.BrowserID, result.URL); err != nil {
+		a.WarnFeedback(a.copy().OpenURLFailed)
 	}
 }
 

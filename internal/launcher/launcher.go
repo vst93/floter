@@ -117,7 +117,9 @@ type Actions struct {
 	CopyClip func(entry clipboard.Entry)
 	// OpenURL opens a page in the browser the result came from, falling back
 	// to the system's default browser for an empty id.
-	OpenURL func(browserID, url string)
+	// OpenURL opens a page in a browser and reports whether it did: a failure
+	// is the row's own line (the old build's launcher.error.url).
+	OpenURL func(browserID, url string) error
 	// ActivateTab brings one of the browser's live tabs to the front.
 	ActivateTab func(tab browser.Tab)
 	// RunInTerminal runs a command in the terminal surface: a tool found on

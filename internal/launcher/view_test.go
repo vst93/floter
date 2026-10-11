@@ -619,11 +619,12 @@ func TestBrowserModeOpensAndCopies(t *testing.T) {
 		done(BrowserResults{Found: true, Results: out, Tabs: tabs})
 	}
 	opened := ""
-	a.Actions.OpenURL = func(browserID, url string) {
+	a.Actions.OpenURL = func(browserID, url string) error {
 		if browserID != "chrome" {
 			t.Errorf("opened %q in %q", url, browserID)
 		}
 		opened = url
+		return nil
 	}
 
 	// The trigger word enters the mode on its own, as the old build's did:
@@ -699,7 +700,7 @@ func TestBrowserModeFocusesATab(t *testing.T) {
 	}
 	focused, opened := "", ""
 	a.Actions.ActivateTab = func(tab browser.Tab) { focused = tab.URL }
-	a.Actions.OpenURL = func(browserID, url string) { opened = url }
+	a.Actions.OpenURL = func(browserID, url string) error { opened = url; return nil }
 
 	tt := render(t, a)
 	tt.Type("browser")
@@ -1253,7 +1254,7 @@ func TestCapturedCommandListProtocol(t *testing.T) {
 	}
 	opened := ""
 	copied := ""
-	a.Actions.OpenURL = func(browserID, url string) { opened = url }
+	a.Actions.OpenURL = func(browserID, url string) error { opened = url; return nil }
 	a.Actions.Copy = func(text string) { copied = text }
 
 	tt := render(t, a)
@@ -1750,7 +1751,7 @@ func TestClipboardImageThumbnail(t *testing.T) {
 func TestActionBarRows(t *testing.T) {
 	a := testApp()
 	openedURL, openedPath, cdTo, ran := "", "", "", 0
-	a.Actions.OpenURL = func(browserID, target string) { openedURL = target }
+	a.Actions.OpenURL = func(browserID, target string) error { openedURL = target; return nil }
 	a.Actions.OpenPath = func(path string) { openedPath = path }
 	a.Actions.OpenInTerminal = func(dir string) { cdTo = dir }
 	a.Actions.Copy = func(text string) { _ = text }
