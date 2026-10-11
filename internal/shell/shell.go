@@ -2599,7 +2599,15 @@ func (a *App) View(c *ui.Context) {
 		if a.Surf == SurfaceLauncher {
 			padX = 0
 		}
-		fill, translucent := glassmap.Frame(surface.Glass, t)
+		// The terminal has its own transparency control: the old build painted
+		// the terminal's canvas at `--terminal-opacity` over a veil of
+		// `--glass-tint-terminal`, so the panel's fill follows the terminal
+		// slider there and the main one everywhere else.
+		spec := surface.Glass
+		if a.Surf == SurfaceTerminal {
+			spec = glassmap.SpecFor(s.GlassStep, s.TerminalOpacity)
+		}
+		fill, translucent := glassmap.Frame(spec, t)
 		if !translucent {
 			// The `off` stop: a plain, near-solid face and no material.
 			padTop, padBottom := t.Space(2.5), t.Space(2.5)
