@@ -130,6 +130,9 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
   （`.extension-status` 的语言），状态不再是清一色的 muted 灰。
 - **独立窗口**：detached / pinned 两个自有 Context 的窗口此前没设 floter 主题，画的是框架默认配色；
   现在设主题、用 `Opaque` 作不透明底，detached 的头部控件也改成透明的 bar button。
+- **插件配置覆盖层**：字段区回到旧版 R59 的 4u/16u/12u 内边距；标题从 13/620/strong 改为
+  body 600 muted（名字是面包屑，不是第二级标题）；分组标题加上卡片自己的 14u 缩进，与它下面的
+  行标签同列。
 
 **P7-a mygo v0.4.0 + 菜单栏与透明**（本轮）
 - mygo `v0.3.7 → v0.4.0`：新增 `ui.WebView`（页面内嵌原生 WebView，配 `Window.NewWebView`）、

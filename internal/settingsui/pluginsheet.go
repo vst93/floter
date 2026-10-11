@@ -53,21 +53,19 @@ func (a *App) PluginSheet(c *ui.Context, sheet PluginSheet) {
 		return
 	}
 	t := c.Theme()
-	tokens := a.tokens(c)
-	inset := t.Space(3.5)
 
 	// The sheet's own scroller: a schema longer than the band scrolls inside
 	// it rather than growing the window past the band it was given.
 	ui.Scroll(c.Key("plugin.config")).TrackScroll(&a.PluginScroll).FillWidth().
-		Padding(t.Space(1), inset, t.Space(2), inset).Children(func() {
+		Padding(t.Space(1), t.Space(4), t.Space(3), t.Space(4)).Children(func() {
 		ui.Column(c).FillWidth().Gap(t.Space(3)).Children(func() {
 			// The header: the plugin's own name at the meta register — one
 			// step *below* a section heading, so the hierarchy a reader sees
 			// is name (meta) > section (title) > field (label) > help, as the
-			// old build's `.plugin-config__title` had it.
+			// old build's `.plugin-config__title` had it (body 600, muted).
 			ui.Row(c).FillWidth().Height(t.Space(7)).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, sheet.Schema.Title).FontSize(t.FontSize + 2).FontWeight(620).
-					TextColor(tokens.TextStrong).SingleLine()
+				ui.Text(c, sheet.Schema.Title).FontSize(t.FontSize).FontWeight(600).
+					TextColor(t.TextMuted).SingleLine()
 			})
 			if sheet.Failed {
 				// The status line is the caption step in the warning colour
@@ -93,8 +91,10 @@ func (a *App) sheetSection(c *ui.Context, sheet PluginSheet, section plugincfg.S
 	// `.plugin-config__section` / `__section-title`.
 	ui.Column(c).FillWidth().Gap(t.Space(2)).Children(func() {
 		if section.Title != "" {
-			ui.Text(c, section.Title).FontSize(t.FontSize + 2).FontWeight(620).
-				TextColor(a.tokens(c).TextStrong)
+			// The group title starts on the column the row labels under it
+			// start on: the card's own inset, added to the scroller's.
+			ui.Text(c, section.Title).FontSize(t.FontSize+2).FontWeight(620).
+				TextColor(a.tokens(c).TextStrong).Padding(0, t.Space(3.5))
 		}
 		a.card(c, func() {
 			for _, field := range section.Fields {
