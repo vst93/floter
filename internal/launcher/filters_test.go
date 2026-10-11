@@ -721,3 +721,37 @@ func TestFilterRowHint(t *testing.T) {
 		t.Errorf("the hint outlived its mode: %q", tt.Texts())
 	}
 }
+
+// A numbered row's badge is the select_result binding's own modifiers with the
+// digit: `⌘1` on macOS, `Ctrl+1` elsewhere, and the bare digit when the stored
+// binding will not parse — the old build's `formatResultShortcut`.
+func TestResultNumberBadge(t *testing.T) {
+	a := testApp()
+	accelerator := "Ctrl+1"
+	if runtime.GOOS == "darwin" {
+		accelerator = "Cmd+1"
+	}
+	if got := a.resultNumber(1); got != shortcuts.Badge(accelerator, "1") {
+		t.Errorf("badge = %q, want %q", got, shortcuts.Badge(accelerator, "1"))
+	}
+	// The binding the user stored is the one the badge shows.
+	if err := a.Store.Update(func(s *settings.Settings) {
+		s.SetShortcut(settings.ShortcutSelectResult, "Alt+7")
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if got := a.resultNumber(1); got != shortcuts.Badge("Alt+7", "1") {
+		t.Errorf("badge = %q, want Alt+7", got)
+	}
+	// A binding that will not parse is refused by the store's own normaliser,
+	// which leaves the last good one in place: the badge never shows a key the
+	// stored binding does not have.
+	if err := a.Store.Update(func(s *settings.Settings) {
+		s.SetShortcut(settings.ShortcutSelectResult, "not a key")
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if got := a.resultNumber(1); got != shortcuts.Badge("Alt+7", "1") {
+		t.Errorf("badge = %q, want the stored binding's", got)
+	}
+}

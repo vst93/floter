@@ -466,8 +466,13 @@ var rowTransition = ui.ElementTransition{
 	Enter:    &ui.Motion{Opacity: 0},
 }
 
-// resultNumber is the badge a row's result shortcut shows.
-func resultNumber(number int) string { return strconv.Itoa(number) }
+// resultNumber is the badge a row's result shortcut shows: the select_result
+// binding's own modifiers with the digit appended — `⌘1` on macOS, `Ctrl+1`
+// elsewhere, as the old build's `formatResultShortcut` printed it. A binding
+// the settings could not parse shows the bare digit, as theirs did.
+func (a *App) resultNumber(number int) string {
+	return shortcuts.Badge(settings.Shortcut(a.settings(), settings.ShortcutSelectResult), strconv.Itoa(number))
+}
 
 // Feedback shows a line under the list, for a caller outside the launcher
 // (the shell's power action, when the system refused it).
@@ -1367,7 +1372,7 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 			}
 		}
 		if number, ok := a.numbers[i]; ok {
-			ui.Text(c, resultNumber(number)).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+			ui.Text(c, a.resultNumber(number)).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
 		}
 		if item.Shortcut != "" {
 			ui.Text(c, item.Shortcut).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
