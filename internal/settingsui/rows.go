@@ -85,9 +85,18 @@ func (a *App) row(c *ui.Context, label, sublabel string, control func(), below .
 		}
 		// The row is the reference's own: a 44u floor, a 12u gap, a 9u padding
 		// pair, the label at the emphasis step (580, strong) and the grey
-		// second line at the body step (500, muted).
-		ui.Row(c).FillWidth().Gap(t.Space(3)).AlignItems(ui.Center).
-			MinHeight(t.Space(11)).Padding(t.Space(2.25), inset).Children(func() {
+		// second line at the body step (500, muted). The press is the control
+		// material's own: less opaque than the resting pane, so a row the user
+		// is about to activate sinks into the glass.
+		row := ui.Row(c).FillWidth().Gap(t.Space(3)).AlignItems(ui.Center).
+			MinHeight(t.Space(11)).Padding(t.Space(2.25), inset)
+		switch {
+		case row.Pressed():
+			row.Background(t.SurfacePressed)
+		case row.Hovered():
+			row.Background(t.SurfaceHover)
+		}
+		row.Children(func() {
 			names := ui.Column(c).Grow(1).MinWidth(0).Gap(1)
 			names.Children(func() {
 				ui.Text(c, label).FontSize(t.FontSize + 1).FontWeight(580).TextColor(tokens.TextStrong)
