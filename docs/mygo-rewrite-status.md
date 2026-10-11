@@ -363,6 +363,11 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
   tab 标记一致。
 - **内置模式的行**：type word 由 scope 标记承载（本构建同一）。
 - **设置面板**：不可用户调整大小、无尺寸持久化（旧版同）；启动器查询历史内存态（旧版同）。
+- **设置变更的实时应用**：启动项、应用图标（托盘同换）、菜单/托盘语言、托盘可见性、最近启动、
+  PATH 命令、自定义快捷键、终端字体/调色板——全部经 store 监听即时生效。
+- **会话页的状态行**：旧版 `.session-manager` 的三句（`Running · attached` / `Running · detached` /
+  `Process exited · code N`）——本构建的会话自带自己的状态行，页面只印它。
+- **托盘菜单**：语言变化重建（菜单滞后于界面比没有菜单更糟）；App icon 明暗切换同时换托盘标记。
 
 ## 已知差距（框架不支持，诚实记录）
 
