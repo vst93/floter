@@ -576,7 +576,15 @@ func (a *App) View(c *ui.Context) {
 		// top edge (the old build's `.terminal-panel__body` over
 		// `.terminal-bar`).
 		pad := a.Pad()
-		terminal.View(c, session.Term).Fill().Padding(pad).Bind(&a.Focus)
+		// The focused canvas takes the accent edge (`.terminal-panel__mount:
+		// focus-within`), the same lit frame the launcher's card takes.
+		edge := tokensOf(a, c).InputStroke
+		if a.Focus.Focused(c) {
+			edge = tokensOf(a, c).InputStrokeActive
+		}
+		ui.Box(c).Fill().Radius(tokensOf(a, c).RadiusLG).Border(1, edge).Children(func() {
+			terminal.View(c, session.Term).Fill().Padding(pad).Bind(&a.Focus)
+		})
 		a.titleBar(c, copy)
 		a.residentNote(c, copy)
 	})
