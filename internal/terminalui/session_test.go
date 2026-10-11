@@ -39,17 +39,17 @@ func TestRealSessionStartsWithTheSettings(t *testing.T) {
 		t.Fatalf("the session did not start: %v", a.Err)
 	}
 	defer a.Close()
-	if a.Term == nil {
+	if a.Current() == nil {
 		t.Fatal("no session")
 	}
 
 	// The shell prints its prompt shortly after starting; wait for it, so
 	// the test proves a program really runs, not just that New returned.
 	deadline := time.Now().Add(5 * time.Second)
-	for time.Now().Before(deadline) && a.Term.Text() == "" {
+	for time.Now().Before(deadline) && a.Current().Term.Text() == "" {
 		time.Sleep(50 * time.Millisecond)
 	}
-	if a.Term.Text() == "" {
+	if a.Current().Term.Text() == "" {
 		t.Fatal("the session produced no output")
 	}
 
@@ -126,16 +126,16 @@ func TestRealShellWithCommand(t *testing.T) {
 	}
 	defer a.Close()
 	deadline := time.Now().Add(10 * time.Second)
-	for time.Now().Before(deadline) && !strings.Contains(a.Term.Text(), "install-session-marker") {
+	for time.Now().Before(deadline) && !strings.Contains(a.Current().Term.Text(), "install-session-marker") {
 		time.Sleep(50 * time.Millisecond)
 	}
-	if !strings.Contains(a.Term.Text(), "install-session-marker") {
-		t.Fatalf("the command never landed: %q", a.Term.Text())
+	if !strings.Contains(a.Current().Term.Text(), "install-session-marker") {
+		t.Fatalf("the command never landed: %q", a.Current().Term.Text())
 	}
 	// The session stays interactive: the shell's prompt comes back after the
 	// command, rather than the session exiting when it finished.
 	time.Sleep(300 * time.Millisecond)
-	if strings.Contains(a.Term.Text(), "exited") {
-		t.Errorf("the session exited after the command: %q", a.Term.Text())
+	if strings.Contains(a.Current().Term.Text(), "exited") {
+		t.Errorf("the session exited after the command: %q", a.Current().Term.Text())
 	}
 }

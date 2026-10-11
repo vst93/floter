@@ -431,6 +431,9 @@ func New(opts Options) *App {
 			if err := a.Terminal.SaveSnapshot(); err != nil {
 				log.Printf("floter: could not save the terminal snapshot: %v", err)
 			}
+			// Every session's program ends with the app: one left running
+			// behind a closed panel is a process nobody can reach.
+			a.Terminal.CloseAll()
 		}
 		// A detached output window outlives the panel by design, but not the
 		// app: quitting closes them with everything else.
@@ -519,8 +522,20 @@ func New(opts Options) *App {
 		SearchBrowser: a.searchBrowser,
 	})
 	a.Settings = settingsui.New(opts.Store, settingsui.Actions{
-		Close:               func() { a.Open(SurfaceLauncher) },
-		CloseSession:        func() { a.Terminal.Close() },
+		Close:        func() { a.Open(SurfaceLauncher) },
+		CloseSession: func() { a.Terminal.Close() },
+		// Resuming a session is showing it: the settings page hands the
+		// index back, and the terminal surface comes to the front with that
+		// session's screen.
+		SelectSession: func(index int) {
+			a.Terminal.SelectSession(index)
+			a.Open(SurfaceTerminal)
+		},
+		NewSession: func() {
+			a.Terminal.NewSession()
+			a.Open(SurfaceTerminal)
+		},
+		CloseSessionAt:      a.Terminal.CloseSession,
 		DiagnoseIntegration: a.diagnoseIntegration,
 		ReprobeCommands:     a.reprobeCommands,
 		ScriptRuntime: func(language string) scriptlang.Check {
@@ -716,10 +731,17 @@ func New(opts Options) *App {
 	a.Settings.Integrations = func() []settingsui.Integration { return a.integrationList() }
 	a.Settings.Recommended = a.recommendedTools
 	a.Settings.Sessions = func() []settingsui.Session {
-		if a.Terminal.Term == nil {
-			return nil
+		sessions := a.Terminal.Sessions
+		out := make([]settingsui.Session, 0, len(sessions))
+		for i := range sessions {
+			out = append(out, settingsui.Session{
+				Title:   a.Terminal.LabelOf(i),
+				Running: !a.Terminal.Exited(i),
+				Active:  i == a.Terminal.Active,
+				Index:   i,
+			})
 		}
-		return []settingsui.Session{{Title: a.Terminal.Label(), Running: true}}
+		return out
 	}
 
 	// The plugin's callbacks run on the terminal's own goroutine, so they
@@ -737,7 +759,7 @@ func New(opts Options) *App {
 		},
 		Title: func(title string) {
 			a.onMain(func() {
-				a.Terminal.Title = title
+				a.Terminal.SetTitle(title)
 				if a.Win != nil && title != "" {
 					a.Win.SetTitle(title)
 				}
@@ -940,6 +962,9 @@ func (a *App) Start() {
 			if err := a.Terminal.SaveSnapshot(); err != nil {
 				log.Printf("floter: could not save the terminal snapshot: %v", err)
 			}
+			// Every session's program ends with the app: one left running
+			// behind a closed panel is a process nobody can reach.
+			a.Terminal.CloseAll()
 		}
 	})
 	a.ApplyStartup()

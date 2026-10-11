@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/plugins/terminal"
 	"github.com/egoist/mygo/ui"
@@ -52,7 +53,7 @@ func TestTerminalSessionErrorShows(t *testing.T) {
 	// EnsureSession must not retry once it failed into a session; a second
 	// call is a no-op until the surface is reopened.
 	a.EnsureSession()
-	if a.Term != nil {
+	if a.Current() != nil {
 		t.Error("a terminal appeared from a failing start")
 	}
 }
@@ -167,8 +168,8 @@ func TestPinControlCopiesTheSessionText(t *testing.T) {
 		Pin: func(title, text string) { pinned, pinnedText = title, text },
 	}, nil)
 	a.Text = func() string { return "line one\nline two" }
-	a.Term = &terminal.Terminal{} // present so the control shows
-	a.Title = "zsh"
+	withSession(a, &terminal.Terminal{}) // present so the control shows
+	withTitle(a, "zsh")
 
 	tt := render(t, a, 860, 600)
 	if _, ok := tt.Find("Pin output"); !ok {
@@ -308,8 +309,8 @@ func TestResidentSessionHoldsItsOutput(t *testing.T) {
 		t.Error("a note showed with no session")
 	}
 	// The note is drawn for a held session, in the warning tone on a bad code.
-	a.resident, a.exitCode = true, 3
-	a.Term = &terminal.Terminal{}
+	withSession(a, &terminal.Terminal{})
+	a.Current().Resident, a.Current().ExitCode = true, 3
 	tt.Frame()
 	if !tt.HasText("Process exited") || !tt.HasText("Output retained") {
 		t.Errorf("the resident note is missing: %q", tt.Texts())
@@ -326,8 +327,8 @@ func TestTerminalBarSettingsDoor(t *testing.T) {
 	a := New(newStore(), Actions{Settings: func() { opened++ }}, func(terminal.Options) (*terminal.Terminal, error) {
 		return nil, errors.New("no library in tests")
 	})
-	a.Term = &terminal.Terminal{}
-	a.Title = "vim"
+	withSession(a, &terminal.Terminal{})
+	withTitle(a, "vim")
 	tt := render(t, a, 860, 600)
 	tt.Frame()
 	if !tt.HasText("Terminal appearance\u2026") {
@@ -342,10 +343,24 @@ func TestTerminalBarSettingsDoor(t *testing.T) {
 	}
 	// Without the action the bar draws no gear at all.
 	b := New(newStore(), Actions{}, nil)
-	b.Term = &terminal.Terminal{}
+	withSession(b, &terminal.Terminal{})
 	tt2 := render(t, b, 860, 600)
 	tt2.Frame()
 	if tt2.HasText("Terminal appearance\u2026") {
 		t.Errorf("a gear was drawn with no action: %q", tt2.Texts())
+	}
+}
+
+// withSession gives the surface one session holding a terminal, for the tests
+// that only need a session to be present.
+func withSession(a *App, term *terminal.Terminal) {
+	a.Sessions = []*Session{{Term: term, Created: time.Now()}}
+	a.Active = 0
+}
+
+// withTitle names the session on screen.
+func withTitle(a *App, title string) {
+	if session := a.Current(); session != nil {
+		session.Title = title
 	}
 }

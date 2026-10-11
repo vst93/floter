@@ -8,9 +8,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/egoist/mygo/plugins/terminal"
+
 	"floter/internal/extensions"
 	"floter/internal/settings"
 	"floter/internal/settingsui"
+	"floter/internal/terminalui"
 )
 
 // A script tool is connected like any other: the host writes the package, the
@@ -111,5 +114,44 @@ func TestConnectAScriptTool(t *testing.T) {
 	}
 	if edited.ScriptContent != tool.ScriptContent {
 		t.Errorf("the form read the script as %q", edited.ScriptContent)
+	}
+}
+
+// The sessions list reports every session the terminal holds, with what each
+// one is doing: the one on screen, one running behind it, one that has ended.
+// The page's own controls hand an index back, so a click names which session.
+func TestSessionsListReportsEverySession(t *testing.T) {
+	a := New(Options{Store: settings.NewStore(settings.Default())})
+	// The terminals are markers: the list reads their state, and a terminal
+	// the plugin never started has no program to run.
+	a.Terminal.Sessions = []*terminalui.Session{
+		{Title: "zsh", Term: &terminal.Terminal{}, Created: time.Now()},
+		{Title: "vim", Term: &terminal.Terminal{}, Created: time.Now()},
+		{Title: "build", Term: &terminal.Terminal{}, Resident: true, ExitCode: 1, Created: time.Now()},
+	}
+	a.Terminal.Active = 1
+
+	sessions := a.Settings.Sessions()
+	if len(sessions) != 3 {
+		t.Fatalf("sessions = %+v", sessions)
+	}
+	if !sessions[1].Active || sessions[1].Title != "vim" || !sessions[1].Running {
+		t.Errorf("the session on screen = %+v", sessions[1])
+	}
+	if sessions[0].Active || !sessions[0].Running {
+		t.Errorf("the session behind it = %+v", sessions[0])
+	}
+	if sessions[2].Running {
+		t.Errorf("the ended session reads as running: %+v", sessions[2])
+	}
+	for i, session := range sessions {
+		if session.Index != i {
+			t.Errorf("session %d has index %d", i, session.Index)
+		}
+	}
+	// An unnamed session is labelled by the dictionary, not left blank.
+	a.Terminal.Sessions[0].Title = ""
+	if got := a.Settings.Sessions()[0].Title; got == "" {
+		t.Error("an unnamed session has no label")
 	}
 }

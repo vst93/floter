@@ -223,21 +223,48 @@ func TestSessionsPage(t *testing.T) {
 		t.Errorf("missing the empty session state: %q", tt.Texts())
 	}
 
-	closed := 0
-	a.Actions.CloseSession = func() { closed++ }
+	closed, shown := 0, 0
+	a.Actions.CloseSessionAt = func(index int) { closed = index + 1 }
+	a.Actions.SelectSession = func(index int) { shown = index + 1 }
 	a.Sessions = func() []Session {
-		return []Session{{Title: "zsh — floter", Running: true}}
+		return []Session{
+			{Title: "zsh — floter", Running: true, Active: true, Index: 0},
+			{Title: "vim", Running: true, Index: 1},
+			{Title: "build", Running: false, Index: 2},
+		}
 	}
 	tt.Frame()
-	if !tt.HasText("zsh — floter") || !tt.HasText("Running") {
-		t.Errorf("the session did not show: %q", tt.Texts())
+	for _, want := range []string{"zsh — floter", "vim", "build", "On screen", "Running", "Ended"} {
+		if !tt.HasText(want) {
+			t.Errorf("missing %q in %q", want, tt.Texts())
+		}
 	}
+	// The session on screen carries no "show" control: it is already there.
 	if err := tt.Click("Close session"); err != nil {
-		t.Fatal(err)
+		t.Fatalf("close: %v", err)
 	}
 	tt.Frame()
 	if closed != 1 {
-		t.Errorf("close session ran %d times, want 1", closed)
+		t.Errorf("close session ran with index %d, want 0", closed-1)
+	}
+	// Resuming another session hands its index back.
+	if err := tt.Click("Show"); err != nil {
+		t.Fatalf("show: %v", err)
+	}
+	tt.Frame()
+	if shown != 2 {
+		t.Errorf("show ran with index %d, want 1", shown-1)
+	}
+	// A new session is the page's own control.
+	started := 0
+	a.Actions.NewSession = func() { started++ }
+	tt.Frame()
+	if err := tt.Click("New session"); err != nil {
+		t.Fatalf("new session: %v", err)
+	}
+	tt.Frame()
+	if started != 1 {
+		t.Errorf("new session ran %d times", started)
 	}
 }
 

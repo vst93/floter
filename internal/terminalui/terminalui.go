@@ -51,26 +51,41 @@ type Actions struct {
 	Notify func(title, body string)
 }
 
+// Session is one terminal session: its own program, its own screen, what the
+// program called it, and what became of it.
+//
+// The surface holds a list of them, as the old build's sessions page did: a
+// session that is not on screen is not gone — its program keeps running — and
+// the user can come back to it.
+type Session struct {
+	// Term is the running program's terminal, nil once it is closed.
+	Term *terminal.Terminal
+	// Title is the title the program set, empty until it sets one.
+	Title string
+	// Resident marks a program that has ended: the output is held on screen
+	// until the user closes it, and the note at the bottom says how it went.
+	Resident bool
+	// ExitCode is what the program returned, meaningful while Resident.
+	ExitCode int
+	// Created is when the session started: the sessions list's order.
+	Created time.Time
+}
+
 // App is the terminal surface's state.
 type App struct {
 	Store   *settings.Store
 	Actions Actions
 
-	// NewTerminal creates the session, with the options built from the
+	// NewTerminal creates a session, with the options built from the
 	// settings. Nil means no session can start (tests).
 	NewTerminal func(terminal.Options) (*terminal.Terminal, error)
 
-	// Term is the running session, nil until the session starts.
-	Term *terminal.Terminal
-	// Title is the title the program set.
-	Title string
-	// Err is why the session could not start.
+	// Sessions are the terminal's own sessions, oldest first, and Active is
+	// the one on screen: -1 when there are none.
+	Sessions []*Session
+	Active   int
+	// Err is why the last session could not start.
 	Err error
-	// resident marks a session whose program has ended: the output is held on
-	// screen until the user closes it, and the note at the bottom says so.
-	// exitCode is what the program returned.
-	resident bool
-	exitCode int
 
 	// Focus is the terminal view's identity, so it keeps the keyboard.
 	Focus ui.Handle
@@ -86,33 +101,194 @@ type App struct {
 
 // New builds the terminal surface.
 func New(store *settings.Store, actions Actions, newTerminal func(terminal.Options) (*terminal.Terminal, error)) *App {
-	return &App{Store: store, Actions: actions, NewTerminal: newTerminal}
+	return &App{Store: store, Actions: actions, NewTerminal: newTerminal, Active: -1}
 }
 
-// EnsureSession starts the session if none runs. The shell calls it as the
-// surface opens.
+// Current is the session on screen, nil when the surface holds none.
+func (a *App) Current() *Session {
+	if a.Active < 0 || a.Active >= len(a.Sessions) {
+		return nil
+	}
+	return a.Sessions[a.Active]
+}
+
+// term is the current session's terminal, nil when there is none.
+func (a *App) term() *terminal.Terminal {
+	if session := a.Current(); session != nil {
+		return session.Term
+	}
+	return nil
+}
+
+// sessionTitle is the current session's title.
+func (a *App) sessionTitle() string {
+	if session := a.Current(); session != nil {
+		return session.Title
+	}
+	return ""
+}
+
+// startSession creates one session and returns it, reporting why it could not.
+// The optional mutators adjust the options first: a directory to start in, and
+// the command to run instead of the user's shell.
+func (a *App) startSession(dir string, mutate ...func(*terminal.Options)) (*Session, error) {
+	if a.NewTerminal == nil {
+		return nil, errors.New("terminalui: no terminal available")
+	}
+	opts := a.options()
+	if strings.TrimSpace(dir) != "" && !isKeywordDir(dir) {
+		opts.Dir = dir
+	}
+	for _, apply := range mutate {
+		if apply != nil {
+			apply(&opts)
+		}
+	}
+	term, err := a.NewTerminal(opts)
+	if err != nil {
+		return nil, err
+	}
+	return &Session{Term: term, Created: time.Now()}, nil
+}
+
+// isKeywordDir reports a manifest's own spelling for "where the session
+// starts": the two the plugin resolves itself, plus the app's own directory.
+func isKeywordDir(dir string) bool {
+	switch dir {
+	case "", "home", "current", "inherit":
+		return true
+	}
+	return false
+}
+
+// EnsureSession starts a session if the surface has none to show. The shell
+// calls it as the surface opens.
 func (a *App) EnsureSession() {
 	if a.NewTerminal == nil {
 		return
 	}
 	// A held session has ended: entering the page again starts a fresh one
 	// rather than showing the same finished frame.
-	if a.resident {
-		if a.Term != nil {
-			_ = a.Term.Close()
+	if session := a.Current(); session != nil && session.Resident {
+		if session.Term != nil {
+			_ = session.Term.Close()
 		}
-		a.Term, a.resident, a.exitCode = nil, false, 0
+		a.Sessions = append(a.Sessions[:a.Active], a.Sessions[a.Active+1:]...)
+		if a.Active >= len(a.Sessions) {
+			a.Active = len(a.Sessions) - 1
+		}
 	}
-	if a.Term != nil {
+	if a.Current() != nil {
 		return
 	}
-	term, err := a.NewTerminal(a.options())
+	session, err := a.startSession("")
 	if err != nil {
 		a.Err = err
 		return
 	}
-	a.Term, a.Err = term, nil
-	a.restoreSnapshot(term)
+	a.Sessions = append(a.Sessions, session)
+	a.Active = len(a.Sessions) - 1
+	a.Err = nil
+	a.restoreSnapshot(session.Term)
+}
+
+// NewSession starts another session and shows it: the old build's "new
+// session" left the running one alone, and the sessions list was the way back
+// to it.
+func (a *App) NewSession() {
+	if a.NewTerminal == nil {
+		return
+	}
+	session, err := a.startSession("")
+	if err != nil {
+		a.Err = err
+		return
+	}
+	a.Sessions = append(a.Sessions, session)
+	a.Active = len(a.Sessions) - 1
+	a.Err = nil
+	a.FocusTerminal()
+}
+
+// SetTitle records the title the program set on the session on screen. The
+// callback runs on the terminal's own goroutine, so the shell hands it to the
+// main thread first.
+func (a *App) SetTitle(title string) {
+	if session := a.Current(); session != nil {
+		session.Title = title
+	}
+}
+
+// LabelOf is a session's name, by index: the title its program set, or the
+// localized default.
+func (a *App) LabelOf(index int) string {
+	if index < 0 || index >= len(a.Sessions) {
+		return i18n.For(a.Store.Snapshot().Language).Terminal.Title
+	}
+	if title := a.Sessions[index].Title; title != "" {
+		return title
+	}
+	return i18n.For(a.Store.Snapshot().Language).Terminal.Title
+}
+
+// Exited reports whether a session's program has ended, by index.
+func (a *App) Exited(index int) bool {
+	if index < 0 || index >= len(a.Sessions) {
+		return false
+	}
+	session := a.Sessions[index]
+	if session.Resident {
+		return true
+	}
+	if session.Term == nil {
+		return true
+	}
+	select {
+	case <-session.Term.Done():
+		return true
+	default:
+		return false
+	}
+}
+
+// SelectSession shows the session at an index.
+func (a *App) SelectSession(index int) {
+	if index < 0 || index >= len(a.Sessions) {
+		return
+	}
+	a.Active = index
+	a.FocusTerminal()
+}
+
+// CloseSession ends the session at an index and forgets it. The one on screen
+// is replaced by its neighbour, or by nothing when it was the last: the
+// surface then shows its empty state.
+func (a *App) CloseSession(index int) {
+	if index < 0 || index >= len(a.Sessions) {
+		return
+	}
+	session := a.Sessions[index]
+	if session.Term != nil {
+		if index == a.Active {
+			// The screen the user is looking at is the one worth saving.
+			if err := a.SaveSnapshot(); err != nil {
+				log.Printf("floter: could not save the terminal snapshot: %v", err)
+			}
+		}
+		_ = session.Term.Close()
+	}
+	a.Sessions = append(a.Sessions[:index], a.Sessions[index+1:]...)
+	switch {
+	case len(a.Sessions) == 0:
+		a.Active = -1
+	case index < a.Active:
+		a.Active--
+	case index == a.Active:
+		if a.Active >= len(a.Sessions) {
+			a.Active = len(a.Sessions) - 1
+		}
+	}
+	a.FocusTerminal()
 }
 
 // SaveSnapshot writes the session's screen to SnapshotPath: the escape
@@ -120,10 +296,11 @@ func (a *App) EnsureSession() {
 // session is fed. A session with nothing on screen writes nothing, and a
 // missing path is not an error.
 func (a *App) SaveSnapshot() error {
-	if a.SnapshotPath == "" || a.Term == nil {
+	term := a.term()
+	if a.SnapshotPath == "" || term == nil {
 		return nil
 	}
-	data := a.Term.Snapshot()
+	data := term.Snapshot()
 	if len(data) == 0 {
 		return nil
 	}
@@ -190,21 +367,21 @@ func (a *App) RunShellWithCommand(command string) {
 	if a.NewTerminal == nil || strings.TrimSpace(command) == "" {
 		return
 	}
-	a.Close()
-	opts := a.options()
-	opts.Command = nil
-	term, err := a.NewTerminal(opts)
+	session, err := a.startSession("")
 	if err != nil {
 		a.Err = err
 		return
 	}
-	a.Term, a.Err = term, nil
+	a.Sessions = append(a.Sessions, session)
+	a.Active = len(a.Sessions) - 1
+	a.Err = nil
+	term := session.Term
 	go func() {
 		deadline := time.Now().Add(5 * time.Second)
-		for time.Now().Before(deadline) && a.Term.Text() == "" {
+		for time.Now().Before(deadline) && term.Text() == "" {
 			time.Sleep(50 * time.Millisecond)
 		}
-		a.Term.Send([]byte(command + "\r"))
+		term.Send([]byte(command + "\r"))
 	}()
 }
 
@@ -215,18 +392,14 @@ func (a *App) RunShellIn(dir string) {
 	if a.NewTerminal == nil {
 		return
 	}
-	a.Close()
-	opts := a.options()
-	opts.Command = nil
-	if strings.TrimSpace(dir) != "" {
-		opts.Dir = dir
-	}
-	term, err := a.NewTerminal(opts)
+	session, err := a.startSession(dir, nil)
 	if err != nil {
 		a.Err = err
 		return
 	}
-	a.Term, a.Err = term, nil
+	a.Sessions = append(a.Sessions, session)
+	a.Active = len(a.Sessions) - 1
+	a.Err = nil
 	a.FocusTerminal()
 }
 
@@ -237,44 +410,32 @@ func (a *App) RunCommand(argv []string, dir string, env []string) error {
 	if a.NewTerminal == nil {
 		return errors.New("terminalui: no terminal available")
 	}
-	a.Close()
-
-	opts := a.options()
-	opts.Command = argv
-	opts.Env = append([]string{}, env...)
-	switch dir {
-	case "", "home":
-		// The plugin's default: the user's home directory.
-	case "current", "inherit":
-		// The app's own directory; a session's cwd is not tracked here.
-		if wd, err := os.Getwd(); err == nil {
-			opts.Dir = wd
-		}
-	default:
-		if wd, err := os.Getwd(); err == nil {
-			opts.Dir = wd
-		}
-	}
-
-	term, err := a.NewTerminal(opts)
+	session, err := a.startSession(dir, func(opts *terminal.Options) {
+		opts.Command = argv
+		opts.Env = append([]string{}, env...)
+	})
 	if err != nil {
 		a.Err = err
 		return err
 	}
-	a.Term, a.Err = term, nil
+	a.Sessions = append(a.Sessions, session)
+	a.Active = len(a.Sessions) - 1
+	a.Err = nil
 	a.FocusTerminal()
 	return nil
 }
 
-// Refresh applies the appearance settings to a running session, for a
+// Refresh applies the appearance settings to every running session, for a
 // change made while the terminal is open.
 func (a *App) Refresh() {
-	if a.Term == nil {
-		return
-	}
 	opts := a.options()
-	a.Term.SetFont(opts.Font)
-	a.Term.SetTheme(opts.Theme, opts.DarkTheme)
+	for _, session := range a.Sessions {
+		if session.Term == nil {
+			continue
+		}
+		session.Term.SetFont(opts.Font)
+		session.Term.SetTheme(opts.Theme, opts.DarkTheme)
+	}
 }
 
 // FocusTerminal asks for the keyboard focus on the terminal.
@@ -286,17 +447,18 @@ func (a *App) sessionText() string {
 	if a.Text != nil {
 		return a.Text()
 	}
-	if a.Term == nil {
+	term := a.term()
+	if term == nil {
 		return ""
 	}
-	return a.Term.Text()
+	return term.Text()
 }
 
-// Label is the session's name: the title the program set, or the localized
-// default.
+// Label is the current session's name: the title the program set, or the
+// localized default.
 func (a *App) Label() string {
-	if a.Title != "" {
-		return a.Title
+	if title := a.sessionTitle(); title != "" {
+		return title
 	}
 	return i18n.For(a.Store.Snapshot().Language).Terminal.Title
 }
@@ -337,16 +499,17 @@ func (a *App) Pad() float32 {
 	}
 }
 
-// Close ends the session, if any.
+// Close ends the session on screen, if any. The others keep running: a
+// session the user is not looking at is not gone.
 func (a *App) Close() {
-	if a.Term != nil {
-		// Save before closing: the session the user closed is the one the
-		// next start restores.
-		if err := a.SaveSnapshot(); err != nil {
-			log.Printf("floter: could not save the terminal snapshot: %v", err)
-		}
-		a.Term.Close()
-		a.Term = nil
+	a.CloseSession(a.Active)
+}
+
+// CloseAll ends every session: the app is quitting, and a program left running
+// behind a closed panel would be one nobody can reach.
+func (a *App) CloseAll() {
+	for len(a.Sessions) > 0 {
+		a.CloseSession(0)
 	}
 }
 
@@ -357,7 +520,8 @@ func (a *App) View(c *ui.Context) {
 	t := c.Theme()
 
 	ui.Box(c).Fill().Children(func() {
-		if a.Term == nil {
+		session := a.Current()
+		if session == nil || session.Term == nil {
 			// The empty state: what the page is, the control that opens a
 			// blank session, and the one that returns to the search. A spawn
 			// error replaces the hint, since that is what the user needs to
@@ -393,36 +557,40 @@ func (a *App) View(c *ui.Context) {
 		// top edge (the old build's `.terminal-panel__body` over
 		// `.terminal-bar`).
 		pad := a.Pad()
-		terminal.View(c, a.Term).Fill().Padding(pad).Bind(&a.Focus)
+		terminal.View(c, session.Term).Fill().Padding(pad).Bind(&a.Focus)
 		a.titleBar(c, copy)
 		a.residentNote(c, copy)
 	})
 }
 
-// Resident marks the session ended: the output stays on screen and the note
-// says how the program went, until the user closes it or starts another.
+// Resident marks the session on screen ended: the output stays on screen and
+// the note says how the program went, until the user closes it or starts
+// another.
 func (a *App) Resident(code int) {
-	a.resident = true
-	a.exitCode = code
+	if session := a.Current(); session != nil {
+		session.Resident = true
+		session.ExitCode = code
+	}
 }
 
 // residentNote is the floating note a held session carries: what happened and
 // that closing is the user's own decision, in the warning colour when the
 // program returned non-zero.
 func (a *App) residentNote(c *ui.Context, copy i18n.Terminal) {
-	if !a.resident || a.Term == nil {
+	session := a.Current()
+	if session == nil || !session.Resident || session.Term == nil {
 		return
 	}
 	t := c.Theme()
 	color := t.TextMuted
-	if a.exitCode != 0 {
+	if session.ExitCode != 0 {
 		color = t.Warning
 	}
 	ui.Row(c).Absolute().Bottom(t.Space(3)).Left(t.Space(3)).Right(t.Space(3)).
 		Gap(t.Space(2)).AlignItems(ui.Center).Padding(t.Space(2), t.Space(2.5)).
 		Radius(theme.For(a.Store.Snapshot(), t.Dark).RadiusMD).
 		Background(theme.For(a.Store.Snapshot(), t.Dark).Control).Children(func() {
-		ui.Text(c, copy.ProcessExited(a.exitCode)).FontSize(t.FontSize - 1).
+		ui.Text(c, copy.ProcessExited(session.ExitCode)).FontSize(t.FontSize - 1).
 			FontWeight(580).TextColor(color)
 		ui.Text(c, copy.ProcessExitedHint).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
 	})
@@ -446,7 +614,7 @@ func (a *App) titleBar(c *ui.Context, copy i18n.Terminal) {
 		}
 		identity.Children(func() {
 			a.statusDot(c)
-			title := a.Title
+			title := a.sessionTitle()
 			if title == "" {
 				title = copy.Title
 			}
@@ -459,9 +627,9 @@ func (a *App) titleBar(c *ui.Context, copy i18n.Terminal) {
 				a.Actions.Settings()
 			}
 		}
-		if a.Actions.Pin != nil && a.Term != nil {
+		if a.Actions.Pin != nil && a.term() != nil {
 			if ui.Button(c, copy.Pin).Clicked() {
-				a.Actions.Pin(a.Title, a.sessionText())
+				a.Actions.Pin(a.sessionTitle(), a.sessionText())
 			}
 		}
 		if a.Actions.NewCommand != nil {
@@ -485,7 +653,7 @@ func (a *App) titleBar(c *ui.Context, copy i18n.Terminal) {
 func (a *App) statusDot(c *ui.Context) {
 	t := c.Theme()
 	dot := ui.Box(c).Size(t.Space(1.75), t.Space(1.75)).Radius(t.Space(1.75)).Shrink(0)
-	if a.resident || a.exited() {
+	if a.exited() {
 		dot.Background(t.TextMuted).Opacity(0.7)
 		return
 	}
@@ -499,14 +667,18 @@ func (a *App) statusDot(c *ui.Context) {
 // exited reports whether the session's program has ended (its screen is still
 // on show until the surface closes).
 func (a *App) exited() bool {
-	if a.Term == nil {
-		return a.resident
+	session := a.Current()
+	if session == nil {
+		return false
+	}
+	if session.Term == nil {
+		return session.Resident
 	}
 	select {
-	case <-a.Term.Done():
+	case <-session.Term.Done():
 		return true
 	default:
-		return a.resident
+		return session.Resident
 	}
 }
 

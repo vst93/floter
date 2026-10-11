@@ -81,6 +81,13 @@ type Actions struct {
 	// CloseSession ends the running terminal session, from the Sessions
 	// page.
 	CloseSession func()
+	// SelectSession shows the session at an index, and CloseSessionAt ends
+	// it: the sessions list is a list of the terminal's own sessions, not a
+	// single one, so a click has to name which.
+	SelectSession  func(index int)
+	CloseSessionAt func(index int)
+	// NewSession starts another terminal session.
+	NewSession func()
 	// SetIntegrationEnabled turns an installed extension on or off.
 	SetIntegrationEnabled func(id string, enabled bool)
 	// UninstallIntegration removes an installed extension.
@@ -285,6 +292,11 @@ type UninstallComponents struct {
 type Session struct {
 	Title   string
 	Running bool
+	// Active marks the session on screen: the one the terminal surface is
+	// showing, and the one "close" would end without asking which.
+	Active bool
+	// Index is the session's own position, which a click hands back.
+	Index int
 }
 
 // About is what the About page shows: the identity of the build and where
@@ -704,28 +716,55 @@ func (a *App) browserTargets() []i18n.Option {
 // sessions lists the running terminal sessions.
 func (a *App) sessions(c *ui.Context, copy i18n.Settings) {
 	t := c.Theme()
-	running := a.runningSessions()
-	if len(running) == 0 {
-		ui.Column(c).FillWidth().Padding(t.Space(4)).Center().Children(func() {
+	sessions := a.runningSessions()
+	if len(sessions) == 0 {
+		ui.Column(c).FillWidth().Gap(t.Space(3)).Padding(t.Space(4)).Center().Children(func() {
 			ui.Text(c, copy.SessionsNone).FontSize(t.FontSize).TextColor(t.TextMuted)
+			if a.Actions.NewSession != nil {
+				if ui.Button(c, copy.SessionsNew).Clicked() {
+					a.Actions.NewSession()
+				}
+			}
 		})
 		return
 	}
 	ui.Column(c).FillWidth().Gap(t.Space(4)).Children(func() {
 		a.section(c, copy.PageSessions, copy.SessionsActive, func() {
 			a.card(c, func() {
-				for _, session := range running {
+				for _, session := range sessions {
 					session := session
-					a.row(c, session.Title, copy.SessionsRunning, func() {
-						if a.Actions.CloseSession != nil {
-							if ui.Button(c, copy.SessionsClose).Clicked() {
-								a.Actions.CloseSession()
+					// The row says what the session is doing: the one on
+					// screen, one still running behind it, or one that has
+					// ended and is being held.
+					status := copy.SessionsRunning
+					switch {
+					case session.Active:
+						status = copy.SessionsShowing
+					case !session.Running:
+						status = copy.SessionsExited
+					}
+					a.row(c, session.Title, status, func() {
+						ui.Row(c).Gap(t.Space(1)).AlignItems(ui.Center).Children(func() {
+							if !session.Active && a.Actions.SelectSession != nil {
+								if ui.Button(c, copy.SessionsShow).Clicked() {
+									a.Actions.SelectSession(session.Index)
+								}
 							}
-						}
+							if a.Actions.CloseSessionAt != nil {
+								if ui.Button(c, copy.SessionsClose).Clicked() {
+									a.Actions.CloseSessionAt(session.Index)
+								}
+							}
+						})
 					})
 				}
 			})
 		})
+		if a.Actions.NewSession != nil {
+			if ui.Button(c, copy.SessionsNew).Clicked() {
+				a.Actions.NewSession()
+			}
+		}
 	})
 }
 

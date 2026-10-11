@@ -287,6 +287,12 @@ type Settings struct {
 	SessionsRunning          string
 	SessionsClose            string
 	SessionsActive           string
+	// The sessions list's own words: a session that has ended, the one on
+	// screen, and the two controls each row carries.
+	SessionsExited  string
+	SessionsShowing string
+	SessionsShow    string
+	SessionsNew     string
 
 	// The permission dialog the installer shows, and the permission line
 	// the integrations list draws.

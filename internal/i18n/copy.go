@@ -298,6 +298,10 @@ var en = Copy{
 		SessionsRunning: "Running",
 		SessionsClose:   "Close session",
 		SessionsActive:  "The terminal session stays alive in the background.",
+		SessionsExited:  "Ended",
+		SessionsShowing: "On screen",
+		SessionsShow:    "Show",
+		SessionsNew:     "New session",
 
 		IntegrationsEmpty:                   "No integrations are installed.",
 		IntegrationsEnable:                  "Enabled",
@@ -818,6 +822,10 @@ var zh = Copy{
 		SessionsRunning: "运行中",
 		SessionsClose:   "关闭会话",
 		SessionsActive:  "终端会话在后台继续运行。",
+		SessionsExited:  "已结束",
+		SessionsShowing: "正在显示",
+		SessionsShow:    "显示",
+		SessionsNew:     "新建会话",
 
 		IntegrationsEmpty:           "没有已安装的集成。",
 		IntegrationsEnable:          "启用",

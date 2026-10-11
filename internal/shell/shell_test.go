@@ -127,8 +127,8 @@ func TestOpenSwitchesSurfacesAndFocuses(t *testing.T) {
 	}
 	// The terminal surface started through the injected constructor, which
 	// fails: the surface must hold the error rather than a session.
-	if a.Terminal.Term != nil || a.Terminal.Err == nil {
-		t.Errorf("terminal session = %v, err = %v", a.Terminal.Term, a.Terminal.Err)
+	if a.Terminal.Current() != nil || a.Terminal.Err == nil {
+		t.Errorf("terminal session = %v, err = %v", a.Terminal.Current(), a.Terminal.Err)
 	}
 	a.Open(SurfaceLauncher)
 	if a.Surf != SurfaceLauncher {
