@@ -658,7 +658,7 @@ func (a *App) residentNote(c *ui.Context, copy i18n.Terminal) {
 		Background(tokens.Control).
 		Transition(ui.ElementTransition{
 			Enter:    &ui.Motion{Y: -2},
-			Duration: 200 * time.Millisecond,
+			Duration: 160 * time.Millisecond,
 		}).Children(func() {
 		ui.Text(c, copy.ProcessExited(session.ExitCode)).FontSize(t.FontSize).
 			FontWeight(560).TextColor(color)

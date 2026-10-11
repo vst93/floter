@@ -1736,10 +1736,11 @@ func (a *App) feedbackRow(c *ui.Context) {
 	feedback := ui.Row(c).Absolute().Bottom(0).Left(0).Right(0).Height(t.Space(7.5)).
 		Padding(0, t.Space(3)).Gap(t.Space(2)).AlignItems(ui.Center).
 		Radius(tokens.RadiusSM).Background(background).
-		// The row enters as the old build's `feedback-enter` did.
+		// The row enters as the old build's `feedback-enter` did (its
+		// --dur-3, 160ms).
 		Transition(ui.ElementTransition{
 			Enter:    &ui.Motion{Y: -2},
-			Duration: 200 * time.Millisecond,
+			Duration: 160 * time.Millisecond,
 		})
 	if a.toastWarning {
 		background, weight = t.Warning.Alpha(0.2), 600
