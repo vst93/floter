@@ -304,6 +304,11 @@ type App struct {
 	// scope marker draws it as the icon and the name beside the field, and
 	// leaving the mode restores it as an ordinary query.
 	modeWord string
+	// armedDelete is the selected row's two-step delete: the first press of
+	// the row's own control arms it (the row prints the muted "press again"
+	// note in place of its trailing chrome), the second removes. -1 while
+	// nothing is armed.
+	armedDelete int
 	// pendingPower is the power action the panel is asking about: the
 	// confirmation row shows until the user answers it (see power.go).
 	pendingPower string
@@ -583,7 +588,7 @@ func (a *App) SetQuery(query string) {
 // New builds the launcher state over a settings store and the shell's
 // actions.
 func New(store *settings.Store, actions Actions) *App {
-	return &App{Store: store, Actions: actions}
+	return &App{Store: store, Actions: actions, armedDelete: -1}
 }
 
 // settings is the current normalized settings.
@@ -857,6 +862,11 @@ func (a *App) View(c *ui.Context) {
 		a.move(-1, len(results))
 	}
 	if c.Shortcut(0, ui.KeyEscape) {
+		// An armed delete is the first thing Escape answers.
+		if a.armedDelete >= 0 {
+			a.armedDelete = -1
+			return
+		}
 		switch {
 		case a.files:
 			a.leaveFiles()
@@ -1417,10 +1427,34 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 					removed = true
 				})
 			}
-			a.rowControl(c, "close", copy.HistoryDelete, func() {
-				removed = true
-				a.deleteSelectedHistory()
-			})
+			// The delete is a two-step: the first press arms the row — the
+			// muted "press again" note stands in for the trailing chrome, in
+			// the one warm token the row may spend — and the second removes.
+			// The armed state leaves with the selection, so a stray press
+			// cannot remove a row the user was not looking at.
+			if a.armedDelete == i {
+				armed := ui.Row(c).Shrink(0).AlignItems(ui.Center).Padding(0, t.Space(1))
+				armed.Children(func() {
+					ui.Text(c, copy.DeleteConfirm).FontSize(t.FontSize - 1).
+						FontWeight(560).TextColor(t.Warning)
+				})
+				del := ui.Row(c).Focusable().Shrink(0).Size(t.Space(5), t.Space(5)).
+					AlignItems(ui.Center).Justify(ui.Center).Label(copy.HistoryDelete)
+				del.Children(func() {
+					if glyph, ok := Glyph("close"); ok {
+						ui.Icon(c, glyph).Size(t.Space(3.5), t.Space(3.5)).TextColor(t.Warning)
+					}
+				})
+				if del.Clicked() {
+					a.armedDelete = -1
+					removed = true
+					a.deleteSelectedHistory()
+				}
+			} else {
+				a.rowControl(c, "close", copy.HistoryDelete, func() {
+					a.armedDelete = i
+				})
+			}
 		}
 		if number, ok := a.numbers[i]; ok {
 			ui.Text(c, a.resultNumber(number)).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
@@ -1616,6 +1650,9 @@ func (a *App) move(delta, n int) {
 	if a.Selected >= n && n > 0 {
 		a.Selected = ClampIndex(a.Selected, n)
 	}
+	// The armed delete belongs to the row the user was looking at; the choice
+	// moving away takes it with it.
+	a.armedDelete = -1
 }
 
 // nextSelectable moves one step and lands on a row the keyboard can act on: a

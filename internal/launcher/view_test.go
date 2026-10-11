@@ -22,6 +22,7 @@ import (
 	"floter/internal/clipboard"
 	"floter/internal/drops"
 	"floter/internal/extensions"
+	"floter/internal/i18n"
 	"floter/internal/settings"
 	"floter/internal/shortcuts"
 	"floter/internal/tools"
@@ -1085,6 +1086,15 @@ func TestClipboardModeFavoritesAndDelete(t *testing.T) {
 	if !tt.HasText("Delete") {
 		t.Fatalf("the delete control is missing: %q", tt.Texts())
 	}
+	// The delete is a two-step: the first press arms the row, the second
+	// removes.
+	if err := tt.Click("Delete"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !tt.HasText(i18n.For("en").Launcher.DeleteConfirm) {
+		t.Fatalf("the armed note is missing: %q", tt.Texts())
+	}
 	if err := tt.Click("Delete"); err != nil {
 		t.Fatal(err)
 	}
@@ -1107,6 +1117,10 @@ func TestCalculatorDeleteControl(t *testing.T) {
 	a.Actions.Copy = func(string) { testRuns["copy"]++ }
 	tt := render(t, a)
 	a.EnterCalculator()
+	tt.Frame()
+	if err := tt.Click("Delete"); err != nil {
+		t.Fatal(err)
+	}
 	tt.Frame()
 	if err := tt.Click("Delete"); err != nil {
 		t.Fatal(err)
