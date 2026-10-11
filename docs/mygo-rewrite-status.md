@@ -329,6 +329,11 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 ## 已知差距（框架不支持，诚实记录）
 
 - **终端选中即复制 / 滚动条 / bracketed paste**：见下面的终端外观条目。
+- **插件模式的 scope 标记**：旧版进入模式时**清空字段**（`setQuery("")`），在输入框左侧画
+  `图标 + 模式名`（`.collapsed-card__scope`），Esc 离开时用户刚输入的 needle 保留为普通查询；
+  本构建保留触发词在字段里（"clipboard "），needle 跟在其后，没有 scope 标记。这是**状态模型**的
+  差异：本构建的模式查询带前缀（`syncTypedMode`/`enterClipboardWord`），改过去要动模式进入/退出、
+  Tab 补全、模式内 Enter 的整条链路。
 - **会话排序 / 轮询**：旧版会话页有"最新/最早"排序与 5 秒轮询（会话由 broker 托管，可能跨天存活）；
   本构建的会话在进程内、生命周期与 App 相同，列表按创建顺序，不做轮询。
 - **设置里的 Plugins 页已删**：内置插件的配置现在是启动器里的通用表单（P7-c），与旧版 R33 一致；
