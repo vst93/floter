@@ -57,26 +57,51 @@ func (a *App) detachOutput(view launcher.OutputView) {
 // detachedView draws one detached window: its title, the two controls that
 // belong to it (re-run and close), and the output itself.
 func (a *App) detachedView(c *ui.Context, detached *detachedOutput) {
+	// The window is its own Context: the shell sets the floter theme on the
+	// panel's, and a detached window that did not would paint the framework's
+	// stock palette instead.
+	surface := launcher.Resolve(a.Store.Snapshot(), c.Theme().Dark)
+	tokens := surface.Tokens
+	c.SetTheme(tokens.Theme)
 	t := c.Theme()
 	copy := i18n.For(a.Store.Snapshot().Language).Launcher
-	c.Root().Background(t.Background)
+	// A detached window is opaque (`.plugin-window`): the near-solid stand-in,
+	// not the panel's glass tint.
+	c.Root().Background(tokens.Opaque)
 
 	ui.Column(c).Fill().Padding(t.Space(3)).Gap(t.Space(2)).Children(func() {
 		ui.Row(c).FillWidth().Gap(t.Space(2)).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, detached.title).FontSize(t.FontSize).FontWeight(650).
 				TextColor(t.Text).Grow(1)
-			if detached.entry != nil {
-				if ui.Button(c, copy.OutputWindowRerun).Disabled(detached.running).Clicked() && !detached.running {
-					a.rerunDetached(detached)
+			// The window's own controls are the reference's bar buttons: a
+			// transparent mark that only lands on a pane while hovered.
+			barButton := func(label string, run func()) {
+				button := ui.Row(c).Focusable().Shrink(0).Padding(t.Space(1), t.Space(2.5)).
+					Radius(tokens.RadiusSM).Label(label)
+				if button.Hovered() {
+					button.Background(tokens.ControlHover)
+				}
+				button.Children(func() {
+					ui.Text(c, label).FontSize(tokens.Caption).TextColor(tokens.TextTertiary)
+				})
+				if button.Clicked() {
+					run()
 				}
 			}
-			if ui.Button(c, copy.OutputWindowClose).Clicked() {
+			if detached.entry != nil {
+				barButton(copy.OutputWindowRerun, func() {
+					if !detached.running {
+						a.rerunDetached(detached)
+					}
+				})
+			}
+			barButton(copy.OutputWindowClose, func() {
 				detached.win.Close()
 				a.forgetDetached(detached)
-			}
+			})
 		})
 		ui.Scroll(c.Key("detached.output")).TrackScroll(&detached.scroll).Fill().
-			Border(1, t.Border).Radius(t.Radius).Padding(t.Space(2)).Children(func() {
+			Border(1, tokens.ControlEdge).Radius(tokens.RadiusMD).Padding(t.Space(2)).Children(func() {
 			text := detached.view.Text
 			if text == "" {
 				text = copy.OutputWindowIdle

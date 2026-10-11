@@ -123,6 +123,13 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 - **设置内容列**：18u 的左右内边距落在内容列（不是滚动容器），滚动条仍贴边。
 - **新特性**：mygo v0.4.3 已是本仓库版本（最新 release）；用上 `ui.ContentTransition{Numeric: true}`，
   让滑块的百分比读数与计算器答案在变化时滚动数字（v0.4.3 #110 的内容过渡）。
+- **终端**：空态的两个按键行改成旧版的 20u 键帽（control edge/fill + 键帽高光 + xs 圆角），
+  悬停只把文字提一档、不画面板；resident 提示改用 `--glass-float`（新增 `Tokens.Float`）
+  与 `--elev-3` 的抛影 + 上缘高光，标题用 secondary。
+- **集成状态**：`Running` 是 accent 文字、`Broken` 是暖色 chip + 警告描边、其余是 secondary
+  （`.extension-status` 的语言），状态不再是清一色的 muted 灰。
+- **独立窗口**：detached / pinned 两个自有 Context 的窗口此前没设 floter 主题，画的是框架默认配色；
+  现在设主题、用 `Opaque` 作不透明底，detached 的头部控件也改成透明的 bar button。
 
 **P7-a mygo v0.4.0 + 菜单栏与透明**（本轮）
 - mygo `v0.3.7 → v0.4.0`：新增 `ui.WebView`（页面内嵌原生 WebView，配 `Window.NewWebView`）、

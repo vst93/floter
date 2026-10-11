@@ -135,6 +135,10 @@ type Tokens struct {
 	// composited opaque over the content pane, so the framework's own accent
 	// fill behind a chosen list row cannot bleed through as a blue pill.
 	RaisedQuiet ui.Color
+	// Float is a floating pane's own fill (base.css's `--glass-float`): the
+	// frame's tint plus a fixed step, so a drawer, a dialog, a toast or the
+	// terminal's resident note is always denser than the card it floats over.
+	Float ui.Color
 
 	// The text ladder, in points at the current step: base.css's registers,
 	// which the codebase had been spelling as offsets off the body size (a
@@ -229,6 +233,14 @@ func For(s settings.Settings, systemDark bool) Tokens {
 	// rung is the opaque composite of the control-hover lift over the pane
 	// it sits on: it hides the accent and keeps the lift.
 	raisedQuiet := blendOpaque(baseFill, p.controlHover)
+	// A floating pane's fill: the same alpha ladder as the content recess
+	// (base.css derives `--glass-float-alpha` from the tint plus a step, which
+	// lands within a percent of the recess at every stop), in the float
+	// palette's own slightly lighter colour.
+	floatFill := ui.RGB(24, 25, 29)
+	if appearance == Light {
+		floatFill = ui.RGB(252, 252, 254)
+	}
 
 	// The ladder, at the step: base.css's own registers (caption 10, body 11,
 	// emphasis 12, title 13, display 17), each scaled once here rather than
@@ -244,6 +256,7 @@ func For(s settings.Settings, systemDark bool) Tokens {
 		Theme:             &t,
 		Sunken:            baseFill.Alpha(sunken),
 		RaisedQuiet:       raisedQuiet,
+		Float:             floatFill.Alpha(sunken),
 		Caption:           caption,
 		Body:              body,
 		Emphasis:          emphasis,

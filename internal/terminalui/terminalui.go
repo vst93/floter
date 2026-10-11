@@ -590,23 +590,32 @@ func (a *App) View(c *ui.Context) {
 	})
 }
 
-// emptyLine is one of the empty state's two lines: its key in a badge and its
-// label beside it, the whole line a hit target. Neutral text, never a filled
-// control — the line is furniture, not a primary button.
+// emptyLine is one of the empty state's two lines: its key in a keycap and
+// its label beside it, the whole line a hit target. Neutral text, never a
+// filled control — the line is furniture, not a primary button. The pointer
+// lifts the *text* one step, as `.terminal-empty__line:hover` did; it does not
+// paint a pane behind the line.
 func (a *App) emptyLine(c *ui.Context, copy i18n.Terminal, key, label string, run func()) {
 	t := c.Theme()
+	tokens := tokensOf(a, c)
 	line := ui.Row(c).Focusable().Padding(t.Space(0.5), t.Space(1)).
-		Radius(t.Radius).Gap(t.Space(1)).AlignItems(ui.Center)
+		Radius(tokens.RadiusSM).Gap(t.Space(2)).AlignItems(ui.Center)
+	color := tokens.TextTertiary
 	if line.Hovered() {
-		line.Background(t.SurfaceHover)
+		color = tokens.TextSecondary
 	}
 	line.Children(func() {
-		badge := ui.Row(c).Padding(t.Space(0.25), t.Space(1)).Radius(tokensOf(a, c).RadiusSM).
-			Background(tokensOf(a, c).Control).Children(func() {
-			ui.Text(c, keyBadge(key)).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+		// The keycap is the reference's 20u chip: the control edge and fill,
+		// the keycap bevel and the xs radius — the same bevel the settings
+		// recorder's keys wear, not a plain badge.
+		badge := ui.Row(c).Height(t.Space(5)).Padding(0, t.Space(1.5)).Radius(tokens.RadiusXS).
+			Border(1, tokens.ControlEdge).Background(tokens.Control).
+			AlignItems(ui.Center).Justify(ui.Center)
+		badge.InsetShadow(0, 1, 0, 0, tokens.LensRim)
+		badge.Children(func() {
+			ui.Text(c, keyBadge(key)).FontSize(tokens.Caption).TextColor(tokens.TextSecondary)
 		})
-		_ = badge
-		ui.Text(c, label).FontSize(t.FontSize).TextColor(t.TextMuted)
+		ui.Text(c, label).FontSize(t.FontSize).TextColor(color)
 	})
 	if line.Clicked() {
 		run()
@@ -649,25 +658,30 @@ func (a *App) residentNote(c *ui.Context, copy i18n.Terminal) {
 		return
 	}
 	t := c.Theme()
-	color := t.TextMuted
+	tokens := theme.For(a.Store.Snapshot(), t.Dark)
+	color := tokens.TextSecondary
 	if session.ExitCode != 0 {
 		color = t.Warning
 	}
 	// The reference's own note: a floating card 12u from the panel's edges,
-	// a 7u/10u padding pair, the control hairline and the floater's shadow,
-	// with the title at the body step in 560 — the warning colour when the
-	// program returned non-zero.
-	tokens := theme.For(a.Store.Snapshot(), t.Dark)
+	// a 7u/10u padding pair, the control hairline and the floater's own fill
+	// and shadow (`--glass-float` / `--elev-3`), with the title at the body
+	// step in 560 — the warning colour when the program returned non-zero.
 	// The note enters as the old build's `feedback-enter` did: fading in and
 	// settling down from two units above.
-	ui.Row(c).Absolute().Bottom(t.Space(3)).Left(t.Space(3)).Right(t.Space(3)).
+	note := ui.Row(c).Absolute().Bottom(t.Space(3)).Left(t.Space(3)).Right(t.Space(3)).
 		Gap(t.Space(2)).AlignItems(ui.Center).Padding(t.Space(1.75), t.Space(2.5)).
-		Radius(tokens.RadiusMD).Border(1, tokens.ControlEdge).Shadow(0, t.Space(1), t.Space(3), 0, ui.RGBA(0, 0, 0, 0.35)).
-		Background(tokens.Control).
+		Radius(tokens.RadiusMD).Border(1, tokens.ControlEdge).
+		Background(tokens.Float).
 		Transition(ui.ElementTransition{
 			Enter:    &ui.Motion{Y: -2},
 			Duration: 160 * time.Millisecond,
-		}).Children(func() {
+		})
+	// The floater's throw and its lit top rim, as `--elev-3` composed them.
+	note.Shadow(0, t.Space(2.5), t.Space(6.5), 0, ui.RGBA(0, 0, 0, 0.3))
+	note.Shadow(0, t.Space(0.25), t.Space(0.5), 0, ui.RGBA(0, 0, 0, 0.2))
+	note.InsetShadow(0, 1, 0, 0, tokens.LensRim)
+	note.Children(func() {
 		ui.Text(c, copy.ProcessExited(session.ExitCode)).FontSize(t.FontSize).
 			FontWeight(560).TextColor(color)
 		ui.Text(c, copy.ProcessExitedHint).FontSize(t.FontSize).TextColor(t.TextMuted)

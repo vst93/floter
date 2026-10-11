@@ -976,6 +976,30 @@ func (a *App) installRow(c *ui.Context, copy i18n.Settings) {
 	}
 }
 
+// stateMark is an integration's own state, in the reference's language
+// (`.extension-status`): a running integration is accent *text*, a broken one
+// is a warm chip with the warning ring, and anything else is a quiet secondary
+// mark. It is a state, not an action — the row's switch is the action — so no
+// state spends an accent fill.
+func (a *App) stateMark(c *ui.Context, integration Integration, copy i18n.Settings) {
+	t := c.Theme()
+	tokens := a.tokens(c)
+	text := integration.state(copy)
+	switch {
+	case integration.Broken:
+		chip := ui.Row(c).Padding(t.Space(0.5), t.Space(1.5)).Radius(tokens.RadiusXS).
+			Background(t.Warning.Alpha(0.14))
+		chip.InsetShadow(0, 0, 0, 1, t.Warning)
+		chip.Children(func() {
+			ui.Text(c, text).FontSize(t.FontSize - 1).FontWeight(600).TextColor(t.Warning)
+		})
+	case integration.Enabled:
+		ui.Text(c, text).FontSize(t.FontSize - 1).TextColor(t.Accent)
+	default:
+		ui.Text(c, text).FontSize(t.FontSize - 1).TextColor(tokens.TextSecondary)
+	}
+}
+
 // integrationRow is one integration as a card: its identity and state, what
 // it declares, what it can run (each command a row with its switch and its
 // alias), and the row of doors — check, re-scan, uninstall.
@@ -983,7 +1007,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 	t := c.Theme()
 	a.card(c, func() {
 		a.row(c, integration.Name, integration.Description, func() {
-			ui.Text(c, integration.state(copy)).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+			a.stateMark(c, integration, copy)
 		})
 		a.row(c, integration.identity(), "", func() {})
 

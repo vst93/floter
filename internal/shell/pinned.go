@@ -3,6 +3,8 @@ package shell
 import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
+
+	"floter/internal/launcher"
 )
 
 // pinned is the state of one pinned-output window: its title and the text it
@@ -33,10 +35,15 @@ func (a *App) PinText(title, text string) {
 		Height:   480,
 		StateKey: "pinned",
 		Content: ui.View(func(c *ui.Context) {
+			// Its own Context, so the floter theme has to be set here too;
+			// the window is opaque, not the panel's glass.
+			surface := launcher.Resolve(a.Store.Snapshot(), c.Theme().Dark)
+			tokens := surface.Tokens
+			c.SetTheme(tokens.Theme)
 			t := c.Theme()
-			c.Root().Background(t.Background)
+			c.Root().Background(tokens.Opaque)
 			ui.Scroll(c).Fill().Padding(t.Space(3)).Children(func() {
-				ui.Text(c, state.text).FontSize(t.FontSize).Selectable()
+				ui.Text(c, state.text).FontSize(t.FontSize).TextColor(t.Text).Selectable()
 			})
 		}),
 	})
