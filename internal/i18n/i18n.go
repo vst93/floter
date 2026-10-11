@@ -175,6 +175,9 @@ type Launcher struct {
 	// found at all.
 	BrowserTab       string
 	BrowserNoProfile string
+	// BrowserDisabled is the browser mode's own answer when the plugin is
+	// switched off: what happened, and where to turn it back on.
+	BrowserDisabled string
 	// The plugin modes' own empty states: a fact about the mode, not a search
 	// outcome.
 	ClipboardEmpty           string

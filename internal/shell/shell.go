@@ -1324,7 +1324,9 @@ func (a *App) diagnoseIntegration(id string) {
 func (a *App) searchBrowser(query string, done func(launcher.BrowserResults)) {
 	options := browserState(a.Store.Snapshot())
 	if !options.enabled {
-		a.onMain(func() { done(launcher.BrowserResults{}) })
+		// The plugin is off: the mode says so instead of claiming the machine
+		// has no browser at all.
+		a.onMain(func() { done(launcher.BrowserResults{Disabled: true}) })
 		return
 	}
 	go func() {

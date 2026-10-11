@@ -161,6 +161,10 @@ type BrowserResults struct {
 	// Results are the bookmarks and history rows, already merged, ordered and
 	// capped.
 	Results []browser.Result
+	// Disabled marks a search the browser plugin could not run, because the
+	// plugin is switched off: the mode says so rather than claiming no browser
+	// has a profile.
+	Disabled bool
 	// Tabs are the tabs the browser has open right now, when they could be
 	// read. A tab that is also a bookmark stays two rows: switching to it and
 	// opening it again are two different actions.
@@ -444,7 +448,13 @@ func (a *App) emptyMessage(copy i18n.Launcher) string {
 			return copy.ClipboardEmpty
 		}
 	case a.browser:
-		if !a.browserResults(a.browserQuery()).Found {
+		answer := a.browserResults(a.browserQuery())
+		if answer.Disabled {
+			// The plugin is switched off: the mode says so, and where to turn
+			// it on, rather than claiming the machine has no browser.
+			return copy.BrowserDisabled
+		}
+		if !answer.Found {
 			// No profile at all says why rather than claiming the query
 			// matched nothing.
 			return copy.BrowserNoProfile

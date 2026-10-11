@@ -780,3 +780,23 @@ func TestDirectOutputNudge(t *testing.T) {
 		t.Errorf("a terminal-route row carries the nudge: %q", tt.Texts())
 	}
 }
+
+// A browser search with the plugin switched off says so, instead of claiming
+// the machine has no browser: the mode's own answer names where to turn the
+// plugin back on.
+func TestBrowserModeDisabled(t *testing.T) {
+	a := testApp()
+	a.Actions.SearchBrowser = func(query string, done func(BrowserResults)) {
+		done(BrowserResults{Disabled: true})
+	}
+	copy := a.copy()
+	a.EnterBrowser()
+	tt := render(t, a)
+	tt.Frame()
+	if !tt.HasText(copy.BrowserDisabled) {
+		t.Errorf("the disabled answer is missing: %q", tt.Texts())
+	}
+	if tt.HasText(copy.BrowserNoProfile) {
+		t.Errorf("a switched-off plugin claimed no profile: %q", tt.Texts())
+	}
+}
