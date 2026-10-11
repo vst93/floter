@@ -129,3 +129,24 @@ func TestSunkenFollowsTheOpacity(t *testing.T) {
 		t.Errorf("the two appearances' alphas differ: %v vs %v", a, b)
 	}
 }
+
+// The ladder scales once, by the step: the display register at the Large step
+// is 17 points times 1.1, not "body plus six points" - the offset that grew
+// with every step above the shipped one.
+func TestLadderScalesWithTheStep(t *testing.T) {
+	large := For(settings.Settings{Theme: "dark", UIScale: "large"}, false)
+	if large.Display < 18.6 || large.Display > 18.8 {
+		t.Errorf("display at Large = %v, want 17 x 1.1", large.Display)
+	}
+	if large.Title < 14.2 || large.Title > 14.4 {
+		t.Errorf("title at Large = %v, want 13 x 1.1", large.Title)
+	}
+	if large.Body < 12.0 || large.Body > 12.2 {
+		t.Errorf("body at Large = %v, want 11 x 1.1", large.Body)
+	}
+	// The shipped step: 0.9.
+	small := For(settings.Settings{Theme: "dark"}, false)
+	if small.Display < 15.2 || small.Display > 15.4 {
+		t.Errorf("display at Small = %v, want 17 x 0.9", small.Display)
+	}
+}
