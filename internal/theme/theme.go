@@ -11,6 +11,8 @@
 package theme
 
 import (
+	"math"
+
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/settings"
@@ -88,15 +90,51 @@ type Tokens struct {
 	Control     ui.Color
 	ControlEdge ui.Color
 	Hairline    ui.Color
+	// ControlHover and ControlPress are the control ladder's two other
+	// rungs (base.css's `--glass-control-hover` / `--glass-control-press`):
+	// a pointer over a pane lifts it, a pointer down sinks it *below* the
+	// resting face, and the settings sidebar's current page is the raised
+	// quiet pane (`--glass-raised-quiet`, an alias of ControlHover).
+	ControlHover ui.Color
+	ControlPress ui.Color
+	// Track is the groove a switch or a segmented control is looked into
+	// (base.css's `--glass-track`), and Field the slot a text field cuts
+	// into the glass (`--glass-field`).
+	Track ui.Color
+	Field ui.Color
+	// Opaque is the near-solid stand-in for a surface whose glass has been
+	// turned off or that must not show the desktop (base.css's
+	// `--surface-opaque`): the `off` stop's card.
+	Opaque ui.Color
+	// FieldFill is the launcher's field block: `--glass-field` composited
+	// over `--surface-opaque`, a near-solid surface one step brighter than
+	// the card so the caret never sits over a ghost of the desktop
+	// (`.collapsed-card__input-row`, R21).
+	FieldFill ui.Color
 	// TextStrong is a row's own label color, one step above the body text
-	// (base.css's `--text-strong`).
-	TextStrong ui.Color
+	// (base.css's `--text-strong`), TextSecondary and TextTertiary the two
+	// quieter steps below TextMuted.
+	TextStrong    ui.Color
+	TextSecondary ui.Color
+	TextTertiary  ui.Color
+	// The control lens family (base.css's `--glass-lens-*`): a control's top
+	// rim, its broad sheen and its bottom shade. The framework draws no such
+	// layers, and without them a translucent pane reads as a flat tint with
+	// a border rather than as a lens; Lens stacks them as the one inset
+	// shadow the old build's `--elev-0` was.
+	LensRim   ui.Color
+	LensSheen ui.Color
+	LensEdge  ui.Color
 	// Sunken is the settings content pane's own fill (base.css's
 	// `--surface-sunken`): the settings panel is a reading surface, and it
 	// carries a fill of its own so it reads more solid than the launcher -
 	// the old build's alpha was 0.62 + 0.18 of the main opacity, which rises
 	// with the transparency slider without ever reaching it.
 	Sunken ui.Color
+	// RaisedQuiet is the sidebar's chosen page: the control-hover lift
+	// composited opaque over the content pane, so the framework's own accent
+	// fill behind a chosen list row cannot bleed through as a blue pill.
+	RaisedQuiet ui.Color
 
 	// The text ladder, in points at the current step: base.css's registers,
 	// which the codebase had been spelling as offsets off the body size (a
@@ -136,19 +174,44 @@ func For(s settings.Settings, systemDark bool) Tokens {
 	// title, display) follows from there.
 	t.FontSize = round1(BodyUnits * f)
 	t.Spacing = round1(t.Spacing * f)
-	t.Radius = round1(t.Radius * f)
 
-	// The strokes and planes are alphas over white or black, per appearance,
-	// exactly as base.css wrote them: a lit hairline in the dark, a dark one
-	// in the light, and the focused step takes the accent.
-	stroke, strokeActive := ui.RGBA(255, 255, 255, 0.08), ui.RGBA(143, 183, 255, 0.24)
-	control, controlEdge, hairline := ui.RGBA(255, 255, 255, 0.055), ui.RGBA(255, 255, 255, 0.06), ui.RGBA(255, 255, 255, 0.07)
-	textStrong := ui.RGBA(244, 245, 247, 0.96)
-	if appearance == Light {
-		stroke, strokeActive = ui.RGBA(0, 0, 0, 0.1), ui.RGBA(10, 108, 255, 0.28)
-		control, controlEdge, hairline = ui.RGBA(0, 0, 0, 0.035), ui.RGBA(0, 0, 0, 0.07), ui.RGBA(0, 0, 0, 0.08)
-		textStrong = ui.RGBA(23, 23, 26, 0.96)
-	}
+	// The whole palette is base.css's, not the framework's stock one. The
+	// old build's tokens are what every surface was drawn against — the
+	// pastel accent, the translucent control ladder, the near-black glass —
+	// and the framework's defaults (a saturated blue, opaque grey hover
+	// fills) are a different design. Setting them here means one place
+	// decides the look and every widget the views do not style by hand —
+	// buttons, inputs, switches, focus rings, the scrollbar — inherits it.
+	p := paletteFor(appearance)
+	t.Background = p.background
+	t.Text = p.text
+	t.TextMuted = p.textMuted
+	t.Accent = p.accent
+	t.AccentHover = p.accentHover
+	t.AccentPressed = p.accentPressed
+	t.AccentText = p.accentText
+	t.Border = p.stroke
+	t.Surface = p.control
+	t.SurfaceHover = p.controlHover
+	t.SurfacePressed = p.controlPress
+	t.Selection = p.selection
+	t.Focus = p.focus
+	t.Warning = p.warning
+	t.Scrollbar = p.scrollbar
+	t.ScrollbarWidth = round1(6 * f)
+	// The framework's control radius is the ladder's `--radius-sm` (9px),
+	// not its own 6px stock value: a button or a field on a surface is the
+	// ladder's second step, and the card and window keep their own steps.
+	t.Radius = round1(RadiusSM * f)
+
+	// The strokes and planes the views read directly are the same palette
+	// values, per appearance, exactly as base.css wrote them.
+	stroke, strokeActive := p.stroke, p.strokeActive
+	control, controlEdge, hairline := p.control, p.controlEdge, p.hairline
+	textStrong := p.textStrong
+	controlHover, controlPress := p.controlHover, p.controlPress
+	track, field := p.track, p.field
+	textSecondary, textTertiary := p.textSecondary, p.textTertiary
 	// The content pane's fill: 0.62 + 0.18 of the main opacity, as
 	// `--glass-content-alpha` had it. The pane carries the fill; the slider
 	// still owns the glass behind it.
@@ -159,6 +222,13 @@ func For(s settings.Settings, systemDark bool) Tokens {
 	} else {
 		baseFill = ui.RGB(243, 244, 247)
 	}
+	// The sidebar's chosen page is the reference's `--glass-raised-quiet`,
+	// but the framework marks a chosen list row by painting the accent
+	// *behind* the row, and a translucent lift over that reads as a blue
+	// pill — the opposite of the quiet one the reference asks for. So this
+	// rung is the opaque composite of the control-hover lift over the pane
+	// it sits on: it hides the accent and keeps the lift.
+	raisedQuiet := blendOpaque(baseFill, p.controlHover)
 
 	// The ladder, at the step: base.css's own registers (caption 10, body 11,
 	// emphasis 12, title 13, display 17), each scaled once here rather than
@@ -173,6 +243,7 @@ func For(s settings.Settings, systemDark bool) Tokens {
 		Appearance:        appearance,
 		Theme:             &t,
 		Sunken:            baseFill.Alpha(sunken),
+		RaisedQuiet:       raisedQuiet,
 		Caption:           caption,
 		Body:              body,
 		Emphasis:          emphasis,
@@ -186,16 +257,135 @@ func For(s settings.Settings, systemDark bool) Tokens {
 		InputStroke:       stroke,
 		InputStrokeActive: strokeActive,
 		Control:           control,
+		ControlHover:      controlHover,
+		ControlPress:      controlPress,
 		ControlEdge:       controlEdge,
+		Track:             track,
+		Field:             field,
+		Opaque:            p.opaque,
+		FieldFill:         p.fieldFill,
+		LensRim:           p.lensRim,
+		LensSheen:         p.lensSheen,
+		LensEdge:          p.lensEdge,
 		Hairline:          hairline,
 		TextStrong:        textStrong,
+		TextSecondary:     textSecondary,
+		TextTertiary:      textTertiary,
 	}
+}
+
+// palette is base.css's token set for one appearance, as the framework
+// theme's fields plus the control-ladder rungs the views read by name.
+// Everything here is the old build's value: the pastel accent, the
+// translucent white (dark) or black (light) control ladder, the content
+// recess's own colour and the near-solid stand-in.
+func paletteFor(appearance Appearance) palette {
+	if appearance == Light {
+		return palette{
+			background:    ui.Hex("#fafafc"),
+			text:          ui.Hex("#1d1d1f"),
+			textStrong:    ui.RGBA(23, 23, 26, 0.96),
+			textMuted:     ui.RGBA(60, 60, 67, 0.78),
+			textSecondary: ui.RGBA(60, 60, 67, 0.86),
+			textTertiary:  ui.RGBA(60, 60, 67, 0.72),
+			accent:        ui.Hex("#064aa6"),
+			accentHover:   ui.Hex("#0a5ecb"),
+			accentPressed: ui.Hex("#05408f"),
+			accentText:    ui.Hex("#f7f9ff"),
+			stroke:        ui.RGBA(0, 0, 0, 0.1),
+			strokeActive:  ui.RGBA(10, 108, 255, 0.28),
+			control:       ui.RGBA(0, 0, 0, 0.035),
+			controlHover:  ui.RGBA(0, 0, 0, 0.06),
+			controlPress:  ui.RGBA(0, 0, 0, 0.022),
+			controlEdge:   ui.RGBA(0, 0, 0, 0.07),
+			track:         ui.RGBA(0, 0, 0, 0.05),
+			field:         ui.RGBA(255, 255, 255, 0.5),
+			hairline:      ui.RGBA(0, 0, 0, 0.08),
+			selection:     ui.RGBA(6, 74, 166, 0.1),
+			focus:         ui.RGBA(6, 74, 166, 0.82),
+			warning:       ui.Hex("#9c1f18"),
+			scrollbar:     ui.RGBA(60, 60, 67, 0.24),
+			opaque:        ui.RGBA(250, 250, 252, 0.995),
+			fieldFill:     ui.RGBA(252, 252, 254, 0.997),
+			lensRim:       ui.RGBA(255, 255, 255, 0.9),
+			lensSheen:     ui.RGBA(255, 255, 255, 0.5),
+			lensEdge:      ui.RGBA(0, 0, 0, 0.08),
+		}
+	}
+	return palette{
+		background:    ui.Hex("#121316"),
+		text:          ui.Hex("#f2f3f5"),
+		textStrong:    ui.RGBA(244, 245, 247, 0.96),
+		textMuted:     ui.RGBA(238, 239, 242, 0.55),
+		textSecondary: ui.RGBA(238, 239, 242, 0.74),
+		textTertiary:  ui.RGBA(238, 239, 242, 0.48),
+		accent:        ui.Hex("#8fb7ff"),
+		accentHover:   ui.Hex("#a9c8ff"),
+		accentPressed: ui.Hex("#7aa7ff"),
+		accentText:    ui.Hex("#15171b"),
+		stroke:        ui.RGBA(255, 255, 255, 0.08),
+		strokeActive:  ui.RGBA(143, 183, 255, 0.24),
+		control:       ui.RGBA(255, 255, 255, 0.055),
+		controlHover:  ui.RGBA(255, 255, 255, 0.085),
+		controlPress:  ui.RGBA(255, 255, 255, 0.038),
+		controlEdge:   ui.RGBA(255, 255, 255, 0.06),
+		track:         ui.RGBA(255, 255, 255, 0.07),
+		field:         ui.RGBA(255, 255, 255, 0.03),
+		hairline:      ui.RGBA(255, 255, 255, 0.07),
+		selection:     ui.RGBA(143, 183, 255, 0.13),
+		focus:         ui.RGBA(122, 167, 255, 0.78),
+		warning:       ui.RGBA(255, 178, 164, 0.82),
+		scrollbar:     ui.RGBA(238, 239, 242, 0.15),
+		opaque:        ui.RGBA(26, 27, 30, 0.99),
+		fieldFill:     ui.RGBA(33, 34, 37, 0.99),
+		lensRim:       ui.RGBA(255, 255, 255, 0.15),
+		lensSheen:     ui.RGBA(255, 255, 255, 0.06),
+		lensEdge:      ui.RGBA(0, 0, 0, 0.15),
+	}
+}
+
+// palette is one appearance's token set, kept private: Tokens is the public
+// shape, and the framework theme's fields are filled from here.
+type palette struct {
+	background, text, textStrong, textMuted, textSecondary, textTertiary ui.Color
+	accent, accentHover, accentPressed, accentText                       ui.Color
+	stroke, strokeActive                                                 ui.Color
+	control, controlHover, controlPress, controlEdge                     ui.Color
+	track, field, hairline, selection, focus, warning, scrollbar         ui.Color
+	opaque, fieldFill                                                    ui.Color
+	lensRim, lensSheen, lensEdge                                         ui.Color
 }
 
 // round1 rounds to one decimal, so a scaled metric stays a value a CSS
 // author could have written and the tests can compare exactly.
 func round1(v float32) float32 {
 	return float32(int(v*10+0.5)) / 10
+}
+
+// blendOpaque lays over on base at over's alpha and returns the opaque
+// result, for the one lift that has to cover a color the framework paints
+// behind it.
+func blendOpaque(base, over ui.Color) ui.Color {
+	a := float64(over.A) / 255
+	mix := func(b, o uint8) uint8 {
+		return uint8(math.Round(float64(b)*(1-a) + float64(o)*a))
+	}
+	return ui.RGBA(mix(base.R, over.R), mix(base.G, over.G), mix(base.B, over.B), 1)
+}
+
+// Lens draws the control lens on a pane: the top rim, the broad sheen and the
+// bottom shade, then the shared pane edge — base.css's `--glass-lens-stack`,
+// which every control on a surface carried as its `--elev-0`. The framework
+// leaves a control as a flat tint plus a border; these four inset layers are
+// what make the same box read as a pane of glass. They stack in the order
+// added, so the rim lands last, over the sheen's fade, as the old rule's
+// declaration order had it.
+func (t Tokens) Lens(e ui.Element) ui.Element {
+	e.InsetShadow(0, 1, 0, 0, t.LensRim)
+	e.InsetShadow(0, 6, 10, -6, t.LensSheen)
+	e.InsetShadow(0, -1, 0, 0, t.LensEdge)
+	e.InsetShadow(0, 0, 0, 1, t.ControlEdge)
+	return e
 }
 
 // ANSI is the sixteen program colours a command's own output is drawn with,

@@ -150,3 +150,74 @@ func TestLadderScalesWithTheStep(t *testing.T) {
 		t.Errorf("display at Small = %v, want 17 x 0.9", small.Display)
 	}
 }
+
+// The palette is base.css's, not the framework's stock one: the pastel
+// accent, the translucent control ladder and the near-black glass. These are
+// the tokens the whole app is drawn against, so a regression here repaints
+// every surface at once.
+func TestPaletteComesFromBaseCSS(t *testing.T) {
+	dark := For(settings.Settings{Theme: "dark"}, true)
+	if dark.Theme.Accent != ui.Hex("#8fb7ff") {
+		t.Errorf("dark accent = %v, want the pastel #8fb7ff", dark.Theme.Accent)
+	}
+	if dark.Theme.Background != ui.Hex("#121316") {
+		t.Errorf("dark background = %v, want the glass tint #121316", dark.Theme.Background)
+	}
+	if dark.Theme.Text != ui.Hex("#f2f3f5") {
+		t.Errorf("dark text = %v, want --text-primary", dark.Theme.Text)
+	}
+	// The control ladder is translucent white, not an opaque grey: the
+	// framework's stock SurfaceHover would paint a solid block over the glass.
+	if dark.Theme.SurfaceHover.A >= 255 {
+		t.Errorf("dark hover = %v, want a translucent lift", dark.Theme.SurfaceHover)
+	}
+	if dark.Theme.AccentText != ui.Hex("#15171b") {
+		t.Errorf("dark accent text = %v, want --accent-contrast", dark.Theme.AccentText)
+	}
+
+	light := For(settings.Settings{Theme: "light"}, false)
+	if light.Theme.Accent != ui.Hex("#064aa6") {
+		t.Errorf("light accent = %v, want the darker #064aa6", light.Theme.Accent)
+	}
+	if light.Theme.Background != ui.Hex("#fafafc") {
+		t.Errorf("light background = %v, want #fafafc", light.Theme.Background)
+	}
+	if light.Theme.Text != ui.Hex("#1d1d1f") {
+		t.Errorf("light text = %v, want --text-primary", light.Theme.Text)
+	}
+}
+
+// The sidebar's chosen page is the opaque raised rung: the framework paints
+// the accent behind a chosen list row, so a translucent lift would read as a
+// blue pill, which is exactly what the reference's quiet pill is not.
+func TestRaisedQuietIsOpaqueAndNeutral(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		t    Tokens
+	}{
+		{"dark", For(settings.Settings{Theme: "dark"}, true)},
+		{"light", For(settings.Settings{Theme: "light"}, false)},
+	} {
+		if tc.t.RaisedQuiet.A != 255 {
+			t.Errorf("%s raised-quiet alpha = %d, want opaque", tc.name, tc.t.RaisedQuiet.A)
+		}
+		// A neutral lift over a near-neutral pane keeps R, G and B within a
+		// few steps of each other; an accent-tinted pill would not.
+		r, g, b := int(tc.t.RaisedQuiet.R), int(tc.t.RaisedQuiet.G), int(tc.t.RaisedQuiet.B)
+		if spread := max(r, g, b) - min(r, g, b); spread > 12 {
+			t.Errorf("%s raised-quiet = %v, want a neutral lift", tc.name, tc.t.RaisedQuiet)
+		}
+	}
+}
+
+// The control lens is three inset layers plus the pane edge: a control that
+// carries it reads as a lens rather than as a flat tint with a border.
+func TestLensTokensAreTranslucent(t *testing.T) {
+	dark := For(settings.Settings{Theme: "dark"}, true)
+	if dark.LensRim.A == 0 || dark.LensRim.A >= 255 {
+		t.Errorf("lens rim = %v, want a translucent highlight", dark.LensRim)
+	}
+	if dark.LensEdge.R != 0 {
+		t.Errorf("lens edge = %v, want a dark bottom shade", dark.LensEdge)
+	}
+}
