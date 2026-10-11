@@ -136,6 +136,15 @@ type Tokens struct {
 	// has no window-server shadow (Linux, Windows).
 	ShadowAmbient ui.Color
 	ShadowContact ui.Color
+	// EdgeHighlight, EdgeShadow and EdgeHighlightX are the panel's rim (base.css's
+	// `--edge-highlight` / `--edge-shadow` / `--edge-highlight-x`): the lit top
+	// edge, the dark bottom edge and the whisper of a stroke on both sides that
+	// `--glass-rim-shadow` composes. The launcher card has no rim (R72 removed
+	// it — the card is its own floating window); the settings and terminal
+	// panels, which sit *on* a surface, do.
+	EdgeHighlight  ui.Color
+	EdgeShadow     ui.Color
+	EdgeHighlightX ui.Color
 	// Sunken is the settings content pane's own fill (base.css's
 	// `--surface-sunken`): the settings panel is a reading surface, and it
 	// carries a fill of its own so it reads more solid than the launcher -
@@ -295,6 +304,9 @@ func For(s settings.Settings, systemDark bool) Tokens {
 		SheenBottom:       p.sheenBottom,
 		ShadowAmbient:     p.shadowAmbient,
 		ShadowContact:     p.shadowContact,
+		EdgeHighlight:     p.edgeHighlight,
+		EdgeShadow:        p.edgeShadow,
+		EdgeHighlightX:    p.edgeHighlightX,
 		Hairline:          hairline,
 		TextStrong:        textStrong,
 		TextSecondary:     textSecondary,
@@ -310,73 +322,79 @@ func For(s settings.Settings, systemDark bool) Tokens {
 func paletteFor(appearance Appearance) palette {
 	if appearance == Light {
 		return palette{
-			background:    ui.Hex("#fafafc"),
-			text:          ui.Hex("#1d1d1f"),
-			textStrong:    ui.RGBA(23, 23, 26, 0.96),
-			textMuted:     ui.RGBA(60, 60, 67, 0.78),
-			textSecondary: ui.RGBA(60, 60, 67, 0.86),
-			textTertiary:  ui.RGBA(60, 60, 67, 0.72),
-			accent:        ui.Hex("#064aa6"),
-			accentHover:   ui.Hex("#0a5ecb"),
-			accentPressed: ui.Hex("#05408f"),
-			accentText:    ui.Hex("#f7f9ff"),
-			stroke:        ui.RGBA(0, 0, 0, 0.1),
-			strokeActive:  ui.RGBA(10, 108, 255, 0.28),
-			control:       ui.RGBA(0, 0, 0, 0.035),
-			controlHover:  ui.RGBA(0, 0, 0, 0.06),
-			controlPress:  ui.RGBA(0, 0, 0, 0.022),
-			controlEdge:   ui.RGBA(0, 0, 0, 0.07),
-			track:         ui.RGBA(0, 0, 0, 0.05),
-			field:         ui.RGBA(255, 255, 255, 0.5),
-			hairline:      ui.RGBA(0, 0, 0, 0.08),
-			selection:     ui.RGBA(6, 74, 166, 0.1),
-			focus:         ui.RGBA(6, 74, 166, 0.82),
-			warning:       ui.Hex("#9c1f18"),
-			scrollbar:     ui.RGBA(60, 60, 67, 0.24),
-			opaque:        ui.RGBA(250, 250, 252, 0.995),
-			fieldFill:     ui.RGBA(252, 252, 254, 0.997),
-			lensRim:       ui.RGBA(255, 255, 255, 0.9),
-			lensSheen:     ui.RGBA(255, 255, 255, 0.5),
-			lensEdge:      ui.RGBA(0, 0, 0, 0.08),
-			sheenTop:      ui.RGBA(255, 255, 255, 0.66),
-			sheenBottom:   ui.RGBA(255, 255, 255, 0.22),
-			shadowAmbient: ui.RGBA(0, 0, 0, 0.18),
-			shadowContact: ui.RGBA(0, 0, 0, 0.12),
+			background:     ui.Hex("#fafafc"),
+			text:           ui.Hex("#1d1d1f"),
+			textStrong:     ui.RGBA(23, 23, 26, 0.96),
+			textMuted:      ui.RGBA(60, 60, 67, 0.78),
+			textSecondary:  ui.RGBA(60, 60, 67, 0.86),
+			textTertiary:   ui.RGBA(60, 60, 67, 0.72),
+			accent:         ui.Hex("#064aa6"),
+			accentHover:    ui.Hex("#0a5ecb"),
+			accentPressed:  ui.Hex("#05408f"),
+			accentText:     ui.Hex("#f7f9ff"),
+			stroke:         ui.RGBA(0, 0, 0, 0.1),
+			strokeActive:   ui.RGBA(10, 108, 255, 0.28),
+			control:        ui.RGBA(0, 0, 0, 0.035),
+			controlHover:   ui.RGBA(0, 0, 0, 0.06),
+			controlPress:   ui.RGBA(0, 0, 0, 0.022),
+			controlEdge:    ui.RGBA(0, 0, 0, 0.07),
+			track:          ui.RGBA(0, 0, 0, 0.05),
+			field:          ui.RGBA(255, 255, 255, 0.5),
+			hairline:       ui.RGBA(0, 0, 0, 0.08),
+			selection:      ui.RGBA(6, 74, 166, 0.1),
+			focus:          ui.RGBA(6, 74, 166, 0.82),
+			warning:        ui.Hex("#9c1f18"),
+			scrollbar:      ui.RGBA(60, 60, 67, 0.24),
+			opaque:         ui.RGBA(250, 250, 252, 0.995),
+			fieldFill:      ui.RGBA(252, 252, 254, 0.997),
+			lensRim:        ui.RGBA(255, 255, 255, 0.9),
+			lensSheen:      ui.RGBA(255, 255, 255, 0.5),
+			lensEdge:       ui.RGBA(0, 0, 0, 0.08),
+			sheenTop:       ui.RGBA(255, 255, 255, 0.66),
+			sheenBottom:    ui.RGBA(255, 255, 255, 0.22),
+			shadowAmbient:  ui.RGBA(0, 0, 0, 0.18),
+			shadowContact:  ui.RGBA(0, 0, 0, 0.12),
+			edgeHighlight:  ui.RGBA(255, 255, 255, 0.92),
+			edgeShadow:     ui.RGBA(0, 0, 0, 0.07),
+			edgeHighlightX: ui.RGBA(255, 255, 255, 0.6),
 		}
 	}
 	return palette{
-		background:    ui.Hex("#121316"),
-		text:          ui.Hex("#f2f3f5"),
-		textStrong:    ui.RGBA(244, 245, 247, 0.96),
-		textMuted:     ui.RGBA(238, 239, 242, 0.55),
-		textSecondary: ui.RGBA(238, 239, 242, 0.74),
-		textTertiary:  ui.RGBA(238, 239, 242, 0.48),
-		accent:        ui.Hex("#8fb7ff"),
-		accentHover:   ui.Hex("#a9c8ff"),
-		accentPressed: ui.Hex("#7aa7ff"),
-		accentText:    ui.Hex("#15171b"),
-		stroke:        ui.RGBA(255, 255, 255, 0.08),
-		strokeActive:  ui.RGBA(143, 183, 255, 0.24),
-		control:       ui.RGBA(255, 255, 255, 0.055),
-		controlHover:  ui.RGBA(255, 255, 255, 0.085),
-		controlPress:  ui.RGBA(255, 255, 255, 0.038),
-		controlEdge:   ui.RGBA(255, 255, 255, 0.06),
-		track:         ui.RGBA(255, 255, 255, 0.07),
-		field:         ui.RGBA(255, 255, 255, 0.03),
-		hairline:      ui.RGBA(255, 255, 255, 0.07),
-		selection:     ui.RGBA(143, 183, 255, 0.13),
-		focus:         ui.RGBA(122, 167, 255, 0.78),
-		warning:       ui.RGBA(255, 178, 164, 0.82),
-		scrollbar:     ui.RGBA(238, 239, 242, 0.15),
-		opaque:        ui.RGBA(26, 27, 30, 0.99),
-		fieldFill:     ui.RGBA(33, 34, 37, 0.99),
-		lensRim:       ui.RGBA(255, 255, 255, 0.15),
-		lensSheen:     ui.RGBA(255, 255, 255, 0.06),
-		lensEdge:      ui.RGBA(0, 0, 0, 0.15),
-		sheenTop:      ui.RGBA(255, 255, 255, 0.046),
-		sheenBottom:   ui.RGBA(255, 255, 255, 0.01),
-		shadowAmbient: ui.RGBA(0, 0, 0, 0.3),
-		shadowContact: ui.RGBA(0, 0, 0, 0.2),
+		background:     ui.Hex("#121316"),
+		text:           ui.Hex("#f2f3f5"),
+		textStrong:     ui.RGBA(244, 245, 247, 0.96),
+		textMuted:      ui.RGBA(238, 239, 242, 0.55),
+		textSecondary:  ui.RGBA(238, 239, 242, 0.74),
+		textTertiary:   ui.RGBA(238, 239, 242, 0.48),
+		accent:         ui.Hex("#8fb7ff"),
+		accentHover:    ui.Hex("#a9c8ff"),
+		accentPressed:  ui.Hex("#7aa7ff"),
+		accentText:     ui.Hex("#15171b"),
+		stroke:         ui.RGBA(255, 255, 255, 0.08),
+		strokeActive:   ui.RGBA(143, 183, 255, 0.24),
+		control:        ui.RGBA(255, 255, 255, 0.055),
+		controlHover:   ui.RGBA(255, 255, 255, 0.085),
+		controlPress:   ui.RGBA(255, 255, 255, 0.038),
+		controlEdge:    ui.RGBA(255, 255, 255, 0.06),
+		track:          ui.RGBA(255, 255, 255, 0.07),
+		field:          ui.RGBA(255, 255, 255, 0.03),
+		hairline:       ui.RGBA(255, 255, 255, 0.07),
+		selection:      ui.RGBA(143, 183, 255, 0.13),
+		focus:          ui.RGBA(122, 167, 255, 0.78),
+		warning:        ui.RGBA(255, 178, 164, 0.82),
+		scrollbar:      ui.RGBA(238, 239, 242, 0.15),
+		opaque:         ui.RGBA(26, 27, 30, 0.99),
+		fieldFill:      ui.RGBA(33, 34, 37, 0.99),
+		lensRim:        ui.RGBA(255, 255, 255, 0.15),
+		lensSheen:      ui.RGBA(255, 255, 255, 0.06),
+		lensEdge:       ui.RGBA(0, 0, 0, 0.15),
+		sheenTop:       ui.RGBA(255, 255, 255, 0.046),
+		sheenBottom:    ui.RGBA(255, 255, 255, 0.01),
+		shadowAmbient:  ui.RGBA(0, 0, 0, 0.3),
+		shadowContact:  ui.RGBA(0, 0, 0, 0.2),
+		edgeHighlight:  ui.RGBA(255, 255, 255, 0.15),
+		edgeShadow:     ui.RGBA(0, 0, 0, 0.28),
+		edgeHighlightX: ui.RGBA(255, 255, 255, 0.04),
 	}
 }
 
@@ -392,6 +410,7 @@ type palette struct {
 	lensRim, lensSheen, lensEdge                                         ui.Color
 	sheenTop, sheenBottom                                                ui.Color
 	shadowAmbient, shadowContact                                         ui.Color
+	edgeHighlight, edgeShadow, edgeHighlightX                            ui.Color
 }
 
 // round1 rounds to one decimal, so a scaled metric stays a value a CSS
