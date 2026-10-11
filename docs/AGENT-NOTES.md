@@ -129,3 +129,14 @@ opt-in（`FLOTER_TERMINAL_TEST=1`、`FLOTER_SQLITE_TEST=1`、`FLOTER_REGISTRY_TE
   **活得比面板久**，Flyout 由 parent 拥有、不可用。
 - **仍被框架挡住的细节**：`⌃⌫` 清空命令历史（编辑器先吃 Backspace/Delete）；行内的 source 槽、
   会话的 cwd 行（插件不报告会话 cwd）、插件列表的分页页脚（本构建是虚拟化列表）。
+
+## 2026-10-11 · 追加：scope 标记（模型改造完成）
+
+- **插件模式的状态模型现在是旧版的**：进入模式消耗触发词并清空字段（`enterClipboardWord` 等设
+  `modeWord` + `Query=""`），模式内搜索把字段当 needle（`clipboardQuery`/`browserQuery`/`calculatorQuery`/
+  `filesQuery` 直接返回 `a.Query`，`commandArgs`/`commandTokens` 不再剥首词），`syncCommandMode` 变成
+  no-op（模式只由用户离开），字段行左侧画 scope 标记（`scopeMark` + `glyphClipboard`）。
+- **离开语义**：Esc 走 `leave*`（**保留** needle 为普通查询，R31）；**运行**路径（`runClipboard`/`runMode`/
+  browser 运行）在离开后**清空** `a.Query`（旧版自己运行后 setQuery("")）。
+- 注意：`syncTypedMode` 的 files 分支必须走 `enterFiles()`（直接设标志不会消耗触发词）。
+- 测试：直接操作状态的旧测试要按新语义改（needle 即字段文本；`"clip "` 变 `""`）。
