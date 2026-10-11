@@ -344,6 +344,12 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 - `internal/inventory`：桌面条目 + flatpak/snap/nix/Homebrew/LaunchServices/Chocolatey/Scoop/
   WinGet 多来源发现、同工具合并、策展排序、指纹、TTL 缓存。
 
+## 视觉核验（本轮）
+
+- **scope 标记与输入框**：标记 x 20–85、输入 x 89 起、首行 y 86（字段 56u + chips 之下）——无重叠。
+- **浏览器模式**：mode 行的来源词按旧版 R30 丢弃（scope 标记已说），行只带 URL 与访问时间。
+- **文件行**：旧版无独立样式（普通 `.launcher-result` 行），本构建一致。
+
 ## 已知差距（框架不支持，诚实记录）
 
 - **直接输出的空格交互**：旧版 R65 的直接输出模式里，行尾有一颗 `␣` 提示（tooltip 讲解），
