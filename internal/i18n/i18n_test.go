@@ -12,8 +12,37 @@ import (
 // field a compile error, and this catches one left as the zero string.
 func TestEveryLanguageIsComplete(t *testing.T) {
 	checkComplete(t, "en", reflect.ValueOf(en), reflect.ValueOf(zh))
+	checkNoEmptyStrings(t, "en", reflect.ValueOf(en))
 	if got := For("zh").Launcher.Placeholder; got == en.Launcher.Placeholder {
 		t.Fatal("For(zh) returned the English copy")
+	}
+}
+
+// checkNoEmptyStrings fails on a declared copy field the base language never
+// filled. `checkComplete` only compares the two languages, so a key empty in
+// *both* slipped through — and it did: the calculator command's title, the
+// power confirmation's cancel label and the whole uninstall dialog shipped
+// blank. An empty English field is a bug, not a translation gap.
+func checkNoEmptyStrings(t *testing.T, path string, v reflect.Value) {
+	t.Helper()
+	for i := 0; i < v.NumField(); i++ {
+		field := v.Type().Field(i)
+		next := path + "." + field.Name
+		fv := v.Field(i)
+		switch fv.Kind() {
+		case reflect.String:
+			if strings.TrimSpace(fv.String()) == "" {
+				t.Errorf("%s is declared but empty", next)
+			}
+		case reflect.Struct:
+			checkNoEmptyStrings(t, next, fv)
+		case reflect.Slice:
+			for j := 0; j < fv.Len(); j++ {
+				if fv.Index(j).Kind() == reflect.Struct {
+					checkNoEmptyStrings(t, fmt.Sprintf("%s[%d]", next, j), fv.Index(j))
+				}
+			}
+		}
 	}
 }
 

@@ -89,7 +89,6 @@ func (a *App) configFields(c *ui.Context, copy i18n.Settings, integration Integr
 
 // configField draws one field, by its type.
 func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integration, draft configDraft, field ConfigField) {
-	t := c.Theme()
 	label := field.Label
 	if label == "" {
 		label = field.Key
@@ -172,7 +171,6 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 			}
 		})
 	}
-	_ = t
 }
 
 // tickedToValues is a multiselect's ticked options as the value a save writes,

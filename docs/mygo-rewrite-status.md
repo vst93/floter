@@ -138,6 +138,9 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
   侧栏当前页的药丸戴上 `--elev-0` 透镜。
 - **卸载对话框**：三个数据类别之前只画了勾选框，**说明行被丢掉**；现在每个类别是一张卡片
   （勾选框 + 名称 + 说明），与旧版 `.extensions-uninstall-component` 一致。
+- **i18n 空白字段**：声明了但**两种语言都没赋值**的文案——计算器命令行（启动器里一行完全空白的行）、
+  电源确认的取消按钮、以及整个卸载对话框的标题/说明/三个类别名与提示。补上英文/中文，
+  并把完整性测试从「zh 相对 en 不空」加强到「en 自己也不能有空字段」（这才是这类的漏洞）。
 
 **P7-a mygo v0.4.0 + 菜单栏与透明**（本轮）
 - mygo `v0.3.7 → v0.4.0`：新增 `ui.WebView`（页面内嵌原生 WebView，配 `Window.NewWebView`）、

@@ -766,10 +766,11 @@ func TestEmptyQueryOffersRecentApplications(t *testing.T) {
 	a.SetApps(found)
 	a.SetRecent([]string{"/Applications/Editor.app", "/Applications/Gone.app", "/Applications/Safari.app"}, true)
 
-	// A taller window: the built-in list grew with the power rows, and the
-	// recents — with their own heading — come after them.
+	// A taller window: the built-in list grew with the power rows and the
+	// calculator's own line, and the recents — with their own heading — come
+	// after them.
 	tt := ui.NewTester(func(c *ui.Context) { a.View(c) },
-		InputWindowWidth, int(WindowHeight("small"))+200)
+		InputWindowWidth, int(WindowHeight("small"))+240)
 	tt.Frame()
 	// The built-in commands come first, then the recents, most-used first,
 	// with the one that is gone left out.
