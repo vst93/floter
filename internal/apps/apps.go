@@ -59,12 +59,17 @@ func (a App) Open() error {
 	if len(a.Exec) > 0 {
 		cmd := exec.Command(a.Exec[0], a.Exec[1:]...)
 		cmd.Dir = homeDir()
-		// Detach: the launcher must not wait for the app, and the app must
-		// not die with it.
+		// Detach completely: the launcher must not wait for the app, the app
+		// must not die with it, and - the Linux case this build ships for -
+		// it must not share the launcher's process group or session, where a
+		// signal meant for either would reach both. (internal/spawn's own
+		// detach, restated here so the two cannot drift.)
 		cmd.Stdin, cmd.Stdout, cmd.Stderr = nil, nil, nil
+		detachExec(cmd)
 		if err := cmd.Start(); err != nil {
 			return err
 		}
+		go func() { _ = cmd.Wait() }()
 		return nil
 	}
 	return mygo.Shell.OpenPath(a.Path)

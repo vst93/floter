@@ -15,11 +15,13 @@ import (
 	"log"
 	"math"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/egoist/mygo"
@@ -898,6 +900,20 @@ func (a *App) onMain(fn func()) {
 // Start creates the window and installs the global shortcut. It must run
 // from App.WhenReady (or later).
 func (a *App) Start() {
+	// The panel is a resident tray app: a terminal that launched it closing
+	// sends SIGHUP to the whole session, and the framework's own handler
+	// answers SIGINT and SIGTERM but leaves SIGHUP at its default - which is
+	// to die. The panel ignores it instead, so the shell that started the
+	// launcher cannot take it down from behind (a real Quit still runs the
+	// quit listeners, through the tray, the launcher's own row, or the
+	// window's close).
+	sighup := make(chan os.Signal, 1)
+	signal.Notify(sighup, syscall.SIGHUP)
+	go func() {
+		for range sighup {
+			log.Printf("floter: SIGHUP received; the panel stays")
+		}
+	}()
 	if a.workArea <= 0 {
 		if displays := mygo.Screen.Displays(); len(displays) > 0 {
 			a.workArea = float64(displays[0].WorkArea.Height)
