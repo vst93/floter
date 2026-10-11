@@ -239,9 +239,31 @@ func TestSessionsPage(t *testing.T) {
 			t.Errorf("missing %q in %q", want, tt.Texts())
 		}
 	}
-	// The session on screen carries no "show" control: it is already there.
+	// Closing a session kills its program, so the control arms first: one
+	// press asks, and the second ends it.
 	if err := tt.Click("Close session"); err != nil {
 		t.Fatalf("close: %v", err)
+	}
+	tt.Frame()
+	if closed != 0 {
+		t.Fatalf("the first press closed a session: %d", closed)
+	}
+	if !tt.HasText("Close it?") {
+		t.Fatalf("the armed question is missing: %q", tt.Texts())
+	}
+	if err := tt.Click("Keep"); err != nil {
+		t.Fatalf("cancel: %v", err)
+	}
+	tt.Frame()
+	if closed != 0 {
+		t.Errorf("the way back closed a session: %d", closed)
+	}
+	if err := tt.Click("Close session"); err != nil {
+		t.Fatalf("close: %v", err)
+	}
+	tt.Frame()
+	if err := tt.Click("Close it?"); err != nil {
+		t.Fatalf("confirm: %v", err)
 	}
 	tt.Frame()
 	if closed != 1 {

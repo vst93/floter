@@ -293,6 +293,10 @@ type Settings struct {
 	SessionsShowing string
 	SessionsShow    string
 	SessionsNew     string
+	// Closing a session kills its program, so it arms first: the question the
+	// armed control asks and the way back from it.
+	SessionsCloseConfirm string
+	SessionsCloseCancel  string
 
 	// The permission dialog the installer shows, and the permission line
 	// the integrations list draws.

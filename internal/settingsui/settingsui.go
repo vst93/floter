@@ -353,6 +353,10 @@ type App struct {
 	// connecting something new.
 	toolEditing string
 
+	// sessionsArmed holds the sessions whose close control has been pressed
+	// once: the second press ends the session's program.
+	sessionsArmed map[int]bool
+
 	// Sessions reports the running sessions; nil when the shell has none
 	// (tests).
 	Sessions func() []Session
@@ -750,10 +754,27 @@ func (a *App) sessions(c *ui.Context, copy i18n.Settings) {
 									a.Actions.SelectSession(session.Index)
 								}
 							}
-							if a.Actions.CloseSessionAt != nil {
-								if ui.Button(c, copy.SessionsClose).Clicked() {
+							// Closing a session kills its program, so it arms
+							// first — the same two-step the panel's own
+							// destructive controls use.
+							if a.Actions.CloseSessionAt == nil {
+								return
+							}
+							if a.sessionsArmed[session.Index] {
+								if ui.Button(c, copy.SessionsCloseConfirm).TextColor(t.Danger).Clicked() {
+									delete(a.sessionsArmed, session.Index)
 									a.Actions.CloseSessionAt(session.Index)
 								}
+								if ui.Button(c, copy.SessionsCloseCancel).Clicked() {
+									delete(a.sessionsArmed, session.Index)
+								}
+								return
+							}
+							if ui.Button(c, copy.SessionsClose).Clicked() {
+								if a.sessionsArmed == nil {
+									a.sessionsArmed = map[int]bool{}
+								}
+								a.sessionsArmed[session.Index] = true
 							}
 						})
 					})
