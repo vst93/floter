@@ -581,14 +581,15 @@ func (a *App) calculator() (Item, bool) {
 	}
 	result := calc.Format(value)
 	expression := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(a.Query), "="))
-	detail := expression
-	if detail == result {
-		detail = ""
-	}
+	// The answer is the trailing value, complete at the row's right edge, and
+	// the expression is the title that gives up room — the same row R50 drew
+	// for the history, with the two registers swapped when the query is the
+	// expression rather than a history entry.
 	return Item{
-		ID:     "calc",
-		Title:  result,
-		Detail: detail,
+		ID:       "calc",
+		Title:    expression,
+		Detail:   "",
+		trailing: result,
 		Run: func() {
 			if a.Actions.Copy != nil {
 				a.Actions.Copy(result)

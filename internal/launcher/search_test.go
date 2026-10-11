@@ -169,8 +169,8 @@ func TestCalculatorRowComesFirstAndCopies(t *testing.T) {
 	if len(got) == 0 || got[0].ID != "calc" {
 		t.Fatalf("Results(2+2) = %v", ids(got))
 	}
-	if got[0].Title != "4" || got[0].Detail != "2+2" {
-		t.Errorf("calc row = %q / %q", got[0].Title, got[0].Detail)
+	if got[0].Title != "2+2" || got[0].trailing != "4" {
+		t.Errorf("calc row = %q / trailing %q", got[0].Title, got[0].trailing)
 	}
 	a.activate(got)
 	if testRuns["copy"] != 1 {
