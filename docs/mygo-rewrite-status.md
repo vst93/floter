@@ -372,6 +372,15 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 - **会话页的状态行**：旧版 `.session-manager` 的三句（`Running · attached` / `Running · detached` /
   `Process exited · code N`）——本构建的会话自带自己的状态行，页面只印它。
 - **托盘菜单**：语言变化重建（菜单滞后于界面比没有菜单更糟）；App icon 明暗切换同时换托盘标记。
+- **⌘ 裸终端行**：R64 的规则一致——只在普通页 + 空字段 + 修饰键按下时出现，位于列表**最后一行**
+  且被预选（R61 的"列表额外增加"已废弃），输入查询时该行完全不画；行内的快捷键徽标是动作栏自己的
+  `⌘↩`（放进该行的和弦就是打开它的和弦）。
+- **普通页 Tab**：本构建直接进入参数模式（旧版展开命令行文本）——有意为之的差异，已命名记录。
+- **设置选择器**：220u（旧版 `.settings-select` 的 max-width）。
+- **插件表单**：meta/title/label/help 的层级、8u 分组间距、卡片 14u 内缩、失败行 caption + 警告色、
+  选择器 220u——全部回到旧版 `.plugin-config` 自己的读法。
+- **反馈进入动画**：`feedback-enter` 的 160ms（旧版 `--dur-3`），状态行与 resident 提示同一。
+- **计算器行**：R50 的寄存器（表达式是标题、答案完整在右），历史行与"算式即查询"的答案行一致。
 
 ## 已知差距（框架不支持，诚实记录）
 
