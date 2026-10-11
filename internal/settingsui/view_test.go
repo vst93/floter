@@ -1776,3 +1776,23 @@ func TestSettingsHeaderBand(t *testing.T) {
 		t.Errorf("buttons were drawn with no actions: %q", tt.Texts())
 	}
 }
+
+// "Restore defaults" is the shortcuts group's own action, on the group title
+// row - and it really resets: the shell's reset re-registers the shipped
+// bindings and drops the custom ones.
+func TestRestoreDefaultsRuns(t *testing.T) {
+	reset := 0
+	a := New(newStore(t), Actions{ResetShortcuts: func() { reset++ }})
+	tt := render(t, a, 720, 800)
+	if err := tt.Click("Shortcuts"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if err := tt.Click("Restore the shipped keys"); err != nil {
+		t.Fatalf("restore: %v", err)
+	}
+	tt.Frame()
+	if reset != 1 {
+		t.Errorf("restore ran %d times", reset)
+	}
+}
