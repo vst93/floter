@@ -8,7 +8,7 @@
 
 用 mygo（原生 GPU 自绘 UI + Go）重写的 floter **已经是一个可打包、可运行的完整应用**：单窗口三表面
 （启动器 / 设置 / 终端）、搜索内核、扩展平台（含后台运行、列表协议、导入导出、权限审计）、剪贴板、
-浏览器、计算器、系统集成、打包与 CI 全部就位。**539 项测试全绿**，三平台都能构建，Linux 打包
+浏览器、计算器、系统集成、打包与 CI 全部就位。**540 项测试全绿**，三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
 含测试）。
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 539 项测试
+go test -count=1 ./...         # 540 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -452,6 +452,10 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 - **重扫**：托盘的 Re-scan 覆盖四个来源（应用、PATH 工具、安装目录、集成），缓存扫描在其前。
 - **扫描容错**：应用扫描内部逐条容错（无整体失败态），旧版 scanFailed + 重试按钮的场景在本构建
   不存在。
+
+- **"Restore defaults" 此前是空操作**：快捷键页的分组动作的 handler 是空函数——按下什么都不发生，
+  而且它被包在第二张卡与第二行里。旧版把分组动作放在**分组标题行**上（`settings-section__heading-
+  actions`，与标题基线对齐）。现在动作在标题行上（`sectionWithAction`），并真正运行 shell 的重置。
 
 ## 已知差距（框架不支持，诚实记录）
 
