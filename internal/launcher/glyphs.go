@@ -44,6 +44,7 @@ var (
 	glyphAlert      = ui.MustParseSVG([]byte(glyphSource(`<circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/>`)))
 	glyphWindow     = ui.MustParseSVG([]byte(glyphSource(`<rect width="20" height="16" x="2" y="4" rx="2"/><path d="M6 8h.01"/><path d="M10 8h.01"/>`)))
 	glyphClose      = ui.MustParseSVG([]byte(glyphSource(`<path d="M18 6 6 18"/><path d="m6 6 12 12"/>`)))
+	glyphClipboard  = ui.MustParseSVG([]byte(glyphSource(`<rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>`)))
 )
 
 // rowGlyph picks the mark for a row from what the row is: an application shows
@@ -187,6 +188,8 @@ func Glyph(name string) (*ui.SVG, bool) {
 		return glyphWindow, true
 	case "close":
 		return glyphClose, true
+	case "clipboard":
+		return glyphClipboard, true
 	case "clock":
 		return glyphClock, true
 	case "star":

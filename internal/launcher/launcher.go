@@ -296,6 +296,10 @@ type App struct {
 	// config is the open plugin-configuration overlay, which takes the result
 	// list's place (see config.go).
 	config *Config
+	// modeWord is the trigger word the mode on screen was entered with: the
+	// scope marker draws it as the icon and the name beside the field, and
+	// leaving the mode restores it as an ordinary query.
+	modeWord string
 	// pendingPower is the power action the panel is asking about: the
 	// confirmation row shows until the user answers it (see power.go).
 	pendingPower string
@@ -702,6 +706,18 @@ func (a *App) View(c *ui.Context) {
 
 		ui.Row(c).Absolute().Top(0).Left(0).Right(0).Height(fieldRow).
 			AlignItems(ui.Center).Gap(t.Space(1)).Children(func() {
+			// The scope mark: the mode that owns the field, at its left — the
+			// icon says a plugin owns it and the muted word says which one
+			// (`.collapsed-card__scope` / `__scope-name`). The trigger word
+			// was consumed on entry, so this is the only place the mode is
+			// named.
+			if glyph, name, ok := a.scopeMark(copy); ok {
+				mark := ui.Row(c).Shrink(0).Gap(t.Space(1)).AlignItems(ui.Center)
+				mark.Children(func() {
+					ui.Icon(c, glyph).Size(t.Space(4), t.Space(4)).TextColor(t.TextMuted)
+					ui.Text(c, name).FontSize(t.FontSize).TextColor(t.TextMuted)
+				})
+			}
 			field := ui.TextInput(c.Key("launcher.search"), &a.Query).
 				Bind(&a.Search).
 				Label(copy.Label).
@@ -981,13 +997,14 @@ func (a *App) selectedClip() (clipboard.Entry, bool) {
 
 // enterCommand starts typing an extension command's arguments: the field
 // holds its argv, and the list offers the command's declared arguments.
+// enterCommand opens an extension command's mode: the scope marker names the
+// command beside the field, and the field holds its argv — the trigger word is
+// consumed, as `enterPluginMode` did (the field is emptied, not kept).
 func (a *App) enterCommand(entry extensions.CommandEntry) {
 	copied := entry
 	a.mode = &copied
-	a.Query = entry.Command.ID
-	if entry.Command.ID != "" {
-		a.Query += " "
-	}
+	a.modeWord = entry.Command.ID
+	a.Query = ""
 	a.Selected, a.chosenRow = 0, -1
 	a.pendingCaret = true
 }
@@ -995,7 +1012,7 @@ func (a *App) enterCommand(entry extensions.CommandEntry) {
 // leaveCommand returns to the search.
 func (a *App) leaveCommand() {
 	a.mode = nil
-	a.Query = ""
+	a.modeWord = ""
 	a.Selected, a.chosenRow = 0, -1
 }
 
@@ -1020,8 +1037,7 @@ func (a *App) syncTypedMode() {
 	case wordIn(word, calculatorWords):
 		a.enterCalculatorWord(a.Query)
 	case wordIn(word, filesWords):
-		a.files = true
-		a.Selected, a.chosenRow = 0, -1
+		a.enterFiles()
 	}
 }
 
@@ -1036,33 +1052,12 @@ func modeWord(query string) (string, bool) {
 	return strings.ToLower(query[:index]), true
 }
 
-// syncCommandMode leaves the mode when the line no longer starts with the
-// word that entered it, which is what deleting it does.
+// syncCommandMode keeps the mode on screen. The trigger word was consumed on
+// entry — the field holds the needle, and the scope marker names the mode — so
+// there is nothing in the line to re-check: a mode leaves when the user leaves
+// it (Escape, or the row that hands the query back), not because of what the
+// field happens to hold.
 func (a *App) syncCommandMode() {
-	if a.mode == nil && !a.clipboard && !a.browser && !a.calculatorMode && !a.files {
-		return
-	}
-	word := firstWord(a.Query)
-	keep := false
-	switch {
-	case a.mode != nil:
-		keep = strings.EqualFold(word, a.mode.Command.ID)
-	case a.browser:
-		keep = wordIn(word, browserWords)
-	case a.clipboard:
-		keep = wordIn(word, clipboardWords)
-	case a.calculatorMode:
-		keep = wordIn(word, calculatorWords)
-	case a.files:
-		keep = wordIn(word, filesWords)
-	}
-	if !keep {
-		a.leaveCommand()
-		a.leaveClipboard()
-		a.leaveBrowser()
-		a.leaveCalculator()
-		a.leaveFiles()
-	}
 }
 
 // wordIn reports whether a query's first word is one of a mode's trigger
@@ -1120,49 +1115,41 @@ func (a *App) enterClipboardWord(query string) {
 	a.browser = false
 	a.calculatorMode = false
 	a.clipboard = true
+	a.modeWord = firstWord(query)
+	a.Query = ""
 	a.clipboardFilter = filterAll
-	a.Query = query
 	a.Selected, a.chosenRow = 0, -1
 	a.pendingCaret = true
 }
 
-// leaveClipboard returns to the search.
+// leaveClipboard returns to the search, keeping what the user typed: the
+// needle the user typed becomes an ordinary query, as the old build's own
+// dismissal did (R31: the user's words are never thrown away by a dismissal).
 func (a *App) leaveClipboard() {
 	if !a.clipboard {
 		return
 	}
 	a.clipboard = false
-	a.Query = ""
+	a.modeWord = ""
 	a.Selected, a.chosenRow = 0, -1
 }
 
-// clipboardQuery is what the user typed after the mode word.
+// clipboardQuery is what the user typed: the field holds the needle alone, the
+// trigger word having been consumed on entry.
 func (a *App) clipboardQuery() string {
-	words := splitArgs(a.Query)
-	if len(words) <= 1 {
-		return ""
-	}
-	return strings.Join(words[1:], " ")
+	return a.Query
 }
 
 // commandArgs is the typed argument words, without the command itself.
 func (a *App) commandArgs() []string {
-	words := splitArgs(a.Query)
-	if len(words) <= 1 {
-		return nil
-	}
-	return words[1:]
+	return splitArgs(a.Query)
 }
 
 // commandTokens is what the completions are asked about: the argument words,
 // with an empty last token while a new word is being typed (the field ends
 // in a space), as a completion request needs.
 func (a *App) commandTokens() []string {
-	words := splitArgs(a.Query)
-	tokens := []string{}
-	if len(words) > 1 {
-		tokens = append(tokens, words[1:]...)
-	}
+	tokens := splitArgs(a.Query)
 	if a.Query != "" && strings.TrimRight(a.Query, " \t") != a.Query {
 		tokens = append(tokens, "")
 	}
@@ -1468,6 +1455,7 @@ func (a *App) activate(results []Item) {
 			}
 		}
 		a.leaveBrowser()
+		a.Query = ""
 		a.Hide()
 		return
 	}
@@ -1526,18 +1514,15 @@ func (a *App) enterBrowserWord(query string) {
 	a.calculatorMode = false
 	a.browserFilter = filterAll
 	a.browser = true
-	a.Query = query
+	a.modeWord = firstWord(query)
+	a.Query = ""
 	a.Selected, a.chosenRow = 0, -1
 	a.pendingCaret = true
 }
 
-// browserQuery is what the user typed after the mode word.
+// browserQuery is what the user typed: the field holds the needle alone.
 func (a *App) browserQuery() string {
-	words := splitArgs(a.Query)
-	if len(words) <= 1 {
-		return ""
-	}
-	return strings.Join(words[1:], " ")
+	return a.Query
 }
 
 // askBrowser asks the shell for results once per query.
@@ -1578,6 +1563,10 @@ func (a *App) runClipboard(results []Item) {
 		}
 	}
 	a.leaveClipboard()
+	// A run clears the field, as the old build's own copy did: the next
+	// summon starts from the empty needle, not from the query that produced
+	// the row the user just used.
+	a.Query = ""
 	if a.Actions.Dismiss != nil {
 		a.Actions.Dismiss()
 	}
@@ -1589,6 +1578,8 @@ func (a *App) runMode() {
 	entry := *a.mode
 	args := a.commandArgs()
 	a.leaveCommand()
+	// A run clears the field, as the old build's own runs did.
+	a.Query = ""
 	a.runCommandWith(entry, args)
 }
 
@@ -1728,6 +1719,31 @@ func (a *App) heldTerminalItem() (Item, bool) {
 			}
 		},
 	}, true
+}
+
+// scopeMark is the mode that owns the field: its mark and its name. Ok is
+// false on the ordinary search page, whose field has no owner.
+func (a *App) scopeMark(copy i18n.Launcher) (*ui.SVG, string, bool) {
+	name := func(scope string) string { return scope }
+	switch {
+	case a.mode != nil:
+		glyph, _ := Glyph("terminal")
+		label := a.mode.Command.Name
+		if label == "" {
+			label = name(copy.ScopePlugin)
+		}
+		return glyph, label, true
+	case a.clipboard:
+		glyph, _ := Glyph("clipboard")
+		return glyph, name(copy.ScopeClipboard), true
+	case a.browser:
+		glyph, _ := Glyph("globe")
+		return glyph, name(copy.ScopeBrowser), true
+	case a.calculatorMode:
+		glyph, _ := Glyph("calculator")
+		return glyph, name(copy.ScopeCalculator), true
+	}
+	return nil, "", false
 }
 
 // fieldButtons draws the field row's trailing controls: the two ways in the

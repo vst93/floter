@@ -267,8 +267,10 @@ func TestTabExpandsAnExtensionCommandIntoItsArguments(t *testing.T) {
 	if a.mode == nil {
 		t.Fatalf("Tab did not enter the command mode: %q", tt.Texts())
 	}
-	if a.Query != "jv " {
-		t.Errorf("the field holds %q, want the command id and a space", a.Query)
+	// The trigger word was consumed on entry: the field holds the argv, and
+	// the scope marker beside it names the command.
+	if a.Query != "" {
+		t.Errorf("the field holds %q, want the empty argv", a.Query)
 	}
 	// The list offers the command's arguments (every name), not the enum
 	// values, until the argument that takes them is typed.
@@ -323,8 +325,8 @@ func TestCommandModeFiltersCompletesAndRuns(t *testing.T) {
 	// Tab completes the chosen argument into the line.
 	tt.Key(0, ui.KeyTab)
 	tt.Frame()
-	if a.Query != "jv -mode " {
-		t.Fatalf("completion left %q, want \"jv -mode \"", a.Query)
+	if a.Query != "-mode " {
+		t.Fatalf("completion left %q, want \"-mode \"", a.Query)
 	}
 
 	// Enter runs the typed argv.
@@ -351,11 +353,10 @@ func TestEscapeLeavesTheCommandMode(t *testing.T) {
 	if a.mode != nil {
 		t.Error("Escape did not leave the command mode")
 	}
-	if a.Query != "" {
-		t.Errorf("the field holds %q", a.Query)
-	}
-	if !tt.HasText("Open settings") {
-		t.Errorf("the search did not come back: %q", tt.Texts())
+	// The needle the user typed becomes an ordinary query: the user's own
+	// words are never thrown away by a dismissal (the old build's R31).
+	if a.Query != "-f" {
+		t.Errorf("the field holds %q, want the needle", a.Query)
 	}
 }
 
@@ -369,13 +370,16 @@ func TestDeletingTheCommandLeavesTheMode(t *testing.T) {
 		t.Fatal("Tab did not enter the mode")
 	}
 
-	// The user deletes the command id: the mode goes with it.
-	for range "jv " {
-		tt.Key(0, ui.KeyBackspace)
+	// Deleting the needle empties the field but does not end the mode: the
+	// trigger word was consumed on entry, and the scope marker still names the
+	// command the field is feeding. Escape is what leaves it.
+	for range "needle" {
+		tt.Type("-x")
 	}
+	tt.Key(0, ui.KeyEscape)
 	tt.Frame()
 	if a.mode != nil {
-		t.Errorf("the mode survived deleting the id: query=%q", a.Query)
+		t.Errorf("Escape left the mode on: query=%q", a.Query)
 	}
 }
 
@@ -418,8 +422,13 @@ func TestClipboardModeSearchesAndCopies(t *testing.T) {
 	}
 	tt.TypeKey(0, ui.KeyEnter, "")
 	tt.Frame()
-	if a.Query != "clipboard " || !a.clipboard {
-		t.Fatalf("Enter left query %q, clipboard=%v", a.Query, a.clipboard)
+	if !a.clipboard {
+		t.Fatalf("clipboard=%v", a.clipboard)
+	}
+	// The trigger word was consumed on entry: the field holds the needle, and
+	// the scope marker beside it names the mode.
+	if a.Query != "" {
+		t.Fatalf("Enter left query %q", a.Query)
 	}
 	// Both entries show while the query is empty.
 	if !tt.HasText("first clip") || !tt.HasText("second clip with a secret") {
@@ -436,7 +445,8 @@ func TestClipboardModeSearchesAndCopies(t *testing.T) {
 		t.Fatalf("the entry did not match: %q", tt.Texts())
 	}
 
-	// Enter copies it, leaves the mode and dismisses the window.
+	// Enter copies it, leaves the mode and dismisses the window. The run
+	// clears the field, as the old build's own copy did.
 	tt.TypeKey(0, ui.KeyEnter, "")
 	tt.Frame()
 	if testRuns["copy"] != 1 {
@@ -526,7 +536,7 @@ func TestDynamicCompletionsMergeIntoTheCommandMode(t *testing.T) {
 	// Tab takes it, and Enter runs the argv.
 	tt.Key(0, ui.KeyTab)
 	tt.Frame()
-	if a.Query != "jv -run deploy " {
+	if a.Query != "-run deploy " {
 		t.Fatalf("completion left %q", a.Query)
 	}
 	tt.TypeKey(0, ui.KeyEnter, "")
@@ -620,7 +630,7 @@ func TestBrowserModeOpensAndCopies(t *testing.T) {
 	tt := render(t, a)
 	tt.Type("browser ")
 	tt.Frame()
-	if !a.browser || a.Query != "browser " {
+	if !a.browser {
 		t.Fatalf("the browser mode did not open: %v %q", a.browser, a.Query)
 	}
 	if !tt.HasText("Go Documentation") || !tt.HasText("Rust") {
@@ -923,7 +933,7 @@ func TestCalculatorModeEvaluatesRecordsAndCopies(t *testing.T) {
 	tt.Frame()
 	tt.TypeKey(0, ui.KeyEnter, "")
 	tt.Frame()
-	if !a.calculatorMode || a.Query != "calc " {
+	if !a.calculatorMode {
 		t.Fatalf("the mode did not open: %v %q", a.calculatorMode, a.Query)
 	}
 	if !tt.HasText("10*3") || !tt.HasText("sqrt(16)") {
@@ -949,10 +959,11 @@ func TestCalculatorModeEvaluatesRecordsAndCopies(t *testing.T) {
 		t.Errorf("the mode survived Enter: %v %q", a.calculatorMode, a.Query)
 	}
 
-	// A history row copies the whole line in full mode.
+	// A history row copies the whole line in full mode: the field holds the
+	// needle, so the row the choice lands on is the one the needle names.
 	a.CopyMode = calculator.CopyFull
 	a.EnterCalculator()
-	a.Query = "calc 10*3"
+	a.Query = "10*3"
 	tt.Frame()
 	tt.TypeKey(0, ui.KeyEnter, "")
 	tt.Frame()
@@ -1028,13 +1039,19 @@ func TestCalculatorModeWords(t *testing.T) {
 			t.Errorf("%q did not enter the mode", word)
 			continue
 		}
-		if got := a.calculatorQuery(); got != "2+2" {
+		// The word was consumed on entry: the field is empty, and the needle
+		// the user types next is the field's own text.
+		if got := a.calculatorQuery(); got != "" {
 			t.Errorf("%q kept needle %q", word, got)
 		}
 		a.Query = "2+2"
-		a.syncCommandMode()
+		if got := a.calculatorQuery(); got != "2+2" {
+			t.Errorf("%q lost the needle %q", word, got)
+		}
+		// Escape is what leaves it; the needle becomes an ordinary query.
+		a.leaveCalculator()
 		if a.calculatorMode {
-			t.Errorf("%q did not leave the mode when the word went", word)
+			t.Errorf("%q did not leave the mode", word)
 		}
 	}
 }
@@ -1090,7 +1107,6 @@ func TestCalculatorDeleteControl(t *testing.T) {
 	a.Actions.Copy = func(string) { testRuns["copy"]++ }
 	tt := render(t, a)
 	a.EnterCalculator()
-	a.Query = "calc "
 	tt.Frame()
 	if err := tt.Click("Delete"); err != nil {
 		t.Fatal(err)
@@ -1497,7 +1513,7 @@ func TestFilesModeOffersTheDropActions(t *testing.T) {
 
 	// A file's cd stands next to it; a folder's enters it.
 	a.EnterFiles()
-	a.Query = "files report"
+	a.Query = "report"
 	tt.Frame()
 	tt.Key(0, ui.KeyDown)
 	tt.Frame()
@@ -1507,7 +1523,7 @@ func TestFilesModeOffersTheDropActions(t *testing.T) {
 		t.Errorf("cd = %q", cdTo)
 	}
 	a.EnterFiles()
-	a.Query = "files projects"
+	a.Query = "projects"
 	tt.Frame()
 	tt.Key(0, ui.KeyDown)
 	tt.Frame()
@@ -1519,7 +1535,7 @@ func TestFilesModeOffersTheDropActions(t *testing.T) {
 
 	// Copy puts the absolute path on the clipboard.
 	a.EnterFiles()
-	a.Query = "files report"
+	a.Query = "report"
 	tt.Frame()
 	tt.Key(0, ui.KeyDown)
 	tt.Frame()
@@ -1543,10 +1559,12 @@ func TestFilesModeLeavesWithItsWord(t *testing.T) {
 	if !a.InFilesMode() {
 		t.Fatal("the mode did not open")
 	}
-	a.Query = "a.txt"
+	// The needle narrows the list; the mode itself leaves on Escape, not when
+	// the field changes.
+	tt.Key(0, ui.KeyEscape)
 	tt.Frame()
 	if a.InFilesMode() {
-		t.Error("the mode survived losing its word")
+		t.Error("Escape left the mode on")
 	}
 }
 

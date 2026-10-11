@@ -48,6 +48,12 @@ type Launcher struct {
 	BrowserFilterHint    string
 	ClipboardFilterHint  func(shortcut string) string
 	CalculatorFilterHint func(shortcut string) string
+	// The scope marker's name: the mode that owns the field, as the old
+	// build's `.collapsed-card__scope-name` printed it.
+	ScopeBrowser    string
+	ScopeClipboard  string
+	ScopeCalculator string
+	ScopePlugin     string
 	// ConfigurePlugin is the gear's own word in a mode's chips row, and
 	// ConfigurePluginClose the same control once its panel is open.
 	ConfigurePlugin      string

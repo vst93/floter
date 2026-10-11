@@ -56,8 +56,9 @@ func (a *App) enterCalculatorWord(query string) {
 	a.clipboard = false
 	a.browser = false
 	a.calculatorMode = true
+	a.modeWord = firstWord(query)
+	a.Query = ""
 	a.calculatorFilter = calculatorFilterAll
-	a.Query = query
 	a.Selected, a.chosenRow = 0, -1
 	a.pendingCaret = true
 	a.refreshCalculator()
@@ -75,11 +76,7 @@ func (a *App) leaveCalculator() {
 
 // calculatorQuery is what the user typed after the mode word.
 func (a *App) calculatorQuery() string {
-	words := splitArgs(a.Query)
-	if len(words) <= 1 {
-		return ""
-	}
-	return strings.TrimSpace(strings.Join(words[1:], " "))
+	return a.Query
 }
 
 // RefreshCalculator re-reads the history from the source, for a caller that

@@ -274,12 +274,12 @@ func TestModeEmptyMessages(t *testing.T) {
 		t.Errorf("clipboard empty = %q", got)
 	}
 	// A needle that matched nothing.
-	a.Query = "clipboard zzz"
+	a.Query = "zzz"
 	if got := a.emptyMessage(copy); got != copy.ClipboardEmptyFilter {
 		t.Errorf("clipboard filter = %q", got)
 	}
 	// The favorites chip.
-	a.Query = "clipboard "
+	a.Query = ""
 	a.clipboardFilter = filterFavorites
 	if got := a.emptyMessage(copy); got != copy.ClipboardEmptyFavorites {
 		t.Errorf("clipboard favorites = %q", got)

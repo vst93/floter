@@ -41,7 +41,8 @@ func (a *App) enterFiles() {
 	a.browser = false
 	a.calculatorMode = false
 	a.files = true
-	a.Query = filesWord + " "
+	a.modeWord = filesWord
+	a.Query = ""
 	a.Selected, a.chosenRow = 0, -1
 	a.pendingCaret = true
 }
@@ -52,17 +53,13 @@ func (a *App) leaveFiles() {
 		return
 	}
 	a.files = false
-	a.Query = ""
+	a.modeWord = ""
 	a.Selected, a.chosenRow = 0, -1
 }
 
-// filesQuery is what the user typed after the mode word.
+// filesQuery is what the user typed: the field holds the needle alone.
 func (a *App) filesQuery() string {
-	words := splitArgs(a.Query)
-	if len(words) <= 1 {
-		return ""
-	}
-	return strings.Join(words[1:], " ")
+	return a.Query
 }
 
 // filesItems is the files mode's list: one row per dropped file per action,
