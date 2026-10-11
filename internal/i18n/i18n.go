@@ -42,6 +42,12 @@ type Launcher struct {
 	TraySettings string
 	TrayReload   string
 	TrayQuit     string
+	// The mode's chips row carries a one-line hint at its end, as the old
+	// build's `.launcher-filter__hint` did: what Tab does, and the keys the
+	// list itself answers.
+	BrowserFilterHint    string
+	ClipboardFilterHint  func(shortcut string) string
+	CalculatorFilterHint func(shortcut string) string
 	// ConfigurePlugin is the gear's own word in a mode's chips row, and
 	// ConfigurePluginClose the same control once its panel is open.
 	ConfigurePlugin      string

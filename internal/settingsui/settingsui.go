@@ -489,9 +489,13 @@ func (a *App) View(c *ui.Context) {
 		a.Actions.Close()
 	}
 
+	// The reference's own two columns: a 148px sidebar over the content, with
+	// the sidebar's 12u/8u padding, its 3u rhythm and the hairline where it
+	// ends. The column pads 8u, so a row's own 8u lands on the card's 16u text
+	// column — the line the header title and the launcher's field sit on.
 	ui.Row(c).Fill().AlignItems(ui.Stretch).Gap(t.Space(3)).Children(func() {
-		ui.Column(c).Width(180).Gap(t.Space(0.5)).Children(func() {
-			ui.Text(c, copy.Title).FontSize(t.FontSize+4).Bold().Padding(0, t.Space(1), t.Space(1), t.Space(1))
+		ui.Column(c).Width(148).Padding(t.Space(3), t.Space(2)).Gap(t.Space(0.75)).Children(func() {
+			ui.Text(c, copy.Title).FontSize(t.FontSize+4).Bold().Padding(0, t.Space(2), t.Space(1), t.Space(2))
 			ui.List(c.Key("settings.sidebar"), &a.Sidebar, pageCount, func(i int) {
 				a.sidebarRow(c, i)
 			}).Grow(1).Label(copy.Title)

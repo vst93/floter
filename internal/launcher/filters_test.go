@@ -1,6 +1,7 @@
 package launcher
 
 import (
+	"runtime"
 	"strings"
 	"testing"
 
@@ -12,6 +13,7 @@ import (
 	"floter/internal/extensions"
 	"floter/internal/plugincfg"
 	"floter/internal/settings"
+	"floter/internal/shortcuts"
 	"floter/internal/tools"
 
 	clipboardpkg "floter/internal/clipboard"
@@ -675,5 +677,47 @@ func TestHistoryRowStar(t *testing.T) {
 	tt.Frame()
 	if entry, _ := a.selectedClip(); entry.Favorite {
 		t.Errorf("the star did not clear: %+v", entry)
+	}
+}
+
+// The chips row carries the mode's own hint at its end, as the old build's
+// `.launcher-filter__hint` did: what Tab does, and the favourite key spelled
+// the way this platform spells it.
+func TestFilterRowHint(t *testing.T) {
+	a, _ := clipboardApp(t)
+	tt := render(t, a)
+	tt.Type("clipboard")
+	tt.Frame()
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	copy := a.copy()
+	accelerator := "Ctrl+D"
+	if runtime.GOOS == "darwin" {
+		accelerator = "Cmd+D"
+	}
+	want := copy.ClipboardFilterHint(shortcuts.Badge(accelerator, "D"))
+	if !tt.HasText(want) {
+		t.Fatalf("the chips hint is missing: %q (want %q)", tt.Texts(), want)
+	}
+	// The badge is the platform's own spelling of the app modifier.
+	if runtime.GOOS == "darwin" {
+		if badge := shortcuts.Badge("Cmd+D", "D"); badge != "\u2318D" {
+			t.Errorf("macOS badge = %q", badge)
+		}
+	} else if badge := shortcuts.Badge("Ctrl+D", "D"); badge != "Ctrl+D" {
+		t.Errorf("badge = %q", badge)
+	}
+	// The browser mode's own hint has no favourite key in it.
+	a.clipboard = false
+	a.EnterBrowser()
+	tt.Frame()
+	if !tt.HasText(copy.BrowserFilterHint) {
+		t.Errorf("the browser hint is missing: %q", tt.Texts())
+	}
+	// A plain query has no chips row and so no hint.
+	a.ResetQuery()
+	tt.Frame()
+	if tt.HasText(copy.BrowserFilterHint) {
+		t.Errorf("the hint outlived its mode: %q", tt.Texts())
 	}
 }

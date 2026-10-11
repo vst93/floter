@@ -8,6 +8,7 @@ package launcher
 
 import (
 	"net/url"
+	"runtime"
 	"strings"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 	clipboardpkg "floter/internal/clipboard"
 	"floter/internal/i18n"
 	"floter/internal/settings"
+	"floter/internal/shortcuts"
 )
 
 // FilterAxis is one dimension a mode's list can be filtered by.
@@ -203,6 +205,13 @@ func (a *App) filtersRow(c *ui.Context, top float32) {
 				a.setFilter(value)
 			}
 		}
+		// The row's own hint, at its end and before the gear: what Tab does
+		// and the key the list answers, as the old build's
+		// `.launcher-filter__hint` printed it (caption, weight 500, muted).
+		if hint := a.filterHint(copy); hint != "" {
+			ui.Text(c, hint).FontSize(t.FontSize - 1).FontWeight(500).
+				TextColor(t.TextMuted).Grow(1).TextAlign(ui.End).SingleLine().Ellipsis("\u2026")
+		}
 		// The mode's own door to its configuration: the chips filter the list,
 		// and the gear opens the plugin's own sheet in this band (the old
 		// build's R29 overlay — one generic form from the plugin's schema,
@@ -239,6 +248,35 @@ func (a *App) filtersRow(c *ui.Context, top float32) {
 			}
 		}
 	})
+}
+
+// filterHint is the chips row's one-line hint for the mode on screen: what Tab
+// does, and the favourite key. The delete the old build also printed is left
+// out: its key cannot reach the list here (the focused field takes Backspace
+// and Delete), so the control on the chosen row is what does that job.
+func (a *App) filterHint(copy i18n.Launcher) string {
+	switch {
+	case a.browser:
+		return copy.BrowserFilterHint
+	case a.clipboard:
+		return copy.ClipboardFilterHint(a.favoriteBadge())
+	case a.calculatorMode:
+		return copy.CalculatorFilterHint(a.favoriteBadge())
+	}
+	return ""
+}
+
+// favoriteBadge is the favourite key as the platform spells it: `⌘D` on macOS,
+// `Ctrl+D` elsewhere. The key is the mode's own (see modeShortcuts) and is not
+// rebindable, so it is spelled here rather than read from the map.
+func (a *App) favoriteBadge() string {
+	// The app modifier's own spelling, which the shipped map uses: Command on
+	// macOS, Control elsewhere.
+	accelerator := "Ctrl+D"
+	if runtime.GOOS == "darwin" {
+		accelerator = "Cmd+D"
+	}
+	return shortcuts.Badge(accelerator, "D")
 }
 
 // filterPluginID is the built-in plugin whose options the gear opens, or ""
