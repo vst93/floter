@@ -116,6 +116,7 @@ var en = Copy{
 
 		ClipboardFavoriteFailed:  "Could not change the star",
 		ClipboardDeleteFailed:    "Could not delete the entry",
+		ClipboardCopyFailed:      "Could not copy that entry",
 		ClipboardDeleted:         "Entry deleted",
 		HistoryDelete:            "Delete",
 		HistoryPin:               "Pin as a window",
@@ -667,6 +668,7 @@ var zh = Copy{
 
 		ClipboardFavoriteFailed:  "无法修改收藏",
 		ClipboardDeleteFailed:    "无法删除该条目",
+		ClipboardCopyFailed:      "无法复制该条目",
 		ClipboardDeleted:         "已删除条目",
 		HistoryDelete:            "删除",
 		HistoryPin:               "钉为独立窗口",

@@ -113,7 +113,10 @@ type Launcher struct {
 	// The clipboard mode's own feedback lines: the star and the delete.
 	ClipboardFavoriteFailed string
 	ClipboardDeleteFailed   string
-	ClipboardDeleted        string
+	// ClipboardCopyFailed is a pinned image the launcher could not read back
+	// (its file is gone): the copy failed, and the row says so.
+	ClipboardCopyFailed string
+	ClipboardDeleted    string
 	// HistoryDelete names a history row's delete control, and
 	// CalculatorDeleted reports one that went.
 	HistoryDelete string

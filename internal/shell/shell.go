@@ -1997,6 +1997,9 @@ func (a *App) copyClipboardEntry(entry clipboard.Entry) {
 		png, err := os.ReadFile(path)
 		if err != nil {
 			log.Printf("floter: could not read the pinned image: %v", err)
+			a.onMain(func() {
+				a.Launcher.WarnFeedback(i18n.For(a.Store.Snapshot().Language).Launcher.ClipboardCopyFailed)
+			})
 			return
 		}
 		payload.Image = png
