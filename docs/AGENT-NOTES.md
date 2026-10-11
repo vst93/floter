@@ -117,3 +117,15 @@ opt-in（`FLOTER_TERMINAL_TEST=1`、`FLOTER_SQLITE_TEST=1`、`FLOTER_REGISTRY_TE
   屏幕用窗口中心点判定（框架没有"焦点屏幕"查询）。
 - **终端链接**：`Options.OpenLink` / `OnNotify` 已接线（`openTerminalLink` / `notifyFromProgram`）；
   `Options.OpenURL` 也是可注入的 opener（测试用）。
+
+## 2026-10-11 · 追加：行内控件、注册字号、mygo v0.4.1
+
+- **行内控件**：历史行的星标（点击收藏不运行行）、编号徽标 = 存储绑定 + 数字、设置头带的退出/关闭。
+- **字号注册**：行的标题/副标题、设置的标签/次行、分组标题/提示、页头/副标题，全部按旧版的阶梯
+  （body 11u、emphasis 12u、title 13u、display 17u；本仓库 `Space(n)` = 4u）。
+- **mygo v0.4.1**：新增 `NewFlyout`（Tray/Parent 锚定、Placement、Popover、Focusable）与
+  `ListState.RoundRows`。Flyout 用于"必须伸出窗口边缘的弹出层"——本应用的弹出层（select、chips 齿轮、
+  插件表单）都在窗口内，mygo 会把窗口内的弹出层夹回窗口，所以暂不需要；分离输出/钉住窗口必须
+  **活得比面板久**，Flyout 由 parent 拥有、不可用。
+- **仍被框架挡住的细节**：`⌃⌫` 清空命令历史（编辑器先吃 Backspace/Delete）；行内的 source 槽、
+  会话的 cwd 行（插件不报告会话 cwd）、插件列表的分页页脚（本构建是虚拟化列表）。
