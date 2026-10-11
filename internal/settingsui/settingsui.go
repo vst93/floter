@@ -524,17 +524,19 @@ func (a *App) View(c *ui.Context) {
 			}
 		})
 		ui.Divider(c)
-		// The sidebar column pads 8u, so a row's own 8u lands on the card's 16u
-		// text column — the line the header title and the launcher's field sit
-		// on.
+		// The content pane carries its own fill (`.settings-card__body`'s
+		// `--surface-sunken`): the panel is a reading surface, more solid than
+		// the launcher, and the sidebar sits on the same one so the two read
+		// as one pane.
 		ui.Row(c).Fill().AlignItems(ui.Stretch).Gap(t.Space(3)).Children(func() {
-			ui.Column(c).Width(148).Padding(t.Space(3), t.Space(2)).Gap(t.Space(0.75)).Children(func() {
+			ui.Column(c).Width(148).Padding(t.Space(3), t.Space(2)).Gap(t.Space(0.75)).
+				Background(a.tokens(c).Sunken).Children(func() {
 				ui.List(c.Key("settings.sidebar"), &a.Sidebar, pageCount, func(i int) {
 					a.sidebarRow(c, i)
 				}).Grow(1).Label(copy.Title)
 			})
 			ui.Divider(c).FillHeight()
-			ui.Column(c).Grow(1).Children(func() {
+			ui.Column(c).Grow(1).Background(a.tokens(c).Sunken).Children(func() {
 				a.body(c, copy)
 			})
 		})

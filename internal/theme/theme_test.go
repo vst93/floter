@@ -107,3 +107,25 @@ func TestStrokes(t *testing.T) {
 		t.Error("the active stroke is the idle one")
 	}
 }
+
+// The settings content pane carries its own fill: 0.62 + 0.18 of the main
+// opacity, as `--glass-content-alpha` had it - more solid than the launcher,
+// rising with the transparency slider without ever reaching it.
+func TestSunkenFollowsTheOpacity(t *testing.T) {
+	dim := settings.Settings{Theme: "dark", MainOpacity: 10}
+	bright := settings.Settings{Theme: "dark", MainOpacity: 100}
+	lowT := For(dim, false)
+	highT := For(bright, false)
+	if lowT.Sunken.A >= highT.Sunken.A {
+		t.Errorf("the sunken fill did not rise with the slider: %v vs %v", lowT.Sunken.A, highT.Sunken.A)
+	}
+	// The formula's own floor: at 10% the pane is 0.638, not transparent.
+	if a := float64(lowT.Sunken.A) / 255; a < 0.6 || a > 0.7 {
+		t.Errorf("the low stop alpha = %v", a)
+	}
+	// A light appearance sunken fill is the light pane's own colour.
+	lightT := For(settings.Settings{Theme: "light", MainOpacity: 100}, false)
+	if a, b := float64(lightT.Sunken.A)/255, float64(highT.Sunken.A)/255; a != b {
+		t.Errorf("the two appearances' alphas differ: %v vs %v", a, b)
+	}
+}

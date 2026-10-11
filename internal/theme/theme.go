@@ -91,6 +91,12 @@ type Tokens struct {
 	// TextStrong is a row's own label color, one step above the body text
 	// (base.css's `--text-strong`).
 	TextStrong ui.Color
+	// Sunken is the settings content pane's own fill (base.css's
+	// `--surface-sunken`): the settings panel is a reading surface, and it
+	// carries a fill of its own so it reads more solid than the launcher -
+	// the old build's alpha was 0.62 + 0.18 of the main opacity, which rises
+	// with the transparency slider without ever reaching it.
+	Sunken ui.Color
 }
 
 // For resolves the appearance and scales the metrics for a settings value.
@@ -134,9 +140,21 @@ func For(s settings.Settings, systemDark bool) Tokens {
 		control, controlEdge, hairline = ui.RGBA(0, 0, 0, 0.035), ui.RGBA(0, 0, 0, 0.07), ui.RGBA(0, 0, 0, 0.08)
 		textStrong = ui.RGBA(23, 23, 26, 0.96)
 	}
+	// The content pane's fill: 0.62 + 0.18 of the main opacity, as
+	// `--glass-content-alpha` had it. The pane carries the fill; the slider
+	// still owns the glass behind it.
+	sunken := float32(0.62 + 0.18*float64(s.MainOpacity)/100)
+	baseFill := t.Background
+	if appearance == Dark {
+		baseFill = ui.RGB(17, 18, 20)
+	} else {
+		baseFill = ui.RGB(243, 244, 247)
+	}
+
 	return Tokens{
 		Appearance:        appearance,
 		Theme:             &t,
+		Sunken:            baseFill.Alpha(sunken),
 		Scale:             scale,
 		RadiusXS:          round1(RadiusXS * f),
 		RadiusSM:          round1(RadiusSM * f),
