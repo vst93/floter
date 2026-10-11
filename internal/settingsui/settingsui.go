@@ -1671,7 +1671,7 @@ func (a *App) slider(c *ui.Context, label, description string, value, lo, hi flo
 		if !first {
 			ui.Box(c).FillWidth().Height(1).Background(tokens.Hairline).MarginX(inset).Shrink(0)
 		}
-		ui.Column(c).FillWidth().Gap(t.Space(1)).Padding(t.Space(2.25), inset).Children(func() {
+		ui.Column(c).FillWidth().Gap(t.Space(1)).Padding(t.Space(1.5), inset).Children(func() {
 			ui.Text(c, label).FontSize(t.FontSize).FontWeight(580).TextColor(tokens.TextStrong)
 			if description != "" {
 				ui.Text(c, description).FontSize(t.FontSize - 1).TextColor(t.TextMuted)

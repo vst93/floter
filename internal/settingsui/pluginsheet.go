@@ -283,7 +283,7 @@ func (a *App) stackedRow(c *ui.Context, label, help string, control func()) {
 		if !first {
 			ui.Box(c).FillWidth().Height(1).Background(tokens.Hairline).MarginX(inset).Shrink(0)
 		}
-		ui.Column(c).FillWidth().Gap(t.Space(1)).Padding(t.Space(2.25), inset).Children(func() {
+		ui.Column(c).FillWidth().Gap(t.Space(1)).Padding(t.Space(1.5), inset).Children(func() {
 			ui.Text(c, label).FontSize(t.FontSize).FontWeight(580).TextColor(tokens.TextStrong)
 			if help != "" {
 				ui.Text(c, help).FontSize(t.FontSize - 1).TextColor(t.TextMuted)

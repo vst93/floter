@@ -92,7 +92,7 @@ func (a *App) row(c *ui.Context, label, sublabel string, control func(), below .
 		// material's own: less opaque than the resting pane, so a row the user
 		// is about to activate sinks into the glass.
 		row := ui.Row(c).FillWidth().Gap(t.Space(3)).AlignItems(ui.Center).
-			MinHeight(t.Space(11)).Padding(t.Space(2.25), inset)
+			MinHeight(t.Space(11)).Padding(t.Space(1.5), inset)
 		switch {
 		case row.Pressed():
 			row.Background(t.SurfacePressed)

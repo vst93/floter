@@ -20,17 +20,19 @@ import (
 // without a subtitle. See `launcher.css` (`.collapsed-card__input-row` at 56u,
 // `.launcher-bottom`'s 4u/2u padding) and `result-budget.ts`.
 const (
-	fieldRowUnits   = 14   // 56u
-	breathUnits     = 1    // 4u
-	rowTwoLineUnits = 10.5 // 42u
-	rowOneLineUnits = 8.5  // 34u
+	fieldRowUnits   = 14  // 56u
+	breathUnits     = 1   // 4u
+	rowTwoLineUnits = 10  // 40u (result-budget.ts's ROW_HEIGHT_TWO_LINE)
+	rowOneLineUnits = 8.5 // 34u
 
 	// The rows' own registers, as `.launcher-result` declared them: the title
 	// is the ladder's title step (two units above the body), the subtitle the
 	// body step, and a block heading the body step with its own 6u/4u padding
-	// pair. The *line boxes* are the font's own — measured by the view, since
-	// a font's box is not a fixed multiple of its size — so a row is charged
-	// what it draws.
+	// pair. The *line boxes* are the text's own — the framework lays a line at
+	// the font's natural ascent, descent and gap, which is not a fixed
+	// multiple of the size and cannot be made smaller than the font's own box
+	// — so the view measures them and the window is charged what the text
+	// takes.
 	rowTitleStep   = 2
 	headingPadding = 2.5 // 6u above, 4u below
 
@@ -150,10 +152,10 @@ type Geometry struct {
 // Height is the window height a geometry asks for: the card's own chrome —
 // the field's row (56u), the breath under it (4u) and the panel's insets (4u
 // above, 2u below) — the rows at their own heights (a 12u padding pair plus
-// their lines, never under the 42u/34u a row draws at), the chips or feedback
+// their lines, never under the 40u/34u a row draws at), the chips or feedback
 // bands when they show, and the platform's transparent margin; never above the
 // cap. The old app resolved the same arithmetic on the browser side and wrote
-// it as `66 + rows × 42` (see `result-budget.ts`).
+// it as `66 + rows × 40` (see `result-budget.ts`).
 func (g Geometry) Height() int {
 	spacing := g.Spacing
 	if spacing <= 0 {
@@ -167,12 +169,16 @@ func (g Geometry) Height() int {
 	// The old app's own chrome, in its units (`--u`), which this codebase
 	// divides by four: the field's row (56u, the height the settings pages'
 	// header band shares), the breath under it (4u), the panel's top inset
-	// (4u) and its tail (2u) — `66 + rows × 42` is a window height, exactly as
+	// (4u) and its tail (2u) — `66 + rows × 40` is a window height, exactly as
 	// `result-budget.ts` wrote it. The field row is the same band the input is
 	// drawn in, so the number the window is measured with is the number the
 	// field occupies.
 	chrome := (fieldRowUnits + breathUnits + TopInsetUnits + TailUnits) * spacing
-	rowPadding := 3 * spacing
+	// The row's own vertical padding is zero: `.launcher-result` is a fixed
+	// 40u box with its content centred (`align-items: center`), and the app's
+	// row is the same — a MinHeight floor with the text centred in it and no
+	// padding of its own. Only the horizontal 12u inset is padding.
+	rowPadding := 0.0
 	// The rows' two line boxes, as the view measured them. A caller that has
 	// not measured (the shell before the first frame) is given the font's own
 	// size, which is the floor of every real box.
@@ -210,7 +216,7 @@ func (g Geometry) Height() int {
 			count = 1
 		}
 		// A row is its content or its own floor, whichever is taller: the old
-		// app's rows were fixed heights — 42u with a subtitle, 34u without —
+		// app's rows were fixed heights — 40u with a subtitle, 34u without —
 		// and a one-line row of body text is shorter than 34u.
 		floor := rowOneLineUnits * spacing
 		if count >= 2 {

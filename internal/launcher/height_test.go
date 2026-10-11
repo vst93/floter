@@ -79,10 +79,11 @@ func TestGeometryHeight(t *testing.T) {
 	}
 }
 
-// The window is charged with the line boxes the rows actually draw: the title
-// register at 1.2, the subtitle at 1.15, and a heading the body step at 1.4
-// with its own padding pair. A row's floor (42u with a subtitle, 34u without)
-// still wins where it is taller.
+// The window is charged with the line boxes the rows actually draw, and a
+// row's floor (40u with a subtitle, 34u without) still wins where it is
+// taller. A two-line row's content — the title register and the subtitle
+// register, with no vertical padding — is charged, and a heading is its own
+// band (one body line and the 6u/4u padding pair), not a row's floor.
 func TestGeometryChargesTheRowsOwnLineBoxes(t *testing.T) {
 	// Two lines at the drawn scales, in the units the view uses.
 	two := Geometry{Font: 11, Spacing: 4, Rows: []RowInfo{{Lines: 2}}, Held: 1}.Height()
@@ -90,11 +91,11 @@ func TestGeometryChargesTheRowsOwnLineBoxes(t *testing.T) {
 	if two <= one {
 		t.Errorf("a two-line row is %d, not taller than a one-line %d", two, one)
 	}
-	// The row's floor wins over its own content: 42u with a subtitle.
-	// chrome 66u + 42u floor + the platform's margin.
-	want := int(roundHalf(66 + 42 + windowInset()))
+	// The row's floor wins over its own content: 40u with a subtitle.
+	// chrome 66u + 40u floor + the platform's margin.
+	want := int(roundHalf(66 + 40 + windowInset()))
 	if two != want {
-		t.Errorf("a two-line row is %d, want the 42u floor's %d", two, want)
+		t.Errorf("a two-line row is %d, want the 40u floor's %d", two, want)
 	}
 	// A heading is charged its own band — one body line at 1.4 and the 6u/4u
 	// padding pair — not a row's floor, so a list of headings is shorter than

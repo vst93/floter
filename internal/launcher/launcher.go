@@ -1308,7 +1308,8 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 		floor = t.Space(rowTwoLineUnits)
 	}
 	row := ui.Row(c).Key(item.ID).FillWidth().Focusable().MinHeight(floor).
-		Padding(t.Space(1.5), t.Space(3)).Radius(tokens.RadiusMD).Gap(t.Space(2.5)).
+		AlignItems(ui.Center).
+		Padding(0, t.Space(3)).Radius(tokens.RadiusMD).Gap(t.Space(2.5)).
 		Transition(rowTransition)
 	// A history row is one step quieter than a match: the old build's
 	// `.launcher-result--history { opacity: 0.92 }`.

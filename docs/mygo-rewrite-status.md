@@ -110,6 +110,12 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
   把玻璃变成实心板；现在 dim 折进 tint 的 alpha，不再单画。
 - **顺带**：卡片加上旧版的 sheen 渐变（`--sheen-top` / `--sheen-bottom`），面板不再是一块平 tint。
   实测：卡片顶部 alpha 0.63、内容面 0.89、字段块 1.0（旧版 R21 的刻意实心）。
+- **行高密度**：启动器结果行之前是 `MinHeight(42u)` + 上下各 6px 内边距，实际画出来约 49px（旧版是固定
+  40u、内容居中、无纵向内边距）；设置行是上下各 9px + 两行自然行盒 ≈ 55px（旧版约 48）。
+  现在结果行去掉纵向内边距、只留 `MinHeight(40u)` 居中（模型同步把 `rowPadding` 改为 0、
+  `rowTwoLineUnits` 改为 10），设置行/堆叠行的纵向内边距 9 → 6px。列表与设置页明显变紧凑。
+  注：框架的自然行盒（11pt→17px、13pt→20px）比旧版 CSS 的 `line-height`（1.15/1.2）高，
+  `LineHeight`/`FixedLineHeight` 只能调高不能调低，所以无法完全对齐——只能靠去内边距补。
 
 **P7-q 调色板、材质与排版对齐（本轮）**
 - **调色板**：`theme.For` 之前只覆盖了描边、控制档、发线、Sunken 与文字阶，框架的**整套配色仍是 mygo
