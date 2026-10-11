@@ -2572,8 +2572,8 @@ func (a *App) View(c *ui.Context) {
 		if a.Surf == SurfaceLauncher {
 			padX = 0
 		}
-		material := glassmap.Material(surface.Glass, t)
-		if material == nil {
+		fill, translucent := glassmap.Frame(surface.Glass, t)
+		if !translucent {
 			// The `off` stop: a plain, near-solid face and no material.
 			padTop, padBottom := t.Space(2.5), t.Space(2.5)
 			if a.Surf == SurfaceLauncher {
@@ -2584,14 +2584,12 @@ func (a *App) View(c *ui.Context) {
 			return
 		}
 		card.Children(func() {
-			// The haze veil is composited *under* the glass, as the old
-			// `--glass-step-dim` was under `--glass-tint-alpha`. Built after
-			// the face it paints over it — and a plain box over the rows
-			// would eat their clicks, so the veil lets the pointer through:
-			// it is a color, never a control.
-			if haze := glassmap.Haze(surface.Glass, t, c.Vibrancy()); haze != ui.Transparent {
-				ui.Box(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).Radius(radius).Background(haze).PassThrough()
-			}
+			// The panel's fill is one translucent tint (`Frame`), which is the
+			// reference's `--glass-tint-alpha` — the frame's own alpha raised by
+			// the stop's dimming layer, not a separate veil over it. The window's
+			// vibrancy blurs the backdrop where the platform has one; where it
+			// does not, the tint's alpha is the whole of the glass.
+			//
 			// The launcher's own insets are the old panel's: 4u above and 2u
 			// below (`.launcher-bottom`), with the field's row and its breath
 			// inside the card — `66 + rows` is the window. The other surfaces
@@ -2604,9 +2602,15 @@ func (a *App) View(c *ui.Context) {
 			if a.Surf == SurfaceLauncher {
 				padBottom = t.Space(launcher.TailUnits)
 			}
-			face := ui.Column(c).Fill().Radius(radius).Material(material).
-				Padding(padTop, padX, padBottom, padX).DragWindow()
-			face.Children(func() { a.surface(c) })
+			face := ui.Column(c).Fill().Radius(radius).Background(fill).DragWindow()
+			face.Children(func() {
+				// The panel's own sheen (`linear-gradient(180deg, sheen-top,
+				// sheen-bottom)`): the lit face that keeps a translucent pane
+				// from reading as a flat wash.
+				ui.Box(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).Radius(radius).PassThrough().
+					LinearGradient(ui.LinearGradient{From: surface.Tokens.SheenTop, To: surface.Tokens.SheenBottom, Angle: 180})
+				ui.Column(c).Fill().Padding(padTop, padX, padBottom, padX).Children(func() { a.surface(c) })
+			})
 		})
 	})
 }

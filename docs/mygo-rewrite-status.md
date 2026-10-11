@@ -98,6 +98,19 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
+**P7-r 透明底（本轮）**
+- **根因**：面板用 `glass.Glass` 填充，而插件的 shader 永远输出 `vec4(c, 1.0)`——它映射的是场景内
+  元素下面的像素，不是桌面。于是整个面板 100% 不透明，透明度滑块怎么拖都看不到桌面
+  （headless 渲染实测卡片中心 alpha = 1）。
+- **修法**：`glassmap` 新增 `Frame(spec, theme)`，返回 base.css 的 `--glass-tint`——帧自己的 alpha
+  （滑块）叠上档位的 `--glass-step-dim`（`1 - (1 - dim*(1-opacity)) * (1 - opacity)`），一个**半透明**
+  色；外壳卡片用它作背景（`off` 档仍用不透明的 `Opaque`）。窗口的 `VibrancyUnderWindow` 在有背板的
+  平台模糊桌面，Linux 没有背板就是 tint 本身——与旧版 `backdrop-filter` 的降级一致。
+- **去掉单独的雾层**：之前把 dim 画成一整屏 veil，在没有 backdrop 的平台上就是“加不透明”，半屏面纱
+  把玻璃变成实心板；现在 dim 折进 tint 的 alpha，不再单画。
+- **顺带**：卡片加上旧版的 sheen 渐变（`--sheen-top` / `--sheen-bottom`），面板不再是一块平 tint。
+  实测：卡片顶部 alpha 0.63、内容面 0.89、字段块 1.0（旧版 R21 的刻意实心）。
+
 **P7-q 调色板、材质与排版对齐（本轮）**
 - **调色板**：`theme.For` 之前只覆盖了描边、控制档、发线、Sunken 与文字阶，框架的**整套配色仍是 mygo
   的默认**——饱和蓝 `#3b82f6`、不透明灰的 `SurfaceHover`、`#a1a1aa` 的 muted。于是每一个视图里
@@ -430,15 +443,19 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 ## 液态玻璃（mygo 内置材质，本轮重构）
 
 - **桌面模糊回来了**：面板的窗口带 `VibrancyUnderWindow`——macOS 的 NSVisualEffectView、
-  Windows 11 的系统背板（Linux 无，玻璃的 tint 与雾层就是全部材质）。旧版的 CSS
-  `backdrop-filter` 模糊的就是桌面，此前桌面在材质之外原样可见。
-- **材质栈 = 旧版的重述**：桌面（vibrancy 模糊）→ 玻璃材质的 tint → 插件自己的 bezel /
-  折射 / 边缘光（旧版 CSS 手画的 sheen 渐变）→ 雾层 → 内容。雾层保持在 tint 之下
-  （旧版 `--glass-step-dim` 在 `--glass-tint-alpha` 里的同一合成）。
-- **阶梯的映射**：`frosted = Clear 材质 + 0.6 雾`、`regular = Regular + 0.5`、`liquid = Regular + 0.2`；
-  旧版的 blur 阶梯成了 OS 材质（整个窗口一种强度），saturation 无旋钮，lens-scale 无旋钮。
+  Windows 11 的系统背板（Linux 无，玻璃的 tint 就是全部材质）。旧版的 CSS
+  `backdrop-filter` 模糊的就是桌面。
+- **面板的填充是半透明 tint，不是 `glass.Glass`**：插件的 shader 无论怎样都写 `vec4(c, 1.0)`
+  （它映射的是**场景内**元素下面的像素），所以用它填面板永远不透明、桌面透不过来。现在面板画的是
+  base.css 的 `--glass-tint`：帧自己的 alpha（透明度滑块）再叠上档位的 `--glass-step-dim`，
+  一个半透明色，由窗口的 vibrancy 透出模糊桌面。
+- **档位的映射**：`frosted` dim 0.6 / `regular` 0.5 / `liquid` 0.2。dim 不是单独一层雾
+  （之前画成一整屏 veil，在没有 backdrop 的平台上把玻璃变成了实心板），而是折进 tint 的 alpha——
+  与旧版 `--glass-tint-alpha` 的公式一致：`1 - (1 - dim*(1-opacity)) * (1 - opacity)`。
+  滑块仍是唯一的 alpha 真相，档位只动 dim。
 - **不采用**：`Interactive: true`（按压生长）——旧版 `.collapsed-card:active { transform: none }`
   是刻意关掉的；`glass.Blur`（场景内 backdrop blur）——面板下是透明的根，没有东西可模糊。
+  `glass.ScrollEdge` 仍用在窗口**内部**的滚动内容上（启动器结果、设置正文）。
 
 ## 视觉核验（本轮）
 

@@ -1,6 +1,6 @@
 // Package glassmap maps floter's glass settings — the effect stop
 // (`glass_step`) and the window transparency (`main_opacity`) — onto the
-// parameters the mygo glass plugin exposes.
+// panel's fill.
 //
 // The old app's material model (see src/glass-material.ts) had two
 // independent axes:
@@ -10,35 +10,32 @@
 //   - `main_opacity`: 10-100 — the frame's tint alpha, the readability
 //     control.
 //
-// The plugin (github.com/egoist/mygo/plugins/glass) exposes
+// The panel's fill is a **translucent tint**, not the glass plugin's
+// material. `glass.Glass` maps what is under the element *in the scene* and
+// its shader always writes an opaque result (`return vec4(c, 1.0)`), so a
+// panel filled with it can never show the desktop — which is the whole point
+// of the transparency slider. Instead the panel draws base.css's
+// `--glass-tint`: the frame's own alpha (the slider) raised by the stop's
+// dimming layer (`--glass-step-dim`), a single translucent colour the
+// window's vibrancy shows through.
 //
-//	glass.Glass{Style: glass.Regular | glass.Clear, Tint: ui.Color, Interactive: bool}
-//	glass.Blur{Radius, Mask}       // a backdrop blur, no tint, rim or shadow
+//   - **Blur (10/22/28px).** The desktop behind the window is blurred by the
+//     window's vibrancy material — `mygo.VibrancyUnderWindow` on the panel's
+//     window, which is one strength for the whole window (macOS's
+//     NSVisualEffectView, Windows 11's system backdrops; Linux has none, and
+//     there the tint's own alpha is the whole of the material). So the blur
+//     ladder becomes the OS material, and the stop ladder keeps what the fill
+//     can vary: the dimming layer.
+//   - **Saturation (130/170/200%).** No knob, on the window or in the tint.
 //
-// and nothing else on the effect axis. Two of the old numbers have no
-// counterpart, and this package's tests pin that as a fact rather than
-// hiding it:
+// `main_opacity` stays what it was: the frame's only alpha truth. The stop
+// moves the dim, never the alpha truth — `frosted` dims the most (0.6),
+// `liquid` the least (0.2), so a thin frame does not leave the desktop
+// readable through the copy.
 //
-//   - **Blur (10/22/28px).** `glass.Glass` blurs *the pixels of the scene
-//     under the element*, not the desktop behind the window. The desktop
-//     behind the window is blurred by the window's vibrancy material -
-//     `mygo.VibrancyUnderWindow` on the panel's window, which is one
-//     strength for the whole window (macOS's NSVisualEffectView, Windows
-//     11's system backdrops; Linux has none, and there the tint and the
-//     haze veil are the whole of the material). So the blur ladder becomes
-//     the OS material, and the stop ladder keeps what the plugin can vary.
-//   - **Saturation (130/170/200%).** The plugin has no saturation knob.
-//
-// What survives per stop is the glass *material* — `Clear` for the thin
-// stop, `Regular` (the full lens) for the heavier two — and the haze veil
-// `dim` from GLASS_STEP_TOKENS: a strong veil at the frosted end so thin
-// glass stays readable, none at the liquid end where the lens does the
-// work. `main_opacity` stays what it was: the tint's alpha, the frame's
-// only alpha truth.
-//
-// `glass.Blur` and `glass.ScrollEdge` are used where they do have the
-// desktop's counterpart: content scrolling *inside* the window, under a
-// bar (the launcher's results under its field, see internal/launcher).
+// `glass.ScrollEdge` (and `glass.Blur`) are used where they do have a
+// counterpart: content scrolling *inside* the window, under a bar (the
+// launcher's results under its field, the settings body under its header).
 package glassmap
 
 import (
@@ -57,18 +54,23 @@ type Spec struct {
 	Style glass.Style
 	// HazeAlpha is the veil of the theme's background painted under the
 	// glass, 0..1, from the stop's `dim`.
+	// HazeAlpha is the stop's dimming layer (0.6/0.5/0.2). It is not painted
+	// on its own: base.css folds it into the tint's alpha (`--glass-tint-alpha`),
+	// which is the one fill the panel draws.
 	HazeAlpha float32
-	// TintAlpha is the tint's alpha, 0..1, from main_opacity.
+	// TintAlpha is the panel's fill alpha, 0..1: the frame's own alpha raised
+	// by the stop's dimming layer, as the old build's `--glass-tint-alpha`.
 	TintAlpha float32
 }
 
 // The stop ladder, from GLASS_INTENSITY and GLASS_STEP_TOKENS in
 // src/glass-material.ts: the old build's lens level (1/2/3) becomes the
-// plugin's Clear/Regular, and its haze (0.6/0.5/0.2) is carried over as the
-// veil. `off` is not a stop but the position that removes the material.
+// plugin's Clear/Regular, and its haze (0.6/0.5/0.2) is the dimming layer the
+// tint's alpha is raised by. `off` is not a stop but the position that removes
+// the material.
 var stops = map[string]struct {
 	style glass.Style
-	haze  float32
+	dim   float32
 }{
 	"frosted": {glass.Clear, 0.6},
 	"regular": {glass.Regular, 0.5},
@@ -78,54 +80,48 @@ var stops = map[string]struct {
 // SpecFor maps a stored glass_step and main_opacity onto the plugin's
 // parameters. Both inputs are normalized first, so a hand-edited value
 // behaves exactly as the loader would.
+//
+// The panel's fill is the reference's `--glass-tint-alpha`:
+//
+//	1 - (1 - dim*(1 - opacity)) * (1 - opacity)
+//
+// — the transparency slider is the frame's own alpha, and the stop's dimming
+// layer raises it, so a thin `frosted` frame does not leave the desktop
+// readable through the copy. The slider is still the only knob that moves the
+// frame: the stop moves the dim, not the alpha truth.
 func SpecFor(step string, mainOpacity uint8) Spec {
 	normalized := settings.NormalizeGlassStep(step)
 	opacity := settings.NormalizeOpacity(mainOpacity, settings.DefaultMainOpacity)
 	alpha := float32(opacity) / 100
 
 	if normalized == "off" {
-		return Spec{Enabled: false, Style: glass.Clear, TintAlpha: alpha}
+		return Spec{Enabled: false, Style: glass.Clear, TintAlpha: 1}
 	}
 	stop, ok := stops[normalized]
 	if !ok { // only reachable without the loader's normalization
 		stop = stops["regular"]
 	}
+	tint := 1 - (1-stop.dim*(1-alpha))*(1-alpha)
 	return Spec{
 		Enabled:   true,
 		Style:     stop.style,
-		HazeAlpha: stop.haze,
-		TintAlpha: alpha,
+		HazeAlpha: stop.dim,
+		TintAlpha: tint,
 	}
 }
 
-// Material builds the plugin material for a spec, tinted toward the theme's
-// background so the tint reads as the frame's own fill (light in a light
-// theme, dark in a dark one), as the old app's frame alpha did. It returns
-// nil for the `off` stop, where the caller should leave the element's
-// background alone instead of calling Material.
-func Material(spec Spec, theme *ui.Theme) ui.Material {
-	if !spec.Enabled {
-		return nil
-	}
-	return glass.Glass{Style: spec.Style, Tint: theme.Background.Alpha(spec.TintAlpha)}
-}
-
-// Haze is the veil painted under the glass: the theme's background at the
-// stop's dim alpha, or Transparent when there is none. It is a color rather
-// than a material so the caller can lay it under the glass pane, as the old
-// `--glass-step-dim` composited under `--glass-tint-alpha`.
+// Frame is the panel's own fill: the frame's tint at the reference's
+// `--glass-tint-alpha`, translucent so what is behind the window shows
+// through it. The window's vibrancy blurs that backdrop where the platform
+// has one (macOS's NSVisualEffectView, Windows 11's backdrops); where it does
+// not (Linux), the tint's own alpha is the whole of the glass, exactly as the
+// old build's `backdrop-filter`-less fallback was.
 //
-// The veil exists to keep text readable over a *blurred backdrop* — the
-// desktop the old build's `backdrop-filter` smeared. A platform with no
-// backdrop (Linux, and Windows before 11: `Context.Vibrancy` is false there)
-// has no blur under the panel, so the veil is not covering a smear; it is
-// only opacity, and half a screen of it turns glass into a solid slab. The
-// veil is dropped there and the tint's own alpha — the user's setting — is
-// what shows the desktop through, which is the honest reading of "glass"
-// when the renderer cannot blur what is behind the window.
-func Haze(spec Spec, theme *ui.Theme, backdrop bool) ui.Color {
-	if !spec.Enabled || spec.HazeAlpha <= 0 || !backdrop {
-		return ui.Transparent
+// enabled is false for the `off` stop, where the caller paints the near-solid
+// stand-in instead.
+func Frame(spec Spec, theme *ui.Theme) (fill ui.Color, enabled bool) {
+	if !spec.Enabled {
+		return ui.Transparent, false
 	}
-	return theme.Background.Alpha(spec.HazeAlpha)
+	return theme.Background.Alpha(spec.TintAlpha), true
 }

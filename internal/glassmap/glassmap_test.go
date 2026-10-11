@@ -46,14 +46,20 @@ func TestSpecForMapsEveryStop(t *testing.T) {
 }
 
 func TestSpecForSpendsMainOpacityOnTheTintAlpha(t *testing.T) {
+	// The tint alpha is the reference's `--glass-tint-alpha`: the frame's own
+	// alpha raised by the stop's dimming layer, so the slider is the only
+	// knob that moves the frame's transparency truth.
+	regular := func(opacity float64) float32 {
+		return float32(1 - (1-0.5*(1-opacity))*(1-opacity))
+	}
 	cases := []struct {
 		opacity uint8
 		want    float32
 	}{
-		{0, float32(settings.DefaultMainOpacity) / 100}, // unset -> default
-		{1, float32(settings.MinWindowOpacity) / 100},   // clamped up
-		{10, 0.10},
-		{47, 0.47},
+		{0, regular(float64(settings.DefaultMainOpacity) / 100)}, // unset -> default
+		{1, regular(float64(settings.MinWindowOpacity) / 100)},   // clamped up
+		{10, regular(0.10)},
+		{47, regular(0.47)},
 		{100, 1.0},
 		{255, 1.0}, // clamped down
 	}
@@ -63,51 +69,41 @@ func TestSpecForSpendsMainOpacityOnTheTintAlpha(t *testing.T) {
 			t.Errorf("SpecFor(regular, %d).TintAlpha = %v, want %v", tc.opacity, spec.TintAlpha, tc.want)
 		}
 	}
+	// The shipped default is translucent, not opaque: the whole point of the
+	// fill is that the desktop shows through it.
+	if spec := SpecFor("regular", settings.DefaultMainOpacity); spec.TintAlpha >= 0.99 {
+		t.Errorf("the default tint alpha = %v, want a translucent frame", spec.TintAlpha)
+	}
+	// A thinner stop carries a stronger dim, so it ends up *more* opaque than
+	// the heavier one at the same slider — the readability floor.
+	frosted := SpecFor("frosted", 47)
+	liquid := SpecFor("liquid", 47)
+	if frosted.TintAlpha <= liquid.TintAlpha {
+		t.Errorf("frosted = %v, liquid = %v; a thinner stop must dim more", frosted.TintAlpha, liquid.TintAlpha)
+	}
 }
 
-func TestOffCarriesNoMaterialAndNoHaze(t *testing.T) {
+func TestOffCarriesNoFillAndNoHaze(t *testing.T) {
 	spec := SpecFor("off", 47)
 	if spec.Enabled {
 		t.Error("the off stop must not enable a material")
 	}
-	if Material(spec, lightTheme()) != nil {
-		t.Error("the off stop must not build a material")
-	}
-	if Haze(spec, lightTheme(), true) != (ui.Color{}) {
-		t.Error("the off stop must not build a haze")
+	if _, enabled := Frame(spec, lightTheme()); enabled {
+		t.Error("the off stop must not build a fill")
 	}
 }
 
-func TestMaterialAndHazeUseTheTheme(t *testing.T) {
+func TestFrameUsesTheThemeBackground(t *testing.T) {
 	theme := lightTheme()
 	spec := SpecFor("regular", 80)
-	m := Material(spec, theme)
-	if m == nil {
-		t.Fatal("regular built no material")
+	fill, enabled := Frame(spec, theme)
+	if !enabled {
+		t.Fatal("regular built no fill")
 	}
-	g, ok := m.(glass.Glass)
-	if !ok {
-		t.Fatalf("material is %T, want glass.Glass", m)
+	if want := theme.Background.Alpha(spec.TintAlpha); fill != want {
+		t.Errorf("fill = %v, want %v", fill, want)
 	}
-	if want := theme.Background.Alpha(0.8); g.Tint != want {
-		t.Errorf("tint = %v, want %v", g.Tint, want)
-	}
-	if got := Haze(spec, theme, true); got != theme.Background.Alpha(0.5) {
-		t.Errorf("haze = %v", got)
-	}
-}
-
-// The veil is only for a blurred backdrop: a platform with no backdrop has no
-// smear under the panel to cover, so half a screen of veil would just be
-// opacity — a solid slab where glass should be. The tint's own alpha (the
-// user's setting) is what shows the desktop through there.
-func TestHazeNeedsABackdrop(t *testing.T) {
-	spec := SpecFor("regular", 80)
-	theme := lightTheme()
-	if got := Haze(spec, theme, false); got != (ui.Color{}) {
-		t.Errorf("a platform without a backdrop got a veil: %v", got)
-	}
-	if got := Haze(spec, theme, true); got == (ui.Color{}) {
-		t.Error("a platform with a backdrop got no veil")
+	if fill.A >= 255 {
+		t.Errorf("fill = %v, want translucent", fill)
 	}
 }

@@ -125,6 +125,11 @@ type Tokens struct {
 	LensRim   ui.Color
 	LensSheen ui.Color
 	LensEdge  ui.Color
+	// SheenTop and SheenBottom are the card's top-down highlight (base.css's
+	// `--sheen-top` / `--sheen-bottom`), the gradient that gives the panel's
+	// glass a lit face rather than a flat tint.
+	SheenTop    ui.Color
+	SheenBottom ui.Color
 	// Sunken is the settings content pane's own fill (base.css's
 	// `--surface-sunken`): the settings panel is a reading surface, and it
 	// carries a fill of its own so it reads more solid than the launcher -
@@ -280,6 +285,8 @@ func For(s settings.Settings, systemDark bool) Tokens {
 		LensRim:           p.lensRim,
 		LensSheen:         p.lensSheen,
 		LensEdge:          p.lensEdge,
+		SheenTop:          p.sheenTop,
+		SheenBottom:       p.sheenBottom,
 		Hairline:          hairline,
 		TextStrong:        textStrong,
 		TextSecondary:     textSecondary,
@@ -323,6 +330,8 @@ func paletteFor(appearance Appearance) palette {
 			lensRim:       ui.RGBA(255, 255, 255, 0.9),
 			lensSheen:     ui.RGBA(255, 255, 255, 0.5),
 			lensEdge:      ui.RGBA(0, 0, 0, 0.08),
+			sheenTop:      ui.RGBA(255, 255, 255, 0.66),
+			sheenBottom:   ui.RGBA(255, 255, 255, 0.22),
 		}
 	}
 	return palette{
@@ -354,6 +363,8 @@ func paletteFor(appearance Appearance) palette {
 		lensRim:       ui.RGBA(255, 255, 255, 0.15),
 		lensSheen:     ui.RGBA(255, 255, 255, 0.06),
 		lensEdge:      ui.RGBA(0, 0, 0, 0.15),
+		sheenTop:      ui.RGBA(255, 255, 255, 0.046),
+		sheenBottom:   ui.RGBA(255, 255, 255, 0.01),
 	}
 }
 
@@ -367,6 +378,7 @@ type palette struct {
 	track, field, hairline, selection, focus, warning, scrollbar         ui.Color
 	opaque, fieldFill                                                    ui.Color
 	lensRim, lensSheen, lensEdge                                         ui.Color
+	sheenTop, sheenBottom                                                ui.Color
 }
 
 // round1 rounds to one decimal, so a scaled metric stays a value a CSS
