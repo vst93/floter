@@ -137,7 +137,7 @@ func (a *App) customActionPicker(c *ui.Context, copy i18n.Settings, current stri
 	}
 	selected := labels[index]
 	chosen := ""
-	if ui.Select(c, &selected, labels).Changed() {
+	if ui.Select(c, &selected, labels).Radius(999).Changed() {
 		for _, option := range options {
 			if option.Label == selected {
 				chosen = option.ID
