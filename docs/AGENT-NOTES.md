@@ -140,3 +140,19 @@ opt-in（`FLOTER_TERMINAL_TEST=1`、`FLOTER_SQLITE_TEST=1`、`FLOTER_REGISTRY_TE
   browser 运行）在离开后**清空** `a.Query`（旧版自己运行后 setQuery("")）。
 - 注意：`syncTypedMode` 的 files 分支必须走 `enterFiles()`（直接设标志不会消耗触发词）。
 - 测试：直接操作状态的旧测试要按新语义改（needle 即字段文本；`"clip "` 变 `""`）。
+
+## 2026-10-11 · 追加：Linux 生命周期（用户报告的"启动应用后 floter 自动退出"）
+
+两个机制，都已修复：
+
+1. **`.desktop` Exec 的子应用共享 floter 的进程组与会话**——`apps.Open` 用裸
+   `exec.Command`（stdio detached 就完了）。信号（SIGHUP/SIGINT/SIGTERM）发给进程组时
+   两边都收到。现在 `detachExec` 走 `Setsid`（Linux）/ `CREATE_NEW_PROCESS_GROUP |
+   DETACHED_PROCESS`（Windows），后台 `cmd.Wait()` 收尸——`internal/spawn` 自己的
+   detach，重述而不引用（避免 apps→spawn 的依赖方向反转）。
+2. **mygo 只处理 SIGINT/SIGTERM，SIGHUP 走默认行为 = 死**。从终端启动的面板在那个
+   会话里：面板隐藏后 shell 回到提示符，**关闭终端 = SIGHUP 发给整个会话**。
+   `shell.Start` 里 `signal.Notify(SIGHUP)` + 忽略（真退出仍走 tray/行/关窗的 quit 监听）。
+   已用 Xvfb 验证：SIGHUP 后存活、SIGTERM 后优雅退出。
+- **注意**：`syscall.SysProcAttr{Setsid}` 是 unix-only，跨平台要走 build-tagged 的
+  detach（`internal/apps/detach_unix.go` / `detach_windows.go`）。
