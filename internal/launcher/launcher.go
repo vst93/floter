@@ -1842,12 +1842,18 @@ func (a *App) scopeMark(copy i18n.Launcher) (*ui.SVG, string, bool) {
 // a glyph button whose own label names it for assistive technology.
 func (a *App) fieldButtons(c *ui.Context, copy i18n.Launcher) {
 	t := c.Theme()
+	// The field's own buttons are the reference's `.collapsed-card__settings`:
+	// a 28u square on the row, a 9u radius, its mark in the tertiary colour,
+	// and a hover that lights the mark one step - with the 8u margin the old
+	// row put between the buttons.
 	button := func(glyphName, label string, run func()) {
 		if run == nil {
 			return
 		}
-		e := ui.Row(c).Focusable().Shrink(0).Padding(t.Space(1)).Radius(t.Radius).
-			AlignItems(ui.Center).Label(label)
+		tokens := theme.For(a.settings(), t.Dark)
+		e := ui.Row(c).Focusable().Shrink(0).Size(t.Space(7), t.Space(7)).
+			Radius(tokens.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).
+			Label(label).Margin(0, 0, 0, t.Space(2))
 		if e.Hovered() {
 			e.Background(t.SurfaceHover)
 		}
