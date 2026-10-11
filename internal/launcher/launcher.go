@@ -1291,17 +1291,22 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 		floor = t.Space(11.25)
 		row.Margin(t.Space(0.75), 0, 0, 0)
 	}
-	if i == a.Selected {
-		if isBar {
-			row.Background(t.SurfaceHover)
-		} else {
-			// The old build's selection: a quiet accent tint, and the
-			// emphasis is the row's own type — the title at 700 — rather
-			// than a ring or a shadow. The tint places the row; the weight
-			// announces it.
-			row.Background(t.Accent.Alpha(0.085))
-		}
-	} else if row.Hovered() {
+	// The press is the one state a row takes on top of the tint: the control
+	// material's own press face (base.css's --glass-control-press), which is
+	// *less* opaque than the resting pane - the row sinks into the glass
+	// instead of popping out of it.
+	rowPressed := row.Pressed()
+	switch {
+	case rowPressed:
+		row.Background(t.SurfacePressed)
+	case i == a.Selected && isBar:
+		row.Background(t.SurfaceHover)
+	case i == a.Selected:
+		// The old build's selection: a quiet accent tint, and the emphasis is
+		// the row's own type — the title at 700 — rather than a ring or a
+		// shadow. The tint places the row; the weight announces it.
+		row.Background(t.Accent.Alpha(0.085))
+	case row.Hovered():
 		row.Background(t.SurfaceHover)
 	}
 	// A history row's own delete control: the focused text field owns the
