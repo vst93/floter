@@ -151,10 +151,12 @@ func (a *App) sheetRadio(c *ui.Context, sheet PluginSheet, field plugincfg.Field
 	chosen := index
 	changed := false
 	a.stackedRow(c, field.Label, field.Help, func() {
-		e := ui.Segmented(c, &chosen, labels...).Grow(1)
-		if e.Changed() && chosen >= 0 && chosen < len(field.Options) {
-			changed = true
-		}
+		a.segmented(c, labels, chosen, func(i int) {
+			if i >= 0 && i < len(field.Options) {
+				chosen = i
+				changed = true
+			}
+		})
 	})
 	if changed {
 		sheet.Change(field.Key, field.Options[chosen].Value)

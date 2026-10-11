@@ -145,6 +145,10 @@ type Tokens struct {
 	EdgeHighlight  ui.Color
 	EdgeShadow     ui.Color
 	EdgeHighlightX ui.Color
+	// AccentEdge is the accent as a 1px keyline (base.css's `--accent-edge`):
+	// the emphasis a chosen segment or a recommended badge carries without an
+	// accent fill.
+	AccentEdge ui.Color
 	// Sunken is the settings content pane's own fill (base.css's
 	// `--surface-sunken`): the settings panel is a reading surface, and it
 	// carries a fill of its own so it reads more solid than the launcher -
@@ -307,6 +311,7 @@ func For(s settings.Settings, systemDark bool) Tokens {
 		EdgeHighlight:     p.edgeHighlight,
 		EdgeShadow:        p.edgeShadow,
 		EdgeHighlightX:    p.edgeHighlightX,
+		AccentEdge:        p.accentEdge,
 		Hairline:          hairline,
 		TextStrong:        textStrong,
 		TextSecondary:     textSecondary,
@@ -357,6 +362,7 @@ func paletteFor(appearance Appearance) palette {
 			edgeHighlight:  ui.RGBA(255, 255, 255, 0.92),
 			edgeShadow:     ui.RGBA(0, 0, 0, 0.07),
 			edgeHighlightX: ui.RGBA(255, 255, 255, 0.6),
+			accentEdge:     ui.RGBA(6, 74, 166, 0.36),
 		}
 	}
 	return palette{
@@ -395,6 +401,7 @@ func paletteFor(appearance Appearance) palette {
 		edgeHighlight:  ui.RGBA(255, 255, 255, 0.15),
 		edgeShadow:     ui.RGBA(0, 0, 0, 0.28),
 		edgeHighlightX: ui.RGBA(255, 255, 255, 0.04),
+		accentEdge:     ui.RGBA(143, 183, 255, 0.3),
 	}
 }
 
@@ -411,6 +418,7 @@ type palette struct {
 	sheenTop, sheenBottom                                                ui.Color
 	shadowAmbient, shadowContact                                         ui.Color
 	edgeHighlight, edgeShadow, edgeHighlightX                            ui.Color
+	accentEdge                                                           ui.Color
 }
 
 // round1 rounds to one decimal, so a scaled metric stays a value a CSS
