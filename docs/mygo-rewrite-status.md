@@ -166,6 +166,12 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
   - 设置里的会话页列出全部（正在显示 / 运行中 / 已结束），非当前会话有"显示"，每个都有"关闭"
     （先 arm 再执行——关闭会杀掉程序里的进程），另有"新建会话"；恢复一个会话会把终端表面带到前台。
 
+**P7-o 声明式输入的行内校验（本轮）**
+- 声明式输入的编辑器此前让保存把笔误**弹回后端**才解释。旧版 `paramIssues` 的规则：错误渲染在
+  导致它的那一行下面——"a save never has to bounce back from the server to explain a typo"。
+- 现在：选择型缺选项、布尔型缺旗标，都会在该行下面印一条灰色的警告行（caption 步、警告色），
+  写明这一行还缺什么。
+
 **P7-m 行内寄存器补齐（本轮）**
 - 计算器行回到旧版 R50 的寄存器：**答案完整在右**（nowrap、strong、620、tabular），表达式是让出
   空间的标题——历史行与"算式即查询"的答案行用的是同一行，此前答案行的两行是反的。
@@ -350,6 +356,12 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
   用 `ScrollbarInsets` 把它推出列表自己的裁剪区；悬停在溢出的列表上不再画药丸，滚动测试全过。
   设置页的滚动条**保留**（旧版给设置页自己的样式，"设置页面的滚动条也还是没有贴边"）。
 - 状态行与 resident 提示按旧版的 `feedback-enter` 进入：淡入并从 2u 上方落定（200ms）。
+
+**P7-o 声明式输入的行内校验（本轮）**
+- 声明式输入的编辑器此前让保存把笔误**弹回后端**才解释。旧版 `paramIssues` 的规则：错误渲染在
+  导致它的那一行下面——"a save never has to bounce back from the server to explain a typo"。
+- 现在：选择型缺选项、布尔型缺旗标，都会在该行下面印一条灰色的警告行（caption 步、警告色），
+  写明这一行还缺什么。
 
 **P7-m 行内寄存器补齐（本轮）**
 
