@@ -130,6 +130,7 @@ func (a *App) calculatorItems() []Item {
 			ID:       "calc:" + entry.ID,
 			Title:    entry.Expression,
 			Detail:   entry.Result,
+			trailing: entry.Result,
 			Shortcut: shortcut,
 			Run:      func() { a.copyCalculation(entry) },
 			calc:     &entry,

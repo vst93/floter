@@ -16,6 +16,7 @@ import (
 	"floter/internal/shortcuts"
 	"floter/internal/tools"
 
+	calculatorpkg "floter/internal/calculator"
 	clipboardpkg "floter/internal/clipboard"
 	"floter/internal/i18n"
 )
@@ -798,5 +799,25 @@ func TestBrowserModeDisabled(t *testing.T) {
 	}
 	if tt.HasText(copy.BrowserNoProfile) {
 		t.Errorf("a switched-off plugin claimed no profile: %q", tt.Texts())
+	}
+}
+
+// A calculator row's answer is printed complete at the row's right edge —
+// nowrap, strong, at 620 — and the expression is what gives up room, as the
+// old build's R50 had it: the result can never be truncated or wrapped.
+func TestCalculatorTrailingResult(t *testing.T) {
+	a := testApp()
+	fixture := &calculatorFixture{entries: []calculatorpkg.Entry{
+		{ID: "1", Expression: "sqrt(2)", Result: "1.4142135623730951", CreatedAt: 2},
+	}}
+	a.Calculator = fixture
+	a.EnterCalculator()
+	tt := render(t, a)
+	tt.Frame()
+	if !tt.HasText("1.4142135623730951") {
+		t.Fatalf("the answer is missing: %q", tt.Texts())
+	}
+	if rect, ok := tt.Find("1.4142135623730951"); !ok || rect.W < rect.H {
+		t.Errorf("the answer is not drawn on its own line: %+v", rect)
 	}
 }

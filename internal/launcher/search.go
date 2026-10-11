@@ -67,6 +67,10 @@ type Item struct {
 	// carries the space-bar nudge the old build's R65 put there, since one
 	// space in the field enters the mode the output shows in.
 	direct bool
+	// trailing is a value printed complete at the row's right edge — the
+	// calculator's answer, which the old build's R50 let the expression make
+	// room for rather than truncating.
+	trailing string
 }
 
 // commands is the built-in command list, labeled in the launcher's language.

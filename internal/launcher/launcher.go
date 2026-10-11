@@ -1341,6 +1341,15 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 					ui.Box(c).Size(t.Space(2), t.Space(2)).Shrink(0).
 						Radius(t.Space(2)).Background(t.Warning)
 				}
+				// A trailing value prints complete at the row's right edge —
+				// the calculator's answer, which the expression makes room
+				// for rather than truncating (`.launcher-result__calculator-
+				// result`: nowrap, strong, 620, tabular figures).
+				if item.trailing != "" {
+					ui.Text(c, item.trailing).FontSize(t.FontSize).
+						FontWeight(620).TextColor(tokens.TextStrong).Grow(1).
+						TextAlign(ui.End).SingleLine()
+				}
 				// The space-bar nudge: a command whose output the launcher
 				// shows itself is entered with one space, and the row says so
 				// with a keycap — deliberately generic (「就笼统点，简洁点，让
