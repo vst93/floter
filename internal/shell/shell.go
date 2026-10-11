@@ -2444,12 +2444,14 @@ func (a *App) resizeLauncher(height int) {
 	a.launcherTarget = height
 }
 
-// walkLauncherHeight moves the window to the launcher's target height, one
-// eased step per frame: the old shell's edge walk. The element's Animate
-// keeps the frames coming until the value lands, and the last step's
-// SetSize is the only one the platform sees at the end. A window that is
-// already there does nothing — the common case, a keystroke that left the
-// list the same size.
+// walkLauncherHeight moves the window to the launcher's target height on a
+// spring: the framework's motion system, whose spring keeps its velocity when
+// the target changes mid-flight - a keystroke that adds two rows in quick
+// succession turns the height around smoothly instead of stopping dead. The
+// element's AnimateTo keeps the frames coming until the value lands, and the
+// last step's SetSize is the only one the platform sees at the end. A window
+// that is already there does nothing - the common case, a keystroke that left
+// the list the same size.
 func (a *App) walkLauncherHeight(c *ui.Context) {
 	if a.Win == nil || a.Surf != SurfaceLauncher || a.launcherTarget == 0 {
 		return
@@ -2459,7 +2461,7 @@ func (a *App) walkLauncherHeight(c *ui.Context) {
 	// The animation's carrier: a zero-size element that lays out nothing,
 	// whose Animate state lives across the frames the walk needs.
 	animated := ui.Box(c).Size(0, 0).Opacity(0)
-	height := animated.Animate("launcher.height", target, 150*time.Millisecond)
+	height := animated.AnimateTo("launcher.height", target, ui.Snappy)
 	if int(math.Round(float64(height))) == int(current) {
 		return
 	}
