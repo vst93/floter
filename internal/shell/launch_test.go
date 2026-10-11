@@ -3,7 +3,9 @@ package shell
 import (
 	"errors"
 	"os"
+	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
@@ -115,5 +117,101 @@ func TestEveryLauncherActionIsWired(t *testing.T) {
 		if actions.Field(i).IsNil() {
 			t.Errorf("the shell never answered launcher.Actions.%s", field.Name)
 		}
+	}
+}
+
+// A Command+click in the terminal opens what it points at: a URL in the user's
+// browser, an absolute path in the file manager. A path a compiler printed with
+// a `:line:col` suffix is opened without it, and a relative path is left alone
+// rather than guessed against the app's own directory.
+func TestTerminalLinkOpening(t *testing.T) {
+	calls := &launchCalls{}
+	a := launchTestApp(t, calls)
+	opened := []string{}
+	a.openURLCommand = func(browserID, url string) { opened = append(opened, "url:"+url) }
+
+	dir := t.TempDir()
+	file := filepath.Join(dir, "main.go")
+	if err := os.WriteFile(file, []byte("package main\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// A URL goes to the browser, whatever its scheme's spelling.
+	for _, link := range []string{"https://example.com/a", "mailto:someone@example.com"} {
+		if !a.openTerminalLink(link) {
+			t.Errorf("%q did not open", link)
+		}
+	}
+	if len(opened) != 2 || !strings.HasPrefix(opened[0], "url:https://") {
+		t.Errorf("opened = %v", opened)
+	}
+
+	// A path goes to the file manager.
+	if !a.openTerminalLink(file) {
+		t.Errorf("a path did not open")
+	}
+	if len(calls.opened) != 1 || calls.opened[0] != file {
+		t.Errorf("opened paths = %v", calls.opened)
+	}
+	// A compiler's `:line:col` is stripped when the whole string is not a file.
+	if !a.openTerminalLink(file + ":12:3") {
+		t.Errorf("a path with a line suffix did not open")
+	}
+	if len(calls.opened) != 2 || calls.opened[1] != file {
+		t.Errorf("opened paths = %v", calls.opened)
+	}
+	// A relative path is not opened: the session's directory is not ours.
+	if a.openTerminalLink("src/main.go:12") {
+		t.Error("a relative path was opened")
+	}
+	if a.openTerminalLink("") {
+		t.Error("an empty link was opened")
+	}
+}
+
+// The suffix stripper only takes digits, and at most a line and a column.
+func TestStripLineSuffix(t *testing.T) {
+	cases := []struct {
+		in   string
+		want string
+		ok   bool
+	}{
+		{"/a/b.go:12", "/a/b.go", true},
+		{"/a/b.go:12:3", "/a/b.go", true},
+		{"/a/b.go", "", false},
+		{"/a/b.go:", "", false},
+		{"/a/b.go:x", "", false},
+		{"/a/12/b.go", "", false},
+		{"C:/a/b.go:12", "C:/a/b.go", true},
+	}
+	for _, tc := range cases {
+		got, ok := stripLineSuffix(tc.in)
+		if ok != tc.ok || (ok && got != tc.want) {
+			t.Errorf("stripLineSuffix(%q) = %q, %v; want %q, %v", tc.in, got, ok, tc.want, tc.ok)
+		}
+	}
+}
+
+// A program's own notification request goes through the app's channel, with the
+// program's words; an empty request says nothing.
+func TestProgramNotification(t *testing.T) {
+	notes := [][2]string{}
+	a := New(Options{
+		Store:  settings.NewStore(settings.Default()),
+		Notify: func(title, body string) { notes = append(notes, [2]string{title, body}) },
+	})
+	a.notifyFromProgram("Build", "done in 3s")
+	if len(notes) != 1 || notes[0][0] != "Build" || notes[0][1] != "done in 3s" {
+		t.Errorf("notes = %v", notes)
+	}
+	// A body with no title is named by the app, not left blank.
+	a.notifyFromProgram("", "something happened")
+	if len(notes) != 2 || notes[1][0] == "" {
+		t.Errorf("notes = %v", notes)
+	}
+	// Nothing asked, nothing said.
+	a.notifyFromProgram("", "   ")
+	if len(notes) != 2 {
+		t.Errorf("an empty request said something: %v", notes)
 	}
 }

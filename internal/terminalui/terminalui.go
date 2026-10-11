@@ -42,6 +42,13 @@ type Actions struct {
 	// Settings opens the panel where the terminal's appearance is set: the
 	// bar's own gear, so the session has a way to the options that shape it.
 	Settings func()
+	// OpenLink opens what a Command+click on the terminal points at — a
+	// hyperlink, a URL printed as text, or a path — and reports whether it
+	// did. Nil leaves hyperlinks and URLs to the system, and paths alone.
+	OpenLink func(link string) bool
+	// Notify is a program's own request for a desktop notification (OSC 9 and
+	// OSC 777): the title and body it asked for.
+	Notify func(title, body string)
 }
 
 // App is the terminal surface's state.
@@ -312,6 +319,8 @@ func (a *App) options() terminal.Options {
 		Transparent: false,
 		OnTitle:     a.Actions.Title,
 		OnExit:      a.Actions.Exit,
+		OpenLink:    a.Actions.OpenLink,
+		OnNotify:    a.Actions.Notify,
 	}
 }
 

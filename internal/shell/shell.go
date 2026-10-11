@@ -164,6 +164,10 @@ type Options struct {
 	// OpenPath hands a path to the system's own opener; nil runs the
 	// platform's own opener, and tests record what would have been opened.
 	OpenPath func(path string) error
+	// OpenURL opens a page in a browser (the id it came from, empty for the
+	// system's own); nil uses the platform, and tests record what would have
+	// been opened.
+	OpenURL func(browserID, url string)
 	// RunPowerCommand runs a power action; nil runs the platform's own
 	// command, and tests record what would have run.
 	RunPowerCommand func(action string) error
@@ -293,6 +297,7 @@ type App struct {
 	confirmDialog        func(title string) bool
 	runPowerCommand      func(action string) error
 	openPathCommand      func(path string) error
+	openURLCommand       func(browserID, url string)
 	// lastClipboardText and lastClipboardFormats are what the watcher saw
 	// last, so a poll records only what changed.
 	lastClipboardText    string
@@ -390,6 +395,7 @@ func New(opts Options) *App {
 		confirmDialog:        opts.ConfirmDialog,
 		runPowerCommand:      opts.RunPowerCommand,
 		openPathCommand:      opts.OpenPath,
+		openURLCommand:       opts.OpenURL,
 		homeDir:              opts.HomeDir,
 		appIcon:              storedAppIcon(opts.Store.Snapshot()),
 		lastAppIcon:          storedAppIcon(opts.Store.Snapshot()),
@@ -741,6 +747,12 @@ func New(opts Options) *App {
 		// leaving, so the output stays readable until the user closes it or
 		// starts another — the old build's resident page.
 		Exit: func(code int) { a.onMain(func() { a.Terminal.Resident(code) }) },
+		// A Command+click on the output opens what it points at: a page in
+		// the user's browser, a path in the file manager.
+		OpenLink: a.openTerminalLink,
+		// A program may ask for a notification of its own (OSC 9, OSC 777):
+		// it goes through the same channel the app's own completions use.
+		Notify: a.notifyFromProgram,
 	}
 	termActions.Pin = a.PinText
 	// The bar's gear opens the settings where the terminal's appearance is
@@ -1901,6 +1913,10 @@ func (a *App) browserTargets() []i18n.Option {
 // browser does not open its pages in another. An unknown or empty browser id
 // opens it in the system's default browser.
 func (a *App) openURL(browserID, url string) {
+	if a.openURLCommand != nil {
+		a.openURLCommand(browserID, url)
+		return
+	}
 	if browserID != "" {
 		if err := browser.OpenURL(browserID, url); err == nil {
 			return
