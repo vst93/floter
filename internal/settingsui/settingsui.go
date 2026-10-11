@@ -1582,7 +1582,7 @@ func (a *App) choose(c *ui.Context, label, description string, options []i18n.Op
 	}
 	chosen := ""
 	a.row(c, label, description, func() {
-		e := ui.Select(c, &selected, labels).Label(label).Width(180)
+		e := ui.Select(c, &selected, labels).Label(label).Width(220)
 		if e.Changed() {
 			for _, option := range options {
 				if option.Label == selected {
