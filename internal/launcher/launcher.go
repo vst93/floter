@@ -220,15 +220,15 @@ type App struct {
 	// scrolled only when the choice changed.
 	chosenRow int
 
-	// RowLines is the text lines of each visible row, as the last View built
-	// them — two for a row with a subtitle, one without — and Font, Line and
-	// Spacing the theme's own values, Line being the height of one line as
-	// the framework lays it out. The shell reads them to size the window to
-	// the list it holds (see Geometry).
-	RowLines []float64
-	Font     float64
-	Line     float64
-	Spacing  float64
+	// Rows are what the last View built, in order: each visible row's text
+	// lines and whether it is a block's heading. Font and Spacing are the
+	// theme's own values. The shell reads them to size the window to the list
+	// it holds (see Geometry).
+	Rows         []RowInfo
+	Font         float64
+	TitleLine    float64
+	SubtitleLine float64
+	Spacing      float64
 	// HeldRows is the row count the window is sized for, with the shrink
 	// hysteresis applied: a keystroke that removes one row of two does not
 	// walk the window edge for it, and a growth is immediate. Zero until
@@ -613,22 +613,26 @@ func (a *App) View(c *ui.Context) {
 	// off the theme, so the shell can size the window to the list it holds.
 	a.Font = float64(t.FontSize)
 	a.Spacing = float64(t.Spacing)
-	// The line box is the framework's, measured rather than assumed: the
-	// window is charged with the height a line of this theme's text actually
-	// draws at, so a font whose box is taller than its size cannot make the
-	// card taller than its window.
-	if _, height := c.MeasureText(0, ui.Span{Text: "Ag", Size: t.FontSize}); height > 0 {
-		a.Line = float64(height)
+	// The rows' two line boxes, measured rather than assumed: the framework
+	// lays a line out at the font's own ascent, descent and gap, which is not
+	// a fixed multiple of the size, and the window is charged what the text
+	// takes.
+	if _, height := c.MeasureText(0, ui.Span{Text: "Ag", Size: t.FontSize + rowTitleStep}); height > 0 {
+		a.TitleLine = float64(height)
 	}
-	rowLines := make([]float64, len(results))
+	if _, height := c.MeasureText(0, ui.Span{Text: "Ag", Size: t.FontSize}); height > 0 {
+		a.SubtitleLine = float64(height)
+	}
+	rows := make([]RowInfo, len(results))
 	for i, item := range results {
 		if item.Detail != "" {
-			rowLines[i] = 2
+			rows[i].Lines = 2
 		} else {
-			rowLines[i] = 1
+			rows[i].Lines = 1
 		}
+		rows[i].Heading = item.heading
 	}
-	a.RowLines = rowLines
+	a.Rows = rows
 	// The window follows the list: grow as soon as a row arrives, and wait
 	// for a row of margin before walking the edge back down (the old
 	// launcher's hysteresis). The cap is the work area less the room the
@@ -636,7 +640,8 @@ func (a *App) View(c *ui.Context) {
 	a.HeldRows = HoldRows(a.HeldRows, len(results))
 	if a.Actions.ResizeTo != nil {
 		geometry := Geometry{
-			Font: a.Font, Line: a.Line, Spacing: a.Spacing, RowLines: rowLines, Held: a.HeldRows,
+			Font: a.Font, Spacing: a.Spacing, Rows: rows, Held: a.HeldRows,
+			TitleLine: a.TitleLine, SubtitleLine: a.SubtitleLine,
 			Filter:   a.filtersVisible(),
 			Feedback: a.toast != "" || a.pendingPower != "",
 			Config:   a.configSchema(),
@@ -1163,9 +1168,14 @@ func (a *App) row(c *ui.Context, item Item, i int) {
 	// A block's title line: the list's own label, drawn in the row's own
 	// column, never selectable and never numbered.
 	if item.heading {
-		ui.Row(c).FillWidth().Padding(t.Space(1.5), t.Space(2)).Children(func() {
-			ui.Text(c, item.Title).FontSize(t.FontSize - 1).FontWeight(650).TextColor(t.TextMuted)
-		})
+		// A block's title line: the body step at 1.4, weight 620, muted, with
+		// its own 6u/4u padding pair — `.launcher-section-title`, which the
+		// window charges as a band of its own rather than a row's floor.
+		ui.Row(c).FillWidth().Padding(t.Space(1.5), t.Space(3), t.Space(1), t.Space(3)).
+			Children(func() {
+				ui.Text(c, item.Title).FontSize(t.FontSize).FontWeight(620).
+					TextColor(t.TextMuted)
+			})
 		return
 	}
 	// The row is keyed by the item, so a row that stays keeps its identity
@@ -1175,9 +1185,11 @@ func (a *App) row(c *ui.Context, item Item, i int) {
 		// A block's heading, when this row starts one: an external plugin's
 		// own group name, a dropped file's block.
 		if item.section != "" {
-			ui.Row(c).FillWidth().Padding(t.Space(1.5), t.Space(2)).Children(func() {
-				ui.Text(c, item.section).FontSize(t.FontSize - 1).FontWeight(650).TextColor(t.TextMuted)
-			})
+			ui.Row(c).FillWidth().Padding(t.Space(1.5), t.Space(3), t.Space(1), t.Space(3)).
+				Children(func() {
+					ui.Text(c, item.section).FontSize(t.FontSize).FontWeight(620).
+						TextColor(t.TextMuted)
+				})
 		}
 		a.rowBody(c, item, i, copy)
 	})
@@ -1186,6 +1198,7 @@ func (a *App) row(c *ui.Context, item Item, i int) {
 // rowBody is the row itself: the plate, the text column, the controls.
 func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 	t := c.Theme()
+	tokens := theme.For(a.settings(), t.Dark)
 	// The row's own floor: the old app's rows were fixed heights, 42u with a
 	// subtitle and 34u without, and a one-line row of body text is shorter
 	// than 34u — the height the window is charged must be the height the row
@@ -1195,8 +1208,13 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 		floor = t.Space(rowTwoLineUnits)
 	}
 	row := ui.Row(c).Key(item.ID).FillWidth().Focusable().MinHeight(floor).
-		Padding(t.Space(1.5), t.Space(2)).Radius(t.Radius).Gap(t.Space(2)).
+		Padding(t.Space(1.5), t.Space(3)).Radius(tokens.RadiusMD).Gap(t.Space(2.5)).
 		Transition(rowTransition)
+	// A history row is one step quieter than a match: the old build's
+	// `.launcher-result--history { opacity: 0.92 }`.
+	if item.clip != nil || item.calc != nil {
+		row.Opacity(0.92)
+	}
 	// The action bar is the one row that is not a result: its selection is
 	// the neutral raised pane the old build's settings used (`.launcher-
 	// action-bar--selected`), not the accent tint a match takes, and the
@@ -1232,10 +1250,10 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 			switch {
 			case item.icon != nil:
 				if bitmap := a.appIcon(*item.icon); bitmap != nil {
-					ui.Image(c, bitmap).Size(t.Space(5.75), t.Space(5.75))
+					iconCell(c, t, bitmap)
 				}
 			case item.thumb != nil:
-				ui.Image(c, item.thumb).Size(t.Space(5.75), t.Space(5.75)).Radius(t.Space(0.75))
+				iconCell(c, t, item.thumb)
 			default:
 				if glyph, ok := rowGlyph(item); ok {
 					icon := ui.Icon(c, glyph).Size(t.Space(4), t.Space(4))
@@ -1253,10 +1271,12 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 			// share (always visible, so a narrow window cannot truncate it
 			// away).
 			ui.Row(c).Gap(t.Space(1)).AlignItems(ui.Center).Children(func() {
-				title := ui.Text(c, item.Title).FontSize(t.FontSize).TextColor(t.Text)
-				// The selected row's emphasis is its own type: the title at
-				// 700, as `.launcher-result--selected .launcher-result__title`
-				// did.
+				// The title is the ladder's title register (`--text-title`,
+				// one step above the body) at 580, and the selected row's
+				// emphasis is its own type: 700, as
+				// `.launcher-result--selected .launcher-result__title` did.
+				title := ui.Text(c, item.Title).FontSize(t.FontSize + 2).
+					FontWeight(580).TextColor(tokens.TextStrong)
 				if i == a.Selected {
 					title.FontWeight(700)
 				}
@@ -1265,9 +1285,13 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 				}
 			})
 			if item.Detail != "" {
-				subtitle := ui.Text(c, item.Detail).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+				// The subtitle is the body register at 510, quiet; the
+				// selected row lifts it one step and thickens it, as the old
+				// build's own selected subtitle did.
+				subtitle := ui.Text(c, item.Detail).FontSize(t.FontSize).
+					FontWeight(510).TextColor(t.TextMuted)
 				if i == a.Selected {
-					subtitle.TextColor(t.Text)
+					subtitle.TextColor(t.Text).FontWeight(600)
 				}
 			}
 		})

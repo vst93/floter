@@ -25,6 +25,15 @@ const (
 	rowTwoLineUnits = 10.5 // 42u
 	rowOneLineUnits = 8.5  // 34u
 
+	// The rows' own registers, as `.launcher-result` declared them: the title
+	// is the ladder's title step (two units above the body), the subtitle the
+	// body step, and a block heading the body step with its own 6u/4u padding
+	// pair. The *line boxes* are the font's own — measured by the view, since
+	// a font's box is not a fixed multiple of its size — so a row is charged
+	// what it draws.
+	rowTitleStep   = 2
+	headingPadding = 2.5 // 6u above, 4u below
+
 	// TopInsetUnits and TailUnits are the card's own padding above the field's
 	// row and below the last one; the shell draws the card, so it reads them
 	// here rather than keeping a second copy that could drift from the window's
@@ -84,6 +93,17 @@ func windowInset() float64 {
 	}
 }
 
+// RowInfo is what the view drew for one row of the list: the text lines it
+// carries, and whether it is a block's heading rather than a result.
+type RowInfo struct {
+	// Lines are the row's text lines: two for a row with a subtitle, one
+	// without.
+	Lines float64
+	// Heading marks a block's title line, which is charged its own band
+	// rather than a result row's floor.
+	Heading bool
+}
+
 // Geometry is the measurements one window height is computed from. Every
 // number is what the view draws — the theme's own spacing and the text's
 // own line box — so the card and the window cannot disagree.
@@ -91,18 +111,19 @@ type Geometry struct {
 	// Font is the theme's FontSize, the unit every text line is measured
 	// with.
 	Font float64
-	// Line is the height of one line of that text in pixels, as the
-	// framework lays it out (the font's own ascent, descent and gap, not a
-	// multiple of the size): the view measures it and the window is charged
-	// with it, so a font whose line box is taller than the size cannot make
-	// the card taller than its window.
-	Line float64
+	// TitleLine and SubtitleLine are the heights of one line of the row's two
+	// text registers, in pixels, as the framework lays them out: the view
+	// measures them, so a font whose line box is taller than its size cannot
+	// make a row shorter than it draws.
+	TitleLine    float64
+	SubtitleLine float64
 	// Spacing is the theme's Spacing unit, which Space multiplies.
 	Spacing float64
-	// RowLines are the text lines of each visible row: two for a row with a
-	// subtitle, one without. Rows beyond this slice (a capped list) are
+	// Rows are what the view drew, in order: each row's own text lines (two
+	// for a row with a subtitle, one without) and whether it is a block's
+	// heading rather than a result. Rows beyond this slice (a capped list) are
 	// charged the worst case, two lines.
-	RowLines []float64
+	Rows []RowInfo
 	// Held is the row count the window is sized for (with hysteresis): the
 	// band. Rows beyond the list's own are charged the worst case, so a
 	// window holding four rows in a five-row band has the room the next
@@ -138,12 +159,7 @@ func (g Geometry) Height() int {
 	if font <= 0 {
 		font = 14
 	}
-	line := g.Line
-	if line <= 0 {
-		// The framework's own fallback line box, for a caller that has not
-		// measured: ascent 0.8, descent 0.2.
-		line = font
-	}
+
 	// The old app's own chrome, in its units (`--u`), which this codebase
 	// divides by four: the field's row (56u, the height the settings pages'
 	// header band shares), the breath under it (4u), the panel's top inset
@@ -153,16 +169,35 @@ func (g Geometry) Height() int {
 	// field occupies.
 	chrome := (fieldRowUnits + breathUnits + TopInsetUnits + TailUnits) * spacing
 	rowPadding := 3 * spacing
+	// The rows' two line boxes, as the view measured them. A caller that has
+	// not measured (the shell before the first frame) is given the font's own
+	// size, which is the floor of every real box.
+	titleLine := g.TitleLine
+	if titleLine <= 0 {
+		titleLine = font + rowTitleStep
+	}
+	subtitleLine := g.SubtitleLine
+	if subtitleLine <= 0 {
+		subtitleLine = font
+	}
+	bodyLine := subtitleLine
 
 	lines := 0.0
 	rows := RowCount(g.Held)
 	for i := 0; i < rows; i++ {
-		count := 2.0 // the worst case: a row with a subtitle
-		if i < len(g.RowLines) {
-			count = g.RowLines[i]
-			if count < 1 {
-				count = 1
-			}
+		info := RowInfo{Lines: 2} // the worst case: a row with a subtitle
+		if i < len(g.Rows) {
+			info = g.Rows[i]
+		}
+		if info.Heading {
+			// A heading is its own band: one body line and the 6u/4u padding
+			// pair, as `.launcher-section-title` drew it.
+			lines += headingPadding*spacing + bodyLine
+			continue
+		}
+		count := info.Lines
+		if count < 1 {
+			count = 1
 		}
 		// A row is its content or its own floor, whichever is taller: the old
 		// app's rows were fixed heights — 42u with a subtitle, 34u without —
@@ -171,7 +206,13 @@ func (g Geometry) Height() int {
 		if count >= 2 {
 			floor = rowTwoLineUnits * spacing
 		}
-		lines += math.Max(rowPadding+float64(count)*line, floor)
+		// The title's line box and the subtitle's, as the view measured them:
+		// the number the window is charged is the number the text takes.
+		content := rowPadding + titleLine
+		if count >= 2 {
+			content += subtitleLine
+		}
+		lines += math.Max(content, floor)
 	}
 	filterBand := 0.0
 	if g.Filter {

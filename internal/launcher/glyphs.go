@@ -208,3 +208,21 @@ func Glyph(name string) (*ui.SVG, bool) {
 	}
 	return nil, false
 }
+
+// iconCell draws an application's own artwork (or a clipboard thumbnail) in
+// the row's icon cell: 23u of the plate's 28u, scaled past the cell and
+// cropped by it.
+//
+// The oversize is the old build's own compensation: macOS `.icns` artwork
+// carries a margin of its own, and at 23u inside a 28u plate the mark read as
+// 「很单薄」 beside the plated glyphs. `transform: scale(1.42)` with
+// `object-fit: cover` pulled that margin out and filled the cell; a clipped box
+// around an oversized image is the same picture here.
+func iconCell(c *ui.Context, t *ui.Theme, bitmap *ui.Bitmap) {
+	side := t.Space(5.75)
+	cell := ui.Box(c).Size(side, side).Radius(t.Space(0.75)).Clip().
+		AlignItems(ui.Center).Justify(ui.Center).Shrink(0)
+	cell.Children(func() {
+		ui.Image(c, bitmap).Size(side*1.42, side*1.42)
+	})
+}

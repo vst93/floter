@@ -157,8 +157,9 @@ func TestFeedbackRow(t *testing.T) {
 	if a.FeedbackVisible() {
 		t.Fatal("the row shows before any message")
 	}
-	base := Geometry{Font: a.Font, Spacing: a.Spacing, RowLines: a.RowLines, Held: a.HeldRows}.Height()
-	withRow := Geometry{Font: a.Font, Spacing: a.Spacing, RowLines: a.RowLines, Held: a.HeldRows, Feedback: true}.Height()
+	base := Geometry{Font: a.Font, Spacing: a.Spacing, Rows: a.Rows, Held: a.HeldRows, TitleLine: a.TitleLine, SubtitleLine: a.SubtitleLine}.Height()
+	withRow := Geometry{Font: a.Font, Spacing: a.Spacing, Rows: a.Rows, Held: a.HeldRows, Feedback: true,
+		TitleLine: a.TitleLine, SubtitleLine: a.SubtitleLine}.Height()
 	if withRow <= base {
 		t.Errorf("the feedback band is not charged: %d vs %d", withRow, base)
 	}

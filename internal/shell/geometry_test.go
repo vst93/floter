@@ -50,8 +50,9 @@ func TestChargedHeightHoldsTheList(t *testing.T) {
 				schema = config.Schema
 			}
 			height := launcher.Geometry{
-				Font: a.Launcher.Font, Line: a.Launcher.Line, Spacing: a.Launcher.Spacing,
-				RowLines: a.Launcher.RowLines, Held: a.Launcher.HeldRows,
+				Font: a.Launcher.Font, Spacing: a.Launcher.Spacing,
+				TitleLine: a.Launcher.TitleLine, SubtitleLine: a.Launcher.SubtitleLine,
+				Rows: a.Launcher.Rows, Held: a.Launcher.HeldRows,
 				Filter:   a.Launcher.FiltersVisible(),
 				Feedback: a.Launcher.FeedbackVisible(),
 				Config:   schema,
@@ -82,14 +83,12 @@ func TestTargetSizeUsesTheMeasuredGeometry(t *testing.T) {
 	a := New(Options{Store: settings.NewStore(settings.Default()), WorkAreaHeight: 900})
 	tt := ui.NewTester(func(c *ui.Context) { a.View(c) }, launcher.InputWindowWidth, 1000)
 	tt.Frame()
-	if a.Launcher.Line <= a.Launcher.Font {
-		t.Fatalf("the line box was not measured: %v", a.Launcher.Line)
-	}
 	_, height := a.targetSize(a.Store.Snapshot())
 	// The view's own target and the shell's agree: the same geometry.
 	want := launcher.Geometry{
-		Font: a.Launcher.Font, Line: a.Launcher.Line, Spacing: a.Launcher.Spacing,
-		RowLines: a.Launcher.RowLines, Held: a.Launcher.HeldRows,
+		Font: a.Launcher.Font, Spacing: a.Launcher.Spacing,
+		TitleLine: a.Launcher.TitleLine, SubtitleLine: a.Launcher.SubtitleLine,
+		Rows: a.Launcher.Rows, Held: a.Launcher.HeldRows,
 		Filter: a.Launcher.FiltersVisible(), Feedback: a.Launcher.FeedbackVisible(),
 		Cap: 900 - 24,
 	}.Height()
@@ -102,8 +101,9 @@ func TestTargetSizeUsesTheMeasuredGeometry(t *testing.T) {
 	tt.Frame()
 	_, sheetHeight := a.targetSize(a.Store.Snapshot())
 	wantSheet := launcher.Geometry{
-		Font: a.Launcher.Font, Line: a.Launcher.Line, Spacing: a.Launcher.Spacing,
-		RowLines: a.Launcher.RowLines, Held: a.Launcher.HeldRows,
+		Font: a.Launcher.Font, Spacing: a.Launcher.Spacing,
+		TitleLine: a.Launcher.TitleLine, SubtitleLine: a.Launcher.SubtitleLine,
+		Rows: a.Launcher.Rows, Held: a.Launcher.HeldRows,
 		Filter: a.Launcher.FiltersVisible(), Feedback: a.Launcher.FeedbackVisible(),
 		Config: a.Launcher.ConfigSchema(), Cap: 900 - 24,
 	}.Height()

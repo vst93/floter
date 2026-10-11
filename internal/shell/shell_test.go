@@ -2484,7 +2484,7 @@ func TestLauncherResizeFollowsTheList(t *testing.T) {
 	// A View that has measured a list sizes the window to the band.
 	a.Launcher.Font = 14
 	a.Launcher.Spacing = 4
-	a.Launcher.RowLines = []float64{2, 2, 2, 1, 1}
+	a.Launcher.Rows = []launcher.RowInfo{{Lines: 2}, {Lines: 2}, {Lines: 2}, {Lines: 1}, {Lines: 1}}
 	a.Launcher.HeldRows = 5
 	resizes := 0
 	heights := map[int]int{}

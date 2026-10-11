@@ -2676,15 +2676,16 @@ func (a *App) launcherHeight(s settings.Settings) int {
 	// row is on screen exactly while that mode owns the field, which the
 	// launcher's state knows and the shell does not.
 	return launcher.Geometry{
-		Font:     a.Launcher.Font,
-		Line:     a.Launcher.Line,
-		Spacing:  a.Launcher.Spacing,
-		RowLines: a.Launcher.RowLines,
-		Held:     a.Launcher.HeldRows,
-		Filter:   a.Launcher.FiltersVisible(),
-		Feedback: a.Launcher.FeedbackVisible(),
-		Config:   a.Launcher.ConfigSchema(),
-		Cap:      cap,
+		Font:         a.Launcher.Font,
+		Spacing:      a.Launcher.Spacing,
+		TitleLine:    a.Launcher.TitleLine,
+		SubtitleLine: a.Launcher.SubtitleLine,
+		Rows:         a.Launcher.Rows,
+		Held:         a.Launcher.HeldRows,
+		Filter:       a.Launcher.FiltersVisible(),
+		Feedback:     a.Launcher.FeedbackVisible(),
+		Config:       a.Launcher.ConfigSchema(),
+		Cap:          cap,
 	}.Height()
 }
 

@@ -43,22 +43,22 @@ func TestHoldRows(t *testing.T) {
 // a list of two-line rows; a held count with no list yet prices the worst
 // case, so the room the next row arrives into is already there.
 func TestGeometryHeight(t *testing.T) {
-	base := Geometry{Font: 14, Spacing: 4, RowLines: []float64{1}, Held: 1}.Height()
+	base := Geometry{Font: 14, Spacing: 4, Rows: []RowInfo{{Lines: 1}}, Held: 1}.Height()
 	if base <= 0 {
 		t.Fatalf("height = %d", base)
 	}
 	// A second line makes the window taller by one line box.
-	two := Geometry{Font: 14, Spacing: 4, RowLines: []float64{2}, Held: 1}.Height()
+	two := Geometry{Font: 14, Spacing: 4, Rows: []RowInfo{{Lines: 2}}, Held: 1}.Height()
 	if two <= base {
 		t.Errorf("a two-line row = %d, want taller than a one-line %d", two, base)
 	}
 	// A held band prices rows the list does not have yet.
-	band := Geometry{Font: 14, Spacing: 4, RowLines: []float64{1}, Held: 5}.Height()
+	band := Geometry{Font: 14, Spacing: 4, Rows: []RowInfo{{Lines: 1}}, Held: 5}.Height()
 	if band <= base {
 		t.Errorf("a five-row band = %d, want taller than one row %d", band, base)
 	}
 	// The cap binds.
-	capped := Geometry{Font: 14, Spacing: 4, RowLines: []float64{2}, Held: rowBudget, Cap: 300}.Height()
+	capped := Geometry{Font: 14, Spacing: 4, Rows: []RowInfo{{Lines: 2}}, Held: rowBudget, Cap: 300}.Height()
 	if capped != 300 {
 		t.Errorf("capped height = %d, want 300", capped)
 	}
@@ -71,7 +71,7 @@ func TestGeometryHeight(t *testing.T) {
 	// exactly one row per row.
 	prev := 0
 	for rows := 1; rows <= rowBudget; rows++ {
-		height := Geometry{Font: 14, Spacing: 4, RowLines: []float64{2}, Held: rows}.Height()
+		height := Geometry{Font: 14, Spacing: 4, Rows: []RowInfo{{Lines: 2}}, Held: rows}.Height()
 		if prev > 0 && height-prev <= 0 {
 			t.Errorf("row %d = %d, not taller than %d", rows, height, prev)
 		}
@@ -79,23 +79,74 @@ func TestGeometryHeight(t *testing.T) {
 	}
 }
 
-// The window is charged with the height a line of text actually draws at: the
-// framework's line box is the font's own ascent, descent and gap, which is
-// taller than the size (14 points lay out at 22), and a model that assumed a
-// multiple of the size left the card taller than its window.
-func TestGeometryUsesTheMeasuredLineBox(t *testing.T) {
-	// The measured box and the fallback differ: the model must use the first.
-	measured := Geometry{Font: 14, Line: 22, Spacing: 4, RowLines: []float64{2}, Held: 1}.Height()
-	assumed := Geometry{Font: 14, Spacing: 4, RowLines: []float64{2}, Held: 1}.Height()
-	if measured <= assumed {
-		t.Errorf("a measured line box of 22 gives %d, not more than the %d a font-sized one gives", measured, assumed)
+// The window is charged with the line boxes the rows actually draw: the title
+// register at 1.2, the subtitle at 1.15, and a heading the body step at 1.4
+// with its own padding pair. A row's floor (42u with a subtitle, 34u without)
+// still wins where it is taller.
+func TestGeometryChargesTheRowsOwnLineBoxes(t *testing.T) {
+	// Two lines at the drawn scales, in the units the view uses.
+	two := Geometry{Font: 11, Spacing: 4, Rows: []RowInfo{{Lines: 2}}, Held: 1}.Height()
+	one := Geometry{Font: 11, Spacing: 4, Rows: []RowInfo{{Lines: 1}}, Held: 1}.Height()
+	if two <= one {
+		t.Errorf("a two-line row is %d, not taller than a one-line %d", two, one)
 	}
-	// The measured box is what the drawn card is: two lines, the row's 12u
-	// padding pair, the card's 66u chrome and the platform's margin.
-	want := int(roundHalf(66 + 12 + 2*22 + windowInset()))
-	if measured != want {
-		t.Errorf("height = %d, want %d", measured, want)
+	// The row's floor wins over its own content: 42u with a subtitle.
+	// chrome 66u + 42u floor + the platform's margin.
+	want := int(roundHalf(66 + 42 + windowInset()))
+	if two != want {
+		t.Errorf("a two-line row is %d, want the 42u floor's %d", two, want)
+	}
+	// A heading is charged its own band — one body line at 1.4 and the 6u/4u
+	// padding pair — not a row's floor, so a list of headings is shorter than
+	// a list of rows.
+	heading := Geometry{Font: 11, Spacing: 4, Rows: []RowInfo{{Heading: true}}, Held: 1}.Height()
+	if heading >= one {
+		t.Errorf("a heading is %d, not shorter than a one-line row %d", heading, one)
+	}
+	// The heading's own line box is the body one (a caller that has not
+	// measured is given the font's own size, which is the floor of a real box).
+	wantHeading := int(roundHalf(66 + 2.5*4 + 11 + windowInset()))
+	if heading != wantHeading {
+		t.Errorf("a heading is %d, want %d", heading, wantHeading)
 	}
 }
 
 func roundHalf(v float64) float64 { return float64(int(v + 0.5)) }
+
+// The pitch between two drawn rows is the height the window charges for a row:
+// a list of n rows is n times the pitch taller than a list of n-1, and the rows
+// on screen are where that arithmetic says they are.
+func TestDrawnPitchIsTheChargedRow(t *testing.T) {
+	a := testApp()
+	tt := render(t, a)
+	tt.Frame()
+	// Two adjacent rows of the same shape (both carry a subtitle).
+	var first, second float32
+	if rect, ok := tt.Find("Open settings"); ok {
+		first = rect.Y
+	}
+	if rect, ok := tt.Find("Open terminal"); ok {
+		second = rect.Y
+	}
+	if first == 0 || second == 0 {
+		t.Fatalf("the rows are not on screen: %q", tt.Texts())
+	}
+	pitch := float64(second - first)
+
+	measured := func(held int) Geometry {
+		rows := make([]RowInfo, held)
+		for i := range rows {
+			rows[i] = RowInfo{Lines: 2}
+		}
+		return Geometry{
+			Font: a.Font, Spacing: a.Spacing, Rows: rows, Held: held,
+			TitleLine: a.TitleLine, SubtitleLine: a.SubtitleLine,
+		}
+	}
+	one := measured(1).Height()
+	two := measured(2).Height()
+	charged := float64(two - one)
+	if diff := pitch - charged; diff > 1.5 || diff < -1.5 {
+		t.Errorf("the drawn pitch is %.1f, the window charges %.1f per row", pitch, charged)
+	}
+}
