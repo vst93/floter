@@ -28,13 +28,13 @@ func (a *App) openPath(path string) {
 	if a.openPathCommand != nil {
 		if err := a.openPathCommand(path); err != nil {
 			log.Printf("floter: could not open %s: %v", path, err)
-			a.onMain(func() { a.Launcher.WarnFeedback(a.Launcher.Copy().InvokeFailed) })
+			a.onMain(func() { a.Launcher.WarnFeedback(a.Launcher.Copy().OpenPathFailed) })
 		}
 		return
 	}
 	if err := spawn.Program(systemOpener(), path); err != nil {
 		log.Printf("floter: could not open %s: %v", path, err)
-		a.onMain(func() { a.Launcher.WarnFeedback(a.Launcher.Copy().InvokeFailed) })
+		a.onMain(func() { a.Launcher.WarnFeedback(a.Launcher.Copy().OpenPathFailed) })
 	}
 }
 
@@ -70,7 +70,7 @@ func (a *App) openInTerminal(dir string) {
 func (a *App) openTerminalWindow() {
 	if err := a.OpenExternalTerminal(); err != nil {
 		log.Printf("floter: could not open the terminal: %v", err)
-		a.onMain(func() { a.Launcher.WarnFeedback(a.Launcher.Copy().InvokeFailed) })
+		a.onMain(func() { a.Launcher.WarnFeedback(a.Launcher.Copy().OpenTermFailed) })
 	}
 }
 

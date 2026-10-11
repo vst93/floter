@@ -159,9 +159,16 @@ type Launcher struct {
 	// PowerConfirmMessage is the confirmation's one sentence, per action.
 	PowerConfirmMessage func(action string) string
 	// InstallTool names the row that offers a tool's install command, and
-	// InvokeFailed reports a tool that could not be started.
-	InstallTool  func(name string) string
-	InvokeFailed string
+	// InvokeFailed reports a tool that could not be started. The rest are the
+	// old build's per-operation errors: what failed, not just that something
+	// did.
+	InstallTool     func(name string) string
+	InvokeFailed    string
+	OpenAppFailed   string
+	OpenPathFailed  string
+	OpenURLFailed   string
+	OpenFilesFailed string
+	OpenTermFailed  string
 	// The action bar: what the field itself is asking for.
 	OpenInBrowser string
 	OpenInFiles   string

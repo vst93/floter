@@ -466,6 +466,7 @@ func New(opts Options) *App {
 		OpenApp: func(app apps.App) {
 			if err := app.Open(); err != nil {
 				log.Printf("floter: could not open %s: %v", app.Name, err)
+				a.onMain(func() { a.Launcher.WarnFeedback(i18n.For(a.Store.Snapshot().Language).Launcher.OpenAppFailed) })
 				return
 			}
 			// Remember the launch before hiding: the next empty query
