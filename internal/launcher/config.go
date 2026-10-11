@@ -151,7 +151,7 @@ func (a *App) syncConfig() {
 // fields, one renderer for it.
 func (a *App) configBody(c *ui.Context, edge float32) {
 	if a.Actions.DrawConfig != nil {
-		ui.Box(c).FillWidth().Padding(edge, 0, 0, 0).Children(func() {
+		ui.Box(c).FillWidth().Padding(edge, c.Theme().Space(1), 0, c.Theme().Space(1)).Children(func() {
 			a.Actions.DrawConfig(c, a.config)
 		})
 	}

@@ -2559,7 +2559,19 @@ func (a *App) View(c *ui.Context) {
 	}
 	ui.Column(c).Fill().Padding(top, right, bottom, left).Children(func() {
 		radius := surface.Tokens.RadiusLG
-		card := ui.Column(c).Fill().Radius(radius).DragWindow().Border(1, stroke)
+		// The card clips, so a full-bleed block inside it takes the window's
+		// rounded corners — the old build's `.collapsed-card` had
+		// `overflow: hidden` for exactly this.
+		card := ui.Column(c).Fill().Radius(radius).DragWindow().Border(1, stroke).Clip()
+		// The launcher's blocks run edge to edge: the field row is full-bleed
+		// (`.collapsed-card__input-row`) and the panel below it is the card's
+		// own recess, so the surface owns no horizontal inset of its own —
+		// every block carries the 4u/16u its reference rule names. The other
+		// two surfaces are panels and keep the card's 2.5u gutter.
+		padX := t.Space(2.5)
+		if a.Surf == SurfaceLauncher {
+			padX = 0
+		}
 		material := glassmap.Material(surface.Glass, t)
 		if material == nil {
 			// The `off` stop: a plain, near-solid face and no material.
@@ -2567,7 +2579,7 @@ func (a *App) View(c *ui.Context) {
 			if a.Surf == SurfaceLauncher {
 				padTop, padBottom = t.Space(launcher.TopInsetUnits), t.Space(launcher.TailUnits)
 			}
-			card.Background(t.Surface).Padding(padTop, t.Space(2.5), padBottom, t.Space(2.5))
+			card.Background(surface.Tokens.Opaque).Padding(padTop, padX, padBottom, padX)
 			card.Children(func() { a.surface(c) })
 			return
 		}
@@ -2593,7 +2605,7 @@ func (a *App) View(c *ui.Context) {
 				padBottom = t.Space(launcher.TailUnits)
 			}
 			face := ui.Column(c).Fill().Radius(radius).Material(material).
-				Padding(padTop, t.Space(2.5), padBottom, t.Space(2.5)).DragWindow()
+				Padding(padTop, padX, padBottom, padX).DragWindow()
 			face.Children(func() { a.surface(c) })
 		})
 	})

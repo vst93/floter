@@ -243,31 +243,47 @@ func (a *App) outputBody(c *ui.Context, copy i18n.Launcher, edge float32) {
 		if view.IsList {
 			ui.List(c.Key("launcher.output.list"), &a.OutputList, len(view.Rows), func(i int) {
 				a.outputRow(c, view.Rows[i], i)
-			}).Fill().Padding(edge+header, t.Space(1), 0, 0).Label(view.Title)
+			}).Fill().Padding(edge+header, t.Space(2), 0, t.Space(2)).Label(view.Title)
 		} else {
 			ui.Scroll(c.Key("launcher.output")).TrackScroll(&a.Output).Fill().
-				Padding(edge+header, t.Space(2), t.Space(1), t.Space(2)).Children(func() {
+				Padding(edge+header, t.Space(3), t.Space(1), t.Space(3)).Children(func() {
 				ui.RichText(c, a.outputSpans(c, view)...).Font(view.FontFamily).
 					FontSize(t.FontSize).TextColor(t.Text).Selectable()
 			})
 		}
-		ui.Column(c).Absolute().Top(edge).Left(t.Space(2)).Right(t.Space(2)).Children(func() {
+		ui.Column(c).Absolute().Top(edge).Left(t.Space(3)).Right(t.Space(3)).Children(func() {
 			ui.Row(c).FillWidth().Gap(t.Space(1)).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, view.Title).FontSize(t.FontSize).TextColor(t.Text).Ellipsis("\u2026").SingleLine().Grow(1)
+				// The output's own controls: 28u transparent squares with a
+				// mark, the reference's `.plugin-window__bar-button`, never
+				// filled pills in the text surface's header.
+				tokens := theme.For(a.settings(), t.Dark)
+				control := func(mark, label string, run func()) {
+					if run == nil {
+						return
+					}
+					button := ui.Row(c).Focusable().Shrink(0).Size(t.Space(7), t.Space(7)).
+						Radius(tokens.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).Label(label)
+					if button.Hovered() {
+						button.Background(tokens.ControlHover)
+					}
+					button.Children(func() {
+						ui.Text(c, mark).FontSize(tokens.Emphasis).TextColor(t.TextMuted)
+					})
+					if button.Clicked() {
+						run()
+					}
+				}
 				// The output can be shown in a window of its own: the old
 				// build's own pin, on the surface that holds the text.
 				if a.Actions.PinText != nil {
-					if ui.Button(c, "\u2197").Label(copy.HistoryPin).Clicked() {
-						a.Actions.PinText(view.Title, view.Text)
-					}
+					control("\u2197", copy.HistoryPin, func() { a.Actions.PinText(view.Title, view.Text) })
 				}
 				// And a command's page can be detached into a window that
 				// stays put: the old build's second window, which never hides
 				// on blur and re-runs the command from its own controls.
 				if a.Actions.DetachOutput != nil && view.Entry != nil {
-					if ui.Button(c, "\u29c9").Label(copy.OutputDetach).Clicked() {
-						a.Actions.DetachOutput(*view)
-					}
+					control("\u29c9", copy.OutputDetach, func() { a.Actions.DetachOutput(*view) })
 				}
 			})
 			ui.Text(c, view.Status+"  \u00b7  "+a.outputHint(copy, view)).FontSize(t.FontSize - 1).TextColor(t.TextMuted)

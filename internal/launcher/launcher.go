@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/apps"
@@ -687,7 +686,11 @@ func (a *App) View(c *ui.Context) {
 	chips := a.filtersHeight(c)
 	listEdge := edge + chips
 
-	ui.Box(c).Fill().Children(func() {
+	ui.Box(c).Fill().Background(tk.Sunken).Children(func() {
+		// The panel is the launcher's reading surface: the old build's
+		// `--surface-sunken`, one step denser than the card's own glass, so
+		// the rows sit on a recess rather than on the frame (`.launcher-bottom`).
+		// The field block above is opaque and paints over its top.
 		if a.output != nil {
 			a.outputBody(c, copy, edge)
 			return
@@ -717,19 +720,29 @@ func (a *App) View(c *ui.Context) {
 			// insets push it past the list's own clip, which is what hides it.
 			ui.List(c.Key("launcher.results"), &a.List, len(results), func(i int) {
 				a.row(c, results[i], i)
-			}).Fill().Padding(listEdge, 0, 0, 0).Label(copy.ResultsLabel).
+			}).Fill().Padding(listEdge, t.Space(1), 0, t.Space(1)).Label(copy.ResultsLabel).
 				ScrollbarInsets(0, 4096, 0, 0)
 		}
 
 		// The chips row floats under the field, the list scrolling beneath it.
 		a.filtersRow(c, fieldRow+t.Space(1))
 
-		// The rows fade into the panel under the field. PassThrough lets
-		// the pointer reach a row the strip covers.
-		ui.Box(c).Absolute().Top(0).Left(0).Right(0).Height(edge).PassThrough().
-			Material(glass.ScrollEdge{Background: t.Background})
+		// The rows fade into the panel under the field is gone with R31: the
+		// reference deleted the launcher's scroll-edge band and kept only the
+		// field block's own 1px hairline (below). The band darkened rows as
+		// they passed under the field, which the user read as a shadow cast
+		// by the input.
+
+		// The field block's own floor: one hairline, the reference's R31
+		// 「输入框下方阴影可以只保留 1px」. The field row is a near-solid,
+		// brighter block (`.collapsed-card__input-row`'s
+		// `--glass-field` over `--surface-opaque`); the line is what says
+		// where it ends.
+		ui.Box(c).Absolute().Top(fieldRow - 1).Left(0).Right(0).Height(1).PassThrough().
+			Background(tk.Hairline)
 
 		ui.Row(c).Absolute().Top(0).Left(0).Right(0).Height(fieldRow).
+			Background(tk.FieldFill).Padding(0, t.Space(4)).
 			AlignItems(ui.Center).Gap(t.Space(1)).Children(func() {
 			// The scope mark: the mode that owns the field, at its left — the
 			// icon says a plugin owns it and the muted word says which one
@@ -754,6 +767,12 @@ func (a *App) View(c *ui.Context) {
 				FontSize(tk.Display).
 				FontWeight(460).
 				Grow(1)
+			// The field is borderless text inside the card, not a boxed
+			// control: the reference's `.collapsed-card__input` carries no
+			// border, no fill and no padding, and the card's own edge is the
+			// only visible shape. The framework's input draws its own pane
+			// and focus ring, so both are taken off here.
+			field.Background(ui.Transparent).Border(0, ui.Transparent).Padding(0)
 			if a.pendingCaret {
 				field.SetTextSelection(len(a.Query), len(a.Query))
 				a.pendingCaret = false
@@ -777,7 +796,22 @@ func (a *App) View(c *ui.Context) {
 					ui.Text(c, hint).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
 				}
 				if a.Query != "" {
-					if ui.Button(c, "✕").Label(copy.Clear).Clicked() {
+					// The clear control is the same 28u transparent square the
+					// field's other two buttons are (`.collapsed-card__settings`):
+					// a bare mark that only lands on the resting plane while
+					// hovered, never a filled pill in the search row.
+					clear := ui.Row(c).Focusable().Shrink(0).Size(t.Space(7), t.Space(7)).
+						Radius(tk.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).
+						Label(copy.Clear)
+					if clear.Hovered() {
+						clear.Background(t.SurfaceHover)
+					}
+					clear.Children(func() {
+						if glyph, ok := Glyph("close"); ok {
+							ui.Icon(c, glyph).Size(t.Space(4), t.Space(4)).TextColor(t.TextMuted)
+						}
+					})
+					if clear.Clicked() {
 						a.Query = ""
 						a.Selected = 0
 						a.FocusSearch()
@@ -1377,9 +1411,13 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 				// for rather than truncating (`.launcher-result__calculator-
 				// result`: nowrap, strong, 620, tabular figures).
 				if item.trailing != "" {
+					// The answer rolls its digits when it changes
+					// (`ui.ContentTransition{Numeric: true}`) — a calculator
+					// answer is the app's own counter.
 					ui.Text(c, item.trailing).FontSize(t.FontSize).
 						FontWeight(620).TextColor(tokens.TextStrong).Grow(1).
-						TextAlign(ui.End).SingleLine()
+						TextAlign(ui.End).SingleLine().
+						ContentTransition(ui.ContentTransition{Numeric: true})
 				}
 				// The space-bar nudge: a command whose output the launcher
 				// shows itself is entered with one space, and the row says so
@@ -1387,7 +1425,17 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 				// 用户意识到可以按空格就行了」), a visual mark whose tooltip
 				// carries the sentence.
 				if item.direct {
-					ui.Text(c, "\u2423").FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+					// The space keycap (R65): a bare `␣` on a 18u bevel — border,
+					// control fill, keycap shadow — not a sentence. The whole
+					// explanation lives in the row's tooltip.
+					key := ui.Row(c).Shrink(0).MinWidth(t.Space(4.5)).Height(t.Space(4.5)).
+						Padding(0, t.Space(1)).Radius(tokens.RadiusXS).
+						Border(1, tokens.ControlEdge).Background(tokens.Control).
+						AlignItems(ui.Center).Justify(ui.Center)
+					key.InsetShadow(0, 1, 0, 0, tokens.LensRim)
+					key.Children(func() {
+						ui.Text(c, "\u2423").FontSize(tokens.Caption).TextColor(tokens.TextSecondary)
+					})
 				}
 			})
 			if item.Detail != "" {
@@ -1397,7 +1445,7 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 				subtitle := ui.Text(c, item.Detail).FontSize(t.FontSize).
 					FontWeight(510).TextColor(t.TextMuted)
 				if i == a.Selected {
-					subtitle.TextColor(t.Text).FontWeight(600)
+					subtitle.TextColor(tokens.TextSecondary).FontWeight(600)
 				}
 			}
 		})
@@ -1741,7 +1789,7 @@ func (a *App) feedbackRow(c *ui.Context) {
 	tone := t.Warning
 	weight := 560
 	background := t.Warning.Alpha(0.12)
-	feedback := ui.Row(c).Absolute().Bottom(0).Left(0).Right(0).Height(t.Space(7.5)).
+	feedback := ui.Row(c).Absolute().Bottom(0).Left(t.Space(1)).Right(t.Space(1)).Height(t.Space(7.5)).
 		Padding(0, t.Space(3)).Gap(t.Space(2)).AlignItems(ui.Center).
 		Radius(tokens.RadiusSM).Background(background).
 		// The row enters as the old build's `feedback-enter` did (its

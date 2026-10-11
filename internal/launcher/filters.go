@@ -18,6 +18,7 @@ import (
 	"floter/internal/i18n"
 	"floter/internal/settings"
 	"floter/internal/shortcuts"
+	"floter/internal/theme"
 )
 
 // FilterAxis is one dimension a mode's list can be filtered by.
@@ -179,38 +180,43 @@ func (a *App) filtersRow(c *ui.Context, top float32) {
 	}
 	copy := a.copy()
 	t := c.Theme()
+	tokens := theme.For(a.settings(), t.Dark)
 	ui.Row(c).Absolute().Top(top).Left(0).Right(0).Height(a.filtersHeight(c)).
-		Padding(0, t.Space(2)).Gap(t.Space(1)).AlignItems(ui.Center).Children(func() {
+		Padding(0, t.Space(4)).Gap(t.Space(3.5)).AlignItems(ui.Center).Children(func() {
 		for _, value := range axis.Values {
 			value := value
-			// The chip is its own line box and no padding (R72): the row's
-			// 20u is the line plus the breath below it, so a chip with a
-			// padding pair of its own would be taller than the band the
-			// window charges for it.
-			chip := ui.Row(c).Focusable().Shrink(0).
-				Padding(0, t.Space(2)).Radius(t.Radius).
+			// R72: the chip is text, not a pill. The reference dropped the
+			// active chip's underline and its fill — the state is carried by
+			// colour and weight alone (`--text-primary` at 640), and a hover
+			// only lifts the muted word one step. The row's 20u band is the
+			// line box plus the breath below it, so a chip with a padding pair
+			// or a background of its own would be a control the band never
+			// charged for.
+			chip := ui.Row(c).Focusable().Shrink(0).Radius(t.Radius).
 				Transition(ui.ElementTransition{Colors: true, Duration: 120 * time.Millisecond})
-			if value == current {
-				chip.Background(t.Accent.Alpha(0.14))
-			} else if chip.Hovered() {
-				chip.Background(t.SurfaceHover)
-			}
 			label := axis.LabelOf(copy, value)
 			color := t.TextMuted
-			if value == current {
+			weight := 500
+			switch {
+			case value == current:
 				color = t.Text
+				weight = 640
+			case chip.Hovered():
+				color = tokens.TextSecondary
 			}
-			chip.Children(func() { ui.Text(c, label).FontSize(t.FontSize - 1).TextColor(color) })
+			chip.Children(func() {
+				ui.Text(c, label).FontSize(t.FontSize).FontWeight(weight).TextColor(color)
+			})
 			if chip.Clicked() {
 				a.setFilter(value)
 			}
 		}
 		// The row's own hint, at its end and before the gear: what Tab does
 		// and the key the list answers, as the old build's
-		// `.launcher-filter__hint` printed it (caption, weight 500, muted).
+		// `.launcher-filter__hint` printed it (caption, weight 500, tertiary).
 		if hint := a.filterHint(copy); hint != "" {
 			ui.Text(c, hint).FontSize(t.FontSize - 1).FontWeight(500).
-				TextColor(t.TextMuted).Grow(1).TextAlign(ui.End).SingleLine().Ellipsis("\u2026")
+				TextColor(tokens.TextTertiary).Grow(1).TextAlign(ui.End).SingleLine().Ellipsis("\u2026")
 		}
 		// The mode's own door to its configuration: the chips filter the list,
 		// and the gear opens the plugin's own sheet in this band (the old

@@ -131,7 +131,10 @@ func (a *App) iconPlate(c *ui.Context, warm bool) ui.Element {
 	} else {
 		plate.Background(tokens.Control)
 	}
-	return plate
+	// The reference's `--elev-0` lens: without it the 28u cell is a flat
+	// tint, and a column of them reads as eight controls rather than as one
+	// glass surface (`.launcher-result__icon`).
+	return tokens.Lens(plate)
 }
 
 // enterBadge is the key the action bar's row runs on: the select-result
