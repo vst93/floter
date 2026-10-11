@@ -679,27 +679,34 @@ func (a *App) selectPage(page int) {
 	}
 }
 
-// body builds the chosen page: a hint pinned over the content, which
-// scrolls under it behind a soft scroll edge.
+// body builds the chosen page: the page's own title and hint, then its
+// sections, scrolling together under a soft scroll edge — the reference's
+// `.settings-page__header` is part of the scrolling content, not a second
+// pinned band (the card header above it is the only one).
 func (a *App) body(c *ui.Context, copy i18n.Settings) {
 	p := a.page(a.Page)
 	t := c.Theme()
 
-	// The page's own header: its name at the display register and the one-line
-	// hint under it, as the reference's `.settings-page__title` /
-	// `.settings-page__subtitle` did.
-	// The page's header band is 56u — the height the launcher's field row
-	// carries, and the one the old build pinned both to in R37, so switching
-	// surfaces does not move the window's first band.
-	header := t.Space(14)
-	edge := header + t.Space(1)
+	// The scroller reserves the scroll edge's own height, so the resting state
+	// sits below the band and only content that actually scrolls passes
+	// through it.
+	edge := t.Space(4)
 	ui.Column(c).Fill().Children(func() {
 		ui.Scroll(c.Key("settings.body")).TrackScroll(&a.Body).Fill().
-			Padding(edge, 0, 0, 0).Children(func() {
+			Padding(edge, 0, t.Space(6), 0).Children(func() {
 			// The horizontal inset lives on the content column, not on the
 			// scroller, so the scrollbar still hugs the panel's edge
 			// (`.settings-content > *`).
-			ui.Column(c).FillWidth().Padding(0, t.Space(4.5)).Children(func() {
+			ui.Column(c).FillWidth().Padding(0, t.Space(4.5)).Gap(t.Space(5.5)).Children(func() {
+				// The page's own registers: the title at the display step (650)
+				// and the one-line hint at the body step (500), as
+				// `.settings-page__title` / `__subtitle` had them.
+				ui.Column(c).FillWidth().Gap(t.Space(0.75)).Children(func() {
+					ui.Text(c, p.Title).FontSize(a.tokens(c).Display).FontWeight(650).TextColor(t.Text)
+					if p.Hint != "" {
+						ui.Text(c, p.Hint).FontSize(t.FontSize).FontWeight(500).TextColor(t.TextMuted)
+					}
+				})
 				switch a.Page {
 				case PageGeneral:
 					a.general(c, copy)
@@ -720,16 +727,6 @@ func (a *App) body(c *ui.Context, copy i18n.Settings) {
 		})
 		ui.Box(c).Absolute().Top(0).Left(0).Right(0).Height(edge).PassThrough().
 			Material(glass.ScrollEdge{Background: t.Background})
-		ui.Column(c).Absolute().Top(0).Left(0).Right(0).Height(header).
-			Padding(0, 0, t.Space(1), 0).Children(func() {
-			// The page's own registers: the title at the display step (650)
-			// and the one-line hint at the body step (500), as
-			// `.settings-page__title` / `__subtitle` had them.
-			ui.Text(c, p.Title).FontSize(a.tokens(c).Display).FontWeight(650).TextColor(t.Text)
-			if p.Hint != "" {
-				ui.Text(c, p.Hint).FontSize(t.FontSize).FontWeight(500).TextColor(t.TextMuted)
-			}
-		})
 	})
 }
 
