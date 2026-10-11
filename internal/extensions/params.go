@@ -209,3 +209,45 @@ func truthy(value string) bool {
 		return false
 	}
 }
+
+// ParamRowIssues is what a parameter row still needs, by its position in the
+// editor: the same rules the backend enforces on save, answered before the
+// save is asked for — the old build's `paramIssues`, whose errors rendered
+// under the row that caused them so a save never had to bounce back from the
+// server to explain a typo.
+//
+// A row with no id is not a declaration (the editor skips it), so it earns no
+// issue of its own; a *declared* row that cannot be saved does.
+func ParamRowIssues(params []ParamDefinition) map[int]string {
+	issues := map[int]string{}
+	seen := map[string]int{}
+	for i, param := range params {
+		if strings.TrimSpace(param.ID) == "" {
+			issues[i] = "id"
+			continue
+		}
+		if !isParamID(param.ID) {
+			issues[i] = "id"
+			continue
+		}
+		if first, dup := seen[param.ID]; dup {
+			issues[i] = "duplicate:" + param.ID
+			issues[first] = "duplicate:" + param.ID
+			continue
+		}
+		seen[param.ID] = i
+		switch param.Kind {
+		case ParamText, ParamNumber, ParamBoolean, ParamPath:
+		case ParamSelect:
+			if len(param.Options) == 0 {
+				issues[i] = "options"
+			}
+		default:
+			issues[i] = "kind"
+		}
+		if param.Kind == ParamBoolean && param.Flag == "" {
+			issues[i] = "flag"
+		}
+	}
+	return issues
+}

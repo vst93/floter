@@ -2295,6 +2295,16 @@ var paramKinds = []string{
 	extensions.ParamSelect, extensions.ParamPath,
 }
 
+// issueUnder prints one row's own validation line: what the row still needs,
+// under the row that caused it — the old build's `paramIssues`, whose errors
+// rendered where they happened so a save never had to bounce back from the
+// backend to explain a typo. A muted warning line, not a red banner.
+func (a *App) issueUnder(c *ui.Context, message string) {
+	t := c.Theme()
+	ui.Text(c, message).FontSize(t.FontSize-1).TextColor(t.Warning).
+		Padding(0, t.Space(3.5)).SingleLine()
+}
+
 // toolParamsEditor edits the declared inputs of a connection: one row per
 // parameter — its id, its kind, its flag (the argv prefix it becomes) and
 // whether a value is required — plus the door to add another. A flag that is
