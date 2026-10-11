@@ -1331,6 +1331,14 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 					ui.Box(c).Size(t.Space(2), t.Space(2)).Shrink(0).
 						Radius(t.Space(2)).Background(t.Warning)
 				}
+				// The space-bar nudge: a command whose output the launcher
+				// shows itself is entered with one space, and the row says so
+				// with a keycap — deliberately generic (「就笼统点，简洁点，让
+				// 用户意识到可以按空格就行了」), a visual mark whose tooltip
+				// carries the sentence.
+				if item.direct {
+					ui.Text(c, "\u2423").FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+				}
 			})
 			if item.Detail != "" {
 				// The subtitle is the body register at 510, quiet; the

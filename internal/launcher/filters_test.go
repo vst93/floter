@@ -755,3 +755,28 @@ func TestResultNumberBadge(t *testing.T) {
 		t.Errorf("badge = %q, want the stored binding's", got)
 	}
 }
+
+// A command whose output the launcher shows itself carries the space-bar
+// nudge on its row, as the old build's R65 put there; a terminal-route command
+// does not, since its output goes to the terminal surface.
+func TestDirectOutputNudge(t *testing.T) {
+	direct := commandApp()
+	for i := range direct.Commands {
+		direct.Commands[i].Route = extensions.RouteBackground
+	}
+	direct.Query = "JSON"
+	tt := render(t, direct)
+	tt.Frame()
+	if !tt.HasText("\u2423") {
+		t.Errorf("the space-bar nudge is missing: %q", tt.Texts())
+	}
+	// A terminal-route command runs where a terminal runs it, and its row
+	// carries no nudge.
+	terminal := commandApp()
+	terminal.Query = "JSON"
+	tt = render(t, terminal)
+	tt.Frame()
+	if tt.HasText("\u2423") {
+		t.Errorf("a terminal-route row carries the nudge: %q", tt.Texts())
+	}
+}

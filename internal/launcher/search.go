@@ -63,6 +63,10 @@ type Item struct {
 	// warning marks a row that carries a warning dot: a command word two
 	// integrations share, so the row the launcher will not enter says so.
 	warning bool
+	// direct marks a command whose output the launcher shows itself: the row
+	// carries the space-bar nudge the old build's R65 put there, since one
+	// space in the field enters the mode the output shows in.
+	direct bool
 }
 
 // commands is the built-in command list, labeled in the launcher's language.
@@ -157,6 +161,7 @@ func (a *App) commandItems() []Item {
 			Run:      func() { a.runCommand(entry) },
 			entry:    &entry,
 			warning:  a.commandConflicts[strings.ToLower(strings.TrimSpace(command.ID))],
+			direct:   entry.Route == extensions.RouteBackground,
 		})
 	}
 	return out
