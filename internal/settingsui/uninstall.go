@@ -4,7 +4,6 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/i18n"
-	"floter/internal/settings"
 )
 
 // The componentized uninstall: which parts of an installed integration to
@@ -47,9 +46,9 @@ func (a *App) uninstallDialog(c *ui.Context, copy i18n.Settings, integration Int
 		ui.Text(c, copy.IntegrationsUninstallTitle+"  ·  "+integration.Name).
 			FontSize(t.FontSize).Bold()
 		ui.Text(c, copy.IntegrationsUninstallDescription).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
-		draft.setCheckbox(c, copy.UninstallHostConfig, copy.UninstallHostConfigHint, &draft.RemoveHostConfig)
-		draft.setCheckbox(c, copy.UninstallToolData, copy.UninstallToolDataHint, &draft.RemoveToolData)
-		draft.setCheckbox(c, copy.UninstallArtifacts, copy.UninstallArtifactsHint, &draft.RemoveArtifacts)
+		a.setCheckbox(c, copy.UninstallHostConfig, copy.UninstallHostConfigHint, &draft.RemoveHostConfig)
+		a.setCheckbox(c, copy.UninstallToolData, copy.UninstallToolDataHint, &draft.RemoveToolData)
+		a.setCheckbox(c, copy.UninstallArtifacts, copy.UninstallArtifactsHint, &draft.RemoveArtifacts)
 		ui.Row(c).FillWidth().Gap(t.Space(1)).AlignItems(ui.Center).Children(func() {
 			if ui.Button(c, copy.IntegrationsUninstall).Clicked() {
 				if a.Actions.UninstallComponents != nil {
@@ -66,17 +65,30 @@ func (a *App) uninstallDialog(c *ui.Context, copy i18n.Settings, integration Int
 	a.uninstallDraft[integration.ID] = draft
 }
 
-// setCheckbox is one labeled checkbox inside the uninstall dialog.
-func (u UninstallComponents) setCheckbox(c *ui.Context, label, description string, value *bool) {
+// setCheckbox is one labeled component inside the uninstall dialog: a card
+// with the box, the category's name and the line that says what removing it
+// costs — the reference's `.extensions-uninstall-component`. The hint used to
+// be dropped; a data category the user cannot read about is a category they
+// cannot choose deliberately.
+func (a *App) setCheckbox(c *ui.Context, label, description string, value *bool) {
+	t := c.Theme()
+	tokens := a.tokens(c)
 	on := *value
 	changed := false
-	if ui.Checkbox(c, &on, label).Changed() {
-		changed = true
-	}
-	_ = description
+	ui.Row(c).FillWidth().Gap(t.Space(3)).AlignItems(ui.Start).
+		Padding(t.Space(3)).Radius(tokens.RadiusSM).
+		Border(1, tokens.ControlEdge).Background(tokens.Control).Children(func() {
+		if ui.Checkbox(c, &on, "").Changed() {
+			changed = true
+		}
+		ui.Column(c).Grow(1).Gap(1).Children(func() {
+			ui.Text(c, label).FontSize(t.FontSize + 1).FontWeight(600).TextColor(tokens.TextStrong)
+			if description != "" {
+				ui.Text(c, description).FontSize(t.FontSize).TextColor(t.TextMuted)
+			}
+		})
+	})
 	if changed {
 		*value = on
 	}
 }
-
-var _ = settings.Default

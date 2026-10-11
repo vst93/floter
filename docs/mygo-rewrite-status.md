@@ -136,6 +136,8 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 - **发线与透镜**：设置卡头部/侧栏的分隔线改成 `--hairline-fade` 的渐变发线（mygo 渐变只有两
   个 stop，用「透明→发线、实心中段、发线→透明」三段拼出）；删掉页头下多出来的一条实心分隔线；
   侧栏当前页的药丸戴上 `--elev-0` 透镜。
+- **卸载对话框**：三个数据类别之前只画了勾选框，**说明行被丢掉**；现在每个类别是一张卡片
+  （勾选框 + 名称 + 说明），与旧版 `.extensions-uninstall-component` 一致。
 
 **P7-a mygo v0.4.0 + 菜单栏与透明**（本轮）
 - mygo `v0.3.7 → v0.4.0`：新增 `ui.WebView`（页面内嵌原生 WebView，配 `Window.NewWebView`）、
