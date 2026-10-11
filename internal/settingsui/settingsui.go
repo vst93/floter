@@ -536,7 +536,10 @@ func (a *App) View(c *ui.Context) {
 			headerButton("power", copy.Quit, a.Actions.Quit)
 			headerButton("close", copy.Close, a.Actions.Close)
 		})
-		ui.Divider(c)
+		// The header/body separator is the reference's gradient hairline, not a
+		// solid rule: it dissolves into the sidebar and the content pane
+		// instead of stopping at the frame (`.settings-card__header::after`).
+		a.fadeRule(c, false)
 		// The content pane carries its own fill (`.settings-card__body`'s
 		// `--surface-sunken`): the panel is a reading surface, more solid than
 		// the launcher, and the sidebar sits on the same one so the two read
@@ -548,7 +551,9 @@ func (a *App) View(c *ui.Context) {
 					a.sidebarRow(c, i)
 				}).Grow(1).Label(copy.Title)
 			})
-			ui.Divider(c).FillHeight()
+			// The sidebar's column separator is the same fade, drawn vertically
+			// (`.settings-sidebar::after`).
+			a.fadeRule(c, true)
 			ui.Column(c).Grow(1).Background(a.tokens(c).Sunken).Children(func() {
 				a.body(c, copy)
 			})
@@ -622,6 +627,9 @@ func (a *App) sidebarRow(c *ui.Context, i int) {
 		// accent behind a chosen list row and a translucent lift would let
 		// it through.
 		row.Background(tokens.RaisedQuiet)
+		// The raised pane's own lens (`--elev-0`), so the pill reads as a lit
+		// pane rather than a flat grey block.
+		tokens.Lens(row)
 	} else if row.Hovered() {
 		row.Background(tokens.ControlHover)
 	}
@@ -721,7 +729,6 @@ func (a *App) body(c *ui.Context, copy i18n.Settings) {
 			if p.Hint != "" {
 				ui.Text(c, p.Hint).FontSize(t.FontSize).FontWeight(500).TextColor(t.TextMuted)
 			}
-			ui.Divider(c).Padding(t.Space(1), 0)
 		})
 	})
 }

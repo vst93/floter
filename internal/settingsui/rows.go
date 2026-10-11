@@ -157,3 +157,38 @@ func (a *App) action(c *ui.Context, label string, clicked func()) {
 		clicked()
 	}
 }
+
+// fadeRule draws base.css's `--hairline-fade`: a 1px rule that dissolves into
+// the surface at both ends instead of stopping at the frame — the settings
+// header's and sidebar's separator. mygo's gradient carries two stops, so the
+// fade is three segments: a short transparent-to-hairline lead-in, the solid
+// middle, and the mirrored lead-out. vertical draws it top-to-bottom for the
+// sidebar's column separator.
+func (a *App) fadeRule(c *ui.Context, vertical bool) {
+	tokens := a.tokens(c)
+	segment := func(from, to ui.Color, lead float32) {
+		e := ui.Box(c).Grow(lead)
+		angle := float32(90)
+		if vertical {
+			e, angle = e.Width(1), 180
+		} else {
+			e = e.Height(1)
+		}
+		e.Gradient(from, to, angle)
+	}
+	lead, solid := float32(0.12), float32(0.76)
+	if vertical {
+		lead, solid = 0.1, 0.8
+	}
+	var rule ui.Element
+	if vertical {
+		rule = ui.Column(c).FillHeight().Width(1)
+	} else {
+		rule = ui.Row(c).FillWidth().Height(1)
+	}
+	rule.Children(func() {
+		segment(ui.Transparent, tokens.Hairline, lead)
+		segment(tokens.Hairline, tokens.Hairline, solid)
+		segment(tokens.Hairline, ui.Transparent, lead)
+	})
+}
