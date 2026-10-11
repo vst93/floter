@@ -907,6 +907,29 @@ func (a *App) modeShortcuts(c *ui.Context) {
 	// therefore the one gesture that moved to a control.
 }
 
+// rowFavorite reports a history row's favourite state, and whether the row has
+// one to show.
+func rowFavorite(item Item) (bool, bool) {
+	switch {
+	case item.clip != nil:
+		return item.clip.Favorite, true
+	case item.calc != nil:
+		return item.calc.Favorite, true
+	}
+	return false, false
+}
+
+// toggleFavorite stars or unstars a history row's entry, whichever store it
+// came from: the row's own star and the mode's own key act through here.
+func (a *App) toggleFavorite(item Item) {
+	switch {
+	case item.clip != nil:
+		a.toggleClipFavorite()
+	case item.calc != nil:
+		a.toggleCalculatorFavorite()
+	}
+}
+
 // toggleClipFavorite stars or unstars the chosen clipboard entry.
 func (a *App) toggleClipFavorite() {
 	if a.Clipboard == nil {
@@ -1295,6 +1318,38 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 				}
 			}
 		})
+		// A history row's own star: the favourite toggle the old build drew as
+		// a 20u box at the row's trailing edge — hidden until the row is
+		// hovered or chosen, and shown whenever the entry is starred. Clicking
+		// it stars the entry without running the row.
+		if favorite, ok := rowFavorite(item); ok {
+			star := ui.Row(c).Focusable().Shrink(0).
+				Size(t.Space(5), t.Space(5)).AlignItems(ui.Center).Justify(ui.Center)
+			shown := favorite || i == a.Selected || row.Hovered()
+			if !shown {
+				star.Opacity(0)
+			}
+			color := t.TextMuted
+			if favorite || star.Hovered() {
+				color = t.Text
+			}
+			star.Label(copy.HistoryFavorite)
+			if favorite {
+				star.Label(copy.HistoryUnfavorite)
+			}
+			star.Children(func() {
+				if glyph, ok := Glyph("star"); ok {
+					ui.Icon(c, glyph).Size(t.Space(3.5), t.Space(3.5)).TextColor(color)
+				}
+			})
+			if star.Clicked() {
+				// The toggle acts on the row the star belongs to, which the
+				// pointer has just made the choice.
+				a.Selected = i
+				a.toggleFavorite(item)
+				removed = true
+			}
+		}
 		if i == a.Selected && (item.clip != nil || item.calc != nil) {
 			// A clipboard entry's whole text can be shown in a window of its
 			// own: the row's text is the smallest honest cut of "pin one

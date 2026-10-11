@@ -106,8 +106,11 @@ type Launcher struct {
 	// CalculatorDeleted reports one that went.
 	HistoryDelete string
 	// HistoryPin shows a selected clipboard entry's whole text in a window of
-	// its own.
-	HistoryPin string
+	// its own, and HistoryFavorite/HistoryUnfavorite name a history row's own
+	// star for assistive technology.
+	HistoryPin        string
+	HistoryFavorite   string
+	HistoryUnfavorite string
 	// OutputDetach opens a command's page in a window of its own.
 	OutputDetach string
 	// The window that opens for it: its title when the command has no name,

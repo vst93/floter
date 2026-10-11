@@ -628,3 +628,52 @@ func TestOutputReadsAnsiStyles(t *testing.T) {
 		t.Errorf("a copy would take %q", got)
 	}
 }
+
+// A history row carries its own star: the favourite toggle the old build drew
+// at the row's trailing edge, hidden until the row is hovered or chosen and
+// shown whenever the entry is starred. Clicking it stars the entry without
+// running the row.
+func TestHistoryRowStar(t *testing.T) {
+	a, store := clipboardApp(t)
+	if len(store.Entries()) == 0 {
+		t.Fatal("the fixture has no entries")
+	}
+	tt := render(t, a)
+	tt.Type("clipboard")
+	tt.Frame()
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if !a.clipboard {
+		t.Fatal("the clipboard mode did not open")
+	}
+	// The star is on the chosen row and names itself for assistive
+	// technology.
+	if _, ok := tt.Find("Favorite"); !ok {
+		t.Fatalf("the star is missing: %q", tt.Texts())
+	}
+	runs := testRuns["copy"]
+	if err := tt.Click("Favorite"); err != nil {
+		t.Fatalf("the star: %v", err)
+	}
+	tt.Frame()
+	// The entry is starred, and the row did not run.
+	entry, ok := a.selectedClip()
+	if !ok {
+		t.Fatal("no entry is selected")
+	}
+	if !entry.Favorite {
+		t.Errorf("the star did not land: %+v", entry)
+	}
+	if testRuns["copy"] != runs {
+		t.Errorf("the star ran the row: %v", testRuns)
+	}
+	// Clicking again unstars it: the control's own name follows the state, so
+	// a starred row's star reads "Unfavorite".
+	if err := tt.Click("Unfavorite"); err != nil {
+		t.Fatalf("the star again: %v", err)
+	}
+	tt.Frame()
+	if entry, _ := a.selectedClip(); entry.Favorite {
+		t.Errorf("the star did not clear: %+v", entry)
+	}
+}
