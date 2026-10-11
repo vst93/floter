@@ -70,8 +70,11 @@ func (a *App) PluginSheet(c *ui.Context, sheet PluginSheet) {
 					TextColor(tokens.TextStrong).SingleLine()
 			})
 			if sheet.Failed {
+				// The status line is the caption step in the warning colour
+				// (`.plugin-config-action__status`): a muted line, never a
+				// red banner.
 				ui.Text(c, i18n.For(a.language()).Settings.SaveFailed).
-					FontSize(t.FontSize - 1).TextColor(t.Danger)
+					FontSize(t.FontSize - 1).TextColor(t.Warning)
 			}
 			for _, section := range plugincfg.Sections(sheet.Schema) {
 				section := section
