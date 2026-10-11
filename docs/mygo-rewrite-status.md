@@ -121,8 +121,10 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
   设置页头部两个控件（退出 / 关闭）从实心药丸改回 28u 透明方块 + 16u 标记（`.toolbar-button`）；
   输出页的钉住 / 分离控件同样；字段的清除按钮也是同一个透明方块。
 - **设置内容列**：18u 的左右内边距落在内容列（不是滚动容器），滚动条仍贴边。
-- **新特性**：mygo v0.4.3 已是本仓库版本（最新 release）；用上 `ui.ContentTransition{Numeric: true}`，
-  让滑块的百分比读数与计算器答案在变化时滚动数字（v0.4.3 #110 的内容过渡）。
+- **新特性**：mygo 已升到 `v0.4.4`（在 v0.4.3 的基础上是修复轮：#237/#238 文本选择的矩形与
+  绘制层次、#239 回调不再走生成的闭包、#243 macOS 帧不再每次 Core Animation commit；没有新 API），
+  并用上 v0.4.3 的 `ui.ContentTransition{Numeric: true}`，让滑块的百分比读数与计算器答案在变化时
+  滚动数字（#110 的内容过渡）。
 - **终端**：空态的两个按键行改成旧版的 20u 键帽（control edge/fill + 键帽高光 + xs 圆角），
   悬停只把文字提一档、不画面板；resident 提示改用 `--glass-float`（新增 `Tokens.Float`）
   与 `--elev-3` 的抛影 + 上缘高光，标题用 secondary。
