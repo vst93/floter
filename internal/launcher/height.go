@@ -94,7 +94,8 @@ func windowInset() float64 {
 }
 
 // RowInfo is what the view drew for one row of the list: the text lines it
-// carries, and whether it is a block's heading rather than a result.
+// carries, and whether it is a block's heading or the action bar rather than a
+// result.
 type RowInfo struct {
 	// Lines are the row's text lines: two for a row with a subtitle, one
 	// without.
@@ -102,6 +103,9 @@ type RowInfo struct {
 	// Heading marks a block's title line, which is charged its own band
 	// rather than a result row's floor.
 	Heading bool
+	// Bar marks the action bar, whose own 3u breath above it and 42u band the
+	// window charges together, as the old build's 45u.
+	Bar bool
 }
 
 // Geometry is the measurements one window height is computed from. Every
@@ -188,6 +192,12 @@ func (g Geometry) Height() int {
 		info := RowInfo{Lines: 2} // the worst case: a row with a subtitle
 		if i < len(g.Rows) {
 			info = g.Rows[i]
+		}
+		if info.Bar {
+			// The action bar: its own 3u breath and 42u band, which the old
+			// build charged together as `LAUNCHER_ACTION_BAR_UNITS`.
+			lines += 11.25 * spacing
+			continue
 		}
 		if info.Heading {
 			// A heading is its own band: one body line and the 6u/4u padding

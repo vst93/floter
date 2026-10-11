@@ -636,6 +636,7 @@ func (a *App) View(c *ui.Context) {
 			rows[i].Lines = 1
 		}
 		rows[i].Heading = item.heading
+		rows[i].Bar = strings.HasPrefix(item.ID, "bar:")
 	}
 	a.Rows = rows
 	// The window follows the list: grow as soon as a row arrives, and wait
@@ -1248,6 +1249,14 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 	// action-bar--selected`), not the accent tint a match takes, and the
 	// ⌘↩ badge is what says it runs on Enter.
 	isBar := strings.HasPrefix(item.ID, "bar:")
+	if isBar {
+		// The bar is the panel's own pinned footer (`.launcher-action-bar`):
+		// 3u above it — a constant, so the bottom edge never jumps when the
+		// result count crosses zero — and a floor of its own 42u, which the
+		// window charges as the old build's 45u.
+		floor = t.Space(11.25)
+		row.Margin(t.Space(0.75), 0, 0, 0)
+	}
 	if i == a.Selected {
 		if isBar {
 			row.Background(t.SurfaceHover)
