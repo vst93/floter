@@ -299,6 +299,8 @@ type Session struct {
 	Active bool
 	// Index is the session's own position, which a click hands back.
 	Index int
+	// Note is the session's state line: how the program went, when it did.
+	Note string
 }
 
 // About is what the About page shows: the identity of the build and where
@@ -776,17 +778,10 @@ func (a *App) sessions(c *ui.Context, copy i18n.Settings) {
 			a.card(c, func() {
 				for _, session := range sessions {
 					session := session
-					// The row says what the session is doing: the one on
-					// screen, one still running behind it, or one that has
-					// ended and is being held.
-					status := copy.SessionsRunning
-					switch {
-					case session.Active:
-						status = copy.SessionsShowing
-					case !session.Running:
-						status = copy.SessionsExited
-					}
-					a.row(c, session.Title, status, func() {
+					// The row says what the session is doing: attached (on
+					// screen), running behind the one that is, or how the
+					// program went.
+					a.row(c, session.Title, session.Note, func() {
 						ui.Row(c).Gap(t.Space(1)).AlignItems(ui.Center).Children(func() {
 							if !session.Active && a.Actions.SelectSession != nil {
 								if ui.Button(c, copy.SessionsShow).Clicked() {

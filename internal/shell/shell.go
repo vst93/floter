@@ -740,6 +740,7 @@ func New(opts Options) *App {
 				Running: !a.Terminal.Exited(i),
 				Active:  i == a.Terminal.Active,
 				Index:   i,
+				Note:    a.Terminal.NoteOf(i),
 			})
 		}
 		return out

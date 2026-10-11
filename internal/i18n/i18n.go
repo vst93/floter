@@ -660,6 +660,10 @@ type Terminal struct {
 	// ProcessExited and ProcessExitedHint are the resident note: the program
 	// ended, the output is held on screen, and closing is the user's own
 	// decision.
+	// SessionAttached and SessionDetached are a running session's own state
+	// line: on screen, or running behind the one that is.
+	SessionAttached   string
+	SessionDetached   string
 	ProcessExited     func(code int) string
 	ProcessExitedHint string
 }

@@ -232,6 +232,23 @@ func (a *App) LabelOf(index int) string {
 	return i18n.For(a.Store.Snapshot().Language).Terminal.Title
 }
 
+// NoteOf is a session's own state line, by index: the program is running, or
+// how it went — the wording the sessions page prints under the session's name.
+func (a *App) NoteOf(index int) string {
+	copy := i18n.For(a.Store.Snapshot().Language).Terminal
+	if index < 0 || index >= len(a.Sessions) {
+		return ""
+	}
+	session := a.Sessions[index]
+	if a.Exited(index) {
+		return copy.ProcessExited(session.ExitCode)
+	}
+	if index == a.Active {
+		return copy.SessionAttached
+	}
+	return copy.SessionDetached
+}
+
 // Exited reports whether a session's program has ended, by index.
 func (a *App) Exited(index int) bool {
 	if index < 0 || index >= len(a.Sessions) {

@@ -226,15 +226,23 @@ func TestSessionsPage(t *testing.T) {
 	closed, shown := 0, 0
 	a.Actions.CloseSessionAt = func(index int) { closed = index + 1 }
 	a.Actions.SelectSession = func(index int) { shown = index + 1 }
+	notes := []string{"Running · attached", "Running · detached", "Process exited · code 1"}
 	a.Sessions = func() []Session {
-		return []Session{
+		out := []Session{
 			{Title: "zsh — floter", Running: true, Active: true, Index: 0},
 			{Title: "vim", Running: true, Index: 1},
 			{Title: "build", Running: false, Index: 2},
 		}
+		for i := range out {
+			out[i].Note = notes[i]
+		}
+		return out
 	}
 	tt.Frame()
-	for _, want := range []string{"zsh — floter", "vim", "build", "On screen", "Running", "Ended"} {
+	for _, want := range []string{
+		"zsh — floter", "vim", "build",
+		"Running · attached", "Running · detached", "Process exited · code 1",
+	} {
 		if !tt.HasText(want) {
 			t.Errorf("missing %q in %q", want, tt.Texts())
 		}
