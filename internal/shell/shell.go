@@ -2237,15 +2237,20 @@ func (a *App) Toggle() {
 	a.Show()
 }
 
-// placeWindow centres the panel in the primary display's work area, in that
-// display's own coordinates: the old build placed it on the focused monitor
+// placeWindow centres the panel in a display's work area, in that display's own
+// coordinates: the old build placed it on the monitor the user was looking at
 // and clamped against the *terminal* height so the expanded window still fits
 // after the panel grows into it.
+//
+// The display is the one the window is already on, falling back to the primary
+// one: the framework does not report which monitor has the keyboard's focus, and
+// the window's own position is the honest stand-in — a panel the user carried to
+// a second monitor is re-homed on that monitor, not yanked back to the first.
 func (a *App) placeWindow() {
 	if a.Win == nil {
 		return
 	}
-	display := mygo.Screen.PrimaryDisplay()
+	display := a.windowDisplay()
 	area := display.WorkArea
 	scale := display.ScaleFactor
 	if scale <= 0 {
@@ -2264,6 +2269,37 @@ func (a *App) placeWindow() {
 	reference := a.Store.Snapshot().TerminalHeight
 	x, y := placement(areaX, areaY, areaWidth, areaHeight, scale, width, reference)
 	a.Win.SetPosition(x, y)
+}
+
+// windowDisplay is the display the window is on: the one whose bounds hold its
+// centre, and the primary one when the window is nowhere (or the framework
+// cannot say).
+func (a *App) windowDisplay() mygo.Display {
+	displays := mygo.Screen.Displays()
+	if len(displays) == 0 {
+		return mygo.Screen.PrimaryDisplay()
+	}
+	x, y := a.Win.Position()
+	w, h := a.Win.Size()
+	if display, ok := displayContaining(displays, x, y, w, h); ok {
+		return display
+	}
+	return mygo.Screen.PrimaryDisplay()
+}
+
+// displayContaining is the display a window's centre falls in, reporting
+// whether one did: the window's own coordinates and the displays' bounds are
+// the same space, so this is arithmetic rather than a query.
+func displayContaining(displays []mygo.Display, x, y, w, h int) (mygo.Display, bool) {
+	centreX, centreY := x+w/2, y+h/2
+	for _, display := range displays {
+		bounds := display.Bounds
+		if centreX >= bounds.X && centreX < bounds.X+bounds.Width &&
+			centreY >= bounds.Y && centreY < bounds.Y+bounds.Height {
+			return display, true
+		}
+	}
+	return mygo.Display{}, false
 }
 
 // placement is where a panel of windowW by referenceH goes on a work area, in
@@ -2288,12 +2324,20 @@ func placement(areaX, areaY, areaWidth, areaHeight, scale, windowW, referenceH f
 }
 
 // Show reveals the window and takes the focus, arming the blur grace.
+//
+// A summon re-homes the panel, as the old build's own reveal did: the launcher
+// is a summon, so it belongs where the user's attention is rather than wherever
+// the window was dragged to last. The placement happens before the reveal and
+// again after it — macOS drops geometry set on a window that is not yet mapped —
+// and both land in the same frame, so the panel is never seen in between.
 func (a *App) Show() {
 	if a.Win == nil {
 		return
 	}
 	a.shownAt = a.now()
+	a.placeWindow()
 	a.Win.Show()
+	a.placeWindow()
 	a.Win.Focus()
 	a.Win.Invalidate()
 }

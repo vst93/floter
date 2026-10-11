@@ -3,6 +3,7 @@ package shell
 import (
 	"testing"
 
+	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/apps"
@@ -113,5 +114,39 @@ func TestTargetSizeUsesTheMeasuredGeometry(t *testing.T) {
 	// behind it are not charged, since the sheet takes the list's place.
 	if sheetHeight == height {
 		t.Errorf("the sheet's window is the list's %d", height)
+	}
+}
+
+// The panel is re-homed on the display it is already on, so a window the user
+// carried to a second monitor is placed there rather than yanked back to the
+// first. A window whose centre is on no display at all falls back to the
+// primary one.
+func TestWindowDisplay(t *testing.T) {
+	primary := mygo.Display{
+		ID: 1, Primary: true,
+		Bounds: mygo.Rectangle{X: 0, Y: 0, Width: 1920, Height: 1080},
+	}
+	second := mygo.Display{
+		ID:     2,
+		Bounds: mygo.Rectangle{X: 1920, Y: 0, Width: 2560, Height: 1440},
+	}
+	displays := []mygo.Display{primary, second}
+
+	if got, ok := displayContaining(displays, 100, 100, 720, 400); !ok || got.ID != 1 {
+		t.Errorf("a window on the first display resolved to %+v (%v)", got, ok)
+	}
+	if got, ok := displayContaining(displays, 2000, 200, 720, 400); !ok || got.ID != 2 {
+		t.Errorf("a window on the second display resolved to %+v (%v)", got, ok)
+	}
+	// A window straddling the seam belongs to the display its centre is on.
+	if got, ok := displayContaining(displays, 1560, 100, 720, 400); !ok || got.ID != 2 {
+		t.Errorf("a straddling window resolved to %+v (%v)", got, ok)
+	}
+	// Nowhere: no display claims it, and the caller falls back.
+	if _, ok := displayContaining(displays, -5000, -5000, 720, 400); ok {
+		t.Error("a window off every display was claimed")
+	}
+	if _, ok := displayContaining(nil, 100, 100, 720, 400); ok {
+		t.Error("a machine with no displays claimed a window")
 	}
 }
