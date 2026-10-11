@@ -1341,6 +1341,12 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 				// `.launcher-result--selected .launcher-result__title` did.
 				title := ui.Text(c, item.Title).FontSize(t.FontSize + 2).
 					FontWeight(580).TextColor(tokens.TextStrong)
+				// The action bar's title is a command line the user is handing
+				// over, so it is the terminal's own monospace at 520 (the old
+				// `.launcher-action-bar__title`).
+				if isBar {
+					title.Font(a.settings().FontFamily).FontWeight(520)
+				}
 				if i == a.Selected {
 					title.FontWeight(700)
 				}
