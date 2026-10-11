@@ -913,6 +913,26 @@ func (a *App) modeShortcuts(c *ui.Context) {
 	// therefore the one gesture that moved to a control.
 }
 
+// rowControl is one of a launcher row's own trailing controls: a 20u hit
+// region and its mark, which the selection brings with it — the reference's
+// `.launcher-result__pin`, never a filled pill in a list of quiet rows.
+func (a *App) rowControl(c *ui.Context, name, label string, run func()) {
+	t := c.Theme()
+	control := ui.Row(c).Focusable().Shrink(0).Size(t.Space(5), t.Space(5)).
+		AlignItems(ui.Center).Justify(ui.Center).Label(label)
+	if control.Hovered() {
+		control.Background(t.SurfaceHover)
+	}
+	control.Children(func() {
+		if glyph, ok := Glyph(name); ok {
+			ui.Icon(c, glyph).Size(t.Space(3.5), t.Space(3.5)).TextColor(t.TextMuted)
+		}
+	})
+	if control.Clicked() {
+		run()
+	}
+}
+
 // rowFavorite reports a history row's favourite state, and whether the row has
 // one to show.
 func rowFavorite(item Item) (bool, bool) {
@@ -1373,16 +1393,20 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 			// own: the row's text is the smallest honest cut of "pin one
 			// entry", and the control rides the selected row so a stray click
 			// cannot pin something the user was not looking at.
+			// The row's own controls are invisible click regions that come
+			// with the selection, as the reference's `.launcher-result__pin`
+			// was: a 20u box and a mark, never a filled pill in a list of
+			// quiet rows.
 			if item.clip != nil && a.Actions.PinText != nil {
-				if ui.Button(c, "\u2197").Label(copy.HistoryPin).Clicked() {
+				a.rowControl(c, "text", copy.HistoryPin, func() {
 					a.pinClip(*item.clip)
 					removed = true
-				}
+				})
 			}
-			if ui.Button(c, "✕").Label(copy.HistoryDelete).Clicked() {
+			a.rowControl(c, "close", copy.HistoryDelete, func() {
 				removed = true
 				a.deleteSelectedHistory()
-			}
+			})
 		}
 		if number, ok := a.numbers[i]; ok {
 			ui.Text(c, a.resultNumber(number)).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
