@@ -1317,8 +1317,12 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 				if i == a.Selected {
 					title.FontWeight(700)
 				}
+				// The warning dot is a real 8u circle, never a glyph in
+				// truncatable text: it reads at any width (the old build's
+				// `.launcher-result__warning`).
 				if item.warning {
-					ui.Text(c, "\u25cf").FontSize(t.FontSize - 3).TextColor(t.Warning)
+					ui.Box(c).Size(t.Space(2), t.Space(2)).Shrink(0).
+						Radius(t.Space(2)).Background(t.Warning)
 				}
 			})
 			if item.Detail != "" {

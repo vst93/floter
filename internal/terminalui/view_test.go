@@ -10,6 +10,7 @@ import (
 	"github.com/egoist/mygo/plugins/terminal"
 	"github.com/egoist/mygo/ui"
 
+	"floter/internal/i18n"
 	"floter/internal/settings"
 )
 
@@ -25,7 +26,8 @@ func render(t *testing.T, a *App, w, h int) *ui.Tester {
 }
 
 func TestTerminalEmptyState(t *testing.T) {
-	a := New(newStore(), Actions{}, nil)
+	closed := 0
+	a := New(newStore(), Actions{Close: func() { closed++ }}, nil)
 	tt := render(t, a, 860, 600)
 	if !tt.HasText("Terminal") {
 		t.Errorf("missing the title: %q", tt.Texts())
@@ -62,7 +64,7 @@ func TestTerminalCloseButtonCallsBack(t *testing.T) {
 	closed := 0
 	a := New(newStore(), Actions{Close: func() { closed++ }}, nil)
 	tt := render(t, a, 860, 600)
-	if err := tt.Click("✕"); err != nil {
+	if err := tt.Click(i18n.For("en").Terminal.Close); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
@@ -280,7 +282,7 @@ func TestTerminalHeaderControls(t *testing.T) {
 	if externals != 1 {
 		t.Errorf("open external ran %d times", externals)
 	}
-	if err := tt.Click("✕"); err != nil {
+	if err := tt.Click(i18n.For("en").Terminal.Close); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()

@@ -19,6 +19,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/i18n"
+	"floter/internal/launcher"
 	"floter/internal/settings"
 	"floter/internal/theme"
 )
@@ -646,6 +647,26 @@ func (a *App) residentNote(c *ui.Context, copy i18n.Terminal) {
 // identity (a live dot and the title) at the start, revealed while the bar is
 // hovered or something on it has the keyboard, and the controls at the end.
 // It is the window's drag handle, so the panel moves by its own header.
+// barButton is one of the terminal bar's own controls: a 28u transparent
+// square with a 16u mark, as the reference's `.toolbar-button` — not a filled
+// pill, which in a floating strip would be the loudest thing on the panel.
+func (a *App) barButton(c *ui.Context, name, label string, run func()) {
+	t := c.Theme()
+	button := ui.Row(c).Focusable().Size(t.Space(7), t.Space(7)).Shrink(0).
+		Radius(tokensOf(a, c).RadiusSM).AlignItems(ui.Center).Justify(ui.Center).Label(label)
+	if button.Hovered() {
+		button.Background(t.SurfaceHover)
+	}
+	button.Children(func() {
+		if glyph, ok := launcher.Glyph(name); ok {
+			ui.Icon(c, glyph).Size(t.Space(4), t.Space(4)).TextColor(t.TextMuted)
+		}
+	})
+	if button.Clicked() {
+		run()
+	}
+}
+
 func (a *App) titleBar(c *ui.Context, copy i18n.Terminal) {
 	t := c.Theme()
 	bar := ui.Row(c).Absolute().Top(0).Left(0).Right(0).Height(t.Space(7)).
@@ -668,28 +689,19 @@ func (a *App) titleBar(c *ui.Context, copy i18n.Terminal) {
 				TextColor(t.TextMuted).Ellipsis("\u2026").SingleLine()
 		})
 		if a.Actions.Settings != nil {
-			gear := ui.Button(c, copy.SettingsLabel).Label(copy.SettingsLabel)
-			if gear.Clicked() {
-				a.Actions.Settings()
-			}
+			a.barButton(c, "settings", copy.SettingsLabel, a.Actions.Settings)
 		}
 		if a.Actions.Pin != nil && a.term() != nil {
-			if ui.Button(c, copy.Pin).Clicked() {
-				a.Actions.Pin(a.sessionTitle(), a.sessionText())
-			}
+			a.barButton(c, "text", copy.Pin, func() { a.Actions.Pin(a.sessionTitle(), a.sessionText()) })
 		}
 		if a.Actions.NewCommand != nil {
-			if ui.Button(c, copy.NewCommand).Label(copy.NewCommandHint).Clicked() {
-				a.Actions.NewCommand()
-			}
+			a.barButton(c, "command", copy.NewCommand, a.Actions.NewCommand)
 		}
 		if a.Actions.OpenExternal != nil {
-			if ui.Button(c, copy.OpenExternal).Label(copy.OpenExternalHint).Clicked() {
-				a.Actions.OpenExternal()
-			}
+			a.barButton(c, "terminal", copy.OpenExternal, a.Actions.OpenExternal)
 		}
-		if ui.Button(c, "\u2715").Label(copy.Close).Clicked() && a.Actions.Close != nil {
-			a.Actions.Close()
+		if a.Actions.Close != nil {
+			a.barButton(c, "close", copy.Close, a.Actions.Close)
 		}
 	})
 }
