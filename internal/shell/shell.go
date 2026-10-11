@@ -918,7 +918,14 @@ func (a *App) Start() {
 		// The launcher and settings are fixed panels; only the terminal
 		// is resizable, which resize turns on per surface.
 		DisableResize: true,
-		Content:       ui.View(a.View),
+		// The desktop behind the panel is what the glass reads: the old
+		// build's `backdrop-filter` smeared it (a WebKitGTK build composites
+		// the window's own backdrop), and this is the framework's material
+		// for the same thing - macOS's NSVisualEffectView, Windows 11's
+		// system backdrops. Linux has none, and there the glass tint and
+		// the haze veil are the whole of the material.
+		Vibrancy: mygo.VibrancyUnderWindow,
+		Content:  ui.View(a.View),
 	})
 	a.Win.OnClosed(func() {
 		if runtime.GOOS != "darwin" {

@@ -19,14 +19,14 @@
 // counterpart, and this package's tests pin that as a fact rather than
 // hiding it:
 //
-//   - **Blur (10/22/28px).** `glass.Blur` blurs *the pixels of the scene
-//     under the element* (scene.BackdropOf reads the frame's own buffer),
-//     not the desktop behind the window: over the launcher's transparent
-//     root it would blur transparency and change nothing. The desktop
-//     behind the window is blurred by the window's vibrancy material
-//     (mygo.VibrancyUnderWindow, see internal/shell), which is one
-//     strength for the whole window. So the blur ladder becomes the OS
-//     material, and the stop ladder keeps what the plugin can vary.
+//   - **Blur (10/22/28px).** `glass.Glass` blurs *the pixels of the scene
+//     under the element*, not the desktop behind the window. The desktop
+//     behind the window is blurred by the window's vibrancy material -
+//     `mygo.VibrancyUnderWindow` on the panel's window, which is one
+//     strength for the whole window (macOS's NSVisualEffectView, Windows
+//     11's system backdrops; Linux has none, and there the tint and the
+//     haze veil are the whole of the material). So the blur ladder becomes
+//     the OS material, and the stop ladder keeps what the plugin can vary.
 //   - **Saturation (130/170/200%).** The plugin has no saturation knob.
 //
 // What survives per stop is the glass *material* — `Clear` for the thin
