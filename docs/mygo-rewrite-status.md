@@ -166,6 +166,14 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
   - 设置里的会话页列出全部（正在显示 / 运行中 / 已结束），非当前会话有"显示"，每个都有"关闭"
     （先 arm 再执行——关闭会杀掉程序里的进程），另有"新建会话"；恢复一个会话会把终端表面带到前台。
 
+**P7-p mygo v0.4.2 与按压态（本轮）**
+- **mygo v0.4.2**：toast viewport 的 keying 修复（关掉的对话框不再把自己的身份——和悬停——
+  借给 toast 栈）、spinner 跟随 `TextColor`。无新的应用级特性。
+- **行的按压态**：行之前只有悬停与选中。控制材质自己的按压面（base.css 的
+  `--glass-control-press`）比静息面**更不透明**——按下的行沉进玻璃里，而不是从玻璃里凸出来。
+  启动器行、设置行同一规则。
+- 顺带：启动器行的状态判定改为单一的 switch（press > selection > hover）。
+
 **P7-o 声明式输入的行内校验（本轮）**
 - 声明式输入的编辑器此前让保存把笔误**弹回后端**才解释。旧版 `paramIssues` 的规则：错误渲染在
   导致它的那一行下面——"a save never has to bounce back from the server to explain a typo"。
@@ -356,6 +364,14 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
   用 `ScrollbarInsets` 把它推出列表自己的裁剪区；悬停在溢出的列表上不再画药丸，滚动测试全过。
   设置页的滚动条**保留**（旧版给设置页自己的样式，"设置页面的滚动条也还是没有贴边"）。
 - 状态行与 resident 提示按旧版的 `feedback-enter` 进入：淡入并从 2u 上方落定（200ms）。
+
+**P7-p mygo v0.4.2 与按压态（本轮）**
+- **mygo v0.4.2**：toast viewport 的 keying 修复（关掉的对话框不再把自己的身份——和悬停——
+  借给 toast 栈）、spinner 跟随 `TextColor`。无新的应用级特性。
+- **行的按压态**：行之前只有悬停与选中。控制材质自己的按压面（base.css 的
+  `--glass-control-press`）比静息面**更不透明**——按下的行沉进玻璃里，而不是从玻璃里凸出来。
+  启动器行、设置行同一规则。
+- 顺带：启动器行的状态判定改为单一的 switch（press > selection > hover）。
 
 **P7-o 声明式输入的行内校验（本轮）**
 - 声明式输入的编辑器此前让保存把笔误**弹回后端**才解释。旧版 `paramIssues` 的规则：错误渲染在
