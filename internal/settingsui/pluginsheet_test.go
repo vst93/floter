@@ -7,6 +7,7 @@ import (
 
 	"floter/internal/i18n"
 	"floter/internal/plugincfg"
+	"floter/internal/scriptlang"
 	"floter/internal/settings"
 )
 
@@ -220,5 +221,116 @@ func TestPluginSheetWithoutASchemaDrawsNothing(t *testing.T) {
 	tt := renderSheet(t, a, PluginSheet{}, 720, 300)
 	if len(tt.Texts()) != 0 {
 		t.Errorf("an empty sheet drew %q", tt.Texts())
+	}
+}
+
+// The local-tool form builds two kinds of tool: a program on this machine, and
+// a script the host writes. The kind decides which rows the form shows, and the
+// script's language and text travel with the draft — the backend writes them
+// into the package as `provider.<ext>`.
+func TestLocalToolFormBuildsAScript(t *testing.T) {
+	connected := []CustomTool{}
+	a := New(newStore(t), Actions{
+		ConnectLocalTool: func(tool CustomTool) { connected = append(connected, tool) },
+		ScriptRuntime: func(language string) scriptlang.Check {
+			if language == "python" {
+				return scriptlang.Check{Available: true, Path: "/usr/bin/python3", Version: "3.12.1"}
+			}
+			return scriptlang.Check{Candidates: []string{scriptlang.Lookup(language).Toolchain}}
+		},
+	})
+	tt := render(t, a, 720, 1600)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if err := tt.Click("Add a local tool"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	copy := i18n.For("en").Settings
+	// The kind is the form's own row, and a program is what it starts as.
+	for _, want := range []string{copy.LocalToolMode, copy.LocalToolModeProgram, copy.LocalToolModeScript, copy.LocalToolProgram} {
+		if !tt.HasText(want) {
+			t.Errorf("missing %q in %q", want, tt.Texts())
+		}
+	}
+	if err := tt.Click(copy.LocalToolModeScript); err != nil {
+		t.Fatalf("the kind: %v", err)
+	}
+	tt.Frame()
+	// The script rows replace the program row's own field (the segmented
+	// control keeps its two labels either way), and the language's toolchain is
+	// reported as the muted line under the picker.
+	if tt.HasText("/usr/bin/rg") {
+		t.Errorf("the program row survived the switch: %q", tt.Texts())
+	}
+	for _, want := range []string{copy.LocalToolLanguage, copy.LocalToolScript, "JavaScript", copy.LocalToolRuntimeMissing("node")} {
+		if !tt.HasText(want) {
+			t.Errorf("missing %q in %q", want, tt.Texts())
+		}
+	}
+	// Switching to a language this machine has says so, with its version, and
+	// the editor holds that language's template.
+	if err := tt.Click("JavaScript"); err != nil {
+		t.Fatalf("the language trigger: %v", err)
+	}
+	tt.Frame()
+	if err := tt.Click("Python"); err != nil {
+		t.Fatalf("the language option: %v", err)
+	}
+	tt.Frame()
+	if a.toolLanguage != "python" {
+		t.Fatalf("language = %q", a.toolLanguage)
+	}
+	if a.toolScript != scriptlang.Template("python") {
+		t.Errorf("the editor did not take the template: %q", a.toolScript)
+	}
+	if !tt.HasText(copy.LocalToolRuntimeReady("python3", "3.12.1")) {
+		t.Errorf("the runtime line is missing: %q", tt.Texts())
+	}
+
+	// Connect hands the script on: the language, the text, and the kind.
+	a.toolName = "Weather"
+	a.toolCommand = "weather"
+	a.toolScript = "print('hi')\n"
+	tt.Frame()
+	if err := tt.Click(copy.LocalToolConnect); err != nil {
+		t.Fatalf("connect: %v", err)
+	}
+	tt.Frame()
+	if len(connected) != 1 {
+		t.Fatalf("connected = %+v", connected)
+	}
+	tool := connected[0]
+	if tool.Mode != "script" || tool.ScriptLanguage != "python" || tool.ScriptContent != "print('hi')\n" {
+		t.Errorf("the draft lost the script: %+v", tool)
+	}
+}
+
+// A script with nothing in it is not connected: the form says what is missing
+// by staying put, as it does for a program with no path.
+func TestLocalToolFormRefusesAnEmptyScript(t *testing.T) {
+	connected := []CustomTool{}
+	a := New(newStore(t), Actions{
+		ConnectLocalTool: func(tool CustomTool) { connected = append(connected, tool) },
+	})
+	tt := render(t, a, 720, 1600)
+	tt.Click("Integrations")
+	tt.Frame()
+	tt.Click("Add a local tool")
+	tt.Frame()
+	copy := i18n.For("en").Settings
+	tt.Click(copy.LocalToolModeScript)
+	tt.Frame()
+	a.toolName = "Weather"
+	a.toolScript = "   \n"
+	tt.Frame()
+	if err := tt.Click(copy.LocalToolConnect); err != nil {
+		t.Fatalf("connect: %v", err)
+	}
+	tt.Frame()
+	if len(connected) != 0 {
+		t.Errorf("an empty script was connected: %+v", connected)
 	}
 }

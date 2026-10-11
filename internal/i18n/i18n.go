@@ -540,6 +540,20 @@ type Settings struct {
 	CalculatorCopyModes      []Option
 	CalculatorClearFailed    string
 
+	// The local-tool form's own words: the kind of tool (a program on this
+	// machine, or a script the host writes), the script's language and text,
+	// and the line that says whether the language's toolchain is here.
+	LocalToolMode            string
+	LocalToolModeProgram     string
+	LocalToolModeScript      string
+	LocalToolLanguage        string
+	LocalToolLanguageHint    string
+	LocalToolScript          string
+	LocalToolScriptHint      string
+	LocalToolRuntimeReady    func(name, version string) string
+	LocalToolRuntimeMissing  func(names string) string
+	LocalToolRuntimeCompiled string
+
 	// The About page's update check.
 	UpdateCheck      string
 	UpdateChecking   string

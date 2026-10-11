@@ -21,6 +21,7 @@ import (
 	"floter/internal/extensions"
 	"floter/internal/i18n"
 	"floter/internal/launcher"
+	"floter/internal/scriptlang"
 	"floter/internal/settings"
 	"floter/internal/shortcuts"
 	"floter/internal/terminalui"
@@ -134,6 +135,10 @@ type Actions struct {
 	CopyText func(text string)
 	// EditCustomTool rewrites a generated integration from the same form the
 	// connect flow uses (the id names it, so its identity is kept), and
+	// ScriptRuntime answers what this machine has for a script language: the
+	// interpreter on PATH and its version, or nothing. Nil means the form
+	// cannot say, and shows the toolchain's name alone.
+	ScriptRuntime func(language string) scriptlang.Check
 	// ToolForEdit hands the form what that integration declares now. Both nil
 	// hides the button.
 	EditCustomTool func(id string, tool CustomTool)
@@ -314,7 +319,13 @@ type App struct {
 	// The local-tool form's draft: what the user has typed, and the
 	// permissions they have ticked. It lives on the panel so a keystroke
 	// survives the rebuild, and it is cleared once the tool is connected.
-	toolOpen        bool
+	toolOpen bool
+	// toolMode is the kind of tool the form is building: "" (a program on
+	// this machine) or "script".
+	toolMode string
+	// toolLanguage and toolScript are a script's own draft.
+	toolLanguage    string
+	toolScript      string
 	toolName        string
 	toolProgram     string
 	toolCommand     string
@@ -1639,15 +1650,22 @@ func optionIndex(options []i18n.Option, id string) int {
 // CustomTool is a local tool the user wants to connect: what the form
 // collected. The host mints the id and derives the commands.
 type CustomTool struct {
-	Name        string
-	Program     string
-	Command     string
-	Args        string
-	VersionArgs string
-	Version     string
-	Description string
-	Output      string
-	Permissions []string
+	Name string
+	// Mode is "executable" for a program on this machine and "script" for a
+	// provider the host writes from the editor below.
+	Mode string
+	// ScriptLanguage and ScriptContent describe a script tool: the language
+	// id (see internal/scriptlang) and the script itself.
+	ScriptLanguage string
+	ScriptContent  string
+	Program        string
+	Command        string
+	Args           string
+	VersionArgs    string
+	Version        string
+	Description    string
+	Output         string
+	Permissions    []string
 	// Params are the inputs the connected tool declares.
 	Params []extensions.ParamDefinition
 }
@@ -1673,30 +1691,60 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 		name, program, command := a.toolName, a.toolProgram, a.toolCommand
 		args, versionArgs, version := a.toolArgs, a.toolVersionArgs, a.toolVersion
 		description := a.toolDescription
+		// The kind of tool decides which rows the form shows: a program on
+		// this machine, or a script the host writes from the editor below.
+		mode := a.toolMode
+		language := a.toolLanguage
+		if language == "" {
+			language = scriptlang.Languages[0].ID
+		}
+		script := a.toolScript
+		if script == "" && mode == routeScript {
+			script = scriptlang.Template(language)
+		}
 		a.card(c, func() {
 			a.row(c, copy.LocalToolName, "", func() {
 				ui.TextInput(c, &name).Label(copy.LocalToolName).Width(240).Grow(1).Placeholder("Ripgrep")
 			})
-			a.row(c, copy.LocalToolProgram, "", func() {
-				ui.TextInput(c, &program).Label(copy.LocalToolProgram).Width(240).Grow(1).
-					Placeholder("/usr/bin/rg")
-				if a.Actions.ChooseProgram != nil {
-					if ui.Button(c, copy.LocalToolChoose).Clicked() {
-						if picked, err := a.Actions.ChooseProgram(); err == nil && picked != "" {
-							program = picked
-						}
+			a.row(c, copy.LocalToolMode, "", func() {
+				index := 0
+				if mode == routeScript {
+					index = 1
+				}
+				if ui.Segmented(c, &index, copy.LocalToolModeProgram, copy.LocalToolModeScript).Changed() {
+					if index == 0 {
+						mode = ""
+					} else {
+						mode = routeScript
 					}
 				}
 			})
+			if mode == routeScript {
+				a.scriptRows(c, copy, &language, &script)
+			} else {
+				a.row(c, copy.LocalToolProgram, "", func() {
+					ui.TextInput(c, &program).Label(copy.LocalToolProgram).Width(240).Grow(1).
+						Placeholder("/usr/bin/rg")
+					if a.Actions.ChooseProgram != nil {
+						if ui.Button(c, copy.LocalToolChoose).Clicked() {
+							if picked, err := a.Actions.ChooseProgram(); err == nil && picked != "" {
+								program = picked
+							}
+						}
+					}
+				})
+			}
 			a.row(c, copy.LocalToolCommand, copy.LocalToolCommandHint, func() {
 				ui.TextInput(c, &command).Label(copy.LocalToolCommand).Width(160).Placeholder("rg")
 			})
-			a.row(c, copy.LocalToolArgs, copy.LocalToolArgsHint, func() {
-				ui.TextInput(c, &args).Label(copy.LocalToolArgs).Width(220).Placeholder("--floter")
-			})
-			a.row(c, copy.LocalToolVersionArgs, copy.LocalToolVersionArgsHint, func() {
-				ui.TextInput(c, &versionArgs).Label(copy.LocalToolVersionArgs).Width(160).Placeholder("--version")
-			})
+			if mode != routeScript {
+				a.row(c, copy.LocalToolArgs, copy.LocalToolArgsHint, func() {
+					ui.TextInput(c, &args).Label(copy.LocalToolArgs).Width(220).Placeholder("--floter")
+				})
+				a.row(c, copy.LocalToolVersionArgs, copy.LocalToolVersionArgsHint, func() {
+					ui.TextInput(c, &versionArgs).Label(copy.LocalToolVersionArgs).Width(160).Placeholder("--version")
+				})
+			}
 			a.row(c, copy.LocalToolVersion, "", func() {
 				ui.TextInput(c, &version).Label(copy.LocalToolVersion).Width(120).Placeholder("0.0.1")
 			})
@@ -1741,6 +1789,7 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 		a.toolName, a.toolProgram, a.toolCommand = name, program, command
 		a.toolArgs, a.toolVersionArgs, a.toolVersion = args, versionArgs, version
 		a.toolDescription = description
+		a.toolMode, a.toolLanguage, a.toolScript = mode, language, script
 		if requested {
 			permissions := []string{}
 			for _, permission := range extensions.AllPermissions {
@@ -1749,19 +1798,29 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 				}
 			}
 			tool := CustomTool{
-				Name:        strings.TrimSpace(name),
-				Program:     strings.TrimSpace(program),
-				Command:     strings.TrimSpace(command),
-				Args:        strings.TrimSpace(args),
-				VersionArgs: strings.TrimSpace(versionArgs),
-				Version:     strings.TrimSpace(version),
-				Description: strings.TrimSpace(description),
-				Output:      a.toolOutput,
-				Permissions: permissions,
-				Params:      a.declaredParams(),
+				Name:           strings.TrimSpace(name),
+				Mode:           mode,
+				ScriptLanguage: language,
+				ScriptContent:  script,
+				Program:        strings.TrimSpace(program),
+				Command:        strings.TrimSpace(command),
+				Args:           strings.TrimSpace(args),
+				VersionArgs:    strings.TrimSpace(versionArgs),
+				Version:        strings.TrimSpace(version),
+				Description:    strings.TrimSpace(description),
+				Output:         a.toolOutput,
+				Permissions:    permissions,
+				Params:         a.declaredParams(),
 			}
-			if tool.Name == "" || tool.Program == "" {
+			if tool.Name == "" {
 				return // the form says what is missing by staying put
+			}
+			if tool.Mode == routeScript {
+				if strings.TrimSpace(tool.ScriptContent) == "" {
+					return
+				}
+			} else if tool.Program == "" {
+				return
 			}
 			if a.toolEditing != "" {
 				a.Actions.EditCustomTool(a.toolEditing, tool)
@@ -1774,9 +1833,84 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 	})
 }
 
+// scriptRows are the rows a script tool shows in place of the program row: the
+// language it is written in (with the line saying whether this machine has its
+// toolchain), and the editor the script is typed into.
+func (a *App) scriptRows(c *ui.Context, copy i18n.Settings, language *string, script *string) {
+	options := make([]i18n.Option, 0, len(scriptlang.Languages))
+	for _, option := range scriptlang.Languages {
+		options = append(options, i18n.Option{ID: option.ID, Label: option.Label})
+	}
+	a.choose(c, copy.LocalToolLanguage, copy.LocalToolLanguageHint, options, *language, func(id string) {
+		// Switching language swaps an untouched template for the new one, so
+		// a user who has not written anything yet gets the right starting
+		// point; anything they wrote stays.
+		if *script == "" || isTemplate(*script) {
+			*script = scriptlang.Template(id)
+		}
+		*language = id
+	})
+	a.row(c, copy.LocalToolLanguage, "", func() {
+		ui.Text(c, a.scriptRuntimeLine(*language)).FontSize(c.Theme().FontSize - 1).
+			TextColor(c.Theme().TextMuted)
+	})
+	// The editor is a stacked row: a script wants the row's full width and
+	// more than one line, so the label and the status sit above it.
+	t := c.Theme()
+	a.stackedRow(c, copy.LocalToolScript, copy.LocalToolScriptHint, func() {
+		ui.TextArea(c, script).Label(copy.LocalToolScript).FontSize(t.FontSize).
+			FixedLineHeight(t.Space(2.25)).Height(t.Space(18)).Grow(1)
+	})
+}
+
+// copy is the settings surface's words in the stored language.
+func (a *App) copy() i18n.Settings {
+	return i18n.For(a.Store.Snapshot().Language).Settings
+}
+
+// scriptRuntimeLine is the one muted line under the language picker: what this
+// machine has for the language. An absent toolchain is deliberately not an
+// error — a user may install Python and come back — so it is a sentence, never
+// a red banner.
+func (a *App) scriptRuntimeLine(language string) string {
+	copy := a.copy()
+	option := scriptlang.Lookup(language)
+	if a.Actions.ScriptRuntime == nil {
+		// Nothing to ask: the toolchain's name is all we can honestly say.
+		return option.Toolchain
+	}
+	status := scriptlang.StatusOf(language, a.Actions.ScriptRuntime(language))
+	switch status.State {
+	case scriptlang.Available:
+		line := copy.LocalToolRuntimeReady(status.Name, status.Version)
+		if status.Compiled {
+			line += "  ·  " + copy.LocalToolRuntimeCompiled
+		}
+		return line
+	case scriptlang.Missing:
+		return copy.LocalToolRuntimeMissing(strings.Join(status.Names, ", "))
+	}
+	return option.Toolchain
+}
+
+// isTemplate reports whether a script is still one of the shipped templates,
+// so a language switch may replace it.
+func isTemplate(script string) bool {
+	for _, template := range scriptlang.Templates() {
+		if script == template {
+			return true
+		}
+	}
+	return false
+}
+
 // routeBackground is the manifest's own spelling for a command whose output
-// the launcher shows instead of the terminal.
-const routeBackground = "background"
+// the launcher shows instead of the terminal, and routeScript the form's
+// spelling for a tool the host writes rather than one it finds.
+const (
+	routeBackground = "background"
+	routeScript     = "script"
+)
 
 // freshnessOf reads what is known about an integration's command list, for
 // the card's own row. Nothing is shown for an integration nothing has probed.
@@ -2181,6 +2315,9 @@ func (a *App) declaredParams() []extensions.ParamDefinition {
 func (a *App) beginEdit(id string, tool CustomTool) {
 	a.toolOpen = true
 	a.toolEditing = id
+	a.toolMode = tool.Mode
+	a.toolLanguage = tool.ScriptLanguage
+	a.toolScript = tool.ScriptContent
 	a.toolName = tool.Name
 	a.toolProgram = tool.Program
 	a.toolCommand = tool.Command
@@ -2205,6 +2342,7 @@ func (a *App) beginEdit(id string, tool CustomTool) {
 // endEdit clears the edit state, so the next connection starts a new package.
 func (a *App) endEdit() {
 	a.toolEditing = ""
+	a.toolMode, a.toolLanguage, a.toolScript = "", "", ""
 	a.toolName, a.toolProgram, a.toolCommand = "", "", ""
 	a.toolArgs, a.toolVersionArgs, a.toolVersion, a.toolDescription = "", "", "", ""
 	a.toolParams = nil

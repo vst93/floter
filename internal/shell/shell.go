@@ -38,6 +38,7 @@ import (
 	"floter/internal/i18n"
 	"floter/internal/inventory"
 	"floter/internal/launcher"
+	"floter/internal/scriptlang"
 	"floter/internal/settings"
 	"floter/internal/settingsui"
 	"floter/internal/shortcuts"
@@ -516,24 +517,27 @@ func New(opts Options) *App {
 		CloseSession:        func() { a.Terminal.Close() },
 		DiagnoseIntegration: a.diagnoseIntegration,
 		ReprobeCommands:     a.reprobeCommands,
-		ConnectLocalTool:    a.connectLocalTool,
-		EditCustomTool:      a.editCustomTool,
-		ToolForEdit:         a.toolForEdit,
-		Freshness:           a.integrationFreshness,
-		Detected:            a.detectedTools,
-		ConnectDetected:     a.connectDetected,
-		InstallFromFolder:   a.installPackageFolder,
-		RunWithParams:       a.runWithParams,
-		ChooseFolder:        a.chooseProgram,
-		CopyText:            func(text string) { mygo.Clipboard.WriteText(text) },
-		ChooseProgram:       a.chooseProgram,
-		SetShortcut:         a.setShortcut,
-		SetPage:             a.rememberSettingsPage,
-		BrowserTargets:      a.browserTargets,
-		SetCommandEnabled:   a.setCommandEnabled,
-		SetCommandAlias:     a.setCommandAlias,
-		CustomShortcuts:     func() []settings.CustomShortcut { return settings.CustomShortcutsOf(a.Store.Snapshot()) },
-		SetCustomShortcuts:  a.setCustomShortcuts,
+		ScriptRuntime: func(language string) scriptlang.Check {
+			return extensions.ScriptRuntimeFor(context.Background(), language)
+		},
+		ConnectLocalTool:   a.connectLocalTool,
+		EditCustomTool:     a.editCustomTool,
+		ToolForEdit:        a.toolForEdit,
+		Freshness:          a.integrationFreshness,
+		Detected:           a.detectedTools,
+		ConnectDetected:    a.connectDetected,
+		InstallFromFolder:  a.installPackageFolder,
+		RunWithParams:      a.runWithParams,
+		ChooseFolder:       a.chooseProgram,
+		CopyText:           func(text string) { mygo.Clipboard.WriteText(text) },
+		ChooseProgram:      a.chooseProgram,
+		SetShortcut:        a.setShortcut,
+		SetPage:            a.rememberSettingsPage,
+		BrowserTargets:     a.browserTargets,
+		SetCommandEnabled:  a.setCommandEnabled,
+		SetCommandAlias:    a.setCommandAlias,
+		CustomShortcuts:    func() []settings.CustomShortcut { return settings.CustomShortcutsOf(a.Store.Snapshot()) },
+		SetCustomShortcuts: a.setCustomShortcuts,
 		InstallFromRegistry: func(name, constraint string) {
 			go func() {
 				prepared, err := extensions.PrepareRegistry(context.Background(), a.Paths, a.Registry, name, constraint)
@@ -1736,16 +1740,19 @@ func (a *App) toolForEdit(id string) (settingsui.CustomTool, bool) {
 	}
 	root := descriptor.Commands[0]
 	tool := settingsui.CustomTool{
-		Name:        integration.Name,
-		Program:     integration.Entry.ExecutablePath,
-		Command:     root.ID,
-		Args:        strings.Join(manifest.Provider.ArgsPrefix, " "),
-		VersionArgs: strings.Join(manifest.Runtime.VersionArgs, " "),
-		Version:     integration.Version,
-		Description: manifest.Description,
-		Output:      manifest.Output,
-		Permissions: append([]string{}, manifest.Permissions...),
-		Params:      append([]extensions.ParamDefinition{}, manifest.Params...),
+		Name:           integration.Name,
+		Program:        integration.Entry.ExecutablePath,
+		Command:        root.ID,
+		Mode:           manifest.Runtime.Type,
+		ScriptLanguage: manifest.Runtime.Language,
+		ScriptContent:  scriptContent(integration),
+		Args:           strings.Join(manifest.Provider.ArgsPrefix, " "),
+		VersionArgs:    strings.Join(manifest.Runtime.VersionArgs, " "),
+		Version:        integration.Version,
+		Description:    manifest.Description,
+		Output:         manifest.Output,
+		Permissions:    append([]string{}, manifest.Permissions...),
+		Params:         append([]extensions.ParamDefinition{}, manifest.Params...),
 	}
 	return tool, true
 }
@@ -1755,18 +1762,7 @@ func (a *App) toolForEdit(id string) (settingsui.CustomTool, bool) {
 // path records it — with the permission review a changed manifest requires.
 func (a *App) editCustomTool(id string, tool settingsui.CustomTool) {
 	go func() {
-		request := extensions.CustomRequest{
-			Name:           tool.Name,
-			Command:        tool.Command,
-			Version:        tool.Version,
-			ExecutablePath: tool.Program,
-			Description:    tool.Description,
-			ArgsPrefix:     strings.Fields(tool.Args),
-			VersionArgs:    strings.Fields(tool.VersionArgs),
-			Permissions:    tool.Permissions,
-			Output:         tool.Output,
-			Params:         tool.Params,
-		}
+		request := customRequest(tool)
 		// The approval is checked against the *new* manifest before anything
 		// is written: a changed declaration is exactly what invalidates the
 		// old one, and the user answers once.
@@ -1801,18 +1797,7 @@ func (a *App) chooseProgram() (string, error) {
 func (a *App) connectLocalTool(tool settingsui.CustomTool) {
 	go func() {
 		paths := a.Paths
-		request := extensions.CustomRequest{
-			Name:           tool.Name,
-			Command:        tool.Command,
-			Version:        tool.Version,
-			ExecutablePath: tool.Program,
-			Description:    tool.Description,
-			ArgsPrefix:     strings.Fields(tool.Args),
-			VersionArgs:    strings.Fields(tool.VersionArgs),
-			Permissions:    tool.Permissions,
-			Output:         tool.Output,
-			Params:         tool.Params,
-		}
+		request := customRequest(tool)
 		prepared, err := extensions.PrepareCustom(context.Background(), paths, request)
 		if err != nil {
 			log.Printf("floter: could not prepare the local tool %s: %v", tool.Name, err)
@@ -2662,4 +2647,57 @@ func (a *App) resize() {
 	if a.Surf == SurfaceLauncher {
 		a.launcherTarget = h
 	}
+}
+
+// customRequest is the form's draft as the host's request: one place, so the
+// connect path and the edit path cannot disagree about what a field means.
+func customRequest(tool settingsui.CustomTool) extensions.CustomRequest {
+	request := extensions.CustomRequest{
+		Name:           tool.Name,
+		Mode:           tool.Mode,
+		Command:        tool.Command,
+		Version:        tool.Version,
+		ExecutablePath: tool.Program,
+		ScriptLanguage: tool.ScriptLanguage,
+		ScriptContent:  tool.ScriptContent,
+		Description:    tool.Description,
+		ArgsPrefix:     strings.Fields(tool.Args),
+		VersionArgs:    strings.Fields(tool.VersionArgs),
+		Permissions:    tool.Permissions,
+		Output:         tool.Output,
+		Params:         tool.Params,
+	}
+	if request.Mode == "" {
+		request.Mode = "executable"
+	}
+	if request.Mode == "script" {
+		// A script's own word summons it; the program row is not part of the
+		// form, so nothing here may carry one.
+		request.ExecutablePath = ""
+		request.ArgsPrefix = nil
+		request.VersionArgs = nil
+	}
+	return request
+}
+
+// scriptContent reads a script integration's own file back, for the form that
+// edits it. Empty when the file is gone, which the editor shows as an empty
+// one rather than an error.
+func scriptContent(integration extensions.Integration) string {
+	if integration.Manifest.Runtime.Type != "script" {
+		return ""
+	}
+	path := integration.Manifest.Runtime.Path
+	if path == "" {
+		return ""
+	}
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(integration.PackageDir(), path)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		log.Printf("floter: could not read the script of %s: %v", integration.Entry.ID, err)
+		return ""
+	}
+	return string(data)
 }

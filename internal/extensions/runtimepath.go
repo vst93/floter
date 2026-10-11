@@ -78,6 +78,15 @@ func StubToolLookup(lookup func(names ...string) (string, bool)) func() {
 	return func() { lookTool = previous }
 }
 
+// StubInterpreterLookup replaces the interpreter lookup for a test, and returns
+// the function that puts it back: the seam a test uses to connect a script in a
+// language this machine does not have.
+func StubInterpreterLookup(lookup func(language string) (string, bool)) func() {
+	previous := findInterpreter
+	findInterpreter = lookup
+	return func() { findInterpreter = previous }
+}
+
 // lookToolIn is LookTool over an explicit directory list, so a test can point
 // it at a fixture instead of depending on the machine's PATH.
 func lookToolIn(dirs []string, names ...string) (string, bool) {

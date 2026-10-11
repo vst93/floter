@@ -522,6 +522,21 @@ var en = Copy{
 			{"result", "Result only"},
 		},
 		CalculatorClearFailed: "Could not clear the calculations. Try again.",
+		LocalToolMode:         "Kind",
+		LocalToolModeProgram:  "Program",
+		LocalToolModeScript:   "Script",
+		LocalToolLanguage:     "Language",
+		LocalToolLanguageHint: "What the script is written in. The toolchain has to be on this machine.",
+		LocalToolScript:       "Script",
+		LocalToolScriptHint:   "The provider script. Parameters you declare arrive as argv.",
+		LocalToolRuntimeReady: func(name, version string) string {
+			if version == "" {
+				return name + " is ready"
+			}
+			return name + " " + version + " is ready"
+		},
+		LocalToolRuntimeMissing:  func(names string) string { return names + " is not on PATH. Install it and come back." },
+		LocalToolRuntimeCompiled: "The toolchain builds this script at install time.",
 
 		UpdateCheck:      "Check for updates",
 		UpdateChecking:   "Checking\u2026",
@@ -1029,6 +1044,21 @@ var zh = Copy{
 			{"result", "仅结果"},
 		},
 		CalculatorClearFailed: "无法清空计算记录，请重试。",
+		LocalToolMode:         "类型",
+		LocalToolModeProgram:  "程序",
+		LocalToolModeScript:   "脚本",
+		LocalToolLanguage:     "语言",
+		LocalToolLanguageHint: "脚本用什么语言写。这台机器上必须有对应的工具链。",
+		LocalToolScript:       "脚本",
+		LocalToolScriptHint:   "provider 脚本；你声明的参数会作为 argv 传入。",
+		LocalToolRuntimeReady: func(name, version string) string {
+			if version == "" {
+				return name + " 可用"
+			}
+			return name + " " + version + " 可用"
+		},
+		LocalToolRuntimeMissing:  func(names string) string { return names + " 不在 PATH 上，安装后再回来。" },
+		LocalToolRuntimeCompiled: "这个脚本在安装时由工具链编译。",
 
 		UpdateCheck:      "检查更新",
 		UpdateChecking:   "正在检查…",
