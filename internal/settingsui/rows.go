@@ -29,10 +29,13 @@ func (a *App) tokens(c *ui.Context) theme.Tokens {
 // the cards fn builds under them.
 func (a *App) section(c *ui.Context, title, hint string, fn func()) {
 	t := c.Theme()
-	ui.Column(c).FillWidth().Gap(t.Space(1.5)).Children(func() {
-		ui.Text(c, title).FontSize(t.FontSize + 1).FontWeight(650).TextColor(a.tokens(c).TextStrong)
+	ui.Column(c).FillWidth().Gap(t.Space(2)).Children(func() {
+		// The group's title is the ladder's title step at 620 in the strong
+		// colour, its one-line explanation the body step at 500 in the muted
+		// one — `.settings-section__label` / `__hint`.
+		ui.Text(c, title).FontSize(t.FontSize + 2).FontWeight(620).TextColor(a.tokens(c).TextStrong)
 		if hint != "" {
-			ui.Text(c, hint).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+			ui.Text(c, hint).FontSize(t.FontSize).FontWeight(500).TextColor(t.TextMuted)
 		}
 		ui.Column(c).FillWidth().Gap(t.Space(2.5)).Children(fn)
 	})
@@ -49,9 +52,12 @@ func (a *App) card(c *ui.Context, fn func()) {
 	saved := a.cardRows
 	a.cardRows = 0
 	defer func() { a.cardRows = saved }()
+	// The card wears the window's own edge and radius (`.settings-card`:
+	// `--input-stroke` and `--window-radius`) over the resting control fill,
+	// with the clip that keeps the first and last rows inside the corners.
 	ui.Column(c).FillWidth().
-		Border(1, tokens.ControlEdge).
-		Radius(tokens.RadiusMD).
+		Border(1, tokens.InputStroke).
+		Radius(tokens.RadiusLG).
 		Background(tokens.Control).
 		Clip().
 		Children(fn)
@@ -77,13 +83,16 @@ func (a *App) row(c *ui.Context, label, sublabel string, control func(), below .
 			ui.Box(c).FillWidth().Height(1).Background(tokens.Hairline).
 				MarginX(inset).Shrink(0)
 		}
+		// The row is the reference's own: a 44u floor, a 12u gap, a 9u padding
+		// pair, the label at the emphasis step (580, strong) and the grey
+		// second line at the body step (500, muted).
 		ui.Row(c).FillWidth().Gap(t.Space(3)).AlignItems(ui.Center).
-			Padding(t.Space(2.25), inset).Children(func() {
+			MinHeight(t.Space(11)).Padding(t.Space(2.25), inset).Children(func() {
 			names := ui.Column(c).Grow(1).MinWidth(0).Gap(1)
 			names.Children(func() {
-				ui.Text(c, label).FontSize(t.FontSize).FontWeight(580).TextColor(tokens.TextStrong)
+				ui.Text(c, label).FontSize(t.FontSize + 1).FontWeight(580).TextColor(tokens.TextStrong)
 				if sublabel != "" {
-					ui.Text(c, sublabel).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+					ui.Text(c, sublabel).FontSize(t.FontSize).FontWeight(500).TextColor(t.TextMuted)
 				}
 			})
 			if names.Clicked() {

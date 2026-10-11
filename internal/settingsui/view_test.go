@@ -1615,7 +1615,9 @@ func TestConnectFormDeclaresInputs(t *testing.T) {
 	a := New(settings.NewStore(settings.Default()), Actions{
 		ConnectLocalTool: func(tool CustomTool) { connected = append(connected, tool) },
 	})
-	tt := render(t, a, 720, 1400)
+	// The frame is taller than the panel: the settings rows are the 44u floor
+	// now, and the inputs editor sits at the end of them.
+	tt := render(t, a, 720, 2000)
 	if err := tt.Click("Integrations"); err != nil {
 		t.Fatal(err)
 	}
