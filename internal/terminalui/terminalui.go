@@ -633,10 +633,16 @@ func (a *App) residentNote(c *ui.Context, copy i18n.Terminal) {
 	// with the title at the body step in 560 — the warning colour when the
 	// program returned non-zero.
 	tokens := theme.For(a.Store.Snapshot(), t.Dark)
+	// The note enters as the old build's `feedback-enter` did: fading in and
+	// settling down from two units above.
 	ui.Row(c).Absolute().Bottom(t.Space(3)).Left(t.Space(3)).Right(t.Space(3)).
 		Gap(t.Space(2)).AlignItems(ui.Center).Padding(t.Space(1.75), t.Space(2.5)).
 		Radius(tokens.RadiusMD).Border(1, tokens.ControlEdge).Shadow(0, t.Space(1), t.Space(3), 0, ui.RGBA(0, 0, 0, 0.35)).
-		Background(tokens.Control).Children(func() {
+		Background(tokens.Control).
+		Transition(ui.ElementTransition{
+			Enter:    &ui.Motion{Y: -2},
+			Duration: 200 * time.Millisecond,
+		}).Children(func() {
 		ui.Text(c, copy.ProcessExited(session.ExitCode)).FontSize(t.FontSize).
 			FontWeight(560).TextColor(color)
 		ui.Text(c, copy.ProcessExitedHint).FontSize(t.FontSize).TextColor(t.TextMuted)
