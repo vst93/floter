@@ -1245,19 +1245,19 @@ func (a *App) installedIntegrations() []Integration {
 func (a *App) shortcuts(c *ui.Context, copy i18n.Settings) {
 	t := c.Theme()
 	ui.Column(c).FillWidth().Gap(t.Space(5.5)).Children(func() {
-		a.section(c, copy.ShortcutsToggle, copy.ShortcutsHint, func() {
-			a.card(c, func() {
-				a.shortcutRow(c, copy)
-			})
-			if a.Actions.ResetShortcuts != nil {
+		// The group title row carries the group's own action, as the reference's
+		// pane did: "Restore defaults" beside the title, in the accent-text
+		// idiom, and it really resets.
+		a.sectionWithAction(c, copy.ShortcutsToggle, copy.ShortcutsHint,
+			copy.ShortcutsReset, func() {
+				if a.Actions.ResetShortcuts != nil {
+					a.Actions.ResetShortcuts()
+				}
+			}, func() {
 				a.card(c, func() {
-					labelClicked := a.row(c, copy.ShortcutsReset, "", func() {
-						a.action(c, copy.ShortcutsReset, func() {})
-					})
-					_ = labelClicked
+					a.shortcutRow(c, copy)
 				})
-			}
-		})
+			})
 		a.section(c, copy.ShortcutsApp, copy.ShortcutsAppHint, func() {
 			a.card(c, func() {
 				for _, action := range settings.ShortcutActions {

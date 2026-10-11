@@ -121,6 +121,26 @@ func (a *App) row(c *ui.Context, label, sublabel string, control func(), below .
 	return clicked
 }
 
+// sectionWithAction is a section whose title row carries the group's own
+// action at its end, baseline-aligned with the title: the reference pane's
+// "Restore defaults" idiom (`.settings-section__heading-actions`).
+func (a *App) sectionWithAction(c *ui.Context, title, hint, actionLabel string, run func(), fn func()) {
+	t := c.Theme()
+	ui.Column(c).FillWidth().Gap(t.Space(2)).Children(func() {
+		heading := ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(t.Space(3))
+		heading.Children(func() {
+			ui.Text(c, title).FontSize(t.FontSize + 2).FontWeight(620).TextColor(a.tokens(c).TextStrong)
+			if hint != "" {
+				ui.Text(c, hint).FontSize(t.FontSize).FontWeight(500).TextColor(t.TextMuted).Grow(1)
+			}
+			if run != nil {
+				a.action(c, actionLabel, run)
+			}
+		})
+		fn()
+	})
+}
+
 // action draws the right-aligned accent text action the reference's rows use
 // ("Edit…", "Restore defaults"): the accent spent on text, never on a fill.
 func (a *App) action(c *ui.Context, label string, clicked func()) {
