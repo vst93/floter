@@ -706,9 +706,16 @@ func (a *App) View(c *ui.Context) {
 			// painted by the row itself (see row), not by the list's own
 			// selection. Padding puts the first row below the field, and
 			// scrolls with the content, so rows pass under the field.
+			// The list has no scrollbar, as the old build's own list did: the
+			// user's call, after two rounds of the bar refusing to sit flush
+			// (「启动器列表不要滚动条」). Scrolling still works - the wheel,
+			// the trackpad and the arrows - and the choice scrolls itself
+			// into view; it is only the bar that is gone. The scrollbar's
+			// insets push it past the list's own clip, which is what hides it.
 			ui.List(c.Key("launcher.results"), &a.List, len(results), func(i int) {
 				a.row(c, results[i], i)
-			}).Fill().Padding(listEdge, 0, 0, 0).Label(copy.ResultsLabel)
+			}).Fill().Padding(listEdge, 0, 0, 0).Label(copy.ResultsLabel).
+				ScrollbarInsets(0, 4096, 0, 0)
 		}
 
 		// The chips row floats under the field, the list scrolling beneath it.
