@@ -637,6 +637,7 @@ func (a *App) View(c *ui.Context) {
 
 	// The window's height is the content's own: measure every row's lines
 	// off the theme, so the shell can size the window to the list it holds.
+	tk := theme.For(a.settings(), t.Dark)
 	a.Font = float64(t.FontSize)
 	a.Spacing = float64(t.Spacing)
 	// The rows' two line boxes, measured rather than assumed: the framework
@@ -750,7 +751,7 @@ func (a *App) View(c *ui.Context) {
 				// `.collapsed-card__input` took `--text-display` (17px at
 				// scale 1) against the rows' body text — one step above —
 				// at weight 460.
-				FontSize(t.FontSize + 6).
+				FontSize(tk.Display).
 				FontWeight(460).
 				Grow(1)
 			if a.pendingCaret {

@@ -97,6 +97,15 @@ type Tokens struct {
 	// the old build's alpha was 0.62 + 0.18 of the main opacity, which rises
 	// with the transparency slider without ever reaching it.
 	Sunken ui.Color
+
+	// The text ladder, in points at the current step: base.css's registers,
+	// which the codebase had been spelling as offsets off the body size (a
+	// +6 that is 6.6 points at the Large step, not 6).
+	Caption  float32
+	Body     float32
+	Emphasis float32
+	Title    float32
+	Display  float32
 }
 
 // For resolves the appearance and scales the metrics for a settings value.
@@ -151,10 +160,24 @@ func For(s settings.Settings, systemDark bool) Tokens {
 		baseFill = ui.RGB(243, 244, 247)
 	}
 
+	// The ladder, at the step: base.css's own registers (caption 10, body 11,
+	// emphasis 12, title 13, display 17), each scaled once here rather than
+	// spelled as an offset wherever a register is needed.
+	caption := round1(10 * f)
+	body := round1(11 * f)
+	emphasis := round1(12 * f)
+	title := round1(13 * f)
+	display := round1(17 * f)
+
 	return Tokens{
 		Appearance:        appearance,
 		Theme:             &t,
 		Sunken:            baseFill.Alpha(sunken),
+		Caption:           caption,
+		Body:              body,
+		Emphasis:          emphasis,
+		Title:             title,
+		Display:           display,
 		Scale:             scale,
 		RadiusXS:          round1(RadiusXS * f),
 		RadiusSM:          round1(RadiusSM * f),

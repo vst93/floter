@@ -690,7 +690,7 @@ func (a *App) body(c *ui.Context, copy i18n.Settings) {
 			// The page's own registers: the title at the display step (650)
 			// and the one-line hint at the body step (500), as
 			// `.settings-page__title` / `__subtitle` had them.
-			ui.Text(c, p.Title).FontSize(t.FontSize + 6).FontWeight(650).TextColor(t.Text)
+			ui.Text(c, p.Title).FontSize(a.tokens(c).Display).FontWeight(650).TextColor(t.Text)
 			if p.Hint != "" {
 				ui.Text(c, p.Hint).FontSize(t.FontSize).FontWeight(500).TextColor(t.TextMuted)
 			}
