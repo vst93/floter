@@ -413,6 +413,22 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 - **反馈进入动画**：`feedback-enter` 的 160ms（旧版 `--dur-3`），状态行与 resident 提示同一。
 - **计算器行**：R50 的寄存器（表达式是标题、答案完整在右），历史行与"算式即查询"的答案行一致。
 
+## 底色与透明的审计结论（本轮）
+
+三个表面的透明，逐一核对：
+
+- **启动器**：`main_opacity`（默认 47%）是卡片玻璃材质的 tint alpha——桌面经
+  `VibrancyUnderWindow` 模糊后，透过 tint、雾层与卡片边缘的透明边距可见。headless 渲染核验：
+  卡片面有 tint（186,186,186）、边缘 alpha=0。
+- **终端**：`terminal_opacity`（默认 46%）是画布自己的 tint alpha（Ghostty 的
+  background-opacity 语义）——画布以该 alpha 画调色板背景，其余透过卡片玻璃与 vibrancy 可见。
+  旧版的 `--glass-tint-terminal` 把 dim 合进 tint，本构建是 Ghostty 语义的等价物。
+- **设置**：旧版 `.settings-card__body` 有自己的填充（`--surface-sunken`，alpha =
+  0.62 + 0.18 × main_opacity）——设置页是阅读面，比启动器更实。本构建此前**没有**这层填充
+  （行直接画在玻璃上，读起来和启动器一样透），本轮补上（`theme.Tokens.Sunken`）。
+- **卡片边缘**：4u/10u 透明边距——vibrancy 之后边缘下是模糊的桌面（旧版是清晰桌面）；
+  视觉材质内的内缩是 macOS 本地面板自己的读法。
+
 ## 已知差距（框架不支持，诚实记录）
 
 - **普通页 Tab 展开命令行**：旧版普通页里 Tab 把选中的命令行**展开成完整命令行文本**
