@@ -103,3 +103,17 @@ opt-in（`FLOTER_TERMINAL_TEST=1`、`FLOTER_SQLITE_TEST=1`、`FLOTER_REGISTRY_TE
   任何一行出界即失败。加新带（chips/status/sheet/…）时先加进这个测试。
 - **`shell.Options.ConfirmPower` 改名 `ConfirmDialog`**：电源确认已经是面板内的行，这个 seam 只服务
   设置页的"清空剪贴板历史"。
+
+## 2026-10-11 · 追加：脚本工具、召唤归位、终端多会话
+
+- **终端会话模型**：`terminalui.Session`（Term/Title/Resident/ExitCode/Created）+ `App.Sessions`/`Active`。
+  取当前会话用 `a.Current()`，终端用 `a.term()`。运行命令/在目录开终端/安装会话都**开新会话**，
+  不再顶掉旧的；`Close()` 只关当前，`CloseAll()` 在退出时用。
+- **测试里的假终端**：`&terminal.Terminal{}` 只当"存在"的占位，**不能 Close**（内部 vt 为 nil 会 panic）。
+  要测关闭路径就自己拼 `Sessions`（`Term: nil`），或设 `FLOTER_TERMINAL_TEST=1` 用真库。
+- **本地工具可以是脚本**：`internal/scriptlang`（八语言 + 模板 + 状态投影）、`extensions.ScriptRuntimeFor`
+  （从不失败）、表单的 kind 选择器；草稿字段走 `customRequest` 一个映射。
+- **召唤会重新归位**：`Show()` 前后各 `placeWindow()` 一次（macOS 丢弃未映射窗口的几何设置）；
+  屏幕用窗口中心点判定（框架没有"焦点屏幕"查询）。
+- **终端链接**：`Options.OpenLink` / `OnNotify` 已接线（`openTerminalLink` / `notifyFromProgram`）；
+  `Options.OpenURL` 也是可注入的 opener（测试用）。

@@ -8,7 +8,7 @@
 
 用 mygo（原生 GPU 自绘 UI + Go）重写的 floter **已经是一个可打包、可运行的完整应用**：单窗口三表面
 （启动器 / 设置 / 终端）、搜索内核、扩展平台（含后台运行、列表协议、导入导出、权限审计）、剪贴板、
-浏览器、计算器、系统集成、打包与 CI 全部就位。**506 项测试全绿**，三平台都能构建，Linux 打包
+浏览器、计算器、系统集成、打包与 CI 全部就位。**527 项测试全绿**，三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
 含测试）。
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 506 项测试
+go test -count=1 ./...         # 527 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -136,6 +136,35 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
   launcher 声明的每一个 action，下一个不会再静默。
 - 电源确认改回旧版的面板内确认行（`.launcher-system-confirm`）：动作自己的按钮（"重启"而不是"继续"）
   + 返回，回车不再直接执行；Esc 即取消。
+
+**P7-h 本地工具可以是脚本（本轮）**
+- 后端一直支持脚本 provider（manifest `runtime.type: "script"`、解释器查找、`provider.<ext>`、
+  导入导出），但表单只能指向"机器上的程序"，这一半功能不可达。现在表单先问**类型**：
+  - `internal/scriptlang`：八种语言（js/shell/powershell/python/ruby/php/go/rust），各自的扩展名、
+    是否编译型、必须在 PATH 上的工具链、双语模板（旧版 R9-1 的那张表，放在一处，语言不会被"半加"）。
+  - `extensions.ScriptRuntimeFor`：这台机器有什么（解释器或编译器 + 版本），**从不失败**——
+    "没找到"是答案，状态行说出来，而不是阻止保存。
+  - 切换语言会替换"未被改动过的模板"，用户写过的内容保留；空脚本不连接（和没填程序的路径一样）。
+  - 草稿字段只走一个映射（`customRequest`），连接与编辑两条路不会分歧；编辑表单把脚本从包里读回来。
+
+**P7-i 召唤时重新归位（本轮）**
+- 旧版每次 reveal 都把窗口移回默认位置（launcher 是"召唤"，它属于用户注意力所在的那块屏幕）。
+  本构建只在建窗时放一次，于是拖动会被下一次召唤继承。现在每次 reveal 都重新归位（显示前一次、
+  显示后一次——macOS 会丢弃未映射窗口上的几何设置，两次在同一帧内，中间不会闪现）。
+- 屏幕取"窗口当前所在的那块"（中心点判定，退回主屏）：框架不报告哪块屏幕有键盘焦点，
+  窗口自身位置是最诚实的替代——被拖到第二块屏的面板会在第二块屏归位，而不是被拽回主屏。
+
+**P7-j 终端：链接、通知、多会话（本轮）**
+- **链接**：Cmd+点击终端输出里的超链接 / URL / 路径 → 用应用自己的两个 opener 打开（URL 走用户选的
+  浏览器，路径走文件管理器），与启动器行一致；编译器打印的 `:line:col` 后缀在整串不是文件时被剥掉，
+  相对路径不猜（会话的 cwd 不在这里跟踪）。
+- **通知**：程序自己的通知请求（OSC 9 / OSC 777）走应用已有的通知通道。
+- **多会话**：终端表面现在持有自己的会话列表（旧版由 broker 托管会话，本构建在进程内）：
+  `Session`（程序、屏幕、标题、是否已结束、创建时间）、`NewSession`/`SelectSession`/`CloseSession`/
+  `CloseAll`；运行命令或"在此打开终端"开新会话而不是顶掉旧的；resident（已结束）状态按会话区分；
+  外观刷新作用于每个会话；退出时结束所有会话。
+  - 设置里的会话页列出全部（正在显示 / 运行中 / 已结束），非当前会话有"显示"，每个都有"关闭"
+    （先 arm 再执行——关闭会杀掉程序里的进程），另有"新建会话"；恢复一个会话会把终端表面带到前台。
 
 **P7-e 输出按终端语义读 ANSI（本轮）**
 - 新包 `internal/ansi`：纯解析器，把 CLI 输出里的 SGR（颜色/粗细/下划线/反显 + 16 名色 /
@@ -289,10 +318,9 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 已知差距（框架不支持，诚实记录）
 
-- **终端多会话**：旧版终端表面自带会话列表（切换/恢复/结束、排序、刷新），本构建是"单会话 + 已结束
-  会话保留"（`Resident`），设置里的 Sessions 页只列当前会话。要做成多会话需要终端插件支持多个
-  session 句柄，框架目前没有。
 - **终端选中即复制 / 滚动条 / bracketed paste**：见下面的终端外观条目。
+- **会话排序 / 轮询**：旧版会话页有"最新/最早"排序与 5 秒轮询（会话由 broker 托管，可能跨天存活）；
+  本构建的会话在进程内、生命周期与 App 相同，列表按创建顺序，不做轮询。
 - **设置里的 Plugins 页已删**：内置插件的配置现在是启动器里的通用表单（P7-c），与旧版 R33 一致；
   遗留的 `last_settings_page: "plugins"` 会落到第一页。
 
@@ -342,7 +370,7 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 7. **P6 发布链**：剩下的是一次性维护者动作——`mygo keygen` 生成更新密钥、`mygo.json` 填 `updates`
    与 `macos.signingIdentity`/`macos.notarize`、CI 注入私钥、把产物发到 GitHub Release（含预发布通道）。
 8. **小项**：开机自启需要在真实打包应用上验证一次；
-   （命令别名编辑已完成：Integrations 页每命令一个输入框，P4-y。）
+   （命令别名编辑已完成：Integrations 页每命令一个输入框，P4-y；脚本语言表单已完成，P7-h。）
    **能力探测**（manifest `lifecycle.probes` 的执行与 `probeReport`，Go 侧「检查」目前走 diagnose）；
    旧版 `package.json` 归档字段。（导入导出的权限审批已改为**一次汇总**，
    与旧版一致；旧版 `launch_counts` 已在启动时一次性导入 `usage.json`，本构建的记录优先。）
