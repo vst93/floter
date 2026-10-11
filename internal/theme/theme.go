@@ -130,6 +130,12 @@ type Tokens struct {
 	// glass a lit face rather than a flat tint.
 	SheenTop    ui.Color
 	SheenBottom ui.Color
+	// ShadowAmbient and ShadowContact are the window's own cast shadow
+	// (base.css's `--window-shadow-ambient` / `--window-shadow-contact`): the
+	// broad throw and the tight contact edge a card carries where the platform
+	// has no window-server shadow (Linux, Windows).
+	ShadowAmbient ui.Color
+	ShadowContact ui.Color
 	// Sunken is the settings content pane's own fill (base.css's
 	// `--surface-sunken`): the settings panel is a reading surface, and it
 	// carries a fill of its own so it reads more solid than the launcher -
@@ -287,6 +293,8 @@ func For(s settings.Settings, systemDark bool) Tokens {
 		LensEdge:          p.lensEdge,
 		SheenTop:          p.sheenTop,
 		SheenBottom:       p.sheenBottom,
+		ShadowAmbient:     p.shadowAmbient,
+		ShadowContact:     p.shadowContact,
 		Hairline:          hairline,
 		TextStrong:        textStrong,
 		TextSecondary:     textSecondary,
@@ -332,6 +340,8 @@ func paletteFor(appearance Appearance) palette {
 			lensEdge:      ui.RGBA(0, 0, 0, 0.08),
 			sheenTop:      ui.RGBA(255, 255, 255, 0.66),
 			sheenBottom:   ui.RGBA(255, 255, 255, 0.22),
+			shadowAmbient: ui.RGBA(0, 0, 0, 0.18),
+			shadowContact: ui.RGBA(0, 0, 0, 0.12),
 		}
 	}
 	return palette{
@@ -365,6 +375,8 @@ func paletteFor(appearance Appearance) palette {
 		lensEdge:      ui.RGBA(0, 0, 0, 0.15),
 		sheenTop:      ui.RGBA(255, 255, 255, 0.046),
 		sheenBottom:   ui.RGBA(255, 255, 255, 0.01),
+		shadowAmbient: ui.RGBA(0, 0, 0, 0.3),
+		shadowContact: ui.RGBA(0, 0, 0, 0.2),
 	}
 }
 
@@ -379,6 +391,7 @@ type palette struct {
 	opaque, fieldFill                                                    ui.Color
 	lensRim, lensSheen, lensEdge                                         ui.Color
 	sheenTop, sheenBottom                                                ui.Color
+	shadowAmbient, shadowContact                                         ui.Color
 }
 
 // round1 rounds to one decimal, so a scaled metric stays a value a CSS

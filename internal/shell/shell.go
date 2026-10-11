@@ -925,12 +925,16 @@ func (a *App) Start() {
 	a.lastW, a.lastH = w, h
 
 	a.Win = mygo.NewWindow(mygo.WindowOptions{
-		Title:         "floter",
-		Width:         w,
-		Height:        h,
-		Frameless:     true,
-		Transparent:   true,
-		DisableShadow: true,
+		Title:       "floter",
+		Width:       w,
+		Height:      h,
+		Frameless:   true,
+		Transparent: true,
+		// The window's own shadow: macOS's window server casts one that
+		// follows the card's rounded, transparent content; the other
+		// platforms' would follow the window's rectangle (a square shadow
+		// around rounded corners), so the card draws its own there instead.
+		DisableShadow: runtime.GOOS != "darwin",
 		SkipTaskbar:   true,
 		// The launcher and settings are fixed panels; only the terminal
 		// is resizable, which resize turns on per surface.
@@ -2563,6 +2567,19 @@ func (a *App) View(c *ui.Context) {
 		// rounded corners — the old build's `.collapsed-card` had
 		// `overflow: hidden` for exactly this.
 		card := ui.Column(c).Fill().Radius(radius).DragWindow().Border(1, stroke).Clip()
+		// The card's own depth where the platform has no window-server shadow:
+		// Linux compositors disagree on whether an undecorated transparent
+		// window gets a native one, and a frameless Windows window's shadow
+		// follows the window's rectangle rather than the card's corners. macOS
+		// draws none — the window server casts it (see the window options).
+		switch runtime.GOOS {
+		case "linux":
+			card.Shadow(0, t.Space(1), t.Space(4.5), 0, surface.Tokens.ShadowAmbient)
+			card.Shadow(0, t.Space(0.25), t.Space(1.25), 0, surface.Tokens.ShadowContact)
+		case "windows":
+			card.Shadow(0, t.Space(1), t.Space(4), 0, surface.Tokens.ShadowAmbient)
+			card.Shadow(0, t.Space(0.25), t.Space(1), 0, surface.Tokens.ShadowContact)
+		}
 		// The launcher's blocks run edge to edge: the field row is full-bleed
 		// (`.collapsed-card__input-row`) and the panel below it is the card's
 		// own recess, so the surface owns no horizontal inset of its own —

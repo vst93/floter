@@ -116,6 +116,10 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
   `rowTwoLineUnits` 改为 10），设置行/堆叠行的纵向内边距 9 → 6px。列表与设置页明显变紧凑。
   注：框架的自然行盒（11pt→17px、13pt→20px）比旧版 CSS 的 `line-height`（1.15/1.2）高，
   `LineHeight`/`FixedLineHeight` 只能调高不能调低，所以无法完全对齐——只能靠去内边距补。
+- **窗口阴影**：之前全局 `DisableShadow: true`，macOS 上连窗口服务器的阴影也没了，面板没有深度。
+  现在 macOS 保留原生阴影（跟随圆角透明内容），Linux/Windows 由卡片自己画（旧版
+  `.platform-linux` / `.platform-windows` 的 `0 4px 18px ambient + 0 1px 5px contact`），
+  因为无边框窗口的原生阴影会跟着矩形而不是圆角。
 
 **P7-q 调色板、材质与排版对齐（本轮）**
 - **调色板**：`theme.For` 之前只覆盖了描边、控制档、发线、Sunken 与文字阶，框架的**整套配色仍是 mygo
