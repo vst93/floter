@@ -375,3 +375,212 @@ func TestTheFieldOwnsTheHistoryKeys(t *testing.T) {
 		}
 	}
 }
+
+// The bare Backspace, when a plugin mode owns a field with nothing left in it,
+// is the deliberate "there is nothing left to delete" that leaves the mode —
+// the old build's R32 rule (「退格删空即停」: the press that empties the needle
+// stops in the mode, the press after it walks out). It is the third key the
+// field answers before the editor: the editor never sees a press that has no
+// edit to make.
+func TestEmptyFieldBackspaceLeavesTheClipboardMode(t *testing.T) {
+	a, store := clipboardApp(t)
+	tt := render(t, a)
+	a.EnterClipboard()
+	tt.Frame()
+	if !a.clipboard {
+		t.Fatal("the mode did not open")
+	}
+
+	tt.Key(0, ui.KeyBackspace)
+	tt.Frame()
+	if a.clipboard {
+		t.Error("an empty field's Backspace did not leave the mode")
+	}
+	// The press is a way out, not an edit or an execution: the history is
+	// exactly as it was, and no row ran.
+	if got := len(store.Entries()); got != 2 {
+		t.Errorf("leaving the mode removed an entry: %d", got)
+	}
+	if testRuns["copy"] != 0 {
+		t.Errorf("leaving the mode ran a row: %v", testRuns)
+	}
+}
+
+// The rule's two steps, in the order the user performs them: the press that
+// empties the needle is the editor's (the mode keeps its ground), and only the
+// press after it leaves.
+func TestOnlyThePressAfterTheEmptyOneLeavesTheMode(t *testing.T) {
+	a, _ := clipboardApp(t)
+	tt := render(t, a)
+	a.EnterClipboard()
+	tt.Frame()
+
+	tt.Type("a")
+	tt.Frame()
+	if a.Query != "a" {
+		t.Fatalf("Query = %q, want the typed needle", a.Query)
+	}
+	tt.Key(0, ui.KeyBackspace)
+	tt.Frame()
+	if !a.clipboard {
+		t.Fatal("the press that emptied the needle left the mode")
+	}
+	if a.Query != "" {
+		t.Fatalf("the press did not edit the field: %q", a.Query)
+	}
+	tt.Key(0, ui.KeyBackspace)
+	tt.Frame()
+	if a.clipboard {
+		t.Error("the press after the field emptied did not leave the mode")
+	}
+}
+
+// A bare Backspace with a needle still in the field is the editor's, not the
+// mode's: only an empty field means "nothing left to delete".
+func TestBackspaceWithANeedleKeepsTheEditorAndTheMode(t *testing.T) {
+	a, _ := clipboardApp(t)
+	tt := render(t, a)
+	a.EnterClipboard()
+	tt.Frame()
+
+	tt.Type("xyz")
+	tt.Frame()
+	tt.Key(0, ui.KeyBackspace)
+	tt.Frame()
+	if !a.clipboard {
+		t.Fatal("a Backspace with text in the field left the mode")
+	}
+	if a.Query != "xy" {
+		t.Errorf("Query = %q, want the editor's own edit", a.Query)
+	}
+}
+
+// Every plugin mode answers the empty field's Backspace, and it is one ladder:
+// the files mode a drop opens, the calculator, the browser, the clipboard and an
+// extension command's argument mode. The captured output view is not one of
+// them — Escape closes it, and a Backspace in its field edits.
+func TestEmptyFieldBackspaceLeavesEveryPluginMode(t *testing.T) {
+	cases := []struct {
+		name string
+		open func(*App)
+		in   func(*App) bool
+	}{
+		{"clipboard", func(a *App) { a.EnterClipboard() }, func(a *App) bool { return a.clipboard }},
+		{"browser", func(a *App) { a.EnterBrowser() }, func(a *App) bool { return a.browser }},
+		{"calculator", func(a *App) { a.EnterCalculator() }, func(a *App) bool { return a.calculatorMode }},
+		{"files", func(a *App) { a.EnterFiles() }, func(a *App) bool { return a.files }},
+		{"command", func(a *App) { a.enterCommand(a.Commands[0]) }, func(a *App) bool { return a.mode != nil }},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			a := testApp()
+			if tc.name == "command" {
+				a = commandApp()
+			}
+			tt := render(t, a)
+			tc.open(a)
+			tt.Frame()
+			if !tc.in(a) {
+				t.Fatalf("%s: the mode did not open", tc.name)
+			}
+			tt.Key(0, ui.KeyBackspace)
+			tt.Frame()
+			if tc.in(a) {
+				t.Errorf("%s: an empty field's Backspace did not leave the mode", tc.name)
+			}
+			if !a.pluginModeActive() {
+				return
+			}
+			t.Errorf("%s: a mode is still active after the press", tc.name)
+		})
+	}
+}
+
+// The editor's own modifiers keep their gestures: ⌘/⌃/⌥ + Backspace is a
+// deletion, so it must never walk the user out of a mode — ⌘⌫ on a history row
+// is the two-step delete, and the field's own line-editing gestures are the
+// rest.
+func TestModifiedBackspaceKeepsItsOwnGesture(t *testing.T) {
+	for _, mods := range []ui.Modifiers{ui.Cmd, ui.Super, ui.Ctrl, ui.Alt} {
+		a, store := clipboardApp(t)
+		tt := render(t, a)
+		a.EnterClipboard()
+		tt.Frame()
+		tt.Key(mods, ui.KeyBackspace)
+		tt.Frame()
+		if !a.clipboard {
+			t.Errorf("%v+Backspace left the mode", mods)
+		}
+		if got := len(store.Entries()); got != 2 {
+			t.Errorf("%v+Backspace removed an entry: %d", mods, got)
+		}
+	}
+}
+
+// Shift is not one of the editor's modifiers in this rule — the old build read
+// `metaKey || ctrlKey || altKey` and nothing else — so ⇧⌫ is the plain key and
+// leaves the mode.
+func TestShiftBackspaceIsThePlainKey(t *testing.T) {
+	a, _ := clipboardApp(t)
+	tt := render(t, a)
+	a.EnterClipboard()
+	tt.Frame()
+	if modeExitMods&ui.Shift != 0 {
+		t.Fatal("the rule blocks Shift, which the old build did not")
+	}
+	tt.Key(ui.Shift, ui.KeyBackspace)
+	tt.Frame()
+	if a.clipboard {
+		t.Error("Shift+Backspace did not leave the mode")
+	}
+}
+
+// The ordinary search is not a mode: an empty field's Backspace edits nothing
+// and leaves the window alone, exactly as it always did.
+func TestEmptyFieldBackspaceOnTheOrdinaryPageChangesNothing(t *testing.T) {
+	a := testApp()
+	tt := render(t, a)
+	tt.Key(0, ui.KeyBackspace)
+	tt.Frame()
+	if a.Query != "" {
+		t.Errorf("Query = %q, want it untouched", a.Query)
+	}
+	if a.pluginModeActive() {
+		t.Error("the ordinary page reads as a mode")
+	}
+	if _, hidden := testRuns["dismiss"]; hidden {
+		t.Errorf("the press hid the window: %v", testRuns)
+	}
+}
+
+// The ladder is written once: Escape and the empty field's Backspace leave the
+// same mode for the same reason, and `leavePluginMode` answers "was there one"
+// for the ordinary page.
+func TestLeavePluginModeIsTheOnlyLadder(t *testing.T) {
+	a := testApp()
+	if a.leavePluginMode() {
+		t.Error("the ordinary page reported a mode")
+	}
+	for _, open := range []func(*App){
+		func(a *App) { a.EnterClipboard() },
+		func(a *App) { a.EnterBrowser() },
+		func(a *App) { a.EnterCalculator() },
+		func(a *App) { a.EnterFiles() },
+		func(a *App) { a.enterCommand(a.Commands[0]) },
+	} {
+		a := commandApp()
+		open(a)
+		if !a.pluginModeActive() {
+			t.Fatalf("the mode did not open: %+v", a)
+		}
+		if !a.leavePluginMode() {
+			t.Error("the ladder reported no mode while one was open")
+		}
+		if a.pluginModeActive() {
+			t.Error("the ladder left a mode open")
+		}
+		if a.leavePluginMode() {
+			t.Error("the ladder reported a second mode")
+		}
+	}
+}

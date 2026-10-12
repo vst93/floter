@@ -107,7 +107,7 @@ func triggerHintFits(c *ui.Context, text string) bool {
 // ordinary page's alone: a mode that already owns the field has no word to
 // enter with.
 func (a *App) triggerHintText() string {
-	if a.mode != nil || a.clipboard || a.browser || a.calculatorMode || a.files || a.output != nil {
+	if a.pluginModeActive() || a.output != nil {
 		return ""
 	}
 	hint, ok := a.externalTriggerHint(a.Query)

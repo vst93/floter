@@ -26,6 +26,11 @@ import (
 // Both are launcher-only: the terminal keeps the keyboard in its own mode and
 // the shell is waiting for both keys.
 //
+// The bare Backspace is the field's own gesture too, but only for one state: a
+// plugin mode whose needle is already empty has nothing left to delete, so the
+// press leaves the mode (see `modeExitMods` and the old build's
+// `pluginModeExitOnBackspace`).
+//
 // Everything else returns false, so the field keeps its own editing.
 
 // historyClearMods is Ctrl+Shift, spelled out rather than taken from the app
@@ -39,6 +44,15 @@ const historyClearMods = ui.Ctrl | ui.Shift
 // same one the rest of the launcher's commands use. It is deliberately not a
 // member of the settings' shortcut map: the user never asked to rebind it.
 var historyDeleteMods = ui.Cmd
+
+// modeExitMods are the modifiers that make a Backspace an *editing* gesture
+// rather than the mode-leaving one: ⌘/⌃/⌥ all belong to the editor (delete to
+// the start of the line, delete a word, delete a word on macOS), so a hand
+// trimming text is never thrown out of the mode. Shift is deliberately absent —
+// the old build's rule read `metaKey || ctrlKey || altKey` and nothing else, so
+// ⇧⌫ is the plain key. Super is Command on macOS and the Windows key elsewhere;
+// both spellings are listed because `ui.Cmd` is only one of them per platform.
+const modeExitMods = ui.Super | ui.Ctrl | ui.Alt
 
 // fieldKeys takes the launcher's own field keys. It is attached to the search
 // field with HandleInput, so it runs while the field has the keyboard and
@@ -73,7 +87,47 @@ func (a *App) fieldKeys(ev ui.InputEvent) bool {
 	if ev.Mods == historyDeleteMods {
 		return a.historyDeleteKey()
 	}
+	// The bare key, on a field with nothing left in it: the old build's R32
+	// rule — backspacing the needle to empty *stops* in the mode, and the press
+	// after that leaves it (「退格删空即停」). The editor still owns the press
+	// that empties the field, because `Query` is only empty once it has; this
+	// branch is the one after it.
+	if ev.Mods&modeExitMods == 0 && a.Query == "" && a.leavePluginMode() {
+		return true
+	}
 	return false
+}
+
+// pluginModeActive reports whether a plugin mode owns the field: the old
+// build's four scopes (the browser, the clipboard and the calculator modes,
+// and an extension command's argument mode) plus this build's files mode, which
+// a drop or the `files ` trigger opens. The ordinary search and the
+// captured-output view are not modes.
+func (a *App) pluginModeActive() bool {
+	return a.files || a.calculatorMode || a.browser || a.clipboard || a.mode != nil
+}
+
+// leavePluginMode leaves whichever plugin mode owns the field, and reports
+// whether there was one. It is the one ladder both ways out read — Escape in
+// the view, and an empty field's Backspace here — so the order can never be
+// written down twice and drift: the files mode, then the calculator, the
+// browser, the clipboard, and last an extension command's arguments.
+func (a *App) leavePluginMode() bool {
+	switch {
+	case a.files:
+		a.leaveFiles()
+	case a.calculatorMode:
+		a.leaveCalculator()
+	case a.browser:
+		a.leaveBrowser()
+	case a.clipboard:
+		a.leaveClipboard()
+	case a.mode != nil:
+		a.leaveCommand()
+	default:
+		return false
+	}
+	return true
 }
 
 // clearQueryHistory empties the typed-command history and says so. The field

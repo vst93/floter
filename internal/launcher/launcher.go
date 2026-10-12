@@ -940,17 +940,11 @@ func (a *App) View(c *ui.Context) {
 			a.armedDelete = ""
 			return
 		}
+		// The mode ladder is `leavePluginMode`'s, so the two ways out — Escape
+		// here and an empty field's Backspace on the field itself — cannot name
+		// the modes in two orders.
 		switch {
-		case a.files:
-			a.leaveFiles()
-		case a.calculatorMode:
-			a.leaveCalculator()
-		case a.browser:
-			a.leaveBrowser()
-		case a.clipboard:
-			a.leaveClipboard()
-		case a.mode != nil:
-			a.leaveCommand()
+		case a.leavePluginMode():
 		case a.Query != "":
 			a.Query = ""
 			a.Selected = 0
@@ -1126,7 +1120,7 @@ func (a *App) leaveCommand() {
 // bare word stays an ordinary query, which is what makes entering and leaving
 // one keystroke.
 func (a *App) syncTypedMode() {
-	if a.mode != nil || a.clipboard || a.browser || a.calculatorMode || a.files {
+	if a.pluginModeActive() {
 		return
 	}
 	word, hasRest := modeWord(a.Query)
@@ -1923,7 +1917,7 @@ func (a *App) syncHeldModifier(c *ui.Context) {
 // session, on the ordinary page with an empty field and nothing typed. A query
 // is a search, and a search has its own answers; a mode owns its own list.
 func (a *App) heldTerminalItem() (Item, bool) {
-	if !a.modifierHeld || a.mode != nil || a.clipboard || a.browser || a.calculatorMode || a.files || a.output != nil {
+	if !a.modifierHeld || a.output != nil || a.pluginModeActive() {
 		return Item{}, false
 	}
 	if strings.TrimSpace(a.Query) != "" {

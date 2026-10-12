@@ -1119,6 +1119,37 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
 - **测试**：`TestSessionsListOrdersAndToggles`、`TestSessionsWithoutAStartKeepTheShellsOrder`；
   摘掉 `sort.SliceStable` 会红；shell 的 `TestSessionsListReportsEverySession` 追加 Dir/Size/Created。
 
+### P7-ak 空字段的退格离开插件模式（已做）
+
+- **偏离点**：旧版 R32 的规则（`src/launcher.ts` 的 `pluginModeExitOnBackspace`，注释直接引用用户原话
+  「退格删空即停」）：把 needle 退到空的**那一按**仍停在模式里（那是编辑器的编辑），而字段**已空**时
+  再按一次退格就离开插件。旧版由 `onPluginModeBackspace` 在窗口级读（紧接 Esc / ⌘W 那条三级 dismiss
+  之前），本构建的搜索字段只有 Escape 一条出路，空字段上的退格交给编辑器、什么也不发生。这条规则还是
+  本仓库自己的协议文档 `docs/plugin-development.md` §7「离开（R31）」明写的一条——**文档在承诺一个
+  从未接线的转换**，与 P7-t（触发词进模式）、P7-u（内置插件区）同一类。
+- **修法**：`internal/launcher/fieldkeys.go` 的 `fieldKeys` 加第三条规则。它挂在字段的
+  `Element.HandleInput` 上（P7-v 发现的那道缝：框架的按键顺序是「聚焦元素的 `HandleInput` → 编辑器的
+  `wants` → 快捷键注册」，所以普通 Backspace 只能在字段自己这里先被读到）：
+  ```go
+  if ev.Mods&modeExitMods == 0 && a.Query == "" && a.leavePluginMode() { return true }
+  ```
+  `modeExitMods = ui.Super | ui.Ctrl | ui.Alt` 是「这是编辑手势」的修饰键集（⌘⌫ 删到行首、⌃⌫ 删词、
+  ⌥⌫ 删词），Shift 刻意不在内——旧版的判定是 `event.metaKey || event.ctrlKey || event.altKey`，不读
+  shiftKey，所以 ⇧⌫ 就是那个普通键。`Query` 是模式自己的 needle（触发词在进入时已被消耗）。
+- **一条梯子**：新增 `App.leavePluginMode() bool`，把「files → calculator → browser → clipboard →
+  extension command」五段收成一处并回答「有没有模式」；`View` 里 Escape 的那五段重复 switch 改成
+  `case a.leavePluginMode():`，两个出口（Esc 与空字段的退格）从同一处读顺序，不可能一方添了新模式而
+  另一方漏掉。顺带 `pluginModeActive()` 把此前在 `syncTypedMode` / `heldTerminalItem` / `triggerhint`
+  三处逐字重复的同一串判定（`a.mode != nil || a.clipboard || a.browser || a.calculatorMode || a.files`）
+  收成一个谓词（output 视图不算模式，仍单独判）。
+- **不动的东西**：没有新文案（旧版这一步也没有反馈行）；Escape / ⌘W 的语义、模式对 needle 的保留
+  （「退格删空即停」）都不变——一按仍只落在编辑器上。
+- **测试**：`internal/launcher/fieldkeys_test.go` 新增 8 项——空字段离开剪贴板模式且历史与剪贴板都不动、
+  两步的「删空停 / 再按走」、有 needle 时 `Query` 就是编辑器的编辑结果、五种模式逐一（子测试）、
+  ⌘/⌃/⌥（以及 Super）+退格都不离开也不要删行、⇧⌫ 是普通键（并把 `modeExitMods&ui.Shift == 0` 钉住）、
+  普通搜索页上什么都不做（不隐藏窗口）、`leavePluginMode` 是唯一梯子（空页答 false，每个模式答一次
+  true、第二问答 false）。把新分支换成 `if false` 跑一遍：除两条「断言否定」外全红。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。

@@ -98,6 +98,22 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
+**P7-ak 空字段的退格离开插件模式（本轮）**
+- **偏离点**：旧版 R32 的规则是「退格删空即停」：把 needle 退到空的**那一按**停在模式里（那是编辑器的
+  编辑），空字段上**再按一次**退格才离开模式（`src/launcher.ts` 的 `pluginModeExitOnBackspace`——
+  `mode !== null && needle.length === 0`）。本构建的字段只有 Escape 一条出路，空字段上的退格被编辑器
+  吃掉、什么也不做。这条规则还被本仓库自己的协议文档 `docs/plugin-development.md` §7 的「离开（R31）」
+  明写着——**文档在承诺一个从未接线的转换**（P7-t/P7-u 之后的同一类漏洞）。
+- **修法**：`internal/launcher/fieldkeys.go` 的 `fieldKeys`（字段自己的 `HandleInput`，唯一先于编辑器的
+  那道缝，见 P7-v）加第三条规则：`ev.Mods` 不含 ⌘/⌃/⌥、`Query` 为空、且有模式持有字段时，离开它。
+  Shift 不被拦（旧版只读 `metaKey || ctrlKey || altKey`），带修饰键的退格全部留给编辑器。
+- **一条梯子**：新增 `App.leavePluginMode()`（files → calculator → browser → clipboard → command，
+  返回「有没有」），Escape 的五段 switch 与这里的按键读的是同一条，模式的顺序不可能写两遍而走样；
+  顺带 `pluginModeActive()` 把此前四处重复的同一串模式判定收成一个谓词。
+- **测试**：`fieldkeys_test.go` 新增 8 项（空字段离开剪贴板模式且不动历史、两步的「删空停 / 再按走」、
+  有 needle 时编辑器的手势不变、五种模式逐一、⌘/⌃/⌥ + 退格不离开、⇧⌫ 是普通键、普通页什么都不做、
+  梯子唯一）；把新分支换成 `if false` 跑一遍，除两条「断言否定」外全红。
+
 **P7-aj 会话列表回到旧版自己的轴（本轮）**
 - **偏离点**：旧版会话页（`src/settings/SessionsPage.tsx`）的列表按 `createdAt` 倒序（默认
   `newest`），页头带「Newest first / Oldest first」翻转控件；每行是 `名字` + `cwd` + `状态 · 尺寸 ·
