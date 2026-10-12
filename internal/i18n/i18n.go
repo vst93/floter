@@ -182,15 +182,12 @@ type Launcher struct {
 	CalculatorYesterday string
 	// The power rows: restart and shut down, and the confirmation the shell
 	// shows before either.
-	PowerRestart       string
-	PowerRestartHint   string
-	PowerShutdown      string
-	PowerShutdownHint  string
-	PowerConfirmTitle  func(action string) string
-	PowerConfirmDetail string
-	PowerConfirmButton string
-	PowerCancel        string
-	PowerFailed        string
+	PowerRestart      string
+	PowerRestartHint  string
+	PowerShutdown     string
+	PowerShutdownHint string
+	PowerCancel       string
+	PowerFailed       string
 	// PowerRestartAction and PowerShutdownAction are the actions' own words,
 	// which the confirmation's button carries: the old build's confirm row
 	// said "Restart", not "Continue".
@@ -202,13 +199,12 @@ type Launcher struct {
 	// InvokeFailed reports a tool that could not be started. The rest are the
 	// old build's per-operation errors: what failed, not just that something
 	// did.
-	InstallTool     func(name string) string
-	InvokeFailed    string
-	OpenAppFailed   string
-	OpenPathFailed  string
-	OpenURLFailed   string
-	OpenFilesFailed string
-	OpenTermFailed  string
+	InstallTool    func(name string) string
+	InvokeFailed   string
+	OpenAppFailed  string
+	OpenPathFailed string
+	OpenURLFailed  string
+	OpenTermFailed string
 	// The action bar: what the field itself is asking for.
 	OpenInBrowser string
 	OpenInFiles   string
@@ -271,14 +267,12 @@ type Settings struct {
 	PageGeneral      string
 	PageSessions     string
 	PageShortcuts    string
-	PagePlugins      string
 	PageIntegrations string
 	PageAbout        string
 
 	PageGeneralHint      string
 	PageSessionsHint     string
 	PageShortcutsHint    string
-	PagePluginsHint      string
 	PageIntegrationsHint string
 	PageAboutHint        string
 
@@ -583,7 +577,6 @@ type Settings struct {
 	ShortcutsNone        string
 	ShortcutsAdd         string
 	ShortcutsRemove      string
-	ShortcutsAction      string
 	ShortcutsCommand     string
 	ShortcutsCommandHint string
 	ShortcutsRecordKey   string
@@ -602,12 +595,10 @@ type Settings struct {
 	BrowserCustomDirHint   string
 	BrowserHistoryDays     string
 	BrowserHistoryDaysHint string
-	BrowserHistoryAll      string
 	BrowserSort            string
 	BrowserSortHint        string
 	BrowserSearchField     string
 	BrowserSearchFieldHint string
-	BrowserCDP             string
 	BrowserCDPEnabled      string
 	BrowserCDPEnabledHint  string
 	BrowserCDPPort         string
@@ -640,7 +631,6 @@ type Settings struct {
 	ClipboardClearFailed  string
 
 	CalculatorPlugin         string
-	CalculatorPluginHint     string
 	CalculatorMaxItems       string
 	CalculatorMaxItemsHint   string
 	CalculatorRetention      string

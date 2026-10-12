@@ -8,7 +8,7 @@
 
 用 mygo（原生 GPU 自绘 UI + Go）重写的 floter **已经是一个可打包、可运行的完整应用**：单窗口三表面
 （启动器 / 设置 / 终端）、搜索内核、扩展平台（含后台运行、列表协议、导入导出、权限审计）、剪贴板、
-浏览器、计算器、系统集成、打包与 CI 全部就位。**699 项测试全绿**，三平台都能构建，Linux 打包
+浏览器、计算器、系统集成、打包与 CI 全部就位。**700 项测试全绿**，三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
 含测试）。
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 699 项测试
+go test -count=1 ./...         # 700 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,8 +99,8 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-an 命令行的两个接缝、粘贴边界与拖放上限** —— 记录在下面的「具体待办」之后
-> （与 P7-am 同一位置），含四类偏离的 file:line、原版对照与变异核查结果。
+> **最新一轮：P7-ao 死文案清理 + 守卫测试** —— 记录在下面的「具体待办」之后
+> （与 P7-an 同一位置），含删除清单、守卫机制与变异核查结果。
 
 **P7-al 被拒绝的深链说出来（本轮）**
 - **依赖检查**：`go list -m -versions github.com/egoist/mygo` 确认 v0.4.5 仍是最新（go.mod 已是 v0.4.5），
@@ -1039,13 +1039,35 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
    `src/settings/TerminalAppearance.tsx:302,320,330,355`（都是 `page: "strip"`）。
    验收：框架暴露旋钮后按 `internal/control` 加轴 + 抽屉行（P7-an 的 `AxisPasteSafe` 就是模板：
    加轴 → `AppearanceAxes()` → 抽屉行 → `control`/`settingsui`/`terminalui` 三处测试自动要求）。
-4. **死文案清理**：10 个 i18n 字段在 `internal/i18n` 之外零引用——`BrowserCDP`、
-   `BrowserHistoryAll`、`CalculatorPluginHint`、`OpenFilesFailed`、`PagePlugins`、`PagePluginsHint`、
-   `PowerConfirmButton`、`PowerConfirmDetail`、`PowerConfirmTitle`、`ShortcutsAction`
-   （声明在 `internal/i18n/i18n.go`，en/zh 值在 `internal/i18n/copy.go`）。
-   `PowerConfirm*` 三个是 P7-d 改回面板内确认行后的遗留（现用 `PowerConfirmMessage` + 动作自己的词）。
-   验收：删掉；并加一个守卫测试——反射走 `Copy` 的每个字符串字段，在 `internal/i18n` 之外零引用
-   就失败，让下一个死键自己冒出来（P7-d 的反射测试是同一个手法）。
+4. **~~死文案清理~~**：已完成（P7-ao）——10 个死键已删，并加了 `TestNoDeadCopy` 守卫
+   （反射走 `Copy` 的每个叶子字段，在 `internal/i18n` 之外零 `.字段名` 引用即失败）。
+
+> 至此具体待办只剩 1–3，**三条都卡在框架能力上**（`Options.OnCopy`、终端键入的 `HandleInput`
+> 缝、外观旋钮的暴露），不是应用侧能单方面推进的；下一轮应回到「对照原版排查偏离点」这条路。
+
+**P7-ao 死文案清理 + `TestNoDeadCopy` 守卫（本轮）**
+
+- **依赖检查**：`go.mod` 已是 v0.4.7（P7-an 升的），`curl .../releases/latest` 确认 v0.4.7 仍是最新；
+  无版本可升。本轮取具体待办里**唯一不卡框架**的第 4 条（1–3 都要框架先给钩子/旋钮）。
+- **删除的 10 个死键**（`internal/i18n/i18n.go` 的声明 + `copy.go` 的 en/zh 值）：`BrowserCDP`、
+  `BrowserHistoryAll`、`CalculatorPluginHint`、`OpenFilesFailed`、`PagePlugins`、`PagePluginsHint`、
+  `PowerConfirmButton`、`PowerConfirmDetail`、`PowerConfirmTitle`、`ShortcutsAction`。
+  三组来源：`PowerConfirm*` 是 P7-d 改回面板内确认行后的遗留（现用 `PowerConfirmMessage` +
+  动作自己的词）；`PagePlugins*` 是 P7-u 删掉内置插件页后的遗留；其余是随视图重写停用的旧行。
+- **守卫**：新文件 `internal/i18n/deadcopy_test.go`。
+  - `copyLeafNames`：反射走 `Copy` 树，收下每个 `string` / `func` 叶子的名字（结构体与结构体切片
+    递归，去重排序）。
+  - `selectedNamesOutsideI18n`：`go/parser` 解析 `cmd/` 与 `internal/` 下全部 `.go`（跳过
+    `internal/i18n`——声明自己不算读者），收集每个 `SelectorExpr` 的 `Sel.Name`。
+  - `moduleRoot`：从测试工作目录上溯到 `go.mod`，扫描不依赖调用者 cwd；扫不到任何 selector
+    会直接 `Fatal`，不会静默通过。
+  - **方向是保守的**：同名于其他结构体的字段读作「在用」——守卫可能漏掉一个死键，但**不会**
+    误报一个活键。
+- **测试**：`TestNoDeadCopy`（本体）。变异核查：往 `Copy` 里加一个没人读的 `ZzzDeadProbe string`，
+  测试立刻红（`i18n.Copy.ZzzDeadProbe is declared but never read outside internal/i18n`）；
+  删掉后绿。
+- **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 27 包全绿
+  （700 项）、`GOOS=linux/windows/darwin go build ./...` 三平台通过。
 
 **P7-an 命令行的两个接缝、粘贴边界与拖放上限（本轮）**
 
