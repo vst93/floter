@@ -219,7 +219,7 @@ func TestTerminalAppearanceControls(t *testing.T) {
 
 	// The rows the schema reserves for the terminal's own drawer are *absent*
 	// here: the card is not a second copy of the drawer.
-	for _, gone := range []string{"Cursor shape", "Blinking cursor", "Padding"} {
+	for _, gone := range []string{"Cursor shape", "Blinking cursor", "Padding", "Safe paste"} {
 		if rect, ok := tt.Find(gone); ok {
 			t.Errorf("the settings card draws the drawer-only row %q at %v", gone, rect)
 		}

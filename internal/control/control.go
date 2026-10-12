@@ -78,13 +78,17 @@ const (
 	AxisCursorShape AppearanceAxis = "cursor_shape"
 	AxisCursorBlink AppearanceAxis = "cursor_blink"
 	AxisPalette     AppearanceAxis = "palette"
+	// AxisPasteSafe is the safe-paste switch: it belongs to the drawer alone
+	// (the reference's `page: "strip"`), because the rule it turns on is a
+	// terminal-input rule, not a look.
+	AxisPasteSafe AppearanceAxis = "paste_safe"
 )
 
 // AppearanceAxes is the full schema, in the order the drawer paints it.
 func AppearanceAxes() []AppearanceAxis {
 	return []AppearanceAxis{
 		AxisFontFamily, AxisFontSize, AxisLineHeight, AxisPadding,
-		AxisCursorShape, AxisCursorBlink, AxisPalette,
+		AxisCursorShape, AxisCursorBlink, AxisPalette, AxisPasteSafe,
 	}
 }
 
@@ -95,7 +99,7 @@ func AppearanceAxes() []AppearanceAxis {
 // never touches persistence: a value set from the drawer keeps applying.
 func OnSettingsCard(axis AppearanceAxis) bool {
 	switch axis {
-	case AxisPadding, AxisCursorShape, AxisCursorBlink:
+	case AxisPadding, AxisCursorShape, AxisCursorBlink, AxisPasteSafe:
 		return false
 	}
 	return true

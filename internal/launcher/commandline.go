@@ -3,6 +3,8 @@ package launcher
 import (
 	"regexp"
 	"strings"
+
+	"floter/internal/inputtext"
 )
 
 // Parsing the field's text as a command line, for the shell action: the
@@ -32,7 +34,16 @@ type CommandLine struct {
 
 // ParseCommandLine tokenizes a command line without asking a shell to
 // interpret it.
+//
+// The line is normalized first (internal/inputtext): every Unicode space
+// separator becomes U+0020, because that is the only byte a shell reads as a
+// word gap. Without it `go<U+3000>version` — what a Chinese input method's
+// space bar types — is one token here and one word to the shell, which answers
+// `command not found: go version`. The reference normalized the line at the
+// boundary for the same reason; this tokenizer is that boundary for a command
+// the app hands to a program as argv.
 func ParseCommandLine(value string) CommandLine {
+	value = inputtext.NormalizeSpaces(value)
 	parsed := CommandLine{Environment: map[string]string{}, CommandIndex: -1}
 	var token strings.Builder
 	tokenStarted, escaped, shellSyntax := false, false, false

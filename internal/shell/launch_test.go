@@ -215,3 +215,20 @@ func TestProgramNotification(t *testing.T) {
 		t.Errorf("an empty request said something: %v", notes)
 	}
 }
+
+// A query with shell syntax is handed to the user's own shell, not to argv:
+// the shell answers `Actions.RunInShell` by opening a session and typing the
+// line, so the surface is where the user sees it (the injected constructor
+// fails, so the surface shows the error instead of a session — the point is
+// the hand-off, exactly as the argv route's test above).
+func TestAShellSyntaxLineOpensTheTerminalSurface(t *testing.T) {
+	calls := &launchCalls{}
+	a := launchTestApp(t, calls)
+	tt := ui.NewTester(func(c *ui.Context) { a.View(c) }, 720, 420)
+	tt.Frame()
+
+	a.Launcher.Actions.RunInShell("ls -la | grep go")
+	if a.Surf != SurfaceTerminal {
+		t.Errorf("surface = %v, want terminal", a.Surf)
+	}
+}

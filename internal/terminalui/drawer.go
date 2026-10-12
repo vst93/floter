@@ -34,10 +34,13 @@ func (a *App) set(mutate func(*settings.Settings)) {
 // the rows are a flat, wrapping grid: no tabs, no sub-headings, no second card.
 //
 // Only the axes this build can actually apply are drawn. The reference's strip
-// also carried the bold mode, the wheel step, select-to-copy, paste-safety and
-// the scrollbar switch; the framework's terminal exposes none of those knobs,
-// and a control that does nothing is a lie, not a feature (see
-// docs/mygo-rewrite-status.md).
+// also carried the bold mode, the wheel step, select-to-copy and the scrollbar
+// switch; the framework's terminal exposes no knob for those, and a control
+// that does nothing is a lie, not a feature (see
+// docs/mygo-rewrite-status.md). Paste-safety used to be on that list by
+// mistake: the framework's `Options.OnPaste` hook was there all along, and the
+// setting was dead because this build never set it (see the paste boundary in
+// terminalui.go).
 func (a *App) drawer(c *ui.Context, copy i18n.Terminal) {
 	t := c.Theme()
 	tokens := tokensOf(a, c)
@@ -136,6 +139,26 @@ func (a *App) drawer(c *ui.Context, copy i18n.Terminal) {
 					}
 					if switched || clicked {
 						a.set(func(s *settings.Settings) { s.CursorBlink = on })
+					}
+				},
+				// The paste boundary's own switch: it is the one appearance-schema
+				// axis that changes what a paste sends rather than how the
+				// terminal looks, and it lives in the drawer because the reference
+				// kept it on the strip (`page: "strip"`). The rule it turns on is
+				// in this package's pasteText.
+				control.AxisPasteSafe: func() {
+					on := s.TerminalPasteSafe
+					switched := false
+					clicked := a.drawerRow(c, t.Space(60), scopy.PasteSafe, func() {
+						if ui.Switch(c, &on).Label(scopy.PasteSafe).Changed() {
+							switched = true
+						}
+					})
+					if clicked && !switched {
+						on = !on
+					}
+					if switched || clicked {
+						a.set(func(s *settings.Settings) { s.TerminalPasteSafe = on })
 					}
 				},
 				// The palette row is the wide one: the picker beside the miniature

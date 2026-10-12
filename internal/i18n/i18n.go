@@ -78,8 +78,12 @@ type Launcher struct {
 	TriggerHint       func(name string) string
 	TriggerHintMore   func(name string, more int) string
 	// FilesSection heads the block of rows a dropped file's actions make,
-	// and RecentSection the empty page's most-launched applications.
+	// FilesMore is the row that reveals the files past the cap (with how many
+	// are behind it), FilesMoreHint its own sentence, and RecentSection the
+	// empty page's most-launched applications.
 	FilesSection  string
+	FilesMore     func(count int) string
+	FilesMoreHint string
 	RecentSection string
 	// Hint is the empty result area's message.
 	Hint string
@@ -313,6 +317,10 @@ type Settings struct {
 	LineHeight   string
 	Padding      string
 	Palette      string
+	// PasteSafe names the safe-paste switch: a pasted command loses the one
+	// trailing line break that would run it before it was read. It is the
+	// terminal drawer's own row (internal/control, AxisPasteSafe).
+	PasteSafe string
 	// PalettePreview names the miniature terminal under the palette picker:
 	// the block that shows the chosen palette's own colors (R43).
 	PalettePreview string

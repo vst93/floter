@@ -1,6 +1,6 @@
 # floter × mygo 重构：当前进度与后续规划
 
-> 交接文档。状态时间：2026-10-11，分支 `mygo-rewrite`（已推送）。
+> 交接文档。状态时间：2026-10-12，分支 `mygo-rewrite`（已推送）。框架：mygo v0.4.7。
 > **仓库现在只有 Go 实现**：Tauri/Rust/React 时代的代码已删除（P6-b）。
 > 详细的分轮记录见 `docs/mygo-rewrite-plan.md`（含每轮的决策与「未做」清单）。
 
@@ -8,7 +8,7 @@
 
 用 mygo（原生 GPU 自绘 UI + Go）重写的 floter **已经是一个可打包、可运行的完整应用**：单窗口三表面
 （启动器 / 设置 / 终端）、搜索内核、扩展平台（含后台运行、列表协议、导入导出、权限审计）、剪贴板、
-浏览器、计算器、系统集成、打包与 CI 全部就位。**611 项测试全绿**，三平台都能构建，Linux 打包
+浏览器、计算器、系统集成、打包与 CI 全部就位。**699 项测试全绿**，三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
 含测试）。
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 611 项测试
+go test -count=1 ./...         # 699 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -56,6 +56,7 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 | `internal/i18n` | en/zh 全量文案（结构化 Copy，缺字段编译期报错）+ 权限名 |
 | `internal/glassmap` | 玻璃档 → 插件材质 + 雾层（以及为什么 blur/饱和没法复刻的记录） |
 | `internal/calc` | 表达式求值（计算器行） |
+| `internal/inputtext` | 输入边界：Unicode 空格分隔符（Zs）→ U+0020、粘贴去一个尾换行；所有变成 PTY 字节的字符串都过这里 |
 | `internal/apps` | 应用扫描（.app/.lnk/.desktop，含 Info.plist 名字与别名、图标）+ PATH 命令扫描 |
 | `internal/plist` | Apple property list 读取（XML 与 bplist00） |
 | `internal/pinyin` | 常用字的拼音首字母表（GB2312 一级集） |
@@ -97,6 +98,9 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
   （同环境 mygo 最小窗口 137 MB）。
 
 ## 最近几轮（详细记录见 plan）
+
+> **最新一轮：P7-an 命令行的两个接缝、粘贴边界与拖放上限** —— 记录在下面的「具体待办」之后
+> （与 P7-am 同一位置），含四类偏离的 file:line、原版对照与变异核查结果。
 
 **P7-al 被拒绝的深链说出来（本轮）**
 - **依赖检查**：`go list -m -versions github.com/egoist/mygo` 确认 v0.4.5 仍是最新（go.mod 已是 v0.4.5），
@@ -916,7 +920,24 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 - ~~直接输出的空格交互~~ **已完成（P7-t）**：旧版 R65 的行尾 `␣` 提示（tooltip 讲解）与
   「敲命令名 + 空格进入直出模式、输出显示在结果区」的路径都已接线；本构建的后台输出视图
   就是同一个结果区。
-- **终端选中即复制 / 滚动条 / bracketed paste**：见下面的终端外观条目。
+- **终端选中即复制 / 滚动条 / bracketed paste**：见下面的终端外观条目。**复制反馈**是另一回事
+  （P7-an 定位）：旧版 R44/R63 的规则是**每一次复制都在终端自己的状态行里说一句**
+  （`src/terminal/copy-notice.ts`：`visible` 1500ms → `fade` 260ms → idle；失败也说，
+  `terminal.copyNotice.failed`），启动器的直出面共用同一套词（`useLauncherTextCopy`）。本构建
+  什么都看不到：复制发生在框架内部（mygo `plugins/terminal/view.go:467` 的 `v.copy()` 直接
+  `v.services.WriteClipboard(text)`），而 `ui/services.go:14` 的 `Services` 由窗口宿主拥有、
+  应用无法包一层；`ui/handler.go:20` 的 `InputCommand` 只由菜单 role 发出，没有公开的发送/观察
+  API（应用菜单用的是 `mygo.RoleEditMenu`，`internal/shell/system.go:459`）。
+  **要什么**：`terminal.Options.OnCopy(text string, ok bool)`（或让 Edit role 的 Copy 可观察）。
+  拿到了就能按旧版接：i18n 补 `Terminal.CopyNoticeCopied/Failed`，连续复制重启 visible 不叠加计时器。
+- **键入文本的 Unicode 空格接缝**（P7-an 定位）：原版在 `src/hooks/useTerminalView.ts:917-925`
+  的 `sendTerminalText` 里对**每一次键入**（含 IME 提交）都做规范化。本构建已覆盖**粘贴**
+  （`Options.OnPaste`）与 **App 自己拼的命令行**（`ParseCommandLine` / `RunShellWithCommand`），
+  但框架终端自己处理的键入文本够不到：`plugins/terminal/view.go:60` 的 `e.HandleInput(v.input)`
+  是终端视图自己的，而 `ui/input.go:568` 的 `rt.focusHandler()` 只把 `HandleInput` 交给**聚焦
+  元素**，应用无法在外面包一层改写它；`Options.OnKey`（`plugins/terminal/terminal.go:124`）的
+  文档也写明「只打字的键在 Linux 上它看不到」。**要什么**：一个文本钩子（或让 `OnKey` 看到
+  text-only 键）。在那之前，键入一个全角空格仍然会走到 shell 里（P7-an 的三个接缝已封住其余三面）。
 - ~~插件模式的 scope 标记~~ **已完成（P7-m）**：进入模式消耗触发词并清空字段，输入框左侧画
   `图标 + 模式名`（`.collapsed-card__scope`）；模式内的搜索/补全把字段当 needle；Esc 离开时
   needle 保留为普通查询（R31），**运行**则清空字段（旧版自己的行为）；模式只由用户自己离开。
@@ -928,15 +949,19 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
   遗留的 `last_settings_page: "plugins"` 会落到第一页。旧版 Integrations 页自己的「基础插件」区
   （三个内置插件 + 开关 + 「配置」）已在 P7-u 补上，它也是浏览器模式空态文案指向的那扇门。
 
-- 终端外观的四个设置**磁盘上存在、会被保留，但当前无 UI、也不起作用**：
+- 终端外观的**四个**设置磁盘上存在、会被保留，但当前无 UI、也不起作用：
   `terminal_bold`（加粗模式：粗体字/亮色）、`terminal_scrollbar`、`terminal_select_copy`（选中即复制）、
-  `terminal_paste_safe`、`terminal_wheel_lines`。mygo v0.3.7 的 terminal 插件（`plugins/terminal`）
-  没有暴露这些旋钮（内部固定：滚动条总画、滚轮步长固定、复制仅 ⌘C、无 bracketed-paste 开关、
+  `terminal_wheel_lines`。mygo 的 terminal 插件（`plugins/terminal`）
+  没有暴露这些旋钮（内部固定：滚动条总画、滚轮步长固定、复制仅 ⌘C、
   bold 由字体权重决定），所以 Go 侧既不能渲染（渲染了就是骗人）也不能接线。等框架暴露后再补。
+  **订正（P7-an）**：`terminal_paste_safe`（粘贴不执行）曾和这四个记在一起，是**错的**——
+  `Options.OnPaste`（`plugins/terminal/terminal.go:116`，v0.4.6 就有）一直存在，这个设置是死的
+  只因为本构建从未设过那个 hook。P7-an 接上了它，它现在有自己的抽屉行（`control.AxisPasteSafe`）。
   字号/字体族/光标形状/闪烁/行高/内边距/调色板/透明度**已全部接线**，字体族还带真实安装探测。
   注：光标形状与闪烁只在**新建会话**时生效（框架的 `terminal.Terminal` 只有 `SetFont`/`SetTheme`，
   没有运行期的光标 setter），所以终端抽屉里这两行也是下一会话才看得到；字号/行距/内边距/配色
-  对打开的会话实时生效。终端抽屉（P7-ab）因此不画 bold/滚轮/选中即复制/粘贴安全/滚动条五行。
+  对打开的会话实时生效。终端抽屉（P7-ab）因此不画 bold/滚轮/选中即复制/滚动条四行（粘贴安全
+  那一行 P7-an 已补上）。
 
 **P1-ad 版式与交互对齐（多轮，本轮）**
 - 设置面板全量改造为分组卡片语言 + 页面头部 + 侧栏字形/选中 + 权限两层 + 每集成一卡 + 本地工具连接表单。
@@ -990,6 +1015,114 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 > ——空态文案把用户指向「设置 > 集成」，而那一页从来没有内置插件区；P7-am 找到的是第三处
 > ——PATH 命令行的两个行级事实（来源词与可执行路径）在扫描进启动器时被丢掉，来源词槽
 > （P7-z）对这些行从不出现。
+
+### 具体待办（P7-an 把清单写实；每项带 file:line、原版对照、验收标准）
+
+1. **终端复制的反馈（R44/R63）** —— 唯一一条要等框架的能力。
+   - 原版：`src/terminal/copy-notice.ts`（`COPY_NOTICE_VISIBLE_MS = 1500`、`COPY_NOTICE_FADE_MS = 260`、
+     `visible → fade → idle`，第二次复制重启 visible 而不叠计时器）、`src/hooks/useTerminalView.ts`
+     的 `copySelection`（写失败也 `showCopyNotice("terminal.copyNotice.failed")`）、
+     `src/hooks/useLauncherTextCopy.ts`（直出面共用同一套词）。
+   - 本构建：`internal/terminalui/terminalui.go` 里没有任何 copy 路径；`internal/i18n` 没有
+     `Terminal.CopyNoticeCopied/Failed`。
+   - 卡在哪（file:line）：mygo `plugins/terminal/view.go:467` `v.copy()` 直接写剪贴板；
+     `ui/services.go:14` 的 `Services` 宿主拥有；`ui/handler.go:20` 的 `InputCommand` 只能由菜单
+     role 发出；应用菜单用 `mygo.RoleEditMenu`（`internal/shell/system.go:459`）。
+   - 验收：mygo 给出 `Options.OnCopy`（或可观察的 Edit-Copy）后，`internal/terminalui` 接线；
+     测试钉「成功一句 / 失败一句」「连续两次复制只有一个计时器」「1.5s 后进 fade、再 260ms 清空」。
+2. **键入文本的 Unicode 空格接缝**（粘贴与 App 拼的命令行已在 P7-an 封住，只剩框架键入这一面）。
+   - 原版：`src/hooks/useTerminalView.ts:917-925`。
+   - 卡在哪：`plugins/terminal/view.go:60` + `ui/input.go:568`（`HandleInput` 只给聚焦元素）。
+   - 验收：钩子到位后，键入 `go<U+3000>version` 到 shell 里的字节是两个词；测试从字段层发键断言。
+3. **终端外观剩下的四个死旋钮**：`internal/settings/settings.go:195-199` 的 `TerminalBold` /
+   `TerminalWheelLines` / `TerminalSelectCopy` / `TerminalScrollbar`；原版
+   `src/settings/TerminalAppearance.tsx:302,320,330,355`（都是 `page: "strip"`）。
+   验收：框架暴露旋钮后按 `internal/control` 加轴 + 抽屉行（P7-an 的 `AxisPasteSafe` 就是模板：
+   加轴 → `AppearanceAxes()` → 抽屉行 → `control`/`settingsui`/`terminalui` 三处测试自动要求）。
+4. **死文案清理**：10 个 i18n 字段在 `internal/i18n` 之外零引用——`BrowserCDP`、
+   `BrowserHistoryAll`、`CalculatorPluginHint`、`OpenFilesFailed`、`PagePlugins`、`PagePluginsHint`、
+   `PowerConfirmButton`、`PowerConfirmDetail`、`PowerConfirmTitle`、`ShortcutsAction`
+   （声明在 `internal/i18n/i18n.go`，en/zh 值在 `internal/i18n/copy.go`）。
+   `PowerConfirm*` 三个是 P7-d 改回面板内确认行后的遗留（现用 `PowerConfirmMessage` + 动作自己的词）。
+   验收：删掉；并加一个守卫测试——反射走 `Copy` 的每个字符串字段，在 `internal/i18n` 之外零引用
+   就失败，让下一个死键自己冒出来（P7-d 的反射测试是同一个手法）。
+
+**P7-an 命令行的两个接缝、粘贴边界与拖放上限（本轮）**
+
+- **依赖检查**：`proxy.golang.org` 显示 v0.4.7（`go list -m -versions` 走不通时用得上）。
+  release notes 逐条评估（`#275–#287`）：`Bitmap.Pixelated`、`Painter.ImageRegion`、
+  `Painter.Transform`、`ui.Canvas`、`examples/farm`、`game` 插件的 gamepad / `game.View` 固定步长 /
+  `game.Camera`、`Player.SetLoopRange`——全是**游戏与精灵图**向的能力（离屏画布、图集切片、
+  变换、逐帧循环）。floter 没有一帧里反复重画而“很少变”的层（玻璃是插件的 shader，文本/图标
+  是框架自己的缓存），也没有精灵图；像素化放大只会让照片式的应用图标更糟。**无自然用点，只升级**
+  （`go.mod` → v0.4.7，`plugins/terminal` 与 `ui` 的 API 面未变）。
+- **本轮是第 3 条（对照原版排查）**，一次找到四类偏离，全部实现。
+
+1 · **带 shell 语法的命令行从没交给 shell**（功能性 bug）
+- **原版**：`src/hooks/useLauncherActions.ts:262-272` 的 `runCommand` 把**行本身**（`commandLine.trim()`）
+  交给终端，由交互式 shell 读它；结构化 argv 只用于目录里带 execution plan 的行。
+  `src/launcher.ts:199` 的 `shellSyntax` 正是为区分这两条路而存在。
+- **本构建**：`internal/launcher/commandline.go:30` 算出了 `ShellSyntax`，但**全仓零读取**
+  （`grep -rn ShellSyntax` 只有它自己的声明与赋值）。`internal/launcher/actionbar.go` 的 shell 行
+  一律走 argv，于是 `ls -la | grep go` 变成 `exec ls "-la" "|" "grep" "go"`——管道不是管道。
+- **修法**：`Actions` 新增 `RunInShell func(line string)`（`internal/launcher/launcher.go:141`），
+  `actionbar.go` 在 `parsed.ShellSyntax` 时返回「把这行交给用户自己的 shell」的行；shell 侧接到
+  `a.openInstallSession`（`internal/shell/shell.go:520`）——就是安装行用的那条「开一个裸会话并打进命令」
+  的路。历史仍记用户打的原行（不是第二个规范化点）。
+- **测试**：`view_test.go` 的 `TestShellSyntaxRunsTheLineInAShell`（`ls -la | grep go` → `RunInShell`
+  拿到整行、`RunInTerminal` 零调用；`git status` → 仍是 argv 两段）、
+  `TestShellSyntaxRowKeepsItsLineAndItsHistory`（历史留原行）、shell 的
+  `TestAShellSyntaxLineOpensTheTerminalSurface`。把 `if parsed.ShellSyntax` 换成 `if false`：两条红。
+
+2 · **命令行的 Unicode 空格：`go<U+3000>version` 是一个词**
+- **原版**：`src/terminal/inputNormalize.ts` 的 `normalizeTerminalInputSpaces`——shell 只把 U+0020
+  当词缝，其余 16 个 Zs（含中文输入法的全角空格 U+3000）会把两个词粘成一个 token，zsh 报
+  `command not found: go version`。原版在**字符串变成 PTY 字节**的那一处统一规范化。
+- **本构建**：`internal/launcher/commandline.go` 的 tokenizer 按**字节**只认 `' '`/`'\t'`，
+  于是 `go<U+3000>version` 成为单个 token 进 argv；`terminalui.RunShellWithCommand` 原样 `Send`。
+- **修法**：新包 `internal/inputtext`（`NormalizeSpaces` + `StripPasteNewline`，干净串原样返回不分配）；
+  `ParseCommandLine` 第一行就规范化（结构化路径的唯一接缝）；`RunShellWithCommand` 规范化 + trim
+  （`shellCommandLine`，字符串路径的唯一接缝）。
+- **测试**：`internal/inputtext` 的 16 个 Zs 逐行表 + 「表与 `unicode.Zs` 互为全集」+ 非 Zs
+  （tab/换行/U+200B/U+2028/U+2029/U+0085/U+180E）直通；`commandline_test.go` 的
+  `TestUnicodeSeparatorsAreWordGaps`（含引号内、env 前缀、管道旁）、
+  `TestTheTokenizerNormalizesThroughOneFunction`；`terminalui` 的 `TestShellCommandLine`。
+  把规范化那一行删掉：`ideographic space: tokens = ["go<U+3000>version"]` 红。
+
+3 · **粘贴边界（`terminal_paste_safe` 一直是死的）**
+- **原版**：`src/hooks/useTerminalView.ts:917` 的 `isPaste && pasteSafe ? stripPasteNewline(text) : text`
+  再规范化——粘进来的命令自带「当初运行它的那个换行」，不拿掉就会在用户读到之前执行；
+  开关是 `src/settings/TerminalAppearance.tsx:340` 的 `terminal_paste_safe`（`page: "strip"`）。
+- **本构建**：`Options.OnPaste`（mygo `plugins/terminal/terminal.go:116`，**v0.4.6 就有**）从未被设过，
+  所以这个设置既不显示也不起作用——旧文档把它记成「框架没暴露」，是错的，本轮订正。
+- **修法**：`internal/terminalui/terminalui.go` 的 `startSession` 给每个会话装 `OnPaste`：
+  `pasteText(text, safe)` = 安全粘贴时 `StripPasteNewline` + 无条件 `NormalizeSpaces`，
+  有改动才接管（用终端自己的 `Paste` 送，bracketed paste 仍是插件的），没改动就交回框架的原路。
+  设置**每次粘贴现读**，所以抽屉里拨一下对正在显示的会话立即生效。
+  抽屉补一行（`internal/control` 新轴 `AxisPasteSafe`，抽屉专属；`internal/terminalui/drawer.go`
+  的行；i18n `Settings.PasteSafe` = 旧版原文 `Safe paste` / `粘贴不执行`）。
+- **测试**：`internal/terminalui/paste_test.go` 的 `TestPasteText`（10 行表）、
+  `TestEverySessionCarriesThePasteBoundary`（每个会话都装 hook；关时只规范化、开时连尾换行一起拿）、
+  `TestSafePasteAndSeparatorsAreOneBoundary`；`control`/`settingsui`/`terminalui` 三处 schema 测试
+  随之要求新轴（卡片必须**不**画它）。把 `pasteText` 调用换成 `text, false`：两条红。
+
+4 · **拖放超过 5 个文件不再埋掉列表**
+- **原版**：`src/launcher/file-drops.ts:64` 的 `MAX_VISIBLE_DROPPED_FILES = 5` 与 `fileDropRows`
+  的「…and N more」行——它**是一行普通结果**（方向键与编号快捷键都够得到），运行它只展开、
+  不碰任何文件；`useFileDrops` 在新一次拖入时把展开状态收回。
+- **本构建**：`internal/launcher/files.go` 的 `filesItems()` 无上限、无展开行——拖一个文件夹进来
+  就是几百行。
+- **修法**：`MaxVisibleDroppedFiles = 5` + `dropsExpanded` 状态（`SetDropped`/`enterFiles` 都收回）；
+  按**文件**计数（行数是一个文件 ×3 的既有设计差异），隐藏数 >0 时追加一行 `drop:more`
+  （`Run` 只置 `dropsExpanded = true`）。针过滤仍在**行**级（`fileRows`），所以 `copy the path`
+  这类词照旧只留下对应的行。i18n 补 `FilesMore(count)` / `FilesMoreHint`（旧版原文）。
+- **测试**：`view_test.go` 的 `TestALargeDropCollapsesBehindOneRow`（第 6 个文件不列、展开行是列表
+  最后一行、运行后 8×3+1 行且仍在模式里）、`TestTheDropExpanderFollowsTheDrop`（新拖入/重进模式
+  都收回展开）、`TestTheDropCapCountsFilesNotRows`（`…and 2 more files` 数文件、针仍按行动作过滤）。
+  把上限那三行删掉：三条全红。
+
+- **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 27 包全绿
+  （699 项）、`GOOS=linux/windows/darwin go build ./...` 三平台通过。
 
 **P7-am PATH 命令行的来源词与路径（本轮）**
 - **依赖检查**：`go list -m -versions github.com/egoist/mygo` 确认 v0.4.5 仍是最新（go.mod 已是
@@ -1128,3 +1261,13 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
   现在是 `(goos, home, …)` 的纯函数，任何宿主都能断言三个平台的布局。运行期解析同理
   （`internal/extensions` 的 `lookTool`/`findInterpreter` 可注入，测试不看机器 PATH）。
 - **原生库依赖**：终端插件要 libghostty-vt、浏览器插件要 libsqlite3；`go test` 首次会按需下载到 `~/Library/Caches/mygo/natives/`，打包时由 CLI 内嵌。
+- **“框架做不到”这个结论要先查 `Options` 的每个字段**：`terminal_paste_safe` 被记了两轮的框架限制，
+  其实 `Options.OnPaste` 一直都在——死的只是应用从未设过它（P7-an 订正）。把「有没有 hook」与
+  「有没有旋钮」分开：前者往往已经存在（`OnPaste`/`OnKey`/`OnScroll`/`OpenLink`/`OnNotify`），
+  后者才是真缺（滚动条、滚轮步长、选中即复制、bold 模式）。
+- **算出来没人读的字段是 bug 的化石**：`ParseCommandLine` 的 `ShellSyntax` 从建库起就是死值，
+  而它正是「带管道的一行要交给 shell」的唯一判据（P7-an）。新加的字段如果没人读，宁可不加。
+- **字符串要变成 PTY 字节，就得过 `internal/inputtext`**：shell 只把 U+0020 当词缝，其余 Zs
+  （尤其全角空格 U+3000）会把两个词粘成一个 token。结构化 argv（`ParseCommandLine`）、App 拼的
+  命令行（`RunShellWithCommand`）、粘贴（`Options.OnPaste`）三个接缝现在都走它；框架自己处理的
+  键入文本还够不到（见「已知差距」）。

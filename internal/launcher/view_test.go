@@ -2524,3 +2524,205 @@ func TestSpaceKeycapGestureRunsTheDirectOutputCommand(t *testing.T) {
 			captured, a.InOutputView(), tt.Texts())
 	}
 }
+
+// A line with shell syntax is not a program with arguments: `ls | grep x` is
+// a pipeline, and no argv can say it. The row therefore hands the *line* to
+// the user's own shell (the reference's run entry typed every line into the
+// interactive shell), while a structured line keeps the argv route.
+func TestShellSyntaxRunsTheLineInAShell(t *testing.T) {
+	a := testApp()
+	ranLine := ""
+	ranArgv := []string{}
+	a.Actions.RunInShell = func(line string) {
+		if ranLine != "" {
+			return // a redraw re-arms the row; only the first run counts
+		}
+		ranLine = line
+	}
+	a.Actions.RunInTerminal = func(argv []string) { ranArgv = argv }
+
+	tt := render(t, a)
+	tt.Type("ls -la | grep go")
+	tt.Frame()
+	if !tt.HasText("Run in terminal") {
+		t.Fatalf("the shell row is missing: %q", tt.Texts())
+	}
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if ranLine != "ls -la | grep go" {
+		t.Errorf("the line handed to the shell = %q", ranLine)
+	}
+	if len(ranArgv) != 0 {
+		t.Errorf("a shell-syntax line went to argv: %v", ranArgv)
+	}
+
+	// A structured line is unchanged: the argv route, token by token.
+	a2 := testApp()
+	got := []string{}
+	a2.Actions.RunInTerminal = func(argv []string) {
+		if len(got) == 0 {
+			got = argv
+		}
+	}
+	a2.Actions.RunInShell = func(string) { t.Error("a structured line went to the shell") }
+	tt2 := render(t, a2)
+	tt2.Type("git status")
+	tt2.Frame()
+	tt2.TypeKey(0, ui.KeyEnter, "")
+	tt2.Frame()
+	if len(got) != 2 || got[0] != "git" || got[1] != "status" {
+		t.Errorf("argv = %v", got)
+	}
+}
+
+// The two seams the shell-syntax row must not lose: the line is remembered in
+// the history exactly as the user typed it, and the row's detail still shows
+// the query.
+func TestShellSyntaxRowKeepsItsLineAndItsHistory(t *testing.T) {
+	a := testApp()
+	a.Actions.RunInShell = func(string) {}
+	tt := render(t, a)
+	tt.Type("cat log\u3000| tail -5")
+	tt.Frame()
+	if !tt.HasText("Run in terminal") {
+		t.Fatalf("the shell row is missing: %q", tt.Texts())
+	}
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	// The history keeps the line the user typed, separators and all: it is a
+	// record of what was run, not a second normalization point.
+	if len(a.History) != 1 || a.History[0] != "cat log\u3000| tail -5" {
+		t.Errorf("history = %q", a.History)
+	}
+}
+
+// A drop of more files than the cap lists the first five and puts the rest
+// behind one "and N more" row — an ordinary result, reachable with the arrows,
+// that reveals the drop instead of touching a file (the reference's
+// `MAX_VISIBLE_DROPPED_FILES` and its expander row).
+func TestALargeDropCollapsesBehindOneRow(t *testing.T) {
+	a := testApp()
+	files := make([]drops.File, 0, 8)
+	for _, name := range []string{"a.txt", "b.txt", "c.txt", "d.txt", "e.txt", "f.txt", "g.txt", "h.txt"} {
+		files = append(files, drops.File{Path: "/tmp/" + name, Name: name, Directory: "/tmp"})
+	}
+	a.SetDropped(files)
+
+	tt := render(t, a)
+	tt.Type("files ")
+	tt.Frame()
+
+	// The rows are the first five files' — the sixth is behind the expander.
+	listed := map[string]bool{}
+	ids := []string{}
+	for _, item := range a.filesItems() {
+		ids = append(ids, item.ID)
+		listed[item.Title] = true
+	}
+	if !listed["Open  e.txt"] {
+		t.Errorf("the fifth file is not listed: %v", ids)
+	}
+	if listed["Open  f.txt"] {
+		t.Errorf("the sixth file is listed before the expander was run: %v", ids)
+	}
+	if !listed["\u2026and 3 more files"] {
+		t.Fatalf("the expander row is missing: %v", ids)
+	}
+	if ids[len(ids)-1] != "drop:more" {
+		t.Fatalf("the expander is not the list's last row: %v", ids)
+	}
+	if !tt.HasText("Dropped files") || !tt.HasText("Open  a.txt") {
+		t.Errorf("the mode did not draw its rows: %q", tt.Texts())
+	}
+
+	// Running the expander reveals the whole drop — and it is a row like any
+	// other: the selection reaches it, there is no control of its own.
+	a.Selected = len(a.filesItems()) - 1
+	tt.Frame()
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if !tt.HasText("Open  h.txt") && !a.dropsExpanded {
+		t.Errorf("the expander did not reveal the rest: %q", tt.Texts())
+	}
+	if got := a.filesItems(); len(got) != 8*3+1 {
+		t.Errorf("after expanding the list holds %d rows, want %d", len(got), 8*3+1)
+	}
+	if a.InFilesMode() == false {
+		t.Error("running the expander left the files mode")
+	}
+}
+
+// A drop at or below the cap has no expander, and a fresh drop starts
+// collapsed: the previous drop's expansion must not carry over to a new set of
+// files the user has not seen.
+func TestTheDropExpanderFollowsTheDrop(t *testing.T) {
+	a := testApp()
+	small := []drops.File{{Path: "/tmp/a.txt", Name: "a.txt", Directory: "/tmp"}}
+	a.SetDropped(small)
+	for _, item := range a.filesItems() {
+		if item.ID == "drop:more" {
+			t.Error("a drop below the cap offers an expander")
+		}
+	}
+
+	many := make([]drops.File, 0, 7)
+	for i := 0; i < 7; i++ {
+		name := string(rune('a'+i)) + ".txt"
+		many = append(many, drops.File{Path: "/tmp/" + name, Name: name, Directory: "/tmp"})
+	}
+	a.SetDropped(many)
+	a.dropsExpanded = true
+	before := len(a.filesItems())
+	// A re-drop replaces the files, so the expander's state goes with them.
+	a.SetDropped(many)
+	if after := len(a.filesItems()); after >= before {
+		t.Errorf("a new drop kept the old expansion: %d rows, was %d", after, before)
+	}
+	// Entering the mode again starts collapsed too.
+	a.dropsExpanded = true
+	a.EnterFiles()
+	if after := len(a.filesItems()); after >= before {
+		t.Errorf("re-entering the mode kept the old expansion: %d rows", after)
+	}
+}
+
+// The cap counts files, not rows: the needle still filters the action rows, and
+// the expander counts the files behind it.
+func TestTheDropCapCountsFilesNotRows(t *testing.T) {
+	a := testApp()
+	many := make([]drops.File, 0, 7)
+	for i := 0; i < 7; i++ {
+		name := "file" + string(rune('a'+i)) + ".txt"
+		many = append(many, drops.File{Path: "/tmp/" + name, Name: name, Directory: "/tmp"})
+	}
+	a.SetDropped(many)
+	a.EnterFiles()
+
+	items := a.filesItems()
+	more := ""
+	for _, item := range items {
+		if item.ID == "drop:more" {
+			more = item.Title
+		}
+	}
+	if more != "\u2026and 2 more files" {
+		t.Errorf("the expander counts rows, not files: %q", more)
+	}
+
+	// A needle that matches one action word keeps that row and drops the
+	// others — the filter is the rows', the cap is the files'.
+	a.Query = "copy the path"
+	filtered := a.filesItems()
+	openRows := 0
+	for _, item := range filtered {
+		if strings.HasPrefix(item.Title, "Open ") {
+			openRows++
+		}
+	}
+	if openRows != 0 {
+		t.Errorf("the action word did not filter the rows: %v", filtered)
+	}
+	if len(filtered) == 0 {
+		t.Error("the action word matched nothing at all")
+	}
+}

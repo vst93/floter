@@ -517,6 +517,10 @@ func New(opts Options) *App {
 			}
 			a.Open(SurfaceTerminal)
 		},
+		// RunInShell is the same hand-off the install rows use: a bare session
+		// of the user's own shell with the line typed into it, because only a
+		// shell can read a pipe or a redirect.
+		RunInShell: a.openInstallSession,
 		// SpawnDetached starts a tool's own GUI action: no terminal, no
 		// capture, and the launcher clears and hides the way any row does.
 		SpawnDetached: func(argv []string) {

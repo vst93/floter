@@ -49,6 +49,7 @@ func TestTerminalDrawerShowsTheAppearanceRows(t *testing.T) {
 		control.AxisCursorShape: "Cursor shape",
 		control.AxisCursorBlink: "Blinking cursor",
 		control.AxisPalette:     "Terminal palette",
+		control.AxisPasteSafe:   "Safe paste",
 	}
 	if len(labels) != len(control.AppearanceAxes()) {
 		t.Fatalf("the test names %d axes, the schema has %d", len(labels), len(control.AppearanceAxes()))

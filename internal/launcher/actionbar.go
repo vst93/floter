@@ -139,6 +139,27 @@ func (a *App) actionBarItemsWith(other []Item) []Item {
 	// splits a path), and the leading NAME=value assignments ride the
 	// command's environment rather than being re-interpreted by a shell.
 	parsed := ParseCommandLine(value)
+	// A line that carries shell syntax (a pipe, a redirect, a chain) is not a
+	// program with arguments: no argv can say `ls | grep x`. The old build's
+	// run entry typed the line into the user's own shell, which is the only
+	// thing that can read it — so that is the route here, and the structured
+	// argv route is kept for the lines that really are a program and its
+	// arguments. The env assignments need no special case on this path: a
+	// shell reads them itself.
+	if parsed.ShellSyntax {
+		return []Item{{
+			ID:       "bar:shell",
+			Title:    copy.RunInShell,
+			Detail:   value,
+			Shortcut: a.enterBadge(),
+			Run: func() {
+				a.historyRemember(value)
+				if a.Actions.RunInShell != nil {
+					a.Actions.RunInShell(value)
+				}
+			},
+		}}
+	}
 	argv := parsed.Tokens
 	if parsed.CommandIndex < 0 {
 		return nil // assignments and nothing to run

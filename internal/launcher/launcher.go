@@ -134,6 +134,12 @@ type Actions struct {
 	// RunInTerminal runs a command in the terminal surface: a tool found on
 	// the PATH.
 	RunInTerminal func(argv []string)
+	// RunInShell types a command line into a fresh session of the user's own
+	// shell, for a line that carries shell syntax (a pipe, a redirect, a
+	// chain) — no argv can say `ls | grep x`, and a real shell is the only
+	// reader that can. The old build's run entry typed every line into the
+	// interactive shell; this is that route, kept for the lines that need it.
+	RunInShell func(line string)
 	// RunInTerminalWithEnv runs a command with extra environment variables
 	// (the leading NAME=value assignments the user typed), when the shell
 	// action's parse found some.
@@ -326,9 +332,11 @@ type App struct {
 	// OutputList is the output list's own scrolling and selection state.
 	OutputList ui.ListState
 	// files is set while a drop's rows are listed, with Dropped the files the
-	// desktop handed over.
-	files   bool
-	Dropped []drops.File
+	// desktop handed over, and dropsExpanded whether the "and N more" row has
+	// been run (the reference's `dropsExpanded`).
+	files         bool
+	Dropped       []drops.File
+	dropsExpanded bool
 	// calculatorMode is set while the calculator history is open, with the
 	// entries the shell last handed over and the filter Tab cycles.
 	calculatorMode   bool

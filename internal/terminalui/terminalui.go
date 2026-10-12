@@ -21,6 +21,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/i18n"
+	"floter/internal/inputtext"
 	"floter/internal/launcher"
 	"floter/internal/settings"
 	"floter/internal/theme"
@@ -154,11 +155,53 @@ func (a *App) startSession(dir string, mutate ...func(*terminal.Options)) (*Sess
 			apply(&opts)
 		}
 	}
-	term, err := a.NewTerminal(opts)
+	// The paste boundary (internal/inputtext). A paste is a string seam: the
+	// clipboard can carry a Unicode space separator a shell would read as part
+	// of a word, and — with safe paste on — the trailing line break that ran
+	// the command where it was copied. The hook rewrites the text and takes the
+	// paste, so the program sees the bytes the boundary approves; a paste that
+	// needs no rewrite is left to the framework's own path. The setting is read
+	// per paste, so the drawer's switch applies to the session on screen
+	// without restarting it.
+	var term *terminal.Terminal
+	opts.OnPaste = func(text string) bool {
+		rewritten, changed := pasteText(text, a.Store.Snapshot().TerminalPasteSafe)
+		if !changed || term == nil {
+			return false
+		}
+		term.Paste(rewritten)
+		return true
+	}
+	created, err := a.NewTerminal(opts)
 	if err != nil {
 		return nil, err
 	}
+	term = created
 	return &Session{Term: term, Created: time.Now()}, nil
+}
+
+// pasteText is the terminal's paste rule: with safe paste on, one trailing
+// line break goes — a copied command almost always carries the newline that
+// ran it in the terminal it came from, and pasting it here would execute
+// before the user had read the line — and every Unicode space separator
+// becomes U+0020 either way. It reports whether the text changed, so an
+// untouched paste is the framework's own (and the hot path does not send the
+// same bytes twice).
+func pasteText(text string, safe bool) (string, bool) {
+	rewritten := text
+	if safe {
+		rewritten = inputtext.StripPasteNewline(rewritten)
+	}
+	rewritten = inputtext.NormalizeSpaces(rewritten)
+	return rewritten, rewritten != text
+}
+
+// shellCommandLine is the line a bare session is handed: the boundary's
+// normalization — a Unicode space separator typed with an input method would
+// fuse two shell words into one — and the trim the reference's run entry did
+// before typing. Empty after that is not a command.
+func shellCommandLine(command string) string {
+	return strings.TrimSpace(inputtext.NormalizeSpaces(command))
 }
 
 // isKeywordDir reports a manifest's own spelling for "where the session
@@ -409,8 +452,14 @@ func writeFileAtomically(path string, data []byte) error {
 //
 // The command is typed once the session has produced its first output (a
 // prompt); the deadline keeps a shell that never prints from holding the app.
+//
+// The line is the boundary's other string seam: a Unicode space separator
+// typed with an input method would fuse two shell words into one
+// (`go<U+3000>version` is a single token to zsh), so it becomes U+0020 here,
+// at the place where text becomes PTY input, rather than at each caller.
 func (a *App) RunShellWithCommand(command string) {
-	if a.NewTerminal == nil || strings.TrimSpace(command) == "" {
+	command = shellCommandLine(command)
+	if a.NewTerminal == nil || command == "" {
 		return
 	}
 	session, err := a.startSession("")

@@ -93,6 +93,8 @@ var en = Copy{
 		BareTerminalHint:         "A new session with no command typed",
 		TriggerHint:              func(name string) string { return name + " \u00b7 enter" },
 		FilesSection:             "Dropped files",
+		FilesMore:                func(count int) string { return "\u2026and " + strconv.Itoa(count) + " more files" },
+		FilesMoreHint:            "Show every dropped file",
 		RecentSection:            "Recently launched",
 		TriggerHintMore:          func(name string, more int) string { return name + " \u00b7 enter (+" + strconv.Itoa(more) + " more)" },
 		NoResults:                "No results",
@@ -262,6 +264,7 @@ var en = Copy{
 		LineHeight:     "Line height",
 		Padding:        "Padding",
 		Palette:        "Terminal palette",
+		PasteSafe:      "Safe paste",
 		PalettePreview: "Palette preview",
 
 		AppIcons: []Option{
@@ -682,6 +685,8 @@ var zh = Copy{
 		BareTerminalHint:         "一个新的会话，不输入任何命令",
 		TriggerHint:              func(name string) string { return name + " \u00b7 进入" },
 		FilesSection:             "拖入的文件",
+		FilesMore:                func(count int) string { return "等 " + strconv.Itoa(count) + " 个文件" },
+		FilesMoreHint:            "显示全部拖入的文件",
 		RecentSection:            "最近启动",
 		TriggerHintMore: func(name string, more int) string {
 			return name + " \u00b7 进入（还有 " + strconv.Itoa(more) + " 个）"
@@ -853,6 +858,7 @@ var zh = Copy{
 		LineHeight:     "行距",
 		Padding:        "边距",
 		Palette:        "终端配色",
+		PasteSafe:      "粘贴不执行",
 		PalettePreview: "配色预览",
 
 		AppIcons: []Option{
