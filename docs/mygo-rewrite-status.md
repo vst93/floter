@@ -8,7 +8,7 @@
 
 用 mygo（原生 GPU 自绘 UI + Go）重写的 floter **已经是一个可打包、可运行的完整应用**：单窗口三表面
 （启动器 / 设置 / 终端）、搜索内核、扩展平台（含后台运行、列表协议、导入导出、权限审计）、剪贴板、
-浏览器、计算器、系统集成、打包与 CI 全部就位。**765 项测试全绿**，三平台都能构建，Linux 打包
+浏览器、计算器、系统集成、打包与 CI 全部就位。**787 项测试全绿**，三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
 含测试）。
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 765 项测试
+go test -count=1 ./...         # 787 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,7 +99,50 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-az 清单的 `platforms` 与 `platformOverrides` 真正生效** —— schema 里的
+> **最新一轮：P7-ba `platformOverrides.minimumOsVersion` 的执行** —— P7-az 顺带记下的那条：
+> override 的 `minimumOsVersion` 已解析进结构却**没人执行**。现在新增宿主 OS 版本探测
+> （macOS `sw_vers`、Linux `uname -r`、Windows `ver`，可注入），命中的 override 在安装期
+> 比较宿主版本，低于下限的包在落盘前被拒收并说明原因；已装的包不因宿主升级/降级而失效。
+
+**P7-ba override 的 OS 下限在落盘前生效（本轮）**
+
+- **依赖检查**：`curl .../releases/latest` 返回 v0.4.7（`go.mod` 已是 v0.4.7），无版本可升
+  （本轮只有 game 相关能力，floter 无自然用点）。本轮取具体待办里**唯一不卡框架**的第 8 条，
+  即 P7-az 自己记下的新偏离。
+- **偏离点（解析了、没人执行）**：`PlatformOverride.MinimumOSVersion`
+  （`internal/extensions/platform.go`）跟着 `platformOverrides` 一起进了 Go 结构，`EffectiveProvider`
+  也会命中 override，但**没有任何地方读这个下限**——声明 `minimumOsVersion: "6.8"` 的包在 5.15 内核
+  上照装照跑。原版 `manifest.rs:442` 的 `ResolvedManifest::validate_minimum_os_version` 在
+  `install.rs:2524`（right after `resolve`）比较宿主 OS 版本与下限；`current_os_version()`
+  （`manifest.rs:657`）在 macOS 读 `sw_vers -productVersion`、Linux 读 `uname -r`、Windows 读
+  `GetVersionExW`；`numeric_version`（`manifest.rs:638`）只取第一个数字起头的点分数字段。
+  它**只在 install 期查**（`extensions.rs` 的 pre-install review 与 registry 选版本都只跑
+  `resolve()`，不跑这条），已装包不因宿主 OS 变化而失效——与 `compatibility` 同一取向。
+- **修法**：新文件 `internal/extensions/osversion.go`。
+  - `HostOSVersion()` 按宿主平台取版本（macOS `sw_vers -productVersion`、Linux `uname -r`、
+    Windows `cmd /c ver`），读不到就返回空串——**不猜**。
+  - `parseOSVersion` 复刻原版 `numeric_version`：第一个数字起头的点分数字段、去掉尾部非数字、
+    缺 minor/patch 读作 0（`6.8.0-45-generic` = 6.8.0，`14.5` = `14.5.0`）。
+  - `Manifest.MinimumOSVersion(target)`（`platform.go`）复刻 `resolve()` 的挑法：按
+    `Identifiers()` 顺序走，**最后一个命名下限的 override 胜**（`<os>-any` 压过完整 target，
+    且后面没有下限的 override 不会抹掉前面的）。
+  - `Manifest.ValidateMinimumOSVersion(target, hostVersion)`：空下限不查；下限读不出来就拒收
+    （清单要了、我们给不了）；宿主版本读不出来**不拒收**（与 `ValidateCompatibility` 对无名构建
+    的同一宽容）。
+  - `Paths` 新增 `OSVersion`（零值 = 探测宿主，见 `HostOSVersion()`），让测试不靠机器；
+    `prepare()` 与 `install()` 在 `ValidatePlatform` 之后各调用一次（原版 `install.rs:2524` 的
+    同一位置），路径都在错误分支清掉 staging。
+- **测试**：`internal/extensions/osversion_test.go`——`TestParseOSVersion`（9 行表，含 tail、缺位、
+  溢出）、`TestMinimumOSVersionFollowsTheOverrideOrder`（OS 宽胜、无下限的 override 不抹掉、无
+  override 为空）、`TestValidateMinimumOSVersion`（8 行表：低于/等于/高于、缺 patch、未声明、
+  另一平台的底线不管本机、宿主读不到不拒、下限读不到拒）；`TestPrepareRefusesAnOsBelowTheOverrideFloor`
+  （注入 target/OS 版本：低于下限拒收且不留 staging）、
+  `TestAMatchingOsVersionLetsACompatibleManifestThrough`（达标照装）。变异核查：把 `prepare` 里的
+  `ValidateMinimumOSVersion` 调用摘掉，第一条立刻红。
+- **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 27 包全绿（787 项）、
+  `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+> **上一轮：P7-az 清单的 `platforms` 与 `platformOverrides` 真正生效** —— schema 里的
 > `platforms` 一直只被 JSON 读进来、从没人查，`platformOverrides` 更是整块没进 Go 结构；
 > 声明 `platforms: ["darwin"]` 的包在 Linux/Windows 上照列照跑。现在清单按宿主平台解析，
 > 越界的包在安装期与库存期都被拒收并说明原因，命中的 `platformOverrides` 改写 provider 的
@@ -1318,7 +1361,10 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
      离开清表）；`Toggle` 在时钟不成立时 `Launcher.ResetQuery()`（含 `leaveFiles`）再回启动器；唤回落到
      同一面时 `refresh` 重启窗口。测试（注入时钟）：插件模式窗内唤回被保留并刷新、窗外唤回回到空搜索
       页（查询与拖放行都清）、普通搜索页唤回永远清空、0/never 边界；把 i18n 提示改回原版原文。
-8. **`platformOverrides.minimumOsVersion` 的强制执行**（P7-az 定位，应用侧可做）。
+8. **~~`platformOverrides.minimumOsVersion` 的强制执行~~**：已完成（P7-ba）——`internal/extensions/osversion.go`
+   新增 `HostOSVersion()` 探测与 `parseOSVersion`（复刻原版 `numeric_version`），`Manifest.MinimumOSVersion`
+   按 override 顺序取最后一个下限，`ValidateMinimumOSVersion` 在 `prepare`/`install` 落盘前比较；
+   `Paths.OSVersion` 可注入。（原分析保留在下方。）
    - 原版：`src-tauri/src/extensions/install.rs:2524` 的 `resolved.validate_minimum_os_version()`，
      在 install 期比较宿主的 OS 版本与 override 声明的下限；`manifest.rs` 的 `resolve()` 把命中的
      override 的 `minimumOsVersion` 挑出来。
@@ -1329,8 +1375,8 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
      「低于下限拒绝 / 等于即通过 / 无声明不查 / 版本读不到时不拒绝」；越界时 `prepare`/`install` 不留 staging。
 
 > 至此具体待办里的 1–3 **三条都卡在框架能力上**（`Options.OnCopy`、终端键入的 `HandleInput`
-> 缝、外观旋钮的暴露），不是应用侧能单方面推进的；第 4–8 条里 4–7 已完成，第 8 条（P7-az 找到的
-> `minimumOsVersion`）是应用侧能做的下一件。下一轮仍应回到「对照原版排查偏离点」这条路。
+> 缝、外观旋钮的暴露），不是应用侧能单方面推进的；第 4–8 条已全部完成（第 8 条在 P7-ba 落地）。
+> 下一轮仍应回到「对照原版排查偏离点」这条路。
 
 **P7-at manifest 的 `compatibility` 区间在落盘前生效（本轮）**
 

@@ -152,6 +152,12 @@ func prepare(paths Paths, spec installSpec, cleanup func()) (Prepared, error) {
 		}
 		return Prepared{}, err
 	}
+	if err := manifest.ValidateMinimumOSVersion(paths.Target(), paths.HostOSVersion()); err != nil {
+		if cleanup != nil {
+			cleanup()
+		}
+		return Prepared{}, err
+	}
 	digest, err := ManifestDigest(spec.ManifestPath)
 	if err != nil {
 		if cleanup != nil {
@@ -249,6 +255,12 @@ func install(paths Paths, spec installSpec) (Entry, error) {
 	// A package built for another operating system is refused before its
 	// provider is ever resolved, exactly where the old host's install did it.
 	if err := manifest.ValidatePlatform(paths.Target()); err != nil {
+		return Entry{}, err
+	}
+	// An override that names an OS floor is a condition of install too, checked
+	// where the old host resolved and validated it: before the provider is
+	// resolved or the disk is touched.
+	if err := manifest.ValidateMinimumOSVersion(paths.Target(), paths.HostOSVersion()); err != nil {
 		return Entry{}, err
 	}
 	// A declared input is checked wherever a manifest is installed, so a

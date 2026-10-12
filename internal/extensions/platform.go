@@ -19,9 +19,9 @@ type PlatformOverride struct {
 	// Environment is merged over the provider's own environment; a key here
 	// wins.
 	Environment map[string]string `json:"environment"`
-	// MinimumOSVersion is the oldest OS the target may run. It is parsed and
-	// carried here; enforcing it needs an OS version the Go host does not yet
-	// collect (see the docs' 具体待办).
+	// MinimumOSVersion is the oldest OS the target may run. It is enforced at
+	// install time (see ValidateMinimumOSVersion), the way the old host's
+	// `ResolvedManifest::validate_minimum_os_version` gated install.
 	MinimumOSVersion string `json:"minimumOsVersion"`
 }
 
@@ -185,6 +185,25 @@ func (m Manifest) EffectiveProvider(target Platform) Provider {
 		}
 	}
 	return provider
+}
+
+// MinimumOSVersion is the OS floor the matched `platformOverrides` declare for
+// the target, empty when none does. The identifiers are walked most specific
+// first, and the last one that names a floor wins — so an OS-wide override
+// beats the arch-specific entry, exactly as the old host's `resolve` picked it
+// (and exactly as EffectiveProvider applies argsPrefix/environment).
+func (m Manifest) MinimumOSVersion(target Platform) string {
+	minimum := ""
+	for _, identifier := range target.Identifiers() {
+		override, ok := m.PlatformOverrides[identifier]
+		if !ok {
+			continue
+		}
+		if strings.TrimSpace(override.MinimumOSVersion) != "" {
+			minimum = override.MinimumOSVersion
+		}
+	}
+	return minimum
 }
 
 // Target is the platform an inventory under these paths is resolved for: the

@@ -20,6 +20,7 @@ package extensions
 import (
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // The directory and file names, mirroring ExtensionPaths::from_root.
@@ -59,6 +60,11 @@ type Paths struct {
 	// (see Target), which is what every production caller wants; a test that
 	// must be deterministic across the three platform declarations sets it.
 	Platform Platform
+	// OSVersion is the running OS's version, the one a manifest's
+	// `platformOverrides[].minimumOsVersion` is checked against at install time.
+	// Blank means the host's own version is detected (see HostOSVersion); a test
+	// that must be deterministic sets it.
+	OSVersion string
 }
 
 // DiscoverPaths returns the paths under the platform's config directory,
@@ -93,4 +99,14 @@ func (p Paths) Ensure() error {
 		}
 	}
 	return nil
+}
+
+// HostOSVersion is the OS version an install under these paths is checked
+// against: the injected one when set, else the running OS's. It is blank when
+// nothing can be read.
+func (p Paths) HostOSVersion() string {
+	if strings.TrimSpace(p.OSVersion) != "" {
+		return p.OSVersion
+	}
+	return HostOSVersion()
 }
