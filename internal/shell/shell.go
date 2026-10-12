@@ -1122,14 +1122,17 @@ func (a *App) setShortcut(id, accelerator string) {
 // show_commands_in_search setting asks for them.
 func (a *App) scanTools() {
 	snapshot := a.Store.Snapshot()
+	// The aliases belong to the catalog, not the PATH scan: resolve them
+	// before the PATH rows are decided, so a user who hides the PATH commands
+	// still reaches an extension command by its alias.
+	a.Launcher.SetCommandAliases(settings.ResolveCommandAliases(settings.CommandAliasesOf(snapshot)))
 	if !settings.ShowCommandsInSearch(snapshot) {
-		a.Launcher.SetTools(nil, false, nil)
+		a.Launcher.SetTools(nil, false)
 		return
 	}
-	aliases := settings.ResolveCommandAliases(settings.CommandAliasesOf(snapshot))
 	go func() {
 		found := apps.ScanCommands(apps.CommandDirs())
-		a.onMain(func() { a.Launcher.SetTools(found, true, aliases) })
+		a.onMain(func() { a.Launcher.SetTools(found, true) })
 	}()
 }
 

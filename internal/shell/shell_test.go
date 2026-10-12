@@ -2428,12 +2428,23 @@ func TestCommandAliasFlow(t *testing.T) {
 		t.Errorf("command = %+v, want the live alias j", command)
 	}
 
+	// The alias reaches the launcher's catalog, and it is a catalog-wide
+	// fact rather than a PATH one: the launcher holds it even when the PATH
+	// rows are off, so an alias set on an extension command's own row is
+	// actually reachable. The scan runs inline here (Win is nil).
+	if got := a.Launcher.Aliases["jv"]; got != "j" {
+		t.Errorf("the launcher's alias = %q, want j", got)
+	}
+
 	// Clearing the alias removes the entry (the store's update runs on the
 	// settings goroutine in production; here the synchronous store applies
 	// it directly).
 	a.setCommandAlias("io.github.vst93.v", "jv", "")
 	if aliases := settings.CommandAliasesOf(a.Store.Snapshot()); len(aliases) != 0 {
 		t.Errorf("aliases = %+v, want none", aliases)
+	}
+	if got := a.Launcher.Aliases["jv"]; got != "" {
+		t.Errorf("the launcher kept a cleared alias: %q", got)
 	}
 }
 

@@ -77,6 +77,11 @@ type Launcher struct {
 	BareTerminalHint  string
 	TriggerHint       func(name string) string
 	TriggerHintMore   func(name string, more int) string
+	// AliasMatch names the user's alias when it is what carried a match
+	// ("Alias: gfm"), the old build's `launcher.aliasMatch`. It rides the
+	// row's subtitle, so a row reached by an alias explains itself instead
+	// of reading like a stray hit.
+	AliasMatch func(alias string) string
 	// FilesSection heads the block of rows a dropped file's actions make,
 	// FilesMore is the row that reveals the files past the cap (with how many
 	// are behind it), FilesMoreHint its own sentence, and RecentSection the

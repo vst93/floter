@@ -861,7 +861,7 @@ func TestSystemCommandsJoinTheSearchWhenEnabled(t *testing.T) {
 		{Name: "ripgrep", Path: "/usr/local/bin/ripgrep"},
 		{Name: "tmux", Path: "/opt/homebrew/bin/tmux"},
 	}
-	a.SetTools(tools, true, nil)
+	a.SetTools(tools, true)
 
 	// An empty query stays the commands and the recents.
 	tt := render(t, a)
@@ -884,7 +884,7 @@ func TestSystemCommandsJoinTheSearchWhenEnabled(t *testing.T) {
 	// With the setting off, the search does not offer them as tools — but the
 	// action bar still offers to run the name the user typed, which is the
 	// shell's.
-	a.SetTools(tools, false, nil)
+	a.SetTools(tools, false)
 	a.Query = "ripgrep"
 	tt.Frame()
 	if !tt.HasText("Run in terminal") {
@@ -905,7 +905,8 @@ func TestToolAliasesJoinTheSearch(t *testing.T) {
 		{Name: "git", Path: "/usr/bin/git"},
 		{Name: "ripgrep", Path: "/usr/local/bin/ripgrep"},
 	}
-	a.SetTools(tools, true, settings.CommandAliases{"git": "gfm", "ripgrep": "rg"})
+	a.SetTools(tools, true)
+	a.SetCommandAliases(settings.CommandAliases{"git": "gfm", "ripgrep": "rg"})
 
 	tt := render(t, a)
 	tt.Type("gfm")
@@ -917,19 +918,61 @@ func TestToolAliasesJoinTheSearch(t *testing.T) {
 		t.Errorf("an unrelated command showed: %q", tt.Texts())
 	}
 
-	// The alias is matched, not shown: the row still reads as the command.
-	if tt.HasText("gfm") {
-		t.Errorf("the alias is drawn as a row: %q", tt.Texts())
+	// The alias is what carried the match, so the row names it — the old
+	// build's `launcher.aliasMatch`, riding the subtitle so a row reached by
+	// an alias explains itself instead of reading like a stray hit.
+	if !tt.HasText("Alias: gfm") {
+		t.Errorf("the row does not name the alias that reached it: %q", tt.Texts())
 	}
 
-	// A prefix of the alias finds it too, and the command's own name keeps
-	// working.
-	for _, query := range []string{"gf", "git"} {
-		a.Query = query
-		tt.Frame()
-		if !tt.HasText("git") {
-			t.Errorf("query %q did not find the command: %q", query, tt.Texts())
+	// A prefix of the alias finds it too (and still names the alias — the
+	// alias is what carried it), while the command's own name finds it
+	// without any alias note: the name is the answer, not a translation.
+	a.Query = "gf"
+	tt.Frame()
+	if !tt.HasText("git") || !tt.HasText("Alias: gfm") {
+		t.Errorf("a prefix of the alias did not find and name it: %q", tt.Texts())
+	}
+	a.Query = "git"
+	tt.Frame()
+	if !tt.HasText("git") {
+		t.Errorf("the command's own name did not find it: %q", tt.Texts())
+	}
+	if tt.HasText("Alias: gfm") {
+		t.Errorf("the name match still named the alias: %q", tt.Texts())
+	}
+}
+
+// A user alias set on an extension command's own row — the Integrations
+// alias editor's key is the command id — reaches the command and is named on
+// the row, the same as a PATH command's alias. Before this, the editor stored
+// an alias that nothing ever read.
+func TestExtensionCommandAliasesJoinTheSearch(t *testing.T) {
+	a := testApp()
+	a.SetCommands([]extensions.CommandEntry{{
+		IntegrationID:   "io.github.vst93.v",
+		IntegrationName: "V Tools",
+		Command: extensions.Command{
+			ID:          "jv",
+			Name:        "JSON Viewer",
+			Description: "View, format and edit JSON",
+		},
+	}})
+	a.Aliases = settings.CommandAliases{"jv": "j"}
+
+	a.Query = "j"
+	found := false
+	for _, item := range a.Results() {
+		if item.ID != "cmd:io.github.vst93.v:jv" {
+			continue
 		}
+		found = true
+		if item.Detail != "Alias: j \u00b7 View, format and edit JSON" {
+			t.Errorf("the alias hint did not reach the subtitle: %q", item.Detail)
+		}
+	}
+	if !found {
+		t.Errorf("the alias did not find the extension command: %v", ids(a.Results()))
 	}
 }
 
@@ -1915,7 +1958,7 @@ func TestActionBarRows(t *testing.T) {
 	// has a match beside it.
 	ran = 0
 	a.ResetQuery()
-	a.SetTools([]apps.App{{Name: "git", Path: "/usr/bin/git"}}, true, nil)
+	a.SetTools([]apps.App{{Name: "git", Path: "/usr/bin/git"}}, true)
 	tt.Type("git")
 	tt.Frame()
 	if !tt.HasText("Run in terminal") {
@@ -2250,7 +2293,7 @@ func TestTheSourceWordSitsAtTheRowsRightEdge(t *testing.T) {
 // directory's command this is.
 func TestThePathRowNamesItsSourceOnScreen(t *testing.T) {
 	a := testApp()
-	a.SetTools([]apps.App{{Name: "git", Path: "/usr/local/bin/git"}}, true, nil)
+	a.SetTools([]apps.App{{Name: "git", Path: "/usr/local/bin/git"}}, true)
 	tt := render(t, a)
 	tt.Type("git")
 	tt.Frame()

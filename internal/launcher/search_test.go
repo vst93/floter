@@ -330,7 +330,7 @@ func TestToolRowNamesItsSourceAndItsPath(t *testing.T) {
 	a := testApp()
 	a.SetTools([]apps.App{
 		{Name: "git", Path: "/usr/bin/git"},
-	}, true, nil)
+	}, true)
 
 	got := a.toolItems()
 	if len(got) != 1 || got[0].Title != "git" {
@@ -355,7 +355,7 @@ func TestToolRowNamesItsSourceAndItsPath(t *testing.T) {
 // no PATH command is offered at all, and no source word with it.
 func TestToolRowsFollowTheSetting(t *testing.T) {
 	a := testApp()
-	a.SetTools([]apps.App{{Name: "git", Path: "/usr/bin/git"}}, false, nil)
+	a.SetTools([]apps.App{{Name: "git", Path: "/usr/bin/git"}}, false)
 	if got := a.toolItems(); len(got) != 0 {
 		t.Errorf("the setting-off scan showed %v", ids(got))
 	}

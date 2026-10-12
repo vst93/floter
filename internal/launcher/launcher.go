@@ -228,9 +228,11 @@ type App struct {
 	// InstallCatalog is the install catalog's state: the tools floter knows
 	// where to get, and whether this machine has them.
 	InstallCatalog []tools.State
-	// ToolAliases is the user's alias per command name, which a PATH command's
-	// row is matched by as well as by its name.
-	ToolAliases settings.CommandAliases
+	// Aliases is the user's alias per command, which a row is matched by as
+	// well as by its name: a PATH command's own name, an extension command's id
+	// (the Integrations alias editor's key). It is a property of the catalog,
+	// not of the PATH scan, so it stays put when the PATH rows are off.
+	Aliases settings.CommandAliases
 
 	// Scroll keeps the result list's place; Search is the field's identity,
 	// for the focus the launcher keeps on it while the surface shows.
@@ -604,10 +606,16 @@ func (a *App) SetRecent(paths []string, show bool) {
 	a.Recent, a.ShowRecent = paths, show
 }
 
-// SetTools replaces the commands found on the PATH, whether the search offers
-// them, and the aliases the user gave them (command name -> alias).
-func (a *App) SetTools(tools []apps.App, show bool, aliases settings.CommandAliases) {
-	a.Tools, a.ShowTools, a.ToolAliases = tools, show, aliases
+// SetTools replaces the commands found on the PATH and whether the search
+// offers them. The user's aliases are a separate, catalog-wide fact — see
+// SetCommandAliases — so turning the PATH rows off does not drop them.
+func (a *App) SetTools(tools []apps.App, show bool) {
+	a.Tools, a.ShowTools = tools, show
+}
+
+// SetCommandAliases replaces the user's alias per command.
+func (a *App) SetCommandAliases(aliases settings.CommandAliases) {
+	a.Aliases = aliases
 }
 
 // SetQuery puts text in the field, for a deep link that names what to search

@@ -97,6 +97,7 @@ var en = Copy{
 		FilesMoreHint:            "Show every dropped file",
 		RecentSection:            "Recently launched",
 		TriggerHintMore:          func(name string, more int) string { return name + " \u00b7 enter (+" + strconv.Itoa(more) + " more)" },
+		AliasMatch:               func(alias string) string { return "Alias: " + alias },
 		NoResults:                "No results",
 		Clear:                    "Clear",
 		Copied:                   "Copied",
@@ -681,6 +682,7 @@ var zh = Copy{
 		TriggerHintMore: func(name string, more int) string {
 			return name + " \u00b7 进入（还有 " + strconv.Itoa(more) + " 个）"
 		},
+		AliasMatch:            func(alias string) string { return "别名：" + alias },
 		Label:                 "搜索",
 		Hint:                  "输入以搜索",
 		NoResults:             "没有匹配项",

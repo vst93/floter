@@ -99,8 +99,8 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-ao 死文案清理 + 守卫测试** —— 记录在下面的「具体待办」之后
-> （与 P7-an 同一位置），含删除清单、守卫机制与变异核查结果。
+> **最新一轮：P7-ap 别名说清自己命中了什么 + 扩展命令的别名真的可达** —— 记录在下面的
+> 「具体待办」之后（P7-ao 之后），含对照原版的两处偏离点、修法与门槛。
 
 **P7-al 被拒绝的深链说出来（本轮）**
 - **依赖检查**：`go list -m -versions github.com/egoist/mygo` 确认 v0.4.5 仍是最新（go.mod 已是 v0.4.5），
@@ -1068,6 +1068,29 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
   删掉后绿。
 - **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 27 包全绿
   （700 项）、`GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+**P7-ap 别名说清自己命中了什么 + 扩展命令的别名真的可达（本轮）**
+
+- **依赖检查**：`go.mod` 已是 v0.4.7（P7-an 升的），无版本可升；本轮走「对照原版排查偏离点」。
+- **偏离点（两处，同一个功能的两半）**：
+  - 旧版被别名命中的行会在副标题前置 `launcher.aliasMatch`（`src/hooks/useLauncherCatalog.ts:1344-1350`），
+    且**只在别名得分严格高于命令名时**出现（`candidateMatchScore(needle, alias) > candidateMatchScore(needle, command)`，
+    `src/command-aliases.ts:39` 的 exact 1000 > prefix 800-罚分）：名字本身就是答案时不画蛇添足。
+  - P4-y 的别名编辑器把别名写进 `command_aliases`（键是**命令 id**），但启动器只把别名喂给 PATH 命令行
+    （`toolItems` 的 `ToolAliases[tool.Name]`），扩展命令的别名**存了却永远匹配不到**——编辑框承诺的能力
+    从未接线。
+- **修法**：
+  - 别名升格为**目录级事实**：`App.Aliases` + `SetCommandAliases`（`SetTools` 不再携带它），`scanTools`
+    在 PATH 开关判定**之前**先把别名交给启动器，所以关掉 PATH 行也照样能用别名找到扩展命令；
+    `commandItems` 按 `command.ID` 取别名（`jv` → `j`）。
+  - `Match` 记录真正命中的别名（`Item.matchedAlias`），`aliasHint`/`aliasRank` 实现旧版「别名严格更好才说」
+    的比较（exact 压 prefix，其余沿用 `candidateScore` 的梯子）；`matchedCatalog` 把 `copy.AliasMatch`
+    织进副标题（`别名：j · 描述`）。措辞归应用（`i18n.AliasMatch`，en/zh 旧版原文），排名只回答「是不是别名」。
+- **测试**：`view_test.go` 的 `TestToolAliasesJoinTheSearch`（`gfm` 命中并写 `Alias: gfm`、`gf` 前缀同样写、
+  `git` 命中不写）与新增 `TestExtensionCommandAliasesJoinTheSearch`（命令 id 别名可达 + 副标题前缀）；
+  `shell_test.go` 的 `TestCommandAliasFlow` 追加「别名到达启动器、清空后消失」，钉住别名与 PATH 开关解耦。
+- **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 27 包全绿
+  （701 项）、`GOOS=linux/windows/darwin go build ./...` 三平台通过。
 
 **P7-an 命令行的两个接缝、粘贴边界与拖放上限（本轮）**
 

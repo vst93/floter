@@ -39,6 +39,11 @@ type Item struct {
 	// alias is the user's alias for a PATH command, matched at the same tiers
 	// as the command's own name.
 	alias string
+	// matchedAlias is the alias a query actually reached this row through,
+	// set by Match when the alias scored better than the row's own title. The
+	// view names it in the subtitle (the old build's `launcher.aliasMatch`),
+	// so a row found by "gfm" says why instead of reading like a stray hit.
+	matchedAlias string
 	// Run performs the item.
 	Run func()
 	// complete is the text Tab inserts for the row: an extension command's
@@ -171,6 +176,7 @@ func (a *App) commandItems() []Item {
 			Source:   entry.IntegrationName,
 			Search:   search,
 			Shortcut: "Tab",
+			alias:    a.Aliases[command.ID],
 			Run:      func() { a.runCommand(entry) },
 			entry:    &entry,
 			warning:  a.commandConflicts[strings.ToLower(strings.TrimSpace(command.ID))],
@@ -452,7 +458,7 @@ func (a *App) toolItems() []Item {
 			Title:  tool.Name,
 			Detail: tool.Path,
 			Source: pathSourceWord,
-			alias:  a.ToolAliases[tool.Name],
+			alias:  a.Aliases[tool.Name],
 			Run:    func() { a.runTool(tool) },
 		})
 	}
@@ -595,9 +601,31 @@ func (a *App) otherResults() []Item {
 			out = append(out, item)
 		}
 	} else {
-		out = append(out, Match(a.Catalog(), a.Query)...)
+		out = append(out, a.matchedCatalog()...)
 	}
 	return out
+}
+
+// matchedCatalog ranks the catalog for the query and names the alias any row
+// was reached through, in the row's own subtitle — the old build's
+// `launcher.aliasMatch`. The composition lives here (not in Match) because the
+// wording is the app's, not the ranking's: Match answers *which* alias carried
+// the row, this answers what the row says about it.
+func (a *App) matchedCatalog() []Item {
+	items := Match(a.Catalog(), a.Query)
+	copy := a.copy()
+	for i := range items {
+		if items[i].matchedAlias == "" {
+			continue
+		}
+		hint := copy.AliasMatch(items[i].matchedAlias)
+		if items[i].Detail == "" {
+			items[i].Detail = hint
+		} else {
+			items[i].Detail = hint + " \u00b7 " + items[i].Detail
+		}
+	}
+	return items
 }
 
 // calculator is the answer row for an arithmetic query, if the query is
@@ -663,6 +691,9 @@ func Match(items []Item, query string) []Item {
 			}
 		}
 		if ok {
+			if hint := aliasHint(item, terms[0]); hint != "" {
+				item.matchedAlias = hint
+			}
 			ranked = append(ranked, struct {
 				item  Item
 				score int
@@ -676,6 +707,45 @@ func Match(items []Item, query string) []Item {
 		out[i] = r.item
 	}
 	return out
+}
+
+// aliasHint is the alias a query reached a row through, or "".
+//
+// The old build's rule: the row names the alias only when the alias is what
+// carried the match — the alias scores *better* than the row's own title for
+// the token typed. An alias that merely ties or loses to the name stays quiet
+// (the name is the answer, and naming the alias would explain nothing); a
+// query that does not reach the alias at all says nothing either.
+func aliasHint(item Item, term string) string {
+	if item.alias == "" || term == "" {
+		return ""
+	}
+	aliasScore, aliasMatched := aliasRank(strings.ToLower(item.alias), term)
+	if !aliasMatched {
+		return ""
+	}
+	titleScore, titleMatched := aliasRank(strings.ToLower(item.Title), term)
+	if titleMatched && titleScore <= aliasScore {
+		return ""
+	}
+	return item.alias
+}
+
+// aliasRank is candidateScore with an exact hit above a prefix hit, which the
+// shared ladder folds together (it only asks whether a candidate *starts with*
+// the term). The old build's `candidateMatchScore` ranks exact > prefix, so an
+// alias that is exactly what the user typed beats a name that merely starts
+// with it — that is the case the hint exists for. Everything below exact
+// keeps candidateScore's order, shifted up by one to make room for it.
+func aliasRank(candidate, term string) (int, bool) {
+	if candidate == term {
+		return 0, true
+	}
+	score, ok := candidateScore(candidate, term)
+	if !ok {
+		return 0, false
+	}
+	return score + 1, true
 }
 
 // itemScore scores one term against an item, and reports whether it matched.
