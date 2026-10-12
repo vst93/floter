@@ -108,7 +108,9 @@ func (a *App) runCustomShortcut(action string) {
 }
 
 // openPluginMode shows the panel with a built-in plugin's mode open: the
-// clipboard history or the browser search.
+// clipboard history, the browser search or the calculator history. The three
+// ids are the same vocabulary the settings page's base-plugin rows and the
+// configuration overlay use; an id nothing names is a bug, not a mode.
 func (a *App) openPluginMode(id string) {
 	a.Open(SurfaceLauncher)
 	switch id {
@@ -116,6 +118,8 @@ func (a *App) openPluginMode(id string) {
 		a.Launcher.EnterClipboard()
 	case settings.CustomPluginBrowser:
 		a.Launcher.EnterBrowser()
+	case settings.CustomPluginCalculator:
+		a.Launcher.EnterCalculator()
 	default:
 		log.Printf("floter: no plugin mode named %q", id)
 	}

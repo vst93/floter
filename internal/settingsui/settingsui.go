@@ -164,6 +164,14 @@ type Actions struct {
 	// ClearClipboardHistory drops every clipboard entry that is not a
 	// favourite.
 	ClearClipboardHistory func()
+	// OpenPluginConfig opens one built-in plugin's declarative configuration
+	// in the launcher — the same sheet the mode's own gear opens. Nil hides
+	// the Configure buttons on the base-plugin rows.
+	OpenPluginConfig func(id string)
+	// SetPluginEnabled turns one built-in plugin's own switch on or off (the
+	// clipboard history and the browser search; the calculator has none).
+	// Nil hides the switches.
+	SetPluginEnabled func(id string, enabled bool)
 	// ResetShortcuts restores the shipped bindings, and
 	// SetShortcutsSuspended releases the global shortcuts while a recorder
 	// waits for a key (so pressing the current one is recorded rather than
@@ -178,9 +186,6 @@ type Actions struct {
 	// SetPage records the page the user switched to (the
 	// `last_settings_page` setting).
 	SetPage func(name string)
-	// BrowserTargets lists the browsers the browser plugin can be pointed at,
-	// discovered from the machine; nil offers only the automatic choice.
-	BrowserTargets func() []i18n.Option
 }
 
 // Integration is one installed extension, as the Integrations page lists it.
@@ -730,67 +735,6 @@ func (a *App) body(c *ui.Context, copy i18n.Settings) {
 	})
 }
 
-// calculatorCard draws the calculator plugin's block: the capacity, the age
-// window and what Enter copies.
-func (a *App) calculatorCard(c *ui.Context, copy i18n.Settings) {
-	calculator := settings.CalculatorPluginOf(a.Store.Snapshot())
-	retention := make([]i18n.Option, 0, len(settings.CalculatorRetentionDays))
-	for _, days := range settings.CalculatorRetentionDays {
-		retention = append(retention, i18n.Option{ID: fmt.Sprintf("%d", days), Label: copy.CalculatorRetentionDays(days)})
-	}
-	a.section(c, copy.CalculatorPlugin, copy.CalculatorPluginHint, func() {
-		a.card(c, func() {
-			a.slider(c, copy.CalculatorMaxItems, copy.CalculatorMaxItemsHint, float64(calculator.MaxItems),
-				float64(settings.MinCalculatorMaxItems), float64(settings.MaxCalculatorMaxItems),
-				func(v float64) string { return fmt.Sprintf("%d", int(v)) },
-				func(v float64) {
-					a.setCalculator(func(p *settings.CalculatorPlugin) { p.MaxItems = int(v) })
-				})
-			a.choose(c, copy.CalculatorRetention, copy.CalculatorRetentionHint, retention,
-				fmt.Sprintf("%d", calculator.RetentionDays),
-				func(id string) {
-					days, err := strconv.Atoi(id)
-					if err != nil {
-						return
-					}
-					a.setCalculator(func(p *settings.CalculatorPlugin) { p.RetentionDays = days })
-				})
-			a.pick(c, copy.CalculatorCopyMode, copy.CalculatorCopyModeHint, copy.CalculatorCopyModes,
-				calculator.CopyMode,
-				func(id string) { a.setCalculator(func(p *settings.CalculatorPlugin) { p.CopyMode = id }) })
-		})
-	})
-}
-
-// setCalculator writes one change to the calculator plugin's block.
-func (a *App) setCalculator(mutate func(*settings.CalculatorPlugin)) {
-	a.set(func(s *settings.Settings) {
-		plugin := settings.CalculatorPluginOf(*s)
-		mutate(&plugin)
-		s.SetCalculatorPlugin(plugin)
-	})
-}
-
-// setBrowser writes one change to the browser plugin's block.
-func (a *App) setBrowser(mutate func(*settings.BrowserPlugin)) {
-	a.set(func(s *settings.Settings) {
-		plugin := settings.BrowserPluginOf(*s)
-		mutate(&plugin)
-		s.SetBrowserPlugin(plugin)
-	})
-}
-
-// browserTargets lists the target choices: the automatic one first, then the
-// browsers discovery found.
-func (a *App) browserTargets() []i18n.Option {
-	copy := i18n.For(a.Store.Snapshot().Language).Settings
-	options := []i18n.Option{{ID: settings.DefaultBrowserTarget, Label: copy.BrowserAuto}}
-	if a.Actions.BrowserTargets != nil {
-		options = append(options, a.Actions.BrowserTargets()...)
-	}
-	return options
-}
-
 // sessions lists the running terminal sessions.
 func (a *App) sessions(c *ui.Context, copy i18n.Settings) {
 	t := c.Theme()
@@ -864,6 +808,7 @@ func (a *App) integrations(c *ui.Context, copy i18n.Settings) {
 	integrations := a.installedIntegrations()
 	ui.Column(c).FillWidth().Gap(t.Space(5.5)).Children(func() {
 		ui.Text(c, copy.IntegrationsHint).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+		a.basePluginSection(c, copy)
 		a.localToolSection(c, copy)
 		a.detectedSection(c, copy)
 		a.recommendedRow(c, copy)
@@ -889,6 +834,84 @@ func (a *App) integrations(c *ui.Context, copy i18n.Settings) {
 				a.integrationRow(c, copy, integration)
 			}
 		})
+	})
+}
+
+// basePlugin is one built-in plugin as the Integrations page lists it: its id
+// (the same vocabulary the launcher's gear and the plugin configuration use),
+// what it is called and does, the extra privacy line the clipboard carries,
+// and whether it has a persisted on/off switch at all.
+type basePlugin struct {
+	ID         string
+	Name       string
+	Hint       string
+	Privacy    string
+	Toggleable bool
+	Enabled    bool
+}
+
+// basePlugins is the shipped list, in the order the old panel listed it. The
+// calculator has no persisted on/off field, so it carries no switch rather
+// than a dead one.
+func (a *App) basePlugins(copy i18n.Settings) []basePlugin {
+	s := a.Store.Snapshot()
+	return []basePlugin{
+		{
+			ID: settings.CustomPluginClipboard, Name: copy.BaseClipboard, Hint: copy.BaseClipboardHint,
+			Privacy: copy.BaseClipboardPrivacy, Toggleable: true, Enabled: settings.ClipboardOf(s).Enabled,
+		},
+		{
+			ID: settings.CustomPluginBrowser, Name: copy.BaseBrowser, Hint: copy.BaseBrowserHint,
+			Toggleable: true, Enabled: settings.BrowserPluginOf(s).Enabled,
+		},
+		{ID: settings.CustomPluginCalculator, Name: copy.BaseCalculator, Hint: copy.BaseCalculatorHint},
+	}
+}
+
+// basePluginSection is the Integrations page's own list of the built-in
+// plugins: one card per plugin, naming it, saying what it does, and carrying
+// the two controls it can have — the switch that turns it on or off, and the
+// Configure button that opens its declarative configuration in the launcher
+// (the mode's own gear opens the same sheet). The browser mode's message
+// ("Enable it in Settings > Integrations") is this section; without it the
+// hint would point at a door that does not exist.
+func (a *App) basePluginSection(c *ui.Context, copy i18n.Settings) {
+	if a.Actions.OpenPluginConfig == nil && a.Actions.SetPluginEnabled == nil {
+		return
+	}
+	a.section(c, copy.BasePlugins, copy.BasePluginsHint, func() {
+		for _, plugin := range a.basePlugins(copy) {
+			plugin := plugin
+			a.card(c, func() {
+				enabled := plugin.Enabled
+				changed := false
+				labelClicked := a.rowTop(c, plugin.Name, plugin.Hint, plugin.Privacy, func() {
+					if a.Actions.OpenPluginConfig != nil {
+						// The visible text is the reference's "Configure"; the
+						// accessible name names the plugin, because three buttons
+						// reading "Configure" alone are three buttons a screen
+						// reader cannot tell apart.
+						if ui.Button(c, copy.PluginConfigure).Label(copy.PluginConfigure + " " + plugin.Name).Clicked() {
+							a.Actions.OpenPluginConfig(plugin.ID)
+						}
+					}
+					if plugin.Toggleable && a.Actions.SetPluginEnabled != nil {
+						on := enabled
+						if ui.Switch(c, &on).Label(plugin.Name).Changed() {
+							enabled, changed = on, true
+						}
+					}
+				})
+				// The name is a hit target, as every switch row's is: pressing
+				// the words toggles the control beside them.
+				if labelClicked && plugin.Toggleable && a.Actions.SetPluginEnabled != nil {
+					enabled, changed = !enabled, true
+				}
+				if changed {
+					a.Actions.SetPluginEnabled(plugin.ID, enabled)
+				}
+			})
+		}
 	})
 }
 

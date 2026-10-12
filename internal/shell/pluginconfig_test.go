@@ -1,6 +1,7 @@
 package shell
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
@@ -133,6 +134,84 @@ func TestPluginConfigForAnUnknownPluginIsNil(t *testing.T) {
 		if config.Schema.Title == "" {
 			t.Errorf("%s's sheet has no title", plugin)
 		}
+	}
+}
+
+// The Integrations page's Configure button and the built-in plugin modes share
+// one entry: the app leaves whatever surface it was on — settings included —
+// for the launcher, enters the plugin's own mode, and opens the sheet on top
+// of it. Entering the mode is not a flourish: the launcher closes the sheet
+// the moment its plugin's mode is no longer the one showing.
+func TestOpenPluginConfigEntersTheModeAndOpensTheSheet(t *testing.T) {
+	for _, tc := range []struct {
+		id     string
+		inMode func(*App) bool
+	}{
+		{settings.CustomPluginClipboard, func(a *App) bool { return a.Launcher.InClipboardMode() }},
+		{settings.CustomPluginBrowser, func(a *App) bool { return a.Launcher.InBrowserMode() }},
+		{settings.CustomPluginCalculator, func(a *App) bool { return a.Launcher.InCalculatorMode() }},
+	} {
+		tc := tc
+		t.Run(tc.id, func(t *testing.T) {
+			a := pluginConfigApp(t)
+			// From the settings surface, which is where the button lives.
+			a.Open(SurfaceSettings)
+			a.openPluginConfig(tc.id)
+			if a.Surf != SurfaceLauncher {
+				t.Errorf("surface = %v, want the launcher", a.Surf)
+			}
+			if !tc.inMode(a) {
+				t.Errorf("%s's mode did not open", tc.id)
+			}
+			if !a.Launcher.ConfigOpen() {
+				t.Fatalf("%s's sheet did not open", tc.id)
+			}
+			if got := a.Launcher.Config().Schema.Plugin; got != tc.id {
+				t.Errorf("the sheet is for %q, want %q", got, tc.id)
+			}
+			// The sheet survives the frame that syncs it to the mode: a sheet
+			// whose mode never opened would close on the very next paint.
+			tt := ui.NewTester(func(c *ui.Context) { a.View(c) }, 720, 1400)
+			tt.Frame()
+			if !a.Launcher.ConfigOpen() {
+				t.Errorf("%s's sheet closed on the first frame", tc.id)
+			}
+		})
+	}
+}
+
+// An id nothing names is a bug, not a mode: the entry refuses rather than
+// moving the app to the launcher's bare list.
+func TestOpenPluginConfigIgnoresAnUnknownPlugin(t *testing.T) {
+	a := pluginConfigApp(t)
+	a.Open(SurfaceSettings)
+	a.openPluginConfig("nonsense")
+	if a.Surf != SurfaceSettings || a.Launcher.ConfigOpen() {
+		t.Errorf("an unknown plugin moved the app: surf=%v open=%v", a.Surf, a.Launcher.ConfigOpen())
+	}
+}
+
+// Every plugin action the Shortcuts page's picker offers must open a mode: the
+// picker and the shell are two lists of the same vocabulary, and the calculator
+// was in neither (the picker left it out, and the shell logged an id nothing
+// named). This walks the picker itself, so a fourth entry cannot ship without a
+// mode behind it.
+func TestEveryPickerPluginActionOpensAMode(t *testing.T) {
+	for _, option := range i18n.For("en").Settings.ShortcutsActions {
+		if !strings.HasPrefix(option.ID, "plugin:") {
+			continue
+		}
+		option := option
+		t.Run(option.ID, func(t *testing.T) {
+			a := pluginConfigApp(t)
+			a.runCustomShortcut(option.ID)
+			if a.Surf != SurfaceLauncher {
+				t.Fatalf("%s left the surface at %v", option.ID, a.Surf)
+			}
+			if a.Launcher.PluginID() == "" {
+				t.Errorf("%s opened no plugin mode", option.ID)
+			}
+		})
 	}
 }
 

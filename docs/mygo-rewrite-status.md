@@ -8,7 +8,7 @@
 
 用 mygo（原生 GPU 自绘 UI + Go）重写的 floter **已经是一个可打包、可运行的完整应用**：单窗口三表面
 （启动器 / 设置 / 终端）、搜索内核、扩展平台（含后台运行、列表协议、导入导出、权限审计）、剪贴板、
-浏览器、计算器、系统集成、打包与 CI 全部就位。**540 项测试全绿**，三平台都能构建，Linux 打包
+浏览器、计算器、系统集成、打包与 CI 全部就位。**556 项测试全绿**，三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
 含测试）。
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 540 项测试
+go test -count=1 ./...         # 556 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -98,7 +98,33 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-**P7-t 触发词进模式（本轮）**
+**P7-u 内置插件的门（本轮）**
+- **根因**：浏览器模式在插件关闭时的空态文案是「浏览器书签与历史已停用。可在“设置 > 集成”中启用。」
+  （`copy.BrowserDisabled`，中英文都这么写）——但设置页的 Integrations **根本没有内置插件区**：
+  没有开关，也没有打开内置插件配置的按钮（`settingsui` 里甚至留着一个从未被调用的 `calculatorCard`，
+  是已删除的 Plugins 页的残骸）。文案在承诺一扇不存在的门。
+- **补上「基础插件」区**（旧版 Integrations 页自己的 `settings.plugins.baseSection`）：三个内置插件各一张
+  卡片，名字 + 一句说明 + 剪贴板自己的隐私行（警告色），右侧是它有的控件——开关（剪贴板/浏览器，
+  计算器没有持久化开关就不画假开关）与「配置」按钮。行名是点击目标，与设置页其它开关行一致。
+- **统一入口**：新增 `shell.openPluginConfig(id)`——离开当前表面（含设置）回启动器、进入该插件自己的
+  模式、再叠上通用配置覆盖层。进模式不是装饰：启动器的 `syncConfig` 一旦发现「当前模式不是这张表
+  的插件」就会关掉表，所以模式是表的**前置条件**。设置页的「配置」按钮走的就是这条路。
+- **`plugin:calculator` 从未接线**：`settings.CustomPluginCalculator` 常量一直存在（启动器的齿轮、
+  配置表都在用），但 `shell.openPluginMode` 的 switch 只认剪贴板与浏览器——用户绑了
+  `plugin:calculator` 只会得到一行日志；快捷键页的动作下拉里也**没有**这一项（旧版
+  `CUSTOM_SHORTCUT_PLUGINS` 三项齐全）。补上 switch 分支与下拉项，并加一条走**下拉表本身**的测试：
+  表里每个 `plugin:` 动作都必须开出一个模式，第四个条目不可能再悄悄溜过。
+- **清理**：删掉被 P7-c 遗留的死代码（`calculatorCard`/`setCalculator`/`setBrowser`/settingsui 的
+  `browserTargets` 与 `Actions.BrowserTargets`）。
+- **测试**：`TestBasePluginsSectionOpensConfigurationAndToggles`（文案、隐私行、配置回调、开关回调、
+  计算器无开关）、`TestBasePluginsSectionNeedsAnAction`（没有动作就不画，不承诺空控件）、
+  `TestOpenPluginConfigEntersTheModeAndOpensTheSheet`（三个插件：表面、模式、表、下一帧仍在）、
+  `TestOpenPluginConfigIgnoresAnUnknownPlugin`、`TestEveryPickerPluginActionOpensAMode`。
+- **一处有意的差异**：旧版 `openPluginConfig` 在浏览器插件关闭时**拒绝**并弹一条提示（它的覆盖层
+  在开关背后）。本构建的配置表**第一项就是开关本身**，拒绝反而是死路（用户无法从设置页开启它），
+  所以照常打开；开启/关闭仍由行上的开关与表里的开关共同负责。
+
+**P7-t 触发词进模式**
 - **根因**：字段自己的提示说「一个空格进入该命令的模式」（`TriggerHint` 的「· 进入」），
   直出命令的行尾还有一颗 `␣` 键帽（R65）——但 `syncTypedMode` **只认内置模式**（剪贴板/浏览器/
   计算器/文件），外部命令的触发词路径从未接线。于是提示与键帽都在承诺一个不存在的转换：
@@ -585,7 +611,8 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 - **会话排序 / 轮询**：旧版会话页有"最新/最早"排序与 5 秒轮询（会话由 broker 托管，可能跨天存活）；
   本构建的会话在进程内、生命周期与 App 相同，列表按创建顺序，不做轮询。
 - **设置里的 Plugins 页已删**：内置插件的配置现在是启动器里的通用表单（P7-c），与旧版 R33 一致；
-  遗留的 `last_settings_page: "plugins"` 会落到第一页。
+  遗留的 `last_settings_page: "plugins"` 会落到第一页。旧版 Integrations 页自己的「基础插件」区
+  （三个内置插件 + 开关 + 「配置」）已在 P7-u 补上，它也是浏览器模式空态文案指向的那扇门。
 
 - 终端外观的四个设置**磁盘上存在、会被保留，但当前无 UI、也不起作用**：
   `terminal_bold`（加粗模式：粗体字/亮色）、`terminal_scrollbar`、`terminal_select_copy`（选中即复制）、
@@ -642,7 +669,8 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
    与旧版一致；旧版 `launch_counts` 已在启动时一次性导入 `usage.json`，本构建的记录优先。）
 
 > 上面 1–8 已全部完成或只剩一次性维护者动作，所以这一轮的入口是第 3 条：对照原版实现做系统
-> 排查。P7-t 就是这一轮找到的偏离点——提示与键帽都在承诺一个从未接线的转换。
+> 排查。P7-t 找到的是「提示与键帽都在承诺一个从未接线的转换」；P7-u 找到的是同一类的第二处
+> ——空态文案把用户指向「设置 > 集成」，而那一页从来没有内置插件区。
 
 ## 注意事项（踩过的坑）
 

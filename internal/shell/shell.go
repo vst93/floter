@@ -559,7 +559,6 @@ func New(opts Options) *App {
 		ChooseProgram:      a.chooseProgram,
 		SetShortcut:        a.setShortcut,
 		SetPage:            a.rememberSettingsPage,
-		BrowserTargets:     a.browserTargets,
 		SetCommandEnabled:  a.setCommandEnabled,
 		SetCommandAlias:    a.setCommandAlias,
 		CustomShortcuts:    func() []settings.CustomShortcut { return settings.CustomShortcutsOf(a.Store.Snapshot()) },
@@ -649,6 +648,10 @@ func New(opts Options) *App {
 		ConnectRecommended:    a.connectRecommended,
 		SaveConfiguration:     a.saveIntegrationConfiguration,
 		ClearClipboardHistory: func() { a.clearClipboardHistoryAsks(a.confirmClearClipboard) },
+		OpenPluginConfig:      a.openPluginConfig,
+		SetPluginEnabled: func(id string, enabled bool) {
+			a.changePluginConfig(id, "enabled", enabled)
+		},
 		ResetShortcuts:        a.resetShortcuts,
 		SetShortcutsSuspended: a.setShortcutsSuspended,
 		ExportIntegrations:    a.exportIntegrations,

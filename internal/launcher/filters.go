@@ -285,6 +285,12 @@ func (a *App) favoriteBadge() string {
 	return shortcuts.Badge(accelerator, "D")
 }
 
+// PluginID is the built-in plugin whose mode is showing, or "" for the plain
+// search and for an extension command's own list. It is the one question the
+// shell asks about which mode is up (the settings page's Configure button and
+// the custom shortcuts both have to answer it).
+func (a *App) PluginID() string { return a.filterPluginID() }
+
 // filterPluginID is the built-in plugin whose options the gear opens, or ""
 // for a mode that has none (an extension command's own list).
 func (a *App) filterPluginID() string {

@@ -364,6 +364,23 @@ type Settings struct {
 	IntegrationsOrphan    string
 	IntegrationsHint      string
 	IntegrationsUninstall string
+	// The base plugins: the built-in functionality the app ships, listed on
+	// the Integrations page with the one door to each one's configuration.
+	// The names are the old build's own (`settings.clipboardHistory`,
+	// `settings.browser`, `settings.calculator`) — a browser is named for
+	// what it holds, not for the mode that searches it.
+	BasePlugins          string
+	BasePluginsHint      string
+	BaseClipboard        string
+	BaseClipboardHint    string
+	BaseClipboardPrivacy string
+	BaseBrowser          string
+	BaseBrowserHint      string
+	BaseCalculator       string
+	BaseCalculatorHint   string
+	// PluginConfigure opens one built-in plugin's configuration sheet in the
+	// launcher, where the mode's own gear opens it.
+	PluginConfigure string
 	// The componentized uninstall dialog.
 	IntegrationsUninstallTitle       string
 	IntegrationsUninstallDescription string

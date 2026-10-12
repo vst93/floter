@@ -1008,6 +1008,87 @@ func TestIntegrationTransferButtons(t *testing.T) {
 	}
 }
 
+// The base plugins the app ships are listed on the Integrations page with the
+// two controls they can have: the switch that turns one on or off, and the
+// Configure button that opens its declarative configuration in the launcher
+// (the same sheet the mode's own gear opens). The browser mode's own message
+// points at this section, so a section that did not render would leave the
+// hint pointing at a door that does not exist.
+func TestBasePluginsSectionOpensConfigurationAndToggles(t *testing.T) {
+	opened := ""
+	toggles := map[string]bool{}
+	a := New(newStore(t), Actions{
+		OpenPluginConfig: func(id string) { opened = id },
+		SetPluginEnabled: func(id string, enabled bool) { toggles[id] = enabled },
+	})
+	a.Integrations = func() []Integration { return nil }
+	tt := render(t, a, 720, 900)
+
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	for _, want := range []string{
+		"Base plugins",
+		"Built-in functionality that ships with floter.",
+		"Clipboard history", "Browser bookmarks & history", "Calculator",
+		// The clipboard's privacy line is the one thing the row discloses
+		// rather than describes; it must not be dropped.
+		"Everything you copy system-wide is recorded — stored locally only.",
+	} {
+		if !tt.HasText(want) {
+			t.Errorf("missing %q in %q", want, tt.Texts())
+		}
+	}
+
+	// Configure opens the plugin's own sheet: the row names the plugin in its
+	// accessible name, because three buttons reading "Configure" alone are
+	// three buttons a screen reader cannot tell apart.
+	if err := tt.Click("Configure Calculator"); err != nil {
+		t.Fatalf("the calculator's Configure button: %v", err)
+	}
+	tt.Frame()
+	if opened != "calculator" {
+		t.Errorf("Configure opened %q, want calculator", opened)
+	}
+
+	// The clipboard's switch turns the history off; the name is a hit target,
+	// as every switch row's is.
+	if err := tt.Click("Clipboard history"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if got, ok := toggles["clipboard"]; !ok || got {
+		t.Errorf("clipboard toggle = %v (set=%v), want false", got, ok)
+	}
+
+	// The calculator has no persisted on/off field, so it carries no switch
+	// and clicking its name toggles nothing.
+	if err := tt.Click("Calculator"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if _, ok := toggles["calculator"]; ok {
+		t.Error("the calculator toggled, but it has no switch")
+	}
+}
+
+// The base-plugin rows are a door only when the shell has one to offer: with
+// no configuration or switch actions the section is not drawn, so a page with
+// nothing behind it cannot promise a control that does nothing.
+func TestBasePluginsSectionNeedsAnAction(t *testing.T) {
+	a := New(newStore(t), Actions{})
+	a.Integrations = func() []Integration { return nil }
+	tt := render(t, a, 720, 900)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if tt.HasText("Base plugins") {
+		t.Errorf("the section rendered with no action behind it: %q", tt.Texts())
+	}
+}
+
 // The Shortcuts page lists the app's own keys with their bindings, and a
 // recorder rebinds one.
 func TestAppShortcutRowsRecord(t *testing.T) {

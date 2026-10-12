@@ -44,6 +44,24 @@ func (a *App) pluginConfig(plugin string) *launcher.Config {
 	return &launcher.Config{Schema: schema, Values: values}
 }
 
+// openPluginConfig is the one entry to a built-in plugin's configuration. The
+// Integrations page's Configure button lands here (in the old build the global
+// hotkey and a cold-start request did too): the app leaves whatever surface it
+// was on — settings included — for the launcher, enters the plugin's own mode,
+// and opens the generic overlay on top of it. The mode is what keeps the sheet
+// open: the launcher closes it the moment its plugin's mode is no longer the
+// one showing, so entering the mode is not a flourish but the sheet's own
+// precondition.
+func (a *App) openPluginConfig(plugin string) {
+	switch plugin {
+	case settings.CustomPluginClipboard, settings.CustomPluginBrowser, settings.CustomPluginCalculator:
+	default:
+		return
+	}
+	a.openPluginMode(plugin)
+	a.Launcher.OpenConfig(plugin)
+}
+
 // changePluginConfig writes one field of a plugin's configuration, and answers
 // with the values the plugin's settings hold afterwards. Nil means the write
 // was refused: the sheet keeps the value it painted and says so, rather than

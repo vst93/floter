@@ -72,6 +72,28 @@ func (a *App) card(c *ui.Context, fn func()) {
 // label is a hit target that activates the row's control, as the framework's
 // own Field does, so a switch row can be toggled from either end.
 func (a *App) row(c *ui.Context, label, sublabel string, control func(), below ...func()) bool {
+	return a.rowNote(c, label, sublabel, "", control, below...)
+}
+
+// rowNote is row with one more line: a warning-coloured note under the
+// description, for the one thing a row has to disclose rather than describe
+// (the clipboard's privacy line). An empty note draws nothing.
+func (a *App) rowNote(c *ui.Context, label, sublabel, note string, control func(), below ...func()) bool {
+	return a.rowAligned(c, ui.Center, label, sublabel, note, control, below...)
+}
+
+// rowTop is rowNote with the control pinned to the row's first line rather
+// than centred on it: a row whose copy runs to several lines (a base plugin's
+// name, its description and its privacy line) keeps its control beside the
+// name, as the reference's `.extensions-base-plugin` did with
+// `align-items: flex-start`.
+func (a *App) rowTop(c *ui.Context, label, sublabel, note string, control func(), below ...func()) bool {
+	return a.rowAligned(c, ui.Start, label, sublabel, note, control, below...)
+}
+
+// rowAligned is the row both helpers share; align places the control across
+// the row's axis.
+func (a *App) rowAligned(c *ui.Context, align ui.Align, label, sublabel, note string, control func(), below ...func()) bool {
 	tokens := a.tokens(c)
 	t := c.Theme()
 	inset := t.Space(3.5)
@@ -91,7 +113,7 @@ func (a *App) row(c *ui.Context, label, sublabel string, control func(), below .
 		// second line at the body step (500, muted). The press is the control
 		// material's own: less opaque than the resting pane, so a row the user
 		// is about to activate sinks into the glass.
-		row := ui.Row(c).FillWidth().Gap(t.Space(3)).AlignItems(ui.Center).
+		row := ui.Row(c).FillWidth().Gap(t.Space(3)).AlignItems(align).
 			MinHeight(t.Space(11)).Padding(t.Space(1.5), inset)
 		switch {
 		case row.Pressed():
@@ -105,6 +127,9 @@ func (a *App) row(c *ui.Context, label, sublabel string, control func(), below .
 				ui.Text(c, label).FontSize(t.FontSize + 1).FontWeight(580).TextColor(tokens.TextStrong)
 				if sublabel != "" {
 					ui.Text(c, sublabel).FontSize(t.FontSize).FontWeight(500).TextColor(t.TextMuted)
+				}
+				if note != "" {
+					ui.Text(c, note).FontSize(t.FontSize).FontWeight(500).TextColor(t.Warning)
 				}
 			})
 			if names.Clicked() {
