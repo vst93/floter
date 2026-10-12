@@ -1489,6 +1489,68 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
    （i18n 的 `FreshnessRelative`，en/zh 逐字对齐 `Intl.RelativeTimeFormat` 的短词形，含「yesterday」
    「前天」「上个月」「去年」）；45s 阈值回到旧版的 `< 45s`。
 
+### 具体待办（P7-bd 重写；第 1 条本轮落地）
+
+> P7-bb 的清单已全部落地、P7-an 的 1–8 只剩一次性维护者动作，所以这一轮先把「尚未做」重新写实。
+> 每条都带 file:line、原版对照与验收标准，供后续轮次逐条取用。第 1 条本轮已实现。
+
+1. **运行失败的「键 + JSON 负载」与逐语言渲染（本轮落地）**
+   - 原版：`src-tauri/src/extensions/run_error.rs`——后端只发**稳定键 + JSON 负载**的字符串
+     `key:{json}`（`program_missing` / `program_not_executable` / `spawn_failed` / `timed_out` …），
+     负载字段是 `path`/`language`/`names`/`searched`/`detail`/`seconds`/`extension_id`/`reason`/`error`；
+     `spawn_failed`（`run_error.rs:135`）把 `NotFound` 映射成 `run_program_missing`、`PermissionDenied`
+     映射成 `run_program_not_executable`，其余保留 OS 原文进 `run_spawn_failed`；`run-errors.ts` 的
+     `parseRunError`（保守：键必须 `run_` 起头、负载必须是 JSON 对象、未知键不认）、`runErrorMessage`，
+     `src/i18n.ts:751-764` 的 10 条 `settings.extensions.runError*`（en/zh）。
+   - 本构建：`internal/extensions/run.go:133` 超时返回 `fmt.Errorf("extensions: %s timed out after %s")`、
+     `run.go:144` 生成失败返回 `&ProviderError{}`（`provider.go:104` 一律英文 prose）；`internal/launcher/output.go:80`
+     的 `RunStatus` 与 `output.go:132` 的 `view.Text = err.Error()` 直接把 prose 交出去；`grep runError
+     internal/i18n` 为空——10 个键一个都没有。
+   - 验收：新增 `internal/extensions/runfailure.go`（纯：`RunErrorKey` 常量集、`RunFailure{Key,Payload}`、
+     `Error()` 发 `key:{json}`、`ParseRunFailure` 复刻保守解析、`RunSpawnFailure` 复刻 OS 错误→键的映射）；
+     `runCaptured` 的超时与 spawn 失败改为发键；launcher 在输出视图文本与一行状态里按语言渲染，未识别的
+     消息**原样返回**；`i18n.Settings` 新增 10 个 `RunError*` 句子（en/zh 逐字对齐旧字典）；测试钉解析
+     （含 `run_param_required:note` 不认）、OS 错误映射、en/zh 各一句。
+2. **后台运行完成通知的时长词形与输出行数**
+   - 原版：`src/extensions/run-routing.ts:41` 的 `formatRunDuration`（<1000ms → `420 ms`，否则 → `3.4 s`，
+     非有限/负 → `0 ms`）、`:99-111` 的 `runOutputSummary` + `runOutputLineCount`（两个流按序拼接、
+     一个尾换行不额外算行、恰好一个换行仍是一行、空捕获是 0 行、截断时尾巴换成 `truncated at 64 KB`）；
+     `src/ExtensionsPanel.tsx:1759-1775` 的成功 toast 串成 `{name} finished in {duration} · {lines} lines of output`；
+     `src/i18n.ts:740-749` 的四个键。
+   - 本构建：`internal/launcher/output.go:316-318` 只 `fmt.Sprintf("%.1fs")`；`internal/shell/shell.go:2204`
+     的通知是 `CommandFinished(name) + " · " + CommandStatus(status)`，没有时长词形也没有行数；i18n 无四个键。
+   - 验收：新增纯函数 `FormatRunDuration`/`RunOutputLineCount`/`RunHasOutput` 与 i18n 四键，成功通知按原版
+     串法（失败通知不带行数）；测试钉 `<1000/≥1000/NaN/负` 与 `""`/`"\n"`/`"a\nb"`/尾换行 边界。
+3. **面板手动 Run 按 manifest 的 `output` 路由分流**
+   - 原版：`src/ExtensionsPanel.tsx:1746-1795`——`outcome.route === "terminal"` 才打开终端，否则把捕获的
+     output 存进该行、成功时 toast（带 `customViewOutput`）；`run-routing.ts:52` 的 `DEFAULT_OUTPUT_MODE`。
+   - 本构建：`internal/settingsui/settingsui.go:2641` 的 Run 按钮 → `shell.go:1769` 的 `runWithParams`
+     **无条件** `a.runCommand(entry, argv)`（`shell.go:2158` 直接 `Terminal.RunCommand` + `Open(SurfaceTerminal)`），
+     完全忽略 manifest 的 `output`——`background` 的集成在面板里点 Run 也开终端。
+   - 验收：`runWithParams` 读 `integration.Manifest.Output`，`background` 走 `runCommandCaptured` 并把结果存进
+     该行，`terminal` 保持现状；测试钉两种路由各走各的。
+4. **集成行的「最近一次输出」块**
+   - 原版：`src/extensions/ExtensionRow.tsx:480-520`——可折叠、固定高度滚动的输出块，空输出有
+     `customNoOutput`、截断在头部有 `customOutputTruncated`、尾部有 `customOutputTruncatedTail`，
+     隐藏按钮 aria 是 `customHideOutput`。
+   - 本构建：`internal/settingsui/settingsui.go` 的卡片里没有输出块；`grep -i lastOutput internal/i18n` 空；
+     后台运行的 `CapturedRun`（`extensions/run.go:28`）根本不进面板（只进 launcher 的输出视图）。
+   - 验收：卡片有该块（四态、固定高度滚动、数据来自第 3 条的 per-integration 记录）；测试钉四态。
+5. **不可用运行时的失败原因本地化（R11）**
+   - 原版：`src/extensions/binding-errors.ts`——后端发 `binding-changed:{"path":…}` /
+     `binding-missing:{"path":…}`，`failureReason(code, detail, t)` 本地化并认旧版英文句（`Executable
+     fingerprint changed at …`）以迁移已落盘记录；`src-tauri/src/extensions/error_codes.rs` 的
+     `ProviderErrorCode`（`binding-missing`/`binding-changed`/…）；`src/i18n.ts` 的
+     `bindingChangedDetail`/`bindingMissingDetail`/`errorCode.*`。
+   - 本构建：`internal/extensions/provider.go:37` 的 `ResolveRuntime` 返回 prose（`is not on the search path`
+     / `no %s interpreter is available`），既没有键也不落进 repository 的 `lastErrorCode`/`brokenReason`；
+     `internal/settingsui/settingsui.go:1126,1425` 只画状态词（`IntegrationsBroken`），`BrokenReason` 全仓无人读
+     （`grep -rn BrokenReason internal/settingsui` 空）。
+   - 验收：`ResolveRuntime` 的失败变键+负载，健康检查/探测失败时写 `lastErrorCode`+`brokenReason`；卡片状态行
+     渲染本地化原因（认旧英文句，认不出则保留原句）；测试钉键与两语言渲染。
+
+> 下一轮从第 2 条开始（第 1 条本轮已落地）；第 3、4 条互相依赖，宜连着做。
+
 **P7-at manifest 的 `compatibility` 区间在落盘前生效（本轮）**
 
 - **依赖检查**：`go.mod` 已是 v0.4.7，`curl .../releases/latest` 与 go proxy 都确认 v0.4.7 仍是最新，
