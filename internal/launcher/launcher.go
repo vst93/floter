@@ -1063,16 +1063,25 @@ func (a *App) selectedClip() (clipboard.Entry, bool) {
 	return *results[a.Selected].clip, true
 }
 
-// enterCommand starts typing an extension command's arguments: the field
-// holds its argv, and the list offers the command's declared arguments.
-// enterCommand opens an extension command's mode: the scope marker names the
-// command beside the field, and the field holds its argv — the trigger word is
-// consumed, as `enterPluginMode` did (the field is emptied, not kept).
+// enterCommand opens an extension command's mode from its own row: the scope
+// marker names the command beside the field, and the list offers the command's
+// declared arguments. The field starts empty — the trigger word was consumed,
+// as `enterPluginMode` did. Tab's entry has no argv to carry; the trigger-word
+// path carries one (see enterCommandWith).
 func (a *App) enterCommand(entry extensions.CommandEntry) {
+	a.enterCommandWith(entry, "")
+}
+
+// enterCommandWith opens a command's mode with the argv the trigger line
+// already carried: `jv -f ` opens the mode with `-f` in the field, exactly as
+// the old build's trigger entry read it (the word is consumed, the rest is the
+// field). Tab's entry has no argv to carry and calls this with the empty
+// string.
+func (a *App) enterCommandWith(entry extensions.CommandEntry, argv string) {
 	copied := entry
 	a.mode = &copied
 	a.modeWord = entry.Command.ID
-	a.Query = ""
+	a.Query = argv
 	a.Selected, a.chosenRow = 0, -1
 	a.pendingCaret = true
 }
@@ -1084,11 +1093,14 @@ func (a *App) leaveCommand() {
 	a.Selected, a.chosenRow = 0, -1
 }
 
-// syncTypedMode enters a built-in mode when the user types its trigger word
-// followed by a space, as the old build did: the word names the plugin and
-// everything after it is the needle, so `clip foo` is the clipboard mode
-// without a trip through the command list. A bare word stays an ordinary
-// query, which is what makes entering and leaving one keystroke.
+// syncTypedMode enters a mode when the user types its trigger word followed by
+// a space, as the old build did: the word names the plugin and everything after
+// it is the needle, so `clip foo` is the clipboard mode without a trip through
+// the command list. An extension command's own trigger word works the same way
+// (`jv -f ` opens the command's mode with `-f` as its argv), which is the
+// transition the field's own nudge promises and the `␣` keycap points at. A
+// bare word stays an ordinary query, which is what makes entering and leaving
+// one keystroke.
 func (a *App) syncTypedMode() {
 	if a.mode != nil || a.clipboard || a.browser || a.calculatorMode || a.files {
 		return
@@ -1106,7 +1118,32 @@ func (a *App) syncTypedMode() {
 		a.enterCalculatorWord(a.Query)
 	case wordIn(word, filesWords):
 		a.enterFiles()
+	default:
+		// An extension command's own trigger word: `jv ` enters the command's
+		// mode, the transition the field's nudge promised ("one space then
+		// enters the mode") and the one the catalog row's `␣` keycap points
+		// at. The built-ins win the namespace, exactly as their parsers do,
+		// so a command named after one is still reachable by its id.
+		if entry, ok := a.commandForTrigger(word); ok {
+			a.enterCommandWith(entry, strings.TrimSpace(a.Query[len(word):]))
+		}
 	}
+}
+
+// commandForTrigger resolves a whole trigger word to the command that owns it:
+// the same vocabulary the field's nudge reads (id, name, alias — each first
+// word, see commandTriggers), so the nudge and the transition cannot disagree.
+// The first command in the catalog wins, which is the order the rows are
+// listed in.
+func (a *App) commandForTrigger(word string) (extensions.CommandEntry, bool) {
+	for _, entry := range a.Commands {
+		for _, trigger := range commandTriggers(entry) {
+			if strings.EqualFold(trigger, word) {
+				return entry, true
+			}
+		}
+	}
+	return extensions.CommandEntry{}, false
 }
 
 // modeWord is the query's first word and whether whitespace follows it, the
@@ -1456,7 +1493,8 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 					key := ui.Row(c).Shrink(0).MinWidth(t.Space(4.5)).Height(t.Space(4.5)).
 						Padding(0, t.Space(1)).Radius(tokens.RadiusXS).
 						Border(1, tokens.ControlEdge).Background(tokens.Control).
-						AlignItems(ui.Center).Justify(ui.Center)
+						AlignItems(ui.Center).Justify(ui.Center).
+						Tooltip(copy.DirectOutputHint)
 					key.InsetShadow(0, 1, 0, 0, tokens.LensRim)
 					key.Children(func() {
 						ui.Text(c, "\u2423").FontSize(tokens.Caption).TextColor(tokens.TextSecondary)

@@ -98,7 +98,24 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-**P7-s 列表协议的分页（本轮）**
+**P7-t 触发词进模式（本轮）**
+- **根因**：字段自己的提示说「一个空格进入该命令的模式」（`TriggerHint` 的「· 进入」），
+  直出命令的行尾还有一颗 `␣` 键帽（R65）——但 `syncTypedMode` **只认内置模式**（剪贴板/浏览器/
+  计算器/文件），外部命令的触发词路径从未接线。于是提示与键帽都在承诺一个不存在的转换：
+  敲 `jv ` 只是给查询加了个空格。
+- **修法**：`syncTypedMode` 的 `default` 分支接上外部命令——`jv ` 进入该命令的模式（触发词被消耗，
+  其后的内容成为字段里的 argv，`jv -f ` 进去就是 `-f`），与旧版 `externalPluginModeEntry` 同一读法。
+  词表复用提示自己的 `commandTriggers`（id / 名字首词 / 别名首词），两处**不可能再分歧**；
+  内置模式仍先占命名空间，与它们各自的解析器一致。
+- **键帽的 tooltip**：`␣` 的注释声称「说明在行内 tooltip 里」，但代码里**没有任何 `Tooltip` 调用**
+  （全仓都没有）。补上 `Element.Tooltip(copy.DirectOutputHint)`（旧版 `launcher.directOutputHintTitle`
+  的中英文原文），并给 `i18n.Launcher` 加 `DirectOutputHint`（完整性测试自动覆盖）。
+- **测试**：`TestTriggerWordEntersTheCommandMode`（id/名字/别名、argv 携带、裸词不进）、
+  `TestBuiltInTriggerWordsWinTheNamespace`、`TestTypingATriggerWordAndSpaceEntersTheCommandMode`
+  （编辑器端到端）、`TestDirectOutputRowCarriesTheSpaceKeycapTooltip`（悬停 700ms 后 tooltip 真出现）、
+  `TestSpaceKeycapGestureRunsTheDirectOutputCommand`（空格 → 模式 → 回车 → 输出落在搜索区）。
+
+**P7-s 列表协议的分页**
 - **协议**：`extensions.ParseEmission` 除了裸数组（一份完整列表），现在也读对象形态
   `{"output": [...], "page": {cursor, hasMore}}`；`page` 块格式不合法就被丢掉而不是猜
   （cursor 不是字符串就是起点、hasMore 严格布尔）——猜一个续页正是列表静默循环的来源。
@@ -555,11 +572,12 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 ## 已知差距（框架不支持，诚实记录）
 
 - **普通页 Tab 展开命令行**：旧版普通页里 Tab 把选中的命令行**展开成完整命令行文本**
-  （`setQuery(commandLine)`），参数补全要走"触发词+空格"的参数模式。本构建 Tab **直接进入参数
-  模式**、列出该命令自己的补全——同一个能力的另一扇门（R80 的静态补全仍然都在）。
-- **直接输出的空格交互**：旧版 R65 的直接输出模式里，行尾有一颗 `␣` 提示（tooltip 讲解），
-  按空格在搜索框里运行命令、输出直接显示在结果区。本构建的后台输出走"通知 + 输出视图"，
-  命令行不带 `␣` 标记，也没有"空格直接运行"的路径——输出视图是同一能力的另一个门。
+  （`setQuery(commandLine)`）。本构建 Tab **直接进入参数模式**、列出该命令自己的补全——同一个能力
+  的另一扇门（R80 的静态补全仍然都在）。**触发词+空格**这条旧版的入口已在 P7-t 补上，两条路
+  现在都通。
+- ~~直接输出的空格交互~~ **已完成（P7-t）**：旧版 R65 的行尾 `␣` 提示（tooltip 讲解）与
+  「敲命令名 + 空格进入直出模式、输出显示在结果区」的路径都已接线；本构建的后台输出视图
+  就是同一个结果区。
 - **终端选中即复制 / 滚动条 / bracketed paste**：见下面的终端外观条目。
 - ~~插件模式的 scope 标记~~ **已完成（P7-m）**：进入模式消耗触发词并清空字段，输入框左侧画
   `图标 + 模式名`（`.collapsed-card__scope`）；模式内的搜索/补全把字段当 needle；Esc 离开时
@@ -617,10 +635,14 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 7. **P6 发布链**：剩下的是一次性维护者动作——`mygo keygen` 生成更新密钥、`mygo.json` 填 `updates`
    与 `macos.signingIdentity`/`macos.notarize`、CI 注入私钥、把产物发到 GitHub Release（含预发布通道）。
 8. **小项**：开机自启需要在真实打包应用上验证一次；
-   （命令别名编辑已完成：Integrations 页每命令一个输入框，P4-y；脚本语言表单已完成，P7-h。）
-   **能力探测**（manifest `lifecycle.probes` 的执行与 `probeReport`，Go 侧「检查」目前走 diagnose）；
+   （命令别名编辑已完成：Integrations 页每命令一个输入框，P4-y；脚本语言表单已完成，P7-h；
+   能力探测已完成：manifest `lifecycle.probes` 的执行与 `probeReport` 都在，见 P3-n；
+   触发词进模式已完成，见 P7-t。）
    旧版 `package.json` 归档字段。（导入导出的权限审批已改为**一次汇总**，
    与旧版一致；旧版 `launch_counts` 已在启动时一次性导入 `usage.json`，本构建的记录优先。）
+
+> 上面 1–8 已全部完成或只剩一次性维护者动作，所以这一轮的入口是第 3 条：对照原版实现做系统
+> 排查。P7-t 就是这一轮找到的偏离点——提示与键帽都在承诺一个从未接线的转换。
 
 ## 注意事项（踩过的坑）
 

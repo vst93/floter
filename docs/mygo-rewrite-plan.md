@@ -953,6 +953,20 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
 - 本机发现闭环：`Detected`（多源 inventory 的候选，排掉仓库已有的，封顶）+ 一键连接；`floter://register`
   现在真的解析名字并连接；「从文件夹安装」加入本地包安装的门。
 
+### P7-t 触发词进模式与键帽的 tooltip（已做）
+
+- **偏离点**：字段自己的提示（`TriggerHint`，「{name} · 进入」）与直出命令行尾的 `␣` 键帽（R65）
+  都在承诺「一个空格进入该命令的模式」，但 `syncTypedMode` 只认内置模式（剪贴板/浏览器/计算器/
+  文件），外部命令的触发词路径从未接线——敲 `jv ` 只是给查询加了个空格。注释还说键帽的说明
+  「在行内 tooltip 里」，而全仓没有任何 `Tooltip` 调用。
+- **修法**：`syncTypedMode` 的 `default` 分支接上外部命令，`jv ` 进入该命令的模式（触发词被消耗，
+  其后内容成为字段里的 argv），与旧版 `externalPluginModeEntry` 同一读法；词表复用提示自己的
+  `commandTriggers`（id / 名字首词 / 别名首词），两处不可能再分歧；内置模式仍先占命名空间。
+- **键帽 tooltip**：`Element.Tooltip(copy.DirectOutputHint)`（旧版 `launcher.directOutputHintTitle`
+  的中英文原文），`i18n.Launcher` 新增 `DirectOutputHint`。
+- **测试**：触发词（id/名字/别名）进模式、argv 携带、裸词不进、内置优先、编辑器端到端、
+  悬停 700ms 后 tooltip 真出现、空格→模式→回车→输出落在搜索区。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。

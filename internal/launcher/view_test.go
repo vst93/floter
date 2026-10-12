@@ -2074,3 +2074,89 @@ func TestPlainWIsALetterNotTheHide(t *testing.T) {
 		t.Errorf("query = %q, want the w in the field", a.Query)
 	}
 }
+
+// The transition the field's nudge promises, end to end through the editor:
+// typing a command's trigger word and a space opens the command's mode, so
+// the nudge ("one space then enters the mode") is not a claim the app cannot
+// keep. The word is consumed; the mode's scope marker names the command.
+func TestTypingATriggerWordAndSpaceEntersTheCommandMode(t *testing.T) {
+	a := commandApp()
+	a.Query = ""
+	tt := render(t, a)
+	tt.Type("jv")
+	tt.Frame()
+	if !tt.HasText("JSON Viewer") {
+		t.Fatalf("the command row is not in the list: %q", tt.Texts())
+	}
+	tt.Type(" ")
+	tt.Frame()
+	if a.mode == nil {
+		t.Fatalf("space did not enter the command mode: %q", tt.Texts())
+	}
+	if a.Query != "" {
+		t.Errorf("the trigger word was not consumed: %q", a.Query)
+	}
+	if !tt.HasText("Enter runs it") {
+		t.Errorf("the mode's own hint is missing: %q", tt.Texts())
+	}
+}
+
+// A command whose output the launcher shows carries the space keycap, and the
+// keycap says what it means: the sentence rides it as a tooltip, so the bare
+// `␣` is not an unexplained mark. The tip shows once the pointer rests.
+func TestDirectOutputRowCarriesTheSpaceKeycapTooltip(t *testing.T) {
+	a := testApp()
+	a.SetCommands([]extensions.CommandEntry{{
+		IntegrationID: "x", IntegrationName: "X",
+		Command: extensions.Command{ID: "jv", Name: "JSON Viewer"},
+		Program: "/bin/echo", Mode: "pty", Route: extensions.RouteBackground,
+	}})
+	tt := render(t, a)
+	tt.Type("jv")
+	tt.Frame()
+	rect, ok := tt.Find("\u2423")
+	if !ok {
+		t.Fatalf("the direct-output row has no space keycap: %q", tt.Texts())
+	}
+	hint := a.copy().DirectOutputHint
+	if hint == "" {
+		t.Fatal("the keycap has no copy to show")
+	}
+	tt.Move(rect.X+rect.W/2, rect.Y+rect.H/2)
+	// The tip waits for the pointer to rest (Base UI's 600ms).
+	time.Sleep(700 * time.Millisecond)
+	tt.Frame()
+	if !tt.HasText(hint) {
+		t.Errorf("the keycap has no tooltip: %q", tt.Texts())
+	}
+}
+
+// The `␣` keycap's gesture, end to end: the command's trigger word and a space
+// open its mode, and Enter runs it — the output lands in the search box, which
+// is what the keycap promised.
+func TestSpaceKeycapGestureRunsTheDirectOutputCommand(t *testing.T) {
+	a := testApp()
+	a.SetCommands([]extensions.CommandEntry{{
+		IntegrationID: "x", IntegrationName: "X",
+		Command: extensions.Command{ID: "list", Name: "List things"},
+		Program: "/bin/sh", Args: []string{"-c", "echo hi"},
+		Route: extensions.RouteBackground,
+	}})
+	captured := 0
+	a.Actions.RunCommandCaptured = func(_ extensions.CommandEntry, _ []string, done func(extensions.CapturedRun, error)) {
+		captured++
+		done(extensions.CapturedRun{Command: []string{"list"}, Stdout: "hi\n", Success: true}, nil)
+	}
+	tt := render(t, a)
+	tt.Type("list ")
+	tt.Frame()
+	if a.mode == nil {
+		t.Fatalf("space did not enter the command mode: %q", tt.Texts())
+	}
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if captured != 1 || !a.InOutputView() || !tt.HasText("hi") {
+		t.Errorf("the space gesture did not run the command: captured=%d output=%v texts=%q",
+			captured, a.InOutputView(), tt.Texts())
+	}
+}

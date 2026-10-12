@@ -85,6 +85,10 @@ type Launcher struct {
 	// CommandModeHint is the field's hint while an extension command's
 	// arguments are typed.
 	CommandModeHint string
+	// DirectOutputHint is the tooltip of a row's space keycap: the command's
+	// output is shown in the search box rather than in a terminal, so the row
+	// carries a bare `␣` and this sentence behind it.
+	DirectOutputHint string
 	// ResultsLabel names the results list for assistive technology.
 	ResultsLabel string
 	// The built-in commands the P1 catalog offers.

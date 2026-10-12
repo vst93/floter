@@ -109,3 +109,65 @@ func TestTriggerHintFits(t *testing.T) {
 		t.Errorf("the nudge was kept in a narrow window: %q", narrow.Texts())
 	}
 }
+
+// The nudge's other half: the transition it promises. A whole trigger word
+// followed by a space enters the command's mode — the word is consumed, and
+// whatever followed it is the argv the field starts with. The vocabulary is
+// the same list the nudge reads (id, name, alias), so the two cannot disagree.
+func TestTriggerWordEntersTheCommandMode(t *testing.T) {
+	a := testApp()
+	a.SetCommands([]extensions.CommandEntry{{
+		IntegrationID: "x", IntegrationName: "X",
+		Command: extensions.Command{
+			ID: "jv", Name: "JSON Viewer", Aliases: []string{"json"},
+		},
+		Program: "/bin/echo", Mode: "pty",
+	}})
+	for _, typed := range []string{"jv ", "JSON ", "json ", "jv -f "} {
+		a.mode = nil
+		a.Query = typed
+		a.syncTypedMode()
+		if a.mode == nil {
+			t.Errorf("typing %q did not enter the mode", typed)
+			continue
+		}
+		if a.mode.Command.ID != "jv" {
+			t.Errorf("typing %q entered %q, want jv", typed, a.mode.Command.ID)
+		}
+	}
+	// The rest of the line is the argv: the word itself is consumed.
+	a.mode = nil
+	a.Query = "jv -f "
+	a.syncTypedMode()
+	if a.mode == nil {
+		t.Fatal("jv -f  did not enter the mode")
+	}
+	if a.Query != "-f" {
+		t.Errorf("the mode's argv = %q, want -f", a.Query)
+	}
+	// A bare word is still an ordinary query: entering takes the space.
+	a.mode = nil
+	a.Query = "jv"
+	a.syncTypedMode()
+	if a.mode != nil {
+		t.Error("a bare trigger word entered the mode")
+	}
+}
+
+// The built-ins win the namespace, exactly as their parsers do: a command
+// named after one cannot shadow its mode.
+func TestBuiltInTriggerWordsWinTheNamespace(t *testing.T) {
+	a := testApp()
+	a.SetCommands([]extensions.CommandEntry{{
+		Command: extensions.Command{ID: "clipboard", Name: "Clipboard thing"},
+		Program: "/bin/echo", Mode: "pty",
+	}})
+	a.Query = "clipboard "
+	a.syncTypedMode()
+	if a.mode != nil {
+		t.Errorf("a command named after the built-in shadowed its mode: %q", a.mode.Command.ID)
+	}
+	if !a.clipboard {
+		t.Error("the built-in clipboard mode did not open")
+	}
+}
