@@ -15,6 +15,8 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+
+	"github.com/egoist/mygo"
 )
 
 // DetachedStateKeyPrefix is the key a detached output window's geometry is
@@ -83,7 +85,7 @@ func MigrateLegacyWindowState(configDir string) (WindowStateReport, error) {
 	if err := json.Unmarshal(data, &store); err != nil {
 		return WindowStateReport{Reason: "parse-failed"}, err
 	}
-	states := map[string]windowState{}
+	states := map[string]mygo.WindowState{}
 	for content, entry := range store.Windows {
 		if content == "" {
 			continue
@@ -144,16 +146,10 @@ type legacyGeometryStore struct {
 	Default *legacyGeometry                 `json:"default"`
 }
 
-// windowState is the framework's own per-key shape.
-type windowState struct {
-	X      int `json:"x"`
-	Y      int `json:"y"`
-	Width  int `json:"width"`
-	Height int `json:"height"`
-}
-
-func toWindowState(g legacyGeometry) windowState {
-	return windowState{
+// toWindowState converts the old build's geometry into the framework's own
+// per-key shape, the one window-state.json carries and WindowStore keeps.
+func toWindowState(g legacyGeometry) mygo.WindowState {
+	return mygo.WindowState{
 		X:      int(math.Round(g.X)),
 		Y:      int(math.Round(g.Y)),
 		Width:  int(math.Round(g.Width)),

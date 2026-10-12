@@ -367,3 +367,29 @@ opt-in（`FLOTER_TERMINAL_TEST=1`、`FLOTER_SQLITE_TEST=1`、`FLOTER_REGISTRY_TE
   死代码；R66 注释写明「窗口精确跟随内容」。且 `src/launcher/terminal-row.ts` 的
   `bareTerminalPlacement` 对**非空 query 返回 null**——「有 query 时不出现」是原版语义，保留。
 - **修法**：`HoldRows` 精确跟随内容；测试见 `shell/heldmodifier_test.go`。
+
+## 2026-10-13 · mygo v0.4.6：逐条评估与采用
+
+- **版本**：`go.mod` 已是 `v0.4.6`（无需升级），门槛基线先跑绿。八条 release notes 逐条读
+  源码（`$(go env GOMODCACHE)/github.com/egoist/mygo@v0.4.6/`）与 v0.4.5 对 diff 后：
+
+  | release notes | 本项目用点 | 结论 |
+  | --- | --- | --- |
+  | #253 WebView 背景可改 | 无 webview：窗口是 `Content: ui.View(...)` 的原生 UI，`Window.SetBackgroundColor` v0.4.5 就有 | **不用**（无 web view；窗口 Transparent+Vibrancy，填底色反而毁透明） |
+  | #254 终端 `Options.OnScroll` 接管滚轮 | 终端是本机 PTY，scrollback 在插件内 | **不用**（该钩子给「历史在对端」的 `Conn`，本机无对端；插件不暴露自定义滚动步长的接口） |
+  | #252 进场元素非动画轴跟随布局 | 启动器行/反馈条/终端便签的 `Enter` | **自动生效**（`ui/transition.go` 的 `follow`，无需接线） |
+  | #248 文本布局缓存有界工作集 | 启动器列表、终端文本 | **自动生效**（`internal/text/layout.go`） |
+  | #257 仅在视图显示焦点时因焦点变化重绘 | 隐藏/唤出频繁的面板 | **自动生效**（`ui/input.go` 的 `focusChanged`，省 GPU 驱动内存） |
+  | #260 窗口状态存进应用自选的 store | 独立插件窗/钉住文本窗的 `StateKey` | **采用**（见下） |
+  | #249 从按钮内部拖动 | 本应用无 Draggable 列表（v0.4.5 已判「不用」） | **不用**（结论不变：没有可重排列表/拖动定位控件） |
+  | #258/#259 裁剪遮罩按 run 光栅化 + 跨帧保留 | 圆角卡片、滚动裁剪 | **自动生效**（`internal/raster/clipmask.go`，多核） |
+
+- **采用 #260 `App.SetWindowStateStore`**：新增 `settings.WindowStore`（`windowstore.go`），
+  把框架的窗口几何存进 **settings.json** 的 carried key `window_states`——与其余设置同一文件、
+  同一个原子写与备份回退。`window-state.json`（迁移产物）作为**一次性种子**：首次加载时若
+  settings.json 还没有该 key，就从它读入，升级到本构建不会丢已记住的独立窗位置。
+  迁移代码不再自带一份 `windowState` 结构，直接用 `mygo.WindowState`。
+- **测试**：`settings.TestWindowStoreRoundTripsThroughTheSettingsFile`（settings.json 里确有
+  `window_states` 且不吞掉其它设置）、`TestWindowStoreRoundTripsInMemory`、
+  `TestWindowStoreSeedsFromTheMigratedFile`、`TestWindowStoreWithoutStates`。
+- **纪律**：其余条目是框架内部改动，升级即得，不为了「用上 API」去改产品行为。

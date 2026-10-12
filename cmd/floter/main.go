@@ -51,6 +51,13 @@ func main() {
 		log.Printf("floter: settings %s", path)
 	}
 
+	// Window state (the detached output windows and the pinned text window)
+	// lives in the settings file, through the app's own store, rather than in
+	// mygo's separate window-state.json. The migration above seeds it the
+	// first time from that file, so an in-place upgrade keeps the geometry the
+	// user left. Set before the first window with a StateKey is created.
+	mygo.App.SetWindowStateStore(settings.NewWindowStore(store))
+
 	app := shell.New(shell.Options{Store: store, RefreshIntegrations: true})
 
 	mygo.App.OnSecondInstance(func(args []string, workingDir string) {

@@ -7,6 +7,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/egoist/mygo"
 )
 
 // writeFile creates the parent directories and writes content.
@@ -306,7 +308,7 @@ func TestMigrateLegacyWindowStateConvertsPerContentGeometry(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read window-state: %v", err)
 	}
-	var states map[string]windowState
+	var states map[string]mygo.WindowState
 	if err := json.Unmarshal(data, &states); err != nil {
 		t.Fatalf("window-state is not the framework's shape: %v", err)
 	}
