@@ -40,6 +40,13 @@ Tauri + Rust + React 实现（见 `docs/archive/` 与 git 历史），那套代�
 **未知键逐层保留**是这套约定的实现方式：读进来 → 改自己认识的键 → 原样写回。
 新增设置项时不要"重写整个文件"，也不要删掉不认识的值。
 
+**首次运行迁移**（`internal/settings/migrate.go`、`windowstate.go`）：`settings.json`
+与旧版同路径，所以常规情况下 `Load` 已经继承；迁移只覆盖不同路径/格式的遗留物——
+旧版的 `settings.json.backup` 恢复副本、Tauri identifier 目录
+（`com.v.floter` 等）、pre-glass-step 文件的单值玻璃强度拆分，以及旧版
+`plugin-window-geometry.json` → 框架 `window-state.json`。迁移幂等（`migrated-from-old.json`
+即标记）、不覆盖已有数据、迁移前备份，返回 `MigrationReport` 供无头测试断言。
+
 ## 门槛（每次改动都要过）
 
 ```sh

@@ -28,6 +28,10 @@ const (
 	// dirName and fileName are the file's place under the config dir.
 	dirName  = "floter"
 	fileName = "settings.json"
+
+	// backupSuffix is the recovery copy an earlier build wrote beside the
+	// settings file, and the suffix this build reads it back from.
+	backupSuffix = ".backup"
 )
 
 // The shipped defaults. A file that predates a key lands on these.
@@ -244,19 +248,29 @@ func Path() (string, error) {
 // Load reads the settings file at path. A missing file is not an error: it
 // yields the defaults. A file that cannot be read or parsed also yields the
 // defaults, with the error reported so the caller can log it.
+//
+// When the primary file is missing, unreadable or unparseable, Load falls back
+// to the recovery copy an earlier build wrote beside it (`settings.json.backup`),
+// exactly as that build's own reader did. A recovered file is a success: the
+// caller sees the user's settings and no error.
 func Load(path string) (Settings, error) {
 	data, err := os.ReadFile(path)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return Default(), nil
+	if err == nil {
+		if s, parseErr := Parse(data); parseErr == nil {
+			return s, nil
+		} else {
+			err = parseErr
 		}
-		return Default(), err
 	}
-	s, err := Parse(data)
-	if err != nil {
-		return Default(), err
+	if backup, backupErr := os.ReadFile(path + backupSuffix); backupErr == nil {
+		if s, parseErr := Parse(backup); parseErr == nil {
+			return s, nil
+		}
 	}
-	return s, nil
+	if errors.Is(err, os.ErrNotExist) {
+		return Default(), nil
+	}
+	return Default(), err
 }
 
 // LoadDefault reads the settings file at the platform's settings path.
@@ -282,17 +296,27 @@ func Parse(data []byte) (Settings, error) {
 	if v, ok := raw["theme"].(string); ok {
 		s.Theme = v
 	}
-	if v, ok := raw["glass_step"].(string); ok {
-		s.GlassStep = v
+	glassStep, hasGlassStep := raw["glass_step"].(string)
+	if hasGlassStep {
+		s.GlassStep = glassStep
 	}
 	if v, ok := raw["language"].(string); ok {
 		s.Language = v
 	}
-	if n, ok := asInt(raw["main_opacity"]); ok {
-		s.MainOpacity = clampByte(n)
+	mainOpacity, hasMainOpacity := asInt(raw["main_opacity"])
+	if hasMainOpacity {
+		s.MainOpacity = clampByte(mainOpacity)
 	}
 	if n, ok := asInt(raw["terminal_opacity"]); ok {
 		s.TerminalOpacity = clampByte(n)
+	}
+	if !hasGlassStep && hasMainOpacity {
+		// A file written before the glass step existed carried a single
+		// "glass strength" number that drove the tint alpha, the blur and the
+		// saturation at once. Split it across the two controls that replaced
+		// it, exactly as the old build did at read time: the transparency is
+		// half the old value, and the step is the old value's own tertile.
+		splitLegacyGlassStrength(&s, mainOpacity, raw)
 	}
 	if v, ok := raw["ui_scale"].(string); ok {
 		s.UIScale = v
@@ -467,6 +491,41 @@ func NormalizeTheme(theme string) string {
 		}
 	}
 	return DefaultTheme
+}
+
+// splitLegacyGlassStrength splits a pre-glass-step file's single "glass
+// strength" value across the two controls that replaced it: the window
+// transparency is half the old value (rounded up, so 25 -> 13 and 94 -> 47
+// rather than truncating the user's intent downward), and the material step is
+// the old value's own tertile.
+func splitLegacyGlassStrength(s *Settings, legacy int, raw map[string]any) {
+	s.MainOpacity = clampByte(ceilHalf(legacy))
+	if n, ok := asInt(raw["terminal_opacity"]); ok {
+		s.TerminalOpacity = clampByte(ceilHalf(n))
+	}
+	s.GlassStep = legacyGlassStepFor(legacy)
+}
+
+// ceilHalf is integer division by two that rounds to nearest (up on the .5).
+func ceilHalf(value int) int {
+	if value <= 0 {
+		return 0
+	}
+	return (value + 1) / 2
+}
+
+// legacyGlassStepFor maps a pre-glass-step strength onto the three-stop
+// vocabulary: the thin third is frosted, the middle third regular, and every
+// heavy value liquid.
+func legacyGlassStepFor(legacy int) string {
+	switch {
+	case legacy <= 33:
+		return "frosted"
+	case legacy <= 66:
+		return "regular"
+	default:
+		return "liquid"
+	}
 }
 
 // NormalizeGlassStep applies the four-stop whitelist (including `off`) and

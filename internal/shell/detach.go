@@ -9,6 +9,7 @@ import (
 	"floter/internal/extensions"
 	"floter/internal/i18n"
 	"floter/internal/launcher"
+	"floter/internal/settings"
 )
 
 // The detached output window: one captured run in a window of its own, which
@@ -54,7 +55,7 @@ func detachContentKey(entry *extensions.CommandEntry, title string) string {
 
 // detachStateKey is the key the window's own geometry is remembered under, one
 // per content (the old build kept `{width, height, x, y}` per `content_key`).
-func detachStateKey(content string) string { return "detached:\x00" + content }
+func detachStateKey(content string) string { return settings.DetachedStateKeyPrefix + content }
 
 // findDetached returns the open window already showing `key`, or nil.
 func (a *App) findDetached(key string) *detachedOutput {

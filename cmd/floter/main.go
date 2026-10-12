@@ -22,6 +22,21 @@ func main() {
 		return
 	}
 
+	// Inherit an earlier build's settings and window placement on the first run
+	// of this build. Both migrations are conservative: they never overwrite data
+	// the user already has, and they leave a copy of whatever they read beside
+	// the settings file.
+	if report, err := settings.MigrateDefault(); err != nil {
+		log.Printf("floter: settings migration failed: %v", err)
+	} else if report.Migrated {
+		log.Printf("floter: migrated settings from %s (backup %s, %d keys)", report.Source, report.Backup, len(report.Fields))
+	}
+	if report, err := settings.MigrateDefaultWindowState(); err != nil {
+		log.Printf("floter: window-state migration failed: %v", err)
+	} else if report.Migrated {
+		log.Printf("floter: migrated window state from %s (backup %s, %d keys)", report.Source, report.Backup, len(report.Keys))
+	}
+
 	// Read the user's settings.json. A missing or unreadable file is not
 	// fatal: the store falls back to the shipped defaults.
 	path, pathErr := settings.Path()
