@@ -15,6 +15,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"floter/internal/glassmap"
 	"floter/internal/settings"
 )
 
@@ -240,10 +241,15 @@ func For(s settings.Settings, systemDark bool) Tokens {
 	controlHover, controlPress := p.controlHover, p.controlPress
 	track, field := p.track, p.field
 	textSecondary, textTertiary := p.textSecondary, p.textTertiary
-	// The content pane's fill: 0.62 + 0.18 of the main opacity, as
-	// `--glass-content-alpha` had it. The pane carries the fill; the slider
-	// still owns the glass behind it.
-	sunken := float32(0.62 + 0.18*float64(s.MainOpacity)/100)
+	// The content pane rides the frame's own tint (the transparency slider),
+	// so the app's background is what the slider moves: the reference pinned
+	// `--surface-sunken` to a fixed 0.62-0.80 band that hid the frame tint and
+	// made the slider read as dead. The pane is a second sheet of the same
+	// thickness over the frame, so it still composites denser than the frame -
+	// the reference's readability contract. See glassmap.Spec.ContentAlpha.
+	spec := glassmap.SpecFor(s.GlassStep, s.MainOpacity)
+	sunken := spec.ContentAlpha()
+	floatAlpha := spec.FloatAlpha()
 	baseFill := t.Background
 	if appearance == Dark {
 		baseFill = ui.RGB(17, 18, 20)
@@ -257,10 +263,10 @@ func For(s settings.Settings, systemDark bool) Tokens {
 	// rung is the opaque composite of the control-hover lift over the pane
 	// it sits on: it hides the accent and keeps the lift.
 	raisedQuiet := blendOpaque(baseFill, p.controlHover)
-	// A floating pane's fill: the same alpha ladder as the content recess
-	// (base.css derives `--glass-float-alpha` from the tint plus a step, which
-	// lands within a percent of the recess at every stop), in the float
-	// palette's own slightly lighter colour.
+	// A floating pane's fill: the frame's tint plus the reference's fixed step
+	// (`--glass-float-alpha = var(--glass-tint-alpha) + 0.1`), in the float
+	// palette's own slightly lighter colour, so a drawer, dialog or toast is
+	// always denser than the frame it floats over and still follows the slider.
 	floatFill := ui.RGB(24, 25, 29)
 	if appearance == Light {
 		floatFill = ui.RGB(252, 252, 254)
@@ -280,7 +286,7 @@ func For(s settings.Settings, systemDark bool) Tokens {
 		Theme:             &t,
 		Sunken:            baseFill.Alpha(sunken),
 		RaisedQuiet:       raisedQuiet,
-		Float:             floatFill.Alpha(sunken),
+		Float:             floatFill.Alpha(floatAlpha),
 		Caption:           caption,
 		Body:              body,
 		Emphasis:          emphasis,

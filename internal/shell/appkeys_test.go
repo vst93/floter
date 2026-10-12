@@ -161,6 +161,20 @@ func TestVibrancyMaterialIsTranslucent(t *testing.T) {
 	}
 }
 
+// A mode switch must not re-home the panel. The old build only placed the
+// window when it was not already on screen (`show_input`'s `preserve_anchor`),
+// so leaving the settings for the search box kept the position the user had
+// dragged the panel to. Placing on every reveal — which is what `Open` ->
+// `Show` did — yanked that window back to the centre.
+func TestPlacementOnlyOnAFreshReveal(t *testing.T) {
+	if placementForReveal(true) {
+		t.Error("a reveal of a window the user can see must not re-home it (a mode switch is not a summon)")
+	}
+	if !placementForReveal(false) {
+		t.Error("a reveal of a hidden window must re-home it (the old build's summon)")
+	}
+}
+
 // A `floter://register` link names a program the machine already has; the
 // three spellings the old build accepted all reach it, and a name nothing can
 // resolve is refused rather than half-connected. The link is the discovery →

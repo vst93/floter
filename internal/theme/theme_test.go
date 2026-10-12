@@ -108,9 +108,13 @@ func TestStrokes(t *testing.T) {
 	}
 }
 
-// The settings content pane carries its own fill: 0.62 + 0.18 of the main
-// opacity, as `--glass-content-alpha` had it - more solid than the launcher,
-// rising with the transparency slider without ever reaching it.
+// The settings content pane carries its own fill, and it rides the
+// transparency slider: the pane is a second sheet of the frame's own tint, so
+// it composites denser than the frame (the reference's readability contract)
+// while the slider still moves it. The reference pinned `--surface-sunken` to
+// a fixed 0.62 + 0.18 band instead, which stayed ~0.64-0.80 no matter where
+// the slider was and hid the frame tint it sat on - the user read that as
+// "the bottom is opaque and the slider does nothing".
 func TestSunkenFollowsTheOpacity(t *testing.T) {
 	dim := settings.Settings{Theme: "dark", MainOpacity: 10}
 	bright := settings.Settings{Theme: "dark", MainOpacity: 100}
@@ -119,9 +123,14 @@ func TestSunkenFollowsTheOpacity(t *testing.T) {
 	if lowT.Sunken.A >= highT.Sunken.A {
 		t.Errorf("the sunken fill did not rise with the slider: %v vs %v", lowT.Sunken.A, highT.Sunken.A)
 	}
-	// The formula's own floor: at 10% the pane is 0.638, not transparent.
-	if a := float64(lowT.Sunken.A) / 255; a < 0.6 || a > 0.7 {
-		t.Errorf("the low stop alpha = %v", a)
+	// It rides the frame tint, so the low stop is the frame's own 0.505, not
+	// the fixed band's 0.638 that hid it.
+	if a := float64(lowT.Sunken.A) / 255; a > 0.55 {
+		t.Errorf("the low stop alpha = %v, want the frame tint's ~0.505", a)
+	}
+	// And it reaches the near-solid top the slider owns, not a second ceiling.
+	if a := float64(highT.Sunken.A) / 255; a < 0.97 {
+		t.Errorf("the high stop alpha = %v, want the frame tint's ~0.98", a)
 	}
 	// A light appearance sunken fill is the light pane's own colour.
 	lightT := For(settings.Settings{Theme: "light", MainOpacity: 100}, false)

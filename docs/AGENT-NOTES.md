@@ -265,3 +265,52 @@ opt-in（`FLOTER_TERMINAL_TEST=1`、`FLOTER_SQLITE_TEST=1`、`FLOTER_REGISTRY_TE
   旗标；重复只怪后出现的行，空 id 行不算声明。文案用旧版原文（`ParamInvalidID` 等）。
 - **注意**：`issueUnder` 是**文本**不是 `a.row`，不参与卡片行计数器（不画分隔线）。
 - **测试**：`TestParamRowIssues`、`TestConnectFormNamesAnUnfinishedInputAndRefusesToSave`。
+
+## 2026-10-13 · 第二次报告：透明度仍失效 + 模式切换重置窗口位置
+
+用户报告两件事：「透明度还是有问题，底部还是非透明的，无论怎么调节应用透明度都不起作用」
+「在设置页面拖动了应用的位置，返回搜索框时，位置被重置到屏幕中央了」。
+
+### 1 · 透明度：上一轮修的是**材质**，而挡住滑块的**是内容面**
+
+- **上一轮（`7caa60b`）做了什么**：把 `Start()` 的 `VibrancyUnderWindow` 换成
+  `vibrancyFor(runtime.GOOS)`（Windows → Acrylic、macOS → under-window、Linux → None），
+  并加 `TestResolveCarriesMainOpacityIntoTheFill` 钉住 `Resolve(...).Glass.TintAlpha`。
+- **为什么没生效**：`main_opacity` 真正移动的是**帧的 tint**（`glassmap.Frame`，
+  `internal/shell/shell.go:2652` 的 `face.Background(fill)`），但帧上面还压着一层
+  **内容面**：`internal/theme/theme.go:246` 把 `Sunken` 算成固定带
+  `0.62 + 0.18 * main_opacity`（10% → 0.638，100% → 0.80），
+  `internal/launcher/launcher.go:693` 和 `internal/settingsui/settingsui.go:555/563`
+  用它铺满结果列表 / 设置正文。合成 alpha = `1-(1-pane)(1-tint)`，
+  于是整块背景在滑块两端只从 ~0.86 动到 1.0（light）/~0.83 到 1.0（dark），用户读作
+  「拖了没反应」。**窗口材质在这层 fill 的后面**，改 Mica→Acrylic 动不了这个数字——
+  上一轮的测试只钉了被遮住的 `TintAlpha`，所以它绿着而用户看不到变化。
+- **原版怎么做**：`backup/main-pre-mygo` 的 `src/glass-material.ts` 把 `main_opacity`
+  定为「帧的唯一 alpha 真值」：`--glass-frame-alpha = min(--glass-solid-top, max(floor, opacity))`，
+  `--glass-tint-alpha = 1-(1-dim*(1-op))*(1-frame_alpha)`（`src/styles/base.css:417-426`）。
+  内容面 `--glass-content-alpha` 是固定带（`base.css:461`），而浮动面板
+  `--glass-float-alpha = var(--glass-tint-alpha) + 0.1`（`base.css:471`）——即「比帧厚一档、
+  但仍跟着滑块走」。原版把透明度的可见性押在**帧**上（launcher 还另有 0.74 的地板）。
+- **修法**：`glassmap` 补上原版的 `--glass-solid-top: 0.98` 上限（`SpecFor`），并新增
+  `Spec.ContentAlpha()`（内容面就是帧自己的一层，骑在滑块上）和 `Spec.FloatAlpha()`
+  （`tint + 0.1`，原版的浮动公式）。`theme.For` 用它们替换固定的 `Sunken` 带与错误的
+  `Float`（`theme.go:250-252`）。这样应用自己的背景才是滑块移动的东西；
+  实测 dark 0.76→1.0、light 0.81→1.0。
+- **测试**：`internal/shell/transparency_test.go` 渲染 launcher 两端并读内容面 alpha
+  （旧代码在 light 档 0.863→0.996 会失败）；`glassmap.TestContentAndFloatRideTheSlider`；
+  `theme.TestSunkenFollowsTheOpacity` 改成钉新语义；`glassmap` 的 100% 档改成钉 0.98。
+
+### 2 · 位置重置：`Open()` → `Show()` 每次 reveal 都 `placeWindow()`
+
+- **触发点**：设置页的关闭 / ⌘W / Escape 走 `settingsui.Actions.Close`
+  （`internal/shell/shell.go:529`）→ `a.Open(SurfaceLauncher)`；`Open` 末尾无条件
+  `a.Show()`（`shell.go:2228`），而 `Show()` 无条件 `a.placeWindow()`
+  （旧 `shell.go:2452`）。于是「回到搜索框」= 一次 reveal = 一次居中。
+- **原版怎么做**：`backup/main-pre-mygo` 的 `show_input`（`src-tauri/src/lib.rs:1654`）
+  只在 `!preserve_anchor`（`preserve_anchor = state.window_visible`）时调
+  `move_to_default_position`——窗口已经可见时，模式切换**不**重新定位；
+  只有从隐藏被召唤（`reveal_saved_mode`，`lib.rs:1129`）才归位到当前显示器。
+- **修法**：`Show()` 先读 `a.Win.IsVisible()`，只有**从隐藏到显示**才
+  `placeWindow()`（前后各一次，macOS 未 map 的窗口会丢几何）；可见窗口的 reveal
+  只 show/focus。决策抽成纯函数 `placementForReveal(wasVisible)`。
+- **测试**：`shell.TestPlacementOnlyOnAFreshReveal`。

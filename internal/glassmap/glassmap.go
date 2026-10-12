@@ -77,18 +77,32 @@ var stops = map[string]struct {
 	"liquid":  {glass.Regular, 0.2},
 }
 
+// SolidTop is base.css's `--glass-solid-top`: the maxed end of the
+// transparency slider. It is 0.98, not 1, because a fully opaque frame drops
+// the material's sheen and rim into invisibility and reads as paint. It caps
+// the frame's own alpha, exactly as `--glass-frame-alpha = min(solid_top,
+// max(frame_floor, opacity))` did.
+const SolidTop = 0.98
+
+// floatStep is the fixed lift a floating pane carries over the frame's tint,
+// base.css's `--glass-float-alpha = var(--glass-tint-alpha) + 0.1`: a drawer,
+// dialog, toast or resident note is always denser than the frame it floats
+// over, but it still rides the slider.
+const floatStep = 0.1
+
 // SpecFor maps a stored glass_step and main_opacity onto the plugin's
 // parameters. Both inputs are normalized first, so a hand-edited value
 // behaves exactly as the loader would.
 //
 // The panel's fill is the reference's `--glass-tint-alpha`:
 //
-//	1 - (1 - dim*(1 - opacity)) * (1 - opacity)
+//	1 - (1 - dim*(1 - opacity)) * (1 - frame_alpha)
 //
-// — the transparency slider is the frame's own alpha, and the stop's dimming
-// layer raises it, so a thin `frosted` frame does not leave the desktop
-// readable through the copy. The slider is still the only knob that moves the
-// frame: the stop moves the dim, not the alpha truth.
+// with `frame_alpha = min(--glass-solid-top, opacity)`, so the transparency
+// slider is the frame's own alpha and the stop's dimming layer raises it, so a
+// thin `frosted` frame does not leave the desktop readable through the copy.
+// The slider is still the only knob that moves the frame: the stop moves the
+// dim, not the alpha truth.
 func SpecFor(step string, mainOpacity uint8) Spec {
 	normalized := settings.NormalizeGlassStep(step)
 	opacity := settings.NormalizeOpacity(mainOpacity, settings.DefaultMainOpacity)
@@ -101,13 +115,43 @@ func SpecFor(step string, mainOpacity uint8) Spec {
 	if !ok { // only reachable without the loader's normalization
 		stop = stops["regular"]
 	}
-	tint := 1 - (1-stop.dim*(1-alpha))*(1-alpha)
+	frame := min(SolidTop, alpha)
+	tint := 1 - (1-stop.dim*(1-alpha))*(1-frame)
 	return Spec{
 		Enabled:   true,
 		Style:     stop.style,
 		HazeAlpha: stop.dim,
 		TintAlpha: tint,
 	}
+}
+
+// ContentAlpha is the fill alpha of the content pane: the launcher's result
+// list and the settings body (`--surface-sunken`). The pane is a second sheet
+// of the frame's own tint over the frame, so it composites denser than the
+// frame - the reference's readability contract - while still following the
+// transparency slider.
+//
+// The reference pinned the pane to a fixed 0.62-0.80 band instead, which the
+// slider barely moved and which hid the frame tint it sat on: the user read
+// that as "the bottom is opaque and the transparency slider does nothing"
+// (the frame tint moved 0.505 -> 0.98 behind a pane that stayed 0.64 -> 0.80).
+// Riding the tint makes the app's own background the thing the slider moves.
+// The `off` stop keeps an opaque pane, since it has no transparency at all.
+func (s Spec) ContentAlpha() float32 {
+	if !s.Enabled {
+		return 1
+	}
+	return s.TintAlpha
+}
+
+// FloatAlpha is the fill alpha of a floating pane (`--glass-float`): the
+// frame's tint plus floatStep, capped at opaque. A pane that floats over the
+// frame is always denser than it, at every stop, and still follows the slider.
+func (s Spec) FloatAlpha() float32 {
+	if !s.Enabled {
+		return 1
+	}
+	return min(1, s.TintAlpha+floatStep)
 }
 
 // Frame is the panel's own fill: the frame's tint at the reference's

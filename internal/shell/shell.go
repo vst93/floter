@@ -2444,21 +2444,43 @@ func placement(areaX, areaY, areaWidth, areaHeight, windowW, referenceH float64)
 
 // Show reveals the window and takes the focus, arming the blur grace.
 //
-// A summon re-homes the panel, as the old build's own reveal did: the launcher
-// is a summon, so it belongs where the user's attention is rather than wherever
-// the window was dragged to last. The placement happens before the reveal and
-// again after it — macOS drops geometry set on a window that is not yet mapped —
-// and both land in the same frame, so the panel is never seen in between.
+// A summon of a window that is not on screen re-homes the panel, as the old
+// build's own reveal did: the launcher is a summon, so it belongs where the
+// user's attention is rather than wherever the window was dragged to last. A
+// switch of the surface on a window the user can already see does not: the old
+// build's `show_input` only called `move_to_default_position` when
+// `!preserve_anchor` (i.e. `state.window_visible` was false), so returning from
+// the settings to the search box kept the position the user had dragged the
+// panel to. Re-homing here on every `Open` is what yanked that window back to
+// the centre.
+//
+// The placement happens before the reveal and again after it — macOS drops
+// geometry set on a window that is not yet mapped — and both land in the same
+// frame, so the panel is never seen in between.
 func (a *App) Show() {
 	if a.Win == nil {
 		return
 	}
+	rehome := placementForReveal(a.Win.IsVisible())
 	a.shownAt = a.now()
-	a.placeWindow()
+	if rehome {
+		a.placeWindow()
+	}
 	a.Win.Show()
-	a.placeWindow()
+	if rehome {
+		a.placeWindow()
+	}
 	a.Win.Focus()
 	a.Win.Invalidate()
+}
+
+// placementForReveal decides whether revealing the window re-homes it. A
+// window that was not on screen is placed (the old build's reveal re-homed
+// onto the focused monitor); one the user can already see keeps where it is.
+// This is the old build's `preserve_anchor`: a mode switch is not a summon,
+// so it must not centre the panel.
+func placementForReveal(wasVisible bool) bool {
+	return !wasVisible
 }
 
 // residencyHolds reports whether the current surface survives this summon:
