@@ -205,7 +205,10 @@ func shellCommandLine(command string) string {
 }
 
 // isKeywordDir reports a manifest's own spelling for "where the session
-// starts": the two the plugin resolves itself, plus the app's own directory.
+// starts". The registry resolves those words to real directories before an
+// entry gets here (`extensions.WorkingDirectory`), so this only guards a
+// direct caller that still passes a descriptor's word. The two the plugin
+// resolves itself, plus the app's own directory.
 func isKeywordDir(dir string) bool {
 	switch dir {
 	case "", "home", "current", "inherit":

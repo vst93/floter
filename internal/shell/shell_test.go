@@ -1509,7 +1509,6 @@ func TestCapturedCommandReachesTheLauncher(t *testing.T) {
 	entry.Route = extensions.RouteBackground
 	entry.Program = "/bin/sh"
 	entry.Args = []string{"-c", "echo captured"}
-	entry.Dir = ""
 
 	done := make(chan struct{})
 	a.Launcher.Actions.RunCommandCaptured(entry, nil, func(run extensions.CapturedRun, err error) {

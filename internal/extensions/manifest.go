@@ -141,6 +141,17 @@ type Probe struct {
 type Launch struct {
 	Command   LaunchCommand `json:"command"`
 	CWDPolicy string        `json:"cwdPolicy"`
+	// Terminal is what the launch asks of the terminal it runs in. Only the
+	// color changes this host: it decides what TERM and COLORTERM say.
+	Terminal Terminal `json:"terminal"`
+}
+
+// Terminal is the launch's terminal requirement, restricted to the part the
+// host acts on. The schema's other fields (unicode, mouse, bracketed paste,
+// synchronized output, keyboard protocol) describe the pty the framework
+// always provides; they are not read here rather than parsed and ignored.
+type Terminal struct {
+	Color string `json:"color"`
 }
 
 // LaunchCommand is the program and leading arguments of a launch.
@@ -157,6 +168,23 @@ func (l Launch) FixedPath() (string, bool) {
 		return rest, true
 	}
 	return "", false
+}
+
+// terminalEnvironment is the environment the old host gave a launch's terminal
+// (launch.rs `terminal_environment`): the declared color names TERM and
+// COLORTERM, and every launch is named as floter's. The shipped default is the
+// 256-color pair, which is what an absent block means.
+func terminalEnvironment(color string) []string {
+	term, colorterm := "floter-256color", "truecolor"
+	switch strings.ToLower(strings.TrimSpace(color)) {
+	case "none":
+		term, colorterm = "dumb", ""
+	case "8":
+		term, colorterm = "xterm", ""
+	case "256":
+		term, colorterm = "floter-256color", ""
+	}
+	return []string{"TERM=" + term, "COLORTERM=" + colorterm, "TERM_PROGRAM=floter"}
 }
 
 // The shipped protocol defaults, from the schema.

@@ -99,8 +99,8 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-ap 别名说清自己命中了什么 + 扩展命令的别名真的可达** —— 记录在下面的
-> 「具体待办」之后（P7-ao 之后），含对照原版的两处偏离点、修法与门槛。
+> **最新一轮：P7-aq 启动的工作目录与终端要求按清单执行** —— 记录在下面的「具体待办」之后
+> （P7-ap 之后），含对照原版的偏离点、修法与门槛。
 
 **P7-al 被拒绝的深链说出来（本轮）**
 - **依赖检查**：`go list -m -versions github.com/egoist/mygo` 确认 v0.4.5 仍是最新（go.mod 已是 v0.4.5），
@@ -1041,9 +1041,25 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
    加轴 → `AppearanceAxes()` → 抽屉行 → `control`/`settingsui`/`terminalui` 三处测试自动要求）。
 4. **~~死文案清理~~**：已完成（P7-ao）——10 个死键已删，并加了 `TestNoDeadCopy` 守卫
    （反射走 `Copy` 的每个叶子字段，在 `internal/i18n` 之外零 `.字段名` 引用即失败）。
+5. **`cwdPolicy` 的对象形（`projectRoot` / `fixed`）在加载期就让清单失效**（P7-aq 发现，未做）。
+   - 原版：`src-tauri/src/extensions/cwd_policy.rs:64` 的 `CwdPolicy::from_manifest` 接受**两种拼写**——
+     字符串（`inheritActiveSession` / `toolData` / `home`）与对象（`{"policy":"projectRoot",
+     "markers":[...], "maxDepth":n}`、`{"policy":"fixed","path":"/abs"}`）；schema 也是这么写的
+     （`docs/extensions/schemas/floter-extension.schema.json:380-421`）。
+   - 本构建：`internal/extensions/manifest.go:141` 的 `Launch.CWDPolicy` 是 `string`——
+     `json.Unmarshal` 遇到对象直接报错（`cannot unmarshal object into ... type string`），
+     于是**一份 schema 合法的清单被整体拒收**（`manifest.go:198` 的 `LoadManifest`）。
+     顺带 `FixedPath()`（`manifest.go:154`）只认旧的 `"fixed:<abs>"` 字符串，不认对象形。
+   - 验收：`CWDPolicy` 改成带 `UnmarshalJSON` 的类型（字符串与对象两种拼写都能进），
+     `projectRoot` 按 `markers`/`maxDepth` 从「活动会话的 cwd」向上找根（无会话 cwd 时按原版回退链
+     toolData → home）；`fixed` 对象形读到 `path`；非法对象（缺 `policy`、`fixed` 相对路径）在加载期报错。
+     测试：两种拼写的夹具都能 `Refresh` 出命令；对象形非法时 `LoadManifest` 有错。
+     **难点**：本构建没有“活动会话 cwd”（`internal/launcher/search.go:429` 用的是 App 自己的 cwd），
+     所以 `ProjectRoot` 的 marker 行走只能靠注入的 cwd 测；先把解析与回退链做对，会话 cwd 单独开一项。
 
-> 至此具体待办只剩 1–3，**三条都卡在框架能力上**（`Options.OnCopy`、终端键入的 `HandleInput`
-> 缝、外观旋钮的暴露），不是应用侧能单方面推进的；下一轮应回到「对照原版排查偏离点」这条路。
+> 至此具体待办里的 1–3 **三条都卡在框架能力上**（`Options.OnCopy`、终端键入的 `HandleInput`
+> 缝、外观旋钮的暴露），不是应用侧能单方面推进的；第 5 条（P7-aq 发现）是应用侧可做的。
+> 下一轮仍应回到「对照原版排查偏离点」这条路，并优先取第 5 条。
 
 **P7-ao 死文案清理 + `TestNoDeadCopy` 守卫（本轮）**
 
@@ -1091,6 +1107,41 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
   `shell_test.go` 的 `TestCommandAliasFlow` 追加「别名到达启动器、清空后消失」，钉住别名与 PATH 开关解耦。
 - **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 27 包全绿
   （701 项）、`GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+**P7-aq 启动的工作目录与终端要求按清单执行（本轮）**
+
+- **依赖检查**：`curl .../releases/latest` 确认 v0.4.7 仍是最新（`go.mod` 已是 v0.4.7，P7-an 升的），
+  无版本可升；本轮走「对照原版排查偏离点」。
+- **偏离点（两处，都在 `lifecycle.launch` 上）**：
+  1. **`execution.workingDirectory` 是行为词，不是路径**。原版 `provider.rs:655` 把它映射成
+     `current → 启动自己的 cwd`、`home → 用户主目录`、`inherit → 不设 Dir（随宿主）`。本构建
+     `internal/extensions/store.go:315` 把 `"current"`/`"home"`/`"inherit"` 原样写进
+     `CommandEntry.Dir`，于是后台运行（`run.go:101` 的 `cmd.Dir = entry.Dir`）在名为 “current” 的
+     目录上 chdir 失败，而终端路径只是靠 `internal/terminalui/terminalui.go:209` 的 `isKeywordDir`
+     **把词丢掉**——顺带把 `home` 策略也丢了（会话不是从主目录起，而是从框架默认位置）。
+     这个 bug 还被 `store_test.go` 的 `entry.Dir != "current"` 钉着，`shell_test.go:1512` 则
+     到处手动 `entry.Dir = ""` 绕开它。
+  2. **`terminal.color` 从未被读**。原版 `launch.rs` 的 `terminal_environment` 按 `none`/`8`/`256`/其它
+     决定 `TERM`/`COLORTERM`；本构建无论清单怎么写都固定 `floter-256color`+`truecolor`，
+     清单里的 `terminal` 块根本没进 Go 结构。
+- **修法**：
+  - 新文件 `internal/extensions/workingdir.go` 的 `WorkingDirectory(mode, launchDir, home)`：
+    `home → home`（找不到就是空 = 继承）、`inherit → ""`、其余（含 `current` 与未知词）→ 启动的
+    cwd。两条路由现在同一个答案。
+  - `store.go` 的 `launchOverrides` 改成返回 `launchDefaults`，并让**默认策略落到集成自己的数据
+    目录**：原版在没有活动会话 cwd 时走的正是 `InheritActiveSession → toolData → home` 这条回退
+    链，`run.rs` 的 `run_cwd` 也明说「tool data 就是 run 的 cwd，写在旁边的脚本不能写进宿主的 cwd」；
+    并且那里会先 `create_dir_all`（cwd 不存在会让 spawn 失败），本构建同样先建。
+  - `manifest.go` 的 `Launch` 增加 `Terminal Terminal`（只读 `color`），`terminalEnvironment(color)`
+    复刻旧版四项映射；`launch.declared` 决定要不要带上这套 env（旧版只要清单声明了 launch 就带）。
+- **测试**：`workingdir_test.go` 的 `TestWorkingDirectory`（11 行表，含大小写、空白、未知词、home 缺失）、
+  `TestTerminalEnvironment`（7 行表）、`TestDescriptorWorkingDirectory`（一个 provider 四条命令：
+  `current` 落到数据目录、缺省同 `current`、`home` 落到主目录、`inherit` 为空；并核对 `terminal.color:"none"`
+  真的给出 `TERM=dumb`/`COLORTERM=""`）；`launch_test.go` 的 `TestNoLaunchOverrides` 追加默认 cwd 的断言；
+  `store_test.go` 的那条错断言改成数据目录。变异核查：把 `WorkingDirectory(...)` 换回
+  `command.Execution.WorkingDirectory`，`TestDescriptorWorkingDirectory` 四条断言全红（`here dir = "current"`）。
+- **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 27 包全绿
+  （`go test ./... -v | grep -c '^=== RUN'` = 709）、`GOOS=linux/windows/darwin go build ./...` 三平台通过。
 
 **P7-an 命令行的两个接缝、粘贴边界与拖放上限（本轮）**
 

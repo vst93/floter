@@ -126,7 +126,11 @@ func TestStoreRefreshGathersCommands(t *testing.T) {
 	if len(entry.Args) != 1 || entry.Args[0] != "jv" {
 		t.Errorf("args = %v", entry.Args)
 	}
-	if entry.Mode != "pty" || entry.Dir != "current" {
+	// The descriptor's `workingDirectory: "current"` is not a path: it is the
+	// launch's own cwd, which the default cwd policy resolves to the
+	// integration's data directory (run.rs `run_cwd`: a script that writes
+	// beside itself must not write into the host's cwd).
+	if entry.Mode != "pty" || entry.Dir != filepath.Join(paths.Data, "io.github.vst93.v") {
 		t.Errorf("mode/dir = %q/%q", entry.Mode, entry.Dir)
 	}
 }

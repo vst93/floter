@@ -135,4 +135,9 @@ func TestNoLaunchOverrides(t *testing.T) {
 			t.Errorf("a launch environment appeared without a launch: %v", entries[0].Env)
 		}
 	}
+	// The default cwd policy still resolves: the tool data directory, which is
+	// where the old host ran a command with no lifecycle.
+	if want := filepath.Join(paths.Data, "dev.floter.plain"); entries[0].Dir != want {
+		t.Errorf("dir = %q, want %q", entries[0].Dir, want)
+	}
 }

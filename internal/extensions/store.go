@@ -160,39 +160,58 @@ func (s *Store) SetEnabled(id string, enabled bool) error {
 // does not know.
 var ErrNoIntegration = errors.New("extensions: no such integration")
 
+// launchDefaults is what a manifest's lifecycle.launch gives every command of
+// an integration: the program and leading arguments that replace a command's
+// own execution, the directory its cwd policy resolves to, and the terminal
+// environment it asks for. Declared says whether the manifest set any of them,
+// so an absent block adds nothing.
+type launchDefaults struct {
+	declared bool
+	program  string
+	args     []string
+	dir      string
+	env      []string
+}
+
 // launchOverrides reads the manifest's lifecycle.launch: the program and
 // leading arguments every command of this integration runs with (an empty
 // program means the commands' own execution stands), the directory its cwd
 // policy resolves to, and the terminal environment it asks for.
 //
-// The policy follows the old build's: `home` is the user's home, `toolData`
-// the integration's own data directory, `fixed` a declared absolute path (kept
-// as declared), and anything else — including the default — inherits, which is
-// the empty answer here.
-func launchOverrides(integration Integration) (program string, args []string, dir string, env []string) {
+// The policy follows the old build's: `home` is the user's home, `fixed` a
+// declared absolute path (kept as declared), and everything else — `toolData`,
+// `inheritActiveSession` and the default — resolves to the integration's own
+// data directory, which is where the old host's `InheritActiveSession` fallback
+// lands when there is no session cwd to inherit.
+func launchOverrides(integration Integration) launchDefaults {
 	config := integration.Manifest.Lifecycle.Launch
-	program = config.Command.Program
-	args = append([]string{}, config.Command.Args...)
+	defaults := launchDefaults{
+		program: config.Command.Program,
+		args:    append([]string{}, config.Command.Args...),
+	}
+	// The old host's own answer for the default policy — there is no active
+	// session cwd to inherit — is the integration's data directory, and it
+	// made that directory before launching there (run.rs `run_cwd`).
+	// A cwd that is not there fails the spawn, so it is created here too.
+	dataDir := filepath.Join(integration.Paths.Data, integration.Entry.ID)
+	_ = os.MkdirAll(dataDir, 0o755)
+	defaults.dir = dataDir
 	switch strings.TrimSpace(strings.ToLower(config.CWDPolicy)) {
 	case "home":
 		if home, err := os.UserHomeDir(); err == nil {
-			dir = home
+			defaults.dir = home
 		}
-	case "tooldata":
-		dir = filepath.Join(integration.Paths.Data, integration.Entry.ID)
 	case "fixed":
 		if path, ok := integration.Manifest.Lifecycle.Launch.FixedPath(); ok {
-			dir = path
+			defaults.dir = path
 		}
 	}
 	// The terminal environment: a tool that declares what its terminal must
 	// support gets exactly that, and every launch is named as floter's.
-	env = append(env,
-		"TERM=floter-256color",
-		"COLORTERM=truecolor",
-		"TERM_PROGRAM=floter",
-	)
-	return program, args, dir, env
+	defaults.env = terminalEnvironment(config.Terminal.Color)
+	defaults.declared = defaults.program != "" || len(defaults.args) > 0 ||
+		strings.TrimSpace(config.CWDPolicy) != "" || strings.TrimSpace(config.Terminal.Color) != ""
+	return defaults
 }
 
 // CommandInfo is one command of one integration, as the settings panel's
@@ -306,27 +325,32 @@ func (s *Store) CommandEntries() []CommandEntry {
 		// The manifest's lifecycle.launch is how the integration as a whole
 		// runs: its program and leading arguments replace each command's own
 		// execution, and its cwd policy and terminal environment come with it.
-		launchProgram, launchArgs, launchDir, launchEnv := launchOverrides(integration)
+		launch := launchOverrides(integration)
+		// The user's home directory is what a descriptor's "home"
+		// workingDirectory means; an unavailable home is the old host's
+		// empty answer (inherit).
+		home, _ := os.UserHomeDir()
 		for _, command := range commands {
 			// The runtime binding runs the integration's own executable (an
 			// interpreter and its script, or the tool itself), so those leading
 			// arguments come first.
 			program, args := binding.Program, append([]string{}, binding.Args...)
-			dir := command.Execution.WorkingDirectory
+			// The descriptor names where the process starts as a behaviour;
+			// "current" means the launch's own cwd.
+			dir := WorkingDirectory(command.Execution.WorkingDirectory, launch.dir, home)
 			env := append([]string{}, injection.Env...)
-			if launchProgram != "" {
+			if launch.program != "" {
 				// `program: "self"` — the schema's default — is what the
 				// binding resolved. A declared program replaces it, and the
 				// interpreter arguments with it.
-				if launchProgram != "self" {
-					program = launchProgram
+				if launch.program != "self" {
+					program = launch.program
 					args = []string{}
 				}
-				args = append(args, launchArgs...)
-				if launchDir != "" {
-					dir = launchDir
-				}
-				env = append(env, launchEnv...)
+				args = append(args, launch.args...)
+			}
+			if launch.declared {
+				env = append(env, launch.env...)
 			}
 			args = append(args, command.Execution.ArgsPrefix...)
 			entry := CommandEntry{
