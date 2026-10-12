@@ -8,7 +8,7 @@
 
 用 mygo（原生 GPU 自绘 UI + Go）重写的 floter **已经是一个可打包、可运行的完整应用**：单窗口三表面
 （启动器 / 设置 / 终端）、搜索内核、扩展平台（含后台运行、列表协议、导入导出、权限审计）、剪贴板、
-浏览器、计算器、系统集成、打包与 CI 全部就位。**700 项测试全绿**，三平台都能构建，Linux 打包
+浏览器、计算器、系统集成、打包与 CI 全部就位。**765 项测试全绿**，三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
 含测试）。
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 700 项测试
+go test -count=1 ./...         # 765 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,7 +99,52 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-ay `output` 缺省回到 schema 的 `background`** —— P7-as 顺带记下、说「留待单独
+> **最新一轮：P7-az 清单的 `platforms` 与 `platformOverrides` 真正生效** —— schema 里的
+> `platforms` 一直只被 JSON 读进来、从没人查，`platformOverrides` 更是整块没进 Go 结构；
+> 声明 `platforms: ["darwin"]` 的包在 Linux/Windows 上照列照跑。现在清单按宿主平台解析，
+> 越界的包在安装期与库存期都被拒收并说明原因，命中的 `platformOverrides` 改写 provider 的
+> argsPrefix / environment。
+
+**P7-az 清单的平台约束（本轮）**
+
+- **依赖检查**：`curl .../releases/latest` 返回 v0.4.7（`go.mod` 已是 v0.4.7），无版本可升。本轮走
+  「对照原版排查偏离点」，找到的是同一类「声明了、没人读」的化石，而且比 `compatibility` 更彻底：
+  两个字段一个只写不读、一个根本没解析。
+- **偏离点（两个字段，零消费者）**：
+  - `Manifest.Platforms`（`internal/extensions/manifest.go:32`）只有 `custom.go:420` 写入，**全仓没有
+    读取**；原版 `manifest.rs:503` 的 `resolve()` 在 `platforms` 非空且不含当前 OS 时返回
+    `Extension {id} does not support {os}`，install（`install.rs:2523`）与 registry 选版本
+    （`registry.rs:63`）都先跑它。于是本构建里 `platforms: ["darwin"]` 的包在 Linux 上照样列出、照样运行。
+  - `platformOverrides`（schema `floter-extension.schema.json:178`）**整个字段没有进 Go 结构**：原版
+    `resolve()` 按 `override_identifiers()` 顺序（完整 target → `<os>-any`）把命中的
+    `providerArgsPrefix` 替换、`environment` 合并进 provider。本构建一个都不认。
+- **修法**：新文件 `internal/extensions/platform.go`。
+  - `Platform{OS, Arch, Libc, Abi}` + `CurrentPlatform()`：`runtime.GOOS/GOARCH` 映射成 schema 的
+    `darwin`/`linux`/`windows` 与 `aarch64`/`x86_64`/`armv7`（接受旧版 `PlatformArch::parse` 的多种
+    拼写）；Linux 的 libc 从 `ld-musl-*.so.1` / `*-linux-gnu` / `ld-linux-*` 探测，armv7 的 ABI 从
+    `ld-linux-armhf.so.3` 探测，读不到就是 `unknown`（**不猜 gnu**）。
+  - `Platform.Identifiers()` 复刻原版顺序（完整 target → `<os>-any`）；`Manifest.ValidatePlatform`
+    复刻 `resolve()` 的拒绝；`Manifest.EffectiveProvider` 复刻 override 的 argsPrefix 替换与 env 合并
+    （后应用者胜，且**不改动原 manifest**）。
+  - `Paths` 新增 `Platform`（零值 = 宿主，见 `Target()`），让跨平台断言不必靠机器；`LoadInventory`
+    在 `LoadManifest` 之后按 `paths.Target()` 校验，`prepare()` 与 `install()` 在落盘前各查一次
+    （原版 `install.rs:2523` 的同一位置）；`ProtocolArgs`/`providerEnv` 改读 `EffectiveProvider(CurrentPlatform())`，
+    让 describe/complete 拿到解析后的 provider。
+- **测试**：`internal/extensions/platform_test.go`——`TestManifestPlatformsGateTheHost`（8 行表，含空表、
+  多选、大小写）、`TestPlatformIdentifiers`（5 行表，含缺 libc/abi 读作 unknown、armv7 四段）、
+  `TestPlatformOverridesResolveToTheProvider`（argsPrefix 被替换、env 合并、`<os>-any` 胜、原 manifest 不被污染、
+  无命中照旧）、`TestProtocolArgsReadThePlatformOverride`（argv 与 env 都取到 override）、
+  `TestInventoryRefusesAnUnsupportedPlatform`（注入 target：越界 `ManifestErr` 且 `Running()` 假、
+  合规照跑）、`TestInventoryKeepsAnUnconstrainedManifest`（空 `platforms` 不误伤）、
+  `TestInstallRefusesAnUnsupportedPlatform`（`PrepareLocal` 落盘前拒绝）。变异核查：把 `LoadInventory` 里的
+  `ValidatePlatform` 摘掉、或让 `EffectiveProvider` 忽略 override，对应用例立刻红。
+- **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 29 包全绿
+  （`go test ./... -v | grep -c '^=== RUN'` = 765）、`GOOS=linux/windows/darwin go build ./...` 三平台通过。
+- **顺带记下（本轮未做，见「具体待办」）**：override 的 `minimumOsVersion` 已解析进结构，但**没有执行**
+  ——原版 `install.rs:2524` 的 `resolved.validate_minimum_os_version()` 会读当前 OS 版本（macOS `sw_vers`、
+  Windows build）再比较，本构建还没有采集宿主 OS 版本的地方。
+
+> **上一轮：P7-ay `output` 缺省回到 schema 的 `background`** —— P7-as 顺带记下、说「留待单独
 > 一轮」的那条：`Manifest.Route()` 把未声明的 `output` 当作 `terminal`，而原版与 schema 的缺省是
 > `background`；现在未声明/不可识别的 `output` 一律走 `background`，只有显式 `terminal` 才进 PTY。
 
@@ -1272,12 +1317,20 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
      `PluginModeActive()`）与 `plugin-config`；时钟随面变化在 `View` 每帧 `noteResidency`（进入模式起表、
      离开清表）；`Toggle` 在时钟不成立时 `Launcher.ResetQuery()`（含 `leaveFiles`）再回启动器；唤回落到
      同一面时 `refresh` 重启窗口。测试（注入时钟）：插件模式窗内唤回被保留并刷新、窗外唤回回到空搜索
-     页（查询与拖放行都清）、普通搜索页唤回永远清空、0/never 边界；把 i18n 提示改回原版原文。
+      页（查询与拖放行都清）、普通搜索页唤回永远清空、0/never 边界；把 i18n 提示改回原版原文。
+8. **`platformOverrides.minimumOsVersion` 的强制执行**（P7-az 定位，应用侧可做）。
+   - 原版：`src-tauri/src/extensions/install.rs:2524` 的 `resolved.validate_minimum_os_version()`，
+     在 install 期比较宿主的 OS 版本与 override 声明的下限；`manifest.rs` 的 `resolve()` 把命中的
+     override 的 `minimumOsVersion` 挑出来。
+   - 本构建：`internal/extensions/platform.go` 的 `PlatformOverride.MinimumOSVersion` 已解析进来，
+     但**没有执行**——宿主 OS 版本还没有采集点（macOS `sw_vers -productVersion`、Windows build 号）。
+   - 验收：新增宿主 OS 版本探测（可注入，三平台纯函数），`Manifest.EffectiveProvider`/一个新方法在
+     命中 override 且宿主版本低于下限时拒绝（安装期，与 `ValidatePlatform` 同位置）；测试
+     「低于下限拒绝 / 等于即通过 / 无声明不查 / 版本读不到时不拒绝」；越界时 `prepare`/`install` 不留 staging。
 
 > 至此具体待办里的 1–3 **三条都卡在框架能力上**（`Options.OnCopy`、终端键入的 `HandleInput`
-> 缝、外观旋钮的暴露），不是应用侧能单方面推进的；第 4–7 条已完成。P7-av 在线外找到并落地了
-> 旧版两个 `useTimedReset`（电源确认、设置写失败横幅），P7-aw 把第 7 条落地。下一轮仍应回到
-> 「对照原版排查偏离点」这条路。
+> 缝、外观旋钮的暴露），不是应用侧能单方面推进的；第 4–8 条里 4–7 已完成，第 8 条（P7-az 找到的
+> `minimumOsVersion`）是应用侧能做的下一件。下一轮仍应回到「对照原版排查偏离点」这条路。
 
 **P7-at manifest 的 `compatibility` 区间在落盘前生效（本轮）**
 

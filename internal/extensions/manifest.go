@@ -27,8 +27,12 @@ type Manifest struct {
 	Runtime       Runtime       `json:"runtime"`
 	Provider      Provider      `json:"provider"`
 
-	Platforms   []string `json:"platforms"`
-	Permissions []string `json:"permissions"`
+	Platforms []string `json:"platforms"`
+	// PlatformOverrides change the provider on one platform target: the
+	// schema's `platformOverrides`, keyed by an identifier such as
+	// `linux-x86_64-gnu` or `darwin-any` (see Platform).
+	PlatformOverrides map[string]PlatformOverride `json:"platformOverrides"`
+	Permissions       []string                    `json:"permissions"`
 	// Output is where a manual run sends its output. The schema's default is
 	// `background`, so it is omitted from a manifest that keeps the default —
 	// which is exactly the spelling every manifest written before the field

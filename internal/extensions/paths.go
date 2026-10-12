@@ -54,6 +54,11 @@ type Paths struct {
 	// `compatibility.floter` is checked against at install time. Blank skips
 	// that check, which is what a caller with no version to name gets.
 	HostVersion string
+	// Platform is the target a manifest's `platforms` and
+	// `platformOverrides` are resolved against. The zero value means the host
+	// (see Target), which is what every production caller wants; a test that
+	// must be deterministic across the three platform declarations sets it.
+	Platform Platform
 }
 
 // DiscoverPaths returns the paths under the platform's config directory,

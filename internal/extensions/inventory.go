@@ -103,6 +103,12 @@ func LoadInventory(paths Paths) Inventory {
 
 		path := manifestPathFor(paths, entry)
 		manifest, manifestErr := LoadManifest(path)
+		if manifestErr == nil {
+			// A manifest that names platforms is resolved for this host here,
+			// as the old host's `resolve` did: an unsupported package is not
+			// runnable and says why.
+			manifestErr = manifest.ValidatePlatform(paths.Target())
+		}
 		integration.Manifest, integration.ManifestErr = manifest, manifestErr
 		if manifestErr == nil {
 			if manifest.Name != "" {

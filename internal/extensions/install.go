@@ -146,6 +146,12 @@ func prepare(paths Paths, spec installSpec, cleanup func()) (Prepared, error) {
 		}
 		return Prepared{}, err
 	}
+	if err := manifest.ValidatePlatform(paths.Target()); err != nil {
+		if cleanup != nil {
+			cleanup()
+		}
+		return Prepared{}, err
+	}
 	digest, err := ManifestDigest(spec.ManifestPath)
 	if err != nil {
 		if cleanup != nil {
@@ -238,6 +244,11 @@ func install(paths Paths, spec installSpec) (Entry, error) {
 	// manifest is installed: a package built for another release line is
 	// refused, as the old host refused it before touching the disk.
 	if err := manifest.ValidateCompatibility(paths.HostVersion); err != nil {
+		return Entry{}, err
+	}
+	// A package built for another operating system is refused before its
+	// provider is ever resolved, exactly where the old host's install did it.
+	if err := manifest.ValidatePlatform(paths.Target()); err != nil {
 		return Entry{}, err
 	}
 	// A declared input is checked wherever a manifest is installed, so a

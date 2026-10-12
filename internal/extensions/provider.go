@@ -76,11 +76,17 @@ func ResolveRuntime(integration Integration) (RuntimeBinding, error) {
 }
 
 // ProtocolArgs is the argv of a protocol operation: the runtime, then the
-// manifest's argsPrefix, then the operation and the protocol version.
+// manifest's argsPrefix, then the operation and the protocol version. The
+// argsPrefix is the one resolved for this host's platform, so a manifest's
+// `platformOverrides` reach the provider call.
 func ProtocolArgs(binding RuntimeBinding, manifest Manifest, op string) []string {
-	args := make([]string, 0, len(binding.Args)+len(manifest.Provider.ArgsPrefix)+3)
+	provider := manifest.Provider
+	if len(manifest.PlatformOverrides) > 0 {
+		provider = manifest.EffectiveProvider(CurrentPlatform())
+	}
+	args := make([]string, 0, len(binding.Args)+len(provider.ArgsPrefix)+3)
 	args = append(args, binding.Args...)
-	args = append(args, manifest.Provider.ArgsPrefix...)
+	args = append(args, provider.ArgsPrefix...)
 	args = append(args, op, protocolFlag, ProtocolVersion)
 	return args
 }
@@ -168,10 +174,15 @@ func Describe(ctx context.Context, integration Integration) (Description, error)
 }
 
 // providerEnv is the environment a provider runs with: the app's own plus
-// the manifest's declared variables.
+// the manifest's declared variables, with this platform's `platformOverrides`
+// merged on top.
 func providerEnv(manifest Manifest) []string {
 	env := os.Environ()
-	for key, value := range manifest.Provider.Environment {
+	provider := manifest.Provider
+	if len(manifest.PlatformOverrides) > 0 {
+		provider = manifest.EffectiveProvider(CurrentPlatform())
+	}
+	for key, value := range provider.Environment {
 		env = append(env, key+"="+value)
 	}
 	return env
