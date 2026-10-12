@@ -1056,6 +1056,27 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
   链接、只有它翻成「Link copied」、另一行仍是「Copy link」；`linkCopied` 在窗内真、越过窗假）；
   `TestIntegrationCommandSwitches` 追加命令列表 caption 与 hint 在。
 
+### P7-af 启动器字段行的图标控件带上自己的说明（已做）
+
+- **偏离点**：P7-aa 给设置页头部与终端标题栏的图标控件补上了旧版 `title=` 的那句话，但**启动器字段行
+  行尾的图标**没有跟上——旧版的 `.collapsed-card__settings` 三个按钮都带 `title`（会话：
+  `terminal.sessionsOpen`「Manage terminal sessions」；设置：`settings.openHint`「Settings ({shortcut})」，
+  快捷键是**用户当前的 `open_settings` 绑定**；插件齿轮：`plugins.config.openHint`「Configure this
+  plugin」/ `plugins.config.close`「Close plugin settings」），本构建这三个（齿轮与字段行的会话/设置）
+  只有 `Label`（无障碍名字），悬停什么都不说。`i18n.Launcher` 里还躺着一个死字段
+  `ShortcutSettings`（「Cmd+,」），注释写「the accelerator labels the rows show」——那正是这套 tooltip
+  的加速键标签，从未被读过。
+- **修法**：`internal/launcher/launcher.go` 的 `fieldButtons` 与 `pluginGear` 各给控件挂
+  `Element.Tooltip`。新增 `i18n.Launcher.FieldSessionsHint`、`FieldSettingsHint(shortcut)`、
+  `ConfigurePluginHint`、`ConfigurePluginCloseHint`（旧版原文，en/zh 齐全），删掉死的
+  `ShortcutSettings`——设置那句话的加速键从**用户当前绑定**算出
+  （`shortcuts.Display(settings.Shortcut(s, ShortcutOpenSettings))`），与 P7-ac 的接线同一来源，
+  改了键 tooltip 跟着走，不冻结在出厂的 ⌘,。
+- **测试**：`TestFieldRowButtonsCarryTheirHints`（会话与设置各悬停 700ms 后 tip 出现；重绑
+  `open_settings` 后设置那句话跟着换，且断言它不再等于出厂文案）、`TestPluginGearCarriesItsHints`
+  （关闭时是「Configure this plugin」、打开后同一个控件是「Close plugin settings」）；把两处
+  `Tooltip` 摘掉跑一遍，四条断言全红——测试确实钉在 tooltip 上，不是钉在 Label 上。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。

@@ -2111,6 +2111,68 @@ func TestOpenSettingsShortcutOpensSettings(t *testing.T) {
 	}
 }
 
+// The field row's two own buttons are glyphs with no visible word, so each
+// carries the sentence the old build's `title=` gave it — and the settings
+// button's line names the key that opens the same surface, read from the
+// user's own binding rather than frozen at the shipped ⌘,.
+func TestFieldRowButtonsCarryTheirHints(t *testing.T) {
+	a := testApp()
+	// The sessions button only exists when the shell wired it: without a
+	// destination the field keeps one button, not a dead one.
+	a.Actions.OpenSessions = func() {}
+	copy := a.copy()
+	hint := func() string {
+		binding := shortcuts.Display(settings.Shortcut(a.settings(), settings.ShortcutOpenSettings))
+		return copy.FieldSettingsHint(binding)
+	}
+	tt := render(t, a)
+	for _, want := range []struct{ label, text string }{
+		{copy.FieldSessions, copy.FieldSessionsHint},
+		{copy.FieldSettings, hint()},
+	} {
+		rect, ok := tt.Find(want.label)
+		if !ok {
+			t.Fatalf("no %q control: %q", want.label, tt.Texts())
+		}
+		// Park the pointer away first, so this control's own rest timer starts
+		// fresh rather than warming on the previous tip.
+		tt.Move(rect.X+rect.W/2, rect.Y+rect.H+120)
+		tt.Frame()
+		tt.Move(rect.X+rect.W/2, rect.Y+rect.H/2)
+		// The tip waits for the pointer to rest (Base UI's 600ms).
+		time.Sleep(700 * time.Millisecond)
+		tt.Frame()
+		if !tt.HasText(want.text) {
+			t.Errorf("the %q control has no tooltip %q: %q", want.label, want.text, tt.Texts())
+		}
+	}
+
+	// Rebinding open_settings moves the words with the key.
+	shipped := hint()
+	if err := a.Store.Update(func(s *settings.Settings) {
+		s.SetShortcut(settings.ShortcutOpenSettings, "Alt+Shift+O")
+	}); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	rebound := hint()
+	if rebound == shipped {
+		t.Fatalf("the hint froze the shipped binding: %q", shipped)
+	}
+	rect, ok := tt.Find(copy.FieldSettings)
+	if !ok {
+		t.Fatalf("no settings control: %q", tt.Texts())
+	}
+	tt.Move(rect.X+rect.W/2, rect.Y+rect.H+120)
+	tt.Frame()
+	tt.Move(rect.X+rect.W/2, rect.Y+rect.H/2)
+	time.Sleep(700 * time.Millisecond)
+	tt.Frame()
+	if !tt.HasText(rebound) {
+		t.Errorf("the title did not follow the rebind: want %q in %q", rebound, tt.Texts())
+	}
+}
+
 // A plain W is a letter in the field, not the shell's ⌘W hide: the hide
 // is the shell's appShortcuts (shell_test.go), and the launcher only
 // answers its own rebindable keys.

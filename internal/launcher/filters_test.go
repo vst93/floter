@@ -4,6 +4,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -455,6 +456,57 @@ func TestModeOptionsGear(t *testing.T) {
 	tt.Frame()
 	if tt.HasText("Options") {
 		t.Errorf("an extension command's list offered options: %q", tt.Texts())
+	}
+}
+
+// The gear is a glyph, and it says which way it goes: while the sheet is
+// closed it configures the plugin, while it is open the same control is the
+// sheet's only close and its line says so (the old build's
+// `plugins.config.openHint` and `plugins.config.close`).
+func TestPluginGearCarriesItsHints(t *testing.T) {
+	a, _ := clipboardApp(t)
+	a.Actions.ConfigFor = func(plugin string) *Config {
+		return &Config{
+			Schema: &plugincfg.Schema{Plugin: plugin, Title: "Clipboard history"},
+			Values: plugincfg.Values{},
+		}
+	}
+	a.Actions.DrawConfig = func(c *ui.Context, config *Config) { ui.Text(c, config.Schema.Title) }
+	tt := render(t, a)
+	tt.Type("clipboard")
+	tt.Frame()
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	copy := a.copy()
+	hover := func(label string) {
+		rect, ok := tt.Find(label)
+		if !ok {
+			t.Fatalf("no %q control: %q", label, tt.Texts())
+		}
+		// Park the pointer away first, so this control's own rest timer
+		// starts fresh rather than warming on the previous tip.
+		tt.Move(rect.X+rect.W/2, rect.Y+rect.H+120)
+		tt.Frame()
+		tt.Move(rect.X+rect.W/2, rect.Y+rect.H/2)
+		// The tip waits for the pointer to rest (Base UI's 600ms).
+		time.Sleep(700 * time.Millisecond)
+		tt.Frame()
+	}
+	hover(copy.ConfigurePlugin)
+	if !tt.HasText(copy.ConfigurePluginHint) {
+		t.Errorf("the gear has no tooltip %q: %q", copy.ConfigurePluginHint, tt.Texts())
+	}
+
+	if err := tt.Click(copy.ConfigurePlugin); err != nil {
+		t.Fatalf("the gear: %v", err)
+	}
+	tt.Frame()
+	if !a.configOpen() {
+		t.Fatal("the sheet did not open")
+	}
+	hover(copy.ConfigurePluginClose)
+	if !tt.HasText(copy.ConfigurePluginCloseHint) {
+		t.Errorf("the close control has no tooltip %q: %q", copy.ConfigurePluginCloseHint, tt.Texts())
 	}
 }
 

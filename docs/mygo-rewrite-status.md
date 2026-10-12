@@ -98,6 +98,17 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
+**P7-af 启动器字段行的图标控件带上自己的说明（本轮）**
+- **偏离点**：P7-aa 只补了设置页头部与终端标题栏的图标 tooltip，**启动器字段行行尾的三个图标**
+  （插件齿轮、会话、设置）仍是光秃秃的字形：旧版每个 `.collapsed-card__settings` 都带 `title`，且设置那
+  句里的快捷键是用户当前的 `open_settings` 绑定。`i18n.Launcher.ShortcutSettings`（「Cmd+,」）是这个
+  加速键标签的残骸，注释写着「the accelerator labels the rows show」，却从没有一行视图读过它。
+- **修法**：`fieldButtons`/`pluginGear` 各挂 `Element.Tooltip`；新增 `FieldSessionsHint`、
+  `FieldSettingsHint(shortcut)`、`ConfigurePluginHint`、`ConfigurePluginCloseHint`（旧版原文，en/zh），
+  删掉死的 `ShortcutSettings`——设置那句话的加速键从用户当前绑定算出，改键跟着走。
+- **测试**：`TestFieldRowButtonsCarryTheirHints`、`TestPluginGearCarriesItsHints`；摘掉 `Tooltip`
+  跑一遍四条断言全红。
+
 **P7-ae 深链的复制确认与命令列表的说明（本轮）**
 - **偏离点**：两处「文案早已写好、没有一个视图画过它」的同一类漏洞：
   1. About 页的深链卡片每行一个「Copy link」按钮，按下后**毫无反馈**——剪贴板写入本来就是无声的。

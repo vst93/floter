@@ -1975,15 +1975,16 @@ func (a *App) fieldButtons(c *ui.Context, copy i18n.Launcher) {
 	// The field's own buttons are the reference's `.collapsed-card__settings`:
 	// a 28u square on the row, a 9u radius, its mark in the tertiary colour,
 	// and a hover that lights the mark one step - with the 8u margin the old
-	// row put between the buttons.
-	button := func(glyphName, label string, run func()) {
+	// row put between the buttons. Each one is a glyph with no visible word, so
+	// it carries the sentence the old build's `title=` did.
+	button := func(glyphName, label, hint string, run func()) {
 		if run == nil {
 			return
 		}
 		tokens := theme.For(a.settings(), t.Dark)
 		e := ui.Row(c).Focusable().Shrink(0).Size(t.Space(7), t.Space(7)).
 			Radius(tokens.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).
-			Label(label).Margin(0, 0, 0, t.Space(2))
+			Label(label).Tooltip(hint).Margin(0, 0, 0, t.Space(2))
 		if e.Hovered() {
 			e.Background(t.SurfaceHover)
 		}
@@ -1996,8 +1997,12 @@ func (a *App) fieldButtons(c *ui.Context, copy i18n.Launcher) {
 			run()
 		}
 	}
-	button("terminal", copy.FieldSessions, a.Actions.OpenSessions)
-	button("settings", copy.FieldSettings, a.Actions.OpenSettings)
+	// The settings button's line names the key that opens the same surface, and
+	// it is the user's own binding: the old build interpolated the live
+	// `open_settings` accelerator into `settings.openHint`.
+	settingsHint := copy.FieldSettingsHint(shortcuts.Display(settings.Shortcut(a.settings(), settings.ShortcutOpenSettings)))
+	button("terminal", copy.FieldSessions, copy.FieldSessionsHint, a.Actions.OpenSessions)
+	button("settings", copy.FieldSettings, settingsHint, a.Actions.OpenSettings)
 }
 
 // pluginGear is the field row's trailing control inside a built-in plugin
@@ -2012,12 +2017,14 @@ func (a *App) pluginGear(c *ui.Context, copy i18n.Launcher, id string) {
 	tokens := theme.For(a.settings(), t.Dark)
 	open := a.configOpen() && a.config.Schema.Plugin == id
 	label, glyphName := copy.ConfigurePlugin, "settings"
+	hint := copy.ConfigurePluginHint
 	if open {
 		label, glyphName = copy.ConfigurePluginClose, "close"
+		hint = copy.ConfigurePluginCloseHint
 	}
 	e := ui.Row(c).Focusable().Shrink(0).Size(t.Space(7), t.Space(7)).
 		Radius(tokens.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).
-		Label(label).Margin(0, 0, 0, t.Space(2))
+		Label(label).Tooltip(hint).Margin(0, 0, 0, t.Space(2))
 	if e.Hovered() {
 		e.Background(t.SurfaceHover)
 	}

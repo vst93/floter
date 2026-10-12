@@ -58,15 +58,25 @@ type Launcher struct {
 	// ConfigurePluginClose the same control once its panel is open.
 	ConfigurePlugin      string
 	ConfigurePluginClose string
+	// ConfigurePluginHint and ConfigurePluginCloseHint are the sentences the
+	// gear and its ✕ carry: a glyph alone does not say whether it configures the
+	// plugin or closes the panel that does.
+	ConfigurePluginHint      string
+	ConfigurePluginCloseHint string
 	// FieldSessions and FieldSettings label the field row's two own buttons
 	// (the sessions page and the settings), for assistive technology: the old
 	// build kept them beside the field, one click from the search row.
-	FieldSessions    string
-	FieldSettings    string
-	BareTerminal     string
-	BareTerminalHint string
-	TriggerHint      func(name string) string
-	TriggerHintMore  func(name string, more int) string
+	FieldSessions string
+	FieldSettings string
+	// FieldSessionsHint and FieldSettingsHint are those two buttons' own
+	// lines. The settings one carries the user's current open_settings binding,
+	// the way the old build's `settings.openHint` interpolated it.
+	FieldSessionsHint string
+	FieldSettingsHint func(shortcut string) string
+	BareTerminal      string
+	BareTerminalHint  string
+	TriggerHint       func(name string) string
+	TriggerHintMore   func(name string, more int) string
 	// FilesSection heads the block of rows a dropped file's actions make,
 	// and RecentSection the empty page's most-launched applications.
 	FilesSection  string
@@ -227,9 +237,6 @@ type Launcher struct {
 	ClipboardTypeFiles        string
 	CalculatorFilterAll       string
 	CalculatorFilterFavorites string
-	// ShortcutSettings and ShortcutTerminal are the accelerator labels the
-	// rows show for the two surfaces that have one.
-	ShortcutSettings string
 }
 
 // Option is one choice of an enumerated setting: the id stored in the
