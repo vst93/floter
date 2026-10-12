@@ -88,6 +88,33 @@ func TestSurfaceCrossProduct(t *testing.T) {
 	}
 }
 
+// The transparency the settings page writes is the alpha the render layer
+// reads: Resolve carries MainOpacity into the panel's fill, and a lower slider
+// value is a thinner fill. The chain is a pure value, so it is pinned here
+// rather than at a window.
+func TestResolveCarriesMainOpacityIntoTheFill(t *testing.T) {
+	base := settings.Normalize(settings.Settings{
+		Theme: "dark", GlassStep: "regular", Language: "en",
+		MainOpacity: settings.DefaultMainOpacity, TerminalOpacity: settings.DefaultTerminalOpacity,
+		UIScale: settings.DefaultUIScale,
+	})
+	thin := base
+	thin.MainOpacity = settings.MinWindowOpacity
+	thick := base
+	thick.MainOpacity = settings.MaxWindowOpacity
+
+	thinFill := Resolve(thin, true).Glass.TintAlpha
+	thickFill := Resolve(thick, true).Glass.TintAlpha
+	if !(thinFill < thickFill) {
+		t.Errorf("the slider does not reach the fill: %v at %d%%, %v at %d%%",
+			thinFill, settings.MinWindowOpacity, thickFill, settings.MaxWindowOpacity)
+	}
+	// And the shipped default is translucent, not an opaque底.
+	if got := Resolve(base, true).Glass.TintAlpha; got >= 0.99 {
+		t.Errorf("the default fill alpha = %v, want translucent", got)
+	}
+}
+
 func TestStringsForUnknownLanguageIsEnglish(t *testing.T) {
 	// The copy struct holds function fields (a sentence with a value in it),
 	// so it is compared field by field rather than whole.

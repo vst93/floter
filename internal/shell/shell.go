@@ -949,7 +949,7 @@ func (a *App) Start() {
 		// for the same thing - macOS's NSVisualEffectView, Windows 11's
 		// system backdrops. Linux has none, and there the glass tint and
 		// the haze veil are the whole of the material.
-		Vibrancy: mygo.VibrancyUnderWindow,
+		Vibrancy: vibrancyFor(runtime.GOOS),
 		Content:  ui.View(a.View),
 	})
 	a.Win.OnClosed(func() {
@@ -2329,6 +2329,29 @@ func (a *App) Toggle() {
 	a.Show()
 }
 
+// vibrancyFor is the window material for a platform: the translucent blur the
+// panel's glass is read through. It is a pure function of GOOS so the one
+// decision is testable without a window.
+//
+// mygo maps `under-window` to the Mica system backdrop on Windows 11
+// (internal/windows/window.go's backdropFor: every material it does not name
+// falls through to backdropMica). Mica is an opaque wallpaper tint, not a
+// blur, so a panel that asked for it got an opaque底 and the main-opacity
+// slider moved nothing. Acrylic is the system backdrop that actually blurs
+// what is behind the window, which is what the panel's tint is meant to sit
+// on. macOS keeps the under-window NSVisualEffectView material, and Linux has
+// no material at all - there the tint's own alpha is the whole of the glass.
+func vibrancyFor(goos string) mygo.Vibrancy {
+	switch goos {
+	case "windows":
+		return mygo.VibrancyAcrylic
+	case "linux":
+		return mygo.VibrancyNone
+	default:
+		return mygo.VibrancyUnderWindow
+	}
+}
+
 // placeWindow centres the panel in a display's work area, in that display's own
 // coordinates: the old build placed it on the monitor the user was looking at
 // and clamped against the *terminal* height so the expanded window still fits
@@ -2338,20 +2361,23 @@ func (a *App) Toggle() {
 // one: the framework does not report which monitor has the keyboard's focus, and
 // the window's own position is the honest stand-in — a panel the user carried to
 // a second monitor is re-homed on that monitor, not yanked back to the first.
+//
+// mygo's Display.Bounds/WorkArea are already in DIPs (internal/platform: "Rect
+// is a rectangle in screen coordinates (DIPs)"), and Window.SetPosition takes
+// DIPs too, so the work area is handed to placement as it is: the old build's
+// placement divided by the monitor's scale because Tauri's work_area was
+// physical, and doing that here (twice, once in each function) put a panel on a
+// scaled display into the corner instead of the middle.
 func (a *App) placeWindow() {
 	if a.Win == nil {
 		return
 	}
 	display := a.windowDisplay()
 	area := display.WorkArea
-	scale := display.ScaleFactor
-	if scale <= 0 {
-		scale = 1
-	}
-	areaX := float64(area.X) / scale
-	areaY := float64(area.Y) / scale
-	areaWidth := float64(area.Width) / scale
-	areaHeight := float64(area.Height) / scale
+	areaX := float64(area.X)
+	areaY := float64(area.Y)
+	areaWidth := float64(area.Width)
+	areaHeight := float64(area.Height)
 	if areaWidth <= 0 || areaHeight <= 0 {
 		return
 	}
@@ -2359,7 +2385,7 @@ func (a *App) placeWindow() {
 	// The reference height is the terminal's, not the launcher's: the window
 	// grows into the terminal when a session opens, and it must still fit.
 	reference := a.Store.Snapshot().TerminalHeight
-	x, y := placement(areaX, areaY, areaWidth, areaHeight, scale, width, reference)
+	x, y := placement(areaX, areaY, areaWidth, areaHeight, width, reference)
 	a.Win.SetPosition(x, y)
 }
 
@@ -2398,12 +2424,13 @@ func displayContaining(displays []mygo.Display, x, y, w, h int) (mygo.Display, b
 // the area's own coordinates: centred, and clamped so it never runs off the
 // display. The reference height is the tallest the window will grow, so the
 // placement is stable across a surface change.
-func placement(areaX, areaY, areaWidth, areaHeight, scale, windowW, referenceH float64) (int, int) {
-	if scale <= 0 {
-		scale = 1
-	}
-	areaX, areaY = areaX/scale, areaY/scale
-	areaWidth, areaHeight = areaWidth/scale, areaHeight/scale
+//
+// The area and the window's size are both in DIPs, so there is no scale to
+// apply here: mygo's display geometry is logical (see placeWindow), and the
+// old build's division by the monitor's scale was for Tauri's physical
+// work_area. The regression it left is pinned by
+// TestPlacementIgnoresTheDisplayScale.
+func placement(areaX, areaY, areaWidth, areaHeight, windowW, referenceH float64) (int, int) {
 	if areaWidth <= 0 || areaHeight <= 0 {
 		return 0, 0
 	}

@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/i18n"
@@ -109,22 +110,54 @@ func TestPlacementIsCentredAndClamped(t *testing.T) {
 	cases := []struct {
 		name                string
 		areaX, areaY, w, h  int
-		scale               float64
 		windowW, referenceH float64
 		wantX, wantY        int
 	}{
-		{"an ordinary display", 0, 0, 1920, 1080, 1, 720, 700, 600, 190},
-		{"a display to the right", 1920, 0, 2560, 1440, 1, 720, 700, 2840, 370},
-		{"a display scaled 2", 0, 0, 2560, 1440, 2, 720, 700, 280, 10},
-		{"a display too short for the reference", 0, 0, 1920, 600, 1, 720, 700, 600, 0},
+		{"an ordinary display", 0, 0, 1920, 1080, 720, 700, 600, 190},
+		{"a display to the right", 1920, 0, 2560, 1440, 720, 700, 2840, 370},
+		{"a display scaled 2", 0, 0, 2560, 1440, 720, 700, 920, 370},
+		{"a display too short for the reference", 0, 0, 1920, 600, 720, 700, 600, 0},
 	}
 	for _, c := range cases {
 		gotX, gotY := placement(
 			float64(c.areaX), float64(c.areaY), float64(c.w), float64(c.h),
-			c.scale, c.windowW, c.referenceH)
+			c.windowW, c.referenceH)
 		if gotX != c.wantX || gotY != c.wantY {
 			t.Errorf("%s: placement = (%d, %d), want (%d, %d)", c.name, gotX, gotY, c.wantX, c.wantY)
 		}
+	}
+}
+
+// The work area and the window's size are both DIPs, so a display's scale
+// factor never enters the placement: the old build's division by it (copied
+// from Tauri, whose work_area was physical) put a panel on a scaled display in
+// the corner. A 2560-DIP work area centres a 720-wide panel at 920 on a 1×
+// display and on a 2× one alike; a scaled display is not half as wide.
+func TestPlacementIgnoresTheDisplayScale(t *testing.T) {
+	if got, _ := placement(0, 0, 2560, 1440, 720, 700); got != 920 {
+		t.Errorf("a 2560-DIP work area placed the panel at %d, want 920", got)
+	}
+	// A work area to the right keeps its own origin: the panel is centred in
+	// that display's coordinates, never pulled back to the primary one.
+	if got, _ := placement(2560, 0, 2560, 1440, 720, 700); got != 3480 {
+		t.Errorf("a work area at 2560 placed the panel at %d, want 3480", got)
+	}
+}
+
+// The window's material is the translucent blur the panel's glass is read
+// through. mygo maps `under-window` to Mica on Windows, which is an opaque
+// wallpaper tint, so the panel there has an opaque底 and the main-opacity
+// slider moves nothing; Windows gets the acrylic backdrop, macOS the
+// under-window NSVisualEffectView material, and Linux no material at all.
+func TestVibrancyMaterialIsTranslucent(t *testing.T) {
+	if got := vibrancyFor("windows"); got != mygo.VibrancyAcrylic {
+		t.Errorf("windows material = %q, want the translucent acrylic backdrop", got)
+	}
+	if got := vibrancyFor("darwin"); got != mygo.VibrancyUnderWindow {
+		t.Errorf("macOS material = %q, want under-window", got)
+	}
+	if got := vibrancyFor("linux"); got != mygo.VibrancyNone {
+		t.Errorf("linux material = %q, want none (the tint is the glass)", got)
 	}
 }
 

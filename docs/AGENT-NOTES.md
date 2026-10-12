@@ -188,3 +188,40 @@ opt-in（`FLOTER_TERMINAL_TEST=1`、`FLOTER_SQLITE_TEST=1`、`FLOTER_REGISTRY_TE
   第二套删除语义、且拖拽与「点行即运行」的手势重叠——按纪律不为凑 API 改产品行为。
 - 以后真做「可重排列表」或面板内 bottom-sheet 时，再回来接 `Draggable`（`internal/` 里目前没有
   任何 `ui.Point` / `AnimatePose` / 自定义拖动手势）。
+
+## 2026-10-12 · 追加：窗口定位回归 + 背景真透明
+
+用户报告两件事：「窗口定位也被修坏了」「应用整体有不透明的底，配置了透明度没效果」。
+
+### 1 · 窗口定位：把 mygo 的 DIP 当成 Tauri 的物理像素，除以 scale 两次
+
+- **引入点**：`de5816c feat(go): the panel is placed in the display's own work area`
+  （`internal/shell/shell.go` 的 `placeWindow` + `placement`，两者同一次提交引入）。
+- **根因**：`placeWindow` 先把 `display.WorkArea` 各分量 `/ scale`，再调
+  `placement(..., scale, ...)`，而 `placement` 内部又 `/ scale` 一次——
+  **同一个 scale 除了两遍**。这段除法是从旧版 Tauri 抄来的：Tauri 的
+  `monitor.work_area()` 是**物理像素**（`src-tauri/src/lib.rs` 的 `default_position`：
+  “A monitor's reported position is physical … while `set_position` converts … back”），
+  所以旧版除以一次是对的。但 mygo 的 `Display.Bounds` / `WorkArea` 本来就是 **DIP**
+  （`internal/platform/platform.go`: “Rect is a rectangle in screen coordinates (DIPs)”；
+  mygo 自己的居中 `window_state.go` 的 `initState` / `platform.Centered` 都不除 scale）。
+  于是 1× 屏看不出，2× 屏上工作区被缩成一半，720 宽的面板被 clamp 到左上角。
+- **修法**：`placeWindow` 直接把 DIP 工作区交给 `placement`；`placement` 去掉 `scale`
+  参数与除法。`TestPlacementIgnoresTheDisplayScale` 钉住「2560 DIP 的工作区把 720 宽的
+  面板居中在 920」，`TestPlacementIsCentredAndClamped` 的 2× 档同步改成 DIP 值。
+
+### 2 · 背景真透明：Windows 上 `VibrancyUnderWindow` 落到不透明的 Mica
+
+- **根因**：窗口无条件用 `mygo.VibrancyUnderWindow`（`internal/shell/shell.go` 的
+  `Start()`）。mygo 的 Windows 后端里 `backdropFor` 只显式认 `mica` / `tabbed` /
+  `acrylic` 等，**其余一律 fall through 到 `backdropMica`**
+  （`$(go env GOMODCACHE)/github.com/egoist/mygo@v0.4.5/internal/windows/window.go`
+  的 `backdropFor` 最后一行 `return backdropMica`）。Mica 是**不透明的壁纸着色**，不是
+  模糊；窗口于是有一层不透明的底，`main_opacity` 只改场景内 tint 的 alpha，用户看到
+  「拖了没反应」。macOS 的 `under-window` 是半透明 NSVisualEffectView（material 21），
+  Linux 无材质（tint 的 alpha 就是全部玻璃），所以只有 Windows 中招。
+- **修法**：新增纯函数 `vibrancyFor(goos)`：Windows → `mygo.VibrancyAcrylic`
+  （会真正模糊身后的窗口，对应 `backdropAcrylic`），macOS → `VibrancyUnderWindow`，
+  Linux → `VibrancyNone`。`TestVibrancyMaterialIsTranslucent` 钉住这三个配置值；
+  `TestResolveCarriesMainOpacityIntoTheFill` 钉住「设置页写的 `main_opacity` 确实到达
+  渲染层（`Resolve(...).Glass.TintAlpha`），且滑块越低 fill 越薄、默认不是不透明」。
