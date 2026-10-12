@@ -405,7 +405,7 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
 
 ### P3-h 后台运行与输出回看（capture 通道，已做）
 
-- **路由**：manifest 的 `output`（`terminal` | `background`，缺省 terminal）决定命令输出去哪；
+- **路由**：manifest 的 `output`（`terminal` | `background`，缺省 `background`，见 P7-ay）决定命令输出去哪；
   `CommandEntry.Route` 带上它。旧版这个字段一直存在，Go 侧此前忽略（capture 被归一化成 pty）。
 - **`extensions.RunCaptured`**：无 shell 直接 spawn（argv 与终端路由同源）、stdin 为 null、
   带上配置环境与 cwd、`RUN_TIMEOUT` 300s（可被调用方 ctx 收紧）、`WaitDelay` 兜住不听话的子进程、

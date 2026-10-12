@@ -120,12 +120,17 @@ func TestRunCapturedCapsTheOutput(t *testing.T) {
 }
 
 func TestManifestRoute(t *testing.T) {
+	// The schema's default — and the rule the `output` field was added under —
+	// is `background`: a manifest written before the field existed runs quietly
+	// and reports on completion. Only an explicit `terminal` streams into a PTY,
+	// and anything unrecognised keeps the default rather than inventing a route.
 	cases := map[string]string{
-		"":           RouteTerminal,
-		"terminal":   RouteTerminal,
+		"":           RouteBackground,
 		"background": RouteBackground,
 		"BACKGROUND": RouteBackground,
-		" nonsense ": RouteTerminal,
+		"terminal":   RouteTerminal,
+		" TERMINAL ": RouteTerminal,
+		" nonsense ": RouteBackground,
 	}
 	for output, want := range cases {
 		manifest := Manifest{Output: output}

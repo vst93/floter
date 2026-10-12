@@ -29,7 +29,11 @@ type Manifest struct {
 
 	Platforms   []string `json:"platforms"`
 	Permissions []string `json:"permissions"`
-	Output      string   `json:"output"`
+	// Output is where a manual run sends its output. The schema's default is
+	// `background`, so it is omitted from a manifest that keeps the default —
+	// which is exactly the spelling every manifest written before the field
+	// existed already has.
+	Output string `json:"output,omitempty"`
 	// Params are the manifest's declared inputs: the values a run needs,
 	// which the host renders a form for and turns into argv. They travel with
 	// the manifest — the digest, the export, the approval — so editing them
@@ -45,14 +49,17 @@ const (
 	RouteBackground = "background"
 )
 
-// Route is where a command's output goes: the manifest's `output` mode, with
-// anything this build does not know treated as the terminal (the shipped
-// default).
+// Route is where a command's output goes: the manifest's `output` mode. An
+// undeclared mode (or one this build does not recognise) keeps the schema's
+// default, `background` — the compatibility rule the field was added under, so
+// every manifest written before `output` existed runs silently and reports on
+// completion exactly as it always did. Only an explicit `terminal` streams the
+// run through a PTY.
 func (m Manifest) Route() string {
-	if strings.EqualFold(strings.TrimSpace(m.Output), RouteBackground) {
-		return RouteBackground
+	if strings.EqualFold(strings.TrimSpace(m.Output), RouteTerminal) {
+		return RouteTerminal
 	}
-	return RouteTerminal
+	return RouteBackground
 }
 
 // Publisher identifies who ships the extension.

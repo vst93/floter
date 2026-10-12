@@ -99,7 +99,43 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-ax 终端面的失败提示落地** —— 旧版 `useTimedFeedback` 的终端那一半：终端面板自己的
+> **最新一轮：P7-ay `output` 缺省回到 schema 的 `background`** —— P7-as 顺带记下、说「留待单独
+> 一轮」的那条：`Manifest.Route()` 把未声明的 `output` 当作 `terminal`，而原版与 schema 的缺省是
+> `background`；现在未声明/不可识别的 `output` 一律走 `background`，只有显式 `terminal` 才进 PTY。
+
+**P7-ay `output` 缺省对齐原版（本轮）**
+
+- **依赖检查**：`go.mod` 已是 v0.4.7；`git ls-remote --tags https://github.com/egoist/mygo.git` 的
+  列表里 v0.4.7 仍是最新（GitHub 的 releases API 被限流，用 tags 复核），无版本可升。本轮走
+  「对照原版排查偏离点」，取 P7-as 明确「留待单独一轮」的那条。
+- **偏离点（缺省取向反了）**：原版 `src-tauri/src/extensions/manifest.rs:207` 的 `OutputMode` 用
+  `#[default] Background`，字段带 `#[serde(default, skip_serializing_if = "OutputMode::is_background")]`
+  （`manifest.rs:49`）——**一份在 `output` 出现之前写的清单必须继续解析成 background**
+  （`manifest.rs:705` 的 `output_defaults_to_background_and_round_trips_through_schema`，改动
+  `#[default]` 即红）；schema 的 `output.default` 同样是 `"background"`
+  （`docs/extensions/schemas/floter-extension.schema.json:225`）。而本构建 `internal/extensions/manifest.go:50` 的
+  `Manifest.Route()` 只认 `"background"` 字符串、其余一律 `terminal`（plan P3-h 的选择）。于是
+  所有**未声明 `output`** 的扩展命令都落进终端面，而原版是静默跑完、在启动器里回看输出——正是
+  `store.go:357`（`CommandEntries` 写 `Route`）与启动器 `search.go:183,196` 消费的那条链。
+- **修法**：
+  - `Manifest.Route()` 反过来：只有显式 `terminal`（大小写与首尾空白容忍）走 `RouteTerminal`，
+    空、`background` 与不可识别的词都落 `RouteBackground`（缺省即 schema 缺省）。
+  - `Manifest.Output` 加 `omitempty`，并把 `custom.go` 的 `customManifest` 改成**只写显式的
+    `terminal`**——保留缺省的自定义工具清单从此不再写出 `"output": ""`，与原版
+    `skip_serializing_if = is_background` 的落盘拼写一致。
+- **测试**：`internal/extensions/run_test.go` 的 `TestManifestRoute` 表改为「空/background/杂词 →
+  background，terminal（含大小写与空白）→ terminal」；`route_test.go` 的
+  `TestCommandRouteFollowsTheManifestOutput` 改成「显式 `terminal` 的集成 → terminal、不声明的集成 →
+  background（schema 缺省）」；新 `TestCustomToolOutputSpelling` 钉住自定义工具**缺省不写
+  `output` 字段**、`LoadManifest` 后 `Route()` 是 background，声明 `terminal` 才写出字段；
+  `internal/shell/shell_test.go` 的 `TestCapturedCommandReachesTheLauncher` 不再手动注入
+  `"output": "background"`，直接靠夹具的缺省断言背景路由（更强：测的是缺省本身）。
+  变异核查：把 `Route()` 换回旧的「缺省 terminal」，`TestManifestRoute`、
+  `TestCommandRouteFollowsTheManifestOutput`、`TestCustomToolOutputSpelling` 三条立刻红。
+- **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 27 包全绿
+  （750 项）、`GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+> **上一轮：P7-ax 终端面的失败提示落地** —— 旧版 `useTimedFeedback` 的终端那一半：终端面板自己的
 > 「在系统终端打开」失败时，现在在面板角上说话（4.5s 后自清），而不是静默地什么都不发生。
 
 **P7-ax 终端面板的失败提示（本轮）**
@@ -1297,7 +1333,8 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 - **顺带记下的已知差异（本轮不改）**：schema 的 `output.default` 是 `"background"`
   （`docs/extensions/schemas/floter-extension.schema.json:225`），而 Go 的 `Manifest.Route()` 缺省
   terminal（plan P3-h 的选择，已被 `TestManifestRoute` 钉住）。缺省取向是独立的决定，改它会翻转所有
-  未声明命令的落点，留待单独一轮。
+  未声明命令的落点，留待单独一轮。**已在 P7-ay 落地**：`Route()` 缺省改回 `background`，
+  `TestManifestRoute` 与 `route_test.go` 一并翻转。
 
 **P7-ar `cwdPolicy` 的两种拼写都进得来（本轮）**
 

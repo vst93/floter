@@ -420,8 +420,11 @@ func customManifest(id string, request CustomRequest) Manifest {
 		Platforms:   append([]string{}, request.Platforms...),
 		Params:      append([]ParamDefinition{}, request.Params...),
 	}
-	if request.Output != "" {
-		manifest.Output = request.Output
+	// Only a declared `terminal` is written; `background` is the field's schema
+	// default and stays omitted, the same spelling a manifest written before
+	// the field existed has (the old host's `skip_serializing_if`).
+	if strings.EqualFold(strings.TrimSpace(request.Output), RouteTerminal) {
+		manifest.Output = RouteTerminal
 	}
 	return manifest
 }

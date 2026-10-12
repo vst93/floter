@@ -1670,22 +1670,9 @@ func TestCapturedCommandReachesTheLauncher(t *testing.T) {
 		t.Skip("the fixture runs through sh")
 	}
 	paths := integrationFixture(t)
-	// The fixture's own manifest leaves the output mode unset (the terminal
-	// default); this test declares the background route on the same package,
-	// so the route under test is the manifest's and not a field set by the
-	// test after the fact.
-	manifestPath := filepath.Join(paths.Extensions, "io.github.vst93.v", "floter.extension.json")
-	manifest, err := os.ReadFile(manifestPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	withOutput := strings.Replace(string(manifest), `"schemaVersion": "2.0",`, `"schemaVersion": "2.0", "output": "background",`, 1)
-	if withOutput == string(manifest) {
-		t.Fatalf("the fixture manifest did not carry the schemaVersion anchor")
-	}
-	if err := os.WriteFile(manifestPath, []byte(withOutput), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	// The fixture's own manifest declares no `output` mode at all, so it must
+	// land on the schema default — `background` — rather than the terminal: the
+	// route under test comes from the manifest, not from a field set here.
 	store := settings.NewStore(settings.Default())
 	if err := store.Update(func(s *settings.Settings) { s.SetCommandSwitch("io.github.vst93.v", "jv", true) }); err != nil {
 		t.Fatal(err)

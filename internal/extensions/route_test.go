@@ -11,15 +11,15 @@ import (
 // route has to reach the launcher on the CommandEntry — the launcher's row
 // reads it for the direct-output nudge and `runCommandWith` reads it to decide
 // between the terminal surface and the captured output view. A manifest that
-// declares `background` must therefore produce a background entry, and one
-// that declares nothing must stay on the terminal default.
+// declares `terminal` must therefore produce a terminal entry, and one that
+// declares nothing must land on the schema default, `background`.
 func TestCommandRouteFollowsTheManifestOutput(t *testing.T) {
 	paths := FromRoot(t.TempDir())
 	if err := paths.Ensure(); err != nil {
 		t.Fatal(err)
 	}
-	// Two integrations, one per spelling: a declared `background`, and the
-	// terminal default (no `output` field at all).
+	// Two integrations, one per spelling: a declared `terminal`, and the
+	// background default (no `output` field at all).
 	writeIntegration := func(id, output string) {
 		dir := filepath.Join(paths.Extensions, id)
 		if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -46,8 +46,8 @@ func TestCommandRouteFollowsTheManifestOutput(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	writeIntegration("dev.floter.bg", RouteBackground)
-	writeIntegration("dev.floter.term", "")
+	writeIntegration("dev.floter.term", RouteTerminal)
+	writeIntegration("dev.floter.bg", "")
 
 	repository := `{
 	  "schemaVersion": 1,
@@ -71,10 +71,10 @@ func TestCommandRouteFollowsTheManifestOutput(t *testing.T) {
 	for _, entry := range store.CommandEntries() {
 		routes[entry.IntegrationID] = entry.Route
 	}
-	if got := routes["dev.floter.bg"]; got != RouteBackground {
-		t.Errorf("a declared background command has route %q, want %q", got, RouteBackground)
-	}
 	if got := routes["dev.floter.term"]; got != RouteTerminal {
-		t.Errorf("an undeclared command has route %q, want %q", got, RouteTerminal)
+		t.Errorf("a declared terminal command has route %q, want %q", got, RouteTerminal)
+	}
+	if got := routes["dev.floter.bg"]; got != RouteBackground {
+		t.Errorf("an undeclared command has route %q, want %q (the schema default)", got, RouteBackground)
 	}
 }

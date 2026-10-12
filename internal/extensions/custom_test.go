@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -268,5 +269,57 @@ func TestUpdateCustomTool(t *testing.T) {
 		Name: "Nope", ExecutablePath: program,
 	}, true); err == nil {
 		t.Error("a publisher integration was edited")
+	}
+}
+
+// The `output` mode a custom tool is created with follows the schema. There is
+// no `output` field on the request's default, and a manifest that keeps the
+// default must not spell it out — the same omission a manifest written before
+// the field existed has, and the same rule the old host's `skip_serializing_if`
+// applied. A declared `terminal` is the only mode that reaches the disk, and it
+// is the only one that routes a run through a PTY.
+func TestCustomToolOutputSpelling(t *testing.T) {
+	background, program := customToolFixture(t)
+	entry, err := CreateCustom(context.Background(), background, CustomRequest{
+		Name: "Quiet", Command: "quiet", ExecutablePath: program,
+	}, true)
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	raw, err := os.ReadFile(entry.ManifestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), `"output"`) {
+		t.Errorf("a manifest keeping the default wrote an output field:\n%s", raw)
+	}
+	manifest, err := LoadManifest(entry.ManifestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := manifest.Route(); got != RouteBackground {
+		t.Errorf("default route = %q, want %q", got, RouteBackground)
+	}
+
+	terminal, terminalProgram := customToolFixture(t)
+	termEntry, err := CreateCustom(context.Background(), terminal, CustomRequest{
+		Name: "Loud", Command: "loud", ExecutablePath: terminalProgram, Output: RouteTerminal,
+	}, true)
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	termManifest, err := LoadManifest(termEntry.ManifestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := termManifest.Route(); got != RouteTerminal {
+		t.Errorf("declared terminal route = %q, want %q", got, RouteTerminal)
+	}
+	termRaw, err := os.ReadFile(termEntry.ManifestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(termRaw), `"output": "terminal"`) {
+		t.Errorf("a declared terminal was not written:\n%s", termRaw)
 	}
 }
