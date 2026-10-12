@@ -24,8 +24,9 @@ type i18nLauncher = i18n.Launcher
 // result.
 
 // URLQuery matches a page address: its scheme is what makes it one, not its
-// shape.
-var URLQuery = regexp.MustCompile(`^(?:https?|ftp)://`)
+// shape. The scheme is case-insensitive, as the old build's own pattern was:
+// `HTTPS://` is a page the user pasted, not a command.
+var URLQuery = regexp.MustCompile(`(?i)^(?:https?|ftp)://`)
 
 // PathQuery matches a filesystem path: an absolute POSIX path, one starting
 // with `~` or `.`, a Windows drive, or a UNC share.

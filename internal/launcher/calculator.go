@@ -2,18 +2,20 @@ package launcher
 
 import (
 	"strings"
+	"time"
 
 	"floter/internal/calc"
 	"floter/internal/calculator"
+	"floter/internal/i18n"
 )
 
-// The calculator mode: the trigger word, an expression or the history's
-// needle, and the two filters the Tab key cycles.
+// The calculator mode: the trigger word, the pending expression, and the two
+// filters the Tab key cycles.
 //
-// The field's text is both the pending expression and the history's search
-// needle, exactly as the old build had it: Enter evaluates a *fresh*
-// expression (and records it), and Enter on an already-evaluated expression or
-// on a history row copies that row per the plugin's copy mode.
+// The field's text is the pending expression, exactly as the old build had it:
+// Enter evaluates a *fresh* expression (and records it), and Enter on an
+// already-evaluated expression or on a history row copies that row per the
+// plugin's copy mode.
 
 // calculatorWord is what the field starts with in the mode; the other
 // spellings enter it just as well.
@@ -93,32 +95,37 @@ func (a *App) refreshCalculator() {
 }
 
 // calculatorItems is the calculator mode's list: the pending expression's
-// answer first, then the history rows matching the needle and the filter.
+// answer first, then the history rows the chip keeps.
+//
+// The history is deliberately *not* filtered by the field's text: the field
+// is the pending expression, and filtering the list by it would hide every
+// past calculation exactly while the user is writing a new one. The chip
+// (all / favorites) is the list's only filter, as the old build's own mode
+// had it.
 func (a *App) calculatorItems() []Item {
-	needle := a.calculatorQuery()
-	expression := strings.TrimSpace(strings.TrimPrefix(needle, "="))
+	expression := strings.TrimSpace(strings.TrimPrefix(a.calculatorQuery(), "="))
 	out := make([]Item, 0, len(a.calculatorFound)+1)
 
 	// A fresh expression offers its answer, which Enter evaluates, records and
-	// copies.
+	// copies. The expression is the title that gives up room and the answer the
+	// trailing value, complete at the row's right edge — R50's register, the
+	// same row the history rows and the ordinary page's own answer use.
 	if expression != "" {
 		if value, err := calc.Eval(expression); err == nil {
 			result := calc.Format(value)
 			out = append(out, Item{
-				ID:     "calc:" + expression,
-				Title:  result,
-				Detail: expression,
-				Run:    func() { a.runCalculation(expression, result) },
+				ID:       "calc:" + expression,
+				Title:    expression,
+				trailing: result,
+				Run:      func() { a.runCalculation(expression, result) },
 			})
 		}
 	}
 
-	terms := strings.Fields(strings.ToLower(needle))
+	copy := a.copy()
+	now := time.Now()
 	for _, entry := range a.calculatorFound {
 		if a.calculatorFilter == calculatorFilterFavorites && !entry.Favorite {
-			continue
-		}
-		if !calculatorMatches(entry, terms) {
 			continue
 		}
 		entry := entry
@@ -129,7 +136,7 @@ func (a *App) calculatorItems() []Item {
 		out = append(out, Item{
 			ID:       "calc:" + entry.ID,
 			Title:    entry.Expression,
-			Detail:   entry.Result,
+			Detail:   calculatorRowTime(entry, now, copy),
 			trailing: entry.Result,
 			Shortcut: shortcut,
 			Run:      func() { a.copyCalculation(entry) },
@@ -140,6 +147,34 @@ func (a *App) calculatorItems() []Item {
 	// emptyMessage), not through the feedback row: the row is for what an
 	// *action* did.
 	return out
+}
+
+// calculatorRowTime is a history row's compact time, the old build's
+// `calculatorTime`: a clock for an entry made today, the translated word for
+// one made yesterday, and a short date beyond that. It is the row's subtitle
+// slot — the result lives at the row's right edge.
+func calculatorRowTime(entry calculator.Entry, now time.Time, copy i18n.Launcher) string {
+	created := entry.Time()
+	if created.IsZero() {
+		return ""
+	}
+	switch {
+	case sameCalendarDay(created, now):
+		return created.Format("15:04")
+	case sameCalendarDay(created, now.AddDate(0, 0, -1)):
+		return copy.CalculatorYesterday
+	case created.Year() == now.Year():
+		return created.Format("01-02")
+	default:
+		return created.Format("2006-01-02")
+	}
+}
+
+// sameCalendarDay reports whether two instants fall on the same local day.
+func sameCalendarDay(a, b time.Time) bool {
+	ay, am, ad := a.Date()
+	by, bm, bd := b.Date()
+	return ay == by && am == bm && ad == bd
 }
 
 // runCalculation records a fresh calculation and copies it.
@@ -202,18 +237,4 @@ func (a *App) cycleCalculatorFilter() {
 		return
 	}
 	a.calculatorFilter = calculatorFilterAll
-}
-
-// calculatorMatches reports whether every term appears in the entry.
-func calculatorMatches(entry calculator.Entry, terms []string) bool {
-	if len(terms) == 0 {
-		return true
-	}
-	haystack := strings.ToLower(entry.Expression + " " + entry.Result)
-	for _, term := range terms {
-		if !strings.Contains(haystack, term) {
-			return false
-		}
-	}
-	return true
 }

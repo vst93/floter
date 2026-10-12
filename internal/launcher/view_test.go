@@ -690,6 +690,42 @@ func TestBrowserModeOpensAndCopies(t *testing.T) {
 	}
 }
 
+// Every browser trigger word enters the mode on the range it names, as the
+// old build's `parseBrowserMode` did: the bookmark words open on the
+// bookmarks, the history words on the history, and the plugin's own word on
+// everything.
+func TestBrowserModeWordsChooseTheRange(t *testing.T) {
+	cases := []struct {
+		word   string
+		filter string
+	}{
+		{"browser", filterAll},
+		{"浏览器", filterAll},
+		{"bookmarks", filterBookmarks},
+		{"bookmark", filterBookmarks},
+		{"书签", filterBookmarks},
+		{"history", filterHistory},
+		{"hist", filterHistory},
+		{"历史", filterHistory},
+		{"历史记录", filterHistory},
+	}
+	for _, tc := range cases {
+		a := testApp()
+		a.Query = tc.word + " rust"
+		a.syncTypedMode()
+		if !a.browser {
+			t.Errorf("%q did not enter the browser mode", tc.word)
+			continue
+		}
+		if a.browserFilter != tc.filter {
+			t.Errorf("%q opened on %q, want %q", tc.word, a.browserFilter, tc.filter)
+		}
+		if a.Query != "" {
+			t.Errorf("%q kept the field %q", tc.word, a.Query)
+		}
+	}
+}
+
 // A live tab is its own action: Enter focuses the tab rather than opening its
 // URL again.
 func TestBrowserModeFocusesATab(t *testing.T) {
@@ -1008,7 +1044,7 @@ func TestCalculatorModeFiltersAndFavorites(t *testing.T) {
 
 	// The favourite key stars the selected row; the answer row is not one, so
 	// the selection moves to the history first.
-	a.Query = "calc 10*3"
+	a.Query = "1+1"
 	tt.Frame()
 	tt.Key(0, ui.KeyDown)
 	tt.Frame()
@@ -1026,6 +1062,38 @@ func TestCalculatorModeFiltersAndFavorites(t *testing.T) {
 	tt.Frame()
 	if a.calculatorMode {
 		t.Error("Escape did not leave the calculator mode")
+	}
+}
+
+// The calculator mode's history is deliberately *not* filtered by the field's
+// text: the field is the pending expression, and filtering the list by it
+// would hide every past calculation exactly while the user is writing a new
+// one. A history row's subtitle is its time, and its result lives at the row's
+// right edge — never both.
+func TestCalculatorModeHistoryIsNotAFilter(t *testing.T) {
+	a := testApp()
+	now := time.Now()
+	fixture := &calculatorFixture{entries: []calculator.Entry{
+		{ID: "1", Expression: "10*3", Result: "30", CreatedAt: now.UnixMilli()},
+		{ID: "2", Expression: "sqrt(16)", Result: "4", CreatedAt: now.AddDate(0, 0, -1).UnixMilli()},
+	}}
+	a.Calculator = fixture
+	a.EnterCalculator()
+	// A fresh expression shows its answer row *and* the whole history, not a
+	// history narrowed to the expression.
+	a.Query = "0.1+0.2"
+	items := a.calculatorItems()
+	if len(items) != 3 {
+		t.Fatalf("items = %d, want the answer row plus two history rows: %+v", len(items), items)
+	}
+	if items[0].Title != "0.1+0.2" || items[0].trailing != "0.3" {
+		t.Errorf("the answer row = %+v", items[0])
+	}
+	if items[1].trailing != "30" || items[1].Detail == "30" {
+		t.Errorf("the history row duplicates the result: %+v", items[1])
+	}
+	if want := i18n.For("en").Launcher.CalculatorYesterday; items[2].Detail != want {
+		t.Errorf("the yesterday row's time = %q, want %q", items[2].Detail, want)
 	}
 }
 
@@ -1769,6 +1837,21 @@ func TestActionBarRows(t *testing.T) {
 	tt.TypeKey(0, ui.KeyEnter, "")
 	tt.Frame()
 	if openedURL != "https://example.com/docs" {
+		t.Errorf("opened %q", openedURL)
+	}
+
+	// The scheme is case-insensitive: a pasted `HTTPS://` is a page to open,
+	// not a command to run.
+	openedURL = ""
+	a.ResetQuery()
+	tt.Type("HTTPS://Example.com/Docs")
+	tt.Frame()
+	if !tt.HasText("Open in browser") {
+		t.Fatalf("the uppercase url row is missing: %q", tt.Texts())
+	}
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if openedURL != "HTTPS://Example.com/Docs" {
 		t.Errorf("opened %q", openedURL)
 	}
 

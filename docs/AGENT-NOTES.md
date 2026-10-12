@@ -156,3 +156,24 @@ opt-in（`FLOTER_TERMINAL_TEST=1`、`FLOTER_SQLITE_TEST=1`、`FLOTER_REGISTRY_TE
    已用 Xvfb 验证：SIGHUP 后存活、SIGTERM 后优雅退出。
 - **注意**：`syscall.SysProcAttr{Setsid}` 是 unix-only，跨平台要走 build-tagged 的
   detach（`internal/apps/detach_unix.go` / `detach_windows.go`）。
+
+## 2026-10-12 · 对照原版补齐（本轮）
+
+按用户要求全面对照 Tauri 原版（`backup/main-pre-mygo`）排查剩余偏离，修了四处**用户可感知**的
+行为差异（都在 `internal/launcher` / `internal/terminalui`）：
+
+- **计算器模式不再把字段当搜索词**：原版 R50 明确「字段是待算算式，不是历史搜索 needle」，
+  用算式过滤会在用户正写新算式时把历史全藏起来。历史只受 chip（全部/收藏）过滤。
+  顺带修正行寄存器：历史行副标题是**时间**（今天 `HH:MM` / 昨天 / 日期），结果在**右端** trailing
+  ——此前结果被画了两遍（副标题 + trailing）。答案行也回到 R50 寄存器（算式为标题、答案在右）。
+  新增 `i18n.Launcher.CalculatorYesterday`。
+- **浏览器触发词决定进入的档位**：原版 `parseBrowserMode` 里 `bookmarks/bookmark/书签 ` 进书签档、
+  `history/hist/历史/历史记录 ` 进历史档、`browser/浏览器 ` 进全部档；本构建此前一律进 `all`，
+  且缺 `hist/历史/历史记录`。
+- **URL scheme 大小写不敏感**：原版 `/^(?:https?|ftp):\/\//i`，本构建漏了 `i`，粘 `HTTPS://` 会当命令跑。
+- **应用行不再显示另一语言的同名**：原版 R14 把「企业微信 / WeCom」「QQ音乐 / QQMusic」这种
+  副标题删了（「还是很丑，清爽一点」），只在搜索里保留；本构建此前把它当 Detail 显示（行也更高）。
+  现在标题取本地化名、Detail 空，两个名字 + 别名 + 拼音首字母都可搜。
+- **终端栏内容随 hover/focus 显现**：原版 `.terminal-bar__identity` 与 `.terminal-panel__actions`
+  都是 hover/`:focus-within` 才显；本构建此前只藏了标题，按钮常驻，遮住终端首行。现在整组按钮
+  也 `Opacity(0).PassThrough()`（隐藏时不吃点击），`bar.FocusWithin()` 负责键盘到达。

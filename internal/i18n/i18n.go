@@ -143,6 +143,10 @@ type Launcher struct {
 	CalculatorEmpty          string
 	CalculatorRecordFailed   string
 	CalculatorFavoriteFailed string
+	// CalculatorYesterday is the history row's time word for an entry made the
+	// day before: the old build's `calculator.yesterday`, printed where a
+	// today entry prints its clock time.
+	CalculatorYesterday string
 	// The power rows: restart and shut down, and the confirmation the shell
 	// shows before either.
 	PowerRestart       string

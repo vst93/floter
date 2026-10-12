@@ -469,20 +469,22 @@ func (a *App) Catalog() []Item {
 	return items
 }
 
-// appItem is one application as a row: titled with the name the user's own
-// desktop shows (a bundle's localized name, when it has one that differs) and
-// subtitled with the Latin spelling, with every alias and the pinyin initials
-// searchable.
+// appItem is one application as a row, titled with the name the user's own
+// desktop shows. The bundle's other name is deliberately *not* printed: the old
+// build dropped it as a second line spent on zero information — "企业微信 /
+// WeCom", "QQ音乐 / QQMusic" (R14: 「还是很丑，清爽一点」) — and it stays reachable
+// through the search key instead. Every alias and the pinyin initials are
+// searchable beside both names.
 func appItem(app apps.App, run func()) Item {
-	title, detail := app.Name, ""
-	if app.Localized != "" && app.Localized != app.Name {
-		title, detail = app.Localized, app.Name
+	title := app.Name
+	if app.Localized != "" {
+		title = app.Localized
 	}
+	search := append([]string{app.Name, app.Localized, app.Initials}, app.Aliases...)
 	return Item{
 		ID:     "app:" + app.Path,
 		Title:  title,
-		Detail: detail,
-		Search: strings.Join(append([]string{app.Initials}, app.Aliases...), " "),
+		Search: strings.Join(search, " "),
 		Run:    run,
 		icon:   &app,
 	}

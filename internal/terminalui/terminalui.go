@@ -716,10 +716,13 @@ func (a *App) titleBar(c *ui.Context, copy i18n.Terminal) {
 	t := c.Theme()
 	bar := ui.Row(c).Absolute().Top(0).Left(0).Right(0).Height(t.Space(7)).
 		Padding(0, t.Space(3)).Gap(t.Space(2)).AlignItems(ui.Center).DragWindow()
-	revealed := bar.Hovered()
+	// The bar's whole content is hidden until the pointer is over it or
+	// something on it has the keyboard, so neither the title nor the buttons
+	// permanently occlude the first lines of output under them
+	// (`.terminal-bar__identity` / `.terminal-panel__actions` reveal the same
+	// way).
+	revealed := bar.Hovered() || bar.FocusWithin()
 	bar.Children(func() {
-		// The identity is hidden until the bar is hovered, so the title never
-		// sits on top of the first lines of output.
 		identity := ui.Row(c).Grow(1).Gap(t.Space(1.75)).AlignItems(ui.Center).Shrink(0)
 		if !revealed {
 			identity.Opacity(0)
@@ -733,21 +736,31 @@ func (a *App) titleBar(c *ui.Context, copy i18n.Terminal) {
 			ui.Text(c, title).FontSize(t.FontSize - 1).FontWeight(580).
 				TextColor(t.TextMuted).Ellipsis("\u2026").SingleLine()
 		})
-		if a.Actions.Settings != nil {
-			a.barButton(c, "settings", copy.SettingsLabel, a.Actions.Settings)
+		// The controls, at the bar's trailing edge: 28u transparent squares
+		// with a 4u gap, hidden and non-interactive until the bar is revealed
+		// (a hidden button must not catch a click meant for the terminal
+		// underneath).
+		actions := ui.Row(c).Gap(t.Space(1)).AlignItems(ui.Center).Shrink(0)
+		if !revealed {
+			actions.Opacity(0).PassThrough()
 		}
-		if a.Actions.Pin != nil && a.term() != nil {
-			a.barButton(c, "text", copy.Pin, func() { a.Actions.Pin(a.sessionTitle(), a.sessionText()) })
-		}
-		if a.Actions.NewCommand != nil {
-			a.barButton(c, "command", copy.NewCommand, a.Actions.NewCommand)
-		}
-		if a.Actions.OpenExternal != nil {
-			a.barButton(c, "terminal", copy.OpenExternal, a.Actions.OpenExternal)
-		}
-		if a.Actions.Close != nil {
-			a.barButton(c, "close", copy.Close, a.Actions.Close)
-		}
+		actions.Children(func() {
+			if a.Actions.Settings != nil {
+				a.barButton(c, "settings", copy.SettingsLabel, a.Actions.Settings)
+			}
+			if a.Actions.Pin != nil && a.term() != nil {
+				a.barButton(c, "text", copy.Pin, func() { a.Actions.Pin(a.sessionTitle(), a.sessionText()) })
+			}
+			if a.Actions.NewCommand != nil {
+				a.barButton(c, "command", copy.NewCommand, a.Actions.NewCommand)
+			}
+			if a.Actions.OpenExternal != nil {
+				a.barButton(c, "terminal", copy.OpenExternal, a.Actions.OpenExternal)
+			}
+			if a.Actions.Close != nil {
+				a.barButton(c, "close", copy.Close, a.Actions.Close)
+			}
+		})
 	})
 }
 

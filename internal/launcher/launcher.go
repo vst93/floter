@@ -1147,8 +1147,28 @@ const (
 // accepted, so a habit from it still works.
 var (
 	clipboardWords = []string{"clip", "clipboard", "剪贴板", "粘贴板"}
-	browserWords   = []string{"browser", "bookmarks", "bookmark", "history", "浏览器", "书签"}
+	// browserWords are the words that open the browser mode; the word also
+	// chooses the range it opens on (see browserFilterForWord). `history` is
+	// included: it is the shell's own command as a bare word, but `history `
+	// with an argument is the browser history search, exactly as the old build
+	// had it.
+	browserWords = []string{"browser", "bookmarks", "bookmark", "history", "hist", "浏览器", "书签", "历史", "历史记录"}
 )
+
+// browserFilterForWord is the range a trigger word opens the mode on: the
+// bookmark words open on the bookmarks, the history words on the history, and
+// the plugin's own word on everything — the old build's `parseBrowserMode`, so
+// the word the user typed is the list they asked for.
+func browserFilterForWord(word string) string {
+	switch {
+	case wordIn(word, []string{"bookmarks", "bookmark", "书签"}):
+		return filterBookmarks
+	case wordIn(word, []string{"history", "hist", "历史", "历史记录"}):
+		return filterHistory
+	default:
+		return filterAll
+	}
+}
 
 // The built-in commands' search vocabulary: every language's wording plus the
 // pinyin initials of the Chinese ones, written out because these are the app's
@@ -1638,12 +1658,13 @@ func (a *App) enterBrowser() {
 	a.enterBrowserWord(browserWord + " ")
 }
 
-// enterBrowserWord opens the browser mode with the field's text.
+// enterBrowserWord opens the browser mode with the field's text, on the range
+// the trigger word names (bookmarks, history, or everything).
 func (a *App) enterBrowserWord(query string) {
 	a.mode = nil
 	a.clipboard = false
 	a.calculatorMode = false
-	a.browserFilter = filterAll
+	a.browserFilter = browserFilterForWord(firstWord(query))
 	a.browser = true
 	a.modeWord = firstWord(query)
 	a.Query = ""

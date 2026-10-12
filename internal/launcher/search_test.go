@@ -321,8 +321,9 @@ func TestSplitArgs(t *testing.T) {
 	}
 }
 
-// An application row is titled with the name the user's own desktop shows and
-// subtitled with the Latin one, and every alias is searchable.
+// An application row is titled with the name the user's own desktop shows; the
+// bundle's other name is not printed as a subtitle (it was the same name in
+// another language), but every name and alias stays searchable.
 func TestApplicationNamesAndAliases(t *testing.T) {
 	a := testApp()
 	app := apps.App{Name: "WeCom", Localized: "企业微信", Aliases: []string{"WeCom", "企业微信", "WeWorkMac"}, Initials: "wecomqywx", Path: "/Applications/WeCom.app"}
@@ -332,7 +333,7 @@ func TestApplicationNamesAndAliases(t *testing.T) {
 	if len(results) != 1 {
 		t.Fatalf("results = %+v", results)
 	}
-	if results[0].Title != "企业微信" || results[0].Detail != "WeCom" {
+	if results[0].Title != "企业微信" || results[0].Detail != "" {
 		t.Errorf("row = %+v", results[0])
 	}
 	// The Latin name and an identifier alias both find it too.
