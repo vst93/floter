@@ -8,7 +8,7 @@
 
 用 mygo（原生 GPU 自绘 UI + Go）重写的 floter **已经是一个可打包、可运行的完整应用**：单窗口三表面
 （启动器 / 设置 / 终端）、搜索内核、扩展平台（含后台运行、列表协议、导入导出、权限审计）、剪贴板、
-浏览器、计算器、系统集成、打包与 CI 全部就位。**787 项测试全绿**，三平台都能构建，Linux 打包
+浏览器、计算器、系统集成、打包与 CI 全部就位。**789 项测试全绿**，三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
 含测试）。
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 787 项测试
+go test -count=1 ./...         # 789 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,7 +99,51 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-ba `platformOverrides.minimumOsVersion` 的执行** —— P7-az 顺带记下的那条：
+> **最新一轮：P7-bb 集成行的 freshness 点（R7-7b）** —— 原版列表行上那个「一句话新鲜度」的
+> 状态点（synced / changed / unknown）从没落地：本构建只在展开的卡里有一行 freshness 明细。
+> 现在同一份纯投影 `Freshness.DotState()` 既喂那一行、也喂名字旁的点，还顺手修了 `FreshnessOf`
+> 把「探过、但没有健康报告」错报成 unknown 的结果推导。
+
+**P7-bb 集成行的一句话 freshness（本轮）**
+
+- **依赖检查**：`curl .../releases/latest` 返回 v0.4.7（`go.mod` 已是 v0.4.7），无版本可升；本轮走
+  「对照原版排查偏离点」，同时把「尚未做」里已全部完成/卡框架的项目换成 P7-bb 的新具体待办。
+- **偏离点（两处，同一条链）**：
+  1. **列表行的 freshness 点没有**。原版 `src/extensions/ExtensionRow.tsx:161` 在名字行（version 与
+     meta 之间）画一个 8u 圆点，它的状态由纯函数 `freshnessDotState`（`src/extensions/freshness.ts:143`）
+     从**同一个** `Freshness` 投出来，三态闭集 `synced` / `changed` / `unknown`：只有「一次真的比较过
+     且计数动了」才是 `changed`（唯一带暖色的态），比较过且相等才是 `synced`，其余（没探过、只探过
+     一次、在飞、失败/降级、发布者描述符）都是 `unknown`——**「第一次探测」不许写成「已同步」**，那正是
+     `commandDelta` 已经拒绝制造的假信心。点的颜色是态（synced=`--text-secondary`、changed=`--text-warning`、
+     unknown=`--text-muted`，`src/styles/extensions.css:926`），标签与 tooltip 是同一句
+     `settings.extensions.freshnessDot`（「Command status: {state}」）。本构建 `internal/settingsui`
+     有 `freshnessState`/`freshnessDetail` 的**明细行**，却没有任何三态投影，也没有行级标记。
+  2. **`FreshnessOf` 的结果推导漏了「探过即成功」**。原版 `freshnessOf` 的决定链是
+     `running → failed(errorCode 或 unhealthy) → degraded → (atSeconds !== null ? success : unknown)`；
+     本构建 `internal/extensions/freshness.go` 的 `FreshnessOf` 只在**有健康报告**时才写 `Result`，
+     于是「宿主生成、探过成功、但没声明 lifecycle probes」的集成结果永远停在 `unknown`——明细行显示
+     「未知」而时间/计数都在，点也永远到不了 `synced`。
+- **修法**：
+  - `internal/extensions/freshness.go`：新增 `FreshnessDot` 三态类型与 `Freshness.DotState()`，复刻
+    `freshnessDotState`（先看 delta 的增/减 → changed；再 `Result==success && delta==unchanged` → synced；
+    否则 unknown）。`FreshnessOf` 的结果改成原版那条链：失败/降级的健康报告直接胜出，否则**有过探测
+    时间就是 success**（健康报告的 CheckedAt 也计入时间来源），全无探测才是 unknown。
+  - `internal/settingsui/settingsui.go`：`freshnessDot(c, copy, freshness)` 在集成名旁画
+    `t.Space(2)` 的圆点，颜色按 `DotState()`，`Label`/`Tooltip` 同为 `freshnessDotLabel(copy, dot)`
+    （把态词塞进 `copy.FreshnessDot` 的共享句框）；`integrationRow` 把 `freshnessOf` 读一次，
+    喂名字旁的点与下面的明细行——**一个值，两处画，不可能互相矛盾**。
+  - i18n：`Settings` 新键 `FreshnessDot(state)` / `FreshnessDotSynced` / `FreshnessDotChanged` /
+    `FreshnessDotUnknown`（en/zh，原版原文）。
+- **测试**：`internal/extensions/freshness_test.go` 的 `TestFreshnessDotState`（9 行表：增/减 → changed、
+  相等与 0==0 → synced、首探/失败/降级/在飞/没探过 → unknown）、`TestFreshnessOfGeneratedIntegration`
+  追加「探过即 success」断言；`internal/settingsui/view_test.go` 的 `TestFreshnessDotProjectsTheRowState`
+  （in sync → changed → unknown 三态逐帧、tooltip 与 label 同句、没探过则没有任何点）。
+  变异核查：把 `DotState` 的 delta 分支删掉 → extensions 三条立刻红；把 `freshnessDot` 从名字行摘掉 →
+  settingsui 那条立刻红；把 `FreshnessOf` 的 `AtSeconds > 0` 分支删掉 → 「探过即 success」立刻红。
+- **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 27 包全绿
+  （789 项）、`GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+> **上一轮：P7-ba `platformOverrides.minimumOsVersion` 的执行** —— P7-az 顺带记下的那条：
 > override 的 `minimumOsVersion` 已解析进结构却**没人执行**。现在新增宿主 OS 版本探测
 > （macOS `sw_vers`、Linux `uname -r`、Windows `ver`，可注入），命中的 override 在安装期
 > 比较宿主版本，低于下限的包在落盘前被拒收并说明原因；已装的包不因宿主升级/降级而失效。
@@ -1287,6 +1331,9 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 > ——空态文案把用户指向「设置 > 集成」，而那一页从来没有内置插件区；P7-am 找到的是第三处
 > ——PATH 命令行的两个行级事实（来源词与可执行路径）在扫描进启动器时被丢掉，来源词槽
 > （P7-z）对这些行从不出现。
+>
+> **P7-bb 更新**：P7-an 的这份 1–8 已全部完成或只剩一次性维护者动作；P7-bb 之后的具体待办
+> 见下方「### 具体待办（P7-bb 重写）」（freshness 点已落地；剩下漂移通知门与相对时间本地化）。
 
 ### 具体待办（P7-an 把清单写实；每项带 file:line、原版对照、验收标准）
 
@@ -1377,6 +1424,34 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 > 至此具体待办里的 1–3 **三条都卡在框架能力上**（`Options.OnCopy`、终端键入的 `HandleInput`
 > 缝、外观旋钮的暴露），不是应用侧能单方面推进的；第 4–8 条已全部完成（第 8 条在 P7-ba 落地）。
 > 下一轮仍应回到「对照原版排查偏离点」这条路。
+
+### 具体待办（P7-bb 重写；旧的 1–8 已全部完成或卡框架，以下为本轮新找到的偏离）
+
+1. **~~集成行的 freshness 点（R7-7b）~~**：已完成（P7-bb）——`Freshness.DotState()` 三态投影 +
+   名字旁的点（颜色=态、label/tooltip 同句）；`FreshnessOf` 补上「探过即 success」的推导。
+   （原分析保留在上面的 P7-bb 记录里。）
+2. **漂移通知门（R7-7 的 `createReprobeNoticeGate` / `decideDriftNotice`）** —— 需要先决定是否移植
+   后台重探的调度器。
+   - 原版：`src/extensions/freshness.ts:206` 的 `createReprobeNoticeGate`（会话内 `seen` Set，
+     `allow(key)` 首次真）、`reprobeNoticeKey`（`id\u0000toolVersion\u0000kind:count` 稳定 key）、
+     `decideDriftNotice(frame, name, gate)`——三条**有顺序**的规则：「无变化不发」（先于门，不能烧掉
+     名额）、「无名不发」（门只在有名字时才问）、「同一变化一次」（key 相同则沉默，不同变化仍发）；
+     `src/ExtensionsPanel.tsx` 的 `handleDriftNotice` 把 op-progress 帧写回列表行（`lastProbeAt`/
+     `commandCount`/`previousCommandCount`，缺字段保留旧值、不填 0），并向唯一一个 `onNotify` 发
+     `settings.extensions.reprobeNotice`。
+   - 本构建：`internal/extensions/reprobe.go` 的 `ReprobeCommands` 是**手动**、同步的；全仓 `grep -i drift`
+     只在无关注释里命中，没有通知门、没有 op-progress 帧、也没有后台重探调度。
+   - 验收（纯半）：新增 `internal/extensions` 的 `DriftNoticeGate`（`Allow`）、`ReprobeNoticeKey(id,
+     toolVersion, delta)`、`DecideDriftNotice(frame, name, gate)` 复刻三条顺序与 key；测试
+     「无变化不烧名额 / 无名不发 / 同 key 一次 / 不同变化仍发 / 缺字段不假造计数」。若决定移植后台
+     重探，再在 shell 接线到唯一的一个通知点（一帧一 toast，不重复）。
+3. **freshness 明细的相对时间本地化** —— 小项。
+   - 原版：`src/extensions/freshness.ts:165` 的 `relativeTime` 用 `Intl.RelativeTimeFormat`（本地化
+     「3 minutes ago」/「3分钟前」，覆盖到月/年；< 45s 走 caller 自己的 `justNow`）。
+   - 本构建：`internal/settingsui/settingsui.go:2445` 的 `humanAge` 产出 `3d`/`3h`/`3m` 缩写，再被
+     `copy.FreshnessAgo` 包成「3d ago」/「3d前」——不是原版的词形，且到「天」就封顶。
+   - 验收：把 `humanAge` 换成本地化的相对时间（en/zh 两套词、覆盖分钟→年）；测试钉住 45s / 分钟 /
+     小时 / 天 / 月 / 年的边界，且 zh 是中文。
 
 **P7-at manifest 的 `compatibility` 区间在落盘前生效（本轮）**
 

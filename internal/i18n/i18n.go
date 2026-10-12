@@ -538,6 +538,12 @@ type Settings struct {
 	FreshnessDeltaDecrease   func(count int) string
 	FreshnessDeltaUnchanged  string
 	FreshnessDeltaUnknown    string
+	// FreshnessDot is the row's one-word freshness mark: the shared sentence
+	// around the state word, and the three words themselves.
+	FreshnessDot        func(state string) string
+	FreshnessDotSynced  string
+	FreshnessDotChanged string
+	FreshnessDotUnknown string
 	// The About page's deep-link card: the two forms worth copying, and the
 	// sentence a refused link gets (the old build's `settings.deepLinkRejected`).
 	DeepLinkTitle    string

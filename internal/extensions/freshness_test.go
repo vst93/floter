@@ -40,6 +40,11 @@ fi
 	if !first.Known() || first.Source != FreshnessProbe {
 		t.Fatalf("first probe = %+v", first)
 	}
+	// A probe that ran is a success even with no health report beside it:
+	// "we probed and it worked" is what the timestamp already says.
+	if first.Result != FreshnessSuccess {
+		t.Errorf("a recorded probe = %q, want success", first.Result)
+	}
 	if first.CommandCount == nil || *first.CommandCount != 3 {
 		t.Errorf("command count = %v, want 3", first.CommandCount)
 	}
@@ -102,6 +107,44 @@ func TestFreshnessFromHealthReport(t *testing.T) {
 	} {
 		if got := resultOf(c.status); got != c.want {
 			t.Errorf("resultOf(%q) = %q, want %q", c.status, got, c.want)
+		}
+	}
+}
+
+// The row's one-word mark has exactly three states, and a state that is not a
+// completed comparison can never read as synced: a first probe, a failed or
+// degraded one, one still running, and a never-probed integration all land in
+// unknown.
+func TestFreshnessDotState(t *testing.T) {
+	count := func(n int) *int { return &n }
+	cases := []struct {
+		name      string
+		freshness Freshness
+		want      FreshnessDot
+	}{
+		{"a growth", Freshness{Result: FreshnessSuccess, Delta: DeltaIncrease,
+			CommandCount: count(6), PreviousCommandCount: count(4)}, FreshnessDotChanged},
+		{"a shrink", Freshness{Result: FreshnessSuccess, Delta: DeltaDecrease,
+			CommandCount: count(4), PreviousCommandCount: count(6)}, FreshnessDotChanged},
+		{"a real comparison", Freshness{Result: FreshnessSuccess, Delta: DeltaUnchanged,
+			CommandCount: count(4), PreviousCommandCount: count(4)}, FreshnessDotSynced},
+		{"zero compared with zero", Freshness{Result: FreshnessSuccess, Delta: DeltaUnchanged,
+			CommandCount: count(0), PreviousCommandCount: count(0)}, FreshnessDotSynced},
+		// A first probe: a real success, but nothing was compared. Calling it
+		// "in sync" would be the same fabricated confidence the delta refuses.
+		{"a first probe", Freshness{Result: FreshnessSuccess, Delta: DeltaUnknown,
+			CommandCount: count(3)}, FreshnessDotUnknown},
+		{"a failed probe", Freshness{Result: FreshnessFailed, Delta: DeltaUnchanged,
+			CommandCount: count(4), PreviousCommandCount: count(4)}, FreshnessDotUnknown},
+		{"a degraded probe", Freshness{Result: FreshnessDegraded, Delta: DeltaUnchanged,
+			CommandCount: count(4), PreviousCommandCount: count(4)}, FreshnessDotUnknown},
+		{"a probe in flight", Freshness{Result: FreshnessRunning, Delta: DeltaUnchanged,
+			CommandCount: count(4), PreviousCommandCount: count(4)}, FreshnessDotUnknown},
+		{"never probed", Freshness{Result: FreshnessUnknown, Delta: DeltaUnknown}, FreshnessDotUnknown},
+	}
+	for _, c := range cases {
+		if got := c.freshness.DotState(); got != c.want {
+			t.Errorf("%s: DotState = %q, want %q", c.name, got, c.want)
 		}
 	}
 }

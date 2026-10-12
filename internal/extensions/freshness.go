@@ -84,6 +84,39 @@ func (f Freshness) DeltaCount() int {
 	return delta
 }
 
+// FreshnessDot is the row's one-word freshness: a single mark answering "did
+// this command list move since it was last compared".
+type FreshnessDot string
+
+// The three states, and only three — those are the three things a row can
+// honestly say:
+//
+//   - FreshnessDotChanged: a probe compared this list with the one before it
+//     and the count moved. The only state that requires positive evidence.
+//   - FreshnessDotSynced: a probe compared the two and found them equal.
+//   - FreshnessDotUnknown: there is nothing to compare — never probed, a first
+//     probe with no earlier one, a probe in flight, or a failed/degraded probe.
+const (
+	FreshnessDotSynced  FreshnessDot = "synced"
+	FreshnessDotChanged FreshnessDot = "changed"
+	FreshnessDotUnknown FreshnessDot = "unknown"
+)
+
+// DotState projects what is known about an integration's command list onto the
+// row's one-word mark. It reads Delta, not Result alone: a *first* probe is a
+// success with nothing to compare against, and painting it "in sync" would be
+// the fabricated confidence the delta already refuses to produce. Running,
+// failed and degraded all land in unknown, as does a never-probed integration.
+func (f Freshness) DotState() FreshnessDot {
+	if f.Delta == DeltaIncrease || f.Delta == DeltaDecrease {
+		return FreshnessDotChanged
+	}
+	if f.Result == FreshnessSuccess && f.Delta == DeltaUnchanged {
+		return FreshnessDotSynced
+	}
+	return FreshnessDotUnknown
+}
+
 // FreshnessOf reads what is known about an integration's command list: the
 // help-probe sidecar beside its descriptor (when the host generated it) and
 // the health report the repository keeps. Best-effort by contract: an
@@ -99,14 +132,28 @@ func FreshnessOf(paths Paths, integration Integration) Freshness {
 			freshness.Delta = deltaOf(record.CommandCount, record.PreviousCommandCount)
 		}
 	}
+	// The health report is the fallback source of a time when no sidecar
+	// exists, and its own words win for the result when it has them.
+	status := ""
 	if report := integration.Entry.ProbeReport; report != nil && report.Status != "" {
-		freshness.Result = resultOf(report.Status)
+		status = report.Status
 		if freshness.Source == FreshnessNone {
 			if at, err := time.Parse(time.RFC3339, report.CheckedAt); err == nil {
 				freshness.AtSeconds = at.Unix()
 				freshness.Source = FreshnessHealth
 			}
 		}
+	}
+	// A failed or degraded health report is the result outright; otherwise a
+	// probe that actually ran is a success, and a build that has never probed
+	// this integration stays unknown. A *first* probe with no earlier count is
+	// a success here — it is the dot, not this, that refuses to call it "in
+	// sync" (the dot reads the delta).
+	switch result := resultOf(status); {
+	case result == FreshnessFailed || result == FreshnessDegraded:
+		freshness.Result = result
+	case freshness.AtSeconds > 0:
+		freshness.Result = FreshnessSuccess
 	}
 	return freshness
 }

@@ -1142,8 +1142,15 @@ func (a *App) stateMark(c *ui.Context, integration Integration, copy i18n.Settin
 // alias), and the row of doors — check, re-scan, uninstall.
 func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Integration) {
 	t := c.Theme()
+	// The row's own one-word freshness, read once and used twice: the mark
+	// beside the name and the fuller row below it, projected from the same
+	// value so the two can never disagree.
+	freshness, hasFreshness := a.freshnessOf(integration)
 	a.card(c, func() {
 		a.row(c, integration.Name, integration.Description, func() {
+			if hasFreshness {
+				a.freshnessDot(c, copy, freshness)
+			}
 			a.stateMark(c, integration, copy)
 		})
 		a.row(c, integration.identity(), "", func() {})
@@ -1163,7 +1170,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 		// that went, and how the list moved. Nothing is shown for an
 		// integration nothing has ever probed — "unknown" is its own state,
 		// not a row of zeroes.
-		if freshness, ok := a.freshnessOf(integration); ok {
+		if hasFreshness {
 			a.row(c, copy.Freshness, a.freshnessDetail(copy, freshness), func() {
 				ui.Text(c, freshnessState(copy, freshness)).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
 			})
@@ -2358,6 +2365,43 @@ func freshnessState(copy i18n.Settings, freshness extensions.Freshness) string {
 	default:
 		return copy.FreshnessResultUnknown
 	}
+}
+
+// freshnessDot is the one-word mark beside an integration's name: the same
+// projection the freshness row below uses, so a user scanning the cards sees a
+// list move without reading every row's timeline. Only a change earns warmth;
+// a synced list is a quiet secondary dot and an unknown one is muted.
+func (a *App) freshnessDot(c *ui.Context, copy i18n.Settings, freshness extensions.Freshness) {
+	t := c.Theme()
+	tokens := a.tokens(c)
+	dot := freshness.DotState()
+	color := t.TextMuted
+	switch dot {
+	case extensions.FreshnessDotSynced:
+		color = tokens.TextSecondary
+	case extensions.FreshnessDotChanged:
+		color = t.Warning
+	}
+	// The mark is its own label: the tooltip and the accessible name are the
+	// same sentence, and the state word inside it comes from a switch over the
+	// same value the colour does.
+	label := freshnessDotLabel(copy, dot)
+	ui.Box(c).Size(t.Space(2), t.Space(2)).Radius(t.Space(1)).Shrink(0).
+		Background(color).Label(label).Tooltip(label)
+}
+
+// freshnessDotLabel is the mark's whole sentence: the state's own word inside
+// the shared "Command status: {state}" frame, so a state added to the
+// vocabulary without a word cannot print an empty string.
+func freshnessDotLabel(copy i18n.Settings, dot extensions.FreshnessDot) string {
+	word := copy.FreshnessDotUnknown
+	switch dot {
+	case extensions.FreshnessDotSynced:
+		word = copy.FreshnessDotSynced
+	case extensions.FreshnessDotChanged:
+		word = copy.FreshnessDotChanged
+	}
+	return copy.FreshnessDot(word)
 }
 
 // freshnessDetail is the row's grey line: when the list was last derived and

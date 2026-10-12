@@ -1720,6 +1720,85 @@ func TestFreshnessRow(t *testing.T) {
 // report lives in the repository, so the row says how the tool was last found
 // to be before any check runs in this session. It is its own row, under its
 // own label, distinct from the live diagnostics below.
+func TestFreshnessDotProjectsTheRowState(t *testing.T) {
+	count := func(n int) *int { return &n }
+	freshness := extensions.Freshness{
+		AtSeconds:            time.Now().Unix(),
+		Source:               extensions.FreshnessProbe,
+		Result:               extensions.FreshnessSuccess,
+		Delta:                extensions.DeltaUnchanged,
+		CommandCount:         count(4),
+		PreviousCommandCount: count(4),
+	}
+	a := New(newStore(t), Actions{
+		Freshness: func(id string) (extensions.Freshness, bool) {
+			return freshness, id == "dev.floter.tool"
+		},
+	})
+	a.Integrations = func() []Integration {
+		return []Integration{{ID: "dev.floter.tool", Name: "Tool", Enabled: true, Running: true}}
+	}
+	tt := render(t, a, 720, 900)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+
+	// A completed comparison with equal counts reads as in sync.
+	if !tt.HasText("Command status: in sync") {
+		t.Fatalf("the synced dot is missing: %q", tt.Texts())
+	}
+	// A count that moved is the one state that earns warmth.
+	freshness.Delta = extensions.DeltaIncrease
+	freshness.CommandCount = count(6)
+	tt.Frame()
+	if !tt.HasText("Command status: changed upstream") {
+		t.Errorf("the changed dot is missing: %q", tt.Texts())
+	}
+	if tt.HasText("Command status: in sync") {
+		t.Errorf("a changed list still reads as in sync: %q", tt.Texts())
+	}
+	// A first probe has nothing to compare against, so it is unknown, never
+	// a fabricated "in sync".
+	freshness.Delta = extensions.DeltaUnknown
+	freshness.PreviousCommandCount = nil
+	tt.Frame()
+	if !tt.HasText("Command status: unknown, not compared") {
+		t.Errorf("the unknown dot is missing: %q", tt.Texts())
+	}
+	// The dot's word is also its tooltip, so a pointer resting on it reads the
+	// same sentence the label carries. (A Label and the tooltip a hover reveals
+	// are two nodes; the count must rise.)
+	countOf := func(want string) int {
+		n := 0
+		for _, s := range tt.Texts() {
+			if s == want {
+				n++
+			}
+		}
+		return n
+	}
+	label := "Command status: unknown, not compared"
+	if rect, ok := tt.Find(label); ok {
+		before := countOf(label)
+		tt.Move(rect.X+rect.W/2, rect.Y+rect.H/2)
+		// The tip waits for the pointer to rest (Base UI's 600ms).
+		time.Sleep(700 * time.Millisecond)
+		tt.Frame()
+		if countOf(label) <= before {
+			t.Errorf("the dot has no tooltip (nodes %d → %d): %q", before, countOf(label), tt.Texts())
+		}
+	} else {
+		t.Fatal("the dot is not findable by its own label")
+	}
+	// A never-probed integration has no mark at all.
+	a.Actions.Freshness = func(string) (extensions.Freshness, bool) { return extensions.Freshness{}, false }
+	tt.Frame()
+	if tt.HasText("Command status:") {
+		t.Errorf("a never-probed integration shows a dot: %q", tt.Texts())
+	}
+}
+
 func TestStoredHealthShowsOnTheRow(t *testing.T) {
 	a := New(newStore(t), Actions{})
 	a.Integrations = func() []Integration {
