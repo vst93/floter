@@ -56,97 +56,122 @@ func (a *App) drawer(c *ui.Context, copy i18n.Terminal) {
 		// reflows with the window instead of scrolling.
 		grid := ui.Row(c).Grow(1).Wrap().GapX(t.Space(4.5)).GapY(t.Space(1.5))
 		grid.Children(func() {
-			a.drawerRow(c, t.Space(60), scopy.FontSize, func() {
-				value := float64(s.FontSize)
-				changed := false
-				if ui.Slider(c, &value, float64(settings.MinFontSize), float64(settings.MaxFontSize)).
-					Width(t.Space(22)).Changed() {
-					changed = true
-				}
-				ui.Text(c, fmt.Sprintf("%d px", int(math.Round(value)))).
-					FontSize(tokens.Emphasis).TextColor(t.TextMuted)
-				if changed {
-					a.set(func(s *settings.Settings) { s.FontSize = int(math.Round(value)) })
-				}
-			})
-			a.drawerRow(c, t.Space(60), scopy.FontFamily, func() {
-				families := FontFamilyOptions(s.FontFamily)
-				selected := s.FontFamily
-				chosen := ""
-				if ui.Select(c, &selected, families).Grow(1).Changed() {
-					chosen = selected
-				}
-				if chosen != "" {
-					a.set(func(s *settings.Settings) { s.FontFamily = chosen })
-				}
-			})
-			a.drawerRow(c, t.Space(60), scopy.LineHeight, func() {
-				value := s.TerminalLineHeight
-				changed := false
-				if ui.Slider(c, &value, settings.MinTerminalLineHeight, settings.MaxTerminalLineHeight).
-					Width(t.Space(22)).Changed() {
-					changed = true
-				}
-				ui.Text(c, fmt.Sprintf("%.2f\u00d7", value)).
-					FontSize(tokens.Emphasis).TextColor(t.TextMuted)
-				if changed {
-					a.set(func(s *settings.Settings) { s.TerminalLineHeight = value })
-				}
-			})
-			a.drawerRow(c, t.Space(60), scopy.Padding, func() {
-				control.Segmented(c, tokens, optionLabels(scopy.Paddings),
-					optionIndex(scopy.Paddings, s.TerminalPadding), func(i int) {
-						a.set(func(s *settings.Settings) { s.TerminalPadding = scopy.Paddings[i].ID })
-					})
-			})
-			a.drawerRow(c, t.Space(60), scopy.CursorShape, func() {
-				control.Segmented(c, tokens, optionLabels(scopy.CursorShapes),
-					optionIndex(scopy.CursorShapes, s.CursorShape), func(i int) {
-						a.set(func(s *settings.Settings) { s.CursorShape = scopy.CursorShapes[i].ID })
-					})
-			})
-			on := s.CursorBlink
-			switched := false
-			clicked := a.drawerRow(c, t.Space(60), scopy.CursorBlink, func() {
-				if ui.Switch(c, &on).Label(scopy.CursorBlink).Changed() {
-					switched = true
-				}
-			})
-			// The row's own label is the switch's name, so clicking it toggles
-			// too — unless the switch itself was the target, in which case its
-			// own report already carried the new value.
-			if clicked && !switched {
-				on = !on
-			}
-			if switched || clicked {
-				a.set(func(s *settings.Settings) { s.CursorBlink = on })
-			}
-			// The palette row is the wide one: the picker beside the miniature
-			// terminal that shows what the choice paints, so it asks for a line
-			// of its own when the grid would otherwise squeeze the preview.
-			a.drawerRow(c, t.Space(95), scopy.Palette, func() {
-				selected := optionLabel(scopy.Palettes, s.TerminalTheme)
-				chosen := ""
-				if ui.Select(c, &selected, optionLabels(scopy.Palettes)).
-					Grow(1).Changed() {
-					for _, option := range scopy.Palettes {
-						if option.Label == selected {
-							chosen = option.ID
-							break
+			// One row per axis, in the schema's own order (internal/control):
+			// the drawer is the surface that carries the full set, so it paints
+			// every axis the schema names. The order the rows appear in is the
+			// schema's, never a second list kept here.
+			rows := map[control.AppearanceAxis]func(){
+				control.AxisFontSize: func() {
+					a.drawerRow(c, t.Space(60), scopy.FontSize, func() {
+						value := float64(s.FontSize)
+						changed := false
+						if ui.Slider(c, &value, float64(settings.MinFontSize), float64(settings.MaxFontSize)).
+							Width(t.Space(22)).Changed() {
+							changed = true
 						}
+						ui.Text(c, fmt.Sprintf("%d px", int(math.Round(value)))).
+							FontSize(tokens.Emphasis).TextColor(t.TextMuted)
+						if changed {
+							a.set(func(s *settings.Settings) { s.FontSize = int(math.Round(value)) })
+						}
+					})
+				},
+				control.AxisFontFamily: func() {
+					a.drawerRow(c, t.Space(60), scopy.FontFamily, func() {
+						families := FontFamilyOptions(s.FontFamily)
+						selected := s.FontFamily
+						chosen := ""
+						if ui.Select(c, &selected, families).Grow(1).Changed() {
+							chosen = selected
+						}
+						if chosen != "" {
+							a.set(func(s *settings.Settings) { s.FontFamily = chosen })
+						}
+					})
+				},
+				control.AxisLineHeight: func() {
+					a.drawerRow(c, t.Space(60), scopy.LineHeight, func() {
+						value := s.TerminalLineHeight
+						changed := false
+						if ui.Slider(c, &value, settings.MinTerminalLineHeight, settings.MaxTerminalLineHeight).
+							Width(t.Space(22)).Changed() {
+							changed = true
+						}
+						ui.Text(c, fmt.Sprintf("%.2f\u00d7", value)).
+							FontSize(tokens.Emphasis).TextColor(t.TextMuted)
+						if changed {
+							a.set(func(s *settings.Settings) { s.TerminalLineHeight = value })
+						}
+					})
+				},
+				control.AxisPadding: func() {
+					a.drawerRow(c, t.Space(60), scopy.Padding, func() {
+						control.Segmented(c, tokens, optionLabels(scopy.Paddings),
+							optionIndex(scopy.Paddings, s.TerminalPadding), func(i int) {
+								a.set(func(s *settings.Settings) { s.TerminalPadding = scopy.Paddings[i].ID })
+							})
+					})
+				},
+				control.AxisCursorShape: func() {
+					a.drawerRow(c, t.Space(60), scopy.CursorShape, func() {
+						control.Segmented(c, tokens, optionLabels(scopy.CursorShapes),
+							optionIndex(scopy.CursorShapes, s.CursorShape), func(i int) {
+								a.set(func(s *settings.Settings) { s.CursorShape = scopy.CursorShapes[i].ID })
+							})
+					})
+				},
+				control.AxisCursorBlink: func() {
+					on := s.CursorBlink
+					switched := false
+					clicked := a.drawerRow(c, t.Space(60), scopy.CursorBlink, func() {
+						if ui.Switch(c, &on).Label(scopy.CursorBlink).Changed() {
+							switched = true
+						}
+					})
+					// The row's own label is the switch's name, so clicking it toggles
+					// too — unless the switch itself was the target, in which case its
+					// own report already carried the new value.
+					if clicked && !switched {
+						on = !on
 					}
+					if switched || clicked {
+						a.set(func(s *settings.Settings) { s.CursorBlink = on })
+					}
+				},
+				// The palette row is the wide one: the picker beside the miniature
+				// terminal that shows what the choice paints, so it asks for a line
+				// of its own when the grid would otherwise squeeze the preview.
+				control.AxisPalette: func() {
+					a.drawerRow(c, t.Space(95), scopy.Palette, func() {
+						selected := optionLabel(scopy.Palettes, s.TerminalTheme)
+						chosen := ""
+						if ui.Select(c, &selected, optionLabels(scopy.Palettes)).
+							Grow(1).Changed() {
+							for _, option := range scopy.Palettes {
+								if option.Label == selected {
+									chosen = option.ID
+									break
+								}
+							}
+						}
+						// The preview follows the picker in the same frame the choice is
+						// made, so a click on the select repaints the block immediately.
+						shown := s.TerminalTheme
+						if chosen != "" {
+							shown = chosen
+						}
+						PalettePreview(c, tokens, shown, scopy.PalettePreview, t.Space(37))
+						if chosen != "" {
+							a.set(func(s *settings.Settings) { s.TerminalTheme = chosen })
+						}
+					})
+				},
+			}
+			for _, axis := range control.AppearanceAxes() {
+				if row, ok := rows[axis]; ok {
+					row()
 				}
-				// The preview follows the picker in the same frame the choice is
-				// made, so a click on the select repaints the block immediately.
-				shown := s.TerminalTheme
-				if chosen != "" {
-					shown = chosen
-				}
-				PalettePreview(c, tokens, shown, scopy.PalettePreview, t.Space(37))
-				if chosen != "" {
-					a.set(func(s *settings.Settings) { s.TerminalTheme = chosen })
-				}
-			})
+			}
 		})
 		// The drawer's own dismiss, in the corner a card's close button lives
 		// in: the same 28u icon button the bar's gear/X is, so the module can

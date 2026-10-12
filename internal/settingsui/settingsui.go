@@ -1655,35 +1655,49 @@ func (a *App) general(c *ui.Context, copy i18n.Settings) {
 
 		a.section(c, copy.GroupTerminal, "", func() {
 			a.card(c, func() {
-				a.slider(c, copy.FontSize, "", float64(s.FontSize),
-					settings.MinFontSize, settings.MaxFontSize,
-					func(v float64) string { return fmt.Sprintf("%d", int(math.Round(v))) },
-					func(v float64) {
-						a.set(func(s *settings.Settings) { s.FontSize = int(math.Round(v)) })
-					})
-				// The family is a picker of the faces this machine actually
-				// has (detected from its font files), plus the current value
-				// so a hand-set family is never lost.
+				// The family is a picker of the faces this machine actually has
+				// (detected from its font files), plus the current value so a
+				// hand-set family is never lost.
 				families := make([]i18n.Option, 0, len(terminalui.FontFamilyOptions(s.FontFamily)))
 				for _, family := range terminalui.FontFamilyOptions(s.FontFamily) {
 					families = append(families, i18n.Option{ID: family, Label: family})
 				}
-				a.choose(c, copy.FontFamily, "", families, s.FontFamily,
-					func(v string) { a.set(func(s *settings.Settings) { s.FontFamily = v }) })
-				a.pick(c, copy.CursorShape, "", copy.CursorShapes, s.CursorShape,
-					func(id string) { a.set(func(s *settings.Settings) { s.CursorShape = id }) })
-				a.checkbox(c, copy.CursorBlink, "", s.CursorBlink,
-					func(on bool) { a.set(func(s *settings.Settings) { s.CursorBlink = on }) })
-				a.slider(c, copy.LineHeight, "", s.TerminalLineHeight,
-					settings.MinTerminalLineHeight, settings.MaxTerminalLineHeight,
-					func(v float64) string { return fmt.Sprintf("%.1f×", v) },
-					func(v float64) {
-						a.set(func(s *settings.Settings) { s.TerminalLineHeight = v })
-					})
-				a.pick(c, copy.Padding, "", copy.Paddings, s.TerminalPadding,
-					func(id string) { a.set(func(s *settings.Settings) { s.TerminalPadding = id }) })
-				a.paletteRow(c, copy, s.TerminalTheme,
-					func(id string) { a.set(func(s *settings.Settings) { s.TerminalTheme = id }) })
+				// The card paints the axes the schema puts on this surface
+				// (internal/control, R55): the family, the size, the line height
+				// and the palette. The padding, cursor shape and blink rows live
+				// in the terminal's own appearance drawer, so the page does not
+				// grow a second copy of a control the terminal already owns.
+				rows := map[control.AppearanceAxis]func(){
+					control.AxisFontFamily: func() {
+						a.choose(c, copy.FontFamily, "", families, s.FontFamily,
+							func(v string) { a.set(func(s *settings.Settings) { s.FontFamily = v }) })
+					},
+					control.AxisFontSize: func() {
+						a.slider(c, copy.FontSize, "", float64(s.FontSize),
+							settings.MinFontSize, settings.MaxFontSize,
+							func(v float64) string { return fmt.Sprintf("%d", int(math.Round(v))) },
+							func(v float64) {
+								a.set(func(s *settings.Settings) { s.FontSize = int(math.Round(v)) })
+							})
+					},
+					control.AxisLineHeight: func() {
+						a.slider(c, copy.LineHeight, "", s.TerminalLineHeight,
+							settings.MinTerminalLineHeight, settings.MaxTerminalLineHeight,
+							func(v float64) string { return fmt.Sprintf("%.1f\u00d7", v) },
+							func(v float64) {
+								a.set(func(s *settings.Settings) { s.TerminalLineHeight = v })
+							})
+					},
+					control.AxisPalette: func() {
+						a.paletteRow(c, copy, s.TerminalTheme,
+							func(id string) { a.set(func(s *settings.Settings) { s.TerminalTheme = id }) })
+					},
+				}
+				for _, axis := range control.SettingsCardAxes() {
+					if row, ok := rows[axis]; ok {
+						row()
+					}
+				}
 			})
 		})
 	})

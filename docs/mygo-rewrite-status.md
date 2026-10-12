@@ -98,6 +98,22 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
+**P7-ah 外观行只有一个来源（本轮）**
+- **偏离点**：P7-ab 给终端加了它自己的外观抽屉后，同一批控件在**两处**各写了一份：设置页
+  General 的「终端外观」卡片和终端抽屉都手写了全部七行（字号、字体族、行距、内边距、光标形状、
+  光标闪烁、配色）。旧版 R42/R55 只有**一份 schema**，并规定两个面各画哪些行——设置页的卡片
+  只留用户点名的四项（字体族、字号、行距、配色），更细的轴（内边距、光标形状、闪烁）只画在
+  抽屉里。本构建于是把抽屉里的控件又原样搬了一份到设置页，两个面没有任何机制保证它们不漂移。
+- **修法**：`internal/control` 新增 `AppearanceAxis` 与三个纯函数——`AppearanceAxes()`（抽屉画的
+  全集，也就是 schema 的顺序）、`OnSettingsCard()`（旧版 `page: "card" | "strip"` 的规则）、
+  `SettingsCardAxes()`（全集按规则过滤）。`settingsui.general` 与 `terminalui.drawer` 都改成
+  遍历 schema、按轴查自己的行构造器，行序不再由各视图各自维护；设置卡片因此少掉内边距/光标形状/
+  光标闪烁三行，它们仍然只在终端自己的抽屉里（值照旧、从抽屉改的设置照旧对会话生效）。
+- **测试**：`internal/control/TestAppearanceAxesSplit`（卡片是无重复 schema 的严格子集、顺序就是
+  schema 过滤后的顺序、抽屉专属恰好是那三项）；`settingsui/TestTerminalAppearanceControls` 与
+  `terminalui/TestTerminalDrawerShowsTheAppearanceRows` 各自从 schema 读取应画的行拼标签表
+  （schema 多一个轴而某视图没画就红），并断言对方那一面的行在自己这里**缺席**。
+
 **P7-ag 行内标记与孤儿接管带上自己的说明（本轮）**
 - **偏离点**：上一批 tooltip（P7-aa 设置/终端、P7-af 字段行）之后，旧版 `title=` 的最后一批仍没补：
   启动器行自己的**警告点**（旧版 `extensions.conflict`「命令冲突」——本构建仓库里**没有**这个词条）、

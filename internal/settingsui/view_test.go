@@ -8,6 +8,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"floter/internal/control"
 	"floter/internal/extensions"
 	"floter/internal/i18n"
 	"floter/internal/settings"
@@ -190,42 +191,57 @@ func TestTerminalAppearanceControls(t *testing.T) {
 	a := New(store, Actions{})
 	tt := render(t, a, 720, 1800)
 
-	for _, want := range []string{
-		"Terminal appearance", "Font size", "Font family", "Cursor shape",
-		"Blinking cursor", "Line height", "Padding", "Terminal palette",
-	} {
-		if !tt.HasText(want) {
-			t.Errorf("missing %q in %q", want, tt.Texts())
+	// The settings card paints exactly the axes the schema gives this surface
+	// (internal/control, R55): the family, the size, the line height and the
+	// palette. Reading the list from the schema is what keeps this test and the
+	// view from agreeing on a stale subset.
+	labels := map[control.AppearanceAxis]string{
+		control.AxisFontFamily: "Font family",
+		control.AxisFontSize:   "Font size",
+		control.AxisLineHeight: "Line height",
+		control.AxisPalette:    "Terminal palette",
+	}
+	if len(labels) != len(control.SettingsCardAxes()) {
+		t.Fatalf("the test names %d card axes, the schema has %d", len(labels), len(control.SettingsCardAxes()))
+	}
+	if !tt.HasText("Terminal appearance") {
+		t.Errorf("missing the group title in %q", tt.Texts())
+	}
+	for _, axis := range control.SettingsCardAxes() {
+		label, ok := labels[axis]
+		if !ok {
+			t.Fatalf("the card owes the schema an axis with no row: %q", axis)
 		}
+		if !tt.HasText(label) {
+			t.Errorf("missing %q in %q", label, tt.Texts())
+		}
+	}
+
+	// The rows the schema reserves for the terminal's own drawer are *absent*
+	// here: the card is not a second copy of the drawer.
+	for _, gone := range []string{"Cursor shape", "Blinking cursor", "Padding"} {
+		if rect, ok := tt.Find(gone); ok {
+			t.Errorf("the settings card draws the drawer-only row %q at %v", gone, rect)
+		}
+	}
+
+	// The card keeps the schema's own order (family, size, line height,
+	// palette), so a row cannot be inserted between two others by accident.
+	var lastY float32 = -1
+	for _, axis := range control.SettingsCardAxes() {
+		rect, ok := tt.Find(labels[axis])
+		if !ok {
+			t.Fatalf("%q is missing", labels[axis])
+		}
+		if rect.Y <= lastY {
+			t.Errorf("%q at %v is not below the row the schema puts before it", labels[axis], rect)
+		}
+		lastY = rect.Y
 	}
 
 	// The terminal group sits below the fold: scroll the body to reach it.
 	tt.Scroll(400, 300, 0, 900)
 	tt.Frame()
-
-	if err := tt.Click("Block"); err != nil {
-		t.Fatalf("cursor shape: %v", err)
-	}
-	tt.Frame()
-	if got := store.Snapshot().CursorShape; got != "block" {
-		t.Errorf("cursor shape = %q, want block", got)
-	}
-
-	if err := tt.Click("Blinking cursor"); err != nil {
-		t.Fatalf("blink: %v", err)
-	}
-	tt.Frame()
-	if store.Snapshot().CursorBlink {
-		t.Error("the blink switch did not turn off")
-	}
-
-	if err := tt.Click("Relaxed"); err != nil {
-		t.Fatalf("padding: %v", err)
-	}
-	tt.Frame()
-	if got := store.Snapshot().TerminalPadding; got != "relaxed" {
-		t.Errorf("padding = %q, want relaxed", got)
-	}
 
 	// The trailing select's trigger shows its current value ("Follow app"),
 	// not the row label; clicking it opens the drop-down.

@@ -7,6 +7,7 @@ import (
 
 	"github.com/egoist/mygo/plugins/terminal"
 
+	"floter/internal/control"
 	"floter/internal/settings"
 )
 
@@ -36,15 +37,39 @@ func TestTerminalDrawerShowsTheAppearanceRows(t *testing.T) {
 	tt := render(t, a, 860, 600)
 	tt.Frame()
 
-	for _, want := range []string{
-		"Terminal appearance", "Font size", "Font family", "Line height",
-		"Padding", "Cursor shape", "Blinking cursor", "Terminal palette",
-		// The sliders' live readouts, which the reference keeps beside the
-		// track rather than at the end of the title line.
-		"14 px", "1.20×",
-	} {
-		if !tt.HasText(want) {
-			t.Errorf("the drawer is missing %q: %q", want, tt.Texts())
+	// The drawer is the surface that carries the *full* schema
+	// (internal/control): every axis the schema names must have a row here.
+	// Reading the list from the schema is what keeps the view and this test
+	// from agreeing on a stale set.
+	labels := map[control.AppearanceAxis]string{
+		control.AxisFontFamily:  "Font family",
+		control.AxisFontSize:    "Font size",
+		control.AxisLineHeight:  "Line height",
+		control.AxisPadding:     "Padding",
+		control.AxisCursorShape: "Cursor shape",
+		control.AxisCursorBlink: "Blinking cursor",
+		control.AxisPalette:     "Terminal palette",
+	}
+	if len(labels) != len(control.AppearanceAxes()) {
+		t.Fatalf("the test names %d axes, the schema has %d", len(labels), len(control.AppearanceAxes()))
+	}
+	if !tt.HasText("Terminal appearance") {
+		t.Errorf("the drawer has no group title: %q", tt.Texts())
+	}
+	for _, axis := range control.AppearanceAxes() {
+		label, ok := labels[axis]
+		if !ok {
+			t.Fatalf("the drawer owes the schema an axis with no row: %q", axis)
+		}
+		if !tt.HasText(label) {
+			t.Errorf("the drawer is missing %q: %q", label, tt.Texts())
+		}
+	}
+	// The sliders' live readouts, which the reference keeps beside the track
+	// rather than at the end of the title line.
+	for _, readout := range []string{"14 px", "1.20\u00d7"} {
+		if !tt.HasText(readout) {
+			t.Errorf("the drawer is missing the readout %q: %q", readout, tt.Texts())
 		}
 	}
 	// The drawer's own dismiss, named by the same key the bar's X uses.

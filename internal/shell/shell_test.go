@@ -167,7 +167,7 @@ func TestSurfaceSnapshots(t *testing.T) {
 			h:       SettingsHeight(s.UIScale, 0),
 			want: []string{
 				"General", "Appearance", "Liquid glass effect", "Interface size",
-				"Terminal appearance", "Font size", "Cursor shape", "Terminal palette",
+				"Terminal appearance", "Font family", "Font size", "Line height", "Terminal palette",
 			},
 		},
 		{

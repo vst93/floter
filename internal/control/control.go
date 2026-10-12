@@ -57,3 +57,59 @@ func Segmented(c *ui.Context, tokens theme.Tokens, labels []string, current int,
 		}
 	})
 }
+
+// AppearanceAxis names one of the terminal's appearance controls. Two surfaces
+// paint these — the settings page's "Terminal appearance" card and the
+// terminal's own appearance drawer — from one settings file, so the axis is
+// the identity the pair shares: the reference's schema carried the same idea
+// as a `page: "both" | "card" | "strip"` field on every row. Deciding here,
+// once, which surface shows which axis is what keeps the two views from
+// drifting into two truths about the same control (R42/R55).
+type AppearanceAxis string
+
+// The shipped axes, in the order the drawer paints them (the reference's strip
+// order). The settings card keeps the same relative order; see
+// SettingsCardAxes.
+const (
+	AxisFontFamily  AppearanceAxis = "font_family"
+	AxisFontSize    AppearanceAxis = "font_size"
+	AxisLineHeight  AppearanceAxis = "line_height"
+	AxisPadding     AppearanceAxis = "padding"
+	AxisCursorShape AppearanceAxis = "cursor_shape"
+	AxisCursorBlink AppearanceAxis = "cursor_blink"
+	AxisPalette     AppearanceAxis = "palette"
+)
+
+// AppearanceAxes is the full schema, in the order the drawer paints it.
+func AppearanceAxes() []AppearanceAxis {
+	return []AppearanceAxis{
+		AxisFontFamily, AxisFontSize, AxisLineHeight, AxisPadding,
+		AxisCursorShape, AxisCursorBlink, AxisPalette,
+	}
+}
+
+// OnSettingsCard reports whether the settings page's "Terminal appearance"
+// card carries the axis. R55: the card keeps only the few controls the user
+// called important — the family, the size, the line height and the palette —
+// while the terminal's own drawer keeps the full set. Hiding a row on the card
+// never touches persistence: a value set from the drawer keeps applying.
+func OnSettingsCard(axis AppearanceAxis) bool {
+	switch axis {
+	case AxisPadding, AxisCursorShape, AxisCursorBlink:
+		return false
+	}
+	return true
+}
+
+// SettingsCardAxes is the subset the settings card paints, in the full
+// schema's order. It is derived from OnSettingsCard, so the card cannot list a
+// row the rule says belongs to the drawer.
+func SettingsCardAxes() []AppearanceAxis {
+	var out []AppearanceAxis
+	for _, axis := range AppearanceAxes() {
+		if OnSettingsCard(axis) {
+			out = append(out, axis)
+		}
+	}
+	return out
+}

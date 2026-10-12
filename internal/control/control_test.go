@@ -60,3 +60,61 @@ func TestSegmentedKeepsTheChosenOptionMarked(t *testing.T) {
 		t.Errorf("the chosen segment has no box: %v", rect)
 	}
 }
+
+// TestAppearanceAxesSplit: the schema is the one place that decides which
+// surface paints which terminal-appearance row (R42/R55). The settings card is
+// a strict subset of the drawer in the schema's own order; the three axes the
+// drawer keeps to itself are the padding, the cursor shape and the blink.
+func TestAppearanceAxesSplit(t *testing.T) {
+	all := AppearanceAxes()
+	seen := make(map[AppearanceAxis]bool, len(all))
+	for _, axis := range all {
+		if axis == "" {
+			t.Error("the schema names an empty axis")
+		}
+		if seen[axis] {
+			t.Errorf("the schema names %q twice", axis)
+		}
+		seen[axis] = true
+	}
+
+	card := SettingsCardAxes()
+	// The card order is the schema's: the card list is a filter, not a second
+	// ordering.
+	filtered := make([]AppearanceAxis, 0, len(card))
+	for _, axis := range all {
+		if OnSettingsCard(axis) {
+			filtered = append(filtered, axis)
+		}
+	}
+	if len(card) != len(filtered) {
+		t.Fatalf("the card axes %v are not the schema filtered by OnSettingsCard %v", card, filtered)
+	}
+	for i := range card {
+		if card[i] != filtered[i] {
+			t.Errorf("card axis %d = %q, want %q", i, card[i], filtered[i])
+		}
+	}
+	if len(card) >= len(all) {
+		t.Errorf("the card keeps %d of %d axes; the drawer must keep more", len(card), len(all))
+	}
+
+	// The drawer-only set is exactly the three the reference hides on the card.
+	drawerOnly := map[AppearanceAxis]bool{}
+	for _, axis := range all {
+		if !OnSettingsCard(axis) {
+			drawerOnly[axis] = true
+		}
+	}
+	want := map[AppearanceAxis]bool{
+		AxisPadding: true, AxisCursorShape: true, AxisCursorBlink: true,
+	}
+	if len(drawerOnly) != len(want) {
+		t.Fatalf("the drawer-only axes are %v, want %v", drawerOnly, want)
+	}
+	for axis := range want {
+		if !drawerOnly[axis] {
+			t.Errorf("%q is no longer drawer-only", axis)
+		}
+	}
+}
