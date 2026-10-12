@@ -967,6 +967,25 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
 - **测试**：触发词（id/名字/别名）进模式、argv 携带、裸词不进、内置优先、编辑器端到端、
   悬停 700ms 后 tooltip 真出现、空格→模式→回车→输出落在搜索区。
 
+### P7-x 配置表打开时 chips 行随列表一起退场（已做）
+
+- **偏离点**：旧版 R41 的 `pluginFilterRowVisible` 有三条必要条件，第三条是 `configOpen` 为真时
+  chips 行不画——这是用户自己提的（「进入设置界面，中间的状态切换栏还是会显示出来。这个应该和
+  下面列表一样作为一个整体，而不应该和上面搜索框作为一个整体」）。本构建的 `filtersVisible()`
+  只问 `output != nil`，配置表打开时 chips 行照旧画在表的上方；表体还被 `listEdge = edge + chips`
+  往下推 5u，而 `Geometry.Height()` 在 `Config != nil` 时整个覆盖掉高度、**不收 chips 带**——
+  画出来的比记账的多（P7-f 同类 bug 的又一例）。
+- **修法**：`filtersVisible()` 加 `a.configOpen()` 一条；配置表打开时 chips 行整行消失，表体从
+  `edge` 起画，与高度预算对齐。
+- **齿轮回到字段行**：旧版把插件齿轮放在字段行行尾（`.collapsed-card__settings--plugin`，打开时
+  图标从滑杆翻成 ✕），且插件模式下字段行只有它——会话/设置不是插件动作，在这里让位。本构建此前
+  把齿轮放在 chips 行里（chips 一隐藏就没了唯一的关闭控件），现在 `pluginGear` 画在字段行行尾，
+  `filterPluginID()` 为空时才回到 `fieldButtons`。齿轮的可见文本去掉（旧版只有图标 + aria-label），
+  开/关名字走 `Label`。
+- **测试**：`TestConfigSheetHidesTheChipsRow`（齿轮在 chips 之上、插件模式没有会话/设置、打开后
+  chips 消失而表体与 ✕ 在、Esc 后 chips 回来）；既有 `TestModeOptionsGear`/`TestFieldRowButtons`
+  继续钉住齿轮的开关与普通页的两个按钮。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。

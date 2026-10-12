@@ -98,6 +98,22 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
+**P7-x 配置表打开时 chips 行随列表一起退场（本轮）**
+- **偏离点**：旧版 R41 的原文——用户看到「进入设置界面，中间的状态切换栏还是会显示出来」，
+  要求筛选 chips 属于**下面的列表**而不是上面的搜索框——在旧版是 `pluginFilterRowVisible` 的第三条
+  条件：`configOpen` 为真时 chips 行不画，窗口高度也少收这一带。本构建的 `filtersVisible()` 只问
+  `output != nil`，配置表打开时 chips 行照旧画在表的上方，表体还被 `listEdge = edge + chips` 往下
+  推了 5u，而 `Geometry.Height()` 在 `Config != nil` 时**根本不收 chips 带**——画出来的比记账的多。
+- **接线**：`filtersVisible()` 加 `a.configOpen()` 一条；配置表打开时 chips 行整行消失，表体从
+  `edge` 起画，和高度预算对齐（顺带修掉那 5u 的溢出）。
+- **齿轮回到字段行**：旧版把插件齿轮放在**字段行的行尾**（`.collapsed-card__settings--plugin`，
+  打开时图标从滑杆翻成 ✕），且插件模式下字段行只有它——会话/设置两个按钮不是插件动作、
+  在这里让位。本构建此前把齿轮放在 chips 行里（chips 一隐藏就没有唯一的关闭控件了），
+  现在 `pluginGear` 画在字段行行尾，`filterPluginID()` 为空时才回到 `fieldButtons`。
+- **测试**：`TestConfigSheetHidesTheChipsRow`（齿轮在 chips 之上、插件模式没有会话/设置、
+  打开后 chips 消失而表体与 ✕ 在、Esc 后 chips 回来）；既有 `TestModeOptionsGear`/`TestFieldRowButtons`
+  继续钉住齿轮的开关与普通页的两个按钮。
+
 **P7-w 声明式输入的行内校验真的接线了（本轮）**
 - **根因**：文档里 P7-o 说「选择型缺选项、布尔型缺旗标，都会在该行下面印一条灰色的警告行」，
   但**没有任何调用点**：`extensions.ParamRowIssues`、`settingsui.issueUnder`、
@@ -288,7 +304,9 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
   - 新包 `internal/plugincfg`：字段（kind = toggle/select/radio/checkboxes/slider/number/text/action）、
     标签、帮助、边界/选项、分组，加上三个内置插件的 schema 与旧版的高度预算。
   - `settingsui.PluginSheet` 渲染任意 schema，不认识任何插件名。
-  - 启动器持有带、armed action 与失败行；齿轮在打开时变成 ✕（R41：打开它的控件是唯一关闭它的控件）。
+  - 启动器持有带、armed action 与失败行；齿轮在字段行的行尾（旧版 `.collapsed-card__settings--plugin`
+    的位置，P7-x 从 chips 行搬回），打开时变成 ✕（R41：打开它的控件是唯一关闭它的控件），
+    chips 行则随列表一起退场。
   - shell 持有"一个改动意味着什么"：每个字段写插件自己的块，回给表单的是**存储里的值**而不是请求的值。
   - `action` 字段是命令不是值：第一次按只 arm，第二次才执行（不弹系统对话框）。
   - 随之删掉 settings 的 Plugins 页（旧版 R33 也删了自己的插件页）；磁盘上遗留的

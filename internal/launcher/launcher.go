@@ -824,10 +824,15 @@ func (a *App) View(c *ui.Context) {
 					ui.Text(c, copy.Hint).FontSize(t.FontSize).TextColor(t.TextMuted)
 				}
 			}
-			// The field's own buttons, at the row's tail: the old build kept
-			// the sessions page and the settings one click from the search
-			// row, so neither needs a typed command.
-			a.fieldButtons(c, copy)
+			// The field row's trailing control. In a built-in plugin mode it is
+			// the plugin's own gear (R29): the row's tail belongs to the plugin,
+			// so the sessions/settings pair — not plugin actions — steps aside.
+			// Outside a plugin mode the two ways in stay exactly as before.
+			if id := a.filterPluginID(); id != "" {
+				a.pluginGear(c, copy, id)
+			} else {
+				a.fieldButtons(c, copy)
+			}
 		})
 	})
 
@@ -1980,4 +1985,35 @@ func (a *App) fieldButtons(c *ui.Context, copy i18n.Launcher) {
 	}
 	button("terminal", copy.FieldSessions, a.Actions.OpenSessions)
 	button("settings", copy.FieldSettings, a.Actions.OpenSettings)
+}
+
+// pluginGear is the field row's trailing control inside a built-in plugin
+// mode: the plugin's own door to its configuration (R29). It replaces the
+// sessions/settings pair — those are not plugin actions — and, while the sheet
+// is open, it is the sheet's only close control (R41): it flips from the gear
+// to an ✕, so the place that opened the sheet is the place that closes it. The
+// chips row is the list's own filter and hides with the list while the sheet
+// is up, so this is the control that stays.
+func (a *App) pluginGear(c *ui.Context, copy i18n.Launcher, id string) {
+	t := c.Theme()
+	tokens := theme.For(a.settings(), t.Dark)
+	open := a.configOpen() && a.config.Schema.Plugin == id
+	label, glyphName := copy.ConfigurePlugin, "settings"
+	if open {
+		label, glyphName = copy.ConfigurePluginClose, "close"
+	}
+	e := ui.Row(c).Focusable().Shrink(0).Size(t.Space(7), t.Space(7)).
+		Radius(tokens.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).
+		Label(label).Margin(0, 0, 0, t.Space(2))
+	if e.Hovered() {
+		e.Background(t.SurfaceHover)
+	}
+	e.Children(func() {
+		if glyph, ok := Glyph(glyphName); ok {
+			ui.Icon(c, glyph).Size(t.Space(4), t.Space(4)).TextColor(t.TextMuted)
+		}
+	})
+	if e.Clicked() {
+		a.toggleConfig(id)
+	}
 }

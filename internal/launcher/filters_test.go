@@ -430,6 +430,81 @@ func TestModeOptionsGear(t *testing.T) {
 	}
 }
 
+// R41 · the chips row is the plugin *list's* own filter, so it hides with the
+// list while the plugin's configuration sheet takes the list's place — the
+// user read the chips as the list's chrome, not the search field's. And the
+// sheet's own door (the gear) rides the field row's tail, where the reference
+// put it, not the chips row that just left; in a plugin mode the field's tail
+// is the plugin's, so the sessions/settings pair is not there either.
+func TestConfigSheetHidesTheChipsRow(t *testing.T) {
+	a, _ := clipboardApp(t)
+	a.Actions.ConfigFor = func(plugin string) *Config {
+		return &Config{
+			Schema: &plugincfg.Schema{Plugin: plugin, Title: "Clipboard history"},
+			Values: plugincfg.Values{},
+		}
+	}
+	a.Actions.DrawConfig = func(c *ui.Context, config *Config) { ui.Text(c, config.Schema.Title) }
+	tt := render(t, a)
+	tt.Type("clipboard")
+	tt.Frame()
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if !a.clipboard {
+		t.Fatal("the clipboard mode did not open")
+	}
+	copy := a.copy()
+	// The chips are on screen before the sheet, with the gear above them in
+	// the field row's own band.
+	if !tt.HasText(copy.ClipboardFilterFavorites) {
+		t.Fatalf("the chips are missing: %q", tt.Texts())
+	}
+	gear, ok := tt.Find(copy.ConfigurePlugin)
+	if !ok {
+		t.Fatalf("the gear is missing: %q", tt.Texts())
+	}
+	chip, ok := tt.Find(copy.ClipboardFilterFavorites)
+	if !ok {
+		t.Fatalf("the chip's box is missing: %q", tt.Texts())
+	}
+	if gear.Y >= chip.Y {
+		t.Errorf("the gear (%v) is not above the chips (%v)", gear, chip)
+	}
+	// In a plugin mode the field's tail is the plugin's: the sessions and
+	// settings entries are not drawn.
+	if tt.HasText(copy.FieldSessions) || tt.HasText(copy.FieldSettings) {
+		t.Errorf("the field kept its own buttons in a plugin mode: %q", tt.Texts())
+	}
+	// Opening the sheet takes the chips with it — a filter for an invisible
+	// list is chrome with no referent.
+	if err := tt.Click(copy.ConfigurePlugin); err != nil {
+		t.Fatalf("the gear: %v", err)
+	}
+	tt.Frame()
+	if !a.configOpen() {
+		t.Fatal("the sheet did not open")
+	}
+	if tt.HasText(copy.ClipboardFilterFavorites) {
+		t.Errorf("the chips outlived the list: %q", tt.Texts())
+	}
+	if !tt.HasText("Clipboard history") {
+		t.Errorf("the sheet is not drawn: %q", tt.Texts())
+	}
+	// The gear is still there, flipped to the sheet's only close control.
+	if !tt.HasText(copy.ConfigurePluginClose) {
+		t.Errorf("the sheet's close control is missing: %q", tt.Texts())
+	}
+	// Closing it brings the chips back.
+	tt.TypeKey(0, ui.KeyEscape, "")
+	tt.Frame()
+	if a.configOpen() {
+		t.Fatal("Escape left the sheet open")
+	}
+	if !tt.HasText(copy.ClipboardFilterFavorites) {
+		t.Errorf("the chips did not come back: %q", tt.Texts())
+	}
+}
+
 // Leaving a plugin's mode leaves its sheet: the sheet is that mode's own face.
 func TestConfigClosesWithItsMode(t *testing.T) {
 	a, _ := clipboardApp(t)

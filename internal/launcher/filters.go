@@ -137,9 +137,13 @@ func (a *App) filterAxisFor() (FilterAxis, string, bool) {
 
 // filtersVisible reports whether the chips row is on screen. It is the plugin
 // *list's* own filter, so it follows the list: no row while the output view
-// holds the field (the list is not there to filter).
+// holds the field (the list is not there to filter) and no row while the
+// plugin's configuration sheet takes the list's place. R41: the user read the
+// chips as the list's own chrome, not the search field's, so the row is hidden
+// with the list it filters — the sheet is what is on screen, and a filter for
+// an invisible list is a control with no referent.
 func (a *App) filtersVisible() bool {
-	if a.output != nil {
+	if a.output != nil || a.configOpen() {
 		return false
 	}
 	_, _, ok := a.filterAxisFor()
@@ -217,41 +221,6 @@ func (a *App) filtersRow(c *ui.Context, top float32) {
 		if hint := a.filterHint(copy); hint != "" {
 			ui.Text(c, hint).FontSize(t.FontSize - 1).FontWeight(500).
 				TextColor(tokens.TextTertiary).Grow(1).TextAlign(ui.End).SingleLine().Ellipsis("\u2026")
-		}
-		// The mode's own door to its configuration: the chips filter the list,
-		// and the gear opens the plugin's own sheet in this band (the old
-		// build's R29 overlay — one generic form from the plugin's schema,
-		// inside the launcher rather than a page of its own).
-		//
-		// R41 · the sheet carries no close button: the gear flips to an ✕
-		// while it is open, so there is exactly one place to close what it
-		// opened — the place it was opened from.
-		if id := a.filterPluginID(); id != "" {
-			open := a.configOpen() && a.config.Schema.Plugin == id
-			chip := ui.Row(c).Focusable().Shrink(0).
-				Padding(t.Space(0.75), t.Space(1.5)).Radius(t.Radius).Gap(t.Space(1)).
-				AlignItems(ui.Center)
-			switch {
-			case open:
-				chip.Background(t.Accent.Alpha(0.14))
-			case chip.Hovered():
-				chip.Background(t.SurfaceHover)
-			}
-			label, glyphName := copy.ConfigurePlugin, "settings"
-			color := t.TextMuted
-			if open {
-				label, glyphName = copy.ConfigurePluginClose, "close"
-				color = t.Text
-			}
-			chip.Children(func() {
-				if glyph, ok := Glyph(glyphName); ok {
-					ui.Icon(c, glyph).Size(t.Space(3.5), t.Space(3.5)).TextColor(color)
-				}
-				ui.Text(c, label).FontSize(t.FontSize - 1).TextColor(color)
-			})
-			if chip.Clicked() {
-				a.toggleConfig(id)
-			}
 		}
 	})
 }
