@@ -1105,6 +1105,20 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
   可见文字相同，用节点计数：悬停后同一文案多出一个节点）；把对应 `Tooltip` 摘掉跑一遍全红；
   `TestOrphanRowsOfferAdoptAndDelete` 追加孤儿行解释断语。
 
+### P7-aj 会话列表回到旧版自己的轴（已做）
+
+- **偏离点**：旧版会话页（`src/settings/SessionsPage.tsx`）的列表按 `createdAt` 倒序（默认
+  `newest`），页头带「Newest first / Oldest first」翻转控件；每行是名字 + cwd + `状态 · 尺寸 ·
+  创建时间`。本构建按 `Index`（创建顺序，最旧在前）直出，页头没有控件，行下只有一个状态词——
+  **默认顺序与旧版相反**，行丢掉了 cwd / 尺寸 / 起始时间。
+- **修法**：`settingsui.Session` 补上 `Dir` / `Size` / `Created`，`shell.go` 从 `terminalui` 读出来
+  （新增 `DirOf` / `SizeOf`）；`sessions()` 先过 `sortedSessions()`（默认最新优先、stable 排序），
+  页头的 `sectionWithAction` 把当前顺序当翻转控件；行改用新的 `rowLines`，sublabel 多行——cwd 在
+  上、`状态 · 尺寸 · 起始时间` 在下。**轮询不做**（会话在进程内，列表就是当帧持有的东西）；三个
+  从未被读过的状态词删掉，新增 `SessionsSortNewest`/`SessionsSortOldest`。
+- **测试**：`TestSessionsListOrdersAndToggles`、`TestSessionsWithoutAStartKeepTheShellsOrder`；
+  摘掉 `sort.SliceStable` 会红；shell 的 `TestSessionsListReportsEverySession` 追加 Dir/Size/Created。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。

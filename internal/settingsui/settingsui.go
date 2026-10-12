@@ -11,6 +11,7 @@ package settingsui
 import (
 	"fmt"
 	"math"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -307,6 +308,13 @@ type Session struct {
 	Index int
 	// Note is the session's state line: how the program went, when it did.
 	Note string
+	// Dir is the working directory the shell reported (empty when it has not
+	// said), and Size the screen's size in cells, as "80×24".
+	Dir  string
+	Size string
+	// Created is when the session started: the list's own order axis, newest
+	// first by default as the old page listed them.
+	Created time.Time
 }
 
 // About is what the About page shows: the identity of the build and where
@@ -366,6 +374,10 @@ type App struct {
 	// sessionsArmed holds the sessions whose close control has been pressed
 	// once: the second press ends the session's program.
 	sessionsArmed map[int]bool
+	// sessionsSortOldest is the sessions list's order: false (the shipped
+	// state) lists the newest session first, as the old page's own default,
+	// and the heading's control flips it.
+	sessionsSortOldest bool
 
 	// Sessions reports the running sessions; nil when the shell has none
 	// (tests).
@@ -744,9 +756,15 @@ func (a *App) body(c *ui.Context, copy i18n.Settings) {
 }
 
 // sessions lists the running terminal sessions.
+//
+// The list is the sessions page's own, not the terminal surface's: it is
+// ordered along its own axis — newest first, the old page's default — and the
+// heading carries that order as a control, so a hand can flip it. A session's
+// program runs in this process, so there is no refresh to offer: what the list
+// says is what the surface holds, at the frame it was drawn.
 func (a *App) sessions(c *ui.Context, copy i18n.Settings) {
 	t := c.Theme()
-	sessions := a.runningSessions()
+	sessions := a.sortedSessions()
 	if len(sessions) == 0 {
 		ui.Column(c).FillWidth().Gap(t.Space(3)).Padding(t.Space(4)).Center().Children(func() {
 			ui.Text(c, copy.SessionsNone).FontSize(t.FontSize).TextColor(t.TextMuted)
@@ -758,15 +776,24 @@ func (a *App) sessions(c *ui.Context, copy i18n.Settings) {
 		})
 		return
 	}
+	// The order control shows the order in force and swaps it on press, as
+	// the old page's `session-manager__sort-toggle` did.
+	order := copy.SessionsSortNewest
+	if a.sessionsSortOldest {
+		order = copy.SessionsSortOldest
+	}
 	ui.Column(c).FillWidth().Gap(t.Space(5.5)).Children(func() {
-		a.section(c, copy.PageSessions, copy.SessionsActive, func() {
+		a.sectionWithAction(c, copy.PageSessions, copy.SessionsActive, order, func() {
+			a.sessionsSortOldest = !a.sessionsSortOldest
+		}, func() {
 			a.card(c, func() {
 				for _, session := range sessions {
 					session := session
-					// The row says what the session is doing: attached (on
+					// The row says what the session is doing — attached (on
 					// screen), running behind the one that is, or how the
-					// program went.
-					a.row(c, session.Title, session.Note, func() {
+					// program went — and, under it, where the shell is and
+					// when the session started.
+					a.rowLines(c, session.Title, sessionLines(session), func() {
 						ui.Row(c).Gap(t.Space(1)).AlignItems(ui.Center).Children(func() {
 							if !session.Active && a.Actions.SelectSession != nil {
 								if ui.Button(c, copy.SessionsShow).Clicked() {
@@ -806,6 +833,53 @@ func (a *App) sessions(c *ui.Context, copy i18n.Settings) {
 			}
 		}
 	})
+}
+
+// sortedSessions is the session list in the order the page's control asks for:
+// newest first by default, oldest first once the user has flipped it. The sort
+// is stable, so sessions with no recorded start (a test's fixtures) keep the
+// order the shell handed over.
+func (a *App) sortedSessions() []Session {
+	sessions := a.runningSessions()
+	if len(sessions) < 2 {
+		return sessions
+	}
+	out := append([]Session(nil), sessions...)
+	sort.SliceStable(out, func(i, j int) bool {
+		if a.sessionsSortOldest {
+			return out[i].Created.Before(out[j].Created)
+		}
+		return out[i].Created.After(out[j].Created)
+	})
+	return out
+}
+
+// sessionLines is the row's grey block: the shell's working directory (when it
+// reported one) above the state line, the screen size and the start time —
+// the old page's `.session-manager__cwd` and its `state · size · created`
+// meta line.
+func sessionLines(session Session) []string {
+	parts := make([]string, 0, 3)
+	if session.Note != "" {
+		parts = append(parts, session.Note)
+	}
+	if session.Size != "" {
+		parts = append(parts, session.Size)
+	}
+	if !session.Created.IsZero() {
+		parts = append(parts, session.Created.Local().Format("2006-01-02 15:04"))
+	}
+	meta := strings.Join(parts, "  \u00b7  ")
+	if session.Dir == "" {
+		if meta == "" {
+			return nil
+		}
+		return []string{meta}
+	}
+	if meta == "" {
+		return []string{session.Dir}
+	}
+	return []string{session.Dir, meta}
 }
 
 // integrations lists the installed extensions, each with its state and a

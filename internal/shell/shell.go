@@ -748,6 +748,9 @@ func New(opts Options) *App {
 				Active:  i == a.Terminal.Active,
 				Index:   i,
 				Note:    a.Terminal.NoteOf(i),
+				Dir:     a.Terminal.DirOf(i),
+				Size:    a.Terminal.SizeOf(i),
+				Created: sessions[i].Created,
 			})
 		}
 		return out

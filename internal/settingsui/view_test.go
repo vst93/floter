@@ -346,6 +346,91 @@ func TestSessionsPage(t *testing.T) {
 	}
 }
 
+// TestSessionsListOrdersAndToggles pins the sessions list's own axis: the
+// newest session is first (the old page's default), the heading carries that
+// order as a control, and pressing it swaps the list to oldest first. It also
+// pins what a row says under the session's name: the shell's working
+// directory, the state line, the screen size and the start time.
+func TestSessionsListOrdersAndToggles(t *testing.T) {
+	a := New(newStore(t), Actions{})
+	tt := render(t, a, 720, 760)
+	if err := tt.Click("Sessions"); err != nil {
+		t.Fatal(err)
+	}
+	base := time.Date(2026, 10, 11, 9, 0, 0, 0, time.UTC)
+	a.Sessions = func() []Session {
+		return []Session{
+			{Title: "first", Running: true, Index: 0, Note: "Running \u00b7 detached",
+				Dir: "/home/u/first", Size: "80\u00d724", Created: base},
+			{Title: "second", Running: true, Active: true, Index: 1, Note: "Running \u00b7 attached",
+				Dir: "/home/u/second", Size: "100\u00d730", Created: base.Add(time.Hour)},
+			{Title: "third", Running: false, Index: 2, Note: "Process exited \u00b7 code 1",
+				Created: base.Add(2 * time.Hour)},
+		}
+	}
+	tt.Frame()
+	rowY := func(label string) float32 {
+		t.Helper()
+		rect, ok := tt.Find(label)
+		if !ok {
+			t.Fatalf("no row %q in %q", label, tt.Texts())
+		}
+		return rect.Y
+	}
+	// Newest first, the shipped order.
+	if !(rowY("third") < rowY("second") && rowY("second") < rowY("first")) {
+		t.Errorf("the list is not newest-first: first=%v second=%v third=%v",
+			rowY("first"), rowY("second"), rowY("third"))
+	}
+	if !tt.HasText("Newest first") {
+		t.Errorf("the order control is missing: %q", tt.Texts())
+	}
+	// The row carries its own facts: the shell's cwd, the state, the size and
+	// the start time (formatted the way the launcher writes a visit time).
+	if !tt.HasText("/home/u/second") {
+		t.Errorf("the working directory is missing: %q", tt.Texts())
+	}
+	if !tt.HasText("100\u00d730") {
+		t.Errorf("the screen size is missing: %q", tt.Texts())
+	}
+	if !tt.HasText(base.Add(time.Hour).Local().Format("2006-01-02 15:04")) {
+		t.Errorf("the start time is missing: %q", tt.Texts())
+	}
+	// Pressing the control swaps the axis, and its own word says so.
+	if err := tt.Click("Newest first"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !tt.HasText("Oldest first") {
+		t.Errorf("the order control did not flip: %q", tt.Texts())
+	}
+	if !(rowY("first") < rowY("second") && rowY("second") < rowY("third")) {
+		t.Errorf("the list is not oldest-first after the toggle: first=%v second=%v third=%v",
+			rowY("first"), rowY("second"), rowY("third"))
+	}
+}
+
+// TestSessionsWithoutAStartKeepTheShellsOrder pins the sort's stability: the
+// shell hands sessions over in creation order and a fixture that records no
+// start time must not be reshuffled by the sort.
+func TestSessionsWithoutAStartKeepTheShellsOrder(t *testing.T) {
+	a := New(newStore(t), Actions{})
+	a.Sessions = func() []Session {
+		return []Session{
+			{Title: "a", Index: 0},
+			{Title: "b", Index: 1},
+			{Title: "c", Index: 2},
+		}
+	}
+	got := a.sortedSessions()
+	for i, want := range []string{"a", "b", "c"} {
+		if got[i].Title != want {
+			t.Errorf("order after sorting = %v, want a b c", []string{got[0].Title, got[1].Title, got[2].Title})
+			break
+		}
+	}
+}
+
 func TestShortcutsPage(t *testing.T) {
 	a := New(newStore(t), Actions{})
 	a.Shortcut = "Alt+Space"

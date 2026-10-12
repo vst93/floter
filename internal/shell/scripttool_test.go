@@ -149,6 +149,18 @@ func TestSessionsListReportsEverySession(t *testing.T) {
 			t.Errorf("session %d has index %d", i, session.Index)
 		}
 	}
+	// The page's own axis and its row's facts come from the session itself:
+	// when it started (the list sorts on it), the size of its screen and the
+	// directory its shell reported.
+	if !sessions[0].Created.Equal(a.Terminal.Sessions[0].Created) {
+		t.Errorf("the start time did not reach the page: %v", sessions[0].Created)
+	}
+	if got := sessions[0].Size; got != a.Terminal.SizeOf(0) {
+		t.Errorf("the screen size did not reach the page: %q", got)
+	}
+	if got := sessions[0].Dir; got != a.Terminal.DirOf(0) {
+		t.Errorf("the working directory did not reach the page: %q", got)
+	}
 	// An unnamed session is labelled by the dictionary, not left blank.
 	a.Terminal.Sessions[0].Title = ""
 	if got := a.Settings.Sessions()[0].Title; got == "" {

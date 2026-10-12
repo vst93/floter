@@ -98,6 +98,28 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
+**P7-aj 会话列表回到旧版自己的轴（本轮）**
+- **偏离点**：旧版会话页（`src/settings/SessionsPage.tsx`）的列表按 `createdAt` 倒序（默认
+  `newest`），页头带「Newest first / Oldest first」翻转控件；每行是 `名字` + `cwd` + `状态 · 尺寸 ·
+  创建时间`。本构建把列表按 `Index`（创建顺序，最旧在前）直出，页头没有任何控件，行下只有一个
+  状态词——**默认顺序与旧版相反**，行丢掉了 cwd / 尺寸 / 起始时间。
+- **修法**：
+  - `settingsui.Session` 补上 `Dir` / `Size` / `Created`；`shell.go` 从 `terminalui` 读出来
+    （新增 `DirOf` / `SizeOf`，`Created` 取会话自己的 `Session.Created`）。
+  - `sessions()` 先过 `sortedSessions()`：默认最新优先（`Created` 倒序），页头的 `sectionWithAction`
+    把当前顺序当控件（按下翻转，旧版 `session-manager__sort-toggle`），排序 **stable**——没有
+    起始时间的 fixture 保持 shell 交来的顺序。
+  - 行改用新的 `rowLines`：sublabel 现在是多行——shell 报的 cwd（有才画）在上，`状态 · 尺寸 ·
+    2006-01-02 15:04` 在下（时间格式与启动器的浏览记录同一写法）。
+  - **轮询不做**：会话在本进程内，列表就是表面当帧持有的东西，刷新无从谈起（i18n 里那三个
+    从未被读过的状态词 `SessionsRunning/SessionsShowing/SessionsExited` 随之删掉，新增旧版的
+    `SessionsSortNewest`/`SessionsSortOldest`）。
+- **测试**：`TestSessionsListOrdersAndToggles`（默认最新在前、控件写「Newest first」、行里有
+  cwd / `100×30` / 格式化后的起始时间、按下后写「Oldest first」且列表翻到最早在前）、
+  `TestSessionsWithoutAStartKeepTheShellsOrder`（无起始时间时顺序不变）；把 `sortedSessions`
+  的 `sort.SliceStable` 摘掉会红。shell 的 `TestSessionsListReportsEverySession` 追加
+  Dir/Size/Created 到达页面的断言。
+
 **P7-ai 分离窗口属于它的内容（本轮）**
 - **偏离点**：P7-d 的分离输出窗口按每次按下都 `append` 一个新窗口（`Options.OpenDetached` 每次
   都调），于是「再钉同一个命令」会开出**两个一模一样的窗口**，而不是像旧版那样把已经在显示它的
@@ -858,8 +880,10 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 - ~~插件模式的 scope 标记~~ **已完成（P7-m）**：进入模式消耗触发词并清空字段，输入框左侧画
   `图标 + 模式名`（`.collapsed-card__scope`）；模式内的搜索/补全把字段当 needle；Esc 离开时
   needle 保留为普通查询（R31），**运行**则清空字段（旧版自己的行为）；模式只由用户自己离开。
-- **会话排序 / 轮询**：旧版会话页有"最新/最早"排序与 5 秒轮询（会话由 broker 托管，可能跨天存活）；
-  本构建的会话在进程内、生命周期与 App 相同，列表按创建顺序，不做轮询。
+- ~~会话排序 / 轮询~~ **排序已完成（P7-aj）**：旧版会话页有"最新/最早"排序与 5 秒轮询（会话由
+  broker 托管，可能跨天存活）；本构建的会话在进程内、生命周期与 App 相同，所以**轮询不做**（列表
+  就是表面当帧持有的东西），但**排序做了**——默认最新优先（旧版自己的默认），页头有翻转控件，
+  行下也补上了旧版的 cwd / 状态 / 尺寸 / 起始时间。
 - **设置里的 Plugins 页已删**：内置插件的配置现在是启动器里的通用表单（P7-c），与旧版 R33 一致；
   遗留的 `last_settings_page: "plugins"` 会落到第一页。旧版 Integrations 页自己的「基础插件」区
   （三个内置插件 + 开关 + 「配置」）已在 P7-u 补上，它也是浏览器模式空态文案指向的那扇门。

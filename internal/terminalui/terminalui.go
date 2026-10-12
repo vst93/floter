@@ -13,6 +13,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -255,6 +256,25 @@ func (a *App) NoteOf(index int) string {
 		return copy.SessionAttached
 	}
 	return copy.SessionDetached
+}
+
+// DirOf is the working directory a session's shell reported (OSC 7), by
+// index, or "" while it has not said — the sessions page's own first line.
+func (a *App) DirOf(index int) string {
+	if index < 0 || index >= len(a.Sessions) || a.Sessions[index].Term == nil {
+		return ""
+	}
+	return a.Sessions[index].Term.Dir()
+}
+
+// SizeOf is a session's screen size in cells, by index, written "80×24";
+// empty when the session has no terminal to ask.
+func (a *App) SizeOf(index int) string {
+	if index < 0 || index >= len(a.Sessions) || a.Sessions[index].Term == nil {
+		return ""
+	}
+	cols, rows := a.Sessions[index].Term.Size()
+	return strconv.Itoa(cols) + "\u00d7" + strconv.Itoa(rows)
 }
 
 // Exited reports whether a session's program has ended, by index.

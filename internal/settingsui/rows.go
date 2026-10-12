@@ -75,11 +75,18 @@ func (a *App) row(c *ui.Context, label, sublabel string, control func(), below .
 	return a.rowNote(c, label, sublabel, "", control, below...)
 }
 
+// rowLines is row with a second line that is itself several lines: the
+// sessions list's row keeps the shell's working directory above the state,
+// size and start time, as the old page's `.session-manager__lines` did.
+func (a *App) rowLines(c *ui.Context, label string, sublabels []string, control func(), below ...func()) bool {
+	return a.rowAligned(c, ui.Center, label, sublabels, "", control, below...)
+}
+
 // rowNote is row with one more line: a warning-coloured note under the
 // description, for the one thing a row has to disclose rather than describe
 // (the clipboard's privacy line). An empty note draws nothing.
 func (a *App) rowNote(c *ui.Context, label, sublabel, note string, control func(), below ...func()) bool {
-	return a.rowAligned(c, ui.Center, label, sublabel, note, control, below...)
+	return a.rowAligned(c, ui.Center, label, []string{sublabel}, note, control, below...)
 }
 
 // rowTop is rowNote with the control pinned to the row's first line rather
@@ -88,12 +95,12 @@ func (a *App) rowNote(c *ui.Context, label, sublabel, note string, control func(
 // name, as the reference's `.extensions-base-plugin` did with
 // `align-items: flex-start`.
 func (a *App) rowTop(c *ui.Context, label, sublabel, note string, control func(), below ...func()) bool {
-	return a.rowAligned(c, ui.Start, label, sublabel, note, control, below...)
+	return a.rowAligned(c, ui.Start, label, []string{sublabel}, note, control, below...)
 }
 
 // rowAligned is the row both helpers share; align places the control across
 // the row's axis.
-func (a *App) rowAligned(c *ui.Context, align ui.Align, label, sublabel, note string, control func(), below ...func()) bool {
+func (a *App) rowAligned(c *ui.Context, align ui.Align, label string, sublabels []string, note string, control func(), below ...func()) bool {
 	tokens := a.tokens(c)
 	t := c.Theme()
 	inset := t.Space(3.5)
@@ -125,7 +132,10 @@ func (a *App) rowAligned(c *ui.Context, align ui.Align, label, sublabel, note st
 			names := ui.Column(c).Grow(1).MinWidth(0).Gap(1)
 			names.Children(func() {
 				ui.Text(c, label).FontSize(t.FontSize + 1).FontWeight(580).TextColor(tokens.TextStrong)
-				if sublabel != "" {
+				for _, sublabel := range sublabels {
+					if sublabel == "" {
+						continue
+					}
 					ui.Text(c, sublabel).FontSize(t.FontSize).FontWeight(500).TextColor(t.TextMuted)
 				}
 				if note != "" {

@@ -354,15 +354,16 @@ type Settings struct {
 	ShowCommandsInSearch     string
 	ShowCommandsInSearchHint string
 	SessionsNone             string
-	SessionsRunning          string
 	SessionsClose            string
 	SessionsActive           string
-	// The sessions list's own words: a session that has ended, the one on
-	// screen, and the two controls each row carries.
-	SessionsExited  string
-	SessionsShowing string
-	SessionsShow    string
-	SessionsNew     string
+	// SessionsSortNewest and SessionsSortOldest name the sessions list's own
+	// order control: the word it shows is the order in force, and pressing it
+	// swaps to the other (the old page's `terminal.sortNewest` /
+	// `terminal.sortOldest`).
+	SessionsSortNewest string
+	SessionsSortOldest string
+	SessionsShow       string
+	SessionsNew        string
 	// Closing a session kills its program, so it arms first: the question the
 	// armed control asks and the way back from it.
 	SessionsCloseConfirm string
