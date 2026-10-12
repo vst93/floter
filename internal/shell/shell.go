@@ -267,6 +267,10 @@ type App struct {
 	// lastMenubarIcon is the show_menubar_icon value the tray was last
 	// synced with.
 	lastMenubarIcon bool
+	// lastGlassStep is the glass_step the window's vibrancy material was last
+	// built with: a stop change re-hands the material, so the blur ladder
+	// follows the setting (see vibrancyForStop).
+	lastGlassStep string
 	// lastShowRecent and lastShowCommands are the show_recent_in_launcher and
 	// show_commands_in_search values the launcher was last synced with: a
 	// change re-hands the recents, or re-scans the PATH.
@@ -407,6 +411,7 @@ func New(opts Options) *App {
 		homeDir:              opts.HomeDir,
 		appIcon:              storedAppIcon(opts.Store.Snapshot()),
 		lastAppIcon:          storedAppIcon(opts.Store.Snapshot()),
+		lastGlassStep:        opts.Store.Snapshot().GlassStep,
 	}
 	// The refusal gate reads the app's own clock, so a test that replaces it
 	// drives the 30s window without waiting.
@@ -847,6 +852,15 @@ func New(opts Options) *App {
 				a.lastLaunchAtStartup = s.LaunchAtStartup
 				a.ApplyStartup()
 			}
+			if s.GlassStep != a.lastGlassStep {
+				// The glass stop is the effect ladder: a change swaps the
+				// window's own material, which is the blur the panel cannot
+				// run itself (see vibrancyForStop).
+				a.lastGlassStep = s.GlassStep
+				if a.Win != nil {
+					a.Win.SetVibrancy(vibrancyForStop(runtime.GOOS, s.GlassStep))
+				}
+			}
 			if icon := storedAppIcon(s); icon != a.lastAppIcon {
 				a.lastAppIcon, a.appIcon = icon, icon
 				a.ApplyAppIcon()
@@ -959,7 +973,7 @@ func (a *App) Start() {
 		// for the same thing - macOS's NSVisualEffectView, Windows 11's
 		// system backdrops. Linux has none, and there the glass tint and
 		// the haze veil are the whole of the material.
-		Vibrancy: vibrancyFor(runtime.GOOS),
+		Vibrancy: vibrancyForStop(runtime.GOOS, s.GlassStep),
 		Content:  ui.View(a.View),
 	})
 	a.Win.OnClosed(func() {
@@ -2377,6 +2391,34 @@ func vibrancyFor(goos string) mygo.Vibrancy {
 	}
 }
 
+// vibrancyForStop is the window material for a platform and a glass stop. The
+// stop is the effect ladder, and the old build's `--glass-step-blur`
+// (10/22/28px) is the rung the framework can carry: the panel cannot run its
+// own `backdrop-filter`, so the backdrop's blur is the OS material, and a
+// stop that only moved the tint left `frosted` and `regular` reading the same
+// (「玻璃效果…看起来好像没什么区别」).
+//
+// macOS has a behind-window material per weight: `under-page` is the thinnest
+// (the frosted end), `under-window` the standard pane, and `sidebar` the
+// denser, more opaque end the liquid stop asks for. Windows 11 has only one
+// backdrop that blurs - Acrylic - so all stops keep it and the tint and lens
+// carry the ladder there. Linux has none.
+func vibrancyForStop(goos, step string) mygo.Vibrancy {
+	if goos != "darwin" {
+		return vibrancyFor(goos)
+	}
+	switch settings.NormalizeGlassStep(step) {
+	case "off":
+		return mygo.VibrancyNone
+	case "frosted":
+		return mygo.VibrancyUnderPage
+	case "liquid":
+		return mygo.VibrancySidebar
+	default:
+		return mygo.VibrancyUnderWindow
+	}
+}
+
 // placeWindow centres the panel in a display's work area, in that display's own
 // coordinates: the old build placed it on the monitor the user was looking at
 // and clamped against the *terminal* height so the expanded window still fits
@@ -2707,23 +2749,19 @@ func (a *App) View(c *ui.Context) {
 		if a.Surf == SurfaceTerminal {
 			spec = glassmap.SpecFor(s.GlassStep, s.TerminalOpacity)
 		}
-		fill, translucent := glassmap.Frame(spec, t)
-		if !translucent {
-			// The `off` stop: a plain, near-solid face and no material.
-			padTop, padBottom := t.Space(2.5), t.Space(2.5)
-			if a.Surf == SurfaceLauncher {
-				padTop, padBottom = t.Space(launcher.TopInsetUnits), t.Space(launcher.TailUnits)
-			}
-			card.Background(surface.Tokens.Opaque).Padding(padTop, padX, padBottom, padX)
-			card.Children(func() { a.surface(c) })
-			return
-		}
+		fill, _ := glassmap.Frame(spec, t)
 		card.Children(func() {
 			// The panel's fill is one translucent tint (`Frame`), which is the
 			// reference's `--glass-tint-alpha` — the frame's own alpha raised by
 			// the stop's dimming layer, not a separate veil over it. The window's
 			// vibrancy blurs the backdrop where the platform has one; where it
 			// does not, the tint's alpha is the whole of the glass.
+			//
+			// The `off` stop paints the same tint with no glass effect: the
+			// frame's own transparency is the opacity slider's on every stop, so
+			// turning the glass off never turns the window opaque (「关闭玻璃效果
+			// 的时候，应用的透明底是失效的」). Its sheen and lens are zero, so the
+			// face is a plain translucent pane.
 			//
 			// The launcher's own insets are the old panel's: 4u above and 2u
 			// below (`.launcher-bottom`), with the field's row and its breath
@@ -2741,7 +2779,8 @@ func (a *App) View(c *ui.Context) {
 			face.Children(func() {
 				// The panel's own sheen (`linear-gradient(180deg, sheen-top,
 				// sheen-bottom)`): the lit face that keeps a translucent pane
-				// from reading as a flat wash.
+				// from reading as a flat wash. The off stop's sheen tokens are
+				// zero, so the same gradient draws nothing there.
 				ui.Box(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).Radius(radius).PassThrough().
 					LinearGradient(ui.LinearGradient{From: surface.Tokens.SheenTop, To: surface.Tokens.SheenBottom, Angle: 180})
 				ui.Column(c).Fill().Padding(padTop, padX, padBottom, padX).Children(func() { a.surface(c) })

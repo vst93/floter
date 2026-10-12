@@ -71,9 +71,12 @@ func TestSurfaceCrossProduct(t *testing.T) {
 						t.Errorf("%s: Theme = %q, want %q", label, got.Theme, wantTheme)
 					}
 
-					wantEnabled := step != "off"
-					if got.Glass.Enabled != wantEnabled {
-						t.Errorf("%s: Glass.Enabled = %v, want %v", label, got.Glass.Enabled, wantEnabled)
+					wantGlass := step != "off"
+					if got.Glass.Glass != wantGlass {
+						t.Errorf("%s: Glass.Glass = %v, want %v", label, got.Glass.Glass, wantGlass)
+					}
+					if !got.Glass.Translucent {
+						t.Errorf("%s: Glass.Translucent = false, want the frame tint on every stop", label)
 					}
 					want := ladders[step]
 					if got.Glass.Style != want.style {

@@ -232,3 +232,37 @@ func TestLensTokensAreTranslucent(t *testing.T) {
 		t.Errorf("lens edge = %v, want a dark bottom shade", dark.LensEdge)
 	}
 }
+
+// The glass stop scales the control lens (base.css's `--glass-lens-scale`:
+// 0.5 / 1 / 1.6). It is the one rung of the old build's effect table the
+// scene can paint on every platform, so it is what makes `frosted`, `regular`
+// and `liquid` read apart even where the window has no material to blur the
+// desktop with.
+func TestLensScalesWithTheGlassStop(t *testing.T) {
+	base := settings.Settings{Theme: "dark"}
+	frosted := For(withStep(base, "frosted"), true)
+	regular := For(withStep(base, "regular"), true)
+	liquid := For(withStep(base, "liquid"), true)
+	if !(frosted.LensRim.A < regular.LensRim.A && regular.LensRim.A < liquid.LensRim.A) {
+		t.Errorf("lens rim did not rise with the stop: %d / %d / %d", frosted.LensRim.A, regular.LensRim.A, liquid.LensRim.A)
+	}
+	if !(frosted.LensSheen.A < regular.LensSheen.A && regular.LensSheen.A < liquid.LensSheen.A) {
+		t.Errorf("lens sheen did not rise with the stop: %d / %d / %d", frosted.LensSheen.A, regular.LensSheen.A, liquid.LensSheen.A)
+	}
+	// The regular stop is the reference's own lens strength: the palette's
+	// base value unchanged.
+	palette := paletteFor(Dark)
+	if regular.LensRim.A != palette.lensRim.A {
+		t.Errorf("regular lens rim = %d, want the palette's %d", regular.LensRim.A, palette.lensRim.A)
+	}
+	// The off stop drops the lens entirely.
+	if off := For(withStep(base, "off"), true); off.LensRim.A != 0 || off.LensSheen.A != 0 || off.LensEdge.A != 0 {
+		t.Errorf("off kept a lens: %v / %v / %v", off.LensRim, off.LensSheen, off.LensEdge)
+	}
+}
+
+// withStep is s with its glass stop set, for the lens tests.
+func withStep(s settings.Settings, step string) settings.Settings {
+	s.GlassStep = step
+	return s
+}

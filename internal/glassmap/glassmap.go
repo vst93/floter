@@ -20,13 +20,18 @@
 // window's vibrancy shows through.
 //
 //   - **Blur (10/22/28px).** The desktop behind the window is blurred by the
-//     window's vibrancy material — `mygo.VibrancyUnderWindow` on the panel's
-//     window, which is one strength for the whole window (macOS's
-//     NSVisualEffectView, Windows 11's system backdrops; Linux has none, and
-//     there the tint's own alpha is the whole of the material). So the blur
+//     window's vibrancy material, chosen per stop (shell.vibrancyForStop):
+//     macOS's NSVisualEffectView materials have a weight per stop, Windows 11
+//     has only the one backdrop that blurs (Acrylic), and Linux has none —
+//     there the tint's own alpha is the whole of the material. So the blur
 //     ladder becomes the OS material, and the stop ladder keeps what the fill
-//     can vary: the dimming layer.
-//   - **Saturation (130/170/200%).** No knob, on the window or in the tint.
+//     can vary: the dimming layer and the control lens.
+//   - **Saturation (130/170/200%).** No knob, on the window or in the tint;
+//     carried in the Spec for the record and the material choice.
+//   - **Control lens (0.5/1/1.6).** `--glass-lens-scale` scales the theme's
+//     LensRim/LensSheen/LensEdge, the rung the scene paints itself, so a stop
+//     switch is visible on every control even where the window has no
+//     material.
 //
 // `main_opacity` stays what it was: the frame's only alpha truth. The stop
 // moves the dim, never the alpha truth — `frosted` dims the most (0.6),
@@ -48,8 +53,15 @@ import (
 // Spec is the plugin parameters a settings pair maps to, as plain values so
 // the mapping is testable without a window.
 type Spec struct {
-	// Enabled is false for the `off` stop: the panel gets no material.
-	Enabled bool
+	// Translucent is true for every stop, including `off`: the opacity slider
+	// is the window's transparency truth, and turning the glass effect off
+	// must not turn the window opaque (「关闭玻璃效果的时候，应用的透明底是
+	// 失效的」).
+	Translucent bool
+	// Glass is true for the effect stops (frosted/regular/liquid): they carry
+	// the blur ladder, the haze and the control lens. `off` carries none of
+	// them, but it still paints the frame's own translucent tint.
+	Glass bool
 	// Style is the plugin's material style: the lens ladder.
 	Style glass.Style
 	// HazeAlpha is the veil of the theme's background painted under the
@@ -61,6 +73,21 @@ type Spec struct {
 	// TintAlpha is the panel's fill alpha, 0..1: the frame's own alpha raised
 	// by the stop's dimming layer, as the old build's `--glass-tint-alpha`.
 	TintAlpha float32
+	// Blur is the stop's backdrop blur in DIPs, base.css's `--glass-step-blur`
+	// (10/22/28). The panel cannot run its own `backdrop-filter`, so this is
+	// what the window's vibrancy material is chosen from: the blur ladder is
+	// the OS material (see shell.vibrancyForStop).
+	Blur float32
+	// Saturate is the stop's backdrop saturation in percent, base.css's
+	// `--glass-step-saturate` (130/170/200). The framework exposes no
+	// saturation knob on the window material, so it is carried for the
+	// record and for the material choice; it never moves the fill's alpha.
+	Saturate float32
+	// LensScale multiplies the control-lens family (`--glass-lens-scale`:
+	// 0.5/1/1.6), the visible "how much lens the controls carry" rung. The
+	// theme scales LensRim/LensSheen/LensEdge by it, so a stop switch is a
+	// visible change on every control, not only a tint shift.
+	LensScale float32
 }
 
 // The stop ladder, from GLASS_INTENSITY and GLASS_STEP_TOKENS in
@@ -68,13 +95,21 @@ type Spec struct {
 // plugin's Clear/Regular, and its haze (0.6/0.5/0.2) is the dimming layer the
 // tint's alpha is raised by. `off` is not a stop but the position that removes
 // the material.
+//
+// The blur/saturate/lens columns are the rest of the old build's effect
+// table (base.css's `[data-glass]` blocks). They are the rungs that make a
+// stop change visible — a tint shift alone left `frosted` and `regular`
+// reading the same (「看起来好像没什么区别」).
 var stops = map[string]struct {
-	style glass.Style
-	dim   float32
+	style    glass.Style
+	dim      float32
+	blur     float32
+	saturate float32
+	lens     float32
 }{
-	"frosted": {glass.Clear, 0.6},
-	"regular": {glass.Regular, 0.5},
-	"liquid":  {glass.Regular, 0.2},
+	"frosted": {glass.Clear, 0.6, 10, 130, 0.5},
+	"regular": {glass.Regular, 0.5, 22, 170, 1},
+	"liquid":  {glass.Regular, 0.2, 28, 200, 1.6},
 }
 
 // SolidTop is base.css's `--glass-solid-top`: the maxed end of the
@@ -107,21 +142,30 @@ func SpecFor(step string, mainOpacity uint8) Spec {
 	normalized := settings.NormalizeGlassStep(step)
 	opacity := settings.NormalizeOpacity(mainOpacity, settings.DefaultMainOpacity)
 	alpha := float32(opacity) / 100
+	frame := min(SolidTop, alpha)
 
 	if normalized == "off" {
-		return Spec{Enabled: false, Style: glass.Clear, TintAlpha: 1}
+		// No glass effect — no lens, no haze, no blur — but the frame's own
+		// transparency still paints: the window stays translucent and the
+		// desktop shows through the plain tint, unblurred. The `off` stop used
+		// to take the near-solid stand-in here, which is what read as the
+		// app's transparent bottom failing (「应用的透明底是失效的」).
+		return Spec{Translucent: true, Glass: false, Style: glass.Clear, TintAlpha: frame}
 	}
 	stop, ok := stops[normalized]
 	if !ok { // only reachable without the loader's normalization
 		stop = stops["regular"]
 	}
-	frame := min(SolidTop, alpha)
 	tint := 1 - (1-stop.dim*(1-alpha))*(1-frame)
 	return Spec{
-		Enabled:   true,
-		Style:     stop.style,
-		HazeAlpha: stop.dim,
-		TintAlpha: tint,
+		Translucent: true,
+		Glass:       true,
+		Style:       stop.style,
+		HazeAlpha:   stop.dim,
+		TintAlpha:   tint,
+		Blur:        stop.blur,
+		Saturate:    stop.saturate,
+		LensScale:   stop.lens,
 	}
 }
 
@@ -152,10 +196,11 @@ func overFrame(frame, target float32) float32 {
 // list and the settings body (`--surface-sunken`). It is the alpha the pane
 // carries *over the frame*, chosen so the visible recess composites to the
 // frame tint plus {@link contentStep} - a single sheet the transparency slider
-// moves, not a second full tint that halves the slider's effect. The `off`
-// stop keeps an opaque pane, since it has no transparency at all.
+// moves, not a second full tint that halves the slider's effect. Every stop
+// rides the slider, `off` included: the pane is as translucent as the frame
+// it sits on.
 func (s Spec) ContentAlpha() float32 {
-	if !s.Enabled {
+	if !s.Translucent {
 		return 1
 	}
 	return overFrame(s.TintAlpha, min(1, s.TintAlpha+contentStep))
@@ -165,7 +210,7 @@ func (s Spec) ContentAlpha() float32 {
 // frame's tint plus floatStep, capped at opaque. A pane that floats over the
 // frame is always denser than it, at every stop, and still follows the slider.
 func (s Spec) FloatAlpha() float32 {
-	if !s.Enabled {
+	if !s.Translucent {
 		return 1
 	}
 	return min(1, s.TintAlpha+floatStep)
@@ -178,10 +223,13 @@ func (s Spec) FloatAlpha() float32 {
 // not (Linux), the tint's own alpha is the whole of the glass, exactly as the
 // old build's `backdrop-filter`-less fallback was.
 //
-// enabled is false for the `off` stop, where the caller paints the near-solid
-// stand-in instead.
-func Frame(spec Spec, theme *ui.Theme) (fill ui.Color, enabled bool) {
-	if !spec.Enabled {
+// The fill is built for every stop, `off` included: the `off` stop drops the
+// effect (blur, haze, lens) but keeps the frame's own transparency, so the
+// window is never made opaque by turning the glass off. The caller still gets
+// the second return to know whether the stop carries the glass material
+// (`spec.Glass`).
+func Frame(spec Spec, theme *ui.Theme) (fill ui.Color, translucent bool) {
+	if !spec.Translucent {
 		return ui.Transparent, false
 	}
 	return theme.Background.Alpha(spec.TintAlpha), true

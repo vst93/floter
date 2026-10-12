@@ -17,10 +17,10 @@ func TestSpecForMapsEveryStop(t *testing.T) {
 	// saturation have no counterpart — see the package comment — so they
 	// are deliberately absent here.
 	cases := []struct {
-		step        string
-		wantEnabled bool
-		wantStyle   glass.Style
-		wantHaze    float32
+		step      string
+		wantGlass bool
+		wantStyle glass.Style
+		wantHaze  float32
 	}{
 		{"off", false, glass.Clear, 0},
 		{"frosted", true, glass.Clear, 0.6},
@@ -33,8 +33,13 @@ func TestSpecForMapsEveryStop(t *testing.T) {
 	}
 	for _, tc := range cases {
 		spec := SpecFor(tc.step, settings.DefaultMainOpacity)
-		if spec.Enabled != tc.wantEnabled {
-			t.Errorf("SpecFor(%q).Enabled = %v, want %v", tc.step, spec.Enabled, tc.wantEnabled)
+		if spec.Glass != tc.wantGlass {
+			t.Errorf("SpecFor(%q).Glass = %v, want %v", tc.step, spec.Glass, tc.wantGlass)
+		}
+		// Every stop paints the frame's own tint: even off is translucent, so
+		// turning the glass off never turns the window opaque.
+		if !spec.Translucent {
+			t.Errorf("SpecFor(%q).Translucent = false, want the frame tint on every stop", tc.step)
 		}
 		if spec.Style != tc.wantStyle {
 			t.Errorf("SpecFor(%q).Style = %v, want %v", tc.step, spec.Style, tc.wantStyle)
@@ -42,6 +47,54 @@ func TestSpecForMapsEveryStop(t *testing.T) {
 		if spec.HazeAlpha != tc.wantHaze {
 			t.Errorf("SpecFor(%q).HazeAlpha = %v, want %v", tc.step, spec.HazeAlpha, tc.wantHaze)
 		}
+	}
+}
+
+// The stop ladder carries the old build's whole effect table, not only the
+// haze: blur, saturation and the control lens. The haze alone left `frosted`
+// and `regular` 0.03 of alpha apart and the user read the three stops as one
+// (「玻璃效果…看起来好像没什么区别」); the lens is the rung the scene can
+// actually paint, so every stop must carry its own.
+func TestSpecForCarriesTheEffectTable(t *testing.T) {
+	type row struct {
+		step           string
+		blur, saturate float32
+		lens           float32
+	}
+	want := []row{
+		{"frosted", 10, 130, 0.5},
+		{"regular", 22, 170, 1},
+		{"liquid", 28, 200, 1.6},
+	}
+	for _, w := range want {
+		spec := SpecFor(w.step, settings.DefaultMainOpacity)
+		if spec.Blur != w.blur {
+			t.Errorf("SpecFor(%q).Blur = %v, want %v", w.step, spec.Blur, w.blur)
+		}
+		if spec.Saturate != w.saturate {
+			t.Errorf("SpecFor(%q).Saturate = %v, want %v", w.step, spec.Saturate, w.saturate)
+		}
+		if spec.LensScale != w.lens {
+			t.Errorf("SpecFor(%q).LensScale = %v, want %v", w.step, spec.LensScale, w.lens)
+		}
+	}
+	// Every rung rises from the thinnest stop to the heaviest, so a stop
+	// switch is a visible change and not a re-ordering.
+	frosted := SpecFor("frosted", settings.DefaultMainOpacity)
+	regular := SpecFor("regular", settings.DefaultMainOpacity)
+	liquid := SpecFor("liquid", settings.DefaultMainOpacity)
+	if !(frosted.Blur < regular.Blur && regular.Blur < liquid.Blur) {
+		t.Errorf("blur ladder = %v/%v/%v, want it rising", frosted.Blur, regular.Blur, liquid.Blur)
+	}
+	if !(frosted.Saturate < regular.Saturate && regular.Saturate < liquid.Saturate) {
+		t.Errorf("saturate ladder = %v/%v/%v, want it rising", frosted.Saturate, regular.Saturate, liquid.Saturate)
+	}
+	if !(frosted.LensScale < regular.LensScale && regular.LensScale < liquid.LensScale) {
+		t.Errorf("lens ladder = %v/%v/%v, want it rising", frosted.LensScale, regular.LensScale, liquid.LensScale)
+	}
+	// The off stop carries no effect at all.
+	if off := SpecFor("off", settings.DefaultMainOpacity); off.Blur != 0 || off.Saturate != 0 || off.LensScale != 0 {
+		t.Errorf("off carries an effect: blur %v saturate %v lens %v", off.Blur, off.Saturate, off.LensScale)
 	}
 }
 
@@ -125,9 +178,14 @@ func TestContentAndFloatRideTheSlider(t *testing.T) {
 	if thin.FloatAlpha() >= thick.FloatAlpha() {
 		t.Errorf("the float did not rise with the slider: %v vs %v", thin.FloatAlpha(), thick.FloatAlpha())
 	}
-	// The off stop has no transparency at all: both panes are opaque.
-	if off := SpecFor("off", 47); off.ContentAlpha() != 1 || off.FloatAlpha() != 1 {
-		t.Errorf("off panes = %v/%v, want opaque", off.ContentAlpha(), off.FloatAlpha())
+	// The off stop rides the slider too: turning the glass off drops the
+	// effect but keeps the frame's own transparency, so the panes are
+	// translucent - never the opaque stand-in the old `off` branch drew.
+	if off := SpecFor("off", 47); off.ContentAlpha() >= 1 || off.FloatAlpha() >= 1 {
+		t.Errorf("off panes = %v/%v, want the frame's own translucency", off.ContentAlpha(), off.FloatAlpha())
+	}
+	if off := SpecFor("off", 47); off.Glass {
+		t.Error("the off stop must not carry the glass material")
 	}
 }
 
@@ -135,13 +193,29 @@ func TestContentAndFloatRideTheSlider(t *testing.T) {
 // formulas accumulate.
 func diff(a, b float32) bool { return a-b > 1e-5 || b-a > 1e-5 }
 
-func TestOffCarriesNoFillAndNoHaze(t *testing.T) {
+func TestOffKeepsTheFrameTintButNoGlass(t *testing.T) {
 	spec := SpecFor("off", 47)
-	if spec.Enabled {
-		t.Error("the off stop must not enable a material")
+	if spec.Glass {
+		t.Error("the off stop must not carry the glass material")
 	}
-	if _, enabled := Frame(spec, lightTheme()); enabled {
-		t.Error("the off stop must not build a fill")
+	// No effect rungs at all.
+	if spec.HazeAlpha != 0 || spec.Blur != 0 || spec.Saturate != 0 || spec.LensScale != 0 {
+		t.Errorf("off carries an effect: haze %v blur %v saturate %v lens %v",
+			spec.HazeAlpha, spec.Blur, spec.Saturate, spec.LensScale)
+	}
+	// But the frame's own alpha still paints: the window stays translucent.
+	if !spec.Translucent {
+		t.Error("the off stop must keep the frame's transparency")
+	}
+	if want := min(SolidTop, float32(47)/100); spec.TintAlpha != want {
+		t.Errorf("off tint = %v, want the frame's own alpha %v", spec.TintAlpha, want)
+	}
+	fill, translucent := Frame(spec, lightTheme())
+	if !translucent {
+		t.Fatal("the off stop built no fill")
+	}
+	if fill.A >= 255 {
+		t.Errorf("off fill = %v, want translucent", fill)
 	}
 }
 

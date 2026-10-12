@@ -569,7 +569,14 @@ func (a *App) View(c *ui.Context) {
 		// `--surface-sunken`): the panel is a reading surface, more solid than
 		// the launcher, and the sidebar sits on the same one so the two read
 		// as one pane.
-		ui.Row(c).Fill().AlignItems(ui.Stretch).Gap(t.Space(3)).Children(func() {
+		//
+		// The row *grows* into the space the header leaves instead of asking
+		// for 100% of the card: a `Fill` height resolves against the card, so
+		// the row kept the header's 57u below the window — the body scroller
+		// then believed it had that much more viewport than the user can see,
+		// and the last rows of every page sat below the card's bottom edge and
+		// could not be scrolled to (「设置页面的列表，无法滚动到底部」).
+		ui.Row(c).Grow(1).MinHeight(0).AlignItems(ui.Stretch).Gap(t.Space(3)).Children(func() {
 			ui.Column(c).Width(148).Padding(t.Space(3), t.Space(2)).Gap(t.Space(0.75)).
 				Background(a.tokens(c).Sunken).Children(func() {
 				ui.List(c.Key("settings.sidebar"), &a.Sidebar, pageCount, func(i int) {

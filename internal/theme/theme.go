@@ -252,6 +252,13 @@ func For(s settings.Settings, systemDark bool) Tokens {
 	spec := glassmap.SpecFor(s.GlassStep, s.MainOpacity)
 	sunken := spec.ContentAlpha()
 	floatAlpha := spec.FloatAlpha()
+	// The panel's sheen is the glass's lit face. The off stop has no glass, so
+	// it paints the plain tint with no sheen - base.css's `[data-glass="off"]
+	// .shell` dropped the gradient along with the material.
+	sheen := spec.TintAlpha
+	if !spec.Glass {
+		sheen = 0
+	}
 	baseFill := t.Background
 	if appearance == Dark {
 		baseFill = ui.RGB(17, 18, 20)
@@ -309,11 +316,11 @@ func For(s settings.Settings, systemDark bool) Tokens {
 		Field:             field,
 		Opaque:            p.opaque,
 		FieldFill:         p.fieldFill,
-		LensRim:           p.lensRim,
-		LensSheen:         p.lensSheen,
-		LensEdge:          p.lensEdge,
-		SheenTop:          scaleAlpha(p.sheenTop, spec.TintAlpha),
-		SheenBottom:       scaleAlpha(p.sheenBottom, spec.TintAlpha),
+		LensRim:           scaleAlpha(p.lensRim, spec.LensScale),
+		LensSheen:         scaleAlpha(p.lensSheen, spec.LensScale),
+		LensEdge:          scaleAlpha(p.lensEdge, spec.LensScale),
+		SheenTop:          scaleAlpha(p.sheenTop, sheen),
+		SheenBottom:       scaleAlpha(p.sheenBottom, sheen),
 		ShadowAmbient:     p.shadowAmbient,
 		ShadowContact:     p.shadowContact,
 		EdgeHighlight:     p.edgeHighlight,
