@@ -1181,6 +1181,26 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
   与未知 action 保持安静、后台失败的 connect 仍画出来。把 `allow` 的守卫摘掉，两条「重复不再排」会红；
   把 `flushNotices` 摘掉，两条「画出来」会红。
 
+### P7-aw 插件模式的驻留（已做）
+
+- **偏离点**：R35 的报告是「所在插件和页面应该维持一段时间」，原版 `src/surface-residency.ts:201`
+  的 `residencySurface` 把 collapsed 面分成 `plugin-mode`（browser/clipboard/calculator/外部命令）
+  与 `plugin-config`，与 settings/terminal 同级；`src/App.tsx:2480-2530` 的唤回在时钟成立时
+  `residency.refresh()` + `clearDrops()` 保留该面，否则 `setQueryExitingPlugin("")` 回全新搜索页。
+  本构建的 `residencyHolds()` 对 `SurfaceLauncher` 直接 false，`Toggle()` 的不成立分支只
+  `Open(SurfaceLauncher)`（**从不收线**）——插件模式/查询永远保留（等价「永不」），驻留设置在启动器
+  面上完全无效果；i18n 提示还删掉了「插件页面」那半句。
+- **修法**：`launcher.PluginModeActive()` / `launcher.ClearDropped()` 导出；shell 新增
+  `currentResidencySurface()`（按原版同一顺序推导）与 `noteResidency()`（`View` 每帧随面起表/清表，
+  时钟由状态推导，遗留时钟永远不公 claim 下一个唤回）；`residencyHolds()` 先问当前面；`Toggle` 的
+  收线收成 `summon()`：成立则 `enteredAt = now()`（原版 refresh）保留，否则 `ResetQuery()` +
+  `ClearDropped()` 回空搜索页。`launcher.ResetQuery()` 补 `syncConfig()`（搜索页没有配置覆盖层）。
+  i18n 提示回到原版原文。
+- **测试**：shell `TestPluginModeResidency` / `…ClearsDroppedRows` / `…FollowsTheSetting` /
+  `TestPluginConfigResidency` / `TestLeavingASurfaceClearsTheResidencyClock`；launcher
+  `TestPluginModeActiveNamesTheModes` / `TestClearDroppedForgetsTheRows`。变异核查：摘 `noteResidency`
+  三条红；摘 `ResetQuery`+`ClearDropped` 四条红。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。

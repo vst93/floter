@@ -99,7 +99,54 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-av 旧版两个 `useTimedReset` 落地** —— 「尚未做」清单已空（1–3 卡框架、4–6 完成），
+> **最新一轮：P7-aw 插件模式的驻留真正生效** —— 具体待办第 7 条（R35 报告点名的那半条）落地：
+> 插件模式与配置覆盖层现在是「可驻留的表面」，唤回时按时钟保留或收线。
+
+**P7-aw 插件模式的驻留（本轮）**
+
+- **依赖检查**：`go.mod` 已是 v0.4.7，`curl .../releases/latest` 返回 v0.4.7（本轮唯一的新功能是
+  game 相关：`Bitmap.Pixelated` / `Painter.ImageRegion` / `Painter.Transform` / gamepad /
+  `game.View`/`Camera` / `Player.SetLoopRange` / `ui.Canvas`——都是游戏插件的旋钮，floter 是启动器
+  没有自然用点），无版本可升。本轮取具体待办里唯一不卡框架的第 7 条。
+- **偏离点（一整条设置只服务两个面）**：R35 的报告原文是「所在插件和页面应该维持一段时间」,
+  原版 `src/surface-residency.ts` 的 `residencySurface` 把 collapsed 面分成 `plugin-mode`
+  （browser/clipboard/calculator/外部命令)与 `plugin-config`,与 settings/terminal 同级。本构建
+  的 `residencyHolds()`（`internal/shell/shell.go`）对 `SurfaceLauncher` 直接返回 false,而
+  `Toggle()` 的收线分支只调 `Open(SurfaceLauncher)`——它既不重置查询、也不离开插件模式,所以
+  插件模式**永不被保留计算、也永不被收线**（等价于「永远保留」）。于是「保留页面」这条设置在
+  启动器面上完全没有可观察效果；i18n 提示（`internal/i18n/copy.go:324`）还把原版的「插件页面」
+  那半句删掉了以掩盖。
+- **原版对照**：`src/surface-residency.ts:201` 的 `residencySurface`（settings → terminal →
+  collapsed 下的 plugin-config → plugin-mode → null)与 `src/App.tsx:2480-2530` 的唤回处理——
+  时钟成立时 `residency.refresh()` + `clearDrops()` 并保留该面,否则 `setQueryExitingPlugin("")`
+  + `clearDrops()` 回到全新搜索页。时钟本身由 `useSurfaceResidency` 每次渲染 note 面变化。
+- **修法**：
+  - `internal/launcher/fieldkeys.go`：`PluginModeActive()` 导出 `pluginModeActive()`（shell 读不到
+    未导出的谓词）；`internal/launcher/files.go`：`ClearDropped()`（原版 `clearDrops()` 的等价物）。
+  - `internal/shell/shell.go`：`currentResidencySurface()` 按原版 `residencySurface` 的同一顺序
+    推导当前面（settings / terminal / plugin-config / plugin-mode / 空）；`noteResidency()` 在
+    `View` 每帧对比上帧的面,进入可驻留面时起表、离开时清记录（时钟由状态推导,所以遗留的时钟
+    永远不公 claim 下一个唤回）；`residencyHolds()` 改成先问当前面是不是可驻留面;
+    `Toggle` 的收线分支收成 `summon()`：时钟成立则 `enteredAt = now()`（原版 `residency.refresh()`）
+    并 `Show()`,否则 `ResetQuery()` + `ClearDropped()` + `Open(SurfaceLauncher)`。
+  - `internal/launcher/launcher.go`：`ResetQuery()` 补 `syncConfig()`——搜索页没有插件覆盖层,
+    离开模式就该把配置表一起收走（与 `View` 每帧的 `syncConfig` 同一规则,只是不再等到下一帧）。
+  - i18n：`SurfaceResidencyHint` 中英文回到原版原文（「A plugin page, its settings, or the
+    terminal…」/「插件页面、其设置或终端……」）。
+- **测试**：`internal/shell/shell_test.go` 的 `TestPluginModeResidency`（普通搜索页唤回总是清查询;
+  进入插件模式起表;窗内唤回保留模式与字段;窗外唤回回空搜索页）、
+  `TestPluginModeResidencyClearsDroppedRows`（窗内连拖放行一起留、窗外连行一起清）、
+  `TestPluginModeResidencyFollowsTheSetting`（0 关、never 永久）、
+  `TestPluginConfigResidency`（覆盖层是更具体的面,窗内保留、窗外连同模式收走）、
+  `TestLeavingASurfaceClearsTheResidencyClock`（显式离开后遗留时钟不再生效）；
+  `internal/launcher/fieldkeys_test.go` 的 `TestPluginModeActiveNamesTheModes`（导出谓词与内部谓词
+  在五种模式上一致）与 `TestClearDroppedForgetsTheRows`。变异核查：把 `a.noteResidency()` 从
+  `View` 摘掉,三条插件模式测试立刻红；把 `summon()` 的 `ResetQuery()`+`ClearDropped()` 摘掉,
+  四条立刻红。
+- **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿（27 包）、
+  `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+> **上一轮：P7-av 旧版两个 `useTimedReset` 落地** —— 「尚未做」清单已空（1–3 卡框架、4–6 完成），
 > 本轮继续「对照原版排查偏离点」，取旧版两处**会自己归位**的状态：电源确认的时间窗和设置写失败的横幅。
 
 **P7-av 旧版会自己归位的两个状态（本轮）**
@@ -1140,7 +1187,10 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
    - 验收：`Paths.HostVersion` 由 `shell.New` 从 `appVersion()` 注入；`prepare()` 与 `install()`
      在落盘前调用 `Manifest.ValidateCompatibility(paths.HostVersion)`，两个区间都查，空 host 版本跳过；
      测试钉「越界拒绝 / 协议不匹配拒绝 / 兼容照常 / 空与不可解析 host 不拒绝 / preview host 按 release 行匹配」。
-7. **插件模式的驻留（P7-av 定位，未做）** —— 一整条 `surface_residency_seconds` 只服务设置/终端。
+7. **~~插件模式的驻留（P7-av 定位）~~**：已完成（P7-aw）——`residencyHolds` 现在按原版
+   `residencySurface` 的同一顺序认 plugin-mode / plugin-config；`View` 每帧 `noteResidency` 随面起表/清表；
+   `Toggle` 收成 `summon()`：时钟成立时刷新并保留，否则 `ResetQuery()`+`ClearDropped()` 回空搜索页；
+   i18n 提示回到原版原文。（原分析保留在下方。）
    - 原版：`src/surface-residency.ts:201` 的 `residencySurface` 把 collapsed 面分成 `plugin-mode`
      （browser/clipboard/calculator/external）与 `plugin-config`；`src/App.tsx:2480-2530` 的唤回处理
      在时钟成立时保留该面（`residency.refresh()`），否则 `setQueryExitingPlugin("")` + `clearDrops()`
@@ -1157,8 +1207,8 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
      页（查询与拖放行都清）、普通搜索页唤回永远清空、0/never 边界；把 i18n 提示改回原版原文。
 
 > 至此具体待办里的 1–3 **三条都卡在框架能力上**（`Options.OnCopy`、终端键入的 `HandleInput`
-> 缝、外观旋钮的暴露），不是应用侧能单方面推进的；第 4–6 条已完成。P7-av 又在线外找到并落地了
-> 旧版两个 `useTimedReset`（电源确认、设置写失败横幅），并把第 7 条写实。下一轮仍应回到
+> 缝、外观旋钮的暴露），不是应用侧能单方面推进的；第 4–7 条已完成。P7-av 在线外找到并落地了
+> 旧版两个 `useTimedReset`（电源确认、设置写失败横幅），P7-aw 把第 7 条落地。下一轮仍应回到
 > 「对照原版排查偏离点」这条路。
 
 **P7-at manifest 的 `compatibility` 区间在落盘前生效（本轮）**

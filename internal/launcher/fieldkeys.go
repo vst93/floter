@@ -114,6 +114,11 @@ func (a *App) pluginModeActive() bool {
 	return a.files || a.calculatorMode || a.browser || a.clipboard || a.mode != nil
 }
 
+// PluginModeActive reports whether a plugin mode owns the field, for the
+// shell's residency rule: a plugin mode is one of the surfaces that survives a
+// dismissal for the residency window (see src/surface-residency.ts).
+func (a *App) PluginModeActive() bool { return a.pluginModeActive() }
+
 // leavePluginMode leaves whichever plugin mode owns the field, and reports
 // whether there was one. It is the one ladder both ways out read — Escape in
 // the view, and an empty field's Backspace here — so the order can never be

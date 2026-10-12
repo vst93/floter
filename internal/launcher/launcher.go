@@ -588,6 +588,10 @@ func (a *App) ResetQuery() {
 	a.leaveBrowser()
 	a.leaveCalculator()
 	a.leaveFiles()
+	// The search page has no plugin overlay: leaving the mode takes the
+	// configuration sheet with it, the same rule the View's syncConfig
+	// enforces on every other frame.
+	a.syncConfig()
 	a.Query = ""
 	a.Selected, a.chosenRow = 0, -1
 	a.pendingCaret = true

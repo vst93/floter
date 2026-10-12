@@ -7,6 +7,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/calculator"
+	"floter/internal/drops"
 	"floter/internal/i18n"
 )
 
@@ -494,6 +495,51 @@ func TestEmptyFieldBackspaceLeavesEveryPluginMode(t *testing.T) {
 			}
 			t.Errorf("%s: a mode is still active after the press", tc.name)
 		})
+	}
+}
+
+// The exported predicate the shell's residency rule reads is the same fact the
+// field's own Backspace reads: a mode owns the field. The ordinary search page
+// and the captured-output view are not modes.
+func TestPluginModeActiveNamesTheModes(t *testing.T) {
+	a := testApp()
+	if a.PluginModeActive() {
+		t.Fatal("the ordinary search page reported a plugin mode")
+	}
+	for _, open := range []func(*App){
+		func(a *App) { a.EnterClipboard() },
+		func(a *App) { a.EnterBrowser() },
+		func(a *App) { a.EnterCalculator() },
+		func(a *App) { a.EnterFiles() },
+	} {
+		b := testApp()
+		open(b)
+		if !b.PluginModeActive() {
+			t.Errorf("PluginModeActive = false with %T active", open)
+		}
+		if b.PluginModeActive() != b.pluginModeActive() {
+			t.Errorf("the exported predicate and the internal one disagree")
+		}
+	}
+	cmd := commandApp()
+	cmd.enterCommand(cmd.Commands[0])
+	if !cmd.PluginModeActive() {
+		t.Error("an extension command's argument mode is not a plugin mode")
+	}
+}
+
+// ClearDropped forgets the rows the files mode lists, the half of a fresh
+// summon that takes the previous interaction's drop with it.
+func TestClearDroppedForgetsTheRows(t *testing.T) {
+	a := testApp()
+	a.SetDropped([]drops.File{{Path: "/tmp/a.txt", Name: "a.txt", Directory: "/tmp"}})
+	a.EnterFiles()
+	if len(a.Dropped) != 1 {
+		t.Fatalf("the drop did not land: %d rows", len(a.Dropped))
+	}
+	a.ClearDropped()
+	if len(a.Dropped) != 0 {
+		t.Errorf("ClearDropped left %d rows", len(a.Dropped))
 	}
 }
 

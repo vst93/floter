@@ -45,6 +45,11 @@ func (a *App) SetDropped(files []drops.File) {
 	a.dropsExpanded = false
 }
 
+// ClearDropped forgets the dropped files. A drop belonged to the previous
+// interaction; a summon that starts a fresh launcher takes its rows with it
+// (the old build's clearDrops).
+func (a *App) ClearDropped() { a.Dropped = nil }
+
 // enterFiles starts the files mode.
 func (a *App) enterFiles() {
 	a.mode = nil

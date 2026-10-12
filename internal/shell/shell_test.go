@@ -31,6 +31,7 @@ import (
 
 	"floter/internal/apps"
 	"floter/internal/clipboard"
+	"floter/internal/drops"
 	"floter/internal/extensions"
 	"floter/internal/i18n"
 	"floter/internal/launcher"
@@ -299,10 +300,186 @@ func TestResidencyRule(t *testing.T) {
 		t.Error("the never sentinel did not keep the surface")
 	}
 
-	// The launcher never holds a residency.
+	// The ordinary search page never holds a residency.
 	a.Surf = SurfaceLauncher
 	if a.residencyHolds() {
-		t.Error("the launcher held a residency")
+		t.Error("the search page held a residency")
+	}
+}
+
+// TestPluginModeResidency pins the piece R35's report actually asked for: a
+// plugin mode is a surface too. Entering one starts the clock (noted by the
+// View), a summon inside the window lands back on it, and past the window the
+// summon is a fresh launcher — the mode and the field it owns are gone.
+func TestPluginModeResidency(t *testing.T) {
+	a := newApp(t)
+	clock := time.Unix(1_700_000_000, 0)
+	a.now = func() time.Time { return clock }
+	tt := ui.NewTester(func(c *ui.Context) { a.View(c) }, launcher.InputWindowWidth, 1200)
+	tt.Frame()
+
+	// The ordinary search page is not a tracked surface: a summon is allowed
+	// to throw its half-finished query away.
+	a.Launcher.Query = "left over"
+	a.summon()
+	if a.Launcher.Query != "" {
+		t.Fatalf("the search page survived a summon with %q", a.Launcher.Query)
+	}
+
+	// Entering a plugin mode starts the clock; the frame is what notes it.
+	a.Launcher.EnterCalculator()
+	a.Launcher.Query = "12 * 3"
+	tt.Frame()
+	if !a.residencyHolds() {
+		t.Fatal("a plugin mode did not hold right after the frame that entered it")
+	}
+
+	// A summon inside the window lands back on the same page: the mode and the
+	// field it owns are still where the user left them.
+	clock = clock.Add(5 * time.Second)
+	a.summon()
+	if !a.Launcher.InCalculatorMode() {
+		t.Error("a summon inside the window left the plugin mode")
+	}
+	if a.Launcher.Query != "12 * 3" {
+		t.Errorf("the plugin mode's field = %q, want it kept", a.Launcher.Query)
+	}
+
+	// A summon after the window is a fresh launcher. The clock restarted on
+	// the summon above, so the lapse is measured from there.
+	clock = clock.Add(11 * time.Second)
+	a.summon()
+	if a.Launcher.InCalculatorMode() {
+		t.Error("a summon past the window kept the plugin mode")
+	}
+	if a.Launcher.Query != "" {
+		t.Errorf("a summon past the window kept the query %q", a.Launcher.Query)
+	}
+}
+
+// TestPluginModeResidencyClearsDroppedRows is the drop half of the same rule:
+// the dropped rows belonged to the previous interaction, so the reveal that
+// starts the next one takes them with it (the old build's clearDrops).
+func TestPluginModeResidencyClearsDroppedRows(t *testing.T) {
+	a := newApp(t)
+	clock := time.Unix(1_700_000_000, 0)
+	a.now = func() time.Time { return clock }
+	tt := ui.NewTester(func(c *ui.Context) { a.View(c) }, launcher.InputWindowWidth, 1200)
+
+	a.Launcher.SetDropped([]drops.File{{Path: "/tmp/left.txt", Name: "left.txt"}})
+	a.Launcher.EnterFiles()
+	tt.Frame()
+	if !a.Launcher.InFilesMode() {
+		t.Fatal("the files mode did not open")
+	}
+
+	// Inside the window the mode survives, and so do its rows.
+	clock = clock.Add(5 * time.Second)
+	a.summon()
+	if !a.Launcher.InFilesMode() || len(a.Launcher.Dropped) != 1 {
+		t.Errorf("a summon inside the window dropped the files mode (%v, %d rows)",
+			a.Launcher.InFilesMode(), len(a.Launcher.Dropped))
+	}
+
+	// Past the window both the mode and the rows are gone. The clock
+	// restarted on the summon above, so the lapse is measured from there.
+	clock = clock.Add(11 * time.Second)
+	a.summon()
+	if a.Launcher.InFilesMode() {
+		t.Error("a summon past the window kept the files mode")
+	}
+	if len(a.Launcher.Dropped) != 0 {
+		t.Errorf("a summon past the window kept %d dropped rows", len(a.Launcher.Dropped))
+	}
+}
+
+// TestPluginModeResidencyFollowsTheSetting pins the two boundaries for a
+// plugin mode: 0 turns the window off, and the "never" sentinel keeps the
+// page however long the panel was away.
+func TestPluginModeResidencyFollowsTheSetting(t *testing.T) {
+	a := newApp(t)
+	clock := time.Unix(1_700_000_000, 0)
+	a.now = func() time.Time { return clock }
+	tt := ui.NewTester(func(c *ui.Context) { a.View(c) }, launcher.InputWindowWidth, 1200)
+
+	a.Launcher.EnterCalculator()
+	tt.Frame()
+	if err := a.Store.Update(func(s *settings.Settings) { s.SurfaceResidencySeconds = 0 }); err != nil {
+		t.Fatal(err)
+	}
+	if a.residencyHolds() {
+		t.Fatal("residency 0 held a plugin mode")
+	}
+	a.summon()
+	if a.Launcher.InCalculatorMode() {
+		t.Error("residency 0 kept the plugin mode")
+	}
+
+	if err := a.Store.Update(func(s *settings.Settings) {
+		s.SurfaceResidencySeconds = settings.SurfaceResidencyNever
+	}); err != nil {
+		t.Fatal(err)
+	}
+	a.Launcher.EnterCalculator()
+	tt.Frame()
+	clock = clock.Add(48 * time.Hour)
+	a.summon()
+	if !a.Launcher.InCalculatorMode() {
+		t.Error("the never sentinel dropped the plugin mode")
+	}
+}
+
+// TestPluginConfigResidency pins the overlay as its own surface: while the
+// configuration sheet is open it is what a summon restores, past the window
+// both the sheet and the mode beneath it are gone.
+func TestPluginConfigResidency(t *testing.T) {
+	a := newApp(t)
+	clock := time.Unix(1_700_000_000, 0)
+	a.now = func() time.Time { return clock }
+	tt := ui.NewTester(func(c *ui.Context) { a.View(c) }, launcher.InputWindowWidth, 1400)
+	tt.Frame()
+
+	a.Launcher.EnterClipboard()
+	tt.Frame()
+	a.Launcher.OpenConfig("clipboard")
+	tt.Frame()
+	if !a.Launcher.ConfigOpen() {
+		t.Fatal("the configuration sheet did not open")
+	}
+	if !a.residencyHolds() {
+		t.Fatal("the plugin configuration overlay did not hold")
+	}
+
+	clock = clock.Add(5 * time.Second)
+	a.summon()
+	if !a.Launcher.ConfigOpen() {
+		t.Error("a summon inside the window closed the overlay")
+	}
+
+	clock = clock.Add(11 * time.Second)
+	a.summon()
+	if a.Launcher.ConfigOpen() || a.Launcher.InClipboardMode() {
+		t.Error("a summon past the window kept the overlay or the mode beneath it")
+	}
+}
+
+// TestLeavingASurfaceClearsTheResidencyClock is why a leftover clock cannot
+// claim a later summon: the surface the app is on is derived from state every
+// frame, so once the mode is left the clock is irrelevant even though it has
+// not lapsed.
+func TestLeavingASurfaceClearsTheResidencyClock(t *testing.T) {
+	a := newApp(t)
+	clock := time.Unix(1_700_000_000, 0)
+	a.now = func() time.Time { return clock }
+	tt := ui.NewTester(func(c *ui.Context) { a.View(c) }, launcher.InputWindowWidth, 1200)
+
+	a.Launcher.EnterCalculator()
+	tt.Frame()
+	// Esc leaves the mode by an explicit gesture; the clock has not lapsed.
+	a.Launcher.ResetQuery()
+	tt.Frame()
+	if a.residencyHolds() {
+		t.Fatal("a left plugin mode still held its residency")
 	}
 }
 

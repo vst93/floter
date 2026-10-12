@@ -357,6 +357,9 @@ type App struct {
 	// reveal is the platform settling, not the user leaving).
 	enteredAt time.Time
 	shownAt   time.Time
+	// residencyOn is the residency surface the last frame noted, so entering
+	// one starts the clock exactly once (see noteResidency).
+	residencyOn string
 }
 
 // New builds the app and its surfaces.
@@ -2371,12 +2374,26 @@ func (a *App) Toggle() {
 		a.Hide()
 		return
 	}
+	a.summon()
+}
+
+// summon reveals the window from a dismissal. The surface the user was on — a
+// plugin mode or its configuration overlay, settings, or the terminal — is
+// kept only while the residency window still holds; otherwise this is a fresh
+// launcher, and the half-finished gestures of the previous session (the query
+// and any dropped rows) go with the reveal that starts the next one. This is
+// the old build's reveal handler in src/App.tsx (R35/R41), the same policy the
+// pure surface table in src/surface-residency.ts describes.
+func (a *App) summon() {
 	if a.residencyHolds() {
-		// The surface the user was on is still "where they left it": show
-		// it again rather than throwing it away.
+		// A summon back into the surface is the user confirming they are still
+		// in it: the clock restarts here, exactly as `residency.refresh()` did.
+		a.enteredAt = a.now()
 		a.Show()
 		return
 	}
+	a.Launcher.ResetQuery()
+	a.Launcher.ClearDropped()
 	a.Open(SurfaceLauncher)
 	a.Show()
 }
@@ -2563,11 +2580,50 @@ func placementForReveal(wasVisible bool) bool {
 	return !wasVisible
 }
 
+// currentResidencySurface is the surface the residency rule tracks, derived
+// from the same state the old build's `residencySurface` read: settings and
+// the terminal are full surfaces, the plugin configuration overlay wins over
+// the plugin mode beneath it, and everything else on the launcher (the
+// ordinary search page) is "" — the one place a summon is allowed to reset to.
+func (a *App) currentResidencySurface() string {
+	switch a.Surf {
+	case SurfaceSettings:
+		return "settings"
+	case SurfaceTerminal:
+		return "terminal"
+	case SurfaceLauncher:
+		switch {
+		case a.Launcher.ConfigOpen():
+			return "plugin-config"
+		case a.Launcher.PluginModeActive():
+			return "plugin-mode"
+		}
+	}
+	return ""
+}
+
+// noteResidency keeps the residency clock in step with the surface the app is
+// on: entering a tracked surface starts it, and leaving it clears the note so a
+// leftover clock can never claim the next summon. This is the old build's
+// `useSurfaceResidency`, which noted the same transition on every render; the
+// View calls it once a frame.
+func (a *App) noteResidency() {
+	surface := a.currentResidencySurface()
+	if surface == a.residencyOn {
+		return
+	}
+	a.residencyOn = surface
+	if surface != "" {
+		a.enteredAt = a.now()
+	}
+}
+
 // residencyHolds reports whether the current surface survives this summon:
 // the shipped ten seconds since it was opened, a custom window, "never", or
-// nothing at all (0). See src/surface-residency.ts.
+// nothing at all (0). A surface the app is not on (the ordinary search page)
+// never holds. See src/surface-residency.ts.
 func (a *App) residencyHolds() bool {
-	if a.Surf == SurfaceLauncher {
+	if a.currentResidencySurface() == "" {
 		return false
 	}
 	seconds := a.Store.Snapshot().SurfaceResidencySeconds
@@ -2698,6 +2754,11 @@ func (a *App) View(c *ui.Context) {
 	// and a new command returns to the launcher from the terminal or the
 	// settings as well as from the launcher's own modes.
 	a.appShortcuts(c)
+
+	// The residency clock follows the surface the app is on, so a summon
+	// knows whether the plugin mode (or settings, or terminal) the user left
+	// is still "where they left it".
+	a.noteResidency()
 
 	// The launcher's window walks to its target height here, where the
 	// animation has a frame to live in.
