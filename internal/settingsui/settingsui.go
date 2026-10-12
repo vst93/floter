@@ -2411,10 +2411,7 @@ func freshnessDotLabel(copy i18n.Settings, dot extensions.FreshnessDot) string {
 func (a *App) freshnessDetail(copy i18n.Settings, freshness extensions.Freshness) string {
 	parts := []string{}
 	if freshness.AtSeconds > 0 {
-		when := copy.FreshnessJustNow
-		if age := time.Since(time.Unix(freshness.AtSeconds, 0)); age > time.Minute {
-			when = copy.FreshnessAgo(humanAge(age))
-		}
+		when := freshnessWhen(copy, time.Since(time.Unix(freshness.AtSeconds, 0)))
 		source := copy.FreshnessProbeSource
 		if freshness.Source == extensions.FreshnessHealth {
 			source = copy.FreshnessHealthSource
@@ -2441,17 +2438,36 @@ func (a *App) freshnessDetail(copy i18n.Settings, freshness extensions.Freshness
 	return strings.Join(parts, "  \u00b7  ")
 }
 
-// humanAge is a coarse age a person reads: minutes, hours, days.
-func humanAge(age time.Duration) string {
+// freshnessWhen renders how long ago a probe ran. Under 45 seconds it is the
+// caller's own "just now" word — every locale words that differently enough
+// that a table of our own would be worse than one key — and past it the
+// localized relative time ("3 min. ago" / "3分钟前").
+func freshnessWhen(copy i18n.Settings, age time.Duration) string {
+	if age < 45*time.Second {
+		return copy.FreshnessJustNow
+	}
+	value, unit := relativeAge(age)
+	return copy.FreshnessRelative(value, unit)
+}
+
+// relativeAge picks the largest unit whose threshold the age is under and
+// rounds to nearest, exactly the thresholds the old build's `relativeTime`
+// used: minutes under an hour, hours under a day, then days, months and
+// years. The rounding is what turns 50s into "1 min." and 25h into
+// "yesterday".
+func relativeAge(age time.Duration) (int, i18n.RelativeUnit) {
+	seconds := age.Seconds()
 	switch {
-	case age >= 48*time.Hour:
-		return strconv.Itoa(int(age.Hours()/24)) + "d"
-	case age >= 2*time.Hour:
-		return strconv.Itoa(int(age.Hours())) + "h"
-	case age >= 2*time.Minute:
-		return strconv.Itoa(int(age.Minutes())) + "m"
+	case seconds < 3600:
+		return int(math.Round(seconds / 60)), i18n.RelativeMinute
+	case seconds < 86400:
+		return int(math.Round(seconds / 3600)), i18n.RelativeHour
+	case seconds < 2592000:
+		return int(math.Round(seconds / 86400)), i18n.RelativeDay
+	case seconds < 31536000:
+		return int(math.Round(seconds / 2592000)), i18n.RelativeMonth
 	default:
-		return "1m"
+		return int(math.Round(seconds / 31536000)), i18n.RelativeYear
 	}
 }
 

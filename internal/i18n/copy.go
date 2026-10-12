@@ -52,6 +52,66 @@ func shortcutsRejectedZH(key, reason string) string {
 	return "无法绑定 " + key + "：" + reason
 }
 
+// freshnessRelativeEN words a past time the way the platform's own
+// `Intl.RelativeTimeFormat("en", {numeric: "auto", style: "short"})` did in
+// the old build, down to the forms it shortens: "yesterday", "last mo.",
+// "last yr.". The month/year units stay abbreviated, matching style: "short".
+func freshnessRelativeEN(value int, unit RelativeUnit) string {
+	switch unit {
+	case RelativeMinute:
+		return strconv.Itoa(value) + " min. ago"
+	case RelativeHour:
+		return strconv.Itoa(value) + " hr. ago"
+	case RelativeDay:
+		if value == 1 {
+			return "yesterday"
+		}
+		return strconv.Itoa(value) + " days ago"
+	case RelativeMonth:
+		if value == 1 {
+			return "last mo."
+		}
+		return strconv.Itoa(value) + " mo. ago"
+	case RelativeYear:
+		if value == 1 {
+			return "last yr."
+		}
+		return strconv.Itoa(value) + " yr. ago"
+	}
+	return strconv.Itoa(value) + " ago"
+}
+
+// freshnessRelativeZH is the same for `Intl.RelativeTimeFormat("zh", …)`,
+// whose shortened forms differ in shape: "昨天" and "前天" for one and two
+// days, "上个月" and "去年" for one month and one year.
+func freshnessRelativeZH(value int, unit RelativeUnit) string {
+	switch unit {
+	case RelativeMinute:
+		return strconv.Itoa(value) + "分钟前"
+	case RelativeHour:
+		return strconv.Itoa(value) + "小时前"
+	case RelativeDay:
+		switch value {
+		case 1:
+			return "昨天"
+		case 2:
+			return "前天"
+		}
+		return strconv.Itoa(value) + "天前"
+	case RelativeMonth:
+		if value == 1 {
+			return "上个月"
+		}
+		return strconv.Itoa(value) + "个月前"
+	case RelativeYear:
+		if value == 1 {
+			return "去年"
+		}
+		return strconv.Itoa(value) + "年前"
+	}
+	return strconv.Itoa(value) + "前"
+}
+
 // The shipped copy, English first: the source of truth every other language
 // is checked against.
 var en = Copy{
@@ -436,7 +496,7 @@ var en = Copy{
 		Freshness:                           "Command list",
 		FreshnessNever:                      "Never re-scanned",
 		FreshnessJustNow:                    "just now",
-		FreshnessAgo:                        func(text string) string { return text + " ago" },
+		FreshnessRelative:                   freshnessRelativeEN,
 		FreshnessProbeSource:                "from the last re-scan",
 		FreshnessHealthSource:               "from the health report",
 		FreshnessResultRunning:              "Scanning\u2026",
@@ -1028,7 +1088,7 @@ var zh = Copy{
 		Freshness:                           "命令列表",
 		FreshnessNever:                      "尚未重新扫描",
 		FreshnessJustNow:                    "刚刚",
-		FreshnessAgo:                        func(text string) string { return text + "前" },
+		FreshnessRelative:                   freshnessRelativeZH,
 		FreshnessProbeSource:                "来自上次重新扫描",
 		FreshnessHealthSource:               "来自健康报告",
 		FreshnessResultRunning:              "扫描中\u2026",

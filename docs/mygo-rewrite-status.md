@@ -1,6 +1,6 @@
 # floter × mygo 重构：当前进度与后续规划
 
-> 交接文档。状态时间：2026-10-12，分支 `mygo-rewrite`（已推送）。框架：mygo v0.4.7。
+> 交接文档。状态时间：2026-10-12，分支 `mygo-rewrite`（已推送）。框架：mygo v0.4.8。
 > **仓库现在只有 Go 实现**：Tauri/Rust/React 时代的代码已删除（P6-b）。
 > 详细的分轮记录见 `docs/mygo-rewrite-plan.md`（含每轮的决策与「未做」清单）。
 
@@ -8,7 +8,7 @@
 
 用 mygo（原生 GPU 自绘 UI + Go）重写的 floter **已经是一个可打包、可运行的完整应用**：单窗口三表面
 （启动器 / 设置 / 终端）、搜索内核、扩展平台（含后台运行、列表协议、导入导出、权限审计）、剪贴板、
-浏览器、计算器、系统集成、打包与 CI 全部就位。**789 项测试全绿**，三平台都能构建，Linux 打包
+浏览器、计算器、系统集成、打包与 CI 全部就位。**794 项测试全绿**，三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
 含测试）。
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 789 项测试
+go test -count=1 ./...         # 794 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,7 +99,58 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-bb 集成行的 freshness 点（R7-7b）** —— 原版列表行上那个「一句话新鲜度」的
+> **最新一轮：P7-bc 漂移通知门与相对时间本地化（R7-7）** —— P7-bb 写实的第 2、3 条落地。
+> 后台上游工具改版后的重探（G2）原来一句话都不说；现在它的「一次真变化一句」判定是一个纯函数
+> （`DecideDriftNotice`），三条规则**有顺序**：无变化不发（门都不问，不烧名额）、无名不发（门同样
+> 不问）、同一变化一次。顺带把 freshness 明细那截 `3d`/`3h` 缩写换成原版 `Intl.RelativeTimeFormat`
+> 的本地化词形（en/zh，分钟→年）。
+
+**P7-bc 漂移通知门 + 相对时间本地化（本轮）**
+
+- **依赖检查**：go proxy 显示 v0.4.8（GitHub releases 没有对应 release，只有 tag）。已
+  `go get github.com/egoist/mygo@v0.4.8 && go mod tidy`。对照 `v0.4.7...v0.4.8` 只有三条提交：
+  浏览器输入框触摸键盘、新增 `ui/editor`（代码编辑器 + diff 查看器）、发版。**无自然用点**——
+  floter 是启动器/设置/终端三表面，登记审查里的变更是一行权限清单而非文本 diff，描述符是原地
+  重生成的 JSON 也无处 diff，故本轮只升级框架，不改应用。三条提交已读，无 API 破坏。
+- **偏离点 1（R7-7 的可见那一半）**：原版 `src/extensions/freshness.ts:206` 的
+  `createReprobeNoticeGate`（会话内 `seen` Set，`allow(key)` 首次真）、`reprobeNoticeKey`
+  （`id\u0000toolVersion\u0000kind:count` 稳定 key）、`decideDriftNotice(frame, name, gate)`——
+  三条**有顺序**的规则：「无变化不发」（**先于门**，不能烧掉名额）、「无名不发」（门只在有名字时
+  才问）、「同一变化一次」（key 相同则沉默，不同变化仍发）；`src/ExtensionsPanel.tsx:2078` 的
+  `handleDriftNotice` 把 op-progress 帧写回列表行（`lastProbeAt`/`commandCount`/`previousCommandCount`，
+  缺字段保留旧值、不填 0），并向唯一一个 `onNotify` 发 `settings.extensions.reprobeNotice`。
+  本构建 `internal/extensions/reprobe.go` 的 `ReprobeCommands` 是**手动、同步**的；全仓
+  `grep -i drift` 只在无关注释里命中，没有通知门、没有 op-progress 帧、也没有后台重探调度。
+- **偏离点 2（freshness 明细的相对时间）**：原版 `src/extensions/freshness.ts:165` 的 `relativeTime`
+  用 `Intl.RelativeTimeFormat`（本地化「3 minutes ago」/「3分钟前」，覆盖到月/年；< 45s 走 caller
+  自己的 `justNow`）；本构建 `internal/settingsui/settingsui.go` 的 `humanAge` 产出 `3d`/`3h`/`3m`
+  缩写、到「天」就封顶，再被 `copy.FreshnessAgo` 包成「3d ago」/「3d前」——不是原版的词形。
+- **修法**：
+  - 新文件 `internal/extensions/driftnotice.go`：`ReprobeNoticeFrame`、`DriftGate` 接口与
+    `DriftNoticeGate`（`Allow`/`Size`）、`ReprobeNoticeKey`、`DecideDriftNotice` 复刻三条顺序与 key
+    （`DriftNoticeDecision{Display, Announce}` 两个独立结果；缺计数保留 nil，不假造 0）。**纯半**：
+    不排时钟、不发通知，调度决策留给后续轮次。
+  - i18n：`Settings` 新键 `FreshnessRelative(value, unit)`，`FreshnessAgo` 字段删除；新增
+    `RelativeUnit`（minute/hour/day/month/year）。en/zh 各一个实现，**逐字对齐** `Intl.RelativeTimeFormat`
+    （`numeric: "auto"`, `style: "short"`）的输出——含它缩短的形式：en「yesterday」「last mo.」
+    「last yr.」，zh「昨天」「前天」「上个月」「去年」（用 node 实测输出校准）。
+  - `internal/settingsui/settingsui.go`：`humanAge` → `relativeAge(age) (int, i18n.RelativeUnit)`
+    （45s 判 justNow 的阈值从原来的 `> time.Minute` 改成 `< 45s`，与旧版一致；阈值 3600/86400/
+    2592000/31536000 与 `math.Round` 半进位照搬）与 `freshnessWhen(copy, age)`。
+- **测试**：`internal/extensions/driftnotice_test.go`——`TestDecideDriftNoticeAnnouncesAChange`、
+  `TestNoChangeDoesNotBurnTheGate`（无变化后真变化仍发）、`TestNoNameWaitsWithoutBurningTheGate`、
+  `TestSameChangeAnnouncesOncePerSession`（同帧静默 / 不同量仍发 / 不同版本仍发）、
+  `TestMissingCountsFabricateNothing`、`TestReprobeNoticeKeyIdentity`、`TestFreshGateRearms`；
+  `internal/settingsui/freshnesswhen_test.go`——`TestRelativeAgeThresholds`（45s/59s/60s/90s/3599s/
+  3600s/86399s/86400s/172800s/2591999s/2592000s/31535999s/31536000s/63072000s 边界）、
+  `TestFreshnessWhenIsLocalized`（en/zh 各 11 行，含 44s→just now、2 天→前天、30 天→上个月、
+  400 天→去年）。
+  变异核查：把 `DecideDriftNotice` 的「无变化」分支挪到门之后 → `TestNoChangeDoesNotBurnTheGate` 红；
+  把 day 的 `value==1` 特例删掉 → en「yesterday」与 zh「昨天」两行红。
+- **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+  `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+> **上一轮：P7-bb 集成行的 freshness 点（R7-7b）** —— 原版列表行上那个「一句话新鲜度」的
 > 状态点（synced / changed / unknown）从没落地：本构建只在展开的卡里有一行 freshness 明细。
 > 现在同一份纯投影 `Freshness.DotState()` 既喂那一行、也喂名字旁的点，还顺手修了 `FreshnessOf`
 > 把「探过、但没有健康报告」错报成 unknown 的结果推导。
@@ -1333,7 +1384,7 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 > （P7-z）对这些行从不出现。
 >
 > **P7-bb 更新**：P7-an 的这份 1–8 已全部完成或只剩一次性维护者动作；P7-bb 之后的具体待办
-> 见下方「### 具体待办（P7-bb 重写）」（freshness 点已落地；剩下漂移通知门与相对时间本地化）。
+> 见下方「### 具体待办（P7-bb 重写）」（P7-bc 后已全部落地，清单已空，下一轮回到「对照原版排查偏离点」）。
 
 ### 具体待办（P7-an 把清单写实；每项带 file:line、原版对照、验收标准）
 
@@ -1425,33 +1476,18 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 > 缝、外观旋钮的暴露），不是应用侧能单方面推进的；第 4–8 条已全部完成（第 8 条在 P7-ba 落地）。
 > 下一轮仍应回到「对照原版排查偏离点」这条路。
 
-### 具体待办（P7-bb 重写；旧的 1–8 已全部完成或卡框架，以下为本轮新找到的偏离）
+### 具体待办（P7-bb 重写；两项已在 P7-bc 落地，本条清单已空 → 下一轮回到「对照原版排查偏离点」）
 
 1. **~~集成行的 freshness 点（R7-7b）~~**：已完成（P7-bb）——`Freshness.DotState()` 三态投影 +
    名字旁的点（颜色=态、label/tooltip 同句）；`FreshnessOf` 补上「探过即 success」的推导。
    （原分析保留在上面的 P7-bb 记录里。）
-2. **漂移通知门（R7-7 的 `createReprobeNoticeGate` / `decideDriftNotice`）** —— 需要先决定是否移植
-   后台重探的调度器。
-   - 原版：`src/extensions/freshness.ts:206` 的 `createReprobeNoticeGate`（会话内 `seen` Set，
-     `allow(key)` 首次真）、`reprobeNoticeKey`（`id\u0000toolVersion\u0000kind:count` 稳定 key）、
-     `decideDriftNotice(frame, name, gate)`——三条**有顺序**的规则：「无变化不发」（先于门，不能烧掉
-     名额）、「无名不发」（门只在有名字时才问）、「同一变化一次」（key 相同则沉默，不同变化仍发）；
-     `src/ExtensionsPanel.tsx` 的 `handleDriftNotice` 把 op-progress 帧写回列表行（`lastProbeAt`/
-     `commandCount`/`previousCommandCount`，缺字段保留旧值、不填 0），并向唯一一个 `onNotify` 发
-     `settings.extensions.reprobeNotice`。
-   - 本构建：`internal/extensions/reprobe.go` 的 `ReprobeCommands` 是**手动**、同步的；全仓 `grep -i drift`
-     只在无关注释里命中，没有通知门、没有 op-progress 帧、也没有后台重探调度。
-   - 验收（纯半）：新增 `internal/extensions` 的 `DriftNoticeGate`（`Allow`）、`ReprobeNoticeKey(id,
-     toolVersion, delta)`、`DecideDriftNotice(frame, name, gate)` 复刻三条顺序与 key；测试
-     「无变化不烧名额 / 无名不发 / 同 key 一次 / 不同变化仍发 / 缺字段不假造计数」。若决定移植后台
-     重探，再在 shell 接线到唯一的一个通知点（一帧一 toast，不重复）。
-3. **freshness 明细的相对时间本地化** —— 小项。
-   - 原版：`src/extensions/freshness.ts:165` 的 `relativeTime` 用 `Intl.RelativeTimeFormat`（本地化
-     「3 minutes ago」/「3分钟前」，覆盖到月/年；< 45s 走 caller 自己的 `justNow`）。
-   - 本构建：`internal/settingsui/settingsui.go:2445` 的 `humanAge` 产出 `3d`/`3h`/`3m` 缩写，再被
-     `copy.FreshnessAgo` 包成「3d ago」/「3d前」——不是原版的词形，且到「天」就封顶。
-   - 验收：把 `humanAge` 换成本地化的相对时间（en/zh 两套词、覆盖分钟→年）；测试钉住 45s / 分钟 /
-     小时 / 天 / 月 / 年的边界，且 zh 是中文。
+2. **~~漂移通知门（R7-7 的 `createReprobeNoticeGate` / `decideDriftNotice`）~~**：已完成（P7-bc）——
+   `internal/extensions/driftnotice.go` 的 `DriftNoticeGate`/`ReprobeNoticeKey`/`DecideDriftNotice`
+   复刻三条**有顺序**的规则；**纯半**已就位。剩余（需先决策，不算本轮待办）：是否移植后台重探调度器，
+   移植后把 `DecideDriftNotice` 接在 shell 唯一一个通知点（一帧一 toast）。
+3. **~~freshness 明细的相对时间本地化~~**：已完成（P7-bc）——`humanAge` 换成 `relativeAge` + `freshnessWhen`
+   （i18n 的 `FreshnessRelative`，en/zh 逐字对齐 `Intl.RelativeTimeFormat` 的短词形，含「yesterday」
+   「前天」「上个月」「去年」）；45s 阈值回到旧版的 `< 45s`。
 
 **P7-at manifest 的 `compatibility` 区间在落盘前生效（本轮）**
 

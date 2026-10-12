@@ -26,6 +26,21 @@ func Normalize(language string) Language {
 	return EN
 }
 
+// RelativeUnit is one calendar unit a past time can be named in, as
+// `Intl.RelativeTimeFormat` took it: the old build handed the unit to the
+// platform's own formatter rather than rolling a plural table, and this is
+// the vocabulary the two shipped languages implement.
+type RelativeUnit string
+
+// The units a freshness line can name, largest-context first when chosen.
+const (
+	RelativeMinute RelativeUnit = "minute"
+	RelativeHour   RelativeUnit = "hour"
+	RelativeDay    RelativeUnit = "day"
+	RelativeMonth  RelativeUnit = "month"
+	RelativeYear   RelativeUnit = "year"
+)
+
 // Launcher is the launcher surface's copy.
 type Launcher struct {
 	// Placeholder is the search field's placeholder.
@@ -524,7 +539,7 @@ type Settings struct {
 	Freshness                string
 	FreshnessNever           string
 	FreshnessJustNow         string
-	FreshnessAgo             func(text string) string
+	FreshnessRelative        func(value int, unit RelativeUnit) string
 	FreshnessProbeSource     string
 	FreshnessHealthSource    string
 	FreshnessResultRunning   string
