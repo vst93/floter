@@ -99,8 +99,8 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-aq 启动的工作目录与终端要求按清单执行** —— 记录在下面的「具体待办」之后
-> （P7-ap 之后），含对照原版的偏离点、修法与门槛。
+> **最新一轮：P7-as manifest 的 `output` 路由终于到达启动器** —— 记录在下面的「具体待办」之后
+> （P7-ar 之前），含对照原版的偏离点、修法与门槛。
 
 **P7-al 被拒绝的深链说出来（本轮）**
 - **依赖检查**：`go list -m -versions github.com/egoist/mygo` 确认 v0.4.5 仍是最新（go.mod 已是 v0.4.5），
@@ -1061,6 +1061,34 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 > 至此具体待办里的 1–3 **三条都卡在框架能力上**（`Options.OnCopy`、终端键入的 `HandleInput`
 > 缝、外观旋钮的暴露），不是应用侧能单方面推进的；第 5 条已由 P7-ar 完成。
 > 下一轮仍应回到「对照原版排查偏离点」这条路。
+
+**P7-as manifest 的 `output` 路由终于到达启动器（本轮）**
+
+- **依赖检查**：`go list -m -versions` 确认 v0.4.7 仍是最新（`go.mod` 已是 v0.4.7），无版本可升；
+  GitHub releases 被限流，用 go proxy 核对。本轮走「对照原版排查偏离点」。
+- **偏离点（死字段的化石）**：`Manifest.Route()`（`internal/extensions/manifest.go:51`）有实现、
+  有测试（`run_test.go:121` 的 `TestManifestRoute`），但**从来没有调用者**；构造 `CommandEntry` 的
+  `CommandEntries()`（`store.go:299`）**从不写 `Route`**。而 `Route` 是启动器读的字段：
+  `search.go:183` 的 `direct`（行尾 `␣` 键帽）与 `search.go:196` 的 `runCommandWith`（决定输出去
+  terminal 还是 captured 视图）。于是**清单里写 `output: "background"` 的命令永远走终端**，
+  `␣` 键帽从不出现；P3-h 自己写的设计（plan:408「`CommandEntry.Route` 带上它」）在实现里断成两截。
+  测试把它掩盖了：`view_test.go:1277`、`filters_test.go:923`、`shell_test.go:1509` 都手动
+  `entry.Route = RouteBackground` 再断言，绕过了生产路径。
+- **原版对照**：`src-tauri/src/extensions/run.rs:420` 的 `resolve_route(manifest) = manifest.output.into()`
+  ——「The manifest's declared `output` mode is the only authority」，路由只有一个来源。
+- **修法**：`CommandEntries()` 构造条目时补 `Route: integration.Manifest.Route()`。零新 API。
+- **测试**：新文件 `internal/extensions/route_test.go` 的 `TestCommandRouteFollowsTheManifestOutput`
+  （一个声明 `output: "background"` 的集成、一个不声明的集成，各出一个命令，核对 Route）；
+  改写 `internal/shell/shell_test.go` 的 `TestCapturedCommandReachesTheLauncher`：把
+  `output: "background"` 写进**清单文件**（不再手写 `entry.Route`），断言启动器收到的 entry **自己**
+  带 `RouteBackground`——manifest → CommandEntries → launcherCommands → SetCommands 整条链一次钉住。
+  变异核查：`git stash` 掉 `store.go` 那一行，`route_test.go` 两条断言与 shell 那条立刻红。
+- **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 28 包全绿、
+  `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+- **顺带记下的已知差异（本轮不改）**：schema 的 `output.default` 是 `"background"`
+  （`docs/extensions/schemas/floter-extension.schema.json:225`），而 Go 的 `Manifest.Route()` 缺省
+  terminal（plan P3-h 的选择，已被 `TestManifestRoute` 钉住）。缺省取向是独立的决定，改它会翻转所有
+  未声明命令的落点，留待单独一轮。
 
 **P7-ar `cwdPolicy` 的两种拼写都进得来（本轮）**
 

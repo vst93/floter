@@ -350,7 +350,12 @@ func (s *Store) CommandEntries() []CommandEntry {
 				Args:            args,
 				Mode:            command.Execution.NormalizedMode(),
 				Dir:             dir,
-				Env:             env,
+				// The manifest's declared `output` mode decides where a run of
+				// this command sends its output: the terminal surface, or a
+				// headless run the launcher shows (see the launcher's
+				// `runCommandWith` and its direct-output row).
+				Route: integration.Manifest.Route(),
+				Env:   env,
 			}
 			entry.Args = append(entry.Args, injection.Args...)
 			out = append(out, entry)

@@ -1485,13 +1485,30 @@ func TestCalculatorHistoryIsWired(t *testing.T) {
 	}
 }
 
-// A command whose manifest sends its output to the background runs headless
-// and its output reaches the launcher.
+// A command whose manifest declares `output: background` runs headless and its
+// output reaches the launcher: the manifest's route has to travel all the way
+// from the file through CommandEntries to the launcher's own row.
 func TestCapturedCommandReachesTheLauncher(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("the fixture runs through sh")
 	}
 	paths := integrationFixture(t)
+	// The fixture's own manifest leaves the output mode unset (the terminal
+	// default); this test declares the background route on the same package,
+	// so the route under test is the manifest's and not a field set by the
+	// test after the fact.
+	manifestPath := filepath.Join(paths.Extensions, "io.github.vst93.v", "floter.extension.json")
+	manifest, err := os.ReadFile(manifestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	withOutput := strings.Replace(string(manifest), `"schemaVersion": "2.0",`, `"schemaVersion": "2.0", "output": "background",`, 1)
+	if withOutput == string(manifest) {
+		t.Fatalf("the fixture manifest did not carry the schemaVersion anchor")
+	}
+	if err := os.WriteFile(manifestPath, []byte(withOutput), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	store := settings.NewStore(settings.Default())
 	if err := store.Update(func(s *settings.Settings) { s.SetCommandSwitch("io.github.vst93.v", "jv", true) }); err != nil {
 		t.Fatal(err)
@@ -1506,7 +1523,12 @@ func TestCapturedCommandReachesTheLauncher(t *testing.T) {
 		t.Fatalf("commands = %+v", a.Launcher.Commands)
 	}
 	entry := a.Launcher.Commands[0]
-	entry.Route = extensions.RouteBackground
+	// The manifest's route survived the trip: the launcher's row reads it for
+	// the direct-output nudge and `runCommandWith` reads it to pick the
+	// captured path.
+	if entry.Route != extensions.RouteBackground {
+		t.Fatalf("route = %q, want %q", entry.Route, extensions.RouteBackground)
+	}
 	entry.Program = "/bin/sh"
 	entry.Args = []string{"-c", "echo captured"}
 
