@@ -202,6 +202,12 @@ type App struct {
 
 	// Win is the window, created by Start.
 	Win *mygo.Window
+	// notices are the toasts queued for the next frame, and refusals is the
+	// gate that keeps one bad external trigger from repeating its sentence in
+	// a loop (see notices.go).
+	noticeMu sync.Mutex
+	notices  []ui.Toast
+	refusals *refusalGate
 	// detached are the output windows the user pinned: each one stays up
 	// whatever the panel does (see detach.go).
 	detached []*detachedOutput
@@ -402,6 +408,9 @@ func New(opts Options) *App {
 		appIcon:              storedAppIcon(opts.Store.Snapshot()),
 		lastAppIcon:          storedAppIcon(opts.Store.Snapshot()),
 	}
+	// The refusal gate reads the app's own clock, so a test that replaces it
+	// drives the 30s window without waiting.
+	a.refusals = newRefusalGate(refusalWindow, func() time.Time { return a.now() })
 	if a.writeClipboard == nil {
 		a.writeClipboard = systemClipboardWrite
 	}
@@ -1578,6 +1587,7 @@ func (a *App) connectFromLink(manifest string) {
 		info, err := os.Stat(expanded)
 		if err != nil {
 			log.Printf("floter: the connected manifest is not there: %v", err)
+			a.refuseLink()
 			return
 		}
 		staged := expanded
@@ -1589,6 +1599,7 @@ func (a *App) connectFromLink(manifest string) {
 		prepared, err := extensions.PrepareLocal(a.Paths, staged)
 		if err != nil {
 			log.Printf("floter: could not review %s: %v", expanded, err)
+			a.refuseLink()
 			return
 		}
 		approved := true
@@ -2615,6 +2626,11 @@ func (a *App) View(c *ui.Context) {
 	s := a.Store.Snapshot()
 	surface := launcher.Resolve(s, c.Theme().Dark)
 	c.SetTheme(surface.Tokens.Theme)
+
+	// A notice raised while the user was elsewhere (a refused floter:// link)
+	// is shown on the surface they are on, not on the launcher's docked row
+	// they cannot see.
+	a.flushNotices(c)
 
 	// The app's own keys answer on every surface: ⌘W hides whatever the
 	// window is showing (the old build's dismiss table was surface-wide),

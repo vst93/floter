@@ -98,7 +98,31 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-**P7-ak 空字段的退格离开插件模式（本轮）**
+**P7-al 被拒绝的深链说出来（本轮）**
+- **依赖检查**：`go list -m -versions github.com/egoist/mygo` 确认 v0.4.5 仍是最新（go.mod 已是 v0.4.5），
+  无版本可升；本轮走第 3 条（对照原版排查偏离点）。
+- **偏离点**：旧版深链有一条**「拒绝要说话」**的规则（`src-tauri/src/deep_link.rs` 的 `Reject::is_silent`）：
+  畸形 URL、缺 `manifest` 的 `connect`、manifest 验证/加载失败会把面板带到前面（`focus_main`，**不换正在
+  显示的面**）并发一条 `settings.deepLinkRejected`（「无法打开该链接」），且**按 key 30 秒去重**
+  （`createFailureDeduper` + `FAILURE_NOTIFY_DEDUP_MS`——外部触发会自己重试）；只有未知 action 与不支持的
+  scheme 保持安静。本构建对畸形 URL 静默打开启动器、对准备失败的 connect 只写日志——用户点一条坏链接
+  什么也看不到；而 `connect`/`register` 还先把用户带到集成页，让拒绝像是「页面开了但什么都没发生」。
+- **修法**：
+  - 新文件 `internal/shell/notices.go`：`refusalGate`（按 key 的 30 秒窗口，时钟可注入，对应旧版
+    `createFailureDeduper`）；`queueNotice`/`flushNotices` 在 `View` 第一遍把排队的 toast 交给框架自己的
+    `ui.Context.AddToast`（框架的 toast 栈在所有面之上，正是启动器那条**停靠行**服务不了的场景）；
+    `refuseLink` 先过窗口，再 `Show()`（旧版 `focus_main`：带到前面不换面），最后一句 8 秒错误 toast
+    （旧版 `TOAST_DISMISS_MS.error`）。
+  - `HandleURL`：解析失败 → 拒绝；scheme 不匹配 / 未知 action → 保持安静；`connect` 缺 `manifest`、
+    `register` 缺名字 → 在**碰设置页之前**拒绝；`connectFromLink` 的 `stat` / `PrepareLocal` 失败走同一条。
+  - i18n：新增 `Settings.DeepLinkRejected`（en/zh，旧版原文）。
+- **顺带**：`ui.Context.AddToast` 是框架 v0.4.5 就有的能力，此前全仓零调用，而 `P5` 的文档一直写着
+  「反馈走框架 toast」——拒绝是第一个真正需要跨面显示的用户可感知消息。
+- **测试**：`notices_test.go`（去重窗口三段纯测试、拒绝只排一条并画一次、窗口内的重复与畸形 URL 不再排、
+  未处理的 scheme 与未知 action 保持安静、后台失败的 connect 仍画出来）；摘掉 `allow` 守卫两条「重复不再
+  排」会红，摘掉 `flushNotices` 两条「画出来」会红。
+
+**P7-ak 空字段的退格离开插件模式**
 - **偏离点**：旧版 R32 的规则是「退格删空即停」：把 needle 退到空的**那一按**停在模式里（那是编辑器的
   编辑），空字段上**再按一次**退格才离开模式（`src/launcher.ts` 的 `pluginModeExitOnBackspace`——
   `mode !== null && needle.length === 0`）。本构建的字段只有 Escape 一条出路，空字段上的退格被编辑器

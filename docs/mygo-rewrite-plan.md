@@ -1150,6 +1150,37 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
   普通搜索页上什么都不做（不隐藏窗口）、`leavePluginMode` 是唯一梯子（空页答 false，每个模式答一次
   true、第二问答 false）。把新分支换成 `if false` 跑一遍：除两条「断言否定」外全红。
 
+### P7-al 被拒绝的深链说出来（已做）
+
+- **依赖检查**：`go list -m -versions github.com/egoist/mygo` 显示 v0.4.5 仍是最新（go.mod 已是
+  v0.4.5），无升级；本轮继续第 3 条（对照原版排查偏离点）。
+- **偏离点**：旧版的深链有一条**「拒绝要说话」**的规则（`src-tauri/src/deep_link.rs` 的
+  `Reject::is_silent` + `dispatch_url`）：畸形 URL、缺 `manifest` 的 `connect`、manifest 验证/加载失败
+  一律 `focus_main`（把面板带到前面，**不换正在显示的面**）并发一条 toast `settings.deepLinkRejected`
+  （「无法打开该链接」），且**按 key 30 秒去重**（`src/failure-deduper.ts` 的 `createFailureDeduper`
+  + `FAILURE_NOTIFY_DEDUP_MS`——外部触发会自己重试：页面循环、shell 循环）；只有未知 action 与不支持的
+  scheme 保持安静（`is_silent`）。本构建的 `HandleURL` 对畸形 URL 静默打开启动器、对准备失败的 connect
+  只写日志——**用户点一条坏链接，什么也不会知道**；而 `connect`/`register` 还会先把用户带到集成页，让拒绝
+  看起来像「页面开了但什么也没发生」。这与 P7-t/P7-u/P7-v……同一类「旧版明写、本构建从未接线」。
+- **一个真正需要跨面的消息**：旧版的 toast 栈是所有面之上的兄弟节点（换面不消失），而本构建的反馈是
+  启动器里停靠的状态行——链接落在**设置页**时它服务不了。框架自带 `ui.Context.AddToast`（v0.4.5 就有，
+  全仓此前零调用，而 `P5` 的文档一直写着「反馈走框架 toast」），正好是这条消息的落点。
+- **修法**：
+  - 新文件 `internal/shell/notices.go`：`refusalGate`（按 key 的 30 秒窗口，时钟可注入，对应旧版
+    `createFailureDeduper`）、`queueNotice`/`flushNotices`（在 `View` 的第一遍把排队的 toast 交给框架，
+    清空队列，好让引擎一帧内的多次 pass 不会重复添加）、`refuseLink`（去重 → `Show()` 把面板带到前面而
+    不换面，即旧版 `focus_main` → 一句 8 秒的错误 toast，即旧版 `TOAST_DISMISS_MS.error`）。同一个
+    toast id 让重复的句子替换而不是堆叠。
+  - `HandleURL`：解析失败 → 拒绝；scheme 不匹配或未知 action → 保持安静（`is_silent` 的两个变体，
+    未知 action 仍按本构建既有语义打开启动器）；`connect` 缺 `manifest`、`register` 缺名字 → 在**碰设置页
+    之前**拒绝；`connectFromLink` 的 `stat` / `PrepareLocal` 失败（后台 goroutine）→ 走同一条拒绝。
+  - i18n：新增 `Settings.DeepLinkRejected`（en「That link could not be opened」/ zh「无法打开该链接」，
+    旧版原文）。
+- **测试**：`internal/shell/notices_test.go`——去重窗口的三段纯测试（首答过、窗口内重复不过、另一 key
+  过、窗口刚过与刚出各一次）、拒绝只排一条并在帧上画一次、窗口内的重复与畸形 URL 不再排、未处理的 scheme
+  与未知 action 保持安静、后台失败的 connect 仍画出来。把 `allow` 的守卫摘掉，两条「重复不再排」会红；
+  把 `flushNotices` 摘掉，两条「画出来」会红。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。

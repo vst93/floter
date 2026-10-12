@@ -526,11 +526,13 @@ type Settings struct {
 	FreshnessDeltaDecrease   func(count int) string
 	FreshnessDeltaUnchanged  string
 	FreshnessDeltaUnknown    string
-	// The About page's deep-link card: the two forms worth copying.
-	DeepLinkTitle  string
-	DeepLinkHint   string
-	DeepLinkCopy   string
-	DeepLinkCopied string
+	// The About page's deep-link card: the two forms worth copying, and the
+	// sentence a refused link gets (the old build's `settings.deepLinkRejected`).
+	DeepLinkTitle    string
+	DeepLinkHint     string
+	DeepLinkCopy     string
+	DeepLinkCopied   string
+	DeepLinkRejected string
 	// The local-tool connection form.
 	LocalToolTitle                      string
 	LocalToolHint                       string

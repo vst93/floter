@@ -127,7 +127,17 @@ func (a *App) RegisterScheme() error {
 // launcher.
 func (a *App) HandleURL(rawURL string) {
 	parsed, err := url.Parse(strings.TrimSpace(rawURL))
-	if err != nil || !strings.EqualFold(parsed.Scheme, scheme) {
+	if err != nil {
+		// A malformed URL is a user-visible dead end, not noise: bring the
+		// panel forward and say so — once per window, since an external
+		// trigger can repeat on its own (the old build's MalformedUrl).
+		a.Open(SurfaceLauncher)
+		a.refuseLink()
+		return
+	}
+	if !strings.EqualFold(parsed.Scheme, scheme) {
+		// A scheme this app does not handle is not ours to complain about
+		// (the old build kept UnsupportedScheme silent).
 		a.Open(SurfaceLauncher)
 		return
 	}
@@ -136,26 +146,33 @@ func (a *App) HandleURL(rawURL string) {
 		a.Open(SurfaceSettings)
 	case "terminal":
 		a.Open(SurfaceTerminal)
-	case "connect", "register":
+	case "connect":
 		// A tool ships these links in its README: `connect` carries a manifest
-		// that is reviewed here, and `register` names a program already on the
-		// machine — either way, connecting is still the user's own approval.
+		// that is reviewed here, and connecting is still the user's own
+		// approval. A link with no manifest at all is refused before the page
+		// is touched (the old build's MissingManifest).
+		manifest := strings.TrimSpace(parsed.Query().Get("manifest"))
+		if manifest == "" {
+			a.refuseLink()
+			return
+		}
 		a.Open(SurfaceSettings)
 		a.Settings.Page = settingsui.PageIntegrations
-		switch {
-		case strings.EqualFold(parsed.Host, "connect"):
-			if manifest := parsed.Query().Get("manifest"); manifest != "" {
-				a.connectFromLink(manifest)
-			}
-		default:
-			// The register form names the program: `cmd`, `tool` or `program`
-			// (the old build's three spellings), or a positional path.
-			name := firstNonEmpty(parsed.Query().Get("cmd"), parsed.Query().Get("tool"),
-				parsed.Query().Get("program"), strings.TrimPrefix(parsed.Path, "/"))
-			if name != "" {
-				a.registerFromLink(name)
-			}
+		a.connectFromLink(manifest)
+	case "register":
+		// The register form names the program: `cmd`, `tool` or `program`
+		// (the old build's three spellings), or a positional path. A name is
+		// what the link is for; one with none is refused like a connect with
+		// no manifest.
+		name := firstNonEmpty(parsed.Query().Get("cmd"), parsed.Query().Get("tool"),
+			parsed.Query().Get("program"), strings.TrimPrefix(parsed.Path, "/"))
+		if name == "" {
+			a.refuseLink()
+			return
 		}
+		a.Open(SurfaceSettings)
+		a.Settings.Page = settingsui.PageIntegrations
+		a.registerFromLink(name)
 	default:
 		a.Open(SurfaceLauncher)
 		// The query rides either the host (floter://?q=x) or the path
