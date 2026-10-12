@@ -60,25 +60,16 @@ func RowCount(results int) int {
 	return results
 }
 
-// Hysteresis is how many rows below the held count the content must fall
-// before the window steps down. One absorbs the 1↔2 boundary flap: a
-// keystroke that deletes one row of two leaves the window where it is, and
-// the next growth finds the room already there.
-const Hysteresis = 1
-
 // HoldRows resolves the row count the window holds from the count it holds
-// and the raw count the content needs. Growing is immediate; shrinking
-// waits for a row of margin.
+// and the raw count the content needs. The window tracks the content exactly:
+// the reference used to keep a one-row margin (its `resolveLauncherRows`), but
+// R43/R66 retired it ("The window tracks the content exactly now; the
+// smoothness is the resize animation, not a held height") - a one-row margin
+// left the window a row too tall every time a row left, which is exactly the
+// held modifier's row arriving and leaving. The walk to the new height is the
+// shell's own spring (see shell.walkLauncherHeight).
 func HoldRows(held, rows int) int {
-	target := RowCount(rows)
-	current := RowCount(held)
-	if target >= current {
-		return target
-	}
-	if target < current-Hysteresis {
-		return target
-	}
-	return current
+	return RowCount(rows)
 }
 
 // windowInset is the transparent margin the window carries around the card,
@@ -130,10 +121,10 @@ type Geometry struct {
 	// heading rather than a result. Rows beyond this slice (a capped list) are
 	// charged the worst case, two lines.
 	Rows []RowInfo
-	// Held is the row count the window is sized for (with hysteresis): the
-	// band. Rows beyond the list's own are charged the worst case, so a
-	// window holding four rows in a five-row band has the room the next
-	// row arrives into.
+	// Held is the row count the window is sized for: the rows the content
+	// needs (see HoldRows), capped at the budget. Rows beyond the list's own
+	// are charged the worst case, so a window holding four rows in a five-row
+	// band has the room the next row arrives into.
 	Held int
 	// Filter says a plugin mode's chips row is drawn under the field, which
 	// adds its band to the height (the old build's LAUNCHER_FILTER_UNITS).

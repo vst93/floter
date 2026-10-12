@@ -20,7 +20,10 @@ func TestRowCount(t *testing.T) {
 	}
 }
 
-// Growing is immediate; shrinking waits for a row of margin.
+// The window tracks the content exactly: a growth is immediate and a shrink is
+// immediate too. The reference's one-row margin (`resolveLauncherRows`) was
+// retired by R66 - it left the window a row too tall whenever a row left, which
+// the held modifier's row does on release.
 func TestHoldRows(t *testing.T) {
 	if got := HoldRows(0, 5); got != 5 {
 		t.Errorf("first hold = %d, want 5", got)
@@ -28,13 +31,19 @@ func TestHoldRows(t *testing.T) {
 	if got := HoldRows(5, 8); got != 8 {
 		t.Errorf("a growth is immediate: %d", got)
 	}
-	// One row below the held count is absorbed.
-	if got := HoldRows(5, 4); got != 5 {
-		t.Errorf("a one-row shrink is absorbed: %d", got)
+	// A one-row shrink is not absorbed: the window follows the content down.
+	if got := HoldRows(5, 4); got != 4 {
+		t.Errorf("a one-row shrink steps down: %d, want 4", got)
 	}
-	// Two rows below steps down.
 	if got := HoldRows(5, 3); got != 3 {
 		t.Errorf("a two-row shrink steps down: %d", got)
+	}
+	// The cap and the floor still hold.
+	if got := HoldRows(9, 50); got != rowBudget {
+		t.Errorf("over the budget = %d, want %d", got, rowBudget)
+	}
+	if got := HoldRows(3, 0); got != 1 {
+		t.Errorf("an empty list = %d, want the one-row floor", got)
 	}
 }
 

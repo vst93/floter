@@ -125,23 +125,40 @@ func SpecFor(step string, mainOpacity uint8) Spec {
 	}
 }
 
+// contentStep is the recess the content pane carries over the frame: the
+// pane is one step denser than the frame it sits on, never a second sheet of
+// the frame's own tint. The old code painted the pane at the *frame's* alpha
+// (`ContentAlpha() == TintAlpha`), which stacked two full tints and left the
+// visible bottom at `1-(1-t)^2` - 0.76 at the slider's bottom against the
+// frame's 0.51 - so the bottom read as a near-opaque bar and the slider moved
+// it over half the band it moves the frame. The pane is now painted at the
+// alpha that *composites* to `frame + contentStep` over the frame, so the app's
+// background (top, middle and bottom) is the frame tint the slider owns.
+const contentStep = 0.06
+
+// overFrame returns the alpha a pane must carry to composite to target over
+// a frame of alpha frame: `1 - (1-frame)(1-pane) == target`.
+func overFrame(frame, target float32) float32 {
+	if target <= frame {
+		return 0
+	}
+	if target >= 1 {
+		return 1
+	}
+	return (target - frame) / (1 - frame)
+}
+
 // ContentAlpha is the fill alpha of the content pane: the launcher's result
-// list and the settings body (`--surface-sunken`). The pane is a second sheet
-// of the frame's own tint over the frame, so it composites denser than the
-// frame - the reference's readability contract - while still following the
-// transparency slider.
-//
-// The reference pinned the pane to a fixed 0.62-0.80 band instead, which the
-// slider barely moved and which hid the frame tint it sat on: the user read
-// that as "the bottom is opaque and the transparency slider does nothing"
-// (the frame tint moved 0.505 -> 0.98 behind a pane that stayed 0.64 -> 0.80).
-// Riding the tint makes the app's own background the thing the slider moves.
-// The `off` stop keeps an opaque pane, since it has no transparency at all.
+// list and the settings body (`--surface-sunken`). It is the alpha the pane
+// carries *over the frame*, chosen so the visible recess composites to the
+// frame tint plus {@link contentStep} - a single sheet the transparency slider
+// moves, not a second full tint that halves the slider's effect. The `off`
+// stop keeps an opaque pane, since it has no transparency at all.
 func (s Spec) ContentAlpha() float32 {
 	if !s.Enabled {
 		return 1
 	}
-	return s.TintAlpha
+	return overFrame(s.TintAlpha, min(1, s.TintAlpha+contentStep))
 }
 
 // FloatAlpha is the fill alpha of a floating pane (`--glass-float`): the

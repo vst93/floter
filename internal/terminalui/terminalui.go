@@ -522,9 +522,15 @@ func (a *App) options() terminal.Options {
 		Cursor:  cursorStyle(s.CursorShape),
 		NoBlink: !s.CursorBlink,
 		Theme:   theme,
-		// The terminal's own background carries the transparency: the
-		// panel behind (the card's glass) shows through it.
-		Transparent: false,
+		// The terminal's own background carries the transparency: the panel
+		// behind (the card's glass) shows through it. A named palette paints
+		// its own colour at the terminal slider's alpha; the `inherit` theme
+		// has no palette of its own, so the view leaves its background undrawn
+		// and the card's terminal-opacity tint is what shows - the reference's
+		// background-opacity semantics for the default theme. Without this the
+		// plugin's default (opaque) background hid the glass entirely, so the
+		// terminal slider did nothing until a named palette was picked.
+		Transparent: s.TerminalTheme == "inherit",
 		OnTitle:     a.Actions.Title,
 		OnExit:      a.Actions.Exit,
 		OpenLink:    a.Actions.OpenLink,

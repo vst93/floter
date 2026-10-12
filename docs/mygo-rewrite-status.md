@@ -1011,6 +1011,86 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
   键位与 `selectionAfterRemoval` 的表格）。把 `HandleInput` 摘掉跑一遍，除「断言否定」的三项外全红
   ——测试确实钉在机制上。
 
+**P7-w 透明底（第三次报告）+ Super 键交互（本轮）**
+
+用户第三次报告：「floter 透明底还是有问题」；并报告 Super（应用修饰键）的交互与原版有差异。
+两件都对照 `backup/main-pre-mygo` 定位，透明度用**无头生产帧的像素 alpha** 验收。
+
+### 1 · 透明底：内容面把帧的 tint 又画了一遍（叠成两层）
+
+- **前两次为何无效**：`7caa60b` 只改了**窗口材质**（Windows Mica→Acrylic），但材质在场景下面，
+  动不了像素；`622efae` 把内容面 `--surface-sunken` 从固定带改成**骑滑块**，却把它设成
+  **等于帧的 tint**（`glassmap.SpecFor` 的 `ContentAlpha() == TintAlpha`），而 `theme.For` 的
+  `Sunken` 又是在**卡片已经铺了帧 tint 之后**再铺一层（`shell.go:2734` 的 `face.Background(fill)` +
+  `launcher.go:710` / `settingsui.go:574,582` 的 `Background(tk.Sunken)`）。合成 alpha = `1-(1-t)²`：
+  dark 10% 时帧只有 0.505，可见底部却是 **0.761**；再叠上**不骑滑块**的 sheen 渐变
+  （light `sheen-top` 0.66），滑块只把底部从 0.76 推到 1.0，用户读作「底部还是不透明的，拖了没反应」。
+- **真根因（机制级）**：可见底部 = 帧 tint（`glassmap` + `shell.go:2734`）**再叠**一层同样厚的
+  内容 tint（`glassmap.go:157` 旧 `ContentAlpha`）**再叠**固定 sheen（`theme.go:315` 旧值）。
+  三层的 alpha 只在滑块两端动 `1-(1-t)²` 这条被压缩过的带。不是设置没到、也不是框架画了不透明底——
+  是应用自己的内容面把帧又盖了一遍。
+- **原版怎么做**：`backup/main-pre-mygo:src/glass-material.ts` 把 `main_opacity` 定为「帧的唯一
+  alpha 真值」，`base.css:417` 的 `--glass-frame-alpha = min(0.98, max(0, opacity))`；
+  `base.css:461` 的 `--surface-sunken = rgba(17,18,20, 0.62+0.18*op)` 只是内容面的**一层**，
+  `base.css:633` 的 `.launcher-bottom { background: var(--surface-sunken) }` 叠在卡片 tint 上。
+  即原版的底部也是「帧 + 内容面」两层，但内容面的 alpha 远小于 1，且 sheen 折进同一层，
+  滑块仍是主项。（原版 launcher 另有 `--launcher-glass-floor: 0.74` 的地板。）
+- **修法**：内容面改成**只带 `frame + 0.06` 凹槽**的过帧 alpha（`glassmap.go:137,141,157` 的
+  `contentStep`/`overFrame`/`ContentAlpha`）：`S = (target-frame)/(1-frame)`，于是可见底部 =
+  `frame + 0.06`，是滑块拥有的**一张**底。sheen 也按帧 tint 缩放（`theme.go:315,444` 的
+  `scaleAlpha`），不再用固定高光把背景顶到滑块动不了。终端 `inherit` 主题此前交给插件的不透明
+  默认背景，改为 `Transparent: true`（`terminalui.go:533`），让卡片的终端透明度 tint 透出来。
+
+**各档位底部区域平均 alpha（无头生产帧实测，band y=350..400，`shell/transparency_test.go`）**：
+
+| 档位 | dark 改前 | dark 改后 | light 改前 | light 改后 |
+|---|---|---|---|---|
+| 10% | 0.761 | **0.570** | 0.820 | **0.622** |
+| 25% | 0.785 | **0.597** | 0.837 | **0.649** |
+| 50% | 0.862 | **0.687** | 0.895 | **0.734** |
+| 75% | 0.953 | **0.840** | 0.965 | **0.872** |
+| 100% | 1.000 | 1.000 | 1.000 | 1.000 |
+| **幅度** | 0.239 | **0.430** | 0.180 | **0.378** |
+
+- **验收测试**：`internal/shell/transparency_test.go` 的 `TestTheSliderMovesTheRenderedBackground`
+  在每个档位渲染真实窗口内容（`ui.NewTester` 走生产 `surfaceFrame`），直接读渲染结果像素的
+  alpha，测底部/中部/顶部三个带：底部必须单调上升、幅度 ≥0.25、最低档 <0.68、最高档 ≥0.95。
+  **把改动 stash 掉重跑，dark 底部 0.785、light 0.837、幅度 0.215/0.163——测试确实红**。
+  `TestTheContentPaneIsNotASecondFullTint` 另钉住「内容面不是第二层同厚 tint」。
+- **窗口层核对**（回答「设置有没有到窗口层」）：`shell.go:946` 设 `Transparent: true`，
+  `shell.go:962` 设 `Vibrancy: vibrancyFor(GOOS)`（Windows→Acrylic、macOS→UnderWindow、
+  Linux→None）；框架以透明色 `scene.Color{}` 清屏（mygo `ui/paint.go` `s.Reset(..., scene.Color{})`），
+  Linux 的 GL area 拿到 `hasAlpha`（mygo `internal/linux/surface.go`）。**Windows 的 surface 路径只
+  在 `Vibrancy != "" && systemBackdrops()`（Windows 11 22H2，build ≥22621）`&& DirectComposition`
+  时才开 `WS_EX_NOREDIRECTIONBITMAP`（mygo `internal/windows/window.go:126`）；否则 `PresentPixels`
+  走 `SetDIBitsToDevice`（忽略 alpha）**——这是框架在 Win10/<22H2 上的限制，本应用侧无法绕过，
+  报告于此。
+
+### 2 · Super 键：松手后窗口高度不回退（`HoldRows` 的一行余量）
+
+- **原版怎么做（file:line）**：
+  - 按住修饰键的可见性由 `backup/main-pre-mygo:src/launcher/terminal-row.ts` 的
+    `bareTerminalPlacement`（第 77 行）判定：`if (!modifierHeld || scope !== null) return null;`
+    再 `return query.trim().length > 0 ? null : "appended";`——**有 query 就不画**（R64 明确：
+    「输入框不为空时按住 cmd 不出现」）。行落在列表**末尾**（App.tsx `displayedResults` 追加）。
+  - 修饰键的按下/松开由 `src/hooks/useAppModifierHeld.ts` 的 window 捕获监听维护（keydown/keyup/blur）。
+  - **窗口高度**：`src/App.tsx`（约 2198 行）直接 `launcherListUnits(displayedResults.map(...))`
+    算高度，**没有** `resolveLauncherRows` 的余量——`result-budget.ts` 里那个函数是死代码，
+    R43/R66 的注释写明「窗口精确跟随内容；顺滑来自 `useLauncherHeight` 的动画，不是保留高度」。
+    所以松手 → 行消失 → 高度立刻回退。
+- **本构建两处偏离**：
+  1. `internal/launcher/height.go:71` 的 `HoldRows` 带 `Hysteresis = 1`：内容只掉 1 行时
+     `target < current-1` 为假 → 保留旧高度。而持有行恰好只加/减 1 行，于是**松手高度不回退**。
+  2. `internal/launcher/launcher.go:1920` 的 `heldTerminalItem` 用 `strings.TrimSpace(a.Query) != ""`
+     挡住有 query 的情况——**这与原版一致**（原版 `terminal-row.ts:81` 同样按空字段判定）。用户
+     「有 query 时不出现」是对原版记忆的偏差，不是偏离；保留。
+- **修法**：`HoldRows` 改为精确跟随内容（`return RowCount(rows)`，删掉 `Hysteresis`）——对齐原版
+  R66。松手时 `len(results)` 少 1 → `HeldRows` 少 1 → `ResizeTo` 变矮 → `walkLauncherHeight` 的
+  弹簧动画收回。
+- **测试**：`internal/shell/heldmodifier_test.go`：按住 → 出现 + 选中最后一行 + `launcherTarget` 变大；
+  松开 → 消失 + `launcherTarget` 回到原值；有 query → 不出现（钉住原版语义）。
+  `internal/launcher/height_test.go` 的 `TestHoldRows` 改成钉精确跟随。
+
 ## 注意事项（踩过的坑）
 
 - **Tester 的 `Type("\b")` 是插入文本，不是按退格**：测试里删字符要用 `tt.Key(0, ui.KeyBackspace)`。

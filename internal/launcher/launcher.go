@@ -680,10 +680,11 @@ func (a *App) View(c *ui.Context) {
 		rows[i].Bar = strings.HasPrefix(item.ID, "bar:")
 	}
 	a.Rows = rows
-	// The window follows the list: grow as soon as a row arrives, and wait
-	// for a row of margin before walking the edge back down (the old
-	// launcher's hysteresis). The cap is the work area less the room the
-	// other windows keep.
+	// The window follows the list exactly: the row count it holds is the
+	// count the content needs (the reference's R66 rule). A one-row margin
+	// would leave the window a row too tall whenever a row leaves - which is
+	// the held modifier's row on release. The cap is the work area less the
+	// room the other windows keep.
 	a.HeldRows = HoldRows(a.HeldRows, len(results))
 	if a.Actions.ResizeTo != nil {
 		geometry := Geometry{

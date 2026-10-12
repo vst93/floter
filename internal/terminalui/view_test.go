@@ -99,8 +99,11 @@ func TestOptionsFollowTheSettings(t *testing.T) {
 	if o.Theme != nil {
 		t.Errorf("inherit built a palette: %+v", o.Theme)
 	}
-	if o.Transparent {
-		t.Error("the terminal's background carries the transparency, not the Transparent flag")
+	// The default theme has no palette of its own: the view leaves its
+	// background undrawn so the card's terminal-opacity tint shows. A named
+	// palette paints its own colour at the slider's alpha instead.
+	if !o.Transparent {
+		t.Error("the inherit theme must leave the background to the card's tint")
 	}
 	if a.Pad() != 3 {
 		t.Errorf("regular padding = %v, want 3", a.Pad())

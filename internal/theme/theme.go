@@ -152,9 +152,10 @@ type Tokens struct {
 	AccentEdge ui.Color
 	// Sunken is the settings content pane's own fill (base.css's
 	// `--surface-sunken`): the settings panel is a reading surface, and it
-	// carries a fill of its own so it reads more solid than the launcher -
-	// the old build's alpha was 0.62 + 0.18 of the main opacity, which rises
-	// with the transparency slider without ever reaching it.
+	// carries a fill of its own so it reads one step denser than the frame.
+	// Its alpha is the *over-frame* fill that composites to the frame tint
+	// plus a small recess (glassmap.Spec.ContentAlpha), so the app's whole
+	// background - the bottom included - stays the slider's single sheet.
 	Sunken ui.Color
 	// RaisedQuiet is the sidebar's chosen page: the control-hover lift
 	// composited opaque over the content pane, so the framework's own accent
@@ -241,12 +242,13 @@ func For(s settings.Settings, systemDark bool) Tokens {
 	controlHover, controlPress := p.controlHover, p.controlPress
 	track, field := p.track, p.field
 	textSecondary, textTertiary := p.textSecondary, p.textTertiary
-	// The content pane rides the frame's own tint (the transparency slider),
-	// so the app's background is what the slider moves: the reference pinned
-	// `--surface-sunken` to a fixed 0.62-0.80 band that hid the frame tint and
-	// made the slider read as dead. The pane is a second sheet of the same
-	// thickness over the frame, so it still composites denser than the frame -
-	// the reference's readability contract. See glassmap.Spec.ContentAlpha.
+	// The content pane rides the frame's own tint (the transparency slider)
+	// as a single sheet: the pane is only the recess it needs to composite to
+	// `frame + step`, so the app's background - top, middle and bottom - is
+	// what the slider moves. The reference pinned `--surface-sunken` to a fixed
+	// 0.62-0.80 band (which the slider barely moved), and an earlier rewrite
+	// then painted the pane at the frame's own alpha, stacking two full tints
+	// into a near-opaque bottom. See glassmap.Spec.ContentAlpha.
 	spec := glassmap.SpecFor(s.GlassStep, s.MainOpacity)
 	sunken := spec.ContentAlpha()
 	floatAlpha := spec.FloatAlpha()
@@ -310,8 +312,8 @@ func For(s settings.Settings, systemDark bool) Tokens {
 		LensRim:           p.lensRim,
 		LensSheen:         p.lensSheen,
 		LensEdge:          p.lensEdge,
-		SheenTop:          p.sheenTop,
-		SheenBottom:       p.sheenBottom,
+		SheenTop:          scaleAlpha(p.sheenTop, spec.TintAlpha),
+		SheenBottom:       scaleAlpha(p.sheenBottom, spec.TintAlpha),
 		ShadowAmbient:     p.shadowAmbient,
 		ShadowContact:     p.shadowContact,
 		EdgeHighlight:     p.edgeHighlight,
@@ -431,6 +433,16 @@ type palette struct {
 // author could have written and the tests can compare exactly.
 func round1(v float32) float32 {
 	return float32(int(v*10+0.5)) / 10
+}
+
+// scaleAlpha multiplies a token's own alpha by a factor, keeping its colour.
+// The card's sheen is a fixed highlight in base.css, but a fixed highlight
+// over a thin frame props the whole background to a density the transparency
+// slider cannot move - the light appearance's 0.66 sheen left the bottom at
+// 0.81 at the slider's low end. Scaling it by the frame's own tint makes the
+// highlight fade with the face, so the slider owns the background again.
+func scaleAlpha(c ui.Color, factor float32) ui.Color {
+	return ui.RGBA(c.R, c.G, c.B, float32(c.A)/255*factor)
 }
 
 // blendOpaque lays over on base at over's alpha and returns the opaque

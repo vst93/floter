@@ -109,12 +109,13 @@ func TestStrokes(t *testing.T) {
 }
 
 // The settings content pane carries its own fill, and it rides the
-// transparency slider: the pane is a second sheet of the frame's own tint, so
-// it composites denser than the frame (the reference's readability contract)
-// while the slider still moves it. The reference pinned `--surface-sunken` to
-// a fixed 0.62 + 0.18 band instead, which stayed ~0.64-0.80 no matter where
-// the slider was and hid the frame tint it sat on - the user read that as
-// "the bottom is opaque and the slider does nothing".
+// transparency slider as a single sheet: the pane is painted at the alpha that
+// composites to the frame tint plus a small recess (glassmap.Spec.ContentAlpha),
+// so the visible bottom is the frame the slider moves, not a second full tint
+// stacked on it. The reference pinned `--surface-sunken` to a fixed 0.62 + 0.18
+// band instead, which stayed ~0.64-0.80 no matter where the slider was and hid
+// the frame tint it sat on - the user read that as "the bottom is opaque and the
+// slider does nothing".
 func TestSunkenFollowsTheOpacity(t *testing.T) {
 	dim := settings.Settings{Theme: "dark", MainOpacity: 10}
 	bright := settings.Settings{Theme: "dark", MainOpacity: 100}
@@ -123,12 +124,13 @@ func TestSunkenFollowsTheOpacity(t *testing.T) {
 	if lowT.Sunken.A >= highT.Sunken.A {
 		t.Errorf("the sunken fill did not rise with the slider: %v vs %v", lowT.Sunken.A, highT.Sunken.A)
 	}
-	// It rides the frame tint, so the low stop is the frame's own 0.505, not
-	// the fixed band's 0.638 that hid it.
+	// The pane is a recess over the frame, not a second sheet: at the low stop
+	// its own alpha is small, because the frame underneath already carries the
+	// tint the slider owns.
 	if a := float64(lowT.Sunken.A) / 255; a > 0.55 {
-		t.Errorf("the low stop alpha = %v, want the frame tint's ~0.505", a)
+		t.Errorf("the low stop alpha = %v, want a thin recess", a)
 	}
-	// And it reaches the near-solid top the slider owns, not a second ceiling.
+	// At the top it reaches the near-solid face the frame itself owns.
 	if a := float64(highT.Sunken.A) / 255; a < 0.97 {
 		t.Errorf("the high stop alpha = %v, want the frame tint's ~0.98", a)
 	}

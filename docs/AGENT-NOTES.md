@@ -335,3 +335,28 @@ opt-in（`FLOTER_TERMINAL_TEST=1`、`FLOTER_SQLITE_TEST=1`、`FLOTER_REGISTRY_TE
   回到旧版 `selectionAfterRemoval` 的「邻居接管选中，不跳顶」（此前是跳回第一行）。
 - **测试的坑**：`tt.Type("x")` 只发文本、不发 keydown，`HandleInput` 看不到——测按键规则要用
   `tt.TypeKey(0, ui.KeyX, "x")`。剪贴板行的 `Item.ID` 是 `"clip:"+entry.ID`，别拿 `entry.ID` 比。
+
+## 2026-10-14 · 第三次透明度报告 + Super 键交互
+
+### 1 · 透明底：内容面把帧 tint 又画了一遍
+
+- **前两次为何无效**：第一次只改窗口材质（在场景下面），第二次把内容面改成「骑滑块」却把它的
+  alpha 设成**等于帧的 tint**，于是卡片 + 内容面叠成 `1-(1-t)²`，再叠固定 sheen——底部最低
+  仍是 0.76（dark）/0.82（light），滑块只把底部推 0.76→1.0，用户读作「不透明、拖了没反应」。
+- **修法**：内容面只带 `frame + 0.06` 凹槽的**过帧 alpha**（`glassmap.ContentAlpha` 用
+  `overFrame`），sheen 按帧 tint 缩放（`theme.scaleAlpha`），终端 `inherit` 主题改
+  `Transparent: true` 让卡片 tint 透出。详见 `docs/mygo-rewrite-status.md` 的 P7-w。
+- **纪律**：透明度的验收是**无头生产帧的像素 alpha**（`shell/transparency_test.go`），
+  不是内部 token；改前/改后表在 status 文档里（底部幅度 dark 0.239→0.430、light 0.180→0.378）。
+- **平台限制**：Windows 的 mygo surface 只在 Windows 11 22H2（build ≥22621）+ DirectComposition
+  下开 `WS_EX_NOREDIRECTIONBITMAP`；否则 `PresentPixels` 走 `SetDIBitsToDevice`（忽略 alpha），
+  窗口不透明。这是框架侧的限制，应用侧无法绕过。
+
+### 2 · Super 键：松手高度不回退
+
+- **根因**：`internal/launcher/height.go` 的 `HoldRows` 带一行 `Hysteresis`，而持有行恰好只
+  加/减 1 行 → 松手时 `target < current-1` 为假 → 高度保留。
+- **原版**：`src/App.tsx` 直接 `launcherListUnits(displayedResults)`，`resolveLauncherRows` 是
+  死代码；R66 注释写明「窗口精确跟随内容」。且 `src/launcher/terminal-row.ts` 的
+  `bareTerminalPlacement` 对**非空 query 返回 null**——「有 query 时不出现」是原版语义，保留。
+- **修法**：`HoldRows` 精确跟随内容；测试见 `shell/heldmodifier_test.go`。

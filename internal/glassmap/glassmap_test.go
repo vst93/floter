@@ -89,11 +89,12 @@ func TestSpecForSpendsMainOpacityOnTheTintAlpha(t *testing.T) {
 	}
 }
 
-// The content pane and a floating pane ride the frame's tint, so the app's
-// own background is what the transparency slider moves. The reference pinned
-// the content pane to a fixed band (`--glass-content-alpha`), which the slider
-// barely moved and which hid the frame tint it sat on — the report is
-// 「底部还是非透明的，无论怎么调节应用透明度都不起作用」.
+// The content pane rides the frame's tint as a single sheet: the pane is only
+// the recess it needs to composite to `frame + contentStep`, not a second full
+// tint. The reference's fixed band pinned the visible pane to 0.62-0.80 and
+// the user read it as "the bottom is opaque and the transparency slider does
+// nothing"; a pane painted at the frame's own alpha (the previous rewrite)
+// stacked to `1-(1-t)^2` and halved the slider's amplitude instead.
 func TestContentAndFloatRideTheSlider(t *testing.T) {
 	thin := SpecFor("regular", settings.MinWindowOpacity)
 	thick := SpecFor("regular", settings.MaxWindowOpacity)
@@ -101,10 +102,19 @@ func TestContentAndFloatRideTheSlider(t *testing.T) {
 	if thin.ContentAlpha() >= thick.ContentAlpha() {
 		t.Errorf("the content pane did not rise with the slider: %v vs %v", thin.ContentAlpha(), thick.ContentAlpha())
 	}
-	// It rides the frame tint exactly, so the low stop is as thin as the
-	// frame (not the fixed 0.638 band that hid it).
-	if thin.ContentAlpha() != thin.TintAlpha {
-		t.Errorf("the content pane at the low stop = %v, want the frame tint %v", thin.ContentAlpha(), thin.TintAlpha)
+	// The pane's own alpha is the *over-frame* fill, so the visible recess is
+	// one sheet the slider moves, not a second full tint.
+	visible := func(s Spec) float32 { return 1 - (1-s.TintAlpha)*(1-s.ContentAlpha()) }
+	if got, want := visible(thin), thin.TintAlpha+contentStep; diff(got, want) {
+		t.Errorf("the low stop's visible pane = %v, want the frame + step %v", got, want)
+	}
+	if got, want := visible(thick), float32(1); diff(got, want) {
+		t.Errorf("the high stop's visible pane = %v, want opaque %v", got, want)
+	}
+	// The bottom end is close to the frame's own alpha, not the near-opaque
+	// double sheet the old code drew.
+	if a := visible(thin); a >= 0.7 {
+		t.Errorf("the low stop's visible pane = %v, want a translucent bottom", a)
 	}
 	// A floating pane is always denser than the frame it floats over, and
 	// still follows the slider.
@@ -120,6 +130,10 @@ func TestContentAndFloatRideTheSlider(t *testing.T) {
 		t.Errorf("off panes = %v/%v, want opaque", off.ContentAlpha(), off.FloatAlpha())
 	}
 }
+
+// diff reports whether two alphas differ beyond the float tolerance the
+// formulas accumulate.
+func diff(a, b float32) bool { return a-b > 1e-5 || b-a > 1e-5 }
 
 func TestOffCarriesNoFillAndNoHaze(t *testing.T) {
 	spec := SpecFor("off", 47)
