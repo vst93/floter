@@ -1946,6 +1946,36 @@ func TestSettingsHeaderBand(t *testing.T) {
 	}
 }
 
+// The header's two icon-only controls carry their own sentence: the copy the
+// reference put in each button's `title=` is the tip that shows once the
+// pointer rests, so a bare glyph is not an unexplained mark. The strings were
+// declared and translated but no view showed them.
+func TestSettingsHeaderButtonsCarryTheirHints(t *testing.T) {
+	copy := i18n.For("en").Settings
+	a := New(newStore(t), Actions{Quit: func() {}, Close: func() {}})
+	tt := render(t, a, 720, 580)
+	for _, want := range []struct{ label, hint string }{
+		{copy.Quit, copy.QuitHint},
+		{copy.Close, copy.CloseHint},
+	} {
+		rect, ok := tt.Find(want.label)
+		if !ok {
+			t.Fatalf("no %q control: %q", want.label, tt.Texts())
+		}
+		// Park the pointer away first, so this control's own rest timer starts
+		// fresh rather than warming on the previous tip.
+		tt.Move(rect.X+rect.W/2, rect.Y+rect.H+120)
+		tt.Frame()
+		tt.Move(rect.X+rect.W/2, rect.Y+rect.H/2)
+		// The tip waits for the pointer to rest (Base UI's 600ms).
+		time.Sleep(700 * time.Millisecond)
+		tt.Frame()
+		if !tt.HasText(want.hint) {
+			t.Errorf("the %q control has no tooltip %q: %q", want.label, want.hint, tt.Texts())
+		}
+	}
+}
+
 // "Restore defaults" is the shortcuts group's own action, on the group title
 // row - and it really resets: the shell's reset re-registers the shipped
 // bindings and drops the custom ones.

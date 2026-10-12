@@ -695,10 +695,13 @@ func (a *App) residentNote(c *ui.Context, copy i18n.Terminal) {
 // barButton is one of the terminal bar's own controls: a 28u transparent
 // square with a 16u mark, as the reference's `.toolbar-button` — not a filled
 // pill, which in a floating strip would be the loudest thing on the panel.
-func (a *App) barButton(c *ui.Context, name, label string, run func()) {
+// label is the control's accessible name, hint the sentence its tooltip
+// carries once the pointer rests (the old header's own `title=`).
+func (a *App) barButton(c *ui.Context, name, label, hint string, run func()) {
 	t := c.Theme()
 	button := ui.Row(c).Focusable().Size(t.Space(7), t.Space(7)).Shrink(0).
-		Radius(tokensOf(a, c).RadiusSM).AlignItems(ui.Center).Justify(ui.Center).Label(label)
+		Radius(tokensOf(a, c).RadiusSM).AlignItems(ui.Center).Justify(ui.Center).Label(label).
+		Tooltip(hint)
 	if button.Hovered() {
 		button.Background(t.SurfaceHover)
 	}
@@ -746,19 +749,19 @@ func (a *App) titleBar(c *ui.Context, copy i18n.Terminal) {
 		}
 		actions.Children(func() {
 			if a.Actions.Settings != nil {
-				a.barButton(c, "settings", copy.SettingsLabel, a.Actions.Settings)
+				a.barButton(c, "settings", copy.SettingsLabel, copy.SettingsLabel, a.Actions.Settings)
 			}
 			if a.Actions.Pin != nil && a.term() != nil {
-				a.barButton(c, "text", copy.Pin, func() { a.Actions.Pin(a.sessionTitle(), a.sessionText()) })
+				a.barButton(c, "text", copy.Pin, copy.Pin, func() { a.Actions.Pin(a.sessionTitle(), a.sessionText()) })
 			}
 			if a.Actions.NewCommand != nil {
-				a.barButton(c, "command", copy.NewCommand, a.Actions.NewCommand)
+				a.barButton(c, "command", copy.NewCommand, copy.NewCommandHint, a.Actions.NewCommand)
 			}
 			if a.Actions.OpenExternal != nil {
-				a.barButton(c, "terminal", copy.OpenExternal, a.Actions.OpenExternal)
+				a.barButton(c, "terminal", copy.OpenExternal, copy.OpenExternalHint, a.Actions.OpenExternal)
 			}
 			if a.Actions.Close != nil {
-				a.barButton(c, "close", copy.Close, a.Actions.Close)
+				a.barButton(c, "close", copy.Close, copy.Close, a.Actions.Close)
 			}
 		})
 	})

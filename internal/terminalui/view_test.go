@@ -291,6 +291,45 @@ func TestTerminalHeaderControls(t *testing.T) {
 	}
 }
 
+// The bar's two labeled controls say what they do once the pointer rests on
+// them: the reference put the same sentence in each button's `title=`, and the
+// strings were declared and translated here without any view showing them.
+func TestTerminalBarButtonsCarryTheirHints(t *testing.T) {
+	copy := i18n.For("en").Terminal
+	a := New(newStore(), Actions{
+		NewCommand:   func() {},
+		OpenExternal: func() {},
+	}, func(terminal.Options) (*terminal.Terminal, error) {
+		return nil, errors.New("no library in tests")
+	})
+	tt := render(t, a, 860, 600)
+	for _, want := range []struct{ label, hint string }{
+		{copy.NewCommand, copy.NewCommandHint},
+		{copy.OpenExternal, copy.OpenExternalHint},
+	} {
+		rect, ok := tt.Find(want.label)
+		if !ok {
+			t.Fatalf("no %q control: %q", want.label, tt.Texts())
+		}
+		cx, cy := rect.X+rect.W/2, rect.Y+rect.H/2
+		// The bar is hidden until the pointer is over it, and its buttons are
+		// pass-through until then: one frame reveals the bar, the next lets the
+		// button take the hover.
+		tt.Move(cx, cy)
+		tt.Frame()
+		tt.Frame()
+		// The tip waits for the pointer to rest (Base UI's 600ms).
+		time.Sleep(700 * time.Millisecond)
+		tt.Frame()
+		if !tt.HasText(want.hint) {
+			t.Errorf("the %q control has no tooltip %q: %q", want.label, want.hint, tt.Texts())
+		}
+		// Park the pointer away and let the tip go before the next control.
+		tt.Move(430, 300)
+		tt.Frame()
+	}
+}
+
 // A session whose program ended is held with its output on screen: the note
 // says how it went, the dot goes still, and entering the page again starts a
 // fresh session rather than showing the same finished frame.

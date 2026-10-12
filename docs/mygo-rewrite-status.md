@@ -98,7 +98,19 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-**P7-z 行的 source 槽（本轮）**
+**P7-aa 图标控件的 tooltip（本轮）**
+- **偏离点**：旧版给每个只有图标、没有可见文字的工具栏控件都配了 `title=` 的一句话
+  （`settings.quitHint` / `settings.closeHint` / `terminal.newCommandHint` / `terminal.openInTerminalHint`）。
+  本构建把这四句文案都写好了（en/zh 齐全），却**没有任何视图画过它们**——设置页头部、
+  终端标题栏的退出 / 关闭 / 新命令 / 在终端打开都是光秃秃的字形。全仓此前只有一处 `Tooltip` 调用
+  （P7-t 给 `␣` 键帽补的那处），所以这类“文案写好但没人展示”的漏洞只剩这一批。
+- **修法**：`settingsui.headerButton` 与 `terminalui.barButton` 各多收一个 `hint`，落到
+  `Element.Tooltip(hint)`；接上 `QuitHint` / `CloseHint` / `NewCommandHint` / `OpenExternalHint`。
+  `Tooltip` 在元素没有 `Description` 时把它当无障碍说明，`Label` 仍是无障碍名字，两者不冲突。
+- **测试**：`TestSettingsHeaderButtonsCarryTheirHints`（退出 / 关闭：悬停、停 700ms、tip 出现）、
+  `TestTerminalBarButtonsCarryTheirHints`（新命令 / 在终端打开；标题栏先因悬停揭示，再让按钮接手悬停）。
+
+**P7-z 行的 source 槽**
 - **偏离点**：旧版 `row-content.ts` 的 `resultRowContent` 给每行算出两个可选字符串——`subtitle`
   与**右侧固定槽** `source`（`.launcher-result__source`）。`source` 对 `command` 行是**贡献该命令的
   集成名**，对 install 行是**包管理器**。本构建此前把这两个事实塞进了 `Detail`

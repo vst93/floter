@@ -519,13 +519,14 @@ func (a *App) View(c *ui.Context) {
 			// application and the way back to the launcher. They are the
 			// reference's `.toolbar-button` — 28u transparent squares with a
 			// 16u mark — never filled pills in the header band.
-			headerButton := func(glyphName, label string, run func()) {
+			headerButton := func(glyphName, label, hint string, run func()) {
 				if run == nil {
 					return
 				}
 				tokens := a.tokens(c)
 				button := ui.Row(c).Focusable().Shrink(0).Size(t.Space(7), t.Space(7)).
-					Radius(tokens.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).Label(label)
+					Radius(tokens.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).Label(label).
+					Tooltip(hint)
 				if button.Hovered() {
 					button.Background(tokens.ControlHover)
 				}
@@ -538,8 +539,8 @@ func (a *App) View(c *ui.Context) {
 					run()
 				}
 			}
-			headerButton("power", copy.Quit, a.Actions.Quit)
-			headerButton("close", copy.Close, a.Actions.Close)
+			headerButton("power", copy.Quit, copy.QuitHint, a.Actions.Quit)
+			headerButton("close", copy.Close, copy.CloseHint, a.Actions.Close)
 		})
 		// The header/body separator is the reference's gradient hairline, not a
 		// solid rule: it dissolves into the sidebar and the content pane
