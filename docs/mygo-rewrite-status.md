@@ -98,7 +98,22 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-**P7-ab 终端自己的外观抽屉（本轮）**
+**P7-ac 打开设置的快捷键（本轮）**
+- **偏离点**：设置页 Shortcuts 的「App shortcuts」把 `open_settings`（默认 ⌘, / Ctrl+,）列成一条
+  可录制的绑定，自定义快捷键的 `action:open_settings` 也走同一张表——但**内置的那条从来没被读过**。
+  旧版在 collapsed（启动器）里 `matchesShortcut(event, shortcuts.open_settings)` → `openSettings()`。
+  本构建只靠 macOS 应用菜单里硬编码的 `CmdOrCtrl+,` 兜着：Linux/Windows 没有菜单，⌘/Ctrl+, 什么
+  都不做；改了键也只有菜单那条冻结的旧键还活着，新键彻底无人接。又一例「UI 卖了一个从不回应的键」。
+- **修法**：
+  - `internal/launcher/launcher.go` 的 `appShortcuts` 加上 `ShortcutOpenSettings` →
+    `Actions.OpenSettings()`。启动器就是旧版回答它的那个面，其余面维持旧版行为。
+  - `internal/shell/system.go` 的 Settings… 菜单项加速键改为读用户存储的绑定
+    （`menuActions.SettingsAccelerator`，空则回退 `CmdOrCtrl+,`）；`shell.setShortcut` 改
+    `open_settings` 时重装菜单，菜单里不再留一个冻结的 Cmd+,。
+- **测试**：`TestOpenSettingsShortcutOpensSettings`（默认键开设置、改键后旧键失效新键生效；把接线
+  摘掉跑一遍会红），`TestMenuSettingsAcceleratorFollowsTheBinding`（存储的绑定进菜单，空则回退）。
+
+**P7-ab 终端自己的外观抽屉**
 - **偏离点**：旧版终端页的齿轮打开的是**终端自己**的外观抽屉（`.terminal-settings-drawer`，R42/R54）：
   一条停靠在面板下缘的条带，画布是它的**兄弟**而不是被它盖住，所以打开它只会把 PTY 挤小，
   正在跑的会话（连同滚动缓冲）原地不动。本构建把齿轮接到「跳到设置页的 General 页」——

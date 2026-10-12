@@ -999,6 +999,25 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
 - **测试**：`TestSettingsRowsKeepTheirHints`、`TestPluginSheetRendersAndReportsChanges`（追加
   `BrowserPluginHint`）、`TestConfigurationForm`（布尔字段说明）。
 
+### P7-ac 打开设置的快捷键（已做）
+
+- **偏离点**：设置页 Shortcuts 的「App shortcuts」把 `open_settings`（默认 ⌘, / Ctrl+,）列成一条可录制
+  的绑定，自定义快捷键的 `action:open_settings` 也走同一张表，但**内置的那条从来没被读过**。旧版在
+  collapsed（启动器）里 `matchesShortcut(event, shortcuts.open_settings)` → `openSettings()`。本构建
+  只靠 macOS 应用菜单里硬编码的 `CmdOrCtrl+,` 兜着：Linux/Windows 没有菜单，⌘/Ctrl+, 什么都不做；
+  改了键也只有菜单那条冻结的旧键还活着，新键彻底无人接。
+- **修法**：
+  - `internal/launcher/launcher.go` 的 `appShortcuts` 加上 `ShortcutOpenSettings` →
+    `Actions.OpenSettings()`。启动器就是旧版回答它的那个面，其余面维持旧版行为（旧版只在 collapsed 里接）。
+  - `internal/shell/system.go` 的 Settings… 菜单项加速键改为读用户存储的绑定
+    （`menuActions.SettingsAccelerator`，空则回退 `CmdOrCtrl+,`）；`shell.setShortcut` 改 `open_settings`
+    时重装菜单，菜单里不再留一个冻结的 Cmd+,。
+- **测试**：`TestOpenSettingsShortcutOpensSettings`（默认键开设置、改键后旧键失效新键生效；把接线
+  摘掉跑一遍会红）、`TestMenuSettingsAcceleratorFollowsTheBinding`（存储的绑定进菜单，空则回退）。
+- **未做（如实记录）**：终端面上的 `open_external_terminal` 键未接——旧版在终端里接了它，但它的默认
+  绑定在非 macOS 是 Ctrl+N，会抢走 readline 的 C-n；本构建把能力留在终端标题栏的按钮上，不夺键。
+  同理 `copy_selection` / `paste` 由框架的 `plugins/terminal` 内部固定为 ⌘C/⌘V，用户改键无效（见「已知差距」）。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。

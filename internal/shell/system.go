@@ -395,6 +395,11 @@ type menuActions struct {
 	Settings func()
 	Terminal func()
 	Launcher func()
+	// SettingsAccelerator is the spelling the Settings… item advertises and
+	// answers. It is the user's stored `open_settings` binding, so rebinding
+	// the action moves the menu with it instead of leaving a second, frozen
+	// Cmd+, behind. Empty falls back to the shipped accelerator.
+	SettingsAccelerator string
 }
 
 // menuBarBelongs reports whether an application menu bar belongs on this
@@ -410,7 +415,11 @@ func menuBarBelongs(goos string) bool { return goos == "darwin" }
 // platform; the roles mygo filters (the macOS-only ones) are left out by the
 // platform, not here.
 func menuTemplate(copy i18n.Launcher, actions menuActions) []*mygo.MenuItem {
-	settings := &mygo.MenuItem{Label: copy.CommandSettings, Accelerator: "CmdOrCtrl+,", Click: func(*mygo.MenuItem, *mygo.Window) { actions.Settings() }}
+	accelerator := actions.SettingsAccelerator
+	if accelerator == "" {
+		accelerator = "CmdOrCtrl+,"
+	}
+	settings := &mygo.MenuItem{Label: copy.CommandSettings, Accelerator: accelerator, Click: func(*mygo.MenuItem, *mygo.Window) { actions.Settings() }}
 	terminal := &mygo.MenuItem{Label: copy.CommandTerminal, Accelerator: "CmdOrCtrl+Shift+T", Click: func(*mygo.MenuItem, *mygo.Window) { actions.Terminal() }}
 	launcher := &mygo.MenuItem{Label: copy.MenuLauncher, Click: func(*mygo.MenuItem, *mygo.Window) { actions.Launcher() }}
 
@@ -450,10 +459,12 @@ func (a *App) InstallMenu() {
 		return
 	}
 	copy := i18n.For(a.Store.Snapshot().Language).Launcher
+	snapshot := a.Store.Snapshot()
 	mygo.App.SetMenu(mygo.NewMenu(menuTemplate(copy, menuActions{
-		Settings: func() { a.Open(SurfaceSettings) },
-		Terminal: func() { a.Open(SurfaceTerminal) },
-		Launcher: func() { a.Open(SurfaceLauncher) },
+		Settings:            func() { a.Open(SurfaceSettings) },
+		Terminal:            func() { a.Open(SurfaceTerminal) },
+		Launcher:            func() { a.Open(SurfaceLauncher) },
+		SettingsAccelerator: settings.Shortcut(snapshot, settings.ShortcutOpenSettings),
 	})))
 }
 

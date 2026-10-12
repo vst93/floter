@@ -420,12 +420,22 @@ func (a *App) resultShortcuts(c *ui.Context, results []Item) bool {
 }
 
 // appShortcuts runs the app's own rebindable keys: a new command clears
-// the field, and the external-terminal action opens a terminal window.
-// ⌘W is handled by the shell's own appShortcuts, on every surface — this
-// one is the launcher's own modes only.
+// the field, the external-terminal action opens a terminal window, and the
+// open-settings action leaves for the settings surface. ⌘W is handled by the
+// shell's own appShortcuts, on every surface — this one is the launcher's own
+// modes only.
+//
+// The shortcut list is the settings page's own `ShortcutActions`; a binding
+// the page lets the user record and never answers is a promise the app does
+// not keep. The launcher is where the old build answered `open_settings`
+// (the collapsed surface), so this is the surface that owes it.
 func (a *App) appShortcuts(c *ui.Context) bool {
 	m := a.settings()
-	for _, action := range []string{settings.ShortcutNewCommand, settings.ShortcutOpenExternalTerminal} {
+	for _, action := range []string{
+		settings.ShortcutNewCommand,
+		settings.ShortcutOpenExternalTerminal,
+		settings.ShortcutOpenSettings,
+	} {
 		mods, key, ok := shortcuts.Parse(settings.Shortcut(m, action))
 		if !ok || !c.Shortcut(mods, key) {
 			continue
@@ -436,6 +446,10 @@ func (a *App) appShortcuts(c *ui.Context) bool {
 		case settings.ShortcutOpenExternalTerminal:
 			if a.Actions.OpenTerminalWindow != nil {
 				a.Actions.OpenTerminalWindow()
+			}
+		case settings.ShortcutOpenSettings:
+			if a.Actions.OpenSettings != nil {
+				a.Actions.OpenSettings()
 			}
 		}
 		return true

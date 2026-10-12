@@ -2075,6 +2075,42 @@ func TestShellHistory(t *testing.T) {
 	}
 }
 
+// The settings page sells `open_settings` as a rebindable app shortcut; the
+// launcher is the surface that owes it (the old build answered it in the
+// collapsed mode). Both the shipped binding and a rebound one open the
+// settings surface, and the key that was given up stops answering.
+func TestOpenSettingsShortcutOpensSettings(t *testing.T) {
+	a := testApp()
+	tt := render(t, a)
+	mods, key, ok := shortcuts.Parse(settings.Shortcut(a.settings(), settings.ShortcutOpenSettings))
+	if !ok {
+		t.Fatal("the open-settings shortcut did not parse")
+	}
+	tt.Key(mods, key)
+	tt.Frame()
+	if testRuns["settings"] != 1 {
+		t.Fatalf("the shortcut opened settings %d times, want 1", testRuns["settings"])
+	}
+
+	// Rebinding the action moves the key with it.
+	if err := a.Store.Update(func(s *settings.Settings) {
+		s.SetShortcut(settings.ShortcutOpenSettings, "Alt+Shift+O")
+	}); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	tt.Key(mods, key)
+	tt.Frame()
+	if testRuns["settings"] != 1 {
+		t.Errorf("the old binding still opened settings: %d", testRuns["settings"])
+	}
+	tt.Key(ui.Alt|ui.Shift, ui.KeyO)
+	tt.Frame()
+	if testRuns["settings"] != 2 {
+		t.Errorf("the rebound shortcut opened settings %d times, want 2", testRuns["settings"])
+	}
+}
+
 // A plain W is a letter in the field, not the shell's ⌘W hide: the hide
 // is the shell's appShortcuts (shell_test.go), and the launcher only
 // answers its own rebindable keys.

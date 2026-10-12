@@ -1051,6 +1051,12 @@ func (a *App) setShortcut(id, accelerator string) {
 			if a.Win != nil {
 				a.Win.Invalidate()
 			}
+			// The app menu advertises `open_settings` on macOS; re-installing
+			// it keeps the item's accelerator the user's own binding rather
+			// than the one that shipped.
+			if id == settings.ShortcutOpenSettings {
+				a.InstallMenu()
+			}
 		})
 		return
 	}

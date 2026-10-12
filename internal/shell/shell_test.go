@@ -782,6 +782,21 @@ func TestMenuTemplate(t *testing.T) {
 	}
 }
 
+// The Settings… item advertises the user's own `open_settings` binding, so a
+// rebind moves the menu accelerator instead of leaving a frozen Cmd+, behind.
+func TestMenuSettingsAcceleratorFollowsTheBinding(t *testing.T) {
+	copy := i18n.For("en").Launcher
+	items := menuTemplate(copy, menuActions{SettingsAccelerator: "Ctrl+Shift+O"})
+	if got := items[0].Submenu[0].Accelerator; got != "Ctrl+Shift+O" {
+		t.Errorf("settings accelerator = %q, want the stored binding", got)
+	}
+	// An empty binding keeps the shipped accelerator.
+	items = menuTemplate(copy, menuActions{})
+	if got := items[0].Submenu[0].Accelerator; got != "CmdOrCtrl+," {
+		t.Errorf("default settings accelerator = %q", got)
+	}
+}
+
 func TestInstallAsksBeforeGrantingPermissions(t *testing.T) {
 	server, name := npmFixture(t, "environment", "network-fetch")
 
