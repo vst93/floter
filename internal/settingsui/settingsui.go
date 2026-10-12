@@ -18,6 +18,7 @@ import (
 	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
 
+	"floter/internal/control"
 	"floter/internal/extensions"
 	"floter/internal/i18n"
 	"floter/internal/launcher"
@@ -1651,50 +1652,11 @@ func (a *App) pick(c *ui.Context, label, description string, options []i18n.Opti
 	}
 }
 
-// segmented is the reference's inline segmented control
-// (`.settings-options--inline`): a pill track holding pill segments, the chosen
-// one a neutral raised pane with an accent keyline — a *state of the control*,
-// not a primary action, so it spends no accent fill. The framework's own
-// Segmented is a rounded rectangle with a darkened chosen segment; this is the
-// reference's shape and material.
+// segmented is the reference's inline segmented control, drawn from the one
+// shared implementation (`control.Segmented`) so the terminal's appearance
+// drawer cannot drift into a second shape for the same choice.
 func (a *App) segmented(c *ui.Context, labels []string, current int, apply func(int)) {
-	t := c.Theme()
-	tokens := a.tokens(c)
-	track := ui.Row(c).Shrink(0).Padding(t.Space(0.5)).Gap(t.Space(0.5)).Radius(999).
-		Background(tokens.Track)
-	// The track is a groove the user looks into: the lens read backwards.
-	track.InsetShadow(0, 1, 2, 0, tokens.ShadowContact)
-	track.InsetShadow(0, -1, 0, 0, tokens.LensRim)
-	track.InsetShadow(0, 0, 0, 1, tokens.ControlEdge)
-	track.Children(func() {
-		for i, label := range labels {
-			i, label := i, label
-			segment := ui.Row(c).Focusable().Padding(t.Space(0.75), t.Space(2.25)).
-				Radius(999).AlignItems(ui.Center).Justify(ui.Center).Label(label)
-			switch {
-			case i == current:
-				// The chosen segment is a raised pane: the control-hover lift
-				// plus the accent keyline, and deliberately not an accent fill.
-				segment.Background(tokens.ControlHover)
-				segment.InsetShadow(0, 1, 0, 0, tokens.LensRim)
-				segment.InsetShadow(0, 0, 0, 1, tokens.AccentEdge)
-			case segment.Hovered():
-				segment.Background(tokens.ControlHover)
-			}
-			color := tokens.TextStrong
-			weight := 580
-			if i != current {
-				color = t.TextMuted
-				weight = 500
-			}
-			segment.Children(func() {
-				ui.Text(c, label).FontSize(tokens.Emphasis).FontWeight(weight).TextColor(color)
-			})
-			if segment.Clicked() {
-				apply(i)
-			}
-		}
-	})
+	control.Segmented(c, a.tokens(c), labels, current, apply)
 }
 
 // choose builds one labeled drop-down choice, for lists too long to line up
@@ -1725,10 +1687,6 @@ func (a *App) choose(c *ui.Context, label, description string, options []i18n.Op
 		apply(chosen)
 	}
 }
-
-// paletteMono is the preview's type: a terminal face, as the reference's
-// `.terminal-palette-preview` had it.
-const paletteMono = "SF Mono, Menlo, Monaco, Consolas, monospace"
 
 // paletteRow is the terminal palette row: the labeled picker, with a
 // miniature terminal painted in the chosen palette's own colors under it
@@ -1775,40 +1733,7 @@ func (a *App) paletteRow(c *ui.Context, copy i18n.Settings, current string, appl
 // tint and a block cursor at the end — the reference's
 // `.terminal-palette-preview`, which costs no canvas and no PTY.
 func (a *App) palettePreview(c *ui.Context, copy i18n.Settings, name string) {
-	t := c.Theme()
-	tokens := a.tokens(c)
-	colors, ok := terminalui.PaletteColorsFor(name, t.Dark)
-	if !ok {
-		return
-	}
-	box := ui.Column(c).FillWidth().MarginX(t.Space(3.5)).Padding(t.Space(3), t.Space(4)).
-		Gap(1).Border(1, tokens.ControlEdge).Radius(tokens.RadiusSM).
-		Background(colors.Background).Clip().Label(copy.PalettePreview)
-	box.Children(func() {
-		// The prompt line: the prompt a shade quieter than its command, as a
-		// real prompt reads.
-		promptLine := ui.Row(c).Shrink(0).Gap(t.Space(1)).AlignItems(ui.Center)
-		promptLine.Children(func() {
-			ui.Text(c, "$").Font(paletteMono).FontSize(t.FontSize - 1).
-				TextColor(colors.Foreground).Opacity(0.72)
-			ui.Text(c, "floter --version").Font(paletteMono).FontSize(t.FontSize - 1).
-				TextColor(colors.Foreground)
-		})
-		// The output line wears the palette's selection tint behind it.
-		selected := ui.Row(c).Shrink(0).Background(colors.Selection)
-		selected.Children(func() {
-			ui.Text(c, "0.3.5-preview").Font(paletteMono).FontSize(t.FontSize - 1).
-				TextColor(colors.Foreground)
-		})
-		// The last prompt, with the palette's block cursor.
-		cursorLine := ui.Row(c).Shrink(0).Gap(t.Space(1)).AlignItems(ui.Center)
-		cursorLine.Children(func() {
-			ui.Text(c, "$").Font(paletteMono).FontSize(t.FontSize - 1).
-				TextColor(colors.Foreground).Opacity(0.72)
-			ui.Box(c).Width(t.Space(1.25)).Height(t.Space(2.5)).Shrink(0).
-				Background(colors.Cursor)
-		})
-	})
+	terminalui.PalettePreview(c, a.tokens(c), name, copy.PalettePreview, 0)
 }
 
 // slider builds one stacked row: the label and its hint above, the track and

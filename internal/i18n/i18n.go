@@ -691,9 +691,13 @@ type Terminal struct {
 	// Pin names the control that copies the session's text into a window
 	// of its own.
 	Pin string
-	// SettingsLabel names the bar's gear: the door to the options that shape
-	// the terminal.
-	SettingsLabel string
+	// SettingsOpen, SettingsOpenHint and SettingsClose name the bar's gear
+	// in each of its two states: the control opens the terminal's own
+	// appearance drawer *in place*, so the session is never left to change
+	// how it looks. SettingsOpenHint is the sentence its tooltip carries.
+	SettingsOpen     string
+	SettingsOpenHint string
+	SettingsClose    string
 	// Hint is the empty state shown while no session runs.
 	Hint string
 	// EmptyTitle, EmptyNew and EmptyBack are the empty state's title, the

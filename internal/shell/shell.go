@@ -786,13 +786,11 @@ func New(opts Options) *App {
 		Notify: a.notifyFromProgram,
 	}
 	termActions.Pin = a.PinText
-	// The bar's gear opens the settings where the terminal's appearance is
-	// set. The old build drew the strip in the terminal itself; this build
-	// keeps one form, on the page that owns the setting.
-	termActions.Settings = func() {
-		a.Settings.Page = settingsui.PageGeneral
-		a.Open(SurfaceSettings)
-	}
+	// The bar's gear opens the terminal's *own* appearance drawer, docked at
+	// the panel's bottom edge: the reference's `.terminal-settings-drawer`.
+	// The session is never left to change how it looks — the drawer is a
+	// sibling of the canvas, so the PTY resizes while the scrollback stays.
+	termActions.Settings = func() { a.Terminal.ToggleDrawer() }
 	a.Terminal = terminalui.New(opts.Store, termActions, newTerminal)
 	a.Terminal.SnapshotPath = filepath.Join(paths.Root, "terminal-snapshot")
 

@@ -2503,3 +2503,31 @@ func TestLauncherResizeFollowsTheList(t *testing.T) {
 		t.Errorf("target heights = %v", heights)
 	}
 }
+
+// TestTerminalGearOpensTheDrawer: the terminal bar's gear flips the surface's
+// own appearance drawer — the session is never left to change how it looks,
+// which is the reference's `.terminal-settings-drawer` (R42/R54).
+func TestTerminalGearOpensTheDrawer(t *testing.T) {
+	a := newApp(t)
+	if a.Terminal == nil {
+		t.Fatal("no terminal surface")
+	}
+	a.Open(SurfaceTerminal)
+	if a.Surf != SurfaceTerminal {
+		t.Fatalf("surface = %v, want terminal", a.Surf)
+	}
+	if a.Terminal.Drawer {
+		t.Fatal("the drawer is open before anything asked")
+	}
+	a.Terminal.Actions.Settings()
+	if !a.Terminal.Drawer {
+		t.Fatal("the gear did not open the drawer")
+	}
+	if a.Surf != SurfaceTerminal {
+		t.Errorf("the gear left the terminal for surface %v", a.Surf)
+	}
+	a.Terminal.Actions.Settings()
+	if a.Terminal.Drawer {
+		t.Error("the gear did not close the drawer")
+	}
+}

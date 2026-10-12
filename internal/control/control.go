@@ -1,0 +1,59 @@
+// Package control holds the reference's own control materials that more than
+// one surface draws. The settings panel and the terminal's appearance drawer
+// both offer the same small set of choices, and a choice must not wear two
+// shapes depending on which surface it is on: the segmented control lives here
+// so there is one implementation, not one per caller.
+package control
+
+import (
+	"github.com/egoist/mygo/ui"
+
+	"floter/internal/theme"
+)
+
+// Segmented draws the reference's inline segmented control
+// (`.settings-options--inline`): a pill track holding pill segments, the chosen
+// one a neutral raised pane with an accent keyline — a *state of the control*,
+// not a primary action, so it spends no accent fill. The framework's own
+// Segmented is a rounded rectangle with a darkened chosen segment; this is the
+// reference's shape and material.
+//
+// labels[i] stands for option i; apply runs with the index the user chose.
+func Segmented(c *ui.Context, tokens theme.Tokens, labels []string, current int, apply func(int)) {
+	t := c.Theme()
+	track := ui.Row(c).Shrink(0).Padding(t.Space(0.5)).Gap(t.Space(0.5)).Radius(999).
+		Background(tokens.Track)
+	// The track is a groove the user looks into: the lens read backwards.
+	track.InsetShadow(0, 1, 2, 0, tokens.ShadowContact)
+	track.InsetShadow(0, -1, 0, 0, tokens.LensRim)
+	track.InsetShadow(0, 0, 0, 1, tokens.ControlEdge)
+	track.Children(func() {
+		for i, label := range labels {
+			i, label := i, label
+			segment := ui.Row(c).Focusable().Padding(t.Space(0.75), t.Space(2.25)).
+				Radius(999).AlignItems(ui.Center).Justify(ui.Center).Label(label)
+			switch {
+			case i == current:
+				// The chosen segment is a raised pane: the control-hover lift
+				// plus the accent keyline, and deliberately not an accent fill.
+				segment.Background(tokens.ControlHover)
+				segment.InsetShadow(0, 1, 0, 0, tokens.LensRim)
+				segment.InsetShadow(0, 0, 0, 1, tokens.AccentEdge)
+			case segment.Hovered():
+				segment.Background(tokens.ControlHover)
+			}
+			color := tokens.TextStrong
+			weight := 580
+			if i != current {
+				color = t.TextMuted
+				weight = 500
+			}
+			segment.Children(func() {
+				ui.Text(c, label).FontSize(tokens.Emphasis).FontWeight(weight).TextColor(color)
+			})
+			if segment.Clicked() {
+				apply(i)
+			}
+		}
+	})
+}

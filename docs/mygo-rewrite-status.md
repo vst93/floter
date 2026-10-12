@@ -8,7 +8,7 @@
 
 用 mygo（原生 GPU 自绘 UI + Go）重写的 floter **已经是一个可打包、可运行的完整应用**：单窗口三表面
 （启动器 / 设置 / 终端）、搜索内核、扩展平台（含后台运行、列表协议、导入导出、权限审计）、剪贴板、
-浏览器、计算器、系统集成、打包与 CI 全部就位。**601 项测试全绿**，三平台都能构建，Linux 打包
+浏览器、计算器、系统集成、打包与 CI 全部就位。**611 项测试全绿**，三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
 含测试）。
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 601 项测试
+go test -count=1 ./...         # 611 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -97,6 +97,32 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
   （同环境 mygo 最小窗口 137 MB）。
 
 ## 最近几轮（详细记录见 plan）
+
+**P7-ab 终端自己的外观抽屉（本轮）**
+- **偏离点**：旧版终端页的齿轮打开的是**终端自己**的外观抽屉（`.terminal-settings-drawer`，R42/R54）：
+  一条停靠在面板下缘的条带，画布是它的**兄弟**而不是被它盖住，所以打开它只会把 PTY 挤小，
+  正在跑的会话（连同滚动缓冲）原地不动。本构建把齿轮接到「跳到设置页的 General 页」——
+  用户为了改字体大小离开终端，改动虽然会实时应用，但“在同一页里调外观”这条交互没有了。
+- **修法**：`internal/terminalui/drawer.go`。`App.Drawer` + `ToggleDrawer`/`CloseDrawer`；
+  `View` 把画布包进一个 `Grow(1)` 的 body，抽屉作为它的**兄弟**（`Shrink(0)`）排在下面，
+  resident 提示也挪进 body（否则会浮在抽屉上）。齿轮在开启时变成 ✕（旧版
+  `toolbar-button--settings-open`），抽屉自己右上角也有一个 ✕，两个入口同一状态。
+  行是旧版 `repeat(auto-fit, minmax(230px, 1fr))` 的等价物：`Wrap()` + `MinWidth` 的格子，
+  窗口窄了就换行（860px 三列、720px 两列，实测）。调色板那行带它自己的小型终端预览。
+- **只画真能生效的轴**：字体大小、字体族、行距、内边距、光标形状、光标闪烁、配色。
+  旧版条带里还有 bold 模式、滚轮步长、选中即复制、粘贴安全、滚动条开关——框架的
+  `plugins/terminal` 没有这些旋钮（`Options` 里没有，也没有运行期的 setter），
+  **画一个什么都不做的控件是撒谎**，所以不画（见「已知差距」）。
+- **一处共享，不是两份实现**：新增 `internal/control`（`Segmented`）——设置页与抽屉的
+  分段控件此前只存在于 `settingsui`，抽屉需要同一个材质，所以把它提出来；调色板预览提成
+  `terminalui.PalettePreview`（`settingsui` 反向调用，包方向不变，无环）。
+- **i18n**：`i18n.Terminal` 的 `SettingsLabel` 拆成 `SettingsOpen` / `SettingsOpenHint` /
+  `SettingsClose`（旧版 `terminal.settingsOpen` / `settingsOpenHint` / `settingsClose`），
+  抽屉的组名复用 `settings.GroupTerminal`。
+- **测试**：`drawer_test.go`（七行都在、每个控件写回 store、两个 ✕ 同名且各自能关、
+  齿轮翻转并来回、抽屉不吞掉画布且停在画布之下、跟随语言）、`internal/control` 的分段控件
+  三项（画全、回报下标、选中项有盒子）、shell 的 `TestTerminalGearOpensTheDrawer`
+  （齿轮翻转抽屉且**不离开终端面**）。
 
 **P7-aa 图标控件的 tooltip（本轮）**
 - **偏离点**：旧版给每个只有图标、没有可见文字的工具栏控件都配了 `title=` 的一句话
@@ -729,6 +755,9 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
   没有暴露这些旋钮（内部固定：滚动条总画、滚轮步长固定、复制仅 ⌘C、无 bracketed-paste 开关、
   bold 由字体权重决定），所以 Go 侧既不能渲染（渲染了就是骗人）也不能接线。等框架暴露后再补。
   字号/字体族/光标形状/闪烁/行高/内边距/调色板/透明度**已全部接线**，字体族还带真实安装探测。
+  注：光标形状与闪烁只在**新建会话**时生效（框架的 `terminal.Terminal` 只有 `SetFont`/`SetTheme`，
+  没有运行期的光标 setter），所以终端抽屉里这两行也是下一会话才看得到；字号/行距/内边距/配色
+  对打开的会话实时生效。终端抽屉（P7-ab）因此不画 bold/滚轮/选中即复制/粘贴安全/滚动条五行。
 
 **P1-ad 版式与交互对齐（多轮，本轮）**
 - 设置面板全量改造为分组卡片语言 + 页面头部 + 侧栏字形/选中 + 权限两层 + 每集成一卡 + 本地工具连接表单。

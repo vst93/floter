@@ -3,8 +3,9 @@
 //
 // It also owns the terminal's appearance: the settings file's font, cursor,
 // line height, inset, palette and transparency, mapped onto the terminal
-// plugin's options (see src/terminal/terminal-appearance.ts for the values
-// they come from).
+// plugin's options — and the appearance drawer docked at the panel's bottom
+// edge (drawer.go), which edits those same settings without leaving the
+// session.
 package terminalui
 
 import (
@@ -40,8 +41,9 @@ type Actions struct {
 	Exit func(int)
 	// Pin copies the session's text into a window of its own.
 	Pin func(title, text string)
-	// Settings opens the panel where the terminal's appearance is set: the
-	// bar's own gear, so the session has a way to the options that shape it.
+	// Settings flips the terminal's own appearance drawer: the bar's gear, so
+	// the session has a way to the options that shape it *in place*. Nil
+	// draws no gear at all.
 	Settings func()
 	// OpenLink opens what a Command+click on the terminal points at — a
 	// hyperlink, a URL printed as text, or a path — and reports whether it
@@ -87,6 +89,12 @@ type App struct {
 	Active   int
 	// Err is why the last session could not start.
 	Err error
+
+	// Drawer is whether the terminal's own appearance drawer is docked at
+	// the panel's bottom edge. The bar's gear flips it, and the drawer's own
+	// close control closes it: the session is never left to change how it
+	// looks (the old build's `.terminal-settings-drawer`).
+	Drawer bool
 
 	// Focus is the terminal view's identity, so it keeps the keyboard.
 	Focus ui.Handle
@@ -544,7 +552,7 @@ func (a *App) View(c *ui.Context) {
 			// it — each its own key and label, as the old build's
 			// `.terminal-empty__line` drew them (the key in a badge, the label
 			// beside it, neutral text rather than a filled control).
-			ui.Column(c).Fill().Center().Gap(t.Space(2.5)).Children(func() {
+			ui.Column(c).Grow(1).FillWidth().Center().Gap(t.Space(2.5)).Children(func() {
 				title := copy.EmptyTitle
 				hint := copy.Hint
 				if a.Err != nil {
@@ -569,12 +577,17 @@ func (a *App) View(c *ui.Context) {
 			// the way out the user asked for, and its dot says the page holds
 			// no live session.
 			a.titleBar(c, copy)
+			if a.Drawer {
+				a.drawer(c, copy)
+			}
 			return
 		}
 		// The canvas fills the whole panel; the bar floats above it, so no
 		// layout height is reserved and the first output line sits at the very
 		// top edge (the old build's `.terminal-panel__body` over
-		// `.terminal-bar`).
+		// `.terminal-bar`). The drawer is a sibling of the canvas, so opening
+		// it shrinks the canvas (and resizes the PTY) rather than covering the
+		// session's output.
 		pad := a.Pad()
 		// The focused canvas takes the accent edge (`.terminal-panel__mount:
 		// focus-within`), the same lit frame the launcher's card takes.
@@ -582,11 +595,19 @@ func (a *App) View(c *ui.Context) {
 		if a.Focus.Focused(c) {
 			edge = tokensOf(a, c).InputStrokeActive
 		}
-		ui.Box(c).Fill().Radius(tokensOf(a, c).RadiusLG).Border(1, edge).Children(func() {
-			terminal.View(c, session.Term).Fill().Padding(pad).Bind(&a.Focus)
+		body := ui.Box(c).Grow(1).FillWidth()
+		body.Children(func() {
+			ui.Box(c).Fill().Radius(tokensOf(a, c).RadiusLG).Border(1, edge).Children(func() {
+				terminal.View(c, session.Term).Fill().Padding(pad).Bind(&a.Focus)
+			})
+			// The resident note rides the canvas, so the docked drawer cannot
+			// sit under it.
+			a.residentNote(c, copy)
 		})
 		a.titleBar(c, copy)
-		a.residentNote(c, copy)
+		if a.Drawer {
+			a.drawer(c, copy)
+		}
 	})
 }
 
@@ -749,7 +770,14 @@ func (a *App) titleBar(c *ui.Context, copy i18n.Terminal) {
 		}
 		actions.Children(func() {
 			if a.Actions.Settings != nil {
-				a.barButton(c, "settings", copy.SettingsLabel, copy.SettingsLabel, a.Actions.Settings)
+				// The gear flips to an X while the drawer is up: the control
+				// that opens a module is the one that closes it, in the same
+				// spot (the reference's `toolbar-button--settings-open`).
+				name, label, hint := "settings", copy.SettingsOpen, copy.SettingsOpenHint
+				if a.Drawer {
+					name, label, hint = "close", copy.SettingsClose, copy.SettingsClose
+				}
+				a.barButton(c, name, label, hint, a.Actions.Settings)
 			}
 			if a.Actions.Pin != nil && a.term() != nil {
 				a.barButton(c, "text", copy.Pin, copy.Pin, func() { a.Actions.Pin(a.sessionTitle(), a.sessionText()) })
@@ -880,6 +908,59 @@ func PaletteColorsFor(name string, dark bool) (PaletteColors, bool) {
 		Cursor:     cursor,
 		Selection:  selection,
 	}, true
+}
+
+// PaletteMono is the preview's type: a terminal face, as the reference's
+// `.terminal-palette-preview` had it.
+const PaletteMono = "SF Mono, Menlo, Monaco, Consolas, monospace"
+
+// PalettePreview paints the miniature terminal the palette picker shows: three
+// lines of static text in the palette's own background and text, the middle
+// line behind its selection tint and a block cursor at the end — the
+// reference's `.terminal-palette-preview`, which costs no canvas and no PTY.
+//
+// A width of zero fills the parent, which is how the settings page draws it;
+// a fixed width is the terminal drawer's own column, where the preview sits
+// beside the picker rather than under it.
+func PalettePreview(c *ui.Context, tokens theme.Tokens, name, label string, width float32) {
+	t := c.Theme()
+	colors, ok := PaletteColorsFor(name, t.Dark)
+	if !ok {
+		return
+	}
+	box := ui.Column(c).Padding(t.Space(3), t.Space(4)).
+		Gap(1).Border(1, tokens.ControlEdge).Radius(tokens.RadiusSM).
+		Background(colors.Background).Clip().Label(label).Shrink(0)
+	if width > 0 {
+		box.Width(width)
+	} else {
+		box.FillWidth().MarginX(t.Space(3.5))
+	}
+	box.Children(func() {
+		// The prompt line: the prompt a shade quieter than its command, as a
+		// real prompt reads.
+		promptLine := ui.Row(c).Shrink(0).Gap(t.Space(1)).AlignItems(ui.Center)
+		promptLine.Children(func() {
+			ui.Text(c, "$").Font(PaletteMono).FontSize(t.FontSize - 1).
+				TextColor(colors.Foreground).Opacity(0.72)
+			ui.Text(c, "floter --version").Font(PaletteMono).FontSize(t.FontSize - 1).
+				TextColor(colors.Foreground)
+		})
+		// The output line wears the palette's selection tint behind it.
+		selected := ui.Row(c).Shrink(0).Background(colors.Selection)
+		selected.Children(func() {
+			ui.Text(c, "0.3.5-preview").Font(PaletteMono).FontSize(t.FontSize - 1).
+				TextColor(colors.Foreground)
+		})
+		// The last prompt, with the palette's block cursor.
+		cursorLine := ui.Row(c).Shrink(0).Gap(t.Space(1)).AlignItems(ui.Center)
+		cursorLine.Children(func() {
+			ui.Text(c, "$").Font(PaletteMono).FontSize(t.FontSize - 1).
+				TextColor(colors.Foreground).Opacity(0.72)
+			ui.Box(c).Width(t.Space(1.25)).Height(t.Space(2.5)).Shrink(0).
+				Background(colors.Cursor)
+		})
+	})
 }
 
 // paletteSpec is one palette override from terminal-appearance.ts.
