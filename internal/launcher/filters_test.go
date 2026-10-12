@@ -363,14 +363,16 @@ func TestHeldModifierBareTerminalRow(t *testing.T) {
 	if opened != 1 {
 		t.Errorf("Enter opened %d sessions", opened)
 	}
-	// Releasing the modifier gives the selection back and drops the row.
+	// Releasing the modifier drops the row and resets the selection to the
+	// empty page's own default (its first runnable row, the reference's R64
+	// release edge — unconditional, as the reference's is).
 	tt.HoldModifiers(0)
 	tt.Frame()
 	if hasItem(a.Results(), "system-terminal-bare") {
 		t.Errorf("the row survived the release: %+v", a.Results())
 	}
-	if a.Selected != 0 {
-		t.Errorf("the selection did not come back: %d", a.Selected)
+	if a.Selected != a.firstSelectable() {
+		t.Errorf("the selection did not come back: %d, want the page's default %d", a.Selected, a.firstSelectable())
 	}
 	// A typed query is a search: the row stays away.
 	tt.HoldModifiers(ui.Cmd)
@@ -974,5 +976,49 @@ func TestCalculatorTrailingResult(t *testing.T) {
 	}
 	if rect, ok := tt.Find("1.4142135623730951"); !ok || rect.W < rect.H {
 		t.Errorf("the answer is not drawn on its own line: %+v", rect)
+	}
+}
+
+// The held row leads with the terminal glyph, the reference's own icon for the
+// bare-terminal row (`.launcher-result__icon--system` → SystemActionIcon): the
+// recents' clock the id used to fall through to was never drawn there.
+func TestHeldModifierRowCarriesTheTerminalGlyph(t *testing.T) {
+	a := testApp()
+	tt := render(t, a)
+	tt.Frame()
+	tt.HoldModifiers(ui.Cmd)
+	tt.Frame()
+	results := a.Results()
+	item := results[len(results)-1]
+	if item.ID != "system-terminal-bare" {
+		t.Fatalf("the held row is not last: %+v", results)
+	}
+	glyph, ok := rowGlyph(item)
+	if !ok || glyph != glyphTerminal {
+		t.Errorf("the held row's glyph = %v, want the terminal mark", ok)
+	}
+}
+
+// The held row is the one row the window grows for: the reference's R67 rule
+// (LauncherResults.tsx's isBareTerminalRow branch) never scrolls it into view,
+// because scrolling it in against the old, shorter box makes the landing clamp
+// the scroll back — the list slid up and back down on the press edge. The row
+// is given the room; the list stays at its top.
+func TestHeldModifierRowIsNotScrolledIntoView(t *testing.T) {
+	a := testApp()
+	// A window that holds only part of the list: the reference's own world —
+	// the row lands below the fold, so a scroll is a scroll the user sees.
+	tt := ui.NewTester(func(c *ui.Context) { a.View(c) }, InputWindowWidth, int(WindowHeight("small"))+120)
+	tt.Frame()
+	first, last := a.List.Visible()
+	if last >= len(a.Results()) {
+		t.Skipf("the test window already shows every row; the scroll rule is not exercised")
+	}
+	tt.HoldModifiers(ui.Cmd)
+	tt.Frame()
+	now, lastNow := a.List.Visible()
+	if now != first || lastNow < a.Selected {
+		t.Errorf("the list scrolled for the held row: %d..%d (was %d..%d), selected %d",
+			now, lastNow, first, last, a.Selected)
 	}
 }

@@ -28,6 +28,12 @@ const (
 	// InputWindowWidth is the launcher's fixed width, in DIPs.
 	InputWindowWidth = 720
 
+	// bareTerminalRowID is the held modifier's own row (the reference's
+	// BARE_TERMINAL_ROW_ID): a stable id the renderer, the scroll skip and
+	// the release edge all read, never the query that happened to be typed
+	// when the modifier went down.
+	bareTerminalRowID = "system-terminal-bare"
+
 	// The collapsed launcher's height at scale 1, per platform: the card's own
 	// chrome (66u — the field's 56u row, the 4u breath under it and the panel's
 	// 4u/2u insets) in the shell's gutters: 10px a side on Linux, 4px + 12px
@@ -244,13 +250,11 @@ type App struct {
 	// the first View measured the list.
 	HeldRows int
 
-	// modifierHeld is the app modifier's state as the last frame saw it, and
-	// heldPrevious the selection the held row took over. While the modifier
-	// is down on an empty field, the list ends with a row that opens a bare
-	// terminal session — the row the user asked for, and the one the keyboard
-	// lands on so Enter reaches it without a second key.
+	// modifierHeld is the app modifier's state as the last frame saw it. While
+	// the modifier is down on an empty field, the list ends with a row that
+	// opens a bare terminal session — the row the user asked for, and the one
+	// the keyboard lands on so Enter reaches it without a second key.
 	modifierHeld bool
-	heldPrevious int
 	// heldWasDown is the modifier's state the frame before, so the press and
 	// release edges are one transition each.
 	heldWasDown bool
@@ -859,9 +863,19 @@ func (a *App) View(c *ui.Context) {
 
 	// Keep the chosen row in view when the keyboard moved the choice (the
 	// list leaves the scrolling to the app when it has no selection).
+	//
+	// The held modifier's own row is the one exception, the reference's R67
+	// rule (LauncherResults.tsx's isBareTerminalRow branch): the window is
+	// grown for the row, so it is visible as soon as the resize lands, and
+	// scrolling it in first — while the list is still the old, shorter box —
+	// makes the landing clamp the scroll back: the list slid up and back down
+	// on the press edge (「先上移然后再下移恢复」). The row is never scrolled
+	// into view; it is simply given the room.
 	if a.Selected != a.chosenRow {
 		a.chosenRow = a.Selected
-		a.List.ScrollIntoView(a.Selected)
+		if !a.heldRowShowing() || a.Selected != len(a.Results())-1 {
+			a.List.ScrollIntoView(a.Selected)
+		}
 	}
 
 	// An action that asks for feedback (the calculator's copy) shows it
@@ -1822,6 +1836,24 @@ func (a *App) nextSelectable(from, delta int) int {
 	return from
 }
 
+// firstSelectable is the empty page's own default selection: the first row
+// the keyboard can act on, stepping over a block's heading — the reference's
+// `firstRunnableResultIndex < 0 ? 0 : ...` on the page where the held row
+// shows. Zero when the list has nothing selectable.
+//
+// The release edge applies it unconditionally, the reference's own shape: its
+// effect reads no selection, so the row an arrow step moved to during the
+// gesture goes with the row.
+func (a *App) firstSelectable() int {
+	results := a.Results()
+	for i, item := range results {
+		if !item.heading {
+			return i
+		}
+	}
+	return 0
+}
+
 // clampSelection keeps the choice on a row the keyboard can act on: a heading
 // the list shrank onto is stepped past.
 func (a *App) clampSelection(n int) {
@@ -1896,8 +1928,21 @@ func (a *App) FeedbackVisible() bool { return a.toast != "" }
 // selection to (or away from) the held row at the edge where the modifier goes
 // down or up. The row itself is part of Results (see otherResults), so the
 // window's height and the row's own presence are one decision.
+//
+// The two edges are the reference's own (src/App.tsx R64, the heldBareTerminal
+// effect): the press edge puts the row — the list's last line — in the
+// selection; the release edge resets the selection to the empty page's own
+// default, which is its first runnable row, unconditionally — the effect's
+// dependency list carries no selection, so an arrow step off the row during
+// the gesture is discarded on release, exactly as the reference's is. There is
+// no delay: the row and the selection move on the same frame the modifier's
+// state lands.
 func (a *App) syncHeldModifier(c *ui.Context) {
 	down := c.Modifiers()&ui.Cmd == ui.Cmd
+	// "Was the row showing" has to be asked of the frame before: once
+	// modifierHeld is down the row is already gone. The row's own predicate
+	// reads modifierHeld, so the state lands before the edge is handled.
+	rowShowing := a.heldRowShowing()
 	// The row's own predicate reads modifierHeld, so the state lands before
 	// the edge is handled.
 	a.modifierHeld = down
@@ -1905,13 +1950,26 @@ func (a *App) syncHeldModifier(c *ui.Context) {
 		a.heldWasDown = down
 		if down {
 			if _, ok := a.heldTerminalItem(); ok {
-				a.heldPrevious = a.Selected
 				a.Selected = len(a.Results()) - 1
 			}
-		} else {
-			a.Selected = a.heldPrevious
+		} else if rowShowing {
+			// The row the modifier put on screen is gone; the selection goes to
+			// the empty page's own default (the reference's
+			// `firstRunnableResultIndex`), the first row the keyboard can act on
+			// — a block's heading is never a choice. The reset is
+			// unconditional: the reference's effect reads no selection, so the
+			// row an arrow step moved to during the gesture goes with it.
+			a.Selected = a.firstSelectable()
 		}
 	}
+}
+
+// heldRowShowing reports whether the held row is in the list right now: it is
+// the one row whose presence rides the modifier, and the one selection the
+// scroll skip and the release edge are written against.
+func (a *App) heldRowShowing() bool {
+	results := a.Results()
+	return len(results) > 0 && results[len(results)-1].ID == bareTerminalRowID
 }
 
 // heldTerminalItem is the row the held modifier offers: a bare terminal
@@ -1926,7 +1984,7 @@ func (a *App) heldTerminalItem() (Item, bool) {
 	}
 	copy := a.copy()
 	return Item{
-		ID:     "system-terminal-bare",
+		ID:     bareTerminalRowID,
 		Title:  copy.BareTerminal,
 		Detail: copy.BareTerminalHint,
 		// The chord that put the row on screen is the chord that opens it, so

@@ -86,6 +86,13 @@ func rowGlyph(item Item) (*ui.SVG, bool) {
 		return glyphFolder, true
 	case "bar:path-copy":
 		return glyphFile, true
+		// The held modifier's own row is the old build's bare-terminal row: it carries
+		// the same action as the terminal system row, so it leads with the terminal
+		// glyph (`.launcher-result__icon--system` → `SystemActionIcon`, see R64). The
+		// id falls through to the recents' clock below without this case, which is
+		// exactly the icon the reference did not draw.
+	case "system-terminal-bare":
+		return glyphTerminal, true
 	case "cmd:terminal":
 		return glyphTerminal, true
 	case "cmd:settings":

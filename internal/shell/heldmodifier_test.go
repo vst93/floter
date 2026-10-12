@@ -74,3 +74,44 @@ func hasLauncherItem(a *App, id string) bool {
 	}
 	return false
 }
+
+// The release edge resets the selection to the empty page's own default —
+// the reference's R64 release edge (App.tsx: `setSelectedResultIndex(
+// firstRunnableResultIndex < 0 ? 0 : ...)`), unconditionally: the effect's
+// dependency list carries no selection, so an arrow step off the row during
+// the gesture is discarded with the row.
+func TestHeldModifierReleaseRestoresThePageDefault(t *testing.T) {
+	a := appKeysApp()
+	tt := appKeysRender(t, a)
+
+	tt.HoldModifiers(ui.Cmd)
+	tt.Frame()
+	results := a.Launcher.Results()
+	if a.Launcher.Selected != len(results)-1 {
+		t.Fatalf("the press edge did not select the held row")
+	}
+	// The user steps off with the arrows during the gesture: theirs now.
+	tt.Key(0, ui.KeyDown)
+	tt.Frame()
+	moved := a.Launcher.Selected
+	if moved == len(results)-1 {
+		t.Fatal("the arrow did not move the selection; the test cannot prove its rule")
+	}
+
+	tt.HoldModifiers(0)
+	tt.Frame()
+	if a.Launcher.Selected != moved {
+		t.Errorf("the release selection = %d, want the default %d (the reset is unconditional)", a.Launcher.Selected, moved)
+	}
+
+	// Without the step, the release lands on the page's default too: the
+	// first row the keyboard can act on (the reference's
+	// `firstRunnableResultIndex`).
+	tt.HoldModifiers(ui.Cmd)
+	tt.Frame()
+	tt.HoldModifiers(0)
+	tt.Frame()
+	if a.Launcher.Selected != 0 {
+		t.Errorf("the release selection = %d, want the page's first selectable row 0", a.Launcher.Selected)
+	}
+}

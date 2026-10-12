@@ -162,3 +162,52 @@ func TestTheContentPaneIsNotASecondFullTint(t *testing.T) {
 		t.Errorf("the low-stop bottom = %.3f, want the single-sheet ~0.57 not the 0.76 double stack", bot)
 	}
 }
+
+// The framework's own bottom: what the window paints before the view does, the
+// layer the user reads as「整个框架的最底层背景」. There are exactly two layers
+// below the app's view, and this pins both:
+//
+//  1. the scene's clear color — mygo ui/paint.go resets every frame to
+//     scene.Color{} (fully transparent); the rasterizer and the GPU renderers
+//     both honor its alpha;
+//  2. the root element — the context gives it the theme's background, an
+//     OPAQUE fill by default (the stock root renders at alpha 255), which the
+//     view must explicitly clear.
+//
+// So the framework's bottom is the root's own background, not a hidden
+// compositor layer: a themed transparent root leaves the whole window at
+// alpha 0, which is what the app's View does (shell.go: c.Root().Background(
+// ui.Transparent)). If this test ever fails the opaque way, a transparent
+// root no longer clears the window — and the transparency slider stops owning
+// the frame.
+func TestTheFrameworkPaintsNoBottomFill(t *testing.T) {
+	maxAlpha := func(tt *ui.Tester) uint8 {
+		img := tt.Image()
+		max := uint8(0)
+		for y := 0; y < img.Rect.Dy(); y++ {
+			for x := 0; x < img.Rect.Dx(); x++ {
+				if a := img.Pix[y*img.Stride+x*4+3]; a > max {
+					max = a
+				}
+			}
+		}
+		return max
+	}
+	// A view that draws nothing: the framework's own layer alone — the root
+	// with the stock theme's opaque background, which is exactly the bottom
+	// an app that never touches the root gets.
+	empty := ui.NewTester(func(c *ui.Context) {}, 200, 120)
+	empty.Frame()
+	if a := maxAlpha(empty); a != 255 {
+		t.Errorf("the stock root is not the opaque default: max alpha %d, want 255", a)
+	}
+	// Our own root shape: SetTheme then a transparent root — what View does.
+	app := ui.NewTester(func(c *ui.Context) {
+		c.SetTheme(ui.LightTheme())
+		c.Root().Background(ui.Transparent)
+	}, 200, 120)
+	app.Frame()
+	if a := maxAlpha(app); a != 0 {
+		t.Errorf("a themed transparent root left a bottom: max alpha %d, want 0", a)
+	}
+}

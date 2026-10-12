@@ -2537,14 +2537,15 @@ func (a *App) resizeLauncher(height int) {
 	a.launcherTarget = height
 }
 
-// walkLauncherHeight moves the window to the launcher's target height on a
-// spring: the framework's motion system, whose spring keeps its velocity when
-// the target changes mid-flight - a keystroke that adds two rows in quick
-// succession turns the height around smoothly instead of stopping dead. The
-// element's AnimateTo keeps the frames coming until the value lands, and the
-// last step's SetSize is the only one the platform sees at the end. A window
-// that is already there does nothing - the common case, a keystroke that left
-// the list the same size.
+// walkLauncherHeight moves the window to the launcher's target height on the
+// reference's own walk (R68): an ease-out curve — the framework's EaseOut, the
+// same `1-(1-t)^3` shape — over its RESIZE_TWEEN_MS of 150ms. A spring keeps
+// its velocity when the target changes mid-flight, but it also overshoots and
+// takes 500ms to settle, which reads as the edge lagging a keystroke; the
+// reference deliberately chose a short curve. The element's AnimateTo keeps
+// the frames coming until the value lands, and the last step's SetSize is the
+// only one the platform sees at the end. A window that is already there does
+// nothing - the common case, a keystroke that left the list the same size.
 func (a *App) walkLauncherHeight(c *ui.Context) {
 	if a.Win == nil || a.Surf != SurfaceLauncher || a.launcherTarget == 0 {
 		return
@@ -2554,13 +2555,18 @@ func (a *App) walkLauncherHeight(c *ui.Context) {
 	// The animation's carrier: a zero-size element that lays out nothing,
 	// whose Animate state lives across the frames the walk needs.
 	animated := ui.Box(c).Size(0, 0).Opacity(0)
-	height := animated.AnimateTo("launcher.height", target, ui.Snappy)
+	height := animated.AnimateTo("launcher.height", target, launcherHeightAnimation)
 	if int(math.Round(float64(height))) == int(current) {
 		return
 	}
 	a.Win.SetSize(launcher.InputWindowWidth, int(math.Round(float64(height))))
 	a.lastW, a.lastH = launcher.InputWindowWidth, int(math.Round(float64(height)))
 }
+
+// launcherHeightAnimation is the walk's motion: the reference's 150ms
+// ease-out (useLauncherHeight's RESIZE_TWEEN_MS and `1-(1-t)^3` step), not a
+// spring — the curve lands without overshoot at the pace a keystroke asks for.
+var launcherHeightAnimation = ui.Animation{Duration: 150 * time.Millisecond}
 
 // Hide hides the window, leaving the app running with its shortcut.
 func (a *App) Hide() {
