@@ -144,10 +144,14 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
   设置页头部两个控件（退出 / 关闭）从实心药丸改回 28u 透明方块 + 16u 标记（`.toolbar-button`）；
   输出页的钉住 / 分离控件同样；字段的清除按钮也是同一个透明方块。
 - **设置内容列**：18u 的左右内边距落在内容列（不是滚动容器），滚动条仍贴边。
-- **新特性**：mygo 已升到 `v0.4.4`（在 v0.4.3 的基础上是修复轮：#237/#238 文本选择的矩形与
-  绘制层次、#239 回调不再走生成的闭包、#243 macOS 帧不再每次 Core Animation commit；没有新 API），
-  并用上 v0.4.3 的 `ui.ContentTransition{Numeric: true}`，让滑块的百分比读数与计算器答案在变化时
-  滚动数字（#110 的内容过渡）。
+- **新特性**：mygo 已升到 `v0.4.5`（在 v0.4.4 的基础上新增 `Element.Draggable` / `DragOffset`
+  与 `ui.Nearest`：指针拖动元素并抛出，带 Bounds / Snap / 弹簧收尾，见 #244；其余差异都是为它
+  铺的内部改动，没有别的公开 API）。**本应用不采用 Draggable**——面板里没有可重排的列表，设置里
+  没有靠拖动定位的元素，唯一的值拖动控件（设置页与插件表单的滑块）是框架自带的 `ui.Slider`，
+  窗口移动也仍是原生 `DragWindow()` 的拖动区；给历史行加「横向拖走删除」会与既有的「选中 +
+  二次确认」删除语义重叠，属于为凑 API 而改产品行为。仍用上 v0.4.3 的
+  `ui.ContentTransition{Numeric: true}`，让滑块的百分比读数与计算器答案在变化时滚动数字
+  （#110 的内容过渡）。
 - **终端**：空态的两个按键行改成旧版的 20u 键帽（control edge/fill + 键帽高光 + xs 圆角），
   悬停只把文字提一档、不画面板；resident 提示改用 `--glass-float`（新增 `Tokens.Float`）
   与 `--elev-3` 的抛影 + 上缘高光，标题用 secondary。

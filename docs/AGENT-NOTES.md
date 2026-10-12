@@ -177,3 +177,14 @@ opt-in（`FLOTER_TERMINAL_TEST=1`、`FLOTER_SQLITE_TEST=1`、`FLOTER_REGISTRY_TE
 - **终端栏内容随 hover/focus 显现**：原版 `.terminal-bar__identity` 与 `.terminal-panel__actions`
   都是 hover/`:focus-within` 才显；本构建此前只藏了标题，按钮常驻，遮住终端首行。现在整组按钮
   也 `Opacity(0).PassThrough()`（隐藏时不吃点击），`bar.FocusWithin()` 负责键盘到达。
+
+## 2026-10-12 · 追加：mygo v0.4.5（Draggable，本应用不用）
+
+- **版本**：`go.mod` 升到 `v0.4.5`（#244 新增 `Element.Draggable` / `DragOffset` / `ui.Nearest`：
+  指针拖动元素并抛出，Bounds / Snap / 弹簧收尾；其余差异都是为它铺的内部改动）。
+- **为什么不用**：floter 没有「列表项排序」；设置里没有靠拖动定位的元素；唯一的值拖动控件
+  （设置页 / 插件表单的滑块）是框架自带的 `ui.Slider`，窗口移动是原生 `DragWindow()` 拖动区。
+  历史行的删除是**选中后二次确认**（控件只在选中态出现，防误触），再加一套「横向拖走删除」是
+  第二套删除语义、且拖拽与「点行即运行」的手势重叠——按纪律不为凑 API 改产品行为。
+- 以后真做「可重排列表」或面板内 bottom-sheet 时，再回来接 `Draggable`（`internal/` 里目前没有
+  任何 `ui.Point` / `AnimatePose` / 自定义拖动手势）。
