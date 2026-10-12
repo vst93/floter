@@ -1747,12 +1747,13 @@ func TestCapturedRunNotifiesOnlyWhenHidden(t *testing.T) {
 	if len(notified) != 1 {
 		t.Fatalf("notifications = %v", notified)
 	}
-	if notified[0][0] != "floter" || !strings.Contains(notified[0][1], "Run things finished") ||
-		!strings.Contains(notified[0][1], "Finished") {
+	if notified[0][0] != "floter" || !strings.Contains(notified[0][1], "Run things finished in ") ||
+		!strings.Contains(notified[0][1], "1 lines of output") {
 		t.Errorf("notification = %v", notified[0])
 	}
 
-	// A failing run says so in the notification.
+	// A completed run that failed names its exit code, and carries no line
+	// count: the line count belongs to a run that finished successfully.
 	notified = nil
 	entry.Args = []string{"-c", "exit 4"}
 	done = make(chan struct{})
@@ -1762,8 +1763,62 @@ func TestCapturedRunNotifiesOnlyWhenHidden(t *testing.T) {
 	case <-time.After(10 * time.Second):
 		t.Fatal("the second run never answered")
 	}
-	if len(notified) != 1 || !strings.Contains(notified[0][1], "Exit code 4") {
+	if len(notified) != 1 || !strings.Contains(notified[0][1], "Run things failed with exit code 4") {
 		t.Errorf("notifications = %v", notified)
+	}
+	if len(notified) == 1 && strings.Contains(notified[0][1], "lines of output") {
+		t.Errorf("a failed run should not carry a line count: %v", notified[0])
+	}
+}
+
+// The completion notification phrases a finished run the way the old build's
+// toast did: the duration word form, the output line count on success, and the
+// exit code (without a line count) on failure - in the stored language.
+func TestRunNotificationSummary(t *testing.T) {
+	run := extensions.CapturedRun{
+		Command:  []string{"tool"},
+		Stdout:   "one\ntwo\n",
+		Success:  true,
+		Duration: 420 * time.Millisecond,
+	}
+	body := (&App{}).runNotificationBody(
+		i18n.NotificationsFor("en"), i18n.For("en").Settings, "Deploy", run, nil)
+	if body != "Deploy finished in 420 ms \u00b7 2 lines of output" {
+		t.Errorf("body = %q", body)
+	}
+
+	// A run over a second reads in seconds, and a truncated stream says so in
+	// place of the plain line count.
+	run.Duration = 3400 * time.Millisecond
+	run.Truncated = true
+	body = (&App{}).runNotificationBody(
+		i18n.NotificationsFor("en"), i18n.For("en").Settings, "Deploy", run, nil)
+	if body != "Deploy finished in 3.4 s \u00b7 2 lines \u00b7 truncated at 64 KB" {
+		t.Errorf("truncated body = %q", body)
+	}
+
+	// A silent run has no output summary at all.
+	run.Stdout, run.Truncated, run.Duration = "", false, 1000*time.Millisecond
+	body = (&App{}).runNotificationBody(
+		i18n.NotificationsFor("en"), i18n.For("en").Settings, "Deploy", run, nil)
+	if body != "Deploy finished in 1.0 s" {
+		t.Errorf("silent body = %q", body)
+	}
+
+	// The same facts in Chinese.
+	run.Stdout = "\u4e00\n\u4e8c\n"
+	body = (&App{}).runNotificationBody(
+		i18n.NotificationsFor("zh"), i18n.For("zh").Settings, "Deploy", run, nil)
+	if body != "Deploy 已完成，用时 1.0 s \u00b7 输出 2 行" {
+		t.Errorf("zh body = %q", body)
+	}
+
+	// A completed run that failed names its exit code, with no line count.
+	failed := extensions.CapturedRun{ExitCode: 4, Duration: 900 * time.Millisecond}
+	body = (&App{}).runNotificationBody(
+		i18n.NotificationsFor("en"), i18n.For("en").Settings, "Deploy", failed, nil)
+	if body != "Deploy failed with exit code 4" {
+		t.Errorf("failure body = %q", body)
 	}
 }
 

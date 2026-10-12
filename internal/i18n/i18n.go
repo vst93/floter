@@ -531,6 +531,13 @@ type Settings struct {
 	RunErrorIntegrationDisabled func(id string) string
 	RunErrorIntegrationBroken   func(id, reason string) string
 	RunErrorTaskFailed          func(message string) string
+	// A completed run's summary: the success sentence names the duration word
+	// form, the failure sentence the exit code, and the two output sentences
+	// the line count (the truncated one when a stream hit the cap).
+	RunSucceeded            func(name, duration string) string
+	RunFailed               func(name string, code int) string
+	RunOutputLines          func(lines int) string
+	RunOutputLinesTruncated func(lines int) string
 	// The disable confirmation: stopping an integration is a mark, not a
 	// delete, and the notice says so.
 	DisableTitle       func(name string) string

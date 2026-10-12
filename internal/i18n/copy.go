@@ -514,6 +514,18 @@ var en = Copy{
 		RunErrorTaskFailed: func(message string) string {
 			return "Run task failed: " + message
 		},
+		RunSucceeded: func(name, duration string) string {
+			return name + " finished in " + duration
+		},
+		RunFailed: func(name string, code int) string {
+			return name + " failed with exit code " + strconv.Itoa(code)
+		},
+		RunOutputLines: func(lines int) string {
+			return strconv.Itoa(lines) + " lines of output"
+		},
+		RunOutputLinesTruncated: func(lines int) string {
+			return strconv.Itoa(lines) + " lines \u00b7 truncated at 64 KB"
+		},
 		DisableTitle:                        func(name string) string { return "Disable " + name + "?" },
 		DisableDescription:                  "Floter stops any running command at once. This only marks the integration disabled \u2014 its files and data are kept, and you can turn it back on whenever you like.",
 		DisableCancel:                       "Cancel",
@@ -1135,6 +1147,18 @@ var zh = Copy{
 		},
 		RunErrorTaskFailed: func(message string) string {
 			return "运行任务失败：" + message
+		},
+		RunSucceeded: func(name, duration string) string {
+			return name + " 已完成，用时 " + duration
+		},
+		RunFailed: func(name string, code int) string {
+			return name + " 运行失败，退出码 " + strconv.Itoa(code)
+		},
+		RunOutputLines: func(lines int) string {
+			return "输出 " + strconv.Itoa(lines) + " 行"
+		},
+		RunOutputLinesTruncated: func(lines int) string {
+			return "输出 " + strconv.Itoa(lines) + " 行 \u00b7 截断于 64KB"
 		},
 		DisableTitle:                        func(name string) string { return "停用 " + name + "？" },
 		DisableDescription:                  "正在运行的命令会立即停止。这里只是标记停用——文件与数据都会保留，随时可以重新启用。",

@@ -2196,12 +2196,39 @@ func (a *App) notifyRun(entry extensions.CommandEntry, run extensions.CapturedRu
 	if a.Win != nil && a.Win.IsVisible() {
 		return
 	}
-	copy := i18n.NotificationsFor(a.Store.Snapshot().Language)
+	lang := a.Store.Snapshot().Language
+	notif := i18n.NotificationsFor(lang)
 	name := entry.Command.Name
 	if name == "" {
 		name = entry.Command.ID
 	}
-	a.Notify(copy.Title, copy.CommandFinished(name)+"  \u00b7  "+copy.CommandStatus(a.Launcher.RunStatus(run, err)))
+	a.Notify(notif.Title, a.runNotificationBody(notif, i18n.For(lang).Settings, name, run, err))
+}
+
+// runNotificationBody phrases a finished background run the way the old build's
+// completion toast did: a completed run names its duration and, when it said
+// anything, its line count. A completed run that failed names its exit code. A
+// run that never started or was killed keeps the keyed failure's own words
+// (already localised by RunStatus); an exit code is not the fact the user needs
+// there.
+func (a *App) runNotificationBody(notif i18n.Notifications, settings i18n.Settings, name string, run extensions.CapturedRun, err error) string {
+	switch {
+	case run.Success:
+		body := settings.RunSucceeded(name, extensions.FormatRunDuration(run.Duration.Seconds()*1000))
+		if extensions.RunHasOutput(run) {
+			lines := extensions.RunOutputLineCount(run)
+			summary := settings.RunOutputLines(lines)
+			if run.Truncated {
+				summary = settings.RunOutputLinesTruncated(lines)
+			}
+			body += " \u00b7 " + summary
+		}
+		return body
+	case err == nil:
+		return settings.RunFailed(name, run.ExitCode)
+	default:
+		return notif.CommandFinished(name) + "  \u00b7  " + notif.CommandStatus(a.Launcher.RunStatus(run, err))
+	}
 }
 
 // notifyCompletion raises a system notification for a background integration

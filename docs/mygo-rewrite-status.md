@@ -8,7 +8,7 @@
 
 用 mygo（原生 GPU 自绘 UI + Go）重写的 floter **已经是一个可打包、可运行的完整应用**：单窗口三表面
 （启动器 / 设置 / 终端）、搜索内核、扩展平台（含后台运行、列表协议、导入导出、权限审计）、剪贴板、
-浏览器、计算器、系统集成、打包与 CI 全部就位。**794 项测试全绿**，三平台都能构建，Linux 打包
+浏览器、计算器、系统集成、打包与 CI 全部就位。**821 项测试全绿**，三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
 含测试）。
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 794 项测试
+go test -count=1 ./...         # 821 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,7 +99,41 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-bd 运行失败的「键 + JSON 负载」与逐语言渲染（R9-5）** —— P7-bc 后「尚未做」
+> **最新一轮：P7-be 后台完成通知的时长词形与输出行数（R9-2）** —— P7-bd 重写的具体待办第 2 条落地。
+> 后台运行成功时的系统通知原来是一句「名字 + 状态」的公文（时长 `3.4s`、没有行数），现在与旧版
+> 完成 toast 同一串法：**时长词形**（`420 ms` / `3.4 s`，坏时钟退 `0 ms`）与**输出行数**
+> （`2 lines of output` / 截断改口），失败只说退出码。
+
+**P7-be 后台完成通知的摘要（本轮）**
+
+- **依赖检查**：`curl .../releases/latest` 返回 v0.4.8，`go.mod` 已是 v0.4.8，无版本可升。
+- **偏离点**：旧版完成 toast（`src/ExtensionsPanel.tsx:1759-1775`）把 `formatRunDuration`
+  （`src/extensions/run-routing.ts:41`：<1000ms → `420 ms`，否则 → `3.4 s`，非有限/负 → `0 ms`）与
+  `runOutputSummary`（`:99-111` 的 `runOutputLineCount`：两流按序拼接、一个尾换行不额外算行、恰好
+  一个换行仍是一行、空捕获 0 行；截断时换成 `truncated at 64 KB`）串成
+  `{name} finished in {duration} · {lines} lines of output`（`src/i18n.ts:740-749` 四键）。本构建
+  的 `internal/launcher/output.go:329` 只 `fmt.Sprintf("%.1fs")`，`internal/shell/shell.go:2204` 的通知是
+  `CommandFinished(name) + " · " + CommandStatus(status)`——**没有时长词形、没有行数**。
+- **修法**：
+  - 新文件 `internal/extensions/runsummary.go`（纯）：`FormatRunDuration(ms float64)` 复刻
+    `formatRunDuration`（NaN/Inf/负 → `0 ms`；<1000 用 `Math.round` 的整数毫秒；否则一位小数秒）、
+    `RunHasOutput`（两流任一非空）、`RunOutputLineCount`（拼接两流、去掉恰好一个尾换行再数 `\n`）。
+  - i18n：`Settings` 新增四个句子 `RunSucceeded`/`RunFailed`/`RunOutputLines`/`RunOutputLinesTruncated`
+    （en/zh 逐字对齐旧字典）。
+  - `internal/shell/shell.go`：`runNotificationBody` 按「完成且成功」→ 时长 + （有输出才）行数；
+    「完成但非零退出」（`err == nil`）→ 退出码；「没起来/被杀」（`err != nil`，P7-bd 的键）→ 保留
+    `RunStatus` 的本地化理由——退出码不是那里用户需要的事实。
+  - `internal/launcher/output.go`：输出视图的时长也走同一 `FormatRunDuration`，两处词形不可能走样。
+- **测试**：`internal/extensions/runsummary_test.go`——`TestFormatRunDuration`（NaN/±Inf/负/0/420/
+  999.4/999.6/1000/3400/9999）、`TestRunOutputLineCount`（空/`"\n"`/`"a\nb"`/尾换行/两个尾换行/
+  两流拼接/截断）、`TestRunHasOutput`；`internal/shell/shell_test.go` 的
+  `TestRunNotificationSummary`（en 成功 + 行数、秒级 + 截断改口、静默无行数、zh 各一句、失败只说退出码）
+  与改写的 `TestCapturedRunNotifiesOnlyWhenHidden`（真实后台跑：成功带行数、失败不带）。
+  变异核查：把 `RunOutputLineCount` 的去尾换行摘掉 → 五条边界立刻红。
+- **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 27 包全绿、
+  `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+> **上一轮：P7-bd 运行失败的「键 + JSON 负载」与逐语言渲染（R9-5）** —— P7-bc 后「尚未做」
 > 清单已空，本轮先把清单重写成 5 条具体待办（见下方「具体待办（P7-bd 重写）」），再取第 1 条实现。
 > 后台运行的失败原来是一句英文 prose（`extensions: run failed: fork/exec …`），现在与旧版同一形状：
 > 后端只发**稳定键 + JSON 负载**，界面按语言渲染。
@@ -1530,12 +1564,13 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
    （i18n 的 `FreshnessRelative`，en/zh 逐字对齐 `Intl.RelativeTimeFormat` 的短词形，含「yesterday」
    「前天」「上个月」「去年」）；45s 阈值回到旧版的 `< 45s`。
 
-### 具体待办（P7-bd 重写；第 1 条本轮落地）
+### 具体待办（P7-bd 重写；第 1、2 条已落地）
 
-> P7-bb 的清单已全部落地、P7-an 的 1–8 只剩一次性维护者动作，所以这一轮先把「尚未做」重新写实。
-> 每条都带 file:line、原版对照与验收标准，供后续轮次逐条取用。第 1 条本轮已实现。
+> P7-bb 的清单已全部落地、P7-an 的 1–8 只剩一次性维护者动作，所以 P7-bd 先把「尚未做」重新写实。
+> 每条都带 file:line、原版对照与验收标准，供后续轮次逐条取用。第 1 条（P7-bd）、第 2 条（P7-be）
+> 已实现；下一轮从第 3 条开始，第 3、4 条互相依赖，宜连着做。
 
-1. **运行失败的「键 + JSON 负载」与逐语言渲染（本轮落地）**
+1. **运行失败的「键 + JSON 负载」与逐语言渲染（P7-bd 已落地）**
    - 原版：`src-tauri/src/extensions/run_error.rs`——后端只发**稳定键 + JSON 负载**的字符串
      `key:{json}`（`program_missing` / `program_not_executable` / `spawn_failed` / `timed_out` …），
      负载字段是 `path`/`language`/`names`/`searched`/`detail`/`seconds`/`extension_id`/`reason`/`error`；
@@ -1552,7 +1587,7 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
      `runCaptured` 的超时与 spawn 失败改为发键；launcher 在输出视图文本与一行状态里按语言渲染，未识别的
      消息**原样返回**；`i18n.Settings` 新增 10 个 `RunError*` 句子（en/zh 逐字对齐旧字典）；测试钉解析
      （含 `run_param_required:note` 不认）、OS 错误映射、en/zh 各一句。
-2. **后台运行完成通知的时长词形与输出行数**
+2. **后台运行完成通知的时长词形与输出行数（P7-be 已落地）**
    - 原版：`src/extensions/run-routing.ts:41` 的 `formatRunDuration`（<1000ms → `420 ms`，否则 → `3.4 s`，
      非有限/负 → `0 ms`）、`:99-111` 的 `runOutputSummary` + `runOutputLineCount`（两个流按序拼接、
      一个尾换行不额外算行、恰好一个换行仍是一行、空捕获是 0 行、截断时尾巴换成 `truncated at 64 KB`）；
@@ -1590,7 +1625,7 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
    - 验收：`ResolveRuntime` 的失败变键+负载，健康检查/探测失败时写 `lastErrorCode`+`brokenReason`；卡片状态行
      渲染本地化原因（认旧英文句，认不出则保留原句）；测试钉键与两语言渲染。
 
-> 下一轮从第 2 条开始（第 1 条本轮已落地）；第 3、4 条互相依赖，宜连着做。
+> 下一轮从第 3 条开始（第 1、2 条已落地）；第 3、4 条互相依赖，宜连着做。
 
 **P7-at manifest 的 `compatibility` 区间在落盘前生效（本轮）**
 

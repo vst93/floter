@@ -326,7 +326,7 @@ func (a *App) runStatus(copy i18n.Launcher, run extensions.CapturedRun) string {
 		parts = append(parts, fmt.Sprintf(copy.OutputFailed, run.ExitCode))
 	}
 	if run.Duration > 0 {
-		parts = append(parts, fmt.Sprintf("%.1fs", run.Duration.Seconds()))
+		parts = append(parts, extensions.FormatRunDuration(run.Duration.Seconds()*1000))
 	}
 	if run.Truncated {
 		parts = append(parts, copy.OutputTruncated)
