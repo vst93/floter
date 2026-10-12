@@ -1041,7 +1041,8 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
    加轴 → `AppearanceAxes()` → 抽屉行 → `control`/`settingsui`/`terminalui` 三处测试自动要求）。
 4. **~~死文案清理~~**：已完成（P7-ao）——10 个死键已删，并加了 `TestNoDeadCopy` 守卫
    （反射走 `Copy` 的每个叶子字段，在 `internal/i18n` 之外零 `.字段名` 引用即失败）。
-5. **`cwdPolicy` 的对象形（`projectRoot` / `fixed`）在加载期就让清单失效**（P7-aq 发现，未做）。
+5. **~~`cwdPolicy` 的对象形（`projectRoot` / `fixed`）在加载期就让清单失效~~**：已完成（P7-ar）。
+   （原分析保留在下方。）
    - 原版：`src-tauri/src/extensions/cwd_policy.rs:64` 的 `CwdPolicy::from_manifest` 接受**两种拼写**——
      字符串（`inheritActiveSession` / `toolData` / `home`）与对象（`{"policy":"projectRoot",
      "markers":[...], "maxDepth":n}`、`{"policy":"fixed","path":"/abs"}`）；schema 也是这么写的
@@ -1058,8 +1059,42 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
      所以 `ProjectRoot` 的 marker 行走只能靠注入的 cwd 测；先把解析与回退链做对，会话 cwd 单独开一项。
 
 > 至此具体待办里的 1–3 **三条都卡在框架能力上**（`Options.OnCopy`、终端键入的 `HandleInput`
-> 缝、外观旋钮的暴露），不是应用侧能单方面推进的；第 5 条（P7-aq 发现）是应用侧可做的。
-> 下一轮仍应回到「对照原版排查偏离点」这条路，并优先取第 5 条。
+> 缝、外观旋钮的暴露），不是应用侧能单方面推进的；第 5 条已由 P7-ar 完成。
+> 下一轮仍应回到「对照原版排查偏离点」这条路。
+
+**P7-ar `cwdPolicy` 的两种拼写都进得来（本轮）**
+
+- **依赖检查**：`curl .../releases/latest` 确认 v0.4.7 仍是最新（`go.mod` 已是 v0.4.7），无版本可升；
+  本轮取具体待办里唯一不卡框架的第 5 条。
+- **偏离点**：`Launch.CWDPolicy` 是 `string`（`manifest.go:143`）——schema 合法的对象形
+  （`{"policy":"projectRoot",...}` / `{"policy":"fixed","path":"/abs"}`，见
+  `docs/extensions/schemas/floter-extension.schema.json:380-440`）会被 `json.Unmarshal` 直接拒收，
+  于是**整份清单读不进来**（`LoadManifest` 报 `cannot unmarshal object into ... type string`）。
+  旧的 `FixedPath()` 只认 Go 自己发明的 `"fixed:<abs>"` 字符串，对象形永远读不到。
+- **修法**：新文件 `internal/extensions/cwdpolicy.go`。
+  - `CWDPolicy` 类型（`Kind` / `Markers` / `MaxDepth` / `Path`）带 `UnmarshalJSON`：字符串拼写
+    （`inheritActiveSession` / `toolData` / `home`，以及向后兼容的 `fixed:<abs>`）与对象拼写
+    （`projectRoot` 带 `markers`/`maxDepth`、`fixed` 带 `path`）都能进；`MarshalJSON` 让本构建写的
+    清单（自定义工具）原样往返，未设策略仍写空串（`declared` 判定不变）。
+  - `fromObject` 复刻原版 `CwdPolicy::from_manifest`：缺 `policy`、`fixed` 相对路径 / 空路径 / 含 NUL 都是
+    加载期错误；`projectRoot` 缺省 markers 用原版的五个（`.git`、`Cargo.toml`、`go.mod`、`package.json`、
+    `pyproject.toml`）、缺省 `maxDepth` 32。
+  - `Resolve(CwdContext)` 复刻原版 `CwdPolicy::resolve` 的回退链：`inheritActiveSession` = 会话 cwd（是目录）
+    → 项目根（默认 markers）→ 数据目录 → home；`projectRoot` = 项目根（自带 markers/maxDepth）→ 会话 cwd
+    → 数据目录 → home；`toolData` 先建目录；`fixed` 直接给声明的绝对路径；`home` 给主目录。
+    `findProjectRoot` 从会话 cwd 向上走至多 `maxDepth` 层找任一 marker。
+  - `store.go` 的 `launchOverrides` 改为交给 `config.CWDPolicy.Resolve(CwdContext{DataDir, Home})`；本构建
+    仍无「活动会话 cwd」，所以 `inheritActiveSession`/`toolData`/无会话的 `projectRoot`/缺省都落到集成的数据目录
+    （原版回退链的同一落点），数据目录照旧先 `MkdirAll`。`FixedPath()` 删除。
+- **测试**（新文件 `cwdpolicy_test.go` + 改写 `launch_test.go` 的 `TestLaunchFixedPath` 为 `TestLaunchFixedPolicy`）：
+  两种拼写的合法解析与默认值、非法对象（缺 policy / 相对 fixed 路径 / 未知词 / 非字符串非对象）报错；
+  `TestCWDPolicyResolve` 的回退链表；`TestProjectRootWalksUpFromSessionCwd` 与 `TestFindProjectRoot`
+  用**注入的 cwd** 验 marker 行走与 `maxDepth` 截断；`TestObjectCwdPolicyRefreshes` 让两种对象形夹具真的
+  `Refresh` 出命令并核对 `Dir`；`TestInvalidCwdPolicyFailsTheManifest` 钉 `LoadManifest` 报错。
+  变异核查：把 `fromObject` 的 `fixed` 校验去掉、或让 `Resolve` 的 `projectRoot` 跳过 `findProjectRoot`，
+  对应用例立刻红。
+- **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 27 包全绿
+  （`go test ./... -v | grep -c '^=== RUN'` = 714）、`GOOS=linux/windows/darwin go build ./...` 三平台通过。
 
 **P7-ao 死文案清理 + `TestNoDeadCopy` 守卫（本轮）**
 

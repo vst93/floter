@@ -2,6 +2,7 @@ package extensions
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -71,22 +72,73 @@ func TestLaunchOverrides(t *testing.T) {
 	}
 }
 
-// A fixed cwd policy names an absolute directory, and the other policies
-// resolve to what they say.
-func TestLaunchFixedPath(t *testing.T) {
-	var launched Lifecycle
-	launched.Launch.CWDPolicy = "fixed:/opt/tool/data"
-	if path, ok := launched.Launch.FixedPath(); !ok || path != "/opt/tool/data" {
-		t.Errorf("fixed path = %q, %v", path, ok)
+// A fixed cwd policy names an absolute directory in either spelling, and the
+// object forms of the other policies parse too. Illegal objects fail at load
+// time rather than making the whole manifest unreadable.
+func TestLaunchFixedPolicy(t *testing.T) {
+	decode := func(t *testing.T, raw string) (CWDPolicy, error) {
+		t.Helper()
+		var policy CWDPolicy
+		err := json.Unmarshal([]byte(raw), &policy)
+		return policy, err
 	}
-	launched.Launch.CWDPolicy = "home"
-	if _, ok := launched.Launch.FixedPath(); ok {
-		t.Error("the home policy produced a fixed path")
+
+	valid := []struct {
+		raw  string
+		kind string
+		path string
+	}{
+		{`"fixed:/opt/tool/data"`, CWDFixed, "/opt/tool/data"},
+		{`{"policy":"fixed","path":"/opt/tool/data"}`, CWDFixed, "/opt/tool/data"},
+		{`"home"`, CWDHome, ""},
+		{`"toolData"`, CWDToolData, ""},
+		{`"inheritActiveSession"`, CWDInheritActiveSession, ""},
+		{`{"policy":"home"}`, CWDHome, ""},
+		{`{"policy":"projectRoot"}`, CWDProjectRoot, ""},
 	}
-	// A relative path under the fixed policy is refused rather than resolved.
-	launched.Launch.CWDPolicy = "fixed:relative/path"
-	if _, ok := launched.Launch.FixedPath(); ok {
-		t.Error("a relative fixed path was accepted")
+	for _, c := range valid {
+		policy, err := decode(t, c.raw)
+		if err != nil {
+			t.Errorf("%s: %v", c.raw, err)
+			continue
+		}
+		if policy.Kind != c.kind || policy.Path != c.path {
+			t.Errorf("%s: policy = %+v, want kind %q path %q", c.raw, policy, c.kind, c.path)
+		}
+	}
+
+	// A projectRoot object without markers or depth gets the old host's
+	// defaults.
+	policy, err := decode(t, `{"policy":"projectRoot"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(policy.Markers) != len(defaultProjectMarkers) || policy.MaxDepth != defaultProjectMaxDepth {
+		t.Errorf("defaults = %+v", policy)
+	}
+	policy, err = decode(t, `{"policy":"projectRoot","markers":[".floter"],"maxDepth":3}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(policy.Markers) != 1 || policy.Markers[0] != ".floter" || policy.MaxDepth != 3 {
+		t.Errorf("declared = %+v", policy)
+	}
+
+	// A relative fixed path, a missing policy and an unknown word are all
+	// load-time errors.
+	invalid := []string{
+		`"fixed:relative/path"`,
+		`{"policy":"fixed","path":"relative/path"}`,
+		`{"policy":"fixed"}`,
+		`{"path":"/opt/tool/data"}`,
+		`{}`,
+		`"nonsense"`,
+		`123`,
+	}
+	for _, raw := range invalid {
+		if _, err := decode(t, raw); err == nil {
+			t.Errorf("%s: no error", raw)
+		}
 	}
 }
 

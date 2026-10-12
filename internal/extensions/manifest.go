@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
-	"path/filepath"
 	"strings"
 )
 
@@ -139,8 +138,11 @@ type Probe struct {
 
 // Launch is how a command of the extension runs.
 type Launch struct {
-	Command   LaunchCommand `json:"command"`
-	CWDPolicy string        `json:"cwdPolicy"`
+	Command LaunchCommand `json:"command"`
+	// CWDPolicy is where the command starts. It parses the schema's string
+	// and object spellings (see CWDPolicy), rather than a bare string that
+	// makes a legal object fail the whole manifest.
+	CWDPolicy CWDPolicy `json:"cwdPolicy"`
 	// Terminal is what the launch asks of the terminal it runs in. Only the
 	// color changes this host: it decides what TERM and COLORTERM say.
 	Terminal Terminal `json:"terminal"`
@@ -158,16 +160,6 @@ type Terminal struct {
 type LaunchCommand struct {
 	Program string   `json:"program"`
 	Args    []string `json:"args"`
-}
-
-// FixedPath is the absolute directory a `fixed` cwd policy names, and whether
-// the policy actually declares one. The old manifests carried it as
-// "fixed:<path>" inside the launch's cwdPolicy string.
-func (l Launch) FixedPath() (string, bool) {
-	if rest, ok := strings.CutPrefix(l.CWDPolicy, "fixed:"); ok && filepath.IsAbs(rest) {
-		return rest, true
-	}
-	return "", false
 }
 
 // terminalEnvironment is the environment the old host gave a launch's terminal

@@ -178,39 +178,27 @@ type launchDefaults struct {
 // program means the commands' own execution stands), the directory its cwd
 // policy resolves to, and the terminal environment it asks for.
 //
-// The policy follows the old build's: `home` is the user's home, `fixed` a
-// declared absolute path (kept as declared), and everything else — `toolData`,
-// `inheritActiveSession` and the default — resolves to the integration's own
-// data directory, which is where the old host's `InheritActiveSession` fallback
-// lands when there is no session cwd to inherit.
+// The cwd policy is resolved by CWDPolicy.Resolve against the integration's
+// own data directory. There is no active terminal session's cwd to inherit in
+// this build, so `inheritActiveSession`, `toolData`, `projectRoot` with no
+// session, and the default all land on that data directory — which is where
+// the old host's fallback chain lands too (`run.rs` `run_cwd`). The data
+// directory is created first: a cwd that is not there fails the spawn.
 func launchOverrides(integration Integration) launchDefaults {
 	config := integration.Manifest.Lifecycle.Launch
 	defaults := launchDefaults{
 		program: config.Command.Program,
 		args:    append([]string{}, config.Command.Args...),
 	}
-	// The old host's own answer for the default policy — there is no active
-	// session cwd to inherit — is the integration's data directory, and it
-	// made that directory before launching there (run.rs `run_cwd`).
-	// A cwd that is not there fails the spawn, so it is created here too.
 	dataDir := filepath.Join(integration.Paths.Data, integration.Entry.ID)
 	_ = os.MkdirAll(dataDir, 0o755)
-	defaults.dir = dataDir
-	switch strings.TrimSpace(strings.ToLower(config.CWDPolicy)) {
-	case "home":
-		if home, err := os.UserHomeDir(); err == nil {
-			defaults.dir = home
-		}
-	case "fixed":
-		if path, ok := integration.Manifest.Lifecycle.Launch.FixedPath(); ok {
-			defaults.dir = path
-		}
-	}
+	home, _ := os.UserHomeDir()
+	defaults.dir = config.CWDPolicy.Resolve(CwdContext{DataDir: dataDir, Home: home})
 	// The terminal environment: a tool that declares what its terminal must
 	// support gets exactly that, and every launch is named as floter's.
 	defaults.env = terminalEnvironment(config.Terminal.Color)
 	defaults.declared = defaults.program != "" || len(defaults.args) > 0 ||
-		strings.TrimSpace(config.CWDPolicy) != "" || strings.TrimSpace(config.Terminal.Color) != ""
+		config.CWDPolicy.Kind != "" || strings.TrimSpace(config.Terminal.Color) != ""
 	return defaults
 }
 
