@@ -98,7 +98,28 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-**P7-ah 外观行只有一个来源（本轮）**
+**P7-ai 分离窗口属于它的内容（本轮）**
+- **偏离点**：P7-d 的分离输出窗口按每次按下都 `append` 一个新窗口（`Options.OpenDetached` 每次
+  都调），于是「再钉同一个命令」会开出**两个一模一样的窗口**，而不是像旧版那样把已经在显示它的
+  那个窗口抬到前面并换上新一次运行的内容。旧版 R91（`plugin_windows.rs` 的 `content_key` +
+  `detach_plugin_window`）写明：**同一份内容 → 原窗换内容**（R84-R90 的行为，为它而留），
+  **不同内容 → 另开一窗**（R91 的新行为，本构建的 slice 已经支持）。几何记忆也应是**按内容**的
+  （旧版 `plugin-window-geometry.json` v2 按 `content_key` 存 `{width,height,x,y}`），而不是所有
+  分离窗口共用一块记忆。
+- **修法**：`internal/shell/detach.go` 新增纯函数 `detachContentKey`（命令按 `IntegrationID` +
+  NUL + `Command.ID`，无命令的运行按 trim 过的标题；NUL 让 `ab`+`c` 与 `a`+`bc` 不碰撞）与
+  `detachStateKey`；`detachOutput` 先 `findDetached(key)`——命中就替换该窗的 entry/view/title、
+  `SetTitle`/`Show`/`Focus`/`Invalidate` 并返回，未命中才开新窗。新窗的 `StateKey` 取
+  `detachStateKey(key)`，交给框架的 `window-state.json` 按内容记住位置与尺寸（旧版那个 store 的等价物）。
+- **最新一次运行获胜**：窗口多一个 `generation`，替换内容时自增；`rerunDetached` 捕获启动时的
+  generation，回调走 `applyDetachedRun`——世代对不上就丢弃，旧运行不会盖掉用户后钉的内容。
+- **测试**：`TestDetachReusesTheWindowForTheSameContent`（同命令换 argv/文本复用一窗、无命令
+  的运行按标题复用与另开、第三窗是另一条 note；把 `findDetached` 改回总是 nil 会红）、
+  `TestDetachContentKey`（命令不跟标题、不同命令不同 key、NUL 消歧、文本 key 去空格、
+  几何 key 随内容且互不相同）、`TestAStaleDetachedRunDoesNotOverwriteNewerContent`
+  （stale 运行被丢弃、当前运行落地；去掉 `existing.generation++` 会让复用测试红）。
+
+**P7-ah 外观行只有一个来源**
 - **偏离点**：P7-ab 给终端加了它自己的外观抽屉后，同一批控件在**两处**各写了一份：设置页
   General 的「终端外观」卡片和终端抽屉都手写了全部七行（字号、字体族、行距、内边距、光标形状、
   光标闪烁、配色）。旧版 R42/R55 只有**一份 schema**，并规定两个面各画哪些行——设置页的卡片
