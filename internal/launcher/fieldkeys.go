@@ -2,6 +2,7 @@ package launcher
 
 import (
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -45,6 +46,12 @@ const historyClearMods = ui.Ctrl | ui.Shift
 // member of the settings' shortcut map: the user never asked to rebind it.
 var historyDeleteMods = ui.Cmd
 
+// historyDeleteConfirm is the old build's `HISTORY_DELETE_CONFIRM_MS`: an armed
+// row waits this long for its confirming press, then disarms itself (the old
+// handler armed a timer at `HISTORY_DELETE_CONFIRM_MS + 50`). Stillness must
+// not leave a destructive confirmation waiting for a stray second press.
+const historyDeleteConfirm = 5 * time.Second
+
 // modeExitMods are the modifiers that make a Backspace an *editing* gesture
 // rather than the mode-leaving one: ⌘/⌃/⌥ all belong to the editor (delete to
 // the start of the line, delete a word, delete a word on macOS), so a hand
@@ -68,7 +75,7 @@ func (a *App) fieldKeys(ev ui.InputEvent) bool {
 	// read before the view's).
 	if a.armedDelete != "" {
 		if !(ev.Key == ui.KeyBackspace && ev.Mods == historyDeleteMods) {
-			a.armedDelete = ""
+			a.disarmDelete()
 			return ev.Key == ui.KeyEscape
 		}
 	}
@@ -151,14 +158,50 @@ func (a *App) historyDeleteKey() bool {
 	if !ok {
 		return false
 	}
-	if a.armedDelete == item.ID {
-		a.armedDelete = ""
+	now := a.now()
+	// The confirming press counts only inside the window; after it the arm has
+	// lapsed, so the press re-arms on the same row rather than deleting (the
+	// old build's `reduceHistoryDelete`, whose `same` branch also required
+	// `now - armedAt <= HISTORY_DELETE_CONFIRM_MS`).
+	if a.armedDelete == item.ID && now.Sub(a.armedDeleteAt) <= historyDeleteConfirm {
+		a.disarmDelete()
 		a.deleteHistoryRow(item.ID)
 		return true
 	}
-	// A different row re-arms on the new one: the confirmation never transfers.
-	a.armedDelete = item.ID
+	// A different row — or the same one after the window — re-arms on the new
+	// one: the confirmation never transfers.
+	a.armedDelete, a.armedDeleteAt = item.ID, now
 	return true
+}
+
+// expireArmedDelete disarms an arm that has waited longer than the window. It
+// is called once per frame from the launcher's View, and asks for the next
+// frame while an arm is live so the deadline is reached even in a still
+// window — the same shape as the docked status row's own clock.
+func (a *App) expireArmedDelete(c *ui.Context) {
+	if a.armedDelete == "" {
+		return
+	}
+	if a.now().Sub(a.armedDeleteAt) > historyDeleteConfirm {
+		a.disarmDelete()
+		return
+	}
+	c.AnimationFrame()
+}
+
+// now is the launcher's clock: the injected one when a test set it, the wall
+// clock otherwise.
+func (a *App) now() time.Time {
+	if a.clock != nil {
+		return a.clock()
+	}
+	return time.Now()
+}
+
+// disarmDelete drops the arm and its clock in one place, so the two can never
+// drift apart.
+func (a *App) disarmDelete() {
+	a.armedDelete, a.armedDeleteAt = "", time.Time{}
 }
 
 // historyDeleteClaimable reports whether the delete key may be claimed right
@@ -254,7 +297,7 @@ func selectionAfterRemoval(index, length int) int {
 // window losing the keyboard. The old build disarmed on a window blur and on
 // leaving the mode for the same reason — a confirmation that waits for its
 // second press must not outlive the moment it was asked for.
-func (a *App) DisarmDelete() { a.armedDelete = "" }
+func (a *App) DisarmDelete() { a.disarmDelete() }
 
 // ArmedDelete is the id of the history row waiting for its confirming press,
 // or the empty string. It exists for a caller outside the launcher (the

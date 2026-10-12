@@ -99,8 +99,37 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-as manifest 的 `output` 路由终于到达启动器** —— 记录在下面的「具体待办」之后
-> （P7-ar 之前），含对照原版的偏离点、修法与门槛。
+> **最新一轮：P7-au 历史行的两步删除有了自己的时间窗** —— 「尚未做」清单已空（1–3 卡框架、4–6 完成），
+> 本轮继续「对照原版排查偏离点」，取旧版 `HISTORY_DELETE_CONFIRM_MS` 的漏项。
+
+**P7-au 两步删除的时间窗（本轮）**
+
+- **依赖检查**：`go list -m -versions github.com/egoist/mygo` 与 `proxy.golang.org` 都确认 v0.4.7 仍是最新
+  （`go.mod` 已是 v0.4.7），无版本可升；本轮走「对照原版排查偏离点」。
+- **偏离点（一个消失的边界）**：旧版的两步删除有一条**时间窗**（`src/plugins/history-actions.ts` 的
+  `HISTORY_DELETE_CONFIRM_MS = 5000`）：`useLauncherActions` 在 `armedId` 上挂一个
+  `HISTORY_DELETE_CONFIRM_MS + 50` 的 `setTimeout`，到点以 `{type:"expire"}` 归约——静置的装填
+  **自己退场**，取消路径是「确认键 / Esc / 其它键 / 焦点丢失 / 超时」五条。本构建的 `armedDelete`
+  （`internal/launcher/launcher.go`）只是一个 id 字符串：`move`、离开模式、`DisarmDelete`（blur/换面）
+  都会清，**唯独超时这条从未存在**——装填可以一直挂着，直到某次无关的第二次 ⌘⌫ 落在它上面。
+  连带地，旧版 `reduceHistoryDelete` 的确认还要求 `now - armedAt <= CONFIRM_MS`：过了窗再按同一行
+  **重新装填**而不是删除；本构建只比 id，于是「超时后仍会误删」是这个洞的真实后果。
+- **修法**：
+  - `App` 新增 `armedDeleteAt time.Time` 与可注入的 `clock func() time.Time`（`now()` 缺省走墙钟），
+    装填时记时刻；`disarmDelete()` 把「清 id + 清时刻」收成一处，`DisarmDelete` 与各清点改走它
+    （`launcher.go` 的 Escape/离开模式/移动、`calculator.go` 离开计算器模式）。
+  - `expireArmedDelete(c)`：在 `View` 顶部每帧检查，超过 `historyDeleteConfirm`（5s）就退场；
+    装填期间 `c.AnimationFrame()` 让帧继续来（与停靠状态行的 `feedbackRow` 同一形状），
+    所以静置窗口里超时也真的会发生。
+  - `historyDeleteKey` 的确认加回旧版的时间条件：同一行且 `now - armedAt <= 5s` 才算确认，
+    否则按「不同行」处理——**重新装填**，不是删除。
+- **测试**（`internal/launcher/fieldkeys_test.go`）：`TestTheArmedDeleteExpiresOnItsOwn`（注入时钟推进 6s，
+  下一帧装填与屏幕上的「Press again to delete」一起消失、一行没删）、
+  `TestAPressAfterTheWindowReArmsInsteadOfDeleting`（过窗后按同一行：条目数不变、仍是同一行装填）、
+  `TestAConfirmInsideTheWindowStillDeletes`（2s 内第二次按仍删）。变异核查：注掉 `View` 的
+  `expireArmedDelete(c)` 并去掉 `historyDeleteKey` 的时间条件，前两条立刻红。
+- **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+  `GOOS=linux/windows/darwin go build ./...` 三平台通过。
 
 **P7-al 被拒绝的深链说出来（本轮）**
 - **依赖检查**：`go list -m -versions github.com/egoist/mygo` 确认 v0.4.5 仍是最新（go.mod 已是 v0.4.5），

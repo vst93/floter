@@ -328,6 +328,16 @@ type App struct {
 	// the empty string while nothing is armed, so a list that shifted under
 	// the arm cannot confirm on a different row.
 	armedDelete string
+	// armedDeleteAt is when the arm was set. The old build's
+	// `HISTORY_DELETE_CONFIRM_MS` window (history-actions.ts): an armed row
+	// waits a few seconds for its confirming press and then disarms itself, so
+	// a confirmation asked for one moment never outlives it. A press after the
+	// window re-arms rather than deleting.
+	armedDeleteAt time.Time
+	// clock is the launcher's time source, injectable so the history-delete
+	// window can be exercised without waiting for it; nil means the wall
+	// clock.
+	clock func() time.Time
 	// pendingPower is the power action the panel is asking about: the
 	// confirmation row shows until the user answers it (see power.go).
 	pendingPower string
@@ -652,6 +662,10 @@ func (a *App) View(c *ui.Context) {
 	// old collapsed shell reasserted focus on every reveal.
 	a.FocusSearch()
 
+	// A half-finished row delete is disarmed once its window has passed; while
+	// one is live the frame keeps coming so the deadline is reached.
+	a.expireArmedDelete(c)
+
 	a.syncTypedMode()
 	a.syncCommandMode()
 	// Leaving a plugin's mode leaves its configuration sheet: the sheet is
@@ -968,7 +982,7 @@ func (a *App) View(c *ui.Context) {
 	if c.Shortcut(0, ui.KeyEscape) {
 		// An armed delete is the first thing Escape answers.
 		if a.armedDelete != "" {
-			a.armedDelete = ""
+			a.disarmDelete()
 			return
 		}
 		// The mode ladder is `leavePluginMode`'s, so the two ways out — Escape
@@ -1308,7 +1322,7 @@ func (a *App) leaveClipboard() {
 	// A half-finished delete does not outlive the mode: re-entering it with
 	// the same row under the choice must not let one press confirm an arm the
 	// user had already walked away from.
-	a.armedDelete = ""
+	a.disarmDelete()
 	a.Selected, a.chosenRow = 0, -1
 }
 
@@ -1653,13 +1667,13 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 					}
 				})
 				if del.Clicked() {
-					a.armedDelete = ""
+					a.disarmDelete()
 					removed = true
 					a.deleteHistoryRow(item.ID)
 				}
 			} else {
 				a.rowControl(c, "close", copy.HistoryDelete, func() {
-					a.armedDelete = item.ID
+					a.armedDelete, a.armedDeleteAt = item.ID, a.now()
 				})
 			}
 		}
@@ -1831,7 +1845,7 @@ func (a *App) move(delta, n int) {
 	}
 	// The armed delete belongs to the row the user was looking at; the choice
 	// moving away takes it with it.
-	a.armedDelete = ""
+	a.disarmDelete()
 }
 
 // nextSelectable moves one step and lands on a row the keyboard can act on: a

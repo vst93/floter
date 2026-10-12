@@ -74,7 +74,7 @@ func (a *App) leaveCalculator() {
 	a.calculatorMode = false
 	a.Query = ""
 	// The same rule as the clipboard's: an armed delete leaves with the mode.
-	a.armedDelete = ""
+	a.disarmDelete()
 	a.Selected, a.chosenRow = 0, -1
 }
 

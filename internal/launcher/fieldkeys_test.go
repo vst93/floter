@@ -2,6 +2,7 @@ package launcher
 
 import (
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -550,6 +551,97 @@ func TestEmptyFieldBackspaceOnTheOrdinaryPageChangesNothing(t *testing.T) {
 	}
 	if _, hidden := testRuns["dismiss"]; hidden {
 		t.Errorf("the press hid the window: %v", testRuns)
+	}
+}
+
+// disarmArmClock installs a clock the test drives by hand, so the
+// history-delete window can be exercised without waiting five seconds. The
+// launcher reads `a.clock` at the moment it arms and at every frame, so moving
+// the returned time between frames is what a real wait does.
+func disarmArmClock(a *App) *time.Time {
+	now := time.Unix(1_700_000_000, 0)
+	a.clock = func() time.Time { return now }
+	return &now
+}
+
+// The arm is not forever: the old build's `HISTORY_DELETE_CONFIRM_MS` window
+// disarms a row that has waited too long for its confirming press, so a
+// confirmation asked for one moment never outlives it.
+func TestTheArmedDeleteExpiresOnItsOwn(t *testing.T) {
+	a, store := clipboardApp(t)
+	now := disarmArmClock(a)
+	tt := render(t, a)
+	a.EnterClipboard()
+	tt.Frame()
+
+	deleteKey(tt)
+	tt.Frame()
+	if a.armedDelete == "" {
+		t.Fatal("the first press did not arm")
+	}
+	if !tt.HasText(i18n.For("en").Launcher.DeleteConfirm) {
+		t.Fatalf("the armed note is missing: %q", tt.Texts())
+	}
+
+	// A wait longer than the window, with nothing else happening: the next
+	// frame disarms the row and the muted note leaves with it.
+	*now = now.Add(historyDeleteConfirm + time.Second)
+	tt.Frame()
+	if a.armedDelete != "" {
+		t.Errorf("the arm outlived its window: %q", a.armedDelete)
+	}
+	if tt.HasText(i18n.For("en").Launcher.DeleteConfirm) {
+		t.Errorf("the armed note outlived its window: %q", tt.Texts())
+	}
+	if got := len(store.Entries()); got != 2 {
+		t.Errorf("the timeout removed a row: %d entries", got)
+	}
+}
+
+// A press that arrives after the window does not delete: the lapsed arm is
+// re-armed on the same row, exactly as the old build's `reduceHistoryDelete`
+// re-armed rather than confirming past `HISTORY_DELETE_CONFIRM_MS`.
+func TestAPressAfterTheWindowReArmsInsteadOfDeleting(t *testing.T) {
+	a, store := clipboardApp(t)
+	now := disarmArmClock(a)
+	tt := render(t, a)
+	a.EnterClipboard()
+	tt.Frame()
+	armed := a.Results()[a.Selected].ID
+
+	deleteKey(tt)
+	tt.Frame()
+
+	*now = now.Add(historyDeleteConfirm + time.Second)
+	deleteKey(tt)
+	tt.Frame()
+	if got := len(store.Entries()); got != 2 {
+		t.Errorf("a press after the window deleted a row: %d entries", got)
+	}
+	if a.armedDelete != armed {
+		t.Errorf("armed = %q, want the same row re-armed %q", a.armedDelete, armed)
+	}
+}
+
+// Inside the window the second press still confirms: the timeout bounds how
+// long an arm waits, it does not change the gesture.
+func TestAConfirmInsideTheWindowStillDeletes(t *testing.T) {
+	a, store := clipboardApp(t)
+	now := disarmArmClock(a)
+	tt := render(t, a)
+	a.EnterClipboard()
+	tt.Frame()
+
+	deleteKey(tt)
+	tt.Frame()
+	*now = now.Add(2 * time.Second)
+	deleteKey(tt)
+	tt.Frame()
+	if got := len(store.Entries()); got != 1 {
+		t.Errorf("the confirm inside the window did not land: %d entries", got)
+	}
+	if a.armedDelete != "" {
+		t.Errorf("the arm survived its confirmation: %q", a.armedDelete)
 	}
 }
 
