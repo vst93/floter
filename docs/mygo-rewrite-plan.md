@@ -726,6 +726,9 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
   「健康状态: 健康 / 部分功能可用 / 无法工作」。它是**跨运行**的——探针是仓库数据，列表从仓库读，
   所以不用等下一次检查也能看到上次的结果；「检查」会刷新它（先探针后 diagnose）。
 - broken 的集成贡献的命令数为零（此前已有），这里再加断言钉住。
+- **订正（P7-ad）**：这一轮只把状态算进了 `settingsui.Integration.Health`，**视图从未读过它**
+  ——集成卡里根本没有这一行，用户看到的「Health」行其实是 diagnose 文本。P7-ad 把健康真正画成
+  行（`IntegrationsHealth`），diagnose/报错改挂 `IntegrationsDiagnostics`。
 
 ### P2-o 命令行的结构化解析（已做）
 
@@ -1017,6 +1020,22 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
 - **未做（如实记录）**：终端面上的 `open_external_terminal` 键未接——旧版在终端里接了它，但它的默认
   绑定在非 macOS 是 Ctrl+N，会抢走 readline 的 C-n；本构建把能力留在终端标题栏的按钮上，不夺键。
   同理 `copy_selection` / `paste` 由框架的 `plugins/terminal` 内部固定为 ⌘C/⌘V，用户改键无效（见「已知差距」）。
+
+### P7-ad 存储的健康状态真正画在行上（已做）
+
+- **偏离点**：P3-p 声称 `probeReport.status` 显示在集成行上，但那轮只加了
+  `settingsui.Integration.Health` 字段与 shell 里的计算，**没有任何视图代码读它**（全仓
+  `grep 'Integration.Health'` 在 settingsui 里是零）。于是持久化的健康状态算完就丢，用户只能在
+  点「检查」的那一瞬间看到结果；而标着 `IntegrationsHealth`（「Health」）的那一行画的是 diagnose
+  协议的文本与 provider 报错，不是健康状态。这是「字段/文案齐全、没人画」的又一例。
+- **修法**：`internal/settingsui/settingsui.go` 的集成卡新增一条自己的行：标签
+  `IntegrationsHealth`，值是该工具最近一次探针的状态词——`healthy` 中性、`degraded` 警告色、
+  `not working` 危险色；跨运行可见，「检查」后刷新。diagnose 与 provider 报错的行改挂新标签
+  `IntegrationsDiagnostics`（旧版 `settings.extensions.diagnostics`「诊断结果」的原文），两个事实
+  不再共用同一个「Health」。
+- **i18n**：新增 `IntegrationsDiagnostics`（en/zh），完整性测试自动覆盖。
+- **测试**：`TestStoredHealthShowsOnTheRow`（健康行与状态词在、broken 工具显示 not working、
+  diagnose 文本在「诊断结果」下、无报告无检查时两行都不画；把健康行摘掉跑一遍会红）。
 
 ## 纪律（继承）
 

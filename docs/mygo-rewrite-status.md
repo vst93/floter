@@ -98,7 +98,20 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-**P7-ac 打开设置的快捷键（本轮）**
+**P7-ad 存储的健康状态真正画在行上（本轮）**
+- **偏离点**：P3-p 记的是「`probeReport.status` 持久化并显示在集成行上」，但那次提交只往
+  `settingsui.Integration` 加了一个 `Health` 字段、在 shell 里把它算出来（跨运行的探针报告 + 本次
+  检查的结果），**没有任何视图代码读过它**。于是仓库里持久化的健康状态（healthy / degraded /
+  not working）算完就丢，用户只能在「检查」那一瞬间看到结果；而原本标着「Health」的那一行其实
+  画的是 diagnose 协议的文本，不是健康状态。
+- **修法**：集成卡里新增一条**自己的**行——标签 `IntegrationsHealth`，值是该工具最近一次探针的
+  状态词（`healthy` 中性、`degraded` 警告色、`not working` 危险色），跨运行可见、检查后刷新。
+  diagnose 协议与 provider 报错的行改挂新标签 `IntegrationsDiagnostics`（旧版
+  `settings.extensions.diagnostics`「诊断结果」的原文），两个事实不再共用一个「Health」。
+- **测试**：`TestStoredHealthShowsOnTheRow`（健康行与状态词在、broken 工具显示 not working、
+  diagnose 文本在「诊断结果」下、无报告无检查时两行都不画；把健康行摘掉跑一遍会红）。
+
+**P7-ac 打开设置的快捷键**
 - **偏离点**：设置页 Shortcuts 的「App shortcuts」把 `open_settings`（默认 ⌘, / Ctrl+,）列成一条
   可录制的绑定，自定义快捷键的 `action:open_settings` 也走同一张表——但**内置的那条从来没被读过**。
   旧版在 collapsed（启动器）里 `matchesShortcut(event, shortcuts.open_settings)` → `openSettings()`。
@@ -565,8 +578,10 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 - manifest 声明的「集成整体怎么跑」现在生效：launch 程序/前置参数（self = runtime 解析的可执行）、
   cwd 策略（home/toolData/fixed）、终端环境（TERM/COLORTERM/TERM_PROGRAM）。
 
-**P3-p 健康状态行上显示**（本轮）
+**P3-p 健康状态行上显示**
 - `probeReport.status` 持久化并显示在集成行上（跨运行可见；「检查」刷新它），broken 时不贡献命令。
+- **订正（P7-ad）**：这一轮只把状态算进了 `Integration.Health`，视图从未读过它——健康状态实际
+  不可见；P7-ad 才把它画成行，并把 diagnose/报错的行改挂「诊断结果」标签。
 
 **P2-o 命令行结构化解析**（本轮）
 - `ParseCommandLine`：token（引号/转义）、前导 NAME=value 解码进环境、shell 语法检测；

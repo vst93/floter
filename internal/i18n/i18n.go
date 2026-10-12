@@ -420,11 +420,15 @@ type Settings struct {
 	IntegrationsRecommended     string
 	IntegrationsRecommendedHint string
 	IntegrationsConnect         string
-	// The stored health from the lifecycle probes.
-	IntegrationsHealthy   string
-	IntegrationsHealth    string
-	IntegrationsDegraded  string
-	IntegrationsUnhealthy string
+	// The stored health from the lifecycle probes, and the live diagnostics a
+	// check produces. They are two rows: the health is what the last probe run
+	// recorded (and it survives across runs), the diagnostics are what this
+	// session's check just said.
+	IntegrationsHealthy     string
+	IntegrationsHealth      string
+	IntegrationsDegraded    string
+	IntegrationsUnhealthy   string
+	IntegrationsDiagnostics string
 	// The configuration form.
 	ConfigOpen     string
 	ConfigSave     string

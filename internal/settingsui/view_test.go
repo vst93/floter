@@ -1559,6 +1559,63 @@ func TestFreshnessRow(t *testing.T) {
 	}
 }
 
+// The stored lifecycle health is drawn on the integration row: the probe
+// report lives in the repository, so the row says how the tool was last found
+// to be before any check runs in this session. It is its own row, under its
+// own label, distinct from the live diagnostics below.
+func TestStoredHealthShowsOnTheRow(t *testing.T) {
+	a := New(newStore(t), Actions{})
+	a.Integrations = func() []Integration {
+		return []Integration{
+			{ID: "dev.floter.healthy", Name: "Alpha Tool", Enabled: true, Health: "healthy"},
+			{ID: "dev.floter.broken", Name: "Beta Tool", Enabled: true, Broken: true, Health: "not working"},
+			{ID: "dev.floter.diagnosed", Name: "Gamma Tool", Enabled: true, Diagnosis: "ok"},
+		}
+	}
+	tt := render(t, a, 720, 900)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+
+	// The stored health is the row's value, under the Health label.
+	if !tt.HasText("Health") {
+		t.Fatalf("the health label is missing: %q", tt.Texts())
+	}
+	if !tt.HasText("healthy") {
+		t.Errorf("the stored health is missing: %q", tt.Texts())
+	}
+	if !tt.HasText("not working") {
+		t.Errorf("a broken tool's stored health is missing: %q", tt.Texts())
+	}
+	// The live check's own sentence is a different row with its own label, so
+	// the two facts never read as one another.
+	if !tt.HasText("Diagnostics") {
+		t.Errorf("the diagnostics label is missing: %q", tt.Texts())
+	}
+	if !tt.HasText("ok") {
+		t.Errorf("the diagnosis is missing: %q", tt.Texts())
+	}
+
+	// An integration with neither a stored report nor a diagnosis draws
+	// neither row — "unknown" is its own state, not a row of zeroes.
+	b := New(newStore(t), Actions{})
+	b.Integrations = func() []Integration {
+		return []Integration{{ID: "dev.floter.plain", Name: "Plain Tool", Enabled: true}}
+	}
+	bt := render(t, b, 720, 900)
+	if err := bt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	bt.Frame()
+	if bt.HasText("Health") {
+		t.Errorf("an unprobed integration shows a health row: %q", bt.Texts())
+	}
+	if bt.HasText("Diagnostics") {
+		t.Errorf("an unchecked integration shows a diagnostics row: %q", bt.Texts())
+	}
+}
+
 // The detected section lists what the machine has and nothing has connected,
 // and its Connect press hands the tool on with the discovery's own words.
 func TestDetectedToolsSection(t *testing.T) {

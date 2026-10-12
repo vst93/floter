@@ -1062,17 +1062,34 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			})
 		}
 
+		// The stored lifecycle health: the probe report lives in the repository,
+		// so the row says how the tool was last found to be — before any check
+		// runs in this session — and a check refreshes it. The status word is
+		// the row's value; the live findings are the diagnostics row below.
+		if integration.Health != "" {
+			tone := t.TextMuted
+			switch integration.Health {
+			case copy.IntegrationsUnhealthy:
+				tone = t.Danger
+			case copy.IntegrationsDegraded:
+				tone = t.Warning
+			}
+			a.row(c, copy.IntegrationsHealth, "", func() {
+				ui.Text(c, integration.Health).FontSize(t.FontSize - 1).TextColor(tone)
+			})
+		}
+
 		if integration.Diagnosis != "" {
 			color := t.TextMuted
 			if integration.DiagnosisFailed {
 				color = t.Danger
 			}
-			a.row(c, copy.IntegrationsHealth, integration.Diagnosis, func() {
+			a.row(c, copy.IntegrationsDiagnostics, integration.Diagnosis, func() {
 				ui.Text(c, integration.state(copy)).FontSize(t.FontSize - 1).TextColor(color)
 			})
 		}
 		if integration.Error != "" {
-			a.row(c, copy.IntegrationsHealth, integration.Error, func() {
+			a.row(c, copy.IntegrationsDiagnostics, integration.Error, func() {
 				ui.Text(c, "\u25cf").FontSize(t.FontSize - 3).TextColor(t.Danger)
 			})
 		}
