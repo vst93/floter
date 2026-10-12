@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"os/exec"
 	"strings"
 	"time"
@@ -130,7 +129,7 @@ func runCaptured(ctx context.Context, entry CommandEntry, args []string, cursor 
 
 	if runCtx.Err() == context.DeadlineExceeded {
 		run.TimedOut = true
-		return run, fmt.Errorf("extensions: %s timed out after %s", entry.Command.ID, timeout)
+		return run, RunTimeoutFailure(int(timeout / time.Second))
 	}
 	if ctx.Err() != nil {
 		return run, ctx.Err()
@@ -141,7 +140,7 @@ func runCaptured(ctx context.Context, entry CommandEntry, args []string, cursor 
 			run.ExitCode = exitErr.ExitCode()
 			return run, nil // a non-zero exit is an answer, not a failure
 		}
-		return run, &ProviderError{Op: "run", Command: strings.Join(run.Command, " "), Err: runErr}
+		return run, RunSpawnFailure(entry.Program, runErr)
 	}
 	run.ExitCode = 0
 	run.Success = true

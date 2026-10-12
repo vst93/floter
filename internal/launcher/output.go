@@ -76,9 +76,21 @@ func (a *App) Copy() i18n.Launcher { return a.copy() }
 func (a *App) RunStatus(run extensions.CapturedRun, err error) string {
 	copy := a.copy()
 	if err != nil && !run.Success && !run.TimedOut {
-		return err.Error()
+		return a.failureReason(err)
 	}
 	return a.runStatus(copy, run)
+}
+
+// failureReason is a failed run's one-line reason. A keyed failure (a stable
+// key plus a JSON payload) is localised; anything else keeps its own words.
+func (a *App) failureReason(err error) string {
+	if err == nil {
+		return ""
+	}
+	if failure, ok := extensions.ParseRunFailure(err.Error()); ok {
+		return runErrorMessage(i18n.For(a.settings().Language).Settings, failure)
+	}
+	return err.Error()
 }
 
 // showOutput puts a captured run's output in front of the user: as a list when
@@ -132,7 +144,7 @@ func (a *App) OutputFor(run extensions.CapturedRun, err error, entry *extensions
 	}
 	if !view.IsList {
 		if err != nil && view.Text == "" {
-			view.Text = err.Error()
+			view.Text = a.failureReason(err)
 		}
 		if view.Text == "" {
 			view.Text = copy.OutputEmpty

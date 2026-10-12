@@ -519,6 +519,18 @@ type Settings struct {
 	RunLabel          string
 	RunIncomplete     string
 	RunOutputHint     string
+	// A failed run is a stable key plus its facts; these are the words. Each
+	// takes the payload fields its own key carries.
+	RunErrorScriptMissing       func(path string) string
+	RunErrorProgramMissing      func(path string) string
+	RunErrorNotExecutable       func(path string) string
+	RunErrorInterpreterMissing  func(language, names, searched string) string
+	RunErrorSpawnFailed         func(path, detail string) string
+	RunErrorTimeout             func(seconds string) string
+	RunErrorKilled              func(id string) string
+	RunErrorIntegrationDisabled func(id string) string
+	RunErrorIntegrationBroken   func(id, reason string) string
+	RunErrorTaskFailed          func(message string) string
 	// The disable confirmation: stopping an integration is a mark, not a
 	// delete, and the notice says so.
 	DisableTitle       func(name string) string

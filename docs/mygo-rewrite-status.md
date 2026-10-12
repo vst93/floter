@@ -99,7 +99,47 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-bc 漂移通知门与相对时间本地化（R7-7）** —— P7-bb 写实的第 2、3 条落地。
+> **最新一轮：P7-bd 运行失败的「键 + JSON 负载」与逐语言渲染（R9-5）** —— P7-bc 后「尚未做」
+> 清单已空，本轮先把清单重写成 5 条具体待办（见下方「具体待办（P7-bd 重写）」），再取第 1 条实现。
+> 后台运行的失败原来是一句英文 prose（`extensions: run failed: fork/exec …`），现在与旧版同一形状：
+> 后端只发**稳定键 + JSON 负载**，界面按语言渲染。
+
+**P7-bd 运行失败的键 + 负载（本轮）**
+
+- **依赖检查**：`curl .../releases/latest` 返回 v0.4.8，`go.mod` 已是 v0.4.8，无版本可升。
+- **偏离点**：`src-tauri/src/extensions/run_error.rs`（旧版后端）只发 `key:{json}` 形态的失败——
+  `run_program_missing` / `run_program_not_executable` / `run_spawn_failed` / `run_timeout` / …，
+  负载字段 `path`/`language`/`names`/`searched`/`detail`/`seconds`/`extension_id`/`reason`/`error`；
+  `spawn_failed`（`run_error.rs:135`）把 `NotFound` 映射成 `run_program_missing`、`PermissionDenied`
+  映射成 `run_program_not_executable`，其余保留 OS 原文。前端 `src/extensions/run-errors.ts` 的
+  `parseRunError`/`runErrorMessage` 负责本地化，`src/i18n.ts:751-764` 是 10 条 `settings.extensions.runError*`。
+  本构建 `internal/extensions/run.go` 的超时与 spawn 失败都返回英文 prose（`fmt.Errorf` / `&ProviderError{}`），
+  `internal/launcher/output.go` 的 `RunStatus` 与输出视图文本把 prose 直接交出；`grep runError internal/i18n`
+  为空——10 个键一个都没有。
+- **修法**：
+  - 新文件 `internal/extensions/runfailure.go`（纯）：`RunErrorKey` 常量集（旧版 10 个键，顺序照旧）、
+    `RunFailure{Key,Payload}`、`Error()` 发 `key:{json}`（marshal 失败退 `key:{}`，键不丢）、
+    `ParseRunFailure` 复刻旧前端那份**保守**解析（键必须 `run_` 起头且在闭集内、负载必须是 JSON 对象；
+    `run_param_required:note` 这类键+id 不认、prose 不认），以及 `RunSpawnFailure` 复刻 OS 错误→键的映射、
+    `RunTimeoutFailure`。
+  - `internal/extensions/run.go`：超时返回 `RunTimeoutFailure(int(timeout/time.Second))`；非 ExitError 的
+    生成失败返回 `RunSpawnFailure(entry.Program, runErr)`；非零退出仍是「答案不是失败」（`nil`）。
+  - `internal/launcher/runfailure.go`：`runErrorMessage(copy i18n.Settings, failure)` 逐键渲染；输出视图的
+    `view.Text` 与一行状态经 `RunStatus`/`failureReason` 走同一渲染，未识别的消息**原样返回**。
+  - i18n：`Settings` 新增 10 个 `RunError*` 句子（en/zh 逐字对齐旧字典，含解释器缺失时
+    `names.join(" / ")` 与 `searched.join("\n")` 的两种连接）。
+- **测试**：`internal/extensions/runfailure_test.go`——`TestRunFailureRoundTrips`、
+  `TestParseRunFailureIsConservative`（9 行：合法/无体/键+id/未知 run 键/prose/非对象/坏 JSON/数组/空）、
+  `TestRunFailurePayloadAccessors`（缺字段不造假）、`TestRunSpawnFailureMapsTheOsError`、
+  `TestRunCapturedNamesAMissingProgram`（真跑一个不存在的程序，失败是键）；
+  `internal/launcher/runfailure_test.go`——`TestRunErrorMessageIsLocalized`（en/zh 同一键）、
+  `TestInterpreterMissingJoinsItsLists`（两种连接）、`TestFailureReasonKeepsUnrecognizedProse`、
+  `TestRunStatusLocalizesAKeyedFailure`（随 store 语言切换）。
+  变异核查：把 `run.go` 的 `RunSpawnFailure` 换回 `&ProviderError{}` → `TestRunCapturedNamesAMissingProgram` 立刻红。
+- **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 27 包全绿、
+  `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+> **上一轮：P7-bc 漂移通知门与相对时间本地化（R7-7）** —— P7-bb 写实的第 2、3 条落地。
 > 后台上游工具改版后的重探（G2）原来一句话都不说；现在它的「一次真变化一句」判定是一个纯函数
 > （`DecideDriftNotice`），三条规则**有顺序**：无变化不发（门都不问，不烧名额）、无名不发（门同样
 > 不问）、同一变化一次。顺带把 freshness 明细那截 `3d`/`3h` 缩写换成原版 `Intl.RelativeTimeFormat`
@@ -1384,7 +1424,8 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 > （P7-z）对这些行从不出现。
 >
 > **P7-bb 更新**：P7-an 的这份 1–8 已全部完成或只剩一次性维护者动作；P7-bb 之后的具体待办
-> 见下方「### 具体待办（P7-bb 重写）」（P7-bc 后已全部落地，清单已空，下一轮回到「对照原版排查偏离点」）。
+> 见下方「### 具体待办（P7-bb 重写）」（P7-bc 后已全部落地）。P7-bd 已重新写实为
+> 「### 具体待办（P7-bd 重写；第 1 条本轮落地）」，下一轮从第 2 条开始。
 
 ### 具体待办（P7-an 把清单写实；每项带 file:line、原版对照、验收标准）
 
