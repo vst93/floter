@@ -98,7 +98,28 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-**P7-ad 存储的健康状态真正画在行上（本轮）**
+**P7-ae 深链的复制确认与命令列表的说明（本轮）**
+- **偏离点**：两处「文案早已写好、没有一个视图画过它」的同一类漏洞：
+  1. About 页的深链卡片每行一个「Copy link」按钮，按下后**毫无反馈**——剪贴板写入本来就是无声的。
+     旧版 `DeepLinkRow` 把按钮文字翻成 `settings.deepLinkCopied`（「Link copied」）1600ms，还带一个对勾。
+     本构建的 `DeepLinkCopied` 字段在 `i18n` 里躺了一整轮没人读。
+  2. Integrations 页每条命令一个开关，但**没有说明这一列开关是干什么的**。旧版 R39 在列表上方印了
+     `settings.extensions.commands`（「Commands」）标题与 `commandsHint`（讲「直出」：搜索框敲命令名加
+     空格、其后即参数、输出就印在搜索界面），并且明确是「印一次，不重复到每一行」。本构建把这两条
+     `IntegrationsCommands`/`IntegrationsCommandsHint` 也留着没画。
+- **修法**：
+  - `settingsui.App` 新增 `copiedLink`/`copiedLinkUntil`：复制成功（`CopyText` 非 nil）后按链接记下
+    1600ms 的确认窗，`about()` 的按钮在窗内改读 `DeepLinkCopied`；`c.After(...)` 在窗口到期时
+    要一帧，按钮自己回到「Copy link」，不靠下一次无关事件。确认只属于**被复制的那一行**。
+  - `integrationRow` 的命令列表前加一行 caption + hint（`a.row` 的空控件行），把两条文案落到列表上方。
+  - 顺带把 `IntegrationsCommandsHint` 的中英文案对齐旧版原文（原来是一句自造的「开关关掉就不出现在
+    启动器里」，语义窄了；旧版讲的是「直出」这条真实路径，本构建 P7-t 已接线）。zh 的标题也从「命令」
+    改成旧版的「命令列表」。
+- **测试**：`TestDeepLinkCopyConfirmsOnTheButton`（复制前两行都是「Copy link」；点第一行后剪贴板拿到
+  该链接、只有它翻成「Link copied」、另一行仍是「Copy link」；`linkCopied` 在窗口内真、越过窗口假）；
+  `TestIntegrationCommandSwitches` 追加命令列表的 caption 与 hint 在（把 caption 行摘掉会红）。
+
+**P7-ad 存储的健康状态真正画在行上**
 - **偏离点**：P3-p 记的是「`probeReport.status` 持久化并显示在集成行上」，但那次提交只往
   `settingsui.Integration` 加了一个 `Health` 字段、在 shell 里把它算出来（跨运行的探针报告 + 本次
   检查的结果），**没有任何视图代码读过它**。于是仓库里持久化的健康状态（healthy / degraded /

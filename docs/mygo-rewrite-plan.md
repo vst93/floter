@@ -1037,6 +1037,25 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
 - **测试**：`TestStoredHealthShowsOnTheRow`（健康行与状态词在、broken 工具显示 not working、
   diagnose 文本在「诊断结果」下、无报告无检查时两行都不画；把健康行摘掉跑一遍会红）。
 
+### P7-ae 深链的复制确认与命令列表的说明（已做）
+
+- **偏离点**：同一类「文案早就写好、没有一个视图画过它」的漏洞，这轮找到两处：
+  - About 页的深链卡片每行一个「Copy link」按钮，按下后**毫无反馈**（剪贴板写入本来就无声）。旧版
+    `DeepLinkRow` 把按钮文字翻成 `settings.deepLinkCopied`（「Link copied」）1600ms 并换成对勾；
+    本构建的 `DeepLinkCopied` 在 `i18n` 里躺了一整轮没人读。
+  - Integrations 页每条命令一个开关，却**没有一行说明这列开关是干什么的**。旧版 R39 在列表上方印
+    `settings.extensions.commands`（「Commands」）与 `commandsHint`（讲「直出」：搜索框敲命令名加空格、
+    其后即参数、输出印在搜索界面），且刻意「印一次，不重复到每一行」；本构建把这两条
+    `IntegrationsCommands`/`IntegrationsCommandsHint` 也留着没画。
+- **修法**：`settingsui.App` 加 `copiedLink`/`copiedLinkUntil`，复制成功（`CopyText` 非 nil）后按链接
+  记下 1600ms 的确认窗，`about()` 的按钮在窗内改读 `DeepLinkCopied`，`c.After(...)` 在到期时要一帧，
+  按钮自己回到「Copy link」；确认只属于被复制的那一行。`integrationRow` 的命令列表前加一行 caption + hint
+  （`a.row` 的空控件行）。顺带把 `IntegrationsCommandsHint` 的中英文案对齐旧版原文（原来是一句自造的
+  「开关关掉就不出现在启动器里」，语义窄了），zh 标题从「命令」改成旧版的「命令列表」。
+- **测试**：`TestDeepLinkCopyConfirmsOnTheButton`（复制前两行都是「Copy link」；点第一行后剪贴板拿到该
+  链接、只有它翻成「Link copied」、另一行仍是「Copy link」；`linkCopied` 在窗内真、越过窗假）；
+  `TestIntegrationCommandSwitches` 追加命令列表 caption 与 hint 在。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。

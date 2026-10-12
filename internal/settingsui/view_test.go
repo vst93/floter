@@ -385,6 +385,51 @@ func TestAboutPage(t *testing.T) {
 	}
 }
 
+// The deep-link copy button confirms the copy on itself — the old build's own
+// "Link copied" for 1.6s — because a clipboard write is otherwise silent. The
+// confirmation belongs to the line that was copied, not to both.
+func TestDeepLinkCopyConfirmsOnTheButton(t *testing.T) {
+	en := i18n.For("en").Settings
+	var copied []string
+	a := New(newStore(t), Actions{CopyText: func(text string) { copied = append(copied, text) }})
+	tt := render(t, a, 720, 900)
+	if err := tt.Click("About"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !tt.HasText(en.DeepLinkCopy) || tt.HasText(en.DeepLinkCopied) {
+		t.Fatalf("before a copy: %q", tt.Texts())
+	}
+	if err := tt.Click(en.DeepLinkCopy); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if len(copied) != 1 || copied[0] != "floter://connect?manifest=/path/to/tool.json" {
+		t.Fatalf("copied = %v", copied)
+	}
+	if !tt.HasText(en.DeepLinkCopied) {
+		t.Errorf("the button did not confirm the copy: %q", tt.Texts())
+	}
+	// Only the copied line confirms; the other keeps its resting label.
+	resting := 0
+	for _, text := range tt.Texts() {
+		if text == en.DeepLinkCopy {
+			resting++
+		}
+	}
+	if resting != 1 {
+		t.Errorf("the other line's button changed too: %d rest on %q", resting, en.DeepLinkCopy)
+	}
+	// The window is the app's own state, so its expiry is testable without
+	// the frame clock.
+	if !a.linkCopied("floter://connect?manifest=/path/to/tool.json", time.Now()) {
+		t.Error("the copied line is not marked copied")
+	}
+	if a.linkCopied("floter://connect?manifest=/path/to/tool.json", time.Now().Add(2*time.Second)) {
+		t.Error("the confirmation outlived its window")
+	}
+}
+
 func TestWindowBehaviourControls(t *testing.T) {
 	store := newStore(t)
 	a := New(store, Actions{})
@@ -728,7 +773,7 @@ func TestIntegrationCommandSwitches(t *testing.T) {
 			},
 		}}
 	}
-	tt := render(t, a, 720, 620)
+	tt := render(t, a, 720, 760)
 	if err := tt.Click("Integrations"); err != nil {
 		t.Fatal(err)
 	}
@@ -740,6 +785,12 @@ func TestIntegrationCommandSwitches(t *testing.T) {
 	// about being ready.
 	if !tt.HasText("Build  \u00b7  runtime unavailable") {
 		t.Errorf("the unavailable note is missing: %q", tt.Texts())
+	}
+	// The per-command switches carry their own caption and the one line that
+	// says what a switch does, above the list rather than on every row.
+	en := i18n.For("en").Settings
+	if !tt.HasText(en.IntegrationsCommands) || !tt.HasText(en.IntegrationsCommandsHint) {
+		t.Errorf("the command list caption/hint = %q", tt.Texts())
 	}
 	if err := tt.Click("Build  \u00b7  runtime unavailable"); err != nil {
 		t.Fatal(err)

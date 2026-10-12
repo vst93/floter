@@ -390,6 +390,12 @@ type App struct {
 	// whether an update is waiting to be installed.
 	UpdateStatus string
 	UpdateReady  bool
+	// copiedLink is the deep-link value the About page's copy button last put
+	// on the clipboard, and copiedLinkUntil when its confirmation expires. The
+	// button reads "Link copied" while it holds (the old build's 1.6s), so a
+	// press that landed reads differently from one that did not.
+	copiedLink      string
+	copiedLinkUntil time.Time
 	// uninstallOpen is which integrations have the componentized uninstall
 	// dialog open, and uninstallDraft its checkboxes.
 	uninstallOpen  map[string]bool
@@ -1106,6 +1112,10 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 		}
 
 		if len(integration.Commands) > 0 && !integration.Orphan {
+			// The per-command switches' caption and the one line that says
+			// what a switch does, printed above the list rather than repeated
+			// on every row (the old build's R39).
+			a.row(c, copy.IntegrationsCommands, copy.IntegrationsCommandsHint, func() {})
 			for _, command := range integration.Commands {
 				command := command
 				label := command.Name
@@ -1482,7 +1492,9 @@ func (a *App) about(c *ui.Context, copy i18n.Settings) {
 		})
 		// The deep-link lines: a URL scheme is invisible when it works and
 		// invisible when it does not, so the About page is the one place a
-		// user can find out that floter answers `floter://` at all.
+		// user can find out that floter answers `floter://` at all. Copying a
+		// line is confirmed on the button itself (the old build's own 1.6s
+		// "Link copied"), because a clipboard write is otherwise silent.
 		a.section(c, copy.DeepLinkTitle, copy.DeepLinkHint, func() {
 			a.card(c, func() {
 				for _, link := range []string{
@@ -1490,10 +1502,22 @@ func (a *App) about(c *ui.Context, copy i18n.Settings) {
 					"floter://register?cmd=rg",
 				} {
 					link := link
+					copied := a.linkCopied(link, c.Now())
+					if copied {
+						// Keep a frame coming at the moment the confirmation
+						// expires, so the button returns to "Copy link" on its
+						// own rather than at the next unrelated event.
+						c.After(a.copiedLinkUntil.Sub(c.Now()))
+					}
+					label := copy.DeepLinkCopy
+					if copied {
+						label = copy.DeepLinkCopied
+					}
 					a.row(c, link, "", func() {
-						if ui.Button(c, copy.DeepLinkCopy).Clicked() {
+						if ui.Button(c, label).Clicked() {
 							if a.Actions.CopyText != nil {
 								a.Actions.CopyText(link)
+								a.copiedLink, a.copiedLinkUntil = link, c.Now().Add(linkCopiedDuration)
 							}
 						}
 					})
@@ -1501,6 +1525,23 @@ func (a *App) about(c *ui.Context, copy i18n.Settings) {
 			})
 		})
 	})
+}
+
+// linkCopiedDuration is how long the deep-link copy button keeps its
+// confirmation: the old build's own 1600ms.
+const linkCopiedDuration = 1600 * time.Millisecond
+
+// linkCopied reports whether the deep-link copy button for value should show
+// its confirmation, clearing the state once its window has passed.
+func (a *App) linkCopied(value string, now time.Time) bool {
+	if a.copiedLink == "" || a.copiedLink != value {
+		return false
+	}
+	if !now.Before(a.copiedLinkUntil) {
+		a.copiedLink = ""
+		return false
+	}
+	return true
 }
 
 // keyValue is one labeled line of read-only information: the label in a
