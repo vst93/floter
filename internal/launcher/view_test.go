@@ -276,7 +276,6 @@ func TestCommandModeRowsCarryTheSource(t *testing.T) {
 		}
 	}
 }
-
 func TestTabExpandsAnExtensionCommandIntoItsArguments(t *testing.T) {
 	a := commandApp()
 	tt := render(t, a)
@@ -2242,6 +2241,32 @@ func TestTheSourceWordSitsAtTheRowsRightEdge(t *testing.T) {
 	}
 	if source.X+source.W > badge.X {
 		t.Errorf("the source overlaps the badge: source %+v badge %+v", source, badge)
+	}
+}
+
+// A PATH command's drawn row carries its two recovered facts: the source word
+// "PATH" in the same right-hand slot an integration's name fills, and the
+// executable's path as the second line, complete enough to read which
+// directory's command this is.
+func TestThePathRowNamesItsSourceOnScreen(t *testing.T) {
+	a := testApp()
+	a.SetTools([]apps.App{{Name: "git", Path: "/usr/local/bin/git"}}, true, nil)
+	tt := render(t, a)
+	tt.Type("git")
+	tt.Frame()
+	title, ok := tt.Find("git")
+	if !ok {
+		t.Fatalf("the PATH command row is gone: %q", tt.Texts())
+	}
+	source, ok := tt.Find("PATH")
+	if !ok {
+		t.Fatalf("the row names no source: %q", tt.Texts())
+	}
+	if source.X < title.X+title.W {
+		t.Errorf("the source sits inside the title: title %+v source %+v", title, source)
+	}
+	if !tt.HasText("/usr/local/bin/git") {
+		t.Errorf("the row does not say what it runs: %q", tt.Texts())
 	}
 }
 

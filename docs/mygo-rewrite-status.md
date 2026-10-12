@@ -987,7 +987,28 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 > 上面 1–8 已全部完成或只剩一次性维护者动作，所以这一轮的入口是第 3 条：对照原版实现做系统
 > 排查。P7-t 找到的是「提示与键帽都在承诺一个从未接线的转换」；P7-u 找到的是同一类的第二处
-> ——空态文案把用户指向「设置 > 集成」，而那一页从来没有内置插件区。
+> ——空态文案把用户指向「设置 > 集成」，而那一页从来没有内置插件区；P7-am 找到的是第三处
+> ——PATH 命令行的两个行级事实（来源词与可执行路径）在扫描进启动器时被丢掉，来源词槽
+> （P7-z）对这些行从不出现。
+
+**P7-am PATH 命令行的来源词与路径（本轮）**
+- **依赖检查**：`go list -m -versions github.com/egoist/mygo` 确认 v0.4.5 仍是最新（go.mod 已是
+  v0.4.5），无版本可升；本轮走第 3 条（对照原版排查偏离点）。
+- **偏离点**：旧版目录给每条 PATH 命令行两个行级事实（`src-tauri/src/extensions/catalog.rs` 的
+  `system_command_entries`，约 :1033）：`source_name: "PATH"`（与 provider 集成的 `source_name`
+  同一字段）与 `description: path.to_string_lossy()`（可执行的完整路径）。Go 侧
+  `internal/launcher/search.go` 的 `toolItems()` 两样都丢：行只有 `Title` 与 `alias`，来源词槽
+  （P7-z 建的 `Item.Source`）对 PATH 命令从不出现，`/usr/bin/git` 与
+  `/opt/homebrew/bin/git` 画的行一模一样。
+- **修法**：`toolItems()` 补上 `Detail: tool.Path` 与 `Source: pathSourceWord`（新常量 `"PATH"`，
+  旧版原文）；路径同时是可搜索文本（`Detail` 本就在 `itemScore` 的搜索路径里），所以查询能经
+  路径里的目录词到达命令——同目录词不再把行顶出去。P7-z 的行级来源槽与右端成组对这批行
+  自动生效，无需新视图代码。命令模式补全行的来源（`argumentItems`）核对过：旧版给它的也是
+  所属集成的名字（`entry.sourceName`），不是 PATH——保持原状，未改动。
+- **测试**：`search_test.go` 的 `TestToolRowNamesItsSourceAndItsPath`（来源词、路径第二行、路径
+  可达搜索）、`TestToolRowsFollowTheSetting`（开关关掉时行与来源词都不画）；`view_test.go` 的
+  `TestThePathRowNamesItsSourceOnScreen`（画出来的行：source 在标题右外侧、路径文本在）。
+  把 `Source: pathSourceWord` 与 `Detail` 摘掉各跑一遍，对应断言全红。
 
 **P7-v 字段自己的两个键（本轮）**
 - **根因**：旧版有两个手势是**搜索字段自己**回答的——`CmdOrCtrl+Backspace`（⌘⌫ / Ctrl+⌫）装填并

@@ -318,6 +318,49 @@ func TestCommandRowCarriesItsIntegrationAsItsSource(t *testing.T) {
 	}
 }
 
+// A PATH command's row names where it came from and what it runs: the source
+// word "PATH" fills the same right-hand slot an integration's name fills for
+// its own commands, and the executable's full path is the second line — both
+// as the old catalog gave every system command (`source_name: "PATH"`,
+// `description: path`). The path is searchable too: a query can reach a
+// command through a directory it sits in, and two commands of one name are
+// told apart by which directory's wins (the first on the PATH, as a shell
+// resolves them — the scan's rule, not the row's).
+func TestToolRowNamesItsSourceAndItsPath(t *testing.T) {
+	a := testApp()
+	a.SetTools([]apps.App{
+		{Name: "git", Path: "/usr/bin/git"},
+	}, true, nil)
+
+	got := a.toolItems()
+	if len(got) != 1 || got[0].Title != "git" {
+		t.Fatalf("toolItems = %v, want one git row", ids(got))
+	}
+	row := got[0]
+	if row.Source != pathSourceWord {
+		t.Errorf("source = %q, want PATH", row.Source)
+	}
+	if row.Detail != "/usr/bin/git" {
+		t.Errorf("detail = %q, want the executable's full path", row.Detail)
+	}
+
+	// The path is searchable beside the name: a directory's own word reaches
+	// the command.
+	if got := a.Match("/usr/bin/git"); len(got) != 1 || got[0].Title != "git" {
+		t.Errorf("the path did not join the search: %v", ids(got))
+	}
+}
+
+// The setting still gates the rows, exactly as before: with the switch off,
+// no PATH command is offered at all, and no source word with it.
+func TestToolRowsFollowTheSetting(t *testing.T) {
+	a := testApp()
+	a.SetTools([]apps.App{{Name: "git", Path: "/usr/bin/git"}}, false, nil)
+	if got := a.toolItems(); len(got) != 0 {
+		t.Errorf("the setting-off scan showed %v", ids(got))
+	}
+}
+
 func TestSplitArgs(t *testing.T) {
 	cases := []struct {
 		in   string

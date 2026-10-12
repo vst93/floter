@@ -427,8 +427,20 @@ func (a *App) workingDirectory() string {
 	return ""
 }
 
+// pathSourceWord is the source word a PATH command's row carries — the old
+// catalog's `source_name: "PATH"` for `SystemCommand` entries, naming the
+// provider the row came from rather than a package.
+const pathSourceWord = "PATH"
+
 // toolItems is the commands found on the PATH as result rows, only when the
 // setting asks for them.
+//
+// Each row carries the two facts the old build's catalog gave a PATH command
+// (catalog.rs `system_command_entries`): the source word "PATH" — the same
+// slot an integration's name fills for its own commands — and the executable's
+// full path as the second line, which tells *which* command of that name the
+// row runs when several directories put one on the PATH, and doubles as
+// searchable text.
 func (a *App) toolItems() []Item {
 	if !a.ShowTools {
 		return nil
@@ -436,10 +448,12 @@ func (a *App) toolItems() []Item {
 	out := make([]Item, 0, len(a.Tools))
 	for _, tool := range a.Tools {
 		out = append(out, Item{
-			ID:    "tool:" + tool.Path,
-			Title: tool.Name,
-			alias: a.ToolAliases[tool.Name],
-			Run:   func() { a.runTool(tool) },
+			ID:     "tool:" + tool.Path,
+			Title:  tool.Name,
+			Detail: tool.Path,
+			Source: pathSourceWord,
+			alias:  a.ToolAliases[tool.Name],
+			Run:    func() { a.runTool(tool) },
 		})
 	}
 	return out
