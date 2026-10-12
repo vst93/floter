@@ -137,6 +137,9 @@ type Launcher struct {
 	HistoryFavorite   string
 	HistoryUnfavorite string
 	DeleteConfirm     string
+	// HistoryCleared is what the status row says once the typed-command
+	// history has been emptied (the field's own Ctrl+Shift+Backspace).
+	HistoryCleared string
 	// OutputDetach opens a command's page in a window of its own.
 	OutputDetach string
 	// The window that opens for it: its title when the command has no name,

@@ -310,10 +310,12 @@ type App struct {
 	// leaving the mode restores it as an ordinary query.
 	modeWord string
 	// armedDelete is the selected row's two-step delete: the first press of
-	// the row's own control arms it (the row prints the muted "press again"
-	// note in place of its trailing chrome), the second removes. -1 while
-	// nothing is armed.
-	armedDelete int
+	// the row's own control (or of the history-delete key, see fieldkeys.go)
+	// arms it — the row prints the muted "press again" note in place of its
+	// trailing chrome — the second removes. It holds the armed row's item id,
+	// the empty string while nothing is armed, so a list that shifted under
+	// the arm cannot confirm on a different row.
+	armedDelete string
 	// pendingPower is the power action the panel is asking about: the
 	// confirmation row shows until the user answers it (see power.go).
 	pendingPower string
@@ -593,7 +595,7 @@ func (a *App) SetQuery(query string) {
 // New builds the launcher state over a settings store and the shell's
 // actions.
 func New(store *settings.Store, actions Actions) *App {
-	return &App{Store: store, Actions: actions, armedDelete: -1}
+	return &App{Store: store, Actions: actions}
 }
 
 // settings is the current normalized settings.
@@ -770,7 +772,11 @@ func (a *App) View(c *ui.Context) {
 				// at weight 460.
 				FontSize(tk.Display).
 				FontWeight(460).
-				Grow(1)
+				Grow(1).
+				// The field answers two keys itself, before the editor takes
+				// them as edits: the history row's delete and the chord that
+				// empties the typed-command history (see fieldkeys.go).
+				HandleInput(a.fieldKeys)
 			// The field is borderless text inside the card, not a boxed
 			// control: the reference's `.collapsed-card__input` carries no
 			// border, no fill and no padding, and the card's own edge is the
@@ -916,8 +922,8 @@ func (a *App) View(c *ui.Context) {
 	}
 	if c.Shortcut(0, ui.KeyEscape) {
 		// An armed delete is the first thing Escape answers.
-		if a.armedDelete >= 0 {
-			a.armedDelete = -1
+		if a.armedDelete != "" {
+			a.armedDelete = ""
 			return
 		}
 		switch {
@@ -979,11 +985,15 @@ func (a *App) View(c *ui.Context) {
 	}
 }
 
-// The mode-local keys: the history's star and delete, which belong to the
-// calculator and clipboard modes rather than to the launcher's own shortcut
-// map. Both are the old build's keys — the app modifier plus D to star, plus
-// Backspace to delete — and neither is rebindable, because a control the user
-// never asked to rebind does not belong in the settings map.
+// The mode-local keys: the history's star, which belongs to the calculator
+// and clipboard modes rather than to the launcher's own shortcut map. It is
+// the old build's key — the app modifier plus D — and is not rebindable,
+// because a control the user never asked to rebind does not belong in the
+// settings map.
+//
+// The modes' other key, the history row's delete, cannot live here: a focused
+// text field's editor takes every Backspace before any `Shortcut` registration
+// is asked, so the field answers it itself (see fieldkeys.go).
 func (a *App) modeShortcuts(c *ui.Context) {
 	switch {
 	case a.calculatorMode:
@@ -995,11 +1005,6 @@ func (a *App) modeShortcuts(c *ui.Context) {
 			a.toggleClipFavorite()
 		}
 	}
-	// Deleting a history row has no key of its own: the focused field claims
-	// every Backspace and Delete (the framework's editor takes them as edits,
-	// and a window shortcut is asked after it), so the selected row carries
-	// its own ✕ instead — see row(). The old build's Control+Backspace is
-	// therefore the one gesture that moved to a control.
 }
 
 // rowControl is one of a launcher row's own trailing controls: a 20u hit
@@ -1261,6 +1266,10 @@ func (a *App) leaveClipboard() {
 	}
 	a.clipboard = false
 	a.modeWord = ""
+	// A half-finished delete does not outlive the mode: re-entering it with
+	// the same row under the choice must not let one press confirm an arm the
+	// user had already walked away from.
+	a.armedDelete = ""
 	a.Selected, a.chosenRow = 0, -1
 }
 
@@ -1588,7 +1597,7 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 			// the one warm token the row may spend — and the second removes.
 			// The armed state leaves with the selection, so a stray press
 			// cannot remove a row the user was not looking at.
-			if a.armedDelete == i {
+			if a.armedDelete == item.ID {
 				armed := ui.Row(c).Shrink(0).AlignItems(ui.Center).Padding(0, t.Space(1))
 				armed.Children(func() {
 					ui.Text(c, copy.DeleteConfirm).FontSize(t.FontSize - 1).
@@ -1602,13 +1611,13 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 					}
 				})
 				if del.Clicked() {
-					a.armedDelete = -1
+					a.armedDelete = ""
 					removed = true
-					a.deleteSelectedHistory()
+					a.deleteHistoryRow(item.ID)
 				}
 			} else {
 				a.rowControl(c, "close", copy.HistoryDelete, func() {
-					a.armedDelete = i
+					a.armedDelete = item.ID
 				})
 			}
 		}
@@ -1623,35 +1632,6 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 		a.Selected = i
 		a.activate(a.Results())
 	}
-}
-
-// deleteSelectedHistory removes the chosen history row — a clipboard entry or
-// a calculation — and keeps the selection on the first row.
-func (a *App) deleteSelectedHistory() {
-	results := a.Results()
-	if a.Selected < 0 || a.Selected >= len(results) {
-		return
-	}
-	copy := StringsFor(a.settings().Language)
-	item := results[a.Selected]
-	switch {
-	case item.clip != nil && a.Clipboard != nil:
-		if err := a.Clipboard.Remove(item.clip.ID); err != nil {
-			a.WarnFeedback(copy.ClipboardDeleteFailed)
-			return
-		}
-		a.toast = copy.ClipboardDeleted
-	case item.calc != nil && a.Calculator != nil:
-		if err := a.Calculator.Delete(item.calc.ID); err != nil {
-			a.WarnFeedback(copy.CalculatorDeleteFailed)
-			return
-		}
-		a.toast = copy.CalculatorDeleted
-		a.refreshCalculator()
-	default:
-		return
-	}
-	a.Selected, a.chosenRow = 0, -1
 }
 
 // activate runs the result at the current selection — or the command being
@@ -1809,7 +1789,7 @@ func (a *App) move(delta, n int) {
 	}
 	// The armed delete belongs to the row the user was looking at; the choice
 	// moving away takes it with it.
-	a.armedDelete = -1
+	a.armedDelete = ""
 }
 
 // nextSelectable moves one step and lands on a row the keyboard can act on: a

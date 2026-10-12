@@ -8,7 +8,7 @@
 
 用 mygo（原生 GPU 自绘 UI + Go）重写的 floter **已经是一个可打包、可运行的完整应用**：单窗口三表面
 （启动器 / 设置 / 终端）、搜索内核、扩展平台（含后台运行、列表协议、导入导出、权限审计）、剪贴板、
-浏览器、计算器、系统集成、打包与 CI 全部就位。**556 项测试全绿**，三平台都能构建，Linux 打包
+浏览器、计算器、系统集成、打包与 CI 全部就位。**601 项测试全绿**，三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
 含测试）。
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 556 项测试
+go test -count=1 ./...         # 601 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -736,11 +736,11 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
   筛选 chip 轴、共享命令词警告点、调用行。
 - 终端：浮动栏 + 呼吸点 + 已结束会话保留 + 字体系探测。
 
-**已知差距：历史行的删除键（框架限制）**
-- 旧版的 `⌃⌫` 删除选中的剪贴板/计算器行在本框架不可达：聚焦的文本框编辑器会先取走所有 Backspace/Delete
-  （`editor.wants` 对 m≠0 的 Backspace 与 Delete 都返回 true，且编辑器的分支在窗口快捷键之前，没有
-  `claimed` 守卫）。删除的**能力**保留在选中行自己的 ✕ 按钮上（`row()` 里已经实现），只是键位换成了控件。
-  等框架允许快捷键先于编辑器裁决，或暴露编辑器的 claimed 守卫后再补键位。
+**已完成（P7-v）：历史行的删除键**
+- 此前记为框架限制（`editor.wants` 对带修饰键的 Backspace 返回 true，且编辑器分支没有 `claimed`
+  守卫，窗口快捷键够不到）。现在由**字段自己的 `HandleInput`** 回答（见 P7-v）：`⌘⌫` / `Ctrl+⌫`
+  装填并确认选中历史行的两步删除，`⌃⇧⌫` 清空命令历史。行尾的 ✕ 控件仍在，两条路共用同一个装填状态。
+- 教训：`c.Shortcut` 够不到的键，`Element.HandleInput` 够得到——前者排在编辑器之后，后者排在最前。
 
 **P4-ab 本机工具连接 + 窗口放置**（本轮）
 - 后端 `CreateCustom`/`PrepareCustom`（铸造 id、写包、help 推导、本地安装、版本探测）+ 前端表单 + shell 接线。
@@ -781,10 +781,37 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 > 排查。P7-t 找到的是「提示与键帽都在承诺一个从未接线的转换」；P7-u 找到的是同一类的第二处
 > ——空态文案把用户指向「设置 > 集成」，而那一页从来没有内置插件区。
 
+**P7-v 字段自己的两个键（本轮）**
+- **根因**：旧版有两个手势是**搜索字段自己**回答的——`CmdOrCtrl+Backspace`（⌘⌫ / Ctrl+⌫）装填并
+  确认选中历史行的两步删除，`Ctrl+Shift+Backspace` 清空输入过的命令历史。本构建把这两个键都记成
+  「框架不可达」：框架的 `keyDownPhysical` 顺序是「聚焦元素的 `HandleInput` → 编辑器的 `wants` →
+  快捷键注册」，而 `editor.wants` 对带修饰键的 Backspace 一律返回 true，且编辑器那一支**没有**
+  `claimed` 守卫——所以 `c.Shortcut` 永远够不到它。删除的能力此前只留在行尾的 ✕ 控件上，命令历史
+  则**根本没有清空的方式**。
+- **修法**：新文件 `internal/launcher/fieldkeys.go`。字段挂 `Element.HandleInput`（框架里唯一先于
+  编辑器的那道缝），两个键在这里裁决，其余一律 `return false`，字段自己的编辑原样继续。
+- **两步删除**：`historyDeleteClaimable` 只在「历史模式（剪贴板/计算器）持有字段 + 字段为空 + 选中行
+  是一条历史行」时认领——旧版 R55 的结构性缓解，手在删文字时 ⌘⌫ 仍是「删到行首」。装填改为**按 id**
+  （`armedDelete string`）而不是按行号：列表在装填期间移位（剪贴板监听器插入新条目）只会让这一按
+  在新行上**重新装填**，不会把确认落到用户没看的行上。装填随「任何其他键」解除（旧版规则），
+  Escape 先回答它、不顺手离开模式；离开模式也清掉装填。
+- **删除后的选中**：回到旧版 `selectionAfterRemoval` 的「邻居接管选中，不跳顶」（此前是跳回第一行）。
+- **命令历史清空**：`Ctrl+Shift+Backspace` 清掉 `History` 并给出状态行文案（`i18n.Launcher`
+  新增 `HistoryCleared`，en/zh 都有；旧版 `launcher.historyCleared`）。
+- **测试**：`fieldkeys_test.go`（装填/确认、计算器行、字段有字时让出编辑手势、普通页与计算器答案行
+  不动、任何键解除装填、Escape 只解除、邻居接管选中、移位不误删、装填随模式退场、命令历史清空、
+  键位与 `selectionAfterRemoval` 的表格）。把 `HandleInput` 摘掉跑一遍，除「断言否定」的三项外全红
+  ——测试确实钉在机制上。
+
 ## 注意事项（踩过的坑）
 
 - **Tester 的 `Type("\b")` 是插入文本，不是按退格**：测试里删字符要用 `tt.Key(0, ui.KeyBackspace)`。
 - **视图里的快捷键先于聚焦元素的 `HandleInput`**：录制器必须在自己录的时候让出 Escape（已处理）。
+- **反过来：编辑器取走的键，只有 `Element.HandleInput` 能先拿到**。框架的按键顺序是「聚焦元素的
+  `HandleInput` → 编辑器的 `wants` → 快捷键注册」，而编辑器那一支没有 `claimed` 守卫——所以
+  `c.Shortcut` 永远够不到带修饰键的 Backspace（字段的删除/清空历史键因此挂在字段自己身上，见 P7-v）。
+- **`Tester.Type` 只发文本、不发 keydown**：要测「按键」的规则得用 `tt.TypeKey(0, ui.KeyX, "x")`，
+  否则 `HandleInput` 根本看不到那次输入。
 - **程序设置文本后要显式把光标移到末尾**（`SetTextSelection`），否则打字会插进命令词中间导致模式退出。
 - **测试不要碰真实系统资源**（剪贴板、登录项、窗口、原生库）：相关能力都在 `shell.Options` 里可注入（`WriteClipboard`、`RegisterShortcut`、`OpenAtLogin`、`OpenPinned`、`ConfirmPermissions`、`Registry`、`NewTerminal`、`Paths`）。
 - **`mygo build` 曾因旧 `package.json` 生成空的 `src/mygo.ts`**；旧前端删除后已消失。

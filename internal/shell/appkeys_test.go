@@ -8,6 +8,7 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
+	"floter/internal/clipboard"
 	"floter/internal/i18n"
 	"floter/internal/settings"
 	"floter/internal/shortcuts"
@@ -255,5 +256,44 @@ func TestMenuBarBelongsOnMacOnly(t *testing.T) {
 		if got := menuBarBelongs(goos); got != want {
 			t.Errorf("menuBarBelongs(%q) = %v, want %v", goos, got, want)
 		}
+	}
+}
+
+// A half-finished history delete does not outlive the launcher surface: the
+// arm waits for its confirming press only while the list it belongs to is the
+// one on screen, so walking to the settings and back cannot turn one press
+// into a removal.
+func TestAHalfFinishedDeleteDoesNotOutliveTheLauncherSurface(t *testing.T) {
+	a := appKeysApp()
+	store := clipboard.NewStore(clipboard.FromConfigRoot(t.TempDir()), 0)
+	if _, _, err := store.AddText("first clip"); err != nil {
+		t.Fatal(err)
+	}
+	a.Clipboard, a.Launcher.Clipboard = store, store
+
+	tt := appKeysRender(t, a)
+	a.Launcher.EnterClipboard()
+	tt.Frame()
+	if got := len(store.Entries()); got != 1 {
+		t.Fatalf("entries = %d, want 1", got)
+	}
+	// The field's own key arms the row.
+	tt.Key(ui.Cmd, ui.KeyBackspace)
+	tt.Frame()
+	if a.Launcher.ArmedDelete() == "" {
+		t.Fatal("the delete key did not arm the row")
+	}
+
+	// The settings take the list off screen, and the arm with it.
+	a.Open(SurfaceSettings)
+	if a.Launcher.ArmedDelete() != "" {
+		t.Errorf("the arm survived leaving the launcher: %q", a.Launcher.ArmedDelete())
+	}
+	// Coming back to a still-armed list, one press would have removed the
+	// row; the arm is gone, so nothing was.
+	a.Open(SurfaceLauncher)
+	tt.Frame()
+	if got := len(store.Entries()); got != 1 {
+		t.Errorf("a row went while the launcher was away: %d entries", got)
 	}
 }

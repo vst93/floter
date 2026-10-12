@@ -314,3 +314,24 @@ opt-in（`FLOTER_TERMINAL_TEST=1`、`FLOTER_SQLITE_TEST=1`、`FLOTER_REGISTRY_TE
   `placeWindow()`（前后各一次，macOS 未 map 的窗口会丢几何）；可见窗口的 reveal
   只 show/focus。决策抽成纯函数 `placementForReveal(wasVisible)`。
 - **测试**：`shell.TestPlacementOnlyOnAFreshReveal`。
+
+## 2026-10-13 · 对照原版补齐：字段自己的两个键（⌘⌫ 删除历史行、⌃⇧⌫ 清空命令历史）
+
+- **发现**：旧版 `useLauncherActions` 里有两个手势是**搜索字段自己**回答的——`CmdOrCtrl+Backspace`
+  （⌘⌫ / Ctrl+⌫）装填并确认选中历史行的两步删除，`Ctrl+Shift+Backspace` 清空输入过的命令历史。
+  本构建把前者记成「框架限制」（能力只留在行尾 ✕ 控件上），后者**完全没有实现**（命令历史没有
+  清空的方式）。
+- **框架的按键顺序**（`ui/input.go` 的 `keyDownPhysical`）：
+  1. 聚焦元素的 `HandleInput`（`!rt.claimed(k)` 时）；
+  2. **编辑器**的 `wants`（**没有** `claimed` 守卫）；
+  3. 快捷键注册（`c.Shortcut` / `Element.Shortcut`）。
+  所以 `c.Shortcut(Cmd, KeyBackspace)` 永远拿不到键：`editor.wants` 对带修饰键的 Backspace 一律
+  返回 true，而且它排在快捷键之前。**`Element.HandleInput` 挂在字段上**是唯一先于编辑器的缝
+  （返回 false 就原样落到编辑器，指针事件也照旧）。
+- **落地**：新文件 `internal/launcher/fieldkeys.go`；字段加 `.HandleInput(a.fieldKeys)`。
+  装填从「行号」改成「行的 item id」（`armedDelete string`），列表在装填期间移位只会重新装填；
+  任何其他键解除装填，Escape 先回答它且不离开模式；离开模式也清装填；**离开启动器表面
+  （`shell.Open`）与窗口失焦（`OnBlur`）也清装填**（旧版 `window blur` 的规则）；删除后的选中
+  回到旧版 `selectionAfterRemoval` 的「邻居接管选中，不跳顶」（此前是跳回第一行）。
+- **测试的坑**：`tt.Type("x")` 只发文本、不发 keydown，`HandleInput` 看不到——测按键规则要用
+  `tt.TypeKey(0, ui.KeyX, "x")`。剪贴板行的 `Item.ID` 是 `"clip:"+entry.ID`，别拿 `entry.ID` 比。

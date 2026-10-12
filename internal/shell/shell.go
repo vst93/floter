@@ -966,6 +966,9 @@ func (a *App) Start() {
 	a.Win.OnResize(a.trackTerminalSize)
 	a.Win.OnFileDrop(a.handleFileDrop)
 	a.Win.OnBlur(func() {
+		// A half-finished confirmation leaves with the keyboard: the old
+		// build's arm was cancelled by a window blur as well as by a key.
+		a.Launcher.DisarmDelete()
 		// A blur right after a reveal is the platform settling; only a
 		// real focused-to-unfocused leave hides the panel.
 		if a.now().Sub(a.shownAt) < showGrace {
@@ -2207,6 +2210,10 @@ func (a *App) Open(s Surface) {
 	if s != SurfaceLauncher {
 		// Entering a surface starts the residency clock (see summon).
 		a.enteredAt = a.now()
+		// The launcher's half-finished gestures do not outlive its surface: an
+		// armed delete waits for its confirming press only while the list it
+		// belongs to is the one on screen.
+		a.Launcher.DisarmDelete()
 	}
 	a.Surf = s
 	switch s {
