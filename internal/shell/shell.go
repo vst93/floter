@@ -378,6 +378,12 @@ func New(opts Options) *App {
 			paths = discovered
 		}
 	}
+	// The host's own version is what a manifest's `compatibility.floter`
+	// range is checked against at install time, as the old host checked it
+	// with its own compile-time version.
+	if paths.HostVersion == "" {
+		paths.HostVersion = appVersion()
+	}
 	a := &App{
 		Store:                opts.Store,
 		Surf:                 SurfaceLauncher,

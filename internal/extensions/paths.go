@@ -50,6 +50,10 @@ type Paths struct {
 	ToolLockFile string
 	// LegacyLockFile is the first-generation state file; read-only here.
 	LegacyLockFile string
+	// HostVersion is the running build's version, the one a manifest's
+	// `compatibility.floter` is checked against at install time. Blank skips
+	// that check, which is what a caller with no version to name gets.
+	HostVersion string
 }
 
 // DiscoverPaths returns the paths under the platform's config directory,

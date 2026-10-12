@@ -1057,10 +1057,52 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
      测试：两种拼写的夹具都能 `Refresh` 出命令；对象形非法时 `LoadManifest` 有错。
      **难点**：本构建没有“活动会话 cwd”（`internal/launcher/search.go:429` 用的是 App 自己的 cwd），
      所以 `ProjectRoot` 的 marker 行走只能靠注入的 cwd 测；先把解析与回退链做对，会话 cwd 单独开一项。
+6. **~~清单的 `compatibility` 区间从未被检查~~**：已完成（本轮，P7-at）。
+   - 原版：`src-tauri/src/extensions/manifest.rs:533` 的 `validate_compatibility`——host 版本剥离
+     pre-release 后对 `compatibility.floter` 做 `VersionReq` 匹配，provider 协议固定为 `1.0` 对
+     `compatibility.providerProtocol` 匹配；在 install（`extensions/install.rs:2522`）与 pre-install
+     review（`commands/extensions.rs:1456,1477`）各跑一次。
+   - 本构建：`internal/extensions/manifest.go:66` 的 `Compatibility{Floter, ProviderProtocol}` 只被
+     `json.Unmarshal` 读进来（`custom.go` 生成工具时写死 `>=0.3.0` / `^1.0`），**没有任何调用者**；
+     `Satisfies`（`semver.go:138`）早已存在，却只服务 registry 选版本（`registry.go:122`）。
+     声明 `floter: ">=99.0.0"` 的包照装照跑。
+   - 卡在哪：`Paths`（`paths.go`）不携带 host 版本；shell 的 `appVersion()`（`shell.go:2815`）
+     是唯一知道自己的地方。
+   - 验收：`Paths.HostVersion` 由 `shell.New` 从 `appVersion()` 注入；`prepare()` 与 `install()`
+     在落盘前调用 `Manifest.ValidateCompatibility(paths.HostVersion)`，两个区间都查，空 host 版本跳过；
+     测试钉「越界拒绝 / 协议不匹配拒绝 / 兼容照常 / 空与不可解析 host 不拒绝 / preview host 按 release 行匹配」。
 
 > 至此具体待办里的 1–3 **三条都卡在框架能力上**（`Options.OnCopy`、终端键入的 `HandleInput`
-> 缝、外观旋钮的暴露），不是应用侧能单方面推进的；第 5 条已由 P7-ar 完成。
+> 缝、外观旋钮的暴露），不是应用侧能单方面推进的；第 4、5 条已完成，第 6 条由 P7-at 完成。
 > 下一轮仍应回到「对照原版排查偏离点」这条路。
+
+**P7-at manifest 的 `compatibility` 区间在落盘前生效（本轮）**
+
+- **依赖检查**：`go.mod` 已是 v0.4.7，`curl .../releases/latest` 与 go proxy 都确认 v0.4.7 仍是最新，
+  无版本可升；本轮走「对照原版排查偏离点」，取本轮写实的第 6 条。
+- **偏离点（解析了、没人查）**：`Manifest.Compatibility`（`internal/extensions/manifest.go:66`）的
+  `Floter` 与 `ProviderProtocol` 两个字段只有 `json.Unmarshal` 读入与 `custom.go:409` 写入，
+  **没有任何校验调用者**；`Satisfies`（`semver.go:138`）这套区间匹配只服务 registry 选版本。
+  于是声明 `floter: ">=99.0.0"` 或 `providerProtocol: "^2.0"` 的包照装照跑。
+- **原版对照**：`manifest.rs:533` 的 `validate_compatibility`——host 版本剥离 pre-release 后匹配
+  `compatibility.floter`，provider 协议固定 `1.0` 匹配 `compatibility.providerProtocol`；
+  install（`install.rs:2522`）与 pre-install review（`extensions.rs:1456,1477`）各跑一次。
+  它**不在**后续 load/refresh 上跑——已装的包不会因 host 升级而失效，本轮同样只在 install 期查。
+- **修法**：
+  - 新文件 `internal/extensions/compatibility.go` 的 `Manifest.ValidateCompatibility(hostVersion)`：
+    空/不可解析的 host 版本**跳过**（「一个说不清自己版本号的构建没有立场拒收」）；preview host
+    剥掉 pre-release 后按 release 行匹配（旧版同规则）；`floter` 与 `providerProtocol` 各自空区间即无约束。
+  - `Paths` 新增 `HostVersion`（`paths.go`）；`shell.New`（`shell.go:385`）在发现路径后从
+    `appVersion()` 注入（测试注入的值不被覆盖）。
+  - `prepare()`（落盘前）与 `install()`（真正写入前）各调用一次；路径都在错误分支清掉 staging。
+- **测试**：`internal/extensions/compatibility_test.go`——`TestValidateCompatibility` 的 12 行表
+  （越界、交集、`||`、协议版本、空区间、空/不可解析 host、preview host、不可解析区间）；
+  `TestPrepareRefusesAManifestBuiltForAnotherRelease`（拒绝且不留 staging）、
+  `TestInstallLocalRefusesAnIncompatibleProtocol`、
+  `TestAHostVersionLetsACompatibleManifestThrough`（注入 host 版本不会误伤正常安装）。
+  变异核查：把 `prepare`/`install` 里的 `ValidateCompatibility` 调用删掉，前两条立刻红。
+- **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 27 包全绿、
+  `GOOS=linux/windows/darwin go build ./...` 三平台通过。
 
 **P7-as manifest 的 `output` 路由终于到达启动器（本轮）**
 
