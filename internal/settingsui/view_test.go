@@ -1751,6 +1751,57 @@ func TestConnectFormDeclaresInputs(t *testing.T) {
 	}
 }
 
+// A declared input that still needs something says so under its own row, and
+// the save refuses there rather than bouncing the typo back from the backend.
+func TestConnectFormNamesAnUnfinishedInputAndRefusesToSave(t *testing.T) {
+	copy := i18n.For("en").Settings
+	connected := []CustomTool{}
+	a := New(settings.NewStore(settings.Default()), Actions{
+		ConnectLocalTool: func(tool CustomTool) { connected = append(connected, tool) },
+	})
+	tt := render(t, a, 720, 2200)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if err := tt.Click("Add a local tool"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if err := tt.Click("Add an input"); err != nil {
+		t.Fatalf("add: %v", err)
+	}
+	tt.Frame()
+	// A named select with no choices: its row names the missing options.
+	a.toolParams[0].ID = "mode"
+	a.toolParams[0].Kind = extensions.ParamSelect
+	a.toolName, a.toolProgram = "Gadget", "/usr/bin/rg"
+	tt.Frame()
+	if !tt.HasText(copy.ParamNeedsOptions) {
+		t.Fatalf("the row did not name its missing options: %q", tt.Texts())
+	}
+	if err := tt.Click(copy.LocalToolConnect); err != nil {
+		t.Fatalf("connect: %v", err)
+	}
+	tt.Frame()
+	if len(connected) != 0 {
+		t.Fatalf("an unfinished input reached the backend: %+v", connected)
+	}
+	// Giving it options clears the line and lets the save through.
+	a.toolParams[0].Options = "fast, slow"
+	tt.Frame()
+	if tt.HasText(copy.ParamNeedsOptions) {
+		t.Fatalf("the row still names options it now has: %q", tt.Texts())
+	}
+	if err := tt.Click(copy.LocalToolConnect); err != nil {
+		t.Fatalf("connect: %v", err)
+	}
+	tt.Frame()
+	if len(connected) != 1 || len(connected[0].Params) != 1 || connected[0].Params[0].ID != "mode" {
+		t.Fatalf("connected = %+v", connected)
+	}
+}
+
 // Editing a generated integration: the button fills the same form from what
 // the integration declares now, and the submit rewrites it (the id names it)
 // rather than connecting a second one.

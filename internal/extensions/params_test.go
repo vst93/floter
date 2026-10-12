@@ -104,6 +104,57 @@ func TestParamIssues(t *testing.T) {
 	}
 }
 
+// The declared-input editor's own validation: the same rules the backend
+// enforces, answered by row so the view can print each reason under the row
+// that caused it — and a row with no id earns nothing, because it is not a
+// declaration yet.
+func TestParamRowIssues(t *testing.T) {
+	good := []ParamDefinition{
+		{ID: "target", Kind: ParamText, Flag: "--target"},
+		{ID: "verbose", Kind: ParamBoolean, Flag: "--verbose"},
+		{ID: "mode", Kind: ParamSelect, Options: []string{"fast"}},
+	}
+	if issues := ParamRowIssues(good); len(issues) != 0 {
+		t.Errorf("a good declaration has issues: %v", issues)
+	}
+
+	cases := []struct {
+		name  string
+		param ParamDefinition
+		want  ParamRowIssue
+	}{
+		{"an id with a space", ParamDefinition{ID: "tar get", Kind: ParamText}, ParamIssueID},
+		{"a select with no options", ParamDefinition{ID: "mode", Kind: ParamSelect}, ParamIssueOptions},
+		{"a boolean with no flag", ParamDefinition{ID: "verbose", Kind: ParamBoolean}, ParamIssueFlag},
+		{"a flag with a space", ParamDefinition{ID: "target", Kind: ParamText, Flag: "--tar get"}, ParamIssueBadFlag},
+	}
+	for _, tc := range cases {
+		issues := ParamRowIssues([]ParamDefinition{tc.param})
+		if issues[0] != tc.want {
+			t.Errorf("%s: issue = %q, want %q", tc.name, issues[0], tc.want)
+		}
+	}
+
+	// The later of two rows sharing an id is the one named; the first is left
+	// to its own rules.
+	issues := ParamRowIssues([]ParamDefinition{
+		{ID: "dup", Kind: ParamText},
+		{ID: "dup", Kind: ParamText},
+	})
+	if _, ok := issues[0]; ok {
+		t.Errorf("the first row was blamed for the duplicate: %v", issues)
+	}
+	if issues[1] != ParamIssueDuplicate {
+		t.Errorf("the duplicate row = %q, want %q", issues[1], ParamIssueDuplicate)
+	}
+
+	// A row still being typed is not a declaration, so it earns no issue even
+	// when its kind would otherwise need one.
+	if issues := ParamRowIssues([]ParamDefinition{{Kind: ParamSelect}}); len(issues) != 0 {
+		t.Errorf("an unnamed row earned an issue: %v", issues)
+	}
+}
+
 // The defaults seed a form: a parameter's own, and a select's first choice so
 // it cannot start blank and invalid.
 func TestParamDefaults(t *testing.T) {

@@ -98,6 +98,25 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
+**P7-w 声明式输入的行内校验真的接线了（本轮）**
+- **根因**：文档里 P7-o 说「选择型缺选项、布尔型缺旗标，都会在该行下面印一条灰色的警告行」，
+  但**没有任何调用点**：`extensions.ParamRowIssues`、`settingsui.issueUnder`、
+  `i18n.Settings.ParamNeedsOptions`/`ParamNeedsFlag` 三样都在仓库里躺着，没有一行视图代码调用
+  它们（`ParamRowIssues` 自己的注释写「没有 id 的行不产生 issue」，代码却给它写了一个 `"id"`
+  ——正因为没人用，这处自相矛盾才一直没被发现）。表单照旧把笔误弹回后端解释。
+- **接线**：`toolParamsEditor` 每帧用 `editorParams()`（与编辑器逐行对应、空 id 保留）算出
+  `ParamRowIssues`，把原因映射成 `i18n.Settings` 的文案、用 `issueUnder` 印在**导致它的那一行
+  下面**；`localToolSection` 的保存按钮在有任何 issue 时**直接不提交**——行下已经说明原因，
+  不再让后端回传错误。
+- **补齐规则与文案**：`ParamRowIssues` 现在返回具名的 `ParamRowIssue`，规则对齐后端
+  `ValidateParams`：非法 id、重复 id、选项型无选项、布尔型无旗标、不是单个 token 的旗标；
+  重复 id 只怪**后出现的那一行**（旧版行为），空 id 的行不算声明、不产生 issue。新增
+  `ParamInvalidID`/`ParamDuplicateID`/`ParamInvalidFlag` 三处中英文案（旧版 `customParamInvalidId`
+  等的原文），与已有的 `ParamNeedsOptions`/`ParamNeedsFlag` 一起用。
+- **测试**：`TestParamRowIssues`（好声明无 issue；非法 id / 无选项 / 无旗标 / 坏旗标各自的原因；
+  重复只怪后者；空 id 不产生 issue）、`TestConnectFormNamesAnUnfinishedInputAndRefusesToSave`
+  （行下真的印出「A choice needs its options.」；点连接不提交；补上选项后行清空且提交成功）。
+
 **P7-v 终端配色的预览（本轮）**
 - **偏离点**：旧版 R43 的 `TerminalPalettePreview`——用户在选配色时要求「这个配色最好可以在下方
   或者边上有一个大概的预览」——在设置页的终端配色行下画一个**迷你终端**（三行静态文本，用该
@@ -326,6 +345,8 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
   导致它的那一行下面——"a save never has to bounce back from the server to explain a typo"。
 - 现在：选择型缺选项、布尔型缺旗标，都会在该行下面印一条灰色的警告行（caption 步、警告色），
   写明这一行还缺什么。
+- **订正（P7-w）**：这一轮只加了机制（`ParamRowIssues`/`issueUnder`/两处文案），**没有调用点**
+  ——表单照旧把笔误弹回后端；P7-w 把它真正接进了编辑器与保存路径。
 
 **P7-m 行内寄存器补齐（本轮）**
 - 计算器行回到旧版 R50 的寄存器：**答案完整在右**（nowrap、strong、620、tabular），表达式是让出

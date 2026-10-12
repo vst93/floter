@@ -2098,6 +2098,12 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 		a.toolDescription = description
 		a.toolMode, a.toolLanguage, a.toolScript = mode, language, script
 		if requested {
+			// A row that still needs something must not reach the backend: the
+			// editor already prints the reason under that row, so the save
+			// refuses here rather than bouncing back an error to re-explain it.
+			if len(extensions.ParamRowIssues(a.editorParams())) > 0 {
+				return
+			}
 			permissions := []string{}
 			for _, permission := range extensions.AllPermissions {
 				if a.toolPermissions[permission] {
@@ -2535,6 +2541,11 @@ func (a *App) toolParamsEditor(c *ui.Context, copy i18n.Settings) {
 		}
 		removed := -1
 		if len(a.toolParams) > 0 {
+			// The declared rows' own validation, answered before a save asks
+			// for it: the line prints under the row that still needs it, so a
+			// typo is named where it happened rather than bounced back from
+			// the backend.
+			issues := extensions.ParamRowIssues(a.editorParams())
 			a.card(c, func() {
 				for index := range a.toolParams {
 					index := index
@@ -2551,6 +2562,12 @@ func (a *App) toolParamsEditor(c *ui.Context, copy i18n.Settings) {
 						ui.TextInput(c, &id).Label(copy.ParamsID).Width(120).Placeholder("target")
 						ui.Segmented(c, &kindIndex, paramKindLabels(copy)...).Label(copy.ParamsKind)
 						ui.TextInput(c, &flag).Label(copy.ParamsFlag).Width(120).Placeholder("--target")
+					}, func() {
+						if issue, ok := issues[index]; ok {
+							if message := paramIssueMessage(copy, issue); message != "" {
+								a.issueUnder(c, message)
+							}
+						}
 					}, func() {
 						a.row(c, copy.ParamsLabel, "", func() {
 							ui.TextInput(c, &label).Label(copy.ParamsLabel).Width(180)
@@ -2601,15 +2618,13 @@ func paramKindLabels(copy i18n.Settings) []string {
 	}
 }
 
-// declaredParams turns the editor's rows into the declarations a request
-// carries: a row with no id is skipped rather than refused, because a row
-// being typed is not yet a declaration.
-func (a *App) declaredParams() []extensions.ParamDefinition {
-	var params []extensions.ParamDefinition
+// editorParams is every row of the declared-input editor as a declaration,
+// one for one with the editor's own rows, so a validation issue's index names
+// the row it belongs to. A blank id survives (declaredParams drops it from
+// the request) because the validator is exactly what has to name it.
+func (a *App) editorParams() []extensions.ParamDefinition {
+	params := make([]extensions.ParamDefinition, 0, len(a.toolParams))
 	for _, param := range a.toolParams {
-		if strings.TrimSpace(param.ID) == "" {
-			continue
-		}
 		definition := extensions.ParamDefinition{
 			ID:       strings.TrimSpace(param.ID),
 			Label:    strings.TrimSpace(param.Label),
@@ -2625,6 +2640,37 @@ func (a *App) declaredParams() []extensions.ParamDefinition {
 		params = append(params, definition)
 	}
 	return params
+}
+
+// declaredParams turns the editor's rows into the declarations a request
+// carries: a row with no id is skipped rather than refused, because a row
+// being typed is not yet a declaration.
+func (a *App) declaredParams() []extensions.ParamDefinition {
+	var params []extensions.ParamDefinition
+	for _, definition := range a.editorParams() {
+		if definition.ID == "" {
+			continue
+		}
+		params = append(params, definition)
+	}
+	return params
+}
+
+// paramIssueMessage is a row's validation line in the reader's language.
+func paramIssueMessage(copy i18n.Settings, issue extensions.ParamRowIssue) string {
+	switch issue {
+	case extensions.ParamIssueID:
+		return copy.ParamInvalidID
+	case extensions.ParamIssueDuplicate:
+		return copy.ParamDuplicateID
+	case extensions.ParamIssueOptions:
+		return copy.ParamNeedsOptions
+	case extensions.ParamIssueFlag:
+		return copy.ParamNeedsFlag
+	case extensions.ParamIssueBadFlag:
+		return copy.ParamInvalidFlag
+	}
+	return ""
 }
 
 // beginEdit fills the local-tool form from what an integration declares and

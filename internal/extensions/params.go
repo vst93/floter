@@ -210,43 +210,59 @@ func truthy(value string) bool {
 	}
 }
 
+// ParamRowIssue is the one thing a row of the declared-input editor still
+// needs: the backend's own reason, named so the view can print it under the
+// row that caused it.
+type ParamRowIssue string
+
+const (
+	// ParamIssueID is a non-empty id that is not a legal key.
+	ParamIssueID ParamRowIssue = "id"
+	// ParamIssueDuplicate is an id another declared row already uses.
+	ParamIssueDuplicate ParamRowIssue = "duplicate"
+	// ParamIssueOptions is a select that declares no choices.
+	ParamIssueOptions ParamRowIssue = "options"
+	// ParamIssueFlag is a boolean with no flag — its value *is* its flag.
+	ParamIssueFlag ParamRowIssue = "flag"
+	// ParamIssueBadFlag is a flag that is not one argv token.
+	ParamIssueBadFlag ParamRowIssue = "badflag"
+)
+
 // ParamRowIssues is what a parameter row still needs, by its position in the
 // editor: the same rules the backend enforces on save, answered before the
 // save is asked for — the old build's `paramIssues`, whose errors rendered
 // under the row that caused them so a save never had to bounce back from the
 // server to explain a typo.
 //
-// A row with no id is not a declaration (the editor skips it), so it earns no
-// issue of its own; a *declared* row that cannot be saved does.
-func ParamRowIssues(params []ParamDefinition) map[int]string {
-	issues := map[int]string{}
+// A row with no id is not a declaration (the editor drops it from the
+// request), so it earns no issue of its own; a *declared* row that cannot be
+// saved does. One row carries at most one reason, the first one the backend
+// would report.
+func ParamRowIssues(params []ParamDefinition) map[int]ParamRowIssue {
+	issues := map[int]ParamRowIssue{}
 	seen := map[string]int{}
 	for i, param := range params {
-		if strings.TrimSpace(param.ID) == "" {
-			issues[i] = "id"
+		id := strings.TrimSpace(param.ID)
+		if id == "" {
 			continue
 		}
-		if !isParamID(param.ID) {
-			issues[i] = "id"
+		if !isParamID(id) {
+			issues[i] = ParamIssueID
 			continue
 		}
-		if first, dup := seen[param.ID]; dup {
-			issues[i] = "duplicate:" + param.ID
-			issues[first] = "duplicate:" + param.ID
+		if _, dup := seen[id]; dup {
+			issues[i] = ParamIssueDuplicate
 			continue
 		}
-		seen[param.ID] = i
-		switch param.Kind {
-		case ParamText, ParamNumber, ParamBoolean, ParamPath:
-		case ParamSelect:
-			if len(param.Options) == 0 {
-				issues[i] = "options"
-			}
-		default:
-			issues[i] = "kind"
-		}
-		if param.Kind == ParamBoolean && param.Flag == "" {
-			issues[i] = "flag"
+		seen[id] = i
+		flag := strings.TrimSpace(param.Flag)
+		switch {
+		case param.Kind == ParamSelect && len(param.Options) == 0:
+			issues[i] = ParamIssueOptions
+		case param.Kind == ParamBoolean && flag == "":
+			issues[i] = ParamIssueFlag
+		case flag != "" && validateParamFlag(flag) != nil:
+			issues[i] = ParamIssueBadFlag
 		}
 	}
 	return issues

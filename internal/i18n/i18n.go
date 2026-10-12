@@ -621,8 +621,11 @@ type Settings struct {
 
 	// The declared-input editor's own validation lines: what a row still
 	// needs, printed under the row that needs it.
+	ParamInvalidID    string
+	ParamDuplicateID  string
 	ParamNeedsOptions string
 	ParamNeedsFlag    string
+	ParamInvalidFlag  string
 	// The local-tool form's own words: the kind of tool (a program on this
 	// machine, or a script the host writes), the script's language and text,
 	// and the line that says whether the language's toolchain is here.

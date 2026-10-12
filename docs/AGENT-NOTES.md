@@ -225,3 +225,18 @@ opt-in（`FLOTER_TERMINAL_TEST=1`、`FLOTER_SQLITE_TEST=1`、`FLOTER_REGISTRY_TE
   Linux → `VibrancyNone`。`TestVibrancyMaterialIsTranslucent` 钉住这三个配置值；
   `TestResolveCarriesMainOpacityIntoTheFill` 钉住「设置页写的 `main_opacity` 确实到达
   渲染层（`Resolve(...).Glass.TintAlpha`），且滑块越低 fill 越薄、默认不是不透明」。
+
+## 2026-10-13 · 对照原版补齐：声明式输入的行内校验真的接线了
+
+- **发现**：文档 P7-o 声称「选择型缺选项、布尔型缺旗标都会在该行下面印一条警告行」，但
+  `extensions.ParamRowIssues`、`settingsui.issueUnder`、`i18n.Settings.ParamNeedsOptions`/
+  `ParamNeedsFlag` 三样都**没有调用点**（`ParamRowIssues` 的注释与代码还自相矛盾：注释说空 id
+  不产生 issue，代码却写了 `"id"`——没人用才没暴露）。表单照旧把笔误弹回后端。
+- **接线**：`toolParamsEditor` 用 `editorParams()`（与编辑器逐行对应、空 id 保留）算
+  `ParamRowIssues`，把 `ParamRowIssue` 映射成文案，用 `issueUnder` 印在**导致它的那一行下面**；
+  `localToolSection` 的保存按钮在任何 issue 下**不提交**。`declaredParams` 现在复用
+  `editorParams` 再丢空 id 行，两者不会分歧。
+- **规则对齐后端 `ValidateParams`**：非法 id / 重复 id / 选项型无选项 / 布尔型无旗标 / 非单 token
+  旗标；重复只怪后出现的行，空 id 行不算声明。文案用旧版原文（`ParamInvalidID` 等）。
+- **注意**：`issueUnder` 是**文本**不是 `a.row`，不参与卡片行计数器（不画分隔线）。
+- **测试**：`TestParamRowIssues`、`TestConnectFormNamesAnUnfinishedInputAndRefusesToSave`。
