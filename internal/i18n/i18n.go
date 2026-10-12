@@ -295,6 +295,9 @@ type Settings struct {
 	LineHeight   string
 	Padding      string
 	Palette      string
+	// PalettePreview names the miniature terminal under the palette picker:
+	// the block that shows the chosen palette's own colors (R43).
+	PalettePreview string
 
 	// The enumerated choices, each id paired with its label.
 	Themes       []Option

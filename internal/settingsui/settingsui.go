@@ -1621,7 +1621,7 @@ func (a *App) general(c *ui.Context, copy i18n.Settings) {
 					})
 				a.pick(c, copy.Padding, "", copy.Paddings, s.TerminalPadding,
 					func(id string) { a.set(func(s *settings.Settings) { s.TerminalPadding = id }) })
-				a.choose(c, copy.Palette, copy.TerminalHint, copy.Palettes, s.TerminalTheme,
+				a.paletteRow(c, copy, s.TerminalTheme,
 					func(id string) { a.set(func(s *settings.Settings) { s.TerminalTheme = id }) })
 			})
 		})
@@ -1722,6 +1722,91 @@ func (a *App) choose(c *ui.Context, label, description string, options []i18n.Op
 	if chosen != "" {
 		apply(chosen)
 	}
+}
+
+// paletteMono is the preview's type: a terminal face, as the reference's
+// `.terminal-palette-preview` had it.
+const paletteMono = "SF Mono, Menlo, Monaco, Consolas, monospace"
+
+// paletteRow is the terminal palette row: the labeled picker, with a
+// miniature terminal painted in the chosen palette's own colors under it
+// (R43: the user asked a palette to show what it does). The preview is a block
+// in the row, never an overlay, and `inherit` follows the app's appearance.
+func (a *App) paletteRow(c *ui.Context, copy i18n.Settings, current string, apply func(string)) {
+	options := copy.Palettes
+	index := optionIndex(options, current)
+	labels := make([]string, len(options))
+	for i, option := range options {
+		labels[i] = option.Label
+	}
+	selected := ""
+	if index >= 0 && index < len(options) {
+		selected = options[index].Label
+	}
+	chosen := ""
+	a.row(c, copy.Palette, copy.TerminalHint, func() {
+		e := ui.Select(c, &selected, labels).Label(copy.Palette).Width(220).Radius(999)
+		if e.Changed() {
+			for _, option := range options {
+				if option.Label == selected {
+					chosen = option.ID
+					break
+				}
+			}
+		}
+	}, func() {
+		// The preview follows the picker in the same frame the choice is made,
+		// so a click on the select repaints the block immediately.
+		shown := current
+		if chosen != "" {
+			shown = chosen
+		}
+		a.palettePreview(c, copy, shown)
+	})
+	if chosen != "" {
+		apply(chosen)
+	}
+}
+
+// palettePreview paints the miniature terminal: three lines of static text in
+// the palette's own background and text, the middle line behind its selection
+// tint and a block cursor at the end — the reference's
+// `.terminal-palette-preview`, which costs no canvas and no PTY.
+func (a *App) palettePreview(c *ui.Context, copy i18n.Settings, name string) {
+	t := c.Theme()
+	tokens := a.tokens(c)
+	colors, ok := terminalui.PaletteColorsFor(name, t.Dark)
+	if !ok {
+		return
+	}
+	box := ui.Column(c).FillWidth().MarginX(t.Space(3.5)).Padding(t.Space(3), t.Space(4)).
+		Gap(1).Border(1, tokens.ControlEdge).Radius(tokens.RadiusSM).
+		Background(colors.Background).Clip().Label(copy.PalettePreview)
+	box.Children(func() {
+		// The prompt line: the prompt a shade quieter than its command, as a
+		// real prompt reads.
+		promptLine := ui.Row(c).Shrink(0).Gap(t.Space(1)).AlignItems(ui.Center)
+		promptLine.Children(func() {
+			ui.Text(c, "$").Font(paletteMono).FontSize(t.FontSize - 1).
+				TextColor(colors.Foreground).Opacity(0.72)
+			ui.Text(c, "floter --version").Font(paletteMono).FontSize(t.FontSize - 1).
+				TextColor(colors.Foreground)
+		})
+		// The output line wears the palette's selection tint behind it.
+		selected := ui.Row(c).Shrink(0).Background(colors.Selection)
+		selected.Children(func() {
+			ui.Text(c, "0.3.5-preview").Font(paletteMono).FontSize(t.FontSize - 1).
+				TextColor(colors.Foreground)
+		})
+		// The last prompt, with the palette's block cursor.
+		cursorLine := ui.Row(c).Shrink(0).Gap(t.Space(1)).AlignItems(ui.Center)
+		cursorLine.Children(func() {
+			ui.Text(c, "$").Font(paletteMono).FontSize(t.FontSize - 1).
+				TextColor(colors.Foreground).Opacity(0.72)
+			ui.Box(c).Width(t.Space(1.25)).Height(t.Space(2.5)).Shrink(0).
+				Background(colors.Cursor)
+		})
+	})
 }
 
 // slider builds one stacked row: the label and its hint above, the track and

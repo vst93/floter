@@ -98,6 +98,23 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
+**P7-v 终端配色的预览（本轮）**
+- **偏离点**：旧版 R43 的 `TerminalPalettePreview`——用户在选配色时要求「这个配色最好可以在下方
+  或者边上有一个大概的预览」——在设置页的终端配色行下画一个**迷你终端**（三行静态文本，用该
+  配色自己的背景/前景/光标/选区上色）。本构建的终端配色只是一个裸的下拉框：选了「Ink」还是
+  「Paper」要回到终端才知道，配色行是设置页里唯一一个「选了看不到结果」的控件。
+- **补上预览**：`terminalui.PaletteColorsFor(name, dark)` 交出某个配色 id 画的四色（背景/前景/
+  光标/选区，背景不透明——预览讲的是颜色，不是透明度）；`settingsui.paletteRow` 把下拉框放在
+  行里、把迷你终端放在**行下**（`row` 的 `below` 槽，卡片内、永不是浮层），三行是 `$ floter
+  --version` / 选中色的 `0.3.5-preview` / `$` + 块光标，等宽字体。
+- **`inherit` 跟外观**：`inherit` 没有固定配色，预览取终端自己的默认主题（`terminal.DarkTheme()`
+  / `LightTheme()`，光标与选区为零时回落到前景，与插件的规则一致），随明暗切换重画——对应旧版
+  预览读 `--terminal-*` token 的行为。
+- **同帧跟随**：下拉框改变的**那一帧**预览就用新配色重画（`shown` 取当帧的 `chosen`），不是等
+  下一帧。
+- **测试**：`TestThePaletteRowPreviewsItsColors`（Ink 的预览背景就是 `0x0b0d10`；换 Paper 后
+  重画）、`TestThePalettePreviewFollowsTheAppearanceForInherit`（inherit 随明暗换背景）。
+
 **P7-u 内置插件的门（本轮）**
 - **根因**：浏览器模式在插件关闭时的空态文案是「浏览器书签与历史已停用。可在“设置 > 集成”中启用。」
   （`copy.BrowserDisabled`，中英文都这么写）——但设置页的 Integrations **根本没有内置插件区**：

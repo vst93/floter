@@ -12,6 +12,7 @@ import (
 	"floter/internal/i18n"
 	"floter/internal/settings"
 	"floter/internal/shortcuts"
+	"floter/internal/terminalui"
 	"time"
 )
 
@@ -1875,5 +1876,70 @@ func TestRestoreDefaultsRuns(t *testing.T) {
 	tt.Frame()
 	if reset != 1 {
 		t.Errorf("restore ran %d times", reset)
+	}
+}
+
+// sample reads one pixel of the last frame, at a logical coordinate.
+func sample(tt *ui.Tester, x, y float32) ui.Color {
+	img := tt.Image()
+	i := int(y)*img.Stride + int(x)*4
+	return ui.Color{R: img.Pix[i], G: img.Pix[i+1], B: img.Pix[i+2], A: img.Pix[i+3]}
+}
+
+// The palette row shows what its choice paints: the block under the picker is
+// drawn in the palette's own background, and follows the picker when it
+// changes (R43 — the user asked a palette to show what it does).
+func TestThePaletteRowPreviewsItsColors(t *testing.T) {
+	store := newStore(t)
+	a := New(store, Actions{})
+	if err := store.Update(func(s *settings.Settings) { s.TerminalTheme = "ink" }); err != nil {
+		t.Fatal(err)
+	}
+	tt := render(t, a, 720, 3000)
+	label := i18n.For("en").Settings.PalettePreview
+	rect, ok := tt.Find(label)
+	if !ok {
+		t.Fatalf("the palette preview is missing: %q", tt.Texts())
+	}
+	want, _ := terminalui.PaletteColorsFor("ink", true)
+	// The sample sits in the block's top-left padding, clear of any glyph.
+	if got := sample(tt, rect.X+4, rect.Y+4); got != want.Background {
+		t.Errorf("preview background = %v, want the ink background %v", got, want.Background)
+	}
+
+	// A new choice repaints the block.
+	if err := store.Update(func(s *settings.Settings) { s.TerminalTheme = "paper" }); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	rect, _ = tt.Find(label)
+	want, _ = terminalui.PaletteColorsFor("paper", false)
+	if got := sample(tt, rect.X+4, rect.Y+4); got != want.Background {
+		t.Errorf("preview background after the change = %v, want the paper background %v", got, want.Background)
+	}
+}
+
+// `inherit` has no fixed pair, so the preview follows the app's own
+// appearance, as the reference's `--terminal-*` tokens did.
+func TestThePalettePreviewFollowsTheAppearanceForInherit(t *testing.T) {
+	store := newStore(t)
+	a := New(store, Actions{})
+	tt := render(t, a, 720, 3000)
+	label := i18n.For("en").Settings.PalettePreview
+	rect, ok := tt.Find(label)
+	if !ok {
+		t.Fatalf("the palette preview is missing: %q", tt.Texts())
+	}
+	want, _ := terminalui.PaletteColorsFor("inherit", false)
+	if got := sample(tt, rect.X+4, rect.Y+4); got != want.Background {
+		t.Errorf("light inherit preview = %v, want %v", got, want.Background)
+	}
+
+	tt.SetDark(true)
+	tt.Frame()
+	rect, _ = tt.Find(label)
+	want, _ = terminalui.PaletteColorsFor("inherit", true)
+	if got := sample(tt, rect.X+4, rect.Y+4); got != want.Background {
+		t.Errorf("dark inherit preview = %v, want %v", got, want.Background)
 	}
 }

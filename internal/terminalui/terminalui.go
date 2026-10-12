@@ -832,6 +832,53 @@ func palette(name string, opacity uint8) *terminal.Theme {
 	return &t
 }
 
+// PaletteColors is the four colors a palette paints — its background, text,
+// cursor and selection — as the settings page's preview shows them (R43: the
+// user asked a palette to show what it does). The background is opaque: the
+// preview is about the colors, not the transparency the live terminal also
+// applies.
+type PaletteColors struct {
+	Background, Foreground, Cursor, Selection ui.Color
+}
+
+// PaletteColorsFor returns the colors a stored palette id paints. The shipped
+// `inherit` follows the window's appearance, so it takes dark; an override
+// paints its own fixed pair. ok is false for an id this build does not know.
+func PaletteColorsFor(name string, dark bool) (PaletteColors, bool) {
+	if spec, ok := palettes[name]; ok {
+		return PaletteColors{
+			Background: packed(spec.bg),
+			Foreground: packed(spec.fg),
+			Cursor:     packed(spec.cursor),
+			Selection:  spec.selection,
+		}, true
+	}
+	if name != "inherit" {
+		return PaletteColors{}, false
+	}
+	// Follow app: the terminal's own default theme, whose cursor and
+	// selection fall back to the foreground when a theme leaves them zero
+	// (the plugin's own rule).
+	base := terminal.DarkTheme()
+	if !dark {
+		base = terminal.LightTheme()
+	}
+	cursor := base.Cursor
+	if cursor.A == 0 {
+		cursor = base.Foreground
+	}
+	selection := base.Selection
+	if selection.A == 0 {
+		selection = base.Foreground.Alpha(0.33)
+	}
+	return PaletteColors{
+		Background: base.Background,
+		Foreground: base.Foreground,
+		Cursor:     cursor,
+		Selection:  selection,
+	}, true
+}
+
 // paletteSpec is one palette override from terminal-appearance.ts.
 type paletteSpec struct {
 	bg, fg, cursor uint32
