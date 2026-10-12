@@ -259,6 +259,24 @@ func commandApp() *App {
 	return a
 }
 
+// The command mode's rows carry the same right-hand source as the command row
+// that opened the mode: the field's scope marker names the command, the rows
+// name the integration it comes from.
+func TestCommandModeRowsCarryTheSource(t *testing.T) {
+	a := commandApp()
+	entry := a.Commands[0]
+	a.enterCommand(entry)
+	rows := a.argumentItems(entry)
+	if len(rows) == 0 {
+		t.Fatal("the command mode offers no rows")
+	}
+	for _, row := range rows {
+		if row.Source != "V Tools" {
+			t.Errorf("row %q source = %q, want V Tools", row.Title, row.Source)
+		}
+	}
+}
+
 func TestTabExpandsAnExtensionCommandIntoItsArguments(t *testing.T) {
 	a := commandApp()
 	tt := render(t, a)
@@ -2098,6 +2116,100 @@ func TestTypingATriggerWordAndSpaceEntersTheCommandMode(t *testing.T) {
 	}
 	if !tt.HasText("Enter runs it") {
 		t.Errorf("the mode's own hint is missing: %q", tt.Texts())
+	}
+}
+
+// The command row's right-hand source sits in a fixed slot at the row's right
+// edge — after the row's own marks and before its keys — never inline after the
+// title, where a narrow window's ellipsis eats it first, precisely when "where
+// did this result come from" matters most.
+func TestTheSourceWordSitsAtTheRowsRightEdge(t *testing.T) {
+	a := commandApp()
+	tt := render(t, a)
+	tt.Frame()
+	title, ok := tt.Find("JSON Viewer")
+	if !ok {
+		t.Fatalf("the command row is gone: %q", tt.Texts())
+	}
+	source, ok := tt.Find("V Tools")
+	if !ok {
+		t.Fatalf("the command row names no source: %q", tt.Texts())
+	}
+	if source.X < title.X+title.W {
+		t.Errorf("the source sits inside the title: title %+v source %+v", title, source)
+	}
+	badge, ok := tt.Find("Ctrl+1")
+	if !ok {
+		t.Fatalf("the row has no numbered badge: %q", tt.Texts())
+	}
+	if source.X+source.W > badge.X {
+		t.Errorf("the source overlaps the badge: source %+v badge %+v", source, badge)
+	}
+}
+
+// The row's warning dot and space keycap belong to the same right-edge group,
+// not to the title line: a narrow window must not be able to truncate them away
+// with the title.
+func TestTheRowsMarksSitAtTheRightEdge(t *testing.T) {
+	a := testApp()
+	a.SetCommands([]extensions.CommandEntry{{
+		IntegrationID: "x", IntegrationName: "X",
+		Command: extensions.Command{ID: "jv", Name: "JSON Viewer", Description: "View JSON"},
+		Program: "/bin/echo", Mode: "pty", Route: extensions.RouteBackground,
+	}})
+	tt := render(t, a)
+	tt.Type("jv")
+	tt.Frame()
+	title, ok := tt.Find("JSON Viewer")
+	if !ok {
+		t.Fatalf("the command row is gone: %q", tt.Texts())
+	}
+	subtitle, ok := tt.Find("View JSON")
+	if !ok {
+		t.Fatalf("the command row has no subtitle: %q", tt.Texts())
+	}
+	key, ok := tt.Find("\u2423")
+	if !ok {
+		t.Fatalf("the direct-output row has no space keycap: %q", tt.Texts())
+	}
+	if key.X < title.X+title.W {
+		t.Errorf("the keycap sits inside the title: title %+v key %+v", title, key)
+	}
+	if key.X < subtitle.X+subtitle.W {
+		t.Errorf("the keycap sits inside the subtitle: subtitle %+v key %+v", subtitle, key)
+	}
+}
+
+// A title or subtitle longer than the row's column is cut, not wrapped: the
+// old build's two text registers are `white-space: nowrap` with an ellipsis,
+// and a wrapped title draws lines the window never charged for and pushes the
+// list out of its own glass. The source slot narrows the column, so the cut is
+// what keeps the row inside the height it was charged.
+func TestLongRowTextIsCutNotWrapped(t *testing.T) {
+	a := testApp()
+	title := strings.Repeat("A very long command name ", 12)
+	subtitle := strings.Repeat("long ", 40)
+	a.SetCommands([]extensions.CommandEntry{{
+		IntegrationID: "x", IntegrationName: "X",
+		Command: extensions.Command{ID: "jv", Name: title, Description: subtitle},
+		Program: "/bin/echo", Mode: "pty",
+	}})
+	a.Query = "jv"
+	tt := render(t, a)
+	tt.Frame()
+	got, ok := tt.Find(title)
+	if !ok {
+		t.Fatalf("the long title is gone: %q", tt.Texts())
+	}
+	if float64(got.H) > a.TitleLine+1 {
+		t.Errorf("the title wrapped: %+v, one line is %.1f", got, a.TitleLine)
+	}
+	got, ok = tt.Find(subtitle)
+	if !ok {
+		t.Fatalf("the long subtitle is gone: %q", tt.Texts())
+	}
+	if float64(got.H) > a.SubtitleLine+1 {
+		t.Errorf("the subtitle wrapped: %+v, one line is %.1f", got, a.SubtitleLine)
 	}
 }
 

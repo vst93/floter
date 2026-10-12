@@ -43,12 +43,12 @@ func (a *App) toolInstallItems() []Item {
 		search := strings.Join([]string{state.ID, state.Name,
 			strings.Join(state.Keywords, " "), strings.Join(state.Probes, " ")}, " ")
 		out = append(out, Item{
-			ID:       "install:" + state.ID,
-			Title:    copy.InstallTool(state.Name),
-			Detail:   state.Command,
-			Search:   search,
-			Shortcut: state.Manager,
-			Run:      func() { a.openInstallSession(state) },
+			ID:     "install:" + state.ID,
+			Title:  copy.InstallTool(state.Name),
+			Detail: state.Command,
+			Source: tools.ManagerName(state.Manager),
+			Search: search,
+			Run:    func() { a.openInstallSession(state) },
 		})
 		if len(out) >= toolRowLimit {
 			break

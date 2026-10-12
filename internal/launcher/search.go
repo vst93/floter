@@ -24,6 +24,13 @@ type Item struct {
 	Title string
 	// Detail is the row's secondary line.
 	Detail string
+	// Source is the row's provenance word, printed in a fixed slot at the
+	// row's right edge when the row has one: the integration that contributed
+	// a command, the package manager an install row will use. The old build's
+	// `.launcher-result__source` — a slot rather than an inline suffix, so a
+	// narrow window cannot ellipsize the answer away exactly when "where did
+	// this come from" matters most.
+	Source string
 	// Shortcut is the key label shown at the row's end, if any.
 	Shortcut string
 	// Search is extra text a query matches but the row does not show:
@@ -147,10 +154,11 @@ func (a *App) commandItems() []Item {
 	out := make([]Item, 0, len(a.Commands))
 	for _, entry := range a.Commands {
 		command := entry.Command
+		// The description is the row's second line and the integration's name
+		// is its right-hand source — two different facts the old build never
+		// let one stand in for the other: a command with no description still
+		// says which integration owns it, and one with a description says both.
 		detail := command.Description
-		if detail == "" {
-			detail = entry.IntegrationName
-		}
 		search := strings.Join(append(append([]string{}, command.Aliases...), command.Keywords...), " ")
 		if entry.IntegrationName != "" {
 			search += " " + entry.IntegrationName
@@ -160,6 +168,7 @@ func (a *App) commandItems() []Item {
 			ID:       "cmd:" + entry.IntegrationID + ":" + command.ID,
 			Title:    command.Name,
 			Detail:   detail,
+			Source:   entry.IntegrationName,
 			Search:   search,
 			Shortcut: "Tab",
 			Run:      func() { a.runCommand(entry) },
@@ -373,6 +382,7 @@ func (a *App) argumentItems(entry extensions.CommandEntry) []Item {
 			ID:       "arg:" + value,
 			Title:    value,
 			Detail:   completion.Detail,
+			Source:   entry.IntegrationName,
 			complete: value,
 			Run:      func() { a.appendWord(value) },
 		})

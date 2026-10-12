@@ -98,6 +98,28 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
+**P7-z 行的 source 槽（本轮）**
+- **偏离点**：旧版 `row-content.ts` 的 `resultRowContent` 给每行算出两个可选字符串——`subtitle`
+  与**右侧固定槽** `source`（`.launcher-result__source`）。`source` 对 `command` 行是**贡献该命令的
+  集成名**，对 install 行是**包管理器**。本构建此前把这两个事实塞进了 `Detail`
+  （`detail = description || IntegrationName`），install 行则把管理器放进了 `Shortcut` 槽——
+  同一格既当键位又当出处。于是有描述的命令行**看不到**它来自哪个集成。
+- **修法**：`launcher.Item.Source`；`commandItems` 的 `Detail` 只放 description、`Source` 放
+  `IntegrationName`（有描述时两者并存，而不是一个顶替另一个）；`toolInstallItems` 的
+  `Source = tools.ManagerName(...)`（`brew` → `Homebrew`，管理器的 proper noun），`Shortcut` 留空；
+  命令模式的补全行同样带 `Source`。
+- **右端成组**：行的右端按旧版顺序：**警告点、`␣` 键帽、source、收藏星、行控件、编号、键位**。
+  之前警告点与 `␣` 键帽画在标题行**内**（标题文字之后、行中间），现在它们是文本列的**兄弟**，
+  因此窄窗口的省略号先吃掉标题而不是它们——这正是「出处」最需要可见的时候。
+- **文本寄存器单行**：标题与副标题现在 `SingleLine()`（旧版 `.launcher-result__title` /
+  `__subtitle` 的 `white-space: nowrap; text-overflow: ellipsis`）。此前它们是普通文本，超长时会
+  **换行**——画出的行比窗口记账的高，把列表推出玻璃。source 槽又把文本列变窄，所以这一步与它同做。
+- **测试**：`TestCommandRowCarriesItsIntegrationAsItsSource`、`TestCommandModeRowsCarryTheSource`、
+  `TestInstallRowNamesTheManagerAsItsSource`、`TestManagerName`、
+  `TestTheSourceWordSitsAtTheRowsRightEdge`（source 在标题右侧、编号徽标左侧）、
+  `TestTheRowsMarksSitAtTheRightEdge`（`␣` 在标题与副标题的右外侧）、
+  `TestLongRowTextIsCutNotWrapped`（超长标题/副标题仍是一行）。
+
 **P7-y 设置/配置/插件表单的每一行都带自己的第二行说明（本轮）**
 - **根因**：`settingsui.checkbox` 是唯一一个把行的说明丢掉的控件助手——它调用 `a.row(c, label, "", ...)`，
   于是所有**开关行**的第二行（旧版 `SettingsRow` 的 `sublabel`、插件表单的 `field.help`）都被丢掉：
@@ -610,6 +632,8 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
   访问时间，无右侧来源词——一致。R73 之后 live-tab 组没有组标题（本构建同样没有），行上的
   tab 标记一致。
 - **内置模式的行**：type word 由 scope 标记承载（本构建同一）。
+- **行的 source 槽**：command 行右侧是**集成名**、install 行右侧是**包管理器**（proper noun）；
+  警告点与 `␣` 键帽与它们同组，都在标题的右外侧，窄窗口先省略标题而不是它们。
 - **设置面板**：不可用户调整大小、无尺寸持久化（旧版同）；启动器查询历史内存态（旧版同）。
 - **i18n 覆盖**：`i18n.Launcher` 111 个字段对旧版 73 个 `launcher.*` 键（超集）；旧版 1030 个
   `settings.*` 键里的大多数属于已不存在的页面/能力（iframe 页、会话 broker、Web 版本号），不为

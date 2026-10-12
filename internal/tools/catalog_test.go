@@ -227,3 +227,18 @@ func TestPlatformKey(t *testing.T) {
 		}
 	}
 }
+
+// ManagerName is the manager's own proper noun, which the install row's source
+// slot prints: "Homebrew", not the executable's "brew". An id with no manager
+// answers empty rather than guessing one.
+func TestManagerName(t *testing.T) {
+	if got := ManagerName("brew"); got != "Homebrew" {
+		t.Errorf("ManagerName(brew) = %q, want Homebrew", got)
+	}
+	if got := ManagerName("cargo"); got != "Cargo" {
+		t.Errorf("ManagerName(cargo) = %q, want Cargo", got)
+	}
+	if got := ManagerName("nope"); got != "" {
+		t.Errorf("ManagerName(nope) = %q, want empty", got)
+	}
+}

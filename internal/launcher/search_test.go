@@ -293,6 +293,31 @@ func TestExtensionCommandsJoinTheSearch(t *testing.T) {
 	}
 }
 
+// The command row's right-hand source is the integration that contributed it,
+// and it is a slot of its own: a command with a description keeps both — the
+// description as its second line, the integration as its provenance — instead
+// of letting one stand in for the other. A command with no description still
+// says who owns it; the source is not a fallback for an empty subtitle.
+func TestCommandRowCarriesItsIntegrationAsItsSource(t *testing.T) {
+	a := testApp()
+	a.SetCommands([]extensions.CommandEntry{
+		{IntegrationID: "io.github.vst93.v", IntegrationName: "V Tools",
+			Command: extensions.Command{ID: "jv", Name: "JSON Viewer", Description: "View JSON"}},
+		{IntegrationID: "io.github.vst93.other", IntegrationName: "Other Tools",
+			Command: extensions.Command{ID: "diff", Name: "Diff"}},
+	})
+	rows := map[string]Item{}
+	for _, item := range a.commandItems() {
+		rows[item.Title] = item
+	}
+	if got := rows["JSON Viewer"]; got.Detail != "View JSON" || got.Source != "V Tools" {
+		t.Errorf("described command = detail %q source %q, want %q / V Tools", got.Detail, got.Source, "View JSON")
+	}
+	if got := rows["Diff"]; got.Detail != "" || got.Source != "Other Tools" {
+		t.Errorf("bare command = detail %q source %q, want empty / Other Tools", got.Detail, got.Source)
+	}
+}
+
 func TestSplitArgs(t *testing.T) {
 	cases := []struct {
 		in   string

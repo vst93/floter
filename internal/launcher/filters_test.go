@@ -264,6 +264,34 @@ func TestToolInvokeRows(t *testing.T) {
 	}
 }
 
+// The install row's right-hand source names the package manager the command
+// will use — the same "where did this row come from" answer a command row gives
+// with its integration name, and the manager's own proper noun ("Homebrew"),
+// not the executable's. The shortcut slot stays empty: the manager is not a
+// key hint.
+func TestInstallRowNamesTheManagerAsItsSource(t *testing.T) {
+	a := testApp()
+	a.SetToolCatalog([]tools.State{{
+		Entry: tools.Entry{ID: "fd", Name: "fd", Probes: []string{"fd"}, Keywords: []string{"find"},
+			Recipes: map[string][]tools.Recipe{"darwin": {{Manager: "brew", Package: "fd"}}}},
+		Installed: false, Manager: "brew", Package: "fd", Command: "brew install fd",
+	}})
+	a.Query = "fd"
+	rows := a.toolInstallItems()
+	if len(rows) != 1 {
+		t.Fatalf("install rows = %+v", rows)
+	}
+	if rows[0].Source != "Homebrew" {
+		t.Errorf("source = %q, want Homebrew", rows[0].Source)
+	}
+	if rows[0].Shortcut != "" {
+		t.Errorf("the manager is not a key hint: shortcut = %q", rows[0].Shortcut)
+	}
+	if rows[0].Detail != "brew install fd" {
+		t.Errorf("detail = %q, want the command verbatim", rows[0].Detail)
+	}
+}
+
 // The plugin modes name their own empty state rather than claiming a search
 // found nothing: nothing copied yet, no favorites, no matches.
 func TestModeEmptyMessages(t *testing.T) {

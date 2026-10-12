@@ -127,8 +127,33 @@ opt-in（`FLOTER_TERMINAL_TEST=1`、`FLOTER_SQLITE_TEST=1`、`FLOTER_REGISTRY_TE
   `ListState.RoundRows`。Flyout 用于"必须伸出窗口边缘的弹出层"——本应用的弹出层（select、chips 齿轮、
   插件表单）都在窗口内，mygo 会把窗口内的弹出层夹回窗口，所以暂不需要；分离输出/钉住窗口必须
   **活得比面板久**，Flyout 由 parent 拥有、不可用。
-- **仍被框架挡住的细节**：`⌃⌫` 清空命令历史（编辑器先吃 Backspace/Delete）；行内的 source 槽、
-  会话的 cwd 行（插件不报告会话 cwd）、插件列表的分页页脚（本构建是虚拟化列表）。
+- **仍被框架挡住的细节**：`⌃⌫` 清空命令历史（编辑器先吃 Backspace/Delete）；会话的 cwd 行
+  （插件不报告会话 cwd）。~~行内的 source 槽~~、~~插件列表的分页页脚~~ 都已完成（分页页脚见 P7-s，
+  source 槽见下面一节）。
+
+## 2026-10-13 · 对照原版补齐：行的 source 槽（右侧固定槽）
+
+- **发现**：旧版 `row-content.ts` 的 `resultRowContent` 给每行算出两个可选字符串——`subtitle`
+  与**右侧固定槽** `source`（`.launcher-result__source`：`flex: 0 1 auto; max-width: 30%`、
+  `text-align: right`、tertiary，选中升一档）。`source` 对 `command` 行是**贡献该命令的集成名**，
+  对 install 行是**包管理器**（`displayName`）。本构建此前把这两个事实塞进了 `Detail`
+  （`commandItems` 的 `detail = description || IntegrationName`），install 行则把管理器放进了
+  `Shortcut` 槽——同一格既当键位又当出处。于是有描述的命令行**看不到**它来自哪个集成。
+- **修法**：`launcher.Item.Source`；`commandItems` 的 `Detail` 只放 description、`Source` 放
+  `IntegrationName`（有描述时两者并存，而不是一个顶替另一个）；`toolInstallItems` 的
+  `Source = tools.ManagerName(...)`（`brew` → `Homebrew`，管理器的 proper noun），`Shortcut` 留空；
+  命令模式的补全行同样带 `Source`。
+- **右端成组**：行的右端按旧版顺序：**警告点、`␣` 键帽、source、收藏星、行控件、编号、键位**。
+  之前警告点与 `␣` 键帽画在标题行**内**（标题文字之后、行中间），现在它们是文本列的**兄弟**，
+  因此窄窗口的省略号先吃掉标题而不是它们——这正是「出处」最需要可见的时候。
+- **测试**：`TestCommandRowCarriesItsIntegrationAsItsSource`、`TestCommandModeRowsCarryTheSource`、
+  `TestInstallRowNamesTheManagerAsItsSource`、`TestManagerName`、
+  `TestTheSourceWordSitsAtTheRowsRightEdge`（source 在标题右侧、编号徽标左侧）、
+  `TestTheRowsMarksSitAtTheRightEdge`（`␣` 在标题与副标题的右外侧）。
+- **文本寄存器单行**：标题与副标题现在 `SingleLine()`（旧版 `.launcher-result__title` /
+  `__subtitle` 的 `white-space: nowrap; text-overflow: ellipsis`）。此前是普通文本，超长时会
+  **换行**——画出的行比窗口记账的高。source 槽把文本列变窄，所以这一步与它同做；
+  `TestLongRowTextIsCutNotWrapped` 钉住超长标题/副标题仍是一行。
 
 ## 2026-10-11 · 追加：scope 标记（模型改造完成）
 

@@ -57,6 +57,19 @@ var Managers = []Manager{
 	{"pipx", "pipx", []string{"pipx"}},
 }
 
+// ManagerName is what the user calls the manager with this id, empty when
+// there is no such manager. The install row's source slot names the manager
+// the command will use, and it is the manager's own proper noun — "Homebrew",
+// not the executable's "brew" — so the row reads like the old build's.
+func ManagerName(id string) string {
+	for _, manager := range Managers {
+		if manager.ID == id {
+			return manager.Name
+		}
+	}
+	return ""
+}
+
 // Recipe is one manager and the package that installs a tool with it.
 type Recipe struct {
 	Manager string

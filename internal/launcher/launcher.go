@@ -1446,17 +1446,20 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 			}
 		})
 		ui.Column(c).Grow(1).Children(func() {
-			// The title line: the title itself, and — beside it — the warning
-			// dot a row carries when its command word is one two integrations
-			// share (always visible, so a narrow window cannot truncate it
-			// away).
+			// The title line: the title itself, and the trailing value a row
+			// prints complete at its right edge.
+			//
+			// Both text registers are single-line and ellipsized, as the old
+			// build's `white-space: nowrap; text-overflow: ellipsis` was: a
+			// title longer than its column is cut, never wrapped into extra
+			// lines the window never charged for.
 			ui.Row(c).Gap(t.Space(1)).AlignItems(ui.Center).Children(func() {
 				// The title is the ladder's title register (`--text-title`,
 				// one step above the body) at 580, and the selected row's
 				// emphasis is its own type: 700, as
 				// `.launcher-result--selected .launcher-result__title` did.
 				title := ui.Text(c, item.Title).FontSize(t.FontSize + 2).
-					FontWeight(580).TextColor(tokens.TextStrong)
+					FontWeight(580).TextColor(tokens.TextStrong).SingleLine()
 				// The action bar's title is a command line the user is handing
 				// over, so it is the terminal's own monospace at 520 (the old
 				// `.launcher-action-bar__title`).
@@ -1465,13 +1468,6 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 				}
 				if i == a.Selected {
 					title.FontWeight(700)
-				}
-				// The warning dot is a real 8u circle, never a glyph in
-				// truncatable text: it reads at any width (the old build's
-				// `.launcher-result__warning`).
-				if item.warning {
-					ui.Box(c).Size(t.Space(2), t.Space(2)).Shrink(0).
-						Radius(t.Space(2)).Background(t.Warning)
 				}
 				// A trailing value prints complete at the row's right edge —
 				// the calculator's answer, which the expression makes room
@@ -1486,37 +1482,60 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 						TextAlign(ui.End).SingleLine().
 						ContentTransition(ui.ContentTransition{Numeric: true})
 				}
-				// The space-bar nudge: a command whose output the launcher
-				// shows itself is entered with one space, and the row says so
-				// with a keycap — deliberately generic (「就笼统点，简洁点，让
-				// 用户意识到可以按空格就行了」), a visual mark whose tooltip
-				// carries the sentence.
-				if item.direct {
-					// The space keycap (R65): a bare `␣` on a 18u bevel — border,
-					// control fill, keycap shadow — not a sentence. The whole
-					// explanation lives in the row's tooltip.
-					key := ui.Row(c).Shrink(0).MinWidth(t.Space(4.5)).Height(t.Space(4.5)).
-						Padding(0, t.Space(1)).Radius(tokens.RadiusXS).
-						Border(1, tokens.ControlEdge).Background(tokens.Control).
-						AlignItems(ui.Center).Justify(ui.Center).
-						Tooltip(copy.DirectOutputHint)
-					key.InsetShadow(0, 1, 0, 0, tokens.LensRim)
-					key.Children(func() {
-						ui.Text(c, "\u2423").FontSize(tokens.Caption).TextColor(tokens.TextSecondary)
-					})
-				}
 			})
 			if item.Detail != "" {
 				// The subtitle is the body register at 510, quiet; the
 				// selected row lifts it one step and thickens it, as the old
 				// build's own selected subtitle did.
 				subtitle := ui.Text(c, item.Detail).FontSize(t.FontSize).
-					FontWeight(510).TextColor(t.TextMuted)
+					FontWeight(510).TextColor(t.TextMuted).SingleLine()
 				if i == a.Selected {
 					subtitle.TextColor(tokens.TextSecondary).FontWeight(600)
 				}
 			}
 		})
+		// The row's right-edge group, in the old build's order: the warning dot,
+		// the space keycap, then the source word. They are siblings of the text
+		// column rather than of its title line, so a narrow window cannot
+		// ellipsize them away with the title — which is exactly when "where did
+		// this result come from" matters most (`.launcher-result__source`).
+		//
+		// The warning dot is a real 8u circle, never a glyph in truncatable
+		// text: it reads at any width (`.launcher-result__warning`).
+		if item.warning {
+			ui.Box(c).Size(t.Space(2), t.Space(2)).Shrink(0).
+				Radius(t.Space(2)).Background(t.Warning)
+		}
+		// The space-bar nudge: a command whose output the launcher shows itself
+		// is entered with one space, and the row says so with a keycap —
+		// deliberately generic (「就笼统点，简洁点，让用户意识到可以按空格就行了」),
+		// a visual mark whose tooltip carries the sentence.
+		if item.direct {
+			// The space keycap (R65): a bare `␣` on a 18u bevel — border,
+			// control fill, keycap shadow — not a sentence. The whole
+			// explanation lives in the row's tooltip.
+			key := ui.Row(c).Shrink(0).MinWidth(t.Space(4.5)).Height(t.Space(4.5)).
+				Padding(0, t.Space(1)).Radius(tokens.RadiusXS).
+				Border(1, tokens.ControlEdge).Background(tokens.Control).
+				AlignItems(ui.Center).Justify(ui.Center).
+				Tooltip(copy.DirectOutputHint)
+			key.InsetShadow(0, 1, 0, 0, tokens.LensRim)
+			key.Children(func() {
+				ui.Text(c, "\u2423").FontSize(tokens.Caption).TextColor(tokens.TextSecondary)
+			})
+		}
+		// The source word: the row's provenance, in a fixed slot at the row's
+		// right edge — the integration that contributed a command, the package
+		// manager an install row will use. An inline suffix is the first thing
+		// ellipsis eats on a narrow window, precisely when the answer matters.
+		if item.Source != "" {
+			source := ui.Text(c, item.Source).FontSize(t.FontSize).
+				FontWeight(510).TextColor(tokens.TextTertiary).SingleLine().
+				MaxWidthPercent(30).TextAlign(ui.End)
+			if i == a.Selected {
+				source.TextColor(tokens.TextSecondary)
+			}
+		}
 		// A history row's own star: the favourite toggle the old build drew as
 		// a 20u box at the row's trailing edge — hidden until the row is
 		// hovered or chosen, and shown whenever the entry is starred. Clicking
