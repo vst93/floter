@@ -98,6 +98,23 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
+**P7-y 设置/配置/插件表单的每一行都带自己的第二行说明（本轮）**
+- **根因**：`settingsui.checkbox` 是唯一一个把行的说明丢掉的控件助手——它调用 `a.row(c, label, "", ...)`，
+  于是所有**开关行**的第二行（旧版 `SettingsRow` 的 `sublabel`、插件表单的 `field.help`）都被丢掉：
+  General 页的四个开关（登录自启 / 失焦隐藏 / 显示常用应用 / 菜单栏图标）只剩一个光秃秃的标签，
+  而它们的 `i18n` 文案（`LaunchAtStartupHint` 等）明明已经写好、只是没人画；
+  Integrations 页的「在搜索里显示 PATH 命令」同理。同一处 bug 还波及两处**声明式表单**：
+  集成配置表单的布尔字段（`config.go` 里 `description` 算出来了却没传给开关）与插件配置表的
+  toggle（`plugincfg.Field.Help` 对 select/slider/text 都传了，只有 toggle 没传）。
+- **修法**：`checkbox` 增加 `description` 参数并落到 `a.row` 的第二行；8 个调用点各自补上自己的说明
+  （General 四个开关、Integrations 的 PATH 开关、终端的光标闪烁传空、配置表单的布尔字段传
+  `description`、插件表单的 toggle 传 `field.Help`）。开关行与其它行从此同一种形状。
+- **顺带**：外观行的 `Theme` 此前也是裸下拉框（旧版有 `settings.themeHint`「自动模式跟随系统外观。」），
+  补上 `i18n.ThemeHint`（en/zh）并传进 `pick`。
+- **测试**：`TestSettingsRowsKeepTheirHints`（General 页的四个开关说明 + 主题说明都在，切到
+  Integrations 后 PATH 开关的说明也在）；`TestPluginSheetRendersAndReportsChanges` 追加
+  `BrowserPluginHint`（toggle 的 help 真的画出来）；`TestConfigurationForm` 给布尔字段加说明并断言它出现。
+
 **P7-x 配置表打开时 chips 行随列表一起退场（本轮）**
 - **偏离点**：旧版 R41 的原文——用户看到「进入设置界面，中间的状态切换栏还是会显示出来」，
   要求筛选 chips 属于**下面的列表**而不是上面的搜索框——在旧版是 `pluginFilterRowVisible` 的第三条

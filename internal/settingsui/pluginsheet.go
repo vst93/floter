@@ -111,7 +111,7 @@ func (a *App) sheetField(c *ui.Context, sheet PluginSheet, field plugincfg.Field
 	switch field.Kind {
 	case plugincfg.Toggle:
 		on, _ := value.(bool)
-		a.checkbox(c, field.Label, on, func(next bool) { sheet.Change(field.Key, next) })
+		a.checkbox(c, field.Label, field.Help, on, func(next bool) { sheet.Change(field.Key, next) })
 	case plugincfg.Select:
 		current, _ := value.(string)
 		a.choose(c, field.Label, field.Help, optionsOf(field.Options), current,

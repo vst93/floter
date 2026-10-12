@@ -818,7 +818,8 @@ func (a *App) integrations(c *ui.Context, copy i18n.Settings) {
 		// The PATH commands' own switch sits with the integrations, as the old
 		// panel had it: it decides whether the search offers them at all.
 		a.card(c, func() {
-			a.checkbox(c, copy.ShowCommandsInSearch, settings.ShowCommandsInSearch(a.Store.Snapshot()),
+			a.checkbox(c, copy.ShowCommandsInSearch, copy.ShowCommandsInSearchHint,
+				settings.ShowCommandsInSearch(a.Store.Snapshot()),
 				func(on bool) {
 					a.set(func(s *settings.Settings) { s.SetShowCommandsInSearch(on) })
 				})
@@ -1522,7 +1523,7 @@ func (a *App) general(c *ui.Context, copy i18n.Settings) {
 	ui.Column(c).FillWidth().Gap(c.Theme().Space(4)).Children(func() {
 		a.section(c, copy.GroupAppearance, "", func() {
 			a.card(c, func() {
-				a.pick(c, copy.Theme, "", copy.Themes, s.Theme,
+				a.pick(c, copy.Theme, copy.ThemeHint, copy.Themes, s.Theme,
 					func(id string) { a.set(func(s *settings.Settings) { s.Theme = id }) })
 				a.pick(c, copy.AppIcon, copy.AppIconHint, copy.AppIcons, a.appIcon(),
 					func(id string) {
@@ -1554,13 +1555,13 @@ func (a *App) general(c *ui.Context, copy i18n.Settings) {
 			a.card(c, func() {
 				a.pick(c, copy.Scale, copy.ScaleHint, copy.Scales, s.UIScale,
 					func(id string) { a.set(func(s *settings.Settings) { s.UIScale = id }) })
-				a.checkbox(c, copy.LaunchAtStartup, s.LaunchAtStartup,
+				a.checkbox(c, copy.LaunchAtStartup, copy.LaunchAtStartupHint, s.LaunchAtStartup,
 					func(on bool) { a.set(func(s *settings.Settings) { s.LaunchAtStartup = on }) })
-				a.checkbox(c, copy.HideOnBlur, s.HideOnBlur,
+				a.checkbox(c, copy.HideOnBlur, copy.HideOnBlurHint, s.HideOnBlur,
 					func(on bool) { a.set(func(s *settings.Settings) { s.HideOnBlur = on }) })
-				a.checkbox(c, copy.ShowRecentInLauncher, settings.ShowRecentInLauncher(s),
+				a.checkbox(c, copy.ShowRecentInLauncher, copy.ShowRecentInLauncherHint, settings.ShowRecentInLauncher(s),
 					func(on bool) { a.set(func(s *settings.Settings) { s.SetShowRecentInLauncher(on) }) })
-				a.checkbox(c, copy.ShowMenubarIcon, settings.ShowMenubarIcon(s),
+				a.checkbox(c, copy.ShowMenubarIcon, copy.ShowMenubarIconHint, settings.ShowMenubarIcon(s),
 					func(on bool) { a.set(func(s *settings.Settings) { s.SetShowMenubarIcon(on) }) })
 				a.choose(c, copy.SurfaceResidency, copy.SurfaceResidencyHint,
 					residencyOptions(copy, s.SurfaceResidencySeconds),
@@ -1611,7 +1612,7 @@ func (a *App) general(c *ui.Context, copy i18n.Settings) {
 					func(v string) { a.set(func(s *settings.Settings) { s.FontFamily = v }) })
 				a.pick(c, copy.CursorShape, "", copy.CursorShapes, s.CursorShape,
 					func(id string) { a.set(func(s *settings.Settings) { s.CursorShape = id }) })
-				a.checkbox(c, copy.CursorBlink, s.CursorBlink,
+				a.checkbox(c, copy.CursorBlink, "", s.CursorBlink,
 					func(on bool) { a.set(func(s *settings.Settings) { s.CursorBlink = on }) })
 				a.slider(c, copy.LineHeight, "", s.TerminalLineHeight,
 					settings.MinTerminalLineHeight, settings.MaxTerminalLineHeight,
@@ -1849,14 +1850,15 @@ func (a *App) slider(c *ui.Context, label, description string, value, lo, hi flo
 
 // checkbox builds one self-labeling check box in the form's content column:
 // the switch of the old panel, in the control this toolkit makes directly
-// clickable by its own text.
-func (a *App) checkbox(c *ui.Context, label string, on bool, apply func(bool)) {
+// clickable by its own text. The description is the row's grey second line,
+// as every other row kind draws it.
+func (a *App) checkbox(c *ui.Context, label, description string, on bool, apply func(bool)) {
 	value := on
 	changed := false
 	// The label is the row's own (the reference puts it at the start) and
 	// the control is the switch at the end, so the check box here is the
 	// switch alone.
-	if a.row(c, label, "", func() {
+	if a.row(c, label, description, func() {
 		if ui.Switch(c, &value).Label(label).Changed() {
 			changed = true
 		}

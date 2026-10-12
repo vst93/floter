@@ -234,6 +234,7 @@ var en = Copy{
 		GroupTerminal:   "Terminal appearance",
 
 		Theme:               "Appearance",
+		ThemeHint:           "Auto follows your system appearance.",
 		AppIcon:             "App icon",
 		AppIconHint:         "The icon shown in the menu bar / tray and on the taskbar. Dark is the default.",
 		Language:            "Language",
@@ -815,6 +816,7 @@ var zh = Copy{
 		GroupTerminal:   "终端外观",
 
 		Theme:               "外观",
+		ThemeHint:           "自动模式跟随系统外观。",
 		AppIcon:             "应用图标",
 		AppIconHint:         "菜单栏 / 托盘以及任务栏上显示的图标。默认为深色。",
 		Language:            "语言",

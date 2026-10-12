@@ -273,6 +273,7 @@ type Settings struct {
 	GroupTerminal   string
 
 	Theme               string
+	ThemeHint           string
 	AppIcon             string
 	AppIconHint         string
 	Language            string

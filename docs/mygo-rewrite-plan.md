@@ -986,6 +986,19 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
   chips 消失而表体与 ✕ 在、Esc 后 chips 回来）；既有 `TestModeOptionsGear`/`TestFieldRowButtons`
   继续钉住齿轮的开关与普通页的两个按钮。
 
+### P7-y 每一行都带自己的第二行说明（已做）
+
+- **根因**：`settingsui.checkbox` 是唯一把行的说明丢掉的控件助手（`a.row(c, label, "", ...)`），
+  于是所有**开关行**的第二行都消失：General 页四个开关（登录自启 / 失焦隐藏 / 显示常用应用 /
+  菜单栏图标）只剩光秃秃的标签，而 `LaunchAtStartupHint` 等 `i18n` 文案早已写好、只是没人画；
+  Integrations 页的「在搜索里显示 PATH 命令」同理。同一处 bug 还波及两处声明式表单：集成配置
+  表单的布尔字段（`config.go` 算出了 `description` 却没传）与插件配置表的 toggle
+  （`plugincfg.Field.Help` 对 select/slider/text 都传了，只有 toggle 没传）。
+- **修法**：`checkbox` 增加 `description` 参数并落到 `a.row` 的第二行；8 个调用点各自补上自己的说明。
+  顺带给外观行补上 `i18n.ThemeHint`（旧版 `settings.themeHint`）。
+- **测试**：`TestSettingsRowsKeepTheirHints`、`TestPluginSheetRendersAndReportsChanges`（追加
+  `BrowserPluginHint`）、`TestConfigurationForm`（布尔字段说明）。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。

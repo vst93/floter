@@ -102,7 +102,7 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 	switch kind {
 	case "boolean":
 		value, _ := draft.values[field.Key].(bool)
-		a.checkbox(c, label, value, func(on bool) { draft.values[field.Key] = on })
+		a.checkbox(c, label, description, value, func(on bool) { draft.values[field.Key] = on })
 	case "select":
 		options := make([]i18n.Option, 0, len(field.Options))
 		for _, option := range field.Options {

@@ -58,6 +58,9 @@ func TestPluginSheetRendersAndReportsChanges(t *testing.T) {
 		copy.BrowserEnabled, copy.BrowserTarget, copy.BrowserCustomDir,
 		copy.BrowserHistoryDays, copy.BrowserSort, copy.BrowserSearchField,
 		copy.BrowserCDPEnabled, copy.BrowserCDPPort, copy.UnitDays,
+		// The toggle rows keep their help line too, not just the selects and
+		// sliders: the switch used to drop it.
+		copy.BrowserPluginHint,
 	} {
 		if !tt.HasText(want) {
 			t.Errorf("missing %q in %q", want, tt.Texts())

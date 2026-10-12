@@ -51,6 +51,37 @@ func TestSettingsShowsThePagesAndTheGeneralControls(t *testing.T) {
 	}
 }
 
+// Every settings row keeps the grey second line the reference showed under
+// its label. The check-box helper used to drop it, so the four General-page
+// switches — and the Integrations page's PATH switch — read as bare labels
+// with nothing saying what they do.
+func TestSettingsRowsKeepTheirHints(t *testing.T) {
+	copy := i18n.For("en").Settings
+	a := New(newStore(t), Actions{})
+	tt := render(t, a, 720, 1600)
+
+	for _, want := range []string{
+		copy.ThemeHint,
+		copy.LaunchAtStartupHint,
+		copy.HideOnBlurHint,
+		copy.ShowRecentInLauncherHint,
+		copy.ShowMenubarIconHint,
+	} {
+		if !tt.HasText(want) {
+			t.Errorf("missing the hint %q in %q", want, tt.Texts())
+		}
+	}
+
+	// The Integrations page's own switch carries its hint too.
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !tt.HasText(copy.ShowCommandsInSearchHint) {
+		t.Errorf("missing the PATH switch's hint in %q", tt.Texts())
+	}
+}
+
 func TestSettingsControlsWriteThroughTheStore(t *testing.T) {
 	store := newStore(t)
 	a := New(store, Actions{})
@@ -1256,7 +1287,7 @@ func TestConfigurationForm(t *testing.T) {
 				{Key: "region", Label: "Region", Type: "select", Options: []string{"eu", "us"}, Default: "eu"},
 				{Key: "tags", Label: "Tags", Type: "multiSelect", Options: []string{"a", "b", "c"}},
 				{Key: "retries", Label: "Retries", Type: "number", Minimum: &min, Maximum: &max},
-				{Key: "verbose", Label: "Verbose", Type: "boolean"},
+				{Key: "verbose", Label: "Verbose", Type: "boolean", Description: "Print every request the tool makes"},
 			},
 			ConfigValues: map[string]any{"endpoint": "https://example.com", "token": "s3cret", "region": "us"},
 		}}
@@ -1278,6 +1309,11 @@ func TestConfigurationForm(t *testing.T) {
 		if !tt.HasText(want) {
 			t.Errorf("the field %q is missing: %q", want, tt.Texts())
 		}
+	}
+	// The boolean field keeps its description too: the switch used to drop
+	// it while the select and the text field showed theirs.
+	if !tt.HasText("Print every request the tool makes") {
+		t.Errorf("the boolean field's description is missing: %q", tt.Texts())
 	}
 	// The loaded values seed the draft: the select shows the stored region,
 	// and a defaulted field the default.
