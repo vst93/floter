@@ -103,6 +103,10 @@ type Actions struct {
 	// RunCommandCaptured runs a command whose manifest sends its output to
 	// the background, and hands the captured output back on the main thread.
 	RunCommandCaptured func(entry extensions.CommandEntry, args []string, done func(extensions.CapturedRun, error))
+	// LoadOutputPage runs a self-paging command again with the cursor from
+	// its last emission, for the next page of an output list. Nil leaves a
+	// self-paging list's footer at "more" without a way to fetch it.
+	LoadOutputPage func(entry extensions.CommandEntry, args []string, cursor string, done func(extensions.CapturedRun, error))
 	// Complete asks the provider for completions of the tokens typed so
 	// far; the shell answers on the main thread. Nil disables dynamic
 	// completion, and the static argument list stands alone.

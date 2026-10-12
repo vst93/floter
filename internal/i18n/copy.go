@@ -115,6 +115,9 @@ var en = Copy{
 		OutputHint:            "Enter copies \u00b7 Esc closes",
 		OutputListHint:        "\u2191\u2193 choose \u00b7 Enter runs \u00b7 Esc closes",
 		OutputFailed:          "Exit code %d",
+		OutputLoading:         "Loading more\u2026",
+		OutputMore:            "Scroll for more",
+		OutputEnd:             "No more results",
 
 		ClipboardFavoriteFailed:  "Could not change the star",
 		ClipboardDeleteFailed:    "Could not delete the entry",
@@ -679,6 +682,9 @@ var zh = Copy{
 		OutputHint:            "回车复制 · Esc 关闭",
 		OutputListHint:        "↑↓ 选择 · 回车执行 · Esc 关闭",
 		OutputFailed:          "退出码 %d",
+		OutputLoading:         "正在加载…",
+		OutputMore:            "滚动加载更多",
+		OutputEnd:             "没有更多了",
 
 		ClipboardFavoriteFailed:  "无法修改收藏",
 		ClipboardDeleteFailed:    "无法删除该条目",

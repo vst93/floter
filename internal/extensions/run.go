@@ -60,12 +60,29 @@ func (r CapturedRun) Text() string {
 	}
 }
 
+// PageCursorEnv is the environment variable a self-paging plugin reads to
+// continue from the cursor its last emission named. The launcher re-runs the
+// command for the next page with this set; a plugin that does not page itself
+// never sees it.
+const PageCursorEnv = "FLOTER_PAGE_CURSOR"
+
 // RunCaptured runs a command headless and captures its output.
 //
 // The argv is the entry's own (the runtime, the manifest's argsPrefix, the
 // caller's arguments), so there is no shell anywhere on the path and no string
 // is re-parsed.
 func RunCaptured(ctx context.Context, entry CommandEntry, args []string) (CapturedRun, error) {
+	return runCaptured(ctx, entry, args, "")
+}
+
+// RunCapturedPage runs a command for a later page of a list it pages itself:
+// the cursor from its last emission is handed over in FLOTER_PAGE_CURSOR, so
+// the plugin can continue where it stopped.
+func RunCapturedPage(ctx context.Context, entry CommandEntry, args []string, cursor string) (CapturedRun, error) {
+	return runCaptured(ctx, entry, args, cursor)
+}
+
+func runCaptured(ctx context.Context, entry CommandEntry, args []string, cursor string) (CapturedRun, error) {
 	argv := append(append([]string{}, entry.Args...), args...)
 	if len(argv) == 0 {
 		return CapturedRun{}, errors.New("extensions: the command has no program to run")
@@ -84,8 +101,12 @@ func RunCaptured(ctx context.Context, entry CommandEntry, args []string) (Captur
 	if entry.Dir != "" {
 		cmd.Dir = entry.Dir
 	}
-	if len(entry.Env) > 0 {
-		cmd.Env = append(providerEnv(Manifest{}), entry.Env...)
+	if len(entry.Env) > 0 || cursor != "" {
+		env := append(providerEnv(Manifest{}), entry.Env...)
+		if cursor != "" {
+			env = append(env, PageCursorEnv+"="+cursor)
+		}
+		cmd.Env = env
 	}
 	// A program that ignores the context must not hold the app: after the
 	// deadline, Wait gives the I/O half a moment and then returns.

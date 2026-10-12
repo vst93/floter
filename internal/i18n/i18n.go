@@ -109,6 +109,11 @@ type Launcher struct {
 	OutputHint      string
 	OutputListHint  string
 	OutputFailed    string
+	// The output list's pagination footer: a page in flight, more to load,
+	// and the end of a list a plugin has finished paging.
+	OutputLoading string
+	OutputMore    string
+	OutputEnd     string
 
 	// The clipboard mode's own feedback lines: the star and the delete.
 	ClipboardFavoriteFailed string

@@ -98,6 +98,20 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
+**P7-s 列表协议的分页（本轮）**
+- **协议**：`extensions.ParseEmission` 除了裸数组（一份完整列表），现在也读对象形态
+  `{"output": [...], "page": {cursor, hasMore}}`；`page` 块格式不合法就被丢掉而不是猜
+  （cursor 不是字符串就是起点、hasMore 严格布尔）——猜一个续页正是列表静默循环的来源。
+- **内存窗口化**：不自带分页的插件，其整份输出在内存里按视口分页（每页 `PageSize = 10` 行，
+  首屏 `InitialPages = 2` 页）。窗口是**前缀**不是切片，页边界只会让列表变长，用户已经看到的行
+  永不移动；装得下首屏的列表拿不到 `page` 块，因此不画页脚、全部行都画。
+- **自带 cursor 的插件**：它自己的 `page` 块被尊重（行不窗口化），滚到底时**带着 cursor 重新执行**
+  命令——cursor 走 `FLOTER_PAGE_CURSOR` 环境变量（旧版只回传、从不重跑，是一个死页脚；这里是
+  它的真实现）。回页按 id 去重合并（先出现的胜出），插件不再说协议时保留已有行并停止追问。
+- **页脚四态**：`loading`（自页插件在飞）/`more`（滚动触发就是提示）/`end`（插件说完了）/无
+  （列表完整）。滚到底的触发用 `ui.ListState.AtEnd()`，即旧版 `LauncherResults` 的滚动触发器。
+- **行内输出视图**的窗口高度仍由启动器固定的十行带决定，所以分页只加页脚，不改窗口几何。
+
 **P7-r 透明底（本轮）**
 - **根因**：面板用 `glass.Glass` 填充，而插件的 shader 永远输出 `vec4(c, 1.0)`——它映射的是场景内
   元素下面的像素，不是桌面。于是整个面板 100% 不透明，透明度滑块怎么拖都看不到桌面
@@ -588,7 +602,9 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 尚未做（按建议优先级）
 
-1. **列表协议的分页**：`page.cursor`/`hasMore` 与滚动加载（需要带着 cursor 重新执行命令）；旧版还有
+1. **列表协议的分页**：已完成（本轮）——`{"output": [...], "page": {cursor, hasMore}}` 的发射
+   形态、内存按视口窗口化（首屏两页、滚到底加一页）、页脚四态（loading/more/end）与滚到底触发；
+   自带 cursor 的插件会被带着 `FLOTER_PAGE_CURSOR` 重新执行，行按 id 去重合并。旧版还有
    `⌘1–⌘0` 的编号角标，Go 侧已完成。
 2. **i18n 全量对齐**：UI 包内没有裸文案（已审计），旧 `src/i18n.ts` 的 1700+ 键大部分属于已不存在的
    页面（插件 iframe 页、剪贴板页、会话页），不为「对齐键数」而搬。

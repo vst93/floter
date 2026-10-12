@@ -183,7 +183,7 @@ func (a *App) runCommandWith(entry extensions.CommandEntry, args []string) {
 			return
 		}
 		a.Actions.RunCommandCaptured(entry, args, func(run extensions.CapturedRun, err error) {
-			a.showOutput(run, err, &entry)
+			a.showOutput(run, err, &entry, args)
 		})
 		return
 	}

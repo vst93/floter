@@ -48,6 +48,98 @@ func TestParseRowsAcceptsTheProtocol(t *testing.T) {
 	}
 }
 
+func TestParseEmissionReadsThePageBlock(t *testing.T) {
+	// The bare array is a complete list: no page block.
+	emission, ok := ParseEmission(`[{"id":"a","title":"A"}]`)
+	if !ok || emission.Page != nil || len(emission.Rows) != 1 {
+		t.Fatalf("bare array = %+v, %v", emission, ok)
+	}
+
+	// The object form carries the plugin's own continuation block.
+	emission, ok = ParseEmission(`{
+	  "output": [{"id":"a","title":"A"}],
+	  "page": {"cursor": "opaque-token", "hasMore": true}
+	}`)
+	if !ok {
+		t.Fatal("the object form was read as text")
+	}
+	if len(emission.Rows) != 1 {
+		t.Fatalf("rows = %+v", emission.Rows)
+	}
+	if emission.Page == nil || emission.Page.Cursor != "opaque-token" || !emission.Page.HasMore {
+		t.Fatalf("page = %+v", emission.Page)
+	}
+
+	// A malformed block is dropped, not guessed: the cursor is the start and
+	// hasMore is strictly boolean.
+	emission, ok = ParseEmission(`{"output": [], "page": {"cursor": 7, "hasMore": "yes"}}`)
+	if !ok || emission.Page == nil || emission.Page.Cursor != "" || emission.Page.HasMore {
+		t.Fatalf("malformed page = %+v, %v", emission, ok)
+	}
+
+	// An object without an output array is not a list at all.
+	for _, stdout := range []string{
+		`{"not":"a list"}`,
+		`{"output": "text"}`,
+		`{"output": [{"id":"a"}]}`,
+		`{"output": [{"id":"a","title":"A","icon":"rocket"}]}`,
+	} {
+		if emission, ok := ParseEmission(stdout); ok {
+			t.Errorf("%s was accepted: %+v", stdout, emission)
+		}
+	}
+}
+
+func TestWindowRowsIsAGrowingPrefix(t *testing.T) {
+	rows := make([]Row, 25)
+	for i := range rows {
+		rows[i] = Row{ID: string(rune('a' + i)), Title: "row"}
+	}
+
+	first, page := WindowRows(rows, InitialPages)
+	if len(first) != InitialPages*PageSize {
+		t.Fatalf("the first window is %d rows", len(first))
+	}
+	if !page.HasMore || page.Cursor != "20" {
+		t.Fatalf("the first page block = %+v", page)
+	}
+
+	second, page := WindowRows(rows, InitialPages+1)
+	if len(second) != len(rows) {
+		t.Fatalf("the second window is %d rows", len(second))
+	}
+	if page.HasMore || page.Cursor != "" {
+		t.Fatalf("the last page block = %+v", page)
+	}
+	// The prefix is stable: a row already shown never moves.
+	for i := range first {
+		if first[i].ID != second[i].ID {
+			t.Fatalf("row %d moved: %q -> %q", i, first[i].ID, second[i].ID)
+		}
+	}
+
+	// A list that fits the first window is complete, with no block.
+	short := rows[:PageSize]
+	visible, page := WindowRows(short, InitialPages)
+	if len(visible) != len(short) || page.HasMore {
+		t.Fatalf("a short list paged: %d, %+v", len(visible), page)
+	}
+}
+
+func TestMergeRowsDedupesByID(t *testing.T) {
+	merged := MergeRows(
+		[]Row{{ID: "a", Title: "A"}, {ID: "b", Title: "B"}},
+		[]Row{{ID: "b", Title: "B again"}, {ID: "c", Title: "C"}},
+	)
+	if len(merged) != 3 {
+		t.Fatalf("merged = %+v", merged)
+	}
+	// The first occurrence keeps its position and its content.
+	if merged[1].ID != "b" || merged[1].Title != "B" {
+		t.Errorf("the repeated row won: %+v", merged[1])
+	}
+}
+
 func TestParseRowsFallsBackToText(t *testing.T) {
 	cases := map[string]string{
 		"not json":                 "plain text",

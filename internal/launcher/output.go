@@ -48,6 +48,23 @@ type OutputView struct {
 	// Entry is the command the output came from, when it came from one: the
 	// window that can be opened for it re-runs the same command.
 	Entry *extensions.CommandEntry
+	// Args are the arguments the run was given, kept so a later page of a
+	// self-paging list re-runs the same command.
+	Args []string
+	// AllRows is the full set of rows the emission carried, before any
+	// in-memory windowing; Rows is the window actually drawn.
+	AllRows []extensions.Row
+	// Page is the list's pagination state: the plugin's own block when it
+	// pages itself, the window's block when the launcher pages in memory, and
+	// nil for a list that is complete in one emission.
+	Page *extensions.Page
+	// PagesLoaded is how many viewport pages the in-memory window holds.
+	PagesLoaded int
+	// Declared is true when the plugin pages itself: its cursor is replayed
+	// rather than the window being grown.
+	Declared bool
+	// LoadingMore is true while a self-paging plugin's next page is in flight.
+	LoadingMore bool
 }
 
 // Copy is the launcher's copy in the stored language, for a caller outside
@@ -66,8 +83,9 @@ func (a *App) RunStatus(run extensions.CapturedRun, err error) string {
 
 // showOutput puts a captured run's output in front of the user: as a list when
 // the command printed the list protocol, as text otherwise.
-func (a *App) showOutput(run extensions.CapturedRun, err error, entry *extensions.CommandEntry) {
+func (a *App) showOutput(run extensions.CapturedRun, err error, entry *extensions.CommandEntry, args []string) {
 	view := a.OutputFor(run, err, entry)
+	view.Args = args
 	a.output = &view
 	a.Selected, a.chosenRow = 0, -1
 }
@@ -92,9 +110,25 @@ func (a *App) OutputFor(run extensions.CapturedRun, err error, entry *extensions
 	}
 	// A list is read from standard output alone: standard error beside it is
 	// a warning, not part of the protocol.
-	if rows, ok := extensions.ParseRows(run.Stdout); ok {
-		view.Rows, view.IsList = rows, true
-		view.Selected = firstRunnable(rows)
+	if emission, ok := extensions.ParseEmission(run.Stdout); ok {
+		view.Rows, view.IsList = emission.Rows, true
+		view.AllRows = emission.Rows
+		view.PagesLoaded = extensions.InitialPages
+		view.Declared = emission.Page != nil
+		view.Page = emission.Page
+		if !view.Declared {
+			// A plugin that hands over its whole list is windowed in memory,
+			// one viewport page at a time: a complete list gets no block at all,
+			// so a short list draws no footer and every row.
+			rows, page := extensions.WindowRows(emission.Rows, view.PagesLoaded)
+			view.Rows = rows
+			if page.HasMore {
+				view.Page = &page
+			} else {
+				view.Page = nil
+			}
+		}
+		view.Selected = firstRunnable(view.Rows)
 	}
 	if !view.IsList {
 		if err != nil && view.Text == "" {
@@ -115,6 +149,75 @@ func firstRunnable(rows []extensions.Row) int {
 		}
 	}
 	return -1
+}
+
+// loadMoreOutputPage asks for the next page of an output list: a self-paging
+// plugin is re-run with the cursor from its last emission, and an in-memory
+// window simply grows by one page. A complete list, or a fetch already in
+// flight, is left alone.
+func (a *App) loadMoreOutputPage() {
+	view := a.output
+	if view == nil || !view.IsList || view.Page == nil || !view.Page.HasMore || view.LoadingMore {
+		return
+	}
+	if view.Declared {
+		if view.Entry == nil || a.Actions.LoadOutputPage == nil {
+			return
+		}
+		view.LoadingMore = true
+		entry := *view.Entry
+		args := append([]string{}, view.Args...)
+		cursor := view.Page.Cursor
+		a.Actions.LoadOutputPage(entry, args, cursor, func(run extensions.CapturedRun, err error) {
+			if a.output != view {
+				return // the view was closed or replaced while the page ran
+			}
+			view.LoadingMore = false
+			emission, ok := extensions.ParseEmission(run.Stdout)
+			if !ok {
+				// The plugin stopped speaking the protocol: keep what we have
+				// and stop asking, rather than looping on a page we cannot read.
+				view.Page = &extensions.Page{}
+				return
+			}
+			view.Rows = extensions.MergeRows(view.Rows, emission.Rows)
+			view.AllRows = view.Rows
+			if emission.Page != nil {
+				view.Page = emission.Page
+			} else {
+				view.Page = &extensions.Page{}
+			}
+		})
+		return
+	}
+	view.PagesLoaded++
+	rows, page := extensions.WindowRows(view.AllRows, view.PagesLoaded)
+	view.Rows = rows
+	if page.HasMore {
+		view.Page = &page
+	} else {
+		view.Page = nil
+	}
+}
+
+// outputFooter draws the list's pagination line. The scroll trigger is the
+// affordance, so "more" is the quiet state; a self-paging plugin's fetch in
+// flight says so, and a list the plugin has finished says nothing.
+func (a *App) outputFooter(c *ui.Context, copy i18n.Launcher, view *OutputView) {
+	if view.Page == nil {
+		return
+	}
+	t := c.Theme()
+	text := copy.OutputMore
+	switch {
+	case view.LoadingMore:
+		text = copy.OutputLoading
+	case !view.Page.HasMore:
+		text = copy.OutputEnd
+	}
+	ui.Row(c).FillWidth().Shrink(0).Padding(t.Space(1), t.Space(2)).Justify(ui.Center).Children(func() {
+		ui.Text(c, text).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+	})
 }
 
 // moveOutputSelection moves the list's choice by one, skipping rows that
@@ -241,9 +344,17 @@ func (a *App) outputBody(c *ui.Context, copy i18n.Launcher, edge float32) {
 	header := t.Space(4)
 	ui.Column(c).Fill().Children(func() {
 		if view.IsList {
-			ui.List(c.Key("launcher.output.list"), &a.OutputList, len(view.Rows), func(i int) {
-				a.outputRow(c, view.Rows[i], i)
-			}).Fill().Padding(edge+header, t.Space(2), 0, t.Space(2)).Label(view.Title)
+			ui.Column(c).Fill().Children(func() {
+				ui.List(c.Key("launcher.output.list"), &a.OutputList, len(view.Rows), func(i int) {
+					a.outputRow(c, view.Rows[i], i)
+				}).Fill().Padding(edge+header, t.Space(2), 0, t.Space(2)).Label(view.Title)
+				// The scroll trigger: reaching the end of what is loaded asks for
+				// the next page, exactly as the reference's own list did.
+				if a.OutputList.AtEnd() {
+					a.loadMoreOutputPage()
+				}
+				a.outputFooter(c, copy, view)
+			})
 		} else {
 			ui.Scroll(c.Key("launcher.output")).TrackScroll(&a.Output).Fill().
 				Padding(edge+header, t.Space(3), t.Space(1), t.Space(3)).Children(func() {

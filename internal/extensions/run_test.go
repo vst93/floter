@@ -18,6 +18,28 @@ func runEntry(script string) CommandEntry {
 	}
 }
 
+// A page load hands the plugin the cursor its last emission named, in
+// FLOTER_PAGE_CURSOR, and leaves the first run without one.
+func TestRunCapturedPageHandsOverTheCursor(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the fixture runs through sh")
+	}
+	run, err := RunCapturedPage(context.Background(), runEntry(`printf '%s' "$`+PageCursorEnv+`"`), nil, "opaque-token")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.TrimSpace(run.Stdout) != "opaque-token" {
+		t.Errorf("cursor = %q", run.Stdout)
+	}
+	first, err := RunCaptured(context.Background(), runEntry(`printf '%s' "[$`+PageCursorEnv+`]"`), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.TrimSpace(first.Stdout) != "[]" {
+		t.Errorf("the first run saw a cursor: %q", first.Stdout)
+	}
+}
+
 func TestRunCapturedCapturesBothStreams(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("the fixture runs through sh")

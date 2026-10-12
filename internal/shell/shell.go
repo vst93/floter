@@ -479,6 +479,7 @@ func New(opts Options) *App {
 		},
 		RunCommand:         a.runCommand,
 		RunCommandCaptured: a.runCommandCaptured,
+		LoadOutputPage:     a.loadOutputPage,
 		Power:              a.power,
 		OpenPath:           a.openPath,
 		OpenInTerminal:     a.openInTerminal,
@@ -2113,6 +2114,17 @@ func (a *App) runCommandCaptured(entry extensions.CommandEntry, args []string, d
 			done(run, err)
 			a.notifyRun(entry, run, err)
 		})
+	}()
+}
+
+// loadOutputPage runs a self-paging command again with the cursor from its
+// last emission, for the next page of an output list. Unlike the first run,
+// a page load does not raise a completion notification: it is a continuation
+// of the same run, not a new piece of news.
+func (a *App) loadOutputPage(entry extensions.CommandEntry, args []string, cursor string, done func(extensions.CapturedRun, error)) {
+	go func() {
+		run, err := extensions.RunCapturedPage(context.Background(), entry, args, cursor)
+		a.onMain(func() { done(run, err) })
 	}()
 }
 
