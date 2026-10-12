@@ -99,6 +99,10 @@ type Launcher struct {
 	// output is shown in the search box rather than in a terminal, so the row
 	// carries a bare `␣` and this sentence behind it.
 	DirectOutputHint string
+	// CommandConflict is the sentence behind a command row's warning dot: the
+	// command word belongs to more than one integration, so the row the
+	// launcher will not enter says why (the old build's `extensions.conflict`).
+	CommandConflict string
 	// ResultsLabel names the results list for assistive technology.
 	ResultsLabel string
 	// The built-in commands the P1 catalog offers.
@@ -150,8 +154,11 @@ type Launcher struct {
 	// HistoryCleared is what the status row says once the typed-command
 	// history has been emptied (the field's own Ctrl+Shift+Backspace).
 	HistoryCleared string
-	// OutputDetach opens a command's page in a window of its own.
-	OutputDetach string
+	// OutputDetach opens a command's page in a window of its own, and
+	// OutputDetachHint is the sentence its icon-only control carries (the old
+	// build's `pluginWindow.detachHint`).
+	OutputDetach     string
+	OutputDetachHint string
 	// The window that opens for it: its title when the command has no name,
 	// the re-run and close controls, and what it says before a run.
 	OutputWindowFallback   string

@@ -1027,7 +1027,7 @@ func (a *App) modeShortcuts(c *ui.Context) {
 func (a *App) rowControl(c *ui.Context, name, label string, run func()) {
 	t := c.Theme()
 	control := ui.Row(c).Focusable().Shrink(0).Size(t.Space(5), t.Space(5)).
-		AlignItems(ui.Center).Justify(ui.Center).Label(label)
+		AlignItems(ui.Center).Justify(ui.Center).Label(label).Tooltip(label)
 	if control.Hovered() {
 		control.Background(t.SurfaceHover)
 	}
@@ -1527,7 +1527,8 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 		// text: it reads at any width (`.launcher-result__warning`).
 		if item.warning {
 			ui.Box(c).Size(t.Space(2), t.Space(2)).Shrink(0).
-				Radius(t.Space(2)).Background(t.Warning)
+				Radius(t.Space(2)).Background(t.Warning).
+				Label(copy.CommandConflict).Tooltip(copy.CommandConflict)
 		}
 		// The space-bar nudge: a command whose output the launcher shows itself
 		// is entered with one space, and the row says so with a keycap —
@@ -1554,7 +1555,7 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 		if item.Source != "" {
 			source := ui.Text(c, item.Source).FontSize(t.FontSize).
 				FontWeight(510).TextColor(tokens.TextTertiary).SingleLine().
-				MaxWidthPercent(30).TextAlign(ui.End)
+				MaxWidthPercent(30).TextAlign(ui.End).Tooltip(item.Source)
 			if i == a.Selected {
 				source.TextColor(tokens.TextSecondary)
 			}
@@ -1564,8 +1565,13 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 		// hovered or chosen, and shown whenever the entry is starred. Clicking
 		// it stars the entry without running the row.
 		if favorite, ok := rowFavorite(item); ok {
+			starLabel := copy.HistoryFavorite
+			if favorite {
+				starLabel = copy.HistoryUnfavorite
+			}
 			star := ui.Row(c).Focusable().Shrink(0).
-				Size(t.Space(5), t.Space(5)).AlignItems(ui.Center).Justify(ui.Center)
+				Size(t.Space(5), t.Space(5)).AlignItems(ui.Center).Justify(ui.Center).
+				Label(starLabel).Tooltip(starLabel)
 			shown := favorite || i == a.Selected || row.Hovered()
 			if !shown {
 				star.Opacity(0)
@@ -1573,10 +1579,6 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 			color := t.TextMuted
 			if favorite || star.Hovered() {
 				color = t.Text
-			}
-			star.Label(copy.HistoryFavorite)
-			if favorite {
-				star.Label(copy.HistoryUnfavorite)
 			}
 			star.Children(func() {
 				if glyph, ok := Glyph("star"); ok {
@@ -1618,7 +1620,8 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 						FontWeight(560).TextColor(t.Warning)
 				})
 				del := ui.Row(c).Focusable().Shrink(0).Size(t.Space(5), t.Space(5)).
-					AlignItems(ui.Center).Justify(ui.Center).Label(copy.HistoryDelete)
+					AlignItems(ui.Center).Justify(ui.Center).
+					Label(copy.HistoryDelete).Tooltip(copy.HistoryDelete)
 				del.Children(func() {
 					if glyph, ok := Glyph("close"); ok {
 						ui.Icon(c, glyph).Size(t.Space(3.5), t.Space(3.5)).TextColor(t.Warning)

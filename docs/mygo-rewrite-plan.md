@@ -1077,6 +1077,34 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
   （关闭时是「Configure this plugin」、打开后同一个控件是「Close plugin settings」）；把两处
   `Tooltip` 摘掉跑一遍，四条断言全红——测试确实钉在 tooltip 上，不是钉在 Label 上。
 
+### P7-ag 行内标记与孤儿接管带上自己的说明（已做）
+
+- **偏离点**：P7-aa/P7-af 补上了设置页、终端标题栏与启动器字段行的 `title=`，但旧版行内与输出视图
+  的 `title=` 还欠一批：
+  - 启动器结果行的**警告点**（旧版 `extensions.conflict`「Command conflict」/「命令冲突」）——
+    本构建的 i18n 里**连这个词条都没有**，一个只有颜色、没有任何说明的圆点。
+  - 行内的**收藏星**（旧版 `title` 是「Favorite」/「Unfavorite」）、**钉住控件**
+    （旧版 `pluginWindow.pinText`「Pin as text window」/「钉为文本窗口」）与**来源词**
+    （`titile={source}`：`MaxWidthPercent(30)` 会把它 ellipsis 掉）。
+  - 捕获输出视图的两个图标控件，其中「分离到独立窗口」旧版带
+    `pluginWindow.detachHint`「Open this output in a window that stays put」——本构建根本没移植这条。
+  - 集成页的**孤儿行**：只有一个「Adopt」按钮，`IntegrationsAdoptHint` 写好了整整一轮（P3-i）没
+    一个视图读过——又一处「文案齐全、没人画」。
+- **修法**：
+  - `internal/launcher/launcher.go`：警告点挂 `Label`+`Tooltip(copy.CommandConflict)`；来源文本
+    `.Tooltip(item.Source)`；收藏星把状态词同时给 `Label`/`Tooltip`；`rowControl` 把 `Label` 兼作
+    `Tooltip`（钉住/删除）。
+  - `internal/launcher/output.go`：`control` 闭包多收一个 `hint`，钉住挂 `HistoryPin`、分离挂
+    `OutputDetachHint`。
+  - `internal/settingsui/settingsui.go`：孤儿行 `a.row(..., copy.IntegrationsAdoptHint, ...)`
+    ——可见的第二行，比 tooltip 更好。
+  - `internal/i18n`：新增 `CommandConflict`（旧版 `extensions.conflict`）与 `OutputDetachHint`
+    （旧版 `pluginWindow.detachHint`），en/zh 齐全，完整性测试自动覆盖。
+- **测试**：`TestCommandRowWarningCarriesItsSentence`、`TestHistoryRowMarksCarryTheirSentences`、
+  `TestCommandRowSourceCarriesItsWholeWord`、`TestOutputViewControlsCarryTheirHints`（因 tooltip 与
+  可见文字相同，用节点计数：悬停后同一文案多出一个节点）；把对应 `Tooltip` 摘掉跑一遍全红；
+  `TestOrphanRowsOfferAdoptAndDelete` 追加孤儿行解释断语。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。

@@ -944,6 +944,11 @@ func TestOrphanRowsOfferAdoptAndDelete(t *testing.T) {
 	if !tt.HasText("Adopt") || !tt.HasText("Delete") {
 		t.Fatalf("the orphan operations are missing: %q", tt.Texts())
 	}
+	// The row explains what Adopt does: a plug-in directory unrecorded in the
+	// repository, grafted in under the same permission review as an install.
+	if hint := i18n.For("en").Settings.IntegrationsAdoptHint; !tt.HasText(hint) {
+		t.Fatalf("the orphan row does not explain Adopt: %q", tt.Texts())
+	}
 	if err := tt.Click("Adopt"); err != nil {
 		t.Fatal(err)
 	}

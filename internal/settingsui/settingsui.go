@@ -1168,7 +1168,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			// An orphan is a package directory the repository does not name:
 			// the row offers to graft it in or to remove it, and nothing
 			// else — there is no record to enable, check or uninstall.
-			a.row(c, copy.IntegrationsOrphan, "", func() {
+			a.row(c, copy.IntegrationsOrphan, copy.IntegrationsAdoptHint, func() {
 				if a.Actions.AdoptIntegration != nil {
 					if ui.Button(c, copy.IntegrationsAdopt).Clicked() {
 						a.Actions.AdoptIntegration(integration.ID)

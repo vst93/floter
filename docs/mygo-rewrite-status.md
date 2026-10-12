@@ -98,7 +98,23 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-**P7-af 启动器字段行的图标控件带上自己的说明（本轮）**
+**P7-ag 行内标记与孤儿接管带上自己的说明（本轮）**
+- **偏离点**：上一批 tooltip（P7-aa 设置/终端、P7-af 字段行）之后，旧版 `title=` 的最后一批仍没补：
+  启动器行自己的**警告点**（旧版 `extensions.conflict`「命令冲突」——本构建仓库里**没有**这个词条）、
+  **收藏星**、**行内钉住控件**、**来源词**（`MaxWidthPercent(30)` 会被省略号吃掉），以及输出视图的两个
+  图标控件（旧版 `pluginWindow.detachHint`「在独立窗口中打开这份输出，不再随主面板消失」）。
+  同一处还有 `IntegrationsAdoptHint`——孤儿行只有一个「接管」按钮，没有一个字说明它做什么，
+  而这条文案写好了整整一轮没人读。
+- **修法**：`launcher` 的警告点挂 `Label`+`Tooltip`、来源文本与星/钉控件挂 `Tooltip`、
+  `rowControl` 带上自己 `Label` 作为 hover 说明；`output` 视图的 `control` 增加 hint 参数，
+  分离控件挂新的 `OutputDetachHint`；`settingsui` 的孤儿行把 `IntegrationsAdoptHint` 落到第二行
+  （可见说明，而不是藏进 tooltip）。新增 `CommandConflict`、`OutputDetachHint`（en/zh，旧版原文）。
+- **测试**：`TestCommandRowWarningCarriesItsSentence`、`TestHistoryRowMarksCarryTheirSentences`、
+  `TestCommandRowSourceCarriesItsWholeWord`、`TestOutputViewControlsCarryTheirHints`
+  （悬停后 tooltip 文本多出一个节点；把对应 `Tooltip` 摘掉跑一遍全红）；
+  `TestOrphanRowsOfferAdoptAndDelete` 追加「孤儿行解释接管」。
+
+**P7-af 启动器字段行的图标控件带上自己的说明**
 - **偏离点**：P7-aa 只补了设置页头部与终端标题栏的图标 tooltip，**启动器字段行行尾的三个图标**
   （插件齿轮、会话、设置）仍是光秃秃的字形：旧版每个 `.collapsed-card__settings` 都带 `title`，且设置那
   句里的快捷键是用户当前的 `open_settings` 绑定。`i18n.Launcher.ShortcutSettings`（「Cmd+,」）是这个

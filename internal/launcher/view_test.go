@@ -2341,6 +2341,135 @@ func TestDirectOutputRowCarriesTheSpaceKeycapTooltip(t *testing.T) {
 	}
 }
 
+// countOf counts the nodes showing exactly want: a Label and the tooltip a
+// hover reveals are two, so an increase is the tip appearing.
+func countOf(tt *ui.Tester, want string) int {
+	n := 0
+	for _, s := range tt.Texts() {
+		if s == want {
+			n++
+		}
+	}
+	return n
+}
+
+// hoverRested parks the pointer on rect, waits out the tooltip's rest delay,
+// and renders the frame that shows it — the gesture every hint test shares.
+func hoverRested(tt *ui.Tester, rect ui.Rect) {
+	tt.Move(rect.X+rect.W/2, rect.Y+rect.H+120)
+	tt.Frame()
+	tt.Move(rect.X+rect.W/2, rect.Y+rect.H/2)
+	// The tip waits for the pointer to rest (Base UI's 600ms).
+	time.Sleep(700 * time.Millisecond)
+	tt.Frame()
+}
+
+// A command word two integrations share is marked with a dot; the dot says
+// why it is there, since a bare warning mark explains nothing.
+func TestCommandRowWarningCarriesItsSentence(t *testing.T) {
+	a := testApp()
+	a.SetCommands([]extensions.CommandEntry{
+		{IntegrationID: "a", IntegrationName: "A", Command: extensions.Command{ID: "jv", Name: "JSON Viewer"}, Program: "/bin/echo", Mode: "pty"},
+		{IntegrationID: "b", IntegrationName: "B", Command: extensions.Command{ID: "jv", Name: "JSON Viewer Two"}, Program: "/bin/echo", Mode: "pty"},
+	})
+	tt := render(t, a)
+	tt.Type("jv")
+	tt.Frame()
+	sentence := a.copy().CommandConflict
+	if sentence == "" {
+		t.Fatal("the warning dot has no sentence to show")
+	}
+	rect, ok := tt.Find(sentence)
+	if !ok {
+		t.Fatalf("the warning dot carries no label/sentence: %q", tt.Texts())
+	}
+	before := countOf(tt, sentence)
+	hoverRested(tt, rect)
+	if countOf(tt, sentence) <= before {
+		t.Errorf("the warning dot has no tooltip: %q", tt.Texts())
+	}
+}
+
+// A history row's star and its pin are glyph controls: hovering each reveals
+// the word it stands for.
+func TestHistoryRowMarksCarryTheirSentences(t *testing.T) {
+	a, _ := clipboardApp(t)
+	a.Actions.PinText = func(string, string) {}
+	tt := render(t, a)
+	a.EnterClipboard()
+	tt.Frame()
+	copy := a.copy()
+	for _, want := range []string{copy.HistoryFavorite, copy.HistoryPin} {
+		rect, ok := tt.Find(want)
+		if !ok {
+			t.Fatalf("no %q mark on the selected row: %q", want, tt.Texts())
+		}
+		before := countOf(tt, want)
+		hoverRested(tt, rect)
+		if countOf(tt, want) <= before {
+			t.Errorf("the %q mark has no tooltip: %q", want, tt.Texts())
+		}
+	}
+}
+
+// A row's source word is cut to a fixed slot; its tooltip keeps the whole
+// word readable.
+func TestCommandRowSourceCarriesItsWholeWord(t *testing.T) {
+	a := testApp()
+	a.SetCommands([]extensions.CommandEntry{{
+		IntegrationID: "x", IntegrationName: "A Rather Long Integration Name",
+		Command: extensions.Command{ID: "jv", Name: "JSON Viewer"},
+		Program: "/bin/echo", Mode: "pty",
+	}})
+	tt := render(t, a)
+	tt.Type("jv")
+	tt.Frame()
+	source := "A Rather Long Integration Name"
+	rect, ok := tt.Find(source)
+	if !ok {
+		t.Fatalf("the source word is missing: %q", tt.Texts())
+	}
+	before := countOf(tt, source)
+	hoverRested(tt, rect)
+	if countOf(tt, source) <= before {
+		t.Errorf("the source word has no tooltip: %q", tt.Texts())
+	}
+}
+
+// The captured output view's two icon controls carry their hints: the pin and
+// the detach, which the old build's `title=` explained.
+func TestOutputViewControlsCarryTheirHints(t *testing.T) {
+	a := testApp()
+	a.Actions.DetachOutput = func(OutputView) {}
+	a.Actions.PinText = func(string, string) {}
+	a.SetCommands([]extensions.CommandEntry{{
+		IntegrationID: "test.ext",
+		Command:       extensions.Command{ID: "list", Name: "List things"},
+		Program:       "/bin/sh", Args: []string{"-c", "echo hi"},
+		Route: extensions.RouteBackground,
+	}})
+	a.Actions.RunCommandCaptured = func(_ extensions.CommandEntry, _ []string, done func(extensions.CapturedRun, error)) {
+		done(extensions.CapturedRun{Command: []string{"list"}, Stdout: "hi\n", Success: true}, nil)
+	}
+	tt := render(t, a)
+	a.Query = "list"
+	tt.Frame()
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	copy := a.copy()
+	if copy.OutputDetachHint == "" || copy.OutputDetachHint == copy.OutputDetach {
+		t.Fatal("the detach control has no distinct hint")
+	}
+	rect, ok := tt.Find(copy.OutputDetach)
+	if !ok {
+		t.Fatalf("the detach control is missing: %q", tt.Texts())
+	}
+	hoverRested(tt, rect)
+	if !tt.HasText(copy.OutputDetachHint) {
+		t.Errorf("the detach control has no tooltip: %q", tt.Texts())
+	}
+}
+
 // The `␣` keycap's gesture, end to end: the command's trigger word and a space
 // open its mode, and Enter runs it — the output lands in the search box, which
 // is what the keycap promised.

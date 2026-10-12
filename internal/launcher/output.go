@@ -369,12 +369,13 @@ func (a *App) outputBody(c *ui.Context, copy i18n.Launcher, edge float32) {
 				// mark, the reference's `.plugin-window__bar-button`, never
 				// filled pills in the text surface's header.
 				tokens := theme.For(a.settings(), t.Dark)
-				control := func(mark, label string, run func()) {
+				control := func(mark, label, hint string, run func()) {
 					if run == nil {
 						return
 					}
 					button := ui.Row(c).Focusable().Shrink(0).Size(t.Space(7), t.Space(7)).
-						Radius(tokens.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).Label(label)
+						Radius(tokens.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).
+						Label(label).Tooltip(hint)
 					if button.Hovered() {
 						button.Background(tokens.ControlHover)
 					}
@@ -388,13 +389,13 @@ func (a *App) outputBody(c *ui.Context, copy i18n.Launcher, edge float32) {
 				// The output can be shown in a window of its own: the old
 				// build's own pin, on the surface that holds the text.
 				if a.Actions.PinText != nil {
-					control("\u2197", copy.HistoryPin, func() { a.Actions.PinText(view.Title, view.Text) })
+					control("\u2197", copy.HistoryPin, copy.HistoryPin, func() { a.Actions.PinText(view.Title, view.Text) })
 				}
 				// And a command's page can be detached into a window that
 				// stays put: the old build's second window, which never hides
 				// on blur and re-runs the command from its own controls.
 				if a.Actions.DetachOutput != nil && view.Entry != nil {
-					control("\u29c9", copy.OutputDetach, func() { a.Actions.DetachOutput(*view) })
+					control("\u29c9", copy.OutputDetach, copy.OutputDetachHint, func() { a.Actions.DetachOutput(*view) })
 				}
 			})
 			ui.Text(c, view.Status+"  \u00b7  "+a.outputHint(copy, view)).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
