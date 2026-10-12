@@ -334,6 +334,11 @@ type App struct {
 	Actions Actions
 	About   About
 
+	// Now is the panel's time source, injectable so the save-failure banner's
+	// window can be exercised without waiting for it; nil means the wall
+	// clock.
+	Now func() time.Time
+
 	// cardRows counts the rows the card being built has drawn, so each row
 	// after the first draws the rule above itself. It is the build's own
 	// cursor, reset by card and never read outside it.
@@ -378,6 +383,13 @@ type App struct {
 	// state) lists the newest session first, as the old page's own default,
 	// and the heading's control flips it.
 	sessionsSortOldest bool
+
+	// saveFailed is set when one of the page's own controls could not write
+	// its change back, with saveFailedAt the moment it failed: the banner over
+	// the page says so and clears itself after a few seconds (see
+	// savealert.go).
+	saveFailed   bool
+	saveFailedAt time.Time
 
 	// Sessions reports the running sessions; nil when the shell has none
 	// (tests).
@@ -509,6 +521,11 @@ func (a *App) View(c *ui.Context) {
 	defer a.syncShortcutSuspension()
 	copy := i18n.For(a.Store.Snapshot().Language).Settings
 	t := c.Theme()
+
+	// A write the page's own controls could not commit is announced for a few
+	// seconds; while one is up the frame keeps coming so the deadline is
+	// reached on a still page.
+	a.expireSaveFailed(c)
 
 	// While a recorder waits, Escape belongs to it: a shortcut of the view is
 	// handled before the focused element's input, so both recorders have to
@@ -730,6 +747,9 @@ func (a *App) body(c *ui.Context, copy i18n.Settings) {
 			// scroller, so the scrollbar still hugs the panel's edge
 			// (`.settings-content > *`).
 			ui.Column(c).FillWidth().Padding(0, t.Space(4.5)).Gap(t.Space(5.5)).Children(func() {
+				// The write-failure banner sits above the page's own header, so a
+				// refused change is the first thing the user reads.
+				a.saveAlert(c, copy)
 				// The page's own registers: the title at the display step (650)
 				// and the one-line hint at the body step (500), as
 				// `.settings-page__title` / `__subtitle` had them.
@@ -1973,9 +1993,13 @@ func (a *App) appIcon() string {
 	return "dark"
 }
 
-// set writes one settings change through the store.
+// set writes one settings change through the store. A refused write is not
+// silent: the change still shows (the store keeps it in memory), and the
+// banner over the page says the file could not be written.
 func (a *App) set(mutate func(*settings.Settings)) {
-	_ = a.Store.Update(mutate)
+	if err := a.Store.Update(mutate); err != nil {
+		a.noteSaveFailed()
+	}
 }
 
 func clampPercent(v float64) uint8 {

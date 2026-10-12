@@ -1831,6 +1831,48 @@ func TestPowerRows(t *testing.T) {
 	}
 }
 
+// An unanswered power confirmation is not forever: the old build asked with
+// `useTimedReset(pendingSystemAction, …)` and its three-second default, so the
+// question clears itself rather than waiting for a later glance.
+func TestThePowerConfirmationExpiresOnItsOwn(t *testing.T) {
+	a := testApp()
+	asked := []string{}
+	a.Actions.Power = func(action string) { asked = append(asked, action) }
+	now := disarmArmClock(a)
+
+	tt := render(t, a)
+	a.Query = "restart"
+	tt.Frame()
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if a.PowerPending() != PowerRestart {
+		t.Fatalf("pending = %q", a.PowerPending())
+	}
+	if !tt.HasText(a.copy().PowerConfirmMessage(PowerRestart)) {
+		t.Fatalf("the confirmation is not drawn: %q", tt.Texts())
+	}
+
+	// Inside the window the question is still waiting.
+	*now = now.Add(2 * time.Second)
+	tt.Frame()
+	if a.PowerPending() != PowerRestart {
+		t.Fatalf("the confirmation left inside its window: %q", a.PowerPending())
+	}
+
+	// Past it, the question and its row are gone, and nothing ran.
+	*now = now.Add(2 * time.Second)
+	tt.Frame()
+	if a.PowerPending() != "" {
+		t.Errorf("the confirmation outlived its window: %q", a.PowerPending())
+	}
+	if tt.HasText(a.copy().PowerConfirmMessage(PowerRestart)) {
+		t.Errorf("the row stayed on screen: %q", tt.Texts())
+	}
+	if len(asked) != 0 {
+		t.Errorf("the confirmation ran without an answer: %v", asked)
+	}
+}
+
 // An image clipboard entry's row carries a thumbnail, decoded once.
 func TestClipboardImageThumbnail(t *testing.T) {
 	store := clipboard.NewStore(clipboard.FromConfigRoot(t.TempDir()), 0)

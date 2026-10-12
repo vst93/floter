@@ -341,6 +341,10 @@ type App struct {
 	// pendingPower is the power action the panel is asking about: the
 	// confirmation row shows until the user answers it (see power.go).
 	pendingPower string
+	// pendingPowerAt is when the question was asked. The old build cleared
+	// it with `useTimedReset` (three seconds): an unanswered confirmation
+	// goes away by itself rather than waiting for a later glance.
+	pendingPowerAt time.Time
 	// OutputList is the output list's own scrolling and selection state.
 	OutputList ui.ListState
 	// files is set while a drop's rows are listed, with Dropped the files the
@@ -665,6 +669,8 @@ func (a *App) View(c *ui.Context) {
 	// A half-finished row delete is disarmed once its window has passed; while
 	// one is live the frame keeps coming so the deadline is reached.
 	a.expireArmedDelete(c)
+	// An unanswered power confirmation does the same, on its own window.
+	a.expirePowerConfirm(c)
 
 	a.syncTypedMode()
 	a.syncCommandMode()

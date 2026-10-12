@@ -231,6 +231,7 @@ var en = Copy{
 
 		PagePlaceholder: "This page arrives in a later round.",
 		SaveFailed:      "Could not save that change.",
+		SaveFailedAlert: "Changes could not be applied. Check your settings and try again.",
 
 		GroupAppearance: "Appearance",
 		GroupWindow:     "Window behaviour",
@@ -816,6 +817,7 @@ var zh = Copy{
 
 		PagePlaceholder: "此页面将在后续迭代中到来。",
 		SaveFailed:      "无法保存该修改。",
+		SaveFailedAlert: "无法应用更改，请检查设置后重试。",
 
 		GroupAppearance: "外观",
 		GroupWindow:     "窗口行为",

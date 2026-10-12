@@ -99,10 +99,50 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-au 历史行的两步删除有了自己的时间窗** —— 「尚未做」清单已空（1–3 卡框架、4–6 完成），
-> 本轮继续「对照原版排查偏离点」，取旧版 `HISTORY_DELETE_CONFIRM_MS` 的漏项。
+> **最新一轮：P7-av 旧版两个 `useTimedReset` 落地** —— 「尚未做」清单已空（1–3 卡框架、4–6 完成），
+> 本轮继续「对照原版排查偏离点」，取旧版两处**会自己归位**的状态：电源确认的时间窗和设置写失败的横幅。
 
-**P7-au 两步删除的时间窗（本轮）**
+**P7-av 旧版会自己归位的两个状态（本轮）**
+
+- **依赖检查**：`go.mod` 已是 v0.4.7；`git ls-remote --tags https://github.com/egoist/mygo.git` 列表里
+  v0.4.7 仍是最新（GitHub releases API 被限流），无版本可升。本轮走「对照原版排查偏离点」。
+- **偏离点（两处，都来自旧版唯一的两个 `useTimedReset`）**：
+  1. **电源确认没有时间窗**。原版 `src/App.tsx:546` 的
+     `useTimedReset(pendingSystemAction, () => setPendingSystemAction(null))`，默认超时 3000ms
+     （`src/hooks/useTimedReset.ts`）——**没人回答的电源确认三秒后自己退场**（确认键/取消
+     键之外的第三条出路）。本构建的 `pendingPower`（`internal/launcher/power.go`）只被 Esc、
+     确认/取消按钮和换模式清掉；一个「重启还是关机」的提问可以一整晚挂在列表下面。
+  2. **设置写失败没有横幅**。原版 `src/App.tsx:596` 的
+     `useTimedReset(settingsSaveFailed, dismissSaveError, 5000)` 给了同一条时间窗：磁盘写失败时
+     `settings.saveFailed`（「无法应用更改，请检查设置后重试。」）这个横幅画在设置内容之上
+     （`src/App.tsx:2938` 的 `.settings-save-alert--toast`，带一个 ✕ 提前清掉），5 秒后自带收起。
+     本构建 `internal/settingsui/settingsui.go:1998` 的 `set()` 是 `_ = a.Store.Update(mutate)`——
+     **写失败静默丢弃**：内存里改了、文件里没写，用户什么都看不到，下次启动发现改动丢了。
+- **修法**：
+  - 电源（`internal/launcher/power.go`）：新增 `powerConfirmWindow = 3 * time.Second`；`runPower`
+    记 `pendingPowerAt`；`expirePowerConfirm(c)` 在 `View` 每帧（挨着 P7-au 的 `expireArmedDelete`）
+    过期，装填期间 `c.AnimationFrame()` 让帧继续来，所以静置时也会到点；`confirmPower`/`cancelPower`
+    一并清掉时刻。
+  - 设置（新文件 `internal/settingsui/savealert.go`）：`set()` 捕获 `Store.Update` 的错误并置
+    `saveFailed`/`saveFailedAt`；`expireSaveFailed(c)` 五秒到期（同样 `AnimationFrame`）；
+    `saveAlert(c, copy)` 把警告底色的横幅连同 ✕ 画在页面头部之上；`App` 增加可注入的 `Now`；
+    i18n 新键 `Settings.SaveFailedAlert`（en/zh 旧版原文），✕ 复用现成的 `Settings.Close` 作为标签。
+- **测试**：`internal/launcher/view_test.go` 的 `TestThePowerConfirmationExpiresOnItsOwn`（注入时钟：
+  窗内确认仍在、窗外确认与它的行一起消失且**什么都没运行**）；新文件
+  `internal/settingsui/savealert_test.go` 的 `TestTheSaveFailureBannerAppearsAndExpires`（写失败才出现、
+  内存仍改了、窗内留驻、窗外消失）与 `TestTheSaveFailureBannerDismisses`（✕ 提前清、能写的 store
+  从不报）。变异核查：把 `expirePowerConfirm(c)` 从 `View` 摘掉，第一条立刻红；把 `set()` 改回
+  `_ = a.Store.Update(mutate)`，后两条立刻红。
+- **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+  `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+- **顺带记下的新偏离（本轮未做，见「具体待办」第 7 条）**：`residency_seconds` 对**插件模式**
+  （browser/clipboard/calculator/命令模式）从来没有生效——`internal/shell/shell.go:2569` 的
+  `residencyHolds()` 对 `SurfaceLauncher` 直接返回 false，而本构建的启动器**从不**在唤回时收线
+  （原版 `src/App.tsx:2516` 的 `setQueryExitingPlugin("")` + `clearDrops()`），所以插件模式既不在
+  窗内被保留、也不在窗外被重置；i18n 的提示（`internal/i18n/copy.go:324`）也把原版的「插件页面」
+  那半句悄悄删了。
+
+**P7-au 两步删除的时间窗**
 
 - **依赖检查**：`go list -m -versions github.com/egoist/mygo` 与 `proxy.golang.org` 都确认 v0.4.7 仍是最新
   （`go.mod` 已是 v0.4.7），无版本可升；本轮走「对照原版排查偏离点」。
@@ -1086,7 +1126,7 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
      测试：两种拼写的夹具都能 `Refresh` 出命令；对象形非法时 `LoadManifest` 有错。
      **难点**：本构建没有“活动会话 cwd”（`internal/launcher/search.go:429` 用的是 App 自己的 cwd），
      所以 `ProjectRoot` 的 marker 行走只能靠注入的 cwd 测；先把解析与回退链做对，会话 cwd 单独开一项。
-6. **~~清单的 `compatibility` 区间从未被检查~~**：已完成（本轮，P7-at）。
+6. **~~清单的 `compatibility` 区间从未被检查~~**：已完成（P7-at）。
    - 原版：`src-tauri/src/extensions/manifest.rs:533` 的 `validate_compatibility`——host 版本剥离
      pre-release 后对 `compatibility.floter` 做 `VersionReq` 匹配，provider 协议固定为 `1.0` 对
      `compatibility.providerProtocol` 匹配；在 install（`extensions/install.rs:2522`）与 pre-install
@@ -1100,10 +1140,26 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
    - 验收：`Paths.HostVersion` 由 `shell.New` 从 `appVersion()` 注入；`prepare()` 与 `install()`
      在落盘前调用 `Manifest.ValidateCompatibility(paths.HostVersion)`，两个区间都查，空 host 版本跳过；
      测试钉「越界拒绝 / 协议不匹配拒绝 / 兼容照常 / 空与不可解析 host 不拒绝 / preview host 按 release 行匹配」。
+7. **插件模式的驻留（P7-av 定位，未做）** —— 一整条 `surface_residency_seconds` 只服务设置/终端。
+   - 原版：`src/surface-residency.ts:201` 的 `residencySurface` 把 collapsed 面分成 `plugin-mode`
+     （browser/clipboard/calculator/external）与 `plugin-config`；`src/App.tsx:2480-2530` 的唤回处理
+     在时钟成立时保留该面（`residency.refresh()`），否则 `setQueryExitingPlugin("")` + `clearDrops()`
+     回到全新搜索页。提示文案 `src/i18n.ts:305` 也写着「A plugin page, its settings, or the terminal
+     stays put…」。
+   - 本构建：`internal/shell/shell.go:2569` 的 `residencyHolds()` 对 `SurfaceLauncher` 直接 false，
+     而 `Toggle()`（`shell.go:2366`）在时钟不成立时只 `Open(SurfaceLauncher)`——**从不收线**，所以
+     插件模式/查询永远保留（等价于「永不」），驻留设置在启动器面上完全没有可观察效果；i18n 提示
+     （`internal/i18n/copy.go:324`）也已把「插件页面」删掉以掩盖。
+   - 验收：`residencyHolds` 认 plugin-mode（`launcher.ConfigOpen()` / 一个新的导出谓词如
+     `PluginModeActive()`）与 `plugin-config`；时钟随面变化在 `View` 每帧 `noteResidency`（进入模式起表、
+     离开清表）；`Toggle` 在时钟不成立时 `Launcher.ResetQuery()`（含 `leaveFiles`）再回启动器；唤回落到
+     同一面时 `refresh` 重启窗口。测试（注入时钟）：插件模式窗内唤回被保留并刷新、窗外唤回回到空搜索
+     页（查询与拖放行都清）、普通搜索页唤回永远清空、0/never 边界；把 i18n 提示改回原版原文。
 
 > 至此具体待办里的 1–3 **三条都卡在框架能力上**（`Options.OnCopy`、终端键入的 `HandleInput`
-> 缝、外观旋钮的暴露），不是应用侧能单方面推进的；第 4、5 条已完成，第 6 条由 P7-at 完成。
-> 下一轮仍应回到「对照原版排查偏离点」这条路。
+> 缝、外观旋钮的暴露），不是应用侧能单方面推进的；第 4–6 条已完成。P7-av 又在线外找到并落地了
+> 旧版两个 `useTimedReset`（电源确认、设置写失败横幅），并把第 7 条写实。下一轮仍应回到
+> 「对照原版排查偏离点」这条路。
 
 **P7-at manifest 的 `compatibility` 区间在落盘前生效（本轮）**
 

@@ -287,6 +287,11 @@ type Settings struct {
 	// SaveFailed is a write the plugin refused: the sheet paints the value
 	// either way and says so here.
 	SaveFailed string
+	// SaveFailedAlert is the settings page's own write failing: the change is
+	// shown in memory either way, and the banner over the page says the file
+	// could not be written. The old build cleared it after five seconds
+	// (`settings.saveFailed` + `useTimedReset`).
+	SaveFailedAlert string
 
 	GroupAppearance string
 	GroupWindow     string

@@ -2,6 +2,7 @@ package launcher
 
 import (
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -65,14 +66,42 @@ func matchesWord(query string, words []string) bool {
 	return false
 }
 
+// powerConfirmWindow is how long a power confirmation waits for its answer:
+// the old build armed the question with `useTimedReset(pendingSystemAction,
+// () => setPendingSystemAction(null))` (`src/App.tsx:546`), whose default
+// timeout is 3000 ms (`src/hooks/useTimedReset.ts`). A question asked one
+// moment is not still armed on a later glance.
+const powerConfirmWindow = 3 * time.Second
+
 // runPower asks in the panel, as the old build's `.launcher-system-confirm`
 // did: the action's own words and the way back, docked under the list, rather
 // than a system dialog over it. Nothing runs until the user presses the
-// confirmation's own button — the row only asks.
+// confirmation's own button — the row only asks. The question carries its own
+// clock, so it clears itself unanswered after `powerConfirmWindow`.
 func (a *App) runPower(action string) {
 	a.pendingPower = action
+	a.pendingPowerAt = a.now()
 	a.Selected = 0
 	a.FocusSearch()
+}
+
+// expirePowerConfirm drops a confirmation that has waited past its window,
+// and keeps the frames coming while one is live so the deadline is reached on
+// a still panel exactly as it is with a hand on it. A nil context (a caller
+// outside a frame) still clears a lapsed question; only the animation request
+// needs one.
+func (a *App) expirePowerConfirm(c *ui.Context) {
+	if a.pendingPower == "" {
+		return
+	}
+	if a.now().Sub(a.pendingPowerAt) > powerConfirmWindow {
+		a.pendingPower = ""
+		a.pendingPowerAt = time.Time{}
+		return
+	}
+	if c != nil {
+		c.AnimationFrame()
+	}
 }
 
 // PowerPending is the power action awaiting confirmation, empty for none: the
@@ -123,6 +152,7 @@ func (a *App) confirmPowerRow(c *ui.Context) {
 func (a *App) confirmPower() {
 	action := a.pendingPower
 	a.pendingPower = ""
+	a.pendingPowerAt = time.Time{}
 	if action == "" || a.Actions.Power == nil {
 		return
 	}
@@ -135,5 +165,6 @@ func (a *App) cancelPower() bool {
 		return false
 	}
 	a.pendingPower = ""
+	a.pendingPowerAt = time.Time{}
 	return true
 }
