@@ -1018,7 +1018,8 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
 - **测试**：`TestOpenSettingsShortcutOpensSettings`（默认键开设置、改键后旧键失效新键生效；把接线
   摘掉跑一遍会红）、`TestMenuSettingsAcceleratorFollowsTheBinding`（存储的绑定进菜单，空则回退）。
 - **未做（如实记录）**：终端面上的 `open_external_terminal` 键未接——旧版在终端里接了它，但它的默认
-  绑定在非 macOS 是 Ctrl+N，会抢走 readline 的 C-n；本构建把能力留在终端标题栏的按钮上，不夺键。
+  绑定在非 macOS 是 Ctrl+N，会抢走 readline 的 C-n；本构建把能力留在终端标题栏的按钮上，不夺键
+  （按钮失败时的提示见 P7-ax）。
   同理 `copy_selection` / `paste` 由框架的 `plugins/terminal` 内部固定为 ⌘C/⌘V，用户改键无效（见「已知差距」）。
 
 ### P7-ad 存储的健康状态真正画在行上（已做）
@@ -1200,6 +1201,24 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
   `TestPluginConfigResidency` / `TestLeavingASurfaceClearsTheResidencyClock`；launcher
   `TestPluginModeActiveNamesTheModes` / `TestClearDroppedForgetsTheRows`。变异核查：摘 `noteResidency`
   三条红；摘 `ResetQuery`+`ClearDropped` 四条红。
+
+### P7-ax 终端面板的失败提示（已做）
+
+- **偏离点**：旧版从终端面板执行 `open_in_default_terminal` 失败时，`src/hooks/useTerminalView.ts:437`
+  调 `showTerminalFeedback("launcher.error.externalTerminal")` 并 `focusTerminalView()`；提示画在
+  `src/App.tsx:3896` 的 `.terminal-feedback`（`src/styles/terminal.css:393`：左上角 12u、accent 键线、
+  `--glass-float` + `--elev-3`、警示色的 560 正文、`feedback-enter` 的 160ms），由
+  `src/hooks/useTimedFeedback.ts` 在 **4500ms** 后自清，新消息重启计时而不叠加。本构建 shell 的
+  `termActions.OpenExternal`（`internal/shell/shell.go`）失败时只 `log.Printf`：`terminalui` 上
+  没有反馈通道，机器没有终端模拟器时用户点「在终端打开」看不到任何反应。
+- **修法**：`internal/terminalui/terminalui.go` 新增面板级浮出提示 `ShowFeedback` /
+  `FeedbackVisible` 与 `feedbackNote`（旧版 `.terminal-feedback` 同一形态：左上角、accent 键线、
+  浮动材质与两层阴影、警示色 560）——计时用 `feedback != feedbackShown` 起表、过窗即清、
+  `c.AnimationFrame()` 保证静置也会到点；空态分支也画（标题栏控件没有会话时也在）。shell 的
+  `OpenExternal` 失败时 `ShowFeedback(copy.OpenTermFailed)` + `FocusTerminal()`。
+- **测试**：`internal/terminalui/feedback_test.go` 三条（显示并过期、新消息重启、空态也画）；
+  `internal/shell/shell_test.go` 的 `TestTerminalOpenExternalFailureSpeaksInThePanel`。变异核查：
+  摘 `feedbackNote` terminalui 三条红；摘 shell 的 `ShowFeedback` shell 那条红。
 
 ## 纪律（继承）
 

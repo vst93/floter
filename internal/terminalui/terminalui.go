@@ -104,6 +104,14 @@ type App struct {
 	// the terminal.
 	Text func() string
 
+	// feedback is the panel's floating notice — the old build's
+	// `.terminal-feedback`, raised when an action the panel owns cannot run
+	// (the header's "open in system terminal" with no emulator to open). A
+	// newer message restarts its own clock; see feedbackNote.
+	feedback      string
+	feedbackShown string
+	feedbackUntil time.Time
+
 	// SnapshotPath is where the session's screen is saved when it closes and
 	// read back when the next one starts, so the last session's scrollback
 	// comes back. Empty disables it.
@@ -539,6 +547,18 @@ func (a *App) Refresh() {
 // FocusTerminal asks for the keyboard focus on the terminal.
 func (a *App) FocusTerminal() { a.Focus.Focus() }
 
+// terminalFeedbackDuration is how long the panel's floating notice stays up.
+// The old build's `useTimedFeedback` gave the terminal line 4500ms, the same
+// window its launcher line carried.
+const terminalFeedbackDuration = 4500 * time.Millisecond
+
+// ShowFeedback puts a message in the panel's floating notice, replacing any
+// that is showing; the clock starts on the next frame that draws it.
+func (a *App) ShowFeedback(message string) { a.feedback = message }
+
+// FeedbackVisible reports whether the panel's notice is showing.
+func (a *App) FeedbackVisible() bool { return a.feedback != "" }
+
 // sessionText is the session's text, from the injected reader or the
 // terminal itself.
 func (a *App) sessionText() string {
@@ -655,6 +675,7 @@ func (a *App) View(c *ui.Context) {
 			// the way out the user asked for, and its dot says the page holds
 			// no live session.
 			a.titleBar(c, copy)
+			a.feedbackNote(c)
 			if a.Drawer {
 				a.drawer(c, copy)
 			}
@@ -683,6 +704,7 @@ func (a *App) View(c *ui.Context) {
 			a.residentNote(c, copy)
 		})
 		a.titleBar(c, copy)
+		a.feedbackNote(c)
 		if a.Drawer {
 			a.drawer(c, copy)
 		}
@@ -784,6 +806,52 @@ func (a *App) residentNote(c *ui.Context, copy i18n.Terminal) {
 		ui.Text(c, copy.ProcessExited(session.ExitCode)).FontSize(t.FontSize).
 			FontWeight(560).TextColor(color)
 		ui.Text(c, copy.ProcessExitedHint).FontSize(t.FontSize).TextColor(t.TextMuted)
+	})
+}
+
+// feedbackNote is the panel's floating notice: a short sentence an action the
+// panel owns could not complete, at the panel's top-left, in the warning
+// colour. It is the old build's `.terminal-feedback` — the accent keyline, the
+// floater's own fill and shadow, the same `feedback-enter` settle — and its
+// clock is the old build's `useTimedFeedback`: the line clears itself after
+// 4500ms, and a newer message restarts the window rather than stacking.
+func (a *App) feedbackNote(c *ui.Context) {
+	if a.feedback == "" {
+		return
+	}
+	now := c.Now()
+	if a.feedback != a.feedbackShown {
+		a.feedbackShown = a.feedback
+		a.feedbackUntil = now.Add(terminalFeedbackDuration)
+	}
+	if now.After(a.feedbackUntil) {
+		a.feedback, a.feedbackShown, a.feedbackUntil = "", "", time.Time{}
+		return
+	}
+	// The notice is a timed line: frames must keep coming while it shows, or
+	// a still panel would leave the last sentence up forever.
+	c.AnimationFrame()
+	t := c.Theme()
+	tokens := theme.For(a.Store.Snapshot(), t.Dark)
+	// The reference's own notice: 12u from the panel's top-left corner, the
+	// 7u/10u padding pair, the accent keyline and the floater's fill, a 15u
+	// alert glyph and the body step at 560 in the warning colour.
+	notice := ui.Row(c).Absolute().Top(t.Space(3)).Left(t.Space(3)).
+		Gap(t.Space(2)).AlignItems(ui.Center).Padding(t.Space(1.75), t.Space(2.5)).
+		Radius(tokens.RadiusMD).Border(1, tokens.AccentEdge).
+		Background(tokens.Float).
+		Transition(ui.ElementTransition{
+			Enter:    &ui.Motion{Y: -2},
+			Duration: 160 * time.Millisecond,
+		})
+	notice.Shadow(0, t.Space(2.5), t.Space(6.5), 0, ui.RGBA(0, 0, 0, 0.3))
+	notice.Shadow(0, t.Space(0.25), t.Space(0.5), 0, ui.RGBA(0, 0, 0, 0.2))
+	notice.InsetShadow(0, 1, 0, 0, tokens.LensRim)
+	notice.Children(func() {
+		if glyph, ok := launcher.Glyph("alert"); ok {
+			ui.Icon(c, glyph).Size(t.Space(3.75), t.Space(3.75)).TextColor(t.Warning)
+		}
+		ui.Text(c, a.feedback).FontSize(t.FontSize).FontWeight(560).TextColor(t.Warning)
 	})
 }
 

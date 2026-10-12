@@ -99,7 +99,39 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-aw 插件模式的驻留真正生效** —— 具体待办第 7 条（R35 报告点名的那半条）落地：
+> **最新一轮：P7-ax 终端面的失败提示落地** —— 旧版 `useTimedFeedback` 的终端那一半：终端面板自己的
+> 「在系统终端打开」失败时，现在在面板角上说话（4.5s 后自清），而不是静默地什么都不发生。
+
+**P7-ax 终端面板的失败提示（本轮）**
+
+- **依赖检查**：`go.mod` 已是 v0.4.7；`git ls-remote --tags https://github.com/egoist/mygo.git` 的
+  列表里 v0.4.7 仍是最新（GitHub 的 releases API 被限流，用 tags 复核），无版本可升。本轮继续
+  「对照原版排查偏离点」。
+- **偏离点（一个静默的失败）**：旧版终端面板的「在系统终端打开」在 `open_in_default_terminal`
+  失败时，`src/hooks/useTerminalView.ts:437` 会 `showTerminalFeedback("launcher.error.externalTerminal")`
+  并 `focusTerminalView()` —— 面板左上角浮出一条警告色的提示（`src/App.tsx:3896` 的
+  `.terminal-feedback`，`src/styles/terminal.css:393`：accent 键线、`--glass-float`、`--elev-3`、
+  15u 警示图标、进入用 `feedback-enter` 的 160ms），这条提示由 `src/hooks/useTimedFeedback.ts`
+  在 **4500ms** 后清掉。本构建 `internal/shell/shell.go` 的 `termActions.OpenExternal` 在失败时
+  **只 `log.Printf`**：`a.Terminal` 上没有任何反馈通道，用户点了「在终端打开」而机器没有终端模拟器
+  时，面板一点反应都没有（`OpenTermFailed` 这句文案只走启动器那句 `WarnFeedback`，见
+  `internal/shell/launch.go:73`）。
+- **修法**：`internal/terminalui/terminalui.go` 新增面板级浮出提示：`ShowFeedback(message)` /
+  `FeedbackVisible()`，`feedbackNote(c)` 在 `View` 里画旧版 `.terminal-feedback` 同一形态
+  （左上角 12u、accent 键线、浮动材质与两层阴影、警示色 560 的正文），并按 `useTimedFeedback`
+  的 4500ms 计时——`feedback != feedbackShown` 时起表、过期即清，`c.AnimationFrame()` 让静置的
+  面板也会到点；空态分支也画，因为标题栏的控件在没有会话时也在。`internal/shell/shell.go` 的
+  `termActions.OpenExternal` 失败时 `ShowFeedback(copy.OpenTermFailed)` + `FocusTerminal()`。
+- **测试**：`internal/terminalui/feedback_test.go` 的 `TestTerminalFeedbackShowsAndExpires`（显示、
+  起表、过窗自清）、`TestTerminalFeedbackRestartsOnANewerMessage`（已过期的旧消息不会吞掉新消息，
+  时钟重启）、`TestTerminalFeedbackShowsOverTheEmptyState`（空态也画）；
+  `internal/shell/shell_test.go` 的 `TestTerminalOpenExternalFailureSpeaksInThePanel`（失败才说话，
+  且面板真的画出那句）。变异核查：把 `feedbackNote(c)` 从 `View` 摘掉，terminalui 三条立刻红；
+  把 shell 的 `ShowFeedback` 摘掉，shell 那条立刻红。
+- **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+  `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+> **上一轮：P7-aw 插件模式的驻留真正生效** —— 具体待办第 7 条（R35 报告点名的那半条）落地：
 > 插件模式与配置覆盖层现在是「可驻留的表面」，唤回时按时钟保留或收线。
 
 **P7-aw 插件模式的驻留（本轮）**

@@ -2755,3 +2755,30 @@ func TestTerminalGearOpensTheDrawer(t *testing.T) {
 		t.Error("the gear did not close the drawer")
 	}
 }
+
+// The terminal panel's own "open in system terminal" control: when no emulator
+// can be opened, the panel says so (the old build's `.terminal-feedback`) and
+// takes the keyboard back, rather than the click appearing to do nothing.
+func TestTerminalOpenExternalFailureSpeaksInThePanel(t *testing.T) {
+	a := New(Options{
+		Store: settings.NewStore(settings.Default()),
+		Paths: extensions.FromRoot(t.TempDir()),
+		NewTerminal: func(terminal.Options) (*terminal.Terminal, error) {
+			return nil, errors.New("no terminal library in tests")
+		},
+		OpenExternalTerminal: func() error { return errors.New("no emulator") },
+	})
+	if a.Terminal == nil {
+		t.Fatal("no terminal surface")
+	}
+	a.Open(SurfaceTerminal)
+	a.Terminal.Actions.OpenExternal()
+	if !a.Terminal.FeedbackVisible() {
+		t.Fatal("the failure was silent")
+	}
+	tt := ui.NewTester(func(c *ui.Context) { a.View(c) }, 860, 600)
+	tt.Frame()
+	if want := i18n.For("en").Launcher.OpenTermFailed; !tt.HasText(want) {
+		t.Errorf("the panel did not draw the notice: want %q, got %q", want, tt.Texts())
+	}
+}

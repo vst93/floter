@@ -791,9 +791,16 @@ func New(opts Options) *App {
 		OpenExternal: func() {
 			// The session is handed to the system's own terminal: the Go
 			// build runs its terminal in-process, so this opens a new window
-			// rather than attaching to the running one.
+			// rather than attaching to the running one. A machine with no
+			// emulator to open says so in the panel itself (the old build's
+			// `terminal-feedback` line) instead of appearing to do nothing.
 			if err := a.OpenExternalTerminal(); err != nil {
 				log.Printf("floter: could not open a terminal: %v", err)
+				a.onMain(func() {
+					copy := i18n.For(a.Store.Snapshot().Language).Launcher
+					a.Terminal.ShowFeedback(copy.OpenTermFailed)
+					a.Terminal.FocusTerminal()
+				})
 			}
 		},
 		Title: func(title string) {
