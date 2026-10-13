@@ -2458,7 +2458,7 @@ func TestConnectFormNamesAnUnfinishedInputAndRefusesToSave(t *testing.T) {
 		t.Fatalf("an unfinished input reached the backend: %+v", connected)
 	}
 	// Giving it options clears the line and lets the save through.
-	a.toolParams[0].Options = "fast, slow"
+	a.toolParams[0].Options = "fast\nslow"
 	tt.Frame()
 	if tt.HasText(copy.ParamNeedsOptions) {
 		t.Fatalf("the row still names options it now has: %q", tt.Texts())
@@ -2469,6 +2469,53 @@ func TestConnectFormNamesAnUnfinishedInputAndRefusesToSave(t *testing.T) {
 	tt.Frame()
 	if len(connected) != 1 || len(connected[0].Params) != 1 || connected[0].Params[0].ID != "mode" {
 		t.Fatalf("connected = %+v", connected)
+	}
+}
+
+// R153: the version box stays editable, so the caption under it says what the
+// value is — a fallback a successful probe overwrites on connect.
+func TestLocalToolVersionHint(t *testing.T) {
+	copy := i18n.For("en").Settings
+	a := New(settings.NewStore(settings.Default()), Actions{
+		ConnectLocalTool: func(CustomTool) {},
+		ChooseProgram:    func() (string, error) { return "", nil },
+	})
+	tt := render(t, a, 720, 1600)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if tt.HasText(copy.LocalToolVersionHint) {
+		t.Fatal("the version hint is drawn before the form was opened")
+	}
+	if err := tt.Click("Add a local tool"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !tt.HasText(copy.LocalToolVersionHint) {
+		t.Errorf("the version hint is missing: %q", tt.Texts())
+	}
+}
+
+// R153: the select choices are edited one per line, not comma-separated, so a
+// choice whose value contains a comma survives a round-trip instead of being
+// split in two on the way back.
+func TestParamOptionsNewlineCodec(t *testing.T) {
+	a := New(settings.NewStore(settings.Default()), Actions{})
+	a.beginEdit("local.abc", CustomTool{
+		Name: "Ledger", Program: "/usr/bin/ledger",
+		Params: []extensions.ParamDefinition{{
+			ID: "amount", Kind: extensions.ParamSelect,
+			Options: []string{"1,000", "1,000,000"},
+		}},
+	})
+	if a.toolParams[0].Options != "1,000\n1,000,000" {
+		t.Fatalf("beginEdit options = %q", a.toolParams[0].Options)
+	}
+	got := a.editorParams()
+	if len(got) != 1 || len(got[0].Options) != 2 ||
+		got[0].Options[0] != "1,000" || got[0].Options[1] != "1,000,000" {
+		t.Fatalf("editorParams options = %+v", got)
 	}
 }
 

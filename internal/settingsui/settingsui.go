@@ -2298,7 +2298,7 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 					ui.TextInput(c, &versionArgs).Label(copy.LocalToolVersionArgs).Width(160).Placeholder("--version")
 				})
 			}
-			a.row(c, copy.LocalToolVersion, "", func() {
+			a.row(c, copy.LocalToolVersion, copy.LocalToolVersionHint, func() {
 				ui.TextInput(c, &version).Label(copy.LocalToolVersion).Width(120).Placeholder("0.0.1")
 			})
 			a.row(c, copy.LocalToolDescription, "", func() {
@@ -3079,8 +3079,12 @@ func (a *App) toolParamsEditor(c *ui.Context, copy i18n.Settings) {
 						})
 						if paramKinds[kindIndex] == extensions.ParamSelect {
 							a.row(c, copy.ParamsOptions, copy.ParamsOptionsHint, func() {
-								ui.TextInput(c, &options).Label(copy.ParamsOptions).Width(240).
-									Placeholder("fast, slow")
+								// R153 · one option per line, not comma-separated:
+								// a choice may itself contain a comma (`1,000`),
+								// which the old codec split in two on the next
+								// round-trip. The wire shape is unchanged.
+								ui.TextArea(c, &options).Label(copy.ParamsOptions).Width(240).
+									Height(56).Placeholder("fast\nslow")
 							})
 						}
 						a.row(c, copy.ParamsRequired, "", func() {
@@ -3137,7 +3141,7 @@ func (a *App) editorParams() []extensions.ParamDefinition {
 			Flag:     strings.TrimSpace(param.Flag),
 			Required: param.Required,
 		}
-		for _, option := range strings.Split(param.Options, ",") {
+		for _, option := range strings.Split(param.Options, "\n") {
 			if trimmed := strings.TrimSpace(option); trimmed != "" {
 				definition.Options = append(definition.Options, trimmed)
 			}
@@ -3203,7 +3207,7 @@ func (a *App) beginEdit(id string, tool CustomTool) {
 	for _, param := range tool.Params {
 		a.toolParams = append(a.toolParams, toolParam{
 			ID: param.ID, Label: param.Label, Kind: param.Kind, Flag: param.Flag,
-			Required: param.Required, Options: strings.Join(param.Options, ", "),
+			Required: param.Required, Options: strings.Join(param.Options, "\n"),
 		})
 	}
 }

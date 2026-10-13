@@ -635,7 +635,10 @@ type Settings struct {
 	LocalToolVersionArgs     string
 	LocalToolVersionArgsHint string
 	LocalToolVersion         string
-	LocalToolDescription     string
+	// The version box stays editable, so the hint says what it is: a fallback
+	// a real probe overwrites on connect (R153).
+	LocalToolVersionHint string
+	LocalToolDescription string
 	// The declaration/audit switches live behind a default-closed Advanced
 	// disclosure, so a brand-new integration does not open on a ceremonial form.
 	LocalToolAdvanced                   string

@@ -99,7 +99,15 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-bp 本地工具表单的声明确认收进「高级」披露（R161）** —— 原版最近一轮
+> **最新一轮：P7-bq 版本兜底提示 + 选项「一行一个」（R153 剩余两条）** —— P7-bp 重写的具体待办
+> 第 2、3 条（都是 R153 的遗留）：原版给可编辑的版本框印一条 hint，说明探测到真实版本会自动覆盖、
+> 探测失败时才用作者填的值兜底；又把选项编辑器的分隔符从逗号改成换行，因为一个选项值本身可能含逗号
+> （`1,000`），逗号分隔会在下一次往返时把它拆成两个。本构建以前版本行只有占位符 `0.0.1`、选项仍用
+> 逗号分隔。现在版本行补上本地化 hint（`LocalToolVersionHint`），选项编辑器改成多行 `ui.TextArea`、
+> 按换行拆分（trim、去空行）、`beginEdit` 按换行写回，提示改成「每行一个」。落地见下方
+> 「P7-bq 版本兜底提示与逐行选项」。
+
+> **上一轮：P7-bp 本地工具表单的声明确认收进「高级」披露（R161）** —— 原版最近一轮
 > （`main` 的 v0.3.14，commit 4b2c168）把自定义集成编辑器里两个**只做声明/审计**的权限字段集收进一个
 > 默认折叠的 `<details>`「Advanced · Permissions & audit」，理由写在注释里：它们自己的提示就承认
 > 「不提供操作系统隔离」，画成与宿主真正读取的字段同权，会让一个全新的集成一打开就是一张仪式表单。
@@ -141,7 +149,35 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 > required 不认 default 豁免。现在 `ParamIssues` 返回 `{Index,Key,Label}`，每个非法值
 > 的句子印在**它自己那一行下面**，Run 按钮在有错时禁用；输出视图也按语言渲染 `run_param_*`。
 
-**P7-bp 本地工具权限收进高级披露（R161）（本轮）**
+**P7-bq 版本兜底提示与逐行选项（R153 剩余两条）（本轮）**
+
+- **依赖检查**：GitHub releases API 仍被限流，改用 go proxy（`go list -m -versions github.com/egoist/mygo`）
+  确认 v0.4.8 仍是最新（`go.mod` 已是 v0.4.8），无版本可升。
+- **入口**：P7-bp 重写的 3 条具体待办，第 1 条（P7-bp）已落地，本轮取剩余第 2、3 条（都是 R153）。
+- **改动（第 2 条，版本兜底提示）**：原版 `main` 的 `src/extensions/CustomIntegrationDrawer.tsx:133-135`
+  在版本输入下印一条 `extension-custom-form__hint`（文案 `src/i18n.ts:685` / zh `:1565`）：
+  “A successful version probe overwrites this value; if the probe fails, this is the fallback.”——
+  一个可编辑的版本框挣要说清自己是什么。本构建 `internal/settingsui/settingsui.go` 的版本行
+  （原 `:2302`）只有占位符 `0.0.1`。现在补 `LocalToolVersionHint`（en/zh，原文照搬），版本行的
+  `a.row` 第二个参数（hint）接上它，与表单里其他提示同一套画法。
+- **改动（第 3 条，选项「一行一个」）**：原版 `src/extensions/script-params.ts:92-107` 的
+  `parseParamOptions` 用 `split("\n")`（trim、去空行）、`formatParamOptions` 用 `join("\n")`，理由写在
+  注释里：一个选项值本身可能含逗号（`1,000`），逗号分隔会在下一次往返时把它拆成两个。本构建
+  `settingsui.go` 的 `editorParams`（原 `:3140` `strings.Split(param.Options, ",")`）、`beginEdit`
+  （原 `:3206` `strings.Join(param.Options, ", ")`）与占位符（原 `:3083` `"fast, slow"`）都还按逗号。
+  现在：拆分改成 `"\n"`、写回改成 `"\n"`；输入控件由单行 `ui.TextInput` 换成多行 `ui.TextArea`
+  （对齐原版的 `<textarea rows={3}>`），占位符 `"fast\nslow"`；`ParamsOptionsHint` 从
+  “Separated by commas.”/“用逗号分隔。” 改成 “One per line.”/“每行一个。”。磁盘格式不变
+  （线上仍是字符串数组）。
+- **测试/验收**：新增 `TestLocalToolVersionHint`（表单未开时 hint 不在、打开后印出）、
+  `TestParamOptionsNewlineCodec`（含逗号的选项 `["1,000", "1,000,000"]` 经 `beginEdit`/`editorParams`
+  一次往返后仍是两个值）；`TestConnectFormNamesAnUnfinishedInputAndRefusesToSave` 里的
+  `"fast, slow"` 改成 `"fast\nslow"`。`grep -rn 'CustomVersionHint' internal --include=*.go` 不再是零，
+  `grep -rn 'Separated by commas\|fast, slow' internal --include=*.go` 为零。
+- **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 27 包全绿、
+  `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+**P7-bp 本地工具权限收进高级披露（R161）（上一轮）**
 
 - **依赖检查**：GitHub releases API 被限流，改用 go proxy（`go list -m -versions github.com/egoist/mygo`）
   确认 v0.4.8 仍是最新（`go.mod` 已是 v0.4.8），无版本可升。
@@ -1855,12 +1891,12 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 ## 尚未做（按建议优先级）
 
 > **P7-bp 更新**：P7-bm 的 4 条具体待办全部落地后清单又空，本轮把它重新写实为下面 3 条带 file:line
-> 的具体待办，并取第 1 条落地。三条都在「本机工具 / 自定义集成」这一块，来源是 `main` 最近的
+> 的具体待办，并取第 1 条落地（第 2、3 条已由 P7-bq 落地）。三条都在「本机工具 / 自定义集成」这一块，来源是 `main` 最近的
 > R161（v0.3.14，commit 4b2c168）与 R153（commit a277b00 / ebb20ca）对本构建尚未接线的改动。仍然卡在
 > 框架上的三条（`Options.OnCopy`、终端键入的 `HandleInput` 缝、外观四个死旋钮）与一次性维护者动作
 > （`mygo keygen`、`mygo.json` 的 `updates`/签名、CI 私钥、发布到 GitHub Release）不变，另见「已知差距」。
 
-### 具体待办（P7-bp 重写；第 1 条已落地，第 2、3 条待做）
+### 具体待办（P7-bp 重写；3 条已全部落地：第 1 条 P7-bp、第 2·3 条 P7-bq）
 
 1. **本地工具表单的权限开关与边界提示收进「高级」披露（本轮已落地）** —— 原版 R161 把自定义集成
    编辑器里两个**只做声明 / 审计**的权限字段集（`ENFORCED` / `DECLARED`）连同它们上方的
@@ -1879,23 +1915,23 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
      `a.toolPermissions`，折叠后提交照带（折叠只是表现，不卸装）；i18n 补
      `LocalToolAdvanced`/`LocalToolAdvancedPermissions`/`PermissionBoundary`（en/zh）；
      `TestLocalToolAdvancedDisclosure` 与新改写句的 `TestLocalToolForm` 钉住。
-2. **版本字段缺「兜底」提示（R153）** —— 原版在自定义集成的版本输入下印一条 hint，说明「探测到真实
+2. **版本字段缺「兜底」提示（R153）（P7-bq 已落地）** —— 原版在自定义集成的版本输入下印一条 hint，说明「探测到真实
    版本会自动覆盖；探测失败时用你填的值兜底」，让一个可编辑的版本框诚实说明自己是什么。本构建的版本行
    只有一个占位符 `0.0.1`，没有这行提示。
    - 原版：`src/i18n.ts:685` 的 `settings.extensions.customVersionHint`（zh 在 `:1565`），画在
      `src/extensions/CustomIntegrationDrawer.tsx:133-135` 的 `extension-custom-form__hint`。
    - 本构建：`internal/settingsui/settingsui.go:2302` 的版本行 `ui.TextInput(c, &version).Label(...).Placeholder("0.0.1")`
      没有 hint；`grep -rn 'CustomVersionHint' internal --include=*.go` 为空。
-   - 验收：版本行补一行本地化 hint（en/zh，`localToolVersionHint`），`TestLocalToolForm` 或新测试钉住。
-3. **select 选项的编辑用「一行一个」而非逗号（R153）** —— 原版把选项编辑器的分隔符从逗号改成换行，
+   - 验收（已满足）：版本行补一行本地化 hint（`LocalToolVersionHint`，en/zh），`TestLocalToolVersionHint` 钉住。
+3. **select 选项的编辑用「一行一个」而非逗号（R153）（P7-bq 已落地）** —— 原版把选项编辑器的分隔符从逗号改成换行，
    理由直接写在代码里：一个选项值自身可能含逗号，用逗号分隔会在下一次往返时把一个值拆成两个。本构建的
    编辑器仍用逗号。
    - 原版：`src/extensions/script-params.ts:92-107` 的 `parseParamOptions`（`split("\n")`，trim 后去空行）
      与 `formatParamOptions`（`join("\n")`）。
    - 本构建：`internal/settingsui/settingsui.go:3140` 的 `strings.Split(param.Options, ",")` 与
      `:3206` 的 `strings.Join(param.Options, ", ")`；占位符 `:3083` 的 `"fast, slow"`。
-   - 验收：选项按换行拆分（trim、去空行），`beginEdit` 按换行 join，占位符改成「一行一个」；
-     测试钉住一个含逗号的选项能一次往返。
+   - 验收（已满足）：选项按换行拆分（trim、去空行），`beginEdit` 按换行 join，占位符改成「一行一个」，
+     多行 `ui.TextArea`；`TestParamOptionsNewlineCodec` 钉住一个含逗号的选项能一次往返。
 
 > P7-bm 的 4 条具体待办已全部落地，下方旧清单保留作为「哪些已经做过」的记录。
 
