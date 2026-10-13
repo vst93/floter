@@ -1980,6 +1980,7 @@ func (a *App) toolForEdit(id string) (settingsui.CustomTool, bool) {
 		Description:    description,
 		Output:         manifest.Output,
 		Permissions:    append([]string{}, manifest.Permissions...),
+		Platforms:      append([]string{}, manifest.Platforms...),
 		Params:         append([]extensions.ParamDefinition{}, manifest.Params...),
 	}
 	return tool, true
@@ -3190,6 +3191,7 @@ func customRequest(tool settingsui.CustomTool) extensions.CustomRequest {
 		VersionArgs:    strings.Fields(tool.VersionArgs),
 		Permissions:    tool.Permissions,
 		Output:         tool.Output,
+		Platforms:      tool.Platforms,
 		Params:         tool.Params,
 	}
 	if request.Mode == "" {

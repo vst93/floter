@@ -2585,7 +2585,8 @@ func TestEditGeneratedIntegration(t *testing.T) {
 			return CustomTool{
 				Name: "Ripgrep", Program: "/usr/bin/rg", Command: "rg",
 				Args: "--floter", Version: "1.0.0",
-				Params: []extensions.ParamDefinition{{ID: "target", Kind: "text", Flag: "--target"}},
+				Platforms: []string{"darwin", "linux"},
+				Params:    []extensions.ParamDefinition{{ID: "target", Kind: "text", Flag: "--target"}},
 			}, true
 		},
 	})
@@ -2623,6 +2624,11 @@ func TestEditGeneratedIntegration(t *testing.T) {
 	}
 	if edited[0].tool.Command != "rg" || edited[0].tool.Args != "--floter" {
 		t.Errorf("the draft lost its fields: %+v", edited[0].tool)
+	}
+	// R7-5 · the edit form is seeded from what the integration declares, so its
+	// platforms row starts on the manifest's own list and saves it back.
+	if got := strings.Join(edited[0].tool.Platforms, ","); got != "darwin,linux" {
+		t.Errorf("the draft lost its platforms: %q", got)
 	}
 	if a.toolEditing != "" {
 		t.Errorf("the form stayed in edit mode: %q", a.toolEditing)
@@ -2782,4 +2788,79 @@ func TestThePalettePreviewFollowsTheAppearanceForInherit(t *testing.T) {
 	if got := sample(tt, rect.X+4, rect.Y+4); got != want.Background {
 		t.Errorf("dark inherit preview = %v, want %v", got, want.Background)
 	}
+}
+
+// R7-5 · the connection form limits the tool to the platforms ticked on its
+// "Supported platforms" row, which starts on this machine's own; unticking
+// every one of them is refused under that row rather than silently sent as
+// "every platform" (the manifest's own meaning for an empty list). The old
+// form did the same thing by disabling its submit button.
+func TestLocalToolPlatformsRow(t *testing.T) {
+	copy := i18n.For("en").Settings
+	connected := []CustomTool{}
+	a := New(settings.NewStore(settings.Default()), Actions{
+		ConnectLocalTool: func(tool CustomTool) { connected = append(connected, tool) },
+	})
+	tt := render(t, a, 720, 1600)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if err := tt.Click(copy.LocalToolAdd); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !tt.HasText(copy.LocalToolPlatforms) {
+		t.Fatalf("the form is missing the platforms row: %q", tt.Texts())
+	}
+	// A fresh form ticks this machine's own platform, and only it.
+	own := currentPlatform()
+	if len(a.toolPlatforms) != 1 || !a.toolPlatforms[own] {
+		t.Fatalf("a fresh form starts on %+v, want just %q", a.toolPlatforms, own)
+	}
+	// Unticking it leaves nothing: the form says so and refuses to connect.
+	if err := tt.Click(platformLabel(own)); err != nil {
+		t.Fatalf("untick %s: %v", own, err)
+	}
+	tt.Frame()
+	a.toolName, a.toolProgram = "Ripgrep", "/usr/bin/rg"
+	tt.Frame()
+	if err := tt.Click(copy.LocalToolConnect); err != nil {
+		t.Fatalf("connect: %v", err)
+	}
+	tt.Frame()
+	if len(connected) != 0 {
+		t.Fatalf("an empty platform list reached the host: %+v", connected)
+	}
+	if !tt.HasText(copy.LocalToolPlatformRequired) {
+		t.Fatalf("the row did not name the requirement: %q", tt.Texts())
+	}
+	// Ticking two platforms connects, and both travel with the draft.
+	for _, platform := range []string{"linux", "windows"} {
+		if err := tt.Click(platformLabel(platform)); err != nil {
+			t.Fatalf("tick %s: %v", platform, err)
+		}
+		tt.Frame()
+	}
+	if err := tt.Click(copy.LocalToolConnect); err != nil {
+		t.Fatalf("connect: %v", err)
+	}
+	tt.Frame()
+	if len(connected) != 1 {
+		t.Fatalf("connected = %+v", connected)
+	}
+	if got := strings.Join(connected[0].Platforms, ","); got != "linux,windows" {
+		t.Errorf("the draft carried platforms %q", got)
+	}
+}
+
+// platformLabel is the row's own word for one platform id, for a test that
+// clicks it by name.
+func platformLabel(id string) string {
+	for _, platform := range customPlatforms {
+		if platform.ID == id {
+			return platform.Label
+		}
+	}
+	return id
 }

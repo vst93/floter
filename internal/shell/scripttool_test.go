@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -171,5 +172,71 @@ func TestSessionsListReportsEverySession(t *testing.T) {
 	a.Terminal.Sessions[0].Title = ""
 	if got := a.Settings.Sessions()[0].Title; got == "" {
 		t.Error("an unnamed session has no label")
+	}
+}
+
+// R7-5 · the platforms the form ticks travel with the draft into the manifest
+// the host writes, and the edit form reads the same list back: one mapping, so
+// what was connected and what the form shows the next time it is opened
+// cannot drift. The host installs only a package that supports this machine,
+// so the list here keeps the current platform alongside one other.
+func TestPlatformsTravelIntoTheManifest(t *testing.T) {
+	paths := extensions.FromRoot(t.TempDir())
+	restoreInterpreter := extensions.StubInterpreterLookup(func(language string) (string, bool) {
+		if language == "python" {
+			return "/usr/bin/python3", true
+		}
+		return "", false
+	})
+	defer restoreInterpreter()
+
+	platforms := []string{runtime.GOOS, "windows"}
+	if runtime.GOOS == "windows" {
+		platforms = []string{"windows", "linux"}
+	}
+	tool := settingsui.CustomTool{
+		Name:           "Weather",
+		Mode:           "script",
+		ScriptLanguage: "python",
+		ScriptContent:  "#!/usr/bin/env python3\nprint('sunny')\n",
+		Command:        "weather",
+		Platforms:      platforms,
+	}
+	request := customRequest(tool)
+	if got := strings.Join(request.Platforms, ","); got != strings.Join(platforms, ",") {
+		t.Fatalf("the request carried platforms %q", got)
+	}
+	prepared, err := extensions.PrepareCustom(context.Background(), paths, request)
+	if err != nil {
+		t.Fatalf("prepare: %v", err)
+	}
+	entry, err := prepared.Commit(true)
+	if err != nil {
+		t.Fatalf("commit: %v", err)
+	}
+	integration, ok := extensions.LoadInventory(paths).WithID(entry.ID)
+	if !ok {
+		t.Fatalf("the integration is not in the inventory: %s", entry.ID)
+	}
+	if got := strings.Join(integration.Manifest.Platforms, ","); got != strings.Join(platforms, ",") {
+		t.Errorf("the manifest kept platforms %q", got)
+	}
+
+	// And the form reads the same list back for an edit.
+	a := New(Options{Store: settings.NewStore(settings.Default()), Paths: paths})
+	a.RefreshIntegrations(context.Background())
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		edited, found := a.toolForEdit(entry.ID)
+		if found {
+			if got := strings.Join(edited.Platforms, ","); got != strings.Join(platforms, ",") {
+				t.Fatalf("the form read platforms %q back", got)
+			}
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the form could not read the connection back")
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
 }

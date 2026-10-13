@@ -11,6 +11,7 @@ package settingsui
 import (
 	"fmt"
 	"math"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -413,6 +414,11 @@ type App struct {
 	toolVersion     string
 	toolDescription string
 	toolOutput      string
+	// toolPlatforms is which operating systems the connection is limited to,
+	// keyed by the platform ids the manifest carries (see customPlatforms).
+	// Nil means the form has not touched the row yet, so it starts on the
+	// current platform alone (R7-5).
+	toolPlatforms   map[string]bool
 	toolPermissions map[string]bool
 	// toolParams is the declared inputs the form is editing, one per row.
 	toolParams []toolParam
@@ -2219,6 +2225,9 @@ type CustomTool struct {
 	Description    string
 	Output         string
 	Permissions    []string
+	// Platforms limits the connection to the operating systems it names; the
+	// form always sends at least one.
+	Platforms []string
 	// Params are the inputs the connected tool declares.
 	Params []extensions.ParamDefinition
 }
@@ -2240,6 +2249,13 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 		}
 		if a.toolPermissions == nil {
 			a.toolPermissions = map[string]bool{}
+		}
+		// A fresh form starts limited to this machine's own platform (R7-5).
+		// An edit keeps whatever the integration declares, even nothing: the
+		// row then says a platform is required rather than silently inventing
+		// one the manifest does not name.
+		if a.toolPlatforms == nil {
+			a.toolPlatforms = map[string]bool{currentPlatform(): true}
 		}
 		name, program, command := a.toolName, a.toolProgram, a.toolCommand
 		args, versionArgs, version := a.toolArgs, a.toolVersionArgs, a.toolVersion
@@ -2326,6 +2342,34 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 					}
 				}
 			})
+			// The connection is limited to the platforms ticked here, and at
+			// least one has to stay ticked: an empty list means "every
+			// platform", which is not something the user can ask for by
+			// unticking everything by accident. The refusal is named under
+			// the row (R7-5).
+			ticked := make([]bool, len(customPlatforms))
+			for i, platform := range customPlatforms {
+				ticked[i] = a.toolPlatforms[platform.ID]
+			}
+			a.row(c, copy.LocalToolPlatforms, "", func() {
+				ui.Row(c).FillWidth().Gap(c.Theme().Space(3)).Wrap().Children(func() {
+					for i, platform := range customPlatforms {
+						i, platform := i, platform
+						checked := ticked[i]
+						if ui.Checkbox(c, &checked, platform.Label).Changed() {
+							if checked {
+								a.toolPlatforms[platform.ID] = true
+							} else {
+								delete(a.toolPlatforms, platform.ID)
+							}
+						}
+					}
+				})
+			}, func() {
+				if len(a.toolPlatforms) == 0 {
+					a.issueUnder(c, copy.LocalToolPlatformRequired)
+				}
+			})
 			// The declaration and audit switches sit behind an "Advanced"
 			// disclosure, closed by default: a brand-new integration should not
 			// open on a ceremonial list of permission checkboxes, and the note
@@ -2360,6 +2404,17 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 			if len(extensions.ParamRowIssues(a.editorParams())) > 0 {
 				return
 			}
+			// The platforms row refuses the same way: nothing ticked is not a
+			// request for every platform, it is an unfinished row.
+			if len(a.toolPlatforms) == 0 {
+				return
+			}
+			platforms := make([]string, 0, len(customPlatforms))
+			for _, platform := range customPlatforms {
+				if a.toolPlatforms[platform.ID] {
+					platforms = append(platforms, platform.ID)
+				}
+			}
 			permissions := []string{}
 			for _, permission := range extensions.AllPermissions {
 				if a.toolPermissions[permission] {
@@ -2379,6 +2434,7 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 				Description:    strings.TrimSpace(description),
 				Output:         a.toolOutput,
 				Permissions:    permissions,
+				Platforms:      platforms,
 				Params:         a.declaredParams(),
 			}
 			if tool.Name == "" {
@@ -2510,6 +2566,27 @@ const (
 	routeBackground = "background"
 	routeScript     = "script"
 )
+
+// customPlatforms are the operating systems a connected tool can be limited
+// to, in the order the old form lists them: the id is what the manifest stores
+// and the runtime checks, the label is what the row shows.
+var customPlatforms = []struct{ ID, Label string }{
+	{"darwin", "macOS"},
+	{"linux", "Linux"},
+	{"windows", "Windows"},
+}
+
+// currentPlatform is the platform a fresh form ticks: this machine's own, with
+// anything the manifest vocabulary does not name falling back to linux, as the
+// old build's CURRENT_PLATFORM did.
+func currentPlatform() string {
+	for _, platform := range customPlatforms {
+		if platform.ID == runtime.GOOS {
+			return platform.ID
+		}
+	}
+	return "linux"
+}
 
 // freshnessOf reads what is known about an integration's command list, for
 // the card's own row. Nothing is shown for an integration nothing has probed.
@@ -3208,6 +3285,10 @@ func (a *App) beginEdit(id string, tool CustomTool) {
 	a.toolVersion = tool.Version
 	a.toolDescription = tool.Description
 	a.toolOutput = tool.Output
+	a.toolPlatforms = map[string]bool{}
+	for _, platform := range tool.Platforms {
+		a.toolPlatforms[platform] = true
+	}
 	a.toolPermissions = map[string]bool{}
 	for _, permission := range tool.Permissions {
 		a.toolPermissions[permission] = true
@@ -3228,6 +3309,7 @@ func (a *App) endEdit() {
 	a.toolMode, a.toolLanguage, a.toolScript = "", "", ""
 	a.toolName, a.toolProgram, a.toolCommand = "", "", ""
 	a.toolArgs, a.toolVersionArgs, a.toolVersion, a.toolDescription = "", "", "", ""
+	a.toolPlatforms = nil
 	a.toolParams = nil
 	a.toolPermissions = map[string]bool{}
 }

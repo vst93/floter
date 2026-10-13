@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**912 项测试全绿**。
+含测试）。**914 项测试全绿**。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 912 项测试
+go test -count=1 ./...         # 914 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,7 +99,20 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-bu 自定义集成描述控件的三条契约（R158 + R159 / 原版 ebb20ca）** —— P7-bt 收尾后
+> **最新一轮：P7-bv 本机连接表单的「支持的平台」勾选（R7-5 / 原版 `customPlatforms`）** —— P7-bu 重写的
+> 3 条具体待办第 1 条已落地，本轮取第 2 条：原版的自定义集成表单有一组 darwin/linux/windows 三选，
+> 默认只勾**当前平台**（`ExtensionsPanel.tsx:374` 的 `CURRENT_PLATFORM`、`:393` 的
+> `platforms: [CURRENT_PLATFORM]`），一个都不勾时提交按钮禁用。本构建 `CustomTool` 里根本没有
+> `Platforms` 字段，`customRequest` 也不传，于是本机连接出来的集成 `Platforms` 恒为空（= 所有平台），
+> 用户无法限定；后端 `extensions.CustomRequest.Platforms` 其实一直会写进 manifest
+>（`internal/extensions/custom.go:435`），缺的只是表单与映射。现在 `CustomTool` 加 `Platforms`，表单在
+> 「输出」行下画三个勾选（`customPlatforms`：macOS/Linux/Windows ↔ darwin/linux/windows），未触碰时
+> 默认勾当前平台（`currentPlatform()`，未知 GOOS 回落 linux，同原版 `CURRENT_PLATFORM` 的三元），
+> 一个都不勾时拒绝提交并把 `form.platformRequired` 那句印在该行下（`a.issueUnder`），`beginEdit` 按
+> manifest 回填、`toolForEdit` 从 `manifest.Platforms` 读回、`customRequest` 逐字透传。落地见下方
+> 「P7-bv 支持的平台」。
+
+> **上一轮：P7-bu 自定义集成描述控件的三条契约（R158 + R159 / 原版 ebb20ca）** —— P7-bt 收尾后
 > 「尚未做」又一次为空，本轮先把它重写为 3 条带 file:line 的具体待办（下方「具体待办（P7-bu 重写）」），
 > 再取第 1 条落地。原版 v0.3.14（`main` 的 `ebb20ca`）把描述输入收成 **executable-only**：脚本清单写死
 > 自己的内部句子（`"Local script integration"`）、从不读请求里的描述，所以脚本模式下那个框是「可编辑但
@@ -192,7 +205,46 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 > required 不认 default 豁免。现在 `ParamIssues` 返回 `{Index,Key,Label}`，每个非法值
 > 的句子印在**它自己那一行下面**，Run 按钮在有错时禁用；输出视图也按语言渲染 `run_param_*`。
 
-**P7-bu 描述契约（原版 `ebb20ca` / R158 + R159）（本轮）**
+**P7-bv 支持的平台（原版 `customPlatforms` / R7-5）（本轮）**
+
+- **依赖检查**：GitHub releases API 返回 `v0.4.8`（`go.mod` 已是 v0.4.8），go proxy 的
+  `go list -m -versions` 也停在 v0.4.8，无版本可升，故本轮无升级、无用点。
+- **入口**：P7-bu 重写的 3 条具体待办里第 1 条已落地，本轮取第 2 条（最高优先级）。
+- **原版对照**：`src/ExtensionsPanel.tsx:374` 的 `CURRENT_PLATFORM`（Mac→darwin，Win→windows，其余
+  linux）与 `:393`/`:1573` 的 `platforms: [CURRENT_PLATFORM]` 默认、`:1621` 编辑时
+  `platforms: [...definition.platforms]`；`CustomIntegrationDrawer.tsx:23` 的 `PLATFORMS` 三元组与
+  `:158` 的 fieldset（macOS/Linux/Windows 三个 checkbox）、`:178` 提交按钮的
+  `disabled={… || integration.platforms.length === 0 || …}`；`src/i18n.ts:694`
+  `settings.extensions.customPlatforms`、`:842` `settings.extensions.form.platformRequired`。
+- **本构建（改前）**：`internal/settingsui` 的 `CustomTool` 没有 `Platforms` 字段、表单没有平台行、
+  `internal/shell/shell.go` 的 `customRequest` 不传 `Platforms`、`toolForEdit` 不回填
+  `manifest.Platforms`；后端 `customManifest`（`internal/extensions/custom.go:435`）其实早就把
+  `request.Platforms` 落盘，所以缺的全在前端与映射。
+- **改动**：
+  - `internal/settingsui/settingsui.go`：新增 `customPlatforms`（id ↔ 显示名，macOS/Linux/Windows）与
+    `currentPlatform()`（未知 GOOS 回落 `linux`）；`CustomTool` 加 `Platforms []string`；App 加
+    `toolPlatforms map[string]bool`，为 `nil`（表单还没被碰过）时默认只勾当前平台，`beginEdit` 按
+    manifest 填、`endEdit` 清回 `nil`；表单在「输出」行下画三个 `ui.Checkbox`，一个都不勾时在行下印
+    `LocalToolPlatformRequired` 并在提交处提前 `return`。
+  - `internal/shell/shell.go`：`customRequest` 透传 `Platforms`（脚本模式也保留，平台与模式无关），
+    `toolForEdit` 从 `manifest.Platforms` 回填。
+  - `internal/i18n`：新增 `LocalToolPlatforms`（Supported platforms / 支持的平台）与
+    `LocalToolPlatformRequired`（Select at least one supported platform / 请至少选择一个支持的平台），
+    逐字对齐原版两个键。
+- **刻意对齐原版的一处语义**：编辑一个 manifest 里 `platforms` 为空的既有集成时，表单是**一个都不勾**
+  （原版 `platforms: [...definition.platforms]` + 按钮禁用），而不是替用户勾上全部——空列表在
+  manifest 里是「无约束」，回写三个平台名会把它窄化成「已知三平台」。用户必须显式选一个才能保存，
+  行下的句子会说明原因。
+- **测试**：`internal/settingsui/view_test.go` 的 `TestLocalToolPlatformsRow`（新表单只剩当前平台勾选 →
+  取消后提交被拒且行下出现 `LocalToolPlatformRequired`、`connected` 为空 → 勾 linux+windows 后提交，
+  `draft.Platforms` 逐字为 `linux,windows`；已做证伪式核查：删掉提交前的空列表 `return` 该测试即变红）；
+  `TestEditGeneratedIntegration` 补平台回填/回写断言；`internal/shell/scripttool_test.go` 的
+  `TestPlatformsTravelIntoTheManifest`（`customRequest` → `PrepareCustom`/`Commit` → manifest 逐字落盘 →
+  `toolForEdit` 逐字读回；列表含本机平台，因为宿主只装支持本机的包）。
+- **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 29 包全绿（914 项）、
+  `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+**P7-bu 描述契约（原版 `ebb20ca` / R158 + R159）（上一轮）**
 
 - **依赖检查**：GitHub releases API 被限流，改用 go proxy（`go list -m -versions github.com/egoist/mygo`）
   确认 v0.4.8 仍是最新（`go.mod` 已是 v0.4.8），无版本可升。
@@ -2084,13 +2136,12 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-> **P7-bu 更新**：P7-bt 之后「尚未做」又一次为空（P7-br 的 4 条全落地），本轮先把它重写为 3 条带
-> file:line 的具体待办（下方「具体待办（P7-bu 重写）」），再取第 1 条落地——R158/R159 的自定义集成描述
-> 契约。其余卡在框架上的三条（`Options.OnCopy`、终端键入的 `HandleInput` 缝、外观四个死旋钮）与一次性
+> **P7-bv 更新**：P7-bu 重写的具体待办里第 1、2 条已落地，只剩第 3 条（`normalizeCustom` 缺的五条后端
+> 校验）。其余卡在框架上的三条（`Options.OnCopy`、终端键入的 `HandleInput` 缝、外观四个死旋钮）与一次性
 > 维护者动作（`mygo keygen`、`mygo.json` 的 `updates`/签名、CI 私钥、发布到 GitHub Release）不变，
 > 另见「已知差距」。
 
-### 具体待办（P7-bu 重写；第 1 条本轮已落地，第 2、3 条待做）
+### 具体待办（P7-bu 重写；第 1、2 条已落地，第 3 条待做）
 
 1. **自定义集成描述控件的三条契约（R158 + R159）（本轮已落地）** —— 原版 v0.3.14 把描述输入收成
    **executable-only**（R158）：脚本清单写死自己的内部句子、从不读请求里的描述，所以脚本模式下那个
@@ -2112,7 +2163,7 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
      `TestCustomScriptDescriptionIsInternal`、`TestCustomExecutableDescriptionStaysHonest`、
      `TestLocalToolDescriptionIsExecutableOnly`，`TestConnectAScriptTool` 加读回断言。
 
-2. **本机连接表单缺「支持的平台」勾选（原版 `customPlatforms`）** —— 原版的自定义集成表单有一组三选
+2. **本机连接表单缺「支持的平台」勾选（原版 `customPlatforms`）（本轮已落地）** —— 原版的自定义集成表单有一组三选
    （darwin / linux / windows）的平台勾选，默认只勾**当前平台**，且没有任何一个勾选时提交按钮禁用；
    本构建的 `CustomTool` 里根本没有 `Platforms` 字段，`customRequest` 也不传，于是本机连接出来的集成
    `Platforms` 恒为空（= 所有平台），用户无法限定。后端 `extensions.CustomRequest.Platforms` 已经会写进
@@ -2124,9 +2175,9 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
    - 本构建：`internal/settingsui/settingsui.go:2205-2224`（`CustomTool` 无 `Platforms`）、
      `:2246-2360`（表单无平台行）；`internal/shell/shell.go:3179`（`customRequest` 不传 `Platforms`）；
      `internal/shell/shell.go:1952`（`toolForEdit` 不回填 `manifest.Platforms`）。
-   - 验收：`CustomTool` 加 `Platforms []string`；表单画三个勾选（默认 `[runtime.GOOS]`）并在一个都没勾时
+   - 验收（已满足）：`CustomTool` 加 `Platforms []string`；表单画三个勾选（默认 `[runtime.GOOS]`）并在一个都没勾时
      拒绝提交（错误句子印在行下）；`customRequest` 透传；`toolForEdit` 从 `manifest.Platforms` 回填；测试
-     钉住默认值、无勾选拒绝与一次往返（含后端 `Platforms` 逐字落盘）。
+     钉住默认值、无勾选拒绝与一次往返（含后端 `Platforms` 逐字落盘）。落地见下方「P7-bv 支持的平台」。
 
 3. **本机连接请求的后端校验只做了一半（原版 `settings.extensions.form.*`）** —— 原版
    `create_custom_integration_locked` 在写包前逐条校验并回**本地化键**：名字 1..80（`form.nameLength`）、

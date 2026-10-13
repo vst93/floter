@@ -644,8 +644,12 @@ type Settings struct {
 	LocalToolDescriptionPlaceholder string
 	// The declaration/audit switches live behind a default-closed Advanced
 	// disclosure, so a brand-new integration does not open on a ceremonial form.
-	LocalToolAdvanced                   string
-	LocalToolAdvancedPermissions        string
+	LocalToolAdvanced            string
+	LocalToolAdvancedPermissions string
+	// The supported-platforms row limits a connection to some operating
+	// systems; at least one has to stay ticked, so the row owns its refusal.
+	LocalToolPlatforms                  string
+	LocalToolPlatformRequired           string
 	LocalToolOutput                     string
 	LocalToolTerminal                   string
 	LocalToolBackground                 string
