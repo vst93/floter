@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**894 项测试全绿**。
+含测试）。**902 项测试全绿**。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 894 项测试
+go test -count=1 ./...         # 902 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,7 +99,18 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-bq 版本兜底提示 + 选项「一行一个」（R153 剩余两条）** —— P7-bp 重写的具体待办
+> **最新一轮：P7-br 分页页脚的三态 + 两个环境循环遵守减少动效（R29 / R8+R161）** —— P7-bp 重写的具体待办
+> 第 1–3 条全落地后清单又空，本轮先把它重写为 4 条带 file:line 的具体待办（下方「具体待办（P7-br 重写）」），
+> 再取前两条落地。第一条回到原版 R29 的页脚三态：`more` 状态只有一行**空行**（注释写明「the scroll itself
+> is the affordance」）、`loading` 状态是 **spinner + Loading more…**、`end` 状态是 `No more results`；
+> 本构建以前在 `more` 画了原版没有的 “Scroll for more”、`loading` 只有字没有环。现在抽出纯函数
+> `outputFooterState`，`more` 只留高度、`loading` 画 12px 圆环（`Hairline` 整圈 + `TextMuted` 四分之一弧，
+> 0.7s 一圈），并删掉原版没有的 `OutputMore` 文案。第二条是原版 `prefers-reduced-motion` 命名块点名关掉的
+> **两个环境循环**（`.launcher-plugin-footer__spinner` 与 `.terminal-bar__dot`）：框架的 `Loop` 明确不跟这个
+> 偏好，所以新增 `internal/motion` 让 App 自己读，终端状态点顺手回到原版 keyframes（0.5 与 0.88 缩放，
+> 此前是 0.75..1 且不缩放）。落地见下方「P7-br 分页页脚三态与减少动效」。
+
+> **上一轮：P7-bq 版本兜底提示 + 选项「一行一个」（R153 剩余两条）** —— P7-bp 重写的具体待办
 > 第 2、3 条（都是 R153 的遗留）：原版给可编辑的版本框印一条 hint，说明探测到真实版本会自动覆盖、
 > 探测失败时才用作者填的值兜底；又把选项编辑器的分隔符从逗号改成换行，因为一个选项值本身可能含逗号
 > （`1,000`），逗号分隔会在下一次往返时把它拆成两个。本构建以前版本行只有占位符 `0.0.1`、选项仍用
@@ -149,7 +160,43 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 > required 不认 default 豁免。现在 `ParamIssues` 返回 `{Index,Key,Label}`，每个非法值
 > 的句子印在**它自己那一行下面**，Run 按钮在有错时禁用；输出视图也按语言渲染 `run_param_*`。
 
-**P7-bq 版本兜底提示与逐行选项（R153 剩余两条）（本轮）**
+**P7-br 分页页脚三态与减少动效（R29 / R8+R161）（本轮）**
+
+- **依赖检查**：GitHub releases API 仍被限流，改用 go proxy（`go list -m -versions github.com/egoist/mygo`）
+  确认 v0.4.8 仍是最新（`go.mod` 已是 v0.4.8），无版本可升。
+- **入口**：P7-bp 重写的 3 条具体待办全部落地（第 1 条 P7-bp，第 2、3 条 P7-bq）后清单又空；本轮先把它
+  重写为 4 条带 file:line 的具体待办（下方「具体待办（P7-br 重写）」），再取第 1、2 条实现。
+- **改动（第 1 条，页脚三态）**：原版 `src/launcher/plugin-mode.ts:613-626` 的 `pluginFooterState` 是纯函数
+  （`null` / `"more"` / `"loading"` / `"end"`），`src/launcher/LauncherResults.tsx:1024-1040` 只给
+  `loading` 画 spinner、给 `loading` 与 `end` 画字，`src/styles/launcher.css:1676-1705` 写着「只有两个状态带字：
+  `more` 是空的——滚动本身就是提示」。本构建 `internal/launcher/output.go` 的 `outputFooter`（旧 `:221-243`）
+  相反：默认文案是原版没有的 “Scroll for more”，`loading` 只有字没有环。现在抽出同构的纯函数
+  `outputFooterState`（`footerNone`/`footerMore`/`footerLoading`/`footerEnd`）；`more` 只留行高
+  （`MinHeight(Space(5.5))` = 原版 `min-height: calc(var(--u) * 22)`）；`loading` 在字左侧画环：12px 方框上
+  `Path.Circle` 描 `Hairline` 一圈，再描 `Path.Circle` + `Path.Trim(0, 0.25)` 的 `TextMuted` 四分之一弧
+  （即原版的 `border: 1.5px solid var(--hairline); border-top-color: var(--text-muted)`），`ui.Linear` 0.7s
+  一圈；字号/间距/居中照原版（`--text-caption`、`gap 8`、`padding 0 12`）。i18n 删掉原版没有的 `OutputMore`
+  （en「Scroll for more」/zh「滚动加载更多」，`deadcopy_test.go` 的 `TestNoDeadCopy` 会盯着），zh 的
+  `OutputEnd` 从「没有更多了」回到原版的「没有更多结果」。
+- **改动（第 2 条，两个环境循环遵守减少动效）**：原版 `src/styles/base.css:1305-1362` 的
+  `prefers-reduced-motion` 命名块（`base.css:1305-1362`）把两个**环境循环**点名关掉（`animation: none`）：
+  `.launcher-plugin-footer__spinner` 与 `.terminal-bar__dot`（后者的 keyframes `terminal.css:177-187` 是
+  `0%/100% opacity 1 scale 1`、`50% opacity 0.5 scale 0.88`，所以静止态就是全不透明、满尺寸）；R161
+  （`base.css:1364-1385`）又补了通配块（`animation-iteration-count: 1`）。框架的 `Loop` 明确不跟这个偏好——
+  `ui/preferences.go` 写着「`Loop`, which shows that something is going on, goes on」——所以 App 自己读。新增
+  `internal/motion`：`Value(c, phase)` 在减少动效时回静止值 0 且**从不调用** `phase`（注册过的 loop 会一直要
+  帧，读了不用等于没接）。终端状态点改用它，并回到原版 keyframes：`Opacity(1 - 0.5*breath)` +
+  `Scale(1-0.12*breath)`（此前是 `0.75 + 0.25*loop` 且不缩放）；页脚圆环同样经它取相位（减少动效时环静止）。
+- **测试/验收**：`internal/motion` 的 `TestValueRestsUnderReduceMotion`（静止值 + 不询问相位）；
+  `TestOutputFooterStates`（四个状态一张表）；`TestOutputFooterLoadingDrawsTheRing`（loading 画字**且**字左侧
+  有环的墨，环的存在从渲染帧的像素上读，不是看内部标志）；`TestStatusDotRestsUnderReduceMotion`（同一时刻
+  （循环 400ms 处）：减少动效是 7×7 的纯 accent 静止点，允许动效则是混色缩小的点）。两个 mutation 复现红：
+  `motion.Value` 忽略偏好 → 终端测试报「the resting dot draws no accent pixels」；`motion.Value` 永远返回 0 →
+  终端测试报「the breath never ran」；`outputFooter` 不画环 → 页脚测试报「the ring is missing」。
+- **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 28 包全绿（902 项）、
+  `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+**P7-bq 版本兜底提示与逐行选项（R153 剩余两条）（上一轮）**
 
 - **依赖检查**：GitHub releases API 仍被限流，改用 go proxy（`go list -m -versions github.com/egoist/mygo`）
   确认 v0.4.8 仍是最新（`go.mod` 已是 v0.4.8），无版本可升。
@@ -293,7 +340,7 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
   变异核查：把 `integrationList` 里的 `item.HealthReport = ...` 删掉，settingsui 与 shell 两条立刻红；
   把 `Retryable: !required[...]` 写成 `required[...]`，`TestHealthShowsOnTheRow` 两条断言翻转。
 - **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 27 包全绿
-  （902 项）、`GOOS=linux/windows/darwin go build ./...` 三平台通过。
+  （894 项）、`GOOS=linux/windows/darwin go build ./...` 三平台通过。
 
 **P7-bl 清单的严格解析与组合规则（上一轮）**
 
@@ -1890,11 +1937,79 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 尚未做（按建议优先级）
 
-> **P7-bp 更新**：P7-bm 的 4 条具体待办全部落地后清单又空，本轮把它重新写实为下面 3 条带 file:line
-> 的具体待办，并取第 1 条落地（第 2、3 条已由 P7-bq 落地）。三条都在「本机工具 / 自定义集成」这一块，来源是 `main` 最近的
-> R161（v0.3.14，commit 4b2c168）与 R153（commit a277b00 / ebb20ca）对本构建尚未接线的改动。仍然卡在
-> 框架上的三条（`Options.OnCopy`、终端键入的 `HandleInput` 缝、外观四个死旋钮）与一次性维护者动作
+> **P7-br 更新**：P7-bp 的 3 条具体待办全部落地后清单又空，本轮把它重新写实为下面 4 条带 file:line
+> 的具体待办，并取第 1、2 条落地（第 3、4 条待做）。来源是 `main` 上**尚未接线**的两处：R29 的页脚三态
+> 与 `prefers-reduced-motion` 的两个环境循环（R8 命名块 + R161 通配块），以及尚无对照物的两处——
+> ad843f3 的 windows 冒烟作业与 `prefers-contrast: more` 的 token 块。仍然卡在框架上的三条
+> （`Options.OnCopy`、终端键入的 `HandleInput` 缝、外观四个死旋钮）与一次性维护者动作
 > （`mygo keygen`、`mygo.json` 的 `updates`/签名、CI 私钥、发布到 GitHub Release）不变，另见「已知差距」。
+
+### 具体待办（P7-br 重写；第 1、2 条本轮已落地，第 3、4 条待做）
+
+1. **分页页脚的三态（R29）（本轮已落地）** —— 原版 `pluginFooterState`（`src/launcher/plugin-mode.ts:613-626`）
+   把页脚收成四个状态，`LauncherResults.tsx:1024-1040` 只给 `loading` 画 spinner、给 `loading` 与
+   `end` 画字，`launcher.css:1676-1705` 写明「`more` 是空的——滚动本身就是提示」。本构建以前在 `more`
+   画了原版没有的 “Scroll for more”、`loading` 只有字没有环。
+   - 本构建（改前）：`internal/launcher/output.go:221-243` 的 `outputFooter` 默认 `text := copy.OutputMore`；
+     `internal/i18n/copy.go:188` 的 `OutputMore` 不在原版词表里；`grep -rn 'Rotate\|spinner' internal/launcher --include=*.go` 为空。
+   - 验收（已满足）：`outputFooterState`（`footerNone`/`footerMore`/`footerLoading`/`footerEnd`）；`more` 只留
+     行高；`loading` 画 12px 环（`Hairline` 整圈 + `TextMuted` 四分之一弧，`ui.Linear` 0.7s 一圈）；
+     `OutputMore` 字段与两份文案已删（`TestNoDeadCopy` 守住）；zh 的 `OutputEnd` 改回「没有更多结果」；
+     `TestOutputFooterStates`、`TestOutputFooterLoadingDrawsTheRing` 钉住。
+2. **两个环境循环在减少动效下应当静止（R8 + R161）（本轮已落地）** —— 原版把
+   `.launcher-plugin-footer__spinner` 与 `.terminal-bar__dot` 两个循环在 `prefers-reduced-motion` 下
+   `animation: none`（`base.css:1305-1362`），R161 又加通配块；框架的 `Loop` 明确不跟这个偏好
+   （`ui/preferences.go`：「`Loop` … goes on」），所以 App 必须自己读。本构建以前两个循环都无条件跑，
+   且状态点 keyframes 与原版不一致（0.75..1 且不缩放）。
+   - 原版：`src/styles/base.css:1305-1340`（命名块）、`src/styles/terminal.css:148-187`（keyframes）、
+     `src/styles/launcher.css:1692-1705`（环）。
+   - 本构建（改前）：`internal/terminalui/terminalui.go:946-957` 的 `dot.Opacity(0.75 + 0.25*dot.Loop(...))`；
+     `grep -rn 'ReduceMotion\|Preferences()' internal --include=*.go` 为空。
+   - 验收（已满足）：`internal/motion.Value`（减少动效时回 0 且不调用 phase）；状态点
+     `Opacity(1-0.5*breath)` + `Scale(1-0.12*breath)`；页脚环经同一函数取相位；
+     `TestValueRestsUnderReduceMotion`、`TestStatusDotRestsUnderReduceMotion` 钉住（同一帧像素对比，
+     两个 mutation 复现红）。
+3. **Windows 冒烟作业：编译过一百次、执行过零次（原版 ad843f3）** —— 原版新增
+   `.github/workflows/windows-smoke.yml`（仅 `workflow_dispatch`，**故意不进 release 链**）：在真实
+   windows-latest 上构建 exe、用 CLI 自己的冷启动揭示启动它、截屏桌面并上传截图供人看。理由写在提交里：
+   「Every gate this repo runs is a Linux gate: the cfg(windows) code has been compiled a hundred times and
+   executed zero」，而 R156 的材质与 R157 的圆角只有用户重测这一条运行期证据。本构建同样如此：`go.yml`
+   的矩阵在 windows-latest 上只跑 gofmt/vet/build/test，**从不启动那个 .exe**；而 Windows 专属的运行期
+   代码（`internal/shell` 的 `vibrancyForStop` 的 windows 分支、玻璃雾层、窗口圆角、终端的原生库）正是
+   只有跑起来才看得见的。
+   - 原版：`.github/workflows/windows-smoke.yml`（v0.3.14 的 67 行）；截图用 runner 自带的 PowerShell
+     （`Add-Type -AssemblyName System.Windows.Forms,System.Drawing` + `CopyFromScreen`），启动前不要求
+     产品代码改动。
+   - 本构建：`.github/workflows/go.yml:20-50`（test 矩阵）、`:63-93`（package 矩阵，Windows 只上传
+     `dist/*/*.exe` 就结束）；`cmd/floter/main.go:73-84` 的 `FLOTER_OPEN`（`launcher` / `settings` /
+     `terminal`，由 `shell.ParseSurface` 解析）就是现成的揭示方式，与终端的原生库一起由
+     `go tool mygo build -platform windows/amd64` 打进 exe。
+   - 验收：新增 `.github/workflows/windows-smoke.yml`，只有 `workflow_dispatch`，不挂在 `release` 上；
+     步骤 = checkout + setup-go → `go tool mygo build -platform windows/amd64` → 后台启动 exe
+     （`FLOTER_OPEN=settings`）等它画出窗口 → 截屏 → `actions/upload-artifact` 上传 PNG（`if-no-files-found: error`）
+     → 结束进程；作业里写清「这是人看的证据，不做判定」以免被当成 release 门。真跑一次（手动 dispatch）
+     并确认截图里能看到窗口，而不是全黑/全白。
+4. **`prefers-contrast: more` 一整块没接线（原版 `base.css:1387-1574`）** —— 原版把「提高对比度」当作
+   **材质**的事，不只是边框：`--glass-frame-floor: 0.86`（透明的底端被抬到近乎不透明）、
+   `--glass-step-dim: 0`（去掉雾层）、`--glass-lens-scale: 0.6`（反光阻尼到近平面），再加
+   `--stroke-contrast` / `--stroke-contrast-soft` / `--text-placeholder-contrast` 三个 token 换掉
+   卡片、抽屉、toast、选中行、`settings-option--active`、快捷键录制等的描边与占位符颜色（浅色下是
+   `rgba(0,0,0,.5)`/`.36`/`.28`，深色下是 `rgba(255,255,255,.42)`/`.34`/`.58`）。本构建对
+   `HighContrast` **没有任何引用**：`internal/theme/theme.go:212-227` 反而在这里把框架主题的
+   `Border`/`Text` 等整套覆写成 base.css 的普通值，恰好把框架自己的高对比度加固覆盖掉；
+   `internal/glassmap/glassmap.go:148-175` 的 `SpecFor` 也只有一个 `SolidTop = 0.98` 上限、没有下限。
+   - 原版：`src/styles/base.css:1387-1574` 与 `:1576-1587`（两个 `@media (prefers-contrast: more)` 块，后者是 Windows 三张面壳的描边）、
+     `:386-388`（`--glass-frame-floor` 的取值与理由）、`:753-756`/`:1004-1006`（两个外观的 token）。
+   - 本构建（改前）：`grep -rn 'HighContrast' internal cmd --include=*.go` 为零；
+     `internal/theme/theme.go:212-227`、`internal/glassmap/glassmap.go:130-175`。
+   - 验收：`theme.For` 增加一个「桌面对比度」输入（或新增 `theme.ForPreferences(settings, dark, ui.Preferences)`
+     的包装，调用点 `internal/launcher/surface.go:62`、`internal/shell/shell.go:997`、`internal/theme/theme.go:254`），
+     高对比度时：`paletteFor` 换用 `--stroke-contrast`/`--stroke-contrast-soft`/`--text-placeholder-contrast`
+     三个值（两个外观各一套）、`SpecFor` 的 frame alpha 取 `max(0.86, min(SolidTop, opacity))`、
+     `HazeAlpha` 归 0、`LensScale` ×0.6；测试钉「不打开偏好时所有 token 字节不变（现有玻璃/主题测试仍绿）
+     ＋打开后 frame alpha ≥ 0.86、haze=0、lens=0.6×、描边 token 换成 contrast 值」。
+
+> P7-bp 的 3 条具体待办已全部落地，下方旧清单保留作为「哪些已经做过」的记录。
 
 ### 具体待办（P7-bp 重写；3 条已全部落地：第 1 条 P7-bp、第 2·3 条 P7-bq）
 

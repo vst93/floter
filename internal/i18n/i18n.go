@@ -151,10 +151,10 @@ type Launcher struct {
 	OutputHint      string
 	OutputListHint  string
 	OutputFailed    string
-	// The output list's pagination footer: a page in flight, more to load,
-	// and the end of a list a plugin has finished paging.
+	// The output list's pagination footer: a page in flight and the end of a
+	// list a plugin has finished paging. A list with more to load is quiet —
+	// the scroll trigger is the affordance, so it has no word of its own.
 	OutputLoading string
-	OutputMore    string
 	OutputEnd     string
 
 	// The clipboard mode's own feedback lines: the star and the delete.

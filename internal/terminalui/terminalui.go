@@ -23,6 +23,7 @@ import (
 	"floter/internal/i18n"
 	"floter/internal/inputtext"
 	"floter/internal/launcher"
+	"floter/internal/motion"
 	"floter/internal/settings"
 	"floter/internal/theme"
 )
@@ -951,10 +952,18 @@ func (a *App) statusDot(c *ui.Context) {
 		return
 	}
 	dot.Background(t.Accent)
-	// The breath is the old build's own animation: the light fades and
+	// The breath is the old build's own animation: the light fades to half and
 	// shrinks a little, twice over five seconds, so a running session reads
-	// as alive without a spinner.
-	dot.Opacity(0.75 + 0.25*dot.Loop("terminal.dot", 2400*time.Millisecond, ui.Bounce(ui.EaseInOut)))
+	// as alive without a spinner. Its keyframes are the reference — opacity 1
+	// and scale 1 at 0% and 100%, 0.5 and 0.88 at 50% — so the value is only
+	// read through motion: a desktop that asks for less motion gets the dot at
+	// rest, exactly the 0% keyframe the old stylesheet left (`animation:
+	// none`), and registers no loop.
+	breath := motion.Value(c, func() float32 {
+		return dot.Loop("terminal.dot", 2400*time.Millisecond, ui.Bounce(ui.EaseInOut))
+	})
+	dot.Opacity(1 - 0.5*breath)
+	dot.Scale(1-0.12*breath, 1-0.12*breath)
 }
 
 // exited reports whether the session's program has ended (its screen is still

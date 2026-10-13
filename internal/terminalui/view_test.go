@@ -2,6 +2,7 @@ package terminalui
 
 import (
 	"errors"
+	"image"
 	"os"
 	"path/filepath"
 	"testing"
@@ -330,6 +331,78 @@ func TestTerminalBarButtonsCarryTheirHints(t *testing.T) {
 		// Park the pointer away and let the tip go before the next control.
 		tt.Move(430, 300)
 		tt.Frame()
+	}
+}
+
+// dotFrame renders the terminal page with a running session and the pointer
+// over the bar, so the bar's identity row — and its status dot — is revealed.
+// The dot's breath runs on the desktop's clock, so the frame is taken 400 ms
+// into the loop, mid-fade: the one moment that tells a breathing dot from one
+// at rest.
+func dotFrame(t *testing.T, reduce bool) (*ui.Tester, ui.Color) {
+	t.Helper()
+	a := New(newStore(), Actions{}, func(terminal.Options) (*terminal.Terminal, error) {
+		return nil, errors.New("no library in tests")
+	})
+	withSession(a, &terminal.Terminal{})
+	var accent ui.Color
+	tt := ui.NewTester(func(c *ui.Context) {
+		accent = c.Theme().Accent
+		a.View(c)
+	}, 860, 600)
+	tt.SetPreferences(ui.Preferences{ReduceMotion: reduce})
+	tt.Move(400, 14) // over the bar: the identity row shows
+	tt.Frame()       // the dot appears here, and the loop starts with it
+	time.Sleep(400 * time.Millisecond)
+	tt.Frame()
+	return tt, accent
+}
+
+// accentBox is the bounding box of the pixels that are the accent colour
+// exactly, 0..1 blending left out: the dot's ink at full opacity.
+func accentBox(img *image.RGBA, accent ui.Color) image.Rectangle {
+	minX, minY, maxX, maxY := 1<<30, 1<<30, -1, -1
+	for y := 0; y < 40; y++ {
+		for x := 0; x < 400; x++ {
+			i := y*img.Stride + x*4
+			if img.Pix[i] == accent.R && img.Pix[i+1] == accent.G && img.Pix[i+2] == accent.B {
+				minX, minY = min(minX, x), min(minY, y)
+				maxX, maxY = max(maxX, x), max(maxY, y)
+			}
+		}
+	}
+	if maxX < 0 {
+		return image.Rectangle{}
+	}
+	return image.Rect(minX, minY, maxX+1, maxY+1)
+}
+
+// The status dot's breath is the app's own loop, and the desktop's
+// reduce-motion preference stops it: the old build's stylesheet names the
+// breath and turns it off (`animation: none`), which leaves the dot at its 0%
+// keyframe — the accent at full opacity and full size. The framework's Loop
+// would turn regardless (a loop "shows that something is going on"), so the
+// app reads the preference itself, through internal/motion.
+//
+// The keyframes are 1 -> 0.5 -> 1 over 2.4 s, so the two cases are read off
+// one mid-cycle frame: a still, exact-accent 7px dot under reduce motion, and
+// a blended, shrunk one when the breath runs.
+func TestStatusDotRestsUnderReduceMotion(t *testing.T) {
+	still, accent := dotFrame(t, true)
+	box := accentBox(still.Image(), accent)
+	if box.Empty() {
+		t.Fatal("the resting dot draws no accent pixels in the bar")
+	}
+	if box.Dx() != 7 || box.Dy() != 7 {
+		t.Errorf("the resting dot is %dx%d, want 7x7 (the full-size 0%% keyframe)", box.Dx(), box.Dy())
+	}
+	at := image.Pt(box.Min.X+box.Dx()/2, box.Min.Y+box.Dy()/2)
+
+	breathing, breathAccent := dotFrame(t, false)
+	img := breathing.Image()
+	i := at.Y*img.Stride + at.X*4
+	if img.Pix[i] == breathAccent.R && img.Pix[i+1] == breathAccent.G && img.Pix[i+2] == breathAccent.B {
+		t.Errorf("the dot is the untouched accent at %v 400 ms into the loop: the breath never ran", at)
 	}
 }
 

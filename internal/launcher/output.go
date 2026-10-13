@@ -3,12 +3,14 @@ package launcher
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/ansi"
 	"floter/internal/extensions"
 	"floter/internal/i18n"
+	"floter/internal/motion"
 	"floter/internal/theme"
 )
 
@@ -218,24 +220,98 @@ func (a *App) loadMoreOutputPage() {
 	}
 }
 
-// outputFooter draws the list's pagination line. The scroll trigger is the
-// affordance, so "more" is the quiet state; a self-paging plugin's fetch in
-// flight says so, and a list the plugin has finished says nothing.
+// The page footer's states, as the old build's `pluginFooterState` had them:
+// `footerMore` while the list still has a page the scroll can reach,
+// `footerLoading` while a fetch is in flight, `footerEnd` once every row the
+// plugin is going to hand over is drawn. `footerMore` is the quiet state — the
+// scroll trigger is the affordance, not a button — so it carries no word, only
+// the row's own height.
+const (
+	footerNone    = ""
+	footerMore    = "more"
+	footerLoading = "loading"
+	footerEnd     = "end"
+)
+
+// outputFooterState is the footer's one state for a view. A list that is
+// complete in one emission has no page block at all and gets no row; a list
+// the launcher windows in memory loses its page block when the window reaches
+// the end, so `footerEnd` is only ever drawn for a plugin that pages itself.
+func outputFooterState(view *OutputView) string {
+	if view == nil || view.Page == nil {
+		return footerNone
+	}
+	switch {
+	case view.LoadingMore:
+		return footerLoading
+	case !view.Page.HasMore:
+		return footerEnd
+	}
+	return footerMore
+}
+
+// outputFooter draws the list's pagination row: a quiet row under the last
+// result, the spinner and a word while a page is in flight, the end word once
+// the plugin has finished. The row is not a result — it takes no selection and
+// no shortcut.
 func (a *App) outputFooter(c *ui.Context, copy i18n.Launcher, view *OutputView) {
-	if view.Page == nil {
+	state := outputFooterState(view)
+	if state == footerNone {
 		return
 	}
 	t := c.Theme()
-	text := copy.OutputMore
-	switch {
-	case view.LoadingMore:
+	text := ""
+	switch state {
+	case footerLoading:
 		text = copy.OutputLoading
-	case !view.Page.HasMore:
+	case footerEnd:
 		text = copy.OutputEnd
 	}
-	ui.Row(c).FillWidth().Shrink(0).Padding(t.Space(1), t.Space(2)).Justify(ui.Center).Children(func() {
-		ui.Text(c, text).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+	ui.Row(c).FillWidth().Shrink(0).MinHeight(t.Space(5.5)).Gap(t.Space(2)).
+		Padding(0, t.Space(3)).AlignItems(ui.Center).Justify(ui.Center).Children(func() {
+		if state == footerLoading {
+			a.footerSpinner(c)
+		}
+		if text != "" {
+			ui.Text(c, text).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+		}
 	})
+}
+
+// The spinner's ink: the old build's 12-unit ring (`calc(var(--u) * 12)`), so
+// it rides the interface scale, in a 1.5px hairline border — physical ink, so
+// the stroke does not.
+const (
+	footerSpinnerStroke  = 1.5
+	footerSpinnerTurn    = 360
+	footerSpinnerPerTurn = 700 * time.Millisecond
+)
+
+// footerSpinner draws the pagination row's indicator: a hairline circle with a
+// darker leading quarter, turning once every 0.7 s.
+//
+// The turn is read through motion, so a desktop that asked for less motion
+// draws the ring at rest — the old build's `animation: none` — and registers
+// no loop. The framework's own Loop would go on turning whatever the
+// preference says; the app is where the preference has a meaning.
+func (a *App) footerSpinner(c *ui.Context) {
+	t := c.Theme()
+	hairline := theme.For(a.settings(), t.Dark).Hairline
+	ring := ui.Box(c).Size(t.Space(3), t.Space(3)).Shrink(0)
+	ring.Draw(func(p *ui.Painter, r ui.Rect) {
+		cx, cy := r.X+r.W/2, r.Y+r.H/2
+		radius := min(r.W, r.H)/2 - footerSpinnerStroke/2
+		var full ui.Path
+		full.Circle(cx, cy, radius)
+		p.StrokePath(&full, footerSpinnerStroke, hairline)
+		var lead ui.Path
+		lead.Circle(cx, cy, radius)
+		lead.Trim(0, 0.25)
+		p.StrokePath(&lead, footerSpinnerStroke, t.TextMuted)
+	})
+	ring.Rotate(footerSpinnerTurn * motion.Value(c, func() float32 {
+		return ring.Loop("launcher.footer.spinner", footerSpinnerPerTurn, ui.Linear)
+	}))
 }
 
 // moveOutputSelection moves the list's choice by one, skipping rows that
