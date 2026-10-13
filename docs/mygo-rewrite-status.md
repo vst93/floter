@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**909 项测试全绿**。
+含测试）。**912 项测试全绿**。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 909 项测试
+go test -count=1 ./...         # 912 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,7 +99,19 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-bt Windows 冒烟作业（原版 ad843f3）** —— P7-br 重写的 4 条具体待办里只剩第 3 条：真实
+> **最新一轮：P7-bu 自定义集成描述控件的三条契约（R158 + R159 / 原版 ebb20ca）** —— P7-bt 收尾后
+> 「尚未做」又一次为空，本轮先把它重写为 3 条带 file:line 的具体待办（下方「具体待办（P7-bu 重写）」），
+> 再取第 1 条落地。原版 v0.3.14（`main` 的 `ebb20ca`）把描述输入收成 **executable-only**：脚本清单写死
+> 自己的内部句子（`"Local script integration"`）、从不读请求里的描述，所以脚本模式下那个框是「可编辑但
+> 被静默丢弃」的死控件（R158）；可执行分支则拿到两条 R159 契约——留空诚实存 `""`（不再落
+> `Local integration for <exe>` 这句用户永远清不掉的兜底），输入框配 placeholder 写明「留空则不显示
+> 描述」、label 改成「描述（可选）」。本构建的 `customManifest`/`customDescriptor` 脚本模式照读请求描述
+> （`internal/extensions/custom.go`），`toolForEdit` 对脚本也把内部句子读回表单（`internal/shell/shell.go`），
+> 表单描述行无条件绘制且无 placeholder（`internal/settingsui/settingsui.go`），label 只是 `"Description"`
+> （`internal/i18n/copy.go`）。现在抽出 `customDescription`、按模式读回、只在 `mode != routeScript` 画那
+> 行并补 placeholder 与新 label。落地见下方「P7-bu 描述契约」。
+
+> **上一轮：P7-bt Windows 冒烟作业（原版 ad843f3）** —— P7-br 重写的 4 条具体待办里只剩第 3 条：真实
 > windows-latest 上跑一次那个 .exe、截屏。本构建的每个门都是 Linux 门，`cfg(windows)` 那几段
 > （`internal/shell` 的 `vibrancyForStop` windows 分支、玻璃雾层、窗口圆角、终端原生库）编译过一百次、
 > 执行过零次。本轮新增 `.github/workflows/windows-smoke.yml`（只有 `workflow_dispatch`，**故意不进
@@ -180,7 +192,41 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 > required 不认 default 豁免。现在 `ParamIssues` 返回 `{Index,Key,Label}`，每个非法值
 > 的句子印在**它自己那一行下面**，Run 按钮在有错时禁用；输出视图也按语言渲染 `run_param_*`。
 
-**P7-bt Windows 冒烟作业（原版 `ad843f3`）（本轮）**
+**P7-bu 描述契约（原版 `ebb20ca` / R158 + R159）（本轮）**
+
+- **依赖检查**：GitHub releases API 被限流，改用 go proxy（`go list -m -versions github.com/egoist/mygo`）
+  确认 v0.4.8 仍是最新（`go.mod` 已是 v0.4.8），无版本可升。
+- **入口**：P7-bt 之后「尚未做」又一次为空（P7-br 的 4 条全落地），本轮先把它重写为 3 条带 file:line 的
+  具体待办（下方「具体待办（P7-bu 重写）」），再取第 1 条实现——原版最近一个未复刻的提交 `ebb20ca`
+  （v0.3.12，R159）与它依赖的 R158 规则。
+- **原版对照**：`src/extensions/CustomIntegrationDrawer.tsx` 把描述输入写成
+  `integration.mode === "executable" && <label>…` 并带 `placeholder={t("…customDescriptionPlaceholder")}`；
+  `src-tauri/src/extensions/install.rs:341-342` 的脚本分支写死 `"Local script integration"`、`:1306` 的读回
+  是 `(mode == "executable").then_some(manifest.description)`；`src/i18n.ts:679`/`:682` 是
+  `Description (optional)` / `Leave blank to show no description`（zh 见 `:1561`/`:1562`）。
+- **本构建（改前）**：`internal/extensions/custom.go` 的 `customManifest`/`customDescriptor` 两种模式都照
+  读 `request.Description`；`internal/shell/shell.go` 的 `toolForEdit` 也把 `manifest.Description` 无条件读回；
+  `internal/settingsui/settingsui.go` 的描述行无条件绘制且无 placeholder；`internal/i18n/copy.go:658` 的
+  label 只是 `"Description"`、没有 placeholder 字段。
+- **改动**：
+  - `internal/extensions/custom.go`：新增 `customDescription(request)`——脚本 → `"Local script integration"`，
+    可执行 → trim 后的用户原文；`customManifest` 与 `customDescriptor` 都改走它（脚本的 manifest 与
+    descriptor 因此都不再泄漏用户描述）。
+  - `internal/shell/shell.go`：`toolForEdit` 只对非脚本把 `manifest.Description` 读回表单。
+  - `internal/settingsui/settingsui.go`：`mode != routeScript` 时才绘制描述行，并挂上 R159 placeholder
+    （值仍留在 `a.toolDescription`，切回可执行即恢复）。
+  - `internal/i18n`：`LocalToolDescription` 改成「Description (optional)」/「描述（可选）」，新增
+    `LocalToolDescriptionPlaceholder`（「Leave blank to show no description」/「留空则不显示描述」）。
+- **测试**：`internal/extensions/custom_test.go` 的 `TestCustomScriptDescriptionIsInternal`（脚本 manifest +
+  descriptor 都是内部句子）与 `TestCustomExecutableDescriptionStaysHonest`（trim 后保留 / 纯空白 → `""`）；
+  `internal/settingsui/view_test.go` 的 `TestLocalToolDescriptionIsExecutableOnly`（可执行画 label、脚本不画，
+  并钉住两语言的 placeholder 原文——headless tester 不把 placeholder 记进 text 树，见 mygo
+  `ui/editor/paint.go:228`）；`internal/shell/scripttool_test.go` 的 `TestConnectAScriptTool` 加一条「脚本
+  描述读回为空」的断言。
+- **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 29 包全绿（912 项）、
+  `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+**P7-bt Windows 冒烟作业（原版 `ad843f3`）（上一轮）**
 
 - **依赖检查**：GitHub releases API 仍被限流，改用 go proxy（`go list -m -versions github.com/egoist/mygo`）
   确认 v0.4.8 仍是最新（`go.mod` 已是 v0.4.8），无版本可升。
@@ -2038,10 +2084,65 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-> **P7-bt 更新**：P7-br 重写的 4 条具体待办，第 3 条由 P7-bt 收尾（新增 `windows-smoke.yml` 并真 dispatch
-> 一次）——**4 条至此全部落地**。其余卡在框架上的三条（`Options.OnCopy`、终端键入的 `HandleInput` 缝、
-> 外观四个死旋钮）与一次性维护者动作（`mygo keygen`、`mygo.json` 的 `updates`/签名、CI 私钥、发布到
-> GitHub Release）不变，另见「已知差距」。
+> **P7-bu 更新**：P7-bt 之后「尚未做」又一次为空（P7-br 的 4 条全落地），本轮先把它重写为 3 条带
+> file:line 的具体待办（下方「具体待办（P7-bu 重写）」），再取第 1 条落地——R158/R159 的自定义集成描述
+> 契约。其余卡在框架上的三条（`Options.OnCopy`、终端键入的 `HandleInput` 缝、外观四个死旋钮）与一次性
+> 维护者动作（`mygo keygen`、`mygo.json` 的 `updates`/签名、CI 私钥、发布到 GitHub Release）不变，
+> 另见「已知差距」。
+
+### 具体待办（P7-bu 重写；第 1 条本轮已落地，第 2、3 条待做）
+
+1. **自定义集成描述控件的三条契约（R158 + R159）（本轮已落地）** —— 原版 v0.3.14 把描述输入收成
+   **executable-only**（R158）：脚本清单写死自己的内部句子、从不读请求里的描述，所以脚本模式下那个
+   输入框是「可编辑但被静默丢弃」的死控件；可执行分支同时拿两条 R159 契约——留空就诚实存 `""`（不再
+   落 `Local integration for <exe>` 这句「用户永远清不掉」的兜底），输入框配 placeholder 说明「留空则
+   不显示描述」、label 改成「描述（可选）」。
+   - 原版：`src/extensions/CustomIntegrationDrawer.tsx`（`integration.mode === "executable" && <label>…`
+     + `placeholder={t("…customDescriptionPlaceholder")}`）；`src-tauri/src/extensions/install.rs:341-342`
+     （脚本写死 `"Local script integration"`）、`:1306`（读回 `(mode == "executable").then_some(...)`）；
+     `src/i18n.ts:679`/`:682`（`Description (optional)` / `Leave blank to show no description`，zh `:1561`/`:1562`）。
+   - 本构建（改前）：`internal/settingsui/settingsui.go` 的描述行（旧 `:2304-2306`）无条件绘制、无
+     placeholder；`internal/i18n/copy.go:658` 的 label 是 `"Description"`、没有 placeholder 字段；
+     `internal/extensions/custom.go` 的 `customManifest`/`customDescriptor` 脚本模式照读请求描述；
+     `internal/shell/shell.go` 的 `toolForEdit` 对脚本也把 `manifest.Description` 读回表单。
+   - 验收（已满足）：`customDescription`（脚本 → `"Local script integration"`，可执行 → trim 后的用户
+     原文）同时喂 manifest 与 descriptor；`toolForEdit` 只对非脚本读回描述；`settingsui` 的
+     `LocalToolDescription` 行仅在 `mode != routeScript` 时绘制、带 placeholder；i18n 补
+     `LocalToolDescriptionPlaceholder` 并把 label 改成「(optional)」。测试：
+     `TestCustomScriptDescriptionIsInternal`、`TestCustomExecutableDescriptionStaysHonest`、
+     `TestLocalToolDescriptionIsExecutableOnly`，`TestConnectAScriptTool` 加读回断言。
+
+2. **本机连接表单缺「支持的平台」勾选（原版 `customPlatforms`）** —— 原版的自定义集成表单有一组三选
+   （darwin / linux / windows）的平台勾选，默认只勾**当前平台**，且没有任何一个勾选时提交按钮禁用；
+   本构建的 `CustomTool` 里根本没有 `Platforms` 字段，`customRequest` 也不传，于是本机连接出来的集成
+   `Platforms` 恒为空（= 所有平台），用户无法限定。后端 `extensions.CustomRequest.Platforms` 已经会写进
+   manifest（`internal/extensions/custom.go`），缺的只是表单与映射。
+   - 原版：`src/ExtensionsPanel.tsx:369`（`platforms` 字段形状）、`:393`（`platforms: [CURRENT_PLATFORM]`
+     默认）、`:1621`（编辑时 `platforms: [...definition.platforms]`）；`CustomIntegrationDrawer.tsx` 的
+     `PLATFORMS` + `customPlatforms` fieldset 与提交按钮的 `integration.platforms.length === 0` 禁用；
+     `src/i18n.ts:694`（`Supported platforms` / `支持的平台`）。
+   - 本构建：`internal/settingsui/settingsui.go:2205-2224`（`CustomTool` 无 `Platforms`）、
+     `:2246-2360`（表单无平台行）；`internal/shell/shell.go:3179`（`customRequest` 不传 `Platforms`）；
+     `internal/shell/shell.go:1952`（`toolForEdit` 不回填 `manifest.Platforms`）。
+   - 验收：`CustomTool` 加 `Platforms []string`；表单画三个勾选（默认 `[runtime.GOOS]`）并在一个都没勾时
+     拒绝提交（错误句子印在行下）；`customRequest` 透传；`toolForEdit` 从 `manifest.Platforms` 回填；测试
+     钉住默认值、无勾选拒绝与一次往返（含后端 `Platforms` 逐字落盘）。
+
+3. **本机连接请求的后端校验只做了一半（原版 `settings.extensions.form.*`）** —— 原版
+   `create_custom_integration_locked` 在写包前逐条校验并回**本地化键**：名字 1..80（`form.nameLength`）、
+   命令形状 `[a-z0-9][a-z0-9_-]{0,63}`（`form.commandShape`）、版本必须能 `Version::parse`、平台非空
+   （`form.platformRequired`）、模式仅 executable/script（`form.modeInvalid`）、脚本内容非空
+   （`form.scriptEmpty`）、`script_language` 只对脚本合法（`form.scriptLanguageInvalid`）。本构建的
+   `normalizeCustom`（`internal/extensions/custom.go:223-280`）只有「名字非空」「脚本有语言且非空」
+   「模式合法」「权限已知」「params 合法」，其余不查：`version` 为空时直接填 `0.0.1` 而不校验格式，
+   `Platforms` 允许为空，executable 也接受 `ScriptLanguage`。
+   - 原版：`src-tauri/src/extensions/install.rs:249-300`（七条校验与各自的键）；`src/i18n.ts` 的
+     `settings.extensions.form.*` 七个键。
+   - 本构建：`internal/extensions/custom.go:223`（`normalizeCustom`）缺 name 长度、command 形状、version
+     semver、platforms 非空、script-language-only-for-script 五条。
+   - 验收：`normalizeCustom` 补齐五条并返回可本地化的原因（沿用本构建既有的错误包装或新增
+     `settings.extensions.form.*` 键）；设置页表单在提交前做同样的预检并把句子印在对应行下；测试逐条钉住
+     「合法通过 / 非法拒绝」，并做证伪式核查（移除任一条，对应测试变红）。
 
 ### 具体待办（P7-br 重写；4 条已全部落地：第 1·2 条 P7-br、第 4 条 P7-bs、第 3 条 P7-bt）
 

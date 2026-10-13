@@ -121,6 +121,86 @@ func TestCreateCustomTool(t *testing.T) {
 	}
 }
 
+// R158 · a script integration writes the host's own internal description to
+// both its manifest and its descriptor and never reads the request's own —
+// which is why the form hides the description control in script mode. The
+// user's words must not leak into a shared identity string that no UI shows.
+func TestCustomScriptDescriptionIsInternal(t *testing.T) {
+	paths := FromRoot(t.TempDir())
+	defer StubInterpreterLookup(func(language string) (string, bool) {
+		return "/usr/bin/sh", true
+	})()
+
+	entry, err := CreateCustom(context.Background(), paths, CustomRequest{
+		Name:           "Weather",
+		Command:        "weather",
+		Mode:           "script",
+		ScriptLanguage: "shell",
+		ScriptContent:  "#!/bin/sh\necho sunny\n",
+		Description:    "Says the weather",
+	}, true)
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	integration, ok := LoadInventory(paths).WithID(entry.ID)
+	if !ok {
+		t.Fatal("the integration does not load")
+	}
+	if integration.Manifest.Description != "Local script integration" {
+		t.Errorf("the script manifest carried the user's words: %q", integration.Manifest.Description)
+	}
+	data, readErr := os.ReadFile(filepath.Join(integration.PackageDir(), "provider-description.json"))
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	descriptor, parseErr := ParseDescription(data)
+	if parseErr != nil {
+		t.Fatal(parseErr)
+	}
+	if descriptor.Provider.Description != "Local script integration" {
+		t.Errorf("the descriptor provider carried %q", descriptor.Provider.Description)
+	}
+	if descriptor.Commands[0].Description != "Local script integration" {
+		t.Errorf("the descriptor command carried %q", descriptor.Commands[0].Description)
+	}
+}
+
+// R159 · an executable integration stores the user's own words, trimmed, and a
+// blank stays honestly blank. The old build collapsed a blank into a generated
+// `Local integration for <exe>` sentence, which landed on disk, was read back
+// as the user's content, and therefore could never be cleared.
+func TestCustomExecutableDescriptionStaysHonest(t *testing.T) {
+	blankPaths, blankProgram := customToolFixture(t)
+	blank, err := CreateCustom(context.Background(), blankPaths, CustomRequest{
+		Name: "Blank", Command: "blank", ExecutablePath: blankProgram, Description: "   ",
+	}, true)
+	if err != nil {
+		t.Fatalf("create blank: %v", err)
+	}
+	blankIntegration, ok := LoadInventory(blankPaths).WithID(blank.ID)
+	if !ok {
+		t.Fatal("the blank integration does not load")
+	}
+	if blankIntegration.Manifest.Description != "" {
+		t.Errorf("a blank description became %q", blankIntegration.Manifest.Description)
+	}
+
+	keptPaths, keptProgram := customToolFixture(t)
+	kept, err := CreateCustom(context.Background(), keptPaths, CustomRequest{
+		Name: "Kept", Command: "kept", ExecutablePath: keptProgram, Description: "  a gadget of my own  ",
+	}, true)
+	if err != nil {
+		t.Fatalf("create kept: %v", err)
+	}
+	keptIntegration, ok := LoadInventory(keptPaths).WithID(kept.ID)
+	if !ok {
+		t.Fatal("the kept integration does not load")
+	}
+	if keptIntegration.Manifest.Description != "a gadget of my own" {
+		t.Errorf("the description read %q, want it trimmed", keptIntegration.Manifest.Description)
+	}
+}
+
 // A request that cannot be honoured says why and writes nothing.
 func TestCreateCustomRefusesBadRequests(t *testing.T) {
 	paths, program := customToolFixture(t)

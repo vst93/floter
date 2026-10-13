@@ -44,7 +44,9 @@ type CustomRequest struct {
 	ArgsPrefix  []string
 	VersionArgs []string
 	// Description is the user's own words, empty for none (never a generated
-	// sentence: a field the user cleared must stay cleared).
+	// sentence: a field the user cleared must stay cleared, R159). It is
+	// read only for an executable integration; a script writes its own internal
+	// sentence (see customDescription, R158).
 	Description string
 	// Permissions are the ids the package declares.
 	Permissions []string
@@ -385,9 +387,22 @@ func writeCustomPackage(ctx context.Context, paths Paths, packageDir, id string,
 	return os.WriteFile(filepath.Join(packageDir, "provider-description.json"), descriptorBytes, 0o644)
 }
 
+// customDescription is what a connected tool's manifest and descriptor carry.
+// A script integration writes the host's own internal sentence and never reads
+// the request's description — the form hides the description control in script
+// mode for exactly that reason (R158). An executable writes the user's own
+// words, trimmed, honestly empty when blank rather than a generated
+// `Local integration for <exe>` sentence the user could never clear (R159).
+func customDescription(request CustomRequest) string {
+	if request.Mode == "script" {
+		return "Local script integration"
+	}
+	return strings.TrimSpace(request.Description)
+}
+
 // customManifest builds the manifest the host writes for a connected tool.
 func customManifest(id string, request CustomRequest) Manifest {
-	description := strings.TrimSpace(request.Description)
+	description := customDescription(request)
 	runtime := Runtime{Type: "system", ExecutableNames: []string{executableCommand(request.ExecutablePath)}}
 	if request.Mode == "script" {
 		runtime = Runtime{
@@ -431,18 +446,19 @@ func customManifest(id string, request CustomRequest) Manifest {
 
 // customDescriptor builds the root command of the descriptor the host writes.
 func customDescriptor(request CustomRequest) Description {
+	description := customDescription(request)
 	return Description{
 		ProtocolVersion: ProtocolVersion,
 		Provider: ProviderIdentity{
 			ID:          "local",
 			Name:        request.Name,
 			Version:     request.Version,
-			Description: strings.TrimSpace(request.Description),
+			Description: description,
 		},
 		Commands: []Command{{
 			ID:          request.Command,
 			Name:        request.Name,
-			Description: strings.TrimSpace(request.Description),
+			Description: description,
 			Execution: Execution{
 				Program:          "self",
 				ArgsPrefix:       append([]string{}, request.ArgsPrefix...),

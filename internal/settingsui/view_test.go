@@ -1674,6 +1674,48 @@ func TestLocalToolForm(t *testing.T) {
 	}
 }
 
+// R158/R159 · the description control is executable-only and honest about the
+// blank case. A script manifest writes its own internal sentence and never
+// reads the field, so the control is not drawn in script mode; an executable's
+// field carries the R159 placeholder (a blank value hides the description) and
+// the "(optional)" label.
+func TestLocalToolDescriptionIsExecutableOnly(t *testing.T) {
+	copy := i18n.For("en").Settings
+	// The placeholder is the R159 sentence, pinned here because the headless
+	// tester paints a placeholder through the editor and never records it as a
+	// label (see mygo ui/editor/paint.go): the exact copy is what this test owns.
+	if got := copy.LocalToolDescriptionPlaceholder; got != "Leave blank to show no description" {
+		t.Errorf("the R159 placeholder reads %q", got)
+	}
+	if got := i18n.For("zh").Settings.LocalToolDescriptionPlaceholder; got != "留空则不显示描述" {
+		t.Errorf("the R159 placeholder (zh) reads %q", got)
+	}
+	a := New(settings.NewStore(settings.Default()), Actions{
+		ConnectLocalTool: func(CustomTool) {},
+	})
+	tt := render(t, a, 720, 1600)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if err := tt.Click("Add a local tool"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !tt.HasText(copy.LocalToolDescription) {
+		t.Fatalf("the executable form is missing the description label: %q", tt.Texts())
+	}
+	// Script mode drops the control: the manifest writes its own description and
+	// the field would be silently dropped anyway.
+	if err := tt.Click(copy.LocalToolModeScript); err != nil {
+		t.Fatalf("the kind: %v", err)
+	}
+	tt.Frame()
+	if tt.HasText(copy.LocalToolDescription) {
+		t.Errorf("the description control survived the switch to script: %q", tt.Texts())
+	}
+}
+
 // R161: the declaration switches sit behind a default-closed Advanced
 // disclosure — a brand-new integration must not open on a ceremonial list of
 // checkboxes — and the boundary note inside says plainly that they isolate

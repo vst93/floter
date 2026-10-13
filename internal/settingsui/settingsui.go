@@ -2301,9 +2301,18 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 			a.row(c, copy.LocalToolVersion, copy.LocalToolVersionHint, func() {
 				ui.TextInput(c, &version).Label(copy.LocalToolVersion).Width(120).Placeholder("0.0.1")
 			})
-			a.row(c, copy.LocalToolDescription, "", func() {
-				ui.TextInput(c, &description).Label(copy.LocalToolDescription).Width(240).Grow(1)
-			})
+			// R158 · the description is executable-only: a script manifest writes
+			// its own internal description and never reads this field, so an
+			// editable control here would be silently dropped. The value stays in
+			// a.toolDescription, so switching back to executable restores it. R159
+			// · the placeholder says a blank field means no description, and the
+			// backend stores the honest empty rather than a generated sentence.
+			if mode != routeScript {
+				a.row(c, copy.LocalToolDescription, "", func() {
+					ui.TextInput(c, &description).Label(copy.LocalToolDescription).Width(240).Grow(1).
+						Placeholder(copy.LocalToolDescriptionPlaceholder)
+				})
+			}
 			a.row(c, copy.LocalToolOutput, "", func() {
 				index := 0
 				if a.toolOutput == routeBackground {

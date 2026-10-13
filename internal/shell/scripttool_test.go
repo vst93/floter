@@ -115,6 +115,12 @@ func TestConnectAScriptTool(t *testing.T) {
 	if edited.ScriptContent != tool.ScriptContent {
 		t.Errorf("the form read the script as %q", edited.ScriptContent)
 	}
+	// R158/R159 · the description is executable-only: a script's manifest holds
+	// the host's own internal sentence, which the form must not read back as if
+	// it were the user's own content. The request's description is dropped.
+	if edited.Description != "" {
+		t.Errorf("the form read the internal script description back as %q", edited.Description)
+	}
 }
 
 // The sessions list reports every session the terminal holds, with what each

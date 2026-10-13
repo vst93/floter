@@ -1960,6 +1960,13 @@ func (a *App) toolForEdit(id string) (settingsui.CustomTool, bool) {
 		return settingsui.CustomTool{}, false
 	}
 	root := descriptor.Commands[0]
+	// R158 · the description is read back for an executable integration only:
+	// a script manifest carries the host's own internal sentence, which must
+	// not be shown to the user as if it were content they could clear (R159).
+	description := ""
+	if manifest.Runtime.Type != "script" {
+		description = manifest.Description
+	}
 	tool := settingsui.CustomTool{
 		Name:           integration.Name,
 		Program:        integration.Entry.ExecutablePath,
@@ -1970,7 +1977,7 @@ func (a *App) toolForEdit(id string) (settingsui.CustomTool, bool) {
 		Args:           strings.Join(manifest.Provider.ArgsPrefix, " "),
 		VersionArgs:    strings.Join(manifest.Runtime.VersionArgs, " "),
 		Version:        integration.Version,
-		Description:    manifest.Description,
+		Description:    description,
 		Output:         manifest.Output,
 		Permissions:    append([]string{}, manifest.Permissions...),
 		Params:         append([]extensions.ParamDefinition{}, manifest.Params...),

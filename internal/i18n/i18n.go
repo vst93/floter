@@ -639,6 +639,9 @@ type Settings struct {
 	// a real probe overwrites on connect (R153).
 	LocalToolVersionHint string
 	LocalToolDescription string
+	// The description is executable-only and honest-empty (R159), so its
+	// placeholder says a blank field hides the description.
+	LocalToolDescriptionPlaceholder string
 	// The declaration/audit switches live behind a default-closed Advanced
 	// disclosure, so a brand-new integration does not open on a ceremonial form.
 	LocalToolAdvanced                   string
