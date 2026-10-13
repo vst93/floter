@@ -8,7 +8,7 @@
 
 用 mygo（原生 GPU 自绘 UI + Go）重写的 floter **已经是一个可打包、可运行的完整应用**：单窗口三表面
 （启动器 / 设置 / 终端）、搜索内核、扩展平台（含后台运行、列表协议、导入导出、权限审计）、剪贴板、
-浏览器、计算器、系统集成、打包与 CI 全部就位。**821 项测试全绿**，三平台都能构建，Linux 打包
+浏览器、计算器、系统集成、打包与 CI 全部就位。**823 项测试全绿**，三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
 含测试）。
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 821 项测试
+go test -count=1 ./...         # 823 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,7 +99,45 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-be 后台完成通知的时长词形与输出行数（R9-2）** —— P7-bd 重写的具体待办第 2 条落地。
+> **最新一轮：P7-bf 面板手动 Run 按清单 `output` 分流 + 「最近一次输出」块** —— P7-bd 重写的具体
+> 待办第 3、4 条一起落地（两条互相依赖）。面板里点 Run 原来**无条件**开终端，清单写着
+> `output: background` 的集成也照开不误，捕获结果也从不落回该行；现在路由由清单决定，后台运行
+> 的捕获输出存在集成的行上，卡片里多了一个可折叠、固定高度的「最近一次输出」块。
+
+**P7-bf 面板 Run 的路由与输出块（本轮）**
+
+- **依赖检查**：`curl .../releases/latest` 返回 v0.4.8，`go.mod` 已是 v0.4.8，无版本可升。
+- **偏离点（两处，同一个功能的上下半）**：
+  1. **面板的 Run 从不读路由**。旧版 `src/ExtensionsPanel.tsx:1746-1795` 拿后端返回的
+     `outcome.route`：`terminal` 才开终端，否则把 `outcome.output` 存进 `runOutputs[extension.id]`
+     并在成功时给带 `customViewOutput` 的 toast。本构建 `internal/shell/shell.go:1769` 的
+     `runWithParams` **无条件** `a.runCommand(entry, argv)`（`:2158` 直接 `RunCommand` +
+     `Open(SurfaceTerminal)`），于是清单声明 `output: background` 的集成在面板里点 Run 也开终端。
+  2. **捕获得来的输出无处可放**。`extensions.CapturedRun` 只进启动器的输出视图
+     （`internal/launcher/output.go:109`），面板的卡片里没有旧版 `.extension-row__output` 那个块，
+     i18n 里那六个键（`customLastOutput`/`customViewOutput`/…）一个都没有。
+- **修法**：
+  - `internal/settingsui/settingsui.go` 新增 `RunResult{Stdout, Stderr, Truncated, Success}` 与
+    `Text()`/`HasOutput()`；`App` 增加 `runOutputs`/`outputOpen`/`outputScroll` 三个映射，
+    `SetRunResult`/`LastRun`/`setRunOutputOpen`/`runOutputScroll` 一组存取器。成功运行把块折起
+    （由「View output」行展开），失败运行立即展开——旧版 run 处理器同此。
+  - 新方法 `runOutput`：折起时画一行 `View output`（行标签与按钮都能点开），展开时是卡片内的
+    固定高度滚动块（`MaxHeight` 的 `ui.Scroll`）——头部 `Last output` + 截断标记 + `Hide output`，
+    正文是 `stdout+stderr` 原样拼接（空则 `(No output)`），尾部在截断时补 `… output truncated at 64 KB`。
+  - `internal/shell/shell.go` 的 `runWithParams` 读 `integration.Manifest.Route()`：`terminal` 走
+     `runCommand`（原状），`background` 走新的 `runCommandFromPanel` —— `runCommandCaptured` 跑完把
+     `CapturedRun` 写进 `a.Settings.SetRunResult(entry.IntegrationID, …)`；面板隐藏时照旧发完成通知。
+  - `internal/i18n` 的 `Settings` 补六个句子（en/zh 逐字对齐旧字典 742-747 / 1620-1625）。
+- **测试**：`internal/settingsui/view_test.go` 的 `TestRunOutputBlock`（成功折起、点开见正文、
+  Hide 收起、空捕获说 `(No output)`、截断在头尾两处标记、失败立即展开）；
+  `internal/shell/shell_test.go` 的 `TestPanelRunFollowsTheManifestOutput`（缺省清单 → 捕获结果落在
+  行上且 `Success`/stdout 正确；改写成 `output: terminal` 的新实例 → 开终端面且**不**记录捕获输出）。
+  变异核查：把 `runWithParams` 里的路由判断去掉，后台那条 `waitForRun` 立刻超时、终端那条记录也不会
+  出现。
+- **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 27 包全绿
+  （823 项）、`GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+> **上一轮：P7-be 后台完成通知的时长词形与输出行数（R9-2）** —— P7-bd 重写的具体待办第 2 条落地。
 > 后台运行成功时的系统通知原来是一句「名字 + 状态」的公文（时长 `3.4s`、没有行数），现在与旧版
 > 完成 toast 同一串法：**时长词形**（`420 ms` / `3.4 s`，坏时钟退 `0 ms`）与**输出行数**
 > （`2 lines of output` / 截断改口），失败只说退出码。
@@ -1597,21 +1635,24 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
      的通知是 `CommandFinished(name) + " · " + CommandStatus(status)`，没有时长词形也没有行数；i18n 无四个键。
    - 验收：新增纯函数 `FormatRunDuration`/`RunOutputLineCount`/`RunHasOutput` 与 i18n 四键，成功通知按原版
      串法（失败通知不带行数）；测试钉 `<1000/≥1000/NaN/负` 与 `""`/`"\n"`/`"a\nb"`/尾换行 边界。
-3. **面板手动 Run 按 manifest 的 `output` 路由分流**
+3. **~~面板手动 Run 按 manifest 的 `output` 路由分流~~**：已完成（P7-bf）——`runWithParams` 读
+   `Manifest.Route()`，`terminal` 走 `runCommand`（原状），`background` 走 `runCommandFromPanel`
+   （`runCommandCaptured` 跑完把 `CapturedRun` 写进 `Settings.SetRunResult`）；测试
+   `TestPanelRunFollowsTheManifestOutput` 钉两种路由各走各的。（原分析保留在下方。）
    - 原版：`src/ExtensionsPanel.tsx:1746-1795`——`outcome.route === "terminal"` 才打开终端，否则把捕获的
      output 存进该行、成功时 toast（带 `customViewOutput`）；`run-routing.ts:52` 的 `DEFAULT_OUTPUT_MODE`。
-   - 本构建：`internal/settingsui/settingsui.go:2641` 的 Run 按钮 → `shell.go:1769` 的 `runWithParams`
+   - 本构建（改前）：`internal/settingsui/settingsui.go:2641` 的 Run 按钮 → `shell.go:1769` 的 `runWithParams`
      **无条件** `a.runCommand(entry, argv)`（`shell.go:2158` 直接 `Terminal.RunCommand` + `Open(SurfaceTerminal)`），
      完全忽略 manifest 的 `output`——`background` 的集成在面板里点 Run 也开终端。
-   - 验收：`runWithParams` 读 `integration.Manifest.Output`，`background` 走 `runCommandCaptured` 并把结果存进
-     该行，`terminal` 保持现状；测试钉两种路由各走各的。
-4. **集成行的「最近一次输出」块**
+4. **~~集成行的「最近一次输出」块~~**：已完成（P7-bf）——`internal/settingsui/settingsui.go` 的 `runOutput`
+   在卡片里画可折叠、固定高度滚动的输出块：折起一行 `View output`，展开是头部（`Last output` +
+   截断标记 + `Hide output`）、`stdout+stderr` 正文（空则 `(No output)`）、尾部截断行；失败运行立即展开。
+   六条 i18n（en/zh 对齐旧字典）。测试 `TestRunOutputBlock` 钉四态。（原分析保留在下方。）
    - 原版：`src/extensions/ExtensionRow.tsx:480-520`——可折叠、固定高度滚动的输出块，空输出有
      `customNoOutput`、截断在头部有 `customOutputTruncated`、尾部有 `customOutputTruncatedTail`，
      隐藏按钮 aria 是 `customHideOutput`。
-   - 本构建：`internal/settingsui/settingsui.go` 的卡片里没有输出块；`grep -i lastOutput internal/i18n` 空；
+   - 本构建（改前）：`internal/settingsui/settingsui.go` 的卡片里没有输出块；`grep -i lastOutput internal/i18n` 空；
      后台运行的 `CapturedRun`（`extensions/run.go:28`）根本不进面板（只进 launcher 的输出视图）。
-   - 验收：卡片有该块（四态、固定高度滚动、数据来自第 3 条的 per-integration 记录）；测试钉四态。
 5. **不可用运行时的失败原因本地化（R11）**
    - 原版：`src/extensions/binding-errors.ts`——后端发 `binding-changed:{"path":…}` /
      `binding-missing:{"path":…}`，`failureReason(code, detail, t)` 本地化并认旧版英文句（`Executable
@@ -1625,7 +1666,20 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
    - 验收：`ResolveRuntime` 的失败变键+负载，健康检查/探测失败时写 `lastErrorCode`+`brokenReason`；卡片状态行
      渲染本地化原因（认旧英文句，认不出则保留原句）；测试钉键与两语言渲染。
 
-> 下一轮从第 3 条开始（第 1、2 条已落地）；第 3、4 条互相依赖，宜连着做。
+> 下一轮从第 5 条开始（第 1–4 条已落地）。
+
+**P7-bf 面板手动 Run 按 `output` 分流 + 「最近一次输出」块（本轮）**
+
+- **依赖检查**：`curl .../releases/latest` 返回 v0.4.8，`go.mod` 已是 v0.4.8，无版本可升。
+- **偏离点**：旧版 `ExtensionsPanel.tsx:1746-1795` 按 `outcome.route` 分流；本构建的 `runWithParams`
+  （`internal/shell/shell.go:1769`）**无条件**开终端，且 `ExtensionRow.tsx:480-520` 的「最近一次输出」块
+  完全没有对应物——`CapturedRun` 只进启动器的输出视图。
+- **修法**：`internal/settingsui/settingsui.go` 的 `RunResult` + `SetRunResult`/`LastRun` + `runOutput`
+  （折起/展开、固定高度滚动、四态）；`internal/shell/shell.go` 的 `runWithParams` 按 `Manifest.Route()`
+  分流，新增 `runCommandFromPanel`；`internal/i18n` 补六条。
+- **测试**：`TestPanelRunFollowsTheManifestOutput`（shell）、`TestRunOutputBlock`（settingsui）。
+- **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 27 包全绿（823 项）、
+  `GOOS=linux/windows/darwin go build ./...` 三平台通过。
 
 **P7-at manifest 的 `compatibility` 区间在落盘前生效（本轮）**
 

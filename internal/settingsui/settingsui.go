@@ -346,10 +346,16 @@ type App struct {
 
 	// disableConfirm marks the integrations whose switch was turned off and
 	// is waiting for the user's answer. runValues holds the run form's
-	// answers per integration and runError its last refusal.
+	// answers per integration and runError its last refusal. runOutputs
+	// holds each integration's last background run and outputOpen which of
+	// those blocks are unfolded (the old panel's `runOutputs` /
+	// `outputOpen`), with outputScroll the fixed-height scroller's offset.
 	disableConfirm map[string]bool
 	runValues      map[string]map[string]string
 	runError       string
+	runOutputs     map[string]RunResult
+	outputOpen     map[string]bool
+	outputScroll   map[string]*ui.ScrollState
 
 	// The local-tool form's draft: what the user has typed, and the
 	// permissions they have ticked. It lives on the panel so a keystroke
@@ -1271,6 +1277,11 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 		if len(integration.Params) > 0 {
 			a.runForm(c, copy, integration)
 		}
+
+		// The last background run's output rides the row it came from: the
+		// panel run that took the background route leaves it here (see
+		// shell.runWithParams).
+		a.runOutput(c, copy, integration)
 
 		if integration.Orphan {
 			// An orphan is a package directory the repository does not name:
@@ -2564,6 +2575,70 @@ func (a *App) installFolderRow(c *ui.Context, copy i18n.Settings) {
 	})
 }
 
+// RunResult is one background run's captured output, kept for the
+// integration's row: the two streams as they were captured (the block joins
+// them without a separator, the same concatenation the old panel rendered),
+// whether a stream hit the retention cap, and whether the run completed
+// successfully.
+type RunResult struct {
+	Stdout    string
+	Stderr    string
+	Truncated bool
+	Success   bool
+}
+
+// Text is the captured output as the block reads it: standard output and
+// standard error in the order they were captured, joined as-is.
+func (r RunResult) Text() string { return r.Stdout + r.Stderr }
+
+// HasOutput reports whether the run said anything at all, which is what the
+// block's empty state and the completion toast both key off.
+func (r RunResult) HasOutput() bool { return r.Stdout != "" || r.Stderr != "" }
+
+// SetRunResult records an integration's last background run for its row's
+// output block. A run that completed records the output and leaves the block
+// folded; one that failed unfolds it, so the reason is one glance away rather
+// than behind a click (the old panel's run handler did the same).
+func (a *App) SetRunResult(id string, result RunResult) {
+	if a.runOutputs == nil {
+		a.runOutputs = map[string]RunResult{}
+	}
+	a.runOutputs[id] = result
+	if !result.Success {
+		a.setRunOutputOpen(id, true)
+	}
+}
+
+// LastRun is an integration's recorded run and whether there is one, for a
+// caller outside the panel (the shell's own tests and diagnostics).
+func (a *App) LastRun(id string) (RunResult, bool) {
+	result, ok := a.runOutputs[id]
+	return result, ok
+}
+
+// setRunOutputOpen opens or closes one integration's output block, keeping the
+// two maps in step so the block and its toggle can never disagree.
+func (a *App) setRunOutputOpen(id string, open bool) {
+	if a.outputOpen == nil {
+		a.outputOpen = map[string]bool{}
+	}
+	a.outputOpen[id] = open
+}
+
+// runOutputScroll is the fixed-height output scroller's own offset for one
+// integration, created on first use.
+func (a *App) runOutputScroll(id string) *ui.ScrollState {
+	if a.outputScroll == nil {
+		a.outputScroll = map[string]*ui.ScrollState{}
+	}
+	state, ok := a.outputScroll[id]
+	if !ok {
+		state = &ui.ScrollState{}
+		a.outputScroll[id] = state
+	}
+	return state
+}
+
 // runForm is the run-time parameter form for an integration that declares its
 // inputs: one control per parameter, the values collected here, and the Run
 // button. No value is ever turned into a command string here — the map goes to
@@ -2648,6 +2723,55 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 	if a.runError != "" {
 		ui.Text(c, a.runError).FontSize(theme.FontSize - 1).TextColor(theme.Danger)
 	}
+}
+
+// runOutput is one integration's last background run, drawn in its row: a
+// folded "View output" line, and the block itself when open — a fixed-height
+// scroller inside the card, never an overlay, because routine feedback does
+// not deserve a dialog. The old panel's `.extension-row__output` had the same
+// four facts: the heading, the truncation mark at both ends, the empty line,
+// and the way to fold it again.
+func (a *App) runOutput(c *ui.Context, copy i18n.Settings, integration Integration) {
+	result, ok := a.runOutputs[integration.ID]
+	if !ok || integration.Orphan {
+		return
+	}
+	if !a.outputOpen[integration.ID] {
+		if a.row(c, copy.RunViewOutput, "", func() {
+			if ui.Button(c, copy.RunViewOutput).Clicked() {
+				a.setRunOutputOpen(integration.ID, true)
+			}
+		}) {
+			a.setRunOutputOpen(integration.ID, true)
+		}
+		return
+	}
+	t := c.Theme()
+	tokens := a.tokens(c)
+	ui.Column(c).FillWidth().Gap(t.Space(1.5)).Padding(t.Space(2), t.Space(3.5)).Children(func() {
+		ui.Row(c).FillWidth().Gap(t.Space(2)).AlignItems(ui.Center).Children(func() {
+			ui.Text(c, copy.RunLastOutput).FontSize(t.FontSize - 1).FontWeight(600).TextColor(tokens.TextStrong)
+			if result.Truncated {
+				ui.Text(c, copy.RunOutputTruncated).FontSize(t.FontSize - 1).TextColor(t.Warning)
+			}
+			ui.Row(c).Grow(1)
+			if ui.Button(c, copy.RunHideOutput).Clicked() {
+				a.setRunOutputOpen(integration.ID, false)
+			}
+		})
+		ui.Scroll(c.Key("settings.runoutput." + integration.ID)).TrackScroll(a.runOutputScroll(integration.ID)).
+			FillWidth().MaxHeight(t.Space(22)).Children(func() {
+			if !result.HasOutput() {
+				ui.Text(c, copy.RunNoOutput).FontSize(t.FontSize).TextColor(t.TextMuted)
+				return
+			}
+			ui.Text(c, result.Text()).FontSize(t.FontSize).TextColor(t.Text).
+				Font(a.Store.Snapshot().FontFamily).Selectable()
+		})
+		if result.Truncated {
+			ui.Text(c, copy.RunOutputTruncatedTail).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+		}
+	})
 }
 
 // truthyValue and boolValue are a parameter's own two spellings.

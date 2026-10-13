@@ -1765,7 +1765,9 @@ const maxDetectedTools = 12
 
 // runWithParams runs an integration's command with the answers to its declared
 // inputs: the host turns them into argv (never into a command string), and the
-// run goes to the surface the manifest's output mode names.
+// run goes to the surface the manifest's output mode names — a terminal route
+// streams through the PTY, a background route runs headless and leaves its
+// output on the integration's row.
 func (a *App) runWithParams(id string, values map[string]string) {
 	integration, ok := a.Integrations.Inventory().WithID(id)
 	if !ok {
@@ -1776,10 +1778,30 @@ func (a *App) runWithParams(id string, values map[string]string) {
 		if entry.IntegrationID != id {
 			continue
 		}
-		a.runCommand(entry, argv)
+		if integration.Manifest.Route() == extensions.RouteTerminal {
+			a.runCommand(entry, argv)
+			return
+		}
+		a.runCommandFromPanel(entry, argv)
 		return
 	}
 	log.Printf("floter: %s declares parameters but contributes no command", id)
+}
+
+// runCommandFromPanel runs a panel run whose manifest sends its output to the
+// background: headless with both streams captured, and the result recorded on
+// the integration's row for its "Last output" block (the old panel's
+// `runOutputs`). A run that finishes while the panel is hidden still raises
+// the usual completion notification.
+func (a *App) runCommandFromPanel(entry extensions.CommandEntry, args []string) {
+	a.runCommandCaptured(entry, args, func(run extensions.CapturedRun, err error) {
+		a.Settings.SetRunResult(entry.IntegrationID, settingsui.RunResult{
+			Stdout:    run.Stdout,
+			Stderr:    run.Stderr,
+			Truncated: run.Truncated,
+			Success:   run.Success,
+		})
+	})
 }
 
 // installPackageFolder installs a local package directory: the same review

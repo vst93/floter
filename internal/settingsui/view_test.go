@@ -2026,6 +2026,78 @@ func TestRunParamForm(t *testing.T) {
 	}
 }
 
+// The last background run's output block in an integration's row: folded
+// behind "View output" after a successful run, unfolded at once after a failed
+// one, and four states inside — the two streams, the empty line, and the two
+// truncation marks.
+func TestRunOutputBlock(t *testing.T) {
+	integration := func() []Integration {
+		return []Integration{{ID: "io.github.vst93.v", Name: "V Tools", Enabled: true, Running: true}}
+	}
+	a := New(newStore(t), Actions{})
+	a.Integrations = integration
+	a.SetRunResult("io.github.vst93.v", RunResult{Stdout: "hello\nworld\n", Success: true})
+	tt := render(t, a, 720, 900)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	// A successful run leaves the block folded: the row offers to view it.
+	if !tt.HasText("View output") {
+		t.Fatalf("the view control is missing: %q", tt.Texts())
+	}
+	if tt.HasText("Last output") {
+		t.Fatalf("the block is unfolded before the press: %q", tt.Texts())
+	}
+	if err := tt.Click("View output"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !tt.HasText("Last output") || !tt.HasText("Hide output") {
+		t.Fatalf("the block did not open: %q", tt.Texts())
+	}
+	if !tt.HasText("hello") || !tt.HasText("world") {
+		t.Errorf("the output is missing: %q", tt.Texts())
+	}
+	// The hide control folds it again.
+	if err := tt.Click("Hide output"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if tt.HasText("Last output") {
+		t.Errorf("the hide control did not fold the block: %q", tt.Texts())
+	}
+
+	// An empty capture says so rather than leaving a blank block.
+	a.SetRunResult("io.github.vst93.v", RunResult{Success: true})
+	a.setRunOutputOpen("io.github.vst93.v", true)
+	tt.Frame()
+	if !tt.HasText("(No output)") {
+		t.Errorf("the empty line is missing: %q", tt.Texts())
+	}
+
+	// A truncated capture marks both ends.
+	a.SetRunResult("io.github.vst93.v", RunResult{Stdout: "cut", Truncated: true, Success: true})
+	a.setRunOutputOpen("io.github.vst93.v", true)
+	tt.Frame()
+	if !tt.HasText("Output was truncated") || !tt.HasText("output truncated at 64 KB") {
+		t.Errorf("the truncation marks are missing: %q", tt.Texts())
+	}
+
+	// A failed run unfolds its output at once: the reason is one glance away.
+	failed := New(newStore(t), Actions{})
+	failed.Integrations = integration
+	failed.SetRunResult("io.github.vst93.v", RunResult{Stderr: "boom\n", Success: false})
+	tf := render(t, failed, 720, 900)
+	if err := tf.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tf.Frame()
+	if !tf.HasText("Last output") || !tf.HasText("boom") {
+		t.Errorf("a failed run did not unfold its output: %q", tf.Texts())
+	}
+}
+
 // The connect form's declared inputs: a row per parameter, add and remove, and
 // the rows a request carries — a row still being typed (no id) is skipped
 // rather than refused.

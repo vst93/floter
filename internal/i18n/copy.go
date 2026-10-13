@@ -484,6 +484,12 @@ var en = Copy{
 		RunLabel:                         "Run with these values",
 		RunIncomplete:                    "Fill the required values first.",
 		RunOutputHint:                    "The values are passed as separate arguments.",
+		RunLastOutput:                    "Last output",
+		RunViewOutput:                    "View output",
+		RunHideOutput:                    "Hide output",
+		RunNoOutput:                      "(No output)",
+		RunOutputTruncated:               "Output was truncated",
+		RunOutputTruncatedTail:           "\u2026 output truncated at 64 KB",
 		RunErrorScriptMissing: func(path string) string {
 			return "This integration's script file is missing: " + path + ". Edit the integration and save it again to restore it."
 		},
@@ -1118,6 +1124,12 @@ var zh = Copy{
 		RunLabel:                 "使用这些值运行",
 		RunIncomplete:            "请先填写必填项。",
 		RunOutputHint:            "这些值会作为独立参数传入。",
+		RunLastOutput:            "最近一次输出",
+		RunViewOutput:            "查看输出",
+		RunHideOutput:            "收起输出",
+		RunNoOutput:              "（无输出）",
+		RunOutputTruncated:       "输出已被截断",
+		RunOutputTruncatedTail:   "……输出已截断（上限 64KB）",
 		RunErrorScriptMissing: func(path string) string {
 			return "该集成的脚本文件已丢失：" + path + "。请打开集成重新保存以恢复。"
 		},

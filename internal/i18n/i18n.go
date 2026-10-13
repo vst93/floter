@@ -519,6 +519,14 @@ type Settings struct {
 	RunLabel          string
 	RunIncomplete     string
 	RunOutputHint     string
+	// The last background run's output block in the integration's row: its
+	// heading, the two ways to fold it, and its empty and truncation lines.
+	RunLastOutput          string
+	RunViewOutput          string
+	RunHideOutput          string
+	RunNoOutput            string
+	RunOutputTruncated     string
+	RunOutputTruncatedTail string
 	// A failed run is a stable key plus its facts; these are the words. Each
 	// takes the payload fields its own key carries.
 	RunErrorScriptMissing       func(path string) string

@@ -1771,6 +1771,73 @@ func TestCapturedRunNotifiesOnlyWhenHidden(t *testing.T) {
 	}
 }
 
+// The panel's manual Run follows the manifest's output mode: a terminal route
+// streams through the PTY, a background route runs headless and leaves the
+// captured output on the integration's row. Before this split a background
+// integration's Run button opened a terminal anyway.
+func TestPanelRunFollowsTheManifestOutput(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the fixture runs through sh")
+	}
+	paths := integrationFixture(t)
+	// The fixture declares no output mode, so it keeps the schema's default —
+	// background — and the panel run captures onto the row.
+	a := New(Options{
+		Store:       settings.NewStore(settings.Default()),
+		Paths:       paths,
+		NewTerminal: func(terminal.Options) (*terminal.Terminal, error) { return nil, errors.New("no library in tests") },
+	})
+	a.RefreshIntegrations(context.Background())
+	a.runWithParams("io.github.vst93.v", nil)
+	result, ok := waitForRun(t, a, "io.github.vst93.v")
+	if !ok {
+		t.Fatal("a background panel run left no output on the row")
+	}
+	if !result.Success || !strings.Contains(result.Stdout, "protocolVersion") {
+		t.Errorf("captured result = %+v", result)
+	}
+
+	// A terminal route never records captured output: it hands the command to
+	// the terminal surface.
+	manifestPath := filepath.Join(paths.Extensions, "io.github.vst93.v", "floter.extension.json")
+	data, err := os.ReadFile(manifestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rewritten := strings.Replace(string(data), `"runtime"`, `"output": "terminal", "runtime"`, 1)
+	if err := os.WriteFile(manifestPath, []byte(rewritten), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	terminalApp := New(Options{
+		Store:       settings.NewStore(settings.Default()),
+		Paths:       paths,
+		NewTerminal: func(terminal.Options) (*terminal.Terminal, error) { return nil, errors.New("no library in tests") },
+	})
+	terminalApp.RefreshIntegrations(context.Background())
+	terminalApp.runWithParams("io.github.vst93.v", nil)
+	if terminalApp.Surf != SurfaceTerminal {
+		t.Errorf("a terminal panel run did not open the terminal surface: %v", terminalApp.Surf)
+	}
+	if _, ok := terminalApp.Settings.LastRun("io.github.vst93.v"); ok {
+		t.Errorf("a terminal panel run recorded captured output")
+	}
+}
+
+// waitForRun polls until the integration's background run has left its output
+// on the row, bounded so a run that never answers fails the test rather than
+// hanging it.
+func waitForRun(t *testing.T, a *App, id string) (settingsui.RunResult, bool) {
+	t.Helper()
+	deadline := time.Now().Add(10 * time.Second)
+	for time.Now().Before(deadline) {
+		if result, ok := a.Settings.LastRun(id); ok {
+			return result, true
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	return settingsui.RunResult{}, false
+}
+
 // The completion notification phrases a finished run the way the old build's
 // toast did: the duration word form, the output line count on success, and the
 // exit code (without a line count) on failure - in the stored language.
