@@ -13,9 +13,8 @@ import (
 //
 // The split is the old host's: the backend owns the facts (a stable key and a
 // JSON payload) and the surface owns the words. A message that did not come
-// from that path — plain prose, or a key-plus-id such as
-// `run_param_required:note` — is returned verbatim, which is strictly better
-// than swallowing it.
+// from that path — plain prose — is returned verbatim, which is strictly
+// better than swallowing it.
 func runErrorMessage(copy i18n.Settings, failure *extensions.RunFailure) string {
 	switch failure.Key {
 	case extensions.RunErrorScriptMissing:
@@ -44,6 +43,27 @@ func runErrorMessage(copy i18n.Settings, failure *extensions.RunFailure) string 
 		return copy.RunErrorIntegrationBroken(failure.String("extension_id"), failure.String("reason"))
 	case extensions.RunErrorTaskFailed:
 		return copy.RunErrorTaskFailed(failure.String("error"))
+	default:
+		return failure.Error()
+	}
+}
+
+// paramRunMessage words a `run_param_*:{id}` refusal — the run-time parameter
+// form's own keys, which are not the `key:{json}` run-failure shape and so are
+// not claimed by `ParseRunFailure`. The declaration is not in the launcher's
+// hands (an entry carries argv, not the manifest's parameters), so the id is
+// what the sentence interpolates — the old `paramRunErrorMessage`'s own
+// fallback when no declared parameter matched the id.
+func paramRunMessage(copy i18n.Settings, failure *extensions.ParamFailure) string {
+	switch failure.Key {
+	case extensions.RunErrorParamRequired:
+		return copy.RunParamRequired(failure.Param)
+	case extensions.RunErrorParamInvalid:
+		return copy.RunParamInvalid(failure.Param)
+	case extensions.RunErrorParamUnknown:
+		return copy.RunParamUnknown(failure.Param)
+	case extensions.RunErrorParamWindowsUnsafe:
+		return copy.RunParamWindowsUnsafe(failure.Param)
 	default:
 		return failure.Error()
 	}

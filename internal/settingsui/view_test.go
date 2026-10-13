@@ -2002,7 +2002,11 @@ func TestRunParamForm(t *testing.T) {
 			t.Fatalf("the form is missing %q: %q", want, tt.Texts())
 		}
 	}
-	// A required value that is empty refuses the run.
+	// A required value that is empty is refused live, under the input that
+	// caused it, and the Run button is disabled while it stands.
+	if !tt.HasText("Required: fill in Target before running") {
+		t.Fatalf("the row's reason is missing: %q", tt.Texts())
+	}
 	if err := tt.Click("Run with these values"); err != nil {
 		t.Fatal(err)
 	}
@@ -2010,12 +2014,12 @@ func TestRunParamForm(t *testing.T) {
 	if len(runs) != 0 {
 		t.Fatalf("an incomplete form ran: %v", runs)
 	}
-	if !tt.HasText("Fill the required values first.") {
-		t.Errorf("the refusal is missing: %q", tt.Texts())
-	}
-	// Filling it runs, with the select's default seeded.
+	// Filling it clears the reason and runs, with the select's default seeded.
 	a.runValues["io.github.vst93.v"]["target"] = "here"
 	tt.Frame()
+	if tt.HasText("Required: fill in Target before running") {
+		t.Errorf("the reason outlived the fix: %q", tt.Texts())
+	}
 	if err := tt.Click("Run with these values"); err != nil {
 		t.Fatal(err)
 	}
@@ -2026,6 +2030,58 @@ func TestRunParamForm(t *testing.T) {
 	values := runs[0].values
 	if values["target"] != "here" || values["mode"] != "fast" {
 		t.Errorf("values = %v", values)
+	}
+}
+
+// A value the form can judge is refused live, under the input that caused it:
+// a number that is not a finite decimal, a choice off the list. The Run button
+// stays disabled while a reason stands.
+func TestRunParamFormShowsPerRowReasons(t *testing.T) {
+	runs := 0
+	a := New(newStore(t), Actions{
+		RunWithParams: func(id string, values map[string]string) *extensions.ParamFailure {
+			runs++
+			return nil
+		},
+	})
+	a.Integrations = func() []Integration {
+		return []Integration{{
+			ID: "io.github.vst93.v", Name: "V Tools", Enabled: true, Running: true,
+			Params: []Param{
+				{ID: "count", Label: "Count", Kind: "number"},
+				{ID: "mode", Label: "Mode", Kind: "select", Options: []string{"fast", "slow"}},
+			},
+		}}
+	}
+	tt := render(t, a, 720, 900)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	// A number the form cannot judge.
+	a.runValues["io.github.vst93.v"]["count"] = "two"
+	tt.Frame()
+	if !tt.HasText("Count is not a valid value for this parameter") {
+		t.Fatalf("the number reason is missing: %q", tt.Texts())
+	}
+	if err := tt.Click("Run with these values"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if runs != 0 {
+		t.Fatalf("an invalid form ran: %d", runs)
+	}
+	// A choice off the list, then everything fixed.
+	a.runValues["io.github.vst93.v"]["count"] = "2"
+	a.runValues["io.github.vst93.v"]["mode"] = "medium"
+	tt.Frame()
+	if !tt.HasText("Mode is not a valid value for this parameter") {
+		t.Fatalf("the choice reason is missing: %q", tt.Texts())
+	}
+	a.runValues["io.github.vst93.v"]["mode"] = "fast"
+	tt.Frame()
+	if tt.HasText("is not a valid value") {
+		t.Errorf("the reasons outlived the fixes: %q", tt.Texts())
 	}
 }
 

@@ -99,7 +99,50 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-bj 运行期参数校验与 argv 权威（`param_arguments`）** —— P7-bh 重写的具体待办第 3 条。
+> **最新一轮：P7-bk 运行表单的逐参数本地化错误（`paramValueIssues`）** —— P7-bh 重写的具体待办第 4 条。
+> P7-bj 把后端拒绝变成 `run_param_*` 键，但表单自己的预检只回一句泛化的
+> `RunIncomplete`，且 number 用 `ParseFloat`（放过 `inf`/`NaN`/`0x1p-2`）、boolean 不校验、
+> required 不认 default 豁免。现在 `ParamIssues` 返回 `{Index,Key,Label}`，每个非法值
+> 的句子印在**它自己那一行下面**，Run 按钮在有错时禁用；输出视图也按语言渲染 `run_param_*`。
+
+**P7-bk 运行表单的逐参数本地化错误（本轮）**
+
+- **依赖检查**：GitHub API 被限流，改用 `go list -m -versions github.com/egoist/mygo` 确认 v0.4.8
+  仍是最新（`go.mod` 已是 v0.4.8），无版本可升。
+- **入口**：P7-bh 重写的 5 条具体待办，第 1、2、3 条已落地，本轮取第 4 条（同一套 `run_param_*`
+  键的另一半：表单自己怎么判、句子印在哪）。
+- **偏离点（表单预检比后端弱、句子不落在出错行）**：原版 `src/extensions/run-params.ts:72` 的
+  `paramValueIssues` 逐参数返回 `{index,key,label}`：required 且无值**且无 default** 才算缺；number
+  用 `isFiniteDecimal`；select 必须在选项里；boolean 必须是 `true|false`。`RunParamForm.tsx:39` 每帧
+  重算，`issueByIndex` 把句子印在**出错输入下面**，并 `disabled={!canRun}`。本构建
+  `internal/extensions/params.go` 的 `ParamIssues` 只回 `[]string` 的 id、number 用
+  `strconv.ParseFloat`（放过非有限小数与 radix 前缀）、boolean 不查、required 不认 default 豁免；
+  `internal/settingsui/settingsui.go:2725` 把非空结果一律换成 `copy.RunIncomplete` 印在按钮下。
+  另：`internal/launcher/runfailure.go` 对 `run_param_*` 原样返回，输出视图不本地化。
+- **修法**：
+  - `internal/extensions/params.go`：新增 `ParamIssueKey`（`required`/`invalid`）与
+    `ParamValueIssue{Index,Key,Label}`；`ParamIssues` 返回它，补 required-有-default 豁免、
+    boolean 校验，number 改用 `IsFiniteDecimal`（与后端 `ParamArguments` 同一个文法）；label 空白回 id。
+  - `internal/settingsui/settingsui.go`：`runForm` 每帧算 `ParamIssues`，`issueByIndex` 让每一行用
+    `a.row(..., below...)` 在行内印本地化句子（`paramValueIssueMessage`：required→`RunParamRequired`，
+    invalid→`RunParamInvalid`）；有错时 `ui.Button(...).Disabled(true)`，并保留点击守卫。
+  - `internal/launcher/runfailure.go`/`output.go`：`failureReason` 在 `ParseRunFailure` 之后认
+    `ParseParamFailure`，`paramRunMessage` 用 id 作 label（启动器手里没有声明，正是原版
+    `paramRunErrorMessage` 找不到参数时的回退）。
+  - i18n 删除已死的 `RunIncomplete`（en/zh）；`RunParam*` 四句 P7-bj 已有，复用。
+- **测试**：`params_test.go` 的 `TestParamIssues`（结构化 Index/Key/Label、required/invalid/select/
+  boolean）、`TestParamIssuesRefusesWhatTheBackendRefuses`（`inf`/`NaN`/`Infinity`/`0x1p-2`/`1_000`
+  拒绝，`2`/`-1.5`/`.5`/`1e3`/带空白通过）、`TestARequiredDefaultIsNotMissing`；
+  `settingsui/view_test.go` 的 `TestRunParamForm`（改用行内 `Required: fill in Target before running`、
+  禁用时点 Run 不触发）与新增 `TestRunParamFormShowsPerRowReasons`（number/select 各自行内句子、
+  修好后消失、出错时 Run 不跑）；`launcher/runfailure_test.go` 的
+  `TestRunParamFailureIsLocalizedInTheOutputView`（en/zh、键不外泄）。变异核查：删掉 boolean 分支，
+  `TestParamIssues` 立刻红（`issues = [{0 required Target} {1 invalid count} {2 invalid mode}]`）；
+  把行内错误渲染改成 `&& false`，两条 settingsui 表单测试立刻红。
+- **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 27 包全绿、
+  `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+> **上一轮：P7-bj 运行期参数校验与 argv 权威（`param_arguments`）** —— P7-bh 重写的具体待办第 3 条。
 > 原来 `ParamArgv` 只把答案拼成 argv：未声明的 id 被静默丢掉、required 不查、number/select/boolean
 > 不校验、`inf`/`NaN` 照收、`.cmd`/`.bat` 的 cmd.exe 元字符也直接传下去。现在只有
 > `ParamArguments` 一个 argv 构建点，非法组合发 `run_param_*` 键，面板按语言把句子印在按钮下。
@@ -1624,13 +1667,13 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 尚未做（按建议优先级）
 
-> **P7-bj 更新**：P7-bh 重写的 5 条里第 1（路径安全）、第 2（lifecycle 结构校验）、第 3
-> （运行期参数校验与 argv 权威）已落地。第 4 条（表单逐参数本地化）是同一套 `run_param_*` 键的
-> 另一半，宜接着做；第 5 条（严格解析 + 组合规则）独立。三条明确卡在框架上的能力（`Options.OnCopy`、
+> **P7-bk 更新**：P7-bh 重写的 5 条里第 1（路径安全）、第 2（lifecycle 结构校验）、第 3
+> （运行期参数校验与 argv 权威）、第 4（表单逐参数本地化错误）已落地。第 5 条（严格解析 + 组合规则）
+> 独立，是清单里最后一条。三条明确卡在框架上的能力（`Options.OnCopy`、
 > 终端键入的 `HandleInput` 缝、外观四个死旋钮）与一次性维护者动作（`mygo keygen`、`mygo.json` 的
 > `updates`/签名、CI 私钥、发布到 GitHub Release）仍未动。
 
-### 具体待办（P7-bh 重写；第 1、2、3 条已落地）
+### 具体待办（P7-bh 重写；第 1、2、3、4 条已落地）
 
 1. **清单的路径安全（`validate_relative_path`）**（P7-bh 已落地）—— 原版在**解析清单时**就拒绝
    任何非空、非相对、含 `.`/`..` 的声明路径；本构建只在使用时用 `joinWithin` 兜住一部分，导出
@@ -1671,8 +1714,9 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
      不校验 number/select/boolean、不回填 default、无 windows-unsafe；`shell.go:1787` 直接把它交给运行。
    - 验收：新增 `ParamArguments(params, values, cmdScript) ([]string, error)` 发 `run_param_*` 键，
      `shell.go` 改用它；测试钉每个键与边界（含 default 回填、`inf`/`NaN` 拒绝、cmd 脚本不安全字符）。
-4. **运行表单的逐参数本地化错误（`paramValueIssues` / `paramRunErrorMessage`）** —— 原版把「哪个
-   参数、哪一条规则」本地化后印在出错行下；本构建只有一句泛化的 `RunIncomplete`。
+4. **运行表单的逐参数本地化错误（`paramValueIssues` / `paramRunErrorMessage`）**（P7-bk 已落地）——
+   原版把「哪个参数、哪一条规则」本地化后印在出错行下；本构建只有一句泛化的 `RunIncomplete`。
+   落地见下方「P7-bk 运行表单的逐参数本地化错误」。（原分析保留在下方。）
    - 原版：`src/extensions/run-params.ts` 的 `paramValueIssues`（返回 `{index,key,label}`，
      required-有默认不报缺）与 `paramRunErrorMessage`（后端 `run_param_*` → i18n），
      `src/i18n.ts` 的 `customParamRequiredMissing`/`InvalidValue`/`Unknown`/`WindowsUnsafe`。

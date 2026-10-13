@@ -54,6 +54,28 @@ func TestFailureReasonKeepsUnrecognizedProse(t *testing.T) {
 	}
 }
 
+// A `run_param_*` refusal carries the parameter id instead of a JSON payload,
+// so it is not the keyed run-failure shape — but the output view still words it
+// in the stored language. The declaration is not in the launcher's hands, so
+// the id is the label the sentence interpolates.
+func TestRunParamFailureIsLocalizedInTheOutputView(t *testing.T) {
+	a := testApp()
+	failure := &extensions.ParamFailure{Key: extensions.RunErrorParamRequired, Param: "note"}
+	if got := a.failureReason(failure); !strings.Contains(got, "Required: fill in note before running") {
+		t.Errorf("en = %q", got)
+	}
+	if updateErr := a.Store.Update(func(s *settings.Settings) { s.Language = "zh" }); updateErr != nil {
+		t.Fatal(updateErr)
+	}
+	if got := a.failureReason(failure); !strings.Contains(got, "必填：运行前请填写 note") {
+		t.Errorf("zh = %q", got)
+	}
+	// The raw key never leaks.
+	if got := a.failureReason(failure); strings.Contains(got, string(failure.Key)) {
+		t.Errorf("the key leaked: %q", got)
+	}
+}
+
 // The output view's one-line summary localises a keyed failure, and follows
 // the language the store is set to.
 func TestRunStatusLocalizesAKeyedFailure(t *testing.T) {

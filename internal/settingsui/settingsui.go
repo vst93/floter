@@ -2677,9 +2677,19 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 		values = extensions.ParamDefaults(params)
 		a.runValues[integration.ID] = values
 	}
+	// The form's own validation, recomputed every frame: the reasons are shown
+	// under the inputs that caused them, and the Run button is disabled while
+	// any remains — the old form's live `paramValueIssues`, so a typo is never
+	// a round-trip to the backend to be explained.
+	issues := extensions.ParamIssues(params, values)
+	issueByIndex := make(map[int]extensions.ParamValueIssue, len(issues))
+	for _, issue := range issues {
+		issueByIndex[issue.Index] = issue
+	}
+	theme := c.Theme()
 	a.card(c, func() {
-		for _, param := range integration.Params {
-			param := param
+		for index, param := range integration.Params {
+			index, param := index, param
 			label := param.Label
 			if label == "" {
 				label = param.ID
@@ -2688,6 +2698,15 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 			if param.Required {
 				sublabel = strings.TrimSpace(sublabel + "  ·  " + copy.ConfigRequired)
 			}
+			// The row's own reason, printed under it inside the card.
+			below := []func(){}
+			if issue, ok := issueByIndex[index]; ok {
+				below = append(below, func() {
+					ui.Text(c, paramValueIssueMessage(copy, issue)).
+						FontSize(theme.FontSize-1).TextColor(theme.Danger).
+						Margin(theme.Space(1), theme.Space(3.5))
+				})
+			}
 			switch param.Kind {
 			case extensions.ParamBoolean:
 				on := truthyValue(values[param.ID])
@@ -2695,7 +2714,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 					if ui.Switch(c, &on).Label(label).Changed() {
 						values[param.ID] = boolValue(on)
 					}
-				})
+				}, below...)
 				if labelClicked {
 					values[param.ID] = boolValue(!on)
 				}
@@ -2711,33 +2730,44 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 						index >= 0 && index < len(param.Options) {
 						values[param.ID] = param.Options[index]
 					}
-				})
+				}, below...)
 			default:
 				value := values[param.ID]
 				a.row(c, label, sublabel, func() {
 					ui.TextInput(c, &value).Label(label).Width(220).Placeholder(param.Placeholder)
-				})
+				}, below...)
 				values[param.ID] = value
 			}
 		}
 	})
-	theme := c.Theme()
 	ui.Row(c).Gap(theme.Space(1)).AlignItems(ui.Center).Children(func() {
-		if ui.Button(c, copy.RunLabel).Clicked() {
-			issues := extensions.ParamIssues(params, values)
-			if len(issues) == 0 {
-				a.runError = ""
-				if failure := a.Actions.RunWithParams(integration.ID, values); failure != nil {
-					a.runError = paramFailureMessage(copy, params, failure)
-				}
-				return
+		run := ui.Button(c, copy.RunLabel)
+		if len(issues) > 0 {
+			run = run.Disabled(true)
+		}
+		if run.Clicked() && len(issues) == 0 {
+			a.runError = ""
+			if failure := a.Actions.RunWithParams(integration.ID, values); failure != nil {
+				a.runError = paramFailureMessage(copy, params, failure)
 			}
-			a.runError = copy.RunIncomplete
 		}
 		ui.Text(c, copy.RunOutputHint).FontSize(theme.FontSize - 1).TextColor(theme.TextMuted)
 	})
 	if a.runError != "" {
 		ui.Text(c, a.runError).FontSize(theme.FontSize - 1).TextColor(theme.Danger)
+	}
+}
+
+// paramValueIssueMessage words the form's own refusal for one answer: the
+// sentence printed under the input that caused it. A required value that is
+// missing and a value that does not match its kind are the form's two rules;
+// the label is the parameter's own display name (or its id).
+func paramValueIssueMessage(copy i18n.Settings, issue extensions.ParamValueIssue) string {
+	switch issue.Key {
+	case extensions.ParamIssueRequiredMissing:
+		return copy.RunParamRequired(issue.Label)
+	default:
+		return copy.RunParamInvalid(issue.Label)
 	}
 }
 

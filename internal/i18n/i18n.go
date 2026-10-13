@@ -520,7 +520,6 @@ type Settings struct {
 	ParamsKindSelect  string
 	ParamsKindPath    string
 	RunLabel          string
-	RunIncomplete     string
 	RunOutputHint     string
 	// The last background run's output block in the integration's row: its
 	// heading, the two ways to fold it, and its empty and truncation lines.

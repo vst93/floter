@@ -82,13 +82,19 @@ func (a *App) RunStatus(run extensions.CapturedRun, err error) string {
 }
 
 // failureReason is a failed run's one-line reason. A keyed failure (a stable
-// key plus a JSON payload) is localised; anything else keeps its own words.
+// key plus a JSON payload) is localised; so is a `run_param_*` refusal, which
+// carries the parameter id instead of a payload. Anything else keeps its own
+// words.
 func (a *App) failureReason(err error) string {
 	if err == nil {
 		return ""
 	}
+	copy := i18n.For(a.settings().Language).Settings
 	if failure, ok := extensions.ParseRunFailure(err.Error()); ok {
-		return runErrorMessage(i18n.For(a.settings().Language).Settings, failure)
+		return runErrorMessage(copy, failure)
+	}
+	if failure, ok := extensions.ParseParamFailure(err.Error()); ok {
+		return paramRunMessage(copy, failure)
 	}
 	return err.Error()
 }

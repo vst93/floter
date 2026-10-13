@@ -1,7 +1,6 @@
 package extensions
 
 import (
-	"strings"
 	"testing"
 )
 
@@ -38,30 +37,80 @@ func TestValidateParams(t *testing.T) {
 }
 
 // The form's own validation: the missing required values, the numbers that are
-// not numbers, the choices off the list.
+// not finite decimals, the choices off the list, and the booleans that are not
+// true or false — each naming the row it belongs to and the label to print.
 func TestParamIssues(t *testing.T) {
 	params := []ParamDefinition{
-		{ID: "target", Kind: ParamText, Required: true},
+		{ID: "target", Label: "Target", Kind: ParamText, Required: true},
 		{ID: "count", Kind: ParamNumber},
 		{ID: "mode", Kind: ParamSelect, Options: []string{"fast", "slow"}},
+		{ID: "flag", Kind: ParamBoolean},
 		{ID: "file", Kind: ParamPath},
 	}
-	// Everything good.
-	issues := ParamIssues(params, ParamValues{"target": "x", "count": "2", "mode": "fast"})
-	if len(issues) != 0 {
+	// Everything good: a filled required value, a finite number, a listed
+	// choice, a boolean, and an empty optional.
+	good := ParamValues{"target": "x", "count": "2", "mode": "fast", "flag": "true"}
+	if issues := ParamIssues(params, good); len(issues) != 0 {
 		t.Errorf("a good set has issues: %v", issues)
 	}
 	// A missing required value, a number that is not one, a choice off the
-	// list, and an optional empty value that is fine.
-	issues = ParamIssues(params, ParamValues{"count": "two", "mode": "medium"})
-	if len(issues) != 3 {
+	// list, a boolean that is neither word, and an optional empty value that
+	// is fine.
+	issues := ParamIssues(params, ParamValues{"count": "two", "mode": "medium", "flag": "maybe"})
+	if len(issues) != 4 {
 		t.Fatalf("issues = %v", issues)
 	}
-	joined := strings.Join(issues, ",")
-	for _, want := range []string{"target", "count", "mode"} {
-		if !strings.Contains(joined, want) {
-			t.Errorf("%q is not in %v", want, issues)
+	want := []ParamValueIssue{
+		{Index: 0, Key: ParamIssueRequiredMissing, Label: "Target"},
+		{Index: 1, Key: ParamIssueInvalidValue, Label: "count"},
+		{Index: 2, Key: ParamIssueInvalidValue, Label: "mode"},
+		{Index: 3, Key: ParamIssueInvalidValue, Label: "flag"},
+	}
+	for i, expected := range want {
+		if issues[i] != expected {
+			t.Errorf("issue %d = %+v, want %+v", i, issues[i], expected)
 		}
+	}
+	// A label-less parameter falls back to its id, and a blank optional never
+	// earns an issue.
+	issues = ParamIssues(params, ParamValues{})
+	if len(issues) != 1 || issues[0].Index != 0 || issues[0].Label != "Target" {
+		t.Fatalf("issues = %v", issues)
+	}
+}
+
+// The number grammar is the backend's finite-decimal pattern, not
+// `strconv.ParseFloat`: the non-finite and radix-prefixed spellings the host
+// refuses are refused here too, so the form never lets through what the
+// authority would reject.
+func TestParamIssuesRefusesWhatTheBackendRefuses(t *testing.T) {
+	params := []ParamDefinition{{ID: "count", Kind: ParamNumber}}
+	for _, bad := range []string{"inf", "NaN", "Infinity", "0x1p-2", "1_000"} {
+		if issues := ParamIssues(params, ParamValues{"count": bad}); len(issues) != 1 {
+			t.Errorf("ParamIssues(%q) = %v, want one issue", bad, issues)
+		}
+	}
+	for _, good := range []string{"2", "-1.5", ".5", "1e3", "  4  "} {
+		if issues := ParamIssues(params, ParamValues{"count": good}); len(issues) != 0 {
+			t.Errorf("ParamIssues(%q) = %v, want none", good, issues)
+		}
+	}
+}
+
+// A required parameter with a default is not missing: the default is the value
+// the backend would run, so the form must not refuse it.
+func TestARequiredDefaultIsNotMissing(t *testing.T) {
+	params := []ParamDefinition{{ID: "target", Kind: ParamText, Required: true, Default: "here"}}
+	if issues := ParamIssues(params, ParamValues{}); len(issues) != 0 {
+		t.Errorf("a required-with-default was flagged: %v", issues)
+	}
+	if issues := ParamIssues(params, ParamValues{"target": ""}); len(issues) != 0 {
+		t.Errorf("a blank with a default was flagged: %v", issues)
+	}
+	// A required parameter with no default still is.
+	params[0].Default = ""
+	if issues := ParamIssues(params, ParamValues{}); len(issues) != 1 {
+		t.Errorf("a required without a default was not flagged: %v", issues)
 	}
 }
 

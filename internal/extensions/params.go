@@ -3,7 +3,6 @@ package extensions
 import (
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 )
 
@@ -123,33 +122,73 @@ func validateParamFlag(flag string) error {
 // ParamValues are the answers a run was given, by parameter id.
 type ParamValues map[string]string
 
+// ParamIssueKey names which of the form's rules an answer broke. The two keys
+// are the old form's `ParamValueIssueKey`: a required value that is missing,
+// and a value that does not match its kind.
+type ParamIssueKey string
+
+const (
+	// ParamIssueRequiredMissing is a required parameter left blank with no
+	// default to fall back on.
+	ParamIssueRequiredMissing ParamIssueKey = "required"
+	// ParamIssueInvalidValue is a value the parameter's kind refuses: a number
+	// that is not a finite decimal, a choice off the list, or a boolean that is
+	// neither `true` nor `false`.
+	ParamIssueInvalidValue ParamIssueKey = "invalid"
+)
+
+// ParamValueIssue is one answer the form refuses, named by the row it belongs
+// to and the label the sentence interpolates. It is the run-time counterpart
+// of ParamRowIssue: the declaration editor's reasons and the answer form's
+// reasons are different questions.
+type ParamValueIssue struct {
+	// Index is the parameter's position in the declaration.
+	Index int
+	// Key is which rule was broken.
+	Key ParamIssueKey
+	// Label is the display name to interpolate: the parameter's label, or its
+	// id when the label is blank.
+	Label string
+}
+
 // ParamIssues is what is wrong with a set of answers: the required values that
-// are missing, the numbers that are not numbers, the choices off the list. It
-// is the form's own validation, so a Run button can refuse before the tool
-// does.
-func ParamIssues(params []ParamDefinition, values ParamValues) []string {
-	var issues []string
-	for _, param := range params {
-		value := strings.TrimSpace(values[param.ID])
-		switch {
-		case value == "" && param.Required:
-			issues = append(issues, param.ID)
-		case value == "":
+// are missing, the numbers that are not finite decimals, the choices off the
+// list, the booleans that are not true or false. It is the form's own
+// validation, so the Run button can refuse before the tool does, and it names
+// the row and the label so the surface can print each reason under the input
+// that caused it — the old form's `paramValueIssues`.
+//
+// A required parameter with a default is *not* missing: the default is a
+// pre-fill, so the backend would run it. The number grammar is the backend's
+// own finite-decimal pattern (`IsFiniteDecimal`), not `strconv.ParseFloat`
+// (which would accept `inf`, `NaN` and radix prefixes the host refuses).
+func ParamIssues(params []ParamDefinition, values ParamValues) []ParamValueIssue {
+	var issues []ParamValueIssue
+	for index, param := range params {
+		raw := values[param.ID]
+		label := strings.TrimSpace(param.Label)
+		if label == "" {
+			label = param.ID
+		}
+		if strings.TrimSpace(raw) == "" && param.Required && param.Default == "" {
+			issues = append(issues, ParamValueIssue{Index: index, Key: ParamIssueRequiredMissing, Label: label})
 			continue
-		case param.Kind == ParamNumber:
-			if _, err := strconv.ParseFloat(value, 64); err != nil {
-				issues = append(issues, param.ID)
+		}
+		if raw == "" {
+			continue
+		}
+		switch param.Kind {
+		case ParamNumber:
+			if !IsFiniteDecimal(raw) {
+				issues = append(issues, ParamValueIssue{Index: index, Key: ParamIssueInvalidValue, Label: label})
 			}
-		case param.Kind == ParamSelect:
-			found := false
-			for _, option := range param.Options {
-				if option == value {
-					found = true
-					break
-				}
+		case ParamSelect:
+			if !containsString(param.Options, raw) {
+				issues = append(issues, ParamValueIssue{Index: index, Key: ParamIssueInvalidValue, Label: label})
 			}
-			if !found {
-				issues = append(issues, param.ID)
+		case ParamBoolean:
+			if raw != "true" && raw != "false" {
+				issues = append(issues, ParamValueIssue{Index: index, Key: ParamIssueInvalidValue, Label: label})
 			}
 		}
 	}
