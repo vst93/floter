@@ -552,6 +552,11 @@ type App struct {
 	customAction    string
 	customCommand   string
 	customFeedback  string
+
+	// rejectedShortcut is the action whose last recording the page refused —
+	// the reference's `rejectedAction`. It carries the warning at the top of
+	// the page and under that row's name until the next recording starts.
+	rejectedShortcut string
 }
 
 // CustomShortcutRejection is a key the system would not bind.
@@ -1727,6 +1732,9 @@ func (a *App) installedIntegrations() []Integration {
 func (a *App) shortcuts(c *ui.Context, copy i18n.Settings) {
 	t := c.Theme()
 	ui.Column(c).FillWidth().Gap(t.Space(5.5)).Children(func() {
+		// A refused recording is the first thing the user reads, above the
+		// page's own groups (the old page's static save alert).
+		a.shortcutRejectedAlert(c, copy)
 		// The group title row carries the group's own action, as the reference's
 		// pane did: "Restore defaults" beside the title, in the accent-text
 		// idiom, and it really resets.
@@ -1755,11 +1763,22 @@ func (a *App) shortcuts(c *ui.Context, copy i18n.Settings) {
 }
 
 // shortcutMapRow is one of the app's own keys: its name, its binding, and a
-// recorder that rebinds that action.
+// recorder that rebinds that action. A recording the page refused carries the
+// reference's warning under the name.
 func (a *App) shortcutMapRow(c *ui.Context, copy i18n.Settings, action string) {
-	a.row(c, copy.ShortcutNames[action], "", func() {
+	a.rowNote(c, copy.ShortcutNames[action], "", a.shortcutWarning(action, copy), func() {
 		a.shortcutControl(c, copy, action, a.binding(action))
 	})
+}
+
+// shortcutWarning is the reference's `settings.shortcut.rejected`, drawn in the
+// row whose recording was refused (the page draws the same sentence at its top,
+// as `src/settings/ShortcutsPage.tsx:382,404-406` did).
+func (a *App) shortcutWarning(action string, copy i18n.Settings) string {
+	if a.rejectedShortcut == action {
+		return copy.ShortcutRejected
+	}
+	return ""
 }
 
 // binding is one action's accelerator, from the settings.
@@ -1769,7 +1788,7 @@ func (a *App) binding(action string) string {
 
 // shortcutRow is one shortcut: its name, its keys, and the recorder.
 func (a *App) shortcutRow(c *ui.Context, copy i18n.Settings) {
-	a.row(c, copy.ShortcutsToggle, "", func() {
+	a.rowNote(c, copy.ShortcutsToggle, "", a.shortcutWarning(settings.ShortcutToggleWindow, copy), func() {
 		a.shortcutControl(c, copy, "", a.summonShortcut())
 	})
 }
@@ -1799,13 +1818,11 @@ func (a *App) shortcutControl(c *ui.Context, copy i18n.Settings, action, value s
 				return true // a key without a modifier is not a shortcut
 			}
 			a.recording = false
-			if a.Actions.SetShortcut != nil {
-				if action == "" {
-					a.Actions.SetShortcut(settings.ShortcutToggleWindow, accelerator)
-				} else {
-					a.Actions.SetShortcut(action, accelerator)
-				}
+			id := action
+			if id == "" {
+				id = settings.ShortcutToggleWindow
 			}
+			a.recordShortcut(id, accelerator)
 			return true
 		})
 		capture.Focus()
@@ -1814,6 +1831,28 @@ func (a *App) shortcutControl(c *ui.Context, copy i18n.Settings, action, value s
 	ui.Text(c, shortcuts.Display(value)).FontSize(t.FontSize).TextColor(t.TextMuted)
 	if ui.Button(c, copy.ShortcutRecord).Clicked() {
 		a.recording, a.ShortcutID = true, action
+		// Starting a recording clears the last refusal, as the reference's own
+		// toggle did.
+		a.rejectedShortcut = ""
+	}
+}
+
+// recordShortcut applies a chord the recorder captured. The map's own rule
+// decides: another action already answering for the chord is refused and the
+// page says so instead of writing it, re-recording an action's own chord is no
+// change at all, and only a new binding reaches the shell (the old build's
+// `capture`, `src/hooks/useShortcutCapture.ts:112-136`).
+func (a *App) recordShortcut(action, accelerator string) {
+	switch settings.ShortcutRecordingOf(a.Store.Snapshot(), action, accelerator) {
+	case settings.ShortcutRecorded:
+		a.rejectedShortcut = ""
+		if a.Actions.SetShortcut != nil {
+			a.Actions.SetShortcut(action, accelerator)
+		}
+	case settings.ShortcutRefused:
+		a.rejectedShortcut = action
+	default:
+		a.rejectedShortcut = ""
 	}
 }
 

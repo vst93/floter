@@ -704,6 +704,7 @@ var en = Copy{
 		ShortcutsHint:     "The global keys floter answers, and the ones you bind yourself.",
 		ShortcutRecord:    "Record",
 		ShortcutRecording: "Press keys\u2026",
+		ShortcutRejected:  "Already used by another app",
 
 		ShortcutsApp:     "App keys",
 		ShortcutsAppHint: "These are answered while floter's window has the keyboard; the summon key above is the one the system holds.",
@@ -1450,6 +1451,7 @@ var zh = Copy{
 		ShortcutsHint:     "floter 响应的全局按键，以及你自己绑定的按键。",
 		ShortcutRecord:    "录制",
 		ShortcutRecording: "请按组合键…",
+		ShortcutRejected:  "该组合键已被其他应用占用",
 
 		ShortcutsApp:     "应用按键",
 		ShortcutsAppHint: "这些按键在 floter 窗口拥有键盘时生效；上面那条唤回键是系统持有的那一个。",

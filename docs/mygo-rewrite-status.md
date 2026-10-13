@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1055 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1057 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1055 项测试
+go test -count=1 ./...         # 1057 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,7 +99,55 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-cx 快捷键显示与角标的拼写、平台名与键符号（原版 `src/shortcuts.ts:66-100,278-310`）**
+> **最新一轮：P7-cy 应用按键录制的冲突拒绝（原版 `src/hooks/useShortcutCapture.ts:112-136`、
+> `src/settings/ShortcutsPage.tsx:382,399-407`）**
+> —— P7-cw 重写的清单第 1、2 条已由 P7-cw / P7-cx 落地，本轮取第 3 条（最后一条，也是清单里唯一
+> 剩余项），至此 P7-cw 三条**全部落地**，清单再次为空（余下只有三条卡 mygo 框架项，规格见
+> 「具体待办（P7-cm 重写）」与「已知差距」）。依赖检查：`go list -m -versions github.com/egoist/mygo`
+> 仍停在 **v0.4.8**（与 `go.mod` 一致；GitHub releases API 本轮被限流，用 `go list` 代替），无版本可升。
+> 只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离点**：原版录制一个应用按键时先归一（`select_result` 走 `normalizeResultShortcut`）、再扫
+> `SHORTCUT_ACTIONS` 看**别的动作**是否已用同一组合（`:127-129` 的小写比较），冲突就 `setRejectedAction`
+> 并整条放弃；`next === previous`（正是该动作自己现有的组合）则当作无变化、连写都不写。设置页把被拒
+> 状态画两处：页顶一条 `settings-save-alert`（`:382`，非 toast 那条）与**该行**的 warning 副标题
+> （`:399-407`），文案同是 `settings.shortcut.rejected`（"Already used by another app" /
+> "该组合键已被其他应用占用"）；开始下一次录制（`toggle`）或重置成功时清空。本构建
+> `internal/settingsui/settingsui.go:1795-1815` 的 `shortcutControl` 一录到键就直接 `Actions.SetShortcut`，
+> `internal/settings/shortcutmap.go` 的 `SetShortcut` 也不看别的动作——于是两个动作可以绑同一个组合
+> （自定义快捷键那条路有 `shortcuts.Duplicate`，应用按键这条没有），页面上也不会说一句话。
+>
+> **修法**：`internal/settings/shortcutmap.go` 抽出 `normalizeShortcut`（`SetShortcut` 共用，行为不变），
+> 新增 `ShortcutRecording`（`ShortcutRecorded` / `ShortcutUnchanged` / `ShortcutRefused`）与
+> `ShortcutRecordingOf(s, action, accelerator)`——先把组合收成**会落库的绑定**（家族头在内），再拿
+> `shortcuts.Equal` 比该动作自己的现值（同值=无变化）与其余每个动作（冲突=拒绝），正是原版 `capture` 的
+> 顺序。`internal/settingsui/settingsui.go` 新增 `recordShortcut`（只有 `ShortcutRecorded` 才转给
+> `Actions.SetShortcut`，`ShortcutRefused` 记进新字段 `rejectedShortcut`）与 `shortcutWarning`；
+> `shortcutMapRow` / `shortcutRow` 改用 `rowNote` 把拒收句画在该行名下；`shortcuts` 页顶新增
+> `shortcutRejectedAlert`（`internal/settingsui/savealert.go`，原版那条**非 toast** 的
+> `.settings-save-alert`：控制材质 + 边框 + warning 文字）；点 Record 开始录制时清空 `rejectedShortcut`。
+> i18n 新增 `ShortcutRejected`（`internal/i18n/i18n.go` + `copy.go` 的 en/zh），文案逐字取原版的
+> `settings.shortcut.rejected`。
+>
+> **一处与上轮留言的差异**：上轮把验收写成「复用现有 `ShortcutsRejected`」——那是**自定义快捷键**那条
+> 路用的参数化句子（"Could not bind X: Y"），而原版这一屏是**另一句**不带参数的
+> `settings.shortcut.rejected`，所以新增了字段而不是硬把加速键塞进那句话。两条路各自保持原样。
+> 另：原版查冲突只比 `shortcuts[select_result]`（家族头）一个字符串，所以家族的**其余数字**（如
+> `Cmd+7`）不算别人占用——本构建逐字保持这个盲区（测试里明钉 `Cmd+Shift+5` 仍是「可录」），没有
+> 自作主张加严。
+>
+> **测试**：`internal/settings/shortcutmap_test.go` 新增
+> `TestShortcutRecordingRefusesAChordAnotherActionHolds`（6 行表：别的动作持有的组合 / 同组合换大小写 /
+> 该动作自己的组合=无变化 / 没人占的组合=可录 / 坏拼写 / 未知动作，外加家族头三条：别的数字=无变化、
+> 家族头被别人抢=拒绝、头之外的数字=可录）；`internal/settingsui/view_test.go` 新增
+> `TestShortcutRecorderRefusesAChordAnotherActionHolds`（录 `Cmd+V`（paste 持有）→ `SetShortcut` 一次都
+> 没被调、页顶 + 行内共 **2** 处 warning、store 未变；录 `Ctrl+Space`（该行自己的值）→ 不写不报；录
+> `Cmd+Shift+K` → 写入一次且 warning 归零）。变异核查：把 `ShortcutRecordingOf` 的冲突循环删掉 →
+> settings 三条断言红；把 `recordShortcut` 的 `ShortcutRefused` 分支改成照写不误 → settingsui 五条全红。
+> 门槛：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿（**1057** 项
+> `--- PASS`，含子测试）、`GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **上一轮：P7-cx 快捷键显示与角标的拼写、平台名与键符号（原版 `src/shortcuts.ts:66-100,278-310`）**
 > —— P7-cw 重写的清单第 1 条已落地，本轮取第 2 条（第 3 条「录制拒绝冲突」留单独一轮）。依赖检查：
 > `curl .../releases/latest` 与 `go list -m -versions github.com/egoist/mygo` 均为 **v0.4.8**
 > （与 `go.mod` 一致），无版本可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
@@ -2733,7 +2781,12 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-### 具体待办（P7-cw 重写；第 1 条已落地 P7-cw、第 2 条已落地 P7-cx，第 3 条待做）
+### 具体待办（P7-cw 重写；三条已全部落地：第 1 条 P7-cw、第 2 条 P7-cx、第 3 条 P7-cy）
+
+> P7-cw 的三条至此全部落地，本节只剩历史记录。下一轮要做的只有三条卡 mygo 框架项
+> （`Options.OnCopy` 复制反馈、终端键入的 `HandleInput` 空格缝、外观四个死旋钮，规格见
+> 「具体待办（P7-cm 重写）」与「已知差距」），因此建议换一个区域做「逐文件对照原版」的审计
+> （与 P7-ci/P7-ck/P7-ct/P7-cw 同一手法），再把清单写实成带 file:line 的具体待办。
 
 P7-cv 收尾后「尚未做」又一次为空（P7-ct 三条全部落地，余下只有三条卡 mygo 框架项：
 `Options.OnCopy` 复制反馈、终端键入的 `HandleInput` 空格缝、外观四个死旋钮，规格见
@@ -2776,17 +2829,24 @@ P7-cv 收尾后「尚未做」又一次为空（P7-ct 三条全部落地，余�
    - 验收：非 macOS `Display("Ctrl+Shift+C")` == `"Ctrl+Shift+C"`；Windows
      `Display("Super+K")` == `"Win+K"`、Linux == `"Super+K"`；macOS `Display("Cmd+Up")` ==
      `"⌘↑"`、`Display("Cmd+Backspace")` == `"⌘⌫"`；单字符仍大写；`Badge` 与 `Display` 同规则。
-3. **应用按键录制没有冲突拒绝**。
+3. **应用按键录制没有冲突拒绝**（已落地，P7-cy）。
    - 原版对照：`main:src/hooks/useShortcutCapture.ts:133-140` 的 `capture` 在写入前扫
      `SHORTCUT_ACTIONS`，除本动作外任一动作已用同一组合（大小写不敏感）即 `setRejectedAction`
      并放弃；`main:src/settings/ShortcutsPage.tsx:382,399-407` 用一句 `settings.shortcut.rejected`
      在页顶与行内画出被拒状态。
-   - 本构建：`internal/settingsui/settingsui.go:1780-1812` 的 `shortcutControl` 录到键就直接
+   - 本构建（改前）：`internal/settingsui/settingsui.go:1780-1812` 的 `shortcutControl` 录到键就直接
      `SetShortcut`，`internal/settings/shortcutmap.go` 的 `SetShortcut` 也不看其它动作，于是两个
      动作可以绑同一个组合（自定义快捷键那条路有 `shortcuts.Duplicate`，应用按键这条没有）。
-   - 验收：录制一个已被别的动作占用的组合时不写入、该行/页顶显示 `ShortcutsRejected` 一句；
-     录制本动作自己的原值视为无变化；录制未占用的组合照常写入。i18n 补 `ShortcutsRejected`
-     的应用按键用法（现有键已为自定义快捷键存在，复用同一句）。
+   - 验收：录制一个已被别的动作占用的组合时不写入、该行/页顶显示拒收那一句；
+     录制本动作自己的原值视为无变化；录制未占用的组合照常写入。
+     **已落地**：`internal/settings/shortcutmap.go` 新增 `ShortcutRecording` 与
+     `ShortcutRecordingOf`（`normalizeShortcut` 与 `SetShortcut` 共用）；
+     `internal/settingsui/settingsui.go` 的 `recordShortcut` + `rejectedShortcut` +
+     `shortcutWarning`，`savealert.go` 的 `shortcutRejectedAlert`；i18n 新增
+     `ShortcutRejected`（原版 `settings.shortcut.rejected` 的逐字文案，未复用参数化的
+     `ShortcutsRejected`）。测试：`internal/settings/shortcutmap_test.go` 的
+     `TestShortcutRecordingRefusesAChordAnotherActionHolds`、`internal/settingsui/view_test.go` 的
+     `TestShortcutRecorderRefusesAChordAnotherActionHolds`。
 
 ### 具体待办（P7-ct 重写；三条已全部落地：第 1 条 P7-ct、第 2 条 P7-cu、第 3 条 P7-cv）
 

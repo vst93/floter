@@ -3477,3 +3477,87 @@ func TestLocalToolFormNamesTheShapeRules(t *testing.T) {
 		t.Errorf("an executable carried script fields: %+v", connected[0])
 	}
 }
+
+// A recording that another action already answers for is refused: nothing is
+// written, and the page says so — at its top and under the refused row's name,
+// as the reference's `rejectedAction` did. Recording the action's own chord is
+// no change, and a free chord is written and clears the warning.
+func TestShortcutRecorderRefusesAChordAnotherActionHolds(t *testing.T) {
+	store := newStore(t)
+	store.Update(func(s *settings.Settings) {
+		s.SetShortcut(settings.ShortcutPaste, "Cmd+V")
+	})
+	written := []string{}
+	a := New(store, Actions{SetShortcut: func(id, accelerator string) {
+		written = append(written, id+"="+accelerator)
+		store.Update(func(s *settings.Settings) { s.SetShortcut(id, accelerator) })
+	}})
+	a.Shortcut, a.ShortcutID = "Ctrl+Space", settings.ShortcutToggleWindow
+	tt := render(t, a, 720, 620)
+	if err := tt.Click("Shortcuts"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+
+	warnings := func() int {
+		count := 0
+		for _, text := range tt.Texts() {
+			if text == "Already used by another app" {
+				count++
+			}
+		}
+		return count
+	}
+
+	// The first Record belongs to the summon key, whose row is the one above
+	// the app's own keys.
+	if err := tt.Click("Record"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	tt.Key(ui.Super, ui.KeyV) // Cmd+V, which paste already answers for
+	tt.Frame()
+	if len(written) != 0 {
+		t.Errorf("a duplicate was written: %v", written)
+	}
+	if got := warnings(); got != 2 {
+		t.Errorf("the refusal is shown %d times, want the page's own and the row's (2)", got)
+	}
+	// The refused write left no trace in the store, which is the one source of
+	// truth.
+	if got := settings.Shortcut(store.Snapshot(), settings.ShortcutToggleWindow); got != settings.DefaultSummonShortcut {
+		t.Errorf("the refused duplicate changed the store: %q", got)
+	}
+
+	// The action's own chord is no change: nothing is written and nothing is
+	// refused.
+	if err := tt.Click("Record"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	tt.Key(ui.Ctrl, ui.KeySpace) // the shipped summon key, which is this row's own
+	tt.Frame()
+	if len(written) != 0 {
+		t.Errorf("re-recording the action's own chord wrote %v", written)
+	}
+	if got := warnings(); got != 0 {
+		t.Errorf("the action's own chord was refused: %d", got)
+	}
+
+	// A free chord is written, and the warning goes away.
+	if err := tt.Click("Record"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	tt.Key(ui.Super|ui.Shift, ui.KeyK)
+	tt.Frame()
+	if len(written) != 1 || written[0] != "toggle_window=Cmd+Shift+K" {
+		t.Fatalf("a free chord wrote %v", written)
+	}
+	if got := warnings(); got != 0 {
+		t.Errorf("the warning stayed up: %d", got)
+	}
+	if got := settings.Shortcut(store.Snapshot(), settings.ShortcutToggleWindow); got != "Cmd+Shift+K" {
+		t.Errorf("the written chord = %q", got)
+	}
+}

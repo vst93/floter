@@ -123,13 +123,7 @@ func (s *Settings) SetShortcut(action, accelerator string) bool {
 	if !isShortcutAction(action) {
 		return false
 	}
-	var normalized string
-	var ok bool
-	if action == ShortcutSelectResult {
-		normalized, ok = shortcuts.NormalizeResultShortcut(accelerator)
-	} else {
-		normalized, ok = shortcuts.Normalize(accelerator)
-	}
+	normalized, ok := normalizeShortcut(action, accelerator)
 	if !ok {
 		return false
 	}
@@ -140,6 +134,62 @@ func (s *Settings) SetShortcut(action, accelerator string) bool {
 	raw[action] = normalized
 	s.SetExtra(shortcutMapKey, raw)
 	return true
+}
+
+// normalizeShortcut is one action's binding as the map stores it: the
+// accelerator itself, except for `select_result`, which is a shortcut family
+// stored as its head (the user's modifiers and the digit `1`).
+func normalizeShortcut(action, accelerator string) (string, bool) {
+	if action == ShortcutSelectResult {
+		return shortcuts.NormalizeResultShortcut(accelerator)
+	}
+	return shortcuts.Normalize(accelerator)
+}
+
+// ShortcutRecording is what pressing a chord on one action's recorder amounts
+// to for the map.
+type ShortcutRecording int
+
+const (
+	// ShortcutRecorded: the binding was new and was stored.
+	ShortcutRecorded ShortcutRecording = iota
+	// ShortcutUnchanged: the action already held that binding, so recording it
+	// again changes nothing (the old build's `capture` returned without
+	// writing rather than round-tripping the same value).
+	ShortcutUnchanged
+	// ShortcutRefused: another action already answers for the chord — one key
+	// never runs two things — or the chord is not a binding this build can
+	// parse. Nothing is stored and the page says so.
+	ShortcutRefused
+)
+
+// ShortcutRecordingOf is the recorder's own rule, as `src/hooks/
+// useShortcutCapture.ts:126-135` had it: the chord is reduced to the binding
+// that would be stored (`select_result`'s family head included), a chord
+// another action already holds is refused, and re-recording the action's own
+// chord is no change at all. The map is the app's own keys, so the comparison
+// is the accelerator's, not the platform's: the two spellings of one binding
+// (`Cmd+,` and `Cmd+Comma`) are the same key here too.
+func ShortcutRecordingOf(s Settings, action, accelerator string) ShortcutRecording {
+	if !isShortcutAction(action) {
+		return ShortcutRefused
+	}
+	normalized, ok := normalizeShortcut(action, accelerator)
+	if !ok {
+		return ShortcutRefused
+	}
+	if shortcuts.Equal(Shortcut(s, action), normalized) {
+		return ShortcutUnchanged
+	}
+	for _, candidate := range ShortcutActions {
+		if candidate == action {
+			continue
+		}
+		if shortcuts.Equal(Shortcut(s, candidate), normalized) {
+			return ShortcutRefused
+		}
+	}
+	return ShortcutRecorded
 }
 
 // shortcutMapRaw is the stored map, as decoded.

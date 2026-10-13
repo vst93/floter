@@ -86,3 +86,22 @@ func (a *App) saveAlert(c *ui.Context, copy i18n.Settings) {
 		}
 	})
 }
+
+// shortcutRejectedAlert is the reference's plain save alert (not the toast):
+// the sentence a recording the page refused leaves behind, drawn at the top of
+// the Shortcuts page on the control material in the warning tone, as
+// `.settings-save-alert` did (`src/styles/settings.css:279-302`). It stays up
+// until the next recording starts, which is what the old page's
+// `setRejectedAction(null)` on every `capture`/`toggle` amounted to.
+func (a *App) shortcutRejectedAlert(c *ui.Context, copy i18n.Settings) {
+	if a.rejectedShortcut == "" {
+		return
+	}
+	t := c.Theme()
+	tokens := a.tokens(c)
+	ui.Box(c).FillWidth().Padding(t.Space(2.25), t.Space(2.5)).
+		Radius(tokens.RadiusMD).Background(tokens.Control).
+		Border(1, tokens.ControlEdge).Children(func() {
+		ui.Text(c, copy.ShortcutRejected).FontSize(t.FontSize).FontWeight(580).TextColor(t.Warning)
+	})
+}

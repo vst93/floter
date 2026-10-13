@@ -147,3 +147,52 @@ func TestSelectResultStoredBindingIsReducedToItsHead(t *testing.T) {
 		t.Errorf("a refused write changed the binding: %q", got)
 	}
 }
+
+// The recorder's own rule, as the old build's `capture` had it: a chord another
+// action already answers for is refused (one key never runs two things), the
+// action's own chord is no change at all, and only a chord nobody holds is a
+// write. `select_result` is judged as the family head it is stored as.
+func TestShortcutRecordingRefusesAChordAnotherActionHolds(t *testing.T) {
+	s, err := Parse([]byte(`{"shortcuts": {"new_command": "Cmd+W", "paste": "Cmd+V"}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct {
+		name        string
+		action      string
+		accelerator string
+		want        ShortcutRecording
+	}{
+		{"a chord paste already holds", ShortcutOpenSettings, "Cmd+V", ShortcutRefused},
+		{"the same chord in another case", ShortcutOpenSettings, "CMD+v", ShortcutRefused},
+		{"the action's own chord", ShortcutNewCommand, "Cmd+W", ShortcutUnchanged},
+		{"a chord nobody holds", ShortcutOpenSettings, "Cmd+K", ShortcutRecorded},
+		{"junk", ShortcutOpenSettings, "Hyper+Q", ShortcutRefused},
+		{"an action this build does not know", "nonsense", "Cmd+K", ShortcutRefused},
+	}
+	for _, tc := range cases {
+		if got := ShortcutRecordingOf(s, tc.action, tc.accelerator); got != tc.want {
+			t.Errorf("%s: got %v, want %v", tc.name, got, tc.want)
+		}
+	}
+
+	// `select_result` is a family stored as its head: another digit of the
+	// family leaves the head where it is (no change), and the head is a chord
+	// no other action may take.
+	family, err := Parse([]byte(`{"shortcuts": {"select_result": "Cmd+Shift+7"}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := Shortcut(family, ShortcutSelectResult); got != "Cmd+Shift+1" {
+		t.Fatalf("the family head = %q", got)
+	}
+	if got := ShortcutRecordingOf(family, ShortcutSelectResult, "Cmd+Shift+9"); got != ShortcutUnchanged {
+		t.Errorf("another digit of the family: got %v, want unchanged", got)
+	}
+	if got := ShortcutRecordingOf(family, ShortcutCopySelection, "Cmd+Shift+1"); got != ShortcutRefused {
+		t.Errorf("the family head for another action: got %v, want refused", got)
+	}
+	if got := ShortcutRecordingOf(family, ShortcutCopySelection, "Cmd+Shift+5"); got != ShortcutRecorded {
+		t.Errorf("a digit outside the head: got %v, want recorded", got)
+	}
+}

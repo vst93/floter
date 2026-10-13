@@ -726,6 +726,11 @@ type Settings struct {
 	ShortcutsHint     string
 	ShortcutRecord    string
 	ShortcutRecording string
+	// ShortcutRejected is the reference's `settings.shortcut.rejected` — the
+	// one sentence drawn at the top of the page and inside the row whose
+	// recording the page refused (another action already answers for the
+	// chord).
+	ShortcutRejected string
 
 	// The app's own rebindable keys, by action id.
 	ShortcutsApp     string
