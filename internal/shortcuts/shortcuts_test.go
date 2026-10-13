@@ -225,3 +225,39 @@ func TestParseAndMatch(t *testing.T) {
 		t.Error("junk parsed")
 	}
 }
+
+// The result family is one binding with a digit swapped in, so a stored
+// `select_result` is reduced to the family head — the user's modifiers and the
+// digit `1` — and a modifier-less binding is refused. The old build's
+// `normalizeResultShortcut` is the reference.
+func TestNormalizeResultShortcut(t *testing.T) {
+	// The family head keeps the modifiers and forces the digit to 1, whatever
+	// digit the stored binding carried.
+	cases := map[string]string{
+		"Cmd+7":        "Cmd+1",
+		"Ctrl+Shift+0": "Ctrl+Shift+1",
+		"Alt+Shift+9":  "Alt+Shift+1",
+		"Cmd+Delete":   "Cmd+1",
+	}
+	for input, want := range cases {
+		got, ok := NormalizeResultShortcut(input)
+		if !ok {
+			t.Errorf("NormalizeResultShortcut(%q) failed", input)
+			continue
+		}
+		if got != want {
+			t.Errorf("NormalizeResultShortcut(%q) = %q, want %q", input, got, want)
+		}
+	}
+	// A modifier-less digit would launch a row on ordinary number entry, and a
+	// bare key would take over typing: both are refused, as is junk.
+	for _, input := range []string{"7", "A", "not a key", ""} {
+		if got, ok := NormalizeResultShortcut(input); ok {
+			t.Errorf("NormalizeResultShortcut(%q) = %q, want a rejection", input, got)
+		}
+	}
+	// Shift alone is a modifier, as the old build's `hasModifier` counted it.
+	if got, ok := NormalizeResultShortcut("Shift+3"); !ok || got != "Shift+1" {
+		t.Errorf("Shift+3 = %q, %v, want Shift+1", got, ok)
+	}
+}

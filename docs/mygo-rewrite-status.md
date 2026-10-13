@@ -99,7 +99,40 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-cv 计算器的函数、常量与阶乘（原版 `src/calculator.ts:100-200`）**
+> **最新一轮：P7-cw `select_result` 家族头对齐（原版 `src/shortcuts.ts:248-255,317-326`、`src/hooks/useShortcutCapture.ts:120-128`）**
+> —— P7-cv 收尾后「尚未做」又一次为空（P7-ct 三条全部落地，余下只有三条卡 mygo 框架项）。本轮换
+> 入口：逐文件对照原版的**快捷键**（`src/shortcuts.ts`）与设置里的快捷键地图，把清单重写成 3 条带
+> file:line 的具体待办（下方「具体待办（P7-cw 重写）」），再取第 1 条落地。依赖检查：
+> `go list -m -versions github.com/egoist/mygo` 仍停在 **v0.4.8**（与 `go.mod` 一致），无版本可升。
+> 只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离点**：原版把 `select_result` 当**家族**——`normalizeResultShortcut`（`shortcuts.ts:248-255`）
+> 解析后要求 `hasModifier`（Ctrl/Alt/Shift/Meta 至少一个），把键换成 `1`，无修饰键返回 `null`；
+> `withShortcutDefaults`（`:317-326`）读设置时对 `select_result` 走它、失败回默认；录制路径的
+> `capture`（`useShortcutCapture.ts:120-128`）写入前也走它、失败即拒。本构建
+> `internal/settings/shortcutmap.go:82-98` 的 `ShortcutsOf` 对 `select_result` 只调
+> `shortcuts.Normalize`，于是 `"Alt+Shift+7"` 原样落库（家族头应是 `Alt+Shift+1`），而 `"7"`
+> （无修饰键）也落库——`SelectResultDigit`（`:145-154`）在无 `+` 时回裸数字，**裸数字键**于是能
+> 触发结果行，正是原版明写要拒收的情形。
+>
+> **修法**：`internal/shortcuts/shortcuts.go` 新增 `NormalizeResultShortcut`（解析 → 无修饰键
+> 即拒 → `join(modifierList(mods), "1")`）与 `modifierList`（`FromKey` 共用，行为不变）；
+> `internal/settings/shortcutmap.go` 的 `ShortcutsOf` 对 `select_result` 走它、失败保留出厂默认，
+> `SetShortcut` 同样收头并拒收无修饰键。
+>
+> **测试**：`internal/shortcuts/shortcuts_test.go` 的 `TestNormalizeResultShortcut`
+> （`Cmd+7`→`Cmd+1`、`Ctrl+Shift+0`→`Ctrl+Shift+1`、`Alt+Shift+9`→`Alt+Shift+1`、
+> `Cmd+Delete`→`Cmd+1`、`Shift+3`→`Shift+1`，以及 `7`/`A`/`not a key`/空 被拒）；
+> `internal/settings/shortcutmap_test.go` 的 `TestSelectResultStoredBindingIsReducedToItsHead`
+> （读 `Alt+Shift+7`→`Alt+Shift+1`、`SelectResultDigit(s,4)`→`Alt+Shift+4`；读 `7`→默认且第三
+> 位仍带默认修饰键；`SetShortcut("Cmd+Shift+5")`→`Cmd+Shift+1`、`SetShortcut("5")` 被拒且不改值）。
+> 变异核查：把 `ShortcutsOf` 的 `select_result` 分支去掉（回到只 `Normalize`），
+> `TestSelectResultStoredBindingIsReducedToItsHead` 两条读断言立刻红；把 `SetShortcut` 的分支
+> 去掉，写断言红。
+> 门槛：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **上一轮：P7-cv 计算器的函数、常量与阶乘（原版 `src/calculator.ts:100-200`）**
 > —— P7-ct 重写的清单第 1、2 条已由 P7-ct / P7-cu 落地，本轮取第 3 条（最后一条，也是清单里唯一
 > 可落地项）：原版 `evaluateExpression` 交给 `expr-eval-fork` 的加固 parser，**保留**它的内置函数与
 > 常量，本构建的递归下降 parser 只认数字与四则/幂，于是 `sqrt(4)`、`PI` 在启动器里根本不是计算器行。
@@ -2671,6 +2704,61 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 - 窗口可见时完成反馈落在面板自己的停靠行（隐藏时才发系统通知）——之前可见时什么都不说。
 
 ## 尚未做（按建议优先级）
+
+### 具体待办（P7-cw 重写；第 1 条已落地 P7-cw，第 2、3 条待做）
+
+P7-cv 收尾后「尚未做」又一次为空（P7-ct 三条全部落地，余下只有三条卡 mygo 框架项：
+`Options.OnCopy` 复制反馈、终端键入的 `HandleInput` 空格缝、外观四个死旋钮，规格见
+「具体待办（P7-cm 重写）」与「已知差距」）。本轮换入口：逐文件对照原版的**快捷键**
+（`src/shortcuts.ts`）与设置里的快捷键地图（`src/settings/ShortcutsPage.tsx`、
+`src/hooks/useShortcutCapture.ts`），把清单重写成下面三条带 file:line 的具体待办，并取第 1 条
+落地（见「最近几轮」P7-cw）。依赖检查：`go list -m -versions github.com/egoist/mygo` 仍停在
+**v0.4.8**（与 `go.mod` 一致），无版本可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14
+原版树），未翻历史提交。
+
+1. **`select_result` 家族在设置读取/写入时没有被收成家族头**（已落地，P7-cw）。
+   - 原版对照：`main:src/shortcuts.ts:248-255` 的 `normalizeResultShortcut`（解析后要求
+     `hasModifier`，把键换成 `1`，无修饰键返回 `null`）与 `:317-326` 的 `withShortcutDefaults`
+     （`select_result` 的存值走它、失败回默认）；`main:src/hooks/useShortcutCapture.ts:120-128`
+     的 `capture` 在写入前也走它、失败即 `setRejectedAction`。
+   - 本构建（改前）：`internal/settings/shortcutmap.go:82-98` 的 `ShortcutsOf` 对
+     `select_result` 只调 `shortcuts.Normalize`，`"Alt+Shift+7"` 原样落库、`"7"`（无修饰键）
+     也落库；`SelectResultDigit`（`:145-154`）在无 `+` 时直接回裸数字，于是手改/旧版文件里的
+     `"7"` 会让**裸数字键**触发结果行（原版明写要拒收：「normal number entry … can never
+     launch something unexpectedly」），`"Alt+Shift+7"` 也带着 `7` 而不是家族头 `1`。
+   - 验收：`ShortcutsOf` 把 `select_result` 收成「修饰键 + 1」，无修饰键回默认；`SetShortcut`
+     同样收头并拒收无修饰键。测试钉 `Alt+Shift+7` → `Alt+Shift+1`、`7` → 默认、
+     `SetShortcut("Cmd+Shift+5")` → `Cmd+Shift+1`、`SetShortcut("5")` 被拒。
+     **已落地**：`internal/shortcuts/shortcuts.go` 新增 `NormalizeResultShortcut` 与
+     `modifierList`（`FromKey` 共用）；`internal/settings/shortcutmap.go` 的 `ShortcutsOf` /
+     `SetShortcut` 对 `select_result` 走它；测试 `internal/shortcuts/shortcuts_test.go` 的
+     `TestNormalizeResultShortcut`、`internal/settings/shortcutmap_test.go` 的
+     `TestSelectResultStoredBindingIsReducedToItsHead`。
+2. **`shortcuts.Display` / `Badge` 的拼写、平台名与键符号和原版不一致**。
+   - 原版对照：`main:src/shortcuts.ts:278-296` 的 `formatShortcut`——非 macOS 用
+     `parts.join("+")`（`Ctrl+Shift+C`，无空格），meta 键在 Linux 显示 `Super`、在 Windows 显示
+     `Win`（`:292`），键名经 `KEY_SYMBOLS`（`:66-84`）把 `Backspace` 画成 `⌫`、四个方向键画成
+     `↑↓←→`；`formatResultShortcut`（`:299-310`）的角标复用同一套。
+   - 本构建：`internal/shortcuts/shortcuts.go:292-345` 的 `Display` 非 macOS 写
+     `"Ctrl + "` / `"Alt + "` / `"Shift + "` / `"Super + "`（带空格，且 Windows 也是 `Super`
+     而不是 `Win`），`displayKey` 只大写单字符、不查符号表，于是 macOS 上 `Cmd+Up` 显示 `⌘Up`、
+     `Cmd+Backspace` 显示 `⌘Backspace`，而非 `⌘↑`、`⌘⌫`；`Badge`（`:433-460`）同病。调用点四处：
+     `internal/settingsui/settingsui.go:1814`、`internal/settingsui/custom.go:40,90`、
+     `internal/launcher/launcher.go:2167`。
+   - 验收：非 macOS `Display("Ctrl+Shift+C")` == `"Ctrl+Shift+C"`；Windows
+     `Display("Super+K")` == `"Win+K"`、Linux == `"Super+K"`；macOS `Display("Cmd+Up")` ==
+     `"⌘↑"`、`Display("Cmd+Backspace")` == `"⌘⌫"`；单字符仍大写；`Badge` 与 `Display` 同规则。
+3. **应用按键录制没有冲突拒绝**。
+   - 原版对照：`main:src/hooks/useShortcutCapture.ts:133-140` 的 `capture` 在写入前扫
+     `SHORTCUT_ACTIONS`，除本动作外任一动作已用同一组合（大小写不敏感）即 `setRejectedAction`
+     并放弃；`main:src/settings/ShortcutsPage.tsx:382,399-407` 用一句 `settings.shortcut.rejected`
+     在页顶与行内画出被拒状态。
+   - 本构建：`internal/settingsui/settingsui.go:1780-1812` 的 `shortcutControl` 录到键就直接
+     `SetShortcut`，`internal/settings/shortcutmap.go` 的 `SetShortcut` 也不看其它动作，于是两个
+     动作可以绑同一个组合（自定义快捷键那条路有 `shortcuts.Duplicate`，应用按键这条没有）。
+   - 验收：录制一个已被别的动作占用的组合时不写入、该行/页顶显示 `ShortcutsRejected` 一句；
+     录制本动作自己的原值视为无变化；录制未占用的组合照常写入。i18n 补 `ShortcutsRejected`
+     的应用按键用法（现有键已为自定义快捷键存在，复用同一句）。
 
 ### 具体待办（P7-ct 重写；三条已全部落地：第 1 条 P7-ct、第 2 条 P7-cu、第 3 条 P7-cv）
 

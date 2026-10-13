@@ -77,7 +77,12 @@ func pasteDefault() string {
 
 // ShortcutsOf reads the map: every action is present, a stored binding
 // overrides the shipped one, and a binding this build cannot parse falls back
-// to the default rather than to nothing.
+// to the default rather than to nothing. `select_result` is a shortcut family
+// rather than one literal key, so its stored value is reduced to the family
+// head — the user's modifiers and the digit `1` — and a value with no modifier
+// at all falls back to the default (a bare digit would otherwise launch a row
+// on ordinary number entry, as the old build's `normalizeResultShortcut`
+// refused).
 func ShortcutsOf(s Settings) map[string]string {
 	resolved := defaultShortcuts()
 	raw, ok := s.Extra()[shortcutMapKey].(map[string]any)
@@ -90,6 +95,12 @@ func ShortcutsOf(s Settings) map[string]string {
 		}
 		text, ok := value.(string)
 		if !ok {
+			continue
+		}
+		if action == ShortcutSelectResult {
+			if normalized, ok := shortcuts.NormalizeResultShortcut(text); ok {
+				resolved[action] = normalized
+			}
 			continue
 		}
 		if normalized, ok := shortcuts.Normalize(text); ok {
@@ -105,12 +116,20 @@ func Shortcut(s Settings, action string) string {
 }
 
 // SetShortcut records one action's binding; an unparseable accelerator is
-// refused so a typo cannot leave an action with no key at all.
+// refused so a typo cannot leave an action with no key at all. `select_result`
+// is reduced to its family head on the way in, so the stored binding is the
+// one every digit in the family is drawn from.
 func (s *Settings) SetShortcut(action, accelerator string) bool {
 	if !isShortcutAction(action) {
 		return false
 	}
-	normalized, ok := shortcuts.Normalize(accelerator)
+	var normalized string
+	var ok bool
+	if action == ShortcutSelectResult {
+		normalized, ok = shortcuts.NormalizeResultShortcut(accelerator)
+	} else {
+		normalized, ok = shortcuts.Normalize(accelerator)
+	}
 	if !ok {
 		return false
 	}

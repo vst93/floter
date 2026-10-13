@@ -183,17 +183,8 @@ func join(modifiers []string, key string) string {
 	return strings.Join(ordered, "+")
 }
 
-// FromKey builds an accelerator from a key event, for the recorder. It
-// requires a modifier other than Shift: a bare key would take over ordinary
-// typing.
-func FromKey(mods ui.Modifiers, key ui.Key) (string, bool) {
-	if mods&(ui.Super|ui.Ctrl|ui.Alt) == 0 {
-		return "", false
-	}
-	name, ok := KeyName(key)
-	if !ok {
-		return "", false
-	}
+// modifierList spells the modifiers a binding holds, for `join` to order.
+func modifierList(mods ui.Modifiers) []string {
 	var modifiers []string
 	if mods&ui.Super != 0 {
 		modifiers = append(modifiers, modCmd)
@@ -207,7 +198,39 @@ func FromKey(mods ui.Modifiers, key ui.Key) (string, bool) {
 	if mods&ui.Shift != 0 {
 		modifiers = append(modifiers, modShift)
 	}
-	return join(modifiers, name), true
+	return modifiers
+}
+
+// FromKey builds an accelerator from a key event, for the recorder. It
+// requires a modifier other than Shift: a bare key would take over ordinary
+// typing.
+func FromKey(mods ui.Modifiers, key ui.Key) (string, bool) {
+	if mods&(ui.Super|ui.Ctrl|ui.Alt) == 0 {
+		return "", false
+	}
+	name, ok := KeyName(key)
+	if !ok {
+		return "", false
+	}
+	return join(modifierList(mods), name), true
+}
+
+// NormalizeResultShortcut normalizes a `select_result` binding to the family
+// head: the modifiers the user chose and the digit `1`. The result family is a
+// *family*, not one literal key — the recorder stores its modifiers and the
+// first digit, and the rest of the digits reuse them (SelectResultDigit) — so a
+// binding with no modifier at all is refused: a bare digit would launch a row
+// on ordinary number entry. This is the old build's `normalizeResultShortcut`.
+func NormalizeResultShortcut(accelerator string) (string, bool) {
+	normalized, ok := Normalize(accelerator)
+	if !ok {
+		return "", false
+	}
+	mods, _, ok := Parse(normalized)
+	if !ok || mods == 0 {
+		return "", false
+	}
+	return join(modifierList(mods), "1"), true
 }
 
 // KeyName is the accelerator spelling of a key, and whether it has one.
