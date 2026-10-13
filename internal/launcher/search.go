@@ -338,10 +338,13 @@ func (a *App) clipboardItems() []Item {
 }
 
 // maxClipboardResults bounds the rows one clipboard search builds, and
-// maxRecentResults how many recent applications the empty query offers.
+// maxRecentResults how many recent applications the empty query offers: the
+// old build's whole result budget (`MAX_RESULTS` in src/launcher/
+// result-budget.ts), because the front door is the recents and nothing else
+// shares the slots there.
 const (
 	maxClipboardResults = 50
-	maxRecentResults    = 5
+	maxRecentResults    = 10
 )
 
 // pinClip shows a clipboard entry's whole text in a window of its own, as
@@ -521,8 +524,12 @@ func appItem(app apps.App, run func()) Item {
 }
 
 // recentItems is the most-launched applications as rows, in the order the
-// usage store gave, at most limit of them: the empty query shows them under
-// the built-in commands.
+// usage store gave, at most limit of them. It mirrors the old build's
+// `recentItems` (src/launcher.ts): only applications with a launch count take
+// a slot, the order is the count descending with the application list's own
+// scan order between equals, and the empty query shows them. The scan-order
+// tie-break is applied in the shell (`refreshRecents`), which is the only
+// place that knows the application list; here the paths are already ranked.
 func (a *App) recentItems(limit int) []Item {
 	if !a.ShowRecent || len(a.Recent) == 0 {
 		return nil
@@ -547,9 +554,9 @@ func (a *App) recentItems(limit int) []Item {
 
 // Results is what the current query shows. The calculator's answer comes
 // first when the query is a sum; an empty query shows the built-in
-// commands alone (a wall of applications is not an empty state). The rest
-// is the ranked catalog: the list view builds only the rows in view, so a
-// broad query is as cheap a frame as a narrow one.
+// commands and then the recent applications (a wall of applications is not
+// an empty state). The rest is the ranked catalog: the list view builds only
+// the rows in view, so a broad query is as cheap a frame as a narrow one.
 func (a *App) Results() []Item {
 	if a.mode != nil {
 		return a.argumentItems(*a.mode)
@@ -590,8 +597,10 @@ func (a *App) otherResults() []Item {
 	}
 	if strings.TrimSpace(a.Query) == "" {
 		out = append(out, a.commands()...)
-		// The empty page's own heading: the most-launched applications are a
-		// block, and the list names it above the first of them.
+		// The empty page's own block: the most-launched applications, under
+		// their own heading, in the order the shell ranked them (count
+		// descending, the application list's scan order between equals — the
+		// old build's `recentItems`).
 		if recents := a.recentItems(maxRecentResults); len(recents) > 0 {
 			out = append(out, Item{ID: "section:recent", heading: true, Title: a.copy().RecentSection})
 			out = append(out, recents...)

@@ -254,10 +254,17 @@ func For(s settings.Settings, systemDark bool) Tokens {
 	floatAlpha := spec.FloatAlpha()
 	// The panel's sheen is the glass's lit face. The off stop has no glass, so
 	// it paints the plain tint with no sheen - base.css's `[data-glass="off"]
-	// .shell` dropped the gradient along with the material.
-	sheen := spec.TintAlpha
-	if !spec.Glass {
-		sheen = 0
+	// .shell` dropped the gradient along with the material. The effect stops
+	// grade it by their **lens scale** - the one rung the scene paints itself,
+	// since the stop's blur and saturation are the window's OS material and the
+	// headless render cannot show them. Without it, `frosted`, `regular` and
+	// `liquid` share one fill and the three stops read as one tint
+	// (「3 档效果也没看出区别」). The frame's *alpha* (the transparency slider)
+	// is untouched by the stop: the sheen rides the frame's own tint, so the
+	// stop changes the lit face's strength, not the fill's truth.
+	sheen := float32(0)
+	if spec.Glass {
+		sheen = spec.TintAlpha * spec.LensScale
 	}
 	baseFill := t.Background
 	if appearance == Dark {

@@ -42,6 +42,13 @@ const (
 	// height.
 	TopInsetUnits = 1   // 4u
 	TailUnits     = 0.5 // 2u
+
+	// FieldRowUnits is the launcher's field-row band, 56u, exported so the
+	// settings card's header can name the same band rather than restating 14:
+	// the old build pinned the launcher's input row and the settings header to
+	// one height (R37, `SEARCH_FIELD_HEIGHT_UNITS`), so switching surfaces does
+	// not move the window's first band.
+	FieldRowUnits = fieldRowUnits
 )
 
 // rowBudget is the rows the window holds at most: a broad query scrolls

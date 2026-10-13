@@ -18,6 +18,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -1179,13 +1180,29 @@ func (a *App) launcherCommands() []extensions.CommandEntry {
 
 // refreshRecents hands the launcher the most-launched applications, limited
 // to the ones that are still installed, and whether the empty query should
-// show them.
+// show them. The ranking mirrors the old build's `recentItems`
+// (src/launcher.ts): count descending, and between equals the application
+// list's own scan order — `b.count - a.count || a.index - b.index`. `usage.Top`
+// breaks the tie by recency instead, so the scan order is re-applied here,
+// where the application list is known.
 func (a *App) refreshRecents() {
-	known := map[string]bool{}
-	for _, app := range a.Launcher.Apps {
-		known[app.Path] = true
+	order := map[string]int{}
+	for i, app := range a.Launcher.Apps {
+		if _, seen := order[app.Path]; !seen {
+			order[app.Path] = i
+		}
 	}
-	paths := a.Usage.Top(maxRecentApps, func(path string) bool { return known[path] })
+	paths := a.Usage.Top(0, func(path string) bool { _, ok := order[path]; return ok })
+	sort.SliceStable(paths, func(i, j int) bool {
+		left, right := a.Usage.Count(paths[i]), a.Usage.Count(paths[j])
+		if left != right {
+			return left > right
+		}
+		return order[paths[i]] < order[paths[j]]
+	})
+	if len(paths) > maxRecentApps {
+		paths = paths[:maxRecentApps]
+	}
 	a.Launcher.SetRecent(paths, a.showRecent())
 }
 
@@ -1198,8 +1215,10 @@ func (a *App) showRecent() bool {
 	return value
 }
 
-// maxRecentApps is how many recent applications the launcher offers.
-const maxRecentApps = 5
+// maxRecentApps is how many recent applications the launcher offers: the old
+// build's whole result budget (`MAX_RESULTS` = 10 in src/launcher/
+// result-budget.ts), since the empty query is the recents' own page.
+const maxRecentApps = 10
 
 // RefreshIntegrations reloads the extension state and the providers'
 // commands, then hands them to the launcher. It blocks while providers run,

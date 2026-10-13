@@ -2297,6 +2297,26 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
   松开 → 消失 + `launcherTarget` 回到原值；有 query → 不出现（钉住原版语义）。
   `internal/launcher/height_test.go` 的 `TestHoldRows` 改成钉精确跟随。
 
+**P7-c 四个用户报告（本轮）**
+
+1. **开玻璃时透明底失效**。上一轮把 `off` 档改成帧自己的 alpha，但效果档仍用
+   `--glass-tint-alpha`（帧 alpha 再叠档位 haze），于是开玻璃比关玻璃更不透明，滑块低端失效
+   （「关闭液态玻璃效果时透明底可以了，但是开启时又没有透明了」）。修法：`glassmap.SpecFor`
+   的 `TintAlpha` 在所有档位都取帧自己的 alpha（`min(SolidTop, opacity)`），haze 只作为档位的
+   材质记录保留、不再进填充。实测（无头生产帧，底部 band）：10% 时 off 0.163、frosted 0.163、
+   regular 0.163、liquid 0.163（dark），滑块到 100% 都到 1.000。
+2. **最近打开列表**。`glassmap` 无关；`internal/launcher` 的 `recentItems` 对齐原版
+   `src/launcher.ts` 的 `recentItems`：上限从 5 改成 `MAX_RESULTS` = 10；并列时按应用扫描顺序
+   （`b.count - a.count || a.index - b.index`），此前 `usage.Top` 按 `Last` 排（`refreshRecents`
+   重排）。过滤（count>0）、去重（map）、点击（开应用）、空态（无最近项 → 无块）逐项对齐。
+3. **玻璃 3 档看不出区别**。档位到像素的唯一 rung 之前只有 tint（且很薄）；现在把
+   `--glass-lens-scale`（0.5/1/1.6）也压到帧的 sheen 上（`theme.For` 的 `sheen = tint * lens`），
+   于是帧的亮面随档位变：dark 顶带 RGB 21/24/28 → 28/31/35（sum 74→95），light 125→180。
+   档位的 blur/saturate 仍是窗口材质（`vibrancyForStop`）。
+4. **设置页头部栏**。`settingsui` 的头部从写死的 `t.Space(14)` 改成 `launcher.FieldRowUnits`
+   （新导出），gap 对齐原版 `.settings-card__header` 的 10u；像素验收：两表面的第一带中心都在
+   y=39.8（`geometry_test.go` 的 `TestSettingsHeaderSharesTheLauncherFieldRowBand`）。
+
 ## 注意事项（踩过的坑）
 
 - **Tester 的 `Type("\b")` 是插入文本，不是按退格**：测试里删字符要用 `tt.Key(0, ui.KeyBackspace)`。

@@ -551,11 +551,13 @@ func (a *App) View(c *ui.Context) {
 	// The panel is the reference's own: a 56u header band carrying the app's
 	// name and its version, the hairline under it, and below them the two
 	// columns — a 148px sidebar and the content. The header band is the same
-	// one the launcher's field row and every page's header use, so the window's
-	// first line does not move when the surface changes.
+	// one the launcher's field row and every page's header use (R37): it names
+	// `launcher.FieldRowUnits`, so the two surfaces' first band is one height
+	// and switching does not move the window's top edge. The 10u gap and the
+	// 16u side padding are the reference's `.settings-card__header`.
 	ui.Column(c).Fill().Children(func() {
-		ui.Row(c).FillWidth().Height(t.Space(14)).Padding(0, t.Space(4)).
-			Gap(t.Space(2)).AlignItems(ui.Center).Children(func() {
+		ui.Row(c).FillWidth().Height(t.Space(launcher.FieldRowUnits)).Padding(0, t.Space(4)).
+			Gap(t.Space(2.5)).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, copy.Title).FontSize(t.FontSize + 2).FontWeight(600).
 				TextColor(a.tokens(c).TextStrong)
 			if version := strings.TrimSpace(a.About.Version); version != "" {

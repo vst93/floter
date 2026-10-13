@@ -81,14 +81,20 @@ func meanBandRGB(tt *ui.Tester, y0, y1 int) (r, g, b float64) {
 // The glass stop is the effect ladder, and it must be visible in the rendered
 // frame — not only in an internal token. The old build's `--glass-step-blur`
 // (10/22/28) is the OS material (see vibrancyForStop) and its
-// `--glass-lens-scale` (0.5/1/1.6) is the control lens; the tint carries the
-// haze. This is the pixel-level acceptance: the frame's own alpha rises from
-// the thinnest stop to the heaviest, and the off stop is the plain translucent
-// frame (no glass effect, but no opaque stand-in either).
+// `--glass-lens-scale` (0.5/1/1.6) is the lens the scene paints itself. The
+// frame's lit face (the sheen) is graded by that lens, so the pixel-level
+// acceptance is: the three effect stops are **visibly different in colour**,
+// the off stop is the plain translucent frame (no sheen), and the frame's own
+// alpha is the slider's on every stop — turning the glass on does not make the
+// window denser (「开启时又没有透明了」).
 //
-// The earlier rewrite mapped only the haze, so `frosted` and `regular` were
-// 0.03 of alpha apart and the user read the three stops as one
-// (「玻璃效果…看起来好像没什么区别」).
+// Two earlier rewrites failed here. The first mapped only the haze, so
+// `frosted` and `regular` were 0.03 of alpha apart and the user read the three
+// stops as one (「玻璃效果…看起来好像没什么区别」). The second raised the
+// frame's alpha by the haze, so a glass-on frame was denser than the off one
+// and the transparency slider's low end went inert (「关闭液态玻璃效果时透明底
+// 可以了，但是开启时又没有透明了」). Now the stop moves the lens (the frame's
+// lit face and the controls), never the fill.
 func TestTheGlassStopsAreVisiblyDifferent(t *testing.T) {
 	const topY0, topY1 = 90, 120
 
@@ -103,15 +109,20 @@ func TestTheGlassStopsAreVisiblyDifferent(t *testing.T) {
 		rA := meanBandAlpha(regular, topY0, topY1)
 		lA := meanBandAlpha(liquid, topY0, topY1)
 
-		t.Logf("%s appearance — mean alpha in the frame's top band:", theme)
-		t.Logf("  off     %.3f", offA)
-		t.Logf("  frosted %.3f", fA)
-		t.Logf("  regular %.3f", rA)
-		t.Logf("  liquid  %.3f", lA)
+		offR, offG, offB := meanBandRGB(off, topY0, topY1)
+		fR, fG, fB := meanBandRGB(frosted, topY0, topY1)
+		rR, rG, rB := meanBandRGB(regular, topY0, topY1)
+		lR, lG, lB := meanBandRGB(liquid, topY0, topY1)
+
+		t.Logf("%s appearance — mean alpha / mean colour in the frame's top band:", theme)
+		t.Logf("  off     alpha %.3f  rgb %.1f/%.1f/%.1f", offA, offR, offG, offB)
+		t.Logf("  frosted alpha %.3f  rgb %.1f/%.1f/%.1f", fA, fR, fG, fB)
+		t.Logf("  regular alpha %.3f  rgb %.1f/%.1f/%.1f", rA, rR, rG, rB)
+		t.Logf("  liquid  alpha %.3f  rgb %.1f/%.1f/%.1f", lA, lR, lG, lB)
 		// The material parameters the pixels come from, for the record.
 		for _, step := range []string{"frosted", "regular", "liquid"} {
 			spec := glassmap.SpecFor(step, settings.DefaultMainOpacity)
-			t.Logf("  %-8s material: blur=%.0f saturate=%.0f%% lens=%.1f tint=%.3f", step, spec.Blur, spec.Saturate, spec.LensScale, spec.TintAlpha)
+			t.Logf("  %-8s material: blur=%.0f saturate=%.0f%% lens=%.1f tint=%.3f haze=%.2f", step, spec.Blur, spec.Saturate, spec.LensScale, spec.TintAlpha, spec.HazeAlpha)
 		}
 
 		// Off is the plain translucent frame: no glass effect, but the
@@ -121,24 +132,34 @@ func TestTheGlassStopsAreVisiblyDifferent(t *testing.T) {
 		if offA >= 0.99 {
 			t.Errorf("%s: the off stop is %.3f, want the frame's translucent tint", theme, offA)
 		}
-		if offA >= fA {
-			t.Errorf("%s: the off stop (%.3f) is not thinner than frosted (%.3f)", theme, offA, fA)
+		// Turning the glass on must not make the frame's *fill* denser: the
+		// tint is the slider's own alpha on every stop (see the glassmap test),
+		// so what the stop adds is only the sheen — a lit highlight, a few
+		// hundredths — never the haze's lift. This is the pixel-level check of
+		// 「开启时又没有透明了」: the effect stops sit on the off frame's
+		// transparency, not above it.
+		for _, row := range []struct {
+			name string
+			a    float32
+		}{{"frosted", fA}, {"regular", rA}, {"liquid", lA}} {
+			if row.a-offA > 0.2 {
+				t.Errorf("%s: %s is %.3f, %.3f denser than the off frame %.3f — the glass must not cost transparency",
+					theme, row.name, row.a, row.a-offA, offA)
+			}
 		}
-		// The three effect stops are translucent, and each heavier stop lets
-		// more desktop through: the tint ladder is monotonic.
-		if !(fA > rA && rA > lA) {
-			t.Errorf("%s: the stop ladder did not fall: frosted %.3f, regular %.3f, liquid %.3f", theme, fA, rA, lA)
+		// The three stops are visibly different in colour: the lit face rises
+		// strictly with the stop (the lens rung), so `frosted`, `regular` and
+		// `liquid` cannot read as one tint.
+		luminance := func(r, g, b float64) float64 { return r + g + b }
+		offL := luminance(offR, offG, offB)
+		fL := luminance(fR, fG, fB)
+		rL := luminance(rR, rG, rB)
+		lL := luminance(lR, lG, lB)
+		if !(offL < fL && fL < rL && rL < lL) {
+			t.Errorf("%s: the lens ladder did not rise: off %.1f, frosted %.1f, regular %.1f, liquid %.1f", theme, offL, fL, rL, lL)
 		}
-		if fA-lA < 0.08 {
-			t.Errorf("%s: the stops moved only %.3f of alpha; want a visible spread", theme, fA-lA)
-		}
-		// The lens rides the same stop: the frame's colour, not only its
-		// alpha, changes with the stop (the old rewrite had no lens at all).
-		fR, fG, fB := meanBandRGB(frosted, topY0, topY1)
-		lR, lG, lB := meanBandRGB(liquid, topY0, topY1)
-		if absf(fR-lR)+absf(fG-lG)+absf(fB-lB) < 1 {
-			t.Errorf("%s: the lens did not change the frame's colour (frosted %.1f/%.1f/%.1f, liquid %.1f/%.1f/%.1f)",
-				theme, fR, fG, fB, lR, lG, lB)
+		if lL-fL < 3 {
+			t.Errorf("%s: the stops moved only %.1f of colour (frosted %.1f, liquid %.1f); want a visible spread", theme, lL-fL, fL, lL)
 		}
 	}
 }
@@ -171,22 +192,48 @@ func TestTurningTheGlassOffKeepsTheTransparency(t *testing.T) {
 			t.Errorf("%s: the off stop's bottom did not rise with the slider: %.3f -> %.3f", theme, lowA, highA)
 		}
 
-		// The off stop is thinner than the glass stops at the same slider:
-		// it has no haze to raise the tint, only the frame's own alpha.
+		// The off stop and the effect stops share the transparency floor: the
+		// stop adds the sheen (a lit highlight), never the haze's lift, so the
+		// two are within the sheen's few hundredths at the same slider.
 		offMid := meanBandAlpha(renderStopOpacity(t, theme, "off", 47), botY0, botY1)
 		regularMid := meanBandAlpha(renderStopOpacity(t, theme, "regular", 47), botY0, botY1)
-		if offMid >= regularMid {
-			t.Errorf("%s: off %.3f is not thinner than regular %.3f at the same slider", theme, offMid, regularMid)
+		if regularMid-offMid > 0.2 {
+			t.Errorf("%s: regular %.3f is %.3f denser than off %.3f at the same slider", theme, regularMid, regularMid-offMid, offMid)
 		}
 	}
 }
 
-// absf is the absolute value of a float64, for the colour-sum checks.
-func absf(v float64) float64 {
-	if v < 0 {
-		return -v
+// Turning the glass **on** must not cost the transparency either. The off stop
+// was fixed first, but the effect stops raised the frame's alpha by the stop's
+// haze, so a glass-on frame was denser than the off one and the slider's low
+// end went inert — exactly the report 「关闭液态玻璃效果时透明底可以了，但是开启时
+// 又没有透明了」. This is the pixel-level acceptance: at the slider's bottom
+// every stop is as thin as the off frame, and the slider still owns the bottom
+// band on every stop.
+func TestTurningTheGlassOnKeepsTheTransparency(t *testing.T) {
+	const botY0, botY1 = 350, 400
+
+	for _, theme := range []string{"dark", "light"} {
+		offLow := meanBandAlpha(renderStopOpacity(t, theme, "off", settings.MinWindowOpacity), botY0, botY1)
+		t.Logf("%s appearance — mean alpha at the window's bottom, transparency %d%%:", theme, settings.MinWindowOpacity)
+		t.Logf("  off     %.3f", offLow)
+		for _, step := range []string{"frosted", "regular", "liquid"} {
+			low := meanBandAlpha(renderStopOpacity(t, theme, step, settings.MinWindowOpacity), botY0, botY1)
+			high := meanBandAlpha(renderStopOpacity(t, theme, step, settings.MaxWindowOpacity), botY0, botY1)
+			t.Logf("  %-8s low %.3f  high %.3f", step, low, high)
+			// The glass-on frame is translucent at the slider's bottom, and the
+			// slider still moves it: the stop cannot hold the window open.
+			if low >= 0.5 {
+				t.Errorf("%s: %s at %d%% is %.3f, want a translucent frame", theme, step, settings.MinWindowOpacity, low)
+			}
+			if low-offLow > 0.15 {
+				t.Errorf("%s: %s at %d%% is %.3f, %.3f denser than the off frame %.3f", theme, step, settings.MinWindowOpacity, low, low-offLow, offLow)
+			}
+			if high <= low {
+				t.Errorf("%s: %s's bottom did not rise with the slider: %.3f -> %.3f", theme, step, low, high)
+			}
+		}
 	}
-	return v
 }
 
 // The stop chooses the window's own material, which is the blur the panel

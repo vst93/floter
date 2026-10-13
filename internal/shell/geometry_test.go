@@ -117,6 +117,42 @@ func TestTargetSizeUsesTheMeasuredGeometry(t *testing.T) {
 	}
 }
 
+// The settings card's header and the launcher's field row are one band. The
+// old build pinned both to `SEARCH_FIELD_HEIGHT_UNITS` (56u, R37) so switching
+// surfaces does not move the window's first band; the user asked for it again
+// (「设置页面的头部栏高度要和搜索框一致，这样才有更强的一体性」). The
+// pixel-level check is the two rows' centres: the field's line box and the
+// header's title sit on the same line, at the same band height, on both
+// appearances.
+func TestSettingsHeaderSharesTheLauncherFieldRowBand(t *testing.T) {
+	store := settings.NewStore(settings.Default())
+	a := New(Options{Store: store})
+
+	a.Surf = SurfaceLauncher
+	launcherFrame := ui.NewTester(func(c *ui.Context) { a.View(c) }, 720, 420)
+	launcherFrame.Frame()
+	field, ok := launcherFrame.Find("Search")
+	if !ok {
+		t.Fatalf("no search field in %q", launcherFrame.Texts())
+	}
+
+	a.Surf = SurfaceSettings
+	settingsFrame := ui.NewTester(func(c *ui.Context) { a.View(c) }, 720, 580)
+	settingsFrame.Frame()
+	title, ok := settingsFrame.Find("Settings")
+	if !ok {
+		t.Fatalf("no settings header in %q", settingsFrame.Texts())
+	}
+
+	fieldCentre := field.Y + field.H/2
+	titleCentre := title.Y + title.H/2
+	t.Logf("launcher field: y=%.1f h=%.1f centre=%.1f", field.Y, field.H, fieldCentre)
+	t.Logf("settings title: y=%.1f h=%.1f centre=%.1f", title.Y, title.H, titleCentre)
+	if diff := fieldCentre - titleCentre; diff > 0.6 || diff < -0.6 {
+		t.Errorf("the settings header's centre %.1f does not match the launcher field's %.1f", titleCentre, fieldCentre)
+	}
+}
+
 // The panel is re-homed on the display it is already on, so a window the user
 // carried to a second monitor is placed there rather than yanked back to the
 // first. A window whose centre is on no display at all falls back to the

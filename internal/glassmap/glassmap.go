@@ -14,18 +14,18 @@
 // material. `glass.Glass` maps what is under the element *in the scene* and
 // its shader always writes an opaque result (`return vec4(c, 1.0)`), so a
 // panel filled with it can never show the desktop — which is the whole point
-// of the transparency slider. Instead the panel draws base.css's
-// `--glass-tint`: the frame's own alpha (the slider) raised by the stop's
-// dimming layer (`--glass-step-dim`), a single translucent colour the
-// window's vibrancy shows through.
+// of the transparency slider. Instead the panel draws the frame's own alpha:
+// the transparency slider, `min(--glass-solid-top, opacity)`, a single
+// translucent colour the window's vibrancy shows through. The stop's dimming
+// layer (`--glass-step-dim`) is carried in the Spec but never moves the fill,
+// so the `off` and effect stops share one transparency floor.
 //
 //   - **Blur (10/22/28px).** The desktop behind the window is blurred by the
 //     window's vibrancy material, chosen per stop (shell.vibrancyForStop):
 //     macOS's NSVisualEffectView materials have a weight per stop, Windows 11
 //     has only the one backdrop that blurs (Acrylic), and Linux has none —
 //     there the tint's own alpha is the whole of the material. So the blur
-//     ladder becomes the OS material, and the stop ladder keeps what the fill
-//     can vary: the dimming layer and the control lens.
+//     ladder becomes the OS material.
 //   - **Saturation (130/170/200%).** No knob, on the window or in the tint;
 //     carried in the Spec for the record and the material choice.
 //   - **Control lens (0.5/1/1.6).** `--glass-lens-scale` scales the theme's
@@ -34,9 +34,8 @@
 //     material.
 //
 // `main_opacity` stays what it was: the frame's only alpha truth. The stop
-// moves the dim, never the alpha truth — `frosted` dims the most (0.6),
-// `liquid` the least (0.2), so a thin frame does not leave the desktop
-// readable through the copy.
+// never moves it — `frosted` asks for the most veil (0.6) and `liquid` the
+// least (0.2), but the veil is the material's own weight, not the fill's.
 //
 // `glass.ScrollEdge` (and `glass.Blur`) are used where they do have a
 // counterpart: content scrolling *inside* the window, under a bar (the
@@ -64,14 +63,14 @@ type Spec struct {
 	Glass bool
 	// Style is the plugin's material style: the lens ladder.
 	Style glass.Style
-	// HazeAlpha is the veil of the theme's background painted under the
-	// glass, 0..1, from the stop's `dim`.
-	// HazeAlpha is the stop's dimming layer (0.6/0.5/0.2). It is not painted
-	// on its own: base.css folds it into the tint's alpha (`--glass-tint-alpha`),
-	// which is the one fill the panel draws.
+	// HazeAlpha is the stop's dimming layer (0.6/0.5/0.2): how much veil the
+	// stop asks for over a blurred backdrop. It is **not** painted into the
+	// fill — the transparency slider is the frame's only alpha truth — but it
+	// is kept so the material choice and the report can name it.
 	HazeAlpha float32
-	// TintAlpha is the panel's fill alpha, 0..1: the frame's own alpha raised
-	// by the stop's dimming layer, as the old build's `--glass-tint-alpha`.
+	// TintAlpha is the panel's fill alpha, 0..1: the frame's own alpha, the
+	// transparency slider, on every stop. The `off` and effect stops share it,
+	// so turning the glass on never makes the window denser.
 	TintAlpha float32
 	// Blur is the stop's backdrop blur in DIPs, base.css's `--glass-step-blur`
 	// (10/22/28). The panel cannot run its own `backdrop-filter`, so this is
@@ -129,15 +128,18 @@ const floatStep = 0.1
 // parameters. Both inputs are normalized first, so a hand-edited value
 // behaves exactly as the loader would.
 //
-// The panel's fill is the reference's `--glass-tint-alpha`:
+// The panel's fill is the frame's own alpha — the transparency slider's value,
+// `min(--glass-solid-top, opacity)` — on every stop. The old build's
+// `--glass-tint-alpha` raised that with the stop's dimming layer, which is
+// what made the glass-on frame denser than the `off` frame and the slider's
+// low end inert (「关闭液态玻璃效果时透明底可以了，但是开启时又没有透明了」).
+// The stop's haze (`HazeAlpha`) is still carried — it names how much veil the
+// stop asks for, and the material choice reads it — but it never moves the
+// fill: the slider is the frame's only alpha truth, exactly as it is on `off`.
 //
-//	1 - (1 - dim*(1 - opacity)) * (1 - frame_alpha)
-//
-// with `frame_alpha = min(--glass-solid-top, opacity)`, so the transparency
-// slider is the frame's own alpha and the stop's dimming layer raises it, so a
-// thin `frosted` frame does not leave the desktop readable through the copy.
-// The slider is still the only knob that moves the frame: the stop moves the
-// dim, not the alpha truth.
+// The stop's visible difference is therefore the **effect**, not the opacity:
+// the OS material (shell.vibrancyForStop) and the control lens (LensScale),
+// which is the rung the scene paints itself.
 func SpecFor(step string, mainOpacity uint8) Spec {
 	normalized := settings.NormalizeGlassStep(step)
 	opacity := settings.NormalizeOpacity(mainOpacity, settings.DefaultMainOpacity)
@@ -156,13 +158,12 @@ func SpecFor(step string, mainOpacity uint8) Spec {
 	if !ok { // only reachable without the loader's normalization
 		stop = stops["regular"]
 	}
-	tint := 1 - (1-stop.dim*(1-alpha))*(1-frame)
 	return Spec{
 		Translucent: true,
 		Glass:       true,
 		Style:       stop.style,
 		HazeAlpha:   stop.dim,
-		TintAlpha:   tint,
+		TintAlpha:   frame,
 		Blur:        stop.blur,
 		Saturate:    stop.saturate,
 		LensScale:   stop.lens,

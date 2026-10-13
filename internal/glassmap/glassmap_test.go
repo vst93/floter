@@ -99,29 +99,29 @@ func TestSpecForCarriesTheEffectTable(t *testing.T) {
 }
 
 func TestSpecForSpendsMainOpacityOnTheTintAlpha(t *testing.T) {
-	// The tint alpha is the reference's `--glass-tint-alpha`: the frame's own
-	// alpha (`min(--glass-solid-top, opacity)`) raised by the stop's dimming
-	// layer, so the slider is the only knob that moves the frame's
-	// transparency truth. The near-solid top is 0.98, not 1: a fully opaque
-	// frame drops the material's sheen and rim.
-	regular := func(opacity float64) float32 {
-		return float32(1 - (1-0.5*(1-opacity))*(1-min(SolidTop, opacity)))
-	}
+	// The tint alpha is the frame's own alpha on **every** stop — the old
+	// build's `--glass-frame-alpha = min(--glass-solid-top, opacity)` — so the
+	// stop never moves the frame's transparency. The previous rewrite raised it
+	// by the stop's dimming layer, which made a glass-on frame denser than the
+	// `off` one and the slider's low end inert (「开启时又没有透明了」).
+	frame := func(opacity float64) float32 { return min(SolidTop, float32(opacity)) }
 	cases := []struct {
 		opacity uint8
 		want    float32
 	}{
-		{0, regular(float64(settings.DefaultMainOpacity) / 100)}, // unset -> default
-		{1, regular(float64(settings.MinWindowOpacity) / 100)},   // clamped up
-		{10, regular(0.10)},
-		{47, regular(0.47)},
-		{100, regular(1.0)},
-		{255, regular(1.0)}, // clamped down
+		{0, frame(float64(settings.DefaultMainOpacity) / 100)}, // unset -> default
+		{1, frame(float64(settings.MinWindowOpacity) / 100)},   // clamped up
+		{10, frame(0.10)},
+		{47, frame(0.47)},
+		{100, frame(1.0)},
+		{255, frame(1.0)}, // clamped down
 	}
 	for _, tc := range cases {
-		spec := SpecFor("regular", tc.opacity)
-		if diff := spec.TintAlpha - tc.want; diff > 1e-6 || diff < -1e-6 {
-			t.Errorf("SpecFor(regular, %d).TintAlpha = %v, want %v", tc.opacity, spec.TintAlpha, tc.want)
+		for _, step := range []string{"off", "frosted", "regular", "liquid"} {
+			spec := SpecFor(step, tc.opacity)
+			if diff := spec.TintAlpha - tc.want; diff > 1e-6 || diff < -1e-6 {
+				t.Errorf("SpecFor(%s, %d).TintAlpha = %v, want %v", step, tc.opacity, spec.TintAlpha, tc.want)
+			}
 		}
 	}
 	// The maxed slider is the near-solid top, not paint.
@@ -133,12 +133,20 @@ func TestSpecForSpendsMainOpacityOnTheTintAlpha(t *testing.T) {
 	if spec := SpecFor("regular", settings.DefaultMainOpacity); spec.TintAlpha >= 0.99 {
 		t.Errorf("the default tint alpha = %v, want a translucent frame", spec.TintAlpha)
 	}
-	// A thinner stop carries a stronger dim, so it ends up *more* opaque than
-	// the heavier one at the same slider — the readability floor.
+	// The stop never raises the fill: `off`, `frosted`, `regular` and `liquid`
+	// all sit on the slider's own alpha, so turning the glass on cannot make
+	// the window denser (「开玻璃时透明底失效」).
+	for _, step := range []string{"frosted", "regular", "liquid"} {
+		if got, off := SpecFor(step, 47).TintAlpha, SpecFor("off", 47).TintAlpha; got != off {
+			t.Errorf("%s tint = %v, want the off frame's own %v", step, got, off)
+		}
+	}
+	// The haze is still carried for the material choice, even though it no
+	// longer moves the fill: a thinner stop asks for a stronger veil.
 	frosted := SpecFor("frosted", 47)
 	liquid := SpecFor("liquid", 47)
-	if frosted.TintAlpha <= liquid.TintAlpha {
-		t.Errorf("frosted = %v, liquid = %v; a thinner stop must dim more", frosted.TintAlpha, liquid.TintAlpha)
+	if frosted.HazeAlpha <= liquid.HazeAlpha {
+		t.Errorf("frosted haze = %v, liquid haze = %v; a thinner stop must ask for more", frosted.HazeAlpha, liquid.HazeAlpha)
 	}
 }
 

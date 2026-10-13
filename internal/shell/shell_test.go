@@ -1363,6 +1363,59 @@ func TestRecentsFollowTheUsageFileAndTheSetting(t *testing.T) {
 	}
 }
 
+// The recents' ranking is the old build's `recentItems` (src/launcher.ts):
+// count descending, and between equals the application list's own scan order —
+// `b.count - a.count || a.index - b.index`. `usage.Top` breaks the tie by
+// recency instead, so this pins the shell's re-rank, and the front door's
+// budget (`MAX_RESULTS` = 10, not the previous five).
+func TestRecentsRankByCountThenScanOrder(t *testing.T) {
+	a := newApp(t)
+	// The scan order is A, B, C, D, E; the counts make A and E tie at two, B
+	// and D tie at one, and C never launched.
+	names := []string{"A", "B", "C", "D", "E"}
+	appsList := make([]apps.App, 0, len(names))
+	for _, name := range names {
+		appsList = append(appsList, apps.App{Name: name, Path: "/Applications/" + name + ".app"})
+	}
+	a.Launcher.SetApps(appsList)
+	counts := map[string]int{"/Applications/A.app": 2, "/Applications/B.app": 1, "/Applications/D.app": 1, "/Applications/E.app": 2}
+	for path, n := range counts {
+		for i := 0; i < n; i++ {
+			if err := a.Usage.Record(path); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	a.refreshRecents()
+	// A and E tie at two, so the scan order puts A first; B and D tie at one,
+	// so B before D; C never launched and takes no slot.
+	want := []string{"/Applications/A.app", "/Applications/E.app", "/Applications/B.app", "/Applications/D.app"}
+	if len(a.Launcher.Recent) != len(want) {
+		t.Fatalf("recents = %v, want %v", a.Launcher.Recent, want)
+	}
+	for i := range want {
+		if a.Launcher.Recent[i] != want[i] {
+			t.Errorf("recents = %v, want %v", a.Launcher.Recent, want)
+			break
+		}
+	}
+
+	// The front door's budget is the old build's MAX_RESULTS: ten, not five.
+	many := make([]apps.App, 0, 12)
+	for i := 0; i < 12; i++ {
+		path := "/Applications/M" + string(rune('a'+i)) + ".app"
+		many = append(many, apps.App{Name: path, Path: path})
+		if err := a.Usage.Record(path); err != nil {
+			t.Fatal(err)
+		}
+	}
+	a.Launcher.SetApps(many)
+	a.refreshRecents()
+	if got := len(a.Launcher.Recent); got != 10 {
+		t.Errorf("the front door holds %d recents, want the old build's 10", got)
+	}
+}
+
 func TestSystemCommandsFollowTheSetting(t *testing.T) {
 	a := newApp(t)
 	if settings.ShowCommandsInSearch(a.Store.Snapshot()) {
