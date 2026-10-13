@@ -8,7 +8,7 @@
 
 用 mygo（原生 GPU 自绘 UI + Go）重写的 floter **已经是一个可打包、可运行的完整应用**：单窗口三表面
 （启动器 / 设置 / 终端）、搜索内核、扩展平台（含后台运行、列表协议、导入导出、权限审计）、剪贴板、
-浏览器、计算器、系统集成、打包与 CI 全部就位。**887 项测试全绿**，三平台都能构建，Linux 打包
+浏览器、计算器、系统集成、打包与 CI 全部就位。**901 项测试全绿**，三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
 含测试）。
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 887 项测试
+go test -count=1 ./...         # 901 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,13 +99,53 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-bk 运行表单的逐参数本地化错误（`paramValueIssues`）** —— P7-bh 重写的具体待办第 4 条。
+> **最新一轮：P7-bl 清单的严格解析与组合规则（`deny_unknown_fields` + `validate_paths` 的组合那半）** ——
+> P7-bh 重写的具体待办第 5 条（最后一条）。清单的未知字段拒绝与组合规则已由 8f99926 落地，但
+> `validate_param_definitions` 那一半还缺：`ValidateParams` 没在**解析期**跑、也不查 default 是否合
+> kind，且这套规则一条测试都没有。现在 `Manifest.Validate()` 在解析期跑完组合 + 参数声明 + 路径 +
+> lifecycle 四套规则，四组新测试钉住「未知字段/尾随数据拒绝」「五种合法组合 + 非法组合拒绝」
+> 「坏声明在解析期被拒」「default 逐 kind 校验」。至此 P7-bh 的具体待办 5 条**全部落地**。
+
+> **上一轮：P7-bk 运行表单的逐参数本地化错误（`paramValueIssues`）** —— P7-bh 重写的具体待办第 4 条。
 > P7-bj 把后端拒绝变成 `run_param_*` 键，但表单自己的预检只回一句泛化的
 > `RunIncomplete`，且 number 用 `ParseFloat`（放过 `inf`/`NaN`/`0x1p-2`）、boolean 不校验、
 > required 不认 default 豁免。现在 `ParamIssues` 返回 `{Index,Key,Label}`，每个非法值
 > 的句子印在**它自己那一行下面**，Run 按钮在有错时禁用；输出视图也按语言渲染 `run_param_*`。
 
-**P7-bk 运行表单的逐参数本地化错误（本轮）**
+**P7-bl 清单的严格解析与组合规则（本轮）**
+
+- **依赖检查**：`curl .../releases/latest` 返回 v0.4.8，`go.mod` 已是 v0.4.8，无版本可升。
+- **入口**：P7-bh 重写的 5 条具体待办，第 1–4 条已落地，本轮取第 5 条（清单里最后一条）。
+- **状态核对（第 5 条已落地一半）**：严格解析（`decodeManifest` 的 `DisallowUnknownFields` + 尾随
+  数据拒绝）与组合规则（`ValidateCombination`）已由 8f99926 落地（那次提交的说明只写了玻璃与
+  super+n）。但原版 `validate_paths`（`manifest.rs:565`）在解析期还调用 `validate_param_definitions`
+  （`manifest.rs:145`），本构建的 `ValidateParams` 只在安装期（`install.go:268`）与连接表单
+  （`custom.go:278`）跑，`LoadManifest` 从不查；且 `ValidateParams` 缺 default 的逐 kind 校验
+  （number/boolean/select）。这两处是本轮补的。
+- **偏离点（参数声明不在解析期校验、default 不查 kind）**：原版 `validate_param_definitions` 在
+  `validate_paths` 里与路径规则一起跑，所以一个坏声明根本进不了安装/导出/运行；它还逐 kind 校验
+  `default`（number 用 `parse::<f64>()`、boolean 必须 `true|false`、select 必须在选项里）。本构建
+  改前 `Manifest.Validate()` 只跑组合 + 路径 + lifecycle，参数声明要等到 `install.go` 才查；
+  `ValidateParams` 也不看 default。
+- **修法**：
+  - `internal/extensions/params.go`：`ValidateParams` 补 default 逐 kind 校验——number 用运行期的
+    `IsFiniteDecimal`（刻意比原版的 `parse::<f64>()` 严：原版放过 `inf`/`NaN`，运行期又拒绝，本构建
+    让声明期就拒绝，一个声明不可能带运行不了的值）、boolean 必须 `true|false`、select 必须在选项里。
+  - `internal/extensions/validate.go`：`Manifest.Validate()` 在组合规则之后、路径规则之前调用
+    `ValidateParams(m.Params)`，把 `validate_paths` 的 `validate_param_definitions` 那半接回解析期。
+- **测试**：`validate_test.go` 的 `TestManifestValidateCombination`（四种 local 配对 + 一种 built-in
+  合法；managed/linked/未知 provider/built-in script/built-in executable/缺 descriptor 六种非法）、
+  `TestLoadManifestRejectsUnknownFieldsAndTrailingData`（未知顶层键、未知嵌套键、尾随数据）、
+  `TestLoadManifestRejectsABadParamDeclaration`（空 id/重复 id/select 无选项/boolean 无 flag/坏 number
+  default/坏 select default 都在 `LoadManifest` 就被 `ErrBadParam` 拒绝）；`params_test.go` 的
+  `TestValidateParamsDefaults`（number/boolean/select 的合法与非法 default，含 `inf` 被拒）。
+  变异核查：拿掉 `Validate()` 里的 `ValidateParams` 调用，端到端那条立刻红（6 个坏声明全部 `<nil>`）；
+  拿掉 `DisallowUnknownFields`，未知字段两条立刻红；把 number default 检查改成 `false`，
+  `abc`/`inf` 两条立刻红。
+- **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 27 包全绿
+  （901 项）、`GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+**P7-bk 运行表单的逐参数本地化错误（上一轮）**
 
 - **依赖检查**：GitHub API 被限流，改用 `go list -m -versions github.com/egoist/mygo` 确认 v0.4.8
   仍是最新（`go.mod` 已是 v0.4.8），无版本可升。
@@ -1667,13 +1707,13 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 尚未做（按建议优先级）
 
-> **P7-bk 更新**：P7-bh 重写的 5 条里第 1（路径安全）、第 2（lifecycle 结构校验）、第 3
-> （运行期参数校验与 argv 权威）、第 4（表单逐参数本地化错误）已落地。第 5 条（严格解析 + 组合规则）
-> 独立，是清单里最后一条。三条明确卡在框架上的能力（`Options.OnCopy`、
-> 终端键入的 `HandleInput` 缝、外观四个死旋钮）与一次性维护者动作（`mygo keygen`、`mygo.json` 的
-> `updates`/签名、CI 私钥、发布到 GitHub Release）仍未动。
+> **P7-bl 更新**：P7-bh 重写的 5 条具体待办**全部落地**——第 1（路径安全）、第 2（lifecycle 结构
+> 校验）、第 3（运行期参数校验与 argv 权威）、第 4（表单逐参数本地化错误）、第 5（严格解析 + 组合
+> 规则 + 解析期参数声明校验）都已实现并有测试。清单里只剩三条明确卡在框架上的能力
+> （`Options.OnCopy`、终端键入的 `HandleInput` 缝、外观四个死旋钮）与一次性维护者动作
+> （`mygo keygen`、`mygo.json` 的 `updates`/签名、CI 私钥、发布到 GitHub Release）。
 
-### 具体待办（P7-bh 重写；第 1、2、3、4 条已落地）
+### 具体待办（P7-bh 重写；第 1–5 条全部已落地）
 
 1. **清单的路径安全（`validate_relative_path`）**（P7-bh 已落地）—— 原版在**解析清单时**就拒绝
    任何非空、非相对、含 `.`/`..` 的声明路径；本构建只在使用时用 `joinWithin` 兜住一部分，导出
@@ -1725,20 +1765,25 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
      `internal/launcher/runfailure.go:17` 对 `run_param_*` 原样返回。
    - 验收：`ParamIssues` 返回 `{Index, Key, Label}`（并补 required-有默认豁免、boolean 校验）；
      面板在出错行下印本地化句子；输出视图按语言渲染 `run_param_*` 键；i18n 补四句（en/zh）。
-5. **清单的严格解析与组合规则（`deny_unknown_fields` + `validate_paths` 的组合那半）** —— 原版每个
-   manifest struct 都 `deny_unknown_fields`，且只允许三组 distribution/runtime/provider 组合；
-   本构建的 `json.Unmarshal` 静默忽略未知字段，也没有组合校验。
+5. **清单的严格解析与组合规则（`deny_unknown_fields` + `validate_paths` 的组合那半）**（P7-bl 已落地）——
+   原版每个 manifest struct 都 `deny_unknown_fields`，且只允许三组 distribution/runtime/provider 组合，
+   并在解析期跑 `validate_param_definitions`；本构建原来 `json.Unmarshal` 静默忽略未知字段，也没有
+   组合与参数声明校验。落地见下方「P7-bl 清单的严格解析与组合规则」。（原分析保留在下方。）
    - 原版：`src-tauri/src/extensions/manifest.rs` 的 `#[serde(deny_unknown_fields)]`（`:17,66,230,
      237,251,258,265,335,366`）；`validate_paths`（`:565`）只放行
      `(Local, System, Executable|StaticDescriptor)`、`(Local, Script, Executable|StaticDescriptor)`、
-     `(BuiltIn, System, StaticDescriptor)`，且 `Local + StaticDescriptor` 必须有 `descriptor`。
+     `(BuiltIn, System, StaticDescriptor)`，且 `Local + StaticDescriptor` 必须有 `descriptor`；
+     `validate_paths` 还调 `validate_param_definitions`（`:145`）。
    - 本构建（改前）：`LoadManifest`（`manifest.go:225`）用 `json.Unmarshal`，未知键静默忽略；
-     `platform_test.go:250` 的 `runtime.type: "static-descriptor"` 这种非法组合照收。
-   - 验收：严格解析（`json.Decoder.DisallowUnknownFields`）拒绝未知字段；组合规则拒绝并修正非法夹具；
-     测试钉「未知字段拒绝 / 三组合法组合 / 其余组合拒绝 / Local+StaticDescriptor 缺 descriptor 拒绝」。
+     `platform_test.go:250` 的 `runtime.type: "static-descriptor"` 这种非法组合照收；
+     `ValidateParams` 只在 `install.go:268`/`custom.go:278` 跑，解析期不查 default。
+   - 验收（已满足）：严格解析（`json.Decoder.DisallowUnknownFields`）拒绝未知字段与尾随数据；
+     组合规则拒绝并修正非法夹具；`Manifest.Validate()` 在解析期跑 `ValidateParams`（含 default 逐
+     kind）；测试钉「未知字段拒绝 / 五种合法组合 / 其余组合拒绝 / Local+StaticDescriptor 缺 descriptor
+     拒绝 / 坏参数声明在解析期拒绝 / default 逐 kind」。
 
-> 这 5 条都不卡框架。第 1、2 条已落地；第 3、4 条互相依赖（同一套 `run_param_*` 键的两半），宜连着做。
-> 上面 P7-an/P7-bb/P7-bd 的旧清单保留在下方，作为「哪些已经做过」的记录。
+> 这 5 条都不卡框架，**第 1–5 条已全部落地**。上面 P7-an/P7-bb/P7-bd 的旧清单保留在下方，
+> 作为「哪些已经做过」的记录。
 
 ### 具体待办（P7-an 把清单写实；每项带 file:line、原版对照、验收标准）
 

@@ -111,13 +111,17 @@ func (m Manifest) ValidateCombination() error {
 }
 
 // Validate applies every structural rule the old host enforced while parsing
-// a manifest: the relative-path rule on every declared path (`validate_paths`,
-// `manifest.rs:565`), the distribution/runtime/provider combination, and the
-// lifecycle's count, combination and range rules (`ToolLifecycle::validate`,
-// `lifecycle.rs:39`). A manifest that fails here never reaches an export, an
-// install or a run.
+// a manifest: the distribution/runtime/provider combination, the declared
+// input definitions (`validate_param_definitions`, `manifest.rs:145`), the
+// relative-path rule on every declared path (`validate_paths`,
+// `manifest.rs:565`), and the lifecycle's count, combination and range rules
+// (`ToolLifecycle::validate`, `lifecycle.rs:39`). A manifest that fails here
+// never reaches an export, an install or a run.
 func (m Manifest) Validate() error {
 	if err := m.ValidateCombination(); err != nil {
+		return err
+	}
+	if err := ValidateParams(m.Params); err != nil {
 		return err
 	}
 	if err := m.validateDeclaredPaths(); err != nil {

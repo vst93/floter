@@ -82,6 +82,30 @@ func ValidateParams(params []ParamDefinition) error {
 				return err
 			}
 		}
+		// A default is a value the runtime will actually hand to the tool, so
+		// it has to satisfy the kind it belongs to — the old host checked the
+		// same three kinds while parsing (`validate_param_definitions`,
+		// `manifest.rs:145`). The number check is deliberately the runtime's
+		// own finite-decimal grammar (`IsFiniteDecimal`, R153) rather than the
+		// old host's looser `parse::<f64>()`: a default the run would refuse
+		// (`inf`, `NaN`) is refused here, so a declaration can never carry a
+		// value the host cannot run.
+		if param.Default != "" {
+			switch param.Kind {
+			case ParamNumber:
+				if !IsFiniteDecimal(param.Default) {
+					return fmt.Errorf("%w: %s default is not a number: %s", ErrBadParam, param.ID, param.Default)
+				}
+			case ParamBoolean:
+				if param.Default != "true" && param.Default != "false" {
+					return fmt.Errorf("%w: %s default is not a boolean: %s", ErrBadParam, param.ID, param.Default)
+				}
+			case ParamSelect:
+				if !containsString(param.Options, param.Default) {
+					return fmt.Errorf("%w: %s default is not one of its options: %s", ErrBadParam, param.ID, param.Default)
+				}
+			}
+		}
 	}
 	return nil
 }

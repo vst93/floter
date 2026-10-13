@@ -322,3 +322,128 @@ func TestLoadManifestRefusesABadLifecycle(t *testing.T) {
 		t.Fatalf("unknown restore policy = %v, want ErrBadManifest", err)
 	}
 }
+
+// TestManifestValidateCombination pins the old host's
+// distribution/runtime/provider rule (`validate_paths`, `manifest.rs:565`):
+// the four local pairings plus the one built-in pairing are runnable, and a
+// local static-descriptor provider must name its descriptor.
+func TestManifestValidateCombination(t *testing.T) {
+	local := Distribution{Type: DistributionLocal}
+	builtIn := Distribution{Type: DistributionBuiltIn}
+	system := Runtime{Type: RuntimeSystem, ExecutableNames: []string{"tool"}}
+	script := Runtime{Type: RuntimeScript, Language: "shell", Path: "tool.sh"}
+	executable := Provider{Type: ProviderExecutable}
+	staticDescriptor := Provider{Type: ProviderStaticDescriptor, Descriptor: "provider.json"}
+
+	legal := map[string]Manifest{
+		"local system executable":           {Distribution: local, Runtime: system, Provider: executable},
+		"local script executable":           {Distribution: local, Runtime: script, Provider: executable},
+		"local system static descriptor":    {Distribution: local, Runtime: system, Provider: staticDescriptor},
+		"local script static descriptor":    {Distribution: local, Runtime: script, Provider: staticDescriptor},
+		"built-in system static descriptor": {Distribution: builtIn, Runtime: system, Provider: staticDescriptor},
+	}
+	for name, manifest := range legal {
+		if err := manifest.ValidateCombination(); err != nil {
+			t.Errorf("%s = %v, want nil", name, err)
+		}
+	}
+
+	illegal := map[string]Manifest{
+		"a managed runtime":                            {Distribution: local, Runtime: Runtime{Type: "managed"}, Provider: executable},
+		"a linked runtime":                             {Distribution: local, Runtime: Runtime{Type: "linked"}, Provider: executable},
+		"an unknown provider kind":                     {Distribution: local, Runtime: system, Provider: Provider{Type: "magic"}},
+		"a built-in script runtime":                    {Distribution: builtIn, Runtime: script, Provider: staticDescriptor},
+		"a built-in executable provider":               {Distribution: builtIn, Runtime: system, Provider: executable},
+		"a local static descriptor with no descriptor": {Distribution: local, Runtime: system, Provider: Provider{Type: ProviderStaticDescriptor}},
+	}
+	for name, manifest := range illegal {
+		err := manifest.ValidateCombination()
+		if err == nil {
+			t.Errorf("%s was accepted", name)
+			continue
+		}
+		if !errors.Is(err, ErrBadManifest) {
+			t.Errorf("%s = %v, want ErrBadManifest", name, err)
+		}
+	}
+}
+
+// TestLoadManifestRejectsUnknownFieldsAndTrailingData pins the strict parse
+// (`deny_unknown_fields`, `manifest.rs`): an undeclared key — at the top level
+// or inside a nested struct — is a load error, and so is a second JSON value
+// after the object.
+func TestLoadManifestRejectsUnknownFieldsAndTrailingData(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, body string) string {
+		path := filepath.Join(dir, name)
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+	const base = `{
+  "schemaVersion": "2.0", "id": "dev.floter.tool", "name": "Tool",
+  "distribution": {"type": "local"},
+  "runtime": {"type": "script", "language": "shell", "path": "tool.sh"},
+  "provider": {"type": "executable", "argsPrefix": []}
+}`
+
+	if _, err := LoadManifest(write("clean.json", base)); err != nil {
+		t.Fatalf("clean manifest = %v, want nil", err)
+	}
+
+	bad := map[string]string{
+		"an unknown top-level field": write("top.json", strings.Replace(base, "\n}", ",\n  \"nope\": 1\n}", 1)),
+		"an unknown nested field":    write("nested.json", strings.Replace(base, `"path": "tool.sh"`, `"path": "tool.sh", "wat": 1`, 1)),
+		"trailing data":              write("trailing.json", base+"\n{}"),
+	}
+	for name, path := range bad {
+		if _, err := LoadManifest(path); err == nil {
+			t.Errorf("%s was accepted", name)
+		}
+	}
+}
+
+// TestLoadManifestRejectsABadParamDeclaration is the parse-time half of the
+// param rules: the old host's `validate_paths` ran `validate_param_definitions`
+// while a manifest was read, so a bad declaration never reaches an install, an
+// export or a run.
+func TestLoadManifestRejectsABadParamDeclaration(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, body string) string {
+		path := filepath.Join(dir, name)
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+	base := func(params string) string {
+		return `{
+  "schemaVersion": "2.0", "id": "dev.floter.tool", "name": "Tool",
+  "distribution": {"type": "local"},
+  "runtime": {"type": "script", "language": "shell", "path": "tool.sh"},
+  "provider": {"type": "executable", "argsPrefix": []},
+  "params": ` + params + `
+}`
+	}
+
+	clean := write("clean.json", base(`[{"id": "target", "kind": "text", "flag": "--target"}]`))
+	if _, err := LoadManifest(clean); err != nil {
+		t.Fatalf("clean params = %v, want nil", err)
+	}
+
+	bad := map[string]string{
+		"an empty id":              `[{"id": "", "kind": "text"}]`,
+		"a duplicate id":           `[{"id": "a", "kind": "text"}, {"id": "a", "kind": "text"}]`,
+		"a select with no choices": `[{"id": "mode", "kind": "select"}]`,
+		"a boolean with no flag":   `[{"id": "verbose", "kind": "boolean"}]`,
+		"a bad number default":     `[{"id": "count", "kind": "number", "default": "abc"}]`,
+		"a bad select default":     `[{"id": "mode", "kind": "select", "options": ["fast"], "default": "slow"}]`,
+	}
+	for name, params := range bad {
+		path := write(strings.ReplaceAll(name, " ", "_")+".json", base(params))
+		if _, err := LoadManifest(path); !errors.Is(err, ErrBadParam) {
+			t.Errorf("%s = %v, want ErrBadParam", name, err)
+		}
+	}
+}

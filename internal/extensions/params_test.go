@@ -1,6 +1,7 @@
 package extensions
 
 import (
+	"errors"
 	"testing"
 )
 
@@ -179,5 +180,39 @@ func TestParamDefaults(t *testing.T) {
 	}
 	if _, ok := values["count"]; ok {
 		t.Errorf("a parameter with no default got one: %v", values)
+	}
+}
+
+// A declared default has to satisfy the kind it belongs to, the old host's
+// `validate_param_definitions` half (`manifest.rs:145`): a number, one of the
+// two boolean words, or one of a select's own choices. The number grammar is
+// the runtime's finite-decimal one, so a default the run would refuse is
+// refused while parsing rather than at run time.
+func TestValidateParamsDefaults(t *testing.T) {
+	good := []ParamDefinition{
+		{ID: "count", Kind: ParamNumber, Default: " 2.5 "},
+		{ID: "verbose", Kind: ParamBoolean, Flag: "--verbose", Default: "true"},
+		{ID: "mode", Kind: ParamSelect, Options: []string{"fast", "slow"}, Default: "slow"},
+		{ID: "name", Kind: ParamText, Default: "anything"},
+	}
+	if err := ValidateParams(good); err != nil {
+		t.Fatalf("good defaults were refused: %v", err)
+	}
+
+	bad := map[string][]ParamDefinition{
+		"a number default that is not a number":   {{ID: "count", Kind: ParamNumber, Default: "abc"}},
+		"a non-finite number default":             {{ID: "count", Kind: ParamNumber, Default: "inf"}},
+		"a boolean default that is not a boolean": {{ID: "verbose", Kind: ParamBoolean, Flag: "--verbose", Default: "yes"}},
+		"a select default off the list":           {{ID: "mode", Kind: ParamSelect, Options: []string{"fast"}, Default: "slow"}},
+	}
+	for name, params := range bad {
+		err := ValidateParams(params)
+		if err == nil {
+			t.Errorf("%s was accepted", name)
+			continue
+		}
+		if !errors.Is(err, ErrBadParam) {
+			t.Errorf("%s = %v, want ErrBadParam", name, err)
+		}
 	}
 }
