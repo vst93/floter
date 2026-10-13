@@ -711,3 +711,105 @@ func encodeUTF16LE(text string) []byte {
 	}
 	return out
 }
+
+// Only `Application` entries launch: a `Type=Link` or `Type=Directory` entry is
+// not an application, while an absent `Type` is kept (the original rejected
+// only an explicit non-Application type, linux.rs:395-408).
+func TestDesktopEntryTypeGate(t *testing.T) {
+	parse := func(t *testing.T, body string) (App, bool) {
+		t.Helper()
+		dir := t.TempDir()
+		path := filepath.Join(dir, "entry.desktop")
+		write(t, path, body)
+		return ParseDesktopFile(path)
+	}
+
+	for _, kind := range []string{"Link", "Directory"} {
+		if _, ok := parse(t, "[Desktop Entry]\nType="+kind+"\nName=Thing\nExec=thing\n"); ok {
+			t.Errorf("Type=%s parsed as an application", kind)
+		}
+	}
+	if _, ok := parse(t, "[Desktop Entry]\nType=Application\nName=Thing\nExec=thing\n"); !ok {
+		t.Error("Type=Application was rejected")
+	}
+	if _, ok := parse(t, "[Desktop Entry]\nName=Thing\nExec=thing\n"); !ok {
+		t.Error("an entry with no Type was rejected")
+	}
+	// A localized `Type[zh]` is not the type (the original matched only the
+	// bare key), so it must not reject the entry.
+	if _, ok := parse(t, "[Desktop Entry]\nName=Thing\nExec=thing\nType[zh]=Link\n"); !ok {
+		t.Error("Type[zh]=Link rejected an entry")
+	}
+}
+
+// `executableAvailable` is the `TryExec=` probe: a path must be an executable
+// file, a bare name must be on PATH.
+func TestExecutableAvailable(t *testing.T) {
+	dir := t.TempDir()
+	exec := filepath.Join(dir, "nautilus")
+	if err := os.WriteFile(exec, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	plain := filepath.Join(dir, "notes.txt")
+	if err := os.WriteFile(plain, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if !executableAvailable(exec) {
+		t.Errorf("executable file %q not found", exec)
+	}
+	if executableAvailable(plain) {
+		t.Errorf("non-executable file %q accepted", plain)
+	}
+	if executableAvailable(filepath.Join(dir, "missing")) {
+		t.Error("a missing path was accepted")
+	}
+	if executableAvailable(dir) {
+		t.Error("a directory was accepted")
+	}
+
+	t.Setenv("PATH", dir)
+	if !executableAvailable("nautilus") {
+		t.Error("bare name not found on PATH")
+	}
+	if executableAvailable("ghost") {
+		t.Error("a name absent from PATH was accepted")
+	}
+}
+
+// ScanLinux drops entries whose `TryExec=` program is not installed, but keeps
+// the ones that are.
+func TestScanLinuxDropsUnavailableTryExec(t *testing.T) {
+	bin := t.TempDir()
+	if err := os.WriteFile(filepath.Join(bin, "nautilus"), []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin)
+
+	root := t.TempDir()
+	write(t, filepath.Join(root, "installed.desktop"), "[Desktop Entry]\nType=Application\nName=Installed\nExec=nautilus %U\nTryExec=nautilus\n")
+	write(t, filepath.Join(root, "ghost.desktop"), "[Desktop Entry]\nType=Application\nName=Ghost\nExec=ghost %U\nTryExec=ghost\n")
+
+	got := ScanLinux(root)
+	if len(got) != 1 || got[0].Name != "Installed" {
+		t.Fatalf("ScanLinux = %+v, want only Installed", got)
+	}
+}
+
+// A D-Bus-activatable entry is launched through `gio launch`, so the session
+// bus owns it and single-instance activation works; an ordinary entry runs its
+// own argv; an app with neither is opened by path.
+func TestDesktopLaunchCommand(t *testing.T) {
+	dbus := App{Path: "/usr/share/applications/org.gnome.Nautilus.desktop", Exec: []string{"nautilus", "%U"}, DBusActivatable: true}
+	if program, args := dbus.launchCommand(); program != "gio" || !reflect.DeepEqual(args, []string{"launch", dbus.Path}) {
+		t.Errorf("dbus launchCommand = %q %v", program, args)
+	}
+	plain := App{Path: "/usr/share/applications/foo.desktop", Exec: []string{"/usr/bin/foo", "--flag"}}
+	if program, args := plain.launchCommand(); program != "/usr/bin/foo" || !reflect.DeepEqual(args, []string{"--flag"}) {
+		t.Errorf("exec launchCommand = %q %v", program, args)
+	}
+	bare := App{Path: "/Applications/Thing.app"}
+	if program, args := bare.launchCommand(); program != "" || args != nil {
+		t.Errorf("path launchCommand = %q %v", program, args)
+	}
+}

@@ -99,7 +99,23 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-cj Linux `.desktop` 的搜索别名（原版 `linux.rs:423-440` / `mod.rs:326`）**
+> **最新一轮：P7-ck Linux `.desktop` 的可用性判定与 `DBusActivatable`（原版 `linux.rs:395-408,86-140`）**
+> —— P7-ci 的 3 条待办里第 3 条（最后一条）落地。本构建的 `ParseDesktopFile` 不看 `Type=`（`Link`/
+> `Directory` 条目也被当应用列出），`ScanLinux` 不探测 `TryExec=`（会列出没装的条目），`App.Open` 对
+> 所有条目一律 `exec.Command(Exec…)`——而原版在 `into_application` 里丢掉非 `Application` 类型、用
+> `executable_available` 丢掉 `TryExec` 不在 PATH 的条目，并在 `open` 里让 `DBusActivatable=true` 的
+> 条目走 `gio launch`（session bus 启动 = 自己的 scope + 单实例激活）。现在：`ParseDesktopFile` 增读
+> 无 locale 的 `Type`（仅 `Application`，缺省保留）与 `DBusActivatable`，`App` 增 `DBusActivatable` 与
+> 未导出的 `tryExec`；`Type` 的丢弃留在纯读取器里，`TryExec` 的可用性探测放进 `ScanLinux`（需要文件
+> 系统/PATH，原版也在 `into_application`）——新增 `executableAvailable`（绝对/相对路径看可执行位，裸名
+> 走 `PATH`）与 `isExecutableFile`；`App.Open` 抽出 `launchCommand`（D-Bus → `gio launch <path>`，
+> 其余 → 自己的 argv），`launchDetached` 统一独立进程 spawn，`gio` 起不来时回退到 argv。测试：
+> `TestDesktopEntryTypeGate`、`TestExecutableAvailable`、`TestScanLinuxDropsUnavailableTryExec`、
+> `TestDesktopLaunchCommand`。变异核查：摘掉 `Type` 门、`executableAvailable` 恒真、D-Bus 改回 argv，
+> 三组断言各自变红。依赖检查：GitHub latest release 与 `proxy.golang.org/.../@v/list` 均确认 **v0.4.8**
+> 仍是最新，无版本可升。至此 P7-ci 三条全部落地，清单再次为空（剩余仅卡框架项，见「已知差距」）。
+
+> **上一轮：P7-cj Linux `.desktop` 的搜索别名（原版 `linux.rs:423-440` / `mod.rs:326`）**
 > —— P7-ci 的 3 条待办里第 1 条已落地，本轮取第 2 条（最高优先级）。本构建的 `ScanLinux` 从不给
 > `App.Aliases` 赋值，`ParseDesktopFile` 也不读 `GenericName`/`Keywords`/`StartupWMClass`/`TryExec`，于是
 > 一个中文名 Linux 应用只有拼音首字母能命中，`nautilus`、`org.gnome.Nautilus` 一概搜不到——而 macOS 侧
@@ -2400,7 +2416,7 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-### 具体待办（P7-ci 重写；第 1、2 条已落地：第 1 条 P7-ci、第 2 条 P7-cj；第 3 条待做）
+### 具体待办（P7-ci 重写；三条已全部落地：第 1 条 P7-ci、第 2 条 P7-cj、第 3 条 P7-ck）
 
 前一份 P7-cg 清单两项已全部落地，清单又空。本轮检查 GitHub latest release：仍为 **v0.4.8**，与 go.mod
 一致，无需升级。只对照 `main`，不翻历史提交。这轮换一个入口：**逐文件对照原版的平台扫描器**，发现本
@@ -2433,14 +2449,32 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
      （`main:src-tauri/src/commands/apps/mod.rs:326`）。
    - 验收：`ScanLinux` 生成的 `App.Aliases` 含上述六个来源，且 `computeInitials` 仍只吃 name+localized；
      一个 `Name=文件`/`Exec=nautilus` 的条目能被 `nautilus`、`org.gnome.Nautilus`、`Keywords` 命中。
-3. **Linux `.desktop` 的可用性判定与 `DBusActivatable` 启动路径**。
-   - 本构建：`ParseDesktopFile` 不看 `Type=`（`Link`/`Directory` 条目也会被当应用列出）、不探测 `TryExec=`
+3. **Linux `.desktop` 的可用性判定与 `DBusActivatable` 启动路径（P7-ck 已落地）**。
+   - 本构建（改前）：`ParseDesktopFile` 不看 `Type=`（`Link`/`Directory` 条目也会被当应用列出）、不探测 `TryExec=`
      （会列出没装的条目），`App.Open`（`internal/apps/apps.go:58`）对所有条目一律 `exec.Command(Exec…)`。
    - 原版对照：`main:src-tauri/src/commands/apps/linux.rs:395-408`（`Type != "Application"` 丢弃、
      `TryExec` 不在 PATH 丢弃）、`:86-140` 的 `open`（非 D-Bus 条目直接 spawn argv，`DBusActivatable=true`
      的条目走 `gio launch <desktop-id>`，交给 session bus 做单实例激活）。
    - 验收：`Type` 非 Application 丢弃；`TryExec` 不可执行（`exec.LookPath`）丢弃；`DBusActivatable=true`
      的条目仍列出但 `Open` 走 `gio launch`。
+
+> **P7-ck 更新（本轮）**：P7-ci 的三条待办至此全部落地。本轮检查 GitHub latest release：仍为
+> **v0.4.8**，与 `go.mod` 一致，无需升级（release notes 无自然用点）。实现要点：`ParseDesktopFile`
+> 新增 `Type`（仅 `Application`，缺省保留）与 `DBusActivatable` 两个无 locale 键，`App` 新增
+> `DBusActivatable` 与未导出的 `tryExec`；`Type` 的丢弃留在纯读取器里，`TryExec` 的可用性探测放进
+> `ScanLinux`（需要文件系统/PATH，原版也在 `into_application` 而非 `parse`）——新增 `executableAvailable`
+> 与 `isExecutableFile`（绝对/相对路径看可执行位，裸名走 `PATH`）；`App.Open` 抽出 `launchCommand`
+> （D-Bus 条目 → `gio launch <path>`，其余 → 自己的 argv），`launchDetached` 统一「独立进程」的
+> spawn，且 `gio` 起不来时回退到 argv。测试：`TestDesktopEntryTypeGate`、`TestExecutableAvailable`、
+> `TestScanLinuxDropsUnavailableTryExec`、`TestDesktopLaunchCommand`。变异核查：摘掉 `Type` 门、
+> 让 `executableAvailable` 恒真、把 D-Bus 改回 argv，三组断言各自变红。依赖检查：GitHub latest
+> release 与 `proxy.golang.org/.../@v/list` 均确认 **v0.4.8** 仍是最新。
+>
+> **下一轮入口**：P7-ci 清单已全部落地，清单再次为空。经快速审计，`internal/apps` 与
+> `internal/extensions` 里此前记录的「未接线」项（`plugin:calculator` 模式、`terminal.color` 环境、
+> 剪贴板 kind 过滤、工具多来源清点、应用扫描签名缓存）均已落地。剩余未做项都卡框架（`Options.OnCopy`
+> 复制反馈、终端键入的 `HandleInput` Unicode-空格缝、外观四个死旋钮），见「已知差距」；下一轮建议换一个
+> 区域做「逐文件对照原版」的审计（与 P7-ci/P7-ck 同一手法），再把它写成带 file:line 的具体待办。
 
 ### 具体待办（P7-cg 重写；两项已于 P7-ch 全部落地，已由 P7-ci 取代）
 

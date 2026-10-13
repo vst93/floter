@@ -60,28 +60,63 @@ type App struct {
 	// opening Path: Linux's .desktop Exec, which opening the file itself
 	// would not launch.
 	Exec []string
+	// DBusActivatable is Linux's `DBusActivatable=true`: the entry asks the
+	// session bus to start it, which is also the only way single-instance
+	// activation works, so Open launches it through `gio` instead of its argv.
+	DBusActivatable bool
+	// tryExec is Linux's `TryExec=`: the program whose presence decides whether
+	// the entry is installed at all. It is not part of an App's identity — only
+	// ScanLinux reads it, to drop entries for programs that are not here.
+	tryExec string
+}
+
+// launchCommand is the program and arguments Open runs for an app that carries
+// its own command (a Linux `.desktop` entry): `gio launch <path>` for a
+// D-Bus-activatable entry — the session bus starts it in its own scope, which
+// is what single-instance activation needs — and the entry's own argv
+// otherwise. Both are empty for an app that has neither, which Open opens by
+// path instead.
+func (a App) launchCommand() (string, []string) {
+	if a.DBusActivatable {
+		return "gio", []string{"launch", a.Path}
+	}
+	if len(a.Exec) > 0 {
+		return a.Exec[0], a.Exec[1:]
+	}
+	return "", nil
 }
 
 // Open launches the application: Exec when the entry carries one, else the
 // path with the desktop's default handler.
 func (a App) Open() error {
-	if len(a.Exec) > 0 {
-		cmd := exec.Command(a.Exec[0], a.Exec[1:]...)
-		cmd.Dir = homeDir()
-		// Detach completely: the launcher must not wait for the app, the app
-		// must not die with it, and - the Linux case this build ships for -
-		// it must not share the launcher's process group or session, where a
-		// signal meant for either would reach both. (internal/spawn's own
-		// detach, restated here so the two cannot drift.)
-		cmd.Stdin, cmd.Stdout, cmd.Stderr = nil, nil, nil
-		detachExec(cmd)
-		if err := cmd.Start(); err != nil {
-			return err
-		}
-		go func() { _ = cmd.Wait() }()
-		return nil
+	program, args := a.launchCommand()
+	if program == "" {
+		return mygo.Shell.OpenPath(a.Path)
 	}
-	return mygo.Shell.OpenPath(a.Path)
+	err := launchDetached(program, args...)
+	// A D-Bus-activatable entry whose `gio` is missing still has its own argv
+	// to fall back to (the original did the same after `gio` failed).
+	if err != nil && a.DBusActivatable && len(a.Exec) > 0 {
+		return launchDetached(a.Exec[0], a.Exec[1:]...)
+	}
+	return err
+}
+
+// launchDetached starts a program that outlives the launcher: the launcher must
+// not wait for it, it must not die with the launcher, and - the Linux case this
+// build ships for - it must not share the launcher's process group or session,
+// where a signal meant for either would reach both. (internal/spawn's own
+// detach, restated here so the two cannot drift.)
+func launchDetached(program string, args ...string) error {
+	cmd := exec.Command(program, args...)
+	cmd.Dir = homeDir()
+	cmd.Stdin, cmd.Stdout, cmd.Stderr = nil, nil, nil
+	detachExec(cmd)
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	go func() { _ = cmd.Wait() }()
+	return nil
 }
 
 // Roots is the platform's application directories, existing ones only.
@@ -192,6 +227,14 @@ func ScanLinux(root string) []App {
 		if !ok {
 			return true
 		}
+		// `TryExec` is the entry's own "is this installed" probe: a program it
+		// names that is not here means the application is not installed either
+		// (the original's `executable_available`, linux.rs:406). This is the one
+		// check that needs the filesystem/PATH, so it lives in the scan rather
+		// than in the pure reader.
+		if entry.tryExec != "" && !executableAvailable(entry.tryExec) {
+			return true
+		}
 		entry.IconPath = desktopIconFile(entry.Icon)
 		entry.Initials = computeInitials(entry.Name, entry.Localized)
 		out = append(out, entry)
@@ -214,6 +257,32 @@ func walk(root string, visit func(path string, d os.DirEntry) bool) {
 			walk(path, visit)
 		}
 	}
+}
+
+// executableAvailable reports whether a `TryExec=` program can be run: an
+// absolute or relative path must name an executable file, a bare name must be
+// found in `PATH` (the original's `executable_available`).
+func executableAvailable(program string) bool {
+	if strings.ContainsRune(program, os.PathSeparator) || strings.ContainsRune(program, '/') {
+		return isExecutableFile(program)
+	}
+	for _, dir := range filepath.SplitList(os.Getenv("PATH")) {
+		if dir == "" {
+			dir = "."
+		}
+		if isExecutableFile(filepath.Join(dir, program)) {
+			return true
+		}
+	}
+	return false
+}
+
+// isExecutableFile reports whether path is a regular file with any execute bit
+// set. The mode bits are emulated on Windows (files read as 0666), so a probe
+// there is permissive rather than wrong: it never hides an installed entry.
+func isExecutableFile(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.Mode().IsRegular() && info.Mode().Perm()&0o111 != 0
 }
 
 // desktopLocales is the locale ladder for a `.desktop` entry's localized
@@ -271,8 +340,11 @@ func unescapeDesktop(value string) string {
 
 // ParseDesktopFile reads one .desktop file: its [Desktop Entry] section's
 // Name (plus the best Chinese `Name[locale]`), Comment (same ladder), Exec,
-// Icon and hidden flags. It reports false for hidden entries, entries without
-// an Exec, or files that cannot be read.
+// Icon and hidden flags, along with `Type` and `DBusActivatable`. It reports
+// false for hidden entries, entries of a type other than `Application` (a
+// `Link=` or `Directory=` entry is not something to launch), entries without an
+// Exec, or files that cannot be read. The one availability check it does not
+// make is `TryExec` — that needs the filesystem and PATH, so ScanLinux does it.
 func ParseDesktopFile(path string) (App, bool) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -282,7 +354,8 @@ func ParseDesktopFile(path string) (App, bool) {
 
 	inEntry := false
 	hidden, noDisplay := false, false
-	var name, exec, icon string
+	var name, exec, icon, entryType string
+	dbusActivatable := false
 	// The Latin search keys a `.desktop` entry advertises besides its name:
 	// the untranslated spellings only (the original read `GenericName`,
 	// `Keywords`, `StartupWMClass` and `TryExec` with no locale suffix).
@@ -365,6 +438,14 @@ func ParseDesktopFile(path string) (App, bool) {
 			hidden = strings.EqualFold(value, "true")
 		case "NoDisplay":
 			noDisplay = strings.EqualFold(value, "true")
+		case "Type":
+			if !hasLocale {
+				entryType = value
+			}
+		case "DBusActivatable":
+			if !hasLocale {
+				dbusActivatable = value == "true"
+			}
 		}
 	}
 	if err := scanner.Err(); err != nil {
@@ -374,6 +455,11 @@ func ParseDesktopFile(path string) (App, bool) {
 	if name == "" || len(argv) == 0 || hidden || noDisplay {
 		return App{}, false
 	}
+	// Only `Application` entries launch; an absent `Type` is kept, because the
+	// original only rejected an explicit non-Application type.
+	if entryType != "" && entryType != "Application" {
+		return App{}, false
+	}
 	// A localized name equal to the plain one is not a second name (the
 	// original's `filter(|value| value != &name)`), and an empty comment is
 	// dropped rather than drawn as a blank line.
@@ -381,13 +467,15 @@ func ParseDesktopFile(path string) (App, bool) {
 		localized = ""
 	}
 	return App{
-		Name:      name,
-		Localized: localized,
-		Comment:   comment,
-		Aliases:   desktopAliases(path, name, localized, genericName, keywords, startupWMClass, tryExec, argv),
-		Path:      path,
-		Exec:      argv,
-		Icon:      icon,
+		Name:            name,
+		Localized:       localized,
+		Comment:         comment,
+		Aliases:         desktopAliases(path, name, localized, genericName, keywords, startupWMClass, tryExec, argv),
+		Path:            path,
+		Exec:            argv,
+		Icon:            icon,
+		DBusActivatable: dbusActivatable,
+		tryExec:         tryExec,
 	}, true
 }
 
