@@ -8,7 +8,7 @@
 
 用 mygo（原生 GPU 自绘 UI + Go）重写的 floter **已经是一个可打包、可运行的完整应用**：单窗口三表面
 （启动器 / 设置 / 终端）、搜索内核、扩展平台（含后台运行、列表协议、导入导出、权限审计）、剪贴板、
-浏览器、计算器、系统集成、打包与 CI 全部就位。**840 项测试全绿**，三平台都能构建，Linux 打包
+浏览器、计算器、系统集成、打包与 CI 全部就位。**855 项测试全绿**，三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
 含测试）。
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 840 项测试
+go test -count=1 ./...         # 855 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,7 +99,37 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-bg 不可用运行时的失败原因本地化（R11）** —— P7-bd 重写的具体待办第 5 条（最后一条）
+> **最新一轮：P7-bh 清单路径安全（`validate_relative_path`）** —— P7-bg 后 P7-bd 的清单已全部落地，
+> 本轮先把「尚未做」重新写实为 5 条带 file:line 的具体待办，再取第 1 条落地：原版在**解析清单时**
+> 就拒绝任何绝对/`..`/空路径，本构建只在使用时兜住一部分，导出的 staging 写入完全裸奔。现在
+> `LoadManifest` 会校验 `icon`、脚本路径、描述符与 lifecycle 的四处路径，坏包根本进不来。
+
+**P7-bh 清单路径安全（本轮）**
+
+- **依赖检查**：`curl .../releases/latest` 返回 v0.4.8，`go.mod` 已是 v0.4.8，无版本可升。
+- **入口**：P7-an/P7-bb/P7-bd 三份清单都已全部落地或只剩一次性维护者动作，所以先把「尚未做」重写成
+  5 条具体待办（见「### 具体待办（P7-bh 重写）」），再取第 1 条实现。
+- **偏离点（解析期不查路径）**：原版 `src-tauri/src/extensions/manifest.rs:606` 的 `validate_relative_path`
+  （非空、非绝对、每个 component 必须是 `Component::Normal`）由 `validate_paths`（`:565`）用在 `icon`、
+  `Runtime::Script.path`、`provider.descriptor`，由 `lifecycle.rs:39/145/173` 用在 completion `source`、
+  template `source`/`target`、`launch.command.program`，并在 `parse()`（`:492`）反序列化后立刻调用。
+  本构建 `internal/extensions/manifest.go:225` 的 `LoadManifest` 只查 ID/Name；`internal/extensions/sync.go:417,427`
+  把 `runtime.path`/`provider.descriptor` 直接 `filepath.Join` 进 staging（`..` 可越界写文件）；
+  `description.go:139` 的 `joinWithin` 只在读取时兜住描述符/脚本/模板，`icon` 全仓无人查。
+- **修法**：新文件 `internal/extensions/validate.go`——`ErrBadManifest`、`ValidateRelativePath(value, field)`
+  （拒空/绝对/盘符前缀/`.`/`..`；同时按 `/` 与 `\` 切分，Windows 与 Unix 拼写同一规则；`a//b` 与
+  尾随分隔符照原版 `Path::components` 折叠为合法）、`Manifest.ValidatePaths()`（icon / script path /
+  descriptor）与 `Lifecycle.ValidatePaths()`（completion source、template source/target、launch program
+  非 `self`）。`LoadManifest` 在 ID/Name 之后调用 `ValidatePaths()`。零新 API 面，只加校验。
+- **测试**：`internal/extensions/validate_test.go`——`TestValidateRelativePath`（6 条合法含中文与 `a//b`、
+  12 条非法含 `C:\…`、`a\..\b`、`./x`）、`TestManifestValidatePaths`（三处字段 + 缺省不报错 + 脚本无路径报错）、
+  `TestLifecycleValidatePaths`（四处路径 + `self` 豁免）、`TestLoadManifestRefusesAnEscapingPath`（干净清单仍可载、
+  `../../../../tmp/evil.sh` 与绝对 icon 端到端拒绝）。变异核查：把 `LoadManifest` 里的 `ValidatePaths()` 调用
+  摘掉，端到端那条立刻红。
+- **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 27 包全绿、
+  `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+> **上一轮：P7-bg 不可用运行时的失败原因本地化（R11）** —— P7-bd 重写的具体待办第 5 条（最后一条）
 > 落地。运行时无法解析原来只让集成行变灰、原因是一句英文 prose 且从不落盘；现在失败是**稳定键 +
 > JSON 负载**（`binding-changed:{"path":…}` / `binding-missing:…` / `runtime-unavailable:…`），探测把它
 > 连同 `lastErrorCode`/`brokenReason` 写进 repository，集成卡片按语言渲染原因（认旧版英文句，认不出的
@@ -1522,36 +1552,76 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 尚未做（按建议优先级）
 
-1. **列表协议的分页**：已完成（本轮）——`{"output": [...], "page": {cursor, hasMore}}` 的发射
-   形态、内存按视口窗口化（首屏两页、滚到底加一页）、页脚四态（loading/more/end）与滚到底触发；
-   自带 cursor 的插件会被带着 `FLOTER_PAGE_CURSOR` 重新执行，行按 id 去重合并。旧版还有
-   `⌘1–⌘0` 的编号角标，Go 侧已完成。
-2. **i18n 全量对齐**：UI 包内没有裸文案（已审计），旧 `src/i18n.ts` 的 1700+ 键大部分属于已不存在的
-   页面（插件 iframe 页、剪贴板页、会话页），不为「对齐键数」而搬。
-3. **浏览器插件**：已完成——Safari 的 `Bookmarks.plist`（二进制 plist，`internal/plist` + Safari
-   自己的节点类型）现在也读了；这是旧版**没有**的能力（它只解析 Chromium JSON 与 Firefox
-   places.sqlite），属于补上而不是对齐。
-4. **Windows 图标**：已完成（P2-l）——`.lnk` 的图标经 PowerShell 提取并缓存为 PNG。
-5. **系统通知**：已完成（后台命令、安装/卸载/检测）。电源动作带 SysV 回退（旧版 `run_first` 语义）。
-6. **P5 打磨**：已完成；更细的换壳过渡受原生窗口尺寸变化限制，不做应用层过渡。
-7. **P6 发布链**：剩下的是一次性维护者动作——`mygo keygen` 生成更新密钥、`mygo.json` 填 `updates`
-   与 `macos.signingIdentity`/`macos.notarize`、CI 注入私钥、把产物发到 GitHub Release（含预发布通道）。
-8. **小项**：开机自启需要在真实打包应用上验证一次；
-   （命令别名编辑已完成：Integrations 页每命令一个输入框，P4-y；脚本语言表单已完成，P7-h；
-   能力探测已完成：manifest `lifecycle.probes` 的执行与 `probeReport` 都在，见 P3-n；
-   触发词进模式已完成，见 P7-t。）
-   旧版 `package.json` 归档字段。（导入导出的权限审批已改为**一次汇总**，
-   与旧版一致；旧版 `launch_counts` 已在启动时一次性导入 `usage.json`，本构建的记录优先。）
+> **P7-bh 重写**：P7-an 的 1–8、P7-bb 的两条、P7-bd 的 1–5 都已全部落地，只剩一次性维护者动作
+> （`mygo keygen`、`mygo.json` 的 `updates`/签名、CI 私钥、发布到 GitHub Release）与三条明确卡在
+> 框架上的能力（`Options.OnCopy`、终端键入的 `HandleInput` 缝、外观四个死旋钮）。所以这一轮的入口
+> 仍是「对照原版实现做系统排查」，把「尚未做」重新写实为下面 5 条**带 file:line、原版对照与验收
+> 标准**的具体待办。第 1 条（清单路径安全）已在本轮（P7-bh）落地。
 
-> 上面 1–8 已全部完成或只剩一次性维护者动作，所以这一轮的入口是第 3 条：对照原版实现做系统
-> 排查。P7-t 找到的是「提示与键帽都在承诺一个从未接线的转换」；P7-u 找到的是同一类的第二处
-> ——空态文案把用户指向「设置 > 集成」，而那一页从来没有内置插件区；P7-am 找到的是第三处
-> ——PATH 命令行的两个行级事实（来源词与可执行路径）在扫描进启动器时被丢掉，来源词槽
-> （P7-z）对这些行从不出现。
->
-> **P7-bb 更新**：P7-an 的这份 1–8 已全部完成或只剩一次性维护者动作；P7-bb 之后的具体待办
-> 见下方「### 具体待办（P7-bb 重写）」（P7-bc 后已全部落地）。P7-bd 已重新写实为
-> 「### 具体待办（P7-bd 重写；第 1 条本轮落地）」，下一轮从第 2 条开始。
+### 具体待办（P7-bh 重写；第 1 条本轮落地）
+
+1. **清单的路径安全（`validate_relative_path`）**（P7-bh 已落地）—— 原版在**解析清单时**就拒绝
+   任何非空、非相对、含 `.`/`..` 的声明路径；本构建只在使用时用 `joinWithin` 兜住一部分，导出
+   的 staging 写入（`sync.go:417,427`）完全裸奔。落地见下方「P7-bh 清单路径安全」。（原分析保留在下方。）
+   - 原版：`src-tauri/src/extensions/manifest.rs:606` 的 `validate_relative_path`（非空、非绝对、
+     每个 component 必须是 `Component::Normal`），由 `validate_paths`（`:565`）用在 `icon`、
+     `Runtime::Script.path`、`provider.descriptor`，并由 `lifecycle.rs:39/145/173` 用在 completion
+     `source`、template `source`/`target`、`launch.command.program`（`self` 豁免）。`parse()`
+     （`:492`）在反序列化后立刻调用，所以坏包根本进不来。
+   - 本构建（改前）：`internal/extensions/manifest.go:225` 的 `LoadManifest` 只查 ID/Name；
+     `internal/extensions/sync.go:417,427` 直接把 `manifest.Runtime.Path` / `Provider.Descriptor`
+     `filepath.Join` 进 staging（`..` 可越界写文件）；`internal/extensions/description.go:139` 的
+     `joinWithin` 只在描述符/脚本/模板被**读取**时兜住，`icon` 全仓无人查。
+   - 验收：新增 `ValidateRelativePath(value, field)` 与 `Manifest.ValidatePaths()`（含 lifecycle 的
+     路径），接进 `LoadManifest`；绝对路径、空、`.`/`..` component 报错；测试钉合法/非法表、三处
+     manifest 字段、lifecycle 四处路径、以及一个 `LoadManifest` 端到端拒绝的夹具。
+2. **lifecycle 的结构校验（`Lifecycle::validate`）** —— 原版对 completion / template / probe / launch
+   有一整套规则；本构建的 `Lifecycle`（`manifest.go:117`）只解析，无任何校验，`restorePolicy`
+   甚至没有字段（`grep -rn RestorePolicy internal` 为空）。
+   - 原版：`src-tauri/src/extensions/lifecycle.rs:39`（同一 shell 的 completion 不重复、`source` 与
+     `args` 恰有其一、`args ≤ 16`、`timeoutMs ∈ 100..=10000`、`fileName` 合法）、`:145`（template
+     `target` 不重复）、`:173`（probe `id` 不重复、`timeoutMs ∈ 100..=30000`、`args ≤ 32`）、
+     `LaunchConfig::validate`（`restorePolicy ∈ {reattach,restart,none}`、launch args 无 NUL）。
+   - 本构建（改前）：`internal/extensions/manifest.go` 的 `ShellCompletion`/`Template`/`Probe`/`Launch`
+     只有字段；`launch_test.go`/`probes_test.go` 的夹具因此可以带着任意 timeout 与重复 id 通过。
+   - 验收：新增 `Lifecycle.Validate()` 复刻全部规则（含 `restorePolicy` 字段的解析），接进
+     `LoadManifest`；逐条测试（重复 shell、`source`+`args` 同时给、`args=17`、timeout 越界、重复
+     probe id、probe timeout 越界、`args=33`、未知 `restorePolicy`、NUL）。
+3. **运行期参数校验与 argv 权威（`param_arguments`）** —— 原版把声明 + 答案在**运行前**重新校验
+   并转成 argv，任何非法组合发稳定键；本构建的 `ParamArgv` 只拼 argv，从不拒绝。
+   - 原版：`src-tauri/src/extensions/run.rs:290` 的 `param_arguments`——未声明的 id →
+     `run_param_unknown:{id}`；required 且无值无默认 → `run_param_required:{id}`；flag 非法 /
+     number 非有限 / select 不在选项 / boolean 不是 true|false → `run_param_invalid:{id}`；
+     Windows `.cmd`/`.bat` 且值含 `WINDOWS_CMD_UNSAFE_CHARS`（`&|<>^%`，`run.rs:231`）→
+     `run_param_windows_unsafe:{id}`；缺值回填 `default`。
+   - 本构建（改前）：`internal/extensions/params.go:163` 的 `ParamArgv` 静默丢未知 id、不查 required、
+     不校验 number/select/boolean、不回填 default、无 windows-unsafe；`shell.go:1787` 直接把它交给运行。
+   - 验收：新增 `ParamArguments(params, values, cmdScript) ([]string, error)` 发 `run_param_*` 键，
+     `shell.go` 改用它；测试钉每个键与边界（含 default 回填、`inf`/`NaN` 拒绝、cmd 脚本不安全字符）。
+4. **运行表单的逐参数本地化错误（`paramValueIssues` / `paramRunErrorMessage`）** —— 原版把「哪个
+   参数、哪一条规则」本地化后印在出错行下；本构建只有一句泛化的 `RunIncomplete`。
+   - 原版：`src/extensions/run-params.ts` 的 `paramValueIssues`（返回 `{index,key,label}`，
+     required-有默认不报缺）与 `paramRunErrorMessage`（后端 `run_param_*` → i18n），
+     `src/i18n.ts` 的 `customParamRequiredMissing`/`InvalidValue`/`Unknown`/`WindowsUnsafe`。
+   - 本构建（改前）：`internal/settingsui/settingsui.go:2725` 把 `ParamIssues` 的非空结果换成
+     `copy.RunIncomplete`；`grep -rn customParamRequiredMissing internal/i18n` 为空；
+     `internal/launcher/runfailure.go:17` 对 `run_param_*` 原样返回。
+   - 验收：`ParamIssues` 返回 `{Index, Key, Label}`（并补 required-有默认豁免、boolean 校验）；
+     面板在出错行下印本地化句子；输出视图按语言渲染 `run_param_*` 键；i18n 补四句（en/zh）。
+5. **清单的严格解析与组合规则（`deny_unknown_fields` + `validate_paths` 的组合那半）** —— 原版每个
+   manifest struct 都 `deny_unknown_fields`，且只允许三组 distribution/runtime/provider 组合；
+   本构建的 `json.Unmarshal` 静默忽略未知字段，也没有组合校验。
+   - 原版：`src-tauri/src/extensions/manifest.rs` 的 `#[serde(deny_unknown_fields)]`（`:17,66,230,
+     237,251,258,265,335,366`）；`validate_paths`（`:565`）只放行
+     `(Local, System, Executable|StaticDescriptor)`、`(Local, Script, Executable|StaticDescriptor)`、
+     `(BuiltIn, System, StaticDescriptor)`，且 `Local + StaticDescriptor` 必须有 `descriptor`。
+   - 本构建（改前）：`LoadManifest`（`manifest.go:225`）用 `json.Unmarshal`，未知键静默忽略；
+     `platform_test.go:250` 的 `runtime.type: "static-descriptor"` 这种非法组合照收。
+   - 验收：严格解析（`json.Decoder.DisallowUnknownFields`）拒绝未知字段；组合规则拒绝并修正非法夹具；
+     测试钉「未知字段拒绝 / 三组合法组合 / 其余组合拒绝 / Local+StaticDescriptor 缺 descriptor 拒绝」。
+
+> 这 5 条都不卡框架。第 1 条已落地；第 3、4 条互相依赖（同一套 `run_param_*` 键的两半），宜连着做。
+> 上面 P7-an/P7-bb/P7-bd 的旧清单保留在下方，作为「哪些已经做过」的记录。
 
 ### 具体待办（P7-an 把清单写实；每项带 file:line、原版对照、验收标准）
 
