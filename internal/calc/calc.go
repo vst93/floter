@@ -45,17 +45,115 @@ func Eval(expr string) (float64, error) {
 	return v, nil
 }
 
-// Format renders a value the way the launcher shows it: whole numbers
-// without a decimal point, others with ten significant digits, which is
-// enough for a search box and hides float noise (0.1+0.2 -> 0.3).
+// The result-printing policy, copied from the old build's `calculator.ts`
+// (`CALCULATOR_PRECISION` / `CALCULATOR_SCIENTIFIC_HIGH` / `_LOW`): twelve
+// significant digits, and scientific notation outside the readable band.
+const (
+	calculatorPrecision      = 12
+	calculatorScientificHigh = 1e15
+	calculatorScientificLow  = 1e-9
+)
+
+// Format renders a value the way the launcher shows it: the old build's
+// `formatCalculatorResult` (src/calculator.ts:87-96), policy for policy.
+//
+//   - a non-finite value has no printed form and is empty (the caller refuses
+//     it before this point);
+//   - a magnitude at or above 1e15, or below 1e-9, prints in scientific
+//     notation with twelve significant digits and its trailing zeros trimmed
+//     (`1e+20`, `9.9e-10`);
+//   - otherwise the value is rounded to twelve significant digits and printed
+//     the way JavaScript's `String(number)` would — decimal while the decimal
+//     exponent stays in [-6, 20], scientific outside it (`1e-7`, but
+//     `0.000001`).
+//
+// The old build reached that last spelling through `Number(x.toPrecision(12))`
+// and JS's own number-to-string; this reproduces both halves so `0.1+0.2` is
+// `0.3` and `1/3` is `0.333333333333` (twelve digits, not the ten a `%g`
+// default would print).
 func Format(v float64) string {
+	if math.IsNaN(v) || math.IsInf(v, 0) {
+		return ""
+	}
+	magnitude := math.Abs(v)
+	if magnitude != 0 && (magnitude >= calculatorScientificHigh || magnitude < calculatorScientificLow) {
+		return trimExponential(strconv.FormatFloat(v, 'e', calculatorPrecision-1, 64))
+	}
+	return jsNumberString(roundSignificant(v, calculatorPrecision))
+}
+
+// roundSignificant rounds v to n significant digits: the
+// `Number(x.toPrecision(n))` half of the old build's policy. The exponential
+// spelling carries the rounded digits, and parsing it back gives the double the
+// old build then printed.
+func roundSignificant(v float64, n int) float64 {
+	rounded, err := strconv.ParseFloat(strconv.FormatFloat(v, 'e', n-1, 64), 64)
+	if err != nil {
+		return v
+	}
+	return rounded
+}
+
+// trimExponential drops the trailing zeros of a scientific mantissa, leaving
+// `1e+20` from `1.00000000000e+20` (the old build's `trimExponential`).
+func trimExponential(text string) string {
+	i := strings.IndexByte(text, 'e')
+	if i < 0 {
+		return text
+	}
+	mantissa := strings.TrimRight(text[:i], "0")
+	mantissa = strings.TrimSuffix(mantissa, ".")
+	return normalizeExponent(mantissa + text[i:])
+}
+
+// jsNumberString prints a double the way JavaScript's `String(number)` does:
+// decimal notation while the decimal exponent stays in [-6, 20], scientific
+// outside it, with the exponent's leading zeros stripped (`1e-7`, not Go's
+// `1e-07`).
+func jsNumberString(v float64) string {
 	if v == 0 {
 		return "0"
 	}
-	if math.Trunc(v) == v && math.Abs(v) < 1e15 {
-		return strconv.FormatInt(int64(v), 10)
+	exponent := decimalExponent(v)
+	if exponent >= 21 || exponent <= -7 {
+		return normalizeExponent(strconv.FormatFloat(v, 'e', -1, 64))
 	}
-	return strconv.FormatFloat(v, 'g', 10, 64)
+	return strconv.FormatFloat(v, 'f', -1, 64)
+}
+
+// decimalExponent is the base-ten exponent of v's leading digit, read off the
+// shortest scientific spelling so a value that is exactly a power of ten does
+// not depend on floating-point logarithms.
+func decimalExponent(v float64) int {
+	text := strconv.FormatFloat(v, 'e', -1, 64)
+	i := strings.IndexByte(text, 'e')
+	if i < 0 {
+		return 0
+	}
+	exponent, err := strconv.Atoi(text[i+1:])
+	if err != nil {
+		return 0
+	}
+	return exponent
+}
+
+// normalizeExponent strips the leading zeros Go pads an exponent with, so the
+// printed form matches the old build's (`1e-7` / `1e+20`).
+func normalizeExponent(text string) string {
+	i := strings.IndexByte(text, 'e')
+	if i < 0 {
+		return text
+	}
+	mantissa, exponent := text[:i], text[i+1:]
+	sign := ""
+	if len(exponent) > 0 && (exponent[0] == '+' || exponent[0] == '-') {
+		sign, exponent = string(exponent[0]), exponent[1:]
+	}
+	exponent = strings.TrimLeft(exponent, "0")
+	if exponent == "" {
+		exponent = "0"
+	}
+	return mantissa + "e" + sign + exponent
 }
 
 // hasArithmetic reports whether the text looks like a sum rather than a

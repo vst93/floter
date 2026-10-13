@@ -60,18 +60,42 @@ func TestEvalRejects(t *testing.T) {
 	}
 }
 
+// Format is the old build's `formatCalculatorResult` (src/calculator.ts:87-96)
+// policy for policy: twelve significant digits, scientific notation outside the
+// readable band, and JS's own `String(number)` spelling inside it. The table
+// pins every branch of that policy — including the boundaries where a change of
+// one digit flips the spelling.
 func TestFormat(t *testing.T) {
 	cases := []struct {
 		in   float64
 		want string
 	}{
 		{0, "0"},
+		{-0.0, "0"},
 		{2, "2"},
 		{-5, "-5"},
 		{1024, "1024"},
 		{2.5, "2.5"},
-		{1.0 / 3.0, "0.3333333333"},
+		// Twelve significant digits, not the ten a `%g` default prints.
+		{1.0 / 3.0, "0.333333333333"},
 		{0.1 + 0.2, "0.3"},
+		// JS `String(number)` stays decimal down to 1e-6 and switches at 1e-7.
+		{1e-5, "0.00001"},
+		{1e-6, "0.000001"},
+		{1e-7, "1e-7"},
+		// At 1e-9 the scientific band has not opened yet; below it, it has.
+		{1e-9, "1e-9"},
+		{9.9e-10, "9.9e-10"},
+		// The high band opens at 1e15 and trims its mantissa's trailing zeros.
+		{1e15, "1e+15"},
+		{1e20, "1e+20"},
+		{1.23456789012345e20, "1.23456789012e+20"},
+		// A 15-digit integer rounds to twelve digits and prints the rounded value.
+		{999999999999999, "1000000000000000"},
+		// A non-finite value has no printed form.
+		{math.NaN(), ""},
+		{math.Inf(1), ""},
+		{math.Inf(-1), ""},
 	}
 	for _, tc := range cases {
 		if got := Format(tc.in); got != tc.want {

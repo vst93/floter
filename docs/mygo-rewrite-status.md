@@ -99,7 +99,33 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-cs 直出文本的 dim / inverse 规则对齐原版（原版 `src/launcher/PluginTextView.tsx:46-63`）**
+> **最新一轮：P7-ct 计算器结果的打印策略对齐原版（原版 `src/calculator.ts:78-96`）**
+> —— P7-cs 收尾后「尚未做」又一次为空，本轮先把清单重写成 3 条带 file:line 的具体待办
+> （下方「具体待办（P7-ct 重写）」），再取第 1 条落地。依赖检查：
+> `go list -m -versions github.com/egoist/mygo` 仍停在 **v0.4.8**（与 `go.mod` 一致），无版本可升。
+> 只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离点**：原版 `formatCalculatorResult` 的策略是「12 位有效数字 + JS 自己的数字打印」：
+> 非有限值 → 空串；`|v| >= 1e15` 或 `< 1e-9` → `toExponential(11)` 再去尾零；否则
+> `Number(v.toPrecision(12))` 后交给 JS `String(number)`（十进制指数在 `[-6, 20]` 内用十进制，
+> 否则科学计数）。本构建 `internal/calc/calc.go:51` 的 `Format` 用 `FormatFloat(v, 'g', 10, 64)`：
+> 10 位有效数字（不是 12）、Go `%g` 的科学阈值是 `[-4, 10)`，于是 `1e-5` 打成 `1e-05`（原版
+> `0.00001`）、`1/3` 打成 `0.3333333333`（原版 `0.333333333333`）；整数分支 `math.Trunc(v)==v &&
+> |v|<1e15` 还绕过 12 位舍入，`999999999999999` 打成自身（原版 `1000000000000000`）。
+>
+> **修法**：`internal/calc/calc.go` 的 `Format` 复刻原版四条分支，新增 `roundSignificant`
+> （`Number(x.toPrecision(12))` 的 Go 等价）、`trimExponential`、`jsNumberString`（JS
+> `String(number)` 的十进制/科学阈值）、`decimalExponent`、`normalizeExponent`；常量
+> `calculatorPrecision`(12)/`calculatorScientificHigh`(1e15)/`_Low`(1e-9)。
+>
+> **测试**：`internal/calc/calc_test.go` 的 `TestFormat` 扩到 20 行表，逐分支钉住
+> `0/-0/整数/1e-5/1e-6/1e-7/1e-9/9.9e-10/1e15/1e20/1.23456789012345e20/999999999999999/NaN/±Inf`。
+> 变异核查：把 `Format` 换回 `FormatFloat(v, 'g', 10, 64)`，`1e-5`/`1e-7`/`999999999999999`
+> 三条立刻红。
+> 门槛：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+> **上一轮：P7-cs 直出文本的 dim / inverse 规则对齐原版（原版 `src/launcher/PluginTextView.tsx:46-63`）**
 > —— P7-cq 清单第 1、2 条已落地，本轮取第 3 条（最后一条，也是清单里唯一 Go 侧可落地项）。依赖检查：
 > `go list -m -versions github.com/egoist/mygo` 与 GitHub releases latest 均为 **v0.4.8**（与 `go.mod`
 > 一致），无版本可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
@@ -2566,6 +2592,65 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 - 窗口可见时完成反馈落在面板自己的停靠行（隐藏时才发系统通知）——之前可见时什么都不说。
 
 ## 尚未做（按建议优先级）
+
+### 具体待办（P7-ct 重写；第 1 条本轮落地，余下两条待做）
+
+P7-cs 收尾后「尚未做」又一次为空（P7-cq 三条全部落地，余下只有三条卡 mygo 框架项：
+`Options.OnCopy` 复制反馈、终端键入的 `HandleInput` 空格缝、外观四个死旋钮，规格见
+「具体待办（P7-cm 重写）」与「已知差距」）。本轮换入口：逐文件对照原版的**计算器**
+（`src/calculator.ts`、`src/plugins/calculator/mode.ts`）与**触发词切分**
+（`src/plugins/mode-entry.ts`、`src/plugins/external.ts`），把清单重写成下面三条带
+file:line 的具体待办，并取第 1 条落地（见「最近几轮」P7-ct）。依赖检查：
+`go list -m -versions github.com/egoist/mygo` 仍停在 **v0.4.8**（与 `go.mod` 一致），无版本可升。
+只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+
+1. **计算器结果的打印策略与原版不同**（已落地，P7-ct）。
+   - 原版对照：`main:src/calculator.ts:87-96` 的 `formatCalculatorResult`——先拒收非有限值
+     （返回空串）；`|v| >= 1e15` 或 `|v| < 1e-9` 走 `toExponential(CALCULATOR_PRECISION-1)`
+     （12 位有效数字）再 `trimExponential` 去掉尾零；否则 `Number(v.toPrecision(12))` 后再用
+     JS 的 `String(number)` 打印。常量 `CALCULATOR_PRECISION`(12)/`CALCULATOR_SCIENTIFIC_HIGH`(1e15)/
+     `_LOW`(1e-9) 在 `:66-74`。JS `String(number)` 的十进制/科学阈值是十进制指数 `[-6, 20]`
+     （`1e-6` → `0.000001`，`1e-7` → `1e-7`）。
+   - 本构建（改前）：`internal/calc/calc.go:51` 的 `Format` 用 `strconv.FormatFloat(v, 'g', 10, 64)`
+     —— 10 位有效数字（不是 12）、科学阈值是 Go `%g` 的 `[-4, 10)`（`1e-5` 打成 `1e-05`，
+     原版是 `0.00001`），整数分支还绕过 12 位舍入（`999999999999999` 打成自身，原版是
+     `1000000000000000`）。调用点两处：`internal/launcher/calculator.go:117`、
+     `internal/launcher/search.go:729`。
+   - 验收：新增纯函数 `Format` 复刻原版四条分支——非有限 → `""`；高/低带 → 12 位科学计数并
+     去尾零（`1e+20`、`9.9e-10`）；带内 → 12 位有效数字后按 JS `String` 打印（`1/3` →
+     `0.333333333333`、`1e-5` → `0.00001`、`1e-7` → `1e-7`、`1e15` → `1e+15`）；
+     测试钉 `0/-0/整数/1e-6/1e-7/1e-9/9.9e-10/1e15/1e20/15 位整数/NaN/±Inf`。
+     **已落地**：`internal/calc/calc.go` 的 `Format` + `roundSignificant`/`trimExponential`/
+     `jsNumberString`/`decimalExponent`/`normalizeExponent`；`internal/calc/calc_test.go` 的
+     `TestFormat` 20 行表。
+2. **触发词/首词的空白切分只认空格与制表符**。
+   - 原版对照：`main:src/plugins/mode-entry.ts:44-52` 的 `splitTriggerWord` 用
+     `/^(\S+)\s+([\s\S]*)$/`——`\s` 是 JS 的全部空白（含 `\n`/`\r`/`\f`/`\v`、NBSP、
+     U+2000–U+200A、U+3000 等），所以 `clip\u3000foo`（全角空格）在原版里进入剪贴板模式；
+     `main:src/plugins/external.ts:81-96` 的 `pluginCommandTriggers` 用 `source.trim().split(/\s+/)[0]`
+     取首词，`\s` 同样全空白。
+   - 本构建：`internal/launcher/launcher.go:1292` 的 `modeWord` 只 `strings.IndexAny(query, " \t")`，
+     `internal/launcher/argv.go:12` 的 `splitArgs`（`firstWord` 在 `:54`）也只把 `' '`/`'\t'`
+     当词缝，`internal/launcher/triggerhint.go:25` 的 `commandTriggers` 经 `firstWord` 取首词。
+     于是全角空格（以及 NBSP 等）既不触发模式，也不切分首词。
+   - 验收：新增一个纯函数（或复用 `internal/inputtext` 的 Zs 表）把 JS `\s` 的全集作为词缝，
+     `modeWord`/`splitArgs`/`commandTriggers` 三处共用；`clip\u3000foo` 进入剪贴板模式且 needle 是
+     `foo`，`jv\u3000-f` 进入命令模式，`\u00a0`/`\u3000`/`\u2028` 与 `' '` 等价；测试钉
+     「表与 JS `\s` 互为全集」与三个入口各一例。
+3. **计算器求值没有原版的函数与常量**。
+   - 原版对照：`main:src/calculator.ts:100-200` 的 `evaluateExpression` 交给 `expr-eval-fork` 的
+     加固 parser（只关掉成员访问与赋值/函数定义/比较/逻辑/拼接/随机，**保留**内置函数），所以
+     `sqrt(4)`、`sin(PI/2)`、`log(100)`、`abs(-3)`、`2^10`、`5!`、`PI`、`E` 都是合法算式；
+     `hasArithmetic` 的对应物只是「拒收非算式」。
+   - 本构建：`internal/calc/calc.go:162` 的 `hasArithmetic` 见到除 `e`/`E` 以外的字母就返回 false，
+     `Eval`（`:27`）的递归下降 parser 只认数字、`+ - * / % ^`、括号与一元符号，
+     **没有函数、常量与阶乘**。于是 `sqrt(4)`/`PI` 在启动器里根本不是计算器行。
+   - 验收：`hasArithmetic` 认 `sqrt`/`sin`/`cos`/`tan`/`asin`/`acos`/`atan`/`log`/`ln`/`abs`/`ceil`/
+     `floor`/`round`/`min`/`max`/`pow` 等原版内置函数名与 `PI`/`E`；parser 增 `parseCall`/`parseConstant`
+     与后缀 `!`（阶乘），函数表与原版 `expr-eval-fork` 的默认集逐名对齐；测试钉每个函数一例、
+     `PI`/`E` 的取值、`5!`、非法函数名仍拒收。
+
+> 第 1 条本轮已落地；下一轮从第 2 条开始，第 3 条最大（需要扩求值器），宜单独一轮。
 
 ### 具体待办（P7-cq 重写；三条已全部落地：第 1 条 P7-cq、第 2 条 P7-cr、第 3 条 P7-cs）
 
