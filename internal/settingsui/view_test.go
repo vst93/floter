@@ -83,6 +83,47 @@ func TestSettingsRowsKeepTheirHints(t *testing.T) {
 	}
 }
 
+// Every slider names the two ends of its own axis, the reference's
+// `SettingsScale` line under the track: the two transparency sliders read
+// "Transparent … Solid" (`settings.transparency.scaleLow/.scaleHigh`) and the
+// two terminal appearance sliders read "Small … Large"
+// (`settings.scale.small/.large`). The live readout also moved onto the title
+// line with the label (`.settings-slider__head`), as the reference draws it.
+func TestSliderRowsNameTheirAxis(t *testing.T) {
+	copy := i18n.For("en").Settings
+	a := New(newStore(t), Actions{})
+	tt := render(t, a, 720, 2400)
+
+	count := func(text string) int {
+		n := 0
+		for _, shown := range tt.Texts() {
+			if shown == text {
+				n++
+			}
+		}
+		return n
+	}
+
+	// The two transparency rows are the only place these two words appear, so
+	// each one has to show up exactly twice (once per slider's end).
+	if got := count(copy.TransparencyScaleLow); got != 2 {
+		t.Errorf("the %q axis word appears %d times, want 2: %q", copy.TransparencyScaleLow, got, tt.Texts())
+	}
+	if got := count(copy.TransparencyScaleHigh); got != 2 {
+		t.Errorf("the %q axis word appears %d times, want 2: %q", copy.TransparencyScaleHigh, got, tt.Texts())
+	}
+
+	// "Small"/"Large" are also the Interface size control's own option labels,
+	// so the two slider ends sit on top of that one appearance each: three in
+	// all. Before the ends were drawn each word showed up only once.
+	if got := count(copy.ScaleSmall); got < 3 {
+		t.Errorf("the %q axis word appears %d times, want at least 3: %q", copy.ScaleSmall, got, tt.Texts())
+	}
+	if got := count(copy.ScaleLarge); got < 3 {
+		t.Errorf("the %q axis word appears %d times, want at least 3: %q", copy.ScaleLarge, got, tt.Texts())
+	}
+}
+
 func TestSettingsControlsWriteThroughTheStore(t *testing.T) {
 	store := newStore(t)
 	a := New(store, Actions{})

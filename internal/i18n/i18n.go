@@ -324,8 +324,19 @@ type Settings struct {
 	MainOpacityHint     string
 	TerminalOpacity     string
 	TerminalOpacityHint string
-	Scale               string
-	ScaleHint           string
+	// TransparencyScaleLow and TransparencyScaleHigh name the two ends of the
+	// two transparency sliders' axis, the old `settings.transparency.scaleLow`
+	// (".scaleHigh") words: "Transparent" at 10% and "Solid" at 100%.
+	TransparencyScaleLow  string
+	TransparencyScaleHigh string
+	Scale                 string
+	ScaleHint             string
+	// ScaleSmall and ScaleLarge name the ends of the terminal appearance
+	// sliders (font size, line height) — the old `settings.scale.small`
+	// (".large") words, which the reference offers on their own so a range
+	// can label its axis without borrowing the UI-scale control's labels.
+	ScaleSmall string
+	ScaleLarge string
 
 	// The terminal's appearance, from the old GeneralPage's group.
 	TerminalHint string

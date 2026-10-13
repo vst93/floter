@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**919 项测试全绿**。
+含测试）。**920 项测试全绿**。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 919 项测试
+go test -count=1 ./...         # 920 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,7 +99,21 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-bw 本机连接请求的后端校验补齐（原版 `create_custom_integration_locked` / `settings.extensions.form.*`）**
+> **最新一轮：P7-bx 四条滚轴的轴两端词与 R162 玻璃说明（原版 `SettingsScale` / `settings.transparency.scaleLow`）**
+> —— P7-bw 收尾后「尚未做」又一次为空，本轮先把它重写成 3 条带 file:line 的具体待办
+>（下方「具体待办（P7-bx 重写）」），再取第 1 条落地：原版每一条 range 行都是同一形状——**标题行 = 标签
+> + 实时读数**（space-between），**轨道下 = 轴两端各一个词**（`SettingsScale`）；透明度两条滚轴是
+> Transparent/Solid（`settings.transparency.scaleLow/.scaleHigh`），终端外观的字号与行高两条是
+> Small/Large（`settings.scale.small/.large`，与 Interface size 分段控件共用词）。本构建的 `a.slider`
+> 把读数放在轨道行尾、**从不画两端词**，一个孤零零的 `47%` 没有在说 10%/100% 各意味着什么。现在
+> `a.slider` 增加 `low`/`high` 两个参数（都空则不画轴词，不发明一根轴），读数移到标题行右端、改
+> `TextStrong`，轨道下用 `FontSize-2`/`TextMuted`/weight 500 画两端词；四个调用点分别传透明度两词与
+> 终端两词。顺带把 `GlassHint`（en/zh）从 R162 之前的旧句换成 R162 措辞（点明扭曲/折射/透镜质感）。
+> i18n 新增 `TransparencyScaleLow/High`（Transparent/Solid、透明/不透明）与 `ScaleSmall/Large`
+>（Small/Large、小/大）。测试 `TestSliderRowsNameTheirAxis` 钉住 Transparent/Solid 各恰好 2 次、
+> Small/Large 各 ≥3 次；变异核查：轴词行改成 `if false` 后四条断言全红。
+
+> **上一轮：P7-bw 本机连接请求的后端校验补齐（原版 `create_custom_integration_locked` / `settings.extensions.form.*`）**
 > —— P7-bu 重写的 3 条具体待办只剩第 3 条，本轮取它：原版在写包前逐条校验并回**本地化键**，名字
 > 1..80（`form.nameLength`）、命令形状 `[a-z0-9][a-z0-9_-]{0,63}`（`form.commandShape`）、版本必须能
 > 解析（`Version::parse`）、平台非空（`form.platformRequired`）、模式仅 executable/script
@@ -2210,11 +2224,62 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-> **P7-bw 更新**：P7-bu 重写的具体待办里第 1、2 条分别由 P7-bv / P7-bw 落地，第 3 条（`normalizeCustom`
-> 缺的五条后端校验）也由 P7-bw 补齐——P7-bu 重写的 3 条至此**全部落地**。其余卡在框架上的三条
+> **P7-bx 更新**：P7-bu 重写的 3 条已全部落地（P7-bv/P7-bw），清单又一次为空。本轮按历史惯例
+> 先把它重写成 3 条带 file:line 的具体待办（下方「具体待办（P7-bx 重写）」），再取第 1 条落地。
+> 三条都**不卡框架**，都是 General 页对照原版的版式/文案偏离；其余卡框架的三条
 >（`Options.OnCopy`、终端键入的 `HandleInput` 缝、外观四个死旋钮）与一次性维护者动作
 >（`mygo keygen`、`mygo.json` 的 `updates`/签名、CI 私钥、发布到 GitHub Release）不变，另见「已知差距」。
-> 下一轮按本文件的历史惯例：清单已空，先把「尚未做」重写成带 file:line 的具体待办再取第 1 条。
+
+### 具体待办（P7-bx 重写；3 条中第 1 条 P7-bx 已落地）
+
+1. **General 页四条滚轴缺「轴的两端词」，读数也不在标题行（R162 后的原版 `SettingsScale`）（本轮已落地）** ——
+   原版每一条 range 行都是同一形状：**标题行 = 标签 + 实时读数**（`.settings-slider__head`，
+   space-between、baseline），**轨道下方 = 轴两端各一个词**（`SettingsScale`）。两端词按轴而取：
+   两条透明度滚轴是 `settings.transparency.scaleLow/.scaleHigh`（Transparent / Solid），终端外观的
+   字号与行高滚轴是 `settings.scale.small/.large`（Small / Large）。本构建的 `a.slider` 把读数放在
+   轨道行尾、**从不画两端词**，于是用户看到一个孤零零的百分比，不知道 10% 与 100% 各意味着什么。
+   顺带：`settings.glassIntensityHint` 在 R162 改过（点明 off 之后的「扭曲/折射/透镜质感」），本构建的
+   `GlassHint` 还是 R162 之前的旧句。
+   - 原版：`src/settings/GeneralPage.tsx:97-125`（`OpacityControl`）+ `src/settings/SettingsRows.tsx:268-277`
+     （`SettingsScale`），透明度行 `GeneralPage.tsx:580-592`；终端滚轴 `src/settings/TerminalAppearance.tsx:399-407`；
+     `src/styles/settings.css:735-834`（`.settings-slider__head/__scale`、`.opacity-control__value`）；
+     `src/i18n.ts:346`/`:350-351`（hint 与两个轴词）、`:221-222`/`:335`。
+   - 本构建（改前）：`internal/settingsui/settingsui.go:2063-2095` 的 `a.slider`（读数在轨道行、无轴词）；
+     四个调用点 `:1853`/`:1858`/`:1930`/`:1939`；`internal/i18n/copy.go:305` 的旧 `GlassHint`。
+   - 验收（已满足）：`a.slider` 增加 `low`/`high` 两个参数（都空则不画轴词，不发明一根轴）；读数移到标题行
+     右端、改 `TextStrong`；轨道下画两端词（`FontSize-2`、`TextMuted`、weight 500）；四个调用点分别传
+     透明度两词与终端两词；i18n 新增 `TransparencyScaleLow/High`、`ScaleSmall/Large`（en/zh）并把
+     `GlassHint` 换成 R162 措辞。测试 `TestSliderRowsNameTheirAxis`：Transparent/Solid 各恰好 2 次，
+     Small/Large 各 ≥3 次（含 Interface size 分段控件那 1 次）。变异核查：把轴词行改成 `if false`，四条断言全红。
+
+2. **General 页没有独立的「玻璃」区与区脚注（原版 `settings.material`）** —— 原版把材质分成
+   一个自己的 section（标题 `settings.material` = Glass/玻璃），里面两张卡：**玻璃强度**卡与**透明度**卡
+   （卡标题 `settings.group.transparency`），两条说明（`glassIntensityHint`、`transparencyHint`）画成
+   **区脚注**、不重复在每一行。本构建把玻璃控件折进 Appearance 卡、透明度两条滚轴放第二张卡，并且
+   每条滚轴各带一句行内 hint（`MainOpacityHint`/`TerminalOpacityHint`）。
+   - 原版：`src/settings/GeneralPage.tsx:558-594`（material section）+ `src/i18n.ts:338`/`:209`/`:346`/`:352`。
+   - 本构建：`internal/settingsui/settingsui.go:1836-1866`（玻璃在 Appearance 卡、透明度卡带行内 hint）；
+     `internal/i18n/i18n.go` 无 `Material`/`GroupTransparency` 字段。
+   - 验收：新增 `Material` + `GroupTransparency` 两个 i18n 字段（en/zh 旧版原文）与 `GroupMaterial`；
+     General 页新增一个 `a.section(c, copy.Material, copy.GlassHint, …)`，内含玻璃强度卡（不再画在
+     Appearance 卡里）与透明度卡（标题 `GroupTransparency`，两条滚轴**不再带行内 hint**），透明度说明
+     改画脚注；`Appearance` 卡只剩主题/图标/语言/界面大小。测试钉住：material 区标题与两句脚注各出现一次，
+     两条透明度行不再有行内 hint，玻璃控件不再在 Appearance 卡里。
+
+3. **General 页没有独立的「菜单栏」区（原版 `settings.group.menuBar`）** —— 原版给菜单栏自己的 section
+   （标题 `settings.group.menuBar`），把**应用图标**选择器（R150）与**显示菜单栏图标**开关放在同一张卡里
+   （它们说的是同一件事：那个图标）。本构建把 `app_icon` 拆到 Appearance 卡、`show_menubar_icon` 拆到
+   Window behaviour 卡，两个相关控件隔了一屏。
+   - 原版：`src/settings/GeneralPage.tsx:482-530`（R7-10c 开关 + R150 图标同一张卡）。
+   - 本构建：`internal/settingsui/settingsui.go:1840`（`copy.AppIcon` 在 Appearance 卡）与 `:1878`
+     （`copy.ShowMenubarIcon` 在 Window behaviour 卡）。
+   - 验收：新增 `GroupMenuBar` i18n 字段（en/zh 旧版原文）；把两个控件搬进新的菜单栏 section（图标在前、
+     开关在后，同一张卡），Appearance 卡去掉图标行；测试钉住两控件在同一 section（其间不出现别的区标题）
+     且 Appearance 卡不再含 `copy.AppIcon`。
+
+> 卡框架的三条（`Options.OnCopy` 复制反馈、终端键入的 `HandleInput` Unicode-空格缝、外观四个死旋钮）
+> 与一次性维护者动作（`mygo keygen`、`mygo.json` 的 `updates`/签名、CI 私钥、发布到 GitHub Release）
+> 仍见「已知差距」，不重复列入待办。
 
 ### 具体待办（P7-bu 重写；3 条已全部落地：第 1 条 P7-bv、第 2 条 P7-bv、第 3 条 P7-bw）
 

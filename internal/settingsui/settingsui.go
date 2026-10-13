@@ -1851,10 +1851,12 @@ func (a *App) general(c *ui.Context, copy i18n.Settings) {
 			// cards rather than like rows.
 			a.card(c, func() {
 				a.slider(c, copy.MainOpacity, copy.MainOpacityHint,
+					copy.TransparencyScaleLow, copy.TransparencyScaleHigh,
 					float64(s.MainOpacity), settings.MinWindowOpacity, settings.MaxWindowOpacity,
 					func(v float64) string { return copy.Percent(clampPercent(v)) },
 					func(v float64) { a.set(func(s *settings.Settings) { s.MainOpacity = clampPercent(v) }) })
 				a.slider(c, copy.TerminalOpacity, copy.TerminalOpacityHint,
+					copy.TransparencyScaleLow, copy.TransparencyScaleHigh,
 					float64(s.TerminalOpacity), settings.MinWindowOpacity, settings.MaxWindowOpacity,
 					func(v float64) string { return copy.Percent(clampPercent(v)) },
 					func(v float64) {
@@ -1925,7 +1927,8 @@ func (a *App) general(c *ui.Context, copy i18n.Settings) {
 							func(v string) { a.set(func(s *settings.Settings) { s.FontFamily = v }) })
 					},
 					control.AxisFontSize: func() {
-						a.slider(c, copy.FontSize, "", float64(s.FontSize),
+						a.slider(c, copy.FontSize, "", copy.ScaleSmall, copy.ScaleLarge,
+							float64(s.FontSize),
 							settings.MinFontSize, settings.MaxFontSize,
 							func(v float64) string { return fmt.Sprintf("%d", int(math.Round(v))) },
 							func(v float64) {
@@ -1933,7 +1936,8 @@ func (a *App) general(c *ui.Context, copy i18n.Settings) {
 							})
 					},
 					control.AxisLineHeight: func() {
-						a.slider(c, copy.LineHeight, "", s.TerminalLineHeight,
+						a.slider(c, copy.LineHeight, "", copy.ScaleSmall, copy.ScaleLarge,
+							s.TerminalLineHeight,
 							settings.MinTerminalLineHeight, settings.MaxTerminalLineHeight,
 							func(v float64) string { return fmt.Sprintf("%.1f\u00d7", v) },
 							func(v float64) {
@@ -2060,9 +2064,13 @@ func (a *App) palettePreview(c *ui.Context, copy i18n.Settings, name string) {
 	terminalui.PalettePreview(c, a.tokens(c), name, copy.PalettePreview, 0)
 }
 
-// slider builds one stacked row: the label and its hint above, the track and
-// its value at full width under them, as the reference's range row.
-func (a *App) slider(c *ui.Context, label, description string, value, lo, hi float64, format func(float64) string, apply func(float64)) {
+// slider builds one stacked row: the label and its live readout on the title
+// line, the hint under them, the track at full width, and one word at each end
+// of the track naming the axis — the reference's `.settings-slider__head` +
+// `SettingsScale` shape (the macOS range row). `low`/`high` are the axis' own
+// words; when both are empty the scale line is not drawn rather than inventing
+// an axis.
+func (a *App) slider(c *ui.Context, label, description, low, high string, value, lo, hi float64, format func(float64) string, apply func(float64)) {
 	tokens := a.tokens(c)
 	t := c.Theme()
 	inset := t.Space(3.5)
@@ -2075,22 +2083,28 @@ func (a *App) slider(c *ui.Context, label, description string, value, lo, hi flo
 			ui.Box(c).FillWidth().Height(1).Background(tokens.Hairline).MarginX(inset).Shrink(0)
 		}
 		ui.Column(c).FillWidth().Gap(t.Space(1)).Padding(t.Space(1.5), inset).Children(func() {
-			ui.Text(c, label).FontSize(t.FontSize).FontWeight(580).TextColor(tokens.TextStrong)
+			// The title line carries the value, pushed to the far end, as the
+			// reference's `.settings-slider__head` does: the number is a readout,
+			// not a second control, and a rolling counter is how the motion
+			// system shows a value changing in place.
+			ui.Row(c).FillWidth().AlignItems(ui.Center).Justify(ui.SpaceBetween).Children(func() {
+				ui.Text(c, label).FontSize(t.FontSize).FontWeight(580).TextColor(tokens.TextStrong)
+				ui.Text(c, format(v)).FontSize(t.FontSize).TextColor(tokens.TextStrong).
+					ContentTransition(ui.ContentTransition{Numeric: true})
+			})
 			if description != "" {
 				ui.Text(c, description).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
 			}
-			ui.Row(c).FillWidth().Gap(t.Space(2)).AlignItems(ui.Center).Children(func() {
-				e := ui.Slider(c, &v, lo, hi).Grow(1)
-				if e.Changed() {
-					chosen = true
-				}
-				// The live readout rolls its digits as the slider moves
-				// (`ui.ContentTransition{Numeric: true}`): the number is a
-				// value being chosen, and a rolling counter is how the motion
-				// system shows a value changing in place.
-				ui.Text(c, format(v)).FontSize(t.FontSize).TextColor(t.TextMuted).
-					ContentTransition(ui.ContentTransition{Numeric: true})
-			})
+			e := ui.Slider(c, &v, lo, hi).FillWidth()
+			if e.Changed() {
+				chosen = true
+			}
+			if low != "" || high != "" {
+				ui.Row(c).FillWidth().AlignItems(ui.Center).Justify(ui.SpaceBetween).Children(func() {
+					ui.Text(c, low).FontSize(t.FontSize - 2).FontWeight(500).TextColor(t.TextMuted)
+					ui.Text(c, high).FontSize(t.FontSize - 2).FontWeight(500).TextColor(t.TextMuted)
+				})
+			}
 		})
 	})
 	if chosen {
