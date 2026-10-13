@@ -28,6 +28,15 @@ func (a *App) tokens(c *ui.Context) theme.Tokens {
 // section draws a titled group: the title, its one-line explanation, and
 // the cards fn builds under them.
 func (a *App) section(c *ui.Context, title, hint string, fn func()) {
+	a.sectionFoot(c, title, hint, nil, fn)
+}
+
+// sectionFoot is section with the group's own footnotes under its cards. The
+// reference drew a group's explanations as `.settings-section__hint` lines at
+// the *end* of the section when they spoke for the whole group rather than for
+// one row (the material section's glass and transparency notes), so the two
+// cards above them carry no repeated per-row hint.
+func (a *App) sectionFoot(c *ui.Context, title, hint string, footnotes []string, fn func()) {
 	t := c.Theme()
 	ui.Column(c).FillWidth().Gap(t.Space(2)).Children(func() {
 		// The group's title is the ladder's title step at 620 in the strong
@@ -38,6 +47,11 @@ func (a *App) section(c *ui.Context, title, hint string, fn func()) {
 			ui.Text(c, hint).FontSize(t.FontSize).FontWeight(500).TextColor(t.TextMuted)
 		}
 		ui.Column(c).FillWidth().Gap(t.Space(2.5)).Children(fn)
+		for _, note := range footnotes {
+			if note != "" {
+				ui.Text(c, note).FontSize(t.FontSize).FontWeight(500).TextColor(t.TextMuted)
+			}
+		}
 	})
 }
 
@@ -48,6 +62,13 @@ func (a *App) section(c *ui.Context, title, hint string, fn func()) {
 // never opens or ends on a rule and no caller has to say which row is
 // last.
 func (a *App) card(c *ui.Context, fn func()) {
+	a.cardLabeled(c, "", fn)
+}
+
+// cardLabeled is card with the group's accessible name, the reference's
+// `aria-label` on a card whose visible title is the section heading above it
+// (the transparency card inside the material section).
+func (a *App) cardLabeled(c *ui.Context, label string, fn func()) {
 	tokens := a.tokens(c)
 	saved := a.cardRows
 	a.cardRows = 0
@@ -62,6 +83,9 @@ func (a *App) card(c *ui.Context, fn func()) {
 		Radius(tokens.RadiusMD).
 		Background(tokens.Control).
 		Clip()
+	if label != "" {
+		card.Label(label)
+	}
 	tokens.Lens(card)
 	card.Children(fn)
 }

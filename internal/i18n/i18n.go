@@ -311,19 +311,28 @@ type Settings struct {
 	GroupAppearance string
 	GroupWindow     string
 	GroupTerminal   string
+	// GroupTransparency names the transparency card inside the material
+	// section (the old `settings.group.transparency`). The card draws no
+	// visible title, so this is the group's accessible name.
+	GroupTransparency string
 
-	Theme               string
-	ThemeHint           string
-	AppIcon             string
-	AppIconHint         string
-	Language            string
-	LanguageHint        string
-	Glass               string
-	GlassHint           string
-	MainOpacity         string
-	MainOpacityHint     string
-	TerminalOpacity     string
-	TerminalOpacityHint string
+	Theme        string
+	ThemeHint    string
+	AppIcon      string
+	AppIconHint  string
+	Language     string
+	LanguageHint string
+	// Material titles the section that holds the glass effect and the two
+	// transparency sliders (the old `settings.material`, "Glass"). The
+	// reference drew that group's two explanations as section footnotes
+	// (`GlassHint` and `TransparencyHint`) rather than repeating a sentence on
+	// each row, so the two sliders carry no inline hint.
+	Material         string
+	TransparencyHint string
+	Glass            string
+	GlassHint        string
+	MainOpacity      string
+	TerminalOpacity  string
 	// TransparencyScaleLow and TransparencyScaleHigh name the two ends of the
 	// two transparency sliders' axis, the old `settings.transparency.scaleLow`
 	// (".scaleHigh") words: "Transparent" at 10% and "Solid" at 100%.

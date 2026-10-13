@@ -1843,19 +1843,25 @@ func (a *App) general(c *ui.Context, copy i18n.Settings) {
 					})
 				a.pick(c, copy.Language, copy.LanguageHint, copy.Languages, s.Language,
 					func(id string) { a.set(func(s *settings.Settings) { s.Language = id }) })
-				a.pick(c, copy.Glass, copy.GlassHint, copy.GlassSteps, s.GlassStep,
+			})
+		})
+
+		// The material group: the glass effect on one card and the two
+		// transparency sliders on a second, the group's two explanations drawn
+		// as footnotes under both (the reference's `.settings-section__hint` at
+		// the end of the section) rather than repeated on every row.
+		a.sectionFoot(c, copy.Material, "", []string{copy.GlassHint, copy.TransparencyHint}, func() {
+			a.card(c, func() {
+				a.pick(c, copy.Glass, "", copy.GlassSteps, s.GlassStep,
 					func(id string) { a.set(func(s *settings.Settings) { s.GlassStep = id }) })
 			})
-			// The two transparency sliders are their own card under the same
-			// title — the old panel's "two transparency groups", spaced like
-			// cards rather than like rows.
-			a.card(c, func() {
-				a.slider(c, copy.MainOpacity, copy.MainOpacityHint,
+			a.cardLabeled(c, copy.GroupTransparency, func() {
+				a.slider(c, copy.MainOpacity, "",
 					copy.TransparencyScaleLow, copy.TransparencyScaleHigh,
 					float64(s.MainOpacity), settings.MinWindowOpacity, settings.MaxWindowOpacity,
 					func(v float64) string { return copy.Percent(clampPercent(v)) },
 					func(v float64) { a.set(func(s *settings.Settings) { s.MainOpacity = clampPercent(v) }) })
-				a.slider(c, copy.TerminalOpacity, copy.TerminalOpacityHint,
+				a.slider(c, copy.TerminalOpacity, "",
 					copy.TransparencyScaleLow, copy.TransparencyScaleHigh,
 					float64(s.TerminalOpacity), settings.MinWindowOpacity, settings.MaxWindowOpacity,
 					func(v float64) string { return copy.Percent(clampPercent(v)) },

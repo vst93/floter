@@ -124,6 +124,71 @@ func TestSliderRowsNameTheirAxis(t *testing.T) {
 	}
 }
 
+// The material group is its own section: the glass effect on one card and the
+// two transparency sliders on a second, with the group's two explanations
+// drawn as footnotes under the cards (the reference's `.settings-section__hint`
+// at the end of a section) rather than repeated on each slider row. Before this
+// the glass control sat inside the Appearance card and each transparency row
+// carried its own inline sentence.
+func TestGeneralMaterialGroupFootnotes(t *testing.T) {
+	copy := i18n.For("en").Settings
+	a := New(newStore(t), Actions{})
+	tt := render(t, a, 720, 2400)
+
+	count := func(text string) int {
+		n := 0
+		for _, shown := range tt.Texts() {
+			if shown == text {
+				n++
+			}
+		}
+		return n
+	}
+
+	// The section title and its two explanations show up once each — never a
+	// second time as a row-level hint.
+	for _, once := range []string{copy.Material, copy.GlassHint, copy.TransparencyHint} {
+		if got := count(once); got != 1 {
+			t.Errorf("%q appears %d times, want 1: %q", once, got, tt.Texts())
+		}
+	}
+
+	title, ok := tt.Find(copy.Material)
+	if !ok {
+		t.Fatalf("the material section title %q is missing", copy.Material)
+	}
+	// The glass control left the Appearance card and now lives in the material
+	// section: its row sits below the section's own title.
+	glass, ok := tt.Find(copy.Glass)
+	if !ok {
+		t.Fatalf("the glass control %q is missing", copy.Glass)
+	}
+	if glass.Y <= title.Y {
+		t.Errorf("the glass control at %v is not under the material section at %v", glass, title)
+	}
+	mainRow, ok := tt.Find(copy.MainOpacity)
+	if !ok {
+		t.Fatalf("the %q row is missing", copy.MainOpacity)
+	}
+	termRow, ok := tt.Find(copy.TerminalOpacity)
+	if !ok {
+		t.Fatalf("the %q row is missing", copy.TerminalOpacity)
+	}
+	if mainRow.Y <= title.Y || termRow.Y <= title.Y {
+		t.Errorf("the transparency rows are not under the material section (%v, %v vs %v)", mainRow, termRow, title)
+	}
+	// Both explanations are footnotes below the cards they speak for, not a
+	// sentence inside the rows.
+	glassFoot, _ := tt.Find(copy.GlassHint)
+	if glassFoot.Y <= glass.Y {
+		t.Errorf("the glass note at %v is not below the glass row at %v", glassFoot, glass)
+	}
+	opacityFoot, _ := tt.Find(copy.TransparencyHint)
+	if opacityFoot.Y <= termRow.Y {
+		t.Errorf("the transparency note at %v is not below the last transparency row at %v", opacityFoot, termRow)
+	}
+}
+
 func TestSettingsControlsWriteThroughTheStore(t *testing.T) {
 	store := newStore(t)
 	a := New(store, Actions{})

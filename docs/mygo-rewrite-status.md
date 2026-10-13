@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**920 项测试全绿**。
+含测试）。**921 项测试全绿**。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 920 项测试
+go test -count=1 ./...         # 921 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,7 +99,23 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-bx 四条滚轴的轴两端词与 R162 玻璃说明（原版 `SettingsScale` / `settings.transparency.scaleLow`）**
+> **最新一轮：P7-by General 页独立的「玻璃」区与区脚注（原版 `settings.material` / `settings.group.transparency`）**
+> —— P7-bx 重写的 3 条具体待办第 1 条已落地，本轮取第 2 条：原版把材质分成自己的 section
+>（标题 `settings.material` = Glass），里面两张卡——玻璃强度卡与透明度卡（卡的无障碍名
+> `settings.group.transparency`）——区尾用两句 `.settings-section__hint` 交代玻璃强度与透明度
+>（`glassIntensityHint`、`transparencyHint`），**不重复在每一行**。本构建把玻璃控件折进 Appearance
+> 卡、透明度两条滚轴放第二张卡且每条各带一句行内 hint（`MainOpacityHint`/`TerminalOpacityHint`）。
+> 现在 `general` 把玻璃控件搬出 Appearance 卡：Appearance 卡只剩主题/图标/语言；新增
+> `a.sectionFoot(c, copy.Material, "", []string{copy.GlassHint, copy.TransparencyHint}, …)` 装两张卡
+>（玻璃强度卡 + 用 `a.cardLabeled(copy.GroupTransparency, …)` 画的透明度卡），两条滚轴的 description
+> 传空；`rows.go` 新增 `sectionFoot`（`section` 现在是它的无脚注包装）与 `cardLabeled`（给卡挂无障碍名）。
+> i18n 删掉 `MainOpacityHint`/`TerminalOpacityHint`（原版只有一句 `transparencyHint`），新增
+> `Material`/`TransparencyHint`/`GroupTransparency`（en/zh 原文：Glass/玻璃、原 transparencyHint、
+> Transparency/透明度）。测试 `TestGeneralMaterialGroupFootnotes` 钉住：区标题与两句脚注各恰好一次、
+> 玻璃控件在区标题之下（不再在 Appearance 卡）、两条透明度行在区标题之下且脚注在末行之下；变异核查：
+> 脚注列表多塞一句 `TransparencyHint` 后计数断言立刻变红。
+
+> **上一轮：P7-bx 四条滚轴的轴两端词与 R162 玻璃说明（原版 `SettingsScale` / `settings.transparency.scaleLow`）**
 > —— P7-bw 收尾后「尚未做」又一次为空，本轮先把它重写成 3 条带 file:line 的具体待办
 >（下方「具体待办（P7-bx 重写）」），再取第 1 条落地：原版每一条 range 行都是同一形状——**标题行 = 标签
 > + 实时读数**（space-between），**轨道下 = 轴两端各一个词**（`SettingsScale`）；透明度两条滚轴是
@@ -2224,13 +2240,12 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-> **P7-bx 更新**：P7-bu 重写的 3 条已全部落地（P7-bv/P7-bw），清单又一次为空。本轮按历史惯例
-> 先把它重写成 3 条带 file:line 的具体待办（下方「具体待办（P7-bx 重写）」），再取第 1 条落地。
+> **P7-by 更新**：P7-bx 重写的 3 条中第 1、2 条已落地（P7-bx/P7-by），只剩第 3 条（菜单栏区）。
 > 三条都**不卡框架**，都是 General 页对照原版的版式/文案偏离；其余卡框架的三条
 >（`Options.OnCopy`、终端键入的 `HandleInput` 缝、外观四个死旋钮）与一次性维护者动作
 >（`mygo keygen`、`mygo.json` 的 `updates`/签名、CI 私钥、发布到 GitHub Release）不变，另见「已知差距」。
 
-### 具体待办（P7-bx 重写；3 条中第 1 条 P7-bx 已落地）
+### 具体待办（P7-bx 重写；3 条中第 1、2 条已落地）
 
 1. **General 页四条滚轴缺「轴的两端词」，读数也不在标题行（R162 后的原版 `SettingsScale`）（本轮已落地）** ——
    原版每一条 range 行都是同一形状：**标题行 = 标签 + 实时读数**（`.settings-slider__head`，
@@ -2252,19 +2267,23 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
      `GlassHint` 换成 R162 措辞。测试 `TestSliderRowsNameTheirAxis`：Transparent/Solid 各恰好 2 次，
      Small/Large 各 ≥3 次（含 Interface size 分段控件那 1 次）。变异核查：把轴词行改成 `if false`，四条断言全红。
 
-2. **General 页没有独立的「玻璃」区与区脚注（原版 `settings.material`）** —— 原版把材质分成
+2. **General 页没有独立的「玻璃」区与区脚注（原版 `settings.material`）（本轮 P7-by 已落地）** —— 原版把材质分成
    一个自己的 section（标题 `settings.material` = Glass/玻璃），里面两张卡：**玻璃强度**卡与**透明度**卡
    （卡标题 `settings.group.transparency`），两条说明（`glassIntensityHint`、`transparencyHint`）画成
    **区脚注**、不重复在每一行。本构建把玻璃控件折进 Appearance 卡、透明度两条滚轴放第二张卡，并且
    每条滚轴各带一句行内 hint（`MainOpacityHint`/`TerminalOpacityHint`）。
    - 原版：`src/settings/GeneralPage.tsx:558-594`（material section）+ `src/i18n.ts:338`/`:209`/`:346`/`:352`。
-   - 本构建：`internal/settingsui/settingsui.go:1836-1866`（玻璃在 Appearance 卡、透明度卡带行内 hint）；
+   - 本构建（改前）：`internal/settingsui/settingsui.go:1836-1866`（玻璃在 Appearance 卡、透明度卡带行内 hint）；
      `internal/i18n/i18n.go` 无 `Material`/`GroupTransparency` 字段。
-   - 验收：新增 `Material` + `GroupTransparency` 两个 i18n 字段（en/zh 旧版原文）与 `GroupMaterial`；
-     General 页新增一个 `a.section(c, copy.Material, copy.GlassHint, …)`，内含玻璃强度卡（不再画在
-     Appearance 卡里）与透明度卡（标题 `GroupTransparency`，两条滚轴**不再带行内 hint**），透明度说明
-     改画脚注；`Appearance` 卡只剩主题/图标/语言/界面大小。测试钉住：material 区标题与两句脚注各出现一次，
-     两条透明度行不再有行内 hint，玻璃控件不再在 Appearance 卡里。
+   - 验收（已满足）：新增 `Material`（Glass/玻璃）、`TransparencyHint`（原 transparencyHint）、
+     `GroupTransparency`（Transparency/透明度）三个 i18n 字段，删掉原版没有的 `MainOpacityHint`/
+     `TerminalOpacityHint`；General 页新增 `a.sectionFoot(c, copy.Material, "", []string{copy.GlassHint,
+     copy.TransparencyHint}, …)`：内含玻璃强度卡（不再画在 Appearance 卡里）与透明
+     度卡（`a.cardLabeled(copy.GroupTransparency, …)`，两条滚轴的 description 传空），两句说明画在两张卡
+     之下。`rows.go` 新增 `sectionFoot`（`section` 是其无脚注包装）与 `cardLabeled`（卡的无障碍名）。
+     注：`Scale`（界面大小）在本构建住在 Window behaviour 卡、本轮不动；Appearance 卡去掉玻璃后只剩
+     主题/图标/语言。测试 `TestGeneralMaterialGroupFootnotes` 钉住：material 区标题与两句脚注各恰好一次（不再有
+     行内 hint），玻璃控件在区标题之下、两条透明度行也在区标题之下，两句脚注在各自卡片末行之下。
 
 3. **General 页没有独立的「菜单栏」区（原版 `settings.group.menuBar`）** —— 原版给菜单栏自己的 section
    （标题 `settings.group.menuBar`），把**应用图标**选择器（R150）与**显示菜单栏图标**开关放在同一张卡里
