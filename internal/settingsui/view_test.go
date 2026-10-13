@@ -246,6 +246,42 @@ func TestGeneralMenuBarGroup(t *testing.T) {
 	}
 }
 
+// The interface size is an Appearance choice, not a window behaviour one: the
+// reference keeps it in the appearance card beside theme and language
+// (R7-13c, `GeneralPage.tsx:370-390`) because it is the same kind of decision —
+// how the interface looks. Before this it sat in the Window behaviour card. The
+// same reference orders the window rows launch → hide-on-blur → page residency
+// → recent items (`GeneralPage.tsx:410`/`:431`/`:450`/`:464`); this pins both.
+func TestInterfaceSizeSitsWithAppearance(t *testing.T) {
+	copy := i18n.For("en").Settings
+	a := New(newStore(t), Actions{})
+	tt := render(t, a, 720, 2800)
+
+	appearance := mustFind(t, tt, copy.GroupAppearance)
+	window := mustFind(t, tt, copy.GroupWindow)
+	theme := mustFind(t, tt, copy.Theme)
+	language := mustFind(t, tt, copy.Language)
+	scale := mustFind(t, tt, copy.Scale)
+
+	// The size row lives inside the Appearance card: below its title and
+	// above the Window behaviour section that follows it, and after the two
+	// rows the reference draws before it.
+	if scale.Y <= appearance.Y || scale.Y >= window.Y {
+		t.Errorf("the interface size at %v is not inside the appearance card (%v → %v)", scale, appearance, window)
+	}
+	if scale.Y <= theme.Y || scale.Y <= language.Y {
+		t.Errorf("the interface size at %v is not after theme (%v) and language (%v), want the reference order", scale, theme, language)
+	}
+
+	// The window rows keep the reference order: page residency before the
+	// recent-items switch, not after it.
+	residency := mustFind(t, tt, copy.SurfaceResidency)
+	recent := mustFind(t, tt, copy.ShowRecentInLauncher)
+	if residency.Y >= recent.Y {
+		t.Errorf("the page-residency row at %v is not above the recent-items switch at %v, want the reference order", residency, recent)
+	}
+}
+
 // mustFind is Find for a row the caller already knows is on the page.
 func mustFind(tb testing.TB, tt *ui.Tester, text string) ui.Rect {
 	tb.Helper()

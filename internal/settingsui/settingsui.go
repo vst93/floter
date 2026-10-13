@@ -1839,6 +1839,14 @@ func (a *App) general(c *ui.Context, copy i18n.Settings) {
 					func(id string) { a.set(func(s *settings.Settings) { s.Theme = id }) })
 				a.pick(c, copy.Language, copy.LanguageHint, copy.Languages, s.Language,
 					func(id string) { a.set(func(s *settings.Settings) { s.Language = id }) })
+				// R7-13c · the interface size sits in Appearance next to
+				// theme/language because it is the same kind of choice — how the
+				// interface looks — not a window behaviour: it scales the whole
+				// UI wherever the window is, and it keeps working when the window
+				// never hides. It was in the Window behaviour card, a group it has
+				// nothing in common with.
+				a.pick(c, copy.Scale, copy.ScaleHint, copy.Scales, s.UIScale,
+					func(id string) { a.set(func(s *settings.Settings) { s.UIScale = id }) })
 			})
 		})
 
@@ -1869,14 +1877,15 @@ func (a *App) general(c *ui.Context, copy i18n.Settings) {
 
 		a.section(c, copy.GroupWindow, "", func() {
 			a.card(c, func() {
-				a.pick(c, copy.Scale, copy.ScaleHint, copy.Scales, s.UIScale,
-					func(id string) { a.set(func(s *settings.Settings) { s.UIScale = id }) })
 				a.checkbox(c, copy.LaunchAtStartup, copy.LaunchAtStartupHint, s.LaunchAtStartup,
 					func(on bool) { a.set(func(s *settings.Settings) { s.LaunchAtStartup = on }) })
 				a.checkbox(c, copy.HideOnBlur, copy.HideOnBlurHint, s.HideOnBlur,
 					func(on bool) { a.set(func(s *settings.Settings) { s.HideOnBlur = on }) })
-				a.checkbox(c, copy.ShowRecentInLauncher, copy.ShowRecentInLauncherHint, settings.ShowRecentInLauncher(s),
-					func(on bool) { a.set(func(s *settings.Settings) { s.SetShowRecentInLauncher(on) }) })
+				// R35/R41 · the page-residency window sits beside `hide_on_blur`
+				// because the two are read together but answer different
+				// questions: the switch decides whether the *window* disappears,
+				// this one decides whether the *surface* survives it. The
+				// reference draws it before the recent-items switch.
 				a.choose(c, copy.SurfaceResidency, copy.SurfaceResidencyHint,
 					residencyOptions(copy, s.SurfaceResidencySeconds),
 					strconv.FormatUint(uint64(s.SurfaceResidencySeconds), 10),
@@ -1904,6 +1913,8 @@ func (a *App) general(c *ui.Context, copy i18n.Settings) {
 						}
 					}
 				})
+				a.checkbox(c, copy.ShowRecentInLauncher, copy.ShowRecentInLauncherHint, settings.ShowRecentInLauncher(s),
+					func(on bool) { a.set(func(s *settings.Settings) { s.SetShowRecentInLauncher(on) }) })
 			})
 		})
 

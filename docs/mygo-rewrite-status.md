@@ -99,7 +99,22 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-bz General 页独立的「菜单栏」区（原版 `settings.group.menuBar`）** —— P7-by 之后
+> **最新一轮：P7-ca 界面大小搬回 Appearance 卡 + Window behaviour 行序（原版 R7-13c / `GeneralPage.tsx:370-390`、`:450`/`:464`）**
+> —— P7-bz 收尾后「尚未做」又一次为空，本轮先把它重写成 3 条带 file:line 的具体待办（下方「具体待办
+> （P7-ca 重写）」），再取第 1、2 条落地。两条都是 General 页的**归类与行序**偏差：
+> （R7-13c）原版把界面大小（`settings.uiScale`）画在 Appearance 卡里、theme/language **之后**，注释写明
+> 「它和 theme/language 是同一类选择——界面长什么样」；本构建把它放在 Window behaviour 卡首行，于是
+> 一个缩放整个界面的外观选项和一个「窗口失焦隐藏」的开关同处一区。现在 `general` 把 `a.pick(c, copy.Scale,
+> copy.ScaleHint, copy.Scales, s.UIScale, …)` 移进 Appearance 卡（Language 之后）。
+> （原版 `:410`/`:431`/`:450`/`:464`）原版 Window behaviour 卡的行序是 launch-at-startup → hide-on-blur →
+> **page-residency** → **recent-items**；本构建把 recent-items 画在 page-residency 之前，两个相邻但有
+> 先后关系的开关顺序颠倒。现在 residency（连同自定义秒数行）排到 recent switch 之前。测试
+> `TestInterfaceSizeSitsWithAppearance` 钉住：Scale 行在 Appearance 标题之下、Window behaviour 标题之上，
+> 且在 Theme/Language 之后；residency 行在 recent switch 之上。变异核查：把 Scale 移回 Window 卡、或把
+> recent switch 挪到 hide-on-blur 之后，两条断言分别立刻变红（后者实测 `residency ... is not above recent`）。
+> 至此 P7-ca 第 3 条（page-residency 收成原版那一行控件）仍待做。
+
+> **上一轮：P7-bz General 页独立的「菜单栏」区（原版 `settings.group.menuBar`）** —— P7-by 之后
 > 「尚未做」只剩 P7-bx 重写的第 3 条，本轮取它：原版给菜单栏自己的 section（标题
 > `settings.group.menuBar`），把**显示菜单栏图标**开关（R7-10c）与**应用图标**明暗选择（R150）放进
 > **同一张卡**，注释写明理由是「两者说的是同一个图标」（`GeneralPage.tsx:486-489`）。本构建把
@@ -2253,10 +2268,50 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-> **P7-bz 更新**：P7-bx 重写的 3 条已全部落地（第 1 条 P7-bx、第 2 条 P7-by、第 3 条 P7-bz），清单为空；
-> 其余只剩卡框架的三条（`Options.OnCopy`、终端键入的 `HandleInput` 缝、外观四个死旋钮）与一次性
-> 维护者动作（`mygo keygen`、`mygo.json` 的 `updates`/签名、CI 私钥、发布到 GitHub Release）不变，
-> 另见「已知差距」。
+> **P7-ca 更新**：P7-bz 之后「尚未做」清单再次为空，本轮先把它重写成 3 条带 file:line 的具体待办
+>（下方「具体待办（P7-ca 重写）」），再取第 1、2 条落地：**界面大小（Interface size）搬回 Appearance 卡**
+> （原版 R7-13c）与 **Window behaviour 的行序**（原版 page-residency 在 recent-items 之前）。只剩第 3 条
+> （page-residency 收成原版那一行控件）。其余仍是卡框架的三条（`Options.OnCopy`、终端键入的 `HandleInput` 缝、
+> 外观四个死旋钮）与一次性维护者动作（`mygo keygen`、`mygo.json` 的 `updates`/签名、CI 私钥、发布到
+> GitHub Release），另见「已知差距」。
+
+### 具体待办（P7-ca 重写；3 条，第 1、2 条本轮已落地）
+
+1. **界面大小住在 Window behaviour 卡，应回 Appearance 卡（原版 R7-13c）（本轮已落地）** —— 原版把
+   `uiScale` 的 `SettingsRow` 放在 Appearance 卡里、theme/language **之后**，注释写明理由是「它和 theme/
+   language 是同一类选择——界面长什么样」（`GeneralPage.tsx:369-390`，R7-13c）。本构建把它画在
+   Window behaviour 卡首行：一个缩放整个界面的外观选项，和一个「窗口失焦隐藏」的开关同处一区。
+   - 原版：`src/settings/GeneralPage.tsx:370-390`（Appearance 卡内 `settings.uiScale`）+ `:333-400`（卡
+     的其余两行）。
+   - 本构建（改前）：`internal/settingsui/settingsui.go:1871-1873`（`copy.Scale` 在 `GroupWindow` 卡首行）。
+   - 验收（已满足）：`a.pick(c, copy.Scale, copy.ScaleHint, copy.Scales, s.UIScale, …)` 移进 Appearance 卡
+     （Language 之后），Window behaviour 卡去掉它；测试 `TestInterfaceSizeSitsWithAppearance` 钉住 Scale 行
+     在 Appearance 标题之下、Window behaviour 标题之上，且在 Theme/Language 之后。变异核查：把 Scale 移回
+     Window 卡后位置断言立刻变红。
+
+2. **Window behaviour 的行序与参考相反（原版 `GeneralPage.tsx:410/431/450/464`）（本轮已落地）** —— 原版四
+   行顺序是 launch-at-startup → hide-on-blur → **page-residency** → **recent-items**（`:410` switch、`:431`
+   blur switch、`:450` residency control、`:464` recent switch）；本构建把 `showRecentInLauncher` 画在
+   `surfaceResidency` **之前**，两个相邻但有先后关系的开关顺序颠倒。（`Scale` 移出后剩下的四行仍是这个
+   错序。）
+   - 原版：`src/settings/GeneralPage.tsx:410`/`:431`/`:450`/`:464`。
+   - 本构建（改前）：`internal/settingsui/settingsui.go:1877-1912`（recent switch 在 residency 之前）。
+   - 验收（已满足）：`surfaceResidency`（连同自定义秒数行）排到 `showRecentInLauncher` 之前；`TestInterfaceSizeSitsWithAppearance`
+     同时钉住这一行序。变异核查：把 recent switch 挪到 hide-on-blur 之后，`residency is not above recent` 立刻变红。
+
+3. **page-residency 被拆成两行，原版是**一行**带内联自定义字段（原版 `SurfaceResidencyControl`）** —— 原版是
+   单行 `<select>`：off / presets / never / **custom** 四类选项，仅当选中 custom 时在同一行里内联出数字框 +
+   单位 + Apply（`.residency-control__custom`，`GeneralPage.tsx:157-250`）；存储值本身是自定义数字时，custom
+   那一条的标签用 `surfaceResidencyCustomValue({seconds})` 回显；内联框初值由 `residencyCustomSeedSeconds`
+   取（自定义值＝自己，其余＝默认）；提交落在 preset 上就收起内联框。本构建把选择器与自定义输入拆成**两行**：
+   选择器把当前自定义值伪装成第一条选项（`residencyOptions`），下面再**无条件**画一行输入框 + Apply。
+   - 原版：`src/settings/GeneralPage.tsx:157-250`（`SurfaceResidencyControl`）+ `src/surface-residency.ts`
+     （`residencySelectValue`/`residencyFromSelect`/`residencyCustomSeedSeconds`）。
+   - 本构建（待做）：`internal/settingsui/settingsui.go:1889-1917`（选择器一行 + 自定义行）+ `:2222-2243`
+     （`residencyOptions` 以存储值造伪选项）。
+   - 验收（待做）：收成一行（select 带 custom 项；仅 custom 时画内联 `TextInput` + 单位 + Apply，Enter 也提交）；
+     `residencyOptions` 换成 `residencySelectValue` 的纯映射；测试钉住非 custom 值下页面上没有自定义输入框、
+     选 custom 后出现、且自定义存储值回显在 custom 选项标签里。
 
 ### 具体待办（P7-bx 重写；3 条已全部落地：第 1 条 P7-bx、第 2 条 P7-by、第 3 条 P7-bz）
 
