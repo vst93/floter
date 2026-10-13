@@ -423,6 +423,45 @@ func TestApplicationNamesAndAliases(t *testing.T) {
 	}
 }
 
+// An application row's only subtitle is the platform's one-line description
+// (a Linux `.desktop` entry's `Comment=`), and only when there is no localized
+// name — the old build's subtitle slot reached for the alternate name first and
+// then dropped it, so a localized entry never showed its comment either.
+func TestApplicationRowSubtitleIsTheComment(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		app        apps.App
+		wantTitle  string
+		wantDetail string
+	}{
+		{
+			name:       "a comment stands alone",
+			app:        apps.App{Name: "Files", Comment: "Browse your files", Path: "/usr/share/applications/files.desktop"},
+			wantTitle:  "Files",
+			wantDetail: "Browse your files",
+		},
+		{
+			name:       "a localized name shadows the comment",
+			app:        apps.App{Name: "Files", Localized: "文件", Comment: "Browse your files", Path: "/usr/share/applications/files.desktop"},
+			wantTitle:  "文件",
+			wantDetail: "",
+		},
+		{
+			name:       "no comment means no subtitle",
+			app:        apps.App{Name: "Files", Path: "/usr/share/applications/files.desktop"},
+			wantTitle:  "Files",
+			wantDetail: "",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			item := appItem(tc.app, func() {})
+			if item.Title != tc.wantTitle || item.Detail != tc.wantDetail {
+				t.Errorf("row = {Title:%q Detail:%q}, want {%q %q}", item.Title, item.Detail, tc.wantTitle, tc.wantDetail)
+			}
+		})
+	}
+}
+
 // A Chinese-named application is reachable from a Latin keyboard through the
 // pinyin initials its scan computed.
 func TestPinyinInitialsJoinTheSearch(t *testing.T) {

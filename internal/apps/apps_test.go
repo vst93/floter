@@ -134,7 +134,122 @@ Exec=nautilus %U
 				t.Errorf("Firefox exec = %#v", a.Exec)
 			}
 		}
+		if a.Name == "Files" {
+			// The scan keeps the localized name and folds it into the pinyin
+			// initials (the old build filled `initials` from name+localizedName).
+			if a.Localized != "文件" {
+				t.Errorf("Files localized = %q", a.Localized)
+			}
+			if a.Initials != "fileswj" {
+				t.Errorf("Files initials = %q", a.Initials)
+			}
+		}
 	}
+}
+
+// A `.desktop` entry's localized Name/Comment follow the old build's Chinese
+// locale ladder (zh_CN > zh_SG > zh > zh_TW > zh_HK); an unlocalized value is
+// only a fallback a localized one may override, and a localized name equal to
+// the plain one is not a second name.
+func TestDesktopLocalizedNameAndComment(t *testing.T) {
+	parse := func(t *testing.T, body string) App {
+		t.Helper()
+		dir := t.TempDir()
+		path := filepath.Join(dir, "app.desktop")
+		write(t, path, body)
+		app, ok := ParseDesktopFile(path)
+		if !ok {
+			t.Fatalf("ParseDesktopFile rejected %q", body)
+		}
+		return app
+	}
+
+	t.Run("the best Chinese name wins", func(t *testing.T) {
+		app := parse(t, `
+[Desktop Entry]
+Name=Files
+Name[zh_TW]=檔案
+Name[zh_CN]=文件
+Exec=nautilus %U
+`)
+		if app.Name != "Files" || app.Localized != "文件" {
+			t.Errorf("Name=%q Localized=%q", app.Name, app.Localized)
+		}
+	})
+
+	t.Run("a locale outside the ladder is ignored", func(t *testing.T) {
+		app := parse(t, `
+[Desktop Entry]
+Name=Files
+Name[fr]=Fichiers
+Exec=nautilus %U
+`)
+		if app.Localized != "" {
+			t.Errorf("Localized=%q, want empty", app.Localized)
+		}
+	})
+
+	t.Run("a localized name equal to the plain one is dropped", func(t *testing.T) {
+		app := parse(t, `
+[Desktop Entry]
+Name=Files
+Name[zh_CN]=Files
+Exec=nautilus %U
+`)
+		if app.Localized != "" {
+			t.Errorf("Localized=%q, want empty", app.Localized)
+		}
+	})
+
+	t.Run("a localized comment overrides the plain one", func(t *testing.T) {
+		app := parse(t, `
+[Desktop Entry]
+Name=Files
+Comment=Browse your files
+Comment[zh_TW]=瀏覽檔案
+Comment[zh_CN]=浏览文件
+Exec=nautilus %U
+`)
+		if app.Comment != "浏览文件" {
+			t.Errorf("Comment=%q", app.Comment)
+		}
+	})
+
+	t.Run("a plain comment stands when nothing localized exists", func(t *testing.T) {
+		app := parse(t, `
+[Desktop Entry]
+Name=Files
+Comment=Browse your files
+Exec=nautilus %U
+`)
+		if app.Comment != "Browse your files" {
+			t.Errorf("Comment=%q", app.Comment)
+		}
+	})
+
+	t.Run("an empty comment is dropped", func(t *testing.T) {
+		app := parse(t, `
+[Desktop Entry]
+Name=Files
+Comment=
+Exec=nautilus %U
+`)
+		if app.Comment != "" {
+			t.Errorf("Comment=%q, want empty", app.Comment)
+		}
+	})
+
+	t.Run("desktop-entry escapes are unescaped", func(t *testing.T) {
+		app := parse(t, `
+[Desktop Entry]
+Name=Text\sEditor
+Comment=Line\nOne
+Exec=editor
+`)
+		if app.Name != "Text Editor" || app.Comment != "Line\nOne" {
+			t.Errorf("Name=%q Comment=%q", app.Name, app.Comment)
+		}
+	})
 }
 
 func TestParseDesktopFileRejectsJunk(t *testing.T) {

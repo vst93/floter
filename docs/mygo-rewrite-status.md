@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**941 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**974 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 935 项测试
+go test -count=1 ./...         # 974 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,7 +99,26 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-ch 捕获输出的 UTF-8 边界与内存上限（P7-cg 清单第 1、2 条）**
+> **最新一轮：P7-ci Linux `.desktop` 的本地化名与 `Comment=`（原版 `linux.rs` / R14 行副标题）**
+> —— P7-ch 收尾后「尚未做」又一次为空。本轮换入口：**逐文件对照原版的平台扫描器**。原版
+> `src-tauri/src/commands/apps/linux.rs:312-372` 用 `["zh_CN","zh_SG","zh","zh_TW","zh_HK"]` 的阶梯读
+> `Name[locale]`/`Comment[locale]`，本构建 `internal/apps/apps.go` 的 `ParseDesktopFile` 却只读无 locale 的
+> `Name`/`Exec`/`Icon`/`Hidden`/`NoDisplay`（`Name[zh_CN]=…` 的 key 落到 default），`Comment=` 根本没有
+> case；而 `internal/launcher/search.go` 的 `appItem` 也从不设 `Detail`。现在：新增 `desktopLocales` 阶梯 +
+> `desktopLocaleRank` + `unescapeDesktop`（`\s`/`\n`/`\t`/`\r`/`\\`），`ParseDesktopFile` 按原版规则取本地化
+> 名（`localized == name` 时不计）与 Comment（无 locale 先到先得、可被本地化覆盖，空串丢弃），`ScanLinux`
+> 用 `computeInitials(name, localized)` 填拼音；`App` 新增 `Comment` 字段；`appItem` 只在 `Localized == ""`
+> 时把 Comment 画成副标题——这正是原版 `useLauncherCatalog.ts:1162-1166` 的
+> `(localizedName && name) || comment || …` 经 `row-content.ts:125-171` 的 `isAlternateAppName` 丢掉别名后的净效果。
+> 测试：`TestDesktopLocalizedNameAndComment`（7 个子用例：zh_CN 胜 zh_TW、fr 忽略、同名不计、Comment 阶梯、
+> 无 locale 回退、空 Comment、转义）+ `TestScanLinux` 补 Files 的 `Localized`/`Initials` 断言 +
+> `TestApplicationRowSubtitleIsTheComment`（comment 单独显示 / 本地化名遮蔽 / 都没有则空）。变异核查：
+> 把 `if app.Localized == ""` 换成 `if true` → 行副标题用例红（`Detail:"Browse your files"`）；把阶梯改成
+> `zh_TW` 在前 → `Localized:"檔案"`、`Comment:"瀏覽檔案"` 两条红。依赖检查：
+> `proxy.golang.org/github.com/egoist/mygo/@v/list` 确认 **v0.4.8** 仍是最新，与 `go.mod` 一致，无版本可升。
+> 同轮把「尚未做」重写为 3 条具体待办（下方），第 2 条（搜索别名）、第 3 条（Type/TryExec/DBusActivatable）待做。
+
+> **上一轮：P7-ch 捕获输出的 UTF-8 边界与内存上限（P7-cg 清单第 1、2 条）**
 > —— 上一轮 P7-cg 把空清单重写成两条「Go 捕获实现自己的缺陷」，工作区里已经躺着一半实现
 > （`internal/extensions/output.go` / `output_test.go` 未提交，且 `clip` 与 `run.go` 重定义冲突、`go build`
 > 直接红）。本轮把它收口：`output.go` 的 `capturedOutput`（每个流的限长 writer，只留最前 `MaxRunOutputBytes`
@@ -2360,7 +2379,51 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-### 具体待办（P7-cg 重写；两项已于 P7-ch 全部落地 → 下一轮回到「对照原版排查偏离点」）
+### 具体待办（P7-ci 重写；第 1 条本轮已落地，第 2、3 条待做）
+
+前一份 P7-cg 清单两项已全部落地，清单又空。本轮检查 GitHub latest release：仍为 **v0.4.8**，与 go.mod
+一致，无需升级。只对照 `main`，不翻历史提交。这轮换一个入口：**逐文件对照原版的平台扫描器**，发现本
+构建的 Linux `.desktop` 读取器只是一个占位——`internal/apps/apps.go:276` 的 `ParseDesktopFile` 只读
+`Name`/`Exec`/`Icon`/`Hidden`/`NoDisplay`，而原版 `main:src-tauri/src/commands/apps/linux.rs` 读的是一份
+完整的 Desktop Entry。这不是「框架不支持」，是 Go 侧没写完。
+
+1. **Linux `.desktop` 的本地化名与 `Comment=`（P7-ci 已落地）**。
+   - 本构建（改前）：`internal/apps/apps.go:276-350` 的 `ParseDesktopFile` 用 `strings.Cut(line, "=")` 后
+     直接 `switch key`，于是 `Name[zh_CN]=…` 的 key 是 `"Name[zh_CN]"`，落到 default 被丢；`Comment=`
+     根本没有 case。`internal/launcher/search.go:515` 的 `appItem` 也不设 `Detail`，所以 Linux 应用行
+     永远没有副标题、也永远没有本地化标题。
+   - 原版对照：`main:src-tauri/src/commands/apps/linux.rs:312-372` 用
+     `locales = ["zh_CN","zh_SG","zh","zh_TW","zh_HK"]` 给 `Name[locale]`/`Comment[locale]` 排名取最优
+     （`best_name_locale`/`best_comment_locale`，无 locale 的 `Comment` 是先到先得、可被本地化覆盖），
+     `:447` 过滤空 Comment；`main:src/hooks/useLauncherCatalog.ts:1162-1166` 应用行
+     `subtitle = (localizedName && name) || comment || t(appSubtitleKey(path))`；`main:src/launcher/row-content.ts:125-171`
+     的 `isAlternateAppName` 又把「本地化名 ↔ 拉丁名」那条副标题丢掉，所以**实际只有 comment 会被画出来**，
+     且只在没有本地化名时。
+   - 验收：`Name[zh_CN]` 胜过 `Name[zh_TW]`、不在阶梯里的 `Name[fr]` 被忽略、本地化名与 `Name` 相同则不计；
+     `Comment[zh_CN]` 胜过 `Comment[zh_TW]` 与无 locale 的 `Comment`；空 Comment 丢弃；`\s`/`\n` 等
+     Desktop Entry 转义按规范解开；应用行只在 `Localized == ""` 时把 Comment 画成副标题。
+2. **Linux `.desktop` 的搜索别名（GenericName / Keywords / StartupWMClass / Exec 程序名 / desktop-id 片段）**。
+   - 本构建：`internal/apps/apps.go:185-202` 的 `ScanLinux` 从不给 `App.Aliases` 赋值，`ParseDesktopFile`
+     也不读这几个键。于是一个中文名 Linux 应用只有拼音首字母能命中；`nautilus`、`org.gnome.Nautilus`、
+     `StartupWMClass` 一概搜不到——而 macOS 侧 `internal/apps/darwin.go:65` 已经这样做了。
+   - 原版对照：`main:src-tauri/src/commands/apps/linux.rs:423-440` 把 `generic_name`、`startup_wm_class`、
+     `executable_name(exec)`、`executable_name(try_exec)`、`Keywords` 按 `;` 切分、`identifier_aliases(file_stem)`
+     全部收进 `candidates`，再 `build_aliases(name, localized_name, candidates)`
+     （`main:src-tauri/src/commands/apps/mod.rs:326`）。
+   - 验收：`ScanLinux` 生成的 `App.Aliases` 含上述六个来源，且 `computeInitials` 仍只吃 name+localized；
+     一个 `Name=文件`/`Exec=nautilus` 的条目能被 `nautilus`、`org.gnome.Nautilus`、`Keywords` 命中。
+3. **Linux `.desktop` 的可用性判定与 `DBusActivatable` 启动路径**。
+   - 本构建：`ParseDesktopFile` 不看 `Type=`（`Link`/`Directory` 条目也会被当应用列出）、不探测 `TryExec=`
+     （会列出没装的条目），`App.Open`（`internal/apps/apps.go:58`）对所有条目一律 `exec.Command(Exec…)`。
+   - 原版对照：`main:src-tauri/src/commands/apps/linux.rs:395-408`（`Type != "Application"` 丢弃、
+     `TryExec` 不在 PATH 丢弃）、`:86-140` 的 `open`（非 D-Bus 条目直接 spawn argv，`DBusActivatable=true`
+     的条目走 `gio launch <desktop-id>`，交给 session bus 做单实例激活）。
+   - 验收：`Type` 非 Application 丢弃；`TryExec` 不可执行（`exec.LookPath`）丢弃；`DBusActivatable=true`
+     的条目仍列出但 `Open` 走 `gio launch`。
+
+### 具体待办（P7-cg 重写；两项已于 P7-ch 全部落地，已由 P7-ci 取代）
+
+> 本轮 P7-ci 已把清单重写（见上一节）；下面保留 P7-cg 的原文，只作记录。
 
 前一份 P7-cd 清单已全部完成。本轮检查 GitHub latest release：仍为 **v0.4.8**，与 go.mod 一致，
 无需升级。只对照 `main`，不翻历史提交；以下两项是 Go 捕获实现自己的缺陷，不伪称原版已有内存上限。

@@ -28,10 +28,19 @@ type App struct {
 	// Name is what the user knows the application by: the Latin spelling
 	// where a bundle has one, so it is typeable.
 	Name string
-	// Localized is the name the user's own desktop shows, when the bundle
-	// carries one that differs (a Chinese-named application on a Chinese
-	// desktop, say). A row is titled with it and subtitled with Name.
+	// Localized is the name the user's own desktop shows, when the bundle or
+	// `.desktop` entry carries one that differs (a Chinese-named application on
+	// a Chinese desktop, say). A row is titled with it, and the Latin name is
+	// deliberately *not* printed as a subtitle: the pair is one app's name in
+	// two languages, and the old build dropped that second line as zero
+	// information ("企业微信 / WeCom", R14). The name stays searchable instead.
 	Localized string
+	// Comment is the entry's one-line description, when the platform ships one:
+	// a Linux `.desktop` entry's `Comment=`. It is the launcher row's subtitle —
+	// and only when there is no localized name, because the old build's subtitle
+	// slot preferred the alternate name (which it then dropped) over the
+	// comment. macOS and Windows ship none.
+	Comment string
 	// Aliases are extra spellings search may match: a bundle's executable,
 	// the pieces of its identifier, its folder name.
 	Aliases []string
@@ -184,7 +193,7 @@ func ScanLinux(root string) []App {
 			return true
 		}
 		entry.IconPath = desktopIconFile(entry.Icon)
-		entry.Initials = computeInitials(entry.Name, "")
+		entry.Initials = computeInitials(entry.Name, entry.Localized)
 		out = append(out, entry)
 		return true
 	})
@@ -207,9 +216,63 @@ func walk(root string, visit func(path string, d os.DirEntry) bool) {
 	}
 }
 
+// desktopLocales is the locale ladder for a `.desktop` entry's localized
+// `Name[locale]`/`Comment[locale]`, Chinese first: the old build
+// (`src-tauri/src/commands/apps/linux.rs`) read `Name[zh_CN]` ahead of every
+// other locale, so a Chinese desktop shows the same localized/original name
+// pair macOS does. Only these five spellings are recognized; anything else
+// (`Name[fr]`) is ignored, exactly as the original did.
+var desktopLocales = []string{"zh_CN", "zh_SG", "zh", "zh_TW", "zh_HK"}
+
+// desktopLocaleRank is the position of a locale in the ladder, or -1 when the
+// ladder does not know it.
+func desktopLocaleRank(locale string) int {
+	for i, candidate := range desktopLocales {
+		if candidate == locale {
+			return i
+		}
+	}
+	return -1
+}
+
+// unescapeDesktop applies the Desktop Entry Specification's string escapes to
+// a `Name=`/`Comment=` value (`\s`, `\n`, `\t`, `\r`, `\\`); an unknown escape
+// keeps its backslash, as the original's `unescape` did.
+func unescapeDesktop(value string) string {
+	if !strings.Contains(value, "\\") {
+		return value
+	}
+	var out strings.Builder
+	out.Grow(len(value))
+	for i := 0; i < len(value); i++ {
+		if value[i] != '\\' || i+1 >= len(value) {
+			out.WriteByte(value[i])
+			continue
+		}
+		i++
+		switch value[i] {
+		case 's':
+			out.WriteByte(' ')
+		case 'n':
+			out.WriteByte('\n')
+		case 't':
+			out.WriteByte('\t')
+		case 'r':
+			out.WriteByte('\r')
+		case '\\':
+			out.WriteByte('\\')
+		default:
+			out.WriteByte('\\')
+			out.WriteByte(value[i])
+		}
+	}
+	return out.String()
+}
+
 // ParseDesktopFile reads one .desktop file: its [Desktop Entry] section's
-// Name and Exec. It reports false for hidden entries, entries without an
-// Exec, or files that cannot be read.
+// Name (plus the best Chinese `Name[locale]`), Comment (same ladder), Exec,
+// Icon and hidden flags. It reports false for hidden entries, entries without
+// an Exec, or files that cannot be read.
 func ParseDesktopFile(path string) (App, bool) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -220,6 +283,14 @@ func ParseDesktopFile(path string) (App, bool) {
 	inEntry := false
 	hidden, noDisplay := false, false
 	var name, exec, icon string
+	// The localized name/comment ladders: the lowest rank seen wins, and an
+	// unlocalized value is only a fallback that a localized one may override
+	// (the original's `best_*_locale` against `usize::MAX`).
+	var localized string
+	localizedRank := len(desktopLocales)
+	var comment string
+	commentRank := len(desktopLocales)
+	commentSet := false
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
@@ -239,10 +310,32 @@ func ParseDesktopFile(path string) (App, bool) {
 		}
 		key = strings.TrimSpace(key)
 		value = strings.TrimSpace(value)
-		switch key {
+		base, locale, hasLocale := strings.Cut(key, "[")
+		if hasLocale {
+			locale = strings.TrimSuffix(locale, "]")
+		}
+		switch base {
 		case "Name":
-			if name == "" {
-				name = value
+			if !hasLocale {
+				name = unescapeDesktop(value)
+				continue
+			}
+			if rank := desktopLocaleRank(locale); rank >= 0 && rank < localizedRank {
+				localizedRank = rank
+				localized = unescapeDesktop(value)
+			}
+		case "Comment":
+			if !hasLocale {
+				if !commentSet {
+					comment = unescapeDesktop(value)
+					commentSet = true
+				}
+				continue
+			}
+			if rank := desktopLocaleRank(locale); rank >= 0 && rank < commentRank {
+				commentRank = rank
+				comment = unescapeDesktop(value)
+				commentSet = true
 			}
 		case "Exec":
 			exec = value
@@ -261,7 +354,13 @@ func ParseDesktopFile(path string) (App, bool) {
 	if name == "" || len(argv) == 0 || hidden || noDisplay {
 		return App{}, false
 	}
-	return App{Name: name, Path: path, Exec: argv, Icon: icon}, true
+	// A localized name equal to the plain one is not a second name (the
+	// original's `filter(|value| value != &name)`), and an empty comment is
+	// dropped rather than drawn as a blank line.
+	if localized == name {
+		localized = ""
+	}
+	return App{Name: name, Localized: localized, Comment: comment, Path: path, Exec: argv, Icon: icon}, true
 }
 
 // SplitDesktopExec splits a .desktop Exec value into argv: whitespace

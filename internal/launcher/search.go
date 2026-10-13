@@ -507,16 +507,25 @@ func (a *App) Catalog() []Item {
 // build dropped it as a second line spent on zero information — "企业微信 /
 // WeCom", "QQ音乐 / QQMusic" (R14: 「还是很丑，清爽一点」) — and it stays reachable
 // through the search key instead. Every alias and the pinyin initials are
-// searchable beside both names.
+// searchable beside both names. The row's *only* subtitle is the platform's own
+// one-line description (a Linux `.desktop` entry's `Comment=`), and only when
+// there is no localized name: the old build's subtitle slot reached for the
+// alternate name first (`(localizedName && name) || comment || …`) and then
+// dropped it, so a localized entry never showed its comment either.
 func appItem(app apps.App, run func()) Item {
 	title := app.Name
 	if app.Localized != "" {
 		title = app.Localized
 	}
+	detail := ""
+	if app.Localized == "" {
+		detail = app.Comment
+	}
 	search := append([]string{app.Name, app.Localized, app.Initials}, app.Aliases...)
 	return Item{
 		ID:     "app:" + app.Path,
 		Title:  title,
+		Detail: detail,
 		Search: strings.Join(search, " "),
 		Run:    run,
 		icon:   &app,
