@@ -150,10 +150,9 @@ func Reprobe(ctx context.Context, paths Paths, id string) (HealthReport, error) 
 // runProbe runs one probe and reads its outcome. The arguments are the tool's
 // own; the timeout is the probe's, with a floor so a zero cannot hang the host.
 func runProbe(ctx context.Context, binding RuntimeBinding, integration Integration, probe Probe) ProbeRecord {
-	timeout := time.Duration(probe.TimeoutMs) * time.Millisecond
-	if timeout <= 0 {
-		timeout = 10 * time.Second
-	}
+	// The timeout is the probe's own, or the schema's 2s default when the
+	// manifest left it out.
+	timeout := time.Duration(probe.EffectiveTimeoutMs()) * time.Millisecond
 	probeCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 

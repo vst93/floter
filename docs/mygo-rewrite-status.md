@@ -99,7 +99,43 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-bh 清单路径安全（`validate_relative_path`）** —— P7-bg 后 P7-bd 的清单已全部落地，
+> **最新一轮：P7-bi lifecycle 的结构校验（`Lifecycle::validate`）** —— P7-bh 重写的具体待办第 2 条。
+> 原版解析清单时对 lifecycle 有一整套规则（每 shell 一个 completion、source/args 恰有其一、参数与
+> 超时上下界、模板 target 与 probe id 唯一、完成文件名安全、launch 的 restorePolicy 闭集与 NUL），
+> 本构建只解析不校验，夹具可带任意 timeout 与重复 id 通过。现在 `LoadManifest` 会跑
+> `Manifest.Validate()`，坏 lifecycle 根本进不来；`restorePolicy` 字段也补上了（缺省 `reattach`）。
+
+**P7-bi lifecycle 的结构校验（本轮）**
+
+- **依赖检查**：`curl .../releases/latest` 返回 v0.4.8，`go.mod` 已是 v0.4.8，无版本可升。
+- **入口**：P7-bh 重写的 5 条具体待办，第 1 条已落地，本轮取第 2 条（`Lifecycle::validate`）。
+- **偏离点（lifecycle 只解析不校验）**：原版 `src-tauri/src/extensions/lifecycle.rs:39` 的
+  `ToolLifecycle::validate`——每个 shell 至多一个 completion（`:41`）、completion 的 `source`/`args`
+  恰有其一（`:52`）、`args ≤ 16`（`:63`）、`timeoutMs ∈ 100..=10000`（`:66`）、`fileName` 合法
+  （`:645` 的 `validate_file_name`：非空、≤128 字节、仅 ASCII 字母数字与 `.`/`_`/`-`）、template
+  `target` 不重复（`:145`）、probe `id` 不重复（`:173`）、probe `timeoutMs ∈ 100..=30000`、`args ≤ 32`、
+  以及 `LaunchConfig::validate`（`:119` 的 `restorePolicy ∈ {reattach,restart,none}` 与
+  `LaunchCommand::validate` 的 NUL 检查）。本构建 `internal/extensions/manifest.go` 的
+  `ShellCompletion`/`Template`/`Probe`/`Launch` 只有字段，`LoadManifest` 只查 ID/Name + 路径，
+  `launch_test.go`/`probes_test.go` 的夹具因此可以带着任意 timeout 与重复 id 通过；`restorePolicy`
+  甚至没有字段（`grep -rn RestorePolicy internal` 为空）。
+- **修法**：`internal/extensions/validate.go`——新增 `Manifest.Validate()`（own paths → lifecycle）、
+  `Lifecycle.Validate()`（原版全部规则，含 shell 闭集）、`Launch.Validate()`（restorePolicy 闭集 +
+  program/args 的 NUL），以及 `validateCompletionFileName`；`Manifest.ValidatePaths()` 拆出
+  `validateDeclaredPaths` 供两处复用。`internal/extensions/manifest.go`——`Launch` 补
+  `RestorePolicy` 字段与 `EffectiveRestorePolicy()`；`ShellCompletion`/`Probe` 补
+  `EffectiveTimeoutMs()` 与 serde 缺省（3000 / 2000，原版 `default_completion_timeout` /
+  `default_probe_timeout`），`probes.go` 改用它。`LoadManifest` 改调 `m.Validate()`。
+- **测试**：`internal/extensions/validate_test.go`——`TestLifecycleValidate`（干净 + 17 条非法：重复/未知
+  shell、source+args 同给、两者皆无、args=17、超时 99/10001、坏/超长文件名、重复 target、重复 probe id、
+  probe 超时 99/30001、args=33、未知 restorePolicy、program/args 含 NUL；外加边界 100/10000/30000 合法与
+  缺省合法）、`TestEffectiveLifecycleDefaults`（3000/2000/reattach）、`TestLoadManifestRefusesABadLifecycle`
+  （端到端：干净 probe 可载、重复 probe 与未知 restorePolicy 拒绝）。变异核查：把 `LoadManifest` 的
+  `Validate()` 换回 `ValidatePaths()`，端到端那条立刻红。
+- **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+  `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+> **上一轮：P7-bh 清单路径安全（`validate_relative_path`）** —— P7-bg 后 P7-bd 的清单已全部落地，
 > 本轮先把「尚未做」重新写实为 5 条带 file:line 的具体待办，再取第 1 条落地：原版在**解析清单时**
 > 就拒绝任何绝对/`..`/空路径，本构建只在使用时兜住一部分，导出的 staging 写入完全裸奔。现在
 > `LoadManifest` 会校验 `icon`、脚本路径、描述符与 lifecycle 的四处路径，坏包根本进不来。
@@ -1552,13 +1588,13 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 尚未做（按建议优先级）
 
-> **P7-bh 重写**：P7-an 的 1–8、P7-bb 的两条、P7-bd 的 1–5 都已全部落地，只剩一次性维护者动作
-> （`mygo keygen`、`mygo.json` 的 `updates`/签名、CI 私钥、发布到 GitHub Release）与三条明确卡在
-> 框架上的能力（`Options.OnCopy`、终端键入的 `HandleInput` 缝、外观四个死旋钮）。所以这一轮的入口
-> 仍是「对照原版实现做系统排查」，把「尚未做」重新写实为下面 5 条**带 file:line、原版对照与验收
-> 标准**的具体待办。第 1 条（清单路径安全）已在本轮（P7-bh）落地。
+> **P7-bi 更新**：P7-bh 重写的 5 条里第 1（路径安全）、第 2（lifecycle 结构校验）已落地。
+> 第 3、4 条互相依赖（同一套 `run_param_*` 键的两半），宜连着做；第 5 条（严格解析 + 组合规则）独立。
+> 三条明确卡在框架上的能力（`Options.OnCopy`、终端键入的 `HandleInput` 缝、外观四个死旋钮）与
+> 一次性维护者动作（`mygo keygen`、`mygo.json` 的 `updates`/签名、CI 私钥、发布到 GitHub Release）
+> 仍未动。
 
-### 具体待办（P7-bh 重写；第 1 条本轮落地）
+### 具体待办（P7-bh 重写；第 1、2 条已落地）
 
 1. **清单的路径安全（`validate_relative_path`）**（P7-bh 已落地）—— 原版在**解析清单时**就拒绝
    任何非空、非相对、含 `.`/`..` 的声明路径；本构建只在使用时用 `joinWithin` 兜住一部分，导出
@@ -1575,9 +1611,9 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
    - 验收：新增 `ValidateRelativePath(value, field)` 与 `Manifest.ValidatePaths()`（含 lifecycle 的
      路径），接进 `LoadManifest`；绝对路径、空、`.`/`..` component 报错；测试钉合法/非法表、三处
      manifest 字段、lifecycle 四处路径、以及一个 `LoadManifest` 端到端拒绝的夹具。
-2. **lifecycle 的结构校验（`Lifecycle::validate`）** —— 原版对 completion / template / probe / launch
-   有一整套规则；本构建的 `Lifecycle`（`manifest.go:117`）只解析，无任何校验，`restorePolicy`
-   甚至没有字段（`grep -rn RestorePolicy internal` 为空）。
+2. **lifecycle 的结构校验（`Lifecycle::validate`）**（P7-bi 已落地）—— 原版对 completion / template /
+   probe / launch 有一整套规则；本构建的 `Lifecycle`（`manifest.go:117`）原来只解析，无任何校验。
+   落地见下方「P7-bi lifecycle 的结构校验」。（原分析保留在下方。）
    - 原版：`src-tauri/src/extensions/lifecycle.rs:39`（同一 shell 的 completion 不重复、`source` 与
      `args` 恰有其一、`args ≤ 16`、`timeoutMs ∈ 100..=10000`、`fileName` 合法）、`:145`（template
      `target` 不重复）、`:173`（probe `id` 不重复、`timeoutMs ∈ 100..=30000`、`args ≤ 32`）、
@@ -1620,7 +1656,7 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
    - 验收：严格解析（`json.Decoder.DisallowUnknownFields`）拒绝未知字段；组合规则拒绝并修正非法夹具；
      测试钉「未知字段拒绝 / 三组合法组合 / 其余组合拒绝 / Local+StaticDescriptor 缺 descriptor 拒绝」。
 
-> 这 5 条都不卡框架。第 1 条已落地；第 3、4 条互相依赖（同一套 `run_param_*` 键的两半），宜连着做。
+> 这 5 条都不卡框架。第 1、2 条已落地；第 3、4 条互相依赖（同一套 `run_param_*` 键的两半），宜连着做。
 > 上面 P7-an/P7-bb/P7-bd 的旧清单保留在下方，作为「哪些已经做过」的记录。
 
 ### 具体待办（P7-an 把清单写实；每项带 file:line、原版对照、验收标准）

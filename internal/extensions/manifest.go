@@ -132,6 +132,24 @@ type ShellCompletion struct {
 	TimeoutMs int      `json:"timeoutMs"`
 }
 
+// The serde defaults the old host filled in for an omitted timeout: a
+// completion gets 3s and a probe 2s (`lifecycle.rs`
+// `default_completion_timeout` / `default_probe_timeout`). A zero here is an
+// omitted field, not a request for an immediate timeout.
+const (
+	DefaultCompletionTimeoutMs = 3000
+	DefaultProbeTimeoutMs      = 2000
+)
+
+// EffectiveTimeoutMs is the completion's timeout, or the schema default when
+// the manifest left it out.
+func (c ShellCompletion) EffectiveTimeoutMs() int {
+	if c.TimeoutMs <= 0 {
+		return DefaultCompletionTimeoutMs
+	}
+	return c.TimeoutMs
+}
+
 // Template copies a configuration file into the integration's data
 // directory on install.
 type Template struct {
@@ -147,6 +165,15 @@ type Probe struct {
 	Required  bool     `json:"required"`
 }
 
+// EffectiveTimeoutMs is the probe's timeout, or the schema default when the
+// manifest left it out.
+func (p Probe) EffectiveTimeoutMs() int {
+	if p.TimeoutMs <= 0 {
+		return DefaultProbeTimeoutMs
+	}
+	return p.TimeoutMs
+}
+
 // Launch is how a command of the extension runs.
 type Launch struct {
 	Command LaunchCommand `json:"command"`
@@ -157,6 +184,19 @@ type Launch struct {
 	// Terminal is what the launch asks of the terminal it runs in. Only the
 	// color changes this host: it decides what TERM and COLORTERM say.
 	Terminal Terminal `json:"terminal"`
+	// RestorePolicy is what the host does with a launch's session when the
+	// window reopens: `reattach`, `restart`, or `none`. The schema's default
+	// is `reattach`, so an absent field means that.
+	RestorePolicy string `json:"restorePolicy"`
+}
+
+// EffectiveRestorePolicy is the launch's restore policy, or the schema's
+// default (`reattach`) when the manifest left it out.
+func (l Launch) EffectiveRestorePolicy() string {
+	if strings.TrimSpace(l.RestorePolicy) == "" {
+		return "reattach"
+	}
+	return l.RestorePolicy
 }
 
 // Terminal is the launch's terminal requirement, restricted to the part the
@@ -232,10 +272,11 @@ func LoadManifest(path string) (Manifest, error) {
 	if m.ID == "" || m.Name == "" {
 		return Manifest{}, errors.New("extensions: the manifest names no extension")
 	}
-	// The declared paths are validated while parsing, as the old host did, so
+	// Every structural rule is applied while parsing, as the old host did, so
 	// nothing downstream (an export's staging write, a descriptor read) has to
-	// defend against a package pointing outside itself.
-	if err := m.ValidatePaths(); err != nil {
+	// defend against a package pointing outside itself or declaring a
+	// lifecycle the host cannot run.
+	if err := m.Validate(); err != nil {
 		return Manifest{}, err
 	}
 	return m, nil

@@ -190,3 +190,135 @@ func TestLoadManifestRefusesAnEscapingPath(t *testing.T) {
 		t.Fatalf("absolute icon = %v, want ErrBadManifest", err)
 	}
 }
+
+// TestLifecycleValidate pins the old host's lifecycle rules
+// (`ToolLifecycle::validate`, `lifecycle.rs:39`): one completion per shell,
+// exactly one of source or args, bounded arguments and timeouts, unique
+// template targets and probe ids, a safe completion file name, and a launch
+// with a known restore policy and NUL-free strings. An omitted timeout or
+// restore policy takes the schema's default rather than failing.
+func TestLifecycleValidate(t *testing.T) {
+	clean := Lifecycle{
+		Completions:            []ShellCompletion{{Shell: "bash", Source: "completions/floter.bash", FileName: "floter.bash"}},
+		ConfigurationTemplates: []Template{{Source: "config/default.toml", Target: "config.toml"}},
+		Probes:                 []Probe{{ID: "version", Args: []string{"--version"}}},
+		Launch:                 Launch{Command: LaunchCommand{Program: "self", Args: []string{"serve"}}},
+	}
+	if err := clean.Validate(); err != nil {
+		t.Fatalf("clean lifecycle = %v, want nil", err)
+	}
+
+	cases := []struct {
+		name      string
+		lifecycle Lifecycle
+	}{
+		{"duplicate shell", Lifecycle{Completions: []ShellCompletion{
+			{Shell: "bash", Source: "a.bash"}, {Shell: "bash", Args: []string{"--a"}},
+		}}},
+		{"unknown shell", Lifecycle{Completions: []ShellCompletion{{Shell: "tcsh", Source: "a.tcsh"}}}},
+		{"source and args together", Lifecycle{Completions: []ShellCompletion{{Shell: "bash", Source: "a.bash", Args: []string{"--a"}}}}},
+		{"neither source nor args", Lifecycle{Completions: []ShellCompletion{{Shell: "bash"}}}},
+		{"too many completion args", Lifecycle{Completions: []ShellCompletion{{Shell: "bash", Args: make([]string, 17)}}}},
+		{"completion timeout below the floor", Lifecycle{Completions: []ShellCompletion{{Shell: "bash", Source: "a.bash", TimeoutMs: 99}}}},
+		{"completion timeout above the ceiling", Lifecycle{Completions: []ShellCompletion{{Shell: "bash", Source: "a.bash", TimeoutMs: 10001}}}},
+		{"completion file name with a space", Lifecycle{Completions: []ShellCompletion{{Shell: "bash", Source: "a.bash", FileName: "bad name.bash"}}}},
+		{"completion file name too long", Lifecycle{Completions: []ShellCompletion{{Shell: "bash", Source: "a.bash", FileName: strings.Repeat("a", 129)}}}},
+		{"duplicate template target", Lifecycle{ConfigurationTemplates: []Template{
+			{Source: "a.toml", Target: "config.toml"}, {Source: "b.toml", Target: "config.toml"},
+		}}},
+		{"duplicate probe id", Lifecycle{Probes: []Probe{{ID: "up", Args: []string{"--up"}}, {ID: "up", Args: []string{"--up"}}}}},
+		{"probe timeout below the floor", Lifecycle{Probes: []Probe{{ID: "up", TimeoutMs: 99}}}},
+		{"probe timeout above the ceiling", Lifecycle{Probes: []Probe{{ID: "up", TimeoutMs: 30001}}}},
+		{"too many probe args", Lifecycle{Probes: []Probe{{ID: "up", Args: make([]string, 33)}}}},
+		{"unknown restore policy", Lifecycle{Launch: Launch{RestorePolicy: "sometimes"}}},
+		{"NUL in the launch program", Lifecycle{Launch: Launch{Command: LaunchCommand{Program: "self\x00"}}}},
+		{"NUL in the launch args", Lifecycle{Launch: Launch{Command: LaunchCommand{Program: "self", Args: []string{"a\x00b"}}}}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.lifecycle.Validate()
+			if err == nil {
+				t.Fatal("Validate() = nil, want an error")
+			}
+			if !errors.Is(err, ErrBadManifest) {
+				t.Fatalf("Validate() = %v, want ErrBadManifest", err)
+			}
+		})
+	}
+
+	// The boundaries themselves are legal.
+	bounds := Lifecycle{
+		Completions: []ShellCompletion{{Shell: "bash", Args: []string{"--a"}, TimeoutMs: 100}, {Shell: "zsh", Args: []string{"--a"}, TimeoutMs: 10000}},
+		Probes:      []Probe{{ID: "a", TimeoutMs: 100}, {ID: "b", TimeoutMs: 30000}},
+	}
+	if err := bounds.Validate(); err != nil {
+		t.Fatalf("boundary lifecycle = %v, want nil", err)
+	}
+
+	// The schema defaults fill an omitted timeout and restore policy.
+	defaults := Lifecycle{
+		Completions: []ShellCompletion{{Shell: "bash", Source: "a.bash"}},
+		Probes:      []Probe{{ID: "up"}},
+	}
+	if err := defaults.Validate(); err != nil {
+		t.Fatalf("defaulted lifecycle = %v, want nil", err)
+	}
+}
+
+// TestEffectiveLifecycleDefaults pins the serde defaults the old host filled
+// in: a completion gets 3s, a probe 2s, a launch `reattach`.
+func TestEffectiveLifecycleDefaults(t *testing.T) {
+	if got := (ShellCompletion{}).EffectiveTimeoutMs(); got != 3000 {
+		t.Errorf("completion default = %d, want 3000", got)
+	}
+	if got := (Probe{}).EffectiveTimeoutMs(); got != 2000 {
+		t.Errorf("probe default = %d, want 2000", got)
+	}
+	if got := (Launch{}).EffectiveRestorePolicy(); got != "reattach" {
+		t.Errorf("restore default = %q, want reattach", got)
+	}
+	if got := (Launch{RestorePolicy: "none"}).EffectiveRestorePolicy(); got != "none" {
+		t.Errorf("restore override = %q, want none", got)
+	}
+	if got := (ShellCompletion{TimeoutMs: 500}).EffectiveTimeoutMs(); got != 500 {
+		t.Errorf("completion override = %d, want 500", got)
+	}
+}
+
+// TestLoadManifestRefusesABadLifecycle is the end-to-end half: the rules are
+// applied while parsing, so a package with an unrunnable lifecycle never
+// loads. The same file with a clean lifecycle still does.
+func TestLoadManifestRefusesABadLifecycle(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, body string) string {
+		path := filepath.Join(dir, name)
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+	base := func(lifecycle string) string {
+		return `{
+  "schemaVersion": "2.0", "id": "dev.floter.tool", "name": "Tool",
+  "distribution": {"type": "local"},
+  "runtime": {"type": "script", "language": "shell", "path": "tool.sh"},
+  "provider": {"type": "executable", "argsPrefix": []},
+  "lifecycle": ` + lifecycle + `
+}`
+	}
+
+	clean := write("clean.json", base(`{"probes": [{"id": "up", "args": ["--up"], "required": true}]}`))
+	if _, err := LoadManifest(clean); err != nil {
+		t.Fatalf("clean lifecycle = %v, want nil", err)
+	}
+
+	bad := write("bad.json", base(`{"probes": [{"id": "up"}, {"id": "up"}]}`))
+	if _, err := LoadManifest(bad); !errors.Is(err, ErrBadManifest) {
+		t.Fatalf("duplicate probe = %v, want ErrBadManifest", err)
+	}
+
+	unknownRestore := write("restore.json", base(`{"launch": {"restorePolicy": "sometimes"}}`))
+	if _, err := LoadManifest(unknownRestore); !errors.Is(err, ErrBadManifest) {
+		t.Fatalf("unknown restore policy = %v, want ErrBadManifest", err)
+	}
+}
