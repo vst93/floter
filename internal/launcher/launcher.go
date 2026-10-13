@@ -743,7 +743,7 @@ func (a *App) View(c *ui.Context) {
 	}
 	rows := make([]RowInfo, len(results))
 	for i, item := range results {
-		if item.Detail != "" {
+		if rowSubtitle(item) != "" {
 			rows[i].Lines = 2
 		} else {
 			rows[i].Lines = 1
@@ -1470,7 +1470,8 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 	// than 34u — the height the window is charged must be the height the row
 	// draws, so the floor is set here and read there.
 	floor := t.Space(rowOneLineUnits)
-	if item.Detail != "" {
+	subtitle := rowSubtitle(item)
+	if subtitle != "" {
 		floor = t.Space(rowTwoLineUnits)
 	}
 	row := ui.Row(c).Key(item.ID).FillWidth().Focusable().MinHeight(floor).
@@ -1583,14 +1584,14 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 						ContentTransition(ui.ContentTransition{Numeric: true})
 				}
 			})
-			if item.Detail != "" {
+			if subtitle != "" {
 				// The subtitle is the body register at 510, quiet; the
 				// selected row lifts it one step and thickens it, as the old
 				// build's own selected subtitle did.
-				subtitle := ui.Text(c, item.Detail).FontSize(t.FontSize).
+				line := ui.Text(c, subtitle).FontSize(t.FontSize).
 					FontWeight(510).TextColor(t.TextMuted).SingleLine()
 				if i == a.Selected {
-					subtitle.TextColor(tokens.TextSecondary).FontWeight(600)
+					line.TextColor(tokens.TextSecondary).FontWeight(600)
 				}
 			}
 		})

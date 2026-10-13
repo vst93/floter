@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**981 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1024 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -99,7 +99,28 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-cn ANSI 解析器对齐原版 `src/launcher/ansi.ts`（`internal/ansi/ansi.go`）**
+> **最新一轮：P7-co 行内容规则与列表分组标题对齐原版（`src/launcher/row-content.ts`、`src/launcher/list-sections.ts`）**
+> —— P7-cm 清单余下三条（复制反馈 / 键入 Unicode-空格缝 / 外观四个死旋钮）仍全部卡 mygo 框架。
+> 本轮换入口：逐文件对照原版**行内容与列表分组**这两个纯模块，把「尚未做」重写成新的具体待办
+> （下方），再取前两条落地。依赖检查：`go list -m -versions github.com/egoist/mygo` 仍为
+> **v0.4.8**（与 `go.mod` 一致；GitHub releases API 本轮被限流，用 `go list` 代替），无版本可升。
+> 只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+> （1）**行内容 R12/R14 的转写规则**：原版 `row-content.ts:105-118` 的 `isTranscription` 把副标题里
+> 只重复标题的（大小写/全角/空格/标点变体）丢掉，`resultRowContent` 是渲染与高度记账共用的唯一判据；
+> 本构建 `launcher.go` 直接画 `item.Detail`，于是 Linux `.desktop` 的 `Name`/`Comment` 同名、命令的
+> `Description` 复读 `Name` 时会多出一行零信息的副标题。现在新增 `internal/launcher/rowcontent.go`
+> （`transcriptionKey` 手写 NFKC 的全角折叠 + `isTranscription` + `rowSubtitle`），`View` 的行信息与
+> `rowBody` 的地板/渲染都改走 `rowSubtitle`——画出的行与记账的行不可能再不一致。
+> （2）**列表分组 R39/R72 的首行标题**：原版 `list-sections.ts:49-66` 对 index 0 也算「起一组」
+> （`previous` 为 `null` → `pluginGroup`），所以插件列表**第一行**带 `group` 时也印标题；本构建
+> `output.go:513` 的 `outputRow` 要求 `i > 0`，首行分组标题从不出现。现在条件改为
+> `row.Group != "" && (i == 0 || row.Group != a.output.Rows[i-1].Group)`。
+> 测试：`internal/launcher/rowcontent_test.go` 的 `TestTranscriptionKeyFoldsWidthCaseAndPunctuation`、
+> `TestARowDropsASubtitleThatOnlyRepeatsItsTitle`、`TestADroppedSubtitleIsChargedOneLine`（画/记两断言
+> 一起翻转）、`TestAnOutputListsOpeningGroupPrintsItsHeading`。变异核查：`rowSubtitle` 去掉转写分支 →
+> 副标题两条断言变红（`"zebra"` 被画出、行被记 2 行）；`outputRow` 改回 `i > 0` → 首行分组标题缺失。
+
+> **上一轮：P7-cn ANSI 解析器对齐原版 `src/launcher/ansi.ts`（`internal/ansi/ansi.go`）**
 > —— P7-cm 清单余下三条（复制反馈 / 键入 Unicode-空格缝 / 外观四个死旋钮）全部卡 mygo 框架，
 > 无法在 Go 侧落地。本轮换入口：逐文件对照原版的**直出 ANSI 解析器**，找到并修掉三个可实现偏离点。
 > （1）非数字 SGR 参数：原版 `parseSgrParams` 读成 `NaN`、`applySgr` 整段忽略；本构建的 `atoi`
@@ -2444,6 +2465,49 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 - 窗口可见时完成反馈落在面板自己的停靠行（隐藏时才发系统通知）——之前可见时什么都不说。
 
 ## 尚未做（按建议优先级）
+
+### 具体待办（P7-co 重写；第 1、2 条已落地，余下为可执行规格）
+
+前一份 P7-cn 清单三条已全部落地（本轮提交），清单又空。本轮检查依赖：GitHub releases API 被限流，
+改用 `go list -m -versions github.com/egoist/mygo`，仍停在 **v0.4.8**，与 `go.mod` 一致，无版本可升。
+只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），不翻历史提交。本轮换入口：逐文件对照原版的
+**行内容**与**列表分组**两个纯模块（`src/launcher/row-content.ts`、`src/launcher/list-sections.ts`）。
+
+1. **行内容 R12/R14：只重复标题的副标题必须丢掉**（已落地）。
+   - 原版对照：`main:src/launcher/row-content.ts:99-110` 的 `isTranscription`（`transcriptionKey` =
+     NFKC + 小写 + 去掉空白/标点/符号）与 `:164-167` 的 `resultRowContent`（`subtitle === typeWord || transcription`
+     → 丢）。原版把这条规则放在**渲染时**算，所以 `launcherRowHeightUnits` 读的是同一结果（R43）。
+   - 本构建（改前）：`internal/launcher/launcher.go:1591` 直接画 `item.Detail`，`View` 的
+     `rows[i].Lines`（`launcher.go:746`）与 `rowBody` 的地板（`launcher.go:1472`）也读 `item.Detail`；
+     没有任何去重。Linux `.desktop` 的 `Comment=` 等于 `Name=`、命令 `Description` 复读 `Name` 时，
+     副标题就是标题的第二遍。
+   - 验收：`rowSubtitle` 对 `{Title:"Zebra",Detail:"zebra"}` 返回 `""`、对 `{Title:"企业微信",Detail:"WeCom"}`
+     保留（不同名字）、对 `{Title:"Zebra",Detail:"A striped animal"}` 保留；渲染出来的行同时只记 1 行。
+     **已落地**：`internal/launcher/rowcontent.go`（`transcriptionKey`/`isTranscription`/`rowSubtitle`），
+     接线到 `View` 与 `rowBody`；测试 `rowcontent_test.go` 三条。
+2. **列表分组 R39/R72：插件列表首行的 `group` 也要印标题**（已落地）。
+   - 原版对照：`main:src/launcher/list-sections.ts:49-66` 的 `listSectionStarts`——index 0 的
+     `previous` 是 `null`，`pluginGroupOf(item) !== null` 即返回 `"pluginGroup"`，所以首行带
+     `group` 时标题照样画（`LauncherResults.tsx:837-839`）。
+   - 本构建（改前）：`internal/launcher/output.go:519` 的 `outputRow` 要求 `i > 0`，首行分组标题从不出现。
+   - 验收：列表 `[{group:"First"}, {no group}, {group:"Second"}]` 渲染后 `First` 与 `Second` 两个标题
+     都在。**已落地**：条件改为 `row.Group != "" && (i == 0 || row.Group != a.output.Rows[i-1].Group)`；
+     测试 `TestAnOutputListsOpeningGroupPrintsItsHeading`。
+3. **输出视图的分组标题要与启动器列表同一个寄存器**（未做，可本机验证）。
+   - 原版对照：`main:src/launcher/LauncherResults.tsx:837-839` 用的是同一个 `.launcher-section-title`
+     （`main:src/styles/launcher.css:1007-1024`：`--text-body` 字号、`font-weight: 620`、
+     `line-height: 1.4`、muted、`6u/12u/4u` 内边距）。本构建启动器列表的标题（`internal/launcher/launcher.go:1442`）
+     已经对齐这个寄存器，但 `internal/launcher/output.go:520-521` 的输出视图标题是 `FontSize-1`、无字重、
+     `1,2,0,2` 内边距——同一个元素两个样子。
+   - 接线点：`outputRow` 的标题改用 `FontSize` + `FontWeight(620)` + `TextMuted` +
+     `Padding(t.Space(1.5), t.Space(3), t.Space(1), t.Space(3))`。
+   - 验收：插件列表的分组标题与启动器列表（如空查询的「最近启动」块）同字号同字重同内边距；
+     现有 `TestAnOutputListsOpeningGroupPrintsItsHeading` 仍绿。
+4. **卡框架项（三条，规格见下一节 P7-cm）**：终端/钉住窗口的复制反馈（`Options.OnCopy`）、键入文本的
+   Unicode 空格接缝（文本钩子 / `Options.OnKey` 的 text-only 键）、终端外观四个死旋钮（`plugins/terminal`
+   暴露 bold/scrollbar/select-copy/wheel-lines）。
+
+> 卡框架项未落地前不假装接线；可实现项逐文件对照 `main` 继续排查。
 
 ### 具体待办（P7-cn 重写；三条已全部落地）
 

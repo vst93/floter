@@ -508,9 +508,15 @@ func (a *App) outputHint(copy i18n.Launcher, view *OutputView) string {
 
 // outputRow draws one list row: its group heading when it starts a group, its
 // icon, and its two lines. A status row is muted and cannot be chosen.
+//
+// The heading rule is the old build's `list-sections.ts` one: a row starts a
+// group when it carries a name and the row above it does not carry the same
+// one. The *first* row of the list starts a group too — there is no row above
+// it to continue — so a list whose opening row names a group prints its
+// heading, exactly as a later block does.
 func (a *App) outputRow(c *ui.Context, row extensions.Row, i int) {
 	t := c.Theme()
-	if i > 0 && row.Group != "" && row.Group != a.output.Rows[i-1].Group {
+	if row.Group != "" && (i == 0 || row.Group != a.output.Rows[i-1].Group) {
 		ui.Text(c, row.Group).FontSize(t.FontSize-1).TextColor(t.TextMuted).
 			Padding(t.Space(1), t.Space(2), 0, t.Space(2))
 	}
