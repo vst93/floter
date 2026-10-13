@@ -1,6 +1,6 @@
 # floter × mygo 重构：当前进度与后续规划
 
-> 交接文档。状态时间：2026-10-13，分支 `mygo-rewrite`（已推送）。框架：mygo v0.4.8。
+> 交接文档。状态时间：2026-10-14，分支 `mygo-rewrite`（已推送）。框架：mygo v0.4.8。
 > **仓库现在只有 Go 实现**：Tauri/Rust/React 时代的代码已删除（P6-b）。
 > 详细的分轮记录见 `docs/mygo-rewrite-plan.md`（含每轮的决策与「未做」清单）。
 
@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**928 项测试全绿**。
+含测试）。**935 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 928 项测试
+go test -count=1 ./...         # 935 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,7 +99,29 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-cb page-residency 收成一行（原版 `SurfaceResidencyControl` / `GeneralPage.tsx:157-250`）**
+> **最新一轮：P7-cc R98「停用即停」接线 + R74 `.cmd`/`.bat` 包装；并订正 P7-cc 清单第 2 条**
+> —— P7-cc 那轮把空清单写成 3 条待办，其中第 1 条（R98）落地了却没提交（工作区里躺着）。本轮先把那份
+> 工作验绿并收进仓库：`internal/extensions/runregistry.go` 的 `RunRegistry`（一个 id → 一组 cancel，
+> `Add` 返回幂等注销函数，`Kill` 返回杀掉的个数，nil 接收者全是 no-op）、`RunKilledFailure` 发
+> `run_killed:{extension_id}`、`runCaptured` 在父 ctx 被取消（非超时）且条目有 `IntegrationID` 时回它；
+> `internal/shell/shell.go` 的 `App.Runs` 在 `runCommandCaptured`/`loadOutputPage` 注册可取消 ctx，
+> `SetIntegrationEnabled(false)`/组件化卸载/普通卸载/删除孤儿**先 `Runs.Kill(id)` 再碰文件**。测试
+> `runregistry_test.go`（4 条）+ `TestDisablingStopsARunInFlight`（停用真的把 `sleep 5` 变成 `run_killed`）。
+> 然后落地第 3 条（R74）：探测层会匹配 `.cmd`/`.bat` shim，而**执行的四处都没包**——
+> `internal/extensions/run.go` 以前直接 `exec.CommandContext(ctx, entry.Program, …)`，CreateProcess
+> 根本起不来一个脚本。新增 `internal/extensions/cmdshim.go` 的纯函数 `cmdShimWrap(shim, program, args)`
+> （`/D` 跳 AutoRun、`/S` 固定 `/C` 引号、`/C` 执行），**平台判定当参数传进来**，于是整条决定是纯的：
+> false 分支逐字节等同（连 slice 都是同一个，测试用 `&argv[0] != &args[0]` 钉住），true 分支在 Linux
+> 上也测得到；接线用既有的 `ProgramIsCmdScript`（`paramrun.go:104`，参数校验一直用它）。测试 4 条：
+> 真值表、`TestCmdScriptWrapFollowsThePlatformGate`、`TestRunCapturedDoesNotWrapCommandScriptsOffWindows`
+> （Linux 上真跑一个名字叫 `runner.cmd` 的 POSIX 脚本，包了就会找不到 `cmd.exe`）、
+> `TestRunCapturedWrapsWindowsCommandScripts`（Windows 上真写一个 `.cmd` 跑通，CI 的 windows-latest
+> 会执行它——比原版的源码守卫更硬）。变异核查：把 `ProgramIsCmdScript` 换成 `IsCmdScriptName`（抽掉
+> 平台门），Linux 那条立刻红（`exec: "cmd.exe": executable file not found in $PATH`）。**另外订正：清单
+> 第 2 条（R100 停用先问）在本构建里早就落地了**（`a03b40a`／P4-ac「禁用前确认」，见下方清单里加的订正），
+> 那轮审计把它记成「待做」是误判。至此 P7-cc 的 3 条全部落地，清单再次为空。
+
+> **上一轮：P7-cb page-residency 收成一行（原版 `SurfaceResidencyControl` / `GeneralPage.tsx:157-250`）**
 > —— 取 P7-ca 重写清单剩下的第 3 条：原版是**一行** `<select>`（off / 预设 / never / custom 四类），
 > custom 选中时在同一行内联出数字框 + 单位 + Apply（`.residency-control__custom`），存储值本身是自定义
 > 数字时 custom 那条的标签回显 `surfaceResidencyCustomValue({seconds})`；本构建却把它拆成两行——
@@ -2283,19 +2305,20 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-> **P7-cc 更新**：P7-cb 之后「尚未做」清单再次为空。本轮不改去翻旧提交，而是**顺着原版一条明写、
+> **P7-cc 更新**：P7-cb 之后「尚未做」清单再次为空。这轮不去翻旧提交，而是**顺着原版一条明写、
 > 本构建只做了一半的契约往回找**：`run_killed` 这个失败键在本构建里**已定义、已本地化（en/zh）、
 > 渲染路径也通了**（`internal/launcher/runfailure.go:38`），但**全仓没有一处会发出它**——原版 R98
 > 的「停用/卸载立刻杀死进行中的运行」整条接线缺席。同一族还有两个小口子（R100 停用先问、R74
-> Windows `.cmd`/`.bat` 包装），一并写成 3 条带 file:line 的具体待办（下方「具体待办（P7-cc 重写）」），
-> 本轮先取第 1 条（R98）落地。
+> Windows `.cmd`/`.bat` 包装），一并写成 3 条带 file:line 的具体待办（下方「具体待办（P7-cc 重写）」）。
+> **P7-cc 落地结果**：第 1 条（R98）与第 3 条（R74）已落地；第 2 条（R100）经核查**本构建早已落地**
+> （`a03b40a`／P4-ac，那轮审计是误判，订正见下）。
 > 其余仍是卡框架的三条（`Options.OnCopy`、终端键入的 `HandleInput` 缝、
 > 外观四个死旋钮）与一次性维护者动作（`mygo keygen`、`mygo.json` 的 `updates`/签名、CI 私钥、发布到
 > GitHub Release），另见「已知差距」。
 
-### 具体待办（P7-cc 重写；3 条：第 1 条 P7-cc 已落地，第 2、3 条待做）
+### 具体待办（P7-cc 重写；3 条已全部落地：第 1·3 条 P7-cc，第 2 条早已在 P4-ac 落地）
 
-1. **停用/卸载不杀死进行中的后台运行（原版 R98；`run_killed` 已定义却从不发出）（本轮 P7-cc 已落地）** ——
+1. **停用/卸载不杀死进行中的后台运行（原版 R98；`run_killed` 已定义却从不发出）（P7-cc 已落地）** ——
    原版 R98 的结论是：一个后台运行无论背后发生什么都要活到 300s 超时——停用它、甚至卸载它，子进程照跑，
    启动器/独立窗口的 running 状态也照留。原版建 `RunAbortRegistry`（一个 id → `Vec` 个 abort handle，因为
    外部插件路由没有单槽守卫、启动器与独立窗口的运行可以真的重叠），`set_enabled` 的停用分支与两条卸载
@@ -2315,7 +2338,26 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
      `runCaptured` 在父 ctx 被取消（非超时）且条目有 IntegrationID 时回 `run_killed`；shell 的 `App` 持有
      `Runs`，`runCommandCaptured`/`loadOutputPage` 用可取消 ctx 注册，停用/组件化卸载/普通卸载/删除孤儿
      先 `Runs.Kill(id)` 再动文件。测试钉住 registry 语义、真跑一次取消、以及停用把运行变成 `run_killed`。
-2. **停用集成时不先问（原版 R100）** —— 原版把「停用」定义为**标记**、「删除」定义为**真删**，两者在生效前
+     **P7-cc 落地位置**：新增 `internal/extensions/runregistry.go`（`RunRegistry`：`Add`/`Kill`/`InFlight`，
+     nil 接收者 no-op）、`internal/extensions/runfailure.go:185` 的 `RunKilledFailure`、
+     `internal/extensions/run.go:147` 的取消分支；`internal/shell/shell.go:221` 的 `App.Runs`，
+     `:2287`/`:2304` 在 `runCommandCaptured`/`loadOutputPage` 注册可取消 ctx，
+     `:641`/`:671`/`:732`/`:744` 在四条拆除路径先杀后动文件。测试：`runregistry_test.go` 4 条 +
+     `internal/shell/shell_test.go` 的 `TestDisablingStopsARunInFlight`（真跑 `sleep 5`，停用后拿到
+     `run_killed:{"extension_id":"test.ext"}` 且注册表清空）。
+2. **停用集成时不先问（原版 R100）（订正：本构建早已落地于 P4-ac `a03b40a`，无需再动）** ——
+   **P7-cc 订正（2026-10-14）**：P7-cc 那轮把这行记成「待做」，是把原版审计直接当成了本构建的差距。
+   本轮核查：`internal/settingsui/settingsui.go:3012` 的 `requestDisable`（武装）与 `:3024` 的
+   `disableConfirmation`（一句标题 + `DisableDescription` 同时说「运行中的命令立即停止」与
+   「只是标记，文件与数据都保留、随时可再启用」+ Cancel/Disable 两个按钮），接线在 `:1459`（开关
+   关向）与 `:1496`（标签点击），`internal/i18n/copy.go:617-620`（en）/`:1348-1351`（zh）；
+   不对称由 `internal/settingsui/view_test.go:2390` 的 `TestDisableAsksFirst` 钉住，`:961` 另有一条。
+   下面这段「改前」分析保留，用于记住「原版有 =/= 本构建缺」这个误判。
+   残留：原版要求确认条沿用删除条的无障碍契约（焦点在取消、Escape 捕获、busy 门控、中性确认按钮）；
+   本构建的删除确认本身走的是原生 `mygo.Dialog.Message`（`internal/shell/shell.go:629`），停用确认是
+   页内卡片 + 两个 `ui.Button`（`:3024`）。核心事实（先问、不对称、两句事实都在）已满足，与删除条
+   共享同一套无障碍契约这件事未核对，作为可能的后续对照点留在此处。
+   —— 原版把「停用」定义为**标记**、「删除」定义为**真删**，两者在生效前
    都要交代后果；审计发现删除侧已合规，缺口只在前面：扩展开关直接发 `extensions_disable`、没有任何提示。
    原版让开关的两个方向由纯投影 `toggleIntent` 拥有——**停用**先武装一个确认（文案同时说两件事：进行中的
    命令立即停止〔R98〕、这只是标记，文件与数据都保留、随时可再启用），**启用**保持即时（一条负向守卫钉住
@@ -2326,7 +2368,7 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
      `internal/shell/shell.go:729-732`（动作直接写标记）。
    - 验收：`SetIntegrationEnabled` 在 `enabled == false` 时先弹一条本地化确认（两句事实都在，en/zh），
      `enabled == true` 不弹；一条测试钉住不对称，一条钉住两句事实确实被渲染而不只是被声明。
-3. **Windows 上 `.cmd`/`.bat` 程序没有 `cmd /c` 包装（原版 R74 的 latent-failure 守卫）** —— 原版审查发现
+3. **Windows 上 `.cmd`/`.bat` 程序没有 `cmd /c` 包装（原版 R74 的 latent-failure 守卫）（P7-cc 已落地）** —— 原版审查发现
    `CreateProcess` 不能直接执行 `.cmd`/`.bat`，而探测层会匹配这些 shim，于是给 Windows 的应用启动分支加了一个
    **cfg-free 的纯函数** `windows_cmd_shim_wrap()`（后缀是 `.cmd`/`.bat` 就包 `cmd /c`），真值表测试在 Linux 上跑，
    另用一条源码守卫钉住接线（`open_url` 的 `cmd /c start` 不受影响）。本构建里 `internal/extensions/paramrun.go:88`
@@ -2337,8 +2379,20 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
    - 原版：`src-tauri/src/extensions/run.rs` 的 `windows_cmd_shim_wrap()` + 真值表测试 +
      `tests/r74-catalog-refresh-and-cmd-shim.test.ts` 的源码守卫。
    - 本构建（改前）：`internal/extensions/paramrun.go:88-108`、`internal/extensions/run.go:98`。
-   - 验收：抽出一个纯函数按后缀决定是否把 `(program, args)` 包成 `cmd /D /S /C program args…`（Windows 才
-     生效、非 Windows 逐字节等同），接进 `runCaptured` 的 spawn；测试钉真值表与「Linux 上不包」。
+   - 验收（已满足）：新增 `internal/extensions/cmdshim.go` 的纯函数
+     `cmdShimWrap(shim bool, program string, args []string) (string, []string)`——`shim` 为 false 时
+     逐字节原样返回（连 slice 都是同一个），true 时回 `cmd.exe` + `/D /S /C program args…`；
+     `internal/extensions/run.go:103` 用既有的 `ProgramIsCmdScript`（OS 门）当 `shim` 接进 spawn，
+     `Program`/`argv` 就地改名，`CapturedRun.Command` 现在记录真跑的那条 argv（与它自己的注释
+     「the argv that ran」一致）。测试（`cmdshim_test.go`）：`TestCmdShimWrapTruthTable` 三个子测试
+     钉真假两支与 nil；`TestCmdScriptWrapFollowsThePlatformGate` 钉平台门（两个平台都跑）；
+     `TestRunCapturedDoesNotWrapCommandScriptsOffWindows` 在 Linux 上真跑一个名为 `runner.cmd` 的
+     POSIX 脚本并断言 argv 未被改写；`TestRunCapturedWrapsWindowsCommandScripts` 在 Windows 上真写
+     一个 `.cmd` 跑通（CI 的 windows-latest `go test ./...` 会执行它，比原版的源码守卫更硬）。
+     变异核查：把门换成 `IsCmdScriptName`（抽掉平台判定），Linux 那条立即变红；恢复后全绿。
+     残留（诚实记录，不属于本条）：原版的删除确认是页内 bar（焦点在取消、Escape 捕获、busy 门控），
+     本构建的删除确认走 `mygo.Dialog.Message` 原生弹窗（`internal/shell/shell.go:629`），两者的无障碍形状
+     不同；本条只管停用侧，那一差异未列入本轮。
 
 ### 具体待办（P7-ca 重写；3 条已全部落地：第 1·2 条 P7-ca、第 3 条 P7-cb）
 

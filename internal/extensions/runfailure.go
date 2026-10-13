@@ -182,6 +182,12 @@ func RunTimeoutFailure(seconds int) *RunFailure {
 	return NewRunFailure(RunErrorTimeout, map[string]any{"seconds": seconds})
 }
 
+// RunKilledFailure names the integration whose disable or uninstall stopped the
+// run, the way the old host's run_killed did.
+func RunKilledFailure(id string) *RunFailure {
+	return NewRunFailure(RunErrorKilled, map[string]any{"extension_id": id})
+}
+
 // ParseRunFailure reads a keyed message back. It is deliberately conservative,
 // exactly as the old frontend parser was: the key must start with `run_` and
 // be one of the closed set, and the rest must parse as a JSON object. A plain

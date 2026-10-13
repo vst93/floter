@@ -1883,6 +1883,55 @@ func TestCapturedRunNotifiesOnlyWhenHidden(t *testing.T) {
 	}
 }
 
+// Disabling an integration stops its background run in flight, and the run
+// reports the run_killed failure the old host's R98 emitted. Before this the
+// key was defined and localised but no code path ever produced it.
+func TestDisablingStopsARunInFlight(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the fixture runs through sh")
+	}
+	a := New(Options{
+		Store:       settings.NewStore(settings.Default()),
+		Paths:       extensions.FromRoot(t.TempDir()),
+		NewTerminal: func(terminal.Options) (*terminal.Terminal, error) { return nil, errors.New("no library in tests") },
+	})
+	entry := extensions.CommandEntry{
+		IntegrationID: "test.ext",
+		Command:       extensions.Command{ID: "run", Name: "Run"},
+		Program:       "/bin/sh",
+		Args:          []string{"-c", "sleep 5"},
+		Route:         extensions.RouteBackground,
+	}
+	done := make(chan error, 1)
+	a.runCommandCaptured(entry, nil, func(_ extensions.CapturedRun, err error) { done <- err })
+
+	// Wait until the run is registered, then disable its integration.
+	deadline := time.Now().Add(5 * time.Second)
+	for a.Runs.InFlight(entry.IntegrationID) == 0 {
+		if time.Now().After(deadline) {
+			t.Fatal("the run was never registered")
+		}
+		time.Sleep(time.Millisecond)
+	}
+	a.Settings.Actions.SetIntegrationEnabled(entry.IntegrationID, false)
+
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Fatal("the disabled run finished instead of being killed")
+		}
+		failure, ok := extensions.ParseRunFailure(err.Error())
+		if !ok || failure.Key != extensions.RunErrorKilled || failure.String("extension_id") != "test.ext" {
+			t.Fatalf("err = %v", err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("the killed run never answered")
+	}
+	if got := a.Runs.InFlight(entry.IntegrationID); got != 0 {
+		t.Errorf("the killed run stayed registered: %d", got)
+	}
+}
+
 // The panel's manual Run follows the manifest's output mode: a terminal route
 // streams through the PTY, a background route runs headless and leaves the
 // captured output on the integration's row. Before this split a background

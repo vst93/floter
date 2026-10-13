@@ -216,6 +216,9 @@ type App struct {
 	// Integrations is the extension state: the repository, the installed
 	// manifests and the providers' commands.
 	Integrations *extensions.Store
+	// Runs tracks the background runs in flight, so that disabling or
+	// uninstalling an integration can stop them (the old RunAbortRegistry).
+	Runs *extensions.RunRegistry
 	// Usage is what the user launches, for the launcher's empty state.
 	Usage *usage.Store
 	// Paths is where the extension directories live.
@@ -396,6 +399,7 @@ func New(opts Options) *App {
 		now:                  time.Now,
 		Paths:                paths,
 		Integrations:         extensions.OpenStore(paths),
+		Runs:                 extensions.NewRunRegistry(),
 		Usage:                usage.Open(paths.Root),
 		refreshIntegrations:  opts.RefreshIntegrations,
 		lastLaunchAtStartup:  opts.Store.Snapshot().LaunchAtStartup,
@@ -631,6 +635,10 @@ func New(opts Options) *App {
 				if err != nil || result.Button != 0 {
 					return
 				}
+				// A removal stops the integration's runs before any file moves:
+				// a program still writing its own package directory would race the
+				// deletion (the old kill_extension_runs).
+				a.Runs.Kill(id)
 				result2, err := extensions.UninstallComponentized(a.Paths, id, extensions.UninstallComponents{
 					RemoveHostConfig: components.RemoveHostConfig,
 					RemoveToolData:   components.RemoveToolData,
@@ -660,6 +668,7 @@ func New(opts Options) *App {
 				if err != nil || result.Button != 0 {
 					return
 				}
+				a.Runs.Kill(id)
 				a.onMain(func() {
 					if err := extensions.Uninstall(a.Paths, id, false); err != nil {
 						log.Printf("floter: could not uninstall %s: %v", id, err)
@@ -720,6 +729,7 @@ func New(opts Options) *App {
 				if err != nil || result.Button != 0 {
 					return
 				}
+				a.Runs.Kill(id)
 				if err := extensions.DeleteOrphan(a.Paths, id); err != nil {
 					log.Printf("floter: could not delete %s: %v", id, err)
 				}
@@ -727,6 +737,12 @@ func New(opts Options) *App {
 			}()
 		},
 		SetIntegrationEnabled: func(id string, enabled bool) {
+			if !enabled {
+				// Disabling is a mark, but a run in flight is stopped now: the
+				// old set_enabled's disable branch kills its runs before the flag
+				// is written (R98).
+				a.Runs.Kill(id)
+			}
 			if err := a.Integrations.SetEnabled(id, enabled); err != nil {
 				log.Printf("floter: could not change %s: %v", id, err)
 			}
@@ -2267,8 +2283,11 @@ func (a *App) runCommand(entry extensions.CommandEntry, args []string) {
 // on the main thread so the launcher can show it. The run is time-boxed, so a
 // program that hangs is killed rather than pinning the app.
 func (a *App) runCommandCaptured(entry extensions.CommandEntry, args []string, done func(extensions.CapturedRun, error)) {
+	ctx, cancel := context.WithCancel(context.Background())
+	forget := a.Runs.Add(entry.IntegrationID, cancel)
 	go func() {
-		run, err := extensions.RunCaptured(context.Background(), entry, args)
+		defer forget()
+		run, err := extensions.RunCaptured(ctx, entry, args)
 		a.onMain(func() {
 			done(run, err)
 			a.notifyRun(entry, run, err)
@@ -2281,8 +2300,11 @@ func (a *App) runCommandCaptured(entry extensions.CommandEntry, args []string, d
 // a page load does not raise a completion notification: it is a continuation
 // of the same run, not a new piece of news.
 func (a *App) loadOutputPage(entry extensions.CommandEntry, args []string, cursor string, done func(extensions.CapturedRun, error)) {
+	ctx, cancel := context.WithCancel(context.Background())
+	forget := a.Runs.Add(entry.IntegrationID, cancel)
 	go func() {
-		run, err := extensions.RunCapturedPage(context.Background(), entry, args, cursor)
+		defer forget()
+		run, err := extensions.RunCapturedPage(ctx, entry, args, cursor)
 		a.onMain(func() { done(run, err) })
 	}()
 }

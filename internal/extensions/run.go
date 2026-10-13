@@ -95,7 +95,14 @@ func runCaptured(ctx context.Context, entry CommandEntry, args []string, cursor 
 	runCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(runCtx, entry.Program, argv...)
+	// A Windows `.cmd`/`.bat` program is not startable on its own: the probe
+	// layer happily matches those shims, so the one place that spawns a
+	// program has to spell out the cmd.exe wrap (R74). The gate is the same
+	// platform-aware check the parameter rules use; off Windows nothing
+	// changes, argv included.
+	program, argv := cmdShimWrap(ProgramIsCmdScript(entry.Program), entry.Program, argv)
+
+	cmd := exec.CommandContext(runCtx, program, argv...)
 	cmd.Stdin = nil
 	if entry.Dir != "" {
 		cmd.Dir = entry.Dir
@@ -119,7 +126,7 @@ func runCaptured(ctx context.Context, entry CommandEntry, args []string, cursor 
 	duration := time.Since(started)
 
 	run := CapturedRun{
-		Command:   append([]string{entry.Program}, argv...),
+		Command:   append([]string{program}, argv...),
 		Duration:  duration,
 		ExitCode:  -1,
 		Truncated: stdout.Len() > MaxRunOutputBytes || stderr.Len() > MaxRunOutputBytes,
@@ -132,6 +139,13 @@ func runCaptured(ctx context.Context, entry CommandEntry, args []string, cursor 
 		return run, RunTimeoutFailure(int(timeout / time.Second))
 	}
 	if ctx.Err() != nil {
+		// The caller cancelled the run. In this build the only cancel source
+		// is the run registry, which fires when the integration is disabled or
+		// uninstalled, so the entry's own id names the cause; a cancel with no
+		// id to name stays the plain context error.
+		if entry.IntegrationID != "" {
+			return run, RunKilledFailure(entry.IntegrationID)
+		}
 		return run, ctx.Err()
 	}
 	if runErr != nil {
