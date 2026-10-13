@@ -232,5 +232,11 @@ func LoadManifest(path string) (Manifest, error) {
 	if m.ID == "" || m.Name == "" {
 		return Manifest{}, errors.New("extensions: the manifest names no extension")
 	}
+	// The declared paths are validated while parsing, as the old host did, so
+	// nothing downstream (an export's staging write, a descriptor read) has to
+	// defend against a package pointing outside itself.
+	if err := m.ValidatePaths(); err != nil {
+		return Manifest{}, err
+	}
 	return m, nil
 }
