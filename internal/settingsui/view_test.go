@@ -968,13 +968,54 @@ func TestIntegrationsPage(t *testing.T) {
 	if toggled != "io.github.vst93.v" || toggledTo {
 		t.Errorf("toggled %q to %v", toggled, toggledTo)
 	}
-	// The first row's Uninstall button asks the shell to remove it.
+	// The first row's Uninstall button asks inline first; the bar's danger
+	// button is what asks the shell to remove it.
 	if err := tt.Click("Uninstall"); err != nil {
 		t.Fatalf("the uninstall button is missing: %v", err)
 	}
 	tt.Frame()
+	if removedID != "" {
+		t.Fatalf("the removal happened without asking: %q", removedID)
+	}
+	if !tt.HasText("Uninstall V Tools?") {
+		t.Fatalf("the removal bar is missing: %q", tt.Texts())
+	}
+	if err := tt.Click("Cancel"); err != nil {
+		t.Fatalf("the cancel button: %v", err)
+	}
+	tt.Frame()
+	if removedID != "" || tt.HasText("Uninstall V Tools?") {
+		t.Fatalf("cancel removed or kept the bar: removed=%q texts=%q", removedID, tt.Texts())
+	}
+	if err := tt.Click("Uninstall"); err != nil {
+		t.Fatalf("reopening the removal bar: %v", err)
+	}
+	tt.Frame()
+	// While a question is open, Escape answers it with "no" — it does not
+	// close the page too.
+	tt.Key(0, ui.KeyEscape)
+	tt.Frame()
+	if removedID != "" || tt.HasText("Uninstall V Tools?") {
+		t.Fatalf("Escape removed or kept the bar: removed=%q texts=%q", removedID, tt.Texts())
+	}
+	if err := tt.Click("Uninstall"); err != nil {
+		t.Fatalf("reopening the removal bar: %v", err)
+	}
+	tt.Frame()
+	// Two elements show the bare word now — the row's button and the bar's
+	// own danger button. The danger button sits in the same row as Cancel,
+	// just to its right, so its position is read off Cancel's rect.
+	cancel, ok := tt.Find("Cancel")
+	if !ok {
+		t.Fatalf("the bar's cancel button is missing: %q", tt.Texts())
+	}
+	tt.ClickAt(cancel.X+cancel.W+30, cancel.Y+cancel.H/2)
+	tt.Frame()
 	if removedID != "io.github.vst93.v" || removedName != "V Tools" {
 		t.Errorf("uninstall recorded %q/%q", removedID, removedName)
+	}
+	if tt.HasText("Uninstall V Tools?") {
+		t.Errorf("the bar stayed open after confirming: %q", tt.Texts())
 	}
 
 	// An orphan has no switch: clicking its name does nothing.
@@ -984,6 +1025,53 @@ func TestIntegrationsPage(t *testing.T) {
 	}
 	if toggled != before {
 		t.Errorf("an orphan toggled %q", toggled)
+	}
+}
+
+// A generated custom integration's removal bar speaks its own words: the
+// files Floter wrote for it go too, and the warning says Floter cannot undo
+// it. The danger button is the only one of its name, so it is clicked by
+// text.
+func TestGeneratedIntegrationRemovalBar(t *testing.T) {
+	removedID, removedName := "", ""
+	a := New(newStore(t), Actions{
+		UninstallIntegration: func(id, name string) { removedID, removedName = id, name },
+	})
+	a.Integrations = func() []Integration {
+		return []Integration{{
+			ID: "local.abc", Name: "Ripgrep", Enabled: true, Generated: true,
+		}}
+	}
+	tt := render(t, a, 720, 1200)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if err := tt.Click("Uninstall"); err != nil {
+		t.Fatalf("the uninstall button is missing: %v", err)
+	}
+	tt.Frame()
+	for _, want := range []string{
+		"Delete Ripgrep?",
+		"created and stored by Floter",
+		"cannot be undone",
+	} {
+		if !tt.HasText(want) {
+			t.Errorf("the generated removal bar misses %q: %q", want, tt.Texts())
+		}
+	}
+	if removedID != "" {
+		t.Fatalf("the removal happened without asking: %q", removedID)
+	}
+	if err := tt.Click("Delete integration"); err != nil {
+		t.Fatalf("the danger button: %v", err)
+	}
+	tt.Frame()
+	if removedID != "local.abc" || removedName != "Ripgrep" {
+		t.Errorf("uninstall recorded %q/%q", removedID, removedName)
+	}
+	if tt.HasText("Delete Ripgrep?") {
+		t.Errorf("the bar stayed open after confirming: %q", tt.Texts())
 	}
 }
 

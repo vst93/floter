@@ -438,8 +438,14 @@ var en = Copy{
 		IntegrationsInstall:              "Install",
 		IntegrationsPackageHint:          "npm package, e.g. @scope/name",
 		IntegrationsVersionHint:          "version or range (optional)",
-		IntegrationsRemoveTitle:          removeTitleEN,
-		IntegrationsRemoveDetail:         "The package is removed. The integration's data in extension-data stays.",
+		RemoveTitle:                      func(name string) string { return "Uninstall " + name + "?" },
+		RemoveDetail:                     "Floter will remove the installed integration package. Saved integration data will remain.",
+		RemoveCustomTitle:                func(name string) string { return "Delete " + name + "?" },
+		RemoveCustomDetail:               "This integration was created and stored by Floter. Deleting it removes its generated definition, command files, and script.",
+		RemoveCustomWarning:              "This cannot be undone from Floter. Export your integrations first if you may need this script or configuration again.",
+		RemoveCancel:                     "Cancel",
+		RemoveConfirm:                    "Uninstall",
+		RemoveDelete:                     "Delete integration",
 		IntegrationsAdopt:                "Adopt",
 		IntegrationsPermissions:          "Permissions",
 		PermissionsEnforcedLabel:         "Floter enforces",
@@ -1179,8 +1185,14 @@ var zh = Copy{
 		IntegrationsInstall:              "安装",
 		IntegrationsPackageHint:          "npm 包名，例如 @scope/name",
 		IntegrationsVersionHint:          "版本或范围（可空）",
-		IntegrationsRemoveTitle:          removeTitleZH,
-		IntegrationsRemoveDetail:         "将删除扩展包；extension-data 中的集成数据会保留。",
+		RemoveTitle:                      func(name string) string { return "卸载 " + name + "？" },
+		RemoveDetail:                     "Floter 会移除已安装的集成包，但保留集成数据。",
+		RemoveCustomTitle:                func(name string) string { return "删除 " + name + "？" },
+		RemoveCustomDetail:               "该集成由 Floter 创建并保存。删除后，其生成的定义、命令文件和脚本都会被移除。",
+		RemoveCustomWarning:              "此操作无法在 Floter 中撤销。如需保留脚本或配置，请先导出集成。",
+		RemoveCancel:                     "取消",
+		RemoveConfirm:                    "卸载",
+		RemoveDelete:                     "删除集成",
 		IntegrationsAdopt:                "接管",
 		IntegrationsPermissions:          "权限",
 		PermissionsEnforcedLabel:         "Floter 强制拦截",
@@ -1594,9 +1606,6 @@ var zh = Copy{
 		OpenExternalHint:  "打开系统自己的终端窗口",
 	},
 }
-
-func removeTitleEN(name string) string { return "Remove " + name + "?" }
-func removeTitleZH(name string) string { return "移除 " + name + "？" }
 
 func secondsEN(n uint32) string { return itoa32(n) + " s" }
 func secondsZH(n uint32) string { return itoa32(n) + " 秒" }

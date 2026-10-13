@@ -408,12 +408,16 @@ type App struct {
 	cardRows int
 
 	// disableConfirm marks the integrations whose switch was turned off and
-	// is waiting for the user's answer. runValues holds the run form's
+	// is waiting for the user's answer. removeConfirm marks the ones whose
+	// destructive button was pressed and is likewise waiting — the old
+	// panel's removal bar (`RemovalConfirmation`), asked inline rather than
+	// through a native dialog. runValues holds the run form's
 	// answers per integration and runError its last refusal. runOutputs
 	// holds each integration's last background run and outputOpen which of
 	// those blocks are unfolded (the old panel's `runOutputs` /
 	// `outputOpen`), with outputScroll the fixed-height scroller's offset.
 	disableConfirm map[string]bool
+	removeConfirm  map[string]bool
 	runValues      map[string]map[string]string
 	runError       string
 	runOutputs     map[string]RunResult
@@ -621,9 +625,17 @@ func (a *App) View(c *ui.Context) {
 
 	// While a recorder waits, Escape belongs to it: a shortcut of the view is
 	// handled before the focused element's input, so both recorders have to
-	// yield or their cancel key would close the panel instead.
-	if !a.recording && !a.customRecording && c.Shortcut(0, ui.KeyEscape) && a.Actions.Close != nil {
-		a.Actions.Close()
+	// yield or their cancel key would close the panel instead. And while any
+	// confirmation is open, Escape cancels the question — it must not fall
+	// through to Close and leave the page as well (the reference's own
+	// `stopImmediatePropagation`).
+	if !a.recording && !a.customRecording && c.Shortcut(0, ui.KeyEscape) {
+		switch {
+		case a.anyConfirmOpen():
+			a.cancelConfirmations()
+		case a.Actions.Close != nil:
+			a.Actions.Close()
+		}
 	}
 
 	// The panel is the reference's own: a 56u header band carrying the app's
@@ -1584,7 +1596,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 				a.uninstallComponentsRow(c, copy, integration)
 			} else if a.Actions.UninstallIntegration != nil {
 				if ui.Button(c, copy.IntegrationsUninstall).Clicked() {
-					a.Actions.UninstallIntegration(integration.ID, integration.Name)
+					a.requestRemove(integration.ID)
 				}
 			}
 		})
@@ -1600,6 +1612,9 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 		}
 		if a.disableConfirm[integration.ID] {
 			a.disableConfirmation(c, copy, integration)
+		}
+		if a.removeConfirm[integration.ID] {
+			a.removeConfirmation(c, copy, integration)
 		}
 	})
 }
@@ -3135,6 +3150,88 @@ func (a *App) disableConfirmation(c *ui.Context, copy i18n.Settings, integration
 				a.disableConfirm[integration.ID] = false
 				if a.Actions.SetIntegrationEnabled != nil {
 					a.Actions.SetIntegrationEnabled(integration.ID, false)
+				}
+			}
+		})
+	})
+}
+
+// requestRemove opens the confirmation for deleting an integration.
+func (a *App) requestRemove(id string) {
+	if a.removeConfirm == nil {
+		a.removeConfirm = map[string]bool{}
+	}
+	a.removeConfirm[id] = true
+}
+
+// anyConfirmOpen reports whether a disable or removal bar is up anywhere on
+// the page, and cancelConfirmations answers them all with "no" — Escape's
+// job while a question is open (the reference's document-level listener with
+// `stopImmediatePropagation`): the key cancels the question, it does not
+// leave the page too.
+func (a *App) anyConfirmOpen() bool {
+	for _, open := range a.disableConfirm {
+		if open {
+			return true
+		}
+	}
+	for _, open := range a.removeConfirm {
+		if open {
+			return true
+		}
+	}
+	for _, open := range a.uninstallOpen {
+		if open {
+			return true
+		}
+	}
+	return false
+}
+
+// cancelConfirmations closes every open confirmation without acting on it.
+func (a *App) cancelConfirmations() {
+	for id := range a.disableConfirm {
+		a.disableConfirm[id] = false
+	}
+	for id := range a.removeConfirm {
+		a.removeConfirm[id] = false
+	}
+	for id := range a.uninstallOpen {
+		a.uninstallOpen[id] = false
+	}
+}
+
+// removeConfirmation is the bar under an integration whose destructive button
+// was pressed: deleting files is not a mark — the package is gone from the
+// machine — so it is asked, in the same inline shape the disable bar uses
+// (the old build's `.extension-discard-bar`: title, one sentence of cost,
+// Cancel first and the danger button last). A generated custom integration
+// gets its own words and the extra warning that Floter cannot undo it.
+func (a *App) removeConfirmation(c *ui.Context, copy i18n.Settings, integration Integration) {
+	t := c.Theme()
+	tokens := a.tokens(c)
+	title := copy.RemoveTitle(integration.Name)
+	detail := copy.RemoveDetail
+	confirm := copy.RemoveConfirm
+	if integration.Generated {
+		title = copy.RemoveCustomTitle(integration.Name)
+		detail = copy.RemoveCustomDetail + " " + copy.RemoveCustomWarning
+		confirm = copy.RemoveDelete
+	}
+	ui.Column(c).FillWidth().Gap(t.Space(1)).Padding(t.Space(2), t.Space(3.5)).
+		Margin(0, t.Space(3.5)).Radius(tokens.RadiusSM).
+		Background(tokens.Control).Border(1, tokens.ControlEdge).Children(func() {
+		ui.Text(c, title).FontSize(t.FontSize).FontWeight(580).
+			TextColor(tokens.TextStrong)
+		ui.Text(c, detail).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+		ui.Row(c).Gap(t.Space(1)).AlignItems(ui.Center).Children(func() {
+			if ui.Button(c, copy.RemoveCancel).Clicked() {
+				a.removeConfirm[integration.ID] = false
+			}
+			if ui.Button(c, confirm).Clicked() {
+				a.removeConfirm[integration.ID] = false
+				if a.Actions.UninstallIntegration != nil {
+					a.Actions.UninstallIntegration(integration.ID, integration.Name)
 				}
 			}
 		})

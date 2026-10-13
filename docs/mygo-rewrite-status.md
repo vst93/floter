@@ -99,7 +99,24 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-cd 命令启动的会话结束即带走终端页（原版 R62）**
+> **最新一轮：P7-cf 删除确认走页内 bar（原版 `RemovalConfirmation` / `.extension-discard-bar`）**
+> —— P7-cd 清单第 3 条（P7-cc 记下的残留）。本构建的两条删除路径（普通卸载、删除孤儿）原来用原生
+> `mygo.Dialog.Message`，与同页**停用**确认的页内形状不一致。现在照抄停用确认的页内形状：
+> `settingsui` 新增 `removeConfirm` 状态、`requestRemove` 武装与 `removeConfirmation` 页内条
+> （标题 + 一句后果，Cancel 在前、危险按钮在后；`Generated` 的本地连接换自己的词并追加
+> `deleteCustomWarning` 那句「Floter 无法撤销」）；`internal/shell/shell.go` 三条拆除路径里的
+> `mygo.Dialog.Message` 全部删除——到达 shell 即是答案，先 `Runs.Kill(id)` 再动文件的顺序不变。
+> Escape 在任何确认条（停用 / 删除 / 组件化卸载）打开时先回答问题本身、不顺手离开页面
+> （原版的文档层 `stopImmediatePropagation`）；顺带修掉这轮自己引入的一个 bug：Escape 分支原来
+> 挂在 `Actions.Close != nil` 里，无 Close 的宿主（测试、嵌入）按 Escape 会吞掉问题。
+> i18n：`IntegrationsRemoveTitle/Detail` 两个键换成 `RemoveTitle`/`RemoveDetail`/
+> `RemoveCustomTitle`/`RemoveCustomDetail`/`RemoveCustomWarning`/`RemoveCancel`/`RemoveConfirm`/
+> `RemoveDelete` 八个（en/zh 全）。测试：`TestIntegrationsPage` 的卸载段重写成「先问 → Cancel →
+> 再问 → Escape 取消且不离开页面 → 再问 → 危险按钮确认」，`mygo` 的 `Find` 只回首个同文案元素，
+> 危险按钮的坐标从同行唯一的 Cancel 钮读出；新增 `TestGeneratedIntegrationRemovalBar` 钉
+> Generated 两态（自己的标题/警告/危险按钮词）。变异核查：删掉页内条则两段断言立刻红。
+
+> **上一轮：P7-cd 命令启动的会话结束即带走终端页（原版 R62）**
 > —— P7-cc 收尾后「尚未做」又一次为空。本轮不去翻旧提交，而是**顺着一条原版明写、本构建只做了一半
 > 的契约**往回找：原版 `src/terminal/command-session.ts` 的 `shouldExitWithCommandSession` 规定
 > **命令启动的会话**（`initialCommand` 或结构化 execution plan）进程一结束就离开终端页、回到启动器，
@@ -2334,11 +2351,12 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 > 存了没人读），与 P7-cc 自己记下的残留（删除确认走原生弹窗而非原版的页内 bar）。三条都写成本
 > 清单（下方「具体待办（P7-cd 重写）」）。
 > **P7-cd 落地结果**：第 1 条（R62）已落地。第 2（审批记录）、第 3（删除确认页内 bar）留待下一轮。
+> **P7-ce 落地了第 2 条，P7-cf 落地了第 3 条——本清单三条已全部落地。**
 > 其余仍是卡框架的三条（`Options.OnCopy`、终端键入的 `HandleInput` 缝、外观四个死旋钮）与一次性
 > 维护者动作（`mygo keygen`、`mygo.json` 的 `updates`/签名、CI 私钥、发布到 GitHub Release），
 > 另见「已知差距」。
 
-### 具体待办（P7-cd 重写；第 1 条已落地，第 2·3 条待做）
+### 具体待办（P7-cd 重写；3 条已全部落地：第 1 条 P7-cd、第 2 条 P7-ce、第 3 条 P7-cf）
 
 1. **命令启动的会话结束时把终端页一起带走（原版 R62）（本轮 P7-cd 已落地）** ——
    原版 `src/terminal/command-session.ts` 的 `shouldExitWithCommandSession(commandStarted, mode === "terminal")`：
@@ -2391,9 +2409,11 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
      `src/i18n.ts` 的 `deleteCustomWarning` / `cancel` / `uninstall` 等。
    - 本构建：`internal/shell/shell.go:629`/`:668`（`mygo.Dialog.Message`）、
      `internal/settingsui/settingsui.go:3012-3040`（停用确认的页内形状可以照抄）。
-   - 验收：`settingsui` 里删除也走页内确认行（标题 + 一句后果 + Cancel 在前、危险按钮在后，`busy` 时
-     禁用危险按钮；系统运行时换图标；生成的本地连接带 `deleteCustomWarning`）；Escape 先关它、不顺手
-     离开页面；原生弹窗从两条删除路径删除；测试钉焦点/顺序/Escape/两态，删掉页内行则红。
+   - 验收（已满足，P7-cf）：`settingsui` 里删除走页内确认行（标题 + 一句后果 + Cancel 在前、危险按钮
+     在后；生成的本地连接带 `deleteCustomWarning`）；Escape 先关它、不顺手离开页面；原生弹窗从三条
+     拆除路径（组件化卸载 / 普通卸载 / 删除孤儿）删除；`TestIntegrationsPage` 钉先问/Cancel/Escape/
+     确认四步，`TestGeneratedIntegrationRemovalBar` 钉 Generated 两态。残留：原版的焦点落取消、
+     `busy` 门控与运行态图标是 Web 契约，mygo 无对应原语，未搬。
 
 ### 具体待办（P7-cc 重写；3 条已全部落地：第 1·3 条 P7-cc，第 2 条早已在 P4-ac 落地）
 

@@ -624,22 +624,13 @@ func New(opts Options) *App {
 			}()
 		},
 		UninstallComponents: func(id, name string, components settingsui.UninstallComponents) {
-			// The dialog blocks, so the removal runs off the main thread.
+			// The settings page's own componentized dialog already asked (the
+			// checkboxes are the question); arriving here is the answer. A
+			// removal stops the integration's runs before any file moves: a
+			// program still writing its own package directory would race the
+			// deletion (the old kill_extension_runs).
+			a.Runs.Kill(id)
 			go func() {
-				copy := i18n.For(a.Store.Snapshot().Language).Settings
-				result, err := mygo.Dialog.Message(mygo.MessageOptions{
-					Type:    mygo.MessageWarning,
-					Message: copy.IntegrationsRemoveTitle(name),
-					Detail:  copy.IntegrationsRemoveDetail,
-					Buttons: []string{copy.IntegrationsUninstall, "Cancel"},
-				})
-				if err != nil || result.Button != 0 {
-					return
-				}
-				// A removal stops the integration's runs before any file moves:
-				// a program still writing its own package directory would race the
-				// deletion (the old kill_extension_runs).
-				a.Runs.Kill(id)
 				result2, err := extensions.UninstallComponentized(a.Paths, id, extensions.UninstallComponents{
 					RemoveHostConfig: components.RemoveHostConfig,
 					RemoveToolData:   components.RemoveToolData,
@@ -656,28 +647,19 @@ func New(opts Options) *App {
 			}()
 		},
 		UninstallIntegration: func(id, name string) {
-			// The dialog blocks, so it runs off the main thread and the
-			// result comes back to it.
+			// The settings page has already asked inline (the removal bar);
+			// arriving here is the answer. A removal stops the integration's
+			// runs before any file moves: a program still writing its own
+			// package directory would race the deletion (the old
+			// kill_extension_runs).
+			a.Runs.Kill(id)
 			go func() {
-				copy := i18n.For(a.Store.Snapshot().Language).Settings
-				result, err := mygo.Dialog.Message(mygo.MessageOptions{
-					Type:    mygo.MessageWarning,
-					Message: copy.IntegrationsRemoveTitle(name),
-					Detail:  copy.IntegrationsRemoveDetail,
-					Buttons: []string{copy.IntegrationsUninstall, "Cancel"},
-				})
-				if err != nil || result.Button != 0 {
+				if err := extensions.Uninstall(a.Paths, id, false); err != nil {
+					log.Printf("floter: could not uninstall %s: %v", id, err)
+					a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationRemoveFailed(name) })
 					return
 				}
-				a.Runs.Kill(id)
-				a.onMain(func() {
-					if err := extensions.Uninstall(a.Paths, id, false); err != nil {
-						log.Printf("floter: could not uninstall %s: %v", id, err)
-						a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationRemoveFailed(name) })
-						return
-					}
-					a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationRemoved(name) })
-				})
+				a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationRemoved(name) })
 				a.RefreshIntegrations(context.Background())
 			}()
 		},
@@ -719,18 +701,10 @@ func New(opts Options) *App {
 			}()
 		},
 		DeleteOrphan: func(id string) {
+			// The settings page has already asked inline; arriving here is
+			// the answer.
+			a.Runs.Kill(id)
 			go func() {
-				copy := i18n.For(a.Store.Snapshot().Language).Settings
-				result, err := mygo.Dialog.Message(mygo.MessageOptions{
-					Type:    mygo.MessageWarning,
-					Message: copy.IntegrationsRemoveTitle(id),
-					Detail:  copy.IntegrationsRemoveDetail,
-					Buttons: []string{copy.IntegrationsDeleteOrphan, "Cancel"},
-				})
-				if err != nil || result.Button != 0 {
-					return
-				}
-				a.Runs.Kill(id)
 				if err := extensions.DeleteOrphan(a.Paths, id); err != nil {
 					log.Printf("floter: could not delete %s: %v", id, err)
 				}

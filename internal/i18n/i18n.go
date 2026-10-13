@@ -473,8 +473,6 @@ type Settings struct {
 	IntegrationsInstall              string
 	IntegrationsPackageHint          string
 	IntegrationsVersionHint          string
-	IntegrationsRemoveTitle          func(name string) string
-	IntegrationsRemoveDetail         string
 	// IntegrationsCommands is the per-command switch list's caption, and
 	// IntegrationsCommandsHint explains what a switch does.
 	IntegrationsCommands string
@@ -624,6 +622,17 @@ type Settings struct {
 	DisableDescription string
 	DisableCancel      string
 	DisableConfirm     string
+	// The removal bar: deleting an integration is destructive, so it is asked
+	// inline (the old build's `.extension-discard-bar`). A generated custom
+	// integration's own words and the warning only it carries.
+	RemoveTitle         func(name string) string
+	RemoveDetail        string
+	RemoveCustomTitle   func(name string) string
+	RemoveCustomDetail  string
+	RemoveCustomWarning string
+	RemoveCancel        string
+	RemoveConfirm       string
+	RemoveDelete        string
 	// The detected-programs section: what this machine already has and
 	// nothing has connected.
 	DetectedTitle string
