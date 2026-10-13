@@ -1,0 +1,78 @@
+# Manual diagnostic job: builds the Windows app on a real windows-latest
+# runner, starts the executable with a surface revealed, screenshots the
+# desktop, and uploads the capture. This is deliberately NOT part of the
+# release chain -- go.yml must never call it, and it only runs on
+# workflow_dispatch (mirrors the original repo's ad843f3).
+#
+# The screenshot is the deliverable: a human reviews it visually (card fill,
+# corner shape, material traces) because the Windows-only runtime paths have no
+# evidence beyond retests. Every gate this repo runs is a Linux gate: the
+# cfg(windows) branches (internal/shell's vibrancyForStop, the glass haze, the
+# window corners, the terminal's native library) are compiled on every push and
+# executed zero times. Nothing here asserts a result -- do not treat it as a
+# release gate.
+name: windows-smoke
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # The CLI is a tool of the module (go.mod's `tool` directive), so this is
+      # the released build path: dist/windows-amd64/floter.exe carries the app
+      # and the terminal plugin's native library next to it.
+      - name: Build the app
+        run: go tool mygo build -platform windows/amd64
+
+      - name: Launch, reveal, and capture the desktop
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem "dist\windows-amd64" -Filter *.exe |
+            Where-Object { $_.Name -notmatch "Setup" } |
+            Select-Object -First 1
+          if (-not $exe) { throw "no app executable in dist\windows-amd64" }
+          Write-Host "launching $($exe.FullName)"
+
+          # FLOTER_OPEN names the surface to start on (cmd/floter/main.go); the
+          # settings face is the densest, so it exercises the most card/stroke
+          # material in one frame.
+          $env:FLOTER_OPEN = "settings"
+          Start-Process -FilePath $exe.FullName
+          Start-Sleep -Seconds 20
+
+          $proc = Get-Process | Where-Object { $_.Path -like "*dist\windows-amd64*" }
+          if (-not $proc) { throw "the app process is not alive at screenshot time" }
+
+          Add-Type -AssemblyName System.Windows.Forms
+          Add-Type -AssemblyName System.Drawing
+          $bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+          $bitmap = New-Object System.Drawing.Bitmap $bounds.Width, $bounds.Height
+          $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+          $graphics.CopyFromScreen($bounds.Location, [System.Drawing.Point]::Empty, $bounds.Size)
+          $bitmap.Save("$env:GITHUB_WORKSPACE\smoke-desktop.png", [System.Drawing.Imaging.ImageFormat]::Png)
+          $graphics.Dispose(); $bitmap.Dispose()
+          Write-Host "captured $($bounds.Width)x$($bounds.Height)"
+
+      - name: Stop the app
+        if: always()
+        shell: pwsh
+        run: Get-Process | Where-Object { $_.Path -like "*dist\windows-amd64*" } | Stop-Process -Force -ErrorAction SilentlyContinue
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: smoke-desktop
+          path: smoke-desktop.png
+          if-no-files-found: error

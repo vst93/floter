@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**907 项测试全绿**。
+含测试）。**909 项测试全绿**。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 907 项测试
+go test -count=1 ./...         # 909 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,7 +99,16 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-bs `prefers-contrast: more` 接进主题与玻璃（原版 base.css:1387-1574）** —— P7-br 重写的
+> **最新一轮：P7-bt Windows 冒烟作业（原版 ad843f3）** —— P7-br 重写的 4 条具体待办里只剩第 3 条：真实
+> windows-latest 上跑一次那个 .exe、截屏。本构建的每个门都是 Linux 门，`cfg(windows)` 那几段
+> （`internal/shell` 的 `vibrancyForStop` windows 分支、玻璃雾层、窗口圆角、终端原生库）编译过一百次、
+> 执行过零次。本轮新增 `.github/workflows/windows-smoke.yml`（只有 `workflow_dispatch`，**故意不进
+> release 链**）：checkout + setup-go → `go tool mygo build -platform windows/amd64` →
+> `FLOTER_OPEN=settings` 后台启动 `dist/windows-amd64/floter.exe` → 等 20s 确认进程还活着 → PowerShell
+> `CopyFromScreen` 截屏 → `upload-artifact`。配套守卫测试 `internal/ci/workflows_test.go` 钉住「只有
+> 手动触发、`go.yml` 不引用它、产物是截图」。落地见下方「P7-bt Windows 冒烟作业」。
+
+> **上一轮：P7-bs `prefers-contrast: more` 接进主题与玻璃（原版 base.css:1387-1574）** —— P7-br 重写的
 > 具体待办只剩两条：第 3 条（Windows 冒烟作业）要真机跑一次，第 4 条是纯代码、可本机验证，本轮取第 4 条。
 > 原版把「提高对比度」当作**材质**的事而不只是边框：`--glass-frame-floor: 0.86`（透明度滑杆的底端被抬到
 > 近乎不透明）、`--glass-step-dim: 0`（去掉雾层）、`--glass-lens-scale: 0.6`（反光阻尼），外加
@@ -170,7 +179,33 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 > required 不认 default 豁免。现在 `ParamIssues` 返回 `{Index,Key,Label}`，每个非法值
 > 的句子印在**它自己那一行下面**，Run 按钮在有错时禁用；输出视图也按语言渲染 `run_param_*`。
 
-**P7-bs 提高对比度接进主题与玻璃（原版 `base.css:1387-1574`）（本轮）**
+**P7-bt Windows 冒烟作业（原版 `ad843f3`）（本轮）**
+
+- **依赖检查**：GitHub releases API 仍被限流，改用 go proxy（`go list -m -versions github.com/egoist/mygo`）
+  确认 v0.4.8 仍是最新（`go.mod` 已是 v0.4.8），无版本可升。
+- **入口**：P7-br 重写的 4 条具体待办里第 1、2、4 条已落地，只剩第 3 条（Windows 冒烟作业）。它之所以
+  留到最后，是因为验收要「真跑一次」，而此前各轮只能改仓库、不能动 CI；本轮 `gh` 已认证（`vst93`），
+  所以除了写文件，还能真的 dispatch 并等人看截图。
+- **原版对照**：`main` 的 `.github/workflows/windows-smoke.yml`（v0.3.14，67 行）只有 `workflow_dispatch`，
+  构建 exe、用应用自己的揭示方式启动它、PowerShell 截屏并 `upload-artifact`，文件头注释写明「This is
+  deliberately NOT part of the release chain」以及「compiled a hundred times and executed zero」。
+- **本构建（改前）**：`.github/workflows/` 只有 `go.yml`；它的 test 矩阵在 windows-latest 上跑
+gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就结束——**从不启动那个 exe**。
+- **改动**：
+  - 新增 `.github/workflows/windows-smoke.yml`：`on: workflow_dispatch: {}`、`permissions: contents: read`、
+    `runs-on: windows-latest`、`timeout-minutes: 40`。步骤 = checkout + setup-go（`go-version-file`）→
+    `go tool mygo build -platform windows/amd64` → pwsh 里挑出非 Setup 的 exe、置 `FLOTER_OPEN=settings`、
+    `Start-Process`、等 20s、用 `dist\windows-amd64` 路径确认进程还活着 → `CopyFromScreen` 存
+    `smoke-desktop.png` → `Stop-Process` → `upload-artifact`（`if-no-files-found: error`）。
+  - 新增 `internal/ci/workflows_test.go`（test-only 包）：`TestWindowsSmokeIsDispatchOnly` 钉住只有
+    `workflow_dispatch`（无 `push:`/`pull_request:`/`release:`/`schedule:`）、构建 `windows/amd64`、
+    `CopyFromScreen` + `smoke-desktop.png` + `upload-artifact` 三件套都在；
+    `TestWindowsSmokeStaysOutOfTheReleaseChain` 钉住 `go.yml` 不引用 `windows-smoke`。
+- **验证**：`gh workflow run windows-smoke.yml --ref mygo-rewrite` 真跑一次（见下方记录）。
+- **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 29 包全绿（909 项）、
+  `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+**P7-bs 提高对比度接进主题与玻璃（原版 `base.css:1387-1574`）（上一轮）**
 
 - **依赖检查**：GitHub releases API 仍被限流，改用 go proxy（`go list -m -versions github.com/egoist/mygo`）
   确认 v0.4.8 仍是最新（`go.mod` 已是 v0.4.8），无版本可升。
@@ -1998,13 +2033,12 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 尚未做（按建议优先级）
 
-> **P7-br 更新**：P7-bp 的 3 条具体待办全部落地后清单又空，本轮把它重新写实为下面 4 条带 file:line
-> 的具体待办；P7-br 落地第 1、2 条，P7-bs 落地第 4 条，**只剩第 3 条**。第 3 条来源是 `main` 上尚无对照物
-> 的 ad843f3（Windows 冒烟作业），要真机跑一次才算验收，所以留给能动 CI 的一轮。其余卡在框架上的三条
-> （`Options.OnCopy`、终端键入的 `HandleInput` 缝、外观四个死旋钮）与一次性维护者动作
-> （`mygo keygen`、`mygo.json` 的 `updates`/签名、CI 私钥、发布到 GitHub Release）不变，另见「已知差距」。
+> **P7-bt 更新**：P7-br 重写的 4 条具体待办，第 3 条由 P7-bt 收尾（新增 `windows-smoke.yml` 并真 dispatch
+> 一次）——**4 条至此全部落地**。其余卡在框架上的三条（`Options.OnCopy`、终端键入的 `HandleInput` 缝、
+> 外观四个死旋钮）与一次性维护者动作（`mygo keygen`、`mygo.json` 的 `updates`/签名、CI 私钥、发布到
+> GitHub Release）不变，另见「已知差距」。
 
-### 具体待办（P7-br 重写；第 1、2、4 条已落地，只剩第 3 条待做）
+### 具体待办（P7-br 重写；4 条已全部落地：第 1·2 条 P7-br、第 4 条 P7-bs、第 3 条 P7-bt）
 
 1. **分页页脚的三态（R29）（本轮已落地）** —— 原版 `pluginFooterState`（`src/launcher/plugin-mode.ts:613-626`）
    把页脚收成四个状态，`LauncherResults.tsx:1024-1040` 只给 `loading` 画 spinner、给 `loading` 与
@@ -2029,7 +2063,7 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
      `Opacity(1-0.5*breath)` + `Scale(1-0.12*breath)`；页脚环经同一函数取相位；
      `TestValueRestsUnderReduceMotion`、`TestStatusDotRestsUnderReduceMotion` 钉住（同一帧像素对比，
      两个 mutation 复现红）。
-3. **Windows 冒烟作业：编译过一百次、执行过零次（原版 ad843f3）** —— 原版新增
+3. **Windows 冒烟作业：编译过一百次、执行过零次（原版 ad843f3）（本轮已落地）** —— 原版新增
    `.github/workflows/windows-smoke.yml`（仅 `workflow_dispatch`，**故意不进 release 链**）：在真实
    windows-latest 上构建 exe、用 CLI 自己的冷启动揭示启动它、截屏桌面并上传截图供人看。理由写在提交里：
    「Every gate this repo runs is a Linux gate: the cfg(windows) code has been compiled a hundred times and
@@ -2044,11 +2078,8 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
      `dist/*/*.exe` 就结束）；`cmd/floter/main.go:73-84` 的 `FLOTER_OPEN`（`launcher` / `settings` /
      `terminal`，由 `shell.ParseSurface` 解析）就是现成的揭示方式，与终端的原生库一起由
      `go tool mygo build -platform windows/amd64` 打进 exe。
-   - 验收：新增 `.github/workflows/windows-smoke.yml`，只有 `workflow_dispatch`，不挂在 `release` 上；
-     步骤 = checkout + setup-go → `go tool mygo build -platform windows/amd64` → 后台启动 exe
-     （`FLOTER_OPEN=settings`）等它画出窗口 → 截屏 → `actions/upload-artifact` 上传 PNG（`if-no-files-found: error`）
-     → 结束进程；作业里写清「这是人看的证据，不做判定」以免被当成 release 门。真跑一次（手动 dispatch）
-     并确认截图里能看到窗口，而不是全黑/全白。
+   - 验收（已满足）：`internal/ci/workflows_test.go` 钉住触发面与产物；`gh workflow run windows-smoke.yml
+     --ref mygo-rewrite` 真跑一次、下载 artifact 确认截图里能看到窗口（见下方「P7-bt」记录）。
 4. **`prefers-contrast: more` 一整块没接线（原版 `base.css:1387-1574`）（本轮已落地）** —— 原版把「提高对比度」当作
    **材质**的事，不只是边框：`--glass-frame-floor: 0.86`（透明的底端被抬到近乎不透明）、
    `--glass-step-dim: 0`（去掉雾层）、`--glass-lens-scale: 0.6`（反光阻尼到近平面），再加
