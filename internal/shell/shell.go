@@ -1313,6 +1313,7 @@ func (a *App) integrationList() []settingsui.Integration {
 			case extensions.HealthUnhealthy:
 				item.Health = copy.IntegrationsUnhealthy
 			}
+			item.HealthReport = healthReportView(report, integration.Manifest.Lifecycle.Probes)
 		}
 		if a.Integrations == nil {
 			log.Printf("floter: the extension store is nil in integrationList")
@@ -1330,6 +1331,30 @@ func (a *App) integrationList() []settingsui.Integration {
 		out = append(out, settingsui.Integration{ID: id, Name: id, Orphan: true})
 	}
 	return out
+}
+
+// healthReportView projects the repository's stored probe report onto the
+// settings card's own shape. `retryable` is the manifest's `required`
+// inverted — a failed required probe is a broken tool, an optional one is a
+// transient failure worth retrying — so the report never has to persist the
+// same fact twice (and the disk format stays the old build's).
+func healthReportView(report *extensions.HealthReport, schema []extensions.Probe) *settingsui.HealthReport {
+	required := make(map[string]bool, len(schema))
+	for _, probe := range schema {
+		required[probe.ID] = probe.Required
+	}
+	view := &settingsui.HealthReport{CheckedAt: report.CheckedAt}
+	for _, record := range report.Probes {
+		view.Probes = append(view.Probes, settingsui.HealthProbe{
+			ID:         record.ID,
+			Passed:     record.Passed,
+			DurationMs: record.DurationMs,
+			ExitCode:   record.ExitCode,
+			Stderr:     record.Stderr,
+			Retryable:  !required[record.ID],
+		})
+	}
+	return view
 }
 
 // diagnoseIntegration asks a provider to check itself, off the main thread,

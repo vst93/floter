@@ -2687,7 +2687,10 @@ func TestHealthShowsOnTheRow(t *testing.T) {
 	  "distribution": {"type": "local"},
 	  "runtime": {"type": "script", "language": "shell", "path": "tool.sh"},
 	  "provider": {"type": "executable", "argsPrefix": ["--floter"]},
-	  "lifecycle": {"probes": [{"id": "up", "args": ["--up"], "required": true}]}
+	  "lifecycle": {"probes": [
+	    {"id": "up", "args": ["--up"], "required": true},
+	    {"id": "extras", "args": ["--extras"], "required": false}
+	  ]}
 	}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -2717,6 +2720,9 @@ func TestHealthShowsOnTheRow(t *testing.T) {
 	if got := a.integrationList()[0].Health; got != "" {
 		t.Errorf("health before a reprobe = %q", got)
 	}
+	if report := a.integrationList()[0].HealthReport; report != nil {
+		t.Errorf("a report before any probe = %+v", report)
+	}
 
 	// A reprobe persists the health; the shell's view of the repository is
 	// refreshed, and the row shows it.
@@ -2726,6 +2732,28 @@ func TestHealthShowsOnTheRow(t *testing.T) {
 	a.RefreshIntegrations(context.Background())
 	if got := a.integrationList()[0].Health; got != "healthy" {
 		t.Errorf("health after a reprobe = %q", got)
+	}
+	// The report's detail reaches the card: both probes, their durations and
+	// the run's timestamp; retryable is the manifest's `required`, inverted.
+	report := a.integrationList()[0].HealthReport
+	if report == nil || len(report.Probes) != 2 {
+		t.Fatalf("the stored report did not reach the card: %+v", report)
+	}
+	if report.CheckedAt == "" {
+		t.Errorf("the report has no timestamp: %+v", report)
+	}
+	for _, probe := range report.Probes {
+		if !probe.Passed || probe.ExitCode != 0 {
+			t.Errorf("probe %q = %+v, want a pass", probe.ID, probe)
+		}
+	}
+	// The projection is the manifest's `required`, inverted: the optional
+	// probe is the retryable one, whether or not it happened to pass.
+	for _, probe := range report.Probes {
+		wantRetryable := probe.ID == "extras"
+		if probe.Retryable != wantRetryable {
+			t.Errorf("probe %q retryable = %v, want %v", probe.ID, probe.Retryable, wantRetryable)
+		}
 	}
 
 	// A failing required probe marks the integration broken and says so.
@@ -2738,6 +2766,17 @@ func TestHealthShowsOnTheRow(t *testing.T) {
 	a.RefreshIntegrations(context.Background())
 	if got := a.integrationList()[0].Health; got != "not working" {
 		t.Errorf("broken health = %q", got)
+	}
+	// A failed required probe is not retryable; the failed optional one is.
+	broken := a.integrationList()[0].HealthReport
+	if broken == nil || len(broken.Probes) != 2 {
+		t.Fatalf("the failing report did not reach the card: %+v", broken)
+	}
+	for _, probe := range broken.Probes {
+		wantRetryable := probe.ID == "extras"
+		if probe.Passed || probe.Retryable != wantRetryable {
+			t.Errorf("probe %q = %+v, want a failure with retryable=%v", probe.ID, probe, wantRetryable)
+		}
 	}
 	// A broken integration contributes no commands.
 	if got := a.Launcher.Commands; len(got) != 0 {

@@ -1,6 +1,6 @@
 # floter × mygo 重构：当前进度与后续规划
 
-> 交接文档。状态时间：2026-10-12，分支 `mygo-rewrite`（已推送）。框架：mygo v0.4.8。
+> 交接文档。状态时间：2026-10-13，分支 `mygo-rewrite`（已推送）。框架：mygo v0.4.8。
 > **仓库现在只有 Go 实现**：Tauri/Rust/React 时代的代码已删除（P6-b）。
 > 详细的分轮记录见 `docs/mygo-rewrite-plan.md`（含每轮的决策与「未做」清单）。
 
@@ -8,10 +8,10 @@
 
 用 mygo（原生 GPU 自绘 UI + Go）重写的 floter **已经是一个可打包、可运行的完整应用**：单窗口三表面
 （启动器 / 设置 / 终端）、搜索内核、扩展平台（含后台运行、列表协议、导入导出、权限审计）、剪贴板、
-浏览器、计算器、系统集成、打包与 CI 全部就位。**901 项测试全绿**，三平台都能构建，Linux 打包
+浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。
+含测试）。**902 项测试全绿**。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 901 项测试
+go test -count=1 ./...         # 902 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,7 +99,13 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-bl 清单的严格解析与组合规则（`deny_unknown_fields` + `validate_paths` 的组合那半）** ——
+> **最新一轮：P7-bm 健康报告的探针明细与检查时间** —— 「尚未做」清单为空，本轮先把它重写为 4 条
+> 带 file:line 的具体待办，再取第 1 条落地。仓库里持久化的健康报告（`probeReport`）只被投影成一句
+> 状态词，`ProbeRecord.DurationMs`/`ExitCode`/`Stderr` 与 `HealthReport.CheckedAt` 全部算完就丢；
+> 现在卡片在 Health 行下逐条画出探针（记号 + id + 耗时）、失败项（退出码 + stderr + 可重试）与检查
+> 时间，`Retryable` 由清单 `required` 取反投影，磁盘格式不变。
+
+> **上一轮：P7-bl 清单的严格解析与组合规则（`deny_unknown_fields` + `validate_paths` 的组合那半）** ——
 > P7-bh 重写的具体待办第 5 条（最后一条）。清单的未知字段拒绝与组合规则已由 8f99926 落地，但
 > `validate_param_definitions` 那一半还缺：`ValidateParams` 没在**解析期**跑、也不查 default 是否合
 > kind，且这套规则一条测试都没有。现在 `Manifest.Validate()` 在解析期跑完组合 + 参数声明 + 路径 +
@@ -112,7 +118,40 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 > required 不认 default 豁免。现在 `ParamIssues` 返回 `{Index,Key,Label}`，每个非法值
 > 的句子印在**它自己那一行下面**，Run 按钮在有错时禁用；输出视图也按语言渲染 `run_param_*`。
 
-**P7-bl 清单的严格解析与组合规则（本轮）**
+**P7-bm 健康报告的探针明细与检查时间（本轮）**
+
+- **依赖检查**：GitHub releases API 被限流，改用 `go list -m -versions github.com/egoist/mygo` 确认
+  v0.4.8 仍是最新（`go.mod` 已是 v0.4.8），无版本可升。
+- **入口**：「尚未做」清单为空（P7-bh 的 5 条全部落地，其余只剩卡框架项），本轮先把清单重写为 4 条
+  带 file:line 的具体待办（见下方「具体待办（P7-bm 重写）」），再取第 1 条实现。
+- **偏离点（报告算完就丢）**：原版 `extension-health`（`ExtensionsPanel.tsx:2922-2964`）把
+  `healthReport.probes` 逐条画出来——通过/失败记号 + `probeId` + `{durationMs}ms`；失败项另列
+  `(exit: {code})` + stderr + `healthRetryable`；末尾 `healthCheckedAt`。本构建的集成卡片只把报告
+  的 `Status` 映射成一句本地化状态词（`shell.go:1306` 的 `integration.Health`），而 `ProbeRecord`
+  的 `DurationMs`/`ExitCode`/`Stderr`（`internal/extensions/probes.go:38-50`）与 `HealthReport.CheckedAt`
+  （`probes.go:51`）**没有任何视图读取**——报告进了仓库、也读了回来，就是没人画。
+- **修法**：
+  - `internal/settingsui` 新增 `HealthReport`/`HealthProbe` 视图与 `Integration.HealthReport`；
+    `healthDetail` 在 Health 行下画三块——`Checks`（每条探针一行：右侧记号 + `{ms}ms`）、`Failures`
+    （每条失败一行：`exit: {code}` + stderr + `Retryable`）、以及 `Checked {time}` 时间戳。
+    `healthDuration`/`healthExitCode`/`healthCheckedAt` 三个纯助手（退出码 `-1` 画 `-`，时间戳按
+    RFC 3339 解析成 `2006-01-02 15:04` 本地时间，解析不了就原样返回）。
+  - `internal/shell` 新增 `healthReportView`：把仓库里的 `ProbeReport` 投影成视图，`Retryable` 取
+    清单 `Lifecycle.Probes` 的 `required` 取反（**不落盘**，磁盘格式与原版一致——原版的 `retryable`
+    也只在失败记录里、不写进 `ProbeRecord`）。
+  - `internal/i18n` 补五句（`IntegrationsHealthChecks`/`Failures`/`Retryable`/
+    `HealthExitCode(code)`/`HealthCheckedAt(time)`，en/zh 用原版 `healthProbes`/`healthFailures`/
+    `healthRetryable`/`healthExitCode`/`healthCheckedAt` 的原文）。
+- **测试**：`settingsui/view_test.go` 的 `TestStoredHealthReportShowsItsProbes`（探针 id、耗时、
+  `Checks`/`Failures`/`exit: 3`/stderr/`Retryable`/`Checked …` 全部画出来；没有报告时一行明细都不画）；
+  `shell_test.go` 的 `TestHealthShowsOnTheRow` 扩写——夹具的清单加一条 optional 探针，核对报告到达卡片、
+  通过项的耗时与时间戳在、`Retryable` 取 `required` 的反（required 失败不可重试、optional 可重试）。
+  变异核查：把 `integrationList` 里的 `item.HealthReport = ...` 删掉，settingsui 与 shell 两条立刻红；
+  把 `Retryable: !required[...]` 写成 `required[...]`，`TestHealthShowsOnTheRow` 两条断言翻转。
+- **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 27 包全绿
+  （902 项）、`GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+**P7-bl 清单的严格解析与组合规则（上一轮）**
 
 - **依赖检查**：`curl .../releases/latest` 返回 v0.4.8，`go.mod` 已是 v0.4.8，无版本可升。
 - **入口**：P7-bh 重写的 5 条具体待办，第 1–4 条已落地，本轮取第 5 条（清单里最后一条）。
@@ -1707,11 +1746,54 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 尚未做（按建议优先级）
 
-> **P7-bl 更新**：P7-bh 重写的 5 条具体待办**全部落地**——第 1（路径安全）、第 2（lifecycle 结构
-> 校验）、第 3（运行期参数校验与 argv 权威）、第 4（表单逐参数本地化错误）、第 5（严格解析 + 组合
-> 规则 + 解析期参数声明校验）都已实现并有测试。清单里只剩三条明确卡在框架上的能力
-> （`Options.OnCopy`、终端键入的 `HandleInput` 缝、外观四个死旋钮）与一次性维护者动作
-> （`mygo keygen`、`mygo.json` 的 `updates`/签名、CI 私钥、发布到 GitHub Release）。
+> **P7-bm 更新**：P7-bh 的 5 条具体待办全部落地后清单已空，本轮把「尚未做」重新写实为下面 4 条
+> 带 file:line 的具体待办，并取第 1 条落地。仍然卡在框架上的三条（`Options.OnCopy`、终端键入的
+> `HandleInput` 缝、外观四个死旋钮）与一次性维护者动作（`mygo keygen`、`mygo.json` 的
+> `updates`/签名、CI 私钥、发布到 GitHub Release）不变，另见「已知差距」。
+
+### 具体待办（P7-bm 重写；第 1 条本轮已落地）
+
+1. **健康报告的探针明细与检查时间从不展示（本轮已落地）** —— 原版 `extension-health` 会逐条画出
+   `healthReport.probes`（通过/失败的记号 + `probeId` + `{durationMs}ms`）、失败项（`healthExitCode` +
+   stderr + `healthRetryable`）与 `healthCheckedAt` 时间戳；本构建只画一句状态词，报告里的
+   `ProbeRecord.DurationMs`/`ExitCode`/`Stderr` 与 `HealthReport.CheckedAt` 全部算完就丢。
+   落地见下方「P7-bm 健康报告的探针明细」。
+   - 原版：`src/ExtensionsPanel.tsx:2922-2964` 的 `extension-health` 块——`healthReport.probes.map`
+     每条画记号 + `probeId` + `{probe.durationMs}ms`；`healthReport.failures.map` 画 `probe` +
+     `(exit: {code})` + stderr + `healthRetryable`；末尾 `healthCheckedAt`。i18n 键
+     `settings.extensions.healthProbes`/`healthFailures`/`healthExitCode`/`healthRetryable`/
+     `healthCheckedAt`（`src/i18n.ts:584-590`）。
+   - 本构建（改前）：`internal/settingsui/settingsui.go:1199` 的 `integration.Health` 只画状态词；
+     `extensions.ProbeRecord.DurationMs`（`internal/extensions/probes.go:41`）、`ExitCode`、`Stderr`
+     与 `HealthReport.CheckedAt`（`probes.go:51`）**没有任何视图读取**（`grep '\.DurationMs'
+     internal/settingsui` 为空）；`settingsui.Integration` 也没有承载报告的字段。
+   - 验收（已满足）：`settingsui` 新增 `HealthReport`/`HealthProbe` 视图并画在 Health 行下；shell 的
+     `healthReportView` 把仓库里的报告投影进来，`Retryable` 取清单 `required` 的反（不落盘，磁盘格式
+     不变）；i18n 补五句；测试钉住渲染与投影。
+2. **`extensions.CapabilityReport` / `ProbeCapabilities` 是双方都有的死代码** ——
+   `internal/extensions/capability.go` 的 `ProbeCapabilities`/`SupportedFeatures`/`Limitations`
+   只有自己的测试调用（`grep -rn 'ProbeCapabilities' internal cmd --include=*.go | grep -v _test` 为空）。
+   原版 `capability_probe.rs` 的 `CapabilityScanner::scan` 同样只有测试调用，且 reprobe 路径传的是
+   `HealthReport::new(Default::default())`（`probe_executor.rs:17`），所以原版卡片里的
+   `capabilities.version` 恒为 `unknown`、features/limitations 恒空——**两版都不展示**。
+   这不是偏离，是一份双方共有的死代码，需要一个决策：接线（让 `Reprobe` 也跑 `ProbeCapabilities`，
+   把 `Capabilities` 补回 `HealthReport` 并画出 `v{version}`/features/limitations，同时补磁盘字段）
+   或删除（`capability.go` 与其测试一起移除）。验收：接线则卡片有 version/features/limitations 且
+   测试钉住；删除则 `grep` 为零。
+3. **`browser.Entry.ProfileKey` 与 `browser.FindProfile` 是死字段/死函数** ——
+   `internal/browser/browser.go:60` 的 `ProfileKey` 只在构造时写入（`:447,616,650` 与 `safari.go:61`），
+   全仓无 `.ProfileKey` 读取（`grep -rn '\.ProfileKey' internal --include=*.go | grep -v _test` 为空）；
+   `FindProfile`（`target.go:50`）除自身测试外无调用者。原版用 `profile_key` 在 `browser_open_url`
+   （`src-tauri/src/browser_data/mod.rs:354`）里反解 browser id；本构建改用 `Entry.BrowserID` 直接开
+   （`internal/launcher/search.go:273` 的 `openResult`），行为等价，所以这是**冗余清理**而非缺口。
+   验收：删除 `ProfileKey`/`FindProfile` 及其测试（或让 `OpenURL` 真的经 `FindProfile` 解析），
+   `grep` 为零，`OpenURL` 测试仍绿。
+4. **`extensions.CommandInfo.ExtensionName` 是死字段** —— `internal/extensions/store.go:211` 只写不读
+   （`shell.go:1239` 的 `integrationList` 映射不用它，卡片已按集成分组）。验收：删除字段与赋值，
+   `grep` 为零，测试不受影响。
+
+> 这 4 条都不卡框架；第 1 条已落地。上面 P7-bh/P7-an/P7-bb/P7-bd 的旧清单保留在下方，
+> 作为「哪些已经做过」的记录。
 
 ### 具体待办（P7-bh 重写；第 1–5 条全部已落地）
 

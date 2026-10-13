@@ -471,6 +471,14 @@ type Settings struct {
 	IntegrationsDegraded    string
 	IntegrationsUnhealthy   string
 	IntegrationsDiagnostics string
+	// The stored report's detail: every probe the last run recorded (its id and
+	// how long it took), the failed ones with their exit code, stderr and
+	// whether a retry is worth it, and when the run happened.
+	IntegrationsHealthChecks    string
+	IntegrationsHealthFailures  string
+	IntegrationsHealthRetryable string
+	IntegrationsHealthExitCode  func(code string) string
+	IntegrationsHealthCheckedAt func(when string) string
 	// IntegrationsFailureDetail is the label of a broken entry's one-line
 	// reason (the old host's `settings.extensions.brokenDetail`).
 	IntegrationsFailureDetail string

@@ -227,6 +227,10 @@ type Integration struct {
 	// manifest declares no probes. It survives across runs (the repository
 	// keeps it), so a row shows how the tool was last found to be.
 	Health string
+	// HealthReport is that same stored report's detail: every probe with its
+	// duration, the failed ones with their exit code and stderr, and when the
+	// run happened. Nil when nothing has ever probed the integration.
+	HealthReport *HealthReport
 	// Commands are the commands the integration declares, each with the
 	// switch state the launcher reads.
 	Commands []Command
@@ -243,6 +247,28 @@ type Integration struct {
 	// Params are the declared inputs a run needs: the card renders a form for
 	// them, and the answers become argv.
 	Params []Param
+}
+
+// HealthReport is the stored lifecycle probe report's detail, as the card
+// draws it: when the run happened and what each probe did.
+type HealthReport struct {
+	// CheckedAt is the run's RFC 3339 timestamp, as the repository stored it.
+	CheckedAt string
+	Probes    []HealthProbe
+}
+
+// HealthProbe is one probe record of a stored report.
+type HealthProbe struct {
+	ID         string
+	Passed     bool
+	DurationMs uint64
+	// ExitCode is -1 when the probe never ran to an exit.
+	ExitCode int
+	Stderr   string
+	// Retryable is true for an optional probe: a failed required probe is a
+	// broken tool, not a transient one. It is projected from the manifest's
+	// own `required`, so it never has to be persisted twice.
+	Retryable bool
 }
 
 // Param is one declared input, as the form renders it.
@@ -1153,6 +1179,81 @@ func (a *App) stateMark(c *ui.Context, integration Integration, copy i18n.Settin
 	}
 }
 
+// healthDetail draws the stored probe report's own lines under the Health row
+// (the old build's `extension-health` block): every probe the last run
+// recorded with its duration, then the failed ones with the reason a retry
+// decision needs, then when the run happened. The status word above stays the
+// row's value; these lines are its detail.
+func (a *App) healthDetail(c *ui.Context, copy i18n.Settings, report *HealthReport) {
+	t := c.Theme()
+	tokens := a.tokens(c)
+	if len(report.Probes) > 0 {
+		a.row(c, copy.IntegrationsHealthChecks, "", func() {})
+		for _, probe := range report.Probes {
+			probe := probe
+			a.row(c, probe.ID, "", func() {
+				mark, color := "\u2713", t.Accent
+				if !probe.Passed {
+					mark, color = "\u2717", t.Danger
+				}
+				ui.Text(c, mark).FontSize(t.FontSize).TextColor(color)
+				ui.Text(c, healthDuration(probe.DurationMs)).FontSize(t.FontSize - 1).TextColor(tokens.TextSecondary)
+			})
+		}
+	}
+	var failed []HealthProbe
+	for _, probe := range report.Probes {
+		if !probe.Passed {
+			failed = append(failed, probe)
+		}
+	}
+	if len(failed) > 0 {
+		a.row(c, copy.IntegrationsHealthFailures, "", func() {})
+		for _, probe := range failed {
+			probe := probe
+			lines := []string{copy.IntegrationsHealthExitCode(healthExitCode(probe.ExitCode))}
+			if probe.Stderr != "" {
+				lines = append(lines, probe.Stderr)
+			}
+			if probe.Retryable {
+				lines = append(lines, copy.IntegrationsHealthRetryable)
+			}
+			a.rowLines(c, probe.ID, lines, func() {})
+		}
+	}
+	if when := healthCheckedAt(report.CheckedAt); when != "" {
+		a.row(c, copy.IntegrationsHealthCheckedAt(when), "", func() {})
+	}
+}
+
+// healthDuration is one probe's wall time, as the old card printed it: the
+// raw millisecond count, no unit conversion.
+func healthDuration(ms uint64) string { return strconv.FormatUint(ms, 10) + "ms" }
+
+// healthExitCode is a probe's exit code, or `-` for one that never ran to an
+// exit (the host records -1). The old card's `exit: {code}` reads the same
+// way whether the code came from a real exit or from a timeout.
+func healthExitCode(code int) string {
+	if code < 0 {
+		return "-"
+	}
+	return strconv.Itoa(code)
+}
+
+// healthCheckedAt is the stored RFC 3339 timestamp as a readable local time.
+// An empty or unparseable value is returned trimmed rather than swallowed: a
+// timestamp this build cannot read is still what the repository holds.
+func healthCheckedAt(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return ""
+	}
+	if parsed, err := time.Parse(time.RFC3339, raw); err == nil {
+		return parsed.Local().Format("2006-01-02 15:04")
+	}
+	return raw
+}
+
 // integrationRow is one integration as a card: its identity and state, what
 // it declares, what it can run (each command a row with its switch and its
 // alias), and the row of doors — check, re-scan, uninstall.
@@ -1207,6 +1308,9 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			a.row(c, copy.IntegrationsHealth, "", func() {
 				ui.Text(c, integration.Health).FontSize(t.FontSize - 1).TextColor(tone)
 			})
+		}
+		if integration.HealthReport != nil {
+			a.healthDetail(c, copy, integration.HealthReport)
 		}
 
 		if integration.Diagnosis != "" {

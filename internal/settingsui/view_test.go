@@ -1852,6 +1852,57 @@ func TestStoredHealthShowsOnTheRow(t *testing.T) {
 	}
 }
 
+// The stored report's own detail is drawn under the Health row: every probe
+// with its duration, the failed ones with their exit code, stderr and whether
+// a retry is worth it, and when the run happened. The old build's
+// `extension-health` block.
+func TestStoredHealthReportShowsItsProbes(t *testing.T) {
+	when := "2026-10-12T09:30:00Z"
+	a := New(newStore(t), Actions{})
+	a.Integrations = func() []Integration {
+		return []Integration{{
+			ID: "dev.floter.probed", Name: "Probed Tool", Enabled: true, Health: "degraded",
+			HealthReport: &HealthReport{
+				CheckedAt: when,
+				Probes: []HealthProbe{
+					{ID: "up", Passed: true, DurationMs: 12, ExitCode: 0},
+					{ID: "extras", Passed: false, DurationMs: 30, ExitCode: 3, Stderr: "no extras here", Retryable: true},
+				},
+			},
+		}}
+	}
+	tt := render(t, a, 720, 900)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	for _, want := range []string{
+		"Checks", "Failures",
+		"up", "12ms",
+		"extras", "30ms", "exit: 3", "no extras here", "Retryable",
+		"Checked " + healthCheckedAt(when),
+	} {
+		if !tt.HasText(want) {
+			t.Errorf("the health report is missing %q: %q", want, tt.Texts())
+		}
+	}
+
+	// No stored report means no detail rows: the status word alone is not a
+	// report, and "nothing has ever probed" has its own (absent) shape.
+	b := New(newStore(t), Actions{})
+	b.Integrations = func() []Integration {
+		return []Integration{{ID: "dev.floter.plain", Name: "Plain Tool", Enabled: true, Health: "healthy"}}
+	}
+	bt := render(t, b, 720, 900)
+	if err := bt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	bt.Frame()
+	if bt.HasText("Checks") || bt.HasText("Failures") {
+		t.Errorf("a report-less integration shows probe detail: %q", bt.Texts())
+	}
+}
+
 // The detected section lists what the machine has and nothing has connected,
 // and its Connect press hands the tool on with the discovery's own words.
 func TestDetectedToolsSection(t *testing.T) {
