@@ -99,7 +99,23 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-cm R90 pin 标题/正文对齐（原版 `src/plugin-window/pin-entry.ts:43-80`）**
+> **最新一轮：P7-cn ANSI 解析器对齐原版 `src/launcher/ansi.ts`（`internal/ansi/ansi.go`）**
+> —— P7-cm 清单余下三条（复制反馈 / 键入 Unicode-空格缝 / 外观四个死旋钮）全部卡 mygo 框架，
+> 无法在 Go 侧落地。本轮换入口：逐文件对照原版的**直出 ANSI 解析器**，找到并修掉三个可实现偏离点。
+> （1）非数字 SGR 参数：原版 `parseSgrParams` 读成 `NaN`、`applySgr` 整段忽略；本构建的 `atoi`
+> 返回 0，于是 `ESC[1;?m` 把已点亮的样式**重置**了。现在 `sgrValue` 用 `invalidParam =
+> math.MinInt` 标记非数字参数，`applySGR` 跳过它。（2）扩展色分量坏掉：原版 `extendedColor`
+> 用 `Number.isInteger` 校验、坏就整条返回 `null`；本构建把 `ESC[38;5;?m` 读成 index 0、把
+> `ESC[38;2;255;?;9m` 读成 `RGB{255,0,9}` 还吞掉了后面的 `9`。现在 `readExtended` 遇 `invalidParam`
+> 整条返回「无颜色」，后续参数照常处理。（3）非 CSI：原版在 `ESC [` 后字节越出参数/中间字节
+> （0x20-0x3f）范围时判定「不是 CSI」、只丢 ESC；本构建只找最终字节，会吞掉真实文本
+> （`a\x1b[\x07b` → `a`）。现在 CSI 扫描新增范围检查，越界即 `i++`。测试：
+> `internal/ansi/ansi_test.go` 的 `TestMalformedParametersAreIgnored`、
+> `TestNotAControlSequenceKeepsTheText`。变异核查：`sgrValue` 错误返回改回 0 → 两条扩展色断言变红；
+> 去掉 CSI 范围检查 → 两条文本断言变红。依赖检查：`go list -m -versions github.com/egoist/mygo`
+> 仍为 **v0.4.8**（与 `go.mod` 一致），无版本可升。
+
+> **上一轮：P7-cm R90 pin 标题/正文对齐（原版 `src/plugin-window/pin-entry.ts:43-80`）**
 > —— 本轮先落地上一轮写好但未提交的 P7-cl 三条（剪贴板行预览/副标题、图片按自己的词可搜、
 > 缩略图 memo 有界），再对照原版找到并修掉一个可实现的偏离点。本构建的 `pinClip` 用
 > `entry.Label()` 当箱口标题（多行文本被折叠成一句），且对 files 条目钉 `paths` 拼接、对无 caption
@@ -2428,6 +2444,47 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 - 窗口可见时完成反馈落在面板自己的停靠行（隐藏时才发系统通知）——之前可见时什么都不说。
 
 ## 尚未做（按建议优先级）
+
+### 具体待办（P7-cn 重写；三条已全部落地）
+
+前一份 P7-cm 清单的三条（复制反馈 / 键入 Unicode-空格缝 / 外观四个死旋钮）**全部卡在 mygo
+框架**，规格已写实、无法在 Go 侧落地（不假装接线），故本轮换一个入口：**逐文件对照原版的
+ANSI 解析器**——`internal/ansi/ansi.go` 对 `main:src/launcher/ansi.ts`。这不是框架问题，是
+Go 侧把原版的三条规则写偏了。依赖检查：`go list -m -versions github.com/egoist/mygo` 仍是
+**v0.4.8**（与 `go.mod` 一致），无版本可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14
+原版树），未翻历史提交。三条均已在 P7-cn 落地（见下）。
+
+1. **非数字 SGR 参数必须被忽略，而不是读成 0（=重置）**。
+   - 本构建（改前）：`internal/ansi/ansi.go` 的 `atoi` 对 `strconv.Atoi` 失败返回 0，于是
+     `ESC[1;?m`（`?` 是合法的参数字节 0x3f、最终字节是 `m`）里那个坏参数被当成 0，把已经点亮的
+     bold/颜色**重置**掉。
+   - 原版对照：`main:src/launcher/ansi.ts` 的 `parseSgrParams` 把非数字段读成 `NaN`，
+     `applySgr` 的任一分支都不匹配 `NaN`，于是**整段忽略**、保留在力的样式。
+   - 验收：`ESC[1;?mX` 仍 bold；`ESC[31;?mX` 仍是 red；空参数（`ESC[1;;4m`）仍按 0 处理（原版
+     `Number("")` = 0）。
+2. **扩展色的任一分量坏掉时整条丢掉，而不是补 0 成一种颜色**。
+   - 本构建（改前）：`readExtended` 用同一个 `atoi`，`ESC[38;5;?m` 变成 index 0（黑），
+     `ESC[38;2;255;?;9m` 变成 `RGB{255,0,9}`（并把后面本来独立的参数 `9` 当成了蓝色分量吃掉）。
+   - 原版对照：`main:src/launcher/ansi.ts` 的 `extendedColor` 用 `Number.isInteger` 校验每个
+     分量，坏掉就返回 `null`，`38`/`48` 整条被忽略、后续参数照常处理。
+   - 验收：`ESC[38;5;?mX` 的前景保持进入前的值；`ESC[38;2;255;?;9mX` 前景保持原值且 `9` 仍被
+     读成 strike（而不是被吞掉）。
+3. **`ESC [` 之后不是参数字节也不是最终字节时，这不是控制序列：只丢 ESC，其余按文本读**。
+   - 本构建（改前）：CSI 扫描只找「最终字节」（0x40-0x7e），于是一个游离的控制字节会让扫描器
+     一路吃到下一个看起来像最终字节的普通字符，**吞掉真实文本**（`a\x1b[\x07b` → `a`，`b` 没了）。
+   - 原版对照：`main:src/launcher/ansi.ts` 的 `parseAnsi` 在 `ESC [` 后的字节落在参数/中间字节
+     （0x20-0x3f）之外时判定「不是 CSI」，只前进一个字符（丢掉 ESC），`[` 及其后按文本继续。
+   - 验收：`a\x1b[\x07b` → `a[\x07b`；`a\x1b[世b` → `a[世b`；真正的 CSI（`a\x1b[2Kb` →
+     `ab`）与截断序列（`before\x1b[31` → `before`）行为不变。
+
+> 三条均已在 **P7-cn** 落地：`sgrValue` 用 `invalidParam = math.MinInt` 标记非数字参数，
+> `applySGR` 跳过它、`readExtended` 遇到它整条返回「无颜色」；CSI 扫描新增「参数/中间字节」
+> 范围检查，越界即只丢 ESC。测试：`internal/ansi/ansi_test.go` 的
+> `TestMalformedParametersAreIgnored`、`TestNotAControlSequenceKeepsTheText`（含真正的 CSI 与
+> 截断序列的回归断言）。变异核查：把 `sgrValue` 的错误返回改回 0 → 索引/真彩两条断言变红
+> （`Kind:2`、`Kind:3 R:255 B:9`）；去掉 CSI 的范围检查 → 文本两条断言变红（`Plain = "a"`）。
+> 余下仍是 P7-cm 的三条卡框架项（`Options.OnCopy` 复制反馈、终端键入的 `HandleInput` 空格缝、
+> 外观四个死旋钮）与一次性维护者动作，规格见下一节与「已知差距」。
 
 ### 具体待办（P7-cm 重写；R90 pin 已落地，余下三条卡框架但已写成可执行规格）
 

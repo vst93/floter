@@ -161,3 +161,48 @@ func TestMultibyteText(t *testing.T) {
 		t.Errorf("Plain = %q", got)
 	}
 }
+
+// A parameter that is not a number is ignored, not read as a zero: the
+// original reads it as NaN and matches no code, so a malformed parameter must
+// not silently reset the style in force (which is what a zero does).
+func TestMalformedParametersAreIgnored(t *testing.T) {
+	spans := Parse("\x1b[1;?mx")
+	if !spans[0].Style.Bold {
+		t.Errorf("a malformed parameter reset the style: %+v", spans[0].Style)
+	}
+	spans = Parse("\x1b[31;?mx")
+	if spans[0].Style.FG != (Color{Kind: Named, N: 1}) {
+		t.Errorf("a malformed parameter dropped the colour: %+v", spans[0].Style.FG)
+	}
+	// A malformed extended colour is dropped whole: the foreground keeps
+	// whatever it had (nothing here), rather than becoming index 0.
+	spans = Parse("\x1b[31;38;5;?mx")
+	if spans[0].Style.FG != (Color{Kind: Named, N: 1}) {
+		t.Errorf("a malformed index colour was read as a colour: %+v", spans[0].Style.FG)
+	}
+	spans = Parse("\x1b[38;2;255;?;9mx")
+	if spans[0].Style.FG != (Color{}) {
+		t.Errorf("a malformed truecolour was read as a colour: %+v", spans[0].Style.FG)
+	}
+	if !spans[0].Style.Strike {
+		t.Errorf("the parameters after it were lost: %+v", spans[0].Style)
+	}
+}
+
+// A `ESC [` whose next byte is neither a parameter byte nor a final byte is
+// not a control sequence: only the ESC is dropped and the rest is text. The
+// original reads it that way, so a stray control byte must not swallow the
+// characters after it.
+func TestNotAControlSequenceKeepsTheText(t *testing.T) {
+	if got := Plain("a\x1b[\x07b"); got != "a[\x07b" {
+		t.Errorf("Plain = %q", got)
+	}
+	// A byte above the final range (a UTF-8 lead) is the same case.
+	if got := Plain("a\x1b[世b"); got != "a[世b" {
+		t.Errorf("Plain = %q", got)
+	}
+	// A proper sequence still goes whole, and the text after it survives.
+	if got := Plain("a\x1b[2Kb"); got != "ab" {
+		t.Errorf("Plain = %q", got)
+	}
+}

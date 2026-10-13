@@ -13,6 +13,7 @@
 package ansi
 
 import (
+	"math"
 	"strconv"
 	"strings"
 )
@@ -90,14 +91,29 @@ func Parse(text string) []Span {
 		}
 		switch text[next] {
 		case '[':
-			// A control sequence: parameters, then one final byte.
+			// A control sequence: parameter and intermediate bytes
+			// (0x20-0x3f), then one final byte (0x40-0x7e). A byte
+			// outside both ranges means this was not a control sequence
+			// after all: only the ESC is dropped and the rest is read as
+			// text, as the original does. Consuming to the next final
+			// byte would silently eat the characters after a stray
+			// control byte.
 			j := next + 1
-			for j < len(text) && !isFinal(text[j]) {
+			for j < len(text) {
+				b := text[j]
+				if isFinal(b) || b < 0x20 || b > 0x3f {
+					break
+				}
 				j++
 			}
 			if j >= len(text) {
 				// Unterminated: the rest is not printable.
 				i = len(text)
+				continue
+			}
+			if !isFinal(text[j]) {
+				// Not a control sequence: drop the ESC alone.
+				i++
 				continue
 			}
 			if text[j] == 'm' {
@@ -159,6 +175,11 @@ func skipEscape(text string, i int) int {
 	}
 }
 
+// invalidParam marks an SGR parameter that is not a number. The original
+// reads a non-numeric part as NaN and matches no code, so such a parameter is
+// ignored rather than read as a zero (which would reset the style in force).
+const invalidParam = math.MinInt
+
 // applySGR applies one SGR parameter list to a style. Unknown parameters are
 // ignored rather than dropped with the text: a sequence a terminal would not
 // understand must not eat the characters after it.
@@ -176,14 +197,21 @@ func applySGR(style Style, params string) Style {
 		// A colon-separated colour (`38:5:1`) is read as its parts.
 		if strings.Contains(field, ":") {
 			for _, part := range strings.Split(field, ":") {
-				values = append(values, atoi(part))
+				values = append(values, sgrValue(part))
 			}
 			continue
 		}
-		values = append(values, atoi(field))
+		values = append(values, sgrValue(field))
 	}
 	for i := 0; i < len(values); i++ {
-		switch code := values[i]; {
+		code := values[i]
+		if code == invalidParam {
+			// Not a number: the original reads it as NaN and matches no
+			// code, so it is ignored rather than read as a zero (which
+			// would reset the style in force).
+			continue
+		}
+		switch {
 		case code == 0:
 			style = Style{}
 		case code == 1:
@@ -244,13 +272,18 @@ func readExtended(values []int) (Color, int) {
 	}
 	switch values[0] {
 	case 5:
-		if len(values) < 2 {
+		if len(values) < 2 || values[1] == invalidParam {
 			return Color{}, 0
 		}
 		return Color{Kind: Indexed, N: clampByte(values[1])}, 2
 	case 2:
 		if len(values) < 4 {
 			return Color{}, 0
+		}
+		for _, v := range values[1:4] {
+			if v == invalidParam {
+				return Color{}, 0
+			}
 		}
 		return Color{
 			Kind: RGB,
@@ -272,10 +305,10 @@ func clampByte(n int) uint8 {
 	return uint8(n)
 }
 
-func atoi(s string) int {
+func sgrValue(s string) int {
 	n, err := strconv.Atoi(strings.TrimSpace(s))
 	if err != nil {
-		return 0
+		return invalidParam
 	}
 	return n
 }
