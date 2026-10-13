@@ -1172,6 +1172,63 @@ esac
 	}
 }
 
+func TestABrokenIntegrationCarriesItsRecordedReason(t *testing.T) {
+	paths := extensions.FromRoot(t.TempDir())
+	if err := paths.Ensure(); err != nil {
+		t.Fatal(err)
+	}
+	// Two failures as the repository records them: the keyed detail this build
+	// writes, and the English sentence an older one left behind.
+	if err := os.WriteFile(paths.RepositoryFile, []byte(`{
+  "schemaVersion": 1,
+  "extensions": {
+    "dev.floter.keyed": {
+      "id": "dev.floter.keyed", "name": "Keyed", "state": "broken", "enabled": false,
+      "lastErrorCode": "binding-changed",
+      "brokenReason": "binding-changed:{\"path\":\"/usr/local/bin/tool\"}",
+      "installedAt": 1, "updatedAt": 1
+    },
+    "dev.floter.legacy": {
+      "id": "dev.floter.legacy", "name": "Legacy", "state": "broken", "enabled": false,
+      "lastErrorCode": "binding-missing",
+      "brokenReason": "Executable is no longer available at /nope/tool",
+      "installedAt": 1, "updatedAt": 1
+    }
+  }
+}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	a := New(Options{
+		Store:       settings.NewStore(settings.Default()),
+		Paths:       paths,
+		NewTerminal: func(terminal.Options) (*terminal.Terminal, error) { return nil, errors.New("no library in tests") },
+		OpenAtLogin: func() bool { return false }, SetOpenAtLogin: func(bool) error { return nil },
+	})
+	a.RefreshIntegrations(context.Background())
+
+	found := map[string]settingsui.Integration{}
+	for _, item := range a.integrationList() {
+		found[item.ID] = item
+	}
+	for _, want := range []struct {
+		id     string
+		code   string
+		detail string
+	}{
+		{"dev.floter.keyed", "binding-changed", `binding-changed:{"path":"/usr/local/bin/tool"}`},
+		{"dev.floter.legacy", "binding-missing", "Executable is no longer available at /nope/tool"},
+	} {
+		item, ok := found[want.id]
+		if !ok {
+			t.Fatalf("%s is missing from %+v", want.id, found)
+		}
+		if item.FailureCode != want.code || item.FailureDetail != want.detail {
+			t.Errorf("%s = %q / %q, want %q / %q", want.id, item.FailureCode, item.FailureDetail, want.code, want.detail)
+		}
+	}
+}
+
 func TestClipboardFormatHelpers(t *testing.T) {
 	formats := []transfer.Format{transfer.Text, transfer.PNG}
 	if !containsFormat(formats, "image/png") {

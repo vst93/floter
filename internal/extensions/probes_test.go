@@ -105,6 +105,70 @@ func TestReprobeRequiredFailIsUnhealthyAndBroken(t *testing.T) {
 	}
 }
 
+// A health check whose runtime cannot even be resolved leaves the same trace as
+// one whose runtime ran and said no: the code and the keyed reason are what the
+// Integrations row renders (R11), instead of only going grey.
+func TestReprobeRecordsAnUnresolvableRuntime(t *testing.T) {
+	defer StubToolLookup(func(names ...string) (string, bool) { return "", false })()
+
+	paths := FromRoot(t.TempDir())
+	if err := paths.Ensure(); err != nil {
+		t.Fatal(err)
+	}
+	dir := filepath.Join(paths.Extensions, "dev.floter.vanished")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, manifestFileName), []byte(`{
+	  "schemaVersion": "2.0", "id": "dev.floter.vanished", "name": "Vanished",
+	  "runtime": {"type": "system", "executableNames": ["vanished-tool"]},
+	  "provider": {"type": "executable"},
+	  "lifecycle": {"probes": [{"id": "version", "args": ["--version"], "required": true}]}
+	}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(paths.RepositoryFile, []byte(`{
+	  "schemaVersion": 1,
+	  "extensions": {"dev.floter.vanished": {"id": "dev.floter.vanished", "name": "Vanished",
+	    "state": "enabled", "enabled": true,
+	    "manifestPath": "`+filepath.Join(dir, manifestFileName)+`",
+	    "installedAt": 1, "updatedAt": 1}}
+	}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := Reprobe(context.Background(), paths, "dev.floter.vanished")
+	failure, ok := AsBindingFailure(err)
+	if !ok || failure.Code != BindingCodeRuntimeUnavailable {
+		t.Fatalf("reprobe = %v (%+v, %v)", err, failure, ok)
+	}
+
+	integration, ok := LoadInventory(paths).WithID("dev.floter.vanished")
+	if !ok {
+		t.Fatal("the entry disappeared")
+	}
+	entry := integration.Entry
+	if entry.State != "broken" {
+		t.Errorf("state = %q", entry.State)
+	}
+	if entry.LastErrorCode == nil || *entry.LastErrorCode != BindingCodeRuntimeUnavailable {
+		t.Errorf("code = %+v", entry.LastErrorCode)
+	}
+	if entry.BrokenReason == nil || *entry.BrokenReason != failure.Detail {
+		t.Errorf("reason = %+v, want %q", entry.BrokenReason, failure.Detail)
+	}
+	if entry.BrokenReason != nil {
+		if parsed, keyed := ParseBindingDetail(*entry.BrokenReason); !keyed || parsed.Names[0] != "vanished-tool" {
+			t.Errorf("reason = %q (%+v, %v)", *entry.BrokenReason, parsed, keyed)
+		}
+	}
+
+	// The row now words it: the same recorded pair the surface renders.
+	if entry.LastErrorDetail == nil || *entry.LastErrorDetail != failure.Detail {
+		t.Errorf("detail = %+v", entry.LastErrorDetail)
+	}
+}
+
 func TestReprobeOptionalFailIsDegraded(t *testing.T) {
 	paths, _ := probesFixture(t, "0", "7")
 	report, err := Reprobe(context.Background(), paths, "dev.floter.probed")

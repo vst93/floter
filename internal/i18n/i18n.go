@@ -471,6 +471,9 @@ type Settings struct {
 	IntegrationsDegraded    string
 	IntegrationsUnhealthy   string
 	IntegrationsDiagnostics string
+	// IntegrationsFailureDetail is the label of a broken entry's one-line
+	// reason (the old host's `settings.extensions.brokenDetail`).
+	IntegrationsFailureDetail string
 	// The configuration form.
 	ConfigOpen     string
 	ConfigSave     string
@@ -539,6 +542,15 @@ type Settings struct {
 	RunErrorIntegrationDisabled func(id string) string
 	RunErrorIntegrationBroken   func(id, reason string) string
 	RunErrorTaskFailed          func(message string) string
+	// R11 · an unavailable runtime binding, the readable half. ErrorCodeLabel
+	// words a code the repository recorded (the old host's
+	// `settings.extensions.errorCode.*`, this build's `probe_failed` included);
+	// the three detail sentences word a keyed binding detail. A code or a
+	// detail the dictionary does not know is left as it is.
+	ErrorCodeLabel           func(code string) string
+	BindingChangedDetail     func(path string) string
+	BindingMissingDetail     func(path string) string
+	RuntimeUnavailableDetail func(names string) string
 	// A completed run's summary: the success sentence names the duration word
 	// form, the failure sentence the exit code, and the two output sentences
 	// the line count (the truncated one when a stream hit the cap).

@@ -34,6 +34,12 @@ type RuntimeBinding struct {
 // ResolveRuntime finds the program that runs an integration's provider: the
 // executable the repository recorded, an executable on the search path for a
 // system runtime, or the interpreter plus script for a script runtime.
+//
+// A failure is a *BindingFailure* wherever the cause is one of the named
+// binding facts, so a caller can record the code and the keyed detail on the
+// repository entry (R11). The structural failures that have no code of their
+// own are classified `binding-check-failed` with the underlying prose, the old
+// host's `failure_code` fallback.
 func ResolveRuntime(integration Integration) (RuntimeBinding, error) {
 	manifest := integration.Manifest
 	if integration.ManifestErr != nil {
@@ -41,8 +47,11 @@ func ResolveRuntime(integration Integration) (RuntimeBinding, error) {
 	}
 	switch manifest.Runtime.Type {
 	case "system":
-		if path := integration.Entry.ExecutablePath; path != "" && isExecutableFile(path) {
-			return RuntimeBinding{Program: path}, nil
+		if path := integration.Entry.ExecutablePath; path != "" {
+			if isExecutableFile(path) {
+				return RuntimeBinding{Program: path}, nil
+			}
+			return RuntimeBinding{}, NewBindingFailure(BindingCodeMissing, BindingMissingDetail(path))
 		}
 		names := manifest.Runtime.ExecutableNames
 		if len(names) == 0 {
@@ -51,27 +60,33 @@ func ResolveRuntime(integration Integration) (RuntimeBinding, error) {
 		if path, ok := lookTool(names...); ok {
 			return RuntimeBinding{Program: path}, nil
 		}
-		return RuntimeBinding{}, fmt.Errorf("extensions: %s: %s is not on the search path", integration.Entry.ID, strings.Join(names, " or "))
+		return RuntimeBinding{}, NewBindingFailure(BindingCodeRuntimeUnavailable, RuntimeUnavailableDetail(names))
 
 	case "script":
 		language := manifest.Runtime.Language
 		interpreter, ok := findInterpreter(language)
 		if !ok {
-			return RuntimeBinding{}, fmt.Errorf("extensions: %s: no %s interpreter is available", integration.Entry.ID, language)
+			names := InterpreterNames(language)
+			if len(names) == 0 {
+				names = []string{language}
+			}
+			return RuntimeBinding{}, NewBindingFailure(BindingCodeRuntimeUnavailable, RuntimeUnavailableDetail(names))
 		}
 		dir := integration.PackageDir()
 		script := manifest.Runtime.Path
 		if dir != "" && !filepath.IsAbs(script) {
 			joined, ok := joinWithin(dir, script)
 			if !ok {
-				return RuntimeBinding{}, fmt.Errorf("extensions: %s: the script path %q leaves the package", integration.Entry.ID, script)
+				return RuntimeBinding{}, NewBindingFailure(BindingCodeCheckFailed,
+					fmt.Sprintf("the script path %q leaves the package", script))
 			}
 			script = joined
 		}
 		return RuntimeBinding{Program: interpreter, Args: InterpreterArgs(language, script)}, nil
 
 	default:
-		return RuntimeBinding{}, fmt.Errorf("extensions: %s: unknown runtime %q", integration.Entry.ID, manifest.Runtime.Type)
+		return RuntimeBinding{}, NewBindingFailure(BindingCodeCheckFailed,
+			fmt.Sprintf("unknown runtime %q", manifest.Runtime.Type))
 	}
 }
 

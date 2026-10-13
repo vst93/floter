@@ -445,6 +445,7 @@ var en = Copy{
 		IntegrationsDegraded:             "degraded",
 		IntegrationsUnhealthy:            "not working",
 		IntegrationsDiagnostics:          "Diagnostics",
+		IntegrationsFailureDetail:        "Failure detail",
 		ConfigOpen:                       "Configure",
 		ConfigSave:                       "Save",
 		ConfigSaved:                      "Saved",
@@ -519,6 +520,61 @@ var en = Copy{
 		},
 		RunErrorTaskFailed: func(message string) string {
 			return "Run task failed: " + message
+		},
+		// R11 · the readable half of an unavailable runtime binding: the code
+		// labels the old host's dictionary carried, and the three detail
+		// sentences a keyed binding detail interpolates.
+		ErrorCodeLabel: func(code string) string {
+			switch code {
+			case "protocol-unsupported":
+				return "Protocol version not supported"
+			case "describe-parse-failed":
+				return "Provider output parsing failed"
+			case "stdout-contaminated":
+				return "Provider output contaminated"
+			case "protocol-error":
+				return "Protocol error"
+			case "tool-error":
+				return "Tool execution error"
+			case "timeout":
+				return "Operation timed out"
+			case "cancelled":
+				return "Operation cancelled"
+			case "binding-missing":
+				return "Executable not found"
+			case "binding-changed":
+				return "Executable changed"
+			case "binding-check-failed":
+				return "Binding check failed"
+			case "identity-mismatch":
+				return "Provider identity mismatch"
+			case "manifest-missing":
+				return "Manifest missing or invalid"
+			case "invalid-descriptor":
+				return "Invalid provider descriptor"
+			case "integrity-mismatch":
+				return "Integrity check failed"
+			case "runtime-unavailable":
+				return "Runtime unavailable"
+			case "manifest-unreadable":
+				return "Manifest unreadable"
+			case "provider-failed":
+				return "Provider failed"
+			case "verification-failed":
+				return "Verification failed"
+			case "probe_failed":
+				return "Health check failed"
+			}
+			return code
+		},
+		BindingChangedDetail: func(path string) string {
+			return "Executable changed: " + path + " — possibly a tool upgrade; click Re-check to recover"
+		},
+		BindingMissingDetail: func(path string) string {
+			return "Executable not found: " + path
+		},
+		RuntimeUnavailableDetail: func(names string) string {
+			return "Runtime unavailable: no " + names + " found on the search path"
 		},
 		RunSucceeded: func(name, duration string) string {
 			return name + " finished in " + duration
@@ -1083,6 +1139,7 @@ var zh = Copy{
 		IntegrationsDegraded:             "部分功能可用",
 		IntegrationsUnhealthy:            "无法工作",
 		IntegrationsDiagnostics:          "诊断结果",
+		IntegrationsFailureDetail:        "故障详情",
 		ConfigOpen:                       "配置",
 		ConfigSave:                       "保存",
 		ConfigSaved:                      "已保存",
@@ -1159,6 +1216,58 @@ var zh = Copy{
 		},
 		RunErrorTaskFailed: func(message string) string {
 			return "运行任务失败：" + message
+		},
+		ErrorCodeLabel: func(code string) string {
+			switch code {
+			case "protocol-unsupported":
+				return "协议版本不支持"
+			case "describe-parse-failed":
+				return "Provider 输出解析失败"
+			case "stdout-contaminated":
+				return "Provider 输出被污染"
+			case "protocol-error":
+				return "协议错误"
+			case "tool-error":
+				return "工具执行错误"
+			case "timeout":
+				return "操作超时"
+			case "cancelled":
+				return "操作已取消"
+			case "binding-missing":
+				return "可执行文件未找到"
+			case "binding-changed":
+				return "可执行文件已变更"
+			case "binding-check-failed":
+				return "绑定检查失败"
+			case "identity-mismatch":
+				return "Provider 身份不匹配"
+			case "manifest-missing":
+				return "清单缺失或无效"
+			case "invalid-descriptor":
+				return "Provider 描述符无效"
+			case "integrity-mismatch":
+				return "完整性校验未通过"
+			case "runtime-unavailable":
+				return "运行时不可用"
+			case "manifest-unreadable":
+				return "清单无法读取"
+			case "provider-failed":
+				return "提供方执行失败"
+			case "verification-failed":
+				return "校验失败"
+			case "probe_failed":
+				return "健康检查失败"
+			}
+			return code
+		},
+		BindingChangedDetail: func(path string) string {
+			return "可执行文件已变更：" + path + "（可能是工具升级所致，点「重新检测」即可恢复）"
+		},
+		BindingMissingDetail: func(path string) string {
+			return "可执行文件不存在：" + path
+		},
+		RuntimeUnavailableDetail: func(names string) string {
+			return "运行时不可用：搜索路径中找不到 " + names
 		},
 		RunSucceeded: func(name, duration string) string {
 			return name + " 已完成，用时 " + duration

@@ -120,6 +120,14 @@ func Reprobe(ctx context.Context, paths Paths, id string) (HealthReport, error) 
 	}
 	binding, err := ResolveRuntime(integration)
 	if err != nil {
+		// A runtime that cannot even be resolved is a health failure: the
+		// entry keeps the code and the keyed detail, so the row can say why
+		// in the user's language (R11) instead of only going grey.
+		if failure, ok := AsBindingFailure(err); ok {
+			if recordErr := recordBindingFailure(paths, id, failure); recordErr != nil {
+				return HealthReport{}, errors.Join(err, recordErr)
+			}
+		}
 		return HealthReport{}, err
 	}
 
@@ -182,6 +190,32 @@ func runProbe(ctx context.Context, binding RuntimeBinding, integration Integrati
 		record.ExitCode = 0
 	}
 	return record
+}
+
+// recordBindingFailure writes an unavailable runtime onto the repository entry
+// the way a failed required probe is recorded: the code, the keyed detail and
+// the broken state, so the Integrations row can render a localised reason. The
+// health report is left alone — the failure happened before any probe ran.
+func recordBindingFailure(paths Paths, id string, failure *BindingFailure) error {
+	repo, err := LoadRepository(paths.RepositoryFile)
+	if err != nil {
+		return err
+	}
+	entry, ok := repo.Extensions[id]
+	if !ok {
+		return ErrNoIntegration
+	}
+	code := failure.Code
+	detail := failure.Detail
+	now := uint64(time.Now().Unix())
+	entry.State = "broken"
+	entry.LastErrorCode = &code
+	entry.LastErrorDetail = &detail
+	entry.LastErrorAt = &now
+	entry.BrokenReason = &detail
+	entry.UpdatedAt = now
+	repo.Extensions[id] = entry
+	return SaveRepository(paths.RepositoryFile, repo)
 }
 
 // recordHealthReport writes the report onto the repository entry, marking the

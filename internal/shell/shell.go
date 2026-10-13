@@ -1243,6 +1243,17 @@ func (a *App) integrationList() []settingsui.Integration {
 			Running:     integration.Running(),
 			Broken:      integration.Broken(),
 		}
+		if integration.Entry.LastErrorCode != nil {
+			item.FailureCode = *integration.Entry.LastErrorCode
+		}
+		// The recorded reason is the detail the row words; the keyed
+		// `lastErrorDetail` is the fallback for an entry that has no reason yet.
+		switch {
+		case integration.Entry.BrokenReason != nil:
+			item.FailureDetail = *integration.Entry.BrokenReason
+		case integration.Entry.LastErrorDetail != nil:
+			item.FailureDetail = *integration.Entry.LastErrorDetail
+		}
 		for _, permission := range integration.Manifest.Permissions {
 			if !knownPermission(permission) {
 				continue

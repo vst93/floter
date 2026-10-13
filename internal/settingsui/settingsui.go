@@ -205,6 +205,12 @@ type Integration struct {
 	Running bool
 	Broken  bool
 	Error   string
+	// FailureCode and FailureDetail are the failure the repository recorded
+	// on the entry (R11): the code is a dictionary key and the detail is
+	// usually a keyed payload. They stay raw so a language switch re-renders
+	// the reason, and `failureReason` owns the words.
+	FailureCode   string
+	FailureDetail string
 	// Orphan is a package directory no repository entry names.
 	Orphan bool
 	// Permissions are the ids the package declares, and Enforced which of
@@ -1206,6 +1212,11 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			}
 			a.row(c, copy.IntegrationsDiagnostics, integration.Diagnosis, func() {
 				ui.Text(c, integration.state(copy)).FontSize(t.FontSize - 1).TextColor(color)
+			})
+		}
+		if reason := failureReason(copy, integration.FailureCode, integration.FailureDetail); reason != "" {
+			a.row(c, copy.IntegrationsFailureDetail, "", func() {
+				ui.Text(c, reason).FontSize(t.FontSize - 1).TextColor(t.Danger)
 			})
 		}
 		if integration.Error != "" {

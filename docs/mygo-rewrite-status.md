@@ -8,7 +8,7 @@
 
 用 mygo（原生 GPU 自绘 UI + Go）重写的 floter **已经是一个可打包、可运行的完整应用**：单窗口三表面
 （启动器 / 设置 / 终端）、搜索内核、扩展平台（含后台运行、列表协议、导入导出、权限审计）、剪贴板、
-浏览器、计算器、系统集成、打包与 CI 全部就位。**823 项测试全绿**，三平台都能构建，Linux 打包
+浏览器、计算器、系统集成、打包与 CI 全部就位。**840 项测试全绿**，三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
 含测试）。
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 823 项测试
+go test -count=1 ./...         # 840 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,7 +99,61 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-bf 面板手动 Run 按清单 `output` 分流 + 「最近一次输出」块** —— P7-bd 重写的具体
+> **最新一轮：P7-bg 不可用运行时的失败原因本地化（R11）** —— P7-bd 重写的具体待办第 5 条（最后一条）
+> 落地。运行时无法解析原来只让集成行变灰、原因是一句英文 prose 且从不落盘；现在失败是**稳定键 +
+> JSON 负载**（`binding-changed:{"path":…}` / `binding-missing:…` / `runtime-unavailable:…`），探测把它
+> 连同 `lastErrorCode`/`brokenReason` 写进 repository，集成卡片按语言渲染原因（认旧版英文句，认不出的
+> prose 原样保留）。
+
+**P7-bg 运行时绑定的失败原因本地化（本轮）**
+
+- **依赖检查**：`curl .../releases/latest` 与 go proxy 都返回 v0.4.8，`go.mod` 已是 v0.4.8，无版本可升。
+- **偏离点（一整条会灰但不会说话的路）**：原版 `src/extensions/binding-errors.ts` 的
+  `failureReason(code, detail, t)` 把后端发的 `binding-changed:{"path":…}` 本地化，并认旧版英文句
+  `Executable fingerprint changed at …` 以迁移已落盘记录；`error_codes.rs` 的 `ProviderErrorCode` 是码的
+  闭集，`src/i18n.ts` 的 `bindingChangedDetail`/`bindingMissingDetail`/`errorCode.*` 是词。本构建
+  `internal/extensions/provider.go` 的 `ResolveRuntime` 只返回英文 prose（`is not on the search path` /
+  `no %s interpreter is available`），既不落 `lastErrorCode`/`brokenReason`，`internal/settingsui` 也只画
+  一个状态词——`grep -rn BrokenReason internal/settingsui` 为空。
+- **修法**：
+  - 新文件 `internal/extensions/binding.go`（纯）：三个码常量（`binding-changed`/`binding-missing`/
+    `runtime-unavailable`，另加旧宿主的兜底码 `binding-check-failed`）、`BindingFailure{Code,Detail}`、
+    `Error()`、`NewBindingFailure`/`AsBindingFailure`（类型化读取）、三个 keyed 构造器
+    （`BindingChangedDetail`/`BindingMissingDetail`/`RuntimeUnavailableDetail` → `code:{json}`，marshal
+    失败退 `code:{}`），以及**保守**解析 `ParseBindingDetail`（码必须在闭集、余下必须是 JSON 对象、该码
+    插值的字段必须非空；散文、别的子系统的 `run_…` 键、坏 JSON 都不认）与 `LegacyBindingDetail`
+    （两条旧英文句前缀）。
+  - `internal/extensions/provider.go`：`ResolveRuntime` 的三条失败改发键——记录的可执行文件不在了 →
+    `binding-missing`（带 path）、搜索路径找不到 system 工具或脚本解释器 → `runtime-unavailable`（带
+    names，取 `InterpreterNames(language)`）、结构性问题（越界的脚本路径、未知 runtime）→
+    `binding-check-failed`（保留底层 prose，不 keyed）。
+  - `internal/extensions/probes.go`：新增 `recordBindingFailure`——探测在解析运行时这一步就失败时，像
+    一次失败的必需探测那样把 code/detail/broken 状态写进 repository 条目（健康报告不动，因为还没有
+    任何探测跑过）；`Reprobe` 在 `ResolveRuntime` 出错时调用它。
+  - `internal/settingsui/failure.go`：`failureReason(copy, code, detail)` 是本仓唯一的措辞处——认 keyed
+    detail（三句）、认旧英文句（迁移），都不认时把码的标签与原文用 ` · ` 串起来（绝不吞掉），标签来自
+    `copy.ErrorCodeLabel`；`integrationRow` 在状态行下画一行 `Failure detail`。
+  - `internal/shell/shell.go`：`integrationList` 把 `LastErrorCode` 与 `BrokenReason`（缺则
+    `LastErrorDetail`）交给卡片。
+  - i18n：`Settings` 新增 `IntegrationsFailureDetail` 与 `ErrorCodeLabel`（旧宿主 19 个码 + 本构建的
+    `probe_failed`，两语言逐字对齐旧字典）、`BindingChangedDetail`/`BindingMissingDetail`/
+    `RuntimeUnavailableDetail`。
+- **测试**：`internal/extensions/binding_test.go`——`TestBindingDetailRoundTrip`、
+  `TestParseBindingDetailIsConservative`、`TestLegacyBindingDetail`、`TestBindingFailureDetailPrefersTheKey`、
+  `TestResolveRuntimeReportsKeyedBindingFailures`（记录文件已失 → missing、system 工具不在 PATH →
+  runtime-unavailable、脚本无解释器 → 列出候选、未知 runtime → check-failed 保留 prose）、
+  `TestAsBindingFailureOnlyClaimsItsOwn`、`TestEveryBindingCodeHasALabel`（闭集是 3、返回副本不可篡改）；
+  `internal/settingsui/failure_test.go`——`TestFailureReasonWordsABindingDetail`（en/zh 三句、键与 JSON
+  绝不外泄）、`TestFailureReasonMigratesALegacySentence`、`TestFailureReasonKeepsProseItCannotWord`、
+  `TestEveryBindingCodeHasADictionaryLabel`、`TestTheRowRendersTheRecordedReason`（卡片上四行、raw 形态不在屏上）；
+  `internal/extensions/probes_test.go` 的 `TestReprobeRecordsAnUnresolvableRuntime`（真探测：写 code +
+  broken + keyed reason，行可解）、`internal/shell/shell_test.go` 的
+  `TestABrokenIntegrationCarriesItsRecordedReason`（keyed 与 legacy 两种记录都到达卡片）。变异核查：把
+  `recordBindingFailure` 摘掉 → probes 那条红；把 `failureReason` 的 keyed 分支摘掉 → settingsui 三条红。
+- **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 27 包全绿（840 项）、
+  `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+> **上一轮：P7-bf 面板手动 Run 按清单 `output` 分流 + 「最近一次输出」块** —— P7-bd 重写的具体
 > 待办第 3、4 条一起落地（两条互相依赖）。面板里点 Run 原来**无条件**开终端，清单写着
 > `output: background` 的集成也照开不误，捕获结果也从不落回该行；现在路由由清单决定，后台运行
 > 的捕获输出存在集成的行上，卡片里多了一个可折叠、固定高度的「最近一次输出」块。
@@ -1653,7 +1707,10 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
      隐藏按钮 aria 是 `customHideOutput`。
    - 本构建（改前）：`internal/settingsui/settingsui.go` 的卡片里没有输出块；`grep -i lastOutput internal/i18n` 空；
      后台运行的 `CapturedRun`（`extensions/run.go:28`）根本不进面板（只进 launcher 的输出视图）。
-5. **不可用运行时的失败原因本地化（R11）**
+5. **~~不可用运行时的失败原因本地化（R11）~~**：已完成（P7-bg）——`ResolveRuntime` 的失败变键+负载
+   （`internal/extensions/binding.go`），探测把 `lastErrorCode`/`brokenReason` 写进条目
+   （`internal/extensions/probes.go`），卡片在状态行下画 `Failure detail` 并按语言渲染
+   （`internal/settingsui/failure.go`），认旧英文句、认不出的 prose 原样保留。（原分析保留在下方。）
    - 原版：`src/extensions/binding-errors.ts`——后端发 `binding-changed:{"path":…}` /
      `binding-missing:{"path":…}`，`failureReason(code, detail, t)` 本地化并认旧版英文句（`Executable
      fingerprint changed at …`）以迁移已落盘记录；`src-tauri/src/extensions/error_codes.rs` 的
@@ -1666,7 +1723,8 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
    - 验收：`ResolveRuntime` 的失败变键+负载，健康检查/探测失败时写 `lastErrorCode`+`brokenReason`；卡片状态行
      渲染本地化原因（认旧英文句，认不出则保留原句）；测试钉键与两语言渲染。
 
-> 下一轮从第 5 条开始（第 1–4 条已落地）。
+> 下一轮：第 5 条已由 P7-bg 落地，P7-bd 的清单至此 1–5 全部完成。**下一轮先把「尚未做」重新写实**
+> （逐条 file:line、原版对照、验收标准），再取第 1 条实现。
 
 **P7-bf 面板手动 Run 按 `output` 分流 + 「最近一次输出」块（本轮）**
 
