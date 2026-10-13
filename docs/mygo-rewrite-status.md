@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1036 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1042 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1036 项测试
+go test -count=1 ./...         # 1042 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,7 +99,33 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-cr 输出列表的编号快捷键（原版 `src/App.tsx:1602-1611`、`src/launcher/plugin-mode.ts:659-661`、`src/launcher/result-budget.ts:883-900`）**
+> **最新一轮：P7-cs 直出文本的 dim / inverse 规则对齐原版（原版 `src/launcher/PluginTextView.tsx:46-63`）**
+> —— P7-cq 清单第 1、2 条已落地，本轮取第 3 条（最后一条，也是清单里唯一 Go 侧可落地项）。依赖检查：
+> `go list -m -versions github.com/egoist/mygo` 与 GitHub releases latest 均为 **v0.4.8**（与 `go.mod`
+> 一致），无版本可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离点**：原版 `spanStyle` 把直出文本的一个 run 转成 CSS：`dim` 对**任何**颜色一律 `opacity: 0.62`
+> （整 run 半透明，背景也在内）；`inverse` 先互换两侧再**只画互换后确有值的一侧**（`if (fg)`/`if (bg)`），
+> 未命名的一侧保持表面默认（默认前景 / 透明背景）。本构建 `internal/launcher/output.go` 的 `outputSpans`
+> 把这两条都写偏了：`dim` 只在 `FG.Kind == ansi.Default` 时生效、且用 `Alpha(0.7)`（既不是 0.62，也
+> 不作用于具名/索引/真彩色，更不作用于背景）；`inverse` 无条件互换并用 `c.Theme().Background` 补齐空的
+> 那一侧，于是「只给背景色 + inverse」多出一块不透明底。
+>
+> **修法**：抽出纯函数 `resolveOutputSpan`（`internal/launcher/output.go`）：互换只取命令命名的两侧、
+> 未命名侧落回 `base`（默认前景）/ `ui.Transparent`；`dim` 对前景与背景一律 `Alpha(0.62)`（新常量
+> `dimAlpha`）。`outputSpans` 逐 run 调用它。
+>
+> **测试**：`internal/launcher/outputstyle_test.go`——`TestDimFadesTheWholeRunNotJustTheDefaultColour`
+> （默认/具名前景 + 具名背景都到 alpha 158）、`TestInverseSwapsOnlyTheSidesTheCommandNamed`（只前景 →
+> 默认前景 + 具名背景；只背景 → 具名前景 + 透明背景；两侧都具名 → 互换）、
+> `TestDimAndInverseComposeInSpanStylesOrder`（先互换再一起 0.62）。变异核查：dim 改回「只在默认前景」
+> → dim 两条红；inverse 空背景补成表面底色 → `only_the_background_is_named` 红。
+> 至此 P7-cq 清单三条**全部落地**，清单再次为空；余下只有三条卡 mygo 框架项（复制反馈 / 键入
+> Unicode 空格缝 / 外观四个死旋钮），规格见「具体待办（P7-cm 重写）」。
+> 门槛：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+> **上一轮：P7-cr 输出列表的编号快捷键（原版 `src/App.tsx:1602-1611`、`src/launcher/plugin-mode.ts:659-661`、`src/launcher/result-budget.ts:883-900`）**
 > —— P7-cq 清单第 1 条已落地，本轮取第 2 条（最高优先级）。依赖检查：`go list -m -versions
 > github.com/egoist/mygo` 仍停在 **v0.4.8**（与 `go.mod` 一致），GitHub releases latest 也是 v0.4.8，无版本可升。
 > 只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
@@ -2541,7 +2567,7 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-### 具体待办（P7-cq 重写；第 1、2 条已落地，余下第 3 条待做）
+### 具体待办（P7-cq 重写；三条已全部落地：第 1 条 P7-cq、第 2 条 P7-cr、第 3 条 P7-cs）
 
 P7-cp 之后「尚未做」只剩三条卡框架项（`Options.OnCopy` 复制反馈、终端键入的 `HandleInput` 空格缝、
 外观四个死旋钮），无 Go 侧可落地项。本轮换入口：逐文件对照原版的**插件视图几何**，把清单重写成
@@ -2574,20 +2600,26 @@ P7-cp 之后「尚未做」只剩三条卡框架项（`Options.OnCopy` 复制反
      （状态行、不可运行行）不编号；超出预算时按 `OutputList.Visible()` 重新编号（R72）。**已落地**：
      `pressedResultDigit`/`outputShortcuts`（`launcher.go`）+ `assignOutputNumbers`/徽标（`output.go`）；
      测试 `internal/launcher/outputnumbers_test.go` 四条。
-3. **直出文本的 ANSI 渲染：dim 与 inverse 的规则与原版不同**。
+3. **直出文本的 ANSI 渲染：dim 与 inverse 的规则与原版不同**（已落地，P7-cs）。
    - 原版对照：`main:src/launcher/PluginTextView.tsx:46-63` 的 `spanStyle`——`dim` 对**任何**颜色
-     一律 `opacity: 0.62`（整个 run 半透明，不只是默认前景）；`inverse` 只在**两侧都有名字**时才互换，
-     「只有一侧有名时没有可互换的对象，读作原色对」（`const fg = invert ? style.bg : style.fg;`
-     后 `if (fg)` 才设色）。
-   - 本构建：`internal/launcher/output.go` 的 `outputSpans`（约 `:582-617`）——`style.Dim` 只在
+     一律 `opacity: 0.62`（整个 run 半透明，背景也包括）；`inverse` 先做 `fg = invert ? style.bg :
+     style.fg` / `bg = invert ? style.fg : style.bg` 的互换，但**只画互换后确实有值的那一侧**
+     （`if (fg)` / `if (bg)`），未命名的一侧保持表面自己的默认（默认前景 / 透明背景），不会补出颜色。
+   - 本构建（改前）：`internal/launcher/output.go` 的 `outputSpans`——`style.Dim` 只在
      `style.FG.Kind == ansi.Default` 时生效，且用 `fg.Alpha(0.7)`（不是 0.62，也不作用于具名/索引/真彩
-     色）；`style.Inverse` **无条件**互换，且用 `c.Theme().Background` 补齐空的那一侧（于是
-     「只给背景色 + inverse」会多出一块不透明底）。
-   - 验收：`dim` 的具名色也减半（整 run 0.62）；`inverse` 且只给前景色时背景保持默认（透明），
-     只给背景色时前景保持默认；两侧都具名时照旧互换。测试：`internal/launcher` 新增一条直接断言
-     `outputSpans` 产出的 `ui.Span`（颜色 alpha 与背景是否透明）。
+     色、不作用于背景）；`style.Inverse` **无条件**互换，且用 `c.Theme().Background` 补齐空的那一侧
+     （于是「只给背景色 + inverse」会多出一块不透明底）。
+   - 验收：`dim` 把整个 run（前景**与**背景）都乘 0.62，具名/索引/真彩色一视同仁；`inverse` 只给
+     前景色时 → 前景为默认、背景为那个具名色，只给背景色时 → 前景为那个具名色、背景透明，两侧都
+     具名时照旧互换；`dim` 与 `inverse` 叠加时先互换再一起乘 0.62。**已落地**：新增纯函数
+     `resolveOutputSpan`（`internal/launcher/output.go`，`outputSpans` 改为逐 run 调用）；测试
+     `internal/launcher/outputstyle_test.go` 四条（`TestDimFadesTheWholeRunNotJustTheDefaultColour`、
+     `TestInverseSwapsOnlyTheSidesTheCommandNamed`、`TestDimAndInverseComposeInSpanStylesOrder`）。
+     变异核查：把 dim 改回「只在默认前景」→ dim 两条红；把 inverse 的空背景补成表面底色 →
+     `only_the_background_is_named` 红。
 
-> 卡框架项未落地前不假装接线；其余可实现的偏离点继续逐区域对照 `main` 排查。
+> 至此 P7-cq 清单三条**全部落地**，清单再次为空；卡框架项未落地前不假装接线；
+> 其余可实现的偏离点继续逐区域对照 `main` 排查。
 
 ### 具体待办（P7-co 重写；第 1–3 条已落地，余下第 4 条卡框架但已写成可执行规格）
 

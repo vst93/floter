@@ -595,36 +595,56 @@ func (a *App) outputSpans(c *ui.Context, view *OutputView) []ui.Span {
 		if span.Text == "" {
 			continue
 		}
-		style := span.Style
-		fg := ansiColor(appearance, style.FG, base)
-		bg := ansiColor(appearance, style.BG, ui.Transparent)
-		if style.Inverse {
-			fg, bg = ansiColor(appearance, style.BG, base), ansiColor(appearance, style.FG, c.Theme().Background)
-		}
-		if style.Dim && style.FG.Kind == ansi.Default {
-			// Dim on the surface's own colour is a lighter one, since there
-			// is no brightness to halve.
-			fg = fg.Alpha(0.7)
-		}
-		weight := 400
-		if style.Bold {
-			weight = 700
-		}
-		out = append(out, ui.Span{
-			Text:          span.Text,
-			Size:          c.Theme().FontSize,
-			Weight:        weight,
-			Italic:        style.Italic,
-			Color:         fg,
-			Underline:     style.Underline,
-			Strikethrough: style.Strike,
-			Background:    bg,
-		})
+		out = append(out, resolveOutputSpan(appearance, span.Style, base, c.Theme().FontSize, span.Text))
 	}
 	if len(out) == 0 {
 		out = append(out, ui.Span{Text: view.Text, Size: c.Theme().FontSize, Color: base})
 	}
 	return out
+}
+
+// dimAlpha is the opacity of a dim run: `spanStyle`'s `opacity: 0.62`, the
+// figure a terminal's half-intensity text is drawn with.
+const dimAlpha = 0.62
+
+// resolveOutputSpan turns one parsed ANSI run into the span the text surface
+// draws, over the surface's own foreground (`base`). It is the Go reading of
+// `main:src/launcher/PluginTextView.tsx:46-63`'s `spanStyle`.
+//
+// Inverse swaps the two colours only where the command named them: a side left
+// at the default keeps the surface's own value — the default foreground, a
+// transparent background — instead of gaining a filled-in colour. `spanStyle`
+// paints a side only when the swap actually produced one (`if (fg)`/`if (bg)`),
+// so an unnamed side is not a colour to paint with.
+//
+// Dim is half-intensity text: the whole run, background included, is drawn at
+// 62% opacity, which is what CSS `opacity` does to the span and not a lighter
+// version of the foreground alone.
+func resolveOutputSpan(appearance theme.Appearance, style ansi.Style, base ui.Color, size float32, text string) ui.Span {
+	fg := ansiColor(appearance, style.FG, base)
+	bg := ansiColor(appearance, style.BG, ui.Transparent)
+	if style.Inverse {
+		fg = ansiColor(appearance, style.BG, base)
+		bg = ansiColor(appearance, style.FG, ui.Transparent)
+	}
+	if style.Dim {
+		fg = fg.Alpha(dimAlpha)
+		bg = bg.Alpha(dimAlpha)
+	}
+	weight := 400
+	if style.Bold {
+		weight = 700
+	}
+	return ui.Span{
+		Text:          text,
+		Size:          size,
+		Weight:        weight,
+		Italic:        style.Italic,
+		Color:         fg,
+		Underline:     style.Underline,
+		Strikethrough: style.Strike,
+		Background:    bg,
+	}
 }
 
 // ansiColor resolves one parsed colour, falling back to the surface's own for
