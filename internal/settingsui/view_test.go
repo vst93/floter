@@ -649,7 +649,7 @@ func TestShortcutsPage(t *testing.T) {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	if !tt.HasText("Show / hide floter") || !tt.HasText("Alt + Space") {
+	if !tt.HasText("Show / hide floter") || !tt.HasText(shortcuts.Display("Alt+Space")) {
 		t.Errorf("the shortcut did not show: %q", tt.Texts())
 	}
 	if !tt.HasText("Record") {
@@ -1207,7 +1207,7 @@ func TestShortcutRecorder(t *testing.T) {
 	}
 	tt.Frame()
 	// The row shows the current key, and Record starts the recorder.
-	if !tt.HasText("Alt + Space") {
+	if !tt.HasText(shortcuts.Display("Alt+Space")) {
 		t.Fatalf("the current shortcut is missing: %q", tt.Texts())
 	}
 	if err := tt.Click("Record"); err != nil {
@@ -1702,7 +1702,7 @@ func TestAppShortcutRowsRecord(t *testing.T) {
 	// Each row has its own recorder: click the one beside the "New command"
 	// row's binding (the tester finds elements by text, and several rows say
 	// "Record").
-	binding, ok := tt.Find("Ctrl + W")
+	binding, ok := tt.Find(shortcuts.Display("CmdOrCtrl+W"))
 	if !ok {
 		t.Fatalf("the new command's binding is missing: %q", tt.Texts())
 	}

@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1053 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1055 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1053 项测试
+go test -count=1 ./...         # 1055 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,7 +99,35 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-cw `select_result` 家族头对齐（原版 `src/shortcuts.ts:248-255,317-326`、`src/hooks/useShortcutCapture.ts:120-128`）**
+> **最新一轮：P7-cx 快捷键显示与角标的拼写、平台名与键符号（原版 `src/shortcuts.ts:66-100,278-310`）**
+> —— P7-cw 重写的清单第 1 条已落地，本轮取第 2 条（第 3 条「录制拒绝冲突」留单独一轮）。依赖检查：
+> `curl .../releases/latest` 与 `go list -m -versions github.com/egoist/mygo` 均为 **v0.4.8**
+> （与 `go.mod` 一致），无版本可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离点**：原版 `formatShortcut`（`shortcuts.ts:278-296`）非 macOS 用 `parts.join("+")`
+> （`Ctrl+Shift+C`，**无空格**），meta 键在 Linux 显示 `Super`、在 Windows 显示 `Win`（`:299`
+> 的 `IS_LINUX ? "Super" : "Win"`），键名经 `KEY_SYMBOLS`（`:82-100`）把 `Backspace` 画成 `⌫`、
+> 四个方向键画成 `↑↓←→`；`formatResultShortcut`（`:299-310`）的角标复用同一套。本构建
+> `internal/shortcuts/shortcuts.go` 的 `Display` 非 macOS 写 `"Ctrl + "` / `"Super + "`（带空格，
+> 且 Windows 也是 `Super`），`displayKey` 只大写单字符、不查符号表，于是 macOS 上 `Cmd+Up` 显示
+> `⌘Up`、`Cmd+Backspace` 显示 `⌘Backspace`；`Badge` 同病。
+>
+> **修法**：`internal/shortcuts/shortcuts.go` 的 `Display`/`Badge` 拆出 `displayFor(goos,…)` /
+> `badgeFor(goos,…)`（平台显式传入，三张表任何宿主都能钉），非 macOS 用 `strings.Join(words,"+")`
+> 无空格；新增 `metaKeyWord(goos)`（Linux→`Super`，其余→`Win`）与 `keySymbols` 表
+> （`Backspace`→`⌫`、`Up/Down/Left/Right`→`↑↓←→`，标点在词表里本就是自身符号），`displayKey` 先查
+> 符号表再大写单字符；`Badge` 的键也过 `displayKey`。
+>
+> **测试**：`internal/shortcuts/shortcuts_test.go` 的 `TestDisplay` 改为 14 行表（三平台 + 标点 +
+> 单字符 + 空格键），`TestBadge` 改为 7 行表（Windows `Super+1`→`Win+1`、Linux→`Super+1`、macOS
+> 箭头/删除符号、Enter→↩）；`internal/settingsui/view_test.go` 三处硬写的 `"Alt + Space"` /
+> `"Ctrl + W"` 改成 `shortcuts.Display(...)`，钉设置页跟随新拼写。变异核查：把
+> `strings.Join(words, "+")` 换回 `" + "`、把 `metaKeyWord` 写死 `Super`、把 `keySymbols` 删掉，
+> 对应用例立刻红。
+> 门槛：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **上一轮：P7-cw `select_result` 家族头对齐（原版 `src/shortcuts.ts:248-255,317-326`、`src/hooks/useShortcutCapture.ts:120-128`）**
 > —— P7-cv 收尾后「尚未做」又一次为空（P7-ct 三条全部落地，余下只有三条卡 mygo 框架项）。本轮换
 > 入口：逐文件对照原版的**快捷键**（`src/shortcuts.ts`）与设置里的快捷键地图，把清单重写成 3 条带
 > file:line 的具体待办（下方「具体待办（P7-cw 重写）」），再取第 1 条落地。依赖检查：
@@ -2705,7 +2733,7 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-### 具体待办（P7-cw 重写；第 1 条已落地 P7-cw，第 2、3 条待做）
+### 具体待办（P7-cw 重写；第 1 条已落地 P7-cw、第 2 条已落地 P7-cx，第 3 条待做）
 
 P7-cv 收尾后「尚未做」又一次为空（P7-ct 三条全部落地，余下只有三条卡 mygo 框架项：
 `Options.OnCopy` 复制反馈、终端键入的 `HandleInput` 空格缝、外观四个死旋钮，规格见
@@ -2734,7 +2762,7 @@ P7-cv 收尾后「尚未做」又一次为空（P7-ct 三条全部落地，余�
      `SetShortcut` 对 `select_result` 走它；测试 `internal/shortcuts/shortcuts_test.go` 的
      `TestNormalizeResultShortcut`、`internal/settings/shortcutmap_test.go` 的
      `TestSelectResultStoredBindingIsReducedToItsHead`。
-2. **`shortcuts.Display` / `Badge` 的拼写、平台名与键符号和原版不一致**。
+2. **`shortcuts.Display` / `Badge` 的拼写、平台名与键符号和原版不一致**（已落地，P7-cx）。
    - 原版对照：`main:src/shortcuts.ts:278-296` 的 `formatShortcut`——非 macOS 用
      `parts.join("+")`（`Ctrl+Shift+C`，无空格），meta 键在 Linux 显示 `Super`、在 Windows 显示
      `Win`（`:292`），键名经 `KEY_SYMBOLS`（`:66-84`）把 `Backspace` 画成 `⌫`、四个方向键画成

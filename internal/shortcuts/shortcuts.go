@@ -313,6 +313,12 @@ func NormalizeOr(accelerator string) string {
 // Display renders an accelerator the way a list shows it: the old build's
 // spelling, with Command written as the platform's symbol.
 func Display(accelerator string) string {
+	return displayFor(runtime.GOOS, accelerator)
+}
+
+// displayFor is Display with the platform named, so the whole table can be
+// pinned from any host.
+func displayFor(goos, accelerator string) string {
 	normalized, ok := Normalize(accelerator)
 	if !ok {
 		return accelerator
@@ -324,10 +330,11 @@ func Display(accelerator string) string {
 	key := parts[len(parts)-1]
 	modifiers := parts[:len(parts)-1]
 	// macOS shows the glyphs a Mac user reads (⌘⇧⌥⌃); elsewhere the modifier
-	// words, and "Super" rather than "Win" so a binding recorded as Super+K
-	// reads back as the key that was pressed, as the old build's
-	// `formatShortcut` did.
-	if runtime.GOOS == "darwin" {
+	// words joined with `+` and no spaces (`Ctrl+Shift+C`), and the meta key
+	// named the way the platform's own keyboard names it — `Super` on Linux,
+	// `Win` on Windows — so a binding recorded as Super+K reads back as the key
+	// that was pressed, as the old build's `formatShortcut` did.
+	if goos == "darwin" {
 		var out strings.Builder
 		for _, name := range modifiers {
 			switch name {
@@ -337,37 +344,60 @@ func Display(accelerator string) string {
 				out.WriteString("\u2325")
 			case modShift:
 				out.WriteString("\u21e7")
-			case modCmd:
-				out.WriteString("\u2318")
-			case "CmdOrCtrl":
+			case modCmd, "CmdOrCtrl":
 				out.WriteString("\u2318")
 			}
 		}
 		return out.String() + displayKey(key)
 	}
-	var out strings.Builder
+	words := make([]string, 0, len(modifiers)+1)
 	for _, name := range modifiers {
 		switch name {
 		case modCtrl, "CmdOrCtrl":
-			out.WriteString("Ctrl + ")
+			words = append(words, "Ctrl")
 		case modAlt:
-			out.WriteString("Alt + ")
+			words = append(words, "Alt")
 		case modShift:
-			out.WriteString("Shift + ")
+			words = append(words, "Shift")
 		case modCmd:
-			out.WriteString("Super + ")
+			words = append(words, metaKeyWord(goos))
 		}
 	}
-	return out.String() + displayKey(key)
+	words = append(words, displayKey(key))
+	return strings.Join(words, "+")
 }
 
-// displayKey is a key's own spelling for display: a single letter is upper
-// case, and the rest keep the name the parser gave them.
+// metaKeyWord is the meta modifier's own name on this platform: the old build
+// pushed `IS_LINUX ? "Super" : "Win"` (`main:src/shortcuts.ts:299`).
+func metaKeyWord(goos string) string {
+	if goos == "linux" {
+		return "Super"
+	}
+	return "Win"
+}
+
+// displayKey is a key's own spelling for display: the symbols the old build's
+// `KEY_SYMBOLS` table drew (⌫ for Backspace, the four arrows), a single letter
+// upper case, and the rest as the name the parser gave them.
 func displayKey(key string) string {
+	if symbol, ok := keySymbols[key]; ok {
+		return symbol
+	}
 	if len([]rune(key)) == 1 {
 		return strings.ToUpper(key)
 	}
 	return key
+}
+
+// keySymbols maps a normalized key token onto the glyph the old build drew for
+// it (`main:src/shortcuts.ts:82-100`). Punctuation is already its own symbol in
+// this vocabulary, so only the delete key and the arrows need a spelling.
+var keySymbols = map[string]string{
+	"Backspace": "\u232b",
+	"Up":        "\u2191",
+	"Down":      "\u2193",
+	"Left":      "\u2190",
+	"Right":     "\u2192",
 }
 
 func containsFold(list []string, value string) bool {
@@ -438,17 +468,23 @@ func Duplicate(key string, keys []string, ignoreIndex int) string {
 }
 
 // Badge formats a binding as the compact key badge a row prints: the glyphs
-// on macOS (⌘⇧⌥⌃) and the words elsewhere (Ctrl, Alt, Shift, Super), with the
-// key appended — no spaces, because a badge is a key, not a sentence. The
-// `enter` spelling renders as ↩ on every platform, as the old build's result
-// badge did.
+// on macOS (⌘⇧⌥⌃) and the words elsewhere (Ctrl, Alt, Shift, and the meta key
+// named the platform's way), with the key appended — no spaces, because a
+// badge is a key, not a sentence. The `enter` spelling renders as ↩ on every
+// platform, as the old build's result badge did.
 func Badge(accelerator, key string) string {
+	return badgeFor(runtime.GOOS, accelerator, key)
+}
+
+// badgeFor is Badge with the platform named, so the whole table can be pinned
+// from any host.
+func badgeFor(goos, accelerator, key string) string {
 	mods, _, ok := Parse(accelerator)
 	if !ok {
 		return key
 	}
 	var out strings.Builder
-	if runtime.GOOS == "darwin" {
+	if goos == "darwin" {
 		if mods&ui.Ctrl != 0 {
 			out.WriteString("\u2303")
 		}
@@ -472,12 +508,12 @@ func Badge(accelerator, key string) string {
 			out.WriteString("Shift+")
 		}
 		if mods&ui.Super != 0 {
-			out.WriteString("Super+")
+			out.WriteString(metaKeyWord(goos) + "+")
 		}
 	}
 	if key == "enter" || key == "Enter" {
 		key = "\u21a9"
 	}
-	out.WriteString(key)
+	out.WriteString(displayKey(key))
 	return out.String()
 }

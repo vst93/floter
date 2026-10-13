@@ -92,12 +92,44 @@ func TestFromKey(t *testing.T) {
 }
 
 func TestDisplay(t *testing.T) {
-	// The display follows the platform, as the old build's formatShortcut
-	// did: the glyphs on macOS, the modifier words (and Super for the meta
-	// key) elsewhere.
-	want := "Super + ,"
-	if runtime.GOOS == "darwin" {
+	// The display follows the platform, as the old build's formatShortcut did.
+	// The platform is named explicitly so all three tables are pinned from any
+	// host.
+	cases := []struct {
+		goos        string
+		accelerator string
+		want        string
+	}{
+		// macOS: the glyphs, and the arrows/delete as symbols.
+		{"darwin", "Cmd+Comma", "\u2318,"},
+		{"darwin", "Cmd+Shift+P", "\u2318\u21e7P"},
+		{"darwin", "Cmd+Up", "\u2318\u2191"},
+		{"darwin", "Cmd+Down", "\u2318\u2193"},
+		{"darwin", "Cmd+Left", "\u2318\u2190"},
+		{"darwin", "Cmd+Right", "\u2318\u2192"},
+		{"darwin", "Cmd+Backspace", "\u2318\u232b"},
+		// Elsewhere: words joined with `+` and no spaces, meta named by the
+		// platform.
+		{"linux", "Ctrl+Shift+C", "Ctrl+Shift+C"},
+		{"windows", "Ctrl+Shift+C", "Ctrl+Shift+C"},
+		{"linux", "Super+K", "Super+K"},
+		{"windows", "Super+K", "Win+K"},
+		// A single character is upper case; the named keys keep their spelling.
+		{"linux", "Alt+7", "Alt+7"},
+		{"linux", "Ctrl+Space", "Ctrl+Space"},
+	}
+	for _, tc := range cases {
+		if got := displayFor(tc.goos, tc.accelerator); got != tc.want {
+			t.Errorf("displayFor(%s, %q) = %q, want %q", tc.goos, tc.accelerator, got, tc.want)
+		}
+	}
+	// The exported spelling reads this host's table.
+	want := "Super+,"
+	switch runtime.GOOS {
+	case "darwin":
 		want = "\u2318,"
+	case "windows":
+		want = "Win+,"
 	}
 	if got := Display("Cmd+Comma"); got != want {
 		t.Errorf("Display = %q, want %q", got, want)
@@ -110,6 +142,26 @@ func TestDisplay(t *testing.T) {
 // The badge is compact and platform-formatted: the modifiers joined to the
 // key with no spaces, and Enter as ↩ everywhere.
 func TestBadge(t *testing.T) {
+	cases := []struct {
+		goos        string
+		accelerator string
+		key         string
+		want        string
+	}{
+		{"darwin", "Cmd+1", "1", "\u23181"},
+		{"linux", "Ctrl+1", "1", "Ctrl+1"},
+		{"windows", "Super+1", "1", "Win+1"},
+		{"linux", "Super+1", "1", "Super+1"},
+		{"darwin", "Cmd+Backspace", "\u232b", "\u2318\u232b"},
+		// Enter is the return arrow on every platform.
+		{"linux", "Ctrl+1", "enter", "Ctrl+\u21a9"},
+		{"darwin", "Cmd+1", "Enter", "\u2318\u21a9"},
+	}
+	for _, tc := range cases {
+		if got := badgeFor(tc.goos, tc.accelerator, tc.key); got != tc.want {
+			t.Errorf("badgeFor(%s, %q, %q) = %q, want %q", tc.goos, tc.accelerator, tc.key, got, tc.want)
+		}
+	}
 	// A digit badge carries the binding's modifiers: the old build's ⌘1.
 	if runtime.GOOS == "darwin" {
 		if got := Badge("Cmd+1", "1"); got != "\u23181" {
