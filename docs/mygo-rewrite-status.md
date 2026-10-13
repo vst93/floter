@@ -107,7 +107,7 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 **P7-bj 运行期参数校验与 argv 权威（本轮）**
 
 - **依赖检查**：GitHub API 被限流，改用 `go list -m -versions github.com/egoist/mygo` 确认 v0.4.8
-> 仍是最新（`go.mod` 已是 v0.4.8），无版本可升。
+  仍是最新（`go.mod` 已是 v0.4.8），无版本可升。
 - **入口**：P7-bh 重写的 5 条具体待办，第 1、2 条已落地，本轮取第 3 条（`param_arguments`）。
 - **偏离点（argv 构建点从不拒绝）**：原版 `src-tauri/src/extensions/run.rs:295` 的 `param_arguments`
   是**唯一**的 argv 构建点，并在运行前重新校验：未声明的 id → `run_param_unknown:{id}`；required 且
