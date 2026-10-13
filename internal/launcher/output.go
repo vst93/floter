@@ -423,6 +423,7 @@ func (a *App) leaveOutput() {
 		return
 	}
 	a.output = nil
+	a.outputNumbers = nil
 	a.Query = ""
 	a.Selected, a.chosenRow = 0, -1
 }
@@ -569,6 +570,12 @@ func (a *App) outputRow(c *ui.Context, row extensions.Row, i int) {
 				}
 			}
 		})
+		// The numbered badge sits at the row's trailing edge, exactly as the
+		// launcher's own rows print it. Only rows the family can reach carry
+		// one, so a status note stays unnumbered.
+		if number, ok := a.outputNumbers[i]; ok {
+			ui.Text(c, a.resultNumber(number)).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+		}
 	})
 	if style.Clicked() && row.Runnable() {
 		a.output.Selected = i
@@ -728,4 +735,45 @@ func (a *App) outputRows() (rows []RowInfo, held, sections int) {
 		rows = append(rows, RowInfo{Lines: lines})
 	}
 	return rows, len(rows), sections
+}
+
+// assignOutputNumbers gives the captured-output list its numbered family: the
+// same `⌘1`-`⌘0` slots the launcher's results carry, over the output's own
+// rows. The old build fed the plugin view's items through the ordinary
+// `resultShortcutSlots` (`main:src/App.tsx:1602-1611`), so the rule is the
+// list's own: only a row with something to run is numbered (a status note or a
+// disabled row is information, not a door), `1`-`9` are the first nine runnable
+// rows on screen and `0` the tenth, and a list that overflows the ten-slot
+// budget follows the scroll viewport (R34/R72). A list that fits is numbered
+// whole, so a short output needs no viewport measurement — the same reason the
+// ordinary list numbers a short list whole.
+func (a *App) assignOutputNumbers() map[int]int {
+	numbers := map[int]int{}
+	a.outputNumbers = numbers
+	if a.output == nil || !a.output.IsList {
+		return numbers
+	}
+	rows := a.output.Rows
+	first, last := 0, len(rows)-1
+	if len(rows) > maxResultSlots {
+		first, last = 0, maxResultSlots-1
+		if visibleFirst, visibleLast := a.OutputList.Visible(); visibleLast >= visibleFirst {
+			first, last = visibleFirst, visibleLast
+		}
+	}
+	count := 0
+	for i, row := range rows {
+		if !row.Runnable() {
+			continue
+		}
+		if i < first || i > last {
+			continue
+		}
+		count++
+		if count > maxResultSlots {
+			break
+		}
+		numbers[i] = count % 10
+	}
+	return numbers
 }

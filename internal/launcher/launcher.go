@@ -306,6 +306,10 @@ type App struct {
 	// to, recomputed every frame: 1..9 then 0 for the tenth, over the rows
 	// that can be run.
 	numbers map[int]int
+	// outputNumbers is the same family for the captured-output list: the
+	// numbered shortcuts address the output's own rows while it owns the band
+	// (see assignOutputNumbers).
+	outputNumbers map[int]int
 	// icons caches the decoded application icons, by path, and thumbs the
 	// clipboard images'.
 	icons  map[string]*ui.Bitmap
@@ -446,10 +450,12 @@ func (a *App) assignNumbers(results []Item) map[int]int {
 	return numbers
 }
 
-// resultShortcuts runs the row a number names, reporting whether the key was
-// one of them. The modifiers come from the settings' select_result binding, so
-// rebinding the family moves every number with it.
-func (a *App) resultShortcuts(c *ui.Context, results []Item) bool {
+// pressedResultDigit reports the digit of the result family whose chord is
+// down, if any. The modifiers come from the settings' select_result binding,
+// so rebinding the family moves every number with it. Each Shortcut call
+// consumes the press it matches, so the first binding that answers wins and
+// the caller cannot ask twice.
+func (a *App) pressedResultDigit(c *ui.Context) (int, bool) {
 	for digit := 0; digit <= 9; digit++ {
 		key := ui.Key0
 		if digit > 0 {
@@ -459,20 +465,55 @@ func (a *App) resultShortcuts(c *ui.Context, results []Item) bool {
 		if !ok || wanted != key {
 			continue
 		}
-		if !c.Shortcut(mods, key) {
+		if c.Shortcut(mods, key) {
+			return digit, true
+		}
+	}
+	return 0, false
+}
+
+// resultShortcuts runs the row a number names, reporting whether the key was
+// one of them.
+func (a *App) resultShortcuts(c *ui.Context, results []Item) bool {
+	digit, ok := a.pressedResultDigit(c)
+	if !ok {
+		return false
+	}
+	for index, number := range a.numbers {
+		if number != digit || index >= len(results) {
 			continue
 		}
-		for index, number := range a.numbers {
-			if number != digit || index >= len(results) {
-				continue
-			}
-			a.Selected = index
-			a.activate(results)
-			return true
-		}
+		a.Selected = index
+		a.activate(results)
 		return true
 	}
-	return false
+	return true
+}
+
+// outputShortcuts runs the numbered row of the captured-output list. The
+// output's rows are the launcher's own numbered family — the old build fed the
+// plugin view's items through the same `resultShortcutSlots` as any result
+// (`main:src/App.tsx:1602-1611`) — so `⌘1`-`⌘9` run the first nine runnable
+// rows and `⌘0` the tenth, against the output list's own viewport (see
+// assignOutputNumbers). A digit with no row behind it is still consumed: it
+// belongs to the family, not to the field.
+func (a *App) outputShortcuts(c *ui.Context) bool {
+	if a.output == nil || !a.output.IsList {
+		return false
+	}
+	digit, ok := a.pressedResultDigit(c)
+	if !ok {
+		return false
+	}
+	for index, number := range a.outputNumbers {
+		if number != digit || index >= len(a.output.Rows) {
+			continue
+		}
+		a.output.Selected = index
+		a.runOutputRow()
+		return true
+	}
+	return true
 }
 
 // appShortcuts runs the app's own rebindable keys: a new command clears
@@ -725,6 +766,9 @@ func (a *App) View(c *ui.Context) {
 	results := a.Results()
 	a.clampSelection(len(results))
 	a.assignNumbers(results)
+	// The output list, while it owns the band, carries the same numbered family
+	// over its own rows.
+	a.assignOutputNumbers()
 
 	// The window's height is the content's own: measure every row's lines
 	// off the theme, so the shell can size the window to the list it holds.
@@ -954,6 +998,9 @@ func (a *App) View(c *ui.Context) {
 		switch {
 		case c.Shortcut(0, ui.KeyEscape):
 			a.leaveOutput()
+		case a.outputShortcuts(c):
+			// The numbered family runs the output list's rows, exactly as ⌘N
+			// runs a result on the ordinary page.
 		case c.Shortcut(0, ui.KeyDown):
 			a.moveOutputSelection(1)
 		case c.Shortcut(0, ui.KeyUp):

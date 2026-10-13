@@ -99,7 +99,34 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-cq 输出视图的窗口高度按输出自己的内容计价（原版 `src/App.tsx:2133-2137,2185-2200`、
+> **最新一轮：P7-cr 输出列表的编号快捷键（原版 `src/App.tsx:1602-1611`、`src/launcher/plugin-mode.ts:659-661`、`src/launcher/result-budget.ts:883-900`）**
+> —— P7-cq 清单第 1 条已落地，本轮取第 2 条（最高优先级）。依赖检查：`go list -m -versions
+> github.com/egoist/mygo` 仍停在 **v0.4.8**（与 `go.mod` 一致），GitHub releases latest 也是 v0.4.8，无版本可升。
+> 只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离点**：原版把插件视图的行喂进与普通结果**同一个**编号家族——`displayedShortcutSlots`
+> （`App.tsx:1602-1611`）在 `pluginInteractive` 为真时走 `resultShortcutSlots(displayedResults, …)`，给插件列表的行发
+> `⌘1`–`⌘9`/`⌘0`；`pluginViewInteractive`（`plugin-mode.ts:659-661`）只在列表形且 `tier === "interactive"` 时为真。
+> 本构建 `internal/launcher/launcher.go` 的 `assignNumbers(results)` 只编号 `a.Results()`，输出视图在屏时
+> `modeShortcuts` 只认方向键/Enter/Escape 就 `return`，**从不**问 `⌘N`；`outputRow`（`internal/launcher/output.go:518`）
+> 也不画徽标。于是「跑一条命令、输出若干可运行行」时，键盘上的编号键对输出列表完全无效。
+>
+> **修法**：`internal/launcher/launcher.go` 的 `resultShortcuts` 抽出 `pressedResultDigit`（按键 → 数字，绑定取自
+> `select_result`）；新增 `outputShortcuts`（用 `a.outputNumbers` 跑输出列表的第 N 行），并在输出视图的按键分支里
+> 接上；`View` 每帧调 `assignOutputNumbers()`。`internal/launcher/output.go` 新增 `assignOutputNumbers`
+> （可运行行才编号、`1`–`9` 前九个 + `0` 第十个、超过 `maxResultSlots` 时按 `OutputList.Visible()` 重新编号 = R34/R72），
+> `outputRow` 在行尾画 `resultNumber` 徽标（与启动器行同构），`leaveOutput` 清 `outputNumbers`。
+>
+> **测试**：`internal/launcher/outputnumbers_test.go`——`TestOutputRowsCarryTheNumberedFamily`（三行 1/2/3 + 徽标画出）、
+> `TestOutputStatusRowsAreNotNumbered`（状态行不编号、家族不落空）、`TestTheOutputNumberRunsItsRow`（⌘2 插入第二行文本）、
+> `TestOutputNumbersFollowTheOutputViewport`（20 行窗口：编号只落在可见区；滚动后重新编号）。变异核查：摘掉按键分支 →
+> 按键用例红；把 `!row.Runnable()` 改成 `row.ID == ""`（连状态行一起编号）→ 状态用例三条红；去掉 `OutputList.Visible()` 分支 →
+> 视口用例三条红；删掉徽标绘制 → 徽标三条红。
+> 至此 P7-cq 清单第 2 条落地，只剩第 3 条（直出文本 ANSI 的 dim/inverse 规则）待做，规格见下一节。
+> 门槛：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+> **上一轮：P7-cq 输出视图的窗口高度按输出自己的内容计价（原版 `src/App.tsx:2133-2137,2185-2200`、
 > `src/launcher/plugin-mode.ts:238-267,647-651`）**
 > —— P7-co 清单只剩三条卡框架项（`Options.OnCopy` 复制反馈、终端键入的 `HandleInput` 空格缝、外观四个
 > 死旋钮），所以本轮先把「尚未做」重新写实为 3 条带 file:line 的具体待办（下方「具体待办（P7-cq 重写）」），
@@ -2514,7 +2541,7 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-### 具体待办（P7-cq 重写；第 1 条已落地，余下第 2、3 条待做）
+### 具体待办（P7-cq 重写；第 1、2 条已落地，余下第 3 条待做）
 
 P7-cp 之后「尚未做」只剩三条卡框架项（`Options.OnCopy` 复制反馈、终端键入的 `HandleInput` 空格缝、
 外观四个死旋钮），无 Go 侧可落地项。本轮换入口：逐文件对照原版的**插件视图几何**，把清单重写成
@@ -2534,17 +2561,19 @@ P7-cp 之后「尚未做」只剩三条卡框架项（`Options.OnCopy` 复制反
      25 行列表 == 10 行（`min(items, MAX_RESULTS)`）。**已落地**：`windowRows`/`pluginTextRows`/`outputRows`
      （`internal/launcher/output.go`）+ `RowInfo.Status`/`Band`、`Geometry.Sections`（`internal/launcher/height.go`）；
      测试 `internal/launcher/outputheight_test.go`、`height_test.go` 的三条。
-2. **输出列表的行要有编号快捷键（原版 R39 的 interactive 层）**。
+2. **输出列表的行要有编号快捷键（原版 R39 的 interactive 层）**（已落地，P7-cr）。
    - 原版对照：`main:src/App.tsx:1602-1611` 的 `displayedShortcutSlots`——`pluginInteractive` 为真时
      走 `resultShortcutSlots(displayedResults, …)`，给插件列表的行发 `⌘1`–`⌘9`/`⌘0`；
-     `main:src/launcher/plugin-mode.ts:665-666` 的 `pluginViewInteractive`（`form === "list" &&
-     tier === "interactive"`）；`pluginViewItems` 把列表行的 `LauncherItem` 交回编号家族。
-   - 本构建：`internal/launcher/launcher.go` 的 `assignNumbers(results)`（约 `:729`）只编号 `a.Results()`，
-     输出视图在屏时 `modeShortcuts`（约 `:960-977`）只认方向键/Enter/Escape 就 `return`，**从不**问
-     `⌘N`；`outputRow`（`internal/launcher/output.go:517`）也不画徽标。
+     `main:src/launcher/plugin-mode.ts:659-661` 的 `pluginViewInteractive`（`form === "list" && tier === "interactive"`）；
+     `main:src/launcher/result-budget.ts:883-900` 的 `resultShortcutSlots`（可运行行才编号、前九 + `0`、
+     超出预算才看 viewport）。
+   - 本构建（改前）：`internal/launcher/launcher.go` 的 `assignNumbers(results)` 只编号 `a.Results()`，
+     输出视图在屏时 `modeShortcuts` 只认方向键/Enter/Escape 就 `return`，**从不**问 `⌘N`；`outputRow`
+     也不画徽标。
    - 验收：交互层的输出列表前 10 行按顺序带 `⌘1`–`⌘9`/`⌘0` 徽标，按 `⌘N` 跑第 N 行；display 层
-     （状态行、不可运行行）不编号；超出预算时按 `List.Visible()` 重新编号（R72）。测试：`internal/launcher`
-     新增一条，钉徽标与按键两条路。
+     （状态行、不可运行行）不编号；超出预算时按 `OutputList.Visible()` 重新编号（R72）。**已落地**：
+     `pressedResultDigit`/`outputShortcuts`（`launcher.go`）+ `assignOutputNumbers`/徽标（`output.go`）；
+     测试 `internal/launcher/outputnumbers_test.go` 四条。
 3. **直出文本的 ANSI 渲染：dim 与 inverse 的规则与原版不同**。
    - 原版对照：`main:src/launcher/PluginTextView.tsx:46-63` 的 `spanStyle`——`dim` 对**任何**颜色
      一律 `opacity: 0.62`（整个 run 半透明，不只是默认前景）；`inverse` 只在**两侧都有名字**时才互换，
