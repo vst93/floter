@@ -99,7 +99,15 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-bm 健康报告的探针明细与检查时间** —— 「尚未做」清单为空，本轮先把它重写为 4 条
+> **最新一轮：P7-bn 删除双方共有的死代码（capability 报告探针）** —— P7-bm 重写的具体待办第 2 条。
+> 本构建 `internal/extensions/capability.go` 的 `ProbeCapabilities`/`CapabilityReport` 只有自己的
+> 测试调用，原版 `capability_probe.rs` 的 `CapabilityScanner::scan` 同样只有测试调用，且原版
+> reprobe 路径传的是 `HealthReport::new(Default::default())`（`probe_executor.rs:17`）——所以原版卡片
+> 里的 `capabilities.version` 恒为 `unknown`、features/limitations 恒空，两版都不展示。既然这是
+> **双方共有的死代码**、接线又要改磁盘格式并偏离原版，本轮选择**删除**：清掉死探针，把文件里还活着的
+> `--help` 派生与 semver 提取重命名为 `helpderive.go`。
+
+> **上一轮：P7-bm 健康报告的探针明细与检查时间** —— 「尚未做」清单为空，本轮先把它重写为 4 条
 > 带 file:line 的具体待办，再取第 1 条落地。仓库里持久化的健康报告（`probeReport`）只被投影成一句
 > 状态词，`ProbeRecord.DurationMs`/`ExitCode`/`Stderr` 与 `HealthReport.CheckedAt` 全部算完就丢；
 > 现在卡片在 Health 行下逐条画出探针（记号 + id + 耗时）、失败项（退出码 + stderr + 可重试）与检查
@@ -118,7 +126,37 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 > required 不认 default 豁免。现在 `ParamIssues` 返回 `{Index,Key,Label}`，每个非法值
 > 的句子印在**它自己那一行下面**，Run 按钮在有错时禁用；输出视图也按语言渲染 `run_param_*`。
 
-**P7-bm 健康报告的探针明细与检查时间（本轮）**
+**P7-bn 删除双方共有的死代码（capability 报告探针）（本轮）**
+
+- **依赖检查**：GitHub releases API 被限流，改用 go proxy（`@v/list` / `@latest`）确认 v0.4.8 仍是
+  最新（`go.mod` 已是 v0.4.8），无版本可升。
+- **入口**：P7-bm 重写的 4 条具体待办，第 1 条已落地，本轮取第 2 条。
+- **决策（删除而非接线）**：原版 `src-tauri/src/extensions/capability_probe.rs` 的
+  `CapabilityScanner::scan`/`scan_with` 只被自身测试调用（`git grep CapabilityScanner main` 无生产
+  调用者），reprobe 走的是 `probe_executor.rs:17` 的 `HealthReport::new(Default::default())`，所以原版
+  卡片（`ExtensionsPanel.tsx:2924/2926/2934`）里 `capabilities.version` 恒 falsy、features/limitations
+  恒空——**渲染代码在，数据永远不来**。本构建改前有同一份死代码：`ProbeCapabilities`/`CapabilityReport`/
+  `CapabilityProbe`/`ProbeResult`（`internal/extensions/capability.go`）只有 `capability_test.go` 调用
+  （`grep -rn 'ProbeCapabilities' internal cmd | grep -v _test` 为空）。接线需要给 `HealthReport` 加
+  `capabilities` 字段（改磁盘格式）并让 `Reprobe` 跑探针，那会**偏离原版行为**；所以本轮按原版的
+  有效行为选择删除。
+- **改动**：
+  - `git mv internal/extensions/capability.go internal/extensions/helpderive.go`：该文件除死探针外还
+    装着**活着**的 `ProbeHelpText`/`ProbeDerive`（连接时 `--help` 派生，`reprobe.go:198`、`custom.go:493`
+    在用）与 `SemverFromVersionOutput`，所以只做定点手术，不删文件。
+  - 删除死符号：常量 `ProbeVersion`/`ProbeHelp`/`UnknownVersion`/`probeTimeout`（以及同样无人用的
+    `subcommandProbeTimeout`）、类型 `CapabilityProbe`/`ProbeResult`/`CapabilityReport`、函数
+    `ProbeCapabilities`/`capabilityProbes`/`(*CapabilityProbe).Run`/`firstLine`/`capIntPtr`；随之
+    清掉 `errors`/`fmt` 两个不再用到的 import。
+  - 删除 `internal/extensions/capability_test.go`（四个测试全部只测 `ProbeCapabilities`；`ProbeHelpText`/
+    `ProbeDerive` 的测试在 `helpargs_test.go`，不受影响）。
+  - 文件头补一段说明，记下这份死代码的来历与为何删除。
+- **测试/验收**：`grep -rn '\bCapabilityReport\b\|\bCapabilityProbe\b\|\bProbeResult\b\|\bProbeCapabilities\b\|\bProbeVersion\b\|\bProbeHelp\b\|\bUnknownVersion\b\|\bprobeTimeout\b\|\bsubcommandProbeTimeout\b\|\bfirstLine\b\|\bcapIntPtr\b' internal cmd --include=*.go`
+  为零；`ProbeHelpText`/`ProbeDerive` 的现有测试（`helpargs_test.go`）仍绿。
+- **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 27 包全绿、
+  `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+**P7-bm 健康报告的探针明细与检查时间（上一轮）**
 
 - **依赖检查**：GitHub releases API 被限流，改用 `go list -m -versions github.com/egoist/mygo` 确认
   v0.4.8 仍是最新（`go.mod` 已是 v0.4.8），无版本可升。
@@ -1751,7 +1789,7 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 > `HandleInput` 缝、外观四个死旋钮）与一次性维护者动作（`mygo keygen`、`mygo.json` 的
 > `updates`/签名、CI 私钥、发布到 GitHub Release）不变，另见「已知差距」。
 
-### 具体待办（P7-bm 重写；第 1 条本轮已落地）
+### 具体待办（P7-bm 重写；第 1 条已落地、第 2 条 P7-bn 已落地）
 
 1. **健康报告的探针明细与检查时间从不展示（本轮已落地）** —— 原版 `extension-health` 会逐条画出
    `healthReport.probes`（通过/失败的记号 + `probeId` + `{durationMs}ms`）、失败项（`healthExitCode` +
@@ -1770,7 +1808,7 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
    - 验收（已满足）：`settingsui` 新增 `HealthReport`/`HealthProbe` 视图并画在 Health 行下；shell 的
      `healthReportView` 把仓库里的报告投影进来，`Retryable` 取清单 `required` 的反（不落盘，磁盘格式
      不变）；i18n 补五句；测试钉住渲染与投影。
-2. **`extensions.CapabilityReport` / `ProbeCapabilities` 是双方都有的死代码** ——
+2. **`extensions.CapabilityReport` / `ProbeCapabilities` 是双方都有的死代码（P7-bn 已删除）** ——
    `internal/extensions/capability.go` 的 `ProbeCapabilities`/`SupportedFeatures`/`Limitations`
    只有自己的测试调用（`grep -rn 'ProbeCapabilities' internal cmd --include=*.go | grep -v _test` 为空）。
    原版 `capability_probe.rs` 的 `CapabilityScanner::scan` 同样只有测试调用，且 reprobe 路径传的是
@@ -1779,7 +1817,8 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
    这不是偏离，是一份双方共有的死代码，需要一个决策：接线（让 `Reprobe` 也跑 `ProbeCapabilities`，
    把 `Capabilities` 补回 `HealthReport` 并画出 `v{version}`/features/limitations，同时补磁盘字段）
    或删除（`capability.go` 与其测试一起移除）。验收：接线则卡片有 version/features/limitations 且
-   测试钉住；删除则 `grep` 为零。
+   测试钉住；删除则 `grep` 为零。**P7-bn 选择删除**（接线要改磁盘格式且偏离原版行为），落地见下方
+   「P7-bn 删除双方共有的死代码」；`capability.go` 里仍活着的 `--help` 派生重命名为 `helpderive.go`。
 3. **`browser.Entry.ProfileKey` 与 `browser.FindProfile` 是死字段/死函数** ——
    `internal/browser/browser.go:60` 的 `ProfileKey` 只在构造时写入（`:447,616,650` 与 `safari.go:61`），
    全仓无 `.ProfileKey` 读取（`grep -rn '\.ProfileKey' internal --include=*.go | grep -v _test` 为空）；
@@ -1792,8 +1831,8 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
    （`shell.go:1239` 的 `integrationList` 映射不用它，卡片已按集成分组）。验收：删除字段与赋值，
    `grep` 为零，测试不受影响。
 
-> 这 4 条都不卡框架；第 1 条已落地。上面 P7-bh/P7-an/P7-bb/P7-bd 的旧清单保留在下方，
-> 作为「哪些已经做过」的记录。
+> 这 4 条都不卡框架；第 1 条已落地，第 2 条由 P7-bn 以「删除」落地。上面 P7-bh/P7-an/P7-bb/P7-bd 的
+> 旧清单保留在下方，作为「哪些已经做过」的记录。
 
 ### 具体待办（P7-bh 重写；第 1–5 条全部已落地）
 
