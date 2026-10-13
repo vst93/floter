@@ -31,7 +31,7 @@ func TestRealSessionStartsWithTheSettings(t *testing.T) {
 	}
 	a := New(store, Actions{
 		Title: func(string) {},
-		Exit:  func(int) {},
+		Exit:  func(*Session, int) {},
 	}, terminal.New)
 
 	a.EnsureSession()
@@ -119,7 +119,7 @@ func TestRealShellWithCommand(t *testing.T) {
 		t.Skip("set FLOTER_TERMINAL_TEST=1 to load libghostty-vt")
 	}
 	store := settings.NewStore(settings.Default())
-	a := New(store, Actions{Title: func(string) {}, Exit: func(int) {}}, terminal.New)
+	a := New(store, Actions{Title: func(string) {}, Exit: func(*Session, int) {}}, terminal.New)
 	a.RunShellWithCommand("echo install-session-marker")
 	if a.Err != nil {
 		t.Fatalf("the session did not start: %v", a.Err)

@@ -531,10 +531,11 @@ func New(opts Options) *App {
 			}
 			a.Open(SurfaceTerminal)
 		},
-		// RunInShell is the same hand-off the install rows use: a bare session
-		// of the user's own shell with the line typed into it, because only a
-		// shell can read a pipe or a redirect.
-		RunInShell: a.openInstallSession,
+		// RunInShell is the launcher's own shell line (`ls | grep go`, which only
+		// a shell can read): the session exists to carry that line, so it is
+		// command-started and leaves with it (R62). The install rows keep the
+		// bare hand-off below, where the user's shell outlives the install.
+		RunInShell: a.openShellCommand,
 		// SpawnDetached starts a tool's own GUI action: no terminal, no
 		// capture, and the launcher clears and hides the way any row does.
 		SpawnDetached: func(argv []string) {
@@ -828,10 +829,27 @@ func New(opts Options) *App {
 				}
 			})
 		},
-		// The program ended: the surface *holds* the final frame instead of
-		// leaving, so the output stays readable until the user closes it or
-		// starts another — the old build's resident page.
-		Exit: func(code int) { a.onMain(func() { a.Terminal.Resident(code) }) },
+		// The program ended. R62: a session that exists only to carry a command
+		// takes the page with it — the launcher is where the user came from, and
+		// a finished one-shot frame is not worth holding. A bare shell keeps its
+		// resident page (the old build's own hold). The session names itself:
+		// the plugin's callback runs on the terminal's goroutine, so the index is
+		// resolved here, on the main thread.
+		Exit: func(session *terminalui.Session, code int) {
+			if session == nil {
+				return
+			}
+			a.onMain(func() {
+				index := a.Terminal.IndexOf(session)
+				if index < 0 {
+					return
+				}
+				a.Terminal.ResidentAt(index, code)
+				if a.Terminal.CommandSessionEnded(index, a.Surf == SurfaceTerminal) {
+					a.Open(SurfaceLauncher)
+				}
+			})
+		},
 		// A Command+click on the output opens what it points at: a page in
 		// the user's browser, a path in the file manager.
 		OpenLink: a.openTerminalLink,
@@ -1750,6 +1768,14 @@ func (a *App) clearClipboardHistoryAsks(confirm func(title string) bool) {
 // already in effect), and it outlives the install.
 func (a *App) openInstallSession(command string) {
 	a.Terminal.RunShellWithCommand(command)
+	a.Open(SurfaceTerminal)
+}
+
+// openShellCommand opens the launcher's shell-syntax line in the user's own
+// shell. The session carries the line rather than merely hosting it: when the
+// shell ends, the terminal page leaves with it (R62, see Terminal.RunCommandLine).
+func (a *App) openShellCommand(command string) {
+	a.Terminal.RunCommandLine(command)
 	a.Open(SurfaceTerminal)
 }
 

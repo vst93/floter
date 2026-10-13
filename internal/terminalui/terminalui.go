@@ -39,9 +39,12 @@ type Actions struct {
 	OpenExternal func()
 	// Title is called when the program sets the terminal's title.
 	Title func(string)
-	// Exit is called when the program ends; the shell returns to the
-	// launcher.
-	Exit func(int)
+	// Exit is called when a session's program ends, with the session it
+	// happened to and the code it returned. The session is handed over rather
+	// than an index: the plugin calls this on the terminal's own goroutine,
+	// where reading the session list would race the main thread, and the main
+	// thread turns the session back into its place (see IndexOf).
+	Exit func(session *Session, code int)
 	// Pin copies the session's text into a window of its own.
 	Pin func(title, text string)
 	// Settings flips the terminal's own appearance drawer: the bar's gear, so
@@ -73,6 +76,14 @@ type Session struct {
 	Resident bool
 	// ExitCode is what the program returned, meaningful while Resident.
 	ExitCode int
+	// CommandStarted marks a session that exists only to carry a command: the
+	// launcher's structured execution plans and its own shell-syntax line. When
+	// such a program ends the page leaves with it (R62), rather than holding a
+	// finished frame. A bare shell — the system terminal row, the held-
+	// modifier row, Enter on the empty page, an install row whose command is
+	// typed into the user's own shell — is the user's terminal and never
+	// counts.
+	CommandStarted bool
 	// Created is when the session started: the sessions list's order.
 	Created time.Time
 }
@@ -173,6 +184,7 @@ func (a *App) startSession(dir string, mutate ...func(*terminal.Options)) (*Sess
 	// per paste, so the drawer's switch applies to the session on screen
 	// without restarting it.
 	var term *terminal.Terminal
+	var session *Session
 	opts.OnPaste = func(text string) bool {
 		rewritten, changed := pasteText(text, a.Store.Snapshot().TerminalPasteSafe)
 		if !changed || term == nil {
@@ -181,12 +193,23 @@ func (a *App) startSession(dir string, mutate ...func(*terminal.Options)) (*Sess
 		term.Paste(rewritten)
 		return true
 	}
+	// The exit belongs to the session it happened to, not to whichever session
+	// is on screen: the surface holds several, a background program can end
+	// while the user looks at another, and the plugin's callback carries no
+	// identity of its own.
+	opts.OnExit = func(code int) {
+		if session == nil || a.Actions.Exit == nil {
+			return
+		}
+		a.Actions.Exit(session, code)
+	}
 	created, err := a.NewTerminal(opts)
 	if err != nil {
 		return nil, err
 	}
 	term = created
-	return &Session{Term: term, Created: time.Now()}, nil
+	session = &Session{Term: term, Created: time.Now()}
+	return session, nil
 }
 
 // pasteText is the terminal's paste rule: with safe paste on, one trailing
@@ -453,14 +476,17 @@ func writeFileAtomically(path string, data []byte) error {
 	return os.Rename(name, path)
 }
 
-// RunCommand ends the current session and starts one that runs argv: how an
-// extension's command is handed to the terminal. dir names the working
-// directory policy the provider asked for ("home", "current", "inherit"),
-// and env is the integration's configured environment ("KEY=value").
+// RunCommand starts a session whose own program is argv: how an extension's
+// command, and the launcher's structured line, are handed to the terminal.
+// dir names the working directory policy the provider asked for ("home",
+// "current", "inherit"), and env is the integration's configured environment
+// ("KEY=value"). The session is command-started: when the program ends the
+// page leaves with it (R62).
 // RunShellWithCommand opens a new bare session (no command: the user's own
 // shell) and types a command line into it. The install rows use it: the shell
 // is the user's and outlives the install, and the command is typed rather than
-// run, so the session is interactive when the install finishes.
+// run, so the session is interactive when the install finishes and a finished
+// frame is still worth holding.
 //
 // The command is typed once the session has produced its first output (a
 // prompt); the deadline keeps a shell that never prints from holding the app.
@@ -470,6 +496,21 @@ func writeFileAtomically(path string, data []byte) error {
 // (`go<U+3000>version` is a single token to zsh), so it becomes U+0020 here,
 // at the place where text becomes PTY input, rather than at each caller.
 func (a *App) RunShellWithCommand(command string) {
+	a.runShellSession(command, false)
+}
+
+// RunCommandLine is the launcher's own shell-syntax line ("Run in terminal",
+// which nothing but a shell can read: `ls | grep go`). The session exists to
+// carry that line, so it is command-started and the page leaves with the shell
+// (R62) — the reference's own distinction between `initialCommand` (the line is
+// the point) and the install rows' bare spawn (the shell is the point).
+func (a *App) RunCommandLine(command string) {
+	a.runShellSession(command, true)
+}
+
+// runShellSession is the one body behind the two shell hand-offs; they differ
+// only in whether the session exists to carry the line.
+func (a *App) runShellSession(command string, carriesCommand bool) {
 	command = shellCommandLine(command)
 	if a.NewTerminal == nil || command == "" {
 		return
@@ -479,6 +520,7 @@ func (a *App) RunShellWithCommand(command string) {
 		a.Err = err
 		return
 	}
+	session.CommandStarted = carriesCommand
 	a.Sessions = append(a.Sessions, session)
 	a.Active = len(a.Sessions) - 1
 	a.Err = nil
@@ -525,6 +567,7 @@ func (a *App) RunCommand(argv []string, dir string, env []string) error {
 		a.Err = err
 		return err
 	}
+	session.CommandStarted = true
 	a.Sessions = append(a.Sessions, session)
 	a.Active = len(a.Sessions) - 1
 	a.Err = nil
@@ -582,7 +625,9 @@ func (a *App) Label() string {
 	return i18n.For(a.Store.Snapshot().Language).Terminal.Title
 }
 
-// options builds the plugin options from the settings.
+// options builds the plugin options from the settings. OnExit is left unset
+// here: it names the session it belongs to, which only startSession knows (see
+// its comment).
 func (a *App) options() terminal.Options {
 	s := a.Store.Snapshot()
 	theme := palette(s.TerminalTheme, s.TerminalOpacity)
@@ -605,7 +650,6 @@ func (a *App) options() terminal.Options {
 		// terminal slider did nothing until a named palette was picked.
 		Transparent: s.TerminalTheme == "inherit",
 		OnTitle:     a.Actions.Title,
-		OnExit:      a.Actions.Exit,
 		OpenLink:    a.Actions.OpenLink,
 		OnNotify:    a.Actions.Notify,
 	}
@@ -765,10 +809,70 @@ func tokensOf(a *App, c *ui.Context) theme.Tokens {
 // the note says how the program went, until the user closes it or starts
 // another.
 func (a *App) Resident(code int) {
-	if session := a.Current(); session != nil {
-		session.Resident = true
-		session.ExitCode = code
+	a.ResidentAt(a.Active, code)
+}
+
+// ResidentAt marks the session at an index ended. The index comes from a
+// callback through IndexOf, so a background program's exit is recorded on its
+// own session rather than on whichever one the user happens to be looking at.
+func (a *App) ResidentAt(index, code int) {
+	if index < 0 || index >= len(a.Sessions) {
+		return
 	}
+	a.Sessions[index].Resident = true
+	a.Sessions[index].ExitCode = code
+}
+
+// IndexOf is a session's place in the list, -1 when it is gone. A callback
+// carries the session itself (see Actions.Exit); the main thread turns it back
+// into an index here, where the list is only its own to read.
+func (a *App) IndexOf(session *Session) int {
+	for i, candidate := range a.Sessions {
+		if candidate == session {
+			return i
+		}
+	}
+	return -1
+}
+
+// ShouldExitWithCommandSession is R62's rule, the reference's own predicate
+// (`src/terminal/command-session.ts:47`): a session started only to carry a
+// command takes the terminal page with it when the program ends, but only while
+// the terminal is the surface the user is on. A bare shell never counts —
+// exiting the user's own shell is the user closing their terminal, not the app
+// closing a page.
+func ShouldExitWithCommandSession(commandStarted, terminalOnScreen bool) bool {
+	return commandStarted && terminalOnScreen
+}
+
+// CommandSessionEnded applies R62 to a session whose program has just ended and
+// reports whether the caller should return to the launcher. terminalOnScreen is
+// the shell's own fact (the terminal is the surface on the user's screen); the
+// ended session must also be the one on screen, this build's refinement of the
+// reference's single main session — an exit cannot yank the user out of another
+// session they moved to. The session is dropped without a snapshot: a one-shot
+// command's output is not the scrollback the next shell should inherit.
+func (a *App) CommandSessionEnded(index int, terminalOnScreen bool) bool {
+	if index < 0 || index >= len(a.Sessions) {
+		return false
+	}
+	onScreen := terminalOnScreen && index == a.Active
+	if !ShouldExitWithCommandSession(a.Sessions[index].CommandStarted, onScreen) {
+		return false
+	}
+	if session := a.Sessions[index]; session.Term != nil {
+		_ = session.Term.Close()
+	}
+	a.Sessions = append(a.Sessions[:index], a.Sessions[index+1:]...)
+	switch {
+	case len(a.Sessions) == 0:
+		a.Active = -1
+	case index < a.Active:
+		a.Active--
+	case index == a.Active && a.Active >= len(a.Sessions):
+		a.Active = len(a.Sessions) - 1
+	}
+	return true
 }
 
 // residentNote is the floating note a held session carries: what happened and

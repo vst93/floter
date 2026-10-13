@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**935 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**941 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -99,7 +99,28 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-cc R98「停用即停」接线 + R74 `.cmd`/`.bat` 包装；并订正 P7-cc 清单第 2 条**
+> **最新一轮：P7-cd 命令启动的会话结束即带走终端页（原版 R62）**
+> —— P7-cc 收尾后「尚未做」又一次为空。本轮不去翻旧提交，而是**顺着一条原版明写、本构建只做了一半
+> 的契约**往回找：原版 `src/terminal/command-session.ts` 的 `shouldExitWithCommandSession` 规定
+> **命令启动的会话**（`initialCommand` 或结构化 execution plan）进程一结束就离开终端页、回到启动器，
+> 只有**裸** shell（系统 Terminal 行、⌘ 持有行、空态回车、安装行）才保留终帧；`useTerminalView.ts:476`
+> 在 `term://exit` 里调它，再走 `returnToInputMode()`（关会话 + 回启动器）。本构建只做了 R9-2 的
+> 前半：`internal/shell/shell.go:834` 的 `Exit` 回调**无条件** `Resident(code)` 持有终帧，命令会话也
+> 留着——而 `docs/mygo-rewrite-plan.md:746`（P2-p）与 `tool-install.ts:190` 都写着「安装行故意开裸会话，
+> 好让 R62 判定为 false」，说明这条契约被引用过却从未实现。顺带一个潜在 bug：`Exit` 回调不携带会话
+> 身份，`Resident` 标的是 `Current()`——后台会话退出会把**当前**会话标成 resident。
+> 现在：`Session.CommandStarted`（`RunCommand` 与新的 `RunCommandLine` 标 true，安装行的
+> `RunShellWithCommand` 不标）、`Actions.Exit(session, code)` 携带会话本身（插件回调在终端自己的
+> goroutine 上，索引在主线程用 `IndexOf` 解回，顺带修掉上面那个 bug）、纯判定
+> `ShouldExitWithCommandSession(commandStarted, terminalOnScreen)`、`CommandSessionEnded(index,
+> terminalOnScreen)` 关会话（**不写 snapshot**：一次性命令的输出不该进下一个 shell 的 scrollback）
+> 并报告是否回启动器；shell 用 `a.Surf == SurfaceTerminal` 当「页面在屏上」，启动器自己的 shell 行
+> （`ls | grep go`）走 `openShellCommand`（command-started），安装行仍走 `openInstallSession`（裸）。
+> 测试：`internal/terminalui/commandsession_test.go` 4 条（判定表、逐会话归属、三种启动方式、规则全表）
+> + `internal/shell/commandsession_test.go` 2 条（结构化命令与 shell 行各自带走页面、安装会话留下）。
+> 变异核查：把判定改成恒假，三组断言立刻红。
+
+> **上一轮：P7-cc R98「停用即停」接线 + R74 `.cmd`/`.bat` 包装；并订正 P7-cc 清单第 2 条**
 > —— P7-cc 那轮把空清单写成 3 条待办，其中第 1 条（R98）落地了却没提交（工作区里躺着）。本轮先把那份
 > 工作验绿并收进仓库：`internal/extensions/runregistry.go` 的 `RunRegistry`（一个 id → 一组 cancel，
 > `Add` 返回幂等注销函数，`Kill` 返回杀掉的个数，nil 接收者全是 no-op）、`RunKilledFailure` 发
@@ -2305,16 +2326,74 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-> **P7-cc 更新**：P7-cb 之后「尚未做」清单再次为空。这轮不去翻旧提交，而是**顺着原版一条明写、
-> 本构建只做了一半的契约往回找**：`run_killed` 这个失败键在本构建里**已定义、已本地化（en/zh）、
-> 渲染路径也通了**（`internal/launcher/runfailure.go:38`），但**全仓没有一处会发出它**——原版 R98
-> 的「停用/卸载立刻杀死进行中的运行」整条接线缺席。同一族还有两个小口子（R100 停用先问、R74
-> Windows `.cmd`/`.bat` 包装），一并写成 3 条带 file:line 的具体待办（下方「具体待办（P7-cc 重写）」）。
-> **P7-cc 落地结果**：第 1 条（R98）与第 3 条（R74）已落地；第 2 条（R100）经核查**本构建早已落地**
-> （`a03b40a`／P4-ac，那轮审计是误判，订正见下）。
-> 其余仍是卡框架的三条（`Options.OnCopy`、终端键入的 `HandleInput` 缝、
-> 外观四个死旋钮）与一次性维护者动作（`mygo keygen`、`mygo.json` 的 `updates`/签名、CI 私钥、发布到
-> GitHub Release），另见「已知差距」。
+> **P7-cd 更新**：P7-cc 之后「尚未做」清单再次为空。这轮不去翻旧提交，而是**顺着原版一条明写、
+> 本构建只做了一半的契约往回找**（与 P7-cc 同一手法）：原版 `src/terminal/command-session.ts` 的
+> R62 规定「命令启动的会话结束就离开终端页」，本构建只做了 R9-2 的「持有终帧」一半，命令会话也留着
+> （而 plan P2-p 与 `tool-install.ts:190` 都引用过这条判定）。同一族又找到两个口子——集成卡里
+> **完整缺失**的审批记录区块（`ApprovedAt`/`ApprovedManifestDigest`/`ApprovedPermissions`
+> 存了没人读），与 P7-cc 自己记下的残留（删除确认走原生弹窗而非原版的页内 bar）。三条都写成本
+> 清单（下方「具体待办（P7-cd 重写）」）。
+> **P7-cd 落地结果**：第 1 条（R62）已落地。第 2（审批记录）、第 3（删除确认页内 bar）留待下一轮。
+> 其余仍是卡框架的三条（`Options.OnCopy`、终端键入的 `HandleInput` 缝、外观四个死旋钮）与一次性
+> 维护者动作（`mygo keygen`、`mygo.json` 的 `updates`/签名、CI 私钥、发布到 GitHub Release），
+> 另见「已知差距」。
+
+### 具体待办（P7-cd 重写；第 1 条已落地，第 2·3 条待做）
+
+1. **命令启动的会话结束时把终端页一起带走（原版 R62）（本轮 P7-cd 已落地）** ——
+   原版 `src/terminal/command-session.ts` 的 `shouldExitWithCommandSession(commandStarted, mode === "terminal")`：
+   命令启动的会话（`initialCommand` 或结构化 execution plan）结束就离开终端页、回到启动器；**裸** shell
+   （系统 Terminal 行、⌘ 持有行、空态回车、安装行）永不带走页面。`useTerminalView.ts:476` 在
+   `term://exit` 里调它，再走 `returnToInputMode()`（= 关会话 + 回启动器）。本构建只做了 R9-2 的前半：
+   `Actions.Exit` 一律 `Resident(code)` 持有终帧，命令会话也留着——而 `docs/mygo-rewrite-plan.md:746`
+   （P2-p）与 `src/extensions/tool-install.ts:190` 都写着「安装行故意开裸会话，好让 R62 判定为 false」，
+   说明这条契约被引用过却从未实现。顺带一个潜在 bug：`Exit` 回调不携带会话身份，`Resident` 标的
+   是 `Current()`——后台会话退出会把当前会话标成 resident。
+   - 原版：`src/terminal/command-session.ts`、`src/hooks/useTerminalView.ts:363-367`/`:476-479`、
+     `src/App.tsx:779`（returnToInputMode）、`src/extensions/tool-install.ts:190-200`。
+   - 本构建（改前）：`internal/terminalui/terminalui.go:44`（`Exit func(int)`）、`:767`（`Resident` 标
+     Current）、`internal/shell/shell.go:834`（无条件 `Resident`）。
+   - 验收（已满足）：`Session.CommandStarted`；`Actions.Exit(session, code)` 携带会话（`IndexOf` 在
+     主线程解回索引）；`ShouldExitWithCommandSession` 纯判定；
+     `CommandSessionEnded(index, terminalOnScreen)` 关会话（不写 snapshot）并报告是否回启动器；
+     `RunCommand`/`RunCommandLine` 标 command-started，`RunShellWithCommand`（安装行）不标；shell 用
+     `a.Surf == SurfaceTerminal` 当「页面在屏上」。测试：`internal/terminalui/commandsession_test.go`
+     4 条 + `internal/shell/commandsession_test.go` 2 条。变异核查：判定改成恒假，立刻红。
+
+2. **集成卡里的「审批记录」区块（原版 R7-8 / R7-8b），字段存了没人读** ——
+   原版在每个集成的详情里画一条审批记录：`approvedAt`（本地化时间）、`approvedManifestDigest`
+   （`shortDigest` 截到 12 hex、包在 `<code>` 里，未知则一句 `approvalRecordDigestUnknown`）、**并排**的
+   在盘 `currentManifestDigest`（R7-8b：让「我批准了什么」与「现在磁盘上是什么」是两行可读事实，而不是
+   一个真假值）、已批准的权限列表（按 enforced / disclosure 分组，空时 `approvalRecordPermissionsNone`）、
+   以及 `approvalIsStale(a, b)` 为真时的 `approvalRecordChanged` 提示；没有任何记录时一句
+   `approvalRecordNone`。本构建把 `ApprovedPermissions`/`ApprovedAt`/`ApprovedManifestDigest` 三个字段
+   **存进仓库、改键时原样保留，却只有写入端**（`grep -rn "ApprovedAt\|ApprovedManifestDigest" internal`
+   只有 `repository.go:53-55` 的声明与 `install.go` 的赋值），卡片里也没有这条区块。
+   - 原版：`src/ExtensionsPanel.tsx:2707-2763`（区块）、`src/extensions/approval-record.ts`
+     （`shortDigest` 12 hex / `approvalIsStale` 的两侧未知规则）、`src/extensions/permission-tiers.ts`、
+     `src/i18n.ts` 的 8 个 `settings.extensions.approvalRecord*`。
+   - 本构建（改前）：`internal/extensions/repository.go:53-55`、`internal/extensions/permissions.go:89`
+     （只用来判「是否还需要审批」）；`internal/settingsui.Integration` 无对应字段；i18n 无这 8 个键。
+   - 验收：`Integration` 带 `ApprovedAt`/`ApprovedDigest`/`CurrentDigest`/`ApprovedPermissions`；纯函数
+     `ShortDigest`（>12 hex 截断、`sha256-` 前缀短则原样、空则空）与 `ApprovalIsStale`（两侧都有且不同
+     才 true）；卡片在权限区下画区块（无记录 → 一句空态）；en/zh 8 个键；测试钉短摘要边界、stale 的两侧
+     未知、权限分级、以及卡片渲染（有/无记录两态）。
+
+3. **删除确认应走原版的页内 bar，不是原生弹窗（P7-cc 记下的残留）** ——
+   原版的删除/组件化卸载确认是页内一条**警示 bar**（`role="alert"`）：焦点落在**取消**按钮、Escape 在
+   文档层捕获（`stopImmediatePropagation`）、破坏性确认按钮按 `busy` 门控、系统运行时用 `Unplug` 图标、
+   包运行时用 `Trash` 图标，生成的本地连接再追加一句 `deleteCustomWarning`。本构建的两条删除路径都用
+   原生 `mygo.Dialog.Message`（`internal/shell/shell.go:629-647` 与 `:668` 前后），与同页的**停用**确认
+   （页内卡片 + 两个 `ui.Button`，`internal/settingsui/settingsui.go:3024`）形状不一致；P7-cc 的残留段
+   已如实记下这一差异。
+   - 原版：`src/extensions/RemovalConfirmation.tsx`（+ `ComponentizedUninstallDialog.tsx` 同一契约）、
+     `src/styles/extensions.css` 的 `.extension-discard-bar`、`src/ExtensionsPanel.tsx` 两处接线、
+     `src/i18n.ts` 的 `deleteCustomWarning` / `cancel` / `uninstall` 等。
+   - 本构建：`internal/shell/shell.go:629`/`:668`（`mygo.Dialog.Message`）、
+     `internal/settingsui/settingsui.go:3012-3040`（停用确认的页内形状可以照抄）。
+   - 验收：`settingsui` 里删除也走页内确认行（标题 + 一句后果 + Cancel 在前、危险按钮在后，`busy` 时
+     禁用危险按钮；系统运行时换图标；生成的本地连接带 `deleteCustomWarning`）；Escape 先关它、不顺手
+     离开页面；原生弹窗从两条删除路径删除；测试钉焦点/顺序/Escape/两态，删掉页内行则红。
 
 ### 具体待办（P7-cc 重写；3 条已全部落地：第 1·3 条 P7-cc，第 2 条早已在 P4-ac 落地）
 

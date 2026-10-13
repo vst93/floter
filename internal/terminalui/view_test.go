@@ -88,7 +88,7 @@ func TestTerminalFollowsTheLanguage(t *testing.T) {
 
 func TestOptionsFollowTheSettings(t *testing.T) {
 	store := newStore()
-	a := New(store, Actions{Title: func(string) {}, Exit: func(int) {}}, nil)
+	a := New(store, Actions{Title: func(string) {}, Exit: func(*Session, int) {}}, nil)
 
 	o := a.options()
 	if o.Font.Family != "monospace" || o.Font.Size != 14 || o.Font.LineHeight != 1.2 {
@@ -109,8 +109,14 @@ func TestOptionsFollowTheSettings(t *testing.T) {
 	if a.Pad() != 3 {
 		t.Errorf("regular padding = %v, want 3", a.Pad())
 	}
-	if o.OnTitle == nil || o.OnExit == nil {
+	if o.OnTitle == nil {
 		t.Error("the plugin callbacks are not wired")
+	}
+	// OnExit is the one callback that names the session it belongs to, so
+	// startSession (not options) wires it; the session-level test below covers
+	// that wiring.
+	if o.OnExit != nil {
+		t.Error("options wires the shared exit callback instead of the session's own")
 	}
 
 	if err := store.Update(func(s *settings.Settings) {
