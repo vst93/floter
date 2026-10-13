@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1042 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1053 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1042 项测试
+go test -count=1 ./...         # 1053 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,7 +99,45 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-cu 触发词与首词的空白切分用 JS `\s`（原版 `src/plugins/mode-entry.ts:44-52`、`src/plugins/external.ts:81-96`）**
+> **最新一轮：P7-cv 计算器的函数、常量与阶乘（原版 `src/calculator.ts:100-200`）**
+> —— P7-ct 重写的清单第 1、2 条已由 P7-ct / P7-cu 落地，本轮取第 3 条（最后一条，也是清单里唯一
+> 可落地项）：原版 `evaluateExpression` 交给 `expr-eval-fork` 的加固 parser，**保留**它的内置函数与
+> 常量，本构建的递归下降 parser 只认数字与四则/幂，于是 `sqrt(4)`、`PI` 在启动器里根本不是计算器行。
+> 依赖检查：`go list -m -versions github.com/egoist/mygo` 与 GitHub releases latest 均为 **v0.4.8**
+> （与 `go.mod` 一致），无版本可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离点**：原版 parser 的默认表（`expr-eval-fork@3.0.3` 的 `unaryOps`/`functions`/`consts`）是
+> 常量 `PI`/`E`、一元函数 `sin cos tan asin acos atan sinh cosh tanh asinh acosh atanh sqrt cbrt
+> log log2 ln lg log10 expm1 log1p abs ceil floor round trunc exp sign`、具名函数 `random`（原版
+> `delete` 掉）、`fac gamma roundTo pow atan2 hypot pyt min max if map fold filter indexOf join sum`，
+> 外加后缀 `!`（阶乘）。本构建 `internal/calc/calc.go` 的 `hasArithmetic` 见到除 `e`/`E` 以外的字母
+> 就返回 false，`Eval` 的 parser 也只认数字、`+ - * / % ^`、括号与一元符号。于是 `sqrt(4)`、`sin(PI/2)`、
+> `5!`、`PI` 全不是计算器行。
+>
+> **修法**：`internal/calc/calc.go` 新增 `calcConstants`（`PI`/`E`）与 `calcFunctions` 表（与 fork 默认集
+> 逐名对齐：一元 28 个 + 具名 `fac gamma roundTo pow atan2 hypot pyt min max`；`random` 与原版一样不收，
+> 数组/条件助手 `if map fold filter indexOf join sum` 因本语言没有数组与布尔字面量而无法喂）。
+> `hasArithmetic` 重写成按标识符扫描：`sqrt(4)`（函数调用）与 `PI`（常量）算 intent，未知名字仍是搜索，
+> `1e3` 的 `e` 仍算指数；parser 增 `parseName`/`parseArgs`（常量、函数调用、逗号参数、arity 检查）、
+> `parsePostfix`（后缀 `!`，比 `^` 与一元符号更紧，可叠 `3!!`）与 `parseUnary` 的前缀 `!`。数值语义
+> 逐条对齐：`round`/`roundTo` 用 JS 的 `Math.round`（半值朝 +∞，`round(-2.5) = -2`）、`roundTo` 走
+> 十进制字符串移位（`roundTo(2.345,2) = 2.35`，不是浮点乘法给的 2.34）、`fac(x) = gamma(x+1)`、
+> `sign` 保留零的符号、`hypot`/`pyt`/`min`/`max` 变参折叠。
+>
+> **测试**：`internal/calc/calc_test.go` 新增 `TestEvalBuiltins`（44 行表：每个函数一例、`PI`/`E` 取值、
+> `5!`/`!5`/`3!!`/`2^3!`/`-3!` 的优先级与叠用）、`TestEvalFunctionTableMatchesTheFork`（按名字钉住函数表
+> 全集：不得少一个、不得多一个，`random`/`map`/`sum` 等明钉不在表里）、`TestEvalRejectsUnknownNames`
+> （`foo(4)`/`sign` 仍是搜索，`sqrt(4`/`sqrt()`/`pow(2)` 是解析错）；
+> `internal/launcher/search_test.go` 新增 `TestCalculatorRowAcceptsBuiltinFunctions`（`sqrt(16)`/`sin(PI/2)`/
+> `5!`/`min(2,3)` 在启动器里出现答案行且尾值是 `4`/`1`/`120`/`2`；裸 `sign` 不出行）。
+> 变异核查：把 `hasArithmetic` 的名字分支改回「见字母即 false」→ 启动器用例四条红；从表里删掉 `min`
+> → 全集用例红；`round` 换回 `math.Round` → `round(-2.5)` 红；`roundTo` 换回浮点乘法 → `2.345` 用例红。
+> 至此 P7-ct 清单三条**全部落地**，清单再次为空；余下只有三条卡 mygo 框架项（复制反馈 /
+> 键入 Unicode 空格缝 / 外观四个死旋钮），规格见「具体待办（P7-cm 重写）」。
+> 门槛：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **上一轮：P7-cu 触发词与首词的空白切分用 JS `\s`（原版 `src/plugins/mode-entry.ts:44-52`、`src/plugins/external.ts:81-96`）**
 > —— P7-ct 清单第 1 条已落地，本轮取第 2 条（第 3 条要扩求值器，留单独一轮）。依赖检查：
 > `curl .../releases/latest` 与 `go list -m -versions github.com/egoist/mygo` 均停在 **v0.4.8**
 > （与 `go.mod` 一致），无版本可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
@@ -2634,7 +2672,7 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-### 具体待办（P7-ct 重写；第 1 条 P7-ct、第 2 条 P7-cu 落地，余下第 3 条待做）
+### 具体待办（P7-ct 重写；三条已全部落地：第 1 条 P7-ct、第 2 条 P7-cu、第 3 条 P7-cv）
 
 P7-cs 收尾后「尚未做」又一次为空（P7-cq 三条全部落地，余下只有三条卡 mygo 框架项：
 `Options.OnCopy` 复制反馈、终端键入的 `HandleInput` 空格缝、外观四个死旋钮，规格见
@@ -2685,20 +2723,26 @@ file:line 的具体待办，并取第 1 条落地（见「最近几轮」P7-ct�
      **一处与验收原文的偏差**：本构建的进入设计把触发词消耗掉、字段清空（needle 是接着打的字段
      文本），所以 `clip\u3000foo` 进模式后 needle 为空；命令模式保留 rest 为 argv。只对齐了
      词缝字符集，未改进入设计（详见「最近几轮」P7-cu）。
-3. **计算器求值没有原版的函数与常量**。
+3. **计算器求值没有原版的函数与常量**（已落地，P7-cv）。
    - 原版对照：`main:src/calculator.ts:100-200` 的 `evaluateExpression` 交给 `expr-eval-fork` 的
      加固 parser（只关掉成员访问与赋值/函数定义/比较/逻辑/拼接/随机，**保留**内置函数），所以
      `sqrt(4)`、`sin(PI/2)`、`log(100)`、`abs(-3)`、`2^10`、`5!`、`PI`、`E` 都是合法算式；
      `hasArithmetic` 的对应物只是「拒收非算式」。
-   - 本构建：`internal/calc/calc.go:162` 的 `hasArithmetic` 见到除 `e`/`E` 以外的字母就返回 false，
+   - 本构建（改前）：`internal/calc/calc.go:162` 的 `hasArithmetic` 见到除 `e`/`E` 以外的字母就返回 false，
      `Eval`（`:27`）的递归下降 parser 只认数字、`+ - * / % ^`、括号与一元符号，
      **没有函数、常量与阶乘**。于是 `sqrt(4)`/`PI` 在启动器里根本不是计算器行。
    - 验收：`hasArithmetic` 认 `sqrt`/`sin`/`cos`/`tan`/`asin`/`acos`/`atan`/`log`/`ln`/`abs`/`ceil`/
      `floor`/`round`/`min`/`max`/`pow` 等原版内置函数名与 `PI`/`E`；parser 增 `parseCall`/`parseConstant`
      与后缀 `!`（阶乘），函数表与原版 `expr-eval-fork` 的默认集逐名对齐；测试钉每个函数一例、
      `PI`/`E` 的取值、`5!`、非法函数名仍拒收。
+     **已落地**：`calcConstants`/`calcFunctions`（`internal/calc/calc.go`，一元 28 名 + 具名 9 名，
+     `random` 与原版一样不收、数组/条件助手因无字面量而缺）、`hasArithmetic` 重写、`parseName`/`parseArgs`/
+     `parsePostfix`/前缀 `!`；测试 `calc_test.go` 的 `TestEvalBuiltins`（44 行）/
+     `TestEvalFunctionTableMatchesTheFork`/`TestEvalRejectsUnknownNames` 与 `search_test.go` 的
+     `TestCalculatorRowAcceptsBuiltinFunctions`。
 
-> 第 1、2 条本轮已落地；下一轮从第 3 条开始（需要扩求值器，宜单独一轮）。
+> 至此 P7-ct 清单三条**全部落地**，清单再次为空；卡框架项未落地前不假装接线；
+> 其余可实现的偏离点继续逐区域对照 `main` 排查。
 
 ### 具体待办（P7-cq 重写；三条已全部落地：第 1 条 P7-cq、第 2 条 P7-cr、第 3 条 P7-cs）
 

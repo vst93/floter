@@ -201,6 +201,38 @@ func TestCalculatorRowComesFirstAndCopies(t *testing.T) {
 	}
 }
 
+func TestCalculatorRowAcceptsBuiltinFunctions(t *testing.T) {
+	// The old build's evaluator knows the scalar function family and the
+	// `PI`/`E` constants (src/calculator.ts:100-200), so a function call is a
+	// sum, not a search: the launcher must offer the answer row.
+	for _, tc := range []struct{ query, result string }{
+		{"sqrt(16)", "4"},
+		{"sin(PI/2)", "1"},
+		{"5!", "120"},
+		{"min(2,3)", "2"},
+	} {
+		a := testApp()
+		a.Query = tc.query
+		got := a.Results()
+		if len(got) == 0 || got[0].ID != "calc" {
+			t.Errorf("Results(%q) = %v, want a calculator row first", tc.query, ids(got))
+			continue
+		}
+		if got[0].trailing != tc.result {
+			t.Errorf("Results(%q) trailing = %q, want %q", tc.query, got[0].trailing, tc.result)
+		}
+	}
+
+	// A bare function name is a search, not a call.
+	a := testApp()
+	a.Query = "sign"
+	for _, item := range a.Results() {
+		if item.ID == "calc" {
+			t.Error("a bare function name produced a calculator row")
+		}
+	}
+}
+
 func TestAppsJoinTheSearchOnceTyped(t *testing.T) {
 	a := testApp()
 	a.SetApps([]apps.App{
