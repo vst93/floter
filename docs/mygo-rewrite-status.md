@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**974 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**981 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 974 项测试
+go test -count=1 ./...         # 981 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,7 +99,28 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-ci Linux `.desktop` 的本地化名与 `Comment=`（原版 `linux.rs` / R14 行副标题）**
+> **最新一轮：P7-cj Linux `.desktop` 的搜索别名（原版 `linux.rs:423-440` / `mod.rs:326`）**
+> —— P7-ci 的 3 条待办里第 1 条已落地，本轮取第 2 条（最高优先级）。本构建的 `ScanLinux` 从不给
+> `App.Aliases` 赋值，`ParseDesktopFile` 也不读 `GenericName`/`Keywords`/`StartupWMClass`/`TryExec`，于是
+> 一个中文名 Linux 应用只有拼音首字母能命中，`nautilus`、`org.gnome.Nautilus` 一概搜不到——而 macOS 侧
+> `internal/apps/darwin.go` 早就这样做了。现在照抄原版 `into_application` 的候选表：`ParseDesktopFile`
+> 增读那四个无 locale 键（本地化变体忽略，与原版一致），新增 `desktopAliases`（候选顺序：GenericName →
+> StartupWMClass → `executableName(Exec)` → `executableName(TryExec)` → `Keywords` 按 `;` 切分 →
+> `identifierAliases(desktopFileStem)`）、`executableName`（argv[0] 的 base）、`desktopFileStem`（Rust
+> `file_stem` 语义：末扩展名且不吞整个 `.desktop`），以及原版 `build_aliases` 的 Go 版 `buildAliases`
+> （去空白、丢弃无 ASCII 字母数字者、丢弃与 name/localized 等值者、大小写不敏感去重）与 `hasASCIIAlnum`。
+> `identifierAliases` 直接复用 `darwin.go` 里那份（同包）。搜索侧无需改动：`internal/launcher/search.go:524`
+> 的 `appItem` 早已把 `Aliases` 拼进 `Search`。测试：`internal/apps/apps_test.go` 的 `TestDesktopSearchAliases`
+> （四个子用例：六个来源齐收 + 名称/中文关键词被丢 + 大小写不敏感去重 + desktop-id 应用半段 + `executableName`）
+> 与 `TestScanLinuxFillsAliases`（`Name=文件`/`Exec=nautilus` 的扫描产物含 nautilus/gnome/files/folder，
+> 且 Initials 仍只吃 name+localized = `wj`）；`internal/launcher/search_test.go` 的
+> `TestLinuxDesktopAliasesAreSearchable`（真 `.desktop` → `ParseDesktopFile` → 搜索，`nautilus`、
+> `org.gnome.Nautilus`、`folder`、`manager` 四问都命中）。变异核查：把 `buildAliases` 改成 `return nil` →
+> 三条用例全红；去掉 `hasASCIIAlnum` 过滤 → 中文关键词 `文件管理` 进别名（红）；去掉 name 等值过滤 →
+> `files` 进别名（红）。依赖检查：`proxy.golang.org/.../@v/list` 确认 **v0.4.8** 仍是最新，与 `go.mod`
+> 一致，无版本可升。至此 P7-ci 第 2 条落地，第 3 条（Type/TryExec/DBusActivatable）待做。
+
+> **上一轮：P7-ci Linux `.desktop` 的本地化名与 `Comment=`（原版 `linux.rs` / R14 行副标题）**
 > —— P7-ch 收尾后「尚未做」又一次为空。本轮换入口：**逐文件对照原版的平台扫描器**。原版
 > `src-tauri/src/commands/apps/linux.rs:312-372` 用 `["zh_CN","zh_SG","zh","zh_TW","zh_HK"]` 的阶梯读
 > `Name[locale]`/`Comment[locale]`，本构建 `internal/apps/apps.go` 的 `ParseDesktopFile` 却只读无 locale 的
@@ -2379,7 +2400,7 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-### 具体待办（P7-ci 重写；第 1 条本轮已落地，第 2、3 条待做）
+### 具体待办（P7-ci 重写；第 1、2 条已落地：第 1 条 P7-ci、第 2 条 P7-cj；第 3 条待做）
 
 前一份 P7-cg 清单两项已全部落地，清单又空。本轮检查 GitHub latest release：仍为 **v0.4.8**，与 go.mod
 一致，无需升级。只对照 `main`，不翻历史提交。这轮换一个入口：**逐文件对照原版的平台扫描器**，发现本
@@ -2402,7 +2423,7 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
    - 验收：`Name[zh_CN]` 胜过 `Name[zh_TW]`、不在阶梯里的 `Name[fr]` 被忽略、本地化名与 `Name` 相同则不计；
      `Comment[zh_CN]` 胜过 `Comment[zh_TW]` 与无 locale 的 `Comment`；空 Comment 丢弃；`\s`/`\n` 等
      Desktop Entry 转义按规范解开；应用行只在 `Localized == ""` 时把 Comment 画成副标题。
-2. **Linux `.desktop` 的搜索别名（GenericName / Keywords / StartupWMClass / Exec 程序名 / desktop-id 片段）**。
+2. **Linux `.desktop` 的搜索别名（GenericName / Keywords / StartupWMClass / Exec 程序名 / desktop-id 片段）（P7-cj 已落地）**。
    - 本构建：`internal/apps/apps.go:185-202` 的 `ScanLinux` 从不给 `App.Aliases` 赋值，`ParseDesktopFile`
      也不读这几个键。于是一个中文名 Linux 应用只有拼音首字母能命中；`nautilus`、`org.gnome.Nautilus`、
      `StartupWMClass` 一概搜不到——而 macOS 侧 `internal/apps/darwin.go:65` 已经这样做了。

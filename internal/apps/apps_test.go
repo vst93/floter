@@ -252,6 +252,134 @@ Exec=editor
 	})
 }
 
+// A Linux `.desktop` entry is searchable by the Latin spellings it advertises
+// besides its name: GenericName, StartupWMClass, the program Exec/TryExec run,
+// each Keywords word, and the application half of its desktop-file id. The
+// original collected exactly these (`linux.rs:423-440`) and filtered them
+// through `build_aliases` (`mod.rs:326`).
+func TestDesktopSearchAliases(t *testing.T) {
+	parse := func(t *testing.T, file, body string) App {
+		t.Helper()
+		dir := t.TempDir()
+		path := filepath.Join(dir, file)
+		write(t, path, body)
+		app, ok := ParseDesktopFile(path)
+		if !ok {
+			t.Fatalf("ParseDesktopFile rejected %q", body)
+		}
+		return app
+	}
+
+	t.Run("every source is collected", func(t *testing.T) {
+		app := parse(t, "org.gnome.Nautilus.desktop", `
+[Desktop Entry]
+Type=Application
+Name=Files
+Name[zh]=文件
+GenericName=File Manager
+Keywords=files;manager;folder;文件管理;
+StartupWMClass=org.gnome.Nautilus
+Exec=/usr/bin/nautilus %U
+TryExec=nautilus
+`)
+		for _, alias := range []string{
+			"File Manager",       // GenericName
+			"org.gnome.Nautilus", // StartupWMClass
+			"nautilus",           // Exec's program
+			"manager",            // Keywords
+			"folder",             // Keywords
+			"gnome",              // desktop-id's vendor
+		} {
+			if !containsString(app.Aliases, alias) {
+				t.Errorf("aliases %v lack %q", app.Aliases, alias)
+			}
+		}
+		// The desktop-id's application half is `Nautilus`, which collapses
+		// into the `nautilus` the Exec already contributed (the dedup is
+		// case-insensitive, as the original's `eq_ignore_ascii_case`).
+		count := 0
+		for _, alias := range app.Aliases {
+			if strings.EqualFold(alias, "nautilus") {
+				count++
+			}
+		}
+		if count != 1 {
+			t.Errorf("aliases %v hold %d nautilus spellings, want 1", app.Aliases, count)
+		}
+		// `Keywords=files` repeats the name the row already shows, and a
+		// Chinese keyword has no Latin letter to be reachable by.
+		if containsString(app.Aliases, "files") {
+			t.Errorf("aliases %v kept the name", app.Aliases)
+		}
+		if containsString(app.Aliases, "文件管理") {
+			t.Errorf("aliases %v kept a non-Latin keyword", app.Aliases)
+		}
+	})
+
+	t.Run("a candidate equal to a name is dropped and repeats collapse", func(t *testing.T) {
+		app := parse(t, "nautilus.desktop", `
+[Desktop Entry]
+Name=Files
+Name[zh]=文件
+GenericName=Nautilus
+Exec=/usr/bin/nautilus %U
+`)
+		// `Nautilus` and `nautilus` are the same spelling; the desktop-id
+		// stem is `nautilus` again.
+		if len(app.Aliases) != 1 || app.Aliases[0] != "Nautilus" {
+			t.Errorf("aliases = %v, want [Nautilus]", app.Aliases)
+		}
+	})
+
+	t.Run("the desktop-id's application half is an alias", func(t *testing.T) {
+		app := parse(t, "org.gnome.Nautilus.desktop", `
+[Desktop Entry]
+Name=Files
+Exec=gio
+`)
+		for _, alias := range []string{"Nautilus", "gnome"} {
+			if !containsString(app.Aliases, alias) {
+				t.Errorf("aliases %v lack %q", app.Aliases, alias)
+			}
+		}
+	})
+
+	t.Run("executableName strips the path and arguments", func(t *testing.T) {
+		if got := executableName([]string{"/usr/bin/google-chrome-stable", "%U"}); got != "google-chrome-stable" {
+			t.Errorf("executableName = %q", got)
+		}
+		if got := executableName(nil); got != "" {
+			t.Errorf("executableName(nil) = %q", got)
+		}
+	})
+}
+
+// ScanLinux fills the alias set from the desktop entry it just parsed, so the
+// search reaches an application by a name other than the one on its row.
+func TestScanLinuxFillsAliases(t *testing.T) {
+	root := t.TempDir()
+	write(t, filepath.Join(root, "org.gnome.Nautilus.desktop"), `
+[Desktop Entry]
+Type=Application
+Name=文件
+Exec=nautilus %U
+Keywords=files;folder
+`)
+	got := ScanLinux(root)
+	if len(got) != 1 {
+		t.Fatalf("apps = %+v", got)
+	}
+	for _, alias := range []string{"nautilus", "gnome", "files", "folder"} {
+		if !containsString(got[0].Aliases, alias) {
+			t.Errorf("aliases %v lack %q", got[0].Aliases, alias)
+		}
+	}
+	// The pinyin initials stay a name-only key: the aliases are already Latin.
+	if got[0].Initials != "wj" {
+		t.Errorf("initials = %q", got[0].Initials)
+	}
+}
+
 func TestParseDesktopFileRejectsJunk(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "junk.desktop")

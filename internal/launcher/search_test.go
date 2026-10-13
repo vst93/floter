@@ -1,6 +1,8 @@
 package launcher
 
 import (
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -419,6 +421,41 @@ func TestApplicationNamesAndAliases(t *testing.T) {
 		}
 		if !found {
 			t.Errorf("query %q did not reach the application: %v", query, got)
+		}
+	}
+}
+
+// A Chinese-named Linux `.desktop` entry is reachable by the Latin spellings
+// it advertises besides its name: the program it runs, its StartupWMClass, its
+// Keywords. The parser fills those aliases, and the search must use them.
+func TestLinuxDesktopAliasesAreSearchable(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "org.gnome.Nautilus.desktop")
+	body := "[Desktop Entry]\n" +
+		"Type=Application\n" +
+		"Name=文件\n" +
+		"Exec=nautilus %U\n" +
+		"Keywords=folder;manager\n" +
+		"StartupWMClass=org.gnome.Nautilus\n"
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	app, ok := apps.ParseDesktopFile(path)
+	if !ok {
+		t.Fatal("the desktop entry did not parse")
+	}
+	a := testApp()
+	a.SetApps([]apps.App{app})
+	for _, query := range []string{"nautilus", "org.gnome.Nautilus", "folder", "manager"} {
+		a.Query = query
+		found := false
+		for _, item := range a.Results() {
+			if item.ID == "app:"+path {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("query %q did not reach the application", query)
 		}
 	}
 }

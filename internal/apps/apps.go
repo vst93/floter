@@ -283,6 +283,10 @@ func ParseDesktopFile(path string) (App, bool) {
 	inEntry := false
 	hidden, noDisplay := false, false
 	var name, exec, icon string
+	// The Latin search keys a `.desktop` entry advertises besides its name:
+	// the untranslated spellings only (the original read `GenericName`,
+	// `Keywords`, `StartupWMClass` and `TryExec` with no locale suffix).
+	var genericName, keywords, startupWMClass, tryExec string
 	// The localized name/comment ladders: the lowest rank seen wins, and an
 	// unlocalized value is only a fallback that a localized one may override
 	// (the original's `best_*_locale` against `usize::MAX`).
@@ -341,6 +345,22 @@ func ParseDesktopFile(path string) (App, bool) {
 			exec = value
 		case "Icon":
 			icon = value
+		case "GenericName":
+			if !hasLocale {
+				genericName = unescapeDesktop(value)
+			}
+		case "Keywords":
+			if !hasLocale {
+				keywords = unescapeDesktop(value)
+			}
+		case "StartupWMClass":
+			if !hasLocale {
+				startupWMClass = unescapeDesktop(value)
+			}
+		case "TryExec":
+			if !hasLocale {
+				tryExec = unescapeDesktop(value)
+			}
 		case "Hidden":
 			hidden = strings.EqualFold(value, "true")
 		case "NoDisplay":
@@ -360,7 +380,96 @@ func ParseDesktopFile(path string) (App, bool) {
 	if localized == name {
 		localized = ""
 	}
-	return App{Name: name, Localized: localized, Comment: comment, Path: path, Exec: argv, Icon: icon}, true
+	return App{
+		Name:      name,
+		Localized: localized,
+		Comment:   comment,
+		Aliases:   desktopAliases(path, name, localized, genericName, keywords, startupWMClass, tryExec, argv),
+		Path:      path,
+		Exec:      argv,
+		Icon:      icon,
+	}, true
+}
+
+// desktopAliases are the Latin spellings a query can reach a `.desktop` entry
+// by besides its name: the program it runs, the class its window reports, the
+// words it advertises itself with, and the application half of its
+// desktop-file id. This is the original's `into_application` candidate list
+// (`src-tauri/src/commands/apps/linux.rs:423-440`) run through
+// `build_aliases` (`src-tauri/src/commands/apps/mod.rs:326`).
+func desktopAliases(path, name, localized, genericName, keywords, startupWMClass, tryExec string, argv []string) []string {
+	var candidates []string
+	candidates = append(candidates, genericName, startupWMClass)
+	candidates = append(candidates, executableName(argv))
+	candidates = append(candidates, executableName(SplitDesktopExec(tryExec)))
+	candidates = append(candidates, strings.Split(keywords, ";")...)
+	candidates = append(candidates, identifierAliases(desktopFileStem(path))...)
+	return buildAliases(name, localized, candidates)
+}
+
+// desktopFileStem is a `.desktop` path's file name without its extension, the
+// stem the original fed to `identifier_aliases`.
+func desktopFileStem(path string) string {
+	base := filepath.Base(path)
+	if ext := filepath.Ext(base); ext != "" && len(ext) < len(base) {
+		return base[:len(base)-len(ext)]
+	}
+	return base
+}
+
+// executableName is the program an `Exec=`/`TryExec=` value runs, without its
+// path or arguments: `/usr/bin/google-chrome-stable %U` is searchable as
+// `google-chrome-stable` (the original's `executable_name`).
+func executableName(argv []string) string {
+	if len(argv) == 0 {
+		return ""
+	}
+	return filepath.Base(argv[0])
+}
+
+// buildAliases reduces the raw strings a scanner collected to the alias set
+// stored on an App (the original's `build_aliases`). Dropped: anything that
+// repeats a name the user can already see, anything already in the list, and
+// anything with no ASCII letter or digit in it — being reachable from a Latin
+// keyboard is the whole purpose of the field.
+func buildAliases(name, localized string, candidates []string) []string {
+	var aliases []string
+	for _, candidate := range candidates {
+		candidate = strings.TrimSpace(candidate)
+		if candidate == "" || !hasASCIIAlnum(candidate) {
+			continue
+		}
+		if strings.EqualFold(candidate, name) {
+			continue
+		}
+		if localized != "" && strings.EqualFold(candidate, localized) {
+			continue
+		}
+		duplicate := false
+		for _, existing := range aliases {
+			if strings.EqualFold(existing, candidate) {
+				duplicate = true
+				break
+			}
+		}
+		if duplicate {
+			continue
+		}
+		aliases = append(aliases, candidate)
+	}
+	return aliases
+}
+
+// hasASCIIAlnum reports whether a value carries a character a Latin keyboard
+// can type.
+func hasASCIIAlnum(value string) bool {
+	for i := 0; i < len(value); i++ {
+		c := value[i]
+		if c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' {
+			return true
+		}
+	}
+	return false
 }
 
 // SplitDesktopExec splits a .desktop Exec value into argv: whitespace
