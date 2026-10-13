@@ -99,7 +99,24 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-cf 删除确认走页内 bar（原版 `RemovalConfirmation` / `.extension-discard-bar`）**
+> **最新一轮：P7-ch 捕获输出的 UTF-8 边界与内存上限（P7-cg 清单第 1、2 条）**
+> —— 上一轮 P7-cg 把空清单重写成两条「Go 捕获实现自己的缺陷」，工作区里已经躺着一半实现
+> （`internal/extensions/output.go` / `output_test.go` 未提交，且 `clip` 与 `run.go` 重定义冲突、`go build`
+> 直接红）。本轮把它收口：`output.go` 的 `capturedOutput`（每个流的限长 writer，只留最前 `MaxRunOutputBytes`
+> = 1 MiB，`Write` 仍返回完整输入长度，防止子进程拿到 short write/SIGPIPE；只有真超限才置 `truncated`）
+> 与 `completeUTF8Prefix`（只在末尾丢弃**不完整**的 UTF-8 编码，完整字符即便正好压在上限上也保留，
+> 非法源字节原样保留）；`run.go` 的两个 `bytes.Buffer` 换成 `capturedOutput`，`Truncated` 取两个 writer 的
+> 或，`clip`/`utf8Start` 从 `run.go` 删除（`probes.go:180` 继续用 `output.go` 的 `clip`）。至此
+> **输出在捕获期间就有界**（不再先全量缓存、退出后才裁剪），且**截断不再产出坏 UTF-8**。
+> 测试：`TestClipPreservesUTF8Boundaries`（2/3/4 字节字符的每个切分位置 + ASCII/空/未超限）、
+> `TestCapturedOutputIsBoundedWhileWriting`（分块写、恰好满不截、超限后重复写仍只留前缀）、
+> `TestCapturedOutputProcess`+`TestRunCapturedBoundsEachStream`（真子进程分别写爆 stdout/stderr/两者，
+> 断言正常退出、`Truncated`、两流各自截断且 `utf8.ValidString`）。变异核查：把 `Write` 的
+> `min(len(p), cap-buffer.Len())` 换成 `len(p)` → 三条红（`retained 2097152 bytes`、`truncated=false`）；
+> 把 `clip` 的 `completeUTF8Prefix` 去掉 → `TestClipPreservesUTF8Boundaries` 红（`valid UTF-8 = false`）。
+> 依赖检查：`go list -m -versions github.com/egoist/mygo` 确认 **v0.4.8** 仍是最新，与 `go.mod` 一致，无版本可升。
+
+> **上一轮：P7-cf 删除确认走页内 bar（原版 `RemovalConfirmation` / `.extension-discard-bar`）**
 > —— P7-cd 清单第 3 条（P7-cc 记下的残留）。本构建的两条删除路径（普通卸载、删除孤儿）原来用原生
 > `mygo.Dialog.Message`，与同页**停用**确认的页内形状不一致。现在照抄停用确认的页内形状：
 > `settingsui` 新增 `removeConfirm` 状态、`requestRemove` 武装与 `removeConfirmation` 页内条
@@ -2343,19 +2360,19 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-### 具体待办（P7-cg 重写；按优先级）
+### 具体待办（P7-cg 重写；两项已于 P7-ch 全部落地 → 下一轮回到「对照原版排查偏离点」）
 
 前一份 P7-cd 清单已全部完成。本轮检查 GitHub latest release：仍为 **v0.4.8**，与 go.mod 一致，
 无需升级。只对照 `main`，不翻历史提交；以下两项是 Go 捕获实现自己的缺陷，不伪称原版已有内存上限。
 
-1. **修正输出截断的 UTF-8 边界**。
+1. **修正输出截断的 UTF-8 边界（P7-ch 已落地）**。
    - 本构建：`internal/extensions/run.go:165-177` 的 `clip` 从末尾删 continuation byte，却保留多字节
      字符的首字节；字符刚好完整落在上限内时也会被破坏。`internal/extensions/probes.go:180` 共用它。
    - 原版对照：`main:src-tauri/src/extensions/run.rs:750-752` 用 `String::from_utf8_lossy` 返回文本，
      不截断（`truncated: false`）；Go 自己增加的截断不能把原本合法的 UTF-8 变成坏串。
    - 验收：对 2/3/4 字节字符测试每个切分位置；完整字符恰好落在上限内时保留、不完整字符整个丢弃；
      ASCII、空串、未超限保持不变；合法输入截断后 `utf8.ValidString` 必须为真。
-2. **在捕获期间限制内存，而不是进程退出后才裁剪**。
+2. **在捕获期间限制内存，而不是进程退出后才裁剪（P7-ch 已落地）**。
    - 本构建：`internal/extensions/run.go:120-135` 把两个流全部写进 `bytes.Buffer`，`clip` 只在
      `cmd.Run()` 返回后调用；持续输出的程序可在 300 秒超时前耗尽宿主内存。
    - 原版对照：`main:src-tauri/src/extensions/run.rs:724-734,750-752` 管道捕获后完整返回输出；

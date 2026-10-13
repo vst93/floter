@@ -1,7 +1,6 @@
 package extensions
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"os/exec"
@@ -118,7 +117,9 @@ func runCaptured(ctx context.Context, entry CommandEntry, args []string, cursor 
 	// deadline, Wait gives the I/O half a moment and then returns.
 	cmd.WaitDelay = 2 * time.Second
 
-	var stdout, stderr bytes.Buffer
+	// Each stream keeps only its leading prefix, so a program that never stops
+	// talking cannot pin the host's memory before the timeout fires.
+	var stdout, stderr capturedOutput
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 
 	started := time.Now()
@@ -129,10 +130,10 @@ func runCaptured(ctx context.Context, entry CommandEntry, args []string, cursor 
 		Command:   append([]string{program}, argv...),
 		Duration:  duration,
 		ExitCode:  -1,
-		Truncated: stdout.Len() > MaxRunOutputBytes || stderr.Len() > MaxRunOutputBytes,
+		Truncated: stdout.truncated || stderr.truncated,
 	}
-	run.Stdout = clip(stdout.Bytes())
-	run.Stderr = clip(stderr.Bytes())
+	run.Stdout = stdout.String()
+	run.Stderr = stderr.String()
 
 	if runCtx.Err() == context.DeadlineExceeded {
 		run.TimedOut = true
@@ -160,18 +161,3 @@ func runCaptured(ctx context.Context, entry CommandEntry, args []string, cursor 
 	run.Success = true
 	return run, nil
 }
-
-// clip cuts a stream at the cap, on a rune boundary.
-func clip(data []byte) string {
-	if len(data) <= MaxRunOutputBytes {
-		return string(data)
-	}
-	cut := data[:MaxRunOutputBytes]
-	for len(cut) > 0 && !utf8Start(cut[len(cut)-1]) {
-		cut = cut[:len(cut)-1]
-	}
-	return string(cut)
-}
-
-// utf8Start reports whether a byte begins a UTF-8 sequence.
-func utf8Start(b byte) bool { return b&0xC0 != 0x80 }
