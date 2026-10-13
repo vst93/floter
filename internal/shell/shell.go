@@ -2922,13 +2922,22 @@ func (a *App) View(c *ui.Context) {
 		if a.Surf == SurfaceTerminal {
 			spec = glassmap.SpecFor(s.GlassStep, s.TerminalOpacity)
 		}
-		fill, _ := glassmap.Frame(spec, t)
+		faceTop, faceBottom := surface.Tokens.FaceFill(spec.TintAlpha)
 		card.Children(func() {
-			// The panel's fill is one translucent tint (`Frame`), which is the
-			// reference's `--glass-tint-alpha` — the frame's own alpha raised by
-			// the stop's dimming layer, not a separate veil over it. The window's
-			// vibrancy blurs the backdrop where the platform has one; where it
-			// does not, the tint's alpha is the whole of the glass.
+			// The panel's fill is one translucent tint at the frame's own alpha —
+			// the reference's `--glass-tint-alpha` — and the stop's sheen is the
+			// lit layer over it, exactly as base.css's `linear-gradient(180deg,
+			// sheen-top, sheen-bottom), var(--launcher-tint)` stacked the two.
+			// The tint's alpha is chosen so that stack composites back to the
+			// frame's own alpha (see theme.Tokens.FaceFill): the sheen used to
+			// sit over the *frame's* tint, adding its own alpha on top, and that
+			// layer is what the user read as 「开玻璃透明底失效」 — a glass-on
+			// frame was denser than a glass-off one (the light appearance added
+			// up to 0.11 in the result band at the default 47%). Now the frame's
+			// alpha is the transparency slider's on every stop, while the stop
+			// still grades the lit face. The window's vibrancy blurs the
+			// backdrop where the platform has one; where it does not, the tint's
+			// alpha is the whole of the glass.
 			//
 			// The `off` stop paints the same tint with no glass effect: the
 			// frame's own transparency is the opacity slider's on every stop, so
@@ -2948,7 +2957,8 @@ func (a *App) View(c *ui.Context) {
 			if a.Surf == SurfaceLauncher {
 				padBottom = t.Space(launcher.TailUnits)
 			}
-			face := ui.Column(c).Fill().Radius(radius).Background(fill).DragWindow()
+			face := ui.Column(c).Fill().Radius(radius).
+				LinearGradient(ui.LinearGradient{From: faceTop, To: faceBottom, Angle: 180}).DragWindow()
 			face.Children(func() {
 				// The panel's own sheen (`linear-gradient(180deg, sheen-top,
 				// sheen-bottom)`): the lit face that keeps a translucent pane

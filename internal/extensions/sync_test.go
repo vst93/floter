@@ -19,6 +19,7 @@ func syncFixture(t *testing.T) (Paths, string) {
 	scriptDir := filepath.Join(paths.Extensions, "dev.floter.scripted")
 	writeFile(t, filepath.Join(scriptDir, manifestFileName), `{
 	  "schemaVersion": "2.0", "id": "dev.floter.scripted", "name": "Scripted", "version": "1.2.0",
+	  "distribution": {"type": "local"},
 	  "runtime": {"type": "script", "language": "shell", "path": "tool.sh"},
 	  "provider": {"type": "executable", "argsPrefix": ["--floter"]},
 	  "permissions": ["environment", "filesystem-read"]
@@ -28,6 +29,7 @@ func syncFixture(t *testing.T) (Paths, string) {
 	staticDir := filepath.Join(paths.Extensions, "dev.floter.static")
 	writeFile(t, filepath.Join(staticDir, manifestFileName), `{
 	  "schemaVersion": "2.0", "id": "dev.floter.static", "name": "Static", "version": "0.5.0",
+	  "distribution": {"type": "local"},
 	  "runtime": {"type": "system", "executableNames": ["sh"]},
 	  "provider": {"type": "static-descriptor", "descriptor": "description.json"}
 	}`)
@@ -233,7 +235,7 @@ func TestImportSyncSkipsWhatItCannotInstall(t *testing.T) {
 	// A package whose manifest names another id is a failure, not a skip.
 	bad := SyncDocument{Version: 2, Extensions: []SyncEntry{{
 		ID: "dev.floter.mismatch", Enabled: true,
-		Manifest: json.RawMessage(`{"id":"dev.floter.other","name":"Other","runtime":{"type":"system","executableNames":["sh"]},"provider":{"type":"executable"}}`),
+		Manifest: json.RawMessage(`{"id":"dev.floter.other","name":"Other","distribution":{"type":"local"},"runtime":{"type":"system","executableNames":["sh"]},"provider":{"type":"executable"}}`),
 	}}}
 	report, err = ImportSync(fresh, bad, nil)
 	if err != nil {

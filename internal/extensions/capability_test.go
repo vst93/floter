@@ -22,6 +22,7 @@ func capabilityFixture(t *testing.T, script string) (Paths, Integration) {
 	}
 	if err := os.WriteFile(filepath.Join(dir, manifestFileName), []byte(`{
 	  "schemaVersion": "2.0", "id": "dev.floter.caps", "name": "Caps",
+	  "distribution": {"type": "local"},
 	  "runtime": {"type": "script", "language": "shell", "path": "tool.sh"},
 	  "provider": {"type": "executable", "argsPrefix": ["--floter"]}
 	}`), 0o644); err != nil {

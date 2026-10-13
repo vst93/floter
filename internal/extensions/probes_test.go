@@ -23,6 +23,7 @@ func probesFixture(t *testing.T, requiredStatus, optionalStatus string) (Paths, 
 	}
 	if err := os.WriteFile(filepath.Join(dir, manifestFileName), []byte(`{
 	  "schemaVersion": "2.0", "id": "dev.floter.probed", "name": "Probed",
+	  "distribution": {"type": "local"},
 	  "runtime": {"type": "script", "language": "shell", "path": "tool.sh"},
 	  "provider": {"type": "executable", "argsPrefix": ["--floter"]},
 	  "lifecycle": {"probes": [
@@ -121,6 +122,7 @@ func TestReprobeRecordsAnUnresolvableRuntime(t *testing.T) {
 	}
 	if err := os.WriteFile(filepath.Join(dir, manifestFileName), []byte(`{
 	  "schemaVersion": "2.0", "id": "dev.floter.vanished", "name": "Vanished",
+	  "distribution": {"type": "local"},
 	  "runtime": {"type": "system", "executableNames": ["vanished-tool"]},
 	  "provider": {"type": "executable"},
 	  "lifecycle": {"probes": [{"id": "version", "args": ["--version"], "required": true}]}
@@ -226,6 +228,7 @@ func TestReprobeRefusesWhatItCannotProbe(t *testing.T) {
 	}
 	if err := os.WriteFile(filepath.Join(bareDir, manifestFileName), []byte(`{
 	  "schemaVersion": "2.0", "id": "dev.floter.bare", "name": "Bare",
+	  "distribution": {"type": "local"},
 	  "runtime": {"type": "script", "language": "shell", "path": "tool.sh"},
 	  "provider": {"type": "executable"}
 	}`), 0o644); err != nil {

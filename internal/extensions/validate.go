@@ -71,12 +71,55 @@ func hasRootPrefix(value string) bool {
 	return false
 }
 
+// The distribution, runtime and provider kinds a manifest may declare. The old
+// host modelled each as a closed enum (`Distribution`, `Runtime`,
+// `ProviderKind`, `manifest.rs:230,251,335`); the strings are the wire spelling.
+const (
+	DistributionLocal   = "local"
+	DistributionBuiltIn = "built-in"
+
+	RuntimeSystem = "system"
+	RuntimeScript = "script"
+
+	ProviderExecutable       = "executable"
+	ProviderStaticDescriptor = "static-descriptor"
+)
+
+// ValidateCombination applies the old host's distribution/runtime/provider
+// rule (`ExtensionManifest::validate_paths`, `manifest.rs:565`): only three
+// combinations are runnable, and a local static-descriptor provider must name
+// its descriptor. A `managed` or `linked` runtime, an unknown provider kind, or
+// a built-in executable provider is refused while parsing, so no install, run
+// or export ever sees one.
+func (m Manifest) ValidateCombination() error {
+	distribution := strings.TrimSpace(m.Distribution.Type)
+	runtime := strings.TrimSpace(m.Runtime.Type)
+	provider := strings.TrimSpace(m.Provider.Type)
+
+	systemOrScript := runtime == RuntimeSystem || runtime == RuntimeScript
+	executableOrStatic := provider == ProviderExecutable || provider == ProviderStaticDescriptor
+	supported := (distribution == DistributionLocal && systemOrScript && executableOrStatic) ||
+		(distribution == DistributionBuiltIn && runtime == RuntimeSystem && provider == ProviderStaticDescriptor)
+	if !supported {
+		return fmt.Errorf("%w: unsupported combination: distribution=%q, runtime=%q, provider=%q",
+			ErrBadManifest, distribution, runtime, provider)
+	}
+	if distribution == DistributionLocal && provider == ProviderStaticDescriptor && m.Provider.Descriptor == "" {
+		return fmt.Errorf("%w: static descriptor providers require provider.descriptor", ErrBadManifest)
+	}
+	return nil
+}
+
 // Validate applies every structural rule the old host enforced while parsing
 // a manifest: the relative-path rule on every declared path (`validate_paths`,
-// `manifest.rs:565`) and the lifecycle's count, combination and range rules
-// (`ToolLifecycle::validate`, `lifecycle.rs:39`). A manifest that fails here
-// never reaches an export, an install or a run.
+// `manifest.rs:565`), the distribution/runtime/provider combination, and the
+// lifecycle's count, combination and range rules (`ToolLifecycle::validate`,
+// `lifecycle.rs:39`). A manifest that fails here never reaches an export, an
+// install or a run.
 func (m Manifest) Validate() error {
+	if err := m.ValidateCombination(); err != nil {
+		return err
+	}
 	if err := m.validateDeclaredPaths(); err != nil {
 		return err
 	}

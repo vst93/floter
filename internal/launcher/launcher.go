@@ -397,18 +397,46 @@ func (a *App) appIcon(app apps.App) *ui.Bitmap {
 	return bitmap
 }
 
-// assignNumbers gives the first ten rows that can be run their shortcut
-// number, recomputed each frame: the numbers follow what is on screen, so
-// scrolling renumbers them.
+// maxResultSlots is the size of the numbered family: `1`-`9` and then `0`,
+// one digit behind the modifiers. The old build's `MAX_RESULTS`.
+const maxResultSlots = 10
+
+// assignNumbers gives the numbered rows their shortcut number, recomputed each
+// frame. The numbers follow the **scroll viewport**: `1`-`9` are the first
+// nine runnable rows on screen and `0` the tenth, so scrolling renumbers the
+// list to what the user can see (the old build's R34, "what you see is what
+// you select"). Rows outside the viewport carry no number, and the modifier
+// plus a digit cannot reach them.
+//
+// The old build gates the viewport on the list overflowing the ten-slot
+// budget (R72, `listOverflowsBudget`): a list that fits the budget is numbered
+// purely in order off the rendered rows, because a list that fits cannot be
+// scrolled and the viewport measurement adds nothing but risk (a viewport
+// measured mid-walk once left a ten-row list with one badge and nine rows with
+// nothing). Past the budget the viewport rule stands. The viewport is the
+// previous frame's, exactly as the old build's key handler read the last
+// render's slots, so a scroll renumbers the family on the next frame.
 func (a *App) assignNumbers(results []Item) map[int]int {
 	numbers := map[int]int{}
+	// A list that fits is numbered whole; only an overflowing one consults
+	// the viewport.
+	first, last := 0, len(results)-1
+	if len(results) > maxResultSlots {
+		first, last = 0, maxResultSlots-1
+		if visibleFirst, visibleLast := a.List.Visible(); visibleLast >= visibleFirst {
+			first, last = visibleFirst, visibleLast
+		}
+	}
 	count := 0
 	for i, item := range results {
 		if item.Run == nil {
 			continue
 		}
+		if i < first || i > last {
+			continue
+		}
 		count++
-		if count > 10 {
+		if count > maxResultSlots {
 			break
 		}
 		// The tenth row answers to 0, as a keyboard's digits end.

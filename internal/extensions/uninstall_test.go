@@ -19,6 +19,7 @@ func uninstallComponentsFixture(t *testing.T) (Paths, string) {
 	}
 	if err := os.WriteFile(filepath.Join(dir, manifestFileName), []byte(`{
 	  "schemaVersion": "2.0", "id": "dev.floter.parts", "name": "Parts",
+	  "distribution": {"type": "local"},
 	  "runtime": {"type": "script", "language": "shell", "path": "tool.sh"},
 	  "provider": {"type": "executable"}
 	}`), 0o644); err != nil {

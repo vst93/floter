@@ -2317,6 +2317,63 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
    （新导出），gap 对齐原版 `.settings-card__header` 的 10u；像素验收：两表面的第一带中心都在
    y=39.8（`geometry_test.go` 的 `TestSettingsHeaderSharesTheLauncherFieldRowBand`）。
 
+**P7-d 第四次透明度报告 + super+n 复刻原版（本轮）**
+
+用户报告：「floter 的开玻璃透明底问题还是没修好。同时现在列表页的 super+n 快捷键逻辑也没有
+复刻原版，现在是固定打到前几项上」。
+
+### 1 · 透明底：帧的 sheen 层（不是 tint）
+
+- **定位**：`internal/shell/shell.go:2955` 的 `View` 在卡片 tint 之上又画了一层
+  `ui.Box(...).Absolute().LinearGradient(SheenTop, SheenBottom)`，而 `theme.For`
+  （`internal/theme/theme.go:266`）只对效果档给 sheen 非零（`sheen = TintAlpha * LensScale`，
+  `off` 为 0）。这层自带 alpha，composite 到 tint 上就变厚——**它就是「开玻璃」时多出来的那一层**。
+  前几轮改的 `SpecFor.TintAlpha` / 内容面 / 窗口材质都在它下面，动不了这个数字。
+- **原版对照**：`main:src/styles/launcher.css:119` 的卡片是
+  `linear-gradient(180deg, var(--sheen-top), var(--sheen-bottom)), var(--launcher-tint)`；
+  原版的 `--sheen-*` 是固定 token（`base.css:628/906`，dark 0.046/0.01、light 0.66/0.22），
+  档位不改它。档位的可见 rung 是 `--glass-step-blur`（窗口材质）与 `--glass-lens-scale`
+  （控件透镜），不是帧的 sheen。
+- **修法**：新增 `theme.Tokens.FaceFill(alpha)`：按 `1-(1-base)(1-sheen) == alpha` 反解出
+  帧 tint 的 base alpha，sheen 重多少 tint 就减多少，于是 sheen 不再增加帧的 alpha；sheen 自身
+  也被 `capAlpha` 夹在帧 alpha 以内（极薄的帧顶端不会比滑块更厚）。`shell.View` 用
+  `FaceFill(spec.TintAlpha)` 作底色，sheen 层保留（档位仍让亮面变色）。
+- **像素实测**（无头生产帧，`shell/glass_test.go` 的 `TestTheFrameAlphaIsTheSlidersOnEveryStop`；
+  band 顶 y=90..120 / 中 y=200..260 / 底 y=350..400，均值 alpha）：
+
+  | 外观 / 滑块 | band | off | frosted | regular | liquid | 改前 regular/liquid |
+  |---|---|---|---|---|---|---|
+  | dark 47% | 顶 | 0.563 | 0.563 | 0.566 | 0.566 | +0.008 / +0.012 |
+  | dark 47% | 底 | 0.530 | 0.530 | 0.530 | 0.530 | +0.004 / +0.004 |
+  | light 47% | 顶 | 0.564 | 0.565 | 0.561 | 0.550 | **+0.114 / +0.182** |
+  | light 47% | 底 | 0.531 | 0.531 | 0.531 | 0.524 | **+0.056 / +0.091** |
+  | light 10% | 底 | 0.163 | 0.163 | 0.164 | 0.162 | +0.023 / +0.035 |
+
+  效果档在每一档滑块、每一个 band 都**不高于** off（线性渐变中间段最多低 0.021，是更薄不是更厚）；
+  滑块仍拥有整张底（10% 底 0.163、47% 底 0.53、100% 底 1.000）。
+- **测试**：新表测试钉住「效果档不得比 off 更厚」；`TestTheGlassStopsAreVisiblyDifferent`
+  仍钉亮面颜色随档位上升（dark RGB sum 74→95、light 125.3→133.2）。
+
+### 2 · super+n：编号跟滚动视口
+
+- **原版对照表**（`main:src/launcher/result-budget.ts`）：
+
+  | 规则 | 原版 | 本构建原来 | 现在 |
+  |---|---|---|---|
+  | 编号范围 | 视口内（`resultShortcutSlots(rows, flags, visible)`，`start=floor(visible.start)`、`end=ceil(visible.end)`） | 整表前 10 个可运行行 | 超过 10 行时取 `List.Visible()` |
+  | 数字 | 前九个 `1`-`9`，第十个 `0` | 同 | 同 |
+  | 视口外 | `null`，`⌘N` 够不到 | 前 10 行永远有号 | 视口外无号 |
+  | 滚动 | 重新编号到屏上（R34） | 不动（钉在头部） | 下一帧重新编号 |
+  | 短表（≤10） | 不查视口，整表顺序编号（R72） | 整表 | 整表（同） |
+  | 按键映射 | `resultIndexForSlot(slots, slot) = slots.indexOf(slot)` | `a.numbers` 反查 | 同 |
+
+- **修法**：`launcher.assignNumbers` 在 `len(results) > maxResultSlots`(=10) 时读
+  `a.List.Visible()`，只给视口内的可运行行编号；短表仍整表编号。视口是上一帧的，和原版按键
+  处理器读上一次渲染的 slot 表一致。
+- **测试**：`launcher/resultnumbers_test.go` 的 `TestResultShortcutsFollowTheScrollViewport`
+  （30 行：滚前 `numbers[0]==1`；滚后 `numbers[vf]==1`、`numbers[0]` 消失、所有编号行都在视口内、
+  modifier+1 跑可见行而非 `App 00`）与 `TestAShortListIsNumberedWhole`。
+
 ## 注意事项（踩过的坑）
 
 - **Tester 的 `Type("\b")` 是插入文本，不是按退格**：测试里删字符要用 `tt.Key(0, ui.KeyBackspace)`。

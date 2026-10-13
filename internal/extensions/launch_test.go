@@ -23,6 +23,7 @@ func TestLaunchOverrides(t *testing.T) {
 	}
 	if err := os.WriteFile(filepath.Join(dir, manifestFileName), []byte(`{
 	  "schemaVersion": "2.0", "id": "dev.floter.launched", "name": "Launched",
+	  "distribution": {"type": "local"},
 	  "runtime": {"type": "script", "language": "shell", "path": "tool.sh"},
 	  "provider": {"type": "executable", "argsPrefix": ["--floter"]},
 	  "lifecycle": {"launch": {"command": {"program": "self", "args": ["--launch"]}, "cwdPolicy": "toolData"}}
@@ -154,6 +155,7 @@ func TestNoLaunchOverrides(t *testing.T) {
 	}
 	if err := os.WriteFile(filepath.Join(dir, manifestFileName), []byte(`{
 	  "schemaVersion": "2.0", "id": "dev.floter.plain", "name": "Plain",
+	  "distribution": {"type": "local"},
 	  "runtime": {"type": "script", "language": "shell", "path": "tool.sh"},
 	  "provider": {"type": "executable", "argsPrefix": ["--floter"]}
 	}`), 0o644); err != nil {

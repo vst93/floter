@@ -27,6 +27,7 @@ func reprobeFixture(t *testing.T, toolScript string) (Paths, string) {
 	}
 	if err := os.WriteFile(filepath.Join(pkg, manifestFileName), []byte(`{
 	  "schemaVersion": "2.0", "id": "dev.floter.tool", "name": "Tool",
+	  "distribution": {"type": "local"},
 	  "runtime": {"type": "system", "executableNames": ["tool.sh"]},
 	  "provider": {"type": "static-descriptor", "descriptor": "provider-description.json"}
 	}`), 0o644); err != nil {

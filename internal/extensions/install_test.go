@@ -116,6 +116,7 @@ func TestInstallLocalRejectsBadPackages(t *testing.T) {
 	missingRuntime := filepath.Join(t.TempDir(), "noruntime")
 	writeFile(t, filepath.Join(missingRuntime, manifestFileName), `{
   "schemaVersion": "2.0", "id": "dev.floter.noruntime", "name": "No Runtime",
+  "distribution": {"type": "local"},
   "runtime": {"type": "system", "executableNames": ["definitely-not-installed-xyz"]},
   "provider": {"type": "executable", "argsPrefix": []}
 }`)
@@ -281,6 +282,7 @@ func TestInstallLocalWithASystemRuntime(t *testing.T) {
 	pkg := filepath.Join(dir, "dev.floter.system")
 	writeFile(t, filepath.Join(pkg, manifestFileName), `{
   "schemaVersion": "2.0", "id": "dev.floter.system", "name": "System Tool", "version": "3.1.4",
+  "distribution": {"type": "local"},
   "runtime": {"type": "system", "executableNames": ["sh"]},
   "provider": {"type": "static-descriptor", "descriptor": "description.json", "argsPrefix": []}
 }`)
@@ -327,6 +329,7 @@ func TestPermissionsGateTheInstall(t *testing.T) {
 	pkg := filepath.Join(dir, "dev.floter.gated")
 	writeFile(t, filepath.Join(pkg, manifestFileName), `{
   "schemaVersion": "2.0", "id": "dev.floter.gated", "name": "Gated",
+  "distribution": {"type": "local"},
   "runtime": {"type": "script", "language": "shell", "path": "tool.sh"},
   "provider": {"type": "static-descriptor", "descriptor": "description.json", "argsPrefix": []},
   "permissions": ["environment", "network-fetch", "not-a-permission"]
@@ -392,6 +395,7 @@ func TestAdoptAndDeleteOrphans(t *testing.T) {
 	dir := filepath.Join(paths.Extensions, "dev.floter.orphan")
 	writeFile(t, filepath.Join(dir, manifestFileName), `{
   "schemaVersion": "2.0", "id": "dev.floter.orphan", "name": "Orphan",
+  "distribution": {"type": "local"},
   "runtime": {"type": "script", "language": "shell", "path": "tool.sh"},
   "provider": {"type": "executable", "argsPrefix": ["--floter"]}
 }`)
@@ -448,6 +452,7 @@ func TestAdoptAndDeleteOrphans(t *testing.T) {
 	mismatch := filepath.Join(paths.Extensions, "dev.floter.mismatch")
 	writeFile(t, filepath.Join(mismatch, manifestFileName), `{
   "id": "dev.floter.other", "name": "Other",
+  "distribution": {"type": "local"},
   "runtime": {"type": "script", "language": "shell", "path": "tool.sh"},
   "provider": {"type": "executable"}
 }`)

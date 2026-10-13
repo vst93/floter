@@ -286,7 +286,10 @@ func serverURL(r *http.Request) string {
 }
 
 func npmPackageEntries(version string) []tarEntry {
-	manifest := strings.Replace(exampleManifest, `"distribution": { "type": "local" }`, `"distribution": { "type": "npm" }`, 1)
+	// A registry package's *manifest* still declares the schema's own
+	// distribution (`local`); the entry's `distributionSource` ("npm") is the
+	// install channel, which is a separate field.
+	manifest := exampleManifest
 	return []tarEntry{
 		{name: "package/package.json", body: `{"name": "@vst93/floter-v", "version": "` + version + `", "floter": {"manifest": "floter.extension.json"}}`},
 		{name: "package/floter.extension.json", body: manifest},
@@ -383,7 +386,7 @@ func TestInstallFromRegistry(t *testing.T) {
 	if len(inventory.Integrations) != 1 {
 		t.Fatalf("inventory = %+v", inventory.Integrations)
 	}
-	if inventory.Integrations[0].Manifest.Distribution.Type != "npm" {
+	if inventory.Integrations[0].Manifest.Distribution.Type != "local" {
 		t.Errorf("manifest distribution = %q", inventory.Integrations[0].Manifest.Distribution.Type)
 	}
 }

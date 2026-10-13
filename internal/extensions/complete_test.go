@@ -112,6 +112,7 @@ func TestCompleteAndDiagnose(t *testing.T) {
 	pkg := filepath.Join(paths.Extensions, "dev.floter.completer")
 	writeFile(t, filepath.Join(pkg, manifestFileName), `{
   "schemaVersion": "2.0", "id": "dev.floter.completer", "name": "Completer",
+  "distribution": {"type": "local"},
   "runtime": {"type": "system", "executableNames": ["completer"]},
   "provider": {"type": "executable", "argsPrefix": ["--floter"], "completeTimeoutMs": 500}
 }`)
@@ -200,6 +201,7 @@ func TestCompleteTimesOut(t *testing.T) {
 	pkg := filepath.Join(paths.Extensions, "dev.floter.slow")
 	writeFile(t, filepath.Join(pkg, manifestFileName), `{
   "schemaVersion": "2.0", "id": "dev.floter.slow", "name": "Slow",
+  "distribution": {"type": "local"},
   "runtime": {"type": "system", "executableNames": ["slow"]},
   "provider": {"type": "executable", "argsPrefix": [], "completeTimeoutMs": 100}
 }`)

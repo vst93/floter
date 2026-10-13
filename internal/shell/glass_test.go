@@ -1,6 +1,7 @@
 package shell
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/egoist/mygo"
@@ -231,6 +232,63 @@ func TestTurningTheGlassOnKeepsTheTransparency(t *testing.T) {
 			}
 			if high <= low {
 				t.Errorf("%s: %s's bottom did not rise with the slider: %.3f -> %.3f", theme, step, low, high)
+			}
+		}
+	}
+}
+
+// The frame's alpha is the transparency slider's on **every** stop. The
+// acceptance is the rendered alpha of the window's own background, read at
+// each slider stop for each glass stop: the off frame is the reference, and
+// every effect stop must sit on it, band for band. This is the pixel table
+// the report 「开玻璃透明底仍失效」 asks for.
+//
+// The layer that failed it was the **frame's sheen**, painted as a separate
+// translucent layer over the fill. The sheen is a stop-graded highlight, so
+// only the glass-on frames carried it: it composites its own alpha over the
+// fill, and the light appearance added up to 0.11 of alpha in the result band
+// at the default 47% (0.564 off → 0.678 regular, 0.746 liquid). The fix bakes
+// the sheen into the fill's own alpha budget — `theme.Tokens.FaceFill` chooses
+// the tint alpha that composites with the sheen back to the frame's alpha — so
+// the stop grades the lit face's colour, never the frame's thickness.
+func TestTheFrameAlphaIsTheSlidersOnEveryStop(t *testing.T) {
+	// The window's own background bands, all below the field block: the top of
+	// the list, its middle and its bottom.
+	bands := []struct {
+		name   string
+		y0, y1 int
+	}{
+		{"top", 90, 120},
+		{"middle", 200, 260},
+		{"bottom", 350, 400},
+	}
+	stops := []string{"off", "frosted", "regular", "liquid"}
+
+	for _, theme := range []string{"dark", "light"} {
+		for _, opacity := range []uint8{settings.MinWindowOpacity, settings.DefaultMainOpacity, settings.MaxWindowOpacity} {
+			off := renderStopOpacity(t, theme, "off", opacity)
+			t.Logf("%s appearance, transparency %d%% — mean alpha per band:", theme, opacity)
+			for _, band := range bands {
+				offA := meanBandAlpha(off, band.y0, band.y1)
+				line := fmt.Sprintf("  %-7s off %.3f", band.name, offA)
+				for _, step := range stops[1:] {
+					a := meanBandAlpha(renderStopOpacity(t, theme, step, opacity), band.y0, band.y1)
+					line += fmt.Sprintf("  %s %.3f (%+.3f)", step, a, a-offA)
+					// The stop must not make the frame denser: the off frame is the
+					// ceiling, band for band. The compensated base is a linear
+					// gradient under the sheen's linear one, so the composite is
+					// exactly the slider's alpha at both ends and dips a few
+					// thousandths below it in between (a thinner frame, never a
+					// denser one).
+					if d := a - offA; d > 0.005 {
+						t.Errorf("%s %d%% %s: %s is %.3f, %+.3f denser than the off frame %.3f — the stop must not cost transparency",
+							theme, opacity, band.name, step, a, d, offA)
+					} else if d < -0.03 {
+						t.Errorf("%s %d%% %s: %s is %.3f, %+.3f from the off frame %.3f",
+							theme, opacity, band.name, step, a, d, offA)
+					}
+				}
+				t.Log(line)
 			}
 		}
 	}

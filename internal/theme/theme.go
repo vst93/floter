@@ -128,7 +128,9 @@ type Tokens struct {
 	LensEdge  ui.Color
 	// SheenTop and SheenBottom are the card's top-down highlight (base.css's
 	// `--sheen-top` / `--sheen-bottom`), the gradient that gives the panel's
-	// glass a lit face rather than a flat tint.
+	// glass a lit face rather than a flat tint. The fill under them is
+	// `FaceFill`'s compensated alpha, so the two composite back to the frame's
+	// own alpha (see `FaceFill`).
 	SheenTop    ui.Color
 	SheenBottom ui.Color
 	// ShadowAmbient and ShadowContact are the window's own cast shadow
@@ -260,8 +262,11 @@ func For(s settings.Settings, systemDark bool) Tokens {
 	// headless render cannot show them. Without it, `frosted`, `regular` and
 	// `liquid` share one fill and the three stops read as one tint
 	// (「3 档效果也没看出区别」). The frame's *alpha* (the transparency slider)
-	// is untouched by the stop: the sheen rides the frame's own tint, so the
-	// stop changes the lit face's strength, not the fill's truth.
+	// is untouched by the stop: the sheen rides the frame's own tint, and
+	// `FaceFill` gives the tint the alpha that composites with the sheen back to
+	// the slider's, so the stop changes the lit face's colour, not the fill's
+	// truth (the sheen used to sit over the frame's tint and add its own alpha —
+	// 「开玻璃透明底失效」).
 	sheen := float32(0)
 	if spec.Glass {
 		sheen = spec.TintAlpha * spec.LensScale
@@ -326,18 +331,22 @@ func For(s settings.Settings, systemDark bool) Tokens {
 		LensRim:           scaleAlpha(p.lensRim, spec.LensScale),
 		LensSheen:         scaleAlpha(p.lensSheen, spec.LensScale),
 		LensEdge:          scaleAlpha(p.lensEdge, spec.LensScale),
-		SheenTop:          scaleAlpha(p.sheenTop, sheen),
-		SheenBottom:       scaleAlpha(p.sheenBottom, sheen),
-		ShadowAmbient:     p.shadowAmbient,
-		ShadowContact:     p.shadowContact,
-		EdgeHighlight:     p.edgeHighlight,
-		EdgeShadow:        p.edgeShadow,
-		EdgeHighlightX:    p.edgeHighlightX,
-		AccentEdge:        p.accentEdge,
-		Hairline:          hairline,
-		TextStrong:        textStrong,
-		TextSecondary:     textSecondary,
-		TextTertiary:      textTertiary,
+		// The sheen is capped at the frame's own alpha: a sheen heavier than the
+		// frame would make the top of a very thin frame denser than the slider
+		// asked for, and `FaceFill`'s compensation cannot ask for a negative
+		// fill (see `baseAlpha`).
+		SheenTop:       capAlpha(scaleAlpha(p.sheenTop, sheen), spec.TintAlpha),
+		SheenBottom:    capAlpha(scaleAlpha(p.sheenBottom, sheen), spec.TintAlpha),
+		ShadowAmbient:  p.shadowAmbient,
+		ShadowContact:  p.shadowContact,
+		EdgeHighlight:  p.edgeHighlight,
+		EdgeShadow:     p.edgeShadow,
+		EdgeHighlightX: p.edgeHighlightX,
+		AccentEdge:     p.accentEdge,
+		Hairline:       hairline,
+		TextStrong:     textStrong,
+		TextSecondary:  textSecondary,
+		TextTertiary:   textTertiary,
 	}
 }
 
@@ -459,6 +468,16 @@ func scaleAlpha(c ui.Color, factor float32) ui.Color {
 	return ui.RGBA(c.R, c.G, c.B, float32(c.A)/255*factor)
 }
 
+// capAlpha lowers a colour's alpha to at most max, keeping its colour: the
+// sheen may not be heavier than the frame it sits on, or a thin frame's top
+// would composite denser than the slider's own alpha.
+func capAlpha(c ui.Color, max float32) ui.Color {
+	if a := float32(c.A) / 255; a > max {
+		return ui.RGBA(c.R, c.G, c.B, max)
+	}
+	return c
+}
+
 // blendOpaque lays over on base at over's alpha and returns the opaque
 // result, for the one lift that has to cover a color the framework paints
 // behind it.
@@ -468,6 +487,43 @@ func blendOpaque(base, over ui.Color) ui.Color {
 		return uint8(math.Round(float64(b)*(1-a) + float64(o)*a))
 	}
 	return ui.RGBA(mix(base.R, over.R), mix(base.G, over.G), mix(base.B, over.B), 1)
+}
+
+// FaceFill is the card's face at the frame's own alpha: the tint colour as the
+// two stops of its top-down gradient, at the alpha that **composites with the
+// stop's sheen back to the frame's alpha**. The sheen is painted over it as
+// the second layer (`Tokens.SheenTop` / `SheenBottom`, `View`), and the base
+// is chosen so `1-(1-base)(1-sheen) == alpha`: a plain tint under a sheen
+// layer would composite to `1-(1-alpha)(1-sheen)`, denser than the slider's
+// own alpha — in the light appearance up to +0.11 in the result band at the
+// default 47%, which is what the user read as 「开玻璃透明底失效」. Here the
+// frame's alpha is the transparency slider's on every stop, while the stop
+// still grades the lit face's colour (the sheen the scene paints itself).
+func (t Tokens) FaceFill(alpha float32) (top, bottom ui.Color) {
+	bg := ui.RGB(18, 19, 22)
+	if t.Theme != nil {
+		bg = t.Theme.Background
+	}
+	return ui.RGBA(bg.R, bg.G, bg.B, baseAlpha(alpha, t.SheenTop)),
+		ui.RGBA(bg.R, bg.G, bg.B, baseAlpha(alpha, t.SheenBottom))
+}
+
+// baseAlpha is the fill alpha a sheen of alpha s composites over to frame:
+// `1-(1-base)(1-s) == frame`, clamped so a sheen heavier than the frame at the
+// slider's bottom end cannot ask for a negative fill.
+func baseAlpha(frame float32, sheen ui.Color) float32 {
+	s := float32(sheen.A) / 255
+	if s >= 1 {
+		return 0
+	}
+	base := (frame - s) / (1 - s)
+	if base < 0 {
+		return 0
+	}
+	if base > frame {
+		return frame
+	}
+	return base
 }
 
 // Lens draws the control lens on a pane: the top rim, the broad sheen and the

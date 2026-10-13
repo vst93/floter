@@ -1,15 +1,20 @@
 package extensions
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
+	"io"
 	"os"
 	"strings"
 )
 
-// Manifest is an extension package manifest (floter.extension.json), the
-// subset this build reads. Unknown keys are ignored: the manifest is input,
-// never written back.
+// Manifest is an extension package manifest (floter.extension.json). It is
+// parsed strictly: a key this struct does not declare is a load error, the way
+// the old host's `deny_unknown_fields` (and the bundled schema's
+// `additionalProperties: false`) refused one. Fields this build does not act on
+// are still declared, so a manifest the schema allows parses rather than being
+// rejected for a field the host merely ignores.
 type Manifest struct {
 	SchemaVersion string `json:"schemaVersion"`
 	ID            string `json:"id"`
@@ -26,6 +31,9 @@ type Manifest struct {
 	Distribution  Distribution  `json:"distribution"`
 	Runtime       Runtime       `json:"runtime"`
 	Provider      Provider      `json:"provider"`
+	// Signatures is a package signature declaration. This build parses it so a
+	// signed manifest loads, but it does not verify signatures.
+	Signatures *SignatureConfig `json:"signatures,omitempty"`
 
 	Platforms []string `json:"platforms"`
 	// PlatformOverrides change the provider on one platform target: the
@@ -66,6 +74,13 @@ func (m Manifest) Route() string {
 	return RouteBackground
 }
 
+// SignatureConfig is a manifest's package signature declaration.
+type SignatureConfig struct {
+	URL       string `json:"url"`
+	PublicKey string `json:"publicKey"`
+	Algorithm string `json:"algorithm"`
+}
+
 // Publisher identifies who ships the extension.
 type Publisher struct {
 	ID   string `json:"id"`
@@ -96,6 +111,12 @@ type Runtime struct {
 	Path     string `json:"path"`
 	// VersionArgs is how the runtime reports its version.
 	VersionArgs []string `json:"versionArgs"`
+	// PlatformPackages and Executable belong to the schema's `managed` and
+	// `linked` runtimes. They are parsed so such a manifest reaches the
+	// combination rule (which refuses them) instead of failing as an unknown
+	// field.
+	PlatformPackages map[string]string `json:"platformPackages,omitempty"`
+	Executable       string            `json:"executable,omitempty"`
 }
 
 // Provider is how the host asks the extension for its commands.
@@ -199,12 +220,19 @@ func (l Launch) EffectiveRestorePolicy() string {
 	return l.RestorePolicy
 }
 
-// Terminal is the launch's terminal requirement, restricted to the part the
-// host acts on. The schema's other fields (unicode, mouse, bracketed paste,
-// synchronized output, keyboard protocol) describe the pty the framework
-// always provides; they are not read here rather than parsed and ignored.
+// Terminal is the launch's terminal requirement. Only the color changes what
+// this host does; the schema's other fields (required, unicode, mouse,
+// bracketed paste, synchronized output, keyboard protocol) describe the pty the
+// framework always provides. They are parsed so a manifest declaring them is
+// not refused as unknown, but they are not acted on.
 type Terminal struct {
-	Color string `json:"color"`
+	Color              string `json:"color"`
+	Required           bool   `json:"required,omitempty"`
+	Unicode            bool   `json:"unicode,omitempty"`
+	Mouse              string `json:"mouse,omitempty"`
+	BracketedPaste     bool   `json:"bracketedPaste,omitempty"`
+	SynchronizedOutput bool   `json:"synchronizedOutput,omitempty"`
+	KeyboardProtocol   string `json:"keyboardProtocol,omitempty"`
 }
 
 // LaunchCommand is the program and leading arguments of a launch.
@@ -256,6 +284,26 @@ func (m Manifest) CompleteTimeout() int {
 // ErrNoManifest is what LoadManifest reports for a file that is not there.
 var ErrNoManifest = errors.New("extensions: no manifest")
 
+// decodeManifest parses manifest bytes strictly: an unknown field is an error
+// (`json.Decoder.DisallowUnknownFields`, the old host's `deny_unknown_fields`),
+// and trailing data after the object is refused. Nested structs are held to the
+// same rule by the decoder.
+func decodeManifest(data []byte) (Manifest, error) {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	var m Manifest
+	if err := decoder.Decode(&m); err != nil {
+		return Manifest{}, err
+	}
+	// Reject a second JSON value (or any trailing non-whitespace): a manifest
+	// is exactly one object, and silently ignoring the tail would let a file
+	// carry bytes no validator ever saw.
+	if _, err := decoder.Token(); !errors.Is(err, io.EOF) {
+		return Manifest{}, errors.New("extensions: the manifest has trailing data")
+	}
+	return m, nil
+}
+
 // LoadManifest reads and parses a manifest file.
 func LoadManifest(path string) (Manifest, error) {
 	data, err := os.ReadFile(path)
@@ -265,8 +313,8 @@ func LoadManifest(path string) (Manifest, error) {
 		}
 		return Manifest{}, err
 	}
-	var m Manifest
-	if err := json.Unmarshal(data, &m); err != nil {
+	m, err := decodeManifest(data)
+	if err != nil {
 		return Manifest{}, err
 	}
 	if m.ID == "" || m.Name == "" {

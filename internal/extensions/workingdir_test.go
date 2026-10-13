@@ -85,6 +85,7 @@ func TestDescriptorWorkingDirectory(t *testing.T) {
 	}
 	if err := os.WriteFile(filepath.Join(dir, manifestFileName), []byte(`{
 	  "schemaVersion": "2.0", "id": "dev.floter.cwd", "name": "Cwd",
+	  "distribution": {"type": "local"},
 	  "runtime": {"type": "script", "language": "shell", "path": "tool.sh"},
 	  "provider": {"type": "executable"},
 	  "lifecycle": {"launch": {"cwdPolicy": "toolData", "terminal": {"color": "none"}}}

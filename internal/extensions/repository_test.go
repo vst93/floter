@@ -65,7 +65,7 @@ func TestLoadManifest(t *testing.T) {
 
 	// The shipped protocol defaults fill a manifest that names none.
 	bare := filepath.Join(dir, "bare.json")
-	writeFile(t, bare, `{"id": "a.b", "name": "Bare", "provider": {"type": "static-descriptor"}}`)
+	writeFile(t, bare, `{"id": "a.b", "name": "Bare", "distribution": {"type": "local"}, "runtime": {"type": "system", "executableNames": ["a"]}, "provider": {"type": "executable"}}`)
 	m, err = LoadManifest(bare)
 	if err != nil {
 		t.Fatal(err)

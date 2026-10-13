@@ -32,6 +32,7 @@ func TestCommandRouteFollowsTheManifestOutput(t *testing.T) {
 		manifest := `{
 		  "schemaVersion": "2.0", "id": "` + id + `", "name": "` + id + `",
 		  ` + declared + `
+		  "distribution": {"type": "local"},
 		  "runtime": {"type": "script", "language": "shell", "path": "tool.sh"},
 		  "provider": {"type": "executable", "argsPrefix": ["--floter"]}
 		}`

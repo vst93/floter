@@ -247,7 +247,8 @@ func inventoryWithPlatforms(t *testing.T, extra string) (Paths, string) {
 	}
 	manifest := `{
 	  "schemaVersion": "2.0", "id": "dev.floter.tool", "name": "Tool",
-	  "runtime": {"type": "static-descriptor", "descriptor": "provider-description.json"},
+	  "distribution": {"type": "local"},
+	  "runtime": {"type": "system", "executableNames": ["tool"]},
 	  "provider": {"type": "static-descriptor", "descriptor": "provider-description.json"}`
 	if extra != "" {
 		manifest += "," + extra

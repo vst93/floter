@@ -178,6 +178,7 @@ func writeCwdIntegration(t *testing.T, paths Paths, id, cwd string) {
 	}
 	manifest := `{
 	  "schemaVersion": "2.0", "id": "` + id + `", "name": "Cwd",
+	  "distribution": {"type": "local"},
 	  "runtime": {"type": "script", "language": "shell", "path": "tool.sh"},
 	  "provider": {"type": "executable"},
 	  "lifecycle": {"launch": {"cwdPolicy": ` + cwd + `}}

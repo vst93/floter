@@ -760,7 +760,7 @@ func npmFixture(t *testing.T, permissions ...string) (*httptest.Server, string) 
   "schemaVersion": "2.0", "id": "dev.floter.npm", "name": "NPM Tool", "version": "1.0.0",
   "publisher": {"id": "floter", "name": "floter"},
   "compatibility": {"floter": ">=0.3.0", "providerProtocol": "^1.0"},
-  "distribution": {"type": "npm"},
+  "distribution": {"type": "local"},
   "runtime": {"type": "script", "language": "shell", "path": "tool.sh"},
   "provider": {"type": "static-descriptor", "descriptor": "description.json", "argsPrefix": []}` + declared + `
 }`
@@ -1040,6 +1040,7 @@ func TestDynamicCompletionReachesTheLauncher(t *testing.T) {
 	}
 	manifest := `{
   "schemaVersion": "2.0", "id": "dev.floter.completer", "name": "Completer",
+  "distribution": {"type": "local"},
   "runtime": {"type": "system", "executableNames": ["completer"]},
   "provider": {"type": "executable", "argsPrefix": ["--floter"], "completeTimeoutMs": 500}
 }`
@@ -1118,6 +1119,7 @@ func TestDiagnoseIntegrationRecordsTheResult(t *testing.T) {
 	}
 	if err := os.WriteFile(filepath.Join(pkg, "floter.extension.json"), []byte(`{
   "schemaVersion": "2.0", "id": "dev.floter.diagnosed", "name": "Diagnosed",
+  "distribution": {"type": "local"},
   "runtime": {"type": "system", "executableNames": ["diagnosed"]},
   "provider": {"type": "executable", "argsPrefix": []}
 }`), 0o644); err != nil {
@@ -2475,6 +2477,7 @@ func TestIntegrationConfigurationFormEndToEnd(t *testing.T) {
 	}
 	if err := os.WriteFile(filepath.Join(pkg, "floter.extension.json"), []byte(`{
 	  "schemaVersion": "2.0", "id": "dev.floter.configured", "name": "Configured",
+	  "distribution": {"type": "local"},
 	  "runtime": {"type": "script", "language": "shell", "path": "tool.sh"},
 	  "provider": {"type": "executable", "argsPrefix": ["--floter"]}
 	}`), 0o644); err != nil {
@@ -2597,6 +2600,7 @@ func TestDeepLinkConnectAndRegister(t *testing.T) {
 	}
 	manifest := `{
 	  "schemaVersion": "2.0", "id": "dev.floter.linked", "name": "Linked",
+	  "distribution": {"type": "local"},
 	  "runtime": {"type": "script", "language": "shell", "path": "tool.sh"},
 	  "provider": {"type": "executable", "argsPrefix": ["--floter"]},
 	  "permissions": ["environment"]
@@ -2680,6 +2684,7 @@ func TestHealthShowsOnTheRow(t *testing.T) {
 	}
 	if err := os.WriteFile(filepath.Join(pkg, "floter.extension.json"), []byte(`{
 	  "schemaVersion": "2.0", "id": "dev.floter.health", "name": "Healthy",
+	  "distribution": {"type": "local"},
 	  "runtime": {"type": "script", "language": "shell", "path": "tool.sh"},
 	  "provider": {"type": "executable", "argsPrefix": ["--floter"]},
 	  "lifecycle": {"probes": [{"id": "up", "args": ["--up"], "required": true}]}
@@ -2752,6 +2757,7 @@ func TestDebugPersistedReport(t *testing.T) {
 	}
 	if err := os.WriteFile(filepath.Join(pkg, "floter.extension.json"), []byte(`{
 	  "schemaVersion": "2.0", "id": "dev.floter.health", "name": "Healthy",
+	  "distribution": {"type": "local"},
 	  "runtime": {"type": "script", "language": "shell", "path": "tool.sh"},
 	  "provider": {"type": "executable", "argsPrefix": ["--floter"]},
 	  "lifecycle": {"probes": [{"id": "up", "args": ["--up"], "required": true}]}
