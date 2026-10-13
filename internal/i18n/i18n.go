@@ -648,8 +648,16 @@ type Settings struct {
 	LocalToolAdvancedPermissions string
 	// The supported-platforms row limits a connection to some operating
 	// systems; at least one has to stay ticked, so the row owns its refusal.
-	LocalToolPlatforms                  string
-	LocalToolPlatformRequired           string
+	LocalToolPlatforms        string
+	LocalToolPlatformRequired string
+	// The connection rules the backend applies before it writes a package,
+	// each printed under the row that broke it (CustomIssues).
+	LocalToolNameLength                 string
+	LocalToolCommandShape               string
+	LocalToolVersionShape               string
+	LocalToolModeInvalid                string
+	LocalToolScriptEmpty                string
+	LocalToolScriptLanguageInvalid      string
 	LocalToolOutput                     string
 	LocalToolTerminal                   string
 	LocalToolBackground                 string

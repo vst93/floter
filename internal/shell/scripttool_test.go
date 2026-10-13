@@ -43,6 +43,7 @@ func TestConnectAScriptTool(t *testing.T) {
 		Command:        "weather",
 		Description:    "Says the weather",
 		Permissions:    []string{extensions.PermissionNetworkFetch},
+		Platforms:      []string{runtime.GOOS},
 	}
 	// A script carries no program and no argument prefix, whatever the form's
 	// other fields held.
@@ -238,5 +239,38 @@ func TestPlatformsTravelIntoTheManifest(t *testing.T) {
 			t.Fatal("the form could not read the connection back")
 		}
 		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+// The script fields belong to the script runtime alone. The form's language
+// state survives a switch back to the program kind, and the host refuses an
+// executable that carries a language (scriptLanguageInvalid, the old host's
+// own rule). One mapping clears them, so an executable built after visiting
+// script mode still connects.
+func TestAnExecutableCarriesNoScriptFields(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the fixture is a shell script")
+	}
+	dir := t.TempDir()
+	program := filepath.Join(dir, "mygadget")
+	if err := os.WriteFile(program, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	tool := settingsui.CustomTool{
+		Name:      "Ripgrep",
+		Mode:      "executable",
+		Program:   program,
+		Command:   "rg",
+		Platforms: []string{runtime.GOOS},
+		// The form's leftovers from script mode: they must not travel.
+		ScriptLanguage: "python",
+		ScriptContent:  "print('hi')\n",
+	}
+	request := customRequest(tool)
+	if request.ScriptLanguage != "" || request.ScriptContent != "" {
+		t.Fatalf("an executable carried script fields: %+v", request)
+	}
+	if _, err := extensions.PrepareCustom(context.Background(), extensions.FromRoot(t.TempDir()), request); err != nil {
+		t.Fatalf("the backend refused the executable: %v", err)
 	}
 }

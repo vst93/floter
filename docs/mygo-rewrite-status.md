@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**914 项测试全绿**。
+含测试）。**919 项测试全绿**。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 914 项测试
+go test -count=1 ./...         # 919 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,7 +99,31 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-bv 本机连接表单的「支持的平台」勾选（R7-5 / 原版 `customPlatforms`）** —— P7-bu 重写的
+> **最新一轮：P7-bw 本机连接请求的后端校验补齐（原版 `create_custom_integration_locked` / `settings.extensions.form.*`）**
+> —— P7-bu 重写的 3 条具体待办只剩第 3 条，本轮取它：原版在写包前逐条校验并回**本地化键**，名字
+> 1..80（`form.nameLength`）、命令形状 `[a-z0-9][a-z0-9_-]{0,63}`（`form.commandShape`）、版本必须能
+> 解析（`Version::parse`）、平台非空（`form.platformRequired`）、模式仅 executable/script
+>（`form.modeInvalid`）、脚本内容非空（`form.scriptEmpty`）、`script_language` 只对脚本合法
+>（`form.scriptLanguageInvalid`）。本构建的 `normalizeCustom` 以前只查「名字非空 / 脚本有语言且非空 /
+> 模式合法 / 权限已知 / params 合法」，其余不查：空版本直接填 `0.0.1` 而不看格式、`Platforms` 允许为空、
+> executable 也照收 `ScriptLanguage`（而表单恰好把语言默认成 `js` 一起发出来，只是后端不查才没暴露）。
+> 现在新增 `internal/extensions/customvalidate.go`：`CustomIssues(CustomRequest) []CustomIssue` 是**后端与
+> 表单共用**的那套规则（`CustomField` 指出问题属于哪一行、`CustomIssueKey` 是旧构建七个 i18n 键的稳定
+> 身份），`normalizeCustom` 先在默认值填完后跑它并按第一个键拒绝（`ErrBadRequest: commandShape` …），
+> 派生出来的命令（程序自己的文件名）另用 `validCustomCommand` 兜一遍；`internal/shell/shell.go` 的
+> `customRequest` 给非脚本清掉 `ScriptLanguage`/`ScriptContent`（表单的语言状态会活过「切回程序」），
+> `internal/settingsui/settingsui.go` 里表单抽出 `customDraft`（一处决定每个字段的含义）并在提交时先跑
+> `customIssues`，失败的行用 `toolIssueUnder` 把对应句子印在行下（首次提交前不印刷，`toolIssue` 开关）；
+> 版本框「空 = 兜底 0.0.1」的既有行为保留，只补上**格式非法就拒**。i18n 新增六个字段（`LocalToolNameLength`
+> /`LocalToolCommandShape`/`LocalToolVersionShape`/`LocalToolModeInvalid`/`LocalToolScriptEmpty`/
+> `LocalToolScriptLanguageInvalid`，en/zh）。测试 5 条：`TestCustomIssuesNamesEveryRule`（逐条合法通过 /
+> 非法拒绝，并断言后端错误串里带同一个键）、`TestCustomCommandShapeAppliesToTheDerivedWord`（派生命令也被
+> 查、且小写化）、`TestCustomDefaultsFillWithoutInventingAPlatform`、`TestLocalToolFormNamesTheShapeRules`
+>（表单逐行印句子 + 一个都不发到后端 + executable 不带脚本字段）、`TestAnExecutableCarriesNoScriptFields`。
+> 已做证伪式核查：抽掉 `validCustomCommand` 的循环后三条命令用例与派生命令测试同时变红，恢复后全绿。
+> 落地见下方「P7-bw 后端校验」。
+
+> **上一轮：P7-bv 本机连接表单的「支持的平台」勾选（R7-5 / 原版 `customPlatforms`）** —— P7-bu 重写的
 > 3 条具体待办第 1 条已落地，本轮取第 2 条：原版的自定义集成表单有一组 darwin/linux/windows 三选，
 > 默认只勾**当前平台**（`ExtensionsPanel.tsx:374` 的 `CURRENT_PLATFORM`、`:393` 的
 > `platforms: [CURRENT_PLATFORM]`），一个都不勾时提交按钮禁用。本构建 `CustomTool` 里根本没有
@@ -205,7 +229,57 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 > required 不认 default 豁免。现在 `ParamIssues` 返回 `{Index,Key,Label}`，每个非法值
 > 的句子印在**它自己那一行下面**，Run 按钮在有错时禁用；输出视图也按语言渲染 `run_param_*`。
 
-**P7-bv 支持的平台（原版 `customPlatforms` / R7-5）（本轮）**
+**P7-bw 后端校验（原版 `create_custom_integration_locked` / `settings.extensions.form.*`）（本轮）**
+
+- **依赖检查**：GitHub releases API 被限流，改用 `git ls-remote --tags` 确认 `v0.4.8` 仍是最新 tag
+  （`go.mod` 已是 v0.4.8），无版本可升，故本轮无升级、无用点。
+- **入口**：P7-bu 重写的具体待办第 1、2 条已分别由 P7-bv 落地，只剩第 3 条（`normalizeCustom` 缺的
+  五条后端校验），本轮取它。
+- **原版对照**：`src-tauri/src/extensions/install.rs:240-300` 的
+  `create_custom_integration_locked`：`name.is_empty() || name.chars().count() > 80` → `form.nameLength`；
+  `command` 先 `trim().to_ascii_lowercase()` 再按 `[a-z0-9][a-z0-9_-]{0,63}` 校验 → `form.commandShape`；
+  `Version::parse(request.version.trim())` 失败即拒（错误串是临时拼的，没有 i18n 键）；
+  `request.platforms.is_empty()` → `form.platformRequired`；`mode` 只允许 `script`/`executable` →
+  `form.modeInvalid`；脚本分支 `script_content` 空 → `form.scriptEmpty`；且
+  `!script_mode && script_language.is_some()` → `form.scriptLanguageInvalid`。键的英文/中文见
+  `src/i18n.ts:840-845` / `:1695-1700`。
+- **本构建（改前）**：`internal/extensions/custom.go` 的 `normalizeCustom` 只查「名字非空」「脚本有语言且
+  非空」「模式合法」「权限已知」「params 合法」；空 `Version` 直接填 `0.0.1` 不校验格式、`Platforms` 允许
+  为空、executable 照收 `ScriptLanguage`。更隐蔽的是：`internal/settingsui` 的表单把 `ScriptLanguage`
+  默认成 `scriptlang.Languages[0].ID`（`js`）并对 executable 一起发出去，只因后端不查才没暴露；
+  `internal/shell/shell.go` 的 `customRequest` 也原样透传。
+- **改动**：
+  - 新增 `internal/extensions/customvalidate.go`：`CustomField`（问题属于哪一行）、`CustomIssueKey`
+    （七个旧 i18n 键的稳定身份，另加 `versionShape`）、`CustomIssue`、
+    `CustomIssues(CustomRequest) []CustomIssue`（按表单行序返回，未填的命令/版本视为默认值、不报）、
+    `validCustomCommand`（`[a-z0-9][a-z0-9_-]{0,63}`）。
+  - `internal/extensions/custom.go`：`normalizeCustom` 先 trim/lowercase、填 `Mode`/`Version` 默认值，再跑
+    `CustomIssues` 并按第一个键以 `ErrBadRequest: <key>` 拒绝（在 I/O 检查之前，保证表单与后端看到同一条
+    规则）；`Mode` 未知不再走 `default` 分支而是由 `CustomIssues` 报 `modeInvalid`；派生出来的命令
+    （`executableCommand` + 小写化）另用 `validCustomCommand` 兜一遍。
+  - `internal/shell/shell.go`：`customRequest` 对非脚本清空 `ScriptLanguage`/`ScriptContent`（脚本字段只属于
+    脚本运行时）。
+  - `internal/settingsui/settingsui.go`：抽出 `customDraft`（一处决定每个字段含义，非脚本不带语言）与
+    `customIssues`/`customIssueMessage`/`toolIssueUnder`；`App` 加 `toolIssue`（首次提交前不印刷，提交失败
+    才在对应行下印句子），表单在提交时先跑 `customIssues` 再发后端。
+  - `internal/i18n`：新增 `LocalToolNameLength`/`LocalToolCommandShape`/`LocalToolVersionShape`/
+    `LocalToolModeInvalid`/`LocalToolScriptEmpty`/`LocalToolScriptLanguageInvalid`（en/zh 逐字对齐原版；
+    `versionShape` 是本构建自拟的句子，原版那处没有 i18n 键）。
+- **刻意保留的一处差异**：版本框留空仍然是「兜底 `0.0.1`」而不是原版的「空即拒」——这是本构建既有的、
+  与表单 placeholder 一致的契约，本轮只补「**填了就必须是有效版本**」。原版有键的是七个，我们的
+  `versionShape` 是唯一自拟的键。
+- **测试**：`internal/extensions/custom_test.go` 的 `TestCustomIssuesNamesEveryRule`（10 条非法兄弟 + 4 条
+  合法对照，逐条断言「恰好一条、字段与键正确」且 `normalizeCustom` 的错误串里带同一个键）、
+  `TestCustomCommandShapeAppliesToTheDerivedWord`（程序文件名带空格 → 派生命令被拒；带连字符的大写文件名 →
+  命令小写化）、`TestCustomDefaultsFillWithoutInventingAPlatform`；`internal/settingsui/view_test.go` 的
+  `TestLocalToolFormNamesTheShapeRules`（初次打开发型不印、逐次提交把版本/命令/名字的句子印在行下、修好即
+  连上、executable 不带脚本字段）；`internal/shell/scripttool_test.go` 的
+  `TestAnExecutableCarriesNoScriptFields`（`customRequest` 清脚本字段后 `PrepareCustom` 接受）。已做证伪式核查：
+  抽掉 `validCustomCommand` 的循环，三条命令用例与派生命令测试同时变红，恢复后全绿。
+- **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 29 包全绿（919 项）、
+  `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+**P7-bv 支持的平台（原版 `customPlatforms` / R7-5）（上一轮）**
 
 - **依赖检查**：GitHub releases API 返回 `v0.4.8`（`go.mod` 已是 v0.4.8），go proxy 的
   `go list -m -versions` 也停在 v0.4.8，无版本可升，故本轮无升级、无用点。
@@ -2136,12 +2210,13 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-> **P7-bv 更新**：P7-bu 重写的具体待办里第 1、2 条已落地，只剩第 3 条（`normalizeCustom` 缺的五条后端
-> 校验）。其余卡在框架上的三条（`Options.OnCopy`、终端键入的 `HandleInput` 缝、外观四个死旋钮）与一次性
-> 维护者动作（`mygo keygen`、`mygo.json` 的 `updates`/签名、CI 私钥、发布到 GitHub Release）不变，
-> 另见「已知差距」。
+> **P7-bw 更新**：P7-bu 重写的具体待办里第 1、2 条分别由 P7-bv / P7-bw 落地，第 3 条（`normalizeCustom`
+> 缺的五条后端校验）也由 P7-bw 补齐——P7-bu 重写的 3 条至此**全部落地**。其余卡在框架上的三条
+>（`Options.OnCopy`、终端键入的 `HandleInput` 缝、外观四个死旋钮）与一次性维护者动作
+>（`mygo keygen`、`mygo.json` 的 `updates`/签名、CI 私钥、发布到 GitHub Release）不变，另见「已知差距」。
+> 下一轮按本文件的历史惯例：清单已空，先把「尚未做」重写成带 file:line 的具体待办再取第 1 条。
 
-### 具体待办（P7-bu 重写；第 1、2 条已落地，第 3 条待做）
+### 具体待办（P7-bu 重写；3 条已全部落地：第 1 条 P7-bv、第 2 条 P7-bv、第 3 条 P7-bw）
 
 1. **自定义集成描述控件的三条契约（R158 + R159）（本轮已落地）** —— 原版 v0.3.14 把描述输入收成
    **executable-only**（R158）：脚本清单写死自己的内部句子、从不读请求里的描述，所以脚本模式下那个
@@ -2179,7 +2254,7 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
      拒绝提交（错误句子印在行下）；`customRequest` 透传；`toolForEdit` 从 `manifest.Platforms` 回填；测试
      钉住默认值、无勾选拒绝与一次往返（含后端 `Platforms` 逐字落盘）。落地见下方「P7-bv 支持的平台」。
 
-3. **本机连接请求的后端校验只做了一半（原版 `settings.extensions.form.*`）** —— 原版
+3. **本机连接请求的后端校验只做了一半（原版 `settings.extensions.form.*`）（本轮已落地）** —— 原版
    `create_custom_integration_locked` 在写包前逐条校验并回**本地化键**：名字 1..80（`form.nameLength`）、
    命令形状 `[a-z0-9][a-z0-9_-]{0,63}`（`form.commandShape`）、版本必须能 `Version::parse`、平台非空
    （`form.platformRequired`）、模式仅 executable/script（`form.modeInvalid`）、脚本内容非空
@@ -2191,9 +2266,15 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
      `settings.extensions.form.*` 七个键。
    - 本构建：`internal/extensions/custom.go:223`（`normalizeCustom`）缺 name 长度、command 形状、version
      semver、platforms 非空、script-language-only-for-script 五条。
-   - 验收：`normalizeCustom` 补齐五条并返回可本地化的原因（沿用本构建既有的错误包装或新增
-     `settings.extensions.form.*` 键）；设置页表单在提交前做同样的预检并把句子印在对应行下；测试逐条钉住
-     「合法通过 / 非法拒绝」，并做证伪式核查（移除任一条，对应测试变红）。
+   - 验收（已满足）：新增 `internal/extensions/customvalidate.go` 的 `CustomIssues`（`CustomField` + `CustomIssueKey`，
+     旧构建七个 i18n 键的稳定身份）同时喂后端与表单；`normalizeCustom` 在默认值填完后按第一个键拒绝，
+     派生命令另用 `validCustomCommand` 兜一遍；`customRequest` 给非脚本清掉脚本字段（否则表单默认语言会把
+     每个 executable 都判成 `scriptLanguageInvalid`）；表单在提交前跑同一函数并把句子用 `toolIssueUnder`
+     印在行下（`toolIssue` 开关，首次提交前不印）；i18n 新增六个字段（en/zh）。测试：
+     `TestCustomIssuesNamesEveryRule`（逐条合法/非法 + 错误串里的键）、
+     `TestCustomCommandShapeAppliesToTheDerivedWord`、`TestCustomDefaultsFillWithoutInventingAPlatform`、
+     `TestLocalToolFormNamesTheShapeRules`、`TestAnExecutableCarriesNoScriptFields`。证伪：抽掉命令形状循环后
+     三条命令用例与派生命令测试同时变红。落地见下方「P7-bw 后端校验」。
 
 ### 具体待办（P7-br 重写；4 条已全部落地：第 1·2 条 P7-br、第 4 条 P7-bs、第 3 条 P7-bt）
 

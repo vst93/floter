@@ -425,6 +425,10 @@ type App struct {
 	// toolEditing is the integration the form is rewriting, empty when it is
 	// connecting something new.
 	toolEditing string
+	// toolIssue is whether the form has been submitted and refused: the rows
+	// name what they still need only after the user asked, so a form that just
+	// opened is not already covered in red.
+	toolIssue bool
 
 	// sessionsArmed holds the sessions whose close control has been pressed
 	// once: the second press ends the session's program.
@@ -2243,6 +2247,9 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 	a.section(c, copy.LocalToolTitle, copy.LocalToolHint, func() {
 		if ui.Button(c, copy.LocalToolAdd).Clicked() {
 			a.toolOpen = !a.toolOpen
+			// Opening a fresh form clears the previous refusal, so the new one
+			// starts quiet; closing keeps nothing either.
+			a.toolIssue = false
 		}
 		if !a.toolOpen {
 			return
@@ -2271,9 +2278,15 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 		if script == "" && mode == routeScript {
 			script = scriptlang.Template(language)
 		}
+		// The rules the host will apply, read here first: a row that broke one
+		// says so under itself rather than a banner bounced back from the
+		// backend. The same function gates the submit, so the two cannot drift.
+		issues := customIssues(a.customDraft(name, program, command, args, versionArgs, version, description, mode, language, script))
 		a.card(c, func() {
 			a.row(c, copy.LocalToolName, "", func() {
 				ui.TextInput(c, &name).Label(copy.LocalToolName).Width(240).Grow(1).Placeholder("Ripgrep")
+			}, func() {
+				a.toolIssueUnder(c, copy, issues, extensions.CustomFieldName)
 			})
 			a.row(c, copy.LocalToolMode, "", func() {
 				index := 0
@@ -2287,9 +2300,11 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 						mode = routeScript
 					}
 				}
+			}, func() {
+				a.toolIssueUnder(c, copy, issues, extensions.CustomFieldMode)
 			})
 			if mode == routeScript {
-				a.scriptRows(c, copy, &language, &script)
+				a.scriptRows(c, copy, &language, &script, issues)
 			} else {
 				a.row(c, copy.LocalToolProgram, "", func() {
 					ui.TextInput(c, &program).Label(copy.LocalToolProgram).Width(240).Grow(1).
@@ -2305,6 +2320,8 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 			}
 			a.row(c, copy.LocalToolCommand, copy.LocalToolCommandHint, func() {
 				ui.TextInput(c, &command).Label(copy.LocalToolCommand).Width(160).Placeholder("rg")
+			}, func() {
+				a.toolIssueUnder(c, copy, issues, extensions.CustomFieldCommand)
 			})
 			if mode != routeScript {
 				a.row(c, copy.LocalToolArgs, copy.LocalToolArgsHint, func() {
@@ -2316,6 +2333,8 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 			}
 			a.row(c, copy.LocalToolVersion, copy.LocalToolVersionHint, func() {
 				ui.TextInput(c, &version).Label(copy.LocalToolVersion).Width(120).Placeholder("0.0.1")
+			}, func() {
+				a.toolIssueUnder(c, copy, issues, extensions.CustomFieldVersion)
 			})
 			// R158 · the description is executable-only: a script manifest writes
 			// its own internal description and never reads this field, so an
@@ -2397,54 +2416,24 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 		a.toolArgs, a.toolVersionArgs, a.toolVersion = args, versionArgs, version
 		a.toolDescription = description
 		a.toolMode, a.toolLanguage, a.toolScript = mode, language, script
+		tool := a.customDraft(name, program, command, args, versionArgs, version, description, mode, language, script)
 		if requested {
 			// A row that still needs something must not reach the backend: the
 			// editor already prints the reason under that row, so the save
 			// refuses here rather than bouncing back an error to re-explain it.
 			if len(extensions.ParamRowIssues(a.editorParams())) > 0 {
+				a.toolIssue = true
 				return
 			}
-			// The platforms row refuses the same way: nothing ticked is not a
-			// request for every platform, it is an unfinished row.
-			if len(a.toolPlatforms) == 0 {
+			// The same shape rules the host will apply, read before the host
+			// sees them: name, command, version, platforms, mode, script.
+			if len(customIssues(tool)) > 0 {
+				a.toolIssue = true
 				return
 			}
-			platforms := make([]string, 0, len(customPlatforms))
-			for _, platform := range customPlatforms {
-				if a.toolPlatforms[platform.ID] {
-					platforms = append(platforms, platform.ID)
-				}
-			}
-			permissions := []string{}
-			for _, permission := range extensions.AllPermissions {
-				if a.toolPermissions[permission] {
-					permissions = append(permissions, permission)
-				}
-			}
-			tool := CustomTool{
-				Name:           strings.TrimSpace(name),
-				Mode:           mode,
-				ScriptLanguage: language,
-				ScriptContent:  script,
-				Program:        strings.TrimSpace(program),
-				Command:        strings.TrimSpace(command),
-				Args:           strings.TrimSpace(args),
-				VersionArgs:    strings.TrimSpace(versionArgs),
-				Version:        strings.TrimSpace(version),
-				Description:    strings.TrimSpace(description),
-				Output:         a.toolOutput,
-				Permissions:    permissions,
-				Platforms:      platforms,
-				Params:         a.declaredParams(),
-			}
-			if tool.Name == "" {
-				return // the form says what is missing by staying put
-			}
-			if tool.Mode == routeScript {
-				if strings.TrimSpace(tool.ScriptContent) == "" {
-					return
-				}
-			} else if tool.Program == "" {
+			// The program row has no localization key of its own: it refuses
+			// silently, the same way the old form disabled its submit button.
+			if tool.Mode != routeScript && tool.Program == "" {
 				return
 			}
 			if a.toolEditing != "" {
@@ -2453,9 +2442,99 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 				a.Actions.ConnectLocalTool(tool)
 			}
 			a.toolOpen = false
+			a.toolIssue = false
 			a.endEdit()
 		}
 	})
+}
+
+// customDraft is the form as the draft connection it would submit: one place
+// that decides what each field means, so the pre-check and the host's request
+// cannot disagree. A non-script carries no language — the field belongs to the
+// script runtime, and the form's language state outlives a switch back to the
+// program kind (R7-5's old host refused exactly this).
+func (a *App) customDraft(name, program, command, args, versionArgs, version, description, mode, language, script string) CustomTool {
+	platforms := make([]string, 0, len(customPlatforms))
+	for _, platform := range customPlatforms {
+		if a.toolPlatforms[platform.ID] {
+			platforms = append(platforms, platform.ID)
+		}
+	}
+	permissions := []string{}
+	for _, permission := range extensions.AllPermissions {
+		if a.toolPermissions[permission] {
+			permissions = append(permissions, permission)
+		}
+	}
+	draft := CustomTool{
+		Name:        strings.TrimSpace(name),
+		Mode:        mode,
+		Program:     strings.TrimSpace(program),
+		Command:     strings.TrimSpace(command),
+		Args:        strings.TrimSpace(args),
+		VersionArgs: strings.TrimSpace(versionArgs),
+		Version:     strings.TrimSpace(version),
+		Description: strings.TrimSpace(description),
+		Output:      a.toolOutput,
+		Permissions: permissions,
+		Platforms:   platforms,
+		Params:      a.declaredParams(),
+	}
+	if mode == routeScript {
+		draft.ScriptLanguage = language
+		draft.ScriptContent = script
+	}
+	return draft
+}
+
+// customIssues is the backend's own rules, read on the draft as it would be
+// submitted: the form shows the same sentences the host would refuse with.
+func customIssues(tool CustomTool) []extensions.CustomIssue {
+	return extensions.CustomIssues(extensions.CustomRequest{
+		Name:           tool.Name,
+		Mode:           tool.Mode,
+		Command:        tool.Command,
+		Version:        tool.Version,
+		Platforms:      tool.Platforms,
+		ScriptLanguage: tool.ScriptLanguage,
+		ScriptContent:  tool.ScriptContent,
+	})
+}
+
+// toolIssueUnder prints the form's own translation of the first issue that
+// belongs to one row, once the user has asked to submit. A field with no issue
+// draws nothing.
+func (a *App) toolIssueUnder(c *ui.Context, copy i18n.Settings, issues []extensions.CustomIssue, field extensions.CustomField) {
+	if !a.toolIssue {
+		return
+	}
+	for _, issue := range issues {
+		if issue.Field == field {
+			a.issueUnder(c, customIssueMessage(copy, issue.Key))
+			return
+		}
+	}
+}
+
+// customIssueMessage is the one sentence for one rule, in the stored language.
+func customIssueMessage(copy i18n.Settings, key extensions.CustomIssueKey) string {
+	switch key {
+	case extensions.CustomIssueNameLength:
+		return copy.LocalToolNameLength
+	case extensions.CustomIssueCommandShape:
+		return copy.LocalToolCommandShape
+	case extensions.CustomIssueVersionShape:
+		return copy.LocalToolVersionShape
+	case extensions.CustomIssuePlatformRequired:
+		return copy.LocalToolPlatformRequired
+	case extensions.CustomIssueModeInvalid:
+		return copy.LocalToolModeInvalid
+	case extensions.CustomIssueScriptEmpty:
+		return copy.LocalToolScriptEmpty
+	case extensions.CustomIssueScriptLanguageInvalid:
+		return copy.LocalToolScriptLanguageInvalid
+	}
+	return ""
 }
 
 // toolPermissionFields are the form's declaration switches and the boundary
@@ -2491,7 +2570,7 @@ func (a *App) toolPermissionFields(c *ui.Context, copy i18n.Settings) {
 // scriptRows are the rows a script tool shows in place of the program row: the
 // language it is written in (with the line saying whether this machine has its
 // toolchain), and the editor the script is typed into.
-func (a *App) scriptRows(c *ui.Context, copy i18n.Settings, language *string, script *string) {
+func (a *App) scriptRows(c *ui.Context, copy i18n.Settings, language *string, script *string, issues []extensions.CustomIssue) {
 	options := make([]i18n.Option, 0, len(scriptlang.Languages))
 	for _, option := range scriptlang.Languages {
 		options = append(options, i18n.Option{ID: option.ID, Label: option.Label})
@@ -2515,6 +2594,7 @@ func (a *App) scriptRows(c *ui.Context, copy i18n.Settings, language *string, sc
 	a.stackedRow(c, copy.LocalToolScript, copy.LocalToolScriptHint, func() {
 		ui.TextArea(c, script).Label(copy.LocalToolScript).FontSize(t.FontSize).
 			FixedLineHeight(t.Space(2.25)).Height(t.Space(18)).Grow(1)
+		a.toolIssueUnder(c, copy, issues, extensions.CustomFieldScript)
 	})
 }
 
@@ -3274,6 +3354,7 @@ func (a *App) beginEdit(id string, tool CustomTool) {
 	a.toolOpen = true
 	a.toolEditing = id
 	a.toolAdvanced = false
+	a.toolIssue = false
 	a.toolMode = tool.Mode
 	a.toolLanguage = tool.ScriptLanguage
 	a.toolScript = tool.ScriptContent
@@ -3306,6 +3387,7 @@ func (a *App) beginEdit(id string, tool CustomTool) {
 func (a *App) endEdit() {
 	a.toolEditing = ""
 	a.toolAdvanced = false
+	a.toolIssue = false
 	a.toolMode, a.toolLanguage, a.toolScript = "", "", ""
 	a.toolName, a.toolProgram, a.toolCommand = "", "", ""
 	a.toolArgs, a.toolVersionArgs, a.toolVersion, a.toolDescription = "", "", "", ""

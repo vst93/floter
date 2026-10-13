@@ -2864,3 +2864,95 @@ func platformLabel(id string) string {
 	}
 	return id
 }
+
+// The connection form reads the same shape rules the host applies (the old
+// host's `settings.extensions.form.*`): a name past 80 characters, a command
+// that is not a lowercase slug, a version that is not semver. A fresh form
+// stays quiet; a submit names the rule under its own row and refuses, and one
+// fix at a time lets the connection through.
+func TestLocalToolFormNamesTheShapeRules(t *testing.T) {
+	copy := i18n.For("en").Settings
+	connected := []CustomTool{}
+	a := New(settings.NewStore(settings.Default()), Actions{
+		ConnectLocalTool: func(tool CustomTool) { connected = append(connected, tool) },
+	})
+	tt := render(t, a, 720, 1600)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if err := tt.Click(copy.LocalToolAdd); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	// Nothing is refused before the user asks: a fresh form is not red.
+	for _, sentence := range []string{copy.LocalToolNameLength, copy.LocalToolCommandShape, copy.LocalToolVersionShape} {
+		if tt.HasText(sentence) {
+			t.Fatalf("a fresh form named %q: %q", sentence, tt.Texts())
+		}
+	}
+	a.toolName, a.toolProgram = "Ripgrep", "/usr/bin/rg"
+
+	// A version that is not semver refuses and says so under its row.
+	a.toolVersion = "not.a.version"
+	tt.Frame()
+	if err := tt.Click(copy.LocalToolConnect); err != nil {
+		t.Fatalf("connect: %v", err)
+	}
+	tt.Frame()
+	if len(connected) != 0 {
+		t.Fatalf("a bad version reached the backend: %+v", connected)
+	}
+	if !tt.HasText(copy.LocalToolVersionShape) {
+		t.Fatalf("the version row did not name the rule: %q", tt.Texts())
+	}
+
+	// A command that is not a lowercase slug refuses the same way.
+	a.toolVersion = "1.2.3"
+	a.toolCommand = "Bad Command"
+	tt.Frame()
+	if err := tt.Click(copy.LocalToolConnect); err != nil {
+		t.Fatalf("connect: %v", err)
+	}
+	tt.Frame()
+	if len(connected) != 0 {
+		t.Fatalf("a bad command reached the backend: %+v", connected)
+	}
+	if !tt.HasText(copy.LocalToolCommandShape) {
+		t.Fatalf("the command row did not name the rule: %q", tt.Texts())
+	}
+
+	// A name past 80 characters refuses too.
+	a.toolCommand = "rg"
+	a.toolName = strings.Repeat("x", 81)
+	tt.Frame()
+	if err := tt.Click(copy.LocalToolConnect); err != nil {
+		t.Fatalf("connect: %v", err)
+	}
+	tt.Frame()
+	if len(connected) != 0 {
+		t.Fatalf("an over-long name reached the backend: %+v", connected)
+	}
+	if !tt.HasText(copy.LocalToolNameLength) {
+		t.Fatalf("the name row did not name the rule: %q", tt.Texts())
+	}
+
+	// Everything fixed: the same form connects and the draft is clean.
+	a.toolName = "Ripgrep"
+	tt.Frame()
+	if err := tt.Click(copy.LocalToolConnect); err != nil {
+		t.Fatalf("connect: %v", err)
+	}
+	tt.Frame()
+	if len(connected) != 1 {
+		t.Fatalf("connected = %+v", connected)
+	}
+	if connected[0].Name != "Ripgrep" || connected[0].Command != "rg" || connected[0].Version != "1.2.3" {
+		t.Errorf("the draft = %+v", connected[0])
+	}
+	// A program carries no script language: the form's language state would
+	// otherwise refuse the request as scriptLanguageInvalid at the host.
+	if connected[0].ScriptLanguage != "" || connected[0].ScriptContent != "" {
+		t.Errorf("an executable carried script fields: %+v", connected[0])
+	}
+}

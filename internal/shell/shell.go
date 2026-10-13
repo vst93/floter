@@ -3203,6 +3203,13 @@ func customRequest(tool settingsui.CustomTool) extensions.CustomRequest {
 		request.ExecutablePath = ""
 		request.ArgsPrefix = nil
 		request.VersionArgs = nil
+	} else {
+		// The script fields belong to the script runtime alone: an executable
+		// that carried a language would be refused as scriptLanguageInvalid
+		// (the old host checked exactly this), and the form's language state
+		// outlives a switch back to the program kind.
+		request.ScriptLanguage = ""
+		request.ScriptContent = ""
 	}
 	return request
 }

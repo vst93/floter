@@ -50,8 +50,10 @@ type CustomRequest struct {
 	Description string
 	// Permissions are the ids the package declares.
 	Permissions []string
-	// Platforms limits the integration to the operating systems it names;
-	// empty means everywhere.
+	// Platforms limits the integration to the operating systems it names.
+	// A connection must name at least one: an empty list means "everywhere"
+	// to the codec, but a user is never allowed to ask for that by unticking
+	// every box (CustomIssuePlatformRequired).
 	Platforms []string
 	// Output is where a run sends its output: "terminal" or "background".
 	Output string
@@ -222,14 +224,23 @@ func CreateCustom(ctx context.Context, paths Paths, request CustomRequest, appro
 // normalizeCustom checks a request and fills its defaults.
 func normalizeCustom(request CustomRequest) (CustomRequest, error) {
 	request.Name = strings.TrimSpace(request.Name)
-	request.Command = strings.TrimSpace(request.Command)
+	request.Command = strings.ToLower(strings.TrimSpace(request.Command))
 	request.ExecutablePath = strings.TrimSpace(request.ExecutablePath)
 	request.Mode = strings.ToLower(strings.TrimSpace(request.Mode))
-	if request.Name == "" {
-		return request, fmt.Errorf("%w: no name", ErrBadRequest)
-	}
+	request.Version = strings.TrimSpace(request.Version)
+	request.ScriptLanguage = strings.TrimSpace(request.ScriptLanguage)
 	if request.Mode == "" {
 		request.Mode = "executable"
+	}
+	if request.Version == "" {
+		request.Version = "0.0.1"
+	}
+	// The shape rules run on the defaulted request, before the I/O checks: a
+	// request the settings form would have refused by name is refused here by
+	// the same name, so the sentence under the row and the host's refusal are
+	// one rule (CustomIssues).
+	if issues := CustomIssues(request); len(issues) > 0 {
+		return request, fmt.Errorf("%w: %s", ErrBadRequest, issues[0].Key)
 	}
 	switch request.Mode {
 	case "executable":
@@ -240,14 +251,11 @@ func normalizeCustom(request CustomRequest) (CustomRequest, error) {
 			return request, fmt.Errorf("%w: %s cannot be run", ErrBadRequest, request.ExecutablePath)
 		}
 		if request.Command == "" {
-			request.Command = executableCommand(request.ExecutablePath)
+			request.Command = strings.ToLower(executableCommand(request.ExecutablePath))
 		}
 	case "script":
 		if request.ScriptLanguage == "" {
 			return request, fmt.Errorf("%w: a script needs a language", ErrBadRequest)
-		}
-		if strings.TrimSpace(request.ScriptContent) == "" {
-			return request, fmt.Errorf("%w: the script is empty", ErrBadRequest)
 		}
 		if _, ok := findInterpreter(request.ScriptLanguage); !ok {
 			return request, fmt.Errorf("%w: no %s interpreter is available", ErrBadRequest, request.ScriptLanguage)
@@ -255,14 +263,15 @@ func normalizeCustom(request CustomRequest) (CustomRequest, error) {
 		if request.Command == "" {
 			request.Command = "script"
 		}
-	default:
-		return request, fmt.Errorf("%w: unknown mode %q", ErrBadRequest, request.Mode)
 	}
 	if request.Command == "" {
 		request.Command = "tool"
 	}
-	if request.Version == "" {
-		request.Version = "0.0.1"
+	// A command derived from the program's own file name was not part of the
+	// request, so it is checked here: a file named with a space cannot become
+	// the word that summons the tool.
+	if !validCustomCommand(request.Command) {
+		return request, fmt.Errorf("%w: %s", ErrBadRequest, CustomIssueCommandShape)
 	}
 	switch request.Output {
 	case "", "terminal":

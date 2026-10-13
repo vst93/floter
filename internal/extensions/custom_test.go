@@ -5,9 +5,15 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
+
+// testPlatforms is a valid non-empty platform list on the machine the suite
+// runs on: a connection must name at least one platform, and the host only
+// loads an integration that supports this machine.
+func testPlatforms() []string { return []string{runtime.GOOS} }
 
 // customToolFixture is a runnable tool on this machine: it answers --version
 // and --help, and its help lists one plugin.
@@ -54,6 +60,7 @@ func TestCreateCustomTool(t *testing.T) {
 		ExecutablePath: program,
 		VersionArgs:    []string{"--version"},
 		Description:    "a gadget of my own",
+		Platforms:      testPlatforms(),
 	}, true)
 	if err != nil {
 		t.Fatalf("create: %v", err)
@@ -111,7 +118,7 @@ func TestCreateCustomTool(t *testing.T) {
 	// A second connection mints a different id: two tools never fight over a
 	// name.
 	second, err := CreateCustom(context.Background(), paths, CustomRequest{
-		Name: "My Gadget Again", Command: "gadget2", ExecutablePath: program,
+		Name: "My Gadget Again", Command: "gadget2", ExecutablePath: program, Platforms: testPlatforms(),
 	}, true)
 	if err != nil {
 		t.Fatalf("second create: %v", err)
@@ -138,6 +145,7 @@ func TestCustomScriptDescriptionIsInternal(t *testing.T) {
 		ScriptLanguage: "shell",
 		ScriptContent:  "#!/bin/sh\necho sunny\n",
 		Description:    "Says the weather",
+		Platforms:      testPlatforms(),
 	}, true)
 	if err != nil {
 		t.Fatalf("create: %v", err)
@@ -173,6 +181,7 @@ func TestCustomExecutableDescriptionStaysHonest(t *testing.T) {
 	blankPaths, blankProgram := customToolFixture(t)
 	blank, err := CreateCustom(context.Background(), blankPaths, CustomRequest{
 		Name: "Blank", Command: "blank", ExecutablePath: blankProgram, Description: "   ",
+		Platforms: testPlatforms(),
 	}, true)
 	if err != nil {
 		t.Fatalf("create blank: %v", err)
@@ -188,6 +197,7 @@ func TestCustomExecutableDescriptionStaysHonest(t *testing.T) {
 	keptPaths, keptProgram := customToolFixture(t)
 	kept, err := CreateCustom(context.Background(), keptPaths, CustomRequest{
 		Name: "Kept", Command: "kept", ExecutablePath: keptProgram, Description: "  a gadget of my own  ",
+		Platforms: testPlatforms(),
 	}, true)
 	if err != nil {
 		t.Fatalf("create kept: %v", err)
@@ -208,13 +218,13 @@ func TestCreateCustomRefusesBadRequests(t *testing.T) {
 		name    string
 		request CustomRequest
 	}{
-		{"no name", CustomRequest{ExecutablePath: program}},
-		{"no program", CustomRequest{Name: "Gadget"}},
-		{"a program that is not there", CustomRequest{Name: "Gadget", ExecutablePath: filepath.Join(t.TempDir(), "gone")}},
-		{"a script with no language", CustomRequest{Name: "Gadget", Mode: "script", ScriptContent: "echo hi"}},
-		{"an empty script", CustomRequest{Name: "Gadget", Mode: "script", ScriptLanguage: "shell"}},
-		{"an unknown mode", CustomRequest{Name: "Gadget", Mode: "wormhole", ExecutablePath: program}},
-		{"an unknown permission", CustomRequest{Name: "Gadget", ExecutablePath: program, Permissions: []string{"mind-reading"}}},
+		{"no name", CustomRequest{ExecutablePath: program, Platforms: testPlatforms()}},
+		{"no program", CustomRequest{Name: "Gadget", Platforms: testPlatforms()}},
+		{"a program that is not there", CustomRequest{Name: "Gadget", ExecutablePath: filepath.Join(t.TempDir(), "gone"), Platforms: testPlatforms()}},
+		{"a script with no language", CustomRequest{Name: "Gadget", Mode: "script", ScriptContent: "echo hi", Platforms: testPlatforms()}},
+		{"an empty script", CustomRequest{Name: "Gadget", Mode: "script", ScriptLanguage: "shell", Platforms: testPlatforms()}},
+		{"an unknown mode", CustomRequest{Name: "Gadget", Mode: "wormhole", ExecutablePath: program, Platforms: testPlatforms()}},
+		{"an unknown permission", CustomRequest{Name: "Gadget", ExecutablePath: program, Permissions: []string{"mind-reading"}, Platforms: testPlatforms()}},
 	}
 	for _, c := range cases {
 		if _, err := CreateCustom(context.Background(), paths, c.request, true); err == nil {
@@ -242,6 +252,7 @@ func TestCreateCustomNeedsApproval(t *testing.T) {
 		Name:           "My Gadget",
 		ExecutablePath: program,
 		Permissions:    []string{"environment"},
+		Platforms:      testPlatforms(),
 	}, false)
 	if err == nil {
 		t.Fatal("an unapproved package was installed")
@@ -261,7 +272,7 @@ func TestCreateCustomNeedsApproval(t *testing.T) {
 func TestCreateCustomCarriesParams(t *testing.T) {
 	paths, program := customToolFixture(t)
 	entry, err := CreateCustom(context.Background(), paths, CustomRequest{
-		Name: "My Gadget", Command: "gadget", ExecutablePath: program,
+		Name: "My Gadget", Command: "gadget", ExecutablePath: program, Platforms: testPlatforms(),
 		Params: []ParamDefinition{
 			{ID: "target", Label: "Target", Kind: ParamText, Flag: "--target"},
 			{ID: "verbose", Kind: ParamBoolean, Flag: "--verbose"},
@@ -282,7 +293,7 @@ func TestCreateCustomCarriesParams(t *testing.T) {
 	}
 	// A bad declaration is refused before anything is written.
 	if _, err := CreateCustom(context.Background(), paths, CustomRequest{
-		Name: "Bad", ExecutablePath: program,
+		Name: "Bad", ExecutablePath: program, Platforms: testPlatforms(),
 		Params: []ParamDefinition{{ID: "a", Kind: "colour"}},
 	}, true); err == nil {
 		t.Error("a bad declaration was accepted")
@@ -295,7 +306,7 @@ func TestCreateCustomCarriesParams(t *testing.T) {
 func TestUpdateCustomTool(t *testing.T) {
 	paths, program := customToolFixture(t)
 	entry, err := CreateCustom(context.Background(), paths, CustomRequest{
-		Name: "My Gadget", Command: "gadget", ExecutablePath: program,
+		Name: "My Gadget", Command: "gadget", ExecutablePath: program, Platforms: testPlatforms(),
 	}, true)
 	if err != nil {
 		t.Fatalf("create: %v", err)
@@ -307,6 +318,7 @@ func TestUpdateCustomTool(t *testing.T) {
 		ExecutablePath: program,
 		ArgsPrefix:     []string{"--floter"},
 		Description:    "renamed",
+		Platforms:      testPlatforms(),
 		Params:         []ParamDefinition{{ID: "target", Kind: ParamText, Flag: "--target"}},
 	}, true)
 	if err != nil {
@@ -346,7 +358,7 @@ func TestUpdateCustomTool(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := UpdateCustom(context.Background(), paths, entry.ID, CustomRequest{
-		Name: "Nope", ExecutablePath: program,
+		Name: "Nope", ExecutablePath: program, Platforms: testPlatforms(),
 	}, true); err == nil {
 		t.Error("a publisher integration was edited")
 	}
@@ -361,7 +373,7 @@ func TestUpdateCustomTool(t *testing.T) {
 func TestCustomToolOutputSpelling(t *testing.T) {
 	background, program := customToolFixture(t)
 	entry, err := CreateCustom(context.Background(), background, CustomRequest{
-		Name: "Quiet", Command: "quiet", ExecutablePath: program,
+		Name: "Quiet", Command: "quiet", ExecutablePath: program, Platforms: testPlatforms(),
 	}, true)
 	if err != nil {
 		t.Fatalf("create: %v", err)
@@ -383,7 +395,7 @@ func TestCustomToolOutputSpelling(t *testing.T) {
 
 	terminal, terminalProgram := customToolFixture(t)
 	termEntry, err := CreateCustom(context.Background(), terminal, CustomRequest{
-		Name: "Loud", Command: "loud", ExecutablePath: terminalProgram, Output: RouteTerminal,
+		Name: "Loud", Command: "loud", ExecutablePath: terminalProgram, Output: RouteTerminal, Platforms: testPlatforms(),
 	}, true)
 	if err != nil {
 		t.Fatalf("create: %v", err)
@@ -401,5 +413,127 @@ func TestCustomToolOutputSpelling(t *testing.T) {
 	}
 	if !strings.Contains(string(termRaw), `"output": "terminal"`) {
 		t.Errorf("a declared terminal was not written:\n%s", termRaw)
+	}
+}
+
+// The connection rules the backend applies before it writes a package, one
+// case per rule with a legal counterpart. CustomIssues is the same function
+// the settings form reads to print the sentence under the row, so a mutation
+// in any branch reddens the host's own test and the form's.
+func TestCustomIssuesNamesEveryRule(t *testing.T) {
+	valid := CustomRequest{
+		Name:           "My Gadget",
+		Command:        "gadget-1_x",
+		Version:        "1.2.3",
+		Mode:           "script",
+		Platforms:      []string{"linux"},
+		ScriptLanguage: "shell",
+		ScriptContent:  "echo hi",
+	}
+	if issues := CustomIssues(valid); len(issues) != 0 {
+		t.Fatalf("a valid request was refused: %+v", issues)
+	}
+	// An empty command and version are the host's own defaults, not issues.
+	defaults := valid
+	defaults.Command, defaults.Version = "", ""
+	if issues := CustomIssues(defaults); len(issues) != 0 {
+		t.Fatalf("a request relying on the defaults was refused: %+v", issues)
+	}
+	// An executable is the default mode and may not carry a script language.
+	executable := valid
+	executable.Mode, executable.ScriptContent, executable.ScriptLanguage = "executable", "", ""
+	if issues := CustomIssues(executable); len(issues) != 0 {
+		t.Fatalf("an executable was refused: %+v", issues)
+	}
+	// The name bound counts runes, not bytes: 80 is legal, 81 is not.
+	eighty := valid
+	eighty.Name = strings.Repeat("é", 80)
+	if issues := CustomIssues(eighty); len(issues) != 0 {
+		t.Fatalf("an 80-rune name was refused: %+v", issues)
+	}
+
+	cases := []struct {
+		what   string
+		mutate func(*CustomRequest)
+		field  CustomField
+		key    CustomIssueKey
+	}{
+		{"a blank name", func(r *CustomRequest) { r.Name = "   " }, CustomFieldName, CustomIssueNameLength},
+		{"a name past 80 runes", func(r *CustomRequest) { r.Name = strings.Repeat("é", 81) }, CustomFieldName, CustomIssueNameLength},
+		{"a command with a space", func(r *CustomRequest) { r.Command = "my gadget" }, CustomFieldCommand, CustomIssueCommandShape},
+		{"a command starting with a hyphen", func(r *CustomRequest) { r.Command = "-gadget" }, CustomFieldCommand, CustomIssueCommandShape},
+		{"a command past 64 bytes", func(r *CustomRequest) { r.Command = "g" + strings.Repeat("a", 64) }, CustomFieldCommand, CustomIssueCommandShape},
+		{"a version that is not semver", func(r *CustomRequest) { r.Version = "not.a.version" }, CustomFieldVersion, CustomIssueVersionShape},
+		{"no platform", func(r *CustomRequest) { r.Platforms = nil }, CustomFieldPlatforms, CustomIssuePlatformRequired},
+		{"an unknown mode", func(r *CustomRequest) { r.Mode = "wormhole"; r.ScriptLanguage = "" }, CustomFieldMode, CustomIssueModeInvalid},
+		{"an empty script", func(r *CustomRequest) { r.ScriptContent = "  " }, CustomFieldScript, CustomIssueScriptEmpty},
+		{"a script language on a program", func(r *CustomRequest) { r.Mode = "executable" }, CustomFieldLanguage, CustomIssueScriptLanguageInvalid},
+	}
+	for _, c := range cases {
+		request := valid
+		c.mutate(&request)
+		issues := CustomIssues(request)
+		if len(issues) != 1 || issues[0].Field != c.field || issues[0].Key != c.key {
+			t.Errorf("%s: issues = %+v, want one %s/%s", c.what, issues, c.field, c.key)
+			continue
+		}
+		// The backend refuses the same request by the same name.
+		_, err := normalizeCustom(request)
+		if !errors.Is(err, ErrBadRequest) {
+			t.Errorf("%s: normalizeCustom = %v, want ErrBadRequest", c.what, err)
+			continue
+		}
+		if !strings.Contains(err.Error(), string(c.key)) {
+			t.Errorf("%s: the refusal does not name %q: %v", c.what, c.key, err)
+		}
+	}
+}
+
+// The shape rules run on the defaulted request, so a connection whose command
+// is derived from the program's own file name is still checked: a file named
+// with a space cannot become a command.
+func TestCustomCommandShapeAppliesToTheDerivedWord(t *testing.T) {
+	dir := t.TempDir()
+	program := filepath.Join(dir, "My Gadget")
+	if err := os.WriteFile(program, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	_, err := normalizeCustom(CustomRequest{
+		Name: "Gadget", ExecutablePath: program, Platforms: testPlatforms(),
+	})
+	if !errors.Is(err, ErrBadRequest) || !strings.Contains(err.Error(), string(CustomIssueCommandShape)) {
+		t.Fatalf("a derived command with a space was accepted: %v", err)
+	}
+	// The same file with a legal name derives a legal command, lowercased.
+	legalProgram := filepath.Join(dir, "My-Gadget")
+	if err := os.WriteFile(legalProgram, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	normalized, err := normalizeCustom(CustomRequest{
+		Name: "Gadget", ExecutablePath: legalProgram, Platforms: testPlatforms(),
+	})
+	if err != nil {
+		t.Fatalf("a legal derived command was refused: %v", err)
+	}
+	if normalized.Command != "my-gadget" {
+		t.Errorf("derived command = %q, want it lowercased", normalized.Command)
+	}
+}
+
+// A request that names a platform list keeps it, and the default version is
+// the placeholder the form's own box shows.
+func TestCustomDefaultsFillWithoutInventingAPlatform(t *testing.T) {
+	_, program := customToolFixture(t)
+	normalized, err := normalizeCustom(CustomRequest{
+		Name: "Gadget", ExecutablePath: program, Platforms: []string{"windows", "linux"},
+	})
+	if err != nil {
+		t.Fatalf("normalize: %v", err)
+	}
+	if normalized.Version != "0.0.1" {
+		t.Errorf("version = %q, want the placeholder", normalized.Version)
+	}
+	if got := strings.Join(normalized.Platforms, ","); got != "windows,linux" {
+		t.Errorf("platforms = %q, want the request's own list untouched", got)
 	}
 }
