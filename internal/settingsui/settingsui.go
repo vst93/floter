@@ -438,6 +438,16 @@ type App struct {
 	// and the heading's control flips it.
 	sessionsSortOldest bool
 
+	// residencyInit, residencyCustomOpen and residencyDraft are the
+	// page-residency control's own state: whether the inline custom field has
+	// been seeded yet, whether it is open, and what it drafts. residencyInit
+	// seeds the other two once from the stored value on the first frame, so a
+	// stored custom duration opens the field it came from — the reference's
+	// `useState` initializers in `SurfaceResidencyControl`.
+	residencyInit       bool
+	residencyCustomOpen bool
+	residencyDraft      string
+
 	// saveFailed is set when one of the page's own controls could not write
 	// its change back, with saveFailedAt the moment it failed: the banner over
 	// the page says so and clears itself after a few seconds (see
@@ -1885,34 +1895,9 @@ func (a *App) general(c *ui.Context, copy i18n.Settings) {
 				// because the two are read together but answer different
 				// questions: the switch decides whether the *window* disappears,
 				// this one decides whether the *surface* survives it. The
-				// reference draws it before the recent-items switch.
-				a.choose(c, copy.SurfaceResidency, copy.SurfaceResidencyHint,
-					residencyOptions(copy, s.SurfaceResidencySeconds),
-					strconv.FormatUint(uint64(s.SurfaceResidencySeconds), 10),
-					func(id string) {
-						seconds, ok := parseResidency(id)
-						if !ok {
-							return
-						}
-						a.set(func(s *settings.Settings) { s.SurfaceResidencySeconds = seconds })
-					})
-				// The presets plus a free-form duration: the field says how
-				// long, in seconds, and the button applies it — the old
-				// panel's "Custom duration in seconds" row.
-				seconds := ""
-				if s.SurfaceResidencySeconds != 0 {
-					seconds = strconv.FormatUint(uint64(s.SurfaceResidencySeconds), 10)
-				}
-				a.row(c, copy.SurfaceResidencyCustomLabel, "", func() {
-					edit := seconds
-					ui.TextInput(c, &edit).Label(copy.SurfaceResidencyCustomLabel).
-						Placeholder(copy.SurfaceResidencyCustomUnit).Width(90)
-					if ui.Button(c, copy.SurfaceResidencyCustomApply).Clicked() {
-						if value, err := strconv.ParseUint(strings.TrimSpace(edit), 10, 32); err == nil {
-							a.set(func(s *settings.Settings) { s.SurfaceResidencySeconds = uint32(value) })
-						}
-					}
-				})
+				// reference draws it before the recent-items switch, as the
+				// single row residencyRow builds (`SurfaceResidencyControl`).
+				a.residencyRow(c, copy)
 				a.checkbox(c, copy.ShowRecentInLauncher, copy.ShowRecentInLauncherHint, settings.ShowRecentInLauncher(s),
 					func(on bool) { a.set(func(s *settings.Settings) { s.SetShowRecentInLauncher(on) }) })
 			})
@@ -2205,41 +2190,183 @@ func clampPercent(v float64) uint8 {
 	return n
 }
 
-// parseResidency reads a residency option id: the presets' seconds, the
-// "never" sentinel, or a custom number, all as decimal text.
-func parseResidency(id string) (uint32, bool) {
-	seconds, err := strconv.ParseUint(id, 10, 32)
+// parseResidencyDraft reads a typed duration the way the reference's
+// `normalizeResidencySeconds(Number(draft))` does: an empty field is zero
+// (off), a non-numeric one falls back to the shipped default rather than
+// switching the window off, and a real number is clamped onto the domain.
+func parseResidencyDraft(text string) uint32 {
+	trimmed := strings.TrimSpace(text)
+	if trimmed == "" {
+		return 0
+	}
+	n, err := strconv.ParseUint(trimmed, 10, 32)
+	if err != nil {
+		return settings.DefaultSurfaceResidencySeconds
+	}
+	return settings.NormalizeResidencySeconds(uint32(n))
+}
+
+// residencyPresetSeconds are the select's named steps, the reference's
+// `RESIDENCY_PRESET_SECONDS` ladder: every one a value a person says out loud.
+// Off and never are separate entries, not members of this list.
+var residencyPresetSeconds = []uint32{10, 20, 30, 60, 120}
+
+// residencyCustom is the select's own entry for a duration the presets do not
+// name; its value lives in the inline field, committed by the user.
+const residencyCustom = "custom"
+
+// residencySelectValue is the select's value for a stored duration: "off", a
+// preset's own number as text, "never", or "custom" for anything else — the
+// reference's pure mapping (`residencySelectValue`). The select shows this,
+// never a second copy of the state.
+func residencySelectValue(seconds uint32) string {
+	value := settings.NormalizeResidencySeconds(seconds)
+	switch value {
+	case 0:
+		return "off"
+	case settings.SurfaceResidencyNever:
+		return "never"
+	}
+	for _, preset := range residencyPresetSeconds {
+		if preset == value {
+			return strconv.FormatUint(uint64(preset), 10)
+		}
+	}
+	return residencyCustom
+}
+
+// residencyFromSelect is the number a choice stands for. ok is false for the
+// custom entry (and any id the domain does not know): its value is the inline
+// field's, so the caller opens the field rather than writing anything.
+func residencyFromSelect(choice string) (uint32, bool) {
+	switch choice {
+	case "off":
+		return 0, true
+	case "never":
+		return settings.SurfaceResidencyNever, true
+	case residencyCustom:
+		return 0, false
+	}
+	n, err := strconv.ParseUint(choice, 10, 32)
 	if err != nil {
 		return 0, false
 	}
-	return uint32(seconds), true
+	return settings.NormalizeResidencySeconds(uint32(n)), true
 }
 
-// residencyOptions is the residency select's choices: the presets, the
-// "never" sentinel, and the stored value when it is a custom number the
-// presets do not name (shown first, so the control never lies about what
-// is stored).
-func residencyOptions(copy i18n.Settings, current uint32) []i18n.Option {
-	options := []i18n.Option{
-		{ID: "0", Label: copy.SurfaceResidencyOff},
+// residencyCustomSeedSeconds is the number the inline field opens on: a stored
+// custom duration seeds the field with itself, so opening "custom" on an
+// existing one does not silently reset it; off, a preset and "never" seed the
+// shipped default — the least surprising number to edit from
+// (`residencyCustomSeedSeconds`). A hand-edited out-of-range value has already
+// been clamped by the normalizer, and seeds that clamped number.
+func residencyCustomSeedSeconds(seconds uint32) uint32 {
+	value := settings.NormalizeResidencySeconds(seconds)
+	if value == 0 || value == settings.SurfaceResidencyNever {
+		return settings.DefaultSurfaceResidencySeconds
 	}
-	for _, seconds := range []uint32{10, 20, 30, 60, 120} {
-		options = append(options, i18n.Option{
-			ID:    strconv.FormatUint(uint64(seconds), 10),
-			Label: copy.SurfaceResidencyValue(seconds),
-		})
-	}
-	options = append(options, i18n.Option{
-		ID:    strconv.FormatUint(uint64(settings.SurfaceResidencyNever), 10),
-		Label: copy.SurfaceResidencyNever,
-	})
-	id := strconv.FormatUint(uint64(current), 10)
-	for _, option := range options {
-		if option.ID == id {
-			return options
+	for _, preset := range residencyPresetSeconds {
+		if preset == value {
+			return settings.DefaultSurfaceResidencySeconds
 		}
 	}
-	return append([]i18n.Option{{ID: id, Label: copy.SurfaceResidencyValue(current)}}, options...)
+	return value
+}
+
+// residencyCustomLabel is the custom entry's label: while a custom duration is
+// stored the entry echoes it (`Custom (45 s)`), so the select never lies about
+// the number in the field; otherwise it is the plain "Custom…".
+func residencyCustomLabel(copy i18n.Settings, value uint32, selectValue string) string {
+	if selectValue == residencyCustom {
+		return copy.SurfaceResidencyCustomValue(value)
+	}
+	return copy.SurfaceResidencyCustom
+}
+
+// residencyRow paints the page-residency control as one row: the select names
+// off, the presets, never and custom, and the inline seconds field (with its
+// unit and Set button) appears beside it only while "custom" is chosen — the
+// reference's `SurfaceResidencyControl` (`GeneralPage.tsx:157-250`). The row
+// never grows a second line for the field.
+func (a *App) residencyRow(c *ui.Context, copy i18n.Settings) {
+	s := a.Store.Snapshot()
+	value := settings.NormalizeResidencySeconds(s.SurfaceResidencySeconds)
+	selectValue := residencySelectValue(value)
+
+	// The field's own state. The first frame seeds it from what is stored, so
+	// a stored custom duration opens the field it came from; afterwards a value
+	// written anywhere else re-seeds the draft while the field is closed, and
+	// the user's typing is the draft while it is open (the reference's `useState`
+	// initializers plus its re-seeding effect).
+	if !a.residencyInit {
+		a.residencyInit = true
+		a.residencyCustomOpen = selectValue == residencyCustom
+	}
+	if !a.residencyCustomOpen {
+		a.residencyDraft = strconv.FormatUint(uint64(residencyCustomSeedSeconds(value)), 10)
+	}
+
+	labels := []string{copy.SurfaceResidencyOff}
+	choices := []string{"off"}
+	for _, preset := range residencyPresetSeconds {
+		labels = append(labels, copy.SurfaceResidencyValue(preset))
+		choices = append(choices, strconv.FormatUint(uint64(preset), 10))
+	}
+	labels = append(labels, copy.SurfaceResidencyNever, residencyCustomLabel(copy, value, selectValue))
+	choices = append(choices, "never", residencyCustom)
+
+	selected := labels[0]
+	for i, choice := range choices {
+		if choice == selectValue {
+			selected = labels[i]
+		}
+	}
+
+	t := c.Theme()
+	a.row(c, copy.SurfaceResidency, copy.SurfaceResidencyHint, func() {
+		e := ui.Select(c, &selected, labels).Label(copy.SurfaceResidency).Width(200).Radius(999)
+		if e.Changed() {
+			for i, label := range labels {
+				if label == selected {
+					a.residencyChoice(choices[i], value)
+					break
+				}
+			}
+		}
+		if !a.residencyCustomOpen {
+			return
+		}
+		input := ui.TextInput(c, &a.residencyDraft).Label(copy.SurfaceResidencyCustomLabel).
+			Placeholder(copy.SurfaceResidencyCustomUnit).Width(90)
+		ui.Text(c, copy.SurfaceResidencyCustomUnit).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+		if input.Submitted() || ui.Button(c, copy.SurfaceResidencyCustomApply).Clicked() {
+			a.commitResidencyDraft()
+		}
+	})
+}
+
+// residencyChoice applies one select choice: a concrete duration is written
+// through and closes the field; "custom" opens the field on the seed and
+// writes nothing until the user commits.
+func (a *App) residencyChoice(choice string, stored uint32) {
+	next, ok := residencyFromSelect(choice)
+	if !ok {
+		a.residencyDraft = strconv.FormatUint(uint64(residencyCustomSeedSeconds(stored)), 10)
+		a.residencyCustomOpen = true
+		return
+	}
+	a.residencyCustomOpen = false
+	a.set(func(s *settings.Settings) { s.SurfaceResidencySeconds = next })
+}
+
+// commitResidencyDraft writes the inline field's duration: it normalizes the
+// typed text, echoes the stored number back into the field, and closes the
+// field when that number lands on a named entry — the reference's commitCustom.
+func (a *App) commitResidencyDraft() {
+	next := parseResidencyDraft(a.residencyDraft)
+	a.residencyDraft = strconv.FormatUint(uint64(next), 10)
+	a.residencyCustomOpen = residencySelectValue(next) == residencyCustom
+	a.set(func(s *settings.Settings) { s.SurfaceResidencySeconds = next })
 }
 
 func optionIndex(options []i18n.Option, id string) int {

@@ -774,33 +774,137 @@ func TestWindowBehaviourControls(t *testing.T) {
 	}
 }
 
-func TestResidencyOptions(t *testing.T) {
-	copy := i18n.For("en").Settings
-	options := residencyOptions(copy, 10)
-	if got := options[1].Label; got != "10 s" {
-		t.Errorf("first preset = %q", got)
-	}
-	last := options[len(options)-1]
-	if last.ID != strconv.FormatUint(uint64(settings.SurfaceResidencyNever), 10) || last.Label != "Never" {
-		t.Errorf("last option = %+v", last)
+func TestResidencySelectMapping(t *testing.T) {
+	never := settings.SurfaceResidencyNever
+	for _, tc := range []struct {
+		stored uint32
+		value  string
+	}{
+		{0, "off"},
+		{10, "10"},
+		{120, "120"},
+		{never, "never"},
+		{45, "custom"},
+		// A hand-edited value above the custom ceiling is clamped, so it maps
+		// to the entry it actually stores rather than lying about 90000.
+		{settings.MaxSurfaceResidencySeconds + 1, "custom"},
+	} {
+		if got := residencySelectValue(tc.stored); got != tc.value {
+			t.Errorf("residencySelectValue(%d) = %q, want %q", tc.stored, got, tc.value)
+		}
 	}
 
-	// A custom value is prepended, and parsing round-trips every id.
-	custom := residencyOptions(copy, 45)
-	if custom[0].Label != "45 s" {
-		t.Errorf("custom first option = %+v", custom[0])
-	}
-	for _, option := range custom {
-		seconds, ok := parseResidency(option.ID)
-		if !ok {
-			t.Errorf("option id %q did not parse", option.ID)
+	// Every named choice resolves to the number it stands for; custom carries
+	// none, which is what opens the inline field.
+	for _, tc := range []struct {
+		choice string
+		value  uint32
+		ok     bool
+	}{
+		{"off", 0, true},
+		{"10", 10, true},
+		{"never", never, true},
+		{"custom", 0, false},
+		{"soon", 0, false},
+	} {
+		value, ok := residencyFromSelect(tc.choice)
+		if value != tc.value || ok != tc.ok {
+			t.Errorf("residencyFromSelect(%q) = (%d, %v), want (%d, %v)", tc.choice, value, ok, tc.value, tc.ok)
 		}
-		if option.ID == custom[0].ID && seconds != 45 {
-			t.Errorf("custom id parsed as %d", seconds)
+	}
+
+	// The field seeds with a stored custom value, and with the shipped default
+	// for every named one. An out-of-range value was clamped by the normalizer,
+	// so it seeds the clamped number rather than the default.
+	if got := residencyCustomSeedSeconds(45); got != 45 {
+		t.Errorf("seed(45) = %d, want 45", got)
+	}
+	for _, stored := range []uint32{0, 10, 120, never} {
+		if got := residencyCustomSeedSeconds(stored); got != settings.DefaultSurfaceResidencySeconds {
+			t.Errorf("seed(%d) = %d, want the shipped default", stored, got)
 		}
 	}
-	if _, ok := parseResidency("soon"); ok {
-		t.Error("a non-numeric id parsed")
+	if got := residencyCustomSeedSeconds(settings.MaxSurfaceResidencySeconds + 1); got != settings.MaxSurfaceResidencySeconds {
+		t.Errorf("seed(above the ceiling) = %d, want the clamped ceiling", got)
+	}
+
+	// The typed draft is normalized like the reference's
+	// normalizeResidencySeconds(Number(draft)): an empty field is off, junk is
+	// the default, and a real number is clamped onto the domain.
+	for _, tc := range []struct {
+		text string
+		want uint32
+	}{
+		{"", 0},
+		{"  ", 0},
+		{"45", 45},
+		{"soon", settings.DefaultSurfaceResidencySeconds},
+		{"999999", settings.MaxSurfaceResidencySeconds},
+	} {
+		if got := parseResidencyDraft(tc.text); got != tc.want {
+			t.Errorf("parseResidencyDraft(%q) = %d, want %d", tc.text, got, tc.want)
+		}
+	}
+}
+
+// TestSurfaceResidencyControlIsOneRow pins the reference's single-row shape:
+// the select names the custom entry and the inline seconds field (with its Set
+// button) appears only while it is chosen. A preset stored value shows the
+// select alone; selecting custom opens the field without writing anything; a
+// committed custom value is echoed in the custom entry's own label.
+func TestSurfaceResidencyControlIsOneRow(t *testing.T) {
+	copy := i18n.For("en").Settings
+	store := newStore(t)
+	a := New(store, Actions{})
+	tt := render(t, a, 720, 1400)
+	tt.Scroll(400, 300, 0, 400)
+	tt.Frame()
+
+	// A preset: the select shows it, and the row carries no inline field.
+	if err := store.Update(func(s *settings.Settings) { s.SurfaceResidencySeconds = 120 }); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if _, ok := tt.Find(copy.SurfaceResidencyValue(120)); !ok {
+		t.Errorf("the preset residency did not show: %q", tt.Texts())
+	}
+	if _, ok := tt.Find(copy.SurfaceResidencyCustomApply); ok {
+		t.Errorf("the custom field is drawn under a preset value: %q", tt.Texts())
+	}
+	if _, ok := tt.Find(copy.SurfaceResidencyCustom); ok {
+		t.Errorf("the custom entry claims a value: %q", tt.Texts())
+	}
+
+	// Choosing custom opens the field on the seeded default and writes nothing.
+	a.residencyChoice(residencyCustom, 120)
+	tt.Frame()
+	if _, ok := tt.Find(copy.SurfaceResidencyCustomApply); !ok {
+		t.Errorf("choosing custom did not open the inline field: %q", tt.Texts())
+	}
+	if store.Snapshot().SurfaceResidencySeconds != 120 {
+		t.Errorf("choosing custom wrote %d, want the stored 120 untouched", store.Snapshot().SurfaceResidencySeconds)
+	}
+
+	// Committing a custom duration stores it and echoes it in the entry.
+	a.residencyDraft = "45"
+	a.commitResidencyDraft()
+	tt.Frame()
+	if got := store.Snapshot().SurfaceResidencySeconds; got != 45 {
+		t.Fatalf("the committed draft stored %d, want 45", got)
+	}
+	if _, ok := tt.Find(copy.SurfaceResidencyCustomValue(45)); !ok {
+		t.Errorf("the custom entry did not echo the stored value: %q", tt.Texts())
+	}
+
+	// A number that lands on a preset closes the field again.
+	a.residencyDraft = "30"
+	a.commitResidencyDraft()
+	tt.Frame()
+	if _, ok := tt.Find(copy.SurfaceResidencyCustomApply); ok {
+		t.Errorf("the field stayed open on a preset value: %q", tt.Texts())
+	}
+	if _, ok := tt.Find(copy.SurfaceResidencyValue(30)); !ok {
+		t.Errorf("the committed preset did not show: %q", tt.Texts())
 	}
 }
 

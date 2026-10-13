@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**927 项测试全绿**。
+含测试）。**928 项测试全绿**。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 927 项测试
+go test -count=1 ./...         # 928 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,7 +99,22 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-ca 界面大小搬回 Appearance 卡 + Window behaviour 行序（原版 R7-13c / `GeneralPage.tsx:370-390`、`:450`/`:464`）**
+> **最新一轮：P7-cb page-residency 收成一行（原版 `SurfaceResidencyControl` / `GeneralPage.tsx:157-250`）**
+> —— 取 P7-ca 重写清单剩下的第 3 条：原版是**一行** `<select>`（off / 预设 / never / custom 四类），
+> custom 选中时在同一行内联出数字框 + 单位 + Apply（`.residency-control__custom`），存储值本身是自定义
+> 数字时 custom 那条的标签回显 `surfaceResidencyCustomValue({seconds})`；本构建却把它拆成两行——
+> 选择器把当前自定义值伪装成第一条选项（`residencyOptions`），下面再无条件画一行输入框 + Set。现在
+> `general` 只调 `a.residencyRow(c, copy)`：选择器按 `residencySelectValue` 的纯映射显示存储值，仅 custom
+> 时在同一行内联 `TextInput`（Enter 或 Set 提交）。`residencyOptions`/`parseResidency` 换成参考那四个纯
+> 函数（`residencySelectValue`/`residencyFromSelect`/`residencyCustomSeedSeconds`/`residencyCustomLabel`）
+> 加提交时的 `parseResidencyDraft`（空 = off、非数字 = 默认、数字夹到一天）。i18n 补
+> `SurfaceResidencyCustom`（`Custom…`/`自定义…`）与 `SurfaceResidencyCustomValue`（`Custom ({seconds} s)`）。
+> 测试 `TestResidencySelectMapping` 钉住纯映射的每个分支；`TestSurfaceResidencyControlIsOneRow` 钉住非
+> custom 值下没有内联字段、选 custom 后出现且不写入、提交后回显在 custom 选项标签里、落到预设值时收起。
+> 变异核查：去掉「仅 custom 时画字段」的早退，两条断言立刻变红（preset 下出现 `Set`、预设值下字段不收敛）。
+> 至此 P7-ca 的 3 条具体待办全部落地，「尚未做」清单再次为空。
+
+> **上一轮：P7-ca 界面大小搬回 Appearance 卡 + Window behaviour 行序（原版 R7-13c / `GeneralPage.tsx:370-390`、`:450`/`:464`）**
 > —— P7-bz 收尾后「尚未做」又一次为空，本轮先把它重写成 3 条带 file:line 的具体待办（下方「具体待办
 > （P7-ca 重写）」），再取第 1、2 条落地。两条都是 General 页的**归类与行序**偏差：
 > （R7-13c）原版把界面大小（`settings.uiScale`）画在 Appearance 卡里、theme/language **之后**，注释写明
@@ -112,7 +127,7 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 > `TestInterfaceSizeSitsWithAppearance` 钉住：Scale 行在 Appearance 标题之下、Window behaviour 标题之上，
 > 且在 Theme/Language 之后；residency 行在 recent switch 之上。变异核查：把 Scale 移回 Window 卡、或把
 > recent switch 挪到 hide-on-blur 之后，两条断言分别立刻变红（后者实测 `residency ... is not above recent`）。
-> 至此 P7-ca 第 3 条（page-residency 收成原版那一行控件）仍待做。
+> 至此 P7-ca 第 1、2 条落地，第 3 条（page-residency 收成原版那一行控件）由下一轮 P7-cb 落地。
 
 > **上一轮：P7-bz General 页独立的「菜单栏」区（原版 `settings.group.menuBar`）** —— P7-by 之后
 > 「尚未做」只剩 P7-bx 重写的第 3 条，本轮取它：原版给菜单栏自己的 section（标题
@@ -2268,14 +2283,14 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-> **P7-ca 更新**：P7-bz 之后「尚未做」清单再次为空，本轮先把它重写成 3 条带 file:line 的具体待办
->（下方「具体待办（P7-ca 重写）」），再取第 1、2 条落地：**界面大小（Interface size）搬回 Appearance 卡**
-> （原版 R7-13c）与 **Window behaviour 的行序**（原版 page-residency 在 recent-items 之前）。只剩第 3 条
-> （page-residency 收成原版那一行控件）。其余仍是卡框架的三条（`Options.OnCopy`、终端键入的 `HandleInput` 缝、
+> **P7-ca 更新**：P7-bz 之后「尚未做」清单再次为空，先把它重写成 3 条带 file:line 的具体待办
+>（下方「具体待办（P7-ca 重写）」）：第 1、2 条（界面大小搬回 Appearance 卡、Window behaviour 行序）由
+> P7-ca 落地，第 3 条（page-residency 收成原版那一行控件）由 P7-cb 落地。至此清单再次为空。
+> 其余仍是卡框架的三条（`Options.OnCopy`、终端键入的 `HandleInput` 缝、
 > 外观四个死旋钮）与一次性维护者动作（`mygo keygen`、`mygo.json` 的 `updates`/签名、CI 私钥、发布到
 > GitHub Release），另见「已知差距」。
 
-### 具体待办（P7-ca 重写；3 条，第 1、2 条本轮已落地）
+### 具体待办（P7-ca 重写；3 条已全部落地：第 1·2 条 P7-ca、第 3 条 P7-cb）
 
 1. **界面大小住在 Window behaviour 卡，应回 Appearance 卡（原版 R7-13c）（本轮已落地）** —— 原版把
    `uiScale` 的 `SettingsRow` 放在 Appearance 卡里、theme/language **之后**，注释写明理由是「它和 theme/
@@ -2299,7 +2314,7 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
    - 验收（已满足）：`surfaceResidency`（连同自定义秒数行）排到 `showRecentInLauncher` 之前；`TestInterfaceSizeSitsWithAppearance`
      同时钉住这一行序。变异核查：把 recent switch 挪到 hide-on-blur 之后，`residency is not above recent` 立刻变红。
 
-3. **page-residency 被拆成两行，原版是**一行**带内联自定义字段（原版 `SurfaceResidencyControl`）** —— 原版是
+3. **page-residency 被拆成两行，原版是**一行**带内联自定义字段（原版 `SurfaceResidencyControl`）（本轮 P7-cb 已落地）** —— 原版是
    单行 `<select>`：off / presets / never / **custom** 四类选项，仅当选中 custom 时在同一行里内联出数字框 +
    单位 + Apply（`.residency-control__custom`，`GeneralPage.tsx:157-250`）；存储值本身是自定义数字时，custom
    那一条的标签用 `surfaceResidencyCustomValue({seconds})` 回显；内联框初值由 `residencyCustomSeedSeconds`
@@ -2307,11 +2322,15 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
    选择器把当前自定义值伪装成第一条选项（`residencyOptions`），下面再**无条件**画一行输入框 + Apply。
    - 原版：`src/settings/GeneralPage.tsx:157-250`（`SurfaceResidencyControl`）+ `src/surface-residency.ts`
      （`residencySelectValue`/`residencyFromSelect`/`residencyCustomSeedSeconds`）。
-   - 本构建（待做）：`internal/settingsui/settingsui.go:1889-1917`（选择器一行 + 自定义行）+ `:2222-2243`
-     （`residencyOptions` 以存储值造伪选项）。
-   - 验收（待做）：收成一行（select 带 custom 项；仅 custom 时画内联 `TextInput` + 单位 + Apply，Enter 也提交）；
-     `residencyOptions` 换成 `residencySelectValue` 的纯映射；测试钉住非 custom 值下页面上没有自定义输入框、
-     选 custom 后出现、且自定义存储值回显在 custom 选项标签里。
+   - 本构建（改前）：`internal/settingsui/settingsui.go` 的选择器一行 + 自定义行（旧 `:1889-1917`）+
+     `residencyOptions` 以存储值造伪选项（旧 `:2222-2243`）。
+   - 验收（已满足）：`general` 只调 `a.residencyRow(c, copy)`，收成一行（select 带 custom 项；仅 custom 时画内联
+     `TextInput` + 单位 + Set，Enter 也提交）；`residencyOptions`/`parseResidency` 换成纯映射
+     `residencySelectValue`/`residencyFromSelect`/`residencyCustomSeedSeconds`/`residencyCustomLabel`，提交走
+     `parseResidencyDraft`（空 = off、非数字 = 默认、数字夹到一天）。i18n 补 `SurfaceResidencyCustom` 与
+     `SurfaceResidencyCustomValue`（en `Custom…`/`Custom ({seconds} s)`，zh `自定义…`/`自定义（{seconds} 秒）`）。
+     测试钉住非 custom 值下页面上没有自定义输入框、选 custom 后出现（且不写入），且自定义存储值回显在 custom
+     选项标签里。变异核查：去掉「仅 custom 时画字段」的早退，preset 下出现 `Set`、预设值下字段不收敛，断言立刻变红。
 
 ### 具体待办（P7-bx 重写；3 条已全部落地：第 1 条 P7-bx、第 2 条 P7-by、第 3 条 P7-bz）
 

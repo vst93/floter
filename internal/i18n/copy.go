@@ -393,8 +393,10 @@ var en = Copy{
 		SurfaceResidencyCustomLabel: "Custom duration in seconds",
 		SurfaceResidencyCustomUnit:  "s",
 		SurfaceResidencyCustomApply: "Set",
+		SurfaceResidencyCustom:      "Custom…",
 		SurfaceResidencyNever:       "Never",
 		SurfaceResidencyValue:       secondsEN,
+		SurfaceResidencyCustomValue: customSecondsEN,
 
 		SessionsNone:         "No sessions are running.",
 		SessionsClose:        "Close session",
@@ -1122,6 +1124,8 @@ var zh = Copy{
 		SurfaceResidencyOff:         "关闭",
 		SurfaceResidencyNever:       "永不关闭",
 		SurfaceResidencyValue:       secondsZH,
+		SurfaceResidencyCustom:      "自定义…",
+		SurfaceResidencyCustomValue: customSecondsZH,
 		SurfaceResidencyCustomLabel: "自定义秒数",
 		SurfaceResidencyCustomUnit:  "秒",
 		SurfaceResidencyCustomApply: "确定",
@@ -1578,6 +1582,9 @@ func removeTitleZH(name string) string { return "移除 " + name + "？" }
 
 func secondsEN(n uint32) string { return itoa32(n) + " s" }
 func secondsZH(n uint32) string { return itoa32(n) + " 秒" }
+
+func customSecondsEN(n uint32) string { return "Custom (" + secondsEN(n) + ")" }
+func customSecondsZH(n uint32) string { return "自定义（" + secondsZH(n) + "）" }
 
 // itoa32 renders a number, for the residency labels (a value up to a day,
 // or the "never" sentinel).
