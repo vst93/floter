@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**902 项测试全绿**。
+含测试）。**894 项测试全绿**。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 902 项测试
+go test -count=1 ./...         # 894 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,7 +99,15 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-bo 删掉两处经核实无用的死代码（browser profile key + CommandInfo.ExtensionName）** ——
+> **最新一轮：P7-bp 本地工具表单的声明确认收进「高级」披露（R161）** —— 原版最近一轮
+> （`main` 的 v0.3.14，commit 4b2c168）把自定义集成编辑器里两个**只做声明/审计**的权限字段集收进一个
+> 默认折叠的 `<details>`「Advanced · Permissions & audit」，理由写在注释里：它们自己的提示就承认
+> 「不提供操作系统隔离」，画成与宿主真正读取的字段同权，会让一个全新的集成一打开就是一张仪式表单。
+> 本构建的 `localToolSection` 以前把 `extensions.AllPermissions` 逐条画成开关行、且没有那条边界提示。
+> 现在它们一起收进默认折叠的「高级」披露：折叠只是表现，勾选仍住在 `a.toolPermissions` 里、提交时照读，
+> 所以折叠不丢任何东西。落地见下方「P7-bp 本地工具权限收进高级披露」。
+
+> **上一轮：P7-bo 删掉两处经核实无用的死代码（browser profile key + CommandInfo.ExtensionName）** ——
 > P7-bm 重写的具体待办第 3、4 条。两条都不卡框架，是「写而不读」的冗余：本构建的浏览器**开页**走
 > `Result.BrowserID`（`internal/launcher/search.go` 的 `openResult` 直接把它交给 `browser.OpenURL`），
 > 从不经 profile key 反解；设置面集成分组卡片直接用 `Integration.Name`，命令开关表只用 `CommandInfo` 的
@@ -133,7 +141,36 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 > required 不认 default 豁免。现在 `ParamIssues` 返回 `{Index,Key,Label}`，每个非法值
 > 的句子印在**它自己那一行下面**，Run 按钮在有错时禁用；输出视图也按语言渲染 `run_param_*`。
 
-**P7-bo 删掉两处经核实无用的死代码（browser profile key + CommandInfo.ExtensionName）（本轮）**
+**P7-bp 本地工具权限收进高级披露（R161）（本轮）**
+
+- **依赖检查**：GitHub releases API 被限流，改用 go proxy（`go list -m -versions github.com/egoist/mygo`）
+  确认 v0.4.8 仍是最新（`go.mod` 已是 v0.4.8），无版本可升。
+- **入口**：P7-bm 的 4 条具体待办全部落地（第 1 条 P7-bm、第 2 条 P7-bn、第 3·4 条 P7-bo）后清单又空；
+  本轮先把它重新写实为 3 条带 file:line 的具体待办（见「具体待办（P7-bp 重写）」），再取第 1 条实现。
+- **偏离点**：原版最近一轮（`main` 的 v0.3.14，commit 4b2c168，R161）把自定义集成编辑器里两个
+  **只做声明/审计**的权限字段集连同它们的边界提示一起收进一个默认折叠的 `<details>`「Advanced ·
+  Permissions & audit」。理由写在自己的注释里：这两个字段集的提示就承认「不提供操作系统隔离」，画成与
+  宿主真正读取的字段同权，会让一个全新的集成一打开就是一张仪式表单；折叠后不卸装，勾选仍住在同一份
+  表单状态里，由一个 author 自己展开编辑。本构建的 `localToolSection`（`internal/settingsui/settingsui.go`）
+  以前在卡片里逐条画 `extensions.AllPermissions` 的开关行，且没有那条 `permissionBoundary` 边界提示。
+- **修法**：
+  - `internal/settingsui/settingsui.go`：新增 `App.toolAdvanced bool`（默认 false，`beginEdit`/`endEdit`
+    都复位）；`localToolSection` 的权限开关改成一个「Advanced · Permissions & audit」的折叠行
+    （与卡片里 config 折叠同一套 `a.row` + `below` 写法），新增 `toolPermissionFields` 助手：只在
+    `toolAdvanced` 为真时画边界 note 与开关行。勾选仍写 `a.toolPermissions`，提交时照读——折叠不丢状态。
+  - `internal/i18n/i18n.go` + `copy.go`：`LocalToolAdvanced`（“Advanced”/“高级”）、
+    `LocalToolAdvancedPermissions`（“Permissions & audit”/“权限声明与审计”）、`PermissionBoundary`
+    （原版 `src/i18n.ts:783` 的原文，en/zh）。
+  - `internal/settingsui/view_test.go`：`TestLocalToolForm` 改为「先验默认折叠、展开后再验开关行」；
+    新增 `TestLocalToolAdvancedDisclosure` 钉住默认折叠、展开后边界 note + 开关行、折叠后勾选仍在
+    状态且能提交。
+- **测试/验收**：`grep -rn 'CustomAdvanced' internal --include=*.go` 不再是零（已接线）；
+  `internal/settingsui`、`internal/i18n` 测试全绿。两条关键断言直接钉住：开关行与边界 note
+  在 `toolAdvanced` 为假时不被绘制（默认折叠），以及展开时勾选后折叠、提交仍能带上该权限。
+- **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 27 包全绿
+  （894 项）、`GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+**P7-bo 删掉两处经核实无用的死代码（browser profile key + CommandInfo.ExtensionName）（上一轮）**
 
 - **依赖检查**：GitHub releases API 被限流，改用 go proxy（`go list -m -versions github.com/egoist/mygo`）
   确认 v0.4.8 仍是最新（`go.mod` 已是 v0.4.8），无版本可升。
@@ -1817,10 +1854,50 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 尚未做（按建议优先级）
 
-> **P7-bm 更新**：P7-bh 的 5 条具体待办全部落地后清单已空，本轮把「尚未做」重新写实为下面 4 条
-> 带 file:line 的具体待办，并取第 1 条落地。仍然卡在框架上的三条（`Options.OnCopy`、终端键入的
-> `HandleInput` 缝、外观四个死旋钮）与一次性维护者动作（`mygo keygen`、`mygo.json` 的
-> `updates`/签名、CI 私钥、发布到 GitHub Release）不变，另见「已知差距」。
+> **P7-bp 更新**：P7-bm 的 4 条具体待办全部落地后清单又空，本轮把它重新写实为下面 3 条带 file:line
+> 的具体待办，并取第 1 条落地。三条都在「本机工具 / 自定义集成」这一块，来源是 `main` 最近的
+> R161（v0.3.14，commit 4b2c168）与 R153（commit a277b00 / ebb20ca）对本构建尚未接线的改动。仍然卡在
+> 框架上的三条（`Options.OnCopy`、终端键入的 `HandleInput` 缝、外观四个死旋钮）与一次性维护者动作
+> （`mygo keygen`、`mygo.json` 的 `updates`/签名、CI 私钥、发布到 GitHub Release）不变，另见「已知差距」。
+
+### 具体待办（P7-bp 重写；第 1 条已落地，第 2、3 条待做）
+
+1. **本地工具表单的权限开关与边界提示收进「高级」披露（本轮已落地）** —— 原版 R161 把自定义集成
+   编辑器里两个**只做声明 / 审计**的权限字段集（`ENFORCED` / `DECLARED`）连同它们上方的
+   `permissionBoundary` 提示一起包进一个默认折叠的 `<details>`，标题「Advanced · Permissions & audit」；
+   理由写在自己的注释里：这两个字段集的提示就承认「不提供操作系统隔离」，画成与宿主真正读取的字段
+   同权，会让一个全新的集成一打开就是一张仪式表单。本构建以前把 `extensions.AllPermissions` 逐条画成
+   开关行、也没有那条边界提示。
+   - 原版：`src/extensions/CustomIntegrationDrawer.tsx`（v0.3.14 的 `<details className="extension-custom-advanced">`
+     包住 `permissionBoundary` 与两个 `<fieldset>`）；i18n `src/i18n.ts:704-705`（`customAdvanced` /
+     `customAdvancedPermissions`）与 `src/i18n.ts:783`（`permissionBoundary`）。
+   - 本构建（改前）：`internal/settingsui/settingsui.go` 的 `localToolSection` 在卡片里 `for _, permission
+     := range extensions.AllPermissions` 直接画开关行（旧行号 `:2317-2331`）；`grep -rn 'CustomAdvanced'
+     internal --include=*.go` 为空。
+   - 验收（已满足）：新增 `a.toolAdvanced`（默认 false，`beginEdit`/`endEdit` 复位）；
+     `toolPermissionFields` 只在展开时画 `PermissionBoundary` note 与开关行；勾选仍住在
+     `a.toolPermissions`，折叠后提交照带（折叠只是表现，不卸装）；i18n 补
+     `LocalToolAdvanced`/`LocalToolAdvancedPermissions`/`PermissionBoundary`（en/zh）；
+     `TestLocalToolAdvancedDisclosure` 与新改写句的 `TestLocalToolForm` 钉住。
+2. **版本字段缺「兜底」提示（R153）** —— 原版在自定义集成的版本输入下印一条 hint，说明「探测到真实
+   版本会自动覆盖；探测失败时用你填的值兜底」，让一个可编辑的版本框诚实说明自己是什么。本构建的版本行
+   只有一个占位符 `0.0.1`，没有这行提示。
+   - 原版：`src/i18n.ts:685` 的 `settings.extensions.customVersionHint`（zh 在 `:1565`），画在
+     `src/extensions/CustomIntegrationDrawer.tsx:133-135` 的 `extension-custom-form__hint`。
+   - 本构建：`internal/settingsui/settingsui.go:2302` 的版本行 `ui.TextInput(c, &version).Label(...).Placeholder("0.0.1")`
+     没有 hint；`grep -rn 'CustomVersionHint' internal --include=*.go` 为空。
+   - 验收：版本行补一行本地化 hint（en/zh，`localToolVersionHint`），`TestLocalToolForm` 或新测试钉住。
+3. **select 选项的编辑用「一行一个」而非逗号（R153）** —— 原版把选项编辑器的分隔符从逗号改成换行，
+   理由直接写在代码里：一个选项值自身可能含逗号，用逗号分隔会在下一次往返时把一个值拆成两个。本构建的
+   编辑器仍用逗号。
+   - 原版：`src/extensions/script-params.ts:92-107` 的 `parseParamOptions`（`split("\n")`，trim 后去空行）
+     与 `formatParamOptions`（`join("\n")`）。
+   - 本构建：`internal/settingsui/settingsui.go:3140` 的 `strings.Split(param.Options, ",")` 与
+     `:3206` 的 `strings.Join(param.Options, ", ")`；占位符 `:3083` 的 `"fast, slow"`。
+   - 验收：选项按换行拆分（trim、去空行），`beginEdit` 按换行 join，占位符改成「一行一个」；
+     测试钉住一个含逗号的选项能一次往返。
+
+> P7-bm 的 4 条具体待办已全部落地，下方旧清单保留作为「哪些已经做过」的记录。
 
 ### 具体待办（P7-bm 重写；4 条已全部落地：第 1 条 P7-bm、第 2 条 P7-bn、第 3·4 条 P7-bo）
 

@@ -1602,7 +1602,7 @@ func TestLocalToolForm(t *testing.T) {
 		ConnectLocalTool: func(tool CustomTool) { connected = append(connected, tool) },
 		ChooseProgram:    func() (string, error) { return "/usr/bin/rg", nil },
 	})
-	tt := render(t, a, 720, 1400)
+	tt := render(t, a, 720, 1600)
 	if err := tt.Click("Integrations"); err != nil {
 		t.Fatal(err)
 	}
@@ -1629,7 +1629,16 @@ func TestLocalToolForm(t *testing.T) {
 	if a.toolProgram != "/usr/bin/rg" {
 		t.Errorf("the picker did not fill the program: %q", a.toolProgram)
 	}
-	// The permissions are rows, and one is ticked.
+	// The permissions are rows, and one is ticked — but the declaration/audit
+	// switches stay folded behind the form's Advanced disclosure until it is
+	// opened (R161), so the form does not open on a ceremonial list.
+	if tt.HasText(i18n.PermissionLabel("en", "environment")) {
+		t.Error("a permission row is drawn before Advanced was opened")
+	}
+	if err := tt.Click("Advanced"); err != nil {
+		t.Fatalf("the Advanced disclosure: %v", err)
+	}
+	tt.Frame()
 	for _, permission := range extensions.AllPermissions {
 		if !tt.HasText(i18n.PermissionLabel("en", permission)) {
 			t.Errorf("the permission %q is missing", permission)
@@ -1662,6 +1671,84 @@ func TestLocalToolForm(t *testing.T) {
 	}
 	if !found {
 		t.Errorf("permissions = %v", tool.Permissions)
+	}
+}
+
+// R161: the declaration switches sit behind a default-closed Advanced
+// disclosure — a brand-new integration must not open on a ceremonial list of
+// checkboxes — and the boundary note inside says plainly that they isolate
+// nothing. Folding is presentation only: the ticks stay in the form state and
+// are still submitted, so an author who collapses the section loses nothing.
+func TestLocalToolAdvancedDisclosure(t *testing.T) {
+	copy := i18n.For("en").Settings
+	connected := []CustomTool{}
+	a := New(settings.NewStore(settings.Default()), Actions{
+		ConnectLocalTool: func(tool CustomTool) { connected = append(connected, tool) },
+	})
+	tt := render(t, a, 720, 1600)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if err := tt.Click("Add a local tool"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	// Closed by default: the disclosure's own words are there, but neither the
+	// switches nor the boundary note are drawn.
+	if !tt.HasText(copy.LocalToolAdvanced) || !tt.HasText(copy.LocalToolAdvancedPermissions) {
+		t.Fatalf("the Advanced disclosure is missing: %q", tt.Texts())
+	}
+	if tt.HasText(copy.PermissionBoundary) {
+		t.Errorf("the boundary note is drawn while the section is closed: %q", tt.Texts())
+	}
+	for _, permission := range extensions.AllPermissions {
+		if tt.HasText(i18n.PermissionLabel("en", permission)) {
+			t.Errorf("the permission %q is drawn while the section is closed", permission)
+		}
+	}
+	// Opening it draws the note and the rows.
+	if err := tt.Click(copy.LocalToolAdvanced); err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	tt.Frame()
+	if !tt.HasText(copy.PermissionBoundary) {
+		t.Errorf("the boundary note did not appear: %q", tt.Texts())
+	}
+	// Tick a switch, fold the section back, and the tick survives — it lives
+	// in the form state, not in the disclosure.
+	if err := tt.Click(i18n.PermissionLabel("en", "environment")); err != nil {
+		t.Fatalf("tick: %v", err)
+	}
+	tt.Frame()
+	if !a.toolPermissions["environment"] {
+		t.Fatalf("the tick was not recorded: %+v", a.toolPermissions)
+	}
+	if err := tt.Click(copy.LocalToolAdvanced); err != nil {
+		t.Fatalf("close: %v", err)
+	}
+	tt.Frame()
+	if tt.HasText(copy.PermissionBoundary) {
+		t.Errorf("the boundary note stayed after folding: %q", tt.Texts())
+	}
+	// The collapsed tick still reaches the backend.
+	a.toolName, a.toolProgram = "Ripgrep", "/usr/bin/rg"
+	tt.Frame()
+	if err := tt.Click(copy.LocalToolConnect); err != nil {
+		t.Fatalf("connect: %v", err)
+	}
+	tt.Frame()
+	if len(connected) != 1 {
+		t.Fatalf("connected = %+v", connected)
+	}
+	found := false
+	for _, permission := range connected[0].Permissions {
+		if permission == "environment" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("the collapsed tick was dropped: %v", connected[0].Permissions)
 	}
 }
 

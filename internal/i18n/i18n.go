@@ -458,6 +458,9 @@ type Settings struct {
 	PermissionsEnforcedHint    string
 	PermissionsDisclosureLabel string
 	PermissionsDisclosureHint  string
+	// PermissionBoundary is the note that says the declaration switches isolate
+	// nothing: local code runs as the user either way.
+	PermissionBoundary string
 	// The shipped tools a user can connect with one press.
 	IntegrationsRecommended     string
 	IntegrationsRecommendedHint string
@@ -619,20 +622,24 @@ type Settings struct {
 	DeepLinkCopied   string
 	DeepLinkRejected string
 	// The local-tool connection form.
-	LocalToolTitle                      string
-	LocalToolHint                       string
-	LocalToolAdd                        string
-	LocalToolName                       string
-	LocalToolProgram                    string
-	LocalToolChoose                     string
-	LocalToolCommand                    string
-	LocalToolCommandHint                string
-	LocalToolArgs                       string
-	LocalToolArgsHint                   string
-	LocalToolVersionArgs                string
-	LocalToolVersionArgsHint            string
-	LocalToolVersion                    string
-	LocalToolDescription                string
+	LocalToolTitle           string
+	LocalToolHint            string
+	LocalToolAdd             string
+	LocalToolName            string
+	LocalToolProgram         string
+	LocalToolChoose          string
+	LocalToolCommand         string
+	LocalToolCommandHint     string
+	LocalToolArgs            string
+	LocalToolArgsHint        string
+	LocalToolVersionArgs     string
+	LocalToolVersionArgsHint string
+	LocalToolVersion         string
+	LocalToolDescription     string
+	// The declaration/audit switches live behind a default-closed Advanced
+	// disclosure, so a brand-new integration does not open on a ceremonial form.
+	LocalToolAdvanced                   string
+	LocalToolAdvancedPermissions        string
 	LocalToolOutput                     string
 	LocalToolTerminal                   string
 	LocalToolBackground                 string

@@ -395,6 +395,10 @@ type App struct {
 	// permissions they have ticked. It lives on the panel so a keystroke
 	// survives the rebuild, and it is cleared once the tool is connected.
 	toolOpen bool
+	// toolAdvanced is whether the form's declaration/audit switches are
+	// unfolded: they sit behind a default-closed Advanced disclosure (R161),
+	// so a brand-new integration does not open on a list of permission rows.
+	toolAdvanced bool
 	// toolMode is the kind of tool the form is building: "" (a program on
 	// this machine) or "script".
 	toolMode string
@@ -2313,20 +2317,21 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 					}
 				}
 			})
-			// What the tool declares: one row per permission, the host's own
-			// two marked as the checks they are (see the permission tiers).
-			for _, permission := range extensions.AllPermissions {
-				permission := permission
-				on := a.toolPermissions[permission]
-				label := i18n.PermissionLabel(a.Store.Snapshot().Language, permission)
-				labelClicked := a.row(c, label, "", func() {
-					if ui.Switch(c, &on).Label(label).Changed() {
-						a.toolPermissions[permission] = on
-					}
-				})
-				if labelClicked {
-					a.toolPermissions[permission] = !on
+			// The declaration and audit switches sit behind an "Advanced"
+			// disclosure, closed by default: a brand-new integration should not
+			// open on a ceremonial list of permission checkboxes, and the note
+			// inside says plainly that they isolate nothing (R161). Nothing is
+			// unmounted — the ticks live in a.toolPermissions and are read at
+			// connect time — so folding changes nothing about what is
+			// submitted, and an author who already declared permissions can
+			// open the section and edit them.
+			opened := a.row(c, copy.LocalToolAdvanced, copy.LocalToolAdvancedPermissions, func() {
+				if ui.Button(c, copy.LocalToolAdvanced).Clicked() {
+					a.toolAdvanced = !a.toolAdvanced
 				}
+			}, func() { a.toolPermissionFields(c, copy) })
+			if opened {
+				a.toolAdvanced = !a.toolAdvanced
 			}
 		})
 		a.toolParamsEditor(c, copy)
@@ -2386,6 +2391,36 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 			a.endEdit()
 		}
 	})
+}
+
+// toolPermissionFields are the form's declaration switches and the boundary
+// note above them, drawn only while the Advanced disclosure is open. The note
+// is the honest half of the disclosure: the switches record intent and drive
+// the audit, they do not sandbox anything — local code runs as the user either
+// way (`settings.extensions.permissionBoundary`).
+func (a *App) toolPermissionFields(c *ui.Context, copy i18n.Settings) {
+	if !a.toolAdvanced {
+		return
+	}
+	if a.toolPermissions == nil {
+		a.toolPermissions = map[string]bool{}
+	}
+	a.row(c, "", copy.PermissionBoundary, func() {})
+	// One row per permission, the host's own two marked as the checks they are
+	// (see the permission tiers).
+	for _, permission := range extensions.AllPermissions {
+		permission := permission
+		on := a.toolPermissions[permission]
+		label := i18n.PermissionLabel(a.Store.Snapshot().Language, permission)
+		labelClicked := a.row(c, label, "", func() {
+			if ui.Switch(c, &on).Label(label).Changed() {
+				a.toolPermissions[permission] = on
+			}
+		})
+		if labelClicked {
+			a.toolPermissions[permission] = !on
+		}
+	}
 }
 
 // scriptRows are the rows a script tool shows in place of the program row: the
@@ -3148,6 +3183,7 @@ func paramIssueMessage(copy i18n.Settings, issue extensions.ParamRowIssue) strin
 func (a *App) beginEdit(id string, tool CustomTool) {
 	a.toolOpen = true
 	a.toolEditing = id
+	a.toolAdvanced = false
 	a.toolMode = tool.Mode
 	a.toolLanguage = tool.ScriptLanguage
 	a.toolScript = tool.ScriptContent
@@ -3175,6 +3211,7 @@ func (a *App) beginEdit(id string, tool CustomTool) {
 // endEdit clears the edit state, so the next connection starts a new package.
 func (a *App) endEdit() {
 	a.toolEditing = ""
+	a.toolAdvanced = false
 	a.toolMode, a.toolLanguage, a.toolScript = "", "", ""
 	a.toolName, a.toolProgram, a.toolCommand = "", "", ""
 	a.toolArgs, a.toolVersionArgs, a.toolVersion, a.toolDescription = "", "", "", ""
