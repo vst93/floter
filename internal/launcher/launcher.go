@@ -1290,7 +1290,7 @@ func (a *App) commandForTrigger(word string) (extensions.CommandEntry, bool) {
 // rule every trigger word obeys. Whitespace alone is enough: `clip ` is the
 // mode with an empty needle, and a bare word stays an ordinary query.
 func modeWord(query string) (string, bool) {
-	index := strings.IndexAny(query, " \t")
+	index := indexWordGap(query)
 	if index <= 0 {
 		return "", false
 	}
@@ -1419,7 +1419,7 @@ func (a *App) commandArgs() []string {
 // in a space), as a completion request needs.
 func (a *App) commandTokens() []string {
 	tokens := splitArgs(a.Query)
-	if a.Query != "" && strings.TrimRight(a.Query, " \t") != a.Query {
+	if a.Query != "" && trimTrailingWordGaps(a.Query) != a.Query {
 		tokens = append(tokens, "")
 	}
 	return tokens
@@ -1428,7 +1428,7 @@ func (a *App) commandTokens() []string {
 // currentWord is the argument being typed: the last word when the line does
 // not end in whitespace, and nothing after a space.
 func (a *App) currentWord() string {
-	if strings.TrimRight(a.Query, " \t") != a.Query {
+	if trimTrailingWordGaps(a.Query) != a.Query {
 		return ""
 	}
 	words := splitArgs(a.Query)
@@ -1445,7 +1445,7 @@ func (a *App) appendWord(word string) {
 	if word == "" {
 		return
 	}
-	trimmed := strings.TrimRight(a.Query, " \t")
+	trimmed := trimTrailingWordGaps(a.Query)
 	if trimmed != a.Query {
 		a.Query = trimmed + " " + word + " "
 	} else {
@@ -1458,11 +1458,11 @@ func (a *App) appendWord(word string) {
 // replaceLastWord swaps the word being typed for a completion, keeping what
 // came before it.
 func replaceLastWord(line, word string) string {
-	index := strings.LastIndexAny(line, " \t")
-	if index < 0 {
+	end := lastWordGapEnd(line)
+	if end < 0 {
 		return word
 	}
-	return line[:index+1] + word
+	return line[:end] + word
 }
 
 // row builds one result: title, detail and an optional shortcut. The chosen

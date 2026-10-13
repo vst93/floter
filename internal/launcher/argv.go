@@ -1,10 +1,18 @@
 package launcher
 
-import "strings"
+import (
+	"strings"
+	"unicode/utf8"
+)
 
 // splitArgs splits a command line into words the way a shell would, minus
 // the parts that run code: whitespace separates, single and double quotes
 // group, and a backslash escapes the next character outside single quotes.
+//
+// "Whitespace" is the launcher's own word-gap set (JavaScript's `\s`, see
+// wordgap.go), not the shell's U+0020: a full-width space from a Chinese input
+// method separates words here exactly as it separates trigger words, and a
+// multi-byte gap is decoded as one rune rather than three bytes.
 //
 // It is what turns the command mode's field into the argv handed to the
 // terminal. An unterminated quote takes the rest of the line, so a
@@ -23,10 +31,11 @@ func splitArgs(line string) []string {
 			started = false
 		}
 	}
-	for i := 0; i < len(line); i++ {
+	for i := 0; i < len(line); {
 		c := line[i]
 		switch {
 		case quote != 0:
+			i++
 			if c == quote {
 				quote = 0
 				continue
@@ -35,15 +44,21 @@ func splitArgs(line string) []string {
 		case c == '\'' || c == '"':
 			quote = c
 			started = true
+			i++
 		case c == '\\' && i+1 < len(line):
 			i++
 			current.WriteByte(line[i])
 			started = true
-		case c == ' ' || c == '\t':
-			flush()
+			i++
 		default:
-			current.WriteByte(c)
-			started = true
+			r, size := utf8.DecodeRuneInString(line[i:])
+			if isWordGap(r) {
+				flush()
+			} else {
+				current.WriteString(line[i : i+size])
+				started = true
+			}
+			i += size
 		}
 	}
 	flush()

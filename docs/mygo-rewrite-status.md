@@ -99,7 +99,48 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-ct 计算器结果的打印策略对齐原版（原版 `src/calculator.ts:78-96`）**
+> **最新一轮：P7-cu 触发词与首词的空白切分用 JS `\s`（原版 `src/plugins/mode-entry.ts:44-52`、`src/plugins/external.ts:81-96`）**
+> —— P7-ct 清单第 1 条已落地，本轮取第 2 条（第 3 条要扩求值器，留单独一轮）。依赖检查：
+> `curl .../releases/latest` 与 `go list -m -versions github.com/egoist/mygo` 均停在 **v0.4.8**
+> （与 `go.mod` 一致），无版本可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离点**：原版的触发词切分用的是 JavaScript 正则——`splitTriggerWord` 的
+> `/^(\S+)\s+([\s\S]*)$/`（`mode-entry.ts:44`）与 `pluginCommandTriggers` 的
+> `source.trim().split(/\s+/)[0]`（`external.ts:81`）——`\s` 是 JS 的全空白集（25 个码点：六个
+> ASCII 空白 + Zs 的 U+00A0/U+1680/U+2000–200A/U+202F/U+205F/U+3000 + 行分隔 U+2028/U+2029 +
+> BOM U+FEFF，**不含** U+0085 与 U+180E）。本构建 `internal/launcher/launcher.go:1292` 的
+> `modeWord` 只 `strings.IndexAny(query, " \t")`，`internal/launcher/argv.go` 的 `splitArgs` 也只把
+> `' '`/`'\t'` 当词缝，于是中文输入法打出的全角空格 U+3000 既不触发模式，也不切分首词——而原版
+> 里 `clip\u3000foo` 与 `clip foo` 是同一件事。
+>
+> **修法**：新文件 `internal/launcher/wordgap.go` 把 JS `\s` 写成一处：常量 `jsWhitespace`（25 个码点）、
+> `isWordGap`（快路径 switch）、`indexWordGap`/`lastWordGapEnd`/`trimTrailingWordGaps`。
+> `splitArgs` 改成按 rune 解码（多字节词缝不再被按字节切开）；`modeWord` 走 `indexWordGap`；
+> `replaceLastWord` 走 `lastWordGapEnd`（保留整颗词缝 rune，`jv\u3000-f` → `jv\u3000file`）；
+> `commandTokens`/`currentWord`/`appendWord` 的「行尾是不是词缝」统一走 `trimTrailingWordGaps`。
+> `firstWord`/`commandTriggers` 经 `splitArgs` 自动跟上。
+>
+> **一处与原版记录的差异（本轮不改）**：原版 `parseClipboardMode("clip foo")` 的 needle 是 `foo`
+> （rest 留在字段里）；本构建的进入设计是「触发词被消耗、字段清空，needle 是用户接着打的字段文本」
+> （`internal/launcher/launcher.go:1242` 的注释与 `TestCalculatorModeWords` 都钉着它），所以
+> `clip\u3000foo` 进入模式后字段为空。本轮只对齐**词缝字符集**（进入/切分/首词），不动进入设计；
+> 命令模式仍保留 rest 为 argv（`jv\u3000-f` → argv `-f`）。若日后要对齐原版的「rest 即 needle」，
+> 那是独立一轮。
+>
+> **测试**：新文件 `internal/launcher/wordgap_test.go`——
+> `TestWordGapsAreJavaScriptsWhitespace`（独立写出的 25 码点字面量 + 全码点范围逐一比对 +
+> 明钉 U+0085/U+180E/U+200B 不是词缝）、`TestWordGapsSeparateACommandLine`（NBSP/U+3000/U+2028/
+> U+FEFF/换行各一行表 + 引号内的词缝 + 每个 token 是合法 UTF-8）、
+> `TestEveryWordGapEntersTheMode`（七种词缝各进一次剪贴板模式）、
+> `TestAFullWidthSpaceEntersACommandMode`（`jv\u3000-f` 进命令模式、argv `-f`）、
+> `TestWordGapsReduceATriggerToItsFirstWord`（多词名用 U+3000 连接仍取首词）、
+> `TestTrailingWordGapsCount`（`replaceLastWord` 保留整颗多字节词缝 + 行尾词缝算新词）。
+> 变异核查：把 `modeWord` 换回 `strings.IndexAny(query, " \t")`、`splitArgs` 换回只认 `' '`/`'\t'`，
+> 后五条立刻红（`splitArgs` 把整行当一个 token、五个词缝全不进模式、`commandTriggers` 带出整串）。
+> 门槛：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **上一轮：P7-ct 计算器结果的打印策略对齐原版（原版 `src/calculator.ts:78-96`）**
 > —— P7-cs 收尾后「尚未做」又一次为空，本轮先把清单重写成 3 条带 file:line 的具体待办
 > （下方「具体待办（P7-ct 重写）」），再取第 1 条落地。依赖检查：
 > `go list -m -versions github.com/egoist/mygo` 仍停在 **v0.4.8**（与 `go.mod` 一致），无版本可升。
@@ -2593,7 +2634,7 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-### 具体待办（P7-ct 重写；第 1 条本轮落地，余下两条待做）
+### 具体待办（P7-ct 重写；第 1 条 P7-ct、第 2 条 P7-cu 落地，余下第 3 条待做）
 
 P7-cs 收尾后「尚未做」又一次为空（P7-cq 三条全部落地，余下只有三条卡 mygo 框架项：
 `Options.OnCopy` 复制反馈、终端键入的 `HandleInput` 空格缝、外观四个死旋钮，规格见
@@ -2623,7 +2664,7 @@ file:line 的具体待办，并取第 1 条落地（见「最近几轮」P7-ct�
      **已落地**：`internal/calc/calc.go` 的 `Format` + `roundSignificant`/`trimExponential`/
      `jsNumberString`/`decimalExponent`/`normalizeExponent`；`internal/calc/calc_test.go` 的
      `TestFormat` 20 行表。
-2. **触发词/首词的空白切分只认空格与制表符**。
+2. **触发词/首词的空白切分只认空格与制表符**（已落地，P7-cu）。
    - 原版对照：`main:src/plugins/mode-entry.ts:44-52` 的 `splitTriggerWord` 用
      `/^(\S+)\s+([\s\S]*)$/`——`\s` 是 JS 的全部空白（含 `\n`/`\r`/`\f`/`\v`、NBSP、
      U+2000–U+200A、U+3000 等），所以 `clip\u3000foo`（全角空格）在原版里进入剪贴板模式；
@@ -2637,6 +2678,13 @@ file:line 的具体待办，并取第 1 条落地（见「最近几轮」P7-ct�
      `modeWord`/`splitArgs`/`commandTriggers` 三处共用；`clip\u3000foo` 进入剪贴板模式且 needle 是
      `foo`，`jv\u3000-f` 进入命令模式，`\u00a0`/`\u3000`/`\u2028` 与 `' '` 等价；测试钉
      「表与 JS `\s` 互为全集」与三个入口各一例。
+     **已落地**：`internal/launcher/wordgap.go` 的 `jsWhitespace`/`isWordGap`/`indexWordGap`/
+     `lastWordGapEnd`/`trimTrailingWordGaps`；`splitArgs` 改为按 rune 解码，`modeWord`/
+     `replaceLastWord`/`commandTokens`/`currentWord`/`appendWord` 共用这套词缝；
+     `internal/launcher/wordgap_test.go` 六条测试。
+     **一处与验收原文的偏差**：本构建的进入设计把触发词消耗掉、字段清空（needle 是接着打的字段
+     文本），所以 `clip\u3000foo` 进模式后 needle 为空；命令模式保留 rest 为 argv。只对齐了
+     词缝字符集，未改进入设计（详见「最近几轮」P7-cu）。
 3. **计算器求值没有原版的函数与常量**。
    - 原版对照：`main:src/calculator.ts:100-200` 的 `evaluateExpression` 交给 `expr-eval-fork` 的
      加固 parser（只关掉成员访问与赋值/函数定义/比较/逻辑/拼接/随机，**保留**内置函数），所以
@@ -2650,7 +2698,7 @@ file:line 的具体待办，并取第 1 条落地（见「最近几轮」P7-ct�
      与后缀 `!`（阶乘），函数表与原版 `expr-eval-fork` 的默认集逐名对齐；测试钉每个函数一例、
      `PI`/`E` 的取值、`5!`、非法函数名仍拒收。
 
-> 第 1 条本轮已落地；下一轮从第 2 条开始，第 3 条最大（需要扩求值器），宜单独一轮。
+> 第 1、2 条本轮已落地；下一轮从第 3 条开始（需要扩求值器，宜单独一轮）。
 
 ### 具体待办（P7-cq 重写；三条已全部落地：第 1 条 P7-cq、第 2 条 P7-cr、第 3 条 P7-cs）
 
