@@ -189,6 +189,73 @@ func TestGeneralMaterialGroupFootnotes(t *testing.T) {
 	}
 }
 
+// The menu bar group is its own section: the visibility switch (R7-10c) and
+// the light/dark app-icon choice (R150) share one card because both describe
+// the one icon in the menu bar / tray (the reference's `settings.group.menuBar`
+// card). Before this the icon row sat in the Appearance card and the switch in
+// the Window behaviour card, a screen apart, in two groups that do not speak
+// for the icon.
+func TestGeneralMenuBarGroup(t *testing.T) {
+	copy := i18n.For("en").Settings
+	a := New(newStore(t), Actions{})
+	tt := render(t, a, 720, 2600)
+
+	// The group's title is drawn once; it is not also smuggled onto a card as
+	// the accessible name of the wrong thing.
+	title, ok := tt.Find(copy.GroupMenuBar)
+	if !ok {
+		t.Fatalf("the menu bar section title %q is missing: %q", copy.GroupMenuBar, tt.Texts())
+	}
+	switchRow, ok := tt.Find(copy.ShowMenubarIcon)
+	if !ok {
+		t.Fatalf("the %q switch is missing", copy.ShowMenubarIcon)
+	}
+	iconRow, ok := tt.Find(copy.AppIcon)
+	if !ok {
+		t.Fatalf("the %q row is missing", copy.AppIcon)
+	}
+
+	// Both controls live under the section's own title.
+	if switchRow.Y <= title.Y || iconRow.Y <= title.Y {
+		t.Errorf("the menu bar controls at %v/%v are not under the section title at %v", switchRow, iconRow, title)
+	}
+
+	// They sit in the same card: no other group's title falls between them.
+	// The ordering is the reference's own (the visibility switch first, the
+	// icon choice after it), not an invention.
+	if switchRow.Y >= iconRow.Y {
+		t.Errorf("the switch at %v is not above the icon row at %v, want the reference order", switchRow, iconRow)
+	}
+	for name, pos := range map[string]ui.Rect{
+		copy.GroupWindow:   mustFind(t, tt, copy.GroupWindow),
+		copy.GroupTerminal: mustFind(t, tt, copy.GroupTerminal),
+		copy.Material:      mustFind(t, tt, copy.Material),
+	} {
+		if pos.Y > switchRow.Y && pos.Y < iconRow.Y {
+			t.Errorf("the %q group at %v splits the menu bar card (%v → %v)", name, pos, switchRow, iconRow)
+		}
+	}
+
+	// The icon left the Appearance card: the appearance section's own rows (the
+	// language picker is its last) are above the menu bar section, while the
+	// icon row is below it.
+	if langRow, ok := tt.Find(copy.Language); !ok {
+		t.Fatalf("the %q row is missing", copy.Language)
+	} else if langRow.Y > title.Y {
+		t.Errorf("the language row at %v is not above the menu bar section at %v", langRow, title)
+	}
+}
+
+// mustFind is Find for a row the caller already knows is on the page.
+func mustFind(tb testing.TB, tt *ui.Tester, text string) ui.Rect {
+	tb.Helper()
+	r, ok := tt.Find(text)
+	if !ok {
+		tb.Fatalf("missing %q: %q", text, tt.Texts())
+	}
+	return r
+}
+
 func TestSettingsControlsWriteThroughTheStore(t *testing.T) {
 	store := newStore(t)
 	a := New(store, Actions{})

@@ -295,6 +295,7 @@ var en = Copy{
 		GroupAppearance:   "Appearance",
 		GroupWindow:       "Window behaviour",
 		GroupTerminal:     "Terminal appearance",
+		GroupMenuBar:      "Menu bar",
 		GroupTransparency: "Transparency",
 
 		Theme:            "Appearance",
@@ -1024,6 +1025,7 @@ var zh = Copy{
 		GroupAppearance:   "外观",
 		GroupWindow:       "窗口行为",
 		GroupTerminal:     "终端外观",
+		GroupMenuBar:      "菜单栏",
 		GroupTransparency: "透明度",
 
 		Theme:            "外观",

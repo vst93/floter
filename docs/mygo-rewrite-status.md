@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**921 项测试全绿**。
+含测试）。**927 项测试全绿**。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 921 项测试
+go test -count=1 ./...         # 927 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,7 +99,20 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-by General 页独立的「玻璃」区与区脚注（原版 `settings.material` / `settings.group.transparency`）**
+> **最新一轮：P7-bz General 页独立的「菜单栏」区（原版 `settings.group.menuBar`）** —— P7-by 之后
+> 「尚未做」只剩 P7-bx 重写的第 3 条，本轮取它：原版给菜单栏自己的 section（标题
+> `settings.group.menuBar`），把**显示菜单栏图标**开关（R7-10c）与**应用图标**明暗选择（R150）放进
+> **同一张卡**，注释写明理由是「两者说的是同一个图标」（`GeneralPage.tsx:486-489`）。本构建把
+> `app_icon` 拆在 Appearance 卡、`show_menubar_icon` 拆在 Window behaviour 卡，同一个决定的两端隔了
+> 一屏。现在 `general` 在 Window behaviour 与 Terminal appearance 之间插入
+> `a.section(c, copy.GroupMenuBar, "", …)`：卡内先画开关、后画图标选择器（**与原版一致**；P7-bx
+> 重写的待办把顺序写成「图标在前」，与原版 `GeneralPage.tsx:509`/`:529` 相反，本轮按原版更正），
+> Appearance 卡只剩主题/语言、Window behaviour 卡去掉开关。i18n 新增 `GroupMenuBar`（en `Menu bar` /
+> zh `菜单栏`，旧版原文）。测试 `TestGeneralMenuBarGroup` 钉住：区标题只出现一次；两个控件都在标题
+> 之下；开关在图标之上（原版顺序）；其余区标题都不夹在两控件之间（即两控件同一张卡）；Appearance
+> 卡最后一行（语言）在菜单栏区之上。变异核查：把图标行换到开关之前，「开关在图标之上」立刻变红。
+
+> **上一轮：P7-by General 页独立的「玻璃」区与区脚注（原版 `settings.material` / `settings.group.transparency`）**
 > —— P7-bx 重写的 3 条具体待办第 1 条已落地，本轮取第 2 条：原版把材质分成自己的 section
 >（标题 `settings.material` = Glass），里面两张卡——玻璃强度卡与透明度卡（卡的无障碍名
 > `settings.group.transparency`）——区尾用两句 `.settings-section__hint` 交代玻璃强度与透明度
@@ -2240,12 +2253,12 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-> **P7-by 更新**：P7-bx 重写的 3 条中第 1、2 条已落地（P7-bx/P7-by），只剩第 3 条（菜单栏区）。
-> 三条都**不卡框架**，都是 General 页对照原版的版式/文案偏离；其余卡框架的三条
->（`Options.OnCopy`、终端键入的 `HandleInput` 缝、外观四个死旋钮）与一次性维护者动作
->（`mygo keygen`、`mygo.json` 的 `updates`/签名、CI 私钥、发布到 GitHub Release）不变，另见「已知差距」。
+> **P7-bz 更新**：P7-bx 重写的 3 条已全部落地（第 1 条 P7-bx、第 2 条 P7-by、第 3 条 P7-bz），清单为空；
+> 其余只剩卡框架的三条（`Options.OnCopy`、终端键入的 `HandleInput` 缝、外观四个死旋钮）与一次性
+> 维护者动作（`mygo keygen`、`mygo.json` 的 `updates`/签名、CI 私钥、发布到 GitHub Release）不变，
+> 另见「已知差距」。
 
-### 具体待办（P7-bx 重写；3 条中第 1、2 条已落地）
+### 具体待办（P7-bx 重写；3 条已全部落地：第 1 条 P7-bx、第 2 条 P7-by、第 3 条 P7-bz）
 
 1. **General 页四条滚轴缺「轴的两端词」，读数也不在标题行（R162 后的原版 `SettingsScale`）（本轮已落地）** ——
    原版每一条 range 行都是同一形状：**标题行 = 标签 + 实时读数**（`.settings-slider__head`，
@@ -2285,16 +2298,18 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
      主题/图标/语言。测试 `TestGeneralMaterialGroupFootnotes` 钉住：material 区标题与两句脚注各恰好一次（不再有
      行内 hint），玻璃控件在区标题之下、两条透明度行也在区标题之下，两句脚注在各自卡片末行之下。
 
-3. **General 页没有独立的「菜单栏」区（原版 `settings.group.menuBar`）** —— 原版给菜单栏自己的 section
+3. **General 页没有独立的「菜单栏」区（原版 `settings.group.menuBar`）（本轮 P7-bz 已落地）** —— 原版给菜单栏自己的 section
    （标题 `settings.group.menuBar`），把**应用图标**选择器（R150）与**显示菜单栏图标**开关放在同一张卡里
    （它们说的是同一件事：那个图标）。本构建把 `app_icon` 拆到 Appearance 卡、`show_menubar_icon` 拆到
    Window behaviour 卡，两个相关控件隔了一屏。
-   - 原版：`src/settings/GeneralPage.tsx:482-530`（R7-10c 开关 + R150 图标同一张卡）。
-   - 本构建：`internal/settingsui/settingsui.go:1840`（`copy.AppIcon` 在 Appearance 卡）与 `:1878`
+   - 原版：`src/settings/GeneralPage.tsx:482-530`（R7-10c 开关 `:509` 在前、R150 图标 `:529` 在后，同一张卡）。
+   - 本构建（改前）：`internal/settingsui/settingsui.go:1840`（`copy.AppIcon` 在 Appearance 卡）与`:1878`
      （`copy.ShowMenubarIcon` 在 Window behaviour 卡）。
-   - 验收：新增 `GroupMenuBar` i18n 字段（en/zh 旧版原文）；把两个控件搬进新的菜单栏 section（图标在前、
-     开关在后，同一张卡），Appearance 卡去掉图标行；测试钉住两控件在同一 section（其间不出现别的区标题）
-     且 Appearance 卡不再含 `copy.AppIcon`。
+   - 验收（已满足）：新增 `GroupMenuBar` i18n 字段（en `Menu bar` / zh `菜单栏`，旧版原文）；两个控件搬进新的
+     菜单栏 section（**开关在前、图标在后，即原版顺序**——P7-bx 重写的待办误写成「图标在前」，本轮按原版
+     更正），Appearance 卡去掉图标行、Window behaviour 卡去掉开关；测试 `TestGeneralMenuBarGroup` 钉住两控件
+     在同一 section（其间不出现别的区标题、开关在图标之上）且 Appearance 卡不再含 `copy.AppIcon`。
+     变异核查：图标行换到开关之前，顺序断言立刻变红。
 
 > 卡框架的三条（`Options.OnCopy` 复制反馈、终端键入的 `HandleInput` Unicode-空格缝、外观四个死旋钮）
 > 与一次性维护者动作（`mygo keygen`、`mygo.json` 的 `updates`/签名、CI 私钥、发布到 GitHub Release）

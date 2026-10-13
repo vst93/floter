@@ -311,6 +311,11 @@ type Settings struct {
 	GroupAppearance string
 	GroupWindow     string
 	GroupTerminal   string
+	// GroupMenuBar titles the section that holds the two controls describing
+	// the one icon the user sees in the menu bar / tray: the visibility switch
+	// (R7-10c) and the light/dark app-icon choice (R150, the old
+	// `settings.group.menuBar`, "Menu bar").
+	GroupMenuBar string
 	// GroupTransparency names the transparency card inside the material
 	// section (the old `settings.group.transparency`). The card draws no
 	// visible title, so this is the group's accessible name.

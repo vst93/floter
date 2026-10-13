@@ -1837,10 +1837,6 @@ func (a *App) general(c *ui.Context, copy i18n.Settings) {
 			a.card(c, func() {
 				a.pick(c, copy.Theme, copy.ThemeHint, copy.Themes, s.Theme,
 					func(id string) { a.set(func(s *settings.Settings) { s.Theme = id }) })
-				a.pick(c, copy.AppIcon, copy.AppIconHint, copy.AppIcons, a.appIcon(),
-					func(id string) {
-						a.set(func(s *settings.Settings) { s.SetExtra("app_icon", id) })
-					})
 				a.pick(c, copy.Language, copy.LanguageHint, copy.Languages, s.Language,
 					func(id string) { a.set(func(s *settings.Settings) { s.Language = id }) })
 			})
@@ -1881,8 +1877,6 @@ func (a *App) general(c *ui.Context, copy i18n.Settings) {
 					func(on bool) { a.set(func(s *settings.Settings) { s.HideOnBlur = on }) })
 				a.checkbox(c, copy.ShowRecentInLauncher, copy.ShowRecentInLauncherHint, settings.ShowRecentInLauncher(s),
 					func(on bool) { a.set(func(s *settings.Settings) { s.SetShowRecentInLauncher(on) }) })
-				a.checkbox(c, copy.ShowMenubarIcon, copy.ShowMenubarIconHint, settings.ShowMenubarIcon(s),
-					func(on bool) { a.set(func(s *settings.Settings) { s.SetShowMenubarIcon(on) }) })
 				a.choose(c, copy.SurfaceResidency, copy.SurfaceResidencyHint,
 					residencyOptions(copy, s.SurfaceResidencySeconds),
 					strconv.FormatUint(uint64(s.SurfaceResidencySeconds), 10),
@@ -1910,6 +1904,22 @@ func (a *App) general(c *ui.Context, copy i18n.Settings) {
 						}
 					}
 				})
+			})
+		})
+
+		// The menu bar group: the two controls that describe the one icon the
+		// user sees in the menu bar / tray — its visibility switch and the
+		// light/dark choice for its image. They share a card because they are
+		// one residency choice (`settings.group.menuBar`); splitting the icon
+		// into Appearance left the two ends of the same decision a screen apart.
+		a.section(c, copy.GroupMenuBar, "", func() {
+			a.card(c, func() {
+				a.checkbox(c, copy.ShowMenubarIcon, copy.ShowMenubarIconHint, settings.ShowMenubarIcon(s),
+					func(on bool) { a.set(func(s *settings.Settings) { s.SetShowMenubarIcon(on) }) })
+				a.pick(c, copy.AppIcon, copy.AppIconHint, copy.AppIcons, a.appIcon(),
+					func(id string) {
+						a.set(func(s *settings.Settings) { s.SetExtra("app_icon", id) })
+					})
 			})
 		})
 
