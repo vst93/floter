@@ -99,6 +99,23 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
+> **最新一轮：P7-cp 输出列表的分组标题与启动器列表同一个寄存器（原版 `src/launcher/LauncherResults.tsx:837-839`、`src/styles/launcher.css:1007-1024`）**
+> —— P7-co 清单第 3 条（唯一不卡框架的余项）。依赖检查：`go list -m -versions github.com/egoist/mygo`
+> 仍为 **v0.4.8**（与 `go.mod` 一致），GitHub releases latest 也是 v0.4.8，无版本可升。只对照 `main`
+> （`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。原版给启动器列表块标题与插件列表分组标题
+> 用的是**同一个** `.launcher-section-title`（`LauncherResults.tsx:837-839`，`font-size: var(--text-body)`、
+> `font-weight: 620`、`line-height: 1.4`、muted、`6u/12u/4u` 内边距），而本构建 `internal/launcher/launcher.go:1442`
+> 的启动器列表标题已对齐这个寄存器，`internal/launcher/output.go:520` 的输出视图标题却是 `FontSize-1`、无字重、
+> 且把内边距直接加在 `Text` 上（于是行把文字拉满整宽）。现在 `outputRow` 的标题改成与启动器列表完全同构的
+> `ui.Row(...).Padding(Space(1.5), Space(3), Space(1), Space(3))` + `Text(...).FontSize(t.FontSize).FontWeight(620).TextColor(t.TextMuted)`。
+> 测试：`internal/launcher/outputheading_test.go` 的 `TestOutputGroupHeadingSharesTheLauncherSectionRegister`
+> 把插件列表的分组标题与启动器列表的「最近启动」块标题逐项对照（同一字号行高：两处标签框高都是 22；标题是文字自己的框
+> 而不是整行宽）。变异核查：把 `output.go` 的标题改回旧写法，两条断言立刻红（`24` vs `22`、`704` vs `652`）。
+> 至此 P7-co 清单只剩第 4 条（三条卡框架项：`Options.OnCopy` 复制反馈、终端键入的 `HandleInput` 空格缝、
+> 外观四个死旋钮），规格见下一节与「已知差距」。
+> 门槛：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 27 包全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
 > **最新一轮：P7-co 行内容规则与列表分组标题对齐原版（`src/launcher/row-content.ts`、`src/launcher/list-sections.ts`）**
 > —— P7-cm 清单余下三条（复制反馈 / 键入 Unicode-空格缝 / 外观四个死旋钮）仍全部卡 mygo 框架。
 > 本轮换入口：逐文件对照原版**行内容与列表分组**这两个纯模块，把「尚未做」重写成新的具体待办
@@ -2466,7 +2483,7 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-### 具体待办（P7-co 重写；第 1、2 条已落地，余下为可执行规格）
+### 具体待办（P7-co 重写；第 1–3 条已落地，余下第 4 条卡框架但已写成可执行规格）
 
 前一份 P7-cn 清单三条已全部落地（本轮提交），清单又空。本轮检查依赖：GitHub releases API 被限流，
 改用 `go list -m -versions github.com/egoist/mygo`，仍停在 **v0.4.8**，与 `go.mod` 一致，无版本可升。
@@ -2493,16 +2510,17 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
    - 验收：列表 `[{group:"First"}, {no group}, {group:"Second"}]` 渲染后 `First` 与 `Second` 两个标题
      都在。**已落地**：条件改为 `row.Group != "" && (i == 0 || row.Group != a.output.Rows[i-1].Group)`；
      测试 `TestAnOutputListsOpeningGroupPrintsItsHeading`。
-3. **输出视图的分组标题要与启动器列表同一个寄存器**（未做，可本机验证）。
+3. **输出视图的分组标题要与启动器列表同一个寄存器**（已落地，P7-cp）。
    - 原版对照：`main:src/launcher/LauncherResults.tsx:837-839` 用的是同一个 `.launcher-section-title`
      （`main:src/styles/launcher.css:1007-1024`：`--text-body` 字号、`font-weight: 620`、
      `line-height: 1.4`、muted、`6u/12u/4u` 内边距）。本构建启动器列表的标题（`internal/launcher/launcher.go:1442`）
      已经对齐这个寄存器，但 `internal/launcher/output.go:520-521` 的输出视图标题是 `FontSize-1`、无字重、
      `1,2,0,2` 内边距——同一个元素两个样子。
-   - 接线点：`outputRow` 的标题改用 `FontSize` + `FontWeight(620)` + `TextMuted` +
-     `Padding(t.Space(1.5), t.Space(3), t.Space(1), t.Space(3))`。
-   - 验收：插件列表的分组标题与启动器列表（如空查询的「最近启动」块）同字号同字重同内边距；
-     现有 `TestAnOutputListsOpeningGroupPrintsItsHeading` 仍绿。
+   - 接线点：`outputRow` 的标题改用 `ui.Row(...).Padding(t.Space(1.5), t.Space(3), t.Space(1), t.Space(3))`
+     包住 `ui.Text(...).FontSize(t.FontSize).FontWeight(620).TextColor(t.TextMuted)`（与启动器列表同构）。
+   - 验收：插件列表的分组标题与启动器列表（空查询的「最近启动」块）同字号同字重同内边距；
+     `internal/launcher/outputheading_test.go` 的 `TestOutputGroupHeadingSharesTheLauncherSectionRegister`
+     钉住（标签框高一致、标题不是整行宽）；现有 `TestAnOutputListsOpeningGroupPrintsItsHeading` 仍绿。
 4. **卡框架项（三条，规格见下一节 P7-cm）**：终端/钉住窗口的复制反馈（`Options.OnCopy`）、键入文本的
    Unicode 空格接缝（文本钩子 / `Options.OnKey` 的 text-only 键）、终端外观四个死旋钮（`plugins/terminal`
    暴露 bold/scrollbar/select-copy/wheel-lines）。

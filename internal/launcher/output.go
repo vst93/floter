@@ -517,8 +517,15 @@ func (a *App) outputHint(copy i18n.Launcher, view *OutputView) string {
 func (a *App) outputRow(c *ui.Context, row extensions.Row, i int) {
 	t := c.Theme()
 	if row.Group != "" && (i == 0 || row.Group != a.output.Rows[i-1].Group) {
-		ui.Text(c, row.Group).FontSize(t.FontSize-1).TextColor(t.TextMuted).
-			Padding(t.Space(1), t.Space(2), 0, t.Space(2))
+		// The same register as the launcher list's own section title: the body
+		// step at 1.4, weight 620, muted, with the 6u/12u/4u inset the rows use.
+		// Both surfaces print a group heading, and the reference's
+		// `.launcher-section-title` is one element, not two.
+		ui.Row(c).FillWidth().Padding(t.Space(1.5), t.Space(3), t.Space(1), t.Space(3)).
+			Children(func() {
+				ui.Text(c, row.Group).FontSize(t.FontSize).FontWeight(620).
+					TextColor(t.TextMuted)
+			})
 	}
 	style := ui.Row(c).Key(row.ID).FillWidth().Padding(t.Space(1.5), t.Space(2)).Radius(t.Radius).Gap(t.Space(2))
 	selected := i == a.output.Selected && row.Runnable()
