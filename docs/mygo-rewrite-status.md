@@ -2283,12 +2283,62 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-> **P7-ca 更新**：P7-bz 之后「尚未做」清单再次为空，先把它重写成 3 条带 file:line 的具体待办
->（下方「具体待办（P7-ca 重写）」）：第 1、2 条（界面大小搬回 Appearance 卡、Window behaviour 行序）由
-> P7-ca 落地，第 3 条（page-residency 收成原版那一行控件）由 P7-cb 落地。至此清单再次为空。
+> **P7-cc 更新**：P7-cb 之后「尚未做」清单再次为空。本轮不改去翻旧提交，而是**顺着原版一条明写、
+> 本构建只做了一半的契约往回找**：`run_killed` 这个失败键在本构建里**已定义、已本地化（en/zh）、
+> 渲染路径也通了**（`internal/launcher/runfailure.go:38`），但**全仓没有一处会发出它**——原版 R98
+> 的「停用/卸载立刻杀死进行中的运行」整条接线缺席。同一族还有两个小口子（R100 停用先问、R74
+> Windows `.cmd`/`.bat` 包装），一并写成 3 条带 file:line 的具体待办（下方「具体待办（P7-cc 重写）」），
+> 本轮先取第 1 条（R98）落地。
 > 其余仍是卡框架的三条（`Options.OnCopy`、终端键入的 `HandleInput` 缝、
 > 外观四个死旋钮）与一次性维护者动作（`mygo keygen`、`mygo.json` 的 `updates`/签名、CI 私钥、发布到
 > GitHub Release），另见「已知差距」。
+
+### 具体待办（P7-cc 重写；3 条：第 1 条 P7-cc 已落地，第 2、3 条待做）
+
+1. **停用/卸载不杀死进行中的后台运行（原版 R98；`run_killed` 已定义却从不发出）（本轮 P7-cc 已落地）** ——
+   原版 R98 的结论是：一个后台运行无论背后发生什么都要活到 300s 超时——停用它、甚至卸载它，子进程照跑，
+   启动器/独立窗口的 running 状态也照留。原版建 `RunAbortRegistry`（一个 id → `Vec` 个 abort handle，因为
+   外部插件路由没有单槽守卫、启动器与独立窗口的运行可以真的重叠），`set_enabled` 的停用分支与两条卸载
+   路径在**碰任何文件之前**调 `kill_extension_runs`，每个 abort drop 掉 future，复用既有的 `kill_on_drop`
+   + `ChildCleanup` 进程组拆除，并发出新的 `run_killed` 键（「因为 {id} 被停用或卸载，运行已停止」）。
+   本构建的 `internal/extensions/runfailure.go:42` 定义了 `RunErrorKilled`、`internal/launcher/runfailure.go:38`
+   会把它渲染成人话、en/zh 两语言都在（`internal/i18n/copy.go:538`/`:1272`），但**没有任何代码发出它**：
+   `internal/shell/shell.go:729-732` 的 `SetIntegrationEnabled` 只写标记，`:634`/`:664`/`:711` 的卸载/删除孤儿
+   也不取消任何运行；`internal/extensions/run.go:84` 的 `runCaptured` 只把父 ctx 的取消投影成裸 `ctx.Err()`。
+   - 原版：`src-tauri/src/extensions/run.rs`（`RunAbortRegistry`、`kill_extension_runs`）、
+     `src-tauri/src/commands/extensions.rs`（disable 分支 + 两条卸载路径先杀后动文件）、
+     `src-tauri/src/extensions/run_error.rs` 的 `run_killed`、`src/extensions/run-errors.ts`、`src/i18n.ts` 的
+     `run_killed`。
+   - 本构建（改前）：`internal/extensions/run.go:84`、`internal/shell/shell.go:729`、`:634`/`:664`/`:711`。
+   - 验收（已满足）：新增 `extensions.RunRegistry`（按 id 记录每个在飞运行的 cancel，`Kill(id)` 返回杀掉的个数，
+     `Add` 返回一个幂等的注销函数）；`extensions.RunKilledFailure(id)` 建 `run_killed:{extension_id}`；
+     `runCaptured` 在父 ctx 被取消（非超时）且条目有 IntegrationID 时回 `run_killed`；shell 的 `App` 持有
+     `Runs`，`runCommandCaptured`/`loadOutputPage` 用可取消 ctx 注册，停用/组件化卸载/普通卸载/删除孤儿
+     先 `Runs.Kill(id)` 再动文件。测试钉住 registry 语义、真跑一次取消、以及停用把运行变成 `run_killed`。
+2. **停用集成时不先问（原版 R100）** —— 原版把「停用」定义为**标记**、「删除」定义为**真删**，两者在生效前
+   都要交代后果；审计发现删除侧已合规，缺口只在前面：扩展开关直接发 `extensions_disable`、没有任何提示。
+   原版让开关的两个方向由纯投影 `toggleIntent` 拥有——**停用**先武装一个确认（文案同时说两件事：进行中的
+   命令立即停止〔R98〕、这只是标记，文件与数据都保留、随时可再启用），**启用**保持即时（一条负向守卫钉住
+   这个不对称）；确认条沿用删除条的无障碍契约（焦点在取消、Escape 捕获、busy 门控、中性确认按钮因为可逆）。
+   - 原版：`src/ExtensionsPanel.tsx` 的 `toggleIntent`/`DisableConfirmation`、`tests/r100-disable-delete.test.ts`、
+     `src/i18n.ts` 的两句新文案。
+   - 本构建（改前）：`internal/settingsui/settingsui.go:1501-1502`（开关直接调动作）、
+     `internal/shell/shell.go:729-732`（动作直接写标记）。
+   - 验收：`SetIntegrationEnabled` 在 `enabled == false` 时先弹一条本地化确认（两句事实都在，en/zh），
+     `enabled == true` 不弹；一条测试钉住不对称，一条钉住两句事实确实被渲染而不只是被声明。
+3. **Windows 上 `.cmd`/`.bat` 程序没有 `cmd /c` 包装（原版 R74 的 latent-failure 守卫）** —— 原版审查发现
+   `CreateProcess` 不能直接执行 `.cmd`/`.bat`，而探测层会匹配这些 shim，于是给 Windows 的应用启动分支加了一个
+   **cfg-free 的纯函数** `windows_cmd_shim_wrap()`（后缀是 `.cmd`/`.bat` 就包 `cmd /c`），真值表测试在 Linux 上跑，
+   另用一条源码守卫钉住接线（`open_url` 的 `cmd /c start` 不受影响）。本构建里 `internal/extensions/paramrun.go:88`
+   的 `IsCmdScriptName`/`ProgramIsCmdScript` 就是这个纯后缀判定的现成件、`internal/extensions/paramrun.go:70-77`
+   的注释甚至写着「A `.cmd`/`.bat` program is launched through `cmd.exe /D /S /C`」，但**没有一处真的包**：
+   `internal/extensions/run.go:98`、`provider.go:162`、`complete.go:99`、`probes.go:164` 都直接
+   `exec.CommandContext(..., entry.Program, ...)`，参数校验用 `ProgramIsCmdScript` 而执行不用。
+   - 原版：`src-tauri/src/extensions/run.rs` 的 `windows_cmd_shim_wrap()` + 真值表测试 +
+     `tests/r74-catalog-refresh-and-cmd-shim.test.ts` 的源码守卫。
+   - 本构建（改前）：`internal/extensions/paramrun.go:88-108`、`internal/extensions/run.go:98`。
+   - 验收：抽出一个纯函数按后缀决定是否把 `(program, args)` 包成 `cmd /D /S /C program args…`（Windows 才
+     生效、非 Windows 逐字节等同），接进 `runCaptured` 的 spawn；测试钉真值表与「Linux 上不包」。
 
 ### 具体待办（P7-ca 重写；3 条已全部落地：第 1·2 条 P7-ca、第 3 条 P7-cb）
 
