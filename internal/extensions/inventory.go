@@ -54,6 +54,13 @@ func (i Integration) PackageDir() string {
 	return filepath.Join(i.Paths.Extensions, i.Entry.ID)
 }
 
+// ManifestPath is where the entry's manifest is read from — the same
+// resolution LoadInventory used (the recorded path when it exists, else the
+// package directory named by the id). Callers that want the on-disk bytes
+// (the approval record's current digest) read this path themselves, so a
+// missing file stays distinguishable from an unreadable one.
+func (i Integration) ManifestPath() string { return manifestPathFor(i.Paths, i.Entry) }
+
 // Broken reports whether the entry is in the broken state.
 func (i Integration) Broken() bool { return i.Entry.State == "broken" }
 

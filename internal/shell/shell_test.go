@@ -2833,6 +2833,107 @@ func TestHealthShowsOnTheRow(t *testing.T) {
 	}
 }
 
+// The recorded approval reaches the card (R7-8): the entry's audit fields —
+// when, which permissions, against which manifest — with the on-disk digest
+// read beside them, and the permissions tiered by the host's own classifier.
+func TestApprovalRecordReachesTheCard(t *testing.T) {
+	paths := extensions.FromRoot(t.TempDir())
+	if err := paths.Ensure(); err != nil {
+		t.Fatal(err)
+	}
+	pkg := filepath.Join(paths.Extensions, "dev.floter.approved")
+	if err := os.MkdirAll(pkg, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	manifest := []byte(`{
+	  "schemaVersion": "2.0", "id": "dev.floter.approved", "name": "Approved",
+	  "distribution": {"type": "local"},
+	  "runtime": {"type": "script", "language": "shell", "path": "tool.sh"},
+	  "provider": {"type": "executable"},
+	  "permissions": ["environment", "network-fetch"]
+	}`)
+	if err := os.WriteFile(filepath.Join(pkg, "floter.extension.json"), manifest, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(pkg, "tool.sh"), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	digest, err := extensions.ManifestDigest(filepath.Join(pkg, "floter.extension.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	repo := strings.NewReplacer("{DIGEST}", digest).Replace(`{
+	  "schemaVersion": 1,
+	  "extensions": {"dev.floter.approved": {"id": "dev.floter.approved", "name": "Approved",
+	    "state": "enabled", "enabled": true, "manifestPath": "` + filepath.Join(pkg, "floter.extension.json") + `",
+	    "installedAt": 1, "updatedAt": 1,
+	    "approvedPermissions": ["environment", "network-fetch"], "approvedAt": 1750000000,
+	    "approvedManifestDigest": "{DIGEST}"}}
+	}`)
+	if err := os.WriteFile(paths.RepositoryFile, []byte(repo), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	a := New(Options{
+		Store:                settings.NewStore(settings.Default()),
+		Paths:                paths,
+		NewTerminal:          func(terminal.Options) (*terminal.Terminal, error) { return nil, errors.New("no library in tests") },
+		RunSilentCommand:     func(string) error { return nil },
+		OpenExternalTerminal: func() error { return nil },
+	})
+	a.RefreshIntegrations(context.Background())
+	list := a.integrationList()
+	if len(list) != 1 {
+		t.Fatalf("list = %+v", list)
+	}
+	approval := list[0].Approval
+	if approval == nil {
+		t.Fatal("the recorded approval did not reach the card")
+	}
+	if approval.At != 1750000000 || approval.ApprovedDigest != digest || approval.CurrentDigest != digest {
+		t.Errorf("approval = %+v, want at/digests recorded and read", approval)
+	}
+	// The tiers are the host's own classifier: `environment` is enforced,
+	// `network-fetch` is disclosure; each group keeps the record's order.
+	if len(approval.Enforced) != 1 || approval.Enforced[0] != "environment" {
+		t.Errorf("enforced = %v", approval.Enforced)
+	}
+	if len(approval.Disclosure) != 1 || approval.Disclosure[0] != "network-fetch" {
+		t.Errorf("disclosure = %v", approval.Disclosure)
+	}
+	// Both sides known and equal: not stale.
+	if extensions.ApprovalIsStale(approval.ApprovedDigest, approval.CurrentDigest) {
+		t.Error("an unchanged manifest was reported stale")
+	}
+
+	// The bytes on disk changing under the approval is what "stale" means.
+	if err := os.WriteFile(filepath.Join(pkg, "floter.extension.json"), append(manifest, '\n'), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	a.RefreshIntegrations(context.Background())
+	moved := a.integrationList()[0].Approval
+	if moved == nil || moved.ApprovedDigest != digest {
+		t.Fatalf("the recorded digest moved: %+v", moved)
+	}
+	if moved.CurrentDigest == digest || !extensions.ApprovalIsStale(moved.ApprovedDigest, moved.CurrentDigest) {
+		t.Errorf("a changed manifest was not reported stale: %+v", moved)
+	}
+
+	// An entry without a record carries none: unknown is its own state, not a
+	// zeroed block.
+	if err := os.WriteFile(paths.RepositoryFile, []byte(`{
+	  "schemaVersion": 1,
+	  "extensions": {"dev.floter.approved": {"id": "dev.floter.approved", "name": "Approved",
+	    "state": "enabled", "enabled": true, "manifestPath": "`+filepath.Join(pkg, "floter.extension.json")+`",
+	    "installedAt": 1, "updatedAt": 1}}
+	}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	a.RefreshIntegrations(context.Background())
+	if got := a.integrationList()[0].Approval; got != nil {
+		t.Errorf("a record-less entry carried %+v", got)
+	}
+}
+
 // The persisted report, for the debugging of the health display.
 func TestDebugPersistedReport(t *testing.T) {
 	paths := extensions.FromRoot(t.TempDir())

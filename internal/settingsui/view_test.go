@@ -933,7 +933,7 @@ func TestIntegrationsPage(t *testing.T) {
 			{ID: "orphan.pkg", Name: "orphan.pkg", Orphan: true},
 		}
 	}
-	tt := render(t, a, 720, 620)
+	tt := render(t, a, 720, 1200)
 
 	if err := tt.Click("Integrations"); err != nil {
 		t.Fatal(err)
@@ -1347,7 +1347,7 @@ func TestOrphanRowsOfferAdoptAndDelete(t *testing.T) {
 			{ID: "dev.floter.orphan", Name: "dev.floter.orphan", Orphan: true},
 		}
 	}
-	tt := render(t, a, 720, 620)
+	tt := render(t, a, 720, 900)
 	if err := tt.Click("Integrations"); err != nil {
 		t.Fatal(err)
 	}
@@ -2342,6 +2342,126 @@ func TestStoredHealthReportShowsItsProbes(t *testing.T) {
 	bt.Frame()
 	if bt.HasText("Checks") || bt.HasText("Failures") {
 		t.Errorf("a report-less integration shows probe detail: %q", bt.Texts())
+	}
+}
+
+// The approval record block (R7-8): a recorded approval draws when it
+// happened, the recorded digest with the on-disk one beside it, the
+// permissions tiered by the host's own vocabulary, and the changed-manifest
+// warning only when both digests are known and differ. No record is one
+// empty-state line; an orphan has neither.
+func TestApprovalRecordBlock(t *testing.T) {
+	full := "sha256-" + strings.Repeat("abcdef0123456789", 4)
+	disk := "sha256-" + strings.Repeat("0123456789abcdef", 4)
+	at := uint64(1750000000)
+	a := New(newStore(t), Actions{})
+	a.Integrations = func() []Integration {
+		return []Integration{{
+			ID: "dev.floter.approved", Name: "Approved Tool", Enabled: true,
+			Approval: &ApprovalRecord{
+				At:             at,
+				ApprovedDigest: full,
+				CurrentDigest:  disk,
+				Enforced:       []string{"environment"},
+				Disclosure:     []string{"network-fetch"},
+			},
+		}}
+	}
+	tt := render(t, a, 720, 900)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	for _, want := range []string{
+		"Approval record", "Approved", approvalApprovedAt(at),
+		"Manifest at approval", extensions.ShortDigest(full),
+		"Manifest on disk now", extensions.ShortDigest(disk),
+		"The manifest has changed since this approval. Re-approve to cover the current version.",
+	} {
+		if !tt.HasText(want) {
+			t.Errorf("the approval record is missing %q: %q", want, tt.Texts())
+		}
+	}
+	// The full digests are never printed: the record shows the 12-hex form.
+	if tt.HasText(full) || tt.HasText(disk) {
+		t.Errorf("a full digest leaked into the card: %q", tt.Texts())
+	}
+	// The tiers carry the host's own vocabulary, as the permission audit does.
+	if !tt.HasText("Floter enforces") || !tt.HasText("Declared, not blocked") {
+		t.Errorf("the permission tiers are missing: %q", tt.Texts())
+	}
+
+	// Unknown on either side is silent, not stale: the warning row goes away
+	// when the current digest could not be read.
+	a.Integrations = func() []Integration {
+		return []Integration{{
+			ID: "dev.floter.approved", Name: "Approved Tool", Enabled: true,
+			Approval: &ApprovalRecord{
+				At:             at,
+				ApprovedDigest: full,
+			},
+		}}
+	}
+	tt.Frame()
+	if tt.HasText("The manifest has changed since this approval. Re-approve to cover the current version.") {
+		t.Errorf("an unknown current digest was reported stale: %q", tt.Texts())
+	}
+	if !tt.HasText("Not recorded") {
+		t.Errorf("the unknown digest should say so: %q", tt.Texts())
+	}
+
+	// No record at all: one empty-state line, and none of the block's rows.
+	b := New(newStore(t), Actions{})
+	b.Integrations = func() []Integration {
+		return []Integration{{ID: "dev.floter.plain", Name: "Plain Tool", Enabled: true}}
+	}
+	bt := render(t, b, 720, 900)
+	if err := bt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	bt.Frame()
+	if !bt.HasText("No approval is recorded for this integration.") {
+		t.Errorf("the empty state is missing: %q", bt.Texts())
+	}
+	for _, absent := range []string{"Manifest at approval", "Manifest on disk now", "Approved permissions"} {
+		if bt.HasText(absent) {
+			t.Errorf("a record-less integration draws %q: %q", absent, bt.Texts())
+		}
+	}
+
+	// An orphan has no repository entry, so no record and no empty state.
+	c := New(newStore(t), Actions{})
+	c.Integrations = func() []Integration {
+		return []Integration{{ID: "dev.floter.orphan", Name: "dev.floter.orphan", Orphan: true}}
+	}
+	ct := render(t, c, 720, 900)
+	if err := ct.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	ct.Frame()
+	if ct.HasText("Approval record") {
+		t.Errorf("an orphan draws an approval record: %q", ct.Texts())
+	}
+
+	// A record with no permissions says so instead of vanishing the row.
+	d := New(newStore(t), Actions{})
+	d.Integrations = func() []Integration {
+		return []Integration{{
+			ID: "dev.floter.quiet", Name: "Quiet Tool", Enabled: true,
+			Approval: &ApprovalRecord{At: at, ApprovedDigest: full, CurrentDigest: full},
+		}}
+	}
+	dt := render(t, d, 720, 900)
+	if err := dt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	dt.Frame()
+	if !dt.HasText("None recorded") {
+		t.Errorf("the no-permissions line is missing: %q", dt.Texts())
+	}
+	// Same digest on both sides: no warning.
+	if dt.HasText("The manifest has changed since this approval. Re-approve to cover the current version.") {
+		t.Errorf("an unchanged manifest was reported stale: %q", dt.Texts())
 	}
 }
 

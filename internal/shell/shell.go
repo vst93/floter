@@ -1322,6 +1322,28 @@ func (a *App) integrationList() []settingsui.Integration {
 				item.Enforced[permission] = extensions.PermissionEnforced(permission)
 			}
 		}
+		// The approval record (R7-8): what the recorded approval covered, when,
+		// and against which manifest — the on-disk digest read beside it, so
+		// "what I approved" and "what is here now" are two readable facts.
+		// One read serves the digest only; an unreadable manifest leaves the
+		// digest empty, and "unknown" stays distinguishable from "changed".
+		if integration.Entry.ApprovedAt != 0 {
+			approval := &settingsui.ApprovalRecord{At: integration.Entry.ApprovedAt}
+			if integration.Entry.ApprovedManifestDigest != nil {
+				approval.ApprovedDigest = *integration.Entry.ApprovedManifestDigest
+			}
+			if digest, err := extensions.ManifestDigest(integration.ManifestPath()); err == nil {
+				approval.CurrentDigest = digest
+			}
+			for _, permission := range integration.Entry.ApprovedPermissions {
+				if extensions.PermissionEnforced(permission) {
+					approval.Enforced = append(approval.Enforced, permission)
+				} else {
+					approval.Disclosure = append(approval.Disclosure, permission)
+				}
+			}
+			item.Approval = approval
+		}
 		item.Commands = commands[item.ID]
 		// The manifest's declared inputs, for the card's run form.
 		for _, param := range integration.Manifest.Params {

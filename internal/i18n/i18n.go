@@ -512,6 +512,20 @@ type Settings struct {
 	IntegrationsHealthRetryable string
 	IntegrationsHealthExitCode  func(code string) string
 	IntegrationsHealthCheckedAt func(when string) string
+	// The approval record block (the old host's R7-8): what the recorded
+	// approval covered, when it happened, and against which manifest — the
+	// on-disk digest beside the recorded one, so "what I approved" and "what
+	// is here now" are two readable rows. An unreadable/absent digest is
+	// "Not recorded", never a false match.
+	ApprovalRecord                string
+	ApprovalRecordNone            string
+	ApprovalRecordApprovedAt      string
+	ApprovalRecordPermissions     string
+	ApprovalRecordPermissionsNone string
+	ApprovalRecordDigest          string
+	ApprovalRecordDigestCurrent   string
+	ApprovalRecordDigestUnknown   string
+	ApprovalRecordChanged         string
 	// IntegrationsFailureDetail is the label of a broken entry's one-line
 	// reason (the old host's `settings.extensions.brokenDetail`).
 	IntegrationsFailureDetail string

@@ -232,6 +232,12 @@ type Integration struct {
 	// duration, the failed ones with their exit code and stderr, and when the
 	// run happened. Nil when nothing has ever probed the integration.
 	HealthReport *HealthReport
+	// Approval is the recorded permission approval, as the card draws it: what
+	// was approved, when, and against which manifest — with the on-disk
+	// digest beside it, so "what I approved" and "what is here now" are two
+	// readable facts (the old host's R7-8/R7-8b block). Nil when no approval
+	// has ever been recorded.
+	Approval *ApprovalRecord
 	// Commands are the commands the integration declares, each with the
 	// switch state the launcher reads.
 	Commands []Command
@@ -256,6 +262,28 @@ type HealthReport struct {
 	// CheckedAt is the run's RFC 3339 timestamp, as the repository stored it.
 	CheckedAt string
 	Probes    []HealthProbe
+}
+
+// ApprovalRecord is the repository's stored approval, projected for the
+// card: when it happened, the permission ids it covered (tiered by the same
+// host-enforced vocabulary the permission audit uses), and the manifest
+// digest it is bound to — beside the digest of the manifest on disk now, so
+// a post-approval change is two rows the user can read, not a boolean.
+type ApprovalRecord struct {
+	// At is the approval's Unix seconds, as the repository recorded them.
+	At uint64
+	// ApprovedDigest is the manifest digest the approval is bound to
+	// (`sha256-…`), empty when the record predates the field.
+	ApprovedDigest string
+	// CurrentDigest is the digest of the manifest on disk now, empty when it
+	// could not be read. "Unknown" stays distinguishable from "changed".
+	CurrentDigest string
+	// Permissions are the approved ids, split into the two tiers by the
+	// host's own classifier (an unknown permission is disclosure, never
+	// enforced: over-claiming enforcement is the failure mode that would
+	// make the UI lie). Each group preserves the record's own order.
+	Enforced   []string
+	Disclosure []string
 }
 
 // HealthProbe is one probe record of a stored report.
@@ -1278,6 +1306,68 @@ func healthCheckedAt(raw string) string {
 	return raw
 }
 
+// approvalDetail draws the recorded permission approval under the
+// integration's own rows (the old host's R7-8 block): when it happened, the
+// manifest digest it is bound to with the on-disk digest beside it — "what I
+// approved" and "what is here now" as two readable rows rather than a
+// boolean — the permissions it covered, tiered by the same host-enforced
+// vocabulary the permission audit uses, and one warning line when the bytes
+// on disk no longer match the approval. No record is one empty-state line,
+// not a block of placeholders.
+func (a *App) approvalDetail(c *ui.Context, copy i18n.Settings, record *ApprovalRecord) {
+	t := c.Theme()
+	tokens := a.tokens(c)
+	if record == nil {
+		a.row(c, copy.ApprovalRecord, copy.ApprovalRecordNone, func() {})
+		return
+	}
+	a.row(c, copy.ApprovalRecord, "", func() {})
+	a.row(c, copy.ApprovalRecordApprovedAt, approvalApprovedAt(record.At), func() {})
+	digest := copy.ApprovalRecordDigestUnknown
+	if short := extensions.ShortDigest(record.ApprovedDigest); short != "" {
+		digest = short
+	}
+	current := copy.ApprovalRecordDigestUnknown
+	if short := extensions.ShortDigest(record.CurrentDigest); short != "" {
+		current = short
+	}
+	a.row(c, copy.ApprovalRecordDigest, digest, func() {})
+	a.row(c, copy.ApprovalRecordDigestCurrent, current, func() {})
+	language := a.Store.Snapshot().Language
+	if len(record.Enforced) == 0 && len(record.Disclosure) == 0 {
+		a.row(c, copy.ApprovalRecordPermissions, copy.ApprovalRecordPermissionsNone, func() {})
+	} else {
+		for _, permission := range record.Enforced {
+			a.row(c, i18n.PermissionLabel(language, permission), "", func() {
+				ui.Text(c, copy.PermissionsEnforcedLabel).FontSize(t.FontSize - 1).TextColor(t.Accent)
+			})
+		}
+		for _, permission := range record.Disclosure {
+			a.row(c, i18n.PermissionLabel(language, permission), "", func() {
+				ui.Text(c, copy.PermissionsDisclosureLabel).FontSize(t.FontSize - 1).TextColor(tokens.TextSecondary)
+			})
+		}
+	}
+	// A changed manifest is *reported*, never acted on: "the approval no
+	// longer covers the bytes on disk" is a prompt to re-approve, not a
+	// version state to restore. Unknown (either side missing) stays silent.
+	if extensions.ApprovalIsStale(record.ApprovedDigest, record.CurrentDigest) {
+		a.row(c, "", copy.ApprovalRecordChanged, func() {
+			ui.Text(c, "!").FontSize(t.FontSize - 1).FontWeight(620).TextColor(t.Warning)
+		})
+	}
+}
+
+// approvalApprovedAt is the record's Unix seconds as a readable local time
+// (the old host's `toLocaleString`; the health report's own timestamp shape).
+// A record without a time is the zero row's own absence: no line at all.
+func approvalApprovedAt(at uint64) string {
+	if at == 0 {
+		return ""
+	}
+	return time.Unix(int64(at), 0).Local().Format("2006-01-02 15:04")
+}
+
 // integrationRow is one integration as a card: its identity and state, what
 // it declares, what it can run (each command a row with its switch and its
 // alias), and the row of doors — check, re-scan, uninstall.
@@ -1335,6 +1425,13 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 		}
 		if integration.HealthReport != nil {
 			a.healthDetail(c, copy, integration.HealthReport)
+		}
+
+		// The approval record: every installed integration has either one or
+		// the empty state — an orphan has neither (no repository entry names
+		// it, so there is nothing to record).
+		if !integration.Orphan {
+			a.approvalDetail(c, copy, integration.Approval)
 		}
 
 		if integration.Diagnosis != "" {
