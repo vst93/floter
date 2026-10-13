@@ -3,7 +3,9 @@ package launcher
 import (
 	"os"
 	"sort"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -13,6 +15,7 @@ import (
 	"floter/internal/calculator"
 	"floter/internal/clipboard"
 	"floter/internal/extensions"
+	"floter/internal/i18n"
 )
 
 // Item is one launcher result: a built-in command, an installed
@@ -314,6 +317,9 @@ func (a *App) clipboardItems() []Item {
 		return nil
 	}
 	entries := a.Clipboard.Search(a.clipboardQuery(), maxClipboardResults)
+	a.pruneThumbs(entries)
+	copy := a.copy()
+	now := a.now()
 	out := make([]Item, 0, len(entries))
 	for _, entry := range entries {
 		entry := entry
@@ -326,8 +332,8 @@ func (a *App) clipboardItems() []Item {
 		}
 		out = append(out, Item{
 			ID:       "clip:" + entry.ID,
-			Title:    entry.Label(),
-			Detail:   entry.Time().Format("2006-01-02 15:04"),
+			Title:    clipboardRowTitle(copy, entry),
+			Detail:   clipboardRowSubtitle(copy, entry, now),
 			Shortcut: shortcut,
 			Run:      func() { a.copyClip(entry) },
 			clip:     &entry,
@@ -335,6 +341,59 @@ func (a *App) clipboardItems() []Item {
 		})
 	}
 	return out
+}
+
+// clipboardRowPreviewMax is how long a clipboard row's own preview may be
+// before it is elided: the old build's `clipboardPreview(entry, 96)`, a row's
+// worth of text rather than a paragraph's.
+const clipboardRowPreviewMax = 96
+
+// clipboardRowTitle is a clipboard row's first line: a file list's first name
+// with a `+N` for the rest, otherwise the entry's preview, falling back to the
+// type word when there is nothing to show — an empty row would read as a bug.
+func clipboardRowTitle(copy i18n.Launcher, entry clipboard.Entry) string {
+	title := ""
+	if entry.Kind == clipboard.KindFiles {
+		base, extra := clipboard.FilesSummary(entry.Paths)
+		title = base
+		if extra > 0 {
+			title += " +" + strconv.Itoa(extra)
+		}
+	} else {
+		title = entry.Preview(clipboardRowPreviewMax)
+	}
+	if title == "" {
+		return clipboardTypeWord(copy, entry)
+	}
+	return title
+}
+
+// clipboardRowSubtitle is a clipboard row's second line: the entry's type word
+// and, when the entry has a timestamp, its compact age (`42m`, `5h`, or a
+// concrete local time beyond a day). The word leads because it is the fact the
+// chips are named by, so the row and the chip that revealed it agree.
+func clipboardRowSubtitle(copy i18n.Launcher, entry clipboard.Entry, now time.Time) string {
+	word := clipboardTypeWord(copy, entry)
+	if age := clipboard.Age(entry.Time(), now); age != "" {
+		return word + " · " + age
+	}
+	return word
+}
+
+// clipboardTypeWord is the word a clipboard row and its chip share: the four
+// kinds the chips row offers, with a link being the text entry whose whole
+// value is a page address.
+func clipboardTypeWord(copy i18n.Launcher, entry clipboard.Entry) string {
+	switch clipboardEntryKind(entry) {
+	case filterImage:
+		return copy.ClipboardTypeImage
+	case filterFiles:
+		return copy.ClipboardTypeFiles
+	case filterLink:
+		return copy.ClipboardTypeLink
+	default:
+		return copy.ClipboardTypeText
+	}
 }
 
 // maxClipboardResults bounds the rows one clipboard search builds, and
@@ -347,20 +406,33 @@ const (
 	maxRecentResults    = 10
 )
 
-// pinClip shows a clipboard entry's whole text in a window of its own, as
-// the old build's "pin as text window" did.
+// pinClip shows a clipboard entry's single piece of text in a window of its
+// own: the row's own title, and the entry's text — the caption for an image,
+// the body for a text entry. The title comes from the row the user is looking
+// at, never from a re-render, so the window is named for what they saw (the old
+// build's `pinTextFor`, R90).
 func (a *App) pinClip(entry clipboard.Entry) {
-	if a.Actions.PinText == nil {
+	if a.Actions.PinText == nil || !clipboardPinApplies(entry) {
 		return
 	}
-	title := entry.Label()
+	a.Actions.PinText(clipboardRowTitle(a.copy(), entry), entry.Text)
+}
+
+// clipboardPinApplies reports whether a clipboard row earns a "pin as a text
+// window" control: only the kinds that carry one piece of text do. A text entry
+// always does — an empty capture is still a capture, and the empty string is a
+// real value. An image does when it stored a caption, because the caption is
+// its text. A file list does not: it holds several paths, and pinning their
+// concatenation would make the window claim to hold one body the entry never
+// had.
+func clipboardPinApplies(entry clipboard.Entry) bool {
 	switch entry.Kind {
-	case clipboard.KindText:
-		a.Actions.PinText(title, entry.Text)
 	case clipboard.KindFiles:
-		a.Actions.PinText(title, strings.Join(entry.Paths, "\n"))
+		return false
+	case clipboard.KindImage:
+		return entry.Text != ""
 	default:
-		a.Actions.PinText(title, entry.Label())
+		return true
 	}
 }
 

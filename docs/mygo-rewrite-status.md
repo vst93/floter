@@ -99,7 +99,20 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-ck Linux `.desktop` 的可用性判定与 `DBusActivatable`（原版 `linux.rs:395-408,86-140`）**
+> **最新一轮：P7-cm R90 pin 标题/正文对齐（原版 `src/plugin-window/pin-entry.ts:43-80`）**
+> —— 本轮先落地上一轮写好但未提交的 P7-cl 三条（剪贴板行预览/副标题、图片按自己的词可搜、
+> 缩略图 memo 有界），再对照原版找到并修掉一个可实现的偏离点。本构建的 `pinClip` 用
+> `entry.Label()` 当箱口标题（多行文本被折叠成一句），且对 files 条目钉 `paths` 拼接、对无 caption
+> 图片钉 `[image]`；原版 `pinTextFor` 只有携单块文本的行可钉：`title` = 行标题（行预览），`text` =
+> `entry.text`，files 无 text 不可钉、无 caption 图片同样不可钉。现在新增 `clipboardPinApplies`
+> （text 恒可钉、image 需 caption、files 不可钉），`pinClip` 改用 `clipboardRowTitle` 命名窗口并以
+> `entry.Text` 为正文，`launcher.go:1682` 的 pin 控件同步加门。测试：`filters_test.go` 的
+> `TestOnlySingleTextClipboardRowsArePinnable`（四子例）、`TestAnEmptyTextCaptureStillPins`、
+> `TestAFileRowShowsNoPinControl`。依赖检查：`go list -m -versions` 与 GitHub latest 均为 **v0.4.8**
+> （与 `go.mod` 一致），无版本可升。余下三条（复制反馈 / 键入文本钩子 / 四个死旋钮）均卡 mygo 框架，
+> 已在「尚未做」写成可执行规格（上游 API → 接线点 → 验收）。
+
+> **上一轮：P7-ck Linux `.desktop` 的可用性判定与 `DBusActivatable`（原版 `linux.rs:395-408,86-140`）**
 > —— P7-ci 的 3 条待办里第 3 条（最后一条）落地。本构建的 `ParseDesktopFile` 不看 `Type=`（`Link`/
 > `Directory` 条目也被当应用列出），`ScanLinux` 不探测 `TryExec=`（会列出没装的条目），`App.Open` 对
 > 所有条目一律 `exec.Command(Exec…)`——而原版在 `into_application` 里丢掉非 `Application` 类型、用
@@ -2415,6 +2428,93 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 - 窗口可见时完成反馈落在面板自己的停靠行（隐藏时才发系统通知）——之前可见时什么都不说。
 
 ## 尚未做（按建议优先级）
+
+### 具体待办（P7-cm 重写；R90 pin 已落地，余下三条卡框架但已写成可执行规格）
+
+前一份 P7-cl 清单三条已全部落地（本轮提交）。依赖检查：`go list -m -versions github.com/egoist/mygo`
+仍是 **v0.4.8**（与 `go.mod` 一致），GitHub releases latest 也是 v0.4.8，无版本可升。只对照 `main`
+（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+
+**本轮已落地：R90 pin 的窗口标题/正文与原版对齐**（原版 `main:src/plugin-window/pin-entry.ts:43-80`）。
+本构建 `internal/launcher/search.go` 的 `pinClip` 过去用 `entry.Label()` 当窗口标题（把多行文本折叠成
+一句），并对 **files 条目**钉 `paths` 拼接、对**无 caption 的图片**钉 `[image]`——而原版 `pinTextFor`
+只有**携带单块文本**的行可钉：`title` = 行的标题（行预览），`text` = `entry.text`（图片 = caption、
+文本 = 正文）；files 无 text → 不可钉，无 caption 的图片同样不可钉。现在新增 `clipboardPinApplies`
+（text 恒可钉、image 需有 caption、files 不可钉），`pinClip` 用 `clipboardRowTitle` 命名窗口并以
+`entry.Text` 为正文，`internal/launcher/launcher.go:1682` 的 pin 控件同步加门。测试：
+`internal/launcher/filters_test.go` 的 `TestOnlySingleTextClipboardRowsArePinnable`、
+`TestAnEmptyTextCaptureStillPins`、`TestAFileRowShowsNoPinControl`。
+
+**余下三条都卡在 mygo 框架**（背景见「已知差距」，此处给出可执行规格：上游 API → 本构建接线点 → 验收）：
+
+1. **终端/钉住窗口的复制反馈**（原版 R44/R63：`main:src/terminal/copy-notice.ts`，1500ms visible →
+   260ms fade；失败也说 `terminal.copyNotice.failed`）。要什么：`terminal.Options.OnCopy(text string,
+   ok bool)`（或让 Edit role 的 Copy 可观察）。接线点：`internal/terminalui/` 装配终端 Options 处设
+   hook → i18n 补 `Terminal.CopyNoticeCopied/Failed` → 终端状态行与 `internal/shell/pinned.go` 的钉住
+   窗口共用。验收：⌘C/选中复制后状态行说一句；连续复制重启 visible 而不叠计时器；失败也报。
+2. **键入文本的 Unicode 空格接缝**（原版 `main:src/hooks/useTerminalView.ts:917-925`）。要什么：一个
+   文本钩子，或让 `Options.OnKey` 看到 text-only 键（`plugins/terminal/terminal.go:124` 文档写明 Linux
+   上看不到）。接线点：`Options.OnKey` 里对 text-only 键做规范化（粘贴与 App 自拼命令行两条既有路不动）。
+   验收：键入的全角空格在到达 shell 前被规范化；既有两条路不回退。
+3. **终端外观四个死旋钮**（`terminal_bold` / `terminal_scrollbar` / `terminal_select_copy` /
+   `terminal_wheel_lines`）。要什么：`plugins/terminal` 暴露这四个旋钮（滚动条开关、滚轮步长、选中即
+   复制、bold 模式）。接线点：`internal/terminalui/` 的抽屉行 + settings 已存盘字段。验收：四行回到终端
+   抽屉、改动实时生效（选中即复制/滚动条/滚轮步长）或下一会话生效（bold 若随 SetFont），且不再有
+   「磁盘上有、UI 上没有」的字段。
+
+> 卡框架项未落地前不假装接线（渲染了就是骗人）；其余可实现的偏离点继续逐区域对照 `main` 排查。
+
+### 具体待办（P7-cl 重写；三条已全部落地：第 1·2·3 条 P7-cl，R90 pin 对齐 P7-cm）
+
+前一份 P7-ci 清单三条已全部落地，清单又空。本轮检查依赖：GitHub releases API 被限流，改用
+`go list -m -versions github.com/egoist/mygo`，仍停在 **v0.4.8**，与 `go.mod` 一致，无版本可升。
+只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），不翻历史提交。本轮换一个入口：**逐文件对照
+原版的剪贴板行渲染与搜索**——本构建的剪贴板行把原版的行预览/副标题整套丢了，只留一个
+`Entry.Label()` 与一个绝对时间戳。这不是「框架不支持」，是 Go 侧没写完。
+
+1. **剪贴板行的预览与副标题（类型词 + 紧凑年龄）**。
+   - 本构建（改前）：`internal/launcher/search.go:312-341` 的 `clipboardItems` 用
+     `entry.Label()`（`internal/clipboard/clipboard.go:139-151`）当标题，`Detail` 是绝对时间
+     `2006-01-02 15:04`。于是：文本条目把**所有行**用空白折叠成一句（原版只取第一行、并截到 96）；
+     文件条目只显示第一个文件名、**丢掉 `+N`**；图片条目恒为 `[image]`、**丢掉 `WxH` 与 caption**；
+     副标题里**没有类型词**（文字/图片/链接/文件）、也**没有紧凑年龄**（`42m`/`5h`）。
+   - 原版对照：`main:src/plugins/clipboard/mode.ts:52-68` 的 `clipboardRow`——标题 = files 的
+     `basename + (extra>0 ? " +N" : "")`，否则 `clipboardPreview(entry, 96)`，为空时回落类型词；
+     副标题 = `typeWord` + （有年龄时）` · ${age}`，类型词取自 `CLIPBOARD_KIND_KEYS`
+     （`clipboard.typeText/typeLink/typeImage/typeFiles`，本构建 i18n 里就是
+     `ClipboardTypeText/Image/Link/Files`，逐字相同）；`clipboardPreview` 见
+     `main:src/clipboard-history.ts:221-240`（文本取第一行、`cap = max(1, min(maxLength, 120))`；
+     图片/文件取 caption 第一行、截到 60，无 caption 则 `[image WxH]`，维度未知写 `?`）；
+     `formatFilesPreview` 见 `:196-215`；`formatClipboardAge` 见 `:305-330`（`<60m` → `42m`，
+     `<24h` → `5h`，再老 → 本地 `YYYY-MM-DD HH:mm`，秒从不出现）。
+   - 验收：文本条目只印第一行、>96 字符截断加 `…`；多行文本不折叠成一行；文件条目印
+     `a.png +2`；图片条目有 caption 时印 caption、无 caption 时印 `[image 1920x1080]`、维度未知印
+     `[image ?x?]`；预览为空时标题回落类型词；副标题恒以类型词开头，且年龄按 `42m`/`5h`/
+     `YYYY-MM-DD HH:mm` 三段取词。
+2. **图片条目按自己的词可搜（image / img / 图片）**。
+   - 本构建（改前）：`internal/clipboard/clipboard.go:238-250` 的 `matches` 把
+     `Text + Paths` 拼成一个 haystack，图片条目（没有 caption 的）两边都空，于是搜 `image`、`img`、
+     `图片` 一个都命中不了——而 chip 里明明有「图片」这一档。
+   - 原版对照：`main:src/clipboard-history.ts:70-80` 的 `clipboardEntrySearchFields`——files 只吃
+     `paths`、其余吃 `text`，且 image 条目**额外**塞进 `"image"`, `"img"`, `"图片"`；
+     `filterClipboardEntries`（`:95-101`）把查询切成 token 后**每个 token 都要落在某个字段里**。
+   - 验收：`Store.Search` 对无 caption 的图片条目，`image`/`img`/`图片` 三个词都能命中；有 caption
+     的图片条目按 caption 命中；文本条目不因 `image` 一词被误命中（除非它真的含这个词）；files 条目按
+     路径命中。
+3. **图片缩略图 memo 有界（R97）**。
+   - 本构建（改前）：`internal/launcher/thumb.go:19-40` 的 `clipThumb` 只往
+     `a.thumbs[path]` 里塞、**从不淘汰**：一个长会话每张看过的图都留一份解码后的 `*ui.Bitmap`
+     （1920×1080 就是 8 MB），而历史本身是有上限的。
+   - 原版对照：`main:src/clipboard-history.ts:441-465` 的 `pruneThumbnailCache`（R97）——memo 超过
+     历史的 `MAX_CLIPBOARD_MAX_ITEMS`（本构建的 `clipboard.MaxMaxItems` = 500）时，只保留**当前渲染
+     仍引用**的 key，其余丢掉（下次需要再取）；不超过上限时返回同一个对象、不做拷贝。
+   - 验收：memo 超过 500 时收敛到当前结果集引用的那些路径；不超过上限时不动；被丢掉的条目再次出现
+     时能重新解码。
+
+> 三条已全部落地（P7-cl 提交 4 条改动 + 本轮 P7-cm 的 R90 pin 对齐）。余下三条卡在 mygo 框架
+> （`Options.OnCopy`、终端键入的 `HandleInput` 缝、外观四个死旋钮），其可执行规格见顶部 P7-cm 清单；
+> 一次性维护者动作（`mygo keygen`、`mygo.json` 的 `updates`/签名、CI 私钥、发布到 GitHub Release）
+> 见「已知差距」。
 
 ### 具体待办（P7-ci 重写；三条已全部落地：第 1 条 P7-ci、第 2 条 P7-cj、第 3 条 P7-ck）
 

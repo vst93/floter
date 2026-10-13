@@ -385,6 +385,176 @@ func TestAddFiles(t *testing.T) {
 	}
 }
 
+// The row preview: the first line of a capture, elided, with an image falling
+// back to its recorded size — the old build's `clipboardPreview`.
+func TestPreviewTakesTheFirstLineAndFallsBackToTheImageSize(t *testing.T) {
+	cases := []struct {
+		name  string
+		entry Entry
+		max   int
+		want  string
+	}{
+		{
+			name:  "text keeps only its first line",
+			entry: Entry{Kind: KindText, Text: "git status\ngit diff\ngit log"},
+			max:   96,
+			want:  "git status",
+		},
+		{
+			name:  "text is elided at the cap",
+			entry: Entry{Kind: KindText, Text: strings.Repeat("x", 200)},
+			max:   96,
+			want:  strings.Repeat("x", 96) + "\u2026",
+		},
+		{
+			name:  "the cap never exceeds twice the image preview",
+			entry: Entry{Kind: KindText, Text: strings.Repeat("y", 400)},
+			max:   1_000,
+			want:  strings.Repeat("y", 120) + "\u2026",
+		},
+		{
+			name:  "a non-positive cap is one rune, not none",
+			entry: Entry{Kind: KindText, Text: "abcdef"},
+			max:   0,
+			want:  "a\u2026",
+		},
+		{
+			name:  "an image with a caption shows the caption",
+			entry: Entry{Kind: KindImage, Text: "\n  shot.png  \nsecond line", Width: 10, Height: 20},
+			max:   96,
+			want:  "shot.png",
+		},
+		{
+			name:  "an image caption is elided at 60",
+			entry: Entry{Kind: KindImage, Text: strings.Repeat("z", 100)},
+			max:   96,
+			want:  strings.Repeat("z", 60) + "\u2026",
+		},
+		{
+			name:  "a bare image shows its size",
+			entry: Entry{Kind: KindImage, Width: 816, Height: 848},
+			max:   96,
+			want:  "[image 816x848]",
+		},
+		{
+			name:  "an unrecorded size is a question mark, not a zero",
+			entry: Entry{Kind: KindImage},
+			max:   96,
+			want:  "[image ?x?]",
+		},
+		{
+			name:  "an empty text entry previews as nothing",
+			entry: Entry{Kind: KindText},
+			max:   96,
+			want:  "",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := tc.entry.Preview(tc.max); got != tc.want {
+				t.Errorf("Preview(%d) = %q, want %q", tc.max, got, tc.want)
+			}
+		})
+	}
+}
+
+// A file list's row preview is its first name plus how many more it holds, and
+// the split understands both separators.
+func TestFilesSummaryCountsTheRest(t *testing.T) {
+	cases := []struct {
+		paths    []string
+		basename string
+		extra    int
+	}{
+		{nil, "", 0},
+		{[]string{"/tmp/a.png"}, "a.png", 0},
+		{[]string{`C:\Users\me\a.png`, `C:\Users\me\b.png`}, "a.png", 1},
+		{[]string{"/tmp/dir/"}, "dir", 0},
+		{[]string{"/tmp/a.txt", "/tmp/b.txt", "/tmp/c.txt"}, "a.txt", 2},
+		{[]string{"bare.png"}, "bare.png", 0},
+	}
+	for _, tc := range cases {
+		base, extra := FilesSummary(tc.paths)
+		if base != tc.basename || extra != tc.extra {
+			t.Errorf("FilesSummary(%v) = %q, %d; want %q, %d", tc.paths, base, extra, tc.basename, tc.extra)
+		}
+	}
+}
+
+// The compact age: minutes, then hours, then a concrete local time. Seconds
+// never appear.
+func TestAgeIsCompactUntilItNeedsADate(t *testing.T) {
+	now := time.Date(2026, 10, 14, 15, 30, 0, 0, time.Local)
+	cases := []struct {
+		name string
+		at   time.Time
+		want string
+	}{
+		{"no timestamp", time.Time{}, ""},
+		{"just now", now, "0m"},
+		{"under an hour", now.Add(-42 * time.Minute), "42m"},
+		{"exactly an hour", now.Add(-time.Hour), "1h"},
+		{"under a day", now.Add(-5 * time.Hour), "5h"},
+		{"a day or more", now.Add(-30 * time.Hour), now.Add(-30 * time.Hour).Format("2006-01-02 15:04")},
+		{"the future never goes negative", now.Add(time.Hour), "0m"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := Age(tc.at, now); got != tc.want {
+				t.Errorf("Age = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+// A bare image has no caption to search, so it answers to its own words — the
+// same word its chip prints.
+func TestImageEntriesAnswerToTheirOwnWords(t *testing.T) {
+	dir := t.TempDir()
+	store := NewStore(FromConfigRoot(dir), 0)
+	if _, _, err := store.AddImage(testPNG(t, 4, 4), 4, 4); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := store.AddText("nothing to do with pictures"); err != nil {
+		t.Fatal(err)
+	}
+	for _, query := range []string{"image", "IMG", "图片"} {
+		got := store.Search(query, 0)
+		if len(got) != 1 || got[0].Kind != KindImage {
+			t.Errorf("Search(%q) = %+v", query, got)
+		}
+	}
+}
+
+// A caption is searchable through its own text, and the terms are ANDed over
+// the entry's fields.
+func TestImageCaptionIsSearchable(t *testing.T) {
+	dir := t.TempDir()
+	store := NewStore(FromConfigRoot(dir), 0)
+	entry, _, err := store.AddImage(testPNG(t, 2, 2), 2, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store.mu.Lock()
+	store.loadLocked()
+	for i := range store.entries {
+		if store.entries[i].ID == entry.ID {
+			store.entries[i].Text = "quarterly report screenshot"
+		}
+	}
+	if err := store.saveLocked(); err != nil {
+		t.Fatal(err)
+	}
+	store.mu.Unlock()
+
+	if got := store.Search("report screenshot", 0); len(got) != 1 || got[0].ID != entry.ID {
+		t.Errorf("caption search = %+v", got)
+	}
+	if got := store.Search("report missing", 0); len(got) != 0 {
+		t.Errorf("a partial AND match = %+v", got)
+	}
+}
+
 // testPNG builds a real PNG of the given size.
 func testPNG(t *testing.T, width, height int) []byte {
 	t.Helper()

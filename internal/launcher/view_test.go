@@ -10,6 +10,7 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -1873,6 +1874,113 @@ func TestThePowerConfirmationExpiresOnItsOwn(t *testing.T) {
 	}
 }
 
+// A clipboard row's two lines are the entry's preview and its type word plus a
+// compact age — not a bare timestamp, and not the whole capture.
+func TestClipboardRowPreviewAndSubtitle(t *testing.T) {
+	store := clipboard.NewStore(clipboard.FromConfigRoot(t.TempDir()), 0)
+	if _, _, err := store.AddText("git status\ngit diff\ngit log"); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := store.AddFiles([]string{"/tmp/a.png", "/tmp/b.png", "/tmp/c.png"}); err != nil {
+		t.Fatal(err)
+	}
+	var buffer bytes.Buffer
+	if err := png.Encode(&buffer, imageNewRGBA(24)); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := store.AddImage(buffer.Bytes(), 24, 24); err != nil {
+		t.Fatal(err)
+	}
+
+	a := testApp()
+	a.Clipboard = store
+	a.EnterClipboard()
+
+	copy := a.copy()
+	got := map[string]string{}
+	for _, item := range a.clipboardItems() {
+		got[item.Title] = item.Detail
+	}
+	want := map[string]string{
+		"git status":    copy.ClipboardTypeText + " · 0m",
+		"a.png +2":      copy.ClipboardTypeFiles + " · 0m",
+		"[image 24x24]": copy.ClipboardTypeImage + " · 0m",
+	}
+	for title, detail := range want {
+		if got[title] != detail {
+			t.Errorf("row %q subtitle = %q, want %q (rows: %v)", title, got[title], detail, got)
+		}
+	}
+	if len(got) != len(want) {
+		t.Errorf("rows = %v, want %v", got, want)
+	}
+}
+
+// Past a day the age becomes a concrete local time, still behind the type word.
+func TestClipboardRowSubtitleFallsBackToADate(t *testing.T) {
+	store := clipboard.NewStore(clipboard.FromConfigRoot(t.TempDir()), 0)
+	if _, _, err := store.AddText("a clip"); err != nil {
+		t.Fatal(err)
+	}
+	created := store.Entries()[0].Time()
+
+	a := testApp()
+	a.Clipboard = store
+	a.EnterClipboard()
+	a.clock = func() time.Time { return created.Add(30 * time.Hour) }
+
+	items := a.clipboardItems()
+	if len(items) != 1 {
+		t.Fatalf("rows = %+v", items)
+	}
+	want := a.copy().ClipboardTypeText + " · " + created.Format("2006-01-02 15:04")
+	if items[0].Detail != want {
+		t.Errorf("subtitle = %q, want %q", items[0].Detail, want)
+	}
+}
+
+// The thumbnail memo is bounded by the history's own ceiling: past it, only the
+// paths the current result set references survive (the old build's R97).
+func TestClipboardThumbnailMemoIsBounded(t *testing.T) {
+	store := clipboard.NewStore(clipboard.FromConfigRoot(t.TempDir()), 0)
+	var buffer bytes.Buffer
+	if err := png.Encode(&buffer, imageNewRGBA(4)); err != nil {
+		t.Fatal(err)
+	}
+	entry, _, err := store.AddImage(buffer.Bytes(), 4, 4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	kept := store.ImagePath(entry)
+	if kept == "" {
+		t.Fatal("the image entry has no path")
+	}
+
+	a := testApp()
+	a.Clipboard = store
+
+	// Below the ceiling nothing is dropped.
+	a.thumbs = map[string]*ui.Bitmap{kept: nil}
+	a.pruneThumbs(store.Entries())
+	if len(a.thumbs) != 1 {
+		t.Errorf("a small memo was pruned: %v", a.thumbs)
+	}
+
+	// Past it, only the live path survives.
+	a.thumbs = map[string]*ui.Bitmap{}
+	for i := 0; i <= clipboard.MaxMaxItems; i++ {
+		a.thumbs[filepath.Join("gone", strconv.Itoa(i)+".png")] = nil
+	}
+	a.thumbs[kept] = nil
+	a.pruneThumbs(store.Entries())
+	if len(a.thumbs) != 1 {
+		t.Fatalf("the memo was not pruned: %d entries", len(a.thumbs))
+	}
+	if _, ok := a.thumbs[kept]; !ok {
+		t.Errorf("the live thumbnail was dropped: %v", a.thumbs)
+	}
+}
+
 // An image clipboard entry's row carries a thumbnail, decoded once.
 func TestClipboardImageThumbnail(t *testing.T) {
 	store := clipboard.NewStore(clipboard.FromConfigRoot(t.TempDir()), 0)
@@ -1893,8 +2001,12 @@ func TestClipboardImageThumbnail(t *testing.T) {
 	tt := render(t, a)
 	a.EnterClipboard()
 	tt.Frame()
-	if !tt.HasText("[image]") {
+	if !tt.HasText("[image 24x24]") {
 		t.Fatalf("the image row is missing: %q", tt.Texts())
+	}
+	// The row's second line names the kind and the age, not a bare timestamp.
+	if !tt.HasText(a.copy().ClipboardTypeImage + " · 0m") {
+		t.Fatalf("the image row has no type/age subtitle: %q", tt.Texts())
 	}
 	// The thumbnail is decoded and cached by its file's path.
 	thumb := a.clipThumb(entry)

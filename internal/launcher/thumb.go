@@ -39,3 +39,29 @@ func (a *App) clipThumb(entry clipboard.Entry) *ui.Bitmap {
 	a.thumbs[path] = bitmap
 	return bitmap
 }
+
+// pruneThumbs bounds the thumbnail memo (the old build's R97). The memo only
+// ever grew, so a long session kept one decoded bitmap per image ever scrolled
+// past — megabytes each — while the history that produced them is capped. Once
+// the memo passes the history's own ceiling, only the paths the current result
+// set still references survive; a row that needs one again decodes it again.
+// Below the ceiling the map is left untouched, so the common case costs
+// nothing.
+func (a *App) pruneThumbs(entries []clipboard.Entry) {
+	if len(a.thumbs) <= clipboard.MaxMaxItems {
+		return
+	}
+	keep := make(map[string]bool, len(entries))
+	if a.Clipboard != nil {
+		for _, entry := range entries {
+			if path := a.Clipboard.ImagePath(entry); path != "" {
+				keep[path] = true
+			}
+		}
+	}
+	for path := range a.thumbs {
+		if !keep[path] {
+			delete(a.thumbs, path)
+		}
+	}
+}

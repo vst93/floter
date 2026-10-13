@@ -644,6 +644,100 @@ func TestPinningAClipboardEntry(t *testing.T) {
 	}
 }
 
+// Only the kinds that carry one piece of text earn a pin: a text entry always,
+// an image when it stored a caption, and a file list never — pinning several
+// paths as one body would be a lie about what the window holds (R90). The
+// window's title is the row's own text, not the collapsed one-line label.
+func TestOnlySingleTextClipboardRowsArePinnable(t *testing.T) {
+	cases := []struct {
+		name      string
+		entry     clipboardpkg.Entry
+		wantPin   bool
+		wantTitle string
+		wantBody  string
+	}{
+		{
+			name:      "text: the row preview names the window, the body is the capture",
+			entry:     clipboardpkg.Entry{Kind: clipboardpkg.KindText, Text: "git status\ngit diff"},
+			wantPin:   true,
+			wantTitle: "git status",
+			wantBody:  "git status\ngit diff",
+		},
+		{
+			name:      "image with a caption pins the caption",
+			entry:     clipboardpkg.Entry{Kind: clipboardpkg.KindImage, Text: "quarterly report", Width: 20, Height: 10},
+			wantPin:   true,
+			wantTitle: "quarterly report",
+			wantBody:  "quarterly report",
+		},
+		{
+			name:    "a bare image has nothing to pin",
+			entry:   clipboardpkg.Entry{Kind: clipboardpkg.KindImage, Width: 20, Height: 10},
+			wantPin: false,
+		},
+		{
+			name:    "a file list has no single body to pin",
+			entry:   clipboardpkg.Entry{Kind: clipboardpkg.KindFiles, Paths: []string{"/tmp/a.png", "/tmp/b.png"}},
+			wantPin: false,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := clipboardPinApplies(tc.entry); got != tc.wantPin {
+				t.Fatalf("clipboardPinApplies = %v, want %v", got, tc.wantPin)
+			}
+			a := testApp()
+			var got [][2]string
+			a.Actions.PinText = func(title, text string) { got = append(got, [2]string{title, text}) }
+			a.pinClip(tc.entry)
+			if !tc.wantPin {
+				if len(got) != 0 {
+					t.Fatalf("an unpinnable row pinned %v", got)
+				}
+				return
+			}
+			if len(got) != 1 {
+				t.Fatalf("pinned = %v", got)
+			}
+			if got[0][0] != tc.wantTitle || got[0][1] != tc.wantBody {
+				t.Errorf("pinned %q / %q, want %q / %q", got[0][0], got[0][1], tc.wantTitle, tc.wantBody)
+			}
+		})
+	}
+}
+
+// An empty text capture is still a capture: the pin is real, and the window
+// takes its name from the type word the row would show.
+func TestAnEmptyTextCaptureStillPins(t *testing.T) {
+	a := testApp()
+	var got [][2]string
+	a.Actions.PinText = func(title, text string) { got = append(got, [2]string{title, text}) }
+	a.pinClip(clipboardpkg.Entry{Kind: clipboardpkg.KindText})
+	if len(got) != 1 || got[0][0] != a.copy().ClipboardTypeText || got[0][1] != "" {
+		t.Fatalf("pinned = %v", got)
+	}
+}
+
+// The control itself obeys the same rule: a selected file row shows no pin,
+// because there is no text window to open.
+func TestAFileRowShowsNoPinControl(t *testing.T) {
+	store := clipboardpkg.NewStore(clipboardpkg.FromConfigRoot(t.TempDir()), 0)
+	if _, _, err := store.AddFiles([]string{"/tmp/a.png", "/tmp/b.png"}); err != nil {
+		t.Fatal(err)
+	}
+	a := testApp()
+	a.Clipboard = store
+	a.EnterClipboard()
+	tt := render(t, a)
+	tt.Frame()
+	if !tt.HasText("a.png +1") {
+		t.Fatalf("the file row is missing: %q", tt.Texts())
+	}
+	if tt.HasText("Pin as a window") {
+		t.Fatalf("a file row offered a pin: %q", tt.Texts())
+	}
+}
+
 // A captured run's text can be shown in a window of its own: the pin rides the
 // output view's own title row, on the surface that holds the text.
 func TestOutputViewPin(t *testing.T) {

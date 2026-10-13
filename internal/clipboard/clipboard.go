@@ -19,9 +19,11 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 )
 
 // The directory and file names under the config root.
@@ -146,7 +148,9 @@ func (e Entry) Extra() map[string]any {
 // Time is when the entry was captured.
 func (e Entry) Time() time.Time { return time.UnixMilli(e.CreatedAt) }
 
-// Label is the one-line preview a list shows.
+// Label is the short name a caller that has no room for a preview uses: the
+// first stored path of a file list, `[image]`/`[files]` for the kinds that
+// carry no text, and the entry's own text. A list row shows Preview instead.
 func (e Entry) Label() string {
 	switch e.Kind {
 	case KindImage:
@@ -159,6 +163,120 @@ func (e Entry) Label() string {
 	default:
 		return strings.Join(strings.Fields(e.Text), " ")
 	}
+}
+
+// imagePreviewMax is how long an image entry's caption preview may be before it
+// is elided, and twice that is the ceiling for a text entry whatever the caller
+// asks for — the old build's `IMAGE_PREVIEW_MAX`.
+const imagePreviewMax = 60
+
+// Preview is the one-line preview a list row shows for an entry: the first line
+// of a text entry (elided at maxLength), and for an image the first line of the
+// caption stored beside it, falling back to `[image WxH]` when there is none.
+// A dimension the entry did not record prints as `?` rather than as a
+// confident zero.
+//
+// The preview is never the whole text: a copied paragraph would otherwise push
+// every other row off the list. Only the first line survives, because a row is
+// one line and the second line of a capture is never the part that identifies
+// it.
+func (e Entry) Preview(maxLength int) string {
+	source := e.Text
+	if e.Kind != KindText {
+		// A caption is stored trimmed; an older one may not be.
+		source = strings.TrimLeftFunc(source, unicode.IsSpace)
+	}
+	firstLine := source
+	if end := strings.IndexByte(source, '\n'); end >= 0 {
+		firstLine = source[:end]
+	}
+	firstLine = strings.TrimSpace(firstLine)
+	if e.Kind != KindText {
+		if firstLine == "" {
+			return "[image " + dimension(e.Width) + "x" + dimension(e.Height) + "]"
+		}
+		return elide(firstLine, imagePreviewMax)
+	}
+	cap := maxLength
+	if cap < 1 {
+		cap = 1
+	}
+	if cap > imagePreviewMax*2 {
+		cap = imagePreviewMax * 2
+	}
+	return elide(firstLine, cap)
+}
+
+// dimension is one side of an image entry's size, `?` when it was not
+// recorded. The stored zero is an absence, not a measurement.
+func dimension(value int) string {
+	if value <= 0 {
+		return "?"
+	}
+	return strconv.Itoa(value)
+}
+
+// elide cuts a string to max runes and marks the cut. Cutting on runes rather
+// than bytes is the one place this build is deliberately stricter than the old
+// one: slicing UTF-16 code units could split a surrogate pair.
+func elide(value string, max int) string {
+	runes := []rune(value)
+	if len(runes) <= max {
+		return value
+	}
+	return string(runes[:max]) + "\u2026"
+}
+
+// FilesSummary is a file list's row preview: the last segment of the first
+// stored path, and how many more paths the entry holds. The count is what tells
+// a three-file copy from a one-file copy at a glance — the old build's
+// `formatFilesPreview` reduced to the two facts the row prints.
+func FilesSummary(paths []string) (basename string, extra int) {
+	if len(paths) == 0 {
+		return "", 0
+	}
+	_, basename = splitPath(paths[0])
+	return basename, len(paths) - 1
+}
+
+// splitPath splits a stored path into its directory prefix and last segment,
+// aware of both separators and of trailing ones. A path that is nothing but a
+// separator is its own last segment, so a row never shows an empty name.
+func splitPath(path string) (dirname, basename string) {
+	trimmed := strings.TrimRight(path, `/\`)
+	index := strings.LastIndexAny(trimmed, `/\`)
+	if index < 0 {
+		if trimmed == "" {
+			return "", path
+		}
+		return "", trimmed
+	}
+	if last := trimmed[index+1:]; last != "" {
+		return trimmed[:index], last
+	}
+	return trimmed[:index], trimmed
+}
+
+// Age is the compact relative age a row's subtitle prints: `42m`, `5h`, and a
+// concrete local `YYYY-MM-DD HH:mm` beyond a day. Seconds never appear — they
+// churn too fast to read. An entry with no timestamp has no age at all.
+func Age(createdAt, now time.Time) string {
+	if createdAt.IsZero() {
+		return ""
+	}
+	seconds := int64(now.Sub(createdAt) / time.Second)
+	if seconds < 0 {
+		seconds = 0
+	}
+	minutes := seconds / 60
+	if minutes < 60 {
+		return strconv.FormatInt(minutes, 10) + "m"
+	}
+	hours := minutes / 60
+	if hours < 24 {
+		return strconv.FormatInt(hours, 10) + "h"
+	}
+	return createdAt.Format("2006-01-02 15:04")
 }
 
 // HashText is the digest the index records for a text entry.
@@ -235,13 +353,44 @@ func (s *Store) Search(query string, limit int) []Entry {
 	return out
 }
 
+// searchFields are the strings one entry is searched through: a file list
+// matches on any stored path, everything else on its text, and an image entry
+// also answers to its own words. A bare screenshot has no caption to search, so
+// "image"/"img"/"图片" are the only words that can find it — and the chip that
+// reveals it is named 图片, so the word and the row agree (the old build's
+// `clipboardEntrySearchFields`).
+func searchFields(entry Entry) []string {
+	if entry.Kind == KindFiles {
+		return entry.Paths
+	}
+	fields := make([]string, 0, 4)
+	if entry.Text != "" {
+		fields = append(fields, entry.Text)
+	}
+	if entry.Kind == KindImage {
+		fields = append(fields, "image", "img", "图片")
+	}
+	return fields
+}
+
+// matches reports whether every term is found in one of the entry's own
+// fields: case-insensitive, AND over the terms, and each term answered by a
+// single field rather than by a concatenation of them (so a term cannot be
+// spelled across the seam between a caption and a path).
 func matches(entry Entry, terms []string) bool {
 	if len(terms) == 0 {
 		return true
 	}
-	haystack := strings.ToLower(entry.Text + " " + strings.Join(entry.Paths, " "))
+	fields := searchFields(entry)
 	for _, term := range terms {
-		if !strings.Contains(haystack, term) {
+		found := false
+		for _, field := range fields {
+			if strings.Contains(strings.ToLower(field), term) {
+				found = true
+				break
+			}
+		}
+		if !found {
 			return false
 		}
 	}

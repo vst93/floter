@@ -1679,7 +1679,7 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 			// with the selection, as the reference's `.launcher-result__pin`
 			// was: a 20u box and a mark, never a filled pill in a list of
 			// quiet rows.
-			if item.clip != nil && a.Actions.PinText != nil {
+			if item.clip != nil && a.Actions.PinText != nil && clipboardPinApplies(*item.clip) {
 				a.rowControl(c, "text", copy.HistoryPin, func() {
 					a.pinClip(*item.clip)
 					removed = true
