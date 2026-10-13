@@ -106,6 +106,14 @@ type RowInfo struct {
 	// Bar marks the action bar, whose own 3u breath above it and 42u band the
 	// window charges together, as the old build's 45u.
 	Bar bool
+	// Status marks a plugin's status note, which the old build charged its own
+	// 30u band (`LAUNCHER_STATUS_UNITS`), shorter than a compact result row.
+	Status bool
+	// Band, when positive, is the row's own band in spacing units, charged
+	// instead of the text-line arithmetic. The captured-output text form uses
+	// it: the block is priced per `ROW_HEIGHT_TWO_LINE` band row, not per text
+	// line (the old build's `pluginViewRows × ROW_HEIGHT_TWO_LINE`).
+	Band float64
 }
 
 // Geometry is the measurements one window height is computed from. Every
@@ -145,6 +153,12 @@ type Geometry struct {
 	// list's place: the window is then the field's row and the sheet's own
 	// content, never the rows the list is holding behind it.
 	Config *plugincfg.Schema
+	// Sections is the number of section-title bands the list prints above its
+	// blocks. The ordinary list carries a heading as a `RowInfo.Heading` row
+	// (charged inside the ten-row budget); a captured-output list prices its
+	// rows separately, so its headings are counted here and stand beside the
+	// rows rather than eating one of them.
+	Sections int
 }
 
 // Height is the window height a geometry asks for: the card's own chrome —
@@ -197,10 +211,23 @@ func (g Geometry) Height() int {
 		if i < len(g.Rows) {
 			info = g.Rows[i]
 		}
+		if info.Band > 0 {
+			// A row that names its own band: the captured-output text form's
+			// `ROW_HEIGHT_TWO_LINE` block row, charged as the old build charged
+			// it, not by the text line boxes it happens to hold.
+			lines += info.Band * spacing
+			continue
+		}
 		if info.Bar {
 			// The action bar: its own 3u breath and 42u band, which the old
 			// build charged together as `LAUNCHER_ACTION_BAR_UNITS`.
 			lines += 11.25 * spacing
+			continue
+		}
+		if info.Status {
+			// A status note is its own 30u band (`LAUNCHER_STATUS_UNITS`),
+			// shorter than a compact result row.
+			lines += 7.5 * spacing
 			continue
 		}
 		if info.Heading {
@@ -240,7 +267,13 @@ func (g Geometry) Height() int {
 		// `LAUNCHER_STATUS_UNITS`.
 		feedbackBand = 7.5 * spacing
 	}
-	height := chrome + lines + filterBand + feedbackBand
+	sectionBand := 0.0
+	if g.Sections > 0 {
+		// A section-title band: one body line and the 6u/4u padding pair, the
+		// old build's `LAUNCHER_SECTION_TITLE_UNITS` (26u).
+		sectionBand = float64(g.Sections) * (headingPadding*spacing + bodyLine)
+	}
+	height := chrome + lines + sectionBand + filterBand + feedbackBand
 	if g.Config != nil {
 		// The sheet's own content, in the same units: the field's row and the
 		// card's insets are the chrome above, so a schema can never grow the

@@ -1,6 +1,7 @@
 package launcher
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -158,5 +159,73 @@ func TestDrawnPitchIsTheChargedRow(t *testing.T) {
 	charged := float64(two - one)
 	if diff := pitch - charged; diff > 1.5 || diff < -1.5 {
 		t.Errorf("the drawn pitch is %.1f, the window charges %.1f per row", pitch, charged)
+	}
+}
+
+// The captured-output text form is priced per band row, not per text line: the
+// old build's `pluginViewRows × ROW_HEIGHT_TWO_LINE`. `pluginTextRows` is the
+// count; its three-line floor and ten-row ceiling are the old build's
+// `PLUGIN_TEXT_MIN_UNITS` / `PLUGIN_TEXT_MAX_UNITS`.
+func TestPluginTextRows(t *testing.T) {
+	cases := []struct {
+		text  string
+		lines int
+		rows  int
+	}{
+		{"", 0, 2},           // no lines: the three-line floor (72u → 2 band rows)
+		{"a", 1, 2},          // one line is still under the floor
+		{"a\nb", 2, 2},       // two lines, still under the floor
+		{"a\nb\nc", 3, 2},    // exactly the floor: 72u → 2 rows
+		{"a\nb\nc\nd", 4, 3}, // 96u → 3 rows
+		{strings.Repeat("x\n", 99) + "x", 100, 10}, // 600u clamps to 400u → 10 rows
+		{strings.Repeat("x\n", 199) + "x", 200, 10},
+	}
+	for _, tc := range cases {
+		if got := strings.Count(tc.text, "\n"); tc.text != "" && got+1 != tc.lines {
+			t.Fatalf("the fixture has %d lines, want %d", got+1, tc.lines)
+		}
+		if got := pluginTextRows(tc.text); got != tc.rows {
+			t.Errorf("pluginTextRows(%d lines) = %d, want %d", tc.lines, got, tc.rows)
+		}
+	}
+}
+
+// A status note is its own 30u band and a section title its own 26u band: both
+// are shorter than the result row they used to be charged as, and a captured
+// output list prices its headings beside its rows rather than inside the
+// ten-row budget.
+func TestStatusAndSectionBands(t *testing.T) {
+	const (
+		font    = 14.0
+		spacing = 4.0
+	)
+	// A status note (30u) is shorter than a one-line result row (its 34u
+	// floor), and a section band (26u) shorter still.
+	status := Geometry{Font: font, Spacing: spacing, Rows: []RowInfo{{Status: true}}, Held: 1}.Height()
+	result := Geometry{Font: font, Spacing: spacing, Rows: []RowInfo{{Lines: 1}}, Held: 1}.Height()
+	if status >= result {
+		t.Errorf("a status row (%d) is not shorter than a result row (%d)", status, result)
+	}
+	section := Geometry{Font: font, Spacing: spacing, Rows: []RowInfo{{Lines: 1}}, Held: 1, Sections: 1}.Height()
+	if section <= result {
+		t.Errorf("a section band (%d) did not add to the row (%d)", section, result)
+	}
+	// Two sections cost twice one.
+	one := Geometry{Font: font, Spacing: spacing, Rows: []RowInfo{{Lines: 1}}, Held: 1, Sections: 1}.Height()
+	two := Geometry{Font: font, Spacing: spacing, Rows: []RowInfo{{Lines: 1}}, Held: 1, Sections: 2}.Height()
+	if got := two - one; got != one-result {
+		t.Errorf("a second section added %d, the first %d", got, one-result)
+	}
+}
+
+// A band row names its own price: the captured text form's block is charged
+// `ROW_HEIGHT_TWO_LINE` per band row whatever its text line boxes are, so a
+// taller font cannot make the block taller than the rows it stands for.
+func TestBandRowsArePricedAsTheirBand(t *testing.T) {
+	const spacing = 4.0
+	band := Geometry{Font: 14, Spacing: spacing, Rows: []RowInfo{{Band: rowTwoLineUnits}}, Held: 1}.Height()
+	twoLine := Geometry{Font: 14, Spacing: spacing, Rows: []RowInfo{{Lines: 2}}, Held: 1}.Height()
+	if band != twoLine {
+		t.Errorf("a band row is %d, a two-line row %d", band, twoLine)
 	}
 }

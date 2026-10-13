@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1024 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1036 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 981 项测试
+go test -count=1 ./...         # 1036 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -98,6 +98,37 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
   （同环境 mygo 最小窗口 137 MB）。
 
 ## 最近几轮（详细记录见 plan）
+
+> **最新一轮：P7-cq 输出视图的窗口高度按输出自己的内容计价（原版 `src/App.tsx:2133-2137,2185-2200`、
+> `src/launcher/plugin-mode.ts:238-267,647-651`）**
+> —— P7-co 清单只剩三条卡框架项（`Options.OnCopy` 复制反馈、终端键入的 `HandleInput` 空格缝、外观四个
+> 死旋钮），所以本轮先把「尚未做」重新写实为 3 条带 file:line 的具体待办（下方「具体待办（P7-cq 重写）」），
+> 再取第 1 条落地。依赖检查：GitHub releases API 被限流，改用 `go list -m -versions github.com/egoist/mygo`，
+> 仍停在 **v0.4.8**，与 `go.mod` 一致，无版本可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），
+> 不翻历史提交。本轮换入口：逐文件对照原版的**插件视图几何**。
+>
+> **偏离点**：原版把插件视图（文本/列表）自己的 `pluginViewRows` 交给窗口高度
+> （`App.tsx:2133-2137` 的 `launcherListRows = pluginView ? pluginViewRows(pluginView) : displayedResults.length`；
+> `:2197-2200` 文本形按 `pluginViewRows × ROW_HEIGHT_TWO_LINE` 计费）。本构建 `internal/launcher/launcher.go`
+> 的 `View` 无论输出视图是否在屏，都用 `a.Results()`（它身后的搜索结果）建 `rows`、把 `len(results)` 交给
+> `HoldRows`——于是「跑一条命令、输出 12 行」的窗口高度取决于查询命中了几条命令，而不是输出有多长；
+> 输出列表也不受 `min(items, MAX_RESULTS)` 上限约束。实测（临时用例）：同一份 12 行输出，查询 `list`
+> （1 条结果）与空查询（多条结果）分别是 166 / 454 像素，而输出本身的长度对高度毫无影响。
+>
+> **修法**：`internal/launcher/launcher.go` 的 `View` 改调 `a.windowRows(results)`；`internal/launcher/output.go`
+> 新增 `windowRows`/`pluginTextRows`/`outputRows`——文本形按 `PLUGIN_TEXT_LINE_UNITS`(24u) 计行、夹进
+> `PLUGIN_TEXT_MIN_UNITS`(72u)/`PLUGIN_TEXT_MAX_UNITS`(400u) 后向上取整成 `ROW_HEIGHT_TWO_LINE`(40u) 带行
+> （复刻 `pluginTextMetrics.rows`），列表形取前 `MAX_RESULTS`(10) 行、状态行按 30u（`LAUNCHER_STATUS_UNITS`）、
+> 其余按 40u，分组标题另计一条 26u 带（`LAUNCHER_SECTION_TITLE_UNITS`）。`internal/launcher/height.go` 的
+> `RowInfo` 新增 `Status`/`Band`、`Geometry` 新增 `Sections`，各自按原版的带价计费。
+>
+> **测试**：`internal/launcher/outputheight_test.go`——`TestTheOutputViewPricesItsOwnContent`（同一输出在
+> 一条结果与多条结果下高度相同；12 行高于 3 行）、`TestTheOutputListWindowIsCappedAtTheBudget`（3 行 < 10 行，
+> 25 行 == 10 行）；`internal/launcher/height_test.go` 追加 `TestPluginTextRows`（空串/1/2/3/4 行与 100/200 行
+> 的带行数）、`TestStatusAndSectionBands`、`TestBandRowsArePricedAsTheirBand`。变异核查：把 `windowRows` 的
+> `if a.output != nil` 改成恒假，前两条立刻红（`166` vs `454`；12 行与 3 行同为 `166`）。
+> 门槛：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 28 包全绿（1036 项）、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
 
 > **最新一轮：P7-cp 输出列表的分组标题与启动器列表同一个寄存器（原版 `src/launcher/LauncherResults.tsx:837-839`、`src/styles/launcher.css:1007-1024`）**
 > —— P7-co 清单第 3 条（唯一不卡框架的余项）。依赖检查：`go list -m -versions github.com/egoist/mygo`
@@ -2482,6 +2513,52 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 - 窗口可见时完成反馈落在面板自己的停靠行（隐藏时才发系统通知）——之前可见时什么都不说。
 
 ## 尚未做（按建议优先级）
+
+### 具体待办（P7-cq 重写；第 1 条已落地，余下第 2、3 条待做）
+
+P7-cp 之后「尚未做」只剩三条卡框架项（`Options.OnCopy` 复制反馈、终端键入的 `HandleInput` 空格缝、
+外观四个死旋钮），无 Go 侧可落地项。本轮换入口：逐文件对照原版的**插件视图几何**，把清单重写成
+下面三条带 file:line 的具体待办，并取第 1 条落地（见「最近几轮」P7-cq）。依赖检查：
+`go list -m -versions github.com/egoist/mygo` 仍停在 **v0.4.8**（与 `go.mod` 一致），无版本可升。
+只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+
+1. **输出视图的窗口高度按输出自己的内容计价**（已落地，P7-cq）。
+   - 原版对照：`main:src/App.tsx:2133-2137` 的 `launcherListRows = pluginView ? pluginViewRows(pluginView)
+     : displayedResults.length` 与 `:2185-2200` 的文本形 `pluginViewRows × ROW_HEIGHT_TWO_LINE`；
+     `main:src/launcher/plugin-mode.ts:647-651` 的 `pluginViewRows`（文本 → `metrics.rows`，列表 →
+     `min(items.length, MAX_RESULTS)`）与 `:238-267` 的 `PLUGIN_TEXT_LINE_UNITS`(24u)/
+     `PLUGIN_TEXT_MIN_UNITS`(72u)/`PLUGIN_TEXT_MAX_UNITS`(400u)/`pluginTextMetrics`。
+   - 本构建（改前）：`internal/launcher/launcher.go` 的 `View` 无条件用 `a.Results()` 建 `rows`、
+     `HoldRows(a.HeldRows, len(results))`——输出视图在屏时窗口仍按身后的搜索结果计价。
+   - 验收：同一份输出在「一条结果」与「多条结果」的查询下高度相同；12 行高于 3 行；3 行列表 < 10 行，
+     25 行列表 == 10 行（`min(items, MAX_RESULTS)`）。**已落地**：`windowRows`/`pluginTextRows`/`outputRows`
+     （`internal/launcher/output.go`）+ `RowInfo.Status`/`Band`、`Geometry.Sections`（`internal/launcher/height.go`）；
+     测试 `internal/launcher/outputheight_test.go`、`height_test.go` 的三条。
+2. **输出列表的行要有编号快捷键（原版 R39 的 interactive 层）**。
+   - 原版对照：`main:src/App.tsx:1602-1611` 的 `displayedShortcutSlots`——`pluginInteractive` 为真时
+     走 `resultShortcutSlots(displayedResults, …)`，给插件列表的行发 `⌘1`–`⌘9`/`⌘0`；
+     `main:src/launcher/plugin-mode.ts:665-666` 的 `pluginViewInteractive`（`form === "list" &&
+     tier === "interactive"`）；`pluginViewItems` 把列表行的 `LauncherItem` 交回编号家族。
+   - 本构建：`internal/launcher/launcher.go` 的 `assignNumbers(results)`（约 `:729`）只编号 `a.Results()`，
+     输出视图在屏时 `modeShortcuts`（约 `:960-977`）只认方向键/Enter/Escape 就 `return`，**从不**问
+     `⌘N`；`outputRow`（`internal/launcher/output.go:517`）也不画徽标。
+   - 验收：交互层的输出列表前 10 行按顺序带 `⌘1`–`⌘9`/`⌘0` 徽标，按 `⌘N` 跑第 N 行；display 层
+     （状态行、不可运行行）不编号；超出预算时按 `List.Visible()` 重新编号（R72）。测试：`internal/launcher`
+     新增一条，钉徽标与按键两条路。
+3. **直出文本的 ANSI 渲染：dim 与 inverse 的规则与原版不同**。
+   - 原版对照：`main:src/launcher/PluginTextView.tsx:46-63` 的 `spanStyle`——`dim` 对**任何**颜色
+     一律 `opacity: 0.62`（整个 run 半透明，不只是默认前景）；`inverse` 只在**两侧都有名字**时才互换，
+     「只有一侧有名时没有可互换的对象，读作原色对」（`const fg = invert ? style.bg : style.fg;`
+     后 `if (fg)` 才设色）。
+   - 本构建：`internal/launcher/output.go` 的 `outputSpans`（约 `:582-617`）——`style.Dim` 只在
+     `style.FG.Kind == ansi.Default` 时生效，且用 `fg.Alpha(0.7)`（不是 0.62，也不作用于具名/索引/真彩
+     色）；`style.Inverse` **无条件**互换，且用 `c.Theme().Background` 补齐空的那一侧（于是
+     「只给背景色 + inverse」会多出一块不透明底）。
+   - 验收：`dim` 的具名色也减半（整 run 0.62）；`inverse` 且只给前景色时背景保持默认（透明），
+     只给背景色时前景保持默认；两侧都具名时照旧互换。测试：`internal/launcher` 新增一条直接断言
+     `outputSpans` 产出的 `ui.Span`（颜色 alpha 与背景是否透明）。
+
+> 卡框架项未落地前不假装接线；其余可实现的偏离点继续逐区域对照 `main` 排查。
 
 ### 具体待办（P7-co 重写；第 1–3 条已落地，余下第 4 条卡框架但已写成可执行规格）
 

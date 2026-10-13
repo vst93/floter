@@ -741,23 +741,14 @@ func (a *App) View(c *ui.Context) {
 	if _, height := c.MeasureText(0, ui.Span{Text: "Ag", Size: t.FontSize}); height > 0 {
 		a.SubtitleLine = float64(height)
 	}
-	rows := make([]RowInfo, len(results))
-	for i, item := range results {
-		if rowSubtitle(item) != "" {
-			rows[i].Lines = 2
-		} else {
-			rows[i].Lines = 1
-		}
-		rows[i].Heading = item.heading
-		rows[i].Bar = strings.HasPrefix(item.ID, "bar:")
-	}
+	rows, held, sections := a.windowRows(results)
 	a.Rows = rows
 	// The window follows the list exactly: the row count it holds is the
 	// count the content needs (the reference's R66 rule). A one-row margin
 	// would leave the window a row too tall whenever a row leaves - which is
 	// the held modifier's row on release. The cap is the work area less the
 	// room the other windows keep.
-	a.HeldRows = HoldRows(a.HeldRows, len(results))
+	a.HeldRows = HoldRows(a.HeldRows, held)
 	if a.Actions.ResizeTo != nil {
 		geometry := Geometry{
 			Font: a.Font, Spacing: a.Spacing, Rows: rows, Held: a.HeldRows,
@@ -765,6 +756,7 @@ func (a *App) View(c *ui.Context) {
 			Filter:   a.filtersVisible(),
 			Feedback: a.toast != "" || a.pendingPower != "",
 			Config:   a.configSchema(),
+			Sections: sections,
 		}
 		a.Actions.ResizeTo(geometry.Height())
 	}

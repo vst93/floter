@@ -2,6 +2,7 @@ package launcher
 
 import (
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -634,4 +635,97 @@ func ansiColor(appearance theme.Appearance, color ansi.Color, fallback ui.Color)
 		return theme.ANSIColor(appearance, 3, 0, color.R, color.G, color.B)
 	}
 	return fallback
+}
+
+// windowRows is the row table the window's height is charged from: the search
+// results the list draws, or — while a captured run's output owns the band —
+// the output view's own rows. The old build priced the plugin view, not the
+// page behind it: `launcherListRows = pluginView ? pluginViewRows(pluginView)
+// : displayedResults.length` (`main:src/App.tsx:2133-2137`). An output view in
+// front of a two-row query is therefore as tall as its output, not its query.
+//
+// `sections` is the number of section-title bands a captured-output list
+// prints; the ordinary list carries its headings as `RowInfo.Heading` rows
+// inside the budget, so it reports none here.
+func (a *App) windowRows(results []Item) (rows []RowInfo, held, sections int) {
+	if a.output != nil {
+		return a.outputRows()
+	}
+	rows = make([]RowInfo, len(results))
+	for i, item := range results {
+		if rowSubtitle(item) != "" {
+			rows[i].Lines = 2
+		} else {
+			rows[i].Lines = 1
+		}
+		rows[i].Heading = item.heading
+		rows[i].Bar = strings.HasPrefix(item.ID, "bar:")
+	}
+	return rows, len(results), 0
+}
+
+// The captured-output text block's own measurements, in the old build's units
+// (`main:src/launcher/plugin-mode.ts:238-247`). A text line is 24u; the block
+// never draws shorter than three lines (the user's 「一个最小高度也要限制」) and
+// never taller than the ten-row list ceiling, scrolling inside itself past it.
+const (
+	pluginTextLineUnits = 6   // 24u
+	pluginTextMinUnits  = 18  // 72u, three lines
+	pluginTextMaxUnits  = 100 // 400u, MAX_RESULTS × ROW_HEIGHT_TWO_LINE
+)
+
+// pluginTextRows is the text form's band row count: its explicit lines at
+// `PLUGIN_TEXT_LINE_UNITS` each, clamped into the floor and the ceiling, then
+// rounded up to whole `ROW_HEIGHT_TWO_LINE` band rows — the old build's
+// `pluginTextMetrics(...).rows`, which is what `pluginViewRows` returned for
+// the text form. An empty string has no lines and takes the floor.
+func pluginTextRows(text string) int {
+	lines := 0
+	if text != "" {
+		lines = strings.Count(text, "\n") + 1
+	}
+	height := math.Max(pluginTextMinUnits, math.Min(float64(lines*pluginTextLineUnits), pluginTextMaxUnits))
+	return int(math.Ceil(height / rowTwoLineUnits))
+}
+
+// outputRows is the band table for the captured-output view in front of the
+// user. The text form is `pluginTextRows` band rows, each charged the full
+// `ROW_HEIGHT_TWO_LINE` (the block is one body, not rows); the list form is its
+// first `MAX_RESULTS` rows at their own heights (a status note 30u, a result
+// 40u) with a section-title band per block. See
+// `main:src/launcher/plugin-mode.ts:647-651` (`pluginViewRows`) and
+// `main:src/App.tsx:2185-2200`.
+func (a *App) outputRows() (rows []RowInfo, held, sections int) {
+	view := a.output
+	if view == nil {
+		return nil, 0, 0
+	}
+	if !view.IsList {
+		n := pluginTextRows(view.Text)
+		rows = make([]RowInfo, n)
+		for i := range rows {
+			rows[i].Band = rowTwoLineUnits
+		}
+		return rows, n, 0
+	}
+	visible := view.Rows
+	if len(visible) > rowBudget {
+		visible = visible[:rowBudget]
+	}
+	rows = make([]RowInfo, 0, len(visible))
+	for i, row := range visible {
+		if row.Group != "" && (i == 0 || row.Group != visible[i-1].Group) {
+			sections++
+		}
+		if row.Status || row.Disabled {
+			rows = append(rows, RowInfo{Status: true})
+			continue
+		}
+		lines := 1.0
+		if row.Subtitle != "" {
+			lines = 2
+		}
+		rows = append(rows, RowInfo{Lines: lines})
+	}
+	return rows, len(rows), sections
 }
