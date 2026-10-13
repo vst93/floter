@@ -49,6 +49,72 @@ func TestNormalizeResolvesAndFilters(t *testing.T) {
 	}
 }
 
+// A dangling symlink is still a thing the user dropped: the reference asks
+// `symlink_metadata` whether the path is there (which does not follow the
+// link) and `is_dir` whether it is a folder (which does). The two answers must
+// therefore disagree on every broken link: kept, and not a directory.
+func TestNormalizeKeepsADanglingSymlinkButNotAsADirectory(t *testing.T) {
+	dir := t.TempDir()
+	broken := filepath.Join(dir, "broken")
+	if err := os.Symlink(filepath.Join(dir, "gone.txt"), broken); err != nil {
+		t.Skipf("symlinks are unavailable: %v", err)
+	}
+	realDir := filepath.Join(dir, "realdir")
+	if err := os.MkdirAll(realDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	dirLink := filepath.Join(dir, "dirlink")
+	if err := os.Symlink(realDir, dirLink); err != nil {
+		t.Skipf("symlinks are unavailable: %v", err)
+	}
+
+	files := Normalize([]string{broken, dirLink}, t.TempDir(), t.TempDir())
+	if len(files) != 2 {
+		t.Fatalf("files = %+v", files)
+	}
+	if files[0].Path != broken || files[0].IsDirectory {
+		t.Errorf("a dangling symlink = %+v, want kept and not a directory", files[0])
+	}
+	if files[1].Path != dirLink || !files[1].IsDirectory {
+		t.Errorf("a symlink to a directory = %+v, want kept and a directory", files[1])
+	}
+}
+
+// The trim is the emptiness test, not a repair: the path the reference resolves
+// is the string the desktop reported. A path carrying surrounding whitespace is
+// therefore a path that is not there, not one quietly turned into the file
+// that would have been there without it.
+func TestNormalizeDoesNotTrimThePathItResolves(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "a.txt")
+	write(t, file)
+
+	if got := Normalize([]string{" " + file + " "}, t.TempDir(), t.TempDir()); len(got) != 0 {
+		t.Fatalf("a padded path = %+v, want dropped", got)
+	}
+	// The same path without the padding is still the file, so the test above
+	// is about the trim and not about the fixture.
+	if got := Normalize([]string{file}, t.TempDir(), t.TempDir()); len(got) != 1 || got[0].Path != file {
+		t.Fatalf("an unpadded path = %+v", got)
+	}
+}
+
+// `~alice` is a directory literally called that, not another user's home:
+// resolving it would walk out of the process's own filesystem. The reference
+// joins it to home, so a file named `~alice` under home is kept and one under
+// cwd is not.
+func TestNormalizeTreatsALiteralTildeNameAsAFileUnderHome(t *testing.T) {
+	home := t.TempDir()
+	cwd := t.TempDir()
+	write(t, filepath.Join(home, "~alice"))
+	write(t, filepath.Join(cwd, "~bob"))
+
+	got := Normalize([]string{"~alice", "~bob"}, home, cwd)
+	if len(got) != 1 || got[0].Path != filepath.Join(home, "~alice") {
+		t.Fatalf("literal tilde names = %+v, want only home/~alice", got)
+	}
+}
+
 func TestDirectoryForCD(t *testing.T) {
 	file := File{Path: "/tmp/dir/file.txt", Directory: "/tmp/dir"}
 	if got := DirectoryForCD(file); got != "/tmp/dir" {

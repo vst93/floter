@@ -41,17 +41,30 @@ func Normalize(paths []string, home, cwd string) []File {
 	return files
 }
 
-// normalize resolves one path, reporting whether it exists.
+// normalize resolves one path, reporting whether it is there.
 func normalize(path, home, cwd string) (File, bool) {
-	path = strings.TrimSpace(path)
-	if path == "" {
+	// The trim decides only whether there is anything to look at. The
+	// reference trims for its emptiness test and then hands the *raw* string to
+	// its resolver, so `" /tmp/a "` is a path that is not there rather than one
+	// silently repaired into `/tmp/a`.
+	if strings.TrimSpace(path) == "" {
 		return File{}, false
 	}
-	if path == "~" || strings.HasPrefix(path, "~/") {
+	if strings.HasPrefix(path, "~") {
 		if home == "" {
 			return File{}, false
 		}
-		path = filepath.Join(home, strings.TrimPrefix(strings.TrimPrefix(path, "~"), "/"))
+		// A leading `~` that is the whole path or is followed by a separator
+		// is the home directory. `~alice` is *not* another user's home: a
+		// name that just happens to start with a tilde is a directory
+		// literally called that, so it is joined to home rather than resolved
+		// — exactly the rule `resolve` in the reference follows.
+		rest := path[1:]
+		if rest != "" && !os.IsPathSeparator(rest[0]) {
+			path = filepath.Join(home, path)
+		} else {
+			path = filepath.Join(home, rest)
+		}
 	}
 	if !filepath.IsAbs(path) {
 		// A relative path resolves against the directory the drop was
@@ -59,9 +72,18 @@ func normalize(path, home, cwd string) (File, bool) {
 		path = filepath.Join(cwd, path)
 	}
 	path = filepath.Clean(path)
-	info, err := os.Stat(path)
-	if err != nil {
+	// Existence is `symlink_metadata`: a dangling symlink is still a thing the
+	// user dropped and can still be opened, entered and copied — refusing it
+	// because its target is gone would drop the row silently. Whether it is a
+	// directory is the opposite question and follows the link (the reference's
+	// `is_dir`), so a dangling symlink reports `false` and a symlink to a
+	// directory reports `true`.
+	if _, err := os.Lstat(path); err != nil {
 		return File{}, false
+	}
+	isDirectory := false
+	if info, err := os.Stat(path); err == nil {
+		isDirectory = info.IsDir()
 	}
 	directory := filepath.Dir(path)
 	if _, err := os.Stat(directory); err != nil {
@@ -71,7 +93,7 @@ func normalize(path, home, cwd string) (File, bool) {
 		Path:        path,
 		Name:        filepath.Base(path),
 		Directory:   directory,
-		IsDirectory: info.IsDir(),
+		IsDirectory: isDirectory,
 	}, true
 }
 

@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1057 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1060 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1057 项测试
+go test -count=1 ./...         # 1060 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,7 +99,41 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-cy 应用按键录制的冲突拒绝（原版 `src/hooks/useShortcutCapture.ts:112-136`、
+> **最新一轮：P7-cz 拖放路径的解析对齐原版（原版 `src-tauri/src/commands/drops.rs:55-105`）**
+> —— P7-cy 之后 P7-cw 清单三条全部落地、清单再次为空，本轮按上节建议换入口做「逐文件对照原版」的
+> 审计（与 P7-ci/P7-ck/P7-ct/P7-cw 同一手法）：拿 `internal/drops` 对原版 Rust 的
+> `src-tauri/src/commands/drops.rs`。依赖检查：`go list -m -versions github.com/egoist/mygo` 仍停在
+> **v0.4.8**（与 `go.mod` 一致；GitHub releases API 本轮被限流，用 `go list` 代替），无版本可升。
+> 只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离点（三处）**：
+> 1. **trim 被当成了修正**：原版 `normalize_dropped_path` 只把 `path.trim()` 用在空串判断上
+>    （`drops.rs:55-58`），随后把**原始** `path` 交给 `resolve`。本构建过去
+>    `path = strings.TrimSpace(path)` 之后再解析，于是 `" /tmp/a "` 被悄悄修成 `/tmp/a`
+>    并当成一个存在的文件——一个用户没拖的东西变成了行。
+> 2. **存在性用了 `Stat` 而不是 `symlink_metadata`**：原版 `:60-65` 用
+>    `std::fs::symlink_metadata`（不跟链），悬空符号链接仍是一份可以打开/`cd`/复制的掉落；本构建用
+>    `os.Stat`，链断了整行就消失。目录判定是**反面**的问题、走 `resolved.is_dir()`（`:82`，跟链），
+>    所以悬空链接应是「留着，但不是目录」。
+> 3. **`~alice` 被当相对路径**：原版 `resolve`（`:93-105`）对**任何** `~` 开头都进分支，只有 `~`
+>    或 `~` + 分隔符才是 home；`~alice` 是 `home.join("~alice")`（字面名字的目录，不是别人的
+>    home）。本构建只认 `~`/`~/`，`~alice` 落到 `cwd/~alice`。
+>
+> **修法**：`internal/drops/drops.go` 的 `normalize`——空判改为 `strings.TrimSpace(path) == ""`
+> 但解析用原始 `path`；存在性改 `os.Lstat`，目录判定单独 `os.Stat`（失败即 `IsDirectory=false`）；
+> `~` 分支改为 `strings.HasPrefix(path, "~")` + `os.IsPathSeparator(rest[0])`，字面 `~alice` 走
+> `filepath.Join(home, path)`，其余走 `filepath.Join(home, rest)`。
+>
+> **测试**：`internal/drops/drops_test.go` 新增
+> `TestNormalizeKeepsADanglingSymlinkButNotAsADirectory`（悬空链保留且非目录 + 指向目录的链是目录）、
+> `TestNormalizeDoesNotTrimThePathItResolves`（带空白的路径被丢弃、去空白后仍在）、
+> `TestNormalizeTreatsALiteralTildeNameAsAFileUnderHome`（`home/~alice` 保留、`cwd/~bob` 丢弃）。
+> 变异核查：把 `os.Lstat` 换回 `os.Stat`、把 `strings.TrimSpace(path) == ""` 换回
+> `path = strings.TrimSpace(path)`、把 `~` 分支换回只认 `~`/`~/`，对应用例各自立刻变红。
+> 门槛：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿（**1060** 项
+> `--- PASS`，含子测试）、`GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **上一轮：P7-cy 应用按键录制的冲突拒绝（原版 `src/hooks/useShortcutCapture.ts:112-136`、
 > `src/settings/ShortcutsPage.tsx:382,399-407`）**
 > —— P7-cw 重写的清单第 1、2 条已由 P7-cw / P7-cx 落地，本轮取第 3 条（最后一条，也是清单里唯一
 > 剩余项），至此 P7-cw 三条**全部落地**，清单再次为空（余下只有三条卡 mygo 框架项，规格见
@@ -2780,6 +2814,29 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 - 窗口可见时完成反馈落在面板自己的停靠行（隐藏时才发系统通知）——之前可见时什么都不说。
 
 ## 尚未做（按建议优先级）
+
+### 具体待办（P7-cz 重写；三条已全部落地，同为 P7-cz）
+
+> 本轮换入口：逐文件对照原版的**拖放规范化**（`src-tauri/src/commands/drops.rs`），把清单写成下面
+> 三条带 file:line 的具体待办，并一次全部落地（见「最近几轮」P7-cz）。三条都落地后清单为空。
+> 下一轮仍建议换一个区域做「逐文件对照原版」的审计（与 P7-ci/P7-ck/P7-ct/P7-cw/P7-cz 同一手法）。
+
+1. **`normalize_dropped_path` 的 trim 只能用于空串判断，不能拿来修路径**（已落地，P7-cz）。
+   - 原版对照：`main:src-tauri/src/commands/drops.rs:55-58` 用 `path.trim()` 判空，
+     `:59` 的 `resolve(path, …)` 收**原始**串。
+   - 本构建（改前）：`internal/drops/drops.go` 先 `path = strings.TrimSpace(path)`，`" /tmp/a "`
+     被修成 `/tmp/a` 后通过存在性检查。
+   - 验收：带首尾空白的路径被丢弃（除非真存在同名文件），去空白后仍是同一文件。
+2. **存在性走 `symlink_metadata`（`os.Lstat`），目录走跟链的 `is_dir`（`os.Stat`）**（已落地，P7-cz）。
+   - 原版对照：`main:src-tauri/src/commands/drops.rs:60-65` 的 `symlink_metadata` 与 `:82` 的
+     `resolved.is_dir()`。
+   - 本构建（改前）：`internal/drops/drops.go` 统一 `os.Stat`，悬空符号链接整行消失。
+   - 验收：悬空链接保留且 `IsDirectory=false`；指向目录的链接 `IsDirectory=true`。
+3. **`~alice` 是字面目录名，join 到 home，不是相对 cwd 的路径**（已落地，P7-cz）。
+   - 原版对照：`main:src-tauri/src/commands/drops.rs:93-105` 的 `resolve`——只有 `~` 或
+     `~` + 分隔符才是 home，其余 `~xxx` 走 `home.join(path)`。
+   - 本构建（改前）：`internal/drops/drops.go` 只认 `~`/`~/`，`~alice` 落到 `filepath.Join(cwd, "~alice")`。
+   - 验收：`home/~alice` 被保留为 `home/~alice`，`cwd/~bob` 不因 cwd 下存在而被收。
 
 ### 具体待办（P7-cw 重写；三条已全部落地：第 1 条 P7-cw、第 2 条 P7-cx、第 3 条 P7-cy）
 
