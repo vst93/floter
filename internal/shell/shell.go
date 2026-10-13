@@ -1779,24 +1779,37 @@ const maxDetectedTools = 12
 // run goes to the surface the manifest's output mode names — a terminal route
 // streams through the PTY, a background route runs headless and leaves its
 // output on the integration's row.
-func (a *App) runWithParams(id string, values map[string]string) {
+//
+// A combination the manifest would not allow is refused here with a
+// `run_param_*` key, and the surface words it; the run never proceeds with a
+// partially-built argv.
+func (a *App) runWithParams(id string, values map[string]string) *extensions.ParamFailure {
 	integration, ok := a.Integrations.Inventory().WithID(id)
 	if !ok {
-		return
+		return nil
 	}
-	argv := extensions.ParamArgv(integration.Manifest.Params, values)
 	for _, entry := range a.Integrations.CommandEntries() {
 		if entry.IntegrationID != id {
 			continue
 		}
+		argv, err := extensions.ParamArguments(
+			integration.Manifest.Params, values, extensions.ProgramIsCmdScript(entry.Program))
+		if err != nil {
+			var failure *extensions.ParamFailure
+			if errors.As(err, &failure) {
+				return failure
+			}
+			return nil
+		}
 		if integration.Manifest.Route() == extensions.RouteTerminal {
 			a.runCommand(entry, argv)
-			return
+			return nil
 		}
 		a.runCommandFromPanel(entry, argv)
-		return
+		return nil
 	}
 	log.Printf("floter: %s declares parameters but contributes no command", id)
+	return nil
 }
 
 // runCommandFromPanel runs a panel run whose manifest sends its output to the

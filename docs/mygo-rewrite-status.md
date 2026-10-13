@@ -8,7 +8,7 @@
 
 用 mygo（原生 GPU 自绘 UI + Go）重写的 floter **已经是一个可打包、可运行的完整应用**：单窗口三表面
 （启动器 / 设置 / 终端）、搜索内核、扩展平台（含后台运行、列表协议、导入导出、权限审计）、剪贴板、
-浏览器、计算器、系统集成、打包与 CI 全部就位。**855 项测试全绿**，三平台都能构建，Linux 打包
+浏览器、计算器、系统集成、打包与 CI 全部就位。**887 项测试全绿**，三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
 含测试）。
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 855 项测试
+go test -count=1 ./...         # 887 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,7 +99,43 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-bi lifecycle 的结构校验（`Lifecycle::validate`）** —— P7-bh 重写的具体待办第 2 条。
+> **最新一轮：P7-bj 运行期参数校验与 argv 权威（`param_arguments`）** —— P7-bh 重写的具体待办第 3 条。
+> 原来 `ParamArgv` 只把答案拼成 argv：未声明的 id 被静默丢掉、required 不查、number/select/boolean
+> 不校验、`inf`/`NaN` 照收、`.cmd`/`.bat` 的 cmd.exe 元字符也直接传下去。现在只有
+> `ParamArguments` 一个 argv 构建点，非法组合发 `run_param_*` 键，面板按语言把句子印在按钮下。
+
+**P7-bj 运行期参数校验与 argv 权威（本轮）**
+
+- **依赖检查**：GitHub API 被限流，改用 `go list -m -versions github.com/egoist/mygo` 确认 v0.4.8
+> 仍是最新（`go.mod` 已是 v0.4.8），无版本可升。
+- **入口**：P7-bh 重写的 5 条具体待办，第 1、2 条已落地，本轮取第 3 条（`param_arguments`）。
+- **偏离点（argv 构建点从不拒绝）**：原版 `src-tauri/src/extensions/run.rs:295` 的 `param_arguments`
+  是**唯一**的 argv 构建点，并在运行前重新校验：未声明的 id → `run_param_unknown:{id}`；required 且
+  无值无默认 → `run_param_required:{id}`；flag 非法 / number 非有限小数 / select 不在选项 / boolean
+  不是 `true|false` → `run_param_invalid:{id}`；`.cmd`/`.bat`（经 cmd.exe）且值含 `&|<>^%`
+  （`run.rs:231` 的 `WINDOWS_CMD_UNSAFE_CHARS`）→ `run_param_windows_unsafe:{id}`；缺值回填 `default`。
+  本构建 `internal/extensions/params.go:163` 的 `ParamArgv` 静默丢未知 id、不查 required、不校验
+  number/select/boolean、不回填 default、无 windows-unsafe；`shell.go:1787` 直接把它交给运行。
+- **修法**：新文件 `internal/extensions/paramrun.go`——`ParamFailure{Key,Param}` 与四个键、`Error()`
+  发 `key:{id}`、`ParseParamFailure`（只认四个键、id 非空）、`ParamArguments(params, values, cmdScript)`
+  复刻全部规则（未知键按排序确定；缺值回填 default；按 kind 转换；flag 与 value 各自成项）、
+  `IsFiniteDecimal`（复刻原版前端 `FINITE_DECIMAL_PATTERN`，拒绝 `inf`/`NaN`/`0x1p-2`/`1_000`）、
+  `WindowsCmdUnsafeChar`、`IsCmdScriptName`/`ProgramIsCmdScript`。删除 `ParamArgv` 与 `truthy`——
+  原版明说「argv 只在一个地方构建」，第二处会漂移。`shell.go` 的 `runWithParams` 改用它，并把
+  `RunWithParams` 回调改为返回 `*extensions.ParamFailure`；`settingsui` 新增 `paramFailureMessage`
+  （label 优先、缺省回 id）把句子印在按钮下。i18n 补四句 `RunParam*`（en/zh 逐字对齐旧字典 774-777 /
+  1645-1648）。
+- **测试**：`internal/extensions/paramrun_test.go`——声明顺序与 flag/位置参数、缺省回填、required、
+  empty=未给、按 kind 转换、非有限小数（`inf`/`NaN`/`0x1p-2`/`1_000`）、未声明键、坏 flag、
+  cmd 元字符（同一值对非 cmd 程序放行）、键往返与保守解析（`run_param_required:note` 不被
+  `ParseRunFailure` 认）、`IsFiniteDecimal`/`WindowsCmdUnsafeChar`/`IsCmdScriptName` 表；
+  `internal/settingsui/view_test.go` 的 `TestRunParamRefusalIsWorded`（四键 en/zh、label 回退 id、
+  键不外泄）与 `TestRunParamFormShowsTheBackendRefusal`（后端拒绝印在表单上）。变异核查：把
+  `if cmdScript` 改成 `if false`，cmd 元字符那条立刻红（`accepted map[target:a&b]`）。
+- **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿（887 项）、
+  `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+> **上一轮：P7-bi lifecycle 的结构校验（`Lifecycle::validate`）** —— P7-bh 重写的具体待办第 2 条。
 > 原版解析清单时对 lifecycle 有一整套规则（每 shell 一个 completion、source/args 恰有其一、参数与
 > 超时上下界、模板 target 与 probe id 唯一、完成文件名安全、launch 的 restorePolicy 闭集与 NUL），
 > 本构建只解析不校验，夹具可带任意 timeout 与重复 id 通过。现在 `LoadManifest` 会跑
@@ -1588,13 +1624,13 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 尚未做（按建议优先级）
 
-> **P7-bi 更新**：P7-bh 重写的 5 条里第 1（路径安全）、第 2（lifecycle 结构校验）已落地。
-> 第 3、4 条互相依赖（同一套 `run_param_*` 键的两半），宜连着做；第 5 条（严格解析 + 组合规则）独立。
-> 三条明确卡在框架上的能力（`Options.OnCopy`、终端键入的 `HandleInput` 缝、外观四个死旋钮）与
-> 一次性维护者动作（`mygo keygen`、`mygo.json` 的 `updates`/签名、CI 私钥、发布到 GitHub Release）
-> 仍未动。
+> **P7-bj 更新**：P7-bh 重写的 5 条里第 1（路径安全）、第 2（lifecycle 结构校验）、第 3
+> （运行期参数校验与 argv 权威）已落地。第 4 条（表单逐参数本地化）是同一套 `run_param_*` 键的
+> 另一半，宜接着做；第 5 条（严格解析 + 组合规则）独立。三条明确卡在框架上的能力（`Options.OnCopy`、
+> 终端键入的 `HandleInput` 缝、外观四个死旋钮）与一次性维护者动作（`mygo keygen`、`mygo.json` 的
+> `updates`/签名、CI 私钥、发布到 GitHub Release）仍未动。
 
-### 具体待办（P7-bh 重写；第 1、2 条已落地）
+### 具体待办（P7-bh 重写；第 1、2、3 条已落地）
 
 1. **清单的路径安全（`validate_relative_path`）**（P7-bh 已落地）—— 原版在**解析清单时**就拒绝
    任何非空、非相对、含 `.`/`..` 的声明路径；本构建只在使用时用 `joinWithin` 兜住一部分，导出
@@ -1623,8 +1659,9 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
    - 验收：新增 `Lifecycle.Validate()` 复刻全部规则（含 `restorePolicy` 字段的解析），接进
      `LoadManifest`；逐条测试（重复 shell、`source`+`args` 同时给、`args=17`、timeout 越界、重复
      probe id、probe timeout 越界、`args=33`、未知 `restorePolicy`、NUL）。
-3. **运行期参数校验与 argv 权威（`param_arguments`）** —— 原版把声明 + 答案在**运行前**重新校验
-   并转成 argv，任何非法组合发稳定键；本构建的 `ParamArgv` 只拼 argv，从不拒绝。
+3. **运行期参数校验与 argv 权威（`param_arguments`）**（P7-bj 已落地）—— 原版把声明 + 答案在
+   **运行前**重新校验并转成 argv，任何非法组合发稳定键；本构建原来的 `ParamArgv` 只拼 argv，从不拒绝。
+   落地见下方「P7-bj 运行期参数校验与 argv 权威」。（原分析保留在下方。）
    - 原版：`src-tauri/src/extensions/run.rs:290` 的 `param_arguments`——未声明的 id →
      `run_param_unknown:{id}`；required 且无值无默认 → `run_param_required:{id}`；flag 非法 /
      number 非有限 / select 不在选项 / boolean 不是 true|false → `run_param_invalid:{id}`；

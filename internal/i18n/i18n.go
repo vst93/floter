@@ -530,6 +530,12 @@ type Settings struct {
 	RunNoOutput            string
 	RunOutputTruncated     string
 	RunOutputTruncatedTail string
+	// A refused run's parameter reason: the four `run_param_*` keys, each
+	// interpolating the parameter's label (or its id).
+	RunParamRequired      func(label string) string
+	RunParamInvalid       func(label string) string
+	RunParamUnknown       func(label string) string
+	RunParamWindowsUnsafe func(label string) string
 	// A failed run is a stable key plus its facts; these are the words. Each
 	// takes the payload fields its own key carries.
 	RunErrorScriptMissing       func(path string) string

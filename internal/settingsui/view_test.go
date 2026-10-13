@@ -1977,7 +1977,10 @@ func TestRunParamForm(t *testing.T) {
 	}
 	runs := []run{}
 	a := New(settings.NewStore(settings.Default()), Actions{
-		RunWithParams: func(id string, values map[string]string) { runs = append(runs, run{id, values}) },
+		RunWithParams: func(id string, values map[string]string) *extensions.ParamFailure {
+			runs = append(runs, run{id, values})
+			return nil
+		},
 	})
 	a.Integrations = func() []Integration {
 		return []Integration{{
@@ -2023,6 +2026,78 @@ func TestRunParamForm(t *testing.T) {
 	values := runs[0].values
 	if values["target"] != "here" || values["mode"] != "fast" {
 		t.Errorf("values = %v", values)
+	}
+}
+
+// A run the backend refuses for a parameter reason is worded by the surface,
+// with the label the user sees — never the raw key, and the id only when there
+// is no label. The backend owns the fact, the dictionary owns the sentence.
+func TestRunParamRefusalIsWorded(t *testing.T) {
+	params := []extensions.ParamDefinition{
+		{ID: "note", Label: "Note"},
+		{ID: "mode", Label: "  "},
+	}
+	en := i18n.For("en").Settings
+	zh := i18n.For("zh").Settings
+	cases := []struct {
+		failure *extensions.ParamFailure
+		en, zh  string
+	}{
+		{&extensions.ParamFailure{Key: extensions.RunErrorParamRequired, Param: "note"},
+			"Required: fill in Note before running", "必填：运行前请填写 Note"},
+		{&extensions.ParamFailure{Key: extensions.RunErrorParamInvalid, Param: "note"},
+			"Note is not a valid value for this parameter", "Note 不是该参数的有效值"},
+		{&extensions.ParamFailure{Key: extensions.RunErrorParamUnknown, Param: "sneaky"},
+			"No parameter is declared with the id sneaky", "没有声明 id 为 sneaky 的参数"},
+		{&extensions.ParamFailure{Key: extensions.RunErrorParamWindowsUnsafe, Param: "note"},
+			"Note contains a character", "Note 含 cmd.exe"},
+		// A label-less parameter falls back to its id.
+		{&extensions.ParamFailure{Key: extensions.RunErrorParamRequired, Param: "mode"},
+			"Required: fill in mode before running", "必填：运行前请填写 mode"},
+	}
+	for _, tc := range cases {
+		got := paramFailureMessage(en, params, tc.failure)
+		if !strings.Contains(got, tc.en) {
+			t.Errorf("en = %q, want %q", got, tc.en)
+		}
+		if got := paramFailureMessage(zh, params, tc.failure); !strings.Contains(got, tc.zh) {
+			t.Errorf("zh = %q, want %q", got, tc.zh)
+		}
+		// The raw key never leaks into the sentence.
+		if strings.Contains(paramFailureMessage(en, params, tc.failure), string(tc.failure.Key)) {
+			t.Errorf("the key leaked: %q", paramFailureMessage(en, params, tc.failure))
+		}
+	}
+}
+
+// The run form shows the backend's refusal after a successful local pre-check:
+// a value the form cannot judge (a cmd.exe metacharacter) is caught by the
+// authority and worded under the button.
+func TestRunParamFormShowsTheBackendRefusal(t *testing.T) {
+	a := New(newStore(t), Actions{
+		RunWithParams: func(id string, values map[string]string) *extensions.ParamFailure {
+			return &extensions.ParamFailure{Key: extensions.RunErrorParamWindowsUnsafe, Param: "target"}
+		},
+	})
+	a.Integrations = func() []Integration {
+		return []Integration{{
+			ID: "io.github.vst93.v", Name: "V Tools", Enabled: true, Running: true,
+			Params: []Param{{ID: "target", Label: "Target", Kind: "text"}},
+		}}
+	}
+	tt := render(t, a, 720, 900)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	a.runValues["io.github.vst93.v"]["target"] = "a&b"
+	tt.Frame()
+	if err := tt.Click("Run with these values"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !tt.HasText("Target contains a character") {
+		t.Fatalf("the refusal is missing: %q", tt.Texts())
 	}
 }
 

@@ -128,8 +128,10 @@ type Actions struct {
 	ExportIntegrations func()
 	ImportIntegrations func()
 	// RunWithParams runs an integration's command with the answers to its
-	// declared inputs; the host turns them into argv. Nil hides the form.
-	RunWithParams func(id string, values map[string]string)
+	// declared inputs; the host turns them into argv and refuses an illegal
+	// combination with a `run_param_*` key, which the form words under itself.
+	// Nil hides the form.
+	RunWithParams func(id string, values map[string]string) *extensions.ParamFailure
 	// InstallFromFolder installs a package directory the user picks, and
 	// ChooseFolder asks them for one. Nil hides the row.
 	InstallFromFolder func(dir string)
@@ -2724,7 +2726,10 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 		if ui.Button(c, copy.RunLabel).Clicked() {
 			issues := extensions.ParamIssues(params, values)
 			if len(issues) == 0 {
-				a.Actions.RunWithParams(integration.ID, values)
+				a.runError = ""
+				if failure := a.Actions.RunWithParams(integration.ID, values); failure != nil {
+					a.runError = paramFailureMessage(copy, params, failure)
+				}
 				return
 			}
 			a.runError = copy.RunIncomplete
@@ -2733,6 +2738,35 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 	})
 	if a.runError != "" {
 		ui.Text(c, a.runError).FontSize(theme.FontSize - 1).TextColor(theme.Danger)
+	}
+}
+
+// paramFailureMessage words a refused run: the backend's `run_param_*` key
+// names the parameter, and the label the user sees (or the id when there is
+// none) is what the sentence interpolates — the old form's
+// `paramRunErrorMessage`. The id is never shown when a label exists.
+func paramFailureMessage(copy i18n.Settings, params []extensions.ParamDefinition, failure *extensions.ParamFailure) string {
+	label := failure.Param
+	for _, param := range params {
+		if param.ID != failure.Param {
+			continue
+		}
+		if trimmed := strings.TrimSpace(param.Label); trimmed != "" {
+			label = trimmed
+		}
+		break
+	}
+	switch failure.Key {
+	case extensions.RunErrorParamRequired:
+		return copy.RunParamRequired(label)
+	case extensions.RunErrorParamInvalid:
+		return copy.RunParamInvalid(label)
+	case extensions.RunErrorParamUnknown:
+		return copy.RunParamUnknown(label)
+	case extensions.RunErrorParamWindowsUnsafe:
+		return copy.RunParamWindowsUnsafe(label)
+	default:
+		return failure.Error()
 	}
 }
 

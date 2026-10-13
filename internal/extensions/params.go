@@ -156,33 +156,6 @@ func ParamIssues(params []ParamDefinition, values ParamValues) []string {
 	return issues
 }
 
-// ParamArgv turns answers into the argv they stand for: each flag as its own
-// element, each value its own, and a boolean's flag present only when it is
-// true. Nothing is ever concatenated into a command string — the caller hands
-// the slice to a program, never to a shell.
-func ParamArgv(params []ParamDefinition, values ParamValues) []string {
-	var argv []string
-	for _, param := range params {
-		value := strings.TrimSpace(values[param.ID])
-		if value == "" {
-			continue
-		}
-		if param.Kind == ParamBoolean {
-			// A boolean's value *is* its flag: false means the flag is absent,
-			// which is how a CLI says "off".
-			if truthy(value) {
-				argv = append(argv, param.Flag)
-			}
-			continue
-		}
-		if param.Flag != "" {
-			argv = append(argv, param.Flag)
-		}
-		argv = append(argv, value)
-	}
-	return argv
-}
-
 // ParamDefaults seeds a form: each parameter's own default, or the first
 // choice for a select with none (a select cannot be blank and valid).
 func ParamDefaults(params []ParamDefinition) ParamValues {
@@ -197,17 +170,6 @@ func ParamDefaults(params []ParamDefinition) ParamValues {
 		}
 	}
 	return values
-}
-
-// truthy reads a boolean parameter's own answer: the spellings a switch, a
-// checkbox and a JSON boolean produce.
-func truthy(value string) bool {
-	switch strings.ToLower(value) {
-	case "1", "true", "yes", "on":
-		return true
-	default:
-		return false
-	}
 }
 
 // ParamRowIssue is the one thing a row of the declared-input editor still

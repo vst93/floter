@@ -491,6 +491,18 @@ var en = Copy{
 		RunNoOutput:                      "(No output)",
 		RunOutputTruncated:               "Output was truncated",
 		RunOutputTruncatedTail:           "\u2026 output truncated at 64 KB",
+		RunParamRequired: func(label string) string {
+			return "Required: fill in " + label + " before running"
+		},
+		RunParamInvalid: func(label string) string {
+			return label + " is not a valid value for this parameter"
+		},
+		RunParamUnknown: func(label string) string {
+			return "No parameter is declared with the id " + label
+		},
+		RunParamWindowsUnsafe: func(label string) string {
+			return label + " contains a character (& | < > ^ %) that cmd.exe would re-parse; .cmd/.bat scripts cannot take it safely"
+		},
 		RunErrorScriptMissing: func(path string) string {
 			return "This integration's script file is missing: " + path + ". Edit the integration and save it again to restore it."
 		},
@@ -1187,6 +1199,18 @@ var zh = Copy{
 		RunNoOutput:              "（无输出）",
 		RunOutputTruncated:       "输出已被截断",
 		RunOutputTruncatedTail:   "……输出已截断（上限 64KB）",
+		RunParamRequired: func(label string) string {
+			return "必填：运行前请填写 " + label
+		},
+		RunParamInvalid: func(label string) string {
+			return label + " 不是该参数的有效值"
+		},
+		RunParamUnknown: func(label string) string {
+			return "没有声明 id 为 " + label + " 的参数"
+		},
+		RunParamWindowsUnsafe: func(label string) string {
+			return label + " 含 cmd.exe 会重新解析的字符（& | < > ^ %），.cmd/.bat 脚本无法安全接收"
+		},
 		RunErrorScriptMissing: func(path string) string {
 			return "该集成的脚本文件已丢失：" + path + "。请打开集成重新保存以恢复。"
 		},

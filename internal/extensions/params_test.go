@@ -37,45 +37,6 @@ func TestValidateParams(t *testing.T) {
 	}
 }
 
-// The argv half: each flag its own element, each value its own, a boolean's
-// flag present only when it is true, and nothing ever concatenated.
-func TestParamArgv(t *testing.T) {
-	params := []ParamDefinition{
-		{ID: "target", Kind: ParamText, Flag: "--target"},
-		{ID: "count", Kind: ParamNumber, Flag: "--count"},
-		{ID: "verbose", Kind: ParamBoolean, Flag: "--verbose"},
-		{ID: "loose", Kind: ParamText},
-	}
-	argv := ParamArgv(params, ParamValues{
-		"target":  "a b c",
-		"count":   "3",
-		"verbose": "true",
-		"loose":   "value",
-	})
-	want := []string{"--target", "a b c", "--count", "3", "--verbose", "value"}
-	if len(argv) != len(want) {
-		t.Fatalf("argv = %q, want %q", argv, want)
-	}
-	for i, value := range want {
-		if argv[i] != value {
-			t.Errorf("argv[%d] = %q, want %q", i, argv[i], value)
-		}
-	}
-	// A value with a space stays one element: nothing is re-split, and nothing
-	// is quoted into a command string.
-	if argv[1] != "a b c" {
-		t.Errorf("a value with spaces was split: %q", argv[1])
-	}
-	// An off boolean contributes nothing.
-	if argv := ParamArgv(params, ParamValues{"verbose": "false"}); len(argv) != 0 {
-		t.Errorf("a false boolean contributed %q", argv)
-	}
-	// An empty value contributes nothing either.
-	if argv := ParamArgv(params, ParamValues{"target": "  "}); len(argv) != 0 {
-		t.Errorf("an empty value contributed %q", argv)
-	}
-}
-
 // The form's own validation: the missing required values, the numbers that are
 // not numbers, the choices off the list.
 func TestParamIssues(t *testing.T) {
