@@ -106,7 +106,8 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 > release 链**）：checkout + setup-go → `go tool mygo build -platform windows/amd64` →
 > `FLOTER_OPEN=settings` 后台启动 `dist/windows-amd64/floter.exe` → 等 20s 确认进程还活着 → PowerShell
 > `CopyFromScreen` 截屏 → `upload-artifact`。配套守卫测试 `internal/ci/workflows_test.go` 钉住「只有
-> 手动触发、`go.yml` 不引用它、产物是截图」。落地见下方「P7-bt Windows 冒烟作业」。
+> 手动触发、`go.yml` 不引用它、产物是截图」。并已用 `gh` 真 dispatch 一次（run `38349260181`，2m14s
+> 全绿，截图确认是真实窗口）。落地见下方「P7-bt Windows 冒烟作业」。
 
 > **上一轮：P7-bs `prefers-contrast: more` 接进主题与玻璃（原版 base.css:1387-1574）** —— P7-br 重写的
 > 具体待办只剩两条：第 3 条（Windows 冒烟作业）要真机跑一次，第 4 条是纯代码、可本机验证，本轮取第 4 条。
@@ -201,7 +202,11 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
     `workflow_dispatch`（无 `push:`/`pull_request:`/`release:`/`schedule:`）、构建 `windows/amd64`、
     `CopyFromScreen` + `smoke-desktop.png` + `upload-artifact` 三件套都在；
     `TestWindowsSmokeStaysOutOfTheReleaseChain` 钉住 `go.yml` 不引用 `windows-smoke`。
-- **验证**：`gh workflow run windows-smoke.yml --ref mygo-rewrite` 真跑一次（见下方记录）。
+- **验证**（已满足）：`gh workflow run windows-smoke.yml --ref mygo-rewrite` 真跑一次，run
+  [`38349260181`](https://github.com/vst93/floter/actions/runs/38349260181) 在 2m14s 内 `smoke` 全绿
+  （含 `Launch, reveal, and capture the desktop`），artifact `smoke-desktop` 下载后是 1024×768 PNG：
+  27 503 种颜色、亮度均值 147.3 / 标准差 94.3，16×12 网格里中间是一个亮面矩形（~220-234）被暗边框
+  （~30-50）围着、底行是任务栏——是一张真桌面，不是全黑/全白。
 - **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 29 包全绿（909 项）、
   `GOOS=linux/windows/darwin go build ./...` 三平台通过。
 
