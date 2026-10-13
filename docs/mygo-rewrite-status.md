@@ -2343,6 +2343,28 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
+### 具体待办（P7-cg 重写；按优先级）
+
+前一份 P7-cd 清单已全部完成。本轮检查 GitHub latest release：仍为 **v0.4.8**，与 go.mod 一致，
+无需升级。只对照 `main`，不翻历史提交；以下两项是 Go 捕获实现自己的缺陷，不伪称原版已有内存上限。
+
+1. **修正输出截断的 UTF-8 边界**。
+   - 本构建：`internal/extensions/run.go:165-177` 的 `clip` 从末尾删 continuation byte，却保留多字节
+     字符的首字节；字符刚好完整落在上限内时也会被破坏。`internal/extensions/probes.go:180` 共用它。
+   - 原版对照：`main:src-tauri/src/extensions/run.rs:750-752` 用 `String::from_utf8_lossy` 返回文本，
+     不截断（`truncated: false`）；Go 自己增加的截断不能把原本合法的 UTF-8 变成坏串。
+   - 验收：对 2/3/4 字节字符测试每个切分位置；完整字符恰好落在上限内时保留、不完整字符整个丢弃；
+     ASCII、空串、未超限保持不变；合法输入截断后 `utf8.ValidString` 必须为真。
+2. **在捕获期间限制内存，而不是进程退出后才裁剪**。
+   - 本构建：`internal/extensions/run.go:120-135` 把两个流全部写进 `bytes.Buffer`，`clip` 只在
+     `cmd.Run()` 返回后调用；持续输出的程序可在 300 秒超时前耗尽宿主内存。
+   - 原版对照：`main:src-tauri/src/extensions/run.rs:724-734,750-752` 管道捕获后完整返回输出；
+     本构建 `internal/extensions/run.go:12-24` 额外承诺了有界捕获，需兑现而非照搬原版的无限缓存。
+   - 验收：每个流使用限长 writer，保留最前 1 MiB、持续接收并丢弃多余字节，`Write` 返回完整输入长度
+     防止 short-write/SIGPIPE；只有真正超限才置 `Truncated`。单测验证分块写入、超限后重复写、两流独立；
+     通过真实子进程验证大输出仍正常退出，stdout/stderr 都正确截断，UTF-8 边界沿用第 1 条。
+
+
 > **P7-cd 更新**：P7-cc 之后「尚未做」清单再次为空。这轮不去翻旧提交，而是**顺着原版一条明写、
 > 本构建只做了一半的契约往回找**（与 P7-cc 同一手法）：原版 `src/terminal/command-session.ts` 的
 > R62 规定「命令启动的会话结束就离开终端页」，本构建只做了 R9-2 的「持有终帧」一半，命令会话也留着
