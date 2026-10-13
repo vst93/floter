@@ -118,6 +118,21 @@ var stops = map[string]struct {
 // max(frame_floor, opacity))` did.
 const SolidTop = 0.98
 
+// ContrastFrameFloor is base.css's `--glass-frame-floor` under
+// `@media (prefers-contrast: more)`: the low end of the transparency slider is
+// lifted to near-solid, on every stop. The old build's comment says why it is
+// the material and not only the borders: "At the low end of the transparency
+// slider the frame is genuinely see-through — that is the point of a thin
+// material — but a user who has asked the system for contrast must not have
+// to also go find the slider." In normal use the same token is `0`, so the
+// floor is inert until the desktop asks.
+const ContrastFrameFloor = 0.86
+
+// ContrastLensScale is base.css's `--glass-lens-scale` under the same block:
+// the lens sheen is a decorative refraction cue, so it is damped to a
+// near-flat pane while the pane keeps its stronger edge.
+const ContrastLensScale = 0.6
+
 // floatStep is the fixed lift a floating pane carries over the frame's tint,
 // base.css's `--glass-float-alpha = var(--glass-tint-alpha) + 0.1`: a drawer,
 // dialog, toast or resident note is always denser than the frame it floats
@@ -168,6 +183,35 @@ func SpecFor(step string, mainOpacity uint8) Spec {
 		Saturate:    stop.saturate,
 		LensScale:   stop.lens,
 	}
+}
+
+// Contrast is the spec a desktop that asked for more contrast gets: the
+// frame's floor raised to near-solid on every stop, the haze dropped and the
+// lens damped. It is base.css's `@media (prefers-contrast: more)` block
+// applied to the material — the same three tokens it overrode
+// (`--glass-frame-floor`, `--glass-step-dim`, `--glass-lens-scale`) are the
+// three this changes, and the blur is deliberately left alone, exactly as the
+// old build left it. An opaque spec (the stand-in for a window with no
+// transparency at all) is returned unchanged.
+func (s Spec) Contrast() Spec {
+	if !s.Translucent {
+		return s
+	}
+	s.TintAlpha = max(ContrastFrameFloor, min(SolidTop, s.TintAlpha))
+	s.HazeAlpha = 0
+	s.LensScale *= ContrastLensScale
+	return s
+}
+
+// SpecForPreferences is SpecFor plus the desktop's contrast preference, the
+// pair every caller that owns a `*ui.Context` has: a desktop that asked for
+// more contrast gets the material dialled back (see Spec.Contrast).
+func SpecForPreferences(step string, mainOpacity uint8, highContrast bool) Spec {
+	spec := SpecFor(step, mainOpacity)
+	if highContrast {
+		spec = spec.Contrast()
+	}
+	return spec
 }
 
 // contentStep is the recess the content pane carries over the frame: the

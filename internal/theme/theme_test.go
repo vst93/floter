@@ -266,3 +266,82 @@ func withStep(s settings.Settings, step string) settings.Settings {
 	s.GlassStep = step
 	return s
 }
+
+// A desktop that asked for more contrast gets base.css's
+// `@media (prefers-contrast: more)` tokens: the card stroke, the grouped
+// row's inner edge and the field placeholder are swapped per appearance. The
+// rest of the palette is untouched, which is what makes the preference a
+// change of *contrast* rather than a second look.
+func TestHighContrastSwapsTheStrokeAndPlaceholderTokens(t *testing.T) {
+	cases := []struct {
+		name        string
+		systemDark  bool
+		stroke      ui.Color
+		soft        ui.Color
+		placeholder ui.Color
+	}{
+		{
+			name: "light", systemDark: false,
+			stroke:      ui.RGBA(0, 0, 0, 0.5),
+			soft:        ui.RGBA(0, 0, 0, 0.36),
+			placeholder: ui.RGBA(28, 28, 32, 0.68),
+		},
+		{
+			name: "dark", systemDark: true,
+			stroke:      ui.RGBA(255, 255, 255, 0.42),
+			soft:        ui.RGBA(255, 255, 255, 0.34),
+			placeholder: ui.RGBA(242, 243, 245, 0.58),
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			s := settings.Settings{Theme: "auto", GlassStep: "regular"}
+			plain := ForPreferences(s, tc.systemDark, ui.Preferences{})
+			high := ForPreferences(s, tc.systemDark, ui.Preferences{HighContrast: true})
+
+			if high.InputStroke != tc.stroke {
+				t.Errorf("InputStroke = %v, want %v", high.InputStroke, tc.stroke)
+			}
+			if high.ControlEdge != tc.soft {
+				t.Errorf("ControlEdge = %v, want %v", high.ControlEdge, tc.soft)
+			}
+			if high.Theme.TextMuted != tc.placeholder {
+				t.Errorf("theme TextMuted = %v, want the placeholder contrast %v", high.Theme.TextMuted, tc.placeholder)
+			}
+			// The framework theme the widgets read is the same palette: its
+			// Border is the card's stroke, so a button or a field the views
+			// do not paint by hand gets the stronger edge too.
+			if high.Theme.Border != tc.stroke {
+				t.Errorf("theme Border = %v, want the contrast stroke %v", high.Theme.Border, tc.stroke)
+			}
+			// The preference has to change something, or it is an inert knob.
+			if high.InputStroke == plain.InputStroke && high.ControlEdge == plain.ControlEdge && high.Theme.TextMuted == plain.Theme.TextMuted {
+				t.Error("more contrast changed no token")
+			}
+
+			// Nothing else moved: blank the three contrast tokens, the
+			// pointer and the three fields the material floor moves, and the
+			// two resolutions have to be the same value.
+			blank := func(tk Tokens) Tokens {
+				tk.Theme = nil
+				tk.InputStroke, tk.ControlEdge = ui.Color{}, ui.Color{}
+				// The three the material floor and the lens damping move.
+				tk.Sunken, tk.RaisedQuiet, tk.Float = ui.Color{}, ui.Color{}, ui.Color{}
+				tk.LensRim, tk.LensSheen, tk.LensEdge = ui.Color{}, ui.Color{}, ui.Color{}
+				tk.SheenTop, tk.SheenBottom = ui.Color{}, ui.Color{}
+				return tk
+			}
+			if got, want := blank(high), blank(plain); got != want {
+				t.Errorf("contrast moved tokens besides the three:\n got %+v\nwant %+v", got, want)
+			}
+			// The material floor rides through: the content pane and a
+			// floating pane are painted at the raised frame's own alpha.
+			if high.Sunken.A <= plain.Sunken.A {
+				t.Errorf("the content pane did not follow the raised floor: %d vs %d", high.Sunken.A, plain.Sunken.A)
+			}
+			if high.Float.A <= plain.Float.A {
+				t.Errorf("a floating pane did not follow the raised floor: %d vs %d", high.Float.A, plain.Float.A)
+			}
+		})
+	}
+}

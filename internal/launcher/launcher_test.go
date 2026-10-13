@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/egoist/mygo/plugins/glass"
+	"github.com/egoist/mygo/ui"
 
 	"floter/internal/settings"
 )
@@ -45,7 +46,7 @@ func TestSurfaceCrossProduct(t *testing.T) {
 						TerminalOpacity: settings.DefaultTerminalOpacity,
 						UIScale:         settings.DefaultUIScale,
 					})
-					got := Resolve(s, systemDark)
+					got := Resolve(s, systemDark, ui.Preferences{})
 
 					label := "step=" + step + " lang=" + language + " theme=" + theme
 					if systemDark {
@@ -106,14 +107,14 @@ func TestResolveCarriesMainOpacityIntoTheFill(t *testing.T) {
 	thick := base
 	thick.MainOpacity = settings.MaxWindowOpacity
 
-	thinFill := Resolve(thin, true).Glass.TintAlpha
-	thickFill := Resolve(thick, true).Glass.TintAlpha
+	thinFill := Resolve(thin, true, ui.Preferences{}).Glass.TintAlpha
+	thickFill := Resolve(thick, true, ui.Preferences{}).Glass.TintAlpha
 	if !(thinFill < thickFill) {
 		t.Errorf("the slider does not reach the fill: %v at %d%%, %v at %d%%",
 			thinFill, settings.MinWindowOpacity, thickFill, settings.MaxWindowOpacity)
 	}
 	// And the shipped default is translucent, not an opaque底.
-	if got := Resolve(base, true).Glass.TintAlpha; got >= 0.99 {
+	if got := Resolve(base, true, ui.Preferences{}).Glass.TintAlpha; got >= 0.99 {
 		t.Errorf("the default fill alpha = %v, want translucent", got)
 	}
 }

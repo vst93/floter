@@ -728,7 +728,7 @@ func (a *App) View(c *ui.Context) {
 
 	// The window's height is the content's own: measure every row's lines
 	// off the theme, so the shell can size the window to the list it holds.
-	tk := theme.For(a.settings(), t.Dark)
+	tk := theme.ForPreferences(a.settings(), t.Dark, c.Preferences())
 	a.Font = float64(t.FontSize)
 	a.Spacing = float64(t.Spacing)
 	// The rows' two line boxes, measured rather than assumed: the framework
@@ -1464,7 +1464,7 @@ func (a *App) row(c *ui.Context, item Item, i int) {
 // rowBody is the row itself: the plate, the text column, the controls.
 func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 	t := c.Theme()
-	tokens := theme.For(a.settings(), t.Dark)
+	tokens := theme.ForPreferences(a.settings(), t.Dark, c.Preferences())
 	// The row's own floor: the old app's rows were fixed heights, 42u with a
 	// subtitle and 34u without, and a one-line row of body text is shorter
 	// than 34u — the height the window is charged must be the height the row
@@ -1961,7 +1961,7 @@ func (a *App) feedbackRow(c *ui.Context) {
 	}
 	c.AnimationFrame()
 	t := c.Theme()
-	tokens := theme.For(a.settings(), t.Dark)
+	tokens := theme.ForPreferences(a.settings(), t.Dark, c.Preferences())
 	// The old build's own row: a 30u band, the panel's 12u inset, the body
 	// step at 560 (600 for a warning), and the alert glyph at 16u. A warning
 	// is the stronger face — a border in the warning colour and a heavier
@@ -2105,7 +2105,7 @@ func (a *App) fieldButtons(c *ui.Context, copy i18n.Launcher) {
 		if run == nil {
 			return
 		}
-		tokens := theme.For(a.settings(), t.Dark)
+		tokens := theme.ForPreferences(a.settings(), t.Dark, c.Preferences())
 		e := ui.Row(c).Focusable().Shrink(0).Size(t.Space(7), t.Space(7)).
 			Radius(tokens.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).
 			Label(label).Tooltip(hint).Margin(0, 0, 0, t.Space(2))
@@ -2138,7 +2138,7 @@ func (a *App) fieldButtons(c *ui.Context, copy i18n.Launcher) {
 // is up, so this is the control that stays.
 func (a *App) pluginGear(c *ui.Context, copy i18n.Launcher, id string) {
 	t := c.Theme()
-	tokens := theme.For(a.settings(), t.Dark)
+	tokens := theme.ForPreferences(a.settings(), t.Dark, c.Preferences())
 	open := a.configOpen() && a.config.Schema.Plugin == id
 	label, glyphName := copy.ConfigurePlugin, "settings"
 	hint := copy.ConfigurePluginHint

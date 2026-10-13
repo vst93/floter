@@ -296,7 +296,7 @@ const (
 // preference says; the app is where the preference has a meaning.
 func (a *App) footerSpinner(c *ui.Context) {
 	t := c.Theme()
-	hairline := theme.For(a.settings(), t.Dark).Hairline
+	hairline := theme.ForPreferences(a.settings(), t.Dark, c.Preferences()).Hairline
 	ring := ui.Box(c).Size(t.Space(3), t.Space(3)).Shrink(0)
 	ring.Draw(func(p *ui.Painter, r ui.Rect) {
 		cx, cy := r.X+r.W/2, r.Y+r.H/2
@@ -462,7 +462,7 @@ func (a *App) outputBody(c *ui.Context, copy i18n.Launcher, edge float32) {
 				// The output's own controls: 28u transparent squares with a
 				// mark, the reference's `.plugin-window__bar-button`, never
 				// filled pills in the text surface's header.
-				tokens := theme.For(a.settings(), t.Dark)
+				tokens := theme.ForPreferences(a.settings(), t.Dark, c.Preferences())
 				control := func(mark, label, hint string, run func()) {
 					if run == nil {
 						return
@@ -567,7 +567,7 @@ func (a *App) outputRow(c *ui.Context, row extensions.Row, i int) {
 // and the decorations, with the surface's own colour for whatever the command
 // left unsaid.
 func (a *App) outputSpans(c *ui.Context, view *OutputView) []ui.Span {
-	appearance := theme.For(a.settings(), c.Theme().Dark).Appearance
+	appearance := theme.ForPreferences(a.settings(), c.Theme().Dark, c.Preferences()).Appearance
 	base := c.Theme().Text
 	out := make([]ui.Span, 0, len(view.Spans))
 	for _, span := range view.Spans {

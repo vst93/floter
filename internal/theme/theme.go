@@ -178,10 +178,23 @@ type Tokens struct {
 	Display  float32
 }
 
-// For resolves the appearance and scales the metrics for a settings value.
-// The widgets' font, spacing and radius all follow the interface-size step,
-// as the old build's CSS variables did.
+// For resolves the appearance and scales the metrics for a settings value,
+// assuming a desktop with no preferences of its own. It is what a render
+// without a desktop context uses (the segmented-control tests); a caller with
+// a `*ui.Context` should use ForPreferences, because the desktop's contrast
+// preference lives there and the old build's `prefers-contrast: more` block
+// is a real part of the look.
 func For(s settings.Settings, systemDark bool) Tokens {
+	return ForPreferences(s, systemDark, ui.Preferences{})
+}
+
+// ForPreferences resolves the appearance and scales the metrics for a settings
+// value and the desktop's preferences. The widgets' font, spacing and radius
+// all follow the interface-size step, as the old build's CSS variables did,
+// and a desktop that asked for more contrast gets base.css's
+// `prefers-contrast: more` tokens: the stronger strokes and the readable
+// placeholder, plus the material changes (glassmap.Spec.Contrast).
+func ForPreferences(s settings.Settings, systemDark bool, prefs ui.Preferences) Tokens {
 	s = settings.Normalize(s)
 	appearance := Resolve(s.Theme, systemDark)
 
@@ -215,6 +228,9 @@ func For(s settings.Settings, systemDark bool) Tokens {
 	// decides the look and every widget the views do not style by hand —
 	// buttons, inputs, switches, focus rings, the scrollbar — inherits it.
 	p := paletteFor(appearance)
+	if prefs.HighContrast {
+		p = p.contrast(appearance)
+	}
 	t.Background = p.background
 	t.Text = p.text
 	t.TextMuted = p.textMuted
@@ -251,7 +267,7 @@ func For(s settings.Settings, systemDark bool) Tokens {
 	// 0.62-0.80 band (which the slider barely moved), and an earlier rewrite
 	// then painted the pane at the frame's own alpha, stacking two full tints
 	// into a near-opaque bottom. See glassmap.Spec.ContentAlpha.
-	spec := glassmap.SpecFor(s.GlassStep, s.MainOpacity)
+	spec := glassmap.SpecForPreferences(s.GlassStep, s.MainOpacity, prefs.HighContrast)
 	sunken := spec.ContentAlpha()
 	floatAlpha := spec.FloatAlpha()
 	// The panel's sheen is the glass's lit face. The off stop has no glass, so
@@ -434,6 +450,33 @@ func paletteFor(appearance Appearance) palette {
 		edgeHighlightX: ui.RGBA(255, 255, 255, 0.04),
 		accentEdge:     ui.RGBA(143, 183, 255, 0.3),
 	}
+}
+
+// contrast returns the palette a desktop that asked for more contrast gets:
+// base.css's `@media (prefers-contrast: more)` block, which swaps three
+// tokens per appearance. `--stroke-contrast` is the card and floating-chrome
+// border (the old build's `.collapsed-card`, `.settings-card`,
+// `.extensions-drawer`, `.app-toast` …), `--stroke-contrast-soft` the inner
+// edge of a grouped row (`.settings-option`, `.settings-section__card`), and
+// `--text-placeholder-contrast` the field placeholder.
+//
+// The placeholder token lands on textMuted, which is the one lever the
+// framework exposes for it: its editor paints a placeholder in
+// `LineNumber`, and it derives that as `TextMuted.Alpha(0.75)`
+// (mygo's ui/editor/theme.go). The same step also strengthens every quiet
+// label one rung, which is what the old build's `color: var(--text-primary)`
+// on the toast/notice copies asked for.
+func (p palette) contrast(app Appearance) palette {
+	if app == Light {
+		p.stroke = ui.RGBA(0, 0, 0, 0.5)
+		p.controlEdge = ui.RGBA(0, 0, 0, 0.36)
+		p.textMuted = ui.RGBA(28, 28, 32, 0.68)
+	} else {
+		p.stroke = ui.RGBA(255, 255, 255, 0.42)
+		p.controlEdge = ui.RGBA(255, 255, 255, 0.34)
+		p.textMuted = ui.RGBA(242, 243, 245, 0.58)
+	}
+	return p
 }
 
 // palette is one appearance's token set, kept private: Tokens is the public

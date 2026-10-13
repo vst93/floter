@@ -132,7 +132,7 @@ func (a *App) confirmPowerRow(c *ui.Context) {
 	}
 	copy := a.copy()
 	t := c.Theme()
-	tokens := theme.For(a.settings(), t.Dark)
+	tokens := theme.ForPreferences(a.settings(), t.Dark, c.Preferences())
 	ui.Row(c).Absolute().Bottom(0).Left(t.Space(1)).Right(t.Space(1)).Height(t.Space(7)).
 		Padding(0, t.Space(3)).Gap(t.Space(2)).AlignItems(ui.Center).
 		Radius(tokens.RadiusSM).Background(t.Warning.Alpha(0.12)).Children(func() {

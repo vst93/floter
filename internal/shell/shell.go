@@ -2865,7 +2865,7 @@ func (a *App) returnToInput() {
 // material (or plain face for the `off` stop), and the active surface.
 func (a *App) View(c *ui.Context) {
 	s := a.Store.Snapshot()
-	surface := launcher.Resolve(s, c.Theme().Dark)
+	surface := launcher.Resolve(s, c.Theme().Dark, c.Preferences())
 	c.SetTheme(surface.Tokens.Theme)
 
 	// A notice raised while the user was elsewhere (a refused floter:// link)
@@ -2945,7 +2945,7 @@ func (a *App) View(c *ui.Context) {
 		// slider there and the main one everywhere else.
 		spec := surface.Glass
 		if a.Surf == SurfaceTerminal {
-			spec = glassmap.SpecFor(s.GlassStep, s.TerminalOpacity)
+			spec = glassmap.SpecForPreferences(s.GlassStep, s.TerminalOpacity, c.Preferences().HighContrast)
 		}
 		faceTop, faceBottom := surface.Tokens.FaceFill(spec.TintAlpha)
 		card.Children(func() {

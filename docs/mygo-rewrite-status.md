@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**902 项测试全绿**。
+含测试）。**907 项测试全绿**。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 902 项测试
+go test -count=1 ./...         # 907 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,7 +99,17 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-br 分页页脚的三态 + 两个环境循环遵守减少动效（R29 / R8+R161）** —— P7-bp 重写的具体待办
+> **最新一轮：P7-bs `prefers-contrast: more` 接进主题与玻璃（原版 base.css:1387-1574）** —— P7-br 重写的
+> 具体待办只剩两条：第 3 条（Windows 冒烟作业）要真机跑一次，第 4 条是纯代码、可本机验证，本轮取第 4 条。
+> 原版把「提高对比度」当作**材质**的事而不只是边框：`--glass-frame-floor: 0.86`（透明度滑杆的底端被抬到
+> 近乎不透明）、`--glass-step-dim: 0`（去掉雾层）、`--glass-lens-scale: 0.6`（反光阻尼），外加
+> `--stroke-contrast` / `--stroke-contrast-soft` / `--text-placeholder-contrast` 三个 token。本构建此前对
+> `HighContrast` 零引用，且 `theme.go:212-227` 恰好把框架自己的高对比度加固覆盖掉。现在新增
+> `theme.ForPreferences(settings, dark, ui.Preferences)`（`For` 变成它的无偏好包装）与
+> `glassmap.SpecForPreferences` / `Spec.Contrast()`，全部带 `*ui.Context` 的绘制点改读
+> `c.Preferences()`。落地见下方「P7-bs 提高对比度接进主题与玻璃」。
+
+> **上一轮：P7-br 分页页脚的三态 + 两个环境循环遵守减少动效（R29 / R8+R161）** —— P7-bp 重写的具体待办
 > 第 1–3 条全落地后清单又空，本轮先把它重写为 4 条带 file:line 的具体待办（下方「具体待办（P7-br 重写）」），
 > 再取前两条落地。第一条回到原版 R29 的页脚三态：`more` 状态只有一行**空行**（注释写明「the scroll itself
 > is the affordance」）、`loading` 状态是 **spinner + Loading more…**、`end` 状态是 `No more results`；
@@ -160,7 +170,52 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 > required 不认 default 豁免。现在 `ParamIssues` 返回 `{Index,Key,Label}`，每个非法值
 > 的句子印在**它自己那一行下面**，Run 按钮在有错时禁用；输出视图也按语言渲染 `run_param_*`。
 
-**P7-br 分页页脚三态与减少动效（R29 / R8+R161）（本轮）**
+**P7-bs 提高对比度接进主题与玻璃（原版 `base.css:1387-1574`）（本轮）**
+
+- **依赖检查**：GitHub releases API 仍被限流，改用 go proxy（`go list -m -versions github.com/egoist/mygo`）
+  确认 v0.4.8 仍是最新（`go.mod` 已是 v0.4.8），无版本可升。
+- **入口**：P7-br 重写的 4 条具体待办里第 1、2 条已落地，第 3 条（Windows 冒烟作业）要真机跑一次才算验收，
+  第 4 条是纯代码可本机验证，本轮取第 4 条。
+- **原版对照**：`main` 的 `src/styles/base.css:1387-1427` 是第一个 `@media (prefers-contrast: more)` 块：
+  `:root` 与三个效果 stop 各把 `--glass-frame-floor: 0.86`、`--glass-step-dim: 0`、`--glass-lens-scale: 0.6`
+  覆写一遍（注释写「Increase Contrast has to mean the material, not only the borders … a user who has asked
+  the system for contrast must not have to also go find the slider」）；同块把 `.collapsed-card` 等换成
+  `--stroke-contrast`、`.settings-option`/`.settings-section__card` 换成 `--stroke-contrast-soft`、
+  `.collapsed-card__input::placeholder` 换成 `--text-placeholder-contrast`；`:1576-1587` 是第二个块
+  （Windows 三张面壳的描边），`:386-388`/`:753-756`/`:1004-1006` 是 token 的取值与理由。
+- **本构建（改前）**：`grep -rn 'HighContrast' internal cmd` 为零；`internal/theme/theme.go:212-227` 用
+  base.css 的普通值整套覆写框架主题的 `Border`/`Text`/`Surface` 等，恰好把框架自己的高对比度加固
+  （`ui/preferences.go` 的 `follow`：`Border.Mix(Text, .45)` 等）覆盖掉；`glassmap.SpecFor` 只有
+  `SolidTop = 0.98` 上限、没有下限。
+- **改动**：
+  - `internal/theme/theme.go`：新增 `ForPreferences(s, systemDark, ui.Preferences)`，`For` 变成它的
+    无偏好包装（供 `control` 等无 context 的 headless 渲染用）；新增 `palette.contrast(appearance)`，
+    按外观换掉三个 token——`stroke` ← `--stroke-contrast`（浅 0,0,0,.5 / 深 255,255,255,.42）、
+    `controlEdge` ← `--stroke-contrast-soft`（浅 .36 / 深 .34）、`textMuted` ← `--text-placeholder-contrast`
+    （浅 28,28,32,.68 / 深 242,243,245,.58）；玻璃 spec 改用 `glassmap.SpecForPreferences`。
+  - `internal/glassmap/glassmap.go`：新增 `ContrastFrameFloor = 0.86`、`ContrastLensScale = 0.6`、
+    `Spec.Contrast()`（frame alpha 取 `max(0.86, min(SolidTop, alpha))`、`HazeAlpha = 0`、`LensScale ×= 0.6`，
+    **blur/saturate/style 不动**，与原版「The blur is left alone」一致；`!Translucent` 的初始值原样返回）与
+    布尔包装 `SpecForPreferences`。
+  - 绘制点：`launcher` 11 处 `theme.For`、`surface.go` 的 `Resolve`（新增 `prefs` 参数）、`settingsui.rows`、
+    `terminalui` 3 处改 `ForPreferences(..., c.Preferences())`；`shell.View` 的终端框从
+    `glassmap.SpecFor(s.GlassStep, s.TerminalOpacity)` 改 `SpecForPreferences(..., c.Preferences().HighContrast)`；
+    三处 `launcher.Resolve`（`shell.go`/`pinned.go`/`detach.go`）传入 `c.Preferences()`。
+- **诚实记录（框架缺口）**：`--text-placeholder-contrast` 没有独立的 `ui.Theme` 字段——框架把输入框占位符
+  画在 `editor.Theme.LineNumber = TextMuted.Alpha(0.75)`（mygo `ui/editor/theme.go:61`），所以这个 token 只能
+  落在 `TextMuted` 上；这是框架能接到的唯一处，也顺手把安静文案（toast/notice 等）抬了一级，正是原版
+  `.app-toast, .settings-notice { color: var(--text-primary) }` 的意图。
+- **测试/验收**：`internal/glassmap/glassmap_test.go` 的 `TestContrastRaisesTheFloorDropsHazeAndDampsTheLens`
+  （四个 stop：floor ≥ 0.86 且 ≤ solid top、haze = 0、lens = 0.6×、blur/saturate/style 逐字段不变）；
+  `TestContrastFloorNeverLowersATransparentFrame`（100% 时仍取 `min(solid_top, opacity)`，floor 不下拉；
+  无偏好时逐字节等于 `SpecFor`）；`internal/theme/theme_test.go` 的
+  `TestHighContrastSwapsTheStrokeAndPlaceholderTokens`（两个外观的十个精确值：三个 token + 框架 `Border` +
+  其余 token 逐字段不变（涂掉对比度/materials 相关字段后结构体相等）+ 内容面与浮动面跟随抬升的 frame）。
+  mutation 复现红：把 `Spec.Contrast()` 改成 no-op → `go test ./internal/glassmap ./internal/theme` 22 行失败。
+- **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 28 包全绿（907 项）、
+  `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+**P7-br 分页页脚三态与减少动效（R29 / R8+R161）（上一轮）**
 
 - **依赖检查**：GitHub releases API 仍被限流，改用 go proxy（`go list -m -versions github.com/egoist/mygo`）
   确认 v0.4.8 仍是最新（`go.mod` 已是 v0.4.8），无版本可升。
@@ -1868,6 +1923,12 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 - ~~直接输出的空格交互~~ **已完成（P7-t）**：旧版 R65 的行尾 `␣` 提示（tooltip 讲解）与
   「敲命令名 + 空格进入直出模式、输出显示在结果区」的路径都已接线；本构建的后台输出视图
   就是同一个结果区。
+- **占位符颜色没有自己的框架字段**：原版 `prefers-contrast: more` 块里
+  `.collapsed-card__input::placeholder { color: var(--text-placeholder-contrast) }`，而框架把输入框占位符
+  画在 `editor.Theme.LineNumber`，由 `ui/editor/theme.go:61` 从 `TextMuted.Alpha(0.75)` 派生，`ui.Theme`
+  没有占位符字段、`ui.Input` 也没有设色的 API。P7-bs 把这个 token 落在 `TextMuted` 上（框架能接到的
+  唯一处，顺带把安静文案抬了一级，正是原版 `.app-toast { color: var(--text-primary) }` 的意图）。
+  **要什么**：`ui.Theme` 上一个占位符 token（或 `ui.Input.PlaceholderColor`）。
 - **终端选中即复制 / 滚动条 / bracketed paste**：见下面的终端外观条目。**复制反馈**是另一回事
   （P7-an 定位）：旧版 R44/R63 的规则是**每一次复制都在终端自己的状态行里说一句**
   （`src/terminal/copy-notice.ts`：`visible` 1500ms → `fade` 260ms → idle；失败也说，
@@ -1938,13 +1999,12 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 ## 尚未做（按建议优先级）
 
 > **P7-br 更新**：P7-bp 的 3 条具体待办全部落地后清单又空，本轮把它重新写实为下面 4 条带 file:line
-> 的具体待办，并取第 1、2 条落地（第 3、4 条待做）。来源是 `main` 上**尚未接线**的两处：R29 的页脚三态
-> 与 `prefers-reduced-motion` 的两个环境循环（R8 命名块 + R161 通配块），以及尚无对照物的两处——
-> ad843f3 的 windows 冒烟作业与 `prefers-contrast: more` 的 token 块。仍然卡在框架上的三条
+> 的具体待办；P7-br 落地第 1、2 条，P7-bs 落地第 4 条，**只剩第 3 条**。第 3 条来源是 `main` 上尚无对照物
+> 的 ad843f3（Windows 冒烟作业），要真机跑一次才算验收，所以留给能动 CI 的一轮。其余卡在框架上的三条
 > （`Options.OnCopy`、终端键入的 `HandleInput` 缝、外观四个死旋钮）与一次性维护者动作
 > （`mygo keygen`、`mygo.json` 的 `updates`/签名、CI 私钥、发布到 GitHub Release）不变，另见「已知差距」。
 
-### 具体待办（P7-br 重写；第 1、2 条本轮已落地，第 3、4 条待做）
+### 具体待办（P7-br 重写；第 1、2、4 条已落地，只剩第 3 条待做）
 
 1. **分页页脚的三态（R29）（本轮已落地）** —— 原版 `pluginFooterState`（`src/launcher/plugin-mode.ts:613-626`）
    把页脚收成四个状态，`LauncherResults.tsx:1024-1040` 只给 `loading` 画 spinner、给 `loading` 与
@@ -1989,7 +2049,7 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
      （`FLOTER_OPEN=settings`）等它画出窗口 → 截屏 → `actions/upload-artifact` 上传 PNG（`if-no-files-found: error`）
      → 结束进程；作业里写清「这是人看的证据，不做判定」以免被当成 release 门。真跑一次（手动 dispatch）
      并确认截图里能看到窗口，而不是全黑/全白。
-4. **`prefers-contrast: more` 一整块没接线（原版 `base.css:1387-1574`）** —— 原版把「提高对比度」当作
+4. **`prefers-contrast: more` 一整块没接线（原版 `base.css:1387-1574`）（本轮已落地）** —— 原版把「提高对比度」当作
    **材质**的事，不只是边框：`--glass-frame-floor: 0.86`（透明的底端被抬到近乎不透明）、
    `--glass-step-dim: 0`（去掉雾层）、`--glass-lens-scale: 0.6`（反光阻尼到近平面），再加
    `--stroke-contrast` / `--stroke-contrast-soft` / `--text-placeholder-contrast` 三个 token 换掉
@@ -2002,12 +2062,16 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
      `:386-388`（`--glass-frame-floor` 的取值与理由）、`:753-756`/`:1004-1006`（两个外观的 token）。
    - 本构建（改前）：`grep -rn 'HighContrast' internal cmd --include=*.go` 为零；
      `internal/theme/theme.go:212-227`、`internal/glassmap/glassmap.go:130-175`。
-   - 验收：`theme.For` 增加一个「桌面对比度」输入（或新增 `theme.ForPreferences(settings, dark, ui.Preferences)`
-     的包装，调用点 `internal/launcher/surface.go:62`、`internal/shell/shell.go:997`、`internal/theme/theme.go:254`），
-     高对比度时：`paletteFor` 换用 `--stroke-contrast`/`--stroke-contrast-soft`/`--text-placeholder-contrast`
-     三个值（两个外观各一套）、`SpecFor` 的 frame alpha 取 `max(0.86, min(SolidTop, opacity))`、
-     `HazeAlpha` 归 0、`LensScale` ×0.6；测试钉「不打开偏好时所有 token 字节不变（现有玻璃/主题测试仍绿）
-     ＋打开后 frame alpha ≥ 0.86、haze=0、lens=0.6×、描边 token 换成 contrast 值」。
+   - 验收（已满足）：`theme.ForPreferences(s, dark, prefs)`（`For` 是它的无偏好包装，供无 context 的 headless 渲染）；
+     `palette.contrast(appearance)` 换掉 `stroke` / `controlEdge` / `textMuted` 三个 token（两套外观各四套值）；
+     `glassmap.Spec.Contrast()` 把 frame alpha 抬到 `max(0.86, min(SolidTop, opacity))`、`HazeAlpha` 归 0、
+     `LensScale ×0.6`，`SpecForPreferences` 是它的布尔包装；全部绘制点（launcher 11 处、settingsui、terminalui、
+     shell 的终端框与三处 `launcher.Resolve`）改读 `c.Preferences()`。`TestHighContrastSwapsTheStrokeAndPlaceholderTokens`
+     钉住三个 token 的精确值 + 其余 token 逐字段不变 + 材质抬升；`TestContrastRaisesTheFloorDropsHazeAndDampsTheLens`
+     钉住四个 stop 的 floor/haze/lens 与「blur 不动」，`TestContrastFloorNeverLowersATransparentFrame` 钉住
+     不清空偏好时逐字节等于 `SpecFor`。一处诚实记录：`--text-placeholder-contrast` 落在 `TextMuted` 上，
+     因为框架把输入框占位符画在 `editor.Theme.LineNumber = TextMuted.Alpha(0.75)`（mygo `ui/editor/theme.go`），
+     `ui.Theme` 没有独立的占位符字段；这是框架能接到的唯一处。
 
 > P7-bp 的 3 条具体待办已全部落地，下方旧清单保留作为「哪些已经做过」的记录。
 

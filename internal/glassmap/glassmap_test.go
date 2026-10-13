@@ -241,3 +241,55 @@ func TestFrameUsesTheThemeBackground(t *testing.T) {
 		t.Errorf("fill = %v, want translucent", fill)
 	}
 }
+
+// A desktop that asked for more contrast gets the material dialled back, not
+// only the borders — base.css's `@media (prefers-contrast: more)` block. Three
+// tokens move and everything else stays: the frame's floor comes up to 0.86 on
+// *every* stop (including `off`, so a thin frame cannot stay see-through), the
+// haze is dropped, and the lens is damped to 0.6×. The blur is deliberately
+// left alone here — the old build left it to the window's material.
+func TestContrastRaisesTheFloorDropsHazeAndDampsTheLens(t *testing.T) {
+	for _, step := range []string{"off", "frosted", "regular", "liquid"} {
+		base := SpecFor(step, settings.MinWindowOpacity)
+		got := SpecForPreferences(step, settings.MinWindowOpacity, true)
+		if !got.Translucent {
+			t.Errorf("%s: contrast turned the frame opaque", step)
+		}
+		if got.TintAlpha < ContrastFrameFloor {
+			t.Errorf("%s: contrast frame alpha = %v, want >= %v", step, got.TintAlpha, ContrastFrameFloor)
+		}
+		if got.TintAlpha > SolidTop {
+			t.Errorf("%s: contrast frame alpha = %v, want <= the solid top %v", step, got.TintAlpha, SolidTop)
+		}
+		if got.HazeAlpha != 0 {
+			t.Errorf("%s: contrast haze = %v, want 0", step, got.HazeAlpha)
+		}
+		if want := base.LensScale * ContrastLensScale; got.LensScale != want {
+			t.Errorf("%s: contrast lens = %v, want %v", step, got.LensScale, want)
+		}
+		if got.Blur != base.Blur || got.Saturate != base.Saturate || got.Style != base.Style {
+			t.Errorf("%s: contrast moved the material: %+v vs %+v", step, got, base)
+		}
+		if got.Glass != base.Glass || got.Glass && got.HazeAlpha != 0 {
+			t.Errorf("%s: contrast changed the stop's material choice", step)
+		}
+	}
+}
+
+// The floor is a *floor*, not a replacement: a frame the slider has already
+// pushed past it keeps its own (capped) alpha, so the transparency slider's
+// top end is not pulled *down* by the preference the way a plain assignment
+// would.
+func TestContrastFloorNeverLowersATransparentFrame(t *testing.T) {
+	opaque := SpecForPreferences("regular", settings.MaxWindowOpacity, true)
+	if want := min(SolidTop, float32(settings.MaxWindowOpacity)/100); opaque.TintAlpha != want {
+		t.Errorf("alpha at %d%% = %v, want %v", settings.MaxWindowOpacity, opaque.TintAlpha, want)
+	}
+	// And the default preference is the plain spec, byte for byte: every
+	// existing glass test has to keep passing untouched.
+	for _, step := range []string{"off", "frosted", "regular", "liquid"} {
+		if got, want := SpecForPreferences(step, settings.DefaultMainOpacity, false), SpecFor(step, settings.DefaultMainOpacity); got != want {
+			t.Errorf("%s: no preference = %+v, want %+v", step, got, want)
+		}
+	}
+}

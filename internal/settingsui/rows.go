@@ -22,7 +22,7 @@ import (
 // tokens resolves the card language's colors for the stored appearance,
 // scaled with the interface step exactly as the CSS variables were.
 func (a *App) tokens(c *ui.Context) theme.Tokens {
-	return theme.For(a.Store.Snapshot(), c.Theme().Dark)
+	return theme.ForPreferences(a.Store.Snapshot(), c.Theme().Dark, c.Preferences())
 }
 
 // section draws a titled group: the title, its one-line explanation, and

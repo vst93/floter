@@ -1,6 +1,8 @@
 package launcher
 
 import (
+	"github.com/egoist/mygo/ui"
+
 	"floter/internal/glassmap"
 	"floter/internal/i18n"
 	"floter/internal/settings"
@@ -50,16 +52,19 @@ func StringsFor(language string) Strings {
 	return i18n.For(language).Launcher
 }
 
-// Resolve builds the surface for a settings value and the desktop's current
-// appearance. The settings are normalized first, so the caller may pass a
-// value straight from Parse or a hand-built one.
-func Resolve(s settings.Settings, systemDark bool) Surface {
+// Resolve builds the surface for a settings value, the desktop's current
+// appearance and the desktop's preferences. The settings are normalized
+// first, so the caller may pass a value straight from Parse or a hand-built
+// one. The preferences reach the look in two places, both of them base.css's
+// `prefers-contrast: more` block: the stronger stroke tokens in the theme and
+// the dialled-back material in the glass spec.
+func Resolve(s settings.Settings, systemDark bool, prefs ui.Preferences) Surface {
 	s = settings.Normalize(s)
 	return Surface{
 		Settings: s,
 		Strings:  StringsFor(s.Language),
 		Theme:    ResolveTheme(s.Theme, systemDark),
-		Tokens:   theme.For(s, systemDark),
-		Glass:    glassmap.SpecFor(s.GlassStep, s.MainOpacity),
+		Tokens:   theme.ForPreferences(s, systemDark, prefs),
+		Glass:    glassmap.SpecForPreferences(s.GlassStep, s.MainOpacity, prefs.HighContrast),
 	}
 }

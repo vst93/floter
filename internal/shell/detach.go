@@ -126,7 +126,7 @@ func (a *App) detachedView(c *ui.Context, detached *detachedOutput) {
 	// The window is its own Context: the shell sets the floter theme on the
 	// panel's, and a detached window that did not would paint the framework's
 	// stock palette instead.
-	surface := launcher.Resolve(a.Store.Snapshot(), c.Theme().Dark)
+	surface := launcher.Resolve(a.Store.Snapshot(), c.Theme().Dark, c.Preferences())
 	tokens := surface.Tokens
 	c.SetTheme(tokens.Theme)
 	t := c.Theme()

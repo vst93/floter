@@ -37,7 +37,7 @@ func (a *App) PinText(title, text string) {
 		Content: ui.View(func(c *ui.Context) {
 			// Its own Context, so the floter theme has to be set here too;
 			// the window is opaque, not the panel's glass.
-			surface := launcher.Resolve(a.Store.Snapshot(), c.Theme().Dark)
+			surface := launcher.Resolve(a.Store.Snapshot(), c.Theme().Dark, c.Preferences())
 			tokens := surface.Tokens
 			c.SetTheme(tokens.Theme)
 			t := c.Theme()

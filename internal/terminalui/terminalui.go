@@ -758,7 +758,7 @@ func keyBadge(key string) string {
 
 // tokensOf resolves the card language's own tokens for the stored appearance.
 func tokensOf(a *App, c *ui.Context) theme.Tokens {
-	return theme.For(a.Store.Snapshot(), c.Theme().Dark)
+	return theme.ForPreferences(a.Store.Snapshot(), c.Theme().Dark, c.Preferences())
 }
 
 // Resident marks the session on screen ended: the output stays on screen and
@@ -780,7 +780,7 @@ func (a *App) residentNote(c *ui.Context, copy i18n.Terminal) {
 		return
 	}
 	t := c.Theme()
-	tokens := theme.For(a.Store.Snapshot(), t.Dark)
+	tokens := theme.ForPreferences(a.Store.Snapshot(), t.Dark, c.Preferences())
 	color := tokens.TextSecondary
 	if session.ExitCode != 0 {
 		color = t.Warning
@@ -833,7 +833,7 @@ func (a *App) feedbackNote(c *ui.Context) {
 	// a still panel would leave the last sentence up forever.
 	c.AnimationFrame()
 	t := c.Theme()
-	tokens := theme.For(a.Store.Snapshot(), t.Dark)
+	tokens := theme.ForPreferences(a.Store.Snapshot(), t.Dark, c.Preferences())
 	// The reference's own notice: 12u from the panel's top-left corner, the
 	// 7u/10u padding pair, the accent keyline and the floater's fill, a 15u
 	// alert glyph and the body step at 560 in the warning colour.

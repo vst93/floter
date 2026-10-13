@@ -184,7 +184,7 @@ func (a *App) filtersRow(c *ui.Context, top float32) {
 	}
 	copy := a.copy()
 	t := c.Theme()
-	tokens := theme.For(a.settings(), t.Dark)
+	tokens := theme.ForPreferences(a.settings(), t.Dark, c.Preferences())
 	ui.Row(c).Absolute().Top(top).Left(0).Right(0).Height(a.filtersHeight(c)).
 		Padding(0, t.Space(4)).Gap(t.Space(3.5)).AlignItems(ui.Center).Children(func() {
 		for _, value := range axis.Values {

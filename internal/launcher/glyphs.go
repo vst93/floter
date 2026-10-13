@@ -129,7 +129,7 @@ func clipboardKindOf(entry *clipboardpkg.Entry) string {
 // than the neutral fill — the one launcher entry that cannot be undone by
 // closing a window, as the old build's `--system-icon-surface` said.
 func (a *App) iconPlate(c *ui.Context, warm bool) ui.Element {
-	tokens := theme.For(a.settings(), c.Theme().Dark)
+	tokens := theme.ForPreferences(a.settings(), c.Theme().Dark, c.Preferences())
 	t := c.Theme()
 	plate := ui.Box(c).Size(t.Space(7), t.Space(7)).Radius(tokens.RadiusSM).
 		AlignItems(ui.Center).Justify(ui.Center).Shrink(0)
