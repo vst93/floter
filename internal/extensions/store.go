@@ -207,13 +207,12 @@ func launchOverrides(integration Integration) launchDefaults {
 // the integration's runtime resolves right now. A command whose runtime is
 // missing is still listed — the switch keeps its state either way.
 type CommandInfo struct {
-	ExtensionID   string
-	ExtensionName string
-	CommandID     string
-	Name          string
-	Description   string
-	Aliases       []string
-	Available     bool
+	ExtensionID string
+	CommandID   string
+	Name        string
+	Description string
+	Aliases     []string
+	Available   bool
 }
 
 // CommandRegistry lists every command of every integration that has a
@@ -238,13 +237,12 @@ func (s *Store) CommandRegistry() []CommandInfo {
 		}
 		for _, command := range commands {
 			out = append(out, CommandInfo{
-				ExtensionID:   integration.Entry.ID,
-				ExtensionName: integration.Name,
-				CommandID:     command.ID,
-				Name:          command.Name,
-				Description:   command.Description,
-				Aliases:       append([]string{}, command.Aliases...),
-				Available:     available,
+				ExtensionID: integration.Entry.ID,
+				CommandID:   command.ID,
+				Name:        command.Name,
+				Description: command.Description,
+				Aliases:     append([]string{}, command.Aliases...),
+				Available:   available,
 			})
 		}
 	}

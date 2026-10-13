@@ -99,7 +99,14 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-bn 删除双方共有的死代码（capability 报告探针）** —— P7-bm 重写的具体待办第 2 条。
+> **最新一轮：P7-bo 删掉两处经核实无用的死代码（browser profile key + CommandInfo.ExtensionName）** ——
+> P7-bm 重写的具体待办第 3、4 条。两条都不卡框架，是「写而不读」的冗余：本构建的浏览器**开页**走
+> `Result.BrowserID`（`internal/launcher/search.go` 的 `openResult` 直接把它交给 `browser.OpenURL`），
+> 从不经 profile key 反解；设置面集成分组卡片直接用 `Integration.Name`，命令开关表只用 `CommandInfo` 的
+> `ExtensionID`/`CommandID`。两处删除后行为不变、无需测试改写（只删了两条为死符号写的测试）。落地
+> 见下方「P7-bo 删除两处死代码」。
+
+> **上一轮：P7-bn 删除双方共有的死代码（capability 报告探针）** —— P7-bm 重写的具体待办第 2 条。
 > 本构建 `internal/extensions/capability.go` 的 `ProbeCapabilities`/`CapabilityReport` 只有自己的
 > 测试调用，原版 `capability_probe.rs` 的 `CapabilityScanner::scan` 同样只有测试调用，且原版
 > reprobe 路径传的是 `HealthReport::new(Default::default())`（`probe_executor.rs:17`）——所以原版卡片
@@ -126,7 +133,33 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 > required 不认 default 豁免。现在 `ParamIssues` 返回 `{Index,Key,Label}`，每个非法值
 > 的句子印在**它自己那一行下面**，Run 按钮在有错时禁用；输出视图也按语言渲染 `run_param_*`。
 
-**P7-bn 删除双方共有的死代码（capability 报告探针）（本轮）**
+**P7-bo 删掉两处经核实无用的死代码（browser profile key + CommandInfo.ExtensionName）（本轮）**
+
+- **依赖检查**：GitHub releases API 被限流，改用 go proxy（`go list -m -versions github.com/egoist/mygo`）
+  确认 v0.4.8 仍是最新（`go.mod` 已是 v0.4.8），无版本可升。
+- **入口**：P7-bm 重写的 4 条具体待办，第 1 条（P7-bm）、第 2 条（P7-bn）已落地，本轮取第 3、4 条
+  （两处都是「写而不读」的字段/函数，量小，一并清完）。
+- **改动（第 3 条）**：
+  - `internal/browser/browser.go`：删 `Result` 结构体里的 `ProfileKey string` 字段及其注释；随之删去
+    history 读取（原 `:447`）、Chromium 书签（原 `:616`）、Firefox 书签（原 `:650`）三处
+    `ProfileKey: profile.Key()` 赋值。
+  - `internal/browser/safari.go`：删 Safari 书签（原 `:61`）的 `ProfileKey: profile.Key()` 赋值。
+  - `internal/browser/target.go`：删 `FindProfile`（原 `:48-57`，全仓仅自身测试调用）。
+  - `internal/browser/safari_test.go:33`：从断言里去掉 `result.ProfileKey != "safari/Safari"`。
+  - `internal/browser/browser_test.go:236-242`：删 `FindProfile` 测试块。
+  - **为何删除而非接线**：原版 `browser_open_url`（`src-tauri/src/browser_data/mod.rs:354`）用 `profile_key`
+    反解 browser id，本构建改成 `Result.BrowserID` 直接开（`internal/launcher/search.go` 的 `openResult`
+    把它交给 `browser.OpenURL`），行为等价；`OpenURL` 只按 browser id 选 App，profile key 从不参与，所以
+    这份字段/函数在本构建里确为死代码。`Profile.Key()` 本身仍被测试与 target 解析使用，未删。
+- **改动（第 4 条）**：`internal/extensions/store.go`：删 `CommandInfo.ExtensionName` 字段与
+  `CommandRegistry` 里（原 `:242`）的 `ExtensionName: integration.Name` 赋值；设置面的集成卡片用
+  `Integration.Name`（`settingsui.go:1267` 等），命令开关表只按 `ExtensionID`/`CommandID` 键控，从不读它。
+- **测试/验收**：`grep -rn 'ProfileKey\|FindProfile\|ExtensionName' internal cmd --include=*.go` 为零；
+  `internal/browser`、`internal/extensions`、`internal/settingsui`、`internal/shell` 的现有测试全绿。
+- **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 27 包全绿、
+  `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+**P7-bn 删除双方共有的死代码（capability 报告探针）（上一轮）**
 
 - **依赖检查**：GitHub releases API 被限流，改用 go proxy（`@v/list` / `@latest`）确认 v0.4.8 仍是
   最新（`go.mod` 已是 v0.4.8），无版本可升。
@@ -1789,7 +1822,7 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 > `HandleInput` 缝、外观四个死旋钮）与一次性维护者动作（`mygo keygen`、`mygo.json` 的
 > `updates`/签名、CI 私钥、发布到 GitHub Release）不变，另见「已知差距」。
 
-### 具体待办（P7-bm 重写；第 1 条已落地、第 2 条 P7-bn 已落地）
+### 具体待办（P7-bm 重写；4 条已全部落地：第 1 条 P7-bm、第 2 条 P7-bn、第 3·4 条 P7-bo）
 
 1. **健康报告的探针明细与检查时间从不展示（本轮已落地）** —— 原版 `extension-health` 会逐条画出
    `healthReport.probes`（通过/失败的记号 + `probeId` + `{durationMs}ms`）、失败项（`healthExitCode` +
@@ -1819,20 +1852,21 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
    或删除（`capability.go` 与其测试一起移除）。验收：接线则卡片有 version/features/limitations 且
    测试钉住；删除则 `grep` 为零。**P7-bn 选择删除**（接线要改磁盘格式且偏离原版行为），落地见下方
    「P7-bn 删除双方共有的死代码」；`capability.go` 里仍活着的 `--help` 派生重命名为 `helpderive.go`。
-3. **`browser.Entry.ProfileKey` 与 `browser.FindProfile` 是死字段/死函数** ——
+3. **`browser.Entry.ProfileKey` 与 `browser.FindProfile` 是死字段/死函数（P7-bo 已删除）** ——
    `internal/browser/browser.go:60` 的 `ProfileKey` 只在构造时写入（`:447,616,650` 与 `safari.go:61`），
    全仓无 `.ProfileKey` 读取（`grep -rn '\.ProfileKey' internal --include=*.go | grep -v _test` 为空）；
    `FindProfile`（`target.go:50`）除自身测试外无调用者。原版用 `profile_key` 在 `browser_open_url`
    （`src-tauri/src/browser_data/mod.rs:354`）里反解 browser id；本构建改用 `Entry.BrowserID` 直接开
    （`internal/launcher/search.go:273` 的 `openResult`），行为等价，所以这是**冗余清理**而非缺口。
    验收：删除 `ProfileKey`/`FindProfile` 及其测试（或让 `OpenURL` 真的经 `FindProfile` 解析），
-   `grep` 为零，`OpenURL` 测试仍绿。
-4. **`extensions.CommandInfo.ExtensionName` 是死字段** —— `internal/extensions/store.go:211` 只写不读
-   （`shell.go:1239` 的 `integrationList` 映射不用它，卡片已按集成分组）。验收：删除字段与赋值，
-   `grep` 为零，测试不受影响。
+   `grep` 为零，`OpenURL` 测试仍绿。**P7-bo 选择删除**（保留 `Profile.Key()` 本体，它仍被测试与
+   target 解析使用）；落地见下方「P7-bo 删除两处死代码」。
+4. **`extensions.CommandInfo.ExtensionName` 是死字段（P7-bo 已删除）** —— `internal/extensions/store.go:211`
+   只写不读（`shell.go:1239` 的 `integrationList` 映射不用它，卡片已按集成分组）。验收：删除字段与赋值，
+   `grep` 为零，测试不受影响。**P7-bo 已落地**；落地见下方「P7-bo 删除两处死代码」。
 
-> 这 4 条都不卡框架；第 1 条已落地，第 2 条由 P7-bn 以「删除」落地。上面 P7-bh/P7-an/P7-bb/P7-bd 的
-> 旧清单保留在下方，作为「哪些已经做过」的记录。
+> 这 4 条都不卡框架，且已全部落地（第 1 条 P7-bm，第 2 条 P7-bn，第 3·4 条 P7-bo）。上面
+> P7-bh/P7-an/P7-bb/P7-bd 的旧清单保留在下方，作为「哪些已经做过」的记录。
 
 ### 具体待办（P7-bh 重写；第 1–5 条全部已落地）
 

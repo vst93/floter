@@ -55,9 +55,6 @@ type Result struct {
 	BrowserID string
 	Browser   string
 	Kind      string
-	// ProfileKey is the profile the entry came from, so an action can
-	// resolve its target without a second discovery.
-	ProfileKey string
 	// Visited is when the page was last visited; the zero time for a
 	// bookmark, which carries none.
 	Visited time.Time
@@ -439,14 +436,13 @@ func readHistory(ctx context.Context, profile Profile, terms []string, field Sea
 				continue
 			}
 			results = append(results, Result{
-				URL:        url,
-				Title:      title,
-				BrowserID:  profile.BrowserID,
-				Browser:    profile.Browser,
-				Kind:       KindHistory,
-				ProfileKey: profile.Key(),
-				Visited:    shape.Visited(values),
-				Visits:     shape.Visits(values),
+				URL:       url,
+				Title:     title,
+				BrowserID: profile.BrowserID,
+				Browser:   profile.Browser,
+				Kind:      KindHistory,
+				Visited:   shape.Visited(values),
+				Visits:    shape.Visits(values),
 			})
 		}
 		if len(results) > 0 {
@@ -608,13 +604,12 @@ func walkChromiumBookmarks(node chromiumBookmark, profile Profile, out *[]Result
 			added = chromeMicros(micros)
 		}
 		*out = append(*out, Result{
-			URL:        node.URL,
-			Title:      node.Name,
-			BrowserID:  profile.BrowserID,
-			Browser:    profile.Browser,
-			Kind:       KindBookmark,
-			ProfileKey: profile.Key(),
-			Added:      added,
+			URL:       node.URL,
+			Title:     node.Name,
+			BrowserID: profile.BrowserID,
+			Browser:   profile.Browser,
+			Kind:      KindBookmark,
+			Added:     added,
 		})
 	}
 	for _, child := range node.Children {
@@ -642,13 +637,12 @@ func readFirefoxBookmarks(profile Profile) []Result {
 			continue
 		}
 		results = append(results, Result{
-			URL:        url,
-			Title:      text(values, 1),
-			BrowserID:  profile.BrowserID,
-			Browser:    profile.Browser,
-			Kind:       KindBookmark,
-			ProfileKey: profile.Key(),
-			Added:      unixMicros(integer(values, 2)),
+			URL:       url,
+			Title:     text(values, 1),
+			BrowserID: profile.BrowserID,
+			Browser:   profile.Browser,
+			Kind:      KindBookmark,
+			Added:     unixMicros(integer(values, 2)),
 		})
 	}
 	return results

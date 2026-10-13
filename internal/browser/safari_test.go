@@ -30,7 +30,7 @@ func TestSafariBookmarks(t *testing.T) {
 	titles := map[string]string{}
 	for _, result := range results {
 		titles[result.Title] = result.URL
-		if result.Kind != KindBookmark || result.BrowserID != BrowserSafari || result.ProfileKey != "safari/Safari" {
+		if result.Kind != KindBookmark || result.BrowserID != BrowserSafari {
 			t.Errorf("result = %+v", result)
 		}
 	}

@@ -233,13 +233,6 @@ func TestDefaultProfile(t *testing.T) {
 	if _, ok := DefaultProfile(nil, "auto"); ok {
 		t.Error("no profiles found one")
 	}
-	// A profile key resolves back to its profile.
-	if got, ok := FindProfile(profiles, "brave/Default"); !ok || got.BrowserID != BrowserBrave {
-		t.Errorf("FindProfile = %+v", got)
-	}
-	if _, ok := FindProfile(profiles, "nope/Default"); ok {
-		t.Error("an unknown key resolved")
-	}
 }
 
 // writeFixture makes a file that exists, for the has-data checks.

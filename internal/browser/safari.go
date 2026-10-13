@@ -53,12 +53,11 @@ func walkSafariBookmarks(value any, profile Profile, out *[]Result) {
 			title = plist.String(record, "Title")
 		}
 		*out = append(*out, Result{
-			URL:        url,
-			Title:      title,
-			BrowserID:  profile.BrowserID,
-			Browser:    profile.Browser,
-			Kind:       KindBookmark,
-			ProfileKey: profile.Key(),
+			URL:       url,
+			Title:     title,
+			BrowserID: profile.BrowserID,
+			Browser:   profile.Browser,
+			Kind:      KindBookmark,
 		})
 	}
 	children, ok := record["Children"].([]any)

@@ -45,17 +45,6 @@ func DefaultProfile(profiles []Profile, target string) (Profile, bool) {
 	return profiles[0], true
 }
 
-// FindProfile resolves a profile key back to a profile, so an action can use
-// the browser the row came from.
-func FindProfile(profiles []Profile, key string) (Profile, bool) {
-	for _, profile := range profiles {
-		if profile.Key() == key {
-			return profile, true
-		}
-	}
-	return Profile{}, false
-}
-
 // ErrNoBrowser is what opening a page reports when no browser is known.
 var ErrNoBrowser = errors.New("browser: no browser to open the page in")
 
