@@ -41,7 +41,7 @@ func TestEscapeAnswersTheSettingsQuestionFirst(t *testing.T) {
 		t.Fatalf("the integrations page: %v", err)
 	}
 	tt.Frame()
-	if err := tt.Click("Uninstall"); err != nil {
+	if err := tt.Click("Remove package"); err != nil {
 		t.Fatalf("the uninstall control: %v (texts %v)", err, tt.Texts())
 	}
 	tt.Frame()

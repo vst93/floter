@@ -1344,6 +1344,10 @@ func (a *App) integrationList() []settingsui.Integration {
 			Enabled:     integration.Entry.Enabled,
 			Running:     integration.Running(),
 			Broken:      integration.Broken(),
+			// The repository's kind fields, so the card's removal verb is the
+			// reference's four-way pick rather than one generic word.
+			DistributionSource: integration.Entry.DistributionSource,
+			RuntimeOwnership:   integration.Entry.RuntimeOwnership,
 		}
 		if integration.Entry.LastErrorCode != nil {
 			item.FailureCode = *integration.Entry.LastErrorCode

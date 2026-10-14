@@ -1014,9 +1014,11 @@ func TestIntegrationsPage(t *testing.T) {
 	if toggled != "io.github.vst93.v" || toggledTo {
 		t.Errorf("toggled %q to %v", toggled, toggledTo)
 	}
-	// The first row's Uninstall button asks inline first; the bar's danger
-	// button is what asks the shell to remove it.
-	if err := tt.Click("Uninstall"); err != nil {
+	// The first row's removal button asks inline first; the bar's danger
+	// button is what asks the shell to remove it. The row's verb follows the
+	// integration kind (P7-eh): this fixture is a plain linked package, so it
+	// says "Remove package", not the npm kind's "Uninstall".
+	if err := tt.Click("Remove package"); err != nil {
 		t.Fatalf("the uninstall button is missing: %v", err)
 	}
 	tt.Frame()
@@ -1033,7 +1035,7 @@ func TestIntegrationsPage(t *testing.T) {
 	if removedID != "" || tt.HasText("Uninstall V Tools?") {
 		t.Fatalf("cancel removed or kept the bar: removed=%q texts=%q", removedID, tt.Texts())
 	}
-	if err := tt.Click("Uninstall"); err != nil {
+	if err := tt.Click("Remove package"); err != nil {
 		t.Fatalf("reopening the removal bar: %v", err)
 	}
 	tt.Frame()
@@ -1044,13 +1046,13 @@ func TestIntegrationsPage(t *testing.T) {
 	if removedID != "" || tt.HasText("Uninstall V Tools?") {
 		t.Fatalf("Escape removed or kept the bar: removed=%q texts=%q", removedID, tt.Texts())
 	}
-	if err := tt.Click("Uninstall"); err != nil {
+	if err := tt.Click("Remove package"); err != nil {
 		t.Fatalf("reopening the removal bar: %v", err)
 	}
 	tt.Frame()
-	// Two elements show the bare word now — the row's button and the bar's
-	// own danger button. The danger button sits in the same row as Cancel,
-	// just to its right, so its position is read off Cancel's rect.
+	// The bar's own danger button is the last "Uninstall" on screen (the
+	// row's button says "Remove package"), so it is read positionally: it sits
+	// in the same row as Cancel, just to its right.
 	cancel, ok := tt.Find("Cancel")
 	if !ok {
 		t.Fatalf("the bar's cancel button is missing: %q", tt.Texts())
@@ -1093,7 +1095,7 @@ func TestGeneratedIntegrationRemovalBar(t *testing.T) {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	if err := tt.Click("Uninstall"); err != nil {
+	if err := tt.Click("Delete integration"); err != nil {
 		t.Fatalf("the uninstall button is missing: %v", err)
 	}
 	tt.Frame()
@@ -1109,9 +1111,15 @@ func TestGeneratedIntegrationRemovalBar(t *testing.T) {
 	if removedID != "" {
 		t.Fatalf("the removal happened without asking: %q", removedID)
 	}
-	if err := tt.Click("Delete integration"); err != nil {
-		t.Fatalf("the danger button: %v", err)
+	// The row's own button and the bar's danger button now share the verb
+	// (the custom kind says "Delete integration" in both places, exactly as
+	// the reference's menu item and confirmation did), so the danger button
+	// is clicked positionally: same row as Cancel, just to its right.
+	cancel, ok := tt.Find("Cancel")
+	if !ok {
+		t.Fatalf("the bar's cancel button is missing: %q", tt.Texts())
 	}
+	tt.ClickAt(cancel.X+cancel.W+30, cancel.Y+cancel.H/2)
 	tt.Frame()
 	if removedID != "local.abc" || removedName != "Ripgrep" {
 		t.Errorf("uninstall recorded %q/%q", removedID, removedName)

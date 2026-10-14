@@ -22,7 +22,7 @@ func (a *App) uninstallComponentsRow(c *ui.Context, copy i18n.Settings, integrat
 		a.uninstallDialog(c, copy, integration)
 		return
 	}
-	if ui.Button(c, copy.IntegrationsUninstall+"…").Clicked() {
+	if ui.Button(c, integration.removalLabel(copy)+"…").Clicked() {
 		if a.uninstallOpen == nil {
 			a.uninstallOpen = map[string]bool{}
 		}
@@ -50,7 +50,7 @@ func (a *App) uninstallDialog(c *ui.Context, copy i18n.Settings, integration Int
 		a.setCheckbox(c, copy.UninstallToolData, copy.UninstallToolDataHint, &draft.RemoveToolData)
 		a.setCheckbox(c, copy.UninstallArtifacts, copy.UninstallArtifactsHint, &draft.RemoveArtifacts)
 		ui.Row(c).FillWidth().Gap(t.Space(1)).AlignItems(ui.Center).Children(func() {
-			if ui.Button(c, copy.IntegrationsUninstall).Clicked() {
+			if ui.Button(c, integration.removalLabel(copy)).Clicked() {
 				if a.Actions.UninstallComponents != nil {
 					a.Actions.UninstallComponents(integration.ID, integration.Name, draft)
 				}

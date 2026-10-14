@@ -265,6 +265,13 @@ type Integration struct {
 	// tool's own help: only these can be re-probed, so only these get the
 	// button.
 	Generated bool
+	// DistributionSource and RuntimeOwnership are the repository's own kind
+	// fields (`npm`/`local`/`built-in`, and `bundled`/`system`). Together with
+	// Generated they are what the card's removal verb is derived from, exactly
+	// as the reference's `removalKind` read them
+	// (`src/extensions/ExtensionRow.tsx:109-114`).
+	DistributionSource string
+	RuntimeOwnership   string
 	// Params are the declared inputs a run needs: the card renders a form for
 	// them, and the answers become argv.
 	Params []Param
@@ -1694,7 +1701,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			if a.Actions.UninstallComponents != nil {
 				a.uninstallComponentsRow(c, copy, integration)
 			} else if a.Actions.UninstallIntegration != nil {
-				if ui.Button(c, copy.IntegrationsUninstall).Clicked() {
+				if ui.Button(c, integration.removalLabel(copy)).Clicked() {
 					a.requestRemove(integration.ID)
 				}
 			}
@@ -1812,6 +1819,53 @@ func (i Integration) identity() string {
 		parts = append(parts, i.ID)
 	}
 	return strings.Join(parts, " · ")
+}
+
+// The removal kinds the reference told apart (`src/extensions/ExtensionRow.tsx:109-114`).
+const (
+	removalCustom  = "custom"
+	removalNPM     = "npm"
+	removalSystem  = "system"
+	removalPackage = "package"
+)
+
+// removalKind is what this integration *is*, for the purpose of the removal
+// verb: a generated custom integration is deleted, an npm package is
+// uninstalled, a built-in whose runtime the system owns is disconnected (the
+// package is not floter's to delete), and anything else is a linked local
+// package that is only removed from the list. Ported line for line from the
+// reference's `removalKind`; the order matters — a generated integration that
+// also came from npm is still a custom one, exactly as the reference read it
+// (`generatedCustom` first).
+func (i Integration) removalKind() string {
+	switch {
+	case i.Generated:
+		return removalCustom
+	case i.DistributionSource == "npm":
+		return removalNPM
+	case i.DistributionSource == "built-in" && i.RuntimeOwnership == "system":
+		return removalSystem
+	default:
+		return removalPackage
+	}
+}
+
+// removalLabel is the removal verb for this kind, the same four-way pick the
+// reference made when it chose its menu item's text and icon
+// (`src/extensions/ExtensionRow.tsx:409-418`): the custom kind reuses the
+// `deleteCustom` string the confirmation already has, npm the plain
+// uninstall.
+func (i Integration) removalLabel(copy i18n.Settings) string {
+	switch i.removalKind() {
+	case removalCustom:
+		return copy.RemoveDelete
+	case removalNPM:
+		return copy.IntegrationsUninstall
+	case removalSystem:
+		return copy.IntegrationsDisconnect
+	default:
+		return copy.IntegrationsRemovePackage
+	}
 }
 
 func (a *App) installedIntegrations() []Integration {

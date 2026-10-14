@@ -446,6 +446,17 @@ type Settings struct {
 	IntegrationsOrphan    string
 	IntegrationsHint      string
 	IntegrationsUninstall string
+	// IntegrationsDisconnect and IntegrationsRemovePackage are the removal
+	// verbs the other two integration kinds use: the reference's
+	// `settings.extensions.disconnect` (a built-in whose runtime the system
+	// owns — the package is not floter's to delete) and
+	// `settings.extensions.removePackage` (a linked local package — the files
+	// outside floter stay). The custom kind reuses `RemoveDelete`
+	// (`settings.extensions.deleteCustom`) and an npm package reuses
+	// `IntegrationsUninstall`, exactly as `removalKind` in
+	// `src/extensions/ExtensionRow.tsx:109-114,409-418` picked them.
+	IntegrationsDisconnect    string
+	IntegrationsRemovePackage string
 	// DismissNotice labels the toast's close control: the old build's
 	// `settings.extensions.dismissNotice`.
 	DismissNotice string

@@ -99,7 +99,36 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-eg 用户四项实测反馈写实 + F1 落地（原版 `src/launcher/terminal-row.ts:77-84`
+> **最新一轮：P7-eh F4 逐函数对照落成四条具体待办 + F4a「移除动词随 kind」落地
+> （原版 `src/extensions/ExtensionRow.tsx:109-114,409-418`）** —— P7-eg 之后「尚未做」里
+> F3a/F3b 已是具体项，唯 F4 还停在「审计入口已钉、逐项待下一轮」，按规则把 F4 写成**带 file:line /
+> 原版行号 / 验收标准的四条待办**（F4a–F4d，文档末尾），再取第 1 条（F4a）落地。依赖检查：
+> GitHub releases API 限流，`go list -m -versions github.com/egoist/mygo` 最新仍是 **v0.4.8**
+> （与 `go.mod` 一致），无版本可升；只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），
+> 未翻历史提交。
+>
+> **F4a 偏离**：原版 `removalKind`（`ExtensionRow.tsx:109-114`）把集成分成 custom / npm / system /
+> package 四种，`:409-418` 用它选菜单文案（`deleteCustom` / `uninstall` / `disconnect` /
+> `removePackage`，`i18n.ts:521-540`）。本构建三个移除入口一律说 `IntegrationsUninstall`
+> （`internal/settingsui/uninstall.go:27,45`、`settingsui.go:1698-1701`）：`system` 行的运行时
+> 归系统、包不是 floter 的，`local` 链入包的文件也不在 floter 目录里——一个词说了三件不同的事。
+> 数据侧还缺字段（`settingsui.Integration` 没有 `distributionSource`/`runtimeOwnership`）。
+>
+> **F4a 修法**：`internal/settingsui/settingsui.go` 的 `Integration` 新增 `DistributionSource`、
+> `RuntimeOwnership` 并加 `removalKind()`（原版逐行，`generatedCustom` 优先）与 `removalLabel()`
+> （custom 复用已有的 `RemoveDelete`，正是原版 `deleteCustom` 的同一句话）；三处入口改读它；
+> `internal/shell/shell.go` 的 `integrationList` 投影两个 Entry 字段；i18n 新增 `IntegrationsDisconnect`、
+> `IntegrationsRemovePackage`（en/zh）。**验收**：新增 `internal/settingsui/integrationremoval_test.go`
+> 两条（六行表 + 四行同屏像素断言）。变异核查：`removalLabel` 的 system/package 改回
+> `IntegrationsUninstall` → 两条红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：F4 由“不具体”变成 F4a（已落地）/F4b/F4c/F4d 四条具体待办；下轮最高优先级是
+> F3b（帧 sheen 回固定口径）或 F4b（meta 行种类词）。
+
+> **上一轮：P7-eg 用户四项实测反馈写实 + F1 落地（原版 `src/launcher/terminal-row.ts:77-84`
 > R60/R64）** —— 「尚未做」清单已空（P7-ee 重写的 1–3 全部落地、第 4 条是记录），本轮按规则
 > 把用户新报告的 F1–F4 **逐条写实**为带 file:line / 原版对照 / 验收标准的待办（文档末尾
 > 「用户实测反馈」一节），再取第 1 条落地。依赖检查：GitHub releases 被限流，
@@ -6685,15 +6714,90 @@ Go 侧把原版的三条规则写偏了。依赖检查：`go list -m -versions g
   - **风险**：帧 sheen 参与透明度的 `FaceFill` 补偿（`theme.go` 的 `baseAlpha`/`capAlpha` 与
     `internal/shell/transparency_test.go`），改动须重跑该套像素测试。
 
-### F4 · 集成组件逻辑差异（**审计入口已钉，逐项待下一轮**）
+### F4 · 集成组件逻辑差异（**本轮（P7-eh）落成 F4a–F4d 四条带 file:line 的待办并落地 F4a**）
 
 - **现象**：集成组件逻辑与原版差异仍大，需要梳理、可能重构。
-- **原版对照**：`main:src/ExtensionsPanel.tsx`（面板与安装/权限/运行流程）与
-  `main:src/extensions/ExtensionRow.tsx`（每行卡片）。
+- **原版对照**：`main:src/ExtensionsPanel.tsx`（面板与安装/权限/运行流程，3269 行）与
+  `main:src/extensions/ExtensionRow.tsx`（每行卡片，532 行）。
 - **本构建入口**：`internal/settingsui/settingsui.go:1120` 的 `integrations`（列表页）、`:1485` 的
   `integrationRow`（卡片）、`:1326` 的 `stateMark`、`:1741` 的 `permissionAudit`，数据来自
   `internal/extensions` 的 inventory/repository。
-- **待做**：下一轮以 `git show backup/main-pre-mygo:src/ExtensionsPanel.tsx` 与
-  `src/extensions/ExtensionRow.tsx` 为蓝本逐函数对照，把差异落成**带 file:line 的具体待办**（每项一条，
-  含原版行号与验收），再逐条实现。范围大，不在本轮硬塞。
-- **验收**：每个落成的子项各带一条测试钉住卡片/流程的状态机（安装、审批、运行、卸载）。
+- **本轮做法**：以 `ExtensionRow.tsx` 为蓝本逐函数对照（`generatedCustom`/`distributionSource`/
+  `runtimeOwnership`/`connected`/`runtimeAvailable` 五组判据），落成下面四条**带 file:line 的具体待办**，
+  并取第 1 条（F4a）落地。`ExtensionsPanel.tsx` 的安装/审批/运行流程留作后续轮（见「残留」）。
+
+#### F4a · 卡片的「移除」动词全按一种说法（**本轮落地，P7-eh**）
+
+- **原版对照**：`main:src/extensions/ExtensionRow.tsx:109-114` 的 `removalKind`（`generatedCustom` →
+  `custom`；`distributionSource==="npm"` → `npm`；`built-in` + `runtimeOwnership==="system"` → `system`；
+  否则 `package`）与 `:409-418` 用它选菜单项文案 + 图标：custom →
+  `settings.extensions.deleteCustom`（`main:src/i18n.ts:540` 「Delete integration」）+ `Trash2`；npm →
+  `uninstall`（`:521`）+ `Trash2`；system → `disconnect`（`:522`）+ **`Unplug`**；package →
+  `removePackage`（`:525` 「Remove package」）+ `Trash2`。
+- **本构建（偏离）**：`internal/settingsui/uninstall.go:27,45` 与 `settingsui.go:1698-1701` 三个移除入口
+  **一律**用 `copy.IntegrationsUninstall`（「Uninstall」）——一个 `system` 行说「Uninstall」而它的运行时由
+  系统拥有、包根本不是 floter 的，一个 `local` 链入包说「Uninstall」而文件并不在 floter 目录里。
+  数据侧也缺字段：`settingsui.Integration` 没有 `distributionSource`/`runtimeOwnership`。
+- **落地 file:line**：
+  - `internal/settingsui/settingsui.go` 的 `Integration` 结构体新增 `DistributionSource`、
+    `RuntimeOwnership` 两个字段；新增 `removalKind()`（原版 `:109-114` 逐行）与
+    `removalLabel(copy)`（原版 `:409-418` 的四选一；custom 复用已有的 `RemoveDelete`＝原版
+    `deleteCustom` 的同一句话）；
+  - 三个移除入口改读 `integration.removalLabel(copy)`；
+  - `internal/shell/shell.go` 的 `integrationList` 把 `Entry.DistributionSource`/`Entry.RuntimeOwnership`
+    投影进这两个字段。
+- **验收**：新增 `internal/settingsui/integrationremoval_test.go`——
+  `TestTheRemovalVerbFollowsTheIntegrationKind` 六条表（含「generated 胜过 npm」的顺序断言）钉
+  `removalKind` 与 en/zh 两句话；`TestEachIntegrationCardShowsItsOwnRemovalVerb` 同屏渲染四种行，在
+  **像素上**钉四个动词都在（纯函数对了而卡片仍硬编码一个词时这条红）。变异核查：把
+  `removalLabel` 的 system/package 两支改回 `IntegrationsUninstall` → 两条立刻红
+  （`removalLabel(en) = "Uninstall", want "Disconnect"`）。
+- **本轮未改**：确认条的**标题/正文/确认按钮**仍走 `RemoveTitle`/`RemoveDetail`/`RemoveConfirm`
+  （除 custom 走 `RemoveDelete`）。原版 `RemovalConfirmation.tsx:41` 的确认按钮与菜单项用**同一个
+  kind key**，而 `removalTextKey` 还给 package/system 各自的 `removePackageTitle`/`disconnectTitle`
+  词——这把确认条也按 kind 说话留给后续轮（需要新增配对 i18n 键），不塞进本条。
+
+#### F4b · 卡片 meta 行缺「集成种类」词（**待做**）
+
+- **原版对照**：`ExtensionRow.tsx:82-101` 的 `integrationKindKey`（custom / npm / manifest / recommended /
+  tool / system / package 七种，判据是 `generatedCustom`、`distributionSource`、`!connected &&
+  manifestSuggestion`、`!connected && recommended`、`!connected && distributionSource==="local"`、
+  `built-in` + `system`），在 `:255` 作为 meta 行的一个 `<span>` 画出。
+- **本构建（偏离）**：`internal/settingsui/settingsui.go:1800` 的 `Integration.identity()` 只印
+  publisher · version · ID，没有种类词；`integrationRow` 的 meta 行
+  （`settingsui.go:1499` 的 `a.row(c, integration.identity(), "", func(){})`）因此缺这一格。
+- **待做 file:line**：`identity()` 拆分出一个 `integrationKind(copy)`（或新增一列），把七种判据接到
+  `Integration` 的 `Generated`（F4a 已补）/ `DistributionSource` / `RuntimeOwnership` / `Connected` /
+  `Recommended` / `ManifestSuggestion` 上——后三个字段本轮尚不在结构体里，需先投影。
+- **验收**：新增一条表驱动测试，逐 kind 钉 `integrationKind(copy)` 的词 + 卡片上该词可见；en/zh 各一句。
+
+#### F4c · detected（未连接）行的动作语义不是原版那张脸（**待做**）
+
+- **原版对照**：`ExtensionRow.tsx:299-330`——同一张卡片，`!connected` 时右侧只有一个按钮：
+  `runtimeAvailable` → Connect（`Link2`，`aria-label=connect`）；`installInTerminal` → 终端安装
+  （`installInTerminal`）；否则 → 去主页（`ExternalLink`，`installTool`），且
+  `disabled = busy || (!runtimeAvailable && !homepage && !installInTerminal)`。卡片 class 也随
+  `!connected` 切 `extension-row--detected`（`:290`），且 detected 行**没有**开关槽（`:430`）。
+- **本构建（偏离）**：`internal/settingsui/settingsui.go:3348` 的 `detectedSection` 把发现项放进
+  **独立的一段卡片**（`copy.DetectedTitle`），每行一个恒为 `IntegrationsConnect` 的按钮，没有
+  runtimeAvailable / installInTerminal / homepage 三态，也没有 disabled 的原因；它不在「Installed」
+  段里，因此与原版「同一列表、同一卡片」的结构不同。
+- **待做 file:line**：`detectedSection` 的行补三态动作（需 `Detected` 的投影带上
+  `RuntimeAvailable`/`Homepage`/`InstallInTerminal`，见 `internal/shell` 的 detected 投影）；是否合并
+  进 Installed 段是独立决定（本构建的段式布局与该区其它段一致，建议**保留段、只补动作三态**）。
+- **验收**：一条渲染测试，三条 detected 项分别钉按钮文案/禁用态；`busy` 与无主页时按钮禁用。
+
+#### F4d · register 深链高亮标记缺失（**待做，优先级最低**）
+
+- **原版对照**：`ExtensionRow.tsx:196-205`（R8-3）——`floter://register` 深链点名的行画一个
+  `extension-row__register-dot`（`role="img"` + `registerHighlight` 文案），是**标记不是控件**；
+  卡片 class 追加 `extension-row--register`（`:290`）。
+- **本构建（缺失）**：`grep -rn RegisterHighlight internal/` 无命中，`Integration` 上没有 highlight
+  字段，卡片也不接受 `highlighted`。
+- **待做 file:line**：`internal/settingsui/settingsui.go` 的 `integrationRow` 增一个
+  `Integration.Highlighted` 标记与 `registerHighlight` 文案；`internal/shell` 的深链处理在
+  `floter://register` 落地时置位。
+- **验收**：一条渲染测试，highlighted 行出现标记文案、未点名的行不出现。
+
+- **残留**：`main:src/ExtensionsPanel.tsx`（安装文件夹/权限审批/运行参数/输出回看/导入导出的**流程**）
+  尚未逐函数对照；F3a/F3b 仍在清单上，下轮按优先级取（F3b 已是可直接落地的具体项）。
