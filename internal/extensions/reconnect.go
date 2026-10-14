@@ -43,6 +43,15 @@ type ReconnectReport struct {
 // failure records the reason on the entry the way a check does, so the row
 // can word it in the user's language.
 func Reconnect(paths Paths, id string) (ReconnectReport, error) {
+	return ReconnectAt(paths, id, "")
+}
+
+// ReconnectAt is Reconnect with an explicit program, for the flow that asked
+// the user which of several matching executables to bind: the reference's
+// `extensions_reconnect_system` took the chosen `executablePath` the same way
+// (`src-tauri/src/commands/extensions.rs:1754-1759`), and an empty path keeps
+// the discover-from-the-search-path behavior.
+func ReconnectAt(paths Paths, id, executablePath string) (ReconnectReport, error) {
 	inventory := LoadInventory(paths)
 	integration, ok := inventory.WithID(id)
 	if !ok {
@@ -52,17 +61,26 @@ func Reconnect(paths Paths, id string) (ReconnectReport, error) {
 		return ReconnectReport{}, fmt.Errorf("%w: %s", ErrNotSystemOwned, id)
 	}
 
-	unbound := integration
-	unbound.Entry.ExecutablePath = ""
-	binding, err := ResolveRuntime(unbound)
-	if err != nil {
-		var failure *BindingFailure
-		if errors.As(err, &failure) {
-			if recordErr := recordBindingFailure(paths, id, failure); recordErr != nil {
-				return ReconnectReport{}, recordErr
-			}
+	var binding RuntimeBinding
+	if executablePath != "" {
+		if !isExecutableFile(executablePath) {
+			return ReconnectReport{}, NewBindingFailure(BindingCodeMissing, BindingMissingDetail(executablePath))
 		}
-		return ReconnectReport{}, err
+		binding = RuntimeBinding{Program: executablePath}
+	} else {
+		unbound := integration
+		unbound.Entry.ExecutablePath = ""
+		resolved, err := ResolveRuntime(unbound)
+		if err != nil {
+			var failure *BindingFailure
+			if errors.As(err, &failure) {
+				if recordErr := recordBindingFailure(paths, id, failure); recordErr != nil {
+					return ReconnectReport{}, recordErr
+				}
+			}
+			return ReconnectReport{}, err
+		}
+		binding = resolved
 	}
 
 	repo, err := LoadRepository(paths.RepositoryFile)

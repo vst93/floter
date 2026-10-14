@@ -144,6 +144,11 @@ type Options struct {
 	// from ConfirmPermissions because the reference's connect flow reviews the
 	// manifest's own permissions, tiered, rather than the plain approval.
 	ReviewRecommended func(extensions.Prepared) bool
+	// ChooseSystemTool picks which of several matching executables a system
+	// runtime binds to, before a connect or a reconnect; nil means the native
+	// dialog. It only appears when a manifest's declared names resolve to more
+	// than one program (the reference's `chooseSystemTool`).
+	ChooseSystemTool func(name string, candidates []extensions.ExecutableCandidate) (string, bool)
 	// OpenPinned replaces the pinned-window implementation; nil opens the
 	// real window, and tests record what would have been pinned.
 	OpenPinned func(title, text string)
@@ -275,6 +280,8 @@ type App struct {
 	// reviewRecommended shows the recommended-tool permission review before a
 	// shipped package is connected, nil for the native dialog.
 	reviewRecommended func(extensions.Prepared) bool
+	// chooseTool is the tool-selection dialog, nil for the native dialog.
+	chooseTool func(name string, candidates []extensions.ExecutableCandidate) (string, bool)
 	// diagnoses is the last health check per integration, and diagnosisMu
 	// guards it: a check runs off the main thread.
 	diagnoses   map[string]settingsui.Integration
@@ -468,6 +475,7 @@ func New(opts Options) *App {
 		confirmPermissions:   opts.ConfirmPermissions,
 		reviewInstall:        opts.ReviewInstall,
 		reviewRecommended:    opts.ReviewRecommended,
+		chooseTool:           opts.ChooseSystemTool,
 		openPinned:           opts.OpenPinned,
 		openDetached:         opts.OpenDetached,
 		writeClipboard:       opts.WriteClipboard,
@@ -1623,11 +1631,30 @@ func (a *App) diagnoseIntegration(id string) {
 // `report.repaired ? repairedNotice : recheckedNotice`).
 func (a *App) reconnectIntegration(id string) {
 	name := id
-	if integration, ok := a.Integrations.Inventory().WithID(id); ok && integration.Name != "" {
-		name = integration.Name
+	var manifest extensions.Manifest
+	recorded := ""
+	known := false
+	if integration, ok := a.Integrations.Inventory().WithID(id); ok {
+		known = true
+		manifest = integration.Manifest
+		recorded = integration.Entry.ExecutablePath
+		if integration.Name != "" {
+			name = integration.Name
+		}
 	}
 	go func() {
-		report, err := extensions.Reconnect(a.Paths, id)
+		// More than one matching program is the reference's chooser: the row
+		// asks which executable to bind before it re-derives anything
+		// (`ExtensionsPanel.tsx:1975-1988`).
+		path := ""
+		if known {
+			chosen, ok := a.recommendedToolPath(name, manifest, recorded)
+			if !ok {
+				return
+			}
+			path = chosen
+		}
+		report, err := extensions.ReconnectAt(a.Paths, id, path)
 		// The list is re-read first, as the reference's `refreshAfterMutation`
 		// did before its toast: a reconnect may have rewritten the entry (a new
 		// executable path, or a cleared binding failure), and the notice must
@@ -2010,6 +2037,15 @@ func (a *App) connectRecommended(id string) {
 			return
 		}
 		defer cleanup()
+		// Resolve the program first, exactly where the reference's
+		// `connectRecommended` did (`ExtensionsPanel.tsx:1393-1401`): a manifest
+		// whose declared names match more than one program asks which one, and
+		// the resolved path is what both the review and the install carry.
+		if path, ok := a.recommendedToolPath(prepared.Manifest.Name, prepared.Manifest, ""); !ok {
+			return
+		} else if path != "" {
+			prepared.ExecutablePath = path
+		}
 		// The reference asks for the manifest's own permissions first and only
 		// shows the review when there are any (ExtensionsPanel.tsx:1349-1400);
 		// its confirm connects with the whole declared set approved.
@@ -2025,6 +2061,23 @@ func (a *App) connectRecommended(id string) {
 		a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationInstalled(entry.Name) })
 		a.RefreshIntegrations(context.Background())
 	}()
+}
+
+// recommendedToolPath resolves the program a system manifest's declared names
+// should bind to. Exactly one match is the answer; several are the reference's
+// `chooseSystemTool` dialog, and the user's pick is the answer; none leaves the
+// path empty, so the install reports the missing runtime the way it always has.
+// ok is false only when the user cancelled the chooser.
+func (a *App) recommendedToolPath(name string, manifest extensions.Manifest, recordedPath string) (string, bool) {
+	candidates := extensions.SystemRuntimeCandidates(manifest, recordedPath)
+	switch len(candidates) {
+	case 0:
+		return "", true
+	case 1:
+		return candidates[0].Path, true
+	default:
+		return a.chooseSystemTool(name, candidates)
+	}
 }
 
 // detectedTools is the programs this machine has that nothing has connected

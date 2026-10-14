@@ -595,6 +595,59 @@ func permissionTierLines(permissions []string, copy i18n.Settings, language stri
 	return lines
 }
 
+// chooseSystemTool is the reference's tool-selection dialog: when a system
+// runtime's declared names resolve to more than one program, the user picks
+// the one the integration binds to before anything is connected or reconnected
+// (`src/ExtensionsPanel.tsx:2623-2648`, `chooseSystemTool`). It is a value so a
+// test can answer without a native dialog, and a goroutine caller (the dialog
+// blocks).
+func (a *App) chooseSystemTool(name string, candidates []extensions.ExecutableCandidate) (string, bool) {
+	if a.chooseTool != nil {
+		return a.chooseTool(name, candidates)
+	}
+	return chooseSystemToolDialog(name, candidates, i18n.For(a.Store.Snapshot().Language).Settings)
+}
+
+// chooseSystemToolDialog draws the chooser natively: one button per candidate,
+// labeled with its name and path, and a Cancel button last. The detail repeats
+// each candidate with the sources it was found through, so a path alone is not
+// the only thing a person has to go on.
+func chooseSystemToolDialog(name string, candidates []extensions.ExecutableCandidate, copy i18n.Settings) (string, bool) {
+	buttons := make([]string, 0, len(candidates)+1)
+	for _, candidate := range candidates {
+		buttons = append(buttons, candidate.Name+" \u2014 "+candidate.Path)
+	}
+	buttons = append(buttons, copy.PermissionsCancel)
+	_, detail := chooseSystemToolText(name, candidates, copy)
+	result, err := mygo.Dialog.Message(mygo.MessageOptions{
+		Type:    mygo.MessageQuestion,
+		Message: copy.ChooseSystemToolTitle(name),
+		Detail:  detail,
+		Buttons: buttons,
+	})
+	if err != nil || result.Button < 0 || result.Button >= len(candidates) {
+		return "", false
+	}
+	return candidates[result.Button].Path, true
+}
+
+// chooseSystemToolText builds the chooser's title and body: each candidate's
+// name and path, with the sources it was discovered through — the reference's
+// `chooseSystemTool` title, `chooseSystemToolHint` and the per-candidate
+// name/path/sources rows.
+func chooseSystemToolText(name string, candidates []extensions.ExecutableCandidate, copy i18n.Settings) (string, string) {
+	lines := make([]string, 0, len(candidates)*2+2)
+	lines = append(lines, copy.ChooseSystemToolHint, "")
+	for _, candidate := range candidates {
+		line := "\u2022 " + candidate.Name + " \u2014 " + candidate.Path
+		if len(candidate.Sources) > 0 {
+			line += " (" + strings.Join(candidate.Sources, " \u00b7 ") + ")"
+		}
+		lines = append(lines, line)
+	}
+	return copy.ChooseSystemToolTitle(name), strings.Join(lines, "\n")
+}
+
 // menuActions are what the application menu's own items do.
 type menuActions struct {
 	Settings func()

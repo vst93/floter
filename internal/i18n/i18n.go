@@ -444,6 +444,12 @@ type Settings struct {
 	PermissionsRequired     string
 	ConnectRecommendedTitle func(name string) string
 	PermissionsConnect      string
+	// ChooseSystemToolTitle/-Hint are the tool-selection dialog the connect and
+	// reconnect flows show when a manifest's declared executable names resolve
+	// to more than one program (`settings.extensions.chooseSystemTool`, a name
+	// and a hint, i18n.ts:472-473).
+	ChooseSystemToolTitle func(name string) string
+	ChooseSystemToolHint  string
 
 	// The Integrations page.
 	IntegrationsEmpty     string

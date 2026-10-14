@@ -121,13 +121,13 @@ func TestTheReconnectActionRebindsAMovedProgram(t *testing.T) {
 	if err := os.WriteFile(here, []byte("#!/bin/sh\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	restore := extensions.StubToolLookup(func(names ...string) (string, bool) {
+	restore := extensions.StubToolCandidates(func(names ...string) []extensions.ExecutableCandidate {
 		for _, name := range names {
 			if name == "systool" {
-				return here, true
+				return []extensions.ExecutableCandidate{{Name: name, Path: here, Sources: []string{"path"}}}
 			}
 		}
-		return "", false
+		return nil
 	})
 	defer restore()
 
@@ -169,6 +169,11 @@ func TestTheReconnectActionRebindsAMovedProgram(t *testing.T) {
 func TestAReconnectWithNothingToBindToReportsIt(t *testing.T) {
 	gone := filepath.Join(t.TempDir(), "systool")
 	paths, id := reconnectFixture(t, gone)
+	// Nothing on the search path answers to the manifest's name, so the
+	// candidate list is empty and the reconnect falls back to the by-name
+	// lookup — which the stub below also reports as missing.
+	restoreCandidates := extensions.StubToolCandidates(func(...string) []extensions.ExecutableCandidate { return nil })
+	defer restoreCandidates()
 	restore := extensions.StubToolLookup(func(names ...string) (string, bool) { return "", false })
 	defer restore()
 

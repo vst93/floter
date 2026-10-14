@@ -286,6 +286,9 @@ var en = Copy{
 		PermissionsRequired:     "Permissions required",
 		ConnectRecommendedTitle: func(name string) string { return "Connect the recommended tool " + name + " to Floter?" },
 		PermissionsConnect:      "Connect",
+		// The tool-selection dialog (i18n.ts:472-473).
+		ChooseSystemToolTitle: func(name string) string { return "Choose a runtime for " + name },
+		ChooseSystemToolHint:  "Multiple matching executables were discovered. Choose the exact path Floter should bind to.",
 
 		PageGeneral:      "General",
 		PageSessions:     "Sessions",
@@ -1085,6 +1088,9 @@ var zh = Copy{
 		PermissionsRequired:     "需要以下权限",
 		ConnectRecommendedTitle: func(name string) string { return "将推荐工具 " + name + " 接入 Floter？" },
 		PermissionsConnect:      "连接",
+		// 选择运行工具的弹窗（i18n.ts:1359-1360）。
+		ChooseSystemToolTitle: func(name string) string { return "为 " + name + " 选择运行工具" },
+		ChooseSystemToolHint:  "发现了多个匹配的可执行文件，请明确选择 Floter 要绑定的路径。",
 
 		PageGeneral:      "常规",
 		PageSessions:     "会话",

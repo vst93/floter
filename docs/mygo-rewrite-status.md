@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1260 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1270 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1260 项测试
+go test -count=1 ./...         # 1270 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -100,7 +100,75 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-er F4g 第 2 条入口——推荐工具的权限审阅（原版
+> **最新一轮：P7-es F4g 第 3 条入口——多个候选时的运行工具选择 `chooseSystemTool`（原版
+> `src/ExtensionsPanel.tsx:1393-1401,1975-1988,2623-2648`、`i18n.ts:472-473`、
+> `src-tauri/src/commands/extensions.rs:1754-1759`）** —— P7-er 收尾后「尚未做」清单里文档点名的
+> 下轮最高优先级就是 **F4g 的第 3 条入口**（多个候选才弹 `chooseSystemTool`），本轮取它。依赖检查：
+> GitHub releases API 限流、`go list -m -versions github.com/egoist/mygo` 网络超时（均无新信息），
+> `go.mod` 仍是 **v0.4.8**，无版本可升；只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），
+> 未翻历史提交。
+>
+> **偏离（F4g·tool selection）**：原版给每个扩展算一份 `toolCandidates`（`commands/extensions.rs:258-300`
+> 用 `resolution_candidates(resolve_manifest_candidate(...))`）：把清单 `executableNames` 交给
+> `resolver::resolve_executable_names`（`extensions/resolver.rs:52-88`）在**全部发现来源**（PATH、
+> Launch Services、desktop entry…）里打分，平手即 `ResolveResult::Ambiguous`，于是
+> `connectRecommended` / `reconnectSystem`（`ExtensionsPanel.tsx:1393-1401,1975-1988`）在
+> `toolCandidates.length > 1` 时弹 `pendingToolSelection`（`:2623-2648`）：标题
+> `chooseSystemTool`（“Choose a runtime for {name}”）、提示 `chooseSystemToolHint`、每个候选一行
+> （`name` / `locator.path` / `sources.join(" · ")`），`chooseSystemTool` 把选中路径交给
+> `connectRecommendedAt(extension, path)` 或 `reconnectSystemAt(extension, path)`。
+> **本构建（改前）**：没有候选概念——`ResolveRuntime`（`internal/extensions/provider.go:43-84`）
+> 用 `lookTool(names...)` 取**第一个**匹配就绑定，`reconnectIntegration` 调
+> `extensions.Reconnect(paths,id)`（丢弃记录路径后按名重解析），`connectRecommended` 直接
+> `Commit`，两边都不问用户。
+>
+> **落地**：
+> - `internal/extensions/candidates.go`（新）：`ExecutableCandidate{Name,Path,Sources}`（原版
+>   `ToolCandidate` 的裁剪，`Sources` 恒为 `["path"]`，本构建只有 PATH 这一种发现来源）；
+>   `LookTools` / `lookToolsIn`（按搜索路径顺序列出全部匹配，按解析后路径去重——符号链接不算两个）；
+>   `lookTools` 变量 + `StubToolCandidates` 测试缝（与既有 `lookTool`/`StubToolLookup` 同构）；
+>   `SystemRuntimeCandidates(manifest, recordedPath)`——记录路径即原版 `preferred_locator`：仍在
+>   就返回它一条（原版 history 打分使它唯一胜出），否则返回全部匹配（>1 即原版 `Ambiguous`）。
+> - `internal/extensions/reconnect.go`：`Reconnect` 拆出 `ReconnectAt(paths,id,executablePath)`，
+>   非空路径直接用（先 `isExecutableFile` 校验），空路径保持原「丢弃记录后按名重解析」；对应原版
+>   `extensions_reconnect_system` 的 `executable_path` 参数（`commands/extensions.rs:1754-1759`）。
+> - `internal/shell/system.go`：`App.chooseSystemTool`（注入点 nil 走原生
+>   `mygo.Dialog.Message`）与纯函数 `chooseSystemToolText`；按钮一个候选一个（`名称 — 路径`）+ Cancel，
+>   body 依原版顺序拼 hint + 每个候选 `• 名称 — 路径 (来源)`。
+> - `internal/shell/shell.go`：`Options.ChooseSystemTool` + `App.chooseTool`；新增
+>   `recommendedToolPath(name, manifest, recordedPath)`（0 个返回空、1 个返回它、>1 弹选择）；
+>   `connectRecommended` 在权限审阅**之前**先解析程序并写回 `prepared.ExecutablePath`（原版
+>   `connectRecommended` 先选再审），顺带修好 P7-er 记下的残留「审阅时不解析候选」；
+>   `reconnectIntegration` 走同一解析并把选中路径交给 `ReconnectAt`。
+> - `internal/i18n`：`Settings` 新增 `ChooseSystemToolTitle`（“Choose a runtime for {name}”/
+>   “为 {name} 选择运行工具”）与 `ChooseSystemToolHint`，文案逐字取原版 `i18n.ts:472-473,1359-1360`。
+>
+> **验收**：
+> - `internal/extensions/candidates_test.go`（新）：`LookTools` 按搜索路径顺序列出全部匹配；
+>   符号链接折叠（不重复计）；`SystemRuntimeCandidates` 记录路径优先（返回仅一条）与无记录时返回全部；
+>   非 system 运行时返回 nil；`ReconnectAt` 绑定到指定程序、拒绝不可运行的程序。
+> - `internal/shell/choosesystemtool_test.go`（新）：`chooseSystemToolText` 标题 + hint + 每个候选
+>   `• v — 路径 (path)`；推荐 connect 两个候选时弹一次选择、绑到选中路径；取消选择则不审不装；
+>   reconnect 两个候选时弹选择并绑到选中路径。
+> - `internal/shell/reconnect_test.go` 两条既有测试改注入 `StubToolCandidates`（本机恰有
+>   `/usr/bin/systool`，旧缝 `StubToolLookup` 已不覆盖候选枚举）。
+> - 变异核查：把 `connectRecommended` 的候选解析删掉 →
+>   `TestRecommendedConnectAsksWhichExecutableToBind` 红（“the connect never landed”，
+>   runtime-unavailable）。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿（1270 项）、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：**F4g 第 3 条入口落地**（多个候选时的运行工具选择）。残留（如实记为有意偏离）：
+> (1) 本构建的候选只有 PATH 一种发现来源，`Sources` 恒为 `["path"]`（原版有 Launch Services /
+> desktop entry 等多种）；(2) 原版 `toolCandidates` 的打分含 version/stability/fingerprint，本构建
+> 只用「记录路径优先，否则全列」这一条能观察到的规则；(3) 原版弹窗是可聚焦的 listbox（`role="listbox"`），
+> 本构建用原生多按钮 message box（与 F4g 前两条入口的对话框实现一致）。余下 F4g 两条入口
+> （输出回看 `handleDriftNotice` / 导入导出）与 **F-new**（脚本编辑器换 `ui/editor`）。下轮最高优先级是
+> **F4g 的第 4 条入口**（输出回看：原版 `ExtensionsPanel.tsx:2078-2132` 的 `handleDriftNotice`），
+> 除非 F4g 的对照先查出新缺口。
+>
+> **P7-er F4g 第 2 条入口——推荐工具的权限审阅（原版
 > `src/ExtensionsPanel.tsx:1349-1400,2594-2620`、`src-tauri/src/extensions/install.rs:2175-2240`、
 > `src/extensions/PermissionTierList.tsx`、`i18n.ts:465-469,553`）** —— P7-eq 收尾后「尚未做」
 > 清单里文档点名的下轮最高优先级就是 **F4g 的第 2 条入口**（权限审批），本轮取它。依赖检查：
@@ -7362,7 +7430,7 @@ Go 侧把原版的三条规则写偏了。依赖检查：`go list -m -versions g
   `extensions_repair` 一支 P7-ep）；F4f 由 P7-eo 落地；F3a/F3b 由 P7-em/P7-en 落地。余下 **F4g**（逐
   入口对照）与 **F-new**（脚本编辑器）——已写成文末「具体待办（P7-el 重写）」的条目。
 
-### 具体待办（P7-el 重写；F3a 已由 P7-em 落地、F3b 已由 P7-en 落地、F4f 已由 P7-eo 落地、F4e 的 repair 一支已由 P7-ep 落地、F4g 第 1·2 条入口已由 P7-eq/P7-er 落地，余下 F4g 后三条/F-new）
+### 具体待办（P7-el 重写；F3a 已由 P7-em 落地、F3b 已由 P7-en 落地、F4f 已由 P7-eo 落地、F4e 的 repair 一支已由 P7-ep 落地、F4g 第 1·2·3 条入口已由 P7-eq/P7-er/P7-es 落地，余下 F4g 后两条/F-new）
 
 P7-ej/P7-ek 之后清单上只剩 F3a（一个待决策的分叉）与 F3b（已实测标为「先决于 F3a」）。P7-el 按规则
 把清单写实为五条带 file:line / 原版对照 / 验收标准的待办，并取其中新查出的真实缺口（F4e）落地。
@@ -7374,9 +7442,11 @@ F3b 因此解除「先决」。**P7-en 再取 F3b 并落地**（详见上文 P7-
 兜底 Reconnect，`repairKind()` 里那处有意偏离随之删除。**P7-eq 取 F4g 的第 1 条入口并落地**
 （安装文件夹的 manifest review）；**P7-er 取 F4g 的第 2 条入口并落地**（推荐工具的权限审阅，见上文
 P7-er 记录）：推荐工具的 connect 现在先出两层权限审阅（标题 / 可执行路径 / `permissionsRequired` /
-每层 label+hint+每条说明 / 边界句），确认才提交全部 declared。**下轮最高优先级是 F4g 的第 3 条入口**
-（运行参数：`pendingToolSelection`），除非 F4g 的对照先查出新缺口。下面每条的「原版对照」都只读 `main`
-（v0.3.14 原版树）。
+每层 label+hint+每条说明 / 边界句），确认才提交全部 declared。**P7-es 取 F4g 的第 3 条入口并落地**
+（运行工具选择，见上文 P7-es 记录）：清单 `executableNames` 命中多个程序时先弹 `chooseSystemTool`
+（标题 / hint / 每个候选名称+路径+来源），选中路径交给 connect 或 reconnect。**下轮最高优先级是
+F4g 的第 4 条入口**（输出回看：原版 `ExtensionsPanel.tsx:2078-2132` 的 `handleDriftNotice`），
+除非 F4g 的对照先查出新缺口。下面每条的「原版对照」都只读 `main`（v0.3.14 原版树）。
 
 #### F4e · 已连接卡片的修复入口（**全部落地：Reconnect 一支 P7-el、repair 一支 P7-ep**）
 
@@ -7436,8 +7506,14 @@ P7-er 记录）：推荐工具的 connect 现在先出两层权限审阅（标�
     文案取原版 `install.rs:2175-2240` / `i18n.ts:465-469,553`。**残留（有意偏离）**：原版标题的
     `manifestSuggestion` 一支（`confirmConnectManifest`）在本构建不可达（没有“约定位置清单”这类
     detected 行）；可执行路径行只在 `Prepared.ExecutablePath` 非空时出现（推荐流程审阅时不解析候选）。
-  - 运行参数：`:2560-2580` 的 `pendingToolSelection` 弹窗（多个候选才弹，`chooseSystemTool`）；
-    —— **下轮最高优先级**。
+  - 运行参数（运行工具选择）：`:1393-1401` 的 `connectRecommended`、`:1975-1988` 的 `reconnectSystem`
+    与 `:2623-2648` 的 `pendingToolSelection` 弹窗（多个候选才弹，`chooseSystemTool`）；
+    —— **已落地 P7-es**（见上）：`internal/extensions/candidates.go` 的
+    `ExecutableCandidate`/`LookTools`/`SystemRuntimeCandidates`、`internal/extensions/reconnect.go` 的
+    `ReconnectAt`、`internal/shell/system.go` 的 `chooseSystemTool`/`chooseSystemToolText`、
+    `internal/shell/shell.go` 的 `recommendedToolPath`（connect 先选再审、reconnect 选中即绑），
+    文案取原版 `i18n.ts:472-473`。**残留（有意偏离）**：候选只有 PATH 一种来源（`Sources` 恒 `["path"]`）；
+    打分只有「记录路径优先，否则全列」；用原生多按钮 message box 而非可聚焦 listbox。
   - 输出回看：`:2078-2132` 的 `handleDriftNotice`（`OperationProgress` 漂移提示）；
   - 导入导出：`extensions_export` / `extensions_import` 的调用点（`onImport`/`onExport` 一带）。
 - **本构建入口**：`internal/settingsui/settingsui.go` 的 `localToolSection`（`:2860` 一带）、
