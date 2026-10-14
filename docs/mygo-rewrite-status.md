@@ -99,7 +99,50 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-do 任何 reveal 都重读安装目录（原版 `src/App.tsx:2453-2457` 的
+> **最新一轮：P7-dp 触发提示的下限是「提示自身不足 6ch」，不是「输入框被挤到 160px 以下」**
+> —— P7-do 收尾后「尚未做（P7-do 重写）」第 1 条是最高优先级的具体项（已核实的偏离，带 file:line
+> 与验收）。本轮把它落地。依赖检查：GitHub releases API 被限流，`go list -m -versions
+> github.com/egoist/mygo` 最新仍是 **v0.4.8**（与 `go.mod` 一致），无版本可升。只对照 `main`
+> （`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离点**：本构建的 `internal/launcher/triggerhint.go` 把「提示消失」的判据设在**输入框**上——
+> `triggerHintMinField = 160`，判 `windowWidth(窗口整行宽) - hintNatural >= 160`。原版判的是
+> **提示自己**这一遍布局拿到的**盒宽**：`main:src/launcher/trigger-hint.ts:31-38` 的
+> `TRIGGER_HINT_MIN_CELLS = 6`（注释：低于 6 `ch` 时省略号只剩两个字形，提示不如整体消失）与
+> `:44-48` 的 `triggerHintFits(width, cellWidth)`（`!(cellWidth > 0) || width >= cellWidth*6`）；
+> `main:src/hooks/useTriggerHintFit.ts:37-52` 在 layout 阶段量 `getBoundingClientRect().width`
+> 与 canvas 的 `measureText("0")`。两个阈值不同：**提示够 6ch 但输入框不到 160px 时，原版显示、
+> 本构建隐藏**（200px 窗口下 old 判据 `200-151=49 < 160` → 隐藏，原版盒宽 ~92px 远大于 6ch → 显示）。
+> 另有一处：原版 `white-space: nowrap` + `text-overflow: ellipsis`
+> （`main:src/styles/launcher.css:534-569`），本构建的 `ui.Text` 默认**换行**——窄行里提示折成多行，
+> 把 R48 省掉的那条 band 又花了回来（200px 实测盒高 40 = 两行）。
+>
+> **修法**（`internal/launcher/triggerhint.go` + `launcher.go:961-976` 调用点）：
+> - `triggerHintMinCells = 6` 取代 `triggerHintMinField = 160`；`triggerHintFits` 改成**纯函数**
+>   `triggerHintFits(room, natural, cell float32) bool`：盒宽 `box = min(natural, room)`，
+>   `box >= cell*6`；`cell <= 0`（量不到字体）保留提示——「错的隐藏是唯一永久丢失路径」。
+> - `(a *App) triggerHintRoom(c, t)` 算**这一行留给提示的盒宽**：行内宽（窗口宽 − 2×`t.Space(4)`）
+>   减去保持尺寸的控件与间隙。行是 `[输入框][提示][清除][按钮]`，**输入框是 grower，把整份余量先让给
+>   提示**（框架自己的顺序，对应原版 `flex: 1 1 0` 旁的 `flex: 0 1 auto`：挤窄时输入框先塌到 0），
+>   所以只有清除键、按钮、以及它们之间的 gap/margin 计入。
+> - `(a *App) triggerHintShown(c, t, text)` 在同一帧量 `cell`（`"0"`）与 `natural`（提示全文，都用
+>   提示自己的字号 `t.FontSize-1`）再判定。
+> - 调用点加 `.SingleLine().Ellipsis("\u2026")`，对齐原版的 `nowrap` + `ellipsis`，也保证提示永远
+>   一行、永不夺回 band；隐藏仍是唯一丢失路径。
+> - **诚实记录**：原版提示还有 `max-width: 50%` 与 `cellWidthOf` 的 half-em fallback。前者在本构建
+>   无落点——启动器窗口固定 720 DIP、UI 步长最大 1.1，提示自然宽 ~166 远低于半行 306；后者对应
+>   `MeasureText` 返回 ≤0 即「量不到」，已由 `cell <= 0` 保留分支覆盖。
+>
+> **测试**（`internal/launcher/triggerhint_test.go` 的 `TestTriggerHintFits` 重写）：6ch 边界
+> （`room=60/cell=10` 留、`59.5` 丢）、提示自身短于下限也丢（`natural=59.5`）、`cell<=0` 保命；
+> 真实行里 200px 窗口**盒宽 `== triggerHintRoom`** 且只有一行（把解析式与 mygo 的真实布局对钉），
+> 120px 无 room → 隐藏。变异核查：把 `cell*triggerHintMinCells` 换回 `160` 或 `cell*5`，边界断言
+> 立刻红；去掉 `.SingleLine()`，盒高断言立刻红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+> **上一轮：P7-do 任何 reveal 都重读安装目录（原版 `src/App.tsx:2453-2457` 的
 > `floter://revealed` 监听 + `src/extensions/tool-catalog-store.ts:52-63`）**
 > —— P7-dn 收尾后清单只剩 P7-dn 第 3 条（深链/托盘 reveal 也重读）。本轮把它落地：给 `Show()` 的
 > reveal 判定加一个可注入的可见性缝，把刷新放进 `Show()` 本身——它是本构建每一条 reveal 的唯一门口。
@@ -3377,11 +3420,11 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-> **清单状态（P7-do 收尾）**：P7-dn 收尾后清单只剩 P7-dn 第 3 条（深链/托盘 reveal），本轮已落地。
-> 清单再次为空；本轮按惯例换入口，逐文件对照原版中**此前未被任一待办覆盖**的纯模块，把清单重写为
-> 下面第 1 条（已核实的偏离，可直接实现）与第 2、3 条（待比对的剩余未覆盖模块）。
+> **清单状态（P7-dp 收尾）**：P7-do 收尾后清单是下面三条（第 1 条已核实的偏离、第 2·3 条待比对的
+> 剩余未覆盖模块）；本轮落地第 1 条（最高优先级），余下第 2 条（`OverflowMenu.tsx` 的溢出菜单是否有
+> 落点）与第 3 条（`src/deferred-repaint.ts` 的重绘尾沿合并）仍是具体可执行的待比对项。
 
-### 具体待办（P7-do 重写）
+### 具体待办（P7-do 重写；第 1 条已落地 P7-dp，余下第 2·3 条待比对）
 
 > 本轮换入口：清点原版 `src/` 中在 status/plan 两份文档里零命名的模块（`git ls-tree` + 逐文件 grep），
 > 得到 `src/components/OverflowMenu.tsx`、`src/hooks/useSessionManagement.ts`、`src/deferred-repaint.ts`、
@@ -3391,13 +3434,13 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 > 依赖检查：GitHub releases API 被限流，`go list -m -versions github.com/egoist/mygo` 最新仍是
 > **v0.4.8**（与 `go.mod` 一致），无版本可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树）。
 
-1. **触发提示的下限是「提示自身不足 6ch」，不是「输入框被挤到 160px 以下」**（未做，最高优先级）。
+1. **触发提示的下限是「提示自身不足 6ch」，不是「输入框被挤到 160px 以下」**（已落地，P7-dp）。
    - 原版对照：`main:src/launcher/trigger-hint.ts:31-38` 的 `TRIGGER_HINT_MIN_CELLS = 6`（注释：
      低于 6 `ch` 时省略号只剩两个字形，提示不如整体消失）与 `:44-48` 的
      `triggerHintFits(width, cellWidth, minCells)`——`width` 是**提示自己**这一遍布局拿到的像素盒宽，
      `cellWidth` 是它自己字体里一个 `ch` 的推进宽度；`main:src/hooks/useTriggerHintFit.ts:37-52`
      在 layout 阶段量 `getBoundingClientRect().width` 与 canvas 的 `measureText("0")`。
-   - 本构建：`internal/launcher/triggerhint.go:88` 的 `triggerHintMinField = 160` 是一个固定的
+   - 本构建（改前）：`internal/launcher/triggerhint.go:88` 的 `triggerHintMinField = 160` 是一个固定的
      **输入框**下限，`:94-104` 的 `triggerHintFits(c, text)` 量的是**提示全文**宽度，判据是
      `width - hint >= 160`（`width` 是整行窗口宽）。于是「输入框 < 160px」与「提示 < 6ch」是两个不同
      阈值：提示够 6ch 但输入框不到 160px 时，原版显示、本构建隐藏。
@@ -3406,6 +3449,11 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
      的调用点要保持「隐藏是唯一的丢失路径」这条注释语义。
    - 既有测试：`internal/launcher/triggerhint_test.go` 的 `TestTriggerHintFits`（宽窗有、200px 无）
      要重新钉在 6ch 边界，而不是 160px 边界。
+   - **已落地（P7-dp）**：`triggerHintMinCells = 6` + 纯函数 `triggerHintFits(room, natural, cell)`
+     + `(a *App) triggerHintRoom`（行留给提示的盒宽，输入框是 grower 不占它）+ `triggerHintShown`；
+     调用点加 `.SingleLine().Ellipsis("\u2026")`（对齐原版 `nowrap`+`ellipsis`，提示永远一行）。
+     测试 `TestTriggerHintFits` 重写：6ch 边界、提示自身短于下限、`cell<=0` 保命、200px 盒宽 ==
+     `triggerHintRoom` 且一行、120px 隐藏。详见「最近几轮」P7-dp。
 2. **ExtensionsPanel 工具栏的溢出菜单（R7-3b）是否在本构建有落点**（未做，需比对）。
    - 原版对照：`main:src/components/OverflowMenu.tsx:1-26`（频率拆分：高频动作留按钮，稀有动作连同
      其说明搬进菜单）与它在 `main:src/ExtensionsPanel.tsx` 的用法（触发键、↑/↓ 环绕、Home/End、

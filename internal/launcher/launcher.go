@@ -962,8 +962,14 @@ func (a *App) View(c *ui.Context) {
 				// costs no band and never moves the window. The clear button
 				// follows it, so the nudge and the button share the row's
 				// tail.
-				if hint := a.triggerHintText(); hint != "" && triggerHintFits(c, hint) {
-					ui.Text(c, hint).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+				//
+				// It is one line whatever the row can hold, the old build's
+				// `white-space: nowrap` + `text-overflow: ellipsis`: a
+				// wrapped nudge would take back the band R48 removed. The
+				// only loss is the hide `triggerHintShown` decides.
+				if hint := a.triggerHintText(); hint != "" && a.triggerHintShown(c, t, hint) {
+					ui.Text(c, hint).FontSize(t.FontSize - 1).TextColor(t.TextMuted).
+						SingleLine().Ellipsis("\u2026")
 				}
 				if a.Query != "" {
 					// The clear control is the same 28u transparent square the

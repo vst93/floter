@@ -87,26 +87,79 @@ func TestTriggerHintIsTheOrdinaryPageOnly(t *testing.T) {
 	}
 }
 
-// The nudge is dropped when the field would be squeezed under its floor: a
-// truncated stub is worse than no hint, and a wrong hide is the only way to
-// lose the nudge for good.
+// The nudge is dropped when the box the row leaves it falls under six cells
+// of its own font — not when the query field falls under a fixed pixel floor.
+// The box is what the row gives: the text's own width, capped by the room.
 func TestTriggerHintFits(t *testing.T) {
+	// The floor is six cells, in the nudge's own measurement: one cell
+	// short of it goes, and a nudge whose own text is shorter than the floor
+	// goes too (the box is the text's width, capped by the room).
+	if !triggerHintFits(60, 1000, 10) {
+		t.Error("a box of exactly six cells was dropped")
+	}
+	if triggerHintFits(59.5, 1000, 10) {
+		t.Error("a box under six cells was kept")
+	}
+	if triggerHintFits(1000, 59.5, 10) {
+		t.Error("a nudge shorter than six cells was kept")
+	}
+	// A font that cannot be measured keeps the nudge: a wrong hide is the
+	// only way to lose it for good.
+	if !triggerHintFits(0, 0, 0) || !triggerHintFits(0, 100, 0) {
+		t.Error("an unmeasurable font dropped the nudge")
+	}
+
+	// In the real row the room is the row's inner width less the controls
+	// that keep their size; the nudge's box in a window the old 160px field
+	// floor hid it in is far above six cells, so it stays.
+	text := "Clipboard history \u00b7 enter"
+	var room, natural, cell float32
+
 	// One App per window: a bound Handle cannot be focused from two windows.
 	wideApp := hintApp()
 	wideApp.Query = "clip"
-	wide := ui.NewTester(func(c *ui.Context) { wideApp.View(c) },
-		InputWindowWidth, int(WindowHeight("small")))
+	var line float32
+	wide := ui.NewTester(func(c *ui.Context) {
+		t := c.Theme()
+		room = wideApp.triggerHintRoom(c, t)
+		natural, line = c.MeasureText(0, ui.Span{Text: text, Size: t.FontSize - 1})
+		cell, _ = c.MeasureText(0, ui.Span{Text: "0", Size: t.FontSize - 1})
+		wideApp.View(c)
+	}, 200, int(WindowHeight("small")))
 	wide.Frame()
-	if !wide.HasText("Clipboard history \u00b7 enter") {
-		t.Errorf("the nudge is missing in a wide window: %q", wide.Texts())
+	if room < cell*triggerHintMinCells {
+		t.Fatalf("the test window has no room to show the nudge: %v < %v", room, cell*triggerHintMinCells)
 	}
+	if natural <= room {
+		t.Fatalf("the nudge was not squeezed in the test window: %v <= %v", natural, room)
+	}
+	box, ok := wide.Find(text)
+	if !ok {
+		t.Fatalf("the nudge is missing at 200px: %q", wide.Texts())
+	}
+	// The row squeezed the nudge to its own leftover, and it is one line:
+	// the formula and the layout agree.
+	if box.W != room {
+		t.Errorf("the nudge's box = %v, want the row's room %v", box.W, room)
+	}
+	if box.H > line {
+		t.Errorf("the nudge wrapped instead of ellipsising: %v, one line is %v", box.H, line)
+	}
+
+	// A window too narrow for the floor drops the nudge rather than leaving
+	// an ellipsis with no words left.
 	narrowApp := hintApp()
 	narrowApp.Query = "clip"
-	narrow := ui.NewTester(func(c *ui.Context) { narrowApp.View(c) },
-		200, int(WindowHeight("small")))
+	narrow := ui.NewTester(func(c *ui.Context) {
+		room = narrowApp.triggerHintRoom(c, c.Theme())
+		narrowApp.View(c)
+	}, 120, int(WindowHeight("small")))
 	narrow.Frame()
-	if narrow.HasText("Clipboard history \u00b7 enter") {
-		t.Errorf("the nudge was kept in a narrow window: %q", narrow.Texts())
+	if room >= cell*triggerHintMinCells {
+		t.Fatalf("the narrow window still has room: %v", room)
+	}
+	if narrow.HasText(text) {
+		t.Errorf("the nudge was kept without room to read it: %q", narrow.Texts())
 	}
 }
 
