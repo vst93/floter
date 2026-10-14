@@ -631,16 +631,17 @@ func (a *App) Label() string {
 // its comment).
 func (a *App) options() terminal.Options {
 	s := a.Store.Snapshot()
-	theme := palette(s.TerminalTheme)
+	theme, darkTheme := themeFor(s.TerminalTheme)
 	return terminal.Options{
 		Font: terminal.Font{
 			Family:     s.FontFamily,
 			Size:       float32(s.FontSize),
 			LineHeight: float32(s.TerminalLineHeight),
 		},
-		Cursor:  cursorStyle(s.CursorShape),
-		NoBlink: !s.CursorBlink,
-		Theme:   theme,
+		Cursor:    cursorStyle(s.CursorShape),
+		NoBlink:   !s.CursorBlink,
+		Theme:     theme,
+		DarkTheme: darkTheme,
 		// The view never paints a background of its own (P7-dr). The transparency
 		// is the terminal slider's, and it lives one layer up: this surface paints
 		// the palette's colour - or, for the shipped `inherit`, nothing at all, so
@@ -1148,20 +1149,37 @@ func canvasAlpha(opacity uint8, highContrast bool) float32 {
 	return alpha
 }
 
-// palette builds the terminal colors for a stored palette id: the shipped
-// `inherit` follows the window (no theme), and each override paints the fixed
-// pair from TERMINAL_PALETTES.
+// themeFor builds the plugin theme (or the light/dark pair) for a stored
+// palette id: the shipped `inherit` follows the window, each override paints
+// the fixed pair from TERMINAL_PALETTES.
 //
 // The palette's colours are opaque. How solid the background is, is a
 // *different* value, and it belongs to the view (canvasFill): the plugin
 // resolves the vt's default background through `rgb`, which has no alpha, so
 // what the terminal's background is and how much of the desktop shows through
-// it cannot be one colour. The `inherit` theme is nil for the same reason -
-// its colours are the window's, and its transparency is the same layer.
-func palette(name string) *terminal.Theme {
+// it cannot be one colour.
+//
+// `inherit` used to pass no theme at all, which left *every* colour to the
+// plugin's own defaults - including the cursor, which the plugin falls back to
+// the foreground when a theme leaves it zero. The reference read
+// `--terminal-cursor`, a teal token distinct from `--terminal-fg`, so an
+// inherit session's cursor was drawn in the wrong colour. The plugin has no
+// per-token "follow the window" switch; the equivalent is the light/dark pair
+// it documents for a Ghostty `theme = light:…,dark:…`: hand it the two base
+// themes with only the cursor token overridden, and it keeps following the
+// window's appearance while painting that one colour.
+//
+// Each override is a single fixed palette (the plugin base is chosen by the
+// palette's own light/dark, not the window's), so its pair is (theme, nil):
+// the theme applies in both appearances, as before.
+func themeFor(name string) (theme, dark *terminal.Theme) {
 	spec, ok := palettes[name]
 	if !ok {
-		return nil
+		lightBase := *terminal.LightTheme()
+		lightBase.Cursor = inheritCursor(false)
+		darkBase := *terminal.DarkTheme()
+		darkBase.Cursor = inheritCursor(true)
+		return &lightBase, &darkBase
 	}
 	base := terminal.DarkTheme()
 	if !spec.dark {
@@ -1172,7 +1190,18 @@ func palette(name string) *terminal.Theme {
 	t.Foreground = packed(spec.fg)
 	t.Cursor = packed(spec.cursor)
 	t.Selection = spec.selection
-	return &t
+	return &t, nil
+}
+
+// inheritCursor is the colour base.css's `--terminal-cursor` token gives the
+// shipped `inherit` palette: a teal on the dark face (#8bd5ca) and a deeper one
+// on the light face (#007c86). It is deliberately not the foreground - the
+// plugin's zero-cursor fallback - which is what the token exists to override.
+func inheritCursor(dark bool) ui.Color {
+	if dark {
+		return ui.RGB(0x8b, 0xd5, 0xca)
+	}
+	return ui.RGB(0x00, 0x7c, 0x86)
 }
 
 // PaletteColors is the four colors a palette paints — its background, text,
@@ -1199,17 +1228,15 @@ func PaletteColorsFor(name string, dark bool) (PaletteColors, bool) {
 	if name != "inherit" {
 		return PaletteColors{}, false
 	}
-	// Follow app: the terminal's own default theme, whose cursor and
-	// selection fall back to the foreground when a theme leaves them zero
-	// (the plugin's own rule).
+	// Follow app: the terminal's own default theme, with the shipped
+	// `--terminal-cursor` token - the plugin's zero-cursor fallback (the
+	// foreground) is not the token's colour. The selection falls back to the
+	// foreground when a theme leaves it zero (the plugin's own rule).
 	base := terminal.DarkTheme()
 	if !dark {
 		base = terminal.LightTheme()
 	}
-	cursor := base.Cursor
-	if cursor.A == 0 {
-		cursor = base.Foreground
-	}
+	cursor := inheritCursor(dark)
 	selection := base.Selection
 	if selection.A == 0 {
 		selection = base.Foreground.Alpha(0.33)

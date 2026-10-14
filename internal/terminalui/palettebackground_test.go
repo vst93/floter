@@ -3,6 +3,7 @@ package terminalui
 import (
 	"testing"
 
+	"github.com/egoist/mygo/plugins/terminal"
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/glassmap"
@@ -83,8 +84,10 @@ func TestASessionNeverPaintsItsOwnBackground(t *testing.T) {
 			t.Errorf("session %d paints its own background", i)
 		}
 	}
-	if o := (*options)[0]; o.Theme != nil {
-		t.Errorf("the inherit session has a palette: %+v", o.Theme)
+	if o := (*options)[0]; o.Theme == nil || o.DarkTheme == nil {
+		t.Errorf("the inherit session has no theme pair: %+v", o.Theme)
+	} else if want := ui.RGB(0x8b, 0xd5, 0xca); o.DarkTheme.Cursor != want {
+		t.Errorf("the inherit session's dark cursor = %v, want %v", o.DarkTheme.Cursor, want)
 	}
 	got := (*options)[1].Theme
 	if got == nil {
@@ -92,5 +95,62 @@ func TestASessionNeverPaintsItsOwnBackground(t *testing.T) {
 	}
 	if want := ui.RGB(0x0f, 0x1a, 0x14); got.Background != want {
 		t.Errorf("forest background = %v, want %v", got.Background, want)
+	}
+	// A named palette is one fixed colour set, so it carries no dark half:
+	// the plugin applies the same theme in either window appearance, as the
+	// reference's canvas palettes did.
+	if (*options)[1].DarkTheme != nil {
+		t.Errorf("the forest palette carried a dark half: %+v", (*options)[1].DarkTheme)
+	}
+}
+
+// The shipped `inherit` palette follows the window, and the one token it does
+// not take from the plugin's defaults is the cursor: base.css reads
+// `--terminal-cursor` (a teal), where a theme that leaves the cursor zero gets
+// the foreground. An inherit session therefore arrives as the plugin's
+// light/dark pair with only that token overridden - not as no theme at all,
+// which is how it used to be handed over and why the cursor was the wrong
+// colour.
+func TestTheInheritCursorUsesTheShippedToken(t *testing.T) {
+	light, dark := themeFor("inherit")
+	if light == nil || dark == nil {
+		t.Fatalf("inherit = (%v, %v), want a light/dark pair", light, dark)
+	}
+	if got, want := light.Cursor, ui.RGB(0x00, 0x7c, 0x86); got != want {
+		t.Errorf("light inherit cursor = %v, want %v", got, want)
+	}
+	if got, want := dark.Cursor, ui.RGB(0x8b, 0xd5, 0xca); got != want {
+		t.Errorf("dark inherit cursor = %v, want %v", got, want)
+	}
+	// The cursor is the *only* override: the text and the background stay the
+	// plugin's own defaults, so `inherit` keeps meaning "follow the window".
+	if light.Foreground != terminal.LightTheme().Foreground || light.Background != terminal.LightTheme().Background {
+		t.Errorf("the light inherit theme moved the defaults: %+v", light)
+	}
+	if dark.Foreground != terminal.DarkTheme().Foreground || dark.Background != terminal.DarkTheme().Background {
+		t.Errorf("the dark inherit theme moved the defaults: %+v", dark)
+	}
+
+	// The settings preview reads the same token, so the swatch and the live
+	// terminal cannot disagree about the cursor colour.
+	for _, isDark := range []bool{false, true} {
+		colors, ok := PaletteColorsFor("inherit", isDark)
+		if !ok {
+			t.Fatalf("inherit preview missing for dark=%v", isDark)
+		}
+		want := inheritCursor(isDark)
+		if colors.Cursor != want {
+			t.Errorf("inherit preview cursor (dark=%v) = %v, want %v", isDark, colors.Cursor, want)
+		}
+	}
+
+	// A named palette is still one fixed theme with its own cursor, and no
+	// dark half.
+	theme, pairDark := themeFor("forest")
+	if theme == nil || pairDark != nil {
+		t.Fatalf("forest = (%v, %v), want one fixed theme", theme, pairDark)
+	}
+	if got, want := theme.Cursor, ui.RGB(0x8b, 0xd4, 0x50); got != want {
+		t.Errorf("forest cursor = %v, want %v", got, want)
 	}
 }

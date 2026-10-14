@@ -97,8 +97,22 @@ func TestOptionsFollowTheSettings(t *testing.T) {
 	if o.Cursor != terminal.CursorBar || o.NoBlink {
 		t.Errorf("default cursor = %v, noBlink=%v", o.Cursor, o.NoBlink)
 	}
-	if o.Theme != nil {
-		t.Errorf("inherit built a palette: %+v", o.Theme)
+	if o.Theme == nil || o.DarkTheme == nil {
+		t.Errorf("inherit built no theme pair: light=%+v dark=%+v", o.Theme, o.DarkTheme)
+	}
+	// The shipped `inherit` follows the window's appearance through the
+	// plugin's light/dark pair, whose one overridden token is the cursor:
+	// base.css's `--terminal-cursor` (teal), not the plugin's zero-cursor
+	// fallback (the foreground). The foreground/background stay the plugin's
+	// own defaults, so nothing else moved.
+	if got, want := o.Theme.Cursor, ui.RGB(0x00, 0x7c, 0x86); got != want {
+		t.Errorf("light inherit cursor = %v, want %v", got, want)
+	}
+	if got, want := o.DarkTheme.Cursor, ui.RGB(0x8b, 0xd5, 0xca); got != want {
+		t.Errorf("dark inherit cursor = %v, want %v", got, want)
+	}
+	if got := o.Theme.Foreground; got != terminal.LightTheme().Foreground {
+		t.Errorf("light inherit foreground = %v, want the plugin default", got)
 	}
 	// The default theme has no palette of its own: the view leaves its
 	// background undrawn so the card's terminal-opacity tint shows, and picks a

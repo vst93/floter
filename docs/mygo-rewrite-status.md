@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1103 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1106 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1103 项测试
+go test -count=1 ./...         # 1106 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,7 +99,52 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-dr 终端配色的背景改由视图按帧绘制（`Transparent` 不再是创建期的陈旧标志）**
+> **最新一轮：P7-ds `inherit` 终端的光标色取回 `--terminal-cursor` token（面板光标不再是前景色的替身）**
+> —— P7-dr 收尾后「尚未做（P7-dr 重写）」第 1 条（块光标的字形颜色应取单元格自己的前景色）是清单
+> 最高优先级。本轮按验收先核实框架：**确实没有逐单元格的口子**——mygo v0.4.8 的
+> `plugins/terminal/paint.go:500-505` 在块光标铺满后固定用 `color(v.colors.Background)` 重绘字形，
+> 只有 `Theme.CursorText.A > 0` 时才换成那一个全局色（`theme.go:13-14` 的字段注释就是「一个颜色」。
+> 所以该条按验收落进「已知差距」（记录已在 P7-dr 写实，本轮只补上一句「框架确认」），**不半步接线**
+> （给 `CursorText` 填一个全局前景色会在 `amber` 这种光标与前景都偏亮的调色板上把字压没，而原版自己
+> 在同样的格子上画同样的低对比——但那只是碰巧，不是等价）。依赖检查：GitHub releases API 仍限流，
+> `go list -m -versions github.com/egoist/mygo` 最新仍是 **v0.4.8**（与 `go.mod` 一致），无版本可升。
+> 只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离点**：核对同一段 `cursorRect`（`paint.go:487-508`）时发现——光标**自身的颜色**也不对。
+> 框架 `cursorRect` 的取色是 `c = color(v.colors.Foreground)`，只有插件主题里 `Cursor.A > 0` 才换成
+> `v.theme.Cursor`（`theme.go:91-95` 的 `apply` 只在 `Cursor.A > 0` 时把 cursor 交给 `SetColors`）。
+> 而本构建的 `palette("inherit")` **返回 nil**，插件于是回落到它的零光标规则（前景色）。原版不是这样：
+> `main:src/terminal/render.ts:242-244` 的 `updateTheme()` 对 `inherit` 读的是 CSS 的
+> `--terminal-cursor`——`main:src/styles/base.css:718` 暗色 **#8bd5ca**、`:975/:1107` 亮色
+> **#007c86**，两个都是与 `--terminal-fg`（#d7dae0 / #202124）**不同的青绿**。于是本构建的 inherit
+> 光标一直是白的/黑的（跟前最色），原版是青的。设置页的调色板预览用同一份 `PaletteColorsFor`，
+> 预览里的块光标也因此画成前景色。
+>
+> **修法**（`internal/terminalui/terminalui.go`）：
+> - `palette(name) *terminal.Theme` 改为 `themeFor(name) (theme, dark *terminal.Theme)`
+>   （`terminalui.go:1175`）：命名调色板仍返回**一个固定主题**（第二返回为 nil，插件在两种外观下
+>   都用它，同原先），`inherit` 返回插件自带的**亮/暗一对**（`terminal.LightTheme()` /
+>   `terminal.DarkTheme()`），只把 `Cursor` 换掉——这正是插件 `view.go:128-133` 给
+>   Ghostty `theme = light:…,dark:…` 的语义，所以 `inherit` 依然跟随窗口外观，只多了那一个颜色。
+> - 新增纯函数 `inheritCursor(dark bool)`（`terminalui.go:1197`）：暗 #8bd5ca / 亮 #007c86，
+>   与 base.css 逐字对应。`PaletteColorsFor("inherit", dark)` 的 cursor 也改用它，预览与真终端
+>   从同一个 token 取色。
+> - `options()` 把两个返回都交给 `terminal.Options{Theme, DarkTheme}`（`terminalui.go:634`），
+>   `Refresh()` 原样把这一对交给 `SetTheme`，所以运行中的会话下一帧也换得过来。`DarkTheme` 这只
+>   旋钮以前一直空着（只给了固定的 `Theme`），从本轮起对 `inherit` 有了作用。
+>
+> **测试**（`internal/terminalui/palettebackground_test.go`）：新增
+> `TestTheInheritCursorUsesTheShippedToken`——亮/暗 cursor 逐值钉在 token 上、前景/背景仍等于插件
+> 默认（证明只有 cursor 被覆盖）、预览走同一 token、命名调色板仍是单主题+自带 cursor。
+> `view_test.go:99` 原先把继承写成「没有主题」，按新契约改为「有亮/暗一对、暗色 cursor = token」；
+> `TestASessionNeverPaintsItsOwnBackground` 的 inherit 断言同步。变异核查：删掉
+> `lightBase.Cursor = inheritCursor(false)`，`TestTheInheritCursorUsesTheShippedToken` 与
+> `TestOptionsFollowTheSettings` 两条立刻红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+> **上一轮：P7-dr 终端配色的背景改由视图按帧绘制（`Transparent` 不再是创建期的陈旧标志）**
 > —— P7-dq 收尾后「尚未做（P7-dq 重写）」第 1 条（终端外观除「进入」之外还有没有别的写入时机）
 > 是清单最高优先级。本轮逐条走完全部建会话入口，结论是**该条无落空**（都经 `App.startSession`
 > → `options()` 读当帧快照，见下方「结论」），但核对时**发现并落地**了一处真实偏离。依赖检查：
@@ -3491,12 +3536,14 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
   会话实时生效。调色板与透明度**从 P7-dr 起也实时**：背景不再由插件画，而是本应用自己的一层
   （`options()` 里 `Transparent` 是常量，`View` 每帧读设置画 `canvasFill`）。终端抽屉（P7-ab）
   因此不画 bold/滚轮/选中即复制/滚动条四行（粘贴安全那一行 P7-an 已补上）。
-- **块光标的字形颜色是插件的**（P7-dr 核实）：原版 `main:src/terminal/render.ts:586-591` 在块光标
-  铺满后，用**该单元格自己的前景色**重绘字形（`base = cellFg === WIRE_FG ? this.fg : cellFg`，
+- **块光标的字形颜色是插件的**（P7-dr 核实，P7-ds 确认为框架无口子）：原版 `main:src/terminal/render.ts:586-591`
+  在块光标铺满后，用**该单元格自己的前景色**重绘字形（`base = cellFg === WIRE_FG ? this.fg : cellFg`，
   加粗的亮色模式还会 `brighten(base)`），所以光标下的字保持它本来的颜色；mygo 插件固定用
-  `color(v.colors.Background)`（`plugins/terminal/paint.go:504`），除非 `Theme.CursorText.A > 0`
-  （本构建从不设），于是光标块下的字用的是主题背景色。**要什么**：一个逐单元格的光标文字色口子
-  （`CursorText` 只能给一个全局色，而且 `inherit` 根本没有主题）。
+  `color(v.colors.Background)`（`plugins/terminal/paint.go:500-505`），除非 `Theme.CursorText.A > 0`
+  （`plugins/terminal/theme.go:13-14` 写明这是**一个**颜色），于是光标块下的字用的是主题背景色。
+  P7-ds 已走完框架、确认没有逐单元格钩子（`CursorText` 是一个全局色），故不半接（给全局前景色
+  会在 `amber` 这类光标与前景都偏亮的调色板上把字压没）。**要什么**：一个逐单元格的光标文字色口子。
+  注：光标**自身**的颜色不在此列，已由 P7-ds 修回 `--terminal-cursor`。
 
 **P1-ad 版式与交互对齐（多轮，本轮）**
 - 设置面板全量改造为分组卡片语言 + 页面头部 + 侧栏字形/选中 + 权限两层 + 每集成一卡 + 本地工具连接表单。
@@ -3524,21 +3571,44 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-> **清单状态（P7-dr 收尾）**：P7-do 重写的三条已全部结清（第 1 条落地 P7-dp；第 2·3 条在
+> **清单状态（P7-ds 收尾）**：P7-do 重写的三条已全部结清（第 1 条落地 P7-dp；第 2·3 条在
 > P7-dq 比对为覆盖/无落点）；P7-dq 重写的第 1 条（终端外观除「进入」外还有没有别的写入时机）
-> **P7-dr 核对关闭**（无落空：全部会话都经 `startSession` 读当帧设置），核对时落地了两处真实修正
-> ——`Transparent` 改为常量、调色板背景改由视图按帧绘制（P7-dr），以及顺带把 `palette()` 里从不
-> 参与像素的 alpha 去掉。下面重写新的具体待办。
+> **P7-dr 核对关闭**（无落空：全部会话都经 `startSession` 读当帧设置）；P7-dr 重写的那一条
+> （块光标的字形颜色）**P7-ds 核实为框架无口子**（无逐单元格钩子，已写实进「已知差距」）。
+> 核对同一段光标渲染时发现并落地了一处真实偏离：`inherit` 的光标**自身颜色**应是
+> `--terminal-cursor`（青绿），而不是插件零光标规则给出的前景色（P7-ds，见上）。下面重写新的
+> 具体待办。
 
-### 具体待办（P7-dr 重写）
+### 具体待办（P7-ds 重写）
 
-> 本轮关闭了 P7-dq 第 1 条（核对为「无落空」，并发现落地了 `Transparent` 那条偏离），下面只留
-> 本轮新发现的一条；P7-dq 清单的第 2·3 条（终端空态的 240ms 延迟、自定义集成的脏比较/溢出菜单）
-> 仍未做，仍在下面那份清单里，下一轮做完这条就回去取它们。依赖检查：GitHub releases API 限流，
-> `go list -m -versions github.com/egoist/mygo` 最新仍是 **v0.4.8**（与 `go.mod` 一致），无版本
-> 可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+> 本轮关闭了 P7-dr 第 1 条（核实为框架无逐单元格口子，已记「已知差距」），并落地了同一段代码里
+> 新发现的 inherit 光标色偏离。下面只留本轮新发现、仍未做的一条；P7-dq 清单的第 2·3 条
+> （终端空态的 240ms 延迟、自定义集成的脏比较/溢出菜单）仍未做，仍在下一份清单里。依赖检查：
+> GitHub releases API 限流，`go list -m -versions github.com/egoist/mygo` 最新仍是 **v0.4.8**
+> （与 `go.mod` 一致），无版本可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），
+> 未翻历史提交。
 
-1. **（待比对，本轮新发现）块光标的字形颜色应取单元格自己的前景色**（未做，疑框架无口子）。
+1. **（已落地，P7-ds）`inherit` 的光标色应取 `--terminal-cursor`，不是前景色**。
+   - 原版对照：`main:src/terminal/render.ts:242-244`——`updateTheme()` 对 `inherit` 读
+     `packedColor(style, "--terminal-cursor", …)`；`main:src/styles/base.css:718` 暗色 **#8bd5ca**、
+     `:975/:1107` 亮色 **#007c86**，都与 `--terminal-fg` 不同。
+   - 本构建（改前）：`palette("inherit")` 返回 nil，插件回落到零光标规则（前景色）。
+   - **已落地（P7-ds）**：`themeFor` 返回亮/暗一对、只覆盖 `Cursor`（`inheritCursor`），
+     `options()` 同时给 `Theme`/`DarkTheme`，预览共用同一 token。详见「最近几轮」P7-ds。
+2. **（待比对，疑框架无口子）块光标的字形颜色应取单元格自己的前景色**（P7-ds 核实为框架无口子，
+   已记「已知差距」）。
+   - 原版对照：`main:src/terminal/render.ts:586-591`——块光标用**该单元格自己的前景色**重绘字形。
+   - 本构建：`plugins/terminal/paint.go:500-505` 固定 `text = color(v.colors.Background)`，
+     `Theme.CursorText.A > 0` 时才能换成一个**全局**色。无逐单元格口子，不半接。
+
+### 具体待办（P7-dr 重写；已全部结清：第 1 条 P7-ds 核实为框架无口子）
+
+> P7-ds 核实第 1 条无逐单元格钩子，写实进「已知差距」；P7-dq 清单第 2·3 条仍未做，见下面那份。
+> 依赖检查：GitHub releases API 限流，`go list -m -versions github.com/egoist/mygo` 最新仍是
+> **v0.4.8**（与 `go.mod` 一致），无版本可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14
+> 原版树），未翻历史提交。
+
+1. **块光标的字形颜色应取单元格自己的前景色**（**已核实为框架无口子，P7-ds**）。
    - 原版对照：`main:src/terminal/render.ts:586-591`——块光标先用自己的颜色铺满单元格，再用
      **该单元格自己的前景色**重绘字形（`base = cellFg === WIRE_FG ? this.fg : cellFg`，加粗的
      亮色模式还会 `brighten(base)`）；这是逐单元格的值。
