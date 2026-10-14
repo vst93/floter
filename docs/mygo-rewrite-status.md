@@ -100,6 +100,56 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
+> **最新一轮：P7-gb 独立窗口（pin/detach）的标题与词表回到原版
+> （原版 `src/plugin-window/DetachedPluginApp.tsx:120-124`、`src/plugin-window/detach.ts:140`、
+> `src/i18n.ts:46-49,969-976`）**
+> ——P7-ga 收尾后「具体待办（P7-fz 重写）」归零，本轮按规则回到「对照原版排查偏离点」，换一个
+> **从未进入任何历史待办**的入口：原版独立插件窗口 `src/plugin-window/DetachedPluginApp.tsx`
+> （本构建对应 `internal/shell/detach.go` 与 `internal/shell/pinned.go`），把清单重写为 3 条带
+> file:line / 原版对照 / 验收标准的具体待办（见文末「具体待办（P7-gb 重写）」），并取第 1 条落地。
+> 依赖检查：`go.mod` 已是 **v0.4.8** = GitHub releases latest，无版本可升；只对照 `main`
+> （`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离 1（P7-gb·独立窗口的词是自造的、任务栏标题没有 app 尾巴）**：原版独立窗口把 OS 标题设成
+> `` `${windowTitle} · floter` ``（`DetachedPluginApp.tsx:120-124`，U+00B7 中点）、fallback 名取
+> `pluginWindow.fallbackTitle`（“floter plugin”/“floter 插件”，`i18n.ts:50,976`），窗口内三个词
+> 取 `pluginWindow.idle`（“No command pinned yet”/“尚未固定任何命令”，`i18n.ts:49,975`）与
+> `pluginWindow.rerun`（“Rerun”/“重新执行”，`i18n.ts:47,973`）。**本构建（改前）**：
+> `internal/i18n/copy.go:208,209,211,1060,1063` 把三条词意译成 “floter command” / “Re-run” /
+> “Nothing has run yet” 与 “floter 命令” / “还没有执行过”；`internal/shell/detach.go` 的窗口
+> 标题直接用内容标签，**没有** ` · floter` 尾巴。
+>
+> **偏离 2（P7-gb·窗口 bar 的关闭键不是原版的 X、rerun 没有运行中禁用态）**：原版
+> `DetachedPluginApp.tsx:284-315` 的 Close 是 `<X size={16} strokeWidth={1.8} aria-hidden>` 图标键
+> （只有 `title`/`aria-label` 取词），rerun 文本键在 `state.status === "running"` 时 `disabled`。
+> **本构建**：`internal/shell/detach.go:145-169` 的 `barButton` 对两个键都画**文本**，没有 X 图形，
+> 也没有 `running` 禁用态（`rerunDetached` 内部挡了一下，但键面看不出来）。
+>
+> **偏离 3（P7-gb·窗口 body 缺 running/failed/empty 三条状态行）**：原版 body 是一台状态机
+> （`DetachedPluginApp.tsx:322-338`）：`running` → `launcher.externalRunning`（“Running…”）、
+> `failed` → `runErrorMessage(failure)` 本地化（`src/extensions/run-errors.ts`）、`done && view ===
+> null` → `launcher.externalEmpty`（“The command produced no output”）。**本构建**：
+> `internal/shell/detach.go:170-179` 只画 `detached.view.Text`（空则 `OutputWindowIdle`），重跑在飞
+> 的整段时间仍显示旧输出。
+>
+> **落地（第 1 条）**：`internal/i18n/copy.go` 的 `OutputWindowFallback`/`OutputWindowRerun`/
+> `OutputWindowIdle` 改回原版词（en “floter plugin”/“Rerun”/“No command pinned yet”，zh
+> “floter 插件”/“重新执行”/“尚未固定任何命令”）；`internal/shell/detach.go` 新增
+> `detachWindowTitleSuffix`（`" \u00b7 floter"`）与 `detachWindowTitle(label)`，窗口创建与复用两处
+> 的 `SetTitle`/`WindowOptions.Title` 都改走它（窗口**内**的 header 仍用裸标签）。
+>
+> **验收**：`internal/shell/detachwords_test.go` 新增
+> `TestDetachedWindowWordsMatchTheOldDictionary`（en/zh 三条词逐字）与
+> `TestDetachedWindowTitleCarriesTheAppTail`（`detachWindowTitle("jv --floter") ==
+> "jv --floter · floter"`）。变异核查：把 `detachWindowTitle` 换回裸标签 → 标题条立刻红；把三个词
+> 任一改回旧译 → 词表条红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：第 1 条（P7-gb）落地；「具体待办（P7-gb 重写）」还剩第 2·3 条（bar 的 X 键与
+> 禁用态 / body 的三条状态行），是下一轮最高优先级。
+
 > **最新一轮：P7-ga 终端 palette 行回到原版的一行分列、stacked 行恢复同一字级
 > （原版 `src/settings/TerminalAppearance.tsx:271-292`、`src/styles/settings.css:520-546,871-878`）**
 > ——P7-fz 收尾后「具体待办（P7-fz 重写）」有 2 条待做（palette 行布局 / stacked 行字级），
@@ -6154,6 +6204,75 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 - 窗口可见时完成反馈落在面板自己的停靠行（隐藏时才发系统通知）——之前可见时什么都不说。
 
 ## 尚未做（按建议优先级）
+
+### 具体待办（P7-gb 重写；第 1 条 P7-gb 已落地，第 2·3 条待做）
+
+审计入口：原版 `main:src/plugin-window/DetachedPluginApp.tsx`（独立插件窗口的 React 表面，
+`backup/main-pre-mygo` = v0.3.14 原版树）与它吃的两个纯模块 `main:src/plugin-window/detach.ts`、
+`main:src/plugin-window/pin-entry.ts`，本构建对应 `internal/shell/detach.go`（命令输出分离）与
+`internal/shell/pinned.go`（文本钉住），词条在 `internal/i18n/copy.go`。这个入口**从未进入任何
+历史待办**（全文档仅一处顺带提及）。依赖检查：`go.mod` 已是 **v0.4.8** = GitHub releases latest，
+无版本可升；只对照 `main`，未翻历史提交。
+
+1. **（本轮落地，P7-gb）独立窗口的词是自造的、任务栏标题没有 app 尾巴。**
+   - 原版对照：`DetachedPluginApp.tsx:120-124` 的 `` getCurrentWindow().setTitle(`${windowTitle}
+     · floter`) ``（U+00B7 中点）；`detach.ts:140` 的 `PLUGIN_WINDOW_FALLBACK_TITLE = "floter
+     plugin"`；词条 `i18n.ts:46-50,969-976`（`pluginWindow.fallbackTitle` “floter plugin”/
+     “floter 插件”、`pluginWindow.idle` “No command pinned yet”/“尚未固定任何命令”、
+     `pluginWindow.rerun` “Rerun”/“重新执行”）。
+   - 本构建（改前）：`internal/i18n/copy.go:208,209,211,1060,1063` 意译成 “floter command” /
+     “Re-run” / “Nothing has run yet” 与 “floter 命令” / “还没有执行过”；
+     `internal/shell/detach.go` 的 `WindowOptions.Title` 与复用分支的 `SetTitle` 都用裸标签。
+   - 落地 file:line：`internal/i18n/copy.go` 三条词改回原版；`internal/shell/detach.go` 新增
+     `detachWindowTitleSuffix`（`" \u00b7 floter"`）与 `detachWindowTitle(label)`，窗口创建与复用
+     两处改走它——**窗口内的 header 仍用裸标签**（原版的 `headerLabel` 也不带尾巴）。
+   - 验收：`internal/shell/detachwords_test.go` 的 `TestDetachedWindowWordsMatchTheOldDictionary`
+     （en/zh 三条词逐字）与 `TestDetachedWindowTitleCarriesTheAppTail`。变异核查：把
+     `detachWindowTitle` 换回裸标签 → 标题条红；三个词任一改回旧译 → 词表条红。
+
+2. **（待做）独立窗口 bar 的关闭键不是原版的 X 图标、rerun 没有运行中禁用态。**
+   - 原版对照：`DetachedPluginApp.tsx:284-315` —— bar 的两个键都是 `plugin-window__bar-button`：
+     rerun 是一个文本键，`disabled={state.status === "running"}`，`title`/`aria-label` 取
+     `pluginWindow.rerun`；close 是一个**图标键** `<X size={16} strokeWidth={1.8} aria-hidden>`，
+     只有 `title`/`aria-label` 取 `pluginWindow.close`，键面不画文字。
+   - 本构建（现状）：`internal/shell/detach.go:145-169` 的 `barButton(label, run)` 对两个键都画
+     **文本**，没有 X 图形；`rerunDetached`（`:184-193`）内部用 `detached.running` 挡了一下，但
+     `barButton` 没有禁用态，键面看不出运行中。
+   - 待做 file:line（建议）：`internal/shell/detach.go` 的 `detachedView` 的 bar——把 close 换成
+     图形键（`mustGlyph`/`glyph` 里补一个 X 记号，参考 `internal/launcher/glyphs.go` 现有记号的写法），
+     rerun 在 `detached.running` 时画成禁用墨色并把点击短路。`internal/i18n` 无需新词（复用
+     `OutputWindowRerun`/`OutputWindowClose`，后者只留给 `aria`/tooltip）。
+   - 验收：一条渲染测试，`detached.entry != nil && detached.running` 时：close 键不再画出 “Close”
+     文本（换成记号），rerun 文本键的墨色 == 禁用 token（或点击不触发第二次 run）；`detached.running`
+     为 false 时 rerun 键恢复可点。变异核查：把禁用态去掉 → 墨色/点击断言红。
+   - 风险：mygo 的禁用态 API 与本构建的 `barButton` 手写 hover 需要对齐；`pinned.go` 的文本窗
+     **没有 bar**（它走的是独立的 `PinText` 窗口），本条是否顺带给文本窗补上原版的 bar（header +
+     Close 图标）是独立决定——原版两条 arm 共用同一个 bar，本构建拆成了两个窗口，留作第 2 条内的
+     取舍记录。
+
+3. **（待做）独立窗口 body 缺 running/failed/empty 三条状态行。**
+   - 原版对照：`DetachedPluginApp.tsx:322-338` 的 body 是一台状态机——`status === "running"` →
+     `launcher.externalRunning`（“Running…”/“正在执行…”，`i18n.ts:37,965`）；`status === "failed"` →
+     `runErrorMessage(state.failure, t)` 本地化（`src/extensions/run-errors.ts`，认不出才回落
+     `failure ?? launcher.externalFailed`）；`status === "done" && view === null` →
+     `launcher.externalEmpty`（“The command produced no output”/“命令没有输出”，`i18n.ts:39,967`）。
+   - 本构建（现状）：`internal/shell/detach.go:170-179` 只画 `detached.view.Text`（空则
+     `OutputWindowIdle`）；`rerunDetached` 在飞的整段时间 `detached.running = true` 却不改画面，
+     用户看不到「正在执行」；失败由 `launcher.OutputFor` 直接拼进文本，没有 `failed` 行。
+   - 待做 file:line（建议）：`internal/shell/detach.go` 的 `detachedView`——加 `running`／`failed`／
+     `empty` 三条状态行（本构建已有 `copy.OutputLoading` 等；新增或复用 `externalRunning`/
+     `externalFailed`/`externalEmpty` 三词），`rerunDetached` 在起跑时把窗口标成 running 并
+     `Invalidate()`；`applyDetachedRun` 落地后清除。失败消息的本地化需要接 `internal/extensions`
+     的错误键（本构建的 run failure 已有结构，见 `internal/launcher/runfailure.go`）。
+   - 验收：一条渲染测试——`running` 时窗口画 running 词且**不**画旧输出；`failed` 时画本地化失败行；
+     空输出（`view.Text == ""` 且已跑过）画 `externalEmpty` 而**不是** `OutputWindowIdle`（后者只属
+     「还没跑过」）。变异核查：把 running 行去掉 → 运行中断言红。
+   - 风险：`launcher.OutputFor` 已经给失败输出拼了 `OutputFailed`（“Exit code N”）文本，本条要确认
+     两者不重复（原版 failed 行只在**运行管线**失败时出现，退出码非零仍是 `done`）。
+
+> P7-ga 之后「尚未做」归零，本轮按审计入口换到**独立插件窗口**（此前从未逐字段对照），把清单重写为
+> 上面 3 条带 file:line / 原版对照 / 验收标准的具体待办，并取第 1 条落地（P7-gb）；第 2·3 条
+> （bar 的 X/禁用态、body 的三条状态行）是下一轮最高优先级。
 
 ### 具体待办（P7-fz 重写；2 条已全部落地：第 1·2 条 P7-ga）
 

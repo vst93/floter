@@ -57,6 +57,17 @@ func detachContentKey(entry *extensions.CommandEntry, title string) string {
 // per content (the old build kept `{width, height, x, y}` per `content_key`).
 func detachStateKey(content string) string { return settings.DetachedStateKeyPrefix + content }
 
+// detachWindowTitleSuffix is the old build's window-title tail. The detached
+// React surface set the task-bar title to `${windowTitle} · floter`
+// (`DetachedPluginApp.tsx:120-124`), so the OS window is identifiable by more
+// than the command's own label; the U+00B7 middle dot is the reference's
+// character. The header inside the window keeps the bare label.
+const detachWindowTitleSuffix = " \u00b7 floter"
+
+// detachWindowTitle is the window-manager title for a detached window: the
+// content's own label plus the app tail.
+func detachWindowTitle(label string) string { return label + detachWindowTitleSuffix }
+
 // findDetached returns the open window already showing `key`, or nil.
 func (a *App) findDetached(key string) *detachedOutput {
 	for _, open := range a.detached {
@@ -87,7 +98,7 @@ func (a *App) detachOutput(view launcher.OutputView) {
 		existing.running = false
 		existing.generation++
 		if existing.win != nil {
-			existing.win.SetTitle(title)
+			existing.win.SetTitle(detachWindowTitle(title))
 			existing.win.Show()
 			existing.win.Focus()
 			existing.win.Invalidate()
@@ -100,7 +111,7 @@ func (a *App) detachOutput(view launcher.OutputView) {
 		detached.win = a.openDetached(view)
 	} else {
 		detached.win = mygo.NewWindow(mygo.WindowOptions{
-			Title:     title,
+			Title:     detachWindowTitle(title),
 			Width:     720,
 			Height:    460,
 			MinWidth:  420,
