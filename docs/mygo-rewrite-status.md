@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1354 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1368 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1354 项测试
+go test -count=1 ./...         # 1368 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -100,7 +100,43 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-fs 通用 opener 补回原版 `open_url` 的 web 协议白名单
+> **最新一轮：P7-ft `open_path` 补回原版的 `~`/相对路径解析与存在性要求
+> （原版 `src-tauri/src/commands/actions.rs:73-135`）**
+> ——P7-fs 收尾后「具体待办（P7-fs 重写）」还剩第 2·3 条，本轮取最高优先级的第 2 条落地。
+> 依赖检查：`go.mod` 已是 **v0.4.8** = GitHub releases latest，无版本可升；只对照 `main`
+> （`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离（P7-ft·`open_path` 不解析路径、也不要求存在）**：原版 `open_path`（`:73-98`）先
+> `resolve_path(&path, &home)`（`:107-135`）再 `resolved.exists()`，不存在返回
+> `Path does not exist: …`，前端（`useLauncherActions.ts:430-443,565-571`）把这个错误读成
+> 「留在启动器上让用户改」；`resolve_path` 只把整段 `~`/`~/…` 解析成 home，`~alice` 与相对
+> 路径都按 `home.join` 处理。**本构建（改前）**：`internal/shell/launch.go:23-40` 的 `openPath`
+> 直接 `spawn.Program(systemOpener(), path)`；`~/x` 与 `relative` 原样交给 opener，路径不存在
+> 也静默启动——`openTerminalLink`（`:86-107`）对 `~/…` 只做 `HasPrefix` 判断后原样传下去。
+>
+> **落地**：
+> - `internal/shell/launch.go` 新增 `resolvePath(path, home)`（逐字复刻 `resolve_path`：
+>   `~`/`~/`/`~//…` 去分隔符后 join home、`~alice` 当字面目录名 join home、相对路径 join home、
+>   绝对路径原样）；`openPath` 先取 home（`a.homeDir`，空则 `os.UserHomeDir`，取不到即拒），
+>   再 `resolvePath` + `os.Stat`，不存在就发 `OpenPathFailed` 且**不**触达 opener；成功路径统一
+>   用一个 `fail` 闭包记日志 + 警告反馈。注入的 `OpenPath` 命令收到的是**解析后**的路径。
+> - `openTerminalLink` 无需改动：它已把 `~/x.go:12` 去掉行号后缀后交给 `openPath`，解析与存在性
+>   现在集中在 `openPath` 一处。
+>
+> **验收**：`internal/shell/launch_test.go` 新增 `TestOpenPathResolvesAndRequiresExistence`
+> （`~/note.txt` 与 `note.txt` 都触达 `$HOME/note.txt`；`missing.txt` 不触达 opener，帧上画出
+> `OpenPathFailed` 逐字）、`TestResolvePathMatchesTheOldResolver`（七条：`~`、`~/`、`~//notes`、
+> `~/notes/a.md`、`~alice`、相对路径、绝对路径）、`TestTerminalLinkResolvesTilde`
+> （`~/main.go:12` 触达 `$HOME/main.go`）。变异核查：把 `openPath` 的存在性 `os.Stat` 删掉 →
+> `TestOpenPathResolvesAndRequiresExistence` 立刻红（missing 会走到注入 opener）。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：第 2 条（P7-ft）落地；「具体待办（P7-fs 重写）」只剩第 3 条（homepage 的非
+> 白名单类打开失败仍只记日志），是下一轮最高优先级。
+
+> **上一轮：P7-fs 通用 opener 补回原版 `open_url` 的 web 协议白名单
 > （原版 `src-tauri/src/commands/actions.rs:44-68`）**
 > ——P7-fr 收尾后「具体待办（P7-fq 重写）」归零，本轮按规则换入口：逐文件对照原版
 > `src-tauri/src/commands/actions.rs`（此前未进入任何历史待办），把「尚未做」重写为 3 条带
@@ -5837,7 +5873,7 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-### 具体待办（P7-fs 重写；第 1 条本轮 P7-fs 落地；第 2·3 条待做）
+### 具体待办（P7-fs 重写；第 1 条 P7-fs、第 2 条 P7-ft 均已落地；第 3 条待做）
 
 审计入口：原版 `main:src-tauri/src/commands/actions.rs`（`open_url` `:44-52`、`is_web_url`
 `:57-68`、`open_path` `:73-98`、`resolve_path` `:107-135`、`run_silent_command` `:137-160`、
@@ -5865,15 +5901,20 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
      `TestHomepageRefusesANonWebURL`、`TestBrowserSpecificOpenKeepsItsOwnSchemes`；
      `internal/launcher/outputopen_test.go` 的 `TestOutputOpenRefusesWithoutClosing`；
      `internal/i18n/i18n_test.go` 的 `TestOpenNonWebURLWordMatchesTheOldDictionary`。
-2. **（待做）`open_path` 不解析 `~`/相对路径，也不要求路径存在**。
+2. **（本轮落地，P7-ft）`open_path` 不解析 `~`/相对路径，也不要求路径存在**。
    - 原版对照：`actions.rs:73-98` 的 `open_path` 先 `resolve_path(&path, &home)`，再
      `resolved.exists()`，不存在返回 `Path does not exist: …`；`resolve_path`（`:107-135`）只把
      整段 `~`/`~/…` 解析成 home，`~alice` 与相对路径按 `home.join` 处理。
    - 本构建（改前）：`internal/shell/launch.go:23-40` 的 `openPath` 直接
      `spawn.Program(systemOpener(), path)`；`openTerminalLink`（`:86-107`）对 `~/…` 只做
      `HasPrefix` 判断就原样交给 opener，路径不存在也静默启动。
-   - 验收：`openPath("~/x")` 触达的是 `$HOME/x`；`openPath("missing")` 不触达 opener、发
-     `OpenPathFailed`；终端链接 `~/x.go:12` 触达 `$HOME/x.go`。
+   - 落地 file:line（已按此落地）：`internal/shell/launch.go` 新增 `resolvePath(path, home)`；
+     `openPath` 先取 home（`a.homeDir`，空则 `os.UserHomeDir`，取不到即拒）→ `resolvePath` →
+     `os.Stat`，不存在发 `OpenPathFailed` 且不触达 opener；注入的 `OpenPath` 命令收到解析后的路径。
+     `openTerminalLink` 不用改（解析与存在性集中在 `openPath`）。
+   - 验收（已过）：`internal/shell/launch_test.go` 的 `TestOpenPathResolvesAndRequiresExistence`、
+     `TestResolvePathMatchesTheOldResolver`、`TestTerminalLinkResolvesTilde`。变异核查：删掉存在性
+     `os.Stat` → 第一条立刻红。
 3. **（待做）homepage 的非白名单类打开失败仍然只记日志**。
    - 原版对照：`ExtensionsPanel.tsx:2577-2580` 的 `void invoke("open_url", …).catch((error) => {
      onNotify("error", errorMessage(error, t)); })`——homepage 的任何打开失败都会成为一条 error

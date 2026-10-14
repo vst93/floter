@@ -178,6 +178,82 @@ func TestTerminalLinkOpening(t *testing.T) {
 	}
 }
 
+// The path action resolves what the user typed the way the old `open_path`
+// did — `~` and a relative path against the home directory — and refuses a path
+// that is not there: a typo answers the query instead of silently opening
+// nothing.
+func TestOpenPathResolvesAndRequiresExistence(t *testing.T) {
+	calls := &launchCalls{}
+	a := launchTestApp(t, calls)
+	home := t.TempDir()
+	a.homeDir = home
+	file := filepath.Join(home, "note.txt")
+	if err := os.WriteFile(file, []byte("hi"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// `~` and a bare relative path both land in the home directory.
+	a.openPath("~/note.txt")
+	a.openPath("note.txt")
+	if want := []string{file, file}; !reflect.DeepEqual(calls.opened, want) {
+		t.Fatalf("opened = %v, want %v", calls.opened, want)
+	}
+
+	// A path that is not there never reaches the opener, and says so in the
+	// docked row.
+	tt := ui.NewTester(func(c *ui.Context) { a.View(c) }, 720, 700)
+	tt.Frame()
+	before := len(calls.opened)
+	a.openPath("missing.txt")
+	if len(calls.opened) != before {
+		t.Errorf("a missing path reached the opener: %v", calls.opened)
+	}
+	tt.Frame()
+	if want := i18n.For("en").Launcher.OpenPathFailed; !tt.HasText(want) {
+		t.Errorf("the refusal %q was not drawn: %q", want, tt.Texts())
+	}
+}
+
+// The resolver is the old `resolve_path` exactly: `~` is home, `~alice` is a
+// directory literally named that, and a relative path is joined to home.
+func TestResolvePathMatchesTheOldResolver(t *testing.T) {
+	home := t.TempDir()
+	abs := filepath.Join(t.TempDir(), "x")
+	cases := []struct{ in, want string }{
+		{"~", home},
+		{"~/", home},
+		{"~//notes", filepath.Join(home, "notes")},
+		{"~/notes/a.md", filepath.Join(home, "notes", "a.md")},
+		{"~alice", filepath.Join(home, "~alice")},
+		{"notes/a.md", filepath.Join(home, "notes", "a.md")},
+		{abs, abs},
+	}
+	for _, tc := range cases {
+		if got := resolvePath(tc.in, home); got != tc.want {
+			t.Errorf("resolvePath(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+}
+
+// A terminal link printed with `~` resolves against home, the same resolution
+// the path action uses.
+func TestTerminalLinkResolvesTilde(t *testing.T) {
+	calls := &launchCalls{}
+	a := launchTestApp(t, calls)
+	home := t.TempDir()
+	a.homeDir = home
+	file := filepath.Join(home, "main.go")
+	if err := os.WriteFile(file, []byte("package main\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if !a.openTerminalLink("~/main.go:12") {
+		t.Fatal("a `~` link was not claimed")
+	}
+	if len(calls.opened) != 1 || calls.opened[0] != file {
+		t.Errorf("opened = %v, want [%s]", calls.opened, file)
+	}
+}
+
 // The suffix stripper only takes digits, and at most a line and a column.
 func TestStripLineSuffix(t *testing.T) {
 	cases := []struct {

@@ -20,22 +20,74 @@ import (
 // openPath hands a path to the system's own opener: the file manager for a
 // directory, the default application for a file. This is what a dropped file's
 // "open" row and the action bar's own path action do.
+//
+// The path is resolved the way the old `open_path` resolved it — `~` against
+// the home directory, a relative path joined to it — and it has to be there: a
+// typo answers the query instead of silently opening nothing, so the launcher
+// can stay up to be corrected (`src-tauri/src/commands/actions.rs:73-98`).
 func (a *App) openPath(path string) {
 	path = strings.TrimSpace(path)
 	if path == "" {
 		return
 	}
+	fail := func(target string, err error) {
+		log.Printf("floter: could not open %s: %v", target, err)
+		a.onMain(func() { a.Launcher.WarnFeedback(a.Launcher.Copy().OpenPathFailed) })
+	}
+	home := a.homeDir
+	if home == "" {
+		found, err := os.UserHomeDir()
+		if err != nil {
+			fail(path, err)
+			return
+		}
+		home = found
+	}
+	resolved := resolvePath(path, home)
+	if _, err := os.Stat(resolved); err != nil {
+		fail(resolved, err)
+		return
+	}
 	if a.openPathCommand != nil {
-		if err := a.openPathCommand(path); err != nil {
-			log.Printf("floter: could not open %s: %v", path, err)
-			a.onMain(func() { a.Launcher.WarnFeedback(a.Launcher.Copy().OpenPathFailed) })
+		if err := a.openPathCommand(resolved); err != nil {
+			fail(resolved, err)
 		}
 		return
 	}
-	if err := spawn.Program(systemOpener(), path); err != nil {
-		log.Printf("floter: could not open %s: %v", path, err)
-		a.onMain(func() { a.Launcher.WarnFeedback(a.Launcher.Copy().OpenPathFailed) })
+	if err := spawn.Program(systemOpener(), resolved); err != nil {
+		fail(resolved, err)
 	}
+}
+
+// resolvePath turns what the user typed into a path the opener can take: a
+// leading `~` becomes the home directory, and anything relative is joined to
+// home. It is the old `resolve_path` (`src-tauri/src/commands/actions.rs:107-135`),
+// kept apart from `openPath` so the rule can be exercised without touching the
+// filesystem.
+func resolvePath(path, home string) string {
+	rest, tilde := strings.CutPrefix(path, "~")
+	if !tilde {
+		if filepath.IsAbs(path) {
+			return path
+		}
+		return filepath.Join(home, path)
+	}
+	// `~alice` is not another user's home: nothing portable can resolve it, and
+	// a directory literally called `~alice` is the likelier thing a launcher is
+	// being asked about — so it is joined to home rather than treated as a user.
+	if rest != "" && !os.IsPathSeparator(rest[0]) {
+		return filepath.Join(home, path)
+	}
+	// The separators come off before joining: joining a path that starts with
+	// one discards everything to its left and yields the filesystem root. Once
+	// they are gone, `~` and `~/` are both simply the home directory.
+	for rest != "" && os.IsPathSeparator(rest[0]) {
+		rest = rest[1:]
+	}
+	if rest == "" {
+		return home
+	}
+	return filepath.Join(home, rest)
 }
 
 // systemOpener is the platform's own opener: the one command every desktop
