@@ -823,6 +823,13 @@ var en = Copy{
 		},
 		LocalToolRuntimeMissing:  func(names string) string { return names + " is not on PATH. Install it and come back." },
 		LocalToolRuntimeCompiled: "The toolchain builds this script at install time.",
+		// The save-half of the same story: a script may be saved without its
+		// toolchain (the user may install it later), so the sentence says what
+		// will happen rather than refusing. Fixed by the old build's
+		// `customScriptRuntimeSaveWarning`.
+		LocalToolRuntimeSaveWarning: func(language string) string {
+			return language + " is not available on this machine yet. The integration will be saved, but it cannot run until the toolchain is installed."
+		},
 
 		UpdateCheck:      "Check for updates",
 		UpdateChecking:   "Checking\u2026",
@@ -1572,6 +1579,9 @@ var zh = Copy{
 		},
 		LocalToolRuntimeMissing:  func(names string) string { return names + " 不在 PATH 上，安装后再回来。" },
 		LocalToolRuntimeCompiled: "这个脚本在安装时由工具链编译。",
+		LocalToolRuntimeSaveWarning: func(language string) string {
+			return "本机尚未安装 " + language + "。集成会保存，但在安装工具链之前无法运行。"
+		},
 
 		UpdateCheck:      "检查更新",
 		UpdateChecking:   "正在检查…",

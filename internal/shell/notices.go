@@ -37,6 +37,11 @@ const refusalKey = "deep-link-rejected"
 // want to act on.
 const refusalNotice = 8 * time.Second
 
+// warningNotice is the advisory window: the old build's
+// `TOAST_DISMISS_MS.warning`, one step shorter than the error's because a
+// warning says what will not happen yet rather than what failed.
+const warningNotice = 6 * time.Second
+
 // refusalGate coalesces an automatic, externally triggered failure per key,
 // the rule the old build's `createFailureDeduper` implemented. The clock is
 // injectable so a test can drive a burst without waiting wall-clock time.
@@ -69,18 +74,32 @@ func (g *refusalGate) allow(key string) bool {
 // from a background goroutine, so a notice is queued and drawn by View; the
 // one id means a second notice replaces the first rather than stacking beside
 // it.
-func (a *App) queueNotice(message string) {
+func (a *App) queueNotice(message string, window time.Duration) {
 	a.noticeMu.Lock()
 	a.notices = append(a.notices, ui.Toast{
 		ID:      "floter-notice",
 		Title:   message,
 		Type:    "error",
-		Timeout: refusalNotice,
+		Timeout: window,
 	})
 	a.noticeMu.Unlock()
 	if a.Win != nil {
 		a.Win.Invalidate()
 	}
+}
+
+// warnNotice is the app's advisory notice: the old build's
+// `onNotify("warning", …)`, raised for something the user should know about
+// but that did not fail. The extension form's missing toolchain is the case
+// that needed it — the entry is saved either way, so the sentence has to
+// arrive wherever the user is, not in the launcher's docked row. It carries
+// no `Type`: the framework's default toast look paints one tone whatever the
+// type says, and the old build's warning tone has nowhere to land in it.
+func (a *App) warnNotice(message string) {
+	if message == "" {
+		return
+	}
+	a.queueNotice(message, warningNotice)
 }
 
 // flushNotices hands the queued notices to the framework's own toast stack,
@@ -109,6 +128,6 @@ func (a *App) refuseLink() {
 	message := i18n.For(a.Store.Snapshot().Language).Settings.DeepLinkRejected
 	a.onMain(func() {
 		a.Show()
-		a.queueNotice(message)
+		a.queueNotice(message, refusalNotice)
 	})
 }

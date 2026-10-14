@@ -129,8 +129,8 @@ func TestNavigationClampsAndWraps(t *testing.T) {
 
 func TestActivateRunsTheSelectedCommand(t *testing.T) {
 	a := testApp()
-	a.Selected = 1 // terminal
 	a.Query = "open"
+	a.Selected = indexOfID(a.Results(), "terminal") // terminal
 	a.activate(a.Results())
 	if testRuns["terminal"] != 1 {
 		t.Errorf("ran = %v, want terminal once", testRuns)
@@ -147,8 +147,16 @@ func TestQuerySelectsTheFirstResult(t *testing.T) {
 	a := testApp()
 	a.Query = "terminal"
 	got := a.Results()
-	if len(got) != 1 || got[0].ID != "terminal" {
+	// The terminal row is drawn for the query (the old build's `visibleActionBar`
+	// for a matched list), but it is not what Enter runs: the field's own first
+	// result keeps the selection — the shell row is the fallback, not the
+	// default (`shouldDefaultToActionBar` only hands Enter the bar when the
+	// query is a command line rather than a name a runnable result answers).
+	if indexOfID(got, "terminal") < 0 {
 		t.Fatalf("Results = %v", ids(got))
+	}
+	if bar := actionBarIndex(got); bar >= 0 && a.defaultSelection(got) == bar {
+		t.Errorf("the default selection is the action bar (row %d), not the terminal result: %v", bar, ids(got))
 	}
 }
 
@@ -164,16 +172,30 @@ func ids(items []Item) []string {
 	return out
 }
 
+// indexOfID is the row with this id, for the tests that used to assume the
+// list had no action-bar rows in front of the catalogue's (the bar is a real
+// row of the composed list now — see actionBarItemsWith).
+func indexOfID(items []Item, id string) int {
+	for i, item := range items {
+		if item.ID == id {
+			return i
+		}
+	}
+	return -1
+}
+
 func TestCalculatorRowComesFirstAndCopies(t *testing.T) {
 	a := testApp()
 	a.Query = "2+2"
 	got := a.Results()
-	if len(got) == 0 || got[0].ID != "calc" {
+	i := indexOfID(got, "calc")
+	if i < 0 {
 		t.Fatalf("Results(2+2) = %v", ids(got))
 	}
-	if got[0].Title != "2+2" || got[0].trailing != "4" {
-		t.Errorf("calc row = %q / trailing %q", got[0].Title, got[0].trailing)
+	if got[i].Title != "2+2" || got[i].trailing != "4" {
+		t.Errorf("calc row = %q / trailing %q", got[i].Title, got[i].trailing)
 	}
+	a.Selected = i
 	a.activate(got)
 	if testRuns["copy"] != 1 {
 		t.Errorf("copy ran %v", testRuns)
@@ -214,12 +236,13 @@ func TestCalculatorRowAcceptsBuiltinFunctions(t *testing.T) {
 		a := testApp()
 		a.Query = tc.query
 		got := a.Results()
-		if len(got) == 0 || got[0].ID != "calc" {
-			t.Errorf("Results(%q) = %v, want a calculator row first", tc.query, ids(got))
+		i := indexOfID(got, "calc")
+		if i < 0 {
+			t.Errorf("Results(%q) = %v, want a calculator row", tc.query, ids(got))
 			continue
 		}
-		if got[0].trailing != tc.result {
-			t.Errorf("Results(%q) trailing = %q, want %q", tc.query, got[0].trailing, tc.result)
+		if got[i].trailing != tc.result {
+			t.Errorf("Results(%q) trailing = %q, want %q", tc.query, got[i].trailing, tc.result)
 		}
 	}
 
@@ -247,19 +270,23 @@ func TestAppsJoinTheSearchOnceTyped(t *testing.T) {
 
 	a.Query = "safari"
 	got := a.Results()
-	if len(got) == 0 || got[0].Title != "Safari" {
+	safari := indexOfID(got, "app:/Applications/Safari.app")
+	if safari < 0 {
 		t.Fatalf("Results(safari) = %v", ids(got))
 	}
+	a.Selected = safari
 	a.activate(got)
 	if testRuns["app:Safari"] != 1 {
 		t.Errorf("open ran %v", testRuns)
 	}
 
 	// The application ranks above the command that merely contains the
-	// word: a title prefix (score 0) beats a word prefix (score 1).
+	// word: a title prefix (score 0) beats a word prefix (score 1). The
+	// action bar's shell row heads the list, so the two are read past it.
 	a.Query = "terminal"
 	got = a.Results()
-	if len(got) < 2 || got[0].Title != "Terminal" || got[1].ID != "terminal" {
+	first := indexOfID(got, "app:/System/Applications/Utilities/Terminal.app")
+	if first < 0 || indexOfID(got, "terminal") != first+1 {
 		t.Errorf("Results(terminal) = %v", ids(got))
 	}
 
@@ -321,6 +348,7 @@ func TestExtensionCommandsJoinTheSearch(t *testing.T) {
 	}
 
 	a.Query = "json viewer"
+	a.Selected = indexOfID(a.Results(), "cmd:io.github.vst93.v:jv")
 	a.activate(a.Results())
 	if testRuns["cmd:jv"] != 1 {
 		t.Errorf("running the command recorded %v", testRuns)
@@ -432,11 +460,12 @@ func TestApplicationNamesAndAliases(t *testing.T) {
 	a.SetApps([]apps.App{app})
 	a.Query = "企业微信"
 	results := a.Results()
-	if len(results) != 1 {
+	i := indexOfID(results, "app:"+app.Path)
+	if i < 0 {
 		t.Fatalf("results = %+v", results)
 	}
-	if results[0].Title != "企业微信" || results[0].Detail != "" {
-		t.Errorf("row = %+v", results[0])
+	if results[i].Title != "企业微信" || results[i].Detail != "" {
+		t.Errorf("row = %+v", results[i])
 	}
 	// The Latin name and an identifier alias both find it too.
 	// The alias and the pinyin initials find it; a subsequence match may pull
@@ -569,8 +598,8 @@ func TestSubsequenceMatching(t *testing.T) {
 	// `vsc` is a word-started subsequence of Visual Studio Code.
 	a.Query = "vsc"
 	got := a.Results()
-	if len(got) == 0 || got[0].Title != "Visual Studio Code" {
-		t.Errorf("vsc = %+v", got)
+	if indexOfID(got, "app:/Applications/Visual Studio Code.app") < 0 {
+		t.Errorf("vsc = %v", ids(got))
 	}
 	// A CJK name's pinyin initials work the same way: the scan fills the
 	// initials, and the launcher matches against them.

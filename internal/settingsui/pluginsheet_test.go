@@ -338,6 +338,192 @@ func TestLocalToolFormRefusesAnEmptyScript(t *testing.T) {
 	}
 }
 
+// The toolchain probe is cached per language for the form's own session: the
+// old panel's `runtimeChecksRef` ran it once per language per drawer rather
+// than per keystroke, so a redraw must not shell out again and switching back
+// to a language already checked must be instant.
+func TestScriptRuntimeProbeIsCachedPerLanguage(t *testing.T) {
+	probes := map[string]int{}
+	a := New(newStore(t), Actions{
+		ScriptRuntime: func(language string) scriptlang.Check {
+			probes[language]++
+			return scriptlang.Check{Candidates: []string{scriptlang.Lookup(language).Toolchain}}
+		},
+	})
+	// Two reads of one language in one session: the probe runs once.
+	a.scriptRuntimeLine("js")
+	a.scriptRuntimeLine("js")
+	if probes["js"] != 1 {
+		t.Errorf("js was probed %d times, want 1", probes["js"])
+	}
+	// A different language has its own verdict.
+	a.scriptRuntimeLine("python")
+	if probes["python"] != 1 {
+		t.Errorf("python was probed %d times, want 1", probes["python"])
+	}
+	// Switching back reuses the first verdict.
+	a.scriptRuntimeLine("js")
+	if probes["js"] != 1 {
+		t.Errorf("js was re-probed on a switch back: %d", probes["js"])
+	}
+	// A fresh form drops the verdicts: the machine may have changed.
+	a.clearScriptRuntimeCache()
+	a.scriptRuntimeLine("js")
+	if probes["js"] != 2 {
+		t.Errorf("a fresh form did not re-probe: %d", probes["js"])
+	}
+}
+
+// Reopening the form re-probes the toolchain: "install it, then reopen this
+// form to check again" is the whole point of clearing the cache on open.
+func TestReopeningTheLocalToolFormReprobesTheToolchain(t *testing.T) {
+	probes := 0
+	a := New(newStore(t), Actions{
+		ConnectLocalTool: func(tool CustomTool) {},
+		ScriptRuntime: func(language string) scriptlang.Check {
+			probes++
+			return scriptlang.Check{Candidates: []string{scriptlang.Lookup(language).Toolchain}}
+		},
+	})
+	tt := render(t, a, 720, 1600)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	copy := i18n.For("en").Settings
+	if err := tt.Click(copy.LocalToolAdd); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if err := tt.Click(copy.LocalToolModeScript); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if probes != 1 {
+		t.Fatalf("probes after the first form = %d, want 1", probes)
+	}
+	// Redraws of the open form reuse the verdict.
+	tt.Frame()
+	tt.Frame()
+	if probes != 1 {
+		t.Errorf("a redraw re-probed: %d", probes)
+	}
+	// Closing and reopening the form is a fresh check.
+	if err := tt.Click(copy.LocalToolAdd); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if err := tt.Click(copy.LocalToolAdd); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if probes != 2 {
+		t.Errorf("reopening did not re-probe: %d", probes)
+	}
+}
+
+// A script saved on a machine without its toolchain is still saved, and said
+// so once: the old panel's `createCustomIntegration` waited for the probe and
+// raised one warning, because a missing runtime must not stop the save but the
+// integration must not be "silently dead on arrival" either.
+func TestSavingAScriptWithoutItsToolchainWarnsAndStillSaves(t *testing.T) {
+	connected := []CustomTool{}
+	warnings := []string{}
+	a := New(newStore(t), Actions{
+		ConnectLocalTool: func(tool CustomTool) { connected = append(connected, tool) },
+		NotifyWarning:    func(text string) { warnings = append(warnings, text) },
+		ScriptRuntime: func(language string) scriptlang.Check {
+			if language == "python" {
+				return scriptlang.Check{Available: true, Path: "/usr/bin/python3"}
+			}
+			return scriptlang.Check{Candidates: []string{scriptlang.Lookup(language).Toolchain}}
+		},
+	})
+	tt := render(t, a, 720, 1600)
+	copy := i18n.For("en").Settings
+	tt.Click("Integrations")
+	tt.Frame()
+	tt.Click(copy.LocalToolAdd)
+	tt.Frame()
+	tt.Click(copy.LocalToolModeScript)
+	tt.Frame()
+	// The form opens on JavaScript, whose toolchain this machine does not have.
+	a.toolName, a.toolCommand, a.toolScript = "Weather", "weather", "console.log('hi')\n"
+	tt.Frame()
+	if err := tt.Click(copy.LocalToolConnect); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if len(connected) != 1 {
+		t.Fatalf("a script without its toolchain was not saved: %+v", connected)
+	}
+	want := copy.LocalToolRuntimeSaveWarning("JavaScript")
+	if len(warnings) != 1 || warnings[0] != want {
+		t.Fatalf("warnings = %q, want one %q", warnings, want)
+	}
+
+	// A language this machine has says nothing: the warning is about a script
+	// that cannot run yet, not about the save.
+	if err := tt.Click(copy.LocalToolAdd); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if err := tt.Click(copy.LocalToolModeScript); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if err := tt.Click("JavaScript"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if err := tt.Click("Python"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if a.toolLanguage != "python" {
+		t.Fatalf("language = %q", a.toolLanguage)
+	}
+	a.toolName, a.toolCommand, a.toolScript = "Weather", "weather2", "print('hi')\n"
+	tt.Frame()
+	if err := tt.Click(copy.LocalToolConnect); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if len(connected) != 2 {
+		t.Fatalf("the second script was not saved: %+v", connected)
+	}
+	if len(warnings) != 1 {
+		t.Errorf("a present toolchain warned: %q", warnings)
+	}
+}
+
+// A host that wired no toolchain probe gets no guess: the warning is raised
+// from a verdict, never from the absence of one.
+func TestAScriptSaveWarnsOnlyFromAVerdict(t *testing.T) {
+	warnings := []string{}
+	a := New(newStore(t), Actions{
+		ConnectLocalTool: func(tool CustomTool) {},
+		NotifyWarning:    func(text string) { warnings = append(warnings, text) },
+	})
+	tt := render(t, a, 720, 1600)
+	copy := i18n.For("en").Settings
+	tt.Click("Integrations")
+	tt.Frame()
+	tt.Click(copy.LocalToolAdd)
+	tt.Frame()
+	tt.Click(copy.LocalToolModeScript)
+	tt.Frame()
+	a.toolName, a.toolCommand, a.toolScript = "Weather", "weather", "console.log('hi')\n"
+	tt.Frame()
+	if err := tt.Click(copy.LocalToolConnect); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if len(warnings) != 0 {
+		t.Errorf("an unanswered probe warned: %q", warnings)
+	}
+}
+
 // A refused action prints the field's own failure line beside its button, not
 // the sheet's write-failure line: the old build's `ActionControl` kept the two
 // apart (`plugin-config-action__status` vs the overlay's caption).

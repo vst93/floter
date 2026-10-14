@@ -99,7 +99,113 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-dh 动作失败不再冒充写入失败（原版 `src/plugins/controls.tsx:206-260` 的
+> **最新一轮：P7-dk 动作栏的「存在性」与「默认选择」拆开（原版 `src/App.tsx:1547-1552` 的
+> `visibleActionBar` + `src/hooks/useLauncherCatalog.ts:1432-1443` 的 `defaultsToActionBar`）**
+> —— P7-dj 收尾后「尚未做（P7-dj 本轮发现）」只此一条（本轮落地）。依赖检查：
+> `go list -m -versions github.com/egoist/mygo` 最新仍是 **v0.4.8**（与 `go.mod` 一致），无版本可升。
+> 只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离点**：本构建把动作栏的「存在性」与「默认选择」绑成了一件事：改前
+> `internal/launcher/actionbar.go:96-102` 的 `actionShell && !defaultsToShell(other)` 直接
+> `return nil`，于是查一个**能跑的命令**（catalog 命中、`defaultsToShell` 为假）时整个终端行消失——
+> 用户报告的「底部应固定出现「在终端中打开」选项…目前缺失」。原版两件事分开：
+> `visibleActionBar` 只看列表非空就画（拖入文件走 `fileRows` 支），`defaultsToActionBar` 只决定
+> Enter 落在哪一行。
+>
+> **修法**：`actionBarItemsWith(other, gated)` 的 shell 闸门改成
+> `gated && actionShell && len(other)==0`（`actionbar.go:124`）——匹配到东西就画、匹配不到就不画
+> （对齐 `visibleActionBar` 的 `launcherResults.length > 0`），只有 search 传 `gated=true`；
+> `actionBarItems()`（不过闸）供 held-modifier 与 Enter 兜底。`activate` 补上原版的
+> `!launcherResults.length` 兜底：列表为空且 query 是命令行时直接跑 `actionBarItems()[0]`
+> （`launcher.go:1849-1856`），所以匹配不到的命令行仍能 Enter 运行、只是页面上不多出一行。
+> `assignNumbers` 跳过 `bar:` 行（`launcher.go:432-470`，原版 `⌘N` 不占动作栏），`defaultSelection`
+> 从第一条非 `bar:` 的可运行行起步（`launcher.go:2047-2069`）。query 不经输入框变化时的帧内对齐由
+> `defaultedQuery` 承担（`launcher.go:789-795`、`:947-952`）。
+>
+> **测试**：13+ 项既有测试重新对齐——`search_test.go` 改用 `indexOfID`；`resultnumbers_test.go` /
+> `view_test.go` 的编号断言跳过头部 `bar:` 行；匹配不到任何东西的那几项改断言页面**没有** shell 行，
+> 并靠 Enter 兜底验证仍会运行。变异核查：把闸门恢复成 `actionShell && len(other)==0`（shell 行永远
+> 隐藏），`TestActionBarRows` 立刻红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+> **上一轮：P7-dj 缺工具链的脚本保存时警告一次（原版 `src/ExtensionsPanel.tsx:1863-1875`
+> 的 `createCustomIntegration` + `src/i18n.ts:698,1578`）**
+> —— P7-di 收尾后「尚未做（P7-di 重写）」还剩第 2 条（本轮落地）与第 3 条（措辞对齐，卡「同步探测
+> 没有在飞态」）。依赖检查：GitHub releases API 被限流，用
+> `go list -m -versions github.com/egoist/mygo` 核对，最新仍是 **v0.4.8**（与 `go.mod` 一致），无版本
+> 可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离点**：原版保存脚本前 `await probeScriptRuntime(language)`，`!check.available` 就
+> `onNotify("warning", customScriptRuntimeSaveWarning)` —— 注释原话：缺工具链**不阻止保存**（用户可以
+> 装完再回来），但只警告一次，「so the integration is not silently dead on arrival」。本构建的提交路径
+> （`internal/settingsui/settingsui.go:2796-2807`）只做 `customIssues` 内联校验，缺工具链既不是 issue
+> 也没有任何提示：集成照常写入、在启动器里照常出现，第一次运行才失败。
+>
+> **修法**：`internal/settingsui` 的 `Actions` 新增 `NotifyWarning func(text)`（nil 就静默丢弃）；提交
+> 路径在 script 模式下读**表单自己缓存的那次探测**（P7-di 的 `scriptRuntimeCheck`，所以这句提示不会
+> 再起一次 PATH 扫描），`scriptlang.StatusOf(...).State == Missing` 时才发；探测没接线（`ok == false`）
+> 或工具链在 → 一个字都不说。措辞进 i18n：`LocalToolRuntimeSaveWarning(language)`，en/zh 逐字对齐原版
+> 字典（`{language}` 用 `scriptlang.Lookup(id).Label`，即原版 `scriptLanguageLabel`）。落点是 app 自己的
+> **notice**（`internal/shell/notices.go` 的 `warnNotice` → `ui.Toast`），不是启动器那行 docked 状态行
+> ——用户此刻在设置页，而那行只在启动器表面画；`queueNotice` 顺手把窗口做成参数（error 8s，对齐原版
+> `TOAST_DISMISS_MS.error`），warning 用原版的 6s。
+>
+> **测试**：`internal/settingsui/pluginsheet_test.go` 的
+> `TestSavingAScriptWithoutItsToolchainWarnsAndStillSaves`（JS 缺工具链 → 一条 warning 且**仍然连上**；
+> 换成 python 在 PATH 上 → 一个字不说）与 `TestAScriptSaveWarnsOnlyFromAVerdict`（没接线探测 → 不猜）；
+> `internal/shell/notices_test.go` 的 `TestWarningNoticeShowsWhereTheUserIs`（warning 排队一个、窗口是 6s、
+> 画在设置表面且不改表面、空串不成 toast）。变异核查：把 `NotifyWarning` 那段分支关掉，settingsui 那条
+> 测试立刻红。
+>
+> **顺带发现（未落地 → 已落地，见 P7-dk）**：启动器的「在终端中打开」行在本构建里**只有 Enter 会跑它时才存在**
+> （`internal/launcher/actionbar.go:96-102` 的 `actionShell && !defaultsToShell` 直接返回 nil），原版
+> `visibleActionBar`（`src/App.tsx:1547-1552`）的条件是**匹配结果非空**就画，`defaultsToActionBar`
+> （`src/hooks/useLauncherCatalog.ts:1432-1443`）只决定选择落在哪一行。这条既是用户报告的
+> 「底部应固定出现「在终端中打开」选项…目前缺失」，也是一处需要改 13 项既有测试的独立改动，已在
+> P7-dk 落地。
+
+> **上一轮：P7-di 脚本工具链探测按语言缓存（原版 `src/ExtensionsPanel.tsx:822-828,925-961`
+> 的 `runtimeChecksRef`/`probeScriptRuntime` + `src/extensions/script-languages.ts:158-178`）**
+> —— P7-dh 收尾后「尚未做（P7-dg 重写）」只剩第 3 条（原版自己都没接线的死函数，明确「没有落点前
+> 不做」）与 P7-dd 的第 3 条（卡 mygo 框架），清单又一次为空。本轮换入口：逐文件对照原版的**脚本
+> 工具链状态行**（`src/extensions/script-languages.ts` 的 `scriptRuntimeStatus` + 它在
+> `CustomIntegrationDrawer.tsx` 的渲染 + `ExtensionsPanel.tsx` 的探测缓存），把清单写成下面三条带
+> file:line 的具体待办（下方「具体待办（P7-di 重写）」），并取第 1 条落地。依赖检查：
+> GitHub releases API 被限流，用 `go list -m -versions github.com/egoist/mygo` 核对，最新仍是
+> **v0.4.8**（与 `go.mod` 一致），无版本可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14
+> 原版树），未翻历史提交。
+>
+> **偏离点**：原版把工具链探测当成一件**有缓存、有在飞态**的异步事：`probeScriptRuntime`
+> （`ExtensionsPanel.tsx:925-951`）先查 `runtimeChecksRef`（命中即返回）、再查在飞 Map（去重）、
+> 然后 `setRuntimeChecks(language: null)`（渲染成「检查中」）并发起 `extensions_script_runtime_check`，
+> 完成后写回缓存；`useEffect`（`:958-961`）只在语言变化时探测；打开/编辑表单（`:1558-1566`、
+> `:1593-1595`）把 `runtimeChecksEpoch += 1` 并清空缓存——注释原话「the probe runs once per language
+> per drawer session rather than per keystroke」「install it, then reopen this form to check again」。
+> 本构建的 `internal/settingsui/settingsui.go:2945` 在**每一帧渲染**里直接调 `a.scriptRuntimeLine`，
+> 后者（`:2974`）调 `a.Actions.ScriptRuntime(language)`；而 `internal/shell/shell.go:583-585` 的
+> `ScriptRuntime` 是同步的 `extensions.ScriptRuntimeFor`，会 `exec.Command(path, "--version")`
+> （`scriptVersionTimeout` 3s，`internal/extensions/scriptruntime.go:33-47`）。于是脚本表单每画一帧、
+> 每敲一个字符都起一次子进程，还可能在 UI 线程上阻塞到 3 秒。
+>
+> **修法**：`internal/settingsui/settingsui.go` 新增 `App.scriptRuntime map[string]scriptlang.Check`
+> （对齐 `runtimeChecksRef`）与 `scriptRuntimeCheck(language) (scriptlang.Check, bool)`——命中缓存直接
+> 返回，未命中探测一次后落缓存，`Actions.ScriptRuntime` 为 nil 时返回 `false` 让 `scriptRuntimeLine`
+> 退回工具链名；新增 `clearScriptRuntimeCache()`（对齐 `runtimeChecksEpoch` 的清空）。清缓存的三个
+> 落点：`localToolSection` 打开表单的 toggle（`:2606` 附近）、`beginEdit`、`endEdit`——「重新打开
+> 表单」正是原版要求重探的时刻。
+>
+> **测试**：`internal/settingsui/pluginsheet_test.go` 的 `TestScriptRuntimeProbeIsCachedPerLanguage`
+> （同语言读两次只探一次、换语言各探一次、切回命中、清缓存后重探）与
+> `TestReopeningTheLocalToolFormReprobesTheToolchain`（打开表单探一次、多帧重绘不再探、关闭重开再探
+> 一次）。变异核查：把 `scriptRuntimeCheck` 的缓存查找删掉（每次直接 `a.Actions.ScriptRuntime`），
+> 两条测试立刻红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+> **上一轮：P7-dh 动作失败不再冒充写入失败（原版 `src/plugins/controls.tsx:206-260` 的
 > `ActionControl` + `PluginConfigOverlay.tsx:299-309` 的失败行）**
 > —— P7-dg 收尾后「尚未做（P7-dg 重写）」还剩第 2 条（失败来源合并）与第 3 条（原版自己都没接线的
 > 死函数，低优先级）。本轮取第 2 条落地。依赖检查：GitHub releases API 被限流，用
@@ -3031,6 +3137,14 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
   没有占位符字段、`ui.Input` 也没有设色的 API。P7-bs 把这个 token 落在 `TextMuted` 上（框架能接到的
   唯一处，顺带把安静文案抬了一级，正是原版 `.app-toast { color: var(--text-primary) }` 的意图）。
   **要什么**：`ui.Theme` 上一个占位符 token（或 `ui.Input.PlaceholderColor`）。
+- **toast 没有色调**：原版三档 toast 各有色（`src/toast-state.ts:36-40` 的
+  `TOAST_DISMISS_MS` 与 `src/components/ToastStack.tsx` 的 kind 样式：error / warning / success），
+  本构建用的框架默认外观（`ui/toast.go:343` 的 `buildToasts`）只读 `fill, text := t.inverse()`，
+  完全不看 `ui.Toast.Type`——所以 `queueNotice` 的 `Type: "error"`（`internal/shell/notices.go`）
+  和 P7-dj 那条 warning **都画成同一个样子**。P7-dj 因此不给 warning 设 `Type`（设了就是死旋钮），
+  时长至少对齐了原版（error 8s / warning 6s，见 `refusalNotice` / `warningNotice`）。
+  **要什么**：`buildToasts` 读 `Type`（error/success/warning 三档），或让应用能用
+  `ToastViewportBase` + `Data` 自己画三档（后者框架已经支持，只是本应用没用）。
 - **终端选中即复制 / 滚动条 / bracketed paste**：见下面的终端外观条目。**复制反馈**是另一回事
   （P7-an 定位）：旧版 R44/R63 的规则是**每一次复制都在终端自己的状态行里说一句**
   （`src/terminal/copy-notice.ts`：`visible` 1500ms → `fade` 260ms → idle；失败也说，
@@ -3099,6 +3213,108 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 - 窗口可见时完成反馈落在面板自己的停靠行（隐藏时才发系统通知）——之前可见时什么都不说。
 
 ## 尚未做（按建议优先级）
+
+### 待办（P7-dk 已落地：启动器动作栏的「在终端中打开」只在 Enter 会跑它时存在）
+
+> P7-dj 收尾后处理用户报告的「底部应固定出现「在终端中打开」选项…目前缺失」。一条独立改动，它让
+> 既有的 `internal/launcher` 测试重新对齐：动作栏行进入结果列表的**头部**，编号跳过它，
+> `Results(…)[0]` 断言改为按 id 找行。
+
+1. **动作栏的闸门与默认选择拆开**（已落地，P7-dk）。
+   - 原版对照：`main:src/App.tsx:1547-1552` 的 `visibleActionBar`——`launcherResults.length > 0 ||
+     fileRows.length > 0` 就画（拖入文件时走 `fileDropActionBar` 那支），**与 Enter 无关**；
+     `main:src/hooks/useLauncherCatalog.ts:1432-1443` 的 `defaultsToActionBar` 才是选择：它调
+     `shouldDefaultToActionBar(query, actionBar.type, launcherResults.length, runnableResultCount,
+     hasRunnableCommandResult)`，而 `main:src/App.tsx:2019-2042` 的 effect 把它交给
+     `setSelectedResultIndex(firstRunnableResultIndex …)` + `setSelectedActionBar(defaultsToActionBar)`；
+     `main:src/App.tsx:3254-3260` 的 keyup 在按住修饰键松手时 `setSelectedActionBar(false)`。
+   - 本构建：`internal/launcher/actionbar.go:96-102` 的 `actionShell && !a.defaultsToShell(other)` 直接
+     `return nil`，于是「查一个能跑的命令」时整个终端行消失（用户看到的现象）；`defaultsToShell`
+     （`:292-315`）已经是原版那条链的忠实翻译，错的是它被当成了**存在性**闸门。
+   - 验收：query 命中可运行结果时终端行仍在列表里（`Results` 含 `bar:shell`），但默认选择仍是那条
+     结果（`App.Selected` 不指向动作栏）；URL / 路径 query 默认选择仍是动作栏；空 query 无动作栏。
+   - 落地：`actionBarItemsWith(other, gated)` 的 shell 闸门改成 `gated && actionShell && len(other)==0`
+     （`internal/launcher/actionbar.go:124`），只有 search 传 `gated=true`；`actionBarItems()`
+     （`actionbar.go:89`）不过闸，供 held-modifier 与下面的 Enter 兜底。`activate` 补上原版的
+     `!launcherResults.length` 兜底：结果为空且 query 是命令行时直接跑 `actionBarItems()[0]`
+     （`internal/launcher/launcher.go:1849-1856`），所以匹配不到任何东西的命令行仍能 Enter 运行，
+     只是页面上不多出一行。`assignNumbers` 跳过 `bar:` 行（`launcher.go:432-470`），`defaultSelection`
+     从第一条**非** `bar:` 的可运行行起步（`launcher.go:2047-2069`）。
+   - 注意：原版的闸门看的是**匹配结果**而非空查询，所以“非空 query 就画”是错的（那会让一个匹配
+     不到任何东西的命令行在“没有结果”时多出一行，且与 `visibleActionBar` 不符）。选择必须在 query
+     变化时重算：本构建有大量不经过输入框的 `a.Query = …` 赋值（`history.go:53,70`、`calculator.go:62`、
+     `output.go:372` 等），帧内对齐由 `defaultedQuery` 承担（`launcher.go:789-795`，`field.Changed()`
+     分支 `:947-952`），它们与输入框三条路径共用同一个 `defaultSelection`。
+   - 测试对齐：`search_test.go` 改用 `indexOfID`；`resultnumbers_test.go`/`view_test.go` 的编号断言
+     跳过头部 `bar:` 行；匹配不到任何东西的那几项（`TestNoResultsShowsTheEmptyMessage`,
+     `TestActionBarRows` 的 `git status` 段、`TestShellSyntax*`、`TestShellLineCarriesEnvironment`,
+     `TestSystemCommandsJoinTheSearchWhenEnabled` 关设置那段）断言页面**没有** shell 行、并靠 Enter
+     兜底验证仍会运行。本轮试过的“非空 query 就画”版本已丢弃，未提交。
+
+### 具体待办（P7-di 重写；第 1 条已落地 P7-di，第 2 条已落地 P7-dj，余下第 3 条待做）
+
+> 本轮换入口：逐文件对照原版的**脚本工具链状态行**（`src/extensions/script-languages.ts` 的
+> `scriptRuntimeStatus`、`CustomIntegrationDrawer.tsx` 的 `ScriptRuntimeLine`、`ExtensionsPanel.tsx`
+> 的 `probeScriptRuntime` 缓存），把清单写成下面三条带 file:line 的具体待办，并取第 1 条落地。
+> 依赖检查：GitHub releases API 被限流，用 `go list -m -versions github.com/egoist/mygo` 核对，
+> 最新仍是 **v0.4.8**（与 `go.mod` 一致），无版本可升。只对照 `main`
+> （`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+
+1. **脚本工具链探测每帧重跑，原版按语言缓存一次**（已落地，P7-di）。
+   - 原版对照：`main:src/ExtensionsPanel.tsx:822-828` 的 `runtimeChecksRef`/`runtimeChecksPending`/
+     `runtimeChecksEpoch`，`:925-951` 的 `probeScriptRuntime`（缓存命中直接返回、在飞去重、
+     `setRuntimeChecks(language: null)` 表示在飞），`:958-961` 的 effect（key 是语言），
+     `:1558-1566`/`:1593-1595` 的打开/编辑时 `epoch += 1` 并清空缓存。
+   - 本构建（改前）：`internal/settingsui/settingsui.go:2945` 的 `ui.Text(c, a.scriptRuntimeLine(...))`
+     在每帧渲染里直接调 `a.Actions.ScriptRuntime(language)`（`:2974`），而
+     `internal/shell/shell.go:583-585` 的 `ScriptRuntime` 是同步 `extensions.ScriptRuntimeFor`，会
+     `exec.Command(path, "--version")`（3s 超时）——每帧/每次键入都起一个子进程。
+   - 验收：同一语言在一次表单会话里只探测一次；切走再切回命中缓存；重新打开表单重新探测。
+   - **已落地**：`internal/settingsui/settingsui.go` 的 `App.scriptRuntime map[string]scriptlang.Check`
+     + `scriptRuntimeCheck`（命中返回、未命中探测后落缓存、`ScriptRuntime` 为 nil 时返回 false）
+     + `clearScriptRuntimeCache`；打开表单的 toggle、`beginEdit`、`endEdit` 都清缓存。测试
+     `internal/settingsui/pluginsheet_test.go` 的 `TestScriptRuntimeProbeIsCachedPerLanguage` /
+     `TestReopeningTheLocalToolFormReprobesTheToolchain`。变异核查：删掉缓存查找，两条测试立刻红。
+2. **缺工具链的脚本保存时应警告一次**（已落地，P7-dj，不阻止保存）。
+   - 原版对照：`main:src/ExtensionsPanel.tsx:1863-1875` 的 `createCustomIntegration`——script 模式下
+     `await probeScriptRuntime(customIntegration.scriptLanguage)`，`!check.available` 时
+     `onNotify("warning", t("settings.extensions.customScriptRuntimeSaveWarning", { language }))`；
+     i18n key 在 `main:src/i18n.ts`（en/zh）。注释明写：缺工具链**不阻止保存**，只警告一次，
+     「so the integration is not silently dead on arrival」。
+   - 本构建：`internal/settingsui/settingsui.go:2796-2804` 的提交路径只做 `customIssues` 内联校验，
+     缺工具链既不是 issue 也没有 toast（`settingsui.Actions` 没有 Notify/Toast 动作）。
+   - 验收：script 提交且工具链缺失 → 一条 warning toast（`{language}` 用语言名），**仍提交**；
+     工具链在 → 无 toast。需要给 settingsui 加一个 Notify 动作（或复用 shell 的 `notifyCompletion`）
+     并补 i18n 词 `LocalToolRuntimeSaveWarning`。
+   - **已落地（P7-dj）**：`settingsui.Actions` 新增 `NotifyWarning func(text)`；`settingsui.go` 的提交
+     路径在 script 模式下读 `scriptRuntimeCheck(tool.ScriptLanguage)`（复用 P7-di 的缓存，不再起子进程），
+     `scriptlang.StatusOf(...).State == Missing` 时发一句，**不阻止** `ConnectLocalTool`/`EditCustomTool`；
+     没接线探测或工具链在 → 不说。i18n 新增 `LocalToolRuntimeSaveWarning(language)`
+     （`internal/i18n/i18n.go:830`、`copy.go` en/zh），`{language}` 用 `scriptlang.Lookup(id).Label`。
+     落点：`internal/shell/notices.go` 的 `warnNotice`（`ui.Toast`，6s = 原版 `TOAST_DISMISS_MS.warning`；
+     `queueNotice` 的窗口改成参数，refusal 仍是 8s），由 `shell.go` 的 `NotifyWarning` 接线。测试：
+     `pluginsheet_test.go` 的 `TestSavingAScriptWithoutItsToolchainWarnsAndStillSaves` /
+     `TestAScriptSaveWarnsOnlyFromAVerdict`，`notices_test.go` 的 `TestWarningNoticeShowsWhereTheUserIs`。
+     变异核查：关掉 `NotifyWarning` 那段分支，settingsui 那条测试立刻红。
+     **诚实记录**：框架默认的 toast 外观只画一种色调（`ui/engine.buildToasts` 不读 `Toast.Type`），
+     原版的 warning 色调在这里无处可落，所以这条 notice 不设 `Type`——设了就是个没有实现的旋钮。
+3. **状态行措辞与旧字典不一致，且缺 checking 态**（待做，第 3 条卡同步探测）。
+   - 原版对照：`main:src/extensions/CustomIntegrationDrawer.tsx:112-121` 的 `ScriptRuntimeLine`——
+     `check === null` → `customScriptRuntimeChecking`（en "Checking the local toolchain…" / zh
+     "正在检查本机工具链…"，`main:src/i18n.ts:696,1576`）；missing → `customScriptRuntimeMissing`
+     （en "Not found on PATH: {names}. Install it, then reopen this form to check again." / zh
+     "在 PATH 中未找到：{names}。安装后重新打开此表单即可再次检查。"，`:697,1577`）；ready →
+     `${name} ${version}` 或 `name`（**没有** "is ready" 后缀），后接 `customScriptCompiled`
+     （en "built before running" / zh "运行前先编译"，`:699,1579`）与可选的 `path`。
+   - 本构建：`internal/i18n/copy.go:818-825`（en）/`:1567-1574`（zh）的 `LocalToolRuntimeReady`
+     自造了 "is ready"，`LocalToolRuntimeMissing` 改写成 "{names} is not on PATH. Install it and come
+     back."，`LocalToolRuntimeCompiled` 改写成 "The toolchain builds this script at install time."，
+     且没有 checking 词；`internal/scriptlang/scriptlang.go` 定义了 `Unknown` 态，但 `StatusOf` 对零值
+     `Check` 返回 `Missing`（与它自己「zero Check means not asked yet」的注释相矛盾）。
+   - 验收（措辞，可独立落地）：三条词逐字对齐旧字典（ready 去掉 "is ready"）；`StatusOf` 对「没问过」
+     的 `Check` 返回 `Unknown`。**卡点**：本构建的探测是同步的，渲染帧里不存在「在飞」的时刻，所以
+     `Unknown`/checking 的渲染没有真实落点——要么先引入异步探测（`go func` + `Invalidate`，对齐原版
+     的 `null` → 检查中），要么只做措辞对齐；没有异步前不新增 checking 词，避免再造死旋钮。
 
 ### 具体待办（P7-dg 重写；第 1 条已落地 P7-dg，第 2 条已落地 P7-dh，余下第 3 条低优先级）
 

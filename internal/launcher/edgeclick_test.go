@@ -23,8 +23,11 @@ func TestClickingThroughTheScrollEdge(t *testing.T) {
 	}
 	// The apps join the catalog when a query names them; one that does,
 	// sits beside the built-ins, and the second row is under the scroll
-	// edge band either way.
-	a.Query = "AppB"
+	// edge band either way. The query is lowercase on purpose: the action
+	// bar's shell row shows the typed text as its detail, and a lowercased
+	// query keeps that from colliding with the row's own (capitalized) title,
+	// so the click lands on the app and not on the bar.
+	a.Query = "appb"
 	tt.Frame()
 	results = a.Results()
 	var title string

@@ -583,6 +583,12 @@ func New(opts Options) *App {
 		ScriptRuntime: func(language string) scriptlang.Check {
 			return extensions.ScriptRuntimeFor(context.Background(), language)
 		},
+		// A warning the form cannot draw for itself goes to the app's own
+		// notice, which shows on every surface — the form's save already
+		// happened, so the sentence is about the machine, not the sheet.
+		NotifyWarning: func(text string) {
+			a.onMain(func() { a.warnNotice(text) })
+		},
 		ConnectLocalTool:   a.connectLocalTool,
 		EditCustomTool:     a.editCustomTool,
 		ToolForEdit:        a.toolForEdit,

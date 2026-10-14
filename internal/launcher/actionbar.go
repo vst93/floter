@@ -82,23 +82,46 @@ func classifyActionBar(value string) string {
 // manager (or the file manager beside it, when it is a file), has a terminal
 // row for its directory, and a copy row.
 //
-// A shell command is only offered when it would be the thing Enter runs — the
-// old build's rule: a query that is a command, has shell syntax, or matched
-// nothing runnable. Otherwise the catalog's rows keep the field, and the
-// terminal surface stays one key away through its own row.
+// A shell command's row is built here unconditionally: it is what the old
+// build's Enter handler ran for a list with no results (`useLauncherActions`'
+// `!launcherResults.length` fallback). Whether the row is *drawn* is the
+// search's decision (see actionBarItemsWith).
 func (a *App) actionBarItems() []Item {
-	return a.actionBarItemsWith(nil)
+	return a.actionBarItemsWith(nil, false)
 }
 
 // actionBarItemsWith is the action bar over the results the search already
 // built, so a shell command is only offered when it would be the thing Enter
 // runs.
-func (a *App) actionBarItemsWith(other []Item) []Item {
+//
+// The row's *presence* is not gated on `defaultsToShell`: the old build's
+// `actionBar` was non-null for every non-empty query, and the row was merely
+// not the default selection when a runnable command matched. The rewrite hid
+// the row in that case, so a query that matched a catalog command offered no
+// way to run it in a terminal at all — the report 「底部应固定出现「在终端中
+// 打开」选项…目前缺失」. The default selection (not the presence) is what
+// `defaultsToShell` still decides; see App.defaultSelection.
+//
+// `gated` is the search's call (the drawn list); the other callers
+// (activate's no-result fallback, the held-modifier's terminal row) reach the
+// row directly and must not lose it over an empty page.
+func (a *App) actionBarItemsWith(other []Item, gated bool) []Item {
 	kind := classifyActionBar(a.Query)
 	if kind == "" {
 		return nil
 	}
-	if kind == actionShell && !a.defaultsToShell(other) {
+	// The shell fallback is a *secondary* control for a matched list: the old
+	// build's `visibleActionBar` drew the bar only when `launcherResults` was
+	// non-empty (or a drop had put rows up). A command that matches nothing
+	// draws no terminal row — the fallback is not offered over an empty page —
+	// though Enter still runs it (activate's no-result fallback, the reference's
+	// `!launcherResults.length`). The gate reads the *matches* (`other`), not
+	// the field's own text, so a command line that matched a catalogue row
+	// still offers its terminal hand-off; only the default selection moves off
+	// it (see App.defaultSelection). A URL or a path is the query's *primary*
+	// action, not a fallback, so those rows stay unconditional (the reference
+	// drew its bar for them even when the catalogue matched nothing).
+	if gated && kind == actionShell && len(other) == 0 {
 		return nil
 	}
 	value := strings.TrimSpace(a.Query)

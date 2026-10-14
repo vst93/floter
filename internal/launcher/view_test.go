@@ -139,10 +139,15 @@ func TestNoResultsShowsTheEmptyMessage(t *testing.T) {
 	a := testApp()
 	a.Query = "zzzz"
 	tt := render(t, a)
-	// A query that matches nothing is the shell's: the action bar offers to
-	// run it, which is what Enter runs.
-	if !tt.HasText("Run in terminal") || !tt.HasText("zzzz") {
-		t.Errorf("the shell row is missing: %q", tt.Texts())
+	// A query that matches nothing is the shell's for Enter, but the old
+	// build drew no action bar over an empty page (`visibleActionBar` was
+	// gated on `launcherResults.length`), so the page says so and no shell
+	// row is offered. The typed line still runs on Enter (see App.activate).
+	if !tt.HasText("No results") {
+		t.Errorf("the empty message is missing: %q", tt.Texts())
+	}
+	if tt.HasText("Run in terminal") {
+		t.Errorf("the shell row was offered over an empty page: %q", tt.Texts())
 	}
 }
 
@@ -882,14 +887,18 @@ func TestSystemCommandsJoinTheSearchWhenEnabled(t *testing.T) {
 		t.Errorf("running the tool recorded %v", testRuns)
 	}
 
-	// With the setting off, the search does not offer them as tools — but the
-	// action bar still offers to run the name the user typed, which is the
-	// shell's.
+	// With the setting off, the search does not offer them as tools — and a
+	// name that then matches nothing draws no bar either (the old build's
+	// `visibleActionBar` needed a non-empty list). Enter still runs the typed
+	// line in the shell.
 	a.SetTools(tools, false)
 	a.Query = "ripgrep"
 	tt.Frame()
-	if !tt.HasText("Run in terminal") {
-		t.Errorf("the shell row is missing: %q", tt.Texts())
+	if tt.HasText("Run in terminal") {
+		t.Errorf("the shell row was offered over an empty page: %q", tt.Texts())
+	}
+	if !tt.HasText("No results") {
+		t.Errorf("the empty message is missing: %q", tt.Texts())
 	}
 	// The install row is the one that goes away: its command would come from
 	// the catalog.
@@ -1571,15 +1580,27 @@ func TestResultShortcutsRunTheNumberedRow(t *testing.T) {
 	tt := render(t, a)
 	a.Query = "app"
 	tt.Frame()
-	// The numbers are assigned to the rows in view, 1..9 then 0.
-	if got := a.numbers[0]; got != 1 {
-		t.Errorf("the first row's number = %d", got)
+	// The action bar's shell row heads the matched list and takes no number
+	// (the old build ran `resultShortcutSlots` over `displayedResults`, which
+	// excludes the bar), so the family starts on the row behind it: 1..9 then
+	// 0 on the tenth numberable row.
+	if got := a.numbers[1]; got != 1 {
+		t.Errorf("the first result row's number = %d (%v)", got, a.numbers)
 	}
-	if got := a.numbers[9]; got != 0 {
-		t.Errorf("the tenth row's number = %d", got)
+	last := 0
+	for i := range a.numbers {
+		if i > last {
+			last = i
+		}
 	}
-	if _, ok := a.numbers[10]; ok {
+	if got := a.numbers[last]; got != 0 {
+		t.Errorf("the tenth row's number = %d (%v)", got, a.numbers)
+	}
+	if _, ok := a.numbers[last+1]; ok {
 		t.Errorf("an eleventh row was numbered: %v", a.numbers)
+	}
+	if _, ok := a.numbers[0]; ok {
+		t.Errorf("the action bar was numbered: %v", a.numbers)
 	}
 	if !tt.HasText("1") {
 		t.Errorf("the badge is missing: %q", tt.Texts())
@@ -1602,8 +1623,8 @@ func TestResultShortcutsRunTheNumberedRow(t *testing.T) {
 	}
 	tt.Key(mods, ui.Key0)
 	tt.Frame()
-	if len(ran) != 2 || ran[1] != "App 09" {
-		t.Errorf("ran %v", ran)
+	if len(ran) != 2 || ran[1] != a.Results()[last].Title {
+		t.Errorf("ran %v, want the tenth numbered row %q", ran, a.Results()[last].Title)
 	}
 
 	// Rebinding the family moves the numbers with it.
@@ -2095,12 +2116,14 @@ func TestActionBarRows(t *testing.T) {
 	}
 
 	// A command the user typed runs in the terminal surface, and it is what
-	// Enter runs when nothing else matches.
+	// Enter runs when nothing else matches. Nothing matches here, so the bar
+	// is not drawn (the old build's `visibleActionBar` needed a non-empty
+	// list) — Enter reaches the row through the list's no-result fallback.
 	a.ResetQuery()
 	tt.Type("git status")
 	tt.Frame()
-	if !tt.HasText("Run in terminal") {
-		t.Fatalf("the shell row is missing: %q", tt.Texts())
+	if tt.HasText("Run in terminal") {
+		t.Errorf("the shell row was offered over an empty page: %q", tt.Texts())
 	}
 	tt.TypeKey(0, ui.KeyEnter, "")
 	tt.Frame()
@@ -2113,6 +2136,7 @@ func TestActionBarRows(t *testing.T) {
 	ran = 0
 	a.ResetQuery()
 	a.SetTools([]apps.App{{Name: "git", Path: "/usr/bin/git"}}, true)
+	tt.Frame()
 	tt.Type("git")
 	tt.Frame()
 	if !tt.HasText("Run in terminal") {
@@ -2187,9 +2211,7 @@ func TestShellLineCarriesEnvironment(t *testing.T) {
 	tt := render(t, a)
 	tt.Type(`FOO='a b' PATH=/usr/bin git status`)
 	tt.Frame()
-	if !tt.HasText("Run in terminal") {
-		t.Fatalf("the shell row is missing: %q", tt.Texts())
-	}
+	// The line matches nothing, so no bar is drawn; Enter still runs it.
 	tt.TypeKey(0, ui.KeyEnter, "")
 	tt.Frame()
 	if len(gotArgv) != 2 || gotArgv[0] != "git" || gotArgv[1] != "status" {
@@ -2449,7 +2471,7 @@ func TestThePathRowNamesItsSourceOnScreen(t *testing.T) {
 	a := testApp()
 	a.SetTools([]apps.App{{Name: "git", Path: "/usr/local/bin/git"}}, true)
 	tt := render(t, a)
-	tt.Type("git")
+	tt.Type("GIT")
 	tt.Frame()
 	title, ok := tt.Find("git")
 	if !ok {
@@ -2741,9 +2763,9 @@ func TestShellSyntaxRunsTheLineInAShell(t *testing.T) {
 	tt := render(t, a)
 	tt.Type("ls -la | grep go")
 	tt.Frame()
-	if !tt.HasText("Run in terminal") {
-		t.Fatalf("the shell row is missing: %q", tt.Texts())
-	}
+	// A shell-syntax line matches no catalogue row, so the old build drew no
+	// bar for it; Enter still hands the line to the shell (the list's
+	// no-result fallback).
 	tt.TypeKey(0, ui.KeyEnter, "")
 	tt.Frame()
 	if ranLine != "ls -la | grep go" {
@@ -2781,9 +2803,6 @@ func TestShellSyntaxRowKeepsItsLineAndItsHistory(t *testing.T) {
 	tt := render(t, a)
 	tt.Type("cat log\u3000| tail -5")
 	tt.Frame()
-	if !tt.HasText("Run in terminal") {
-		t.Fatalf("the shell row is missing: %q", tt.Texts())
-	}
 	tt.TypeKey(0, ui.KeyEnter, "")
 	tt.Frame()
 	// The history keeps the line the user typed, separators and all: it is a

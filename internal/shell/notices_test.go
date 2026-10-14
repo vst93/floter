@@ -139,3 +139,37 @@ func TestConnectThatFailedSaysSo(t *testing.T) {
 		t.Errorf("the refusal is not drawn: %q", tt.Texts())
 	}
 }
+
+// The advisory notice is the old build's warning toast: it shows where the
+// user is — the extension form raises it from the settings page, not from the
+// launcher's docked row — and it lives the warning window, one step shorter
+// than the error's because it says what will not happen yet rather than what
+// failed.
+func TestWarningNoticeShowsWhereTheUserIs(t *testing.T) {
+	a := newApp(t)
+	sentence := i18n.For("en").Settings.LocalToolRuntimeSaveWarning("Python")
+	tt := ui.NewTester(func(c *ui.Context) { a.View(c) }, 720, 520)
+	tt.Frame()
+	a.Open(SurfaceSettings)
+	tt.Frame()
+
+	a.warnNotice(sentence)
+	a.noticeMu.Lock()
+	queued := a.notices
+	a.noticeMu.Unlock()
+	if len(queued) != 1 || queued[0].Timeout != warningNotice {
+		t.Fatalf("the warning queued %+v, want one with the warning window %v", queued, warningNotice)
+	}
+	tt.Frame()
+	if !tt.HasText(sentence) {
+		t.Fatalf("the warning is not drawn: %q", tt.Texts())
+	}
+	if a.Surf != SurfaceSettings {
+		t.Errorf("a warning moved to surface %v", a.Surf)
+	}
+	// Nothing to say is not a toast.
+	a.warnNotice("")
+	if got := pendingNotices(a); got != 0 {
+		t.Errorf("an empty warning queued %d notices", got)
+	}
+}

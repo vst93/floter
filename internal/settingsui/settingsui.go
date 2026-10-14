@@ -153,6 +153,14 @@ type Actions struct {
 	// interpreter on PATH and its version, or nothing. Nil means the form
 	// cannot say, and shows the toolchain's name alone.
 	ScriptRuntime func(language string) scriptlang.Check
+	// NotifyWarning reports a warning the form cannot draw for itself: the old
+	// panel's `onNotify("warning", …)`, which reached the app's own notice
+	// stack rather than the form — the message is about the machine, not about
+	// a row the user is editing. The integration form raises one when it saves
+	// a script whose toolchain this machine does not have; the save goes
+	// through either way, so it is advice, never a refusal. Nil drops the
+	// message.
+	NotifyWarning func(text string)
 	// ToolForEdit hands the form what that integration declares now. Both nil
 	// hides the button.
 	EditCustomTool func(id string, tool CustomTool)
@@ -454,6 +462,12 @@ type App struct {
 	toolPermissions map[string]bool
 	// toolParams is the declared inputs the form is editing, one per row.
 	toolParams []toolParam
+	// scriptRuntime caches the toolchain verdict the script form's muted line
+	// reads, one entry per language. The old panel cached the probe per
+	// language for the drawer's own session, so a redraw — or re-selecting a
+	// language already checked — never fires a second PATH scan. A fresh form
+	// clears it, because the machine may have changed since the last one.
+	scriptRuntime map[string]scriptlang.Check
 	// toolEditing is the integration the form is rewriting, empty when it is
 	// connecting something new.
 	toolEditing string
@@ -2605,7 +2619,12 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 		if ui.Button(c, copy.LocalToolAdd).Clicked() {
 			a.toolOpen = !a.toolOpen
 			// Opening a fresh form clears the previous refusal, so the new one
-			// starts quiet; closing keeps nothing either.
+			// starts quiet; closing keeps nothing either. It also drops the
+			// cached toolchain verdicts: the user may have installed the
+			// runtime since the last form.
+			if a.toolOpen {
+				a.clearScriptRuntimeCache()
+			}
 			a.toolIssue = false
 		}
 		if !a.toolOpen {
@@ -2793,6 +2812,18 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 			if tool.Mode != routeScript && tool.Program == "" {
 				return
 			}
+			// A missing toolchain does not block the save — the user may install
+			// the runtime and come back — but it warns once, so the integration
+			// is not silently dead on arrival. The verdict is the form's own
+			// cached one (see scriptRuntimeCheck), so the sentence costs no
+			// second PATH scan; an unasked probe stays quiet rather than
+			// guessing that the toolchain is missing.
+			if tool.Mode == routeScript && a.Actions.NotifyWarning != nil {
+				if check, ok := a.scriptRuntimeCheck(tool.ScriptLanguage); ok &&
+					scriptlang.StatusOf(tool.ScriptLanguage, check).State == scriptlang.Missing {
+					a.Actions.NotifyWarning(copy.LocalToolRuntimeSaveWarning(scriptlang.Lookup(tool.ScriptLanguage).Label))
+				}
+			}
 			if a.toolEditing != "" {
 				a.Actions.EditCustomTool(a.toolEditing, tool)
 			} else {
@@ -2960,6 +2991,33 @@ func (a *App) copy() i18n.Settings {
 	return i18n.For(a.Store.Snapshot().Language).Settings
 }
 
+// scriptRuntimeCheck is the toolchain verdict for one language, probed at most
+// once per language per form session. The cache is the old panel's
+// `runtimeChecksRef`: a redraw must not re-run the probe, and switching back to
+// a language already checked is instant. The second result is false when there
+// is nothing to ask (the host wired no probe), so the line can fall back to the
+// toolchain's name alone.
+func (a *App) scriptRuntimeCheck(language string) (scriptlang.Check, bool) {
+	if a.Actions.ScriptRuntime == nil {
+		return scriptlang.Check{}, false
+	}
+	if check, ok := a.scriptRuntime[language]; ok {
+		return check, true
+	}
+	check := a.Actions.ScriptRuntime(language)
+	if a.scriptRuntime == nil {
+		a.scriptRuntime = map[string]scriptlang.Check{}
+	}
+	a.scriptRuntime[language] = check
+	return check, true
+}
+
+// clearScriptRuntimeCache drops the cached verdicts: a fresh form gets a fresh
+// toolchain check, the same reset the old panel's epoch did. A user who
+// installed the runtime since the last form is told to reopen it, so reopening
+// is exactly when the cache must not survive.
+func (a *App) clearScriptRuntimeCache() { a.scriptRuntime = nil }
+
 // scriptRuntimeLine is the one muted line under the language picker: what this
 // machine has for the language. An absent toolchain is deliberately not an
 // error — a user may install Python and come back — so it is a sentence, never
@@ -2967,11 +3025,12 @@ func (a *App) copy() i18n.Settings {
 func (a *App) scriptRuntimeLine(language string) string {
 	copy := a.copy()
 	option := scriptlang.Lookup(language)
-	if a.Actions.ScriptRuntime == nil {
+	check, ok := a.scriptRuntimeCheck(language)
+	if !ok {
 		// Nothing to ask: the toolchain's name is all we can honestly say.
 		return option.Toolchain
 	}
-	status := scriptlang.StatusOf(language, a.Actions.ScriptRuntime(language))
+	status := scriptlang.StatusOf(language, check)
 	switch status.State {
 	case scriptlang.Available:
 		line := copy.LocalToolRuntimeReady(status.Name, status.Version)
@@ -3791,6 +3850,8 @@ func paramIssueMessage(copy i18n.Settings, issue extensions.ParamRowIssue) strin
 // remembers that the form is editing it rather than connecting something new.
 func (a *App) beginEdit(id string, tool CustomTool) {
 	a.toolOpen = true
+	// Editing fills a fresh form, so it gets a fresh toolchain verdict too.
+	a.clearScriptRuntimeCache()
 	a.toolEditing = id
 	a.toolAdvanced = false
 	a.toolIssue = false
@@ -3824,6 +3885,7 @@ func (a *App) beginEdit(id string, tool CustomTool) {
 
 // endEdit clears the edit state, so the next connection starts a new package.
 func (a *App) endEdit() {
+	a.clearScriptRuntimeCache()
 	a.toolEditing = ""
 	a.toolAdvanced = false
 	a.toolIssue = false

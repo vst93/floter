@@ -828,6 +828,10 @@ type Settings struct {
 	LocalToolRuntimeReady    func(name, version string) string
 	LocalToolRuntimeMissing  func(names string) string
 	LocalToolRuntimeCompiled string
+	// LocalToolRuntimeSaveWarning is what a script's save says when this
+	// machine has no toolchain for it: the save goes through, so the sentence
+	// is advice rather than a refusal.
+	LocalToolRuntimeSaveWarning func(language string) string
 
 	// The About page's update check.
 	UpdateCheck      string

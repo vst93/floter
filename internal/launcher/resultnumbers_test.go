@@ -2,6 +2,7 @@ package launcher
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
@@ -10,6 +11,20 @@ import (
 	"floter/internal/settings"
 	"floter/internal/shortcuts"
 )
+
+// firstNumberable is the first row at or after `from` the numbered family can
+// land on: the action bar's rows take no number (the old build's
+// `resultShortcutSlots` ran over `displayedResults`, which excludes the bar),
+// so the family starts on the first catalogue row behind it.
+func firstNumberable(a *App, from int) int {
+	results := a.Results()
+	for i := from; i < len(results); i++ {
+		if !strings.HasPrefix(results[i].ID, "bar:") && results[i].Run != nil {
+			return i
+		}
+	}
+	return from
+}
 
 // The numbered family follows the scroll viewport, not the top of the list.
 // The old build's `resultShortcutSlots` (src/launcher/result-budget.ts) numbers
@@ -37,14 +52,16 @@ func TestResultShortcutsFollowTheScrollViewport(t *testing.T) {
 	tt := render(t, a)
 	tt.Frame()
 
-	// At the top of the list the first visible runnable row is row 0, so it
-	// takes `1`.
+	// At the top of the list the first visible *numbered* row is row 1 (the
+	// action bar's shell row heads the matched list and takes no number), so
+	// it takes `1`.
 	first, _ := a.List.Visible()
 	if first != 0 {
 		t.Fatalf("the list starts at row %d, want 0", first)
 	}
-	if got := a.numbers[first]; got != 1 {
-		t.Fatalf("the first visible row %d has number %d, want 1 (%v)", first, got, a.numbers)
+	n1 := firstNumberable(a, first)
+	if got := a.numbers[n1]; got != 1 {
+		t.Fatalf("the first numbered row %d has number %d, want 1 (%v)", n1, got, a.numbers)
 	}
 
 	// Scroll down. The viewport is the previous frame's (the old build's key
@@ -57,11 +74,12 @@ func TestResultShortcutsFollowTheScrollViewport(t *testing.T) {
 	if vf == 0 {
 		t.Fatalf("the list did not scroll: visible %d..%d", vf, vl)
 	}
-	if got := a.numbers[vf]; got != 1 {
-		t.Errorf("after scrolling, the first visible row %d has number %d, want 1 (%v)", vf, got, a.numbers)
+	vn := firstNumberable(a, vf)
+	if got := a.numbers[vn]; got != 1 {
+		t.Errorf("after scrolling, the first numbered row %d has number %d, want 1 (%v)", vn, got, a.numbers)
 	}
 	if _, ok := a.numbers[0]; ok {
-		t.Errorf("row 0 is off screen but still numbered: %v", a.numbers)
+		t.Errorf("row 0 (the action bar) is numbered: %v", a.numbers)
 	}
 	// Every numbered row is inside the viewport, and the numbers are in order.
 	for i := range a.numbers {
@@ -70,8 +88,7 @@ func TestResultShortcutsFollowTheScrollViewport(t *testing.T) {
 		}
 	}
 
-	// The key runs the row the viewport numbers, not the list's first row: the
-	// row `1` names is `vf`.
+	// The key runs the row the viewport numbers, not the list's first row.
 	ran := ""
 	a.Actions.OpenApp = func(app apps.App) { ran = app.Name }
 	mods, _, ok := shortcuts.Parse(settings.SelectResultDigit(a.settings(), 1))
@@ -80,9 +97,9 @@ func TestResultShortcutsFollowTheScrollViewport(t *testing.T) {
 	}
 	tt.Key(mods, ui.Key1)
 	tt.Frame()
-	want := a.Results()[vf].Title
+	want := a.Results()[vn].Title
 	if ran != want {
-		t.Errorf("the modifier+1 ran %q, want the first visible row %q", ran, want)
+		t.Errorf("the modifier+1 ran %q, want the first numbered row %q", ran, want)
 	}
 	if ran == found[0].Name {
 		t.Errorf("the modifier+1 ran the list's first row %q, not the visible one", ran)
@@ -102,10 +119,13 @@ func TestAShortListIsNumberedWhole(t *testing.T) {
 	a.Query = "al"
 	tt := render(t, a)
 	tt.Frame()
-	if got := a.numbers[0]; got != 1 {
-		t.Errorf("row 0 number = %d, want 1 (%v)", got, a.numbers)
+	if got := a.numbers[1]; got != 1 {
+		t.Errorf("row 1 number = %d, want 1 (%v)", got, a.numbers)
 	}
-	if got := a.numbers[1]; got != 2 {
-		t.Errorf("row 1 number = %d, want 2 (%v)", got, a.numbers)
+	if got := a.numbers[2]; got != 2 {
+		t.Errorf("row 2 number = %d, want 2 (%v)", got, a.numbers)
+	}
+	if _, ok := a.numbers[0]; ok {
+		t.Errorf("the action bar was numbered: %v", a.numbers)
 	}
 }

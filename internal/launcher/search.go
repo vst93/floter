@@ -657,14 +657,18 @@ func (a *App) Results() []Item {
 	var out []Item
 	// A power word claims the query before anything else matches: a user who
 	// types "restart" means the machine. The action bar follows, for a URL, a
-	// path or a command the field is holding — and a shell command only lands
-	// there when it would be the thing Enter runs.
+	// path or a command the field is holding — and a shell command is drawn
+	// whenever the catalogue matched something, because the row is the terminal
+	// hand-off for a result the field is showing (a query that matched a catalog
+	// command used to hide it — 「目前缺失」). The gate is the *matches*, not the
+	// field's own text: a command that matched nothing draws no row over the
+	// "No results" page (Enter still runs it — see App.activate).
 	other := a.otherResults()
 	out = append(out, a.powerItems()...)
-	out = append(out, a.actionBarItemsWith(other)...)
-	if item, ok := a.calculator(); ok {
-		out = append(out, item)
-	}
+	out = append(out, a.actionBarItemsWith(other, true)...)
+	// The calculator answer is `other`'s first row (see otherResults); it is
+	// not appended a second time here — that duplicate took two numbered
+	// slots for one answer.
 	out = append(out, other...)
 	return out
 }

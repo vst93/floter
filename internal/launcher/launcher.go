@@ -280,6 +280,15 @@ type App struct {
 	// build, for text the app set itself.
 	pendingCaret bool
 
+	// defaultedQuery is the query whose default selection is already in
+	// place. A query can change without the field: the typed-command history,
+	// a plugin filling the field, a mode's own text. The reference reset the
+	// choice whenever the query did (`firstRunnableResultIndex`), so a frame
+	// that sees a query the field has not accounted for puts the choice back
+	// on that query's default before anything reads it — otherwise a stale
+	// index points at whatever row now sits there.
+	defaultedQuery string
+
 	// mode is the extension command being typed: while it is set, the field
 	// holds the command's argv and the list offers its arguments.
 	mode *extensions.CommandEntry
@@ -422,10 +431,20 @@ const maxResultSlots = 10
 // render's slots, so a scroll renumbers the family on the next frame.
 func (a *App) assignNumbers(results []Item) map[int]int {
 	numbers := map[int]int{}
+	// The action bar is not a result: the old build's `resultShortcutSlots`
+	// ran over `displayedResults` (which excludes the bar), so the bar takes
+	// no number and the family starts on the first real result. Counting it
+	// here would shift every badge by one and let `⌘1` run the shell row.
+	resultCount := 0
+	for _, item := range results {
+		if !strings.HasPrefix(item.ID, "bar:") {
+			resultCount++
+		}
+	}
 	// A list that fits is numbered whole; only an overflowing one consults
 	// the viewport.
 	first, last := 0, len(results)-1
-	if len(results) > maxResultSlots {
+	if resultCount > maxResultSlots {
 		first, last = 0, maxResultSlots-1
 		if visibleFirst, visibleLast := a.List.Visible(); visibleLast >= visibleFirst {
 			first, last = visibleFirst, visibleLast
@@ -433,7 +452,7 @@ func (a *App) assignNumbers(results []Item) map[int]int {
 	}
 	count := 0
 	for i, item := range results {
-		if item.Run == nil {
+		if item.Run == nil || strings.HasPrefix(item.ID, "bar:") {
 			continue
 		}
 		if i < first || i > last {
@@ -709,7 +728,10 @@ func (a *App) SetCommandAliases(aliases settings.CommandAliases) {
 // for.
 func (a *App) SetQuery(query string) {
 	a.Query = query
-	a.Selected, a.chosenRow = 0, -1
+	// The same default a typed query takes: the action bar for a command line,
+	// URL or path, the first runnable result otherwise.
+	a.Selected, a.chosenRow = a.defaultSelection(a.Results()), -1
+	a.defaultedQuery = query
 	a.pendingCaret = true
 }
 
@@ -764,6 +786,12 @@ func (a *App) View(c *ui.Context) {
 		item.Run()
 	}
 	results := a.Results()
+	// A query the field has not accounted for gets that query's own default
+	// before any row reads the choice (see defaultedQuery).
+	if a.Query != a.defaultedQuery {
+		a.Selected, a.chosenRow = a.defaultSelection(results), -1
+		a.defaultedQuery = a.Query
+	}
 	a.clampSelection(len(results))
 	a.assignNumbers(results)
 	// The output list, while it owns the band, carries the same numbered family
@@ -911,7 +939,16 @@ func (a *App) View(c *ui.Context) {
 				a.pendingCaret = false
 			}
 			if field.Changed() {
-				a.Selected = 0
+				// A fresh query starts on its own default: the action bar for a
+				// command line, URL or path, the first runnable result otherwise
+				// (the reference's `defaultsToActionBar` / `firstRunnableResultIndex`).
+				// The action bar is a row of this list, so its default is its index.
+				// The results are recomputed here: `results` was built before the
+				// field took the keystroke and no longer matches the query.
+				a.Selected = a.defaultSelection(a.Results())
+				// The keystroke is accounted for, so the next frame's own query
+				// check does not undo a step the keyboard takes from here.
+				a.defaultedQuery = a.Query
 			}
 			if field.Submitted() {
 				a.activate(results)
@@ -1809,6 +1846,18 @@ func (a *App) activate(results []Item) {
 		return
 	}
 	if a.Selected < 0 || a.Selected >= len(results) {
+		// The old build's Enter ran the action bar whenever the list had no
+		// results (`useLauncherActions`: `selectedActionBar ||
+		// !launcherResults.length`), so a typed command that matched nothing
+		// still ran in the terminal even though no row was drawn for it (the
+		// bar is drawn only over a matched list — see actionBarItemsWith).
+		if len(results) == 0 {
+			if bar := a.actionBarItems(); len(bar) > 0 {
+				if run := bar[0].Run; run != nil {
+					run()
+				}
+			}
+		}
 		return
 	}
 	if run := results[a.Selected].Run; run != nil {
@@ -1962,6 +2011,56 @@ func (a *App) firstSelectable() int {
 	return 0
 }
 
+// actionBarIndex is the index of the action bar's first row in the composed
+// list, -1 when the field holds no action bar. The bar is a real row of this
+// list (see actionBarItemsWith), so "the bar is the default" and "the bar is
+// selected" are both this row's index.
+func actionBarIndex(results []Item) int {
+	for i, item := range results {
+		if strings.HasPrefix(item.ID, "bar:") {
+			return i
+		}
+	}
+	return -1
+}
+
+// defaultsToActionBar is the old build's `shouldDefaultToActionBar`: whether
+// Enter belongs to the action bar rather than the first result. A non-shell
+// action bar (a URL or a path) always wins; a shell one only when the query
+// is a command line rather than a name a runnable result already answers.
+func (a *App) defaultsToActionBar(results []Item) bool {
+	kind := classifyActionBar(a.Query)
+	if kind == "" {
+		return false
+	}
+	if kind != actionShell {
+		return true
+	}
+	return a.defaultsToShell(results)
+}
+
+// defaultSelection is the row a fresh query starts on: the action bar when
+// `defaultsToActionBar` says Enter belongs to it, else the first runnable
+// result — the reference's `firstRunnableResultIndex < 0 ? 0 : ...`. The
+// action bar is excluded from the fallback so a query that matches a catalog
+// command does not start on the shell row merely because the bar is drawn.
+func (a *App) defaultSelection(results []Item) int {
+	bar := actionBarIndex(results)
+	if bar >= 0 && a.defaultsToActionBar(a.otherResults()) {
+		return bar
+	}
+	for i, item := range results {
+		if strings.HasPrefix(item.ID, "bar:") || item.heading || item.Run == nil {
+			continue
+		}
+		return i
+	}
+	if bar >= 0 {
+		return bar
+	}
+	return 0
+}
+
 // clampSelection keeps the choice on a row the keyboard can act on: a heading
 // the list shrank onto is stepped past.
 func (a *App) clampSelection(n int) {
@@ -2056,18 +2155,26 @@ func (a *App) syncHeldModifier(c *ui.Context) {
 	a.modifierHeld = down
 	if down != a.heldWasDown {
 		a.heldWasDown = down
+		results := a.Results()
 		if down {
 			if _, ok := a.heldTerminalItem(); ok {
-				a.Selected = len(a.Results()) - 1
+				a.Selected = len(results) - 1
+			} else if strings.TrimSpace(a.Query) != "" {
+				// A typed query: the modifier hands the selection to the action
+				// bar, the old build's `setSelectedActionBar(true)` on the
+				// modifier's keydown. The bar is a row of this list, so it is
+				// selected by its index; it is always drawn for a non-empty
+				// query now (see actionBarItemsWith).
+				if bar := actionBarIndex(results); bar >= 0 {
+					a.Selected = bar
+				}
 			}
-		} else if rowShowing {
-			// The row the modifier put on screen is gone; the selection goes to
-			// the empty page's own default (the reference's
-			// `firstRunnableResultIndex`), the first row the keyboard can act on
-			// — a block's heading is never a choice. The reset is
-			// unconditional: the reference's effect reads no selection, so the
-			// row an arrow step moved to during the gesture goes with it.
-			a.Selected = a.firstSelectable()
+		} else if rowShowing || strings.TrimSpace(a.Query) != "" {
+			// The row the modifier put on screen is gone (the empty page), or
+			// the bar the modifier selected steps aside (the typed query).
+			// Either way the selection returns to the page's own default — the
+			// reference's `firstRunnableResultIndex`.
+			a.Selected = a.defaultSelection(results)
 		}
 	}
 }
