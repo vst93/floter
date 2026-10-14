@@ -6,6 +6,12 @@ import (
 	"floter/internal/i18n"
 )
 
+// checkIcon is the reference's confirm-button glyph (`<Check size={14}
+// strokeWidth={2} />` in `ComponentizedUninstallDialog.tsx:160`): a stroked
+// 24×24 path, the same mark every destructive confirm in the family ends
+// with, so a confirm is recognized before its word is read.
+var checkIcon = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`))
+
 // The componentized uninstall: which parts of an installed integration to
 // remove. The program always goes — the dialog says so on a checked, disabled
 // row — and the three data categories are checkboxes, with the old build's
@@ -81,7 +87,9 @@ func (a *App) uninstallDialog(c *ui.Context, copy i18n.Settings, integration Int
 				a.uninstallOpen[integration.ID] = false
 				return
 			}
-			if ui.Button(c, integration.removalLabel(copy)).Clicked() {
+			if ui.Button(c, integration.removalLabel(copy)).Children(func() {
+				ui.Icon(c, checkIcon).Size(t.Space(4), t.Space(4))
+			}).Clicked() {
 				if a.Actions.UninstallComponents != nil {
 					a.Actions.UninstallComponents(integration.ID, integration.Name, integration.removalKind(), draft)
 				}
