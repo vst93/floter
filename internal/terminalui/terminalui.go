@@ -335,6 +335,11 @@ func (a *App) LabelOf(index int) string {
 
 // NoteOf is a session's own state line, by index: the program is running, or
 // how it went — the wording the sessions page prints under the session's name.
+//
+// The ended line is the old page's own (`main:src/settings/SessionsPage.tsx:173-177`):
+// `terminal.sessionExited` alone for a clean exit, and only a non-zero code
+// gets the ` · exit N` suffix. The resident note on the terminal surface keeps
+// the separate, always-coded `terminal.processExited` wording.
 func (a *App) NoteOf(index int) string {
 	copy := i18n.For(a.Store.Snapshot().Language).Terminal
 	if index < 0 || index >= len(a.Sessions) {
@@ -342,7 +347,10 @@ func (a *App) NoteOf(index int) string {
 	}
 	session := a.Sessions[index]
 	if a.Exited(index) {
-		return copy.ProcessExited(session.ExitCode)
+		if session.ExitCode == 0 {
+			return copy.SessionExited
+		}
+		return copy.SessionExited + " \u00b7 exit " + strconv.Itoa(session.ExitCode)
 	}
 	if index == a.Active {
 		return copy.SessionAttached

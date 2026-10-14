@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1370 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1371 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1370 项测试
+go test -count=1 ./...         # 1371 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,6 +99,38 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
   （同环境 mygo 最小窗口 137 MB）。
 
 ## 最近几轮（详细记录见 plan）
+
+> **最新一轮：P7-fw Sessions 行的退出状态词回到原版（原版 `src/settings/SessionsPage.tsx:173-177`、
+> `src/i18n.ts:179,1085`）**
+> ——P7-fv 收尾后「具体待办（P7-fv 重写）」归零，本轮按规则换入口：逐字段对照原版 Sessions 页的
+> 状态行（此前只对照过排序轴、行事实与关闭武装，状态词本身未比对），把「尚未做」重写为 3 条带
+> file:line / 原版对照 / 验收标准的具体待办（见文末「具体待办（P7-fw 重写）」），并取第 1 条落地。
+> 依赖检查：`go.mod` 已是 **v0.4.8** = GitHub releases latest，无版本可升；只对照 `main`
+> （`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离（P7-fw·Sessions 行把退出码画在干净退出上）**：原版 `SessionsPage.tsx:173-177` 的 `state`
+> 是 `session.exited ? t("terminal.sessionExited") + (session.exitCode !== 0 ? ` · exit ${code}` : "") : ...`，
+> 即 **0 只写「Exited」**、非零才追加原版字面 ` · exit N`。**本构建（改前）**：
+> `internal/terminalui/terminalui.go:338-356` 的 `NoteOf` 对任何结束的会话都返回
+> `copy.ProcessExited(code)`（“Process exited · code 0”），与终端表面 resident note 的那条词混用；
+> `internal/i18n` 只有 `ProcessExited`，没有原版的 `SessionExited`。
+>
+> **落地**：`internal/i18n` 新增 `Terminal.SessionExited`（en “Exited”、zh “已退出”，逐字取
+> `i18n.ts:179,1085`）；`terminalui.NoteOf` 只在非零时拼 `" · exit " + strconv.Itoa(code)`，0 只返回
+> `SessionExited`；`ProcessExited` 仍只属于 resident note。
+>
+> **验收**：`internal/terminalui/sessions_test.go` 新增
+> `TestSessionNoteNamesTheExitCodeOnlyWhenItIsNotZero`（en/zh：0 → “Exited”/“已退出”，3 →
+> “Exited · exit 3”/“已退出 · exit 3”，运行中两态、越界空）；`internal/shell/scripttool_test.go` 的
+> `TestSessionsListReportsEverySession` 追加 ended 行 Note 逐字断言；`internal/i18n/i18n_test.go` 的
+> `TestTerminalBarWordsMatchTheOldDictionary` 补 en/zh `SessionExited`。变异核查：把 `NoteOf` 改回
+> `ProcessExited` → 新测试立刻红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿（1371 项）、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：第 1 条（P7-fw）落地；「具体待办（P7-fw 重写）」还剩第 2·3 条（exited 行状态色 /
+> 整行激活），是下一轮最高优先级。
 
 > **最新一轮：P7-fv About 页更新行回到原版的一行状态机（原版 `src/settings/AboutPage.tsx:35-113`、
 > `src/App.tsx:548-552,2763-2809`、`src/i18n.ts:416-422,1303-1309`）**
@@ -5947,6 +5979,66 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 - 窗口可见时完成反馈落在面板自己的停靠行（隐藏时才发系统通知）——之前可见时什么都不说。
 
 ## 尚未做（按建议优先级）
+
+### 具体待办（P7-fw 重写；第 1 条本轮 P7-fw 落地，余第 2·3 条待做）
+
+审计入口：原版 `main:src/settings/SessionsPage.tsx` 的会话行状态词与行交互（`state`
+`:173-177`、`session-state` 类 `:189`、整行 `onActivate` `:197`），本构建对应
+`internal/terminalui/terminalui.go` 的 `NoteOf`/`LabelOf`、`internal/settingsui/settingsui.go` 的
+`sessions`/`sessionLines`、`internal/settingsui/rows.go` 的 `rowLines`。此前 P7-aj 只对照了排序轴、
+行事实（cwd/尺寸/起始时间）与关闭武装，**状态词与行激活本身未逐字段比对**。依赖检查：`go.mod`
+已是 **v0.4.8** = GitHub releases latest，无版本可升；只对照 `main`（`backup/main-pre-mygo` =
+v0.3.14 原版树），未翻历史提交。
+
+1. **（本轮落地，P7-fw）Sessions 行把退出码画在干净退出上**。
+   - 原版对照：`SessionsPage.tsx:173-177` 的 `state` 为
+     `session.exited ? t("terminal.sessionExited") + (session.exitCode !== 0 ? ` · exit ${session.exitCode}` : "") : session.attached ? t("terminal.sessionAttached") : t("terminal.sessionDetached")`；
+     词条 `i18n.ts:179,1085`（“Exited”/“已退出”）。终端表面的 resident note 是**另一条**词
+     `terminal.processExited`（“Process exited · code {code}”，`i18n.ts:171,1078`）。
+   - 本构建（改前）：`internal/terminalui/terminalui.go:338-356` 的 `NoteOf` 对任何结束的会话都返回
+     `copy.ProcessExited(session.ExitCode)`，于是干净退出画成 “Process exited · code 0”；
+     `internal/i18n` 没有 `SessionExited`，两条词在 Go 侧被并成一条。
+   - 落地 file:line：`internal/i18n/i18n.go` 新增 `Terminal.SessionExited`（en/zh 取原版两条词）；
+     `internal/terminalui/terminalui.go` 的 `NoteOf` 仅在 `ExitCode != 0` 时拼
+     `" · exit " + strconv.Itoa(code)`，0 只返回 `SessionExited`；`ProcessExited` 继续只服务
+     `residentNote`。
+   - 验收：`internal/terminalui/sessions_test.go` 的
+     `TestSessionNoteNamesTheExitCodeOnlyWhenItIsNotZero`（en/zh：0 → “Exited”/“已退出”，3 →
+     “Exited · exit 3”/“已退出 · exit 3”，运行中两态与越界空）；`internal/shell/scripttool_test.go`
+     的 `TestSessionsListReportsEverySession` 追加 ended 行 Note 逐字断言；
+     `internal/i18n/i18n_test.go` 的 `TestTerminalBarWordsMatchTheOldDictionary` 补 en/zh
+     `SessionExited`。变异核查：把 `NoteOf` 改回 `ProcessExited` → 新测试红。
+2. **（待做）exited 行没有原版的 `session-state--exited` 状态色**。
+   - 原版对照：`SessionsPage.tsx:188-191` 把状态词单独放在
+     `<span className={session.exited ? "session-state session-state--exited" : "session-state"}>`，
+     由 `src/styles/settings.css` 的 `.session-state--exited` 给它一个弱化的退出色；行内其它
+     meta（尺寸/时间）仍是普通 muted。
+   - 本构建（改前/现状）：`internal/settingsui/settingsui.go:1237-1260` 的 `sessionLines` 把状态词与
+     size/created 用 `" · "` 拼成一个字符串数组，`internal/settingsui/rows.go:131-133` 的
+     `rowLines` 对每一行一律 `TextColor(t.TextMuted)`——**状态词与其它 meta 同色**，exited 行没有
+     自己的色。
+   - 落地 file:line（建议）：`settingsui.Session` 增加 `Exited bool`（shell 投影 `Running == false`），
+     `sessionLines` 改为返回带色标的状态段（或新增 `rowStateLines` 只给状态行 `TextMuted` 之外的
+     一个 token）；`rows.go` 的 `rowLines` 增加「每个 sublabel 可选色」的口子。
+   - 验收：`internal/settingsui/view_test.go` 新增像素测试——同一 fixture 下，exited 行的状态词
+     与 running 行的状态词 RGB 不同，而 size/created 行仍相等；变异核查：把状态色改回 `TextMuted`
+     → 测试红。若框架的文本节点不暴露逐段色，则如实记入「已知差距」并在此条注明。
+3. **（待做）整行点击不激活会话，只有显式的 Show 按钮**。
+   - 原版对照：`SessionsPage.tsx:197-198` 的 `SettingsRow` 带
+     `onActivate={resumable ? () => onResume(session) : undefined}`，即 **resumable 的行点哪里都
+     恢复会话**；`Play` 按钮是同一动作的显式控件。
+   - 本构建（现状）：`internal/settingsui/settingsui.go:1175-1200` 只把 `rowLines` 的
+     `clicked` 返回值丢弃，恢复只由 `copy.SessionsShow` 按钮触发；`rows.go:174-176` 已经把
+     `names.Clicked()` 记进 `clicked`，但没有接线。
+   - 落地 file:line（建议）：`sessions` 里接住 `a.rowLines(...)` 的返回值，`session.Running` 且
+     非 `session.Active` 时调 `a.Actions.SelectSession(session.Index)`；`Active`/exited 行保持不响应
+     （原版 `resumable = !session.exited && !session.attached`）。
+   - 验收：`internal/settingsui/view_test.go` 新增 `TestClickingAResumableSessionRowResumesIt`
+     （点行标题触发 `SelectSession`；exited 行与 active 行不触发；显式 Show 按钮仍可用）；变异核查：
+     把返回的 `clicked` 忽略 → 测试红。
+
+> P7-fv 之后「尚未做」再次只剩历史清单，本轮按审计入口换到 Sessions 行，把清单重写为上面
+> 3 条带 file:line / 原版对照 / 验收标准的具体待办，并取第 1 条落地。
 
 ### 具体待办（P7-fv 重写；第 1·2·3 条本轮 P7-fv 一并落地；清单归零）
 

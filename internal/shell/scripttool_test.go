@@ -152,6 +152,11 @@ func TestSessionsListReportsEverySession(t *testing.T) {
 	if sessions[2].Running {
 		t.Errorf("the ended session reads as running: %+v", sessions[2])
 	}
+	// The ended row carries the old page's own state line, not the terminal
+	// surface's always-coded resident note (`SessionsPage.tsx:173-177`).
+	if got := sessions[2].Note; got != "Exited · exit 1" {
+		t.Errorf("the ended session's note = %q, want %q", got, "Exited · exit 1")
+	}
 	for i, session := range sessions {
 		if session.Index != i {
 			t.Errorf("session %d has index %d", i, session.Index)

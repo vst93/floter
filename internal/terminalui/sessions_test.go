@@ -61,6 +61,50 @@ func TestSessionsAccumulate(t *testing.T) {
 	}
 }
 
+// The sessions page's state line is the old page's own wording
+// (`main:src/settings/SessionsPage.tsx:173-177`): the exited word alone for a
+// clean exit, and only a non-zero code gets the ` · exit N` suffix. The
+// terminal surface's resident note keeps its separate always-coded
+// `terminal.processExited` word, so the two surfaces cannot borrow each
+// other's sentence.
+func TestSessionNoteNamesTheExitCodeOnlyWhenItIsNotZero(t *testing.T) {
+	store := newStore()
+	a := New(store, Actions{}, nil)
+	a.Sessions = []*Session{
+		{Resident: true, ExitCode: 0},
+		{Resident: true, ExitCode: 3},
+		{Term: &terminal.Terminal{}},
+	}
+	a.Active = 2
+	if got := a.NoteOf(0); got != "Exited" {
+		t.Errorf("a clean exit = %q, want %q", got, "Exited")
+	}
+	if got := a.NoteOf(1); got != "Exited · exit 3" {
+		t.Errorf("a non-zero exit = %q, want %q", got, "Exited · exit 3")
+	}
+	if got := a.NoteOf(2); got != "Running · attached" {
+		t.Errorf("the active session = %q, want %q", got, "Running · attached")
+	}
+	a.Active = 1
+	if got := a.NoteOf(2); got != "Running · detached" {
+		t.Errorf("a background session = %q, want %q", got, "Running · detached")
+	}
+	if got := a.NoteOf(9); got != "" {
+		t.Errorf("an out-of-range index = %q, want empty", got)
+	}
+	// The suffix is the old page's literal, not a translated word: the zh
+	// dictionary still writes `exit N` after its own exited word.
+	if err := store.Update(func(s *settings.Settings) { s.Language = "zh" }); err != nil {
+		t.Fatal(err)
+	}
+	if got := a.NoteOf(0); got != "已退出" {
+		t.Errorf("zh clean exit = %q, want %q", got, "已退出")
+	}
+	if got := a.NoteOf(1); got != "已退出 · exit 3" {
+		t.Errorf("zh non-zero exit = %q, want %q", got, "已退出 · exit 3")
+	}
+}
+
 // Showing a session is switching to it; the one on screen becomes a session
 // behind it rather than closing.
 func TestSelectSessionSwitches(t *testing.T) {

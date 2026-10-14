@@ -1131,9 +1131,12 @@ type Terminal struct {
 	// ended, the output is held on screen, and closing is the user's own
 	// decision.
 	// SessionAttached and SessionDetached are a running session's own state
-	// line: on screen, or running behind the one that is.
+	// line: on screen, or running behind the one that is. SessionExited is the
+	// same line once the program has ended; the sessions page appends the
+	// code only when it is non-zero (see `terminalui.NoteOf`).
 	SessionAttached string
 	SessionDetached string
+	SessionExited   string
 	// HeaderExited is the identity line's sentence once the program has
 	// ended: the session's title, a middle dot and the code the program
 	// returned. It is the old header's `terminal.headerExited`, a different
