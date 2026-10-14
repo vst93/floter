@@ -1027,19 +1027,18 @@ type Settings struct {
 	// is advice rather than a refusal.
 	LocalToolRuntimeSaveWarning func(language string) string
 
-	// The About page's update check.
-	UpdateCheck      string
-	UpdateChecking   string
-	UpdateCurrent    string
-	UpdateDisabled   string
-	UpdateFailed     string
-	UpdateAvailable  func(version string) string
-	UpdateInstall    string
-	UpdateInstalling func(percent int) string
-	UpdateInstalled  string
+	// The About page's update row: the current version line, the state that
+	// follows it, and the one control the state offers.
+	UpdateCurrentVersion string
+	UpdateLatestVersion  string
+	UpdateUpToDate       string
+	UpdateDisabled       string
+	UpdateDownload       string
+	UpdateInstalling     string
+	UpdateRetry          string
+	UpdateFailedRetry    string
 
 	// The About page.
-	AboutVersion      string
 	AboutFramework    string
 	AboutScheme       string
 	AboutSettingsFile string

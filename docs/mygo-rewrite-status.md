@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1369 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1370 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1369 项测试
+go test -count=1 ./...         # 1370 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,6 +99,48 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
   （同环境 mygo 最小窗口 137 MB）。
 
 ## 最近几轮（详细记录见 plan）
+
+> **最新一轮：P7-fv About 页更新行回到原版的一行状态机（原版 `src/settings/AboutPage.tsx:35-113`、
+> `src/App.tsx:548-552,2763-2809`、`src/i18n.ts:416-422,1303-1309`）**
+> ——P7-fu 收尾后「具体待办（P7-fs 重写）」归零，本轮按规则换入口：逐字段对照原版 About 页
+> （此前只做过「无更新源时如实说明」的收尾，更新行本身未对照），把「尚未做」重写为 3 条带
+> file:line / 原版对照 / 验收标准的具体待办（见文末「具体待办（P7-fv 重写）」），并三条一并落地。
+> 依赖检查：`go.mod` 已是 **v0.4.8** = GitHub releases latest，无版本可升；只对照 `main`
+> （`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离（P7-fv·更新行不是原版的一行状态机）**：原版 `AboutPage.tsx:71-111` 是一行
+> `SettingsRow`——label `Current version: v{appVersion}`，sublabel 按 `updateFailed → updateInfo →
+> upToDate` 三选一，control 按 `updateProgress → updateDownloading → updateFailed → updateInfo`
+> 四态画字节进度条 / 禁用的 `Installing…` / `Retry` / `Download`；`App.tsx:2763-2769` 挂载即
+> 自动 `check()`，页面上没有「检查更新」按钮。**本构建（改前）**：`internal/settingsui/settingsui.go`
+> 的 `updateRow` 是「Check for updates」+ 可选「Download and install」+ 自由句 `UpdateStatus`；
+> `internal/shell/update.go` 只存本地化字符串，版本/下载中/失败/进度不可区分，启动也不检查。
+>
+> **落地**：
+> - `internal/settingsui/settingsui.go`：新增 `UpdateState`/`UpdateProgress` 与四态 `updateRow`；
+>   新增 `updateProgress`（track + accent bar + 读数）、`updateProgressLabel`、`formatBytes`（逐字
+>   复刻 `AboutPage.tsx:9-15,45-48,75-88`）；删掉 `Actions.CheckForUpdates` 与旧
+>   `UpdateStatus`/`UpdateReady`。
+> - `internal/shell/update.go`：`checkForUpdates`/`installUpdate` 改写状态机；`installUpdate`
+>   先重查再装（复刻 `downloadAndInstallUpdate`），失败可重试，成功后 `relaunchApp()`；
+>   `Start()`（`shell.go:1182`）启动即检查，复刻原版挂载检查。
+> - `internal/i18n`：删掉旧的 `UpdateCheck/UpdateChecking/UpdateCurrent/UpdateFailed/
+>   UpdateAvailable/UpdateInstall/UpdateInstalling/UpdateInstalled/AboutVersion`，换成原版八条
+>   （`UpdateCurrentVersion`/`UpdateLatestVersion`/`UpdateUpToDate`/`UpdateDisabled`/
+>   `UpdateDownload`/`UpdateInstalling`/`UpdateRetry`/`UpdateFailedRetry`），en/zh 逐字取
+>   `i18n.ts:416-422,1303-1309`。
+>
+> **验收**：`internal/settingsui/view_test.go` 新增 `TestAboutUpdateRowFollowsTheOldStateMachine`
+> （五行/四态逐字与 Download/Retry 落点）与 `TestUpdateProgressFormatting`（`formatBytes` 七例、
+> 两条 label、越界 100% 夹取）；`internal/shell/shell_test.go` 的 `TestUpdateCheckWithoutAFeed`
+> 改断状态机。变异核查：把 control 分支换回「Check for updates」→ 状态机测试红；把 `formatBytes`
+> 换回整数打印 → 进度测试红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿（1370 项）、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：「具体待办（P7-fv 重写）」3 条**全部结清、清单归零**。下一轮回到「对照原版排查
+> 偏离点」，重新写实清单。
 
 > **最新一轮：P7-fu 扩展 homepage 的任何打开失败都成为错误通知
 > （原版 `src/ExtensionsPanel.tsx:2577-2580`）**
@@ -5905,6 +5947,60 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 - 窗口可见时完成反馈落在面板自己的停靠行（隐藏时才发系统通知）——之前可见时什么都不说。
 
 ## 尚未做（按建议优先级）
+
+### 具体待办（P7-fv 重写；第 1·2·3 条本轮 P7-fv 一并落地；清单归零）
+
+审计入口：原版 `main:src/settings/AboutPage.tsx`（`AboutPage` `:35-113`）与 `main:src/App.tsx`
+的更新状态（`:548-552`、`:2763-2809`），本构建对应 `internal/settingsui/settingsui.go` 的
+`updateRow`/`about`、`internal/shell/update.go` 的 `checkForUpdates`/`installUpdate`、
+`internal/i18n` 的 `Settings.Update*`。此前 About 页只做过「有无更新源」的收尾，更新行本身
+从未逐字段对照。依赖检查：`go.mod` 已是 **v0.4.8** = GitHub releases latest，无版本可升；
+只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+
+1. **（本轮落地，P7-fv）更新行不是原版的一行状态机**。
+   - 原版对照：`AboutPage.tsx:71-111` 是**一行** `SettingsRow`：label
+     `` `${t("settings.currentVersion")}: v${appVersion}` ``，sublabel 为
+     `updateFailed ? t("settings.updateFailed") : updateInfo ? `${t("settings.latestVersion")}: v${updateInfo.version}` : t("settings.upToDate")`，
+     control 按 `updateProgress → updateDownloading → updateFailed → updateInfo` 四态选进度条 /
+     禁用的 `settings.installing` / `settings.retry` / `settings.downloadUpdate`；词条在
+     `i18n.ts:416-422,1303-1309`。`App.tsx:2763-2769` 在挂载时自动 `check()`，页面没有
+     「检查更新」按钮。
+   - 本构建（改前）：`internal/settingsui/settingsui.go:2396-2420` 的 `updateRow` 是
+     「Check for updates」按钮 + 可选「Download and install」+ 自由句 `UpdateStatus`；
+     `internal/shell/update.go:25-88` 只把本地化字符串塞进 `UpdateStatus`/`UpdateReady`，
+     版本、下载中、失败、进度都不可区分；启动时不检查。
+   - 落地 file:line：`internal/settingsui/settingsui.go` 新增 `UpdateState`/`UpdateProgress` 与
+     `updateRow` 四态；`internal/shell/update.go` 改为写状态机并在 `Start()`（`shell.go:1182`）
+     自动 `checkForUpdates()`；`internal/i18n` 换成原版八条词。
+   - 验收：`internal/settingsui/view_test.go` 的
+     `TestAboutUpdateRowFollowsTheOldStateMachine`（五行/四态逐字与按钮落点）；变异核查：把
+     control 分支换回「Check for updates」→ 测试红。
+2. **（本轮落地，P7-fv）下载进度没有原版的字节条与读数**。
+   - 原版对照：`AboutPage.tsx:45-48,75-88` 的 `updatePercent`（`Math.min(100, downloaded/total*100)`）、
+     `formatBytes`（`:9-15`，B/KB/MB/GB，整数字节、其余一位小数、`0 B`）与
+     `` `${Math.round(updatePercent)}% · ${formatBytes(downloaded)} / ${formatBytes(total)}` ``，
+     无 total 时只显示 `formatBytes(downloaded)`；CSS 见 `src/styles/settings.css:1570-1599`。
+   - 本构建（改前）：`UpdateInstalling func(percent int) string` 只给一句
+     “Downloading… N%”，没有条、没有 bytes/total，也没有 `formatBytes`。
+   - 落地 file:line：`internal/settingsui/settingsui.go` 新增 `updateProgress`、
+     `updateProgressLabel`、`formatBytes`（逐字复刻原版四单位与取整规则）。
+   - 验收：`TestUpdateProgressFormatting`（`formatBytes` 七例、两条 label、越界 100% 夹取）；
+     变异核查：把 `formatBytes` 换回 `strconv.Itoa` → 测试红。
+3. **（本轮落地，P7-fv）失败后没有原版的 Retry，成功后也不重启**。
+   - 原版对照：`AboutPage.tsx:93-100` 失败态画 `settings.retry` 按钮，点击调
+     `onDownloadUpdate`（即 `App.tsx:2771-2809` 的 `downloadAndInstallUpdate`：重新 `check()`，
+     失败置 `updateFailed`，成功 `await update.install(); await relaunch()`）。
+   - 本构建（改前）：`internal/settingsui/settingsui.go:2415-2417` 失败只画一行自由文本；
+     `internal/shell/update.go:49-78` 成功后只写 “installed; restarts on the next launch”，
+     不重启。
+   - 落地 file:line：`internal/shell/update.go` 的 `installUpdate` 先重查再装、失败态可重试、
+     成功后 `relaunchApp()`（新增 `Options.Relaunch` 注入缝，默认 `mygo.App.Relaunch`）。
+   - 验收：`TestAboutUpdateRowFollowsTheOldStateMachine` 的 Retry 分支；`internal/shell` 侧由
+     注入缝保持可测（成功路径不替换测试进程）。变异核查：删掉 `installUpdate` 的重查 → 无 feed
+     测试不再落到 `Disabled`。
+
+> P7-fu 之后「尚未做」再次只剩历史清单，本轮按审计入口换到 About 页更新行，把清单重写为上面
+> 3 条带 file:line / 原版对照 / 验收标准的具体待办，并**三条一并落地**。
 
 ### 具体待办（P7-fs 重写；第 1 条 P7-fs、第 2 条 P7-ft、第 3 条 P7-fu 均已落地；清单归零）
 

@@ -2170,13 +2170,13 @@ func TestTerminalResizeIsStored(t *testing.T) {
 }
 
 // A build without an update feed says so rather than pretending to look, and
-// the status lands on the About page.
+// the state lands on the About page.
 func TestUpdateCheckWithoutAFeed(t *testing.T) {
 	a := newApp(t)
 	a.checkForUpdates()
 	deadline := time.Now().Add(5 * time.Second)
 	for {
-		if a.Settings.UpdateStatus != "" {
+		if a.Settings.Update.Checked {
 			break
 		}
 		if time.Now().After(deadline) {
@@ -2184,13 +2184,14 @@ func TestUpdateCheckWithoutAFeed(t *testing.T) {
 		}
 		time.Sleep(5 * time.Millisecond)
 	}
-	if a.Settings.UpdateStatus != "This build has no update feed" {
-		t.Errorf("status = %q", a.Settings.UpdateStatus)
+	if !a.Settings.Update.Disabled {
+		t.Errorf("update state = %+v, want the no-feed state", a.Settings.Update)
 	}
-	if a.Settings.UpdateReady {
-		t.Error("an update is ready in a build with no feed")
+	if a.Settings.Update.Available {
+		t.Error("an update is available in a build with no feed")
 	}
-	// Installing with nothing pending is a no-op, not a panic.
+	// Installing with no feed is a no-op that lands in the same state, not a
+	// panic.
 	a.installUpdate()
 }
 

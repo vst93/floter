@@ -140,10 +140,10 @@ type Actions struct {
 	// DeleteOrphan removes an orphan package directory.
 	AdoptIntegration func(id string)
 	DeleteOrphan     func(id string)
-	// CheckForUpdates asks the build's update feed for a newer version, and
-	// InstallUpdate downloads and installs the one it found.
-	CheckForUpdates func()
-	InstallUpdate   func()
+	// InstallUpdate downloads and installs the update the last check found,
+	// re-checking first the way the old build's `downloadAndInstallUpdate`
+	// did. Nil hides the update row's control.
+	InstallUpdate func()
 	// ExportIntegrations writes the installed integrations to a file the user
 	// picks, and ImportIntegrations applies one they pick.
 	ExportIntegrations func()
@@ -470,6 +470,35 @@ type About struct {
 	RepoURL      string
 }
 
+// UpdateProgress is the bytes a running update download has and the total it
+// expects. Total is 0 when the feed did not report one, which is the state the
+// old build's progress label drew as a bare downloaded count.
+type UpdateProgress struct {
+	Downloaded int64
+	Total      int64
+}
+
+// UpdateState is the About page's update row, as the last check and the running
+// download left it: the old build's `updateInfo` / `updateDownloading` /
+// `updateProgress` / `updateFailed` quartet, plus the no-feed state this build
+// can be in.
+type UpdateState struct {
+	// Checked is true once a check has answered (found, up to date, or
+	// disabled); a failed check is also an answer and sets Failed.
+	Checked bool
+	// Available is true when the check found a newer version, named by
+	// Version.
+	Available bool
+	Version   string
+	// Downloading is true from the moment the download starts until it
+	// finishes or fails; Progress is set while the bytes are moving.
+	Downloading bool
+	Failed      bool
+	// Disabled is true when the build has no update feed at all.
+	Disabled bool
+	Progress *UpdateProgress
+}
+
 // App is the settings surface's state.
 type App struct {
 	Store   *settings.Store
@@ -620,10 +649,9 @@ type App struct {
 	// Page is the chosen page, an index into the sidebar.
 	Page int
 
-	// UpdateStatus is what the last update check said, and UpdateReady
-	// whether an update is waiting to be installed.
-	UpdateStatus string
-	UpdateReady  bool
+	// Update is the About page's update state: what the last check found,
+	// whether a download is running, and the bytes it has so far.
+	Update UpdateState
 	// copiedLink is the deep-link value the About page's copy button last put
 	// on the clipboard, and copiedLinkUntil when its confirmation expires. The
 	// button reads "Link copied" while it holds (the old build's 1.6s), so a
@@ -2393,29 +2421,111 @@ func (a *App) recordShortcut(action, accelerator string) {
 	}
 }
 
-// updateRow is the About page's update check: the button, the line the last
-// check left behind, and the install button when there is something to
-// install.
+// updateRow is the About page's update row: the version line the old
+// AboutPage drew (`Current version: v…`), the state that follows it, and the
+// one control the state offers. The state machine is the old build's:
+//
+//	progress  → the byte bar and its readout
+//	downloading → a disabled "Installing…" button
+//	failed    → a "Retry" button
+//	available → a "Download" button
+//	otherwise → no control
+//
+// The build's no-feed state has no old-build counterpart; it keeps the row and
+// says so in the sublabel rather than pretending an update was checked.
 func (a *App) updateRow(c *ui.Context, copy i18n.Settings) {
-	t := c.Theme()
-	ui.Row(c).Gap(t.Space(2)).AlignItems(ui.Center).Children(func() {
-		if a.Actions.CheckForUpdates != nil {
-			if ui.Button(c, copy.UpdateCheck).Clicked() {
-				a.UpdateStatus = copy.UpdateChecking
-				a.UpdateReady = false
-				a.Actions.CheckForUpdates()
+	state := a.Update
+	sublabel := copy.UpdateUpToDate
+	switch {
+	case state.Disabled:
+		sublabel = copy.UpdateDisabled
+	case state.Failed:
+		sublabel = copy.UpdateFailedRetry
+	case state.Available:
+		sublabel = copy.UpdateLatestVersion + ": v" + state.Version
+	}
+	a.row(c, copy.UpdateCurrentVersion+": v"+a.About.Version, sublabel, func() {
+		switch {
+		case state.Progress != nil:
+			a.updateProgress(c, state.Progress)
+		case state.Downloading:
+			ui.Button(c, copy.UpdateInstalling).Disabled(true)
+		case state.Failed:
+			if ui.Button(c, copy.UpdateRetry).Clicked() && a.Actions.InstallUpdate != nil {
+				a.Actions.InstallUpdate()
 			}
-		}
-		if a.UpdateReady && a.Actions.InstallUpdate != nil {
-			if ui.Button(c, copy.UpdateInstall).Clicked() {
-				a.UpdateStatus = copy.UpdateInstalling(0)
+		case state.Available:
+			if ui.Button(c, copy.UpdateDownload).Clicked() && a.Actions.InstallUpdate != nil {
 				a.Actions.InstallUpdate()
 			}
 		}
-		if a.UpdateStatus != "" {
-			ui.Text(c, a.UpdateStatus).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
-		}
 	})
+}
+
+// updateProgress is the old `.update-banner__progress`: a track with the
+// accent bar over it and the tabular readout under it (`42% · 1.5 MB / 3.6 MB`,
+// or just the downloaded count when the feed named no total).
+func (a *App) updateProgress(c *ui.Context, progress *UpdateProgress) {
+	t := c.Theme()
+	tokens := a.tokens(c)
+	track := t.Space(45)
+	fraction := float32(0)
+	if progress.Total > 0 {
+		fraction = float32(progress.Downloaded) / float32(progress.Total)
+		if fraction > 1 {
+			fraction = 1
+		}
+		if fraction < 0 {
+			fraction = 0
+		}
+	}
+	ui.Column(c).Shrink(0).Width(track).Gap(t.Space(1.25)).Children(func() {
+		bar := ui.Row(c).Width(track).Height(t.Space(1)).Radius(tokens.RadiusXS).
+			Background(tokens.Track).Border(1, tokens.TrackEdge)
+		bar.Children(func() {
+			if fraction > 0 {
+				ui.Box(c).Width(track * fraction).Height(t.Space(1)).
+					Radius(tokens.RadiusXS).Background(t.Accent)
+			}
+		})
+		ui.Text(c, updateProgressLabel(progress)).FontSize(tokens.Caption).TextColor(t.TextMuted)
+	})
+}
+
+// updateProgressLabel is the progress readout the old build formatted inline:
+// `Math.round(percent)% · formatBytes(downloaded) / formatBytes(total)`, or
+// `formatBytes(downloaded)` when there is no total.
+func updateProgressLabel(progress *UpdateProgress) string {
+	if progress.Total <= 0 {
+		return formatBytes(progress.Downloaded)
+	}
+	percent := int(math.Round(float64(progress.Downloaded) * 100 / float64(progress.Total)))
+	if percent > 100 {
+		percent = 100
+	}
+	if percent < 0 {
+		percent = 0
+	}
+	return strconv.Itoa(percent) + "% \u00b7 " + formatBytes(progress.Downloaded) + " / " + formatBytes(progress.Total)
+}
+
+// formatBytes is the old AboutPage's `formatBytes`: B/KB/MB/GB, whole bytes,
+// one decimal above that, and "0 B" for anything not positive.
+func formatBytes(bytes int64) string {
+	if bytes <= 0 {
+		return "0 B"
+	}
+	units := []string{"B", "KB", "MB", "GB"}
+	value := float64(bytes)
+	index := 0
+	for value >= 1024 && index < len(units)-1 {
+		value /= 1024
+		index++
+	}
+	if index == 0 {
+		return strconv.FormatInt(int64(math.Round(value)), 10) + " B"
+	}
+	return strconv.FormatFloat(value, 'f', 1, 64) + " " + units[index]
 }
 
 // about shows the build's identity and where its files live.
@@ -2427,7 +2537,6 @@ func (a *App) about(c *ui.Context, copy i18n.Settings) {
 		// page's rows carry the same facts in the card the update check acts
 		// from.
 		a.card(c, func() {
-			a.keyValue(c, copy.AboutVersion, about.Version)
 			a.keyValue(c, copy.AboutFramework, about.Framework)
 			a.keyValue(c, copy.AboutScheme, about.Scheme)
 			a.keyValue(c, copy.AboutSettingsFile, about.SettingsPath)

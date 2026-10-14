@@ -178,6 +178,9 @@ type Options struct {
 	// Notify raises a system notification; nil uses the framework's, and
 	// tests record what would have been shown.
 	Notify func(title, body string)
+	// Relaunch starts the freshly installed version after an update; nil uses
+	// the framework's own relaunch, and tests record the call.
+	Relaunch func()
 	// ConfirmDialog answers a confirmation the settings ask for (clearing the
 	// clipboard history); nil uses the framework's own dialog, and tests
 	// answer for themselves. The launcher's confirmations are the panel's own
@@ -378,6 +381,7 @@ type App struct {
 	saveFileDialog       func(defaultName string) (string, error)
 	openFileDialog       func() (string, error)
 	notify               func(title, body string)
+	relaunch             func()
 	// onScreen overrides the panel's on-screen answer; tests replace it so
 	// the two completion channels (the panel's own row, the system
 	// notification) can both be exercised without a live window.
@@ -501,6 +505,7 @@ func New(opts Options) *App {
 		saveFileDialog:       opts.SaveFileDialog,
 		openFileDialog:       opts.OpenFileDialog,
 		notify:               opts.Notify,
+		relaunch:             opts.Relaunch,
 		confirmDialog:        opts.ConfirmDialog,
 		runPowerCommand:      opts.RunPowerCommand,
 		openPathCommand:      opts.OpenPath,
@@ -775,7 +780,6 @@ func New(opts Options) *App {
 				a.RefreshIntegrations(context.Background())
 			}()
 		},
-		CheckForUpdates:       a.checkForUpdates,
 		InstallUpdate:         a.installUpdate,
 		ConnectRecommended:    a.connectRecommended,
 		SaveConfiguration:     a.saveIntegrationConfiguration,
@@ -1176,6 +1180,9 @@ func (a *App) Start() {
 		}
 	})
 	a.ApplyStartup()
+	// The old build checked for an update as soon as it mounted, so the About
+	// page was already answered when the user opened it; this is that check.
+	a.checkForUpdates()
 	a.InstallMenu()
 	a.lastMenubarIcon = settings.ShowMenubarIcon(a.Store.Snapshot())
 	a.lastTrayLanguage = a.Store.Snapshot().Language

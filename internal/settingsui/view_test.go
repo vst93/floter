@@ -1576,44 +1576,119 @@ func TestOrphanRowsOfferAdoptAndDelete(t *testing.T) {
 	}
 }
 
-// The About page offers the update check, and shows what it found.
-func TestAboutUpdateCheck(t *testing.T) {
-	checked, installed := 0, 0
-	a := New(newStore(t), Actions{
-		CheckForUpdates: func() { checked++ },
-		InstallUpdate:   func() { installed++ },
-	})
+// The About page's update row is the old AboutPage's state machine: the
+// current version line, the state that follows it, and the one control the
+// state offers.
+func TestAboutUpdateRowFollowsTheOldStateMachine(t *testing.T) {
+	en := i18n.For("en").Settings
+	installed := 0
+	a := New(newStore(t), Actions{InstallUpdate: func() { installed++ }})
 	a.About = About{Name: "floter", Version: "0.3.14"}
 	tt := render(t, a, 720, 620)
 	if err := tt.Click("About"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	if err := tt.Click("Check for updates"); err != nil {
-		t.Fatal(err)
+
+	// Before anything is found the row says it is up to date and offers no
+	// control, exactly as the old page did with `updateInfo === null`.
+	if !tt.HasText(en.UpdateCurrentVersion + ": v0.3.14") {
+		t.Errorf("the current-version line is missing: %q", tt.Texts())
 	}
-	tt.Frame()
-	if checked != 1 {
-		t.Fatalf("checked %d times", checked)
+	if !tt.HasText(en.UpdateUpToDate) {
+		t.Errorf("the up-to-date line is missing: %q", tt.Texts())
 	}
-	// The button leaves a line behind while the check runs.
-	if !tt.HasText("Checking\u2026") {
-		t.Errorf("the status line is missing: %q", tt.Texts())
+	if tt.HasText(en.UpdateDownload) {
+		t.Errorf("an update control appeared with nothing to install: %q", tt.Texts())
 	}
 
-	// An update that was found offers to install it.
-	a.UpdateStatus = "floter 0.4.0 is available"
-	a.UpdateReady = true
+	// An available update names its version and offers Download.
+	a.Update = UpdateState{Checked: true, Available: true, Version: "0.4.0"}
 	tt.Frame()
-	if !tt.HasText("Download and install") {
-		t.Fatalf("the install button is missing: %q", tt.Texts())
+	if !tt.HasText(en.UpdateLatestVersion + ": v0.4.0") {
+		t.Errorf("the latest-version line is missing: %q", tt.Texts())
 	}
-	if err := tt.Click("Download and install"); err != nil {
+	if err := tt.Click(en.UpdateDownload); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
 	if installed != 1 {
-		t.Errorf("installed %d times", installed)
+		t.Errorf("Download ran the install %d times", installed)
+	}
+
+	// A running download swaps the control for the byte bar and its readout;
+	// the disabled button is the old `updateDownloading` branch.
+	a.Update = UpdateState{Checked: true, Available: true, Version: "0.4.0", Downloading: true,
+		Progress: &UpdateProgress{Downloaded: 1536, Total: 3072}}
+	tt.Frame()
+	if !tt.HasText("50% \u00b7 1.5 KB / 3.0 KB") {
+		t.Errorf("the progress readout is missing: %q", tt.Texts())
+	}
+	if tt.HasText(en.UpdateDownload) {
+		t.Errorf("the Download button stayed up during the download: %q", tt.Texts())
+	}
+
+	// The disabled Installing… button is the branch with no progress yet.
+	a.Update = UpdateState{Checked: true, Available: true, Version: "0.4.0", Downloading: true}
+	tt.Frame()
+	if !tt.HasText(en.UpdateInstalling) {
+		t.Errorf("the Installing\u2026 button is missing: %q", tt.Texts())
+	}
+
+	// A failure keeps the row and offers Retry, which re-runs the install
+	// path the old page's `onDownloadUpdate` did.
+	a.Update = UpdateState{Checked: true, Failed: true}
+	tt.Frame()
+	if !tt.HasText(en.UpdateFailedRetry) {
+		t.Errorf("the retry line is missing: %q", tt.Texts())
+	}
+	if err := tt.Click(en.UpdateRetry); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if installed != 2 {
+		t.Errorf("Retry ran the install %d times", installed)
+	}
+
+	// A build with no feed says so and offers nothing to press.
+	a.Update = UpdateState{Checked: true, Disabled: true}
+	tt.Frame()
+	if !tt.HasText(en.UpdateDisabled) {
+		t.Errorf("the no-feed line is missing: %q", tt.Texts())
+	}
+	if tt.HasText(en.UpdateDownload) || tt.HasText(en.UpdateRetry) {
+		t.Errorf("a control appeared in the no-feed state: %q", tt.Texts())
+	}
+}
+
+// formatBytes and updateProgressLabel are the old AboutPage's own formatting
+// helpers, moved to Go.
+func TestUpdateProgressFormatting(t *testing.T) {
+	for _, tc := range []struct {
+		bytes int64
+		want  string
+	}{
+		{0, "0 B"},
+		{-1, "0 B"},
+		{512, "512 B"},
+		{1024, "1.0 KB"},
+		{1536, "1.5 KB"},
+		{1048576, "1.0 MB"},
+		{1610612736, "1.5 GB"},
+	} {
+		if got := formatBytes(tc.bytes); got != tc.want {
+			t.Errorf("formatBytes(%d) = %q, want %q", tc.bytes, got, tc.want)
+		}
+	}
+
+	if got := updateProgressLabel(&UpdateProgress{Downloaded: 1536, Total: 3072}); got != "50% \u00b7 1.5 KB / 3.0 KB" {
+		t.Errorf("progress label = %q", got)
+	}
+	if got := updateProgressLabel(&UpdateProgress{Downloaded: 1536}); got != "1.5 KB" {
+		t.Errorf("progress label without a total = %q", got)
+	}
+	if got := updateProgressLabel(&UpdateProgress{Downloaded: 9999, Total: 1000}); got != "100% \u00b7 9.8 KB / 1000 B" {
+		t.Errorf("a past-total progress label = %q", got)
 	}
 }
 
