@@ -99,7 +99,47 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-da 计算器历史的裁剪与归一化对齐原版（原版 `src-tauri/src/calculator_history.rs`、
+> **最新一轮：P7-db Hyprland 窗口整形对齐原版（原版 `src-tauri/src/hyprland.rs`、
+> `src-tauri/src/lib.rs:1109-1127`）**
+> —— P7-da 之后「尚未做」又一次为空，本轮按上节建议换入口做「逐文件对照原版」的审计（与
+> P7-ci/P7-ck/P7-ct/P7-cw/P7-cz/P7-da 同一手法）：拿 `internal/settings` + `internal/shell` 的
+> 窗口整形对原版 `hyprland.rs`。依赖检查：GitHub releases API 本轮仍被限流，用
+> `go list -m -versions github.com/egoist/mygo` 代替，停在 **v0.4.8**（与 `go.mod` 一致），
+> 无版本可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离点（两处可做 + 一处卡框架）**：
+> 1. **空白的 `HYPRLAND_INSTANCE_SIGNATURE` 被当成 Hyprland**：原版
+>    `hyprland_signature_detected`（`hyprland.rs:48-50`）先 `trim()` 再判空，只含空白的导出
+>    不是会话；本构建 `internal/settings/settings.go:586-591` 的 `DefaultHideOnBlur` 用
+>    `os.Getenv(...) == ""`，于是 `"   "` 会错误地关掉 `hide_on_blur`。
+> 2. **`ensure_floating` 完全没有移植**：原版 `FLOATING_DISPATCHES`（`hyprland.rs:41-43`）与
+>    `ensure_floating`（`:77-88`）在 `reveal_window`（`lib.rs:1109-1127`）的 `show()`+`set_focus()`
+>    之后、后续几何调用之前逐条跑 `hyprctl dispatch setfloating` / `centerwindow`；本构建仓库里
+>    `grep -rn hyprctl internal cmd` 为空，Hyprland 下新 toplevel 被平铺铺满，`placeWindow` 设的
+>    尺寸被合成器覆盖。
+> 3. **托盘身份是固定字面量**（卡框架）：原版 `tray_identity.rs:28-30` 用
+>    `com.v.floter.tray`（bundle id + `.tray`）避免两个 appindicator 应用撞 SNI 对象路径；本构建
+>    `mygo.NewTray` 的 `TrayOptions`（`mygo@v0.4.8`）没有 id 字段，改不了。规格写进待办第 3 条。
+>
+> **修法**：`internal/settings/settings.go` 新增 `HyprlandSignatureEnv` / `HyprlandDetected`
+> （`strings.TrimSpace(...) != ""`）/ `HyprlandSession`，`DefaultHideOnBlur` 改走它；
+> 新增 `internal/shell/hyprland.go`——`hyprlandFloatingDispatches`（setfloating 后 centerwindow，
+> 不用 togglefloating）、`runHyprlandFloating(detected, run)`（`run` 注入）与
+> `(*App).ensureHyprlandFloating`（Linux-only，best-effort）；`Show()` 在 `Focus()` 后调用它，
+> 命中时再 `placeWindow()` 一次，让面板尺寸落在浮动窗口上。
+>
+> **测试**：`internal/settings/settings_test.go` 的
+> `TestHyprlandSignatureBlanksAreNotASession`（`"abc123"`/`" abc123 "` → true，`""`/`"   "`/
+> `"\t\n"` → false；`t.Setenv` 钉住 `DefaultHideOnBlur` 的两种取值）；
+> `internal/shell/hyprland_test.go` 的 `TestHyprlandFloatingIsASetNotAToggle`（顺序 + 不含
+> `togglefloating`）、`TestHyprlandFloatingSkipsOtherSessions`、
+> `TestHyprlandFloatingIgnoresAFailedDispatch`（首条失败仍跑第二条）。变异核查：把
+> `HyprlandDetected` 换回 `== ""`、把 `FLOATING_DISPATCHES` 换成 `togglefloating`，新用例各自
+> 立刻变红。
+> 门槛：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+> **上一轮：P7-da 计算器历史的裁剪与归一化对齐原版（原版 `src-tauri/src/calculator_history.rs`、
 > `src-tauri/src/commands/config.rs`）**
 > —— P7-cz 之后清单再次为空，本轮按上节建议换入口做「逐文件对照原版」的审计（与
 > P7-ci/P7-ck/P7-ct/P7-cw/P7-cz 同一手法）：拿 `internal/calculator` + `internal/settings` 的
@@ -2855,6 +2895,55 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 - 窗口可见时完成反馈落在面板自己的停靠行（隐藏时才发系统通知）——之前可见时什么都不说。
 
 ## 尚未做（按建议优先级）
+
+### 具体待办（P7-db 重写；第 1、2 条已落地，第 3 条卡 mygo 框架）
+
+> 本轮换入口：逐文件对照原版的 **Hyprland 窗口整形**（`src-tauri/src/hyprland.rs`）与它的调用点
+> （`src-tauri/src/lib.rs` 的 `reveal_window`），把清单写成下面三条带 file:line 的具体待办，
+> 并取第 1、2 条落地（见「最近几轮」P7-db）。依赖检查：GitHub releases API 被限流，用
+> `go list -m -versions github.com/egoist/mygo` 代替，仍停在 **v0.4.8**（与 `go.mod` 一致），
+> 无版本可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+
+1. **空白的 `HYPRLAND_INSTANCE_SIGNATURE` 不算 Hyprland 会话**（已落地，P7-db）。
+   - 原版对照：`main:src-tauri/src/hyprland.rs:48-50` 的 `hyprland_signature_detected`——
+     `signature.is_some_and(|value| !value.trim().is_empty())`；`:64-66` 的 `default_hide_on_blur_for`
+     取反。注释明写「a missing or blank value is not a Hyprland session… an empty one would be a
+     broken export」；`:114-121` 的测试钉住 `"   "` → false。
+   - 本构建（改前）：`internal/settings/settings.go:586-591` 的 `DefaultHideOnBlur` 直接
+     `os.Getenv("HYPRLAND_INSTANCE_SIGNATURE") == ""`，于是只含空白的导出（`"   "`）被当成
+     Hyprland，**错误地关掉 `hide_on_blur`**。
+   - 验收：`HyprlandDetected("   ")` == false、`HyprlandDetected(" abc123 ")` == true；
+     `DefaultHideOnBlur()` 在空白签名下为 true、在真签名下为 false。
+     **已落地**：`internal/settings/settings.go` 新增 `HyprlandSignatureEnv` / `HyprlandDetected` /
+     `HyprlandSession`，`DefaultHideOnBlur` 走它；测试
+     `internal/settings/settings_test.go` 的 `TestHyprlandSignatureBlanksAreNotASession`。
+2. **Hyprland 的 `setfloating` + `centerwindow` 整形完全没有移植**（已落地，P7-db）。
+   - 原版对照：`main:src-tauri/src/hyprland.rs:41-43` 的 `FLOATING_DISPATCHES`
+     （`["dispatch","setfloating"]` 然后 `["dispatch","centerwindow"]`，`setfloating` 是**集合**不是
+     toggle）、`:77-88` 的 `ensure_floating`（逐条 `hyprctl`，失败全忽略）；调用点
+     `main:src-tauri/src/lib.rs:1109-1127` 的 `reveal_window`——`show()` + `set_focus()` 之后、
+     后续 `resize_window`/`move_to_default_position` 之前调用，`#[cfg(target_os = "linux")]`。
+   - 本构建（改前）：仓库里根本没有 `hyprctl`/`setfloating`（`grep -rn hyprctl internal cmd` 为空），
+     Hyprland 下新 toplevel 被平铺铺满，`placeWindow` 设的尺寸/位置被合成器覆盖。
+   - 验收：`runHyprlandFloating(true, run)` 依次跑 `hyprctl dispatch setfloating` 与
+     `hyprctl dispatch centerwindow`，不含 `togglefloating`；`detected=false` 时一次都不跑；
+     单条失败被吞掉且后续照跑。
+     **已落地**：`internal/shell/hyprland.go` 的 `hyprlandFloatingDispatches` / `runHyprlandFloating`
+     （`run` 注入）/ `(*App).ensureHyprlandFloating`（Linux-only）；`internal/shell/shell.go` 的
+     `Show()` 在 `Focus()` 后调用它，命中时再 `placeWindow()` 一次，让面板尺寸落在浮动窗口上；
+     测试 `internal/shell/hyprland_test.go` 的三条。
+3. **托盘图标的身份是固定字面量，会和别的 appindicator 应用撞车**（卡 mygo 框架，未做）。
+   - 原版对照：`main:src-tauri/src/tray_identity.rs:28-30` 的 `TRAY_ICON_ID = "com.v.floter.tray"`
+     （bundle identifier + `.tray`），`:36-45` 的 `appindicator_id` 复刻 `tray-icon` 拼出的
+     `"tray-icon tray app <id>"`；`tray-icon` 0.24.2 的 GTK 后端拿这一个字符串派生出 SNI `Id`、
+     对象路径、菜单路径和 `$XDG_RUNTIME_DIR` 下的图标文件，所以两个 Tauri 应用传同一 tray id
+     会发布同一身份、后注册者顶掉先注册者。
+   - 本构建：`internal/shell/system.go:108-112` 的 `mygo.NewTray(mygo.TrayOptions{…})` 没有 id 字段
+     （`mygo@v0.4.8` 的 `TrayOptions` 只有 Icon/IconIsTemplate/Title/ToolTip/Menu），身份由框架
+     决定，无法从应用侧改成 bundle id。
+   - 验收（框架给 `TrayOptions.ID` 之后）：Linux 上 `mygo.NewTray` 收到 `com.v.floter.tray`，
+     SNI 对象路径为 `/org/ayatana/NotificationItem/<clean id>`；另一进程注册不同 id 时不互相顶替。
+     规格先记在这里，等 mygo 提供旋钮再落地。
 
 ### 具体待办（P7-da 重写；四条已全部落地，同为 P7-da）
 

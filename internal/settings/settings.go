@@ -583,11 +583,30 @@ func NormalizeResidencySeconds(seconds uint32) uint32 {
 	return seconds
 }
 
+// HyprlandSignatureEnv is the environment variable every Hyprland session
+// exports; its value is the instance signature used to find the compositor's
+// socket.
+const HyprlandSignatureEnv = "HYPRLAND_INSTANCE_SIGNATURE"
+
+// HyprlandDetected reports whether a signature value means "this is a Hyprland
+// session". A missing or blank value is not one: the variable exists only when
+// Hyprland launched the process, so an empty or whitespace-only export is
+// broken rather than a session. The rule is a function of the value so the
+// blank cases stay a unit test rather than a machine check.
+func HyprlandDetected(signature string) bool {
+	return strings.TrimSpace(signature) != ""
+}
+
+// HyprlandSession reads the live environment.
+func HyprlandSession() bool {
+	return HyprlandDetected(os.Getenv(HyprlandSignatureEnv))
+}
+
 // DefaultHideOnBlur is the shipped window behaviour: the panel hides when it
 // loses focus, except under Hyprland, where a tiled compositor's focus
 // hand-off makes the panel read as vanishing for no reason.
 func DefaultHideOnBlur() bool {
-	return os.Getenv("HYPRLAND_INSTANCE_SIGNATURE") == ""
+	return !HyprlandSession()
 }
 
 // NormalizeOpacity clamps a transparency percentage to the shipped band. A

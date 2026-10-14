@@ -2744,6 +2744,13 @@ func (a *App) Show() {
 		a.placeWindow()
 	}
 	a.Win.Focus()
+	// R41 · Hyprland tiles a new toplevel, so the size the placement above set
+	// is overridden by the compositor. Float and centre the window we just
+	// focused, then place it again so the panel's own size lands on a floating
+	// window. No-op on every other compositor and platform.
+	if a.ensureHyprlandFloating() && rehome {
+		a.placeWindow()
+	}
 	a.Win.Invalidate()
 }
 

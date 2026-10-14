@@ -497,3 +497,35 @@ func TestWindowBehaviourDefaultsAndParsing(t *testing.T) {
 		t.Errorf("owned keys leaked into extra: %v", s.Extra())
 	}
 }
+
+func TestHyprlandSignatureBlanksAreNotASession(t *testing.T) {
+	// The signature is a random token: whitespace around it is still a
+	// session, but a missing or blank export is a broken one, not Hyprland.
+	cases := []struct {
+		signature string
+		want      bool
+	}{
+		{"abc123", true},
+		{" abc123 ", true},
+		{"", false},
+		{"   ", false},
+		{"\t\n", false},
+	}
+	for _, c := range cases {
+		if got := HyprlandDetected(c.signature); got != c.want {
+			t.Errorf("HyprlandDetected(%q) = %v, want %v", c.signature, got, c.want)
+		}
+	}
+
+	// DefaultHideOnBlur reads the live environment through the same rule, so a
+	// whitespace-only export keeps the shipped default rather than disabling
+	// hide on blur.
+	t.Setenv(HyprlandSignatureEnv, "   ")
+	if !DefaultHideOnBlur() {
+		t.Error("a blank signature disabled hide on blur")
+	}
+	t.Setenv(HyprlandSignatureEnv, "sig-1")
+	if DefaultHideOnBlur() {
+		t.Error("a Hyprland signature kept hide on blur on")
+	}
+}
