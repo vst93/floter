@@ -127,6 +127,11 @@ func TestLocalToolFormCopiesTheScript(t *testing.T) {
 	if tt.HasText(copy.LocalToolCopyCommand) || tt.HasText(copy.LocalToolCopyPlan) {
 		t.Errorf("a program-mode button is drawn in script mode: %q", tt.Texts())
 	}
+	// The host wired no exporter here, so the export button hides rather than
+	// drawing a control that would call nothing.
+	if tt.HasText(copy.LocalToolExportScript) {
+		t.Errorf("the export button is drawn without an exporter: %q", tt.Texts())
+	}
 	// A fresh script form is seeded with the language's template, so there is
 	// something to copy.
 	if err := tt.Click(copy.LocalToolCopyScript); err != nil {
@@ -141,6 +146,76 @@ func TestLocalToolFormCopiesTheScript(t *testing.T) {
 	}
 	if !tt.HasText(copy.LocalToolScriptCopied) {
 		t.Errorf("the script button did not confirm: %q", tt.Texts())
+	}
+}
+
+// The reference's script-mode action row carries two buttons, not one: "Copy
+// script" and the "Export script" that writes the same text to a file the user
+// picks (`CustomIntegrationDrawer.tsx:145`, `ExtensionsPanel.tsx:1951-1964`).
+// This build had only the copy (P7-ew), so an author could not get the script
+// out of the editor as a file at all.
+func TestLocalToolFormExportsTheScript(t *testing.T) {
+	copy := i18n.For("en").Settings
+	var names, contents []string
+	a := New(newStore(t), Actions{
+		ExportScript:     func(name, content string) { names = append(names, name); contents = append(contents, content) },
+		ConnectLocalTool: func(CustomTool) {},
+	})
+	tt := render(t, a, 720, 1600)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if err := tt.Click(copy.LocalToolAdd); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	// Program mode is the copy-only row: the export belongs to the script half.
+	if tt.HasText(copy.LocalToolExportScript) {
+		t.Errorf("the export button is drawn in program mode: %q", tt.Texts())
+	}
+	if err := tt.Click(copy.LocalToolModeScript); err != nil {
+		t.Fatal(err)
+	}
+	a.toolCommand = "notes-tool"
+	tt.Frame()
+	if !tt.HasText(copy.LocalToolExportScript) {
+		t.Fatalf("the script form is missing its export button: %q", tt.Texts())
+	}
+	if err := tt.Click(copy.LocalToolExportScript); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if len(names) != 1 || names[0] != "notes-tool-script.js" {
+		t.Fatalf("exported names = %v, want [notes-tool-script.js]", names)
+	}
+	// A fresh script form is seeded with the language's template, so the file
+	// the host is asked to write carries the text the editor shows.
+	if strings.TrimSpace(contents[0]) == "" {
+		t.Errorf("the export carried no script: %q", contents)
+	}
+	// The export is not a confirmation button: pressing it does not light it up
+	// or claim the copy window, which belongs to the clipboard actions.
+	if a.contentCopied("script", time.Now()) {
+		t.Error("the export claimed the copy confirmation")
+	}
+}
+
+// The export file name is the reference's `{id}-script.{extension}`
+// (`ExtensionsPanel.tsx:1955-1958`): the integration being edited, or the
+// command word when there is no id yet, and the language's own extension —
+// the same value the save dialog filters on.
+func TestScriptExportName(t *testing.T) {
+	cases := []struct{ id, command, language, want string }{
+		{"local.abc", "notes-tool", "js", "local.abc-script.js"},
+		{"", "notes-tool", "python", "notes-tool-script.py"},
+		{"", "", "shell", "floter-provider-script.sh"},
+		{"local.abc", "notes-tool", "rust", "local.abc-script.rs"},
+	}
+	for _, c := range cases {
+		if got := scriptExportName(c.id, c.command, c.language); got != c.want {
+			t.Errorf("scriptExportName(%q, %q, %q) = %q, want %q", c.id, c.command, c.language, got, c.want)
+		}
 	}
 }
 

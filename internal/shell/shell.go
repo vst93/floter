@@ -785,6 +785,7 @@ func New(opts Options) *App {
 		SetShortcutsSuspended: a.setShortcutsSuspended,
 		ExportIntegrations:    a.exportIntegrations,
 		ImportIntegrations:    a.importIntegrations,
+		ExportScript:          a.exportScript,
 		AdoptIntegration: func(id string) {
 			// The approval dialog blocks, so the whole adoption runs off the
 			// main thread and refreshes from there.

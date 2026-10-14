@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1297 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1301 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -100,7 +100,57 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-ez 声明式输入编辑器回到原版的字段顺序，补回「占位提示」与「默认值」两个字段
+> **最新一轮：P7-fa 脚本模式补回原版的「导出脚本」动作，把这个表单的最后一条内容动作落地
+> （原版 `src/extensions/CustomIntegrationDrawer.tsx:145` 的「Export script」按钮 →
+> `src/ExtensionsPanel.tsx:1951-1964` 的 `exportCustomScript` → 后端
+> `src-tauri/src/commands/extensions.rs:1516-1560` 的 `extensions_custom_export_script`）**
+> ——「尚未做」的 5 条具体待办里第 1–4 条（P7-ew/P7-ex/P7-ey/P7-ez）已落地，本轮取文档标注的最高
+> 优先级第 5 条（导出脚本写文件），落完这一条后「尚未做（P7-ew 重写）」清单**归零**。依赖检查：
+> `go list -m -versions github.com/egoist/mygo` 与 GitHub `releases/latest` 均确认最新仍是
+> **v0.4.8**（与 `go.mod` 一致），无版本可升、无新 API 用点；只对照 `main`
+> （`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离（P7-fa·导出脚本）**：原版 script 模式的动作行有两个按钮——「Copy script」与「Export
+> script」；后者开原生保存对话框（文件名 `{id}-script.{extension}`，`id` 取
+> `editingCustomId ?? customIntegration.command`，`extension` 由语言表给出），写文件成功后
+> `showSuccess(customScriptExported)`（`i18n.ts:651` 的 “Script exported”）。**本构建（改前）**：
+> P7-ew 只落了复制这一支，`grep -rn 'ExportScript\|custom_export_script\|ScriptExported' internal` 为空
+> ——脚本只能停在编辑器里，用户没法把它存成文件。
+>
+> **落地**：
+> - `internal/i18n` 新增 `LocalToolExportScript`("Export script")/`LocalToolScriptExported`
+>   ("Script exported")，en/zh 逐字取 `i18n.ts:649,651`；另补 `LocalToolExportFailed`
+>   （写盘/对话框失败的那一句，原版走 `errorMessage(nextError)`，本构建给自己的键，
+>   `internal/i18n/i18n.go:868-874`、`copy.go` en/zh）。
+> - `internal/settingsui` 的 `Actions` 新增 `ExportScript func(name, content string)`；
+>   `toolContentActions` 收 `language` 参数，script 模式下在 Copy script 之后画
+>   `exportScriptAction`（无 exporter 或脚本为空则不画）；新增
+>   `scriptExportName(id, command, language)` 复刻原版 `{id}-script.{extension}`
+>   （无 id 用 command，两者皆空退回 `floter-provider`）。
+> - `internal/shell/sync.go` 新增 `exportScript(name, content)`：复用 `saveFile` 在渲染线程外开
+>   对话框，`os.WriteFile` 写盘，成功发 `script-export` 成功 toast，关闭对话框静默、失败发
+>   `LocalToolExportFailed`；`saveFile` 的过滤器改为跟随文件名后缀（`.py` → Python），
+>   集成导出的 `.json` 仍是 JSON filter。
+>
+> **验收**：`internal/settingsui/toolcontent_test.go` 新增 `TestLocalToolFormExportsTheScript`
+> （program 模式不画导出按钮、script 模式画、点击后 `Actions.ExportScript` 收到
+> `notes-tool-script.js` 与表单脚本、导出不占剪贴板的 1.6s 确认窗）与 `TestScriptExportName`
+> （四例：编辑 id / command 兜底 / 双空兜底 / 语言扩展）；`TestLocalToolFormCopiesTheScript` 加一条
+> 「无 exporter 时不画导出按钮」。变异核查：让 `exportScriptAction` 直接返回 → 红
+> （"the script form is missing its export button"）。`internal/shell/shell_test.go` 新增
+> `TestTheScriptExportWritesTheFile`（对话框收到的名字逐字、文件内容等于表单脚本、成功 toast 文案与
+> 类型）与 `TestTheScriptExportStaysQuietWhenItWritesNothing`（关闭对话框无 toast 无 notice、
+> 对话框报错 → `LocalToolExportFailed`）。变异核查：去掉 `os.WriteFile` → 红
+> （"the script was not written"）。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿
+> （1301 项）、`GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：「尚未做（P7-ew 重写）」的 5 条带 file:line 的具体待办**全部落地**
+> （P7-ew/P7-ex/P7-ey/P7-ez/P7-fa）。下轮若继续，需要新一轮逐字段审计把清单重新写实
+> （候选入口：`localToolSection`/`runForm` 之外的 `pluginsheet`、`transfer`、`uninstall` 等）。
+
+> **上一轮：P7-ez 声明式输入编辑器回到原版的字段顺序，补回「占位提示」与「默认值」两个字段
 > （原版 `src/extensions/CustomIntegrationDrawer.tsx:83-104` 的 `ScriptParamEditor`）**
 > ——「尚未做」的 5 条具体待办里第 1–3 条（P7-ew/P7-ex/P7-ey）已落地，本轮取文档标注的最高优先级
 > 第 4 条（参数编辑器字段顺序）。依赖检查：`go list -m -versions github.com/egoist/mygo` 与
@@ -5142,17 +5192,15 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-> **清单状态（P7-ew 重写；P7-ez 更新）**：P7-ex 已落地第 2 条（Program 行的 hint 与占位符），
+> **清单状态（P7-ew 重写；P7-fa 更新）**：P7-ex 已落地第 2 条（Program 行的 hint 与占位符），
 > P7-ey 已落地第 3 条（编辑态只读集成 ID 行），P7-ez 已落地第 4 条（参数编辑器字段顺序 + 补齐
-> placeholder/default），清单只剩第 5 条（导出脚本写文件动作）。P7-ev 收尾后用户反馈 F1–F4 全部
-> 收口，「尚未做」上再无未落地条目，只剩「回到 `localToolSection`/`runForm` 等其他入口逐函数审计」
-> 这句宽泛候选。P7-ew 按规则把它**写实为 5 条带 file:line / 原版对照 / 验收标准的具体待办**
-> （见下「具体待办（P7-ew 重写）」）。
+> placeholder/default），P7-fa 已落地第 5 条（导出脚本写文件）——**本清单 5 条全部落地、归零**。
+> 下轮需要新一轮逐字段审计把清单重新写实（审计入口见下）。
 > 依赖检查：`go list -m -versions github.com/egoist/mygo` 与 `proxy.golang.org` 的 `@latest` 最新仍是
 > **v0.4.8**（与 `go.mod` 一致），无版本可升；GitHub releases API 限流。只对照 `main`
 > （`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
 
-### 具体待办（P7-ew 重写；第 1 条 P7-ew、第 2 条 P7-ex、第 3 条 P7-ey、第 4 条 P7-ez 已落地，5 待做）
+### 具体待办（P7-ew 重写；第 1 条 P7-ew、第 2 条 P7-ex、第 3 条 P7-ey、第 4 条 P7-ez、第 5 条 P7-fa——5 条全部落地）
 
 审计入口：原版 `main:src/extensions/CustomIntegrationDrawer.tsx`（自定义工具表单，本构建对应
 `internal/settingsui/settingsui.go` 的 `localToolSection`/`scriptRows`/`toolPermissionFields`/
@@ -5234,20 +5282,27 @@ P7-ev）、执行引擎/参数校验（P7-bh）等。**下面五条是本轮逐�
      变异核查：去掉非 boolean 的 placeholder 行 → 红；把 Default 行提到 Kind 之前 → 红。既有
      `TestParamRowIssues`/`TestConnectFormDeclaresInputs` 保持绿。详见「最近几轮」P7-ez。
 
-5. **（待做）脚本模式的「导出脚本」动作（写文件）缺失**。
+5. **（已落地，P7-fa）脚本模式的「导出脚本」动作（写文件）缺失**。
    - 原版对照：`main:src/extensions/CustomIntegrationDrawer.tsx:145` 的「Export script」按钮 →
      `src/ExtensionsPanel.tsx:1951-1964` 的 `exportCustomScript`，调后端
-     `extensions_custom_export_script`（`src-tauri/src/commands/extensions.rs:1516`）让用户选路径并写出
-     脚本（成功 toast `customScriptExported`，`i18n.ts:651`）。
+     `extensions_custom_export_script`（`src-tauri/src/commands/extensions.rs:1516-1560`）让用户选路径并写出
+     脚本（成功 toast `customScriptExported`，`i18n.ts:651`；文件名 `{id}-script.{extension}`，id 取
+     `editingCustomId ?? customIntegration.command`）。
    - 本构建（改前）：`grep -rn 'ExportScript\|custom_export_script\|ScriptExported' internal` 为空——
      第 1 条本轮只落了「复制」，写文件这一支完全没有（原版是复制+导出两个按钮）。
-   - 落地 file:line：`internal/settingsui` 新增 `Actions.ExportScript(name, content string)`；
-     `settingsui.go` 的 `toolContentActions` 在 script 模式下于 Copy script 之后画原版的「导出脚本」按钮；
-     `internal/shell/sync.go` 复用 `saveFile` 对话框 + `os.WriteFile` 写 `local.<id>.<ext>`（扩展名取
-     `scriptlang.Extension(language)`，同 `extensions_custom_export_script` 的 `extension` 参数），成功
-     `queueToast` 发 `customScriptExported`；i18n 新增 `LocalToolExportScript`/`LocalToolScriptExported`。
-   - 验收：`internal/shell` 一条（选路径 → 文件内容等于表单脚本、扩展名等于语言扩展、成功 toast）；
-     `internal/settingsui` 一条（script 模式画导出按钮、点击调 `Actions.ExportScript`）。删掉按钮 → 红。
+   - 落地 file:line（已落地）：`internal/settingsui` 新增 `Actions.ExportScript(name, content)`
+     （`settingsui.go:170-177`）；`toolContentActions`（`:3258`）收 `language`，script 模式在 Copy script
+     之后走 `exportScriptAction`（无 exporter 或脚本为空不画）与 `scriptExportName`
+     （复刻 `{id}-script.{extension}`）；`internal/shell/sync.go:167-200` 的 `exportScript` 复用
+     `saveFile` 对话框 + `os.WriteFile` 写盘、成功发 `script-export` toast、关闭对话框静默、失败发
+     `LocalToolExportFailed`；`saveFile` 的 filter 改为跟随文件名后缀；i18n 新增
+     `LocalToolExportScript`/`LocalToolScriptExported`/`LocalToolExportFailed`。
+   - 验收（已满足）：`internal/settingsui/toolcontent_test.go` 的
+     `TestLocalToolFormExportsTheScript`（program 模式不画、script 模式画、点击后收到
+     `notes-tool-script.js` 与表单脚本、不占剪贴板确认窗）、`TestScriptExportName`（四例）；
+     `internal/shell/shell_test.go` 的 `TestTheScriptExportWritesTheFile`（对话框名字逐字、文件内容、
+     成功 toast）、`TestTheScriptExportStaysQuietWhenItWritesNothing`（关闭/失败两支）。变异核查：
+     拿掉导出按钮 → 红；去掉 `os.WriteFile` → 红。详见「最近几轮」P7-fa。
 
 ### 具体待办（P7-ee 重写；第 1·2·3 条全部落地：第 1 条 P7-ee、第 2·3 条 P7-ef）
 

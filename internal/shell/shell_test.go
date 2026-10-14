@@ -2260,6 +2260,118 @@ func waitForTransfer(t *testing.T, a *App) {
 	}
 }
 
+// The script export writes the form's script to the file the save dialog
+// answers with, and confirms with the reference's success toast
+// (`ExtensionsPanel.tsx:1951-1964`, `i18n.ts:651`). The file name the dialog is
+// offered already carries the language's extension, which is what this pins.
+func TestTheScriptExportWritesTheFile(t *testing.T) {
+	copy := i18n.For("en").Settings
+	path := filepath.Join(t.TempDir(), "local.abc-script.py")
+	var offered string
+	a := New(Options{
+		Store:       settings.NewStore(settings.Default()),
+		NewTerminal: func(terminal.Options) (*terminal.Terminal, error) { return nil, errors.New("no library in tests") },
+		SaveFileDialog: func(defaultName string) (string, error) {
+			offered = defaultName
+			return path, nil
+		},
+	})
+	a.exportScript("local.abc-script.py", "print('hello')\n")
+	if toast := waitForToast(t, a, scriptExportNoticeID); toast.Title != copy.LocalToolScriptExported {
+		t.Fatalf("the export toast reads %q, want %q", toast.Title, copy.LocalToolScriptExported)
+	} else if toast.Type != "success" {
+		t.Errorf("the export toast's kind = %q, want success", toast.Type)
+	}
+	if offered != "local.abc-script.py" {
+		t.Errorf("the dialog was offered %q, want the name settingsui built", offered)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("the script was not written: %v", err)
+	}
+	if string(data) != "print('hello')\n" {
+		t.Errorf("the file holds %q, want the form's script", data)
+	}
+}
+
+// A closed dialog writes nothing and says nothing, and a dialog that failed is
+// the one sentence this build has for a script that could not be exported.
+func TestTheScriptExportStaysQuietWhenItWritesNothing(t *testing.T) {
+	copy := i18n.For("en").Settings
+	a := New(Options{
+		Store:          settings.NewStore(settings.Default()),
+		NewTerminal:    func(terminal.Options) (*terminal.Terminal, error) { return nil, errors.New("no library in tests") },
+		SaveFileDialog: func(string) (string, error) { return "", nil },
+	})
+	a.exportScript("local.abc-script.py", "print('hello')\n")
+	waitForGoroutines()
+	if toast := queuedToast(a, scriptExportNoticeID); toast.Title != "" {
+		t.Errorf("a closed dialog raised a toast: %q", toast.Title)
+	}
+	if notices := noticeTitles(a); len(notices) != 0 {
+		t.Errorf("a closed dialog left notices: %v", notices)
+	}
+
+	failed := New(Options{
+		Store:          settings.NewStore(settings.Default()),
+		NewTerminal:    func(terminal.Options) (*terminal.Terminal, error) { return nil, errors.New("no library in tests") },
+		SaveFileDialog: func(string) (string, error) { return "", errors.New("no disk") },
+	})
+	failed.exportScript("local.abc-script.py", "print('hello')\n")
+	if !waitForNoticeSay(t, failed, copy.LocalToolExportFailed) {
+		t.Errorf("a failed dialog did not raise %q: %v", copy.LocalToolExportFailed, noticeTitles(failed))
+	}
+}
+
+// noticeTitles is the queued notices' sentences, for a test's own diagnostics.
+func noticeTitles(a *App) []string {
+	a.noticeMu.Lock()
+	defer a.noticeMu.Unlock()
+	out := make([]string, 0, len(a.notices))
+	for _, toast := range a.notices {
+		out = append(out, toast.Title)
+	}
+	return out
+}
+
+// waitForToast waits for the goroutine's toast to land: the export opens its
+// dialog off the render thread, so the test cannot read the notice the moment
+// the call returns.
+func waitForToast(t *testing.T, a *App, id string) ui.Toast {
+	t.Helper()
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		if toast := queuedToast(a, id); toast.Title != "" {
+			return toast
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("the toast %q never landed", id)
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+}
+
+// waitForNoticeSay waits for a queued notice carrying the sentence.
+func waitForNoticeSay(t *testing.T, a *App, title string) bool {
+	t.Helper()
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		if noticeSays(a, title) {
+			return true
+		}
+		if time.Now().After(deadline) {
+			return false
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+}
+
+// waitForGoroutines gives a just-launched export goroutine time to reach its
+// (silent) end before a test reads the notice stack.
+func waitForGoroutines() {
+	time.Sleep(50 * time.Millisecond)
+}
+
 // queuedToast finds the queued toast with the given id, empty when none is
 // waiting.
 func queuedToast(a *App, id string) ui.Toast {

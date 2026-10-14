@@ -859,12 +859,19 @@ type Settings struct {
 	// plan". Each press confirms on its own button for 1.6s
 	// (`copyCustomContent` and `copyExecutionPlan`), because a clipboard write
 	// is otherwise silent.
-	LocalToolCopyScript                 string
-	LocalToolScriptCopied               string
-	LocalToolCopyCommand                string
-	LocalToolCommandCopied              string
-	LocalToolCopyPlan                   string
-	LocalToolPlanCopied                 string
+	LocalToolCopyScript    string
+	LocalToolScriptCopied  string
+	LocalToolCopyCommand   string
+	LocalToolCommandCopied string
+	LocalToolCopyPlan      string
+	LocalToolPlanCopied    string
+	// The script export: the button beside "Copy script"
+	// (`CustomIntegrationDrawer.tsx:145`), the success toast the file dialog
+	// answers with (`customScriptExported`, `i18n.ts:651`), and the sentence a
+	// write that failed raises instead.
+	LocalToolExportScript               string
+	LocalToolScriptExported             string
+	LocalToolExportFailed               string
 	IntegrationsCommandAlias            string
 	IntegrationsCommandAliasPlaceholder string
 	IntegrationsCommandAliasTaken       string

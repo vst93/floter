@@ -167,6 +167,14 @@ type Actions struct {
 	Freshness func(id string) (extensions.Freshness, bool)
 	// CopyText puts text on the clipboard, for the About page's deep links.
 	CopyText func(text string)
+	// ExportScript writes the local-tool form's script to a file the user
+	// picks: the reference's `extensions_custom_export_script`, behind the
+	// "Export script" button beside "Copy script"
+	// (`CustomIntegrationDrawer.tsx:145`, `ExtensionsPanel.tsx:1951-1964`).
+	// name is the file name the save dialog offers (the integration's id, the
+	// word "script", and the language's extension); the host owns the dialog,
+	// the write, and the success toast. Nil hides the button.
+	ExportScript func(name, content string)
 	// EditCustomTool rewrites a generated integration from the same form the
 	// connect flow uses (the id names it, so its identity is kept), and
 	// ScriptRuntime answers what this machine has for a script language: the
@@ -3058,7 +3066,7 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 			// The content actions sit where the reference put them: after the
 			// script box and the fields, before the output row
 			// (`CustomIntegrationDrawer.tsx:145-146`).
-			a.toolContentActions(c, copy, mode, command, program, args, script)
+			a.toolContentActions(c, copy, mode, command, program, args, script, language)
 			a.row(c, copy.LocalToolOutput, "", func() {
 				index := 0
 				if a.toolOutput == routeBackground {
@@ -3241,17 +3249,19 @@ func (a *App) toolIssueUnder(c *ui.Context, copy i18n.Settings, issues []extensi
 
 // toolContentActions draws the form's content actions, the reference's
 // `.extension-custom-form__actions` row (`CustomIntegrationDrawer.tsx:145-146`):
-// in script mode one "Copy script", in program mode "Copy command" and "Copy
-// execution plan". Each button confirms on itself for 1.6s, because a
-// clipboard write is otherwise silent. The value copied is read at press time
-// from the form's current draft, so it is what the user sees now rather than
-// what the form opened with.
-func (a *App) toolContentActions(c *ui.Context, copy i18n.Settings, mode, command, program, args, script string) {
+// in script mode one "Copy script" and the "Export script" button that writes
+// the same text to a file, in program mode "Copy command" and "Copy execution
+// plan". Each copy button confirms on itself for 1.6s, because a clipboard
+// write is otherwise silent. The value copied is read at press time from the
+// form's current draft, so it is what the user sees now rather than what the
+// form opened with.
+func (a *App) toolContentActions(c *ui.Context, copy i18n.Settings, mode, command, program, args, script, language string) {
 	t := c.Theme()
 	a.actionRow(c, func() {
 		ui.Row(c).Gap(t.Space(1)).AlignItems(ui.Center).Children(func() {
 			if mode == routeScript {
 				a.contentAction(c, "script", copy.LocalToolCopyScript, copy.LocalToolScriptCopied, script)
+				a.exportScriptAction(c, copy, command, script, language)
 				return
 			}
 			a.contentAction(c, "command", copy.LocalToolCopyCommand, copy.LocalToolCommandCopied, strings.TrimSpace(command))
@@ -3259,6 +3269,37 @@ func (a *App) toolContentActions(c *ui.Context, copy i18n.Settings, mode, comman
 				executionPlanJSON(program, args))
 		})
 	})
+}
+
+// exportScriptAction draws the reference's "Export script" button: the second
+// half of the script-mode action row, which writes the editor's text to a file
+// the user picks (`ExtensionsPanel.tsx:1951-1964`). It is absent when the host
+// wired no exporter, and inert while the script is blank — the reference
+// mounted it always but the write would have produced an empty file.
+func (a *App) exportScriptAction(c *ui.Context, copy i18n.Settings, command, script, language string) {
+	if a.Actions.ExportScript == nil || strings.TrimSpace(script) == "" {
+		return
+	}
+	if a.actionButton(c, copy.LocalToolExportScript).Clicked() {
+		a.Actions.ExportScript(scriptExportName(a.toolEditing, command, language), script)
+	}
+}
+
+// scriptExportName is the file name the save dialog offers for a script: the
+// reference's `{id}-script.{extension}`, where the id is the integration being
+// edited and, for a connection that has no id yet, the command word the user
+// typed (`ExtensionsPanel.tsx:1955-1958`: `editingCustomId ?? customIntegration
+// .command`). The extension comes from the language table, the same value the
+// file filter shows.
+func scriptExportName(id, command, language string) string {
+	stem := strings.TrimSpace(id)
+	if stem == "" {
+		stem = strings.TrimSpace(command)
+	}
+	if stem == "" {
+		stem = "floter-provider"
+	}
+	return stem + "-script." + scriptlang.Extension(language)
 }
 
 // contentAction draws one copy button: its label, or its confirmation while

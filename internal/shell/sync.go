@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/egoist/mygo"
@@ -161,6 +162,44 @@ func importReport(path string, report extensions.SyncReport) *settingsui.ImportR
 	return out
 }
 
+// exportScript writes the local-tool form's script to a file the user picks:
+// the reference's `extensions_custom_export_script` behind the "Export script"
+// button (`src-tauri/src/commands/extensions.rs:1516-1560`,
+// `src/ExtensionsPanel.tsx:1951-1964`). The dialog is opened off the render
+// thread, because it blocks until the user answers; a closed dialog writes
+// nothing and says nothing, and a clean write is the success toast the old
+// build raised. name is the file name the dialog offers, already carrying the
+// language's extension (`settingsui.scriptExportName`).
+func (a *App) exportScript(name, content string) {
+	go func() {
+		copy := a.SettingsCopy()
+		path, err := a.saveFile(name)
+		if err != nil {
+			log.Printf("floter: could not pick a path for %s: %v", name, err)
+			a.queueNotice(copy.LocalToolExportFailed, refusalNotice)
+			return
+		}
+		if path == "" {
+			return // the user closed the dialog
+		}
+		if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+			log.Printf("floter: could not write %s: %v", path, err)
+			a.queueNotice(copy.LocalToolExportFailed, refusalNotice)
+			return
+		}
+		a.queueToast(ui.Toast{
+			ID:      scriptExportNoticeID,
+			Title:   copy.LocalToolScriptExported,
+			Type:    "success",
+			Timeout: successNotice,
+		})
+	}()
+}
+
+// scriptExportNoticeID identifies the export's success toast, so a second
+// export replaces the first rather than stacking beside it.
+const scriptExportNoticeID = "script-export"
+
 // transferSucceeded raises the export's success toast.
 func (a *App) transferSucceeded(message string) {
 	a.queueToast(ui.Toast{
@@ -206,14 +245,21 @@ func (a *App) setTransferReport(report *settingsui.ImportReport) {
 }
 
 // saveFile asks for a path to write to; empty when the user closed the dialog.
+// The dialog's filter follows the name it was asked to save, so a `.py` script
+// is offered as a Python file and the integration document as JSON.
 func (a *App) saveFile(defaultName string) (string, error) {
 	if a.saveFileDialog != nil {
 		return a.saveFileDialog(defaultName)
 	}
+	extension := strings.TrimPrefix(filepath.Ext(defaultName), ".")
+	filter := mygo.FileFilter{Name: "JSON", Extensions: []string{"json"}}
+	if extension != "" {
+		filter = mygo.FileFilter{Name: strings.ToUpper(extension), Extensions: []string{extension}}
+	}
 	return mygo.Dialog.Save(mygo.SaveDialogOptions{
 		Title:       "floter",
 		DefaultPath: filepath.Join(homeDirOrEmpty(), defaultName),
-		Filters:     []mygo.FileFilter{{Name: "JSON", Extensions: []string{"json"}}},
+		Filters:     []mygo.FileFilter{filter},
 	})
 }
 
