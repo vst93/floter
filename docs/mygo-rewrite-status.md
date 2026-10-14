@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1324 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1327 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1324 项测试
+go test -count=1 ./...         # 1327 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -100,7 +100,42 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-fi 删除确认条也走同一条横条，并带上原版的 error 底色；两条确认条共用一个 Cancel 词
+> **最新一轮：P7-fj 自定义快捷键的键在读写时补上原版的形状校验（原版 `src-tauri/src/commands/config.rs:1385-1404` 的 `normalize_custom_shortcuts` + `:1408-1434` 的 `normalize_shortcut`）**
+> ——P7-fi 收尾后「具体待办（P7-fh 重写）」归零。本轮按上节建议换入口：逐文件对照原版的
+> **自定义快捷键落盘/读盘路径**（`main:src/custom-shortcuts.ts` 与 `config.rs` 的三个函数），把
+> 「尚未做」重新写实为 3 条带 file:line 的具体待办（下方「具体待办（P7-fj 重写）」），并取第 1 条
+> 落地。依赖检查：`go list -m -versions github.com/egoist/mygo` 最新仍是 **v0.4.8**（与 `go.mod`
+> 一致），无版本可升、无新 API 用点；GitHub releases API 限流。只对照 `main`
+> （`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离（P7-fj·自定义快捷键的键没有形状校验）**：原版后端 `normalize_custom_shortcuts` 把每个
+> `key` 过一遍 `normalize_shortcut`——任一段 `trim` 后为空、修饰键重复、两个键、没有键都是 `None`
+> ——再用 `.filter(|key| key.contains('+'))` 丢掉裸键，并按规范拼写落盘。**本构建（改前）**：
+> `internal/settings/customshortcuts.go:87-107` 的 `NormalizeCustomShortcuts` 只 `TrimSpace` + 去重，
+> `"F5"`/`"Ctrl++A"`/`"Ctrl+Ctrl+A"`/`"Ctrl+A+B"`/`"+"` 全部原样落盘；`internal/shortcuts`
+> 的宽松 `Normalize`（`:97-128`）对空段 `continue`、对重复修饰键静默吞并，所以连那条路也修不出
+> 原版判据（`"Ctrl++A"` 被修成 `"Ctrl+A"` 而不是拒收）。一条存下来的自定义快捷键会变成**全局**
+> 系统热键，形状必须在磁盘上就是完整的，不能只在录制器里完整。
+>
+> **落地**：`internal/shortcuts/shortcuts.go` 新增 `NormalizeBinding`（与 `Normalize` 共用修饰键/键名
+> 表与 `join`，但空段/重复修饰键/两键/无修饰键一律拒绝、且要有至少一个修饰键）；
+> `internal/settings/customshortcuts.go` 的 `NormalizeCustomShortcuts` 改走它（`CustomShortcutsOf`
+> 读盘与 `SetCustomShortcuts` 落盘共用，两处都受用）。
+>
+> **验收**：`internal/shortcuts/shortcuts_test.go` 的 `TestNormalizeBinding`（六例收、十一例拒，并钉
+> 住宽松 `Normalize("Ctrl++A") == "Ctrl+A"` 而严格路径拒绝）；
+> `internal/settings/customshortcuts_test.go` 的 `TestCustomShortcutsDropShapesTheRecorderCouldNotMake`
+> （八条入、两条留，键与动作都规范/裁剪）与 `TestCustomShortcutsOfDropsAHandEditedBadKey`
+> （手改文件里的裸键读盘即丢）。变异核查：把 `NormalizeBinding` 换回 `strings.TrimSpace` → 新三条
+> 用例全红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：第 1 条（P7-fj）落地；「具体待办（P7-fj 重写）」现有 3 条带 file:line 的具体待办，
+> 第 2 条（自定义快捷键与内置按键撞车要判 `conflict`）是下轮最高优先级。
+
+> **上一轮：P7-fi 删除确认条也走同一条横条，并带上原版的 error 底色；两条确认条共用一个 Cancel 词
 > （原版 `src/extensions/RemovalConfirmation.tsx:38-44`、`DisableConfirmation.tsx:60-68`、`i18n.ts:554`）**
 > ——P7-fh 收尾后「具体待办（P7-fh 重写）」还剩 3 条，本轮取文档标注的最高优先级第 2 条（删除确认条
 > 回到同一条横条），顺带把第 3 条（共享一个 Cancel 词）一起结清，清单归零。依赖检查：
@@ -5444,6 +5479,75 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 - 窗口可见时完成反馈落在面板自己的停靠行（隐藏时才发系统通知）——之前可见时什么都不说。
 
 ## 尚未做（按建议优先级）
+
+> **清单状态（P7-fj 重写）**：P7-fi 收尾后「具体待办（P7-fh 重写）」归零。本轮换入口：逐文件对照原版的
+> **自定义快捷键的落盘/读盘路径**（`main:src/custom-shortcuts.ts` + `src-tauri/src/commands/config.rs`
+> 的 `normalize_custom_shortcuts`/`normalize_shortcut`/`set_custom_shortcuts`），把清单重新写实为下面
+> **3 条带 file:line 的具体待办**，并取第 1 条落地（P7-fj）。依赖检查：
+> `go list -m -versions github.com/egoist/mygo` 最新仍是 **v0.4.8**（与 `go.mod` 一致），无版本可升、
+> 无新 API 用点；GitHub releases API 限流。只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），
+> 未翻历史提交。
+
+### 具体待办（P7-fj 重写；第 1 条 P7-fj 已落地，第 2·3 条待做）
+
+审计入口：原版 `main:src/custom-shortcuts.ts`（前端）与 `main:src-tauri/src/commands/config.rs` 的
+`normalize_custom_shortcuts`（`:1385-1404`）、`normalize_shortcut`（`:1408-1434`）、
+`set_custom_shortcuts`（`:1666-1718`）；本构建对应 `internal/settings/customshortcuts.go` +
+`internal/shell/custom.go` + `internal/settingsui/custom.go`。前几轮已落地：应用快捷键地图的
+`select_result` 家族头（P7-cw）、`Display`/`Badge` 拼写（P7-cx）、录制冲突拒收（P7-cy）。**下面
+三条是本轮逐函数比对后新查出的真实缺口**。
+
+1. **（本轮落地，P7-fj）`NormalizeCustomShortcuts` 收键时不校验形状、也不收拼写**。
+   - 原版对照：`main:src-tauri/src/commands/config.rs:1385-1404` 的 `normalize_custom_shortcuts`
+     把每个 `key` 过一遍 `normalize_shortcut`（`:1408-1434`：任一段 `trim` 后为空 → `None`、
+     修饰键重复 → `None`、两个键 → `None`、无键 → `None`），再用 `.filter(|key| key.contains('+'))`
+     丢掉裸键；命中的键以规范拼写（`modifiers.join("+")`）落盘。
+   - 本构建（改前）：`internal/settings/customshortcuts.go:87-107` 的 `NormalizeCustomShortcuts`
+     只 `strings.TrimSpace(key)` + `shortcuts.Duplicate` 去重——`"F5"`（裸键）、`"Ctrl++A"`、
+     `"Ctrl+Ctrl+A"`、`"Ctrl+A+B"`、`"+"` 全部原样落盘；`internal/shortcuts/shortcuts.go:97-128`
+     的 `Normalize` 对空段是 `continue`、对重复修饰键静默吞并，所以连那条宽松路径也修不出原版判据。
+   - 落地 file:line（已按此落地）：`internal/shortcuts/shortcuts.go` 新增 `NormalizeBinding`
+     （`:144`，与 `Normalize` 共用修饰键/键名表与 `join`，但空段/重复修饰键/两键/无修饰键一律拒绝）；
+     `internal/settings/customshortcuts.go` 的 `NormalizeCustomShortcuts`（`:87`）改走它，
+     `CustomShortcutsOf`（`:46`）与 `SetCustomShortcuts`（`:65`）读写两处都受用。
+   - 验收（已过）：`internal/shortcuts/shortcuts_test.go` 的 `TestNormalizeBinding`（六例收、十一例
+     拒，并钉住宽松 `Normalize("Ctrl++A") == "Ctrl+A"` 而严格路径拒绝）；
+     `internal/settings/customshortcuts_test.go` 的
+     `TestCustomShortcutsDropShapesTheRecorderCouldNotMake`（八条入、两条留、键与动作都规范/裁剪）与
+     `TestCustomShortcutsOfDropsAHandEditedBadKey`（手改文件里的裸键读盘即丢）。变异核查：把
+     `NormalizeCustomShortcuts` 的 `NormalizeBinding` 换回 `strings.TrimSpace` → 三条全红。
+
+2. **自定义快捷键与应用自身按键撞车时，原版判 `conflict` 并拒收，本构建照收照存**（待做）。
+   - 原版对照：`main:src-tauri/src/commands/config.rs:1666-1718` 的 `set_custom_shortcuts`——
+     `reserved` 取 `resolved_shortcuts(&settings)` 的全部值，逐条与 `shortcut_binding_eq` 比对，
+     撞上内置组合即 `CustomShortcutRejection { reason: "conflict" }` 并跳过（`:1682-1695`）。
+   - 本构建：`internal/shell/custom.go:24-40` 的 `setCustomShortcuts` 无条件
+     `s.SetCustomShortcuts(entries)` 落盘；`ApplyCustomShortcuts`（`:54-96`）只挡
+     `accelerator == a.summonKey`（`:71`），**不比对** `settings.ShortcutsOf` 的其它动作值——把自定义
+     键绑到 `Cmd+W`（`new_command` 的默认）会照常落盘并注册，而应用快捷键那条与此同时仍生效。
+   - 落地 file:line（待做）：`ApplyCustomShortcuts` 注册前用 `settings.ShortcutsOf(snapshot)` 建
+     `reserved` 集合（`shortcuts.Equal` 比对，`select_result` 家族按修饰键判撞），命中的报
+     `reason:"conflict"` 且不注册；`setCustomShortcuts` 只把注册成功的那几条写回磁盘（原版
+     `:1716-1717` 的 `updated.custom_shortcuts = registered`）。
+   - 验收（待做）：自定义键绑 `Cmd+W` 时返回一条 `reason:"conflict"`、磁盘上不出现该条、该键不注册；
+     绑一个空闲键照常落盘并注册；OS 拒收（`taken`）的那条不落盘。
+
+3. **拒收原因用自由句而不是原版的两个词，设置页文案对不上原版**（待做）。
+   - 原版对照：`reason` 只有 `"conflict"`/`"occupied"` 两个 token（`config.rs:1691,1707`），
+     前端 `main:src/settings/ShortcutsPage.tsx:293-296` 取 `settings.customShortcutsOccupied`
+     /`settings.customShortcutsConflict` 两个词（`i18n.ts:412-413`）。
+   - 本构建：`internal/shell/custom.go:68,72,77` 塞的是英文自由句（"the accelerator is not one the
+     system accepts" / "the key already summons floter" / `err.Error()`），`internal/i18n` 的
+     `ShortcutsRejected`（`copy.go:6,28`；`internal/settingsui/custom.go:212` 调用）是把 key +
+     自由句拼起来，没有那两个词。
+   - 落地 file:line（待做）：`CustomShortcutRejection.Reason` 收敛成 `"conflict"`/`"occupied"`
+     两个 token；`internal/i18n` 新增 `ShortcutsConflict`/`ShortcutsOccupied`（逐字取
+     `i18n.ts:412-413`），`settingsui` 的 `commitCustomShortcuts` 按 token 选词；非法形状在
+     `NormalizeCustomShortcuts` 已丢，不再需要第三个原因。
+   - 验收（待做）：绑撞车键显示「Already used by another floter shortcut」、OS 拒收显示
+     「Most likely used by another app」；两条自由句不再出现在页面上。
+
+> **历史清单（保留作「哪些已经做过」的记录）**：
 
 > **清单状态（P7-fe 结清）**：P7-ew 一路到 P7-fa 的 5 条全部落地、上一条清单归零后，P7-fb 按
 > 审计入口 `main:src/extensions/ComponentizedUninstallDialog.tsx`（本构建对应

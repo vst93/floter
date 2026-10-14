@@ -50,6 +50,50 @@ func TestNormalize(t *testing.T) {
 	}
 }
 
+func TestNormalizeBinding(t *testing.T) {
+	// A whole binding — at least one modifier and exactly one key — passes and
+	// is canonicalised exactly as Normalize would spell it.
+	kept := map[string]string{
+		"Alt+Space":             "Alt+Space",
+		"CmdOrCtrl+Shift+Space": "CmdOrCtrl+Shift+Space",
+		"cmd+shift+p":           "Cmd+Shift+P",
+		"Shift+Super+Space":     "Cmd+Shift+Space",
+		"Ctrl+Alt+Delete":       "Ctrl+Alt+Delete",
+		"Cmd+Comma":             "Cmd+,",
+	}
+	for input, want := range kept {
+		got, ok := NormalizeBinding(input)
+		if !ok {
+			t.Errorf("NormalizeBinding(%q) failed", input)
+			continue
+		}
+		if got != want {
+			t.Errorf("NormalizeBinding(%q) = %q, want %q", input, got, want)
+		}
+	}
+
+	// A bare key is not a binding: the old host kept a custom shortcut only
+	// when its normalized form still held a `+`.
+	// The rest are shapes Normalize is happy to repair but a stored binding
+	// must not accept: an empty part, a modifier twice, two keys, no key.
+	for _, input := range []string{
+		"F5", "c", " ", "",
+		"Ctrl++A", "Ctrl+", "+", "Ctrl+Ctrl+A", "Cmd+Super+X",
+		"Ctrl+A+B", "Cmd", "Hyper+X", "Cmd+Unknown",
+	} {
+		if got, ok := NormalizeBinding(input); ok {
+			t.Errorf("NormalizeBinding(%q) = %q, want a rejection", input, got)
+		}
+	}
+
+	// The difference from the lenient path, pinned: Normalize repairs a stray
+	// empty part, NormalizeBinding refuses it — a stored binding has to be one
+	// the recorder could have produced.
+	if got, ok := Normalize("Ctrl++A"); !ok || got != "Ctrl+A" {
+		t.Fatalf("Normalize(\"Ctrl++A\") = %q, %v; the lenient path must repair it", got, ok)
+	}
+}
+
 func TestFromKey(t *testing.T) {
 	cases := []struct {
 		mods ui.Modifiers

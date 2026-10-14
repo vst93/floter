@@ -73,14 +73,27 @@ func (s *Settings) SetCustomShortcuts(entries []CustomShortcut) {
 
 // NormalizeCustomShortcuts drops entries that are not a whole binding and
 // collapses duplicate keys: an entry with no key or no action is a draft, not
-// a binding, and of two entries claiming one key the first wins.
+// a binding; a key that is not one the recorder could have produced (a bare
+// key, a repeated modifier, two keys, an empty part) is dropped rather than
+// stored; and of two entries claiming one key the first wins.
+//
+// The key-shape rule is the old host's backend half
+// (`src-tauri/src/commands/config.rs:1385` `normalize_custom_shortcuts`, which
+// ran every key through `normalize_shortcut` and then kept it only when the
+// result still held a `+`), not the frontend's looser `normalizeCustomShortcuts`
+// (`src/custom-shortcuts.ts:100-113`, which only trims and dedupes). A stored
+// custom shortcut becomes a system-wide key, so the shape has to be whole on
+// disk, not merely in the recorder.
 func NormalizeCustomShortcuts(entries []CustomShortcut) []CustomShortcut {
 	out := make([]CustomShortcut, 0, len(entries))
 	keys := make([]string, 0, len(entries))
 	for _, entry := range entries {
-		key := strings.TrimSpace(entry.Key)
 		action := strings.TrimSpace(entry.Action)
-		if key == "" || action == "" {
+		if action == "" {
+			continue
+		}
+		key, ok := shortcuts.NormalizeBinding(entry.Key)
+		if !ok {
 			continue
 		}
 		if shortcuts.Duplicate(key, keys, -1) != "" {

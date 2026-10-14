@@ -127,6 +127,51 @@ func Normalize(accelerator string) (string, bool) {
 	return join(modifiers, key), true
 }
 
+// NormalizeBinding rewrites an accelerator into the framework's spelling and
+// reports whether it is a *whole* binding a user could have recorded, in the
+// shape the old host's `normalize_shortcut` required before it would keep a
+// stored shortcut (`src-tauri/src/commands/config.rs:1408`): no empty part
+// (`"Ctrl++A"`), no modifier named twice (`"Ctrl+Ctrl+A"`), exactly one key,
+// and at least one modifier (the old `normalize_custom_shortcuts` filter
+// `key.contains('+')`, so a bare `"F5"` is not a shortcut).
+//
+// It is `Normalize`'s stricter sibling. `Normalize` is deliberately lenient —
+// it is the bridge to the framework for values the app itself wrote and lets a
+// stray empty part through — while a *stored* binding has to be one the
+// recorder could have produced, or a hand-edited file could make a bare key
+// global. The two share the same modifier/key tables and the same canonical
+// `join`, so a value that passes both normalizes to one spelling.
+func NormalizeBinding(accelerator string) (string, bool) {
+	parts := strings.Split(strings.TrimSpace(accelerator), "+")
+	var modifiers []string
+	key := ""
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			return "", false // an empty part (`"Ctrl++A"`, `"+"`)
+		}
+		if name, ok := modifierNames[strings.ToLower(part)]; ok {
+			if containsFold(modifiers, name) {
+				return "", false // the same modifier twice
+			}
+			modifiers = append(modifiers, name)
+			continue
+		}
+		if key != "" {
+			return "", false // two keys
+		}
+		normalized, ok := normalizeKey(part)
+		if !ok {
+			return "", false
+		}
+		key = normalized
+	}
+	if key == "" || len(modifiers) == 0 {
+		return "", false
+	}
+	return join(modifiers, key), true
+}
+
 // normalizeKey rewrites one key name.
 func normalizeKey(name string) (string, bool) {
 	lower := strings.ToLower(name)
