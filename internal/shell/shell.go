@@ -583,6 +583,13 @@ func New(opts Options) *App {
 		ScriptRuntime: func(language string) scriptlang.Check {
 			return extensions.ScriptRuntimeFor(context.Background(), language)
 		},
+		// The toolchain probe runs off the render thread, so it asks for a
+		// frame when it lands: mygo's Invalidate is safe from any goroutine.
+		Invalidate: func() {
+			if a.Win != nil {
+				a.Win.Invalidate()
+			}
+		},
 		// A warning the form cannot draw for itself goes to the app's own
 		// notice, which shows on every surface — the form's save already
 		// happened, so the sentence is about the machine, not the sheet.

@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1085 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1094 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1085 项测试
+go test -count=1 ./...         # 1094 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,7 +99,49 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-dl 脚本工具链状态行的措辞与「没问过」语义（原版
+> **最新一轮：P7-dm 脚本工具链探测改成异步，状态行终于有「正在检查」（原版
+> `src/ExtensionsPanel.tsx:925-961` 的 `probeScriptRuntime` 与
+> `src/extensions/CustomIntegrationDrawer.tsx:112-121` 的 `ScriptRuntimeLine`）**
+> —— P7-dl 收尾后「尚未做」只剩 P7-di 第 3 条里那半条「异步 checking 态」，先前被写成「卡框架」。
+> 本轮核对框架后确认**并不卡**：mygo 的 `Window.Invalidate` 注释明写「safe from any goroutine」
+> （`mygo@v0.4.8:content.go:145-147`），所以 `go func` + 重绘通道一直可用，之前只是没有接线。
+> 依赖检查：GitHub releases API 仍被限流，`go list -m -versions github.com/egoist/mygo` 最新仍是
+> **v0.4.8**（与 `go.mod` 一致），无版本可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14
+> 原版树），未翻历史提交。
+>
+> **偏离点（一处，探测线程）**：原版的探测是 `invoke(...)` 异步；本构建的
+> `extensions.ScriptRuntimeFor` 是同步 `exec`。改前它在渲染帧里直接调用（P7-di 已缓存，但第一帧
+> 仍会阻塞到 3s 超时）。本轮把调用挪到自己的 goroutine，缓存条目变成「在飞 / 已落」两态。
+>
+> **修法**：
+> - `internal/settingsui/settingsui.go`：`scriptRuntime` 从 `map[string]scriptlang.Check` 改成
+>   `map[string]*runtimeProbe`（`runtimeProbe{done, check}`）+ `scriptRuntimeMu` + `scriptRuntimeEpoch`。
+>   `scriptRuntimeStart` 起 goroutine（去重、epoch 守卫，落盘后 `Actions.Invalidate()`）；
+>   `scriptRuntimeCheck`（渲染读）返回 `*Check`（nil = 在飞）；新增 `scriptRuntimeVerdict`（保存等待，
+>   对应原版 `await probeScriptRuntime`）；`clearScriptRuntimeCache` 改成 epoch+1 并清空。
+>   `Actions` 新增 `Invalidate func()`，`internal/shell/shell.go` 接到 `a.Win.Invalidate`。
+> - `scriptRuntimeLine`：`check == nil` → `copy.LocalToolRuntimeChecking`（原版 `!check` → checking）；
+>   没接线探测仍只说工具链名字。
+> - `internal/i18n`：新增 `LocalToolRuntimeChecking`，en/zh 逐字对齐旧字典
+>   （"Checking the local toolchain…" / "正在检查本机工具链…"）。
+> - **诚实记录**：本构建的保存路径等探测时**阻塞当前帧**（原版异步 + busy 标记），因为
+>   `scriptRuntimeVerdict` 走的是同一帧里的点击处理；探测通常早已落（表单打开时就起了），最坏
+>   情况是 `--version` 卡到 3s 超时。没做成异步保存是刻意的：同步等待才对得上原版「先 await 再
+>   决定警告」的语义，也避免了「保存时还没判完」这种半态。
+>
+> **测试**：`internal/settingsui/pluginsheet_test.go` 新增
+> `TestScriptRuntimeLineSaysCheckingUntilTheProbeLands`（阻塞探测 → 检查中 → 放行 → missing）、
+> `TestAStaleProbeFromAClosedFormIsDropped`（epoch 守卫：关表单后落地的旧探测不进缓存）；
+> 既有 `TestScriptRuntimeProbeIsCachedPerLanguage` / `TestReopeningTheLocalToolFormReprobesTheToolchain`
+> / `TestLocalToolFormBuildsAScript` 增加 `awaitRuntime` 等待（探测已不在渲染帧内同步完成）。
+> `internal/i18n/i18n_test.go` 的 `TestScriptRuntimeWordsMatchTheOldDictionary` 加 en/zh 两句 checking。
+> 变异核查：把 `scriptRuntimeLine` 的 `check == nil` 分支改回走 `StatusOf`，两条 checking 断言立刻红；
+> 去掉 epoch 守卫，`TestAStaleProbeFromAClosedFormIsDropped` 立刻红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 27 包全绿（1094 项）、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过；`go test -race ./internal/settingsui` 无竞态。
+>
+> **上一轮：P7-dl 脚本工具链状态行的措辞与「没问过」语义（原版
 > `src/extensions/CustomIntegrationDrawer.tsx:112-121` 的 `ScriptRuntimeLine` +
 > `src/i18n.ts:696-699,1576-1579`）**
 > —— P7-dk 收尾后「尚未做」的 P7-di 第 3 条是最高优先级的具体项（P7-dg 第 3 条是原版自己都没接线的
@@ -233,6 +275,9 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 > 退回工具链名；新增 `clearScriptRuntimeCache()`（对齐 `runtimeChecksEpoch` 的清空）。清缓存的三个
 > 落点：`localToolSection` 打开表单的 toggle（`:2606` 附近）、`beginEdit`、`endEdit`——「重新打开
 > 表单」正是原版要求重探的时刻。
+>
+> —— **后续（P7-dm）**：这里的同步缓存被改成异步（`runtimeProbe` goroutine + `Actions.Invalidate`），
+> 渲染帧里不再 `exec.Command`；上面的 `map[string]scriptlang.Check` 已换成 `map[string]*runtimeProbe`。
 >
 > **测试**：`internal/settingsui/pluginsheet_test.go` 的 `TestScriptRuntimeProbeIsCachedPerLanguage`
 > （同语言读两次只探一次、换语言各探一次、切回命中、清缓存后重探）与
@@ -3252,6 +3297,10 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
+> **清单状态（P7-dm 收尾）**：下面几条历史待办已全部落地（P7-di 三条、P7-dk、P7-dg 第 3 条是
+> 原版自己都没接线的死函数、P7-dd/P7-dc 第 3 条卡 mygo 框架）。**本轮起清单为空**：下一轮按
+> 惯例换入口（逐文件对照原版某个尚未审计的模块）重新写实 3 条带 file:line 的具体待办，再取第 1 条。
+
 ### 待办（P7-dk 已落地：启动器动作栏的「在终端中打开」只在 Enter 会跑它时存在）
 
 > P7-dj 收尾后处理用户报告的「底部应固定出现「在终端中打开」选项…目前缺失」。一条独立改动，它让
@@ -3289,7 +3338,7 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
      `TestSystemCommandsJoinTheSearchWhenEnabled` 关设置那段）断言页面**没有** shell 行、并靠 Enter
      兜底验证仍会运行。本轮试过的“非空 query 就画”版本已丢弃，未提交。
 
-### 具体待办（P7-di 重写；第 1 条已落地 P7-di，第 2 条已落地 P7-dj，第 3 条措辞已落地 P7-dl，余下异步 checking 态卡框架）
+### 具体待办（P7-di 重写；三条已全部落地：第 1 条 P7-di、第 2 条 P7-dj、第 3 条措辞 P7-dl + 异步 checking P7-dm）
 
 > 本轮换入口：逐文件对照原版的**脚本工具链状态行**（`src/extensions/script-languages.ts` 的
 > `scriptRuntimeStatus`、`CustomIntegrationDrawer.tsx` 的 `ScriptRuntimeLine`、`ExtensionsPanel.tsx`
@@ -3336,7 +3385,7 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
      变异核查：关掉 `NotifyWarning` 那段分支，settingsui 那条测试立刻红。
      **诚实记录**：框架默认的 toast 外观只画一种色调（`ui/engine.buildToasts` 不读 `Toast.Type`），
      原版的 warning 色调在这里无处可落，所以这条 notice 不设 `Type`——设了就是个没有实现的旋钮。
-3. **状态行措辞与旧字典不一致，且缺 checking 态**（措辞已落地 P7-dl；异步 checking 态仍卡框架）。
+3. **状态行措辞与旧字典不一致，且缺 checking 态**（已全部落地：措辞 P7-dl，异步 checking P7-dm）。
    - 原版对照：`main:src/extensions/CustomIntegrationDrawer.tsx:112-121` 的 `ScriptRuntimeLine`——
      `check === null` → `customScriptRuntimeChecking`（en "Checking the local toolchain…" / zh
      "正在检查本机工具链…"，`main:src/i18n.ts:696,1576`）；missing → `customScriptRuntimeMissing`
@@ -3355,9 +3404,12 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
      的 `null` → 检查中），要么只做措辞对齐；没有异步前不新增 checking 词，避免再造死旋钮。
    - **已落地（P7-dl，措辞与 `Unknown` 语义）**：`scriptlang.Check.Asked()` + `StatusOf` 的零值 →
      `Unknown`；`copy.go` 的 en/zh 三句逐字对齐旧字典；`scriptRuntimeLine` 走 `StatusOf` 的 switch，
-     `Unknown` 落到工具链名字。**未做**：原版的 checking 词（`customScriptRuntimeChecking`）仍无落点，
-     因为探测是同步的——`Actions.ScriptRuntime` 在渲染帧里直接 `exec.Command`，没有「在飞」态。
-     异步化需要先给 settingsui 一条重绘通道（`go func` + `Invalidate`）。详见「最近几轮」P7-dl。
+     `Unknown` 落到工具链名字。
+   - **已落地（P7-dm，异步 checking）**：探测移出渲染帧（`runtimeProbe` goroutine +
+     `Actions.Invalidate` 接 `a.Win.Invalidate`），`scriptRuntimeLine` 对「在飞」返回
+     `LocalToolRuntimeChecking`（新增 en/zh 词，逐字对齐旧字典）；`clearScriptRuntimeCache` 用 epoch
+     守卫丢弃关表单后落地的旧探测。保存路径走 `scriptRuntimeVerdict` 等待（原版 `await`）。
+     详见「最近几轮」P7-dm。
 
 ### 具体待办（P7-dg 重写；第 1 条已落地 P7-dg，第 2 条已落地 P7-dh，余下第 3 条低优先级）
 

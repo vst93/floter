@@ -828,6 +828,11 @@ type Settings struct {
 	LocalToolRuntimeReady    func(name, version string) string
 	LocalToolRuntimeMissing  func(names string) string
 	LocalToolRuntimeCompiled string
+	// LocalToolRuntimeChecking is what the muted line says while the probe is
+	// still running (or has not run yet). The old panel's `check === null`
+	// rendered exactly this, and it is deliberately distinct from a verdict:
+	// "we have not looked" must never be painted as "missing".
+	LocalToolRuntimeChecking string
 	// LocalToolRuntimeSaveWarning is what a script's save says when this
 	// machine has no toolchain for it: the save goes through, so the sentence
 	// is advice rather than a refusal.

@@ -15,6 +15,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/egoist/mygo/plugins/glass"
@@ -153,6 +154,11 @@ type Actions struct {
 	// interpreter on PATH and its version, or nothing. Nil means the form
 	// cannot say, and shows the toolchain's name alone.
 	ScriptRuntime func(language string) scriptlang.Check
+	// Invalidate asks for another frame, from whatever goroutine the probe
+	// finished on: mygo allows it from any goroutine, and the shell wires it to
+	// the window. Nil just means no redraw is requested, so a headless test
+	// drives its own frames.
+	Invalidate func()
 	// NotifyWarning reports a warning the form cannot draw for itself: the old
 	// panel's `onNotify("warning", …)`, which reached the app's own notice
 	// stack rather than the form — the message is about the machine, not about
@@ -462,12 +468,17 @@ type App struct {
 	toolPermissions map[string]bool
 	// toolParams is the declared inputs the form is editing, one per row.
 	toolParams []toolParam
-	// scriptRuntime caches the toolchain verdict the script form's muted line
-	// reads, one entry per language. The old panel cached the probe per
-	// language for the drawer's own session, so a redraw — or re-selecting a
-	// language already checked — never fires a second PATH scan. A fresh form
-	// clears it, because the machine may have changed since the last one.
-	scriptRuntime map[string]scriptlang.Check
+	// scriptRuntime is the script form's own probe state, one entry per
+	// language: the old panel's `runtimeChecks` mirror. A probe runs off the
+	// render thread, so the muted line can say "checking" instead of blocking
+	// the frame on a `--version` subprocess; `scriptRuntimeMu` guards the map
+	// because the probe lands on its own goroutine. `scriptRuntimeEpoch` is the
+	// old drawer's `runtimeChecksEpoch`: a form that closed and reopened in
+	// between must not inherit the previous session's verdict, so a stale
+	// result is dropped rather than cached.
+	scriptRuntime      map[string]*runtimeProbe
+	scriptRuntimeMu    sync.Mutex
+	scriptRuntimeEpoch int
 	// toolEditing is the integration the form is rewriting, empty when it is
 	// connecting something new.
 	toolEditing string
@@ -2814,12 +2825,12 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 			}
 			// A missing toolchain does not block the save — the user may install
 			// the runtime and come back — but it warns once, so the integration
-			// is not silently dead on arrival. The verdict is the form's own
-			// cached one (see scriptRuntimeCheck), so the sentence costs no
-			// second PATH scan; an unasked probe stays quiet rather than
-			// guessing that the toolchain is missing.
+			// is not silently dead on arrival. The old form awaited the probe
+			// before saving so the sentence reflects the machine rather than a
+			// race; `scriptRuntimeVerdict` waits for a probe still in flight (it
+			// normally already landed) and stays quiet when no probe is wired.
 			if tool.Mode == routeScript && a.Actions.NotifyWarning != nil {
-				if check, ok := a.scriptRuntimeCheck(tool.ScriptLanguage); ok &&
+				if check, ok := a.scriptRuntimeVerdict(tool.ScriptLanguage); ok &&
 					scriptlang.StatusOf(tool.ScriptLanguage, check).State == scriptlang.Missing {
 					a.Actions.NotifyWarning(copy.LocalToolRuntimeSaveWarning(scriptlang.Lookup(tool.ScriptLanguage).Label))
 				}
@@ -2991,32 +3002,94 @@ func (a *App) copy() i18n.Settings {
 	return i18n.For(a.Store.Snapshot().Language).Settings
 }
 
-// scriptRuntimeCheck is the toolchain verdict for one language, probed at most
-// once per language per form session. The cache is the old panel's
-// `runtimeChecksRef`: a redraw must not re-run the probe, and switching back to
-// a language already checked is instant. The second result is false when there
-// is nothing to ask (the host wired no probe), so the line can fall back to the
-// toolchain's name alone.
-func (a *App) scriptRuntimeCheck(language string) (scriptlang.Check, bool) {
+// runtimeProbe is one language's toolchain probe, off the render thread:
+// `done` closes when the probe has landed, and `check` is the verdict it
+// found. A probe that has not landed yet is the render's "checking" state —
+// the old panel's `null` — never a verdict.
+type runtimeProbe struct {
+	done  chan struct{}
+	check scriptlang.Check
+}
+
+// scriptRuntimeStart returns the probe for a language, starting one on a
+// goroutine the first time the form asks for it. Probes are deduplicated: a
+// redraw while one is in flight — or a save that arrives mid-flight — joins
+// the request already running rather than firing a second PATH scan.
+func (a *App) scriptRuntimeStart(language string) *runtimeProbe {
+	a.scriptRuntimeMu.Lock()
+	defer a.scriptRuntimeMu.Unlock()
+	if a.scriptRuntime == nil {
+		a.scriptRuntime = map[string]*runtimeProbe{}
+	}
+	if probe, ok := a.scriptRuntime[language]; ok {
+		return probe
+	}
+	probe := &runtimeProbe{done: make(chan struct{})}
+	a.scriptRuntime[language] = probe
+	epoch := a.scriptRuntimeEpoch
+	probeFn := a.Actions.ScriptRuntime
+	invalidate := a.Actions.Invalidate
+	go func() {
+		check := probeFn(language)
+		a.scriptRuntimeMu.Lock()
+		// A form that closed and reopened while this ran must not inherit the
+		// verdict: the machine may have changed (the drawer's `epoch` guard).
+		if epoch == a.scriptRuntimeEpoch {
+			probe.check = check
+		}
+		a.scriptRuntimeMu.Unlock()
+		close(probe.done)
+		if invalidate != nil {
+			invalidate()
+		}
+	}()
+	return probe
+}
+
+// scriptRuntimeCheck is the muted line's own read of the probe: a landed
+// verdict, or nil while one is in flight (or before the form has asked). The
+// second result is false when the host wired no probe at all, so the line
+// falls back to the toolchain's name alone.
+func (a *App) scriptRuntimeCheck(language string) (*scriptlang.Check, bool) {
+	if a.Actions.ScriptRuntime == nil {
+		return nil, false
+	}
+	probe := a.scriptRuntimeStart(language)
+	select {
+	case <-probe.done:
+		check := probe.check
+		return &check, true
+	default:
+		return nil, true
+	}
+}
+
+// scriptRuntimeVerdict is the probe's verdict for a language, waiting for a
+// probe that is still in flight. The old form awaited the probe before saving
+// so the missing-toolchain warning reflects the machine rather than a race;
+// the wait is short because the form opened a frame earlier and the probe has
+// almost always landed. A stale (epoch-dropped) probe answers with the zero
+// Check, which reads as "not asked" and so raises no warning.
+func (a *App) scriptRuntimeVerdict(language string) (scriptlang.Check, bool) {
 	if a.Actions.ScriptRuntime == nil {
 		return scriptlang.Check{}, false
 	}
-	if check, ok := a.scriptRuntime[language]; ok {
-		return check, true
-	}
-	check := a.Actions.ScriptRuntime(language)
-	if a.scriptRuntime == nil {
-		a.scriptRuntime = map[string]scriptlang.Check{}
-	}
-	a.scriptRuntime[language] = check
-	return check, true
+	probe := a.scriptRuntimeStart(language)
+	<-probe.done
+	return probe.check, true
 }
 
-// clearScriptRuntimeCache drops the cached verdicts: a fresh form gets a fresh
-// toolchain check, the same reset the old panel's epoch did. A user who
-// installed the runtime since the last form is told to reopen it, so reopening
-// is exactly when the cache must not survive.
-func (a *App) clearScriptRuntimeCache() { a.scriptRuntime = nil }
+// clearScriptRuntimeCache drops the verdicts and bumps the epoch: a fresh form
+// gets a fresh toolchain check, the same reset the old panel's epoch did. A
+// user who installed the runtime since the last form is told to reopen it, so
+// reopening is exactly when the cache must not survive — and any probe still
+// in flight from the closed form is dropped rather than cached.
+func (a *App) clearScriptRuntimeCache() {
+	a.scriptRuntimeMu.Lock()
+	a.scriptRuntimeEpoch++
+	a.scriptRuntime = nil
+	a.scriptRuntimeMu.Unlock()
+}
 
 // scriptRuntimeLine is the one muted line under the language picker: what this
 // machine has for the language. An absent toolchain is deliberately not an
@@ -3025,11 +3098,18 @@ func (a *App) clearScriptRuntimeCache() { a.scriptRuntime = nil }
 func (a *App) scriptRuntimeLine(language string) string {
 	copy := a.copy()
 	option := scriptlang.Lookup(language)
-	// No probe wired is the same claim as a probe that has not run yet: the
-	// check is zero, so StatusOf answers Unknown and we fall through to the
-	// toolchain's name alone.
-	check, _ := a.scriptRuntimeCheck(language)
-	switch status := scriptlang.StatusOf(language, check); status.State {
+	check, wired := a.scriptRuntimeCheck(language)
+	if !wired {
+		// No probe wired is not a verdict: the toolchain's name is all the form
+		// can honestly say.
+		return option.Toolchain
+	}
+	if check == nil {
+		// Asked, still in flight (or not asked a frame ago): the old panel's
+		// `check === null`, painted as "checking", never as "missing".
+		return copy.LocalToolRuntimeChecking
+	}
+	switch status := scriptlang.StatusOf(language, *check); status.State {
 	case scriptlang.Available:
 		line := copy.LocalToolRuntimeReady(status.Name, status.Version)
 		if status.Compiled {
@@ -3039,7 +3119,8 @@ func (a *App) scriptRuntimeLine(language string) string {
 	case scriptlang.Missing:
 		return copy.LocalToolRuntimeMissing(strings.Join(status.Names, ", "))
 	default:
-		// Not asked yet: the toolchain's name is all we can honestly say.
+		// A landed check with no observation cannot claim the toolchain is
+		// missing: the toolchain's name is all we can honestly say.
 		return option.Toolchain
 	}
 }

@@ -2,6 +2,7 @@ package settingsui
 
 import (
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -264,7 +265,9 @@ func TestLocalToolFormBuildsAScript(t *testing.T) {
 	tt.Frame()
 	// The script rows replace the program row's own field (the segmented
 	// control keeps its two labels either way), and the language's toolchain is
-	// reported as the muted line under the picker.
+	// reported as the muted line under the picker once the probe has landed.
+	awaitRuntime(t, a, a.toolLanguage)
+	tt.Frame()
 	if tt.HasText("/usr/bin/rg") {
 		t.Errorf("the program row survived the switch: %q", tt.Texts())
 	}
@@ -289,6 +292,8 @@ func TestLocalToolFormBuildsAScript(t *testing.T) {
 	if a.toolScript != scriptlang.Template("python") {
 		t.Errorf("the editor did not take the template: %q", a.toolScript)
 	}
+	awaitRuntime(t, a, "python")
+	tt.Frame()
 	if !tt.HasText(copy.LocalToolRuntimeReady("python3", "3.12.1")) {
 		t.Errorf("the runtime line is missing: %q", tt.Texts())
 	}
@@ -338,6 +343,88 @@ func TestLocalToolFormRefusesAnEmptyScript(t *testing.T) {
 	}
 }
 
+// awaitRuntime waits for one language's toolchain probe to land, so a test
+// reads a verdict rather than racing the goroutine the probe now runs on. The
+// live shell paints "checking" until the frame the probe's own Invalidate asks
+// for; the tester drives its own frames, so it waits on the probe itself.
+func awaitRuntime(t *testing.T, a *App, language string) {
+	t.Helper()
+	if a.Actions.ScriptRuntime == nil {
+		return
+	}
+	a.scriptRuntimeVerdict(language)
+}
+
+// The muted line says "checking" while the probe is in flight, never "missing":
+// the old panel's `check === null` — a claim about us, not about the machine.
+// The probe itself runs off the render thread, so the frame that asks for it
+// does not block on a `--version` subprocess.
+func TestScriptRuntimeLineSaysCheckingUntilTheProbeLands(t *testing.T) {
+	copy := i18n.For("en").Settings
+	release := make(chan struct{})
+	landed := make(chan struct{}, 1)
+	a := New(newStore(t), Actions{
+		ScriptRuntime: func(language string) scriptlang.Check {
+			<-release
+			return scriptlang.Check{Candidates: []string{scriptlang.Lookup(language).Toolchain}}
+		},
+		Invalidate: func() {
+			select {
+			case landed <- struct{}{}:
+			default:
+			}
+		},
+	})
+	// The first read starts the probe and paints "checking".
+	if got := a.scriptRuntimeLine("js"); got != copy.LocalToolRuntimeChecking {
+		t.Fatalf("in flight = %q, want %q", got, copy.LocalToolRuntimeChecking)
+	}
+	// A redraw while it runs joins the same probe, still "checking".
+	if got := a.scriptRuntimeLine("js"); got != copy.LocalToolRuntimeChecking {
+		t.Fatalf("second read = %q, want checking", got)
+	}
+	close(release)
+	select {
+	case <-landed:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the probe never landed")
+	}
+	// Now it is a verdict, and the absent toolchain is named.
+	if got := a.scriptRuntimeLine("js"); got != copy.LocalToolRuntimeMissing("node") {
+		t.Fatalf("after landing = %q, want missing", got)
+	}
+}
+
+// A probe that lands after the form closed and reopened is about the old
+// session: the drawer's `epoch` guard drops it rather than caching it as the
+// new form's answer (the machine may have changed meanwhile).
+func TestAStaleProbeFromAClosedFormIsDropped(t *testing.T) {
+	release := make(chan struct{})
+	a := New(newStore(t), Actions{
+		ScriptRuntime: func(language string) scriptlang.Check {
+			<-release
+			return scriptlang.Check{Available: true, Path: "/usr/bin/node"}
+		},
+	})
+	probe := a.scriptRuntimeStart("js")
+	// The user closes and reopens the form while the probe runs: the epoch
+	// moves and the verdicts are dropped.
+	a.clearScriptRuntimeCache()
+	close(release)
+	<-probe.done
+	a.scriptRuntimeMu.Lock()
+	cached := a.scriptRuntime["js"]
+	a.scriptRuntimeMu.Unlock()
+	if cached != nil {
+		t.Errorf("a stale probe was cached: %+v", cached)
+	}
+	// The next form starts a fresh probe, so the old one did not answer for it.
+	check, ok := a.scriptRuntimeVerdict("js")
+	if !ok || !check.Available {
+		t.Errorf("the fresh form got %+v, want an available verdict", check)
+	}
+}
+
 // The toolchain probe is cached per language for the form's own session: the
 // old panel's `runtimeChecksRef` ran it once per language per drawer rather
 // than per keystroke, so a redraw must not shell out again and switching back
@@ -352,12 +439,14 @@ func TestScriptRuntimeProbeIsCachedPerLanguage(t *testing.T) {
 	})
 	// Two reads of one language in one session: the probe runs once.
 	a.scriptRuntimeLine("js")
+	awaitRuntime(t, a, "js")
 	a.scriptRuntimeLine("js")
 	if probes["js"] != 1 {
 		t.Errorf("js was probed %d times, want 1", probes["js"])
 	}
 	// A different language has its own verdict.
 	a.scriptRuntimeLine("python")
+	awaitRuntime(t, a, "python")
 	if probes["python"] != 1 {
 		t.Errorf("python was probed %d times, want 1", probes["python"])
 	}
@@ -369,6 +458,7 @@ func TestScriptRuntimeProbeIsCachedPerLanguage(t *testing.T) {
 	// A fresh form drops the verdicts: the machine may have changed.
 	a.clearScriptRuntimeCache()
 	a.scriptRuntimeLine("js")
+	awaitRuntime(t, a, "js")
 	if probes["js"] != 2 {
 		t.Errorf("a fresh form did not re-probe: %d", probes["js"])
 	}
@@ -399,6 +489,7 @@ func TestReopeningTheLocalToolFormReprobesTheToolchain(t *testing.T) {
 		t.Fatal(err)
 	}
 	tt.Frame()
+	awaitRuntime(t, a, a.toolLanguage)
 	if probes != 1 {
 		t.Fatalf("probes after the first form = %d, want 1", probes)
 	}
@@ -417,6 +508,7 @@ func TestReopeningTheLocalToolFormReprobesTheToolchain(t *testing.T) {
 		t.Fatal(err)
 	}
 	tt.Frame()
+	awaitRuntime(t, a, a.toolLanguage)
 	if probes != 2 {
 		t.Errorf("reopening did not re-probe: %d", probes)
 	}

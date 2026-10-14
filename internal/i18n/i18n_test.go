@@ -109,8 +109,9 @@ func TestPercent(t *testing.T) {
 	}
 }
 
-// TestScriptRuntimeWordsMatchTheOldDictionary pins the three script-toolchain
-// sentences to the old build's own strings: the ready line carries no "is
+// TestScriptRuntimeWordsMatchTheOldDictionary pins the four script-toolchain
+// sentences to the old build's own strings: the checking line is the spinner's
+// own caption, the ready line carries no "is
 // ready" suffix (the drawer appended the compiled note and path instead), the
 // missing line names reopening the form as the way to check again, and the
 // compiled note is the drawer's two-word em.
@@ -120,10 +121,12 @@ func TestScriptRuntimeWordsMatchTheOldDictionary(t *testing.T) {
 		got  string
 		want string
 	}{
+		{"en checking", en.Settings.LocalToolRuntimeChecking, "Checking the local toolchain…"},
 		{"en ready", en.Settings.LocalToolRuntimeReady("python3", "3.12.1"), "python3 3.12.1"},
 		{"en ready no version", en.Settings.LocalToolRuntimeReady("node", ""), "node"},
 		{"en missing", en.Settings.LocalToolRuntimeMissing("node, nodejs"), "Not found on PATH: node, nodejs. Install it, then reopen this form to check again."},
 		{"en compiled", en.Settings.LocalToolRuntimeCompiled, "built before running"},
+		{"zh checking", zh.Settings.LocalToolRuntimeChecking, "正在检查本机工具链…"},
 		{"zh ready", zh.Settings.LocalToolRuntimeReady("python3", "3.12.1"), "python3 3.12.1"},
 		{"zh ready no version", zh.Settings.LocalToolRuntimeReady("node", ""), "node"},
 		{"zh missing", zh.Settings.LocalToolRuntimeMissing("node, nodejs"), "在 PATH 中未找到：node, nodejs。安装后重新打开此表单即可再次检查。"},

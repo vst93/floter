@@ -825,6 +825,7 @@ var en = Copy{
 			return "Not found on PATH: " + names + ". Install it, then reopen this form to check again."
 		},
 		LocalToolRuntimeCompiled: "built before running",
+		LocalToolRuntimeChecking: "Checking the local toolchain…",
 		// The save-half of the same story: a script may be saved without its
 		// toolchain (the user may install it later), so the sentence says what
 		// will happen rather than refusing. Fixed by the old build's
@@ -1583,6 +1584,7 @@ var zh = Copy{
 			return "在 PATH 中未找到：" + names + "。安装后重新打开此表单即可再次检查。"
 		},
 		LocalToolRuntimeCompiled: "运行前先编译",
+		LocalToolRuntimeChecking: "正在检查本机工具链…",
 		LocalToolRuntimeSaveWarning: func(language string) string {
 			return "本机尚未安装 " + language + "。集成会保存，但在安装工具链之前无法运行。"
 		},
