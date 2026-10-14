@@ -198,6 +198,60 @@ func TestLocalToolProgramRowCarriesItsWord(t *testing.T) {
 	}
 }
 
+// The reference's drawer names the integration being edited in a read-only
+// row (`CustomIntegrationDrawer.tsx:144`, the `editingId &&` branch): the id
+// is minted by the backend and never editable (R9-3), so the form shows it as
+// a value under `customId` (`i18n.ts:683`) rather than a field. A fresh
+// connection has no id, so the row is absent then. This build's edit mode only
+// changed the submit label (`LocalToolSave`) and never said which integration
+// the form was rewriting.
+func TestLocalToolFormNamesTheIntegrationBeingEdited(t *testing.T) {
+	en := i18n.For("en").Settings
+	zh := i18n.For("zh").Settings
+	if got := en.LocalToolId; got != "Integration ID" {
+		t.Errorf("the id label reads %q", got)
+	}
+	if got := zh.LocalToolId; got != "集成 ID" {
+		t.Errorf("the id label (zh) reads %q", got)
+	}
+
+	a := New(newStore(t), Actions{
+		ConnectLocalTool: func(CustomTool) {},
+		EditCustomTool:   func(string, CustomTool) {},
+		ToolForEdit: func(id string) (CustomTool, bool) {
+			return CustomTool{Name: "Ripgrep", Program: "/usr/bin/rg", Command: "rg"}, id == "local.abc"
+		},
+	})
+	a.Integrations = func() []Integration {
+		return []Integration{{ID: "local.abc", Name: "Ripgrep", Enabled: true, Running: true, Generated: true}}
+	}
+	tt := render(t, a, 720, 2200)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if tt.HasText(en.LocalToolId) {
+		t.Fatalf("the id row is drawn before the form opens: %q", tt.Texts())
+	}
+	if err := tt.Click("Edit\u2026"); err != nil {
+		t.Fatalf("edit: %v", err)
+	}
+	tt.Frame()
+	if a.toolEditing != "local.abc" {
+		t.Fatalf("editing = %q", a.toolEditing)
+	}
+	if !tt.HasText(en.LocalToolId) {
+		t.Fatalf("the edit form does not name the integration: %q", tt.Texts())
+	}
+	// Leaving edit mode returns the form to a fresh connection, which has no
+	// id yet.
+	a.endEdit()
+	tt.Frame()
+	if tt.HasText(en.LocalToolId) {
+		t.Errorf("the id row survived the end of editing: %q", tt.Texts())
+	}
+}
+
 // The plan helper is a pure projection of the two fields the host turns into
 // argv: an absent arguments field reads as an empty list (never null), and the
 // mode is the pty run the reference named.

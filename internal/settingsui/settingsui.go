@@ -2983,6 +2983,13 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 		// backend. The same function gates the submit, so the two cannot drift.
 		issues := customIssues(a.customDraft(name, program, command, args, versionArgs, version, description, mode, language, script))
 		a.card(c, func() {
+			// R9-3 · the id is minted by the backend and immutable, so when
+			// an existing integration is being edited the form names it in a
+			// read-only row instead of offering an editable field. A fresh
+			// connection has no id yet, so the row is absent.
+			if a.toolEditing != "" {
+				a.keyValue(c, copy.LocalToolId, a.toolEditing)
+			}
 			a.row(c, copy.LocalToolName, "", func() {
 				textInput(c, &name).Label(copy.LocalToolName).Width(240).Grow(1).Placeholder("Ripgrep")
 			}, func() {

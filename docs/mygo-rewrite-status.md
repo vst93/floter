@@ -100,7 +100,40 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-ex 自定义工具表单的 Program 行补回原版的占位符与保存期提示
+> **最新一轮：P7-ey 编辑态补回原版的只读「集成 ID」行
+> （原版 `src/extensions/CustomIntegrationDrawer.tsx:144` 的 `editingId &&` 分支，词条
+> `i18n.ts:683` 的 `customId`）**
+> ——「尚未做」的 5 条具体待办里第 1 条（P7-ew 内容动作行）、第 2 条（P7-ex Program 行）已落地，
+> 本轮取文档标注的最高优先级第 3 条（编辑态只读 ID 行）。依赖检查：GitHub `releases/latest` 与
+> `go list -m -versions github.com/egoist/mygo` 均确认最新仍是 **v0.4.8**（与 `go.mod` 一致），
+> 无版本可升、无新 API 用点；只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离（P7-ey·集成 ID 行）**：原版编辑态在 Name 行之前画一条 `customId` label 后跟不可编辑的
+> `<code>{id}</code>`；创建态整行隐藏（R9-3：id 由后端铸造且此后不可变，前端不展示可推导的值）。
+> **本构建（改前）**：`internal/settingsui/settingsui.go` 的 `localToolSection` 在
+> `a.toolEditing != ""` 时只把提交按钮文案换成 `LocalToolSave`，没有任何一行点名正在改的是哪个 id
+> （`grep -rn 'CustomId\|LocalToolId\|Integration ID' internal/settingsui` 为空）。
+>
+> **落地**：
+> - `internal/i18n` 新增 `LocalToolId`，en/zh 逐字取 `i18n.ts:683`（`internal/i18n/i18n.go:806-813`
+>   一带、`copy.go` en/zh）。
+> - `internal/settingsui/settingsui.go:2987-2992` 的卡片顶部（Name 行之前）在 `a.toolEditing != ""` 时
+>   走 `a.keyValue(c, copy.LocalToolId, a.toolEditing)`——与 About 页只读值同一读法：label 在行首、
+>   值在行尾且 `Selectable()`，没有可编辑控件；创建态该行不画。
+>
+> **验收**：`internal/settingsui/toolcontent_test.go` 新增
+> `TestLocalToolFormNamesTheIntegrationBeingEdited`——en/zh 标签逐字断言；列表态不画该行；点
+> 「Edit…」进编辑态后 `HasText(copy.LocalToolId)` 且 `a.toolEditing == "local.abc"`；`endEdit()` 后
+> 该行消失。变异核查：删掉 `localToolSection` 的 `if a.toolEditing != ""` 块 → 新测试红（
+> “the edit form does not name the integration”）。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：第 3 条（编辑态只读集成 ID 行）落地；「尚未做」5 条具体待办中第 1–3 条已完成，
+> 第 4–5 条待做：参数编辑器字段顺序、脚本模式导出脚本写文件。下轮最高优先级是第 4 条。
+
+> **上一轮：P7-ex 自定义工具表单的 Program 行补回原版的占位符与保存期提示
 > （原版 `src/extensions/CustomIntegrationDrawer.tsx:145` 的 `customExecutable` label 下方
 > `customExecutablePlaceholder` 与 `changeExecutableHint`，文案在 `i18n.ts:665,687`）**
 > —— P7-ew 把「尚未做」重写为 5 条具体待办并落地第 1 条（内容动作行），本轮取第 2 条
@@ -5071,14 +5104,15 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-> **清单状态（P7-ew 重写；P7-ex 更新）**：P7-ex 已落地第 2 条（Program 行的 hint 与占位符），
-> 清单剩第 3–5 条（集成 ID 只读行、参数编辑器字段顺序、导出脚本写文件动作）。P7-ev 收尾后用户反馈 F1–F4 全部收口，「尚未做」上再无未落地条目，只剩
+> **清单状态（P7-ew 重写；P7-ey 更新）**：P7-ex 已落地第 2 条（Program 行的 hint 与占位符），
+> P7-ey 已落地第 3 条（编辑态只读集成 ID 行），清单剩第 4–5 条（参数编辑器字段顺序、导出脚本
+> 写文件动作）。P7-ev 收尾后用户反馈 F1–F4 全部收口，「尚未做」上再无未落地条目，只剩
 > 「回到 `localToolSection`/`runForm` 等其他入口逐函数审计」这句宽泛候选。本轮按规则把它**写实为 5 条
 > 带 file:line / 原版对照 / 验收标准的具体待办**（见下「具体待办（P7-ew 重写）」），并取第 1 条实现。
 > 依赖检查：`go list -m -versions github.com/egoist/mygo` 最新仍是 **v0.4.8**（与 `go.mod` 一致），
 > 无版本可升；GitHub releases API 限流。只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
 
-### 具体待办（P7-ew 重写；第 1 条 P7-ew、第 2 条 P7-ex 已落地，3–5 条待做）
+### 具体待办（P7-ew 重写；第 1 条 P7-ew、第 2 条 P7-ex、第 3 条 P7-ey 已落地，4–5 条待做）
 
 审计入口：原版 `main:src/extensions/CustomIntegrationDrawer.tsx`（自定义工具表单，本构建对应
 `internal/settingsui/settingsui.go` 的 `localToolSection`/`scriptRows`/`toolPermissionFields`/
@@ -5124,18 +5158,21 @@ P7-ev）、执行引擎/参数校验（P7-bh）等。**下面五条是本轮逐�
      `TestLocalToolForm` 因表单又高一行为 1800 渲染高度。变异核查：把 hint 参数改回 `""` → 红。
      详见「最近几轮」P7-ex。
 
-3. **（待做）「集成 ID」在编辑态是只读说明行，本构建根本没画**。
+3. **（已落地，P7-ey）「集成 ID」在编辑态是只读说明行，本构建根本没画**。
    - 原版对照：`main:src/extensions/CustomIntegrationDrawer.tsx:144` 的 `editingId &&` 分支——编辑时
      一条 `customId`（“Integration ID”，`i18n.ts:683`）后跟不可编辑的 `<code>{id}</code>`；创建时整行
      隐藏（还没有 id）。原因写在原版注释里（R9-3：id 由后端铸造且此后不可变，前端不展示可推导的值）。
    - 本构建（改前）：`internal/settingsui/settingsui.go` 的 `localToolSection` 在 `a.toolEditing != ""`
      时**只改按钮文案**（`LocalToolSave`），没有任何一行点名正在改的是哪个 id；
      `grep -rn 'CustomId\|LocalToolId\|Integration ID' internal/settingsui` 为空。
-   - 落地 file:line：`internal/i18n` 新增 `LocalToolId`（en/zh，原版 `customId` 原文）；
-     `settingsui.go` 的 `localToolSection` 在卡片顶部（Name 行之前）`editingId != ""` 时画一条只读
-     `a.row(copy.LocalToolId, a.toolEditing)`（值不可编辑，同 `keyValue` 的读法）。
-   - 验收：`internal/settingsui/toolcontent_test.go` 追加一条——编辑态点「Edit…」后 `HasText(copy.LocalToolId)`
-     且 id 字符串出现在行上；创建态（「Add a local tool」）该行不画。删掉该行 → 红。
+   - 落地 file:line（已落地）：`internal/i18n` 新增 `LocalToolId`（en/zh，原版 `customId` 原文，
+     `i18n.go:806-810`、`copy.go:708,1529`）；`settingsui.go:2987-2992` 的 `localToolSection` 在卡片
+     顶部（Name 行之前）`a.toolEditing != ""` 时走 `a.keyValue(c, copy.LocalToolId, a.toolEditing)`——
+     值在行尾且 `Selectable()`，没有可编辑控件（同 About 页只读值的读法）；创建态不画。
+   - 验收（已满足）：`internal/settingsui/toolcontent_test.go` 的
+     `TestLocalToolFormNamesTheIntegrationBeingEdited`——en/zh 标签逐字断言、列表态不画、点「Edit…」
+     进编辑态后 `HasText(copy.LocalToolId)` 且 `a.toolEditing == "local.abc"`、`endEdit()` 后消失。
+     删掉该行 → 红。详见「最近几轮」P7-ey。
 
 4. **（待做）参数编辑器的「必需」开关与行头控件顺序与原版不一致**。
    - 原版对照：`main:src/extensions/CustomIntegrationDrawer.tsx:83-104` 的 `ScriptParamEditor` 每个参数

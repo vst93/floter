@@ -799,10 +799,15 @@ type Settings struct {
 	DeepLinkCopied   string
 	DeepLinkRejected string
 	// The local-tool connection form.
-	LocalToolTitle   string
-	LocalToolHint    string
-	LocalToolAdd     string
-	LocalToolName    string
+	LocalToolTitle string
+	LocalToolHint  string
+	LocalToolAdd   string
+	LocalToolName  string
+	// LocalToolId labels the read-only id shown when an existing generated
+	// integration is edited (the reference's `customId`, `i18n.ts:683`). The
+	// id is minted by the backend and never editable, so the row names the
+	// thing rather than offering a field.
+	LocalToolId      string
 	LocalToolProgram string
 	LocalToolChoose  string
 	// The executable box's own words (R—/`CustomIntegrationDrawer.tsx:145`):
