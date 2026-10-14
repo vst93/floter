@@ -51,18 +51,27 @@ func TestHeldModifierRowGrowsTheWindowAndRecedes(t *testing.T) {
 	}
 }
 
-// A typed query draws no row, whatever the modifier does - the reference's
-// R64 rule (`bareTerminalPlacement`: `query.trim().length > 0 ? null`). The
-// report read this as a deviation; it is the reference's own behaviour, pinned
-// here so a later round cannot quietly change it.
-func TestHeldModifierRowFollowsTheReferenceQueryGate(t *testing.T) {
+// A typed query keeps the held row: it is the list's last line over the query
+// too (the user's report 「输入内容之后按住 Super 键，底部应该固定出现「在终端
+// 中打开」的选项」). The reference's R64 narrowed the row to the empty field;
+// this build restores R60's wider gesture at the user's request, so the row —
+// and the window grown for it — is present with the modifier down whatever the
+// field holds.
+func TestHeldModifierRowStaysOverAQuery(t *testing.T) {
 	a := appKeysApp()
 	tt := appKeysRender(t, a)
-	tt.HoldModifiers(ui.Cmd)
 	tt.Type("z")
+	tt.HoldModifiers(ui.Cmd)
 	tt.Frame()
-	if hasLauncherItem(a, "system-terminal-bare") {
-		t.Errorf("the held row showed over a query: %+v", a.Launcher.Results())
+	results := a.Launcher.Results()
+	if !hasLauncherItem(a, "system-terminal-bare") {
+		t.Fatalf("the held row hid over a query: %+v", results)
+	}
+	if results[len(results)-1].ID != "system-terminal-bare" {
+		t.Errorf("the held row is not the last line over a query: %+v", results)
+	}
+	if a.Launcher.Selected != len(results)-1 {
+		t.Errorf("the selection is on %d, want the held row %d", a.Launcher.Selected, len(results)-1)
 	}
 }
 

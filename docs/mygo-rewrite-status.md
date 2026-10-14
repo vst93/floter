@@ -99,6 +99,31 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
+> **最新一轮：P7-eg 用户四项实测反馈写实 + F1 落地（原版 `src/launcher/terminal-row.ts:77-84`
+> R60/R64）** —— 「尚未做」清单已空（P7-ee 重写的 1–3 全部落地、第 4 条是记录），本轮按规则
+> 把用户新报告的 F1–F4 **逐条写实**为带 file:line / 原版对照 / 验收标准的待办（文档末尾
+> 「用户实测反馈」一节），再取第 1 条落地。依赖检查：GitHub releases 被限流，
+> `go list -m -versions` 与 `go.mod` 均为 **v0.4.8**，无版本可升；只对照 `main`
+> （`backup/main-pre-mygo` = v0.3.14），未翻历史提交。
+>
+> **F1（搜索框输入后按住 Super → 底部「打开终端」行）**：原版 R64 的 `bareTerminalPlacement`
+> 把行窄化成「空字段才画」，本构建此前照做并把它钉成参考行为；用户在最新报告里要求更宽的手势。
+> 按「用户最新要求优先」恢复 **R60 的输入态追加**：按住 App 修饰键时，`heldTerminalItem` 不再因
+> 字段非空而返回 false，`Results()` 在动作栏与匹配行之后把它追加为**最后一行**（动作栏的存在性
+> 闸门只读不含该行的 `other`）。file:line：`internal/launcher/launcher.go` 的 `heldTerminalItem`
+> 去挡板、`internal/launcher/search.go` 的 `Results`/`otherResults` 调整追加位置。验收：
+> `internal/launcher/filters_test.go` 的 `TestHeldModifierBareTerminalRow` 末段（先键入再按住）
+> 与 `internal/shell/heldmodifier_test.go` 的 `TestHeldModifierRowStaysOverAQuery`（旧 `…QueryGate`
+> 已改写）。变异核查：把 query 挡板加回 → 两条红。
+>
+> **F2 复核**：编号随滚动视口已由 P7-d 落地（`assignNumbers` + `resultnumbers_test.go`），本轮
+> 逐行核对 `result-budget.ts:883-912` 后判定「键滞后一帧」是即时模式与原版 React 的同一行为，不是
+> 偏差；把「去一帧」记为可选后续。**F3/F4 拆成可执行子项**（F3b 的帧 sheen 耦合 file:line 已钉、
+> F4 的审计入口 file:line 已钉）留待后续轮次。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
 > **最新一轮：P7-ef 剪贴板模式的「已关闭」档 + 计算器模式层的抓取深度
 > （原版 `src/hooks/useLauncherCatalog.ts:814-816`、`src/plugins/clipboard/mode.ts:34-56`、
 > `src/plugins/status.ts`、`src/launcher/LauncherResults.tsx:749-760`、`src/App.tsx:2165-2166`；
@@ -6583,3 +6608,92 @@ Go 侧把原版的三条规则写偏了。依赖检查：`go list -m -versions g
   （尤其全角空格 U+3000）会把两个词粘成一个 token。结构化 argv（`ParseCommandLine`）、App 拼的
   命令行（`RunShellWithCommand`）、粘贴（`Options.OnPaste`）三个接缝现在都走它；框架自己处理的
   键入文本还够不到（见「已知差距」）。
+
+
+## ⚠️ 用户实测反馈（2026-10-14 早，最高优先级）
+
+> 用户原话：「floter 项目当前存在以下问题」——以下四项**优先于上面所有待办**。本轮（P7-eg）先把它
+> 逐条写实成带 file:line / 原版对照 / 验收标准的待办（下面四项），再取第 1 条（F1）落地；F2 复核为
+> 已落地（P7-d），F3/F4 拆成可执行子项留给后续轮次。
+
+### F1 · 搜索框 Super 键 → 底部「打开终端」行（**本轮落地，P7-eg**）
+
+- **现象**：输入内容之后按住 Super（App 修饰键），底部应固定出现「在终端中打开」的行。
+- **原版对照（用户要求与参考的取舍）**：`main:src/launcher/terminal-row.ts:77-84` 的
+  `bareTerminalPlacement` 在 **R64** 把行窄化成「空字段才画」（`query.trim().length > 0 ? null`）；
+  更早的 **R60** 是「按住修饰键就追加底部终端执行项」。两者都是用户自己的措辞（R64 的注释里逐字记着）。
+  本构建此前完全按 R64，并把「有 query 不画」钉成参考行为
+  （`internal/shell/heldmodifier_test.go` 的旧 `TestHeldModifierRowFollowsTheReferenceQueryGate`）。
+- **决定**：**用户的最新要求优先**——恢复 R60 的更宽手势：按住修饰键时该行**无论字段是否为空**都是
+  列表最后一行（这就是「底部应固定出现」）。deviation 与理由写在 `internal/launcher/launcher.go` 的
+  `heldTerminalItem` 注释里。
+- **落地 file:line**：
+  - `internal/launcher/search.go` 的 `Results()`：`other` 之后追加 `heldTerminalItem()`，保证它是
+    **最后**一行，且动作栏的存在性闸门只读 `other`（不含该行）；
+  - `internal/launcher/search.go` 的 `otherResults()`：删掉空字段分支里的追加（避免该行污染动作栏闸门）；
+  - `internal/launcher/launcher.go` 的 `heldTerminalItem()`：删掉 `strings.TrimSpace(a.Query) != ""`
+    挡板；`syncHeldModifier` 的按下沿照旧把选中放到最后一行。
+- **验收**：`internal/launcher/filters_test.go` 的 `TestHeldModifierBareTerminalRow` 末段（先键入
+  「zzz」再按住修饰键 → 行在、在最后、选中在其上）；`internal/shell/heldmodifier_test.go` 的
+  `TestHeldModifierRowStaysOverAQuery`（端到端；旧 `…QueryGate` 已随本轮改写）。变异核查：把
+  `heldTerminalItem` 的 query 挡板加回去，两条立刻红（`the held row hid over a query`）。
+
+### F2 · 列表滚动时编号快捷键跟随视口（**已落地 P7-d；本轮复核为参考行为**）
+
+- **现象**：滚动时应始终给**当前视口内**的行编号（`1`~`9` 与 `0`），「不跳屏、不滞后」。
+- **原版对照**：`main:src/launcher/result-budget.ts:883-901` 的 `resultShortcutSlots(rows, flags, visible)`
+  （`start=floor(visible.start)`、`end=ceil(visible.end)`，前九行 `1`-`9`、第十行 `0`）；`:909-912` 的
+  `resultIndexForSlot` 是「键 ↔ 徽章」的唯一来源。
+- **本构建**：`internal/launcher/launcher.go:417-470` 的 `assignNumbers` 已实现（溢出时读
+  `a.List.Visible()`，`internal/launcher/resultnumbers_test.go` 三条钉住），P7-d 落地。
+- **复核对齐**：编号家族只覆盖**可运行行**（`Run != nil` 且非 `bar:`/`status`/`heading`），与
+  `result-budget.ts:837-855` 的 runnable flags 同义；视口是**上一帧**的（原版键处理读上一次渲染的 slot
+  表），列表在**下一帧**重编号——这是即时模式与原版 React 的同一个「键滞后一帧」，不是偏差。
+- **残留（若用户仍读作「滞后」）**：把编号改成在 `ui.List` 的行回调里按**当前**视口赋号，可去掉这
+  一帧；但那会让 overscan 行（mygo `listOverscan=2`）也被编号，与 `resultShortcutSlots` 的精确
+  `floor/ceil` 不完全等价，需要单独一轮权衡。**列为可选后续，非本轮。**
+- **验收（现状）**：`TestResultShortcutsFollowTheScrollViewport`（30 行滚动后编号落到视口首行、键跑
+  可见行而非 `App 00`）、`TestAShortListIsNumberedWhole`。
+
+### F3 · 毛玻璃效果配置（**拆成 F3a/F3b 两个可执行子项**）
+
+- **F3a · 液态玻璃两态观感差。**
+  - **原版对照**：`main:src/glass-material.ts` 的 `GLASS_STEP_TOKENS`（dim off 0 / frosted 0.6 /
+    regular 0.5 / liquid 0.2）与 `main:src/styles/base.css:780-800` 的 `[data-glass]` 三档
+    （blur 10/22/28、saturate 130/170/200、lens 0.5/1/1.6）。
+  - **本构建**：`internal/glassmap/glassmap.go:88-101` 的 `stops` 三档**数值与原版逐项相等**；可见差异
+    只剩两处落点：窗口材质 `internal/shell/shell.go:2738` 的 `vibrancyForStop`（macOS 三档
+    UnderWindow/…；Windows 只有 Acrylic；Linux None）与控件透镜
+    `internal/theme/theme.go:347-349` 的 `LensRim/LensSheen/LensEdge × LensScale`。
+  - **验收/待做**：逐平台（尤其 Linux 无窗口材质时）渲染 regular↔liquid 的生产帧，核对控件透镜确实
+    是两档的主要可见差异；若 Linux 上仅靠透镜不够，则补帧的 sheen/haze 到原版量级（见 F3b）。
+- **F3b · 玻璃作用范围：控件 vs 整体；整体弱化、阴影细节加强。**
+  - **原版对照**：`main:src/styles/launcher.css:119` 的卡片是
+    `linear-gradient(180deg, var(--sheen-top), var(--sheen-bottom)), var(--launcher-tint)`，而
+    `--sheen-top/-bottom` 是**固定 token**（`main:src/styles/base.css:628-629` dark 0.046/0.01、
+    `:906-907` light 0.66/0.22），**不随 `[data-glass]` 变**；档位的可见 rung 只在控件透镜
+    （`base.css:569-572` 的 `--glass-lens-*` 乘 `--glass-lens-scale`）与窗口材质上。
+  - **本构建（偏离）**：`internal/theme/theme.go:286-291` 把帧的 sheen 写成
+    `sheen = spec.TintAlpha * spec.LensScale`（P7-d 为「3 档看不出区别」加的耦合），于是**帧**的亮面随
+    档位变，而原版的帧 sheen 固定。
+  - **待做 file:line**：把 `theme.go` 的帧 sheen 改回原版的固定口径（`spec.Glass` 时取常量、不乘
+    `LensScale`），档位差异全部落到控件透镜（已按 `LensScale` 缩放）。
+  - **验收**：新增/改写像素测试——同一 `main_opacity` 下，**帧**的亮面颜色在 regular 与 liquid 之间
+    相同（原版），而**控件**的 lens 强度按 0.5/1/1.6 单调上升；现有
+    `internal/shell/glass_test.go` 的 `TestTheGlassStopsAreVisiblyDifferent` 需随之改写（它当前断言帧
+    亮面随档位变，是 P7-c/P7-d 的产物）。
+  - **风险**：帧 sheen 参与透明度的 `FaceFill` 补偿（`theme.go` 的 `baseAlpha`/`capAlpha` 与
+    `internal/shell/transparency_test.go`），改动须重跑该套像素测试。
+
+### F4 · 集成组件逻辑差异（**审计入口已钉，逐项待下一轮**）
+
+- **现象**：集成组件逻辑与原版差异仍大，需要梳理、可能重构。
+- **原版对照**：`main:src/ExtensionsPanel.tsx`（面板与安装/权限/运行流程）与
+  `main:src/extensions/ExtensionRow.tsx`（每行卡片）。
+- **本构建入口**：`internal/settingsui/settingsui.go:1120` 的 `integrations`（列表页）、`:1485` 的
+  `integrationRow`（卡片）、`:1326` 的 `stateMark`、`:1741` 的 `permissionAudit`，数据来自
+  `internal/extensions` 的 inventory/repository。
+- **待做**：下一轮以 `git show backup/main-pre-mygo:src/ExtensionsPanel.tsx` 与
+  `src/extensions/ExtensionRow.tsx` 为蓝本逐函数对照，把差异落成**带 file:line 的具体待办**（每项一条，
+  含原版行号与验收），再逐条实现。范围大，不在本轮硬塞。
+- **验收**：每个落成的子项各带一条测试钉住卡片/流程的状态机（安装、审批、运行、卸载）。

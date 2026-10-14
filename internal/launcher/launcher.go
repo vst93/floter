@@ -2163,17 +2163,16 @@ func (a *App) FeedbackVisible() bool { return a.toast != "" }
 
 // syncHeldModifier reads the app modifier's state for this frame and moves the
 // selection to (or away from) the held row at the edge where the modifier goes
-// down or up. The row itself is part of Results (see otherResults), so the
-// window's height and the row's own presence are one decision.
+// down or up. The row itself is part of Results (see Results), so the window's
+// height and the row's own presence are one decision.
 //
 // The two edges are the reference's own (src/App.tsx R64, the heldBareTerminal
 // effect): the press edge puts the row — the list's last line — in the
-// selection; the release edge resets the selection to the empty page's own
-// default, which is its first runnable row, unconditionally — the effect's
-// dependency list carries no selection, so an arrow step off the row during
-// the gesture is discarded on release, exactly as the reference's is. There is
-// no delay: the row and the selection move on the same frame the modifier's
-// state lands.
+// selection; the release edge resets the selection to the page's own default,
+// which is its first runnable row, unconditionally — the effect's dependency
+// list carries no selection, so an arrow step off the row during the gesture
+// is discarded on release, exactly as the reference's is. There is no delay:
+// the row and the selection move on the same frame the modifier's state lands.
 func (a *App) syncHeldModifier(c *ui.Context) {
 	down := c.Modifiers()&ui.Cmd == ui.Cmd
 	// "Was the row showing" has to be asked of the frame before: once
@@ -2188,22 +2187,25 @@ func (a *App) syncHeldModifier(c *ui.Context) {
 		results := a.Results()
 		if down {
 			if _, ok := a.heldTerminalItem(); ok {
+				// The held row is the list's last line, so its index is the
+				// last one — on the empty page and over a query alike.
 				a.Selected = len(results) - 1
 			} else if strings.TrimSpace(a.Query) != "" {
-				// A typed query: the modifier hands the selection to the action
-				// bar, the old build's `setSelectedActionBar(true)` on the
-				// modifier's keydown. The bar is a row of this list, so it is
-				// selected by its index; it is always drawn for a non-empty
-				// query now (see actionBarItemsWith).
+				// No held row (a plugin mode, or the output view owns the
+				// keys), but the field holds a query: the modifier hands the
+				// selection to the action bar, the old build's
+				// `setSelectedActionBar(true)` on the modifier's keydown. The
+				// bar is a row of this list, so it is selected by its index;
+				// it is drawn for a non-empty query now (see
+				// actionBarItemsWith).
 				if bar := actionBarIndex(results); bar >= 0 {
 					a.Selected = bar
 				}
 			}
 		} else if rowShowing || strings.TrimSpace(a.Query) != "" {
-			// The row the modifier put on screen is gone (the empty page), or
-			// the bar the modifier selected steps aside (the typed query).
-			// Either way the selection returns to the page's own default — the
-			// reference's `firstRunnableResultIndex`.
+			// The row the modifier put on screen is gone. The selection
+			// returns to the page's own default — the reference's
+			// `firstRunnableResultIndex`.
 			a.Selected = a.defaultSelection(results)
 		}
 	}
@@ -2218,13 +2220,18 @@ func (a *App) heldRowShowing() bool {
 }
 
 // heldTerminalItem is the row the held modifier offers: a bare terminal
-// session, on the ordinary page with an empty field and nothing typed. A query
-// is a search, and a search has its own answers; a mode owns its own list.
+// session, on the ordinary page, whether the field is empty or holds a query.
+// A plugin mode owns its own list and shows no row of its own; the output view
+// owns the keys and shows none either.
+//
+// The reference's own history has both shapes: R60 appended the row under the
+// modifier whatever the field held (「按住 cmd 时也自动增加底部的终端执行项」),
+// and R64 narrowed it to the empty field. The user's report 「输入内容之后按住
+// Super 键，底部应该固定出现「在终端中打开」的选项」 asks for R60's wider
+// gesture back, so the row rides the modifier on a query too and is the list's
+// last line either way (see `Results`).
 func (a *App) heldTerminalItem() (Item, bool) {
 	if !a.modifierHeld || a.output != nil || a.pluginModeActive() {
-		return Item{}, false
-	}
-	if strings.TrimSpace(a.Query) != "" {
 		return Item{}, false
 	}
 	copy := a.copy()

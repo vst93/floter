@@ -760,11 +760,20 @@ func (a *App) Results() []Item {
 	// not appended a second time here — that duplicate took two numbered
 	// slots for one answer.
 	out = append(out, other...)
+	// The held modifier's own line is the list's **last** row, on the empty
+	// page *and* over a query (the report 「输入内容之后按住 Super 键，底部
+	// 应该固定出现「在终端中打开」的选项」). It is appended here, after the
+	// action bar and the matched rows, so it is genuinely at the bottom; and
+	// after `other` has been handed to `actionBarItemsWith` so the shell row's
+	// presence gate still sees only the *matches* and not this row.
+	if item, ok := a.heldTerminalItem(); ok {
+		out = append(out, item)
+	}
 	return out
 }
 
-// otherResults is everything but the action bar: the calculator, the built-in
-// commands, the recents, and the ranked catalog.
+// otherResults is everything but the action bar and the held-modifier row:
+// the calculator, the built-in commands, the recents, and the ranked catalog.
 func (a *App) otherResults() []Item {
 	var out []Item
 	if item, ok := a.calculator(); ok {
@@ -779,10 +788,6 @@ func (a *App) otherResults() []Item {
 		if recents := a.recentItems(maxRecentResults); len(recents) > 0 {
 			out = append(out, Item{ID: "section:recent", heading: true, Title: a.copy().RecentSection})
 			out = append(out, recents...)
-		}
-		// The held modifier's own line, at the list's end.
-		if item, ok := a.heldTerminalItem(); ok {
-			out = append(out, item)
 		}
 	} else {
 		out = append(out, a.matchedCatalog()...)

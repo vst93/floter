@@ -373,12 +373,23 @@ func TestHeldModifierBareTerminalRow(t *testing.T) {
 	if a.Selected != a.firstSelectable() {
 		t.Errorf("the selection did not come back: %d, want the page's default %d", a.Selected, a.firstSelectable())
 	}
-	// A typed query is a search: the row stays away.
-	tt.HoldModifiers(ui.Cmd)
+	// A typed query does not turn the row away: it stays the list's last line
+	// (the user's report 「输入内容之后按住 Super 键，底部应该固定出现「在终端中
+	// 打开」的选项」 — R60's input-state append). Type first, then hold, the
+	// order the report names.
+	tt.HoldModifiers(0)
 	tt.Type("zzz")
+	tt.HoldModifiers(ui.Cmd)
 	tt.Frame()
-	if hasItem(a.Results(), "system-terminal-bare") {
-		t.Errorf("the row showed over a query: %+v", a.Results())
+	got := a.Results()
+	if !hasItem(got, "system-terminal-bare") {
+		t.Fatalf("the row hid over a query: %+v", got)
+	}
+	if got[len(got)-1].ID != "system-terminal-bare" {
+		t.Errorf("the row is not the list's last line over a query: %+v", ids(got))
+	}
+	if a.Selected != len(got)-1 {
+		t.Errorf("the selection is on %d, want the held row %d", a.Selected, len(got)-1)
 	}
 }
 
