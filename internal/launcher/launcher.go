@@ -1530,15 +1530,6 @@ func (a *App) row(c *ui.Context, item Item, i int) {
 	// (and its place) while the rows around it come and go; a row that
 	// appears fades in rather than flashing into place.
 	ui.Column(c).FillWidth().Children(func() {
-		// A block's heading, when this row starts one: an external plugin's
-		// own group name, a dropped file's block.
-		if item.section != "" {
-			ui.Row(c).FillWidth().Padding(t.Space(1.5), t.Space(3), t.Space(1), t.Space(3)).
-				Children(func() {
-					ui.Text(c, item.section).FontSize(t.FontSize).FontWeight(620).
-						TextColor(t.TextMuted)
-				})
-		}
 		a.rowBody(c, item, i, copy)
 	})
 }

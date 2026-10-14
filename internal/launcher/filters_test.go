@@ -108,8 +108,7 @@ func TestClipboardEntryKind(t *testing.T) {
 }
 
 // The list's own section headings: a heading row is a label the keyboard steps
-// over and never numbers, and a block's first row prints its title above
-// itself.
+// over and never numbers, and it is charged as its own band.
 func TestSectionHeadings(t *testing.T) {
 	a := testApp()
 	a.SetApps([]apps.App{{Name: "Editor", Path: "/Applications/Editor.app"}})

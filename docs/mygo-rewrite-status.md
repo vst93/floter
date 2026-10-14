@@ -99,7 +99,46 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-dy toast 用回旧版自己的视口——每档自己的色调/图标，浮层按表面定位（原版 `ToastStack.tsx` + `styles/extensions.css:210-290`）**
+> **最新一轮：P7-dz 启动器列表不再留着死代码里的「块标题」口子（原版 `list-sections.ts` 的 pluginGroup 归输出视图）**
+> —— P7-dy 收尾后「具体待办（P7-dy 重写）」第 1 条（`launcher.Item.section` 是全仓死代码）是清单最高
+> 优先级且带 file:line 的代码健康项。本轮把它落地。依赖检查：GitHub releases API 限流，
+> `proxy.golang.org/.../@v/list` 最新仍是 **v0.4.8**（与 `go.mod` 一致），无版本可升。只对照 `main`
+> （`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离点（死代码）**：原版 `main:src/launcher/list-sections.ts` 的块标题有三种——`history` /
+> `files` / `pluginGroup`，其中 `pluginGroup`（`:39-49` 的 `listSectionStarts`）读的是
+> `item.type === "plugin"` 的 `group`（`LauncherResults.tsx:836-838` 把 `.launcher-section-title`
+> 印在行上方）。本构建的 `internal/launcher/search.go:77` 声明了 `Item.section`、
+> `internal/launcher/launcher.go:1535-1541` 读它并在行上方画标题，但**全仓没有任何非测试代码写入
+> `section`**：原版的 `type: "plugin"` 行只由 `plugin-mode.ts:424` 造出（插件列表协议），在本构建走
+> captured-output 视图，那里的 `outputRow`（`internal/launcher/output.go:521-530`）已按 `row.Group`
+> 画同一条标题。启动器自己的结果列表从不放这类行，故该分支不可达。files 块走 `section:dropped`
+> 的 `heading` 行、history 块同理，都不经过 `section`。
+>
+> **修法**：
+> - `internal/launcher/search.go`：删掉 `Item.section` 字段与其注释；`heading` 的注释去掉「a row
+>   *with* a section instead prints the title above itself」这句指向已删分支的话。
+> - `internal/launcher/launcher.go`：`row()` 的 `ui.Column` 里删掉 `if item.section != ""` 那段
+>   标题行，只留 `a.rowBody(...)`。
+> - `internal/launcher/filters_test.go` 的 `TestSectionHeadings` 注释同步改写（去掉「a block's
+>   first row prints its title above itself」）。
+>
+> **测试**（新增 `internal/launcher/rowsection_test.go`）：`TestTheOrdinaryListChargesNoSectionBands`——
+> 一个带应用、最近使用与外部插件命令的结果集，`windowRows` 报告 **0** 条 section band；块标题只以
+> `heading` 行存在并被记为 `RowInfo.Heading`，普通行不被记成标题。删除是编译期强制的（字段没了），
+> 该测试钉住「普通列表的标题账目不走 section」这条不变量，且不动 `outputRow` 的 group 标题——
+> 既有的 `TestAnOutputListsOpeningGroupPrintsItsHeading` / `TestOutputGroupHeadingSharesTheLauncherSectionRegister`
+> 仍全绿。变异核查：把 `if item.section != ""` 那段加回（配一个临时字段）会让 `windowRows` 的
+> section 账目与 `row()` 的绘制再次分叉，本测试与既有 heading 测试都会红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 30 包全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **残留**：P7-dy 重写的两条至此结清（第 1 条本轮落地，第 2 条 `role="alert"` 是框架无枚举的死
+> 口子，仅记录）。清单又空；下轮按惯例换入口（逐文件对照原版 / 核对「已知差距」里框架已支持
+> 只是本应用没用的项）。
+
+> **上一轮：P7-dy toast 用回旧版自己的视口——每档自己的色调/图标，浮层按表面定位（原版 `ToastStack.tsx` + `styles/extensions.css:210-290`）**
 > —— 本轮把「逐文件对照原版」的入口放在「已知差距」里那条**框架已支持、只是本应用没用**的
 > toast 色调（其末尾写着框架的 `ToastViewportBase` + `Data` 就是口子）。清单为空，故此条即
 > 本轮待办；依赖检查：GitHub releases API 限流，`proxy.golang.org` 的 `@v/list` 最新仍是
@@ -3839,22 +3878,20 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-> **清单状态（P7-dy 收尾）**：本轮把「逐文件对照原版」的入口放在「已知差距」里那条框架已支持、
-> 只是本应用没用的 toast 色调/定位上，并直接落地（P7-dy）；同一段代码里又核出 error toast 的
-> `role="alert"` 是框架无枚举的死口子，记进「已知差距」。同时把上轮清单遗留的代码健康项
-> （下面第 1 条：`Item.section` 是死代码）写实成带 file:line 的待办。依赖检查：GitHub releases
-> API 限流，`proxy.golang.org/.../@v/list` 最新仍是 **v0.4.8**（与 `go.mod` 一致），无版本可升。
-> 只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+> **清单状态（P7-dz 收尾）**：本轮把「具体待办（P7-dy 重写）」第 1 条（`launcher.Item.section`
+> 死代码）落地（P7-dz），第 2 条是框架死口子（仅记录）。清单又空，下轮按惯例换入口。依赖检查：
+> GitHub releases API 限流，`proxy.golang.org/.../@v/list` 最新仍是 **v0.4.8**（与 `go.mod` 一致），
+> 无版本可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
 
-### 具体待办（P7-dy 重写）
+### 具体待办（P7-dy 重写；第 1 条已落地 P7-dz，第 2 条为框架死口子仅记录）
 
-> 本轮落地了 toast 自绘视口（色调/字形/按表面定位），顺手核出下面第 1 条（代码健康）。第 2 条是
-> 本轮新核出的框架死口子（非待办，仅记录）。依赖检查同上，无版本可升。
+> 本轮 P7-dz 落地了第 1 条（删掉 `Item.section` 死代码）。第 2 条是框架死口子（非待办，仅记录）。
+> 依赖检查同上，无版本可升。
 
-1. **`launcher.Item.section` 是全仓死代码**。
+1. **（已落地，P7-dz）`launcher.Item.section` 是全仓死代码**。
    - 原版对照：`main:src/launcher/list-sections.ts` 的 `pluginGroup` 规则——外部插件自己的
      `group` 字段要在列表行上方印一条标题（`:39-49` 的 `listSectionStarts`）。
-   - 本构建现状：`internal/launcher/search.go:77` 声明了 `Item.section`、
+   - 本构建（改前）：`internal/launcher/search.go:77` 声明了 `Item.section`、
      `internal/launcher/launcher.go:1532-1541` 读取它并画标题，但**全仓没有任何非测试代码写入
      `section`**（`grep -rn "section:" internal/launcher` 只有 `section:recent` / `section:dropped`
      两个 `heading: true` 的项）。原因是外部插件的行在本构建走 captured-output 视图，那里的
@@ -3862,6 +3899,9 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
      列表里从不放外部插件行，所以分支不可达。
    - 验收：确认无写入后删除 `Item.section` 字段与 `launcher.go` 的读取分支（或保留时补一条注释说明
      其未来的生产者），`go test -count=1 ./internal/launcher` 全绿，不回归 `outputRow` 的 group 标题。
+   - **已落地（P7-dz）**：删除 `Item.section` 字段与 `launcher.go` 的读取分支（及两处过时注释）；
+     新增 `internal/launcher/rowsection_test.go` 的 `TestTheOrdinaryListChargesNoSectionBands`
+     钉住「普通列表报告 0 条 section band、块标题只以 `heading` 行存在」。详见「最近几轮」P7-dz。
 
 2. **（记录，非待办）error toast 的 `role="alert"` 是框架无枚举的死口子**。
    - 原版对照：`main:src/components/ToastStack.tsx:62` 的 `role={toast.kind === "error" ? "alert" : "status"}`。
