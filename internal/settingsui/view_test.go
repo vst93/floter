@@ -555,6 +555,52 @@ func TestSessionsPage(t *testing.T) {
 	}
 }
 
+// Escape backs out of an armed session close rather than the page: the
+// reference's SessionsPage installed its own capture-phase Escape listener
+// (`disarmKill`) that answered the question and swallowed the key. With
+// nothing armed, the same key is the panel's way out again.
+func TestEscapeDisarmsASessionClose(t *testing.T) {
+	closed, closes := 0, 0
+	a := New(newStore(t), Actions{
+		CloseSessionAt: func(index int) { closed = index + 1 },
+		Close:          func() { closes++ },
+	})
+	a.Sessions = func() []Session {
+		return []Session{{Title: "zsh — floter", Running: true, Active: true, Index: 0}}
+	}
+	tt := render(t, a, 720, 760)
+	if err := tt.Click("Sessions"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if err := tt.Click("Close session"); err != nil {
+		t.Fatalf("close: %v", err)
+	}
+	tt.Frame()
+	if !tt.HasText("Close it?") {
+		t.Fatalf("the close did not arm: %v", tt.Texts())
+	}
+
+	tt.Key(0, ui.KeyEscape)
+	tt.Frame()
+	if closes != 0 {
+		t.Errorf("Escape left the page: Close ran %d times", closes)
+	}
+	if closed != 0 {
+		t.Errorf("Escape closed a session: %d", closed)
+	}
+	if tt.HasText("Close it?") {
+		t.Errorf("Escape left the question armed: %v", tt.Texts())
+	}
+
+	// Nothing is armed now, so Escape is the panel's way out again.
+	tt.Key(0, ui.KeyEscape)
+	tt.Frame()
+	if closes != 1 {
+		t.Errorf("the second Escape ran Close %d times, want 1", closes)
+	}
+}
+
 // TestSessionsListOrdersAndToggles pins the sessions list's own axis: the
 // newest session is first (the old page's default), the heading carries that
 // order as a control, and pressing it swaps the list to oldest first. It also

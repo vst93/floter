@@ -662,13 +662,17 @@ func (a *App) View(c *ui.Context) {
 	// While a recorder waits, Escape belongs to it: a shortcut of the view is
 	// handled before the focused element's input, so both recorders have to
 	// yield or their cancel key would close the panel instead. And while any
-	// confirmation is open, Escape cancels the question — it must not fall
-	// through to Close and leave the page as well (the reference's own
-	// `stopImmediatePropagation`).
+	// confirmation or armed session close is up, Escape answers that question —
+	// it must not fall through to Close and leave the page as well (the
+	// reference's own `stopImmediatePropagation`: the removal/disable bars and
+	// the sessions page's kill arm each installed a capture-phase Escape
+	// listener that cancelled the question and swallowed the key).
 	if !a.recording && !a.customRecording && c.Shortcut(0, ui.KeyEscape) {
 		switch {
 		case a.anyConfirmOpen():
 			a.cancelConfirmations()
+		case a.anySessionArmed():
+			a.disarmSessions()
 		case a.Actions.Close != nil:
 			a.Actions.Close()
 		}
@@ -3379,6 +3383,24 @@ func (a *App) requestRemove(id string) {
 		a.removeConfirm = map[string]bool{}
 	}
 	a.removeConfirm[id] = true
+}
+
+// anySessionArmed reports whether a session's two-step close is waiting for
+// its answer, and disarmSessions answers them all with "keep" — Escape's job
+// there, as the reference's SessionsPage capture listener did (`disarmKill`):
+// the key backs out of the question rather than the page.
+func (a *App) anySessionArmed() bool {
+	for _, armed := range a.sessionsArmed {
+		if armed {
+			return true
+		}
+	}
+	return false
+}
+
+// disarmSessions closes every armed session close without acting on it.
+func (a *App) disarmSessions() {
+	clear(a.sessionsArmed)
 }
 
 // anyConfirmOpen reports whether a disable or removal bar is up anywhere on

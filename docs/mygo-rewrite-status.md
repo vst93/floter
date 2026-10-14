@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1106 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1110 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1106 项测试
+go test -count=1 ./...         # 1110 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,7 +99,60 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-du launcher 上的字面 ⌘W 不再是自己的规则（改绑 new-command 后它什么也不做）**
+> **最新一轮：P7-dv 设置页的 Escape 先答问题再离页（原版捕获层监听，本构建被 shell 抢先认领）**
+> —— P7-du 收尾后「具体待办（P7-dt 重写）」第 3 条（terminal 的 new-command key-up reassert，
+> macOS）是清单最高优先级。本轮先按验收核实框架：**mygo 的焦点层已把这条缝补掉**——每个启动器
+> 帧都调 `launcher.App.View` → `a.FocusSearch()`（`internal/launcher/launcher.go:762`），而
+> mygo 的 NSView 是**整个 surface 唯一的原生 first responder**（`internal/darwin/surface.go:667`
+> 的 `makeFirstResponder:`、`:800-809` 的 `become/resignFirstResponder` 都只在 surface 一级；
+> 每 widget 的焦点是引擎内部状态，`SurfaceBlur/Focus` 只调 `focusChanged()`，`ui/input.go:1323`），
+> 所以原版 `useAppKeyboard.ts:130-142` 要防的「Cmd 松手时面板再动一次 first responder、把输入框
+> 的焦点抢走」在 mygo 里没有对应事件。第 3 条**结清为无落点**，写进「已知差距/结论」。
+> 依赖检查：GitHub releases API 限流，`proxy.golang.org/.../@v/list` 最新仍是 **v0.4.8**
+> （与 `go.mod` 一致），无版本可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），
+> 未翻历史提交。
+>
+> **偏离点（同一片键盘归属里核出的真实 bug）**：设置页的 Escape **答不了自己的问题**。原版的
+> 删除/停用确认条与 sessions 页的关闭武装各自装了一个**捕获层** `document.addEventListener(
+> "keydown", …, true)` 并 `event.stopImmediatePropagation()`（`main:src/extensions/
+> RemovalConfirmation.tsx:34-37`、`DisableConfirmation.tsx`、`main:src/settings/SessionsPage.tsx:98-107`
+> 的 `disarmKill`），捕获先于 window 上的 bubble 处理器（`useAppKeyboard.ts`），所以 Escape 先
+> 取消问题、**不离开页面**。本构建把这条意图写在 `internal/settingsui/settingsui.go:664-678` 的
+> Escape 分支上，也在 settingsui 自己的 tester 里测过（`TestIntegrationsPage`）——但它用的是
+> `c.Shortcut(0, ui.KeyEscape)`（窗口级 id 0），而 shell 的 `appShortcuts` 在
+> `internal/shell/shell.go:3092` **先于** surface view（`:3216`）调 `c.Shortcut(0, ui.KeyEscape)`
+> → `Open(SurfaceLauncher)`。mygo 的 `Shortcut` 同帧内先到先得（`ui/input.go:776-787`），于是
+> Escape 被 shell 吃掉：**删除确认条打开时按 Escape 关掉整个设置面板，而不是取消确认**。
+> 顺带同一处：sessions 页的「先问一次」武装 `sessionsArmed` 也没接进这个 Escape 分支
+> （原版 SessionsPage 的捕获监听专管它），Escape 会离页而武装还在。
+>
+> **修法**：
+> - `internal/shell/shell.go` 的 `appShortcuts` settings 分支**删掉 Escape 认领**，只留字面 ⌘W
+>   与 new-command 两条 close-settings 规则；与 launcher 分支「把 Escape 留给自己的视图」同一
+>   形状。设置视图的 Escape 因此第一次真正跑起来（先 `anyConfirmOpen` → 取消，其次
+>   `anySessionArmed` → 解除，最后 `Actions.Close` 关页），函数头注释同步改写。
+> - `internal/settingsui/settingsui.go` 的 Escape switch 加一档 `case a.anySessionArmed():
+>   a.disarmSessions()`，并新增两个小助手（`anySessionArmed` / `disarmSessions`）——原版
+>   SessionsPage 捕获监听 `disarmKill` 的等价物。
+>
+> **测试**：`internal/shell/settingsescape_test.go` 新增
+> `TestEscapeAnswersTheSettingsQuestionFirst`（设置页打开删除确认条 → 第 1 次 Escape 留在
+> settings 且确认条消失 → 第 2 次 Escape 回 launcher）与
+> `TestEscapeClosesTheSettingsWhenNothingAsks`（无问题时 Escape 仍是面板出口）；
+> `internal/settingsui/view_test.go` 新增 `TestEscapeDisarmsASessionClose`（武装 → Escape 不调
+> `Close`、不杀会话、解除武装 → 再 Escape 才 `Close` 一次）。变异核查：把 shell 的
+> `if c.Shortcut(0, ui.KeyEscape)` 加回 settings 分支，第一条立刻红（`Escape left the settings
+> panel: surf = 0`）；删掉 settingsui 的 `anySessionArmed` 档，第三条立刻红（`Close ran 1 times`）。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 27 包全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **新写实的残留（下轮最高优先级，见「具体待办（P7-dv 重写）」）**：sessions 武装**跨页驻留**
+> 且**没有 3s 自动解除**——原版 `SessionsPage.tsx:64-71` 的 `armKill` 起 3000ms 定时器归零、
+> 状态又随页面 unmount 消失；本构建 `sessionsArmed` 是 `settingsui.App` 的字段
+> （`settingsui.go:492`），`selectPage`（`:886`）不清、也没有超时。
+
+> **上一轮：P7-du launcher 上的字面 ⌘W 不再是自己的规则（改绑 new-command 后它什么也不做）**
 > —— P7-dt 收尾后「具体待办（P7-dt 重写）」第 2 条（launcher 上字面 ⌘W 仍会隐藏窗口）是清单最高
 > 优先级的已核实偏离。本轮把它落地。依赖检查：GitHub releases API 限流，
 > `proxy.golang.org/.../@v/list` 最新仍是 **v0.4.8**（与 `go.mod` 一致），无版本可升。只对照 `main`
@@ -3644,13 +3697,42 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-> **清单状态（P7-du 收尾）**：P7-dt 重写的第 1 条（终端空态返回行）已落地，第 2 条（launcher 上
-> 被改绑后字面 ⌘W 仍隐藏窗口）本轮 P7-du 落地。清单里还剩第 3 条（terminal 的 new-command
-> key-up reassert，macOS，待核实框架焦点层）——是下轮的最高优先级。依赖检查：GitHub releases
-> API 限流，`proxy.golang.org/.../@v/list` 最新仍是 **v0.4.8**（与 `go.mod` 一致），无版本可升。
-> 只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+> **清单状态（P7-dv 收尾）**：P7-dt 重写的第 1 条（终端空态返回行，P7-dt）、第 2 条（launcher
+> 上被改绑后字面 ⌘W 仍隐藏窗口，P7-du）已落地；第 3 条（terminal 的 new-command key-up
+> reassert）本轮 P7-dv 核实为**无落点**（mygo 每帧重压启动器输入框、NSView 是唯一原生 first
+> responder，没有 Cmd 松手抢焦点的对应事件），写进结论。清单因此又空；本轮在同一片
+> 键盘归属里核出并落地了一处真实 bug（设置页的 Escape 被 shell 抢先认领，确认条答不了），并把
+> 同一处剩下的具体残留（sessions 武装跨页驻留 + 无 3s 自动解除）写成下一份清单。依赖检查：
+> GitHub releases API 限流，`proxy.golang.org/.../@v/list` 最新仍是 **v0.4.8**（与 `go.mod`
+> 一致），无版本可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
 
-### 具体待办（P7-dt 重写；第 1 条 P7-dt、第 2 条 P7-du 已落地，余第 3 条）
+### 具体待办（P7-dv 重写）
+
+> 本轮把 P7-dt 第 3 条核实为无落点，并落地同一片键盘归属里的一处真实偏离（详见「最近几轮」
+> P7-dv）。下面只留本轮新发现、仍未做的一条。依赖检查同上，无版本可升。
+
+1. **sessions 页的关闭武装跨页驻留，且没有 3s 自动解除**。
+   - 原版对照：`main:src/settings/SessionsPage.tsx:53-71`——`killArmedId` 是**单个** state，
+     `armKill` 起 `KILL_CONFIRM_TIMEOUT = 3000`（`:10`）的定时器到时归零，切页 unmount 即
+     随组件状态消失；`:98-107` 的捕获监听在 Escape 时 `disarmKill`。
+   - 本构建（P7-dv 后）：`internal/settingsui/settingsui.go:492` 的 `sessionsArmed` 是
+     `settingsui.App` 的 `map[int]bool`，`selectPage`（`:886`）不清、也没有超时；Escape 已在
+     P7-dv 接上 `disarmSessions`，但**离开页面再回来仍在，且不会自己结束**（原版 3s 后自动收回）。
+   - 验收：照 launcher 的两条先例（`internal/launcher/launcher.go` 的 `expireArmedDelete` /
+     `expirePowerConfirm`：带 deadline 的武装状态 + 每帧过期检查）给 sessions 武装一个 3000ms
+     的自动解除，并在 `selectPage` 离页时清空；测试钉住「3s 未到仍在、到期自解、切页即清」。
+
+2. **（已结清，P7-dv）terminal 的 new-command key-up reassert——无落点**。
+   - 原版对照：`main:src/surface-policy.ts:214` 的 `terminal.new-command` 带 `reassertOnKeyUp:
+     true`——松开修饰键后重新把焦点压回启动器输入框（`main:src/hooks/useAppKeyboard.ts:130-142`，
+     1500ms 上限）。
+   - **结论（P7-dv）**：mygo 里没有对应的焦点事件——每个启动器帧都经 `launcher.App.View` →
+     `a.FocusSearch()`（`internal/launcher/launcher.go:762`）重压输入框；原生 first responder 是
+     **整个 surface 的 NSView**（`mygo@v0.4.8:internal/darwin/surface.go:667,800-809`），Cmd
+     松手不会改它，每 widget 的焦点只在引擎内部（`ui/input.go:1323` 的 `focusChanged` 只管重绘）。
+     所以 Cmd 松手抢焦点的事件不存在，key-up reassert 无处可挂，**不新增死旋钮**。
+
+### 具体待办（P7-dt 重写；三条已全部结清：第 1 条 P7-dt、第 2 条 P7-du、第 3 条 P7-dv）
 
 > 本轮把「逐文件对照原版」的入口放在终端的空态与其快捷键归属上，第 1 条是已核实的真实偏离
 > （本轮落地），第 2·3 条是同一张表里剩下的具体项。依赖检查同上，无版本可升。
@@ -3677,14 +3759,15 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
      字面 ⌘W（原版确有 close-settings 规则）保留；加 `App.hideWindow` 缝让测试能看见 `Hide()`。
      测试：`TestDismissTable` 加隐藏计数 + 新增 `TestALiteralModWDoesNothingAfterARebind`。
      详见「最近几轮」P7-du。
-3. **（待比对，macOS）terminal 的 new-command 没有 key-up reassert**。
+3. **（已结清，P7-dv）terminal 的 new-command 没有 key-up reassert**。
    - 原版对照：`main:src/surface-policy.ts:214` 的 `terminal.new-command` 带 `reassertOnKeyUp: true`
      ——松开修饰键后重新把焦点压回启动器输入框（`main:src/App.tsx:1789-1812`）。
    - 本构建：`internal/shell/shell.go:3040-3044` 只有 key-down 的 `c.Shortcut` 分支，没有 key-up
      处理。
-   - 验收：先确认 mygo 的焦点层是否已在修饰键松开时把焦点交回（框架 `show_input` 的等价物）；
-     若没有，在 `appShortcuts` 里补一条 key-up 重压焦点的路径并在 macOS 实机核对，否则按惯例写进
-     「已知差距」。
+   - **结论（P7-dv）**：核实为**无落点**——mygo 的焦点层每帧重压启动器输入框
+     （`internal/launcher/launcher.go:762` 的 `FocusSearch`），且 NSView 是整个 surface 唯一的原生
+     first responder（`mygo@v0.4.8:internal/darwin/surface.go:667,800-809`），没有「Cmd 松手再动
+     first responder」这个事件可挂。详见「最近几轮」P7-dv。
 4. **（记录，非待办）ansi 解析器有三处是原版的超集**（`internal/ansi/ansi.go`）：
    - `skipEscape`（`:170`）把 `ESC P/X/^/_` 当字符串序列整体吞掉；原版 `main:src/launcher/ansi.ts:283`
      只对 `ESC ]` 这样做，其余两字节转义之后的内容会当文本印出。

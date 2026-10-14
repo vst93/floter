@@ -3027,15 +3027,21 @@ func (a *App) Hide() {
 // ships as ⌘W, so the two look alike until the user rebinds it; folding the
 // literal chord into the rule would keep hiding the launcher after a rebind,
 // which the reference's `collapsed["mod-w"]: null` explicitly forbids.
-// Escape is the launcher's and the settings' own, and the terminal shell
-// keeps it.
+// Escape is each surface view's own — the terminal shell's on the terminal, a
+// question's first on the settings — and the terminal shell keeps it.
 func (a *App) appShortcuts(c *ui.Context) {
 	// One Shortcut() call per key per frame consumes the delivered press, so
 	// the triggers are resolved per surface: the terminal asks only the
 	// new-command binding (the literal ⌘W is the shell's delete-word), the
-	// settings ask all three, and the launcher asks only the new-command
-	// binding and leaves Escape to the launcher's own view (an empty field's
-	// Escape hides, one with text clears).
+	// settings ask the two close chords, and the launcher asks only the
+	// new-command binding. Escape is deliberately absent from both the launcher
+	// and the settings here: this handler runs before the surface view is
+	// built, and the reference let the surface's own listener answer first. The
+	// launcher's view turns an empty field's Escape into a hide and a filled
+	// one into a clear; the settings view turns it into "answer the open
+	// confirmation" or, failing that, close the panel. Claiming it here would
+	// outrun those listeners — pressing Escape on a removal bar would close the
+	// whole panel instead of cancelling the bar.
 	switch a.Surf {
 	case SurfaceTerminal:
 		if mods, key, ok := shortcuts.Parse(settings.Shortcut(a.Store.Snapshot(), settings.ShortcutNewCommand)); ok && c.Shortcut(mods, key) {
@@ -3047,10 +3053,6 @@ func (a *App) appShortcuts(c *ui.Context) {
 			return
 		}
 		if mods, key, ok := shortcuts.Parse(settings.Shortcut(a.Store.Snapshot(), settings.ShortcutNewCommand)); ok && c.Shortcut(mods, key) {
-			a.Open(SurfaceLauncher)
-			return
-		}
-		if c.Shortcut(0, ui.KeyEscape) {
 			a.Open(SurfaceLauncher)
 		}
 	default:
