@@ -1791,29 +1791,13 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 			// the one warm token the row may spend — and the second removes.
 			// The armed state leaves with the selection, so a stray press
 			// cannot remove a row the user was not looking at.
+			//
+			// The old build's delete is keyboard-only (⌘⌫); the row shows
+			// the note while armed, never a click target. The note is the
+			// whole confirmation.
 			if a.armedDelete == item.ID {
-				armed := ui.Row(c).Shrink(0).AlignItems(ui.Center).Padding(0, t.Space(1))
-				armed.Children(func() {
-					ui.Text(c, copy.DeleteConfirm).FontSize(t.FontSize - 1).
-						FontWeight(560).TextColor(t.Warning)
-				})
-				del := ui.Row(c).Focusable().Shrink(0).Size(t.Space(5), t.Space(5)).
-					AlignItems(ui.Center).Justify(ui.Center).
-					Label(copy.HistoryDelete).Tooltip(copy.HistoryDelete)
-				del.Children(func() {
-					if glyph, ok := Glyph("close"); ok {
-						ui.Icon(c, glyph).Size(t.Space(3.5), t.Space(3.5)).TextColor(t.Warning)
-					}
-				})
-				if del.Clicked() {
-					a.disarmDelete()
-					removed = true
-					a.deleteHistoryRow(item.ID)
-				}
-			} else {
-				a.rowControl(c, "close", copy.HistoryDelete, func() {
-					a.armedDelete, a.armedDeleteAt = item.ID, a.now()
-				})
+				ui.Text(c, copy.DeleteConfirm).FontSize(t.FontSize - 1).
+					FontWeight(560).TextColor(t.Warning)
 			}
 		}
 		if number, ok := a.numbers[i]; ok {

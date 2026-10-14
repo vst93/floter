@@ -164,9 +164,7 @@ type Launcher struct {
 	// (its file is gone): the copy failed, and the row says so.
 	ClipboardCopyFailed string
 	ClipboardDeleted    string
-	// HistoryDelete names a history row's delete control, and
-	// CalculatorDeleted reports one that went.
-	HistoryDelete string
+	// CalculatorDeleted reports a calculation that went.
 	// HistoryPin shows a selected clipboard entry's whole text in a window of
 	// its own, HistoryFavorite/HistoryUnfavorite name a history row's own
 	// star for assistive technology, and DeleteConfirm is the armed delete's

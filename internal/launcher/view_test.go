@@ -1224,23 +1224,15 @@ func TestClipboardModeFavoritesAndDelete(t *testing.T) {
 		t.Errorf("the star is not shown: %q", tt.Texts())
 	}
 
-	// The selected row carries the delete control; pressing it removes the
-	// row and leaves the mode open.
-	if !tt.HasText("Delete") {
-		t.Fatalf("the delete control is missing: %q", tt.Texts())
-	}
-	// The delete is a two-step: the first press arms the row, the second
-	// removes.
-	if err := tt.Click("Delete"); err != nil {
-		t.Fatal(err)
-	}
+	// The delete is a two-step: the first press of ⌘⌫ arms the row, the
+	// second removes. The old build's delete is keyboard-only — the row
+	// shows the note while armed, never a click target.
+	deleteKey(tt)
 	tt.Frame()
 	if !tt.HasText(i18n.For("en").Launcher.DeleteConfirm) {
 		t.Fatalf("the armed note is missing: %q", tt.Texts())
 	}
-	if err := tt.Click("Delete"); err != nil {
-		t.Fatal(err)
-	}
+	deleteKey(tt)
 	tt.Frame()
 	if got := len(store.Entries()); got != 1 {
 		t.Errorf("the delete did not land: %d entries", got)
@@ -1261,13 +1253,9 @@ func TestCalculatorDeleteControl(t *testing.T) {
 	tt := render(t, a)
 	a.EnterCalculator()
 	tt.Frame()
-	if err := tt.Click("Delete"); err != nil {
-		t.Fatal(err)
-	}
+	deleteKey(tt)
 	tt.Frame()
-	if err := tt.Click("Delete"); err != nil {
-		t.Fatal(err)
-	}
+	deleteKey(tt)
 	tt.Frame()
 	if len(fixture.deleted) != 1 || fixture.deleted[0] != "1" {
 		t.Errorf("deleted %v", fixture.deleted)
