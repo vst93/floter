@@ -467,6 +467,41 @@ func TestTerminalAppearanceControls(t *testing.T) {
 	}
 }
 
+// The settings card's two sliders read the same values the terminal's own
+// drawer does, because both paint the one schema (`internal/control`): the
+// font size as `<n> px` and the line height to two decimals
+// (`TerminalAppearance.tsx:190-195,210-215`). Before this the card dropped the
+// unit and rounded the line height to one decimal, so the same 1.20× value read
+// as `14` and `1.2×` here against `14 px` and `1.20×` in the drawer.
+func TestTerminalCardReadoutsMatchTheDrawer(t *testing.T) {
+	store := newStore(t)
+	a := New(store, Actions{})
+	tt := render(t, a, 720, 2400)
+
+	// The card sits below the fold: scroll the body to reach it.
+	tt.Scroll(400, 300, 0, 1500)
+	tt.Frame()
+
+	for _, readout := range []string{"14 px", "1.20\u00d7"} {
+		if !tt.HasText(readout) {
+			t.Errorf("the settings card is missing the readout %q: %q", readout, tt.Texts())
+		}
+	}
+
+	// The font-size row carries the reference's card-only hint, which the
+	// terminal's own drawer deliberately keeps out — and the card carries it
+	// exactly once, on that row (the palette row is stacked with no hint).
+	count := 0
+	for _, shown := range tt.Texts() {
+		if shown == i18n.For("en").Settings.TerminalHint {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Errorf("the card shows the terminal hint %d times, want 1 on the font-size row: %q", count, tt.Texts())
+	}
+}
+
 func TestSessionsPage(t *testing.T) {
 	store := newStore(t)
 	a := New(store, Actions{})
@@ -1590,10 +1625,14 @@ func TestAboutUpdateRowFollowsTheOldStateMachine(t *testing.T) {
 	}
 	tt.Frame()
 
-	// Before anything is found the row says it is up to date and offers no
-	// control, exactly as the old page did with `updateInfo === null`.
-	if !tt.HasText(en.UpdateCurrentVersion + ": v0.3.14") {
-		t.Errorf("the current-version line is missing: %q", tt.Texts())
+	// The update row lives in its own group, the reference's
+	// `settings.group.update` section (`AboutPage.tsx:62-70`): the heading says
+	// which card the row is, rather than leaving the page's one control loose
+	// under the build's identity.
+	group := mustFind(t, tt, en.GroupUpdate)
+	current := mustFind(t, tt, en.UpdateCurrentVersion+": v0.3.14")
+	if current.Y <= group.Y {
+		t.Errorf("the update row at %v is not under the %q heading at %v", current, en.GroupUpdate, group)
 	}
 	if !tt.HasText(en.UpdateUpToDate) {
 		t.Errorf("the up-to-date line is missing: %q", tt.Texts())

@@ -312,6 +312,7 @@ var en = Copy{
 		GroupTerminal:     "Terminal appearance",
 		GroupMenuBar:      "Menu bar",
 		GroupTransparency: "Transparency",
+		GroupUpdate:       "Updates",
 
 		Theme:            "Appearance",
 		ThemeHint:        "Auto follows your system appearance.",
@@ -1160,6 +1161,7 @@ var zh = Copy{
 		GroupTerminal:     "终端外观",
 		GroupMenuBar:      "菜单栏",
 		GroupTransparency: "透明度",
+		GroupUpdate:       "更新",
 
 		Theme:            "外观",
 		ThemeHint:        "自动模式跟随系统外观。",

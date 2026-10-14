@@ -323,6 +323,12 @@ type Settings struct {
 	// section (the old `settings.group.transparency`). The card draws no
 	// visible title, so this is the group's accessible name.
 	GroupTransparency string
+	// GroupUpdate titles the About page's updates section (the old
+	// `settings.group.update`, "Updates"). The reference drew the update row
+	// inside its own section heading and card (`AboutPage.tsx:62-70`) rather
+	// than loose on the page, so the one control the user presses has a group
+	// to belong to.
+	GroupUpdate string
 
 	Theme        string
 	ThemeHint    string

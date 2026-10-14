@@ -2572,8 +2572,14 @@ func (a *App) about(c *ui.Context, copy i18n.Settings) {
 				})
 			}
 		})
-		a.card(c, func() {
-			a.updateRow(c, copy)
+		// The update row lives in its own group, the reference's
+		// `settings.group.update` section with its card (`AboutPage.tsx:62-70`):
+		// the one control the user presses gets a heading and a card of its own
+		// rather than sitting loose beside the build's identity.
+		a.section(c, copy.GroupUpdate, "", func() {
+			a.card(c, func() {
+				a.updateRow(c, copy)
+			})
 		})
 		// The deep-link lines: a URL scheme is invisible when it works and
 		// invisible when it does not, so the About page is the one place a
@@ -2762,19 +2768,25 @@ func (a *App) general(c *ui.Context, copy i18n.Settings) {
 							func(v string) { a.set(func(s *settings.Settings) { s.FontFamily = v }) })
 					},
 					control.AxisFontSize: func() {
-						a.slider(c, copy.FontSize, "", copy.ScaleSmall, copy.ScaleLarge,
+						// The readout is the reference's `<n> px`, and the row carries
+						// the card-only hint (`TerminalAppearance.tsx:190-195`): the
+						// settings card shows `sublabel: terminalAppearanceHint` on the
+						// font-size row, while the terminal's own drawer keeps it out.
+						a.slider(c, copy.FontSize, copy.TerminalHint, copy.ScaleSmall, copy.ScaleLarge,
 							float64(s.FontSize),
 							settings.MinFontSize, settings.MaxFontSize,
-							func(v float64) string { return fmt.Sprintf("%d", int(math.Round(v))) },
+							func(v float64) string { return fmt.Sprintf("%d px", int(math.Round(v))) },
 							func(v float64) {
 								a.previewSetting(func(s *settings.Settings) { s.FontSize = int(math.Round(v)) })
 							})
 					},
 					control.AxisLineHeight: func() {
+						// `.toFixed(2)` — the step is 0.05, so one decimal dropped the
+						// hundredths the reference shows (`TerminalAppearance.tsx:210-215`).
 						a.slider(c, copy.LineHeight, "", copy.ScaleSmall, copy.ScaleLarge,
 							s.TerminalLineHeight,
 							settings.MinTerminalLineHeight, settings.MaxTerminalLineHeight,
-							func(v float64) string { return fmt.Sprintf("%.1f\u00d7", v) },
+							func(v float64) string { return fmt.Sprintf("%.2f\u00d7", v) },
 							func(v float64) {
 								a.previewSetting(func(s *settings.Settings) { s.TerminalLineHeight = v })
 							})
@@ -2867,7 +2879,10 @@ func (a *App) paletteRow(c *ui.Context, copy i18n.Settings, current string, appl
 		selected = options[index].Label
 	}
 	chosen := ""
-	a.row(c, copy.Palette, copy.TerminalHint, func() {
+	// No sublabel: the reference's palette row is `stacked: true` with no
+	// hint (the card-only `terminalAppearanceHint` belongs to the font-size
+	// row alone, `TerminalAppearance.tsx:194,272-276`).
+	a.row(c, copy.Palette, "", func() {
 		e := ui.Select(c, &selected, labels).Label(copy.Palette).Width(220).Radius(999)
 		if e.Changed() {
 			for _, option := range options {

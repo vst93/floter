@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1374 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1375 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1374 项测试
+go test -count=1 ./...         # 1375 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -100,7 +100,55 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-fx Sessions 行的状态色与整行激活回到原版
+> **最新一轮：P7-fy 设置页终端外观卡的读数与 About 页更新行的分组回到原版
+> （原版 `src/settings/TerminalAppearance.tsx:185-215`、`src/settings/AboutPage.tsx:62-70`）**
+> ——P7-fx 收尾后「具体待办（P7-fw 重写）」归零，本轮按规则换入口：逐字段对照原版 General 页的
+> 「终端外观」卡（`TerminalAppearanceSettings` 的 `card` 变体）与 About 页的分组结构
+> （`AboutPage` 的 `settings.group.update` 段），把清单重写为 3 条带 file:line / 原版对照 /
+> 验收标准的具体待办（见文末「具体待办（P7-fy 重写）」），并取第 1·2 条一并落地。依赖检查：
+> `go.mod` 已是 **v0.4.8** = GitHub releases latest，无版本可升（v0.4.8 的 release notes 用点
+> `ui/editor` 已由 P7-ev 落地；`ui.Access` 口子因 `platform.AccessNode` 仍是内部类型而接不到 app
+> 侧，error toast 的 `role="alert"` 继续如实留在「已知差距」）；只对照 `main`
+> （`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离 1（P7-fy·设置卡的两个滑块读数与抽屉不一致）**：原版 `TerminalAppearance.tsx:185-215`
+> 的同一份 schema 喂两个面，字号行的读数是 `` `${fontSize} px` ``（`:194`）、行距行的读数是
+> `` `${lineHeight.toFixed(2)}×` ``（`:213`），而字号行的 `sublabel` 只在 `variant === "card"`
+> 时是 `t("settings.terminalAppearanceHint")`（`:194`）、抽屉侧 `undefined`（`:195`）。**本构建
+> （改前）**：`internal/settingsui/settingsui.go:2764-2786` 的字号读数是裸数字（`fmt.Sprintf("%d", …)`，
+> 漏了 ` px`）、行距读数是 `%.1f×`（漏了 `toFixed(2)` 的第二位），且字号行的 hint 传空——于是同一个
+> `14 px` / `1.20×` 值在设置卡读作 `14` / `1.2×`，在终端抽屉读作 `14 px` / `1.20×`（`internal/terminalui/drawer.go:69-71,88-99`
+> 早已是原版读法），两面各说一套。
+>
+> **偏离 2（P7-fy·About 页的更新行没有原版的分组）**：原版 `AboutPage.tsx:62-70` 把更新行放在
+> 自己的 `<section>` 里——`settings.group.update` 的标题 + `<SettingsCard label=…>`——而不是散落在
+> 构建身份行之间。**本构建（改前）**：`internal/settingsui/settingsui.go:2560-2580` 的 `about` 把
+> `updateRow` 直接塞在第二张无标题的卡里，与「框架 / 链接协议 / 设置文件 / 项目」同一层，页面上
+> 唯一要用户按的控件没有自己的分组。
+>
+> **落地**：
+> - `internal/settingsui/settingsui.go` 的 `general`：`AxisFontSize` 的 format 改为
+>   `fmt.Sprintf("%d px", …)`，`AxisLineHeight` 改为 `fmt.Sprintf("%.2f\u00d7", …)`，字号行传
+>   `copy.TerminalHint` 作 sublabel（复刻原版 card-only hint）。同文件 `paletteRow` 把原来的
+>   `copy.TerminalHint` sublabel 去掉：原版调色板行是 `stacked: true` 且不画 hint
+>   （`TerminalAppearance.tsx:272-276`），卡-only 的 hint 只属于字号行。
+> - `internal/i18n`：新增 `Settings.GroupUpdate`（en “Updates” / zh “更新”，逐字取 `i18n.ts:213,1115`）。
+> - `internal/settingsui/settingsui.go` 的 `about`：`a.card(updateRow)` 换成
+>   `a.section(c, copy.GroupUpdate, "", func() { a.card(...) })`。
+>
+> **验收**：`internal/settingsui/view_test.go` 新增 `TestTerminalCardReadoutsMatchTheDrawer`
+> （设置卡渲染出 `14 px` 与 `1.20×` 两个读数 + `TerminalHint` 恰好一次），并改 `TestAboutUpdateRow…`
+> 断言更新行位于 `en.GroupUpdate` 标题下方。变异核查：把字号 format 改回 `%d` → 读数测试红；
+> 把行距改回 `%.1f×` → 红色（`1.20×` 不存在）；把 paletteRow 的 sublabel 改回 `copy.TerminalHint`
+> → hint 计数变 2 而红；把 `about` 的 section 换回裸 `a.card` → 分组测试红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿（1375 项）、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：第 1·2 条（P7-fy）落地；「具体待办（P7-fy 重写）」还剩第 3 条（Appearance 卡的三个
+> 分段行未按原版的 `stacked` 全宽布局绘制），是下一轮最高优先级。
+
+> **P7-fx Sessions 行的状态色与整行激活回到原版
 > （原版 `src/settings/SessionsPage.tsx:170,188-191,197-198`、`src/styles/settings.css:1280-1296`）**
 > ——P7-fw 收尾后「具体待办（P7-fw 重写）」还剩第 2·3 条（exited 行状态色 / 整行激活），本轮取
 > 最高优先级、两条一并落地，清单归零。依赖检查：`go.mod` 已是 **v0.4.8** = GitHub releases latest，
@@ -6024,6 +6072,57 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 - 窗口可见时完成反馈落在面板自己的停靠行（隐藏时才发系统通知）——之前可见时什么都不说。
 
 ## 尚未做（按建议优先级）
+
+### 具体待办（P7-fy 重写；第 1·2 条本轮 P7-fy 落地；余下第 3 条）
+
+审计入口：原版 `main:src/settings/TerminalAppearance.tsx` 的 `card` 变体（本构建对应
+`internal/settingsui/settingsui.go` 的 `general` 里喂给 `control.SettingsCardAxes()` 的 rows map）
+与 `main:src/settings/AboutPage.tsx` 的分组结构（本构建对应同文件的 `about`/`updateRow`）。此前
+General 页只对照过分组顺序（P7-ca）与终端外观的布局分流（P7-aj），而**同一份 schema 两个面的读数
+/ 提示本身**、以及 About 页的**分组**从未逐字段比对。依赖检查：`go.mod` 已是 **v0.4.8** = GitHub
+releases latest，无版本可升；只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+
+1. **（本轮落地，P7-fy）设置卡的字号/行距读数与提示跟抽屉不一致**。
+   - 原版对照：`TerminalAppearance.tsx:190-195` 的字号行 `value: ${fontSize} px`、
+     `sublabel: variant === "card" ? t("settings.terminalAppearanceHint") : undefined`；
+     `:210-215` 的行距行 `value: ${lineHeight.toFixed(2)}×`。抽屉（`variant === "strip"`）不画
+     sublabel，两个读数却是同一个字符串。
+   - 本构建（改前）：`internal/settingsui/settingsui.go` 的 `AxisFontSize` format = `"%d"`（漏 ` px`）、
+     `AxisLineHeight` format = `"%.1f\u00d7"`（漏第二位），字号行 sublabel 传空；抽屉
+     （`internal/terminalui/drawer.go:69-71`）已经是 `14 px` / `1.20×`，两面各说一套。
+   - 落地 file:line：`settingsui.go` 的两处 format + 字号行传 `copy.TerminalHint`。
+   - 验收：`internal/settingsui/view_test.go` 的 `TestTerminalCardReadoutsMatchTheDrawer`
+     （`14 px`、`1.20×` 与 `TerminalHint` 三项都在）。变异核查：format 改回 `%d` / `%.1f×` → 红。
+2. **（本轮落地，P7-fy）About 页的更新行没有原版自己的分组**。
+   - 原版对照：`AboutPage.tsx:62-70` 的更新行在 `<section>` 里，标题 `settings.group.update`
+     （`i18n.ts:213,1115`），卡带 `label={t("settings.group.update")}`。
+   - 本构建（改前）：`about` 把 `updateRow` 直接放在一张无标题卡里，与身份行同层。
+   - 落地 file:line：`internal/i18n` 新增 `GroupUpdate`；`about` 改 `a.section(c, copy.GroupUpdate, "", …)`。
+   - 验收：`view_test.go` 的 `TestAboutUpdateRowFollowsTheOldStateMachine` 断更新行位于
+     `en.GroupUpdate` 标题下方。变异核查：换回裸 `a.card` → 红。
+3. **（待做，P7-fy 写实）Appearance 卡的三个分段行未按原版的 `stacked` 全宽布局绘制**。
+   - 原版对照：`GeneralPage.tsx:371-395` 的 Theme / Language / UI scale 三行都是 `<SettingsRow
+     stacked …>`（标签与说明一行、分段控件在**下一行全宽**），与 `TerminalAppearance.tsx:388` 的
+     `stacked={row.slider === true || row.stacked === true}` 同一形状；CSS `.settings-row--stacked`
+     是 `grid-template-columns: minmax(0, 1fr)`（`src/styles/settings.css:557-577`），控件占满整行。
+   - 本构建（现状）：`internal/settingsui/settingsui.go:2677-2690` 的 `a.pick` 把分段控件放在标签同行的
+     control 槽里（`rows.go:174-176` 的 `rowAligned`），所以 Theme / Language / UI scale 的控件被
+     挤在右端而不是占一行；`a.cardRows` 的规则与行分隔依赖 `rowAligned`，需要新增一个 `stackedRow`
+     （仿 `a.slider` 的行计数与分隔）而不重写整张卡。
+   - 落地 file:line（建议）：`rows.go` 新增 `func (a *App) stackedRow(c, label, sublabel string, control func()) bool`
+     ——调 `a.cardRows` 计数与分隔，标签/说明一列，`control` 在下一行 `FillWidth()`；`settingsui.go`
+     的 `a.pick` 改用它（三个调用点带上 `copy.ThemeHint`/`copy.LanguageHint`/`copy.ScaleHint` 仍在行内）。
+   - 验收：`view_test.go` 新增 `TestAppearanceChoicesStackUnderTheirLabels`——取 Theme 分段
+     （`"Dark"` 段）与 Theme 标签（`copy.Theme`）的 rect，断言分段段的 `Y` **不小于**标签行的底
+     （即在其下方），且分段控件的宽度接近卡宽（≥ 标签行宽的一半）而不再贴右端；对比 `HideOnBlur`
+     这类非 stacked 行，其控件仍与标签同一行（`|control.Y-lagel.Y|` 小）。变异核查：把 `a.pick` 改回
+     `rowAligned`（控件同行）→ 第一条断言红。
+   - 风险：`a.pick` 也被 Integrations 页的 PATH 开关……（核实为否：`grep -n "a\.pick\("` 只有
+     General 页五处，其中 Glass/AppIcon 也是分段，同样按原版 stacked 处理）。
+
+> P7-fx 之后「尚未做」再次只剩历史清单，本轮按审计入口换到「终端外观卡的读数 + About 分组 + Appearance
+> 分段行布局」，把清单重写为上面 3 条带 file:line / 原版对照 / 验收标准的具体待办，并取第 1·2 条
+> 落地（P7-fy）；第 3 条（Appearance 分段行的 stacked 布局）是下一轮最高优先级。
 
 ### 具体待办（P7-fw 重写；第 1 条 P7-fw 落地，第 2·3 条本轮 P7-fx 落地；清单归零）
 
