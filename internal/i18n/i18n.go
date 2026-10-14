@@ -1120,8 +1120,13 @@ type Terminal struct {
 	// decision.
 	// SessionAttached and SessionDetached are a running session's own state
 	// line: on screen, or running behind the one that is.
-	SessionAttached   string
-	SessionDetached   string
+	SessionAttached string
+	SessionDetached string
+	// HeaderExited is the identity line's sentence once the program has
+	// ended: the session's title, a middle dot and the code the program
+	// returned. It is the old header's `terminal.headerExited`, a different
+	// word from ProcessExited, which the floating resident note carries.
+	HeaderExited      func(code int) string
 	ProcessExited     func(code int) string
 	ProcessExitedHint string
 }

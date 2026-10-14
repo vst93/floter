@@ -1051,17 +1051,26 @@ func (a *App) titleBar(c *ui.Context, copy i18n.Terminal) {
 	// way).
 	revealed := bar.Hovered() || bar.FocusWithin()
 	bar.Children(func() {
-		identity := ui.Row(c).Grow(1).Gap(t.Space(1.75)).AlignItems(ui.Center).Shrink(0)
+		// The identity line names the program on screen and, once it has ended,
+		// the code it returned — the reference's `identityTitle`, which is both
+		// the bar's visible text and the container's `title=`. It is a different
+		// word from the resident note's `ProcessExited`; both appear together for
+		// a held session.
+		identityTitle := a.sessionTitle()
+		if identityTitle == "" {
+			identityTitle = copy.Title
+		}
+		if session := a.Current(); session != nil && session.Resident {
+			identityTitle += " \u00b7 " + copy.HeaderExited(session.ExitCode)
+		}
+		identity := ui.Row(c).Grow(1).Gap(t.Space(1.75)).AlignItems(ui.Center).Shrink(0).
+			Label(identityTitle).Tooltip(identityTitle)
 		if !revealed {
 			identity.Opacity(0)
 		}
 		identity.Children(func() {
 			a.statusDot(c)
-			title := a.sessionTitle()
-			if title == "" {
-				title = copy.Title
-			}
-			ui.Text(c, title).FontSize(t.FontSize - 1).FontWeight(580).
+			ui.Text(c, identityTitle).FontSize(t.FontSize - 1).FontWeight(580).
 				TextColor(t.TextMuted).Ellipsis("\u2026").SingleLine()
 		})
 		// The controls, at the bar's trailing edge: 28u transparent squares

@@ -100,7 +100,41 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-fl 终端浮动栏两个控件的词与无障碍名（原版 `src/App.tsx:3764-3805`、`src/i18n.ts:146-150,1054-1058`）**
+> **最新一轮：P7-fm 终端浮栏身份行报退出码（原版 `src/App.tsx:3716-3722`、`src/i18n.ts:170,1077`）**
+> ——P7-fl 收尾后「具体待办（P7-fl 重写）」还剩第 3 条（浮栏身份行的退出码），本轮取它落地，清单归零。
+> 依赖检查：`go list -m -versions github.com/egoist/mygo` 最新仍是 **v0.4.8**（与 `go.mod` 一致），
+> 无版本可升、无新 API 用点；GitHub releases API 限流。只对照 `main`
+> （`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离（P7-fm·浮栏身份行不报退出码）**：原版 `App.tsx:3716-3722` 的 `identityTitle` 在会话
+> ended 时拼成 `` `${title} · ${t("terminal.headerExited", { code: exitCode ?? 0 })}` ``（词条
+> `terminal.headerExited` = “Exited · code {code}”/“已退出 · 退出码 {code}”，`i18n.ts:170,1077`），
+> 这串既是 `.terminal-bar__identity` 的 `title=` 也是它读出来的身份文本；它与 resident note 的
+> `terminal.processExited`（“Process exited · code {code}”，`App.tsx:3891-3893`）是**两条词**。
+> **本构建（改前）**：`internal/terminalui/terminalui.go` 的 `titleBar` 身份只画 `a.sessionTitle()`
+> （空则 `copy.Title`），置灰点区分死活但**不报退出码**；`i18n.Terminal` 只有 `ProcessExited`，
+> 退出码只出现在 `residentNote`。
+>
+> **落地**：
+> - `internal/i18n`：`Terminal` 新增 `HeaderExited func(code int) string`（en/zh 逐字取原版两条词）。
+> - `internal/terminalui/terminalui.go`：`titleBar` 先把身份串算出来（`sessionTitle()` 空则
+>   `copy.Title`，`Session.Resident` 时追加 `" \u00b7 " + copy.HeaderExited(session.ExitCode)`），
+>   同一句既是身份列的 `ui.Text`，也挂上身份行的 `.Label(...)`/`.Tooltip(...)`（原版的 `title=`）。
+>
+> **验收**：`internal/i18n/i18n_test.go` 的 `TestTerminalBarWordsMatchTheOldDictionary` 增四条
+> （en/zh 的 headerExited 与 processExited 逐字，钉住两者是两条词）；`internal/terminalui/view_test.go`
+> 新增 `TestTerminalBarIdentityNamesTheExitCode`（`ResidentAt(0,3)` → 帧里出现 “Exited · code 3”，
+> `withTitle("zsh")` 后是 “zsh · Exited · code 3”，且 resident note 的 “Process exited · code 3”
+> 仍在）。变异核查：把身份行的 `copy.HeaderExited` 换成 `copy.ProcessExited` → 新测试立刻红
+> （`the identity line does not name the exit code "Exited · code 3"`）。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿（1342 项）、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：第 3 条（浮栏身份行的退出码）落地；「具体待办（P7-fl 重写）」3 条**全部结清、
+> 清单归零**。下一轮换入口（逐文件对照原版另一面 / 重新写实清单）。
+
+> **上一轮：P7-fl 终端浮动栏两个控件的词与无障碍名（原版 `src/App.tsx:3764-3805`、`src/i18n.ts:146-150,1054-1058`）**
 > ——P7-fk 收尾后「具体待办（P7-fj 重写）」3 条全部结清、清单归零；本轮按上节建议换入口：逐字段
 > 对照**终端表面浮栏与输入区**（`main:src/App.tsx` 的 `.terminal-panel__actions` 与
 > `.terminal-text-input`，本构建对应 `internal/terminalui/terminalui.go` 的 `titleBar`/`View`），
@@ -5578,12 +5612,12 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 > `.terminal-panel__actions` 与 `.terminal-text-input`，本构建对应
 > `internal/terminalui/terminalui.go` 的 `titleBar`/`View`），把清单重新写实为下面 **3 条带 file:line
 > 的具体待办**：第 1 条（浮栏两个控件的词与绑定）与第 2 条（终端视图的无障碍名）P7-fl 落地，
-> **还剩第 3 条（浮栏身份行的退出码）未落地**。依赖检查：
+> 第 3 条（浮栏身份行的退出码）P7-fm 落地——**3 条全部结清、清单归零**。依赖检查：
 > `go list -m -versions github.com/egoist/mygo` 与 GitHub releases latest 都是 **v0.4.8**（与 `go.mod`
 > 一致），无版本可升、无新 API 用点。只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），
 > 未翻历史提交。
 
-### 具体待办（P7-fl 重写；第 1·2 条 P7-fl 落地，第 3 条待下一轮）
+### 具体待办（P7-fl 重写；第 1·2 条 P7-fl、第 3 条 P7-fm 均已落地；清单归零）
 
 审计入口：原版 `main:src/App.tsx` 的终端浮栏（`:3713-3796` 的 `.terminal-bar` 与
 `.terminal-panel__actions`）与输入区（`:3803-3805` 的 `.terminal-text-input`），本构建对应
@@ -5622,7 +5656,7 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
    - 验收（已过）：`internal/terminalui/view_test.go` 的 `TestTerminalInputCarriesItsAccessibleName`
      （终端视图的标签找得到）。变异核查：摘掉 `.Label(copy.Input)` → 立刻红。
 
-3. **（未落地，下一轮最高优先级）浮栏的身份行在会话结束后不报退出码**。
+3. **（本轮落地，P7-fm）浮栏的身份行在会话结束后不报退出码**。
    - 原版对照：`main:src/App.tsx:3713-3722` 的 `identityTitle` —— 会话 ended 时是
      `` `${title} · ${t("terminal.headerExited", { code: exitCode ?? 0 })}` ``，这个字符串既是
      `.terminal-bar__identity` 的 `title=` 也是它读出来的身份文本；词条 `terminal.headerExited` =
@@ -5631,15 +5665,16 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
    - 本构建（改前/现状）：`internal/terminalui/terminalui.go:1059-1066` 的 `titleBar` 身份只画
      `a.sessionTitle()`（空则 `copy.Title`），置灰点（`statusDot`）区分死活，但它**不报退出码**；
      `i18n.Terminal` 只有 `ProcessExited`（`i18n.go:1119`），退出码只出现在 `residentNote`。
-   - 落地 file:line（建议）：`internal/i18n` 的 `Terminal` 新增
-     `HeaderExited func(code int) string`（en/zh 逐字取 `i18n.ts:154,1062`）；
+   - 落地 file:line（已按此落地）：`internal/i18n` 的 `Terminal` 新增
+     `HeaderExited func(code int) string`（en/zh 逐字取 `i18n.ts:170,1077`）；
      `internal/terminalui/terminalui.go` 的 `titleBar` 身份文本改成——`Session.Resident` 时
      `title + " \u00b7 " + copy.HeaderExited(session.ExitCode)`（标题为空时回落 `copy.Title`）——并
      把同一句放上 `.Label(...)`/`.Tooltip(...)`（原版的 `title=`）。
-   - 验收（待做）：`internal/terminalui/view_test.go` 新增一条——用 `withSession` 造一个会话、
-     `a.ResidentAt(0, 3)` 后帧里出现 “Exited · code 3”（标题非空时是 “zsh · Exited · code 3”），
-     且 `residentNote` 的 “Process exited · code 3” 仍在（两条词都在，不互相顶掉）。变异核查：
-     把 `HeaderExited` 拿掉/硬写成 `copy.ProcessExited` → 应红。
+   - 验收（已过）：`internal/terminalui/view_test.go` 的 `TestTerminalBarIdentityNamesTheExitCode`——
+     用 `withSession` 造一个会话、`a.ResidentAt(0, 3)` 后帧里出现 “Exited · code 3”（标题非空时是
+     “zsh · Exited · code 3”），且 `residentNote` 的 “Process exited · code 3” 仍在（两条词都在，
+     不互相顶掉）；`internal/i18n/i18n_test.go` 的 `TestTerminalBarWordsMatchTheOldDictionary`
+     钉住 en/zh 两条词逐字。变异核查：把 `HeaderExited` 换成 `copy.ProcessExited` → 立刻红。
 
 > **历史清单（保留作「哪些已经做过」的记录）**：
 

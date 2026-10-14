@@ -514,6 +514,33 @@ func TestResidentSessionHoldsItsOutput(t *testing.T) {
 	}
 }
 
+// Once the program on screen has ended, the bar's identity line names the code
+// it returned, not just the session — the reference's `identityTitle`, which
+// appends `terminal.headerExited` to the title while the session is held
+// (`main:src/App.tsx:3716-3722`). It is a second word, distinct from the
+// resident note's `terminal.processExited`, and the two show together.
+func TestTerminalBarIdentityNamesTheExitCode(t *testing.T) {
+	copy := i18n.For("en").Terminal
+	a := New(newStore(), Actions{}, func(terminal.Options) (*terminal.Terminal, error) {
+		return nil, errors.New("no library in tests")
+	})
+	withSession(a, &terminal.Terminal{})
+	a.ResidentAt(0, 3)
+	tt := render(t, a, 860, 600)
+	tt.Frame()
+	if want := copy.HeaderExited(3); !tt.HasText(want) {
+		t.Errorf("the identity line does not name the exit code %q: %q", want, tt.Texts())
+	}
+	withTitle(a, "zsh")
+	tt.Frame()
+	if want := "zsh \u00b7 " + copy.HeaderExited(3); !tt.HasText(want) {
+		t.Errorf("the identity line is not %q: %q", want, tt.Texts())
+	}
+	if want := copy.ProcessExited(3); !tt.HasText(want) {
+		t.Errorf("the resident note is gone: %q", tt.Texts())
+	}
+}
+
 // The bar's gear is the door to the terminal's own appearance drawer: it is a
 // control of its own, and a caller that provides none draws none.
 func TestTerminalBarSettingsDoor(t *testing.T) {

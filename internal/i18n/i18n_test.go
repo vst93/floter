@@ -184,11 +184,15 @@ func TestTerminalBarWordsMatchTheOldDictionary(t *testing.T) {
 		{"en new command hint", en.Terminal.NewCommandHint("⌘W"), "New command (⌘W)"},
 		{"en open external", en.Terminal.OpenExternal, "Continue in System Terminal"},
 		{"en open external hint", en.Terminal.OpenExternalHint("⌘N"), "Continue in System Terminal (⌘N)"},
+		{"en header exited", en.Terminal.HeaderExited(3), "Exited · code 3"},
+		{"en process exited", en.Terminal.ProcessExited(3), "Process exited · code 3"},
 		{"zh input", zh.Terminal.Input, "终端输入"},
 		{"zh new command", zh.Terminal.NewCommand, "新建命令"},
 		{"zh new command hint", zh.Terminal.NewCommandHint("⌘W"), "新建命令（⌘W）"},
 		{"zh open external", zh.Terminal.OpenExternal, "在系统终端中继续"},
 		{"zh open external hint", zh.Terminal.OpenExternalHint("⌘N"), "在系统终端中继续（⌘N）"},
+		{"zh header exited", zh.Terminal.HeaderExited(3), "已退出 · 退出码 3"},
+		{"zh process exited", zh.Terminal.ProcessExited(3), "进程已退出 · 退出码 3"},
 	} {
 		if tc.got != tc.want {
 			t.Errorf("%s = %q, want %q", tc.name, tc.got, tc.want)
