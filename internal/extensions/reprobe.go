@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 )
 
@@ -103,6 +104,14 @@ func isGeneratedIntegration(integration Integration) bool {
 	return filepath.Base(integration.PackageDir()) == "integration"
 }
 
+// reprobeMu serializes the descriptor's read-modify-write against every other
+// re-probe in the process. The reference does the same with its repository
+// `mutation_lock` (held across the whole re-probe, `install.rs:700-760`): two
+// concurrent re-probes would each stage `.provider-description.reprobing.tmp`
+// and one rename would lose the file the other just staged. Nothing else in
+// this build rewrites that descriptor, so one lock here is enough.
+var reprobeMu sync.Mutex
+
 // ReprobeCommands re-runs the connect-time help derivation for a generated
 // custom integration and regenerates its static descriptor in place. The
 // refreshed descriptor replaces the old one atomically (temp + rename) and
@@ -110,6 +119,8 @@ func isGeneratedIntegration(integration Integration) bool {
 // derivation, a tool that no longer produces usable help is an error, so
 // the previous descriptor is kept.
 func ReprobeCommands(ctx context.Context, paths Paths, id string) (ReprobeReport, error) {
+	reprobeMu.Lock()
+	defer reprobeMu.Unlock()
 	integration, ok := LoadInventory(paths).WithID(id)
 	if !ok {
 		return ReprobeReport{}, ErrNoIntegration

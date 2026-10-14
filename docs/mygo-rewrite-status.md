@@ -100,7 +100,80 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-es F4g 第 3 条入口——多个候选时的运行工具选择 `chooseSystemTool`（原版
+> **最新一轮：P7-et F4g 第 4 条入口——漂移提示（原版 `src/ExtensionsPanel.tsx:2078-2132` 的
+> `handleDriftNotice`、`src-tauri/src/extensions/install.rs:843-975` 的
+> `reprobe_on_tool_version_change`、`src-tauri/src/commands/extensions.rs:139-188` 的
+> `dispatch_drift_reprobe`）** —— P7-es 收尾后「尚未做」清单里文档点名的下轮最高优先级就是
+> **F4g 的第 4 条入口**（输出回看），本轮取它。依赖检查：GitHub releases API 限流；
+> `proxy.golang.org` 的 `@v/list` 最新仍是 **v0.4.8**（只有 tag、无 release），`go.mod` 无版本可升；
+> 只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离（F4g·drift notice）**：原版 `extensions_list`（`commands/extensions.rs:205-300`）在装配
+> 列表时收集**生成的自定义集成**（`runtime_ownership == System` 且 `is_generated_custom_integration`）
+> 作为 `drift_candidates`，交给 `dispatch_drift_reprobe`（`:139-188`）：`try_start_drift_reprobe`
+> 保证同一时刻只有一个后台循环（一次列表风暴最多每个漂移探一次），循环对每个候选调
+> `install::reprobe_on_tool_version_change`（`install.rs:843-975`）——当工具的**记录版本**与现在
+> `--version` 报的不一致时，重跑 connect 期的 help 推导（原子替换 + help-probe sidecar），并把
+> 记录版本改成新的；完成后若 `report.previous_command_count != Some(report.command_count)` 就在既有
+> `extension-op-progress` 事件上发**一帧** `notice`（`ReprobeNotice{tool_version,
+> previous_command_count, command_count}`）。前端唯一消费者是 `handleDriftNotice`（`ExtensionsPanel.tsx:2078-2132`）：
+> 先 `decideDriftNotice(frame, name, reprobeNoticeGate.current)` 定夺（无变化不发、无名不发、同一变化
+> 一次；且**无变化先判**，不烧名额），把 `decision.display` 写回抽屉的新鲜度行与列表行
+> （`lastProbeAt`/`commandCount`/`previousCommandCount`，缺字段保留旧值、不填 0），`decision.announce`
+> 非空才发一条 `onNotify("success", t("settings.extensions.reprobeNotice", {name, delta}))`，带一个
+> `settings.extensions.viewDetails` 动作用来跳详情。
+> **本构建（改前）**：`internal/extensions/reprobe.go` 的 `ReprobeCommands` 是**手动、同步**的；
+> `internal/extensions/driftnotice.go`（P7-bc）已落地**纯判定**（`DecideDriftNotice`/`DriftNoticeGate`），
+> 但**没有任何调度与消费**——全仓无人调它（`grep DecideDriftNotice` 只命中测试），也没有
+> 「记录版本 vs 当前版本」的比较，更没有后台循环或 toast。
+>
+> **落地**：
+> - `internal/extensions/driftversion.go`（新）：`CheckToolVersionDrift(ctx, paths, id) (DriftReprobe, error)`
+>   —— 复刻 `reprobe_on_tool_version_change` 的判定与动作：`driftReprobeEligible`（enabled +
+>   `RuntimeOwnershipSystem` + `isGeneratedIntegration` + 非 script）→ 可执行存在 → `probeVersion`
+>   读当前版本（空即无比较，不探）→ 与 `Entry.ToolVersion` 相等即闲置 → `ReprobeCommands`
+>   重生成（失败软返回，保留旧描述符）→ `SetToolVersion` 记录新版本；`ReprobeRan` 报告是否真探了。
+> - `internal/extensions/reprobe.go`：新增进程级 `reprobeMu` 串行化 `ReprobeCommands`
+>   （原版 repo `mutation_lock` 的等价物，防两处并发重探丢失 staged 文件）。
+> - `internal/shell/driftreprobe.go`（新）：`App.reprobeDriftedIntegrations`（后台循环，
+>   `driftReprobeCandidates` 收集 id；`startDriftReprobe`/`finishDriftReprobe` 复刻
+>   `try_start_drift_reprobe` 的单飞行闸）→ 逐个 `reprobeDriftedIntegration`（调
+>   `CheckToolVersionDrift`，构造 `ReprobeNoticeFrame`，交 `DecideDriftNotice` 定夺）→
+>   `raiseDriftNotice` 用新 `queueToast` 排一条 **success** toast（`ReprobeNotice` 句 + delta 词 +
+>   `ViewDetails` 动作，`TOAST_DISMISS_MS.success` = 4s），动作 `openIntegrationCard` 打开设置面
+>   Integrations 页；`driftNoticeGate` 建会话级 gate；`refreshAfterDrift` 刷新命令表与帧。
+> - `internal/shell/shell.go`：`RefreshIntegrations` 末尾调 `reprobeDriftedIntegrations()`，让每次列表
+>   （启动/安装/卸载/重探等）都带上漂移检查——正是原版 `extensions_list` 的位置。
+> - `internal/shell/notices.go`：新增 `queueToast(ui.Toast)`（`queueNotice` 改为调它）与
+>   `successNotice` 窗口常量。
+> - `internal/i18n`：`Settings` 新增 `ReprobeNotice(name,delta)`（“{name} 命令已更新（{delta}）”）、
+>   `ReprobeDeltaIncrease`（`+{n}`）、`ReprobeDeltaDecrease`（`−{n}`，U+2212）、`ViewDetails`
+>   （“查看详情”），逐字取原版 `i18n.ts:614-617,1496-1499`。
+>
+> **验收**：
+> - `internal/extensions/driftversion_test.go`（新）：版本移动即重探且报告 previous/command；记了新版本
+>   后第二次闲置（幂等）；无版本不探；script/bundled、publisher、disabled 三种不合资格；可执行消失不探。
+> - `internal/shell/driftreprobe_test.go`（新）：移动的版本恰好弹一条 success toast（句子 = 原版
+>   `reprobeNotice` + `+2`、动作 = `viewDetails`、窗口 = `successNotice`）；同一变化第二次不弹（gate）
+>   而不同变化仍弹；无版本不弹；重探失败软着陆（不 toast、不标 broken、版本不动）；单飞行闸；
+>   toast 真的被 `toastViewport` 画出且动作落到 Integrations 页；`RefreshIntegrations` 经列表本身
+>   也能弹（在它 spawn 的 goroutine 上）。
+> - 变异核查：删掉 `RefreshIntegrations` 末尾的调度 → `TestRefreshIntegrationsRaisesTheDriftToast` 红
+>   （“a listing never raised the drift toast”）；把 `raiseDriftNotice` 短路 → 四条 toast 测试红；
+>   放开单飞行闸 → `TestTheDriftReprobeLoopDoesNotStack` 红；放开资格闸 → 三条资格测试红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：**F4g 第 4 条入口落地**（漂移提示）。残留与有意偏离：(1) 原版把列表行也实时改写
+> （`setExtensions` 里 `lastProbeAt`/`commandCount` 缺字段保留旧值），本构建的行来自磁盘刷新
+> （`refreshAfterDrift` 重读 repository+manifest），数值一致但多一次 I/O；(2) 原版 toast 的
+> `viewDetails` 动作用 `setSelectedId` 打开该集成的抽屉，本构建**没有逐集成抽屉**，动作落到
+> Integrations 页（带新鲜度点的卡片是「详情」最接近的落点），未按 id 高亮。余下 F4g 最后一条入口
+> （**导入导出**的调用点：原版 `extensions_export` / `extensions_import`）与 **F-new**（脚本编辑器
+> 换 `ui/editor`）。下轮最高优先级是 **F4g 的导入导出对照**，除非 F4g 的对照先查出新缺口。
+>
+> **上一轮：P7-es F4g 第 3 条入口——多个候选时的运行工具选择 `chooseSystemTool`（原版
 > `src/ExtensionsPanel.tsx:1393-1401,1975-1988,2623-2648`、`i18n.ts:472-473`、
 > `src-tauri/src/commands/extensions.rs:1754-1759`）** —— P7-er 收尾后「尚未做」清单里文档点名的
 > 下轮最高优先级就是 **F4g 的第 3 条入口**（多个候选才弹 `chooseSystemTool`），本轮取它。依赖检查：
@@ -4781,9 +4854,9 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-> **清单状态（P7-ef 收尾）**：本轮取 P7-ee 重写的第 2 条（剪贴板「已关闭」档）落地，并顺带结清第 3 条
-> （计算器模式层上限），两条均已带 file:line 与测试；第 4 条是「十行翻页不做」的记录。依赖检查见
-> 「最近几轮」P7-ef，无版本可升，只对照 `main`。
+> **清单状态（P7-et 收尾）**：本轮取 P7-es 点名的 F4g 第 4 条入口（漂移提示）落地，见上文 P7-et
+> 记录与文末 F4g 条目。F4g 至此只剩**导入导出**一条未对照。依赖检查见「最近几轮」P7-et，无版本可升，
+> 只对照 `main`。下轮最高优先级：**F4g 的导入导出对照**；之后 **F-new**（脚本编辑器换 `ui/editor`）。
 
 ### 具体待办（P7-ee 重写；第 1·2·3 条全部落地：第 1 条 P7-ee、第 2·3 条 P7-ef）
 
@@ -7430,7 +7503,7 @@ Go 侧把原版的三条规则写偏了。依赖检查：`go list -m -versions g
   `extensions_repair` 一支 P7-ep）；F4f 由 P7-eo 落地；F3a/F3b 由 P7-em/P7-en 落地。余下 **F4g**（逐
   入口对照）与 **F-new**（脚本编辑器）——已写成文末「具体待办（P7-el 重写）」的条目。
 
-### 具体待办（P7-el 重写；F3a 已由 P7-em 落地、F3b 已由 P7-en 落地、F4f 已由 P7-eo 落地、F4e 的 repair 一支已由 P7-ep 落地、F4g 第 1·2·3 条入口已由 P7-eq/P7-er/P7-es 落地，余下 F4g 后两条/F-new）
+### 具体待办（P7-el 重写；F3a 已由 P7-em 落地、F3b 已由 P7-en 落地、F4f 已由 P7-eo 落地、F4e 的 repair 一支已由 P7-ep 落地、F4g 第 1·2·3·4 条入口已由 P7-eq/P7-er/P7-es/P7-et 落地，余下 F4g 导入导出/F-new）
 
 P7-ej/P7-ek 之后清单上只剩 F3a（一个待决策的分叉）与 F3b（已实测标为「先决于 F3a」）。P7-el 按规则
 把清单写实为五条带 file:line / 原版对照 / 验收标准的待办，并取其中新查出的真实缺口（F4e）落地。
@@ -7444,8 +7517,10 @@ F3b 因此解除「先决」。**P7-en 再取 F3b 并落地**（详见上文 P7-
 P7-er 记录）：推荐工具的 connect 现在先出两层权限审阅（标题 / 可执行路径 / `permissionsRequired` /
 每层 label+hint+每条说明 / 边界句），确认才提交全部 declared。**P7-es 取 F4g 的第 3 条入口并落地**
 （运行工具选择，见上文 P7-es 记录）：清单 `executableNames` 命中多个程序时先弹 `chooseSystemTool`
-（标题 / hint / 每个候选名称+路径+来源），选中路径交给 connect 或 reconnect。**下轮最高优先级是
-F4g 的第 4 条入口**（输出回看：原版 `ExtensionsPanel.tsx:2078-2132` 的 `handleDriftNotice`），
+（标题 / hint / 每个候选名称+路径+来源），选中路径交给 connect 或 reconnect。**P7-et 取 F4g 的第 4 条
+入口并落地**（漂移提示，见上文 P7-et 记录）：列表驱动的版本漂移检查（后台单飞行循环）在工具版本移
+动时重生成命令表，并对**真实变化**弹一条 `reprobeNotice` toast（带 `viewDetails` 动作）。**下轮最高优先级是
+F4g 的最后一条入口**（导入导出的调用点：原版 `extensions_export` / `extensions_import`），
 除非 F4g 的对照先查出新缺口。下面每条的「原版对照」都只读 `main`（v0.3.14 原版树）。
 
 #### F4e · 已连接卡片的修复入口（**全部落地：Reconnect 一支 P7-el、repair 一支 P7-ep**）
@@ -7515,7 +7590,15 @@ F4g 的第 4 条入口**（输出回看：原版 `ExtensionsPanel.tsx:2078-2132`
     文案取原版 `i18n.ts:472-473`。**残留（有意偏离）**：候选只有 PATH 一种来源（`Sources` 恒 `["path"]`）；
     打分只有「记录路径优先，否则全列」；用原生多按钮 message box 而非可聚焦 listbox。
   - 输出回看：`:2078-2132` 的 `handleDriftNotice`（`OperationProgress` 漂移提示）；
-  - 导入导出：`extensions_export` / `extensions_import` 的调用点（`onImport`/`onExport` 一带）。
+    —— **已落地 P7-et**（见上）：`internal/extensions/driftversion.go` 的 `CheckToolVersionDrift`
+    （记录版本 vs 当前版本的比较 + 资格闸 + 失败软着陆），`internal/shell/driftreprobe.go` 的
+    `reprobeDriftedIntegrations`（列表驱动的后台单飞行循环，复刻原版 `try_start_drift_reprobe`）+
+    `raiseDriftNotice`（一条 `reprobeNotice` success toast，带 `viewDetails` 动作），
+    `RefreshIntegrations` 末尾接线；判定与 gate 用已落地的 `extensions.DecideDriftNotice`。
+    **残留（有意偏离）**：行数据来自磁盘刷新而非原版的 `setExtensions` 就地改写；
+    `viewDetails` 动作落到 Integrations 页而非逐集成抽屉（本构建无抽屉）。
+  - 导入导出：`extensions_export` / `extensions_import` 的调用点（`onImport`/`onExport` 一带）——
+    **下轮最高优先级**（唯一未逐函数对照的 F4g 入口）。
 - **本构建入口**：`internal/settingsui/settingsui.go` 的 `localToolSection`（`:2860` 一带）、
   `installationReview`/`InstallFromFolder`、`confirmInstallPermissions`（shell）、
   `permissionAudit`（`:1741`）、`runForm`/`runOutput`、`importIntegrations`/`exportIntegrations`（shell）。
@@ -7523,6 +7606,8 @@ F4g 的第 4 条入口**（输出回看：原版 `ExtensionsPanel.tsx:2078-2132`
   要么写成 F4g-n 的具体条目。**验收**：每条至少一条测试（对已有等价实现的条目，测试写「原版那句话/那个
   状态在本构建的哪个函数被谁读」）。
 - **注意**：这是**对照任务**，不要一次性大改；每轮只取一条入口（与 F4a–F4e 的节奏一致）。
+- **剩余**（仅一条）：导入导出的调用点。对照完即 F4g 收口；之后回到 `localToolSection` /
+  `runForm` 等其他入口的逐函数审计，或取 f-new（脚本编辑器）。
 
 #### F3a · 控件透镜（**本轮落地，P7-em**；原版有一份可逐条对齐的 lens census）
 

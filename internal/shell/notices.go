@@ -44,6 +44,11 @@ const refusalNotice = 8 * time.Second
 // warning says what will not happen yet rather than what failed.
 const warningNotice = 6 * time.Second
 
+// successNotice is the confirmation window: the old build's
+// `TOAST_DISMISS_MS.success`, the shortest of the three because the news is
+// good and needs no time to digest.
+const successNotice = 4 * time.Second
+
 // refusalGate coalesces an automatic, externally triggered failure per key,
 // the rule the old build's `createFailureDeduper` implemented. The clock is
 // injectable so a test can drive a burst without waiting wall-clock time.
@@ -77,13 +82,21 @@ func (g *refusalGate) allow(key string) bool {
 // one id means a second notice replaces the first rather than stacking beside
 // it.
 func (a *App) queueNotice(message string, window time.Duration) {
-	a.noticeMu.Lock()
-	a.notices = append(a.notices, ui.Toast{
+	a.queueToast(ui.Toast{
 		ID:      "floter-notice",
 		Title:   message,
 		Type:    "error",
 		Timeout: window,
 	})
+}
+
+// queueToast remembers one of the app's own toasts for the next frame, drawn
+// by `toastViewport`: a background task cannot build a view, so it queues the
+// toast and asks for a frame. The caller owns the id and the kind, so notices
+// of different sorts do not replace one another.
+func (a *App) queueToast(toast ui.Toast) {
+	a.noticeMu.Lock()
+	a.notices = append(a.notices, toast)
 	a.noticeMu.Unlock()
 	if a.Win != nil {
 		a.Win.Invalidate()

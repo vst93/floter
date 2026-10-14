@@ -254,6 +254,15 @@ type App struct {
 	registerTimer  *time.Timer
 	// registerHighlight is how long that mark lasts; tests shorten it.
 	registerHighlight time.Duration
+	// driftGate is the session-scoped "tell the user once" gate for the silent
+	// background drift re-probe (R7-7): one toast per (integration, version,
+	// direction, magnitude) per session, and no toast at all for a no-op
+	// frame. Its decisions come from the pure `extensions.DecideDriftNotice`.
+	driftGate *extensions.DriftNoticeGate
+	// driftRunning guards the background version-drift loop, so rapid listings
+	// cannot stack probes (the reference's `try_start_drift_reprobe`).
+	driftMu      sync.Mutex
+	driftRunning bool
 	// detached are the output windows the user pinned: each one stays up
 	// whatever the panel does (see detach.go).
 	detached []*detachedOutput
@@ -1347,10 +1356,15 @@ const maxRecentApps = 10
 
 // RefreshIntegrations reloads the extension state and the providers'
 // commands, then hands them to the launcher. It blocks while providers run,
-// so the app calls it from a goroutine.
+// so the app calls it from a goroutine. The upstream command-drift check runs
+// after it, on the goroutine it spawns itself.
 func (a *App) RefreshIntegrations(ctx context.Context) {
 	a.Integrations.Refresh(ctx)
 	a.onMain(func() { a.Launcher.SetCommands(a.launcherCommands()) })
+	// R7-7 · the silent drift re-probe. The list is already assembled from the
+	// previous descriptor, so the check runs behind it: a slow or hung tool
+	// can never hold up a listing.
+	a.reprobeDriftedIntegrations()
 }
 
 // integrationList maps the store's inventory onto the settings list: the

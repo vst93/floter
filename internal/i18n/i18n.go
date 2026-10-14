@@ -771,6 +771,15 @@ type Settings struct {
 	FreshnessDotSynced  string
 	FreshnessDotChanged string
 	FreshnessDotUnknown string
+	// ReprobeNotice, ReprobeDeltaIncrease and ReprobeDeltaDecrease are the
+	// drift re-probe's one toast: the reference's
+	// `settings.extensions.reprobeNotice` sentence and its two signed delta
+	// words. ViewDetails is that toast's action label, the same sentence the
+	// reference's `settings.extensions.viewDetails` carried.
+	ReprobeNotice        func(name, delta string) string
+	ReprobeDeltaIncrease func(count int) string
+	ReprobeDeltaDecrease func(count int) string
+	ViewDetails          string
 	// The About page's deep-link card: the two forms worth copying, and the
 	// sentence a refused link gets (the old build's `settings.deepLinkRejected`).
 	DeepLinkTitle    string
