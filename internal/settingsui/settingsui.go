@@ -1502,7 +1502,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			}
 			a.stateMark(c, integration, copy)
 		})
-		a.row(c, integration.identity(), "", func() {})
+		a.row(c, integration.identityLine(copy), "", func() {})
 
 		if len(integration.Permissions) > 0 && !integration.Orphan {
 			labelClicked := a.row(c, copy.IntegrationsPermissions, a.permissionLine(integration, copy), func() {
@@ -1817,6 +1817,46 @@ func (i Integration) identity() string {
 	}
 	if i.ID != "" {
 		parts = append(parts, i.ID)
+	}
+	return strings.Join(parts, " · ")
+}
+
+// integrationKind is the integration's *type*, the second slot the reference's
+// `.extension-row__meta` filled (`src/extensions/ExtensionRow.tsx:220-222`: the
+// package identity, then `t(integrationKindKey(extension))`). It is a type, not
+// the removal verb: the same card reads "System tool" and offers "Disconnect".
+//
+// The reference's `integrationKindKey` (`:77-94`) told seven kinds apart, but
+// the `recommended` / `manifest` / `tool` branches all require `!connected`, and
+// this build never draws a `DetectedTool` or `RecommendedTool` as an
+// `Integration` — those live in their own sections with their own renderers. So
+// for the connected cards this method is the four-way pick, walked in the
+// reference's own order (`generatedCustom` first, so a custom integration that
+// also came from npm is still custom).
+func (i Integration) integrationKind(copy i18n.Settings) string {
+	switch {
+	case i.Generated:
+		return copy.IntegrationsKindCustom
+	case i.DistributionSource == "npm":
+		return copy.IntegrationsKindNPM
+	case i.DistributionSource == "built-in" && i.RuntimeOwnership == "system":
+		return copy.IntegrationsKindSystem
+	default:
+		return copy.IntegrationsKindPackage
+	}
+}
+
+// identityLine is the card's own second row: the package identity the reference
+// printed, then the type word (`integrationKind`). Both are skipped when empty
+// so an orphan's bare id row does not trail a separator, and the two are the
+// reference's own two meta slots in its own order.
+func (i Integration) identityLine(copy i18n.Settings) string {
+	parts := []string{}
+	if id := i.identity(); id != "" {
+		parts = append(parts, id)
+	}
+	if kind := i.integrationKind(copy); kind != "" {
+		parts = append(parts, kind)
 	}
 	return strings.Join(parts, " · ")
 }

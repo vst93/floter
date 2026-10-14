@@ -457,6 +457,24 @@ type Settings struct {
 	// `src/extensions/ExtensionRow.tsx:109-114,409-418` picked them.
 	IntegrationsDisconnect    string
 	IntegrationsRemovePackage string
+	// IntegrationsKind* is the integration's *type*, the slot the reference
+	// spent on the meta row beside the package identity
+	// (`src/extensions/ExtensionRow.tsx:255` draws
+	// `t(integrationKindKey(extension))`; the words are `i18n.ts:446-453`'s
+	// `settings.extensions.integrationKind.*` family). It is a type, not the
+	// removal verb: the same card shows "System tool" and offers "Disconnect".
+	//
+	// Only the four kinds a *connected* card can be are carried: the reference's
+	// `integrationKindKey` distinguishes seven, but its `recommended`,
+	// `manifest` and `tool` branches require `!connected`, and this build lists
+	// those rows in the Detected and Recommended sections with their own
+	// renderers rather than as `Integration` cards (`settingsui.go`), so the
+	// switch reduces to the four here. Adding the other three words would leave
+	// i18n keys nothing reads (`TestNoDeadCopy`).
+	IntegrationsKindCustom  string
+	IntegrationsKindNPM     string
+	IntegrationsKindSystem  string
+	IntegrationsKindPackage string
 	// DismissNotice labels the toast's close control: the old build's
 	// `settings.extensions.dismissNotice`.
 	DismissNotice string

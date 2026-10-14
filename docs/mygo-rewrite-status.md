@@ -99,7 +99,47 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-eh F4 逐函数对照落成四条具体待办 + F4a「移除动词随 kind」落地
+> **最新一轮：P7-ei F4b 集成卡片的 meta 行补回「集成种类」词
+> （原版 `src/extensions/ExtensionRow.tsx:77-101,220-222,255`、`i18n.ts:446-453`）**
+> —— P7-eh 之后「尚未做」里 F3b 与 F4b 都是具体项，本轮取 **F4b**（用户四项反馈里 F4 的
+> 第 2 条；与 F4a 同属「集成组件逻辑差异」这组，紧接上一轮）。依赖检查：GitHub releases
+> API 限流，`go list -m -versions github.com/egoist/mygo` 最新仍是 **v0.4.8**（与 `go.mod`
+> 一致），无版本可升；只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离点**：原版每张卡片的 meta 行画两个槽——包身份（`packageName ?? publisherName`）与
+> **类型词** `t(integrationKindKey(extension))`（`ExtensionRow.tsx:220-222`；`integrationKindKey`
+> 在 `:77-94` 七分，词条在 `i18n.ts:446-453` 的 `settings.extensions.integrationKind.*`）。
+> 本构建 `internal/settingsui/settingsui.go:1505` 的 meta 行只印 `integration.identity()`
+> （publisher · version · ID），**类型词整格缺失**——一张系统工具卡与一张 npm 集成卡的第二行除了
+> id 没有任何区别。
+>
+> **修法**：`settingsui.go` 新增 `Integration.integrationKind(copy)` 与 `identityLine(copy)`
+> （identity 在前、类型词在后，两格都是原版自己的槽位与顺序）；卡片那句 `a.row(...)` 改读
+> `identityLine(copy)`。类型词与移除动词（F4a）是同一行的两个不同事实：系统卡片同时读
+> “System tool” 与 “Disconnect”。i18n 新增四键 `IntegrationsKindCustom` / `KindNPM` /
+> `KindSystem` / `KindPackage`（en/zh 用原版原文）。
+>
+> **为何是四键不是七键**：原版 `integrationKindKey` 的 `recommended` / `manifest` / `tool` 三支都要求
+> `!connected`，而本构建把这三类行放在 **Detected / Recommended 两个独立段**、用各自的渲染器
+> （`DetectedTool` / `RecommendedTool`）而非 `Integration` 卡片——所以在「卡片是 connected」这一
+> 前提下七分退化为四分（custom / npm / system / package）。把另三个词也声明出来会留下三枚无人读的
+> i18n 键（`TestNoDeadCopy` 会红），故只加被读的四个；段合并是 F4c 的独立决定。
+>
+> **验收**：新增 `internal/settingsui/integrationkind_test.go` 三条——
+> `TestTheKindWordFollowsTheIntegrationType`（六行表：custom / generated-beats-npm / npm / system /
+> bundled / local；并钉类型词 ≠ 移除动词）、`TestTheAppIdentityLineCarriesTheTypeWord`
+> （identity · kind 的拼接与空身份不留尾分隔符）、`TestEachIntegrationCardShowsItsOwnKind`
+> （四行同屏像素断言四个词都在，且系统卡仍画 Disconnect）。变异核查：把卡片的
+> `identityLine(copy)` 换回 `identity()` → 第二条（像素）立刻红
+> （`the page is missing "Custom integration"…`）。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 27 包全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：F4 进展为 F4a/F4b 已落地，剩 F4c（detected 行动作三态）/F4d（register 标记）；
+> F3a/F3b 仍在清单上。下轮最高优先级是 **F3b（帧 sheen 回固定口径）** 或 F4c。
+
+> **上一轮：P7-eh F4 逐函数对照落成四条具体待办 + F4a「移除动词随 kind」落地
 > （原版 `src/extensions/ExtensionRow.tsx:109-114,409-418`）** —— P7-eg 之后「尚未做」里
 > F3a/F3b 已是具体项，唯 F4 还停在「审计入口已钉、逐项待下一轮」，按规则把 F4 写成**带 file:line /
 > 原版行号 / 验收标准的四条待办**（F4a–F4d，文档末尾），再取第 1 条（F4a）落地。依赖检查：
@@ -6714,7 +6754,7 @@ Go 侧把原版的三条规则写偏了。依赖检查：`go list -m -versions g
   - **风险**：帧 sheen 参与透明度的 `FaceFill` 补偿（`theme.go` 的 `baseAlpha`/`capAlpha` 与
     `internal/shell/transparency_test.go`），改动须重跑该套像素测试。
 
-### F4 · 集成组件逻辑差异（**本轮（P7-eh）落成 F4a–F4d 四条带 file:line 的待办并落地 F4a**）
+### F4 · 集成组件逻辑差异（**P7-eh 落成 F4a–F4d 四条带 file:line 的待办并落地 F4a；P7-ei 落地 F4b**）
 
 - **现象**：集成组件逻辑与原版差异仍大，需要梳理、可能重构。
 - **原版对照**：`main:src/ExtensionsPanel.tsx`（面板与安装/权限/运行流程，3269 行）与
@@ -6722,9 +6762,10 @@ Go 侧把原版的三条规则写偏了。依赖检查：`go list -m -versions g
 - **本构建入口**：`internal/settingsui/settingsui.go:1120` 的 `integrations`（列表页）、`:1485` 的
   `integrationRow`（卡片）、`:1326` 的 `stateMark`、`:1741` 的 `permissionAudit`，数据来自
   `internal/extensions` 的 inventory/repository。
-- **本轮做法**：以 `ExtensionRow.tsx` 为蓝本逐函数对照（`generatedCustom`/`distributionSource`/
+- **P7-eh 做法**：以 `ExtensionRow.tsx` 为蓝本逐函数对照（`generatedCustom`/`distributionSource`/
   `runtimeOwnership`/`connected`/`runtimeAvailable` 五组判据），落成下面四条**带 file:line 的具体待办**，
-  并取第 1 条（F4a）落地。`ExtensionsPanel.tsx` 的安装/审批/运行流程留作后续轮（见「残留」）。
+  并取第 1 条（F4a）落地。P7-ei 取第 2 条（F4b）落地。`ExtensionsPanel.tsx` 的安装/审批/运行流程
+  留作后续轮（见「残留」）。
 
 #### F4a · 卡片的「移除」动词全按一种说法（**本轮落地，P7-eh**）
 
@@ -6757,19 +6798,26 @@ Go 侧把原版的三条规则写偏了。依赖检查：`go list -m -versions g
   kind key**，而 `removalTextKey` 还给 package/system 各自的 `removePackageTitle`/`disconnectTitle`
   词——这把确认条也按 kind 说话留给后续轮（需要新增配对 i18n 键），不塞进本条。
 
-#### F4b · 卡片 meta 行缺「集成种类」词（**待做**）
+#### F4b · 卡片 meta 行补回「集成种类」词（**本轮落地，P7-ei**）
 
-- **原版对照**：`ExtensionRow.tsx:82-101` 的 `integrationKindKey`（custom / npm / manifest / recommended /
+- **原版对照**：`ExtensionRow.tsx:77-101` 的 `integrationKindKey`（custom / npm / manifest / recommended /
   tool / system / package 七种，判据是 `generatedCustom`、`distributionSource`、`!connected &&
   manifestSuggestion`、`!connected && recommended`、`!connected && distributionSource==="local"`、
-  `built-in` + `system`），在 `:255` 作为 meta 行的一个 `<span>` 画出。
-- **本构建（偏离）**：`internal/settingsui/settingsui.go:1800` 的 `Integration.identity()` 只印
+  `built-in` + `system`），在 `:220-222` 与 `:255` 作为 meta 行的第二个 `<span>` 画出
+  （词条 `i18n.ts:446-453`）。
+- **本构建（偏离）**：`internal/settingsui/settingsui.go` 的 `Integration.identity()` 只印
   publisher · version · ID，没有种类词；`integrationRow` 的 meta 行
-  （`settingsui.go:1499` 的 `a.row(c, integration.identity(), "", func(){})`）因此缺这一格。
-- **待做 file:line**：`identity()` 拆分出一个 `integrationKind(copy)`（或新增一列），把七种判据接到
-  `Integration` 的 `Generated`（F4a 已补）/ `DistributionSource` / `RuntimeOwnership` / `Connected` /
-  `Recommended` / `ManifestSuggestion` 上——后三个字段本轮尚不在结构体里，需先投影。
-- **验收**：新增一条表驱动测试，逐 kind 钉 `integrationKind(copy)` 的词 + 卡片上该词可见；en/zh 各一句。
+  （原 `a.row(c, integration.identity(), "", func(){})`）因此缺这一格。
+- **落地 file:line**：`internal/settingsui/settingsui.go` 新增 `Integration.integrationKind(copy)` 与
+  `identityLine(copy)`（identity 在前、类型词在后，两格都是原版的槽位与顺序）；卡片那句改读
+  `identityLine(copy)`。i18n 新增四键 `IntegrationsKindCustom` / `KindNPM` / `KindSystem` /
+  `KindPackage`（en/zh 用原版原文）。判据读 `Generated` / `DistributionSource` / `RuntimeOwnership`
+  （F4a 已投影），不需要新字段：原版的 `recommended` / `manifest` / `tool` 三支都要求
+  `!connected`，而本构建把这三类行放在 Detected / Recommended 两个独立段、用各自的渲染器
+  （`DetectedTool` / `RecommendedTool`），所以在「卡片是 connected」前提下七分退化为四分；
+  多声明三个词只会留下无人读的 i18n 键（`TestNoDeadCopy` 会红）。段合并是 F4c 的独立决定。
+- **验收**：新增 `internal/settingsui/integrationkind_test.go` 三条（六行表 + 拼接 + 四行同屏像素
+  断言）。变异核查：卡片 `identityLine(copy)` 换回 `identity()` → 像素条立刻红。
 
 #### F4c · detected（未连接）行的动作语义不是原版那张脸（**待做**）
 
@@ -6800,4 +6848,4 @@ Go 侧把原版的三条规则写偏了。依赖检查：`go list -m -versions g
 - **验收**：一条渲染测试，highlighted 行出现标记文案、未点名的行不出现。
 
 - **残留**：`main:src/ExtensionsPanel.tsx`（安装文件夹/权限审批/运行参数/输出回看/导入导出的**流程**）
-  尚未逐函数对照；F3a/F3b 仍在清单上，下轮按优先级取（F3b 已是可直接落地的具体项）。
+  尚未逐函数对照；F3a/F3b 仍在清单上，下轮按优先级取（F3b 已是可直接落地的具体项）；F4c/F4d 待做。
