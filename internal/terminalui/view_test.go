@@ -5,6 +5,7 @@ import (
 	"image"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 
 	"floter/internal/i18n"
 	"floter/internal/settings"
+	"floter/internal/shortcuts"
 )
 
 func newStore() *settings.Store { return settings.NewStore(settings.Default()) }
@@ -302,7 +304,7 @@ func TestTerminalHeaderControls(t *testing.T) {
 	if newCommands != 1 {
 		t.Errorf("new command ran %d times", newCommands)
 	}
-	if err := tt.Click("Open in terminal"); err != nil {
+	if err := tt.Click(i18n.For("en").Terminal.OpenExternal); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
@@ -319,20 +321,24 @@ func TestTerminalHeaderControls(t *testing.T) {
 }
 
 // The bar's two labeled controls say what they do once the pointer rests on
-// them: the reference put the same sentence in each button's `title=`, and the
-// strings were declared and translated here without any view showing them.
+// them: the reference put the same sentence in each button's `title=` — the
+// sentence names the chord that does the same thing from the keyboard
+// (`main:src/App.tsx:3764-3790`), read from the user's own bindings rather than
+// spelled in the copy.
 func TestTerminalBarButtonsCarryTheirHints(t *testing.T) {
 	copy := i18n.For("en").Terminal
-	a := New(newStore(), Actions{
+	store := newStore()
+	a := New(store, Actions{
 		NewCommand:   func() {},
 		OpenExternal: func() {},
 	}, func(terminal.Options) (*terminal.Terminal, error) {
 		return nil, errors.New("no library in tests")
 	})
+	stored := store.Snapshot()
 	tt := render(t, a, 860, 600)
 	for _, want := range []struct{ label, hint string }{
-		{copy.NewCommand, copy.NewCommandHint},
-		{copy.OpenExternal, copy.OpenExternalHint},
+		{copy.NewCommand, copy.NewCommandHint(shortcuts.Display(settings.Shortcut(stored, settings.ShortcutNewCommand)))},
+		{copy.OpenExternal, copy.OpenExternalHint(shortcuts.Display(settings.Shortcut(stored, settings.ShortcutOpenExternalTerminal)))},
 	} {
 		rect, ok := tt.Find(want.label)
 		if !ok {
@@ -354,6 +360,54 @@ func TestTerminalBarButtonsCarryTheirHints(t *testing.T) {
 		// Park the pointer away and let the tip go before the next control.
 		tt.Move(430, 300)
 		tt.Frame()
+	}
+}
+
+// The tooltip's chord is the user's own binding, not a literal: rebinding
+// `new_command` or `open_external_terminal` moves the word the tip prints, the
+// way the reference's `formatShortcut(shortcuts.…)` read it at draw time
+// (`main:src/App.tsx:3764-3790`).
+func TestTerminalBarHintsFollowTheUserBinding(t *testing.T) {
+	copy := i18n.For("en").Terminal
+	shipped := settings.Default()
+	defaultNew, defaultExternal := barHints(copy, shipped)
+
+	bound := settings.Default()
+	if !bound.SetShortcut(settings.ShortcutNewCommand, "Ctrl+Alt+K") {
+		t.Fatal("the fixture's new-command binding was refused")
+	}
+	if !bound.SetShortcut(settings.ShortcutOpenExternalTerminal, "Ctrl+Alt+J") {
+		t.Fatal("the fixture's open-external binding was refused")
+	}
+	newHint, externalHint := barHints(copy, bound)
+
+	for _, want := range []struct{ name, hint, chord, shipped string }{
+		{"new command", newHint, shortcuts.Display("Ctrl+Alt+K"), defaultNew},
+		{"open external", externalHint, shortcuts.Display("Ctrl+Alt+J"), defaultExternal},
+	} {
+		if !strings.Contains(want.hint, want.chord) {
+			t.Errorf("the %s hint = %q, want it to name %q", want.name, want.hint, want.chord)
+		}
+		if want.hint == want.shipped {
+			t.Errorf("the %s hint did not move with the binding: %q", want.name, want.hint)
+		}
+	}
+}
+
+// The terminal view is a focusable region with an accessible name, so assistive
+// technology says what it is — the reference's `aria-label={t("terminal.input")}`
+// on its own text input (`main:src/App.tsx:3805`).
+func TestTerminalInputCarriesItsAccessibleName(t *testing.T) {
+	a := New(newStore(), Actions{}, func(terminal.Options) (*terminal.Terminal, error) {
+		return nil, errors.New("no library in tests")
+	})
+	withSession(a, &terminal.Terminal{})
+	tt := render(t, a, 860, 600)
+	tt.Frame()
+	if label := i18n.For("en").Terminal.Input; label == "" {
+		t.Fatal("the copy has no terminal-input name")
+	} else if _, ok := tt.Find(label); !ok {
+		t.Errorf("the terminal view has no accessible name %q: %q", label, tt.Texts())
 	}
 }
 

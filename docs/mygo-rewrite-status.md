@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1333 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1336 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1333 项测试
+go test -count=1 ./...         # 1336 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -100,7 +100,54 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-fk 自定义快捷键的 `conflict` 拒收与两个词（原版 `src-tauri/src/commands/config.rs:1666-1718`、`src/settings/ShortcutsPage.tsx:293-296`、`src/i18n.ts:412-413,1299-1300`）**
+> **最新一轮：P7-fl 终端浮动栏两个控件的词与无障碍名（原版 `src/App.tsx:3764-3805`、`src/i18n.ts:146-150,1054-1058`）**
+> ——P7-fk 收尾后「具体待办（P7-fj 重写）」3 条全部结清、清单归零；本轮按上节建议换入口：逐字段
+> 对照**终端表面浮栏与输入区**（`main:src/App.tsx` 的 `.terminal-panel__actions` 与
+> `.terminal-text-input`，本构建对应 `internal/terminalui/terminalui.go` 的 `titleBar`/`View`），
+> 把清单重新写实为 **3 条带 file:line 的具体待办**（见文末「具体待办（P7-fl 重写）」），取第 1·2 条
+> 落地。依赖检查：`go list -m -versions github.com/egoist/mygo` 最新仍是 **v0.4.8**（与 `go.mod`
+> 一致），无版本可升、无新 API 用点；GitHub releases API 限流。只对照 `main`
+> （`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离（P7-fl·浮栏两个控件的词）**：原版浮栏的两个控件把**用户自己的绑定**写进 tooltip——
+> `App.tsx:3771` 的 popout `title={t("terminal.openInTerminalHint", { shortcut:
+> formatShortcut(shortcuts.open_external_terminal) })}`、`App.tsx:3781` 的关闭键
+> `title={t("terminal.newCommandHint", { shortcut: formatShortcut(shortcuts.new_command) })}`，
+> 而 aria-label 是 `terminal.openInTerminal` = “Continue in System Terminal” / `terminal.newCommand`
+> = “New command”（`i18n.ts:146-149,1054-1057`）。**本构建（改前）**：
+> `internal/i18n/copy.go:942,948` 的 `NewCommandHint` 是自由句 “Back to the search field”、
+> `OpenExternalHint` 是 “Opens the system's own terminal window”，`OpenExternal` 的词是
+> “Open in terminal”；`internal/terminalui/terminalui.go:1078,1081` 直接把这两个常量当 tooltip 传，
+> 绑定连读都没读；zh 侧 `NewCommand` 还是“新命令”而不是原版的“新建命令”。
+>
+> **偏离（P7-fl·终端视图没有无障碍名）**：原版 `App.tsx:3805` 的终端文本输入带
+> `aria-label={t("terminal.input")}`（`i18n.ts:150,1058`）；**本构建（改前）**
+> `internal/terminalui/terminalui.go:776` 的 `terminal.View(...).Bind(&a.Focus)` 没有 `Label`，
+> `i18n.Terminal` 也没有 `Input` 字段——聚焦到一个无名区域，辅助技术读不出它是什么。
+>
+> **落地**：
+> - `internal/i18n`：`Terminal.NewCommandHint`/`OpenExternalHint` 变成 `func(shortcut string) string`
+>   （逐字“New command ({shortcut})”/“Continue in System Terminal ({shortcut})”，zh 用全角括号）；
+>   `OpenExternal` 改回原版词、`NewCommand` 的 zh 修正为“新建命令”；新增 `Terminal.Input`。
+> - `internal/terminalui/terminalui.go` 新增纯函数 `barHints(copy, settings.Settings)`（从
+>   `settings.Shortcut` 读 `new_command`/`open_external_terminal` 绑定，过 `shortcuts.Display`——
+>   即原版的 `formatShortcut`），`titleBar` 用它；`View` 给终端视图链上 `.Label(copy.Input)`。
+>
+> **验收**：`internal/i18n/i18n_test.go` 新增 `TestTerminalBarWordsMatchTheOldDictionary`（en/zh
+> 十句逐字）；`internal/terminalui/view_test.go` 新增 `TestTerminalBarHintsFollowTheUserBinding`
+> （把两条绑定改掉 → 两条 tooltip 跟着变，且与默认不同）与 `TestTerminalInputCarriesItsAccessibleName`
+> （终端视图找得到 “Terminal input” 这个标签），`TestTerminalBarButtonsCarryTheirHints` 的期望值改成
+> 从绑定算出。变异核查：把 `barHints` 的 open-external 绑定换成常量 `"Ctrl+N"` → 第一条立刻红
+> （`want it to name "Ctrl+Alt+J"`）；摘掉 `.Label(copy.Input)` → 第二条立刻红（`no accessible name
+> "Terminal input"`）。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿（1336 项）、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：第 1 条（浮栏两个控件的词）与第 2 条（终端视图的无障碍名）落地；
+> 「具体待办（P7-fl 重写）」还剩第 3 条（浮栏身份行的退出码），是下一轮最高优先级。
+
+> **上一轮：P7-fk 自定义快捷键的 `conflict` 拒收与两个词（原版 `src-tauri/src/commands/config.rs:1666-1718`、`src/settings/ShortcutsPage.tsx:293-296`、`src/i18n.ts:412-413,1299-1300`）**
 > ——P7-fj 收尾后「具体待办（P7-fj 重写）」还剩两条，本轮把第 2 条（撞车判 `conflict`）与第 3 条
 > （拒收原因收成原版两个 token）一起结清，清单归零。依赖检查：`go list -m -versions
 > github.com/egoist/mygo` 最新仍是 **v0.4.8**（与 `go.mod` 一致），无版本可升、无新 API 用点；
@@ -5525,6 +5572,76 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 - 窗口可见时完成反馈落在面板自己的停靠行（隐藏时才发系统通知）——之前可见时什么都不说。
 
 ## 尚未做（按建议优先级）
+
+> **清单状态（P7-fl 重写）**：P7-fk 收尾后「具体待办（P7-fj 重写）」3 条全部结清、清单归零。本轮换
+> 入口：逐字段对照**终端表面浮栏与输入区**（原版 `main:src/App.tsx:3740-3805` 的
+> `.terminal-panel__actions` 与 `.terminal-text-input`，本构建对应
+> `internal/terminalui/terminalui.go` 的 `titleBar`/`View`），把清单重新写实为下面 **3 条带 file:line
+> 的具体待办**：第 1 条（浮栏两个控件的词与绑定）与第 2 条（终端视图的无障碍名）P7-fl 落地，
+> **还剩第 3 条（浮栏身份行的退出码）未落地**。依赖检查：
+> `go list -m -versions github.com/egoist/mygo` 与 GitHub releases latest 都是 **v0.4.8**（与 `go.mod`
+> 一致），无版本可升、无新 API 用点。只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），
+> 未翻历史提交。
+
+### 具体待办（P7-fl 重写；第 1·2 条 P7-fl 落地，第 3 条待下一轮）
+
+审计入口：原版 `main:src/App.tsx` 的终端浮栏（`:3713-3796` 的 `.terminal-bar` 与
+`.terminal-panel__actions`）与输入区（`:3803-3805` 的 `.terminal-text-input`），本构建对应
+`internal/terminalui/terminalui.go` 的 `titleBar`（`:1042`）、`View`（`:707`）、`barHints`
+（`:846`）与 `barButton`。前几轮已落地：外观抽屉（P7-ab）、粘贴安全（P7-an）、空态两行（P7-cm）。
+
+1. **（本轮落地，P7-fl）浮栏两个控件的 tooltip 没有原版的 `{shortcut}` 插值，popout 的词也不对**。
+   - 原版对照：`main:src/App.tsx:3771` 的 popout `title={t("terminal.openInTerminalHint", { shortcut:
+     formatShortcut(shortcuts.open_external_terminal) })}`、`:3781` 的关闭键
+     `title={t("terminal.newCommandHint", { shortcut: formatShortcut(shortcuts.new_command) })}`；
+     aria-label 分别是 `terminal.openInTerminal` = “Continue in System Terminal” /
+     `terminal.newCommand` = “New command”（`i18n.ts:146-149,1054-1057`）。
+   - 本构建（改前）：`internal/i18n/copy.go:942,948` 的 `NewCommandHint` = “Back to the search field”、
+     `OpenExternalHint` = “Opens the system's own terminal window”，`OpenExternal` = “Open in terminal”；
+     `internal/terminalui/terminalui.go:1078,1081` 直接传这两个常量，绑定从未被读；`zh` 的
+     `NewCommand` 还是“新命令”而非原版的“新建命令”。
+   - 落地 file:line（已按此落地）：`internal/i18n/i18n.go:1108` 一带把 `NewCommandHint`/
+     `OpenExternalHint` 改成 `func(shortcut string) string`，`copy.go` 的 en/zh 逐字取模板，
+     `OpenExternal` 改词、`NewCommand` 的 zh 修正；`internal/terminalui/terminalui.go` 新增
+     `barHints(copy, settings.Settings)`（`settings.Shortcut` → `shortcuts.Display`，即原版的
+     `formatShortcut`），`titleBar` 改用它的两个返回值。
+   - 验收（已过）：`internal/i18n/i18n_test.go` 的 `TestTerminalBarWordsMatchTheOldDictionary`
+     （en/zh 十句逐字）；`internal/terminalui/view_test.go` 的
+     `TestTerminalBarHintsFollowTheUserBinding`（改绑定 → tooltip 跟着变）与
+     `TestTerminalBarButtonsCarryTheirHints`（期望值从绑定算出）。变异核查：把 `barHints` 的
+     open-external 绑定换成常量 `"Ctrl+N"` → 立刻红（`want it to name "Ctrl+Alt+J"`）。
+
+2. **（本轮落地，P7-fl）终端视图没有 `terminal.input` 的无障碍名**。
+   - 原版对照：`main:src/App.tsx:3805` 的终端文本输入带 `aria-label={t("terminal.input")}` =
+     “Terminal input”/“终端输入”（`i18n.ts:150,1058`）。
+   - 本构建（改前）：`internal/terminalui/terminalui.go:776` 的
+     `terminal.View(c, session.Term).Fill().Padding(pad).Bind(&a.Focus)` 没有 `Label`，
+     `internal/i18n/i18n.go` 的 `Terminal` 结构也没有 `Input` 字段——聚焦到一个无名区域。
+   - 落地 file:line（已按此落地）：`internal/i18n` 新增 `Terminal.Input`（en/zh）；
+     `internal/terminalui/terminalui.go:776` 链上 `.Label(copy.Input)`。
+   - 验收（已过）：`internal/terminalui/view_test.go` 的 `TestTerminalInputCarriesItsAccessibleName`
+     （终端视图的标签找得到）。变异核查：摘掉 `.Label(copy.Input)` → 立刻红。
+
+3. **（未落地，下一轮最高优先级）浮栏的身份行在会话结束后不报退出码**。
+   - 原版对照：`main:src/App.tsx:3713-3722` 的 `identityTitle` —— 会话 ended 时是
+     `` `${title} · ${t("terminal.headerExited", { code: exitCode ?? 0 })}` ``，这个字符串既是
+     `.terminal-bar__identity` 的 `title=` 也是它读出来的身份文本；词条 `terminal.headerExited` =
+     “Exited · code {code}”/“已退出 · 退出码 {code}”（`i18n.ts:154,1062`）。它与 resident note 的
+     `terminal.processExited`（“Process exited · code {code}”）是**两条词**（`App.tsx:3891-3893`）。
+   - 本构建（改前/现状）：`internal/terminalui/terminalui.go:1059-1066` 的 `titleBar` 身份只画
+     `a.sessionTitle()`（空则 `copy.Title`），置灰点（`statusDot`）区分死活，但它**不报退出码**；
+     `i18n.Terminal` 只有 `ProcessExited`（`i18n.go:1119`），退出码只出现在 `residentNote`。
+   - 落地 file:line（建议）：`internal/i18n` 的 `Terminal` 新增
+     `HeaderExited func(code int) string`（en/zh 逐字取 `i18n.ts:154,1062`）；
+     `internal/terminalui/terminalui.go` 的 `titleBar` 身份文本改成——`Session.Resident` 时
+     `title + " \u00b7 " + copy.HeaderExited(session.ExitCode)`（标题为空时回落 `copy.Title`）——并
+     把同一句放上 `.Label(...)`/`.Tooltip(...)`（原版的 `title=`）。
+   - 验收（待做）：`internal/terminalui/view_test.go` 新增一条——用 `withSession` 造一个会话、
+     `a.ResidentAt(0, 3)` 后帧里出现 “Exited · code 3”（标题非空时是 “zsh · Exited · code 3”），
+     且 `residentNote` 的 “Process exited · code 3” 仍在（两条词都在，不互相顶掉）。变异核查：
+     把 `HeaderExited` 拿掉/硬写成 `copy.ProcessExited` → 应红。
+
+> **历史清单（保留作「哪些已经做过」的记录）**：
 
 > **清单状态（P7-fj 重写）**：P7-fi 收尾后「具体待办（P7-fh 重写）」归零。本轮换入口：逐文件对照原版的
 > **自定义快捷键的落盘/读盘路径**（`main:src/custom-shortcuts.ts` + `src-tauri/src/commands/config.rs`

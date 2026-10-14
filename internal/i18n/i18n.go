@@ -1095,13 +1095,20 @@ type Terminal struct {
 	EmptyBack  string
 	// Close names the close control for assistive technology.
 	Close string
+	// Input is the terminal view's own accessible name, so assistive
+	// technology announces what the focusable region is (the old build's
+	// `aria-label={t("terminal.input")}` on its text input).
+	Input string
 	// NewCommand and OpenExternal name the two controls the old terminal
 	// header carried: return to the launcher, and hand the session to the
-	// system's own terminal.
+	// system's own terminal. Their hints are the sentences their tooltips
+	// carry, and each one names the chord that does the same thing — the old
+	// header's `{shortcut}` interpolation of the `new_command` /
+	// `open_external_terminal` bindings.
 	NewCommand       string
-	NewCommandHint   string
+	NewCommandHint   func(shortcut string) string
 	OpenExternal     string
-	OpenExternalHint string
+	OpenExternalHint func(shortcut string) string
 	// ProcessExited and ProcessExitedHint are the resident note: the program
 	// ended, the output is held on screen, and closing is the user's own
 	// decision.

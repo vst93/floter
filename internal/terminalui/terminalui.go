@@ -773,7 +773,7 @@ func (a *App) View(c *ui.Context) {
 			ui.Box(c).Fill().Radius(tokensOf(a, c).RadiusLG).Border(1, edge).
 				Background(canvasFill(stored.TerminalTheme, stored.TerminalOpacity, c.Preferences().HighContrast)).
 				Children(func() {
-					terminal.View(c, session.Term).Fill().Padding(pad).Bind(&a.Focus)
+					terminal.View(c, session.Term).Fill().Padding(pad).Bind(&a.Focus).Label(copy.Input)
 				})
 			// The resident note rides the canvas, so the docked drawer cannot
 			// sit under it.
@@ -835,6 +835,17 @@ func keyBadge(key string) string {
 // ⌘W and elsewhere the app's own binding word for word.
 func newCommandBadge(s settings.Settings) string {
 	return shortcuts.Display(settings.Shortcut(s, settings.ShortcutNewCommand))
+}
+
+// barHints are the two tooltips the bar's labeled controls carry, each naming
+// the chord that does the same thing from the keyboard. The reference read
+// `formatShortcut(shortcuts.new_command)` / `…open_external_terminal` at the
+// moment it drew its header (`main:src/App.tsx:3764-3790`), so a rebinding
+// moves the word in the tooltip with the key; the pair is a pure function of
+// the stored settings so a test can drive that without a hovered pointer.
+func barHints(copy i18n.Terminal, s settings.Settings) (newCommand, openExternal string) {
+	return copy.NewCommandHint(newCommandBadge(s)),
+		copy.OpenExternalHint(shortcuts.Display(settings.Shortcut(s, settings.ShortcutOpenExternalTerminal)))
 }
 
 // tokensOf resolves the card language's own tokens for the stored appearance.
@@ -1030,6 +1041,7 @@ func (a *App) barButton(c *ui.Context, name, label, hint string, run func()) {
 
 func (a *App) titleBar(c *ui.Context, copy i18n.Terminal) {
 	t := c.Theme()
+	newCommandHint, openExternalHint := barHints(copy, a.Store.Snapshot())
 	bar := ui.Row(c).Absolute().Top(0).Left(0).Right(0).Height(t.Space(7)).
 		Padding(0, t.Space(3)).Gap(t.Space(2)).AlignItems(ui.Center).DragWindow()
 	// The bar's whole content is hidden until the pointer is over it or
@@ -1075,10 +1087,10 @@ func (a *App) titleBar(c *ui.Context, copy i18n.Terminal) {
 				a.barButton(c, "text", copy.Pin, copy.Pin, func() { a.Actions.Pin(a.sessionTitle(), a.sessionText()) })
 			}
 			if a.Actions.NewCommand != nil {
-				a.barButton(c, "command", copy.NewCommand, copy.NewCommandHint, a.Actions.NewCommand)
+				a.barButton(c, "command", copy.NewCommand, newCommandHint, a.Actions.NewCommand)
 			}
 			if a.Actions.OpenExternal != nil {
-				a.barButton(c, "terminal", copy.OpenExternal, copy.OpenExternalHint, a.Actions.OpenExternal)
+				a.barButton(c, "terminal", copy.OpenExternal, openExternalHint, a.Actions.OpenExternal)
 			}
 			if a.Actions.Close != nil {
 				a.barButton(c, "close", copy.Close, copy.Close, a.Actions.Close)

@@ -168,3 +168,30 @@ func TestCustomShortcutRejectionWordsMatchTheOldDictionary(t *testing.T) {
 		t.Errorf("unknown reason (zh) = %q", got)
 	}
 }
+
+// The terminal bar's two controls and the terminal view's accessible name, as
+// the old dictionary spelled them (`main:src/i18n.ts:146-147,149-150,
+// 1054-1055,1057-1058`). The hints interpolate the user's own chord, so the
+// template is what is pinned here and the binding is the view's business.
+func TestTerminalBarWordsMatchTheOldDictionary(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		got  string
+		want string
+	}{
+		{"en input", en.Terminal.Input, "Terminal input"},
+		{"en new command", en.Terminal.NewCommand, "New command"},
+		{"en new command hint", en.Terminal.NewCommandHint("⌘W"), "New command (⌘W)"},
+		{"en open external", en.Terminal.OpenExternal, "Continue in System Terminal"},
+		{"en open external hint", en.Terminal.OpenExternalHint("⌘N"), "Continue in System Terminal (⌘N)"},
+		{"zh input", zh.Terminal.Input, "终端输入"},
+		{"zh new command", zh.Terminal.NewCommand, "新建命令"},
+		{"zh new command hint", zh.Terminal.NewCommandHint("⌘W"), "新建命令（⌘W）"},
+		{"zh open external", zh.Terminal.OpenExternal, "在系统终端中继续"},
+		{"zh open external hint", zh.Terminal.OpenExternalHint("⌘N"), "在系统终端中继续（⌘N）"},
+	} {
+		if tc.got != tc.want {
+			t.Errorf("%s = %q, want %q", tc.name, tc.got, tc.want)
+		}
+	}
+}
