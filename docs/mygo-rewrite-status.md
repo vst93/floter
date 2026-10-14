@@ -99,7 +99,39 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-dt 终端空态的返回行印出并绑上用户自己的 new-command 键（不再是字面 Escape）**
+> **最新一轮：P7-du launcher 上的字面 ⌘W 不再是自己的规则（改绑 new-command 后它什么也不做）**
+> —— P7-dt 收尾后「具体待办（P7-dt 重写）」第 2 条（launcher 上字面 ⌘W 仍会隐藏窗口）是清单最高
+> 优先级的已核实偏离。本轮把它落地。依赖检查：GitHub releases API 限流，
+> `proxy.golang.org/.../@v/list` 最新仍是 **v0.4.8**（与 `go.mod` 一致），无版本可升。只对照 `main`
+> （`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离点**：原版 `main:src/surface-policy.ts:207-211` 的 `DISMISS_TABLE.collapsed` 里
+> `"mod-w"` 是 **null**——注释写着「only the configurable new-command binding dismisses here」。
+> `"new-command"` 才 `{ action: "hide-window" }`，而它默认就是 ⌘W，所以**两种键在默认下看不出
+> 差别**；用户一旦把 `new_command` 改绑到别处，原版的字面 ⌘W 就**什么也不做**。本构建
+> `internal/shell/shell.go:3046-3053` 的 default（launcher）分支却先无条件 `c.Shortcut(ui.Cmd,
+> ui.KeyW)` → `Hide()`（注释自认「the same key by default」），于是改绑后 ⌘W 仍隐藏窗口。
+>
+> **修法**（`internal/shell/shell.go`）：删掉 launcher 分支里的字面 ⌘W 认领，只留
+> `shortcuts.Parse(settings.Shortcut(..., ShortcutNewCommand))` 命中时 `Hide()`——与 settings
+> 分支里那条**保留**的字面 ⌘W（原版 `settings["mod-w"]` 确有 close-settings 规则）形成对照。
+> 函数头与内联注释同步改写：原版把「⌘W 在每个面都同义」写死过，本轮按表逐面写实。
+>
+> **可观测性**：`Hide()` 在测试里没有窗口可观察（`a.Win == nil`），所以按 P7-do 给
+> `windowVisible` 的做法加一条缝 `App.hideWindow`（`shell.go:222-226`）：非 nil 时 `Hide()`
+> 走它，否则走真窗口。它不是 `Options` 字段（正式构建永远用真窗口），只有测试需要看见。
+>
+> **测试**（`internal/shell/appkeys_test.go`）：`TestDismissTable` 的第一段加计数器，钉住
+> 「默认 ⌘W 经 new-command 规则隐藏窗口 1 次」；terminal 段补「⌘W 不隐藏窗口」（它只把面切回
+> 启动器）。新增 `TestALiteralModWDoesNothingAfterARebind`：把 `ShortcutNewCommand` 改绑成
+> `Alt+N`，发 ⌘W → surface 与窗口都不动（`hides == 0`），再发 `Alt+N` → 隐藏 1 次（用户自己的
+> 键才是那个入口）。变异核查：把字面 ⌘W 分支加回 launcher，新测试立刻红
+> （`a rebound ⌘W hid the window 1 times, want 0`）。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+> **上一轮：P7-dt 终端空态的返回行印出并绑上用户自己的 new-command 键（不再是字面 Escape）**
 > —— P7-ds 收尾后「尚未做（P7-ds 重写）」只剩「块光标的字形颜色」（已核实框架无口子），清单
 > 事实上已空。本轮把清单写实：先逐条核对 P7-dq 剩下的第 2·3 条（结论：`EnsureSession` →
 > `startSession` 同步拿回会话对象，没有异步 spawn 窗口，240ms 空态延迟**无落点**；本构建没有
@@ -3612,16 +3644,13 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-> **清单状态（P7-dt 收尾）**：P7-ds 重写的两条至此已全部结清（第 1 条 inherit 光标色已落地；
-> 第 2 条块光标字形色已核实框架无逐单元格口子、已写实进「已知差距」）。P7-dq 清单剩下的
-> 第 2·3 条本轮逐条核对，**均为无落点**（240ms 空态延迟无异步 spawn 窗口；自定义集成的脏比较/
-> 溢出菜单在本构建没有对应抽屉，动作已由两个直按钮可触达）——结论写死在下面对应条里。
-> 本轮换入口：逐文件对照原版 `src/App.tsx` 的终端空态与 `src/surface-policy.ts` 的 dismiss 表，
-> 落地第 1 条（终端空态的返回行），其余写成可执行规格。依赖检查：GitHub releases API 限流，
-> `proxy.golang.org/.../@v/list` 最新仍是 **v0.4.8**（与 `go.mod` 一致），无版本可升。
+> **清单状态（P7-du 收尾）**：P7-dt 重写的第 1 条（终端空态返回行）已落地，第 2 条（launcher 上
+> 被改绑后字面 ⌘W 仍隐藏窗口）本轮 P7-du 落地。清单里还剩第 3 条（terminal 的 new-command
+> key-up reassert，macOS，待核实框架焦点层）——是下轮的最高优先级。依赖检查：GitHub releases
+> API 限流，`proxy.golang.org/.../@v/list` 最新仍是 **v0.4.8**（与 `go.mod` 一致），无版本可升。
 > 只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
 
-### 具体待办（P7-dt 重写）
+### 具体待办（P7-dt 重写；第 1 条 P7-dt、第 2 条 P7-du 已落地，余第 3 条）
 
 > 本轮把「逐文件对照原版」的入口放在终端的空态与其快捷键归属上，第 1 条是已核实的真实偏离
 > （本轮落地），第 2·3 条是同一张表里剩下的具体项。依赖检查同上，无版本可升。
@@ -3638,19 +3667,20 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
      （`shortcuts.Display(settings.Shortcut(s, ShortcutNewCommand))`）；返回行改用
      `Actions.NewCommand`，shell 的该 action 改接 `returnToInput`（与 header 的「New command」
      同一入口）；删掉空态对 Escape 的认领。详见「最近几轮」P7-dt。
-2. **（待比对）launcher 上被改绑后，字面 ⌘W 仍会隐藏窗口**。
-   - 原版对照：`main:src/surface-policy.ts:208`——`collapsed.mod-w` 是 **null**（只有可配置的
+2. **（已落地，P7-du）launcher 上被改绑后，字面 ⌘W 不应该再隐藏窗口**。
+   - 原版对照：`main:src/surface-policy.ts:207-211`——`collapsed.mod-w` 是 **null**（只有可配置的
      `new_command` 触发折叠；默认同为 ⌘W 掩盖了差别），`collapsed.new-command` → `hide-window`。
-   - 本构建：`internal/shell/shell.go:3046-3053` 的 default 分支无条件 `c.Shortcut(ui.Cmd, ui.KeyW)`
-     → `Hide()`，把字面 ⌘W 折进了 new-command（注释自认「the same key by default」），于是用户把
-     `new_command` 改绑到别处后，⌘W 仍隐藏。
-   - 验收：`internal/shell/appkeys_test.go` 的 `TestDismissTable` 增加一条「把
-     `ShortcutNewCommand` 改成 `Alt+N`，发 ⌘W，surface 与窗口都不动」；改后只在 `new_command`
-     命中时 `Hide()`。
+   - 本构建（改前）：`internal/shell/shell.go` 的 default（launcher）分支无条件
+     `c.Shortcut(ui.Cmd, ui.KeyW)` → `Hide()`，把字面 ⌘W 折进了 new-command（注释自认
+     「the same key by default」），于是用户把 `new_command` 改绑到别处后，⌘W 仍隐藏。
+   - **已落地（P7-du）**：删掉该字面 ⌘W 认领，launcher 只认 new-command 绑定；settings 分支的
+     字面 ⌘W（原版确有 close-settings 规则）保留；加 `App.hideWindow` 缝让测试能看见 `Hide()`。
+     测试：`TestDismissTable` 加隐藏计数 + 新增 `TestALiteralModWDoesNothingAfterARebind`。
+     详见「最近几轮」P7-du。
 3. **（待比对，macOS）terminal 的 new-command 没有 key-up reassert**。
    - 原版对照：`main:src/surface-policy.ts:214` 的 `terminal.new-command` 带 `reassertOnKeyUp: true`
      ——松开修饰键后重新把焦点压回启动器输入框（`main:src/App.tsx:1789-1812`）。
-   - 本构建：`internal/shell/shell.go:3031-3033` 只有 key-down 的 `c.Shortcut` 分支，没有 key-up
+   - 本构建：`internal/shell/shell.go:3040-3044` 只有 key-down 的 `c.Shortcut` 分支，没有 key-up
      处理。
    - 验收：先确认 mygo 的焦点层是否已在修饰键松开时把焦点交回（框架 `show_input` 的等价物）；
      若没有，在 `appShortcuts` 里补一条 key-up 重压焦点的路径并在 macOS 实机核对，否则按惯例写进

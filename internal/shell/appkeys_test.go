@@ -38,18 +38,27 @@ func appKeysRender(t *testing.T, a *App) *ui.Tester {
 // and the settings' rows answer it; the terminal's row does not — Ctrl+W
 // is the running shell's delete-word.
 func TestDismissTable(t *testing.T) {
-	// Launcher: ⌘W hides.
+	// Launcher: ⌘W hides, through the configurable new-command binding that
+	// ships as ⌘W — the reference's collapsed row carries no literal mod-w
+	// rule of its own (src/surface-policy.ts:208).
 	a := appKeysApp()
+	hides := 0
+	a.hideWindow = func() { hides++ }
 	tt := appKeysRender(t, a)
 	tt.Key(ui.Cmd, ui.KeyW)
 	tt.Frame()
 	if a.Surf != SurfaceLauncher {
 		t.Errorf("the launcher's ⌘W changed the surface")
 	}
+	if hides != 1 {
+		t.Errorf("the launcher's ⌘W hid the window %d times, want 1", hides)
+	}
 	// Terminal: the default new-command binding IS ⌘W, and its rule wins —
 	// the press returns to the launcher, as the old build's table did (the
 	// shell's own delete-word yields to the configured chord).
 	a = appKeysApp()
+	hides = 0
+	a.hideWindow = func() { hides++ }
 	a.Open(SurfaceTerminal)
 	tt = appKeysRender(t, a)
 	tt.Key(ui.Cmd, ui.KeyW)
@@ -57,14 +66,49 @@ func TestDismissTable(t *testing.T) {
 	if a.Surf != SurfaceLauncher {
 		t.Errorf("the terminal's ⌘W left surf=%v, want launcher", a.Surf)
 	}
+	if hides != 0 {
+		t.Errorf("the terminal's ⌘W hid the window %d times, want 0", hides)
+	}
 	// Settings: ⌘W closes settings, back to the launcher.
 	a = appKeysApp()
-	a.Open(SurfaceSettings)
 	tt = appKeysRender(t, a)
+	a.Open(SurfaceSettings)
+	tt.Frame()
 	tt.Key(ui.Cmd, ui.KeyW)
 	tt.Frame()
 	if a.Surf != SurfaceLauncher {
 		t.Errorf("settings ⌘W left surf=%v, want launcher", a.Surf)
+	}
+}
+
+// The launcher's ⌘W is not a rule of its own: it only hides because the
+// new-command binding ships as ⌘W. Rebinding that action leaves the literal
+// chord with nothing to do (src/surface-policy.ts:208 — collapsed["mod-w"]
+// is null, not a copy of the new-command rule), so the window must stay put
+// and the user's own chord must be the one that dismisses.
+func TestALiteralModWDoesNothingAfterARebind(t *testing.T) {
+	a := appKeysApp()
+	hides := 0
+	a.hideWindow = func() { hides++ }
+	if err := a.Store.Update(func(s *settings.Settings) {
+		s.SetShortcut(settings.ShortcutNewCommand, "Alt+N")
+	}); err != nil {
+		t.Fatalf("rebind: %v", err)
+	}
+	tt := appKeysRender(t, a)
+	tt.Key(ui.Cmd, ui.KeyW)
+	tt.Frame()
+	if a.Surf != SurfaceLauncher {
+		t.Errorf("a rebound ⌘W changed the surface to %v", a.Surf)
+	}
+	if hides != 0 {
+		t.Errorf("a rebound ⌘W hid the window %d times, want 0", hides)
+	}
+	// The binding the user chose is the one that dismisses.
+	tt.Key(ui.Alt, ui.KeyN)
+	tt.Frame()
+	if hides != 1 {
+		t.Errorf("the rebound new-command hid the window %d times, want 1", hides)
 	}
 }
 

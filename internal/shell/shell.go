@@ -219,6 +219,11 @@ type App struct {
 	// through this seam; nil reads the real window (and, with no window at
 	// all, reports it as on screen — there is nothing to reveal).
 	windowVisible func() bool
+	// hideWindow replaces the window's own Hide inside Hide. A test has no
+	// window to dismiss, so the dismiss table's outcome would be unobservable;
+	// nil drives the real window. Not part of Options: the app always has a
+	// real hide, only tests need to see it.
+	hideWindow func()
 	// notices are the toasts queued for the next frame, and refusals is the
 	// gate that keeps one bad external trigger from repeating its sentence in
 	// a loop (see notices.go).
@@ -3005,27 +3010,32 @@ var launcherHeightAnimation = ui.Animation{Duration: 150 * time.Millisecond}
 
 // Hide hides the window, leaving the app running with its shortcut.
 func (a *App) Hide() {
+	if a.hideWindow != nil {
+		a.hideWindow()
+		return
+	}
 	if a.Win != nil {
 		a.Win.Hide()
 	}
 }
 
 // appShortcuts runs the old build's dismiss table, surface by surface. The
-// literal ⌘W is not rebindable, and neither is its meaning everywhere: on
-// the launcher and the settings it hides (or closes), on the terminal it is
-// the shell's own delete-word and is left alone. The user's new-command
-// binding (⌘W by default) has a rule of its own per surface: on the
-// launcher it hides, from the terminal it returns to the launcher, from
-// the settings it closes them. Escape is the launcher's and the settings'
-// own, and the terminal shell keeps it.
+// literal ⌘W is not rebindable and its meaning is not the same everywhere:
+// on the settings it closes the panel, on the terminal it is the shell's own
+// delete-word and is left alone, and on the launcher it is nothing at all —
+// only the configurable new-command binding dismisses there. That binding
+// ships as ⌘W, so the two look alike until the user rebinds it; folding the
+// literal chord into the rule would keep hiding the launcher after a rebind,
+// which the reference's `collapsed["mod-w"]: null` explicitly forbids.
+// Escape is the launcher's and the settings' own, and the terminal shell
+// keeps it.
 func (a *App) appShortcuts(c *ui.Context) {
 	// One Shortcut() call per key per frame consumes the delivered press, so
 	// the triggers are resolved per surface: the terminal asks only the
 	// new-command binding (the literal ⌘W is the shell's delete-word), the
-	// settings ask all three, the launcher folds the literal ⌘W into the
-	// new-command rule (the same key by default) and leaves Escape to the
-	// launcher's own view (an empty field's Escape hides, one with text
-	// clears).
+	// settings ask all three, and the launcher asks only the new-command
+	// binding and leaves Escape to the launcher's own view (an empty field's
+	// Escape hides, one with text clears).
 	switch a.Surf {
 	case SurfaceTerminal:
 		if mods, key, ok := shortcuts.Parse(settings.Shortcut(a.Store.Snapshot(), settings.ShortcutNewCommand)); ok && c.Shortcut(mods, key) {
@@ -3044,10 +3054,6 @@ func (a *App) appShortcuts(c *ui.Context) {
 			a.Open(SurfaceLauncher)
 		}
 	default:
-		if c.Shortcut(ui.Cmd, ui.KeyW) {
-			a.Hide()
-			return
-		}
 		if mods, key, ok := shortcuts.Parse(settings.Shortcut(a.Store.Snapshot(), settings.ShortcutNewCommand)); ok && c.Shortcut(mods, key) {
 			a.Hide()
 		}
