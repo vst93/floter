@@ -517,9 +517,14 @@ type Settings struct {
 	UninstallArtifacts               string
 	UninstallArtifactsHint           string
 	IntegrationsCheck                string
-	IntegrationsInstall              string
-	IntegrationsPackageHint          string
-	IntegrationsVersionHint          string
+	// IntegrationsRecheck is the entry a *broken* connected row offers: it
+	// verifies the installed package and repairs it when the record drifted
+	// from what is on disk (the reference's `settings.extensions.recheck`, the
+	// Wrench on `src/extensions/ExtensionRow.tsx:313-330`).
+	IntegrationsRecheck     string
+	IntegrationsInstall     string
+	IntegrationsPackageHint string
+	IntegrationsVersionHint string
 	// IntegrationsCommands is the per-command switch list's caption, and
 	// IntegrationsCommandsHint explains what a switch does.
 	IntegrationsCommands string
@@ -948,6 +953,12 @@ type Notifications struct {
 	// IntegrationReconnected is the one repair that changed the record: the
 	// program moved and the row is bound to where it is now.
 	IntegrationReconnected func(name string) string
+	// IntegrationRepaired and IntegrationRechecked are the re-check's two
+	// answers, the reference's `repairedNotice` / `recheckedNotice`
+	// (`src/ExtensionsPanel.tsx:1255-1267`): the record had to be rewritten,
+	// or the package verified as it stood.
+	IntegrationRepaired  func(name string) string
+	IntegrationRechecked func(name string) string
 	// A command that ran in the background: its name, and the status line the
 	// output view shows.
 	CommandFinished func(name string) string

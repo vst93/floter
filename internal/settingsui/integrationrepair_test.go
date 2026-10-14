@@ -10,10 +10,10 @@ import (
 // The repair a connected row offers is picked from two facts, exactly as the
 // reference picked its one button (`src/extensions/ExtensionRow.tsx:345-370`):
 // who owns the runtime (the system, so the search path can be asked again, or
-// the package itself) and whether the manifest names a project page. One
-// deliberate departure is pinned here too — a row broken *by its binding*
-// keeps the repair, because this build has no separate install-repair button
-// and the row would otherwise be a dead end.
+// the package itself) and whether the manifest names a project page. A *broken*
+// row is not one of these: it shows the re-check instead
+// (`src/extensions/ExtensionRow.tsx:313-330`), which is the arm
+// `TestABrokenRowOffersTheRecheck` pins at the pixel level.
 func TestTheRepairFollowsTheRuntimeOwnerAndThePage(t *testing.T) {
 	en := i18n.For("en").Settings
 	zh := i18n.For("zh").Settings
@@ -60,12 +60,11 @@ func TestTheRepairFollowsTheRuntimeOwnerAndThePage(t *testing.T) {
 			kind: repairNone,
 		},
 		{
-			// The departure: the check that recorded this is what hid the row's
-			// only way back, so a binding failure keeps the repair.
-			name: "a binding failure keeps the repair that fixes it",
+			// A broken row shows the re-check, not the reconnect: the reference
+			// drew exactly one entry for this state, and it was the Wrench.
+			name: "a broken row shows the re-check, never the reconnect",
 			in:   Integration{ID: "moved", RuntimeOwnership: "system", Broken: true, FailureCode: extensions.BindingCodeMissing},
-			kind: repairReconnect, en: en.IntegrationsReconnect, zh: zh.IntegrationsReconnect,
-			tooltip: en.IntegrationsReconnectUnboundHint,
+			kind: repairNone,
 		},
 	}
 	for _, tc := range cases {
@@ -163,5 +162,73 @@ func TestEachUnavailableRowShowsItsOwnRepair(t *testing.T) {
 	qt.Frame()
 	if qt.HasText(en.IntegrationsReconnect) {
 		t.Errorf("a shell with no reconnect action drew the button (%v)", qt.Texts())
+	}
+}
+
+// A broken row's own entry is the re-check, and pressing it reaches the action
+// that verifies and repairs the package. The reconnect button the unavailable
+// rows carry must not also be drawn on it: the reference drew one entry per
+// state, and two repairs that answer different questions on one row read as
+// one choice the user cannot make.
+func TestABrokenRowOffersTheRecheck(t *testing.T) {
+	en := i18n.For("en").Settings
+	var repaired []string
+	var reconnected []string
+
+	a := newTestApp()
+	a.Actions = Actions{
+		RepairIntegration:    func(id string) { repaired = append(repaired, id) },
+		ReconnectIntegration: func(id string) { reconnected = append(reconnected, id) },
+		UninstallComponents:  func(string, string, UninstallComponents) {},
+	}
+	a.Integrations = func() []Integration {
+		return []Integration{
+			{ID: "broken", Name: "Broken Tool", Enabled: true, Broken: true,
+				RuntimeOwnership: "system", FailureCode: extensions.BindingCodeMissing},
+			{ID: "moved", Name: "Moved Tool", RuntimeOwnership: "system"},
+		}
+	}
+	tt := render(t, a, 760, 1200)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatalf("click: %v (texts %v)", err, tt.Texts())
+	}
+	tt.Frame()
+
+	// One re-check (the broken row) and one reconnect (the moved one), each on
+	// its own row: a broken row that fell back to the reconnect would make the
+	// counts two and one, and the reverse would make them zero and two.
+	if got := countText(tt.Texts(), en.IntegrationsRecheck); got != 1 {
+		t.Errorf("the page shows %d Re-check buttons, want 1 (%v)", got, tt.Texts())
+	}
+	if got := countText(tt.Texts(), en.IntegrationsReconnect); got != 1 {
+		t.Errorf("the page shows %d Reconnect buttons, want 1 (%v)", got, tt.Texts())
+	}
+
+	if err := tt.Click(en.IntegrationsRecheck); err != nil {
+		t.Fatalf("click re-check: %v", err)
+	}
+	tt.Frame()
+	if len(repaired) != 1 || repaired[0] != "broken" {
+		t.Errorf("repaired = %v, want [broken]", repaired)
+	}
+	if len(reconnected) != 0 {
+		t.Errorf("reconnected = %v, want the re-check to be the only entry pressed", reconnected)
+	}
+
+	// A shell with no repair action hides the button rather than drawing a
+	// dead one.
+	quiet := newTestApp()
+	quiet.Actions = Actions{UninstallComponents: func(string, string, UninstallComponents) {}}
+	quiet.Integrations = func() []Integration {
+		return []Integration{{ID: "broken", Name: "Broken Tool", Enabled: true, Broken: true,
+			RuntimeOwnership: "system", FailureCode: extensions.BindingCodeMissing}}
+	}
+	qt := render(t, quiet, 760, 600)
+	if err := qt.Click("Integrations"); err != nil {
+		t.Fatalf("click: %v", err)
+	}
+	qt.Frame()
+	if qt.HasText(en.IntegrationsRecheck) {
+		t.Errorf("a shell with no repair action drew the button (%v)", qt.Texts())
 	}
 }

@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1243 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1255 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1243 项测试
+go test -count=1 ./...         # 1255 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -100,7 +100,70 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-eo F4f 移除确认条按 kind 说话（原版 `src/ExtensionsPanel.tsx:2140-2151`、
+> **最新一轮：P7-ep F4e 的 repair 一支：broken 行回到原版的 Wrench「Re-check」（原版
+> `src/ExtensionsPanel.tsx:1255-1267`、`src/extensions/ExtensionRow.tsx:313-330`、
+> `i18n.ts:505-507`）** —— P7-eo 收尾后「尚未做」清单里文档点名的下轮最高优先级就是 **F4e 的
+> `extensions_repair`（Recheck）一支**，本轮取它。依赖检查：GitHub releases API 限流，
+> `go list -m -versions github.com/egoist/mygo` 最新仍是 **v0.4.8**（与 `go.mod` 一致），无版本可升；
+> 只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离（F4e·repair）**：原版对 **connected && state === "broken"** 的行画一个 Wrench，
+> `aria-label`/`title` 都是 `settings.extensions.recheck`（`:313-330`），走 `extensions_repair`
+> （`ExtensionsPanel.tsx:1255-1267`）——它**校验已装包并按需修复**，toast 按 `report.repaired` 二选一：
+> `repairedNotice`（“Repaired”）或 `recheckedNotice`（“Re-check complete: healthy”，`i18n.ts:505-507`）。
+> Rust 侧 `commands/extensions.rs:2057-2130` 的 `repair()` 顺序是：先 `verify_installed_locked`
+> （清单身份 + runtime 解析），通过就 `clear_broken` 并回 `repaired:false`；失败则 `mark_broken`，
+> 再对 system runtime 走 `reconnect_system_locked` 兜底（回 `repaired:true`）。
+> 本构建（改前）**没有 repair**：broken 行只有一个 `copy.IntegrationsCheck` 按钮 →
+> `internal/shell/shell.go` 的 `diagnoseIntegration`（跑 `Reprobe` + `Diagnose`，**只报告**、不校验包
+> 完整性也不修）；i18n 也没有 `recheck`/`repairedNotice`/`recheckedNotice`；而且 P7-el 在
+> `repairKind()` 里留了一处**有意偏离**（broken 且绑定类失败的行复用 Reconnect），因为当时没有别的入口。
+>
+> **落地**：
+> - `internal/extensions/repair.go`（新）：`Repair(paths, id) (RepairReport, error)`。`RepairReport`
+>   只有 `{Repaired, ManifestPath}`。校验顺序照原版：包目录与清单的存在性 + `ManifestDigest` 与
+>   `ApprovedManifestDigest`（`ApprovalIsStale`，缺批准记录按“未知”不算 stale），再 `ResolveRuntime`；
+>   `ErrPackageMissing` / `ErrManifestChanged` 是**报告**（reinstall / 重新批准才修得了）。两处**真修**：
+>   记忆的 `manifestPath` 已失效而清单在 id 目录下（`manifestPathFor` 的 fallback）→ 重写该字段
+>   （`Repaired=true`）；system runtime 的程序搬走 → 复用 `Reconnect`（`reconnectIfSystemOwned`，
+>   原版 `repair()` 的 `reconnect_system_locked` 兜底）。校验通过但 entry 还是 `broken` → `clearBroken`
+>   清掉失败记录（原版 `clear_broken`），但那是**校验结果不是修复**，所以 `Repaired` 仍为 false。
+> - `internal/settingsui`：`Actions.RepairIntegration`（nil 隐藏按钮）；行内先判 `integration.Broken`，
+>   是则画 `copy.IntegrationsRecheck`（原版 `settings.extensions.recheck`）→ `RepairIntegration`，
+>   否则才走原来的 `repairKind()` 分叉；`repairKind()` 去掉那处偏离（`if i.Broken || i.RuntimeAvailable
+>   { return repairNone }`），`bindingFailure()` 随之删除。
+> - `internal/shell`：`RepairIntegration: a.repairIntegration`；`repairIntegration` 先
+>   `a.Integrations.Refresh`（原版 `refreshAfterMutation`）再按 `err`/`report.Repaired` 三选一发通知。
+> - `internal/i18n`：`Settings.IntegrationsRecheck`（“Re-check”/“重新检测”）、
+>   `Notifications.IntegrationRepaired`（“X was repaired”/“X 已修复”）、
+>   `Notifications.IntegrationRechecked`（“X re-checked: healthy”/“X 已重新检测：状态正常”）。
+>
+> **验收**：
+> - `internal/extensions/repair_test.go`（新）六条：`TestTheRecheckVerifiesThePackagesOwnBytes`
+>   三行表（包目录缺失 → `ErrPackageMissing`、digest 与批准记录不一致 → `ErrManifestChanged` 且批准
+>   记录未被改写、两者正常 → `Repaired=false`）、`TestTheRecheckRewritesAStaleManifestPath`
+>   （`Repaired=true` 且仓库字段改到 id 目录）、`TestTheRecheckClearsABrokenStateItContradicts`
+>   （`State` 回 enabled、失败记录清空、`Repaired` 仍 false）、
+>   `TestTheRecheckRebindsASystemRuntimeThatMoved`（`Repaired=true`、`ExecutablePath` 回新路径）、
+>   `TestTheRecheckRefusesToRebindARuntimeItDoesNotOwn`（bundled 只报告）。
+> - `internal/settingsui/integrationrepair_test.go`：`TestABrokenRowOffersTheRecheck`（像素：同屏一个
+>   Re-check + 一个 Reconnect，各在自己行上；点 Re-check 落到 `RepairIntegration("broken")`；
+>   nil action 不画按钮），并把 `TestTheRepairFollowsTheRuntimeOwnerAndThePage` 里那处偏离的用例改为
+>   「broken 行 `repairKind()==repairNone`」。
+> - `internal/shell/reconnect_test.go`：`TestTheRepairNoticesSplitRepairedFromRechecked` 两个子测试——
+>   包完好 → `IntegrationRechecked`，`manifestPath` 漂移 → `IntegrationRepaired` 且字段被重写。
+> - 变异核查：把 `repairKind()` 的 `i.Broken` 判断去掉 → settingsui 两条红（纯映射 + 偏离用例）；
+>   把 `Repair` 的 digest 不一致支改成 `Repaired=false, nil` → extensions 的「不一致」行红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿（1255 项）、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：**F4e 全部落地**（P7-el 的 Reconnect 一支 + 本轮的 repair 一支）。余下 **F4g**（逐入口
+> 对照，五条已写实行号）与 **F-new**（脚本编辑器换 `ui/editor`）。下轮最高优先级是 **F4g 的第 1 条入口**
+> （安装文件夹的 manifest review：`ExtensionsPanel.tsx:1430-1440,1554` 对照
+> `internal/settingsui` 的 `localToolSection`/`installationReview`），除非 F4g 的对照先查出新缺口。
+>
+> **上一轮：P7-eo F4f 移除确认条按 kind 说话（原版 `src/ExtensionsPanel.tsx:2140-2151`、
 > `src/extensions/RemovalConfirmation.tsx:41`、`i18n.ts:521-542`）** —— P7-en 收尾后「尚未做」清单
 > 里文档点名的下轮最高优先级就是 **F4f**（移除确认条按 kind 说话，F4a 留下的尾巴），本轮取它。
 > 依赖检查：`proxy.golang.org/github.com/egoist/mygo/@latest` 仍是 **v0.4.8**（与 `go.mod` 一致），
@@ -7177,23 +7240,26 @@ Go 侧把原版的三条规则写偏了。依赖检查：`go list -m -versions g
   `connectDetected` 的 `Platforms` → 连接失败、shell 条红。
 
 - **残留**：`main:src/ExtensionsPanel.tsx`（安装文件夹/权限审批/运行参数/输出回看/导入导出的**流程**）
-  尚未逐函数对照；F4a–F4d 全部落地（F4c 由 P7-ek 收尾）；**F4e（卡片的修复入口，P7-el）已落地**，
-  余下 F4e 的 `extensions_repair` 一支、F4f、F4g 与 **F3a/F3b**——全部已写成文末「具体待办
-  （P7-el 重写）」的五条带 file:line 的具体项。
+  尚未逐函数对照；F4a–F4d 全部落地（F4c 由 P7-ek 收尾）；**F4e 全部落地**（Reconnect 一支 P7-el、
+  `extensions_repair` 一支 P7-ep）；F4f 由 P7-eo 落地；F3a/F3b 由 P7-em/P7-en 落地。余下 **F4g**（逐
+  入口对照）与 **F-new**（脚本编辑器）——已写成文末「具体待办（P7-el 重写）」的条目。
 
-### 具体待办（P7-el 重写；F3a 已由 P7-em 落地、F3b 已由 P7-en 落地，余下 F4e 的 repair 一支 + F4f/F4g/F-new）
+### 具体待办（P7-el 重写；F3a 已由 P7-em 落地、F3b 已由 P7-en 落地、F4f 已由 P7-eo 落地、F4e 的 repair 一支已由 P7-ep 落地，余下 F4g/F-new）
 
 P7-ej/P7-ek 之后清单上只剩 F3a（一个待决策的分叉）与 F3b（已实测标为「先决于 F3a」）。P7-el 按规则
 把清单写实为五条带 file:line / 原版对照 / 验收标准的待办，并取其中新查出的真实缺口（F4e）落地。
 **P7-em 又取清单里文档点名的最高优先级 F3a 并落地**（详见上文 P7-em 记录）：控件透镜已成可测像素，
 F3b 因此解除「先决」。**P7-en 再取 F3b 并落地**（详见上文 P7-en 记录）：帧 sheen 回固定 token，
 用户反馈 F3「毛玻璃效果配置」整条收口。**P7-eo 取 F4f 并落地**（详见上文 P7-eo 记录）：移除确认条
-按 kind 说话，F4a 留下的尾巴收口。**下轮最高优先级是 F4e 的 `extensions_repair`（Recheck）一支**，
-除非 F4g 的逐入口对照先查出新缺口。下面每条的「原版对照」都只读 `main`（v0.3.14 原版树）。
+按 kind 说话，F4a 留下的尾巴收口。**P7-ep 取 F4e 的 `extensions_repair`（Recheck）一支并落地**
+（详见上文 P7-ep 记录）：broken 行回到原版的 Wrench，repair 校验包身份并在需要时重写 `manifestPath` /
+兜底 Reconnect，`repairKind()` 里那处有意偏离随之删除。**下轮最高优先级是 F4g 的第 1 条入口**
+（安装文件夹的 manifest review），除非 F4g 的对照先查出新缺口。下面每条的「原版对照」都只读 `main`
+（v0.3.14 原版树）。
 
-#### F4e · 已连接卡片的修复入口（**本轮落地，P7-el**）
+#### F4e · 已连接卡片的修复入口（**全部落地：Reconnect 一支 P7-el、repair 一支 P7-ep**）
 
-- 见上文 P7-el 记录。剩下的部分是原版的另一支 **`extensions_repair`（Wrench「Recheck」）**：
+- 见上文 P7-el 与 P7-ep 记录。原版的另一支 **`extensions_repair`（Wrench「Recheck」）** 已由 P7-ep 落地：
   原版 `ExtensionRow.tsx:313-330` 对 `connected && state === "broken"` 画一个 Wrench，走
   `ExtensionsPanel.tsx:1255-1267` 的 `extensions_repair`，它**校验已装包并按需修复**（不是重跑探测），
   toast 按 `report.repaired ? repairedNotice : recheckedNotice` 二选一
@@ -7201,7 +7267,7 @@ F3b 因此解除「先决」。**P7-en 再取 F3b 并落地**（详见上文 P7-
 - **本构建**：没有 repair。broken 行只有一个 `copy.IntegrationsCheck` 按钮 →
   `internal/shell/shell.go:1489` 的 `diagnoseIntegration`（跑 `extensions.Reprobe` + `extensions.Diagnose`），
   它**只报告**、不校验包完整性也不修。i18n 也没有 `repairedNotice`/`recheckedNotice`。
-- **落地 file:line**：`internal/extensions/repair.go`（新）`Repair(ctx, paths, id) (RepairReport, error)`
+- **落地 file:line（P7-ep 已按此落地）**：`internal/extensions/repair.go`（新）`Repair(paths, id) (RepairReport, error)`
   ——校验清单与包目录（`ManifestPath()` / `PackageDir()` 的存在性与 `ManifestDigest` 与
   `ApprovedManifestDigest` 是否一致）、必要时重写 `manifestPath`；`RepairReport{Repaired bool}`；
   `internal/settingsui` 新增 `Actions.RepairIntegration` + broken 分支的文案

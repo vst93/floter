@@ -103,6 +103,10 @@ type Actions struct {
 	UninstallComponents func(id string, name string, components UninstallComponents)
 	// DiagnoseIntegration asks an integration's provider to check itself.
 	DiagnoseIntegration func(id string)
+	// RepairIntegration re-checks an installed package and repairs it when the
+	// record drifted from what is on disk: the old host's `extensions_repair`,
+	// behind the Wrench a broken row shows. Nil hides the button.
+	RepairIntegration func(id string)
 	// ReconnectIntegration re-derives a system integration's runtime binding
 	// from the search path: the old host's `extensions_reconnect_system`, and
 	// the only repair a row whose program moved can offer. Nil hides the
@@ -1722,23 +1726,32 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 					}
 				}
 			}
-			// The row's runtime is gone, so the row offers the repair before it
-			// offers a check: the reference drew one button for this state and
-			// picked its arm from the runtime's owner and the manifest's page
-			// (`src/extensions/ExtensionRow.tsx:345-370`). A system row asks the
-			// search path again; a row whose runtime floter does not own hands
-			// the user the project's page instead.
-			switch integration.repairKind() {
-			case repairReconnect:
-				if a.Actions.ReconnectIntegration != nil {
-					if a.actionButton(c, integration.repairLabel(copy)).Tooltip(integration.repairTooltip(copy)).Clicked() {
-						a.Actions.ReconnectIntegration(integration.ID)
+			// A broken row's entry is the re-check, not a reconnect: the
+			// reference drew the Wrench on a `broken` row and the reconnect
+			// button on every other unavailable one
+			// (`src/extensions/ExtensionRow.tsx:313-330,345-370`). A re-check
+			// verifies the installed package and falls through to the search
+			// path itself when the runtime is what moved, so a broken row
+			// still has its way back.
+			if integration.Broken {
+				if a.Actions.RepairIntegration != nil {
+					if a.actionButton(c, copy.IntegrationsRecheck).Tooltip(copy.IntegrationsRecheck).Clicked() {
+						a.Actions.RepairIntegration(integration.ID)
 					}
 				}
-			case repairHomepage:
-				if a.Actions.OpenHomepage != nil {
-					if a.actionButton(c, integration.repairLabel(copy)).Tooltip(integration.repairTooltip(copy)).Clicked() {
-						a.Actions.OpenHomepage(integration.Homepage)
+			} else {
+				switch integration.repairKind() {
+				case repairReconnect:
+					if a.Actions.ReconnectIntegration != nil {
+						if a.actionButton(c, integration.repairLabel(copy)).Tooltip(integration.repairTooltip(copy)).Clicked() {
+							a.Actions.ReconnectIntegration(integration.ID)
+						}
+					}
+				case repairHomepage:
+					if a.Actions.OpenHomepage != nil {
+						if a.actionButton(c, integration.repairLabel(copy)).Tooltip(integration.repairTooltip(copy)).Clicked() {
+							a.Actions.OpenHomepage(integration.Homepage)
+						}
 					}
 				}
 			}
@@ -2011,24 +2024,13 @@ const (
 )
 
 // repairKind is which repair this row offers, or none. The condition is the
-// reference's own: a *connected* row whose runtime does not resolve offered
-// the button when its runtime belonged to the system, when it had a project
-// page, or both. Managed and bundled rows with no page render nothing at all
-// (the reference's own note on that arm).
-//
-// One deliberate departure: the reference hid the button on a `broken` row
-// because *it* had a separate install-repair button (the Wrench `Recheck`
-// arm, `src/extensions/ExtensionRow.tsx:313-330`) that a broken row showed
-// instead. This build has no install-repair — a check only re-runs the
-// probes — so a row broken *by its binding* (the code a check records when
-// the program cannot be resolved) would be a dead end: nothing on the row
-// could re-derive the path. Those rows keep the repair; a row broken for any
-// other reason still shows its diagnosis instead.
+// reference's own: a *connected*, *not broken* row whose runtime does not
+// resolve offered the button when its runtime belonged to the system, when it
+// had a project page, or both. Managed and bundled rows with no page render
+// nothing at all (the reference's own note on that arm), and a `broken` row
+// shows the re-check instead (`src/extensions/ExtensionRow.tsx:313-330`).
 func (i Integration) repairKind() repairKind {
-	if i.RuntimeAvailable {
-		return repairNone
-	}
-	if i.Broken && !i.bindingFailure() {
+	if i.Broken || i.RuntimeAvailable {
 		return repairNone
 	}
 	if i.RuntimeOwnership == extensions.RuntimeOwnershipSystem {
@@ -2038,19 +2040,6 @@ func (i Integration) repairKind() repairKind {
 		return repairHomepage
 	}
 	return repairNone
-}
-
-// bindingFailure reports whether the failure the repository recorded is a
-// runtime-binding one rather than a probe's: the codes a program that moved
-// or vanished writes. They are the reference's `runtimeUnavailableCode`,
-// whose only fix is a fresh look at the search path.
-func (i Integration) bindingFailure() bool {
-	switch i.FailureCode {
-	case extensions.BindingCodeChanged, extensions.BindingCodeMissing,
-		extensions.BindingCodeRuntimeUnavailable, extensions.BindingCodeCheckFailed:
-		return true
-	}
-	return false
 }
 
 // repairLabel is the button's word: the reference named the reconnect arm

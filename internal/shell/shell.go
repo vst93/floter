@@ -626,6 +626,7 @@ func New(opts Options) *App {
 		},
 		CloseSessionAt:       a.Terminal.CloseSession,
 		DiagnoseIntegration:  a.diagnoseIntegration,
+		RepairIntegration:    a.repairIntegration,
 		ReprobeCommands:      a.reprobeCommands,
 		ReconnectIntegration: a.reconnectIntegration,
 		OpenHomepage:         a.openHomepage,
@@ -1622,6 +1623,39 @@ func (a *App) reconnectIntegration(id string) {
 			a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationReconnected(name) })
 		default:
 			a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationChecked(name) })
+		}
+		a.onMain(func() {
+			if a.Win != nil {
+				a.Win.Invalidate()
+			}
+		})
+	}()
+}
+
+// repairIntegration re-checks an installed package and repairs it when the
+// record drifted from what is on disk — the old host's `extensions_repair`,
+// behind the Wrench a broken row shows. The notice is the reference's
+// repaired/rechecked split (`src/ExtensionsPanel.tsx:1255-1267`,
+// `report.repaired ? repairedNotice : recheckedNotice`).
+func (a *App) repairIntegration(id string) {
+	name := id
+	if integration, ok := a.Integrations.Inventory().WithID(id); ok && integration.Name != "" {
+		name = integration.Name
+	}
+	go func() {
+		report, err := extensions.Repair(a.Paths, id)
+		// The list is re-read before the notice, as `refreshAfterMutation` did
+		// in the reference: a repair may have rewritten the entry, and the
+		// notice must not announce a state the page has not caught up with.
+		a.Integrations.Refresh(context.Background())
+		switch {
+		case err != nil:
+			log.Printf("floter: could not re-check %s: %v", id, err)
+			a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationCheckFailed(name) })
+		case report.Repaired:
+			a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationRepaired(name) })
+		default:
+			a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationRechecked(name) })
 		}
 		a.onMain(func() {
 			if a.Win != nil {

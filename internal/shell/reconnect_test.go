@@ -217,3 +217,66 @@ func TestTheRepairOpensTheProjectPageItWasGiven(t *testing.T) {
 		t.Error("the fixture's integration vanished")
 	}
 }
+
+// The re-check's two answers are different notices, exactly as the reference
+// split them (`src/ExtensionsPanel.tsx:1255-1267`): a record that had to be
+// rewritten says "repaired", and a package that verified as it stood says
+// "re-check complete: healthy". A repair that always said one of the two would
+// make the other unreachable, which is what this walks end to end.
+func TestTheRepairNoticesSplitRepairedFromRechecked(t *testing.T) {
+	program := func(t *testing.T) string {
+		t.Helper()
+		here := filepath.Join(t.TempDir(), "systool")
+		if err := os.WriteFile(here, []byte("#!/bin/sh\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		return here
+	}
+
+	t.Run("a package that verifies says it was re-checked", func(t *testing.T) {
+		paths, id := reconnectFixture(t, program(t))
+		log := &noticeLog{}
+		a := reconnectApp(t, paths, log)
+		a.repairIntegration(id)
+
+		want := i18n.For("en").Notifications.IntegrationRechecked("Moved Tool")
+		if got := waitForNotice(t, log); got != want {
+			t.Errorf("notice = %q, want %q", got, want)
+		}
+		if entry, ok := a.Integrations.Inventory().WithID(id); !ok || entry.Entry.State != "enabled" {
+			t.Errorf("entry = %+v, want the verified row left enabled", entry.Entry)
+		}
+	})
+
+	t.Run("a record that drifted says it was repaired", func(t *testing.T) {
+		paths, id := reconnectFixture(t, program(t))
+		repo, err := extensions.LoadRepository(paths.RepositoryFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		entry := repo.Extensions[id]
+		entry.ManifestPath = filepath.Join(t.TempDir(), "moved-away", "floter.extension.json")
+		repo.Extensions[id] = entry
+		if err := extensions.SaveRepository(paths.RepositoryFile, repo); err != nil {
+			t.Fatal(err)
+		}
+
+		log := &noticeLog{}
+		a := reconnectApp(t, paths, log)
+		a.repairIntegration(id)
+
+		want := i18n.For("en").Notifications.IntegrationRepaired("Moved Tool")
+		if got := waitForNotice(t, log); got != want {
+			t.Errorf("notice = %q, want %q", got, want)
+		}
+		// The stale path was rewritten to where the manifest resolves: the
+		// package directory the id names.
+		after, ok := a.Integrations.Inventory().WithID(id)
+		if !ok {
+			t.Fatal("the integration vanished")
+		}
+		if after.Entry.ManifestPath == entry.ManifestPath {
+			t.Errorf("ManifestPath = %q, want the stale path rewritten", after.Entry.ManifestPath)
+		}
+	})
+}
