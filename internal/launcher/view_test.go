@@ -521,6 +521,35 @@ func TestClipboardModeWithoutAStore(t *testing.T) {
 	}
 }
 
+// A status note is the panel's mute one-liner: it draws the reference's
+// 12u side padding, not the 3u the rest of the list uses, so the sentence
+// starts at the same column as the query text and the filter chips.
+func TestStatusNotePaddingMatchesReference(t *testing.T) {
+	a := testApp()
+	// A status item is the mode's own "the plugin is off" line.
+	a.Items = []Item{{ID: "status-off", Title: "Browser plugin is off", status: true}}
+	tt := render(t, a)
+	tt.Frame()
+
+	if !tt.HasText("Browser plugin is off") {
+		t.Fatalf("the status line is missing: %q", tt.Texts())
+	}
+
+	// The status note's text starts at the panel's 4u inset plus its own 12u
+	// padding — the same column as the query text and the filter chips. The
+	// reference's `.launcher-status` uses `padding: 0 calc(var(--u) * 12)`.
+	rect, ok := tt.Find("Browser plugin is off")
+	if !ok {
+		t.Fatal("the status note text was not found")
+	}
+	// 4u (panel inset) + 12u (status padding) = 16u. With Spacing=4, that is
+	// 64 device pixels. Allow 1px rounding.
+	want := 64.0
+	if rect.X < want-1 || rect.X > want+1 {
+		t.Errorf("status note text X = %v, want ~%v (16u from card edge)", rect.X, want)
+	}
+}
+
 func TestDynamicCompletionsMergeIntoTheCommandMode(t *testing.T) {
 	a := commandApp()
 	// The command declares one argument the provider completes.
