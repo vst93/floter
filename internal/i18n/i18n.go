@@ -235,10 +235,8 @@ type Launcher struct {
 	FileCd       string
 	FileCopyPath string
 	FileFolder   string
-	// BrowserTab labels a live-tab row in the browser mode, and
-	// BrowserNoProfile is the mode's empty state when no browser profile was
-	// found at all.
-	BrowserTab       string
+	// BrowserNoProfile is the browser mode's empty state when no browser
+	// profile was found at all.
 	BrowserNoProfile string
 	// BrowserDisabled is the browser mode's own answer when the plugin is
 	// switched off: what happened, and where to turn it back on.

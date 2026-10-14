@@ -12,6 +12,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"floter/internal/browser"
 	clipboardpkg "floter/internal/clipboard"
 	"floter/internal/settings"
 	"floter/internal/shortcuts"
@@ -74,8 +75,15 @@ func rowGlyph(item Item) (*ui.SVG, bool) {
 			return glyphText, true
 		}
 	case item.web != nil:
-		if item.web.Kind == "bookmark" {
+		// The reference's `BrowserRowIcon` (LauncherResults.tsx:290-294): a
+		// bookmark leads with the bookmark mark, a history entry with the
+		// clock (a page *at a time*), and only a row from a plugin that
+		// predates this field falls through to the shared globe.
+		switch item.web.Kind {
+		case browser.KindBookmark:
 			return glyphBookmark, true
+		case browser.KindHistory:
+			return glyphClock, true
 		}
 		return glyphGlobe, true
 	case item.tab != nil:

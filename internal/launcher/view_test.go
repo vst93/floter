@@ -665,11 +665,14 @@ func TestBrowserModeOpensAndCopies(t *testing.T) {
 	if !tt.HasText("Rust Playground") {
 		t.Fatalf("the tabs did not show: %q", tt.Texts())
 	}
-	// The detail line carries the URL and the visit time for history.
-	// The detail carries the URL and the visit time (in the machine's own
-	// zone, so only the separator is pinned).
-	if !tt.HasText("https://go.dev/doc  \u00b7  ") {
+	// The detail line is the URL alone, the reference's own row content
+	// (`plugins/browser/mode.ts:195`): a history entry is told apart by its
+	// clock glyph, not a date string.
+	if !tt.HasText("https://go.dev/doc") {
 		t.Errorf("the history detail is missing: %q", tt.Texts())
+	}
+	if tt.HasText("https://go.dev/doc  \u00b7  ") {
+		t.Errorf("the history detail still carries a date: %q", tt.Texts())
 	}
 	if !tt.HasText("https://rust-lang.org") {
 		t.Errorf("a bookmark's detail is missing: %q", tt.Texts())

@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1133 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1134 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1133 项测试
+go test -count=1 ./...         # 1134 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,7 +99,53 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-ea PATH 命令的别名带参数时还原成真命令（原版 `src/command-aliases.ts` 的 `rebaseAliasCommandLine`）**
+> **最新一轮：P7-eb 浏览器结果行的字形与副标题回到原版（原版 `LauncherResults.tsx:290-294`、`plugins/browser/mode.ts:195,208,216`）**
+> —— P7-ea 收尾后「尚未做」清单又一次为空。本轮按惯例换入口（逐文件对照原版），落在**浏览器模式的
+> 行内容**（`src/browser-page.ts` / `src/plugins/browser/mode.ts` / `LauncherResults.tsx`）——此前
+> 未被任一待办覆盖。发现四处真实偏离并本轮全部落地。依赖检查：GitHub releases API 限流，
+> `proxy.golang.org/.../@v/list` 最新仍是 **v0.4.8**（与 `go.mod` 一致），无版本可升。只对照 `main`
+> （`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离点（四处，同一个列表的四张脸）**：
+> 1. **历史记录的图标是地球，不是时钟**。原版 `LauncherResults.tsx:290-294` 的 `BrowserRowIcon`：
+>    bookmark → `BookmarkIcon`、history → `ClockIcon`、live tab → `AppWindowIcon`，只有「来源未知」
+>    才落到 `GlobeIcon`。本构建 `internal/launcher/glyphs.go:76-80` 的 `rowGlyph` 只判 `Kind == "bookmark"`，
+>    其余（含 history）一律 `glyphGlobe`——时钟标（`glyphClock`）被定义为只服务最近使用。
+> 2. **历史行的副标题多了访问时间**。原版 `plugins/browser/mode.ts:195` 给每条搜索结果
+>    `subtitle: row.url`（纯 URL）；`last_visit`/`date_added` 只被 `browser-page.ts:37` 解析、
+>    从不渲染（`git grep last_visit main -- src` 只有解析处）。本构建 `internal/launcher/search.go:246-248`
+>    在 URL 后拼 `  ·  <YYYY-MM-DD HH:MM>`。
+> 3. **标签页行的副标题多了 `· Open tab`**。原版 `mode.ts:208` 的 tab 行 `subtitle: tab.url`，靠
+>    `AppWindowIcon`（R73 注释：「tab rows are told apart by their own glyph and subtitle」）区分；
+>    本构建在 URL 后拼 `copy.BrowserTab`（`internal/launcher/search.go:252-256`）。
+> 4. **标签页行的 id 用 URL，同一网址开在两个窗口会撞**。原版 `browser-page.ts:216` 的 `tabRowKey`
+>    是 `tab:${browser_id}:${window_index}:${tab_index}`，注释写死「Position, not URL: the same page
+>    can be open in two windows and the two rows must stay distinct」。本构建用的是
+>    `"tab:" + tab.BrowserID + ":" + tab.URL`（`search.go:255`）——两条同 URL 的标签页拿到同一个 id。
+>
+> **修法**：
+> - `internal/launcher/glyphs.go`：`rowGlyph` 的 `item.web` 分支改成按 `browser.KindBookmark` /
+>   `browser.KindHistory` 分派（bookmark → 书签、history → 时钟、其余 → 地球）。
+> - `internal/launcher/search.go`：搜索结果的 `Detail` 回到纯 `result.URL`；标签页行的 `Detail` 回到
+>   纯 `tab.URL`，id 改成 `tab:<browserID>:<window>:<index>`；删掉随之不再使用的 `copy := StringsFor(...)`。
+> - `internal/i18n`：`BrowserTab` 成了死键（唯一读者已删），按文档的 `TestNoDeadCopy` 守卫从
+>   `Copy` 结构体与 en/zh 字典各删一行。
+>
+> **测试**（新增 `internal/launcher/browserrows_test.go` 的 `TestBrowserRowsFollowTheReferenceRowContent`）：
+> 一条历史 + 一条书签 + 两条**同 URL 不同窗口**的标签页，逐项钉 history→时钟 / bookmark→书签 /
+> tab→app-window 三个字形，历史与标签页的副标题都等于纯 URL，两条标签页的 id 分别是
+> `tab:chrome:0:0` 与 `tab:chrome:1:2`（且不相等）。改写 `view_test.go` 的 `TestBrowserModeOpensAndCopies`：
+> 此前断言历史副标题带 `  ·  `（日期），现在断言它**只**是 URL、且日期串不再出现。
+> 变异核查：把 `rowGlyph` 的 history 分支改回地球、把两处 `Detail` 改回带后缀、把 id 改回 URL，
+> 对应断言立刻红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **残留**：无。清单再次为空；下轮按惯例换入口（逐文件对照原版 / 核对「已知差距」里框架已支持
+> 只是本应用没用的项）。
+
+> **上一轮：P7-ea PATH 命令的别名带参数时还原成真命令（原版 `src/command-aliases.ts` 的 `rebaseAliasCommandLine`）**
 > —— P7-dz 收尾后「尚未做」清单又一次为空。本轮按惯例换入口（逐文件对照原版），落在
 > **命令别名模块**（`main:src/command-aliases.ts`）：它的搜索半边本构建早已接好，还原半边
 > （`rebaseAliasCommandLine`）却没有对应物，`grep -rni rebase internal cmd` 无命中。清单因此重写为
@@ -3914,11 +3960,62 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-> **清单状态（P7-ea 收尾）**：本轮把「尚未做」重写成一条带 file:line 的具体待办——逐文件对照
-> 原版的**命令别名模块**（`src/command-aliases.ts`）时发现的真实偏离：PATH 命令的别名带参数时
-> 没有被还原成真命令，会去跑一个不存在的程序。本轮随即落地（P7-ea），清单再次为空。依赖检查：
-> GitHub releases API 限流，`proxy.golang.org/.../@v/list` 最新仍是 **v0.4.8**（与 `go.mod` 一致），
-> 无版本可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+> **清单状态（P7-eb 收尾）**：本轮把「尚未做」重新写实，并取第 1 条落地——逐文件对照原版的
+> **浏览器模式行内容**（`src/browser-page.ts` / `src/plugins/browser/mode.ts` /
+> `LauncherResults.tsx`，此前未被任一待办覆盖），发现四处真实偏离（历史图标是地球不是时钟、
+> 历史副标题多访问时间、标签页副标题多 `· Open tab`、标签页 id 用 URL 同一网址两窗口会撞），
+> 已全部落地（P7-eb，详见「最近几轮」）。清单因此只剩下面第 2、3 条。依赖检查：GitHub releases
+> API 限流，`proxy.golang.org/.../@v/list` 最新仍是 **v0.4.8**（与 `go.mod` 一致），无版本可升。
+> 只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+
+### 具体待办（P7-eb 重写；第 1 条本轮落地 P7-eb）
+
+> 本轮入口：逐文件对照原版的浏览器模式行内容。第 1 条是同一张表里的四处已核实偏离（本轮落地）；
+> 第 2、3 条是审计同一片代码时新发现、尚未落地的具体项。依赖检查同上，无版本可升。
+
+1. **（已落地，P7-eb）浏览器结果行的字形与副标题偏离原版**。
+   - 原版对照：`main:src/launcher/LauncherResults.tsx:290-294` 的 `BrowserRowIcon`——bookmark →
+     书签、history → 时钟、live tab → `app-window`，只有来源未知才落到地球；
+     `main:src/plugins/browser/mode.ts:195,208` 给每条搜索结果与每个标签页的 `subtitle` 都是**纯 URL**
+     （`last_visit`/`date_added` 只被 `browser-page.ts:37` 解析、从不渲染）；
+     `main:src/browser-page.ts:216` 的 `tabRowKey` 是 `tab:${browser_id}:${window_index}:${tab_index}`
+     （注释：「Position, not URL: the same page can be open in two windows and the two rows must stay
+     distinct」）。
+   - 本构建（改前）：`internal/launcher/glyphs.go:76-80` 的 `rowGlyph` 只判 bookmark，其余一律地球；
+     `internal/launcher/search.go:246-248` 给历史行拼访问时间、`:252-256` 给标签页拼 `· Open tab`，
+     且标签页 id 是 `"tab:" + tab.BrowserID + ":" + tab.URL`。
+   - **已落地（P7-eb）**：`rowGlyph` 按 `browser.KindBookmark` / `browser.KindHistory` 分派；
+     两处 `Detail` 回到纯 URL；标签页 id 改成 `tab:<browserID>:<window>:<index>`；i18n 的
+     `BrowserTab` 成为死键，从 `Copy` 与 en/zh 字典各删一行（`TestNoDeadCopy` 守卫）。
+     测试：`internal/launcher/browserrows_test.go` 的 `TestBrowserRowsFollowTheReferenceRowContent`；
+     改写 `view_test.go` 的 `TestBrowserModeOpensAndCopies`。详见「最近几轮」P7-eb。
+
+2. **浏览器结果的数量上限与抓取深度不对齐原版**（待比对，具体可执行）。
+   - 原版对照：`main:src/plugins/browser/mode.ts:70` 的 `BROWSER_FETCH_LIMIT = 500`（抓取/搜索深度）
+     与 `:84` 的 `BROWSER_GROUP_LIMIT = MAX_RESULTS`（`result-budget.ts:46` 的 `MAX_RESULTS = 10`，
+     即一个分组**最多 10 行**）；合并组按 `cap` 截断（`:199` 的 `if (rows.length >= cap) break`），
+     标签页组按 `cap * 2` 截断（`:218`），滚动到底再翻页（`paginatePluginRows`）。
+   - 本构建：`internal/shell/system.go:251` 的 `browserResultLimit = 50` 同时当 SQL `Limit`
+     （`shell.go:1590`）与标签页上限（`shell.go:1605-1606`）；`internal/launcher/search.go` 的
+     `browserItems` 不再二次截断。于是空查询的浏览器列表最多 50 行（原版 10），抓取深度 50（原版 500）。
+   - 验收：先判定本构建是否要复刻「每分组 10 行 + 翻页」（本构建列表可滚动，翻页语义不同），
+     或只把抓取深度校回 500 而保留滚动；无论哪种，写出 `browserResultLimit` 与分组上限的
+     file:line 规格，加测试钉「空查询第一组行数」与「同一 URL 的标签页不并组」（原版明确不并：
+     `mode.ts:90`）。不要在没有翻页实现时单方面改上限制造半截行为。
+
+3. **`internal/plugincfg` 的值规范化与原版 `normalizeConfigValue` 有四处口径差**（待决定）。
+   - 原版对照：`main:src/plugins/config-schema.ts:448-500` 的 `normalizeConfigValue` 是**全函数**：
+     toggle → `raw === true`；text → `trim` 后空为 `null`；slider/number → 非有限回退 `field.min` 并
+     `clampStep`（按 `step` 从 `min` 对齐，最后 `Math.round(x*1e6)/1e6`）；select/radio → 未知值回退
+     **第一个选项**；checkboxes → 过滤、**去重并按 schema 选项顺序**。它同时用在写入
+     （`applyConfigChange`）与**加载**（`configValues`）上。
+   - 本构建：`internal/plugincfg/schema.go:160-210` 的 `coerce` 是**偏函数**（形状不符即拒绝、保留旧值），
+     slider/number 只 `clamp` 不按 step 对齐，text 不 trim，select/radio 未知值不回退，checkboxes 不去重/不排序；
+     加载路径 `internal/shell/pluginconfig.go:40-56` 直接搬 settings 的值，不过 `coerce`。
+   - 验收：先决定口径——现有 `internal/plugincfg/schema_test.go:88-101` 的
+     `TestApplyRejectsAValueOutsideTheOptions` 把「拒绝越界选项」钉成有意行为，若改为原版的回退语义
+     必须同时改该测试并说明理由；若保留拒绝，则把 step 对齐、text trim、checkboxes 去重排序这三处
+     **补齐**（它们不与现有测试冲突），并加一张表测试逐条钉住。不要半改。
 
 ### 具体待办（P7-ea 重写；第 1 条本轮落地 P7-ea）
 

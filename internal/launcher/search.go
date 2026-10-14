@@ -213,7 +213,6 @@ func (a *App) browserItems() []Item {
 	if !answer.Found {
 		return nil
 	}
-	copy := StringsFor(a.settings().Language)
 	wantTabs := a.browserFilter == filterAll || a.browserFilter == filterTabs
 	out := make([]Item, 0, len(answer.Results)+len(answer.Tabs))
 	for _, result := range answer.Results {
@@ -230,14 +229,15 @@ func (a *App) browserItems() []Item {
 			continue // the range is the live tabs alone
 		}
 		result := result
-		detail := result.URL
-		if !result.Visited.IsZero() {
-			detail = result.URL + "  \u00b7  " + result.Visited.Local().Format("2006-01-02 15:04")
-		}
+		// The row's subtitle is the URL alone: the reference's browser rows
+		// carry `subtitle: row.url` (`plugins/browser/mode.ts:195`), and the
+		// "this is history" fact is the clock glyph, not a date string (the
+		// reference parses `last_visit` for ordering only — `browser-page.ts:37`
+		// — and never renders it).
 		out = append(out, Item{
 			ID:     "web:" + result.URL,
 			Title:  result.Label(),
-			Detail: detail,
+			Detail: result.URL,
 			Run:    func() { a.openResult(result) },
 			web:    &result,
 		})
@@ -247,16 +247,15 @@ func (a *App) browserItems() []Item {
 	}
 	for _, tab := range answer.Tabs {
 		tab := tab
-		detail := tab.URL
-		if detail == "" {
-			detail = copy.BrowserTab
-		} else {
-			detail = detail + "  \u00b7  " + copy.BrowserTab
-		}
+		// R80's tab key is *position*, not URL: the same page can be open in
+		// two windows and the two rows must stay distinct
+		// (`browser-page.ts:216`, `tabRowKey`). The subtitle is the URL alone,
+		// as the reference's tab row carries `subtitle: tab.url` and is told
+		// apart by the app-window glyph (`mode.ts:208`, R73).
 		out = append(out, Item{
-			ID:     "tab:" + tab.BrowserID + ":" + tab.URL,
+			ID:     "tab:" + tab.BrowserID + ":" + strconv.Itoa(tab.Window) + ":" + strconv.Itoa(tab.Index),
 			Title:  tab.Label(),
-			Detail: detail,
+			Detail: tab.URL,
 			Run:    func() { a.activateTab(tab) },
 			tab:    &tab,
 		})
