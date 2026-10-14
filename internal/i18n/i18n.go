@@ -528,6 +528,13 @@ type Settings struct {
 	IntegrationsRecommended     string
 	IntegrationsRecommendedHint string
 	IntegrationsConnect         string
+	// The detected row's two non-connect actions: the tool has a recipe this
+	// machine can install with (opening a terminal on that command), or floter
+	// has nothing to offer and the button says so disabled. They are the
+	// reference's other two arms of the one detected-row button
+	// (`src/extensions/ExtensionRow.tsx:296-302`).
+	IntegrationsInstallInTerminal string
+	IntegrationsInstallTool       string
 	// The stored health from the lifecycle probes, and the live diagnostics a
 	// check produces. They are two rows: the health is what the last probe run
 	// recorded (and it survives across runs), the diagnostics are what this

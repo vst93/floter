@@ -649,6 +649,7 @@ func New(opts Options) *App {
 		Freshness:          a.integrationFreshness,
 		Detected:           a.detectedTools,
 		ConnectDetected:    a.connectDetected,
+		InstallDetected:    a.openShellCommand,
 		InstallFromFolder:  a.installPackageFolder,
 		RunWithParams:      a.runWithParams,
 		ChooseFolder:       a.chooseProgram,
@@ -1922,6 +1923,9 @@ func (a *App) detectedTools() []settingsui.DetectedTool {
 		}
 	}
 	out := make([]settingsui.DetectedTool, 0, maxDetectedTools)
+	dirs := extensions.SearchDirectories()
+	platform := tools.Platform()
+	managers := tools.DetectManagers(dirs)
 	for _, candidate := range candidates {
 		if !candidate.Available || candidate.Path == "" || connected[candidate.Path] {
 			continue
@@ -1930,9 +1934,11 @@ func (a *App) detectedTools() []settingsui.DetectedTool {
 		// connects": the curated ranking already puts the recognisable names
 		// first, so the cap collects them.
 		out = append(out, settingsui.DetectedTool{
-			Name:        candidate.Name,
-			Path:        candidate.Path,
-			Description: candidate.Description,
+			Name:             candidate.Name,
+			Path:             candidate.Path,
+			Description:      candidate.Description,
+			RuntimeAvailable: candidate.Available,
+			InstallCommand:   detectedInstallCommand(candidate, platform, managers),
 		})
 		if len(out) >= maxDetectedTools {
 			break
@@ -1945,6 +1951,31 @@ func (a *App) detectedTools() []settingsui.DetectedTool {
 // inventory knows thousands, and a page that lists them all is a file browser,
 // not a settings panel.
 const maxDetectedTools = 12
+
+// detectedInstallCommand is the recipe command that installs the tool a
+// discovered candidate is, empty when the catalog does not know it. The
+// reference matched the row's id against the catalog's own ids
+// (`src/extensions/tool-rows.ts`'s `installCommandForId`); a discovered
+// candidate carries no catalog id, so the match is the executable's name
+// against the entry's probes — the same names the catalog uses to detect the
+// tool. The recipe is chosen by a manager the machine actually has, exactly as
+// the launcher's install rows do.
+func detectedInstallCommand(candidate inventory.Candidate, platform string, managers []string) string {
+	name := strings.ToLower(executableName(candidate.Path))
+	for _, entry := range tools.Catalog {
+		for _, probe := range entry.Probes {
+			if strings.ToLower(probe) != name {
+				continue
+			}
+			recipe, ok := tools.ChosenRecipe(entry, platform, managers)
+			if !ok {
+				return ""
+			}
+			return tools.InstallCommand(recipe.Manager, recipe.Package)
+		}
+	}
+	return ""
+}
 
 // runWithParams runs an integration's command with the answers to its declared
 // inputs: the host turns them into argv (never into a command string), and the

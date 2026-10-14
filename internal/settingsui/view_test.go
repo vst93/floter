@@ -2614,9 +2614,10 @@ func TestDetectedToolsSection(t *testing.T) {
 	a := New(settings.NewStore(settings.Default()), Actions{
 		Detected: func() []DetectedTool {
 			return []DetectedTool{{
-				Name:        "ripgrep",
-				Path:        "/usr/bin/rg",
-				Description: "Fast search",
+				Name:             "ripgrep",
+				Path:             "/usr/bin/rg",
+				Description:      "Fast search",
+				RuntimeAvailable: true,
 			}}
 		},
 		ConnectDetected: func(tool DetectedTool) { connected = append(connected, tool) },

@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1178 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1189 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1178 项测试
+go test -count=1 ./...         # 1189 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,7 +99,52 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-ej register 深链高亮标记 + Detected/register 连接真的落地
+> **最新一轮：P7-ek F4c detected 行的动作回到原版三态 + 目录接通安装命令
+> （原版 `src/extensions/ExtensionRow.tsx:296-302`、`src/ExtensionsPanel.tsx:2552-2574`、
+> `src/extensions/tool-rows.ts:202-212`）** —— P7-ej 后清单只剩 F3a/F3b（F3b 已被实测标为
+> 「先决于 F3a」）与 F4c（「待做；动作三态在本构建退化，先决于数据投影」）。F3b 明确不能直接落地，
+> 故本轮取 **F4c**。依赖检查：GitHub releases API 限流，`go list -m -versions github.com/egoist/mygo`
+> 最新仍是 **v0.4.8**（与 `go.mod` 一致），无版本可升；只对照 `main`
+> （`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **F4c 偏离**：原版同一张检测卡片的右侧按钮有**三态**——`runtimeAvailable` → Connect；否则
+> `installInTerminal`（目录里有本平台配方）→ 在终端里跑安装命令；否则 → 去主页，且
+> `disabled = busy || (!runtimeAvailable && !homepage && !installInTerminal)`
+> （`ExtensionRow.tsx:296-302`）。本构建 `internal/settingsui/settingsui.go` 的 `detectedSection`
+> 每行只有一个恒为 `IntegrationsConnect` 的按钮，既没有安装态也没有禁用态。
+>
+> **F4c 修法（取「接通目录」这一支）**：
+> - `settingsui.DetectedTool` 新增 `RuntimeAvailable` 与 `InstallCommand` 两个字段；
+> - 新增 `detectedActionFor(tool)`（原版三态选择，`runtimeAvailable` 优先）与
+>   `detectedLabel(copy, kind)`（Connect / Install in terminal / Install tool first，原版
+>   `i18n.ts:465,474,477` 的同一批词）；`detectedSection` 的行改走新的 `detectedAction`——
+>   可运行 → Connect；不可运行但有配方 → `InstallDetected(command)`；都没有 → 画成禁用。
+> - `internal/shell/shell.go` 的 `detectedTools` 为每个候选算出安装命令：候选没有目录 id，改以
+>   **可执行文件名**去匹配 `tools.Catalog` 的 `Probes`（目录自己用来探测工具的那批名字），再用
+>   `tools.ChosenRecipe` + `tools.InstallCommand` 取本机有的包管理器配方；新 action
+>   `InstallDetected` 接到 `a.openShellCommand`（打开终端面跑那条命令，正是原版 `onInstallInTerminal`）。
+> - i18n 新增 `IntegrationsInstallInTerminal`（“Install in terminal”/“在终端中安装”）、
+>   `IntegrationsInstallTool`（“Install tool first”/“请先安装工具”）。
+> - **本构建为何只退化成「可判但少见」**：`detectedTools` 只列出 `candidate.Available` 的项，
+>   所以生产里 detected 行基本都走 Connect；`Install in terminal` 态由**数据**（同一探针指向一个不可
+>   运行的文件）驱动，可判且已测。「本机没有、目录能装」的历史落点其实是启动器的 install 行
+>   （`internal/launcher` 的 toolInstallRows），原版把它和 detected 塞进同一列表是因为原版没有那层。
+>
+> **验收**：新增 `internal/settingsui/detectedaction_test.go`——`TestTheDetectedActionFollowsTheRow`
+> 四行表（含「可运行胜过有配方」）钉 `detectedActionFor`/`detectedLabel` 的 en/zh 两句；
+> `TestTheDetectedRowsCarryTheirThreeActions` 同屏三行，像素上钉三个词都在，点「Install in terminal」
+> 把命令原样交给 action、点 Connect 连对的那行、点禁用词则两个 action 都不动。新增
+> `internal/shell/detected_test.go` 五行表钉 `detectedInstallCommand`（有管理器/无管理器回退第一配方/
+> Windows 去 `.exe`/目录不认识/平台无配方）。变异核查：把 `detectedLabel` 的
+> `detectedInstallInTerminal` 支改回 `IntegrationsConnect` → 两条测试立刻红
+> （`detectedLabel(en) = "Connect", want "Install in terminal"`）。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 27 包全绿
+> （1189 项）、`GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：F4 全部（F4a–F4d）落地；剩 **F3a/F3b**（F3b 先决于 F3a，见下）。
+
+> **上一轮：P7-ej register 深链高亮标记 + Detected/register 连接真的落地
 > （原版 `src/extensions/ExtensionRow.tsx:196-205,290`、`src/ExtensionsPanel.tsx:1500-1548,2516-2528`、
 > `src-tauri/src/deep_link.rs:389`）** —— 「尚未做」清单里 F3b 是最高优先级，本轮先按 F3b 的验收
 > 去**实测**「帧 sheen 改固定、档位差异全靠控件透镜」是否成立，结论否（下详），故不动 F3b，
@@ -6808,7 +6853,7 @@ Go 侧把原版的三条规则写偏了。依赖检查：`go list -m -versions g
   - **风险**：帧 sheen 参与透明度的 `FaceFill` 补偿（`theme.go` 的 `baseAlpha`/`capAlpha` 与
     `internal/shell/transparency_test.go`），改动须重跑该套像素测试。
 
-### F4 · 集成组件逻辑差异（**P7-eh 落地 F4a；P7-ei 落地 F4b；P7-ej 落地 F4d，并修好 F4c 依赖的连接链**）
+### F4 · 集成组件逻辑差异（**P7-eh 落地 F4a；P7-ei 落地 F4b；P7-ek 落地 F4c；P7-ej 落地 F4d，并修好 F4c 依赖的连接链**）
 
 - **现象**：集成组件逻辑与原版差异仍大，需要梳理、可能重构。
 - **原版对照**：`main:src/ExtensionsPanel.tsx`（面板与安装/权限/运行流程，3269 行）与
@@ -6873,7 +6918,16 @@ Go 侧把原版的三条规则写偏了。依赖检查：`go list -m -versions g
 - **验收**：新增 `internal/settingsui/integrationkind_test.go` 三条（六行表 + 拼接 + 四行同屏像素
   断言）。变异核查：卡片 `identityLine(copy)` 换回 `identity()` → 像素条立刻红。
 
-#### F4c · detected（未连接）行的动作语义不是原版那张脸（**待做；动作三态在本构建退化，先决于数据投影**）
+#### F4c · detected（未连接）行的动作语义不是原版那张脸（**本轮落地，P7-ek**）
+
+- **落地（P7-ek，取「接通目录」这一支）**：`settingsui.DetectedTool` 新增 `RuntimeAvailable` /
+  `InstallCommand`；新增 `detectedActionFor`（三态选择，`runtimeAvailable` 优先）与 `detectedLabel`
+  （Connect / Install in terminal / Install tool first，i18n 新增后两键）；`detectedSection` 的行改走
+  `detectedAction`（不可运行且有配方 → 跑 `InstallDetected(command)`，都没有 → 禁用）。`internal/shell`
+  的 `detectedTools` 用可执行文件名匹配 `tools.Catalog` 的 `Probes`，经 `ChosenRecipe`+`InstallCommand`
+  算出配方命令；`InstallDetected` 接到 `a.openShellCommand`。验收见文件末尾「本轮（P7-ek）」的测试说明。
+  仍是「退回态」而非三态齐全的原因已在上文 P7-ej 实测里说清（detected 全为 `Available`；「本机没有、
+  目录能装」的历史落点是启动器的 install 行）；布局上保留段式（与本区其它段一致），不合并进 Installed。
 
 - **P7-ej 实测补充**：本构建的 `detectedTools`（`internal/shell/shell.go:1897`）只列出
   `candidate.Available && candidate.Path != ""` 且**未连接**的项，所以 detected 行恒为
@@ -6919,4 +6973,4 @@ Go 侧把原版的三条规则写偏了。依赖检查：`go list -m -versions g
   `connectDetected` 的 `Platforms` → 连接失败、shell 条红。
 
 - **残留**：`main:src/ExtensionsPanel.tsx`（安装文件夹/权限审批/运行参数/输出回看/导入导出的**流程**）
-  尚未逐函数对照；F4a–F4d 全部落地；剩 **F3a/F3b**（P7-ej 已用实测把 F3b 标为「先决于 F3a」，见上）。
+  尚未逐函数对照；F4a–F4d 全部落地（F4c 由 P7-ek 收尾）；剩 **F3a/F3b**（P7-ej 已用实测把 F3b 标为「先决于 F3a」，见上）。

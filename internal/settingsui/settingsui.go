@@ -143,6 +143,11 @@ type Actions struct {
 	// section.
 	Detected        func() []DetectedTool
 	ConnectDetected func(tool DetectedTool)
+	// InstallDetected opens a terminal on the install command of a detected
+	// tool that has a recipe but is not runnable yet — the reference's
+	// `installInTerminal` arm, which hands the command to the user's own shell
+	// (`src/ExtensionsPanel.tsx:2562-2574`). Nil leaves that button disabled.
+	InstallDetected func(command string)
 	// Freshness reports what is known about one integration's command list
 	// (the help-probe sidecar and the health report); nil hides the row.
 	Freshness func(id string) (extensions.Freshness, bool)
@@ -3453,6 +3458,15 @@ type DetectedTool struct {
 	// VersionArgs is how the tool reports its version, when the caller knows
 	// better than the default.
 	VersionArgs string
+	// RuntimeAvailable reports whether the program is runnable right now: the
+	// reference's `runtimeAvailable`, which decides between Connect and the two
+	// install arms (`src/extensions/ExtensionRow.tsx:296-302`).
+	RuntimeAvailable bool
+	// InstallCommand is the recipe command that would install this tool with a
+	// package manager the machine has, empty when the catalog does not know the
+	// tool or has no recipe for this platform (`src/extensions/tool-rows.ts`'s
+	// `installCommandForId`).
+	InstallCommand string
 }
 
 // detectedSection lists the programs this machine has that nothing has
@@ -3472,15 +3486,72 @@ func (a *App) detectedSection(c *ui.Context, copy i18n.Settings) {
 			for _, tool := range tools {
 				tool := tool
 				a.row(c, tool.Name, tool.Description, func() {
-					if ui.Button(c, copy.IntegrationsConnect).Clicked() {
-						a.Actions.ConnectDetected(tool)
-					}
+					a.detectedAction(c, copy, tool)
 				}, func() {
 					a.row(c, tool.Path, "", func() {})
 				})
 			}
 		})
 	})
+}
+
+// detectedActionKind is which of the reference's three arms a detected row's
+// one button takes: the program is runnable and connects, it is not runnable
+// but a recipe exists and opens the install command in a terminal, or floter
+// has nothing and the button says so disabled
+// (`src/extensions/ExtensionRow.tsx:296-302`).
+type detectedActionKind int
+
+const (
+	detectedConnect detectedActionKind = iota
+	detectedInstallInTerminal
+	detectedInstallFirst
+)
+
+// detectedActionFor picks the arm from the row's own facts. RuntimeAvailable
+// wins: a runnable program is connected, never reinstalled.
+func detectedActionFor(tool DetectedTool) (kind detectedActionKind, disabled bool) {
+	switch {
+	case tool.RuntimeAvailable:
+		return detectedConnect, false
+	case tool.InstallCommand != "":
+		return detectedInstallInTerminal, false
+	default:
+		return detectedInstallFirst, true
+	}
+}
+
+// detectedLabel words the arm: the reference put the same three words on the
+// button's visible label and its accessible name.
+func detectedLabel(copy i18n.Settings, kind detectedActionKind) string {
+	switch kind {
+	case detectedInstallInTerminal:
+		return copy.IntegrationsInstallInTerminal
+	case detectedInstallFirst:
+		return copy.IntegrationsInstallTool
+	default:
+		return copy.IntegrationsConnect
+	}
+}
+
+// detectedAction draws the row's button and runs the arm it chose. A row with
+// nothing to offer still draws its word, disabled, rather than vanishing — the
+// reference's disabled button was the only sign there was nothing to press.
+func (a *App) detectedAction(c *ui.Context, copy i18n.Settings, tool DetectedTool) {
+	kind, disabled := detectedActionFor(tool)
+	if kind == detectedInstallInTerminal && a.Actions.InstallDetected == nil {
+		disabled = true
+	}
+	button := ui.Button(c, detectedLabel(copy, kind)).Disabled(disabled)
+	if !button.Clicked() {
+		return
+	}
+	switch kind {
+	case detectedInstallInTerminal:
+		a.Actions.InstallDetected(tool.InstallCommand)
+	case detectedConnect:
+		a.Actions.ConnectDetected(tool)
+	}
 }
 
 // requestDisable opens the confirmation for turning an integration off.
