@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1255 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1260 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1255 项测试
+go test -count=1 ./...         # 1260 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -100,7 +100,70 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-eq F4g 第 1 条入口——安装文件夹的 manifest review（原版
+> **最新一轮：P7-er F4g 第 2 条入口——推荐工具的权限审阅（原版
+> `src/ExtensionsPanel.tsx:1349-1400,2594-2620`、`src-tauri/src/extensions/install.rs:2175-2240`、
+> `src/extensions/PermissionTierList.tsx`、`i18n.ts:465-469,553`）** —— P7-eq 收尾后「尚未做」
+> 清单里文档点名的下轮最高优先级就是 **F4g 的第 2 条入口**（权限审批），本轮取它。依赖检查：
+> GitHub releases API 限流，`go list -m -versions github.com/egoist/mygo` 最新仍是 **v0.4.8**
+> （与 `go.mod` 一致），无版本可升；只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），
+> 未翻历史提交。
+>
+> **偏离（F4g·recommended review）**：原版点推荐工具的 Connect 走 `connectRecommendedAt`
+> （`ExtensionsPanel.tsx:1349-1400`）：先调 `extensions_recommended_permissions`
+> （`commands/extensions.rs:1689-1698`）→ `install::permission_review`
+> （`extensions/install.rs:2175-2240`），它把清单**全部 declared 权限**转成
+> `{permission, enforcement, title, description}` 摘要；**只有非空**才弹 `pendingPermissionReview`
+> （`:2594-2620`）——标题 `confirmConnectRecommended`（“Connect the recommended tool {name} to
+> Floter?”）/`confirmConnectManifest` 二选一、显示可执行文件路径、`permissionsRequired` 标签、
+> `PermissionTierList`（enforced / disclosure 两层，各带 label+hint，每条带 title+description）、
+> 边界句 `permissionReviewBoundary`，按钮 Cancel / `connect`；Confirm 才走
+> `extensions_connect_recommended` 且提交**全部 declared**。**本构建（改前）**：`connectRecommended`
+> （`internal/shell/shell.go`）只调 `recommended.Prepare` → `prepared.Approval.NeedsApproval()` →
+> `confirmInstallPermissions` → `permissionDialog`（`internal/shell/system.go`）：标题
+> “Allow {name} to run?”、一行一条 `标签 — 强制/声明` 的平铺列表、Allow/Cancel。**没有**标题区分、
+> 没有两层分组与每条的说明、没有边界句，且门槛用的是 `Added`（增量）而不是原版的“有声明就审”。
+>
+> **落地**：
+> - `internal/shell/system.go`：`recommendedInstallReview`（原生 `mygo.Dialog.Message`）与纯函数
+>   `recommendedInstallReviewText`（title + body，便于测试）；body 依原版顺序拼“可执行文件路径
+>   （`Prepared.ExecutablePath` 非空时）+ `permissionsRequired` 标签 + 两层权限 + 边界句”。新增
+>   `permissionTierLines`：按 `extensions.PermissionEnforced` 分组（enforced 在前），每层画
+>   label + hint，每条画 `• 标签 — 说明`（说明取 `i18n.PermissionDescription`）。
+> - `internal/shell/shell.go`：`Options.ReviewRecommended func(extensions.Prepared) bool` +
+>   `App.reviewRecommended` 注入点（nil 走原生对话框）；`connectRecommended` 改为
+>   **`len(prepared.Approval.Declared) > 0` 时先审**（原版 `review.permissions.length` 门槛），
+>   用户确认才 `prepared.Commit(true)`（提交全部 declared，与原版 `confirmPermissionReview` 一致）。
+> - `internal/i18n`：`Settings` 新增 `PermissionsRequired`（“Permissions required”/“需要以下权限”）、
+>   `ConnectRecommendedTitle`（“Connect the recommended tool {name} to Floter?”/“将推荐工具 {name}
+>   接入 Floter？”）、`PermissionsConnect`（“Connect”/“连接”）；边界句复用 `InstallReviewBoundary`
+>   （原版 `permissionReviewBoundary` 一个键被两个对话框共用，`i18n.ts:553`）。
+>
+> **验收**：
+> - `internal/shell/recommendedreview_test.go`（新）两条：
+>   `TestRecommendedInstallReviewNamesTheToolAndTiersItsPermissions`（纯函数：标题
+>   “Connect the recommended tool V Tools to Floter?”、可执行路径行、`Permissions required`
+>   标签、enforced 层 label+hint+`• 启动进程 — …`、disclosure 层 label+hint+`• 访问网络 — …`、
+>   边界句、**enforced 层在 disclosure 之前**、路径为空时不带路径行）、
+>   `TestRecommendedConnectReviewsBeforeCommitting`（流程：注入 `ReviewRecommended`，拒绝 → 仓库为空
+>   且磁盘无包；确认 → 落地，review 每次 connect 调一次）。
+> - `internal/shell/shell_test.go:TestConnectRecommendedInstallsTheShippedPackage` 改注入
+>   `ReviewRecommended` 并断言 review 一次、declared 七条（原来注入的是 `ConfirmPermissions`）。
+> - 变异核查：把 `connectRecommended` 换回旧的 `NeedsApproval()`+`confirmInstallPermissions` 支 →
+>   `TestRecommendedConnectReviewsBeforeCommitting` 红（“the review was never shown”）。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿（1260 项）、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：**F4g 第 2 条入口落地**（推荐工具的权限审阅）。残留（如实记为有意偏离）：
+> (1) 原版标题的 `manifestSuggestion` 一支（`confirmConnectManifest`）在本构建**不可达**——本构建没有
+> “约定位置清单”这一种 detected 行（`detectedTools` 只列 PATH 程序），故只落了 recommended 一支；
+> (2) 可执行文件路径行只在 `Prepared.ExecutablePath` 非空时出现，推荐流程在审阅时不解析候选程序
+> （原版先 `inspect_manifest_executable` 再审）。余下 F4g 三条入口（运行参数 / 输出回看 / 导入导出）
+> 与 **F-new**（脚本编辑器换 `ui/editor`）。下轮最高优先级是 **F4g 的第 3 条入口**（运行参数：原版
+> `ExtensionsPanel.tsx:2560-2580` 的 `pendingToolSelection` 弹窗，多个候选才弹 `chooseSystemTool`），
+> 除非 F4g 的对照先查出新缺口。
+
+> **P7-eq F4g 第 1 条入口——安装文件夹的 manifest review（原版
 > `src/ExtensionsPanel.tsx:1430-1440,1550-1560`、`src/extensions/LocalInstallDialog.tsx`、
 > `src-tauri/src/commands/extensions.rs:1470-1501`）** —— P7-ep 收尾后「尚未做」清单里文档点名的
 > 下轮最高优先级就是 **F4g 的第 1 条入口**（安装文件夹的 manifest review），本轮取它。依赖检查：
@@ -7299,7 +7362,7 @@ Go 侧把原版的三条规则写偏了。依赖检查：`go list -m -versions g
   `extensions_repair` 一支 P7-ep）；F4f 由 P7-eo 落地；F3a/F3b 由 P7-em/P7-en 落地。余下 **F4g**（逐
   入口对照）与 **F-new**（脚本编辑器）——已写成文末「具体待办（P7-el 重写）」的条目。
 
-### 具体待办（P7-el 重写；F3a 已由 P7-em 落地、F3b 已由 P7-en 落地、F4f 已由 P7-eo 落地、F4e 的 repair 一支已由 P7-ep 落地，余下 F4g/F-new）
+### 具体待办（P7-el 重写；F3a 已由 P7-em 落地、F3b 已由 P7-en 落地、F4f 已由 P7-eo 落地、F4e 的 repair 一支已由 P7-ep 落地、F4g 第 1·2 条入口已由 P7-eq/P7-er 落地，余下 F4g 后三条/F-new）
 
 P7-ej/P7-ek 之后清单上只剩 F3a（一个待决策的分叉）与 F3b（已实测标为「先决于 F3a」）。P7-el 按规则
 把清单写实为五条带 file:line / 原版对照 / 验收标准的待办，并取其中新查出的真实缺口（F4e）落地。
@@ -7308,8 +7371,11 @@ F3b 因此解除「先决」。**P7-en 再取 F3b 并落地**（详见上文 P7-
 用户反馈 F3「毛玻璃效果配置」整条收口。**P7-eo 取 F4f 并落地**（详见上文 P7-eo 记录）：移除确认条
 按 kind 说话，F4a 留下的尾巴收口。**P7-ep 取 F4e 的 `extensions_repair`（Recheck）一支并落地**
 （详见上文 P7-ep 记录）：broken 行回到原版的 Wrench，repair 校验包身份并在需要时重写 `manifestPath` /
-兜底 Reconnect，`repairKind()` 里那处有意偏离随之删除。**下轮最高优先级是 F4g 的第 1 条入口**
-（安装文件夹的 manifest review），除非 F4g 的对照先查出新缺口。下面每条的「原版对照」都只读 `main`
+兜底 Reconnect，`repairKind()` 里那处有意偏离随之删除。**P7-eq 取 F4g 的第 1 条入口并落地**
+（安装文件夹的 manifest review）；**P7-er 取 F4g 的第 2 条入口并落地**（推荐工具的权限审阅，见上文
+P7-er 记录）：推荐工具的 connect 现在先出两层权限审阅（标题 / 可执行路径 / `permissionsRequired` /
+每层 label+hint+每条说明 / 边界句），确认才提交全部 declared。**下轮最高优先级是 F4g 的第 3 条入口**
+（运行参数：`pendingToolSelection`），除非 F4g 的对照先查出新缺口。下面每条的「原版对照」都只读 `main`
 （v0.3.14 原版树）。
 
 #### F4e · 已连接卡片的修复入口（**全部落地：Reconnect 一支 P7-el、repair 一支 P7-ep**）
@@ -7364,8 +7430,14 @@ F3b 因此解除「先决」。**P7-en 再取 F3b 并落地**（详见上文 P7-
   - 权限审批：`:1349-1400` 的 `connectRecommendedAt`（先 `extensions_recommended_permissions`，
     有权限才弹 `pendingPermissionReview`）与 `:2594-2620` 的 `extension-permission-backdrop`
     弹窗（标题按 `manifestSuggestion` / `recommended` 二选一 + `PermissionTierList` + 边界句）；
-    —— **下轮最高优先级**。
+    —— **已落地 P7-er**（见上）：`internal/shell/system.go` 的
+    `recommendedInstallReview`/`recommendedInstallReviewText` + `permissionTierLines`，
+    `internal/shell/shell.go` 的 `connectRecommended`/`reviewRecommendedConnect`（`Declared` 非空先审），
+    文案取原版 `install.rs:2175-2240` / `i18n.ts:465-469,553`。**残留（有意偏离）**：原版标题的
+    `manifestSuggestion` 一支（`confirmConnectManifest`）在本构建不可达（没有“约定位置清单”这类
+    detected 行）；可执行路径行只在 `Prepared.ExecutablePath` 非空时出现（推荐流程审阅时不解析候选）。
   - 运行参数：`:2560-2580` 的 `pendingToolSelection` 弹窗（多个候选才弹，`chooseSystemTool`）；
+    —— **下轮最高优先级**。
   - 输出回看：`:2078-2132` 的 `handleDriftNotice`（`OperationProgress` 漂移提示）；
   - 导入导出：`extensions_export` / `extensions_import` 的调用点（`onImport`/`onExport` 一带）。
 - **本构建入口**：`internal/settingsui/settingsui.go` 的 `localToolSection`（`:2860` 一带）、

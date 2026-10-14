@@ -2427,11 +2427,13 @@ func TestConnectRecommendedInstallsTheShippedPackage(t *testing.T) {
 	}
 	notified := [][2]string{}
 	store := settings.NewStore(settings.Default())
+	var reviewed []extensions.Prepared
 	a := New(Options{
 		Store:                store,
 		Paths:                paths,
 		NewTerminal:          func(terminal.Options) (*terminal.Terminal, error) { return nil, errors.New("no library in tests") },
 		ConfirmPermissions:   func(extensions.PermissionApproval) bool { return true },
+		ReviewRecommended:    func(prepared extensions.Prepared) bool { reviewed = append(reviewed, prepared); return true },
 		Notify:               func(title, body string) { notified = append(notified, [2]string{title, body}) },
 		RunSilentCommand:     func(string) error { return nil },
 		OpenExternalTerminal: func() error { return nil },
@@ -2453,6 +2455,14 @@ func TestConnectRecommendedInstallsTheShippedPackage(t *testing.T) {
 			t.Fatalf("the connect never landed: %+v", a.recommendedTools())
 		}
 		time.Sleep(10 * time.Millisecond)
+	}
+	// The connect flow reviewed the manifest's own permissions before it
+	// committed: the shipped package declares seven.
+	if len(reviewed) != 1 {
+		t.Fatalf("the review count = %d, want 1", len(reviewed))
+	}
+	if len(reviewed[0].Approval.Declared) != 7 {
+		t.Errorf("reviewed permissions = %v", reviewed[0].Approval.Declared)
 	}
 	// The package is on disk and in the repository, and the notification says
 	// so.

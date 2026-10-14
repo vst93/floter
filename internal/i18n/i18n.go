@@ -436,6 +436,14 @@ type Settings struct {
 	PermissionsCancel   string
 	PermissionsEnforced string
 	PermissionsDeclared string
+	// The permission review the connect flow shows before a recommended tool
+	// is connected: the reference's `permissionsRequired` label,
+	// `confirmConnectRecommended` title and `connect` button
+	// (i18n.ts:465-469). The boundary sentence is InstallReviewBoundary — the
+	// reference uses the one `permissionReviewBoundary` key in both dialogs.
+	PermissionsRequired     string
+	ConnectRecommendedTitle func(name string) string
+	PermissionsConnect      string
 
 	// The Integrations page.
 	IntegrationsEmpty     string

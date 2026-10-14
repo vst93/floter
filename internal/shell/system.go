@@ -524,6 +524,77 @@ func localInstallReviewText(prepared extensions.Prepared, copy i18n.Settings, la
 	return copy.InstallReviewTitle(manifest.Name), strings.Join(lines, "\n")
 }
 
+// recommendedInstallReview is the recommended-tool connect review: the
+// reference's permission review dialog (ExtensionsPanel.tsx:2594-2620). The
+// connect flow asks `extensions_recommended_permissions` for the manifest's
+// declared permissions and, only when there are any, shows this before
+// anything is written (`:1349-1400`). It names the tool, shows the program it
+// would run, splits the permissions into the host-enforced and disclosed
+// tiers, and ends with the boundary note. It is a value so a test can read
+// the sentences without a native dialog.
+func recommendedInstallReview(prepared extensions.Prepared, copy i18n.Settings, language string) bool {
+	title, detail := recommendedInstallReviewText(prepared, copy, language)
+	result, err := mygo.Dialog.Message(mygo.MessageOptions{
+		Type:    mygo.MessageQuestion,
+		Message: title,
+		Detail:  detail,
+		Buttons: []string{copy.PermissionsConnect, copy.PermissionsCancel},
+	})
+	return err == nil && result.Button == 0
+}
+
+// recommendedInstallReviewText builds the connect review's title and body:
+// the program the tool would run (when the connect flow already resolved
+// one), the permissions-required label, the two permission tiers, and the
+// boundary note. The title is the reference's `confirmConnectRecommended`
+// ("Connect the recommended tool {name} to Floter?").
+func recommendedInstallReviewText(prepared extensions.Prepared, copy i18n.Settings, language string) (string, string) {
+	lines := make([]string, 0, 8)
+	if path := strings.TrimSpace(prepared.ExecutablePath); path != "" {
+		lines = append(lines, path, "")
+	}
+	lines = append(lines, copy.PermissionsRequired)
+	lines = append(lines, permissionTierLines(prepared.Approval.Declared, copy, language)...)
+	lines = append(lines, "", copy.InstallReviewBoundary)
+	return copy.ConnectRecommendedTitle(prepared.Manifest.Name), strings.Join(lines, "\n")
+}
+
+// permissionTierLines renders the declared permissions as the two tiers the
+// reference's PermissionTierList draws: the host's own decision first, with
+// its label and sentence, then the declared-only tier. Each permission is its
+// name and what it allows. The split is the message — a user must be able to
+// tell a check from an FYI — so the tiers are named, not merely ordered.
+func permissionTierLines(permissions []string, copy i18n.Settings, language string) []string {
+	var enforced, disclosure []string
+	for _, permission := range permissions {
+		if extensions.PermissionEnforced(permission) {
+			enforced = append(enforced, permission)
+			continue
+		}
+		disclosure = append(disclosure, permission)
+	}
+	lines := make([]string, 0, len(permissions)+4)
+	appendTier := func(label, hint string, tier []string) {
+		if len(tier) == 0 {
+			return
+		}
+		if len(lines) > 0 {
+			lines = append(lines, "")
+		}
+		lines = append(lines, label, hint)
+		for _, permission := range tier {
+			line := "\u2022 " + i18n.PermissionLabel(language, permission)
+			if description := i18n.PermissionDescription(language, permission); description != "" {
+				line += " \u2014 " + description
+			}
+			lines = append(lines, line)
+		}
+	}
+	appendTier(copy.PermissionsEnforcedLabel, copy.PermissionsEnforcedHint, enforced)
+	appendTier(copy.PermissionsDisclosureLabel, copy.PermissionsDisclosureHint, disclosure)
+	return lines
+}
+
 // menuActions are what the application menu's own items do.
 type menuActions struct {
 	Settings func()

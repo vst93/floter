@@ -139,6 +139,11 @@ type Options struct {
 	// dialog. It is separate from ConfirmPermissions because the reference's
 	// folder flow always shows the review, permissions or not.
 	ReviewInstall func(extensions.Prepared) bool
+	// ReviewRecommended shows the recommended-tool permission review before a
+	// shipped package is connected; nil means the native dialog. It is separate
+	// from ConfirmPermissions because the reference's connect flow reviews the
+	// manifest's own permissions, tiered, rather than the plain approval.
+	ReviewRecommended func(extensions.Prepared) bool
 	// OpenPinned replaces the pinned-window implementation; nil opens the
 	// real window, and tests record what would have been pinned.
 	OpenPinned func(title, text string)
@@ -267,6 +272,9 @@ type App struct {
 	// reviewInstall shows the local package review before a folder install
 	// commits, nil for the native dialog.
 	reviewInstall func(extensions.Prepared) bool
+	// reviewRecommended shows the recommended-tool permission review before a
+	// shipped package is connected, nil for the native dialog.
+	reviewRecommended func(extensions.Prepared) bool
 	// diagnoses is the last health check per integration, and diagnosisMu
 	// guards it: a check runs off the main thread.
 	diagnoses   map[string]settingsui.Integration
@@ -459,6 +467,7 @@ func New(opts Options) *App {
 		Registry:             opts.Registry,
 		confirmPermissions:   opts.ConfirmPermissions,
 		reviewInstall:        opts.ReviewInstall,
+		reviewRecommended:    opts.ReviewRecommended,
 		openPinned:           opts.OpenPinned,
 		openDetached:         opts.OpenDetached,
 		writeClipboard:       opts.WriteClipboard,
@@ -2001,11 +2010,13 @@ func (a *App) connectRecommended(id string) {
 			return
 		}
 		defer cleanup()
-		approved := true
-		if prepared.Approval.NeedsApproval() {
-			approved = a.confirmInstallPermissions(prepared.Approval)
+		// The reference asks for the manifest's own permissions first and only
+		// shows the review when there are any (ExtensionsPanel.tsx:1349-1400);
+		// its confirm connects with the whole declared set approved.
+		if len(prepared.Approval.Declared) > 0 && !a.reviewRecommendedConnect(prepared) {
+			return
 		}
-		entry, err := prepared.Commit(approved)
+		entry, err := prepared.Commit(true)
 		if err != nil {
 			log.Printf("floter: could not connect %s: %v", id, err)
 			a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationInstallFailed(id) })
@@ -2184,6 +2195,18 @@ func (a *App) reviewLocalInstall(prepared extensions.Prepared) bool {
 	}
 	language := a.Store.Snapshot().Language
 	return localInstallReview(prepared, i18n.For(language).Settings, language)
+}
+
+// reviewRecommendedConnect asks the user to review a shipped package's
+// permissions before it is connected: the injected answer in tests, the native
+// review dialog otherwise. The reference only shows it when the manifest
+// declares anything (`ExtensionsPanel.tsx:1349-1400`).
+func (a *App) reviewRecommendedConnect(prepared extensions.Prepared) bool {
+	if a.reviewRecommended != nil {
+		return a.reviewRecommended(prepared)
+	}
+	language := a.Store.Snapshot().Language
+	return recommendedInstallReview(prepared, i18n.For(language).Settings, language)
 }
 
 // connectDetected connects one of the discovered programs, with the words the

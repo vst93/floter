@@ -280,6 +280,12 @@ var en = Copy{
 		PermissionsCancel:   "Cancel",
 		PermissionsEnforced: "Floter enforces",
 		PermissionsDeclared: "Declared, not blocked",
+		// The connect flow's permission review: the reference's
+		// `permissionsRequired` / `confirmConnectRecommended` / `connect`
+		// (i18n.ts:465-469).
+		PermissionsRequired:     "Permissions required",
+		ConnectRecommendedTitle: func(name string) string { return "Connect the recommended tool " + name + " to Floter?" },
+		PermissionsConnect:      "Connect",
 
 		PageGeneral:      "General",
 		PageSessions:     "Sessions",
@@ -1074,6 +1080,11 @@ var zh = Copy{
 		PermissionsCancel:   "取消",
 		PermissionsEnforced: "Floter 强制拦截",
 		PermissionsDeclared: "仅声明，不拦截",
+		// 连接流程的权限审阅：原版 `permissionsRequired` /
+		// `confirmConnectRecommended` / `connect`（i18n.ts:1352-1356）。
+		PermissionsRequired:     "需要以下权限",
+		ConnectRecommendedTitle: func(name string) string { return "将推荐工具 " + name + " 接入 Floter？" },
+		PermissionsConnect:      "连接",
 
 		PageGeneral:      "常规",
 		PageSessions:     "会话",
