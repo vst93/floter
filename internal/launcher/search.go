@@ -348,16 +348,29 @@ func (a *App) clipboardItems() []Item {
 	if a.Clipboard == nil {
 		return nil
 	}
-	entries := a.Clipboard.Search(a.clipboardQuery(), maxClipboardResults)
-	a.pruneThumbs(entries)
+	// The needle is the store's own search; the *depth* handed to it is the
+	// mode's fetch limit, and the chip filter runs before that limit is spent
+	// (the reference's order in `clipboardModeRows`:
+	// `filterClipboardEntries(needle).filter(clipboardEntryMatchesFilter)`,
+	// then `matched.slice(0, limit)`). Capping inside the search instead would
+	// spend the budget on rows a chip hides: with `limit` matching entries
+	// taken first, a query with many text hits would leave the `images` chip
+	// empty even though the history is full of them — the same rule P7-ec
+	// fixed for the browser's range chips.
+	entries := a.Clipboard.Search(a.clipboardQuery(), 0)
 	copy := a.copy()
 	now := a.now()
 	out := make([]Item, 0, len(entries))
+	kept := make([]clipboard.Entry, 0, min(len(entries), ClipboardFetchLimit))
 	for _, entry := range entries {
 		entry := entry
 		if !a.clipboardFilterAllows(entry) {
 			continue
 		}
+		if len(out) >= ClipboardFetchLimit {
+			break
+		}
+		kept = append(kept, entry)
 		shortcut := ""
 		if entry.Favorite {
 			shortcut = "★"
@@ -372,6 +385,10 @@ func (a *App) clipboardItems() []Item {
 			thumb:    a.clipThumb(entry),
 		})
 	}
+	// The thumbnail memo is bounded by the rows this search actually builds
+	// (the old build's R97 passed the render's own ids), not by everything the
+	// store matched.
+	a.pruneThumbs(kept)
 	return out
 }
 
@@ -428,15 +445,23 @@ func clipboardTypeWord(copy i18n.Launcher, entry clipboard.Entry) string {
 	}
 }
 
-// maxClipboardResults bounds the rows one clipboard search builds, and
-// maxRecentResults how many recent applications the empty query offers: the
+// ClipboardFetchLimit is how many clipboard rows the mode *holds*: the
+// reference's `MAX_CLIPBOARD_MAX_ITEMS` (`main:src/clipboard-history.ts:440` —
+// the ceiling its `max_items` setting honours), which the inline launcher
+// passes as the mode's fetch depth (`main:src/hooks/useLauncherCatalog.ts:833-834`:
+// `clipboardModeRows(entries, mode, t, Date.now(), MAX_CLIPBOARD_MAX_ITEMS)`).
+// The mode's own `CLIPBOARD_FETCH_LIMIT` of ten rows is the *plugin output
+// view*'s group budget, which this build deliberately does not take: the
+// launcher list is a virtualized scroll list, so a ten-row ceiling would only
+// hide rows the scroll can reach (the decision P7-ec made for the browser's
+// `BROWSER_FETCH_LIMIT`).
+const ClipboardFetchLimit = clipboard.MaxMaxItems
+
+// maxRecentResults is how many recent applications the empty query offers: the
 // old build's whole result budget (`MAX_RESULTS` in src/launcher/
 // result-budget.ts), because the front door is the recents and nothing else
 // shares the slots there.
-const (
-	maxClipboardResults = 50
-	maxRecentResults    = 10
-)
+const maxRecentResults = 10
 
 // pinClip shows a clipboard entry's single piece of text in a window of its
 // own: the row's own title, and the entry's text — the caption for an image,

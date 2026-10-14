@@ -99,7 +99,53 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-ed 插件配置的值规范化补齐原版 `normalizeConfigValue`（原版 `src/plugins/config-schema.ts:448-500`）**
+> **最新一轮：P7-ee 剪贴板模式按原版的抓取深度持有结果，且上限不再切在 chip 之前
+> （原版 `src/hooks/useLauncherCatalog.ts:833-834`、`src/clipboard-history.ts:440`、`src/plugins/clipboard/mode.ts:79-95`）**
+> —— P7-ed 收尾后「尚未做」又一次为空（只剩 P7-ec 第 4 条「十行翻页不做」的记录），本轮按惯例换入口做
+> 「逐文件对照原版」的审计，落在**内置插件模式层持有多少行、上限与 chip 过滤谁先花**（P7-da 审过计算器
+> 历史的存储与设置块，没审过模式层的持有量）。先把清单重写成 3 条带 file:line 的待办（见「尚未做」），
+> 再取第 1 条落地。依赖检查：`curl .../releases/latest` 被限流，`git ls-remote --tags
+> github.com/egoist/mygo` 与 `go.mod` 均为 **v0.4.8**，无版本可升；只对照 `main`
+> （`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离点（两处，同一文件）**：
+> 1. **持有深度**：原版内联启动器把 `MAX_CLIPBOARD_MAX_ITEMS`（`src/clipboard-history.ts:440` = 500，
+>    正是历史自己的 `max_items` 天花板）当模式层的抓取深度传给 `clipboardModeRows`/`clipboardSearchRows`
+>    （`useLauncherCatalog.ts:833-834`）；模式自己的 `CLIPBOARD_FETCH_LIMIT = MAX_RESULTS`（10，
+>    `plugins/clipboard/mode.ts:34`）只是**插件输出视图**那个固定高度盒子的分组上限。本构建改前只有
+>    `internal/launcher/search.go` 的 `maxClipboardResults = 50`（改前行号 `:351`/`:437`），既是
+>    `Store.Search` 的 limit、也直接当了模式持有量：空查询最多 50 行（原版 500），比历史容量（默认 300）
+>    还浅。这个 50 全仓无出处，也没写进任何待办或文档。
+> 2. **过滤顺序**：原版 `clipboardModeRows` 先过 needle、再过 chip、最后才 `matched.slice(0, limit)`；
+>    本构建把上限花在 `Store.Search` 里（chip 之前），于是命中数超过 50 时 `images`/`favorites` 这类
+>    chip 会看不到本该存在的行——正是 P7-ec 给浏览器修掉的同一个毛病。
+>
+> **修法（决定：不翻页，保留滚动，与 P7-ec 同一口径）**：`internal/launcher/search.go`
+> - 新增导出常量 `ClipboardFetchLimit = clipboard.MaxMaxItems`（500），注释逐字指向
+>   `useLauncherCatalog.ts:833-834` 与 `clipboard-history.ts:440`，并写明为何只取两个天花板里的这一个
+>   （十行是输出视图的补丁，本构建列表自己滚动）；
+> - `clipboardItems` 改成 `a.Clipboard.Search(a.clipboardQuery(), 0)`（只上 needle，不花上限）→
+>   chip 过滤（`clipboardFilterAllows`）→ `len(out) >= ClipboardFetchLimit` 收手（对应原版的
+>   `matched.slice(0, limit)`）；
+> - `pruneThumbs` 的调用从「刚 Search 出来的行」挪到循环之后，keep 集合是**这一帧真正建出的行**
+>   （对应原版 R97 传渲染自己的 id），依旧只在 memo 超过 `clipboard.MaxMaxItems` 时收紧。
+>
+> **测试**（新增 `internal/launcher/clipboarddepth_test.go` 两条）：
+> `TestTheClipboardModeHoldsTheReferenceFetchDepth` 钉 `ClipboardFetchLimit == 500 ==
+> clipboard.MaxMaxItems`，并在 600 条历史（容量 500，最旧的 100 条被老化裁掉）下钉模式恰好持 500 行、
+> 最新行在最前；`TestTheClipboardChipFilterSeesTheWholeHeldSet` 把唯一的图片（且最老、靠收藏豁免老化）
+> 摆在 600 条文本之后，钉 `images` chip 仍能拿到它。变异核查：把常量换回 50 → 第一条红
+> （`ClipboardFetchLimit = 50, want 500`）；把上限挪回 `Store.Search` 里（上限先花）→ 第二条红
+> （`images chip shows 0 rows, want 1`）。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿（本机
+> `go test -v ./... | grep -c -- "--- PASS"` = 1150 项，含本轮新增 2 项）、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：P7-ee 重写的第 1 条至此落地；第 2 条（剪贴板模式的「已关闭」档）是下一轮最高优先级，
+> 第 3 条（计算器模式层上限）低优先级且需先判定。依赖检查同上，无版本可升。
+
+> **上一轮：P7-ed 插件配置的值规范化补齐原版 `normalizeConfigValue`（原版 `src/plugins/config-schema.ts:448-500`）**
 > —— P7-ec 收尾后「尚未做」只剩第 3 条（`internal/plugincfg` 的值规范化与原版有四处口径差），它正是本轮
 > 最高优先级的具体项。依赖检查：`curl .../releases/latest` 与 `go.mod` 均为 **v0.4.8**，无版本可升；
 > 只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
@@ -4039,12 +4085,73 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-> **清单状态（P7-ed 收尾）**：本轮取 P7-ec 留下的第 3 条（`plugincfg` 的值规范化与原版有四处口径差）
-> 落地（P7-ed，详见「最近几轮」）：按待办给出的分支**保留拒绝语义**，补齐 step 对齐 / text trim /
-> checkboxes 去重排序三处，并用测试钉住加载路径的形状。清单至此**为空**，只剩下面第 4 条一条
-> 已决定不做的记录（原版的 `paginatePluginRows` 十行翻页）。依赖检查：`curl .../releases/latest`
-> 与 `proxy.golang.org/.../@v/list` 最新均为 **v0.4.8**（与 `go.mod` 一致），无版本可升。
-> 只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+> **清单状态（P7-ee 收尾）**：本轮按惯例换入口做「逐文件对照原版」的审计，落在**内置插件模式
+> 层持有多少行、上限与 chip 过滤谁先花**（P7-da 审的是计算器历史的**存储**与设置块，没审过
+> **模式层**的持有量。「尚未做」当时为空，只剩 P7-ec 第 4 条「十行翻页不做」的记录），故本轮先把
+> 清单重写成下面 3 条带 file:line 的具体待办，再取第 1 条落地（P7-ee，见「最近几轮」）。依赖检查：
+> `curl .../releases/latest` 被限流，`git ls-remote --tags github.com/egoist/mygo` 最新仍是
+> **v0.4.8**（与 `go.mod` 一致），无版本可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14
+> 原版树），未翻历史提交。
+
+### 具体待办（P7-ee 重写；第 1 条本轮落地）
+
+1. **（已落地，P7-ee）剪贴板模式只持有 50 行，而且上限花在 chip 过滤之前**。
+   - 原版对照：`main:src/hooks/useLauncherCatalog.ts:833-834` 把 `MAX_CLIPBOARD_MAX_ITEMS`
+     （`main:src/clipboard-history.ts:440` = 500，正是历史自己的容量上限）当 **抓取深度** 传给
+     `clipboardModeRows`/`clipboardSearchRows`；`main:src/plugins/clipboard/mode.ts:34` 的
+     `CLIPBOARD_FETCH_LIMIT = MAX_RESULTS`（10）只是**插件输出视图**那个固定高度盒子的分组上限。
+     过滤顺序也在同一处：`clipboardModeRows` 先 `filterClipboardEntries(needle)`、再
+     `filter(clipboardEntryMatchesFilter)`（chip），最后才 `matched.slice(0, limit)`。
+   - 本构建（改前）：`internal/launcher/search.go:351` 把 `maxClipboardResults = 50`（`:437`）
+     当 `Store.Search` 的 limit——**上限在 chip 过滤之前花掉**，于是空查询最多 50 行，且
+     `images`/`favorites` 这类 chip 在命中数超过 50 时会看不到本该存在的行（与 P7-ec 修掉的浏览器
+     同一个毛病：上限切在 chip 之前）。这个 50 全仓没有出处，也没写进任何待办或文档。
+   - **已落地（P7-ee）file:line 规格**：`internal/launcher/search.go` 新增导出
+     `ClipboardFetchLimit = clipboard.MaxMaxItems`（500；注释逐字指向
+     `useLauncherCatalog.ts:833-834` 与 `clipboard-history.ts:440`，并写明为何只取两个天花板里的
+     这一个）；`clipboardItems` 改成 `Search(query, 0)`（只上 needle，不花上限）→ chip 过滤 →
+     `len(out) >= ClipboardFetchLimit` 收手（对应原版的 `matched.slice(0, limit)`）；`pruneThumbs`
+     的 keep 集合改为**这一帧真正建出的行**（对应原版 R97 传渲染自己的 id），不再是 needle 命中的全部。
+   - 验收：`internal/launcher/clipboarddepth_test.go` 的
+     `TestTheClipboardModeHoldsTheReferenceFetchDepth` 钉 `ClipboardFetchLimit == 500 ==
+     clipboard.MaxMaxItems`、600 条历史（容量 500）下模式恰好持 500 行且最新一行在最前；
+     `TestTheClipboardChipFilterSeesTheWholeHeldSet` 把唯一的（且最老的、被收藏豁免淘汰的）
+     图片摆在 600 条文本之后，钉 `images` chip 仍能拿到它。变异核查：把常量换回 50 → 第一条红；
+     把上限挪回 `Search` 里（上限先花）→ 第二条红（`images chip shows 0 rows, want 1`）。
+     详见「最近几轮」P7-ee。
+
+2. **剪贴板模式没有「已关闭」这一档**（下一轮最高优先级）。
+   - 原版对照：`main:src/hooks/useLauncherCatalog.ts:814-816` 在插件关闭时发一条
+     `clipboardStatusRow("clipboard-disabled", "clipboard.pageUnavailable")`
+     （词条见 `main:src/i18n.ts:291` “Clipboard history is off”），即**插件关掉时模式自己说发生了
+     什么**，而不是说「暂无复制记录」。
+   - 本构建（改前）：`internal/shell/shell.go:792` 无条件建 store，插件开关只影响**监听**
+     （`internal/shell/system.go:274` 的 `watchClipboard`），于是关掉插件后仍能进模式、仍列出历史，
+     空态走 `internal/launcher/launcher.go:585-591` 的 `ClipboardEmpty`（“暂无复制记录”）——
+     一句与事实相反的话。浏览器模式有对应档（`BrowserResults.Disabled` →
+     `internal/launcher/launcher.go:593-598` 的 `BrowserDisabled`），剪贴板没有对应物。
+   - 验收：`settings.ClipboardOf(s).Enabled == false` 时进入剪贴板模式：列表只有一条 status 行
+     （不是历史行、不是空态），文案取新 i18n 键 `ClipboardDisabled`（en/zh 各一行，`TestNoDeadCopy`
+     守卫），且即使 store 为 nil 也能画出这条行。接线点：把该开关透传给 launcher 的
+     `ClipboardSource`（或让它报 `Enabled`），模式层在 `clipboardItems` 的最前面判一次。
+
+3. **计算器模式没有模式层行数上限**（低优先级，先判定是否值得动手）。
+   - 原版对照：`main:src/plugins/calculator/mode.ts:79-80` 的 `calculatorModeRows` 在 chip 过滤后
+     `matched.slice(0, limit)`，内联启动器传 `MAX_CALCULATOR_MAX_ITEMS`
+     （`main:src/calculator.ts:250` = 500）；`CALCULATOR_FETCH_LIMIT = MAX_RESULTS` 同样只是输出视图的。
+   - 本构建：`internal/launcher/calculator.go:128-144` 遍历 `a.calculatorFound` 全量、不设上限；
+     `internal/calculator` 的 `maxItems`（默认 100、上限 500，见 `internal/calculator/calculator.go:43-45`）
+     只约束**非收藏**项，而收藏永不淘汰，所以一份收藏极多的历史会比原版多出行。
+   - 验收：与第 1 条同一形状——模式层常量（对齐 `calculator.MaxMaxItems`）+ chip 过滤后收手，
+     测试：600 条收藏历史下模式恰好 500 行。**前置判定**：收藏数要到 500+ 才可见；若认为这条
+     不值得改，就把它降级为记录（写明「原版有这个 slice，本构建靠存储上限兜住」）而不是动手。
+
+4. **（记录，非待办）原版的十行客户端翻页（`paginatePluginRows`）本构建不实现**。
+   - 原版对照：`main:src/launcher/paginate-plugin-rows.ts` 把内联插件列表切成每页十行、滚到底加载下一页；
+     它配合的是固定高度盒子里没有滚动条的列表。
+   - 本构建：启动器列表是虚拟化滚动列表（`internal/launcher/launcher.go:871-881` 的滚动视口），
+     所以持有 500 行即可滚到；再加一层分页会是「两个滚动机制打架」的半截行为。P7-ec 已按此决定落地；
+     若将来要复刻翻页，须先拆掉列表自身的滚动，届时应整体替换而非叠加。
 
 ### 具体待办（P7-ec 重写；第 1·2·3 条已落地：第 1 条 P7-eb、第 2 条 P7-ec、第 3 条 P7-ed）
 
