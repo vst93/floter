@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1286 项测试
+go test -count=1 ./...         # 1291 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -140,7 +140,7 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 >   字段。
 >
 > **验收**：
-> - `internal/settingsui/scripteditor_test.go`（新，四条）：
+> - `internal/settingsui/scripteditor_test.go`（新，五条）：
 >   `TestScriptEditorDrawsLineNumbers`——gutter 行号是**像素断言**（tester 不把 gutter 数字注册为文本
 >   元素，类似 placeholder 穿过编辑器不记为 label，见 `view_test.go:2178` 的同款注释；mygo
 >   `ui/editor/paint.go`）：hint 下方左缘 48×110 条带内与背景色差 >25 的像素 ≥30（四个数字的量）。
@@ -149,12 +149,15 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 >   提交的 `ScriptContent` 逐字等于它。
 >   `TestScriptEditorFollowsTheLanguageSwitch`——开表单 grammar = JavaScript；点 "JavaScript" 展开选择器
 >   再点 "Python" 后 grammar = Python 且 `a.toolScript` = Python 模板（同步链完整）。
+>   `TestScriptEditorHandsTheUsersTypingOn`——把键盘点进编辑器框、键入 `MARKER` 后 connect，提交的
+>   `ScriptContent` 必须含 `MARKER`（钉住渲染末的 buffer→表单回写这一条，见下变异核查）。
 > - 既有 `pluginsheet_test.go` 的脚本端到端（语言切换模板交换 + connect 提交 `"print('hi')\\n"`）
 >   在新实现下保持全绿。
-> - 变异核查：把 `scriptEditorView` 的语言同步删掉 → `TestScriptEditorFollowsTheLanguageSwitch` 红
->   （grammar 不跟着走）；把 `*script = st.Buffer.String()` 同步删掉 → `TestScriptEditorTakesAnOutsideDraft`
->   红（外部 seed 丢失，提交空脚本）；每帧 `NewBuffer` 替换持久 state → undo/光标丢失（行为回归，
->   由持久化设计本身防住）。
+> - 变异核查（逐条实测，两处更正）：把语言同步块删掉 → `TestScriptEditorFollowsTheLanguageSwitch` 红
+>   （grammar 不跟着走）。把 `*script = st.Buffer.String()` 回写删掉 → `TestScriptEditorHandsTheUsersTypingOn`
+>   红（**键入的内容没到 `a.toolScript`**）；注意外部 seed 那条（`TestScriptEditorTakesAnOutsideDraft`）
+>   单删回写**不会**红——表单局部 `script` 仍持有 seed，是 `st.Buffer.Set(*script)` 那个**入向**同步才是
+>   它钉的：删 `Set(*script)` → 该条红（提交到旧模板）。两处同步各钉一条，互不掩盖。
 >
 > **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
 > `GOOS=linux/windows/darwin go build ./...` 三平台通过。
@@ -7629,7 +7632,7 @@ Go 侧把原版的三条规则写偏了。依赖检查：`go list -m -versions g
   `extensions_repair` 一支 P7-ep）；F4f 由 P7-eo 落地；F3a/F3b 由 P7-em/P7-en 落地。余下 **F4g**（逐
   入口对照）与 **F-new**（脚本编辑器）——已写成文末「具体待办（P7-el 重写）」的条目。
 
-### 具体待办（P7-el 重写；F3a P7-em、F3b P7-en、F4f P7-eo、F4e 的 repair 一支 P7-ep、F4g 第 1·2·3·4·5 条入口 P7-eq/P7-er/P7-es/P7-et/P7-eu 全部落地，余下 F-new）
+### 具体待办（P7-el 重写；F3a P7-em、F3b P7-en、F4f P7-eo、F4e 的 repair 一支 P7-ep、F4g 第 1·2·3·4·5 条入口 P7-eq/P7-er/P7-es/P7-et/P7-eu、F-new P7-ev 全部落地；现无未落地条目）
 
 P7-ej/P7-ek 之后清单上只剩 F3a（一个待决策的分叉）与 F3b（已实测标为「先决于 F3a」）。P7-el 按规则
 把清单写实为五条带 file:line / 原版对照 / 验收标准的待办，并取其中新查出的真实缺口（F4e）落地。
@@ -7740,8 +7743,9 @@ success toast（原版 `exportedNotice`）+ 导入报告块（excluded 警告/�
   状态在本构建的哪个函数被谁读」）。
 - **注意**：这是**对照任务**，不要一次性大改；每轮只取一条入口（与 F4a–F4e 的节奏一致）。
 - **剩余**：无——F4g 五条入口（安装文件夹 P7-eq、权限审批 P7-er、运行工具选择 P7-es、输出回看
-  P7-et、导入导出 P7-eu）**全部对照落地**。余下最高优先级是 **F-new**（脚本编辑器换 `ui/editor`）；
-  或回到 `localToolSection` / `runForm` 等其他入口的逐函数审计。
+  P7-et、导入导出 P7-eu）与 **F-new（脚本编辑器 P7-ev）** 全部对照落地。清单上再无未落地条目；
+  下一轮候选是回到 `localToolSection` / `runForm` 等其他入口的逐函数审计（`ExtensionsPanel.tsx`
+  尚有未逐函数对照的流程），或先由本轮把新条目写实。
 
 #### F3a · 控件透镜（**本轮落地，P7-em**；原版有一份可逐条对齐的 lens census）
 
@@ -7819,9 +7823,11 @@ success toast（原版 `exportedNotice`）+ 导入报告块（excluded 警告/�
   字节必须匹配键盘字节，见 `scripteditor.go` 注释）；(2) 编辑器处理自己的键输入，表单提交按钮
   点击触发，`Submitted()` 链不打断（`TestScriptEditorTakesAnOutsideDraft` 端到端验证）；
   (3) 不引入 LSP（补全由 app 主动 `ShowCompletions` 触发，不接 language server）。
-- **验收（已过）**：`scripteditor_test.go` 四条——`TestScriptEditorDrawsLineNumbers`（gutter 行号
+- **验收（已过）**：`scripteditor_test.go` 五条——`TestScriptEditorDrawsLineNumbers`（gutter 行号
   像素断言：hint 下方左缘 48×110 条带内与背景色差 >25 的像素 ≥30；tester 不把 gutter 数字注册为
   文本元素，同 `view_test.go:2178` 的 placeholder 注释）、`TestEveryScriptLanguageHasAnEditorLanguage`
   （8 语言全有语法，ps1 走内嵌 `editor.Language`）、`TestScriptEditorTakesAnOutsideDraft`（外部 seed
-  → connect 提交逐字相等）、`TestScriptEditorFollowsTheLanguageSwitch`（grammar 跟随选择器）。
-  原「粘贴带尾换行」边界回归不适用（同上 (1)），如实记录。
+  → connect 提交逐字相等）、`TestScriptEditorFollowsTheLanguageSwitch`（grammar 跟随选择器）、
+  `TestScriptEditorHandsTheUsersTypingOn`（键入 → connect 提交含键入内容）。
+  原「粘贴带尾换行」边界回归不适用（同上 (1)），如实记录；变异核查的更正见上文 P7-ev 记录
+  （单删渲染末回写不会让 outside-draft 条红，钉它的是入向的 `st.Buffer.Set(*script)`）。

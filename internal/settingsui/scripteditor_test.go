@@ -193,3 +193,55 @@ func TestScriptEditorFollowsTheLanguageSwitch(t *testing.T) {
 		t.Errorf("the Python template does not name its toolchain: %q", a.toolScript)
 	}
 }
+
+// The editor owns the text: a keystroke goes into its buffer and the form
+// submits exactly that, so an author's typing survives the per-frame rebuild
+// rather than only the outside seeds doing so. This is the hand-back at the
+// end of scriptEditorView (the buffer → the form's *script draft); dropping
+// it leaves the submitted script as the template, without the typed text.
+func TestScriptEditorHandsTheUsersTypingOn(t *testing.T) {
+	connected := []CustomTool{}
+	a := New(newStore(t), Actions{
+		ConnectLocalTool: func(tool CustomTool) { connected = append(connected, tool) },
+	})
+	tt := render(t, a, 720, 1600)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if err := tt.Click("Add a local tool"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	copy := i18n.For("en").Settings
+	if err := tt.Click(copy.LocalToolModeScript); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	// Put the keyboard in the editor's box (its label owns the element, so
+	// Focused is how the test knows the click landed) and type a marker.
+	hint, ok := tt.Find(copy.LocalToolScriptHint)
+	if !ok {
+		t.Fatalf("the script row's hint is missing: %q", tt.Texts())
+	}
+	tt.ClickAt(hint.X+100, hint.Y+hint.H+15)
+	tt.Frame()
+	if !tt.Focused(copy.LocalToolScript) {
+		t.Fatal("the editor did not take the keyboard")
+	}
+	tt.Type("MARKER")
+	tt.Frame()
+	a.toolName = "Weather"
+	a.toolCommand = "weather"
+	tt.Frame()
+	if err := tt.Click(copy.LocalToolConnect); err != nil {
+		t.Fatalf("connect: %v", err)
+	}
+	tt.Frame()
+	if len(connected) != 1 {
+		t.Fatalf("connected = %+v", connected)
+	}
+	if !strings.Contains(connected[0].ScriptContent, "MARKER") {
+		t.Errorf("the typed text did not reach the submitted script: %q", connected[0].ScriptContent)
+	}
+}
