@@ -48,23 +48,29 @@ func (st *Store) Snapshot() Settings {
 
 // Update mutates the settings and writes them back. The mutation runs on a
 // copy; if it changed nothing the file is left alone and no listener runs.
-// An error from the write is remembered (LastError) and returned, with the
-// in-memory value kept so the user's change still shows.
+// The in-memory value only advances when the write succeeds: a refused write
+// is rolled back to the snapshot the store had before the mutation (the old
+// build's `rollbackRejectedSettings`), so the next frame cannot read a value
+// the file never accepted. The error is remembered (LastError) and returned.
 func (st *Store) Update(mutate func(*Settings)) error {
 	st.mu.Lock()
-	next := clone(st.current)
+	previous := clone(st.current)
+	next := clone(previous)
 	mutate(&next)
 	next = next.normalized()
 	if equal(next, st.current) {
 		st.mu.Unlock()
 		return nil
 	}
-	st.current = next
-	var err error
 	if st.path != "" {
-		err = Save(st.path, next)
+		if err := Save(st.path, next); err != nil {
+			st.lastErr = err
+			st.mu.Unlock()
+			return err
+		}
 	}
-	st.lastErr = err
+	st.current = next
+	st.lastErr = nil
 	listeners := append([]func(Settings){}, st.listeners...)
 	changed := clone(next)
 	st.mu.Unlock()
@@ -74,7 +80,7 @@ func (st *Store) Update(mutate func(*Settings)) error {
 			fn(clone(changed))
 		}
 	}
-	return err
+	return nil
 }
 
 // Save writes the current settings to disk, for a forced flush. It is a

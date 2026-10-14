@@ -2836,8 +2836,8 @@ func (a *App) appIcon() string {
 }
 
 // set writes one settings change through the store. A refused write is not
-// silent: the change still shows (the store keeps it in memory), and the
-// banner over the page says the file could not be written.
+// silent: the store rolls the change back to its last committed snapshot and
+// the banner over the page says the file could not be written.
 func (a *App) set(mutate func(*settings.Settings)) {
 	if err := a.Store.Update(mutate); err != nil {
 		a.noteSaveFailed()

@@ -25,8 +25,8 @@ func (a *App) now() time.Time {
 }
 
 // noteSaveFailed records a write one of the page's own controls made and the
-// store refused. The change still shows in memory (the store keeps it), so the
-// banner is the only thing that says the file was not written.
+// store refused. The store rolled the value back to its last committed
+// snapshot, so the banner is what says the file was not written.
 func (a *App) noteSaveFailed() {
 	a.saveFailed = true
 	a.saveFailedAt = a.now()

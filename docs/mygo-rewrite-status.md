@@ -100,7 +100,38 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-fm 终端浮栏身份行报退出码（原版 `src/App.tsx:3716-3722`、`src/i18n.ts:170,1077`）**
+> **最新一轮：P7-fn 设置写入被拒时回落到上次确认的快照（原版 `src/hooks/useSettings.ts:220-236`、
+> `src/settings-persistence.ts:90-98` 的 `rollbackRejectedSettings`）**
+> ——P7-fm 收尾后「尚未做」再次为空。本轮按惯例换入口：逐函数对照原版 `settings-persistence.ts`
+> 与 `useSettings.ts` 的落盘/失败路径（本构建对应 `internal/settings/store.go` 的 `Store` 与
+> `internal/settingsui/settingsui.go` 的 `set()`），把清单重写为 2 条带 file:line 的具体待办；
+> 取第 1 条落地。依赖检查：`go.mod` 已是 **v0.4.8** = GitHub releases latest，无版本可升
+> （release notes 的 `ui/editor` 用点已由 P7-ev 落地）；只对照 `main`
+> （`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离（P7-fn·失败写不回落）**：原版 `commitSettings` 在 `save_settings` reject 后重读
+> `get_settings`，再 `rollbackRejectedSettings(settingsRef.current, next, confirmed)`——只把
+> **仍等于被拒值**的字段写回确认值，之后的编辑不被覆盖；被拒的改动不再以新值参与渲染或下一次读。
+> 本构建（改前）的 `Store.Update` 先 `st.current = next` 再 `Save`，写失败后内存、监听器与后续
+> 读都当成已提交，和 P7-av 的 5s 横幅各说各话。
+>
+> **落地**：`internal/settings/store.go` 的 `Update` 先克隆 `previous` 与 `next`，只在 `Save`
+> 成功后提交 `st.current = next` 并通知监听器；`Save` 失败时保留 `previous`、写 `LastError`、
+> 不通知、返回错误。`internal/settingsui/settingsui.go` / `savealert.go` 的注释同步成「回落后由
+> 横幅报错」。
+>
+> **验收**：`internal/settings/store_test.go` 的 `TestStoreRollsBackWhenTheWriteFails`（失败后
+> `equal(before, Snapshot())`、`LastError` 仍记、监听器 0 次）；`internal/settingsui/savealert_test.go`
+> 的 `TestTheSaveFailureBannerAppearsAndExpires` 改断回落 + 横幅。变异核查：把 `Update` 改回
+> 「失败也提交」→ 两条立即红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：第 1 条（失败写回落）落地；「具体待办（P7-fn 重写）」还剩第 2 条（滑块 180ms
+> 去抖）。
+
+> **上一轮：P7-fm 终端浮栏身份行报退出码（原版 `src/App.tsx:3716-3722`、`src/i18n.ts:170,1077`）**
 > ——P7-fl 收尾后「具体待办（P7-fl 重写）」还剩第 3 条（浮栏身份行的退出码），本轮取它落地，清单归零。
 > 依赖检查：`go list -m -versions github.com/egoist/mygo` 最新仍是 **v0.4.8**（与 `go.mod` 一致），
 > 无版本可升、无新 API 用点；GitHub releases API 限流。只对照 `main`
@@ -5606,6 +5637,50 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 - 窗口可见时完成反馈落在面板自己的停靠行（隐藏时才发系统通知）——之前可见时什么都不说。
 
 ## 尚未做（按建议优先级）
+
+### 具体待办（P7-fn 重写；第 1 条本轮落地 P7-fn）
+
+审计入口：原版 `main:src/settings-persistence.ts` 与 `main:src/hooks/useSettings.ts` 的设置落盘/失败
+路径，本构建对应 `internal/settings/store.go` 的 `Store`、`internal/settingsui/settingsui.go` 的
+`set()` / `slider()`。逐函数核对结论：`createSettingsHydration`（原版 `settings-persistence.ts:36-73`）
+在本构建不适用——设置在任何视图构建前已在 `OpenStore` 读完，不存在「读盘未完成时编辑」的窗口；
+`createSerialSettingsWriter`（`:75-88`）由 `Store` 的互斥锁 + 同步 `Save` 天然等价（写序不会倒挂）；
+`normalizeSettingsPage`（`:13-17`）已由 `internal/settings/plugins.go:216-223` + `settingsui` 的
+页面路由覆盖。下面两条是本轮新查出的真实缺口。依赖检查：`go.mod` 已是 **v0.4.8** = GitHub
+releases latest（release notes 的 `ui/editor` 用点已由 P7-ev 的 F-new 落地），无版本可升。只对照
+`main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+
+1. **（本轮落地，P7-fn）设置写入被拒时，内存里仍保留被拒值；原版回落到上次确认的快照**。
+   - 原版对照：`src/hooks/useSettings.ts:220-236` 的失败分支——写失败后重读一次权威设置
+     （`get_settings`），`confirmedSettings.current = confirmed`，再
+     `rollbackRejectedSettings(settingsRef.current, next, confirmed)` 把仍等于被拒值的字段写回确认值；
+     `src/settings-persistence.ts:90-98` 的 `rollbackRejectedSettings` 只回落
+     `Object.is(current[field], attempted[field])` 的字段，因此不会覆盖那之后的新编辑。
+     `settingsSaveFailed` 只负责 5s 横幅（P7-av）。
+   - 本构建（改前）：`internal/settings/store.go:55-81` 的 `Store.Update` 在 `Save` 出错后仍把
+     `st.current = next` 留在内存里并照常通知监听器；`internal/settingsui/settingsui.go:2841-2846`
+     的 `set()` 只置横幅。结果：文件没写成，界面和之后的读都当成新值——与 P7-av 的横幅说的
+     「改动没落盘」互相矛盾。
+   - 落地 file:line（已按此落地）：`Store.Update` 先算 `previous`/`next`，只在 `Save` 成功后才把
+     `st.current = next` 并通知监听器；`Save` 失败时保持 `previous`、记 `LastError`、不通知、返回
+     错误。`settingsui.set` 与 `savealert.go` 的注释同步改成「回落后由横幅报错」。
+   - 验收（已过）：`internal/settings/store_test.go` 的 `TestStoreRollsBackWhenTheWriteFails`（失败后
+     快照与写前相等、`LastError` 仍记、监听器一次都不跑）；`internal/settingsui/savealert_test.go`
+     的 `TestTheSaveFailureBannerAppearsAndExpires` 改成断言失败写回落后 `HideOnBlur` 与 `before`
+     相等且横幅仍出现。变异核查：把 `Store.Update` 改回「失败也 `st.current = next`」→ 两条立刻红。
+
+2. **（未做）滑块的落盘没有原版的 180ms 去抖**。
+   - 原版对照：`src/hooks/useSettings.ts:149` 的 `SETTINGS_DEBOUNCE_MS = 180`；`changeOpacity`
+     （`:396-412`，两个透明度滑块）、`changeFontSize`（`:444-459`）、`changeTerminalLineHeight`
+     （`:486-501`）与 `changeCommandAlias`（`:515-530`）都先把新值上屏、清掉旧 timer，再
+     `setTimeout(..., 180)` 才 `persistSettings()`；拖动一次不会写几十遍文件。
+   - 本构建（现状）：`internal/settingsui/settingsui.go:2775` 的 `ui.Slider(...).Changed()` 每帧命中
+     一次就 `apply(v)` → `a.set(...)` → `Store.Update` → 同步 `Save`；
+     `settingsui.go:2542/2548/2612/2621` 四处滑块（主/终端透明度、字号、行高）都在拖动过程中逐帧
+     落盘。
+   - 验收标准：给 `settingsui.App` 加一个可注入的 debounce 时钟与 180ms 窗口，滑块先只改内存/视图，
+     窗内合并、窗后一次 `Store.Update`；测试用假时钟拖动三次只观察一次落盘，`Now` 推过窗口后才
+     写；命令别名的输入框同样只在一段停顿后写一次。注意退出/切页要 flush，不能丢最后一次。
 
 > **清单状态（P7-fl 重写）**：P7-fk 收尾后「具体待办（P7-fj 重写）」3 条全部结清、清单归零。本轮换
 > 入口：逐字段对照**终端表面浮栏与输入区**（原版 `main:src/App.tsx:3740-3805` 的

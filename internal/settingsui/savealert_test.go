@@ -12,8 +12,8 @@ import (
 // content, and the banner clears itself after the old build's five seconds
 // (`useTimedReset(settingsSaveFailed, dismissSaveError, 5000)`).
 func TestTheSaveFailureBannerAppearsAndExpires(t *testing.T) {
-	// A directory where the settings file should be: every write fails, and
-	// the store still keeps the change in memory.
+	// A directory where the settings file should be: every write fails and the
+	// store rolls the mutation back, while the page says the file was refused.
 	store, _ := settings.OpenStore(t.TempDir())
 	a := New(store, Actions{})
 	if a.SaveFailedVisible() {
@@ -34,8 +34,8 @@ func TestTheSaveFailureBannerAppearsAndExpires(t *testing.T) {
 	if !a.SaveFailedVisible() {
 		t.Fatal("a refused write showed no banner")
 	}
-	if store.Snapshot().HideOnBlur == before {
-		t.Error("the refused write did not still show in memory")
+	if store.Snapshot().HideOnBlur != before {
+		t.Error("the refused write did not roll back to the committed snapshot")
 	}
 	if !tt.HasText(copy.SaveFailedAlert) {
 		t.Fatalf("the banner is not drawn: %q", tt.Texts())

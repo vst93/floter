@@ -127,7 +127,7 @@ func TestStoreListenerSeesTheNewValueAndCanLeave(t *testing.T) {
 	}
 }
 
-func TestStoreKeepsTheValueWhenTheWriteFails(t *testing.T) {
+func TestStoreRollsBackWhenTheWriteFails(t *testing.T) {
 	dir := t.TempDir()
 	// A regular file where the settings directory should be makes both the
 	// MkdirAll and the write fail.
@@ -138,14 +138,20 @@ func TestStoreKeepsTheValueWhenTheWriteFails(t *testing.T) {
 	path := filepath.Join(blocker, "settings.json")
 
 	st, _ := OpenStore(path)
+	before := st.Snapshot()
+	calls := 0
+	st.OnChange(func(Settings) { calls++ })
 	if err := st.Update(func(s *Settings) { s.Language = "zh" }); err == nil {
 		t.Fatal("Update succeeded over a file, want an error")
 	}
 	if st.LastError() == nil {
 		t.Error("LastError is nil after a failed write")
 	}
-	if got := st.Snapshot().Language; got != "zh" {
-		t.Errorf("in-memory language = %q, want zh even after the failed write", got)
+	if got := st.Snapshot(); !equal(before, got) {
+		t.Errorf("the failed write left the store changed: %+v, want %+v", got, before)
+	}
+	if calls != 0 {
+		t.Errorf("a refused write notified listeners %d times", calls)
 	}
 }
 
