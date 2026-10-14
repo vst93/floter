@@ -524,6 +524,10 @@ type App struct {
 	scriptRuntime      map[string]*runtimeProbe
 	scriptRuntimeMu    sync.Mutex
 	scriptRuntimeEpoch int
+	// scriptEditor is the form's script box, kept across frames so its buffer,
+	// undo history and caret survive the rebuild; nil until a script form is
+	// first drawn. See scripteditor.go.
+	scriptEditor *scriptEditor
 	// toolEditing is the integration the form is rewriting, empty when it is
 	// connecting something new.
 	toolEditing string
@@ -3275,12 +3279,11 @@ func (a *App) scriptRows(c *ui.Context, copy i18n.Settings, language *string, sc
 		options = append(options, i18n.Option{ID: option.ID, Label: option.Label})
 	}
 	a.choose(c, copy.LocalToolLanguage, copy.LocalToolLanguageHint, options, *language, func(id string) {
-		// Switching language swaps an untouched template for the new one, so
-		// a user who has not written anything yet gets the right starting
-		// point; anything they wrote stays.
-		if *script == "" || isTemplate(*script) {
-			*script = scriptlang.Template(id)
-		}
+		// The editor owns the text now: switching language only names the new
+		// one. The template swap for an untouched draft happens in the
+		// editor's own sync (see scriptEditorView), against the buffer it
+		// holds — including a switch away from a written script, which keeps
+		// it as the old form did.
 		*language = id
 	})
 	a.row(c, copy.LocalToolLanguage, "", func() {
@@ -3288,11 +3291,11 @@ func (a *App) scriptRows(c *ui.Context, copy i18n.Settings, language *string, sc
 			TextColor(c.Theme().TextMuted)
 	})
 	// The editor is a stacked row: a script wants the row's full width and
-	// more than one line, so the label and the status sit above it.
-	t := c.Theme()
+	// more than one line, so the label and the status sit above it. The box is
+	// mygo's code editor (line numbers, syntax highlighting) rather than a bare
+	// TextArea; scriptEditorView keeps its state across frames.
 	a.stackedRow(c, copy.LocalToolScript, copy.LocalToolScriptHint, func() {
-		ui.TextArea(c, script).Label(copy.LocalToolScript).FontSize(t.FontSize).
-			FixedLineHeight(t.Space(2.25)).Height(t.Space(18)).Grow(1)
+		a.scriptEditorView(c, copy, language, script)
 		a.toolIssueUnder(c, copy, issues, extensions.CustomFieldScript)
 	})
 }

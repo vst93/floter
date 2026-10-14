@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1286 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1291 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -100,7 +100,71 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-eu F4g 最后一条入口——导入导出的调用点（原版 `src/ExtensionsPanel.tsx:1206-1240`
+> **最新一轮：P7-ev F-new——脚本内容编辑器换用 mygo `editor.View`（v0.4.8 新包的自然用点；
+> 原版 `src/ExtensionsPanel.tsx` 的自定义工具表单里脚本内容是带高亮的代码编辑区，`settings.extensions.customScript*`）**
+> —— P7-eu 收尾后「尚未做」清单上只剩 **F-new**，本轮取它。依赖检查见 P7-eu：`go.mod` 仍是 v0.4.8，
+> 无版本可升；只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树）。
+>
+> **偏离（F-new·脚本编辑器）**：原版的脚本内容是一个带语法高亮、行号的代码编辑区
+> （`src/extensions/` 下的 script 编辑器组件）。**本构建（改前）**：`internal/settingsui/settingsui.go:3294`
+> 是一个纯粹的 `ui.TextArea(c, script)`（多行文本框，无行号、无高亮），绑定表单局部变量 `script`
+> （`*string`），表单结束时 `a.toolScript = script` 写回 App 状态（`:3105`）；语言切换回调
+> （`:3276-3284`）在 `script` 为空或 `isTemplate(*script)` 时直接 `*script = scriptlang.Template(id)`。
+>
+> **落地前必须先确认的三件事（状态文档 F-new 条目的要求）**：
+> (1) **editor.View 的输入路径**：mygo editor 的粘贴/键入由框架自己处理，不经过 `internal/inputtext`。
+> 逐条核实后确认**不适用**：inputtext 的 Zs→U+0020 / 粘贴去尾换行边界存在的原因是「终端字节必须匹配
+> 键盘会发的字节」，而脚本内容是 **provider 文件内容**（宿主写出、解释器读取），不是 PTY 字节流——
+> 它不经过 shell token 化，也不进终端。编辑器自己的粘贴路径（mygo ui/editor）这里是正确的那一个。
+> 如实写进 `scripteditor.go` 的注释，**不是偏离**。
+> (2) **表单焦点/提交共存**：`editor.View` 处理自己的键输入（`DefaultBindings`），绘制在 `stackedRow`
+> 的闭包里；表单的提交按钮是点击触发，`Submitted()` 链不被编辑器打断。
+> `TestScriptEditorTakesAnOutsideDraft` 端到端验证 connect 提交的就是编辑器 buffer 的内容。
+> (3) **LSP/补全依赖**：editor 的补全由 app 主动调 `ShowCompletions` 触发，不接 language server；
+> 我们只取行号 + 高亮，不引入 LSP 依赖。`editor.State` 不设任何 completion 字段即无补全菜单。
+>
+> **落地**：
+> - `internal/settingsui/scripteditor.go`（新）：`scriptEditor` 结构体挂在 App 上跨帧持久
+>   （`state *editor.State` / `language` / `written`）——每帧 NewBuffer 会丢 undo 历史、光标和滚动位置。
+>   `scriptEditorView(c, copy, language, script)`：状态样式逐帧解析（`Font ui.Font{Family:"monospace",
+>   Size: t.FontSize}`、`LineHeight` 按 `t.Space(2.25)/t.FontSize` 换算复刻原 `FixedLineHeight(2.25)`、
+>   `Theme: editor.DefaultTheme(t)`、`Label`）；语言切换时 `SetLanguage` + buffer 仍是空/旧模板则
+>   `Set(scriptlang.Template(新语言))`（替代原回调的直接赋值）；外部改 `*script`（表单 seed/重开编辑）
+>   经 `*script != se.written` 判定后 `Set` 进 buffer；渲染后 `*script = st.Buffer.String()` 写回表单。
+> - `editorLanguage(id)`：`scriptlang.Extension(id)` → `editor.LanguageFor("main."+ext)`；**PowerShell
+>   无内置语法**（`LanguageFor("main.ps1")` 返回 nil），内嵌 `editor.Language{Name:"PowerShell",
+>   LineComment:"#", Brackets: 花括号/圆括号}`（匹配与缩进所需，无 tokenizer 着色）。
+> - `internal/settingsui/settingsui.go`：`scriptRows` 的 `ui.TextArea(c, script)` 换成
+>   `a.scriptEditorView(c, copy, language, script)`（`.Height(t.Space(18)).Grow(1)` 同原位）；语言回调
+>   删掉直接 `*script = scriptlang.Template(id)`（改走同步逻辑）；`App` 加 `scriptEditor *scriptEditor`
+>   字段。
+>
+> **验收**：
+> - `internal/settingsui/scripteditor_test.go`（新，四条）：
+>   `TestScriptEditorDrawsLineNumbers`——gutter 行号是**像素断言**（tester 不把 gutter 数字注册为文本
+>   元素，类似 placeholder 穿过编辑器不记为 label，见 `view_test.go:2178` 的同款注释；mygo
+>   `ui/editor/paint.go`）：hint 下方左缘 48×110 条带内与背景色差 >25 的像素 ≥30（四个数字的量）。
+>   `TestEveryScriptLanguageHasAnEditorLanguage`——8 种语言全部有 editor 语法（ps1 走内嵌）。
+>   `TestScriptEditorTakesAnOutsideDraft`——外部 seed `a.toolScript = "print('hi')\\n"` 渲染后 connect
+>   提交的 `ScriptContent` 逐字等于它。
+>   `TestScriptEditorFollowsTheLanguageSwitch`——开表单 grammar = JavaScript；点 "JavaScript" 展开选择器
+>   再点 "Python" 后 grammar = Python 且 `a.toolScript` = Python 模板（同步链完整）。
+> - 既有 `pluginsheet_test.go` 的脚本端到端（语言切换模板交换 + connect 提交 `"print('hi')\\n"`）
+>   在新实现下保持全绿。
+> - 变异核查：把 `scriptEditorView` 的语言同步删掉 → `TestScriptEditorFollowsTheLanguageSwitch` 红
+>   （grammar 不跟着走）；把 `*script = st.Buffer.String()` 同步删掉 → `TestScriptEditorTakesAnOutsideDraft`
+>   红（外部 seed 丢失，提交空脚本）；每帧 `NewBuffer` 替换持久 state → undo/光标丢失（行为回归，
+>   由持久化设计本身防住）。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：**F-new 落地，用户反馈 F1–F4 全部收口**。F1（P7-eg）、F2（P7-d）、F3a（P7-em）、
+> F3b（P7-en）、F4a（P7-eh）、F4b（P7-ei）、F4c（P7-ek）、F4d（P7-ej）、F4e（P7-el/P7-ep）、
+> F4f（P7-eo）、F4g 五条入口（P7-eq/P7-er/P7-es/P7-et/P7-eu）全部落地。余下候选：`localToolSection` /
+> `runForm` 等其他入口的逐函数审计（`ExtensionsPanel.tsx` 尚有未逐函数对照的流程）。
+
+> **上一轮：P7-eu F4g 最后一条入口——导入导出的调用点（原版 `src/ExtensionsPanel.tsx:1206-1240`
 > 的 `exportExtensions`/`importExtensions` 与 `:2300-2385` 的报告块、
 > `src-tauri/src/commands/extensions.rs:1029-1215` 的 `extensions_export`/`extensions_import`、
 > `src-tauri/src/extensions/sync.rs:360-470` 的 `import_document`）** —— P7-et 收尾后「尚未做」清单
@@ -7742,16 +7806,22 @@ success toast（原版 `exportedNotice`）+ 导入报告块（excluded 警告/�
   强度按 0.5/1/1.6 单调上升；`internal/shell/transparency_test.go` 的 `FaceFill`/`baseAlpha` 像素测试
   全绿（帧 sheen 参与透明度的补偿计算，改完重跑过这一套）。
 
-#### F-new · 脚本内容编辑器换用 mygo `ui/editor`（v0.4.8 新包的自然用点）
+#### F-new · 脚本内容编辑器换用 mygo `ui.editor`（v0.4.8 新包的自然用点；**已落地，P7-ev**）
 
 - **原版对照**：`main:src/ExtensionsPanel.tsx` 的自定义工具表单里，脚本内容是一个带高亮的代码编辑区
   （`src/extensions/` 下的 script 编辑器组件；词条 `settings.extensions.customScript*`）。
 - **本构建**：`internal/settingsui/settingsui.go:3258` 是一个纯粹的 `ui.TextArea(c, script)`（多行文本
   框，无行号/无高亮/无折行控制）。
-- **待做（评估 + 一处落地）**：v0.4.8 的 `ui/editor` 提供 `editor.View`（只画视口内的行、多光标、
-  查找替换、`Highlighter` 接口、持久 `ui.TextBuffer`）。自然用点就是这个脚本框。落地前必须先确认三件事：
-  (1) `editor.View` 的输入路径是否经过框架的文本输入事件（要保证 `internal/inputtext` 的边界约定
-  ——Zs→U+0020、粘贴去一个尾换行——仍然成立）；(2) 面板的表单焦点/提交（`Submitted()`）如何与之共存；
-  (3) 是否引入不必要的 LSP/补全依赖（只想要高亮 + 行号）。
-- **验收**：`internal/settingsui` 一条像素断言（脚本框画出行号 + 关键字着色），加一条「粘贴带尾换行
-  的文本仍然只有一个换行」的边界回归。
+- **落地（P7-ev，见「最近几轮」P7-ev 记录）**：`internal/settingsui/scripteditor.go` 的
+  `scriptEditor`/`scriptEditorView`（跨帧持久的 `*editor.State`，语言同步 + 外部 seed 同步 + 渲染后写回），
+  `settingsui.go` 的 `scriptRows` 换 `editor.View`。落地前三件事的结论：
+  (1) inputtext 边界**不适用**（脚本内容是 provider 文件，不是 PTY 字节——边界存在的理由是终端
+  字节必须匹配键盘字节，见 `scripteditor.go` 注释）；(2) 编辑器处理自己的键输入，表单提交按钮
+  点击触发，`Submitted()` 链不打断（`TestScriptEditorTakesAnOutsideDraft` 端到端验证）；
+  (3) 不引入 LSP（补全由 app 主动 `ShowCompletions` 触发，不接 language server）。
+- **验收（已过）**：`scripteditor_test.go` 四条——`TestScriptEditorDrawsLineNumbers`（gutter 行号
+  像素断言：hint 下方左缘 48×110 条带内与背景色差 >25 的像素 ≥30；tester 不把 gutter 数字注册为
+  文本元素，同 `view_test.go:2178` 的 placeholder 注释）、`TestEveryScriptLanguageHasAnEditorLanguage`
+  （8 语言全有语法，ps1 走内嵌 `editor.Language`）、`TestScriptEditorTakesAnOutsideDraft`（外部 seed
+  → connect 提交逐字相等）、`TestScriptEditorFollowsTheLanguageSwitch`（grammar 跟随选择器）。
+  原「粘贴带尾换行」边界回归不适用（同上 (1)），如实记录。
