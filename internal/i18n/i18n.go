@@ -675,7 +675,15 @@ type Settings struct {
 	ParamsKindSelect  string
 	ParamsKindPath    string
 	RunLabel          string
-	RunOutputHint     string
+	// The run-time parameter form's own frame: its heading and hint, the
+	// required marker beside a row's kind label, the injection note, and the
+	// route the manifest declares (one of the two output hints).
+	RunValues               string
+	RunValuesHint           string
+	RunRequired             string
+	RunInjectionNote        string
+	RunOutputHintTerminal   string
+	RunOutputHintBackground string
 	// The last background run's output block in the integration's row: its
 	// heading, the two ways to fold it, and its empty and truncation lines.
 	RunLastOutput          string

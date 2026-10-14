@@ -317,6 +317,12 @@ type Integration struct {
 	// Params are the declared inputs a run needs: the card renders a form for
 	// them, and the answers become argv.
 	Params []Param
+	// OutputMode is the manifest's declared route for a run: `terminal` (a
+	// live session on the terminal page) or `background` (a captured run
+	// that reports through a notice). The run form states it up front, as the
+	// reference's `RunParamForm` did with `extension.output`
+	// (`src/extensions/ExtensionRow.tsx:465-467`).
+	OutputMode string
 }
 
 // HealthReport is the stored lifecycle probe report's detail, as the card
@@ -4192,6 +4198,15 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 		issueByIndex[issue.Index] = issue
 	}
 	theme := c.Theme()
+	// The form's own frame: the heading and hint the reference drew above the
+	// inputs (`RunParamForm.tsx`: `.extension-run-params__head` +
+	// `customRunValuesHint`), so a user meets the form as a named block rather
+	// than as rows that appear under the commands.
+	ui.Column(c).FillWidth().Gap(theme.Space(0.5)).Children(func() {
+		ui.Text(c, copy.RunValues).FontSize(theme.FontSize + 1).FontWeight(600).
+			TextColor(a.tokens(c).TextStrong)
+		ui.Text(c, copy.RunValuesHint).FontSize(theme.FontSize - 1).TextColor(theme.TextMuted)
+	})
 	a.card(c, func() {
 		for index, param := range integration.Params {
 			index, param := index, param
@@ -4199,9 +4214,12 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 			if label == "" {
 				label = param.ID
 			}
-			sublabel := param.Placeholder
+			// The row's second line is the parameter's *kind* (the reference's
+			// `customParamType.*` `<small>`), with the required marker beside it;
+			// the placeholder belongs to the input, where the reference put it.
+			sublabel := runParamKindLabel(copy, param.Kind)
 			if param.Required {
-				sublabel = strings.TrimSpace(sublabel + "  ·  " + copy.ConfigRequired)
+				sublabel = strings.TrimSpace(sublabel + "  ·  " + copy.RunRequired)
 			}
 			// The row's own reason, printed under it inside the card.
 			below := []func(){}
@@ -4245,6 +4263,16 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 			}
 		}
 	})
+	// The form's footnote: the injection note (values are argv, never a shell
+	// line) and the route the manifest already declares, stated before the Run
+	// button so the user knows where the output lands — the reference's
+	// `customParamInjectionNote` and its `customRunOutputHint*` pair.
+	ui.Text(c, copy.RunInjectionNote).FontSize(theme.FontSize - 1).TextColor(theme.TextMuted)
+	outputHint := copy.RunOutputHintBackground
+	if integration.OutputMode == extensions.RouteTerminal {
+		outputHint = copy.RunOutputHintTerminal
+	}
+	ui.Text(c, outputHint).FontSize(theme.FontSize - 1).TextColor(theme.TextMuted)
 	ui.Row(c).Gap(theme.Space(1)).AlignItems(ui.Center).Children(func() {
 		run := a.actionButton(c, copy.RunLabel)
 		if len(issues) > 0 {
@@ -4256,10 +4284,28 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 				a.runError = paramFailureMessage(copy, params, failure)
 			}
 		}
-		ui.Text(c, copy.RunOutputHint).FontSize(theme.FontSize - 1).TextColor(theme.TextMuted)
 	})
 	if a.runError != "" {
 		ui.Text(c, a.runError).FontSize(theme.FontSize - 1).TextColor(theme.Danger)
+	}
+}
+
+// runParamKindLabel is one parameter kind's own word, the reference's
+// `customParamType.*` labels (`RunParamForm.tsx`'s `kindLabelKey`). It is the
+// run form's second line and the same five words the parameter editor's picker
+// offers, so the two surfaces never disagree about what a kind is called.
+func runParamKindLabel(copy i18n.Settings, kind string) string {
+	switch kind {
+	case extensions.ParamNumber:
+		return copy.ParamsKindNumber
+	case extensions.ParamBoolean:
+		return copy.ParamsKindBoolean
+	case extensions.ParamSelect:
+		return copy.ParamsKindSelect
+	case extensions.ParamPath:
+		return copy.ParamsKindPath
+	default:
+		return copy.ParamsKindText
 	}
 }
 

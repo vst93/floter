@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1301 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1318 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1297 项测试
+go test -count=1 ./...         # 1318 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,6 +99,49 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
   （同环境 mygo 最小窗口 137 MB）。
 
 ## 最近几轮（详细记录见 plan）
+
+> **最新一轮：P7-ff 运行参数表单回到原版的框（头部/提示/种类标签/必填标记/注入说明/输出路由）
+> （原版 `src/extensions/RunParamForm.tsx`）**
+> ——P7-fe 收尾后「尚未做（P7-fb 重写）」4 条全部结清、清单归零；本轮按审计入口
+> `main:src/extensions/RunParamForm.tsx` + `ExtensionRow.tsx` 的 Run 披露逐字段对照，把清单重写为
+> **2 条带 file:line 的具体待办**（见文末「具体待办（P7-ff 重写）」），取第 1 条落地。依赖检查：
+> `go list -m -versions github.com/egoist/mygo` 最新仍是 **v0.4.8**（与 `go.mod` 一致），无版本可升、
+> 无新 API 用点；GitHub releases API 限流。只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），
+> 未翻历史提交。
+>
+> **偏离（P7-ff·运行参数表单的框）**：原版 `RunParamForm.tsx` 的表单是一个有名字的块——顶部
+> `customRunValues`（“Run parameters”）标题 + `customRunValuesHint` 提示（`:40-43`）；每个输入行的第二
+> 行是参数的**种类**词 `customParamType.{kind}`，必填时旁边一个 `<em>` `customParamRequired`
+> （`:53-60`）；底部 `customParamInjectionNote` 注入说明（`:131`）+ 按 manifest 的 `output` 二选一的
+> `customRunOutputHintTerminal`/`Background`（`:136-138`）。**本构建（改前）**：
+> `internal/settingsui/settingsui.go:4165` 的 `runForm` 直接画卡片行，没有标题/提示；行的第二行用的是
+> **placeholder** + `ConfigRequired`（“required”）而不是种类词 + “Required”；底部只有一句自造的
+> `RunOutputHint`（“The values are passed as separate arguments.”），既不是注入说明也不是路由提示。
+>
+> **落地**：
+> - `internal/i18n` 新增 `RunValues`/`RunValuesHint`/`RunRequired`/`RunInjectionNote`/
+>   `RunOutputHintTerminal`/`RunOutputHintBackground`（en/zh 逐字取 `i18n.ts:725,772-780`），删掉变死的
+>   `RunOutputHint`；
+> - `internal/settingsui/settingsui.go` 的 `runForm`：卡片前加标题+提示（`RunValues`/`RunValuesHint`）；
+>   每行 `sublabel` 改读新 `runParamKindLabel(copy, param.Kind)`（复用已有的 `ParamsKind*` 五词）并按
+>   `RunRequired` 追加必填标记，placeholder 仍只作输入框的 `Placeholder`；卡片后加 `RunInjectionNote`
+>   与按 `integration.OutputMode` 二选一的输出路由提示；
+> - `Integration` 新增 `OutputMode` 字段，`internal/shell/shell.go` 的 `integrationList` 用
+>   `integration.Manifest.Route()` 投影。
+>
+> **验收**：`internal/settingsui/runform_test.go` 两条——
+> `TestRunParamKindLabelNamesEveryKind`（五个 kind + 空/未知退化到 Text，en/zh 各一）；
+> `TestRunFormDrawsTheReferenceFrame`（background/terminal 两个子测：标题/提示/注入说明/本档路由提示
+> 都在、**另一档**路由提示不出现、必填 text 行的第二行逐字 “Text  ·  Required”、toggle 行的种类词
+> 在）；`internal/shell/runroute_test.go` 的 `TestTheRowCarriesTheManifestsRunRoute`（声明
+> `output: terminal` → `RouteTerminal`，不声明 → `RouteBackground`）。变异核查：把 `sublabel` 换回
+> `param.Placeholder`、把标题换成 “MUTATED” → 第一条像素测三处立刻红（种类词/必填标记/标题缺失）。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：第 1 条（P7-ff）落地；「具体待办（P7-ff 重写）」现有 2 条带 file:line 的具体待办，
+> 第 2 条（Run 披露与 Cancel，见文末）是下轮最高优先级。
 
 > **最新一轮：P7-fe 组件化卸载对话框只给 npm/custom，其余 kind 回到原版的「先问一次再删」
 > （原版 `src/ExtensionsPanel.tsx:1286-1323` 的 `confirmRemoval`）**
@@ -8293,3 +8336,59 @@ success toast（原版 `exportedNotice`）+ 导入报告块（excluded 警告/�
   `TestScriptEditorHandsTheUsersTypingOn`（键入 → connect 提交含键入内容）。
   原「粘贴带尾换行」边界回归不适用（同上 (1)），如实记录；变异核查的更正见上文 P7-ev 记录
   （单删渲染末回写不会让 outside-draft 条红，钉它的是入向的 `st.Buffer.Set(*script)`）。
+
+### 具体待办（P7-ff 重写；第 1 条 P7-ff 已落地；下轮最高优先级是第 2 条）
+
+P7-fe 收尾后「尚未做（P7-fb 重写）」归零。P7-ff 按审计入口 `main:src/extensions/RunParamForm.tsx`
+（运行参数表单）与 `main:src/extensions/ExtensionRow.tsx` 的 Run 披露逐字段对照，把清单重写为下面
+两条带 file:line / 原版对照 / 验收标准的具体待办，并取第 1 条落地。
+
+#### F-run-1 · 运行参数表单的框（**本轮落地，P7-ff**）
+
+- **原版对照**：`main:src/extensions/RunParamForm.tsx` —— `:40-43` 的 `customRunValues` 标题 +
+  `customRunValuesHint` 提示；`:53-60` 每行 label 旁的 `<small>customParamType.{kind}` 与必填
+  `<em>customParamRequired`（词条 `i18n.ts:725-731`）；`:131` 的 `customParamInjectionNote`；
+  `:136-138` 按 `outputMode` 二选一的 `customRunOutputHintTerminal`/`Background`
+  （词条 `i18n.ts:772-773`）。
+- **本构建（改前偏离）**：`internal/settingsui/settingsui.go:4165` 的 `runForm` 直接画卡片行，
+  没有标题/提示；每行第二行用 **placeholder** + `ConfigRequired`（“required”）而不是种类词 +
+  “Required”；底部只有一句自造 `RunOutputHint`（“The values are passed as separate arguments.”）。
+- **落地 file:line（已按此落地）**：`internal/i18n/i18n.go` 与 `copy.go` 新增 `RunValues`/
+  `RunValuesHint`/`RunRequired`/`RunInjectionNote`/`RunOutputHintTerminal`/`RunOutputHintBackground`
+  并删掉 `RunOutputHint`；`settingsui.go` 的 `runForm` 加标题+提示、把 `sublabel` 改读新
+  `runParamKindLabel`、卡片后加注入说明与按 `integration.OutputMode` 二选一的路由提示；
+  `Integration.OutputMode` 新字段 + `internal/shell/shell.go` 的 `integrationList` 用
+  `integration.Manifest.Route()` 投影。
+- **验收（已过）**：`internal/settingsui/runform_test.go` 两条、`internal/shell/runroute_test.go` 一条
+  （详见「最近几轮」P7-ff 记录）。变异核查：`sublabel` 换回 placeholder / 标题换掉 → 像素测三处红。
+
+#### F-run-2 · Run 披露与 Cancel（**下轮最高优先级**）
+
+- **原版对照**：`main:src/extensions/ExtensionRow.tsx:381-399` —— connected 行有一个
+  `extensions-icon-button--row` 的 Run 按钮（`Play` 图标，`aria-expanded={hasParams ? runFormOpen : undefined}`，
+  不可运行时 disabled 且 title 说明），`:459-471` 的表单只在 `runFormOpen` 时画、并给 `onCancel`；
+  `main:src/ExtensionsPanel.tsx:1712-1727` 的 `openRunForm`（有参数 → 打开表单并按会话内存 seed）、
+  `:1740-1744`（无参数 → 直接 `runExtension`）；`RunParamForm.tsx:96-99` 的 Cancel 动作
+  （词条 `customRunCancel` = “Cancel”）。
+- **本构建（偏离）**：`internal/settingsui/settingsui.go:1723-1725` 的集成行**无条件**调 `runForm`，
+  于是有参数的集成表单**常驻**、没有关闭入口；`runForm` 的动作行只有 Run，没有 Cancel；
+  `grep -rn 'RunWithParams' internal/settingsui` 只有 `runForm` 一处调用 → **无参数的已连接集成在设置页
+  根本无法手动运行**（原版无参数时 Run 直接跑）。
+- **待做 file:line**：
+  1. `App` 新增 `runOpen map[string]bool`（仿 `outputOpen`/`configOpen`）；`runForm` 开头加
+     `if !a.runOpen[integration.ID] { return }`；
+  2. `integrationRow` 的动作区（`settingsui.go:1741` 一带 `a.row(copy.IntegrationsEnable, …, func(){…})`
+     内、与 Check/Reprobe/移除按钮同排）加 Run 按钮：`a.Actions.RunWithParams != nil && integration.Running
+     && !integration.Broken` 时——`len(integration.Params) > 0` → `a.runOpen[id] = !a.runOpen[id]`；
+     否则直接 `a.Actions.RunWithParams(id, nil)`。需要新增一个“Run”动作词（原版 `customRun` = “Run”；
+     现有 `RunLabel` = “Run with these values” 是表单确认按钮的词，不是它）；
+  3. `runForm` 动作行加 Cancel（`copy.RunCancel`，原版 `customRunCancel`）→ `a.runOpen[id] = false`
+     并清 `a.runError`。
+- **验收**：一条像素测试——无参数的 Running 行画 Run 按钮、点击调 `RunWithParams(id, nil)`；有参数的
+  行初始**不画**表单、点 Run 后画、点 Cancel 后收起。既有 `internal/settingsui/view_test.go` 的三条
+  run 表单测试（`TestRunParamForm` / `TestRunParamFormShowsPerRowReasons` /
+  `TestRunParamFormShowsTheBackendRefusal`）需改为先点 Run 展开。变异核查：把 `runForm` 的 `runOpen`
+  挡板摘掉 → “初始不画表单”条立刻红。
+- **残留（随本条的取舍记录）**：原版表单值来自 `runParamMemory`（会话内存，仅在**新打开**表单时
+  `seedParamValues`），本构建的 `a.runValues[id]` 常驻且不因关闭重置。收起/展开时是否重置为默认值，
+  在本条一起决定并写进注释（本构建常驻编辑态、不丢用户输入，倾向保留）。

@@ -1484,6 +1484,7 @@ func (a *App) integrationList() []settingsui.Integration {
 				Placeholder: param.Placeholder, Options: param.Options, Flag: param.Flag,
 			})
 		}
+		item.OutputMode = integration.Manifest.Route()
 		// Only the host's own generated integrations can be re-probed: the
 		// button rebuilds a descriptor it wrote, never publisher content.
 		item.Generated = integration.Entry.PublisherID == "local-user" &&
