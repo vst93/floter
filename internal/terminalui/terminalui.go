@@ -69,6 +69,13 @@ type Actions struct {
 // session that is not on screen is not gone — its program keeps running — and
 // the user can come back to it.
 type Session struct {
+	// ID is the session's stable identity, handed out once at creation and
+	// never reused: the sessions list arms a close by identity, so a session
+	// that changed position — because one ahead of it was deleted — still
+	// answers to the same question (the reference's `killArmedId` keyed on
+	// `session.sessionId`, `src/settings/SessionsPage.tsx:54`). Zero means a
+	// session built by hand (tests), which never takes part in a list arm.
+	ID uint64
 	// Term is the running program's terminal, nil once it is closed.
 	Term *terminal.Terminal
 	// Title is the title the program set, empty until it sets one.
@@ -103,6 +110,10 @@ type App struct {
 	// the one on screen: -1 when there are none.
 	Sessions []*Session
 	Active   int
+	// nextSessionID is the source of Session.ID: bumped at every creation, so
+	// the identity a list arm holds still names the same session after a
+	// deletion shifted the slice (see Session.ID).
+	nextSessionID uint64
 	// Err is why the last session could not start.
 	Err error
 
@@ -210,7 +221,8 @@ func (a *App) startSession(dir string, mutate ...func(*terminal.Options)) (*Sess
 		return nil, err
 	}
 	term = created
-	session = &Session{Term: term, Created: time.Now()}
+	a.nextSessionID++
+	session = &Session{ID: a.nextSessionID, Term: term, Created: time.Now()}
 	return session, nil
 }
 

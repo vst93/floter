@@ -814,6 +814,7 @@ func New(opts Options) *App {
 		out := make([]settingsui.Session, 0, len(sessions))
 		for i := range sessions {
 			out = append(out, settingsui.Session{
+				ID:      sessions[i].ID,
 				Title:   a.Terminal.LabelOf(i),
 				Running: !a.Terminal.Exited(i),
 				Active:  i == a.Terminal.Active,

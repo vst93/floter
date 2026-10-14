@@ -376,6 +376,11 @@ type UninstallComponents struct {
 
 // Session is one running session, as the Sessions page shows it.
 type Session struct {
+	// ID is the session's stable identity, the key the close control arms on:
+	// the sessions list can shrink while a question is up, and the armed
+	// session has to stay the same one (the reference's `killArmedId`),
+	// `src/settings/SessionsPage.tsx:54`). Zero never arms.
+	ID      uint64
 	Title   string
 	Running bool
 	// Active marks the session on screen: the one the terminal surface is
@@ -488,11 +493,14 @@ type App struct {
 	toolIssue bool
 
 	// armedSession is the session whose close control has been pressed once,
-	// and armedSessionAt when it was asked: the second press ends the session's
-	// program, and the question answers itself with "keep" after
-	// sessionCloseWindow. A zero armedSessionAt means nothing is armed (the
-	// index 0 is a real session, so the clock, not the index, carries "asked").
-	armedSession   int
+	// named by its stable ID, and armedSessionAt when it was asked: the second
+	// press ends the session's program, and the question answers itself with
+	// "keep" after sessionCloseWindow. A zero ID is "nothing armed" and never
+	// matches a real session (the reference's `killArmedId` was a
+	// `string | null`, `src/settings/SessionsPage.tsx:54`); the two fields are
+	// only ever set together, so the clock drives the expiry and the ID drives
+	// the match.
+	armedSession   uint64
 	armedSessionAt time.Time
 	// sessionsSortOldest is the sessions list's order: false (the shipped
 	// state) lists the newest session first, as the old page's own default,
@@ -1002,6 +1010,14 @@ func (a *App) sessions(c *ui.Context, copy i18n.Settings) {
 		order = copy.SessionsSortOldest
 	}
 	ui.Column(c).FillWidth().Gap(t.Space(5.5)).Children(func() {
+		// A question whose session is gone has nothing left to answer: the
+		// reference's page re-rendered its list against the broker each poll,
+		// so a killed/ended session's row took its arm with it. Here the list
+		// is this frame's, so an arm that names no row is dropped before it is
+		// handed to another one (see sessionInList).
+		if a.armedSession != 0 && !sessionInList(sessions, a.armedSession) {
+			a.disarmSessionClose()
+		}
 		a.sectionWithAction(c, copy.PageSessions, copy.SessionsActive, order, func() {
 			a.sessionsSortOldest = !a.sessionsSortOldest
 		}, func() {
@@ -1025,7 +1041,7 @@ func (a *App) sessions(c *ui.Context, copy i18n.Settings) {
 							if a.Actions.CloseSessionAt == nil {
 								return
 							}
-							if a.armedSessionAt != (time.Time{}) && a.armedSession == session.Index {
+							if a.armedSession != 0 && a.armedSession == session.ID {
 								if ui.Button(c, copy.SessionsCloseConfirm).TextColor(t.Danger).Clicked() {
 									a.disarmSessionClose()
 									a.Actions.CloseSessionAt(session.Index)
@@ -1036,7 +1052,7 @@ func (a *App) sessions(c *ui.Context, copy i18n.Settings) {
 								return
 							}
 							if ui.Button(c, copy.SessionsClose).Clicked() {
-								a.armSessionClose(session.Index)
+								a.armSessionClose(session.ID)
 							}
 						})
 					})
@@ -3408,14 +3424,27 @@ const sessionCloseWindow = 3 * time.Second
 // there, as the reference's SessionsPage capture listener did (`disarmKill`):
 // the key backs out of the question rather than the page.
 func (a *App) anySessionArmed() bool {
-	return !a.armedSessionAt.IsZero()
+	return a.armedSession != 0
 }
 
-// armSessionClose asks a session's close question and starts its clock. The
-// reference's `armKill` reset the pending timer on every arm, so arming one
-// session drops any other (see `sessionCloseWindow`).
-func (a *App) armSessionClose(index int) {
-	a.armedSession, a.armedSessionAt = index, a.now()
+// armSessionClose asks a session's close question and starts its clock. It is
+// keyed on the session's stable ID, not its position, so a session that moved
+// while the question was up is still the one the answer ends. The reference's
+// `armKill` reset the pending timer on every arm, so arming one session drops
+// any other (see `sessionCloseWindow`).
+func (a *App) armSessionClose(id uint64) {
+	a.armedSession, a.armedSessionAt = id, a.now()
+}
+
+// sessionInList reports whether any listed session carries the given identity:
+// the row that owns an armed question must still be there to show it.
+func sessionInList(sessions []Session, id uint64) bool {
+	for i := range sessions {
+		if sessions[i].ID == id {
+			return true
+		}
+	}
+	return false
 }
 
 // disarmSessionClose drops the question and its clock in one place, so the two

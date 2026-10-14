@@ -486,9 +486,9 @@ func TestSessionsPage(t *testing.T) {
 	notes := []string{"Running · attached", "Running · detached", "Process exited · code 1"}
 	a.Sessions = func() []Session {
 		out := []Session{
-			{Title: "zsh — floter", Running: true, Active: true, Index: 0},
-			{Title: "vim", Running: true, Index: 1},
-			{Title: "build", Running: false, Index: 2},
+			{Title: "zsh — floter", Running: true, Active: true, Index: 0, ID: 1},
+			{Title: "vim", Running: true, Index: 1, ID: 2},
+			{Title: "build", Running: false, Index: 2, ID: 3},
 		}
 		for i := range out {
 			out[i].Note = notes[i]
@@ -566,7 +566,7 @@ func TestEscapeDisarmsASessionClose(t *testing.T) {
 		Close:          func() { closes++ },
 	})
 	a.Sessions = func() []Session {
-		return []Session{{Title: "zsh — floter", Running: true, Active: true, Index: 0}}
+		return []Session{{Title: "zsh — floter", Running: true, Active: true, Index: 0, ID: 1}}
 	}
 	tt := render(t, a, 720, 760)
 	if err := tt.Click("Sessions"); err != nil {

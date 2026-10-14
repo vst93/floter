@@ -13,7 +13,7 @@ func TestTheSessionCloseQuestionExpiresAndDoesNotCrossPages(t *testing.T) {
 	closed := 0
 	a := New(newStore(t), Actions{CloseSessionAt: func(index int) { closed = index + 1 }})
 	a.Sessions = func() []Session {
-		return []Session{{Title: "zsh — floter", Running: true, Active: true, Index: 0}}
+		return []Session{{Title: "zsh — floter", Running: true, Active: true, Index: 0, ID: 1}}
 	}
 	now := time.Unix(1_700_000_000, 0)
 	a.Now = func() time.Time { return now }
