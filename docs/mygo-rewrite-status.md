@@ -99,7 +99,48 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-ds `inherit` 终端的光标色取回 `--terminal-cursor` token（面板光标不再是前景色的替身）**
+> **最新一轮：P7-dt 终端空态的返回行印出并绑上用户自己的 new-command 键（不再是字面 Escape）**
+> —— P7-ds 收尾后「尚未做（P7-ds 重写）」只剩「块光标的字形颜色」（已核实框架无口子），清单
+> 事实上已空。本轮把清单写实：先逐条核对 P7-dq 剩下的第 2·3 条（结论：`EnsureSession` →
+> `startSession` 同步拿回会话对象，没有异步 spawn 窗口，240ms 空态延迟**无落点**；本构建没有
+> 自定义集成抽屉/discard bar，溢出菜单里的 Export/Import 已由 `transferRow` 两个直按钮直接暴露，
+> 脏比较与菜单都**无落点**）；再把入口换到「原版 `src/App.tsx` 的终端空态 + `src/surface-policy.ts`
+> 的 dismiss 表」。依赖检查：GitHub releases API 限流，`proxy.golang.org/.../@v/list` 最新仍是
+> **v0.4.8**（与 `go.mod` 一致），无版本可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），
+> 未翻历史提交。
+>
+> **偏离点**：终端空态的「返回」行**印错了键也绑错了动作**。原版 `main:src/App.tsx:3863-3872`
+> 的第二行 keycap 是 `formatShortcut(shortcuts.new_command)`（配置里的键），点击是
+> `returnToInputMode`；`main:src/surface-policy.ts:207-215` 的 `DISMISS_TABLE.terminal.escape` 是
+> **null**——Escape 在终端面归运行中的 shell，只有可配置的 `new-command` 才 `return-to-input`。
+> 本构建（改前）：`internal/terminalui/terminalui.go:711-724` 印字面量 `"esc"`、点击
+> `Actions.Close`（只 `Open(SurfaceLauncher)`，**不清字段**），并且视图自己
+> `c.Shortcut(0, ui.KeyEscape)` 抢走了 Escape；而 new-command 键其实由
+> `internal/shell/shell.go:3031-3033` 的 `appShortcuts` → `returnToInput` 单独回答。于是同一件事
+> 有两套说法：键印 Escape、点击走 Close，与原版都不一致。
+>
+> **修法**：
+> - `internal/terminalui/terminalui.go`：`emptyLine`（`:779`）改收**已排好的 keycap 文本**
+>   （`badgeText`），不再在里面套 `keyBadge`；新增纯函数 `newCommandBadge(s settings.Settings)`
+>   （`:813`）返回 `shortcuts.Display(settings.Shortcut(s, settings.ShortcutNewCommand))`——与
+>   原版 `formatShortcut` 同一个 token，Mac 读 ⌘W、别处读绑定自身的写法。返回行改用
+>   `Actions.NewCommand`（`:727`），并删掉视图对 `ui.KeyEscape` 的认领（Escape 归 shell，符合
+>   `DISMISS_TABLE.terminal.escape = null`）。`keyBadge` 因此只剩 `enter`→`↩` 一档。
+> - `internal/shell/shell.go`：`termActions.NewCommand`（`:829`）从
+>   `ResetQuery(); Open(SurfaceLauncher)` 改为 `a.returnToInput()`，与 appShortcuts 的键路径、
+>   header 的「New command」按钮、原版空态第二行四处同一入口（都经 `returnToInputMode` 的等价物
+>   `returnToInput`，带 `scanToolCatalog()`）。
+>
+> **测试**（`internal/terminalui/sessions_test.go`）：`TestEmptyStateLines` 重写——把
+> `ShortcutNewCommand` 改绑成 `Alt+B`，断言渲染里出现 `shortcuts.Display("Alt+B")`、**不再有**
+> `"esc"`；按 Escape 断言 new-command/close 都**没**跑；点返回行断言
+> `Actions.NewCommand` 跑了一次。变异核查：把 badge 改回 `"esc"` 或把动作改回 `Actions.Close`，
+> 断言立即红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+> **上一轮：P7-ds `inherit` 终端的光标色取回 `--terminal-cursor` token（面板光标不再是前景色的替身）**
 > —— P7-dr 收尾后「尚未做（P7-dr 重写）」第 1 条（块光标的字形颜色应取单元格自己的前景色）是清单
 > 最高优先级。本轮按验收先核实框架：**确实没有逐单元格的口子**——mygo v0.4.8 的
 > `plugins/terminal/paint.go:500-505` 在块光标铺满后固定用 `color(v.colors.Background)` 重绘字形，
@@ -3571,15 +3612,59 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-> **清单状态（P7-ds 收尾）**：P7-do 重写的三条已全部结清（第 1 条落地 P7-dp；第 2·3 条在
-> P7-dq 比对为覆盖/无落点）；P7-dq 重写的第 1 条（终端外观除「进入」外还有没有别的写入时机）
-> **P7-dr 核对关闭**（无落空：全部会话都经 `startSession` 读当帧设置）；P7-dr 重写的那一条
-> （块光标的字形颜色）**P7-ds 核实为框架无口子**（无逐单元格钩子，已写实进「已知差距」）。
-> 核对同一段光标渲染时发现并落地了一处真实偏离：`inherit` 的光标**自身颜色**应是
-> `--terminal-cursor`（青绿），而不是插件零光标规则给出的前景色（P7-ds，见上）。下面重写新的
-> 具体待办。
+> **清单状态（P7-dt 收尾）**：P7-ds 重写的两条至此已全部结清（第 1 条 inherit 光标色已落地；
+> 第 2 条块光标字形色已核实框架无逐单元格口子、已写实进「已知差距」）。P7-dq 清单剩下的
+> 第 2·3 条本轮逐条核对，**均为无落点**（240ms 空态延迟无异步 spawn 窗口；自定义集成的脏比较/
+> 溢出菜单在本构建没有对应抽屉，动作已由两个直按钮可触达）——结论写死在下面对应条里。
+> 本轮换入口：逐文件对照原版 `src/App.tsx` 的终端空态与 `src/surface-policy.ts` 的 dismiss 表，
+> 落地第 1 条（终端空态的返回行），其余写成可执行规格。依赖检查：GitHub releases API 限流，
+> `proxy.golang.org/.../@v/list` 最新仍是 **v0.4.8**（与 `go.mod` 一致），无版本可升。
+> 只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
 
-### 具体待办（P7-ds 重写）
+### 具体待办（P7-dt 重写）
+
+> 本轮把「逐文件对照原版」的入口放在终端的空态与其快捷键归属上，第 1 条是已核实的真实偏离
+> （本轮落地），第 2·3 条是同一张表里剩下的具体项。依赖检查同上，无版本可升。
+
+1. **（已落地，P7-dt）终端空态的「返回」那行印的不是配置里的 new-command 键，绑的也不是它**。
+   - 原版对照：`main:src/App.tsx:3863-3872`——空态第二行的 keycap 是
+     `formatShortcut(shortcuts.new_command)`，点击是 `returnToInputMode`；`main:src/surface-policy.ts:207-215`
+     的 `DISMISS_TABLE.terminal.escape` 是 **null**（Escape 归运行中的 shell），`new-command` 才
+     `return-to-input`。
+   - 本构建（改前）：`internal/terminalui/terminalui.go:711-724` 印字面量 `"esc"`、点击
+     `Actions.Close`，并在视图里 `c.Shortcut(0, ui.KeyEscape)` 抢走 Escape；而 new-command 键由
+     `internal/shell/shell.go:3031-3033` 的 `appShortcuts` → `returnToInput` 单独回答。
+   - **已落地（P7-dt）**：`emptyLine` 改收已排好的 keycap 文本，新增 `newCommandBadge`
+     （`shortcuts.Display(settings.Shortcut(s, ShortcutNewCommand))`）；返回行改用
+     `Actions.NewCommand`，shell 的该 action 改接 `returnToInput`（与 header 的「New command」
+     同一入口）；删掉空态对 Escape 的认领。详见「最近几轮」P7-dt。
+2. **（待比对）launcher 上被改绑后，字面 ⌘W 仍会隐藏窗口**。
+   - 原版对照：`main:src/surface-policy.ts:208`——`collapsed.mod-w` 是 **null**（只有可配置的
+     `new_command` 触发折叠；默认同为 ⌘W 掩盖了差别），`collapsed.new-command` → `hide-window`。
+   - 本构建：`internal/shell/shell.go:3046-3053` 的 default 分支无条件 `c.Shortcut(ui.Cmd, ui.KeyW)`
+     → `Hide()`，把字面 ⌘W 折进了 new-command（注释自认「the same key by default」），于是用户把
+     `new_command` 改绑到别处后，⌘W 仍隐藏。
+   - 验收：`internal/shell/appkeys_test.go` 的 `TestDismissTable` 增加一条「把
+     `ShortcutNewCommand` 改成 `Alt+N`，发 ⌘W，surface 与窗口都不动」；改后只在 `new_command`
+     命中时 `Hide()`。
+3. **（待比对，macOS）terminal 的 new-command 没有 key-up reassert**。
+   - 原版对照：`main:src/surface-policy.ts:214` 的 `terminal.new-command` 带 `reassertOnKeyUp: true`
+     ——松开修饰键后重新把焦点压回启动器输入框（`main:src/App.tsx:1789-1812`）。
+   - 本构建：`internal/shell/shell.go:3031-3033` 只有 key-down 的 `c.Shortcut` 分支，没有 key-up
+     处理。
+   - 验收：先确认 mygo 的焦点层是否已在修饰键松开时把焦点交回（框架 `show_input` 的等价物）；
+     若没有，在 `appShortcuts` 里补一条 key-up 重压焦点的路径并在 macOS 实机核对，否则按惯例写进
+     「已知差距」。
+4. **（记录，非待办）ansi 解析器有三处是原版的超集**（`internal/ansi/ansi.go`）：
+   - `skipEscape`（`:170`）把 `ESC P/X/^/_` 当字符串序列整体吞掉；原版 `main:src/launcher/ansi.ts:283`
+     只对 `ESC ]` 这样做，其余两字节转义之后的内容会当文本印出。
+   - `applySGR`（`:222`）支持冒号分隔的颜色（`38:5:1`）；原版 `parseSgrParams` 只按 `;` 拆，
+     `Number("38:5:1")` 是 NaN → 忽略。
+   - `sgrValue`（`:283`）用 `strconv.Atoi`；原版用 `Number()`，认 `0x10`/`1e2` 这类写法。
+   - 三处都是「本构建更宽」，不回归对齐（对齐会把 DCS 载荷印成可见文本）；在此记录为**有意的
+     超集**，不是待办。
+
+### 具体待办（P7-ds 重写；两条已全部结清：第 1 条 P7-ds、第 2 条 P7-dt 核实为框架无口子）
 
 > 本轮关闭了 P7-dr 第 1 条（核实为框架无逐单元格口子，已记「已知差距」），并落地了同一段代码里
 > 新发现的 inherit 光标色偏离。下面只留本轮新发现、仍未做的一条；P7-dq 清单的第 2·3 条
@@ -3635,20 +3720,23 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
      `Store.Snapshot()`，`a.NewTerminal` 全仓只出现一次（`terminalui.go:206`）。新会话必得当帧外观，
      旧会话由入场刷新（P7-dq）覆盖，**无落空**。核对时发现并落地的真实偏离见 P7-dr（`Transparent`
      是创建期选项，跨 inherit/命名配色必然过期）。
-2. **（待比对，疑无落点）终端空态的 240ms 延迟**（未做）。
+2. **（已关闭，P7-dt）终端空态的 240ms 延迟——无落点**。
    - 原版对照：`main:src/terminal/empty-state.ts:39` 的 `TERMINAL_EMPTY_HINT_DELAY = 240`——防的是
      「异步 `term_spawn` 往返期间页面短暂为空 → 空态闪一下」。
-   - 本构建：`EnsureSession` 同步建会话（`internal/terminalui/terminalui.go` 的 `startSession`），
-     空态只在**同步失败**时出现（`terminalui.go:686-717`），没有那个窗口。
-   - 验收：确认没有异步 spawn 路径；确认无误后把这条关闭，只在文档记「无落点」。
-3. **（待比对，疑无落点）自定义集成的脏比较（R9-4）与溢出菜单（R7-3b）**（未做，P7-dq 已初查）。
+   - 本构建：`EnsureSession`（`internal/terminalui/terminalui.go:256`）同步调 `startSession`
+     （`:167`）同步拿回 `*terminal.Terminal`（PTY 在插件内部自行异步启动，但页面从第一帧就有
+     会话对象），空态只在**同步失败**（`a.Err`）或所有会话被关时出现（`:698-728`），没有那个
+     「建好了但身份还没回来」的窗口。
+   - **结论（P7-dt）**：全仓没有异步入队后再翻身份的 spawn 路径，延迟无处可挂，**无落点**。
+3. **（已关闭，P7-dt）自定义集成的脏比较（R9-4）与溢出菜单（R7-3b）——无落点**。
    - 原版对照：`main:src/extensions/integration-dirty.ts` 的 `customIntegrationDirty`（防「打开旧
-     manifest 就被判脏 → 关闭被 discard bar 拦」）与 `main:src/ExtensionsPanel.tsx:2338` 的
-     `OverflowMenu`（把 export/import 从工具栏搬进菜单）。
+     manifest 就被判脏 → 关闭被 discard bar 拦」）与 `main:src/ExtensionsPanel.tsx:2227-2242` 的
+     `OverflowMenu`（菜单里只有 Export/Import 两项，`main:src/ExtensionsPanel.tsx:2338` 才渲染）。
    - 本构建：**没有自定义集成抽屉**——创建走 `floter connect` 深链/CLI，集成页只有运行时表单
      （`internal/settingsui/settingsui.go:3781` 的 `toolParamsEditor`），没有「编辑一份 manifest
-     再保存」的模态；`transferRow` 用两个直按钮取代菜单，两者都已让动作可触达。
-   - 验收：确认集成页把原版抽屉/菜单里每个动作都暴露了；确认无误后把这两条关闭。
+     再保存」的模态，也没有 discard bar，故脏比较无处可挂；导出/导入由 `transferRow` 的两个直按钮
+     直接暴露（与菜单同一对动作），菜单那一层本来就是为「把两个按钮搬进去」而存在。
+   - **结论（P7-dt）**：两个动作都可达，脏比较没有对应模态，**无落点**。
 
 ### 具体待办（P7-do 重写；三条已全部结清：第 1 条 P7-dp，第 2·3 条 P7-dq 比对为覆盖/无落点）
 

@@ -26,6 +26,7 @@ import (
 	"floter/internal/launcher"
 	"floter/internal/motion"
 	"floter/internal/settings"
+	"floter/internal/shortcuts"
 	"floter/internal/theme"
 )
 
@@ -710,17 +711,20 @@ func (a *App) View(c *ui.Context) {
 				}
 				ui.Text(c, title).FontSize(t.FontSize + 1).TextColor(t.TextMuted)
 				ui.Text(c, hint).FontSize(t.FontSize).TextColor(t.TextMuted)
-				// The keys the lines print are the keys that work: Enter
-				// starts a session, Escape leaves the surface.
+				// The keys the lines print are the keys that work: Enter starts a
+				// session, and the back line is the user's own new-command binding,
+				// as the old build's `formatShortcut(shortcuts.new_command)` drew it.
+				// Escape is not this page's: on the terminal surface it belongs to
+				// the shell (`main:src/surface-policy.ts` `DISMISS_TABLE.terminal
+				// .escape` is null), and the new-command chord is claimed by the
+				// window handler (`appShortcuts` -> `returnToInput`), so the page
+				// prints it rather than claiming a second copy.
 				if c.Shortcut(0, ui.KeyEnter) {
 					a.EnsureSession()
 				}
-				if c.Shortcut(0, ui.KeyEscape) && a.Actions.Close != nil {
-					a.Actions.Close()
-				}
-				a.emptyLine(c, copy, "enter", copy.EmptyNew, func() { a.EnsureSession() })
-				if a.Actions.Close != nil {
-					a.emptyLine(c, copy, "esc", copy.EmptyBack, a.Actions.Close)
+				a.emptyLine(c, copy, keyBadge("enter"), copy.EmptyNew, func() { a.EnsureSession() })
+				if a.Actions.NewCommand != nil {
+					a.emptyLine(c, copy, newCommandBadge(a.Store.Snapshot()), copy.EmptyBack, a.Actions.NewCommand)
 				}
 			})
 			// The bar floats over the blank page too: its close control is
@@ -775,8 +779,9 @@ func (a *App) View(c *ui.Context) {
 // its label beside it, the whole line a hit target. Neutral text, never a
 // filled control — the line is furniture, not a primary button. The pointer
 // lifts the *text* one step, as `.terminal-empty__line:hover` did; it does not
-// paint a pane behind the line.
-func (a *App) emptyLine(c *ui.Context, copy i18n.Terminal, key, label string, run func()) {
+// paint a pane behind the line. `badgeText` is the keycap's already-spelled
+// text (`keyBadge("enter")`, `newCommandBadge(...)`).
+func (a *App) emptyLine(c *ui.Context, copy i18n.Terminal, badgeText, label string, run func()) {
 	t := c.Theme()
 	tokens := tokensOf(a, c)
 	line := ui.Row(c).Focusable().Padding(t.Space(0.5), t.Space(1)).
@@ -794,7 +799,7 @@ func (a *App) emptyLine(c *ui.Context, copy i18n.Terminal, key, label string, ru
 			AlignItems(ui.Center).Justify(ui.Center)
 		badge.InsetShadow(0, 1, 0, 0, tokens.LensRim)
 		badge.Children(func() {
-			ui.Text(c, keyBadge(key)).FontSize(tokens.Caption).TextColor(tokens.TextSecondary)
+			ui.Text(c, badgeText).FontSize(tokens.Caption).TextColor(tokens.TextSecondary)
 		})
 		ui.Text(c, label).FontSize(t.FontSize).TextColor(color)
 	})
@@ -803,16 +808,21 @@ func (a *App) emptyLine(c *ui.Context, copy i18n.Terminal, key, label string, ru
 	}
 }
 
-// keyBadge is one of the empty state's keys as the platform spells it: `↩` and
-// `esc` are the same word everywhere.
+// keyBadge is one of the empty state's fixed keys as the platform spells it:
+// `↩` is the same glyph everywhere.
 func keyBadge(key string) string {
-	switch key {
-	case "enter":
+	if key == "enter" {
 		return "\u21a9"
-	case "esc":
-		return "esc"
 	}
 	return key
+}
+
+// newCommandBadge is the empty state's back key as the user's own binding
+// spells it. The old build printed `formatShortcut(shortcuts.new_command)`
+// there — a configurable accelerator, not a literal Escape — so a Mac reads
+// ⌘W and elsewhere the app's own binding word for word.
+func newCommandBadge(s settings.Settings) string {
+	return shortcuts.Display(settings.Shortcut(s, settings.ShortcutNewCommand))
 }
 
 // tokensOf resolves the card language's own tokens for the stored appearance.

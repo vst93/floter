@@ -9,6 +9,8 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/i18n"
+	"floter/internal/settings"
+	"floter/internal/shortcuts"
 )
 
 // countingTerminal is a NewTerminal that hands out sessions the test can tell
@@ -233,32 +235,50 @@ func TestCloseAll(t *testing.T) {
 	_ = time.Now()
 }
 
-// The empty state's two lines are its own keys: Enter starts a session and
-// Escape leaves the surface, and each line prints the key that works, in a
-// badge beside its label — the old build's `.terminal-empty__line`.
+// The empty state's two lines are its own keys: Enter starts a session and the
+// user's new-command binding returns to the launcher, and each line prints the
+// key that works in a badge beside its label — the old build's
+// `.terminal-empty__line`, whose second keycap was
+// `formatShortcut(shortcuts.new_command)`, never a literal Escape. Escape is
+// the shell's on this surface (the old build's `DISMISS_TABLE.terminal.escape`
+// is null), so the empty page leaves it alone.
 func TestEmptyStateLines(t *testing.T) {
-	closed := 0
-	a := New(newStore(), Actions{Close: func() { closed++ }}, nil)
+	newCommands, closeCalls := 0, 0
+	store := newStore()
+	if err := store.Update(func(s *settings.Settings) {
+		s.SetShortcut(settings.ShortcutNewCommand, "Alt+B")
+	}); err != nil {
+		t.Fatal(err)
+	}
+	a := New(store, Actions{
+		NewCommand: func() { newCommands++ },
+		Close:      func() { closeCalls++ },
+	}, nil)
 	tt := render(t, a, 860, 600)
 	tt.Frame()
 	copy := i18n.For("en").Terminal
-	for _, want := range []string{"\u21a9", "esc", copy.EmptyNew, copy.EmptyBack} {
+	wantBadge := shortcuts.Display("Alt+B")
+	for _, want := range []string{"\u21a9", wantBadge, copy.EmptyNew, copy.EmptyBack} {
 		if !tt.HasText(want) {
 			t.Errorf("missing %q in %q", want, tt.Texts())
 		}
 	}
-	// Escape leaves the surface, as its own line says.
+	if tt.HasText("esc") {
+		t.Errorf("the back keycap still reads Escape: %q", tt.Texts())
+	}
+	// Escape is the shell's on this surface, not the empty page's: it runs
+	// nothing here.
 	tt.Key(0, ui.KeyEscape)
 	tt.Frame()
-	if closed != 1 {
-		t.Errorf("Escape left the surface %d times", closed)
+	if newCommands != 0 || closeCalls != 0 {
+		t.Errorf("Escape ran new-command %d / close %d times, want none", newCommands, closeCalls)
 	}
 	// Clicking a line runs it too.
 	if err := tt.Click(copy.EmptyBack); err != nil {
 		t.Fatalf("the back line: %v", err)
 	}
 	tt.Frame()
-	if closed != 2 {
-		t.Errorf("the line ran %d times", closed)
+	if newCommands != 1 {
+		t.Errorf("the back line ran new-command %d times, want 1", newCommands)
 	}
 }

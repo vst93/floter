@@ -826,7 +826,7 @@ func New(opts Options) *App {
 	// hand the main thread the work of touching the app's state.
 	termActions := terminalui.Actions{
 		Close:      func() { a.Open(SurfaceLauncher) },
-		NewCommand: func() { a.Launcher.ResetQuery(); a.Open(SurfaceLauncher) },
+		NewCommand: func() { a.returnToInput() },
 		OpenExternal: func() {
 			// The session is handed to the system's own terminal: the Go
 			// build runs its terminal in-process, so this opens a new window
