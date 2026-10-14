@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1094 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1098 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1094 项测试
+go test -count=1 ./...         # 1098 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,7 +99,52 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-dm 脚本工具链探测改成异步，状态行终于有「正在检查」（原版
+> **最新一轮：P7-dn 安装目录在召回时重读机器（原版 `src/App.tsx:2453-2457` 的
+> `floter://revealed` 监听 + `:781-788` 的 `returnToInputMode`（R74），
+> `src/extensions/tool-catalog-store.ts:52-63` 的 `refreshToolCatalog`）**
+> —— P7-dm 收尾后「尚未做」清单为空，本轮按惯例换入口：逐文件对照原版**安装目录的读取/刷新**
+> （`extensions/tool-catalog-store.ts`，此前未被任一待办覆盖）。依赖检查：GitHub releases API
+> 仍被限流，`go list -m -versions github.com/egoist/mygo` 最新仍是 **v0.4.8**（与 `go.mod`
+> 一致），无版本可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离点（三处，一处本轮修）**：原版把安装目录的读取当成一件**有 memo、有在飞去重、每次 reveal
+> 重读**的事：
+> 1. **每次原生 reveal 重读一次**（`main:src/App.tsx:2453-2457`，注释「A tool installed in the
+>    user's own shell while the window was hidden must stop being offered as an install row on the
+>    next summon; between reveals the module memo serves every query. No polling, no timer.」）。
+>    本构建只在启动（`internal/shell/shell.go:1107`）与托盘 Rescan（`internal/shell/system.go:495`）
+>    读，`summon()`（`shell.go:2652`）从不重读——用户在隐藏窗口期间用自己的 shell 装了工具，召回后
+>    旧安装行还在，直到重启或手动 Rescan。
+> 2. **回到输入框再重读一次**（`main:src/App.tsx:781-788`，R74：安装行自己的终端门**不隐藏窗口**，
+>    所以 reveal 监听看不到这次返回）。本构建的 `returnToInput()`（`shell.go:3012`）同样不读。
+> 3. **在飞请求共享**（`tool-catalog-store.ts:52-63`，`refreshToolCatalog` 复用 `inFlight`）。本构建
+>    的 `scanToolCatalog` 每次调用各起一个 goroutine，没有去重。
+>
+> **修法**（第 1、2、3 条同轮落地——同一个刷新机制）：
+> - `internal/shell/shell.go`：`Options` 新增 `LookTools func() []tools.State`（nil 用真的
+>   `tools.Look`，测试替换掉文件系统）；`scanToolCatalog` 走 `a.lookTools()`，并以
+>   `catalogMu`/`catalogScanning` 做**在飞去重**（在飞则直接返回，共享那一次扫描）。
+> - `summon()`（reveal，`shell.go:2657`）与 `returnToInput()`（R74 的归位，`shell.go:3018`）各加
+>   一处 `a.scanToolCatalog()`，正对原版仅有的两个刷新点。
+> - **诚实记录**：原版注释里的「每次 reveal」是原生 `floter://revealed` 事件，凡让窗口从隐藏变可见
+>   都算（含深链 `HandleURL` → `Open` → `Show`）；本构建只接了 **summon** 与 **归位** 两条最常用的
+>   reveal（也是用户报的那条「装了工具还显示安装行」的路径），深链 reveal 走 `Show()` 的 rehome
+>   分支，留作待办第 3 条。
+> - **顺带修掉一条既有竞态**：`TestToolCatalogReachesTheLauncher`（`internal/shell/shell_test.go:2230`）
+>   轮询 `a.Launcher.InstallCatalog` 时没有同步，`-race` 下报数据竞态（属既有问题，非本轮引入；已用
+>   新的 `awaitCatalogIdle` 修掉）。
+>
+> **测试**：`internal/shell/shell_test.go` 新增 `TestASummonRefreshesTheInstallCatalog`、
+> `TestTheWayBackRefreshesTheInstallCatalog`、`TestOneCatalogScanRunsAtATime`、
+> `TestARefreshReplacesTheInstallCatalog`，另有 `awaitCatalogStart`/`awaitCatalogIdle` 两个等待
+> 助手。变异核查：删掉 `summon()` 那行，summon 测试立刻红；删掉 `returnToInput()` 那行，归位测试立刻
+> 红；把在飞去重改成 `if false`，`TestOneCatalogScanRunsAtATime` 立刻红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 27 包全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过；`go test -race ./internal/shell -run Catalog`
+> 无竞态。
+>
+> **上一轮：P7-dm 脚本工具链探测改成异步，状态行终于有「正在检查」（原版
 > `src/ExtensionsPanel.tsx:925-961` 的 `probeScriptRuntime` 与
 > `src/extensions/CustomIntegrationDrawer.tsx:112-121` 的 `ScriptRuntimeLine`）**
 > —— P7-dl 收尾后「尚未做」只剩 P7-di 第 3 条里那半条「异步 checking 态」，先前被写成「卡框架」。
@@ -3297,9 +3342,53 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-> **清单状态（P7-dm 收尾）**：下面几条历史待办已全部落地（P7-di 三条、P7-dk、P7-dg 第 3 条是
-> 原版自己都没接线的死函数、P7-dd/P7-dc 第 3 条卡 mygo 框架）。**本轮起清单为空**：下一轮按
-> 惯例换入口（逐文件对照原版某个尚未审计的模块）重新写实 3 条带 file:line 的具体待办，再取第 1 条。
+> **清单状态（P7-dn 收尾）**：P7-dm 后清单为空，本轮换入口逐文件对照原版的
+> **安装目录读取/刷新**（`src/extensions/tool-catalog-store.ts`），把清单重写为下面三条带 file:line 的
+> 具体待办，并取第 1、2 条（同一个刷新机制）落地。**下一条具体待办是下面第 3 条**（深链 reveal）。
+
+### 具体待办（P7-dn 重写；第 1·2 条已落地 P7-dn，余下第 3 条低优先级）
+
+> 本轮换入口：逐文件对照原版的**安装目录缓存**（`src/extensions/tool-catalog-store.ts` 的
+> `loadToolCatalog`/`refreshToolCatalog`/`useToolCatalog`，以及它的两个刷新调用点
+> `src/App.tsx:2453-2457` 与 `:781-788`）。此模块此前未被任一历史待办覆盖。依赖检查：GitHub
+> releases API 被限流，用 `go list -m -versions github.com/egoist/mygo` 核对，最新仍是 **v0.4.8**
+> （与 `go.mod` 一致），无版本可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），
+> 未翻历史提交。
+
+1. **revel 与从终端页归位时重读安装目录**（已落地，P7-dn）。
+   - 原版对照：`main:src/App.tsx:2453-2457`——`floter://revealed` 监听里 `void refreshToolCatalog()`，
+     注释明写“一次 reveal 一次刷新”、无轮询无定时器；`main:src/App.tsx:781-788`（R74）——
+     `returnToInputMode` 再 `void refreshToolCatalog()`，因为安装行自己的终端门“never hides the
+     window”，reveal 监听看不到这次返回；`main:src/extensions/tool-catalog-store.ts:52-63` 的
+     `refreshToolCatalog` 在飞则复用 `inFlight`。
+   - 本构建（改前）：`internal/shell/shell.go:1208` 的 `scanToolCatalog` 只在启动
+     （`shell.go:1107`）与托盘 Rescan（`internal/shell/system.go:495`）被调；`summon()`
+     （`shell.go:2652`）与 `returnToInput()`（`shell.go:3012`）都不读，也没有在飞去重。
+   - 验收：一次 summon 重读一次机器；从终端页 `returnToInput` 也重读（即使窗口从未隐藏）；两次
+     紧挨的刷新只跑一次扫描；扫描落地后重绘。
+   - **已落地**：`Options.LookTools` + `scanToolCatalog` 的在飞去重（`catalogMu`/`catalogScanning`）；
+     `summon()`、`returnToInput()` 各加一处调用。测试 `TestASummonRefreshesTheInstallCatalog`、
+     `TestTheWayBackRefreshesTheInstallCatalog`、`TestOneCatalogScanRunsAtATime`、
+     `TestARefreshReplacesTheInstallCatalog`。详见「最近几轮」P7-dn。
+2. **“一次进程一次”的启动 memo 与“刷新替换 memo”语义**（已随第 1 条落地，P7-dn）。
+   - 原版对照：`tool-catalog-store.ts:38-46` 的 `loadToolCatalog`（首次 fetch，之后 memo）与
+     `:31-37` 的 `fetchReport`（失败→`report = null`，软着陆）。
+   - 本构建：`InstallCatalog` 就是 memo，启动扫一次（`shell.go:1107`）；刷新整体替换
+     （`SetToolCatalog`），与 `fetchReport` 的“整份替换”一致。`tools.Look` 永远返回整表，没有
+     nil 失败分支，软着陆无处可落——不新增死旋钮。
+   - 验收：刷新后的行来自最新一份扫描，不合并旧表；测试 `TestARefreshReplacesTheInstallCatalog`。
+3. **深链/托盘 reveal 也走一次重读**（未做，低优先级）。
+   - 原版对照：`floter://revealed` 是原生 reveal 事件，凡窗口从隐藏变可见都发（`HandleURL` →
+     `Open` → `Show` 也算）。
+   - 本构建：只接了 `summon()` 与 `returnToInput()` 两条；`HandleURL` 走 `Open()` → `Show()`，
+     而 `Show()` 的 reveal 判定（`rehome := placementForReveal(a.Win.IsVisible())`，`shell.go:2831`）
+     已经知道“窗口刚刚从隐藏变可见”，但那里没有去重后的刷新调用。落点：在 `Show()` 的 `rehome`
+     分支里调 `a.scanToolCatalog()`（与 `summon()` 共用去重，天然不会双扫）。
+   - 验收：窗口隐藏时到达的 `floter://settings` / `floter://terminal` 深链把它带上前台后，安装目录
+     也重读一次；已可见的 surface 切换（`rehome == false`）不重读（对得上原版“between reveals the
+     memo serves every query”）。**难点**：`Show()` 在 `a.Win == nil` 时提前 return，测试没有窗口
+     可造（`internal/shell` 测试全部 `Win == nil`），所以这条需要先为 `Show` 的 reveal 判定找一个可
+     注入的缝（就像 `LookTools` 那样），先把验收写成规格，等有测试缝再做。
 
 ### 待办（P7-dk 已落地：启动器动作栏的「在终端中打开」只在 Enter 会跑它时存在）
 

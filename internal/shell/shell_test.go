@@ -2230,15 +2230,9 @@ func TestFileDropOpensTheFilesMode(t *testing.T) {
 func TestToolCatalogReachesTheLauncher(t *testing.T) {
 	a := newApp(t)
 	a.scanToolCatalog()
-	deadline := time.Now().Add(10 * time.Second)
-	for {
-		if len(a.Launcher.InstallCatalog) > 0 {
-			break
-		}
-		if time.Now().After(deadline) {
-			t.Fatal("the catalog never reached the launcher")
-		}
-		time.Sleep(10 * time.Millisecond)
+	awaitCatalogIdle(t, a)
+	if len(a.Launcher.InstallCatalog) == 0 {
+		t.Fatal("the catalog never reached the launcher")
 	}
 	byID := map[string]tools.State{}
 	for _, state := range a.Launcher.InstallCatalog {
@@ -2259,6 +2253,112 @@ func TestToolCatalogReachesTheLauncher(t *testing.T) {
 		}
 	}
 	t.Logf("%d of %d catalog tools are installed on this machine", installed, len(byID))
+}
+
+// awaitCatalogStart waits for a scan to reach the machine.
+func awaitCatalogStart(t *testing.T, starts <-chan struct{}, what string) {
+	t.Helper()
+	select {
+	case <-starts:
+	case <-time.After(2 * time.Second):
+		t.Fatalf("%s did not refresh the install catalog", what)
+	}
+}
+
+// awaitCatalogIdle waits for the in-flight scan to settle, so the next refresh
+// is a new one rather than a shared in-flight.
+func awaitCatalogIdle(t *testing.T, a *App) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		a.catalogMu.Lock()
+		scanning := a.catalogScanning
+		a.catalogMu.Unlock()
+		if !scanning {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the catalog scan never settled")
+		}
+		time.Sleep(2 * time.Millisecond)
+	}
+}
+
+// R68 · the install catalog is re-read on every reveal, so a tool the user
+// installed in their own shell while the window was hidden stops being offered
+// as an install row on the next summon (src/App.tsx:2453-2457).
+func TestASummonRefreshesTheInstallCatalog(t *testing.T) {
+	a := newApp(t)
+	starts := make(chan struct{}, 4)
+	a.lookTools = func() []tools.State { starts <- struct{}{}; return nil }
+
+	a.summon()
+	awaitCatalogStart(t, starts, "a summon")
+	awaitCatalogIdle(t, a)
+}
+
+// R74 · the install row's own door into the terminal page never hides the
+// window, so the summon-time refresh cannot see the way back: the explicit
+// return to the launcher asks for one of its own (src/App.tsx:781-788).
+func TestTheWayBackRefreshesTheInstallCatalog(t *testing.T) {
+	a := newApp(t)
+	starts := make(chan struct{}, 4)
+	a.lookTools = func() []tools.State { starts <- struct{}{}; return nil }
+
+	a.returnToInput()
+	awaitCatalogStart(t, starts, "the way back to the launcher")
+	awaitCatalogIdle(t, a)
+}
+
+// R68 · a refresh that lands while a scan is in flight shares it rather than
+// starting a second stat scan (the old build's `refreshToolCatalog` reused its
+// in-flight promise), and a refresh after it settles runs again.
+func TestOneCatalogScanRunsAtATime(t *testing.T) {
+	a := newApp(t)
+	release := make(chan struct{})
+	starts := make(chan struct{}, 4)
+	a.lookTools = func() []tools.State {
+		starts <- struct{}{}
+		<-release
+		return nil
+	}
+	a.scanToolCatalog()
+	<-starts
+	// A second refresh while the first is still blocked must not start one.
+	a.scanToolCatalog()
+	select {
+	case <-starts:
+		t.Fatal("a second scan started while one was in flight")
+	case <-time.After(100 * time.Millisecond):
+	}
+	close(release)
+	awaitCatalogIdle(t, a)
+	// Once it has settled, a later refresh runs again.
+	a.scanToolCatalog()
+	awaitCatalogStart(t, starts, "a later refresh")
+	awaitCatalogIdle(t, a)
+}
+
+// R68 · a refresh replaces the memo: the launcher's rows come from the newest
+// scan, not the startup one.
+func TestARefreshReplacesTheInstallCatalog(t *testing.T) {
+	a := newApp(t)
+	a.lookTools = func() []tools.State {
+		return []tools.State{{Entry: tools.Entry{ID: "alpha", Name: "Alpha"}, Command: "x alpha"}}
+	}
+	a.scanToolCatalog()
+	awaitCatalogIdle(t, a)
+	if len(a.Launcher.InstallCatalog) != 1 || a.Launcher.InstallCatalog[0].ID != "alpha" {
+		t.Fatalf("the first scan did not land: %+v", a.Launcher.InstallCatalog)
+	}
+	a.lookTools = func() []tools.State {
+		return []tools.State{{Entry: tools.Entry{ID: "beta", Name: "Beta"}, Command: "x beta"}}
+	}
+	a.scanToolCatalog()
+	awaitCatalogIdle(t, a)
+	if len(a.Launcher.InstallCatalog) != 1 || a.Launcher.InstallCatalog[0].ID != "beta" {
+		t.Fatalf("the refresh did not replace the memo: %+v", a.Launcher.InstallCatalog)
+	}
 }
 
 // The shipped package can be connected from the Integrations page, through the

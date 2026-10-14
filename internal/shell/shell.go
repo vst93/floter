@@ -178,6 +178,10 @@ type Options struct {
 	// for profiles; empty means os.UserHomeDir, and tests point it at a
 	// fixture tree.
 	HomeDir string
+	// LookTools resolves the install catalog against this machine's search
+	// path; nil uses the real tools.Look. Tests replace it so a refresh runs
+	// with no filesystem, and no process, in the way.
+	LookTools func() []tools.State
 }
 
 // ClipboardPayload is one clipboard entry, ready to be written back: its
@@ -344,6 +348,14 @@ type App struct {
 
 	// refreshIntegrations runs the providers at startup.
 	refreshIntegrations bool
+	// lookTools resolves the install catalog against this machine's search
+	// path (see Options.LookTools).
+	lookTools func() []tools.State
+	// catalogMu guards catalogScanning: the catalog is read one scan at a
+	// time, so a refresh that arrives while one is in flight shares it rather
+	// than duplicating it (the old build's in-flight fetch).
+	catalogMu       sync.Mutex
+	catalogScanning bool
 
 	quit     func()
 	workArea float64
@@ -427,9 +439,15 @@ func New(opts Options) *App {
 		openPathCommand:      opts.OpenPath,
 		openURLCommand:       opts.OpenURL,
 		homeDir:              opts.HomeDir,
+		lookTools:            opts.LookTools,
 		appIcon:              storedAppIcon(opts.Store.Snapshot()),
 		lastAppIcon:          storedAppIcon(opts.Store.Snapshot()),
 		lastGlassStep:        opts.Store.Snapshot().GlassStep,
+	}
+	if a.lookTools == nil {
+		a.lookTools = func() []tools.State {
+			return tools.Look(extensions.SearchDirectories(), tools.Platform())
+		}
 	}
 	// The refusal gate reads the app's own clock, so a test that replaces it
 	// drives the 30s window without waiting.
@@ -1181,10 +1199,28 @@ func (a *App) scanTools() {
 // scanToolCatalog resolves the install catalog against this machine's search
 // path, in the background: detection is a stat scan, and the rows only matter
 // once the launcher is open.
+//
+// The catalog is read one scan at a time: a refresh that arrives while one is
+// already in flight (a summon landing on a Rescan, the way back from an
+// install session landing on a reveal) shares that scan rather than starting a
+// second one, exactly as the old build's `refreshToolCatalog` reused its
+// in-flight promise.
 func (a *App) scanToolCatalog() {
+	a.catalogMu.Lock()
+	if a.catalogScanning {
+		a.catalogMu.Unlock()
+		return
+	}
+	a.catalogScanning = true
+	a.catalogMu.Unlock()
 	go func() {
-		states := tools.Look(extensions.SearchDirectories(), tools.Platform())
-		a.onMain(func() { a.Launcher.SetToolCatalog(states) })
+		states := a.lookTools()
+		a.onMain(func() {
+			a.Launcher.SetToolCatalog(states)
+			a.catalogMu.Lock()
+			a.catalogScanning = false
+			a.catalogMu.Unlock()
+		})
 	}()
 }
 
@@ -2614,6 +2650,11 @@ func (a *App) Toggle() {
 // the old build's reveal handler in src/App.tsx (R35/R41), the same policy the
 // pure surface table in src/surface-residency.ts describes.
 func (a *App) summon() {
+	// R68 · one catalog refresh per reveal. A tool installed in the user's own
+	// shell while the window was hidden must stop being offered as an install
+	// row on the next summon; between reveals the catalog memo serves every
+	// query, and a scan already in flight is shared rather than duplicated.
+	a.scanToolCatalog()
 	if a.residencyHolds() {
 		// A summon back into the surface is the user confirming they are still
 		// in it: the clock restarts here, exactly as `residency.refresh()` did.
@@ -2969,6 +3010,12 @@ func (a *App) appShortcuts(c *ui.Context) {
 // returnToInput is the way back from another surface: the launcher, with
 // an empty field, the way the old build's returnToInputMode did.
 func (a *App) returnToInput() {
+	// R74 · the install row's own door into the terminal page never hides the
+	// window, so the summon-time reveal refresh cannot see this return: a tool
+	// installed while the user watched that session would still be offered as
+	// an install row on the way back. The explicit way back asks for one
+	// refresh of its own.
+	a.scanToolCatalog()
 	a.Launcher.ResetQuery()
 	a.Open(SurfaceLauncher)
 }
