@@ -102,7 +102,7 @@ func TestEachUnavailableRowShowsItsOwnRepair(t *testing.T) {
 	a.Actions = Actions{
 		ReconnectIntegration: func(id string) { reconnected = append(reconnected, id) },
 		OpenHomepage:         func(url string) { opened = append(opened, url) },
-		UninstallComponents:  func(string, string, UninstallComponents) {},
+		UninstallComponents:  func(string, string, string, UninstallComponents) {},
 	}
 	a.Integrations = func() []Integration {
 		return []Integration{
@@ -151,7 +151,7 @@ func TestEachUnavailableRowShowsItsOwnRepair(t *testing.T) {
 	// A nil action hides its button rather than drawing a dead one: the shell
 	// that cannot reconnect must not offer it.
 	quiet := newTestApp()
-	quiet.Actions = Actions{UninstallComponents: func(string, string, UninstallComponents) {}}
+	quiet.Actions = Actions{UninstallComponents: func(string, string, string, UninstallComponents) {}}
 	quiet.Integrations = func() []Integration {
 		return []Integration{{ID: "sys", Name: "System Tool", RuntimeOwnership: "system"}}
 	}
@@ -179,7 +179,7 @@ func TestABrokenRowOffersTheRecheck(t *testing.T) {
 	a.Actions = Actions{
 		RepairIntegration:    func(id string) { repaired = append(repaired, id) },
 		ReconnectIntegration: func(id string) { reconnected = append(reconnected, id) },
-		UninstallComponents:  func(string, string, UninstallComponents) {},
+		UninstallComponents:  func(string, string, string, UninstallComponents) {},
 	}
 	a.Integrations = func() []Integration {
 		return []Integration{
@@ -218,7 +218,7 @@ func TestABrokenRowOffersTheRecheck(t *testing.T) {
 	// A shell with no repair action hides the button rather than drawing a
 	// dead one.
 	quiet := newTestApp()
-	quiet.Actions = Actions{UninstallComponents: func(string, string, UninstallComponents) {}}
+	quiet.Actions = Actions{UninstallComponents: func(string, string, string, UninstallComponents) {}}
 	quiet.Integrations = func() []Integration {
 		return []Integration{{ID: "broken", Name: "Broken Tool", Enabled: true, Broken: true,
 			RuntimeOwnership: "system", FailureCode: extensions.BindingCodeMissing}}

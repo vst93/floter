@@ -27,35 +27,35 @@ func TestTheRemovalVerbFollowsTheIntegrationKind(t *testing.T) {
 		{
 			name: "a generated custom integration is deleted",
 			in:   Integration{ID: "custom", Generated: true, DistributionSource: "local"},
-			kind: removalCustom, en: en.RemoveDelete, zh: zh.RemoveDelete,
+			kind: RemovalCustom, en: en.RemoveDelete, zh: zh.RemoveDelete,
 		},
 		{
 			// Generated wins over npm: a custom integration installed from a
 			// registry is still the host's own generated definition.
 			name: "generated beats npm",
 			in:   Integration{ID: "custom-npm", Generated: true, DistributionSource: "npm"},
-			kind: removalCustom, en: en.RemoveDelete, zh: zh.RemoveDelete,
+			kind: RemovalCustom, en: en.RemoveDelete, zh: zh.RemoveDelete,
 		},
 		{
 			name: "an npm package is uninstalled",
 			in:   Integration{ID: "npm", DistributionSource: "npm"},
-			kind: removalNPM, en: en.IntegrationsUninstall, zh: zh.IntegrationsUninstall,
+			kind: RemovalNPM, en: en.IntegrationsUninstall, zh: zh.IntegrationsUninstall,
 		},
 		{
 			name: "a system-owned built-in is disconnected",
 			in:   Integration{ID: "sys", DistributionSource: "built-in", RuntimeOwnership: "system"},
-			kind: removalSystem, en: en.IntegrationsDisconnect, zh: zh.IntegrationsDisconnect,
+			kind: RemovalSystem, en: en.IntegrationsDisconnect, zh: zh.IntegrationsDisconnect,
 		},
 		{
 			// A built-in floter bundles and owns itself: no disconnect.
 			name: "a bundled built-in is a package",
 			in:   Integration{ID: "bundled", DistributionSource: "built-in", RuntimeOwnership: "bundled"},
-			kind: removalPackage, en: en.IntegrationsRemovePackage, zh: zh.IntegrationsRemovePackage,
+			kind: RemovalPackage, en: en.IntegrationsRemovePackage, zh: zh.IntegrationsRemovePackage,
 		},
 		{
 			name: "a linked local package is removed from the list",
 			in:   Integration{ID: "local", DistributionSource: "local"},
-			kind: removalPackage, en: en.IntegrationsRemovePackage, zh: zh.IntegrationsRemovePackage,
+			kind: RemovalPackage, en: en.IntegrationsRemovePackage, zh: zh.IntegrationsRemovePackage,
 		},
 	}
 	for _, tc := range cases {
@@ -82,7 +82,7 @@ func TestEachIntegrationCardShowsItsOwnRemovalVerb(t *testing.T) {
 	en := i18n.For("en").Settings
 	a := newTestApp()
 	a.Actions = Actions{
-		UninstallComponents: func(string, string, UninstallComponents) {},
+		UninstallComponents: func(string, string, string, UninstallComponents) {},
 	}
 	a.Integrations = func() []Integration {
 		return []Integration{
@@ -189,7 +189,7 @@ func TestTheRemovalConfirmationAsksTheKindsOwnQuestion(t *testing.T) {
 func TestEachRemovalConfirmationAsksItsOwnQuestionOnScreen(t *testing.T) {
 	en := i18n.For("en").Settings
 	a := newTestApp()
-	a.Actions = Actions{UninstallIntegration: func(string, string) {}}
+	a.Actions = Actions{UninstallIntegration: func(string, string, string) {}}
 	a.Integrations = func() []Integration {
 		return []Integration{
 			{ID: "custom", Name: "Custom Tool", Generated: true, DistributionSource: "local"},
@@ -268,14 +268,15 @@ func TestOnlyOwnedKindsTakeTheComponentizedRemoval(t *testing.T) {
 // data-deletion checkboxes the reference never drew.
 func TestOnlyOwnedKindsOpenTheComponentizedDialog(t *testing.T) {
 	en := i18n.For("en").Settings
-	var componentsFor, plainFor []string
+	var componentsFor, plainFor, plainKinds []string
 	a := newTestApp()
 	a.Actions = Actions{
-		UninstallComponents: func(id, name string, components UninstallComponents) {
+		UninstallComponents: func(id, name, kind string, components UninstallComponents) {
 			componentsFor = append(componentsFor, id)
 		},
-		UninstallIntegration: func(id, name string) {
+		UninstallIntegration: func(id, name, kind string) {
 			plainFor = append(plainFor, id)
+			plainKinds = append(plainKinds, kind)
 		},
 	}
 	a.Integrations = func() []Integration {
@@ -319,6 +320,9 @@ func TestOnlyOwnedKindsOpenTheComponentizedDialog(t *testing.T) {
 	if len(plainFor) != 1 || plainFor[0] != "sys" {
 		t.Errorf("confirming the system bar called the plain removal %v, want [sys]", plainFor)
 	}
+	if len(plainKinds) != 1 || plainKinds[0] != RemovalSystem {
+		t.Errorf("the plain removal was told kind %v, want [%s]", plainKinds, RemovalSystem)
+	}
 	if len(componentsFor) != 0 {
 		t.Errorf("the system row reached the componentized action: %v", componentsFor)
 	}
@@ -334,13 +338,14 @@ func TestOnlyOwnedKindsOpenTheComponentizedDialog(t *testing.T) {
 // (`src/ExtensionsPanel.tsx:1290-1304`); this is the npm branch.
 func TestAnNpmRowGoesStraightToTheComponentizedDialog(t *testing.T) {
 	en := i18n.For("en").Settings
-	var componentsFor, plainFor []string
+	var componentsFor, plainFor, componentKinds []string
 	a := newTestApp()
 	a.Actions = Actions{
-		UninstallComponents: func(id, name string, components UninstallComponents) {
+		UninstallComponents: func(id, name, kind string, components UninstallComponents) {
 			componentsFor = append(componentsFor, id)
+			componentKinds = append(componentKinds, kind)
 		},
-		UninstallIntegration: func(id, name string) {
+		UninstallIntegration: func(id, name, kind string) {
 			plainFor = append(plainFor, id)
 		},
 	}
@@ -385,6 +390,9 @@ func TestAnNpmRowGoesStraightToTheComponentizedDialog(t *testing.T) {
 	tt.Frame()
 	if len(componentsFor) != 1 || componentsFor[0] != "npm" {
 		t.Errorf("confirming the dialog called the componentized removal %v, want [npm]", componentsFor)
+	}
+	if len(componentKinds) != 1 || componentKinds[0] != RemovalNPM {
+		t.Errorf("the componentized removal was told kind %v, want [%s]", componentKinds, RemovalNPM)
 	}
 	if len(plainFor) != 0 {
 		t.Errorf("the npm row reached the plain removal: %v", plainFor)

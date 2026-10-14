@@ -960,7 +960,7 @@ func TestIntegrationsPage(t *testing.T) {
 	removedID, removedName := "", ""
 	a := New(newStore(t), Actions{
 		SetIntegrationEnabled: func(id string, enabled bool) { toggled, toggledTo = id, enabled },
-		UninstallIntegration:  func(id, name string) { removedID, removedName = id, name },
+		UninstallIntegration:  func(id, name, kind string) { removedID, removedName = id, name },
 	})
 	a.Integrations = func() []Integration {
 		return []Integration{
@@ -1088,7 +1088,7 @@ func TestIntegrationsPage(t *testing.T) {
 func TestGeneratedIntegrationRemovalBar(t *testing.T) {
 	removedID, removedName := "", ""
 	a := New(newStore(t), Actions{
-		UninstallIntegration: func(id, name string) { removedID, removedName = id, name },
+		UninstallIntegration: func(id, name, kind string) { removedID, removedName = id, name },
 	})
 	a.Integrations = func() []Integration {
 		return []Integration{{

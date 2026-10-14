@@ -735,7 +735,7 @@ func New(opts Options) *App {
 				a.RefreshIntegrations(context.Background())
 			}()
 		},
-		UninstallComponents: func(id, name string, components settingsui.UninstallComponents) {
+		UninstallComponents: func(id, name, kind string, components settingsui.UninstallComponents) {
 			// The settings page's own componentized dialog already asked (the
 			// checkboxes are the question); arriving here is the answer. A
 			// removal stops the integration's runs before any file moves: a
@@ -752,13 +752,13 @@ func New(opts Options) *App {
 					log.Printf("floter: could not uninstall %s: %v", id, err)
 					return
 				}
-				a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationRemoved(name) })
+				a.notifyIntegrationRemoval(kind, name)
 				log.Printf("floter: uninstalled %s (config=%v data=%v artifacts=%v)",
 					id, result2.RemovedHostConfig, result2.RemovedToolData, result2.RemovedArtifacts)
 				a.RefreshIntegrations(context.Background())
 			}()
 		},
-		UninstallIntegration: func(id, name string) {
+		UninstallIntegration: func(id, name, kind string) {
 			// The settings page has already asked inline (the removal bar);
 			// arriving here is the answer. A removal stops the integration's
 			// runs before any file moves: a program still writing its own
@@ -771,7 +771,7 @@ func New(opts Options) *App {
 					a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationRemoveFailed(name) })
 					return
 				}
-				a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationRemoved(name) })
+				a.notifyIntegrationRemoval(kind, name)
 				a.RefreshIntegrations(context.Background())
 			}()
 		},
@@ -2752,6 +2752,34 @@ func (a *App) panelOnScreen() bool {
 		return a.onScreen()
 	}
 	return a.Win != nil && panelForeground(a.Win.IsVisible(), a.Win.IsFocused())
+}
+
+// integrationRemovalNotice is the notification sentence for one removal,
+// picked by the same kind the settings page's removal bar spoke in. The
+// reference had four words (`src/ExtensionsPanel.tsx:1306-1308,1336-1339`): a
+// generated custom integration is deleted, an npm package is uninstalled, a
+// system-owned built-in is disconnected, and a linked package is removed from
+// the list. A single generic "was removed" told the user less than the bar
+// they had just confirmed.
+func integrationRemovalNotice(copy i18n.Notifications, kind, name string) string {
+	switch kind {
+	case settingsui.RemovalCustom:
+		return copy.IntegrationCustomDeleted(name)
+	case settingsui.RemovalNPM:
+		return copy.IntegrationUninstalled(name)
+	case settingsui.RemovalSystem:
+		return copy.IntegrationDisconnected(name)
+	default:
+		return copy.IntegrationPackageRemoved(name)
+	}
+}
+
+// notifyIntegrationRemoval raises the kind's own removal completion through the
+// app's one completion path.
+func (a *App) notifyIntegrationRemoval(kind, name string) {
+	a.notifyCompletion(func(c i18n.Notifications) string {
+		return integrationRemovalNotice(c, kind, name)
+	})
 }
 
 // notifyCompletion raises a system notification for a background integration

@@ -57,7 +57,7 @@ func TestComponentizedUninstallDrawsTheReferenceRows(t *testing.T) {
 	var uninstalled []UninstallComponents
 	a := newTestApp()
 	a.Actions = Actions{
-		UninstallComponents: func(id, name string, components UninstallComponents) {
+		UninstallComponents: func(id, name, kind string, components UninstallComponents) {
 			uninstalled = append(uninstalled, components)
 		},
 	}
@@ -131,7 +131,7 @@ func TestComponentizedUninstallDrawsTheReferenceRows(t *testing.T) {
 func TestComponentizedUninstallKeepsCancelFirst(t *testing.T) {
 	en := i18n.For("en").Settings
 	a := newTestApp()
-	a.Actions = Actions{UninstallComponents: func(string, string, UninstallComponents) {}}
+	a.Actions = Actions{UninstallComponents: func(string, string, string, UninstallComponents) {}}
 	a.Integrations = func() []Integration {
 		return []Integration{{ID: "npm", Name: "NPM Tool", DistributionSource: "npm"}}
 	}

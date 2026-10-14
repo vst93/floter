@@ -1054,10 +1054,19 @@ type Notifications struct {
 	// The integration tasks, by outcome.
 	IntegrationInstalled     func(name string) string
 	IntegrationInstallFailed func(name string) string
-	IntegrationRemoved       func(name string) string
-	IntegrationRemoveFailed  func(name string) string
-	IntegrationChecked       func(name string) string
-	IntegrationCheckFailed   func(name string) string
+	// The four removal outcomes the reference told apart by kind
+	// (`src/ExtensionsPanel.tsx:1286-1340`): a generated custom integration is
+	// deleted, an npm package is uninstalled, a system-owned built-in is
+	// disconnected, and a linked package is removed from the list. One generic
+	// "was removed" made the notification say less than the confirmation bar
+	// had just promised.
+	IntegrationCustomDeleted  func(name string) string
+	IntegrationUninstalled    func(name string) string
+	IntegrationDisconnected   func(name string) string
+	IntegrationPackageRemoved func(name string) string
+	IntegrationRemoveFailed   func(name string) string
+	IntegrationChecked        func(name string) string
+	IntegrationCheckFailed    func(name string) string
 	// IntegrationReconnected is the one repair that changed the record: the
 	// program moved and the row is bound to where it is now.
 	IntegrationReconnected func(name string) string

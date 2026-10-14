@@ -97,11 +97,16 @@ type Actions struct {
 	NewSession func()
 	// SetIntegrationEnabled turns an installed extension on or off.
 	SetIntegrationEnabled func(id string, enabled bool)
-	// UninstallIntegration removes an installed extension.
-	UninstallIntegration func(id string, name string)
+	// UninstallIntegration removes an installed extension. The kind is the
+	// same `removalKind` the confirmation bar spoke in, so the shell's
+	// completion notification can be the kind's own word rather than one
+	// generic "removed" (`src/ExtensionsPanel.tsx:1286-1340`).
+	UninstallIntegration func(id string, name string, kind string)
 	// UninstallComponents removes the parts of an installed extension the
-	// checkboxes name. Nil falls back to UninstallIntegration.
-	UninstallComponents func(id string, name string, components UninstallComponents)
+	// checkboxes name. Nil falls back to UninstallIntegration. The kind is
+	// passed for the same reason as above: custom is "deleted", npm is
+	// "uninstalled".
+	UninstallComponents func(id string, name string, kind string, components UninstallComponents)
 	// DiagnoseIntegration asks an integration's provider to check itself.
 	DiagnoseIntegration func(id string)
 	// RepairIntegration re-checks an installed package and repairs it when the
@@ -2091,11 +2096,13 @@ func (i Integration) identityLine(copy i18n.Settings) string {
 }
 
 // The removal kinds the reference told apart (`src/extensions/ExtensionRow.tsx:109-114`).
+// Exported so the shell can pick the kind's own removal notification after the
+// settings page has passed the same fact through the action.
 const (
-	removalCustom  = "custom"
-	removalNPM     = "npm"
-	removalSystem  = "system"
-	removalPackage = "package"
+	RemovalCustom  = "custom"
+	RemovalNPM     = "npm"
+	RemovalSystem  = "system"
+	RemovalPackage = "package"
 )
 
 // removalKind is what this integration *is*, for the purpose of the removal
@@ -2109,13 +2116,13 @@ const (
 func (i Integration) removalKind() string {
 	switch {
 	case i.Generated:
-		return removalCustom
+		return RemovalCustom
 	case i.DistributionSource == "npm":
-		return removalNPM
+		return RemovalNPM
 	case i.DistributionSource == "built-in" && i.RuntimeOwnership == "system":
-		return removalSystem
+		return RemovalSystem
 	default:
-		return removalPackage
+		return RemovalPackage
 	}
 }
 
@@ -2129,7 +2136,7 @@ func (i Integration) removalKind() string {
 // never drew the three data checkboxes under them.
 func (i Integration) componentizedRemoval() bool {
 	switch i.removalKind() {
-	case removalNPM, removalCustom:
+	case RemovalNPM, RemovalCustom:
 		return true
 	default:
 		return false
@@ -2143,11 +2150,11 @@ func (i Integration) componentizedRemoval() bool {
 // uninstall.
 func (i Integration) removalLabel(copy i18n.Settings) string {
 	switch i.removalKind() {
-	case removalCustom:
+	case RemovalCustom:
 		return copy.RemoveDelete
-	case removalNPM:
+	case RemovalNPM:
 		return copy.IntegrationsUninstall
-	case removalSystem:
+	case RemovalSystem:
 		return copy.IntegrationsDisconnect
 	default:
 		return copy.IntegrationsRemovePackage
@@ -2168,11 +2175,11 @@ func (i Integration) removalLabel(copy i18n.Settings) string {
 // per-kind mapping it is.
 func (i Integration) removalWords(copy i18n.Settings) (title, detail string) {
 	switch i.removalKind() {
-	case removalCustom:
+	case RemovalCustom:
 		return copy.RemoveCustomTitle(i.Name), copy.RemoveCustomDetail + " " + copy.RemoveCustomWarning
-	case removalNPM:
+	case RemovalNPM:
 		return copy.RemoveTitle(i.Name), copy.RemoveDetail
-	case removalSystem:
+	case RemovalSystem:
 		return copy.IntegrationsDisconnectTitle(i.Name), copy.IntegrationsDisconnectDetail
 	default:
 		return copy.IntegrationsRemovePackageTitle(i.Name), copy.IntegrationsRemovePackageDetail
@@ -4201,7 +4208,7 @@ func (a *App) removeConfirmation(c *ui.Context, copy i18n.Settings, integration 
 		if ui.Button(c, integration.removalLabel(copy)).TextColor(t.Danger).Clicked() {
 			a.removeConfirm[integration.ID] = false
 			if a.Actions.UninstallIntegration != nil {
-				a.Actions.UninstallIntegration(integration.ID, integration.Name)
+				a.Actions.UninstallIntegration(integration.ID, integration.Name, integration.removalKind())
 			}
 		}
 	})

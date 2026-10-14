@@ -76,7 +76,7 @@ func TestRemovalBarIsTheSameNoticeBand(t *testing.T) {
 	en := i18n.For("en").Settings
 	removed := []string{}
 	a := New(newStore(t), Actions{
-		UninstallIntegration: func(id, name string) { removed = append(removed, id) },
+		UninstallIntegration: func(id, name, kind string) { removed = append(removed, id) },
 	})
 	a.Integrations = func() []Integration {
 		return []Integration{{ID: "pkg", Name: "V Tools", DistributionSource: "local"}}
@@ -178,7 +178,7 @@ func TestTheRemovalBandWearsTheErrorTint(t *testing.T) {
 		t.Fatalf("the disable band's sentence is missing: %q", dt.Texts())
 	}
 
-	remove := New(newStore(t), Actions{UninstallIntegration: func(string, string) {}})
+	remove := New(newStore(t), Actions{UninstallIntegration: func(string, string, string) {}})
 	remove.Integrations = func() []Integration {
 		return []Integration{{ID: "pkg", Name: "V Tools", DistributionSource: "local"}}
 	}

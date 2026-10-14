@@ -199,3 +199,28 @@ func TestTerminalBarWordsMatchTheOldDictionary(t *testing.T) {
 		}
 	}
 }
+
+// The four removal notices, as the old dictionary spelled them
+// (`main:src/i18n.ts:545-547,1430-1432`). The kind that picks one is the
+// shell's business; this pins the words themselves so a future kind-aware
+// path cannot quietly fall back to one generic sentence.
+func TestRemovalNoticesMatchTheOldDictionary(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		got  string
+		want string
+	}{
+		{"en custom deleted", en.Notifications.IntegrationCustomDeleted("V Tools"), "Deleted custom integration V Tools"},
+		{"en uninstalled", en.Notifications.IntegrationUninstalled("V Tools"), "Uninstalled V Tools"},
+		{"en disconnected", en.Notifications.IntegrationDisconnected("V Tools"), "Disconnected V Tools; the external files and system tool were kept"},
+		{"en package removed", en.Notifications.IntegrationPackageRemoved("V Tools"), "Removed extension package V Tools from the list; external files were kept"},
+		{"zh custom deleted", zh.Notifications.IntegrationCustomDeleted("V Tools"), "已删除自定义集成 V Tools"},
+		{"zh uninstalled", zh.Notifications.IntegrationUninstalled("V Tools"), "已卸载 V Tools"},
+		{"zh disconnected", zh.Notifications.IntegrationDisconnected("V Tools"), "已断开 V Tools，外部文件和系统工具均已保留"},
+		{"zh package removed", zh.Notifications.IntegrationPackageRemoved("V Tools"), "已从列表移除扩展包 V Tools，外部文件均已保留"},
+	} {
+		if tc.got != tc.want {
+			t.Errorf("%s = %q, want %q", tc.name, tc.got, tc.want)
+		}
+	}
+}

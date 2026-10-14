@@ -83,7 +83,7 @@ func (a *App) uninstallDialog(c *ui.Context, copy i18n.Settings, integration Int
 			}
 			if ui.Button(c, integration.removalLabel(copy)).Clicked() {
 				if a.Actions.UninstallComponents != nil {
-					a.Actions.UninstallComponents(integration.ID, integration.Name, draft)
+					a.Actions.UninstallComponents(integration.ID, integration.Name, integration.removalKind(), draft)
 				}
 				a.uninstallOpen[integration.ID] = false
 				return

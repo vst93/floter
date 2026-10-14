@@ -15,7 +15,7 @@ import (
 func settingsEscapeApp() *App {
 	a := New(Options{Store: settings.NewStore(settings.Default())})
 	a.Settings.Actions.UninstallComponents = nil
-	a.Settings.Actions.UninstallIntegration = func(string, string) {}
+	a.Settings.Actions.UninstallIntegration = func(string, string, string) {}
 	a.Settings.Actions.Detected = nil
 	a.Settings.Actions.ConnectDetected = nil
 	a.Settings.Integrations = func() []settingsui.Integration {

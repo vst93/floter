@@ -100,7 +100,50 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-fo 滑块与命令别名的 180ms 去抖（原版 `src/hooks/useSettings.ts:149,396-530`）**
+> **最新一轮：P7-fp 移除通知按 kind 说话——补上 P7-fe 记录的最后一个有意偏离
+> （原版 `src/ExtensionsPanel.tsx:1286-1340`、`src/i18n.ts:545-547,1430-1432`）**
+> ——P7-fe 收尾时把 system/package 的通知记成「两条都走统一的 `IntegrationRemoved`，留待后续单独
+> 一轮」。P7-fo 之后「尚未做」只剩历史已结清清单、没有新的具体待办，本轮按规则换入口：重读 P7-fe
+> 的残留记录，把清单重写为 2 条带 file:line / 原版对照 / 验收标准的具体待办（见文末「具体待办
+> （P7-fp 重写）」），并全部落地。依赖检查：`go.mod` 已是 **v0.4.8** = GitHub releases latest，无版本
+> 可升；release notes 的 `ui/editor` 用点已由 P7-ev 落地。只对照 `main`
+> （`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离（P7-fp·移除通知只有一条通用句）**：原版 `confirmRemoval`（`:1286-1304`）对 system/package
+> 直接调 `extensions_uninstall {removeData:false}`，成功后按 kind 二选一：system →
+> `disconnectedNotice`（“Disconnected {name}; the external files and system tool were kept”）、
+> package → `packageRemovedNotice`（“Removed extension package {name} from the list; external files
+> were kept”）；`confirmComponentizedUninstall`（`:1320-1340`）对 custom → `customDeleted`
+> （“Deleted custom integration {name}”）、npm → `uninstalledNotice`（“Uninstalled {name}”）。**本构建
+> （改前）**：`internal/settingsui/settingsui.go:755,774`（shell）两条卸载路径都调
+> `IntegrationRemoved`（“{name} was removed”/“{name} 已移除”）——一句自造的通用话，把确认条刚
+> 承诺的 kind 信息（Delete/Uninstall/Disconnect/Remove package）在完成通知里丢掉了。
+>
+> **落地**：
+> - `internal/i18n`：`Notifications` 删掉 `IntegrationRemoved`，新增 `IntegrationCustomDeleted` /
+>   `IntegrationUninstalled` / `IntegrationDisconnected` / `IntegrationPackageRemoved`，en/zh 逐字取
+>   `i18n.ts:545-547,1430-1432`；
+> - `internal/settingsui`：`RemovalCustom` / `RemovalNPM` / `RemovalSystem` / `RemovalPackage` 四个
+>   kind 常量导出；`Actions.UninstallIntegration` 与 `Actions.UninstallComponents` 各加一个 `kind` 参数，
+>   两处调用点把 `integration.removalKind()` 传下去；
+> - `internal/shell`：新增纯函数 `integrationRemovalNotice(copy, kind, name)` 与
+>   `notifyIntegrationRemoval(kind, name)`，两条卸载路径共用它，按 kind 选原版的四条词。
+>
+> **验收**：`internal/i18n/i18n_test.go` 新增 `TestRemovalNoticesMatchTheOldDictionary`（en/zh 各四句
+> 逐字）；`internal/shell/removalnotice_test.go` 新增 `TestIntegrationRemovalNoticeFollowsTheKind`
+> （四 kind 纯映射 + 未知 kind 落 package）；`internal/settingsui/integrationremoval_test.go` 的
+> `TestOnlyOwnedKindsOpenTheComponentizedDialog` 与 `TestAnNpmRowGoesStraightToTheComponentizedDialog`
+> 分别钉住 system 行把 `RemovalSystem`、npm 行把 `RemovalNPM` 交给 shell。变异核查：把
+> `integrationRemovalNotice` 换回 `c.IntegrationUninstalled` 一条 → shell 测试三条红；把
+> `removalKind()` 固定返回 package → settingsui 两条红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：「具体待办（P7-fp 重写）」2 条**全部结清、清单归零**。下一轮回到「对照原版排查
+> 偏离点」，重新写实清单。
+
+> **上一轮：P7-fo 滑块与命令别名的 180ms 去抖（原版 `src/hooks/useSettings.ts:149,396-530`）**
 > ——P7-fn 收尾后「具体待办（P7-fn 重写）」只剩第 2 条（滑块/别名的 180ms 去抖），本轮取它落地，
 > 清单归零。依赖检查：`go.mod` 已是 **v0.4.8** = GitHub releases latest（无版本可升，release notes
 > 的 `ui/editor` 用点已由 P7-ev 落地）；只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），
@@ -5675,6 +5718,49 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 - 窗口可见时完成反馈落在面板自己的停靠行（隐藏时才发系统通知）——之前可见时什么都不说。
 
 ## 尚未做（按建议优先级）
+
+### 具体待办（P7-fp 重写；第 1·2 条均由本轮 P7-fp 落地；清单归零）
+
+审计入口：P7-fe 收尾时如实记录的最后一处有意偏离——「system/package 删完的通知是
+`disconnectedNotice`/`packageRemovedNotice`，本构建两条都走 shell 的 `IntegrationRemoved(name)`，
+`UninstallIntegration(id, name)` 的签名不带 kind，改它要动跨包接口，留待后续单独一轮」。本轮把这句
+残留重写成 2 条带 file:line 的具体待办并全部落地。只对照 `main`（`backup/main-pre-mygo` = v0.3.14
+原版树），未翻历史提交。
+
+1. **（本轮落地，P7-fp）纯删除动作的完成通知按 system/package 说话**。
+   - 原版对照：`src/ExtensionsPanel.tsx:1286-1304` 的 `confirmRemoval` 对 system/package 调
+     `extensions_uninstall {removeData:false}`，成功后 `showSuccess(t(kind === "system" ?
+     "settings.extensions.disconnectedNotice" : "settings.extensions.packageRemovedNotice", {name}))`
+     （词条 `src/i18n.ts:546-547,1431-1432`）。
+   - 本构建（改前）：`internal/shell/shell.go:761-775` 的 `UninstallIntegration` 回调签名是
+     `func(id, name string)`，成功一律 `c.IntegrationRemoved(name)`；settingsui 的
+     `removeConfirmation`（`internal/settingsui/settingsui.go:4203-4204`）拿得到 `removalKind()` 却
+     传不过去。
+   - 落地 file:line：`internal/settingsui/settingsui.go` 的 `Actions.UninstallIntegration` 改为
+     `func(id, name, kind string)`、调用点补 `integration.removalKind()`；`internal/shell/shell.go`
+     新增 `integrationRemovalNotice(copy, kind, name)` 纯函数，system →
+     `IntegrationDisconnected`、package → `IntegrationPackageRemoved`。
+   - 验收：`internal/shell/removalnotice_test.go` 的
+     `TestIntegrationRemovalNoticeFollowsTheKind`（四 kind 纯映射）；`internal/i18n/i18n_test.go` 的
+     `TestRemovalNoticesMatchTheOldDictionary`（en/zh 逐字）；
+     `internal/settingsui/integrationremoval_test.go` 的
+     `TestOnlyOwnedKindsOpenTheComponentizedDialog` 钉住 system 行传 `RemovalSystem`。
+
+2. **（本轮落地，P7-fp）组件化删除动作的完成通知按 custom/npm 说话**。
+   - 原版对照：`src/ExtensionsPanel.tsx:1320-1340` 的 `confirmComponentizedUninstall` 成功后
+     `showSuccess(t(kind === "custom" ? "settings.extensions.customDeleted" :
+     "settings.extensions.uninstalledNotice", {name}))`（词条 `src/i18n.ts:545,547,1430,1432`）。
+   - 本构建（改前）：`internal/shell/shell.go:738-760` 的 `UninstallComponents` 回调同样只有
+     `(id, name, components)`，成功一律 `c.IntegrationRemoved(name)`；`internal/settingsui/uninstall.go:86`
+     的对话框确认拿得到 `integration.removalKind()` 却传不过去。
+   - 落地 file:line：`Actions.UninstallComponents` 改为 `func(id, name, kind string, components)`，
+     `uninstall.go` 补 `integration.removalKind()`；shell 共用同一 `integrationRemovalNotice`，custom →
+     `IntegrationCustomDeleted`、npm → `IntegrationUninstalled`。
+   - 验收：同上 shell 纯映射；`TestAnNpmRowGoesStraightToTheComponentizedDialog` 钉住 npm 行传
+     `RemovalNPM`。
+
+> **清单状态（P7-fp 重写）**：两条均落地，**清单归零**。下一轮回到「对照原版排查偏离点」，重新
+> 写实清单。
 
 ### 具体待办（P7-fn 重写；第 1 条 P7-fn、第 2 条 P7-fo 均已落地；清单归零）
 
