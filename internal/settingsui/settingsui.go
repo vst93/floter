@@ -1248,8 +1248,8 @@ func (a *App) installRow(c *ui.Context, copy i18n.Settings) {
 	requested := false
 	ui.Row(c).FillWidth().Gap(t.Space(1)).AlignItems(ui.Center).
 		Padding(0, 0, t.Space(1), 0).Children(func() {
-		ui.TextInput(c, &name).Placeholder(copy.IntegrationsPackageHint).Label(copy.IntegrationsPackageHint).Grow(1)
-		ui.TextInput(c, &version).Placeholder(copy.IntegrationsVersionHint).Width(160)
+		textInput(c, &name).Placeholder(copy.IntegrationsPackageHint).Label(copy.IntegrationsPackageHint).Grow(1)
+		textInput(c, &version).Placeholder(copy.IntegrationsVersionHint).Width(160)
 		if ui.Button(c, copy.IntegrationsInstall).Clicked() {
 			requested = true
 		}
@@ -1548,7 +1548,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 					// already named, and the value lands on submit.
 					a.row(c, copy.IntegrationsCommandAlias, "", func() {
 						alias := command.Alias
-						if ui.TextInput(c, &alias).Placeholder(copy.IntegrationsCommandAliasPlaceholder).
+						if textInput(c, &alias).Placeholder(copy.IntegrationsCommandAliasPlaceholder).
 							Label(copy.IntegrationsCommandAlias).Width(180).Submitted() &&
 							a.Actions.SetCommandAlias != nil {
 							a.Actions.SetCommandAlias(integration.ID, command.ID, alias)
@@ -2342,7 +2342,7 @@ func (a *App) checkbox(c *ui.Context, label, description string, on bool, apply 
 func (a *App) text(c *ui.Context, label, description, placeholder, value string, apply func(string)) {
 	edit := value
 	a.row(c, label, description, func() {
-		e := ui.TextInput(c, &edit).Placeholder(placeholder).Label(label).Width(220)
+		e := textInput(c, &edit).Placeholder(placeholder).Label(label).Width(220)
 		if e.Submitted() {
 			apply(edit)
 		}
@@ -2525,7 +2525,7 @@ func (a *App) residencyRow(c *ui.Context, copy i18n.Settings) {
 		if !a.residencyCustomOpen {
 			return
 		}
-		input := ui.TextInput(c, &a.residencyDraft).Label(copy.SurfaceResidencyCustomLabel).
+		input := textInput(c, &a.residencyDraft).Label(copy.SurfaceResidencyCustomLabel).
 			Placeholder(copy.SurfaceResidencyCustomUnit).Width(90)
 		ui.Text(c, copy.SurfaceResidencyCustomUnit).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
 		if input.Submitted() || ui.Button(c, copy.SurfaceResidencyCustomApply).Clicked() {
@@ -2641,7 +2641,7 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 		issues := customIssues(a.customDraft(name, program, command, args, versionArgs, version, description, mode, language, script))
 		a.card(c, func() {
 			a.row(c, copy.LocalToolName, "", func() {
-				ui.TextInput(c, &name).Label(copy.LocalToolName).Width(240).Grow(1).Placeholder("Ripgrep")
+				textInput(c, &name).Label(copy.LocalToolName).Width(240).Grow(1).Placeholder("Ripgrep")
 			}, func() {
 				a.toolIssueUnder(c, copy, issues, extensions.CustomFieldName)
 			})
@@ -2664,7 +2664,7 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 				a.scriptRows(c, copy, &language, &script, issues)
 			} else {
 				a.row(c, copy.LocalToolProgram, "", func() {
-					ui.TextInput(c, &program).Label(copy.LocalToolProgram).Width(240).Grow(1).
+					textInput(c, &program).Label(copy.LocalToolProgram).Width(240).Grow(1).
 						Placeholder("/usr/bin/rg")
 					if a.Actions.ChooseProgram != nil {
 						if ui.Button(c, copy.LocalToolChoose).Clicked() {
@@ -2676,20 +2676,20 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 				})
 			}
 			a.row(c, copy.LocalToolCommand, copy.LocalToolCommandHint, func() {
-				ui.TextInput(c, &command).Label(copy.LocalToolCommand).Width(160).Placeholder("rg")
+				textInput(c, &command).Label(copy.LocalToolCommand).Width(160).Placeholder("rg")
 			}, func() {
 				a.toolIssueUnder(c, copy, issues, extensions.CustomFieldCommand)
 			})
 			if mode != routeScript {
 				a.row(c, copy.LocalToolArgs, copy.LocalToolArgsHint, func() {
-					ui.TextInput(c, &args).Label(copy.LocalToolArgs).Width(220).Placeholder("--floter")
+					textInput(c, &args).Label(copy.LocalToolArgs).Width(220).Placeholder("--floter")
 				})
 				a.row(c, copy.LocalToolVersionArgs, copy.LocalToolVersionArgsHint, func() {
-					ui.TextInput(c, &versionArgs).Label(copy.LocalToolVersionArgs).Width(160).Placeholder("--version")
+					textInput(c, &versionArgs).Label(copy.LocalToolVersionArgs).Width(160).Placeholder("--version")
 				})
 			}
 			a.row(c, copy.LocalToolVersion, copy.LocalToolVersionHint, func() {
-				ui.TextInput(c, &version).Label(copy.LocalToolVersion).Width(120).Placeholder("0.0.1")
+				textInput(c, &version).Label(copy.LocalToolVersion).Width(120).Placeholder("0.0.1")
 			}, func() {
 				a.toolIssueUnder(c, copy, issues, extensions.CustomFieldVersion)
 			})
@@ -2701,7 +2701,7 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 			// backend stores the honest empty rather than a generated sentence.
 			if mode != routeScript {
 				a.row(c, copy.LocalToolDescription, "", func() {
-					ui.TextInput(c, &description).Label(copy.LocalToolDescription).Width(240).Grow(1).
+					textInput(c, &description).Label(copy.LocalToolDescription).Width(240).Grow(1).
 						Placeholder(copy.LocalToolDescriptionPlaceholder)
 				})
 			}
@@ -3480,7 +3480,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 			default:
 				value := values[param.ID]
 				a.row(c, label, sublabel, func() {
-					ui.TextInput(c, &value).Label(label).Width(220).Placeholder(param.Placeholder)
+					textInput(c, &value).Label(label).Width(220).Placeholder(param.Placeholder)
 				}, below...)
 				values[param.ID] = value
 			}
@@ -3669,9 +3669,9 @@ func (a *App) toolParamsEditor(c *ui.Context, copy i18n.Settings) {
 					}
 					required := param.Required
 					labelClicked := a.row(c, copy.ParamsRow(index+1), "", func() {
-						ui.TextInput(c, &id).Label(copy.ParamsID).Width(120).Placeholder("target")
+						textInput(c, &id).Label(copy.ParamsID).Width(120).Placeholder("target")
 						ui.Segmented(c, &kindIndex, paramKindLabels(copy)...).Label(copy.ParamsKind)
-						ui.TextInput(c, &flag).Label(copy.ParamsFlag).Width(120).Placeholder("--target")
+						textInput(c, &flag).Label(copy.ParamsFlag).Width(120).Placeholder("--target")
 					}, func() {
 						if issue, ok := issues[index]; ok {
 							if message := paramIssueMessage(copy, issue); message != "" {
@@ -3680,7 +3680,7 @@ func (a *App) toolParamsEditor(c *ui.Context, copy i18n.Settings) {
 						}
 					}, func() {
 						a.row(c, copy.ParamsLabel, "", func() {
-							ui.TextInput(c, &label).Label(copy.ParamsLabel).Width(180)
+							textInput(c, &label).Label(copy.ParamsLabel).Width(180)
 						})
 						if paramKinds[kindIndex] == extensions.ParamSelect {
 							a.row(c, copy.ParamsOptions, copy.ParamsOptionsHint, func() {

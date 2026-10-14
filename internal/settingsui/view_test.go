@@ -3619,6 +3619,70 @@ func TestSidebarArrowsWalkThePagesFromAnywhere(t *testing.T) {
 	}
 }
 
+// The reference's `isArrowKeyEditableTarget` keeps ↑/↓ out of the page
+// navigation while the keyboard is in a text field — a single-line INPUT as
+// much as a TEXTAREA (`src/settings-nav.ts:24-38`). mygo's editor only claims
+// ↑/↓ for multiline fields (`ui/editor_navigation.go:46-47`), so a single-line
+// TextInput used to hand them to the surface's window shortcut and the page
+// changed under the caret.
+func TestSingleLineFieldsKeepTheirArrows(t *testing.T) {
+	copy := i18n.For("en").Settings
+	pages := []string{}
+	a := New(newStore(t), Actions{
+		SetPage:             func(name string) { pages = append(pages, name) },
+		InstallFromRegistry: func(string, string) {},
+	})
+	tt := render(t, a, 720, 580)
+
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if a.Page != PageIntegrations {
+		t.Fatalf("page = %d, want integrations", a.Page)
+	}
+
+	// Put the keyboard in the npm package field: a single-line TextInput.
+	rect, ok := tt.Find(copy.IntegrationsPackageHint)
+	if !ok {
+		t.Fatalf("the package field is not on screen: %q", tt.Texts())
+	}
+	tt.ClickAt(rect.X+rect.W/2, rect.Y+rect.H/2)
+	tt.Frame()
+	if !tt.Focused(copy.IntegrationsPackageHint) {
+		t.Fatalf("the package field did not take the keyboard")
+	}
+
+	// ↓/↑ stay in the field: the page does not change and the caret stays put.
+	before := len(pages)
+	tt.Key(0, ui.KeyDown)
+	tt.Frame()
+	if a.Page != PageIntegrations {
+		t.Errorf("↓ in a text field walked to page %d", a.Page)
+	}
+	if !tt.Focused(copy.IntegrationsPackageHint) {
+		t.Errorf("↓ in a text field moved the keyboard off it")
+	}
+	tt.Key(0, ui.KeyUp)
+	tt.Frame()
+	if a.Page != PageIntegrations {
+		t.Errorf("↑ in a text field walked to page %d", a.Page)
+	}
+	if len(pages) != before {
+		t.Errorf("the field's arrows recorded page switches: %v", pages)
+	}
+
+	// Outside the field the arrows still walk the pages (the P7-dc rule): the
+	// field's claim is scoped to its own focus, not the whole surface.
+	a.FocusSidebar()
+	tt.Frame()
+	tt.Key(0, ui.KeyDown)
+	tt.Frame()
+	if a.Page != PageAbout {
+		t.Errorf("↓ outside a text field went to page %d, want about", a.Page)
+	}
+}
+
 // nextPage is the reference's `nextSettingsPage` over `wrapIndex`: the sidebar
 // order wraps at both ends.
 func TestNextPageWraps(t *testing.T) {

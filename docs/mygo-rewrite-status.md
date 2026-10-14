@@ -99,7 +99,44 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-dc 设置侧栏 ↑/↓ 从任意处走页、环绕、落盘（原版 `src/settings-nav.ts`、
+> **最新一轮：P7-dd 单行文本字段自己认领 ↑/↓（原版 `src/settings-nav.ts:24-38`
+> 的 `isArrowKeyEditableTarget`）**
+> —— P7-dc 收尾后「尚未做」只剩第 2 条（具体可做）与第 3 条（卡 mygo 框架），本轮取第 2 条落地。
+> 依赖检查：GitHub releases API 仍被限流，用 `go list -m -versions github.com/egoist/mygo`
+> 核对，停在 **v0.4.8**（与 `go.mod` 一致），无版本可升。只对照 `main`
+> （`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离点**：原版 `isArrowKeyEditableTarget`（`src/settings-nav.ts:24-38`）把**单行** `INPUT`
+> 与 `TEXTAREA`/`SELECT`/contenteditable 一视同仁——焦点在文本框里时 ↑/↓ 不切页。本构建的
+> mygo 编辑器只对**多行**字段认领 ↑/↓（`ui/editor_navigation.go:46-47`：
+> `return ed.multiline || m != 0`），单行 `ui.TextInput` 主动放开它们；而设置面的窗口快捷键
+> （`settingsui.go:662-664`）接住 ↑/↓，于是焦点在 npm 包名、本地工具名/程序/命令、驻留自定义
+> 秒数、扩展配置文本这类单行字段里按 ↑/↓ 会切页。
+>
+> **为何不是 `Element.HandleInput`**：框架的 `keyDownPhysical`（`ui/input.go:578`）对聚焦元素的
+> `HandleInput` 有一道 `!rt.claimed(k)` 守卫，而 `claimed` 会把**窗口快捷键**算进去
+> （`ui/input.go:526`）——设置面自己注册了 `c.Shortcut(0, ui.KeyDown/KeyUp)`，所以这道缝对
+> 纯 ↑/↓ **不可达**（P7-v 的字段删除键是带修饰键的，窗口没注册，才够得到）。可用的缝是
+> **元素级快捷键**：`routeKeys`（`ui/input.go:730`）把一次按键交给焦点链上**最内层**认领它的
+> 元素，聚焦字段自己 `e.Shortcut(0, ui.KeyDown/KeyUp)` 即先于窗口接住。
+>
+> **修法**：新文件 `internal/settingsui/textinput.go` 的 `textInput(c, &value)` = `ui.TextInput`
+> + 两条元素级快捷键（只认 mods==0 的 ↑/↓，字段未聚焦时快捷键不在焦点链上，窗口照旧走页）。
+> `config.go` / `custom.go` / `settingsui.go` 里 18 处 `ui.TextInput(c, …)` 全部改走它。
+> **顺带**：启动器的插件配置浮层走的是同一个 `settingsui` 助手
+> （`settingsui.go:2342` 的 `a.text` ← `pluginsheet.go:109` 的 `sheetField`），所以浮层里的
+> 单行字段也一并拿回了自己的箭头；启动器的**搜索字段**不在 `settingsui`，不受影响。
+>
+> **测试**：`internal/settingsui/view_test.go` 的 `TestSingleLineFieldsKeepTheirArrows`——进
+> Integrations 页、点进 npm 包名字段、按 ↑/↓ 后页号不变且字段仍获焦、`SetPage` 无新记录；
+> 再把焦点交回侧栏按 ↓，仍按 P7-dc 的规则走页（证明认领只属于字段自己的焦点）。
+> 变异核查：删掉 `textinput.go` 的两行 `e.Shortcut(…)`，
+> `↓ in a text field walked to page 4` / `moved the keyboard off it` 立刻红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 31 包全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+> **上一轮：P7-dc 设置侧栏 ↑/↓ 从任意处走页、环绕、落盘（原版 `src/settings-nav.ts`、
 > `src/hooks/useAppKeyboard.ts:288-303`）**
 > —— P7-db 收尾后「尚未做」只剩第 3 条（卡 mygo 框架），本轮先把它重写为 3 条带 file:line 的具体
 > 待办（下方「具体待办（P7-dc 重写）」），再取第 1 条落地。依赖检查：GitHub releases API 被限流，
@@ -2933,7 +2970,56 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-### 具体待办（P7-dc 重写；第 1 条已落地，第 2 条待做，第 3 条卡 mygo 框架）
+### 具体待办（P7-dd 重写；两条待做，其余卡 mygo 框架）
+
+> 本轮换入口：逐文件对照原版的**系统通知**（`src-tauri/src/notifications.rs` + 它的四个触发点），
+> 把清单写成下面三条带 file:line 的具体待办，并先取第 2 条落地（P7-dd 的字段箭头）。依赖检查：
+> GitHub releases API 被限流，用 `go list -m -versions github.com/egoist/mygo` 核对，最新仍是
+> **v0.4.8**（与 `go.mod` 一致），无版本可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14
+> 原版树），未翻历史提交。
+
+1. **`notifyCompletion` 的前台判定只看 `IsVisible()`，漏了 `IsFocused()`**（待做）。
+   - 原版对照：`main:src-tauri/src/notifications.rs:133-165`——`should_notify` 之上是
+     `panel_foreground_from(flag_visible, window_visible, window_focused)`：**任一**信号说「在屏」
+     就算 `Visible`；`panel_foreground`（`:168-190`）组合 `AppState::window_visible` +
+     `Window::is_visible()` + `Window::is_focused()`，注释明写「a focused window is on screen by
+     definition, even on the platforms where the panel's visibility is reported late（macOS
+     `NSPanel` before its first map）」；没有窗口算 `Hidden`。
+   - 本构建：`internal/shell/shell.go:2386` 的 `notifyCompletion` 只
+     `a.Win != nil && a.Win.IsVisible()`；`a.Win.IsFocused()` 在同一文件的 `:2549`/`:2960` 已在用，
+     证明旋钮存在（`mygo@v0.4.8/window.go:674`）。
+   - 验收：抽纯函数 `panelForeground(visible, focused bool) bool`（或三参带 app 记录），
+     `notifyCompletion` 用它；表测试四象限（visible/focused 任一为真 → 面板内反馈、不通知；
+     都假 → 通知）。变异核查：删掉 `|| focused` → 「focused 但 IsVisible 为假」一行红。
+2. **剪贴板清空历史没有完成反馈/通知（原版四个触发点之一）**（待做）。
+   - 原版对照：`main:src-tauri/src/clipboard_history/mod.rs:277-303` 的
+     `clipboard_clear_history` 在写入后调 `notify_completion(&app, Subject::Plugin(CLIPBOARD_PLUGIN_ID),
+     CompletionAction::ClearHistory, outcome_of(&result))`；`notifications.rs:288-299` 的成功/失败词是
+     `{name} cleared` / `{name} could not be cleared`（`{name}` = 插件页的双语名）；
+     `:357` 的 `notify_completion` 再走 `should_notify`。
+   - 本构建：`internal/shell/shell.go:1745-1760` 的 `clearClipboardHistoryAsks` 成功只
+     `Win.Invalidate()`、失败只 `log.Printf`——它不调 `notifyCompletion`（`:2380`），所以面板隐藏时
+     没有任何通知。可见的那一路已有：`plugincfg/schema.go:322-326` 的 Action 字段带
+     `Failed: copy.ClipboardClearFailed`（`internal/i18n` 的 `Settings.ClipboardClearFailed`，
+     en/zh 都有），但**只有失败词、没有成功词**。
+   - 验收：清空历史走 `notifyCompletion`（可见→面板内反馈，隐藏→通知）；
+     `internal/i18n` 的 `Notifications` 补两条成功/失败（en/zh 对齐旧字典的 `{name} cleared` /
+     `{name} could not be cleared`，`{name}` 用剪贴板插件页的本地化名）；测试钉「隐藏→通知、
+     可见→反馈」两条路径（注入 `Notify`）。
+3. **托盘图标的身份是固定字面量，会和别的 appindicator 应用撞车**（卡 mygo 框架，未做）。
+   - 原版对照：`main:src-tauri/src/tray_identity.rs:28-30` 的 `TRAY_ICON_ID = "com.v.floter.tray"`
+     （bundle identifier + `.tray`），`:36-45` 的 `appindicator_id` 复刻 `tray-icon` 拼出的
+     `"tray-icon tray app <id>"`；`tray-icon` 0.24.2 的 GTK 后端拿这一个字符串派生出 SNI `Id`、
+     对象路径、菜单路径和 `$XDG_RUNTIME_DIR` 下的图标文件，所以两个 Tauri 应用传同一 tray id
+     会发布同一身份、后注册者顶掉先注册者。
+   - 本构建：`internal/shell/system.go:108-112` 的 `mygo.NewTray(mygo.TrayOptions{…})` 没有 id 字段
+     （`mygo@v0.4.8` 的 `TrayOptions` 只有 Icon/IconIsTemplate/Title/ToolTip/Menu），身份由框架
+     决定，无法从应用侧改成 bundle id。
+   - 验收（框架给 `TrayOptions.ID` 之后）：Linux 上 `mygo.NewTray` 收到 `com.v.floter.tray`，
+     SNI 对象路径为 `/org/ayatana/NotificationItem/<clean id>`；另一进程注册不同 id 时不互相顶替。
+     规格先记在这里，等 mygo 提供旋钮再落地。
+
+### 具体待办（P7-dc 重写；第 1·2 条已落地，余下第 3 条卡 mygo 框架）
 
 > 本轮换入口：逐文件对照原版的**设置页键盘导航**（`src/settings-nav.ts` + 它在
 > `src/hooks/useAppKeyboard.ts` 的调用点），把清单写成下面三条带 file:line 的具体待办，
@@ -2963,16 +3049,21 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
      测试 `internal/settingsui/view_test.go` 的 `TestSidebarArrowsWalkThePagesFromAnywhere`
      （焦点在侧栏 / 无控件 / 环绕 / `SetPage` 记录）与 `TestNextPageWraps`。
      变异核查：恢复 `a.Sidebar.Selected` → 「首页 ↑ 不环绕」红；禁用窗口快捷键 → 「焦点在侧栏时 ↓ 不走页」红。
-2. **单行文本框仍然让出 ↑/↓（原版规则的一半没复刻）**（待做）。
+2. **单行文本框仍然让出 ↑/↓（原版规则的一半没复刻）**（已落地，P7-dd）。
    - 原版对照：`main:src/settings-nav.ts:24-38` 的 `isArrowKeyEditableTarget` 把 `INPUT`
      （含单行）与 `TEXTAREA` 一视同仁——焦点在文本框里时 ↑/↓ 不切页。
-   - 本构建：mygo 的 `editor.wants`（`ui@v0.4.8/editor_navigation.go:46-47`）对单行编辑器
+   - 本构建（改前）：mygo 的 `editor.wants`（`ui@v0.4.8/editor_navigation.go:46-47`）对单行编辑器
      `return ed.multiline || m != 0`，即单行 `ui.TextInput` **主动放开** ↑/↓，于是窗口快捷键接住它、
      切了页。受影响的行：`settingsui.go:1251`（npm 包名/版本）、`:2528`（驻留自定义标签）、
      `custom.go:101`（自定义快捷键命令）、`:2644/:2667/:2679`（本地工具名/程序/命令）、
      `config.go:165`（扩展配置文本字段）。多行 `ui.TextArea` 不受影响（`wants` 为真）。
-   - 验收（二选一）：(a) mygo 提供「当前是否在编辑器里」的 Context 查询，窗口快捷键据此让出；
-     或 (b) 给每个设置文本输入挂 `Element.HandleInput`，在 ↑/↓ 时 `return true` 认领。
+   - 验收：焦点在单行文本字段里时 ↑/↓ 不切页、字段仍获焦；字段未聚焦时窗口快捷键照旧走页。
+     **已落地**：`internal/settingsui/textinput.go` 的 `textInput(c, &value)`——`ui.TextInput`
+     + 两条元素级快捷键 `e.Shortcut(0, ui.KeyUp/KeyDown)`（只认 mods==0）。18 处 `ui.TextInput`
+     全部改走它。为何不是 `HandleInput`：窗口快捷键让 `rt.claimed` 为真，`HandleInput` 那道缝
+     对纯 ↑/↓ 不可达；元素级快捷键在焦点链上、先于窗口。
+     测试 `internal/settingsui/view_test.go` 的 `TestSingleLineFieldsKeepTheirArrows`。
+     变异核查：删掉 `textinput.go` 的两行 `e.Shortcut(…)`，该用例立刻红。
      钉法：npm 包名字段获焦后按 ↓，页号不变、字段仍获焦。
 3. **托盘图标的身份是固定字面量，会和别的 appindicator 应用撞车**（卡 mygo 框架，未做）。
    - 原版对照：`main:src-tauri/src/tray_identity.rs:28-30` 的 `TRAY_ICON_ID = "com.v.floter.tray"`

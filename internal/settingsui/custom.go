@@ -98,7 +98,7 @@ func (a *App) customSection(c *ui.Context, copy i18n.Settings) {
 			})
 			if a.customAction == commandAction {
 				command := a.customCommand
-				ui.TextInput(c, &command).Placeholder(copy.ShortcutsCommandHint).
+				textInput(c, &command).Placeholder(copy.ShortcutsCommandHint).
 					Label(copy.ShortcutsCommand).Grow(1)
 				a.customCommand = command
 			}
