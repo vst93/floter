@@ -1816,12 +1816,29 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 					}
 				}
 			}
-			if a.Actions.UninstallComponents != nil {
+			// Removal is two different questions by kind. npm and custom are
+			// the kinds whose files floter owns and whose data categories the
+			// user may pick, so their row opens the componentized dialog
+			// directly. A system-owned built-in and a linked local package have
+			// no data of floter's to delete, so — exactly as the reference's
+			// `confirmRemoval` did (`src/ExtensionsPanel.tsx:1286-1304`) — they
+			// first ask the kind's own removal bar
+			// (`requestRemove` → `removeConfirmation`), whose confirm runs the
+			// plain removal. Before this branch the two actions were wired in
+			// the shell and *every* kind opened the componentized dialog, which
+			// handed system/package rows data-deletion checkboxes the reference
+			// never drew.
+			switch {
+			case integration.componentizedRemoval() && a.Actions.UninstallComponents != nil:
 				a.uninstallComponentsRow(c, copy, integration)
-			} else if a.Actions.UninstallIntegration != nil {
+			case a.Actions.UninstallIntegration != nil:
 				if a.actionButton(c, integration.removalLabel(copy)).Clicked() {
 					a.requestRemove(integration.ID)
 				}
+			// Only the componentized action is wired (some callers' fixtures
+			// are): fall back to its door so the row still offers its removal.
+			case a.Actions.UninstallComponents != nil:
+				a.uninstallComponentsRow(c, copy, integration)
 			}
 		})
 		if enableLabelClicked {
@@ -2005,6 +2022,23 @@ func (i Integration) removalKind() string {
 		return removalSystem
 	default:
 		return removalPackage
+	}
+}
+
+// componentizedRemoval reports whether this kind's removal is the
+// componentized dialog. The reference offered it to npm and custom only
+// (`src/ExtensionsPanel.tsx:1290-1304`): those are the kinds whose files
+// floter owns and whose host-config / tool-data / artifact categories are the
+// user's to pick. A system-owned built-in and a linked local package have no
+// data directory of floter's to delete, so they take the plain removal (the
+// removal bar → `extensions_uninstall {removeData:false}`) and the reference
+// never drew the three data checkboxes under them.
+func (i Integration) componentizedRemoval() bool {
+	switch i.removalKind() {
+	case removalNPM, removalCustom:
+		return true
+	default:
+		return false
 	}
 }
 

@@ -100,7 +100,50 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-fb 组件化卸载对话框补回原版的第一行「程序文件」，标题改回原版的
+> **最新一轮：P7-fe 组件化卸载对话框只给 npm/custom，其余 kind 回到原版的「先问一次再删」
+> （原版 `src/ExtensionsPanel.tsx:1286-1323` 的 `confirmRemoval`）**
+> ——上一轮 P7-fb 把「尚未做」重写为 4 条带 file:line 的具体待办并落地第 1–3 条，本轮取剩下的
+> 最高优先级第 4 条。依赖检查：`go list -m -versions github.com/egoist/mygo` 最新仍是 **v0.4.8**
+> （与 `go.mod` 一致），无版本可升、无新 API 用点；GitHub releases API 限流。只对照 `main`
+> （`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离（P7-fe·卸载路由）**：原版所有 kind 的卸载按钮都先走 `RemovalConfirmation` 条
+> （`removalTarget`），`confirmRemoval`（`ExtensionsPanel.tsx:1286-1304`）再分叉：npm/custom →
+> `setUninstallDialogTarget`（组件化对话框），system/package → 直接
+> `extensions_uninstall {removeData:false}`；**本构建（改前）**：`internal/settingsui/settingsui.go`
+> 的集成行只要 `Actions.UninstallComponents != nil`（shell `shell.go:735,761` 两个入口都接线）
+> 就对**任何** kind 直接 `<verb>…` 展开组件化对话框（`uninstall.go:25`），把 system/package 也
+> 当成了「可挑数据删除」的种类；`removeConfirmation`/`requestRemove` 因此成了死代码。
+>
+> **落地**：
+> - `internal/settingsui/settingsui.go` 新增 `Integration.componentizedRemoval()`——`removalKind()`
+>   为 `npm`/`custom` 时为真；集成行的动作分支改成三分支：npm/custom 且接了组件化动作 → 开对话框；
+>   否则若接了普通卸载动作 → `requestRemove`（`removeConfirmation` 条 → `UninstallIntegration`）；
+>   仅接组件化动作（部分测试夹具）→ 回退到组件化门。
+>
+> **验收**：`internal/settingsui/integrationremoval_test.go` 两条——
+> `TestOnlyOwnedKindsTakeTheComponentizedRemoval`（四 kind 的纯映射：custom/npm 真、system/package 假）、
+> `TestOnlyOwnedKindsOpenTheComponentizedDialog`（system 行点 Disconnect 先画自己的
+> `IntegrationsDisconnectTitle` 条、四行组件化文案一个都不出现、确认前不调任何动作；位置点 Cancel
+> 右侧的 danger 后只调 `UninstallIntegration`、不调 `UninstallComponents`）。变异核查：把
+> `componentizedRemoval()` 改成 `return true` → 两条红（纯映射红、system 行变成“Disconnect…”直接开
+> 对话框而没有「Disconnect」按钮可点）。既有 `TestEachIntegrationCardShowsItsOwnRemovalVerb` /
+> `TestEachRemovalConfirmationAsksItsOwnQuestionOnScreen` / `TestGeneratedIntegrationRemovalBar`
+> 保持绿（仅接 `UninstallComponents` 的夹具走回退分支，四 kind 的动词仍照画）。
+>
+> **有意偏离（如实记录）**：原版 system/package 删完的通知是 `disconnectedNotice`
+> (`Disconnected`)/`packageRemovedNotice`，本构建两条都走 shell 的 `IntegrationRemoved(name)`
+> （`shell.go:771`）——`UninstallIntegration(id, name)` 的签名不带 kind，改它要动跨包接口，
+> 留待后续单独一轮。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿
+> （`internal/shell` 的 `TestCapturedRunNotifiesOnlyWhenHidden` 首次跑偶发一红、单跑与复跑均绿，
+> 与本轮改动无关）、`GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：第 4 条（P7-fe）落地，「尚未做（P7-fb 重写）」的 4 条带 file:line 的具体待办
+> **全部结清**。下轮回到「对照原版排查偏离点」，重新写实清单。
+
+> **上一轮：P7-fb 组件化卸载对话框补回原版的第一行「程序文件」，标题改回原版的
 > `uninstallComponentsTitle`，动作顺序改回 Cancel 在前
 > （原版 `src/extensions/ComponentizedUninstallDialog.tsx:70-72,84-98,119-141`）**
 > ——上一轮 P7-fa 之后「尚未做（P7-ew 重写）」归零，本轮按审计入口
@@ -5230,15 +5273,16 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-> **清单状态（P7-fb 重写）**：P7-ew 一路到 P7-fa 的 5 条全部落地、上一条清单归零后，本轮按
+> **清单状态（P7-fe 结清）**：P7-ew 一路到 P7-fa 的 5 条全部落地、上一条清单归零后，P7-fb 按
 > 审计入口 `main:src/extensions/ComponentizedUninstallDialog.tsx`（本构建对应
 > `internal/settingsui/uninstall.go`）逐字段比对，把清单重新写实为下面 **4 条带 file:line 的具体
-> 待办**（第 1–3 条本轮落地 P7-fb，第 4 条仍待做）。
+> 待办**（第 1–3 条 P7-fb 落地）；本轮 P7-fe 取剩下的第 4 条（卸载路由）落地，**4 条至此全部
+> 结清，本清单归零**。下一轮回到「对照原版排查偏离点」，重新写实清单。
 > 依赖检查：`go list -m -versions github.com/egoist/mygo` 最新仍是 **v0.4.8**（与 `go.mod` 一致），
 > 无版本可升；GitHub releases API 限流。只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），
 > 未翻历史提交。
 
-### 具体待办（P7-fb 重写；第 1·2·3 条本轮落地 P7-fb，第 4 条待做）
+### 具体待办（P7-fb 重写；第 1·2·3 条 P7-fb、第 4 条 P7-fe——4 条全部落地）
 
 审计入口：原版 `main:src/extensions/ComponentizedUninstallDialog.tsx`（组件化卸载对话框，本构建对应
 `internal/settingsui/uninstall.go`）与它的调用点 `main:src/ExtensionsPanel.tsx:1286-1323,2150-2165`，
@@ -5279,7 +5323,7 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
      `removeConfirmation`（`settingsui.go:4025-4035`）的 cancel-first 一致）。
    - 验收：`TestComponentizedUninstallKeepsCancelFirst`——Cancel 的 x < confirm 的 x。
 
-4. **（待做 P7-fe）组件化对话框对任何 kind 都展开，原版只给 npm/custom**。
+4. **（已落地 P7-fe）组件化对话框对任何 kind 都展开，原版只给 npm/custom**。
    - 原版对照：`main:src/ExtensionsPanel.tsx:1286-1323` 的 `confirmRemoval`——**所有** kind 先走
      `RemovalConfirmation` 条（`removalTarget`）；确认后 npm/custom 才 `setUninstallDialogTarget`
      （组件化对话框），system/package 直接 `extensions_uninstall {removeData:false}`
@@ -5288,10 +5332,18 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
      != nil`，任何 kind 的卸载按钮都直接 `<verb>…` 展开组件化对话框（`uninstall.go:25`）；shell
      （`shell.go:735,761`）两个入口都接线后，`removeConfirmation`/`requestRemove` 在集成行成了死代码，
      system/package 被提供了原版不会给的数据删除勾选。
-   - 落地 file:line（待做）：`uninstallComponentsRow` 按 `integration.removalKind()` 分叉——npm/custom
-     走组件化对话框，其余走 `requestRemove` → `removeConfirmation` → `UninstallIntegration`。
-   - 验收：system 行点 Disconnect → 先画 `RemovalConfirmation`（不是组件化对话框）；确认后调
-     `UninstallIntegration`、不调 `UninstallComponents`；npm/custom 确认后调 `UninstallComponents`。
+   - 落地 file:line（已落地）：`internal/settingsui/settingsui.go` 新增
+     `Integration.componentizedRemoval()`（`removalKind()` ∈ {npm, custom}）；集成行（`:1819` 一带）的
+     动作改成三分支——npm/custom 且接了组件化动作走 `uninstallComponentsRow`；否则若接了普通卸载动作
+     走 `requestRemove` → `removeConfirmation` → `UninstallIntegration`；仅接组件化动作（测试夹具）
+     回退到组件化门。
+   - 验收（已满足）：`internal/settingsui/integrationremoval_test.go` 的
+     `TestOnlyOwnedKindsTakeTheComponentizedRemoval`（四 kind 纯映射）与
+     `TestOnlyOwnedKindsOpenTheComponentizedDialog`（system 行点 Disconnect 先画
+     `IntegrationsDisconnectTitle` 条、四行组件化文案不出现、确认前不调动作；位置点 Cancel 右侧的
+     danger 后只调 `UninstallIntegration`）。变异核查：`componentizedRemoval()` 改成 `return true` → 两条红。
+     残留（有意偏离）：system/package 成功后的通知仍走 shell 的 `IntegrationRemoved`
+     （`UninstallIntegration(id, name)` 签名不带 kind），未分 `disconnectedNotice`/`packageRemovedNotice`。
 
 ### 具体待办（P7-ew 重写；第 1 条 P7-ew、第 2 条 P7-ex、第 3 条 P7-ey、第 4 条 P7-ez、第 5 条 P7-fa——5 条全部落地）
 
