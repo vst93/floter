@@ -77,6 +77,43 @@ func TestSetShortcutRefusesJunk(t *testing.T) {
 	}
 }
 
+// CustomShortcutConflict is the app-side half of the custom shortcut guard:
+// a custom global key that reuses one of the app's own bindings is the same
+// key two things would answer for, so it is refused as a `conflict`.
+func TestCustomShortcutConflict(t *testing.T) {
+	s := Default()
+	if !s.SetShortcut(ShortcutNewCommand, "Cmd+W") {
+		t.Fatal("a valid binding was refused")
+	}
+	// An exact binding, and the same binding in another spelling, both count.
+	if !CustomShortcutConflict(s, "Cmd+W") {
+		t.Error("a custom binding equal to an app shortcut was not a conflict")
+	}
+	if !CustomShortcutConflict(s, "Cmd+W") {
+		t.Error("the same binding in another spelling was not a conflict")
+	}
+	// The result shortcut is a family: its head is stored as one digit, but
+	// every digit under those modifiers is a key the app already answers for.
+	if !s.SetShortcut(ShortcutSelectResult, "Cmd+Shift+1") {
+		t.Fatal("the result family could not be rebound")
+	}
+	if !CustomShortcutConflict(s, "Cmd+Shift+7") {
+		t.Error("a digit under the result family's modifiers was not a conflict")
+	}
+	if CustomShortcutConflict(s, "Cmd+7") {
+		t.Error("a digit under different modifiers was a conflict")
+	}
+	// A key no action holds is free, and the toggle action is skipped on
+	// purpose: its key is the global summon shortcut, which the shell holds
+	// separately and checks itself.
+	if CustomShortcutConflict(s, "Cmd+Shift+J") {
+		t.Error("a free key was a conflict")
+	}
+	if CustomShortcutConflict(s, Shortcut(s, ShortcutToggleWindow)) {
+		t.Error("the toggle key must be left to the shell, not flagged here")
+	}
+}
+
 func TestSelectResultDigit(t *testing.T) {
 	s := Default()
 	app := "Ctrl"

@@ -679,6 +679,18 @@ type CustomShortcutRejection struct {
 	Reason string
 }
 
+// The reasons a custom global shortcut is refused, as the shell reports them
+// and the settings page words them. The old host had exactly these two tokens
+// (`src-tauri/src/commands/config.rs:1691,1707`): a key that shadows one of the
+// app's own shortcuts is a `conflict`, and one the system will not take (almost
+// always another application already owns it) is `occupied`.
+const (
+	// CustomShortcutReasonConflict: the key is already one of the app's own.
+	CustomShortcutReasonConflict = "conflict"
+	// CustomShortcutReasonOccupied: the system refused the key.
+	CustomShortcutReasonOccupied = "occupied"
+)
+
 // New builds the settings surface over a store.
 func New(store *settings.Store, actions Actions) *App {
 	a := &App{Store: store, Actions: actions}

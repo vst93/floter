@@ -1473,13 +1473,53 @@ func TestCustomShortcutsPage(t *testing.T) {
 	}
 
 	// A key the system refused is reported rather than looking bound.
-	rejections = []CustomShortcutRejection{{Key: "Cmd+J", Reason: "taken"}}
+	rejections = []CustomShortcutRejection{{Key: "Cmd+J", Reason: CustomShortcutReasonOccupied}}
 	if err := tt.Click("Remove"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	if !tt.HasText("Could not bind Cmd+J: taken") {
+	if !tt.HasText("Most likely used by another app") {
 		t.Errorf("the rejection is missing: %q", tt.Texts())
+	}
+}
+
+// A refused custom shortcut is worded with one of the two tokens the shell
+// reports, exactly as the old build's page did — `conflict` for a key that
+// shadows one of the app's own, `occupied` for one the system would not take.
+func TestCustomShortcutRejectionWording(t *testing.T) {
+	cases := []struct {
+		reason string
+		want   string
+	}{
+		{CustomShortcutReasonConflict, "Already used by another floter shortcut"},
+		{CustomShortcutReasonOccupied, "Most likely used by another app"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.reason, func(t *testing.T) {
+			store := newStore(t)
+			entries := []settings.CustomShortcut{{Key: "Cmd+Shift+P", Action: "plugin:clipboard"}}
+			a := New(store, Actions{
+				CustomShortcuts: func() []settings.CustomShortcut { return entries },
+				SetCustomShortcuts: func(list []settings.CustomShortcut) []CustomShortcutRejection {
+					entries = list
+					return []CustomShortcutRejection{{Key: "Cmd+J", Reason: tc.reason}}
+				},
+			})
+			tt := render(t, a, 720, 1000)
+			if err := tt.Click("Shortcuts"); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			tt.Scroll(400, 300, 0, 900)
+			tt.Frame()
+			if err := tt.Click("Remove"); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			if !tt.HasText(tc.want) {
+				t.Errorf("the rejection word is missing: %q", tt.Texts())
+			}
+		})
 	}
 }
 

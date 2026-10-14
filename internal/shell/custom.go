@@ -20,12 +20,20 @@ import (
 // is what makes it useful for a quick script.
 
 // setCustomShortcuts persists a new list and registers it, reporting the keys
-// the system refused.
+// that were refused: a key that shadows one of the app's own shortcuts is a
+// `conflict`, one the system will not take is `occupied`. It is the only writer
+// of the list, and it writes back only the keys that registered — a refused key
+// is not left on disk to be retried on the next launch, as the old host's
+// `set_custom_shortcuts` had it (`src-tauri/src/commands/config.rs:1666-1718`).
 func (a *App) setCustomShortcuts(entries []settings.CustomShortcut) []settingsui.CustomShortcutRejection {
-	if err := a.Store.Update(func(s *settings.Settings) { s.SetCustomShortcuts(entries) }); err != nil {
+	registered, rejections := a.applyCustomShortcuts(entries)
+	// Record the signature of what is about to be written *before* the write, so
+	// the store's own listener sees the list it just registered and does not
+	// claim the keys a second time.
+	a.customSignature = customShortcutSignatureOf(registered)
+	if err := a.Store.Update(func(s *settings.Settings) { s.SetCustomShortcuts(registered) }); err != nil {
 		log.Printf("floter: could not save the custom shortcuts: %v", err)
 	}
-	rejections := a.ApplyCustomShortcuts()
 	out := make([]settingsui.CustomShortcutRejection, 0, len(rejections))
 	for _, rejection := range rejections {
 		out = append(out, settingsui.CustomShortcutRejection{Key: rejection.Key, Reason: rejection.Reason})
@@ -36,8 +44,14 @@ func (a *App) setCustomShortcuts(entries []settings.CustomShortcut) []settingsui
 // customShortcutSignature is the stored list as one comparable string, so the
 // settings listener only re-registers when the list really changed.
 func customShortcutSignature(s settings.Settings) string {
+	return customShortcutSignatureOf(settings.CustomShortcutsOf(s))
+}
+
+// customShortcutSignatureOf is the same signature for a list that has not been
+// written yet.
+func customShortcutSignatureOf(entries []settings.CustomShortcut) string {
 	var builder strings.Builder
-	for _, entry := range settings.CustomShortcutsOf(s) {
+	for _, entry := range entries {
 		builder.WriteString(entry.Key)
 		builder.WriteByte(0)
 		builder.WriteString(entry.Action)
@@ -46,44 +60,59 @@ func customShortcutSignature(s settings.Settings) string {
 	return builder.String()
 }
 
-// ApplyCustomShortcuts re-registers the user's own shortcuts: the keys that
-// are no longer bound are released first, so a change made in the settings
-// file or the settings page takes effect at once. A key the system refuses
-// (another application holds it, or it shadows the summon key) is reported and
-// skipped, never silently swallowed.
+// ApplyCustomShortcuts re-registers the user's own shortcuts from the settings
+// file, reporting the keys that could not be claimed. The keys that are no
+// longer bound are released first, so a change made in the settings file or the
+// settings page takes effect at once.
 func (a *App) ApplyCustomShortcuts() []CustomShortcutRejection {
+	snapshot := a.Store.Snapshot()
+	a.customSignature = customShortcutSignature(snapshot)
+	_, rejections := a.applyCustomShortcuts(settings.CustomShortcutsOf(snapshot))
+	return rejections
+}
+
+// applyCustomShortcuts is the one registration path — startup, a settings-file
+// change, the resume after a recorder and the settings page all go through it —
+// so the conflict and occupancy rules are the same everywhere. It releases the
+// current keys and claims the whole list, returning the entries that registered
+// and the ones refused. A key that shadows one of the app's own shortcuts (or
+// the summon key) is a `conflict`; one the system will not take is `occupied`.
+// Every entry that reaches it has already been normalized into a whole binding,
+// so an unparseable key is dropped before it can be reported.
+func (a *App) applyCustomShortcuts(entries []settings.CustomShortcut) ([]settings.CustomShortcut, []CustomShortcutRejection) {
 	for _, key := range a.customKeys {
 		a.unregisterShortcut(key)
 	}
 	a.customKeys = nil
 
 	snapshot := a.Store.Snapshot()
-	a.customSignature = customShortcutSignature(snapshot)
-	entries := settings.CustomShortcutsOf(snapshot)
-	registered := make([]string, 0, len(entries))
+	normalized := settings.NormalizeCustomShortcuts(entries)
+	registered := make([]settings.CustomShortcut, 0, len(normalized))
+	claimed := make([]string, 0, len(normalized))
 	rejections := make([]CustomShortcutRejection, 0)
-	for _, entry := range entries {
-		accelerator, ok := shortcuts.Normalize(entry.Key)
-		if !ok {
-			rejections = append(rejections, CustomShortcutRejection{Key: entry.Key, Reason: "the accelerator is not one the system accepts"})
+	for _, entry := range normalized {
+		accelerator := entry.Key
+		if shortcuts.Equal(accelerator, a.summonKey) || settings.CustomShortcutConflict(snapshot, accelerator) {
+			rejections = append(rejections, CustomShortcutRejection{Key: entry.Key, Reason: settingsui.CustomShortcutReasonConflict})
 			continue
 		}
-		if accelerator == a.summonKey {
-			rejections = append(rejections, CustomShortcutRejection{Key: entry.Key, Reason: "the key already summons floter"})
+		if shortcuts.Duplicate(accelerator, claimed, -1) != "" {
+			rejections = append(rejections, CustomShortcutRejection{Key: entry.Key, Reason: settingsui.CustomShortcutReasonConflict})
 			continue
 		}
 		action := entry.Action
 		if err := a.registerShortcut(accelerator, func() { a.runCustomShortcut(action) }); err != nil {
-			rejections = append(rejections, CustomShortcutRejection{Key: entry.Key, Reason: err.Error()})
+			rejections = append(rejections, CustomShortcutRejection{Key: entry.Key, Reason: settingsui.CustomShortcutReasonOccupied})
 			continue
 		}
-		registered = append(registered, accelerator)
+		registered = append(registered, entry)
+		claimed = append(claimed, accelerator)
 	}
-	a.customKeys = registered
+	a.customKeys = claimed
 	for _, rejection := range rejections {
 		log.Printf("floter: custom shortcut %s: %s", rejection.Key, rejection.Reason)
 	}
-	return rejections
+	return registered, rejections
 }
 
 // CustomShortcutRejection is a key the system would not take.

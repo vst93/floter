@@ -278,6 +278,26 @@ func NormalizeResultShortcut(accelerator string) (string, bool) {
 	return join(modifierList(mods), "1"), true
 }
 
+// SameResultFamily reports whether `other` names a key in the `select_result`
+// family whose head is `result`: the same modifiers, and a single digit as the
+// key. `select_result` is a family — the app selects the n-th row, so the
+// modifiers with any digit are keys it already answers for. A custom global
+// binding that reuses them is the same collision the old host's
+// `shortcut_conflicts` caught (`src-tauri/src/commands/config.rs:1456`), which
+// a plain accelerator comparison misses: the family head is stored as one
+// literal key (the digit `1`), not the whole family.
+func SameResultFamily(result, other string) bool {
+	resultMods, _, ok := Parse(result)
+	if !ok || resultMods == 0 {
+		return false
+	}
+	otherMods, otherKey, ok := Parse(other)
+	if !ok {
+		return false
+	}
+	return resultMods == otherMods && otherKey >= ui.Key0 && otherKey <= ui.Key9
+}
+
 // KeyName is the accelerator spelling of a key, and whether it has one.
 func KeyName(key ui.Key) (string, bool) {
 	switch {

@@ -1728,6 +1728,81 @@ func TestCustomShortcutsFollowTheStore(t *testing.T) {
 	}
 }
 
+// A custom key that shadows one of the app's own shortcuts is refused as a
+// `conflict` and never reaches the disk; one the system will not take is
+// `occupied` and is not written either. Only the keys that registered are
+// stored, as the old host's `set_custom_shortcuts` had it — a refused key must
+// not be left on disk to be retried on the next launch.
+func TestCustomShortcutsRefuseConflictsAndKeepOnlyRegistered(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "settings.json")
+	store, err := settings.OpenStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Pin an app binding so the shadowing key is the same on every host.
+	if err := store.Update(func(s *settings.Settings) {
+		s.SetShortcut(settings.ShortcutNewCommand, "Cmd+W")
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	live := map[string]func(){}
+	taken := map[string]bool{"Cmd+Shift+T": true}
+	a := New(Options{
+		Store: store,
+		Paths: extensions.FromRoot(t.TempDir()),
+		RegisterShortcut: func(accelerator string, fn func()) error {
+			if taken[accelerator] {
+				return errors.New("taken")
+			}
+			live[accelerator] = fn
+			return nil
+		},
+		UnregisterShortcut: func(accelerator string) { delete(live, accelerator) },
+	})
+	a.summonKey = "Ctrl+Space"
+
+	rejections := a.setCustomShortcuts([]settings.CustomShortcut{
+		{Key: "Cmd+W", Action: "plugin:clipboard"},       // shadows new_command
+		{Key: "Cmd+Shift+T", Action: "plugin:browser"},   // the system refuses it
+		{Key: "Cmd+Shift+P", Action: "plugin:clipboard"}, // the one that lands
+	})
+	reason := map[string]string{}
+	for _, rejection := range rejections {
+		reason[rejection.Key] = rejection.Reason
+	}
+	if len(rejections) != 2 {
+		t.Fatalf("rejections = %+v", rejections)
+	}
+	if reason["Cmd+W"] != settingsui.CustomShortcutReasonConflict {
+		t.Errorf("the shadowed key = %q, want conflict", reason["Cmd+W"])
+	}
+	if reason["Cmd+Shift+T"] != settingsui.CustomShortcutReasonOccupied {
+		t.Errorf("the refused key = %q, want occupied", reason["Cmd+Shift+T"])
+	}
+
+	// Only the key that registered is stored, in memory and on disk.
+	if stored := settings.CustomShortcutsOf(store.Snapshot()); len(stored) != 1 || stored[0].Key != "Cmd+Shift+P" {
+		t.Errorf("stored = %+v; only the registered key must be kept", stored)
+	}
+	onDisk, err := settings.Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored := settings.CustomShortcutsOf(onDisk); len(stored) != 1 || stored[0].Key != "Cmd+Shift+P" {
+		t.Errorf("the file kept a refused key: %+v", stored)
+	}
+
+	// The conflict was never claimed; the free key was.
+	if live["Cmd+W"] != nil {
+		t.Error("the shadowed key was registered")
+	}
+	if live["Cmd+Shift+P"] == nil {
+		t.Error("the free key was not registered")
+	}
+}
+
 // The calculator history is wired to the store the shell owns: a recorded
 // calculation lands in the file the old build wrote, and a retention change
 // prunes it.

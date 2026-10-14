@@ -115,6 +115,37 @@ func Shortcut(s Settings, action string) string {
 	return ShortcutsOf(s)[action]
 }
 
+// CustomShortcutConflict reports whether a custom global binding would shadow
+// one of the app's own action keys: the same accelerator as an action, or
+// another key in the `select_result` family (the app selects the n-th row, so
+// the family answers for every digit under its modifiers). It is the old
+// host's `shortcut_conflicts` (`src-tauri/src/commands/config.rs:1456`), which
+// is what makes a colliding custom shortcut a `conflict` rather than a binding
+// the app and the user both answer for. The toggle action is left out: its key
+// is the global summon shortcut, which the shell holds separately and checks
+// itself.
+func CustomShortcutConflict(s Settings, accelerator string) bool {
+	if strings.TrimSpace(accelerator) == "" {
+		return false
+	}
+	for _, action := range ShortcutActions {
+		if action == ShortcutToggleWindow {
+			continue
+		}
+		existing := Shortcut(s, action)
+		if existing == "" {
+			continue
+		}
+		if shortcuts.Equal(existing, accelerator) {
+			return true
+		}
+		if action == ShortcutSelectResult && shortcuts.SameResultFamily(existing, accelerator) {
+			return true
+		}
+	}
+	return false
+}
+
 // SetShortcut records one action's binding; an unparseable accelerator is
 // refused so a typo cannot leave an action with no key at all. `select_result`
 // is reduced to its family head on the way in, so the stored binding is the

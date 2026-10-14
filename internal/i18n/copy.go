@@ -3,8 +3,18 @@ package i18n
 import "strconv"
 
 // The custom-shortcut rejection sentence, which names the key and the reason.
+// The reason is one of the two tokens the shell reports — `conflict` for a
+// key that shadows one of the app's own, `occupied` for one the system would
+// not take — mapped to the sentence the old build's page showed.
 func shortcutsRejectedEN(key, reason string) string {
-	return "Could not bind " + key + ": " + reason
+	switch reason {
+	case "conflict":
+		return "Could not bind " + key + ": Already used by another floter shortcut"
+	case "occupied":
+		return "Could not bind " + key + ": Most likely used by another app"
+	default:
+		return "Could not bind " + key + ": " + reason
+	}
 }
 
 // The calculator's retention windows, as the picker labels them.
