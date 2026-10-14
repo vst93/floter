@@ -24,9 +24,15 @@ type Config struct {
 	// Armed is the action key whose button has been pressed once, empty for
 	// none.
 	Armed string
-	// Failed is the one line under the fields: the last write or action was
-	// refused.
+	// Failed is the one line under the fields: the last *write* was refused
+	// (`settings.saveFailed`). An action's own refusal is not a write failure
+	// and has its own line — see ActionFailed.
 	Failed bool
+	// ActionFailed is the action key whose command was refused, empty for
+	// none: that row prints the field's own failure line and disarms, the old
+	// build's `ActionControl` keeping its own `failed` state rather than
+	// borrowing the overlay's write line.
+	ActionFailed string
 }
 
 // configOpen reports whether the overlay owns the list's band.
@@ -101,6 +107,9 @@ func (a *App) ChangeConfig(key string, value any) {
 	next := a.config.Schema.Apply(committed, key, value)
 	a.config.Values = next
 	a.config.Failed = false
+	// A change does not touch the action row's own failure line: the old
+	// build's `handleChange` and `ActionControl` are separate pieces of
+	// state.
 	stored := a.Actions.ConfigChange(a.config.Schema.Plugin, key, next[key])
 	values, failed := plugincfg.ConfigChangeOutcome(next, committed, stored != nil)
 	if failed {
@@ -114,10 +123,15 @@ func (a *App) ChangeConfig(key string, value any) {
 }
 
 // ArmConfig arms an action field: the first press of a destructive button only
-// asks the question.
+// asks the question. The press also clears that row's failure line — the old
+// build's `ActionControl` cleared `failed` as it armed, so a refused run does
+// not leave the button looking broken after the user asks again.
 func (a *App) ArmConfig(key string) {
 	if a.configOpen() {
 		a.config.Armed = key
+		if a.config.ActionFailed == key {
+			a.config.ActionFailed = ""
+		}
 	}
 }
 
@@ -128,18 +142,23 @@ func (a *App) UnarmConfig(key string) {
 	}
 }
 
-// RunConfig runs an armed action field's command.
+// RunConfig runs an armed action field's command. A refused run disarms and
+// reports on the action's own line (`field.Failed`), never as a write failure:
+// the overlay's `settings.saveFailed` line belongs to the write path (the old
+// build's R113), and the old build's `ActionControl` kept the two apart.
 func (a *App) RunConfig(key string) {
 	if !a.configOpen() {
 		return
 	}
 	a.config.Armed = ""
-	a.config.Failed = false
+	a.config.ActionFailed = ""
 	if a.Actions.ConfigAction == nil {
+		// Nothing was wired to run: no command was attempted, so there is
+		// nothing to report (the old build's `onRun?.()` no-op).
 		return
 	}
 	if !a.Actions.ConfigAction(a.config.Schema.Plugin, key) {
-		a.config.Failed = true
+		a.config.ActionFailed = key
 	}
 }
 

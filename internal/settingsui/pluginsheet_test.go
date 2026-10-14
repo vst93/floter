@@ -337,3 +337,35 @@ func TestLocalToolFormRefusesAnEmptyScript(t *testing.T) {
 		t.Errorf("an empty script was connected: %+v", connected)
 	}
 }
+
+// A refused action prints the field's own failure line beside its button, not
+// the sheet's write-failure line: the old build's `ActionControl` kept the two
+// apart (`plugin-config-action__status` vs the overlay's caption).
+func TestPluginSheetActionFailureHasItsOwnLine(t *testing.T) {
+	copy := i18n.For("en").Settings
+	schema, values := plugincfg.Clipboard(copy, settings.DefaultClipboardSettings())
+	a := New(newStore(t), Actions{})
+
+	sheet := PluginSheet{Schema: schema, Values: values, ActionFailed: "clear_history"}
+	tt := renderSheet(t, a, sheet, 720, 700)
+	if !tt.HasText(copy.ClipboardClearFailed) {
+		t.Errorf("the action's own failure line is missing: %q", tt.Texts())
+	}
+	if tt.HasText(copy.SaveFailed) {
+		t.Errorf("an action failure borrowed the write line: %q", tt.Texts())
+	}
+
+	// Armed, the row is the confirm question and the line gives way to it.
+	sheet.Armed = "clear_history"
+	tt = renderSheet(t, a, sheet, 720, 700)
+	if tt.HasText(copy.ClipboardClearFailed) {
+		t.Errorf("the failure line survived into the armed row: %q", tt.Texts())
+	}
+
+	// Clearing the key clears the line.
+	sheet = PluginSheet{Schema: schema, Values: values}
+	tt = renderSheet(t, a, sheet, 720, 700)
+	if tt.HasText(copy.ClipboardClearFailed) {
+		t.Errorf("the failure line outlived the failure: %q", tt.Texts())
+	}
+}

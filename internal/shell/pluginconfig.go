@@ -182,14 +182,15 @@ func (a *App) drawPluginConfig(c *ui.Context, config *launcher.Config) {
 		return
 	}
 	a.Settings.PluginSheet(c, settingsui.PluginSheet{
-		Schema: config.Schema,
-		Values: config.Values,
-		Armed:  config.Armed,
-		Failed: config.Failed,
-		Change: a.Launcher.ChangeConfig,
-		Arm:    a.Launcher.ArmConfig,
-		Run:    a.Launcher.RunConfig,
-		Unarm:  a.Launcher.UnarmConfig,
+		Schema:       config.Schema,
+		Values:       config.Values,
+		Armed:        config.Armed,
+		Failed:       config.Failed,
+		ActionFailed: config.ActionFailed,
+		Change:       a.Launcher.ChangeConfig,
+		Arm:          a.Launcher.ArmConfig,
+		Run:          a.Launcher.RunConfig,
+		Unarm:        a.Launcher.UnarmConfig,
 	})
 }
 

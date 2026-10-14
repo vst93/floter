@@ -1,11 +1,14 @@
 package shell
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
 
+	"floter/internal/clipboard"
 	"floter/internal/i18n"
 	"floter/internal/settings"
 	"floter/internal/settingsui"
@@ -232,4 +235,56 @@ func TestBrowserSheetTargetsStartWithAutomatic(t *testing.T) {
 	// The sheet is the settings pages' own language: the same rows and cards,
 	// one renderer (see settingsui.PluginSheet).
 	_ = settingsui.IntegrationsPage()
+}
+
+// A refused action prints the field's own failure line on its row and never
+// the sheet's write line: the launcher's `ActionFailed` is wired from the
+// action's own result, not from the write path (the old build's
+// `ActionControl` kept its `failed` state beside the button). Before this the
+// sheet said "Could not save that change." when only `clear_history` failed.
+func TestPluginConfigActionFailureReportsOnTheActionLine(t *testing.T) {
+	a := pluginConfigApp(t)
+	// A clipboard store whose directory cannot be created (its parent is a
+	// file), so the clear fails for a reason no permission bit can mask —
+	// even when the tests run as root.
+	parent := filepath.Join(t.TempDir(), "not-a-dir")
+	if err := os.WriteFile(parent, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	a.Clipboard = clipboard.NewStore(clipboard.Paths{Root: filepath.Join(parent, "clip")}, 300)
+
+	tt := ui.NewTester(func(c *ui.Context) { a.View(c) }, 720, 1400)
+	tt.Frame()
+	tt.Type("clipboard")
+	tt.Frame()
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	if err := tt.Click(i18n.For("en").Launcher.ConfigurePlugin); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+
+	copy := i18n.For("en").Settings
+	if err := tt.Click(copy.ClipboardClear); err != nil {
+		t.Fatalf("the action's first press: %v", err)
+	}
+	tt.Frame()
+	if err := tt.Click(copy.ClipboardClearButton); err != nil {
+		t.Fatalf("the action's second press: %v", err)
+	}
+	tt.Frame()
+
+	config := a.Launcher.Config()
+	if config.Failed {
+		t.Error("a refused action was reported as a write failure")
+	}
+	if config.ActionFailed != "clear_history" {
+		t.Errorf("ActionFailed = %q, want clear_history", config.ActionFailed)
+	}
+	if !tt.HasText(copy.ClipboardClearFailed) {
+		t.Errorf("the action's own failure line is missing: %q", tt.Texts())
+	}
+	if tt.HasText(copy.SaveFailed) {
+		t.Errorf("the action borrowed the write line: %q", tt.Texts())
+	}
 }

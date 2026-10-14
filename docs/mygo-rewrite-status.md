@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1080 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1085 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1080 项测试
+go test -count=1 ./...         # 1085 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,7 +99,43 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-dg 被拒绝的配置写入要回落（原版 `src/plugins/config-persist.ts:44-50` 的
+> **最新一轮：P7-dh 动作失败不再冒充写入失败（原版 `src/plugins/controls.tsx:206-260` 的
+> `ActionControl` + `PluginConfigOverlay.tsx:299-309` 的失败行）**
+> —— P7-dg 收尾后「尚未做（P7-dg 重写）」还剩第 2 条（失败来源合并）与第 3 条（原版自己都没接线的
+> 死函数，低优先级）。本轮取第 2 条落地。依赖检查：GitHub releases API 被限流，用
+> `go list -m -versions github.com/egoist/mygo` 核对，最新仍是 **v0.4.8**（与 `go.mod` 一致），
+> 无版本可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离点**：原版把两条失败线分得清清楚楚。写入线是 overlay 的 `persistFailed`（由
+> `handleChange` 的 `rollback` 置起，渲染成 `settings.saveFailed`，`loadFailed` 优先于它，见
+> `PluginConfigOverlay.tsx:299-309`）；动作线属于控件自己——`ActionControl`（`controls.tsx:209-260`）
+> 有独立的 `failed` 状态，`onRun` 解析为 `false` 时 disarm 并在按钮旁打印字段自己的
+> `failedKey`（`.plugin-config-action__status`），**不碰** overlay 的失败行；重新 arm 时
+> `setFailed(false)`。本构建 `internal/launcher/config.go` 的 `Config.Failed bool` 同时被
+> `ChangeConfig`（写入）与 `RunConfig`（动作）置起，渲染在 `internal/settingsui/pluginsheet.go:70-75`
+> 的 `copy.SaveFailed`——于是 `clear_history` 失败会说「无法保存该修改」，而设置其实没动。
+>
+> **修法**：`launcher.Config` 新增 `ActionFailed string`（被拒动作的 key，空为无）；`RunConfig`
+> 改置 `ActionFailed`、不再动 `Failed`（`ConfigAction` 为 nil 时按原版 `onRun?.()` 的 no-op 不报）；
+> `ArmConfig` 在重新 arm 时清掉该行（对齐 `ActionControl` 的 `setFailed(false)`）。
+> `settingsui.PluginSheet` 新增 `ActionFailed`，`sheetAction` 在未 arm 时把 `field.Failed` 画在
+> 按钮旁（Warning 色），arm 后让位给 confirm/cancel；`shell.drawPluginConfig` 透传。`Failed` 仍是
+> 写入线（`settings.saveFailed`）。
+>
+> **测试**：`internal/launcher/config_test.go` 的 `TestRefusedConfigActionReportsOnItsOwnLine`
+> （拒绝→`ActionFailed=key`、`Failed` 假、已 disarm；重新 arm 清行）、`TestAcceptedConfigActionClearsTheLine`、
+> `TestWriteAndActionFailuresAreSeparateLines`（写失败不碰动作行）；
+> `internal/settingsui/pluginsheet_test.go` 的 `TestPluginSheetActionFailureHasItsOwnLine`
+> （画 `field.Failed`、不画 `SaveFailed`、arm 后让位）；`internal/shell/pluginconfig_test.go` 的
+> `TestPluginConfigActionFailureReportsOnTheActionLine`（端到端：让清空必然失败——store 的父路径是
+> 一个文件，`mkdir` 报 ENOTDIR，连 root 也绕不过——渲染 `ClipboardClearFailed` 而非 `SaveFailed`）。
+> 变异核查：`RunConfig` 改回 `a.config.Failed = true` → launcher 两条红；`sheetAction` 的
+> `if sheet.ActionFailed == field.Key` 关掉 → settingsui 与 shell 各一条红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿（1085 项）、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+> **上一轮：P7-dg 被拒绝的配置写入要回落（原版 `src/plugins/config-persist.ts:44-50` 的
 > `configChangeOutcome` + `src/plugins/PluginConfigOverlay.tsx:233-249` 的 `handleChange`）**
 > —— P7-df 收尾后「尚未做（P7-dd 重写）」只剩第 3 条（卡 mygo 框架），清单又一次为空。
 > 本轮换入口：逐文件对照原版**插件配置的写入路径**（`plugins/config-persist.ts`、
@@ -3064,7 +3100,7 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-### 具体待办（P7-dg 重写；第 1 条已落地 P7-dg，第 2·3 条待做）
+### 具体待办（P7-dg 重写；第 1 条已落地 P7-dg，第 2 条已落地 P7-dh，余下第 3 条低优先级）
 
 > 本轮换入口：逐文件对照原版的**插件配置写入路径**（`src/plugins/config-persist.ts`、
 > `src/plugins/config-schema.ts`、`src/plugins/PluginConfigOverlay.tsx` 的 `handleChange`/`persist`），
@@ -3094,7 +3130,7 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
      `a.config.Values = next`（继续显示上屏值），`TestRefusedConfigChangeRollsBack` 与
      `TestRefusedChangeRollsBackToTheLastAccepted` 立刻红。
 2. **`writeConfigChange` 把「写被拒绝」变成 `false` 而不是抛出，且拒绝的反馈行是 `settings.saveFailed`**
-   （部分已由 P7-dg 覆盖，余下待做）。
+   （已落地，P7-dh）。
    - 原版对照：`main:src/plugins/config-persist.ts:25-33` 的 `writeConfigChange`（`try { await write(); return true }
      catch { return false }`）与 `:44-50` 的 `feedback: "settings.saveFailed"`；渲染点
      `main:src/plugins/PluginConfigOverlay.tsx:299-309` 的 `plugin-config-action__status`（`loadFailed` 时
@@ -3104,8 +3140,14 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
      `internal/settingsui/pluginsheet.go:70-75`（`copy.SaveFailed`）。**尚缺**：`Failed` 把「写失败」与「动作失败」
      混成一个 bool，且没有原版 R126 的「读失败优先」那条线（本构建 `pluginConfig` 同步读、不会失败，
      所以这条只有在框架/异步读出现后才有落点）。
-   - 验收（若做）：一次拒绝后失败行是 `settings.saveFailed`；`Failed` 由动作（clear_history）置起时
-     不误报成写失败（若要区分则引入 `LoadFailed`/`PersistFailed` 两个来源，否则在文档里说明为何合并）。
+   - 验收：一次拒绝后失败行是 `settings.saveFailed`；`Failed` 由动作（clear_history）置起时
+     不误报成写失败。
+   - **已落地（P7-dh）**：没有合并两个来源，而是按原版**分开**——`launcher.Config.Failed` 只由
+     `ChangeConfig` 的 rollback 置起（写入线，`settings.saveFailed`）；新增 `Config.ActionFailed string`
+     由 `RunConfig` 置起，`settingsui` 的 `sheetAction` 在未 arm 时画 `field.Failed`（`ActionControl`
+     的独立 `failed` 状态），`ArmConfig` 在重新 arm 时清掉它。原版 R126 的「读失败优先」在本构建
+     仍无落点（`pluginConfig` 同步读、不会失败），留待异步读出现；理由与规格写在上一条清单里。
+     测试与变异核查见「最近几轮」P7-dh。
 3. **`configValuesEqual` 的「无变化不写」没有落点**（待做，优先级低）。
    - 原版对照：`main:src/plugins/config-schema.ts:552-563` 的 `configValuesEqual`（逐 schema 字段比较，
      列表按下标）。原版里它**没有被任何调用点引用**（`git grep configValuesEqual` 只命中定义），

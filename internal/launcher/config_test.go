@@ -90,3 +90,80 @@ func TestRefusedChangeRollsBackToTheLastAccepted(t *testing.T) {
 		t.Error("the refusal did not report the failure line")
 	}
 }
+
+// actionApp is a launcher with one action field, whose command is the caller's
+// to accept or refuse.
+func actionApp(run func() bool) *App {
+	a := testApp()
+	a.Actions.ConfigFor = func(plugin string) *Config {
+		return &Config{
+			Schema: &plugincfg.Schema{Plugin: plugin, Fields: []plugincfg.Field{
+				{Key: "clear_history", Kind: plugincfg.Action, Label: "Clear history",
+					Confirm: "Clear", Cancel: "Cancel", Failed: "Could not clear it"},
+			}},
+			Values: plugincfg.Values{},
+		}
+	}
+	a.Actions.ConfigAction = func(plugin, key string) bool { return run() }
+	return a
+}
+
+// A refused action reports on its own row's line, never as a write failure:
+// the old build's `ActionControl` kept its `failed` state beside the button,
+// apart from the overlay's `settings.saveFailed` line (R113). Reporting it as
+// a write failure made the sheet claim the *settings* could not be saved when
+// only the command failed.
+func TestRefusedConfigActionReportsOnItsOwnLine(t *testing.T) {
+	a := actionApp(func() bool { return false })
+	a.OpenConfig("clipboard")
+	a.ArmConfig("clear_history")
+	a.RunConfig("clear_history")
+
+	config := a.Config()
+	if config.Failed {
+		t.Error("a refused action was reported as a write failure")
+	}
+	if config.ActionFailed != "clear_history" {
+		t.Errorf("ActionFailed = %q, want the refused key", config.ActionFailed)
+	}
+	if config.Armed != "" {
+		t.Errorf("a refused run left the button armed: %q", config.Armed)
+	}
+
+	// Asking again clears the line: the old build's `ActionControl` cleared
+	// `failed` as it re-armed.
+	a.ArmConfig("clear_history")
+	if a.Config().ActionFailed != "" {
+		t.Errorf("re-arming kept the failure line: %q", a.Config().ActionFailed)
+	}
+}
+
+// An accepted action clears the line and is not a write failure either.
+func TestAcceptedConfigActionClearsTheLine(t *testing.T) {
+	a := actionApp(func() bool { return true })
+	a.OpenConfig("clipboard")
+	a.ArmConfig("clear_history")
+	a.RunConfig("clear_history")
+
+	config := a.Config()
+	if config.Failed || config.ActionFailed != "" {
+		t.Errorf("an accepted action reported a failure: %+v", config)
+	}
+}
+
+// The two failure lines are separate state: a refused write leaves the action
+// row alone, and a change does not clear an action's line.
+func TestWriteAndActionFailuresAreSeparateLines(t *testing.T) {
+	a := configApp(func() bool { return false })
+	a.OpenConfig("clipboard")
+	a.Config().ActionFailed = "clear_history"
+	a.ChangeConfig("enabled", false)
+
+	config := a.Config()
+	if !config.Failed {
+		t.Error("the refused write did not report its own line")
+	}
+	if config.ActionFailed != "clear_history" {
+		t.Errorf("a write cleared the action's line: %q", config.ActionFailed)
+	}
+}

@@ -35,6 +35,10 @@ type PluginSheet struct {
 	Armed string
 	// Failed shows the one line under the fields: the last write was refused.
 	Failed bool
+	// ActionFailed is the action key whose command was refused, empty for
+	// none: that row prints the field's own failure line, the way the old
+	// build's `ActionControl` kept its own `failed` state beside the button.
+	ActionFailed string
 	// Change writes one field; the sheet paints the value either way and the
 	// caller reports whether the plugin took it.
 	Change func(key string, value any)
@@ -261,6 +265,12 @@ func (a *App) sheetAction(c *ui.Context, sheet PluginSheet, field plugincfg.Fiel
 					sheet.Unarm(field.Key)
 				}
 				return
+			}
+			if sheet.ActionFailed == field.Key && field.Failed != "" {
+				// The refused run's line sits beside the button, not in the
+				// sheet's write-failure slot: the old build's
+				// `.plugin-config-action__status`, the field's own wording.
+				ui.Text(c, field.Failed).FontSize(t.FontSize - 1).TextColor(t.Warning)
 			}
 			if ui.Button(c, field.Label).Clicked() {
 				sheet.Arm(field.Key)
