@@ -100,7 +100,62 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-ep F4e 的 repair 一支：broken 行回到原版的 Wrench「Re-check」（原版
+> **最新一轮：P7-eq F4g 第 1 条入口——安装文件夹的 manifest review（原版
+> `src/ExtensionsPanel.tsx:1430-1440,1550-1560`、`src/extensions/LocalInstallDialog.tsx`、
+> `src-tauri/src/commands/extensions.rs:1470-1501`）** —— P7-ep 收尾后「尚未做」清单里文档点名的
+> 下轮最高优先级就是 **F4g 的第 1 条入口**（安装文件夹的 manifest review），本轮取它。依赖检查：
+> GitHub releases API 限流，`proxy.golang.org` 的 `@v/list` 最新仍是 **v0.4.8**（与 `go.mod` 一致），
+> 无版本可升；只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离（F4g·folder review）**：原版选完文件夹后走 `connectLocal` → `reviewLocalManifest`
+> （`ExtensionsPanel.tsx:1430-1440`），它调 `extensions_local_manifest_review`
+> （`src-tauri/src/commands/extensions.rs:1470-1501`）拿到 `{extensionName, runtime, platforms,
+> source:"local", permissions}`，然后**无条件**弹 `LocalInstallDialog`（`:2600`）：标题
+> `localConfirmTitle`（“Connect {name}?”）、提示 `localConfirmHint`、三行 manifest 摘要
+> （`localSource`→`localDirectory`“Local package”、`localRuntime`、`customPlatforms`）、
+> `PermissionTierList`（全部 declared 权限）、边界句 `permissionReviewBoundary`，按钮
+> Cancel / `localConfirm`（“Confirm connection”）。**只有该对话框的 Confirm 走
+> `extensions_install`**（`:1554-1556`），且提交的是**全部 declared 权限**。
+> 本构建（改前）：`internal/shell/shell.go` 的 `installPackageFolder` 只在
+> `prepared.Approval.NeedsApproval()` 时弹一个**纯权限**的原生 message box
+> （`confirmInstallPermissions` → `permissionDialog`，`internal/shell/system.go`），**没有**
+> name/source/runtime/platforms 摘要、也没有边界句；**不声明权限的包直接静默安装**，连对话框都不弹。
+>
+> **落地**：
+> - `internal/shell/system.go`：`localInstallReview`（原生 `mygo.Dialog.Message`）与纯函数
+>   `localInstallReviewText`（title + body，便于测试）；body 依原版顺序拼 hint / Source /
+>   Runtime / Supported platforms / 每条 declared 权限（带 enforced/declared 句）/ 边界句。
+>   权限行与 `permissionDialog` 共用一个新的 `permissionLines`，两条路径不再各写一遍。
+> - `internal/shell/shell.go`：`Options.ReviewInstall func(extensions.Prepared) bool` +
+>   `App.reviewInstall` 注入点（nil 走原生对话框）；`installPackageFolder` 改为**无条件**先
+>   `reviewLocalInstall(prepared)`，用户确认才 `prepared.Commit(true)`（提交全部 declared，与原版
+>   `confirmLocal` 一致），拒绝则什么都不落。
+> - `internal/i18n`：`Settings` 新增 `InstallReviewTitle/Hint/Source/LocalDirectory/Runtime/
+>   Platforms/Unavailable/Boundary/Confirm`，EN/ZH 双份，文案逐字取原版 `i18n.ts:640-645,553,551`
+>   （`unavailable` = “Not available”/“暂无”）。
+>
+> **验收**：
+> - `internal/shell/installreview_test.go`（新）三条：
+>   `TestLocalInstallReviewCarriesTheManifestSummary`（纯函数：标题 “Connect Ripgrep?”、
+>   Source/Runtime/Platforms 三行、无权限时**不带**边界句也不带权限行、空平台列表说 “Not available”）、
+>   `TestLocalInstallReviewListsDeclaredPermissions`（enforced 与 declared 两种权限行 + 边界句）、
+>   `TestInstallFromFolderReviewsBeforeCommitting`（流程：一个**不声明任何权限**的本地包，注入的
+>   `ReviewInstall` 仍被调用一次——这正是旧代码会跳过的情形；拒绝 → 仓库为空；确认 → 落地且
+>   `WithID("dev.floter.reviewed")` 可查到）。
+> - 变异核查：把 `installPackageFolder` 的 `reviewLocalInstall` 换回
+>   `if prepared.Approval.NeedsApproval()` 守卫 → `TestInstallFromFolderReviewsBeforeCommitting` 红
+>   （不声明权限的包不再触发 review）。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿（1258 项）、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：**F4g 第 1 条入口落地**（安装文件夹的 manifest review）。余下 F4g 的四条入口
+> （权限审批 / 运行参数 / 输出回看 / 导入导出）与 **F-new**（脚本编辑器换 `ui/editor`）。下轮最高
+> 优先级是 **F4g 的第 2 条入口**（权限审批：原版 `ExtensionsPanel.tsx:1349-1400,2594-2620` 的
+> `connectRecommendedAt` 与 `extension-permission-backdrop`，对照本构建的 `confirmInstallPermissions`
+> / `permissionDialog` / `permissionAudit`），除非 F4g 的对照先查出新缺口。
+
+> **P7-ep F4e 的 repair 一支：broken 行回到原版的 Wrench「Re-check」（原版
 > `src/ExtensionsPanel.tsx:1255-1267`、`src/extensions/ExtensionRow.tsx:313-330`、
 > `i18n.ts:505-507`）** —— P7-eo 收尾后「尚未做」清单里文档点名的下轮最高优先级就是 **F4e 的
 > `extensions_repair`（Recheck）一支**，本轮取它。依赖检查：GitHub releases API 限流，
@@ -7299,10 +7354,17 @@ F3b 因此解除「先决」。**P7-en 再取 F3b 并落地**（详见上文 P7-
 - **原版对照（逐个入口，行号已钉）**：
   - 安装文件夹：`main:src/ExtensionsPanel.tsx:1430-1440` 的 `reviewLocalManifest`
     （`extensions_local_manifest_review` → 名字/runtime/platforms/source + 权限清单）与
-    `:1554` 的 `extensions_install` 提交；
+    `:1554` 的 `extensions_install` 提交；—— **已落地 P7-eq**（见下）：`internal/shell/system.go`
+    的 `localInstallReview`/`localInstallReviewText` + `internal/shell/shell.go` 的
+    `installPackageFolder`/`reviewLocalInstall`（无条件先审后装），文案取原版
+    `LocalInstallDialog.tsx` / `i18n.ts:640-645,553`。**残留（有意偏离）**：原版
+    `extensions_local_manifest_review`（`commands/extensions.rs:1480-1482`）对**已安装**的 id 直接报
+    “Extension is already installed” 而拒绝审阅；本构建把同 id 的本地包当作**更新**走同一 review
+    （`PrepareLocal` → `Commit`），因为本构建支持就地更新，且这是更常见的意图。
   - 权限审批：`:1349-1400` 的 `connectRecommendedAt`（先 `extensions_recommended_permissions`，
     有权限才弹 `pendingPermissionReview`）与 `:2594-2620` 的 `extension-permission-backdrop`
     弹窗（标题按 `manifestSuggestion` / `recommended` 二选一 + `PermissionTierList` + 边界句）；
+    —— **下轮最高优先级**。
   - 运行参数：`:2560-2580` 的 `pendingToolSelection` 弹窗（多个候选才弹，`chooseSystemTool`）；
   - 输出回看：`:2078-2132` 的 `handleDriftNotice`（`OperationProgress` 漂移提示）；
   - 导入导出：`extensions_export` / `extensions_import` 的调用点（`onImport`/`onExport` 一带）。

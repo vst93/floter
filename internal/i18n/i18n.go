@@ -718,6 +718,19 @@ type Settings struct {
 	InstallFolderHint   string
 	InstallFolderChoose string
 	DetectedHint        string
+	// The local-package review dialog: what the package is and what it asks
+	// for, shown before anything is grafted into place (the reference's
+	// `settings.extensions.localConfirm*` / `localSource` / `localRuntime` /
+	// `customPlatforms` / `permissionReviewBoundary`, i18n.ts:640-645,694,553).
+	InstallReviewTitle          func(name string) string
+	InstallReviewHint           string
+	InstallReviewSource         string
+	InstallReviewLocalDirectory string
+	InstallReviewRuntime        string
+	InstallReviewPlatforms      string
+	InstallReviewUnavailable    string
+	InstallReviewBoundary       string
+	InstallReviewConfirm        string
 	// The freshness display: when the command list was last derived, how the
 	// derivation went, and how the list moved. "Unknown" is its own word
 	// everywhere — a fabricated zero or "no change" is a lie.

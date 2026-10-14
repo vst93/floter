@@ -456,8 +456,21 @@ func (a *App) ApplyStartup() {
 // a value so a test can answer without a native dialog, and a goroutine
 // caller (the dialog blocks).
 func permissionDialog(approval extensions.PermissionApproval, copy i18n.Settings, language string) bool {
-	var lines []string
-	for _, permission := range approval.Added {
+	result, err := mygo.Dialog.Message(mygo.MessageOptions{
+		Type:    mygo.MessageQuestion,
+		Message: copy.PermissionsTitle(approval.Name),
+		Detail:  strings.Join(permissionLines(approval.Added, copy, language), "\n"),
+		Buttons: []string{copy.PermissionsAllow, copy.PermissionsCancel},
+	})
+	return err == nil && result.Button == 0
+}
+
+// permissionLines renders one permission per line, each with the sentence that
+// says whether Floter enforces it or only declares it — the two lists the
+// native dialogs share (the review and the plain approval).
+func permissionLines(permissions []string, copy i18n.Settings, language string) []string {
+	lines := make([]string, 0, len(permissions))
+	for _, permission := range permissions {
 		line := "\u2022 " + i18n.PermissionLabel(language, permission)
 		if extensions.PermissionEnforced(permission) {
 			line += " \u2014 " + copy.PermissionsEnforced
@@ -466,13 +479,49 @@ func permissionDialog(approval extensions.PermissionApproval, copy i18n.Settings
 		}
 		lines = append(lines, line)
 	}
+	return lines
+}
+
+// localInstallReview is the local package review: the manifest summary the
+// reference's LocalInstallDialog shows (source / runtime / supported
+// platforms), the declared permissions, and the boundary note, before the
+// folder install commits. It always appears — the reference reviews a local
+// package whether or not it declares anything (ExtensionsPanel.tsx:1430-1440,
+// LocalInstallDialog.tsx).
+func localInstallReview(prepared extensions.Prepared, copy i18n.Settings, language string) bool {
+	title, detail := localInstallReviewText(prepared, copy, language)
 	result, err := mygo.Dialog.Message(mygo.MessageOptions{
 		Type:    mygo.MessageQuestion,
-		Message: copy.PermissionsTitle(approval.Name),
-		Detail:  strings.Join(lines, "\n"),
-		Buttons: []string{copy.PermissionsAllow, copy.PermissionsCancel},
+		Message: title,
+		Detail:  detail,
+		Buttons: []string{copy.InstallReviewConfirm, copy.PermissionsCancel},
 	})
 	return err == nil && result.Button == 0
+}
+
+// localInstallReviewText builds the review's title and body: the manifest
+// summary, the declared permissions with their enforcement sentence, and the
+// boundary note. It is a value so a test can read the sentences without a
+// native dialog.
+func localInstallReviewText(prepared extensions.Prepared, copy i18n.Settings, language string) (string, string) {
+	manifest := prepared.Manifest
+	platforms := strings.Join(manifest.Platforms, ", ")
+	if platforms == "" {
+		platforms = copy.InstallReviewUnavailable
+	}
+	lines := []string{
+		copy.InstallReviewHint,
+		"",
+		copy.InstallReviewSource + ": " + copy.InstallReviewLocalDirectory,
+		copy.InstallReviewRuntime + ": " + manifest.Runtime.Type,
+		copy.InstallReviewPlatforms + ": " + platforms,
+	}
+	if declared := prepared.Approval.Declared; len(declared) > 0 {
+		lines = append(lines, "")
+		lines = append(lines, permissionLines(declared, copy, language)...)
+		lines = append(lines, "", copy.InstallReviewBoundary)
+	}
+	return copy.InstallReviewTitle(manifest.Name), strings.Join(lines, "\n")
 }
 
 // menuActions are what the application menu's own items do.

@@ -134,6 +134,11 @@ type Options struct {
 	// ConfirmPermissions approves an install's permissions; nil means the
 	// native dialog, and tests answer for themselves.
 	ConfirmPermissions func(extensions.PermissionApproval) bool
+	// ReviewInstall shows the local package review (what the package is and
+	// what it asks for) before a folder install commits; nil means the native
+	// dialog. It is separate from ConfirmPermissions because the reference's
+	// folder flow always shows the review, permissions or not.
+	ReviewInstall func(extensions.Prepared) bool
 	// OpenPinned replaces the pinned-window implementation; nil opens the
 	// real window, and tests record what would have been pinned.
 	OpenPinned func(title, text string)
@@ -259,6 +264,9 @@ type App struct {
 	// confirmPermissions approves an install's permissions, nil for the
 	// native dialog.
 	confirmPermissions func(extensions.PermissionApproval) bool
+	// reviewInstall shows the local package review before a folder install
+	// commits, nil for the native dialog.
+	reviewInstall func(extensions.Prepared) bool
 	// diagnoses is the last health check per integration, and diagnosisMu
 	// guards it: a check runs off the main thread.
 	diagnoses   map[string]settingsui.Integration
@@ -450,6 +458,7 @@ func New(opts Options) *App {
 		clipboardInterval:    clipboardPoll,
 		Registry:             opts.Registry,
 		confirmPermissions:   opts.ConfirmPermissions,
+		reviewInstall:        opts.ReviewInstall,
 		openPinned:           opts.OpenPinned,
 		openDetached:         opts.OpenDetached,
 		writeClipboard:       opts.WriteClipboard,
@@ -2130,9 +2139,13 @@ func (a *App) runCommandFromPanel(entry extensions.CommandEntry, args []string) 
 	})
 }
 
-// installPackageFolder installs a local package directory: the same review
-// and the same install the connect flows use, for a package the user already
-// has on disk.
+// installPackageFolder installs a local package directory: the reference's
+// folder flow, which always shows the package review — what the package is
+// and what it asks for — and only its own confirm commits. The review is the
+// permission review and the manifest summary together (the reference's
+// `extensions_local_manifest_review` → `LocalInstallDialog`, ExtensionsPanel.tsx
+// :1430-1440,1550-1560; LocalInstallDialog.tsx), so a package that declares
+// nothing still gets its source/runtime/platforms read back before install.
 func (a *App) installPackageFolder(dir string) {
 	go func() {
 		prepared, err := extensions.PrepareLocal(a.Paths, dir)
@@ -2143,11 +2156,13 @@ func (a *App) installPackageFolder(dir string) {
 			})
 			return
 		}
-		approved := true
-		if prepared.Approval.NeedsApproval() {
-			approved = a.confirmInstallPermissions(prepared.Approval)
+		if !a.reviewLocalInstall(prepared) {
+			return
 		}
-		entry, err := prepared.Commit(approved)
+		// Confirming the review approves everything the manifest declares, the
+		// same set the reference handed to `extensions_install`
+		// (ExtensionsPanel.tsx:1554-1556).
+		entry, err := prepared.Commit(true)
 		if err != nil {
 			log.Printf("floter: %s was not installed: %v", dir, err)
 			a.onMain(func() {
@@ -2158,6 +2173,17 @@ func (a *App) installPackageFolder(dir string) {
 		a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationInstalled(entry.Name) })
 		a.RefreshIntegrations(context.Background())
 	}()
+}
+
+// reviewLocalInstall asks the user to confirm a local package before it is
+// committed: the injected answer in tests, the native review dialog
+// otherwise.
+func (a *App) reviewLocalInstall(prepared extensions.Prepared) bool {
+	if a.reviewInstall != nil {
+		return a.reviewInstall(prepared)
+	}
+	language := a.Store.Snapshot().Language
+	return localInstallReview(prepared, i18n.For(language).Settings, language)
 }
 
 // connectDetected connects one of the discovered programs, with the words the
