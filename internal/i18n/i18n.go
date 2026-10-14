@@ -868,6 +868,11 @@ type Notifications struct {
 	// output view shows.
 	CommandFinished func(name string) string
 	CommandStatus   func(status string) string
+	// The clipboard history's one long action — clearing every entry that is
+	// not a favourite — reported under the plugin page's own name, the way
+	// the old build's `clipboard_clear_history` did.
+	ClipboardCleared     func(name string) string
+	ClipboardClearFailed func(name string) string
 }
 
 // Terminal is the terminal surface's copy.

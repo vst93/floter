@@ -137,12 +137,17 @@ func (a *App) runPluginAction(plugin, key string) bool {
 	return false
 }
 
-// clearClipboardHistory drops every entry that is not a favourite.
+// clearClipboardHistory drops every entry that is not a favourite, and reports
+// the outcome through the completion rule: the panel's own row when it is on
+// screen, a system notification when it is hidden (the old build's
+// `clipboard_clear_history`).
 func (a *App) clearClipboardHistory() bool {
 	if a.Clipboard == nil {
 		return false
 	}
-	if err := a.Clipboard.Clear(); err != nil {
+	err := a.Clipboard.Clear()
+	a.notifyClipboardClear(err == nil)
+	if err != nil {
 		log.Printf("floter: could not clear the clipboard history: %v", err)
 		return false
 	}

@@ -3014,6 +3014,68 @@ func TestClearClipboardHistoryAsksFirst(t *testing.T) {
 	_ = confirmed
 }
 
+// Clearing the clipboard history is the clipboard plugin page's one long
+// action, and it reports its outcome through the same completion rule as every
+// other background task: the panel's own row when the panel is on screen, a
+// system notification when it is hidden (the old build's
+// `clipboard_clear_history` → `notify_completion`). Both channels name the
+// plugin by its localized page name.
+func TestClipboardClearReportsWhereTheUserIsLooking(t *testing.T) {
+	clipStore := clipboard.NewStore(clipboard.FromConfigRoot(t.TempDir()), 0)
+	if _, _, err := clipStore.AddText("plain"); err != nil {
+		t.Fatal(err)
+	}
+	notifications := []string{}
+	a := New(Options{
+		Store:       settings.NewStore(settings.Default()),
+		Paths:       extensions.FromRoot(t.TempDir()),
+		Notify:      func(title, body string) { notifications = append(notifications, title+"|"+body) },
+		NewTerminal: func(terminal.Options) (*terminal.Terminal, error) { return nil, errors.New("no library in tests") },
+	})
+	a.Clipboard = clipStore
+	name := i18n.For("en").Settings.ClipboardPlugin
+
+	// Hidden: the system notification is the only channel, and it carries the
+	// old build's success wording under the plugin page's own name.
+	a.onScreen = func() bool { return false }
+	if !a.clearClipboardHistory() {
+		t.Fatal("the clear was refused")
+	}
+	if len(notifications) != 1 {
+		t.Fatalf("notifications = %v", notifications)
+	}
+	if want := name + " cleared"; !strings.Contains(notifications[0], want) {
+		t.Errorf("the notification = %q, want %q in it", notifications[0], want)
+	}
+
+	// On screen: the panel's own row answers and no notification is raised.
+	notifications = notifications[:0]
+	a.onScreen = func() bool { return true }
+	if _, _, err := clipStore.AddText("another"); err != nil {
+		t.Fatal(err)
+	}
+	if !a.clearClipboardHistory() {
+		t.Fatal("the second clear was refused")
+	}
+	if len(notifications) != 0 {
+		t.Errorf("a visible panel still notified: %v", notifications)
+	}
+	if !a.Launcher.FeedbackVisible() {
+		t.Error("the panel's own row said nothing")
+	}
+
+	// The failure wording is the old build's `{name} could not be cleared`.
+	notifications = notifications[:0]
+	a.onScreen = func() bool { return false }
+	a.notifyClipboardClear(false)
+	if len(notifications) != 1 {
+		t.Fatalf("failure notifications = %v", notifications)
+	}
+	if want := name + " could not be cleared"; !strings.Contains(notifications[0], want) {
+		t.Errorf("the failure notification = %q, want %q in it", notifications[0], want)
+	}
+}
+
 // The alias editor's data path: an alias is recorded, reaches the settings
 // list with the conflict flag set when another command claimed it first, and
 // an empty alias removes the entry.

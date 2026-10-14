@@ -99,7 +99,37 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-de 前台判定补上「已聚焦即在场」（原版 `src-tauri/src/notifications.rs:168-190`
+> **最新一轮：P7-df 剪贴板清空历史的完成反馈（原版 `src-tauri/src/clipboard_history/mod.rs:277-303`
+> 的 `clipboard_clear_history` → `notifications.rs` 的 `notify_completion`）**
+> —— P7-de 收尾后「尚未做（P7-dd 重写）」只剩第 2 条（具体可做）与第 3 条（卡 mygo 框架），
+> 本轮取第 2 条落地。依赖检查：`curl .../releases/latest` 与 `go.mod` 都停在 **v0.4.8**，无版本可升。
+> 只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离点**：原版 `clipboard_clear_history` 在清空后调 `notify_completion(&app,
+> Subject::Plugin(CLIPBOARD_PLUGIN_ID), CompletionAction::ClearHistory, outcome_of(&result))`——
+> 插件页的这条长动作走与其他后台任务同一条完成规则：可见→面板自己的反馈，隐藏→系统通知，
+> `{name}` 是插件页的双语名（`{name} cleared` / `{name} could not be cleared`）。本构建两条清空路径
+> （`internal/shell/pluginconfig.go:141` 的 `clearClipboardHistory`、`internal/shell/shell.go:1744` 的
+> `clearClipboardHistoryAsks`）都只 `Win.Invalidate()`/`log.Printf`，从不调 `notifyCompletion`，
+> 面板隐藏时没有任何通知；i18n 的 `Notifications` 也没有这两条词。
+>
+> **修法**：`internal/shell/pluginconfig.go` 的 `clearClipboardHistory` 成为唯一清空核心（先
+> `a.notifyClipboardClear(err == nil)` 再落盘/日志），`clearClipboardHistoryAsks` 确认后直接委托它；
+> 新增 `internal/shell/shell.go` 的 `notifyClipboardClear(success)`——`{name}` 取
+> `i18n.For(lang).Settings.ClipboardPlugin`（插件页的本地化名），走既有 `notifyCompletion`。
+> 为让「可见→面板反馈 / 隐藏→通知」两条通道都能在无真窗口下测到，`notifyCompletion`/`notifyRun`
+> 的「在屏」判定改走 `a.panelOnScreen()`（默认读窗口两个信号，测试可注入 `a.onScreen`）。
+> `internal/i18n` 的 `Notifications` 补 `ClipboardCleared`/`ClipboardClearFailed`（en/zh 逐字对齐旧字典）。
+>
+> **测试**：`internal/shell/shell_test.go` 的 `TestClipboardClearReportsWhereTheUserIsLooking`
+> （隐藏→系统通知带 `Clipboard history cleared`；可见→面板 `Feedback` 且零通知；失败→
+> `Clipboard history could not be cleared`）。变异核查：删掉 `clearClipboardHistory` 里的
+> `a.notifyClipboardClear(err == nil)`，`notifications = []` 一行立刻红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿（31 包）、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+> **上一轮：P7-de 前台判定补上「已聚焦即在场」（原版 `src-tauri/src/notifications.rs:168-190`
 > 的 `panel_foreground_from`）**
 > —— P7-dd 收尾后「尚未做」只剩第 1、2 条（具体可做）与第 3 条（卡 mygo 框架），本轮取第 1 条落地。
 > 依赖检查：`go list -m -versions github.com/egoist/mygo` 停在 **v0.4.8**（与 `go.mod` 一致），
@@ -2998,11 +3028,11 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-### 具体待办（P7-dd 重写；第 1 条已落地 P7-de，余下第 2 条待做、第 3 条卡 mygo 框架）
+### 具体待办（P7-dd 重写；第 1 条已落地 P7-de，第 2 条已落地 P7-df，余下第 3 条卡 mygo 框架）
 
 > 本轮换入口：逐文件对照原版的**系统通知**（`src-tauri/src/notifications.rs` + 它的四个触发点），
-> 把清单写成下面三条带 file:line 的具体待办。第 1 条（前台判定）已由 P7-de 落地；余下第 2 条
-> （剪贴板清空历史的完成反馈）仍具体可做，第 3 条卡 mygo 框架。依赖检查：
+> 把清单写成下面三条带 file:line 的具体待办。第 1 条（前台判定）已由 P7-de 落地，第 2 条
+> （剪贴板清空历史的完成反馈）已由 P7-df 落地，第 3 条卡 mygo 框架。依赖检查：
 > GitHub releases API 被限流，用 `go list -m -versions github.com/egoist/mygo` 核对，最新仍是
 > **v0.4.8**（与 `go.mod` 一致），无版本可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14
 > 原版树），未翻历史提交。
@@ -3027,13 +3057,13 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
      测试 `internal/shell/appkeys_test.go` 的 `TestPanelForegroundAnyOnScreenSignalWins`（四象限）。
      变异核查：`return visible || focused` → `return visible`，
      `focused but visibility reported late` 一行红。
-2. **剪贴板清空历史没有完成反馈/通知（原版四个触发点之一）**（待做）。
+2. **剪贴板清空历史没有完成反馈/通知（原版四个触发点之一）**（已落地，P7-df）。
    - 原版对照：`main:src-tauri/src/clipboard_history/mod.rs:277-303` 的
      `clipboard_clear_history` 在写入后调 `notify_completion(&app, Subject::Plugin(CLIPBOARD_PLUGIN_ID),
      CompletionAction::ClearHistory, outcome_of(&result))`；`notifications.rs:288-299` 的成功/失败词是
      `{name} cleared` / `{name} could not be cleared`（`{name}` = 插件页的双语名）；
      `:357` 的 `notify_completion` 再走 `should_notify`。
-   - 本构建：`internal/shell/shell.go:1745-1760` 的 `clearClipboardHistoryAsks` 成功只
+   - 本构建（改前）：`internal/shell/shell.go:1745-1760` 的 `clearClipboardHistoryAsks` 成功只
      `Win.Invalidate()`、失败只 `log.Printf`——它不调 `notifyCompletion`（`:2380`），所以面板隐藏时
      没有任何通知。可见的那一路已有：`plugincfg/schema.go:322-326` 的 Action 字段带
      `Failed: copy.ClipboardClearFailed`（`internal/i18n` 的 `Settings.ClipboardClearFailed`，
@@ -3042,6 +3072,17 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
      `internal/i18n` 的 `Notifications` 补两条成功/失败（en/zh 对齐旧字典的 `{name} cleared` /
      `{name} could not be cleared`，`{name}` 用剪贴板插件页的本地化名）；测试钉「隐藏→通知、
      可见→反馈」两条路径（注入 `Notify`）。
+     **已落地**：`internal/shell/pluginconfig.go:141` 的 `clearClipboardHistory` 把两条清空路径
+     （插件面板的 Action 与设置面 `clearClipboardHistoryAsks`）统一到一处，先 `a.notifyClipboardClear`
+     再按结果落盘/日志；`internal/shell/shell.go` 新增 `notifyClipboardClear(success)`——
+     `{name}` 取 `i18n.For(lang).Settings.ClipboardPlugin`（插件页的本地化名），走既有的
+     `notifyCompletion`（可见→`Launcher.Feedback`，隐藏→`a.Notify`）。为让两条通道都可测，
+     `notifyCompletion`/`notifyRun` 的「在屏」判定改走 `a.panelOnScreen()`，它默认读窗口两个信号、
+     测试可注入 `a.onScreen`。i18n 的 `Notifications` 补 `ClipboardCleared`/`ClipboardClearFailed`
+     （en `{name} cleared` / `{name} could not be cleared`，zh `{name} 已清空` / `{name} 清空失败`）。
+     测试 `internal/shell/shell_test.go` 的 `TestClipboardClearReportsWhereTheUserIsLooking`
+     （隐藏→通知带成功词、可见→面板反馈且不通知、失败词）。变异核查：删掉 `clearClipboardHistory`
+     里的 `a.notifyClipboardClear(err == nil)`，`notifications = []` 一行红。
 3. **托盘图标的身份是固定字面量，会和别的 appindicator 应用撞车**（卡 mygo 框架，未做）。
    - 原版对照：`main:src-tauri/src/tray_identity.rs:28-30` 的 `TRAY_ICON_ID = "com.v.floter.tray"`
      （bundle identifier + `.tray`），`:36-45` 的 `appindicator_id` 复刻 `tray-icon` 拼出的

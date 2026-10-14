@@ -125,6 +125,8 @@ var en = Copy{
 		IntegrationCheckFailed:   func(name string) string { return name + " reported a problem" },
 		CommandFinished:          func(name string) string { return name + " finished" },
 		CommandStatus:            func(status string) string { return status },
+		ClipboardCleared:         func(name string) string { return name + " cleared" },
+		ClipboardClearFailed:     func(name string) string { return name + " could not be cleared" },
 	},
 	Launcher: Launcher{
 		Placeholder:              "Type a command or app name",
@@ -873,6 +875,8 @@ var zh = Copy{
 		IntegrationCheckFailed:   func(name string) string { return name + " 报告了问题" },
 		CommandFinished:          func(name string) string { return name + " 已完成" },
 		CommandStatus:            func(status string) string { return status },
+		ClipboardCleared:         func(name string) string { return name + " 已清空" },
+		ClipboardClearFailed:     func(name string) string { return name + " 清空失败" },
 	},
 	Launcher: Launcher{
 		Placeholder:              "输入命令或应用名称",

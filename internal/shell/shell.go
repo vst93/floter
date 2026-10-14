@@ -310,10 +310,14 @@ type App struct {
 	saveFileDialog       func(defaultName string) (string, error)
 	openFileDialog       func() (string, error)
 	notify               func(title, body string)
-	confirmDialog        func(title string) bool
-	runPowerCommand      func(action string) error
-	openPathCommand      func(path string) error
-	openURLCommand       func(browserID, url string)
+	// onScreen overrides the panel's on-screen answer; tests replace it so
+	// the two completion channels (the panel's own row, the system
+	// notification) can both be exercised without a live window.
+	onScreen        func() bool
+	confirmDialog   func(title string) bool
+	runPowerCommand func(action string) error
+	openPathCommand func(path string) error
+	openURLCommand  func(browserID, url string)
 	// lastClipboardText and lastClipboardFormats are what the watcher saw
 	// last, so a poll records only what changed.
 	lastClipboardText    string
@@ -1747,15 +1751,7 @@ func (a *App) clearClipboardHistoryAsks(confirm func(title string) bool) {
 		if !confirm(copy.ClipboardClearTitle) {
 			return
 		}
-		a.onMain(func() {
-			if err := a.Clipboard.Clear(); err != nil {
-				log.Printf("floter: could not clear the clipboard history: %v", err)
-				return
-			}
-			if a.Win != nil {
-				a.Win.Invalidate()
-			}
-		})
+		a.onMain(func() { a.clearClipboardHistory() })
 	}()
 }
 
@@ -2335,7 +2331,7 @@ func (a *App) loadOutputPage(entry extensions.CommandEntry, args []string, curso
 // while the panel was hidden. A visible panel shows the output itself, so a
 // notification there would be a second copy of the same news.
 func (a *App) notifyRun(entry extensions.CommandEntry, run extensions.CapturedRun, err error) {
-	if a.Win != nil && panelForeground(a.Win.IsVisible(), a.Win.IsFocused()) {
+	if a.panelOnScreen() {
 		return
 	}
 	lang := a.Store.Snapshot().Language
@@ -2392,6 +2388,16 @@ func panelForeground(visible, focused bool) bool {
 	return visible || focused
 }
 
+// panelOnScreen reports whether the panel is on screen, so a completion lands
+// where the user is looking. Production reads the window's two signals through
+// panelForeground; a test can answer for itself.
+func (a *App) panelOnScreen() bool {
+	if a.onScreen != nil {
+		return a.onScreen()
+	}
+	return a.Win != nil && panelForeground(a.Win.IsVisible(), a.Win.IsFocused())
+}
+
 // notifyCompletion raises a system notification for a background integration
 // task that finished while the panel was hidden. A visible panel shows the
 // result itself, so a notification there would be a second copy of the same
@@ -2402,11 +2408,26 @@ func (a *App) notifyCompletion(render func(i18n.Notifications) string) {
 	// The window that is on screen is told in its own panel: a system
 	// notification for something the user is already looking at is noise, and
 	// a completion that says nothing at all is worse.
-	if a.Win != nil && panelForeground(a.Win.IsVisible(), a.Win.IsFocused()) {
+	if a.panelOnScreen() {
 		a.onMain(func() { a.Launcher.Feedback(message) })
 		return
 	}
 	a.Notify(copy.Title, message)
+}
+
+// notifyClipboardClear reports the clipboard history's one long action the way
+// the old build's `clipboard_clear_history` did: through the same completion
+// rule as every other background task — the panel's own row when the user is
+// looking at it, a system notification when the panel is hidden. The subject
+// is the plugin page, so the name is that page's own localized name.
+func (a *App) notifyClipboardClear(success bool) {
+	name := i18n.For(a.Store.Snapshot().Language).Settings.ClipboardPlugin
+	a.notifyCompletion(func(c i18n.Notifications) string {
+		if success {
+			return c.ClipboardCleared(name)
+		}
+		return c.ClipboardClearFailed(name)
+	})
 }
 
 // Notify shows a system notification, through the framework unless a test
