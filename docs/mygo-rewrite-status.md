@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1074 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1080 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1074 项测试
+go test -count=1 ./...         # 1080 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,7 +99,43 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-df 剪贴板清空历史的完成反馈（原版 `src-tauri/src/clipboard_history/mod.rs:277-303`
+> **最新一轮：P7-dg 被拒绝的配置写入要回落（原版 `src/plugins/config-persist.ts:44-50` 的
+> `configChangeOutcome` + `src/plugins/PluginConfigOverlay.tsx:233-249` 的 `handleChange`）**
+> —— P7-df 收尾后「尚未做（P7-dd 重写）」只剩第 3 条（卡 mygo 框架），清单又一次为空。
+> 本轮换入口：逐文件对照原版**插件配置的写入路径**（`plugins/config-persist.ts`、
+> `plugins/config-schema.ts`、`plugins/PluginConfigOverlay.tsx`），把清单写成下面三条带
+> file:line 的具体待办（下方「具体待办（P7-dg 重写）」），并取第 1 条落地。依赖检查：
+> `curl .../releases/latest` 被限流，用 `proxy.golang.org` 的 `@v/list` 与
+> `go list -m -versions` 双核对，最新仍是 **v0.4.8**（与 `go.mod` 一致），无版本可升。
+> 只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离点**：原版 R29 先乐观上屏、再异步写；写失败被 `.catch(() => undefined)` 吞掉，于是控件
+> 继续显示后端没存的值。R113 给写入加了结果：`writeConfigChange` 把拒绝变成 `false`，
+> `configChangeOutcome` 被拒绝时把上屏值**回落到上次确认的快照**（`rollback`）并给出失败行
+> （`settings.saveFailed`），被接受时才推进快照。本构建 `internal/launcher/config.go:98-115` 的
+> `ChangeConfig` 把上屏值写进 `a.config.Values`、调 `ConfigChange`，被拒绝（返回 nil）时只置
+> `a.config.Failed = true` 就 `return`——**上屏值留在屏幕上**，与 R29 的「静默失效」同病。
+> 注释「keeps the value it painted and says so」正是这条偏离的自我合理化。
+>
+> **修法**：新增纯函数 `internal/plugincfg/persist.go` 的
+> `ConfigChangeOutcome(next, committed Values, accepted bool) (values Values, failed bool)`——
+> 接受→返回上屏值、`failed=false`；拒绝→返回上次确认的 `committed`、`failed=true`。
+> `ChangeConfig` 在改写前把 `a.config.Values` 记为 `committed`（每条路径都让它等于后端最后确认的
+> 值，所以无需再加一个会漂移的字段），拒绝时 `a.config.Values = values` 回落；接受时仍以插件归一化
+> 后的 `stored` 为准（既有行为，`changePluginConfig` 的返回值）。
+>
+> **测试**：`internal/plugincfg/persist_test.go` 的 `TestConfigChangeOutcomeCommitsOrRollsBack`
+> 与 `TestConfigChangeOutcomeRollsBackEveryField`；`internal/launcher/config_test.go` 的
+> `TestRefusedConfigChangeRollsBack`（拒绝→回落 `true` 且 `Failed`）、
+> `TestAcceptedConfigChangeCommitsTheStoredValues`（接受→提交 `stored` 且清失败行）、
+> `TestRefusedChangeRollsBackToTheLastAccepted`（回落目标是**上一次被接受**的快照）。
+> 变异核查：把 `ChangeConfig` 的 `a.config.Values = values` 删回 `return`，
+> `TestRefusedConfigChangeRollsBack` 的 `enabled` 一行立刻红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+> **上一轮：P7-df 剪贴板清空历史的完成反馈（原版 `src-tauri/src/clipboard_history/mod.rs:277-303`
 > 的 `clipboard_clear_history` → `notifications.rs` 的 `notify_completion`）**
 > —— P7-de 收尾后「尚未做（P7-dd 重写）」只剩第 2 条（具体可做）与第 3 条（卡 mygo 框架），
 > 本轮取第 2 条落地。依赖检查：`curl .../releases/latest` 与 `go.mod` 都停在 **v0.4.8**，无版本可升。
@@ -3027,6 +3063,57 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 - 窗口可见时完成反馈落在面板自己的停靠行（隐藏时才发系统通知）——之前可见时什么都不说。
 
 ## 尚未做（按建议优先级）
+
+### 具体待办（P7-dg 重写；第 1 条已落地 P7-dg，第 2·3 条待做）
+
+> 本轮换入口：逐文件对照原版的**插件配置写入路径**（`src/plugins/config-persist.ts`、
+> `src/plugins/config-schema.ts`、`src/plugins/PluginConfigOverlay.tsx` 的 `handleChange`/`persist`），
+> 把清单写成下面三条带 file:line 的具体待办，并取第 1 条落地（见「最近几轮」P7-dg）。
+> 依赖检查：GitHub releases API 被限流，用 `proxy.golang.org` 的 `@v/list` 与
+> `go list -m -versions` 双核对，最新仍是 **v0.4.8**（与 `go.mod` 一致），无版本可升。
+> 只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+
+1. **一次被拒绝的配置写入不回落到上次确认的值**（已落地，P7-dg）。
+   - 原版对照：`main:src/plugins/config-persist.ts:44-50` 的 `configChangeOutcome`——`accepted` 为假时
+     返回 `{kind:"rollback", values: committed, feedback: "settings.saveFailed"}`；调用点
+     `main:src/plugins/PluginConfigOverlay.tsx:233-249` 的 `handleChange` 在 `rollback` 时把
+     `valuesRef.current`/`setValues` 都改回 `outcome.values` 并置 `setPersistFailed(true)`。
+   - 本构建（改前）：`internal/launcher/config.go:98-115` 的 `ChangeConfig` 先 `a.config.Values = next`，
+     被拒绝（`stored == nil`）时只 `a.config.Failed = true; return`，上屏值留在 `a.config.Values` 里。
+   - 验收：被拒绝→`Values` 回到改写前的快照且 `Failed` 为真；被接受→`Values` 为插件归一化后的 `stored`
+     且 `Failed` 为假；第二次拒绝回到**上一次被接受**的快照，而不是打开时的初值。
+   - **已落地**：`internal/plugincfg/persist.go` 的
+     `ConfigChangeOutcome(next, committed Values, accepted bool) (values Values, failed bool)`；
+     `internal/launcher/config.go` 的 `ChangeConfig` 在改写前把 `a.config.Values` 记为 `committed`
+     （每条路径都让它等于后端最后确认的值，所以无需再加一个会漂移的 `Committed` 字段），拒绝时
+     `a.config.Values = values` 回落，接受时仍以 `stored` 为准。
+     测试 `internal/plugincfg/persist_test.go` 的 `TestConfigChangeOutcomeCommitsOrRollsBack` /
+     `TestConfigChangeOutcomeRollsBackEveryField`，`internal/launcher/config_test.go` 的
+     `TestRefusedConfigChangeRollsBack` / `TestAcceptedConfigChangeCommitsTheStoredValues` /
+     `TestRefusedChangeRollsBackToTheLastAccepted`。变异核查：把 `a.config.Values = values` 改成
+     `a.config.Values = next`（继续显示上屏值），`TestRefusedConfigChangeRollsBack` 与
+     `TestRefusedChangeRollsBackToTheLastAccepted` 立刻红。
+2. **`writeConfigChange` 把「写被拒绝」变成 `false` 而不是抛出，且拒绝的反馈行是 `settings.saveFailed`**
+   （部分已由 P7-dg 覆盖，余下待做）。
+   - 原版对照：`main:src/plugins/config-persist.ts:25-33` 的 `writeConfigChange`（`try { await write(); return true }
+     catch { return false }`）与 `:44-50` 的 `feedback: "settings.saveFailed"`；渲染点
+     `main:src/plugins/PluginConfigOverlay.tsx:299-309` 的 `plugin-config-action__status`（`loadFailed` 时
+     优先 `settings.pluginConfigLoadFailed`）。
+   - 本构建：`internal/launcher/config.go` 的 `Config.Failed bool` 由 `internal/shell/pluginconfig.go` 的
+     `changePluginConfig`（返回 nil 表示拒绝）与 `runPluginAction` 共同驱动，渲染在
+     `internal/settingsui/pluginsheet.go:70-75`（`copy.SaveFailed`）。**尚缺**：`Failed` 把「写失败」与「动作失败」
+     混成一个 bool，且没有原版 R126 的「读失败优先」那条线（本构建 `pluginConfig` 同步读、不会失败，
+     所以这条只有在框架/异步读出现后才有落点）。
+   - 验收（若做）：一次拒绝后失败行是 `settings.saveFailed`；`Failed` 由动作（clear_history）置起时
+     不误报成写失败（若要区分则引入 `LoadFailed`/`PersistFailed` 两个来源，否则在文档里说明为何合并）。
+3. **`configValuesEqual` 的「无变化不写」没有落点**（待做，优先级低）。
+   - 原版对照：`main:src/plugins/config-schema.ts:552-563` 的 `configValuesEqual`（逐 schema 字段比较，
+     列表按下标）。原版里它**没有被任何调用点引用**（`git grep configValuesEqual` 只命中定义），
+     所以这是一条「原版自己也没接线」的死函数。
+   - 本构建：`internal/plugincfg/schema.go` 的 `Schema.Apply` 总是返回新 `Values`，`ChangeConfig` 每次
+     都发一次写。
+   - 验收（若做）：把 `configValuesEqual` 移植成 `plugincfg.ValuesEqual(schema, a, b)` 并先论证一个真实
+     落点（例如「写前的值与后端已存值相同就跳过写」）；**没有落点前不做**，避免再造死旋钮。
 
 ### 具体待办（P7-dd 重写；第 1 条已落地 P7-de，第 2 条已落地 P7-df，余下第 3 条卡 mygo 框架）
 

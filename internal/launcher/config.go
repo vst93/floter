@@ -86,20 +86,30 @@ func (a *App) toggleConfig(plugin string) {
 // ChangeConfig writes one field through the shell. The control paints
 // immediately; only a write the plugin accepted replaces the values with what
 // it actually stored (its own normalization has the last word), and a refused
-// one reports the failure line instead of keeping a value that was never
-// saved.
+// one rolls the control back to the last value the backend confirmed and
+// reports the failure line — never keeping a value that was never stored (the
+// old build's R113, `configChangeOutcome`).
+//
+// `a.config.Values` before the change is the committed snapshot: every path
+// leaves it equal to what the backend last confirmed, so a refused write can
+// restore it without a second field to drift out of step.
 func (a *App) ChangeConfig(key string, value any) {
 	if !a.configOpen() || a.Actions.ConfigChange == nil {
 		return
 	}
-	next := a.config.Schema.Apply(a.config.Values, key, value)
+	committed := a.config.Values
+	next := a.config.Schema.Apply(committed, key, value)
 	a.config.Values = next
 	a.config.Failed = false
 	stored := a.Actions.ConfigChange(a.config.Schema.Plugin, key, next[key])
-	if stored == nil {
+	values, failed := plugincfg.ConfigChangeOutcome(next, committed, stored != nil)
+	if failed {
+		a.config.Values = values
 		a.config.Failed = true
 		return
 	}
+	// The plugin's own normalization has the last word: the sheet commits what
+	// the settings actually hold, not what was asked for.
 	a.config.Values = stored
 }
 
