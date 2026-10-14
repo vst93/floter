@@ -45,7 +45,7 @@ func TestEscapeAnswersTheSettingsQuestionFirst(t *testing.T) {
 		t.Fatalf("the uninstall control: %v (texts %v)", err, tt.Texts())
 	}
 	tt.Frame()
-	if !tt.HasText("Uninstall X Tools?") {
+	if !tt.HasText("Remove X Tools?") {
 		t.Fatalf("the removal bar did not open: %v", tt.Texts())
 	}
 
@@ -54,7 +54,7 @@ func TestEscapeAnswersTheSettingsQuestionFirst(t *testing.T) {
 	if a.Surf != SurfaceSettings {
 		t.Errorf("Escape left the settings panel: surf = %v", a.Surf)
 	}
-	if tt.HasText("Uninstall X Tools?") {
+	if tt.HasText("Remove X Tools?") {
 		t.Errorf("Escape left the question up: %v", tt.Texts())
 	}
 

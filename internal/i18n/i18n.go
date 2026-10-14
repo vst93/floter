@@ -457,6 +457,18 @@ type Settings struct {
 	// `src/extensions/ExtensionRow.tsx:109-114,409-418` picked them.
 	IntegrationsDisconnect    string
 	IntegrationsRemovePackage string
+	// IntegrationsDisconnectTitle/-Detail and IntegrationsRemovePackageTitle/
+	// -Detail are those two kinds' confirmation-bar words. The reference asked
+	// the bar's question with the *same* per-kind key that named the menu item
+	// (`src/ExtensionsPanel.tsx:2140-2151` builds one `removalTextKey` per
+	// kind; `src/extensions/RemovalConfirmation.tsx:41` reads its Title and
+	// body through it), so a card whose button reads "Disconnect" cannot then
+	// ask "Uninstall?". The npm kind reuses `RemoveTitle`/`RemoveDetail` and
+	// the custom kind its own `RemoveCustom*`, exactly as that switch did.
+	IntegrationsDisconnectTitle     func(name string) string
+	IntegrationsDisconnectDetail    string
+	IntegrationsRemovePackageTitle  func(name string) string
+	IntegrationsRemovePackageDetail string
 	// IntegrationsKind* is the integration's *type*, the slot the reference
 	// spent on the meta row beside the package identity
 	// (`src/extensions/ExtensionRow.tsx:255` draws
@@ -674,14 +686,16 @@ type Settings struct {
 	DisableConfirm     string
 	// The removal bar: deleting an integration is destructive, so it is asked
 	// inline (the old build's `.extension-discard-bar`). A generated custom
-	// integration's own words and the warning only it carries.
+	// integration's own words and the warning only it carries. The bar's
+	// confirm button is not here: it is the kind's own removal verb
+	// (`removalLabel`), because the reference read the button's label from the
+	// same `removalTextKey` that named the menu item.
 	RemoveTitle         func(name string) string
 	RemoveDetail        string
 	RemoveCustomTitle   func(name string) string
 	RemoveCustomDetail  string
 	RemoveCustomWarning string
 	RemoveCancel        string
-	RemoveConfirm       string
 	RemoveDelete        string
 	// The detected-programs section: what this machine already has and
 	// nothing has connected.

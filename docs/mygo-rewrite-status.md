@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1233 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1243 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1233 项测试
+go test -count=1 ./...         # 1243 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -100,7 +100,49 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-en F3b 帧 sheen 回固定口径（原版 `src/styles/base.css:628-629,906-907`、
+> **最新一轮：P7-eo F4f 移除确认条按 kind 说话（原版 `src/ExtensionsPanel.tsx:2140-2151`、
+> `src/extensions/RemovalConfirmation.tsx:41`、`i18n.ts:521-542`）** —— P7-en 收尾后「尚未做」清单
+> 里文档点名的下轮最高优先级就是 **F4f**（移除确认条按 kind 说话，F4a 留下的尾巴），本轮取它。
+> 依赖检查：`proxy.golang.org/github.com/egoist/mygo/@latest` 仍是 **v0.4.8**（与 `go.mod` 一致），
+> 无版本可升（GitHub releases API 限流，改用 module proxy 查最新 tag）；只对照 `main`
+> （`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离（F4f）**：原版确认条的**标题/正文/确认按钮**与菜单项走**同一个 per-kind key**——
+> `ExtensionsPanel.tsx:2140-2151` 的 `removalTextKey` 按 `removalKind` 选
+> `deleteCustom|uninstall|disconnect|removePackage` 词干，`RemovalConfirmation.tsx:41` 用它读 Title 与
+> 正文（`t(textKey(extension, "Title"))` / `t(textKey(extension, ""))`）。本构建 P7-eh 已把**菜单动词**
+> 按 kind 落地（`removalLabel`），但确认条仍是**一句通用文案**：`removeConfirmation` 一律走
+> `RemoveTitle`/`RemoveDetail`/`RemoveConfirm`（只有 custom 例外），于是「Disconnect」按钮底下问的是
+> 「Uninstall X?」——按钮与它打开的问题自相矛盾。
+>
+> **落地**：`internal/settingsui/settingsui.go` 新增 `Integration.removalWords(copy) (title, detail string)`
+> ——按 `removalKind()` 四分支取词（custom 仍带 `RemoveCustomWarning` 的额外警告，原版 `:41` 就是在
+> 标题后追加 `deleteCustomWarning`）；`removeConfirmation` 改用它取标题/正文，确认按钮改用已有的
+> `integration.removalLabel(copy)`（原版确认按钮读的就是 `textKey(extension, "")`，与菜单同一个词干）。
+> `internal/i18n/i18n.go`+`copy.go` 新增 `IntegrationsDisconnectTitle`/`IntegrationsDisconnectDetail`、
+> `IntegrationsRemovePackageTitle`/`IntegrationsRemovePackageDetail`（en/zh 用原版原文），并删掉因此
+> 变成死键的 `RemoveConfirm`（`TestNoDeadCopy` 会红）。npm 支沿用 `RemoveTitle`/`RemoveDetail`、custom 支
+> 沿用 `RemoveCustom*`，与原版 `removalTextKey` 的四支一一对应。
+>
+> **验收**：`internal/settingsui/integrationremoval_test.go` 两条（新）——
+> `TestTheRemovalConfirmationAsksTheKindsOwnQuestion`（纯映射：四 kind 的 `removalWords` 标题等于各自
+> 原版 key，且非 npm 支不得等于 npm 通用问句）、
+> `TestEachRemovalConfirmationAsksItsOwnQuestionOnScreen`（像素：同屏四行分别点各自动词打开确认条，
+> 钉四个标题出现、且非 npm 行**不出现**通用 npm 问句）。既有 `internal/settingsui/view_test.go` 的
+> `TestIntegrationsPage` 与 `internal/shell/settingsescape_test.go` 的
+> `TestEscapeAnswersTheSettingsQuestionFirst` 原本钉的是**旧的错口径**（package 行问「Uninstall X?」），
+> 按 F4f 改写为「Remove X?」并加一条「package 行不得问 npm 问句」的反向断言。
+> 变异核查：把 `removalWords` 的 system 支改回 `RemoveTitle`/`RemoveDetail` → 两条新测试立刻红
+> （纯映射与像素各一条）。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：**F4f 落地**；余下 F4e 的 `extensions_repair`（Recheck）一支、F4g、F-new。下轮最高
+> 优先级是 **F4e 的 repair 一支**（原版 `ExtensionRow.tsx:313-330` 的 Wrench「Recheck」→
+> `extensions_repair`，file:line 与验收都已写实），除非 F4g 的逐入口对照先查出新缺口。
+>
+> **上一轮：P7-en F3b 帧 sheen 回固定口径（原版 `src/styles/base.css:628-629,906-907`、
 > `src/styles/launcher.css:119`）** —— P7-em 收尾后「尚未做」清单里 F3b 是**文档点名的下轮最高
 > 优先级**，且它此前的阻塞条件（「先决于 F3a」，怕固定帧 sheen 让三档在无窗口材质时完全一致）
 > 已被 P7-em 解除：控件透镜已成可测像素（四个包的像素测试都钉住 0.5/1/1.6 单调上升）。依赖检查：
@@ -2084,7 +2126,7 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 > 25 行 == 10 行）；`internal/launcher/height_test.go` 追加 `TestPluginTextRows`（空串/1/2/3/4 行与 100/200 行
 > 的带行数）、`TestStatusAndSectionBands`、`TestBandRowsArePricedAsTheirBand`。变异核查：把 `windowRows` 的
 > `if a.output != nil` 改成恒假，前两条立刻红（`166` vs `454`；12 行与 3 行同为 `166`）。
-> 门槛：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 28 包全绿（1036 项）、
+> 门槛：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿（1036 项）、
 > `GOOS=linux/windows/darwin go build ./...` 三平台通过。
 
 > **最新一轮：P7-cp 输出列表的分组标题与启动器列表同一个寄存器（原版 `src/launcher/LauncherResults.tsx:837-839`、`src/styles/launcher.css:1007-1024`）**
@@ -2685,7 +2727,7 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
   `TestHighContrastSwapsTheStrokeAndPlaceholderTokens`（两个外观的十个精确值：三个 token + 框架 `Border` +
   其余 token 逐字段不变（涂掉对比度/materials 相关字段后结构体相等）+ 内容面与浮动面跟随抬升的 frame）。
   mutation 复现红：把 `Spec.Contrast()` 改成 no-op → `go test ./internal/glassmap ./internal/theme` 22 行失败。
-- **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 28 包全绿（907 项）、
+- **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿（907 项）、
   `GOOS=linux/windows/darwin go build ./...` 三平台通过。
 
 **P7-br 分页页脚三态与减少动效（R29 / R8+R161）（上一轮）**
@@ -2721,7 +2763,7 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
   （循环 400ms 处）：减少动效是 7×7 的纯 accent 静止点，允许动效则是混色缩小的点）。两个 mutation 复现红：
   `motion.Value` 忽略偏好 → 终端测试报「the resting dot draws no accent pixels」；`motion.Value` 永远返回 0 →
   终端测试报「the breath never ran」；`outputFooter` 不画环 → 页脚测试报「the ring is missing」。
-- **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 28 包全绿（902 项）、
+- **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿（902 项）、
   `GOOS=linux/windows/darwin go build ./...` 三平台通过。
 
 **P7-bq 版本兜底提示与逐行选项（R153 剩余两条）（上一轮）**
@@ -6498,7 +6540,7 @@ Go 侧把原版的三条规则写偏了。依赖检查：`go list -m -versions g
   `output: "background"` 写进**清单文件**（不再手写 `entry.Route`），断言启动器收到的 entry **自己**
   带 `RouteBackground`——manifest → CommandEntries → launcherCommands → SetCommands 整条链一次钉住。
   变异核查：`git stash` 掉 `store.go` 那一行，`route_test.go` 两条断言与 shell 那条立刻红。
-- **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 28 包全绿、
+- **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
   `GOOS=linux/windows/darwin go build ./...` 三平台通过。
 - **顺带记下的已知差异（本轮不改）**：schema 的 `output.default` 是 `"background"`
   （`docs/extensions/schemas/floter-extension.schema.json:225`），而 Go 的 `Manifest.Route()` 缺省
@@ -7145,8 +7187,9 @@ P7-ej/P7-ek 之后清单上只剩 F3a（一个待决策的分叉）与 F3b（已
 把清单写实为五条带 file:line / 原版对照 / 验收标准的待办，并取其中新查出的真实缺口（F4e）落地。
 **P7-em 又取清单里文档点名的最高优先级 F3a 并落地**（详见上文 P7-em 记录）：控件透镜已成可测像素，
 F3b 因此解除「先决」。**P7-en 再取 F3b 并落地**（详见上文 P7-en 记录）：帧 sheen 回固定 token，
-用户反馈 F3「毛玻璃效果配置」整条收口。**下轮最高优先级是 F4f**（移除确认条按 kind 说话），除非
-F4g 的逐入口对照先查出新缺口。下面每条的「原版对照」都只读 `main`（v0.3.14 原版树）。
+用户反馈 F3「毛玻璃效果配置」整条收口。**P7-eo 取 F4f 并落地**（详见上文 P7-eo 记录）：移除确认条
+按 kind 说话，F4a 留下的尾巴收口。**下轮最高优先级是 F4e 的 `extensions_repair`（Recheck）一支**，
+除非 F4g 的逐入口对照先查出新缺口。下面每条的「原版对照」都只读 `main`（v0.3.14 原版树）。
 
 #### F4e · 已连接卡片的修复入口（**本轮落地，P7-el**）
 
@@ -7171,21 +7214,19 @@ F4g 的逐入口对照先查出新缺口。下面每条的「原版对照」都�
   Recheck 且点击落到 `RepairIntegration`；`internal/shell` 一条钉两条通知按 `Repaired` 二选一。
   变异核查：把 `Repair` 的「digest 不一致」支改成返回 `Repaired=false` → 第一条红。
 
-#### F4f · 移除确认条按 kind 说话（F4a 留下的尾巴）
+#### F4f · 移除确认条按 kind 说话（**本轮落地，P7-eo**）
 
 - **原版对照**：`main:src/extensions/RemovalConfirmation.tsx:41`——确认条的**标题/正文/确认按钮**与
-  菜单项用**同一个 kind key**（`deletionCopyFor(kind, …)`），所以 package/system 各自有
-  `removePackageTitle` / `disconnectTitle` 这类词（`i18n.ts:521-540` 一带）。
-- **本构建**：`internal/settingsui/uninstall.go` 的确认条一律走
-  `RemoveTitle`/`RemoveDetail`/`RemoveConfirm`（只有 custom 走 `RemoveDelete`，见 F4a 的
-  `removalLabel`），与 F4a 已经修好的「菜单动词随 kind」不一致：菜单说「Disconnect」，确认条标题
-  仍是「Remove」。
-- **落地 file:line**：`internal/settingsui/uninstall.go` 的 `removalTextKey` 按
-  `integration.removalKind()` 返回四组键；`internal/i18n/i18n.go` + `copy.go` 新增配对键
-  （`IntegrationsDisconnectTitle`/`IntegrationsDisconnectDetail`/`IntegrationsRemovePackageTitle`/
-  `…Detail`，en/zh 用原版原文）。注意 `TestNoDeadCopy` 会因声明了没人读的键而红，故键必须与四个分支一一对应。
-- **验收**：`internal/settingsui/integrationremoval_test.go` 追加一条——同屏四行分别打开确认条，
-  像素上钉四个标题各出现一次；变异核查：把 `removalTextKey` 的 system 支改回 `RemoveTitle` → 立刻红。
+  菜单项用**同一个 kind key**（`ExtensionsPanel.tsx:2140-2151` 的 `removalTextKey` 按 `removalKind` 选
+  `deleteCustom|uninstall|disconnect|removePackage` 词干），所以 package/system 各自有
+  `removePackageTitle` / `disconnectTitle` 这类词（`i18n.ts:521-542` 一带）。
+- **P7-eo 落地**：`internal/settingsui/settingsui.go` 新增 `Integration.removalWords(copy)`（四分支取
+  标题/正文，custom 仍追加 `RemoveCustomWarning`），`removeConfirmation` 改用它，确认按钮改用
+  `integration.removalLabel(copy)`（与菜单同一个词干）；`i18n.go`/`copy.go` 新增 disconnect/removePackage
+  两对 Title/Detail 并删掉变死的 `RemoveConfirm`。详见上文 P7-eo 记录。
+- **验收（已过）**：`integrationremoval_test.go` 两条新测试（纯映射 + 像素反向断言）；既有的
+  `view_test.go:TestIntegrationsPage`、`shell/settingsescape_test.go:TestEscapeAnswersTheSettingsQuestionFirst`
+  按新口径改写（它们原本钉的是旧的错口径）；变异核查：system 支改回 `RemoveTitle` → 立刻红。
 
 #### F4g · `ExtensionsPanel.tsx` 尚未逐函数对照的流程
 

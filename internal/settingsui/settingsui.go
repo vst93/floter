@@ -1973,6 +1973,26 @@ func (i Integration) removalLabel(copy i18n.Settings) string {
 	}
 }
 
+// removalWords is the confirmation bar's question for this kind. The reference
+// did not fall back to one generic sentence: `removalTextKey`
+// (`src/ExtensionsPanel.tsx:2140-2151`) built one key per kind and
+// `RemovalConfirmation.tsx:41` read both the title and the body through it, so
+// the bar asks the same question the button promised — "Disconnect X?" under a
+// Disconnect button, not "Uninstall X?". The custom kind keeps its extra
+// warning (`deleteCustomWarning`, appended by `:41`).
+func (i Integration) removalWords(copy i18n.Settings) (title, detail string) {
+	switch i.removalKind() {
+	case removalCustom:
+		return copy.RemoveCustomTitle(i.Name), copy.RemoveCustomDetail + " " + copy.RemoveCustomWarning
+	case removalNPM:
+		return copy.RemoveTitle(i.Name), copy.RemoveDetail
+	case removalSystem:
+		return copy.IntegrationsDisconnectTitle(i.Name), copy.IntegrationsDisconnectDetail
+	default:
+		return copy.IntegrationsRemovePackageTitle(i.Name), copy.IntegrationsRemovePackageDetail
+	}
+}
+
 // The repair a connected row offers when its runtime no longer resolves. The
 // reference drew one button for this state and picked its arm from the same
 // three facts (`src/extensions/ExtensionRow.tsx:345-370`).
@@ -3824,19 +3844,16 @@ func (a *App) cancelConfirmations() {
 // was pressed: deleting files is not a mark — the package is gone from the
 // machine — so it is asked, in the same inline shape the disable bar uses
 // (the old build's `.extension-discard-bar`: title, one sentence of cost,
-// Cancel first and the danger button last). A generated custom integration
-// gets its own words and the extra warning that Floter cannot undo it.
+// Cancel first and the danger button last). The question is the kind's own:
+// the reference read its title and body through the same per-kind
+// `removalTextKey` that named the menu item (`ExtensionsPanel.tsx:2140-2151`),
+// and the confirm button is that kind's verb too — a system card that says
+// "Disconnect" asks "Disconnect?", never "Uninstall?". A generated custom
+// integration carries the extra warning that Floter cannot undo it.
 func (a *App) removeConfirmation(c *ui.Context, copy i18n.Settings, integration Integration) {
 	t := c.Theme()
 	tokens := a.tokens(c)
-	title := copy.RemoveTitle(integration.Name)
-	detail := copy.RemoveDetail
-	confirm := copy.RemoveConfirm
-	if integration.Generated {
-		title = copy.RemoveCustomTitle(integration.Name)
-		detail = copy.RemoveCustomDetail + " " + copy.RemoveCustomWarning
-		confirm = copy.RemoveDelete
-	}
+	title, detail := integration.removalWords(copy)
 	ui.Column(c).FillWidth().Gap(t.Space(1)).Padding(t.Space(2), t.Space(3.5)).
 		Margin(0, t.Space(3.5)).Radius(tokens.RadiusSM).
 		Background(tokens.Control).Border(1, tokens.ControlEdge).Children(func() {
@@ -3847,7 +3864,7 @@ func (a *App) removeConfirmation(c *ui.Context, copy i18n.Settings, integration 
 			if ui.Button(c, copy.RemoveCancel).Clicked() {
 				a.removeConfirm[integration.ID] = false
 			}
-			if ui.Button(c, confirm).Clicked() {
+			if ui.Button(c, integration.removalLabel(copy)).Clicked() {
 				a.removeConfirm[integration.ID] = false
 				if a.Actions.UninstallIntegration != nil {
 					a.Actions.UninstallIntegration(integration.ID, integration.Name)
