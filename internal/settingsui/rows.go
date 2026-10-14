@@ -273,9 +273,14 @@ func (a *App) stackedRow(c *ui.Context, label, sublabel string, control func()) 
 			ui.Box(c).FillWidth().Height(1).Background(tokens.Hairline).MarginX(inset).Shrink(0)
 		}
 		ui.Column(c).FillWidth().Gap(t.Space(1)).Padding(t.Space(1.5), inset).Children(func() {
-			ui.Text(c, label).FontSize(t.FontSize).FontWeight(580).TextColor(tokens.TextStrong)
+			// The label and its grey line keep the same steps as any trailing
+			// row: the reference's `.settings-row__label` is `--text-emphasis`
+			// and `.settings-row__sublabel` is `--text-body` for both shapes
+			// (`settings.css:520-546`), and `SettingsRow` never demotes a
+			// stacked row (`SettingsRows.tsx:104-135`).
+			ui.Text(c, label).FontSize(t.FontSize + 1).FontWeight(580).TextColor(tokens.TextStrong)
 			if sublabel != "" {
-				ui.Text(c, sublabel).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+				ui.Text(c, sublabel).FontSize(t.FontSize).TextColor(t.TextMuted)
 			}
 			control()
 		})

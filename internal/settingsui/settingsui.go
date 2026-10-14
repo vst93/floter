@@ -2886,25 +2886,28 @@ func (a *App) paletteRow(c *ui.Context, copy i18n.Settings, current string, appl
 	chosen := ""
 	// No sublabel: the reference's palette row is `stacked: true` with no
 	// hint (the card-only `terminalAppearanceHint` belongs to the font-size
-	// row alone, `TerminalAppearance.tsx:194,272-276`).
-	a.row(c, copy.Palette, "", func() {
-		e := ui.Select(c, &selected, labels).Label(copy.Palette).Width(220).Radius(999)
-		if e.Changed() {
-			for _, option := range options {
-				if option.Label == selected {
-					chosen = option.ID
-					break
+	// row alone, `TerminalAppearance.tsx:194,272-276`). Its control is one
+	// full-width line, not a trailing slot: the reference's `.terminal-palette`
+	// splits the select and the preview apart (`settings.css:871-878`).
+	a.stackedRow(c, copy.Palette, "", func() {
+		ui.Row(c).FillWidth().Justify(ui.SpaceBetween).AlignItems(ui.Center).Children(func() {
+			e := ui.Select(c, &selected, labels).Label(copy.Palette).Width(220).Radius(999)
+			if e.Changed() {
+				for _, option := range options {
+					if option.Label == selected {
+						chosen = option.ID
+						break
+					}
 				}
 			}
-		}
-	}, func() {
-		// The preview follows the picker in the same frame the choice is made,
-		// so a click on the select repaints the block immediately.
-		shown := current
-		if chosen != "" {
-			shown = chosen
-		}
-		a.palettePreview(c, copy, shown)
+			// The preview follows the picker in the same frame the choice is
+			// made, so a click on the select repaints the block immediately.
+			shown := current
+			if chosen != "" {
+				shown = chosen
+			}
+			a.palettePreview(c, copy, shown)
+		})
 	})
 	if chosen != "" {
 		apply(chosen)
@@ -2914,9 +2917,10 @@ func (a *App) paletteRow(c *ui.Context, copy i18n.Settings, current string, appl
 // palettePreview paints the miniature terminal: three lines of static text in
 // the palette's own background and text, the middle line behind its selection
 // tint and a block cursor at the end — the reference's
-// `.terminal-palette-preview`, which costs no canvas and no PTY.
+// `.terminal-palette-preview`, which costs no canvas and no PTY. It keeps the
+// drawer's own fixed width so the picker and the block share one line.
 func (a *App) palettePreview(c *ui.Context, copy i18n.Settings, name string) {
-	terminalui.PalettePreview(c, a.tokens(c), name, copy.PalettePreview, 0)
+	terminalui.PalettePreview(c, a.tokens(c), name, copy.PalettePreview, c.Theme().Space(37))
 }
 
 // slider builds one stacked row: the label and its live readout on the title
@@ -2941,14 +2945,16 @@ func (a *App) slider(c *ui.Context, label, description, low, high string, value,
 			// The title line carries the value, pushed to the far end, as the
 			// reference's `.settings-slider__head` does: the number is a readout,
 			// not a second control, and a rolling counter is how the motion
-			// system shows a value changing in place.
+			// system shows a value changing in place. Its label is the row's own
+			// emphasis step (`.settings-row__label`), the readout the body step
+			// (`.terminal-setting-control__value`).
 			ui.Row(c).FillWidth().AlignItems(ui.Center).Justify(ui.SpaceBetween).Children(func() {
-				ui.Text(c, label).FontSize(t.FontSize).FontWeight(580).TextColor(tokens.TextStrong)
+				ui.Text(c, label).FontSize(t.FontSize + 1).FontWeight(580).TextColor(tokens.TextStrong)
 				ui.Text(c, format(v)).FontSize(t.FontSize).TextColor(tokens.TextStrong).
 					ContentTransition(ui.ContentTransition{Numeric: true})
 			})
 			if description != "" {
-				ui.Text(c, description).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+				ui.Text(c, description).FontSize(t.FontSize).TextColor(t.TextMuted)
 			}
 			e := ui.Slider(c, &v, lo, hi).FillWidth()
 			if e.Changed() {

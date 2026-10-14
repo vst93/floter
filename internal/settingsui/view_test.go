@@ -314,6 +314,55 @@ func TestAppearanceChoicesStackUnderTheirLabels(t *testing.T) {
 	}
 }
 
+// The palette row is the reference's `.terminal-palette` (`settings.css:871-878`):
+// a stacked row whose one control line puts the select at its start and the
+// miniature terminal at its end, the two ends pushed apart. Before this the
+// select stayed in the row's trailing slot and the preview dropped to a line
+// of its own, so the two never read as one choice.
+func TestThePaletteRowSharesOneLineWithItsPreview(t *testing.T) {
+	copy := i18n.For("en").Settings
+	a := New(newStore(t), Actions{})
+	tt := render(t, a, 720, 3000)
+
+	label := mustFind(t, tt, copy.Palette)
+	selectText := mustFind(t, tt, copy.Palettes[0].Label)
+	preview := mustFind(t, tt, copy.PalettePreview)
+	if selectText.Y < label.Y+label.H {
+		t.Errorf("the palette select at %v is not under its label at %v: still a trailing control", selectText, label)
+	}
+	// Sharing a line means the two overlap vertically; a stacked preview would
+	// sit entirely below the select.
+	if preview.Y >= selectText.Y+selectText.H || preview.Y+preview.H <= selectText.Y {
+		t.Errorf("the preview at %v is not on the select's line at %v: the row stacked instead", preview, selectText)
+	}
+	if preview.X <= selectText.X {
+		t.Errorf("the preview at x=%.0f is not to the right of the select at x=%.0f", preview.X, selectText.X)
+	}
+}
+
+// A stacked row keeps the trailing row's type steps: the same label reads the
+// same height whether its control sits under it or beside it, because the
+// reference's `.settings-row__label` is one rule for both shapes
+// (`settings.css:520-546`) and `SettingsRow` never demotes a stacked row.
+func TestStackedRowsKeepTheTrailingRowsTypeSteps(t *testing.T) {
+	copy := i18n.For("en").Settings
+	a := New(newStore(t), Actions{})
+	tt := render(t, a, 720, 2800)
+
+	stackedLabel := mustFind(t, tt, copy.Language)
+	trailingLabel := mustFind(t, tt, copy.LaunchAtStartup)
+	if stackedLabel.H != trailingLabel.H {
+		t.Errorf("stacked label height %.0f != trailing label height %.0f: the stacked row demotes its label",
+			stackedLabel.H, trailingLabel.H)
+	}
+	stackedHint := mustFind(t, tt, copy.LanguageHint)
+	trailingHint := mustFind(t, tt, copy.LaunchAtStartupHint)
+	if stackedHint.H != trailingHint.H {
+		t.Errorf("stacked hint height %.0f != trailing hint height %.0f: the stacked row demotes its hint",
+			stackedHint.H, trailingHint.H)
+	}
+}
+
 // mustFind is Find for a row the caller already knows is on the page.
 func mustFind(tb testing.TB, tt *ui.Tester, text string) ui.Rect {
 	tb.Helper()

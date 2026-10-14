@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1376 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1378 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1376 项测试
+go test -count=1 ./...         # 1378 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,6 +99,49 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
   （同环境 mygo 最小窗口 137 MB）。
 
 ## 最近几轮（详细记录见 plan）
+
+> **最新一轮：P7-ga 终端 palette 行回到原版的一行分列、stacked 行恢复同一字级
+> （原版 `src/settings/TerminalAppearance.tsx:271-292`、`src/styles/settings.css:520-546,871-878`）**
+> ——P7-fz 收尾后「具体待办（P7-fz 重写）」有 2 条待做（palette 行布局 / stacked 行字级），
+> 本轮两条一并落地，清单归零。依赖检查：`go.mod` 已是 **v0.4.8** = GitHub releases latest，
+> 无版本可升；只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离 1（P7-ga·palette 行是尾随 select + 下方预览，不是一行分列）**：原版
+> `TerminalAppearance.tsx:271-292` 的 `terminal_theme` 行 `stacked: true`，control 是
+> `.terminal-palette`（`settings.css:871-878`：`width:100%; display:flex; align-items:center;
+> justify-content:space-between`），左边 `select.settings-select`（`max-width:220px`）、右边
+> `TerminalPalettePreview`（`min-width:148u`）。**本构建（改前）**：
+> `internal/settingsui/settingsui.go` 的 `paletteRow` 用 `a.row(..., below→palettePreview)`——
+> select 在标签同一行的尾随槽，预览块在整行下方，读成「两行堆叠」。
+>
+> **偏离 2（P7-ga·stacked 行的标签/说明比尾随行小一档）**：原版 `.settings-row__label`
+> （`--text-emphasis`）与 `.settings-row__sublabel`（`--text-body`）对 stacked 与尾随是同一条规则
+> （`settings.css:520-546`），`SettingsRow` 不因 `stacked` 改字级（`SettingsRows.tsx:104-135`）。
+> **本构建（改前）**：`rows.go` 的 `stackedRow` 与 `settingsui.go` 的 `slider` 用
+> `FontSize` + `FontSize-1`，而尾随行 `rowAligned` 用 `FontSize+1` + `FontSize`——同一个标签在
+> stacked 行读 22px、尾随行读 23px。
+>
+> **落地**：
+> - `internal/settingsui/settingsui.go`：`paletteRow` 改 `a.stackedRow`，control 内
+>   `ui.Row(c).FillWidth().Justify(ui.SpaceBetween).AlignItems(ui.Center)`——左 select
+>   （`Width(220)`）、右预览；`palettePreview` 从 `FillWidth()` 改为固定 `t.Space(37)`（实测 148u，
+>   与原版 `min-width:148u` 一致，也与终端抽屉同一宽度）。
+> - `internal/settingsui/rows.go`：`stackedRow` 标签 `FontSize+1`、说明 `FontSize`。
+> - `internal/settingsui/settingsui.go`：`slider` 标签 `FontSize+1`、说明 `FontSize`（读数保持
+>   原版的 `--text-body`）。
+>
+> **验收**：`internal/settingsui/view_test.go` 新增
+> `TestThePaletteRowSharesOneLineWithItsPreview`（select 触发文本顶边 ≥ 标签底边；预览与 select
+> 触发文本垂直重叠、预览在其右）与 `TestStackedRowsKeepTheTrailingRowsTypeSteps`
+> （Language 标签/提示的 `H` == Launch at startup 标签/提示的 `H`）。变异核查：把 `paletteRow`
+> 换回 `a.row` → 预览跑到下一行、测试红；把 `stackedRow` 字级换回 `FontSize`/`FontSize-1` →
+> 22≠23、红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿（1378 项）、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：第 1·2 条（P7-ga）全部落地；「具体待办（P7-fz 重写）」**全部结清、清单归零**。
+> 下一轮回到「对照原版排查偏离点」，重新写实清单。
 
 > **最新一轮：P7-fz General 页的分段选择行回到原版的 `stacked` 全宽布局
 > （原版 `src/settings/GeneralPage.tsx:340,356,382,516,568`、`src/styles/settings.css:557-577`）**
@@ -6112,42 +6155,27 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-### 具体待办（P7-fz 重写；2 条，均待做）
+### 具体待办（P7-fz 重写；2 条已全部落地：第 1·2 条 P7-ga）
 
 审计入口：原版 `main:src/settings/TerminalAppearance.tsx` 的 `card` 变体与 `main:src/styles/settings.css`
 的行语言（本轮只覆盖了 segmented 行；同一批行的 palette 行与 stacked 行的字级尚未逐字段比对）。
 依赖检查：`go.mod` 已是 **v0.4.8** = GitHub releases latest，无版本可升；只对照 `main`
 （`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
 
-1. **（待做，P7-fz 写实）终端的 palette 行不是原版的「标签一行 + 全宽 select/预览一行」。**
+1. **（已落地，P7-ga）终端的 palette 行不是原版的「标签一行 + 全宽 select/预览一行」。**
    - 原版对照：`TerminalAppearance.tsx:271-292` 的 `terminal_theme` 行 `stacked: true`，control 是
      `.terminal-palette`（`settings.css:871-878`：`width:100%; display:flex; align-items:center;
      justify-content:space-between`），左边 `select.settings-select`（`max-width:220px`）、右边
      `TerminalPalettePreview`（`min-width:148u`）。
-   - 本构建（现状）：`internal/settingsui/settingsui.go` 的 `paletteRow` 用
-     `a.row(c, copy.Palette, "", select, below→palettePreview)`——select 在标签同一行的尾随槽，
-     预览块在整行下方，变成「两行堆叠」而不是原版的「一行分列」。
-   - 落地 file:line（建议）：`paletteRow` 改 `a.stackedRow`，control 内画
-     `ui.Row(c).FillWidth().Justify(ui.SpaceBetween).AlignItems(ui.Center)`，左边原 select
-     （`Width(220)`），右边 `terminalui.PalettePreview(..., t.Space(37))`（不再走 `FillWidth()`）。
-   - 验收：`view_test.go` 新增测试——`copy.Palette` 标签、select 的触发文本（默认 `Follow app`）、
-     `copy.PalettePreview` 三者的 rect：select 触发文本的 `Y` ≥ 标签底边；预览与 select 触发文本同一
-     行（`|preview.Y-select.Y|` 小）且 `preview.X > select.X`。变异核查：换回 `a.row` → 预览跑到下一行，红。
-2. **（待做，P7-fz 写实）stacked 行的标签/说明字级比尾随行小一档，原版是同一档。**
+   - **P7-ga 落地**：`paletteRow` 改走 `a.stackedRow`，control 内 `ui.Row(...).FillWidth().
+     Justify(ui.SpaceBetween)`——左 select（`Width(220)`）、右 `terminalui.PalettePreview(...)`
+     固定 `t.Space(37)`（实测 148u）。验收与变异见顶部 P7-ga 记录。
+2. **（已落地，P7-ga）stacked 行的标签/说明字级比尾随行小一档，原版是同一档。**
    - 原版对照：`.settings-row__label` 对 stacked 与尾随是同一条规则（`--text-emphasis`），
      `.settings-row__sublabel` 同一条 `--text-body`（`settings.css:520-546`），`SettingsRow` 不因
      `stacked` 改字级（`SettingsRows.tsx:104-135`）。
-   - 本构建（现状）：`internal/settingsui/rows.go` 的 `stackedRow` 用 `FontSize(t.FontSize)` +
-     `FontSize(t.FontSize-1)`，`internal/settingsui/settingsui.go` 的 `slider` 同样是 `FontSize` +
-     `FontSize-1`；而尾随行的 `rowAligned`（`rows.go:182` 起）用 `FontSize(t.FontSize+1)` +
-     `FontSize(t.FontSize)`。于是同一个标签在 stacked 行读 22px、在尾随行读 23px。
-   - 落地 file:line（建议）：`rows.go` 的 `stackedRow` 与 `settingsui.go` 的 `slider` 标签改
-     `t.FontSize + 1`、说明改 `t.FontSize`。
-   - 验收：`view_test.go` 新增测试——取一个 stacked 行标签（如 `copy.Language`）与一个尾随行标签
-     （如 `copy.LaunchAtStartup`）的 rect `H` 相等，且两行的 hint（`copy.LanguageHint` /
-     `copy.LaunchAtStartupHint`）`H` 相等。变异核查：把 `stackedRow` 改回 `FontSize` → 高度不等，红。
-   - 风险：会同时改到插件配置 sheet 的 stacked 行（同一个 `stackedRow`），那正是原版 `SettingsRow`
-     的行为，属修正；`slider` 改动会让终端外观卡的两个 slider 标签同步变大。
+   - **P7-ga 落地**：`rows.go` 的 `stackedRow` 与 `settingsui.go` 的 `slider` 标签改 `t.FontSize+1`、
+     说明改 `t.FontSize`（读数保持 `--text-body`）。验收与变异见顶部 P7-ga 记录。
 
 > P7-fy 之后「尚未做」只剩第 3 条，本轮 P7-fz 落地后归零；按审计入口把清单重写为上面 2 条带
 > file:line / 原版对照 / 验收标准的具体待办，留给下一轮。
