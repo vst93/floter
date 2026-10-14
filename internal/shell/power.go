@@ -1,14 +1,19 @@
 package shell
 
 import (
+	"bytes"
+	"context"
 	"errors"
+	"fmt"
 	"log"
+	"os/exec"
 	"runtime"
+	"strings"
+	"time"
 
 	"github.com/egoist/mygo"
 
 	"floter/internal/launcher"
-	"floter/internal/spawn"
 )
 
 // Restarting and shutting down, from the launcher's power rows.
@@ -48,10 +53,17 @@ func (a *App) confirmClearClipboard(title string) bool {
 	return err == nil && result.Button == 0
 }
 
+// powerActionTimeout bounds a power utility, so a broken one cannot leave the
+// launcher hidden forever (the reference's `POWER_ACTION_TIMEOUT`,
+// `src-tauri/src/commands/system.rs:10`).
+const powerActionTimeout = 30 * time.Second
+
 // runPower runs the platform's own command, through the injected runner when
-// there is one. The candidates are tried in order: the first that **starts**
-// wins, since a failure after that (polkit refusing, the dialog cancelled)
-// would only be doubled by the next.
+// there is one. The candidates are tried in order, and the result is waited for:
+// a successful spawn can still end in a polkit, loginwindow, or privilege
+// refusal. Only a missing program falls through to the next candidate; once a
+// program starts, its refusal is authoritative — trying a more privileged
+// fallback after that would undermine the desktop's decision.
 func (a *App) runPower(action string) error {
 	if a.runPowerCommand != nil {
 		return a.runPowerCommand(action)
@@ -60,15 +72,52 @@ func (a *App) runPower(action string) error {
 	if err != nil {
 		return err
 	}
-	var lastErr error
+	return runPowerCandidates(candidates, powerActionTimeout)
+}
+
+// runPowerCandidates is the reference's `run_first`
+// (`src-tauri/src/commands/system.rs:72-118`): run each candidate, and let the
+// first that is installed decide. A missing program continues; any other start
+// error, a timeout, or a non-zero exit returns at once, with the utility's own
+// stderr in the message.
+func runPowerCandidates(candidates [][]string, timeout time.Duration) error {
+	var missing error
 	for _, candidate := range candidates {
-		if err := spawn.Program(candidate[0], candidate[1:]...); err == nil {
-			return nil
-		} else {
-			lastErr = err
+		if len(candidate) == 0 {
+			continue
 		}
+		program, args := candidate[0], candidate[1:]
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		cmd := exec.CommandContext(ctx, program, args...)
+		var stderr bytes.Buffer
+		cmd.Stderr = &stderr
+		err := cmd.Run()
+		deadline := ctx.Err()
+		cancel()
+		switch {
+		case err == nil:
+			return nil
+		case errors.Is(err, exec.ErrNotFound):
+			missing = fmt.Errorf("%s: %w", program, err)
+			continue
+		case errors.Is(deadline, context.DeadlineExceeded):
+			return fmt.Errorf("%s: timed out while requesting power action", program)
+		case cmd.ProcessState == nil:
+			return fmt.Errorf("%s: %w", program, err)
+		}
+		status := "terminated by signal"
+		if code := cmd.ProcessState.ExitCode(); code >= 0 {
+			status = fmt.Sprintf("exit code %d", code)
+		}
+		if detail := strings.TrimSpace(stderr.String()); detail != "" {
+			return fmt.Errorf("%s: %s: %s", program, status, detail)
+		}
+		return fmt.Errorf("%s: %s", program, status)
 	}
-	return lastErr
+	if missing == nil {
+		missing = errNoPowerCandidate
+	}
+	return missing
 }
 
 // powerCommands is the platform's way to restart or shut down, most likely
@@ -105,3 +154,7 @@ func powerCommands(action, goos string) ([][]string, error) {
 
 // errNoPowerAction is what an unknown action reports.
 var errNoPowerAction = errors.New("shell: no such power action")
+
+// errNoPowerCandidate is what a platform with no power utility reports (the
+// reference's "Power actions are not supported on this platform").
+var errNoPowerCandidate = errors.New("Power actions are not supported on this platform")

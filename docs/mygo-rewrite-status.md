@@ -100,7 +100,41 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-fq settings 写盘补回原版的恢复副本与原子替换
+> **最新一轮：P7-fr 电源动作等命令的退出结果，而不是只看 spawn 成功
+> （原版 `src-tauri/src/commands/system.rs:21-118`）**
+> ——P7-fq 收尾后「具体待办（P7-fq 重写）」只剩第 2 条（电源动作要等命令的退出结果），本轮取它落地，
+> 清单归零。依赖检查：`go.mod` 已是 **v0.4.8** = GitHub releases latest，无版本可升；只对照 `main`
+> （`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离（P7-fr·电源只看 spawn 成功）**：原版 `system_power`（`:21-30`）调 `run_first`（`:72-118`）：
+> 对每个候选 `Command::output()` 加 30s 超时；**只有** `ErrorKind::NotFound` 才落到下一个候选，候选
+> 一旦启动，非零退出（polkit/loginwindow 拒绝）或超时都原样返回错误（带 stderr），不再尝试更特权的
+> 后备命令。**本构建（改前）**：`internal/shell/power.go` 的 `runPower` 用 `spawn.Program`
+> （fire-and-forget）逐个候选尝试，返回 nil 的条件只是「spawn 成功」——一个启动后立刻被 polkit 拒绝的
+> `systemctl` 会被报成成功，而一次权限类 spawn 错误又会继续落到 `reboot`，与「启动后拒绝不降级」的
+> 原版规则相反。
+>
+> **落地**：`internal/shell/power.go` 把 `runPower` 的核心抽成 `runPowerCandidates(candidates, timeout)`，
+> 逐字复刻原版 `run_first`：`context.WithTimeout`（30s，`powerActionTimeout`）+ `exec.CommandContext`
+> 运行候选，单独缓冲 stderr；`errors.Is(err, exec.ErrNotFound)` 才 `continue`，超时返回
+> `timed out while requesting power action`，非零退出返回 `program: exit code N: stderr`，无 stderr 时
+> 退回 `program: exit code N`（信号终止则 `terminated by signal`），空表返回原版的
+> `Power actions are not supported on this platform`。`spawn.Program` 不再用于电源路径。
+>
+> **验收**：`internal/shell/power_test.go`（新，`//go:build unix`）六条——候选一缺失时落到候选二
+> （`sh -c "exit 0"`）；候选一启动后 `exit 7` 且 stderr 有「permission denied」时返回错误、**不跑候选二**
+> （候选二写 sentinel 文件，断言不存在）、错误串同时含「exit code 7」与「permission denied」；挂起的
+> 工具被 20ms 超时切断；无 stderr 的 `exit 3` 仍报「exit code 3」；未知动作被拒；空候选表报「not
+> supported」。变异核查：把 `runPowerCandidates` 换回 `spawn.Program` 的「spawn 成功即返回 nil」→
+> 「refusal」与「timed out」两条立刻红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：第 2 条落地；「具体待办（P7-fq 重写）」2 条**全部结清、清单归零**。下一轮回到
+> 「对照原版排查偏离点」，重新写实清单。
+
+> **上一轮：P7-fq settings 写盘补回原版的恢复副本与原子替换
 > （原版 `src-tauri/src/commands/config.rs:1473-1506`）**
 > ——P7-fp 收尾后「尚未做」再次只剩历史清单。本轮按规则换入口：逐函数对照原版 settings 的写盘路径
 > （`write_settings_to` / `write_settings_file`），把「尚未做」重写为 2 条带 file:line / 原版对照 /
@@ -5757,7 +5791,7 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-### 具体待办（P7-fq 重写；第 1 条 P7-fq 落地；第 2 条待做）
+### 具体待办（P7-fq 重写；第 1 条 P7-fq、第 2 条 P7-fr 均已落地；清单归零）
 
 审计入口：原版 `main:src-tauri/src/commands/config.rs` 的写盘路径（`write_settings_to`
 `:1473-1491`、`write_settings_file` `:1493-1506`）与电源命令（`main:src-tauri/src/commands/system.rs`
@@ -5786,18 +5820,23 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
      （目标目录不可写时返回错误且旧文件仍在）。
      变异核查：把 `Save` 改回 `os.WriteFile` → 前两条立刻红。
 
-2. **（待做）电源动作只看 spawn 成功，不等命令的退出结果**。
+2. **（本轮落地，P7-fr）电源动作只看 spawn 成功，不等命令的退出结果**。
    - 原版对照：`main:src-tauri/src/commands/system.rs:21-118` 的 `system_power` 调 `run_first`：对每个
      候选 `Command::output()` 加 30s 超时；**只有** `ErrorKind::NotFound` 才落到下一个候选，候选一旦
      启动，非零退出（polkit/loginwindow 拒绝）或超时都原样返回错误，不再尝试更特权的后备命令。
-   - 本构建：`internal/shell/power.go:55-72` 的 `runPower` 用 `spawn.Program`（fire-and-forget）逐个
+   - 本构建（改前）：`internal/shell/power.go` 的 `runPower` 用 `spawn.Program`（fire-and-forget）逐个
      候选尝试，返回 nil 的条件只是「spawn 成功」；一个启动后立刻被 polkit 拒绝的 `systemctl` 会被报成
      成功，而一次权限类 spawn 错误又会继续落到 `reboot`，与「启动后拒绝不降级」的原版规则相反。
-   - 落地 file:line（建议）：`internal/shell/power.go` 的 `runPower` 改用带 30s 超时的 `exec.Command`
-     + `CombinedOutput`；`errors.Is(err, exec.ErrNotFound)` 才 `continue`，非零退出/超时返回带 stderr 的
-     错误。`spawn.Program` 仍留给真正的 fire-and-forget 路径。
-   - 验收：`internal/shell/power_test.go` 新增两条——候选一缺失时落到候选二（`sh -c "exit 0"`）；候选一
-     启动后 `exit 7` 且 stderr 有「permission denied」时返回错误、不跑候选二、错误串含两者。
+   - 落地 file:line（已按此落地）：`internal/shell/power.go` 的 `runPower` 抽成
+     `runPowerCandidates(candidates, timeout)`，用 `context.WithTimeout`（`powerActionTimeout` = 30s）+ 
+     `exec.CommandContext` 运行候选、单独缓冲 stderr；`errors.Is(err, exec.ErrNotFound)` 才 `continue`，
+     超时返回 `timed out while requesting power action`，非零退出返回 `program: exit code N: stderr`。
+     `spawn.Program` 仍留给真正的 fire-and-forget 路径。
+   - 验收（已过）：`internal/shell/power_test.go`（新，`//go:build unix`）六条——候选一缺失时落到候选二
+     （`sh -c "exit 0"`）；候选一启动后 `exit 7` 且 stderr 有「permission denied」时返回错误、不跑候选二
+     （候选二写 sentinel 文件断言不存在）、错误串含两者；挂起工具被 20ms 超时切断；无 stderr 的 `exit 3`
+     仍报「exit code 3」；未知动作被拒；空候选表报「not supported」。变异核查：换回 `spawn.Program` 的
+     「spawn 成功即返回 nil」→「refusal」与「timed out」两条立刻红。
 
 ### 具体待办（P7-fp 重写；第 1·2 条均由本轮 P7-fp 落地；清单归零）
 
