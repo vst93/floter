@@ -3088,6 +3088,13 @@ func (a *App) View(c *ui.Context) {
 	// they cannot see.
 	a.flushNotices(c)
 
+	// The notices paint with the app's own viewport, not the framework's: the
+	// old build's `.app-toast` carried the kind's mark and tone, and the
+	// theme's default paints every toast the same inverted pill (see
+	// toastViewport). It must run after flushNotices, which is what puts this
+	// frame's notice into the stack the viewport reads.
+	a.toastViewport(c)
+
 	// The app's own keys answer on every surface: ⌘W hides whatever the
 	// window is showing (the old build's dismiss table was surface-wide),
 	// and a new command returns to the launcher from the terminal or the

@@ -99,7 +99,59 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-dx sessions 的关闭武装改用会话身份，不再用位置（原版 `killArmedId` 是 `sessionId`）**
+> **最新一轮：P7-dy toast 用回旧版自己的视口——每档自己的色调/图标，浮层按表面定位（原版 `ToastStack.tsx` + `styles/extensions.css:210-290`）**
+> —— 本轮把「逐文件对照原版」的入口放在「已知差距」里那条**框架已支持、只是本应用没用**的
+> toast 色调（其末尾写着框架的 `ToastViewportBase` + `Data` 就是口子）。清单为空，故此条即
+> 本轮待办；依赖检查：GitHub releases API 限流，`proxy.golang.org` 的 `@v/list` 最新仍是
+> **v0.4.8**（与 `go.mod` 一致），无版本可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14
+> 原版树），未翻历史提交。
+>
+> **偏离点（两条，都在同一块浮层里）**：
+> - 原版 `main:src/components/ToastStack.tsx:62-84` 的每个 toast 按 `kind` 带自己的图标
+>   （error=AlertCircle / warning=TriangleAlert / success=Check）与色调，`src/styles/extensions.css:321-334`
+>   的 `.app-toast--error` 与 `--warning` 共用 `--text-warning`（CSS 自己的 R9-1 注释写明 warning
+>   「shares the error band's amber *label*」），`--success` 用 `--accent`。本构建用框架默认
+>   `buildToasts`（`mygo@v0.4.8:ui/toast.go:343`），它只读 `t.inverse()`、**完全不看 `Toast.Type`**——
+>   于是拒绝深链的 error toast 与缺工具链的 warning toast 长得一模一样。
+> - 原版 `main:src/styles/extensions.css:210-290` 的堆栈**按表面定位**：全高页面（设置/终端/插件页）
+>   挂在**右上** `top:64px; right:16px`、宽 `min(360px, 100% - 32px)`、最多三枚；折叠启动器是约
+>   58px 的窄条，改钉在**左下** `bottom:6px; left:6px`、宽 `min(300px, 100% - 12px)`、只显示**最新**
+>   一枚（20px 单行条）。框架默认把每枚 toast 摆在中下（`viewport.Bottom(...).AlignItems(Center)`），
+>   启动器表面放不下。
+>
+> **修法**：
+> - `internal/shell/notices.go` 新增 `toastViewport`（`:169`）——`ui.ToastViewportBase` 替掉框架的
+>   主题视口（本帧一次性），逐枚用 `ui.ToastBase` 自己画；`toastTone`（`:130`）按 kind 取
+>   `Theme.Warning` / `Theme.Accent` / `Theme.Text`，`toastMark`（`:144`）取字形名；
+>   `launcherGlyph`（`:276`）复用应用的字形词表。背景用 `tokens.Float`（旧版 `--glass-float`）、
+>   边框 `tokens.InputStroke`（`--stroke-control`），与旧版 `.app-toast` 一致；动作按钮是旧版
+>   `.app-toast__action` 的安静 chip，关闭钮复用 savealert 的图标钮惯用法。
+> - 定位：`internal/shell/notices.go:180-191` 按 `a.Surf == SurfaceLauncher` 分叉——启动器
+>   `Bottom(1.5).Left(1.5).AlignItems(Start)`（且只画最新一枚），其余
+>   `Top(16).Right(4).AlignItems(End).Justify(Start)`，宽度按原版 `min(360/300px, …)` 夹取。
+> - `internal/launcher/glyphs.go:53-54,219-222` 补两个共享字形 `triangle-alert` / `check`
+>   （`alert` 即 AlertCircle，原就有）；`internal/i18n/i18n.go:448` + `copy.go` 补关闭钮的无障碍标签
+>   `DismissNotice`（原版 `settings.extensions.dismissNotice` = “Dismiss notice”/“关闭提示”）。
+> - `internal/shell/shell.go:3096` 的 `View` 在 `flushNotices` 之后调 `a.toastViewport(c)`（须在其后，
+>   flush 才把这帧的通知放进视口读的栈）。
+>
+> **测试**（`internal/shell/notices_test.go`）：`TestToastTonesAndMarksFollowTheirKind`（三档色彩/字形
+> 逐条钉住，并断言字形名真在词表里）、`TestTheToastIsDrawnByTheAppsOwnViewport`（自绘视口画出句子
+> 与 `DismissNotice` 关闭钮，点它真关掉）、`TestTheToastActionRunsAndClosesTheToast`（动作 chip 跑闭包
+> 并关 toast）、`TestTheToastStackAnchorsPerSurface`（启动器左下、设置右上）、
+> `TestTheLauncherToastStackKeepsOnlyTheNewest`（折叠面只留最新，全高面保留整摞）。变异核查：把
+> `View` 里的 `a.toastViewport(c)` 摘掉，第二条立刻红（框架默认没有 `DismissNotice` 控件）；把 else 分支
+> 换回框架的中下对齐，定位测试立刻红（`the settings notice is not top-right`）。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 30 包全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **残留**：原版 error toast 的 `role="alert"`（含 `role="status"` 之外的无障碍角色）在框架里没有
+> 对应枚举（`ui.Role` 只有 `RoleStatus`/`RoleAlertDialog`，`ToastBase` 固定 `RoleStatus`），故不接线，
+> 留「已知差距」。success 分支按原版接好，但本构建暂无 success raiser（旧版的成功 toast 多由复制反馈
+> 触发，本构建的复制反馈在终端状态行），如实记录为「有口子、等 raiser」。清单又空，下轮换入口。
+
+> **上一轮：P7-dx sessions 的关闭武装改用会话身份，不再用位置（原版 `killArmedId` 是 `sessionId`）**
 > —— P7-dw 收尾后「具体待办（P7-dw 重写）」第 1 条（武装用 `Index` 当身份，删会话后会落到
 > 别的会话上）是清单最高优先级且带 file:line 的已核实缺陷。本轮把它落地。依赖检查：GitHub
 > releases API 限流，`proxy.golang.org/.../@v/list` 最新仍是 **v0.4.8**（与 `go.mod` 一致），
@@ -3699,14 +3751,16 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
   没有占位符字段、`ui.Input` 也没有设色的 API。P7-bs 把这个 token 落在 `TextMuted` 上（框架能接到的
   唯一处，顺带把安静文案抬了一级，正是原版 `.app-toast { color: var(--text-primary) }` 的意图）。
   **要什么**：`ui.Theme` 上一个占位符 token（或 `ui.Input.PlaceholderColor`）。
-- **toast 没有色调**：原版三档 toast 各有色（`src/toast-state.ts:36-40` 的
-  `TOAST_DISMISS_MS` 与 `src/components/ToastStack.tsx` 的 kind 样式：error / warning / success），
-  本构建用的框架默认外观（`ui/toast.go:343` 的 `buildToasts`）只读 `fill, text := t.inverse()`，
-  完全不看 `ui.Toast.Type`——所以 `queueNotice` 的 `Type: "error"`（`internal/shell/notices.go`）
-  和 P7-dj 那条 warning **都画成同一个样子**。P7-dj 因此不给 warning 设 `Type`（设了就是死旋钮），
-  时长至少对齐了原版（error 8s / warning 6s，见 `refusalNotice` / `warningNotice`）。
-  **要什么**：`buildToasts` 读 `Type`（error/success/warning 三档），或让应用能用
-  `ToastViewportBase` + `Data` 自己画三档（后者框架已经支持，只是本应用没用）。
+- ~~toast 没有色调~~ **已完成（P7-dy）**：原版三档 toast 各有色/字形（`src/toast-state.ts:36-40` 的
+  `TOAST_DISMISS_MS` 与 `src/components/ToastStack.tsx` 的 kind 图标/样式），本构建之前用的框架默认
+  外观（`ui/toast.go:343` 的 `buildToasts`）只读 `fill, text := t.inverse()`，完全不看
+  `ui.Toast.Type`。P7-dy 用框架已支持的 `ui.ToastViewportBase` 自绘视口
+  （`internal/shell/notices.go:169` 的 `toastViewport`）：error 与 warning 共用 amber
+  （`Theme.Warning`，与旧版 CSS 自己的 R9-1 注释一致）、success 用 accent，每档带自己的字形
+  （AlertCircle / TriangleAlert / Check），并按表面定位（折叠启动器左下、全高页右上）。
+  **仍余一个框架口子**：error toast 的 `role="alert"`（相对其它档的 `role="status"`）在
+  `ui.Role` 里没有枚举（只有 `RoleStatus` / `RoleAlertDialog`），`ToastBase` 固定 `RoleStatus`，
+  故不接线，如实留在此。
 - **终端选中即复制 / 滚动条 / bracketed paste**：见下面的终端外观条目。**复制反馈**是另一回事
   （P7-an 定位）：旧版 R44/R63 的规则是**每一次复制都在终端自己的状态行里说一句**
   （`src/terminal/copy-notice.ts`：`visible` 1500ms → `fade` 260ms → idle；失败也说，
@@ -3785,12 +3839,35 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-> **清单状态（P7-dx 收尾）**：P7-dw 重写的第 1 条（武装用 `Index` 当身份、删会话后落到别的会话）
-> 本轮 P7-dx 落地；第 2 条已落地 P7-dw，第 3 条已在 P7-dv 结清为无落点。清单因此又空。本轮的
-> 「逐文件对照原版」入口就是这条身份缺陷本身（在 P7-dw 同一段武装代码里核出），没再新写待办。
-> 依赖检查：GitHub releases API 限流，`proxy.golang.org/.../@v/list` 最新仍是 **v0.4.8**
-> （与 `go.mod` 一致），无版本可升。只对照 `main`
-> （`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+> **清单状态（P7-dy 收尾）**：本轮把「逐文件对照原版」的入口放在「已知差距」里那条框架已支持、
+> 只是本应用没用的 toast 色调/定位上，并直接落地（P7-dy）；同一段代码里又核出 error toast 的
+> `role="alert"` 是框架无枚举的死口子，记进「已知差距」。同时把上轮清单遗留的代码健康项
+> （下面第 1 条：`Item.section` 是死代码）写实成带 file:line 的待办。依赖检查：GitHub releases
+> API 限流，`proxy.golang.org/.../@v/list` 最新仍是 **v0.4.8**（与 `go.mod` 一致），无版本可升。
+> 只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+
+### 具体待办（P7-dy 重写）
+
+> 本轮落地了 toast 自绘视口（色调/字形/按表面定位），顺手核出下面第 1 条（代码健康）。第 2 条是
+> 本轮新核出的框架死口子（非待办，仅记录）。依赖检查同上，无版本可升。
+
+1. **`launcher.Item.section` 是全仓死代码**。
+   - 原版对照：`main:src/launcher/list-sections.ts` 的 `pluginGroup` 规则——外部插件自己的
+     `group` 字段要在列表行上方印一条标题（`:39-49` 的 `listSectionStarts`）。
+   - 本构建现状：`internal/launcher/search.go:77` 声明了 `Item.section`、
+     `internal/launcher/launcher.go:1532-1541` 读取它并画标题，但**全仓没有任何非测试代码写入
+     `section`**（`grep -rn "section:" internal/launcher` 只有 `section:recent` / `section:dropped`
+     两个 `heading: true` 的项）。原因是外部插件的行在本构建走 captured-output 视图，那里的
+     `outputRow`（`internal/launcher/output.go:514-530`）已经按 `row.Group` 画了同一条标题；启动器
+     列表里从不放外部插件行，所以分支不可达。
+   - 验收：确认无写入后删除 `Item.section` 字段与 `launcher.go` 的读取分支（或保留时补一条注释说明
+     其未来的生产者），`go test -count=1 ./internal/launcher` 全绿，不回归 `outputRow` 的 group 标题。
+
+2. **（记录，非待办）error toast 的 `role="alert"` 是框架无枚举的死口子**。
+   - 原版对照：`main:src/components/ToastStack.tsx:62` 的 `role={toast.kind === "error" ? "alert" : "status"}`。
+   - 本构建：`mygo@v0.4.8:ui/access.go:21-56` 的 `ui.Role` 只有 `RoleStatus`（和 `RoleAlertDialog`），
+     `ui/toast.go:289-297` 的 `ToastBase` 固定 `RoleStatus`。要让 error 档带 `RoleAlert` 需要框架先
+     暴露该角色（或 `ToastBase` 读 `Type` 选角色），故不接死旋钮。P7-dy 已把可见的色调/字形接回。
 
 ### 具体待办（P7-dw 重写；三条已全部结清：第 1 条 P7-dx、第 2 条 P7-dw、第 3 条 P7-dv 无落点）
 

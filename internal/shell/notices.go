@@ -7,6 +7,8 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/i18n"
+	"floter/internal/launcher"
+	"floter/internal/theme"
 )
 
 // The app's one notice: a sentence raised by an external trigger, shown where
@@ -114,6 +116,169 @@ func (a *App) flushNotices(c *ui.Context) {
 	for _, toast := range pending {
 		c.AddToast(toast)
 	}
+}
+
+// toastTone is the color a toast's mark and its sentence wear, by the kind its
+// raiser tagged it with — the old build's `.app-toast--error` / `--warning` /
+// `--success`.
+//
+// Error and warning share the amber band: the reference's own R9-1 note on the
+// CSS says so ("it shares the error band's amber *label*"), and the kind earns
+// its keep by the *icon* and the accessibility role, not a second colour.
+// Success wears the accent; an untagged toast wears the theme's ordinary text,
+// so a caller that sets no `Type` still reads as plain information.
+func toastTone(t *ui.Theme, kind string) ui.Color {
+	switch kind {
+	case "error", "warning":
+		return t.Warning
+	case "success":
+		return t.Accent
+	default:
+		return t.Text
+	}
+}
+
+// toastMark is the icon each kind leads with: the old build's `ToastStack` drew
+// lucide's AlertCircle, TriangleAlert and Check at 15px. An untagged toast has
+// no mark.
+func toastMark(kind string) string {
+	switch kind {
+	case "error":
+		return "alert"
+	case "warning":
+		return "triangle-alert"
+	case "success":
+		return "check"
+	default:
+		return ""
+	}
+}
+
+// toastViewport draws the app's notices with the old build's own look, in place
+// of the framework's theme one.
+//
+// The framework's default paints every toast the same inverted pill: its
+// `buildToasts` takes `t.inverse()` and reads nothing of `Toast.Type`, so a
+// refused deep link and an advisory warning arrive indistinguishable. The old
+// build's `.app-toast` was a floating pane on `--glass-float` with a 1px edge
+// and the kind's own mark and tone. The framework offers exactly one seam for
+// that — `ui.ToastViewportBase`, which replaces the theme's viewport for the
+// frame — and this is it: the `Float` token is the old `--glass-float`, the
+// `InputStroke` its `--stroke-control`, and the tone and mark come from the
+// kind above.
+func (a *App) toastViewport(c *ui.Context) {
+	// The old build's stack had one geometry per surface
+	// (`src/styles/extensions.css:210-290`): the two full-height surfaces
+	// (settings, the terminal, a plugin page) hang it from the top right, under
+	// the 56u card header; the collapsed launcher — a ~58px strip where no
+	// placement is overlap-free — pins its *newest* toast to a 20u band on the
+	// bottom-left and drops the ones queued behind it. `ui.ToastViewportBase` is
+	// the one seam that replaces the theme's own bottom-centre pill.
+	collapsed := a.Surf == SurfaceLauncher
+	width, _ := c.Size()
+	ui.ToastViewportBase(c, func(viewport ui.Element, toasts []ui.Toast) {
+		t := c.Theme()
+		tokens := theme.ForPreferences(a.Store.Snapshot(), t.Dark, c.Preferences())
+		copy := i18n.For(a.Store.Snapshot().Language).Settings
+		if collapsed {
+			// One toast, newest wins. Earlier ones are dropped from layout, not
+			// just hidden, so the thin window never reserves a second row.
+			if len(toasts) > 1 {
+				toasts = toasts[len(toasts)-1:]
+			}
+			viewport.Bottom(t.Space(1.5)).Left(t.Space(1.5)).
+				AlignItems(ui.Start).Gap(t.Space(2)).PassThrough()
+		} else {
+			viewport.Top(t.Space(16)).Right(t.Space(4)).
+				AlignItems(ui.End).Justify(ui.Start).Gap(t.Space(2)).PassThrough()
+		}
+		for _, toast := range toasts {
+			p := ui.ToastBase(c, toast)
+			if !p.Root.Valid() {
+				continue
+			}
+			tone := toastTone(t, toast.Type)
+			// The column's own width: `min(360px, 100% - 32px)` on the full-height
+			// surfaces, `min(300px, 100% - 12px)` on the launcher strip.
+			want, room := t.Space(90), width-t.Space(8)
+			if collapsed {
+				want, room = t.Space(75), width-t.Space(3)
+			}
+			p.Root.Row().AlignItems(ui.Center).Gap(t.Space(2)).
+				Width(min(want, room)).MaxWidth(room).
+				Padding(t.Space(2), t.Space(3)).Radius(tokens.RadiusMD).
+				Background(tokens.Float).Border(1, tokens.InputStroke).TextColor(tone)
+			dismiss := t.Space(6)
+			mark := t.Space(3.25)
+			if collapsed {
+				// The strip: one forced line at the caption step, and a slimmer
+				// dismiss control so the 20u band still leaves a hit target.
+				p.Root.Height(t.Space(5)).Padding(0, t.Space(2)).Gap(t.Space(1.5))
+				dismiss = t.Space(4.5)
+			}
+			p.Root.Children(func() {
+				if name := toastMark(toast.Type); name != "" {
+					if glyph, ok := launcher.Glyph(name); ok {
+						ui.Icon(c, glyph).Size(t.Space(3.75), t.Space(3.75)).TextColor(tone)
+					}
+				}
+				sentence := ui.Text(c, toast.Title).TextColor(tone).Grow(1)
+				if collapsed {
+					sentence.FontSize(tokens.Caption).SingleLine().Ellipsis("\u2026")
+				} else {
+					sentence.FontSize(t.FontSize)
+				}
+				// The optional action chip (a page failure's retry), the old
+				// `.app-toast__action`: a quiet control-material chip the same
+				// height as the dismiss control. Pressing it runs the caller's
+				// closure and closes the toast, so a retry never leaves a stale
+				// one behind.
+				if toast.Action != "" {
+					action := ui.Row(c).Focusable().Shrink(0).Height(t.Space(5.5)).
+						Padding(0, t.Space(2)).Radius(tokens.RadiusSM).
+						AlignItems(ui.Center).Justify(ui.Center).
+						Background(tokens.Control).Label(toast.Action)
+					if action.Hovered() {
+						action.Background(tokens.ControlHover)
+					}
+					action.Children(func() {
+						ui.Text(c, toast.Action).FontSize(tokens.Caption).FontWeight(600).
+							TextColor(tokens.TextStrong)
+					})
+					if action.Clicked() {
+						if toast.OnAction != nil {
+							toast.OnAction()
+						}
+						c.CloseToast(toast.ID)
+					}
+				}
+				button := ui.Row(c).Focusable().Shrink(0).Size(dismiss, dismiss).
+					Radius(tokens.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).
+					Label(copy.DismissNotice)
+				if button.Hovered() {
+					button.Background(tokens.ControlHover)
+				}
+				button.Children(func() {
+					ui.Icon(c, launcherGlyph("close")).Size(mark, mark).
+						TextColor(tokens.TextTertiary)
+				})
+				if button.Clicked() {
+					c.CloseToast(toast.ID)
+				}
+			})
+		}
+	})
+}
+
+// launcherGlyph is launcher.Glyph with the fallback the app's other glyph reads
+// use: the names here are program constants, so a missing one is a bug rather
+// than a runtime condition.
+func launcherGlyph(name string) *ui.SVG {
+	glyph, ok := launcher.Glyph(name)
+	if !ok {
+		glyph, _ = launcher.Glyph("alert")
+	}
+	return glyph
 }
 
 // refuseLink is what a refused `floter://` link does: it brings the panel

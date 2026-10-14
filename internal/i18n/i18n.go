@@ -443,6 +443,9 @@ type Settings struct {
 	IntegrationsOrphan    string
 	IntegrationsHint      string
 	IntegrationsUninstall string
+	// DismissNotice labels the toast's close control: the old build's
+	// `settings.extensions.dismissNotice`.
+	DismissNotice string
 	// The base plugins: the built-in functionality the app ships, listed on
 	// the Integrations page with the one door to each one's configuration.
 	// The names are the old build's own (`settings.clipboardHistory`,

@@ -44,7 +44,15 @@ var (
 	glyphAlert      = ui.MustParseSVG([]byte(glyphSource(`<circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/>`)))
 	glyphWindow     = ui.MustParseSVG([]byte(glyphSource(`<rect width="20" height="16" x="2" y="4" rx="2"/><path d="M6 8h.01"/><path d="M10 8h.01"/>`)))
 	glyphClose      = ui.MustParseSVG([]byte(glyphSource(`<path d="M18 6 6 18"/><path d="m6 6 12 12"/>`)))
-	glyphClipboard  = ui.MustParseSVG([]byte(glyphSource(`<rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>`)))
+	// The toast marks: the old build's own kind icons (its `ToastStack` drew
+	// lucide's AlertCircle / TriangleAlert / Check at 15px). They belong to the
+	// same closed set the settings sidebar reads, so the shell's toast viewport
+	// leads with the app's vocabulary rather than its own paths. `alert` is
+	// lucide's AlertCircle and already in the set; these two are the other ends
+	// of the same trio.
+	glyphTriangleAlert = ui.MustParseSVG([]byte(glyphSource(`<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 20h16a2 2 0 0 0 1.73-2Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>`)))
+	glyphCheck         = ui.MustParseSVG([]byte(glyphSource(`<path d="M20 6 9 17l-5-5"/>`)))
+	glyphClipboard     = ui.MustParseSVG([]byte(glyphSource(`<rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>`)))
 )
 
 // rowGlyph picks the mark for a row from what the row is: an application shows
@@ -208,6 +216,10 @@ func Glyph(name string) (*ui.SVG, bool) {
 		return glyphPower, true
 	case "alert":
 		return glyphAlert, true
+	case "triangle-alert":
+		return glyphTriangleAlert, true
+	case "check":
+		return glyphCheck, true
 	case "file":
 		return glyphFile, true
 	case "folder":
