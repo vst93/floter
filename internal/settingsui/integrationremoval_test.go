@@ -356,9 +356,10 @@ func TestAnNpmRowGoesStraightToTheComponentizedDialog(t *testing.T) {
 	tt.Frame()
 
 	// The npm row asks the componentized dialog directly — not the kind's own
-	// removal bar.
-	if err := tt.Click(en.IntegrationsUninstall); err != nil {
-		t.Fatalf("click Uninstall: %v (texts %v)", err, tt.Texts())
+	// removal bar. The row's button carries the ellipsis suffix
+	// (`uninstallComponentsRow` appends it).
+	if err := tt.Click(en.IntegrationsUninstall + "…"); err != nil {
+		t.Fatalf("click Uninstall…: %v (texts %v)", err, tt.Texts())
 	}
 	tt.Frame()
 	if !tt.HasText(en.IntegrationsUninstallTitle("NPM Tool")) {
@@ -377,12 +378,10 @@ func TestAnNpmRowGoesStraightToTheComponentizedDialog(t *testing.T) {
 	}
 
 	// Confirming the dialog runs the componentized action, never the plain
-	// removal.
-	dialogConfirm, ok := tt.Find(en.IntegrationsUninstall)
-	if !ok {
-		t.Fatalf("the dialog's confirm button is missing: %v", tt.Texts())
+	// removal. The dialog's confirm button carries the bare verb (no ellipsis).
+	if err := tt.Click(en.IntegrationsUninstall); err != nil {
+		t.Fatalf("click the dialog's confirm: %v (texts %v)", err, tt.Texts())
 	}
-	tt.ClickAt(dialogConfirm.X+dialogConfirm.W+30, dialogConfirm.Y+dialogConfirm.H/2)
 	tt.Frame()
 	if len(componentsFor) != 1 || componentsFor[0] != "npm" {
 		t.Errorf("confirming the dialog called the componentized removal %v, want [npm]", componentsFor)
