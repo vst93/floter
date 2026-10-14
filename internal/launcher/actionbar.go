@@ -192,6 +192,11 @@ func (a *App) actionBarItemsWith(other []Item, gated bool) []Item {
 		// the tokens that remain are the command and its arguments.
 		argv = parsed.Tokens[parsed.CommandIndex:]
 	}
+	// R7-11: an exact alias is a search surface only. `gfm status` names the
+	// `git` row, so the run must reach `git status` and never a program called
+	// `gfm` that does not exist. The environment path shares the argv, so the
+	// rebase happens once, before either run route.
+	argv = RebaseAliasArgv(a.Aliases, argv)
 	if len(parsed.Environment) > 0 {
 		return []Item{{
 			ID:       "bar:shell",

@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1110 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1133 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1110 项测试
+go test -count=1 ./...         # 1133 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,7 +99,43 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-dz 启动器列表不再留着死代码里的「块标题」口子（原版 `list-sections.ts` 的 pluginGroup 归输出视图）**
+> **最新一轮：P7-ea PATH 命令的别名带参数时还原成真命令（原版 `src/command-aliases.ts` 的 `rebaseAliasCommandLine`）**
+> —— P7-dz 收尾后「尚未做」清单又一次为空。本轮按惯例换入口（逐文件对照原版），落在
+> **命令别名模块**（`main:src/command-aliases.ts`）：它的搜索半边本构建早已接好，还原半边
+> （`rebaseAliasCommandLine`）却没有对应物，`grep -rni rebase internal cmd` 无命中。清单因此重写为
+> 一条带 file:line 的具体待办并本轮落地。依赖检查：GitHub releases API 限流，
+> `proxy.golang.org/.../@v/list` 最新仍是 **v0.4.8**（与 `go.mod` 一致），无版本可升。只对照 `main`
+> （`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离点**：原版 `main:src/command-aliases.ts:184-201` 的 `rebaseAliasCommandLine` 把行首那个
+> **恰好**等于别名的 token 换回真命令名，由 `main:src/hooks/useLauncherCatalog.ts:1328-1334` 用在行的
+> `commandLine` 上，注释写死「`gfm -m x` therefore executes `git -m x`, never a nonexistent shell
+> command named `gfm`」；`matchedCommandAlias`（`:167-175`）限定只有**整 token、大小写不敏感**的相等
+> 才算别名命中。本构建的搜索半边齐全（`internal/launcher/search.go:809-850` 的 `aliasHint` / `aliasRank`、
+> `internal/settings/plugins.go:159` 的 `ResolveCommandAliases`），但带参运行走的是
+> `internal/launcher/actionbar.go:164` 的 `ParseCommandLine(value)`——`argv` 的命令 token 原样进终端，
+> `gfm status` 于是跑一个不存在的 `gfm`。
+>
+> **修法**：新增 `internal/launcher/aliasrebase.go`——`aliasToCommand`（按 `ResolveCommandAliases` 反查，
+> 冲突时名字升序的第一个命令拥有别名，与搜索半边同一策略）与 `RebaseAliasArgv`（只替换 argv[0]，
+> 其余字节逐字保留；前缀/包含命中不动，与 `matchedCommandAlias` 同口径）。`actionbar.go` 在算出 `argv`
+> 后、两条 Run 路线之前统一调一次 `RebaseAliasArgv(a.Aliases, argv)`，环境变量路线与应用路线共用同一个
+> argv。shell 语法行（`gfm | grep x`）按原版范围**不还原**，仍原样交给用户自己的 shell。
+>
+> **测试**（新增 `internal/launcher/aliasrebase_test.go` 六条）：纯函数五组（整别名换名、别名单独、
+> 大小写不敏感、前缀/包含不动、空 argv/无别名不动、冲突取升序第一、空白别名丢弃、不变异入参）、
+> 走运行路径的 `gfm status` → `[git status]`、环境路线 `FOO=gfm gfm status`（把 `git` 换掉而 `FOO`
+> 的值不被误改）、shell 语法 `gfm | grep x` 不被还原。变异核查：把 `actionbar.go` 里的
+> `RebaseAliasArgv` 调用摘掉，三条经运行路径的测试立刻红；把 `RebaseAliasArgv` 改成前缀也命中，
+> 纯函数的前缀/包含用例立刻红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **残留**：无。清单再次为空；下轮按惯例换入口（逐文件对照原版 / 核对「已知差距」里框架已支持
+> 只是本应用没用的项）。
+
+> **上一轮：P7-dz 启动器列表不再留着死代码里的「块标题」口子（原版 `list-sections.ts` 的 pluginGroup 归输出视图）**
 > —— P7-dy 收尾后「具体待办（P7-dy 重写）」第 1 条（`launcher.Item.section` 是全仓死代码）是清单最高
 > 优先级且带 file:line 的代码健康项。本轮把它落地。依赖检查：GitHub releases API 限流，
 > `proxy.golang.org/.../@v/list` 最新仍是 **v0.4.8**（与 `go.mod` 一致），无版本可升。只对照 `main`
@@ -3878,12 +3914,39 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-> **清单状态（P7-dz 收尾）**：本轮把「具体待办（P7-dy 重写）」第 1 条（`launcher.Item.section`
-> 死代码）落地（P7-dz），第 2 条是框架死口子（仅记录）。清单又空，下轮按惯例换入口。依赖检查：
+> **清单状态（P7-ea 收尾）**：本轮把「尚未做」重写成一条带 file:line 的具体待办——逐文件对照
+> 原版的**命令别名模块**（`src/command-aliases.ts`）时发现的真实偏离：PATH 命令的别名带参数时
+> 没有被还原成真命令，会去跑一个不存在的程序。本轮随即落地（P7-ea），清单再次为空。依赖检查：
 > GitHub releases API 限流，`proxy.golang.org/.../@v/list` 最新仍是 **v0.4.8**（与 `go.mod` 一致），
 > 无版本可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
 
-### 具体待办（P7-dy 重写；第 1 条已落地 P7-dz，第 2 条为框架死口子仅记录）
+### 具体待办（P7-ea 重写；第 1 条本轮落地 P7-ea）
+
+> 本轮入口：逐文件对照原版的命令别名模块（`main:src/command-aliases.ts`）。它的搜索半边
+> （`candidateMatchScore` / `commandMatchScore` / `resolveCommandAliases` / `matchedCommandAlias`）
+> 本构建早已接好（`internal/launcher/search.go:809-850` 的 `aliasHint` / `aliasRank`、
+> `internal/settings/plugins.go:159` 的 `ResolveCommandAliases`），但**还原半边**
+> （`rebaseAliasCommandLine`）没有对应物。依赖检查同上，无版本可升。
+
+1. **（已落地，P7-ea）PATH 命令的别名带参数时没有被还原成真命令，会去跑一个不存在的程序**。
+   - 原版对照：`main:src/command-aliases.ts:184-201` 的 `rebaseAliasCommandLine`（把行首那个
+     **恰好**等于别名的 token 换回真命令名）；由 `main:src/hooks/useLauncherCatalog.ts:1328-1334`
+     使用——`typedAlias` 时 `rowCommandLine = rebaseAliasCommandLine(query, typedAlias, entry.command)`，
+     原版注释把这条规则写死：「`gfm -m x` therefore executes `git -m x`, never a nonexistent shell
+     command named `gfm`」。`matchedCommandAlias`（`:167-175`）限定只有**整 token、大小写不敏感**
+     的相等才还原，前缀/包含命中仍是「发现面」。
+   - 本构建（改前）：`internal/launcher/search.go:533` 的 PATH 行 `Run: func() { a.runTool(tool) }`
+     只跑 `tool.Path`、不带参数；真正的带参路径是 `internal/launcher/actionbar.go:164` 的
+     `ParseCommandLine(value)`，`argv` 里的命令 token 原样进终端（`:193-226` 两条 Run 闭包）。
+     全仓没有还原半边：`grep -rni "rebase" internal cmd` 无命中。于是 `gfm status`
+     （别名表 `{"git":"gfm"}`）送进终端的是 `gfm status`，一个不存在的程序。
+   - **已落地（P7-ea）**：新增 `internal/launcher/aliasrebase.go`——`aliasToCommand`（按
+     `settings.ResolveCommandAliases` 反查，冲突时名字升序的第一个命令拥有别名）与
+     `RebaseAliasArgv`（只换行首命令 token，其余字节不动）。`internal/launcher/actionbar.go`
+     在算出 `argv` 后、两条 Run 路线之前调一次 `RebaseAliasArgv(a.Aliases, argv)`，环境变量路线
+     与应用命令名路线共用同一个 argv。shell 语法行（`gfm | grep x`）按原版范围**不还原**。
+     测试：`internal/launcher/aliasrebase_test.go` 六条（纯函数五组含大小写/前缀/包含/冲突/空；
+     经运行路径的 `gfm status`、`FOO=gfm gfm status` 环境路线、shell 语法不还原）。详见「最近几轮」P7-ea。
 
 > 本轮 P7-dz 落地了第 1 条（删掉 `Item.section` 死代码）。第 2 条是框架死口子（非待办，仅记录）。
 > 依赖检查同上，无版本可升。
