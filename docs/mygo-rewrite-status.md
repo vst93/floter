@@ -100,7 +100,53 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-fr 电源动作等命令的退出结果，而不是只看 spawn 成功
+> **最新一轮：P7-fs 通用 opener 补回原版 `open_url` 的 web 协议白名单
+> （原版 `src-tauri/src/commands/actions.rs:44-68`）**
+> ——P7-fr 收尾后「具体待办（P7-fq 重写）」归零，本轮按规则换入口：逐文件对照原版
+> `src-tauri/src/commands/actions.rs`（此前未进入任何历史待办），把「尚未做」重写为 3 条带
+> file:line / 原版对照 / 验收标准的具体待办（见文末「具体待办（P7-fs 重写）」），取第 1 条落地。
+> 依赖检查：`go.mod` 已是 **v0.4.8** = GitHub releases latest，无版本可升；只对照 `main`
+> （`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离（P7-fs·通用 opener 没有协议白名单）**：原版 `open_url`（`:44-52`）先用
+> `is_web_url`（`:57-68`）校验，只有 `http://`/`https://`/`ftp://`（大小写不敏感）才
+> `spawn_opener`；否则返回 `settings.extensions.openNonWebUrl:{url}`（`i18n.ts:851,1706`）。
+> 这条命令的调用点包括 action bar 的 URL 行、插件 output 的 `open` 动作
+> （`useLauncherActions.ts:649,851`）和扩展 homepage（`ExtensionsPanel.tsx:2577`）。**本构建
+> （改前）**：`internal/shell/shell.go:2522-2535` 的 `openURL` 对空 browserID 直接
+> `mygo.Shell.OpenExternal(url)`；`openHomepage`（`:1742-1753`）与 `internal/launcher/output.go:359-364`
+> 的 output `open` 动作都走它，`file://`/`javascript:`/`mailto:` 一律交给系统 opener。
+> `internal/launcher/actionbar.go:26` 的 `URLQuery` 只在 action bar 这一条路挡住，另外两条没有。
+>
+> **落地**：
+> - `internal/shell/weburl.go`（新）：`webSchemes` 逐字复刻 `is_web_url` 的三个 scheme，
+>   `isWebURL` 用长度守卫做大小写不敏感前缀比较（Go 版的 `url.get(..scheme.len())`，短串不会越界）。
+> - `internal/shell/shell.go` 的 `openURL`：`browserID == ""`（即原版 `open_url`）时先过
+>   `isWebURL`，否则返回 `errNonWebURL`；browser 行始终带自己的 id，走
+>   `browser.OpenURL`（原版 `browser_open_url`，没有这条白名单）。`openHomepage` 的失败除日志外，
+>   非 web 时用 `queueNotice` 发原版 `settings.extensions.openNonWebUrl` 词。
+> - `internal/launcher/output.go` 的 `runOutputRow`：`open` 动作检查错误，失败置
+>   `OpenURLFailed` 并留在 output view，复刻原版 `openWithSystem` 的「拒绝不关窗」。
+> - `internal/i18n`：`Settings.OpenNonWebURL`（en/zh 逐字取 `i18n.ts:851,1706`）。
+>
+> **验收**：`internal/shell/weburl_test.go` 新增 `TestIsWebURLMatchesTheOldAllowList`（五个收、
+> 八个拒，含 `ftp:/`、` httpx://` 这类近似串）、`TestHomepageRefusesANonWebURL`（`file:///etc/passwd`
+> 不触达注入的 opener、队列里是逐字 `Refusing to open a non-web URL: file:///etc/passwd`；
+> `HTTPS://…` 仍触达且不排队）、`TestBrowserSpecificOpenKeepsItsOwnSchemes`（`chrome` 行的
+> `file://` 仍放行）；`internal/launcher/outputopen_test.go` 新增 `TestOutputOpenRefusesWithoutClosing`
+> （失败后 view 仍开、toast 是 `OpenURLFailed`）；`internal/i18n/i18n_test.go` 新增
+> `TestOpenNonWebURLWordMatchesTheOldDictionary`（en/zh 逐字）。`internal/shell/launch_test.go` 的
+> `TestTerminalLinkOpening` 把 mailto 改成「被拒但由 terminal 回调认领」，并补一个大小写 https 用例。
+> 变异核查：把 `openURL` 的白名单判断删掉 → `TestHomepageRefusesANonWebURL` 红；把
+> `runOutputRow` 的错误分支删掉 → `TestOutputOpenRefusesWithoutClosing` 红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：第 1 条（P7-fs）落地；「具体待办（P7-fs 重写）」还剩第 2·3 条（`open_path` 的
+> `~`/相对路径与存在性；homepage 非白名单类失败仍只记日志），是下一轮最高优先级。
+
+> **上一轮：P7-fr 电源动作等命令的退出结果，而不是只看 spawn 成功
 > （原版 `src-tauri/src/commands/system.rs:21-118`）**
 > ——P7-fq 收尾后「具体待办（P7-fq 重写）」只剩第 2 条（电源动作要等命令的退出结果），本轮取它落地，
 > 清单归零。依赖检查：`go.mod` 已是 **v0.4.8** = GitHub releases latest，无版本可升；只对照 `main`
@@ -5791,7 +5837,51 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-### 具体待办（P7-fq 重写；第 1 条 P7-fq、第 2 条 P7-fr 均已落地；清单归零）
+### 具体待办（P7-fs 重写；第 1 条本轮 P7-fs 落地；第 2·3 条待做）
+
+审计入口：原版 `main:src-tauri/src/commands/actions.rs`（`open_url` `:44-52`、`is_web_url`
+`:57-68`、`open_path` `:73-98`、`resolve_path` `:107-135`、`run_silent_command` `:137-160`、
+`system_spawn_detached` `:162-...`），本构建对应 `internal/shell/launch.go` 的
+`openPath`/`openTerminalLink`、`internal/shell/shell.go` 的 `openURL`/`openHomepage`、
+`internal/launcher/output.go` 的 `runOutputRow`、`internal/browser/target.go` 的 `OpenURL`。
+前几轮已落地：`system_power`（P7-fr）与 `drops.rs` 的路径规范化（P7-cz）。依赖检查：`go.mod`
+已是 **v0.4.8** = GitHub releases latest，无版本可升。只对照 `main`
+（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+
+1. **（本轮落地，P7-fs）通用 `open_url` 没有原版的 web 协议 allow-list**。
+   - 原版对照：`src-tauri/src/commands/actions.rs:44-68` 的 `open_url` 先用 `is_web_url` 校验，
+     只有 `http://`/`https://`/`ftp://`（大小写不敏感）才 `spawn_opener`；否则返回
+     `settings.extensions.openNonWebUrl:{url}`（`i18n.ts:851,1706`）。调用点包括 action bar 的
+     URL 行、插件 output 的 `open` 动作、扩展 homepage。
+   - 本构建（改前）：`internal/shell/shell.go:2522-2535` 的 `openURL` 对空 browserID 直接
+     `mygo.Shell.OpenExternal(url)`；`openHomepage`（`:1742-1753`）与
+     `internal/launcher/output.go:359-364` 的 output `open` 动作都走它，`file://`/`javascript:`/
+     `mailto:` 一律交给系统 opener。`internal/launcher/actionbar.go:26` 的 `URLQuery` 只在
+     action bar 这一条路挡住，另外两条没有。
+   - 落地 file:line：`internal/shell/weburl.go`（新，`webSchemes`/`isWebURL`）；
+     `internal/shell/shell.go` 的 `openURL` 与 `openHomepage`；`internal/launcher/output.go` 的
+     `runOutputRow`；`internal/i18n/i18n.go` 与 `copy.go` 的 `Settings.OpenNonWebURL`。
+   - 验收：`internal/shell/weburl_test.go` 的 `TestIsWebURLMatchesTheOldAllowList`、
+     `TestHomepageRefusesANonWebURL`、`TestBrowserSpecificOpenKeepsItsOwnSchemes`；
+     `internal/launcher/outputopen_test.go` 的 `TestOutputOpenRefusesWithoutClosing`；
+     `internal/i18n/i18n_test.go` 的 `TestOpenNonWebURLWordMatchesTheOldDictionary`。
+2. **（待做）`open_path` 不解析 `~`/相对路径，也不要求路径存在**。
+   - 原版对照：`actions.rs:73-98` 的 `open_path` 先 `resolve_path(&path, &home)`，再
+     `resolved.exists()`，不存在返回 `Path does not exist: …`；`resolve_path`（`:107-135`）只把
+     整段 `~`/`~/…` 解析成 home，`~alice` 与相对路径按 `home.join` 处理。
+   - 本构建（改前）：`internal/shell/launch.go:23-40` 的 `openPath` 直接
+     `spawn.Program(systemOpener(), path)`；`openTerminalLink`（`:86-107`）对 `~/…` 只做
+     `HasPrefix` 判断就原样交给 opener，路径不存在也静默启动。
+   - 验收：`openPath("~/x")` 触达的是 `$HOME/x`；`openPath("missing")` 不触达 opener、发
+     `OpenPathFailed`；终端链接 `~/x.go:12` 触达 `$HOME/x.go`。
+3. **（待做）homepage 的非白名单类打开失败仍然只记日志**。
+   - 原版对照：`ExtensionsPanel.tsx:2577-2580` 的 `void invoke("open_url", …).catch((error) => {
+     onNotify("error", errorMessage(error, t)); })`——homepage 的任何打开失败都会成为一条 error
+     通知，不只是非 web 那一种。
+   - 本构建（改前）：`internal/shell/shell.go:1742-1753` 的 `openHomepage` 只对
+     `errors.Is(err, errNonWebURL)` 发 notice，其余错误仅 `log.Printf`，用户看不到。
+   - 验收：注入一个返回普通 spawn 错误的 opener，`openHomepage` 仍排队一条 error 通知；成功保持安静。
+
 
 审计入口：原版 `main:src-tauri/src/commands/config.rs` 的写盘路径（`write_settings_to`
 `:1473-1491`、`write_settings_file` `:1493-1506`）与电源命令（`main:src-tauri/src/commands/system.rs`

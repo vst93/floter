@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"strings"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
@@ -136,14 +135,24 @@ func TestTerminalLinkOpening(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// A URL goes to the browser, whatever its scheme's spelling.
-	for _, link := range []string{"https://example.com/a", "mailto:someone@example.com"} {
+	// A web URL goes to the browser, whatever its scheme's spelling.
+	for _, link := range []string{"https://example.com/a", "HTTPS://example.com/b"} {
 		if !a.openTerminalLink(link) {
 			t.Errorf("%q did not open", link)
 		}
 	}
-	if len(opened) != 2 || !strings.HasPrefix(opened[0], "url:https://") {
+	if len(opened) != 2 || opened[0] != "url:https://example.com/a" || opened[1] != "url:HTTPS://example.com/b" {
 		t.Errorf("opened = %v", opened)
+	}
+
+	// A non-web scheme is refused by the generic opener. The terminal callback
+	// still claims the click so the framework does not fall back to its own
+	// unrestricted opener.
+	if !a.openTerminalLink("mailto:someone@example.com") {
+		t.Errorf("a refused non-web link was not claimed")
+	}
+	if len(opened) != 2 {
+		t.Errorf("a non-web link reached the browser: %v", opened)
 	}
 
 	// A path goes to the file manager.

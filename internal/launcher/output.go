@@ -357,7 +357,13 @@ func (a *App) runOutputRow() {
 	switch row.Action.Type {
 	case "open":
 		if a.Actions.OpenURL != nil {
-			a.Actions.OpenURL("", row.Action.URL)
+			if err := a.Actions.OpenURL("", row.Action.URL); err != nil {
+				// The old build's `openWithSystem` stayed up on a refusal and
+				// reported it; closing would throw away the output the user
+				// was looking at (`useLauncherActions.ts:430-445`).
+				a.toast = copy.OpenURLFailed
+				return
+			}
 		}
 		a.leaveOutput()
 		a.Hide()

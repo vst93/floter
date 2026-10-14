@@ -823,6 +823,10 @@ type Settings struct {
 	DeepLinkCopy     string
 	DeepLinkCopied   string
 	DeepLinkRejected string
+	// OpenNonWebURL is the generic opener's refusal when a URL is outside
+	// http/https/ftp: the old host's `settings.extensions.openNonWebUrl`
+	// (`src-tauri/src/commands/actions.rs:44-68`, `i18n.ts:851`).
+	OpenNonWebURL func(url string) string
 	// The local-tool connection form.
 	LocalToolTitle string
 	LocalToolHint  string

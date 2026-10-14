@@ -1750,6 +1750,10 @@ func (a *App) openHomepage(url string) {
 	// `onRepair`'s `openExternal`).
 	if err := a.openURL("", url); err != nil {
 		log.Printf("floter: could not open %s: %v", url, err)
+		if errors.Is(err, errNonWebURL) {
+			message := i18n.For(a.Store.Snapshot().Language).Settings.OpenNonWebURL(url)
+			a.queueNotice(message, refusalNotice)
+		}
 	}
 }
 
@@ -2519,7 +2523,15 @@ func (a *App) browserTargets() []i18n.Option {
 // openURL opens a page in the browser a result came from, so a search of one
 // browser does not open its pages in another. An unknown or empty browser id
 // opens it in the system's default browser.
+//
+// An empty browser id is the generic opener, the old host's `open_url`, and
+// that command refuses anything outside http/https/ftp (`commands/actions.rs`
+// `is_web_url`). A browser row always carries the id it came from, so the
+// allow-list cannot narrow what a browser plugin opens.
 func (a *App) openURL(browserID, url string) error {
+	if browserID == "" && !isWebURL(url) {
+		return errNonWebURL
+	}
 	if a.openURLCommand != nil {
 		a.openURLCommand(browserID, url)
 		return nil

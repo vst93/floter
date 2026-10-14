@@ -224,3 +224,20 @@ func TestRemovalNoticesMatchTheOldDictionary(t *testing.T) {
 		}
 	}
 }
+
+// The generic opener's refusal, as the old dictionary spelled it
+// (`main:src/i18n.ts:851,1706`).
+func TestOpenNonWebURLWordMatchesTheOldDictionary(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		got  string
+		want string
+	}{
+		{"en", en.Settings.OpenNonWebURL("file:///etc/passwd"), "Refusing to open a non-web URL: file:///etc/passwd"},
+		{"zh", zh.Settings.OpenNonWebURL("file:///etc/passwd"), "拒绝打开非网页 URL：file:///etc/passwd"},
+	} {
+		if tc.got != tc.want {
+			t.Errorf("%s = %q, want %q", tc.name, tc.got, tc.want)
+		}
+	}
+}
