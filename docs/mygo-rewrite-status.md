@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1327 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1333 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1327 项测试
+go test -count=1 ./...         # 1333 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -100,7 +100,53 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-fj 自定义快捷键的键在读写时补上原版的形状校验（原版 `src-tauri/src/commands/config.rs:1385-1404` 的 `normalize_custom_shortcuts` + `:1408-1434` 的 `normalize_shortcut`）**
+> **最新一轮：P7-fk 自定义快捷键的 `conflict` 拒收与两个词（原版 `src-tauri/src/commands/config.rs:1666-1718`、`src/settings/ShortcutsPage.tsx:293-296`、`src/i18n.ts:412-413,1299-1300`）**
+> ——P7-fj 收尾后「具体待办（P7-fj 重写）」还剩两条，本轮把第 2 条（撞车判 `conflict`）与第 3 条
+> （拒收原因收成原版两个 token）一起结清，清单归零。依赖检查：`go list -m -versions
+> github.com/egoist/mygo` 最新仍是 **v0.4.8**（与 `go.mod` 一致），无版本可升、无新 API 用点；
+> GitHub releases API 限流。只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离（P7-fk·撞车判据、拒收原因与本地化）**：原版 `set_custom_shortcuts` 的 `reserved` 取
+> `resolved_shortcuts(&settings)` 的全部值，逐条与 `shortcut_binding_eq` 比对，撞上内置组合即
+> `CustomShortcutRejection { reason: "conflict" }` 并跳过；`resolved_shortcuts` 内部的
+> `insert_shortcut_if_available` 还会用 `shortcut_conflicts` 处理 `select_result` **家族**
+> （同一修饰键下的任一数字，含 `0`）——所以 `⌘⇧7` 与家族头 `⌘⇧1` 是一把钥匙。OS 拒收（`register` 返回
+> `Err`）则记 `reason: "occupied"`，且**只把注册成功的几条**写回磁盘（`:1715-1717`）。前端
+> `ShortcutsPage.tsx:293-296` 只认这两个 token 选词（`occupied` → `customShortcutsOccupied`，
+> 其余 → `customShortcutsConflict`）。**本构建（改前）**：`internal/shell/custom.go` 的
+> `ApplyCustomShortcuts` 只挡 `accelerator == a.summonKey`，不比对内置动作；`setCustomShortcuts`
+> 无条件把整张表落盘（被拒的键会留在磁盘上下次开机重试）；原因字段塞的是英文自由句
+> （`err.Error()` 直接上图），且 `internal/i18n` 只有一句「Could not bind X: <自由句>」——**中文侧
+> 连映射都没有**，页面上会直接印出 `conflict`/`occupied` 这种 token。
+>
+> **落地**：
+> - `internal/settings/shortcutmap.go` 新增 `CustomShortcutConflict`（逐 action 过 `ShortcutsOf`
+>   并以 `shortcuts.Equal` 等值比对；`select_result` 走家族判据；`toggle_window` 留给 shell 自己
+>   的 summon 检查）；`internal/shortcuts/shortcuts.go` 新增 `SameResultFamily`（同修饰键 + 单个数字）。
+> - `internal/shell/custom.go` 的注册收敛成唯一一条 `applyCustomShortcuts`：先释放旧键，再
+>   冲突/占用逐条判，返回（注册成功的 entries, rejections）；`ApplyCustomShortcuts` 与
+>   `setCustomShortcuts` 都走它，避免两条路径各写一份规则。`setCustomShortcuts` 只写回注册成功的
+>   列表，并在写盘前记 `customSignature`，免得 Store 监听把同一批键再 claim 一次。
+> - `internal/settingsui/settingsui.go` 新增 `CustomShortcutReasonConflict`/`…Occupied` 两个 token
+>   常量（`:688`）；`internal/i18n/copy.go` 的 `shortcutsRejectedEN`/`…ZH` 按 token 选词，逐字取
+>   `i18n.ts:412-413,1299-1300`。
+>
+> **验收**：`internal/settings/shortcutmap_test.go` 的 `TestCustomShortcutConflict`（等值/异拼写
+> `Command+W`/家族任一数字均冲突，别的修饰键、空闲键、toggle 键均不冲突）；`internal/shell/shell_test.go`
+> 的 `TestCustomShortcutsRefuseConflictsAndKeepOnlyRegistered`（`Cmd+W` → `conflict` 且不注册不落盘；
+> `Cmd+Shift+T` → `occupied` 且不落盘；空闲键注册且落盘，内存与磁盘只留这一条）；
+> `internal/settingsui/view_test.go` 的 `TestCustomShortcutRejectionWording`（en 两词）与
+> `TestCustomShortcutsPage` 的 `occupied` 那句；`internal/i18n/i18n_test.go` 的
+> `TestCustomShortcutRejectionWordsMatchTheOldDictionary`（en/zh 各两句，并钉住未知 token 原样透传）。
+> 变异核查：把 zh 分支退回直通 → 该 i18n 测试立刻红（`无法绑定 Cmd+J：conflict`）。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿（1333 项）、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：第 2 条（撞车判 `conflict`）与第 3 条（两个 word）落地；「具体待办（P7-fj 重写）」
+> 3 条**全部结清、清单归零**。下轮回到「对照原版排查偏离点」，重新写实清单。
+
+> **上一轮：P7-fj 自定义快捷键的键在读写时补上原版的形状校验（原版 `src-tauri/src/commands/config.rs:1385-1404` 的 `normalize_custom_shortcuts` + `:1408-1434` 的 `normalize_shortcut`）**
 > ——P7-fi 收尾后「具体待办（P7-fh 重写）」归零。本轮按上节建议换入口：逐文件对照原版的
 > **自定义快捷键落盘/读盘路径**（`main:src/custom-shortcuts.ts` 与 `config.rs` 的三个函数），把
 > 「尚未做」重新写实为 3 条带 file:line 的具体待办（下方「具体待办（P7-fj 重写）」），并取第 1 条
@@ -132,8 +178,8 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 > **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
 > `GOOS=linux/windows/darwin go build ./...` 三平台通过。
 >
-> **清单状态**：第 1 条（P7-fj）落地；「具体待办（P7-fj 重写）」现有 3 条带 file:line 的具体待办，
-> 第 2 条（自定义快捷键与内置按键撞车要判 `conflict`）是下轮最高优先级。
+> **清单状态**：第 1 条（P7-fj）落地；「具体待办（P7-fj 重写）」还剩第 2·3 条，均由下一轮 P7-fk
+> （撞车判 `conflict`、拒收原因收成原版两个 token）结清。
 
 > **上一轮：P7-fi 删除确认条也走同一条横条，并带上原版的 error 底色；两条确认条共用一个 Cancel 词
 > （原版 `src/extensions/RemovalConfirmation.tsx:38-44`、`DisableConfirmation.tsx:60-68`、`i18n.ts:554`）**
@@ -5483,12 +5529,13 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 > **清单状态（P7-fj 重写）**：P7-fi 收尾后「具体待办（P7-fh 重写）」归零。本轮换入口：逐文件对照原版的
 > **自定义快捷键的落盘/读盘路径**（`main:src/custom-shortcuts.ts` + `src-tauri/src/commands/config.rs`
 > 的 `normalize_custom_shortcuts`/`normalize_shortcut`/`set_custom_shortcuts`），把清单重新写实为下面
-> **3 条带 file:line 的具体待办**，并取第 1 条落地（P7-fj）。依赖检查：
+> **3 条带 file:line 的具体待办**：第 1 条 P7-fj 落地，第 2·3 条（`conflict` 拒收与两个词）P7-fk 落地，
+> **3 条全部结清、清单归零**。依赖检查：
 > `go list -m -versions github.com/egoist/mygo` 最新仍是 **v0.4.8**（与 `go.mod` 一致），无版本可升、
 > 无新 API 用点；GitHub releases API 限流。只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），
 > 未翻历史提交。
 
-### 具体待办（P7-fj 重写；第 1 条 P7-fj 已落地，第 2·3 条待做）
+### 具体待办（P7-fj 重写；第 1 条 P7-fj、第 2·3 条 P7-fk 均已落地；清单归零）
 
 审计入口：原版 `main:src/custom-shortcuts.ts`（前端）与 `main:src-tauri/src/commands/config.rs` 的
 `normalize_custom_shortcuts`（`:1385-1404`）、`normalize_shortcut`（`:1408-1434`）、
@@ -5517,35 +5564,46 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
      `TestCustomShortcutsOfDropsAHandEditedBadKey`（手改文件里的裸键读盘即丢）。变异核查：把
      `NormalizeCustomShortcuts` 的 `NormalizeBinding` 换回 `strings.TrimSpace` → 三条全红。
 
-2. **自定义快捷键与应用自身按键撞车时，原版判 `conflict` 并拒收，本构建照收照存**（待做）。
+2. **（本轮落地，P7-fk）自定义快捷键与应用自身按键撞车时，原版判 `conflict` 并拒收**。
    - 原版对照：`main:src-tauri/src/commands/config.rs:1666-1718` 的 `set_custom_shortcuts`——
      `reserved` 取 `resolved_shortcuts(&settings)` 的全部值，逐条与 `shortcut_binding_eq` 比对，
      撞上内置组合即 `CustomShortcutRejection { reason: "conflict" }` 并跳过（`:1682-1695`）。
-   - 本构建：`internal/shell/custom.go:24-40` 的 `setCustomShortcuts` 无条件
+   - 本构建（改前）：`internal/shell/custom.go:24-40` 的 `setCustomShortcuts` 无条件
      `s.SetCustomShortcuts(entries)` 落盘；`ApplyCustomShortcuts`（`:54-96`）只挡
      `accelerator == a.summonKey`（`:71`），**不比对** `settings.ShortcutsOf` 的其它动作值——把自定义
      键绑到 `Cmd+W`（`new_command` 的默认）会照常落盘并注册，而应用快捷键那条与此同时仍生效。
-   - 落地 file:line（待做）：`ApplyCustomShortcuts` 注册前用 `settings.ShortcutsOf(snapshot)` 建
-     `reserved` 集合（`shortcuts.Equal` 比对，`select_result` 家族按修饰键判撞），命中的报
-     `reason:"conflict"` 且不注册；`setCustomShortcuts` 只把注册成功的那几条写回磁盘（原版
-     `:1716-1717` 的 `updated.custom_shortcuts = registered`）。
-   - 验收（待做）：自定义键绑 `Cmd+W` 时返回一条 `reason:"conflict"`、磁盘上不出现该条、该键不注册；
-     绑一个空闲键照常落盘并注册；OS 拒收（`taken`）的那条不落盘。
+   - 落地 file:line（已按此落地）：`internal/settings/shortcutmap.go` 新增
+     `CustomShortcutConflict`（`:118`，逐 action 过 `ShortcutsOf`，`shortcuts.Equal` 等值比对 +
+     `select_result` 家族按修饰键判撞；`toggle_window` 交给 shell 的 summon 检查）；
+     `internal/shortcuts/shortcuts.go` 新增 `SameResultFamily`（`:281`）。
+     `internal/shell/custom.go` 的注册收敛成唯一一条 `applyCustomShortcuts`（`:80`）——
+     `ApplyCustomShortcuts`（`:67`）、`setCustomShortcuts`（`:28`）与启动/文件变更三条路都走它，
+     冲突/占用不可再各说各话；`setCustomShortcuts` 只把注册成功的那几条写回磁盘（原版
+     `:1716-1717` 的 `updated.custom_shortcuts = registered`），并在写盘前记下
+     `customSignature`，以免 Store 自己的监听把同一批键再 claim 一次。
+   - 验收（已过）：`internal/settings/shortcutmap_test.go` 的 `TestCustomShortcutConflict`
+     （等值/异拼写/家族任一数字 = 冲突，别的修饰键/空闲键/toggle 键 = 不冲突）；
+     `internal/shell/shell_test.go` 的 `TestCustomShortcutsRefuseConflictsAndKeepOnlyRegistered`
+     （`Cmd+W` 报 `conflict` 且既不注册也不落盘、`Cmd+Shift+T` 报 `occupied` 且不落盘、
+     空闲键注册并落盘）。
 
-3. **拒收原因用自由句而不是原版的两个词，设置页文案对不上原版**（待做）。
+3. **（本轮落地，P7-fk）拒收原因用自由句而不是原版的两个词，设置页文案对不上原版**。
    - 原版对照：`reason` 只有 `"conflict"`/`"occupied"` 两个 token（`config.rs:1691,1707`），
      前端 `main:src/settings/ShortcutsPage.tsx:293-296` 取 `settings.customShortcutsOccupied`
      /`settings.customShortcutsConflict` 两个词（`i18n.ts:412-413`）。
-   - 本构建：`internal/shell/custom.go:68,72,77` 塞的是英文自由句（"the accelerator is not one the
+   - 本构建（改前）：`internal/shell/custom.go:68,72,77` 塞的是英文自由句（"the accelerator is not one the
      system accepts" / "the key already summons floter" / `err.Error()`），`internal/i18n` 的
      `ShortcutsRejected`（`copy.go:6,28`；`internal/settingsui/custom.go:212` 调用）是把 key +
      自由句拼起来，没有那两个词。
-   - 落地 file:line（待做）：`CustomShortcutRejection.Reason` 收敛成 `"conflict"`/`"occupied"`
-     两个 token；`internal/i18n` 新增 `ShortcutsConflict`/`ShortcutsOccupied`（逐字取
-     `i18n.ts:412-413`），`settingsui` 的 `commitCustomShortcuts` 按 token 选词；非法形状在
-     `NormalizeCustomShortcuts` 已丢，不再需要第三个原因。
-   - 验收（待做）：绑撞车键显示「Already used by another floter shortcut」、OS 拒收显示
-     「Most likely used by another app」；两条自由句不再出现在页面上。
+   - 落地 file:line（已按此落地）：`internal/settingsui/settingsui.go` 新增
+     `CustomShortcutReasonConflict`/`CustomShortcutReasonOccupied` 两个 token 常量（`:688`）；
+     `internal/i18n/copy.go` 的 `shortcutsRejectedEN`/`shortcutsRejectedZH` 按 token 选词
+     （逐字取 `i18n.ts:412-413,1299-1300`）；`internal/shell/custom.go` 的 `applyCustomShortcuts`
+     只发这两个 token。非法形状在 `NormalizeCustomShortcuts` 已丢，不再需要第三个原因。
+   - 验收（已过）：`internal/settingsui/view_test.go` 的 `TestCustomShortcutRejectionWording`
+     （en 两词）与 `TestCustomShortcutsPage`（`occupied` 那句）；`internal/i18n/i18n_test.go` 的
+     `TestCustomShortcutRejectionWordsMatchTheOldDictionary`（en/zh 四句 + 未知 token 原样透传）。
+     变异核查：把 zh 映射退回直通 → 该测试立刻红（`无法绑定 Cmd+J：conflict`）。
 
 > **历史清单（保留作「哪些已经做过」的记录）**：
 
