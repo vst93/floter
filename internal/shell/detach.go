@@ -151,30 +151,45 @@ func (a *App) detachedView(c *ui.Context, detached *detachedOutput) {
 			ui.Text(c, detached.title).FontSize(t.FontSize).FontWeight(650).
 				TextColor(t.Text).Grow(1)
 			// The window's own controls are the reference's bar buttons: a
-			// transparent mark that only lands on a pane while hovered.
-			barButton := func(label string, run func()) {
+			// transparent mark that only lands on a pane while hovered. A
+			// disabled one (the re-run key while a run is in flight) reports no
+			// clicks and dims to the reference's 0.5 opacity — and, as its
+			// `:hover:not(:disabled)` asks, never lights up either.
+			barButton := func(label string, enabled bool, run func()) ui.Element {
 				button := ui.Row(c).Focusable().Shrink(0).Padding(t.Space(1), t.Space(2.5)).
 					Radius(tokens.RadiusSM).Label(label)
-				if button.Hovered() {
+				if !enabled {
+					button.Disabled(true)
+				} else if button.Hovered() {
 					button.Background(tokens.ControlHover)
 				}
-				button.Children(func() {
-					ui.Text(c, label).FontSize(tokens.Caption).TextColor(tokens.TextTertiary)
-				})
 				if button.Clicked() {
 					run()
 				}
+				return button
 			}
+			// The re-run key is a text mark the reference disables for the whole
+			// run (`DetachedPluginApp.tsx:293-306`).
 			if detached.entry != nil {
-				barButton(copy.OutputWindowRerun, func() {
-					if !detached.running {
-						a.rerunDetached(detached)
-					}
+				barButton(copy.OutputWindowRerun, !detached.running, func() {
+					a.rerunDetached(detached)
+				}).Children(func() {
+					ui.Text(c, copy.OutputWindowRerun).FontSize(tokens.Caption).
+						TextColor(tokens.TextTertiary)
 				})
 			}
-			barButton(copy.OutputWindowClose, func() {
-				detached.win.Close()
+			// The close key is the reference's icon key, not a word
+			// (`DetachedPluginApp.tsx:307-315`): an X on the key face, with the
+			// word kept for the accessible name only.
+			barButton(copy.OutputWindowClose, true, func() {
+				if detached.win != nil {
+					detached.win.Close()
+				}
 				a.forgetDetached(detached)
+			}).Children(func() {
+				if glyph, ok := launcher.Glyph("close"); ok {
+					ui.Icon(c, glyph).Size(t.Space(4), t.Space(4)).TextColor(tokens.TextTertiary)
+				}
 			})
 		})
 		ui.Scroll(c.Key("detached.output")).TrackScroll(&detached.scroll).Fill().

@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1378 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1384 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1378 项测试
+go test -count=1 ./...         # 1384 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -100,7 +100,44 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-gb 独立窗口（pin/detach）的标题与词表回到原版
+> **最新一轮：P7-gd 独立窗口 bar 的关闭键改成原版的 X 图标、rerun 恢复运行中禁用态
+> （原版 `src/plugin-window/DetachedPluginApp.tsx:284-315`、`src/styles/launcher.css:1752-1771`）**
+> ——P7-gb 收尾后「具体待办（P7-gb 重写）」还剩第 2·3 条，本轮取最高优先级的第 2 条落地（P7-gd）。
+> 依赖检查：`go.mod` 已是 **v0.4.8** = GitHub releases latest，无版本可升；只对照 `main`
+> （`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离 1（P7-gd·关闭键画的是词不是 X）**：原版 bar 的两个键都叫 `.plugin-window__bar-button`，但
+> close 键的键面是图标键——`<X size={16} strokeWidth={1.8} aria-hidden>`，只有 `title`/`aria-label`
+> 取 `pluginWindow.close`（`DetachedPluginApp.tsx:307-315`）。**本构建（改前）**：
+> `internal/shell/detach.go` 的 `barButton(label, run)` 对 rerun 与 close 都画 `ui.Text(label)`，
+> 词表上「Close」和「Rerun」是两个同形的文字键。
+>
+> **偏离 2（P7-gd·rerun 没有运行中禁用态）**：原版 rerun 键 `disabled={state.status === "running"}`，
+> CSS `:disabled { opacity: 0.5; cursor: default }`、hover 规则也带 `:not(:disabled)`
+> （`DetachedPluginApp.tsx:293-306`、`launcher.css:1766-1771`）。**本构建（改前）**：
+> `rerunDetached` 内部挡了 `detached.running`，但键面永远是可点的亮色，用户看不出「正在执行」。
+>
+> **落地**：`internal/shell/detach.go` 的 `detachedView`——`barButton(label, enabled, run)` 在
+> `enabled == false` 时 `Disabled(true)`（mygo 的 `ui.Element.Disabled` 会挡住点击/焦点，并按框架
+> 规则把整棵子树降到 0.5 不透明度，正是原版 `:disabled` 的观感），且只在启用时才画 hover 底；rerun
+> 传 `!detached.running` 并仍用文字键；close 传 `true` 改为 `ui.Icon(c, launcher.Glyph("close"))`
+> （`.Size(t.Space(4), t.Space(4))`，即原版的 16px），`Label(copy.OutputWindowClose)` 继续保留可访问名。
+> 关闭路径补 `detached.win != nil` 守卫（测试里窗口常为 nil，原代码会 panic）。
+>
+> **验收**：新增 `internal/shell/detachbar_test.go` 三条——`TestTheCloseKeyIsTheReferenceIconKey`
+> （close 键墨迹纵横比 ≈1、rerun 文字键更宽更扁，且两个可访问名都在）、
+> `TestTheRerunKeyDimsWhileARunIsInFlight`（`running` 时 rerun 键的墨色比空闲时更贴近底色）、
+> `TestTheCloseKeyClosesTheWindow`（点 close 的图标键仍能关窗，同时走到 nil 守卫）。变异核查：把
+> close 换回文字 → 纵横比 2.88、红；把 `Disabled` 去掉 → 两次墨色完全相同、红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿（1384 项）、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：第 2 条（P7-gd）落地；「具体待办（P7-gb 重写）」还剩第 3 条（body 的
+> running/failed/empty 状态行），是下一轮最高优先级；第 2 条文中「文本窗是否也补 bar」的取舍留作
+> 第 3 条之后。
+
+> **P7-gb 独立窗口（pin/detach）的标题与词表回到原版
 > （原版 `src/plugin-window/DetachedPluginApp.tsx:120-124`、`src/plugin-window/detach.ts:140`、
 > `src/i18n.ts:46-49,969-976`）**
 > ——P7-ga 收尾后「具体待办（P7-fz 重写）」归零，本轮按规则回到「对照原版排查偏离点」，换一个
@@ -6205,7 +6242,7 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-### 具体待办（P7-gb 重写；第 1 条 P7-gb 已落地，第 2·3 条待做）
+### 具体待办（P7-gb 重写；第 1 条 P7-gb、第 2 条 P7-gd 已落地，第 3 条待做）
 
 审计入口：原版 `main:src/plugin-window/DetachedPluginApp.tsx`（独立插件窗口的 React 表面，
 `backup/main-pre-mygo` = v0.3.14 原版树）与它吃的两个纯模块 `main:src/plugin-window/detach.ts`、
@@ -6230,7 +6267,7 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
      （en/zh 三条词逐字）与 `TestDetachedWindowTitleCarriesTheAppTail`。变异核查：把
      `detachWindowTitle` 换回裸标签 → 标题条红；三个词任一改回旧译 → 词表条红。
 
-2. **（待做）独立窗口 bar 的关闭键不是原版的 X 图标、rerun 没有运行中禁用态。**
+2. **（已落地，P7-gd）独立窗口 bar 的关闭键不是原版的 X 图标、rerun 没有运行中禁用态。**
    - 原版对照：`DetachedPluginApp.tsx:284-315` —— bar 的两个键都是 `plugin-window__bar-button`：
      rerun 是一个文本键，`disabled={state.status === "running"}`，`title`/`aria-label` 取
      `pluginWindow.rerun`；close 是一个**图标键** `<X size={16} strokeWidth={1.8} aria-hidden>`，
@@ -6238,7 +6275,7 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
    - 本构建（现状）：`internal/shell/detach.go:145-169` 的 `barButton(label, run)` 对两个键都画
      **文本**，没有 X 图形；`rerunDetached`（`:184-193`）内部用 `detached.running` 挡了一下，但
      `barButton` 没有禁用态，键面看不出运行中。
-   - 待做 file:line（建议）：`internal/shell/detach.go` 的 `detachedView` 的 bar——把 close 换成
+   - 落地 file:line（P7-gd）：`internal/shell/detach.go` 的 `detachedView` 的 bar——把 close 换成
      图形键（`mustGlyph`/`glyph` 里补一个 X 记号，参考 `internal/launcher/glyphs.go` 现有记号的写法），
      rerun 在 `detached.running` 时画成禁用墨色并把点击短路。`internal/i18n` 无需新词（复用
      `OutputWindowRerun`/`OutputWindowClose`，后者只留给 `aria`/tooltip）。
@@ -6271,8 +6308,8 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
      两者不重复（原版 failed 行只在**运行管线**失败时出现，退出码非零仍是 `done`）。
 
 > P7-ga 之后「尚未做」归零，本轮按审计入口换到**独立插件窗口**（此前从未逐字段对照），把清单重写为
-> 上面 3 条带 file:line / 原版对照 / 验收标准的具体待办，并取第 1 条落地（P7-gb）；第 2·3 条
-> （bar 的 X/禁用态、body 的三条状态行）是下一轮最高优先级。
+> 上面 3 条带 file:line / 原版对照 / 验收标准的具体待办，并取第 1 条落地（P7-gb）；第 2 条
+> （bar 的 X/禁用态）由 P7-gd 落地，第 3 条（body 的三条状态行）是下一轮最高优先级。
 
 ### 具体待办（P7-fz 重写；2 条已全部落地：第 1·2 条 P7-ga）
 
