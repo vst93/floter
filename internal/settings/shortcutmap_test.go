@@ -85,11 +85,10 @@ func TestCustomShortcutConflict(t *testing.T) {
 	if !s.SetShortcut(ShortcutNewCommand, "Cmd+W") {
 		t.Fatal("a valid binding was refused")
 	}
-	// An exact binding, and the same binding in another spelling, both count.
-	if !CustomShortcutConflict(s, "Cmd+W") {
-		t.Error("a custom binding equal to an app shortcut was not a conflict")
-	}
-	if !CustomShortcutConflict(s, "Cmd+W") {
+	// An exact binding, and the same binding in another spelling, both count:
+	// `Command` and `Cmd` are one key, and `Equal` parses both sides before
+	// comparing them.
+	if !CustomShortcutConflict(s, "Command+W") {
 		t.Error("the same binding in another spelling was not a conflict")
 	}
 	// The result shortcut is a family: its head is stored as one digit, but

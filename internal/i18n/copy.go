@@ -36,7 +36,14 @@ func calculatorRetentionZH(days int) string {
 }
 
 func shortcutsRejectedZH(key, reason string) string {
-	return "无法绑定 " + key + "：" + reason
+	switch reason {
+	case "conflict":
+		return "无法绑定 " + key + "：已被 floter 的其他快捷键占用"
+	case "occupied":
+		return "无法绑定 " + key + "：可能已被其他应用占用"
+	default:
+		return "无法绑定 " + key + "：" + reason
+	}
 }
 
 // freshnessRelativeEN words a past time the way the platform's own
