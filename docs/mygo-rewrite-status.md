@@ -100,7 +100,41 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-gd 独立窗口 bar 的关闭键改成原版的 X 图标、rerun 恢复运行中禁用态
+> **最新一轮：P7-ge 历史行的两步删除回到原版的键盘专属——移除行内 ✕ 控件，装填后只有
+> “Press again to delete”纯文本提示
+> （原版 `src/launcher/LauncherResults.tsx:805,908-911`、`src/styles/launcher.css:1450-1455`；
+> R50 的删除状态机在 `src/plugins/history-actions.ts`，UI 只有 `.launcher-result__armed` 文本，
+> 没有点击控件）**
+> ——对照上一轮 P7-gd 之后的「具体待办（P7-gb 重写）」时顺带发现：P7-v 之后本构建的行尾
+> ✕ 控件仍是自造的第二条删除路，原版从没有过点击删除。本轮把这条多余控件清掉，删除只走
+> 键盘 ⌘⌫，装填行只显示提示文字（`deleteConfirm`）。依赖检查：`go.mod` 已是 **v0.4.8** =
+> GitHub releases latest，无版本可升；只对照 `main`（`backup/main-pre-mygo` = v0.3.14
+> 原版树），未翻历史提交。
+>
+> **偏离（P7-ge·删除行有自造的点击控件）**：原版 `LauncherResults.tsx:805` 只问
+> `deleteArmed = item.id === armedDeleteId && favoriteEntry !== undefined`，`:908-911` 在
+> 装填时画一个 `<span className="launcher-result__armed">{t("launcher.deleteConfirm")}</span>`；
+> CSS `launcher.css:1450-1455` 是 `--text-warning` + `--text-caption` + `font-weight: 560`。
+> **本构建（改前）**：`internal/launcher/launcher.go` 的 `rowBody` 在未装填时用
+> `a.rowControl(c, "close", copy.HistoryDelete, …)` 画 ✕，装填时除提示文字外还画一个可点击的
+> close 图标；i18n 因此多一个 `HistoryDelete`（“Delete”/“删除”）键。
+>
+> **落地（P7-ge）**：`internal/launcher/launcher.go` 的 `rowBody` 删掉 `rowControl` 的 close 分支
+> 与装填态里的 close 图标，装填时只画 `copy.DeleteConfirm`（字号 caption、字重 560、`t.Warning`，
+> 与原版一致）；`internal/i18n` 删除不再使用的 `HistoryDelete` 键；`view_test.go` 的
+> `TestClipboardModeFavoritesAndDelete` / `TestCalculatorDeleteControl` 相应改为用 `deleteKey`。
+>
+> **验收**：两者都在字段键状态机测试（`fieldkeys_test.go`）的既有覆盖上——`⌘⌫` 装填、再按确认、
+> Escape/其他键/超时解除都不变；视图测试改用 `deleteKey` 仍走完整两步。原版对照已确认没有点击
+> 删除控件。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：「具体待办（P7-gb 重写）」第 3 条（body 的 running/failed/empty 状态行）仍是
+> 下一轮最高优先级；本轮无新待办。
+
+> **P7-gd 独立窗口 bar 的关闭键改成原版的 X 图标、rerun 恢复运行中禁用态
 > （原版 `src/plugin-window/DetachedPluginApp.tsx:284-315`、`src/styles/launcher.css:1752-1771`）**
 > ——P7-gb 收尾后「具体待办（P7-gb 重写）」还剩第 2·3 条，本轮取最高优先级的第 2 条落地（P7-gd）。
 > 依赖检查：`go.mod` 已是 **v0.4.8** = GitHub releases latest，无版本可升；只对照 `main`
@@ -6225,7 +6259,8 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 **已完成（P7-v）：历史行的删除键**
 - 此前记为框架限制（`editor.wants` 对带修饰键的 Backspace 返回 true，且编辑器分支没有 `claimed`
   守卫，窗口快捷键够不到）。现在由**字段自己的 `HandleInput`** 回答（见 P7-v）：`⌘⌫` / `Ctrl+⌫`
-  装填并确认选中历史行的两步删除，`⌃⇧⌫` 清空命令历史。行尾的 ✕ 控件仍在，两条路共用同一个装填状态。
+  装填并确认选中历史行的两步删除，`⌃⇧⌫` 清空命令历史。行尾的 ✕ 控件此前保留，P7-ge 对照
+  原版移除（原版只有键盘 ⌘⌫ 与装填后的 `deleteConfirm` 文本，没有点击删除）。
 - 教训：`c.Shortcut` 够不到的键，`Element.HandleInput` 够得到——前者排在编辑器之后，后者排在最前。
 
 **P4-ab 本机工具连接 + 窗口放置**（本轮）
