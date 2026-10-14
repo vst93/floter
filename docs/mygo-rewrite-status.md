@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1231 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1233 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1231 项测试
+go test -count=1 ./...         # 1233 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -76,7 +76,8 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 - 搜索：应用扫描（macOS 读 `Info.plist` 与本地化名字 + 别名 + 图标、Linux `.desktop`、Windows `.lnk`）、
   算式求值、PATH 命令（可开关）、最近使用、扩展命令与参数模式、剪贴板/浏览器/计算器三种内置模式
   （触发词可直接进入，含旧版中文词），结果虚拟化、编号快捷键 ⌘1–⌘0、行图标与 120ms 淡入。
-- 玻璃保真：材质阶梯 + 雾层 + `ScrollEdge`（读源码证伪了「用 glass.Blur 复刻桌面模糊」）。
+- 玻璃保真：材质阶梯 + 雾层 + `ScrollEdge`（读源码证伪了「用 glass.Blur 复刻桌面模糊」）；
+  控件透镜按原版 `glass-reaxis` census 逐条落地（P7-em）、帧 sheen 回到原版固定 token（P7-en）。
 
 **扩展平台**（P3）
 - 与旧版同一份磁盘布局（`extension-repository.json` 未知键原样保留、包目录、`extension-data`）。
@@ -99,7 +100,48 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-em F3a 控件透镜落地（原版 `src/tests/glass-reaxis.test.ts:47-90` 的 lens census、
+> **最新一轮：P7-en F3b 帧 sheen 回固定口径（原版 `src/styles/base.css:628-629,906-907`、
+> `src/styles/launcher.css:119`）** —— P7-em 收尾后「尚未做」清单里 F3b 是**文档点名的下轮最高
+> 优先级**，且它此前的阻塞条件（「先决于 F3a」，怕固定帧 sheen 让三档在无窗口材质时完全一致）
+> 已被 P7-em 解除：控件透镜已成可测像素（四个包的像素测试都钉住 0.5/1/1.6 单调上升）。依赖检查：
+> GitHub releases API 限流，`go list -m -versions github.com/egoist/mygo` 最新仍是 **v0.4.8**
+> （与 `go.mod` 一致），无版本可升；只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），
+> 未翻历史提交。
+>
+> **偏离（F3b）**：原版卡片是 `linear-gradient(180deg, var(--sheen-top), var(--sheen-bottom)),
+> var(--launcher-tint)`（`launcher.css:119`），而 `--sheen-top`/`--sheen-bottom` 是**按外观固定的
+> token**（`base.css:628-629` 暗 0.046/0.01、`:906-907` 亮 0.66/0.22），**不随 `[data-glass]` 变**；
+> 档位在**控件**上走的 `--glass-lens-scale`（`:784/:791/:798`）与帧的亮面无关。本构建
+> `internal/theme/theme.go` 把帧 sheen 写成 `sheen = spec.TintAlpha * spec.LensScale`（P7-c/P7-d 为
+> 「3 档看不出区别」加的耦合），于是帧的亮面随档位变——原版不这样。
+>
+> **落地**：`internal/theme/theme.go` 的 sheen 改回**按外观固定的 token**（`spec.Glass` 时
+> `capAlpha(p.sheenTop/p.sheenBottom, spec.TintAlpha)`，否则为 0，即 `off` 无 sheen）；
+> `capAlpha` 保留（比帧还重的 sheen 会让薄帧顶部比滑杆更密，`FaceFill` 的补偿不能要负的 base），
+> 所以帧的 **alpha 仍是滑杆的**（`FaceFill` 的补偿照旧）；`scaleAlpha` 的注释收窄为「只管
+> `--glass-lens-scale` 的控件透镜」，`Tokens.SheenTop/SheenBottom` 的注释写明「每档同一个固定 token」。
+>
+> **验收**：
+> - `internal/theme/theme_test.go` 两条（新）：`TestTheFrameSheenIsFixedAcrossStops`（frosted /
+>   regular / liquid 的 `SheenTop`/`SheenBottom` 完全相等，且等于按外观固定 token 的 `capAlpha` 值；
+>   `off` 为零）、`TestTheFrameSheenIsTheFixedTokenNotTheTint`（滑杆最底时暗色仍是原版的 0.046、
+>   亮色是「固定 token 被 cap」，不是「tint 被缩放」）。
+> - `internal/shell/glass_test.go` 的 `TestTheGlassStopsAreVisiblyDifferent` **改写并改名**为
+>   `TestTheFrameSheenIsFixedAcrossStops`（F3b 待办点名要改写它）：帧顶带（y=90..120）里 off 无
+>   sheen、三档颜色**相同**（RGB sum 极差 ≤1，残差是控件透镜渗进带均值），而三档在**控件**上的差
+>   由 P7-em 的四组像素测试与 `glasscensus_test.go` 钉住；帧 alpha 仍是滑杆的（`off` 半透明、
+>   开启不加密）。
+> - 变异核查：把 `theme.go` 的 sheen 改回 `* spec.LensScale` → theme 两条红（「the stop graded the
+>   sheen's top/bottom」），shell 那条也红（light：三档差 13.22 RGB sum）。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 27 包全绿
+> （1233 项）、`GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：**F3a、F3b 均已落地**（用户反馈 F3「毛玻璃效果配置」整条收口）；余下 F4e 的
+> repair 一支、F4f、F4g、F-new。下轮最高优先级是 **F4f**（移除确认条按 kind 说话，F4a 留下的
+> 尾巴，file:line 与验收都已写实）——除非 F4g 的逐入口对照先查出新缺口。
+>
+> **上一轮：P7-em F3a 控件透镜落地（原版 `src/tests/glass-reaxis.test.ts:47-90` 的 lens census、
 > `src/styles/base.css:188,231,593-597`）** —— P7-el 之后「尚未做」清单五条（F4e 的 repair 一支、
 > F4f、F4g、F3a、F3b）全是具体项，文档点名 **F3a 为下轮最高优先级**，本轮取它。依赖检查：
 > GitHub releases API 限流，`go list -m -versions github.com/egoist/mygo` 最新仍是 **v0.4.8**
@@ -6952,27 +6994,26 @@ Go 侧把原版的三条规则写偏了。依赖检查：`go list -m -versions g
     开关（`switchControl`）、自定义模式分段控件（`segmentedControl`）、侧栏/头栏/保存横幅的 hover、
     控制台 `Segmented`、toast 动作 chip、终端栏按钮 hover 全部接上透镜；`internal/shell/glasscensus_test.go`
     把原版 13 条选择器逐条映射（file + 透镜调用 + 像素测试）。**控件一侧的验收已成立**（常背景隔离帧
-    sheen 后，控件 RGB sum 随 0.5/1/1.6 严格上升，regular→liquid ≥ 数百到数千）；剩下 F3b 去把**帧** sheen
-    改回固定口径。
-- **F3b · 玻璃作用范围：控件 vs 整体；整体弱化、阴影细节加强（P7-em 后：F3a 已落地，本条解除「先决」，为下轮最高优先级）。**
+    sheen 后，控件 RGB sum 随 0.5/1/1.6 严格上升，regular→liquid ≥ 数百到数千）；F3b（**帧** sheen 回固定口径）已由 P7-en 落地，见下。
+    改回固定口径（已落地，P7-en）。
+- **F3b · 玻璃作用范围：控件 vs 整体；整体弱化、阴影细节加强（**P7-en 已落地**）。**
   - **原版对照**：`main:src/styles/launcher.css:119` 的卡片是
     `linear-gradient(180deg, var(--sheen-top), var(--sheen-bottom)), var(--launcher-tint)`，而
     `--sheen-top/-bottom` 是**固定 token**（`main:src/styles/base.css:628-629` dark 0.046/0.01、
     `:906-907` light 0.66/0.22），**不随 `[data-glass]` 变**；档位的可见 rung 只在控件透镜
     （`base.css:569-572` 的 `--glass-lens-*` 乘 `--glass-lens-scale`）与窗口材质上。
-  - **本构建（偏离）**：`internal/theme/theme.go:286-291` 把帧的 sheen 写成
+  - **本构建（已修）**：`internal/theme/theme.go` 曾把帧的 sheen 写成
     `sheen = spec.TintAlpha * spec.LensScale`（P7-d 为「3 档看不出区别」加的耦合），于是**帧**的亮面随
     档位变，而原版的帧 sheen 固定。
-  - **待做 file:line（P7-em 后）**：**现已可直接落地**——F3a 已把档位差异落到控件透镜，
-    且控件像素差已实测（≥ 数百 RGB sum，不再是 ≤0.4）。把 `theme.go` 的帧 sheen 改回固定口径
-    （`spec.Glass` 时取常量、不乘 `LensScale`）不会再让三档「完全一致」。落地步骤与验收见
-    文末「具体待办（P7-el 重写）」的 **F3b**。
-  - **验收**：新增/改写像素测试——同一 `main_opacity` 下，**帧**的亮面颜色在 regular 与 liquid 之间
-    相同（原版），而**控件**的 lens 强度按 0.5/1/1.6 单调上升；现有
-    `internal/shell/glass_test.go` 的 `TestTheGlassStopsAreVisiblyDifferent` 需随之改写（它当前断言帧
-    亮面随档位变，是 P7-c/P7-d 的产物）。
+  - **P7-en 落地**：`theme.go` 改为 `spec.Glass` 时取按外观固定的
+    `capAlpha(p.sheenTop/p.sheenBottom, spec.TintAlpha)`（`off` 为 0），`scaleAlpha` 收窄为只管控件透镜。
+    落地步骤与验收见文末「具体待办（P7-el 重写）」的 **F3b** 与上文 P7-en 记录。
+  - **验收（已过）**：`internal/theme/theme_test.go` 两条新测试钉「三档 sheen 完全相等且等于固定 token
+    的 cap 值」与「固定 token 而非 tint 缩放」；`internal/shell/glass_test.go` 的
+    `TestTheGlassStopsAreVisiblyDifferent` 改写并改名为 `TestTheFrameSheenIsFixedAcrossStops`（帧顶带
+    三档同色、off 无 sheen），而**控件**的 lens 强度仍按 0.5/1/1.6 单调上升（P7-em 的四组像素测试）。
   - **风险**：帧 sheen 参与透明度的 `FaceFill` 补偿（`theme.go` 的 `baseAlpha`/`capAlpha` 与
-    `internal/shell/transparency_test.go`），改动须重跑该套像素测试。
+    `internal/shell/transparency_test.go`）——P7-en 已重跑该套像素测试，全绿。
 
 ### F4 · 集成组件逻辑差异（**P7-eh 落地 F4a；P7-ei 落地 F4b；P7-ek 落地 F4c；P7-ej 落地 F4d；P7-el 落地 F4e 的 Reconnect 一支**）
 
@@ -7098,13 +7139,14 @@ Go 侧把原版的三条规则写偏了。依赖检查：`go list -m -versions g
   余下 F4e 的 `extensions_repair` 一支、F4f、F4g 与 **F3a/F3b**——全部已写成文末「具体待办
   （P7-el 重写）」的五条带 file:line 的具体项。
 
-### 具体待办（P7-el 重写；F3a 已由 P7-em 落地，余下 F4e 的 repair 一支 + F4f/F4g/F3b/F-new）
+### 具体待办（P7-el 重写；F3a 已由 P7-em 落地、F3b 已由 P7-en 落地，余下 F4e 的 repair 一支 + F4f/F4g/F-new）
 
 P7-ej/P7-ek 之后清单上只剩 F3a（一个待决策的分叉）与 F3b（已实测标为「先决于 F3a」）。P7-el 按规则
 把清单写实为五条带 file:line / 原版对照 / 验收标准的待办，并取其中新查出的真实缺口（F4e）落地。
 **P7-em 又取清单里文档点名的最高优先级 F3a 并落地**（详见上文 P7-em 记录）：控件透镜已成可测像素，
-F3b 因此解除「先决」。下轮最高优先级是 **F3b（帧 sheen 回固定口径）**。下面每条的「原版对照」都只读
-`main`（v0.3.14 原版树）。
+F3b 因此解除「先决」。**P7-en 再取 F3b 并落地**（详见上文 P7-en 记录）：帧 sheen 回固定 token，
+用户反馈 F3「毛玻璃效果配置」整条收口。**下轮最高优先级是 F4f**（移除确认条按 kind 说话），除非
+F4g 的逐入口对照先查出新缺口。下面每条的「原版对照」都只读 `main`（v0.3.14 原版树）。
 
 #### F4e · 已连接卡片的修复入口（**本轮落地，P7-el**）
 
@@ -7209,24 +7251,24 @@ F3b 因此解除「先决」。下轮最高优先级是 **F3b（帧 sheen 回固
   `.extensions-action-button`，没有「静止透明、hover 才亮」的独立图标按钮）。
   **剩下的是 F3b**：把**帧** sheen 改回固定口径（控件一侧已成立）。
 
-#### F3b · 帧 sheen 回固定口径（**P7-em 后解除「先决于 F3a」，为下轮最高优先级**）
+#### F3b · 帧 sheen 回固定口径（**本轮落地，P7-en**）
 
 - **原版对照**：`main:src/styles/launcher.css:119` 的卡片是
   `linear-gradient(180deg, var(--sheen-top), var(--sheen-bottom)), var(--launcher-tint)`，而
   `--sheen-top/-bottom` 是**固定 token**（`base.css:628-629` dark 0.046/0.01、`:906-907` light 0.66/0.22），
   **不随 `[data-glass]` 变**；档位的可见 rung 只在控件透镜与窗口材质上。
-- **本构建（偏离）**：`internal/theme/theme.go:286-291` 把帧的 sheen 写成
+- **本构建（已修）**：`internal/theme/theme.go` 曾把帧的 sheen 写成
   `sheen = spec.TintAlpha * spec.LensScale`（P7-c/P7-d 为「3 档看不出区别」加的耦合），于是帧的亮面
   随档位变，而原版的帧 sheen 固定。
-- **为什么不现在改（已过时，P7-em 更新）**：F3a 实测前，固定帧 sheen 会让三档在没有窗口材质
-  （Linux/无头）时**完全一致**，重演用户报过的「3 档看不出区别」。F3a 已落地并实测控件像素差
-  （≥ 数百 RGB sum），本条**现在可以直接落地**。
-- **落地 file:line**：`internal/theme/theme.go:286-291` 改成 `spec.Glass` 时取常量（不乘
-  `LensScale`）；同步改写 `internal/shell/glass_test.go` 的
-  `TestTheGlassStopsAreVisiblyDifferent`（它当前断言帧亮面随档位变，是 P7-c/P7-d 的产物）。
-- **验收**：同一 `main_opacity` 下**帧**亮面在 regular 与 liquid 之间相同，而**控件** lens 强度按
-  0.5/1/1.6 单调上升；`internal/shell/transparency_test.go` 的 `FaceFill`/`baseAlpha` 像素测试全绿
-  （帧 sheen 参与透明度的补偿计算，改完必须重跑这一套）。
+- **P7-en 落地**：`internal/theme/theme.go` 改为 `spec.Glass` 时取按外观固定的
+  `capAlpha(p.sheenTop/p.sheenBottom, spec.TintAlpha)`（`off` 为 0），`scaleAlpha` 收窄为只管
+  控件透镜；`internal/theme/theme_test.go` 两条新测试钉住「三档 sheen 完全相等且等于固定 token 的
+  cap 值」与「固定 token 而非 tint 缩放」；`internal/shell/glass_test.go` 的
+  `TestTheGlassStopsAreVisiblyDifferent` 改写并改名为 `TestTheFrameSheenIsFixedAcrossStops`
+  （帧顶带三档同色、off 无 sheen；控件一侧由 P7-em 的四组像素测试钉住）。详见上文 P7-en 记录。
+- **验收（已过）**：同一 `main_opacity` 下**帧**亮面在 regular 与 liquid 之间相同，而**控件** lens
+  强度按 0.5/1/1.6 单调上升；`internal/shell/transparency_test.go` 的 `FaceFill`/`baseAlpha` 像素测试
+  全绿（帧 sheen 参与透明度的补偿计算，改完重跑过这一套）。
 
 #### F-new · 脚本内容编辑器换用 mygo `ui/editor`（v0.4.8 新包的自然用点）
 

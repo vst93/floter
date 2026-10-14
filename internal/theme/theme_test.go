@@ -5,6 +5,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"floter/internal/glassmap"
 	"floter/internal/settings"
 )
 
@@ -265,6 +266,74 @@ func TestLensScalesWithTheGlassStop(t *testing.T) {
 func withStep(s settings.Settings, step string) settings.Settings {
 	s.GlassStep = step
 	return s
+}
+
+// base.css's `--sheen-top` / `--sheen-bottom` are fixed tokens per appearance
+// (:628-629 dark 0.046/0.01, :906-907 light 0.66/0.22) and do **not** vary
+// with `[data-glass]`: the only token a stop moves is `--glass-lens-scale`,
+// and that grades the **control** lens (TestLensScalesWithTheGlassStop), not
+// the frame's lit face. So the frame's sheen is the same on `frosted`,
+// `regular` and `liquid` — an earlier rewrite graded it by the stop to make the
+// stops visible where the window has no material, which is exactly the
+// deviation F3b removes — and the off stop drops it with the material.
+func TestTheFrameSheenIsFixedAcrossStops(t *testing.T) {
+	for _, appearance := range []string{"dark", "light"} {
+		base := settings.Settings{Theme: appearance, MainOpacity: settings.DefaultMainOpacity}
+		frosted := For(withStep(base, "frosted"), true)
+		regular := For(withStep(base, "regular"), true)
+		liquid := For(withStep(base, "liquid"), true)
+
+		// The three effect stops paint the same lit face: the sheen is not a
+		// rung.
+		if frosted.SheenTop != regular.SheenTop || regular.SheenTop != liquid.SheenTop {
+			t.Errorf("%s: the stop graded the sheen's top: %v / %v / %v", appearance, frosted.SheenTop, regular.SheenTop, liquid.SheenTop)
+		}
+		if frosted.SheenBottom != regular.SheenBottom || regular.SheenBottom != liquid.SheenBottom {
+			t.Errorf("%s: the stop graded the sheen's bottom: %v / %v / %v", appearance, frosted.SheenBottom, regular.SheenBottom, liquid.SheenBottom)
+		}
+		// And it is the reference's own fixed token, capped at the frame's
+		// alpha so `FaceFill`'s compensation can keep the frame's alpha the
+		// slider's (see `baseAlpha`).
+		spec := glassmap.SpecFor("regular", settings.DefaultMainOpacity)
+		palette := paletteFor(Appearance(appearance))
+		wantTop := capAlpha(palette.sheenTop, spec.TintAlpha)
+		wantBottom := capAlpha(palette.sheenBottom, spec.TintAlpha)
+		if regular.SheenTop != wantTop || regular.SheenBottom != wantBottom {
+			t.Errorf("%s: sheen = %v / %v, want the palette's capped %v / %v", appearance, regular.SheenTop, regular.SheenBottom, wantTop, wantBottom)
+		}
+		// The off stop has no glass, so it paints no sheen at all.
+		if off := For(withStep(base, "off"), true); off.SheenTop.A != 0 || off.SheenBottom.A != 0 {
+			t.Errorf("%s: the off stop kept a sheen: %v / %v", appearance, off.SheenTop, off.SheenBottom)
+		}
+	}
+}
+
+// The sheen is a fixed token, not the frame's tint scaled: at the slider's
+// bottom the dark appearance keeps the reference's own 0.046 (well under the
+// tint, so the cap is inert), while the light appearance's 0.66 is capped to
+// the thin frame. Either way the frame's alpha stays the slider's — the
+// `FaceFill` compensation is the other half of that promise.
+func TestTheFrameSheenIsTheFixedTokenNotTheTint(t *testing.T) {
+	at := func(appearance string, opacity uint8) Tokens {
+		return For(settings.Settings{Theme: appearance, MainOpacity: opacity}, true)
+	}
+	// The dark token is under the tint at the slider's bottom, so the cap is
+	// inert and the pixel is the reference's own fixed alpha.
+	if got, want := at("dark", settings.MinWindowOpacity).SheenTop, paletteFor(Dark).sheenTop; got != want {
+		t.Errorf("the dark sheen at the slider's bottom = %v, want the fixed token %v", got, want)
+	}
+	// The light token is heavier than a thin frame, so the cap bites — but the
+	// value is still the fixed token capped, never the tint scaled.
+	light := paletteFor(Light)
+	spec := glassmap.SpecFor("liquid", settings.MinWindowOpacity)
+	want := capAlpha(light.sheenTop, spec.TintAlpha)
+	got := at("light", settings.MinWindowOpacity).SheenTop
+	if got != want {
+		t.Errorf("the light sheen at the slider's bottom = %v, want the capped fixed token %v", got, want)
+	}
+	if want.A >= light.sheenTop.A {
+		t.Errorf("the light cap did not bite: %d vs the token's %d", want.A, light.sheenTop.A)
+	}
 }
 
 // A desktop that asked for more contrast gets base.css's

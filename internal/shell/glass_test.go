@@ -79,24 +79,26 @@ func meanBandRGB(tt *ui.Tester, y0, y1 int) (r, g, b float64) {
 	return r / float64(n), g / float64(n), b / float64(n)
 }
 
-// The glass stop is the effect ladder, and it must be visible in the rendered
-// frame — not only in an internal token. The old build's `--glass-step-blur`
-// (10/22/28) is the OS material (see vibrancyForStop) and its
-// `--glass-lens-scale` (0.5/1/1.6) is the lens the scene paints itself. The
-// frame's lit face (the sheen) is graded by that lens, so the pixel-level
-// acceptance is: the three effect stops are **visibly different in colour**,
-// the off stop is the plain translucent frame (no sheen), and the frame's own
-// alpha is the slider's on every stop — turning the glass on does not make the
-// window denser (「开启时又没有透明了」).
+// The glass stop is the effect ladder, and its visible rungs are the window's
+// OS material (see vibrancyForStop — the blur ladder 10/22/28) and the
+// **control** lens (`--glass-lens-scale` 0.5/1/1.6, base.css:784/791/798). The
+// frame's own lit face is *not* a rung: base.css's `--sheen-top` /
+// `--sheen-bottom` are fixed tokens that do not vary with `[data-glass]`
+// (:628-629 dark 0.046/0.01, :906-907 light 0.66/0.22), so every effect stop
+// paints the same sheen over the same tint.
 //
-// Two earlier rewrites failed here. The first mapped only the haze, so
-// `frosted` and `regular` were 0.03 of alpha apart and the user read the three
-// stops as one (「玻璃效果…看起来好像没什么区别」). The second raised the
-// frame's alpha by the haze, so a glass-on frame was denser than the off one
-// and the transparency slider's low end went inert (「关闭液态玻璃效果时透明底
-// 可以了，但是开启时又没有透明了」). Now the stop moves the lens (the frame's
-// lit face and the controls), never the fill.
-func TestTheGlassStopsAreVisiblyDifferent(t *testing.T) {
+// This is the F3b acceptance, and it replaces an earlier test that pinned the
+// opposite. That test was written when the frame's sheen was graded by the
+// stop (`sheen = tint * lens`) because on a machine with no window material
+// the three stops otherwise read as one tint (「3 档效果也没看出区别」). P7-em
+// then gave the stops a rung that is really theirs — the control lens, graded
+// by the per-package pixel tests (launcher's plate, settingsui's card and
+// switch, control's segmented track) — so the frame's face can go back to the
+// reference's fixed token. The pixels below are the launcher's top band: off
+// has no sheen, and frosted / regular / liquid are the **same** colour there,
+// while the frame's alpha stays the slider's on every stop — turning the glass
+// on does not make the window denser (「开启时又没有透明了」).
+func TestTheFrameSheenIsFixedAcrossStops(t *testing.T) {
 	const topY0, topY1 = 90, 120
 
 	for _, theme := range []string{"dark", "light"} {
@@ -148,19 +150,26 @@ func TestTheGlassStopsAreVisiblyDifferent(t *testing.T) {
 					theme, row.name, row.a, row.a-offA, offA)
 			}
 		}
-		// The three stops are visibly different in colour: the lit face rises
-		// strictly with the stop (the lens rung), so `frosted`, `regular` and
-		// `liquid` cannot read as one tint.
+		// The sheen is a lit highlight, so the effect stops are clearly
+		// lighter than the off frame in this band.
 		luminance := func(r, g, b float64) float64 { return r + g + b }
 		offL := luminance(offR, offG, offB)
 		fL := luminance(fR, fG, fB)
 		rL := luminance(rR, rG, rB)
 		lL := luminance(lR, lG, lB)
-		if !(offL < fL && fL < rL && rL < lL) {
-			t.Errorf("%s: the lens ladder did not rise: off %.1f, frosted %.1f, regular %.1f, liquid %.1f", theme, offL, fL, rL, lL)
+		if fL-offL < 5 {
+			t.Errorf("%s: the effect stops only lit the frame by %.1f of colour (off %.1f, frosted %.1f); want a visible sheen",
+				theme, fL-offL, offL, fL)
 		}
-		if lL-fL < 3 {
-			t.Errorf("%s: the stops moved only %.1f of colour (frosted %.1f, liquid %.1f); want a visible spread", theme, lL-fL, fL, lL)
+		// And the stop does **not** grade the frame's face: the reference's
+		// sheen is the same fixed token on every effect stop, so the three
+		// stops must be the same colour in this band (the residual few tenths
+		// are the control lens bleeding into the band mean). The stops' own
+		// difference is the control lens, graded by the per-package pixel
+		// tests — see the census in glasscensus_test.go.
+		if spread := max(lL, max(fL, rL)) - min(lL, min(fL, rL)); spread > 1 {
+			t.Errorf("%s: the stops moved the frame's own face by %.2f of colour (frosted %.1f, regular %.1f, liquid %.1f); the sheen is a fixed token, not a rung",
+				theme, spread, fL, rL, lL)
 		}
 	}
 }

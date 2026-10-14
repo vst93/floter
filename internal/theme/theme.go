@@ -130,9 +130,11 @@ type Tokens struct {
 	LensEdge  ui.Color
 	// SheenTop and SheenBottom are the card's top-down highlight (base.css's
 	// `--sheen-top` / `--sheen-bottom`), the gradient that gives the panel's
-	// glass a lit face rather than a flat tint. The fill under them is
-	// `FaceFill`'s compensated alpha, so the two composite back to the frame's
-	// own alpha (see `FaceFill`).
+	// glass a lit face rather than a flat tint. They are the reference's
+	// **fixed** tokens — the same on every effect stop, and dropped by `off` —
+	// capped at the frame's own alpha. The fill under them is `FaceFill`'s
+	// compensated alpha, so the two composite back to the frame's own alpha
+	// (see `FaceFill`).
 	SheenTop    ui.Color
 	SheenBottom ui.Color
 	// ShadowAmbient and ShadowContact are the window's own cast shadow
@@ -275,19 +277,27 @@ func ForPreferences(s settings.Settings, systemDark bool, prefs ui.Preferences) 
 	// The panel's sheen is the glass's lit face. The off stop has no glass, so
 	// it paints the plain tint with no sheen - base.css's `[data-glass="off"]
 	// .shell` dropped the gradient along with the material. The effect stops
-	// grade it by their **lens scale** - the one rung the scene paints itself,
-	// since the stop's blur and saturation are the window's OS material and the
-	// headless render cannot show them. Without it, `frosted`, `regular` and
-	// `liquid` share one fill and the three stops read as one tint
-	// (「3 档效果也没看出区别」). The frame's *alpha* (the transparency slider)
-	// is untouched by the stop: the sheen rides the frame's own tint, and
-	// `FaceFill` gives the tint the alpha that composites with the sheen back to
-	// the slider's, so the stop changes the lit face's colour, not the fill's
-	// truth (the sheen used to sit over the frame's tint and add its own alpha —
-	// 「开玻璃透明底失效」).
-	sheen := float32(0)
+	// paint the reference's **fixed** `--sheen-top` / `--sheen-bottom`
+	// (base.css:628-629 dark 0.046/0.01, :906-907 light 0.66/0.22): those
+	// tokens do not vary with `[data-glass]` — the only rung a stop moves on
+	// the frame's own face is nothing at all; `--glass-lens-scale` moves the
+	// **control** lens (LensRim/LensSheen/LensEdge below), not the card. The
+	// three stops therefore read apart on their controls (P7-em) and share one
+	// lit face; grading the sheen by the stop was this build's own invention
+	// from when the stops had nothing else to show on Linux.
+	//
+	// The sheen is still capped at the frame's own alpha: a sheen heavier than
+	// the frame would make the top of a very thin frame denser than the slider
+	// asked for, and `FaceFill`'s compensation cannot ask for a negative fill
+	// (see `baseAlpha`). The cap is what keeps the frame's *alpha* the slider's
+	// on every stop — `FaceFill` gives the tint the alpha that composites with
+	// the sheen back to the slider's, so the fixed sheen changes the lit face's
+	// colour, not the fill's truth (the sheen used to sit over the frame's tint
+	// and add its own alpha — 「开玻璃透明底失效」).
+	sheenTop, sheenBottom := ui.Color{}, ui.Color{}
 	if spec.Glass {
-		sheen = spec.TintAlpha * spec.LensScale
+		sheenTop = capAlpha(p.sheenTop, spec.TintAlpha)
+		sheenBottom = capAlpha(p.sheenBottom, spec.TintAlpha)
 	}
 	baseFill := t.Background
 	if appearance == Dark {
@@ -350,12 +360,11 @@ func ForPreferences(s settings.Settings, systemDark bool, prefs ui.Preferences) 
 		LensRim:           scaleAlpha(p.lensRim, spec.LensScale),
 		LensSheen:         scaleAlpha(p.lensSheen, spec.LensScale),
 		LensEdge:          scaleAlpha(p.lensEdge, spec.LensScale),
-		// The sheen is capped at the frame's own alpha: a sheen heavier than the
-		// frame would make the top of a very thin frame denser than the slider
-		// asked for, and `FaceFill`'s compensation cannot ask for a negative
-		// fill (see `baseAlpha`).
-		SheenTop:       capAlpha(scaleAlpha(p.sheenTop, sheen), spec.TintAlpha),
-		SheenBottom:    capAlpha(scaleAlpha(p.sheenBottom, sheen), spec.TintAlpha),
+		// The frame's lit face is the reference's fixed token, capped at the
+		// frame's own alpha (see the `sheenTop` note above); the stop does not
+		// grade it.
+		SheenTop:       sheenTop,
+		SheenBottom:    sheenBottom,
 		ShadowAmbient:  p.shadowAmbient,
 		ShadowContact:  p.shadowContact,
 		EdgeHighlight:  p.edgeHighlight,
@@ -507,11 +516,9 @@ func round1(v float32) float32 {
 }
 
 // scaleAlpha multiplies a token's own alpha by a factor, keeping its colour.
-// The card's sheen is a fixed highlight in base.css, but a fixed highlight
-// over a thin frame props the whole background to a density the transparency
-// slider cannot move - the light appearance's 0.66 sheen left the bottom at
-// 0.81 at the slider's low end. Scaling it by the frame's own tint makes the
-// highlight fade with the face, so the slider owns the background again.
+// It is the `--glass-lens-scale` rung: base.css writes every lens layer as
+// `calc(var(--glass-lens-*-base) * var(--glass-lens-scale))`, so the stop
+// grades the control lens and nothing else.
 func scaleAlpha(c ui.Color, factor float32) ui.Color {
 	return ui.RGBA(c.R, c.G, c.B, float32(c.A)/255*factor)
 }
