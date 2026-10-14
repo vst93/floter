@@ -15,14 +15,20 @@ type Store struct {
 	mu        sync.Mutex
 	path      string
 	current   Settings
+	confirmed Settings
 	listeners []func(Settings)
 	lastErr   error
+
+	// save is the write path, a field so tests can observe or refuse one
+	// without a real file. Production always uses Save.
+	save func(string, Settings) error
 }
 
 // NewStore builds a store over an in-memory value, without a file: tests and
 // callers that only read use it.
 func NewStore(s Settings) *Store {
-	return &Store{current: s.normalized()}
+	normalized := s.normalized()
+	return &Store{current: normalized, confirmed: clone(normalized), save: Save}
 }
 
 // OpenStore loads the settings file at path into a store. A missing file
@@ -31,7 +37,8 @@ func NewStore(s Settings) *Store {
 // store still usable so the app keeps working. The shell logs the error.
 func OpenStore(path string) (*Store, error) {
 	s, err := Load(path)
-	st := &Store{path: path, current: s.normalized(), lastErr: err}
+	st := &Store{path: path, current: s.normalized(), lastErr: err, save: Save}
+	st.confirmed = clone(st.current)
 	return st, err
 }
 
@@ -63,13 +70,26 @@ func (st *Store) Update(mutate func(*Settings)) error {
 		return nil
 	}
 	if st.path != "" {
-		if err := Save(st.path, next); err != nil {
+		if err := st.save(st.path, next); err != nil {
 			st.lastErr = err
+			rollback := clone(st.confirmed)
+			changed := !equal(previous, rollback)
+			st.current = rollback
+			listeners := append([]func(Settings){}, st.listeners...)
+			rolled := clone(rollback)
 			st.mu.Unlock()
+			if changed {
+				for _, fn := range listeners {
+					if fn != nil {
+						fn(clone(rolled))
+					}
+				}
+			}
 			return err
 		}
 	}
 	st.current = next
+	st.confirmed = clone(next)
 	st.lastErr = nil
 	listeners := append([]func(Settings){}, st.listeners...)
 	changed := clone(next)
@@ -83,6 +103,70 @@ func (st *Store) Update(mutate func(*Settings)) error {
 	return nil
 }
 
+// Preview applies a mutation to the in-memory settings and notifies listeners,
+// without writing the file. It is the sliders' half of the reference's 180ms
+// debounce: the value is live in the frame at once, and Commit writes it once
+// after the gesture stops. A preview is not durable until Commit succeeds.
+func (st *Store) Preview(mutate func(*Settings)) {
+	st.mu.Lock()
+	next := clone(st.current)
+	mutate(&next)
+	next = next.normalized()
+	if equal(next, st.current) {
+		st.mu.Unlock()
+		return
+	}
+	st.current = next
+	listeners := append([]func(Settings){}, st.listeners...)
+	changed := clone(next)
+	st.mu.Unlock()
+
+	for _, fn := range listeners {
+		if fn != nil {
+			fn(clone(changed))
+		}
+	}
+}
+
+// Commit writes the previewed in-memory settings back to disk. A refused write
+// rolls the visible value back to the last confirmed snapshot and notifies
+// listeners, so the frame cannot keep showing a value the file rejected. A
+// commit with nothing to write is a no-op.
+func (st *Store) Commit() error {
+	st.mu.Lock()
+	if equal(st.current, st.confirmed) {
+		st.mu.Unlock()
+		return nil
+	}
+	if st.path == "" {
+		st.confirmed = clone(st.current)
+		st.lastErr = nil
+		st.mu.Unlock()
+		return nil
+	}
+	if err := st.save(st.path, st.current); err != nil {
+		st.lastErr = err
+		rollback := clone(st.confirmed)
+		changed := !equal(st.current, rollback)
+		st.current = rollback
+		listeners := append([]func(Settings){}, st.listeners...)
+		rolled := clone(rollback)
+		st.mu.Unlock()
+		if changed {
+			for _, fn := range listeners {
+				if fn != nil {
+					fn(clone(rolled))
+				}
+			}
+		}
+		return err
+	}
+	st.confirmed = clone(st.current)
+	st.lastErr = nil
+	st.mu.Unlock()
+	return nil
+}
+
 // Save writes the current settings to disk, for a forced flush. It is a
 // no-op for an in-memory store.
 func (st *Store) Save() error {
@@ -91,8 +175,11 @@ func (st *Store) Save() error {
 	if st.path == "" {
 		return nil
 	}
-	err := Save(st.path, st.current)
+	err := st.save(st.path, st.current)
 	st.lastErr = err
+	if err == nil {
+		st.confirmed = clone(st.current)
+	}
 	return err
 }
 

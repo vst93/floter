@@ -1,6 +1,7 @@
 package settings
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -152,6 +153,118 @@ func TestStoreRollsBackWhenTheWriteFails(t *testing.T) {
 	}
 	if calls != 0 {
 		t.Errorf("a refused write notified listeners %d times", calls)
+	}
+}
+
+// The reference's slider debounce keeps the new value on screen while the
+// write waits, and writes once when the gesture stops. Preview is that first
+// half, Commit the second: three previews leave the file untouched and a
+// single commit writes the last value.
+func TestStorePreviewCoalescesUntilCommit(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "settings.json")
+	st, err := OpenStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writes := 0
+	st.save = func(path string, s Settings) error {
+		writes++
+		return Save(path, s)
+	}
+
+	for _, opacity := range []uint8{60, 70, 80} {
+		st.Preview(func(s *Settings) { s.MainOpacity = opacity })
+		if got := st.Snapshot().MainOpacity; got != opacity {
+			t.Fatalf("preview %d: snapshot opacity = %d", opacity, got)
+		}
+	}
+	if writes != 0 {
+		t.Fatalf("previews wrote the file %d times", writes)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("a preview created the file: %v", err)
+	}
+
+	if err := st.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	if writes != 1 {
+		t.Errorf("commit wrote the file %d times, want 1", writes)
+	}
+	if got := st.Snapshot().MainOpacity; got != 80 {
+		t.Errorf("committed opacity = %d, want 80", got)
+	}
+	reloaded, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if reloaded.MainOpacity != 80 {
+		t.Errorf("reloaded opacity = %d, want 80", reloaded.MainOpacity)
+	}
+
+	if err := st.Commit(); err != nil {
+		t.Fatalf("second Commit: %v", err)
+	}
+	if writes != 1 {
+		t.Errorf("an unchanged commit wrote the file again (%d writes)", writes)
+	}
+}
+
+// A preview that is refused on Commit is not left on screen: the visible value
+// rolls back to the last confirmed snapshot and listeners hear the rollback.
+func TestStorePreviewRollsBackWhenCommitFails(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "settings.json")
+	st, err := OpenStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	before := st.Snapshot()
+	sentinel := errors.New("disk full")
+	st.save = func(string, Settings) error { return sentinel }
+	seen := []uint8{}
+	st.OnChange(func(s Settings) { seen = append(seen, s.MainOpacity) })
+
+	st.Preview(func(s *Settings) { s.MainOpacity = 80 })
+	if got := st.Snapshot().MainOpacity; got != 80 {
+		t.Fatalf("preview opacity = %d, want 80", got)
+	}
+	if err := st.Commit(); !errors.Is(err, sentinel) {
+		t.Fatalf("Commit error = %v, want %v", err, sentinel)
+	}
+	if got := st.Snapshot(); !equal(before, got) {
+		t.Errorf("a refused commit left the store changed: %+v, want %+v", got, before)
+	}
+	if st.LastError() == nil {
+		t.Error("LastError is nil after a refused commit")
+	}
+	if len(seen) != 2 || seen[0] != 80 || seen[1] != before.MainOpacity {
+		t.Errorf("listeners saw %v, want [80 %d]", seen, before.MainOpacity)
+	}
+}
+
+// An immediate Update after a preview commits the preview too, and a refused
+// Update rolls the whole store back to the last confirmed snapshot rather than
+// leaving the uncommitted preview visible.
+func TestStoreUpdateAfterPreviewCommitsTheWholeSnapshot(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "settings.json")
+	st, err := OpenStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writes := 0
+	st.save = func(string, Settings) error { writes++; return nil }
+
+	st.Preview(func(s *Settings) { s.MainOpacity = 80 })
+	if err := st.Update(func(s *Settings) { s.Language = "zh" }); err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+	if writes != 1 {
+		t.Errorf("writes = %d, want 1", writes)
+	}
+	got := st.Snapshot()
+	if got.MainOpacity != 80 || got.Language != "zh" {
+		t.Errorf("committed settings = opacity %d language %q", got.MainOpacity, got.Language)
 	}
 }
 

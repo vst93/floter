@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1336 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1349 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1336 项测试
+go test -count=1 ./...         # 1349 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -100,7 +100,46 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-fn 设置写入被拒时回落到上次确认的快照（原版 `src/hooks/useSettings.ts:220-236`、
+> **最新一轮：P7-fo 滑块与命令别名的 180ms 去抖（原版 `src/hooks/useSettings.ts:149,396-530`）**
+> ——P7-fn 收尾后「具体待办（P7-fn 重写）」只剩第 2 条（滑块/别名的 180ms 去抖），本轮取它落地，
+> 清单归零。依赖检查：`go.mod` 已是 **v0.4.8** = GitHub releases latest（无版本可升，release notes
+> 的 `ui/editor` 用点已由 P7-ev 落地）；只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），
+> 未翻历史提交。
+>
+> **偏离（P7-fo·滑块与别名逐帧落盘）**：原版 `SETTINGS_DEBOUNCE_MS = 180`
+> （`src/hooks/useSettings.ts:149`）；`changeOpacity`（`:396-412`，两个透明度滑块）、
+> `changeFontSize`（`:444-459`）、`changeTerminalLineHeight`（`:486-501`）与 `changeCommandAlias`
+> （`:515-530`）都先把新值上屏、清旧 timer，再 `setTimeout(..., 180)` 才 `persistSettings()`。
+> **本构建（改前）**：`internal/settingsui/settingsui.go:2542/2548/2612/2621` 四处滑块每帧命中一次
+> 就 `a.set(...)` → `Store.Update` → 同步 `Save`，拖动一次写几十遍文件；别名输入框只在
+> `Submitted()`（回车）时写，既不是原版的每次编辑，也没有停顿合并。
+>
+> **落地**：
+> - `internal/settings/store.go` 新增 `Preview`（改内存 + 通知监听器、不写盘）与 `Commit`（写一次、
+>   失败回滚到上次确认快照并通知）；`Update` 成功时维护 `confirmed`，失败时回滚到 `confirmed`。
+> - `internal/settingsui/debounce.go`（新）新增 `settingsDebounce = 180ms`、`previewSetting`/
+>   `debounceAlias`/`expireSettingsWrites`/`flushSettingsWrites` 与 `Flush`；别名按命令键合并，
+>   滑块共享同一个窗口；`View` 每帧 `expireSettingsWrites`，`set` 与 `selectPage` 先 flush。
+> - `internal/shell/shell.go` 在离开设置面（`Open`）、隐藏窗口（`Hide`）与退出（`quit` 包装）
+>   三条路调用 `Settings.Flush()`，最后一次拖动不会丢。
+>
+> **验收**：`internal/settings/store_test.go` 三条——`TestStorePreviewCoalescesUntilCommit`（三次
+> preview 写 0 次、commit 写 1 次、二次 commit 不再写）、
+> `TestStorePreviewRollsBackWhenCommitFails`（失败回滚 + 监听器先新后旧）、
+> `TestStoreUpdateAfterPreviewCommitsTheWholeSnapshot`（preview + 立即 Update 合成一次写）；
+> `internal/settingsui/debounce_test.go` 四条——`TestSliderPreviewDebouncesTheWrite`（窗口内文件不存在、
+> 过窗后文件是最后一次值、空转帧不再写）、`TestCommandAliasDebouncesAndFlushesOnPageSwitch`（三次
+> 编辑合并一次动作、切页 flush）、`TestCommandAliasFieldDebouncesTyping`（真敲键盘：一个字符不写，
+> 过窗后才写）、`TestSetFlushesPendingPreview`。变异核查：把 `previewSetting` 换回
+> `a.set` → 第一条立刻红；去掉 `selectPage` 的 flush → 别名第二条红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿（1349 项）、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：第 2 条（滑块/别名的 180ms 去抖）落地；「具体待办（P7-fn 重写）」2 条**全部结清、
+> 清单归零**。下一轮回到「对照原版排查偏离点」，重新写实清单。
+
+> **上一轮：P7-fn 设置写入被拒时回落到上次确认的快照（原版 `src/hooks/useSettings.ts:220-236`、
 > `src/settings-persistence.ts:90-98` 的 `rollbackRejectedSettings`）**
 > ——P7-fm 收尾后「尚未做」再次为空。本轮按惯例换入口：逐函数对照原版 `settings-persistence.ts`
 > 与 `useSettings.ts` 的落盘/失败路径（本构建对应 `internal/settings/store.go` 的 `Store` 与
@@ -128,8 +167,7 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 > **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
 > `GOOS=linux/windows/darwin go build ./...` 三平台通过。
 >
-> **清单状态**：第 1 条（失败写回落）落地；「具体待办（P7-fn 重写）」还剩第 2 条（滑块 180ms
-> 去抖）。
+> **清单状态**：第 1 条（失败写回落）落地；第 2 条（滑块 180ms 去抖）由下一轮 P7-fo 结清。
 
 > **上一轮：P7-fm 终端浮栏身份行报退出码（原版 `src/App.tsx:3716-3722`、`src/i18n.ts:170,1077`）**
 > ——P7-fl 收尾后「具体待办（P7-fl 重写）」还剩第 3 条（浮栏身份行的退出码），本轮取它落地，清单归零。
@@ -5638,7 +5676,7 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-### 具体待办（P7-fn 重写；第 1 条本轮落地 P7-fn）
+### 具体待办（P7-fn 重写；第 1 条 P7-fn、第 2 条 P7-fo 均已落地；清单归零）
 
 审计入口：原版 `main:src/settings-persistence.ts` 与 `main:src/hooks/useSettings.ts` 的设置落盘/失败
 路径，本构建对应 `internal/settings/store.go` 的 `Store`、`internal/settingsui/settingsui.go` 的
@@ -5669,7 +5707,7 @@ releases latest（release notes 的 `ui/editor` 用点已由 P7-ev 的 F-new 落
      的 `TestTheSaveFailureBannerAppearsAndExpires` 改成断言失败写回落后 `HideOnBlur` 与 `before`
      相等且横幅仍出现。变异核查：把 `Store.Update` 改回「失败也 `st.current = next`」→ 两条立刻红。
 
-2. **（未做）滑块的落盘没有原版的 180ms 去抖**。
+2. **（本轮落地，P7-fo）滑块的落盘没有原版的 180ms 去抖**。
    - 原版对照：`src/hooks/useSettings.ts:149` 的 `SETTINGS_DEBOUNCE_MS = 180`；`changeOpacity`
      （`:396-412`，两个透明度滑块）、`changeFontSize`（`:444-459`）、`changeTerminalLineHeight`
      （`:486-501`）与 `changeCommandAlias`（`:515-530`）都先把新值上屏、清掉旧 timer，再
@@ -5678,9 +5716,22 @@ releases latest（release notes 的 `ui/editor` 用点已由 P7-ev 的 F-new 落
      一次就 `apply(v)` → `a.set(...)` → `Store.Update` → 同步 `Save`；
      `settingsui.go:2542/2548/2612/2621` 四处滑块（主/终端透明度、字号、行高）都在拖动过程中逐帧
      落盘。
-   - 验收标准：给 `settingsui.App` 加一个可注入的 debounce 时钟与 180ms 窗口，滑块先只改内存/视图，
-     窗内合并、窗后一次 `Store.Update`；测试用假时钟拖动三次只观察一次落盘，`Now` 推过窗口后才
-     写；命令别名的输入框同样只在一段停顿后写一次。注意退出/切页要 flush，不能丢最后一次。
+   - 落地 file:line（已按此落地）：`internal/settings/store.go` 新增 `Preview`/`Commit`（内存先动、
+     写盘一次、失败回滚 `confirmed`）；`internal/settingsui/debounce.go`（新）的 `settingsDebounce`
+     = 180ms、`previewSetting`/`debounceAlias`/`expireSettingsWrites`/`flushSettingsWrites`/`Flush`；
+     `settingsui.go` 四处滑块改走 `previewSetting`，命令别名输入框改 `.Changed()` + `debounceAlias`，
+     `View` 每帧过期、`set`/`selectPage` 先 flush；`internal/shell/shell.go` 的 `Open`/`Hide`/`quit`
+     三条离开路径调 `Settings.Flush()`。
+   - 验收（已过）：`internal/settings/store_test.go` 三条（三次 preview 写 0 次、commit 写 1 次；
+     失败回滚 + 监听器先新后旧；preview + 立即 Update 合成一次写）；
+     `internal/settingsui/debounce_test.go` 四条（窗口内文件不存在、过窗写最后一次、空转不再写；
+     三次别名编辑合并一次动作且切页 flush；真敲键盘一个字符不写、过窗才写；`set` 先 flush 预览）。
+     变异核查：`previewSetting` 换回 `a.set` → 第一条红；去掉 `selectPage` 的 flush → 别名条红。
+
+> **清单状态（P7-fn 重写）**：P7-fn 收尾后第 2 条（滑块/别名的 180ms 去抖）由 P7-fo 落地，
+> **2 条全部结清、清单归零**。下一轮回到「对照原版排查偏离点」，重新写实清单。依赖检查：
+> `go.mod` 已是 **v0.4.8** = GitHub releases latest（release notes 的 `ui/editor` 用点已由 P7-ev
+> 落地），无版本可升；只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
 
 > **清单状态（P7-fl 重写）**：P7-fk 收尾后「具体待办（P7-fj 重写）」3 条全部结清、清单归零。本轮换
 > 入口：逐字段对照**终端表面浮栏与输入区**（原版 `main:src/App.tsx:3740-3805` 的

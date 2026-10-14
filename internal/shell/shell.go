@@ -549,6 +549,9 @@ func New(opts Options) *App {
 	// a.quit (the launcher row, the tray menu, the application menu).
 	innerQuit := a.quit
 	a.quit = func() {
+		if a.Settings != nil {
+			a.Settings.Flush()
+		}
 		if a.Terminal != nil {
 			if err := a.Terminal.SaveSnapshot(); err != nil {
 				log.Printf("floter: could not save the terminal snapshot: %v", err)
@@ -2824,6 +2827,11 @@ func (a *App) scanApps() {
 
 // Open switches to a surface, sizing and focusing it.
 func (a *App) Open(s Surface) {
+	// Leaving the settings surface writes any debounced slider/alias change
+	// before the page goes away; the value was already live in the frame.
+	if a.Surf == SurfaceSettings && s != SurfaceSettings && a.Settings != nil {
+		a.Settings.Flush()
+	}
 	if s != SurfaceLauncher {
 		// Entering a surface starts the residency clock (see summon).
 		a.enteredAt = a.now()
@@ -3293,6 +3301,11 @@ var launcherHeightAnimation = ui.Animation{Duration: 150 * time.Millisecond}
 
 // Hide hides the window, leaving the app running with its shortcut.
 func (a *App) Hide() {
+	// A hidden window stops drawing, so the debounce's frame-driven deadline
+	// would never arrive: write the pending value before it goes.
+	if a.Settings != nil {
+		a.Settings.Flush()
+	}
 	if a.hideWindow != nil {
 		a.hideWindow()
 		return

@@ -588,6 +588,14 @@ type App struct {
 	saveFailed   bool
 	saveFailedAt time.Time
 
+	// debouncing marks a slider preview or alias edit that has been shown but
+	// not written yet, with debounceAt the moment the window closes;
+	// pendingAliases holds the latest alias per command while it runs. See
+	// debounce.go for the reference's 180ms rule.
+	debouncing     bool
+	debounceAt     time.Time
+	pendingAliases map[string]aliasEdit
+
 	// Sessions reports the running sessions; nil when the shell has none
 	// (tests).
 	Sessions func() []Session
@@ -759,6 +767,9 @@ func (a *App) View(c *ui.Context) {
 	// seconds; while one is up the frame keeps coming so the deadline is
 	// reached on a still page.
 	a.expireSaveFailed(c)
+	// A slider drag or alias edit is shown at once but written once the pause
+	// passes; the frame keeps coming until the window closes.
+	a.expireSettingsWrites(c)
 	// A session's two-step close also carries its own clock: the reference's
 	// `killArmTimer` reverted the button after three seconds, so an ask left
 	// unanswered does not stay armed on a later glance.
@@ -998,6 +1009,9 @@ func pageGlyph(page int) (*ui.SVG, bool) {
 // selectPage switches pages and remembers the choice, so the next visit to
 // the settings surface reopens where the user left off.
 func (a *App) selectPage(page int) {
+	// The page's own debounced controls are written before it leaves: a drag
+	// that is still inside its window must not be lost with the page.
+	a.flushSettingsWrites()
 	// The reference's kill arm lived in the SessionsPage component: leaving
 	// the page unmounted it, so the question never survived a visit
 	// elsewhere. Drop it where the page changes hands.
@@ -1746,13 +1760,15 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 				}, func() {
 					// The alias editor rides the command list itself: "this
 					// command, this alias" is edited where the command is
-					// already named, and the value lands on submit.
+					// already named. It is a text field, so it rides the
+					// reference's 180ms debounce: one write per pause, not one
+					// per keystroke (see debounce.go).
 					a.row(c, copy.IntegrationsCommandAlias, "", func() {
 						alias := command.Alias
 						if textInput(c, &alias).Placeholder(copy.IntegrationsCommandAliasPlaceholder).
-							Label(copy.IntegrationsCommandAlias).Width(180).Submitted() &&
+							Label(copy.IntegrationsCommandAlias).Width(180).Changed() &&
 							a.Actions.SetCommandAlias != nil {
-							a.Actions.SetCommandAlias(integration.ID, command.ID, alias)
+							a.debounceAlias(integration.ID, command.ID, alias)
 						}
 						if command.Taken {
 							ui.Text(c, copy.IntegrationsCommandAliasTaken).
@@ -2539,13 +2555,13 @@ func (a *App) general(c *ui.Context, copy i18n.Settings) {
 					copy.TransparencyScaleLow, copy.TransparencyScaleHigh,
 					float64(s.MainOpacity), settings.MinWindowOpacity, settings.MaxWindowOpacity,
 					func(v float64) string { return copy.Percent(clampPercent(v)) },
-					func(v float64) { a.set(func(s *settings.Settings) { s.MainOpacity = clampPercent(v) }) })
+					func(v float64) { a.previewSetting(func(s *settings.Settings) { s.MainOpacity = clampPercent(v) }) })
 				a.slider(c, copy.TerminalOpacity, "",
 					copy.TransparencyScaleLow, copy.TransparencyScaleHigh,
 					float64(s.TerminalOpacity), settings.MinWindowOpacity, settings.MaxWindowOpacity,
 					func(v float64) string { return copy.Percent(clampPercent(v)) },
 					func(v float64) {
-						a.set(func(s *settings.Settings) { s.TerminalOpacity = clampPercent(v) })
+						a.previewSetting(func(s *settings.Settings) { s.TerminalOpacity = clampPercent(v) })
 					})
 			})
 		})
@@ -2609,7 +2625,7 @@ func (a *App) general(c *ui.Context, copy i18n.Settings) {
 							settings.MinFontSize, settings.MaxFontSize,
 							func(v float64) string { return fmt.Sprintf("%d", int(math.Round(v))) },
 							func(v float64) {
-								a.set(func(s *settings.Settings) { s.FontSize = int(math.Round(v)) })
+								a.previewSetting(func(s *settings.Settings) { s.FontSize = int(math.Round(v)) })
 							})
 					},
 					control.AxisLineHeight: func() {
@@ -2618,7 +2634,7 @@ func (a *App) general(c *ui.Context, copy i18n.Settings) {
 							settings.MinTerminalLineHeight, settings.MaxTerminalLineHeight,
 							func(v float64) string { return fmt.Sprintf("%.1f\u00d7", v) },
 							func(v float64) {
-								a.set(func(s *settings.Settings) { s.TerminalLineHeight = v })
+								a.previewSetting(func(s *settings.Settings) { s.TerminalLineHeight = v })
 							})
 					},
 					control.AxisPalette: func() {
@@ -2839,6 +2855,9 @@ func (a *App) appIcon() string {
 // silent: the store rolls the change back to its last committed snapshot and
 // the banner over the page says the file could not be written.
 func (a *App) set(mutate func(*settings.Settings)) {
+	// An immediate write also commits anything the debounce is holding, so the
+	// two paths cannot disagree about which value is current.
+	a.flushSettingsWrites()
 	if err := a.Store.Update(mutate); err != nil {
 		a.noteSaveFailed()
 	}
