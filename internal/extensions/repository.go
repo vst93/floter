@@ -13,6 +13,13 @@ import (
 // reads and writes.
 const RepositorySchemaVersion = 1
 
+// RuntimeOwnershipSystem is the ownership value for a runtime the machine
+// provides rather than the package: the program is looked up on the search
+// path, so a binding that no longer resolves is floter's to re-derive (see
+// Reconnect). A bundled package's runtime ships with the package and has no
+// such second look.
+const RuntimeOwnershipSystem = "system"
+
 // Entry is one extension's state in the repository: the fields this build
 // uses, plus every key it does not, kept so a write cannot drop the audit
 // trail an older build recorded (integrity, approvals, error codes, ...).

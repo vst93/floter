@@ -535,6 +535,14 @@ type Settings struct {
 	// (`src/extensions/ExtensionRow.tsx:296-302`).
 	IntegrationsInstallInTerminal string
 	IntegrationsInstallTool       string
+	// IntegrationsReconnect is the repair a connected row offers when the
+	// program it was bound to no longer resolves: the search path is asked
+	// again. IntegrationsReconnectUnboundHint is what that button says when
+	// the manifest names no project page either — the search path is the only
+	// place left to look (the reference's `reconnectUnboundHint`,
+	// `src/extensions/ExtensionRow.tsx:345-370`).
+	IntegrationsReconnect            string
+	IntegrationsReconnectUnboundHint string
 	// The stored health from the lifecycle probes, and the live diagnostics a
 	// check produces. They are two rows: the health is what the last probe run
 	// recorded (and it survives across runs), the diagnostics are what this
@@ -923,6 +931,9 @@ type Notifications struct {
 	IntegrationRemoveFailed  func(name string) string
 	IntegrationChecked       func(name string) string
 	IntegrationCheckFailed   func(name string) string
+	// IntegrationReconnected is the one repair that changed the record: the
+	// program moved and the row is bound to where it is now.
+	IntegrationReconnected func(name string) string
 	// A command that ran in the background: its name, and the status line the
 	// output view shows.
 	CommandFinished func(name string) string

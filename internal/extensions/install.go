@@ -375,7 +375,7 @@ func install(paths Paths, spec installSpec) (Entry, error) {
 // carrying over what an existing entry must keep.
 func buildEntry(manifest Manifest, packageDir string, binding RuntimeBinding, spec installSpec, previous Entry, existed bool) Entry {
 	now := uint64(time.Now().Unix())
-	runtimeOwnership := "system"
+	runtimeOwnership := RuntimeOwnershipSystem
 	var runtimeRoot *string
 	if manifest.Runtime.Type == "script" {
 		runtimeOwnership = "bundled"

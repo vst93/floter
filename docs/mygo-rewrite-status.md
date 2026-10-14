@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1189 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1209 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -99,7 +99,72 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-ek F4c detected 行的动作回到原版三态 + 目录接通安装命令
+> **最新一轮：P7-el F4 残留「卡片的修复动作」逐函数对照 + 缺掉的 Reconnect 落地
+> （原版 `src/extensions/ExtensionRow.tsx:310-370`、`src/ExtensionsPanel.tsx:1255-1267,1955-1979`）**
+> ——「尚未做」清单上只剩 F3a（一个待决策的分叉）与 F3b（已实测标为「先决于 F3a」），**两条都不是可直接落地的
+> 具体项**；按规则先把清单写实（见文末「具体待办（P7-el 重写）」），再取第 1 条实现。第 1 条改为
+> **F4 残留里本轮新查出的真实缺口**：原版卡片对「runtime 不可用」的行有一个修复按钮，本构建
+> **一个都没有**。依赖检查：`go.mod` 已是 **v0.4.8** = GitHub releases API 的 latest（无版本可升）；
+> v0.4.8 的 release notes 里唯一自然用点是新的 `ui/editor`（代码编辑器/差分视图），落点是本构建
+> 的脚本内容编辑框（`internal/settingsui/settingsui.go:3258` 的 `ui.TextArea`），已写成本轮的新待办
+> 而不是本轮实现（换控件要连带动 mygo 表单 API 与 `internal/inputtext` 的边界约定）。只对照 `main`
+> （`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离（F4e）**：原版同一张已连接卡片在两个状态下给出修复入口——
+> - `connected && state === "broken"` → **Wrench「Recheck」**，走 `extensions_repair`，toast 按
+>   `report.repaired ? repairedNotice : recheckedNotice`（`ExtensionRow.tsx:313-330`、
+>   `ExtensionsPanel.tsx:1255-1267`）；
+> - `connected && state !== "broken" && !runtimeAvailable && (reconnectAvailable || homepage ||
+>   runtimeSource === "system")` → **RefreshCw「Reconnect」**（`extensions_reconnect_system`）或
+>   **Wrench「Install tool first」**（无 runtime 可找、有主页时去主页），tooltip 三态
+>   （`reconnect` / `reconnectUnboundHint`），见 `ExtensionRow.tsx:345-370`。
+>
+> 本构建 **`grep -rn "econnect" internal/` 只命中一句 i18n 文案**：既没有 `extensions_reconnect_system`，
+> 也没有 `extensions_repair`，`settingsui.Integration` 里连 `RuntimeAvailable`/`Homepage` 都没有。
+> 后果是一条**死路**：系统工具被重装到别处（或从 PATH 消失）时，行上只有「Check」（`diagnoseIntegration`
+> → `Reprobe`），而 `Reprobe` 用的是**记录的绝对路径**，解析失败就只把 `binding-missing` 记进条目、
+> 把行标成 broken——用户在界面上没有任何入口能让它重新去 PATH 找一次。
+>
+> **F4e 修法**：
+> - `internal/extensions/reconnect.go`（新）：`Reconnect(paths, id)` —— 原版 `extensions_reconnect_system`
+>   的等价物。**先故意忘掉记录的 `ExecutablePath` 再解析**，因为 reconnect 的语义就是「程序搬走了/没了，
+>   重新问一遍 search path」（`manifest.runtime.executableNames` 走 `lookTool`）；成功则改写 `executablePath`
+>   并清掉**绑定类**失败（`binding-changed`/`binding-missing`/`runtime-unavailable`/`binding-check-failed`），
+>   把行的状态交回给开关自己说（enabled/disabled）；失败则按 `recordBindingFailure` 把带 keyed detail 的
+>   原因写回条目，让行用用户的语言说清楚。新增 `RuntimeOwnershipSystem` 常量（`install.go` 同步使用），
+>   非 system 归属一律 `ErrNotSystemOwned`（原版 `reconnect_system_locked` 同样只认 system）。
+> - `internal/settingsui`：`Integration` 新增 `RuntimeAvailable` 与 `Homepage`；新增 `repairKind()`
+>   （三态：`repairReconnect` / `repairHomepage` / `repairNone`）、`repairLabel()`、`repairTooltip()`；
+>   卡片动作行按它画按钮（原版那个按钮的三个分支）；新增 actions `ReconnectIntegration`/`OpenHomepage`。
+> - `internal/shell`：`integrationList` 用 `extensions.ResolveRuntime` 投影 `RuntimeAvailable`、用
+>   `manifest.Homepage` 投影 `Homepage`；新增 `reconnectIntegration`（先 `Refresh` 再 toast，照原版
+>   `await refreshAfterMutation()` → `showSuccess` 的顺序）与 `openHomepage`（走已有的 `openURL` 缝，
+>   默认浏览器）。i18n 新增 `IntegrationsReconnect`（“Reconnect”/“重新连接”）、
+>   `IntegrationsReconnectUnboundHint`（原版 470-471/1357-1358 原文）、通知
+>   `IntegrationReconnected`。
+> - **记录一处有意偏离**：原版在 `state === "broken"` 时**隐藏**这个按钮（因为原版另有 Wrench「Recheck」
+>   的 `extensions_repair` 接手）；本构建没有 repair，若照抄这层守卫，被自己的 Check 标成
+>   `binding-missing` 的行反而**永久失去**唯一的修复入口。故 `repairKind` 对**绑定类**失败保留修复
+>   （探测类失败仍显示诊断、不给修复），理由写进了函数注释。
+>
+> **验收**：新增 `internal/extensions/reconnect_test.go` 七条（搬到新路径并改写 `executablePath`；清掉绑定失败
+> 并把状态交回开关，含 disabled 保持 disabled；找不到时记录 keyed `runtime-unavailable` 且**保留**旧的
+> 过期路径；什么都没变时不写盘（`updatedAt` 不动）；非 system 归属 `ErrNotSystemOwned` 且不碰条目；未知 id
+> `ErrNoIntegration`；探测类失败 `probe_failed` 不被清掉）。新增 `internal/settingsui/integrationrepair_test.go`
+> 两条（七行表钉三态与 en/zh 两句 + tooltip；四条应画的/两条不应画的行同屏**计数**断言 + 点击分别落到
+> 两个 action + action 为 nil 时不画死按钮）。新增 `internal/shell/reconnect_test.go` 三条（端到端：投影→动作→
+> 条目被改写→页面不再需要修复、通知是「已重新连接」；找不到时通知失败句且路径保留；`openHomepage` 交给
+> 默认浏览器且空串不开）。变异核查：把 `repairLabel` 的 homepage 支改回 `IntegrationsReconnect` →
+> 两条立刻红（`repairLabel(en) = "Reconnect", want "Install tool first"`；像素条 `3 Reconnect buttons, want 2`）。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 27 包全绿
+> （1209 项）、`GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：F4e（本轮的修复入口）落地；文末「具体待办（P7-el 重写）」把 F3a/F3b 与新查出的 F4 残留
+> 拆成五条带 file:line/原版对照/验收标准的具体项，下轮最高优先级是 **F3a（控件透镜，原版有一份
+> `tests/glass-reaxis.test.ts` 的 lens census 可逐条对齐）**。
+
+> **上一轮：P7-ek F4c detected 行的动作回到原版三态 + 目录接通安装命令
 > （原版 `src/extensions/ExtensionRow.tsx:296-302`、`src/ExtensionsPanel.tsx:2552-2574`、
 > `src/extensions/tool-rows.ts:202-212`）** —— P7-ej 后清单只剩 F3a/F3b（F3b 已被实测标为
 > 「先决于 F3a」）与 F4c（「待做；动作三态在本构建退化，先决于数据投影」）。F3b 明确不能直接落地，
@@ -6829,9 +6894,11 @@ Go 侧把原版的三条规则写偏了。依赖检查：`go list -m -versions g
     100.3/100.3/100.5、light 397.2/397.8；以 20px 为步长扫全画布，regular 与 liquid 的 RGB sum 差
     **处处 ≤0.4**。即**控件透镜在本构建的渲染里几乎不贡献像素**——它只在搜索框 1px 内影与图标底板上
     （`internal/launcher/launcher.go:1724`、`glyphs.go:164`）。所以「Linux 上仅靠透镜」**不成立**。
-  - **重写后的待做**：先决定档位的可见 rung 归谁——(a) 让控件透镜真的成为可测像素（放大/落地到更多
-    控件，需单独设计），或 (b) 明确 Linux/无材质时帧的 sheen 继续随档位（保留 P7-c/P7-d 的偏离，本
-    轮的选择）。二选一后再谈 F3b。
+  - **重写后的待做（P7-el 定案）**：取 **(a) 让控件透镜真的成为可测像素**。定案依据是这回找到了原版
+    自己的一份清单：`main:tests/glass-reaxis.test.ts:47-90` 的 lens census **逐条点名**了必须画透镜的
+    控件（raised/recessed/hover-only 三类），而本构建的 `Tokens.Lens` 只被四处调用——设置面与启动器的
+    **按钮/分段控件/开关轨道**（多为框架 `ui.Button`/`ui.Switch` 直接绘制）根本没有透镜，这正是
+    ≤0.4 RGB 的根因。完整的落点与验收标准见文末「具体待办（P7-el 重写）」的 **F3a**（下轮最高优先级）。
 - **F3b · 玻璃作用范围：控件 vs 整体；整体弱化、阴影细节加强（P7-ej 实测后：先决于 F3a）。**
   - **原版对照**：`main:src/styles/launcher.css:119` 的卡片是
     `linear-gradient(180deg, var(--sheen-top), var(--sheen-bottom)), var(--launcher-tint)`，而
@@ -6845,7 +6912,8 @@ Go 侧把原版的三条规则写偏了。依赖检查：`go list -m -versions g
     透镜」，而 F3a 已实测控件透镜在无头/Linux 生产帧里差别 ≤0.4 RGB。先把 `theme.go` 的帧 sheen
     改回固定口径（`spec.Glass` 时取常量、不乘 `LensScale`）会让三档在没有窗口材质时**完全一致**
     ——重演用户报过的「3 档看不出区别」。故本条先等 F3a 的 (a) 落地（控件透镜变成可测像素），再动
-    `theme.go:286-291` 的帧 sheen。
+    `theme.go:286-291` 的帧 sheen。**P7-el 的定案**：先做 F3a 的 (a)；本条的落地步骤与验收已写进
+    文末「具体待办（P7-el 重写）」的 **F3b**。
   - **验收**：新增/改写像素测试——同一 `main_opacity` 下，**帧**的亮面颜色在 regular 与 liquid 之间
     相同（原版），而**控件**的 lens 强度按 0.5/1/1.6 单调上升；现有
     `internal/shell/glass_test.go` 的 `TestTheGlassStopsAreVisiblyDifferent` 需随之改写（它当前断言帧
@@ -6853,7 +6921,7 @@ Go 侧把原版的三条规则写偏了。依赖检查：`go list -m -versions g
   - **风险**：帧 sheen 参与透明度的 `FaceFill` 补偿（`theme.go` 的 `baseAlpha`/`capAlpha` 与
     `internal/shell/transparency_test.go`），改动须重跑该套像素测试。
 
-### F4 · 集成组件逻辑差异（**P7-eh 落地 F4a；P7-ei 落地 F4b；P7-ek 落地 F4c；P7-ej 落地 F4d，并修好 F4c 依赖的连接链**）
+### F4 · 集成组件逻辑差异（**P7-eh 落地 F4a；P7-ei 落地 F4b；P7-ek 落地 F4c；P7-ej 落地 F4d；P7-el 落地 F4e 的 Reconnect 一支**）
 
 - **现象**：集成组件逻辑与原版差异仍大，需要梳理、可能重构。
 - **原版对照**：`main:src/ExtensionsPanel.tsx`（面板与安装/权限/运行流程，3269 行）与
@@ -6973,4 +7041,137 @@ Go 侧把原版的三条规则写偏了。依赖检查：`go list -m -versions g
   `connectDetected` 的 `Platforms` → 连接失败、shell 条红。
 
 - **残留**：`main:src/ExtensionsPanel.tsx`（安装文件夹/权限审批/运行参数/输出回看/导入导出的**流程**）
-  尚未逐函数对照；F4a–F4d 全部落地（F4c 由 P7-ek 收尾）；剩 **F3a/F3b**（P7-ej 已用实测把 F3b 标为「先决于 F3a」，见上）。
+  尚未逐函数对照；F4a–F4d 全部落地（F4c 由 P7-ek 收尾）；**F4e（卡片的修复入口，P7-el）已落地**，
+  余下 F4e 的 `extensions_repair` 一支、F4f、F4g 与 **F3a/F3b**——全部已写成文末「具体待办
+  （P7-el 重写）」的五条带 file:line 的具体项。
+
+### 具体待办（P7-el 重写；F4 残留的修复入口已落地，余下四条 + 一条新增）
+
+P7-ej/P7-ek 之后清单上只剩 F3a（一个待决策的分叉）与 F3b（已实测标为「先决于 F3a」），**两条都不是
+可直接落地的具体项**。本轮按规则把清单写实为五条带 file:line / 原版对照 / 验收标准的待办，并取其中
+新查出的真实缺口（F4e）落地。下面每条的「原版对照」都只读 `main`（v0.3.14 原版树）。
+
+#### F4e · 已连接卡片的修复入口（**本轮落地，P7-el**）
+
+- 见上文 P7-el 记录。剩下的部分是原版的另一支 **`extensions_repair`（Wrench「Recheck」）**：
+  原版 `ExtensionRow.tsx:313-330` 对 `connected && state === "broken"` 画一个 Wrench，走
+  `ExtensionsPanel.tsx:1255-1267` 的 `extensions_repair`，它**校验已装包并按需修复**（不是重跑探测），
+  toast 按 `report.repaired ? repairedNotice : recheckedNotice` 二选一
+  （词条 `i18n.ts:507` / `recheckedNotice` 旁边一条）。
+- **本构建**：没有 repair。broken 行只有一个 `copy.IntegrationsCheck` 按钮 →
+  `internal/shell/shell.go:1489` 的 `diagnoseIntegration`（跑 `extensions.Reprobe` + `extensions.Diagnose`），
+  它**只报告**、不校验包完整性也不修。i18n 也没有 `repairedNotice`/`recheckedNotice`。
+- **落地 file:line**：`internal/extensions/repair.go`（新）`Repair(ctx, paths, id) (RepairReport, error)`
+  ——校验清单与包目录（`ManifestPath()` / `PackageDir()` 的存在性与 `ManifestDigest` 与
+  `ApprovedManifestDigest` 是否一致）、必要时重写 `manifestPath`；`RepairReport{Repaired bool}`；
+  `internal/settingsui` 新增 `Actions.RepairIntegration` + broken 分支的文案
+  （`IntegrationsRecheck`，原版 `settings.extensions.recheck`）；`internal/shell` 接
+  `a.repairIntegration` 并加两条通知 `IntegrationRepaired` / `IntegrationRechecked`（原版
+  `repairedNotice`/`recheckedNotice`）。**与本轮 F4e 的关系**：`repairKind` 现在对绑定类失败复用
+  Reconnect；repair 落地后可把「broken 行的入口」拆回原版的两支，并在 `repairKind` 里去掉那处有意偏离。
+- **验收**：`internal/extensions/repair_test.go`——包目录缺失/清单 digest 与批准记录不一致/两者都正常
+  三条表，钉 `Repaired` 的真假与仓库条目的改动；`internal/settingsui` 一条像素断言 broken 行画
+  Recheck 且点击落到 `RepairIntegration`；`internal/shell` 一条钉两条通知按 `Repaired` 二选一。
+  变异核查：把 `Repair` 的「digest 不一致」支改成返回 `Repaired=false` → 第一条红。
+
+#### F4f · 移除确认条按 kind 说话（F4a 留下的尾巴）
+
+- **原版对照**：`main:src/extensions/RemovalConfirmation.tsx:41`——确认条的**标题/正文/确认按钮**与
+  菜单项用**同一个 kind key**（`deletionCopyFor(kind, …)`），所以 package/system 各自有
+  `removePackageTitle` / `disconnectTitle` 这类词（`i18n.ts:521-540` 一带）。
+- **本构建**：`internal/settingsui/uninstall.go` 的确认条一律走
+  `RemoveTitle`/`RemoveDetail`/`RemoveConfirm`（只有 custom 走 `RemoveDelete`，见 F4a 的
+  `removalLabel`），与 F4a 已经修好的「菜单动词随 kind」不一致：菜单说「Disconnect」，确认条标题
+  仍是「Remove」。
+- **落地 file:line**：`internal/settingsui/uninstall.go` 的 `removalTextKey` 按
+  `integration.removalKind()` 返回四组键；`internal/i18n/i18n.go` + `copy.go` 新增配对键
+  （`IntegrationsDisconnectTitle`/`IntegrationsDisconnectDetail`/`IntegrationsRemovePackageTitle`/
+  `…Detail`，en/zh 用原版原文）。注意 `TestNoDeadCopy` 会因声明了没人读的键而红，故键必须与四个分支一一对应。
+- **验收**：`internal/settingsui/integrationremoval_test.go` 追加一条——同屏四行分别打开确认条，
+  像素上钉四个标题各出现一次；变异核查：把 `removalTextKey` 的 system 支改回 `RemoveTitle` → 立刻红。
+
+#### F4g · `ExtensionsPanel.tsx` 尚未逐函数对照的流程
+
+- **原版对照（逐个入口，行号已钉）**：
+  - 安装文件夹：`main:src/ExtensionsPanel.tsx:1430-1440` 的 `reviewLocalManifest`
+    （`extensions_local_manifest_review` → 名字/runtime/platforms/source + 权限清单）与
+    `:1554` 的 `extensions_install` 提交；
+  - 权限审批：`:1349-1400` 的 `connectRecommendedAt`（先 `extensions_recommended_permissions`，
+    有权限才弹 `pendingPermissionReview`）与 `:2594-2620` 的 `extension-permission-backdrop`
+    弹窗（标题按 `manifestSuggestion` / `recommended` 二选一 + `PermissionTierList` + 边界句）；
+  - 运行参数：`:2560-2580` 的 `pendingToolSelection` 弹窗（多个候选才弹，`chooseSystemTool`）；
+  - 输出回看：`:2078-2132` 的 `handleDriftNotice`（`OperationProgress` 漂移提示）；
+  - 导入导出：`extensions_export` / `extensions_import` 的调用点（`onImport`/`onExport` 一带）。
+- **本构建入口**：`internal/settingsui/settingsui.go` 的 `localToolSection`（`:2860` 一带）、
+  `installationReview`/`InstallFromFolder`、`confirmInstallPermissions`（shell）、
+  `permissionAudit`（`:1741`）、`runForm`/`runOutput`、`importIntegrations`/`exportIntegrations`（shell）。
+- **待做**：按上面五个入口逐条比对，每条都要么「已有等价实现 → 在文档里记下 file:line 与结论」，
+  要么写成 F4g-n 的具体条目。**验收**：每条至少一条测试（对已有等价实现的条目，测试写「原版那句话/那个
+  状态在本构建的哪个函数被谁读」）。
+- **注意**：这是**对照任务**，不要一次性大改；每轮只取一条入口（与 F4a–F4e 的节奏一致）。
+
+#### F3a · 控件透镜（原版有一份可逐条对齐的 lens census）
+
+- **原版对照（不用猜：原版自己有一份清单）**：`main:tests/glass-reaxis.test.ts:47-90`
+  的 `every named control draws a lens rung, not a bare ring` 逐条点名了必须画透镜的控件，
+  并区分 raised（`--elev-0`）与 recessed（`--elev-track`）：
+  - raised：`.extensions-action-button`、`.app-toast__action`、`.settings-save-alert button`、
+    `.settings-option--active`、`.settings-sidebar__item:hover`、`.settings-section__card`、
+    `.launcher-result__icon`、`.launcher-action-bar__icon`；
+  - recessed：`.settings-options--inline`、`.extension-custom-mode`、`.settings-switch`；
+  - 只有 hover 才亮透镜：`.extensions-icon-button:hover`、`.toolbar-button:hover`。
+  token 定义在 `main:src/styles/base.css:188`（`--elev-0: var(--glass-lens-stack)`）、`:231`
+  （`--elev-track: var(--glass-lens-stack-inset)`），档位倍率是 `:784/:791/:798` 的
+  `--glass-lens-scale: 0.5/1/1.6`（本构建 `internal/glassmap/glassmap.go:88-101` 数值已逐项相等）。
+- **本构建**：`internal/theme/theme.go:577-584` 的 `Tokens.Lens` 就是 `--glass-lens-stack`，
+  但只被四处调用（`internal/launcher/glyphs.go:164`、`internal/settingsui/rows.go:89`、
+  `internal/settingsui/settingsui.go:877`、`internal/terminalui/terminalui.go:812/946/991`），
+  而设置面/启动器的**按钮、分段控件、开关轨道**大多由框架的 `ui.Button`/`ui.Switch` 直接绘制
+  （例如 `internal/settingsui/settingsui.go:1723` 的 `ui.Button(c, …)`），**不带透镜**——这就是
+  P7-ej 实测「控件透镜几乎不贡献像素（≤0.4 RGB）」的根因。
+- **落地 file:line（建议顺序）**：
+  1. 在 `internal/settingsui` 加 `func (a *App) actionButton(c *ui.Context, label string) ui.Element`
+     = `tokens.Lens(ui.Button(c, label))`（先验证框架允许对 Button 加 inset shadow；不行则用
+     `ui.ButtonBase` + 自己填 `tokens.Control`/`ControlEdge`），把所有 `ui.Button(c, …)` 调用点换成它；
+  2. `internal/control/control.go:20-45` 的轨道只画 `LensRim` 一层，补成
+     `--glass-lens-stack-inset` 的三层（rim/sheen/edge 反向，见 `base.css:593-597`）；
+  3. 分段控件（`internal/settingsui` 的 options/segmented 行）按 `.extension-custom-mode` 的 recessed 透镜处理。
+- **验收**：改写/新增 `internal/shell/glass_test.go` 的像素测试——同一 `main_opacity` 下，
+  **控件**（图标底板 / 设置面按钮）在 regular 与 liquid 之间的 RGB sum 差 **≥ 一个明确的阈值**
+  （P7-ej 的实测是 ≤0.4，即「不可测」），而**帧专属带**（y=90..120，不含控件）的差 ≤0.4；
+  另加一张对照表把 `glass-reaxis.test.ts:47-90` 的每个选择器映射到本构建的绘制点
+  （写成 Go 表 + 注释，逐条点名），任何一个落点丢失透镜就红。
+- **风险**：按钮外观会变（透镜是 inset 阴影，不是边框），需目视确认暗/亮两套主题；改动只碰
+  `Tokens.Lens` 的**使用点**，不动 `internal/theme` 的数值。
+
+#### F3b · 帧 sheen 回固定口径（**先决于 F3a**）
+
+- **原版对照**：`main:src/styles/launcher.css:119` 的卡片是
+  `linear-gradient(180deg, var(--sheen-top), var(--sheen-bottom)), var(--launcher-tint)`，而
+  `--sheen-top/-bottom` 是**固定 token**（`base.css:628-629` dark 0.046/0.01、`:906-907` light 0.66/0.22），
+  **不随 `[data-glass]` 变**；档位的可见 rung 只在控件透镜与窗口材质上。
+- **本构建（偏离）**：`internal/theme/theme.go:286-291` 把帧的 sheen 写成
+  `sheen = spec.TintAlpha * spec.LensScale`（P7-c/P7-d 为「3 档看不出区别」加的耦合），于是帧的亮面
+  随档位变，而原版的帧 sheen 固定。
+- **为什么不现在改**：F3a 实测前，固定帧 sheen 会让三档在没有窗口材质（Linux/无头）时**完全一致**，
+  重演用户报过的「3 档看不出区别」。故本条**只能**在 F3a 的验收（控件像素差 ≥ 阈值）变绿之后动。
+- **落地 file:line**：`internal/theme/theme.go:286-291` 改成 `spec.Glass` 时取常量（不乘
+  `LensScale`）；同步改写 `internal/shell/glass_test.go` 的
+  `TestTheGlassStopsAreVisiblyDifferent`（它当前断言帧亮面随档位变，是 P7-c/P7-d 的产物）。
+- **验收**：同一 `main_opacity` 下**帧**亮面在 regular 与 liquid 之间相同，而**控件** lens 强度按
+  0.5/1/1.6 单调上升；`internal/shell/transparency_test.go` 的 `FaceFill`/`baseAlpha` 像素测试全绿
+  （帧 sheen 参与透明度的补偿计算，改完必须重跑这一套）。
+
+#### F-new · 脚本内容编辑器换用 mygo `ui/editor`（v0.4.8 新包的自然用点）
+
+- **原版对照**：`main:src/ExtensionsPanel.tsx` 的自定义工具表单里，脚本内容是一个带高亮的代码编辑区
+  （`src/extensions/` 下的 script 编辑器组件；词条 `settings.extensions.customScript*`）。
+- **本构建**：`internal/settingsui/settingsui.go:3258` 是一个纯粹的 `ui.TextArea(c, script)`（多行文本
+  框，无行号/无高亮/无折行控制）。
+- **待做（评估 + 一处落地）**：v0.4.8 的 `ui/editor` 提供 `editor.View`（只画视口内的行、多光标、
+  查找替换、`Highlighter` 接口、持久 `ui.TextBuffer`）。自然用点就是这个脚本框。落地前必须先确认三件事：
+  (1) `editor.View` 的输入路径是否经过框架的文本输入事件（要保证 `internal/inputtext` 的边界约定
+  ——Zs→U+0020、粘贴去一个尾换行——仍然成立）；(2) 面板的表单焦点/提交（`Submitted()`）如何与之共存；
+  (3) 是否引入不必要的 LSP/补全依赖（只想要高亮 + 行号）。
+- **验收**：`internal/settingsui` 一条像素断言（脚本框画出行号 + 关键字着色），加一条「粘贴带尾换行
+  的文本仍然只有一个换行」的边界回归。

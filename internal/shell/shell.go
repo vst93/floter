@@ -624,9 +624,11 @@ func New(opts Options) *App {
 			a.Terminal.NewSession()
 			a.Open(SurfaceTerminal)
 		},
-		CloseSessionAt:      a.Terminal.CloseSession,
-		DiagnoseIntegration: a.diagnoseIntegration,
-		ReprobeCommands:     a.reprobeCommands,
+		CloseSessionAt:       a.Terminal.CloseSession,
+		DiagnoseIntegration:  a.diagnoseIntegration,
+		ReprobeCommands:      a.reprobeCommands,
+		ReconnectIntegration: a.reconnectIntegration,
+		OpenHomepage:         a.openHomepage,
 		ScriptRuntime: func(language string) scriptlang.Check {
 			return extensions.ScriptRuntimeFor(context.Background(), language)
 		},
@@ -1362,6 +1364,16 @@ func (a *App) integrationList() []settingsui.Integration {
 			DistributionSource: integration.Entry.DistributionSource,
 			RuntimeOwnership:   integration.Entry.RuntimeOwnership,
 		}
+		// The runtime the entry was bound to, resolved again for this frame: a
+		// row whose program moved or vanished offers the reference's repair
+		// action instead of a run it could not perform
+		// (`src/extensions/ExtensionRow.tsx:345-370`).
+		if _, err := extensions.ResolveRuntime(integration); err == nil {
+			item.RuntimeAvailable = true
+		}
+		// The project's own page, when the manifest names one: the repair a row
+		// whose runtime floter does not own can only point at.
+		item.Homepage = integration.Manifest.Homepage
 		// The `floter://register` mark rides the card whose executable the link
 		// named, nothing else (see markRegisterTarget).
 		if a.registerTarget != "" && sameExecutable(integration.Entry.ExecutablePath, a.registerTarget) {
@@ -1582,6 +1594,59 @@ func (a *App) diagnoseIntegration(id string) {
 			}
 		})
 	}()
+}
+
+// reconnectIntegration re-derives a system integration's runtime binding from
+// the search path — the old host's `extensions_reconnect_system`, which the
+// row offers when the program it was bound to is no longer there. The notice
+// is the reference's repaired/rechecked split: a record that changed says so,
+// one that was already right says the tool is working (`ExtensionsPanel.tsx`,
+// `report.repaired ? repairedNotice : recheckedNotice`).
+func (a *App) reconnectIntegration(id string) {
+	name := id
+	if integration, ok := a.Integrations.Inventory().WithID(id); ok && integration.Name != "" {
+		name = integration.Name
+	}
+	go func() {
+		report, err := extensions.Reconnect(a.Paths, id)
+		// The list is re-read first, as the reference's `refreshAfterMutation`
+		// did before its toast: a reconnect may have rewritten the entry (a new
+		// executable path, or a cleared binding failure), and the notice must
+		// not announce a state the page has not caught up with yet.
+		a.Integrations.Refresh(context.Background())
+		switch {
+		case err != nil:
+			log.Printf("floter: could not reconnect %s: %v", id, err)
+			a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationCheckFailed(name) })
+		case report.Reconnected:
+			a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationReconnected(name) })
+		default:
+			a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationChecked(name) })
+		}
+		a.onMain(func() {
+			if a.Win != nil {
+				a.Win.Invalidate()
+			}
+		})
+	}()
+}
+
+// openHomepage hands a project's own page to the system's default browser. The
+// integrations page's "Install tool first" is the only caller: a row whose
+// runtime floter does not own can point the user at the project and nothing
+// more, which is exactly what the reference's `installTool` arm did.
+func (a *App) openHomepage(url string) {
+	url = strings.TrimSpace(url)
+	if url == "" {
+		return
+	}
+	// The system's default browser, not one of the configured browser plugins:
+	// a project page is not a search, and the user's own choice of browser is
+	// the one that should open it (the reference opened the page the same way,
+	// `onRepair`'s `openExternal`).
+	if err := a.openURL("", url); err != nil {
+		log.Printf("floter: could not open %s: %v", url, err)
+	}
 }
 
 // searchBrowser searches the browser the settings name, off the main thread,

@@ -103,6 +103,15 @@ type Actions struct {
 	UninstallComponents func(id string, name string, components UninstallComponents)
 	// DiagnoseIntegration asks an integration's provider to check itself.
 	DiagnoseIntegration func(id string)
+	// ReconnectIntegration re-derives a system integration's runtime binding
+	// from the search path: the old host's `extensions_reconnect_system`, and
+	// the only repair a row whose program moved can offer. Nil hides the
+	// button.
+	ReconnectIntegration func(id string)
+	// OpenHomepage sends the user to an integration's own page — the
+	// reference's `installTool` arm for a row whose runtime floter does not
+	// own and cannot look for. Nil hides that button.
+	OpenHomepage func(url string)
 	// ReprobeCommands re-runs the connect-time help derivation of a
 	// generated custom integration and rebuilds its command list. Nil
 	// hides the button.
@@ -282,6 +291,16 @@ type Integration struct {
 	// (`src/extensions/ExtensionRow.tsx:196-205,290`). It is a status mark,
 	// not a control: nothing about the card's actions changes.
 	Highlighted bool
+	// RuntimeAvailable says the runtime the entry was bound to still
+	// resolves: the program is on disk, or the interpreter a script needs is
+	// installed. A row whose runtime is gone offers the reference's repair
+	// action instead of a run it could not perform
+	// (`src/extensions/ExtensionRow.tsx:345-370`).
+	RuntimeAvailable bool
+	// Homepage is the project's own page when the manifest names one. It is
+	// where the repair sends a user when floter has no runtime of its own to
+	// look for, the reference's `installTool` arm.
+	Homepage string
 	// Params are the declared inputs a run needs: the card renders a form for
 	// them, and the answers become argv.
 	Params []Param
@@ -1695,6 +1714,26 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 					}
 				}
 			}
+			// The row's runtime is gone, so the row offers the repair before it
+			// offers a check: the reference drew one button for this state and
+			// picked its arm from the runtime's owner and the manifest's page
+			// (`src/extensions/ExtensionRow.tsx:345-370`). A system row asks the
+			// search path again; a row whose runtime floter does not own hands
+			// the user the project's page instead.
+			switch integration.repairKind() {
+			case repairReconnect:
+				if a.Actions.ReconnectIntegration != nil {
+					if ui.Button(c, integration.repairLabel(copy)).Tooltip(integration.repairTooltip(copy)).Clicked() {
+						a.Actions.ReconnectIntegration(integration.ID)
+					}
+				}
+			case repairHomepage:
+				if a.Actions.OpenHomepage != nil {
+					if ui.Button(c, integration.repairLabel(copy)).Tooltip(integration.repairTooltip(copy)).Clicked() {
+						a.Actions.OpenHomepage(integration.Homepage)
+					}
+				}
+			}
 			if a.Actions.DiagnoseIntegration != nil {
 				if ui.Button(c, copy.IntegrationsCheck).Clicked() {
 					a.Actions.DiagnoseIntegration(integration.ID)
@@ -1924,6 +1963,88 @@ func (i Integration) removalLabel(copy i18n.Settings) string {
 	default:
 		return copy.IntegrationsRemovePackage
 	}
+}
+
+// The repair a connected row offers when its runtime no longer resolves. The
+// reference drew one button for this state and picked its arm from the same
+// three facts (`src/extensions/ExtensionRow.tsx:345-370`).
+type repairKind int
+
+const (
+	// repairNone: the runtime resolves, or the row is broken for a reason a
+	// check already reported — there is nothing to repair here.
+	repairNone repairKind = iota
+	// repairReconnect: the program belongs to the machine, so the search path
+	// is asked again.
+	repairReconnect
+	// repairHomepage: floter does not own this runtime and has nowhere of its
+	// own to look, so the row sends the user to the project's page.
+	repairHomepage
+)
+
+// repairKind is which repair this row offers, or none. The condition is the
+// reference's own: a *connected* row whose runtime does not resolve offered
+// the button when its runtime belonged to the system, when it had a project
+// page, or both. Managed and bundled rows with no page render nothing at all
+// (the reference's own note on that arm).
+//
+// One deliberate departure: the reference hid the button on a `broken` row
+// because *it* had a separate install-repair button (the Wrench `Recheck`
+// arm, `src/extensions/ExtensionRow.tsx:313-330`) that a broken row showed
+// instead. This build has no install-repair — a check only re-runs the
+// probes — so a row broken *by its binding* (the code a check records when
+// the program cannot be resolved) would be a dead end: nothing on the row
+// could re-derive the path. Those rows keep the repair; a row broken for any
+// other reason still shows its diagnosis instead.
+func (i Integration) repairKind() repairKind {
+	if i.RuntimeAvailable {
+		return repairNone
+	}
+	if i.Broken && !i.bindingFailure() {
+		return repairNone
+	}
+	if i.RuntimeOwnership == extensions.RuntimeOwnershipSystem {
+		return repairReconnect
+	}
+	if i.Homepage != "" {
+		return repairHomepage
+	}
+	return repairNone
+}
+
+// bindingFailure reports whether the failure the repository recorded is a
+// runtime-binding one rather than a probe's: the codes a program that moved
+// or vanished writes. They are the reference's `runtimeUnavailableCode`,
+// whose only fix is a fresh look at the search path.
+func (i Integration) bindingFailure() bool {
+	switch i.FailureCode {
+	case extensions.BindingCodeChanged, extensions.BindingCodeMissing,
+		extensions.BindingCodeRuntimeUnavailable, extensions.BindingCodeCheckFailed:
+		return true
+	}
+	return false
+}
+
+// repairLabel is the button's word: the reference named the reconnect arm
+// "Reconnect" whenever the runtime was the system's to look for (with or
+// without a page, because reconnecting is what it does), and "Install tool
+// first" for the arm that can only hand over a page.
+func (i Integration) repairLabel(copy i18n.Settings) string {
+	if i.repairKind() == repairHomepage {
+		return copy.IntegrationsInstallTool
+	}
+	return copy.IntegrationsReconnect
+}
+
+// repairTooltip is the full sentence behind the button. The reference's
+// `reconnectUnboundHint` says what to expect when the search path found
+// nothing *and* there is no page either — the button re-runs the search, and
+// the sentence says so rather than promising a tool it knows about.
+func (i Integration) repairTooltip(copy i18n.Settings) string {
+	if i.repairKind() == repairReconnect && i.Homepage == "" {
+		return copy.IntegrationsReconnectUnboundHint
+	}
+	return i.repairLabel(copy)
 }
 
 func (a *App) installedIntegrations() []Integration {
