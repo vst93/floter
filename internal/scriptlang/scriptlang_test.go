@@ -101,16 +101,16 @@ func TestLookupFallsBack(t *testing.T) {
 // The status line makes one of three claims: we have not looked, it is there,
 // or it is not. An absent toolchain names what to install.
 func TestStatusOf(t *testing.T) {
-	// Not asked yet: the check is zero, and nothing claims it is missing.
+	// Not asked yet: the check is zero, so nothing claims it is missing.
 	status := StatusOf("python", Check{})
-	if status.State != Missing {
+	if status.State != Unknown {
 		t.Errorf("a zero check = %v", status.State)
 	}
 	if status.Name != "python3" {
 		t.Errorf("name = %q", status.Name)
 	}
-	if len(status.Names) == 0 || status.Names[0] != "python3" {
-		t.Errorf("names = %v", status.Names)
+	if len(status.Names) != 0 {
+		t.Errorf("a not-asked check named what to install: %v", status.Names)
 	}
 
 	// Found: the interpreter's own file name and the version it reported.
@@ -142,11 +142,34 @@ func TestStatusOf(t *testing.T) {
 		t.Errorf("go is not marked compiled: %+v", status)
 	}
 	status = StatusOf("go", Check{})
-	if !status.Compiled || status.Name != "go" {
-		t.Errorf("go missing = %+v", status)
+	if status.State != Unknown || !status.Compiled || status.Name != "go" {
+		t.Errorf("go not asked = %+v", status)
 	}
 	// An interpreted language is never marked compiled.
 	if StatusOf("shell", Check{Available: true, Path: "/bin/sh"}).Compiled {
 		t.Error("shell was marked compiled")
+	}
+}
+
+// Asked separates "we looked" from "compiled is a fact about the language":
+// a check carrying only the compiled flag has no observation behind it, so it
+// must still read as not-asked.
+func TestCheckAsked(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		check Check
+		want  bool
+	}{
+		{"zero", Check{}, false},
+		{"only compiled", Check{Compiled: true}, false},
+		{"availability", Check{Available: true}, true},
+		{"path", Check{Path: "/usr/bin/node"}, true},
+		{"version", Check{Version: "3.12.1"}, true},
+		{"candidates", Check{Candidates: []string{"node"}}, true},
+		{"missing", Check{Candidates: []string{"python3"}, Compiled: true}, true},
+	} {
+		if got := tc.check.Asked(); got != tc.want {
+			t.Errorf("%s: Asked() = %v, want %v", tc.name, got, tc.want)
+		}
 	}
 }

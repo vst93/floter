@@ -161,9 +161,21 @@ type Status struct {
 	Names []string
 }
 
+// Asked reports whether a check carries an observation: availability, a path,
+// a version, or the names that were looked for. The zero Check is "not asked
+// yet" (see the type's comment), and must never be read as "missing".
+func (c Check) Asked() bool {
+	return c.Available || c.Path != "" || c.Version != "" || len(c.Candidates) > 0
+}
+
 // StatusOf projects a check for a language into the line the editor shows.
 func StatusOf(language string, check Check) Status {
 	option := Lookup(language)
+	if !check.Asked() {
+		// Nobody has looked yet, so nothing may claim the toolchain is
+		// missing. This mirrors the old build's `check === null` → checking.
+		return Status{State: Unknown, Name: option.Toolchain, Compiled: option.Compiled}
+	}
 	if check.Path == "" && !check.Available {
 		names := check.Candidates
 		if len(names) == 0 {

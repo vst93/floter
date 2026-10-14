@@ -3025,13 +3025,11 @@ func (a *App) clearScriptRuntimeCache() { a.scriptRuntime = nil }
 func (a *App) scriptRuntimeLine(language string) string {
 	copy := a.copy()
 	option := scriptlang.Lookup(language)
-	check, ok := a.scriptRuntimeCheck(language)
-	if !ok {
-		// Nothing to ask: the toolchain's name is all we can honestly say.
-		return option.Toolchain
-	}
-	status := scriptlang.StatusOf(language, check)
-	switch status.State {
+	// No probe wired is the same claim as a probe that has not run yet: the
+	// check is zero, so StatusOf answers Unknown and we fall through to the
+	// toolchain's name alone.
+	check, _ := a.scriptRuntimeCheck(language)
+	switch status := scriptlang.StatusOf(language, check); status.State {
 	case scriptlang.Available:
 		line := copy.LocalToolRuntimeReady(status.Name, status.Version)
 		if status.Compiled {
@@ -3040,8 +3038,10 @@ func (a *App) scriptRuntimeLine(language string) string {
 		return line
 	case scriptlang.Missing:
 		return copy.LocalToolRuntimeMissing(strings.Join(status.Names, ", "))
+	default:
+		// Not asked yet: the toolchain's name is all we can honestly say.
+		return option.Toolchain
 	}
-	return option.Toolchain
 }
 
 // isTemplate reports whether a script is still one of the shipped templates,

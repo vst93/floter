@@ -99,7 +99,45 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-dk 动作栏的「存在性」与「默认选择」拆开（原版 `src/App.tsx:1547-1552` 的
+> **最新一轮：P7-dl 脚本工具链状态行的措辞与「没问过」语义（原版
+> `src/extensions/CustomIntegrationDrawer.tsx:112-121` 的 `ScriptRuntimeLine` +
+> `src/i18n.ts:696-699,1576-1579`）**
+> —— P7-dk 收尾后「尚未做」的 P7-di 第 3 条是最高优先级的具体项（P7-dg 第 3 条是原版自己都没接线的
+> 死函数、P7-dd 第 3 条卡 mygo 框架），本轮取它。依赖检查：`go list -m -versions
+> github.com/egoist/mygo` 最新仍是 **v0.4.8**（与 `go.mod` 一致），无版本可升。只对照 `main`
+> （`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离点（两处，同一状态行）**：
+> 1. **三条词自造**。原版 ready 行是 `${name} ${version}` 或 `name`（**没有** "is ready" 后缀，
+>    后缀留给 `customScriptCompiled` 的 `<em>` 与 `path` 的 `<code>`）；missing 行是
+>    "Not found on PATH: {names}. Install it, then reopen this form to check again."（zh
+>    "在 PATH 中未找到：{names}。安装后重新打开此表单即可再次检查。"）；compiled 是两词
+>    "built before running"（zh "运行前先编译"）。本构建的 `LocalToolRuntimeReady` 自造了 `+ " is
+>    ready"`/`+ " 可用"`，missing 与 compiled 也各改写成自己的句子。
+> 2. **零值 `Check` 被读成 missing**。`scriptlang.Check` 的注释明写「zero Check means 'not asked
+>    yet' — never 'missing'」，但 `StatusOf` 对零值返回 `Missing`，与自己的注释相矛盾。
+>
+> **修法**：
+> - `internal/scriptlang/scriptlang.go`：新增 `Check.Asked()`（有 observation 才算问过：
+>   `Available`/`Path`/`Version`/`Candidates` 任一；`Compiled` 是语言的投影、不是观测，单有它仍是
+>   没问过），`StatusOf` 对「没问过」返回 `Status{State: Unknown, Name: toolchain}`。
+> - `internal/i18n/copy.go`：三条词逐字对齐旧字典（en/zh 各三处）。
+> - `internal/settingsui/settingsui.go` 的 `scriptRuntimeLine`：走一个 `StatusOf` 的 `switch`，
+>   没接线探测与「问过但零值」现在同一条 `default` 分支 → 只说工具链名字。
+> - **诚实记录**：原版的 checking 态（`check === null` → `customScriptRuntimeChecking`）在本构建仍
+>   无落点——探测是同步的，渲染帧里不存在「在飞」的时刻。按清单的告示，没有异步探测前**不新增**
+>   checking 词，避免再造死旋钮；异步化（`go func` + 重绘）留作独立一轮。
+>
+> **测试**：`internal/scriptlang/scriptlang_test.go` 的 `TestStatusOf`（零值 → `Unknown`、不报 missing、
+> go 的零值仍带 `Compiled`）与新增 `TestCheckAsked`（7 行表，含「只有 Compiled」仍是没问过）；
+> `internal/i18n/i18n_test.go` 的 `TestScriptRuntimeWordsMatchTheOldDictionary` 逐字钉 en/zh 三句
+> （含 ready 无版本）。变异核查：把 `StatusOf` 的零值分支改回 `Missing`，`TestStatusOf` 的
+> 「zero check」断言立刻红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 27 包全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+> **上一轮：P7-dk 动作栏的「存在性」与「默认选择」拆开（原版 `src/App.tsx:1547-1552` 的
 > `visibleActionBar` + `src/hooks/useLauncherCatalog.ts:1432-1443` 的 `defaultsToActionBar`）**
 > —— P7-dj 收尾后「尚未做（P7-dj 本轮发现）」只此一条（本轮落地）。依赖检查：
 > `go list -m -versions github.com/egoist/mygo` 最新仍是 **v0.4.8**（与 `go.mod` 一致），无版本可升。
@@ -3251,7 +3289,7 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
      `TestSystemCommandsJoinTheSearchWhenEnabled` 关设置那段）断言页面**没有** shell 行、并靠 Enter
      兜底验证仍会运行。本轮试过的“非空 query 就画”版本已丢弃，未提交。
 
-### 具体待办（P7-di 重写；第 1 条已落地 P7-di，第 2 条已落地 P7-dj，余下第 3 条待做）
+### 具体待办（P7-di 重写；第 1 条已落地 P7-di，第 2 条已落地 P7-dj，第 3 条措辞已落地 P7-dl，余下异步 checking 态卡框架）
 
 > 本轮换入口：逐文件对照原版的**脚本工具链状态行**（`src/extensions/script-languages.ts` 的
 > `scriptRuntimeStatus`、`CustomIntegrationDrawer.tsx` 的 `ScriptRuntimeLine`、`ExtensionsPanel.tsx`
@@ -3298,7 +3336,7 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
      变异核查：关掉 `NotifyWarning` 那段分支，settingsui 那条测试立刻红。
      **诚实记录**：框架默认的 toast 外观只画一种色调（`ui/engine.buildToasts` 不读 `Toast.Type`），
      原版的 warning 色调在这里无处可落，所以这条 notice 不设 `Type`——设了就是个没有实现的旋钮。
-3. **状态行措辞与旧字典不一致，且缺 checking 态**（待做，第 3 条卡同步探测）。
+3. **状态行措辞与旧字典不一致，且缺 checking 态**（措辞已落地 P7-dl；异步 checking 态仍卡框架）。
    - 原版对照：`main:src/extensions/CustomIntegrationDrawer.tsx:112-121` 的 `ScriptRuntimeLine`——
      `check === null` → `customScriptRuntimeChecking`（en "Checking the local toolchain…" / zh
      "正在检查本机工具链…"，`main:src/i18n.ts:696,1576`）；missing → `customScriptRuntimeMissing`
@@ -3315,6 +3353,11 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
      的 `Check` 返回 `Unknown`。**卡点**：本构建的探测是同步的，渲染帧里不存在「在飞」的时刻，所以
      `Unknown`/checking 的渲染没有真实落点——要么先引入异步探测（`go func` + `Invalidate`，对齐原版
      的 `null` → 检查中），要么只做措辞对齐；没有异步前不新增 checking 词，避免再造死旋钮。
+   - **已落地（P7-dl，措辞与 `Unknown` 语义）**：`scriptlang.Check.Asked()` + `StatusOf` 的零值 →
+     `Unknown`；`copy.go` 的 en/zh 三句逐字对齐旧字典；`scriptRuntimeLine` 走 `StatusOf` 的 switch，
+     `Unknown` 落到工具链名字。**未做**：原版的 checking 词（`customScriptRuntimeChecking`）仍无落点，
+     因为探测是同步的——`Actions.ScriptRuntime` 在渲染帧里直接 `exec.Command`，没有「在飞」态。
+     异步化需要先给 settingsui 一条重绘通道（`go func` + `Invalidate`）。详见「最近几轮」P7-dl。
 
 ### 具体待办（P7-dg 重写；第 1 条已落地 P7-dg，第 2 条已落地 P7-dh，余下第 3 条低优先级）
 

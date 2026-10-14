@@ -108,3 +108,29 @@ func TestPercent(t *testing.T) {
 		}
 	}
 }
+
+// TestScriptRuntimeWordsMatchTheOldDictionary pins the three script-toolchain
+// sentences to the old build's own strings: the ready line carries no "is
+// ready" suffix (the drawer appended the compiled note and path instead), the
+// missing line names reopening the form as the way to check again, and the
+// compiled note is the drawer's two-word em.
+func TestScriptRuntimeWordsMatchTheOldDictionary(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		got  string
+		want string
+	}{
+		{"en ready", en.Settings.LocalToolRuntimeReady("python3", "3.12.1"), "python3 3.12.1"},
+		{"en ready no version", en.Settings.LocalToolRuntimeReady("node", ""), "node"},
+		{"en missing", en.Settings.LocalToolRuntimeMissing("node, nodejs"), "Not found on PATH: node, nodejs. Install it, then reopen this form to check again."},
+		{"en compiled", en.Settings.LocalToolRuntimeCompiled, "built before running"},
+		{"zh ready", zh.Settings.LocalToolRuntimeReady("python3", "3.12.1"), "python3 3.12.1"},
+		{"zh ready no version", zh.Settings.LocalToolRuntimeReady("node", ""), "node"},
+		{"zh missing", zh.Settings.LocalToolRuntimeMissing("node, nodejs"), "在 PATH 中未找到：node, nodejs。安装后重新打开此表单即可再次检查。"},
+		{"zh compiled", zh.Settings.LocalToolRuntimeCompiled, "运行前先编译"},
+	} {
+		if tc.got != tc.want {
+			t.Errorf("%s = %q, want %q", tc.name, tc.got, tc.want)
+		}
+	}
+}
