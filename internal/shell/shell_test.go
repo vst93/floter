@@ -2339,6 +2339,51 @@ func TestOneCatalogScanRunsAtATime(t *testing.T) {
 	awaitCatalogIdle(t, a)
 }
 
+// R68 · a deep link that arrives while the panel is dismissed brings it to the
+// front through Show, and that reveal is the one moment the install catalog is
+// re-read (src/App.tsx:2453-2457 listens for the native reveal event, which the
+// framework fires for the same hidden-to-visible transition). The test has no
+// window, so it drives the visibility reading through the windowVisible seam.
+func TestARevealRefreshesTheInstallCatalog(t *testing.T) {
+	a := newApp(t)
+	starts := make(chan struct{}, 4)
+	a.lookTools = func() []tools.State { starts <- struct{}{}; return nil }
+	a.windowVisible = func() bool { return false }
+
+	a.Show()
+	awaitCatalogStart(t, starts, "a reveal")
+	awaitCatalogIdle(t, a)
+}
+
+// A switch of the surface on a window the user can already see is not a
+// reveal: the memo serves every query between reveals (the old build's
+// tool-catalog-store memo), so the catalog is not re-read.
+func TestASurfaceSwitchOnAVisiblePanelKeepsTheCatalogMemo(t *testing.T) {
+	a := newApp(t)
+	starts := make(chan struct{}, 4)
+	a.lookTools = func() []tools.State { starts <- struct{}{}; return nil }
+	a.windowVisible = func() bool { return true }
+
+	a.Show()
+	select {
+	case <-starts:
+		t.Fatal("a surface switch on a visible panel re-read the install catalog")
+	case <-time.After(100 * time.Millisecond):
+	}
+}
+
+// The reveal decision and the re-home decision are the same reading, so a
+// window already on screen is not re-homed either (the old build's
+// preserve_anchor).
+func TestAVisiblePanelIsNotRehomed(t *testing.T) {
+	if placementForReveal(true) {
+		t.Error("a visible panel was treated as a reveal")
+	}
+	if !placementForReveal(false) {
+		t.Error("a hidden panel was not treated as a reveal")
+	}
+}
+
 // R68 · a refresh replaces the memo: the launcher's rows come from the newest
 // scan, not the startup one.
 func TestARefreshReplacesTheInstallCatalog(t *testing.T) {

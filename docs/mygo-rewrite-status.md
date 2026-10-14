@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1098 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1101 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1098 项测试
+go test -count=1 ./...         # 1101 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,7 +99,42 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-dn 安装目录在召回时重读机器（原版 `src/App.tsx:2453-2457` 的
+> **最新一轮：P7-do 任何 reveal 都重读安装目录（原版 `src/App.tsx:2453-2457` 的
+> `floter://revealed` 监听 + `src/extensions/tool-catalog-store.ts:52-63`）**
+> —— P7-dn 收尾后清单只剩 P7-dn 第 3 条（深链/托盘 reveal 也重读）。本轮把它落地：给 `Show()` 的
+> reveal 判定加一个可注入的可见性缝，把刷新放进 `Show()` 本身——它是本构建每一条 reveal 的唯一门口。
+> 依赖检查：GitHub releases API 被限流，`go list -m -versions github.com/egoist/mygo` 最新仍是
+> **v0.4.8**（与 `go.mod` 一致），无版本可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14
+> 原版树），未翻历史提交。
+>
+> **偏离点**：P7-dn 把刷新接在 `summon()` 与 `returnToInput()` 两处，原版的 reveal 监听却是
+> **凡窗口从隐藏变可见就刷新**——深链（`HandleURL` → `Open` → `Show`）、第二实例启动
+> （`cmd/floter/main.go:64` 的 `app.Show()`）、托盘/全局快捷键（`Toggle` → `summon`）都算。其中深链
+> 与第二实例此刻都不经过 `summon()`，用户在窗口隐藏期间用自己的 shell 装了工具，召回后旧安装行
+> 还在。P7-dn 已把这一点记为待办第 3 条，但当时卡在「`Show()` 在 `a.Win == nil` 时提前 return，
+> 测试没有窗口可造」。
+>
+> **修法**：判定与落点都放进 `Show()`，因为它是本构建每一条 reveal 的唯一门口（与框架
+> `Window.Show()` 内部的 `if !visible { fire(onShow) }` 同一判定，见 `mygo@v0.4.8:window.go:624-637`）：
+> - `internal/shell/shell.go` 的 `Show()`：先取 `rehome := placementForReveal(a.windowWasVisible())`，
+>   `rehome` 为真时 `a.scanToolCatalog()`，再走窗口操作。于是 `summon()`/`returnToInput()` 已有的
+>   显式刷新与这一次天然共享（在飞去重），深链/第二实例/托盘 reveal 也第一次有了刷新。
+> - 新增 `App.windowVisible func() bool` 缝（nil → `a.Win == nil || a.Win.IsVisible()`）；测试无窗口
+>   可读可见性，用它驱动 reveal 与非 reveal 两侧。nil 窗口读作「已在屏上」，因为没窗口就无从
+>   reveal，也避免既有测试里每次 `Open()` 都起一次真实 `tools.Look`。
+> - **诚实记录**：没有改用 `mygo.Window.OnShow` 注册回调——那需要真实窗口，shell 测试（`Win == nil`）
+>   无法接线，本轮验收就落不了地。`Show()` 的判定与 `OnShow` 内部同源，覆盖的 reveal 集合一致。
+>
+> **测试**：`internal/shell/shell_test.go` 新增 `TestARevealRefreshesTheInstallCatalog`（窗口隐藏 →
+> `Show()` 扫一次）、`TestASurfaceSwitchOnAVisiblePanelKeepsTheCatalogMemo`（窗口已可见 → 不扫）、
+> `TestAVisiblePanelIsNotRehomed`（reveal 判定与 re-home 判定同一读数）。变异核查：把 `Show()` 里的
+> `if rehome { a.scanToolCatalog() }` 删掉/改成 `if false`，第一条立刻红；改成 `if true`，第二条立刻红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 27 包全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过；`go test -race ./internal/shell -run
+> 'Catalog|Reveal|SurfaceSwitch'` 无竞态。
+
+> **上一轮：P7-dn 安装目录在召回时重读机器（原版 `src/App.tsx:2453-2457` 的
 > `floter://revealed` 监听 + `:781-788` 的 `returnToInputMode`（R74），
 > `src/extensions/tool-catalog-store.ts:52-63` 的 `refreshToolCatalog`）**
 > —— P7-dm 收尾后「尚未做」清单为空，本轮按惯例换入口：逐文件对照原版**安装目录的读取/刷新**
@@ -3342,11 +3377,53 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-> **清单状态（P7-dn 收尾）**：P7-dm 后清单为空，本轮换入口逐文件对照原版的
-> **安装目录读取/刷新**（`src/extensions/tool-catalog-store.ts`），把清单重写为下面三条带 file:line 的
-> 具体待办，并取第 1、2 条（同一个刷新机制）落地。**下一条具体待办是下面第 3 条**（深链 reveal）。
+> **清单状态（P7-do 收尾）**：P7-dn 收尾后清单只剩 P7-dn 第 3 条（深链/托盘 reveal），本轮已落地。
+> 清单再次为空；本轮按惯例换入口，逐文件对照原版中**此前未被任一待办覆盖**的纯模块，把清单重写为
+> 下面第 1 条（已核实的偏离，可直接实现）与第 2、3 条（待比对的剩余未覆盖模块）。
 
-### 具体待办（P7-dn 重写；第 1·2 条已落地 P7-dn，余下第 3 条低优先级）
+### 具体待办（P7-do 重写）
+
+> 本轮换入口：清点原版 `src/` 中在 status/plan 两份文档里零命名的模块（`git ls-tree` + 逐文件 grep），
+> 得到 `src/components/OverflowMenu.tsx`、`src/hooks/useSessionManagement.ts`、`src/deferred-repaint.ts`、
+> `src/launcher/trigger-hint.ts`、`src/launcher/command-row.ts`。逐个对照本构建后：`command-row.ts`
+> 与 `useSessionManagement.ts` 是 React/JS 特有的重构与轮询卫生（Go 的具名字段结构体与即时模式
+> 渲染已天然避开），**无落点、不新增死旋钮**；`trigger-hint.ts` 有下面第 1 条的真实偏离。
+> 依赖检查：GitHub releases API 被限流，`go list -m -versions github.com/egoist/mygo` 最新仍是
+> **v0.4.8**（与 `go.mod` 一致），无版本可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树）。
+
+1. **触发提示的下限是「提示自身不足 6ch」，不是「输入框被挤到 160px 以下」**（未做，最高优先级）。
+   - 原版对照：`main:src/launcher/trigger-hint.ts:31-38` 的 `TRIGGER_HINT_MIN_CELLS = 6`（注释：
+     低于 6 `ch` 时省略号只剩两个字形，提示不如整体消失）与 `:44-48` 的
+     `triggerHintFits(width, cellWidth, minCells)`——`width` 是**提示自己**这一遍布局拿到的像素盒宽，
+     `cellWidth` 是它自己字体里一个 `ch` 的推进宽度；`main:src/hooks/useTriggerHintFit.ts:37-52`
+     在 layout 阶段量 `getBoundingClientRect().width` 与 canvas 的 `measureText("0")`。
+   - 本构建：`internal/launcher/triggerhint.go:88` 的 `triggerHintMinField = 160` 是一个固定的
+     **输入框**下限，`:94-104` 的 `triggerHintFits(c, text)` 量的是**提示全文**宽度，判据是
+     `width - hint >= 160`（`width` 是整行窗口宽）。于是「输入框 < 160px」与「提示 < 6ch」是两个不同
+     阈值：提示够 6ch 但输入框不到 160px 时，原版显示、本构建隐藏。
+   - 验收：在 `ui.NewTester` 下，提示被隐藏当且仅当它在当前字体步长下的盒宽不足 6 个 `ch`；
+     字体不可量（`MeasureText` 返回 ≤ 0）时保留提示。渲染侧 `internal/launcher/launcher.go:965`
+     的调用点要保持「隐藏是唯一的丢失路径」这条注释语义。
+   - 既有测试：`internal/launcher/triggerhint_test.go` 的 `TestTriggerHintFits`（宽窗有、200px 无）
+     要重新钉在 6ch 边界，而不是 160px 边界。
+2. **ExtensionsPanel 工具栏的溢出菜单（R7-3b）是否在本构建有落点**（未做，需比对）。
+   - 原版对照：`main:src/components/OverflowMenu.tsx:1-26`（频率拆分：高频动作留按钮，稀有动作连同
+     其说明搬进菜单）与它在 `main:src/ExtensionsPanel.tsx` 的用法（触发键、↑/↓ 环绕、Home/End、
+     Escape 自己 `stopPropagation`）。
+   - 本构建：`internal/settingsui` 的集成页（`settingsui.go` 的 `PageIntegrations` 及其 view）可用
+     `grep -n "Overflow\|overflow"` 确认当前没有任何溢出菜单。
+   - 验收：逐条列出原版溢出菜单里的动作，核对本构建集成页是否都能触达；缺一个就补一个，全都有则
+     在文档里写成「已用另一种形式覆盖」。
+3. **透明度拖拽时的终端重绘合并（GLASS-CLIP / `src/deferred-repaint.ts`）**（未做，需比对）。
+   - 原版对照：`main:src/deferred-repaint.ts:1-30`（CSS 变量逐 tick、终端重绘 140ms 尾沿合并，注释：
+     「透明度的滑杆拖动会中断」）与 `TERMINAL_REPAINT_DEBOUNCE_MS = 140`。
+   - 本构建：终端由 mygo 逐帧绘制，透明度滑块写的是 settings；要确认拖动时是否会在同一帧触发终端
+     重绘、以及是否需要一个尾沿合并。`grep -n "repaint\|Repaint\|Invalidate" internal/terminalui` 与
+     `internal/settingsui` 是入口。
+   - 验收：若拖拽每 tick 都重绘终端，加一个尾沿合并（140ms）并在文档记录；若即时模式已天然合并，
+     如实写明「无落点」。
+
+### 具体待办（P7-dn 重写；三条已全部落地：第 1·2 条 P7-dn、第 3 条 P7-do）
 
 > 本轮换入口：逐文件对照原版的**安装目录缓存**（`src/extensions/tool-catalog-store.ts` 的
 > `loadToolCatalog`/`refreshToolCatalog`/`useToolCatalog`，以及它的两个刷新调用点
@@ -3377,18 +3454,19 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
      （`SetToolCatalog`），与 `fetchReport` 的“整份替换”一致。`tools.Look` 永远返回整表，没有
      nil 失败分支，软着陆无处可落——不新增死旋钮。
    - 验收：刷新后的行来自最新一份扫描，不合并旧表；测试 `TestARefreshReplacesTheInstallCatalog`。
-3. **深链/托盘 reveal 也走一次重读**（未做，低优先级）。
+3. **深链/托盘 reveal 也走一次重读**（已落地，P7-do）。
    - 原版对照：`floter://revealed` 是原生 reveal 事件，凡窗口从隐藏变可见都发（`HandleURL` →
      `Open` → `Show` 也算）。
-   - 本构建：只接了 `summon()` 与 `returnToInput()` 两条；`HandleURL` 走 `Open()` → `Show()`，
-     而 `Show()` 的 reveal 判定（`rehome := placementForReveal(a.Win.IsVisible())`，`shell.go:2831`）
-     已经知道“窗口刚刚从隐藏变可见”，但那里没有去重后的刷新调用。落点：在 `Show()` 的 `rehome`
-     分支里调 `a.scanToolCatalog()`（与 `summon()` 共用去重，天然不会双扫）。
+   - 本构建（P7-dn 时）：只接了 `summon()` 与 `returnToInput()` 两条；`HandleURL` 走 `Open()` →
+     `Show()`，而 `Show()` 的 reveal 判定（`rehome := placementForReveal(a.Win.IsVisible())`）
+     已经知道“窗口刚刚从隐藏变可见”，但那里没有去重后的刷新调用。
    - 验收：窗口隐藏时到达的 `floter://settings` / `floter://terminal` 深链把它带上前台后，安装目录
-     也重读一次；已可见的 surface 切换（`rehome == false`）不重读（对得上原版“between reveals the
-     memo serves every query”）。**难点**：`Show()` 在 `a.Win == nil` 时提前 return，测试没有窗口
-     可造（`internal/shell` 测试全部 `Win == nil`），所以这条需要先为 `Show` 的 reveal 判定找一个可
-     注入的缝（就像 `LookTools` 那样），先把验收写成规格，等有测试缝再做。
+     也重读一次；已可见的 surface 切换（`rehome == false`）不重读。
+   - **已落地（P7-do）**：刷新搬进 `Show()` 本身（`rehome := placementForReveal(a.windowWasVisible())`
+     为真时 `a.scanToolCatalog()`），并新增 `App.windowVisible` 缝让 `Win == nil` 的测试能驱动两侧；
+     测试 `TestARevealRefreshesTheInstallCatalog`、
+     `TestASurfaceSwitchOnAVisiblePanelKeepsTheCatalogMemo`、`TestAVisiblePanelIsNotRehomed`。
+     详见「最近几轮」P7-do。
 
 ### 待办（P7-dk 已落地：启动器动作栏的「在终端中打开」只在 Enter 会跑它时存在）
 

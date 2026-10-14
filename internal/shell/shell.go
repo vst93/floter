@@ -207,6 +207,11 @@ type App struct {
 
 	// Win is the window, created by Start.
 	Win *mygo.Window
+	// windowVisible replaces the window's own visibility reading in Show. A
+	// test has no window to put on screen, so it drives the reveal decision
+	// through this seam; nil reads the real window (and, with no window at
+	// all, reports it as on screen — there is nothing to reveal).
+	windowVisible func() bool
 	// notices are the toasts queued for the next frame, and refusals is the
 	// gate that keeps one bad external trigger from repeating its sentence in
 	// a loop (see notices.go).
@@ -2824,11 +2829,21 @@ func placement(areaX, areaY, areaWidth, areaHeight, windowW, referenceH float64)
 // The placement happens before the reveal and again after it — macOS drops
 // geometry set on a window that is not yet mapped — and both land in the same
 // frame, so the panel is never seen in between.
+//
+// A reveal is also the one moment the install catalog is re-read (R68): a tool
+// installed in the user's own shell while the window was hidden must stop being
+// offered as an install row on the next reveal. Show is the one door every
+// reveal goes through — a summon, a deep link, the tray, a second launch — and
+// the decision reads the same visibility the framework's own OnShow does, so a
+// scan already in flight is shared rather than duplicated (see scanToolCatalog).
 func (a *App) Show() {
+	rehome := placementForReveal(a.windowWasVisible())
+	if rehome {
+		a.scanToolCatalog()
+	}
 	if a.Win == nil {
 		return
 	}
-	rehome := placementForReveal(a.Win.IsVisible())
 	a.shownAt = a.now()
 	if rehome {
 		a.placeWindow()
@@ -2855,6 +2870,19 @@ func (a *App) Show() {
 // so it must not centre the panel.
 func placementForReveal(wasVisible bool) bool {
 	return !wasVisible
+}
+
+// windowWasVisible reports whether the panel was on screen before this Show,
+// which is what tells a reveal (a hidden window coming forward) from a surface
+// switch. The reading is the framework's own: Window.Show fires OnShow only on
+// a hidden-to-visible transition, `if !visible`, and this is the same check.
+// A test has no window to read, so it drives the decision through the
+// windowVisible seam; with no window and no seam there is nothing to reveal.
+func (a *App) windowWasVisible() bool {
+	if a.windowVisible != nil {
+		return a.windowVisible()
+	}
+	return a.Win == nil || a.Win.IsVisible()
 }
 
 // currentResidencySurface is the surface the residency rule tracks, derived
