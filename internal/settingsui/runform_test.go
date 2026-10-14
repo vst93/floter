@@ -74,6 +74,10 @@ func TestRunFormDrawsTheReferenceFrame(t *testing.T) {
 				t.Fatal(err)
 			}
 			tt.Frame()
+			if err := tt.Click("Run"); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
 
 			for _, want := range []string{en.RunValues, en.RunValuesHint, en.RunInjectionNote, tc.hint} {
 				if !tt.HasText(want) {
@@ -99,4 +103,80 @@ func TestRunFormDrawsTheReferenceFrame(t *testing.T) {
 			}
 		})
 	}
+}
+
+// The row's Run button (the reference's `customRun`): a runnable integration
+// with no inputs runs at once from the settings page — which this build could
+// not do at all before — while one that declares inputs does not wear its form
+// until the same button unfolds it, and Cancel (the reference's
+// `customRunCancel`) folds it back.
+func TestRunButtonRunsOrOpensTheForm(t *testing.T) {
+	en := i18n.For("en").Settings
+
+	t.Run("no inputs run at once", func(t *testing.T) {
+		type run struct {
+			id     string
+			values map[string]string
+		}
+		runs := []run{}
+		a := New(settings.NewStore(settings.Default()), Actions{
+			RunWithParams: func(id string, values map[string]string) *extensions.ParamFailure {
+				runs = append(runs, run{id, values})
+				return nil
+			},
+		})
+		a.Integrations = func() []Integration {
+			return []Integration{{ID: "plain", Name: "Plain", Enabled: true, Running: true}}
+		}
+		tt := render(t, a, 720, 900)
+		if err := tt.Click("Integrations"); err != nil {
+			t.Fatal(err)
+		}
+		tt.Frame()
+		if err := tt.Click(en.RunAction); err != nil {
+			t.Fatal(err)
+		}
+		tt.Frame()
+		if len(runs) != 1 || runs[0].id != "plain" || runs[0].values != nil {
+			t.Fatalf("runs = %v", runs)
+		}
+	})
+
+	t.Run("inputs open the form and Cancel folds it", func(t *testing.T) {
+		a := New(settings.NewStore(settings.Default()), Actions{
+			RunWithParams: func(id string, values map[string]string) *extensions.ParamFailure {
+				return nil
+			},
+		})
+		a.Integrations = func() []Integration {
+			return []Integration{{
+				ID: "param", Name: "Param", Enabled: true, Running: true,
+				Params: []Param{{ID: "target", Label: "Target", Kind: extensions.ParamText}},
+			}}
+		}
+		tt := render(t, a, 720, 900)
+		if err := tt.Click("Integrations"); err != nil {
+			t.Fatal(err)
+		}
+		tt.Frame()
+		// The form is not resident: neither its heading nor its Run button is
+		// drawn before the row's Run button is pressed.
+		if tt.HasText(en.RunValues) || tt.HasText(en.RunLabel) {
+			t.Fatalf("the form is resident before the press: %q", tt.Texts())
+		}
+		if err := tt.Click(en.RunAction); err != nil {
+			t.Fatal(err)
+		}
+		tt.Frame()
+		if !tt.HasText(en.RunValues) || !tt.HasText(en.RunLabel) {
+			t.Fatalf("the Run button did not unfold the form: %q", tt.Texts())
+		}
+		if err := tt.Click(en.RunCancel); err != nil {
+			t.Fatal(err)
+		}
+		tt.Frame()
+		if tt.HasText(en.RunValues) || tt.HasText(en.RunLabel) {
+			t.Fatalf("Cancel did not fold the form: %q", tt.Texts())
+		}
+	})
 }

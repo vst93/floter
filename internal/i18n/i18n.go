@@ -675,6 +675,11 @@ type Settings struct {
 	ParamsKindSelect  string
 	ParamsKindPath    string
 	RunLabel          string
+	// The row's Run button (the reference's `customRun` / `customRunUnavailable`)
+	// and the form's Cancel (`customRunCancel`).
+	RunAction            string
+	RunActionUnavailable string
+	RunCancel            string
 	// The run-time parameter form's own frame: its heading and hint, the
 	// required marker beside a row's kind label, the injection note, and the
 	// route the manifest declares (one of the two output hints).

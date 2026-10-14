@@ -486,14 +486,19 @@ type App struct {
 	// destructive button was pressed and is likewise waiting — the old
 	// panel's removal bar (`RemovalConfirmation`), asked inline rather than
 	// through a native dialog. runValues holds the run form's
-	// answers per integration and runError its last refusal. runOutputs
-	// holds each integration's last background run and outputOpen which of
-	// those blocks are unfolded (the old panel's `runOutputs` /
-	// `outputOpen`), with outputScroll the fixed-height scroller's offset.
+	// answers per integration and runError its last refusal. runOpen is
+	// which integrations have their run form unfolded: the row's Run
+	// button is the disclosure (the reference's `runFormOpen`), so an
+	// integration that declares inputs does not wear the form until it is
+	// asked for. runOutputs holds each integration's last background run and
+	// outputOpen which of those blocks are unfolded (the old panel's
+	// `runOutputs` / `outputOpen`), with outputScroll the fixed-height
+	// scroller's offset.
 	disableConfirm map[string]bool
 	removeConfirm  map[string]bool
 	runValues      map[string]map[string]string
 	runError       string
+	runOpen        map[string]bool
 	runOutputs     map[string]RunResult
 	outputOpen     map[string]bool
 	outputScroll   map[string]*ui.ScrollState
@@ -1769,6 +1774,35 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 						a.requestDisable(integration.ID)
 					} else {
 						enabled, enableChanged = on, true
+					}
+				}
+			}
+			// The row's Run button: on a runnable row it runs the integration —
+			// straight away when it declares no inputs, or unfolding the inline
+			// parameter form when it does (the same button is the disclosure, so
+			// there is no second control to learn). A row that cannot run keeps
+			// the button but disabled, with the reason in its tooltip, exactly as
+			// the reference's `extensions-icon-button--row` did
+			// (`src/extensions/ExtensionRow.tsx:381-399`).
+			if a.Actions.RunWithParams != nil {
+				runnable := integration.Running && !integration.Broken
+				run := a.actionButton(c, copy.RunAction)
+				if !runnable {
+					run = run.Tooltip(copy.RunActionUnavailable).Disabled(true)
+				}
+				if run.Clicked() && runnable {
+					if len(integration.Params) > 0 {
+						if a.runOpen == nil {
+							a.runOpen = map[string]bool{}
+						}
+						a.runOpen[integration.ID] = !a.runOpen[integration.ID]
+						a.runError = ""
+					} else {
+						// No inputs: run at once. There is no form to print a
+						// refusal under, and a run with no declared parameters
+						// cannot raise a parameter failure, so the returned
+						// failure is always nil here.
+						a.Actions.RunWithParams(integration.ID, nil)
 					}
 				}
 			}
@@ -4172,6 +4206,12 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 	if a.Actions.RunWithParams == nil || len(integration.Params) == 0 {
 		return
 	}
+	// The form is not resident: the row's Run button unfolds it (the
+	// reference's `runFormOpen`), so an integration with inputs does not wear
+	// a form until the user asks to run it.
+	if !a.runOpen[integration.ID] {
+		return
+	}
 	params := make([]extensions.ParamDefinition, 0, len(integration.Params))
 	for _, param := range integration.Params {
 		params = append(params, extensions.ParamDefinition{
@@ -4283,6 +4323,14 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 			if failure := a.Actions.RunWithParams(integration.ID, values); failure != nil {
 				a.runError = paramFailureMessage(copy, params, failure)
 			}
+		}
+		// Cancel folds the form away without running (the reference's
+		// `customRunCancel`). The answers stay in `runValues`, so reopening the
+		// form keeps the user's in-progress edits — the reference's
+		// `runParamMemory`, session memory seeded only on a fresh open.
+		if a.actionButton(c, copy.RunCancel).Clicked() {
+			a.runOpen[integration.ID] = false
+			a.runError = ""
 		}
 	})
 	if a.runError != "" {

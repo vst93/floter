@@ -2795,6 +2795,13 @@ func TestRunParamForm(t *testing.T) {
 		t.Fatal(err)
 	}
 	tt.Frame()
+	// The form is behind the row's Run button, not resident: the same button
+	// runs an integration with no inputs and unfolds the form for one with
+	// inputs.
+	if err := tt.Click("Run"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
 	for _, want := range []string{"Target", "Verbose", "Mode"} {
 		if !tt.HasText(want) {
 			t.Fatalf("the form is missing %q: %q", want, tt.Texts())
@@ -2853,6 +2860,10 @@ func TestRunParamFormShowsPerRowReasons(t *testing.T) {
 	}
 	tt := render(t, a, 720, 900)
 	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if err := tt.Click("Run"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
@@ -2941,6 +2952,10 @@ func TestRunParamFormShowsTheBackendRefusal(t *testing.T) {
 	}
 	tt := render(t, a, 720, 900)
 	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if err := tt.Click("Run"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
