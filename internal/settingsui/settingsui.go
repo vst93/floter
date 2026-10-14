@@ -1453,11 +1453,34 @@ func (a *App) stateMark(c *ui.Context, integration Integration, copy i18n.Settin
 	}
 }
 
+// runtimeUnavailableBadge is the reference's `.extension-status--broken`
+// chip in the meta line (`src/extensions/ExtensionRow.tsx:258-272`): a warm
+// chip with the warning keyline, reading "Tool unavailable" (or its
+// localisation), with the specific cause beside it only when the list knows
+// one. It is a state mark, not an action — the row's repair button (drawn
+// separately) is the action, and this chip only says why the button is there.
+func (a *App) runtimeUnavailableBadge(c *ui.Context, copy i18n.Settings, integration Integration) {
+	t := c.Theme()
+	tokens := a.tokens(c)
+	label := copy.RuntimeUnavailable
+	if code := integration.FailureCode; code != "" {
+		if cause := copy.ErrorCodeLabel(code); cause != "" && cause != code {
+			label += " · " + cause
+		}
+	}
+	chip := ui.Row(c).Padding(t.Space(0.5), t.Space(1.5)).Radius(tokens.RadiusXS).
+		Background(t.Warning.Alpha(0.14))
+	chip.InsetShadow(0, 0, 0, 1, t.Warning)
+	chip.Children(func() {
+		ui.Text(c, label).FontSize(t.FontSize - 1).FontWeight(600).TextColor(t.Warning)
+	})
+}
+
 // healthDetail draws the stored probe report's own lines under the Health row
 // (the old build's `extension-health` block): every probe the last run
 // recorded with its duration, then the failed ones with the reason a retry
-// decision needs, then when the run happened. The status word above stays the
-// row's value; these lines are its detail.
+// decision needs, then when the run happened. The status word above stays
+// the row's value; these lines are its detail.
 func (a *App) healthDetail(c *ui.Context, copy i18n.Settings, report *HealthReport) {
 	t := c.Theme()
 	tokens := a.tokens(c)
@@ -1613,6 +1636,9 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 				a.freshnessDot(c, copy, freshness)
 			}
 			a.stateMark(c, integration, copy)
+			if !integration.RuntimeAvailable {
+				a.runtimeUnavailableBadge(c, copy, integration)
+			}
 		})
 		a.row(c, integration.identityLine(copy), "", func() {})
 

@@ -899,6 +899,12 @@ type Settings struct {
 	IntegrationsCommandAliasPlaceholder string
 	IntegrationsCommandAliasTaken       string
 	IntegrationsUnavailable             string
+	// RuntimeUnavailable is the badge the reference's ExtensionRow drew in the
+	// meta line when `!extension.runtimeAvailable`
+	// (`src/extensions/ExtensionRow.tsx:258-272`): "Tool unavailable" /
+	// "工具不可用". It is a state mark, not an action — the row's repair
+	// button (drawn separately) is the action.
+	RuntimeUnavailable string
 
 	// The Shortcuts page.
 	ShortcutsToggle   string
