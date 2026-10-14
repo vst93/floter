@@ -4298,12 +4298,14 @@ func boolValue(on bool) string {
 
 // toolParam is one declared input the connect form is editing.
 type toolParam struct {
-	ID       string
-	Label    string
-	Kind     string
-	Flag     string
-	Required bool
-	Options  string
+	ID          string
+	Label       string
+	Kind        string
+	Placeholder string
+	Default     string
+	Flag        string
+	Required    bool
+	Options     string
 }
 
 // paramKinds are the kinds the editor offers, in the schema's order.
@@ -4323,10 +4325,13 @@ func (a *App) issueUnder(c *ui.Context, message string) {
 }
 
 // toolParamsEditor edits the declared inputs of a connection: one row per
-// parameter — its id, its kind, its flag (the argv prefix it becomes) and
-// whether a value is required — plus the door to add another. A flag that is
-// not one argv token is refused at connect time, so the editor does not have
-// to police the spelling here.
+// parameter — its label, id, kind, placeholder, default, its flag (the argv
+// prefix it becomes) and whether a value is required — plus the door to add
+// another. The fields run in the reference's order (label, id, kind,
+// placeholder, default, flag), the placeholder is hidden for a boolean (its
+// value is its flag), and the required toggle and remove button close the row.
+// A flag that is not one argv token is refused at connect time, so the editor
+// does not have to police the spelling here.
 func (a *App) toolParamsEditor(c *ui.Context, copy i18n.Settings) {
 	t := c.Theme()
 	a.section(c, copy.ParamsTitle, copy.ParamsHint, func() {
@@ -4345,6 +4350,7 @@ func (a *App) toolParamsEditor(c *ui.Context, copy i18n.Settings) {
 					index := index
 					param := &a.toolParams[index]
 					id, label, flag, options := param.ID, param.Label, param.Flag, param.Options
+					placeholder, def := param.Placeholder, param.Default
 					kindIndex := 0
 					for i, kind := range paramKinds {
 						if kind == param.Kind {
@@ -4352,19 +4358,39 @@ func (a *App) toolParamsEditor(c *ui.Context, copy i18n.Settings) {
 						}
 					}
 					required := param.Required
+					// The row head is the reference's own controls group: the
+					// required toggle and the remove button sit together at the
+					// row's end, while the fields below run in the reference's
+					// order (label, id, kind, placeholder, default, flag).
 					labelClicked := a.row(c, copy.ParamsRow(index+1), "", func() {
-						textInput(c, &id).Label(copy.ParamsID).Width(120).Placeholder("target")
-						a.segmentedControl(c, &kindIndex, paramKindLabels(copy)...).Label(copy.ParamsKind)
-						textInput(c, &flag).Label(copy.ParamsFlag).Width(120).Placeholder("--target")
-					}, func() {
-						if issue, ok := issues[index]; ok {
-							if message := paramIssueMessage(copy, issue); message != "" {
-								a.issueUnder(c, message)
-							}
+						if a.switchControl(c, &required).Label(copy.ParamsRequired).Changed() {
+							param.Required = required
+						}
+						if a.actionButton(c, copy.ParamsRemove).Clicked() {
+							removed = index
 						}
 					}, func() {
 						a.row(c, copy.ParamsLabel, "", func() {
 							textInput(c, &label).Label(copy.ParamsLabel).Width(180)
+						})
+						a.row(c, copy.ParamsID, "", func() {
+							textInput(c, &id).Label(copy.ParamsID).Width(120).Placeholder("target")
+						})
+						a.row(c, copy.ParamsKind, "", func() {
+							a.segmentedControl(c, &kindIndex, paramKindLabels(copy)...).Label(copy.ParamsKind)
+						})
+						// The reference hides the placeholder field for a boolean:
+						// its value is its flag, so a field hint means nothing.
+						if paramKinds[kindIndex] != extensions.ParamBoolean {
+							a.row(c, copy.ParamsPlaceholder, "", func() {
+								textInput(c, &placeholder).Label(copy.ParamsPlaceholder).Width(180)
+							})
+						}
+						a.row(c, copy.ParamsDefault, "", func() {
+							textInput(c, &def).Label(copy.ParamsDefault).Width(180)
+						})
+						a.row(c, copy.ParamsFlag, "", func() {
+							textInput(c, &flag).Label(copy.ParamsFlag).Width(120).Placeholder("--target")
 						})
 						if paramKinds[kindIndex] == extensions.ParamSelect {
 							a.row(c, copy.ParamsOptions, copy.ParamsOptionsHint, func() {
@@ -4376,24 +4402,19 @@ func (a *App) toolParamsEditor(c *ui.Context, copy i18n.Settings) {
 									Height(56).Placeholder("fast\nslow")
 							})
 						}
-						a.row(c, copy.ParamsRequired, "", func() {
-							if a.switchControl(c, &required).Label(copy.ParamsRequired).Changed() {
-								param.Required = required
+						// The reference's row ends with its own refusal, so the reason
+						// is the last thing under the fields it names.
+						if issue, ok := issues[index]; ok {
+							if message := paramIssueMessage(copy, issue); message != "" {
+								a.issueUnder(c, message)
 							}
-						})
-						// The row carries no label of its own: the button is
-						// the whole of it, so the label the pointer and the
-						// keyboard find is the button.
-						a.row(c, "", "", func() {
-							if a.actionButton(c, copy.ParamsRemove).Clicked() {
-								removed = index
-							}
-						})
+						}
 					})
 					if labelClicked {
 						param.Required = !required
 					}
 					param.ID, param.Label, param.Flag, param.Options = id, label, flag, options
+					param.Placeholder, param.Default = placeholder, def
 					param.Kind = paramKinds[kindIndex]
 				}
 			})
@@ -4424,11 +4445,13 @@ func (a *App) editorParams() []extensions.ParamDefinition {
 	params := make([]extensions.ParamDefinition, 0, len(a.toolParams))
 	for _, param := range a.toolParams {
 		definition := extensions.ParamDefinition{
-			ID:       strings.TrimSpace(param.ID),
-			Label:    strings.TrimSpace(param.Label),
-			Kind:     param.Kind,
-			Flag:     strings.TrimSpace(param.Flag),
-			Required: param.Required,
+			ID:          strings.TrimSpace(param.ID),
+			Label:       strings.TrimSpace(param.Label),
+			Kind:        param.Kind,
+			Placeholder: strings.TrimSpace(param.Placeholder),
+			Default:     strings.TrimSpace(param.Default),
+			Flag:        strings.TrimSpace(param.Flag),
+			Required:    param.Required,
 		}
 		for _, option := range strings.Split(param.Options, "\n") {
 			if trimmed := strings.TrimSpace(option); trimmed != "" {
@@ -4503,6 +4526,7 @@ func (a *App) beginEdit(id string, tool CustomTool) {
 	for _, param := range tool.Params {
 		a.toolParams = append(a.toolParams, toolParam{
 			ID: param.ID, Label: param.Label, Kind: param.Kind, Flag: param.Flag,
+			Placeholder: param.Placeholder, Default: param.Default,
 			Required: param.Required, Options: strings.Join(param.Options, "\n"),
 		})
 	}

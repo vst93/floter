@@ -654,6 +654,8 @@ type Settings struct {
 	ParamsID          string
 	ParamsLabel       string
 	ParamsKind        string
+	ParamsPlaceholder string
+	ParamsDefault     string
 	ParamsFlag        string
 	ParamsRequired    string
 	ParamsOptions     string

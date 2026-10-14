@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1291 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1297 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1291 项测试
+go test -count=1 ./...         # 1297 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -100,7 +100,45 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-ey 编辑态补回原版的只读「集成 ID」行
+> **最新一轮：P7-ez 声明式输入编辑器回到原版的字段顺序，补回「占位提示」与「默认值」两个字段
+> （原版 `src/extensions/CustomIntegrationDrawer.tsx:83-104` 的 `ScriptParamEditor`）**
+> ——「尚未做」的 5 条具体待办里第 1–3 条（P7-ew/P7-ex/P7-ey）已落地，本轮取文档标注的最高优先级
+> 第 4 条（参数编辑器字段顺序）。依赖检查：`go list -m -versions github.com/egoist/mygo` 与
+> `proxy.golang.org` 的 `@latest` 均确认最新仍是 **v0.4.8**（与 `go.mod` 一致），无版本可升、无新
+> API 用点；只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离（P7-ez·输入编辑器）**：原版每个参数一行，字段组按 label/id/kind/（非 boolean 才有）
+> placeholder/default/flag 排开，`.extension-param-editor__controls`（`required` 开关 + 删除按钮）
+> 收在行尾，`select` 的 options 在行下展开，行末是这一行自己的报错（`:95-104`）。**本构建（改前）**：
+> `internal/settingsui/settingsui.go` 的 `toolParamsEditor` 行头只有 id/kind/flag 三个控件，label 掉到
+> 行下，**`placeholder` 与 `default` 两个字段根本没有**——`toolParam` 无这两个字段、
+> `editorParams`/`beginEdit`（`:4504` 一带）都不读它们，于是编辑一个带占位符/默认值的集成再保存，
+> 这两个值被静默丢掉（后端 `ParamDefinition` 是有这两个字段的，`internal/extensions/params.go:20`）。
+>
+> **落地**：
+> - `internal/i18n` 新增 `ParamsPlaceholder`("Placeholder") / `ParamsDefault`("Default")，en/zh 逐字取
+>   `i18n.ts:723-724`（`internal/i18n/i18n.go:649-670`、`copy.go` en/zh）。
+> - `internal/settingsui/settingsui.go` 的 `toolParam` 增加 `Placeholder`/`Default`；`editorParams`
+>   与 `beginEdit` 读写它们（经 `strings.TrimSpace` 归一，同其余字段）。
+> - `toolParamsEditor` 重排：行头只放原版的 controls 组（`Required` 开关 + `Remove` 按钮），字段按
+>   label/id/kind/(非 boolean 才有)placeholder/default/flag 逐行铺开，`select` 的 Choices 行仍在
+>   Flag 之后，行末是这一行自己的报错（照原版把报错从行首挪到行尾）。
+>
+> **验收**：`internal/settingsui/params_test.go` 新增
+> `TestConnectFormKeepsTheReferenceParamFields`——字段以 label/id/kind/placeholder/default/flag 的顺序
+> 出现；`boolean` 不画 placeholder 行（默认值/Flag 仍在）；`declaredParams()` 带出 placeholder/default；
+> `beginEdit` 从存储的声明里还原两者。变异核查：把非 boolean 的 placeholder 行去掉 → 红
+> （“the field \"Placeholder\" is missing or out of the reference's order”）；把 Default 行提到 Kind
+> 之前 → 红。既有 `TestConnectFormDeclaresInputs`/`TestParamOptionsNewlineCodec`/`TestParamRowIssues`
+> 保持绿。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：第 4 条（参数编辑器字段顺序 + 补齐 placeholder/default）落地；「尚未做」5 条具体待办中
+> 第 1–4 条已完成，只剩第 5 条（脚本模式「导出脚本」写文件动作）。下轮最高优先级是第 5 条。
+
+> **上一轮：P7-ey 编辑态补回原版的只读「集成 ID」行
 > （原版 `src/extensions/CustomIntegrationDrawer.tsx:144` 的 `editingId &&` 分支，词条
 > `i18n.ts:683` 的 `customId`）**
 > ——「尚未做」的 5 条具体待办里第 1 条（P7-ew 内容动作行）、第 2 条（P7-ex Program 行）已落地，
@@ -5104,15 +5142,17 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-> **清单状态（P7-ew 重写；P7-ey 更新）**：P7-ex 已落地第 2 条（Program 行的 hint 与占位符），
-> P7-ey 已落地第 3 条（编辑态只读集成 ID 行），清单剩第 4–5 条（参数编辑器字段顺序、导出脚本
-> 写文件动作）。P7-ev 收尾后用户反馈 F1–F4 全部收口，「尚未做」上再无未落地条目，只剩
-> 「回到 `localToolSection`/`runForm` 等其他入口逐函数审计」这句宽泛候选。本轮按规则把它**写实为 5 条
-> 带 file:line / 原版对照 / 验收标准的具体待办**（见下「具体待办（P7-ew 重写）」），并取第 1 条实现。
-> 依赖检查：`go list -m -versions github.com/egoist/mygo` 最新仍是 **v0.4.8**（与 `go.mod` 一致），
-> 无版本可升；GitHub releases API 限流。只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+> **清单状态（P7-ew 重写；P7-ez 更新）**：P7-ex 已落地第 2 条（Program 行的 hint 与占位符），
+> P7-ey 已落地第 3 条（编辑态只读集成 ID 行），P7-ez 已落地第 4 条（参数编辑器字段顺序 + 补齐
+> placeholder/default），清单只剩第 5 条（导出脚本写文件动作）。P7-ev 收尾后用户反馈 F1–F4 全部
+> 收口，「尚未做」上再无未落地条目，只剩「回到 `localToolSection`/`runForm` 等其他入口逐函数审计」
+> 这句宽泛候选。P7-ew 按规则把它**写实为 5 条带 file:line / 原版对照 / 验收标准的具体待办**
+> （见下「具体待办（P7-ew 重写）」）。
+> 依赖检查：`go list -m -versions github.com/egoist/mygo` 与 `proxy.golang.org` 的 `@latest` 最新仍是
+> **v0.4.8**（与 `go.mod` 一致），无版本可升；GitHub releases API 限流。只对照 `main`
+> （`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
 
-### 具体待办（P7-ew 重写；第 1 条 P7-ew、第 2 条 P7-ex、第 3 条 P7-ey 已落地，4–5 条待做）
+### 具体待办（P7-ew 重写；第 1 条 P7-ew、第 2 条 P7-ex、第 3 条 P7-ey、第 4 条 P7-ez 已落地，5 待做）
 
 审计入口：原版 `main:src/extensions/CustomIntegrationDrawer.tsx`（自定义工具表单，本构建对应
 `internal/settingsui/settingsui.go` 的 `localToolSection`/`scriptRows`/`toolPermissionFields`/
@@ -5174,18 +5214,25 @@ P7-ev）、执行引擎/参数校验（P7-bh）等。**下面五条是本轮逐�
      进编辑态后 `HasText(copy.LocalToolId)` 且 `a.toolEditing == "local.abc"`、`endEdit()` 后消失。
      删掉该行 → 红。详见「最近几轮」P7-ey。
 
-4. **（待做）参数编辑器的「必需」开关与行头控件顺序与原版不一致**。
+4. **（已落地，P7-ez）参数编辑器的「必需」开关与行头控件顺序与原版不一致**。
    - 原版对照：`main:src/extensions/CustomIntegrationDrawer.tsx:83-104` 的 `ScriptParamEditor` 每个参数
      一行：label/id/type/placeholder/default/flag 字段 + `required` 开关 + 删除按钮；`boolean` 种类**不画
      placeholder 字段**（`param.kind !== "boolean" && …`），`select` 种类在行末展开 `options` 的 textarea。
-   - 本构建（改前）：`internal/settingsui/settingsui.go` 的 `toolParamsEditor`（`:4216` 一带）把每行压成
+   - 本构建（改前）：`internal/settingsui/settingsui.go` 的 `toolParamsEditor` 把每行压成
      「一行控件」（`row` 的 control 里放 id/kind/flag 三个控件，options/required 放 `below`），控件顺序
-     与可见平面与原版不同：`paramKindLabels`/placeholder/default 的字段位置需逐一对照。
-   - 落地 file:line：`internal/settingsui/settingsui.go` 的 `toolParamsEditor`——按原版顺序把每行拆成
-     label/id/kind (+placeholder for non-boolean)/default/flag，required 与删除按钮收在一行行尾，select 的
-     options 与行下错位对齐；不改 `extensions.ParamRowIssues` 的规则（它们已与后端一致，P7-w）。
-   - 验收：`internal/settingsui` 一条像素/文本断言——非 boolean 参数画 placeholder 字段、boolean 不画；
-     字段顺序按原版；既有 `TestParamRowIssues`/`TestConnectFormDeclaresInputs` 保持绿。
+     与可见平面与原版不同；**且 `placeholder`/`default` 两个字段在 `toolParam`/`editorParams`/`beginEdit`
+     里根本不存在**，编辑一个带这两值的集成再保存会把它们静默丢掉。
+   - 落地 file:line（已落地）：`internal/settingsui/settingsui.go` 的 `toolParamsEditor`——行头只放原版的
+     controls 组（`Required` 开关 + `Remove` 按钮），字段按 label/id/kind (+placeholder for
+     non-boolean)/default/flag 逐行铺开，select 的 Choices 行仍在 Flag 之后，行末是这一行自己的报错；
+     `toolParam`/`editorParams`/`beginEdit` 读写 `Placeholder`/`Default`；`internal/i18n` 新增
+     `ParamsPlaceholder`/`ParamsDefault`（en/zh 逐字取 `i18n.ts:723-724`）。不改 `extensions.ParamRowIssues`
+     的规则（它们已与后端一致，P7-w）。
+   - 验收（已满足）：`internal/settingsui/params_test.go` 的
+     `TestConnectFormKeepsTheReferenceParamFields`——非 boolean 参数画 placeholder 字段、boolean 不画；
+     字段顺序按原版（label/id/kind/placeholder/default/flag）；`declaredParams`/`beginEdit` 带出两个字段。
+     变异核查：去掉非 boolean 的 placeholder 行 → 红；把 Default 行提到 Kind 之前 → 红。既有
+     `TestParamRowIssues`/`TestConnectFormDeclaresInputs` 保持绿。详见「最近几轮」P7-ez。
 
 5. **（待做）脚本模式的「导出脚本」动作（写文件）缺失**。
    - 原版对照：`main:src/extensions/CustomIntegrationDrawer.tsx:145` 的「Export script」按钮 →
