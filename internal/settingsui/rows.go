@@ -229,6 +229,25 @@ func (a *App) sectionWithAction(c *ui.Context, title, hint, actionLabel string, 
 	})
 }
 
+// actionRow is a card row with no label: a full-width band that draws the
+// row's separating hairline and padding and lets control fill it. The local-
+// tool form's content-action row (a cluster of buttons, no label of its own)
+// is its one caller, so the card's row rhythm — the rule above every row but
+// the first — stays identical to the labelled rows beside it.
+func (a *App) actionRow(c *ui.Context, control func()) {
+	tokens := a.tokens(c)
+	t := c.Theme()
+	inset := t.Space(3.5)
+	first := a.cardRows == 0
+	a.cardRows++
+	ui.Column(c).FillWidth().Children(func() {
+		if !first {
+			ui.Box(c).FillWidth().Height(1).Background(tokens.Hairline).MarginX(inset).Shrink(0)
+		}
+		ui.Column(c).FillWidth().Padding(t.Space(1.5), inset).Children(control)
+	})
+}
+
 // action draws the right-aligned accent text action the reference's rows use
 // ("Edit…", "Restore defaults"): the accent spent on text, never on a fill.
 func (a *App) action(c *ui.Context, label string, clicked func()) {

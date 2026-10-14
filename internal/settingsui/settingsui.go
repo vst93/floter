@@ -9,6 +9,7 @@
 package settingsui
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 	"runtime"
@@ -597,6 +598,14 @@ type App struct {
 	// press that landed reads differently from one that did not.
 	copiedLink      string
 	copiedLinkUntil time.Time
+	// copiedContent is which of the local-tool form's content actions last put
+	// something on the clipboard ("script", "command", "plan"), and
+	// copiedContentUntil when that button's confirmation expires. Keying by the
+	// action rather than by the copied text keeps two buttons that happen to
+	// copy the same bytes from lighting up together (the reference's
+	// `customContentOperation` plus one `showSuccess` per press).
+	copiedContent      string
+	copiedContentUntil time.Time
 	// uninstallOpen is which integrations have the componentized uninstall
 	// dialog open, and uninstallDraft its checkboxes.
 	uninstallOpen  map[string]bool
@@ -3039,6 +3048,10 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 						Placeholder(copy.LocalToolDescriptionPlaceholder)
 				})
 			}
+			// The content actions sit where the reference put them: after the
+			// script box and the fields, before the output row
+			// (`CustomIntegrationDrawer.tsx:145-146`).
+			a.toolContentActions(c, copy, mode, command, program, args, script)
 			a.row(c, copy.LocalToolOutput, "", func() {
 				index := 0
 				if a.toolOutput == routeBackground {
@@ -3217,6 +3230,100 @@ func (a *App) toolIssueUnder(c *ui.Context, copy i18n.Settings, issues []extensi
 			return
 		}
 	}
+}
+
+// toolContentActions draws the form's content actions, the reference's
+// `.extension-custom-form__actions` row (`CustomIntegrationDrawer.tsx:145-146`):
+// in script mode one "Copy script", in program mode "Copy command" and "Copy
+// execution plan". Each button confirms on itself for 1.6s, because a
+// clipboard write is otherwise silent. The value copied is read at press time
+// from the form's current draft, so it is what the user sees now rather than
+// what the form opened with.
+func (a *App) toolContentActions(c *ui.Context, copy i18n.Settings, mode, command, program, args, script string) {
+	t := c.Theme()
+	a.actionRow(c, func() {
+		ui.Row(c).Gap(t.Space(1)).AlignItems(ui.Center).Children(func() {
+			if mode == routeScript {
+				a.contentAction(c, "script", copy.LocalToolCopyScript, copy.LocalToolScriptCopied, script)
+				return
+			}
+			a.contentAction(c, "command", copy.LocalToolCopyCommand, copy.LocalToolCommandCopied, strings.TrimSpace(command))
+			a.contentAction(c, "plan", copy.LocalToolCopyPlan, copy.LocalToolPlanCopied,
+				executionPlanJSON(program, args))
+		})
+	})
+}
+
+// contentAction draws one copy button: its label, or its confirmation while
+// the window holds, and the press that puts action's value on the clipboard.
+// An empty value copies nothing and confirms nothing, the same way the
+// reference's buttons disabled on a missing value.
+func (a *App) contentAction(c *ui.Context, action, label, done, value string) {
+	if strings.TrimSpace(value) == "" {
+		return
+	}
+	copied := a.contentCopied(action, c.Now())
+	if copied {
+		c.After(a.copiedContentUntil.Sub(c.Now()))
+	}
+	if copied {
+		label = done
+	}
+	if a.actionButton(c, label).Clicked() {
+		if a.Actions.CopyText != nil {
+			a.Actions.CopyText(value)
+			a.copiedContent, a.copiedContentUntil = action, c.Now().Add(copiedContentDuration)
+		}
+	}
+}
+
+// copiedContentDuration is how long a content action's button keeps its
+// confirmation: the old build's own 1600ms (`showSuccess` then reset), the same
+// window the deep-link copy used.
+const copiedContentDuration = 1600 * time.Millisecond
+
+// contentCopied reports whether the content action should show its
+// confirmation, clearing the state once its window has passed (the reference's
+// `customContentOperation` reset in the action's `finally`).
+func (a *App) contentCopied(action string, now time.Time) bool {
+	if a.copiedContent == "" || a.copiedContent != action {
+		return false
+	}
+	if !now.Before(a.copiedContentUntil) {
+		a.copiedContent = ""
+		return false
+	}
+	return true
+}
+
+// executionPlanJSON is the plan the reference's `copyExecutionPlan` put on the
+// clipboard: the program, its default arguments, and the run mode, pretty-
+// printed (`src/ExtensionsPanel.tsx:1947-1950`). It is a preview of what will
+// run, never a shell string — the argv is built by the host from these same
+// fields (`customRequest`), so the plan can only describe them.
+func executionPlanJSON(program, args string) string {
+	plan := struct {
+		Program string   `json:"program"`
+		Args    []string `json:"args"`
+		Mode    string   `json:"mode"`
+	}{Program: strings.TrimSpace(program), Args: splitPlanArgs(args), Mode: "pty"}
+	encoded, err := json.MarshalIndent(plan, "", "  ")
+	if err != nil {
+		return ""
+	}
+	return string(encoded)
+}
+
+// splitPlanArgs is the plan's own read of the arguments field: the same
+// whitespace split the host applies when it builds the argv, but an absent
+// field reads as an empty list rather than a null one (the reference spread an
+// always-present array into its plan).
+func splitPlanArgs(args string) []string {
+	fields := strings.Fields(args)
+	if fields == nil {
+		return []string{}
+	}
+	return fields
 }
 
 // customIssueMessage is the one sentence for one rule, in the stored language.

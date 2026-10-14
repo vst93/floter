@@ -829,17 +829,29 @@ type Settings struct {
 	LocalToolPlatformRequired string
 	// The connection rules the backend applies before it writes a package,
 	// each printed under the row that broke it (CustomIssues).
-	LocalToolNameLength                 string
-	LocalToolCommandShape               string
-	LocalToolVersionShape               string
-	LocalToolModeInvalid                string
-	LocalToolScriptEmpty                string
-	LocalToolScriptLanguageInvalid      string
-	LocalToolOutput                     string
-	LocalToolTerminal                   string
-	LocalToolBackground                 string
-	LocalToolConnect                    string
-	LocalToolFailed                     string
+	LocalToolNameLength            string
+	LocalToolCommandShape          string
+	LocalToolVersionShape          string
+	LocalToolModeInvalid           string
+	LocalToolScriptEmpty           string
+	LocalToolScriptLanguageInvalid string
+	LocalToolOutput                string
+	LocalToolTerminal              string
+	LocalToolBackground            string
+	LocalToolConnect               string
+	LocalToolFailed                string
+	// The form's content actions, the reference's `extension-custom-form__
+	// actions` (`CustomIntegrationDrawer.tsx:145-146`): in script mode the
+	// "Copy script" button, in program mode "Copy command" and "Copy execution
+	// plan". Each press confirms on its own button for 1.6s
+	// (`copyCustomContent` and `copyExecutionPlan`), because a clipboard write
+	// is otherwise silent.
+	LocalToolCopyScript                 string
+	LocalToolScriptCopied               string
+	LocalToolCopyCommand                string
+	LocalToolCommandCopied              string
+	LocalToolCopyPlan                   string
+	LocalToolPlanCopied                 string
 	IntegrationsCommandAlias            string
 	IntegrationsCommandAliasPlaceholder string
 	IntegrationsCommandAliasTaken       string

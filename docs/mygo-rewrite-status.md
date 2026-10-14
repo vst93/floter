@@ -100,7 +100,57 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-ev F-new——脚本内容编辑器换用 mygo `editor.View`（v0.4.8 新包的自然用点；
+> **最新一轮：P7-ew 自定义工具表单的内容动作行（复制脚本 / 复制命令 / 复制执行计划；
+> 原版 `src/extensions/CustomIntegrationDrawer.tsx:145-146` 的 `.extension-custom-form__actions`，
+> 行为在 `src/ExtensionsPanel.tsx:1934-1964`）**
+> —— P7-ev 收尾后用户反馈 F1–F4 全部收口，「尚未做」上只剩「回到 `localToolSection`/`runForm`
+> 等入口逐函数审计」这句宽泛候选。本轮按规则先把它**写实为 5 条带 file:line / 原版对照 / 验收标准
+> 的具体待办**（见「尚未做」的「具体待办（P7-ew 重写）」），再取第 1 条落地。依赖检查：
+> `go list -m -versions github.com/egoist/mygo` 最新仍是 **v0.4.8**（与 `go.mod` 一致），无版本可升；
+> GitHub releases API 限流。只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离（P7-ew·内容动作行）**：原版自定义工具抽屉在字段之后有一行**内容动作**——script 模式一个
+> 「Copy script」、executable 模式「Copy command」+「Copy execution plan」；每次按下走
+> `copyCustomContent`（单飞行 `customContentRef` + `navigator.clipboard.writeText` + `showSuccess` 确认
+> 1.6s）或 `copyExecutionPlan`（把 `{program, args, mode:"pty"}` 美化 JSON 后同一条路）。**本构建
+> （改前）**：`internal/settingsui/settingsui.go:3009-3054` 的表单只有字段行 + 脚本编辑器 + Output 行，
+> **没有任何复制按钮**（`grep -rn 'LocalToolCopyScript\|copyScript\|copyPlan' internal/settingsui` 为空，
+> i18n 也无对应词条）；用户要复制脚本/命令只能手动选中。
+>
+> **落地**：
+> - `internal/i18n` 六个键 `LocalToolCopyScript`("Copy script")/`LocalToolScriptCopied`("Script copied")/
+>   `LocalToolCopyCommand`/`LocalToolCommandCopied`/`LocalToolCopyPlan`/`LocalToolPlanCopied`，en/zh
+>   逐字取 `i18n.ts:648-655`（`internal/i18n/i18n.go:840-850`、`copy.go`）。
+> - `internal/settingsui/rows.go`（新 `actionRow`）：无标签的卡内行，照常画隔行的 hairline 与缩进，
+>   让这串按钮与旁边的字段行共享同一套卡内节奏（原版的 `.extension-custom-form__actions` 也是
+>   一格 full-width 行）。
+> - `internal/settingsui/settingsui.go`（新 `toolContentActions`/`contentAction`/`contentCopied`/
+>   `executionPlanJSON`/`splitPlanArgs` + `App.copiedContent`/`copiedContentUntil` 跨帧确认）：
+>   script 模式一个「Copy script」（复制编辑器当前 buffer）、program 模式「Copy command」
+>   （`strings.TrimSpace(command)`）+「Copy execution plan」（`{program, args: strings.Fields(args),
+>   mode:"pty"}` 的 `json.MarshalIndent`，空参数读作 `[]` 而非 `null`）；`:3054` 接在字段之后、
+>   Output 行之前（原版顺序）。按下的按钮翻成自己的确认词 1.6s（`copiedContentDuration`），
+>   只点亮被按的那个（按 action 而非按文本去重，两个恰好同字节的按钮不会一起亮）。复用已有的
+>   `Actions.CopyText`（shell 已接 `mygo.Clipboard.WriteText`）。
+>
+> **验收**：`internal/settingsui/toolcontent_test.go`（新，三条）：
+> `TestLocalToolFormCopiesItsContent`——program 模式画两个按钮、点 Copy command 后剪贴板拿到 `rg`
+> 且按钮翻成 "Command copied"、再点 Copy plan 后剪贴板第二条能 JSON 解出 `{/usr/bin/rg, [--floter -n],
+> pty}` 且只 plan 按钮亮（command 已回休）；另断 `contentCopied` 的 1.6s 窗口。
+> `TestLocalToolFormCopiesTheScript`——script 模式只画 Copy script（程序两个按钮不画）、复制出语言的
+> 模板、按钮翻成 "Script copied"。`TestExecutionPlanJSON`——空白参数读作空列表、绝无 `null`。
+> 既有 `TestLocalToolForm` 因表单高一行为 1700 渲染高度（注释说明）。
+> 变异核查：把 `a.toolContentActions(...)` 摘掉（改成 `_ =`）→ 两条新测试红（“missing its content
+> actions” / “missing its copy button”）。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：第 1 条（内容动作行）落地；「尚未做」清单现有 **5 条带 file:line 的具体待办**
+> （第 1 条已落地，第 2–5 条待做：可执行字段的 hint/占位符、集成 ID 只读行、参数编辑器字段顺序、
+> 导出脚本写文件动作）。下轮最高优先级是第 2 条（Program 行的 hint 与占位符，改动最小）。
+
+> **上一轮：P7-ev F-new——脚本内容编辑器换用 mygo `editor.View`（v0.4.8 新包的自然用点；
 > 原版 `src/ExtensionsPanel.tsx` 的自定义工具表单里脚本内容是带高亮的代码编辑区，`settings.extensions.customScript*`）**
 > —— P7-eu 收尾后「尚未做」清单上只剩 **F-new**，本轮取它。依赖检查见 P7-eu：`go.mod` 仍是 v0.4.8，
 > 无版本可升；只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树）。
@@ -4982,10 +5032,95 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-> **清单状态（P7-eu 收尾）**：本轮取 P7-et 点名的 F4g 最后一条入口（导入导出的调用点）落地，见上文
-> P7-eu 记录与文末 F4g 条目。**F4g 五条入口至此全部对照落地**（P7-eq/P7-er/P7-es/P7-et/P7-eu）。
-> 依赖检查见「最近几轮」P7-eu，无版本可升，只对照 `main`。下轮最高优先级：**F-new**（脚本编辑器换
-> `ui/editor`）；或回到 `localToolSection`/`runForm` 等其他入口的逐函数审计。
+> **清单状态（P7-ew 重写）**：P7-ev 收尾后用户反馈 F1–F4 全部收口，「尚未做」上再无未落地条目，只剩
+> 「回到 `localToolSection`/`runForm` 等其他入口逐函数审计」这句宽泛候选。本轮按规则把它**写实为 5 条
+> 带 file:line / 原版对照 / 验收标准的具体待办**（见下「具体待办（P7-ew 重写）」），并取第 1 条实现。
+> 依赖检查：`go list -m -versions github.com/egoist/mygo` 最新仍是 **v0.4.8**（与 `go.mod` 一致），
+> 无版本可升；GitHub releases API 限流。只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+
+### 具体待办（P7-ew 重写；第 1 条本轮落地 P7-ew，2–5 条待做）
+
+审计入口：原版 `main:src/extensions/CustomIntegrationDrawer.tsx`（自定义工具表单，本构建对应
+`internal/settingsui/settingsui.go` 的 `localToolSection`/`scriptRows`/`toolPermissionFields`/
+`toolParamsEditor`）与 `main:src/ExtensionsPanel.tsx` 的调用点，逐字段对照。前几轮已落地：权限披露
+（R161，P7-bp）、版本兜底 hint（R153，P7-bq）、选项换行码（R153，P7-bq）、脚本编辑器（F-new，
+P7-ev）、执行引擎/参数校验（P7-bh）等。**下面五条是本轮逐字段比对后新查出的真实缺口**。
+
+1. **（本轮落地，P7-ew）自定义工具表单没有原版的内容动作行（复制脚本 / 复制命令 / 复制执行计划）**。
+   - 原版对照：`main:src/extensions/CustomIntegrationDrawer.tsx:145-146` 的
+     `.extension-custom-form__actions` 行——script 模式一个「Copy script」（`onCopy(scriptContent,
+     customScriptCopied)`），executable 模式「Copy command」（`onCopy(executablePath,
+     customCommandCopied)`）+「Copy execution plan」（`onCopyPlan`）；文案 `i18n.ts:648-655`，
+     行为在 `src/ExtensionsPanel.tsx:1934-1964`（`copyCustomContent` 单飞行 + 1.6s 确认，
+     `copyExecutionPlan` 把 `{program, args, mode:"pty"}` 美化 JSON）。
+   - 本构建（改前）：`internal/settingsui/settingsui.go:3009-3054` 的表单只有字段行、脚本编辑器、
+     Output 行，**没有任何复制按钮**；`grep -rn 'LocalToolCopyScript\|copyScript\|copyPlan' internal/settingsui`
+     为空，i18n 也没有对应词条，用户只能手动选中/复制。
+   - 落地 file:line（已落地）：i18n 六个键 `LocalToolCopyScript/ScriptCopied/CopyCommand/CommandCopied/
+     CopyPlan/PlanCopied`（`internal/i18n/i18n.go:840-850`、`copy.go` en/zh）；`internal/settingsui/rows.go`
+     的 `actionRow`（无标签的卡内行，通风其余行的 hairline 节奏）；`internal/settingsui/settingsui.go`
+     的 `toolContentActions`/`contentAction`/`contentCopied`/`executionPlanJSON`/`splitPlanArgs` 与
+     `copiedContent/copiedContentUntil` 跨帧确认状态（`:3054` 接线）；复用已有的 `Actions.CopyText`。
+   - 验收：`internal/settingsui/toolcontent_test.go` 三条——`TestLocalToolFormCopiesItsContent`
+     （program 模式两个按钮、点击复制出命令词与 `{program,args,mode}` JSON、逐字确认 1.6s 只点亮
+     被按的那个）、`TestLocalToolFormCopiesTheScript`（script 模式只有 Copy script、复制出模板、程序
+     按钮不画）、`TestExecutionPlanJSON`（空白参数读作 `[]` 而非 `null`）。既有 `TestLocalToolForm`
+     因表单高一行为 1700 渲染高度（注释说明原因）。变异核查见「最近几轮」P7-ew。
+
+2. **（待做）可执行表单的「可执行文件」字段缺少原版的下方说明与占位符**。
+   - 原版对照：`main:src/extensions/CustomIntegrationDrawer.tsx:145` 的 `customExecutable` label 下
+     一条 `customExecutablePlaceholder`（“Type a path or search installed tools”，`i18n.ts:687`）与一条
+     `changeExecutableHint`（“Search the tools installed on this device… re-runs verification when you
+     save”，`:665`）。
+   - 本构建（改前）：`internal/settingsui/settingsui.go:3009-3014` 的 Program 行只有 `Placeholder(
+     "/usr/bin/rg")`，`grep -rn 'ChangeExecutable\|LocalToolProgramHint' internal` 为空——没有原版的
+     那句「改可执行文件会在保存时重跑验证」的提示，占位符也是自造路径。
+   - 落地 file:line：`internal/i18n` 新增 `LocalToolProgramPlaceholder` + `LocalToolProgramHint`
+     （en/zh 逐字取 `i18n.ts:665,687`）；`settingsui.go:3009` 的 Program 行改用这两个键（`row` 的
+     sublabel 位改成 hint，`textInput` 的 `Placeholder` 改成原版句）。
+   - 验收：`internal/settingsui/toolcontent_test.go` 追加一条——Program 行下印出 hint、占位符不出现
+     在 `Texts()`（编辑器渲染的占位符不注册文本，同 `view_test.go:2178` 的注释）；删掉 hint → 红。
+
+3. **（待做）「集成 ID」在编辑态是只读说明行，本构建根本没画**。
+   - 原版对照：`main:src/extensions/CustomIntegrationDrawer.tsx:144` 的 `editingId &&` 分支——编辑时
+     一条 `customId`（“Integration ID”，`i18n.ts:683`）后跟不可编辑的 `<code>{id}</code>`；创建时整行
+     隐藏（还没有 id）。原因写在原版注释里（R9-3：id 由后端铸造且此后不可变，前端不展示可推导的值）。
+   - 本构建（改前）：`internal/settingsui/settingsui.go` 的 `localToolSection` 在 `a.toolEditing != ""`
+     时**只改按钮文案**（`LocalToolSave`），没有任何一行点名正在改的是哪个 id；
+     `grep -rn 'CustomId\|LocalToolId\|Integration ID' internal/settingsui` 为空。
+   - 落地 file:line：`internal/i18n` 新增 `LocalToolId`（en/zh，原版 `customId` 原文）；
+     `settingsui.go` 的 `localToolSection` 在卡片顶部（Name 行之前）`editingId != ""` 时画一条只读
+     `a.row(copy.LocalToolId, a.toolEditing)`（值不可编辑，同 `keyValue` 的读法）。
+   - 验收：`internal/settingsui/toolcontent_test.go` 追加一条——编辑态点「Edit…」后 `HasText(copy.LocalToolId)`
+     且 id 字符串出现在行上；创建态（「Add a local tool」）该行不画。删掉该行 → 红。
+
+4. **（待做）参数编辑器的「必需」开关与行头控件顺序与原版不一致**。
+   - 原版对照：`main:src/extensions/CustomIntegrationDrawer.tsx:83-104` 的 `ScriptParamEditor` 每个参数
+     一行：label/id/type/placeholder/default/flag 字段 + `required` 开关 + 删除按钮；`boolean` 种类**不画
+     placeholder 字段**（`param.kind !== "boolean" && …`），`select` 种类在行末展开 `options` 的 textarea。
+   - 本构建（改前）：`internal/settingsui/settingsui.go` 的 `toolParamsEditor`（`:4216` 一带）把每行压成
+     「一行控件」（`row` 的 control 里放 id/kind/flag 三个控件，options/required 放 `below`），控件顺序
+     与可见平面与原版不同：`paramKindLabels`/placeholder/default 的字段位置需逐一对照。
+   - 落地 file:line：`internal/settingsui/settingsui.go` 的 `toolParamsEditor`——按原版顺序把每行拆成
+     label/id/kind (+placeholder for non-boolean)/default/flag，required 与删除按钮收在一行行尾，select 的
+     options 与行下错位对齐；不改 `extensions.ParamRowIssues` 的规则（它们已与后端一致，P7-w）。
+   - 验收：`internal/settingsui` 一条像素/文本断言——非 boolean 参数画 placeholder 字段、boolean 不画；
+     字段顺序按原版；既有 `TestParamRowIssues`/`TestConnectFormDeclaresInputs` 保持绿。
+
+5. **（待做）脚本模式的「导出脚本」动作（写文件）缺失**。
+   - 原版对照：`main:src/extensions/CustomIntegrationDrawer.tsx:145` 的「Export script」按钮 →
+     `src/ExtensionsPanel.tsx:1951-1964` 的 `exportCustomScript`，调后端
+     `extensions_custom_export_script`（`src-tauri/src/commands/extensions.rs:1516`）让用户选路径并写出
+     脚本（成功 toast `customScriptExported`，`i18n.ts:651`）。
+   - 本构建（改前）：`grep -rn 'ExportScript\|custom_export_script\|ScriptExported' internal` 为空——
+     第 1 条本轮只落了「复制」，写文件这一支完全没有（原版是复制+导出两个按钮）。
+   - 落地 file:line：`internal/settingsui` 新增 `Actions.ExportScript(name, content string)`；
+     `settingsui.go` 的 `toolContentActions` 在 script 模式下于 Copy script 之后画原版的「导出脚本」按钮；
+     `internal/shell/sync.go` 复用 `saveFile` 对话框 + `os.WriteFile` 写 `local.<id>.<ext>`（扩展名取
+     `scriptlang.Extension(language)`，同 `extensions_custom_export_script` 的 `extension` 参数），成功
+     `queueToast` 发 `customScriptExported`；i18n 新增 `LocalToolExportScript`/`LocalToolScriptExported`。
+   - 验收：`internal/shell` 一条（选路径 → 文件内容等于表单脚本、扩展名等于语言扩展、成功 toast）；
+     `internal/settingsui` 一条（script 模式画导出按钮、点击调 `Actions.ExportScript`）。删掉按钮 → 红。
 
 ### 具体待办（P7-ee 重写；第 1·2·3 条全部落地：第 1 条 P7-ee、第 2·3 条 P7-ef）
 
