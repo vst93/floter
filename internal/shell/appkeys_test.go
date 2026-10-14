@@ -208,6 +208,32 @@ func TestRegisterDeepLinkNamesAProgram(t *testing.T) {
 	a.registerFromLink("no-such-program-anywhere-12345")
 }
 
+// A focused window is on screen by definition, even where the platform reports
+// the panel's visibility late (macOS `NSPanel` before its first map), so a
+// completion over it belongs in the panel's own row rather than in a system
+// notification — the old build's `panel_foreground_from` (notifications.rs).
+// This is the four-quadrant table that rule is: either signal saying "on
+// screen" wins, and only both being false counts as hidden.
+func TestPanelForegroundAnyOnScreenSignalWins(t *testing.T) {
+	cases := []struct {
+		name             string
+		visible, focused bool
+		want             bool
+	}{
+		{"visible and focused", true, true, true},
+		{"visible, not focused", true, false, true},
+		{"focused but visibility reported late", false, true, true},
+		{"neither: hidden", false, false, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := panelForeground(tc.visible, tc.focused); got != tc.want {
+				t.Errorf("panelForeground(%v, %v) = %v, want %v", tc.visible, tc.focused, got, tc.want)
+			}
+		})
+	}
+}
+
 // A completion reported while the window is on screen goes into the panel's
 // own row; only a hidden window gets a system notification. A completion that
 // says nothing at all is worse than either.

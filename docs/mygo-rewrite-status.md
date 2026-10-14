@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1068 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1074 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1068 项测试
+go test -count=1 ./...         # 1074 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,7 +99,35 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-dd 单行文本字段自己认领 ↑/↓（原版 `src/settings-nav.ts:24-38`
+> **最新一轮：P7-de 前台判定补上「已聚焦即在场」（原版 `src-tauri/src/notifications.rs:168-190`
+> 的 `panel_foreground_from`）**
+> —— P7-dd 收尾后「尚未做」只剩第 1、2 条（具体可做）与第 3 条（卡 mygo 框架），本轮取第 1 条落地。
+> 依赖检查：`go list -m -versions github.com/egoist/mygo` 停在 **v0.4.8**（与 `go.mod` 一致），
+> 无版本可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离点**：原版 `panel_foreground`（`notifications.rs:168-190`）组合三个信号——
+> `AppState::window_visible`（应用自己的记录）、`Window::is_visible()`、`Window::is_focused()`——
+> **任一**说「在屏」就算 `Visible`，注释明写「a focused window is on screen by definition, even on
+> the platforms where the panel's visibility is reported late（macOS `NSPanel` before its first
+> map）」。本构建只有窗口的两个信号，且两条完成路径（`notifyCompletion`、`notifyRun`）都只看了
+> `IsVisible()`——于是「窗口已聚焦、但 `IsVisible` 尚未报真」的那一帧会被当成隐藏，在用户正看着的
+> 面板上再叠一条系统通知。
+>
+> **修法**：`internal/shell/shell.go` 新增纯函数 `panelForeground(visible, focused bool) bool`
+> （`visible || focused`），`notifyCompletion`（`:2386`）与 `notifyRun`（`:2338`）都改走它。
+> 未引入原版的第三个信号（应用自己的 `window_visible` 记录）：mygo 只暴露
+> `IsVisible`/`IsFocused` 两个旋钮（`mygo@v0.4.8/window.go`），本构建也没有等价的应用级记录，
+> 而这条规则的方向（任一为真即在场）不受影响——这也正是本轮要修的偏差。
+>
+> **测试**：`internal/shell/appkeys_test.go` 的 `TestPanelForegroundAnyOnScreenSignalWins`——
+> 四象限表（可见/聚焦任一为真 → 面板内反馈、不通知；都假 → 通知）。
+> 变异核查：把 `return visible || focused` 改成 `return visible`，
+> `focused but visibility reported late` 一行立刻红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 31 包全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+> **上一轮：P7-dd 单行文本字段自己认领 ↑/↓（原版 `src/settings-nav.ts:24-38`
 > 的 `isArrowKeyEditableTarget`）**
 > —— P7-dc 收尾后「尚未做」只剩第 2 条（具体可做）与第 3 条（卡 mygo 框架），本轮取第 2 条落地。
 > 依赖检查：GitHub releases API 仍被限流，用 `go list -m -versions github.com/egoist/mygo`
@@ -2970,15 +2998,16 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-### 具体待办（P7-dd 重写；两条待做，其余卡 mygo 框架）
+### 具体待办（P7-dd 重写；第 1 条已落地 P7-de，余下第 2 条待做、第 3 条卡 mygo 框架）
 
 > 本轮换入口：逐文件对照原版的**系统通知**（`src-tauri/src/notifications.rs` + 它的四个触发点），
-> 把清单写成下面三条带 file:line 的具体待办，并先取第 2 条落地（P7-dd 的字段箭头）。依赖检查：
+> 把清单写成下面三条带 file:line 的具体待办。第 1 条（前台判定）已由 P7-de 落地；余下第 2 条
+> （剪贴板清空历史的完成反馈）仍具体可做，第 3 条卡 mygo 框架。依赖检查：
 > GitHub releases API 被限流，用 `go list -m -versions github.com/egoist/mygo` 核对，最新仍是
 > **v0.4.8**（与 `go.mod` 一致），无版本可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14
 > 原版树），未翻历史提交。
 
-1. **`notifyCompletion` 的前台判定只看 `IsVisible()`，漏了 `IsFocused()`**（待做）。
+1. **`notifyCompletion` 的前台判定只看 `IsVisible()`，漏了 `IsFocused()`**（已落地，P7-de）。
    - 原版对照：`main:src-tauri/src/notifications.rs:133-165`——`should_notify` 之上是
      `panel_foreground_from(flag_visible, window_visible, window_focused)`：**任一**信号说「在屏」
      就算 `Visible`；`panel_foreground`（`:168-190`）组合 `AppState::window_visible` +
@@ -2991,6 +3020,13 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
    - 验收：抽纯函数 `panelForeground(visible, focused bool) bool`（或三参带 app 记录），
      `notifyCompletion` 用它；表测试四象限（visible/focused 任一为真 → 面板内反馈、不通知；
      都假 → 通知）。变异核查：删掉 `|| focused` → 「focused 但 IsVisible 为假」一行红。
+     **已落地**：`shell.go:2375-2393` 的 `panelForeground`（`visible || focused`），
+     `notifyCompletion`（`:2399`）与 `notifyRun`（`:2337`）都改走它；未引入原版的第三个信号
+     （应用自己的 `window_visible` 记录），因为 mygo 只暴露 `IsVisible`/`IsFocused` 两个旋钮
+     （`mygo@v0.4.8/window.go`）、本构建也没有等价的应用级记录。
+     测试 `internal/shell/appkeys_test.go` 的 `TestPanelForegroundAnyOnScreenSignalWins`（四象限）。
+     变异核查：`return visible || focused` → `return visible`，
+     `focused but visibility reported late` 一行红。
 2. **剪贴板清空历史没有完成反馈/通知（原版四个触发点之一）**（待做）。
    - 原版对照：`main:src-tauri/src/clipboard_history/mod.rs:277-303` 的
      `clipboard_clear_history` 在写入后调 `notify_completion(&app, Subject::Plugin(CLIPBOARD_PLUGIN_ID),

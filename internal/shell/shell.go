@@ -2335,7 +2335,7 @@ func (a *App) loadOutputPage(entry extensions.CommandEntry, args []string, curso
 // while the panel was hidden. A visible panel shows the output itself, so a
 // notification there would be a second copy of the same news.
 func (a *App) notifyRun(entry extensions.CommandEntry, run extensions.CapturedRun, err error) {
-	if a.Win != nil && a.Win.IsVisible() {
+	if a.Win != nil && panelForeground(a.Win.IsVisible(), a.Win.IsFocused()) {
 		return
 	}
 	lang := a.Store.Snapshot().Language
@@ -2373,6 +2373,25 @@ func (a *App) runNotificationBody(notif i18n.Notifications, settings i18n.Settin
 	}
 }
 
+// panelForeground reports whether the panel is on screen, from the two answers
+// the framework gives about the window. The old build's `panel_foreground_from`
+// combined three signals and let *any* one saying "on screen" win; mygo exposes
+// two of them, and the rule is the same:
+//
+//   - `Window::is_visible()` — the platform's answer;
+//   - `Window::is_focused()` — a focused window is on screen by definition,
+//     even on the platforms where the panel's visibility is reported late
+//     (macOS `NSPanel` before its first map).
+//
+// A missing window counts as hidden: there is no surface the user could be
+// looking at, which is precisely when a notification is the right channel. The
+// asymmetry is deliberate — a missed notification is an annoyance the user can
+// still discover by opening the panel, while a notification raised over a
+// visible panel is the double report this rule exists to prevent.
+func panelForeground(visible, focused bool) bool {
+	return visible || focused
+}
+
 // notifyCompletion raises a system notification for a background integration
 // task that finished while the panel was hidden. A visible panel shows the
 // result itself, so a notification there would be a second copy of the same
@@ -2383,7 +2402,7 @@ func (a *App) notifyCompletion(render func(i18n.Notifications) string) {
 	// The window that is on screen is told in its own panel: a system
 	// notification for something the user is already looking at is noise, and
 	// a completion that says nothing at all is worse.
-	if a.Win != nil && a.Win.IsVisible() {
+	if a.Win != nil && panelForeground(a.Win.IsVisible(), a.Win.IsFocused()) {
 		a.onMain(func() { a.Launcher.Feedback(message) })
 		return
 	}
