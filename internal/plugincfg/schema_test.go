@@ -1,6 +1,8 @@
 package plugincfg
 
 import (
+	"math"
+	"reflect"
 	"testing"
 
 	"floter/internal/i18n"
@@ -113,6 +115,88 @@ func TestApplyRejectsAValueOutsideTheOptions(t *testing.T) {
 	}
 	if got := schema.Apply(values, "retention_days", "3")["retention_days"]; got == "3" {
 		t.Error("a select took a value its options do not name")
+	}
+}
+
+// A value of the right shape is *shaped*, not just stored: the old build's
+// `normalizeConfigValue` (`main:src/plugins/config-schema.ts:448-500`) trimmed
+// text, snapped bounded numbers to their step grid, and put a check box set
+// back into schema order. The one deliberate difference is that a value of the
+// wrong shape (or an unknown select/radio option) is still refused rather than
+// silently replaced — see TestApplyRejectsAValueOutsideTheOptions.
+func TestCoerceShapesValuesLikeTheReferenceNormalizer(t *testing.T) {
+	schema := &Schema{Fields: []Field{
+		{Key: "label", Kind: Text},
+		{Key: "count", Kind: Number, Min: 10, Max: 50, Step: 10},
+		{Key: "ratio", Kind: Slider, Min: 0, Max: 1, Step: 0.1},
+		{Key: "tags", Kind: Checkboxes, Options: []Option{
+			{Value: "a"}, {Value: "b"}, {Value: "c"},
+		}},
+	}}
+	base := Values{"label": "x", "count": 10.0, "ratio": 0.0, "tags": []string{}}
+	cases := []struct {
+		name string
+		key  string
+		raw  any
+		want any
+	}{
+		{"a text value is trimmed", "label", "  hi  ", "hi"},
+		{"a whitespace-only text is no value", "label", "   \t ", nil},
+		{"a number snaps down to its step grid", "count", 33.0, 30.0},
+		{"a number snaps up to its step grid", "count", 36.0, 40.0},
+		{"a snapped number still clamps to the bounds", "count", 99.0, 50.0},
+		{"a non-finite number falls back to the minimum", "count", math.NaN(), 10.0},
+		{"a floating step is rounded to six decimals", "ratio", 0.3, 0.3},
+		{"checkboxes de-duplicate and follow schema order", "tags", []string{"c", "a", "c", "b"}, []string{"a", "b", "c"}},
+		{"an unknown check box is dropped", "tags", []string{"z", "b"}, []string{"b"}},
+		{"a check box set with nothing valid is empty", "tags", []string{"z"}, []string{}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := schema.Apply(base, tc.key, tc.raw)[tc.key]
+			if !reflect.DeepEqual(got, tc.want) {
+				t.Errorf("%s(%#v) = %#v, want %#v", tc.key, tc.raw, got, tc.want)
+			}
+		})
+	}
+}
+
+// The load path hands the schema the values the typed settings hold, not raw
+// JSON; this pins that those values are already the shape `coerce` would
+// accept, so a value a control reads and a value it writes agree. A shipped
+// bounded number is already on its step grid, so loading one canonicalizes
+// nothing.
+func TestTheShippedValuesAlreadyFitTheSchema(t *testing.T) {
+	en := copyFor("en")
+	clipboardSchema, clipboardValues := Clipboard(en, settings.DefaultClipboardSettings())
+	calculatorSchema, calculatorValues := Calculator(en, settings.DefaultCalculatorPlugin())
+	browserSchema, browserValues := Browser(en, settings.DefaultBrowserPlugin(), nil)
+	cases := []struct {
+		name   string
+		schema *Schema
+		values Values
+	}{
+		{"clipboard", clipboardSchema, clipboardValues},
+		{"calculator", calculatorSchema, calculatorValues},
+		{"browser", browserSchema, browserValues},
+	}
+	for _, tc := range cases {
+		for _, f := range tc.schema.Fields {
+			raw, ok := tc.values[f.Key]
+			if !ok {
+				continue // an action holds no value
+			}
+			got, ok := coerce(f, raw)
+			if !ok {
+				t.Errorf("%s.%s: the shipped value %#v is not a %v", tc.name, f.Key, raw, f.Kind)
+				continue
+			}
+			if f.Kind == Slider || f.Kind == Number {
+				if got != raw {
+					t.Errorf("%s.%s: shipped %v is off its step grid (would become %v)", tc.name, f.Key, raw, got)
+				}
+			}
+		}
 	}
 }
 

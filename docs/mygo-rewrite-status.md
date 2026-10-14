@@ -99,7 +99,45 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-ec 浏览器模式按原版的抓取深度持有结果（原版 `plugins/browser/mode.ts:70,84,199,218`）**
+> **最新一轮：P7-ed 插件配置的值规范化补齐原版 `normalizeConfigValue`（原版 `src/plugins/config-schema.ts:448-500`）**
+> —— P7-ec 收尾后「尚未做」只剩第 3 条（`internal/plugincfg` 的值规范化与原版有四处口径差），它正是本轮
+> 最高优先级的具体项。依赖检查：`curl .../releases/latest` 与 `go.mod` 均为 **v0.4.8**，无版本可升；
+> 只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **原版对照**：`main:src/plugins/config-schema.ts:448-500` 的 `normalizeConfigValue` 是**全函数**，
+> 同时用在写入（`applyConfigChange`）与加载（`configValues`）上：text → `trim` 后空为 `null`；
+> slider/number → 非有限回退 `field.min`，再 `clampStep`（按 `step` 从 `min` 对齐、clamp、`Math.round(x*1e6)/1e6`）；
+> select/radio → 未知值回退第一个选项；checkboxes → 过滤、**去重并按 schema 选项顺序**。
+>
+> **本轮决定（保留拒绝分支）**：本构建的 `coerce`（`internal/plugincfg/schema.go`）是**偏函数**——形状不符或
+> select/radio 未知值一律拒绝、保留旧值，这是 `TestApplyRejectsAValueOutsideTheOptions` 钉住的有意行为
+> （「控件不能写一个它自己读不出来的值」）。改回原版的回退语义会推翻那条测试，属于独立决定；本轮按待办给出的
+> 分支**保留拒绝**，只把**不与现有测试冲突的三处**补齐，避免半改。
+>
+> **修法**（`internal/plugincfg/schema.go` 的 `coerce`）：
+> - **text 现在 `strings.TrimSpace`**，全空白返回 `nil`（原版的 `null`：没有值，而不是空串）；
+> - **slider/number 走新的 `clampStep(n, lo, hi, step)`**：`step <= 0` 取 1，先 `math.Round((n-lo)/step)*step+lo`
+>   对齐到锚在 `min` 的步进网格，再 `clamp`，最后 `math.Round(x*1e6)/1e6`（原版对浮点步进留的
+>   `0.30000000000000004` 补丁）；非有限数回退 `min`（与 `asFloat` 接受的 float 形状不冲突，形状拒绝仍保留）；
+> - **checkboxes 先去重成集合、再按 `f.Options` 的顺序输出**（原版 `field.options.map(...).filter(picked.includes)`），
+>   未知项照旧丢掉。
+>
+> **测试**（`internal/plugincfg/schema_test.go`）：
+> - `TestCoerceShapesValuesLikeTheReferenceNormalizer`（10 行表）钉 trim/空白为 nil/向下对齐/向上对齐/
+>   对齐后仍 clamp/NaN→min/浮点六位舍入/去重排序/未知项丢弃/全无效为空。
+> - `TestTheShippedValuesAlreadyFitTheSchema` 遍历三个插件的初始 `Values`，钉**加载路径**交给 schema 的值
+>   本来就过 `coerce`、且 shipped 的 bounded number 已在步进网格上——即加载路径不需要额外规范化
+>   （typed settings 已保证形状），这半条由此有据。
+> - 变异核查：把 `clampStep` 换回 `clamp`、把 trim 摘掉、把 checkboxes 改回按输入顺序保留重复——三次
+>   对应子用例分别红（`snaps_down/snaps_up/non-finite`、`a_text_value_is_trimmed/a_whitespace-only...`、
+>   `checkboxes_de-duplicate...`）。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿（1154 项）、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：P7-ec 重写的第 3 条至此落地；「尚未做」本轮为空（仅剩一条记录性条目——原版十行翻页本构建不做）。
+
+> **上一轮：P7-ec 浏览器模式按原版的抓取深度持有结果（原版 `plugins/browser/mode.ts:70,84,199,218`）**
 > —— P7-eb 收尾后「尚未做」只剩两条：本轮取最高优先级的第 1 条（浏览器结果的数量上限与抓取深度
 > 不对齐原版）。依赖检查：GitHub releases API 限流，`proxy.golang.org/.../@v/list` 最新仍是
 > **v0.4.8**（与 `go.mod` 一致），无版本可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），
@@ -4001,18 +4039,17 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-> **清单状态（P7-ec 收尾）**：本轮取 P7-eb 留下的第 2 条（浏览器结果的数量上限与抓取深度不对齐原版）
-> 落地（P7-ec，详见「最近几轮」）：决定**不复刻分页**，只把模式持有的行数搬回模式层并对齐原版的
-> `BROWSER_FETCH_LIMIT = 500`（`launcher.BrowserFetchLimit`），同时修掉「shell 后置截断发生在 chip 之前、
-> 书签一多 history chip 就空」的副作用。清单因此只剩下面第 3 条（`plugincfg` 的值规范化口径），外加
-> 一条已决定不做的记录（原版的 `paginatePluginRows` 十行翻页）。依赖检查：GitHub releases
-> API 限流，`proxy.golang.org/.../@v/list` 最新仍是 **v0.4.8**（与 `go.mod` 一致），无版本可升。
+> **清单状态（P7-ed 收尾）**：本轮取 P7-ec 留下的第 3 条（`plugincfg` 的值规范化与原版有四处口径差）
+> 落地（P7-ed，详见「最近几轮」）：按待办给出的分支**保留拒绝语义**，补齐 step 对齐 / text trim /
+> checkboxes 去重排序三处，并用测试钉住加载路径的形状。清单至此**为空**，只剩下面第 4 条一条
+> 已决定不做的记录（原版的 `paginatePluginRows` 十行翻页）。依赖检查：`curl .../releases/latest`
+> 与 `proxy.golang.org/.../@v/list` 最新均为 **v0.4.8**（与 `go.mod` 一致），无版本可升。
 > 只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
 
-### 具体待办（P7-ec 重写；第 1·2 条已落地：第 1 条 P7-eb、第 2 条 P7-ec）
+### 具体待办（P7-ec 重写；第 1·2·3 条已落地：第 1 条 P7-eb、第 2 条 P7-ec、第 3 条 P7-ed）
 
-> 第 1 条（浏览器模式行内容）已由 P7-eb 落地；第 2 条（数量上限与抓取深度）本轮 P7-ec 落地。
-> 第 3 条是审计同一片代码时新发现、尚未落地的具体项。依赖检查同上，无版本可升。
+> 第 1 条（浏览器模式行内容）已由 P7-eb 落地；第 2 条（数量上限与抓取深度）P7-ec 落地；
+> 第 3 条（plugincfg 值规范化）本轮 P7-ed 落地。本节至此全部结清。依赖检查同上，无版本可升。
 
 1. **（已落地，P7-eb）浏览器结果行的字形与副标题偏离原版**。
    - 原版对照：`main:src/launcher/LauncherResults.tsx:290-294` 的 `BrowserRowIcon`——bookmark →
@@ -4065,7 +4102,14 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
    - 本构建：启动器列表是虚拟化滚动列表（`internal/launcher/launcher.go:871-881` 的滚动视口），
      所以持有 500 行即可滚到；再加一层分页会是「两个滚动机制打架」的半截行为。P7-ec 已按此决定落地；
      若将来要复刻翻页，须先拆掉列表自身的滚动，届时应整体替换而非叠加。
-3. **`internal/plugincfg` 的值规范化与原版 `normalizeConfigValue` 有四处口径差**（待决定）。
+3. **（已落地，P7-ed）`internal/plugincfg` 的值规范化与原版 `normalizeConfigValue` 有四处口径差**。
+
+   > **已落地（P7-ed）file:line 规格**：决定**保留拒绝语义**（形状不符 / select·radio 未知值仍拒绝，
+   > 不改 `TestApplyRejectsAValueOutsideTheOptions`），只补齐其余三处：
+   > `internal/plugincfg/schema.go` 的 `coerce` 里 text 加 `strings.TrimSpace`（空→`nil`）、
+   > slider/number 走新的 `clampStep`（按 `min` 锚定 step 网格 + clamp + 六位舍入，NaN/Inf → `min`）、
+   > checkboxes 去重并按 schema 选项顺序输出；加载路径（typed settings）经
+   > `TestTheShippedValuesAlreadyFitTheSchema` 钉住形状已合规。测试表见下方原验收。详见「最近几轮」P7-ed。
    - 原版对照：`main:src/plugins/config-schema.ts:448-500` 的 `normalizeConfigValue` 是**全函数**：
      toggle → `raw === true`；text → `trim` 后空为 `null`；slider/number → 非有限回退 `field.min` 并
      `clampStep`（按 `step` 从 `min` 对齐，最后 `Math.round(x*1e6)/1e6`）；select/radio → 未知值回退
@@ -4074,10 +4118,12 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
    - 本构建：`internal/plugincfg/schema.go:160-210` 的 `coerce` 是**偏函数**（形状不符即拒绝、保留旧值），
      slider/number 只 `clamp` 不按 step 对齐，text 不 trim，select/radio 未知值不回退，checkboxes 不去重/不排序；
      加载路径 `internal/shell/pluginconfig.go:40-56` 直接搬 settings 的值，不过 `coerce`。
-   - 验收：先决定口径——现有 `internal/plugincfg/schema_test.go:88-101` 的
+   - 验收（P7-ed 已按此落地）：先决定口径——现有 `internal/plugincfg/schema_test.go` 的
      `TestApplyRejectsAValueOutsideTheOptions` 把「拒绝越界选项」钉成有意行为，若改为原版的回退语义
      必须同时改该测试并说明理由；若保留拒绝，则把 step 对齐、text trim、checkboxes 去重排序这三处
      **补齐**（它们不与现有测试冲突），并加一张表测试逐条钉住。不要半改。
+     **P7-ed 选择保留拒绝分支**，三处已补齐，表测试为
+     `TestCoerceShapesValuesLikeTheReferenceNormalizer`。
 
 ### 具体待办（P7-ea 重写；第 1 条本轮落地 P7-ea）
 

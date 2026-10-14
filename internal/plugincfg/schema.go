@@ -13,6 +13,7 @@ package plugincfg
 
 import (
 	"math"
+	"strings"
 
 	"floter/internal/i18n"
 	"floter/internal/settings"
@@ -166,17 +167,38 @@ func (s *Schema) Apply(v Values, key string, raw any) Values {
 }
 
 // coerce fits a raw control value to its field's kind.
+//
+// The shaping rules for a value of the right shape are the old build's
+// `normalizeConfigValue` (`main:src/plugins/config-schema.ts:448-500`): a text
+// value is trimmed and whitespace-only becomes no value; a bounded number is
+// snapped to its own step grid (anchored at the minimum) and rounded to six
+// decimals; a check box set is de-duplicated and put back into schema order,
+// so the stored set reads the same however the user toggled the boxes. The one
+// deliberate difference is that a value of the *wrong* shape, or a select/
+// radio value its options do not name, is refused rather than silently
+// replaced: an edit rolls back to the last confirmed value instead of writing
+// a value the user never chose (P7-ed kept the partial shape — see
+// `TestApplyRejectsAValueOutsideTheOptions`).
 func coerce(f Field, raw any) (any, bool) {
 	switch f.Kind {
 	case Toggle:
 		on, ok := raw.(bool)
 		return on, ok
-	case Select, Radio, Text:
+	case Text:
 		text, ok := raw.(string)
 		if !ok {
 			return nil, false
 		}
-		if f.Kind != Text && !hasOption(f.Options, text) {
+		if text = strings.TrimSpace(text); text == "" {
+			return nil, true
+		}
+		return text, true
+	case Select, Radio:
+		text, ok := raw.(string)
+		if !ok {
+			return nil, false
+		}
+		if !hasOption(f.Options, text) {
 			return nil, false
 		}
 		return text, true
@@ -185,21 +207,45 @@ func coerce(f Field, raw any) (any, bool) {
 		if !ok {
 			return nil, false
 		}
-		return clamp(number, f.Min, f.Max), true
+		return clampStep(number, f.Min, f.Max, f.Step), true
 	case Checkboxes:
 		list, ok := raw.([]string)
 		if !ok {
 			return nil, false
 		}
-		kept := make([]string, 0, len(list))
+		picked := make(map[string]bool, len(list))
 		for _, item := range list {
 			if hasOption(f.Options, item) {
-				kept = append(kept, item)
+				picked[item] = true
+			}
+		}
+		kept := make([]string, 0, len(picked))
+		for _, o := range f.Options {
+			if picked[o.Value] {
+				kept = append(kept, o.Value)
 			}
 		}
 		return kept, true
 	}
 	return nil, false
+}
+
+// clampStep snaps a bounded number to its field's own step grid, anchored at
+// the field's minimum, then clamps it to the bounds — the old build's
+// `clampStep`. A non-positive or missing step means a step of one. The final
+// rounding to six decimals is the old build's: a floating step can leave a
+// `0.30000000000000004` a number input cannot show. A non-finite number has no
+// place on the grid, so it falls back to the minimum, as the old build's
+// `normalizeConfigValue` did.
+func clampStep(n, lo, hi, step float64) float64 {
+	if math.IsNaN(n) || math.IsInf(n, 0) {
+		n = lo
+	}
+	if !(step > 0) {
+		step = 1
+	}
+	snapped := math.Round((n-lo)/step)*step + lo
+	return math.Round(clamp(snapped, lo, hi)*1e6) / 1e6
 }
 
 func hasOption(options []Option, value string) bool {
