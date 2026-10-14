@@ -247,10 +247,11 @@ func modifierList(mods ui.Modifiers) []string {
 }
 
 // FromKey builds an accelerator from a key event, for the recorder. It
-// requires a modifier other than Shift: a bare key would take over ordinary
-// typing.
+// requires at least one modifier: a bare key would take over ordinary typing.
+// Shift alone is accepted, as the old build's `shortcutFromEvent` did — its
+// `parts` array included `Shift` and the result passed `normalize_shortcut`.
 func FromKey(mods ui.Modifiers, key ui.Key) (string, bool) {
-	if mods&(ui.Super|ui.Ctrl|ui.Alt) == 0 {
+	if mods&(ui.Super|ui.Ctrl|ui.Alt|ui.Shift) == 0 {
 		return "", false
 	}
 	name, ok := KeyName(key)

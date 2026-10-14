@@ -107,6 +107,8 @@ func TestFromKey(t *testing.T) {
 		{ui.Super, ui.KeyF5, "Cmd+F5"},
 		{ui.Alt, ui.KeyEscape, "Alt+Esc"},
 		{ui.Super, ui.Key0, "Cmd+0"},
+		{ui.Shift, ui.KeyS, "Shift+S"},
+		{ui.Shift, ui.KeyF5, "Shift+F5"},
 	}
 	for _, tc := range cases {
 		got, ok := FromKey(tc.mods, tc.key)
@@ -123,12 +125,9 @@ func TestFromKey(t *testing.T) {
 		}
 	}
 
-	// A bare key, or Shift alone, is not a shortcut.
+	// A bare key is not a shortcut.
 	if _, ok := FromKey(0, ui.KeyS); ok {
 		t.Error("a bare key was accepted")
-	}
-	if _, ok := FromKey(ui.Shift, ui.KeyS); ok {
-		t.Error("shift alone was accepted")
 	}
 	if _, ok := FromKey(ui.Super, ui.KeyUnknown); ok {
 		t.Error("an unknown key was accepted")
