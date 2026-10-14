@@ -227,7 +227,7 @@ func TestEachRemovalConfirmationAsksItsOwnQuestionOnScreen(t *testing.T) {
 			if s.generic != "" && tt.HasText(s.generic) {
 				t.Errorf("pressing %q drew the generic question %q", s.verb, s.generic)
 			}
-			if err := tt.Click(en.RemoveCancel); err != nil {
+			if err := tt.Click(en.IntegrationsCancel); err != nil {
 				t.Fatalf("cancel: %v", err)
 			}
 			tt.Frame()
@@ -310,7 +310,7 @@ func TestOnlyOwnedKindsOpenTheComponentizedDialog(t *testing.T) {
 
 	// The bar's danger button sits to the right of Cancel (the row's button
 	// above carries the same verb), so it is pressed positionally.
-	cancel, ok := tt.Find(en.RemoveCancel)
+	cancel, ok := tt.Find(en.IntegrationsCancel)
 	if !ok {
 		t.Fatalf("the bar's cancel button is missing: %v", tt.Texts())
 	}

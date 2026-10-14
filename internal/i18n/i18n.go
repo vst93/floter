@@ -732,24 +732,26 @@ type Settings struct {
 	RunOutputLines          func(lines int) string
 	RunOutputLinesTruncated func(lines int) string
 	// The disable confirmation: stopping an integration is a mark, not a
-	// delete, and the notice says so.
+	// delete, and the notice says so. Its Cancel is the shared
+	// `IntegrationsCancel` below — the reference read every inline question's
+	// Cancel from one key (`settings.extensions.cancel`, `i18n.ts:554`).
 	DisableTitle       func(name string) string
 	DisableDescription string
-	DisableCancel      string
 	DisableConfirm     string
 	// The removal bar: deleting an integration is destructive, so it is asked
-	// inline (the old build's `.extension-discard-bar`). A generated custom
+	// inline (the reference's `.extension-discard-bar`). A generated custom
 	// integration's own words and the warning only it carries. The bar's
 	// confirm button is not here: it is the kind's own removal verb
 	// (`removalLabel`), because the reference read the button's label from the
-	// same `removalTextKey` that named the menu item.
+	// same `removalTextKey` that named the menu item. `IntegrationsCancel` is
+	// the one Cancel both inline bars draw.
 	RemoveTitle         func(name string) string
 	RemoveDetail        string
 	RemoveCustomTitle   func(name string) string
 	RemoveCustomDetail  string
 	RemoveCustomWarning string
-	RemoveCancel        string
 	RemoveDelete        string
+	IntegrationsCancel  string
 	// The detected-programs section: what this machine already has and
 	// nothing has connected.
 	DetectedTitle string

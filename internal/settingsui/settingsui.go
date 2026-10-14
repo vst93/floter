@@ -2103,10 +2103,15 @@ func (i Integration) removalLabel(copy i18n.Settings) string {
 // removalWords is the confirmation bar's question for this kind. The reference
 // did not fall back to one generic sentence: `removalTextKey`
 // (`src/ExtensionsPanel.tsx:2140-2151`) built one key per kind and
-// `RemovalConfirmation.tsx:41` read both the title and the body through it, so
-// the bar asks the same question the button promised — "Disconnect X?" under a
-// Disconnect button, not "Uninstall X?". The custom kind keeps its extra
-// warning (`deleteCustomWarning`, appended by `:41`).
+// `RemovalConfirmation.tsx:41` read the title through it, so the bar asks the
+// same question the button promised — "Disconnect X?" under a Disconnect
+// button, not "Uninstall X?".
+//
+// The second return is the `Description` half of that key family. The
+// reference's bar never drew it — `:41` renders the Title only, and the
+// `*Description` strings have no other reader in the original tree — so the
+// band's whole question is `removalSentence`; the detail stays here as the
+// per-kind mapping it is.
 func (i Integration) removalWords(copy i18n.Settings) (title, detail string) {
 	switch i.removalKind() {
 	case removalCustom:
@@ -2118,6 +2123,19 @@ func (i Integration) removalWords(copy i18n.Settings) (title, detail string) {
 	default:
 		return copy.IntegrationsRemovePackageTitle(i.Name), copy.IntegrationsRemovePackageDetail
 	}
+}
+
+// removalSentence is the band's whole question, assembled the way the
+// reference assembled it (`RemovalConfirmation.tsx:41`): the kind's title, and —
+// for a generated custom integration only — the warning that Floter cannot undo
+// the deletion. It is one line, not a title over a body: the reference's
+// `*Description` strings were never drawn in the bar.
+func (i Integration) removalSentence(copy i18n.Settings) string {
+	title, _ := i.removalWords(copy)
+	if i.Generated {
+		return title + " " + copy.RemoveCustomWarning
+	}
+	return title
 }
 
 // The repair a connected row offers when its runtime no longer resolves. The
@@ -3951,30 +3969,50 @@ func (a *App) requestDisable(id string) {
 	a.disableConfirm[id] = true
 }
 
+// noticeBand is the reference's inline confirmation band — the one shape
+// `.extensions-notice .extension-discard-bar` gave every question asked in
+// place (`src/styles/extensions.css:146-172,2455-2458`): a leading alert mark,
+// then a single sentence that takes the free space, then the answers on the
+// same row. Both inline questions are this band, and only the ink differs: a
+// removal is a loss, so it wears the error tint — `extensions-notice--error`
+// keeps the same control pane but paints the ink and the keyline in
+// `--text-warning`, and its danger button is warning-coloured
+// (`.extensions-action-button--danger`). The band used to be a stacked card
+// here — bold title over a muted body with the buttons below — which is not a
+// shape the reference ever drew.
+func (a *App) noticeBand(c *ui.Context, danger bool, sentence string, answers func()) {
+	t := c.Theme()
+	tokens := a.tokens(c)
+	ink, edge := tokens.TextSecondary, tokens.ControlEdge
+	if danger {
+		ink, edge = t.Warning, t.Warning
+	}
+	ui.Row(c).FillWidth().Gap(t.Space(1)).AlignItems(ui.Center).
+		Padding(t.Space(2), t.Space(2.5)).Margin(0, t.Space(3)).
+		Radius(tokens.RadiusSM).Background(tokens.Control).Border(1, edge).
+		Children(func() {
+			ui.Icon(c, mustGlyph("alert")).Size(t.Space(3.75), t.Space(3.75)).
+				TextColor(ink)
+			// The question is one flowing sentence, not a bold title over a
+			// muted body: the band speaks in one ink throughout.
+			ui.Text(c, sentence).FontSize(t.FontSize).TextColor(ink).Grow(1)
+			answers()
+		})
+}
+
 // disableConfirmation is the notice under an integration's switch: stopping it
 // is a mark, not a delete — the files and data stay, and it can be turned back
 // on whenever the user likes — but whatever it is running stops at once, so
 // the question is asked rather than assumed. It is the reference's own
-// horizontal band, not a stacked card (`DisableConfirmation.tsx`): a leading
-// alert mark, then one sentence holding the title and the consequence together
-// (`{disableTitle} {disableDescription}`), then Cancel and the Disable action
-// on the same row — the shape `.extension-discard-bar` gave every inline
-// confirmation.
+// horizontal band, not a stacked card (`DisableConfirmation.tsx:60-68`): a
+// leading alert mark, then one sentence holding the title and the consequence
+// together (`{disableTitle} {disableDescription}`), then Cancel and the Disable
+// action on the same row.
 func (a *App) disableConfirmation(c *ui.Context, copy i18n.Settings, integration Integration) {
-	t := c.Theme()
-	tokens := a.tokens(c)
-	ui.Row(c).FillWidth().Gap(t.Space(1)).AlignItems(ui.Center).
-		Padding(t.Space(2), t.Space(2.5)).Margin(0, t.Space(3)).
-		Radius(tokens.RadiusSM).Background(tokens.Control).Border(1, tokens.ControlEdge).
-		Children(func() {
-			ui.Icon(c, mustGlyph("alert")).Size(t.Space(3.75), t.Space(3.75)).
-				TextColor(tokens.TextSecondary)
-			// The title and the consequence are one flowing sentence in the
-			// reference, not a bold title over a muted body: the band speaks in
-			// the notice colour throughout.
-			ui.Text(c, copy.DisableTitle(integration.Name)+" "+copy.DisableDescription).
-				FontSize(t.FontSize).TextColor(tokens.TextSecondary).Grow(1)
-			if ui.Button(c, copy.DisableCancel).Clicked() {
+	a.noticeBand(c, false,
+		copy.DisableTitle(integration.Name)+" "+copy.DisableDescription,
+		func() {
+			if ui.Button(c, copy.IntegrationsCancel).Clicked() {
 				a.disableConfirm[integration.ID] = false
 			}
 			if ui.Button(c, copy.DisableConfirm).Clicked() {
@@ -4090,35 +4128,25 @@ func (a *App) cancelConfirmations() {
 
 // removeConfirmation is the bar under an integration whose destructive button
 // was pressed: deleting files is not a mark — the package is gone from the
-// machine — so it is asked, in the same inline shape the disable bar uses
-// (the old build's `.extension-discard-bar`: title, one sentence of cost,
-// Cancel first and the danger button last). The question is the kind's own:
-// the reference read its title and body through the same per-kind
-// `removalTextKey` that named the menu item (`ExtensionsPanel.tsx:2140-2151`),
-// and the confirm button is that kind's verb too — a system card that says
-// "Disconnect" asks "Disconnect?", never "Uninstall?". A generated custom
-// integration carries the extra warning that Floter cannot undo it.
+// machine — so it is asked, in the same inline band the disable bar uses
+// (`RemovalConfirmation.tsx:38-44`), wearing the error tint and ending in the
+// kind's own danger button. The question is the kind's own: the reference read
+// its title through the same per-kind `removalTextKey` that named the menu item
+// (`ExtensionsPanel.tsx:2140-2151`), and the confirm button is that kind's verb
+// too — a system card that says "Disconnect" asks "Disconnect?", never
+// "Uninstall?".
 func (a *App) removeConfirmation(c *ui.Context, copy i18n.Settings, integration Integration) {
 	t := c.Theme()
-	tokens := a.tokens(c)
-	title, detail := integration.removalWords(copy)
-	ui.Column(c).FillWidth().Gap(t.Space(1)).Padding(t.Space(2), t.Space(3.5)).
-		Margin(0, t.Space(3.5)).Radius(tokens.RadiusSM).
-		Background(tokens.Control).Border(1, tokens.ControlEdge).Children(func() {
-		ui.Text(c, title).FontSize(t.FontSize).FontWeight(580).
-			TextColor(tokens.TextStrong)
-		ui.Text(c, detail).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
-		ui.Row(c).Gap(t.Space(1)).AlignItems(ui.Center).Children(func() {
-			if ui.Button(c, copy.RemoveCancel).Clicked() {
-				a.removeConfirm[integration.ID] = false
+	a.noticeBand(c, true, integration.removalSentence(copy), func() {
+		if ui.Button(c, copy.IntegrationsCancel).Clicked() {
+			a.removeConfirm[integration.ID] = false
+		}
+		if ui.Button(c, integration.removalLabel(copy)).TextColor(t.Danger).Clicked() {
+			a.removeConfirm[integration.ID] = false
+			if a.Actions.UninstallIntegration != nil {
+				a.Actions.UninstallIntegration(integration.ID, integration.Name)
 			}
-			if ui.Button(c, integration.removalLabel(copy)).Clicked() {
-				a.removeConfirm[integration.ID] = false
-				if a.Actions.UninstallIntegration != nil {
-					a.Actions.UninstallIntegration(integration.ID, integration.Name)
-				}
-			}
-		})
+		}
 	})
 }
 

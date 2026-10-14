@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1322 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1324 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1322 项测试
+go test -count=1 ./...         # 1324 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -100,7 +100,55 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-fh 停用确认条回到原版的横条与词（原版 `src/extensions/DisableConfirmation.tsx:60-68`）**
+> **最新一轮：P7-fi 删除确认条也走同一条横条，并带上原版的 error 底色；两条确认条共用一个 Cancel 词
+> （原版 `src/extensions/RemovalConfirmation.tsx:38-44`、`DisableConfirmation.tsx:60-68`、`i18n.ts:554`）**
+> ——P7-fh 收尾后「具体待办（P7-fh 重写）」还剩 3 条，本轮取文档标注的最高优先级第 2 条（删除确认条
+> 回到同一条横条），顺带把第 3 条（共享一个 Cancel 词）一起结清，清单归零。依赖检查：
+> `go list -m -versions github.com/egoist/mygo` 最新仍是 **v0.4.8**（与 `go.mod` 一致），无版本可升、
+> 无新 API 用点；GitHub releases API 限流。只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），
+> 未翻历史提交。
+>
+> **偏离（P7-fi·删除确认条的形状、底色与句子）**：原版 `RemovalConfirmation.tsx:38-44` 与停用条是
+> **同一条** `.extensions-notice .extension-discard-bar`，只多两样：`:39` 的
+> `extensions-notice--error`（CSS `src/styles/extensions.css:169-173`：底色仍是 `--glass-control`，
+> 但 `color: --text-warning`、`box-shadow: inset 0 0 0 1px --text-warning`），以及 `:43-44` 的
+> `extensions-action-button--danger`（`extensions.css:1364-1367` 的 `color: --text-warning`）确认键。
+> 句子只有 `:41` 一个 `<span>`：`{removalTitle}` **加上**（仅当 `generatedCustom`）
+> `deleteCustomWarning` —— `removalTextKey` 虽然也能取 `Description`，但这条横条**从不读它**，原版
+> i18n 里那几条 `*Description` 在整棵原版树里没有任何读者。**本构建（改前）**：
+> `internal/settingsui/settingsui.go` 的 `removeConfirmation` 是**纵向卡片**（加粗标题一行 + 弱化正文
+> 一行 + 按钮行，P7-cf 当年照抄的是「当时的」停用条），正文画的是 `RemoveDetail` 系——即原版从不显示
+> 的那一半文案；底色与按钮都是普通控制面色，没有任何「这是一次损失」的信号。
+>
+> **落地**：
+> - `internal/settingsui/settingsui.go` 新增共享的 `noticeBand(c, danger, sentence, answers)`：横条
+>   （`ui.Row` + 居中的 `mustGlyph("alert")` 15px + 一个 `Grow(1)` 的 `ui.Text` + 同排 answers），
+>   内边距/外边距/圆角/底色照 `.extension-discard-bar`；`danger` 为真时墨色与描边换成
+>   `t.Warning`（原版 `extensions-notice--error`）。`disableConfirmation` 与 `removeConfirmation`
+>   都改用它（后者 `danger=true`，确认键 `TextColor(t.Danger)`，即原版的 `--danger` 键）。
+> - 新增 `Integration.removalSentence(copy)`：照 `RemovalConfirmation.tsx:41` 把标题与（仅生成的）
+>   `RemoveCustomWarning` 连成一句；`removalWords` 的第二个返回值保留为「原版从不画的那半文案」并在
+>   注释里写明。
+> - `internal/i18n`：`DisableCancel` 与 `RemoveCancel` 合并为一个 `IntegrationsCancel`
+>   （原版两条确认条都取同一个 `settings.extensions.cancel`）。
+>
+> **验收**：`internal/settingsui/disablebar_test.go` 新增两条——
+> `TestRemovalBarIsTheSameNoticeBand`（整句就是 `Remove V Tools?` 一个节点、原版从不显示的
+> `IntegrationsRemovePackageDetail` 不出现、Cancel 在整句右侧且位置点在它右边能确认到动作）；
+> `TestTheRemovalBandWearsTheErrorTint`（`bandInkWarmth` 量整句方框的 R−B 均值：停用条 −0.64、删除条
+> +11.86，阈值 +8；并断言两条横条都取同一个 `IntegrationsCancel`）。
+> `view_test.go` 的 `TestGeneratedIntegrationRemovalBar` 改成原版的一句
+> `Delete Ripgrep? This cannot be undone from Floter. …`，并钉住旧正文不再出现。
+> 变异核查：让 `noticeBand` 忽略 `danger` → 第二条立刻红（−0.34 vs −0.64）；把整句换回 `title + detail`
+> → 第一条红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿（1324 项）、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：第 2 条（P7-fi·删除确认条）与第 3 条（共享 Cancel 词）落地；
+> 「具体待办（P7-fh 重写）」3 条**全部结清、清单归零**。下轮回到「对照原版排查偏离点」，重新写实清单。
+
+> **上一轮：P7-fh 停用确认条回到原版的横条与词（原版 `src/extensions/DisableConfirmation.tsx:60-68`）**
 > ——P7-fg 收尾后「具体待办（P7-ff 重写）」两条全部结清、清单归零；本轮按审计入口
 > `main:src/extensions/DisableConfirmation.tsx`（`src/extensions/` 下最后一个尚未逐字段对照的组件）
 > 逐字段比对，把清单重写为 3 条带 file:line 的具体待办（见文末「具体待办（P7-fh 重写）」），取第 1 条
@@ -8476,7 +8524,7 @@ P7-fe 收尾后「尚未做（P7-fb 重写）」归零。P7-ff 按审计入口 `
   `seedParamValues`），本构建的 `a.runValues[id]` 常驻且不因关闭重置。收起/展开时是否重置为默认值，
   在本条一起决定并写进注释（本构建常驻编辑态、不丢用户输入，倾向保留）。
 
-### 具体待办（P7-fh 重写；第 1 条 P7-fh 已落地；余下第 2、3 条）
+### 具体待办（P7-fh 重写；第 1 条 P7-fh、第 2·3 条 P7-fi 均已落地；清单归零）
 
 P7-fg 收尾后「具体待办（P7-ff 重写）」归零。本轮按审计入口 `main:src/extensions/DisableConfirmation.tsx`
 （`src/extensions/` 下最后一个尚未逐字段对照的组件；其余七个组件都已在前几轮对照落地）逐字段比对，
@@ -8503,29 +8551,30 @@ P7-fg 收尾后「具体待办（P7-ff 重写）」归零。本轮按审计入�
   （整句一个文本节点 + confirm 逐字词 + 两个按钮同排且在其右 + 点 confirm 落动作）；
   `view_test.go:1010` 的 `Click("Disable")` 改 `Click("Disable integration")`。
 
-#### F-disable-2 · 删除确认条也走同一条横条（下轮最高优先级）
+#### F-disable-2 · 删除确认条也走同一条横条（**本轮落地，P7-fi**）
 
 - **原版对照**：`main:src/extensions/RemovalConfirmation.tsx:40-44` 与 `DisableConfirmation.tsx` 共用
   同一个 `.extensions-notice .extension-discard-bar` 横条形状（删除条多一个 `--error` 底色与
   `extensions-action-button--danger` 危险按钮），只是文案按 kind 不同（P7-eo 已落地文案）。
-- **本构建**：`internal/settingsui/settingsui.go` 的 `removeConfirmation` 仍是纵向卡片（P7-cf 当年
+- **本构建（改前）**：`internal/settingsui/settingsui.go` 的 `removeConfirmation` 仍是纵向卡片（P7-cf 当年
   「照抄停用确认的页内形状」，而当时停用条本身就是卡片）。P7-fh 把停用条改成横条后，两条确认条形状
   不再一致。
-- **落地 file:line**：把 P7-fh 在 `disableConfirmation` 里写的横条抽成一个共享 helper（例如
-  `func (a *App) noticeBand(c *ui.Context, glyph *ui.SVG, sentence string, actions func())`），
-  `removeConfirmation` 改用它（图标仍取 alert，句子仍是 `title + " " + detail`，危险按钮仍在最后）。
-- **验收**：`internal/settingsui/disablebar_test.go` 再加一条删除条的同形状断言（整句一个节点、两个
-  按钮同排且危险按钮在最后），既有 `TestEachRemovalConfirmationAsksItsOwnQuestionOnScreen` /
-  `TestGeneratedIntegrationRemovalBar` / `TestIntegrationsPage` 的 `Click("Remove package")` 段
-  （先问 → Cancel → 再问 → 危险按钮）保持绿。变异核查：把 helper 换回 `ui.Column` → 新条红。
+- **落地 file:line（已按此落地）**：把 P7-fh 在 `disableConfirmation` 里写的横条抽成共享 helper
+  `func (a *App) noticeBand(c *ui.Context, danger bool, sentence string, answers func())`，
+  `removeConfirmation` 改用它（图标仍取 alert，危险按钮仍在最后且带 `t.Danger` 墨色）；顺带按
+  `RemovalConfirmation.tsx:41` 把句子改成 `Integration.removalSentence`（标题 + 仅生成项才有的警告），
+  不再画原版从不显示的 `*Description` 正文。详见「最近几轮」P7-fi 记录。
+- **验收（已过）**：`internal/settingsui/disablebar_test.go` 的 `TestRemovalBarIsTheSameNoticeBand`
+  （整句一个节点、旧正文不出现、两个按钮同排且危险按钮在最后）与 `TestTheRemovalBandWearsTheErrorTint`
+  （整句墨色 R−B 均值：停用 −0.64 / 删除 +11.86）；`view_test.go` 的
+  `TestGeneratedIntegrationRemovalBar` 改成原版的一句警告。变异核查：`noticeBand` 忽略 `danger` → 红。
 
-#### F-disable-3 · 两条确认条共享一个 Cancel 词（低优先级）
+#### F-disable-3 · 两条确认条共享一个 Cancel 词（**本轮落地，P7-fi**）
 
 - **原版对照**：原版 Cancel 都取同一个键 `settings.extensions.cancel`（`i18n.ts:554`）；本构建把它拆成
   两个字段 `DisableCancel`（`internal/i18n/copy.go:663`）与 `RemoveCancel`（同文件），两个值恰好都是
   “Cancel”/“取消”。
-- **落地 file:line**：`internal/i18n/i18n.go` 合并为一个 `IntegrationsCancel`，`copy.go` en/zh 各留
-  一份，`settingsui.go` 两处调用点改读它。
-- **验收**：`internal/i18n` 的结构化 Copy 缺字段会在编译期报错，无需新测试；一条像素测试钉住两条确认
-  条的 Cancel 文案相等（可复用 F-disable-2 的 helper 断言）。
-- **说明**：这是代码整洁度，不是可见偏离（两个值本就相同），故排在最后。
+- **落地 file:line（已按此落地）**：`internal/i18n/i18n.go` 合并为一个 `IntegrationsCancel`，
+  `copy.go` en/zh 各留一份，`settingsui.go` 两处调用点改读它。
+- **验收（已过）**：`TestTheRemovalBandWearsTheErrorTint` 里钉住两条横条都取同一个 `IntegrationsCancel`；
+  结构化 Copy 缺字段会在编译期报错。

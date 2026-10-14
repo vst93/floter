@@ -1104,14 +1104,20 @@ func TestGeneratedIntegrationRemovalBar(t *testing.T) {
 		t.Fatalf("the uninstall button is missing: %v", err)
 	}
 	tt.Frame()
+	// The band is one sentence: the kind's title and the reference's own
+	// warning, in a single node. The reference never drew the `Description`
+	// half of the removal key family in this bar (`RemovalConfirmation.tsx:41`
+	// renders the Title only), so the old build's "created and stored by
+	// Floter" body must not be here.
 	for _, want := range []string{
-		"Delete Ripgrep?",
-		"created and stored by Floter",
-		"cannot be undone",
+		"Delete Ripgrep? This cannot be undone from Floter. Export your integrations first if you may need this script or configuration again.",
 	} {
 		if !tt.HasText(want) {
 			t.Errorf("the generated removal bar misses %q: %q", want, tt.Texts())
 		}
+	}
+	if tt.HasText("created and stored by Floter") {
+		t.Errorf("the removal bar drew a body the reference never showed: %q", tt.Texts())
 	}
 	if removedID != "" {
 		t.Fatalf("the removal happened without asking: %q", removedID)
