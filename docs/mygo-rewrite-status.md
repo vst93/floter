@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1060 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1062 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1060 项测试
+go test -count=1 ./...         # 1062 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,7 +99,48 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-cz 拖放路径的解析对齐原版（原版 `src-tauri/src/commands/drops.rs:55-105`）**
+> **最新一轮：P7-da 计算器历史的裁剪与归一化对齐原版（原版 `src-tauri/src/calculator_history.rs`、
+> `src-tauri/src/commands/config.rs`）**
+> —— P7-cz 之后清单再次为空，本轮按上节建议换入口做「逐文件对照原版」的审计（与
+> P7-ci/P7-ck/P7-ct/P7-cw/P7-cz 同一手法）：拿 `internal/calculator` + `internal/settings` 的
+> 计算器块对原版 Rust。依赖检查：GitHub releases API 本轮被限流（`curl` 返回 rate limit），
+> 用 `go list -m -versions github.com/egoist/mygo` 代替，仍停在 **v0.4.8**（与 `go.mod` 一致），
+> 无版本可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离点（四处）**：
+> 1. **容量的裁剪按「位置」而不是按「年龄」**：原版 `prune_entries`（`calculator_history.rs:127-167`）
+>    先把非收藏项的下标按 `created_at` 升序排，再丢掉最老的 `excess` 个，注释明写
+>    「the cap is applied by age, not by position, so a hand-edited out-of-order index still prunes
+>    the truly oldest」；本构建 `internal/calculator/calculator.go:351-379` 的 `pruneLocked` 走列表
+>    位置、留下前 `maxItems` 个非收藏项。两者只在「手工改乱顺序的索引」上分叉，但那正是原版
+>    这条规则存在的理由。
+> 2. **`Delete` 不裁剪**：原版每条写路径（新增 / 取消收藏 / 删除 / 改设置）都走同一个 `update`
+>    （`calculator_history.rs:169-186`），在同一临界区里裁剪后落盘；本构建的 `Delete`
+>    （`calculator.go:299-318`）直接存盘，漏了「窗口过期后没有别的写入、一次删除也要把过期的行
+>    一并带走」这条。
+> 3. **`copy_mode` 归一化没有 trim/lowercase**：原版 `normalize_calculator_copy_mode`
+>    （`commands/config.rs:457-463`）先 `value.trim().to_lowercase()` 再比对；本构建
+>    `internal/settings/calculator.go` 直接 `mode == "result"`，手改文件里的 `" Result "` 落回 `full`。
+> 4. **`max_items` 的 `0` 落到默认而不是下界**：原版 `commands/config.rs:1211-1214` 是
+>    `max_items.clamp(MIN, MAX)`，`0` → `MIN`(10)；本构建把 `<=0` 当「未设」回默认 100
+>    （`internal/settings/calculator.go:96-107` 与 `internal/calculator/calculator.go:471-483` 两处）。
+>
+> **修法**：`pruneLocked` 收成原版形状（非收藏项下标 + `sort.SliceStable` by `CreatedAt` +
+> `indices[:excess]` 丢最老）；`Delete` 补一次 `pruneLocked()`；`NormalizeCalculatorCopyMode`
+> （settings 与 calculator 两份）都先 `strings.ToLower(strings.TrimSpace(...))`；
+> `NormalizeCalculatorMaxItems` 与 `clampMaxItems` 改成对 `[MIN, MAX]` 的夹取（`0` → 10）。
+>
+> **测试**：`internal/calculator/calculator_test.go` 新增
+> `TestTheCapacityDropsTheOldestByAgeNotByPosition`（12 行、最老的两行排在**前面**：按年龄裁剪
+> 丢它们、留下的行保持原顺序）与 `TestADeleteAlsoPrunes`（窗口过期后没有别的写入，一次删除也要
+> 把过期的行带走）；`TestNormalizers` 与 `internal/settings/calculator_test.go` 的
+> `TestCalculatorNormalizers` / `TestCalculatorPluginDefaultsAndRoundTrip` 改成钉新规则
+> （`0` → 下界、`" Result "` → `result`）。变异核查：把 `pruneLocked` 换回按位置、把 `Delete` 的
+> `pruneLocked()` 去掉，两个新用例各自立刻变红。
+> 门槛：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿（**1062** 项
+> `--- PASS`，含子测试）、`GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **上一轮：P7-cz 拖放路径的解析对齐原版（原版 `src-tauri/src/commands/drops.rs:55-105`）**
 > —— P7-cy 之后 P7-cw 清单三条全部落地、清单再次为空，本轮按上节建议换入口做「逐文件对照原版」的
 > 审计（与 P7-ci/P7-ck/P7-ct/P7-cw 同一手法）：拿 `internal/drops` 对原版 Rust 的
 > `src-tauri/src/commands/drops.rs`。依赖检查：`go list -m -versions github.com/egoist/mygo` 仍停在
@@ -2814,6 +2855,45 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 - 窗口可见时完成反馈落在面板自己的停靠行（隐藏时才发系统通知）——之前可见时什么都不说。
 
 ## 尚未做（按建议优先级）
+
+### 具体待办（P7-da 重写；四条已全部落地，同为 P7-da）
+
+> 本轮换入口：逐文件对照原版的**计算器历史**（`src-tauri/src/calculator_history.rs`）与它读写的
+> 设置块（`src-tauri/src/commands/config.rs` 的 `CalculatorPluginSettings`），把清单写成下面四条
+> 带 file:line 的具体待办，并一次全部落地（见「最近几轮」P7-da）。四条都落地后清单为空。
+> 下一轮仍建议换一个区域做「逐文件对照原版」的审计（与
+> P7-ci/P7-ck/P7-ct/P7-cw/P7-cz/P7-da 同一手法）；尚未碰过的纯模块候选：
+> `src/collapsed-focus.ts`、`src/settings-nav.ts`、`src/plugins/filter-axis.ts`、
+> `src-tauri/src/extension*/cwd_policy.rs` 一类。
+
+1. **容量的裁剪按「年龄」而不是按「位置」**（已落地，P7-da）。
+   - 原版对照：`main:src-tauri/src/calculator_history.rs:127-167` 的 `prune_entries`——先把非收藏项的
+     下标按 `created_at` 升序排（`non_favorite_indices.sort_by_key(...)`），再
+     `take(excess)` 丢掉最老的；注释明写「the cap is applied by age, not by position, so a
+     hand-edited out-of-order index still prunes the truly oldest」。
+   - 本构建（改前）：`internal/calculator/calculator.go:351-379` 的 `pruneLocked` 按位置走列表，
+     留下前 `maxItems` 个非收藏项——顺序正常的索引上与按年龄等价，手改乱顺序时分叉。
+   - 验收：一个最老的行排在**前面**的乱序索引，容量裁剪丢掉真正最老的那几行，留下的行保持原顺序。
+2. **`Delete` 也要裁剪**（已落地，P7-da）。
+   - 原版对照：`main:src-tauri/src/calculator_history.rs:169-186` 的 `update`——每条写路径（新增、
+     取消收藏、删除、改设置）都在同一临界区里裁剪后落盘；`calculator_delete`（`:233-246`）走它。
+   - 本构建（改前）：`internal/calculator/calculator.go:299-318` 的 `Delete` 直接存盘，不调
+     `pruneLocked`。
+   - 验收：窗口过期后没有别的写入，一次删除也要把过期的行一并带走。
+3. **`copy_mode` 归一化先 trim + lowercase**（已落地，P7-da）。
+   - 原版对照：`main:src-tauri/src/commands/config.rs:457-463` 的 `normalize_calculator_copy_mode`
+     ——`value.trim().to_lowercase()` 之后再与 `CALCULATOR_COPY_MODES` 比对。
+   - 本构建（改前）：`internal/settings/calculator.go` 与 `internal/calculator/calculator.go:495`
+     的同名死副本都直接 `mode == "result"`，手改文件里的 `" Result "` 落回 `full`。
+   - 验收：`NormalizeCalculatorCopyMode("  Result ")` == `"result"`；未知值仍是 `"full"`。
+4. **`max_items` 的 `0` 落到下界（10），不是默认（100）**（已落地，P7-da）。
+   - 原版对照：`main:src-tauri/src/commands/config.rs:1211-1214`——
+     `max_items.clamp(MIN_CALCULATOR_MAX_ITEMS, MAX_CALCULATOR_MAX_ITEMS)`，`0` → `MIN`(10)；
+     只有「键缺失」（`#[serde(default)]`）才给 `DEFAULT`(100)。
+   - 本构建（改前）：`internal/settings/calculator.go:96-107` 与
+     `internal/calculator/calculator.go:471-483` 都把 `<=0` 当「未设」回默认 100。
+   - 验收：`NormalizeCalculatorMaxItems(0)` == `MinCalculatorMaxItems`、`clampMaxItems(0)` == `MinMaxItems`；
+     `1000` 仍夹到 `Max*`；键缺失仍是默认 100。
 
 ### 具体待办（P7-cz 重写；三条已全部落地，同为 P7-cz）
 

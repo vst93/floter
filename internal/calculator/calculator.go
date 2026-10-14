@@ -295,7 +295,9 @@ func (s *Store) ToggleFavorite(id string) (bool, error) {
 	return false, ErrNoEntry
 }
 
-// Delete drops one entry.
+// Delete drops one entry, and prunes: the old build funnelled every write path
+// — a new entry, an un-favourite, a delete and a settings change — through the
+// same `update`, so the delete is one of the writes that trims the index.
 func (s *Store) Delete(id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -312,6 +314,7 @@ func (s *Store) Delete(id string) error {
 		return ErrNoEntry
 	}
 	s.entries = kept
+	s.pruneLocked()
 	return s.saveLocked()
 }
 
@@ -348,6 +351,12 @@ var ErrNoEntry = errors.New("calculator: no such entry")
 
 // pruneLocked applies the retention: favourites are exempt from both axes, and
 // of the rest the expired ones go first, then the oldest beyond the capacity.
+//
+// The capacity is applied **by age, not by position** — the old build's
+// `prune_entries` sorts the non-favourites by `created_at` and drops the oldest
+// `excess` of them — so a hand-edited index whose rows are not in newest-first
+// order still drops the truly oldest rather than whichever rows happen to sit
+// last.
 func (s *Store) pruneLocked() {
 	cutoff := retentionCutoff(s.now().UnixMilli(), s.retentionDays)
 	fresh := make([]Entry, 0, len(s.entries))
@@ -358,20 +367,29 @@ func (s *Store) pruneLocked() {
 		fresh = append(fresh, entry)
 	}
 	if s.maxItems > 0 {
-		kept := make([]Entry, 0, len(fresh))
-		ordinary := 0
-		for _, entry := range fresh {
-			if entry.Favorite {
-				kept = append(kept, entry)
-				continue
+		indices := make([]int, 0, len(fresh))
+		for i, entry := range fresh {
+			if !entry.Favorite {
+				indices = append(indices, i)
 			}
-			ordinary++
-			if ordinary > s.maxItems {
-				continue
-			}
-			kept = append(kept, entry)
 		}
-		fresh = kept
+		if excess := len(indices) - s.maxItems; excess > 0 {
+			sort.SliceStable(indices, func(i, j int) bool {
+				return fresh[indices[i]].CreatedAt < fresh[indices[j]].CreatedAt
+			})
+			doomed := make(map[int]bool, excess)
+			for _, index := range indices[:excess] {
+				doomed[index] = true
+			}
+			kept := make([]Entry, 0, len(fresh))
+			for i, entry := range fresh {
+				if doomed[i] {
+					continue
+				}
+				kept = append(kept, entry)
+			}
+			fresh = kept
+		}
 	}
 	s.entries = fresh
 }
@@ -466,12 +484,10 @@ func (s *Store) saveLocked() error {
 	return nil
 }
 
-// clampMaxItems snaps a capacity into the shipped band; a non-positive value
-// falls back to the default rather than to a bound.
+// clampMaxItems snaps a capacity into the shipped band, the old build's
+// `.clamp(MIN_CALCULATOR_MAX_ITEMS, MAX_CALCULATOR_MAX_ITEMS)`: a zero or
+// negative value lands on the minimum, not on the default.
 func clampMaxItems(value int) int {
-	if value <= 0 {
-		return DefaultMaxItems
-	}
 	if value < MinMaxItems {
 		return MinMaxItems
 	}
@@ -493,8 +509,10 @@ func NormalizeRetentionDays(days int) int {
 }
 
 // NormalizeCopyMode accepts one of the two copy modes; anything else is `full`.
+// The value is trimmed and lowercased first, as the old build's
+// `normalize_calculator_copy_mode` did.
 func NormalizeCopyMode(mode string) string {
-	if mode == CopyResult {
+	if strings.ToLower(strings.TrimSpace(mode)) == CopyResult {
 		return CopyResult
 	}
 	return CopyFull

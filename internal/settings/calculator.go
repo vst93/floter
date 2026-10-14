@@ -1,5 +1,7 @@
 package settings
 
+import "strings"
+
 // The calculator plugin's settings block lives under the `calculator_plugin`
 // key. The block is carried through (this package does not model it as a
 // field) but typed here so the settings page and the shell agree on the shape
@@ -80,12 +82,10 @@ func (s *Settings) SetCalculatorPlugin(plugin CalculatorPlugin) {
 	s.SetExtra(calculatorPluginKey, raw)
 }
 
-// NormalizeCalculatorMaxItems snaps a capacity into the band; a non-positive
-// value falls back to the shipped default rather than to a bound.
+// NormalizeCalculatorMaxItems snaps a capacity into the band, the old build's
+// `.clamp(MIN_CALCULATOR_MAX_ITEMS, MAX_CALCULATOR_MAX_ITEMS)`: a zero or
+// negative value lands on the minimum, not on the shipped default.
 func NormalizeCalculatorMaxItems(value int) int {
-	if value <= 0 {
-		return DefaultCalculatorMaxItems
-	}
 	if value < MinCalculatorMaxItems {
 		return MinCalculatorMaxItems
 	}
@@ -107,9 +107,10 @@ func NormalizeCalculatorRetentionDays(days int) int {
 }
 
 // NormalizeCalculatorCopyMode accepts one of the two modes; anything else is
-// the whole line.
+// the whole line. The value is trimmed and lowercased first, so a hand-edited
+// `" Result "` lands on `result` rather than falling back to `full`.
 func NormalizeCalculatorCopyMode(mode string) string {
-	if mode == CalculatorCopyResult {
+	if strings.ToLower(strings.TrimSpace(mode)) == CalculatorCopyResult {
 		return CalculatorCopyResult
 	}
 	return CalculatorCopyFull

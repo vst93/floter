@@ -2,6 +2,7 @@ package calculator
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -121,6 +122,64 @@ func TestRetentionExemptsFavorites(t *testing.T) {
 	}
 	if got := store.Entries(); len(got) != 1 {
 		t.Errorf("the never-expire window dropped a row: %+v", got)
+	}
+}
+
+func TestTheCapacityDropsTheOldestByAgeNotByPosition(t *testing.T) {
+	store := newTestStore(t, MinMaxItems, 0)
+	// A hand-edited index that is not newest-first: the two oldest rows sit at
+	// the *front*. The cap is by age, so those two go — a cap applied by
+	// position would keep them and drop two newer rows instead.
+	entries := []Entry{
+		{ID: "t01", Expression: "1", CreatedAt: 1},
+		{ID: "t02", Expression: "2", CreatedAt: 2},
+	}
+	for age := MinMaxItems + 2; age >= 3; age-- {
+		entries = append(entries, Entry{
+			ID:         fmt.Sprintf("t%02d", age),
+			Expression: fmt.Sprintf("%d", age),
+			CreatedAt:  int64(age),
+		})
+	}
+	store.entries = entries
+	if err := store.SetRetention(MinMaxItems, 0); err != nil {
+		t.Fatal(err)
+	}
+	kept := store.Entries()
+	if len(kept) != MinMaxItems {
+		t.Fatalf("kept %d rows, want %d", len(kept), MinMaxItems)
+	}
+	for _, entry := range kept {
+		if entry.ID == "t01" || entry.ID == "t02" {
+			t.Fatalf("the cap kept %s, a truly oldest row: %+v", entry.ID, kept)
+		}
+	}
+	// The rows that stay keep their stored order.
+	if kept[0].ID != "t12" || kept[len(kept)-1].ID != "t03" {
+		t.Errorf("the kept order changed: %s … %s", kept[0].ID, kept[len(kept)-1].ID)
+	}
+}
+
+func TestADeleteAlsoPrunes(t *testing.T) {
+	store := newTestStore(t, DefaultMaxItems, 1)
+	base := time.Unix(1_700_000_000, 0)
+	store.now = func() time.Time { return base }
+	dropped, err := store.Add("a", "1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Add("b", "2"); err != nil {
+		t.Fatal(err)
+	}
+	// The window passes with no write in between, so the expired rows are
+	// still on disk. The delete is a write, and the old build pruned on every
+	// write path.
+	store.now = func() time.Time { return base.Add(48 * time.Hour) }
+	if err := store.Delete(dropped.ID); err != nil {
+		t.Fatal(err)
+	}
+	if got := store.Entries(); len(got) != 0 {
+		t.Errorf("a delete left the expired rows behind: %+v", got)
 	}
 }
 
@@ -259,7 +318,8 @@ func TestPersistenceAndRecovery(t *testing.T) {
 }
 
 func TestNormalizers(t *testing.T) {
-	if got := clampMaxItems(0); got != DefaultMaxItems {
+	// A zero capacity clamps into the band, the old build's `.clamp(MIN, MAX)`.
+	if got := clampMaxItems(0); got != MinMaxItems {
 		t.Errorf("clampMaxItems(0) = %d", got)
 	}
 	if got := clampMaxItems(1); got != MinMaxItems {
@@ -276,6 +336,10 @@ func TestNormalizers(t *testing.T) {
 	}
 	if got := NormalizeCopyMode(CopyResult); got != CopyResult {
 		t.Errorf("NormalizeCopyMode(result) = %q", got)
+	}
+	// The old build trimmed and lowercased before matching.
+	if got := NormalizeCopyMode("  Result "); got != CopyResult {
+		t.Errorf("NormalizeCopyMode(\"  Result \") = %q", got)
 	}
 	if got := NormalizeCopyMode("nonsense"); got != CopyFull {
 		t.Errorf("NormalizeCopyMode(nonsense) = %q", got)

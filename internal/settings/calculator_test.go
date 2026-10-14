@@ -43,14 +43,16 @@ func TestCalculatorPluginDefaultsAndRoundTrip(t *testing.T) {
 		t.Errorf("the write did not land: %v", decoded.Block)
 	}
 
-	// Unusable values fall back to the shipped ones.
-	s, err = Parse([]byte(`{"calculator_plugin": {"max_items": 0, "retention_days": 5, "copy_mode": "nonsense"}}`))
+	// Unusable values fall back to the shipped ones; a zero capacity clamps
+	// into the band (the old build's `.clamp(MIN, MAX)`), so it lands on the
+	// minimum rather than on the default.
+	s, err = Parse([]byte(`{"calculator_plugin": {"max_items": 0, "retention_days": 5, "copy_mode": " Result "}}`))
 	if err != nil {
 		t.Fatal(err)
 	}
 	plugin = CalculatorPluginOf(s)
-	if plugin.MaxItems != DefaultCalculatorMaxItems || plugin.RetentionDays != DefaultCalculatorRetentionDays ||
-		plugin.CopyMode != CalculatorCopyFull {
+	if plugin.MaxItems != MinCalculatorMaxItems || plugin.RetentionDays != DefaultCalculatorRetentionDays ||
+		plugin.CopyMode != CalculatorCopyResult {
 		t.Fatalf("normalized = %+v", plugin)
 	}
 
@@ -65,8 +67,13 @@ func TestCalculatorPluginDefaultsAndRoundTrip(t *testing.T) {
 }
 
 func TestCalculatorNormalizers(t *testing.T) {
-	if got := NormalizeCalculatorMaxItems(0); got != DefaultCalculatorMaxItems {
+	// A zero (or negative) capacity is a bound, not "unset": the old build
+	// clamped it into [MIN, MAX].
+	if got := NormalizeCalculatorMaxItems(0); got != MinCalculatorMaxItems {
 		t.Errorf("0 = %d", got)
+	}
+	if got := NormalizeCalculatorMaxItems(-5); got != MinCalculatorMaxItems {
+		t.Errorf("-5 = %d", got)
 	}
 	if got := NormalizeCalculatorMaxItems(1); got != MinCalculatorMaxItems {
 		t.Errorf("1 = %d", got)
@@ -82,6 +89,10 @@ func TestCalculatorNormalizers(t *testing.T) {
 	}
 	if got := NormalizeCalculatorCopyMode("result"); got != CalculatorCopyResult {
 		t.Errorf("result = %q", got)
+	}
+	// The old build trimmed and lowercased before matching.
+	if got := NormalizeCalculatorCopyMode("  Result "); got != CalculatorCopyResult {
+		t.Errorf("\"  Result \" = %q", got)
 	}
 	if got := NormalizeCalculatorCopyMode("x"); got != CalculatorCopyFull {
 		t.Errorf("x = %q", got)
