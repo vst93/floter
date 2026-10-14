@@ -100,7 +100,45 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-fa 脚本模式补回原版的「导出脚本」动作，把这个表单的最后一条内容动作落地
+> **最新一轮：P7-fb 组件化卸载对话框补回原版的第一行「程序文件」，标题改回原版的
+> `uninstallComponentsTitle`，动作顺序改回 Cancel 在前
+> （原版 `src/extensions/ComponentizedUninstallDialog.tsx:70-72,84-98,119-141`）**
+> ——上一轮 P7-fa 之后「尚未做（P7-ew 重写）」归零，本轮按审计入口
+> `main:src/extensions/ComponentizedUninstallDialog.tsx` 逐字段比对，把清单重写为 4 条带
+> file:line 的具体待办（见「尚未做」），取第 1–3 条落地。依赖检查：
+> `go list -m -versions github.com/egoist/mygo` 最新仍是 **v0.4.8**（与 `go.mod` 一致），
+> 无版本可升、无新 API 用点；GitHub releases API 限流。只对照 `main`
+> （`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离（P7-fb·组件化卸载对话框）**：原版对话框有四行（`ComponentizedUninstallDialog.tsx:84-115`）：
+> program（checked+disabled）、host config、tool data、artifacts；标题是
+> `uninstallComponentsTitle` =“Uninstall {name}”（`:70-72`）；动作行 Cancel 在前、danger 在后
+> （`:119-141`）。**本构建（改前）**：`internal/settingsui/uninstall.go` 只画三行（P3-p 的压缩），
+> 标题用自造句“Uninstall this integration” + `"  ·  "` + 名字，动作先 confirm 后 Cancel。
+>
+> **落地**：
+> - `internal/i18n` 新增 `UninstallProgram`/`UninstallProgramHint`（en/zh 逐字取 `i18n.ts:532-533`）；
+>   `IntegrationsUninstallTitle` 由自造 string 改成 `func(name string) string`，en/zh 逐字
+>   “Uninstall {name}”/“卸载 {name}”（`internal/i18n/i18n.go:525`、`copy.go` en/zh）。
+> - `internal/settingsui/uninstall.go` 新增 `uninstallPart`/`uninstallParts` 值函数（四行、program
+>   行 `Fixed`）与 `uninstallPartRow`（fixed 行 `ui.Checkbox(...).Label(label).Disabled(true)`，
+>   可选行继续写回 draft 字段）；`uninstallDialog` 改用它、标题改读新函数、动作行 Cancel 先。
+>
+> **验收**：`internal/settingsui/uninstall_test.go` 三条——
+> `TestComponentizedUninstallListsAllFourComponents`（四行、program 固定无 Value、其余三行指
+> draft、两语言不同）、`TestComponentizedUninstallDrawsTheReferenceRows`（标题逐字
+> “Uninstall NPM Tool”、自造句不出现、四行按 program/host/tool/artifacts 顺序、四条 hint 逐字、
+> 取消勾选 host 只影响该字段的 payload）、`TestComponentizedUninstallKeepsCancelFirst`（Cancel 的
+> x < confirm 的 x）。变异核查：抽掉 `uninstallParts` 的 program 行 → 前两条红；把 confirm 提到
+> 前面 → 第三条红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：第 1–3 条（P7-fb）落地；「尚未做」清单现有 4 条带 file:line 的具体待办，第 4 条
+> （组件化对话框只给 npm/custom，P7-fe）待做，是下轮最高优先级。
+
+> **上一轮：P7-fa 脚本模式补回原版的「导出脚本」动作，把这个表单的最后一条内容动作落地
 > （原版 `src/extensions/CustomIntegrationDrawer.tsx:145` 的「Export script」按钮 →
 > `src/ExtensionsPanel.tsx:1951-1964` 的 `exportCustomScript` → 后端
 > `src-tauri/src/commands/extensions.rs:1516-1560` 的 `extensions_custom_export_script`）**

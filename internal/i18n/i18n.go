@@ -521,16 +521,24 @@ type Settings struct {
 	// PluginConfigure opens one built-in plugin's configuration sheet in the
 	// launcher, where the mode's own gear opens it.
 	PluginConfigure string
-	// The componentized uninstall dialog.
-	IntegrationsUninstallTitle       string
+	// The componentized uninstall dialog. Its title names the integration
+	// being removed (`uninstallComponentsTitle`, "Uninstall {name}"), the way
+	// the reference's own dialog did
+	// (`src/extensions/ComponentizedUninstallDialog.tsx:70-72`).
+	IntegrationsUninstallTitle       func(name string) string
 	IntegrationsUninstallDescription string
-	UninstallHostConfig              string
-	UninstallHostConfigHint          string
-	UninstallToolData                string
-	UninstallToolDataHint            string
-	UninstallArtifacts               string
-	UninstallArtifactsHint           string
-	IntegrationsCheck                string
+	// UninstallProgram is the dialog's first row: program files are always
+	// removed, so the row is drawn checked and disabled to disclose that
+	// (`ComponentizedUninstallDialog.tsx:84-98`, `i18n.ts:532-533`).
+	UninstallProgram        string
+	UninstallProgramHint    string
+	UninstallHostConfig     string
+	UninstallHostConfigHint string
+	UninstallToolData       string
+	UninstallToolDataHint   string
+	UninstallArtifacts      string
+	UninstallArtifactsHint  string
+	IntegrationsCheck       string
 	// IntegrationsRecheck is the entry a *broken* connected row offers: it
 	// verifies the installed package and repairs it when the record drifted
 	// from what is on disk (the reference's `settings.extensions.recheck`, the
