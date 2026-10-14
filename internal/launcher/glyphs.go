@@ -43,8 +43,12 @@ var (
 	glyphPower      = ui.MustParseSVG([]byte(glyphSource(`<path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/>`)))
 	glyphRestart    = ui.MustParseSVG([]byte(glyphSource(`<path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/>`)))
 	glyphAlert      = ui.MustParseSVG([]byte(glyphSource(`<circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/>`)))
-	glyphWindow     = ui.MustParseSVG([]byte(glyphSource(`<rect width="20" height="16" x="2" y="4" rx="2"/><path d="M6 8h.01"/><path d="M10 8h.01"/>`)))
-	glyphClose      = ui.MustParseSVG([]byte(glyphSource(`<path d="M18 6 6 18"/><path d="m6 6 12 12"/>`)))
+	// glyphInfo is lucide's Info, the mark the reference puts in a status
+	// line's icon column (`.launcher-status__icon` drew `<InfoIcon size={14}/>`,
+	// `LauncherResults.tsx:752-754`).
+	glyphInfo   = ui.MustParseSVG([]byte(glyphSource(`<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>`)))
+	glyphWindow = ui.MustParseSVG([]byte(glyphSource(`<rect width="20" height="16" x="2" y="4" rx="2"/><path d="M6 8h.01"/><path d="M10 8h.01"/>`)))
+	glyphClose  = ui.MustParseSVG([]byte(glyphSource(`<path d="M18 6 6 18"/><path d="m6 6 12 12"/>`)))
 	// The toast marks: the old build's own kind icons (its `ToastStack` drew
 	// lucide's AlertCircle / TriangleAlert / Check at 15px). They belong to the
 	// same closed set the settings sidebar reads, so the shell's toast viewport
@@ -224,6 +228,8 @@ func Glyph(name string) (*ui.SVG, bool) {
 		return glyphPower, true
 	case "alert":
 		return glyphAlert, true
+	case "info":
+		return glyphInfo, true
 	case "triangle-alert":
 		return glyphTriangleAlert, true
 	case "check":

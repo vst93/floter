@@ -99,6 +99,71 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
+> **最新一轮：P7-ef 剪贴板模式的「已关闭」档 + 计算器模式层的抓取深度
+> （原版 `src/hooks/useLauncherCatalog.ts:814-816`、`src/plugins/clipboard/mode.ts:34-56`、
+> `src/plugins/status.ts`、`src/launcher/LauncherResults.tsx:749-760`、`src/App.tsx:2165-2166`；
+> 以及 `src/hooks/useLauncherCatalog.ts:871-878`、`src/calculator.ts:250`、
+> `src/plugins/calculator/mode.ts:79-80`）**
+> —— P7-ee 重写的清单第 1 条已落地，本轮取第 2 条（剪贴板「已关闭」档，最高优先级）；
+> 第 3 条（计算器模式层上限）原本要先判定值不值得动手，本轮一并结清并把它钉成测试。
+> 依赖检查：`curl .../releases/latest` 被限流，`go list -m -versions github.com/egoist/mygo`
+> 最新仍是 **v0.4.8**（与 `go.mod` 一致），无版本可升；只对照 `main`
+> （`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离点 1（剪贴板「已关闭」是相反的话）**：原版 `useLauncherCatalog.ts:814-816` 在插件关闭时
+> **先于任何读取**返回一条 `clipboardStatusRow("clipboard-disabled", "clipboard.pageUnavailable")`
+> （词条 `i18n.ts:291` “Clipboard history is off”），模式自己说发生了什么。本构建改前
+> `internal/shell/shell.go:792` 无条件建 store，插件开关只影响**监听**（`internal/shell/system.go:274`），
+> 于是关掉插件后仍能进模式、仍列出历史，空态走 `internal/launcher/launcher.go:585-591` 的
+> `ClipboardEmpty`（“暂无复制记录”）——一句与事实相反的话。浏览器模式早有对应档
+> （`BrowserResults.Disabled` → `BrowserDisabled`），剪贴板缺失。
+>
+> **修法 1**：
+> - `internal/launcher/search.go` 新增导出 `ClipboardDisabled = "clipboard-disabled"`（原版 id 逐字）
+>   与 `Item.status`；`clipboardItems` **先读设置**（`settings.ClipboardOf`）——store 无论如何都在，
+>   所以「模式信任接口是否存在」会列出一份 app 已停止记录的历史——关闭时返回这一条 status 行：
+>   `Title: a.copy().ClipboardDisabled`、`status: true`、**没有 `Run`**。
+> - `internal/i18n`：新键 `ClipboardDisabled`（en/zh），`TestNoDeadCopy`/完整性测试守卫。
+> - **status 行的绘制**（此前只有 captured-output 列表有 status 行）：`Item.status` 经
+>   `windowRows`（`internal/launcher/output.go`）设 `RowInfo.Status`，`Geometry.Height` 早已支持
+>   该档（`internal/launcher/height.go:109-111,227-230` 的 `launcherStatusUnits = 7.5` = `LAUNCHER_STATUS_UNITS`）；
+>   `internal/launcher/launcher.go` 的 `row()` 新增该支：**不画图标底板**、28u 图标列放 lucide 的
+>   `Info`（新增 `glyphInfo`，原版 `.launcher-status__icon` 的 `<InfoIcon size={14}/>`）、`--text-tertiary`
+>   里的图标 + muted 的 480 字重一行，`MinHeight(launcherStatusUnits)`。
+> - **键盘不可达**：新 `rowSelectable(item) = !heading && !status`，替换四处只看 `heading` 的判断
+>   （`nextSelectable`、`firstSelectable`、`defaultSelection`、`clampSelection`），这样箭头不会停在
+>   note 上、数字族也不会给它编号（原版 `kind: "status"` 即「无 ⌘N、无指针态、无 Enter」）。
+>
+> **验收 1**（新增 `internal/launcher/clipboardoff_test.go`，4 条）：
+> `TestTheClipboardModeSaysWhenTheHistoryIsOff` 在 3 条历史 + 关闭开关下进入模式：只有这一条 status 行、
+> 历史三行都不在、文案 = `ClipboardDisabled`、不是 `ClipboardEmpty`、`Run == nil`、`a.numbers[0]` 不存在；
+> `TestTheClipboardNoteOnlyAppearsWhenTheHistoryIsOff` 钉开关打开时同屏列历史且不出现 note；
+> `TestTheClipboardOffNoteIsChargedTheStatusBand` 钉 `a.Rows[0].Status`、**不**是 `Heading`、
+> 且价格比一行结果行低 `(rowOneLineUnits - launcherStatusUnits) × spacing`、`HeldRows == 1`；
+> `TestTheClipboardOffNoteSurvivesNoStore` 把 `a.Clipboard` 置 nil，note 仍画得出（原版也没读 store）。
+>
+> **偏离点 2（计算器模式层没有上限）**：原版 `useLauncherCatalog.ts:871-878` 给
+> `calculatorModeRows` 传 `MAX_CALCULATOR_MAX_ITEMS`（`calculator.ts:250` = 500），模式在 chip 过滤**之后**
+> `matched.slice(0, limit)`（`plugins/calculator/mode.ts:79-80`）；`CALCULATOR_FETCH_LIMIT = MAX_RESULTS`（10）
+> 只是输出视图那盒子的分组上限。本构建 `internal/launcher/calculator.go` 改前遍历 `a.calculatorFound` 全量、
+> 不设上限；`internal/calculator` 的 `maxItems` 只约束**非收藏**项，而收藏永不淘汰，极多收藏的历史会比原版多出行。
+>
+> **修法 2**：新增导出 `CalculatorFetchLimit = calculator.MaxMaxItems`（500，注释指向两处原版行号，
+> 并写明两个天花板为何是同一个数）；`calculatorItems` 的 chip 过滤**保持在前**，过滤后再
+> `history >= CalculatorFetchLimit` 收手（与 P7-ec/P7-ee 同一口径）。
+> **验收 2**（新增 `internal/launcher/calculatorcap_test.go`，2 条）：
+> `TestTheCalculatorModeHoldsTheReferenceFetchDepth` 钉常量 == 500 == `calculator.MaxMaxItems`，
+> 600 条下模式恰好 500 行、最新行在最前；`TestTheCalculatorChipFilterSeesTheWholeHeldSet` 把唯一
+> 收藏（且最老）摆在 600 条之后，钉收藏 chip 仍拿到它。变异核查：把遍历改成
+> `a.calculatorFound[:CalculatorFetchLimit]`（上限先花）→ 第二条红
+> （`the favourites view holds 0 rows, want 1`）。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：P7-ee 重写的第 2·3 条至此落地，第 4 条是「十行翻页不做」的记录。下一轮回到
+> 「逐文件对照原版排查偏离点」或按新用户报告定入口。
+
 > **最新一轮：P7-ee 剪贴板模式按原版的抓取深度持有结果，且上限不再切在 chip 之前
 > （原版 `src/hooks/useLauncherCatalog.ts:833-834`、`src/clipboard-history.ts:440`、`src/plugins/clipboard/mode.ts:79-95`）**
 > —— P7-ed 收尾后「尚未做」又一次为空（只剩 P7-ec 第 4 条「十行翻页不做」的记录），本轮按惯例换入口做
@@ -4085,15 +4150,11 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-> **清单状态（P7-ee 收尾）**：本轮按惯例换入口做「逐文件对照原版」的审计，落在**内置插件模式
-> 层持有多少行、上限与 chip 过滤谁先花**（P7-da 审的是计算器历史的**存储**与设置块，没审过
-> **模式层**的持有量。「尚未做」当时为空，只剩 P7-ec 第 4 条「十行翻页不做」的记录），故本轮先把
-> 清单重写成下面 3 条带 file:line 的具体待办，再取第 1 条落地（P7-ee，见「最近几轮」）。依赖检查：
-> `curl .../releases/latest` 被限流，`git ls-remote --tags github.com/egoist/mygo` 最新仍是
-> **v0.4.8**（与 `go.mod` 一致），无版本可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14
-> 原版树），未翻历史提交。
+> **清单状态（P7-ef 收尾）**：本轮取 P7-ee 重写的第 2 条（剪贴板「已关闭」档）落地，并顺带结清第 3 条
+> （计算器模式层上限），两条均已带 file:line 与测试；第 4 条是「十行翻页不做」的记录。依赖检查见
+> 「最近几轮」P7-ef，无版本可升，只对照 `main`。
 
-### 具体待办（P7-ee 重写；第 1 条本轮落地）
+### 具体待办（P7-ee 重写；第 1·2·3 条全部落地：第 1 条 P7-ee、第 2·3 条 P7-ef）
 
 1. **（已落地，P7-ee）剪贴板模式只持有 50 行，而且上限花在 chip 过滤之前**。
    - 原版对照：`main:src/hooks/useLauncherCatalog.ts:833-834` 把 `MAX_CLIPBOARD_MAX_ITEMS`
@@ -4120,7 +4181,7 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
      把上限挪回 `Search` 里（上限先花）→ 第二条红（`images chip shows 0 rows, want 1`）。
      详见「最近几轮」P7-ee。
 
-2. **剪贴板模式没有「已关闭」这一档**（下一轮最高优先级）。
+2. **（已落地，P7-ef）剪贴板模式没有「已关闭」这一档**。
    - 原版对照：`main:src/hooks/useLauncherCatalog.ts:814-816` 在插件关闭时发一条
      `clipboardStatusRow("clipboard-disabled", "clipboard.pageUnavailable")`
      （词条见 `main:src/i18n.ts:291` “Clipboard history is off”），即**插件关掉时模式自己说发生了
@@ -4130,21 +4191,25 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
      空态走 `internal/launcher/launcher.go:585-591` 的 `ClipboardEmpty`（“暂无复制记录”）——
      一句与事实相反的话。浏览器模式有对应档（`BrowserResults.Disabled` →
      `internal/launcher/launcher.go:593-598` 的 `BrowserDisabled`），剪贴板没有对应物。
-   - 验收：`settings.ClipboardOf(s).Enabled == false` 时进入剪贴板模式：列表只有一条 status 行
-     （不是历史行、不是空态），文案取新 i18n 键 `ClipboardDisabled`（en/zh 各一行，`TestNoDeadCopy`
-     守卫），且即使 store 为 nil 也能画出这条行。接线点：把该开关透传给 launcher 的
-     `ClipboardSource`（或让它报 `Enabled`），模式层在 `clipboardItems` 的最前面判一次。
+   - **已落地（P7-ef）**：`internal/launcher/search.go` 新增导出 `ClipboardDisabled`（原版 id 逐字）
+     与 `Item.status`；`clipboardItems` 先读 `settings.ClipboardOf(a.settings()).Enabled`，关闭时返回
+     那一条 status 行（`Title` = 新 i18n 键 `ClipboardDisabled`，无 `Run`）；`Item.status` 经
+     `windowRows` 设 `RowInfo.Status`、`launcher.row()` 按 `.launcher-status` 画像（无底板、lucide
+     `info`、30u 带），`rowSelectable` 把 note 从箭头/数字族里排掉。
+   - 验收：`internal/launcher/clipboardoff_test.go` 四条（见「最近几轮」P7-ef）；新键 en/zh 各一行，
+     `TestNoDeadCopy` 与完整性测试守卫。
 
-3. **计算器模式没有模式层行数上限**（低优先级，先判定是否值得动手）。
+3. **（已落地，P7-ef）计算器模式没有模式层行数上限**。
    - 原版对照：`main:src/plugins/calculator/mode.ts:79-80` 的 `calculatorModeRows` 在 chip 过滤后
      `matched.slice(0, limit)`，内联启动器传 `MAX_CALCULATOR_MAX_ITEMS`
      （`main:src/calculator.ts:250` = 500）；`CALCULATOR_FETCH_LIMIT = MAX_RESULTS` 同样只是输出视图的。
-   - 本构建：`internal/launcher/calculator.go:128-144` 遍历 `a.calculatorFound` 全量、不设上限；
-     `internal/calculator` 的 `maxItems`（默认 100、上限 500，见 `internal/calculator/calculator.go:43-45`）
-     只约束**非收藏**项，而收藏永不淘汰，所以一份收藏极多的历史会比原版多出行。
-   - 验收：与第 1 条同一形状——模式层常量（对齐 `calculator.MaxMaxItems`）+ chip 过滤后收手，
-     测试：600 条收藏历史下模式恰好 500 行。**前置判定**：收藏数要到 500+ 才可见；若认为这条
-     不值得改，就把它降级为记录（写明「原版有这个 slice，本构建靠存储上限兜住」）而不是动手。
+   - 本构建（改前）：`internal/launcher/calculator.go:128-144` 遍历 `a.calculatorFound` 全量、不设上限；
+     `internal/calculator` 的 `maxItems`（默认 100、上限 500）只约束**非收藏**项，而收藏永不淘汰，
+     所以一份收藏极多的历史会比原版多出行。
+   - **已落地（P7-ef）**：`internal/launcher/calculator.go` 新增导出
+     `CalculatorFetchLimit = calculator.MaxMaxItems`（= 500）；`calculatorItems` 保持 chip 过滤在前，
+     过滤后 `history >= CalculatorFetchLimit` 收手。验收：`internal/launcher/calculatorcap_test.go`
+     两条（600 条下恰好 500 行、收藏 chip 仍能看到被上限跳过的唯一收藏）。
 
 4. **（记录，非待办）原版的十行客户端翻页（`paginatePluginRows`）本构建不实现**。
    - 原版对照：`main:src/launcher/paginate-plugin-rows.ts` 把内联插件列表切成每页十行、滚到底加载下一页；

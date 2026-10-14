@@ -24,6 +24,10 @@ const (
 	breathUnits     = 1   // 4u
 	rowTwoLineUnits = 10  // 40u (result-budget.ts's ROW_HEIGHT_TWO_LINE)
 	rowOneLineUnits = 8.5 // 34u
+	// launcherStatusUnits is a plugin's status note: the old build's
+	// `LAUNCHER_STATUS_UNITS`, 30u -- shorter than a compact result row, and
+	// charged by `Geometry.Height` for a row the view marks `Status`.
+	launcherStatusUnits = 7.5
 
 	// The rows' own registers, as `.launcher-result` declared them: the title
 	// is the ladder's title step (two units above the body), the subtitle the

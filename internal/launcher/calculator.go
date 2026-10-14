@@ -96,8 +96,28 @@ func (a *App) refreshCalculator() {
 	a.calculatorFound = a.Calculator.Entries()
 }
 
+// CalculatorFetchLimit is how deep the calculator mode's held history goes:
+// the reference's inline mode raises the output view's ten-row group ceiling to
+// `MAX_CALCULATOR_MAX_ITEMS` (`MAX_CALCULATOR_MAX_ITEMS = 500`,
+// `calculator.ts:250`) and passes that as `calculatorModeRows`'s `limit`
+// (`useLauncherCatalog.ts:871-878`), which the mode spends *after* the chip
+// filter (`plugins/calculator/mode.ts:79-80`, `matched.slice(0, limit)`). The
+// reference's own `CALCULATOR_FETCH_LIMIT` is `MAX_RESULTS`, the same ten-row
+// box ceiling the clipboard's `CLIPBOARD_FETCH_LIMIT` is, and is deliberately
+// not replicated for the same reason (see `ClipboardFetchLimit`).
+//
+// The history store's own `maxItems` bounds the *stored* list and is a setting
+// the user can raise to `calculator.MaxMaxItems`, so this cap and the store's
+// are the same number: the mode cannot be handed more rows than the store keeps
+// unless favourites outlive the cap. Pinning it here — the store's own maximum
+// — is what makes the two ceilings agree rather than leaving the mode's reach to
+// depend on which setting the user chose.
+const CalculatorFetchLimit = calculator.MaxMaxItems
+
 // calculatorItems is the calculator mode's list: the pending expression's
-// answer first, then the history rows the chip keeps.
+// answer first, then the history rows the chip keeps, capped at
+// `CalculatorFetchLimit` the way the reference's `calculatorModeRows` spends its
+// `limit` after the chip filter.
 //
 // The history is deliberately *not* filtered by the field's text: the field
 // is the pending expression, and filtering the list by it would hide every
@@ -126,10 +146,18 @@ func (a *App) calculatorItems() []Item {
 
 	copy := a.copy()
 	now := time.Now()
+	history := 0
 	for _, entry := range a.calculatorFound {
 		if a.calculatorFilter == calculatorFilterFavorites && !entry.Favorite {
 			continue
 		}
+		// The reference's own order: the chip narrows the set first and the
+		// limit is spent on what survives (`mode.ts:79-80`), so a chip that
+		// keeps few rows cannot be starved by the ones it drops.
+		if history >= CalculatorFetchLimit {
+			break
+		}
+		history++
 		entry := entry
 		shortcut := ""
 		if entry.Favorite {

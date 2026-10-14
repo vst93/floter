@@ -16,6 +16,7 @@ import (
 	"floter/internal/clipboard"
 	"floter/internal/extensions"
 	"floter/internal/i18n"
+	"floter/internal/settings"
 )
 
 // Item is one launcher result: a built-in command, an installed
@@ -71,6 +72,13 @@ type Item struct {
 	// heading marks a block's title line: a row the list prints above a
 	// block and never selects or runs.
 	heading bool
+	// status marks a plugin's own status note -- the ones the modes build, not
+	// the captured-output list's rows: information rather than a door, drawn as
+	// a muted one-liner in the list's icon column (the old build's
+	// `.launcher-status`) and charged the notes' own 30u band instead of a
+	// result row's floor (see `main:src/launcher/LauncherResults.tsx:749-760`
+	// and `App.tsx:2165-2166`).
+	status bool
 	// warning marks a row that carries a warning dot: a command word two
 	// integrations share, so the row the launcher will not enter says so.
 	warning bool
@@ -342,9 +350,34 @@ func (a *App) browserResults(query string) BrowserResults {
 	return BrowserResults{}
 }
 
+// ClipboardDisabled is the clipboard mode's own status row when the history is
+// switched off: the id the reference's emission gives it
+// (`clipboardStatusRow("clipboard-disabled", …)`, `useLauncherCatalog.ts:814-816`).
+const ClipboardDisabled = "clipboard-disabled"
+
 // clipboardItems is the clipboard mode's list: the history entries matching
-// what the user typed after the mode word.
+// what the user typed after the mode word, or the mode's own "the history is
+// off" note when the plugin is switched off.
+//
+// The reference answers a switched-off plugin *before* it reads anything
+// (`useLauncherCatalog.ts:814-816`): `clipboardEmission` returns a single
+// `clipboardStatusRow` and no history at all, so the mode names what happened
+// rather than claiming nothing was ever copied. That row is one of R40's
+// status lines -- the same shape the browser's "plugin is off" row uses -- so
+// the launcher draws it muted, unselectable and unnumbered, and the window
+// charges it the notes' own band. The settings are read here rather than
+// through `ClipboardSource`: the store is *kept* either way (the setting turns
+// the watcher off, not the history file), so a mode that trusted the
+// interface's mere presence would list a history the app has stopped
+// recording.
 func (a *App) clipboardItems() []Item {
+	if !settings.ClipboardOf(a.settings()).Enabled {
+		return []Item{{
+			ID:     ClipboardDisabled,
+			Title:  a.copy().ClipboardDisabled,
+			status: true,
+		}}
+	}
 	if a.Clipboard == nil {
 		return nil
 	}

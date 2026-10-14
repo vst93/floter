@@ -1526,6 +1526,33 @@ func (a *App) row(c *ui.Context, item Item, i int) {
 			})
 		return
 	}
+	// A status note -- the mode's own "the plugin is off" line -- is
+	// information, not a door: the reference draws it as the list's mute
+	// one-liner in the icon column, with no plate, no pointer state and no
+	// key (`.launcher-status`, `LauncherResults.tsx:749-760`). It is charged
+	// its own 30u band rather than a result row's floor (`LAUNCHER_STATUS_UNITS`,
+	// see `windowRows`), which is why it is not drawn as an ordinary row.
+	if item.status {
+		// The icon column's own step, one quieter than the sentence: the old
+		// build's `--text-tertiary` on `.launcher-status__icon`.
+		tokens := theme.ForPreferences(a.settings(), t.Dark, c.Preferences())
+		note := ui.Row(c).FillWidth().MinHeight(t.Space(launcherStatusUnits)).
+			AlignItems(ui.Center).Padding(0, t.Space(3)).Gap(t.Space(2.5))
+		note.Children(func() {
+			// The 28u icon column, as `.launcher-status__icon` was: no plate,
+			// only the mark.
+			ui.Box(c).Size(t.Space(7), t.Space(7)).Shrink(0).
+				AlignItems(ui.Center).Justify(ui.Center).Children(func() {
+				if glyph, ok := Glyph("info"); ok {
+					ui.Icon(c, glyph).Size(t.Space(3.5), t.Space(3.5)).
+						TextColor(tokens.TextTertiary)
+				}
+			})
+			ui.Text(c, item.Title).FontSize(t.FontSize).FontWeight(480).
+				TextColor(t.TextMuted).SingleLine()
+		})
+		return
+	}
 	// The row is keyed by the item, so a row that stays keeps its identity
 	// (and its place) while the rows around it come and go; a row that
 	// appears fades in rather than flashing into place.
@@ -1972,8 +1999,14 @@ func (a *App) move(delta, n int) {
 	a.disarmDelete()
 }
 
+// rowSelectable reports whether the keyboard can land on a row: a block's
+// heading line is a label and a plugin's status note is information, neither
+// of them a choice, so the arrows step over both.
+func rowSelectable(item Item) bool { return !item.heading && !item.status }
+
 // nextSelectable moves one step and lands on a row the keyboard can act on: a
-// block's heading line is a label, never a choice, so the arrows step over it.
+// block's heading line is a label and a plugin's status note is information,
+// neither of them a choice, so the arrows step over both.
 func (a *App) nextSelectable(from, delta int) int {
 	results := a.Results()
 	n := len(results)
@@ -1983,7 +2016,7 @@ func (a *App) nextSelectable(from, delta int) int {
 	index := from
 	for i := 0; i < n; i++ {
 		index = NextIndex(index, delta, n)
-		if !results[index].heading {
+		if rowSelectable(results[index]) {
 			return index
 		}
 	}
@@ -2001,7 +2034,7 @@ func (a *App) nextSelectable(from, delta int) int {
 func (a *App) firstSelectable() int {
 	results := a.Results()
 	for i, item := range results {
-		if !item.heading {
+		if rowSelectable(item) {
 			return i
 		}
 	}
@@ -2047,7 +2080,7 @@ func (a *App) defaultSelection(results []Item) int {
 		return bar
 	}
 	for i, item := range results {
-		if strings.HasPrefix(item.ID, "bar:") || item.heading || item.Run == nil {
+		if strings.HasPrefix(item.ID, "bar:") || !rowSelectable(item) || item.Run == nil {
 			continue
 		}
 		return i
@@ -2063,7 +2096,7 @@ func (a *App) defaultSelection(results []Item) int {
 func (a *App) clampSelection(n int) {
 	a.Selected = ClampIndex(a.Selected, n)
 	results := a.Results()
-	if a.Selected < len(results) && results[a.Selected].heading {
+	if a.Selected < len(results) && !rowSelectable(results[a.Selected]) {
 		a.Selected = a.nextSelectable(a.Selected, 1)
 		if a.Selected >= len(results) {
 			a.Selected = ClampIndex(a.Selected-1, n)

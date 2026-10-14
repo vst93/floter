@@ -243,9 +243,14 @@ type Launcher struct {
 	BrowserDisabled string
 	// The plugin modes' own empty states: a fact about the mode, not a search
 	// outcome.
-	ClipboardEmpty           string
-	ClipboardEmptyFilter     string
-	ClipboardEmptyFavorites  string
+	ClipboardEmpty          string
+	ClipboardEmptyFilter    string
+	ClipboardEmptyFavorites string
+	// ClipboardDisabled is the clipboard mode's own answer when the plugin is
+	// switched off: what happened, and where to turn it back on -- the twin of
+	// BrowserDisabled (the reference's `clipboard.pageUnavailable`,
+	// `i18n.ts:291`).
+	ClipboardDisabled        string
 	CalculatorEmptyFavorites string
 	BrowserEmpty             string
 	// The plugin modes' filter chips: the browser's range, the clipboard's

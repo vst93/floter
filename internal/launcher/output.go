@@ -686,6 +686,7 @@ func (a *App) windowRows(results []Item) (rows []RowInfo, held, sections int) {
 			rows[i].Lines = 1
 		}
 		rows[i].Heading = item.heading
+		rows[i].Status = item.status
 		rows[i].Bar = strings.HasPrefix(item.ID, "bar:")
 	}
 	return rows, len(results), 0
