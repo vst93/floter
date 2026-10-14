@@ -99,7 +99,72 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-dq 回到终端面时补上外观（原版终端视图每次 mount 都用当帧设置重建 renderer）**
+> **最新一轮：P7-dr 终端配色的背景改由视图按帧绘制（`Transparent` 不再是创建期的陈旧标志）**
+> —— P7-dq 收尾后「尚未做（P7-dq 重写）」第 1 条（终端外观除「进入」之外还有没有别的写入时机）
+> 是清单最高优先级。本轮逐条走完全部建会话入口，结论是**该条无落空**（都经 `App.startSession`
+> → `options()` 读当帧快照，见下方「结论」），但核对时**发现并落地**了一处真实偏离。依赖检查：
+> GitHub releases API 限流，`proxy.golang.org/.../@v/list` 最新仍是 **v0.4.8**（与 `go.mod`
+> 一致），无版本可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离点**：`terminal.Options.Transparent` 是**创建期**选项——mygo v0.4.8 的
+> `plugins/terminal` 只导出 `SetFont`/`SetTheme` 两个 setter（`Cursor`/`NoBlink` 同样只在建会话时
+> 落到 `t.term.SetDefaultCursor(...)`，`plugins/terminal/terminal.go:245`）。本构建此前把它设成
+> `s.TerminalTheme == "inherit"`，于是**跨 inherit/命名配色这条边界**时它必然过期：在 `inherit`
+> 上开的会话，之后选中的命名配色永远不画（`paint.go:399` 的 `!Transparent` 分支才是画背景的那
+> 一处）；反过来在命名配色上开的会话，切回 `inherit` 后仍旧画自己那块背景，玻璃就丢了。原版没有
+> 这个问题，但**不是靠 setter**：`main:src/terminal/render.ts:219` 的 `updateTheme()` 把
+> `this.bg`/`this.bgOpacity`/`this.bgFill` 重算一遍，`draw()` 每帧 `ctx.clearRect` +
+> `ctx.fillStyle = this.bgFill; ctx.fillRect(...)`；`main:src/hooks/useTerminalView.ts:502-521`
+> 又每次进入终端重建 renderer，构造参数就是当帧设置——**背景是每帧从当帧设置算出来的应用层**，
+> 不是终端插件的一个开关。
+>
+> **修法**（`internal/terminalui/terminalui.go`）：
+> - `options()` 改为常量 `Transparent: true`（`terminalui.go:657`），把我方画布定为**应用自己的
+>   一层**。
+> - 新增纯函数 `canvasFill(name, opacity, highContrast)`（`terminalui.go:1127`）：命中 `palettes`
+>   时返回 `packed(spec.bg)` 配 `canvasAlpha` 的 alpha，`inherit`/未知 id 返回 `ui.Color{}`（不画，
+>   正是原版 `inherit` 的 `--terminal-bg` 语义）；`canvasAlpha`（`terminalui.go:1143`）是原版
+>   `canvasFill(floor, solidTop, transparency)` 的公式 `min(0.98, max(0.86, opacity))`——与
+>   `glassmap` 给这层下面的 veil 用的同一对常量（`glassmap.SolidTop` / `ContrastFrameFloor`），
+>   于是画布与它底下的 veil 对「终端有多实」的判断一致；0.98 这个上限正是「全不透明会把材质的
+>   反光与描边压没、读起来像涂料」（`main:src/styles/base.css:378-388` 的 `--glass-solid-top` /
+>   `--glass-frame-floor`）。
+> - `View` 的挂载盒（`terminalui.go:747-760`）在闭包内重新读 `a.Store.Snapshot()` 并
+>   `.Background(canvasFill(...))`，所以配色与滑杆在**会话已经跑着**时于下一帧生效。
+> - 顺带把 `palette(name, opacity)` 的 alpha 去掉、改为 `palette(name)`（`terminalui.go:1161`）：
+>   插件的画布填充用的是 **vt 的颜色**（`paint.go:399` 的 `color(v.colors.Background)`，而
+>   `theme.go:98` 的 `rgb()` 把 alpha 丢掉），所以 `Theme.Background` 的 alpha 从来不参与像素
+>   ——色彩是色彩、实度是实度，后者只在上面那条路径上。
+>
+> **测试**（`internal/terminalui/palettebackground_test.go` 新增）：`TestCanvasFillFollowsThePalette`
+> （纯表：`inherit`/未知 id → 不画；`forest` 46 → `Alpha(0.46)`；10 → `0.1`；100 → `Alpha(0.98)`；
+> 高对比 46 → `0.86`、100 → `0.98`；`paper` 0 + 高对比 → `0.86`）与
+> `TestASessionNeverPaintsItsOwnBackground`（用 `captureTerminal` 建会话，`inherit` 与
+> `store.Update` 到 `forest`/80 之后各建一次：两次都 `Transparent == true`、`inherit` 无主题、
+> `forest` 的 `Theme.Background` 是**不透明**的调色板色）。`view_test.go:145` 原先把
+> `Theme.Background` 钉在 `Alpha(0.8)`，按新契约改为不透明并写明理由。
+>
+> **诚实记录（框架不支持，同轮核实）**：① 块光标的字形颜色——原版
+> `main:src/terminal/render.ts:586-591` 用**该单元格自己的前景色**重绘（`cellFg`，亮色模式还会
+> `brighten`），mygo 插件用 `color(v.colors.Background)`（`paint.go:504`），除非
+> `Theme.CursorText.A > 0`；没有逐单元格的口子，`inherit` 更是根本没有主题，只能如实记。
+> ② 在运行中的会话上改光标形状/闪烁仍不生效：原版走
+> `renderer.setOptions({cursorBlink,…})`（`main:src/hooks/useTerminalView.ts:623-627`），mygo 无
+> setter。两条都已写进「已知差距」。
+>
+> **结论（第 1 条）**：全部建会话入口都经 `App.startSession`（`terminalui.go:166`）→ `options()`
+> （`terminalui.go:632`）读**当帧** `Store.Snapshot()`，`a.NewTerminal` 只在 `terminalui.go:206`
+> 出现一次；命令会话（`RunCommand` `terminalui.go:558`、`RunCommandLine` `terminalui.go:514`）、
+> `RunShellIn`（`terminalui.go:539`）、shell 侧 `OpenTerminal`（`shell.go:519`）、
+> `RunInTerminal`/`RunInTerminalWithEnv`（`shell.go:563-608`）、
+> `RunShellWithCommand`/`RunCommandLine`（`shell.go:1827-1836`）、启动器 `RunCommand`
+> （`shell.go:2358-2361`）与 `Open(SurfaceTerminal)`（`shell.go:2553-2561`）都不新建第二个入口，
+> 所以「新会话必得当帧外观」成立；旧会话由入场刷新（P7-dq）+ 本轮的按帧背景覆盖。该条**关闭**。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+> **上一轮：P7-dq 回到终端面时补上外观（原版终端视图每次 mount 都用当帧设置重建 renderer）**
 > —— P7-dp 收尾后「尚未做（P7-do 重写）」第 2 条（`OverflowMenu` 是否有落点）与第 3 条
 > （`src/deferred-repaint.ts` 的重绘尾沿合并）是清单最高优先级的两条待比对项。本轮逐条核对，**两条
 > 都不产生代码**（详见下方「具体待办」与各自结论），但核对第 3 条时逐行读终端外观的落点，**发现并
@@ -3422,9 +3487,16 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
   只因为本构建从未设过那个 hook。P7-an 接上了它，它现在有自己的抽屉行（`control.AxisPasteSafe`）。
   字号/字体族/光标形状/闪烁/行高/内边距/调色板/透明度**已全部接线**，字体族还带真实安装探测。
   注：光标形状与闪烁只在**新建会话**时生效（框架的 `terminal.Terminal` 只有 `SetFont`/`SetTheme`，
-  没有运行期的光标 setter），所以终端抽屉里这两行也是下一会话才看得到；字号/行距/内边距/配色
-  对打开的会话实时生效。终端抽屉（P7-ab）因此不画 bold/滚轮/选中即复制/滚动条四行（粘贴安全
-  那一行 P7-an 已补上）。
+  没有运行期的光标 setter），所以终端抽屉里这两行也是下一会话才看得到；字号/行距/内边距对打开的
+  会话实时生效。调色板与透明度**从 P7-dr 起也实时**：背景不再由插件画，而是本应用自己的一层
+  （`options()` 里 `Transparent` 是常量，`View` 每帧读设置画 `canvasFill`）。终端抽屉（P7-ab）
+  因此不画 bold/滚轮/选中即复制/滚动条四行（粘贴安全那一行 P7-an 已补上）。
+- **块光标的字形颜色是插件的**（P7-dr 核实）：原版 `main:src/terminal/render.ts:586-591` 在块光标
+  铺满后，用**该单元格自己的前景色**重绘字形（`base = cellFg === WIRE_FG ? this.fg : cellFg`，
+  加粗的亮色模式还会 `brighten(base)`），所以光标下的字保持它本来的颜色；mygo 插件固定用
+  `color(v.colors.Background)`（`plugins/terminal/paint.go:504`），除非 `Theme.CursorText.A > 0`
+  （本构建从不设），于是光标块下的字用的是主题背景色。**要什么**：一个逐单元格的光标文字色口子
+  （`CursorText` 只能给一个全局色，而且 `inherit` 根本没有主题）。
 
 **P1-ad 版式与交互对齐（多轮，本轮）**
 - 设置面板全量改造为分组卡片语言 + 页面头部 + 侧栏字形/选中 + 权限两层 + 每集成一卡 + 本地工具连接表单。
@@ -3452,28 +3524,47 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-> **清单状态（P7-dq 收尾）**：P7-do 重写的三条已全部结清——第 1 条落地 P7-dp；第 2 条（溢出菜单）
-> 与第 3 条（重绘尾沿合并）经本轮逐条核对，**分别是「已用另一种形式覆盖」与「无落点」**（见下方
-> 各自结论）。核对第 3 条时发现并落地了一处新偏离（回到终端面补上外观，P7-dq），下面重写新的
-> 具体待办。
+> **清单状态（P7-dr 收尾）**：P7-do 重写的三条已全部结清（第 1 条落地 P7-dp；第 2·3 条在
+> P7-dq 比对为覆盖/无落点）；P7-dq 重写的第 1 条（终端外观除「进入」外还有没有别的写入时机）
+> **P7-dr 核对关闭**（无落空：全部会话都经 `startSession` 读当帧设置），核对时落地了两处真实修正
+> ——`Transparent` 改为常量、调色板背景改由视图按帧绘制（P7-dr），以及顺带把 `palette()` 里从不
+> 参与像素的 alpha 去掉。下面重写新的具体待办。
 
-### 具体待办（P7-dq 重写）
+### 具体待办（P7-dr 重写）
 
-> 本轮把 P7-do 重写的三条全部结清，并落地一处新发现的偏离。下一轮从下面三条里取第 1 条（最高
-> 优先级）。依赖检查：GitHub releases API 限流，`go list -m -versions github.com/egoist/mygo` 最新
-> 仍是 **v0.4.8**（与 `go.mod` 一致），无版本可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14
-> 原版树），未翻历史提交。
+> 本轮关闭了 P7-dq 第 1 条（核对为「无落空」，并发现落地了 `Transparent` 那条偏离），下面只留
+> 本轮新发现的一条；P7-dq 清单的第 2·3 条（终端空态的 240ms 延迟、自定义集成的脏比较/溢出菜单）
+> 仍未做，仍在下面那份清单里，下一轮做完这条就回去取它们。依赖检查：GitHub releases API 限流，
+> `go list -m -versions github.com/egoist/mygo` 最新仍是 **v0.4.8**（与 `go.mod` 一致），无版本
+> 可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
 
-1. **（待比对，本轮新发现）终端外观除「进入」之外还有没有别的写入时机**（未做）。
+1. **（待比对，本轮新发现）块光标的字形颜色应取单元格自己的前景色**（未做，疑框架无口子）。
+   - 原版对照：`main:src/terminal/render.ts:586-591`——块光标先用自己的颜色铺满单元格，再用
+     **该单元格自己的前景色**重绘字形（`base = cellFg === WIRE_FG ? this.fg : cellFg`，加粗的
+     亮色模式还会 `brighten(base)`）；这是逐单元格的值。
+   - 本构建：mygo 插件固定 `text = color(v.colors.Background)`（`plugins/terminal/paint.go:504`），
+     除非 `Theme.CursorText.A > 0`（本构建从不设）。于是光标块下的字用的是**主题背景色**，原版
+     用的是该字原本的颜色。
+   - 验收：先确认框架是否真有逐单元格的口子（`Theme.CursorText` 只能给一个全局色，且 `inherit`
+     根本没有主题）；若有则接，若无则在「已知差距」里写实（已初记）。
+
+### 具体待办（P7-dq 重写；第 1 条已核对关闭于 P7-dr，第 2·3 条仍未做）
+
+> 第 1 条在 P7-dr 核对为「无落空」（并发现落地了 `Transparent` 那条偏离）；第 2·3 条仍未做，
+> 留在这里，做完上面 P7-dr 清单那条后回来取。
+
+1. **（待比对，本轮新发现）终端外观除「进入」之外还有没有别的写入时机**（**已核对关闭，P7-dr**）。
    - 原版对照：`main:src/hooks/useTerminalView.ts:502-521`——进入终端（`mode` 变到 `terminal`、
      renderer 为 null）就新建 `TerminalCanvas`，构造参数是当帧的 `fontFamily`/`fontSize`/
      `lineHeight`/`padding`/`theme`/`cursorBlink`/`showScrollbar`/`wheelLines`/`boldMode`。
    - 本构建（P7-dq 后）：`internal/shell/shell.go:2561` 的 `Open(SurfaceTerminal)` 在
      `EnsureSession()` 后 `a.refreshTerminal()`；但 `RunShellIn`（`shell.go:538` 附近）、命令会话
      （`shell.go:869` 的 `CommandSessionEnded`）等会自行建会话，未必经过一次「进入」。
-   - 验收：逐条走 `internal/shell/shell.go` 里所有 `Open(SurfaceTerminal)` 与 `a.Terminal.Run*`
-     调用点，确认新会话都拿到当帧外观、旧会话都由入场刷新覆盖；若有落空，补一次刷新（或让
-     `terminalui.startSession` 幂等刷新）。
+   - **结论（P7-dr）**：逐条走完所有 `Open(SurfaceTerminal)` 与 `a.Terminal.Run*` 调用点，它们
+     都不新建第二个入口——所有会话都经 `App.startSession` → `options()` 读**当帧**
+     `Store.Snapshot()`，`a.NewTerminal` 全仓只出现一次（`terminalui.go:206`）。新会话必得当帧外观，
+     旧会话由入场刷新（P7-dq）覆盖，**无落空**。核对时发现并落地的真实偏离见 P7-dr（`Transparent`
+     是创建期选项，跨 inherit/命名配色必然过期）。
 2. **（待比对，疑无落点）终端空态的 240ms 延迟**（未做）。
    - 原版对照：`main:src/terminal/empty-state.ts:39` 的 `TERMINAL_EMPTY_HINT_DELAY = 240`——防的是
      「异步 `term_spawn` 往返期间页面短暂为空 → 空态闪一下」。

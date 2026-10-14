@@ -20,6 +20,7 @@ import (
 	"github.com/egoist/mygo/plugins/terminal"
 	"github.com/egoist/mygo/ui"
 
+	"floter/internal/glassmap"
 	"floter/internal/i18n"
 	"floter/internal/inputtext"
 	"floter/internal/launcher"
@@ -630,7 +631,7 @@ func (a *App) Label() string {
 // its comment).
 func (a *App) options() terminal.Options {
 	s := a.Store.Snapshot()
-	theme := palette(s.TerminalTheme, s.TerminalOpacity)
+	theme := palette(s.TerminalTheme)
 	return terminal.Options{
 		Font: terminal.Font{
 			Family:     s.FontFamily,
@@ -640,15 +641,20 @@ func (a *App) options() terminal.Options {
 		Cursor:  cursorStyle(s.CursorShape),
 		NoBlink: !s.CursorBlink,
 		Theme:   theme,
-		// The terminal's own background carries the transparency: the panel
-		// behind (the card's glass) shows through it. A named palette paints
-		// its own colour at the terminal slider's alpha; the `inherit` theme
-		// has no palette of its own, so the view leaves its background undrawn
-		// and the card's terminal-opacity tint is what shows - the reference's
-		// background-opacity semantics for the default theme. Without this the
-		// plugin's default (opaque) background hid the glass entirely, so the
-		// terminal slider did nothing until a named palette was picked.
-		Transparent: s.TerminalTheme == "inherit",
+		// The view never paints a background of its own (P7-dr). The transparency
+		// is the terminal slider's, and it lives one layer up: this surface paints
+		// the palette's colour - or, for the shipped `inherit`, nothing at all, so
+		// the card's terminal-opacity tint shows - in `View` (see canvasFill).
+		//
+		// This is a constant, not a reading of the stored palette, because
+		// `Transparent` is a creation-time option with no setter: a session that
+		// started on a named palette kept painting its background after the user
+		// switched back to `inherit` (an opaque one, which is the very thing the
+		// slider is for), and a session that started on `inherit` never painted a
+		// palette picked later. The reference met the same two cases by rebuilding
+		// its renderer on every mount; here the layer the palette colours is the
+		// app's own, so the setting reaches a running session on the next frame.
+		Transparent: true,
 		OnTitle:     a.Actions.Title,
 		OpenLink:    a.Actions.OpenLink,
 		OnNotify:    a.Actions.Notify,
@@ -741,9 +747,17 @@ func (a *App) View(c *ui.Context) {
 		}
 		body := ui.Box(c).Grow(1).FillWidth()
 		body.Children(func() {
-			ui.Box(c).Fill().Radius(tokensOf(a, c).RadiusLG).Border(1, edge).Children(func() {
-				terminal.View(c, session.Term).Fill().Padding(pad).Bind(&a.Focus)
-			})
+			// The mount's fill is the terminal's background: the session's own
+			// name for the surface it is drawn on, painted here rather than by
+			// the plugin (the session is transparent, see options). Rebuilt from
+			// the stored settings every frame, so a palette picked while a
+			// session runs lands without restarting it.
+			stored := a.Store.Snapshot()
+			ui.Box(c).Fill().Radius(tokensOf(a, c).RadiusLG).Border(1, edge).
+				Background(canvasFill(stored.TerminalTheme, stored.TerminalOpacity, c.Preferences().HighContrast)).
+				Children(func() {
+					terminal.View(c, session.Term).Fill().Padding(pad).Bind(&a.Focus)
+				})
 			// The resident note rides the canvas, so the docked drawer cannot
 			// sit under it.
 			a.residentNote(c, copy)
@@ -1100,11 +1114,51 @@ func cursorStyle(shape string) terminal.CursorStyle {
 	}
 }
 
+// canvasFill is the colour the terminal surface paints behind the canvas: a
+// named palette's own background at the terminal slider's alpha, and nothing
+// at all for the shipped `inherit` (and for an id this build does not know,
+// the same as the renderer's own fallback).
+//
+// It is the one place the palette's transparency reaches pixels (P7-dr): the
+// plugin's view is transparent, and this layer is read from the stored settings
+// on every frame, so the palette and the slider apply to a session that is
+// already running. The old build met the same case by rebuilding its renderer
+// on each mount rather than by reconfiguring the running one.
+func canvasFill(name string, opacity uint8, highContrast bool) ui.Color {
+	spec, ok := palettes[name]
+	if !ok {
+		return ui.Color{}
+	}
+	return packed(spec.bg).Alpha(canvasAlpha(opacity, highContrast))
+}
+
+// canvasAlpha is the alpha the old build painted its canvas at, and it is the
+// frame's own rule rather than the slider read straight: base.css's
+// `min(--glass-solid-top, max(--glass-frame-floor, --terminal-opacity))` - the
+// very pair glassmap folds into the veil under this layer, so the canvas and
+// the veil agree on how solid the terminal is. A fully opaque canvas would drop
+// the material's sheen and rim into invisibility and read as paint, which is
+// why the top is 0.98 and not 1; the floor is inert until the desktop asks for
+// more contrast.
+func canvasAlpha(opacity uint8, highContrast bool) float32 {
+	alpha := min(glassmap.SolidTop, float32(opacity)/100)
+	if highContrast {
+		alpha = max(glassmap.ContrastFrameFloor, alpha)
+	}
+	return alpha
+}
+
 // palette builds the terminal colors for a stored palette id: the shipped
-// `inherit` follows the window (no theme), and each override paints the
-// fixed pair from TERMINAL_PALETTES, with the transparency applied to the
-// background.
-func palette(name string, opacity uint8) *terminal.Theme {
+// `inherit` follows the window (no theme), and each override paints the fixed
+// pair from TERMINAL_PALETTES.
+//
+// The palette's colours are opaque. How solid the background is, is a
+// *different* value, and it belongs to the view (canvasFill): the plugin
+// resolves the vt's default background through `rgb`, which has no alpha, so
+// what the terminal's background is and how much of the desktop shows through
+// it cannot be one colour. The `inherit` theme is nil for the same reason -
+// its colours are the window's, and its transparency is the same layer.
+func palette(name string) *terminal.Theme {
 	spec, ok := palettes[name]
 	if !ok {
 		return nil
@@ -1114,8 +1168,7 @@ func palette(name string, opacity uint8) *terminal.Theme {
 		base = terminal.LightTheme()
 	}
 	t := *base
-	alpha := float32(opacity) / 100
-	t.Background = packed(spec.bg).Alpha(alpha)
+	t.Background = packed(spec.bg)
 	t.Foreground = packed(spec.fg)
 	t.Cursor = packed(spec.cursor)
 	t.Selection = spec.selection

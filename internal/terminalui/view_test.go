@@ -101,8 +101,8 @@ func TestOptionsFollowTheSettings(t *testing.T) {
 		t.Errorf("inherit built a palette: %+v", o.Theme)
 	}
 	// The default theme has no palette of its own: the view leaves its
-	// background undrawn so the card's terminal-opacity tint shows. A named
-	// palette paints its own colour at the slider's alpha instead.
+	// background undrawn so the card's terminal-opacity tint shows, and picks a
+	// named palette's colour up as its own layer (P7-dr).
 	if !o.Transparent {
 		t.Error("the inherit theme must leave the background to the card's tint")
 	}
@@ -145,7 +145,10 @@ func TestOptionsFollowTheSettings(t *testing.T) {
 	if o.Theme == nil {
 		t.Fatal("the forest palette did not build")
 	}
-	if got, want := o.Theme.Background, ui.RGB(0x0f, 0x1a, 0x14).Alpha(0.8); got != want {
+	// The palette's colours are opaque: how solid the background is is the
+	// view's own layer (canvasFill), because the plugin resolves what it paints
+	// the canvas with through the vt's colours, which carry no alpha (P7-dr).
+	if got, want := o.Theme.Background, ui.RGB(0x0f, 0x1a, 0x14); got != want {
 		t.Errorf("forest background = %v, want %v", got, want)
 	}
 	if got, want := o.Theme.Foreground, ui.RGB(0xd7, 0xe4, 0xd0); got != want {
