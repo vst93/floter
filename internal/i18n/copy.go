@@ -638,15 +638,22 @@ var en = Copy{
 		RunOutputLinesTruncated: func(lines int) string {
 			return strconv.Itoa(lines) + " lines \u00b7 truncated at 64 KB"
 		},
-		DisableTitle:                        func(name string) string { return "Disable " + name + "?" },
-		DisableDescription:                  "Floter stops any running command at once. This only marks the integration disabled \u2014 its files and data are kept, and you can turn it back on whenever you like.",
-		DisableCancel:                       "Cancel",
-		DisableConfirm:                      "Disable",
-		DetectedTitle:                       "Found on this machine",
-		InstallFolderLabel:                  "Install from a folder",
-		InstallFolderHint:                   "A package directory on this machine that carries a floter extension manifest.",
-		InstallFolderChoose:                 "Choose\u2026",
-		DetectedHint:                        "Programs floter can see but nothing has connected yet. Connecting opens the same review as any other tool.",
+		DisableTitle:        func(name string) string { return "Disable " + name + "?" },
+		DisableDescription:  "Floter stops any running command at once. This only marks the integration disabled \u2014 its files and data are kept, and you can turn it back on whenever you like.",
+		DisableCancel:       "Cancel",
+		DisableConfirm:      "Disable",
+		DetectedTitle:       "Found on this machine",
+		InstallFolderLabel:  "Install from a folder",
+		InstallFolderHint:   "A package directory on this machine that carries a floter extension manifest.",
+		InstallFolderChoose: "Choose\u2026",
+		DetectedHint:        "Programs floter can see but nothing has connected yet. Connecting opens the same review as any other tool.",
+		RegisterHighlight:   "The link you opened points at this tool",
+		RegisterNotFound: func(name string) string {
+			return "No tool named \u201c" + name + "\u201d was found on this device. Install it, then connect it from the list below."
+		},
+		RegisterAlreadyConnected: func(name string) string {
+			return "\u201c" + name + "\u201d is already connected \u2014 see it in the list above."
+		},
 		Freshness:                           "Command list",
 		FreshnessNever:                      "Never re-scanned",
 		FreshnessJustNow:                    "just now",
@@ -1404,15 +1411,22 @@ var zh = Copy{
 		RunOutputLinesTruncated: func(lines int) string {
 			return "输出 " + strconv.Itoa(lines) + " 行 \u00b7 截断于 64KB"
 		},
-		DisableTitle:                        func(name string) string { return "停用 " + name + "？" },
-		DisableDescription:                  "正在运行的命令会立即停止。这里只是标记停用——文件与数据都会保留，随时可以重新启用。",
-		DisableCancel:                       "取消",
-		DisableConfirm:                      "停用",
-		DetectedTitle:                       "在本机发现",
-		InstallFolderLabel:                  "从文件夹安装",
-		InstallFolderHint:                   "本机上一个带有 floter 扩展清单的包目录。",
-		InstallFolderChoose:                 "选择\u2026",
-		DetectedHint:                        "Floter 能看到但还没连接的程序。连接时会走和其他工具一样的权限确认。",
+		DisableTitle:        func(name string) string { return "停用 " + name + "？" },
+		DisableDescription:  "正在运行的命令会立即停止。这里只是标记停用——文件与数据都会保留，随时可以重新启用。",
+		DisableCancel:       "取消",
+		DisableConfirm:      "停用",
+		DetectedTitle:       "在本机发现",
+		InstallFolderLabel:  "从文件夹安装",
+		InstallFolderHint:   "本机上一个带有 floter 扩展清单的包目录。",
+		InstallFolderChoose: "选择\u2026",
+		DetectedHint:        "Floter 能看到但还没连接的程序。连接时会走和其他工具一样的权限确认。",
+		RegisterHighlight:   "你打开的链接指向此工具",
+		RegisterNotFound: func(name string) string {
+			return "此设备上没有名为“" + name + "”的工具。请先安装，再从下方列表接入。"
+		},
+		RegisterAlreadyConnected: func(name string) string {
+			return "“" + name + "”已接入——请在上方列表中查看。"
+		},
 		Freshness:                           "命令列表",
 		FreshnessNever:                      "尚未重新扫描",
 		FreshnessJustNow:                    "刚刚",

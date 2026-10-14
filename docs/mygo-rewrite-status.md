@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1136 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1178 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1136 项测试
+go test -count=1 ./...         # 1178 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,7 +99,52 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-ei F4b 集成卡片的 meta 行补回「集成种类」词
+> **最新一轮：P7-ej register 深链高亮标记 + Detected/register 连接真的落地
+> （原版 `src/extensions/ExtensionRow.tsx:196-205,290`、`src/ExtensionsPanel.tsx:1500-1548,2516-2528`、
+> `src-tauri/src/deep_link.rs:389`）** —— 「尚未做」清单里 F3b 是最高优先级，本轮先按 F3b 的验收
+> 去**实测**「帧 sheen 改固定、档位差异全靠控件透镜」是否成立，结论否（下详），故不动 F3b，
+> 转而落地同组的具体项 **F4d**。依赖检查：GitHub releases API 限流，
+> `go list -m -versions github.com/egoist/mygo` 最新仍是 **v0.4.8**（与 `go.mod` 一致），无版本可升；
+> 只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **F3b 实测（为什么不落地）**：F3b 的前提是「档位差异全部落到控件透镜」。把 `theme.go` 的帧 sheen
+> 临时改成固定 token（`sheen = 1`）后，用生产帧扫全画布：在帧专属带（y=90..120，不含任何控件）
+> frosted/regular/liquid 的 RGB sum 为 dark 100.3/100.3/100.5、light 397.2/397.8；再以 20px 为步长
+> 逐带扫描，regular 与 liquid 的 RGB sum 差**处处 ≤0.4**。也就是说控件透镜在本构建渲染里几乎不
+> 贡献像素（`launcher` 只在搜索框 1px 内影与图标底板上用 lens），固定帧 sheen 后三档在**没有窗口
+> 材质**（Linux / 无头）时完全一样——会重演用户报过的「玻璃 3 档看不出区别」。故本轮**保留**现有
+> 「帧 sheen 随档位」（P7-c/P7-d 为补 Linux 无材质而做的偏离），把证据写回 F3a/F3b 待办，改为
+> 「先决定档位 rung 归帧还是归控件、并给控件透镜可测的像素落地」。
+>
+> **F4d 落地**：
+> - i18n 新增三键 `RegisterHighlight`（原版 `registerHighlight` 原文）、
+>   `RegisterNotFound(name)` / `RegisterAlreadyConnected(name)`（原版 `i18n.ts:437-438`）。
+> - `internal/settingsui`：`Integration` 增 `Highlighted`；`integrationRow` 在被点名时用
+>   `rowNote` 画出 `RegisterHighlight`（原版是名字前的 `extension-row__register-dot`；原生面板没有
+>   tooltip，故用可见文案当标记）。
+> - `internal/shell`：`registerTarget` + `registerTimer` + `registerHighlight`；`markRegisterTarget`
+>   记下路径并按 `registerHighlightWindow`（5s，原版 `useTimedReset` 默认 3s，这里放宽是因为卡片要等
+>   异步连接落地）自清；`hasExecutable`/`sameExecutable` 判「是否已连接」（按 `ExecutablePath`，符号
+>   链接两侧对齐）；`registerNotice` 把未命中/已连接各说一句（原版 `registerMiss`）。`registerFromLink`
+>   不再只 `log`，`integrationList` 按路径把对应卡片标 `Highlighted`。
+> - **顺带修的真 bug**：`connectDetected` 构造的 `CustomTool` 从来没带 `Platforms`，于是
+>   `PrepareCustom` 一律报 `platformRequired`——Detected 的「Connect」与 `floter://register` 其实
+>   **从未连接成功**（日志里满是 `could not prepare … platformRequired`）。新增
+>   `settingsui.CurrentPlatform()` 并在 `connectDetected` 填入本机平台。
+>
+> **验收**：新增 `internal/settingsui/integrationregister_test.go`（像素：只有被点名的卡片画
+> `RegisterHighlight`，且全屏只一次）；新增 `internal/shell/register_test.go`（未命中给
+> `RegisterNotFound` 且不设 target；命中后连接落地、卡片被标记，二次 link 给
+> `RegisterAlreadyConnected`；标记是 moment，到点自清；`sameExecutable` 的符号链接表）。
+> 变异核查：把 `integrationRow` 的 `highlight` 摘掉 → 像素条红；把 `connectDetected` 的 `Platforms`
+> 摘掉 → 连接失败、`TestTheRegisterLinkMarksTheProgramItNamed` 红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 27 包全绿
+> （1178 项）、`GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：F4 全部（F4a–F4d）落地；剩 **F3a/F3b**（已按上表重写为带实测证据的待办）。
+
+> **上一轮：P7-ei F4b 集成卡片的 meta 行补回「集成种类」词
 > （原版 `src/extensions/ExtensionRow.tsx:77-101,220-222,255`、`i18n.ts:446-453`）**
 > —— P7-eh 之后「尚未做」里 F3b 与 F4b 都是具体项，本轮取 **F4b**（用户四项反馈里 F4 的
 > 第 2 条；与 F4a 同属「集成组件逻辑差异」这组，紧接上一轮）。依赖检查：GitHub releases
@@ -6734,9 +6779,15 @@ Go 侧把原版的三条规则写偏了。依赖检查：`go list -m -versions g
     只剩两处落点：窗口材质 `internal/shell/shell.go:2738` 的 `vibrancyForStop`（macOS 三档
     UnderWindow/…；Windows 只有 Acrylic；Linux None）与控件透镜
     `internal/theme/theme.go:347-349` 的 `LensRim/LensSheen/LensEdge × LensScale`。
-  - **验收/待做**：逐平台（尤其 Linux 无窗口材质时）渲染 regular↔liquid 的生产帧，核对控件透镜确实
-    是两档的主要可见差异；若 Linux 上仅靠透镜不够，则补帧的 sheen/haze 到原版量级（见 F3b）。
-- **F3b · 玻璃作用范围：控件 vs 整体；整体弱化、阴影细节加强。**
+  - **验收/待做（P7-ej 实测后重写）**：**已实测**——把帧 sheen 临时改成固定 token（F3b 的字面做法）
+    后渲染生产帧：帧专属带（y=90..120，不含控件）frosted/regular/liquid 的 RGB sum 为 dark
+    100.3/100.3/100.5、light 397.2/397.8；以 20px 为步长扫全画布，regular 与 liquid 的 RGB sum 差
+    **处处 ≤0.4**。即**控件透镜在本构建的渲染里几乎不贡献像素**——它只在搜索框 1px 内影与图标底板上
+    （`internal/launcher/launcher.go:1724`、`glyphs.go:164`）。所以「Linux 上仅靠透镜」**不成立**。
+  - **重写后的待做**：先决定档位的可见 rung 归谁——(a) 让控件透镜真的成为可测像素（放大/落地到更多
+    控件，需单独设计），或 (b) 明确 Linux/无材质时帧的 sheen 继续随档位（保留 P7-c/P7-d 的偏离，本
+    轮的选择）。二选一后再谈 F3b。
+- **F3b · 玻璃作用范围：控件 vs 整体；整体弱化、阴影细节加强（P7-ej 实测后：先决于 F3a）。**
   - **原版对照**：`main:src/styles/launcher.css:119` 的卡片是
     `linear-gradient(180deg, var(--sheen-top), var(--sheen-bottom)), var(--launcher-tint)`，而
     `--sheen-top/-bottom` 是**固定 token**（`main:src/styles/base.css:628-629` dark 0.046/0.01、
@@ -6745,8 +6796,11 @@ Go 侧把原版的三条规则写偏了。依赖检查：`go list -m -versions g
   - **本构建（偏离）**：`internal/theme/theme.go:286-291` 把帧的 sheen 写成
     `sheen = spec.TintAlpha * spec.LensScale`（P7-d 为「3 档看不出区别」加的耦合），于是**帧**的亮面随
     档位变，而原版的帧 sheen 固定。
-  - **待做 file:line**：把 `theme.go` 的帧 sheen 改回原版的固定口径（`spec.Glass` 时取常量、不乘
-    `LensScale`），档位差异全部落到控件透镜（已按 `LensScale` 缩放）。
+  - **待做 file:line（P7-ej 后调整为「先决」）**：**不能直接落地**——F3b 依赖「档位差异全部落到控件
+    透镜」，而 F3a 已实测控件透镜在无头/Linux 生产帧里差别 ≤0.4 RGB。先把 `theme.go` 的帧 sheen
+    改回固定口径（`spec.Glass` 时取常量、不乘 `LensScale`）会让三档在没有窗口材质时**完全一致**
+    ——重演用户报过的「3 档看不出区别」。故本条先等 F3a 的 (a) 落地（控件透镜变成可测像素），再动
+    `theme.go:286-291` 的帧 sheen。
   - **验收**：新增/改写像素测试——同一 `main_opacity` 下，**帧**的亮面颜色在 regular 与 liquid 之间
     相同（原版），而**控件**的 lens 强度按 0.5/1/1.6 单调上升；现有
     `internal/shell/glass_test.go` 的 `TestTheGlassStopsAreVisiblyDifferent` 需随之改写（它当前断言帧
@@ -6754,7 +6808,7 @@ Go 侧把原版的三条规则写偏了。依赖检查：`go list -m -versions g
   - **风险**：帧 sheen 参与透明度的 `FaceFill` 补偿（`theme.go` 的 `baseAlpha`/`capAlpha` 与
     `internal/shell/transparency_test.go`），改动须重跑该套像素测试。
 
-### F4 · 集成组件逻辑差异（**P7-eh 落成 F4a–F4d 四条带 file:line 的待办并落地 F4a；P7-ei 落地 F4b**）
+### F4 · 集成组件逻辑差异（**P7-eh 落地 F4a；P7-ei 落地 F4b；P7-ej 落地 F4d，并修好 F4c 依赖的连接链**）
 
 - **现象**：集成组件逻辑与原版差异仍大，需要梳理、可能重构。
 - **原版对照**：`main:src/ExtensionsPanel.tsx`（面板与安装/权限/运行流程，3269 行）与
@@ -6819,7 +6873,16 @@ Go 侧把原版的三条规则写偏了。依赖检查：`go list -m -versions g
 - **验收**：新增 `internal/settingsui/integrationkind_test.go` 三条（六行表 + 拼接 + 四行同屏像素
   断言）。变异核查：卡片 `identityLine(copy)` 换回 `identity()` → 像素条立刻红。
 
-#### F4c · detected（未连接）行的动作语义不是原版那张脸（**待做**）
+#### F4c · detected（未连接）行的动作语义不是原版那张脸（**待做；动作三态在本构建退化，先决于数据投影**）
+
+- **P7-ej 实测补充**：本构建的 `detectedTools`（`internal/shell/shell.go:1897`）只列出
+  `candidate.Available && candidate.Path != ""` 且**未连接**的项，所以 detected 行恒为
+  `runtimeAvailable` → Connect；`homepage` / `installInTerminal` 在本构建的 inventory 投影里**根本
+  没有数据**（`inventory.Candidate` 无 homepage；`tools.Catalog` 有 `Recipes` 但从未接进 detected
+  投影）。所以 F4c 的真实缺口不是「补三态」（三态会退化成单态），而是：要么把 `tools.Catalog` 的
+  `ChosenRecipe`+`InstallCommand` 接进 detected 投影（installInTerminal 态真的可判），要么承认本
+  构建的 detected 就是「已在 PATH、只需 Connect」并只补布局（合并进 Installed 段 / 补 disabled
+  原因）。这个决定与 F4d 无关，留后续轮。
 
 - **原版对照**：`ExtensionRow.tsx:299-330`——同一张卡片，`!connected` 时右侧只有一个按钮：
   `runtimeAvailable` → Connect（`Link2`，`aria-label=connect`）；`installInTerminal` → 终端安装
@@ -6835,17 +6898,25 @@ Go 侧把原版的三条规则写偏了。依赖检查：`go list -m -versions g
   进 Installed 段是独立决定（本构建的段式布局与该区其它段一致，建议**保留段、只补动作三态**）。
 - **验收**：一条渲染测试，三条 detected 项分别钉按钮文案/禁用态；`busy` 与无主页时按钮禁用。
 
-#### F4d · register 深链高亮标记缺失（**待做，优先级最低**）
+#### F4d · register 深链高亮标记（**本轮落地，P7-ej**）
 
 - **原版对照**：`ExtensionRow.tsx:196-205`（R8-3）——`floter://register` 深链点名的行画一个
   `extension-row__register-dot`（`role="img"` + `registerHighlight` 文案），是**标记不是控件**；
-  卡片 class 追加 `extension-row--register`（`:290`）。
-- **本构建（缺失）**：`grep -rn RegisterHighlight internal/` 无命中，`Integration` 上没有 highlight
-  字段，卡片也不接受 `highlighted`。
-- **待做 file:line**：`internal/settingsui/settingsui.go` 的 `integrationRow` 增一个
-  `Integration.Highlighted` 标记与 `registerHighlight` 文案；`internal/shell` 的深链处理在
-  `floter://register` 落地时置位。
-- **验收**：一条渲染测试，highlighted 行出现标记文案、未点名的行不出现。
+  卡片 class 追加 `extension-row--register`（`:290`）。深链处理在 `ExtensionsPanel.tsx:1500-1548`：命中
+  未连接项 → 高亮（+args hint），已连接 → `registerAlreadyConnected`，否则 → `registerNotFound`；
+  高亮按 `useTimedReset` 默认 3s 自清。
+- **本构建（P7-ej 前缺失）**：`grep -rn RegisterHighlight internal/` 无命中，`Integration` 上没有
+  highlight 字段，卡片也不接受 `highlighted`；且 `connectDetected` 构造的 `CustomTool` 没带
+  `Platforms`，`PrepareCustom` 一律 `platformRequired`——register/Detected 的连接**从未落地**。
+- **落地 file:line**：i18n 三键 `RegisterHighlight`/`RegisterNotFound`/`RegisterAlreadyConnected`；
+  `internal/settingsui/settingsui.go` 的 `Integration.Highlighted` 与 `integrationRow` 的 `rowNote`；
+  `internal/shell/system.go` 的 `registerFromLink`/`markRegisterTarget`/`hasExecutable`/`sameExecutable`、
+  `internal/shell/shell.go` 的 `registerTarget`/`registerHighlight` 与 `integrationList` 投影；
+  `connectDetected` 补 `settingsui.CurrentPlatform()`。
+- **验收**：新增 `internal/settingsui/integrationregister_test.go`（被点名卡片画标记、其余不画、全屏
+  只一次）与 `internal/shell/register_test.go`（未命中/已连接两种句子、连接落地后卡片被标记、标记
+  到点自清、`sameExecutable` 符号链接表）。变异核查：摘掉卡片 `highlight` → 像素条红；摘掉
+  `connectDetected` 的 `Platforms` → 连接失败、shell 条红。
 
 - **残留**：`main:src/ExtensionsPanel.tsx`（安装文件夹/权限审批/运行参数/输出回看/导入导出的**流程**）
-  尚未逐函数对照；F3a/F3b 仍在清单上，下轮按优先级取（F3b 已是可直接落地的具体项）；F4c/F4d 待做。
+  尚未逐函数对照；F4a–F4d 全部落地；剩 **F3a/F3b**（P7-ej 已用实测把 F3b 标为「先决于 F3a」，见上）。

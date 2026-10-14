@@ -272,6 +272,11 @@ type Integration struct {
 	// (`src/extensions/ExtensionRow.tsx:109-114`).
 	DistributionSource string
 	RuntimeOwnership   string
+	// Highlighted marks the integration a `floter://register` link named, so
+	// its card wears the link's mark
+	// (`src/extensions/ExtensionRow.tsx:196-205,290`). It is a status mark,
+	// not a control: nothing about the card's actions changes.
+	Highlighted bool
 	// Params are the declared inputs a run needs: the card renders a form for
 	// them, and the answers become argv.
 	Params []Param
@@ -1496,7 +1501,15 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 	// value so the two can never disagree.
 	freshness, hasFreshness := a.freshnessOf(integration)
 	a.card(c, func() {
-		a.row(c, integration.Name, integration.Description, func() {
+		// The link's mark: a row the `floter://register` link named wears the
+		// reference's own sentence under its description (the reference drew a
+		// dot before the name; a native pane has no tooltip, so the word itself
+		// is the mark). An unnamed row draws nothing.
+		highlight := ""
+		if integration.Highlighted {
+			highlight = copy.RegisterHighlight
+		}
+		a.rowNote(c, integration.Name, integration.Description, highlight, func() {
 			if hasFreshness {
 				a.freshnessDot(c, copy, freshness)
 			}
@@ -3289,6 +3302,13 @@ func currentPlatform() string {
 	}
 	return "linux"
 }
+
+// CurrentPlatform is the platform a connection request built without the form
+// supports: this machine's own, in the manifest vocabulary. The form ticks it
+// for a fresh tool, and the shell's detected/register flows — which skip the
+// form — need the same default, or the request is refused with
+// `platformRequired` before anything is written.
+func CurrentPlatform() string { return currentPlatform() }
 
 // freshnessOf reads what is known about an integration's command list, for
 // the card's own row. Nothing is shown for an integration nothing has probed.

@@ -187,25 +187,99 @@ func (a *App) HandleURL(rawURL string) {
 	}
 }
 
-// registerFromLink connects a program a `floter://register` link named: a
+// registerHighlightWindow is how long the `floter://register` mark lasts: the
+// reference's `useTimedReset(registerTarget, …)` default is 3000ms
+// (`src/hooks/useTimedReset.ts:3`), kept a little longer here because the row
+// it marks appears only after the connect lands, which runs off this thread.
+const registerHighlightWindow = 5 * time.Second
+
+// registerFromLink handles the program a `floter://register` link named: a
 // name is resolved on the search path, and an absolute path is taken as it
-// is. A name nothing can resolve is logged rather than silently ignored, and
-// the page is already up either way.
+// is. The reference's register link does **not** connect anything by itself —
+// it marks the row the link named so the user still makes the connect
+// decision (`src/ExtensionsPanel.tsx:1500-1548`). This build connects through
+// the same one-press flow the Detected row uses, and marks the card that
+// results; a link that names an already-connected program, or one nothing can
+// resolve, leaves the list alone and says which it was instead of connecting
+// a second copy or half a package.
 func (a *App) registerFromLink(name string) {
 	path := name
 	if !filepath.IsAbs(path) {
 		resolved, ok := extensions.LookTool(name)
 		if !ok {
-			log.Printf("floter: no program named %q on the search path", name)
+			a.registerNotice(func(c i18n.Settings) string { return c.RegisterNotFound(name) })
 			return
 		}
 		path = resolved
 	}
+	// A tool that is already connected has no unconnected card to mark, and
+	// saying "not found" would be false, so the two outcomes get two
+	// sentences (the reference's `registerMiss.alreadyConnected`).
+	if a.hasExecutable(path) {
+		a.registerNotice(func(c i18n.Settings) string { return c.RegisterAlreadyConnected(name) })
+		return
+	}
+	a.markRegisterTarget(path)
 	a.connectDetected(settingsui.DetectedTool{
 		Name:        filepath.Base(path),
 		Path:        path,
 		VersionArgs: "--version",
 	})
+}
+
+// registerNotice raises the link's own sentence through the app's notice
+// stack, which is where every other externally-triggered outcome lands.
+func (a *App) registerNotice(word func(i18n.Settings) string) {
+	message := word(i18n.For(a.Store.Snapshot().Language).Settings)
+	a.onMain(func() { a.queueNotice(message, refusalNotice) })
+}
+
+// markRegisterTarget records the path a register link named and arms the beat
+// that clears it, so the mark is the link's moment rather than a mode. A
+// second link replaces the first mark and restarts the clock.
+func (a *App) markRegisterTarget(path string) {
+	a.registerTarget = path
+	if a.registerTimer != nil {
+		a.registerTimer.Stop()
+	}
+	a.registerTimer = time.AfterFunc(a.registerHighlight, func() {
+		a.onMain(func() {
+			a.registerTarget = ""
+			if a.Win != nil {
+				a.Win.Invalidate()
+			}
+		})
+	})
+	if a.Win != nil {
+		a.Win.Invalidate()
+	}
+}
+
+// hasExecutable reports whether an installed integration already owns this
+// executable, resolving symlinks on both sides so `/usr/local/bin/rg` and the
+// real path it points at are the same program.
+func (a *App) hasExecutable(path string) bool {
+	for _, integration := range a.Integrations.Inventory().Integrations {
+		if sameExecutable(integration.Entry.ExecutablePath, path) {
+			return true
+		}
+	}
+	return false
+}
+
+// sameExecutable compares two executable paths, treating a symlinked pair as
+// one program (the inventory records the resolved path; the search path may
+// hand back the link).
+func sameExecutable(left, right string) bool {
+	if left == "" || right == "" {
+		return false
+	}
+	if left == right {
+		return true
+	}
+	leftResolved, leftErr := filepath.EvalSymlinks(left)
+	rightResolved, rightErr := filepath.EvalSymlinks(right)
+	return leftErr == nil && rightErr == nil && leftResolved == rightResolved
 }
 
 // firstNonEmpty is the first non-blank of the values.

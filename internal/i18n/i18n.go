@@ -671,6 +671,14 @@ type Settings struct {
 	// The detected-programs section: what this machine already has and
 	// nothing has connected.
 	DetectedTitle string
+	// The `floter://register` deep link's outcome: the mark the named row
+	// wears while the link's moment lasts, and the two sentences a link that
+	// names no reachable row gets — one for a program this device does not
+	// have, one for a program that is already connected (the reference's
+	// `settings.extensions.register*`, `i18n.ts:437-440`).
+	RegisterHighlight        string
+	RegisterNotFound         func(name string) string
+	RegisterAlreadyConnected func(name string) string
 	// The local-package install row: a package folder on this machine.
 	InstallFolderLabel  string
 	InstallFolderHint   string

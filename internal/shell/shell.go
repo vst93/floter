@@ -230,6 +230,15 @@ type App struct {
 	noticeMu sync.Mutex
 	notices  []ui.Toast
 	refusals *refusalGate
+	// registerTarget is the executable path a `floter://register` link named,
+	// and registerTimer the beat that clears the mark: the highlight is a
+	// moment, not a mode (the reference's `useTimedReset(registerTarget, …)`
+	// in `src/ExtensionsPanel.tsx:1546`). The integration list marks the card
+	// whose executable is this path, and nothing about its actions changes.
+	registerTarget string
+	registerTimer  *time.Timer
+	// registerHighlight is how long that mark lasts; tests shorten it.
+	registerHighlight time.Duration
 	// detached are the output windows the user pinned: each one stays up
 	// whatever the panel does (see detach.go).
 	detached []*detachedOutput
@@ -469,6 +478,9 @@ func New(opts Options) *App {
 	// The refusal gate reads the app's own clock, so a test that replaces it
 	// drives the 30s window without waiting.
 	a.refusals = newRefusalGate(refusalWindow, func() time.Time { return a.now() })
+	if a.registerHighlight == 0 {
+		a.registerHighlight = registerHighlightWindow
+	}
 	if a.writeClipboard == nil {
 		a.writeClipboard = systemClipboardWrite
 	}
@@ -1349,6 +1361,11 @@ func (a *App) integrationList() []settingsui.Integration {
 			DistributionSource: integration.Entry.DistributionSource,
 			RuntimeOwnership:   integration.Entry.RuntimeOwnership,
 		}
+		// The `floter://register` mark rides the card whose executable the link
+		// named, nothing else (see markRegisterTarget).
+		if a.registerTarget != "" && sameExecutable(integration.Entry.ExecutablePath, a.registerTarget) {
+			item.Highlighted = true
+		}
 		if integration.Entry.LastErrorCode != nil {
 			item.FailureCode = *integration.Entry.LastErrorCode
 		}
@@ -2029,6 +2046,11 @@ func (a *App) connectDetected(tool settingsui.DetectedTool) {
 		Program:     tool.Path,
 		Description: tool.Description,
 		VersionArgs: versionArgs,
+		// The detected and register flows skip the connect form, which is
+		// what ticks the platform list; without this the request is refused
+		// with `platformRequired` before anything is written (the reference's
+		// connect went through a backend that knew the platform).
+		Platforms: []string{settingsui.CurrentPlatform()},
 	})
 }
 
