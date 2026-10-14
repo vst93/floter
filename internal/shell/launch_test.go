@@ -127,7 +127,7 @@ func TestTerminalLinkOpening(t *testing.T) {
 	calls := &launchCalls{}
 	a := launchTestApp(t, calls)
 	opened := []string{}
-	a.openURLCommand = func(browserID, url string) { opened = append(opened, "url:"+url) }
+	a.openURLCommand = func(browserID, url string) error { opened = append(opened, "url:"+url); return nil }
 
 	dir := t.TempDir()
 	file := filepath.Join(dir, "main.go")

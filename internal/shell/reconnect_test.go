@@ -206,7 +206,7 @@ func TestTheRepairOpensTheProjectPageItWasGiven(t *testing.T) {
 	log := &noticeLog{}
 	a := reconnectApp(t, paths, log)
 	var opened []string
-	a.openURLCommand = func(browserID, url string) { opened = append(opened, browserID+"|"+url) }
+	a.openURLCommand = func(browserID, url string) error { opened = append(opened, browserID+"|"+url); return nil }
 
 	a.openHomepage("  https://example.com/tool  ")
 	if len(opened) != 1 || opened[0] != "|https://example.com/tool" {

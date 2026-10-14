@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1368 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1369 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1368 项测试
+go test -count=1 ./...         # 1369 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -100,7 +100,40 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-ft `open_path` 补回原版的 `~`/相对路径解析与存在性要求
+> **最新一轮：P7-fu 扩展 homepage 的任何打开失败都成为错误通知
+> （原版 `src/ExtensionsPanel.tsx:2577-2580`）**
+> ——P7-ft 收尾后「具体待办（P7-fs 重写）」只剩第 3 条（homepage 的非白名单类打开失败仍只记日志），
+> 本轮取它落地，清单归零。依赖检查：`go.mod` 已是 **v0.4.8** = GitHub releases latest，无版本可升；
+> 只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离（P7-fu·homepage 的非白名单失败只记日志）**：原版 `onRepair` 的 homepage 分支
+> `void invoke("open_url", { url: extension.homepage }).catch((error) => {
+> onNotify("error", errorMessage(error, t)); })`（`ExtensionsPanel.tsx:2577-2580`）：任何 reject
+> 都是一条 error 通知——非 web 的 keyed 拒绝经 `errorMessage` 本地化成
+> `settings.extensions.openNonWebUrl`，普通 spawn 错误原样显示。**本构建（改前）**：
+> `internal/shell/shell.go:1742-1757` 的 `openHomepage` 只对 `errors.Is(err, errNonWebURL)` 排队，
+> 其余错误只 `log.Printf`，用户看不到。
+>
+> **落地**：
+> - `internal/shell/shell.go` 的 `openHomepage`：任何 `openURL` 错误都 `queueNotice`；错误串默认取
+>   `err.Error()`（对应原版 `errorMessage` 的原样透传），`errors.Is(err, errNonWebURL)` 时换成
+>   i18n 的 `Settings.OpenNonWebURL(url)`。
+> - `internal/shell/shell.go` 的注入缝 `Options.OpenURL` / `openURLCommand` 改为
+>   `func(browserID, url string) error`，让「普通 spawn 失败」也能在测试里到达 `openHomepage`；
+>   `openURL` 把注入命令的错误原样返回，不再吞掉。
+>
+> **验收**：`internal/shell/weburl_test.go` 新增 `TestHomepageReportsAnOpenerFailure`（注入返回
+> `errors.New("opener exploded")` 的 opener，`openHomepage` 后恰有一条 `Type == "error"` 且标题含
+> 该错误串的通知）；既有 `TestHomepageRefusesANonWebURL` 继续钉住非 web 的本地化词与「成功保持安静」。
+> 变异核查：把 `openHomepage` 的错误分支改回只处理 `errNonWebURL` → 新测试立刻红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿（1369 项）、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：第 3 条（P7-fu）落地；「具体待办（P7-fs 重写）」3 条**全部结清、清单归零**。
+> 下一轮回到「对照原版排查偏离点」，重新写实清单。
+
+> **上一轮：P7-ft `open_path` 补回原版的 `~`/相对路径解析与存在性要求
 > （原版 `src-tauri/src/commands/actions.rs:73-135`）**
 > ——P7-fs 收尾后「具体待办（P7-fs 重写）」还剩第 2·3 条，本轮取最高优先级的第 2 条落地。
 > 依赖检查：`go.mod` 已是 **v0.4.8** = GitHub releases latest，无版本可升；只对照 `main`
@@ -5873,7 +5906,7 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-### 具体待办（P7-fs 重写；第 1 条 P7-fs、第 2 条 P7-ft 均已落地；第 3 条待做）
+### 具体待办（P7-fs 重写；第 1 条 P7-fs、第 2 条 P7-ft、第 3 条 P7-fu 均已落地；清单归零）
 
 审计入口：原版 `main:src-tauri/src/commands/actions.rs`（`open_url` `:44-52`、`is_web_url`
 `:57-68`、`open_path` `:73-98`、`resolve_path` `:107-135`、`run_silent_command` `:137-160`、
@@ -5915,13 +5948,20 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
    - 验收（已过）：`internal/shell/launch_test.go` 的 `TestOpenPathResolvesAndRequiresExistence`、
      `TestResolvePathMatchesTheOldResolver`、`TestTerminalLinkResolvesTilde`。变异核查：删掉存在性
      `os.Stat` → 第一条立刻红。
-3. **（待做）homepage 的非白名单类打开失败仍然只记日志**。
+3. **（本轮落地，P7-fu）homepage 的非白名单类打开失败仍然只记日志**。
    - 原版对照：`ExtensionsPanel.tsx:2577-2580` 的 `void invoke("open_url", …).catch((error) => {
      onNotify("error", errorMessage(error, t)); })`——homepage 的任何打开失败都会成为一条 error
      通知，不只是非 web 那一种。
    - 本构建（改前）：`internal/shell/shell.go:1742-1753` 的 `openHomepage` 只对
      `errors.Is(err, errNonWebURL)` 发 notice，其余错误仅 `log.Printf`，用户看不到。
-   - 验收：注入一个返回普通 spawn 错误的 opener，`openHomepage` 仍排队一条 error 通知；成功保持安静。
+   - 落地 file:line（已按此落地）：`internal/shell/shell.go` 的 `openHomepage` 任何错误都
+     `queueNotice`（默认 `err.Error()`，非 web 时换 i18n `Settings.OpenNonWebURL(url)`）；
+     `Options.OpenURL`/`openURLCommand` 改为 `func(browserID, url string) error` 以便测试注入普通
+     spawn 失败。
+   - 验收（已过）：`internal/shell/weburl_test.go` 的 `TestHomepageReportsAnOpenerFailure`
+     （注入 `opener exploded` 后恰有一条 error 通知且标题含该串）；
+     `TestHomepageRefusesANonWebURL` 继续覆盖非 web 本地化与成功安静。变异核查：把错误分支改回
+     只处理 `errNonWebURL` → 新测试立刻红。
 
 
 审计入口：原版 `main:src-tauri/src/commands/config.rs` 的写盘路径（`write_settings_to`

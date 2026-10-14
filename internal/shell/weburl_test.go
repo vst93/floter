@@ -1,6 +1,7 @@
 package shell
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -43,7 +44,7 @@ func TestIsWebURLMatchesTheOldAllowList(t *testing.T) {
 func TestHomepageRefusesANonWebURL(t *testing.T) {
 	a := launchTestApp(t, &launchCalls{})
 	opened := []string{}
-	a.openURLCommand = func(browserID, url string) { opened = append(opened, url) }
+	a.openURLCommand = func(browserID, url string) error { opened = append(opened, url); return nil }
 
 	a.openHomepage("file:///etc/passwd")
 
@@ -73,12 +74,34 @@ func TestHomepageRefusesANonWebURL(t *testing.T) {
 	}
 }
 
+// Every homepage failure reaches the user, not just the non-web refusal: the
+// reference's `errorMessage` turns any rejected `open_url` into an error toast
+// (`ExtensionsPanel.tsx:2577-2580`).
+func TestHomepageReportsAnOpenerFailure(t *testing.T) {
+	a := launchTestApp(t, &launchCalls{})
+	a.openURLCommand = func(browserID, url string) error {
+		return errors.New("opener exploded")
+	}
+
+	a.openHomepage("https://example.com/tool")
+
+	if len(a.notices) != 1 {
+		t.Fatalf("notices = %+v, want one error toast", a.notices)
+	}
+	if a.notices[0].Type != "error" {
+		t.Errorf("notice type = %q, want error", a.notices[0].Type)
+	}
+	if !strings.Contains(a.notices[0].Title, "opener exploded") {
+		t.Errorf("notice = %q, want the opener's error in it", a.notices[0].Title)
+	}
+}
+
 // A browser row carries the id it came from, so the browser-specific opener is
 // not narrowed by the generic opener's allow-list.
 func TestBrowserSpecificOpenKeepsItsOwnSchemes(t *testing.T) {
 	a := launchTestApp(t, &launchCalls{})
 	opened := []string{}
-	a.openURLCommand = func(browserID, url string) { opened = append(opened, browserID+"|"+url) }
+	a.openURLCommand = func(browserID, url string) error { opened = append(opened, browserID+"|"+url); return nil }
 
 	if err := a.openURL("chrome", "file:///tmp/notes.html"); err != nil {
 		t.Fatalf("browser-specific open: %v", err)

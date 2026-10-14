@@ -188,8 +188,8 @@ type Options struct {
 	OpenPath func(path string) error
 	// OpenURL opens a page in a browser (the id it came from, empty for the
 	// system's own); nil uses the platform, and tests record what would have
-	// been opened.
-	OpenURL func(browserID, url string)
+	// been opened or return the failure to exercise.
+	OpenURL func(browserID, url string) error
 	// RunPowerCommand runs a power action; nil runs the platform's own
 	// command, and tests record what would have run.
 	RunPowerCommand func(action string) error
@@ -385,7 +385,7 @@ type App struct {
 	confirmDialog   func(title string) bool
 	runPowerCommand func(action string) error
 	openPathCommand func(path string) error
-	openURLCommand  func(browserID, url string)
+	openURLCommand  func(browserID, url string) error
 	// lastClipboardText and lastClipboardFormats are what the watcher saw
 	// last, so a poll records only what changed.
 	lastClipboardText    string
@@ -1750,10 +1750,15 @@ func (a *App) openHomepage(url string) {
 	// `onRepair`'s `openExternal`).
 	if err := a.openURL("", url); err != nil {
 		log.Printf("floter: could not open %s: %v", url, err)
+		// The reference's `errorMessage(error, t)` localizes the one keyed
+		// refusal (`settings.extensions.openNonWebUrl`) and passes every other
+		// backend error through as it was written; both become an error toast
+		// (`ExtensionsPanel.tsx:2577-2580`).
+		message := err.Error()
 		if errors.Is(err, errNonWebURL) {
-			message := i18n.For(a.Store.Snapshot().Language).Settings.OpenNonWebURL(url)
-			a.queueNotice(message, refusalNotice)
+			message = i18n.For(a.Store.Snapshot().Language).Settings.OpenNonWebURL(url)
 		}
+		a.queueNotice(message, refusalNotice)
 	}
 }
 
@@ -2533,8 +2538,7 @@ func (a *App) openURL(browserID, url string) error {
 		return errNonWebURL
 	}
 	if a.openURLCommand != nil {
-		a.openURLCommand(browserID, url)
-		return nil
+		return a.openURLCommand(browserID, url)
 	}
 	if browserID != "" {
 		if err := browser.OpenURL(browserID, url); err == nil {
