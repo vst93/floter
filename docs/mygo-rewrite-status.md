@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1062 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1068 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1062 项测试
+go test -count=1 ./...         # 1068 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,7 +99,44 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-db Hyprland 窗口整形对齐原版（原版 `src-tauri/src/hyprland.rs`、
+> **最新一轮：P7-dc 设置侧栏 ↑/↓ 从任意处走页、环绕、落盘（原版 `src/settings-nav.ts`、
+> `src/hooks/useAppKeyboard.ts:288-303`）**
+> —— P7-db 收尾后「尚未做」只剩第 3 条（卡 mygo 框架），本轮先把它重写为 3 条带 file:line 的具体
+> 待办（下方「具体待办（P7-dc 重写）」），再取第 1 条落地。依赖检查：GitHub releases API 被限流，
+> 用 `proxy.golang.org` 的 `@v/list` 核对，最新仍是 **v0.4.8**（与 `go.mod` 一致），无版本可升。
+> 只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离点**：原版在 `mode === "settings"` 的窗口级处理器里，只要焦点不在可编辑控件上，就
+> `nextSettingsPage` 环绕走页、把焦点移到新页的侧栏按钮、`changeSettingsPage` 落盘
+> （`useAppKeyboard.ts:288-303`）。本构建的侧栏是个 `ui.List`，`New` 里
+> `a.Sidebar.Selected = &a.Page`（`settingsui.go:571`）把走页交给框架的列表导航
+> （`ui/list.go:882` 的 `navigate`），于是：**只有侧栏自己持有焦点时** ↑/↓ 才走页
+> （`Open(SurfaceSettings)` 会 `FocusSidebar`）、**不环绕**（首页 ↑ 不动）、**不落盘**
+> （`navigate` 走 `choose`，不经过 `selectPage` 的 `SetPage`）；焦点一移到页内控件，↑/↓ 完全无效。
+>
+> **修法**：`internal/settingsui/settingsui.go`
+> - `New`（`:569`）不再给侧栏 `Selected`：侧栏退成纯点击列表，框架的列表导航不再认领 ↑/↓
+>   （`ListState.cursor()` 为 nil 时 `navigate` 不会被调用）。
+> - `View`（`:652-664`）注册窗口级 `c.Shortcut(0, KeyDown/KeyUp)`，记录器等待键时让出；
+>   `stepPage`/`nextPage`（`:868-877`）按侧栏顺序环绕走页，`stepPage` 复用 `selectPage`
+>   （落盘 + `SetPage`）并把焦点交回侧栏（原版的 `settingsSidebarButtons.get(next)?.focus()`）。
+> - 让出规则由框架保证：编辑器的 `wants` 与控件自己的元素级快捷键都在窗口快捷键之前，
+>   多行编辑器与 `Select`/`Segmented` 因此保留自己的箭头。
+>
+> **测试**：`internal/settingsui/view_test.go` 的 `TestSidebarArrowsWalkThePagesFromAnywhere`
+> （焦点在侧栏时 ↓ 走页；无控件获焦时同样走页；首页 ↑ 环绕到 About、末页 ↓ 环绕回 General；
+> 每一步都 `SetPage` 记录）与 `TestNextPageWraps`（六行环绕表）。
+> 变异核查：恢复 `a.Sidebar.Selected` → 「首页 ↑ 不环绕」红；把窗口快捷键短路 → 「焦点在侧栏时 ↓
+> 不走页」红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿（31 包）、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **已知未做（已写成下方第 2 条）**：原版的 `isArrowKeyEditableTarget` 把**单行** `INPUT` 也
+> 算作可编辑目标，mygo 的 `editor.wants`（`editor_navigation.go:46-47`）对单行编辑器主动放开
+> ↑/↓，所以焦点在 npm 包名这类单行文本框里时 ↑/↓ 仍会走页。多行 `ui.TextArea` 不受影响。
+
+> **上一轮：P7-db Hyprland 窗口整形对齐原版（原版 `src-tauri/src/hyprland.rs`、
 > `src-tauri/src/lib.rs:1109-1127`）**
 > —— P7-da 之后「尚未做」又一次为空，本轮按上节建议换入口做「逐文件对照原版」的审计（与
 > P7-ci/P7-ck/P7-ct/P7-cw/P7-cz/P7-da 同一手法）：拿 `internal/settings` + `internal/shell` 的
@@ -2896,42 +2933,47 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-### 具体待办（P7-db 重写；第 1、2 条已落地，第 3 条卡 mygo 框架）
+### 具体待办（P7-dc 重写；第 1 条已落地，第 2 条待做，第 3 条卡 mygo 框架）
 
-> 本轮换入口：逐文件对照原版的 **Hyprland 窗口整形**（`src-tauri/src/hyprland.rs`）与它的调用点
-> （`src-tauri/src/lib.rs` 的 `reveal_window`），把清单写成下面三条带 file:line 的具体待办，
-> 并取第 1、2 条落地（见「最近几轮」P7-db）。依赖检查：GitHub releases API 被限流，用
-> `go list -m -versions github.com/egoist/mygo` 代替，仍停在 **v0.4.8**（与 `go.mod` 一致），
-> 无版本可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+> 本轮换入口：逐文件对照原版的**设置页键盘导航**（`src/settings-nav.ts` + 它在
+> `src/hooks/useAppKeyboard.ts` 的调用点），把清单写成下面三条带 file:line 的具体待办，
+> 并取第 1 条落地（见「最近几轮」P7-dc）。依赖检查：GitHub releases API 被限流，用
+> `proxy.golang.org` 的 `@v/list` 核对，最新仍是 **v0.4.8**（与 `go.mod` 一致），无版本可升。
+> 只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+> P7-da 建议的三个候选里，`src/plugins/filter-axis.ts` 已由 P7 系列的 `internal/launcher/filters.go`
+> 落地，`cwd_policy.rs` 已由 P7-ar 落地，`src/collapsed-focus.ts` 经本轮核对**不适用**
+> （原版的触发源是 iframe / DOM 焦点外逃，mygo 是元素级焦点，没有对应物；窗口 OS 焦点由
+> `shell.go:1013` 的 `Win.OnFocus` 记录，输入焦点由各表面的 `Focus*` 接缝收回）。
 
-1. **空白的 `HYPRLAND_INSTANCE_SIGNATURE` 不算 Hyprland 会话**（已落地，P7-db）。
-   - 原版对照：`main:src-tauri/src/hyprland.rs:48-50` 的 `hyprland_signature_detected`——
-     `signature.is_some_and(|value| !value.trim().is_empty())`；`:64-66` 的 `default_hide_on_blur_for`
-     取反。注释明写「a missing or blank value is not a Hyprland session… an empty one would be a
-     broken export」；`:114-121` 的测试钉住 `"   "` → false。
-   - 本构建（改前）：`internal/settings/settings.go:586-591` 的 `DefaultHideOnBlur` 直接
-     `os.Getenv("HYPRLAND_INSTANCE_SIGNATURE") == ""`，于是只含空白的导出（`"   "`）被当成
-     Hyprland，**错误地关掉 `hide_on_blur`**。
-   - 验收：`HyprlandDetected("   ")` == false、`HyprlandDetected(" abc123 ")` == true；
-     `DefaultHideOnBlur()` 在空白签名下为 true、在真签名下为 false。
-     **已落地**：`internal/settings/settings.go` 新增 `HyprlandSignatureEnv` / `HyprlandDetected` /
-     `HyprlandSession`，`DefaultHideOnBlur` 走它；测试
-     `internal/settings/settings_test.go` 的 `TestHyprlandSignatureBlanksAreNotASession`。
-2. **Hyprland 的 `setfloating` + `centerwindow` 整形完全没有移植**（已落地，P7-db）。
-   - 原版对照：`main:src-tauri/src/hyprland.rs:41-43` 的 `FLOATING_DISPATCHES`
-     （`["dispatch","setfloating"]` 然后 `["dispatch","centerwindow"]`，`setfloating` 是**集合**不是
-     toggle）、`:77-88` 的 `ensure_floating`（逐条 `hyprctl`，失败全忽略）；调用点
-     `main:src-tauri/src/lib.rs:1109-1127` 的 `reveal_window`——`show()` + `set_focus()` 之后、
-     后续 `resize_window`/`move_to_default_position` 之前调用，`#[cfg(target_os = "linux")]`。
-   - 本构建（改前）：仓库里根本没有 `hyprctl`/`setfloating`（`grep -rn hyprctl internal cmd` 为空），
-     Hyprland 下新 toplevel 被平铺铺满，`placeWindow` 设的尺寸/位置被合成器覆盖。
-   - 验收：`runHyprlandFloating(true, run)` 依次跑 `hyprctl dispatch setfloating` 与
-     `hyprctl dispatch centerwindow`，不含 `togglefloating`；`detected=false` 时一次都不跑；
-     单条失败被吞掉且后续照跑。
-     **已落地**：`internal/shell/hyprland.go` 的 `hyprlandFloatingDispatches` / `runHyprlandFloating`
-     （`run` 注入）/ `(*App).ensureHyprlandFloating`（Linux-only）；`internal/shell/shell.go` 的
-     `Show()` 在 `Focus()` 后调用它，命中时再 `placeWindow()` 一次，让面板尺寸落在浮动窗口上；
-     测试 `internal/shell/hyprland_test.go` 的三条。
+1. **设置侧栏的 ↑/↓ 从页面任意处走页、两端环绕、记住选择**（已落地，P7-dc）。
+   - 原版对照：`main:src/hooks/useAppKeyboard.ts:288-303`——`mode === "settings"` 时，只要
+     `!isArrowKeyEditableTarget(target)` 就 `preventDefault()`、`nextSettingsPage(...)`、
+     把焦点移到新页的侧栏按钮并 `changeSettingsPage(next)`；`src/settings-nav.ts:24-38` 的
+     `isArrowKeyEditableTarget`（INPUT/TEXTAREA/SELECT/contenteditable 让出）、`:47-54` 的
+     `nextSettingsPage`（`wrapIndex` 环绕）。
+   - 本构建（改前）：`internal/settingsui/settingsui.go:571` 的 `a.Sidebar.Selected = &a.Page`
+     把侧栏交给 `ui.List` 的内建键盘导航（mygo `ui/list.go:882` 的 `navigate`），于是
+     **只有侧栏自己持有焦点时** ↑/↓ 才走页（`shell.go:2446` 的 `Open(SurfaceSettings)` 会
+     `FocusSidebar`），**不环绕**（首页 ↑ 不动）、**不落盘**（`navigate` 走 `choose`，不经过
+     `selectPage` 的 `SetPage`），焦点移到页内控件后 ↑/↓ 完全无效。
+   - 验收：焦点在侧栏、在窗口、在页内普通控件时，↑/↓ 都按侧栏顺序走页并在两端环绕；
+     每次切换都调用 `SetPage`；侧栏仍可点击切页。
+     **已落地**：`settingsui.go:652-664` 的窗口级 `c.Shortcut(0, KeyDown/KeyUp)`（记录器等待键时让出）、
+     `:868-877` 的 `stepPage`/`nextPage`；`New`（`:569`）不再给侧栏游标，让出框架的列表导航。
+     测试 `internal/settingsui/view_test.go` 的 `TestSidebarArrowsWalkThePagesFromAnywhere`
+     （焦点在侧栏 / 无控件 / 环绕 / `SetPage` 记录）与 `TestNextPageWraps`。
+     变异核查：恢复 `a.Sidebar.Selected` → 「首页 ↑ 不环绕」红；禁用窗口快捷键 → 「焦点在侧栏时 ↓ 不走页」红。
+2. **单行文本框仍然让出 ↑/↓（原版规则的一半没复刻）**（待做）。
+   - 原版对照：`main:src/settings-nav.ts:24-38` 的 `isArrowKeyEditableTarget` 把 `INPUT`
+     （含单行）与 `TEXTAREA` 一视同仁——焦点在文本框里时 ↑/↓ 不切页。
+   - 本构建：mygo 的 `editor.wants`（`ui@v0.4.8/editor_navigation.go:46-47`）对单行编辑器
+     `return ed.multiline || m != 0`，即单行 `ui.TextInput` **主动放开** ↑/↓，于是窗口快捷键接住它、
+     切了页。受影响的行：`settingsui.go:1251`（npm 包名/版本）、`:2528`（驻留自定义标签）、
+     `custom.go:101`（自定义快捷键命令）、`:2644/:2667/:2679`（本地工具名/程序/命令）、
+     `config.go:165`（扩展配置文本字段）。多行 `ui.TextArea` 不受影响（`wants` 为真）。
+   - 验收（二选一）：(a) mygo 提供「当前是否在编辑器里」的 Context 查询，窗口快捷键据此让出；
+     或 (b) 给每个设置文本输入挂 `Element.HandleInput`，在 ↑/↓ 时 `return true` 认领。
+     钉法：npm 包名字段获焦后按 ↓，页号不变、字段仍获焦。
 3. **托盘图标的身份是固定字面量，会和别的 appindicator 应用撞车**（卡 mygo 框架，未做）。
    - 原版对照：`main:src-tauri/src/tray_identity.rs:28-30` 的 `TRAY_ICON_ID = "com.v.floter.tray"`
      （bundle identifier + `.tray`），`:36-45` 的 `appindicator_id` 复刻 `tray-icon` 拼出的

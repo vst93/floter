@@ -568,7 +568,13 @@ type CustomShortcutRejection struct {
 // New builds the settings surface over a store.
 func New(store *settings.Store, actions Actions) *App {
 	a := &App{Store: store, Actions: actions}
-	a.Sidebar.Selected = &a.Page
+	// The sidebar is a click-only list: it is *not* given a cursor, so the
+	// framework's own list navigation never claims ↑/↓. The reference's page
+	// keys are the window's, not the sidebar's — they walk the pages from
+	// anywhere on the surface, wrap at both ends, and remember the choice
+	// (see `stepPage`). Giving the list a cursor here would put its
+	// non-wrapping, non-persisting navigation in front of that handler
+	// whenever the sidebar held the keyboard.
 	a.Sidebar.Label = func(row int) string { return a.page(row).Title }
 	return a
 }
@@ -640,6 +646,23 @@ func (a *App) View(c *ui.Context) {
 			a.cancelConfirmations()
 		case a.Actions.Close != nil:
 			a.Actions.Close()
+		}
+	}
+
+	// ↑/↓ walk the sidebar from anywhere on the surface — a header button, a
+	// control, or the sidebar itself — wrapping at both ends, as the
+	// reference's window-level handler did (`useAppKeyboard.ts`: "↑/↓ cycle
+	// sidebar pages from anywhere in the settings panel"). An editor keeps its
+	// own arrows (its `wants` runs before the window's shortcuts) and so do
+	// the page's select/range controls (their element-scoped shortcuts sit in
+	// the focus chain), which is the reference's `isArrowKeyEditableTarget`
+	// rule. While a recorder waits for a key, the arrows do not navigate.
+	if !a.recording && !a.customRecording {
+		switch {
+		case c.Shortcut(0, ui.KeyDown):
+			a.stepPage(1)
+		case c.Shortcut(0, ui.KeyUp):
+			a.stepPage(-1)
 		}
 	}
 
@@ -837,6 +860,21 @@ func (a *App) selectPage(page int) {
 	if a.Actions.SetPage != nil {
 		a.Actions.SetPage(PageName(page))
 	}
+}
+
+// stepPage walks the sidebar by `delta`, wrapping around its order, and puts
+// the keyboard back on the sidebar — the reference's `nextSettingsPage` plus
+// its `settingsSidebarButtons.current.get(next)?.focus()`.
+func (a *App) stepPage(delta int) {
+	a.selectPage(nextPage(a.Page, delta))
+	a.FocusSidebar()
+}
+
+// nextPage is the page `delta` steps away in the sidebar order, wrapping at
+// both ends (the reference's `nextSettingsPage` over `wrapIndex`).
+func nextPage(page, delta int) int {
+	n := pageCount
+	return ((page+delta)%n + n) % n
 }
 
 // body builds the chosen page: the page's own title and hint, then its

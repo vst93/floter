@@ -3561,3 +3561,80 @@ func TestShortcutRecorderRefusesAChordAnotherActionHolds(t *testing.T) {
 		t.Errorf("the written chord = %q", got)
 	}
 }
+
+// ↑/↓ walk the sidebar pages from anywhere on the settings surface, wrap at
+// both ends, and remember the choice — the reference's window-level handler
+// (`src/hooks/useAppKeyboard.ts`, "↑/↓ cycle sidebar pages from anywhere in
+// the settings panel") over `nextSettingsPage`.
+func TestSidebarArrowsWalkThePagesFromAnywhere(t *testing.T) {
+	pages := []string{}
+	a := New(newStore(t), Actions{SetPage: func(name string) { pages = append(pages, name) }})
+
+	// The sidebar holds the keyboard on entry. ↓ walks the sidebar order.
+	a.FocusSidebar()
+	tt := render(t, a, 720, 580)
+	tt.Key(0, ui.KeyDown)
+	tt.Frame()
+	if a.Page != PageSessions {
+		t.Fatalf("page after down = %d, want sessions", a.Page)
+	}
+
+	// With the keyboard nowhere near the sidebar — the window owns it — the
+	// same keys still walk the pages.
+	a2 := New(newStore(t), Actions{})
+	tt2 := render(t, a2, 720, 580)
+	tt2.Key(0, ui.KeyDown)
+	tt2.Frame()
+	if a2.Page != PageSessions {
+		t.Fatalf("page after down with no control focused = %d, want sessions", a2.Page)
+	}
+
+	// ↑ from the first page wraps to the last, and ↓ from the last to the
+	// first.
+	tt.Key(0, ui.KeyUp)
+	tt.Frame()
+	if a.Page != PageGeneral {
+		t.Fatalf("page after up from sessions = %d, want general", a.Page)
+	}
+	tt.Key(0, ui.KeyUp)
+	tt.Frame()
+	if a.Page != PageAbout {
+		t.Fatalf("page after up from general = %d, want about (wrapped)", a.Page)
+	}
+	tt.Key(0, ui.KeyDown)
+	tt.Frame()
+	if a.Page != PageGeneral {
+		t.Fatalf("page after down from about = %d, want general (wrapped)", a.Page)
+	}
+
+	want := []string{"sessions", "general", "about", "general"}
+	if len(pages) != len(want) {
+		t.Fatalf("recorded pages = %v, want %v", pages, want)
+	}
+	for i := range want {
+		if pages[i] != want[i] {
+			t.Errorf("recorded pages = %v, want %v", pages, want)
+			break
+		}
+	}
+}
+
+// nextPage is the reference's `nextSettingsPage` over `wrapIndex`: the sidebar
+// order wraps at both ends.
+func TestNextPageWraps(t *testing.T) {
+	cases := []struct {
+		page, delta, want int
+	}{
+		{PageGeneral, 1, PageSessions},
+		{PageSessions, 1, PageShortcuts},
+		{PageAbout, 1, PageGeneral},
+		{PageGeneral, -1, PageAbout},
+		{PageAbout, -1, PageIntegrations},
+		{PageShortcuts, 0, PageShortcuts},
+	}
+	for _, tc := range cases {
+		if got := nextPage(tc.page, tc.delta); got != tc.want {
+			t.Errorf("nextPage(%d, %d) = %d, want %d", tc.page, tc.delta, got, tc.want)
+		}
+	}
+}
