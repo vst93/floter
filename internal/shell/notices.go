@@ -238,6 +238,10 @@ func (a *App) toastViewport(c *ui.Context) {
 						Padding(0, t.Space(2)).Radius(tokens.RadiusSM).
 						AlignItems(ui.Center).Justify(ui.Center).
 						Background(tokens.Control).Label(toast.Action)
+					// The reference's `--elev-0` lens on the chip: without it the
+					// action is a flat tint beside the floating card, and the
+					// glass stop never grades it.
+					tokens.Lens(action)
 					if action.Hovered() {
 						action.Background(tokens.ControlHover)
 					}

@@ -90,6 +90,32 @@ func (a *App) cardLabeled(c *ui.Context, label string, fn func()) {
 	card.Children(fn)
 }
 
+// actionButton draws one of the card's action buttons — the reference's
+// `.extensions-action-button`, the raised lens rung (`--elev-0`) every
+// settings-card button carried. The framework's `Button` is the flat control
+// pane the app builds every button from; the lens is the same four inset
+// layers the card wears, and `--glass-lens-scale` grades it with the glass
+// stop, so moving the stop is visible on the buttons and not only in the
+// frame (the user's 「特别是各种控件按钮」).
+func (a *App) actionButton(c *ui.Context, label string) ui.Element {
+	return a.tokens(c).Lens(ui.Button(c, label))
+}
+
+// switchControl draws one switch: the framework's Switch inside the recessed
+// lens (base.css's `.settings-switch` with `--elev-track`), the groove the
+// user looks into. The inset stack is added to the track the framework draws,
+// so the whole toggle is graded by the glass stop.
+func (a *App) switchControl(c *ui.Context, on *bool) ui.Element {
+	return a.tokens(c).LensInset(ui.Switch(c, on))
+}
+
+// segmentedControl draws one of the custom-tool form's segmented pickers
+// (the reference's `.extension-custom-mode`): the framework's `Segmented`
+// inside the recessed lens, the same groove a switch's track is.
+func (a *App) segmentedControl(c *ui.Context, index *int, labels ...string) ui.Element {
+	return a.tokens(c).LensInset(ui.Segmented(c, index, labels...))
+}
+
 // row draws one row of a card: the label and its optional grey second line
 // at the start and the control at the end, with the rule between rows inset
 // to the label's own column. It reports whether the label was clicked — the

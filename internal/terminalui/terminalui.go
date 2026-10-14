@@ -1013,6 +1013,10 @@ func (a *App) barButton(c *ui.Context, name, label, hint string, run func()) {
 		Tooltip(hint)
 	if button.Hovered() {
 		button.Background(t.SurfaceHover)
+		// The pointer lights the resting lens rung (`.toolbar-button:hover`,
+		// the reference's hover-only variant): the bar's icon button is
+		// transparent at rest, so this is the only state it can be graded in.
+		tokensOf(a, c).Lens(button)
 	}
 	button.Children(func() {
 		if glyph, ok := launcher.Glyph(name); ok {

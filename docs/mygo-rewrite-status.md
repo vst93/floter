@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1209 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1231 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1189 项测试
+go test -count=1 ./...         # 1231 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,7 +99,56 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-el F4 残留「卡片的修复动作」逐函数对照 + 缺掉的 Reconnect 落地
+> **最新一轮：P7-em F3a 控件透镜落地（原版 `src/tests/glass-reaxis.test.ts:47-90` 的 lens census、
+> `src/styles/base.css:188,231,593-597`）** —— P7-el 之后「尚未做」清单五条（F4e 的 repair 一支、
+> F4f、F4g、F3a、F3b）全是具体项，文档点名 **F3a 为下轮最高优先级**，本轮取它。依赖检查：
+> GitHub releases API 限流，`go list -m -versions github.com/egoist/mygo` 最新仍是 **v0.4.8**
+> （与 `go.mod` 一致），无版本可升；只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **F3a 偏离（P7-ej 实测的根因）**：P7-ej 用生产帧扫全画布，发现控件透镜在 regular↔liquid 之间
+> 只贡献 ≤0.4 RGB——因为设置面/启动器的按钮、分段控件、开关**大多由框架的 `ui.Button`/`ui.Switch`/
+> `ui.Segmented` 直接绘制，根本不带透镜**；原版 `--elev-0`/`--elev-track` 是**每条 CSS 规则**自己带的，
+> 而 `glass-reaxis.test.ts:47-90` 就是那份「哪些控件必须画透镜」的逐条清单。本构建此前只有
+> 四处落点（卡片 `rows.go`、结果行图标 `glyphs.go`、侧栏/终端少数），其余全是裸框架控件。
+>
+> **F3a 修法（三层，按待办给出的建议顺序）**：
+> - **框架能力层**：`internal/theme/theme.go` 新增 `Tokens.LensInset(e)` —— `--glass-lens-stack-inset`
+>   的等价物（rim 在下、暗边在上、内槽影、track-edge 环），并新增 `TrackEdge` token
+>   （`--glass-track-edge`，暗 0.06 / 亮 0.07）。`LensInset` 的层按「CSS 第一条在最上」的语义倒序添加
+>   （mygo 的 inset 影后加者在上），已写进函数注释。
+> - **设置面控件**：`internal/settingsui/rows.go` 新增 `actionButton`（`Lens(ui.Button)`，原版
+>   `.extensions-action-button` / `.settings-save-alert button`）、`switchControl`
+>   （`LensInset(ui.Switch)`，`.settings-switch`）、`segmentedControl`
+>   （`LensInset(ui.Segmented)`，`.extension-custom-mode`）；扩展页 26 个 `ui.Button`、7 个 `ui.Switch`、
+>   4 个 `ui.Segmented` 全部改走它们；侧栏 hover 行、设置头栏图标按钮 hover、保存失败横幅的 ✕ hover
+>   也补上透镜（原版这三条都是 hover-only rung）。
+> - **控制台与终端**：`internal/control/control.go` 的 `Segmented` 轨道改用 `LensInset`（原版
+>   `.settings-options--inline`），选中段改用完整 `Lens` + accent 键线（原版 `.settings-option--active`
+>   的 `--elev-0, inset accent-edge`）；`internal/shell/notices.go` 的 toast 动作 chip 补 `Lens`
+>   （`.app-toast__action`）；`internal/terminalui/terminalui.go` 的栏按钮 hover 补 `Lens`
+>   （`.toolbar-button:hover`）。
+>
+> **验收**：
+> - `internal/shell/glasscensus_test.go`（新）——把原版 `glass-reaxis.test.ts:47-90` 的 **13 个选择器
+>   逐条映射**到本构建的绘制点（file + 必须仍在的透镜调用 + 像素测试名，或如实标注 `pending` 的理由），
+>   并断言清单与原版逐项同名同序；每个 landed 落点读源文件确认透镜调用仍在（落点丢透镜即红）。
+> - 像素测试（同一 `main_opacity`、**常背景**隔离帧 sheen）：`internal/theme/lens_test.go` 两条
+>   （凹槽底边被点亮、且亮度差随 0.5/1/1.6 单调上升）；`internal/control/lens_test.go` 一条
+>   （分段控件整帧 RGB sum 随档位严格上升，regular→liquid ≥3000）；`internal/settingsui/lens_test.go`
+>   三条（动作按钮/卡片 sum 上升 ≥300；开关与自定义模式控件的「底边-顶边」差随档位上升）；
+>   `internal/launcher/plate_lens_test.go` 一条（结果行/动作栏图标底板 sum 上升 ≥50）。
+> - 变异核查：把 `LensInset` 摘成只有 `LensRim` 一层 → theme 两条红；把 `control.Segmented` 的
+>   `Lens(segment)` 摘掉 → control 那条红；把 `a.actionButton` 换回 `ui.Button` → settingsui 那条红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 27 包全绿
+> （1231 项）、`GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：**F3a 落地**；F3b（帧 sheen 回固定口径）因此**解除「先决于 F3a」**、成为下轮最高
+> 优先级（其验收「帧专属带差 ≤0.4、控件差 ≥ 阈值」现在控件一侧已成立）；余下 F4e 的 repair 一支、
+> F4f、F4g、F-new 仍在清单上。`.extensions-icon-button:hover` 一条如实记为 pending（本构建扩展页
+> 的动作都是 `.extensions-action-button`，没有「静止透明、hover 才亮」的独立图标按钮）。
+>
+> **上一轮：P7-el F4 残留「卡片的修复动作」逐函数对照 + 缺掉的 Reconnect 落地
 > （原版 `src/extensions/ExtensionRow.tsx:310-370`、`src/ExtensionsPanel.tsx:1255-1267,1955-1979`）**
 > ——「尚未做」清单上只剩 F3a（一个待决策的分叉）与 F3b（已实测标为「先决于 F3a」），**两条都不是可直接落地的
 > 具体项**；按规则先把清单写实（见文末「具体待办（P7-el 重写）」），再取第 1 条实现。第 1 条改为
@@ -6898,8 +6947,14 @@ Go 侧把原版的三条规则写偏了。依赖检查：`go list -m -versions g
     自己的一份清单：`main:tests/glass-reaxis.test.ts:47-90` 的 lens census **逐条点名**了必须画透镜的
     控件（raised/recessed/hover-only 三类），而本构建的 `Tokens.Lens` 只被四处调用——设置面与启动器的
     **按钮/分段控件/开关轨道**（多为框架 `ui.Button`/`ui.Switch` 直接绘制）根本没有透镜，这正是
-    ≤0.4 RGB 的根因。完整的落点与验收标准见文末「具体待办（P7-el 重写）」的 **F3a**（下轮最高优先级）。
-- **F3b · 玻璃作用范围：控件 vs 整体；整体弱化、阴影细节加强（P7-ej 实测后：先决于 F3a）。**
+    ≤0.4 RGB 的根因。完整的落点与验收标准见文末「具体待办（P7-el 重写）」的 **F3a**。
+  - **P7-em 已落地**：新增 `Tokens.LensInset` + `TrackEdge`，把扩展页/设置面的按钮（`actionButton`）、
+    开关（`switchControl`）、自定义模式分段控件（`segmentedControl`）、侧栏/头栏/保存横幅的 hover、
+    控制台 `Segmented`、toast 动作 chip、终端栏按钮 hover 全部接上透镜；`internal/shell/glasscensus_test.go`
+    把原版 13 条选择器逐条映射（file + 透镜调用 + 像素测试）。**控件一侧的验收已成立**（常背景隔离帧
+    sheen 后，控件 RGB sum 随 0.5/1/1.6 严格上升，regular→liquid ≥ 数百到数千）；剩下 F3b 去把**帧** sheen
+    改回固定口径。
+- **F3b · 玻璃作用范围：控件 vs 整体；整体弱化、阴影细节加强（P7-em 后：F3a 已落地，本条解除「先决」，为下轮最高优先级）。**
   - **原版对照**：`main:src/styles/launcher.css:119` 的卡片是
     `linear-gradient(180deg, var(--sheen-top), var(--sheen-bottom)), var(--launcher-tint)`，而
     `--sheen-top/-bottom` 是**固定 token**（`main:src/styles/base.css:628-629` dark 0.046/0.01、
@@ -6908,11 +6963,9 @@ Go 侧把原版的三条规则写偏了。依赖检查：`go list -m -versions g
   - **本构建（偏离）**：`internal/theme/theme.go:286-291` 把帧的 sheen 写成
     `sheen = spec.TintAlpha * spec.LensScale`（P7-d 为「3 档看不出区别」加的耦合），于是**帧**的亮面随
     档位变，而原版的帧 sheen 固定。
-  - **待做 file:line（P7-ej 后调整为「先决」）**：**不能直接落地**——F3b 依赖「档位差异全部落到控件
-    透镜」，而 F3a 已实测控件透镜在无头/Linux 生产帧里差别 ≤0.4 RGB。先把 `theme.go` 的帧 sheen
-    改回固定口径（`spec.Glass` 时取常量、不乘 `LensScale`）会让三档在没有窗口材质时**完全一致**
-    ——重演用户报过的「3 档看不出区别」。故本条先等 F3a 的 (a) 落地（控件透镜变成可测像素），再动
-    `theme.go:286-291` 的帧 sheen。**P7-el 的定案**：先做 F3a 的 (a)；本条的落地步骤与验收已写进
+  - **待做 file:line（P7-em 后）**：**现已可直接落地**——F3a 已把档位差异落到控件透镜，
+    且控件像素差已实测（≥ 数百 RGB sum，不再是 ≤0.4）。把 `theme.go` 的帧 sheen 改回固定口径
+    （`spec.Glass` 时取常量、不乘 `LensScale`）不会再让三档「完全一致」。落地步骤与验收见
     文末「具体待办（P7-el 重写）」的 **F3b**。
   - **验收**：新增/改写像素测试——同一 `main_opacity` 下，**帧**的亮面颜色在 regular 与 liquid 之间
     相同（原版），而**控件**的 lens 强度按 0.5/1/1.6 单调上升；现有
@@ -7045,11 +7098,13 @@ Go 侧把原版的三条规则写偏了。依赖检查：`go list -m -versions g
   余下 F4e 的 `extensions_repair` 一支、F4f、F4g 与 **F3a/F3b**——全部已写成文末「具体待办
   （P7-el 重写）」的五条带 file:line 的具体项。
 
-### 具体待办（P7-el 重写；F4 残留的修复入口已落地，余下四条 + 一条新增）
+### 具体待办（P7-el 重写；F3a 已由 P7-em 落地，余下 F4e 的 repair 一支 + F4f/F4g/F3b/F-new）
 
-P7-ej/P7-ek 之后清单上只剩 F3a（一个待决策的分叉）与 F3b（已实测标为「先决于 F3a」），**两条都不是
-可直接落地的具体项**。本轮按规则把清单写实为五条带 file:line / 原版对照 / 验收标准的待办，并取其中
-新查出的真实缺口（F4e）落地。下面每条的「原版对照」都只读 `main`（v0.3.14 原版树）。
+P7-ej/P7-ek 之后清单上只剩 F3a（一个待决策的分叉）与 F3b（已实测标为「先决于 F3a」）。P7-el 按规则
+把清单写实为五条带 file:line / 原版对照 / 验收标准的待办，并取其中新查出的真实缺口（F4e）落地。
+**P7-em 又取清单里文档点名的最高优先级 F3a 并落地**（详见上文 P7-em 记录）：控件透镜已成可测像素，
+F3b 因此解除「先决」。下轮最高优先级是 **F3b（帧 sheen 回固定口径）**。下面每条的「原版对照」都只读
+`main`（v0.3.14 原版树）。
 
 #### F4e · 已连接卡片的修复入口（**本轮落地，P7-el**）
 
@@ -7110,7 +7165,7 @@ P7-ej/P7-ek 之后清单上只剩 F3a（一个待决策的分叉）与 F3b（已
   状态在本构建的哪个函数被谁读」）。
 - **注意**：这是**对照任务**，不要一次性大改；每轮只取一条入口（与 F4a–F4e 的节奏一致）。
 
-#### F3a · 控件透镜（原版有一份可逐条对齐的 lens census）
+#### F3a · 控件透镜（**本轮落地，P7-em**；原版有一份可逐条对齐的 lens census）
 
 - **原版对照（不用猜：原版自己有一份清单）**：`main:tests/glass-reaxis.test.ts:47-90`
   的 `every named control draws a lens rung, not a bare ring` 逐条点名了必须画透镜的控件，
@@ -7143,8 +7198,18 @@ P7-ej/P7-ek 之后清单上只剩 F3a（一个待决策的分叉）与 F3b（已
   （写成 Go 表 + 注释，逐条点名），任何一个落点丢失透镜就红。
 - **风险**：按钮外观会变（透镜是 inset 阴影，不是边框），需目视确认暗/亮两套主题；改动只碰
   `Tokens.Lens` 的**使用点**，不动 `internal/theme` 的数值。
+- **P7-em 落地结果**：新增 `Tokens.LensInset` + `TrackEdge`（`theme.go`）；`settingsui` 新增
+  `actionButton`/`switchControl`/`segmentedControl` 并把扩展页的按钮/开关/分段控件全部改走它们，
+  另补侧栏 hover、头栏图标按钮 hover、保存失败横幅 ✕ hover；`control.Segmented` 轨道/选中段、
+  `shell` 的 toast 动作 chip、`terminalui` 的栏按钮 hover 均接上。`internal/shell/glasscensus_test.go`
+  把原版 13 条选择器逐条映射到绘制点（file + 透镜调用 + 像素测试，或如实标 pending 理由）。
+  像素验收在**常背景**隔离帧 sheen 的测试里完成（theme/control/settingsui/launcher 四包），
+  控件 RGB sum 随 0.5/1/1.6 严格上升、regular→liquid 差值远超 P7-ej 的 ≤0.4。
+  `.extensions-icon-button:hover` 一条如实记为 pending（本构建扩展页动作都是
+  `.extensions-action-button`，没有「静止透明、hover 才亮」的独立图标按钮）。
+  **剩下的是 F3b**：把**帧** sheen 改回固定口径（控件一侧已成立）。
 
-#### F3b · 帧 sheen 回固定口径（**先决于 F3a**）
+#### F3b · 帧 sheen 回固定口径（**P7-em 后解除「先决于 F3a」，为下轮最高优先级**）
 
 - **原版对照**：`main:src/styles/launcher.css:119` 的卡片是
   `linear-gradient(180deg, var(--sheen-top), var(--sheen-bottom)), var(--launcher-tint)`，而
@@ -7153,8 +7218,9 @@ P7-ej/P7-ek 之后清单上只剩 F3a（一个待决策的分叉）与 F3b（已
 - **本构建（偏离）**：`internal/theme/theme.go:286-291` 把帧的 sheen 写成
   `sheen = spec.TintAlpha * spec.LensScale`（P7-c/P7-d 为「3 档看不出区别」加的耦合），于是帧的亮面
   随档位变，而原版的帧 sheen 固定。
-- **为什么不现在改**：F3a 实测前，固定帧 sheen 会让三档在没有窗口材质（Linux/无头）时**完全一致**，
-  重演用户报过的「3 档看不出区别」。故本条**只能**在 F3a 的验收（控件像素差 ≥ 阈值）变绿之后动。
+- **为什么不现在改（已过时，P7-em 更新）**：F3a 实测前，固定帧 sheen 会让三档在没有窗口材质
+  （Linux/无头）时**完全一致**，重演用户报过的「3 档看不出区别」。F3a 已落地并实测控件像素差
+  （≥ 数百 RGB sum），本条**现在可以直接落地**。
 - **落地 file:line**：`internal/theme/theme.go:286-291` 改成 `spec.Glass` 时取常量（不乘
   `LensScale`）；同步改写 `internal/shell/glass_test.go` 的
   `TestTheGlassStopsAreVisiblyDifferent`（它当前断言帧亮面随档位变，是 P7-c/P7-d 的产物）。

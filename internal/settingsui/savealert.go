@@ -77,6 +77,10 @@ func (a *App) saveAlert(c *ui.Context, copy i18n.Settings) {
 			Label(copy.Close)
 		if button.Hovered() {
 			button.Background(tokens.ControlHover)
+			// `.settings-save-alert button`: the reference's own alert button
+			// carries the raised lens rung; this build's banner has one ✕ that
+			// is transparent at rest, so the pointer is where it can be graded.
+			tokens.Lens(button)
 		}
 		button.Children(func() {
 			ui.Icon(c, mustGlyph("close")).Size(t.Space(3.5), t.Space(3.5)).TextColor(t.Warning)

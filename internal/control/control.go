@@ -23,10 +23,10 @@ func Segmented(c *ui.Context, tokens theme.Tokens, labels []string, current int,
 	t := c.Theme()
 	track := ui.Row(c).Shrink(0).Padding(t.Space(0.5)).Gap(t.Space(0.5)).Radius(999).
 		Background(tokens.Track)
-	// The track is a groove the user looks into: the lens read backwards.
-	track.InsetShadow(0, 1, 2, 0, tokens.ShadowContact)
-	track.InsetShadow(0, -1, 0, 0, tokens.LensRim)
-	track.InsetShadow(0, 0, 0, 1, tokens.ControlEdge)
+	// The track is a groove the user looks into: the recessed lens, the same
+	// stack the raised panes carry read backwards (see `theme.Tokens.LensInset`,
+	// base.css's `--elev-track` / `--glass-lens-stack-inset`).
+	tokens.LensInset(track)
 	track.Children(func() {
 		for i, label := range labels {
 			i, label := i, label
@@ -34,10 +34,13 @@ func Segmented(c *ui.Context, tokens theme.Tokens, labels []string, current int,
 				Radius(999).AlignItems(ui.Center).Justify(ui.Center).Label(label)
 			switch {
 			case i == current:
-				// The chosen segment is a raised pane: the control-hover lift
-				// plus the accent keyline, and deliberately not an accent fill.
+				// The chosen segment is a raised pane: the resting raised lens
+				// (`--elev-0`) plus the accent keyline that says "chosen", and
+				// deliberately not an accent fill. The framework's `ui.Button`-
+				// less pane the whole card language builds on is a flat tint;
+				// the lens is what makes the chosen slot read as glass.
 				segment.Background(tokens.ControlHover)
-				segment.InsetShadow(0, 1, 0, 0, tokens.LensRim)
+				tokens.Lens(segment)
 				segment.InsetShadow(0, 0, 0, 1, tokens.AccentEdge)
 			case segment.Hovered():
 				segment.Background(tokens.ControlHover)

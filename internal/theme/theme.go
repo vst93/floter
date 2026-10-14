@@ -99,10 +99,12 @@ type Tokens struct {
 	ControlHover ui.Color
 	ControlPress ui.Color
 	// Track is the groove a switch or a segmented control is looked into
-	// (base.css's `--glass-track`), and Field the slot a text field cuts
-	// into the glass (`--glass-field`).
-	Track ui.Color
-	Field ui.Color
+	// (base.css's `--glass-track`), TrackEdge the quieter hairline that groove
+	// draws on its recessed lens (`--glass-track-edge`), and Field the slot a
+	// text field cuts into the glass (`--glass-field`).
+	Track     ui.Color
+	TrackEdge ui.Color
+	Field     ui.Color
 	// Opaque is the near-solid stand-in for a surface whose glass has been
 	// turned off or that must not show the desktop (base.css's
 	// `--surface-opaque`): the `off` stop's card.
@@ -341,6 +343,7 @@ func ForPreferences(s settings.Settings, systemDark bool, prefs ui.Preferences) 
 		ControlPress:      controlPress,
 		ControlEdge:       controlEdge,
 		Track:             track,
+		TrackEdge:         p.trackEdge,
 		Field:             field,
 		Opaque:            p.opaque,
 		FieldFill:         p.fieldFill,
@@ -391,6 +394,7 @@ func paletteFor(appearance Appearance) palette {
 			controlPress:   ui.RGBA(0, 0, 0, 0.022),
 			controlEdge:    ui.RGBA(0, 0, 0, 0.07),
 			track:          ui.RGBA(0, 0, 0, 0.05),
+			trackEdge:      ui.RGBA(0, 0, 0, 0.07),
 			field:          ui.RGBA(255, 255, 255, 0.5),
 			hairline:       ui.RGBA(0, 0, 0, 0.08),
 			selection:      ui.RGBA(6, 74, 166, 0.1),
@@ -430,6 +434,7 @@ func paletteFor(appearance Appearance) palette {
 		controlPress:   ui.RGBA(255, 255, 255, 0.038),
 		controlEdge:    ui.RGBA(255, 255, 255, 0.06),
 		track:          ui.RGBA(255, 255, 255, 0.07),
+		trackEdge:      ui.RGBA(255, 255, 255, 0.06),
 		field:          ui.RGBA(255, 255, 255, 0.03),
 		hairline:       ui.RGBA(255, 255, 255, 0.07),
 		selection:      ui.RGBA(143, 183, 255, 0.13),
@@ -482,17 +487,17 @@ func (p palette) contrast(app Appearance) palette {
 // palette is one appearance's token set, kept private: Tokens is the public
 // shape, and the framework theme's fields are filled from here.
 type palette struct {
-	background, text, textStrong, textMuted, textSecondary, textTertiary ui.Color
-	accent, accentHover, accentPressed, accentText                       ui.Color
-	stroke, strokeActive                                                 ui.Color
-	control, controlHover, controlPress, controlEdge                     ui.Color
-	track, field, hairline, selection, focus, warning, scrollbar         ui.Color
-	opaque, fieldFill                                                    ui.Color
-	lensRim, lensSheen, lensEdge                                         ui.Color
-	sheenTop, sheenBottom                                                ui.Color
-	shadowAmbient, shadowContact                                         ui.Color
-	edgeHighlight, edgeShadow, edgeHighlightX                            ui.Color
-	accentEdge                                                           ui.Color
+	background, text, textStrong, textMuted, textSecondary, textTertiary    ui.Color
+	accent, accentHover, accentPressed, accentText                          ui.Color
+	stroke, strokeActive                                                    ui.Color
+	control, controlHover, controlPress, controlEdge                        ui.Color
+	track, trackEdge, field, hairline, selection, focus, warning, scrollbar ui.Color
+	opaque, fieldFill                                                       ui.Color
+	lensRim, lensSheen, lensEdge                                            ui.Color
+	sheenTop, sheenBottom                                                   ui.Color
+	shadowAmbient, shadowContact                                            ui.Color
+	edgeHighlight, edgeShadow, edgeHighlightX                               ui.Color
+	accentEdge                                                              ui.Color
 }
 
 // round1 rounds to one decimal, so a scaled metric stays a value a CSS
@@ -581,6 +586,25 @@ func (t Tokens) Lens(e ui.Element) ui.Element {
 	e.InsetShadow(0, 6, 10, -6, t.LensSheen)
 	e.InsetShadow(0, -1, 0, 0, t.LensEdge)
 	e.InsetShadow(0, 0, 0, 1, t.ControlEdge)
+	return e
+}
+
+// LensInset draws the recessed lens on a groove: base.css's
+// `--glass-lens-stack-inset`, the *same* lens read backwards. The light pools
+// along the bottom edge of the groove and the top edge is the dark one — the
+// exact opposite of Lens — with the inner slot shadow crouched under the top
+// edge and the track's own quieter hairline closing the loop. It is what makes
+// a switch or a segmented control's track read as a recess in the same sheet
+// of glass the raised panes sit on, rather than as a flat darker box, and
+// `--glass-lens-scale` grades it with the glass stop exactly as Lens is.
+//
+// The layers are added last-on-top (see `InsetShadow`), so the lit rim goes in
+// last: base.css lists it first, and CSS paints the first shadow on top.
+func (t Tokens) LensInset(e ui.Element) ui.Element {
+	e.InsetShadow(0, 0, 0, 1, t.TrackEdge)
+	e.InsetShadow(0, 1, 0, 0, t.LensEdge)
+	e.InsetShadow(0, 1, 2, 0, t.ShadowContact)
+	e.InsetShadow(0, -1, 0, 0, t.LensRim)
 	return e
 }
 

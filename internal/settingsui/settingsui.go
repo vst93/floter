@@ -780,6 +780,10 @@ func (a *App) View(c *ui.Context) {
 					Tooltip(hint)
 				if button.Hovered() {
 					button.Background(tokens.ControlHover)
+					// The header's icon button lights the resting lens rung under
+					// the pointer (`.toolbar-button:hover`); it is transparent at
+					// rest, like the reference's own.
+					tokens.Lens(button)
 				}
 				button.Children(func() {
 					if glyph, ok := launcher.Glyph(glyphName); ok {
@@ -896,6 +900,10 @@ func (a *App) sidebarRow(c *ui.Context, i int) {
 		tokens.Lens(row)
 	} else if row.Hovered() {
 		row.Background(tokens.ControlHover)
+		// The pointer lights the same lens the chosen page wears
+		// (`.settings-sidebar__item:hover`, the reference's hover-only
+		// rung): a pointed-at row is the chosen row's weight of mark.
+		tokens.Lens(row)
 	}
 	color := t.TextMuted
 	if selected {
@@ -1248,7 +1256,7 @@ func (a *App) basePluginSection(c *ui.Context, copy i18n.Settings) {
 					}
 					if plugin.Toggleable && a.Actions.SetPluginEnabled != nil {
 						on := enabled
-						if ui.Switch(c, &on).Label(plugin.Name).Changed() {
+						if a.switchControl(c, &on).Label(plugin.Name).Changed() {
 							enabled, changed = on, true
 						}
 					}
@@ -1296,7 +1304,7 @@ func (a *App) recommendedRow(c *ui.Context, copy i18n.Settings) {
 			for _, tool := range pending {
 				tool := tool
 				a.row(c, tool.Name, tool.Description, func() {
-					if ui.Button(c, copy.IntegrationsConnect).Clicked() {
+					if a.actionButton(c, copy.IntegrationsConnect).Clicked() {
 						a.Actions.ConnectRecommended(tool.ID)
 					}
 				})
@@ -1312,13 +1320,13 @@ func (a *App) transferRow(c *ui.Context, copy i18n.Settings) {
 	ui.Row(c).FillWidth().Gap(t.Space(1)).AlignItems(ui.Center).
 		Padding(0, 0, t.Space(1), 0).Children(func() {
 		if a.Actions.ExportIntegrations != nil {
-			if ui.Button(c, copy.IntegrationsExport).Clicked() {
+			if a.actionButton(c, copy.IntegrationsExport).Clicked() {
 				a.TransferStatus = ""
 				a.Actions.ExportIntegrations()
 			}
 		}
 		if a.Actions.ImportIntegrations != nil {
-			if ui.Button(c, copy.IntegrationsImport).Clicked() {
+			if a.actionButton(c, copy.IntegrationsImport).Clicked() {
 				a.TransferStatus = ""
 				a.Actions.ImportIntegrations()
 			}
@@ -1342,7 +1350,7 @@ func (a *App) installRow(c *ui.Context, copy i18n.Settings) {
 		Padding(0, 0, t.Space(1), 0).Children(func() {
 		textInput(c, &name).Placeholder(copy.IntegrationsPackageHint).Label(copy.IntegrationsPackageHint).Grow(1)
 		textInput(c, &version).Placeholder(copy.IntegrationsVersionHint).Width(160)
-		if ui.Button(c, copy.IntegrationsInstall).Clicked() {
+		if a.actionButton(c, copy.IntegrationsInstall).Clicked() {
 			requested = true
 		}
 	})
@@ -1543,7 +1551,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 
 		if len(integration.Permissions) > 0 && !integration.Orphan {
 			labelClicked := a.row(c, copy.IntegrationsPermissions, a.permissionLine(integration, copy), func() {
-				if ui.Button(c, copy.IntegrationsPermissions).Clicked() {
+				if a.actionButton(c, copy.IntegrationsPermissions).Clicked() {
 					a.toggleAudit(integration.ID)
 				}
 			}, func() { a.permissionAudit(c, copy, integration) })
@@ -1611,7 +1619,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 
 		if len(integration.Config) > 0 && !integration.Orphan {
 			opened := a.row(c, copy.ConfigOpen, "", func() {
-				if ui.Button(c, copy.ConfigOpen).Clicked() {
+				if a.actionButton(c, copy.ConfigOpen).Clicked() {
 					a.toggleConfig(integration.ID)
 				}
 			}, func() { a.configFields(c, copy, integration) })
@@ -1639,7 +1647,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 				on := command.Enabled
 				changed := false
 				labelClicked := a.row(c, label, "", func() {
-					if ui.Switch(c, &on).Label(label).Changed() {
+					if a.switchControl(c, &on).Label(label).Changed() {
 						changed = true
 					}
 				}, func() {
@@ -1684,12 +1692,12 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			// else — there is no record to enable, check or uninstall.
 			a.row(c, copy.IntegrationsOrphan, copy.IntegrationsAdoptHint, func() {
 				if a.Actions.AdoptIntegration != nil {
-					if ui.Button(c, copy.IntegrationsAdopt).Clicked() {
+					if a.actionButton(c, copy.IntegrationsAdopt).Clicked() {
 						a.Actions.AdoptIntegration(integration.ID)
 					}
 				}
 				if a.Actions.DeleteOrphan != nil {
-					if ui.Button(c, copy.IntegrationsDeleteOrphan).Clicked() {
+					if a.actionButton(c, copy.IntegrationsDeleteOrphan).Clicked() {
 						a.Actions.DeleteOrphan(integration.ID)
 					}
 				}
@@ -1702,7 +1710,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 		enableLabelClicked := a.row(c, copy.IntegrationsEnable, "", func() {
 			if a.Actions.SetIntegrationEnabled != nil {
 				on := enabled
-				if ui.Switch(c, &on).Label(copy.IntegrationsEnable).Changed() {
+				if a.switchControl(c, &on).Label(copy.IntegrationsEnable).Changed() {
 					// Turning an integration *off* stops whatever it is
 					// running, so it asks first — a mark the user did not mean
 					// is a command dead mid-flight. Turning one on is no
@@ -1723,19 +1731,19 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			switch integration.repairKind() {
 			case repairReconnect:
 				if a.Actions.ReconnectIntegration != nil {
-					if ui.Button(c, integration.repairLabel(copy)).Tooltip(integration.repairTooltip(copy)).Clicked() {
+					if a.actionButton(c, integration.repairLabel(copy)).Tooltip(integration.repairTooltip(copy)).Clicked() {
 						a.Actions.ReconnectIntegration(integration.ID)
 					}
 				}
 			case repairHomepage:
 				if a.Actions.OpenHomepage != nil {
-					if ui.Button(c, integration.repairLabel(copy)).Tooltip(integration.repairTooltip(copy)).Clicked() {
+					if a.actionButton(c, integration.repairLabel(copy)).Tooltip(integration.repairTooltip(copy)).Clicked() {
 						a.Actions.OpenHomepage(integration.Homepage)
 					}
 				}
 			}
 			if a.Actions.DiagnoseIntegration != nil {
-				if ui.Button(c, copy.IntegrationsCheck).Clicked() {
+				if a.actionButton(c, copy.IntegrationsCheck).Clicked() {
 					a.Actions.DiagnoseIntegration(integration.ID)
 				}
 			}
@@ -1744,12 +1752,12 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			// derivation, so a tool that shipped new subcommands comes back
 			// with them without a disconnect.
 			if integration.Generated && a.Actions.ReprobeCommands != nil {
-				if ui.Button(c, copy.IntegrationsReprobe).Clicked() {
+				if a.actionButton(c, copy.IntegrationsReprobe).Clicked() {
 					a.Actions.ReprobeCommands(integration.ID)
 				}
 			}
 			if integration.Generated && a.Actions.EditCustomTool != nil && a.Actions.ToolForEdit != nil {
-				if ui.Button(c, copy.EditLabel).Clicked() {
+				if a.actionButton(c, copy.EditLabel).Clicked() {
 					if tool, ok := a.Actions.ToolForEdit(integration.ID); ok {
 						a.beginEdit(integration.ID, tool)
 					}
@@ -1758,7 +1766,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			if a.Actions.UninstallComponents != nil {
 				a.uninstallComponentsRow(c, copy, integration)
 			} else if a.Actions.UninstallIntegration != nil {
-				if ui.Button(c, integration.removalLabel(copy)).Clicked() {
+				if a.actionButton(c, integration.removalLabel(copy)).Clicked() {
 					a.requestRemove(integration.ID)
 				}
 			}
@@ -1805,7 +1813,7 @@ func (a *App) toggleAudit(id string) {
 func (a *App) permissionAudit(c *ui.Context, copy i18n.Settings, integration Integration) {
 	t := c.Theme()
 	language := a.Store.Snapshot().Language
-	if ui.Button(c, copy.IntegrationsPermissions).Clicked() {
+	if a.actionButton(c, copy.IntegrationsPermissions).Clicked() {
 		if a.auditOpen == nil {
 			a.auditOpen = map[string]bool{}
 		}
@@ -2613,7 +2621,7 @@ func (a *App) checkbox(c *ui.Context, label, description string, on bool, apply 
 	// the control is the switch at the end, so the check box here is the
 	// switch alone.
 	if a.row(c, label, description, func() {
-		if ui.Switch(c, &value).Label(label).Changed() {
+		if a.switchControl(c, &value).Label(label).Changed() {
 			changed = true
 		}
 	}) {
@@ -2891,7 +2899,7 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 		return
 	}
 	a.section(c, copy.LocalToolTitle, copy.LocalToolHint, func() {
-		if ui.Button(c, copy.LocalToolAdd).Clicked() {
+		if a.actionButton(c, copy.LocalToolAdd).Clicked() {
 			a.toolOpen = !a.toolOpen
 			// Opening a fresh form clears the previous refusal, so the new one
 			// starts quiet; closing keeps nothing either. It also drops the
@@ -2944,7 +2952,7 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 				if mode == routeScript {
 					index = 1
 				}
-				if ui.Segmented(c, &index, copy.LocalToolModeProgram, copy.LocalToolModeScript).Changed() {
+				if a.segmentedControl(c, &index, copy.LocalToolModeProgram, copy.LocalToolModeScript).Changed() {
 					if index == 0 {
 						mode = ""
 					} else {
@@ -2961,7 +2969,7 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 					textInput(c, &program).Label(copy.LocalToolProgram).Width(240).Grow(1).
 						Placeholder("/usr/bin/rg")
 					if a.Actions.ChooseProgram != nil {
-						if ui.Button(c, copy.LocalToolChoose).Clicked() {
+						if a.actionButton(c, copy.LocalToolChoose).Clicked() {
 							if picked, err := a.Actions.ChooseProgram(); err == nil && picked != "" {
 								program = picked
 							}
@@ -3004,7 +3012,7 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 				if a.toolOutput == routeBackground {
 					index = 1
 				}
-				if ui.Segmented(c, &index, copy.LocalToolTerminal, copy.LocalToolBackground).Changed() {
+				if a.segmentedControl(c, &index, copy.LocalToolTerminal, copy.LocalToolBackground).Changed() {
 					if index == 0 {
 						a.toolOutput = ""
 					} else {
@@ -3049,7 +3057,7 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 			// submitted, and an author who already declared permissions can
 			// open the section and edit them.
 			opened := a.row(c, copy.LocalToolAdvanced, copy.LocalToolAdvancedPermissions, func() {
-				if ui.Button(c, copy.LocalToolAdvanced).Clicked() {
+				if a.actionButton(c, copy.LocalToolAdvanced).Clicked() {
 					a.toolAdvanced = !a.toolAdvanced
 				}
 			}, func() { a.toolPermissionFields(c, copy) })
@@ -3062,7 +3070,7 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 		if a.toolEditing != "" {
 			action = copy.LocalToolSave
 		}
-		requested := ui.Button(c, action).Clicked()
+		requested := a.actionButton(c, action).Clicked()
 		a.toolName, a.toolProgram, a.toolCommand = name, program, command
 		a.toolArgs, a.toolVersionArgs, a.toolVersion = args, versionArgs, version
 		a.toolDescription = description
@@ -3220,7 +3228,7 @@ func (a *App) toolPermissionFields(c *ui.Context, copy i18n.Settings) {
 		on := a.toolPermissions[permission]
 		label := i18n.PermissionLabel(a.Store.Snapshot().Language, permission)
 		labelClicked := a.row(c, label, "", func() {
-			if ui.Switch(c, &on).Label(label).Changed() {
+			if a.switchControl(c, &on).Label(label).Changed() {
 				a.toolPermissions[permission] = on
 			}
 		})
@@ -3663,7 +3671,7 @@ func (a *App) detectedAction(c *ui.Context, copy i18n.Settings, tool DetectedToo
 	if kind == detectedInstallInTerminal && a.Actions.InstallDetected == nil {
 		disabled = true
 	}
-	button := ui.Button(c, detectedLabel(copy, kind)).Disabled(disabled)
+	button := a.actionButton(c, detectedLabel(copy, kind)).Disabled(disabled)
 	if !button.Clicked() {
 		return
 	}
@@ -3859,7 +3867,7 @@ func (a *App) installFolderRow(c *ui.Context, copy i18n.Settings) {
 	}
 	a.card(c, func() {
 		a.row(c, copy.InstallFolderLabel, copy.InstallFolderHint, func() {
-			if ui.Button(c, copy.InstallFolderChoose).Clicked() {
+			if a.actionButton(c, copy.InstallFolderChoose).Clicked() {
 				if dir, err := a.Actions.ChooseFolder(); err == nil && dir != "" {
 					a.Actions.InstallFromFolder(dir)
 				}
@@ -3991,7 +3999,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 			case extensions.ParamBoolean:
 				on := truthyValue(values[param.ID])
 				labelClicked := a.row(c, label, sublabel, func() {
-					if ui.Switch(c, &on).Label(label).Changed() {
+					if a.switchControl(c, &on).Label(label).Changed() {
 						values[param.ID] = boolValue(on)
 					}
 				}, below...)
@@ -4006,7 +4014,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 					}
 				}
 				a.row(c, label, sublabel, func() {
-					if ui.Segmented(c, &index, param.Options...).Changed() &&
+					if a.segmentedControl(c, &index, param.Options...).Changed() &&
 						index >= 0 && index < len(param.Options) {
 						values[param.ID] = param.Options[index]
 					}
@@ -4021,7 +4029,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 		}
 	})
 	ui.Row(c).Gap(theme.Space(1)).AlignItems(ui.Center).Children(func() {
-		run := ui.Button(c, copy.RunLabel)
+		run := a.actionButton(c, copy.RunLabel)
 		if len(issues) > 0 {
 			run = run.Disabled(true)
 		}
@@ -4093,7 +4101,7 @@ func (a *App) runOutput(c *ui.Context, copy i18n.Settings, integration Integrati
 	}
 	if !a.outputOpen[integration.ID] {
 		if a.row(c, copy.RunViewOutput, "", func() {
-			if ui.Button(c, copy.RunViewOutput).Clicked() {
+			if a.actionButton(c, copy.RunViewOutput).Clicked() {
 				a.setRunOutputOpen(integration.ID, true)
 			}
 		}) {
@@ -4110,7 +4118,7 @@ func (a *App) runOutput(c *ui.Context, copy i18n.Settings, integration Integrati
 				ui.Text(c, copy.RunOutputTruncated).FontSize(t.FontSize - 1).TextColor(t.Warning)
 			}
 			ui.Row(c).Grow(1)
-			if ui.Button(c, copy.RunHideOutput).Clicked() {
+			if a.actionButton(c, copy.RunHideOutput).Clicked() {
 				a.setRunOutputOpen(integration.ID, false)
 			}
 		})
@@ -4204,7 +4212,7 @@ func (a *App) toolParamsEditor(c *ui.Context, copy i18n.Settings) {
 					required := param.Required
 					labelClicked := a.row(c, copy.ParamsRow(index+1), "", func() {
 						textInput(c, &id).Label(copy.ParamsID).Width(120).Placeholder("target")
-						ui.Segmented(c, &kindIndex, paramKindLabels(copy)...).Label(copy.ParamsKind)
+						a.segmentedControl(c, &kindIndex, paramKindLabels(copy)...).Label(copy.ParamsKind)
 						textInput(c, &flag).Label(copy.ParamsFlag).Width(120).Placeholder("--target")
 					}, func() {
 						if issue, ok := issues[index]; ok {
@@ -4227,7 +4235,7 @@ func (a *App) toolParamsEditor(c *ui.Context, copy i18n.Settings) {
 							})
 						}
 						a.row(c, copy.ParamsRequired, "", func() {
-							if ui.Switch(c, &required).Label(copy.ParamsRequired).Changed() {
+							if a.switchControl(c, &required).Label(copy.ParamsRequired).Changed() {
 								param.Required = required
 							}
 						})
@@ -4235,7 +4243,7 @@ func (a *App) toolParamsEditor(c *ui.Context, copy i18n.Settings) {
 						// the whole of it, so the label the pointer and the
 						// keyboard find is the button.
 						a.row(c, "", "", func() {
-							if ui.Button(c, copy.ParamsRemove).Clicked() {
+							if a.actionButton(c, copy.ParamsRemove).Clicked() {
 								removed = index
 							}
 						})
@@ -4252,7 +4260,7 @@ func (a *App) toolParamsEditor(c *ui.Context, copy i18n.Settings) {
 			a.toolParams = append(a.toolParams[:removed], a.toolParams[removed+1:]...)
 			return
 		}
-		if ui.Button(c, copy.ParamsAdd).Clicked() {
+		if a.actionButton(c, copy.ParamsAdd).Clicked() {
 			a.toolParams = append(a.toolParams, toolParam{Kind: extensions.ParamText})
 		}
 	})
