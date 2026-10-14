@@ -100,7 +100,46 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-ew 自定义工具表单的内容动作行（复制脚本 / 复制命令 / 复制执行计划；
+> **最新一轮：P7-ex 自定义工具表单的 Program 行补回原版的占位符与保存期提示
+> （原版 `src/extensions/CustomIntegrationDrawer.tsx:145` 的 `customExecutable` label 下方
+> `customExecutablePlaceholder` 与 `changeExecutableHint`，文案在 `i18n.ts:665,687`）**
+> —— P7-ew 把「尚未做」重写为 5 条具体待办并落地第 1 条（内容动作行），本轮取第 2 条
+> （Program 行的 hint 与占位符，文档标注为“改动最小”）。依赖检查：`go list -m -versions
+> github.com/egoist/mygo` 最新仍是 **v0.4.8**（与 `go.mod` 一致），无版本可升；GitHub releases
+> API 限流。只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离（P7-ex·Program 行）**：原版可执行模式的 `customExecutable` 字段有两条词——输入框的
+> `customExecutablePlaceholder`（“Type a path or search installed tools”，`i18n.ts:687`）与字段下方
+> 的 `changeExecutableHint`（“Search the tools installed on this device, or type a full path. Changing
+> the executable re-runs verification when you save.”，`:665`），后者说明换可执行文件会在保存时重跑
+> 验证。**本构建（改前）**：`internal/settingsui/settingsui.go:3009-3014` 的 Program 行只
+> `Placeholder("/usr/bin/rg")`，没有 hint——`grep -rn 'ChangeExecutable\|LocalToolProgramHint' internal`
+> 为空，占位符也是自造路径。
+>
+> **落地**：
+> - `internal/i18n` 新增 `LocalToolProgramPlaceholder` / `LocalToolProgramHint`，en/zh 逐字取
+>   `i18n.ts:665,687`（`internal/i18n/i18n.go:808-813`、`copy.go` en/zh）。
+> - `internal/settingsui/settingsui.go:3009` 的 Program 行改成
+>   `a.row(c, copy.LocalToolProgram, copy.LocalToolProgramHint, …)`，`textInput` 的 `Placeholder`
+>   改成 `copy.LocalToolProgramPlaceholder`——与相邻字段行共用同一套 hint 节奏（原版
+>   `.extension-custom-form__hint` 就是 label 下的一条 caption）。脚本模式不画 Program 行，两条词
+>   自然不出现。
+>
+> **验收**：`internal/settingsui/toolcontent_test.go` 新增 `TestLocalToolProgramRowCarriesItsWord`——
+> en/zh 四个值逐字断言；打开表单后 Program 行确有 hint（`HasText`），占位符**不**泄漏进
+> `Texts()`（mygo 把 placeholder 画在编辑器里、不注册成 label，同 `view_test.go:2178` 的注释）；
+> 切到 script 模式后 hint 消失。既有 `TestLocalToolForm` 因表单又高一行为 1800 渲染高度（注释
+> 说明内容动作行 + Program hint 两处增长）。变异核查：把 `settingsui.go` 的 hint 参数改回 `""` →
+> 新测试红（“the program row is missing its hint”）。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：第 2 条（Program 行的 hint 与占位符）落地；「尚未做」清单现有 5 条带 file:line 的
+> 具体待办，第 1 条（P7-ew）、第 2 条（P7-ex）已完成，第 3–5 条待做：集成 ID 只读行、参数编辑器
+> 字段顺序、导出脚本写文件动作。下轮最高优先级是第 3 条（编辑态只读 ID 行）。
+
+> **上一轮：P7-ew 自定义工具表单的内容动作行（复制脚本 / 复制命令 / 复制执行计划；
 > 原版 `src/extensions/CustomIntegrationDrawer.tsx:145-146` 的 `.extension-custom-form__actions`，
 > 行为在 `src/ExtensionsPanel.tsx:1934-1964`）**
 > —— P7-ev 收尾后用户反馈 F1–F4 全部收口，「尚未做」上只剩「回到 `localToolSection`/`runForm`
@@ -5032,13 +5071,14 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-> **清单状态（P7-ew 重写）**：P7-ev 收尾后用户反馈 F1–F4 全部收口，「尚未做」上再无未落地条目，只剩
+> **清单状态（P7-ew 重写；P7-ex 更新）**：P7-ex 已落地第 2 条（Program 行的 hint 与占位符），
+> 清单剩第 3–5 条（集成 ID 只读行、参数编辑器字段顺序、导出脚本写文件动作）。P7-ev 收尾后用户反馈 F1–F4 全部收口，「尚未做」上再无未落地条目，只剩
 > 「回到 `localToolSection`/`runForm` 等其他入口逐函数审计」这句宽泛候选。本轮按规则把它**写实为 5 条
 > 带 file:line / 原版对照 / 验收标准的具体待办**（见下「具体待办（P7-ew 重写）」），并取第 1 条实现。
 > 依赖检查：`go list -m -versions github.com/egoist/mygo` 最新仍是 **v0.4.8**（与 `go.mod` 一致），
 > 无版本可升；GitHub releases API 限流。只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
 
-### 具体待办（P7-ew 重写；第 1 条本轮落地 P7-ew，2–5 条待做）
+### 具体待办（P7-ew 重写；第 1 条 P7-ew、第 2 条 P7-ex 已落地，3–5 条待做）
 
 审计入口：原版 `main:src/extensions/CustomIntegrationDrawer.tsx`（自定义工具表单，本构建对应
 `internal/settingsui/settingsui.go` 的 `localToolSection`/`scriptRows`/`toolPermissionFields`/
@@ -5067,7 +5107,7 @@ P7-ev）、执行引擎/参数校验（P7-bh）等。**下面五条是本轮逐�
      按钮不画）、`TestExecutionPlanJSON`（空白参数读作 `[]` 而非 `null`）。既有 `TestLocalToolForm`
      因表单高一行为 1700 渲染高度（注释说明原因）。变异核查见「最近几轮」P7-ew。
 
-2. **（待做）可执行表单的「可执行文件」字段缺少原版的下方说明与占位符**。
+2. **（已落地，P7-ex）可执行表单的「可执行文件」字段缺少原版的下方说明与占位符**。
    - 原版对照：`main:src/extensions/CustomIntegrationDrawer.tsx:145` 的 `customExecutable` label 下
      一条 `customExecutablePlaceholder`（“Type a path or search installed tools”，`i18n.ts:687`）与一条
      `changeExecutableHint`（“Search the tools installed on this device… re-runs verification when you
@@ -5075,11 +5115,14 @@ P7-ev）、执行引擎/参数校验（P7-bh）等。**下面五条是本轮逐�
    - 本构建（改前）：`internal/settingsui/settingsui.go:3009-3014` 的 Program 行只有 `Placeholder(
      "/usr/bin/rg")`，`grep -rn 'ChangeExecutable\|LocalToolProgramHint' internal` 为空——没有原版的
      那句「改可执行文件会在保存时重跑验证」的提示，占位符也是自造路径。
-   - 落地 file:line：`internal/i18n` 新增 `LocalToolProgramPlaceholder` + `LocalToolProgramHint`
+   - 落地 file:line（已落地）：`internal/i18n` 新增 `LocalToolProgramPlaceholder` + `LocalToolProgramHint`
      （en/zh 逐字取 `i18n.ts:665,687`）；`settingsui.go:3009` 的 Program 行改用这两个键（`row` 的
      sublabel 位改成 hint，`textInput` 的 `Placeholder` 改成原版句）。
-   - 验收：`internal/settingsui/toolcontent_test.go` 追加一条——Program 行下印出 hint、占位符不出现
-     在 `Texts()`（编辑器渲染的占位符不注册文本，同 `view_test.go:2178` 的注释）；删掉 hint → 红。
+   - 验收（已满足）：`internal/settingsui/toolcontent_test.go` 的
+     `TestLocalToolProgramRowCarriesItsWord`——Program 行下印出 hint、占位符不出现在 `Texts()`
+     （编辑器渲染的占位符不注册文本，同 `view_test.go:2178` 的注释）、script 模式不画；既有
+     `TestLocalToolForm` 因表单又高一行为 1800 渲染高度。变异核查：把 hint 参数改回 `""` → 红。
+     详见「最近几轮」P7-ex。
 
 3. **（待做）「集成 ID」在编辑态是只读说明行，本构建根本没画**。
    - 原版对照：`main:src/extensions/CustomIntegrationDrawer.tsx:144` 的 `editingId &&` 分支——编辑时

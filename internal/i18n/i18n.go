@@ -799,19 +799,25 @@ type Settings struct {
 	DeepLinkCopied   string
 	DeepLinkRejected string
 	// The local-tool connection form.
-	LocalToolTitle           string
-	LocalToolHint            string
-	LocalToolAdd             string
-	LocalToolName            string
-	LocalToolProgram         string
-	LocalToolChoose          string
-	LocalToolCommand         string
-	LocalToolCommandHint     string
-	LocalToolArgs            string
-	LocalToolArgsHint        string
-	LocalToolVersionArgs     string
-	LocalToolVersionArgsHint string
-	LocalToolVersion         string
+	LocalToolTitle   string
+	LocalToolHint    string
+	LocalToolAdd     string
+	LocalToolName    string
+	LocalToolProgram string
+	LocalToolChoose  string
+	// The executable box's own words (R—/`CustomIntegrationDrawer.tsx:145`):
+	// the placeholder invites a path *or* a search over installed tools, and
+	// the hint under the row says a changed program re-runs verification on
+	// save. Both are taken verbatim from `i18n.ts:665,687`.
+	LocalToolProgramPlaceholder string
+	LocalToolProgramHint        string
+	LocalToolCommand            string
+	LocalToolCommandHint        string
+	LocalToolArgs               string
+	LocalToolArgsHint           string
+	LocalToolVersionArgs        string
+	LocalToolVersionArgsHint    string
+	LocalToolVersion            string
 	// The version box stays editable, so the hint says what it is: a fallback
 	// a real probe overwrites on connect (R153).
 	LocalToolVersionHint string

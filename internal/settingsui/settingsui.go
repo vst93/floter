@@ -3006,9 +3006,9 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 			if mode == routeScript {
 				a.scriptRows(c, copy, &language, &script, issues)
 			} else {
-				a.row(c, copy.LocalToolProgram, "", func() {
+				a.row(c, copy.LocalToolProgram, copy.LocalToolProgramHint, func() {
 					textInput(c, &program).Label(copy.LocalToolProgram).Width(240).Grow(1).
-						Placeholder("/usr/bin/rg")
+						Placeholder(copy.LocalToolProgramPlaceholder)
 					if a.Actions.ChooseProgram != nil {
 						if a.actionButton(c, copy.LocalToolChoose).Clicked() {
 							if picked, err := a.Actions.ChooseProgram(); err == nil && picked != "" {

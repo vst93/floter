@@ -2095,11 +2095,11 @@ func TestLocalToolForm(t *testing.T) {
 		ConnectLocalTool: func(tool CustomTool) { connected = append(connected, tool) },
 		ChooseProgram:    func() (string, error) { return "/usr/bin/rg", nil },
 	})
-	// 1700, not 1600: the form grew the content-action row the reference's
-	// drawer carried (`CustomIntegrationDrawer.tsx:145-146`), and this test
-	// opens the Advanced disclosure too, so the Connect button sits one row
-	// lower.
-	tt := render(t, a, 720, 1700)
+	// 1800, not 1600: the form grew the content-action row the reference's
+	// drawer carried (`CustomIntegrationDrawer.tsx:145-146`) and the program
+	// row's hint (`CustomIntegrationDrawer.tsx:145`, `i18n.ts:665`), and this
+	// test opens the Advanced disclosure too, so the Connect button sits lower.
+	tt := render(t, a, 720, 1800)
 	if err := tt.Click("Integrations"); err != nil {
 		t.Fatal(err)
 	}

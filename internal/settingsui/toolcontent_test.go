@@ -144,6 +144,60 @@ func TestLocalToolFormCopiesTheScript(t *testing.T) {
 	}
 }
 
+// The program field in the reference's drawer (`CustomIntegrationDrawer.tsx:145`)
+// carries two extra words beyond the label: a placeholder that invites either a
+// path *or* a search over the installed tools, and a hint under the row saying
+// a changed program re-runs verification when the form is saved. This build's
+// row had neither — a self-invented `/usr/bin/rg` placeholder and no hint at
+// all — so the executable box looked like a plain path string with no promise
+// about what happens on save.
+func TestLocalToolProgramRowCarriesItsWord(t *testing.T) {
+	en := i18n.For("en").Settings
+	zh := i18n.For("zh").Settings
+	// The placeholder never reaches `Texts()`: mygo paints it through the
+	// editor and does not register it as a label (ui/editor/paint.go; same note
+	// as view_test.go:2178). So the exact copy is what this test owns, verbatim
+	// from i18n.ts:665,687.
+	if got := en.LocalToolProgramPlaceholder; got != "Type a path or search installed tools" {
+		t.Errorf("the program placeholder reads %q", got)
+	}
+	if got := zh.LocalToolProgramPlaceholder; got != "输入路径，或搜索已安装工具" {
+		t.Errorf("the program placeholder (zh) reads %q", got)
+	}
+	if got := en.LocalToolProgramHint; got != "Search the tools installed on this device, or type a full path. Changing the executable re-runs verification when you save." {
+		t.Errorf("the program hint reads %q", got)
+	}
+	if !strings.Contains(zh.LocalToolProgramHint, "保存时会重新验证") {
+		t.Errorf("the program hint (zh) reads %q", zh.LocalToolProgramHint)
+	}
+	a := New(newStore(t), Actions{ConnectLocalTool: func(CustomTool) {}})
+	tt := render(t, a, 720, 1600)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if err := tt.Click(en.LocalToolAdd); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	// The hint is a real drawn line under the program row; the placeholder is
+	// not (it is painted inside the field).
+	if !tt.HasText(en.LocalToolProgramHint) {
+		t.Fatalf("the program row is missing its hint: %q", tt.Texts())
+	}
+	if tt.HasText(en.LocalToolProgramPlaceholder) {
+		t.Errorf("the placeholder leaked into the row's text: %q", tt.Texts())
+	}
+	// Script mode has no program box, so neither word is drawn there.
+	if err := tt.Click(en.LocalToolModeScript); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if tt.HasText(en.LocalToolProgramHint) {
+		t.Errorf("the program hint survived the switch to script: %q", tt.Texts())
+	}
+}
+
 // The plan helper is a pure projection of the two fields the host turns into
 // argv: an absent arguments field reads as an empty list (never null), and the
 // mode is the pty run the reference named.
