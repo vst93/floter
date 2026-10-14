@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1349 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1354 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1349 项测试
+go test -count=1 ./...         # 1354 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -100,7 +100,45 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-fp 移除通知按 kind 说话——补上 P7-fe 记录的最后一个有意偏离
+> **最新一轮：P7-fq settings 写盘补回原版的恢复副本与原子替换
+> （原版 `src-tauri/src/commands/config.rs:1473-1506`）**
+> ——P7-fp 收尾后「尚未做」再次只剩历史清单。本轮按规则换入口：逐函数对照原版 settings 的写盘路径
+> （`write_settings_to` / `write_settings_file`），把「尚未做」重写为 2 条带 file:line / 原版对照 /
+> 验收标准的具体待办（见文末「具体待办（P7-fq 重写）」），并取第 1 条落地。依赖检查：`go.mod` 已是
+> **v0.4.8** = GitHub releases latest，无版本可升；只对照 `main`（`backup/main-pre-mygo` = v0.3.14
+> 原版树），未翻历史提交。
+>
+> **偏离（P7-fq·写盘不原子、也从不刷新恢复副本）**：原版 `write_settings_to`（`:1473-1491`）先把
+> 完整内容写进 `settings.json.backup` 并 `sync_directory`，再用 `write_settings_file` 把同一份内容写进
+> `settings.json`；`write_settings_file`（`:1493-1506`）用同目录 `NamedTempFile` + `persist` 做原子
+> 替换，并在 `persist` 前 `flush`/`sync_all`。所以原版的备份**永远等于最近一次成功保存的内容**，而
+> `load_settings_from`（`:945-970`）在 primary 读不到或解析失败时会读它。**本构建（改前）**：
+> `internal/settings/settings.go:474-485` 的 `Save` 直接 `os.WriteFile(path, data, 0o644)`——没有临时
+> 文件、没有 rename、没有 fsync，也没有更新 `settings.json.backup`；`Load`（`:256-275`）虽然会回退
+> 读备份，但备份只在首次迁移时写一次，之后一直是旧内容。一次崩溃/断电可以把 settings.json 截断成半截
+> JSON，而恢复副本仍是几个月前的旧值。
+>
+> **落地**：
+> - `internal/settings/write.go`（新）新增 `writeFileAtomic(path, data, mode)`：同目录
+>   `os.CreateTemp(".settings-*.tmp")` → `Write` → `Sync` → `Close` → `Chmod` → `Rename`，最后
+>   best-effort 同步目录（Unix 上 `dir.Sync()`，Windows 忽略错误）。
+> - `internal/settings/settings.go` 的 `Save` 改为先 `writeFileAtomic(path+backupSuffix, data, 0o600)`
+>   再 `writeFileAtomic(path, data, 0o600)`，逐字复刻原版「先备份、后主文件」的顺序与 0600 权限。
+>
+> **验收**：`internal/settings/write_test.go` 新增 `TestSaveWritesTheRecoveryCopyBesideThePrimary`
+> （主文件与备份字节相同、权限 0600、目录里没有 `.settings-*.tmp` 残留）、
+> `TestSaveRefreshesTheRecoveryCopyOnEveryWrite`（连写两次，把 primary 截断后 `Load` 恢复的是
+> **第二次**的值，不是第一次）；`internal/settings/write_unix_test.go` 新增
+> `TestWriteFileAtomicLeavesTheOldFileOnFailure`（目标目录不可写时返回错误且旧文件仍在）。
+> 变异核查：把 `Save` 改回 `os.WriteFile` → 前两条立刻红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：第 1 条落地；「具体待办（P7-fq 重写）」还剩第 2 条（电源动作要等命令的退出结果，
+> 而不是只看到 spawn 成功）。下一轮取它。
+
+> **上一轮：P7-fp 移除通知按 kind 说话——补上 P7-fe 记录的最后一个有意偏离
 > （原版 `src/ExtensionsPanel.tsx:1286-1340`、`src/i18n.ts:545-547,1430-1432`）**
 > ——P7-fe 收尾时把 system/package 的通知记成「两条都走统一的 `IntegrationRemoved`，留待后续单独
 > 一轮」。P7-fo 之后「尚未做」只剩历史已结清清单、没有新的具体待办，本轮按规则换入口：重读 P7-fe
@@ -5718,6 +5756,48 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 - 窗口可见时完成反馈落在面板自己的停靠行（隐藏时才发系统通知）——之前可见时什么都不说。
 
 ## 尚未做（按建议优先级）
+
+### 具体待办（P7-fq 重写；第 1 条 P7-fq 落地；第 2 条待做）
+
+审计入口：原版 `main:src-tauri/src/commands/config.rs` 的写盘路径（`write_settings_to`
+`:1473-1491`、`write_settings_file` `:1493-1506`）与电源命令（`main:src-tauri/src/commands/system.rs`
+的 `system_power` `:21-72`、`run_first` `:72-118`），本构建对应 `internal/settings/settings.go` 的
+`Save`/`Load` 与 `internal/shell/power.go` 的 `runPower`/`powerCommands`。前几轮已落地 settings 的
+解析、规范化、未知键保留、失败回写落与 180ms 去抖（P7-fn/P7-fo），下面两条是本轮逐函数比对后新查出的
+真实缺口。依赖检查：`go.mod` 已是 **v0.4.8** = GitHub releases latest，无版本可升。只对照 `main`
+（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+
+1. **（本轮落地，P7-fq）settings 写盘不是原子替换，也从不刷新恢复副本**。
+   - 原版对照：`src-tauri/src/commands/config.rs:1473-1506` 的 `write_settings_to` 先把完整内容写进
+     `settings.json.backup` 并 `sync_directory`，再用 `write_settings_file` 把同一份内容写进
+     `settings.json`；`write_settings_file` 用同目录 `NamedTempFile` + `persist` 原子替换，并在
+     `persist` 前 `flush`/`sync_all`。`load_settings_from`（`:945-970`）在 primary 读不到或解析失败时
+     读这个备份，所以恢复副本始终等于最近一次成功保存的内容。
+   - 本构建（改前）：`internal/settings/settings.go:474-485` 的 `Save` 直接
+     `os.WriteFile(path, data, 0o644)`——没有临时文件、没有 rename、没有 fsync，也没有更新
+     `settings.json.backup`；`Load`（`:256-275`）虽然会回退读备份，但备份只在首次迁移时写一次。
+   - 落地 file:line（已按此落地）：`internal/settings/write.go`（新）的
+     `writeFileAtomic(path, data, mode)`；`internal/settings/settings.go` 的 `Save` 先写
+     `path+backupSuffix` 再写 primary，两者都是 0600 权限、都走原子替换。
+   - 验收（已过）：`internal/settings/write_test.go` 两条——
+     `TestSaveWritesTheRecoveryCopyBesideThePrimary`（主文件与备份字节相同、0600、无临时文件残留）、
+     `TestSaveRefreshesTheRecoveryCopyOnEveryWrite`（连写两次后截断 primary，`Load` 恢复第二次的值）；
+     `internal/settings/write_unix_test.go` 的 `TestWriteFileAtomicLeavesTheOldFileOnFailure`
+     （目标目录不可写时返回错误且旧文件仍在）。
+     变异核查：把 `Save` 改回 `os.WriteFile` → 前两条立刻红。
+
+2. **（待做）电源动作只看 spawn 成功，不等命令的退出结果**。
+   - 原版对照：`main:src-tauri/src/commands/system.rs:21-118` 的 `system_power` 调 `run_first`：对每个
+     候选 `Command::output()` 加 30s 超时；**只有** `ErrorKind::NotFound` 才落到下一个候选，候选一旦
+     启动，非零退出（polkit/loginwindow 拒绝）或超时都原样返回错误，不再尝试更特权的后备命令。
+   - 本构建：`internal/shell/power.go:55-72` 的 `runPower` 用 `spawn.Program`（fire-and-forget）逐个
+     候选尝试，返回 nil 的条件只是「spawn 成功」；一个启动后立刻被 polkit 拒绝的 `systemctl` 会被报成
+     成功，而一次权限类 spawn 错误又会继续落到 `reboot`，与「启动后拒绝不降级」的原版规则相反。
+   - 落地 file:line（建议）：`internal/shell/power.go` 的 `runPower` 改用带 30s 超时的 `exec.Command`
+     + `CombinedOutput`；`errors.Is(err, exec.ErrNotFound)` 才 `continue`，非零退出/超时返回带 stderr 的
+     错误。`spawn.Program` 仍留给真正的 fire-and-forget 路径。
+   - 验收：`internal/shell/power_test.go` 新增两条——候选一缺失时落到候选二（`sh -c "exit 0"`）；候选一
+     启动后 `exit 7` 且 stderr 有「permission denied」时返回错误、不跑候选二、错误串含两者。
 
 ### 具体待办（P7-fp 重写；第 1·2 条均由本轮 P7-fp 落地；清单归零）
 

@@ -468,18 +468,23 @@ func Encode(s Settings) ([]byte, error) {
 	return json.MarshalIndent(out, "", "  ")
 }
 
-// Save writes the settings to path, creating the directory if needed. It is
-// not called by the P0 app (which is read-only) but is exercised by the
-// round-trip tests that pin unknown-key preservation.
+// Save writes the settings to path, creating the directory if needed. It keeps
+// the old build's two-file contract: a complete recovery copy at
+// `settings.json.backup` is refreshed first, then the canonical file is
+// replaced atomically. Load reads the backup when the canonical file is
+// missing or unparseable, so the copy has to describe the same save.
 func Save(path string, s Settings) error {
 	data, err := Encode(s)
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	// The old build's `write_settings_to` wrote the backup before the primary,
+	// both through the same atomic writer and both 0600 (the mode its
+	// `NamedTempFile` created).
+	if err := writeFileAtomic(path+backupSuffix, data, 0o600); err != nil {
 		return err
 	}
-	return os.WriteFile(path, data, 0o644)
+	return writeFileAtomic(path, data, 0o600)
 }
 
 // NormalizeTheme applies the "dark" | "light" | "auto" whitelist. An unknown
