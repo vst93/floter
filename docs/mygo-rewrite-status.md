@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1101 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1103 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1101 项测试
+go test -count=1 ./...         # 1103 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -99,7 +99,39 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-dp 触发提示的下限是「提示自身不足 6ch」，不是「输入框被挤到 160px 以下」**
+> **最新一轮：P7-dq 回到终端面时补上外观（原版终端视图每次 mount 都用当帧设置重建 renderer）**
+> —— P7-dp 收尾后「尚未做（P7-do 重写）」第 2 条（`OverflowMenu` 是否有落点）与第 3 条
+> （`src/deferred-repaint.ts` 的重绘尾沿合并）是清单最高优先级的两条待比对项。本轮逐条核对，**两条
+> 都不产生代码**（详见下方「具体待办」与各自结论），但核对第 3 条时逐行读终端外观的落点，**发现并
+> 落地**了一处真实偏离。依赖检查：GitHub releases API 限流，`go list -m -versions
+> github.com/egoist/mygo` 最新仍是 **v0.4.8**（与 `go.mod` 一致），无版本可升。只对照 `main`
+> （`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离点**：本构建只在 `Surf == SurfaceTerminal` 时把设置写进会话
+> （`internal/shell/shell.go:985-987` 的 store 监听），而 `Open(SurfaceTerminal)` 对**已经在跑的
+> 会话**不再应用外观——`internal/shell/shell.go:2557-2561` 只 `EnsureSession()`（会话在跑就早返回）
+> 再 `FocusTerminal()`。于是「在设置页改终端配色/字号/字体族 → 回终端」看到的是旧外观，除非之后
+> 又在终端面上改一次设置。原版的终端视图（`main:src/hooks/useTerminalView.ts:502-521`）在
+> **每次进入**都新建 `TerminalCanvas`，构造参数就是当帧的 `fontFamily`/`fontSize`/`lineHeight`/
+> `theme`/`cursorBlink`/…——离开终端会卸载 renderer 与其 canvas，回来重建，所以原版「回来即当前
+> 外观」。本构建的会话跨面常驻，这条 mount 规则落空。
+>
+> **修法**（`internal/shell/shell.go`）：新增 `Options.RefreshTerminal func()` 缝（默认
+> `a.Terminal.Refresh`，测试替换它就能在没有原生会话时观察刷新）；`Open` 的 `case
+> SurfaceTerminal:` 在 `EnsureSession()` 之后调 `a.refreshTerminal()`（`shell.go:2561`），把
+> 「这一次进入用的就是当前外观」写实；store 监听也改走同一函数（`shell.go:986`）。刷新本身是幂等
+> 的（每个会话 `SetFont` + `SetTheme`），对新会话重复一次无害。
+>
+> **测试**（`internal/shell/terminalappearance_test.go`）：
+> `TestReopeningTheTerminalAppliesAppearanceChangedElsewhere`（在设置面改 `FontSize` → 离屏不刷，
+> 进终端 → 刷 1 次）与 `TestAnAppearanceChangeOnTheTerminalAppliesAtOnce`（在终端面改设置 → 当次
+> 就刷，钉住既有路径没被缝改坏）。变异核查：删掉 `Open` 里的 `a.refreshTerminal()`，第一条断言立刻红
+> （`entering the terminal refreshed 0 times, want 1`）。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+> **上一轮：P7-dp 触发提示的下限是「提示自身不足 6ch」，不是「输入框被挤到 160px 以下」**
 > —— P7-do 收尾后「尚未做（P7-do 重写）」第 1 条是最高优先级的具体项（已核实的偏离，带 file:line
 > 与验收）。本轮把它落地。依赖检查：GitHub releases API 被限流，`go list -m -versions
 > github.com/egoist/mygo` 最新仍是 **v0.4.8**（与 `go.mod` 一致），无版本可升。只对照 `main`
@@ -3420,11 +3452,44 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-> **清单状态（P7-dp 收尾）**：P7-do 收尾后清单是下面三条（第 1 条已核实的偏离、第 2·3 条待比对的
-> 剩余未覆盖模块）；本轮落地第 1 条（最高优先级），余下第 2 条（`OverflowMenu.tsx` 的溢出菜单是否有
-> 落点）与第 3 条（`src/deferred-repaint.ts` 的重绘尾沿合并）仍是具体可执行的待比对项。
+> **清单状态（P7-dq 收尾）**：P7-do 重写的三条已全部结清——第 1 条落地 P7-dp；第 2 条（溢出菜单）
+> 与第 3 条（重绘尾沿合并）经本轮逐条核对，**分别是「已用另一种形式覆盖」与「无落点」**（见下方
+> 各自结论）。核对第 3 条时发现并落地了一处新偏离（回到终端面补上外观，P7-dq），下面重写新的
+> 具体待办。
 
-### 具体待办（P7-do 重写；第 1 条已落地 P7-dp，余下第 2·3 条待比对）
+### 具体待办（P7-dq 重写）
+
+> 本轮把 P7-do 重写的三条全部结清，并落地一处新发现的偏离。下一轮从下面三条里取第 1 条（最高
+> 优先级）。依赖检查：GitHub releases API 限流，`go list -m -versions github.com/egoist/mygo` 最新
+> 仍是 **v0.4.8**（与 `go.mod` 一致），无版本可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14
+> 原版树），未翻历史提交。
+
+1. **（待比对，本轮新发现）终端外观除「进入」之外还有没有别的写入时机**（未做）。
+   - 原版对照：`main:src/hooks/useTerminalView.ts:502-521`——进入终端（`mode` 变到 `terminal`、
+     renderer 为 null）就新建 `TerminalCanvas`，构造参数是当帧的 `fontFamily`/`fontSize`/
+     `lineHeight`/`padding`/`theme`/`cursorBlink`/`showScrollbar`/`wheelLines`/`boldMode`。
+   - 本构建（P7-dq 后）：`internal/shell/shell.go:2561` 的 `Open(SurfaceTerminal)` 在
+     `EnsureSession()` 后 `a.refreshTerminal()`；但 `RunShellIn`（`shell.go:538` 附近）、命令会话
+     （`shell.go:869` 的 `CommandSessionEnded`）等会自行建会话，未必经过一次「进入」。
+   - 验收：逐条走 `internal/shell/shell.go` 里所有 `Open(SurfaceTerminal)` 与 `a.Terminal.Run*`
+     调用点，确认新会话都拿到当帧外观、旧会话都由入场刷新覆盖；若有落空，补一次刷新（或让
+     `terminalui.startSession` 幂等刷新）。
+2. **（待比对，疑无落点）终端空态的 240ms 延迟**（未做）。
+   - 原版对照：`main:src/terminal/empty-state.ts:39` 的 `TERMINAL_EMPTY_HINT_DELAY = 240`——防的是
+     「异步 `term_spawn` 往返期间页面短暂为空 → 空态闪一下」。
+   - 本构建：`EnsureSession` 同步建会话（`internal/terminalui/terminalui.go` 的 `startSession`），
+     空态只在**同步失败**时出现（`terminalui.go:686-717`），没有那个窗口。
+   - 验收：确认没有异步 spawn 路径；确认无误后把这条关闭，只在文档记「无落点」。
+3. **（待比对，疑无落点）自定义集成的脏比较（R9-4）与溢出菜单（R7-3b）**（未做，P7-dq 已初查）。
+   - 原版对照：`main:src/extensions/integration-dirty.ts` 的 `customIntegrationDirty`（防「打开旧
+     manifest 就被判脏 → 关闭被 discard bar 拦」）与 `main:src/ExtensionsPanel.tsx:2338` 的
+     `OverflowMenu`（把 export/import 从工具栏搬进菜单）。
+   - 本构建：**没有自定义集成抽屉**——创建走 `floter connect` 深链/CLI，集成页只有运行时表单
+     （`internal/settingsui/settingsui.go:3781` 的 `toolParamsEditor`），没有「编辑一份 manifest
+     再保存」的模态；`transferRow` 用两个直按钮取代菜单，两者都已让动作可触达。
+   - 验收：确认集成页把原版抽屉/菜单里每个动作都暴露了；确认无误后把这两条关闭。
+
+### 具体待办（P7-do 重写；三条已全部结清：第 1 条 P7-dp，第 2·3 条 P7-dq 比对为覆盖/无落点）
 
 > 本轮换入口：清点原版 `src/` 中在 status/plan 两份文档里零命名的模块（`git ls-tree` + 逐文件 grep），
 > 得到 `src/components/OverflowMenu.tsx`、`src/hooks/useSessionManagement.ts`、`src/deferred-repaint.ts`、
@@ -3454,22 +3519,28 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
      调用点加 `.SingleLine().Ellipsis("\u2026")`（对齐原版 `nowrap`+`ellipsis`，提示永远一行）。
      测试 `TestTriggerHintFits` 重写：6ch 边界、提示自身短于下限、`cell<=0` 保命、200px 盒宽 ==
      `triggerHintRoom` 且一行、120px 隐藏。详见「最近几轮」P7-dp。
-2. **ExtensionsPanel 工具栏的溢出菜单（R7-3b）是否在本构建有落点**（未做，需比对）。
+2. **ExtensionsPanel 工具栏的溢出菜单（R7-3b）是否在本构建有落点**（已比对：已用另一种形式覆盖，P7-dq）。
    - 原版对照：`main:src/components/OverflowMenu.tsx:1-26`（频率拆分：高频动作留按钮，稀有动作连同
-     其说明搬进菜单）与它在 `main:src/ExtensionsPanel.tsx` 的用法（触发键、↑/↓ 环绕、Home/End、
-     Escape 自己 `stopPropagation`）。
-   - 本构建：`internal/settingsui` 的集成页（`settingsui.go` 的 `PageIntegrations` 及其 view）可用
-     `grep -n "Overflow\|overflow"` 确认当前没有任何溢出菜单。
-   - 验收：逐条列出原版溢出菜单里的动作，核对本构建集成页是否都能触达；缺一个就补一个，全都有则
-     在文档里写成「已用另一种形式覆盖」。
-3. **透明度拖拽时的终端重绘合并（GLASS-CLIP / `src/deferred-repaint.ts`）**（未做，需比对）。
-   - 原版对照：`main:src/deferred-repaint.ts:1-30`（CSS 变量逐 tick、终端重绘 140ms 尾沿合并，注释：
+     其说明搬进菜单）与它在 `main:src/ExtensionsPanel.tsx:2338` 的**唯一**用法（触发键、↑/↓ 环绕、
+     Home/End、Escape 自己 `stopPropagation`）。
+   - 本构建：`internal/settingsui` 的集成页（`settingsui.go` 的 `PageIntegrations` 及其 view）没有
+     任何溢出菜单。
+   - **结论（P7-dq）**：原版那处 `OverflowMenu` 里只装了 export/import 两项（其余工具区动作留在
+     按钮上）；本构建 `internal/settingsui/settingsui.go` 的 `transferRow` 给 Export/Import 各一个
+     直按钮，`integrations` 的 recommended/localTool/transfer/install/installFolder 各段也都是直接
+     控件，每个动作都能触达。「把两项搬进菜单」是呈现形式而非能力，**不新增一个只有两项、还得
+     自己实现 ↑/↓/Home/End/Escape 的菜单**。若以后工具栏真被挤爆再加。
+3. **透明度拖拽时的终端重绘合并（GLASS-CLIP / `src/deferred-repaint.ts`）**（已比对：无落点，P7-dq）。
+   - 原版对照：`main:src/deferred-repaint.ts:1-90`（CSS 变量逐 tick、终端重绘 140ms 尾沿合并，注释：
      「透明度的滑杆拖动会中断」）与 `TERMINAL_REPAINT_DEBOUNCE_MS = 140`。
-   - 本构建：终端由 mygo 逐帧绘制，透明度滑块写的是 settings；要确认拖动时是否会在同一帧触发终端
-     重绘、以及是否需要一个尾沿合并。`grep -n "repaint\|Repaint\|Invalidate" internal/terminalui` 与
-     `internal/settingsui` 是入口。
-   - 验收：若拖拽每 tick 都重绘终端，加一个尾沿合并（140ms）并在文档记录；若即时模式已天然合并，
-     如实写明「无落点」。
+   - 本构建：终端由 mygo 逐帧绘制，透明度滑杆写的是 settings。
+   - **结论（P7-dq）**：两个理由说明它没有落点。(1) 原版合并的是**不改变任何像素**的
+     透明度（CSS 变量）；mygo 的 `SetFont`/`SetTheme`（`plugins/terminal/terminal.go:507,516`）只把
+     插件标脏，真正的重绘由**帧循环天然合并**（每一帧最多一次），没有原版那种「逐 tick 强制重绘」
+     的成本。 (2) 本构建的透明度滑杆在 **Settings 面**（`settingsui.go:2136` 的终端外观区），终端
+     面上没有任何透明度控件；把它烘进插件背景 alpha 的 `palette()`（`terminalui.go:1107`）只在
+     `Surf == SurfaceTerminal` 时应用，拖动透明度时根本走不到终端。加一个 140ms 的尾沿合并只是
+     给一个不存在的问题加复杂度，**不落地**（已在 P7-dq 记录）。
 
 ### 具体待办（P7-dn 重写；三条已全部落地：第 1·2 条 P7-dn、第 3 条 P7-do）
 

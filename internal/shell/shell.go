@@ -107,6 +107,10 @@ type Options struct {
 	// needed. The options come from the terminal surface, which owns the
 	// appearance mapping.
 	NewTerminal func(terminal.Options) (*terminal.Terminal, error)
+	// RefreshTerminal applies the current appearance to the running terminal
+	// sessions. Nil means the terminal surface's own Refresh; tests replace it
+	// so entering the surface can be observed without a native session.
+	RefreshTerminal func()
 	// Quit ends the app.
 	Quit func()
 	// WorkAreaHeight is the primary display's work area, for the settings
@@ -204,6 +208,9 @@ type App struct {
 	Launcher *launcher.App
 	Settings *settingsui.App
 	Terminal *terminalui.App
+	// refreshTerminal applies the current appearance to the running sessions;
+	// the terminal surface's own Refresh unless a test replaced it.
+	refreshTerminal func()
 
 	// Win is the window, created by Start.
 	Win *mygo.Window
@@ -879,6 +886,10 @@ func New(opts Options) *App {
 	termActions.Settings = func() { a.Terminal.ToggleDrawer() }
 	a.Terminal = terminalui.New(opts.Store, termActions, newTerminal)
 	a.Terminal.SnapshotPath = filepath.Join(paths.Root, "terminal-snapshot")
+	a.refreshTerminal = a.Terminal.Refresh
+	if opts.RefreshTerminal != nil {
+		a.refreshTerminal = opts.RefreshTerminal
+	}
 
 	// A settings change that touches the calculator's retention is applied to
 	// its store, so a smaller capacity or a shorter window takes effect now.
@@ -972,7 +983,7 @@ func New(opts Options) *App {
 				a.ApplyCustomShortcuts()
 			}
 			if a.Surf == SurfaceTerminal {
-				a.Terminal.Refresh()
+				a.refreshTerminal()
 			}
 			if a.Surf != SurfaceLauncher {
 				a.resize()
@@ -2540,6 +2551,14 @@ func (a *App) Open(s Surface) {
 		a.Settings.FocusSidebar()
 	case SurfaceTerminal:
 		a.Terminal.EnsureSession()
+		// A session that outlived a visit to another surface takes the
+		// appearance the user set while it was away. The reference's terminal
+		// view re-ran its font and theme effects whenever the surface was
+		// mounted again; this build's session is kept alive across surfaces, so
+		// the same rule is spelled on the way back in. The store listener only
+		// refreshes while the terminal is the active surface, so a change made
+		// on the settings page would otherwise never reach the live session.
+		a.refreshTerminal()
 		a.Terminal.FocusTerminal()
 	default:
 		a.Launcher.FocusSearch()
