@@ -2140,8 +2140,10 @@ func TestIntegrationExportAndImport(t *testing.T) {
 	})
 	a.RefreshIntegrations(context.Background())
 
+	copy := i18n.For("en").Settings
+
 	a.exportIntegrations()
-	waitForStatus(t, a)
+	waitForTransfer(t, a)
 	data, err := os.ReadFile(exportPath)
 	if err != nil {
 		t.Fatalf("the export was not written: %v", err)
@@ -2153,43 +2155,142 @@ func TestIntegrationExportAndImport(t *testing.T) {
 	if len(document.Extensions) != 1 || document.Extensions[0].ID != "io.github.vst93.v" {
 		t.Fatalf("document = %+v", document.Extensions)
 	}
-	if !strings.Contains(a.Settings.TransferStatus, "1 integrations exported") {
-		t.Errorf("status = %q", a.Settings.TransferStatus)
+	// A clean export is a success toast with the reference's sentence, not a
+	// line left on the page.
+	if toast := queuedToast(a, transferNoticeID); toast.Title != copy.IntegrationsExported(1) {
+		t.Errorf("the export toast reads %q, want %q", toast.Title, copy.IntegrationsExported(1))
+	} else if toast.Type != "success" {
+		t.Errorf("the export toast's kind = %q, want success", toast.Type)
 	}
 
-	// An import of the same document lands, and reports it.
-	a.Settings.TransferStatus = ""
+	// An import of the same document lands, and leaves its report on the page.
+	clearNotices(a)
 	a.importIntegrations()
-	waitForStatus(t, a)
-	if !strings.Contains(a.Settings.TransferStatus, "1 imported") {
-		t.Errorf("status = %q", a.Settings.TransferStatus)
+	waitForTransfer(t, a)
+	report := a.Settings.TransferReport
+	if report == nil || report.Succeeded != 1 || len(report.Failed) != 0 {
+		t.Fatalf("the import report = %+v", report)
+	}
+	if report.Path != exportPath {
+		t.Errorf("the report's path = %q, want %q", report.Path, exportPath)
 	}
 
-	// A file that is not a document is refused with a line, not a crash.
+	// A file that is not a document is refused with an error toast, not a
+	// crash and no report.
 	if err := os.WriteFile(exportPath, []byte("not a document"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	a.Settings.TransferStatus = ""
+	clearNotices(a)
+	a.Settings.TransferReport = nil
 	a.importIntegrations()
-	waitForStatus(t, a)
-	if a.Settings.TransferStatus != "The file is not an integrations export" {
-		t.Errorf("status = %q", a.Settings.TransferStatus)
+	waitForTransfer(t, a)
+	if a.Settings.TransferReport != nil {
+		t.Errorf("a refused import left a report: %+v", a.Settings.TransferReport)
+	}
+	if !noticeSays(a, copy.IntegrationsTransferBad) {
+		t.Error("the refusal toast is missing")
 	}
 }
 
-// waitForStatus waits for an export or import to leave its line.
-func waitForStatus(t *testing.T, a *App) {
+// TestTheTransferIsOneAtATime pins the reference's single-flight guard
+// (`syncOperationRef.current`): a second export press while one is in flight
+// does not open a second dialog, and the busy line is on the page until the
+// first one finishes.
+func TestTheTransferIsOneAtATime(t *testing.T) {
+	paths := integrationFixture(t)
+	exportPath := filepath.Join(t.TempDir(), "backup.json")
+	release := make(chan struct{})
+	entered := make(chan struct{})
+	dialogs := 0
+	a := New(Options{
+		Store:       settings.NewStore(settings.Default()),
+		Paths:       paths,
+		NewTerminal: func(terminal.Options) (*terminal.Terminal, error) { return nil, errors.New("no library in tests") },
+		SaveFileDialog: func(string) (string, error) {
+			dialogs++
+			close(entered)
+			<-release
+			return exportPath, nil
+		},
+	})
+	a.RefreshIntegrations(context.Background())
+
+	a.exportIntegrations()
+	if !a.transferRunningNow() {
+		t.Fatal("the first export never claimed the transfer slot")
+	}
+	if a.Settings.TransferBusy != "export" {
+		t.Errorf("the busy line = %q, want export", a.Settings.TransferBusy)
+	}
+	// The claim itself is refused while one is in flight.
+	if a.beginTransfer("export") {
+		t.Error("the transfer guard allowed a second claim")
+	}
+	// Wait until the first export is parked in its dialog, then press again.
+	<-entered
+	// The reference refuses the second press; nothing else opens a dialog.
+	a.exportIntegrations()
+	if dialogs != 1 {
+		t.Fatalf("the guard let %d dialogs through, want 1", dialogs)
+	}
+
+	close(release)
+	waitForTransfer(t, a)
+	if a.Settings.TransferBusy != "" {
+		t.Errorf("the busy line stayed %q after the transfer", a.Settings.TransferBusy)
+	}
+	if dialogs != 1 {
+		t.Errorf("a second export opened a dialog after the guard released: %d", dialogs)
+	}
+}
+
+// waitForTransfer waits for the one transfer slot to be free again, which is
+// the point at which the goroutine's toast and report are in place.
+func waitForTransfer(t *testing.T, a *App) {
 	t.Helper()
 	deadline := time.Now().Add(10 * time.Second)
 	for {
-		if a.Settings.TransferStatus != "" {
+		if !a.transferRunningNow() {
 			return
 		}
 		if time.Now().After(deadline) {
-			t.Fatal("the transfer never reported")
+			t.Fatal("the transfer never finished")
 		}
 		time.Sleep(5 * time.Millisecond)
 	}
+}
+
+// queuedToast finds the queued toast with the given id, empty when none is
+// waiting.
+func queuedToast(a *App, id string) ui.Toast {
+	a.noticeMu.Lock()
+	defer a.noticeMu.Unlock()
+	for _, toast := range a.notices {
+		if toast.ID == id {
+			return toast
+		}
+	}
+	return ui.Toast{}
+}
+
+// noticeSays reports whether a queued notice carries the sentence.
+func noticeSays(a *App, title string) bool {
+	a.noticeMu.Lock()
+	defer a.noticeMu.Unlock()
+	for _, toast := range a.notices {
+		if toast.Title == title {
+			return true
+		}
+	}
+	return false
+}
+
+// clearNotices drops anything queued so the next assertion sees only its own
+// toast.
+func clearNotices(a *App) {
+	a.noticeMu.Lock()
+	a.notices = nil
+	a.noticeMu.Unlock()
 }
 
 // A drop on the window becomes the files mode, with the paths normalized, and

@@ -3,29 +3,6 @@ package i18n
 import "strconv"
 
 // The custom-shortcut rejection sentence, which names the key and the reason.
-// The import report line: what landed, and what did not.
-func integrationsImportedEN(succeeded, failed, skipped int) string {
-	line := strconv.Itoa(succeeded) + " imported"
-	if failed > 0 {
-		line += ", " + strconv.Itoa(failed) + " failed"
-	}
-	if skipped > 0 {
-		line += ", " + strconv.Itoa(skipped) + " skipped"
-	}
-	return line
-}
-
-func integrationsImportedZH(succeeded, failed, skipped int) string {
-	line := "已导入 " + strconv.Itoa(succeeded) + " 个"
-	if failed > 0 {
-		line += "，失败 " + strconv.Itoa(failed)
-	}
-	if skipped > 0 {
-		line += "，跳过 " + strconv.Itoa(skipped)
-	}
-	return line
-}
-
 func shortcutsRejectedEN(key, reason string) string {
 	return "Could not bind " + key + ": " + reason
 }
@@ -512,8 +489,19 @@ var en = Copy{
 		ConfigNumber:                     "a number is expected",
 		IntegrationsExport:               "Export",
 		IntegrationsImport:               "Import",
-		IntegrationsExported:             func(count int, path string) string { return strconv.Itoa(count) + " integrations exported to " + path },
-		IntegrationsImported:             integrationsImportedEN,
+		IntegrationsExporting:            "Exporting…",
+		IntegrationsImporting:            "Importing…",
+		// The reference's `settings.extensions.exportedNotice`: the count, and
+		// why it is not everything (secrets and device paths never travel).
+		IntegrationsExported: func(count int) string {
+			return "Exported " + strconv.Itoa(count) + " integrations (secrets and device paths excluded)"
+		},
+		IntegrationsImportSummary: func(succeeded, skipped int) string {
+			return "Imported " + strconv.Itoa(succeeded) + ", unchanged " + strconv.Itoa(skipped)
+		},
+		IntegrationsImportExcludedFields: func(extensions string) string { return "Some fields were excluded during export: " + extensions },
+		IntegrationsImportFailedDetail:   func(failures string) string { return "Failed: " + failures },
+		IntegrationsImportFailedMore:     func(count int) string { return "and " + strconv.Itoa(count) + " more" },
 		IntegrationsTransferBad:          "The file is not an integrations export",
 		IntegrationsAdoptHint:            "This package directory has no record in the extension repository. Adopting grafts it in, with the same permission review an install has.",
 		IntegrationsDeleteOrphan:         "Delete",
@@ -1318,45 +1306,52 @@ var zh = Copy{
 		ConfigNumber:                     "这里要填数字",
 		IntegrationsExport:               "导出",
 		IntegrationsImport:               "导入",
-		IntegrationsExported: func(count int, path string) string {
-			return "已导出 " + strconv.Itoa(count) + " 个集成到 " + path
+		IntegrationsExporting:            "正在导出…",
+		IntegrationsImporting:            "正在导入…",
+		IntegrationsExported: func(count int) string {
+			return "已导出 " + strconv.Itoa(count) + " 个集成（secrets 和设备路径已排除）"
 		},
-		IntegrationsImported:     integrationsImportedZH,
-		IntegrationsTransferBad:  "这个文件不是集成导出文件",
-		IntegrationsAdoptHint:    "这个包目录在扩展仓库里没有记录。接管会把它正式登记进来，权限审查与安装一致。",
-		IntegrationsDeleteOrphan: "删除",
-		IntegrationsCommands:     "命令列表",
-		IntegrationsCommandsHint: "打开开关后即为「直出」：在搜索框输入命令名加空格呼出，随后输入的内容即为命令参数，命令输出直接显示在搜索界面。",
-		IntegrationsUnavailable:  "运行时不可用",
-		IntegrationsInstalled:    "已安装",
-		EditLabel:                "编辑\u2026",
-		LocalToolSave:            "保存",
-		ParamsTitle:              "参数",
-		ParamsHint:               "声明这个工具接受的输入。运行时会各自成为一个参数。",
-		ParamsEmpty:              "未声明——不带输入也能正常运行。",
-		ParamsAdd:                "添加输入",
-		ParamsRemove:             "移除",
-		ParamsID:                 "标识",
-		ParamsLabel:              "名称",
-		ParamsKind:               "类型",
-		ParamsFlag:               "旗标",
-		ParamsRequired:           "必填",
-		ParamsOptions:            "选项",
-		ParamsOptionsHint:        "每行一个。",
-		ParamsRow:                func(number int) string { return "输入 " + strconv.Itoa(number) },
-		ParamsKindText:           "文本",
-		ParamsKindNumber:         "数字",
-		ParamsKindBoolean:        "开关",
-		ParamsKindSelect:         "选项",
-		ParamsKindPath:           "路径",
-		RunLabel:                 "使用这些值运行",
-		RunOutputHint:            "这些值会作为独立参数传入。",
-		RunLastOutput:            "最近一次输出",
-		RunViewOutput:            "查看输出",
-		RunHideOutput:            "收起输出",
-		RunNoOutput:              "（无输出）",
-		RunOutputTruncated:       "输出已被截断",
-		RunOutputTruncatedTail:   "……输出已截断（上限 64KB）",
+		IntegrationsImportSummary: func(succeeded, skipped int) string {
+			return "已导入 " + strconv.Itoa(succeeded) + " 个，未变更 " + strconv.Itoa(skipped) + " 个"
+		},
+		IntegrationsImportExcludedFields: func(extensions string) string { return "部分字段在导出时已排除：" + extensions },
+		IntegrationsImportFailedDetail:   func(failures string) string { return "失败：" + failures },
+		IntegrationsImportFailedMore:     func(count int) string { return "及另外 " + strconv.Itoa(count) + " 个" },
+		IntegrationsTransferBad:          "这个文件不是集成导出文件",
+		IntegrationsAdoptHint:            "这个包目录在扩展仓库里没有记录。接管会把它正式登记进来，权限审查与安装一致。",
+		IntegrationsDeleteOrphan:         "删除",
+		IntegrationsCommands:             "命令列表",
+		IntegrationsCommandsHint:         "打开开关后即为「直出」：在搜索框输入命令名加空格呼出，随后输入的内容即为命令参数，命令输出直接显示在搜索界面。",
+		IntegrationsUnavailable:          "运行时不可用",
+		IntegrationsInstalled:            "已安装",
+		EditLabel:                        "编辑\u2026",
+		LocalToolSave:                    "保存",
+		ParamsTitle:                      "参数",
+		ParamsHint:                       "声明这个工具接受的输入。运行时会各自成为一个参数。",
+		ParamsEmpty:                      "未声明——不带输入也能正常运行。",
+		ParamsAdd:                        "添加输入",
+		ParamsRemove:                     "移除",
+		ParamsID:                         "标识",
+		ParamsLabel:                      "名称",
+		ParamsKind:                       "类型",
+		ParamsFlag:                       "旗标",
+		ParamsRequired:                   "必填",
+		ParamsOptions:                    "选项",
+		ParamsOptionsHint:                "每行一个。",
+		ParamsRow:                        func(number int) string { return "输入 " + strconv.Itoa(number) },
+		ParamsKindText:                   "文本",
+		ParamsKindNumber:                 "数字",
+		ParamsKindBoolean:                "开关",
+		ParamsKindSelect:                 "选项",
+		ParamsKindPath:                   "路径",
+		RunLabel:                         "使用这些值运行",
+		RunOutputHint:                    "这些值会作为独立参数传入。",
+		RunLastOutput:                    "最近一次输出",
+		RunViewOutput:                    "查看输出",
+		RunHideOutput:                    "收起输出",
+		RunNoOutput:                      "（无输出）",
+		RunOutputTruncated:               "输出已被截断",
+		RunOutputTruncatedTail:           "……输出已截断（上限 64KB）",
 		RunParamRequired: func(label string) string {
 			return "必填：运行前请填写 " + label
 		},

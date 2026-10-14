@@ -607,8 +607,13 @@ type App struct {
 	// shortcutsSuspended is the last state reported to the shell, so the
 	// recorder releases the global keys once and takes them back once.
 	shortcutsSuspended bool
-	// TransferStatus is what the last export or import said.
-	TransferStatus string
+	// TransferBusy is "export" or "import" while a transfer is in flight, and
+	// empty otherwise: the reference's `syncOperation`, which disables the two
+	// buttons and shows the busy line while one runs.
+	TransferBusy string
+	// TransferReport is what the last import did; nil until one runs, and
+	// cleared when the next transfer starts (the reference's `importReport`).
+	TransferReport *ImportReport
 
 	// Sidebar holds the page list's identity, its choice and its focus.
 	Sidebar ui.ListState
@@ -1319,26 +1324,40 @@ func (a *App) recommendedRow(c *ui.Context, copy i18n.Settings) {
 
 // transferRow is the export and import of the whole list: a backup of what is
 // installed and how it is configured, and the way back in on another machine.
+//
+// The reference's panel (`src/ExtensionsPanel.tsx:1206-1240,2300-2350`) puts
+// the pair behind one overflow menu, disables them while a transfer is in
+// flight, shows that transfer's busy line beside them, and renders the last
+// import's report under the row. This build keeps the two buttons in the row
+// (its one authoring row) but follows the same three states: disabled while
+// busy, one busy line, and the report block below.
 func (a *App) transferRow(c *ui.Context, copy i18n.Settings) {
 	t := c.Theme()
+	busy := a.TransferBusy != ""
 	ui.Row(c).FillWidth().Gap(t.Space(1)).AlignItems(ui.Center).
 		Padding(0, 0, t.Space(1), 0).Children(func() {
 		if a.Actions.ExportIntegrations != nil {
-			if a.actionButton(c, copy.IntegrationsExport).Clicked() {
-				a.TransferStatus = ""
+			if a.actionButton(c, copy.IntegrationsExport).Disabled(busy).Clicked() {
+				a.TransferReport = nil
 				a.Actions.ExportIntegrations()
 			}
 		}
 		if a.Actions.ImportIntegrations != nil {
-			if a.actionButton(c, copy.IntegrationsImport).Clicked() {
-				a.TransferStatus = ""
+			if a.actionButton(c, copy.IntegrationsImport).Disabled(busy).Clicked() {
+				a.TransferReport = nil
 				a.Actions.ImportIntegrations()
 			}
 		}
-		if a.TransferStatus != "" {
-			ui.Text(c, a.TransferStatus).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+		switch a.TransferBusy {
+		case "export":
+			ui.Text(c, copy.IntegrationsExporting).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+		case "import":
+			ui.Text(c, copy.IntegrationsImporting).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
 		}
 	})
+	if a.TransferReport != nil {
+		a.transferReport(c, copy)
+	}
 }
 
 // installRow is the npm install field: a package name, an optional version,

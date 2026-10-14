@@ -1621,15 +1621,15 @@ func TestPermissionAuditUnfolds(t *testing.T) {
 	}
 }
 
-// The Integrations page offers the export and import of the whole list, and
-// shows what the last one did.
+// The Integrations page offers the export and import of the whole list,
+// shows which one is running, and draws the last import's report.
 func TestIntegrationTransferButtons(t *testing.T) {
 	exported, imported := 0, 0
 	a := New(newStore(t), Actions{
 		ExportIntegrations: func() { exported++ },
 		ImportIntegrations: func() { imported++ },
 	})
-	tt := render(t, a, 720, 620)
+	tt := render(t, a, 720, 1600)
 	if err := tt.Click("Integrations"); err != nil {
 		t.Fatal(err)
 	}
@@ -1649,11 +1649,44 @@ func TestIntegrationTransferButtons(t *testing.T) {
 		t.Errorf("imported %d times", imported)
 	}
 
-	// The line the shell sets is what the page shows.
-	a.TransferStatus = "2 integrations exported to /tmp/backup.json"
+	// While a transfer runs the row says which one (the reference's busy line).
+	a.TransferBusy = "export"
 	tt.Frame()
-	if !tt.HasText("2 integrations exported to /tmp/backup.json") {
-		t.Errorf("the status line is missing: %q", tt.Texts())
+	if !tt.HasText("Exporting…") {
+		t.Errorf("the busy line is missing: %q", tt.Texts())
+	}
+	a.TransferBusy = "import"
+	tt.Frame()
+	if !tt.HasText("Importing…") {
+		t.Errorf("the import busy line is missing: %q", tt.Texts())
+	}
+	a.TransferBusy = ""
+
+	// A clean import leaves the reference's summary under the row.
+	a.TransferReport = &ImportReport{Path: "/tmp/backup.json", Succeeded: 4, Skipped: 1}
+	tt.Frame()
+	if !tt.HasText("Imported 4, unchanged 1") {
+		t.Errorf("the summary is missing: %q", tt.Texts())
+	}
+
+	// A failed import lists the first three failures by id: reason and the
+	// tail count, and warns about the fields the export left out.
+	a.TransferReport = &ImportReport{
+		Path: "/tmp/backup.json",
+		Failed: []TransferFailure{
+			{ID: "a", Reason: "no package"},
+			{ID: "b", Reason: "bad manifest"},
+			{ID: "c", Reason: "missing tool"},
+			{ID: "d", Reason: "denied"},
+		},
+		ExcludedFields: []ExcludedField{{ExtensionID: "a", FieldCount: 2}},
+	}
+	tt.Frame()
+	if !tt.HasText("Some fields were excluded during export: a") {
+		t.Errorf("the excluded-fields warning is missing: %q", tt.Texts())
+	}
+	if !tt.HasText("Failed: a: no package; b: bad manifest; c: missing tool (and 1 more)") {
+		t.Errorf("the failure detail is missing: %q", tt.Texts())
 	}
 }
 

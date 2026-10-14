@@ -263,6 +263,12 @@ type App struct {
 	// cannot stack probes (the reference's `try_start_drift_reprobe`).
 	driftMu      sync.Mutex
 	driftRunning bool
+	// transferMu/transferRunning guard the export/import flow: the reference's
+	// `syncOperationRef` ignores a second press while one transfer is in
+	// flight (the buttons are disabled too, but the guard is what makes the
+	// claim atomic with the action).
+	transferMu      sync.Mutex
+	transferRunning bool
 	// detached are the output windows the user pinned: each one stays up
 	// whatever the panel does (see detach.go).
 	detached []*detachedOutput

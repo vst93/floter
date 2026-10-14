@@ -184,6 +184,41 @@ func TestImportSyncInstallsAndConfigures(t *testing.T) {
 	}
 }
 
+// The import reports which entries had fields left out of the export, with the
+// count, so the page can warn that a secret or a device path will not come
+// back (the reference's `excluded_fields`, `sync.rs:377-386`). The warning is
+// collected before anything is applied, so it is present even for an entry the
+// import later fails on.
+func TestImportSyncReportsExcludedFields(t *testing.T) {
+	paths, _ := syncFixture(t)
+	document, err := ExportSync(paths)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fresh := FromRoot(t.TempDir())
+	if err := fresh.Ensure(); err != nil {
+		t.Fatal(err)
+	}
+	report, err := ImportSync(fresh, document, func([]PermissionApproval) bool { return true })
+	if err != nil {
+		t.Fatal(err)
+	}
+	var found *ExcludedFieldWarning
+	for i := range report.ExcludedFields {
+		if report.ExcludedFields[i].ExtensionID == "dev.floter.scripted" {
+			found = &report.ExcludedFields[i]
+		}
+	}
+	if found == nil {
+		t.Fatalf("no excluded-field warning for the entry with a secret and a device path: %+v", report.ExcludedFields)
+	}
+	// The fixture's scripted entry holds one secret (`api_token`) and one
+	// device path (`workdir`); the endpoint and retries travel.
+	if found.FieldCount != 2 {
+		t.Errorf("excluded field count = %d, want 2", found.FieldCount)
+	}
+}
+
 // Importing onto a machine that already has the integration keeps that
 // machine's secrets and only takes what the document carries.
 func TestImportSyncMergesIntoAnInstalledIntegration(t *testing.T) {

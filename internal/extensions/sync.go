@@ -90,6 +90,17 @@ type SyncReport struct {
 	Succeeded []string
 	Failed    []SyncFailure
 	Skipped   []SyncFailure
+	// ExcludedFields names the entries whose export left fields out: the
+	// document's own field metadata says which (the reference's
+	// `excluded_fields` warning, `sync.rs:377-386`).
+	ExcludedFields []ExcludedFieldWarning
+}
+
+// ExcludedFieldWarning is one entry an export left fields out of, and how
+// many.
+type ExcludedFieldWarning struct {
+	ExtensionID string
+	FieldCount  int
 }
 
 // SyncFailure is one entry an import could not apply.
@@ -293,6 +304,21 @@ func ImportSync(paths Paths, document SyncDocument, approve func([]PermissionApp
 
 	var approvals []PermissionApproval
 	for _, entry := range document.Extensions {
+		// The excluded-field warning is collected before anything is applied,
+		// for every entry the document names — even one that later fails — as
+		// the reference does (`sync.rs:377-386`).
+		excluded := 0
+		for _, field := range entry.FieldMetadata {
+			if field.Excluded {
+				excluded++
+			}
+		}
+		if excluded > 0 {
+			report.ExcludedFields = append(report.ExcludedFields, ExcludedFieldWarning{
+				ExtensionID: entry.ID,
+				FieldCount:  excluded,
+			})
+		}
 		if integration, ok := installed[entry.ID]; ok {
 			if err := applySyncEntry(paths, integration, entry); err != nil {
 				report.Failed = append(report.Failed, SyncFailure{ID: entry.ID, Reason: err.Error()})

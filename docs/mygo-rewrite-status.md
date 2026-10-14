@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1270 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1286 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1270 项测试
+go test -count=1 ./...         # 1286 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -100,7 +100,68 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-et F4g 第 4 条入口——漂移提示（原版 `src/ExtensionsPanel.tsx:2078-2132` 的
+> **最新一轮：P7-eu F4g 最后一条入口——导入导出的调用点（原版 `src/ExtensionsPanel.tsx:1206-1240`
+> 的 `exportExtensions`/`importExtensions` 与 `:2300-2385` 的报告块、
+> `src-tauri/src/commands/extensions.rs:1029-1215` 的 `extensions_export`/`extensions_import`、
+> `src-tauri/src/extensions/sync.rs:360-470` 的 `import_document`）** —— P7-et 收尾后「尚未做」清单
+> 点名的下轮最高优先级就是 **F4g 的导入导出对照**（唯一未逐函数对照的 F4g 入口），本轮取它。
+> 依赖检查：GitHub releases API 限流；`proxy.golang.org` 的 `@v/list` 最新仍是 **v0.4.8**
+> （只有 tag、无 release），`go.mod` 无版本可升；只对照 `main`（`backup/main-pre-mygo` = v0.3.14
+> 原版树），未翻历史提交。
+>
+> **偏离（F4g·import/export call point）**：原版这一点做了五件事——(1) 单飞行闸
+> `syncOperationRef.current`（同一时刻一个传输）；(2) `syncOperation` 非空时**禁用两个按钮**并在
+> 行内显示 `exporting`/`importing` 忙态；(3) 导出成功发 **success toast** `exportedNotice{count}`
+> （“Exported {count} integrations (secrets and device paths excluded)”）；(4) 导入成功把
+> `importReport` 渲染成**页面报告块**（`excludedFields` 警告 / `importRolledBack`+`importFailedDetail`+
+> `importFailedMore` 或 `importSummary{succeeded,skipped}`，`title` = 失败明细或路径）；(5) 任何错误走
+> `showError` **toast**。**本构建（改前）**：只有「两个按钮 + 一行 `TransferStatus`」，没有单飞行闸、
+> 没有忙态、导出成功只落一行文字、导入不渲染报告、错误也落同一行。
+>
+> **落地**：
+> - `internal/i18n`：新增 `IntegrationsExporting`（“Exporting…”）、`IntegrationsImporting`、
+>   `IntegrationsImportSummary`、`IntegrationsImportExcludedFields`、`IntegrationsImportFailedDetail`、
+>   `IntegrationsImportFailedMore`；`IntegrationsExported` 的签名由 `(count, path)` 改成原版
+>   `exportedNotice` 的逐字文案 `(count)`；删掉自造的 `IntegrationsImported` 与两个 helper
+>   （原版没有这条合并句子），逐字取 `i18n.ts:509-520`。
+> - `internal/extensions/sync.go`：`SyncReport` 新增 `ExcludedFields []ExcludedFieldWarning`，
+>   `ImportSync` 在应用任何条目之前按 `entry.FieldMetadata.Excluded` 收集（原版 `sync.rs:377-386`
+>   的位置），失败条目也算。
+> - `internal/shell/sync.go`：`beginTransfer`/`finishTransfer` 复刻原点位的单飞行闸
+>   （`syncOperationRef`）；忙态写 `Settings.TransferBusy`（`export`/`import`）；导出成功用
+>   `queueToast`（新 `transferNoticeID`，success，4s）发原版文案，失败用 `queueNotice` 发 error
+>   toast；导入完成用 `setTransferReport` 把 `settingsui.ImportReport` 留在页面上再
+>   `RefreshIntegrations`。
+> - `internal/settingsui/transfer.go`（新）：`ImportReport`/`TransferFailure`/`ExcludedField` 与
+>   `transferReport`/`transferNotice`（excluded 警告 / 前三条失败 `id: reason` + “and N more” /
+>   summary）。`internal/settingsui/settingsui.go` 的 `transferRow` 改为：忙时两个按钮 `.Disabled`、
+>   行内显示忙态文案、行下渲染报告块；`TransferStatus` 字段换成 `TransferBusy`/`TransferReport`。
+> - **有意偏离**：原版导入是**全或无**，失败即整体回滚，其失败通知以 `importRolledBack`
+>   （“Import failed and all changes were rolled back”）打头。本构建的 `ImportSync` 按条应用
+>   （P3-l 的语义，已写进 plan），失败**不回滚**已落地的条目，故失败通知只给原版的
+>   `importFailedDetail`/`importFailedMore`，不加会撒谎的 `rolledBack` 抬头——记为本轮有意偏离。
+>
+> **验收**：
+> - `internal/extensions/sync_test.go` 的 `TestImportSyncReportsExcludedFields`：导出的文档带回
+>   `fieldMetadata`，导入报告的 `ExcludedFields` 命中带密钥与设备路径的条目且计数为 2。
+> - `internal/settingsui/view_test.go` 的 `TestIntegrationTransferButtons`（改写）：忙态显示
+>   “Exporting…”/“Importing…”，干净导入显示 `Imported 4, unchanged 1`，失败导入显示 excluded 警告
+>   与 `Failed: a: …; b: …; c: … (and 1 more)`。
+> - `internal/shell/shell_test.go` 的 `TestIntegrationExportAndImport`（改写）：导出后的 toast 文案 =
+>   原版 `exportedNotice` 且类型 success；导入后 `TransferReport` 的 path/succeeded 正确；坏文件只发
+>   error toast、不留报告。`TestTheTransferIsOneAtATime`：忙时 `beginTransfer` 第二次被拒、第二次
+>   `exportIntegrations` 不再开文件对话框、传输结束后忙态清空。
+> - 变异核查：删掉 `transferRow` 末尾的报告块 → settingsui 三条断言红；放开 `beginTransfer` 的 guard
+>   → `TestTheTransferIsOneAtATime` 红（“the transfer guard allowed a second claim”）。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：**F4g 五条入口全部对照落地**（安装文件夹 P7-eq、权限审批 P7-er、运行工具选择
+> P7-es、输出回看 P7-et、导入导出 P7-eu）；「尚未做」只剩 **F-new**（脚本编辑器换 `ui/editor`）。
+> 下轮最高优先级是 **F-new**，或回到 `localToolSection`/`runForm` 等其他入口的逐函数审计。
+
+> **上一轮：P7-et F4g 第 4 条入口——漂移提示（原版 `src/ExtensionsPanel.tsx:2078-2132` 的
 > `handleDriftNotice`、`src-tauri/src/extensions/install.rs:843-975` 的
 > `reprobe_on_tool_version_change`、`src-tauri/src/commands/extensions.rs:139-188` 的
 > `dispatch_drift_reprobe`）** —— P7-es 收尾后「尚未做」清单里文档点名的下轮最高优先级就是
@@ -4854,9 +4915,10 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-> **清单状态（P7-et 收尾）**：本轮取 P7-es 点名的 F4g 第 4 条入口（漂移提示）落地，见上文 P7-et
-> 记录与文末 F4g 条目。F4g 至此只剩**导入导出**一条未对照。依赖检查见「最近几轮」P7-et，无版本可升，
-> 只对照 `main`。下轮最高优先级：**F4g 的导入导出对照**；之后 **F-new**（脚本编辑器换 `ui/editor`）。
+> **清单状态（P7-eu 收尾）**：本轮取 P7-et 点名的 F4g 最后一条入口（导入导出的调用点）落地，见上文
+> P7-eu 记录与文末 F4g 条目。**F4g 五条入口至此全部对照落地**（P7-eq/P7-er/P7-es/P7-et/P7-eu）。
+> 依赖检查见「最近几轮」P7-eu，无版本可升，只对照 `main`。下轮最高优先级：**F-new**（脚本编辑器换
+> `ui/editor`）；或回到 `localToolSection`/`runForm` 等其他入口的逐函数审计。
 
 ### 具体待办（P7-ee 重写；第 1·2·3 条全部落地：第 1 条 P7-ee、第 2·3 条 P7-ef）
 
@@ -7503,7 +7565,7 @@ Go 侧把原版的三条规则写偏了。依赖检查：`go list -m -versions g
   `extensions_repair` 一支 P7-ep）；F4f 由 P7-eo 落地；F3a/F3b 由 P7-em/P7-en 落地。余下 **F4g**（逐
   入口对照）与 **F-new**（脚本编辑器）——已写成文末「具体待办（P7-el 重写）」的条目。
 
-### 具体待办（P7-el 重写；F3a 已由 P7-em 落地、F3b 已由 P7-en 落地、F4f 已由 P7-eo 落地、F4e 的 repair 一支已由 P7-ep 落地、F4g 第 1·2·3·4 条入口已由 P7-eq/P7-er/P7-es/P7-et 落地，余下 F4g 导入导出/F-new）
+### 具体待办（P7-el 重写；F3a P7-em、F3b P7-en、F4f P7-eo、F4e 的 repair 一支 P7-ep、F4g 第 1·2·3·4·5 条入口 P7-eq/P7-er/P7-es/P7-et/P7-eu 全部落地，余下 F-new）
 
 P7-ej/P7-ek 之后清单上只剩 F3a（一个待决策的分叉）与 F3b（已实测标为「先决于 F3a」）。P7-el 按规则
 把清单写实为五条带 file:line / 原版对照 / 验收标准的待办，并取其中新查出的真实缺口（F4e）落地。
@@ -7519,9 +7581,11 @@ P7-er 记录）：推荐工具的 connect 现在先出两层权限审阅（标�
 （运行工具选择，见上文 P7-es 记录）：清单 `executableNames` 命中多个程序时先弹 `chooseSystemTool`
 （标题 / hint / 每个候选名称+路径+来源），选中路径交给 connect 或 reconnect。**P7-et 取 F4g 的第 4 条
 入口并落地**（漂移提示，见上文 P7-et 记录）：列表驱动的版本漂移检查（后台单飞行循环）在工具版本移
-动时重生成命令表，并对**真实变化**弹一条 `reprobeNotice` toast（带 `viewDetails` 动作）。**下轮最高优先级是
-F4g 的最后一条入口**（导入导出的调用点：原版 `extensions_export` / `extensions_import`），
-除非 F4g 的对照先查出新缺口。下面每条的「原版对照」都只读 `main`（v0.3.14 原版树）。
+动时重生成命令表，并对**真实变化**弹一条 `reprobeNotice` toast（带 `viewDetails` 动作）。**P7-eu 取
+F4g 的最后一条入口并落地**（导入导出的调用点，见上文 P7-eu 记录）：单飞行闸 + 忙态行/禁用按钮 + 导出
+success toast（原版 `exportedNotice`）+ 导入报告块（excluded 警告/失败明细/summary）。**F4g 至此收口，
+下轮最高优先级是 F-new**（脚本编辑器换 `ui/editor`）。下面每条的「原版对照」都只读 `main`
+（v0.3.14 原版树）。
 
 #### F4e · 已连接卡片的修复入口（**全部落地：Reconnect 一支 P7-el、repair 一支 P7-ep**）
 
@@ -7597,8 +7661,13 @@ F4g 的最后一条入口**（导入导出的调用点：原版 `extensions_expo
     `RefreshIntegrations` 末尾接线；判定与 gate 用已落地的 `extensions.DecideDriftNotice`。
     **残留（有意偏离）**：行数据来自磁盘刷新而非原版的 `setExtensions` 就地改写；
     `viewDetails` 动作落到 Integrations 页而非逐集成抽屉（本构建无抽屉）。
-  - 导入导出：`extensions_export` / `extensions_import` 的调用点（`onImport`/`onExport` 一带）——
-    **下轮最高优先级**（唯一未逐函数对照的 F4g 入口）。
+  - 导入导出：`extensions_export` / `extensions_import` 的调用点（`onImport`/`onExport` 一带）；
+    —— **已落地 P7-eu**（见上）：`internal/settingsui/transfer.go` 的 `ImportReport`/`transferReport`、
+    `internal/shell/sync.go` 的 `beginTransfer`/`finishTransfer`（单飞行闸）/导出 success toast/导入
+    报告块，`internal/extensions/sync.go` 的 `SyncReport.ExcludedFields`；文案逐字取
+    `i18n.ts:509-520`。**残留（有意偏离）**：原版导入全或无（失败回滚，失败通知以 `importRolledBack`
+    打头），本构建 `ImportSync` 按条应用（P3-l），失败不回滚，故失败通知只给原版的
+    `importFailedDetail`/`importFailedMore`，不加回滚抬头。
 - **本构建入口**：`internal/settingsui/settingsui.go` 的 `localToolSection`（`:2860` 一带）、
   `installationReview`/`InstallFromFolder`、`confirmInstallPermissions`（shell）、
   `permissionAudit`（`:1741`）、`runForm`/`runOutput`、`importIntegrations`/`exportIntegrations`（shell）。
@@ -7606,8 +7675,9 @@ F4g 的最后一条入口**（导入导出的调用点：原版 `extensions_expo
   要么写成 F4g-n 的具体条目。**验收**：每条至少一条测试（对已有等价实现的条目，测试写「原版那句话/那个
   状态在本构建的哪个函数被谁读」）。
 - **注意**：这是**对照任务**，不要一次性大改；每轮只取一条入口（与 F4a–F4e 的节奏一致）。
-- **剩余**（仅一条）：导入导出的调用点。对照完即 F4g 收口；之后回到 `localToolSection` /
-  `runForm` 等其他入口的逐函数审计，或取 f-new（脚本编辑器）。
+- **剩余**：无——F4g 五条入口（安装文件夹 P7-eq、权限审批 P7-er、运行工具选择 P7-es、输出回看
+  P7-et、导入导出 P7-eu）**全部对照落地**。余下最高优先级是 **F-new**（脚本编辑器换 `ui/editor`）；
+  或回到 `localToolSection` / `runForm` 等其他入口的逐函数审计。
 
 #### F3a · 控件透镜（**本轮落地，P7-em**；原版有一份可逐条对齐的 lens census）
 

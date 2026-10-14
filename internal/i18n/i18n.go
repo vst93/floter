@@ -614,15 +614,26 @@ type Settings struct {
 	ConfigSaved    string
 	ConfigRequired string
 	ConfigNumber   string
-	// The export and import of the integration list.
-	IntegrationsExport       string
-	IntegrationsImport       string
-	IntegrationsExported     func(count int, path string) string
-	IntegrationsImported     func(succeeded, failed, skipped int) string
-	IntegrationsTransferBad  string
-	IntegrationsAdoptHint    string
-	IntegrationsDeleteOrphan string
-	IntegrationsCommandsHint string
+	// The export and import of the integration list. Exporting/Importing are the
+	// busy lines shown while a transfer is in flight (the reference's
+	// `settings.extensions.exporting` / `.importing`).
+	IntegrationsExport      string
+	IntegrationsImport      string
+	IntegrationsExporting   string
+	IntegrationsImporting   string
+	IntegrationsExported    func(count int) string
+	IntegrationsTransferBad string
+	// The import report's lines, from the reference's
+	// `settings.extensions.import*` keys: the summary of a clean run, the
+	// warning that some fields were left out of the export, and the two pieces
+	// of a failure notice (the detail and its "and N more" tail).
+	IntegrationsImportSummary        func(succeeded, skipped int) string
+	IntegrationsImportExcludedFields func(extensions string) string
+	IntegrationsImportFailedDetail   func(failures string) string
+	IntegrationsImportFailedMore     func(count int) string
+	IntegrationsAdoptHint            string
+	IntegrationsDeleteOrphan         string
+	IntegrationsCommandsHint         string
 	// The command alias editor: the field's label, its placeholder and the
 	// note that another command claimed the alias first.
 	IntegrationsReprobe   string
