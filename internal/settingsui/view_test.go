@@ -282,6 +282,38 @@ func TestInterfaceSizeSitsWithAppearance(t *testing.T) {
 	}
 }
 
+// The Appearance card's segmented rows are the reference's stacked rows: the
+// label and its hint above, the choice on its own full-width line under them
+// (`GeneralPage.tsx:340,356,382`, `.settings-row--stacked` in
+// `src/styles/settings.css:557-577`). Before this the segmented control sat in
+// the row's trailing slot, squeezed against the right edge.
+func TestAppearanceChoicesStackUnderTheirLabels(t *testing.T) {
+	copy := i18n.For("en").Settings
+	a := New(newStore(t), Actions{})
+	tt := render(t, a, 720, 2800)
+
+	for _, row := range []struct {
+		name     string
+		label    string
+		segments []string
+	}{
+		{"theme", copy.ThemeHint, []string{copy.Themes[0].Label, copy.Themes[len(copy.Themes)-1].Label}},
+		{"language", copy.Language, []string{copy.Languages[0].Label, copy.Languages[1].Label}},
+		{"interface size", copy.Scale, []string{copy.Scales[0].Label, copy.Scales[len(copy.Scales)-1].Label}},
+	} {
+		label := mustFind(t, tt, row.label)
+		first := mustFind(t, tt, row.segments[0])
+		last := mustFind(t, tt, row.segments[1])
+		if first.Y < label.Y+label.H {
+			t.Errorf("the %s choice at %v is not under its label at %v: still a trailing control", row.name, first, label)
+		}
+		span := last.X + last.W - first.X
+		if span < label.W/2 {
+			t.Errorf("the %s choice spans %.0f, under half the row's %.0f: not the stacked full width", row.name, span, label.W)
+		}
+	}
+}
+
 // mustFind is Find for a row the caller already knows is on the page.
 func mustFind(tb testing.TB, tt *ui.Tester, text string) ui.Rect {
 	tb.Helper()

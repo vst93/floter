@@ -255,6 +255,33 @@ func (a *App) rowAligned(c *ui.Context, align ui.Align, label string, sublabels 
 	return clicked
 }
 
+// stackedRow is a card row whose control wants the row's full width: the
+// label and its grey second line above, the control under them, as the
+// reference's `.settings-row--stacked` did for a range or a segmented row
+// (the two controls wider than a trailing slot can hold). It draws the same
+// rule above itself as any other row, through the same card-row counter, so a
+// stacked row and a trailing row sit in one card without saying which is
+// last.
+func (a *App) stackedRow(c *ui.Context, label, sublabel string, control func()) {
+	tokens := a.tokens(c)
+	t := c.Theme()
+	inset := t.Space(3.5)
+	first := a.cardRows == 0
+	a.cardRows++
+	ui.Column(c).FillWidth().Children(func() {
+		if !first {
+			ui.Box(c).FillWidth().Height(1).Background(tokens.Hairline).MarginX(inset).Shrink(0)
+		}
+		ui.Column(c).FillWidth().Gap(t.Space(1)).Padding(t.Space(1.5), inset).Children(func() {
+			ui.Text(c, label).FontSize(t.FontSize).FontWeight(580).TextColor(tokens.TextStrong)
+			if sublabel != "" {
+				ui.Text(c, sublabel).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+			}
+			control()
+		})
+	})
+}
+
 // sectionWithAction is a section whose title row carries the group's own
 // action at its end, baseline-aligned with the title: the reference pane's
 // "Restore defaults" idiom (`.settings-section__heading-actions`).

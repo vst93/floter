@@ -282,29 +282,6 @@ func (a *App) sheetAction(c *ui.Context, sheet PluginSheet, field plugincfg.Fiel
 	}
 }
 
-// stackedRow is a card row whose control wants the row's full width: the
-// label and its help above, the control under them. It is the settings
-// pages' range row shape, shared by the kinds that need it.
-func (a *App) stackedRow(c *ui.Context, label, help string, control func()) {
-	tokens := a.tokens(c)
-	t := c.Theme()
-	inset := t.Space(3.5)
-	first := a.cardRows == 0
-	a.cardRows++
-	ui.Column(c).FillWidth().Children(func() {
-		if !first {
-			ui.Box(c).FillWidth().Height(1).Background(tokens.Hairline).MarginX(inset).Shrink(0)
-		}
-		ui.Column(c).FillWidth().Gap(t.Space(1)).Padding(t.Space(1.5), inset).Children(func() {
-			ui.Text(c, label).FontSize(t.FontSize).FontWeight(580).TextColor(tokens.TextStrong)
-			if help != "" {
-				ui.Text(c, help).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
-			}
-			control()
-		})
-	})
-}
-
 // optionsOf converts a schema's choices to the settings pages' option shape,
 // so one dropdown helper serves both.
 func optionsOf(options []plugincfg.Option) []i18n.Option {

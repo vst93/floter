@@ -2807,7 +2807,10 @@ func (a *App) general(c *ui.Context, copy i18n.Settings) {
 }
 
 // pick builds one labeled segmented choice: options[i].Label stands for
-// options[i].ID.
+// options[i].ID. The reference draws every segmented row stacked
+// (`GeneralPage.tsx:340,356,382,516,568` and `TerminalAppearance.tsx:388`), so
+// the choice sits on its own full-width line under the label rather than in a
+// trailing slot.
 func (a *App) pick(c *ui.Context, label, description string, options []i18n.Option, current string, apply func(string)) {
 	index := optionIndex(options, current)
 	labels := make([]string, len(options))
@@ -2815,7 +2818,7 @@ func (a *App) pick(c *ui.Context, label, description string, options []i18n.Opti
 		labels[i] = option.Label
 	}
 	chosen := ""
-	a.row(c, label, description, func() {
+	a.stackedRow(c, label, description, func() {
 		a.segmented(c, labels, index, func(i int) {
 			if i >= 0 && i < len(options) {
 				chosen = options[i].ID
@@ -2829,9 +2832,11 @@ func (a *App) pick(c *ui.Context, label, description string, options []i18n.Opti
 
 // segmented is the reference's inline segmented control, drawn from the one
 // shared implementation (`control.Segmented`) so the terminal's appearance
-// drawer cannot drift into a second shape for the same choice.
+// drawer cannot drift into a second shape for the same choice. Its callers are
+// the stacked rows (the settings picks and the plugin-sheet radio), where the
+// reference's control spans the row, so it takes the full-width form.
 func (a *App) segmented(c *ui.Context, labels []string, current int, apply func(int)) {
-	control.Segmented(c, a.tokens(c), labels, current, apply)
+	control.SegmentedFill(c, a.tokens(c), labels, current, apply)
 }
 
 // choose builds one labeled drop-down choice, for lists too long to line up

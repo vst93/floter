@@ -20,9 +20,27 @@ import (
 //
 // labels[i] stands for option i; apply runs with the index the user chose.
 func Segmented(c *ui.Context, tokens theme.Tokens, labels []string, current int, apply func(int)) {
+	segmented(c, tokens, labels, current, apply, false)
+}
+
+// SegmentedFill is Segmented at the row's full width: the reference's stacked
+// segmented row (`.settings-row--stacked .settings-row__control` plus the
+// inline track's `repeat(auto-fit, minmax(0, 1fr))`), where the track spans the
+// card and the segments share the line. The trailing form sizes to its labels;
+// this one is the choice under its own label.
+func SegmentedFill(c *ui.Context, tokens theme.Tokens, labels []string, current int, apply func(int)) {
+	segmented(c, tokens, labels, current, apply, true)
+}
+
+// segmented is the one implementation both forms share; fill only changes how
+// the track and its segments take their width.
+func segmented(c *ui.Context, tokens theme.Tokens, labels []string, current int, apply func(int), fill bool) {
 	t := c.Theme()
 	track := ui.Row(c).Shrink(0).Padding(t.Space(0.5)).Gap(t.Space(0.5)).Radius(999).
 		Background(tokens.Track)
+	if fill {
+		track.FillWidth()
+	}
 	// The track is a groove the user looks into: the recessed lens, the same
 	// stack the raised panes carry read backwards (see `theme.Tokens.LensInset`,
 	// base.css's `--elev-track` / `--glass-lens-stack-inset`).
@@ -32,6 +50,9 @@ func Segmented(c *ui.Context, tokens theme.Tokens, labels []string, current int,
 			i, label := i, label
 			segment := ui.Row(c).Focusable().Padding(t.Space(0.75), t.Space(2.25)).
 				Radius(999).AlignItems(ui.Center).Justify(ui.Center).Label(label)
+			if fill {
+				segment.Grow(1)
+			}
 			switch {
 			case i == current:
 				// The chosen segment is a raised pane: the resting raised lens
