@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1321 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1322 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1321 项测试
+go test -count=1 ./...         # 1322 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -100,7 +100,49 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-fg 集成行的 Run 按钮——无参数直接跑、有参数展开表单、Cancel 收起
+> **最新一轮：P7-fh 停用确认条回到原版的横条与词（原版 `src/extensions/DisableConfirmation.tsx:60-68`）**
+> ——P7-fg 收尾后「具体待办（P7-ff 重写）」两条全部结清、清单归零；本轮按审计入口
+> `main:src/extensions/DisableConfirmation.tsx`（`src/extensions/` 下最后一个尚未逐字段对照的组件）
+> 逐字段比对，把清单重写为 3 条带 file:line 的具体待办（见文末「具体待办（P7-fh 重写）」），取第 1 条
+> 落地。依赖检查：`go list -m -versions github.com/egoist/mygo` 与 GitHub releases API 都是
+> **v0.4.8**（与 `go.mod` 一致），无版本可升、无新 API 用点；只对照 `main`
+> （`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离（P7-fh·停用确认条的形状与词）**：原版 `DisableConfirmation.tsx` 是一条**横向通知条**
+> （`:60` 的 `className="extensions-notice extension-discard-bar"`）：一个 `AlertCircle` 15px 图标打头
+> （`:61`），接着**一个** `<span>` 把标题与后果连成一句（`:63-64` 的
+> `{disableTitle} {disableDescription}`，整句都是 `--text-secondary`，标题并不加粗），右边同排 Cancel
+> （`:66`，`settings.extensions.cancel`）与 confirm（`:67-68`，`settings.extensions.disable` =
+> “Disable integration”/“禁用集成”，带 `PowerOff` 14px 图标）；description 逐字 “Floter will stop any
+> running commands immediately. This only marks the integration as disabled — its files and data are
+> kept, and you can re-enable it at any time.”（`i18n.ts:504`）。**本构建（改前）**：
+> `internal/settingsui/settingsui.go` 的 `disableConfirmation` 是一个**纵向卡片**（`ui.Column`：加粗
+> 标题一行 + 弱化描述一行 + 按钮行），没有前导图标，confirm 的词是自造的 “Disable”/“停用”，英文
+> description 是意译（“Floter stops any running command at once…”）。
+>
+> **落地**：
+> - `internal/settingsui/settingsui.go` 的 `disableConfirmation` 改成横条：`ui.Row` + 居中的
+>   `mustGlyph("alert")`（15px，`TextSecondary`）+ 一个 `ui.Text` 把 `DisableTitle(name)` 与
+>   `DisableDescription` 用空格连成一句（`Grow(1)`，`TextSecondary`）+ 同排 Cancel/Disable 两个按钮；
+>   内边距/外边距按 `.extension-discard-bar`（`padding: 8px 10px`、`margin: 0 12px`）。
+> - `internal/i18n`：`DisableDescription` 改成原版逐字英文；`DisableConfirm` 改成
+>   `settings.extensions.disable` = “Disable integration”/“禁用集成”。
+>
+> **验收**：`internal/settingsui/disablebar_test.go` 新增 `TestDisableBarIsOneNoticeSentence`——
+> 打开停用确认后，整句（标题 + 逐字后果）是**一个**文本节点（旧卡片的两个节点拼不出这句）、
+> `Find("Disable integration")` 命中（旧词 “Disable” 不命中）、两个按钮与整句在**同一行且在其右侧**、
+> 点 confirm 落到 `SetIntegrationEnabled(id, false)`。`view_test.go:1010` 的
+> `Click("Disable")` 随之改成 `Click("Disable integration")`；`TestDisableAsksFirst` 与
+> `TestIntegrationsPage` 的 `HasText("Disable V Tools?")` 是子串匹配，保持绿。变异核查：把
+> `disableConfirmation` 改回 `ui.Column`（标题与描述两个 `ui.Text`）→ 第一条立刻红（整句节点不存在）。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿（1322 项）、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：第 1 条（P7-fh）落地；「具体待办（P7-fh 重写）」现有 3 条带 file:line 的具体待办，
+> 第 2 条（删除确认条也走同一条横条）是下轮最高优先级。
+
+> **上一轮：P7-fg 集成行的 Run 按钮——无参数直接跑、有参数展开表单、Cancel 收起
 > （原版 `src/extensions/ExtensionRow.tsx:381-399,459-471`、`src/ExtensionsPanel.tsx:1712-1744`、
 > `src/extensions/RunParamForm.tsx:96-99`）**
 > ——P7-ff 把「尚未做」重写为 2 条带 file:line 的具体待办并落地第 1 条（表单的框），本轮取剩下的最高
@@ -8433,3 +8475,57 @@ P7-fe 收尾后「尚未做（P7-fb 重写）」归零。P7-ff 按审计入口 `
 - **残留（随本条的取舍记录）**：原版表单值来自 `runParamMemory`（会话内存，仅在**新打开**表单时
   `seedParamValues`），本构建的 `a.runValues[id]` 常驻且不因关闭重置。收起/展开时是否重置为默认值，
   在本条一起决定并写进注释（本构建常驻编辑态、不丢用户输入，倾向保留）。
+
+### 具体待办（P7-fh 重写；第 1 条 P7-fh 已落地；余下第 2、3 条）
+
+P7-fg 收尾后「具体待办（P7-ff 重写）」归零。本轮按审计入口 `main:src/extensions/DisableConfirmation.tsx`
+（`src/extensions/` 下最后一个尚未逐字段对照的组件；其余七个组件都已在前几轮对照落地）逐字段比对，
+把清单重写为下面 3 条带 file:line / 原版对照 / 验收标准的具体待办，并取第 1 条落地。
+
+#### F-disable-1 · 停用确认条回到原版的横条与词（**本轮落地，P7-fh**）
+
+- **原版对照**：`main:src/extensions/DisableConfirmation.tsx` —— `:60` 的
+  `className="extensions-notice extension-discard-bar"`（横条：`AlertCircle` 15px + **一个** `<span>`
+  连成一句 + 同排 Cancel/Disable）；`:63-64` 的
+  `{t("settings.extensions.disableTitle", {name})}{" "}{t("settings.extensions.disableDescription")}`；
+  `:66` 的 Cancel 用 `settings.extensions.cancel`；`:67-68` 的 confirm 用 `settings.extensions.disable`
+  （“Disable integration”/“禁用集成”）并带 `PowerOff` 14px 图标。CSS：`src/styles/extensions.css:146-172`
+  的 `.extensions-notice`（`color: --text-secondary`、`background: --glass-control`、`padding: 8px 12px`）
+  与 `:2455-2460` 的 `.extension-discard-bar`（`margin: 0 12px; padding: 8px 10px`）。
+- **本构建（改前偏离）**：`internal/settingsui/settingsui.go` 的 `disableConfirmation` 是纵向卡片
+  （`ui.Column`：加粗标题 + 弱化描述 + 按钮行）；无前导图标；confirm 词自造 “Disable”/“停用”；
+  英文 description 意译（`internal/i18n/copy.go:662`）。
+- **落地 file:line（已按此落地）**：`internal/settingsui/settingsui.go` 的 `disableConfirmation`
+  改横条（`ui.Row` + `mustGlyph("alert")` + 一个 `ui.Text` 连成一句 + 同排两个 `ui.Button`）；
+  `internal/i18n/copy.go` 的 `DisableDescription`（en 逐字）、`DisableConfirm`（en/zh = “Disable
+  integration”/“禁用集成”）。详见「最近几轮」P7-fh 记录。
+- **验收（已过）**：`internal/settingsui/disablebar_test.go` 的 `TestDisableBarIsOneNoticeSentence`
+  （整句一个文本节点 + confirm 逐字词 + 两个按钮同排且在其右 + 点 confirm 落动作）；
+  `view_test.go:1010` 的 `Click("Disable")` 改 `Click("Disable integration")`。
+
+#### F-disable-2 · 删除确认条也走同一条横条（下轮最高优先级）
+
+- **原版对照**：`main:src/extensions/RemovalConfirmation.tsx:40-44` 与 `DisableConfirmation.tsx` 共用
+  同一个 `.extensions-notice .extension-discard-bar` 横条形状（删除条多一个 `--error` 底色与
+  `extensions-action-button--danger` 危险按钮），只是文案按 kind 不同（P7-eo 已落地文案）。
+- **本构建**：`internal/settingsui/settingsui.go` 的 `removeConfirmation` 仍是纵向卡片（P7-cf 当年
+  「照抄停用确认的页内形状」，而当时停用条本身就是卡片）。P7-fh 把停用条改成横条后，两条确认条形状
+  不再一致。
+- **落地 file:line**：把 P7-fh 在 `disableConfirmation` 里写的横条抽成一个共享 helper（例如
+  `func (a *App) noticeBand(c *ui.Context, glyph *ui.SVG, sentence string, actions func())`），
+  `removeConfirmation` 改用它（图标仍取 alert，句子仍是 `title + " " + detail`，危险按钮仍在最后）。
+- **验收**：`internal/settingsui/disablebar_test.go` 再加一条删除条的同形状断言（整句一个节点、两个
+  按钮同排且危险按钮在最后），既有 `TestEachRemovalConfirmationAsksItsOwnQuestionOnScreen` /
+  `TestGeneratedIntegrationRemovalBar` / `TestIntegrationsPage` 的 `Click("Remove package")` 段
+  （先问 → Cancel → 再问 → 危险按钮）保持绿。变异核查：把 helper 换回 `ui.Column` → 新条红。
+
+#### F-disable-3 · 两条确认条共享一个 Cancel 词（低优先级）
+
+- **原版对照**：原版 Cancel 都取同一个键 `settings.extensions.cancel`（`i18n.ts:554`）；本构建把它拆成
+  两个字段 `DisableCancel`（`internal/i18n/copy.go:663`）与 `RemoveCancel`（同文件），两个值恰好都是
+  “Cancel”/“取消”。
+- **落地 file:line**：`internal/i18n/i18n.go` 合并为一个 `IntegrationsCancel`，`copy.go` en/zh 各留
+  一份，`settingsui.go` 两处调用点改读它。
+- **验收**：`internal/i18n` 的结构化 Copy 缺字段会在编译期报错，无需新测试；一条像素测试钉住两条确认
+  条的 Cancel 文案相等（可复用 F-disable-2 的 helper 断言）。
+- **说明**：这是代码整洁度，不是可见偏离（两个值本就相同），故排在最后。

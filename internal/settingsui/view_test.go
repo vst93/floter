@@ -1007,7 +1007,7 @@ func TestIntegrationsPage(t *testing.T) {
 	if !tt.HasText("Disable V Tools?") {
 		t.Fatalf("the confirmation is missing: %q", tt.Texts())
 	}
-	if err := tt.Click("Disable"); err != nil {
+	if err := tt.Click("Disable integration"); err != nil {
 		t.Fatalf("the confirm button: %v", err)
 	}
 	tt.Frame()

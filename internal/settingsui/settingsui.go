@@ -3954,17 +3954,26 @@ func (a *App) requestDisable(id string) {
 // disableConfirmation is the notice under an integration's switch: stopping it
 // is a mark, not a delete — the files and data stay, and it can be turned back
 // on whenever the user likes — but whatever it is running stops at once, so
-// the question is asked rather than assumed.
+// the question is asked rather than assumed. It is the reference's own
+// horizontal band, not a stacked card (`DisableConfirmation.tsx`): a leading
+// alert mark, then one sentence holding the title and the consequence together
+// (`{disableTitle} {disableDescription}`), then Cancel and the Disable action
+// on the same row — the shape `.extension-discard-bar` gave every inline
+// confirmation.
 func (a *App) disableConfirmation(c *ui.Context, copy i18n.Settings, integration Integration) {
 	t := c.Theme()
 	tokens := a.tokens(c)
-	ui.Column(c).FillWidth().Gap(t.Space(1)).Padding(t.Space(2), t.Space(3.5)).
-		Margin(0, t.Space(3.5)).Radius(tokens.RadiusSM).
-		Background(tokens.Control).Border(1, tokens.ControlEdge).Children(func() {
-		ui.Text(c, copy.DisableTitle(integration.Name)).FontSize(t.FontSize).FontWeight(580).
-			TextColor(tokens.TextStrong)
-		ui.Text(c, copy.DisableDescription).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
-		ui.Row(c).Gap(t.Space(1)).AlignItems(ui.Center).Children(func() {
+	ui.Row(c).FillWidth().Gap(t.Space(1)).AlignItems(ui.Center).
+		Padding(t.Space(2), t.Space(2.5)).Margin(0, t.Space(3)).
+		Radius(tokens.RadiusSM).Background(tokens.Control).Border(1, tokens.ControlEdge).
+		Children(func() {
+			ui.Icon(c, mustGlyph("alert")).Size(t.Space(3.75), t.Space(3.75)).
+				TextColor(tokens.TextSecondary)
+			// The title and the consequence are one flowing sentence in the
+			// reference, not a bold title over a muted body: the band speaks in
+			// the notice colour throughout.
+			ui.Text(c, copy.DisableTitle(integration.Name)+" "+copy.DisableDescription).
+				FontSize(t.FontSize).TextColor(tokens.TextSecondary).Grow(1)
 			if ui.Button(c, copy.DisableCancel).Clicked() {
 				a.disableConfirm[integration.ID] = false
 			}
@@ -3975,7 +3984,6 @@ func (a *App) disableConfirmation(c *ui.Context, copy i18n.Settings, integration
 				}
 			}
 		})
-	})
 }
 
 // requestRemove opens the confirmation for deleting an integration.
