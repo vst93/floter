@@ -936,6 +936,8 @@ type Settings struct {
 	ShortcutsCustom      string
 	ShortcutsCustomHint  string
 	ShortcutsNone        string
+	ShortcutsEmptyHint   string
+	ShortcutsAddFirst    string
 	ShortcutsAdd         string
 	ShortcutsRemove      string
 	ShortcutsCommand     string

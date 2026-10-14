@@ -31,7 +31,18 @@ func (a *App) customSection(c *ui.Context, copy i18n.Settings) {
 	}
 	a.section(c, copy.ShortcutsCustom, copy.ShortcutsCustomHint, func() {
 		if len(entries) == 0 {
-			ui.Text(c, copy.ShortcutsNone).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+			// The reference's SettingsEmpty: a quiet glyph, the state in one
+			// line, the grey hint underneath, and the inline entry that
+			// leaves the empty region — the same shape every other empty
+			// list in the app uses.
+			ui.Column(c).FillWidth().Gap(t.Space(2)).Padding(t.Space(4)).Center().Children(func() {
+				ui.Icon(c, mustGlyph("text")).Size(t.Space(5), t.Space(5)).TextColor(t.TextMuted)
+				ui.Text(c, copy.ShortcutsNone).FontSize(t.FontSize).FontWeight(580).TextColor(t.TextMuted)
+				ui.Text(c, copy.ShortcutsEmptyHint).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+				if ui.Button(c, copy.ShortcutsAddFirst).Clicked() {
+					a.customRecording = true
+				}
+			})
 		}
 		if len(entries) > 0 {
 			a.card(c, func() {

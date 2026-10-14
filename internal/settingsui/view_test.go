@@ -1599,6 +1599,39 @@ func TestCustomShortcutsPage(t *testing.T) {
 	}
 }
 
+// The empty custom-shortcuts region carries the reference's SettingsEmpty
+// shape: a quiet glyph, the state in one line, the grey hint underneath and
+// the inline entry that leaves the empty region. The old page's own empty
+// state showed the keyboard icon, "No custom shortcuts yet", the hint and an
+// "Add the first one" action.
+func TestCustomShortcutsEmptyState(t *testing.T) {
+	a := New(newStore(t), Actions{})
+	tt := render(t, a, 720, 1000)
+	if err := tt.Click("Shortcuts"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	tt.Scroll(400, 300, 0, 900)
+	tt.Frame()
+
+	copy := i18n.For("en").Settings
+	for _, want := range []string{copy.ShortcutsNone, copy.ShortcutsEmptyHint, copy.ShortcutsAddFirst} {
+		if !tt.HasText(want) {
+			t.Errorf("missing %q in %q", want, tt.Texts())
+		}
+	}
+
+	// The "Add the first one" action opens the recorder, as the reference's
+	// own empty-state action did.
+	if err := tt.Click(copy.ShortcutsAddFirst); err != nil {
+		t.Fatalf("click add-first: %v", err)
+	}
+	tt.Frame()
+	if !tt.HasText(copy.ShortcutRecording) {
+		t.Errorf("the recorder did not open: %q", tt.Texts())
+	}
+}
+
 // A refused custom shortcut is worded with one of the two tokens the shell
 // reports, exactly as the old build's page did — `conflict` for a key that
 // shadows one of the app's own, `occupied` for one the system would not take.
