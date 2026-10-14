@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1134 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1136 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1134 项测试
+go test -count=1 ./...         # 1136 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -98,6 +98,47 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
   （同环境 mygo 最小窗口 137 MB）。
 
 ## 最近几轮（详细记录见 plan）
+
+> **最新一轮：P7-ec 浏览器模式按原版的抓取深度持有结果（原版 `plugins/browser/mode.ts:70,84,199,218`）**
+> —— P7-eb 收尾后「尚未做」只剩两条：本轮取最高优先级的第 1 条（浏览器结果的数量上限与抓取深度
+> 不对齐原版）。依赖检查：GitHub releases API 限流，`proxy.golang.org/.../@v/list` 最新仍是
+> **v0.4.8**（与 `go.mod` 一致），无版本可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），
+> 未翻历史提交。
+>
+> **偏离点**：原版 `main:src/plugins/browser/mode.ts` 有**两个**天花板。`BROWSER_FETCH_LIMIT = 500`
+> （`:70`）是内联启动器拉取并持有的深度；`BROWSER_GROUP_LIMIT = MAX_RESULTS = 10`（`:84`，
+> `launcher/result-budget.ts:46`）只是**插件输出视图**那个不能滚动的盒子自己的分组上限。内联模式把分组的
+> `cap` 提到抓取深度（`useLauncherCatalog` 传 `limit: BROWSER_FETCH_LIMIT`），再用 `paginatePluginRows`
+> 每次翻十行显示（`:199` 的合并组按 `cap` 截断、`:218` 的标签页组按 `cap * 2` 的**总数**截断）。本构建改前
+> 只有一条 `internal/shell/system.go:251` 的 `browserResultLimit = 50`，同时当
+> `browser.Options.Limit`（`internal/shell/shell.go:1590`，搜索合并后的**后置**截断，不是 SQL LIMIT）
+> 与标签页上限（`:1605-1606`）——于是空查询的浏览器列表最多 50 行（原版 500），且截断发生在
+> 启动器的范围 chip **之前**：书签一多，`history` chip 就什么都看不到。
+>
+> **修法（决定：不翻页，保留滚动）**：本构建的启动器列表是虚拟化可滚动的，原版的「每页十行」是它自身固定
+> 高度盒子的补丁，所以**不复刻分页**（也不复刻输出视图的 `BROWSER_GROUP_LIMIT = 10`——那会藏住滚动本可到达
+> 的行）；只把「模式持有多少行」的判据搬回模式层，与 `browserSearchRows` 同位：
+> - `internal/launcher/search.go`：新增导出常量 `BrowserFetchLimit = 500`（注释逐字指向 `mode.ts:70`，
+>   并写明为什么只保留两个天花板中的这一个）；`browserItems` 的合并组在 `len(out) >= BrowserFetchLimit`
+>   时收手（对应 `mode.ts:199-200`）、标签页组在总数 `>= 2*BrowserFetchLimit` 时收手（对应 `mode.ts:218`）。
+> - `internal/shell/system.go`：删掉 `browserResultLimit` 与 `browserOptions.limit`（后置截断搬走）。
+> - `internal/shell/shell.go`：`browser.Search` 不再传 `Limit`（0 = 不截断；后端自己的每 profile SQL 窗口
+>   `internal/browser/browser.go:411` 的 4000 行仍是读入上限，比原版的 500 更深），标签页也不再在 shell 里
+>   截断——模式拿到完整匹配集后先过 chip、再按抓取深度持有。
+>
+> **测试**（新增 `internal/launcher/browsercap_test.go` 两条）：
+> `TestTheBrowserModeHoldsTheReferenceFetchDepth` 注入 700 条历史 + 700 个标签页，先钉 `BrowserFetchLimit == 500`，
+> 再钉空查询第一组恰好 500、标签页组 500、整表 1000（原版的 `cap` 与 `cap * 2`）；
+> `TestTheBrowserTabGroupIsNotMergedWithTheFirstGroup` 把同一 URL 同时作为书签与标签页，钉两行都在、id 不同
+> （原版 `mode.ts:90` 明确标签页组不与第一组合并）。变异核查：摘掉合并组的 `BrowserFetchLimit` 收手，第一条立刻红
+> （`first group = 700 rows, want 500`）；摘掉标签页组的 `2*BrowserFetchLimit` 收手，立刻红
+> （`live-tab group = 700 rows, want 500`）。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿（1136 项）、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **残留**：原版的 `paginatePluginRows` 十行分页本构建不实现（列表自己滚动），已如实写进「具体待办
+> （P7-ec 重写）」为「已决定不做」。清单只剩第 3 条（plugincfg 的值规范化口径）。
 
 > **最新一轮：P7-eb 浏览器结果行的字形与副标题回到原版（原版 `LauncherResults.tsx:290-294`、`plugins/browser/mode.ts:195,208,216`）**
 > —— P7-ea 收尾后「尚未做」清单又一次为空。本轮按惯例换入口（逐文件对照原版），落在**浏览器模式的
@@ -3960,18 +4001,18 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-> **清单状态（P7-eb 收尾）**：本轮把「尚未做」重新写实，并取第 1 条落地——逐文件对照原版的
-> **浏览器模式行内容**（`src/browser-page.ts` / `src/plugins/browser/mode.ts` /
-> `LauncherResults.tsx`，此前未被任一待办覆盖），发现四处真实偏离（历史图标是地球不是时钟、
-> 历史副标题多访问时间、标签页副标题多 `· Open tab`、标签页 id 用 URL 同一网址两窗口会撞），
-> 已全部落地（P7-eb，详见「最近几轮」）。清单因此只剩下面第 2、3 条。依赖检查：GitHub releases
+> **清单状态（P7-ec 收尾）**：本轮取 P7-eb 留下的第 2 条（浏览器结果的数量上限与抓取深度不对齐原版）
+> 落地（P7-ec，详见「最近几轮」）：决定**不复刻分页**，只把模式持有的行数搬回模式层并对齐原版的
+> `BROWSER_FETCH_LIMIT = 500`（`launcher.BrowserFetchLimit`），同时修掉「shell 后置截断发生在 chip 之前、
+> 书签一多 history chip 就空」的副作用。清单因此只剩下面第 3 条（`plugincfg` 的值规范化口径），外加
+> 一条已决定不做的记录（原版的 `paginatePluginRows` 十行翻页）。依赖检查：GitHub releases
 > API 限流，`proxy.golang.org/.../@v/list` 最新仍是 **v0.4.8**（与 `go.mod` 一致），无版本可升。
 > 只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
 
-### 具体待办（P7-eb 重写；第 1 条本轮落地 P7-eb）
+### 具体待办（P7-ec 重写；第 1·2 条已落地：第 1 条 P7-eb、第 2 条 P7-ec）
 
-> 本轮入口：逐文件对照原版的浏览器模式行内容。第 1 条是同一张表里的四处已核实偏离（本轮落地）；
-> 第 2、3 条是审计同一片代码时新发现、尚未落地的具体项。依赖检查同上，无版本可升。
+> 第 1 条（浏览器模式行内容）已由 P7-eb 落地；第 2 条（数量上限与抓取深度）本轮 P7-ec 落地。
+> 第 3 条是审计同一片代码时新发现、尚未落地的具体项。依赖检查同上，无版本可升。
 
 1. **（已落地，P7-eb）浏览器结果行的字形与副标题偏离原版**。
    - 原版对照：`main:src/launcher/LauncherResults.tsx:290-294` 的 `BrowserRowIcon`——bookmark →
@@ -3990,19 +4031,40 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
      测试：`internal/launcher/browserrows_test.go` 的 `TestBrowserRowsFollowTheReferenceRowContent`；
      改写 `view_test.go` 的 `TestBrowserModeOpensAndCopies`。详见「最近几轮」P7-eb。
 
-2. **浏览器结果的数量上限与抓取深度不对齐原版**（待比对，具体可执行）。
-   - 原版对照：`main:src/plugins/browser/mode.ts:70` 的 `BROWSER_FETCH_LIMIT = 500`（抓取/搜索深度）
-     与 `:84` 的 `BROWSER_GROUP_LIMIT = MAX_RESULTS`（`result-budget.ts:46` 的 `MAX_RESULTS = 10`，
-     即一个分组**最多 10 行**）；合并组按 `cap` 截断（`:199` 的 `if (rows.length >= cap) break`），
-     标签页组按 `cap * 2` 截断（`:218`），滚动到底再翻页（`paginatePluginRows`）。
-   - 本构建：`internal/shell/system.go:251` 的 `browserResultLimit = 50` 同时当 SQL `Limit`
-     （`shell.go:1590`）与标签页上限（`shell.go:1605-1606`）；`internal/launcher/search.go` 的
-     `browserItems` 不再二次截断。于是空查询的浏览器列表最多 50 行（原版 10），抓取深度 50（原版 500）。
-   - 验收：先判定本构建是否要复刻「每分组 10 行 + 翻页」（本构建列表可滚动，翻页语义不同），
-     或只把抓取深度校回 500 而保留滚动；无论哪种，写出 `browserResultLimit` 与分组上限的
-     file:line 规格，加测试钉「空查询第一组行数」与「同一 URL 的标签页不并组」（原版明确不并：
-     `mode.ts:90`）。不要在没有翻页实现时单方面改上限制造半截行为。
+2. **（已落地，P7-ec）浏览器结果的数量上限与抓取深度不对齐原版**。
+   - 原版对照：`main:src/plugins/browser/mode.ts:70` 的 `BROWSER_FETCH_LIMIT = 500` 是内联启动器
+     **拉取并持有**的深度；`:84` 的 `BROWSER_GROUP_LIMIT = MAX_RESULTS`（`result-budget.ts:46` 的
+     `MAX_RESULTS = 10`，「一个分组最多 10 行」）只是**插件输出视图**那个不能滚动的盒子自己的分组上限。
+     内联模式把分组的 `cap` 提到抓取深度，合并组按 `cap` 截断（`:199` 的 `if (rows.length >= cap) break`）、
+     标签页组按 `cap * 2` 的**总数**截断（`:218`），再用 `paginatePluginRows` 每次翻十行显示。
+   - 本构建（改前）：`internal/shell/system.go:251` 的 `browserResultLimit = 50` 同时当
+     `browser.Options.Limit`（`internal/shell/shell.go:1590`，搜索**合并后**的后置截断，**不是** SQL LIMIT）
+     与标签页上限（`shell.go:1605-1606`）；`internal/launcher/search.go` 的 `browserItems` 不二次截断。
+     于是空查询的浏览器列表最多 50 行（原版 500），而且截断在范围 chip **之前**：书签一多，
+     `history` chip 就什么都看不到。
+   - **决定（P7-ec）**：**不复刻「每分组 10 行 + 翻页」**——本构建的启动器列表虚拟化可滚动，原版的十行
+     分页是它自己固定高度盒子的补丁，硬塞 `BROWSER_GROUP_LIMIT = 10` 只会藏住滚动本可到达的行；
+     保留滚动，只把「模式持有多少行」的判据搬回模式层，与原版 `browserSearchRows` 同位。
+   - **已落地（P7-ec）file:line 规格**：
+     - 模式层上限（原版 `mode.ts:70` 的落点）：`internal/launcher/search.go` 新增导出
+       `BrowserFetchLimit = 500`；`browserItems` 的合并组在 `len(out) >= BrowserFetchLimit` 收手
+       （对应 `mode.ts:199-200`）、标签页组在 `len(out) >= 2*BrowserFetchLimit` 收手（对应
+       `mode.ts:218`，标签页**不**与第一组合并，`mode.ts:90`）。
+     - 后置截断移除：`internal/shell/system.go` 删 `browserResultLimit` 与 `browserOptions.limit`；
+       `internal/shell/shell.go` 的 `searchBrowser` 不再给 `browser.Search` 传 `Limit`（0 = 不截断，
+       后端自己的每 profile SQL 窗口 `internal/browser/browser.go:411` 的 4000 行仍是读入上限，比原版更深），
+       也不在 shell 里截断标签页。
+     验收：`internal/launcher/browsercap_test.go` 的 `TestTheBrowserModeHoldsTheReferenceFetchDepth`
+     钉 `BrowserFetchLimit == 500`、空查询第一组 500、标签页组 500、整表 1000；
+     `TestTheBrowserTabGroupIsNotMergedWithTheFirstGroup` 钉同一 URL 作为书签与标签页时两行都在、id 不同。
+     行数上限的**反面**（不做原版的十行翻页）写入下面第 4 条。
 
+4. **（记录，非待办）原版的十行客户端翻页（`paginatePluginRows`）本构建不实现**。
+   - 原版对照：`main:src/launcher/paginate-plugin-rows.ts` 把内联插件列表切成每页十行、滚到底加载下一页；
+     它配合的是固定高度盒子里没有滚动条的列表。
+   - 本构建：启动器列表是虚拟化滚动列表（`internal/launcher/launcher.go:871-881` 的滚动视口），
+     所以持有 500 行即可滚到；再加一层分页会是「两个滚动机制打架」的半截行为。P7-ec 已按此决定落地；
+     若将来要复刻翻页，须先拆掉列表自身的滚动，届时应整体替换而非叠加。
 3. **`internal/plugincfg` 的值规范化与原版 `normalizeConfigValue` 有四处口径差**（待决定）。
    - 原版对照：`main:src/plugins/config-schema.ts:448-500` 的 `normalizeConfigValue` 是**全函数**：
      toggle → `raw === true`；text → `trim` 后空为 `null`；slider/number → 非有限回退 `field.min` 并

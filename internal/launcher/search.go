@@ -206,6 +206,28 @@ func (a *App) runCommandWith(entry extensions.CommandEntry, args []string) {
 	}
 }
 
+// BrowserFetchLimit is how deep the browser mode's held set goes: the
+// reference's `BROWSER_FETCH_LIMIT` (`src/plugins/browser/mode.ts:70`), the
+// number of rows the inline mode fetches and keeps.
+//
+// The reference has *two* ceilings and only one of them is ours to keep. The
+// plugin output view leaves the group ceiling at its own `BROWSER_GROUP_LIMIT =
+// MAX_RESULTS = 10` (`mode.ts:84`, `launcher/result-budget.ts:46`) because its
+// box cannot scroll; the inline launcher raises that ceiling to this fetch depth
+// and pages the held rows ten at a time (`paginatePluginRows`). This build's
+// launcher list scrolls instead of paging, so the fetch depth *is* the reachable
+// depth — the page size would be a second, half-wired mechanism with no scroll
+// to feed it (the `BROWSER_GROUP_LIMIT` side is deliberately not replicated; see
+// the "尚未做" note in docs/mygo-rewrite-status.md).
+//
+// The *backend* reads deeper than this (the reference's own `MAX_LIMIT` is also
+// 500, but `internal/browser/browser.go:411`'s per-profile SQL window is 4000,
+// documented as "enough that the newest visits and bookmarks are all there"):
+// the shell hands the launcher everything the backend matched, and the cap
+// below is where the mode decides what to hold, exactly as `browserSearchRows`
+// does in the reference.
+const BrowserFetchLimit = 500
+
 // browserItems is the browser mode's list: the bookmarks and history for the
 // query, then the browser's live tabs — narrowed by the mode's range chip.
 func (a *App) browserItems() []Item {
@@ -228,6 +250,12 @@ func (a *App) browserItems() []Item {
 		case filterTabs:
 			continue // the range is the live tabs alone
 		}
+		// The first group is the curated bookmarks and the history merged; the
+		// reference breaks it at `cap` rows (`plugins/browser/mode.ts:199-200`)
+		// and the inline mode's cap is the fetch depth.
+		if len(out) >= BrowserFetchLimit {
+			break
+		}
 		result := result
 		// The row's subtitle is the URL alone: the reference's browser rows
 		// carry `subtitle: row.url` (`plugins/browser/mode.ts:195`), and the
@@ -246,6 +274,15 @@ func (a *App) browserItems() []Item {
 		return out
 	}
 	for _, tab := range answer.Tabs {
+		// The tabs are a second group, added *on top of* the first: the
+		// reference stops when the total reaches `cap * 2` (`mode.ts:218`), so a
+		// browser whose bookmarks already fill the first group still shows its
+		// live tabs. A tab is deliberately not deduplicated against the first
+		// group ("the merge does not fold the two" — `mode.ts:90`): a page that
+		// is both a bookmark and an open tab is two different actions.
+		if len(out) >= 2*BrowserFetchLimit {
+			break
+		}
 		tab := tab
 		// R80's tab key is *position*, not URL: the same page can be open in
 		// two windows and the two rows must stay distinct

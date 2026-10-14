@@ -1585,9 +1585,14 @@ func (a *App) searchBrowser(query string, done func(launcher.BrowserResults)) {
 			a.onMain(func() { done(launcher.BrowserResults{}) })
 			return
 		}
+		// The backend's own per-profile SQL window bounds the read
+		// (`internal/browser/browser.go:411`); the mode decides what to *hold*
+		// (`launcher.BrowserFetchLimit`, the reference's `BROWSER_FETCH_LIMIT`).
+		// Capping here instead would starve the mode's range chip: the cap would
+		// run before the chip narrows the set, so a browser full of bookmarks
+		// would leave the `history` chip with nothing to show.
 		results := browser.Search(context.Background(), []browser.Profile{profile}, query, browser.Options{
 			Days:      options.historyDays,
-			Limit:     options.limit,
 			SortOrder: browser.SortOrder(options.sortOrder),
 			Field:     browser.SearchField(options.searchField),
 		})
@@ -1602,9 +1607,6 @@ func (a *App) searchBrowser(query string, done func(launcher.BrowserResults)) {
 			return
 		}
 		tabs = browser.FilterTabs(tabs, query, browser.SearchField(options.searchField))
-		if options.limit > 0 && len(tabs) > options.limit {
-			tabs = tabs[:options.limit]
-		}
 		answer.Tabs = tabs
 		a.onMain(func() { done(answer) })
 	}()

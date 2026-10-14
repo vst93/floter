@@ -224,7 +224,6 @@ type browserOptions struct {
 	target        string
 	customBaseDir string
 	historyDays   int
-	limit         int
 	sortOrder     string
 	searchField   string
 	cdpEnabled    bool
@@ -239,17 +238,12 @@ func browserState(s settings.Settings) browserOptions {
 		target:        plugin.Target,
 		customBaseDir: plugin.CustomBaseDir,
 		historyDays:   plugin.HistoryDays,
-		limit:         browserResultLimit,
 		sortOrder:     plugin.SortOrder,
 		searchField:   plugin.SearchField,
 		cdpEnabled:    plugin.CDPEnabled,
 		cdpPort:       plugin.CDPPort,
 	}
 }
-
-// browserResultLimit is how many rows one browser search returns: the old
-// build's default page size.
-const browserResultLimit = 50
 
 // clipboardPoll is how often the watcher reads the clipboard: often enough
 // that a copy lands in the history before the panel opens, rare enough to
