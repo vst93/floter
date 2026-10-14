@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1371 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1374 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1371 项测试
+go test -count=1 ./...         # 1374 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -100,7 +100,52 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-fw Sessions 行的退出状态词回到原版（原版 `src/settings/SessionsPage.tsx:173-177`、
+> **最新一轮：P7-fx Sessions 行的状态色与整行激活回到原版
+> （原版 `src/settings/SessionsPage.tsx:170,188-191,197-198`、`src/styles/settings.css:1280-1296`）**
+> ——P7-fw 收尾后「具体待办（P7-fw 重写）」还剩第 2·3 条（exited 行状态色 / 整行激活），本轮取
+> 最高优先级、两条一并落地，清单归零。依赖检查：`go.mod` 已是 **v0.4.8** = GitHub releases latest，
+> 无版本可升；只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离 1（P7-fx·exited 行没有 `session-state--exited` 的状态色）**：原版 `SessionsPage.tsx:188-191`
+> 把状态词单独放在 `<span className={session.exited ? "session-state session-state--exited" :
+> "session-state"}>`，`src/styles/settings.css:1290-1296` 给 `.session-state` 的是 **`var(--accent)`**
+> （运行中的状态词是强调色）、`.session-state--exited` 回落 **`var(--text-tertiary)`**；同行的
+> `.session-manager__meta`（`:1280-1286`）底色就是 `--text-tertiary`，尺寸与时间始终安静。**本构建
+> （改前）**：`internal/settingsui/settingsui.go:1237-1267` 的 `sessionLines` 把状态词、尺寸、时间
+> `" · "` 拼成一个字符串数组，`internal/settingsui/rows.go:131-133` 的 `rowLines` 对每一行一律
+> `TextColor(t.TextMuted)`——状态词与其它 meta 同色，running 行也没有原版的 accent。
+>
+> **偏离 2（P7-fx·只有 Show 按钮能恢复会话）**：原版 `SessionsPage.tsx:170,197-198` 的
+> `resumable = !session.exited && !session.attached`，`SettingsRow` 的 `onActivate` 只在
+> `resumable` 时挂上 `() => onResume(session)`——**整行点哪里都恢复**；Play 按钮（`:203-213`）
+> 是同一动作的显式控件。**本构建（改前）**：`internal/settingsui/settingsui.go:1175` 把 `a.rowLines`
+> 的返回值 `clicked` 直接丢弃（`rows.go:174-176` 已经把它记下），恢复只能由 Show 按钮触发。
+>
+> **落地**：
+> - `internal/settingsui/rows.go`：新增 `rowLine`（一条灰行 = 纯文本或若干带角色色的段）、`rowSegment`
+> （段文本 + `rowSegmentRole`：`rowSegmentTertiary` = `tokens.TextTertiary`、`rowSegmentAccent` =
+> `t.Accent`）；`rowLines`/`rowAligned` 的 `[]string` 换成 `[]rowLine`，有段的行改画成
+> `ui.Row` 的 `Wrap()` 元信息行（复刻 `.session-manager__meta` 的 `flex-wrap`）。
+> - `internal/settingsui/settingsui.go`：`sessionLines` 返回 `[]rowLine`，新增 `sessionMeta`
+>   把状态词单独成段（`session.Running` → accent，否则 tertiary），尺寸/时间仍 tertiary；`sessions`
+>   里把 `rowLines` 的返回值接住，`resumable := session.Running && !session.Active` 时才调
+>   `Actions.SelectSession(session.Index)`。
+>
+> **验收**：`internal/settingsui/sessionsstate_test.go` 两条——
+> `TestSessionLinesMarkTheStateWordWithItsOwnColourRole`（running 段 = accent、exited 段 = tertiary、
+> 尺寸/时间恒 tertiary）与 `TestSessionStateWordsCarryTheOldStateColours`（渲染后逐词取墨色：
+> running/exited 状态词不同、running 状态词 ≠ muted 尺寸、exited 状态词 = 同色 muted 尺寸、两行的
+> 尺寸相同）；`TestClickingAResumableSessionRowResumesIt`（点 vim 行 → `SelectSession(1)`；active 行
+> 与 exited 行点了不响应；显式 Show 仍可用）。变异核查：把段的颜色改回 `t.TextMuted` → 像素测试红；
+> 把 `resumable` 放宽为 `true` → 激活测试在「active/exited 行不响应」处红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿（1374 项）、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：第 2·3 条（P7-fx）落地；「具体待办（P7-fw 重写）」3 条**全部结清、清单归零**。
+> 下一轮回到「对照原版排查偏离点」，重新写实清单。
+
+> **P7-fw Sessions 行的退出状态词回到原版（原版 `src/settings/SessionsPage.tsx:173-177`、
 > `src/i18n.ts:179,1085`）**
 > ——P7-fv 收尾后「具体待办（P7-fv 重写）」归零，本轮按规则换入口：逐字段对照原版 Sessions 页的
 > 状态行（此前只对照过排序轴、行事实与关闭武装，状态词本身未比对），把「尚未做」重写为 3 条带
@@ -5980,7 +6025,7 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-### 具体待办（P7-fw 重写；第 1 条本轮 P7-fw 落地，余第 2·3 条待做）
+### 具体待办（P7-fw 重写；第 1 条 P7-fw 落地，第 2·3 条本轮 P7-fx 落地；清单归零）
 
 审计入口：原版 `main:src/settings/SessionsPage.tsx` 的会话行状态词与行交互（`state`
 `:173-177`、`session-state` 类 `:189`、整行 `onActivate` `:197`），本构建对应
@@ -6008,7 +6053,7 @@ v0.3.14 原版树），未翻历史提交。
      的 `TestSessionsListReportsEverySession` 追加 ended 行 Note 逐字断言；
      `internal/i18n/i18n_test.go` 的 `TestTerminalBarWordsMatchTheOldDictionary` 补 en/zh
      `SessionExited`。变异核查：把 `NoteOf` 改回 `ProcessExited` → 新测试红。
-2. **（待做）exited 行没有原版的 `session-state--exited` 状态色**。
+2. **（本轮落地，P7-fx）exited 行没有原版的 `session-state--exited` 状态色**。
    - 原版对照：`SessionsPage.tsx:188-191` 把状态词单独放在
      `<span className={session.exited ? "session-state session-state--exited" : "session-state"}>`，
      由 `src/styles/settings.css` 的 `.session-state--exited` 给它一个弱化的退出色；行内其它
@@ -6020,10 +6065,12 @@ v0.3.14 原版树），未翻历史提交。
    - 落地 file:line（建议）：`settingsui.Session` 增加 `Exited bool`（shell 投影 `Running == false`），
      `sessionLines` 改为返回带色标的状态段（或新增 `rowStateLines` 只给状态行 `TextMuted` 之外的
      一个 token）；`rows.go` 的 `rowLines` 增加「每个 sublabel 可选色」的口子。
-   - 验收：`internal/settingsui/view_test.go` 新增像素测试——同一 fixture 下，exited 行的状态词
-     与 running 行的状态词 RGB 不同，而 size/created 行仍相等；变异核查：把状态色改回 `TextMuted`
-     → 测试红。若框架的文本节点不暴露逐段色，则如实记入「已知差距」并在此条注明。
-3. **（待做）整行点击不激活会话，只有显式的 Show 按钮**。
+   - 验收（已过）：`internal/settingsui/sessionsstate_test.go` 的
+     `TestSessionStateWordsCarryTheOldStateColours`——逐词取墨色（最远离底色的像素，抗锯齿边缘
+     不参与）：running/exited 状态词 RGB 不同、running 状态词 ≠ muted 尺寸词、exited 状态词 = 同色
+     muted 尺寸词、两行尺寸词相同。框架的文本节点**能**逐段上色（每段是一个 `ui.Text`），无需
+     「已知差距」条目。变异核查：把段的颜色改回 `t.TextMuted` → 两条像素断言立刻红。
+3. **（本轮落地，P7-fx）整行点击不激活会话，只有显式的 Show 按钮**。
    - 原版对照：`SessionsPage.tsx:197-198` 的 `SettingsRow` 带
      `onActivate={resumable ? () => onResume(session) : undefined}`，即 **resumable 的行点哪里都
      恢复会话**；`Play` 按钮是同一动作的显式控件。
@@ -6033,12 +6080,18 @@ v0.3.14 原版树），未翻历史提交。
    - 落地 file:line（建议）：`sessions` 里接住 `a.rowLines(...)` 的返回值，`session.Running` 且
      非 `session.Active` 时调 `a.Actions.SelectSession(session.Index)`；`Active`/exited 行保持不响应
      （原版 `resumable = !session.exited && !session.attached`）。
-   - 验收：`internal/settingsui/view_test.go` 新增 `TestClickingAResumableSessionRowResumesIt`
-     （点行标题触发 `SelectSession`；exited 行与 active 行不触发；显式 Show 按钮仍可用）；变异核查：
-     把返回的 `clicked` 忽略 → 测试红。
+   - 落地（已按此落地）：`settingsui.go` 的 `sessions` 接住 `a.rowLines(...)` 的返回值，
+     `resumable := session.Running && !session.Active` 为真且 `Actions.SelectSession != nil` 时调
+     `SelectSession(session.Index)`；`Active` 行与 exited 行保持不响应（原版
+     `resumable = !session.exited && !session.attached`）。
+   - 验收（已过）：`internal/settingsui/sessionsstate_test.go` 的
+     `TestClickingAResumableSessionRowResumesIt`（点 resumable 行标题 → `SelectSession(1)`；再点
+     active 行与 exited 行 → 仍只有一次调用；显式 Show 按钮仍可用并再触发一次）。变异核查：把
+     `resumable` 放宽为 `true` → 测试在「active/exited 行不响应」处红。
 
 > P7-fv 之后「尚未做」再次只剩历史清单，本轮按审计入口换到 Sessions 行，把清单重写为上面
-> 3 条带 file:line / 原版对照 / 验收标准的具体待办，并取第 1 条落地。
+> 3 条带 file:line / 原版对照 / 验收标准的具体待办，并取第 1 条落地（P7-fw）；第 2·3 条由
+> 下一轮 P7-fx 一并结清。
 
 ### 具体待办（P7-fv 重写；第 1·2·3 条本轮 P7-fv 一并落地；清单归零）
 

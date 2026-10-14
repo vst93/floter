@@ -125,10 +125,39 @@ func (a *App) row(c *ui.Context, label, sublabel string, control func(), below .
 	return a.rowNote(c, label, sublabel, "", control, below...)
 }
 
+// rowLine is one grey line under a row's label. Plain text is painted in
+// the row's muted grey; a line may instead be several segments, each in a
+// role's own colour — the sessions meta line, whose state word is the
+// accent while its session runs and the quiet grey once it has exited.
+type rowLine struct {
+	Text     string
+	Segments []rowSegment
+}
+
+// rowSegment is one piece of a row's meta line.
+type rowSegment struct {
+	Text string
+	Role rowSegmentRole
+}
+
+// rowSegmentRole names the colour a segment is painted in, so a line can be
+// built without a theme and painted with one.
+type rowSegmentRole uint8
+
+const (
+	// rowSegmentTertiary is the quiet grey the old `.session-manager__meta`
+	// line was drawn in: the screen size and the start time, and the state
+	// word of a session that has exited.
+	rowSegmentTertiary rowSegmentRole = iota
+	// rowSegmentAccent is the live accent `.session-state` used while the
+	// session is running.
+	rowSegmentAccent
+)
+
 // rowLines is row with a second line that is itself several lines: the
 // sessions list's row keeps the shell's working directory above the state,
 // size and start time, as the old page's `.session-manager__lines` did.
-func (a *App) rowLines(c *ui.Context, label string, sublabels []string, control func(), below ...func()) bool {
+func (a *App) rowLines(c *ui.Context, label string, sublabels []rowLine, control func(), below ...func()) bool {
 	return a.rowAligned(c, ui.Center, label, sublabels, "", control, below...)
 }
 
@@ -136,7 +165,7 @@ func (a *App) rowLines(c *ui.Context, label string, sublabels []string, control 
 // description, for the one thing a row has to disclose rather than describe
 // (the clipboard's privacy line). An empty note draws nothing.
 func (a *App) rowNote(c *ui.Context, label, sublabel, note string, control func(), below ...func()) bool {
-	return a.rowAligned(c, ui.Center, label, []string{sublabel}, note, control, below...)
+	return a.rowAligned(c, ui.Center, label, []rowLine{{Text: sublabel}}, note, control, below...)
 }
 
 // rowTop is rowNote with the control pinned to the row's first line rather
@@ -145,12 +174,12 @@ func (a *App) rowNote(c *ui.Context, label, sublabel, note string, control func(
 // name, as the reference's `.extensions-base-plugin` did with
 // `align-items: flex-start`.
 func (a *App) rowTop(c *ui.Context, label, sublabel, note string, control func(), below ...func()) bool {
-	return a.rowAligned(c, ui.Start, label, []string{sublabel}, note, control, below...)
+	return a.rowAligned(c, ui.Start, label, []rowLine{{Text: sublabel}}, note, control, below...)
 }
 
 // rowAligned is the row both helpers share; align places the control across
 // the row's axis.
-func (a *App) rowAligned(c *ui.Context, align ui.Align, label string, sublabels []string, note string, control func(), below ...func()) bool {
+func (a *App) rowAligned(c *ui.Context, align ui.Align, label string, sublabels []rowLine, note string, control func(), below ...func()) bool {
 	tokens := a.tokens(c)
 	t := c.Theme()
 	inset := t.Space(3.5)
@@ -183,10 +212,27 @@ func (a *App) rowAligned(c *ui.Context, align ui.Align, label string, sublabels 
 			names.Children(func() {
 				ui.Text(c, label).FontSize(t.FontSize + 1).FontWeight(580).TextColor(tokens.TextStrong)
 				for _, sublabel := range sublabels {
-					if sublabel == "" {
+					if len(sublabel.Segments) > 0 {
+						// A meta line is the old page's `.session-manager__meta`: a
+						// wrapping flex row of its own facts, each a span with its own
+						// colour, so the state word can be the accent while the size
+						// and start time stay quiet.
+						meta := ui.Row(c).FillWidth().Wrap().GapX(t.Space(2.5)).GapY(t.Space(1))
+						meta.Children(func() {
+							for _, segment := range sublabel.Segments {
+								color := tokens.TextTertiary
+								if segment.Role == rowSegmentAccent {
+									color = t.Accent
+								}
+								ui.Text(c, segment.Text).FontSize(t.FontSize).FontWeight(500).TextColor(color)
+							}
+						})
 						continue
 					}
-					ui.Text(c, sublabel).FontSize(t.FontSize).FontWeight(500).TextColor(t.TextMuted)
+					if sublabel.Text == "" {
+						continue
+					}
+					ui.Text(c, sublabel.Text).FontSize(t.FontSize).FontWeight(500).TextColor(t.TextMuted)
 				}
 				if note != "" {
 					ui.Text(c, note).FontSize(t.FontSize).FontWeight(500).TextColor(t.Warning)

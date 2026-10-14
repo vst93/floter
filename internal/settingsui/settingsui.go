@@ -1168,11 +1168,20 @@ func (a *App) sessions(c *ui.Context, copy i18n.Settings) {
 			a.card(c, func() {
 				for _, session := range sessions {
 					session := session
+					// The old page's own row was the resume control: its
+					// `onActivate` was wired only for a *resumable* session
+					// — `resumable = !session.exited && !session.attached`
+					// (`SessionsPage.tsx:170,197`) — so pressing anywhere on
+					// a session that is running behind the one on screen
+					// brings it back, while the Play button beside it is
+					// the same action's explicit form. An exited session and
+					// the one already on screen answer nothing.
+					resumable := session.Running && !session.Active
 					// The row says what the session is doing — attached (on
 					// screen), running behind the one that is, or how the
 					// program went — and, under it, where the shell is and
 					// when the session started.
-					a.rowLines(c, session.Title, sessionLines(session), func() {
+					activated := a.rowLines(c, session.Title, sessionLines(session), func() {
 						ui.Row(c).Gap(t.Space(1)).AlignItems(ui.Center).Children(func() {
 							if !session.Active && a.Actions.SelectSession != nil {
 								if ui.Button(c, copy.SessionsShow).Clicked() {
@@ -1200,6 +1209,9 @@ func (a *App) sessions(c *ui.Context, copy i18n.Settings) {
 							}
 						})
 					})
+					if activated && resumable && a.Actions.SelectSession != nil {
+						a.Actions.SelectSession(session.Index)
+					}
 				}
 			})
 		})
@@ -1230,32 +1242,46 @@ func (a *App) sortedSessions() []Session {
 	return out
 }
 
-// sessionLines is the row's grey block: the shell's working directory (when it
-// reported one) above the state line, the screen size and the start time —
-// the old page's `.session-manager__cwd` and its `state · size · created`
-// meta line.
-func sessionLines(session Session) []string {
-	parts := make([]string, 0, 3)
+// sessionLines is the row's grey block: the shell's working directory (when
+// it reported one) above the state line, the screen size and the start time —
+// the old page's `.session-manager__cwd` and its `.session-manager__meta`
+// line. The state word is a segment of its own so it can carry its colour:
+// the accent while the session runs, the quiet grey once it has exited, as
+// `.session-state` and `.session-state--exited` did.
+func sessionLines(session Session) []rowLine {
+	var lines []rowLine
+	if session.Dir != "" {
+		lines = append(lines, rowLine{Text: session.Dir})
+	}
+	if meta := sessionMeta(session); len(meta) > 0 {
+		lines = append(lines, rowLine{Segments: meta})
+	}
+	return lines
+}
+
+// sessionMeta is the meta line's segments — the state word, the screen size
+// and the start time — each its own segment so the state word can take the
+// accent while the session runs and the quiet grey once it has exited. It is
+// empty when the session reported none of the three.
+func sessionMeta(session Session) []rowSegment {
+	var segments []rowSegment
 	if session.Note != "" {
-		parts = append(parts, session.Note)
+		role := rowSegmentTertiary
+		if session.Running {
+			role = rowSegmentAccent
+		}
+		segments = append(segments, rowSegment{Text: session.Note, Role: role})
 	}
 	if session.Size != "" {
-		parts = append(parts, session.Size)
+		segments = append(segments, rowSegment{Text: session.Size, Role: rowSegmentTertiary})
 	}
 	if !session.Created.IsZero() {
-		parts = append(parts, session.Created.Local().Format("2006-01-02 15:04"))
+		segments = append(segments, rowSegment{
+			Text: session.Created.Local().Format("2006-01-02 15:04"),
+			Role: rowSegmentTertiary,
+		})
 	}
-	meta := strings.Join(parts, "  \u00b7  ")
-	if session.Dir == "" {
-		if meta == "" {
-			return nil
-		}
-		return []string{meta}
-	}
-	if meta == "" {
-		return []string{session.Dir}
-	}
-	return []string{session.Dir, meta}
+	return segments
 }
 
 // integrations lists the installed extensions, each with its state and a
@@ -1555,12 +1581,12 @@ func (a *App) healthDetail(c *ui.Context, copy i18n.Settings, report *HealthRepo
 		a.row(c, copy.IntegrationsHealthFailures, "", func() {})
 		for _, probe := range failed {
 			probe := probe
-			lines := []string{copy.IntegrationsHealthExitCode(healthExitCode(probe.ExitCode))}
+			lines := []rowLine{{Text: copy.IntegrationsHealthExitCode(healthExitCode(probe.ExitCode))}}
 			if probe.Stderr != "" {
-				lines = append(lines, probe.Stderr)
+				lines = append(lines, rowLine{Text: probe.Stderr})
 			}
 			if probe.Retryable {
-				lines = append(lines, copy.IntegrationsHealthRetryable)
+				lines = append(lines, rowLine{Text: copy.IntegrationsHealthRetryable})
 			}
 			a.rowLines(c, probe.ID, lines, func() {})
 		}
