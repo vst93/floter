@@ -487,9 +487,13 @@ type App struct {
 	// opened is not already covered in red.
 	toolIssue bool
 
-	// sessionsArmed holds the sessions whose close control has been pressed
-	// once: the second press ends the session's program.
-	sessionsArmed map[int]bool
+	// armedSession is the session whose close control has been pressed once,
+	// and armedSessionAt when it was asked: the second press ends the session's
+	// program, and the question answers itself with "keep" after
+	// sessionCloseWindow. A zero armedSessionAt means nothing is armed (the
+	// index 0 is a real session, so the clock, not the index, carries "asked").
+	armedSession   int
+	armedSessionAt time.Time
 	// sessionsSortOldest is the sessions list's order: false (the shipped
 	// state) lists the newest session first, as the old page's own default,
 	// and the heading's control flips it.
@@ -658,6 +662,10 @@ func (a *App) View(c *ui.Context) {
 	// seconds; while one is up the frame keeps coming so the deadline is
 	// reached on a still page.
 	a.expireSaveFailed(c)
+	// A session's two-step close also carries its own clock: the reference's
+	// `killArmTimer` reverted the button after three seconds, so an ask left
+	// unanswered does not stay armed on a later glance.
+	a.expireSessionClose(c)
 
 	// While a recorder waits, Escape belongs to it: a shortcut of the view is
 	// handled before the focused element's input, so both recorders have to
@@ -672,7 +680,7 @@ func (a *App) View(c *ui.Context) {
 		case a.anyConfirmOpen():
 			a.cancelConfirmations()
 		case a.anySessionArmed():
-			a.disarmSessions()
+			a.disarmSessionClose()
 		case a.Actions.Close != nil:
 			a.Actions.Close()
 		}
@@ -885,6 +893,12 @@ func pageGlyph(page int) (*ui.SVG, bool) {
 // selectPage switches pages and remembers the choice, so the next visit to
 // the settings surface reopens where the user left off.
 func (a *App) selectPage(page int) {
+	// The reference's kill arm lived in the SessionsPage component: leaving
+	// the page unmounted it, so the question never survived a visit
+	// elsewhere. Drop it where the page changes hands.
+	if page != PageSessions {
+		a.disarmSessionClose()
+	}
 	a.Page = page
 	if a.Actions.SetPage != nil {
 		a.Actions.SetPage(PageName(page))
@@ -1011,21 +1025,18 @@ func (a *App) sessions(c *ui.Context, copy i18n.Settings) {
 							if a.Actions.CloseSessionAt == nil {
 								return
 							}
-							if a.sessionsArmed[session.Index] {
+							if a.armedSessionAt != (time.Time{}) && a.armedSession == session.Index {
 								if ui.Button(c, copy.SessionsCloseConfirm).TextColor(t.Danger).Clicked() {
-									delete(a.sessionsArmed, session.Index)
+									a.disarmSessionClose()
 									a.Actions.CloseSessionAt(session.Index)
 								}
 								if ui.Button(c, copy.SessionsCloseCancel).Clicked() {
-									delete(a.sessionsArmed, session.Index)
+									a.disarmSessionClose()
 								}
 								return
 							}
 							if ui.Button(c, copy.SessionsClose).Clicked() {
-								if a.sessionsArmed == nil {
-									a.sessionsArmed = map[int]bool{}
-								}
-								a.sessionsArmed[session.Index] = true
+								a.armSessionClose(session.Index)
 							}
 						})
 					})
@@ -3385,22 +3396,48 @@ func (a *App) requestRemove(id string) {
 	a.removeConfirm[id] = true
 }
 
+// sessionCloseWindow is how long a session's close question waits for its
+// answer: the reference armed it with `KILL_CONFIRM_TIMEOUT = 3000`
+// (`src/settings/SessionsPage.tsx:10`) and its `armKill` timer cleared the
+// question when the window passed. An ask one moment is not still armed on a
+// later glance.
+const sessionCloseWindow = 3 * time.Second
+
 // anySessionArmed reports whether a session's two-step close is waiting for
-// its answer, and disarmSessions answers them all with "keep" — Escape's job
+// its answer, and disarmSessionClose answers it with "keep" — Escape's job
 // there, as the reference's SessionsPage capture listener did (`disarmKill`):
 // the key backs out of the question rather than the page.
 func (a *App) anySessionArmed() bool {
-	for _, armed := range a.sessionsArmed {
-		if armed {
-			return true
-		}
-	}
-	return false
+	return !a.armedSessionAt.IsZero()
 }
 
-// disarmSessions closes every armed session close without acting on it.
-func (a *App) disarmSessions() {
-	clear(a.sessionsArmed)
+// armSessionClose asks a session's close question and starts its clock. The
+// reference's `armKill` reset the pending timer on every arm, so arming one
+// session drops any other (see `sessionCloseWindow`).
+func (a *App) armSessionClose(index int) {
+	a.armedSession, a.armedSessionAt = index, a.now()
+}
+
+// disarmSessionClose drops the question and its clock in one place, so the two
+// can never drift apart.
+func (a *App) disarmSessionClose() {
+	a.armedSession, a.armedSessionAt = 0, time.Time{}
+}
+
+// expireSessionClose drops a question that has waited longer than its window,
+// and keeps the frames coming while one is live so the deadline is reached on
+// a still page exactly as it is with a hand on it.
+func (a *App) expireSessionClose(c *ui.Context) {
+	if a.armedSessionAt.IsZero() {
+		return
+	}
+	if a.now().Sub(a.armedSessionAt) > sessionCloseWindow {
+		a.disarmSessionClose()
+		return
+	}
+	if c != nil {
+		c.AnimationFrame()
+	}
 }
 
 // anyConfirmOpen reports whether a disable or removal bar is up anywhere on

@@ -99,7 +99,50 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-dv 设置页的 Escape 先答问题再离页（原版捕获层监听，本构建被 shell 抢先认领）**
+> **最新一轮：P7-dw sessions 的关闭武装带上 3s 时钟、离页即清（原版 SessionsPage 的 `killArmTimer`）**
+> —— P7-dv 收尾后「具体待办（P7-dv 重写）」第 1 条（sessions 武装跨页驻留、无 3s 自动解除）是清单
+> 最高优先级且带 file:line 的具体项（第 2 条 key-up reassert 已结清为无落点）。本轮把它落地。
+> 依赖检查：GitHub releases API 限流，`go list -m -versions github.com/egoist/mygo` 最新仍是
+> **v0.4.8**（与 `go.mod` 一致），无版本可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14
+> 原版树），未翻历史提交。
+>
+> **偏离点**：原版 `main:src/settings/SessionsPage.tsx` 的关闭武装是**页组件自己的**局部 state——
+> `:53-71` 的 `armKill` 用 `killArmTimer`（`useRef`）起 `KILL_CONFIRM_TIMEOUT = 3000`（`:10`，注释
+> 写明与扩展面板的行内丢弃确认同一节奏 `75fff0b`）的 `setTimeout` 到时 `setKillArmedId(null)`；
+> `disarmKill` 先 `clearTimeout` 再归零；`:86-89` 的 unmount cleanup 清掉定时器。所以原版有两条
+> 界：**3 秒自解**与**离页即失**（组件状态随 unmount 消失，`killArmedId` 是**单个** id）。本构建
+> 把武装放在 `settingsui.App` 上（P7-dv 后是 `settingsui.go:492` 的 `sessionsArmed map[int]bool`），
+> `selectPage`（`:886`）不清、也没有超时：离开 Sessions 页再回来仍在，且一直不会自己收回。
+>
+> **修法**（`internal/settingsui/settingsui.go`）：
+> - `sessionsArmed map[int]bool` → `armedSession int` + `armedSessionAt time.Time`（`:490-497`）：
+>   原版一次只武装一个（单个 state），且 deadline 与「武装了谁」**必须成对**。用 `time.Time` 零值
+>   而非 `map` 存在性当「问过了」的判据（index 0 是真实会话，不能用 0 值表达「没问」），并加
+>   `sessionCloseWindow = 3 * time.Second`（`:3402`）逐字对应 `KILL_CONFIRM_TIMEOUT`。
+> - 三个小助手取代原来的一对：`armSessionClose(index)`（重设 deadline，等价原版 `armKill` 每次都
+>   `clearTimeout` 重启计时器，所以武装一个自动放下别人）、`disarmSessionClose()`（一次清掉人和钟，
+>   两者不会漂移）、`expireSessionClose(c)`（`:3443`，仿 launcher 的 `expireArmedDelete` /
+>   `expirePowerConfirm`：超窗即解除，并 `c.AnimationFrame()` 保证静止页上也能到点）。
+> - `View`（`:665`）每帧调 `expireSessionClose`；`selectPage`（`:896`）在 `page != PageSessions` 时
+>   `disarmSessionClose`——原版的武装活在组件里，离页 unmount 即失；Escape 分支改调
+>   `disarmSessionClose`（P7-dv 接的 `anySessionArmed` 语义由 `armedSessionAt` 承载）。
+>
+> **测试**（`internal/settingsui/sessionsclock_test.go` 新增）：
+> `TestTheSessionCloseQuestionExpiresAndDoesNotCrossPages`——注入 `Now`，武装后 2s 问题仍在、
+> 6s 后回到普通关闭钮且**没杀会话**；再武装后切到 General 再切回 Sessions，问题**不**跟着回来、
+> 也没杀会话。变异核查：把 `View` 里的 `a.expireSessionClose(c)` 去掉，第一条断言立刻红
+> （`the question outlived its window`）。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 27 包全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **新写实的残留（下轮最高优先级，见「具体待办（P7-dw 重写）」）**：武装用 `Session.Index`
+> （位置）当身份，而原版用的是 `sessionId`（`SessionsPage.tsx:54` 的 `killArmedId: string | null`）。
+> 本构建把会话从切片里删掉时（`internal/terminalui/terminalui.go:266`、`:406`、`:891`）**后面的
+> index 会前移**，于是「武装了后面的会话 → 前面的会话先结束」之后，确认钮会落到**另一个**会话上，
+> 按下去杀错人。
+
+> **上一轮：P7-dv 设置页的 Escape 先答问题再离页（原版捕获层监听，本构建被 shell 抢先认领）**
 > —— P7-du 收尾后「具体待办（P7-dt 重写）」第 3 条（terminal 的 new-command key-up reassert，
 > macOS）是清单最高优先级。本轮先按验收核实框架：**mygo 的焦点层已把这条缝补掉**——每个启动器
 > 帧都调 `launcher.App.View` → `a.FocusSearch()`（`internal/launcher/launcher.go:762`），而
@@ -3697,32 +3740,44 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-> **清单状态（P7-dv 收尾）**：P7-dt 重写的第 1 条（终端空态返回行，P7-dt）、第 2 条（launcher
-> 上被改绑后字面 ⌘W 仍隐藏窗口，P7-du）已落地；第 3 条（terminal 的 new-command key-up
-> reassert）本轮 P7-dv 核实为**无落点**（mygo 每帧重压启动器输入框、NSView 是唯一原生 first
-> responder，没有 Cmd 松手抢焦点的对应事件），写进结论。清单因此又空；本轮在同一片
-> 键盘归属里核出并落地了一处真实 bug（设置页的 Escape 被 shell 抢先认领，确认条答不了），并把
-> 同一处剩下的具体残留（sessions 武装跨页驻留 + 无 3s 自动解除）写成下一份清单。依赖检查：
-> GitHub releases API 限流，`proxy.golang.org/.../@v/list` 最新仍是 **v0.4.8**（与 `go.mod`
-> 一致），无版本可升。只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+> **清单状态（P7-dw 收尾）**：P7-dv 重写的第 1 条（sessions 武装跨页驻留 + 无 3s 自动解除）本轮
+> P7-dw 落地；第 2 条（terminal 的 new-command key-up reassert）在 P7-dv 已结清为无落点。清单
+> 因此又空；本轮在落地同一段武装代码时**核出了它自己的一处真实缺陷**——武装用位置 `Session.Index`
+> 当身份，而删除会话会让后面的 index 前移，于是确认钮会落到另一个会话上（详见「具体待办
+> （P7-dw 重写）」）。依赖检查：GitHub releases API 限流，`proxy.golang.org/.../@v/list` 最新
+> 仍是 **v0.4.8**（与 `go.mod` 一致），无版本可升。只对照 `main`
+> （`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
 
-### 具体待办（P7-dv 重写）
+### 具体待办（P7-dw 重写）
 
-> 本轮把 P7-dt 第 3 条核实为无落点，并落地同一片键盘归属里的一处真实偏离（详见「最近几轮」
-> P7-dv）。下面只留本轮新发现、仍未做的一条。依赖检查同上，无版本可升。
+> 本轮落地 P7-dv 重写的第 1 条（sessions 3s 时钟 + 离页即清），并在同一段代码里核出一处新的
+> 真实缺陷（下面第 1 条）。依赖检查同上，无版本可升。
 
-1. **sessions 页的关闭武装跨页驻留，且没有 3s 自动解除**。
-   - 原版对照：`main:src/settings/SessionsPage.tsx:53-71`——`killArmedId` 是**单个** state，
-     `armKill` 起 `KILL_CONFIRM_TIMEOUT = 3000`（`:10`）的定时器到时归零，切页 unmount 即
-     随组件状态消失；`:98-107` 的捕获监听在 Escape 时 `disarmKill`。
-   - 本构建（P7-dv 后）：`internal/settingsui/settingsui.go:492` 的 `sessionsArmed` 是
-     `settingsui.App` 的 `map[int]bool`，`selectPage`（`:886`）不清、也没有超时；Escape 已在
-     P7-dv 接上 `disarmSessions`，但**离开页面再回来仍在，且不会自己结束**（原版 3s 后自动收回）。
-   - 验收：照 launcher 的两条先例（`internal/launcher/launcher.go` 的 `expireArmedDelete` /
-     `expirePowerConfirm`：带 deadline 的武装状态 + 每帧过期检查）给 sessions 武装一个 3000ms
-     的自动解除，并在 `selectPage` 离页时清空；测试钉住「3s 未到仍在、到期自解、切页即清」。
+1. **sessions 的关闭武装用位置 `Index` 当身份，删会话后武装会落到别的会话上**。
+   - 原版对照：`main:src/settings/SessionsPage.tsx:54` 的 `killArmedId` 是
+     `string | null`——**稳定的 `session.sessionId`**（`:199` 的 `key={session.sessionId}`、
+     `:224/:241` 的 `killArmedId === session.sessionId`），列表重排/增删都不改它的指向。
+   - 本构建（P7-dw 后）：`internal/settingsui/settingsui.go:490` 的 `armedSession` 存的是
+     `session.Index`（驱动它的 `internal/shell/shell.go:812-829` 的 `Sessions` 提供者按切片位置
+     编号）。会话被删时切片收缩、后面的 index 前移：`internal/terminalui/terminalui.go:266`
+     （`EnsureSession` 丢弃驻留会话）、`:406`（`CloseSession`）、`:891`
+     （`CommandSessionEnded` 命令会话结束时还 `a.Active--`）。于是「武装 index 2 → index 0
+     被外部结束 → 原 index 2 变成 index 1，而 `armedSession` 仍是 2」——confirm 钮画在**另一个**
+     会话上，按下去 `CloseSessionAt(2)` 杀错人（原版因为用 id 不会）。
+   - 验收：给 `settingsui.Session` 加一个稳定标识（如 `shell.go:812` 提供者填的
+     `Created.UnixNano()`+ 序号，或终端层直接的会话 id），`armedSession` 改存该标识；
+     `armSessionClose` / confirm 判定 / `disarmSessionClose` 都按标识比对，且**行本身也跟着消失时
+     自动解除**。测试钉住：武装会话 B → 删掉排在它前面的会话 A（或让 A 结束）→ 武装**不再**落在
+     任何行上、也不落到 B 以外的人身上，且按任何关闭钮都不会 `CloseSessionAt` 到错的 index。
+   - 诚实边界：本构建的会话在进程内、没有原版的 broker 轮询，所以「跨页驻留 3s 后另一个会话
+     的列表真的换了人」只在**删会话**这一条路径上可达——上一条（3s + 离页即清）已把
+     「时间」与「换页」两个窗口封住，剩下的是「同一个页面里列表收缩」。
 
-2. **（已结清，P7-dv）terminal 的 new-command key-up reassert——无落点**。
+2. **（已落地，P7-dw）sessions 武装跨页驻留 + 无 3s 自动解除**——见「最近几轮」P7-dw。
+   `internal/settingsui/settingsui.go` 的 `armedSession` / `armedSessionAt` + `expireSessionClose`
+   + `selectPage` 离页清空，逐字对应 `main:src/settings/SessionsPage.tsx:10,53-71,86-89`。
+
+3. **（已结清，P7-dv）terminal 的 new-command key-up reassert——无落点**。
    - 原版对照：`main:src/surface-policy.ts:214` 的 `terminal.new-command` 带 `reassertOnKeyUp:
      true`——松开修饰键后重新把焦点压回启动器输入框（`main:src/hooks/useAppKeyboard.ts:130-142`，
      1500ms 上限）。
