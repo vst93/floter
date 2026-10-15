@@ -29,92 +29,115 @@ func (a *App) customSection(c *ui.Context, copy i18n.Settings) {
 	if a.customAction == "" && len(copy.ShortcutsActions) > 0 {
 		a.customAction = copy.ShortcutsActions[0].ID
 	}
-	a.section(c, copy.ShortcutsCustom, copy.ShortcutsCustomHint, func() {
-		if len(entries) == 0 {
-			// The reference's SettingsEmpty (`ShortcutsPage.tsx:240-252`): the
-			// 22px Keyboard mark, `customShortcutsEmpty` in --text-secondary,
-			// the grey hint underneath, and the "Add the first one" text action
-			// (＋ mark) as the region's one way out — never a filled button.
-			a.emptyState(c, "keyboard", copy.ShortcutsNone, copy.ShortcutsEmptyHint, 0, 0, func() {
-				a.actionWithGlyph(c, "plus", copy.ShortcutsAddFirst, func() {
-					a.customRecording = true
-				})
-			})
-		}
-		if len(entries) > 0 {
-			a.card(c, func() {
-				for index, entry := range entries {
-					index, entry := index, entry
-					a.row(c, shortcuts.Display(entry.Key), "", func() {
-						a.customActionPicker(c, copy, entry.Action, func(action string) {
-							a.updateCustomShortcut(index, settings.CustomShortcut{Key: entry.Key, Action: action})
-						})
-						if ui.Button(c, copy.ShortcutsRemove).Clicked() {
-							a.removeCustomShortcut(index)
-						}
+	// The reference's CustomShortcutsSection heading carries an "Add" text
+	// action at its end (`ShortcutsPage.tsx:210-216`), the same accent-text
+	// idiom the built-in group's "Restore defaults" uses. The old port only
+	// had the draft row's own Add button at the bottom, so the heading had
+	// no way to start a new binding from the top of the section.
+	a.sectionWithAction(c, copy.ShortcutsCustom, copy.ShortcutsCustomHint,
+		copy.ShortcutsAdd, func() {
+			a.customRecording = true
+		}, func() {
+			if len(entries) == 0 {
+				// The reference's SettingsEmpty (`ShortcutsPage.tsx:240-252`): the
+				// 22px Keyboard mark, `customShortcutsEmpty` in --text-secondary,
+				// the grey hint underneath, and the "Add the first one" text action
+				// (＋ mark) as the region's one way out — never a filled button.
+				a.emptyState(c, "keyboard", copy.ShortcutsNone, copy.ShortcutsEmptyHint, 0, 0, func() {
+					a.actionWithGlyph(c, "plus", copy.ShortcutsAddFirst, func() {
+						a.customRecording = true
 					})
-				}
-			})
-		}
-
-		if a.customFeedback != "" {
-			ui.Text(c, a.customFeedback).FontSize(t.FontSize - 1).TextColor(t.Danger)
-		}
-
-		// The draft row: the key recorder, the action picker (and its command
-		// field when the action is a typed line), and Add.
-		row := ui.Row(c).FillWidth().Gap(t.Space(2)).AlignItems(ui.Center).
-			Padding(t.Space(2.25), t.Space(3.5)).Radius(a.tokens(c).RadiusMD).
-			Background(a.tokens(c).Control).Border(1, a.tokens(c).ControlEdge)
-		row.Children(func() {
-			if a.customRecording {
-				capture := ui.Box(c).Focusable().Padding(t.Space(1), t.Space(2)).Radius(t.Radius).
-					Background(t.Surface).Border(1, t.Accent).Label(copy.ShortcutRecording)
-				capture.Children(func() {
-					ui.Text(c, copy.ShortcutRecording).FontSize(t.FontSize)
 				})
-				capture.HandleInput(func(ev ui.InputEvent) bool {
-					if ev.Kind != ui.InputKeyDown {
-						return false
+			}
+			if len(entries) > 0 {
+				a.card(c, func() {
+					for index, entry := range entries {
+						index, entry := index, entry
+						a.row(c, "", "", func() {
+							// The reference's own row
+							// (`ShortcutsPage.tsx:262-286`): the key recorder
+							// on the left, the action picker (and its command
+							// field) on the right, and a danger-tinted trash
+							// button beside the recorder. The old port drew only
+							// the key text and the picker, so a saved binding
+							// could not be re-recorded without deleting it.
+							a.shortcutRecorder(c, copy.ShortcutRecord, shortcuts.Display(entry.Key), func() {
+								a.customRecording = true
+								a.customKey = ""
+							})
+							a.customActionPicker(c, copy, entry.Action, func(action string) {
+								a.updateCustomShortcut(index, settings.CustomShortcut{Key: entry.Key, Action: action})
+							})
+							if ui.Button(c, copy.ShortcutsRemove).Clicked() {
+								a.removeCustomShortcut(index)
+							}
+						})
 					}
-					if ev.Key == ui.KeyEscape {
+				})
+			}
+
+			if a.customFeedback != "" {
+				ui.Text(c, a.customFeedback).FontSize(t.FontSize - 1).TextColor(t.Danger)
+			}
+
+			// The draft row: the key recorder, the action picker (and its command
+			// field when the action is a typed line), and Add.
+			row := ui.Row(c).FillWidth().Gap(t.Space(2)).AlignItems(ui.Center).
+				Padding(t.Space(2.25), t.Space(3.5)).Radius(a.tokens(c).RadiusMD).
+				Background(a.tokens(c).Control).Border(1, a.tokens(c).ControlEdge)
+			row.Children(func() {
+				if a.customRecording {
+					capture := ui.Box(c).Focusable().Padding(t.Space(1), t.Space(2)).Radius(t.Radius).
+						Background(t.Surface).Border(1, t.Accent).Label(copy.ShortcutRecording)
+					capture.Children(func() {
+						ui.Text(c, copy.ShortcutRecording).FontSize(t.FontSize)
+					})
+					capture.HandleInput(func(ev ui.InputEvent) bool {
+						if ev.Kind != ui.InputKeyDown {
+							return false
+						}
+						if ev.Key == ui.KeyEscape {
+							a.customRecording = false
+							return true
+						}
+						accelerator, ok := shortcuts.FromKey(ev.Mods, ev.Key)
+						if !ok {
+							return true // a key without a modifier is not a shortcut
+						}
 						a.customRecording = false
+						a.customKey = accelerator
 						return true
-					}
-					accelerator, ok := shortcuts.FromKey(ev.Mods, ev.Key)
-					if !ok {
-						return true // a key without a modifier is not a shortcut
-					}
-					a.customRecording = false
-					a.customKey = accelerator
-					return true
-				})
-				capture.Focus()
-			} else {
-				label := a.customKey
-				if label == "" {
-					label = copy.ShortcutsRecordKey
+					})
+					capture.Focus()
 				} else {
-					label = shortcuts.Display(label)
+					label := a.customKey
+					if label == "" {
+						label = copy.ShortcutsRecordKey
+					} else {
+						label = shortcuts.Display(label)
+					}
+					if ui.Button(c, label).Clicked() {
+						a.customRecording = true
+					}
 				}
-				if ui.Button(c, label).Clicked() {
-					a.customRecording = true
+				a.customActionPicker(c, copy, a.customAction, func(action string) {
+					a.customAction = action
+				})
+				if a.customAction == commandAction {
+					command := a.customCommand
+					textInput(c, &command).Placeholder(copy.ShortcutsCommandHint).
+						Label(copy.ShortcutsCommand).Grow(1)
+					a.customCommand = command
 				}
-			}
-			a.customActionPicker(c, copy, a.customAction, func(action string) {
-				a.customAction = action
+				// The heading's own "Add" starts a new binding from the top of
+				// the section; this button commits the row being made, so it
+				// wears its own word rather than the same one twice on the
+				// page (the tester and the eye both need to tell them apart).
+				if ui.Button(c, copy.ShortcutsBind).Clicked() {
+					a.addCustomShortcut()
+				}
 			})
-			if a.customAction == commandAction {
-				command := a.customCommand
-				textInput(c, &command).Placeholder(copy.ShortcutsCommandHint).
-					Label(copy.ShortcutsCommand).Grow(1)
-				a.customCommand = command
-			}
-			if ui.Button(c, copy.ShortcutsAdd).Clicked() {
-				a.addCustomShortcut()
-			}
 		})
-	})
 }
 
 // commandAction is the picker value that means "a command line I type": it is

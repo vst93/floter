@@ -2481,12 +2481,48 @@ func (a *App) shortcutControl(c *ui.Context, copy i18n.Settings, action, value s
 		capture.Focus()
 		return
 	}
-	ui.Text(c, shortcuts.Display(value)).FontSize(t.FontSize).TextColor(t.TextMuted)
-	if ui.Button(c, copy.ShortcutRecord).Clicked() {
+	// The reference's `.shortcut-recorder` (`settings.css:1198-1224`): a
+	// resting control pane (82u × 27u, `--glass-control` fill, 1px
+	// `--glass-control-edge` border, `--radius-sm` corner, `--elev-0` lens)
+	// showing the current chord in the monospace stack
+	// (`.shortcut-recorder__keys`, `:1238-1242`). The old port drew bare
+	// text and a separate Record button, so the row's trailing slot had no
+	// bordered control the reference put there.
+	a.shortcutRecorder(c, copy.ShortcutRecord, shortcuts.Display(value), func() {
 		a.recording, a.ShortcutID = true, action
 		// Starting a recording clears the last refusal, as the reference's own
 		// toggle did.
 		a.rejectedShortcut = ""
+	})
+}
+
+// shortcutRecorder is the reference's `.shortcut-recorder` button
+// (`settings.css:1198-1224`): an 82u-wide, 27u-tall resting control pane
+// with the control edge, the radius step and the lens, in the secondary
+// ink. Hover lifts the fill to `--glass-control-hover` and the edge to
+// `--accent-edge`; press drops the lens. The recorded chord is set in the
+// reference's monospace stack (`.shortcut-recorder__keys`, `:1238-1242`),
+// the one face where the reference itself breaks the app's proportional
+// font. The button carries the reference's `aria-label`
+// (`settings.shortcut.record`, `ShortcutRecorder.tsx:74-75`).
+func (a *App) shortcutRecorder(c *ui.Context, aria, label string, clicked func()) {
+	t := c.Theme()
+	tokens := a.tokens(c)
+	button := ui.Row(c).Focusable().Label(aria).MinWidth(t.Space(20.5)).MinHeight(t.Space(6.75)).
+		Padding(0, t.Space(2.5)).Radius(tokens.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).
+		Background(tokens.Control).Border(1, tokens.ControlEdge)
+	if button.Hovered() {
+		button.Background(tokens.ControlHover)
+		button.Border(1, t.Accent)
+	}
+	if button.Pressed() {
+		button.Background(tokens.ControlPress)
+	}
+	button.Children(func() {
+		ui.Text(c, label).Font(deepLinkValueFont).FontSize(t.FontSize).TextColor(tokens.TextSecondary)
+	})
+	if button.Clicked() {
+		clicked()
 	}
 }
 

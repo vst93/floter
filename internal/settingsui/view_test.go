@@ -1499,12 +1499,13 @@ func TestShortcutRecorder(t *testing.T) {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	// The row shows the current key, and Record starts the recorder.
+	// The row shows the current key on a bordered recorder button; clicking
+	// it starts the recorder (the reference's `.shortcut-recorder`).
 	if !tt.HasText(shortcuts.Display("Alt+Space")) {
 		t.Fatalf("the current shortcut is missing: %q", tt.Texts())
 	}
-	if err := tt.Click("Record"); err != nil {
-		t.Fatalf("the record button is missing: %v", err)
+	if err := tt.Click(shortcuts.Display("Alt+Space")); err != nil {
+		t.Fatalf("the recorder button is missing: %v", err)
 	}
 	tt.Frame()
 	if !tt.HasText("Press keys…") {
@@ -1523,7 +1524,7 @@ func TestShortcutRecorder(t *testing.T) {
 
 	// ...and Escape cancels without recording.
 	recorded = ""
-	if err := tt.Click("Record"); err != nil {
+	if err := tt.Click(shortcuts.Display("Alt+Space")); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
@@ -1532,12 +1533,12 @@ func TestShortcutRecorder(t *testing.T) {
 	if recorded != "" {
 		t.Errorf("Escape recorded %q", recorded)
 	}
-	if !tt.HasText("Record") {
+	if !tt.HasText(shortcuts.Display("Alt+Space")) {
 		t.Errorf("the recorder did not close: %q", tt.Texts())
 	}
 
 	// A key without a modifier is not a shortcut, and the recorder waits.
-	if err := tt.Click("Record"); err != nil {
+	if err := tt.Click(shortcuts.Display("Alt+Space")); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
@@ -1654,7 +1655,9 @@ func TestCustomShortcutsPage(t *testing.T) {
 	tt.Scroll(400, 300, 0, 900)
 	tt.Frame()
 
-	// Recording a key fills the new row, and Add persists the binding.
+	// Recording a key fills the new row, and Bind persists the binding.
+	// (The heading's own "Add" starts a new binding, so the row's commit
+	// button wears a word of its own.)
 	if err := tt.Click("Record key"); err != nil {
 		t.Fatalf("record: %v", err)
 	}
@@ -1667,8 +1670,8 @@ func TestCustomShortcutsPage(t *testing.T) {
 	if len(committed) != 0 {
 		t.Fatalf("a half-made row was persisted: %+v", committed)
 	}
-	if err := tt.Click("Add"); err != nil {
-		t.Fatalf("add: %v", err)
+	if err := tt.Click("Bind"); err != nil {
+		t.Fatalf("bind: %v", err)
 	}
 	tt.Frame()
 	if len(committed) != 1 || len(committed[0]) != 2 {
@@ -2177,14 +2180,12 @@ func TestAppShortcutRowsRecord(t *testing.T) {
 		}
 	}
 
-	// Each row has its own recorder: click the one beside the "New command"
-	// row's binding (the tester finds elements by text, and several rows say
-	// "Record").
-	binding, ok := tt.Find(shortcuts.Display("CmdOrCtrl+W"))
-	if !ok {
-		t.Fatalf("the new command's binding is missing: %q", tt.Texts())
+	// Each row's binding IS its recorder button (the reference's
+	// `.shortcut-recorder`), so clicking the binding itself starts it —
+	// there is no separate "Record" button beside it any more.
+	if err := tt.Click(shortcuts.Display("CmdOrCtrl+W")); err != nil {
+		t.Fatalf("the new command's binding is missing: %v", err)
 	}
-	tt.ClickAt(binding.X+binding.W+20, binding.Y+binding.H/2)
 	tt.Frame()
 	if !tt.HasText("Press keys\u2026") {
 		t.Fatalf("the recorder did not open: %q", tt.Texts())
@@ -2258,8 +2259,9 @@ func TestRecorderSuspendsTheGlobalShortcuts(t *testing.T) {
 		t.Fatalf("the shortcuts were released before recording: %v", suspended)
 	}
 
-	// The summon key's recorder suspends, and a captured key resumes.
-	if err := tt.Click("Record"); err != nil {
+	// The summon key's recorder suspends, and a captured key resumes. Its
+	// recorder is the binding's own button, so click the chord itself.
+	if err := tt.Click(shortcuts.Display("Ctrl+Space")); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
@@ -2274,7 +2276,7 @@ func TestRecorderSuspendsTheGlobalShortcuts(t *testing.T) {
 
 	// Escape cancels and resumes too.
 	suspended = nil
-	if err := tt.Click("Record"); err != nil {
+	if err := tt.Click(shortcuts.Display("Ctrl+Space")); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
@@ -4007,9 +4009,9 @@ func TestShortcutRecorderRefusesAChordAnotherActionHolds(t *testing.T) {
 		return count
 	}
 
-	// The first Record belongs to the summon key, whose row is the one above
-	// the app's own keys.
-	if err := tt.Click("Record"); err != nil {
+	// The first click belongs to the summon key's recorder — the binding's
+	// own button — whose row is the one above the app's own keys.
+	if err := tt.Click(shortcuts.Display("Ctrl+Space")); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
@@ -4029,7 +4031,7 @@ func TestShortcutRecorderRefusesAChordAnotherActionHolds(t *testing.T) {
 
 	// The action's own chord is no change: nothing is written and nothing is
 	// refused.
-	if err := tt.Click("Record"); err != nil {
+	if err := tt.Click(shortcuts.Display("Ctrl+Space")); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
@@ -4043,7 +4045,7 @@ func TestShortcutRecorderRefusesAChordAnotherActionHolds(t *testing.T) {
 	}
 
 	// A free chord is written, and the warning goes away.
-	if err := tt.Click("Record"); err != nil {
+	if err := tt.Click(shortcuts.Display("Ctrl+Space")); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()

@@ -949,6 +949,7 @@ type Settings struct {
 	ShortcutsEmptyHint   string
 	ShortcutsAddFirst    string
 	ShortcutsAdd         string
+	ShortcutsBind        string
 	ShortcutsRemove      string
 	ShortcutsCommand     string
 	ShortcutsCommandHint string
