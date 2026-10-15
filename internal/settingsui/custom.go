@@ -81,16 +81,22 @@ func (a *App) customSection(c *ui.Context, copy i18n.Settings) {
 			}
 
 			// The draft row: the key recorder, the action picker (and its command
-			// field when the action is a typed line), and Add.
+			// field when the action is a typed line), and Add. The reference's
+			// `settings-row--muted` (`settings.css:567-569`) dims an unfinished
+			// draft to 0.62 so the eye knows which halves are set.
 			row := ui.Row(c).FillWidth().Gap(t.Space(2)).AlignItems(ui.Center).
 				Padding(t.Space(2.25), t.Space(3.5)).Radius(a.tokens(c).RadiusMD).
 				Background(a.tokens(c).Control).Border(1, a.tokens(c).ControlEdge)
+			if !a.customRowComplete() {
+				row.Opacity(0.62)
+			}
 			row.Children(func() {
 				if a.customRecording {
-					capture := ui.Box(c).Focusable().Padding(t.Space(1), t.Space(2)).Radius(t.Radius).
-						Background(t.Surface).Border(1, t.Accent).Label(copy.ShortcutRecording)
+					tokens := a.tokens(c)
+					capture := ui.Box(c).Focusable().Padding(t.Space(1), t.Space(2)).Radius(tokens.RadiusSM).
+						Background(tokens.RaisedQuiet).Border(1, t.Accent).Label(copy.ShortcutRecording)
 					capture.Children(func() {
-						ui.Text(c, copy.ShortcutRecording).FontSize(t.FontSize)
+						ui.Text(c, copy.ShortcutRecording).FontSize(t.FontSize).TextColor(t.Accent)
 					})
 					capture.HandleInput(func(ev ui.InputEvent) bool {
 						if ev.Kind != ui.InputKeyDown {
@@ -179,6 +185,19 @@ func (a *App) customActionPicker(c *ui.Context, copy i18n.Settings, current stri
 	if chosen != "" && chosen != current {
 		apply(chosen)
 	}
+}
+
+// customRowComplete reports whether the draft row is whole — both a key and
+// an action are set — so the reference's muted style can be applied to an
+// unfinished draft, as `settings-row--muted` did (`settings.css:567-569`).
+func (a *App) customRowComplete() bool {
+	if strings.TrimSpace(a.customKey) == "" {
+		return false
+	}
+	if a.customAction == "" || a.customAction == commandAction {
+		return strings.TrimSpace(a.customCommand) != ""
+	}
+	return true
 }
 
 // customShortcuts is the stored list.

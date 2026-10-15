@@ -59,6 +59,61 @@ func TestTheSaveFailureBannerAppearsAndExpires(t *testing.T) {
 	}
 }
 
+// The banner does not appear at full strength: the reference's
+// `.settings-save-alert--toast` carries `@keyframes settings-toast-enter`
+// (`main:src/styles/settings.css:218-229`) — from transparent, scale 0.97 and
+// 6px low, to its place — on the panel spring. This build walks the same three
+// values off one animated number, so the first frame that raises the banner
+// fixes the motion at its start and the frames after carry it in.
+func TestTheSaveFailureBannerEntersOnItsOwnMotion(t *testing.T) {
+	store, _ := settings.OpenStore(t.TempDir())
+	a := New(store, Actions{})
+	tt := render(t, a, 720, 580)
+	if a.SaveAlertAnimating() {
+		t.Fatal("the banner's motion ran before any banner showed")
+	}
+
+	a.set(func(s *settings.Settings) { s.HideOnBlur = !s.HideOnBlur })
+	tt.Frame()
+	if !a.SaveFailedVisible() {
+		t.Fatal("a refused write showed no banner")
+	}
+	if !a.SaveAlertAnimating() {
+		t.Error("the banner appeared at full strength, with no enter animation")
+	}
+	if got := a.SaveAlertEnterProgress(); got >= 1 {
+		t.Errorf("the banner's first frame was already in place: progress = %v", got)
+	}
+
+	// It lands: the spring reaches its place and stops asking for frames.
+	deadline := time.Now().Add(2 * time.Second)
+	for a.SaveAlertAnimating() && time.Now().Before(deadline) {
+		time.Sleep(20 * time.Millisecond)
+		tt.Frame()
+	}
+	if a.SaveAlertAnimating() {
+		t.Fatal("the enter animation never settled")
+	}
+	if got := a.SaveAlertEnterProgress(); got != 1 {
+		t.Errorf("settled progress = %v, want 1", got)
+	}
+
+	// Dismissing rewinds the motion, so the next failure enters again instead
+	// of snapping into place.
+	if err := tt.Click(i18n.For("en").Settings.Close); err != nil {
+		t.Fatalf("the dismiss control: %v", err)
+	}
+	tt.Frame()
+	if a.SaveAlertAnimating() || a.SaveAlertEnterProgress() != 0 {
+		t.Errorf("dismiss left the motion at progress %v", a.SaveAlertEnterProgress())
+	}
+	a.set(func(s *settings.Settings) { s.HideOnBlur = !s.HideOnBlur })
+	tt.Frame()
+	if !a.SaveAlertAnimating() {
+		t.Error("the second failure did not enter again")
+	}
+}
+
 // The banner's own ✕ clears it early, and a write that succeeds never raises
 // one.
 func TestTheSaveFailureBannerDismisses(t *testing.T) {

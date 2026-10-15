@@ -634,6 +634,25 @@ type App struct {
 	// savealert.go).
 	saveFailed   bool
 	saveFailedAt time.Time
+	// saveAlertShown is whether the current banner has drawn its first frame,
+	// and saveAlertProgress/saveAlertAnimating where its enter animation is:
+	// see savealert.go.
+	saveAlertShown     bool
+	saveAlertProgress  float32
+	saveAlertAnimating bool
+
+	// entered marks that the panel's first frame has been drawn. The shell
+	// asks for the sidebar's focus when it opens the surface, but on the very
+	// first open the list has no state to take the request yet; View delivers
+	// it once the list is built, and entered keeps that to once.
+	entered bool
+	// sidebarEntryFocus is the reference's `data-entry-focus` (R152): as the
+	// panel opens the sidebar takes the keyboard, but the chosen pill already
+	// marks the keyboard position, so the list's `:focus-visible` ring is
+	// withheld until the first interaction. entryFocusArmed records that the
+	// focus really landed, so a later loss of it can drop the mark.
+	sidebarEntryFocus bool
+	entryFocusArmed   bool
 
 	// debouncing marks a slider preview or alias edit that has been shown but
 	// not written yet, with debounceAt the moment the window closes;
@@ -765,11 +784,22 @@ func New(store *settings.Store, actions Actions) *App {
 	return a
 }
 
-// FocusSidebar asks for the keyboard focus on the page list.
-func (a *App) FocusSidebar() { a.Sidebar.Handle.Focus() }
+// FocusSidebar asks for the keyboard focus on the page list, and arms the
+// entry-focus mark: the shell calls it when the settings surface opens, so the
+// sidebar is where the keyboard starts (the reference's
+// `focusCurrentSettingsSidebar`).
+func (a *App) FocusSidebar() {
+	a.Sidebar.Handle.Focus()
+	a.sidebarEntryFocus = true
+	a.entryFocusArmed = false
+}
 
 // SelectedPage is the chosen page.
 func (a *App) SelectedPage() int { return a.Page }
+
+// SidebarEntryFocus reports whether the sidebar's entry-focus mark is up — the
+// reference's `data-entry-focus` (R152) — for the tests.
+func (a *App) SidebarEntryFocus() bool { return a.sidebarEntryFocus }
 
 // page describes one sidebar entry in the current language.
 type page struct {
@@ -826,6 +856,16 @@ func (a *App) View(c *ui.Context) {
 	// `killArmTimer` reverted the button after three seconds, so an ask left
 	// unanswered does not stay armed on a later glance.
 	a.expireSessionClose(c)
+
+	// The panel's very first frame puts the keyboard on the sidebar. The
+	// shell's own `FocusSidebar` runs when the surface opens, before the list
+	// has ever been built, so on the first open the request has nowhere to
+	// land; delivering it here, once the list takes state, is the reference's
+	// `focusCurrentSettingsSidebar` (`src/App.tsx`).
+	if !a.entered {
+		a.entered = true
+		a.FocusSidebar()
+	}
 
 	// While a recorder waits, Escape belongs to it: a shortcut of the view is
 	// handled before the focused element's input, so both recorders have to
@@ -931,9 +971,22 @@ func (a *App) View(c *ui.Context) {
 		ui.Row(c).Grow(1).MinHeight(0).AlignItems(ui.Stretch).Gap(t.Space(3)).Children(func() {
 			ui.Column(c).Width(148).Padding(t.Space(3), t.Space(2)).Gap(t.Space(0.75)).
 				Background(a.tokens(c).Sunken).Children(func() {
-				ui.List(c.Key("settings.sidebar"), &a.Sidebar, pageCount, func(i int) {
+				list := ui.List(c.Key("settings.sidebar"), &a.Sidebar, pageCount, func(i int) {
 					a.sidebarRow(c, i)
 				}).Grow(1).Label(copy.Title)
+				// The entry-focus mark withholds the list's own ring: the chosen
+				// pill already shows where the keyboard is, and the reference's
+				// `data-entry-focus` kept `:focus-visible` off the sidebar until
+				// the first interaction (R152). Once the keyboard leaves the
+				// sidebar — a Tab, a click on a control — the mark goes and the
+				// ring is the framework's again.
+				list.FocusRing(!a.sidebarEntryFocus)
+				switch {
+				case a.sidebarEntryFocus && a.Sidebar.Focused(c):
+					a.entryFocusArmed = true
+				case a.entryFocusArmed:
+					a.sidebarEntryFocus, a.entryFocusArmed = false, false
+				}
 			})
 			// The sidebar's column separator is the same fade, drawn vertically
 			// (`.settings-sidebar::after`).
@@ -1048,6 +1101,8 @@ func (a *App) sidebarRow(c *ui.Context, i int) {
 			TextColor(color).Ellipsis("\u2026").SingleLine()
 	})
 	if row.Clicked() {
+		// A click is the first interaction, so the entry-focus mark goes.
+		a.sidebarEntryFocus, a.entryFocusArmed = false, false
 		a.selectPage(i)
 	}
 }
@@ -1105,7 +1160,10 @@ func (a *App) selectPage(page int) {
 // its `settingsSidebarButtons.current.get(next)?.focus()`.
 func (a *App) stepPage(delta int) {
 	a.selectPage(nextPage(a.Page, delta))
-	a.FocusSidebar()
+	// An arrow is the first interaction, so the entry-focus mark goes too: the
+	// ring is the keyboard's own from here.
+	a.sidebarEntryFocus, a.entryFocusArmed = false, false
+	a.Sidebar.Handle.Focus()
 }
 
 // nextPage is the page `delta` steps away in the sidebar order, wrapping at
@@ -2532,10 +2590,14 @@ func (a *App) shortcutControl(c *ui.Context, copy i18n.Settings, action, value s
 	t := c.Theme()
 	recording := a.recording && (action == "" || a.ShortcutID == action)
 	if recording {
-		capture := ui.Box(c).Focusable().Padding(t.Space(1), t.Space(2)).Radius(a.tokens(c).RadiusSM).
-			Background(t.Surface).Border(1, t.Accent).Label(copy.ShortcutRecording)
+		// The reference's `.shortcut-recorder--recording`
+		// (`settings.css:1478-1504`): the raised-quiet pane, the accent
+		// edge and the accent prompt — an armed state, not a primary action.
+		tokens := a.tokens(c)
+		capture := ui.Box(c).Focusable().Padding(t.Space(1), t.Space(2)).Radius(tokens.RadiusSM).
+			Background(tokens.RaisedQuiet).Border(1, t.Accent).Label(copy.ShortcutRecording)
 		capture.Children(func() {
-			ui.Text(c, copy.ShortcutRecording).FontSize(t.FontSize)
+			ui.Text(c, copy.ShortcutRecording).FontSize(t.FontSize).TextColor(t.Accent)
 		})
 		capture.HandleInput(func(ev ui.InputEvent) bool {
 			if ev.Kind != ui.InputKeyDown {
@@ -2578,27 +2640,31 @@ func (a *App) shortcutControl(c *ui.Context, copy i18n.Settings, action, value s
 // shortcutRecorder is the reference's `.shortcut-recorder` button
 // (`settings.css:1198-1224`): an 82u-wide, 27u-tall resting control pane
 // with the control edge, the radius step and the lens, in the secondary
-// ink. Hover lifts the fill to `--glass-control-hover` and the edge to
-// `--accent-edge`; press drops the lens. The recorded chord is set in the
-// reference's monospace stack (`.shortcut-recorder__keys`, `:1238-1242`),
-// the one face where the reference itself breaks the app's proportional
-// font. The button carries the reference's `aria-label`
-// (`settings.shortcut.record`, `ShortcutRecorder.tsx:74-75`).
+// ink. Hover lifts the fill to `--glass-control-hover`, the edge to
+// `--accent-edge` and the ink to `--text-strong`; press drops the lens.
+// The recorded chord is set in the reference's monospace stack
+// (`.shortcut-recorder__keys`, `:1238-1242`), the one face where the
+// reference itself breaks the app's proportional font. The button carries
+// the reference's `aria-label` (`settings.shortcut.record`,
+// `ShortcutRecorder.tsx:74-75`) and its focus-visible ring
+// (`:1473-1476`).
 func (a *App) shortcutRecorder(c *ui.Context, aria, label string, clicked func()) {
 	t := c.Theme()
 	tokens := a.tokens(c)
 	button := ui.Row(c).Focusable().Label(aria).MinWidth(t.Space(20.5)).MinHeight(t.Space(6.75)).
 		Padding(0, t.Space(2.5)).Radius(tokens.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).
-		Background(tokens.Control).Border(1, tokens.ControlEdge)
+		Background(tokens.Control).Border(1, tokens.ControlEdge).FocusRing(true)
+	ink := tokens.TextSecondary
 	if button.Hovered() {
 		button.Background(tokens.ControlHover)
 		button.Border(1, t.Accent)
+		ink = tokens.TextStrong
 	}
 	if button.Pressed() {
 		button.Background(tokens.ControlPress)
 	}
 	button.Children(func() {
-		ui.Text(c, label).Font(deepLinkValueFont).FontSize(t.FontSize).TextColor(tokens.TextSecondary)
+		ui.Text(c, label).Font(deepLinkValueFont).FontSize(t.FontSize).TextColor(ink)
 	})
 	if button.Clicked() {
 		clicked()

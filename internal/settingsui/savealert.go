@@ -36,6 +36,9 @@ func (a *App) noteSaveFailed() {
 func (a *App) dismissSaveFailed() {
 	a.saveFailed = false
 	a.saveFailedAt = time.Time{}
+	a.saveAlertShown = false
+	a.saveAlertProgress = 0
+	a.saveAlertAnimating = false
 }
 
 // expireSaveFailed clears a banner whose window has passed, and keeps the
@@ -57,6 +60,22 @@ func (a *App) expireSaveFailed(c *ui.Context) {
 // the shell and the tests.
 func (a *App) SaveFailedVisible() bool { return a.saveFailed }
 
+// SaveAlertAnimating reports whether the write-failure banner is still in its
+// enter animation, for the tests.
+func (a *App) SaveAlertAnimating() bool { return a.saveAlertAnimating }
+
+// SaveAlertEnterProgress reports where the banner's enter animation is, 0 at
+// its start and 1 in place, for the tests.
+func (a *App) SaveAlertEnterProgress() float32 { return a.saveAlertProgress }
+
+// saveAlertEnterKey names the banner's enter animation among its own motion.
+const saveAlertEnterKey = "settings.saveAlert.enter"
+
+// saveAlertEnterAnimation is the reference's `@keyframes settings-toast-enter`
+// motion: the banner comes in from transparent, a hair small and 6px low, on a
+// spring, rather than appearing at full strength.
+var saveAlertEnterAnimation = ui.Snappy
+
 // saveAlert draws the banner over the page's content: the warning pane, the
 // sentence, and the ✕ that clears it early (the old build's
 // `.settings-save-alert--toast`).
@@ -66,29 +85,46 @@ func (a *App) saveAlert(c *ui.Context, copy i18n.Settings) {
 	}
 	t := c.Theme()
 	tokens := a.tokens(c)
-	ui.Row(c).FillWidth().Padding(t.Space(2), t.Space(3)).Gap(t.Space(2)).
+	banner := ui.Row(c).FillWidth().Padding(t.Space(2), t.Space(3)).Gap(t.Space(2)).
 		AlignItems(ui.Center).Radius(tokens.RadiusSM).
-		Background(t.Warning.Alpha(0.12)).Children(func() {
-		ui.Icon(c, mustGlyph("alert")).Size(t.Space(4), t.Space(4)).TextColor(t.Warning)
-		ui.Text(c, copy.SaveFailedAlert).FontSize(t.FontSize).FontWeight(580).
-			TextColor(t.Warning).Grow(1)
-		button := ui.Row(c).Focusable().Shrink(0).Size(t.Space(6), t.Space(6)).
-			Radius(tokens.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).
-			Label(copy.Close)
-		if button.Hovered() {
-			button.Background(tokens.ControlHover)
-			// `.settings-save-alert button`: the reference's own alert button
-			// carries the raised lens rung; this build's banner has one ✕ that
-			// is transparent at rest, so the pointer is where it can be graded.
-			tokens.Lens(button)
-		}
-		button.Children(func() {
-			ui.Icon(c, mustGlyph("close")).Size(t.Space(3.5), t.Space(3.5)).TextColor(t.Warning)
+		Background(t.Warning.Alpha(0.12))
+	// The banner comes in rather than appearing: the reference's
+	// `@keyframes settings-toast-enter` carries it from transparent, a hair
+	// small and 6px low. A value "starts at the first target", so the first
+	// frame fixes the animation's start at 0 and the frames after walk it to
+	// its place; drawing it at 1 at once would have nowhere to come from.
+	if !a.saveAlertShown {
+		a.saveAlertShown = true
+		banner.AnimateTo(saveAlertEnterKey, 0, saveAlertEnterAnimation)
+		a.saveAlertProgress = 0
+	} else {
+		a.saveAlertProgress = banner.AnimateTo(saveAlertEnterKey, 1, saveAlertEnterAnimation)
+	}
+	a.saveAlertAnimating = !banner.Settled(saveAlertEnterKey)
+	banner.Opacity(a.saveAlertProgress).
+		Scale(0.97+0.03*a.saveAlertProgress, 0.97+0.03*a.saveAlertProgress).
+		Translate(0, 6*(1-a.saveAlertProgress)).
+		Children(func() {
+			ui.Icon(c, mustGlyph("alert")).Size(t.Space(4), t.Space(4)).TextColor(t.Warning)
+			ui.Text(c, copy.SaveFailedAlert).FontSize(t.FontSize).FontWeight(580).
+				TextColor(t.Warning).Grow(1)
+			button := ui.Row(c).Focusable().Shrink(0).Size(t.Space(6), t.Space(6)).
+				Radius(tokens.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).
+				Label(copy.Close)
+			if button.Hovered() {
+				button.Background(tokens.ControlHover)
+				// `.settings-save-alert button`: the reference's own alert button
+				// carries the raised lens rung; this build's banner has one ✕ that
+				// is transparent at rest, so the pointer is where it can be graded.
+				tokens.Lens(button)
+			}
+			button.Children(func() {
+				ui.Icon(c, mustGlyph("close")).Size(t.Space(3.5), t.Space(3.5)).TextColor(t.Warning)
+			})
+			if button.Clicked() {
+				a.dismissSaveFailed()
+			}
 		})
-		if button.Clicked() {
-			a.dismissSaveFailed()
-		}
-	})
 }
 
 // shortcutRejectedAlert is the reference's plain save alert (not the toast):
