@@ -363,23 +363,36 @@ func (a *App) actionRow(c *ui.Context, control func()) {
 }
 
 // action draws the right-aligned accent text action the reference's rows use
-// ("Edit…", "Restore defaults"): the accent spent on text, never on a fill.
-func (a *App) action(c *ui.Context, label string, clicked func()) {
-	a.actionWithGlyph(c, "", label, clicked)
+// ("Edit…", "Restore defaults"): the accent spent on text, never on a fill. It
+// returns the action's own element so a test can read its box.
+func (a *App) action(c *ui.Context, label string, clicked func()) ui.Element {
+	return a.actionWithGlyph(c, "", label, clicked)
 }
 
 // actionWithGlyph is action with the reference's optional leading mark: the
 // `.settings-reset__icon` slot the deep-link copy control filled with lucide's
 // Copy / Check at 13px (`DeepLinkRow.tsx:47-58`, `SettingsRows.tsx:200-216`).
 // An empty name draws the text-only action every other caller wants.
-func (a *App) actionWithGlyph(c *ui.Context, glyphName, label string, clicked func()) {
+//
+// The box is the reference's `.settings-reset` itself, not an approximation of
+// it (`settings.css:682-730`): a 24u floor, a 5u gap, 2u of side padding, a
+// `--radius-xs` corner, a transparent fill, and a hover/active pair that dims
+// the *ink* rather than painting a band behind it. The old port padded the row
+// by 4u/6u, rounded it to `--radius-sm` and filled it on hover, so the same
+// words stood 4u taller and turned into a control the reference never drew.
+func (a *App) actionWithGlyph(c *ui.Context, glyphName, label string, clicked func()) ui.Element {
 	t := c.Theme()
-	row := ui.Row(c).Focusable().Padding(t.Space(1), t.Space(1.5)).Radius(a.tokens(c).RadiusSM)
+	tokens := a.tokens(c)
+	row := ui.Row(c).Focusable().AlignItems(ui.Center).MinHeight(t.Space(6)).
+		Padding(0, t.Space(0.5)).Radius(tokens.RadiusXS)
 	if glyphName != "" {
 		row.Gap(t.Space(1.25))
 	}
-	if row.Hovered() {
-		row.Background(t.SurfaceHover)
+	switch {
+	case row.Pressed():
+		row.Opacity(0.6) // `.settings-reset:active { opacity: .6 }`
+	case row.Hovered():
+		row.Opacity(0.78) // `.settings-reset:not(:disabled):hover { opacity: .78 }`
 	}
 	row.Children(func() {
 		if glyphName != "" {
@@ -392,6 +405,7 @@ func (a *App) actionWithGlyph(c *ui.Context, glyphName, label string, clicked fu
 	if row.Clicked() {
 		clicked()
 	}
+	return row
 }
 
 // fadeRule draws base.css's `--hairline-fade`: a 1px rule that dissolves into

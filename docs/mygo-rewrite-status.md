@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1388 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1396 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1388 项测试
+go test -count=1 ./...         # 1396 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -100,7 +100,47 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **本轮：P7-gj 深链值回到原版的代码块 chip——从行标签改画 `.settings-deep-link__value`
+> **本轮：P7-gk 共享文本动作回到原版 `.settings-reset` 的度量与交互——24u 底、2u 内边距、
+> `--radius-xs`，hover/active 只降墨色透明度（原版 `src/settings/SettingsRows.tsx:201-216`、
+> `src/styles/settings.css:682-730`）**
+> ——P7-gj 收尾后「具体待办（P7-gi 重写）」只剩第 3 条（共享文本动的 `.settings-reset` 度量），
+> 本轮取它落地。依赖检查：`go.mod` 已是 **v0.5.1** = GitHub releases latest（本轮以
+> `go list -m -versions` 复核：v0.5.1 即 latest tag；`releases/latest` 因 API 限流不可用），
+> 无版本可升；只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离 1（P7-gk·文本动作比原版高 6u、宽 4u，圆角错档）**：原版 `SettingsAction` 就是
+> `.settings-reset` 本身（`SettingsRows.tsx:201-216`）：`settings.css:682-730` 给它
+> `min-height: 24u`、`padding: 0 2u`、`gap: 5u`、`border-radius: var(--radius-xs)`。**本构建（改前）**
+> `rows.go` 的 `actionWithGlyph` 用 `Padding(t.Space(1), t.Space(1.5))` = 4u/6u、`RadiusSM` = 9px，
+> 于是同一个动作的盒子高 30u、左侧内缩 6u（实测），而原版是 24u/2u。
+>
+> **偏离 2（P7-gk·hover 画了一条底色带，原版只降墨色）**：原版 `.settings-reset:not(:disabled):hover
+> { opacity: .78 }`、`:active { opacity: .6 }`（`settings.css:713-721`），也就是交互只改**墨色**、
+> 不动底下的平面（`background: transparent`）。**本构建（改前）**：hover 时 `row.Background(t.SurfaceHover)`
+> 把动作后面的平面点亮（实测 delta 21），既不是原版的样子，也让「文本动作」看成了填充控件。
+>
+> **落地**：`internal/settingsui/rows.go` 的 `actionWithGlyph`——`MinHeight(t.Space(6))`（=24u）、
+> `Padding(0, t.Space(0.5))`（=0 2u）、`Radius(tokens.RadiusXS)`（6px）、`AlignItems(ui.Center)`；
+> hover/active 改成 `row.Opacity(0.78)` / `row.Opacity(0.6)` 并与原版同序（pressed 优先，`switch`）；
+> `action`/`actionWithGlyph` 改为返回 `ui.Element`，供测试用 `Handle.Bind`+`Resolve` 直接读盒子。
+> 两个调用方（`sectionWithAction` 的 `Restore defaults`、深链复制）自动回到原版度量。
+>
+> **验收**：`internal/settingsui/actionmetrics_test.go` 两条——
+> `TestTheTextActionsWearTheReferenceResetMetrics`（单渲染动作：左侧内缩 2u、右侧 2u、盒高
+> 23.5≤h≤25，与旧的 6u/30u 盒子两侧都被夹住）与 `TestTheTextActionHoverDimsTheInkOnly`（在活的
+> Shortcuts 组上驱动 `Restore defaults`：hover 后墨色最小通道上升，而文字旁的平面像素差 ≤2，
+> 即没有新增底色）。变异核查：把度量改回 `Padding(4u,6u)`+`RadiusSM`+`SurfaceHover` → 两条当场红
+> （inset 6/6、高 30；平面 delta 21、墨色不变）。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go tool mygo vet .` 净、
+> `go test -count=1 ./...` 全绿（1396 项）、`GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：第 3 条（P7-gk）落地；「具体待办（P7-gi 重写）」**3 条全部结清、清单归零**。
+> 下一轮回到「对照原版排查偏离点」，换一个**全文档从未审计**的入口（原版 `SettingsAction` 的兄弟
+> 原语 `SettingsEmpty` 只在 P7-gc 的 Shortcuts 空态用过），把「尚未做」重写为带 file:line 的具体
+> 待办并取第 1 条落地。
+
+> **上一轮：P7-gj 深链值回到原版的代码块 chip——从行标签改画 `.settings-deep-link__value`
 > （原版 `src/settings/DeepLinkRow.tsx:67,79`、`src/styles/settings.css:1524-1535`）**
 > ——P7-gi 收尾后「具体待办（P7-gi 重写）」还剩第 2·3 条，本轮取最高优先级的第 2 条落地。
 > 依赖检查：`go.mod` 已是 **v0.5.1** = GitHub releases latest（本轮 `releases/latest` 复核），
@@ -6432,7 +6472,7 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-### 具体待办（P7-gi 重写；第 1 条 P7-gi、第 2 条 P7-gj 落地，第 3 条待做）
+### 具体待办（P7-gi 重写；第 1 条 P7-gi、第 2 条 P7-gj、第 3 条 P7-gk 均已落地；清单归零）
 
 审计入口：原版 About 页的深链行 `main:src/settings/DeepLinkRow.tsx`（它吃的行基元
 `main:src/settings/SettingsRows.tsx` 的 `SettingsAction`，以及 `main:src/styles/settings.css:682-730`
@@ -6484,21 +6524,94 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
      `TestTheDeepLinkValueIsTheReferenceCodeChip`（暗色下 chip 底与卡片底像素差 ≥12；文字上下填充带 =
      4u）与 `TestTheDeepLinkValueUsesTheReferenceCodeFont`（等宽栈逐字常量）。变异核查：改回 `a.row`
      的普通 label → 底色断言红（差 0）。
-3. **共享文本动作的度量还不是 `.settings-reset` 本身。**
+3. **（本轮落地，P7-gk）共享文本动作的度量与交互不是 `.settings-reset` 本身。**
    - 原版对照：`settings.css:682-730` —— `min-height:24u`、`padding:0 2u`、`gap:5u`、
-     `background:transparent`、hover `opacity:.78`、active `:active opacity:.6`、disabled
-     `--text-tertiary`。
-   - 本构建（现状）：`rows.go:337-357` 的 `actionWithGlyph` 用 `Padding(Space(1), Space(1.5))`、
-     hover `SurfaceHover` 填充，没有 active/disabled 的透明度与 `min-height`；`Restore defaults`
-     （`settingsui.go:2333` 一带）与深链复制共用它，因此两处一起偏离。
-   - 落地 file:line：把 `actionWithGlyph` 的 padding/min-height/gap/hover-active 改成上面的 token；
-     若要保持 `Restore defaults` 的现有观感，先在文档里记下取舍再改。
-   - 验收：一条盒子测试（同页两个文本动作都有 24u 最小高、左内边距 2u）与一条 hover 像素测试
-     （hover 不改变底色，只改文字透明度）。
+     `border-radius:var(--radius-xs)`、`background:transparent`、hover `opacity:.78`、
+     active `:active opacity:.6`、disabled `--text-tertiary`。
+   - 本构建（改前）：`rows.go:385` 的 `actionWithGlyph` 用 `Padding(Space(1), Space(1.5))` =
+     4u/6u、`RadiusSM` = 9px，hover 用 `row.Background(t.SurfaceHover)` 画底色带，没有 active
+     与 `min-height`；`Restore defaults`（`settingsui.go:2338` 一带）与深链复制共用它，因此两处
+     一起偏离（实测：盒子 30u 高、左内缩 6u、hover 平面 delta 21）。
+   - 落地 file:line（已按此落地）：`internal/settingsui/rows.go` 的 `actionWithGlyph` ——
+     `MinHeight(t.Space(6))`、`Padding(0, t.Space(0.5))`、`Radius(tokens.RadiusXS)`、
+     `AlignItems(ui.Center)`；hover/active 改为 `row.Opacity(0.78)`/`row.Opacity(0.6)`，次序与
+     原版一致（pressed 优先）。`action`/`actionWithGlyph` 改返回 `ui.Element`，测试用
+     `Handle.Bind` + `Resolve` 读盒子。
+   - 验收（已过）：`internal/settingsui/actionmetrics_test.go` 的
+     `TestTheTextActionsWearTheReferenceResetMetrics`（左/右内缩各 2u、盒高 23.5–25）与
+     `TestTheTextActionHoverDimsTheInkOnly`（hover 后墨色最小通道上升、平面像素差 ≤2）。变异核查：
+     改回 `Padding(4u,6u)`+`RadiusSM`+`SurfaceHover` → 两条当场红（inset 6/6、高 30；平面 delta 21）。
 
 > P7-gb 清单三条已全部结清（P7-gb/P7-gd/P7-gh），本轮回到「对照原版排查偏离点」，换到从未审计的
 > About 页深链行，把清单重写为上面 3 条带 file:line / 原版对照 / 验收标准的具体待办，并取第 1 条
-> 落地（P7-gi）。第 2·3 条是下一轮候选。
+> 落地（P7-gi）。第 2·3 条随后由 P7-gj / P7-gk 结清，本清单归零。
+
+### 具体待办（P7-gk 重写；第 1–3 条待做）
+
+审计入口：原版 `main:src/settings/SettingsRows.tsx` 的 `SettingsEmpty`（`:218-244`）与它的 CSS
+`main:src/styles/settings.css:633-676`、`:1393`（`.session-manager > .settings-empty` 的整身接管）、
+以及三个调用方 `main:src/settings/SessionsPage.tsx:142-167`、`main:src/settings/ShortcutsPage.tsx:240-252`、
+`main:src/ExtensionsPanel.tsx:3177-3191`。本构建对应 `internal/settingsui/settingsui.go` 的 `sessions`
+（`:1142-1152`）/`integrations`（`:1317-1321`）与 `internal/settingsui/custom.go` 的空态（`:35-45`），
+词条在 `internal/i18n/copy.go`。此前只有 P7-gc 碰过 `ShortcutsPage` 的空态，且只是「回到
+`SettingsEmpty` 形状」的一行；`.settings-empty` 的度量（92u/160u 底、24u padding、8u gap、图标 22px
+@0.72、title `--text-secondary` 580、hint `--text-caption` 320px）全文档此前从未逐条对照。依赖检查：
+`go.mod` 已是 **v0.5.1** = latest tag（本轮以 `go list -m -versions` 复核），无版本可升；只对照
+`main`，未翻历史提交。
+
+1. **（待做，P7-gl）Sessions 页的空态是一行裸文本，不是原版的三态空态。**
+   - 原版对照：`SessionsPage.tsx:142-167` 在 `sessions.length === 0` 时走 `SettingsEmpty`：
+     `alert={error}`、图标三态（error → `AlertCircle`、loading → `RefreshCw`、默认 `SquareTerminal`，
+     均 22px、`strokeWidth 1.6`、`aria-hidden`）、title 三态（`terminal.sessionsError` /
+     `terminal.sessionsLoading` / `terminal.sessionsEmpty`）、hint 两态（error →
+     `terminal.sessionsRefreshHint`、loading → 无、默认 `terminal.sessionsEmptyHint`）；CSS
+     `settings.css:1399` 给这条列表空态 `min-height:160u`（整身接管，因为空态*就是*整页 body），
+     其余走基类 92u。
+   - 本构建（现状）：`settingsui.go:1144-1152` 是
+     `ui.Column(...).Gap(Space(3)).Padding(Space(4)).Center()`，只有一行 `copy.SessionsNone`
+     （“No sessions are running.”）与一个 `ui.Button(copy.SessionsNew)`；没有图标、没有 hint、没有
+     160u 底，且词条与 `terminal.sessionsEmpty`（“No persistent sessions”/“暂无持久化会话”）不同。
+   - 落地 file:line：在 `internal/settingsui` 抽出共享的 `emptyState` 绘制（供本清单三条复用），
+     `sessions` 空态改走它，并新增 tri-state 图标/词条；`internal/i18n/copy.go` 补 `SessionsLoading`/
+     `SessionsEmpty`/`SessionsEmptyHint`/`SessionsRefreshHint`（en/zh 逐字取 `i18n.ts:162-166,1069-1073`）；
+     整身接管的 160u 底作为 `emptyState` 的一个参数（`SettingsEmpty` 的 `className="session-manager__list"`
+     对应物）。
+   - 验收：一条 Sessions 空页渲染测试 —— 空态区域高 ≥160u、有 22px 的图标记号、hint 在 title 下 8u、
+     且 `New session` 仍是空态里的出路（原版的 `SettingsEmpty` 没有 action 槽，出路是页面 own 的
+     `ui.Button`，与原版 `SessionsPage` 一致）；一条词表测试钉住四条新词逐字。变异核查：去掉 160u 底
+     或图标任一 → 对应断言红。
+
+2. **（待做，P7-gm）Integrations 页的空态是一行裸文本，不是原版的 `SettingsEmpty`。**
+   - 原版对照：`ExtensionsPanel.tsx:3177-3191` 的 `EmptyState` 一律走 `SettingsEmpty`：`icon` 是
+     面板给的记号、`title` 是状态行、`hint` 是过滤时的查询回显（`<strong
+     className="extensions-empty__query">"{query}"</strong>`，仅 `font-weight:600`，
+     `extensions.css:1435-1444`）——过滤空态也仍然报出它匹配空的查询串。基类给它 92u 底、24u padding、
+     8u gap、title `--text-secondary` 580、hint `--text-caption` 320px。
+   - 本构建（现状）：`settingsui.go:1317-1321` 是 `ui.Column(...).Padding(Space(4)).Center()` +
+     一行 `copy.IntegrationsEmpty`，没有图标、没有 hint、没有 92u 底，title 还是 `TextMuted`
+     （原版是 `--text-secondary`）。
+   - 落地 file:line：`integrations` 的空态改走上面第 1 条抽出的 `emptyState`，补面板自己的记号；
+     若本构建的过滤路径已有查询串（`internal/settingsui` 的 installed 过滤），把查询回显接上 hint 线
+     （没有就如实不画 hint，并在文档记下取舍）。
+   - 验收：一条渲染测试 —— 空态区域高 ≥92u、有图标记号、title 用 `--text-secondary` 墨色（与
+     `TextMuted` 的像素差可测）；过滤到空时 hint 里逐字含查询串。变异核查：改回裸 `ui.Text` →
+     高度/墨色断言红。
+
+3. **（待做，P7-gn）自定义快捷键空态仍是填充按钮 + 自造度量。**
+   - 原版对照：`ShortcutsPage.tsx:240-252` 的 `SettingsEmpty`：`icon={<Keyboard size={22}
+     strokeWidth={1.6} aria-hidden />}`、`title=customShortcutsEmpty`、`hint=customShortcutsEmptyHint`、
+     `action=<SettingsAction title=customShortcutsAddHint><span className="settings-reset__icon">＋</span>
+     {customShortcutsAddFirst}</SettingsAction>`；CSS 同基类：92u 底、24u padding、8u gap、
+     图标 `--text-tertiary` @ `opacity:.72`、title `--text-secondary` 580、hint `--text-caption`
+     320px、action 是 `.settings-reset` 文本动作（现已有 `actionWithGlyph`），不是填充按钮。
+   - 本构建（现状）：`custom.go:35-45` 用 `Gap(Space(2)).Padding(Space(4)).Center()`，图标是
+     `mustGlyph("text")` @ `Space(5)`、title @ `TextMuted`、hint @ `FontSize-1`、出路是
+     `ui.Button(copy.ShortcutsAddFirst)`（填充按钮，无 ＋ 记号）。
+   - 落地 file:line：`custom.go` 的空态改走共享 `emptyState`，图标换 `Keyboard` 记号（`internal/launcher`
+     的 `glyphs.go` 需补一个键盘记号或复用最接近的）、title 改 `--text-secondary`、hint 改
+     `--text-caption`、出路改 `a.actionWithGlyph(c, "plus", copy.ShortcutsAddFirst, …)`（需补一个 ＋ 记号）。
+   - 验收：一条渲染测试 —— 空态高 ≥92u、title 墨色是 `--text-secondary`、出路是文本动作（墨色最小
+     通道带内 20u 有 accent 记号、且不是填充 pill）。变异核查：把出路改回 `ui.Button` → 记号断言红。
 
 ### 具体待办（P7-gb 重写；3 条已全部落地：第 1 条 P7-gb、第 2 条 P7-gd、第 3 条 P7-gh）
 

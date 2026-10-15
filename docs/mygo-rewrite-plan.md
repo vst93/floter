@@ -1220,6 +1220,24 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
   `internal/shell/shell_test.go` 的 `TestTerminalOpenExternalFailureSpeaksInThePanel`。变异核查：
   摘 `feedbackNote` terminalui 三条红；摘 shell 的 `ShowFeedback` shell 那条红。
 
+### P7-gk 共享文本动作回到 `.settings-reset` 的度量与交互（已做）
+
+- **偏离点**：原版所有文本动作（`Restore defaults`、深链复制、自定义快捷键空态的 `＋` 出路）
+  都是同一个 `SettingsAction`，即 `.settings-reset` 本身（`src/settings/SettingsRows.tsx:201-216`）：
+  `src/styles/settings.css:682-730` 给它 `min-height:24u`、`padding:0 2u`、`gap:5u`、
+  `border-radius:var(--radius-xs)`、`background:transparent`，交互只改**墨色**透明度
+  （hover `opacity:.78`、active `opacity:.6`），disabled 才是 `--text-tertiary`。本构建
+  `internal/settingsui/rows.go` 的 `actionWithGlyph` 用 `Padding(Space(1), Space(1.5))` =
+  4u/6u、`RadiusSM` = 9px、`row.Background(t.SurfaceHover)`，于是同一个动作的盒子 30u 高、
+  左内缩 6u（实测），hover 还把背后的平面点亮（delta 21），看起来像一个填充牌。
+- **修法**：`actionWithGlyph` —— `MinHeight(t.Space(6))`、`Padding(0, t.Space(0.5))`、
+  `Radius(tokens.RadiusXS)`、`AlignItems(ui.Center)`；hover/active 改 `row.Opacity(0.78)` /
+  `row.Opacity(0.6)`，次序与 CSS 一致（`:active` 优先）。`action`/`actionWithGlyph` 改返回
+  `ui.Element`（否则测试拿不住盒子；`Bind`+`Resolve` 读）。
+- **测试**：`internal/settingsui/actionmetrics_test.go` —— 单渲染读盒子（左/右内缩 2u、
+  23.5≤盒高≤25）与活页 hover 像素测试（墨色变、平面不变）。变异核查：改回旧度量 → 两条红
+  （inset 6/6、高 30；平面 delta 21）。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。
