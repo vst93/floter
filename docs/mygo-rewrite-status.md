@@ -100,6 +100,56 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
+> **本轮：P7-gy 终端外观抽屉的 slider 宽度/读数/格宽回到原版 `terminal.css`（`.terminal-settings`
+> 的 `minmax(230px, 1fr)`、`.terminal-setting-range` 的 `width: 110px`、
+> `.terminal-setting-control__value` 的 body/等宽/accent/tabular）**
+> ——P7-gx 收尾后「具体待办（P7-gx 重写）」余下第 2·3·4 条，本轮取第 2 条落地。依赖检查：`go.mod`
+> 已是 **v0.5.1**，`go list -m -versions` 复核无 v0.5.2+（`api.github.com` 本轮被限流），无版本可升；
+> 只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离 1（P7-gy·slider 的宽度不是原版的 110px）**：原版 `.terminal-setting-range`
+> （`terminal.css:677-692`）是 `width: 110px`。**本构建（改前）**：`internal/terminalui/drawer.go:72,100`
+> 两个 range 都写 `Width(t.Space(22))` = 88px，比原版窄 22px。
+>
+> **偏离 2（P7-gy·读数的字级/颜色/字形都不是原版的数）**：原版是 `settings.css:854-865` 的
+> `.terminal-setting-control__value`——`font-family: "SF Mono", Menlo…`、`font-size: var(--text-body)`、
+> `font-variant-numeric: tabular-nums`、`font-weight: 600`、`color: var(--accent)`。**本构建（改前）**：
+> 读数是 `FontSize(tokens.Emphasis).TextColor(t.TextMuted)`——小一档、muted 而非 accent、无等宽栈、
+> 无 tabular。
+>
+> **偏离 3（P7-gy·格下限是 240px 而不是原版的 230px）**：原版 `.terminal-settings`
+> （`terminal.css:654-658`）是 `grid-template-columns: repeat(auto-fit, minmax(230px, 1fr))`。
+> **本构建（改前）**：`drawerRow` 的格下限调用从 `Space(60)` = 240px。
+>
+> **落地**：
+> - `internal/terminalui/drawer.go`：新增 `drawerRangeWidth` 常量（27.5 = 110px）与 `drawerRange`/
+>   `drawerReadout` 两个 helper；两个 slider 改走 `drawerRange`（固定宽度，不随格伸缩），两处读数
+>   改走 `drawerReadout`（等宽栈 + body 步 + accent + 600 + `tnum`）；新增 `drawerCellFloor`（57.5 =
+>   230px）/`paletteCellFloor`（95）+ `drawerGrid(c, cellFloor)`，`drawer` 调 `drawerGrid(c,
+>   t.Space(drawerCellFloor))`——格下限成为可测参数，`drawerGrid` 一行一个格。
+> - 顺带把 `drawer` 里的行构造拆成 `drawerGrid`，让测试能在**同一 window** 下用两个 floor 渲染真
+>   网格（`drawerRow`/`drawerGrid` 都是生产路径，不是测试替身）。
+>
+> **验收**：新增 `internal/terminalui/drawermetrics_test.go` 三条——
+> `TestTheDrawerSliderIsTheReferenceWidth`（活抽屉：font-size 设到范围两端，range 自己的**旋钮**
+> 在标签与读数之间的**亮墨迹中心**移动的距离，比同法渲染在 22u 宽度下的参考更接近 27.5u 下的参考；
+> 先钉 `drawerRangeWidth == 27.5`）、`TestTheDrawerReadoutIsTheAccentBodyRegister`（活抽屉：读数的
+> 盒宽更接近 body 参考而非 emphasis；读数盒内最强像素的 **蓝−红** 通道差 ≥40 且 **绿−红** ≥15，
+> 即 accent 墨迹（muted 是近中性灰，差只几个单位））、`TestTheDrawerGridCellsKeepTheReferenceFloor`
+> （`drawerGrid` 在 57.5u 与 60u 两个 floor 下对 row-lines 从 3 折到 2 的窗口宽度做二分：
+> 57.5u 的折点更靠左，且两折点**之间**的窗口在原版 floor 下更少一行）。
+> 变异核查：`drawerRangeWidth` 改回 22 → 宽度条红（实测 live travel −61 = probe 22，`reference == old` 直接 Fatal）；
+> `drawerReadout` 改回 `Emphasis`/`TextMuted` → 读数条红（box 25 vs body 27；最强像素蓝−红 = 6）；
+> `drawerCellFloor` 改回 60 → 格宽条红（`drawerCellFloor != 57.5` 直接 Fatal）。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：「具体待办（P7-gx 重写）」第 2 条（P7-gx-2）已落地，余下第 3 条（浮栏 hover 阴影）
+> 与第 4 条（空态多出的第三行）是下一轮最高优先级。另：本轮实测中 `internal/launcher` 的
+> `TestTriggerHintFits` 在一次全量跑里红过一次（窗口太小），单跑与重跑均绿——如实记录为**环境相关
+> 的偶发**，未改它。
+
 > **本轮：P7-gx 终端浮栏的身份行与状态点回到原版 `terminal.css`（`.terminal-bar__title`
 > 的 body 步 / `--text-secondary` / `-0.01em`；`.terminal-bar__dot--exited` 的 `--text-tertiary`；
 > 活状态点的 `--elev-halo`）**
@@ -7067,7 +7117,7 @@ tooltip**（P7-fl/fm）与空态两行（P7-cm），度量与颜色从未逐条�
   变异核查：改回 `FontSize-1`/`TextMuted` → 两条红；退出点换回 `TextMuted` → 中心
   `{33 33 37}` ≠ `{30 30 34}` 红；去掉 `dot.Shadow` → 活点宽 6 == 裸点宽 6 红。
 
-#### P7-gx-2 · 抽屉 slider 的宽度、读数与格宽都不是原版的数（**待做**）
+#### P7-gx-2 · 抽屉 slider 的宽度、读数与格宽都不是原版的数（**本轮落地，P7-gy**）
 
 - **原版对照**：`main:src/styles/terminal.css:654-658`（`.terminal-settings { display:grid;
   grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 6px 18px }`）、`:660-675`
@@ -7084,11 +7134,14 @@ tooltip**（P7-fl/fm）与空态两行（P7-cm），度量与颜色从未逐条�
   `:68` 起的格下限 `MinWidth(t.Space(60))` = 240px（原版 230px = `Space(57.5)`）。抽屉的其它度量
   （`Padding(10u,12u)`、`GapX(18u)/GapY(6u)`、`MinHeight(30u)`、label 的 body/560/TextSecondary、
   control 的 8u 沟）都已对齐，只剩这三处。
-- **落地 file:line**：`drawer.go` 的两个 `Width(t.Space(22))` → `Width(t.Space(27.5))`；两处读数改
-  `FontSize(tokens.Body).TextColor(tokens.Accent).FontFeatures("tnum").FontWeight(600)`；`drawerRow`
-  的格下限调用从 `Space(60)` → `Space(57.5)`。
-- **验收**：活抽屉里 slider 的盒宽 == `Space(27.5)`；读数的墨迹像素等于 accent、宽度更接近 body
-  参考而非 emphasis；格下限盒宽 == `Space(57.5)`。变异核查：改回 `Space(22)` → 盒宽断言红。
+- **落地 file:line（已落地，P7-gy）**：新增 `internal/terminalui/drawer.go` 的 `drawerRangeWidth`（27.5）、
+  `drawerRange`（固定 `Width`）与 `drawerReadout`（等宽栈 + body + accent + 600 + `tnum`），两个 slider
+  与两处读数改走它们；`drawerCellFloor`（57.5）与 `paletteCellFloor`（95）成为常量，`drawerGrid`
+  接受 `cellFloor` 参数、`drawer` 传 `t.Space(drawerCellFloor)`。
+- **验收（已过，P7-gy）**：新增 `internal/terminalui/drawermetrics_test.go` 三条（活 slider 的旋钮行程
+  对 27.5u/22u 参考、读数的 box 对 body/emphasis 参考 + 最强像素的蓝−红/绿−红、`drawerGrid` 在
+  两 floor 下的折点与中间窗口）；变异核查：`drawerRangeWidth` → 22 / `drawerReadout` → Emphasis+Muted /
+  `drawerCellFloor` → 60，三条各红。详见上文 P7-gy 记录。
 
 #### P7-gx-3 · 浮栏悬停时缺原版的 `--elev-bar` 阴影（**待做**）
 
@@ -7118,7 +7171,8 @@ tooltip**（P7-fl/fm）与空态两行（P7-cm），度量与颜色从未逐条�
   `TestTerminalEmptyState` 去掉对 “The session has not started yet.” 的断言。
 - **验收**：空态的 `tt.Texts()` 只有 `EmptyTitle` 与两条动作行的词，不再含 Hint 串。
 
-> 「具体待办（P7-gx 重写）」第 1 条（P7-gx）已落地；第 2·3·4 条是下一轮最高优先级。
+> 「具体待办（P7-gx 重写）」第 1 条（P7-gx）与第 2 条（P7-gx-2，P7-gy）已落地；第 3·4 条是下一轮
+> 最高优先级。
 
 审计入口：原版 About 页的深链行 `main:src/settings/DeepLinkRow.tsx`（它吃的行基元
 `main:src/settings/SettingsRows.tsx` 的 `SettingsAction`，以及 `main:src/styles/settings.css:682-730`
