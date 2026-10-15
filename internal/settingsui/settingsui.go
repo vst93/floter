@@ -2607,7 +2607,7 @@ func (a *App) about(c *ui.Context, copy i18n.Settings) {
 					if copied {
 						label = copy.DeepLinkCopied
 					}
-					a.row(c, link, "", func() {
+					a.codeRow(c, link, func() {
 						a.actionWithGlyph(c, linkCopyGlyph(copied), label, func() {
 							if a.Actions.CopyText != nil {
 								a.Actions.CopyText(link)

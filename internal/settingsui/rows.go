@@ -183,6 +183,66 @@ func (a *App) rowTop(c *ui.Context, label, sublabel, note string, control func()
 func (a *App) rowAligned(c *ui.Context, align ui.Align, label string, sublabels []rowLine, note string, control func(), below ...func()) bool {
 	tokens := a.tokens(c)
 	t := c.Theme()
+	return a.cardRow(c, align, control, func() {
+		// The label is the emphasis step (580, strong) and the grey second line
+		// the body step (500, muted).
+		ui.Text(c, label).FontSize(t.FontSize + 1).FontWeight(580).TextColor(tokens.TextStrong)
+		for _, sublabel := range sublabels {
+			if len(sublabel.Segments) > 0 {
+				// A meta line is the old page's `.session-manager__meta`: a
+				// wrapping flex row of its own facts, each a span with its own
+				// colour, so the state word can be the accent while the size
+				// and start time stay quiet.
+				meta := ui.Row(c).FillWidth().Wrap().GapX(t.Space(2.5)).GapY(t.Space(1))
+				meta.Children(func() {
+					for _, segment := range sublabel.Segments {
+						color := tokens.TextTertiary
+						if segment.Role == rowSegmentAccent {
+							color = t.Accent
+						}
+						ui.Text(c, segment.Text).FontSize(t.FontSize).FontWeight(500).TextColor(color)
+					}
+				})
+				continue
+			}
+			if sublabel.Text == "" {
+				continue
+			}
+			ui.Text(c, sublabel.Text).FontSize(t.FontSize).FontWeight(500).TextColor(t.TextMuted)
+		}
+		if note != "" {
+			ui.Text(c, note).FontSize(t.FontSize).FontWeight(500).TextColor(t.Warning)
+		}
+	}, below...)
+}
+
+// codeRow is a card row whose label is a value rather than prose: the
+// reference's `.settings-deep-link__value`, a sunken code chip that makes a
+// `floter://` line read as data instead of copy (`DeepLinkRow.tsx:67,79`;
+// `settings.css:1524-1535`). It is a `cardRow` with a different label column,
+// so it keeps the same rule, counters and control slot as every other row.
+func (a *App) codeRow(c *ui.Context, value string, control func(), below ...func()) {
+	tokens := a.tokens(c)
+	t := c.Theme()
+	a.cardRow(c, ui.Center, control, func() {
+		chip := ui.Box(c).FillWidth().MinWidth(0).Padding(t.Space(1), t.Space(2)).
+			Radius(tokens.RadiusXS).Background(tokens.Sunken).Border(1, tokens.ControlEdge)
+		chip.Children(func() {
+			ui.Text(c, value).Font(deepLinkValueFont).FontSize(tokens.Caption).
+				TextColor(tokens.TextSecondary)
+		})
+	}, below...)
+}
+
+// cardRow is the frame every row helper shares: the separator inset above the
+// row (except the card's first), the 44u floor, the label column and the
+// trailing control slot. draw paints the label column's own content — a label
+// with its second lines, or a code chip — so a new kind of label reuses the
+// frame instead of copying it (which is how the deep-link chip drifted from
+// the rows it sits between).
+func (a *App) cardRow(c *ui.Context, align ui.Align, control func(), draw func(), below ...func()) bool {
+	tokens := a.tokens(c)
+	t := c.Theme()
 	inset := t.Space(3.5)
 	first := a.cardRows == 0
 	a.cardRows++
@@ -196,10 +256,9 @@ func (a *App) rowAligned(c *ui.Context, align ui.Align, label string, sublabels 
 				MarginX(inset).Shrink(0)
 		}
 		// The row is the reference's own: a 44u floor, a 12u gap, a 9u padding
-		// pair, the label at the emphasis step (580, strong) and the grey
-		// second line at the body step (500, muted). The press is the control
-		// material's own: less opaque than the resting pane, so a row the user
-		// is about to activate sinks into the glass.
+		// pair. The press is the control material's own: less opaque than the
+		// resting pane, so a row the user is about to activate sinks into the
+		// glass.
 		row := ui.Row(c).FillWidth().Gap(t.Space(3)).AlignItems(align).
 			MinHeight(t.Space(11)).Padding(t.Space(1.5), inset)
 		switch {
@@ -210,35 +269,7 @@ func (a *App) rowAligned(c *ui.Context, align ui.Align, label string, sublabels 
 		}
 		row.Children(func() {
 			names := ui.Column(c).Grow(1).MinWidth(0).Gap(1)
-			names.Children(func() {
-				ui.Text(c, label).FontSize(t.FontSize + 1).FontWeight(580).TextColor(tokens.TextStrong)
-				for _, sublabel := range sublabels {
-					if len(sublabel.Segments) > 0 {
-						// A meta line is the old page's `.session-manager__meta`: a
-						// wrapping flex row of its own facts, each a span with its own
-						// colour, so the state word can be the accent while the size
-						// and start time stay quiet.
-						meta := ui.Row(c).FillWidth().Wrap().GapX(t.Space(2.5)).GapY(t.Space(1))
-						meta.Children(func() {
-							for _, segment := range sublabel.Segments {
-								color := tokens.TextTertiary
-								if segment.Role == rowSegmentAccent {
-									color = t.Accent
-								}
-								ui.Text(c, segment.Text).FontSize(t.FontSize).FontWeight(500).TextColor(color)
-							}
-						})
-						continue
-					}
-					if sublabel.Text == "" {
-						continue
-					}
-					ui.Text(c, sublabel.Text).FontSize(t.FontSize).FontWeight(500).TextColor(t.TextMuted)
-				}
-				if note != "" {
-					ui.Text(c, note).FontSize(t.FontSize).FontWeight(500).TextColor(t.Warning)
-				}
-			})
+			names.Children(draw)
 			if names.Clicked() {
 				clicked = true
 			}
@@ -255,6 +286,10 @@ func (a *App) rowAligned(c *ui.Context, align ui.Align, label string, sublabels 
 	})
 	return clicked
 }
+
+// deepLinkValueFont is the monospace stack the reference gave
+// `.settings-deep-link__value` (`settings.css:1530`).
+const deepLinkValueFont = "SF Mono, Menlo, Monaco, Consolas, monospace"
 
 // stackedRow is a card row whose control wants the row's full width: the
 // label and its grey second line above, the control under them, as the

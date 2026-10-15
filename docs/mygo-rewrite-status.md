@@ -100,7 +100,44 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **本轮：P7-gi About 页深链复制控件回到原版的 accent 文本动作 + Copy/Check 图标，并补上成功 toast
+> **本轮：P7-gj 深链值回到原版的代码块 chip——从行标签改画 `.settings-deep-link__value`
+> （原版 `src/settings/DeepLinkRow.tsx:67,79`、`src/styles/settings.css:1524-1535`）**
+> ——P7-gi 收尾后「具体待办（P7-gi 重写）」还剩第 2·3 条，本轮取最高优先级的第 2 条落地。
+> 依赖检查：`go.mod` 已是 **v0.5.1** = GitHub releases latest（本轮 `releases/latest` 复核），
+> 无版本可升；只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离（P7-gj·深链值是普通行标签，不是代码块 chip）**：原版 `DeepLinkRow.tsx:67,79` 的行 label 是
+> `<code className="settings-deep-link__value">`；`settings.css:1524-1535` 给它 `display:block`、
+> `padding: 4u 8u`、`--radius-xs`、`background: var(--surface-sunken)`、
+> `border: 1px solid var(--glass-control-edge)`、`color: --text-secondary`、等宽字体
+> （SF Mono/Menlo/Monaco/Consolas）、`--text-caption`、`overflow-wrap:anywhere`，于是 `floter://` 一行
+> 读成「值」而不是「正文」。**本构建（改前）**：`settingsui.go` 的
+> `a.row(c, link, "", …)` 把链接当普通行 label 画成 `--text-emphasis` 的 strong 文本
+> （`rows.go` 的 `rowAligned`），没有 sunken 底、等宽、caption 字级或 8u/4u 内边距。
+>
+> **落地**：`internal/settingsui/rows.go` 把 `rowAligned` 的行框抽成共享的 `cardRow`
+> （分隔线、`cardRows` 计数、44u 底、标签列、尾随控件槽、`below` 槽都只此一份），`rowAligned` 与新的
+> `codeRow` 都走它——`codeRow` 只替换标签列的绘制：`Padding(Space(1), Space(2))` = 4u/8u、
+> `Radius(tokens.RadiusXS)` = `--radius-xs`、`Background(tokens.Sunken)` = `--surface-sunken`、
+> `Border(1, tokens.ControlEdge)` = `--glass-control-edge`、`FontSize(tokens.Caption)`、
+> `TextColor(tokens.TextSecondary)`、`Font(deepLinkValueFont)` = 原版等宽栈；`settingsui.go` 的
+> deep-link 行改走 `a.codeRow`。（此前把整行复制了一份 `codeRow`，本轮改为共享行框，避免 chip 与
+> 普通行各自漂移。）
+>
+> **验收**：`internal/settingsui/deeplinkcopy_test.go` 新增两条——
+> `TestTheDeepLinkValueIsTheReferenceCodeChip`（暗色下 chip 的 sunken 底与卡片底像素差 ≥12；chip 的
+> 内边距在文字上下的填充带正好是 4u，与 `padding:4u 8u` 一致）与
+> `TestTheDeepLinkValueUsesTheReferenceCodeFont`（等宽栈逐字：headless 渲染器只用一种字体 shaping，
+> 字体族读不回来，故钉住交给 `ui.Text` 的常量）。变异核查：把 `a.codeRow` 换回 `a.row` → chip 底与
+> 卡片底差 0，第一条当场红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go tool mygo vet .` 净、
+> `go test -count=1 ./...` 全绿（1394 项）、`GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：第 2 条（P7-gj）落地；「具体待办（P7-gi 重写）」还剩第 3 条（共享文本动作的
+> `.settings-reset` 度量），是下一轮最高优先级。
+
+> **上一轮：P7-gi About 页深链复制控件回到原版的 accent 文本动作 + Copy/Check 图标，并补上成功 toast
 > （原版 `src/settings/DeepLinkRow.tsx:31-58`、`src/settings/SettingsRows.tsx:200-216`、
 > `src/styles/settings.css:682-730`）**
 > ——P7-gh 收尾后「具体待办（P7-gb 重写）」归零。本轮回到「对照原版排查偏离点」，换一个**全文档
@@ -6395,7 +6432,7 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-### 具体待办（P7-gi 重写；第 1 条本轮 P7-gi 落地，第 2·3 条待做）
+### 具体待办（P7-gi 重写；第 1 条 P7-gi、第 2 条 P7-gj 落地，第 3 条待做）
 
 审计入口：原版 About 页的深链行 `main:src/settings/DeepLinkRow.tsx`（它吃的行基元
 `main:src/settings/SettingsRows.tsx` 的 `SettingsAction`，以及 `main:src/styles/settings.css:682-730`
@@ -6431,20 +6468,22 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
      `internal/shell/notices_test.go` 的 `TestTheSuccessNoticeCarriesItsKindAndWindow`（Type 为
      `success`、窗口为 `successNotice`、空消息不排队）。变异核查：换回 `ui.Button` 且不调
      `NotifySuccess` → 前两条当场红（`notified = []`；band delta 28）。
-2. **深链值不是原版的代码块 chip。**
+2. **（本轮落地，P7-gj）深链值不是原版的代码块 chip。**
    - 原版对照：`DeepLinkRow.tsx:67,79` 的 label 是
      `<code className="settings-deep-link__value">{value}</code>`；`settings.css:1524-1535` 给它
      `display:block`、`padding: 4u 8u`、`--radius-xs`、`background: var(--surface-sunken)`、
      `border: 1px solid var(--glass-control-edge)`、`color: --text-secondary`、等宽字体
      （SF Mono/Menlo/Monaco/Consolas）、`--text-caption`、`overflow-wrap:anywhere`。
-   - 本构建（现状）：`settingsui.go` 的 `a.row(c, link, "", …)` 把链接当普通行 label 画成
-     `--text-emphasis` 的 strong 文本（`rows.go:213-216`），没有 sunken 底、等宽或长串换行。
-   - 落地 file:line：在 `internal/settingsui/rows.go` 给 `rowAligned` 增加一个可替换 label 绘制的
-     窄入口（或新增 `valueRow`，但必须复用同一 `cardRows` 计数与分隔线），deep-link 行改用它；
-     字号/行高/底色/边框/圆角/等宽字体按上面 token 逐条对齐。
-   - 验收：`internal/settingsui/deeplinkcopy_test.go` 新增一条像素/盒子测试——深链值的盒子有
-     `--surface-sunken` 底与 1px 边框（与卡片底不同色），纵向 padding 为 4u，且文本用等宽族；
-     变异核查：改回 `a.row` 的普通 label → 底色/边框断言红。
+   - 本构建（改前）：`settingsui.go` 的 `a.row(c, link, "", …)` 把链接当普通行 label 画成
+     `--text-emphasis` 的 strong 文本（`rows.go` 的 `rowAligned`），没有 sunken 底、等宽或长串换行。
+   - 落地 file:line（已按此落地）：`internal/settingsui/rows.go` 把 `rowAligned` 的行框抽成共享的
+     `cardRow`（分隔线 / `cardRows` 计数 / 44u 底 / 标签列 / 尾随控件槽 / `below` 槽只此一份），
+     `rowAligned` 与新的 `codeRow` 都走它；`codeRow` 只替换标签列的绘制，字号/行高/底色/边框/圆角/
+     等宽字体与 4u/8u 内边距按上面 token 逐条对齐；`settingsui.go` 的 deep-link 行改走 `a.codeRow`。
+   - 验收（已过）：`internal/settingsui/deeplinkcopy_test.go` 的
+     `TestTheDeepLinkValueIsTheReferenceCodeChip`（暗色下 chip 底与卡片底像素差 ≥12；文字上下填充带 =
+     4u）与 `TestTheDeepLinkValueUsesTheReferenceCodeFont`（等宽栈逐字常量）。变异核查：改回 `a.row`
+     的普通 label → 底色断言红（差 0）。
 3. **共享文本动作的度量还不是 `.settings-reset` 本身。**
    - 原版对照：`settings.css:682-730` —— `min-height:24u`、`padding:0 2u`、`gap:5u`、
      `background:transparent`、hover `opacity:.78`、active `:active opacity:.6`、disabled
