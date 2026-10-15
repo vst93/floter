@@ -4239,6 +4239,49 @@ func (a *App) requestDisable(id string) {
 	a.disableConfirm[id] = true
 }
 
+// barButton is the compact inline button the reference drew inside a notice
+// band (`.extension-discard-bar .extensions-action-button`,
+// `src/styles/extensions.css:2473-2481`): the panel's 30px pill is overridden
+// to a 24px ladder step — height 24px, padding 0 8px, caption font, the
+// radius-xs corner — so the answers read as part of the band rather than as
+// floating controls. Hover lifts the plane to the control-hover step and
+// takes the edge up to the accent keyline, the reference's
+// `.extensions-action-button:hover:not(:disabled)`. A disabled button keeps
+// its resting face and ignores the press.
+func (a *App) barButton(c *ui.Context, label string, danger, disabled bool, run func()) ui.Element {
+	t := c.Theme()
+	tokens := a.tokens(c)
+	ink := tokens.TextStrong
+	edge := tokens.ControlEdge
+	plane := tokens.Control
+	if danger {
+		ink = t.Warning
+	}
+	button := ui.ButtonBase(c).
+		Height(t.Space(6)).
+		Padding(0, t.Space(2)).
+		Radius(tokens.RadiusXS).
+		Background(plane).Border(1, edge)
+	if !disabled && ink == tokens.TextStrong {
+		if button.Hovered() {
+			plane = tokens.ControlHover
+			edge = tokens.AccentEdge
+			ink = t.Text
+			button = button.Background(plane).Border(1, edge)
+		}
+	}
+	button.Children(func() {
+		ui.Text(c, label).FontSize(tokens.Caption).TextColor(ink)
+	})
+	if disabled {
+		button = button.Disabled(true)
+	}
+	if !disabled && button.Clicked() {
+		run()
+	}
+	return button
+}
+
 // noticeBand is the reference's inline confirmation band — the one shape
 // `.extensions-notice .extension-discard-bar` gave every question asked in
 // place (`src/styles/extensions.css:146-172,2455-2458`): a leading alert mark,
@@ -4282,15 +4325,15 @@ func (a *App) disableConfirmation(c *ui.Context, copy i18n.Settings, integration
 	a.noticeBand(c, false,
 		copy.DisableTitle(integration.Name)+" "+copy.DisableDescription,
 		func() {
-			if ui.Button(c, copy.IntegrationsCancel).Clicked() {
+			a.barButton(c, copy.IntegrationsCancel, false, false, func() {
 				a.disableConfirm[integration.ID] = false
-			}
-			if ui.Button(c, copy.DisableConfirm).Clicked() {
+			})
+			a.barButton(c, copy.DisableConfirm, false, false, func() {
 				a.disableConfirm[integration.ID] = false
 				if a.Actions.SetIntegrationEnabled != nil {
 					a.Actions.SetIntegrationEnabled(integration.ID, false)
 				}
-			}
+			})
 		})
 }
 
@@ -4406,17 +4449,16 @@ func (a *App) cancelConfirmations() {
 // too — a system card that says "Disconnect" asks "Disconnect?", never
 // "Uninstall?".
 func (a *App) removeConfirmation(c *ui.Context, copy i18n.Settings, integration Integration) {
-	t := c.Theme()
 	a.noticeBand(c, true, integration.removalSentence(copy), func() {
-		if ui.Button(c, copy.IntegrationsCancel).Clicked() {
+		a.barButton(c, copy.IntegrationsCancel, false, false, func() {
 			a.removeConfirm[integration.ID] = false
-		}
-		if ui.Button(c, integration.removalLabel(copy)).TextColor(t.Danger).Clicked() {
+		})
+		a.barButton(c, integration.removalLabel(copy), true, false, func() {
 			a.removeConfirm[integration.ID] = false
 			if a.Actions.UninstallIntegration != nil {
 				a.Actions.UninstallIntegration(integration.ID, integration.Name, integration.removalKind())
 			}
-		}
+		})
 	})
 }
 

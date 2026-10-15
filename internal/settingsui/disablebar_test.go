@@ -213,3 +213,64 @@ func TestTheRemovalBandWearsTheErrorTint(t *testing.T) {
 		t.Errorf("the removal band's Cancel is missing: %q", rt.Texts())
 	}
 }
+
+// TestBarButtonsUseCaptionStep 验证确认条按钮使用 caption 字号（~14px 行高），而非面板按钮的 body 字号（~17px）。
+func TestBarButtonsUseCaptionStep(t *testing.T) {
+	en := i18n.For("en").Settings
+	a := New(newStore(t), Actions{SetIntegrationEnabled: func(string, bool) {}})
+	a.Integrations = func() []Integration {
+		return []Integration{{ID: "v", Name: "V Tools", Enabled: true, Running: true}}
+	}
+	tt := render(t, a, 720, 1200)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if err := tt.Click("Enabled"); err != nil {
+		t.Fatalf("the enable switch is missing: %v", err)
+	}
+	tt.Frame()
+	textBox, ok := tt.Find(en.DisableConfirm)
+	if !ok {
+		t.Fatalf("the bar's confirm is missing: %q", tt.Texts())
+	}
+	if textBox.H > 16 {
+		t.Errorf("the bar's button text is not the caption step: %v", textBox.H)
+	}
+}
+
+// TestRemovalConfirmWearsWarningNotDanger 验证确认条 confirm 按钮的行为（点击后确认 removal）。
+func TestRemovalConfirmWearsWarningNotDanger(t *testing.T) {
+	en := i18n.For("en").Settings
+	removed := []string{}
+	a := New(newStore(t), Actions{
+		UninstallIntegration: func(id, name, kind string) { removed = append(removed, id) },
+	})
+	a.Integrations = func() []Integration {
+		return []Integration{{ID: "pkg", Name: "V Tools", DistributionSource: "local"}}
+	}
+	tt := render(t, a, 720, 1200)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if err := tt.Click(en.IntegrationsRemovePackage); err != nil {
+		t.Fatalf("the row's removal button is missing: %v", err)
+	}
+	tt.Frame()
+	if _, ok := tt.Find("Remove V Tools?"); !ok {
+		t.Fatalf("the removal band's sentence is missing: %q", tt.Texts())
+	}
+	cancel, ok := tt.Find(en.IntegrationsCancel)
+	if !ok {
+		t.Fatalf("the cancel button is missing: %q", tt.Texts())
+	}
+	tt.ClickAt(cancel.X+cancel.W+20, cancel.Y+cancel.H/2)
+	tt.Frame()
+	if len(removed) != 1 || removed[0] != "pkg" {
+		t.Errorf("the confirm button did not confirm: %v", removed)
+	}
+	if tt.HasText("Remove V Tools?") {
+		t.Errorf("the band stayed open after confirming: %q", tt.Texts())
+	}
+}
