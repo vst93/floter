@@ -1,6 +1,6 @@
 # floter × mygo 重构：当前进度与后续规划
 
-> 交接文档。状态时间：2026-10-14，分支 `mygo-rewrite`（已推送）。框架：mygo v0.4.8。
+> 交接文档。状态时间：2026-10-15，分支 `mygo-rewrite`（已推送）。框架：mygo v0.5.1。
 > **仓库现在只有 Go 实现**：Tauri/Rust/React 时代的代码已删除（P6-b）。
 > 详细的分轮记录见 `docs/mygo-rewrite-plan.md`（含每轮的决策与「未做」清单）。
 
@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1384 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1385 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1384 项测试
+go test -count=1 ./...         # 1385 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -100,7 +100,39 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-ge 历史行的两步删除回到原版的键盘专属——移除行内 ✕ 控件，装填后只有
+> **最新一轮：P7-gf mygo v0.4.8 → v0.5.1 升级，并修正上一轮引入的状态行内边距回归
+> （`go tool mygo migrate-ui` 的 checked-elements 迁移；原版 `src/styles/launcher.css:1099-1114,1480-1491`）**
+> ——上一轮把 `go.mod` 升到 v0.5.1 后中断，代码还没适配。本轮把升级做完，并补上上一轮
+> （`status note: align side padding`）留下的两处坏账。**升级范围**：
+>
+> 1. **`go tool mygo migrate-ui -write .`**：v0.5.x 把「元素键」从链式 `.Key(x)` 移到
+>    `Context.Key(x)`（键必须在状态初始化前落位），仓库里只有两处：
+>    `internal/launcher/launcher.go` 的 `rowBody`（`ui.Row(c).Key(item.ID)` →
+>    `ui.Row(c.Key(item.ID))`）与 `internal/launcher/output.go` 的 `outputRow`；codemod 之后
+>    `go tool mygo vet .`（框架的类型化生命周期检查）也干净。其余 v0.5 API 对本仓库是源码兼容的。
+> 2. **终端 `OnPaste` 换了参数**：v0.4.8 的钩子收 `text string`，v0.5.1 收
+>    `transfer.Data`（剪贴板全部格式，见 `plugins/terminal/terminal.go` 的 `OnPaste`）。
+>    `internal/terminalui/terminalui.go` 的边界改成读 `transfer.Text` 表示再走 `pasteText`：
+>    没有文本表示的粘贴（图片、文件列表）返回 `false`，交回框架自己的路径——
+>    这正是旧钩子在 `text == ""` 时的行为。`paste_test.go` 改用 `transfer.TextData(...)`，
+>    并补一条「图片粘贴不接管」的断言。
+>
+> **修正（P7-gf·上一轮 `Space(12)` 是单位搞混）**：上一轮把状态行的侧内边距从 `Space(3)` 改成
+> `Space(12)`，注释说「对齐参考的 12u」——但本仓库 `Space(n) = --u * 4n`（`internal/theme/theme.go`），
+> 参考的 `padding: 0 calc(var(--u) * 12)` 正是 `Space(3)`；`Space(12)` = 48u，把状态行的句子推进了
+> 36u。实证：`Space(3)` 时状态行文字 X=54（与普通结果行标题同列，即参考的 16u 文本列 + 28u 图标
+> + 10u gap），`Space(12)` 时 X=90。已改回 `Space(3)`。
+>
+> **修正（P7-gf·测试引用了不存在的字段）**：上一轮新增的 `TestStatusNotePaddingMatchesReference`
+> 用了 `a.Items = []Item{...}`——`App` 没有这个字段，测试包根本编译不过；断言的 64px 也是按
+> 「Spacing=4、16u*4」误算的。改写成**与真实结果行标题同列**的断言（先跑普通目录取第一个结果行
+> 标题的 X，再在剪贴板关闭态取状态行文字的 X，两者必须相等）。变异核查：把内边距换回 `Space(12)`
+> → 立刻红（`status note text X = 90, want 54`）。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go tool mygo vet .` 净、
+> `go test -count=1 ./...` 全绿、`GOOS=linux/windows/darwin go build ./...` 三平台通过。
+
+> **P7-ge 历史行的两步删除回到原版的键盘专属——移除行内 ✕ 控件，装填后只有
 > “Press again to delete”纯文本提示
 > （原版 `src/launcher/LauncherResults.tsx:805,908-911`、`src/styles/launcher.css:1450-1455`；
 > R50 的删除状态机在 `src/plugins/history-actions.ts`，UI 只有 `.launcher-result__armed` 文本，
