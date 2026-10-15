@@ -171,6 +171,11 @@ type Tokens struct {
 	// composited opaque over the content pane, so the framework's own accent
 	// fill behind a chosen list row cannot bleed through as a blue pill.
 	RaisedQuiet ui.Color
+	// RaisedWarm is the warm branch of the raised pane (base.css's
+	// `--glass-raised-warm`, an alias of `--system-icon-surface`): the amber
+	// fill a broken integration row paints, where the accent's blue would read
+	// as "this opens something" rather than as a warning.
+	RaisedWarm ui.Color
 	// Float is a floating pane's own fill (base.css's `--glass-float`): the
 	// frame's tint plus a fixed step, so a drawer, a dialog, a toast or the
 	// terminal's resident note is always denser than the card it floats over.
@@ -348,6 +353,7 @@ func ForPreferences(s settings.Settings, systemDark bool, prefs ui.Preferences) 
 		Theme:             &t,
 		Sunken:            baseFill.Alpha(sunken),
 		RaisedQuiet:       raisedQuiet,
+		RaisedWarm:        p.iconSurface,
 		Float:             floatFill.Alpha(floatAlpha),
 		Caption:           caption,
 		Body:              body,

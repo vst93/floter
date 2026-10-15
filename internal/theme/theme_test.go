@@ -455,3 +455,35 @@ func TestIconSurfaceIsTheWarmPlaneNotTheWarningInk(t *testing.T) {
 		})
 	}
 }
+
+// RaisedWarm is base.css's `--glass-raised-warm`, an alias of
+// `--system-icon-surface` (`base.css:611`): the warm raised pane a broken
+// integration row paints. It is the same amber plane as IconSurface, not the
+// accent and not the warning ink, and unlike the frame's tint it does not
+// follow the transparency slider.
+func TestRaisedWarmIsTheWarmPlane(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		systemDark bool
+		want       ui.Color
+	}{
+		{"dark", true, ui.RGBA(255, 176, 132, 0.115)},
+		{"light", false, ui.RGBA(214, 118, 44, 0.13)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tokens := ForPreferences(settings.Settings{Theme: "auto"}, tc.systemDark, ui.Preferences{})
+			if tokens.RaisedWarm != tc.want {
+				t.Errorf("RaisedWarm = %v, want the reference's --glass-raised-warm %v", tokens.RaisedWarm, tc.want)
+			}
+			if tokens.RaisedWarm != tokens.IconSurface {
+				t.Errorf("RaisedWarm %v is not the --system-icon-surface alias %v", tokens.RaisedWarm, tokens.IconSurface)
+			}
+			if tokens.RaisedWarm == tokens.Theme.Warning {
+				t.Error("RaisedWarm equals the warning ink; the broken row's fill would read pink-red")
+			}
+			if tokens.RaisedWarm == tokens.Theme.Accent {
+				t.Error("RaisedWarm equals the accent; a broken row would read as an action")
+			}
+		})
+	}
+}

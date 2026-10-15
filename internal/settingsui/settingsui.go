@@ -1912,6 +1912,25 @@ func approvalApprovedAt(at uint64) string {
 	return time.Unix(int64(at), 0).Local().Format("2006-01-02 15:04")
 }
 
+// integrationRowFace is the decoration the integration row's own state asks
+// for. A row a `floter://register` link named wears the reference's
+// `.extension-row--register`: the raised quiet pane, the accent inner keyline
+// and the accent leading rule. A broken row wears `.extension-row--broken`: the
+// warm raised pane, the warning keyline and the warning rule, so an unusable
+// integration reads at a glance instead of only in its status word. Every other
+// row keeps the card's plane and an unlit rule (hover lights it in cardRow).
+func (a *App) integrationRowFace(c *ui.Context, integration Integration) rowFace {
+	tokens := a.tokens(c)
+	t := c.Theme()
+	switch {
+	case integration.Broken:
+		return rowFace{Face: tokens.RaisedWarm, FaceSet: true, Inset: t.Warning, Bar: t.Warning}
+	case integration.Highlighted:
+		return rowFace{Face: tokens.RaisedQuiet, FaceSet: true, Inset: tokens.AccentEdge, Bar: t.Accent}
+	}
+	return rowFace{}
+}
+
 // integrationRow is one integration as a card: its identity and state, what
 // it declares, what it can run (each command a row with its switch and its
 // alias), and the row of doors — check, re-scan, uninstall.
@@ -1936,7 +1955,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 		// all in the label column, with the runtime-unavailable chip as the
 		// row's only control. The old port printed the version on a separate
 		// identity row and the freshness dot in the control slot.
-		a.cardRow(c, ui.Center, func() {
+		a.cardRow(c, ui.Center, func() { a.extensionIcon(c, false) }, a.integrationRowFace(c, integration), func() {
 			if !integration.RuntimeAvailable {
 				a.runtimeUnavailableBadge(c, copy, integration)
 			}
@@ -4591,7 +4610,7 @@ func (a *App) detectedSection(c *ui.Context, copy i18n.Settings) {
 		a.card(c, func() {
 			for _, tool := range tools {
 				tool := tool
-				a.row(c, tool.Name, tool.Description, func() {
+				a.iconRow(c, true, tool.Name, tool.Description, func() {
 					a.detectedAction(c, copy, tool)
 				}, func() {
 					a.row(c, tool.Path, "", func() {})

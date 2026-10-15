@@ -451,14 +451,24 @@ const (
 // sessions list's row keeps the shell's working directory above the state,
 // size and start time, as the old page's `.session-manager__lines` did.
 func (a *App) rowLines(c *ui.Context, label string, sublabels []rowLine, control func(), below ...func()) bool {
-	return a.rowAligned(c, ui.Center, label, sublabels, "", control, below...)
+	return a.rowAligned(c, ui.Center, nil, rowFace{}, label, sublabels, "", control, below...)
+}
+
+// iconRow is rowAligned with the extension rows' leading package chip: the
+// reference's `.extension-row__open` grid is `[icon | main]`, and the Detected
+// list's rows are the same `.extension-row` as the connected ones. `detected`
+// draws the chip as the reference's dashed ghost — a tool the machine has that
+// nothing has connected.
+func (a *App) iconRow(c *ui.Context, detected bool, label, sublabel string, control func(), below ...func()) bool {
+	return a.rowAligned(c, ui.Center, func() { a.extensionIcon(c, detected) }, rowFace{}, label,
+		[]rowLine{{Text: sublabel}}, "", control, below...)
 }
 
 // rowNote is row with one more line: a warning-coloured note under the
 // description, for the one thing a row has to disclose rather than describe
 // (the clipboard's privacy line). An empty note draws nothing.
 func (a *App) rowNote(c *ui.Context, label, sublabel, note string, control func(), below ...func()) bool {
-	return a.rowAligned(c, ui.Center, label, []rowLine{{Text: sublabel}}, note, control, below...)
+	return a.rowAligned(c, ui.Center, nil, rowFace{}, label, []rowLine{{Text: sublabel}}, note, control, below...)
 }
 
 // rowTop is rowNote with the control pinned to the row's first line rather
@@ -467,15 +477,16 @@ func (a *App) rowNote(c *ui.Context, label, sublabel, note string, control func(
 // name, as the reference's `.extensions-base-plugin` did with
 // `align-items: flex-start`.
 func (a *App) rowTop(c *ui.Context, label, sublabel, note string, control func(), below ...func()) bool {
-	return a.rowAligned(c, ui.Start, label, []rowLine{{Text: sublabel}}, note, control, below...)
+	return a.rowAligned(c, ui.Start, nil, rowFace{}, label, []rowLine{{Text: sublabel}}, note, control, below...)
 }
 
 // rowAligned is the row both helpers share; align places the control across
-// the row's axis.
-func (a *App) rowAligned(c *ui.Context, align ui.Align, label string, sublabels []rowLine, note string, control func(), below ...func()) bool {
+// the row's axis. lead draws the row's leading mark (nil for none) and face
+// carries its own state decoration, both handed straight to cardRow.
+func (a *App) rowAligned(c *ui.Context, align ui.Align, lead func(), face rowFace, label string, sublabels []rowLine, note string, control func(), below ...func()) bool {
 	tokens := a.tokens(c)
 	t := c.Theme()
-	return a.cardRow(c, align, control, func() {
+	return a.cardRow(c, align, lead, face, control, func() {
 		// The label is the emphasis step (580, strong) and the grey second line
 		// the body step (500, muted).
 		ui.Text(c, label).FontSize(t.FontSize + 1).FontWeight(580).TextColor(tokens.TextStrong)
@@ -516,7 +527,7 @@ func (a *App) rowAligned(c *ui.Context, align ui.Align, label string, sublabels 
 func (a *App) codeRow(c *ui.Context, value string, control func(), below ...func()) {
 	tokens := a.tokens(c)
 	t := c.Theme()
-	a.cardRow(c, ui.Center, control, func() {
+	a.cardRow(c, ui.Center, nil, rowFace{}, control, func() {
 		chip := ui.Box(c).FillWidth().MinWidth(0).Padding(t.Space(1), t.Space(2)).
 			Radius(tokens.RadiusXS).Background(tokens.Sunken).Border(1, tokens.ControlEdge)
 		chip.Children(func() {
@@ -526,13 +537,36 @@ func (a *App) codeRow(c *ui.Context, value string, control func(), below ...func
 	}, below...)
 }
 
+// rowFace is the decoration a card row wears on top of the shared frame: the
+// 1px leading rule the extension rows light on hover, selection and the
+// `floter://register` link, the face override a selected or broken row takes,
+// and the inner keyline that goes with it. The zero value is a plain row — the
+// card's own plane, no rule, no keyline.
+type rowFace struct {
+	// Bar is the leading rule's colour (the reference's
+	// `.extension-row::before`); a transparent colour draws no rule, though the
+	// 1px slot is always reserved so a row never reflows when the rule lights.
+	Bar ui.Color
+	// Face overrides the row's resting fill — a selected row's raised pane or a
+	// broken row's warm one. FaceSet marks it as present, so a fully opaque
+	// black can be told apart from "keep the card's plane".
+	Face    ui.Color
+	FaceSet bool
+	// Inset is the 1px inner keyline a selected (accent) or broken (warning)
+	// row draws (the reference's `inset 0 0 0 1px`), transparent for none.
+	Inset ui.Color
+}
+
 // cardRow is the frame every row helper shares: the separator inset above the
-// row (except the card's first), the 44u floor, the label column and the
-// trailing control slot. draw paints the label column's own content — a label
-// with its second lines, or a code chip — so a new kind of label reuses the
-// frame instead of copying it (which is how the deep-link chip drifted from
-// the rows it sits between).
-func (a *App) cardRow(c *ui.Context, align ui.Align, control func(), draw func(), below ...func()) bool {
+// row (except the card's first), the 44u floor, the leading rule's 1px slot,
+// the label column and the trailing control slot. lead draws the row's own
+// leading mark — the extension rows' package chip — so a row that needs one
+// reuses the frame instead of copying it. face carries the row's own state
+// decoration (the leading rule, a face override, an inner keyline). draw paints
+// the label column's own content — a label with its second lines, or a code
+// chip — so a new kind of label reuses the frame instead of copying it (which
+// is how the deep-link chip drifted from the rows it sits between).
+func (a *App) cardRow(c *ui.Context, align ui.Align, lead func(), face rowFace, control func(), draw func(), below ...func()) bool {
 	tokens := a.tokens(c)
 	t := c.Theme()
 	inset := t.Space(3.5)
@@ -548,24 +582,46 @@ func (a *App) cardRow(c *ui.Context, align ui.Align, control func(), draw func()
 				MarginX(inset).Shrink(0)
 		}
 		// The row is the reference's own: a 44u floor, a 12u gap, a 9u padding
-		// pair. The press is the control material's own: less opaque than the
-		// resting pane, so a row the user is about to activate sinks into the
-		// glass.
-		row := ui.Row(c).FillWidth().Gap(t.Space(3)).AlignItems(align).
-			MinHeight(t.Space(11)).Padding(t.Space(1.5), inset)
+		// pair. It is split in two so the leading rule can run the row's whole
+		// height (the reference's `::before` spans `inset-block: 0`, padding
+		// included) while the content keeps its inset: the 1px slot plus the
+		// content's own `inset-1` padding add back up to the old inset, so a
+		// plain row's content does not move.
+		row := ui.Row(c).FillWidth().AlignItems(ui.Stretch).MinHeight(t.Space(11))
+		if face.FaceSet {
+			row = row.Background(face.Face)
+		}
+		if face.Inset.A > 0 {
+			row = row.InsetShadow(0, 0, 0, 1, face.Inset)
+		}
+		bar := face.Bar
 		switch {
 		case row.Pressed():
-			row.Background(t.SurfacePressed)
+			row = row.Background(t.SurfacePressed)
 		case row.Hovered():
-			row.Background(t.SurfaceHover)
+			// The reference's `:hover:not(.extension-row--detected)` lights both
+			// the ladder's hover fill and the accent rule, over whatever state
+			// the row was in.
+			row = row.Background(t.SurfaceHover)
+			bar = t.Accent
 		}
 		row.Children(func() {
-			names := ui.Column(c).Grow(1).MinWidth(0).Gap(1)
-			names.Children(draw)
-			if names.Clicked() {
-				clicked = true
+			rule := ui.Box(c).Width(1).Shrink(0)
+			if bar.A > 0 {
+				rule.Background(bar)
 			}
-			ui.Row(c).Shrink(0).Gap(t.Space(2)).AlignItems(ui.Center).Children(control)
+			ui.Row(c).Grow(1).MinWidth(0).Gap(t.Space(3)).AlignItems(align).
+				Padding(t.Space(1.5), inset-1).Children(func() {
+				if lead != nil {
+					lead()
+				}
+				names := ui.Column(c).Grow(1).MinWidth(0).Gap(1)
+				names.Children(draw)
+				if names.Clicked() {
+					clicked = true
+				}
+				ui.Row(c).Shrink(0).Gap(t.Space(2)).AlignItems(ui.Center).Children(control)
+			})
 		})
 		// What belongs *under* the row but inside the card: an unfolding
 		// audit, a configuration form. It keeps the card's own rhythm and its
@@ -582,6 +638,30 @@ func (a *App) cardRow(c *ui.Context, align ui.Align, control func(), draw func()
 // deepLinkValueFont is the monospace stack the reference gave
 // `.settings-deep-link__value` (`settings.css:1530`).
 const deepLinkValueFont = "SF Mono, Menlo, Monaco, Consolas, monospace"
+
+// extensionIcon draws the extension row's package mark: the reference's
+// `.extension-row__icon` (`extensions.css:871-889`), a 30u square chip with a
+// 1px `--icon-edge` hairline, the `--ext-radius` corner and the `--icon-surface`
+// plane, carrying lucide's `Package` at 17u in `--text-secondary`. A *detected*
+// row — a tool the machine has that nothing has connected — wears the same chip
+// as a ghost: the reference's dashed edge, no plane and `--text-tertiary` ink
+// (`extensions.css:833-837`).
+func (a *App) extensionIcon(c *ui.Context, detected bool) ui.Element {
+	tokens := a.tokens(c)
+	t := c.Theme()
+	chip := ui.Box(c).Width(t.Space(7.5)).Height(t.Space(7.5)).Shrink(0).
+		Border(1, tokens.ControlEdge).Radius(tokens.RadiusSM).
+		Background(tokens.Control).Center()
+	ink := tokens.TextSecondary
+	if detected {
+		chip = chip.BorderStyle(ui.BorderDashed).Background(ui.Transparent)
+		ink = tokens.TextTertiary
+	}
+	chip.Children(func() {
+		ui.Icon(c, mustGlyph("package")).Size(t.Space(4.25), t.Space(4.25)).TextColor(ink)
+	})
+	return chip
+}
 
 // stackedRow is a card row whose control wants the row's full width: the
 // label and its grey second line above, the control under them, as the
