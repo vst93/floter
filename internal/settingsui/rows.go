@@ -85,8 +85,9 @@ func (a *App) sectionHint(c *ui.Context, hint string) {
 		return
 	}
 	t := c.Theme()
-	ui.Text(c, hint).FontSize(t.FontSize).FontWeight(500).TextColor(t.TextMuted).
-		Padding(0, t.Space(0.5))
+	ui.Row(c).FillWidth().Padding(0, t.Space(0.5)).Children(func() {
+		ui.Text(c, hint).FontSize(t.FontSize).FontWeight(500).TextColor(t.TextMuted)
+	})
 }
 
 // card draws one grouped card: the resting control plane, its hairline

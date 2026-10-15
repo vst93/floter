@@ -13,10 +13,10 @@ import (
 // (`settings.css:421-438`): a row inset 2u from the page's edge, its two ends
 // 12u apart, bottom-aligned (`align-items: flex-end`), the action resting on
 // the title block's bottom edge. The old port drew the title flush with the
-// card and centred the action on the block. Rendering the heading on its own
-// reads both without the surrounding page.
+// card and centred the action on the block. The action here is a short box, so
+// the title block is the taller child and the two alignments differ — with a
+// single-line title and the real 24u action they would coincide.
 func TestTheSectionHeadingIsTheReferenceRow(t *testing.T) {
-	en := i18n.For("en").Settings
 	store := newStore(t)
 	a := New(store, Actions{})
 	tokens := theme.ForPreferences(store.Snapshot(), false, ui.Preferences{})
@@ -26,7 +26,9 @@ func TestTheSectionHeadingIsTheReferenceRow(t *testing.T) {
 	var rowBox, actionBox ui.Rect
 	tt := ui.NewTester(func(c *ui.Context) {
 		a.sectionHeading(c, title, func() {
-			a.action(c, en.ShortcutsReset, func() {}).Bind(&actionRef)
+			// A short control, so the 24px title block is the taller child and
+			// the row's flex-end alignment is observable.
+			ui.Box(c).Width(60).Height(10).Bind(&actionRef)
 		}).Bind(&rowRef)
 		rowBox = c.Resolve(rowRef).Bounds()
 		actionBox = c.Resolve(actionRef).Bounds()
@@ -42,8 +44,11 @@ func TestTheSectionHeadingIsTheReferenceRow(t *testing.T) {
 	if got := titleBox.X - rowBox.X; absFloat(got-tokens.Theme.Space(0.5)) > 1 {
 		t.Errorf("heading inset = %v, want the reference's 2u (%v)", got, tokens.Theme.Space(0.5))
 	}
-	// `align-items: flex-end`: the action rests on the block's bottom edge; it
-	// is not centred on it.
+	// `align-items: flex-end`: the action rests on the block's bottom edge; a
+	// centred action would float half the slack above it.
+	if slack := rowBox.H - actionBox.H; slack < 8 {
+		t.Fatalf("the action is not shorter than the block: block %v, action %v", rowBox.H, actionBox.H)
+	}
 	if got := actionBox.Y + actionBox.H; absFloat(got-(rowBox.Y+rowBox.H)) > 1 {
 		t.Errorf("action bottom = %v, want the heading's bottom %v (flex-end)", got, rowBox.Y+rowBox.H)
 	}

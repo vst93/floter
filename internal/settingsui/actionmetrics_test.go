@@ -133,13 +133,10 @@ func TestSectionHeadingActionSitsAtTheRightEndBottomAligned(t *testing.T) {
 		t.Errorf("the action is not at the right end: right edge at %v", action.X+action.W)
 	}
 	// The action is bottom-aligned with the heading block (flex-end), not
-	// centred on it: its bottom edge is within 2u of the block's bottom.
-	// The block is title + hint stacked, so the action's bottom matches the
-	// hint's bottom (or the title's if there is no hint).
+	// centred on it: its bottom edge is within 2u of the title block's bottom.
+	// The group's explanation is a `sectionHint` line after the cards, so the
+	// heading block is the title alone.
 	blockBottom := title.Y + title.H
-	if hint, ok := tt.Find(en.ShortcutsHint); ok {
-		blockBottom = hint.Y + hint.H
-	}
 	if diff := action.Y + action.H - blockBottom; diff < -2 || diff > 2 {
 		t.Errorf("the action is not bottom-aligned: bottom delta %v", diff)
 	}

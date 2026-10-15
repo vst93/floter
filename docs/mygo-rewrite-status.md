@@ -100,6 +100,50 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
+> **本轮：P7-go 分组标题行回到原版的 `.settings-section__heading`——标题 inset 2u、动作底对齐、
+> 分组说明改回卡片之后的 `__hint` 行（原版 `src/styles/settings.css:411-448,1198-1206`、
+> `src/settings/ShortcutsPage.tsx:383-424`、`src/settings/SettingsRows.tsx:200-216`）**
+> ——P7-gn 收尾后「具体待办」归零，本轮按规则回到「对照原版排查偏离点」，换一个**全文档从未单独
+> 审计**的入口：设置页的分组标题行原语（此前只对照过行、文本动作与空态，标题行本身没有 file:line
+> 对照）。依赖检查：`go.mod` 已是 **v0.5.1** = latest tag（`releases/latest` 仍被 API 限流），无
+> 版本可升；只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离（P7-go·标题与卡片齐平、说明挤在标题下、动作浮在块中间）**：原版 `.settings-section` 是
+> 8u 间距的网格（`settings.css:411-419`），第一格 `.settings-section__heading` 是 flex 行：
+> `align-items: flex-end`、`justify-content: space-between`、`gap: 12u`、`padding: 0 2u`
+> （`:421-429`），标题在 `heading-main` 块里（`:430-434`），分组说明是**卡片之后**的
+> `.settings-section__hint` 行（`:1198-1206`，`padding: 0 2u`；`ShortcutsPage.tsx:424`、
+> `GeneralPage.tsx:597-598`）。**本构建（改前）**：`section`/`sectionFoot` 把标题画在内容最左边
+> （无 2u 内缩），说明紧贴标题下方（8u），`sectionWithAction` 的标题行用 `AlignItems(ui.Center)`
+> 让动作浮在块中间。
+>
+> **落地**：
+> - `internal/settingsui/rows.go`：新增共享 `sectionHeading(c, title, action)`（`:61`）——`ui.Row`
+>   + `AlignItems(ui.End)` + `Justify(ui.SpaceBetween)` + `Gap(Space(3))` + `Padding(0, Space(0.5))`，
+>   返回行元素供测试读盒子；`sectionFoot`（`:40`）与 `sectionWithAction`（`:363`）都改走它。新增
+>   `sectionHint(c, hint)`（`:83`）——卡片之后的 2u 内缩说明行；`section`/`sectionWithAction` 的
+>   `hint` 与 `sectionFoot` 的 `footnotes` 都走它。
+> - `internal/settingsui/sectionheading_test.go`（新）：三条——孤立标题行（2u 内缩、短控件时动作
+>   底对齐、右端）；`section` 的说明在卡片之后且 2u 内缩；活页 Shortcuts 的说明不在标题行内。
+> - `internal/settingsui/actionmetrics_test.go`：`TestSectionHeadingActionSitsAtTheRightEndBottomAligned`
+>   的块底改读标题底（标题行现在只有标题）。
+>
+> **取舍（如实记录）**：`heading-main` 的 `min-width: 0` 用 `ui.Column(c).Grow(1)` 复刻，但 mygo
+> 的 flex 子项不会自动换行，超长分组标题仍会溢出（原版会换行）——留作后续；原版
+> `.settings-section__label` 的 `letter-spacing: -0.004em` / `line-height: 1.25` 未接（mygo 有
+> `LetterSpacing`/`LineHeight` 两个旋钮，只是本构建还没用）。
+>
+> **验收**：`internal/settingsui/sectionheading_test.go` 三条 + `actionmetrics_test.go` 的
+> `TestSectionHeadingActionSitsAtTheRightEndBottomAligned`。变异核查：`AlignItems(ui.End)` 换
+> `ui.Center` → 动作底对齐条红（17 vs 24）；说明挪回卡片前 → 「在卡片之后」条红；去掉说明的 2u
+> 内缩 → 内缩条红（0 vs 1.8）。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：新写的「具体待办（P7-go 重写）」3 条，第 1 条本轮落地；第 2 条（深链标题的
+> `--inline` 说明）与第 3 条（Sessions 标题的排序/刷新控件）是下一轮候选。
+
 > **本轮：P7-gn 自定义快捷键空态回到原版共享的 `SettingsEmpty`——22px Keyboard 记号 +
 > `--text-secondary` 标题 + `＋` 文本动作出路（原版 `src/settings/ShortcutsPage.tsx:240-252`、
 > `src/settings/SettingsRows.tsx:201-244`、`src/styles/settings.css:633-676,682-730`、
@@ -10536,3 +10580,57 @@ P7-fg 收尾后「具体待办（P7-ff 重写）」归零。本轮按审计入�
   `copy.go` en/zh 各留一份，`settingsui.go` 两处调用点改读它。
 - **验收（已过）**：`TestTheRemovalBandWearsTheErrorTint` 里钉住两条横条都取同一个 `IntegrationsCancel`；
   结构化 Copy 缺字段会在编译期报错。
+
+### 具体待办（P7-go 重写；第 1 条 P7-go 已落地，余下第 2·3 条）
+
+P7-gn 收尾后清单归零。本轮按审计入口 `main:src/styles/settings.css` 的 `.settings-section__heading` /
+`__heading-main` / `__label` / `__hint`（此前只对照过行、文本动作与空态，标题行本身没有 file:line
+对照）逐字段比对，把清单重写为下面 3 条带 file:line / 原版对照 / 验收标准的具体待办，并取第 1 条落地。
+
+#### P7-go-1 · 分组标题行回到原版的 `.settings-section__heading`（**本轮落地，P7-go**）
+
+- **原版对照**：`main:src/styles/settings.css:411-419`（`.settings-section`：`display:grid;
+  gap: calc(var(--u)*8)`）、`:421-429`（`.settings-section__heading`：`display:flex;
+  align-items:flex-end; justify-content:space-between; gap:calc(var(--u)*12); padding:0 calc(var(--u)*2)`）、
+  `:430-434`（`.settings-section__heading-main`：`display:grid; gap:1px`）、`:440-448`
+  （`.settings-section__label`：`--text-strong`/`--text-title`/620）、`:1198-1206`
+  （`.settings-section__hint`：`padding:0 calc(var(--u)*2)`、`--text-tertiary`/`--text-body`/500）；
+  `main:src/settings/ShortcutsPage.tsx:383-395`（heading 里 label + SettingsAction）、`:424`
+  （说明在 `</SettingsCard>` 之后）；`main:src/settings/SettingsRows.tsx:200-216`（`SettingsAction`）。
+- **本构建（改前偏离）**：`internal/settingsui/rows.go` 的 `section`/`sectionFoot` 把标题直接画在
+  内容左边、说明紧贴标题下（8u）；`sectionWithAction` 的标题行 `AlignItems(ui.Center)`。
+- **落地 file:line（已按此落地）**：`internal/settingsui/rows.go:61` 的 `sectionHeading`（flex 行 +
+  End + SpaceBetween + Space(3) gap + 2u padding）、`:83` 的 `sectionHint`（卡片之后、2u 内缩）、
+  `:40`/`:363` 的两个调用方。详见「最近几轮」P7-go 记录。
+- **验收（已过）**：`internal/settingsui/sectionheading_test.go` 三条 + `actionmetrics_test.go` 的
+  `TestSectionHeadingActionSitsAtTheRightEndBottomAligned`。
+
+#### P7-go-2 · 深链标题的说明是原版的 `--inline` 说明，应留在 heading-main 里（**下一轮最高优先级**）
+
+- **原版对照**：`main:src/settings/DeepLinkRow.tsx:61-64` 的 heading-main 里放 label 与
+  `<p className="settings-section__hint settings-section__hint--inline">{t("settings.deepLinkHint")}</p>`；
+  `main:src/styles/settings.css:1209-1211` 的 `--inline { padding: 0 }`。也就是说，原版**唯一**一条
+  骑在标题块内的说明就是深链页这条。
+- **本构建（改前偏离）**：`internal/settingsui/settingsui.go:2606` 的
+  `a.section(c, copy.DeepLinkTitle, copy.DeepLinkHint, ...)` 在 P7-go 之后把这条说明画成卡片之后的
+  `sectionHint` 行，与「标题块内第二行」的原版位置不符。
+- **落地 file:line（待做）**：给 `internal/settingsui/rows.go:61` 的 `sectionHeading` 加一个可选
+  inline hint 槽（`ui.Column(...).Gap(1)`，即 `heading-main` 的 1px stack），
+  `internal/settingsui/settingsui.go:2606` 的深链段改走它。
+- **验收（待做）**：活页 About 页——`copy.DeepLinkHint` 的墨迹顶边 < 深链卡片顶边（说明在卡片
+  **之前**），且与 `copy.DeepLinkTitle` 同列、间距 == 1px；`sectionHint` 的既有调用方不变。
+
+#### P7-go-3 · Sessions 标题行缺原版的两个控件（排序记号 + 独立刷新图标键）
+
+- **原版对照**：`main:src/settings/SessionsPage.tsx:116-135` 的 heading 里除标题外还有两个键——
+  `session-manager__sort-toggle`（`ArrowUpDown` 13px + 排序词）与 `session-manager__icon-button`
+  （`RefreshCw` 14px，`aria-label`/`title` 取 `terminal.sessionsRefresh`，`disabled={loading}`）；
+  CSS 见 `main:src/styles/settings.css` 的 `.session-manager__sort-toggle` / `__icon-button`。
+- **本构建（改前偏离）**：`internal/settingsui/settingsui.go:1178-1180` 的
+  `sectionWithAction(c, copy.PageSessions, copy.SessionsActive, order, ...)` 只画**一个**文本动作
+  （排序词），既没有 `ArrowUpDown` 记号，也没有独立的刷新图标键。
+- **落地 file:line（待做）**：`internal/settingsui/rows.go:61` 的 `sectionHeading` 的 action 槽从
+  「单个函数」放宽到「多个控件」（或新增 `sectionHeadingControls`），Sessions 段把排序键（带
+  `arrow-up-down` 记号）与刷新图标键都放进去；刷新键接 `a.Actions.RefreshSessions`（若存在）。
+- **验收（待做）**：活页 Sessions 页——排序键标签前 20u 带内有 `ArrowUpDown` 记号墨迹；刷新键是
+  图标键（墨迹纵横比 ≈1）且 `disabled` 时降到 0.5 不透明度；两个键都在标题行右端、动作底对齐。
