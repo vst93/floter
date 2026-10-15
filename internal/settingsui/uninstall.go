@@ -63,15 +63,20 @@ func uninstallParts(copy i18n.Settings, draft *UninstallComponents) []uninstallP
 	}
 }
 
-// uninstallDialog draws the componentized uninstall. The pane is the
-// reference's own `.extensions-dialog` — a 17px-padded column between
+// uninstallDialog draws the componentized uninstall. The reference floats it
+// over a full-window scrim — `.extensions-dialog-overlay` is a fixed inset-0
+// grid at `z-index: 40`, `place-items: center`, 20px of padding and
+// `background: var(--surface-scrim)` (`ComponentizedUninstallDialog.css:6-16`)
+// — so DialogBase supplies that backdrop, the capture-phase Escape and the
+// focus restore on close, and the pane below carries the reference's own
+// `.extensions-dialog` look. The pane is a 17px-padded column between
 // `--input-stroke` and `--glass-float`, rounded `--ext-radius` and thrown on
-// `--elev-3` (`ComponentizedUninstallDialog.css:17-34`) — and the uninstall
-// variant clamps it to the reference's own 420–480px band
-// (`.extensions-uninstall-dialog`, `:36-39`). Inside it: the reference's own
-// title ("Uninstall {name}"), its hint, one row per component, and the two
-// actions in the reference's order — Cancel first, the danger button last, at
-// the row's right end (`ComponentizedUninstallDialog.tsx:119-141`).
+// `--elev-3` (`:17-34`), and the uninstall variant clamps it to the
+// reference's own 420–480px band (`.extensions-uninstall-dialog`, `:36-39`).
+// Inside it: the reference's own title ("Uninstall {name}"), its hint, one row
+// per component, and the two actions in the reference's order — Cancel first,
+// the danger button last, at the row's right end
+// (`ComponentizedUninstallDialog.tsx:119-141`).
 //
 // The dialog's blocks are not one even gutter: the reference hangs the hint
 // 6px under the title (`.extensions-dialog-hint { margin: 6px 0 0 }`, `:46-51`),
@@ -80,8 +85,14 @@ func uninstallParts(copy i18n.Settings, draft *UninstallComponents) []uninstallP
 // bottom margin. One uniform gap drew all four blocks 4px apart, which is
 // neither of the reference's two numbers.
 //
-// The returned element is the dialog's own box, so a test can read the padding
-// and the width band off it (the pattern `sectionMaterial` and `action` use).
+// `open` is true because the caller (`uninstallComponentsRow`) already gates
+// the dialog on `uninstallOpen`; DialogBase needs a pointer so that Escape or
+// a press on the scrim can close it, and Dismissed reports that back so the
+// map is cleared. The cancel button takes the focus on mount
+// (`cancelRef.current?.focus()`), which DialogBase restores to the opener on
+// close. The returned element is the dialog's own box, so a test can read the
+// padding and the width band off it (the pattern `sectionMaterial` and `action`
+// use).
 func (a *App) uninstallDialog(c *ui.Context, copy i18n.Settings, integration Integration) ui.Element {
 	t := c.Theme()
 	tokens := a.tokens(c)
@@ -93,16 +104,28 @@ func (a *App) uninstallDialog(c *ui.Context, copy i18n.Settings, integration Int
 		draft = UninstallComponents{RemoveHostConfig: true, RemoveToolData: true, RemoveArtifacts: true}
 		a.uninstallDraft[integration.ID] = draft
 	}
-	dialog := ui.Column(c).FillWidth().
-		Padding(t.Space(4.25)).MinWidth(t.Space(105)).MaxWidth(t.Space(120)).
-		Radius(tokens.RadiusXS).Border(1, tokens.InputStroke).
-		Background(tokens.Float)
-	// The floater's throw and its lit top rim, as `--elev-3` composed them —
-	// the same two shadows the terminal panel's own note carries.
-	dialog.Shadow(0, t.Space(2.5), t.Space(6.5), 0, ui.RGBA(0, 0, 0, 0.3))
-	dialog.Shadow(0, t.Space(0.25), t.Space(0.5), 0, ui.RGBA(0, 0, 0, 0.2))
-	dialog.InsetShadow(0, 1, 0, 0, tokens.LensRim)
-	dialog.Children(func() {
+	open := true
+	// pane and cancel are the focus bookkeeping: the reference gives the
+	// cancel button the focus on mount, and the request must land after the
+	// overlay has recorded its opener, or closing would restore the focus to
+	// the dialog itself. Binding the pane lets the request stop once the
+	// focus is in it, so Tab still reaches the confirm button.
+	var pane, cancel ui.Handle
+	dialog := ui.DialogBase(c, &open, func(backdrop, panel ui.Element) {
+		// `.extensions-dialog-overlay { inset: 0; place-items: center; padding:
+		// 20px; background: var(--surface-scrim) }` (`:6-16`). The scrim is the
+		// reference's own `rgba(0, 0, 0, 0.34)` (`base.css:699`) in every theme.
+		backdrop.Background(ui.RGBA(0, 0, 0, 0.34)).Padding(t.Space(5))
+		// `.extensions-dialog` (`:17-34`): the pane's own material and edge.
+		panel.FillWidth().
+			Padding(t.Space(4.25)).MinWidth(t.Space(105)).MaxWidth(t.Space(120)).
+			Radius(tokens.RadiusXS).Border(1, tokens.InputStroke).
+			Background(tokens.Float).Bind(&pane)
+		// The floater's throw and its lit top rim, as `--elev-3` composed them —
+		// the same two shadows the terminal panel's own note carries.
+		panel.Shadow(0, t.Space(2.5), t.Space(6.5), 0, ui.RGBA(0, 0, 0, 0.3))
+		panel.Shadow(0, t.Space(0.25), t.Space(0.5), 0, ui.RGBA(0, 0, 0, 0.2))
+		panel.InsetShadow(0, 1, 0, 0, tokens.LensRim)
 		// `.extensions-dialog-title { color: var(--text-strong); font-size: 13px }`
 		// (`:41-45`): the ladder's title step, not the body step this dialog
 		// used to draw its heading at.
@@ -122,11 +145,16 @@ func (a *App) uninstallDialog(c *ui.Context, copy i18n.Settings, integration Int
 		// `.extensions-dialog-actions { justify-content: flex-end; gap: 7px }`
 		// (`:74-78`): the pair sits at the row's right end, seven units apart.
 		ui.Row(c).FillWidth().Gap(t.Space(1.75)).Justify(ui.End).AlignItems(ui.Center).Children(func() {
-			if a.uninstallActionButton(c, copy.PermissionsCancel, false, nil).Clicked() {
+			// The reference focuses Cancel on mount
+			// (`cancelRef.current?.focus({ preventScroll: true })`), the one
+			// target that keeps the answer to "remove all of this?" a deliberate
+			// one. The two actions are the reference's own `busy` pair; this
+			// build's uninstall never reports in flight, so both stay enabled.
+			if a.uninstallActionButton(c, copy.PermissionsCancel, false, false, nil).Bind(&cancel).Clicked() {
 				a.uninstallOpen[integration.ID] = false
 				return
 			}
-			if a.uninstallActionButton(c, integration.removalLabel(copy), true, checkIcon).Clicked() {
+			if a.uninstallActionButton(c, integration.removalLabel(copy), true, false, checkIcon).Clicked() {
 				if a.Actions.UninstallComponents != nil {
 					a.Actions.UninstallComponents(integration.ID, integration.Name, integration.removalKind(), draft)
 				}
@@ -135,6 +163,18 @@ func (a *App) uninstallDialog(c *ui.Context, copy i18n.Settings, integration Int
 			}
 		})
 	})
+	if dialog.Dismissed() {
+		if a.uninstallOpen == nil {
+			a.uninstallOpen = map[string]bool{}
+		}
+		a.uninstallOpen[integration.ID] = false
+	}
+	// Give Cancel the focus while the pane does not already hold it: the
+	// request applies after the overlay recorded its opener, so closing gives
+	// the focus back to the control that opened the dialog.
+	if !pane.FocusWithin(c) {
+		cancel.Focus(c)
+	}
 	a.uninstallDraft[integration.ID] = draft
 	return dialog
 }
@@ -154,15 +194,18 @@ func (a *App) uninstallDialog(c *ui.Context, copy i18n.Settings, integration Int
 //
 // `icon` leads the word when it is not nil — `<Check size={14} strokeWidth={2} />`
 // is the reference's first child, so the mark a destructive confirm is
-// recognized by comes before the word it confirms.
-func (a *App) uninstallActionButton(c *ui.Context, label string, danger bool, icon *ui.SVG) ui.Element {
+// recognized by comes before the word it confirms. `busy` is the reference's
+// own prop: both actions carry `disabled={busy}`
+// (`ComponentizedUninstallDialog.tsx:126,142`), so a question already being
+// answered cannot be answered again.
+func (a *App) uninstallActionButton(c *ui.Context, label string, danger bool, busy bool, icon *ui.SVG) ui.Element {
 	t := c.Theme()
 	tokens := a.tokens(c)
 	// The pill's corner is half the 30px control height (the reference writes
 	// `border-radius: 999px`, which the browser clamps to exactly that).
 	button := ui.ButtonBase(c).Label(label).
 		MinHeight(t.Space(7.5)).Padding(0, t.Space(2.5)).Gap(t.Space(1.25)).
-		Radius(t.Space(3.75))
+		Radius(t.Space(3.75)).Disabled(busy)
 	ink, edge, plane := tokens.TextStrong, tokens.ControlEdge, tokens.Control
 	if danger {
 		ink = t.Warning
@@ -207,7 +250,10 @@ func uninstallSubBody(t *ui.Theme) float32 {
 // to `--glass-control-press` — over a 150ms colour transition, and the
 // disabled program row is the reference's flat `opacity: 0.6`
 // (`ComponentizedUninstallDialog.css:60-83`). The card was a static box: it
-// was the one control in the panel that did not answer the pointer.
+// was the one control in the panel that did not answer the pointer. Its own
+// `--elev-0` lens rides the raised states, but the reference's press rule sets
+// `box-shadow: none` as it sinks (`:74-77`), so the press is the one rung that
+// paints the fill without the glass.
 //
 // The returned element is the card's own box, so a test can read its padding
 // and its row gap off it.
@@ -231,13 +277,18 @@ func (a *App) uninstallPartRow(c *ui.Context, part uninstallPart) ui.Element {
 		// `:has(input:disabled) { cursor: not-allowed; opacity: 0.6 }`.
 		card.Opacity(0.6)
 		card.Cursor(ui.CursorNotAllowed)
+		tokens.Lens(card)
 	case card.Pressed():
 		// The press rung comes first: CSS paints `:active` over `:hover`,
-		// and a pointer held down is both.
+		// and a pointer held down is both. `:active` also drops the card's
+		// `--elev-0` shadow, so the pressed pane is the fill alone.
 		card.Background(tokens.ControlPress)
 	case card.Hovered():
 		card.Background(tokens.ControlHover)
 		card.Border(1, tokens.AccentEdge)
+		tokens.Lens(card)
+	default:
+		tokens.Lens(card)
 	}
 	card.Children(func() {
 		box := ui.Checkbox(c, &on, "").Label(part.Label)

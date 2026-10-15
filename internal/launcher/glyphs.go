@@ -94,11 +94,21 @@ var (
 	// with (`App.tsx:2904`, `["general", SlidersHorizontal]`): three tracks
 	// with an offset knob on each.
 	glyphSlidersHorizontal = ui.MustParseSVG([]byte(glyphSource(`<path d="M10 5H3"/><path d="M12 19H3"/><path d="M14 3v4"/><path d="M16 17v4"/><path d="M21 12h-9"/><path d="M21 19h-5"/><path d="M21 5h-7"/><path d="M8 10v4"/><path d="M8 12H3"/>`)))
-	// glyphBlocks is lucide's Blocks (lucide-react 1.31.0's own path), the mark
-	// the reference's Integrations settings page led with (`App.tsx:2907`,
+	// glyphBlocks is lucide's Blocks (lucide-react 1.31.0's own path), the
+	// mark the reference's Integrations settings page led with (`App.tsx:2907`,
 	// `["integrations", Blocks]`): one block stacked against two others, the
 	// pieces a plugin platform is built from.
 	glyphBlocks = ui.MustParseSVG([]byte(glyphSource(`<path d="M10 22V7a1 1 0 0 0-1-1H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5a1 1 0 0 0-1-1H2"/><rect width="8" height="8" x="14" y="2" rx="1"/>`)))
+	// glyphTrash is lucide's Trash2, the mark the reference's removal
+	// confirmation bar led its danger button with (`RemovalConfirmation.tsx:47`,
+	// `<Trash2 size={14} />`): a bin with its lid and two vertical lines, the
+	// word-picture for deletion.
+	glyphTrash = ui.MustParseSVG([]byte(glyphSource(`<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/>`)))
+	// glyphUnplug is lucide's Unplug, the mark the reference's removal bar
+	// used for a system integration (`RemovalConfirmation.tsx:47`,
+	// `<Unplug size={14} />`): two plugs pulled apart, the word-picture for
+	// disconnecting from the OS.
+	glyphUnplug = ui.MustParseSVG([]byte(glyphSource(`<path d="m19 5 3-3"/><path d="m2 22 3-3"/><path d="M6.3 20.3a2.4 2.4 0 0 0 3.4 0L12 18l-6-6-2.3 2.3a2.4 2.4 0 0 0 0 3.4Z"/><path d="m2 6 6 6 2.3-2.3a2.4 2.4 0 0 0 0-3.4L8.7 4a2.4 2.4 0 0 0-3.4 0Z"/><path d="m12 12 6 6 2.3-2.3a2.4 2.4 0 0 0 0-3.4L18.7 10a2.4 2.4 0 0 0-3.4 0Z"/>`)))
 )
 
 // rowGlyph picks the mark for a row from what the row is: an application shows
@@ -291,6 +301,10 @@ func Glyph(name string) (*ui.SVG, bool) {
 		return glyphKeyboard, true
 	case "plus":
 		return glyphPlus, true
+	case "trash":
+		return glyphTrash, true
+	case "unplug":
+		return glyphUnplug, true
 	case "arrow-up-down":
 		return glyphArrowUpDown, true
 	case "file":

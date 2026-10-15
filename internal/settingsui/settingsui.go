@@ -4347,7 +4347,20 @@ func (a *App) requestDisable(id string) {
 // takes the edge up to the accent keyline, the reference's
 // `.extensions-action-button:hover:not(:disabled)`. A disabled button keeps
 // its resting face and ignores the press.
-func (a *App) barButton(c *ui.Context, label string, danger, disabled bool, run func()) ui.Element {
+// barButton is the reference's inline action button inside a notice band
+// (`extensions.css:1313-1385`): a 24px pill with 8px of side padding, a
+// hairline border, the control plane and no fill — the same shape every
+// discard bar's answers share. The danger variant is the ink alone
+// (`--text-warning`), not a red plane: the reference's destructive action is
+// quieter than the framework's filled Button. Hover lifts the plane to
+// `--glass-control-hover` and the hairline to `--accent-edge`, and the ink
+// moves to `--text-primary` for both the neutral and the danger button — the
+// reference's own `:hover` rule applies to `--danger` too. The icon, when
+// one is passed, leads the word: the reference's confirm buttons are
+// `<Trash2 size={14} />` / `<Unplug size={14} />` / `<PowerOff size={14} />`
+// before their label, so the mark a destructive confirm is recognized by
+// comes before the word it confirms.
+func (a *App) barButton(c *ui.Context, label string, danger, disabled bool, icon *ui.SVG, run func()) ui.Element {
 	t := c.Theme()
 	tokens := a.tokens(c)
 	ink := tokens.TextStrong
@@ -4361,7 +4374,7 @@ func (a *App) barButton(c *ui.Context, label string, danger, disabled bool, run 
 		Padding(0, t.Space(2)).
 		Radius(tokens.RadiusXS).
 		Background(plane).Border(1, edge)
-	if !disabled && ink == tokens.TextStrong {
+	if !disabled {
 		if button.Hovered() {
 			plane = tokens.ControlHover
 			edge = tokens.AccentEdge
@@ -4370,6 +4383,9 @@ func (a *App) barButton(c *ui.Context, label string, danger, disabled bool, run 
 		}
 	}
 	button.Children(func() {
+		if icon != nil {
+			ui.Icon(c, icon).Size(t.Space(3.5), t.Space(3.5))
+		}
 		ui.Text(c, label).FontSize(tokens.Caption).TextColor(ink)
 	})
 	if disabled {
@@ -4392,14 +4408,26 @@ func (a *App) barButton(c *ui.Context, label string, danger, disabled bool, run 
 // (`.extensions-action-button--danger`). The band used to be a stacked card
 // here — bold title over a muted body with the buttons below — which is not a
 // shape the reference ever drew.
-func (a *App) noticeBand(c *ui.Context, danger bool, sentence string, answers func()) {
+//
+// The band's own spacing is the reference's: an 8px gap between the mark, the
+// sentence and the answers (`.extensions-notice { gap: 8px }`), and a 1.45
+// line-height on the sentence (`.extensions-notice { line-height: 1.45 }`) —
+// the air a single line of body text carries in every notice the reference
+// draws.
+//
+// It returns the Cancel button so the caller can focus it — the reference's
+// own `useEffect` put focus on the Cancel button the moment the band appeared
+// (`RemovalConfirmation.tsx:17-18`), so the first press of Enter or Escape
+// answers the question without the pointer moving.
+func (a *App) noticeBand(c *ui.Context, danger bool, sentence string, answers func(*ui.Element)) ui.Element {
 	t := c.Theme()
 	tokens := a.tokens(c)
 	ink, edge := tokens.TextSecondary, tokens.ControlEdge
 	if danger {
 		ink, edge = t.Warning, t.Warning
 	}
-	ui.Row(c).FillWidth().Gap(t.Space(1)).AlignItems(ui.Center).
+	var cancel ui.Element
+	ui.Row(c).FillWidth().Gap(t.Space(2)).AlignItems(ui.Center).
 		Padding(t.Space(2), t.Space(2.5)).Margin(0, t.Space(3)).
 		Radius(tokens.RadiusSM).Background(tokens.Control).Border(1, edge).
 		Children(func() {
@@ -4407,9 +4435,11 @@ func (a *App) noticeBand(c *ui.Context, danger bool, sentence string, answers fu
 				TextColor(ink)
 			// The question is one flowing sentence, not a bold title over a
 			// muted body: the band speaks in one ink throughout.
-			ui.Text(c, sentence).FontSize(t.FontSize).TextColor(ink).Grow(1)
-			answers()
+			ui.Text(c, sentence).FontSize(t.FontSize).TextColor(ink).Grow(1).
+				LineHeight(1.45)
+			answers(&cancel)
 		})
+	return cancel
 }
 
 // disableConfirmation is the notice under an integration's switch: stopping it
@@ -4421,19 +4451,23 @@ func (a *App) noticeBand(c *ui.Context, danger bool, sentence string, answers fu
 // together (`{disableTitle} {disableDescription}`), then Cancel and the Disable
 // action on the same row.
 func (a *App) disableConfirmation(c *ui.Context, copy i18n.Settings, integration Integration) {
-	a.noticeBand(c, false,
+	cancel := a.noticeBand(c, false,
 		copy.DisableTitle(integration.Name)+" "+copy.DisableDescription,
-		func() {
-			a.barButton(c, copy.IntegrationsCancel, false, false, func() {
+		func(cancel *ui.Element) {
+			*cancel = a.barButton(c, copy.IntegrationsCancel, false, false, nil, func() {
 				a.disableConfirm[integration.ID] = false
 			})
-			a.barButton(c, copy.DisableConfirm, false, false, func() {
+			a.barButton(c, copy.DisableConfirm, false, false, mustGlyph("power"), func() {
 				a.disableConfirm[integration.ID] = false
 				if a.Actions.SetIntegrationEnabled != nil {
 					a.Actions.SetIntegrationEnabled(integration.ID, false)
 				}
 			})
 		})
+	// The reference's useEffect focuses the Cancel button on open, so the
+	// first Enter or Escape answers the question without the pointer moving.
+	// A zero-value Element's Focus is a no-op, so no nil check is needed.
+	cancel.Focus()
 }
 
 // requestRemove opens the confirmation for deleting an integration.
@@ -4548,17 +4582,28 @@ func (a *App) cancelConfirmations() {
 // too — a system card that says "Disconnect" asks "Disconnect?", never
 // "Uninstall?".
 func (a *App) removeConfirmation(c *ui.Context, copy i18n.Settings, integration Integration) {
-	a.noticeBand(c, true, integration.removalSentence(copy), func() {
-		a.barButton(c, copy.IntegrationsCancel, false, false, func() {
+	// The reference's confirm button leads with the kind's own mark: a system
+	// integration is unplugged (`<Unplug size={14} />`), every other kind is
+	// trashed (`<Trash2 size={14} />`) — `RemovalConfirmation.tsx:47`.
+	confirmIcon := mustGlyph("trash")
+	if integration.removalKind() == RemovalSystem {
+		confirmIcon = mustGlyph("unplug")
+	}
+	cancel := a.noticeBand(c, true, integration.removalSentence(copy), func(cancel *ui.Element) {
+		*cancel = a.barButton(c, copy.IntegrationsCancel, false, false, nil, func() {
 			a.removeConfirm[integration.ID] = false
 		})
-		a.barButton(c, integration.removalLabel(copy), true, false, func() {
+		a.barButton(c, integration.removalLabel(copy), true, false, confirmIcon, func() {
 			a.removeConfirm[integration.ID] = false
 			if a.Actions.UninstallIntegration != nil {
 				a.Actions.UninstallIntegration(integration.ID, integration.Name, integration.removalKind())
 			}
 		})
 	})
+	// The reference's useEffect focuses the Cancel button on open, so the
+	// first Enter or Escape answers the question without the pointer moving.
+	// A zero-value Element's Focus is a no-op, so no nil check is needed.
+	cancel.Focus()
 }
 
 // installFolderRow installs a package directory the user points at: the same

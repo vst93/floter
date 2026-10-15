@@ -1,7 +1,10 @@
 package settingsui
 
 import (
+	"fmt"
 	"testing"
+
+	"github.com/egoist/mygo/ui"
 
 	"floter/internal/i18n"
 )
@@ -154,5 +157,136 @@ func TestComponentizedUninstallKeepsCancelFirst(t *testing.T) {
 	}
 	if cancel.X >= confirm.X {
 		t.Errorf("Cancel (x=%v) is not before the confirm button (x=%v)", cancel.X, confirm.X)
+	}
+}
+
+// The reference floats the dialog over a full-window scrim:
+// `.extensions-dialog-overlay` is a fixed `inset: 0` grid at `z-index: 40`
+// with `padding: 20px` and `background: var(--surface-scrim)`
+// (`ComponentizedUninstallDialog.css:6-16`). The build used to draw the pane
+// straight into the page, so everything behind it stayed at full strength.
+// DialogBase now supplies that backdrop; the corner of the window is the scrim
+// over an otherwise white pane.
+func TestComponentizedUninstallScrimCoversTheWindow(t *testing.T) {
+	en := i18n.For("en").Settings
+	a := uninstallTestApp()
+	var ref ui.Handle
+	open := ui.NewTester(func(c *ui.Context) {
+		ui.Box(c).Fill().Background(ui.RGB(255, 255, 255))
+		a.uninstallDialog(c, en, npmTool()).Bind(&ref)
+	}, 640, 480)
+	open.Frame()
+	// The same white window with nothing over it: the scrim is the only
+	// difference at the corner.
+	plain := ui.NewTester(func(c *ui.Context) {
+		ui.Box(c).Fill().Background(ui.RGB(255, 255, 255))
+	}, 640, 480)
+	plain.Frame()
+	if got, want := cornerRGB(open), cornerRGB(plain); got >= want {
+		t.Errorf("the dialog's scrim does not darken the window: open %.0f, plain %.0f", got, want)
+	}
+}
+
+// cornerRGB is the sum of one window corner's channels — the scrim's own
+// light budget over a constant background.
+func cornerRGB(tt *ui.Tester) float64 {
+	c := tt.Image().RGBAAt(4, 4)
+	return float64(c.R) + float64(c.G) + float64(c.B)
+}
+
+// The reference's capture-phase listener answers Escape with `onCancel`, and
+// does so before the key reaches the page (`event.stopImmediatePropagation`).
+// DialogBase carries that key: the dialog is gone after Escape, and the open
+// state the page reads is cleared.
+func TestComponentizedUninstallEscapeClosesTheDialog(t *testing.T) {
+	en := i18n.For("en").Settings
+	a := uninstallTestApp()
+	a.uninstallOpen = map[string]bool{"npm": true}
+	var ref ui.Handle
+	tt := ui.NewTester(func(c *ui.Context) {
+		if a.uninstallOpen["npm"] {
+			a.uninstallDialog(c, en, npmTool()).Bind(&ref)
+		}
+	}, 640, 480)
+	tt.Frame()
+	tt.Frame()
+	if !tt.HasText(en.IntegrationsUninstallDescription) {
+		t.Fatalf("the dialog did not open: %v", tt.Texts())
+	}
+	tt.Key(0, ui.KeyEscape)
+	tt.Frame()
+	tt.Frame()
+	if a.uninstallOpen["npm"] {
+		t.Errorf("Escape left the dialog open")
+	}
+	if tt.HasText(en.IntegrationsUninstallDescription) {
+		t.Errorf("the dialog is still on screen after Escape: %v", tt.Texts())
+	}
+}
+
+// The reference focuses the cancel button on mount
+// (`cancelRef.current?.focus({ preventScroll: true })`) and gives the focus
+// back to whatever had it on unmount. DialogBase hands the focus to the pane's
+// `AutoFocus` child and restores the opener when the overlay goes.
+func TestComponentizedUninstallManagesFocus(t *testing.T) {
+	en := i18n.For("en").Settings
+	a := uninstallTestApp()
+	a.uninstallOpen = map[string]bool{}
+	const trigger = "Open uninstall"
+	tt := ui.NewTester(func(c *ui.Context) {
+		if ui.Button(c, trigger).Clicked() {
+			a.uninstallOpen["npm"] = true
+		}
+		if a.uninstallOpen["npm"] {
+			a.uninstallDialog(c, en, npmTool())
+		}
+	}, 720, 640)
+	tt.Frame()
+	if err := tt.Click(trigger); err != nil {
+		t.Fatalf("click the trigger: %v (texts %v)", err, tt.Texts())
+	}
+	tt.Frame()
+	tt.Frame()
+	if !tt.Focused(en.PermissionsCancel) {
+		t.Fatalf("the dialog did not focus Cancel on open: %v", tt.Texts())
+	}
+	if err := tt.Click(en.PermissionsCancel); err != nil {
+		t.Fatalf("click Cancel: %v (texts %v)", err, tt.Texts())
+	}
+	tt.Frame()
+	tt.Frame()
+	if a.uninstallOpen["npm"] {
+		t.Fatalf("Cancel left the dialog open")
+	}
+	if !tt.Focused(trigger) {
+		t.Errorf("closing the dialog did not restore focus to the opener")
+	}
+}
+
+// The reference disables both actions while `busy`
+// (`ComponentizedUninstallDialog.tsx:126,142`), so a question already being
+// answered cannot be answered twice. The action pill follows: the same button
+// reports its press when idle and ignores it while busy.
+func TestComponentizedUninstallActionsDisableWhileBusy(t *testing.T) {
+	en := i18n.For("en").Settings
+	a := uninstallTestApp()
+	for _, busy := range []bool{false, true} {
+		busy := busy
+		t.Run(fmt.Sprintf("busy=%v", busy), func(t *testing.T) {
+			clicked := false
+			tt := ui.NewTester(func(c *ui.Context) {
+				if a.uninstallActionButton(c, en.IntegrationsUninstall, true, busy, checkIcon).Clicked() {
+					clicked = true
+				}
+			}, 320, 120)
+			tt.Frame()
+			if err := tt.Click(en.IntegrationsUninstall); err != nil {
+				t.Fatalf("click the action: %v (texts %v)", err, tt.Texts())
+			}
+			tt.Frame()
+			if clicked != !busy {
+				t.Errorf("clicked = %v with busy=%v, want %v", clicked, busy, !busy)
+			}
+		})
 	}
 }

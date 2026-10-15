@@ -1,6 +1,7 @@
 package settingsui
 
 import (
+	"math"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
@@ -144,7 +145,7 @@ func actionButtonWidth(t *testing.T, a *App, marked bool) float32 {
 	var box ui.Rect
 	tt := ui.NewTester(func(c *ui.Context) {
 		ui.Row(c).Children(func() {
-			a.uninstallActionButton(c, en.IntegrationsUninstall, true, icon).Bind(&ref)
+			a.uninstallActionButton(c, en.IntegrationsUninstall, true, false, icon).Bind(&ref)
 		})
 		box = c.Resolve(ref).Bounds()
 	}, 400, 100)
@@ -357,5 +358,52 @@ func TestComponentizedUninstallCardAnswersThePointer(t *testing.T) {
 	}
 	if !f.frame.HasText(en.UninstallArtifactsHint) {
 		t.Errorf("the dialog lost a row under the pointer: %v", f.frame.Texts())
+	}
+}
+
+// The card's own `--elev-0` is the raised lens the resting pane carries
+// (`ComponentizedUninstallDialog.css:60-73`), and the press rule sets
+// `box-shadow: none` as it sinks (`:74-77`). The lens is top-weighted — the
+// lit rim and sheen over the bottom shade — so it is read as the top-minus-
+// bottom spread of the card's own scanlines, a metric the press fill's colour
+// cancels out of. A pointer held down is the one rung that shows the flat
+// press fill alone.
+func TestComponentizedUninstallCardDropsItsShadowOnPress(t *testing.T) {
+	a := uninstallTestApp()
+	on := true
+	part := uninstallPart{Label: "Host configuration", Hint: "Remove the host configuration.", Value: &on}
+	var ref ui.Handle
+	var card ui.Rect
+	tt := ui.NewTester(func(c *ui.Context) {
+		c.SetTheme(ui.DarkTheme())
+		ui.Column(c).Fill().Background(ui.RGB(24, 25, 29)).Padding(40).Children(func() {
+			a.uninstallPartRow(c, part).Bind(&ref)
+		})
+		card = c.Resolve(ref).Bounds()
+	}, 500, 300)
+	tt.Frame()
+	tt.Frame()
+	if card.W == 0 || card.H == 0 {
+		t.Fatalf("the card did not lay out: %+v", card)
+	}
+	// The top and bottom scanlines sit inside the card's border and clear of
+	// its rounded corners and its label, so only the glass changes between
+	// them.
+	spread := func() float64 {
+		x0, x1 := int(card.X+card.W*0.3), int(card.X+card.W*0.7)
+		top := rowMeanRGB(tt, int(card.Y)+3, x0, x1)
+		bottom := rowMeanRGB(tt, int(card.Y+card.H)-3, x0, x1)
+		return top - bottom
+	}
+	rest := spread()
+	tt.Press(card.X+card.W/2, card.Y+card.H/2)
+	tt.Frame()
+	tt.Frame()
+	pressed := spread()
+	if rest <= 0.5 {
+		t.Errorf("the resting card has no top-weighted lens to remove: spread %.2f", rest)
+	}
+	if math.Abs(pressed) >= rest {
+		t.Errorf("the press did not drop the card's shadow: rest spread %.2f, press spread %.2f", rest, pressed)
 	}
 }
