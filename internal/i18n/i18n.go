@@ -997,6 +997,11 @@ type Settings struct {
 	ClipboardMaxItemsHint string
 	ClipboardClear        string
 	ClipboardClearHint    string
+	// ClipboardClearConfirm is the action's question once it is armed; the
+	// reference's `plugins.config.clearHistoryConfirm` ("Clear history?" /
+	// "确认清空历史？", i18n.ts:248,1146). It is not the same word as the
+	// button: the armed button is the confirmation, so it asks.
+	ClipboardClearConfirm string
 	ClipboardClearTitle   string
 	ClipboardClearDetail  string
 	ClipboardClearButton  string

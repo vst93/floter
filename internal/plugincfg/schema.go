@@ -367,7 +367,7 @@ func Clipboard(copy i18n.Settings, state settings.ClipboardSettings) (*Schema, V
 			{
 				Key: "clear_history", Kind: Action,
 				Label: copy.ClipboardClear, Help: copy.ClipboardClearHint,
-				Confirm: copy.ClipboardClearButton, Cancel: copy.ClipboardClearCancel,
+				Confirm: copy.ClipboardClearConfirm, Cancel: copy.ClipboardClearCancel,
 				Failed: copy.ClipboardClearFailed,
 			},
 		},
@@ -407,7 +407,7 @@ func Calculator(copy i18n.Settings, state settings.CalculatorPlugin) (*Schema, V
 			{
 				Key: "clear_history", Kind: Action,
 				Label: copy.ClipboardClear, Help: copy.ClipboardClearHint,
-				Confirm: copy.ClipboardClearButton, Cancel: copy.ClipboardClearCancel,
+				Confirm: copy.ClipboardClearConfirm, Cancel: copy.ClipboardClearCancel,
 				Failed: copy.CalculatorClearFailed,
 			},
 		},

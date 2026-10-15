@@ -136,7 +136,7 @@ func TestPluginSheetActionArmsThenRuns(t *testing.T) {
 	// way back disarms without running.
 	sheet.Armed = armed
 	tt = renderSheet(t, a, sheet, 720, 700)
-	if !tt.HasText(copy.ClipboardClearButton) || !tt.HasText(copy.ClipboardClearCancel) {
+	if !tt.HasText(copy.ClipboardClearConfirm) || !tt.HasText(copy.ClipboardClearCancel) {
 		t.Fatalf("the armed row is not the confirm: %q", tt.Texts())
 	}
 	if err := tt.Click(copy.ClipboardClearCancel); err != nil {
@@ -150,7 +150,7 @@ func TestPluginSheetActionArmsThenRuns(t *testing.T) {
 	// Armed again, the second press runs it.
 	sheet.Armed = "clear_history"
 	tt = renderSheet(t, a, sheet, 720, 700)
-	if err := tt.Click(copy.ClipboardClearButton); err != nil {
+	if err := tt.Click(copy.ClipboardClearConfirm); err != nil {
 		t.Fatalf("the action's second press: %v", err)
 	}
 	tt.Frame()

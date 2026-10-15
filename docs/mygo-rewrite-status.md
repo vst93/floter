@@ -100,6 +100,47 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
+> **本轮：P7-gu 插件配置表的 Action 控件回到原版 R38 的安静 hairline 药丸——28u 高、10u 侧内边距、
+> `999px` 圆角、`--text-caption` 步进；危险变体取 `--text-warning`（原版 `src/styles/plugin-config.css:223-260`、
+> `src/i18n.ts:246-249`、`src/plugins/config-schema.ts:210-219`）**
+> ——P7-gt 收尾后清单归零，本轮按规则回到「对照原版排查偏离点」，换一个**全文档从未审计**的原版入口：
+> 通用插件配置表 `main:src/plugins/PluginConfigOverlay.tsx` + `main:src/plugins/controls.tsx` +
+> `main:src/styles/plugin-config.css`（`grep -c "plugin-config.css" docs/` = 0）。依赖检查：`go.mod` 已是
+> **v0.5.1**，`releases/latest` 复核仍为 v0.5.1（无新版），无版本可升；只对照 `main`
+> （`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离（P7-gu·Action 控件是框架的填充按钮）**：原版 R38 的 `.plugin-config-action__button`
+> （`plugin-config.css:223-260`）是**安静 hairline 药丸**：`height: 28u`、`padding: 0 10u`、
+> `border: 1px solid var(--glass-control-edge)`、`border-radius: 999px`、`background: var(--glass-control)`、
+> `font-size: var(--text-caption)`；`--danger` 变体把描边换成
+> `color-mix(in srgb, var(--text-warning) 45%, transparent)`、墨色换成 `--text-warning`、底色
+> `transparent`——它**是破坏性动作，所以绝不能读成表的主按钮**。**本构建（改前）**：
+> `internal/settingsui/pluginsheet.go:268-288` 的 `sheetAction` 用 `ui.Button`（框架的填充按钮：
+> 14u 侧内边距、中性描边、正文步进），`field.Confirm` 配 `t.Danger`、`field.Cancel`/`field.Label`
+> 用默认面，三颗按钮都读成药丸主按钮。
+>
+> **落地**：
+> - `internal/settingsui/pluginsheet.go`：新增 `sheetActionButton(c, label, danger, run)`——`ui.ButtonBase`
+>   + `MinHeight(Space(7))`（28u）+ `Padding(0, Space(2.5))`（0 10u）+ `Radius(Space(3.5))`（14u，
+>   `999px` 在本盒高下等价于半高）+ `Border(1, edge)` + `Background(plane)` + `Caption` 墨字；
+>   danger 面取 `t.Warning` 墨、`t.Warning.Alpha(0.45)` 描边、`ui.Transparent` 底，hover 一律
+>   `tokens.ControlHover`；`sheetAction` 的三颗按钮改走它，按钮簇的 `Gap` 对齐原版
+>   `.plugin-config-action` 的 6u（`Space(1.5)`），失败行改用 `tokens.Caption`。
+>
+> **验收**：`internal/settingsui/pluginsheetface_test.go` 两条——
+> `TestThePluginActionButtonIsTheReferenceHairlinePill`（单渲染：盒高 == 28u、标签两侧内边距 == 10u、
+> danger 描边与墨色都是暖色、药丸圆角在顶行就把描边拉进 ≥5px；框架 `ui.Button` 在圆角与配色两处
+> 都不符）与 `TestThePluginActionClusterIsWarmAndAsksBeforeItActs`（活表：三颗按钮齐备、
+> `Clear history` 的左右两侧都画着暖色描边——按「最远非探针像素」读回盒缘，避开合成平面；
+> `Cancel` 那颗是中性面，其左缘前 40u 带内没有暖色描边）。变异核查：把三颗按钮改回 `ui.Button` →
+> 圆角/毡色/危险色/右缘四条断言同时红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿（29 包）、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：`docs/mygo-rewrite-status.md` 的「尚未做」被重写为 3 条带 file:line / 原版对照 /
+> 验收标准的具体待办（见文末「具体待办（P7-gu 重写）」），本轮取第 1 条落地；第 2·3 条是下一轮候选。
+
 > **本轮：P7-gt 材质 section 回到原版自己的 10u 间距与 10u 上下内边距（`.settings-section--material`，
 > 原版 `src/styles/settings.css:767-772,491-495`）**
 > ——P7-gs 收尾后「具体待办（P7-gr 重写）」只剩第 3 条，本轮取它落地。依赖检查：`go.mod` 已是

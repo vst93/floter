@@ -101,7 +101,7 @@ func TestPluginConfigActionClearsTheHistory(t *testing.T) {
 	}
 	// The second press runs it: the history is emptied (it is empty in a
 	// test, so the call is what is asserted — it reports success).
-	if err := tt.Click(copy.ClipboardClearButton); err != nil {
+	if err := tt.Click(copy.ClipboardClearConfirm); err != nil {
 		t.Fatalf("the action's second press: %v", err)
 	}
 	tt.Frame()
@@ -269,7 +269,7 @@ func TestPluginConfigActionFailureReportsOnTheActionLine(t *testing.T) {
 		t.Fatalf("the action's first press: %v", err)
 	}
 	tt.Frame()
-	if err := tt.Click(copy.ClipboardClearButton); err != nil {
+	if err := tt.Click(copy.ClipboardClearConfirm); err != nil {
 		t.Fatalf("the action's second press: %v", err)
 	}
 	tt.Frame()
