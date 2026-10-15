@@ -48,7 +48,12 @@ func segmented(c *ui.Context, tokens theme.Tokens, labels []string, current int,
 	track.Children(func() {
 		for i, label := range labels {
 			i, label := i, label
-			segment := ui.Row(c).Focusable().Padding(t.Space(0.75), t.Space(2.25)).
+			// The segment's box is the reference's `.settings-option`: a
+			// `min-height` of 30u (R43's tightened step) with a `padding: 0 9u`
+			// — the height comes from the floor, not from vertical padding, so
+			// every segment is one box high whether its label is short or long.
+			// `AlignItems(ui.Center)` is what puts the line box on the middle.
+			segment := ui.Row(c).Focusable().Padding(0, t.Space(2.25)).MinHeight(t.Space(7.5)).
 				Radius(999).AlignItems(ui.Center).Justify(ui.Center).Label(label)
 			if fill {
 				segment.Grow(1)

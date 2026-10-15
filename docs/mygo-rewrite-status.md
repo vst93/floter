@@ -100,6 +100,41 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
+> **本轮：P7-hb 设置/抽屉共用分段控件的段盒回到原版的 30u 下限（原版 `main:src/styles/settings.css:1031-1055`
+> 的 `.settings-option { min-height: calc(var(--u) * 30); padding: 0 calc(var(--u) * 9) }`，R43 把 34u 收到
+> 30u、轨道内缩 3u→2u）**
+> ——P7-ha 收尾后「具体待办（P7-gx 重写）」4 条全部结清、清单归零，本轮按规则回到「对照原版排查偏离点」，
+> 换一个**全文档从未单独审计**的原版入口：`SegmentedChoice`（`main:src/settings/SettingsRows.tsx:152-197`）
+> 与它穿的 `.settings-options`/`.settings-option`/`.settings-option__label`（`settings.css:763-765`、
+> `:1012-1035`、`:1067-1120`），本构建对应 `internal/control/control.go` 的 `Segmented`/`SegmentedFill`。
+> P7-ab 只对过材质（轨道 `LensInset`、选中段 `Lens` + accent 键线），P7-em 只对过透镜 census，
+> **段的度量/字级/对齐/字色从未逐字段比对**。依赖检查：`go.mod` 已是 **v0.5.1** = `go list -m -versions`
+> 的最新（`api.github.com` 本轮被限流），无版本可升；只对照 `main`（`backup/main-pre-mygo` = v0.3.14
+> 原版树），未翻历史提交。
+>
+> **偏离（P7-hb·段盒没有原版的 30u 下限）**：原版把段盒写成 `.settings-option` 的
+> `min-height: calc(var(--u) * 30)`（`settings.css:1045`）加 `padding: 0 calc(var(--u) * 9)`
+> （`:1055`）——高度来自**下限**，不来自竖直内边距，所以标签短也是一格 30u。**本构建（改前）**：
+> `internal/control/control.go:47` 用 `Padding(t.Space(0.75), t.Space(2.25))`（竖直 3u + 水平 9u）
+> 且没有下限，段盒高度于是随标签行盒走：默认界面档实测 **22.4px**，原版的 30u 是 **27px**——段比它
+> 抄的那个矮约六分之一，且高度会随标签变化。
+>
+> **落地**：`internal/control/control.go` 的 `segment` 改
+> `Padding(0, t.Space(2.25)).MinHeight(t.Space(7.5))`（= `padding: 0 9u; min-height: 30u`），
+> 原有的 `AlignItems(ui.Center)` 负责把行盒放到中线上；`Segmented`/`SegmentedFill` 两形共用这一处，
+> 设置页的 theme/language/cursor/interface-size 选择器与终端抽屉的 cursor/palette 选择器同时生效。
+>
+> **验收**：新增 `internal/control/segmentmetrics_test.go` 的 `TestTheSegmentBoxIsThirtyUnitsHigh`——
+> 三条段的 `Find` 盒高都 == `Space(7.5)` = 30u，且互等（选中段只换材质、不换盒高）。变异核查：
+> 摘掉 `MinHeight` → 三条 17.0 ≠ 27.0，红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 29 包全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：「尚未做」被重写为下面 3 条带 file:line / 原版对照 / 验收标准的具体待办
+> （见「具体待办（P7-hb 重写）」）；本轮取第 1 条落地。余下第 2 条（未选段标签的字色/字重）、
+> 第 3 条（基础段的对齐）待下一轮。
+
 > **本轮：P7-ha 终端空态去掉原版没有的第二句说明（原版 `main:src/App.tsx:3852-3872` 的空态只有
 > `terminal-empty__title` + 两条 `terminal-empty__line`；`main:src/styles/terminal.css:346-350`）**
 > ——P7-gz 收尾后「具体待办（P7-gx 重写）」只剩第 4 条，本轮取它落地，P7-gx 重写的 4 条全部结清。
@@ -7142,6 +7177,66 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 - 窗口可见时完成反馈落在面板自己的停靠行（隐藏时才发系统通知）——之前可见时什么都不说。
 
 ## 尚未做（按建议优先级）
+
+### 具体待办（P7-hb 重写；第 1 条 P7-hb 已落地，余下第 2·3 条）
+
+审计入口：原版设置页与终端抽屉共用的**分段控件** `main:src/settings/SettingsRows.tsx` 的
+`SegmentedChoice`（`:152-197`）与 `main:src/styles/settings.css` 的
+`.settings-options`/`.settings-option`/`.settings-option__label`（`:763-765`、`:1012-1035`、
+`:1067-1120`），本构建对应 `internal/control/control.go` 的 `Segmented`/`SegmentedFill`。此前
+`grep -c` 复核：`SegmentedChoice` 在 `docs/` 全文只出现 1 次（P7-ab 提 `internal/control` 时），
+`settings-option` 的**度量/字级/对齐/字色**从未逐字段比对——P7-ab 只对过材质（轨道 `LensInset`、
+选中段 `Lens` + accent 键线），P7-em 只对过透镜 census。依赖检查：`go.mod` 已是 **v0.5.1** =
+`go list -m -versions` 的最新（`api.github.com` 本轮被限流），无版本可升；只对照 `main`
+（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+
+#### P7-hb-1 · 段盒缺原版的 30u 下限（**本轮落地，P7-hb**）
+
+- **原版对照**：`main:src/styles/settings.css:1031-1055` 的 `.settings-option`：
+  `min-height: calc(var(--u) * 30); padding: 0 calc(var(--u) * 9)`（R43 的注释就在行内：34u 收到
+  30u）；轨道 `.settings-options--inline`（`:1016-1030`）的 `padding/gap: 2u`、`border-radius: 999px`。
+- **本构建（改前偏离）**：`internal/control/control.go:47` 的
+  `Padding(t.Space(0.75), t.Space(2.25))`（竖直 3u + 水平 9u）**没有下限**，段盒高度随标签行盒走——
+  默认界面档实测 **22.4px**，原版 30u = **27px**。
+- **落地 file:line（已落地）**：`internal/control/control.go:47` 改
+  `Padding(0, t.Space(2.25)).MinHeight(t.Space(7.5))`（= `padding: 0 9u; min-height: 30u`），
+  `AlignItems(ui.Center)` 居中原样保留；`Segmented`/`SegmentedFill` 共用一处。
+- **验收（已过）**：`internal/control/segmentmetrics_test.go` 的 `TestTheSegmentBoxIsThirtyUnitsHigh`
+  （三条段的盒高都 == `Space(7.5)` = 30u 且互等）。变异核查：摘掉 `MinHeight` → 三条 17.0 ≠ 27.0 红。
+
+#### P7-hb-2 · 未选段的标签被压暗到 muted/500，原版整条轨道都是 `--text-strong`/580（**待做**）
+
+- **原版对照**：`.settings-option__label { color: var(--text-strong); font-weight: 580 }`
+  （`main:src/styles/settings.css:1111-1120`）——对**每个**段都一样；选中态只由
+  `.settings-option--active`（`:1095-1098`）的 raised pane + accent 键线承担，`color`/`font-weight`
+  不随选中改变；裸 `.settings-option` 的字色是 `--text-primary`（`:1060`），也没有按选中的压暗规则。
+- **本构建（改前偏离）**：`internal/control/control.go:64-70` 的非当前段走 `t.TextMuted` + 500，
+  只有当前段 `TextStrong` + 580——原版的字色/字重差是本构建发明的。
+- **落地 file:line（待做）**：`internal/control/control.go` 的 `segmented`，标签统一
+  `tokens.TextStrong` / 580，删掉按选中的 `TextMuted`/500 分支。
+- **验收标准**：`internal/control` 新增一条测试，用 `Tester.Image()`（P7-em/fz 已用此法采墨迹）采
+  未选段与已选段标签的墨迹像素，断言二者与同一张玻璃底上的 `tokens.TextStrong` 合成值相等；变异核查：
+  把未选段改回 `TextMuted` → 红。
+
+#### P7-hb-3 · 基础段的标签被居中，原版把非材质段当「行」左对齐，只有材质选择器居中（**待做**）
+
+- **原版对照**：`.settings-option { text-align: left }`（`main:src/styles/settings.css:1060`）——
+  `SegmentedChoice` 的按钮里只有一个 `.settings-option__label`，落在 `grid-template-columns:
+  minmax(0,1fr) auto` 的第一列，因此**左对齐**；唯一居中的是材质选择器
+  `.glass-intensity__segments .settings-option { text-align: center; justify-items: center }`
+  （`:792-799`），CSS 自己的注释点明理由：「A stop's label is the effect's name; centered because
+  the segment is a choice, not a row」——即基础段是「行」，材质段才是「选择」。该变体同时把水平内缩
+  收到 `0 6u`（基础是 `0 9u`，`:1055`），但两形都是 `repeat(auto-fit, minmax(0,1fr))` 的等宽列
+  （`:1017-1019`），所以 6u vs 9u 只在标签触到省略号时才看得出。
+- **本构建（改前偏离）**：`internal/control/control.go:47` 的段一律 `Justify(ui.Center)`，它的两个
+  调用方（`internal/settingsui/settingsui.go:2860` 的 `pick` 与 `internal/terminalui/drawer.go` 的
+  外观选择器）都因此居中，没有左对齐与材质专用的居中两态。
+- **落地 file:line（待做）**：给 `control.Segmented`/`SegmentedFill` 一个对齐参数（或加一个
+  `SegmentedGlass` 变体），基础态 `Justify(ui.Start)`，材质 `pick` 传居中 + `Space(1.5)` = 6u 水平内缩；
+  别的调用方保持现状。
+- **验收标准**：`internal/control` 一条测试对照两条轨道——基础段的标签墨迹左缘比材质段靠左（差为
+  `Space(2.25) - Space(1.5)` = 3u 再加居中偏移的一半，即基础标签左缘在段内 9u 处、材质标签以段中心
+  对称），且两者高度仍是 30u；变异核查：把基础态改回 `Justify(ui.Center)` → 红。
 
 ### 具体待办（P7-gx 重写；第 1 条 P7-gx 已落地，余下第 2·3·4 条）
 
