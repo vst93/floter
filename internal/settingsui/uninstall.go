@@ -1,6 +1,8 @@
 package settingsui
 
 import (
+	"time"
+
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/i18n"
@@ -8,8 +10,8 @@ import (
 
 // checkIcon is the reference's confirm-button glyph (`<Check size={14}
 // strokeWidth={2} />` in `ComponentizedUninstallDialog.tsx:160`): a stroked
-// 24×24 path, the same mark every destructive confirm in the family ends
-// with, so a confirm is recognized before its word is read.
+// 24×24 path, the mark every destructive confirm in the family leads with, so a
+// confirm is recognized before its word is read.
 var checkIcon = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`))
 
 // The componentized uninstall: which parts of an installed integration to
@@ -61,12 +63,28 @@ func uninstallParts(copy i18n.Settings, draft *UninstallComponents) []uninstallP
 	}
 }
 
-// uninstallDialog draws the componentized uninstall: the reference's own
+// uninstallDialog draws the componentized uninstall. The pane is the
+// reference's own `.extensions-dialog` — a 17px-padded column between
+// `--input-stroke` and `--glass-float`, rounded `--ext-radius` and thrown on
+// `--elev-3` (`ComponentizedUninstallDialog.css:17-34`) — and the uninstall
+// variant clamps it to the reference's own 420–480px band
+// (`.extensions-uninstall-dialog`, `:36-39`). Inside it: the reference's own
 // title ("Uninstall {name}"), its hint, one row per component, and the two
-// actions in the reference's order — Cancel first, the danger button last
-// (`ComponentizedUninstallDialog.tsx:119-141`).
-func (a *App) uninstallDialog(c *ui.Context, copy i18n.Settings, integration Integration) {
+// actions in the reference's order — Cancel first, the danger button last, at
+// the row's right end (`ComponentizedUninstallDialog.tsx:119-141`).
+//
+// The dialog's blocks are not one even gutter: the reference hangs the hint
+// 6px under the title (`.extensions-dialog-hint { margin: 6px 0 0 }`, `:46-51`),
+// the component list 16px under both (`.extensions-uninstall-components
+// { margin: 16px 0 }`, `:53-58`), and the actions at the list's own 16px
+// bottom margin. One uniform gap drew all four blocks 4px apart, which is
+// neither of the reference's two numbers.
+//
+// The returned element is the dialog's own box, so a test can read the padding
+// and the width band off it (the pattern `sectionMaterial` and `action` use).
+func (a *App) uninstallDialog(c *ui.Context, copy i18n.Settings, integration Integration) ui.Element {
 	t := c.Theme()
+	tokens := a.tokens(c)
 	if a.uninstallDraft == nil {
 		a.uninstallDraft = map[string]UninstallComponents{}
 	}
@@ -75,21 +93,40 @@ func (a *App) uninstallDialog(c *ui.Context, copy i18n.Settings, integration Int
 		draft = UninstallComponents{RemoveHostConfig: true, RemoveToolData: true, RemoveArtifacts: true}
 		a.uninstallDraft[integration.ID] = draft
 	}
-	ui.Column(c).FillWidth().Gap(t.Space(1)).Padding(0, t.Space(2), 0, 0).Children(func() {
+	dialog := ui.Column(c).FillWidth().
+		Padding(t.Space(4.25)).MinWidth(t.Space(105)).MaxWidth(t.Space(120)).
+		Radius(tokens.RadiusXS).Border(1, tokens.InputStroke).
+		Background(tokens.Float)
+	// The floater's throw and its lit top rim, as `--elev-3` composed them —
+	// the same two shadows the terminal panel's own note carries.
+	dialog.Shadow(0, t.Space(2.5), t.Space(6.5), 0, ui.RGBA(0, 0, 0, 0.3))
+	dialog.Shadow(0, t.Space(0.25), t.Space(0.5), 0, ui.RGBA(0, 0, 0, 0.2))
+	dialog.InsetShadow(0, 1, 0, 0, tokens.LensRim)
+	dialog.Children(func() {
+		// `.extensions-dialog-title { color: var(--text-strong); font-size: 13px }`
+		// (`:41-45`): the ladder's title step, not the body step this dialog
+		// used to draw its heading at.
 		ui.Text(c, copy.IntegrationsUninstallTitle(integration.Name)).
-			FontSize(t.FontSize).Bold()
-		ui.Text(c, copy.IntegrationsUninstallDescription).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
-		for _, part := range uninstallParts(copy, &draft) {
-			a.uninstallPartRow(c, part)
-		}
-		ui.Row(c).FillWidth().Gap(t.Space(1)).AlignItems(ui.Center).Children(func() {
-			if ui.Button(c, copy.PermissionsCancel).Clicked() {
+			FontSize(tokens.Title).Bold().TextColor(tokens.TextStrong)
+		// `.extensions-dialog-hint { margin: 6px 0 0; font-size: 10.5px }`.
+		ui.Box(c).FillWidth().Padding(t.Space(1.5), 0, 0, 0).Children(func() {
+			ui.Text(c, copy.IntegrationsUninstallDescription).
+				FontSize(uninstallSubBody(t)).TextColor(t.TextMuted)
+		})
+		// `.extensions-uninstall-components { gap: 8px; margin: 16px 0 }`.
+		ui.Column(c).FillWidth().Gap(t.Space(2)).Padding(t.Space(4), 0).Children(func() {
+			for _, part := range uninstallParts(copy, &draft) {
+				a.uninstallPartRow(c, part)
+			}
+		})
+		// `.extensions-dialog-actions { justify-content: flex-end; gap: 7px }`
+		// (`:74-78`): the pair sits at the row's right end, seven units apart.
+		ui.Row(c).FillWidth().Gap(t.Space(1.75)).Justify(ui.End).AlignItems(ui.Center).Children(func() {
+			if a.uninstallActionButton(c, copy.PermissionsCancel, false, nil).Clicked() {
 				a.uninstallOpen[integration.ID] = false
 				return
 			}
-			if ui.Button(c, integration.removalLabel(copy)).Children(func() {
-				ui.Icon(c, checkIcon).Size(t.Space(4), t.Space(4))
-			}).Clicked() {
+			if a.uninstallActionButton(c, integration.removalLabel(copy), true, checkIcon).Clicked() {
 				if a.Actions.UninstallComponents != nil {
 					a.Actions.UninstallComponents(integration.ID, integration.Name, integration.removalKind(), draft)
 				}
@@ -99,6 +136,62 @@ func (a *App) uninstallDialog(c *ui.Context, copy i18n.Settings, integration Int
 		})
 	})
 	a.uninstallDraft[integration.ID] = draft
+	return dialog
+}
+
+// uninstallActionButton draws one of the dialog's two actions as the
+// reference's `.extensions-action-button` (`extensions.css:1313-1385`): a
+// standalone pill at the family's 30px control height, 10px of side padding,
+// a `--stroke-control` hairline, the `--glass-control` plane and `--elev-0`,
+// with the `--extensions-inline-gap` between its mark and its word, and
+// `--text-body` at 600 in `--text-strong`. It is deliberately not the
+// framework's filled `Button`, which spends the surface fill, pads 14px a
+// side, rounds 9px and weights 400 — four numbers the reference does not
+// write. The danger variant is the *ink* alone, `--text-warning`, not a red
+// plane: the reference's destructive action is quieter than the framework's.
+// Hover lifts the plane to `--glass-control-hover` and the hairline to
+// `--accent-edge`, over the reference's own `--dur-2` (120ms).
+//
+// `icon` leads the word when it is not nil — `<Check size={14} strokeWidth={2} />`
+// is the reference's first child, so the mark a destructive confirm is
+// recognized by comes before the word it confirms.
+func (a *App) uninstallActionButton(c *ui.Context, label string, danger bool, icon *ui.SVG) ui.Element {
+	t := c.Theme()
+	tokens := a.tokens(c)
+	// The pill's corner is half the 30px control height (the reference writes
+	// `border-radius: 999px`, which the browser clamps to exactly that).
+	button := ui.ButtonBase(c).Label(label).
+		MinHeight(t.Space(7.5)).Padding(0, t.Space(2.5)).Gap(t.Space(1.25)).
+		Radius(t.Space(3.75))
+	ink, edge, plane := tokens.TextStrong, tokens.ControlEdge, tokens.Control
+	if danger {
+		ink = t.Warning
+	}
+	if button.Hovered() {
+		ink, edge, plane = t.Text, tokens.AccentEdge, tokens.ControlHover
+	}
+	button.Border(1, edge).Background(plane).
+		Transition(ui.ElementTransition{Colors: true, Duration: 120 * time.Millisecond})
+	// The control's own `--elev-0`: the same lens the cards on the surface
+	// carry, so the pill reads as a pane of the same glass.
+	tokens.Lens(button)
+	button.Children(func() {
+		if icon != nil {
+			ui.Icon(c, icon).Size(t.Space(3.5), t.Space(3.5))
+		}
+		ui.Text(c, label).FontSize(tokens.Body).FontWeight(600).TextColor(ink)
+	})
+	return button
+}
+
+// uninstallSubBody is the reference's 10.5px step: the one register below the
+// body that `.extensions-dialog-hint` and `.extensions-component-hint` both
+// write (`ComponentizedUninstallDialog.css:46-51,113-118`). It is half a unit
+// under `--text-body` (11px), so the body step's own value less a half carries
+// it at every interface step; the dialog used to draw both hints at the body
+// step itself, a half point larger than the reference's line.
+func uninstallSubBody(t *ui.Theme) float32 {
+	return t.FontSize - 0.5
 }
 
 // uninstallPartRow is one labeled component inside the uninstall dialog: a
@@ -108,7 +201,17 @@ func (a *App) uninstallDialog(c *ui.Context, copy i18n.Settings, integration Int
 // disclosure); the other three are the user's choice. The hint used to be
 // dropped; a data category the user cannot read about is a category they
 // cannot choose deliberately.
-func (a *App) uninstallPartRow(c *ui.Context, part uninstallPart) {
+//
+// The card carries the reference's own pointer ladder — hover lifts it to
+// `--glass-control-hover` on the `--accent-edge` keyline, the press sinks it
+// to `--glass-control-press` — over a 150ms colour transition, and the
+// disabled program row is the reference's flat `opacity: 0.6`
+// (`ComponentizedUninstallDialog.css:60-83`). The card was a static box: it
+// was the one control in the panel that did not answer the pointer.
+//
+// The returned element is the card's own box, so a test can read its padding
+// and its row gap off it.
+func (a *App) uninstallPartRow(c *ui.Context, part uninstallPart) ui.Element {
 	t := c.Theme()
 	tokens := a.tokens(c)
 	on := true
@@ -116,23 +219,48 @@ func (a *App) uninstallPartRow(c *ui.Context, part uninstallPart) {
 		on = *part.Value
 	}
 	changed := false
-	ui.Row(c).FillWidth().Gap(t.Space(3)).AlignItems(ui.Start).
-		Padding(t.Space(3)).Radius(tokens.RadiusSM).
-		Border(1, tokens.ControlEdge).Background(tokens.Control).Children(func() {
+	// `.extensions-uninstall-component { padding: 12px; gap: 4px 12px;
+	// border-radius: 8px; transition: background 150ms ease, border-color
+	// 150ms ease }` (`:60-73`).
+	card := ui.Row(c).FillWidth().Gap(t.Space(3)).AlignItems(ui.Start).
+		Padding(t.Space(3)).Radius(t.Space(2)).
+		Border(1, tokens.ControlEdge).Background(tokens.Control).
+		Transition(ui.ElementTransition{Colors: true, Duration: 150 * time.Millisecond})
+	switch {
+	case part.Fixed:
+		// `:has(input:disabled) { cursor: not-allowed; opacity: 0.6 }`.
+		card.Opacity(0.6)
+		card.Cursor(ui.CursorNotAllowed)
+	case card.Pressed():
+		// The press rung comes first: CSS paints `:active` over `:hover`,
+		// and a pointer held down is both.
+		card.Background(tokens.ControlPress)
+	case card.Hovered():
+		card.Background(tokens.ControlHover)
+		card.Border(1, tokens.AccentEdge)
+	}
+	card.Children(func() {
 		box := ui.Checkbox(c, &on, "").Label(part.Label)
 		if part.Fixed {
 			box.Disabled(true)
+			// `input[type="checkbox"]:disabled { cursor: not-allowed }`
+			// (`:92-94`): the box inside the disabled card carries the rung
+			// itself, so the whole row reads as one inert control.
+			box.Cursor(ui.CursorNotAllowed)
 		} else if box.Changed() {
 			changed = true
 		}
-		ui.Column(c).Grow(1).Gap(1).Children(func() {
-			ui.Text(c, part.Label).FontSize(t.FontSize + 1).FontWeight(600).TextColor(tokens.TextStrong)
+		ui.Column(c).Grow(1).Gap(t.Space(1)).Children(func() {
+			// `.extensions-component-label { font-size: 12px; font-weight: 600 }`
+			// — the ladder's emphasis step, not the body step plus one.
+			ui.Text(c, part.Label).FontSize(tokens.Emphasis).FontWeight(600).TextColor(tokens.TextStrong)
 			if part.Hint != "" {
-				ui.Text(c, part.Hint).FontSize(t.FontSize).TextColor(t.TextMuted)
+				ui.Text(c, part.Hint).FontSize(uninstallSubBody(t)).TextColor(t.TextMuted)
 			}
 		})
 	})
 	if changed && part.Value != nil {
 		*part.Value = on
 	}
+	return card
 }
