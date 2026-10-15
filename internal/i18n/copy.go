@@ -813,7 +813,7 @@ var en = Copy{
 
 		ShortcutsCustom:      "Custom shortcuts",
 		ShortcutsCustomHint:  "Bind a key to a plugin, an action, or a command line. A command line runs with no window at all.",
-		ShortcutsNone:        "No custom shortcuts yet.",
+		ShortcutsNone:        "No custom shortcuts yet",
 		ShortcutsEmptyHint:   "Bind a key to launch a plugin or run a command, anywhere — commands run silently.",
 		ShortcutsAddFirst:    "Add the first one",
 		ShortcutsAdd:         "Add",
@@ -1665,7 +1665,7 @@ var zh = Copy{
 
 		ShortcutsCustom:      "自定义快捷键",
 		ShortcutsCustomHint:  "把一个按键绑定到插件、动作或命令行；命令行会完全静默地运行。",
-		ShortcutsNone:        "还没有自定义快捷键。",
+		ShortcutsNone:        "还没有自定义快捷键",
 		ShortcutsEmptyHint:   "绑定一个按键，随处启动插件或执行命令——命令静默运行。",
 		ShortcutsAddFirst:    "添加第一个",
 		ShortcutsAdd:         "添加",

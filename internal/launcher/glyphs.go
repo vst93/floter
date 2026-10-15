@@ -76,6 +76,14 @@ var (
 	// mark the reference's installed-integrations list drew when it was empty
 	// (`ExtensionsPanel.tsx:2462`, `<Package size={20} strokeWidth={2}/>`).
 	glyphPackage = ui.MustParseSVG([]byte(glyphSource(`<path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><polyline points="3.29 7 12 12 20.71 7"/><path d="m7.5 4.27 9 5.15"/>`)))
+	// glyphKeyboard is lucide's Keyboard (lucide-react 1.31.0's own path), the
+	// 22px mark the reference's custom-shortcuts empty state drew
+	// (`ShortcutsPage.tsx:241`, `<Keyboard size={22} strokeWidth={1.6}/>`).
+	glyphKeyboard = ui.MustParseSVG([]byte(glyphSource(`<rect width="20" height="16" x="2" y="4" rx="2"/><path d="M6 8h.01"/><path d="M10 8h.01"/><path d="M14 8h.01"/><path d="M18 8h.01"/><path d="M8 12h.01"/><path d="M12 12h.01"/><path d="M16 12h.01"/><path d="M7 16h10"/>`)))
+	// glyphPlus is lucide's Plus, the mark the reference's text action led
+	// with as a `<span class="settings-reset__icon">＋</span>` glyph
+	// (`ShortcutsPage.tsx:230-236,247-252`).
+	glyphPlus = ui.MustParseSVG([]byte(glyphSource(`<path d="M5 12h14"/><path d="M12 5v14"/>`)))
 )
 
 // rowGlyph picks the mark for a row from what the row is: an application shows
@@ -260,6 +268,10 @@ func Glyph(name string) (*ui.SVG, bool) {
 		return glyphRefresh, true
 	case "package":
 		return glyphPackage, true
+	case "keyboard":
+		return glyphKeyboard, true
+	case "plus":
+		return glyphPlus, true
 	case "file":
 		return glyphFile, true
 	case "folder":

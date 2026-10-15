@@ -1238,6 +1238,29 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
   23.5≤盒高≤25）与活页 hover 像素测试（墨色变、平面不变）。变异核查：改回旧度量 → 两条红
   （inset 6/6、高 30；平面 delta 21）。
 
+### P7-gn 自定义快捷键空态回到共享 `SettingsEmpty`（已做）
+
+- **偏离点**：原版 `src/settings/ShortcutsPage.tsx:240-252` 在自定义快捷键为空时走共享
+  `SettingsEmpty`：`<Keyboard size={22} strokeWidth={1.6}/>` 记号、title `customShortcutsEmpty`、
+  hint `customShortcutsEmptyHint`、action 是带 `<span class="settings-reset__icon">＋</span>` 的
+  `SettingsAction`（`customShortcutsAddFirst`）。基类 `src/styles/settings.css:633-676` 给 92u 底、
+  24u padding、8u gap、记号 `--text-tertiary` @0.72、title `--text-secondary` 580、hint
+  `--text-caption`；action 走 `.settings-reset`（`settings.css:682-730`）。本构建
+  `internal/settingsui/custom.go:35-45` 却是 `Gap(Space(2)).Padding(Space(4)).Center()`：`text` 记号
+  @20u、title `TextMuted`、hint `FontSize-1`、出路 `ui.Button`（填充按钮、无 ＋ 记号），title 词尾还
+  多一个句号。
+- **修法**：空支改走 `internal/settingsui/empty.go` 的共享 `emptyState`（`keyboard` 22u 记号、92u
+  底、`--text-secondary`/`--text-caption`），出路 `a.actionWithGlyph(c, "plus", …)`。
+  `internal/launcher/glyphs.go` 新增 `keyboard`（lucide Keyboard）与 `plus`（lucide Plus）并进闭集；
+  `internal/i18n` 的 `ShortcutsNone` 去掉旧端口多出的句号，逐字回原版。
+- **测试**：`internal/settingsui/customempty_test.go` 两条（活页：原版词、Keyboard 记号墨迹、title
+  墨色、`＋` accent 记号且平面非填充 pill、点击出路开录制器；单渲染：≥92u 底、22u 记号）+
+  `internal/i18n/i18n_test.go` 的 `TestCustomShortcutsEmptyWordsMatchTheOldDictionary`。变异核查：
+  出路改回 `ui.Button` → 记号/平面两条红；空态记号名改 `""` → 记号条红。
+- **取舍**：原版该组标题行还有一个带 `＋` 的 "Add" 动作（`ShortcutsPage.tsx:229-236`），本构建的
+  `customSection` 用 `a.section`（label+hint）没有标题行动作；本条待办只针对空态，标题行动作留作
+  下一处对照点。
+
 ## 纪律（继承）
 
 - 承包 runner：禁 commit/push，树留脏主线复核；门槛实跑；报告落 /tmp。

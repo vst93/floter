@@ -229,6 +229,30 @@ func TestSessionsEmptyWordsMatchTheOldDictionary(t *testing.T) {
 	}
 }
 
+// The custom-shortcuts empty words, as the old dictionary spelled them
+// (`main:src/i18n.ts:403-405,1290-1292`): the reference title has no full stop,
+// which the old port added, and the hint and the action are the same words.
+func TestCustomShortcutsEmptyWordsMatchTheOldDictionary(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		got  string
+		want string
+	}{
+		{"en empty", en.Settings.ShortcutsNone, "No custom shortcuts yet"},
+		{"en empty hint", en.Settings.ShortcutsEmptyHint,
+			"Bind a key to launch a plugin or run a command, anywhere — commands run silently."},
+		{"en add first", en.Settings.ShortcutsAddFirst, "Add the first one"},
+		{"zh empty", zh.Settings.ShortcutsNone, "还没有自定义快捷键"},
+		{"zh empty hint", zh.Settings.ShortcutsEmptyHint,
+			"绑定一个按键，随处启动插件或执行命令——命令静默运行。"},
+		{"zh add first", zh.Settings.ShortcutsAddFirst, "添加第一个"},
+	} {
+		if tc.got != tc.want {
+			t.Errorf("%s = %q, want %q", tc.name, tc.got, tc.want)
+		}
+	}
+}
+
 // The four removal notices, as the old dictionary spelled them
 // (`main:src/i18n.ts:545-547,1430-1432`). The kind that picks one is the
 // shell's business; this pins the words themselves so a future kind-aware

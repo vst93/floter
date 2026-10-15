@@ -100,7 +100,52 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **本轮：P7-gm Integrations 页的空态回到原版共享的 `SettingsEmpty`——`Package` 20px 记号 +
+> **本轮：P7-gn 自定义快捷键空态回到原版共享的 `SettingsEmpty`——22px Keyboard 记号 +
+> `--text-secondary` 标题 + `＋` 文本动作出路（原版 `src/settings/ShortcutsPage.tsx:240-252`、
+> `src/settings/SettingsRows.tsx:201-244`、`src/styles/settings.css:633-676,682-730`、
+> `src/i18n.ts:403-405,1290-1292`）**
+> ——P7-gm 收尾后「具体待办（P7-gk 重写）」只剩第 3 条，本轮取它落地，清单归零。依赖检查：
+> `go.mod` 已是 **v0.5.1** = latest tag（`go list -m -versions` 复核；`releases/latest` 仍被 API
+> 限流），无版本可升；只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离（P7-gn·自定义快捷键空态是填充按钮 + 自造度量，不是原版的共享空态）**：原版
+> `ShortcutsPage.tsx:240-252` 的空态走共享 `SettingsEmpty`——`<Keyboard size={22} strokeWidth={1.6}/>`
+> 记号、title `customShortcutsEmpty`、hint `customShortcutsEmptyHint`、action 是带 `＋` 记号的
+> `.settings-reset` 文本动作（`customShortcutsAddFirst`）；基类给 92u 底、24u padding、8u gap、
+> 记号 `--text-tertiary` @0.72、title `--text-secondary` 580、hint `--text-caption`。
+> **本构建（改前）**：`custom.go:35-45` 是 `Gap(Space(2)).Padding(Space(4)).Center()`，记号是
+> `mustGlyph("text")` @20u、title @`TextMuted`、hint @`FontSize-1`，出路是 `ui.Button`
+> （填充按钮、无 ＋ 记号）；title 词尾还多一个句号。
+>
+> **落地**：
+> - `internal/settingsui/custom.go` 的空支改走共享 `emptyState(c, "keyboard", copy.ShortcutsNone,
+>   copy.ShortcutsEmptyHint, 0, 0, action)`，出路是
+>   `a.actionWithGlyph(c, "plus", copy.ShortcutsAddFirst, …)`（24u 文本动作，非填充按钮）。
+> - `internal/launcher/glyphs.go`：新增 `keyboard`（lucide-react 1.31.0 的 Keyboard）与 `plus`
+>   （lucide Plus）两个记号并进闭集。
+> - `internal/i18n`：`ShortcutsNone` 的 en/zh 去掉旧端口多出来的句号，逐字回到原版
+>   `customShortcutsEmpty`（`i18n.ts:403,1290`）。
+>
+> **取舍（如实记录）**：原版该组标题行还有一个带 `＋` 的 "Add" 动作（`ShortcutsPage.tsx:229-236`），
+> 本构建的 `customSection` 用 `a.section`（label+hint）没有标题行动作；本条待办只针对空态，标题行
+> 动作不在本轮范围（若要做，是下一处对照点）。原版空态的 `role` 无 alert 支，无需处理。
+>
+> **验收**：`internal/settingsui/customempty_test.go` 两条——
+> `TestTheCustomShortcutsEmptyStateIsTheReferenceEmptyRegion`（活页：原版词在、旧句号句消失、标题
+> 上方 22u 带内有 Keyboard 记号墨迹、标题墨色 = `--text-secondary` 合成值且不等于旧 `TextMuted`、
+> 出路左侧 20u 带内有 accent `＋` 记号且其平面 == 卡片底（非填充 pill）、点击出路开录制器）、
+> `TestTheCustomShortcutsEmptyRegionHasTheListFloor`（直接渲染共享空态：高 ≥92u、Keyboard 记号墨迹
+> 高 ≈22u）；`internal/i18n/i18n_test.go` 的 `TestCustomShortcutsEmptyWordsMatchTheOldDictionary`
+> （en/zh 三条逐字）。变异核查：出路改回 `ui.Button` → 记号/平面两条断言红；空态记号名改 `""` →
+> 记号条红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿（1405 项）、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：第 3 条（P7-gn）落地；「具体待办（P7-gk 重写）」**3 条全部结清、清单归零**。
+> 下一轮回到「对照原版排查偏离点」，换一个从未进入任何历史待办的原版入口。
+
+> **上一轮：P7-gm Integrations 页的空态回到原版共享的 `SettingsEmpty`——`Package` 20px 记号 +
 > `--text-secondary` 标题 + 92u 列表底（原版 `src/ExtensionsPanel.tsx:2462,3177-3191`、
 > `src/settings/SettingsRows.tsx:218-244`、`src/styles/settings.css:633-676`、`src/i18n.ts:443,1330`）**
 > ——P7-gl 收尾后「具体待办（P7-gk 重写）」还剩第 2·3 条，本轮取最高优先级第 2 条落地。依赖检查：
@@ -6645,7 +6690,7 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 > About 页深链行，把清单重写为上面 3 条带 file:line / 原版对照 / 验收标准的具体待办，并取第 1 条
 > 落地（P7-gi）。第 2·3 条随后由 P7-gj / P7-gk 结清，本清单归零。
 
-### 具体待办（P7-gk 重写；第 1 条 P7-gl、第 2 条 P7-gm 已落地，第 3 条待做）
+### 具体待办（P7-gk 重写；第 1 条 P7-gl、第 2 条 P7-gm、第 3 条 P7-gn 均已落地；清单归零）
 
 审计入口：原版 `main:src/settings/SettingsRows.tsx` 的 `SettingsEmpty`（`:218-244`）与它的 CSS
 `main:src/styles/settings.css:633-676`、`:1393`（`.session-manager > .settings-empty` 的整身接管）、
@@ -6711,21 +6756,27 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
      （原版 v0.3.14 的 `query` 参数本就无人传），两支都无来源，只画 resting 一支、不画 hint。测试见
      `internal/settingsui/integrationsempty_test.go` 两条；详见「最近几轮」P7-gm 记录。
 
-3. **（待做，P7-gn）自定义快捷键空态仍是填充按钮 + 自造度量。**
+3. **（本轮落地，P7-gn）自定义快捷键空态仍是填充按钮 + 自造度量。**
    - 原版对照：`ShortcutsPage.tsx:240-252` 的 `SettingsEmpty`：`icon={<Keyboard size={22}
      strokeWidth={1.6} aria-hidden />}`、`title=customShortcutsEmpty`、`hint=customShortcutsEmptyHint`、
      `action=<SettingsAction title=customShortcutsAddHint><span className="settings-reset__icon">＋</span>
      {customShortcutsAddFirst}</SettingsAction>`；CSS 同基类：92u 底、24u padding、8u gap、
      图标 `--text-tertiary` @ `opacity:.72`、title `--text-secondary` 580、hint `--text-caption`
      320px、action 是 `.settings-reset` 文本动作（现已有 `actionWithGlyph`），不是填充按钮。
-   - 本构建（现状）：`custom.go:35-45` 用 `Gap(Space(2)).Padding(Space(4)).Center()`，图标是
+   - 本构建（改前）：`custom.go:35-45` 用 `Gap(Space(2)).Padding(Space(4)).Center()`，图标是
      `mustGlyph("text")` @ `Space(5)`、title @ `TextMuted`、hint @ `FontSize-1`、出路是
-     `ui.Button(copy.ShortcutsAddFirst)`（填充按钮，无 ＋ 记号）。
-   - 落地 file:line：`custom.go` 的空态改走共享 `emptyState`，图标换 `Keyboard` 记号（`internal/launcher`
-     的 `glyphs.go` 需补一个键盘记号或复用最接近的）、title 改 `--text-secondary`、hint 改
-     `--text-caption`、出路改 `a.actionWithGlyph(c, "plus", copy.ShortcutsAddFirst, …)`（需补一个 ＋ 记号）。
+     `ui.Button(copy.ShortcutsAddFirst)`（填充按钮，无 ＋ 记号）；title 词尾还多一个句号。
+   - 落地 file:line：`custom.go` 的空态改走共享 `emptyState`，图标换 `keyboard` 记号
+     （`internal/launcher/glyphs.go` 新增 lucide Keyboard）、title 改 `--text-secondary`、hint 改
+     `--text-caption`、出路改 `a.actionWithGlyph(c, "plus", copy.ShortcutsAddFirst, …)`
+     （`glyphs.go` 新增 lucide Plus 的 `plus` 记号）。
    - 验收：一条渲染测试 —— 空态高 ≥92u、title 墨色是 `--text-secondary`、出路是文本动作（墨色最小
      通道带内 20u 有 accent 记号、且不是填充 pill）。变异核查：把出路改回 `ui.Button` → 记号断言红。
+   - **P7-gn 落地**：`internal/settingsui/custom.go` 的空支、`internal/launcher/glyphs.go` 的
+     `keyboard`/`plus` 记号、`internal/i18n` 的 `ShortcutsNone`（去句号回原版）。测试：
+     `internal/settingsui/customempty_test.go` 两条 + `internal/i18n/i18n_test.go` 的
+     `TestCustomShortcutsEmptyWordsMatchTheOldDictionary`。变异核查：出路改回 `ui.Button` →
+     记号/平面两条断言红；空态记号名改 `""` → 记号条红。详见「最近几轮」P7-gn 记录。
 
 ### 具体待办（P7-gb 重写；3 条已全部落地：第 1 条 P7-gb、第 2 条 P7-gd、第 3 条 P7-gh）
 
