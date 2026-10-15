@@ -18,11 +18,18 @@ import (
 // (`.settings-empty`), and a page whose empty region *is* its whole body
 // overrides it with the taller 160u (`.session-manager > .settings-empty`).
 // Zero means the 92u list floor.
-func (a *App) emptyState(c *ui.Context, iconName, title, hint string, floor float32, action func()) ui.Element {
+//
+// iconSize is the glyph's own size, because the reference's primitive does not
+// size it: the caller passes the node. Sessions and the custom-shortcuts group
+// pass 22px, the integrations list passes 20px. Zero means 22u.
+func (a *App) emptyState(c *ui.Context, iconName, title, hint string, iconSize, floor float32, action func()) ui.Element {
 	tokens := a.tokens(c)
 	t := c.Theme()
 	if floor <= 0 {
 		floor = t.Space(23) // 92u, the reference's list-placeholder floor
+	}
+	if iconSize <= 0 {
+		iconSize = t.Space(5.5) // 22u, the sessions/custom-shortcuts mark
 	}
 	// `place-content: center; justify-items: center` is the column's own
 	// centring on both axes; `text-align: center` is the copy's.
@@ -30,9 +37,9 @@ func (a *App) emptyState(c *ui.Context, iconName, title, hint string, floor floa
 		Gap(t.Space(2)).Padding(t.Space(6)).Center()
 	region.Children(func() {
 		if glyph, ok := launcher.Glyph(iconName); ok {
-			// `.settings-empty__icon`: 22px (Space(5.5)), `--text-tertiary`,
-			// opacity 0.72 — quiet beneath the sentence it introduces.
-			ui.Icon(c, glyph).Size(t.Space(5.5), t.Space(5.5)).
+			// `.settings-empty__icon`: `--text-tertiary`, opacity 0.72 — quiet
+			// beneath the sentence it introduces.
+			ui.Icon(c, glyph).Size(iconSize, iconSize).
 				TextColor(tokens.TextTertiary).Opacity(0.72)
 		}
 		// `.settings-empty__title`: `--text-secondary` at 580, the body step.

@@ -1151,7 +1151,7 @@ func (a *App) sessions(c *ui.Context, copy i18n.Settings) {
 		// reference's three-way is reachable (see `sessionsEmptyFaceFor`); the
 		// page's own New session control stays the way out.
 		face := sessionsEmptyFaceFor(copy, false, false)
-		a.emptyState(c, face.Icon, face.Title, face.Hint, t.Space(40), func() {
+		a.emptyState(c, face.Icon, face.Title, face.Hint, 0, t.Space(40), func() {
 			if a.Actions.NewSession != nil {
 				if ui.Button(c, copy.SessionsNew).Clicked() {
 					a.Actions.NewSession()
@@ -1322,9 +1322,13 @@ func (a *App) integrations(c *ui.Context, copy i18n.Settings) {
 				})
 		})
 		if len(integrations) == 0 {
-			ui.Column(c).FillWidth().Padding(t.Space(4)).Center().Children(func() {
-				ui.Text(c, copy.IntegrationsEmpty).FontSize(t.FontSize).TextColor(t.TextMuted)
-			})
+			// The reference's shared empty region (`ExtensionsPanel.tsx:2462,
+			// 3177-3191`): the installed list's own `Package` mark at 20px, the
+			// state in one line, on the 92u list floor. The reference's
+			// `EmptyState` also carries a first-load spinner and a filtered-query
+			// echo on the hint line; this build's list is in-process and has no
+			// filter, so neither has a source and only the resting arm is drawn.
+			a.emptyState(c, "package", copy.IntegrationsEmpty, "", t.Space(5), 0, nil)
 			return
 		}
 		a.section(c, copy.IntegrationsInstalled, "", func() {

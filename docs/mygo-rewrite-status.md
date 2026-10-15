@@ -100,7 +100,51 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **本轮：P7-gl Sessions 页的空态回到原版共享的 `SettingsEmpty`——三态映射 + 22u 图标记号 +
+> **本轮：P7-gm Integrations 页的空态回到原版共享的 `SettingsEmpty`——`Package` 20px 记号 +
+> `--text-secondary` 标题 + 92u 列表底（原版 `src/ExtensionsPanel.tsx:2462,3177-3191`、
+> `src/settings/SettingsRows.tsx:218-244`、`src/styles/settings.css:633-676`、`src/i18n.ts:443,1330`）**
+> ——P7-gl 收尾后「具体待办（P7-gk 重写）」还剩第 2·3 条，本轮取最高优先级第 2 条落地。依赖检查：
+> `go.mod` 已是 **v0.5.1** = latest tag（`go list -m -versions` 复核，`releases/latest` 仍被 API
+> 限流），无版本可升；只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离（P7-gm·Integrations 空态是一行裸文本，不是原版的共享空态）**：原版
+> `ExtensionsPanel.tsx:3177-3191` 的 `EmptyState` 一律走共享的 `SettingsEmpty`；安装列表空的那一支
+> （`:2462`）画 `<Package size={20} strokeWidth={2}/>` + `settings.extensions.emptyInstalled`
+> （en「No integrations available」/ zh「暂无可用集成」），走基类 `.settings-empty`
+> （`settings.css:633-676`）的 92u 列表底、24u padding、8u gap、标题 `--text-secondary` 580。
+> **本构建（改前）**：`settingsui.go` 的空态是 `Padding(Space(4)).Center()` 里一行
+> `copy.IntegrationsEmpty`（「No integrations are installed.」）用 `t.TextMuted`，没有记号、没有
+> 92u 底，词条也与原版 `emptyInstalled` 不同。
+>
+> **落地**：
+> - `internal/settingsui/empty.go`：共享 `emptyState` 增加 `iconSize` 参数（原版 `SettingsEmpty` 的
+>   icon 是调用方给的节点，Sessions/快捷键给 22px、集成列表给 20px；0 → 22u）。
+> - `internal/settingsui/settingsui.go` 的 `integrations` 空支改走
+>   `a.emptyState(c, "package", copy.IntegrationsEmpty, "", t.Space(5), 0, nil)`（20u 记号、92u 底）。
+> - `internal/launcher/glyphs.go`：新增 `package`（lucide-react 1.31.0 的 Package 路径，逐字取自
+>   该版本 tarball）并进闭集。
+> - `internal/i18n`：`IntegrationsEmpty` 的 en/zh 改成原版 `settings.extensions.emptyInstalled`
+>   的逐字文案（`i18n.ts:443,1330`）。
+>
+> **取舍（如实记录）**：原版 `EmptyState` 还有两支——首帧加载的 `LoaderCircle` + `loading` 词、以及
+> 过滤空态在 hint 行回显查询串。本构建的安装列表来自进程内同步读（`installedIntegrations()`），
+> 没有加载帧；集成页也没有过滤输入（原版 v0.3.14 的 `EmptyState` 的 `query` 参数本就无人传），
+> 所以两支都没有来源，只画 resting 一支、不画 hint。原版 error 支的 `role="alert"` 同样无来源。
+>
+> **验收**：`internal/settingsui/integrationsempty_test.go` 两条——
+> `TestTheIntegrationsEmptyStateIsTheReferenceEmptyRegion`（活页：画出原版词、旧自造句消失、标题上方
+> 20u 带内有 Package 记号墨迹、标题墨色 = `--text-secondary` 合成值且不等于旧的 `TextMuted` 合成值）、
+> `TestTheIntegrationsEmptyRegionHasTheListFloor`（直接渲染共享空态盒：高 == 92u、记号墨迹高 ≈20u）。
+> 变异核查：把空支改回旧的裸 `ui.Text` → 记号条红；把标题色改成 `TextMuted` → 两条墨色断言红
+> （ink {114,114,123} vs want {87,87,93}）。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿（1402 项）、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：第 2 条（P7-gm）落地；「具体待办（P7-gk 重写）」还剩第 3 条（自定义快捷键空态同改 +
+> keyboard/＋ 记号），是下一轮最高优先级。
+
+> **上一轮：P7-gl Sessions 页的空态回到原版共享的 `SettingsEmpty`——三态映射 + 22u 图标记号 +
 > 8u 标题/提示间距 + 160u 页体底（原版 `src/settings/SessionsPage.tsx:142-167`、
 > `src/settings/SettingsRows.tsx:218-244`、`src/styles/settings.css:633-676,1393`、
 > `src/i18n.ts:162-166,1069-1073`）**
@@ -6601,7 +6645,7 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 > About 页深链行，把清单重写为上面 3 条带 file:line / 原版对照 / 验收标准的具体待办，并取第 1 条
 > 落地（P7-gi）。第 2·3 条随后由 P7-gj / P7-gk 结清，本清单归零。
 
-### 具体待办（P7-gk 重写；第 1 条 P7-gl 已落地，第 2–3 条待做）
+### 具体待办（P7-gk 重写；第 1 条 P7-gl、第 2 条 P7-gm 已落地，第 3 条待做）
 
 审计入口：原版 `main:src/settings/SettingsRows.tsx` 的 `SettingsEmpty`（`:218-244`）与它的 CSS
 `main:src/styles/settings.css:633-676`、`:1393`（`.session-manager > .settings-empty` 的整身接管）、
@@ -6642,7 +6686,7 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
      `internal/i18n/i18n_test.go` 的 `TestSessionsEmptyWordsMatchTheOldDictionary`。三项都与验收
      对应；三态里 loading/failed 在本构建无来源（会话列表进程内同步），如实记录在顶部 P7-gl 记录。
 
-2. **（待做，P7-gm）Integrations 页的空态是一行裸文本，不是原版的 `SettingsEmpty`。**
+2. **（本轮落地，P7-gm）Integrations 页的空态是一行裸文本，不是原版的 `SettingsEmpty`。**
    - 原版对照：`ExtensionsPanel.tsx:3177-3191` 的 `EmptyState` 一律走 `SettingsEmpty`：`icon` 是
      面板给的记号、`title` 是状态行、`hint` 是过滤时的查询回显（`<strong
      className="extensions-empty__query">"{query}"</strong>`，仅 `font-weight:600`，
@@ -6657,6 +6701,15 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
    - 验收：一条渲染测试 —— 空态区域高 ≥92u、有图标记号、title 用 `--text-secondary` 墨色（与
      `TextMuted` 的像素差可测）；过滤到空时 hint 里逐字含查询串。变异核查：改回裸 `ui.Text` →
      高度/墨色断言红。
+   - **P7-gm 落地**：`internal/settingsui/empty.go` 的共享 `emptyState` 增加 `iconSize` 参数
+     （原版 `SettingsEmpty` 的 icon 是调用方给的节点：Sessions/快捷键 22px、集成列表 20px；0 → 22u）；
+     `settingsui.go` 的 `integrations` 空支改走 `a.emptyState(c, "package", copy.IntegrationsEmpty,
+     "", t.Space(5), 0, nil)`；`internal/launcher/glyphs.go` 新增 `package` 记号（lucide-react 1.31.0
+     的 Package 路径，逐字取自该版本 tarball）；`internal/i18n` 的 `IntegrationsEmpty` en/zh 改成原版
+     `settings.extensions.emptyInstalled` 的逐字文案（`i18n.ts:443,1330`）。**取舍**：原版 `EmptyState`
+     还有首帧加载支与过滤空态的 hint 查询回显；本构建的安装列表是进程内同步读、集成页无过滤输入
+     （原版 v0.3.14 的 `query` 参数本就无人传），两支都无来源，只画 resting 一支、不画 hint。测试见
+     `internal/settingsui/integrationsempty_test.go` 两条；详见「最近几轮」P7-gm 记录。
 
 3. **（待做，P7-gn）自定义快捷键空态仍是填充按钮 + 自造度量。**
    - 原版对照：`ShortcutsPage.tsx:240-252` 的 `SettingsEmpty`：`icon={<Keyboard size={22}

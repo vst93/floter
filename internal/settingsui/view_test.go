@@ -465,7 +465,7 @@ func TestSettingsSidebarRoutesAndEscapeCloses(t *testing.T) {
 	if a.Page != PageIntegrations {
 		t.Fatalf("page = %d, want integrations", a.Page)
 	}
-	if !tt.HasText("No integrations are installed.") {
+	if !tt.HasText("No integrations available") {
 		t.Errorf("the empty integrations state did not show: %q", tt.Texts())
 	}
 

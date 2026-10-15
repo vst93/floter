@@ -72,6 +72,10 @@ var (
 	// sessions list was being fetched (`SessionsPage.tsx:148`). Its two arrows
 	// are a different shape from `glyphRestart`'s single loop.
 	glyphRefresh = ui.MustParseSVG([]byte(glyphSource(`<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>`)))
+	// glyphPackage is lucide's Package (lucide-react 1.31.0's own path), the
+	// mark the reference's installed-integrations list drew when it was empty
+	// (`ExtensionsPanel.tsx:2462`, `<Package size={20} strokeWidth={2}/>`).
+	glyphPackage = ui.MustParseSVG([]byte(glyphSource(`<path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><polyline points="3.29 7 12 12 20.71 7"/><path d="m7.5 4.27 9 5.15"/>`)))
 )
 
 // rowGlyph picks the mark for a row from what the row is: an application shows
@@ -254,6 +258,8 @@ func Glyph(name string) (*ui.SVG, bool) {
 		return glyphSquareTerminal, true
 	case "refresh":
 		return glyphRefresh, true
+	case "package":
+		return glyphPackage, true
 	case "file":
 		return glyphFile, true
 	case "folder":

@@ -430,7 +430,7 @@ var en = Copy{
 		SessionsCloseConfirm: "Close it?",
 		SessionsCloseCancel:  "Keep",
 
-		IntegrationsEmpty:                "No integrations are installed.",
+		IntegrationsEmpty:                "No integrations available",
 		IntegrationsEnable:               "Enabled",
 		IntegrationsRunning:              "Running",
 		IntegrationsOff:                  "Disabled",
@@ -1287,7 +1287,7 @@ var zh = Copy{
 		SessionsCloseConfirm: "关闭它？",
 		SessionsCloseCancel:  "保留",
 
-		IntegrationsEmpty:                "没有已安装的集成。",
+		IntegrationsEmpty:                "暂无可用集成",
 		IntegrationsEnable:               "启用",
 		IntegrationsRunning:              "运行中",
 		IntegrationsOff:                  "已停用",
