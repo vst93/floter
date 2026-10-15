@@ -1310,6 +1310,21 @@ func TestArmedDeleteHidesTheStar(t *testing.T) {
 			break
 		}
 	}
+
+	// R50 · the old build's `aria-live="polite"` announced the armed
+	// note to screen readers when it appeared. The Go build's
+	// equivalent is `Context.Announce`, called once per arm.
+	announcements := tt.Announcements()
+	found := false
+	for _, a := range announcements {
+		if a == i18n.For("en").Launcher.DeleteConfirm {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("the armed note was not announced: %q", announcements)
+	}
 }
 func TestCalculatorDeleteControl(t *testing.T) {
 	a := testApp()

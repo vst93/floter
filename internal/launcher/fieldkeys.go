@@ -207,6 +207,7 @@ func (a *App) now() time.Time {
 // drift apart.
 func (a *App) disarmDelete() {
 	a.armedDelete, a.armedDeleteAt = "", time.Time{}
+	a.armedDeleteAnnounced = false
 }
 
 // historyDeleteClaimable reports whether the delete key may be claimed right

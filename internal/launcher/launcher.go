@@ -347,6 +347,9 @@ type App struct {
 	// a confirmation asked for one moment never outlives it. A press after the
 	// window re-arms rather than deleting.
 	armedDeleteAt time.Time
+	// armedDeleteAnnounced tracks whether the current arm has been
+	// announced to screen readers (the old build's `aria-live="polite"`).
+	armedDeleteAnnounced bool
 	// clock is the launcher's time source, injectable so the history-delete
 	// window can be exercised without waiting for it; nil means the wall
 	// clock.
@@ -1739,6 +1742,30 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 				source.TextColor(tokens.TextSecondary)
 			}
 		}
+		// The delete is a two-step: the first press arms the row — the
+		// muted "press again" note stands in for the trailing chrome, in
+		// the one warm token the row may spend — and the second removes.
+		// The armed state leaves with the selection, so a stray press
+		// cannot remove a row the user was not looking at.
+		//
+		// The old build's delete is keyboard-only (⌘⌫); the row shows
+		// the note while armed, never a click target. The note is the
+		// whole confirmation. It renders before the star and pin, as
+		// the old build's armed span sat before them in the row's tail.
+		//
+		// The old build's `.launcher-result__armed` was `white-space:
+		// nowrap` — the note never wraps, however narrow the row —
+		// and `flex: 0 0 auto`, so it never shrinks. The old build's
+		// `aria-live="polite"` announced the note to screen readers
+		// when it appeared.
+		if a.armedDelete == item.ID {
+			ui.Text(c, copy.DeleteConfirm).FontSize(t.FontSize - 1).
+				FontWeight(560).TextColor(t.Warning).NoWrap().Shrink(0)
+			if !a.armedDeleteAnnounced {
+				c.Announce(copy.DeleteConfirm)
+				a.armedDeleteAnnounced = true
+			}
+		}
 		// A history row's own star: the favourite toggle the old build drew as
 		// a 20u box at the row's trailing edge — hidden until the row is
 		// hovered or chosen, and shown whenever the entry is starred. Clicking
@@ -1776,22 +1803,6 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 				a.toggleFavorite(item)
 				removed = true
 			}
-		}
-		// The delete is a two-step: the first press arms the row — the
-		// muted "press again" note stands in for the trailing chrome, in
-		// the one warm token the row may spend — and the second removes.
-		// The armed state leaves with the selection, so a stray press
-		// cannot remove a row the user was not looking at.
-		//
-		// The old build's delete is keyboard-only (⌘⌫); the row shows
-		// the note while armed, never a click target. The note is the
-		// whole confirmation. It renders before the pin, as the old
-		// build's armed span sat before the pin in the row's tail.
-		if a.armedDelete == item.ID {
-			// The old build's `.launcher-result__armed` was `white-space:
-			// nowrap` — the note never wraps, however narrow the row.
-			ui.Text(c, copy.DeleteConfirm).FontSize(t.FontSize - 1).
-				FontWeight(560).TextColor(t.Warning).NoWrap()
 		}
 		if i == a.Selected && (item.clip != nil || item.calc != nil) {
 			// A clipboard entry's whole text can be shown in a window of its
