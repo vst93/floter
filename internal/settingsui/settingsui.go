@@ -1026,7 +1026,13 @@ func (a *App) sidebarRow(c *ui.Context, i int) {
 	}
 	row.Children(func() {
 		if glyph, ok := pageGlyph(i); ok {
-			icon := ui.Icon(c, glyph).Size(t.Space(4), t.Space(4)).TextColor(color)
+			// The reference draws this mark at a *literal* 15, not in units
+			// (`App.tsx:2925`'s `<Icon size={15} strokeWidth={2}/>`), so it
+			// does not follow the interface-size step: the sidebar's five
+			// marks sit at 15px under every step, while every other icon in
+			// this app is `--u`-scaled. A `Space(4)` here tracked the step and
+			// left the mark at 14.4 even at the shipped default.
+			icon := ui.Icon(c, glyph).Size(sidebarGlyphSize, sidebarGlyphSize).TextColor(color)
 			if selected {
 				icon.TextColor(t.Accent)
 			}
@@ -1038,6 +1044,13 @@ func (a *App) sidebarRow(c *ui.Context, i int) {
 		a.selectPage(i)
 	}
 }
+
+// sidebarGlyphSize is the sidebar's leading mark size in DIPs, and it is a
+// constant on purpose: the reference writes `<Icon size={15}/>` in the JSX
+// (`main:src/App.tsx:2925`) so the five marks are 15px under every
+// interface-size step, unlike every other icon in the app, which is sized in
+// `--u`. It is the one place the port must *not* reach for the step.
+const sidebarGlyphSize float32 = 15
 
 // pageGlyph is the mark a settings page leads with: the exact lucide set the
 // reference's sidebar named (`main:src/App.tsx:2903-2908`),
@@ -1353,7 +1366,7 @@ func (a *App) integrations(c *ui.Context, copy i18n.Settings) {
 			a.emptyState(c, "package", copy.IntegrationsEmpty, "", t.Space(5), 0, nil)
 			return
 		}
-		a.section(c, copy.IntegrationsInstalled, "", func() {
+		a.extensionSection(c, copy.IntegrationsInstalled, len(integrations), func() {
 			for _, integration := range integrations {
 				a.integrationRow(c, copy, integration)
 			}
@@ -1403,8 +1416,10 @@ func (a *App) basePluginSection(c *ui.Context, copy i18n.Settings) {
 	if a.Actions.OpenPluginConfig == nil && a.Actions.SetPluginEnabled == nil {
 		return
 	}
-	a.section(c, copy.BasePlugins, copy.BasePluginsHint, func() {
-		for _, plugin := range a.basePlugins(copy) {
+	plugins := a.basePlugins(copy)
+	a.extensionSection(c, copy.BasePlugins, len(plugins), func() {
+		a.extensionHint(c, copy.BasePluginsHint, false)
+		for _, plugin := range plugins {
 			plugin := plugin
 			a.card(c, func() {
 				enabled := plugin.Enabled
@@ -1414,8 +1429,17 @@ func (a *App) basePluginSection(c *ui.Context, copy i18n.Settings) {
 						// The visible text is the reference's "Configure"; the
 						// accessible name names the plugin, because three buttons
 						// reading "Configure" alone are three buttons a screen
-						// reader cannot tell apart.
-						if ui.Button(c, copy.PluginConfigure).Label(copy.PluginConfigure + " " + plugin.Name).Clicked() {
+						// reader cannot tell apart. It is the card's own
+						// one-step-down pill
+						// (`.extensions-base-plugin__configure`,
+						// `extensions.css:2610-2614`): a 24u height and the
+						// emphasis step, so it never out-shouts the plugin name
+						// beside it.
+						t := c.Theme()
+						configure := a.extensionActionButton(c, copy.PluginConfigure,
+							t.Space(6), t.Space(3), a.tokens(c).Emphasis)
+						configure.Label(copy.PluginConfigure + " " + plugin.Name)
+						if configure.Clicked() {
 							a.Actions.OpenPluginConfig(plugin.ID)
 						}
 					}
@@ -4196,7 +4220,8 @@ func (a *App) detectedSection(c *ui.Context, copy i18n.Settings) {
 	if len(tools) == 0 {
 		return
 	}
-	a.section(c, copy.DetectedTitle, copy.DetectedHint, func() {
+	a.extensionSection(c, copy.DetectedTitle, len(tools), func() {
+		a.extensionHint(c, copy.DetectedHint, true)
 		a.card(c, func() {
 			for _, tool := range tools {
 				tool := tool

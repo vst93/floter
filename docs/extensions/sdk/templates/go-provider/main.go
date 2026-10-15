@@ -35,8 +35,8 @@ func protocol(operation string, input io.Reader, output io.Writer) error {
 		items := []any{}
 		if request.Command == "search" {
 			items = append(items, map[string]any{
-				"label": "--type",
-				"kind":  "flag",
+				"label":  "--type",
+				"kind":   "flag",
 				"detail": fmt.Sprintf("Filter resource type (%d argument(s), cwd %s)", len(request.Args), request.CWD),
 			})
 		}
@@ -52,7 +52,7 @@ func protocol(operation string, input io.Reader, output io.Writer) error {
 		return encoder.Encode(map[string]any{
 			"configuration": map[string]any{
 				"configVersion": 1,
-				"owner":       "host",
+				"owner":         "host",
 				"schema": []any{map[string]any{
 					"key": "endpoint", "type": "text", "label": "API endpoint",
 					"default": "https://api.example.com",

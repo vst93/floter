@@ -34,7 +34,7 @@ func TestEveryNamedControlDrawsALensRung(t *testing.T) {
 		{
 			selector: ".extensions-action-button",
 			file:     "../settingsui/rows.go",
-			marker:   "a.tokens(c).Lens(ui.Button(c, label))",
+			marker:   "tokens.Lens(button)",
 			test:     "settingsui.TestTheSettingsCardControlsCarryTheStopLens/.extensions-action-button",
 		},
 		{

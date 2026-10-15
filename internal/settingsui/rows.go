@@ -1,6 +1,9 @@
 package settingsui
 
 import (
+	"strconv"
+	"time"
+
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/launcher"
@@ -169,6 +172,63 @@ func (a *App) sectionHint(c *ui.Context, hint string) {
 	})
 }
 
+// extensionSection is the Integrations panel's own group frame: the
+// reference's `.extensions-section-title` (`extensions.css:419-446`) — a
+// body-step, muted, 620 label with the section's count in the neutral
+// `.extension-status` chip beside it (`:448-472`) — rather than the settings
+// cards' `.settings-section__label` (the title step in `--text-strong`) that
+// every other page's `section` draws. The chip is a fixed 18u box with a 25u
+// floor, so a 1→2 digit count (or a refresh) never reflows the heading or the
+// list under it. A negative count drops the chip, for a group with a title
+// and nothing to count.
+//
+// The panel draws its explanations *under the title and above the list*
+// (Base plugins: `ExtensionsPanel.tsx:2435-2436`; Detected: `:2542-2544`),
+// not at the end of the section the way the settings cards do, so fn draws
+// its own hint first (`extensionHint`) and its cards after.
+func (a *App) extensionSection(c *ui.Context, title string, count int, fn func()) ui.Element {
+	t := c.Theme()
+	tokens := a.tokens(c)
+	return a.sectionGroup(c, title, func() {
+		ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(t.Space(2)).
+			Padding(0, t.Space(1)).MinHeight(t.Space(4.5)).Children(func() {
+			ui.Text(c, title).FontSize(tokens.Body).FontWeight(620).TextColor(t.TextMuted)
+			if count < 0 {
+				return
+			}
+			chip := ui.Row(c).MinWidth(t.Space(6.25)).Height(t.Space(4.5)).
+				Padding(0, t.Space(1.75)).Radius(tokens.RadiusXS).Center()
+			chip.Children(func() {
+				ui.Text(c, strconv.Itoa(count)).FontSize(tokens.Caption).
+					FontWeight(600).TextColor(tokens.TextSecondary)
+			})
+		})
+		fn()
+	})
+}
+
+// extensionHint is the Integrations panel's own explanation line, in one of
+// the reference's two registers: the Base plugins section's
+// `settings-section__hint` (body step, `--text-tertiary`, the heading's own
+// 2u inset; `ExtensionsPanel.tsx:2435-2436`) and the Detected section's
+// `.extensions-section-hint` (caption step, 4u inset; `:2542-2544`,
+// `extensions.css:711-720`). Both sit under the title and above the list —
+// the panel's own order, not the settings cards' footnotes.
+func (a *App) extensionHint(c *ui.Context, hint string, caption bool) {
+	if hint == "" {
+		return
+	}
+	tokens := a.tokens(c)
+	t := c.Theme()
+	inset, size := t.Space(0.5), tokens.Body
+	if caption {
+		inset, size = t.Space(1), tokens.Caption
+	}
+	ui.Row(c).FillWidth().Padding(0, inset).Children(func() {
+		ui.Text(c, hint).FontSize(size).FontWeight(500).TextColor(tokens.TextTertiary)
+	})
+}
+
 // card draws one grouped card: the resting control plane, its hairline
 // edge, the card radius, and the clip that keeps the first and last rows
 // inside the rounded corners. It is the row counter's own frame: the rows
@@ -205,14 +265,43 @@ func (a *App) cardLabeled(c *ui.Context, label string, fn func()) {
 }
 
 // actionButton draws one of the card's action buttons — the reference's
-// `.extensions-action-button`, the raised lens rung (`--elev-0`) every
-// settings-card button carried. The framework's `Button` is the flat control
-// pane the app builds every button from; the lens is the same four inset
-// layers the card wears, and `--glass-lens-scale` grades it with the glass
-// stop, so moving the stop is visible on the buttons and not only in the
-// frame (the user's 「特别是各种控件按钮」).
+// `.extensions-action-button` (`extensions.css:1313-1338`): the extension
+// panel's shared pill, a 30u control (`.extensions-control-height`), 10u of
+// side padding, a 999px corner (half the box, so the shape is a pill), the
+// `--glass-control` plane under a `--glass-control-edge` hairline, and the
+// body step at 600 in `--text-strong`. Hover lifts the plane to
+// `--glass-control-hover`, the edge to the accent keyline and the ink to
+// `--text-primary`; a disabled button keeps its resting face. The lens is the
+// same four inset layers the card wears, and `--glass-lens-scale` grades it
+// with the glass stop.
 func (a *App) actionButton(c *ui.Context, label string) ui.Element {
-	return a.tokens(c).Lens(ui.Button(c, label))
+	t := c.Theme()
+	return a.extensionActionButton(c, label, t.Space(7.5), t.Space(3.75), a.tokens(c).Body)
+}
+
+// extensionActionButton builds the panel's action pill at a chosen height,
+// corner radius and text step, so the base-plugin card's Configure control
+// can wear the reference's one-step-down variant
+// (`.extensions-base-plugin__configure`, `extensions.css:2610-2614`: a 24u
+// height and the emphasis step) without a second copy of the pill's face.
+// The corner is passed rather than derived so a caller can keep the reference's
+// 999px shape (half the box) at its own height.
+func (a *App) extensionActionButton(c *ui.Context, label string, height, radius, fontSize float32) ui.Element {
+	t := c.Theme()
+	tokens := a.tokens(c)
+	button := ui.ButtonBase(c).
+		MinHeight(height).Padding(0, t.Space(2.5)).Radius(radius)
+	ink, edge, plane := tokens.TextStrong, tokens.ControlEdge, tokens.Control
+	if button.Hovered() {
+		ink, edge, plane = t.Text, tokens.AccentEdge, tokens.ControlHover
+	}
+	button.Border(1, edge).Background(plane).
+		Transition(ui.ElementTransition{Colors: true, Duration: 120 * time.Millisecond})
+	tokens.Lens(button)
+	button.Children(func() {
+		ui.Text(c, label).FontSize(fontSize).FontWeight(600).TextColor(ink)
+	})
+	return button
 }
 
 // switchControl draws one switch: the framework's Switch inside the recessed
