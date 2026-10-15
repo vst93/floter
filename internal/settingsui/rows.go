@@ -3,6 +3,7 @@ package settingsui
 import (
 	"github.com/egoist/mygo/ui"
 
+	"floter/internal/launcher"
 	"floter/internal/theme"
 )
 
@@ -329,12 +330,30 @@ func (a *App) actionRow(c *ui.Context, control func()) {
 // action draws the right-aligned accent text action the reference's rows use
 // ("Edit…", "Restore defaults"): the accent spent on text, never on a fill.
 func (a *App) action(c *ui.Context, label string, clicked func()) {
+	a.actionWithGlyph(c, "", label, clicked)
+}
+
+// actionWithGlyph is action with the reference's optional leading mark: the
+// `.settings-reset__icon` slot the deep-link copy control filled with lucide's
+// Copy / Check at 13px (`DeepLinkRow.tsx:47-58`, `SettingsRows.tsx:200-216`).
+// An empty name draws the text-only action every other caller wants.
+func (a *App) actionWithGlyph(c *ui.Context, glyphName, label string, clicked func()) {
 	t := c.Theme()
 	row := ui.Row(c).Focusable().Padding(t.Space(1), t.Space(1.5)).Radius(a.tokens(c).RadiusSM)
+	if glyphName != "" {
+		row.Gap(t.Space(1.25))
+	}
 	if row.Hovered() {
 		row.Background(t.SurfaceHover)
 	}
-	row.Children(func() { ui.Text(c, label).FontSize(t.FontSize).TextColor(t.Accent) })
+	row.Children(func() {
+		if glyphName != "" {
+			if glyph, ok := launcher.Glyph(glyphName); ok {
+				ui.Icon(c, glyph).Size(t.Space(3.25), t.Space(3.25)).TextColor(t.Accent)
+			}
+		}
+		ui.Text(c, label).FontSize(t.FontSize).TextColor(t.Accent)
+	})
 	if row.Clicked() {
 		clicked()
 	}

@@ -100,7 +100,47 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **本轮：P7-gh 独立窗口的 body 回到原版的三态运行状态机
+> **本轮：P7-gi About 页深链复制控件回到原版的 accent 文本动作 + Copy/Check 图标，并补上成功 toast
+> （原版 `src/settings/DeepLinkRow.tsx:31-58`、`src/settings/SettingsRows.tsx:200-216`、
+> `src/styles/settings.css:682-730`）**
+> ——P7-gh 收尾后「具体待办（P7-gb 重写）」归零。本轮回到「对照原版排查偏离点」，换一个**全文档
+> 从未提过**的入口：About 页的 `DeepLinkRow`（`grep -c` = 0）。依赖检查：`go.mod` 已是 **v0.5.1**
+> = GitHub releases latest（本轮 `releases/latest` 复核），无版本可升；只对照 `main`
+> （`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离 1（P7-gi·复制控件是填充按钮、无图标）**：原版 `SettingsAction` = `.settings-reset` 是**无填充
+> 的 accent 文本动作**（`settings.css:682-730`：`gap:5u`、`min-height:24u`、`padding:0 2u`、hover
+> 只降透明度），键面在 1.6s 内切 lucide 的 `Copy`/`Check`（13px、`strokeWidth=2`）；
+> **本构建（改前）**：`settingsui.go:2608` 用 `ui.Button(c, label)`，既无图标也无文本动作形状。
+>
+> **偏离 2（P7-gi·复制后没有全局成功提示）**：原版 `copy()` 成功写剪贴板后调
+> `onCopied(t("settings.deepLinkCopied"))`，让确认同时落进应用自己的 toast 栈；**本构建（改前）**
+> `Actions` 只有 `NotifyWarning`，success 通道不存在（「已知差距」里还留着「success 分支有口子、
+> 等 raiser」的旧记录）。
+>
+> **落地**：`internal/launcher/glyphs.go` 新增 `glyphCopy` 与 `Glyph("copy")`（lucide Copy 的两页
+> 形状；`clipboard` 是另一个记号）；`internal/settingsui/rows.go` 把 `action` 拆出
+> `actionWithGlyph`（可选前导图标、`gap:Space(1.25)` = 5u、`Space(3.25)` = 13u、accent 墨色）；
+> `settingsui.go` 的 deep-link 行改走 `actionWithGlyph(linkCopyGlyph(copied), …)`，新增
+> `linkCopyGlyph` 与 `deepLinkConnectExample`/`deepLinkRegisterExample` 两个常量；
+> `Actions.NotifySuccess` → `shell.notifySuccess`（success 类型、`successNotice` 4s 窗口）→
+> `ToastViewportBase` 的既有 accent/check 档。
+>
+> **验收**：`internal/settingsui/deeplinkcopy_test.go` 三条——
+> `TestDeepLinkCopyRaisesTheSuccessToast`（复制值 + `NotifySuccess` 逐字收到 `DeepLinkCopied`）、
+> `TestDeepLinkCopyUsesTheReferenceGlyphs`（两态 + 两名字都在闭集里）、
+> `TestTheDeepLinkCopyActionWearsItsIcon`（标签前 20u 带内最大通道差 ≥60；填充按钮是 ≤28）；
+> `internal/shell/notices_test.go` 的 `TestTheSuccessNoticeCarriesItsKindAndWindow`。变异核查：换回
+> `ui.Button` 且不调 `NotifySuccess` → 前两条当场红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：新写的「具体待办（P7-gi 重写）」3 条，第 1 条本轮落地（P7-gi）；第 2 条
+> （`.settings-deep-link__value` 代码块 chip）与第 3 条（共享文本动作的 `.settings-reset` 度量）
+> 是下一轮候选。
+
+> **上一轮：P7-gh 独立窗口的 body 回到原版的三态运行状态机
 > （原版 `src/plugin-window/DetachedPluginApp.tsx:329-350`、词条 `src/i18n.ts:37-39,965-967`）**
 > ——P7-gd 收尾后「具体待办（P7-gb 重写）」只剩第 3 条（body 的 running/failed/empty），
 > 本轮取它落地，清单归零。依赖检查：`go.mod` 已是 **v0.5.1** = GitHub releases latest
@@ -6354,6 +6394,72 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 - 窗口可见时完成反馈落在面板自己的停靠行（隐藏时才发系统通知）——之前可见时什么都不说。
 
 ## 尚未做（按建议优先级）
+
+### 具体待办（P7-gi 重写；第 1 条本轮 P7-gi 落地，第 2·3 条待做）
+
+审计入口：原版 About 页的深链行 `main:src/settings/DeepLinkRow.tsx`（它吃的行基元
+`main:src/settings/SettingsRows.tsx` 的 `SettingsAction`，以及 `main:src/styles/settings.css:682-730`
+的 `.settings-reset`、`:1524-1535` 的 `.settings-deep-link__value`）。本构建对应
+`internal/settingsui/settingsui.go` 的 `about`（deep-link 区，`:2583-2636`）与
+`internal/settingsui/rows.go` 的 `action`（`:330-350`），词条在 `internal/i18n/copy.go`。全文档此前
+从未提过 `DeepLinkRow` / `.settings-deep-link__value`（`grep -c` = 0）。依赖检查：`go.mod` 已是
+**v0.5.1** = GitHub releases latest（本轮 `releases/latest` 复核），无版本可升；只对照 `main`
+（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+
+1. **（本轮落地，P7-gi）深链复制控件是带填充的 `ui.Button`，且复制后没有全局成功提示。**
+   - 原版对照：`DeepLinkRow.tsx:47-58` 的 `SettingsAction`（= `SettingsRows.tsx:200-216` 的
+     `.settings-reset`）在 1.6s 内用 `copied === value` 在 lucide 的 `Check` 与 `Copy`（均 13px、
+     `strokeWidth={2}`）之间切换，文本取 `settings.deepLinkCopy` / `deepLinkCopied`；`:31-36` 的
+     `copy()` 成功写剪贴板后调 `onCopied(t("settings.deepLinkCopied"))`，让确认同时落进应用自己的
+     toast 栈。CSS：`.settings-reset`（`settings.css:682-730`）是**无填充的 accent 文本动作**，
+     `gap: 5u`、`min-height: 24u`、`padding: 0 2u`、hover 只降透明度；`.settings-reset__icon`
+     宽 12u、随字级缩放。
+   - 本构建（改前）：`settingsui.go:2608` 的控件是 `ui.Button(c, label)`——框架的填充按钮，既没有
+     图标，也不在复制成功后通知任何地方；`Actions` 只有 `NotifyWarning`，没有 success 通道。
+   - 落地 file:line（已按此落地）：`internal/launcher/glyphs.go` 新增 `glyphCopy` 与
+     `Glyph("copy")`（lucide Copy 的两页形状，区别于既有 clipboard 记号）；
+     `internal/settingsui/rows.go` 把 `action` 拆出 `actionWithGlyph`（可选前导图标、`gap: Space(1.25)`
+     = 5u、`Space(3.25)` = 13u 图标，accent 墨色）；`internal/settingsui/settingsui.go` 的 deep-link
+     行改走 `actionWithGlyph(linkCopyGlyph(copied), …)`，新增 `linkCopyGlyph` 与两个示例常量，
+     `CopyText` 后调 `Actions.NotifySuccess`；`internal/settingsui` 新增 `Actions.NotifySuccess`，
+     `internal/shell/notices.go` 新增 `notifySuccess`（success 类型、`successNotice` 4s 窗口），
+     `internal/shell/shell.go` 把它接到 `onMain`。
+   - 验收（已过）：`internal/settingsui/deeplinkcopy_test.go` 三条——
+     `TestDeepLinkCopyRaisesTheSuccessToast`（复制值 + `NotifySuccess` 逐字收到 `DeepLinkCopied`）、
+     `TestDeepLinkCopyUsesTheReferenceGlyphs`（`linkCopyGlyph` 两态 + 两个名字都在闭集里）、
+     `TestTheDeepLinkCopyActionWearsItsIcon`（标签前 20u 带内最大通道差 ≥60；填充按钮只会是 ≤28）、
+     `internal/shell/notices_test.go` 的 `TestTheSuccessNoticeCarriesItsKindAndWindow`（Type 为
+     `success`、窗口为 `successNotice`、空消息不排队）。变异核查：换回 `ui.Button` 且不调
+     `NotifySuccess` → 前两条当场红（`notified = []`；band delta 28）。
+2. **深链值不是原版的代码块 chip。**
+   - 原版对照：`DeepLinkRow.tsx:67,79` 的 label 是
+     `<code className="settings-deep-link__value">{value}</code>`；`settings.css:1524-1535` 给它
+     `display:block`、`padding: 4u 8u`、`--radius-xs`、`background: var(--surface-sunken)`、
+     `border: 1px solid var(--glass-control-edge)`、`color: --text-secondary`、等宽字体
+     （SF Mono/Menlo/Monaco/Consolas）、`--text-caption`、`overflow-wrap:anywhere`。
+   - 本构建（现状）：`settingsui.go` 的 `a.row(c, link, "", …)` 把链接当普通行 label 画成
+     `--text-emphasis` 的 strong 文本（`rows.go:213-216`），没有 sunken 底、等宽或长串换行。
+   - 落地 file:line：在 `internal/settingsui/rows.go` 给 `rowAligned` 增加一个可替换 label 绘制的
+     窄入口（或新增 `valueRow`，但必须复用同一 `cardRows` 计数与分隔线），deep-link 行改用它；
+     字号/行高/底色/边框/圆角/等宽字体按上面 token 逐条对齐。
+   - 验收：`internal/settingsui/deeplinkcopy_test.go` 新增一条像素/盒子测试——深链值的盒子有
+     `--surface-sunken` 底与 1px 边框（与卡片底不同色），纵向 padding 为 4u，且文本用等宽族；
+     变异核查：改回 `a.row` 的普通 label → 底色/边框断言红。
+3. **共享文本动作的度量还不是 `.settings-reset` 本身。**
+   - 原版对照：`settings.css:682-730` —— `min-height:24u`、`padding:0 2u`、`gap:5u`、
+     `background:transparent`、hover `opacity:.78`、active `:active opacity:.6`、disabled
+     `--text-tertiary`。
+   - 本构建（现状）：`rows.go:337-357` 的 `actionWithGlyph` 用 `Padding(Space(1), Space(1.5))`、
+     hover `SurfaceHover` 填充，没有 active/disabled 的透明度与 `min-height`；`Restore defaults`
+     （`settingsui.go:2333` 一带）与深链复制共用它，因此两处一起偏离。
+   - 落地 file:line：把 `actionWithGlyph` 的 padding/min-height/gap/hover-active 改成上面的 token；
+     若要保持 `Restore defaults` 的现有观感，先在文档里记下取舍再改。
+   - 验收：一条盒子测试（同页两个文本动作都有 24u 最小高、左内边距 2u）与一条 hover 像素测试
+     （hover 不改变底色，只改文字透明度）。
+
+> P7-gb 清单三条已全部结清（P7-gb/P7-gd/P7-gh），本轮回到「对照原版排查偏离点」，换到从未审计的
+> About 页深链行，把清单重写为上面 3 条带 file:line / 原版对照 / 验收标准的具体待办，并取第 1 条
+> 落地（P7-gi）。第 2·3 条是下一轮候选。
 
 ### 具体待办（P7-gb 重写；3 条已全部落地：第 1 条 P7-gb、第 2 条 P7-gd、第 3 条 P7-gh）
 

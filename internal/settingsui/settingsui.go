@@ -199,6 +199,12 @@ type Actions struct {
 	// through either way, so it is advice, never a refusal. Nil drops the
 	// message.
 	NotifyWarning func(text string)
+	// NotifySuccess reports a confirmation the panel cannot draw for itself:
+	// the old panel's `onNotify("success", …)`. The About page's deep-link
+	// copy raises one — the reference's `DeepLinkRow.onCopied` reached the
+	// app's toast stack, and a clipboard write is otherwise silent. Nil drops
+	// the message.
+	NotifySuccess func(text string)
 	// ToolForEdit hands the form what that integration declares now. Both nil
 	// hides the button.
 	EditCustomTool func(id string, tool CustomTool)
@@ -2588,10 +2594,7 @@ func (a *App) about(c *ui.Context, copy i18n.Settings) {
 		// "Link copied"), because a clipboard write is otherwise silent.
 		a.section(c, copy.DeepLinkTitle, copy.DeepLinkHint, func() {
 			a.card(c, func() {
-				for _, link := range []string{
-					"floter://connect?manifest=/path/to/tool.json",
-					"floter://register?cmd=rg",
-				} {
+				for _, link := range []string{deepLinkConnectExample, deepLinkRegisterExample} {
 					link := link
 					copied := a.linkCopied(link, c.Now())
 					if copied {
@@ -2605,18 +2608,40 @@ func (a *App) about(c *ui.Context, copy i18n.Settings) {
 						label = copy.DeepLinkCopied
 					}
 					a.row(c, link, "", func() {
-						if ui.Button(c, label).Clicked() {
+						a.actionWithGlyph(c, linkCopyGlyph(copied), label, func() {
 							if a.Actions.CopyText != nil {
 								a.Actions.CopyText(link)
 								a.copiedLink, a.copiedLinkUntil = link, c.Now().Add(linkCopiedDuration)
+								if a.Actions.NotifySuccess != nil {
+									a.Actions.NotifySuccess(copy.DeepLinkCopied)
+								}
 							}
-						}
+						})
 					})
 				}
 			})
 		})
 	})
 }
+
+// linkCopyGlyph is the mark on a deep-link copy action: lucide's Check while
+// the copy's 1.6s confirmation holds, Copy otherwise — the two marks the
+// reference's `DeepLinkRow` swapped (`DeepLinkRow.tsx:47-58`).
+func linkCopyGlyph(copied bool) string {
+	if copied {
+		return "check"
+	}
+	return "copy"
+}
+
+// The two `floter://` forms the About page offers. The reference declared
+// them once in `src/deep-link.ts` (`DEEP_LINK_EXAMPLE` /
+// `DEEP_LINK_REGISTER_EXAMPLE`), and the page copied them; the pair lives here
+// so the rendered value and the test that copies it cannot drift.
+const (
+	deepLinkConnectExample  = "floter://connect?manifest=/path/to/tool.json"
+	deepLinkRegisterExample = "floter://register?cmd=rg"
+)
 
 // linkCopiedDuration is how long the deep-link copy button keeps its
 // confirmation: the old build's own 1600ms.

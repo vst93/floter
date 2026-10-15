@@ -117,6 +117,24 @@ func (a *App) warnNotice(message string) {
 	a.queueNotice(message, warningNotice)
 }
 
+// successNotice is the app's confirmation notice: the old build's
+// `onNotify("success", …)`, raised for something that completed without a
+// failure. The About page's deep-link copy is the raiser the reference had —
+// it called `onCopied` so the app's toast stack said "Link copied" as well as
+// the button — and the app's viewport paints this kind in the accent with the
+// check mark (`toastMark("success")`).
+func (a *App) notifySuccess(message string) {
+	if message == "" {
+		return
+	}
+	a.queueToast(ui.Toast{
+		ID:      "floter-notice",
+		Title:   message,
+		Type:    "success",
+		Timeout: successNotice,
+	})
+}
+
 // flushNotices hands the queued notices to the framework's own toast stack,
 // once, at the start of a frame (the engine rebuilds a frame up to three
 // times, so clearing the queue here is what keeps one notice from being added

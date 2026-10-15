@@ -695,6 +695,12 @@ func New(opts Options) *App {
 		NotifyWarning: func(text string) {
 			a.onMain(func() { a.warnNotice(text) })
 		},
+		// A confirmation the panel cannot draw for itself goes to the app's own
+		// notice too: the deep-link copy is the reference's `onCopied`, and its
+		// "Link copied" belongs on the one stack in either surface.
+		NotifySuccess: func(text string) {
+			a.onMain(func() { a.notifySuccess(text) })
+		},
 		ConnectLocalTool:   a.connectLocalTool,
 		EditCustomTool:     a.editCustomTool,
 		ToolForEdit:        a.toolForEdit,

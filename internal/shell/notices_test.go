@@ -329,3 +329,36 @@ func TestWarningNoticeShowsWhereTheUserIs(t *testing.T) {
 		t.Errorf("an empty warning queued %d notices", got)
 	}
 }
+
+// The confirmation notice is the old build's success toast: the About page's
+// deep-link copy raises it with its own "Link copied", and it carries the
+// success kind (the accent band and the check mark) and the shortest window,
+// because the news is good and needs no time to digest.
+func TestTheSuccessNoticeCarriesItsKindAndWindow(t *testing.T) {
+	a := newApp(t)
+	sentence := i18n.For("en").Settings.DeepLinkCopied
+	tt := ui.NewTester(func(c *ui.Context) { a.View(c) }, 720, 520)
+	tt.Frame()
+	a.Open(SurfaceSettings)
+	tt.Frame()
+
+	a.notifySuccess(sentence)
+	a.noticeMu.Lock()
+	queued := a.notices
+	a.noticeMu.Unlock()
+	if len(queued) != 1 || queued[0].Timeout != successNotice || queued[0].Type != "success" {
+		t.Fatalf("the success queued %+v, want one with the success window %v and kind", queued, successNotice)
+	}
+	tt.Frame()
+	if !tt.HasText(sentence) {
+		t.Fatalf("the success is not drawn: %q", tt.Texts())
+	}
+	if a.Surf != SurfaceSettings {
+		t.Errorf("a success moved to surface %v", a.Surf)
+	}
+	// Nothing to say is not a toast.
+	a.notifySuccess("")
+	if got := pendingNotices(a); got != 0 {
+		t.Errorf("an empty success queued %d notices", got)
+	}
+}

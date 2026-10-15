@@ -57,7 +57,12 @@ var (
 	// of the same trio.
 	glyphTriangleAlert = ui.MustParseSVG([]byte(glyphSource(`<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 20h16a2 2 0 0 0 1.73-2Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>`)))
 	glyphCheck         = ui.MustParseSVG([]byte(glyphSource(`<path d="M20 6 9 17l-5-5"/>`)))
-	glyphClipboard     = ui.MustParseSVG([]byte(glyphSource(`<rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>`)))
+	// glyphCopy is lucide's Copy, the mark the reference's deep-link copy
+	// action drew at 13px (`DeepLinkRow.tsx:47-58`). The clipboard mark above
+	// is a different shape: it has a clip and a board, where this one is the
+	// two stacked pages the copy action itself uses.
+	glyphCopy      = ui.MustParseSVG([]byte(glyphSource(`<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>`)))
+	glyphClipboard = ui.MustParseSVG([]byte(glyphSource(`<rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>`)))
 )
 
 // rowGlyph picks the mark for a row from what the row is: an application shows
@@ -234,6 +239,8 @@ func Glyph(name string) (*ui.SVG, bool) {
 		return glyphTriangleAlert, true
 	case "check":
 		return glyphCheck, true
+	case "copy":
+		return glyphCopy, true
 	case "file":
 		return glyphFile, true
 	case "folder":
