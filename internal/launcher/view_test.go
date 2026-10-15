@@ -1276,7 +1276,41 @@ func TestClipboardModeFavoritesAndDelete(t *testing.T) {
 	}
 }
 
-// The calculator mode's rows carry the same delete control.
+// R50 · the star is hidden while the row's delete is armed: the old
+// build's `!deleteArmed` condition swapped the star for the "press
+// again" note, so a half-finished confirmation never offered a
+// second control competing with the key that completes it.
+func TestArmedDeleteHidesTheStar(t *testing.T) {
+	store := clipboard.NewStore(clipboard.FromConfigRoot(t.TempDir()), 0)
+	if _, _, err := store.AddText("only clip"); err != nil {
+		t.Fatal(err)
+	}
+	a := testApp()
+	a.Clipboard = store
+	tt := render(t, a)
+	a.EnterClipboard()
+	tt.Frame()
+
+	// The star shows on the selected row before arming.
+	if !tt.HasText("Favorite") {
+		t.Fatalf("the star is missing before arming: %q", tt.Texts())
+	}
+
+	// Arm the delete — the star must disappear. HasText is a substring
+	// match, so "Favorites" (the filter chip) satisfies "Favorite" —
+	// compare the exact text entries instead.
+	deleteKey(tt)
+	tt.Frame()
+	if !tt.HasText(i18n.For("en").Launcher.DeleteConfirm) {
+		t.Fatalf("the armed note is missing: %q", tt.Texts())
+	}
+	for _, text := range tt.Texts() {
+		if text == "Favorite" || text == "Unfavorite" {
+			t.Errorf("the star is shown while armed: %q", tt.Texts())
+			break
+		}
+	}
+}
 func TestCalculatorDeleteControl(t *testing.T) {
 	a := testApp()
 	fixture := &calculatorFixture{entries: []calculator.Entry{
