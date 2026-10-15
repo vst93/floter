@@ -1,6 +1,8 @@
 package shell
 
 import (
+	"errors"
+	"strings"
 	"testing"
 
 	"github.com/egoist/mygo"
@@ -172,13 +174,13 @@ func TestAStaleDetachedRunDoesNotOverwriteNewerContent(t *testing.T) {
 	// window's content is replaced and the in-flight run is now stale.
 	detached.generation++
 	detached.view = launcher.OutputView{Text: "new"}
-	a.applyDetachedRun(detached, stale, launcher.OutputView{Text: "old"})
+	a.applyDetachedRun(detached, stale, launcher.OutputView{Text: "old"}, nil)
 	if detached.view.Text != "new" {
 		t.Errorf("the stale run overwrote the newer pin: %q", detached.view.Text)
 	}
 
 	// A run started for the content the window holds now still lands.
-	a.applyDetachedRun(detached, detached.generation, launcher.OutputView{Text: "fresh"})
+	a.applyDetachedRun(detached, detached.generation, launcher.OutputView{Text: "fresh"}, nil)
 	if detached.view.Text != "fresh" {
 		t.Errorf("the current run did not land: %q", detached.view.Text)
 	}
@@ -216,5 +218,129 @@ func TestDetachedWindowBody(t *testing.T) {
 	}
 	if !tt.HasText(copy.OutputWindowIdle) {
 		t.Errorf("an unrun window does not say so: %q", tt.Texts())
+	}
+}
+
+// The detached window's body is the reference's run state machine
+// (`DetachedPluginApp.tsx:329-350`): `running` draws the running word and not
+// the previous output, `failed` draws the failure sentence, a run that finished
+// with nothing to show draws the empty word, and a window that has never run
+// draws the idle one. Before this the window kept the old output through the
+// whole run and said "no command pinned yet" after an empty one.
+func TestTheDetachedBodyFollowsTheRunStateMachine(t *testing.T) {
+	a := New(Options{Store: settings.NewStore(settings.Default())})
+	en := i18n.For("en").Launcher
+
+	// A run in flight replaces the output: the old text is not drawn beside it.
+	detached := &detachedOutput{
+		title:   "jv --floter",
+		entry:   &extensions.CommandEntry{IntegrationID: "local.tool", Command: extensions.Command{ID: "jv", Name: "JSON Viewer"}},
+		view:    launcher.OutputView{Title: "jv --floter", Text: "{\"a\": 1}"},
+		ran:     true,
+		running: true,
+	}
+	tt := ui.NewTester(func(c *ui.Context) { a.detachedView(c, detached) }, 720, 460)
+	tt.Frame()
+	if !tt.HasText(en.OutputWindowRunning) {
+		t.Errorf("a run in flight does not say so: %q", tt.Texts())
+	}
+	if tt.HasText("{\"a\": 1}") {
+		t.Errorf("the previous output outlived the run that replaced it: %q", tt.Texts())
+	}
+
+	// A refused run draws its own sentence.
+	detached.running = false
+	detached.failed = "Could not start /opt/bin/node: no such file"
+	tt = ui.NewTester(func(c *ui.Context) { a.detachedView(c, detached) }, 720, 460)
+	tt.Frame()
+	if !tt.HasText(detached.failed) {
+		t.Errorf("the failure sentence is missing: %q", tt.Texts())
+	}
+	if tt.HasText(en.OutputWindowRunning) || tt.HasText(en.OutputWindowEmpty) {
+		t.Errorf("a failed run also drew another state: %q", tt.Texts())
+	}
+
+	// A finished run with nothing to show: the empty word, not the idle one.
+	detached.failed = ""
+	detached.view = launcher.OutputView{Title: "jv --floter"}
+	tt = ui.NewTester(func(c *ui.Context) { a.detachedView(c, detached) }, 720, 460)
+	tt.Frame()
+	if !tt.HasText(en.OutputWindowEmpty) {
+		t.Errorf("an empty run does not say so: %q", tt.Texts())
+	}
+	if tt.HasText(en.OutputWindowIdle) {
+		t.Errorf("a run that finished still reads as never run: %q", tt.Texts())
+	}
+
+	// A window that has not run yet: the idle word, not the empty one.
+	detached.ran = false
+	tt = ui.NewTester(func(c *ui.Context) { a.detachedView(c, detached) }, 720, 460)
+	tt.Frame()
+	if !tt.HasText(en.OutputWindowIdle) {
+		t.Errorf("an unrun window does not say so: %q", tt.Texts())
+	}
+	if tt.HasText(en.OutputWindowEmpty) {
+		t.Errorf("an unrun window borrowed the empty word: %q", tt.Texts())
+	}
+}
+
+// A rerun marks the window as running before the answer lands, so the frame
+// between the press and the result never shows the previous output as current.
+func TestARerunMarksTheWindowRunningUntilTheAnswerLands(t *testing.T) {
+	a := New(Options{Store: settings.NewStore(settings.Default())})
+	// The run stays in flight: the callback is never called.
+	a.Launcher.Actions.RunCommandCaptured = func(extensions.CommandEntry, []string, func(extensions.CapturedRun, error)) {}
+	entry := extensions.CommandEntry{IntegrationID: "local.tool", Command: extensions.Command{ID: "jv", Name: "JSON Viewer"}}
+	detached := &detachedOutput{title: "jv", entry: &entry, view: launcher.OutputView{Text: "old"}, ran: true}
+	a.rerunDetached(detached)
+	if !detached.running {
+		t.Fatal("a rerun did not mark the window as running")
+	}
+	if got := detached.view.Text; got != "old" {
+		t.Errorf("the rerun installed an answer before one landed: %q", got)
+	}
+
+	// The answer replaces the view, drops the running state and marks the run.
+	a.applyDetachedRun(detached, detached.generation, launcher.OutputView{Text: "new"}, nil)
+	if detached.running || !detached.ran || detached.view.Text != "new" {
+		t.Errorf("the answer did not land: running=%v ran=%v text=%q", detached.running, detached.ran, detached.view.Text)
+	}
+}
+
+// A run that never produced an answer carries its sentence: the host's own
+// refusal, localised exactly as the launcher's status line words it.
+func TestARunThatNeverStartedCarriesItsFailureSentence(t *testing.T) {
+	a := New(Options{Store: settings.NewStore(settings.Default())})
+	detached := &detachedOutput{title: "jv", running: true}
+	failure := extensions.PathFailure(extensions.RunErrorProgramMissing, "/opt/bin/node")
+	a.applyDetachedRun(detached, detached.generation, launcher.OutputView{Title: "jv"}, failure)
+	if detached.failed == "" {
+		t.Fatal("a refused run carried no sentence")
+	}
+	if !strings.Contains(detached.failed, "/opt/bin/node") {
+		t.Errorf("the sentence does not name the path: %q", detached.failed)
+	}
+	if detached.running || !detached.ran {
+		t.Errorf("a refused run left the window running=%v ran=%v", detached.running, detached.ran)
+	}
+
+	// A run that said something before it died keeps its output instead: the
+	// timeout is not a refusal. `runCaptured` answers a timed-out run with both
+	// the failure and its output, and the reference drew that output.
+	detached = &detachedOutput{title: "jv", running: true}
+	a.applyDetachedRun(detached, detached.generation, launcher.OutputView{Text: "partial output"}, failure)
+	if detached.failed != "" {
+		t.Errorf("a talking run was replaced by a failure sentence: %q", detached.failed)
+	}
+	if detached.view.Text != "partial output" {
+		t.Errorf("the run lost its output: %q", detached.view.Text)
+	}
+
+	// A failure whose own message is empty falls back to the dictionary's
+	// generic refusal, never to the blank string.
+	detached = &detachedOutput{title: "jv", running: true}
+	a.applyDetachedRun(detached, detached.generation, launcher.OutputView{Title: "jv"}, errors.New(""))
+	if want := i18n.For("en").Launcher.OutputWindowFailed; detached.failed != want {
+		t.Errorf("an empty failure = %q, want %q", detached.failed, want)
 	}
 }

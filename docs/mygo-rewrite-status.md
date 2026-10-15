@@ -1,6 +1,6 @@
 # floter × mygo 重构：当前进度与后续规划
 
-> 交接文档。状态时间：2026-10-15，分支 `mygo-rewrite`（已推送）。框架：mygo v0.5.1。
+> 交接文档。状态时间：2026-10-16，分支 `mygo-rewrite`（已推送）。框架：mygo v0.5.1。
 > **仓库现在只有 Go 实现**：Tauri/Rust/React 时代的代码已删除（P6-b）。
 > 详细的分轮记录见 `docs/mygo-rewrite-plan.md`（含每轮的决策与「未做」清单）。
 
@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1385 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1388 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1385 项测试
+go test -count=1 ./...         # 1388 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -100,7 +100,53 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **最新一轮：P7-gf mygo v0.4.8 → v0.5.1 升级，并修正上一轮引入的状态行内边距回归
+> **本轮：P7-gh 独立窗口的 body 回到原版的三态运行状态机
+> （原版 `src/plugin-window/DetachedPluginApp.tsx:329-350`、词条 `src/i18n.ts:37-39,965-967`）**
+> ——P7-gd 收尾后「具体待办（P7-gb 重写）」只剩第 3 条（body 的 running/failed/empty），
+> 本轮取它落地，清单归零。依赖检查：`go.mod` 已是 **v0.5.1** = GitHub releases latest
+> （`api.github.com` 被限流，改用 `releases/latest` 页面与 `go list -m -versions` 两路核对，最新
+> 仍是 v0.5.1，无版本可升）；只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离（P7-gh·窗口 body 只有「文本 or idle」两个状态）**：原版 body 是一台
+> 三态状态机（`DetachedPluginApp.tsx:329-350`）：`status === "running"` →
+> `launcher.externalRunning`（“Running…”/“正在执行…”）**且不画出上一次的输出**；
+> `status === "failed"` → `runErrorMessage(state.failure, t)` 本地化（认不出才回落
+> `failure ?? launcher.externalFailed`）画成 `--text-warning`；`status === "done" && view === null`
+> → `launcher.externalEmpty`（“The command produced no output”/“命令没有输出”）；
+> `status === "idle" && !request` → `pluginWindow.idle`（“No command pinned yet”）。**本构建
+> （改前）**：`internal/shell/detach.go:195-203` 只画 `detached.view.Text`，空则一律
+> `OutputWindowIdle`——重跑在飞的整段时间仍显示旧输出（用户看不出「正在执行」），跑空的窗口
+> 读成「尚未固定任何命令」，而 `OutputFor` 在 keyed 失败上已把句子塞进 `view.Text`（与退出码
+> 非零的 `done` 混为一谈）。
+>
+> **落地**：
+> - `internal/i18n`：新增 `Launcher.OutputWindowRunning`/`OutputWindowFailed`/`OutputWindowEmpty`
+>   三条（en/zh 逐字取 `i18n.ts:37-39,965-967`）。
+> - `internal/shell/detach.go`：`detachedOutput` 新增 `failed string`（一次未产出答案的运行的句子）
+>   与 `ran bool`（是否跑过，用来区分「跑过但空」与「还没跑过」）；`detachedBody` 是新状态机
+>   （running → failed → 有文本 → ran → idle），渲染时 failed 走 `tokens.Warning`、其余三态走
+>   `tokens.Caption`（复刻 `.plugin-window__status` 与 `--failed` 的 `--text-warning`）；
+>   `rerunDetached` 起跑时清 failed 并 `Invalidate()`，`applyDetachedRun` 多收一个 `runErr`，
+>   只在 `runErr != nil && view.Text == ""` 时记句子（超时但说了话的运行保留输出，逐字复刻
+>   `externalRunText` 的 stdout→stderr 规则），句子取 `Launcher.RunStatus`（与 launcher 状态行
+>   同一套本地化）；空句子回落词表的通用句。
+>
+> **验收**：`internal/shell/detach_test.go` 新增
+> `TestTheDetachedBodyFollowsTheRunStateMachine`（running 画 running 词且**不**画旧输出；failed
+> 只画失败句；跑空的画 empty 而非 idle；没跑过的画 idle 而非 empty）、
+> `TestARerunMarksTheWindowRunningUntilTheAnswerLands`（起跑到答案之间的帧是 running，答案落地后
+> running=false/ran=true）、`TestARunThatNeverStartedCarriesItsFailureSentence`（keyed 失败句子含
+> 路径、说话的超时保留输出、空错误回落通用句）；`detachwords_test.go` 的词表补三态逐字。
+> 变异核查：删 running 分支 → 第一条红（画出旧输出）；不记 failed → 新测试红；看漏 `ran` →
+> empty/idle 条红；删空句子回落 → 空错误条红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go tool mygo vet .` 净、
+> `go test -count=1 ./...` 全绿（1388 项）、`GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：「具体待办（P7-gb 重写）」3 条**全部结清、清单归零**。下一轮回到「对照原版
+> 排查偏离点」，重新写实清单。
+
+> **上一轮：P7-gf mygo v0.4.8 → v0.5.1 升级，并修正上一轮引入的状态行内边距回归
 > （`go tool mygo migrate-ui` 的 checked-elements 迁移；原版 `src/styles/launcher.css:1099-1114,1480-1491`）**
 > ——上一轮把 `go.mod` 升到 v0.5.1 后中断，代码还没适配。本轮把升级做完，并补上上一轮
 > （`status note: align side padding`）留下的两处坏账。**升级范围**：
@@ -6309,7 +6355,7 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-### 具体待办（P7-gb 重写；第 1 条 P7-gb、第 2 条 P7-gd 已落地，第 3 条待做）
+### 具体待办（P7-gb 重写；3 条已全部落地：第 1 条 P7-gb、第 2 条 P7-gd、第 3 条 P7-gh）
 
 审计入口：原版 `main:src/plugin-window/DetachedPluginApp.tsx`（独立插件窗口的 React 表面，
 `backup/main-pre-mygo` = v0.3.14 原版树）与它吃的两个纯模块 `main:src/plugin-window/detach.ts`、
@@ -6354,7 +6400,7 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
      Close 图标）是独立决定——原版两条 arm 共用同一个 bar，本构建拆成了两个窗口，留作第 2 条内的
      取舍记录。
 
-3. **（待做）独立窗口 body 缺 running/failed/empty 三条状态行。**
+3. **（本轮落地，P7-gh）独立窗口 body 缺 running/failed/empty 三条状态行。**
    - 原版对照：`DetachedPluginApp.tsx:322-338` 的 body 是一台状态机——`status === "running"` →
      `launcher.externalRunning`（“Running…”/“正在执行…”，`i18n.ts:37,965`）；`status === "failed"` →
      `runErrorMessage(state.failure, t)` 本地化（`src/extensions/run-errors.ts`，认不出才回落
@@ -6363,20 +6409,21 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
    - 本构建（现状）：`internal/shell/detach.go:170-179` 只画 `detached.view.Text`（空则
      `OutputWindowIdle`）；`rerunDetached` 在飞的整段时间 `detached.running = true` 却不改画面，
      用户看不到「正在执行」；失败由 `launcher.OutputFor` 直接拼进文本，没有 `failed` 行。
-   - 待做 file:line（建议）：`internal/shell/detach.go` 的 `detachedView`——加 `running`／`failed`／
-     `empty` 三条状态行（本构建已有 `copy.OutputLoading` 等；新增或复用 `externalRunning`/
-     `externalFailed`/`externalEmpty` 三词），`rerunDetached` 在起跑时把窗口标成 running 并
-     `Invalidate()`；`applyDetachedRun` 落地后清除。失败消息的本地化需要接 `internal/extensions`
-     的错误键（本构建的 run failure 已有结构，见 `internal/launcher/runfailure.go`）。
-   - 验收：一条渲染测试——`running` 时窗口画 running 词且**不**画旧输出；`failed` 时画本地化失败行；
-     空输出（`view.Text == ""` 且已跑过）画 `externalEmpty` 而**不是** `OutputWindowIdle`（后者只属
-     「还没跑过」）。变异核查：把 running 行去掉 → 运行中断言红。
+   - **P7-gh 落地**：`internal/i18n` 新增 `OutputWindowRunning`/`OutputWindowFailed`/
+     `OutputWindowEmpty`（en/zh 逐字取 `i18n.ts:37-39,965-967`）；`detachedOutput` 加 `failed`/`ran`，
+     `detachedBody` 是新的三态状态机（running → failed → 有文本 → ran → idle），failed 走
+     `tokens.Warning`；`rerunDetached` 起跑清 failed + `Invalidate()`，`applyDetachedRun` 收 `runErr`
+     并在 `view.Text == ""` 时用 `Launcher.RunStatus` 记句子（空则回落通用句）。验收与变异见顶部
+     P7-gh 记录。
+   - 验收（P7-gh）：`detach_test.go` 的 `TestTheDetachedBodyFollowsTheRunStateMachine` /
+     `TestARerunMarksTheWindowRunningUntilTheAnswerLands` / `TestARunThatNeverStartedCarriesItsFailureSentence`
+     + `detachwords_test.go` 的三态逐字。
    - 风险：`launcher.OutputFor` 已经给失败输出拼了 `OutputFailed`（“Exit code N”）文本，本条要确认
      两者不重复（原版 failed 行只在**运行管线**失败时出现，退出码非零仍是 `done`）。
 
 > P7-ga 之后「尚未做」归零，本轮按审计入口换到**独立插件窗口**（此前从未逐字段对照），把清单重写为
 > 上面 3 条带 file:line / 原版对照 / 验收标准的具体待办，并取第 1 条落地（P7-gb）；第 2 条
-> （bar 的 X/禁用态）由 P7-gd 落地，第 3 条（body 的三条状态行）是下一轮最高优先级。
+> （bar 的 X/禁用态）由 P7-gd 落地，第 3 条（body 的三条状态行）由 P7-gh 落地——**本清单归零**。
 
 ### 具体待办（P7-fz 重写；2 条已全部落地：第 1·2 条 P7-ga）
 

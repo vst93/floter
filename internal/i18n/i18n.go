@@ -182,11 +182,16 @@ type Launcher struct {
 	OutputDetach     string
 	OutputDetachHint string
 	// The window that opens for it: its title when the command has no name,
-	// the re-run and close controls, and what it says before a run.
+	// the re-run and close controls, and what its body says in each run
+	// state — before a run, while one is in flight, when the host refused the
+	// run, and when the run finished with nothing to show.
 	OutputWindowFallback   string
 	OutputWindowRerun      string
 	OutputWindowClose      string
 	OutputWindowIdle       string
+	OutputWindowRunning    string
+	OutputWindowFailed     string
+	OutputWindowEmpty      string
 	CalculatorDeleted      string
 	CalculatorDeleteFailed string
 	// CalculatorEmpty is the calculator mode's empty state, and the two

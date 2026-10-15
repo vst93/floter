@@ -34,6 +34,16 @@ type detachedOutput struct {
 	title   string
 	scroll  ui.ScrollState
 	running bool
+	// failed is the sentence of a run of this window that never produced an
+	// answer: the host refused to start it, it was killed, or it timed out
+	// without printing anything. It is only ever drawn while the view has no
+	// text of its own, because a bounded run that overran its deadline and said
+	// something still has its output to show (see runCaptured).
+	failed string
+	// ran is whether this window has ever run its command: it is what separates
+	// the "nothing to show" state (`launcher.externalEmpty`, after a run) from
+	// the "no command pinned yet" one (`pluginWindow.idle`, before any).
+	ran bool
 	// generation counts content replacements, so a run the window started for
 	// older content cannot overwrite the run the user pinned after replacing
 	// it (the old build's newest-run-wins rule).
@@ -194,40 +204,88 @@ func (a *App) detachedView(c *ui.Context, detached *detachedOutput) {
 		})
 		ui.Scroll(c.Key("detached.output")).TrackScroll(&detached.scroll).Fill().
 			Border(1, tokens.ControlEdge).Radius(tokens.RadiusMD).Padding(t.Space(2)).Children(func() {
-			text := detached.view.Text
-			if text == "" {
-				text = copy.OutputWindowIdle
+			// The body is the old build's state machine
+			// (`DetachedPluginApp.tsx:329-350`): one line while a run is in
+			// flight, the localised failure when a run never started, a word
+			// when a finished run had nothing to show, and otherwise the
+			// output itself. A window that has not run yet says so instead of
+			// borrowing the empty state of a run that did.
+			text, failed := detachedBody(detached, copy)
+			color := t.Text
+			if failed {
+				color = t.Warning
 			}
-			ui.Text(c, text).FontSize(t.FontSize).Font(detached.view.FontFamily).
-				TextColor(t.Text)
+			ui.Text(c, text).FontSize(tokens.Caption).Font(detached.view.FontFamily).
+				TextColor(color)
 		})
 	})
 }
 
+// detachedBody is what the window's body holds: the run's own text when it has
+// any, and otherwise the one state the body is in. The order is the reference
+// body's: a run in flight and a refused run each replace the output, and only a
+// finished run with nothing to show reaches the empty word.
+func detachedBody(detached *detachedOutput, copy i18n.Launcher) (string, bool) {
+	switch {
+	case detached.running:
+		// The reference drew `launcher.externalRunning` for the whole run and
+		// did not draw the previous output beside it.
+		return copy.OutputWindowRunning, false
+	case detached.failed != "":
+		return detached.failed, true
+	case detached.view.Text != "":
+		return detached.view.Text, false
+	case detached.ran:
+		return copy.OutputWindowEmpty, false
+	default:
+		return copy.OutputWindowIdle, false
+	}
+}
+
 // rerunDetached runs the window's command again, in the background, and puts
 // the new output in the window. The window stays up through the run — it does
-// not follow the panel, and it does not close on its own.
+// not follow the panel, and it does not close on its own — and it says so while
+// the run is in flight rather than showing the previous answer as if it were
+// current.
 func (a *App) rerunDetached(detached *detachedOutput) {
 	if detached.entry == nil || detached.running {
 		return
 	}
 	detached.running = true
+	detached.failed = ""
+	if detached.win != nil {
+		detached.win.Invalidate()
+	}
 	entry := *detached.entry
 	generation := detached.generation
 	a.runCommandCaptured(entry, nil, func(run extensions.CapturedRun, err error) {
-		a.applyDetachedRun(detached, generation, a.Launcher.OutputFor(run, err, &entry))
+		a.applyDetachedRun(detached, generation, a.Launcher.OutputFor(run, err, &entry), err)
 	})
 }
 
 // applyDetachedRun installs a finished run in the window, unless the window's
 // content was replaced while the run was in flight — in that case the run is
-// stale and the user's newer pin keeps the window.
-func (a *App) applyDetachedRun(detached *detachedOutput, generation int, view launcher.OutputView) {
+// stale and the user's newer pin keeps the window. A run that never produced an
+// answer — the host refused to start it, it was killed, or it timed out without
+// printing anything — carries its sentence for the body to draw.
+func (a *App) applyDetachedRun(detached *detachedOutput, generation int, view launcher.OutputView, runErr error) {
 	if detached.generation != generation {
 		return
 	}
 	detached.view = view
 	detached.running = false
+	detached.ran = true
+	detached.failed = ""
+	// A run that overran its deadline after saying something is not a refusal:
+	// the reference read its output (see `extensions.runCaptured`).
+	if runErr != nil && view.Text == "" {
+		detached.failed = a.Launcher.RunStatus(extensions.CapturedRun{}, runErr)
+		if detached.failed == "" {
+			// The reference's own fallback when a failure carried nothing
+			// readable (`runErrorMessage(...) || failure || externalFailed`).
+			detached.failed = a.Launcher.Copy().OutputWindowFailed
+		}
+	}
 	if detached.win != nil {
 		detached.win.Invalidate()
 	}
