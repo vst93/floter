@@ -370,6 +370,38 @@ func (a *App) switchControl(c *ui.Context, on *bool) ui.Element {
 	return a.tokens(c).LensInset(ui.Switch(c, on))
 }
 
+// disabledSwitch dulls a switch the way `.settings-switch:disabled` did
+// (`opacity: 0.6; cursor: wait`, `settings.css:1185-1188`): the framework's
+// flag carries the pointer half and the press refusal, the flatness and the
+// cursor are the two it does not paint. `wait` is the one cursor the framework
+// does not expose, so a disabled switch wears the default arrow.
+func disabledSwitch(sw ui.Element) ui.Element {
+	return sw.Disabled(true).Opacity(0.6).Cursor(ui.CursorDefault)
+}
+
+// busySwitchControl draws the row's switch in its in-flight face: the same
+// recessed groove as switchControl, with its thumb swapped for the turning
+// LoaderCircle the reference put in its place (`settings-switch--loading`
+// replaces `<span className="settings-switch__thumb"/>` with
+// `<LoaderCircle className="extensions-spinner"/>`,
+// `src/extensions/ExtensionRow.tsx:443-455`). It is a different picture from
+// the resting switch and it is disabled, so a write already in flight cannot be
+// asked again; the track keeps the state's own fill, so which way the switch
+// was moving is still readable. `key` names the loop so two busy rows on one
+// page turn independently.
+func (a *App) busySwitchControl(c *ui.Context, on *bool, key string) ui.Element {
+	t := c.Theme()
+	tokens := a.tokens(c)
+	track, ink := t.Border.Mix(t.Text, 0.15), tokens.TextSecondary
+	if *on {
+		track, ink = t.Accent, t.AccentText
+	}
+	sw := ui.SwitchBase(c, on).Size(t.Space(9), t.Space(5)).Radius(t.Space(2.5)).
+		Center().Background(track)
+	sw.Children(func() { a.actionSpinner(c, ink, key) })
+	return disabledSwitch(tokens.LensInset(sw))
+}
+
 // segmentedControl draws one of the custom-tool form's segmented pickers
 // (the reference's `.extension-custom-mode`): the framework's `Segmented`
 // inside the recessed lens, the same groove a switch's track is.

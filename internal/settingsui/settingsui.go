@@ -589,7 +589,13 @@ type App struct {
 	// flight, so the row's own button wears the reference's turning LoaderCircle
 	// and its `disabled={busy}` face until the shell reports back
 	// (`src/extensions/ExtensionRow.tsx:313-330,345-372`).
-	repairBusy   map[string]bool
+	repairBusy map[string]bool
+	// toggleBusy marks the integrations whose enable write is in flight, so
+	// the row's switch swaps its thumb for the reference's turning LoaderCircle
+	// and holds its `disabled` face until the shell reports back
+	// (`src/extensions/ExtensionRow.tsx:443-455`). A disable write rides
+	// disableBusy: its answer comes from the confirmation band, not the switch.
+	toggleBusy   map[string]bool
 	runValues    map[string]map[string]string
 	runError     string
 	runOpen      map[string]bool
@@ -2121,6 +2127,22 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 		// action cluster and the toggle beside the row's title, not under an
 		// "Enabled" heading (`src/extensions/ExtensionRow.tsx:288-458`). The
 		// switch's own accessible name is what a test and a screen reader read.
+		// busy is the whole-row lock: while any operation on this integration is
+		// in flight the reference disabled *every* control in the cluster and
+		// the switch together (`const busy = Boolean(operation)` /
+		// `disabled={busy}`, `src/extensions/ExtensionRow.tsx:131,301-419,447`),
+		// not only the button that was pressed.
+		busy := a.rowBusy(integration.ID)
+		// rowAction draws one of the row's action pills, disabled while the row
+		// is busy. The one button whose own work is in flight (the re-check or
+		// the reconnect) is drawn by repairAction in its busy face instead.
+		rowAction := func(label string) ui.Element {
+			button := a.actionButton(c, label)
+			if busy {
+				button = button.Disabled(true)
+			}
+			return button
+		}
 		a.row(c, "", "", func() {
 			// The row's Run button: on a runnable row it runs the integration —
 			// straight away when it declares no inputs, or unfolding the inline
@@ -2134,6 +2156,9 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 				run := a.actionButton(c, copy.RunAction)
 				if !runnable {
 					run = run.Tooltip(copy.RunActionUnavailable).Disabled(true)
+				}
+				if busy {
+					run = run.Disabled(true)
 				}
 				if run.Clicked() && runnable {
 					if len(integration.Params) > 0 {
@@ -2170,14 +2195,14 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 					}
 				case repairHomepage:
 					if a.Actions.OpenHomepage != nil {
-						if a.actionButton(c, integration.repairLabel(copy)).Tooltip(integration.repairTooltip(copy)).Clicked() {
+						if rowAction(integration.repairLabel(copy)).Tooltip(integration.repairTooltip(copy)).Clicked() {
 							a.Actions.OpenHomepage(integration.Homepage)
 						}
 					}
 				}
 			}
 			if a.Actions.DiagnoseIntegration != nil {
-				if a.actionButton(c, copy.IntegrationsCheck).Clicked() {
+				if rowAction(copy.IntegrationsCheck).Clicked() {
 					a.Actions.DiagnoseIntegration(integration.ID)
 				}
 			}
@@ -2186,12 +2211,12 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			// derivation, so a tool that shipped new subcommands comes back
 			// with them without a disconnect.
 			if integration.Generated && a.Actions.ReprobeCommands != nil {
-				if a.actionButton(c, copy.IntegrationsReprobe).Clicked() {
+				if rowAction(copy.IntegrationsReprobe).Clicked() {
 					a.Actions.ReprobeCommands(integration.ID)
 				}
 			}
 			if integration.Generated && a.Actions.EditCustomTool != nil && a.Actions.ToolForEdit != nil {
-				if a.actionButton(c, copy.EditLabel).Clicked() {
+				if rowAction(copy.EditLabel).Clicked() {
 					if tool, ok := a.Actions.ToolForEdit(integration.ID); ok {
 						a.beginEdit(integration.ID, tool)
 					}
@@ -2207,7 +2232,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			// some kinds skipped the bar, which handed npm and custom rows one
 			// question fewer than the reference asked.
 			if (a.Actions.UninstallIntegration != nil || a.Actions.UninstallComponents != nil) && !integration.Orphan {
-				if a.actionButton(c, integration.removalLabel(copy)).Clicked() {
+				if rowAction(integration.removalLabel(copy)).Clicked() {
 					a.requestRemove(integration.ID)
 				}
 			}
@@ -2221,17 +2246,31 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			// stops whatever is running; turning one on is no question at all.
 			if a.Actions.SetIntegrationEnabled != nil {
 				on := enabled
-				if a.switchControl(c, &on).Label(copy.IntegrationsEnable).Changed() {
-					if !on {
-						a.requestDisable(integration.ID)
-					} else {
-						enabled, enableChanged = on, true
+				switch {
+				case a.toggleBusy[integration.ID] || a.disableBusy[integration.ID]:
+					// The write is in flight: the reference swapped the switch's
+					// thumb for a turning LoaderCircle and set `aria-busy` until
+					// `runMutation`'s `finally` (`settings-switch--loading`,
+					// `src/extensions/ExtensionRow.tsx:443-455`).
+					a.busySwitchControl(c, &on, "extensions.toggle."+integration.ID).Label(copy.IntegrationsEnable)
+				case busy || integration.Broken:
+					// Another operation is in flight, or the row is broken: the
+					// reference disabled the switch for both
+					// (`disabled={busy || extension.state === "broken"}`).
+					disabledSwitch(a.switchControl(c, &on)).Label(copy.IntegrationsEnable)
+				default:
+					if a.switchControl(c, &on).Label(copy.IntegrationsEnable).Changed() {
+						if !on {
+							a.requestDisable(integration.ID)
+						} else {
+							enabled, enableChanged = on, true
+						}
 					}
 				}
 			}
 		})
 		if enableChanged && a.Actions.SetIntegrationEnabled != nil {
-			a.Actions.SetIntegrationEnabled(integration.ID, enabled, nil)
+			a.startToggle(integration.ID, enabled)
 		}
 		if a.disableConfirm[integration.ID] {
 			a.disableConfirmation(c, copy, integration)
@@ -2568,9 +2607,36 @@ func (a *App) repairAction(c *ui.Context, id, label, tooltip string, run func(st
 		a.busyActionButton(c, label, "extensions.repair."+id).Tooltip(tooltip)
 		return
 	}
-	if a.actionButton(c, label).Tooltip(tooltip).Clicked() {
+	button := a.actionButton(c, label).Tooltip(tooltip)
+	if a.rowBusyExceptRepair(id) {
+		// Another operation on the row is in flight: the reference disabled
+		// *every* control in the cluster for the duration, not only the one
+		// that was pressed (`disabled={busy}`, `src/extensions/ExtensionRow.tsx:301-419`).
+		button = button.Disabled(true)
+	}
+	if button.Clicked() {
 		a.startRepair(id, run)
 	}
+}
+
+// rowBusy reports whether any operation on an integration is in flight, so the
+// row's whole action cluster and its switch can lock together. The reference
+// kept one `operation` for the panel and disabled the row's controls from it
+// (`const busy = Boolean(operation)` / `disabled={busy}`,
+// `src/extensions/ExtensionRow.tsx:131,301-419,447`); here the in-flight marks
+// live on the row's own maps, so the union is what the whole-row lock reads.
+func (a *App) rowBusy(id string) bool {
+	return a.repairBusy[id] || a.disableBusy[id] || a.removeBusy[id] ||
+		a.uninstallBusy[id] || a.toggleBusy[id]
+}
+
+// rowBusyExceptRepair is rowBusy without the repair mark, for the re-check /
+// reconnect entry itself: when its own work is in flight the button wears the
+// busy pill instead of a plain disabled face, so it asks only about the row's
+// *other* operations.
+func (a *App) rowBusyExceptRepair(id string) bool {
+	return a.disableBusy[id] || a.removeBusy[id] || a.uninstallBusy[id] ||
+		a.toggleBusy[id]
 }
 
 // startRepair marks a row's re-check or reconnect as in flight and hands the
@@ -2594,6 +2660,33 @@ func (a *App) startRepair(id string, run func(string, func(error))) {
 func (a *App) finishRepair(id string) {
 	if a.repairBusy != nil {
 		delete(a.repairBusy, id)
+	}
+	if a.Actions.Invalidate != nil {
+		a.Actions.Invalidate()
+	}
+}
+
+// startToggle marks an enable write as in flight and hands the shell the id to
+// work on with the callback that settles the switch. The reference's
+// `runMutation` set `operation` to the enable kind and cleared it in `finally`
+// (`src/ExtensionsPanel.tsx:1190-1210`); a failure reaches the user through
+// the shell's own notice path, so the switch only has to come back.
+func (a *App) startToggle(id string, enabled bool) {
+	if a.toggleBusy == nil {
+		a.toggleBusy = map[string]bool{}
+	}
+	a.toggleBusy[id] = true
+	a.Actions.SetIntegrationEnabled(id, enabled, func(_ error) { a.finishToggle(id) })
+	if a.Actions.Invalidate != nil {
+		a.Actions.Invalidate()
+	}
+}
+
+// finishToggle settles an enable write after the shell reports back on the main
+// thread: success and failure both return the switch to its resting face.
+func (a *App) finishToggle(id string) {
+	if a.toggleBusy != nil {
+		delete(a.toggleBusy, id)
 	}
 	if a.Actions.Invalidate != nil {
 		a.Actions.Invalidate()
