@@ -100,6 +100,43 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
+> **本轮：P7-gr General 页的 section 顺序回到原版的「材质最后」——Appearance → 窗口行为 → 菜单栏 →
+> 终端外观 → 玻璃（原版 `src/settings/GeneralPage.tsx:322/405/482/533/558`）**
+> ——P7-gq 收尾后「具体待办（P7-go 重写）」3 条全部结清、清单归零，本轮按规则回到「对照原版排查
+> 偏离点」，换一个**全文档从未单独审计**的原版入口：General 设置页的**顶层 section 顺序**（此前只
+> 对照过单卡内的行序 P7-ca、分组归类 P7-by/P7-bz，页面级的 section 先后从未对照）。依赖检查：
+> `go.mod` 已是 **v0.5.1** = latest tag（`go list -m -versions` 复核，无 v0.5.2+；`releases/latest`
+> 仍被 API 限流），无版本可升；只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史
+> 提交。
+>
+> **偏离（P7-gr·材质区被画在 Appearance 之后）**：原版 General 页的五个 section 按
+> Appearance(`:322`) → Window behaviour(`:405`) → Menu bar(`:482`) → Terminal appearance(`:533`) →
+> Glass/材质(`:558`) 依次渲染，`.settings-page` 是它们的网格容器（`settings.css:379-387`）。
+> **本构建（改前）**：`internal/settingsui/settingsui.go:2712` 的 `general` 把材质 sectionFoot 画在
+> Appearance 之后、Window behaviour 之前——玻璃与透明度控件夹在「界面长什么样」和「窗口怎么行为」
+> 之间。
+>
+> **落地**：
+> - `internal/settingsui/settingsui.go`：`general` 的材质 `sectionFoot`（玻璃强度卡 + 透明度卡 + 两句
+>   脚注）从 Appearance 之后移到 GroupTerminal 之后，成为页面最后一个 section；注释写明原版对照
+>   位置（`GeneralPage.tsx:558`，在终端外观 `:533` 之后）。
+> - `internal/settingsui/view_test.go`：新增 `TestTheGeneralSectionsKeepTheReferenceOrder`——五个
+>   section 标题自上而下正是原版顺序；材质区在每个其它 section 之下；玻璃控件与两句脚注在材质标题
+>   之下且脚注收尾。
+> - `internal/settingsui/view_test.go` / `scrolltest_test.go`：两处既有测试把「页面最后一块」当成
+>   终端配色预览、或用一个不够高的窗口去点材质控件，那是「材质在前」旧布局的假设；现在最后一块是
+>   材质的透明度脚注、材质控件在折线之下，测试改用新末块与足够高的窗口（断言语义不变）。
+>
+> **验收**：`TestTheGeneralSectionsKeepTheReferenceOrder`。变异核查：把材质 sectionFoot 移回
+> Appearance 之后 → 四条断言同时红（`Glass ... is not below Terminal appearance`，三个 section
+> 「below the material section」）。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿（29 包）、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：新写的「具体待办（P7-gr 重写）」3 条，第 1 条本轮落地；第 2 条（General 页 section
+> 之间的 22u 沟，本构建是 16u）与第 3 条（材质 section 自己的 10u 间距/内边距）是下一轮最高优先级。
+
 > **本轮：P7-gq Sessions 排序键补回原版的 `ArrowUpDown` 记号；标题行的动作槽放宽到「多个控件」
 > （原版 `src/settings/SessionsPage.tsx:116-135`、`src/styles/settings.css:1406-1436`）**
 > ——P7-gp 收尾后「具体待办（P7-go 重写）」只剩第 3 条（Sessions 标题行的排序/刷新控件），本轮取它
@@ -10720,3 +10757,52 @@ P7-gn 收尾后清单归零。本轮按审计入口 `main:src/styles/settings.cs
 - **验收（已过）**：`internal/settingsui/sessionssort_test.go` 的
   `TestTheSessionsSortControlLeadsWithTheReferenceMark`（排序词左侧 5u 沟里是 accent 记号墨迹；
   `arrow-up-down` 在字形表里；按下后词翻面）。刷新键缺席部分不再有测试——它是不画的控件。
+
+### 具体待办（P7-gr 重写；第 1 条 P7-gr 已落地，余下第 2·3 条）
+
+P7-gq 收尾后清单归零。本轮按审计入口 `main:src/settings/GeneralPage.tsx` 的**顶层 section 顺序**
+（此前只对照过单卡内的行序 P7-ca、分组归类 P7-by/P7-bz，页面级的 section 先后从未有 file:line
+对照）逐段比对，把清单重写为下面 3 条带 file:line / 原版对照 / 验收标准的具体待办，并取第 1 条落地。
+
+#### P7-gr-1 · General 页 section 顺序：材质最后（**本轮落地，P7-gr**）
+
+- **原版对照**：`main:src/settings/GeneralPage.tsx:322`（Appearance）、`:405`
+  （`settings.group.startup` = Window behaviour）、`:482`（`settings.group.menuBar`）、`:533`
+  （`terminal-appearance-settings`）、`:558`（`settings.material`）；容器
+  `main:src/styles/settings.css:379-387`（`.settings-page` 网格，`gap: 22u`）。
+- **本构建（改前偏离）**：`internal/settingsui/settingsui.go:2712` 的 `general` 把材质 sectionFoot
+  画在 Appearance 之后、Window behaviour 之前。
+- **落地 file:line（已落地）**：`internal/settingsui/settingsui.go` 的材质 `sectionFoot` 移到
+  GroupTerminal section 之后，成为页面最后一个 section。详见「最近几轮」P7-gr 记录。
+- **验收（已过）**：`internal/settingsui/view_test.go` 的
+  `TestTheGeneralSectionsKeepTheReferenceOrder`（五个 section 标题的顺序 + 材质最后 + 玻璃控件/脚注
+  在材质标题之下）。变异核查：移回 Appearance 之后，四条断言同时红。
+
+#### P7-gr-2 · General 页 section 之间的沟是原版的 22u，本构建是 16u
+
+- **原版对照**：`.settings-page { display:grid; gap: calc(var(--u) * 22) }`
+  （`main:src/styles/settings.css:379-387`）——页头与每个 section 都是它的网格子项，所以相邻 section
+  之间也是 22u。
+- **本构建（偏离）**：`internal/settingsui/settingsui.go:2715` 的 `general` 顶层列用
+  `Gap(c.Theme().Space(4))` = 16u；其它页（`sessions:1172`、`integrations:1311`、`shortcuts:2347`、
+  `about:2583`）都用 `Space(5.5)` = 22u，General 是唯一的例外。
+- **落地 file:line（待落地）**：把 `general` 顶层的 `Gap(c.Theme().Space(4))` 改成 `Space(5.5)`；
+  理想情况提成五个页共用的 `a.pageColumn(c, fn)` 助手，让这个沟只有一处定义。
+- **验收标准（待写）**：新测试断言 General 页相邻 section 的沟 == `tokens.Theme.Space(5.5)`——用上一
+  section 最后一个控件盒的底到下一 section 标题盒的顶测量，并减去该 section 自身的卡片内边距
+  （内边距从 `rows.go` 的 `card`/`row` 取，不写死像素）；若提成共用助手，再加一条「General 与其它页
+  的沟相等」的等值断言。**勿**用纯文字盒近似，P7-gr 已实测文字盒会把行高/居中的余量混进来。
+
+#### P7-gr-3 · 材质 section 自己的 10u 间距与 10u 内边距
+
+- **原版对照**：`.settings-section--material { padding: calc(var(--u) * 10) 0 }` 且
+  `{ gap: calc(var(--u) * 10) }`（`main:src/styles/settings.css:767-772`）、`.settings-cards
+  { gap: calc(var(--u) * 10) }`（`:491-495`）——材质区比普通 section（`gap: 8u`，`:411-419`）更松。
+- **本构建（偏离）**：`internal/settingsui/rows.go:47` 的 `sectionFoot` 对所有 section 都用同一个
+  `Gap(t.Space(2))`（8u），没有材质区自己的 10u gap 与 `padding: 10u 0`。
+- **落地 file:line（待落地）**：给 `sectionFoot` 增加材质区专用的间距（或让材质调用点传入 10u
+  gap/内边距），使材质区 heading→玻璃卡、玻璃卡→透明度卡、卡片→脚注的沟都是 10u，且区上下各留
+  10u 内边距。
+- **验收标准（待写）**：新测试断言材质区的 heading→玻璃卡、玻璃卡→透明度卡、卡片→脚注三处沟都是
+  `Space(2.5)`（10u），区上下各有 10u 内边距；并断言普通 section（如 Appearance）仍是 8u，避免把
+  材质区的特殊间距串到所有 section。

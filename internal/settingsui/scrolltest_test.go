@@ -3,6 +3,8 @@ package settingsui
 import (
 	"math"
 	"testing"
+
+	"floter/internal/i18n"
 )
 
 // The settings body scrolls with the wheel: the General page is taller than
@@ -39,11 +41,14 @@ func TestScrollingTheSettingsBody(t *testing.T) {
 // not the clipped stub the old viewport drew, and it rests above the window's
 // bottom edge.
 func TestTheSettingsBodyReachesItsBottom(t *testing.T) {
-	// The page's last block is the terminal palette preview. At a window tall
-	// enough that the whole page fits, it is drawn at its full height.
-	full := render(t, newTestApp(), 720, 2000)
+	// The page's last block is the material section's closing transparency
+	// footnote (the reference's last General-page section, `GeneralPage.tsx:558`
+	// → `:597-598`). At a window tall enough that the whole page fits, it is
+	// drawn at its full height.
+	last := i18n.For("en").Settings.TransparencyHint
+	full := render(t, newTestApp(), 720, 2400)
 	full.Frame()
-	whole, ok := full.Find("Palette preview")
+	whole, ok := full.Find(last)
 	if !ok {
 		t.Fatal("the page's last block is not built")
 	}
@@ -57,18 +62,18 @@ func TestTheSettingsBodyReachesItsBottom(t *testing.T) {
 		}
 		a.Body.Y = math.MaxFloat32
 		tt.Frame()
-		last, ok := tt.Find("Palette preview")
+		got, ok := tt.Find(last)
 		if !ok {
 			t.Fatalf("h=%d: the page's last block is not built", h)
 		}
 		// The block is not the clipped stub: its full height shows.
-		if last.H < whole.H {
+		if got.H < whole.H {
 			t.Errorf("h=%d: the last block is %.1f high, want its full %.1f (the viewport was taller than the body)",
-				h, last.H, whole.H)
+				h, got.H, whole.H)
 		}
 		// And it rests inside the window, not at or past its bottom edge.
-		if last.Y+last.H >= float32(h) {
-			t.Errorf("h=%d: the last block ends at %.1f, at the window's bottom edge %.1f", h, last.Y+last.H, float32(h))
+		if got.Y+got.H >= float32(h) {
+			t.Errorf("h=%d: the last block ends at %.1f, at the window's bottom edge %.1f", h, got.Y+got.H, float32(h))
 		}
 	}
 }

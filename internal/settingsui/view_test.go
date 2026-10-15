@@ -287,6 +287,54 @@ func TestInterfaceSizeSitsWithAppearance(t *testing.T) {
 // (`GeneralPage.tsx:340,356,382`, `.settings-row--stacked` in
 // `src/styles/settings.css:557-577`). Before this the segmented control sat in
 // the row's trailing slot, squeezed against the right edge.
+// The General page's sections are the reference's, in the reference's own
+// order: Appearance, Window behaviour, Menu bar, Terminal appearance and —
+// last — the material group (`GeneralPage.tsx:322` / `:405` / `:482` / `:533`
+// / `:558`). The old port drew the material section second, right under
+// Appearance, so the glass and transparency controls sat between the look
+// choices and the window behaviour ones.
+func TestTheGeneralSectionsKeepTheReferenceOrder(t *testing.T) {
+	copy := i18n.For("en").Settings
+	a := New(newStore(t), Actions{})
+	tt := render(t, a, 720, 2800)
+
+	// The five section titles, top to bottom.
+	order := []string{
+		copy.GroupAppearance,
+		copy.GroupWindow,
+		copy.GroupMenuBar,
+		copy.GroupTerminal,
+		copy.Material,
+	}
+	for i := 1; i < len(order); i++ {
+		prev := mustFind(t, tt, order[i-1])
+		next := mustFind(t, tt, order[i])
+		if next.Y <= prev.Y {
+			t.Errorf("the %q section at %v is not below %q at %v, want the reference order %v",
+				order[i], next, order[i-1], prev, order)
+		}
+	}
+
+	// The material group is the page's last: its glass control and both
+	// transparency rows sit below every other section's title, and the two
+	// footnotes close the page.
+	material := mustFind(t, tt, copy.Material)
+	for _, title := range order[:len(order)-1] {
+		if other := mustFind(t, tt, title); other.Y > material.Y {
+			t.Errorf("the %q section at %v is below the material section at %v, want material last", title, other, material)
+		}
+	}
+	glass := mustFind(t, tt, copy.Glass)
+	if glass.Y <= material.Y {
+		t.Errorf("the glass control at %v is not under the material section at %v", glass, material)
+	}
+	glassFoot := mustFind(t, tt, copy.GlassHint)
+	opacityFoot := mustFind(t, tt, copy.TransparencyHint)
+	if glassFoot.Y <= glass.Y || opacityFoot.Y <= glassFoot.Y {
+		t.Errorf("the material footnotes (%v, %v) are not after the glass control at %v", glassFoot, opacityFoot, glass)
+	}
+}
+
 func TestAppearanceChoicesStackUnderTheirLabels(t *testing.T) {
 	copy := i18n.For("en").Settings
 	a := New(newStore(t), Actions{})
@@ -376,7 +424,9 @@ func mustFind(tb testing.TB, tt *ui.Tester, text string) ui.Rect {
 func TestSettingsControlsWriteThroughTheStore(t *testing.T) {
 	store := newStore(t)
 	a := New(store, Actions{})
-	tt := render(t, a, 720, 1400)
+	// Tall enough that the whole page fits: the material controls this test
+	// clicks live in the page's last section, below the fold at a short window.
+	tt := render(t, a, 720, 2600)
 
 	if err := tt.Click("Dark"); err != nil {
 		t.Fatal(err)

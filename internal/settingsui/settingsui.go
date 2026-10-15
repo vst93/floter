@@ -2730,31 +2730,6 @@ func (a *App) general(c *ui.Context, copy i18n.Settings) {
 			})
 		})
 
-		// The material group: the glass effect on one card and the two
-		// transparency sliders on a second, the group's two explanations drawn
-		// as footnotes under both (the reference's `.settings-section__hint` at
-		// the end of the section) rather than repeated on every row.
-		a.sectionFoot(c, copy.Material, "", []string{copy.GlassHint, copy.TransparencyHint}, func() {
-			a.card(c, func() {
-				a.pick(c, copy.Glass, "", copy.GlassSteps, s.GlassStep,
-					func(id string) { a.set(func(s *settings.Settings) { s.GlassStep = id }) })
-			})
-			a.cardLabeled(c, copy.GroupTransparency, func() {
-				a.slider(c, copy.MainOpacity, "",
-					copy.TransparencyScaleLow, copy.TransparencyScaleHigh,
-					float64(s.MainOpacity), settings.MinWindowOpacity, settings.MaxWindowOpacity,
-					func(v float64) string { return copy.Percent(clampPercent(v)) },
-					func(v float64) { a.previewSetting(func(s *settings.Settings) { s.MainOpacity = clampPercent(v) }) })
-				a.slider(c, copy.TerminalOpacity, "",
-					copy.TransparencyScaleLow, copy.TransparencyScaleHigh,
-					float64(s.TerminalOpacity), settings.MinWindowOpacity, settings.MaxWindowOpacity,
-					func(v float64) string { return copy.Percent(clampPercent(v)) },
-					func(v float64) {
-						a.previewSetting(func(s *settings.Settings) { s.TerminalOpacity = clampPercent(v) })
-					})
-			})
-		})
-
 		a.section(c, copy.GroupWindow, "", func() {
 			a.card(c, func() {
 				a.checkbox(c, copy.LaunchAtStartup, copy.LaunchAtStartupHint, s.LaunchAtStartup,
@@ -2842,6 +2817,34 @@ func (a *App) general(c *ui.Context, copy i18n.Settings) {
 						row()
 					}
 				}
+			})
+		})
+
+		// The material group is the reference's *last* General-page section
+		// (`GeneralPage.tsx:558`, after the terminal appearance section at
+		// `:533`): the glass effect on one card and the two transparency sliders
+		// on a second, the group's two explanations drawn as footnotes under both
+		// (the reference's `.settings-section__hint` at the end of the section)
+		// rather than repeated on every row. The old port drew it second, right
+		// under Appearance.
+		a.sectionFoot(c, copy.Material, "", []string{copy.GlassHint, copy.TransparencyHint}, func() {
+			a.card(c, func() {
+				a.pick(c, copy.Glass, "", copy.GlassSteps, s.GlassStep,
+					func(id string) { a.set(func(s *settings.Settings) { s.GlassStep = id }) })
+			})
+			a.cardLabeled(c, copy.GroupTransparency, func() {
+				a.slider(c, copy.MainOpacity, "",
+					copy.TransparencyScaleLow, copy.TransparencyScaleHigh,
+					float64(s.MainOpacity), settings.MinWindowOpacity, settings.MaxWindowOpacity,
+					func(v float64) string { return copy.Percent(clampPercent(v)) },
+					func(v float64) { a.previewSetting(func(s *settings.Settings) { s.MainOpacity = clampPercent(v) }) })
+				a.slider(c, copy.TerminalOpacity, "",
+					copy.TransparencyScaleLow, copy.TransparencyScaleHigh,
+					float64(s.TerminalOpacity), settings.MinWindowOpacity, settings.MaxWindowOpacity,
+					func(v float64) string { return copy.Percent(clampPercent(v)) },
+					func(v float64) {
+						a.previewSetting(func(s *settings.Settings) { s.TerminalOpacity = clampPercent(v) })
+					})
 			})
 		})
 	})
