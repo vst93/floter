@@ -26,6 +26,16 @@ func (a *App) tokens(c *ui.Context) theme.Tokens {
 	return theme.ForPreferences(a.Store.Snapshot(), c.Theme().Dark, c.Preferences())
 }
 
+// pageColumn is the column every settings page's body is drawn in: full
+// width, and the reference's page grid gap, `.settings-page { gap: 22u }`
+// (`settings.css:379-387`) — the room the reference's grid left between its
+// header and each section, and therefore between one section and the next.
+// All five pages share it so the gap has one definition; before P7-gs the
+// General page was the lone exception at 16u (Space(4)).
+func (a *App) pageColumn(c *ui.Context, fn func()) {
+	ui.Column(c).FillWidth().Gap(c.Theme().Space(5.5)).Children(fn)
+}
+
 // section draws a titled group: the title, its one-line explanation, and
 // the cards fn builds under them.
 func (a *App) section(c *ui.Context, title, hint string, fn func()) {
@@ -38,10 +48,9 @@ func (a *App) section(c *ui.Context, title, hint string, fn func()) {
 // one row (the material section's glass and transparency notes), so the two
 // cards above them carry no repeated per-row hint.
 func (a *App) sectionFoot(c *ui.Context, title, hint string, footnotes []string, fn func()) {
-	t := c.Theme()
-	ui.Column(c).FillWidth().Gap(t.Space(2)).Children(func() {
+	a.sectionGroup(c, title, func() {
 		a.sectionHeading(c, title, nil)
-		ui.Column(c).FillWidth().Gap(t.Space(2.5)).Children(fn)
+		ui.Column(c).FillWidth().Gap(c.Theme().Space(2.5)).Children(fn)
 		a.sectionHint(c, hint)
 		for _, note := range footnotes {
 			a.sectionHint(c, note)
@@ -49,15 +58,31 @@ func (a *App) sectionFoot(c *ui.Context, title, hint string, footnotes []string,
 	})
 }
 
+// sectionGroup is the frame every section shares: the full-width column at the
+// reference's 8u section gap (`.settings-section { gap: 8u }`,
+// `settings.css:411-419`), labelled with the group's name. The label is the
+// group's accessible name — the reference drew each `.settings-section` as a
+// labelled group — and it also gives a test the group's own box: the page gap
+// between two sections is the room from one group's bottom edge to the next
+// group's top edge (`pageColumn`), which no text box shows.
+func (a *App) sectionGroup(c *ui.Context, title string, fn func()) {
+	group := ui.Column(c).FillWidth().Gap(c.Theme().Space(2))
+	group.Label(sectionLabel(title))
+	group.Children(fn)
+}
+
+// sectionLabel names a section's group. The `\u00a0section` suffix keeps the
+// label from colliding with the title text's own node in `Tester.Find`.
+func sectionLabel(title string) string { return title + "\u00a0section" }
+
 // sectionInline is section for the deep-link group: the reference puts that
 // group's one-line explanation inside `heading-main`, directly under the title
 // (`DeepLinkRow.tsx:61-64`), rather than in a `sectionHint` line after the
 // cards. The card and the 2u section gap are the same as section's.
 func (a *App) sectionInline(c *ui.Context, title, hint string, fn func()) {
-	t := c.Theme()
-	ui.Column(c).FillWidth().Gap(t.Space(2)).Children(func() {
+	a.sectionGroup(c, title, func() {
 		a.sectionHeadingInline(c, title, hint, nil)
-		ui.Column(c).FillWidth().Gap(t.Space(2.5)).Children(fn)
+		ui.Column(c).FillWidth().Gap(c.Theme().Space(2.5)).Children(fn)
 	})
 }
 
@@ -403,8 +428,7 @@ func (a *App) sectionWithAction(c *ui.Context, title, hint, actionLabel string, 
 // controls draw into the heading's own action slot, in the order given, so
 // they share its bottom alignment and its 12u gutter from the title.
 func (a *App) sectionWithControls(c *ui.Context, title, hint string, controls func(), fn func()) {
-	t := c.Theme()
-	ui.Column(c).FillWidth().Gap(t.Space(2)).Children(func() {
+	a.sectionGroup(c, title, func() {
 		a.sectionHeading(c, title, controls)
 		fn()
 		a.sectionHint(c, hint)

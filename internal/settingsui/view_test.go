@@ -335,6 +335,68 @@ func TestTheGeneralSectionsKeepTheReferenceOrder(t *testing.T) {
 	}
 }
 
+// The reference's `.settings-page` is one grid with a 22u gap
+// (`settings.css:379-387`), so the room between one section and the next is
+// 22u on every page — and the General page, alone, had drifted to 16u before
+// P7-gs. The gap is measured on the sections' own group boxes (the labels
+// sectionGroup sets), from one group's bottom edge to the next group's top
+// edge: no text box shows this room, because a title's line box and a
+// control's centring both pad it out. The General page and the Shortcuts page
+// are measured side by side so the two can never drift apart again.
+func TestTheGeneralPageKeepsTheReferenceSectionGap(t *testing.T) {
+	copy := i18n.For("en").Settings
+	a := New(newStore(t), Actions{})
+
+	// The gap the app draws with, read from the same theme it draws in.
+	var want float32
+	ui.NewTester(func(c *ui.Context) { want = c.Theme().Space(5.5) }, 100, 100).Frame()
+	if want <= 0 {
+		t.Fatal("the page gap read as zero: no theme captured")
+	}
+
+	gaps := func(tt *ui.Tester, page string, titles ...string) []float32 {
+		t.Helper()
+		out := make([]float32, 0, len(titles)-1)
+		for i := 1; i < len(titles); i++ {
+			prev, ok := tt.Find(sectionLabel(titles[i-1]))
+			if !ok {
+				t.Fatalf("the %q section on the %s page has no group box: %q", titles[i-1], page, tt.Texts())
+			}
+			next, ok := tt.Find(sectionLabel(titles[i]))
+			if !ok {
+				t.Fatalf("the %q section on the %s page has no group box: %q", titles[i], page, tt.Texts())
+			}
+			out = append(out, next.Y-(prev.Y+prev.H))
+		}
+		return out
+	}
+
+	general := render(t, a, 720, 2800)
+	generalGaps := gaps(general, "General",
+		copy.GroupAppearance, copy.GroupWindow, copy.GroupMenuBar, copy.GroupTerminal, copy.Material)
+	for i, gap := range generalGaps {
+		if absFloat(gap-want) > 0.5 {
+			t.Errorf("General section %d to %d is %.1f apart, want the reference's 22u page gap (%.1f)",
+				i+1, i+2, gap, want)
+		}
+	}
+
+	// The same room on another page, so a future edit to the shared page
+	// column cannot move General alone.
+	shortcuts := render(t, a, 720, 2800)
+	if err := shortcuts.Click(copy.PageShortcuts); err != nil {
+		t.Fatal(err)
+	}
+	shortcuts.Frame()
+	shortcutGaps := gaps(shortcuts, "Shortcuts", copy.ShortcutsToggle, copy.ShortcutsApp, copy.ShortcutsCustom)
+	for i, gap := range shortcutGaps {
+		if absFloat(gap-want) > 0.5 {
+			t.Errorf("Shortcuts section %d to %d is %.1f apart, want the same page gap as General (%.1f)",
+				i+1, i+2, gap, want)
+		}
+	}
+}
+
 func TestAppearanceChoicesStackUnderTheirLabels(t *testing.T) {
 	copy := i18n.For("en").Settings
 	a := New(newStore(t), Actions{})

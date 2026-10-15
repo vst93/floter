@@ -100,6 +100,40 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
+> **本轮：P7-gs General 页 section 之间的沟回到原版 `.settings-page` 的 22u，并把五个页共用的页列
+> 提成 `pageColumn`（原版 `src/styles/settings.css:379-387`）**
+> ——P7-gr 收尾后「具体待办（P7-gr 重写）」第 1 条已落地，本轮取最高优先级第 2 条落地。依赖检查：
+> `go.mod` 已是 **v0.5.1** = latest tag（`go list -m -versions` 复核，无 v0.5.2+；`releases/latest`
+> 也复核为 v0.5.1），无版本可升；只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史
+> 提交。
+>
+> **偏离（P7-gs·General 页 section 沟是 16u，其它页是 22u）**：原版 `.settings-page` 是页头与每个
+> section 共用的网格容器，`gap: calc(var(--u) * 22)`（`settings.css:379-387`），所以相邻 section 之间
+> 也是 22u。**本构建（改前）**：`internal/settingsui/settingsui.go:2715` 的 `general` 顶层列用
+> `Gap(c.Theme().Space(4))` = 16u，而 `sessions`/`integrations`/`shortcuts`/`about` 四处都用
+> `Space(5.5)` = 22u——General 是唯一例外，这个沟的定义散在五个调用点里，才会单独漂移。
+>
+> **落地**：
+> - `internal/settingsui/rows.go`：新增 `pageColumn(c, fn)`——五个页共用的页列，`FillWidth()` +
+>   `Gap(c.Theme().Space(5.5))`（22u），这个沟从五处收敛成一处定义。
+> - `internal/settingsui/settingsui.go`：`general`/`sessions`/`integrations`/`shortcuts`/`about`
+>   五个页的顶层列改走 `a.pageColumn(c, func(){…})`（`shortcuts` 因此不再需要自己的 `t`）。
+> - `internal/settingsui/rows.go`：`sectionFoot`/`sectionInline`/`sectionWithControls` 的 8u section
+>   列提成共享的 `sectionGroup`，并给每个 section 的组盒子挂上 `sectionLabel(title)`（= 标题 +
+>   `\u00a0section`，既是组无障碍名，也让测试能取到组自己的盒子）。
+> - `internal/settingsui/view_test.go`：新增 `TestTheGeneralPageKeepsTheReferenceSectionGap`——
+>   General 页相邻 section 的沟（前一组盒底 → 后一组盒顶）逐条 == `Space(5.5)`（22u）；同一沟在
+>   Shortcuts 页也逐条 == 22u，两页永远一致。**不用文字盒**：标题的行盒与控件的居中都往沟里掺余量。
+>
+> **验收**：`TestTheGeneralPageKeepsTheReferenceSectionGap`。变异核查：把 `pageColumn` 的
+> `Space(5.5)` 改回 `Space(4)` → General 3 条 + Shortcuts 2 条断言同时红（实测 16.0 ≠ 22.0）。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿（29 包）、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：「具体待办（P7-gr 重写）」第 2 条本轮落地（并顺手把页列/section 列收敛为共享助手）；
+> 只剩第 3 条（材质 section 自己的 10u 间距与 10u 内边距），是下一轮最高优先级。
+
 > **本轮：P7-gr General 页的 section 顺序回到原版的「材质最后」——Appearance → 窗口行为 → 菜单栏 →
 > 终端外观 → 玻璃（原版 `src/settings/GeneralPage.tsx:322/405/482/533/558`）**
 > ——P7-gq 收尾后「具体待办（P7-go 重写）」3 条全部结清、清单归零，本轮按规则回到「对照原版排查
@@ -10758,7 +10792,7 @@ P7-gn 收尾后清单归零。本轮按审计入口 `main:src/styles/settings.cs
   `TestTheSessionsSortControlLeadsWithTheReferenceMark`（排序词左侧 5u 沟里是 accent 记号墨迹；
   `arrow-up-down` 在字形表里；按下后词翻面）。刷新键缺席部分不再有测试——它是不画的控件。
 
-### 具体待办（P7-gr 重写；第 1 条 P7-gr 已落地，余下第 2·3 条）
+### 具体待办（P7-gr 重写；第 1 条 P7-gr、第 2 条 P7-gs 已落地，余下第 3 条）
 
 P7-gq 收尾后清单归零。本轮按审计入口 `main:src/settings/GeneralPage.tsx` 的**顶层 section 顺序**
 （此前只对照过单卡内的行序 P7-ca、分组归类 P7-by/P7-bz，页面级的 section 先后从未有 file:line
@@ -10778,20 +10812,22 @@ P7-gq 收尾后清单归零。本轮按审计入口 `main:src/settings/GeneralPa
   `TestTheGeneralSectionsKeepTheReferenceOrder`（五个 section 标题的顺序 + 材质最后 + 玻璃控件/脚注
   在材质标题之下）。变异核查：移回 Appearance 之后，四条断言同时红。
 
-#### P7-gr-2 · General 页 section 之间的沟是原版的 22u，本构建是 16u
+#### P7-gr-2 · General 页 section 之间的沟是原版的 22u，本构建是 16u（**本轮落地，P7-gs**）
 
 - **原版对照**：`.settings-page { display:grid; gap: calc(var(--u) * 22) }`
   （`main:src/styles/settings.css:379-387`）——页头与每个 section 都是它的网格子项，所以相邻 section
   之间也是 22u。
-- **本构建（偏离）**：`internal/settingsui/settingsui.go:2715` 的 `general` 顶层列用
+- **本构建（改前偏离）**：`internal/settingsui/settingsui.go:2715` 的 `general` 顶层列用
   `Gap(c.Theme().Space(4))` = 16u；其它页（`sessions:1172`、`integrations:1311`、`shortcuts:2347`、
   `about:2583`）都用 `Space(5.5)` = 22u，General 是唯一的例外。
-- **落地 file:line（待落地）**：把 `general` 顶层的 `Gap(c.Theme().Space(4))` 改成 `Space(5.5)`；
-  理想情况提成五个页共用的 `a.pageColumn(c, fn)` 助手，让这个沟只有一处定义。
-- **验收标准（待写）**：新测试断言 General 页相邻 section 的沟 == `tokens.Theme.Space(5.5)`——用上一
-  section 最后一个控件盒的底到下一 section 标题盒的顶测量，并减去该 section 自身的卡片内边距
-  （内边距从 `rows.go` 的 `card`/`row` 取，不写死像素）；若提成共用助手，再加一条「General 与其它页
-  的沟相等」的等值断言。**勿**用纯文字盒近似，P7-gr 已实测文字盒会把行高/居中的余量混进来。
+- **落地 file:line（已落地）**：新增共享助手 `internal/settingsui/rows.go` 的
+  `pageColumn(c, fn)`（`Space(5.5)`），五个页（`general`/`sessions`/`integrations`/`shortcuts`/
+  `about`）全部改走它；8u section 列也收敛为 `sectionGroup` 并挂上 `sectionLabel(title)`。详见
+  「最近几轮」P7-gs 记录。
+- **验收（已过）**：`internal/settingsui/view_test.go` 的
+  `TestTheGeneralPageKeepsTheReferenceSectionGap`——General 相邻 section 的沟逐条 == `Space(5.5)`，
+  且与 Shortcuts 页的沟相等（用 section 组盒子测量，非文字盒）。变异核查：`pageColumn` 改回
+  `Space(4)` → 5 条断言同时红（16.0 ≠ 22.0）。
 
 #### P7-gr-3 · 材质 section 自己的 10u 间距与 10u 内边距
 

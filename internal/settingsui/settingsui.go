@@ -1169,7 +1169,7 @@ func (a *App) sessions(c *ui.Context, copy i18n.Settings) {
 	if a.sessionsSortOldest {
 		order = copy.SessionsSortOldest
 	}
-	ui.Column(c).FillWidth().Gap(t.Space(5.5)).Children(func() {
+	a.pageColumn(c, func() {
 		// A question whose session is gone has nothing left to answer: the
 		// reference's page re-rendered its list against the broker each poll,
 		// so a killed/ended session's row took its arm with it. Here the list
@@ -1308,7 +1308,7 @@ func sessionMeta(session Session) []rowSegment {
 func (a *App) integrations(c *ui.Context, copy i18n.Settings) {
 	t := c.Theme()
 	integrations := a.installedIntegrations()
-	ui.Column(c).FillWidth().Gap(t.Space(5.5)).Children(func() {
+	a.pageColumn(c, func() {
 		ui.Text(c, copy.IntegrationsHint).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
 		a.basePluginSection(c, copy)
 		a.localToolSection(c, copy)
@@ -2343,8 +2343,7 @@ func (a *App) installedIntegrations() []Integration {
 // shortcuts lists the shortcuts the app answers, with the key each one
 // currently holds and a recorder for the one the app can change.
 func (a *App) shortcuts(c *ui.Context, copy i18n.Settings) {
-	t := c.Theme()
-	ui.Column(c).FillWidth().Gap(t.Space(5.5)).Children(func() {
+	a.pageColumn(c, func() {
 		// A refused recording is the first thing the user reads, above the
 		// page's own groups (the old page's static save alert).
 		a.shortcutRejectedAlert(c, copy)
@@ -2580,7 +2579,7 @@ func formatBytes(bytes int64) string {
 func (a *App) about(c *ui.Context, copy i18n.Settings) {
 	t := c.Theme()
 	about := a.About
-	ui.Column(c).FillWidth().Gap(t.Space(5.5)).Children(func() {
+	a.pageColumn(c, func() {
 		// The build's identity is the panel's own header band (see View); the
 		// page's rows carry the same facts in the card the update check acts
 		// from.
@@ -2712,7 +2711,7 @@ func (a *App) summonShortcut() string {
 func (a *App) general(c *ui.Context, copy i18n.Settings) {
 	s := a.Store.Snapshot()
 
-	ui.Column(c).FillWidth().Gap(c.Theme().Space(4)).Children(func() {
+	a.pageColumn(c, func() {
 		a.section(c, copy.GroupAppearance, "", func() {
 			a.card(c, func() {
 				a.pick(c, copy.Theme, copy.ThemeHint, copy.Themes, s.Theme,
