@@ -1161,7 +1161,10 @@ func (a *App) sessions(c *ui.Context, copy i18n.Settings) {
 		return
 	}
 	// The order control shows the order in force and swaps it on press, as
-	// the old page's `session-manager__sort-toggle` did.
+	// the old page's `session-manager__sort-toggle` did — and it leads with
+	// that control's own mark, lucide's ArrowUpDown at 13px
+	// (`SessionsPage.tsx:123-125`), so the two directions the list can run in
+	// are on the control itself.
 	order := copy.SessionsSortNewest
 	if a.sessionsSortOldest {
 		order = copy.SessionsSortOldest
@@ -1175,8 +1178,10 @@ func (a *App) sessions(c *ui.Context, copy i18n.Settings) {
 		if a.armedSession != 0 && !sessionInList(sessions, a.armedSession) {
 			a.disarmSessionClose()
 		}
-		a.sectionWithAction(c, copy.PageSessions, copy.SessionsActive, order, func() {
-			a.sessionsSortOldest = !a.sessionsSortOldest
+		a.sectionWithControls(c, copy.PageSessions, copy.SessionsActive, func() {
+			a.actionWithGlyph(c, "arrow-up-down", order, func() {
+				a.sessionsSortOldest = !a.sessionsSortOldest
+			})
 		}, func() {
 			a.card(c, func() {
 				for _, session := range sessions {

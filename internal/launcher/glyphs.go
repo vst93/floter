@@ -84,6 +84,11 @@ var (
 	// with as a `<span class="settings-reset__icon">＋</span>` glyph
 	// (`ShortcutsPage.tsx:230-236,247-252`).
 	glyphPlus = ui.MustParseSVG([]byte(glyphSource(`<path d="M5 12h14"/><path d="M12 5v14"/>`)))
+	// glyphArrowUpDown is lucide's ArrowUpDown, the mark the reference's
+	// Sessions sort control led with (`SessionsPage.tsx:123-125`,
+	// `<ArrowUpDown size={13} strokeWidth={1.8}/>`): an up arrow beside a down
+	// one, the two directions the control flips between.
+	glyphArrowUpDown = ui.MustParseSVG([]byte(glyphSource(`<path d="m21 16-4 4-4-4"/><path d="M17 20V4"/><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/>`)))
 )
 
 // rowGlyph picks the mark for a row from what the row is: an application shows
@@ -272,6 +277,8 @@ func Glyph(name string) (*ui.SVG, bool) {
 		return glyphKeyboard, true
 	case "plus":
 		return glyphPlus, true
+	case "arrow-up-down":
+		return glyphArrowUpDown, true
 	case "file":
 		return glyphFile, true
 	case "folder":

@@ -100,6 +100,49 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
+> **本轮：P7-gq Sessions 排序键补回原版的 `ArrowUpDown` 记号；标题行的动作槽放宽到「多个控件」
+> （原版 `src/settings/SessionsPage.tsx:116-135`、`src/styles/settings.css:1406-1436`）**
+> ——P7-gp 收尾后「具体待办（P7-go 重写）」只剩第 3 条（Sessions 标题行的排序/刷新控件），本轮取它
+> 落地。依赖检查：`go.mod` 已是 **v0.5.1** = latest tag（`go list -m -versions` 复核，无 v0.5.2+；
+> `releases/latest` 也是 v0.5.1），无版本可升；只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版
+> 树），未翻历史提交。
+>
+> **偏离（P7-gq·排序键是纯文字动作，缺原版的 `ArrowUpDown` 记号）**：原版
+> `SessionsPage.tsx:116-135` 的 heading 里，排序键 `session-manager__sort-toggle` 是
+> `<ArrowUpDown size={13} strokeWidth={1.8}/>` + 排序词（`:123-125`），`.session-manager__sort-toggle`
+> 的度量与 `.settings-reset` 同（`settings.css:1406-1436`：5u gap、24u 下限、2u 内边距、`--radius-xs`、
+> accent/620）。**本构建（改前）**：`settingsui.go:1178-1180` 的 `sectionWithAction` 只画一个纯文字动作
+> （排序词），没有记号——控制说了列表**正**怎么排，却没说自己**能**怎么排。
+>
+> **落地**：
+> - `internal/launcher/glyphs.go`：新增 `glyphArrowUpDown`（lucide 的 ArrowUpDown，24×24 描边）并注册
+>   `"arrow-up-down"`——记号必须进 app 的封闭字形表，否则 `mustGlyph` 会静默回退成 alert 圆。
+> - `internal/settingsui/rows.go`：新增 `sectionWithControls`（标题行的动作槽接受一段画多个控件的
+>   closure，共享底对齐与 12u 沟）；`sectionWithAction` 改为委托它（签名不变，其余调用方不受影响）。
+> - `internal/settingsui/settingsui.go:1181`：Sessions 段由 `sectionWithAction` 改走
+>   `sectionWithControls` + `actionWithGlyph(c, "arrow-up-down", order, ...)`——13px 记号 + 词，度量正是
+>   `actionWithGlyph` 已有的 `.settings-reset` 盒（5u gap / 24u 下限 / 2u 内边距），与原版
+>   `session-manager__sort-toggle` 逐条相同。
+> - `internal/settingsui/sessionssort_test.go`（新）：活页 Sessions——排序词左侧 5u 沟里是 accent 记号
+>   （不是纯平面）、`arrow-up-down` 在字形表里、按下后翻到另一个词。
+>
+> **取舍（如实记录）**：原版 heading 的第二个控件（刷新图标键 `session-manager__icon-button`，
+> `RefreshCw` 14px，`disabled={loading}`）**本构建不画**。原版的会话由 broker 托管、靠 5 秒轮询 +
+> 手动刷新取回，所以刷新键有实义；本构建的会话在**本进程内**，列表由 `a.Sessions()`（shell 把
+> `a.Terminal.Sessions` 逐帧拉平，`shell.go:883-902`）**当帧**取得，没有可重跑的取回——这已在 P7-aj
+> 记成「轮询不做」。画一个永远可点却什么都不做、或永远 `disabled`（暗示列表一直在 loading）的键，
+> 比不画更骗人。因此本条只补排序键的记号，刷新键按已记录的偏离保留缺席。
+>
+> **验收**：`TestTheSessionsSortControlLeadsWithTheReferenceMark`。变异核查：把 `settingsui.go` 的
+> `actionWithGlyph(c, "arrow-up-down", order, ...)` 换回 `action(c, order, ...)` → 沟里 min channel
+> 254（纯平面），断言红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿（29 包）、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：「具体待办（P7-go 重写）」第 3 条落地（排序记号部分；刷新键部分按已记录的偏离结清），
+> **3 条全部结清、清单归零**。下一轮回到「对照原版排查偏离点」，换一个从未进入任何历史待办的原版入口。
+
 > **本轮：P7-gp 深链标题的说明回到原版 `heading-main` 的 `--inline` 第二行——说明在卡片之前、
 > 与标题同列、间距 1px（原版 `src/settings/DeepLinkRow.tsx:61-64`、`src/styles/settings.css:430-434,
 > 1209-1211`）**
@@ -10659,7 +10702,7 @@ P7-gn 收尾后清单归零。本轮按审计入口 `main:src/styles/settings.cs
 - **验收（已过）**：`internal/settingsui/sectionheading_test.go` 的
   `TestTheDeepLinkHintRidesInsideItsHeading`（说明在卡片之前、与标题同列、间距 == 1px）。
 
-#### P7-go-3 · Sessions 标题行缺原版的两个控件（排序记号 + 独立刷新图标键）
+#### P7-go-3 · Sessions 标题行缺原版的排序记号（刷新图标键按已记录偏离保留缺席）（**P7-gq 已落地**）
 
 - **原版对照**：`main:src/settings/SessionsPage.tsx:116-135` 的 heading 里除标题外还有两个键——
   `session-manager__sort-toggle`（`ArrowUpDown` 13px + 排序词）与 `session-manager__icon-button`
@@ -10668,8 +10711,12 @@ P7-gn 收尾后清单归零。本轮按审计入口 `main:src/styles/settings.cs
 - **本构建（改前偏离）**：`internal/settingsui/settingsui.go:1178-1180` 的
   `sectionWithAction(c, copy.PageSessions, copy.SessionsActive, order, ...)` 只画**一个**文本动作
   （排序词），既没有 `ArrowUpDown` 记号，也没有独立的刷新图标键。
-- **落地 file:line（待做）**：`internal/settingsui/rows.go:61` 的 `sectionHeading` 的 action 槽从
-  「单个函数」放宽到「多个控件」（或新增 `sectionHeadingControls`），Sessions 段把排序键（带
-  `arrow-up-down` 记号）与刷新图标键都放进去；刷新键接 `a.Actions.RefreshSessions`（若存在）。
-- **验收（待做）**：活页 Sessions 页——排序键标签前 20u 带内有 `ArrowUpDown` 记号墨迹；刷新键是
-  图标键（墨迹纵横比 ≈1）且 `disabled` 时降到 0.5 不透明度；两个键都在标题行右端、动作底对齐。
+- **落地 file:line（已落地）**：`internal/launcher/glyphs.go` 新增 `arrow-up-down` 记号；
+  `internal/settingsui/rows.go:405` 的 `sectionWithControls`（`sectionWithAction` 委托它）把标题行
+  动作槽放宽到多控件；`internal/settingsui/settingsui.go:1181` 的 Sessions 段改走
+  `sectionWithControls` + `actionWithGlyph(c, "arrow-up-down", order, ...)`。刷新图标键**不画**：本构建
+  的会话在进程内、列表当帧由 `a.Sessions()` 取得（P7-aj 已记「轮询不做」），没有可重跑的取回，画一个
+  永不生效的键比不画更骗人。详见「最近几轮」P7-gq 记录。
+- **验收（已过）**：`internal/settingsui/sessionssort_test.go` 的
+  `TestTheSessionsSortControlLeadsWithTheReferenceMark`（排序词左侧 5u 沟里是 accent 记号墨迹；
+  `arrow-up-down` 在字形表里；按下后词翻面）。刷新键缺席部分不再有测试——它是不画的控件。

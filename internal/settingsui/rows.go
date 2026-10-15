@@ -390,13 +390,22 @@ func (a *App) stackedRow(c *ui.Context, label, sublabel string, control func()) 
 // action at its end: the reference pane's "Restore defaults" idiom
 // (`.settings-section__heading-actions`).
 func (a *App) sectionWithAction(c *ui.Context, title, hint, actionLabel string, run func(), fn func()) {
+	a.sectionWithControls(c, title, hint, func() {
+		if run != nil {
+			a.action(c, actionLabel, run)
+		}
+	}, fn)
+}
+
+// sectionWithControls is sectionWithAction for a group whose heading carries
+// more than one control: the reference's Sessions heading put both the sort
+// toggle and the refresh key on that line (`SessionsPage.tsx:116-135`). The
+// controls draw into the heading's own action slot, in the order given, so
+// they share its bottom alignment and its 12u gutter from the title.
+func (a *App) sectionWithControls(c *ui.Context, title, hint string, controls func(), fn func()) {
 	t := c.Theme()
 	ui.Column(c).FillWidth().Gap(t.Space(2)).Children(func() {
-		a.sectionHeading(c, title, func() {
-			if run != nil {
-				a.action(c, actionLabel, run)
-			}
-		})
+		a.sectionHeading(c, title, controls)
 		fn()
 		a.sectionHint(c, hint)
 	})
