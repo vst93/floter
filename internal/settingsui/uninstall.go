@@ -131,10 +131,11 @@ func (a *App) uninstallDialog(c *ui.Context, copy i18n.Settings, integration Int
 		// used to draw its heading at.
 		ui.Text(c, copy.IntegrationsUninstallTitle(integration.Name)).
 			FontSize(tokens.Title).Bold().TextColor(tokens.TextStrong)
-		// `.extensions-dialog-hint { margin: 6px 0 0; font-size: 10.5px }`.
+		// `.extensions-dialog-hint { margin: 6px 0 0; font-size: 10.5px;
+		// line-height: 1.45 }` (`:46-51`).
 		ui.Box(c).FillWidth().Padding(t.Space(1.5), 0, 0, 0).Children(func() {
 			ui.Text(c, copy.IntegrationsUninstallDescription).
-				FontSize(uninstallSubBody(t)).TextColor(t.TextMuted)
+				FontSize(uninstallSubBody(t)).TextColor(t.TextMuted).LineHeight(1.45)
 		})
 		// `.extensions-uninstall-components { gap: 8px; margin: 16px 0 }`.
 		ui.Column(c).FillWidth().Gap(t.Space(2)).Padding(t.Space(4), 0).Children(func() {
@@ -214,7 +215,7 @@ func (a *App) uninstallActionButton(c *ui.Context, label string, danger bool, bu
 		ink, edge, plane = t.Text, tokens.AccentEdge, tokens.ControlHover
 	}
 	button.Border(1, edge).Background(plane).
-		Transition(ui.ElementTransition{Colors: true, Duration: 120 * time.Millisecond})
+		Transition(ui.ElementTransition{Colors: true, Position: true, Duration: 120 * time.Millisecond})
 	// The control's own `--elev-0`: the same lens the cards on the surface
 	// carry, so the pill reads as a pane of the same glass.
 	tokens.Lens(button)
@@ -222,7 +223,9 @@ func (a *App) uninstallActionButton(c *ui.Context, label string, danger bool, bu
 		if icon != nil {
 			ui.Icon(c, icon).Size(t.Space(3.5), t.Space(3.5))
 		}
-		ui.Text(c, label).FontSize(tokens.Body).FontWeight(600).TextColor(ink)
+		// `.extensions-action-button { line-height: 1 }`
+		// (`extensions.css:1338`).
+		ui.Text(c, label).FontSize(tokens.Body).FontWeight(600).TextColor(ink).LineHeight(1)
 	})
 	return button
 }
@@ -306,7 +309,9 @@ func (a *App) uninstallPartRow(c *ui.Context, part uninstallPart) ui.Element {
 			// — the ladder's emphasis step, not the body step plus one.
 			ui.Text(c, part.Label).FontSize(tokens.Emphasis).FontWeight(600).TextColor(tokens.TextStrong)
 			if part.Hint != "" {
-				ui.Text(c, part.Hint).FontSize(uninstallSubBody(t)).TextColor(t.TextMuted)
+				// `.extensions-component-hint { line-height: 1.4 }`
+				// (`:113-118`).
+				ui.Text(c, part.Hint).FontSize(uninstallSubBody(t)).TextColor(t.TextMuted).LineHeight(1.4)
 			}
 		})
 	})

@@ -175,6 +175,15 @@ type Tokens struct {
 	// frame's tint plus a fixed step, so a drawer, a dialog, a toast or the
 	// terminal's resident note is always denser than the card it floats over.
 	Float ui.Color
+	// IconSurface and IconSurfaceHover are the warm system-icon plane (base.css's
+	// `--system-icon-surface` / `--system-icon-surface-hover`): the amber tint a
+	// semantic icon chip sits on. `--glass-raised-warm` is an alias of the first,
+	// which is what the launcher's own feedback row and the settings sheet's
+	// danger pills paint — it is a warm *surface*, not the warning ink, and
+	// quoting the warning colour's alpha here painted the row's fill with the
+	// label's own hue (the row read pink-red instead of warm orange).
+	IconSurface      ui.Color
+	IconSurfaceHover ui.Color
 
 	// The text ladder, in points at the current step: base.css's registers,
 	// which the codebase had been spelling as offsets off the body size (a
@@ -380,6 +389,10 @@ func ForPreferences(s settings.Settings, systemDark bool, prefs ui.Preferences) 
 		TextStrong:     textStrong,
 		TextSecondary:  textSecondary,
 		TextTertiary:   textTertiary,
+		// The warm plane is a fixed per-appearance token in base.css — unlike
+		// the frame's tint it does not follow the transparency slider.
+		IconSurface:      p.iconSurface,
+		IconSurfaceHover: p.iconSurfaceHover,
 	}
 }
 
@@ -429,6 +442,10 @@ func paletteFor(appearance Appearance) palette {
 			edgeHighlightX: ui.RGBA(255, 255, 255, 0.6),
 			accentEdge:     ui.RGBA(6, 74, 166, 0.36),
 			accentHalo:     ui.RGBA(6, 74, 166, 0.24),
+			// The warm system-icon plane, the light appearance's amber (base.css
+			// `--system-icon-surface` / `--system-icon-surface-hover`).
+			iconSurface:      ui.RGBA(214, 118, 44, 0.13),
+			iconSurfaceHover: ui.RGBA(214, 118, 44, 0.21),
 		}
 	}
 	return palette{
@@ -470,6 +487,10 @@ func paletteFor(appearance Appearance) palette {
 		edgeHighlightX: ui.RGBA(255, 255, 255, 0.04),
 		accentEdge:     ui.RGBA(143, 183, 255, 0.3),
 		accentHalo:     ui.RGBA(143, 183, 255, 0.18),
+		// The warm system-icon plane, the dark appearance's amber (base.css
+		// `--system-icon-surface` / `--system-icon-surface-hover`).
+		iconSurface:      ui.RGBA(255, 176, 132, 0.115),
+		iconSurfaceHover: ui.RGBA(255, 176, 132, 0.2),
 	}
 }
 
@@ -515,6 +536,7 @@ type palette struct {
 	edgeHighlight, edgeShadow, edgeHighlightX                               ui.Color
 	accentEdge                                                              ui.Color
 	accentHalo                                                              ui.Color
+	iconSurface, iconSurfaceHover                                           ui.Color
 }
 
 // round1 rounds to one decimal, so a scaled metric stays a value a CSS

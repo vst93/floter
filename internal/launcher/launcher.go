@@ -2122,7 +2122,12 @@ func (a *App) feedbackRow(c *ui.Context) {
 	// weight — so it reads as a blocking message rather than a status hint.
 	tone := t.Warning
 	weight := 560
-	background := t.Warning.Alpha(0.12)
+	// `.launcher-feedback`'s own fill is `--system-icon-surface`, the warm
+	// amber plane — **not** the warning ink at a low alpha. Quoting the
+	// label's colour here painted the row pink-red; the reference's plane is a
+	// separate token (`theme.Tokens.IconSurface`), and the warning variant's
+	// `--glass-raised-warm` is an alias of the very same value.
+	background := tokens.IconSurface
 	feedback := ui.Row(c).Absolute().Bottom(0).Left(t.Space(1)).Right(t.Space(1)).Height(t.Space(7.5)).
 		Padding(0, t.Space(3)).Gap(t.Space(2)).AlignItems(ui.Center).
 		Radius(tokens.RadiusSM).Background(background).
@@ -2133,8 +2138,15 @@ func (a *App) feedbackRow(c *ui.Context) {
 			Duration: 160 * time.Millisecond,
 		})
 	if a.toastWarning {
-		background, weight = t.Warning.Alpha(0.2), 600
+		// `.launcher-feedback--warning` takes the raised-warm plane (the same
+		// token's hover rung), the warning keyline and `--glass-raised-shadow`:
+		// the `--elev-2` contact step (a function of the frame's own alpha, so
+		// its 0.2 is scaled here exactly as the terminal note's is) plus the
+		// pane's lit top rim. The non-warning row carries none of them.
+		background, weight = tokens.IconSurfaceHover, 600
 		feedback.Border(1, tone)
+		feedback.Shadow(0, t.Space(0.25), t.Space(0.5), 0, ui.RGBA(0, 0, 0, 0.2))
+		feedback.InsetShadow(0, 1, 0, 0, tokens.LensRim)
 	}
 	feedback.Children(func() {
 		ui.Icon(c, glyphAlert).Size(t.Space(4), t.Space(4)).TextColor(tone)

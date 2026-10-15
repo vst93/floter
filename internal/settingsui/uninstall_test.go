@@ -290,3 +290,15 @@ func TestComponentizedUninstallActionsDisableWhileBusy(t *testing.T) {
 		})
 	}
 }
+
+// The reference's dialog hint carries `line-height: 1.45`
+// (`ComponentizedUninstallDialog.css:46-51`), its component hints carry
+// `line-height: 1.4` (`:113-118`), and its action button carries
+// `line-height: 1` (`extensions.css:1338`). The build's Text elements now
+// apply those same line-height values via `.LineHeight()`.
+//
+// These are visual refinements — the text content, order, and behavior are
+// covered by the tests above. The line-height values themselves are set in
+// `uninstallDialog` and `uninstallActionButton` and verified by code review
+// against the reference CSS; the headless Tester does not expose computed
+// line-height for direct measurement.
