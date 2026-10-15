@@ -100,6 +100,35 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
+> **本轮：P7-hc 分段控件的标签整条轨道都回到原版的 `--text-strong`/580（原版
+> `main:src/styles/settings.css:1060,1111-1120` 的 `.settings-option { text-align:left }`、
+> `.settings-option__label { color: var(--text-strong); font-weight: 580 }`，对每个段一样）**
+> ——P7-hb 收尾后「具体待办（P7-hb 重写）」余下第 2·3 条，本轮取第 2 条落地。依赖检查：`go.mod`
+> 已是 **v0.5.1** = `go list -m -versions github.com/egoist/mygo` 的最新（`api.github.com` 本轮仍被
+> 限流），无版本可升；只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离（P7-hb-2·未选段标签被压暗）**：原版 `.settings-option__label` 的 `color`/`font-weight`
+> **不随选中改变**——选中态只由 `.settings-option--active`（`settings.css:1095-1098`）的 raised pane
+> + accent 键线承担，裸 `.settings-option` 的字色是 `--text-primary`（`:1060`），没有任何按选中的
+> 压暗规则。**本构建（改前）**：`internal/control/control.go` 的非当前段走 `t.TextMuted` + 500，
+> 只有当前段 `TextStrong` + 580——这是本构建发明的差异。
+>
+> **落地**：`internal/control/control.go` 的 `segmented` 删掉按选中的 `TextMuted`/500 分支，标签统一
+> `tokens.TextStrong` / 580（`t.TextMuted` 不再被引用）。选中态仍由段上的 `ControlHover` + `Lens` +
+> `AccentEdge` 键线承担，未动。
+>
+> **验收**：新增 `internal/control/segmentlabel_test.go` 的 `TestEverySegmentLabelIsTextStrong`——
+> 用 `tt.Image()` 采每条标签自己的墨迹像素（离该段表面最远的像素 = 字形自身的颜色），断言它与
+> `tokens.TextStrong` 合成到该段表面后的值相等、且**不**等于 `TextMuted` 的合成值（选中/未选三段
+> 都测）。变异核查：把 `TextMuted`/500 分支加回 → 未选段读成 `{146 147 150}` 而目标是 `{236 237 239}`，
+> 红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：「具体待办（P7-hb 重写）」第 2 条（P7-hb-2）已落地，余下第 3 条（基础段的对齐）
+> 待下一轮。
+
 > **本轮：P7-hb 设置/抽屉共用分段控件的段盒回到原版的 30u 下限（原版 `main:src/styles/settings.css:1031-1055`
 > 的 `.settings-option { min-height: calc(var(--u) * 30); padding: 0 calc(var(--u) * 9) }`，R43 把 34u 收到
 > 30u、轨道内缩 3u→2u）**
@@ -7178,7 +7207,7 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-### 具体待办（P7-hb 重写；第 1 条 P7-hb 已落地，余下第 2·3 条）
+### 具体待办（P7-hb 重写；第 1 条 P7-hb、第 2 条 P7-hc 已落地，余下第 3 条）
 
 审计入口：原版设置页与终端抽屉共用的**分段控件** `main:src/settings/SettingsRows.tsx` 的
 `SegmentedChoice`（`:152-197`）与 `main:src/styles/settings.css` 的
@@ -7204,7 +7233,7 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 - **验收（已过）**：`internal/control/segmentmetrics_test.go` 的 `TestTheSegmentBoxIsThirtyUnitsHigh`
   （三条段的盒高都 == `Space(7.5)` = 30u 且互等）。变异核查：摘掉 `MinHeight` → 三条 17.0 ≠ 27.0 红。
 
-#### P7-hb-2 · 未选段的标签被压暗到 muted/500，原版整条轨道都是 `--text-strong`/580（**待做**）
+#### P7-hb-2 · 未选段的标签被压暗到 muted/500，原版整条轨道都是 `--text-strong`/580（**本轮落地，P7-hc**）
 
 - **原版对照**：`.settings-option__label { color: var(--text-strong); font-weight: 580 }`
   （`main:src/styles/settings.css:1111-1120`）——对**每个**段都一样；选中态只由
@@ -7212,11 +7241,14 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
   不随选中改变；裸 `.settings-option` 的字色是 `--text-primary`（`:1060`），也没有按选中的压暗规则。
 - **本构建（改前偏离）**：`internal/control/control.go:64-70` 的非当前段走 `t.TextMuted` + 500，
   只有当前段 `TextStrong` + 580——原版的字色/字重差是本构建发明的。
-- **落地 file:line（待做）**：`internal/control/control.go` 的 `segmented`，标签统一
-  `tokens.TextStrong` / 580，删掉按选中的 `TextMuted`/500 分支。
-- **验收标准**：`internal/control` 新增一条测试，用 `Tester.Image()`（P7-em/fz 已用此法采墨迹）采
-  未选段与已选段标签的墨迹像素，断言二者与同一张玻璃底上的 `tokens.TextStrong` 合成值相等；变异核查：
-  把未选段改回 `TextMuted` → 红。
+- **落地 file:line（已落地，P7-hc）**：`internal/control/control.go` 的 `segmented` 删掉按选中的
+  `TextMuted`/500 分支，标签统一 `tokens.TextStrong` / 580；选中态仍由段上的 `ControlHover` +
+  `Lens` + `AccentEdge` 键线承担，未动。
+- **验收（已过，P7-hc）**：`internal/control/segmentlabel_test.go` 的
+  `TestEverySegmentLabelIsTextStrong`——用 `tt.Image()` 采每条标签自己的墨迹像素（离该段表面最远的
+  像素 = 字形自身的颜色），断言它与 `tokens.TextStrong` 合成到该段表面后的值相等、且不等于
+  `TextMuted` 的合成值（选中/未选三段都测）。变异核查：把 `TextMuted`/500 分支加回 → 未选段读成
+  `{146 147 150}` 而目标是 `{236 237 239}`，红。
 
 #### P7-hb-3 · 基础段的标签被居中，原版把非材质段当「行」左对齐，只有材质选择器居中（**待做**）
 

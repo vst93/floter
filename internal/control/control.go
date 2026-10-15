@@ -71,14 +71,13 @@ func segmented(c *ui.Context, tokens theme.Tokens, labels []string, current int,
 			case segment.Hovered():
 				segment.Background(tokens.ControlHover)
 			}
-			color := tokens.TextStrong
-			weight := 580
-			if i != current {
-				color = t.TextMuted
-				weight = 500
-			}
+			// Every segment's label is the reference's `.settings-option__label`:
+			// `color: var(--text-strong); font-weight: 580` for every segment,
+			// chosen or not (`main:src/styles/settings.css:1111-1120`). The chosen
+			// state is carried by the raised pane and the accent keyline above,
+			// never by dimming the label: an unchosen segment is not muted text.
 			segment.Children(func() {
-				ui.Text(c, label).FontSize(tokens.Emphasis).FontWeight(weight).TextColor(color)
+				ui.Text(c, label).FontSize(tokens.Emphasis).FontWeight(580).TextColor(tokens.TextStrong)
 			})
 			if segment.Clicked() {
 				apply(i)
