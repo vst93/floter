@@ -154,8 +154,12 @@ type Tokens struct {
 	EdgeHighlightX ui.Color
 	// AccentEdge is the accent as a 1px keyline (base.css's `--accent-edge`):
 	// the emphasis a chosen segment or a recommended badge carries without an
-	// accent fill.
+	// accent fill. AccentHalo is the accent as a soft ring (base.css's
+	// `--accent-halo`): the one non-elevation shadow in the sheets, the live
+	// status dot's glow (`--elev-halo` = `0 0 0 2px var(--accent-halo)`), the
+	// accent at a fixed low alpha so it never reads as a second accent fill.
 	AccentEdge ui.Color
+	AccentHalo ui.Color
 	// Sunken is the settings content pane's own fill (base.css's
 	// `--surface-sunken`): the settings panel is a reading surface, and it
 	// carries a fill of its own so it reads one step denser than the frame.
@@ -371,6 +375,7 @@ func ForPreferences(s settings.Settings, systemDark bool, prefs ui.Preferences) 
 		EdgeShadow:     p.edgeShadow,
 		EdgeHighlightX: p.edgeHighlightX,
 		AccentEdge:     p.accentEdge,
+		AccentHalo:     p.accentHalo,
 		Hairline:       hairline,
 		TextStrong:     textStrong,
 		TextSecondary:  textSecondary,
@@ -423,6 +428,7 @@ func paletteFor(appearance Appearance) palette {
 			edgeShadow:     ui.RGBA(0, 0, 0, 0.07),
 			edgeHighlightX: ui.RGBA(255, 255, 255, 0.6),
 			accentEdge:     ui.RGBA(6, 74, 166, 0.36),
+			accentHalo:     ui.RGBA(6, 74, 166, 0.24),
 		}
 	}
 	return palette{
@@ -463,6 +469,7 @@ func paletteFor(appearance Appearance) palette {
 		edgeShadow:     ui.RGBA(0, 0, 0, 0.28),
 		edgeHighlightX: ui.RGBA(255, 255, 255, 0.04),
 		accentEdge:     ui.RGBA(143, 183, 255, 0.3),
+		accentHalo:     ui.RGBA(143, 183, 255, 0.18),
 	}
 }
 
@@ -507,6 +514,7 @@ type palette struct {
 	shadowAmbient, shadowContact                                            ui.Color
 	edgeHighlight, edgeShadow, edgeHighlightX                               ui.Color
 	accentEdge                                                              ui.Color
+	accentHalo                                                              ui.Color
 }
 
 // round1 rounds to one decimal, so a scaled metric stays a value a CSS

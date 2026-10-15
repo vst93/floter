@@ -197,6 +197,14 @@ func TestPaletteComesFromBaseCSS(t *testing.T) {
 	if light.Theme.Text != ui.Hex("#1d1d1f") {
 		t.Errorf("light text = %v, want --text-primary", light.Theme.Text)
 	}
+	// The halo is `--accent-halo` (base.css:693,958): the accent at a fixed
+	// low alpha, the live status dot's ring, not a second accent fill.
+	if want := ui.RGBA(143, 183, 255, 0.18); dark.AccentHalo != want {
+		t.Errorf("dark accent halo = %v, want %v", dark.AccentHalo, want)
+	}
+	if want := ui.RGBA(6, 74, 166, 0.24); light.AccentHalo != want {
+		t.Errorf("light accent halo = %v, want %v", light.AccentHalo, want)
+	}
 }
 
 // The sidebar's chosen page is the opaque raised rung: the framework paints

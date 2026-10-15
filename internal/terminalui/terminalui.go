@@ -1087,8 +1087,14 @@ func (a *App) titleBar(c *ui.Context, copy i18n.Terminal) {
 		}
 		identity.Children(func() {
 			a.statusDot(c)
-			ui.Text(c, identityTitle).FontSize(t.FontSize - 1).FontWeight(580).
-				TextColor(t.TextMuted).Ellipsis("\u2026").SingleLine()
+			// `.terminal-bar__title` (`terminal.css:150-161`): the body step in
+			// `--text-secondary`, 580, with the reference's `letter-spacing:
+			// -0.01em`. The identity line used to read the muted step one size
+			// down, which made the name of the session on screen the quietest
+			// thing in the bar it names.
+			ui.Text(c, identityTitle).FontSize(t.FontSize).FontWeight(580).
+				LetterSpacing(-0.01 * t.FontSize).
+				TextColor(tokensOf(a, c).TextSecondary).Ellipsis("\u2026").SingleLine()
 		})
 		// The controls, at the bar's trailing edge: 28u transparent squares
 		// with a 4u gap, hidden and non-interactive until the bar is revealed
@@ -1129,12 +1135,19 @@ func (a *App) titleBar(c *ui.Context, copy i18n.Terminal) {
 // session runs, and a still grey dot once the program has ended.
 func (a *App) statusDot(c *ui.Context) {
 	t := c.Theme()
+	tokens := tokensOf(a, c)
 	dot := ui.Box(c).Size(t.Space(1.75), t.Space(1.75)).Radius(t.Space(1.75)).Shrink(0)
 	if a.exited() {
-		dot.Background(t.TextMuted).Opacity(0.7)
+		// `.terminal-bar__dot--exited` (`terminal.css:163-168`): the tertiary
+		// step, the halo dropped, at the reference's 0.7 opacity. It used to
+		// read the *muted* step, one rung brighter than the reference's.
+		dot.Background(tokens.TextTertiary).Opacity(0.7)
 		return
 	}
 	dot.Background(t.Accent)
+	// `.terminal-bar__dot { box-shadow: var(--elev-halo) }` (`:150-156`) — the
+	// reference's one non-elevation shadow, a 2u ring of `--accent-halo`.
+	dot.Shadow(0, 0, 0, t.Space(0.5), tokens.AccentHalo)
 	// The breath is the old build's own animation: the light fades to half and
 	// shrinks a little, twice over five seconds, so a running session reads
 	// as alive without a spinner. Its keyframes are the reference — opacity 1

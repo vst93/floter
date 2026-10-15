@@ -100,6 +100,70 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
+> **本轮：P7-gx 终端浮栏的身份行与状态点回到原版 `terminal.css`（`.terminal-bar__title`
+> 的 body 步 / `--text-secondary` / `-0.01em`；`.terminal-bar__dot--exited` 的 `--text-tertiary`；
+> 活状态点的 `--elev-halo`）**
+> ——P7-gw 收尾后「具体待办（P7-gu 重写）」归零，本轮按规则回到「对照原版排查偏离点」，换一个
+> **全文档从未审计**的原版入口：终端表面 chrome 的**度量与颜色**表 `main:src/styles/terminal.css`
+> （浮栏/状态点/抽屉/驻留条/空态）。`grep -c` 复核：`terminal-bar__title`、`terminal-settings__row`、
+> `terminal-setting-range`、`terminal-resident`、`terminal-empty`、`terminal-copy-notice` 在 `docs/`
+> 全为 0——`terminal.css` 此前只对照过浮栏的**词与 tooltip**（P7-fl/fm）和空态两行（P7-cm），
+> 视觉度量从未逐条比对。依赖检查：`go.mod` 已是 **v0.5.1**，`go list -m -versions` 复核无
+> v0.5.2+（`api.github.com` 本轮被限流，故改用 proxy 列表），无版本可升；只对照 `main`
+> （`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离 1（P7-gx·浮栏身份行的字级与颜色都低了一档）**：原版 `.terminal-bar__title`
+> （`terminal.css:165-175`）是 `color: var(--text-secondary)`、`font-size: var(--text-body)`、
+> `font-weight: 580`、`line-height: 1`、`letter-spacing: -0.01em`。**本构建（改前）**：
+> `internal/terminalui/terminalui.go:1094-1096` 的 `titleBar` 身份文字是
+> `FontSize(t.FontSize - 1).FontWeight(580).TextColor(t.TextMuted)`——比原版**小一档**、且落在
+> **muted** 而非 **secondary**，没有 `letter-spacing`。也就是说，浮栏里那个说出「你正在看哪个会话」
+> 的名字，是它所在浮栏里最安静的一行。
+>
+> **偏离 2（P7-gx·退出状态点取了 muted 而不是 tertiary）**：原版 `.terminal-bar__dot--exited`
+> （`terminal.css:158-163`）是 `background: var(--text-tertiary)`、`opacity: 0.7`、`box-shadow: none`。
+> **本构建（改前）**：`statusDot`（`terminalui.go:1136-1152`）落 `t.TextMuted`——比原版**亮一档**。
+>
+> **偏离 3（P7-gx·活状态点缺 `--elev-halo`）**：原版 `.terminal-bar__dot`（`terminal.css:148-157`）
+> 除 7px 的 `--accent` 圆点外还画 `box-shadow: var(--elev-halo)`，而 `--elev-halo`
+> （`base.css:206-207`）正是 `0 0 0 2px var(--accent-halo)`（`--accent-halo` = dark
+> `rgba(143,183,255,0.18)` / light `rgba(6,74,166,0.24)`，`base.css:693,958`）——这是原版唯一一条
+> **非 elevation** 的阴影，被点名声明为「状态辉光」。**本构建（改前）**：`statusDot` 只画圆点，
+> 没有任何环，退出态把 `box-shadow` 一起丢掉是对的、但活态本来就没有。
+>
+> **落地**：
+> - `internal/theme/theme.go`：Tokens 新增 `AccentHalo`（base.css 的 `--accent-halo`），palette
+>   两个外观各一份（dark `RGBA(143,183,255,0.18)`、light `RGBA(6,74,166,0.24)`），`AccentHalo` 落到
+>   `tokens` 上；`theme_test.go` 钉住两个值。
+> - `internal/terminalui/terminalui.go`：`titleBar` 的身份文字改 `FontSize(t.FontSize)`、
+>   `TextColor(tokensOf(a, c).TextSecondary)`、`LetterSpacing(-0.01 * t.FontSize)`；`statusDot` 的
+>   退出分支改 `tokens.TextTertiary`，活分支加 `dot.Shadow(0, 0, 0, t.Space(0.5), tokens.AccentHalo)`
+>   （2u 的 `--elev-halo` 环）。
+>
+> **验收**：`internal/terminalui/barchrome_test.go` 两条——
+> `TestTheTerminalBarTitleIsTheReferenceSecondaryBody`（活浮栏：身份行墨迹宽度更接近 body 参考而非
+> body−1；墨迹质量更接近 `--text-secondary` 参考而非 `--text-muted`）与
+> `TestTheTerminalBarDotCarriesItsHaloAndWearsTertiary`（驻留会话：点的**中心像素**逐字节等于
+> `--text-tertiary`@0.7 的实心填充、且不等于 muted@0.7；活会话：中心像素等于 `--accent`，且墨迹宽度
+> 比裸点宽 ≥3——2u 的环被画出来）。**中心像素**法：点在圆心处满覆盖，正对上文「同一列、同相位」的
+> 亚像素抗锯齿难题；把参考填充渲染在同一相位会把差别抹平，所以改用圆心的整数像素。变异核查：
+> - `FontSize(t.FontSize-1)`+`t.TextMuted` → 两条断言红（实测 ink 147 vs body 173/body−1 147、
+>   mass 39359 vs secondary 54675/muted 49674）；
+> - `TextTertiary` 换回 `t.TextMuted` → 中心 `{33 33 37}` vs 期望 `{30 30 34}` 红；
+> - 去掉 `dot.Shadow(...)` → 活点宽 6 = 裸点宽 6，环未画红。
+>
+> **门槛**：在隔离 worktree（HEAD + 本轮改动）`gofmt -l cmd internal` 空、`go vet ./...` 净、
+> `go test -count=1 ./...` 29 包全绿、`GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：「尚未做」被重写为下面 4 条带 file:line / 原版对照 / 验收标准的具体待办
+> （见文末「具体待办（P7-gx 重写）」）；本轮取第 1 条落地（= 偏离 1·2·3 三条，同在浮栏）。余下
+> 第 2 条（抽屉 slider 的宽度/读数/格宽）、第 3 条（浮栏 hover 阴影）、第 4 条（空态多出的第三行）
+> 是下一轮最高优先级。
+> **本轮插曲（如实记录）**：与本轮并发的另一个 pi 正在同一工作树改
+> `internal/settingsui/uninstall.go`（卸载对话框的组件化 WIP）并留下一个编译不过的
+> `internal/settingsui/zzprobe_test.go`；本轮不吞入它，改动在隔离 worktree 完成并提交，推送前把远程
+> 已落地的并发提交（`264d991`，同样自标 P7-gw）一起 rebase 进来——本轮因此标 **P7-gx**，避开重名。
+
 > **本轮：P7-gw 插件配置表的 Number/Slider 控件面回到原版 R59（`plugin-config.css:97-192` 的
 > 28u `--glass-field` 槽 + `--glass-field-shadow`；slider 值回 `--text-caption`/`--text-muted`/tabular）**
 > ——P7-gu/P7-gv 之后「具体待办（P7-gu 重写）」只剩第 3 条，本轮取它落地。依赖检查：`go.mod` 已是
@@ -6967,73 +7031,94 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-### 具体待办（P7-gu 重写；第 1 条 P7-gu、第 2 条 P7-gv 已落地；第 3 条待做）
+### 具体待办（P7-gx 重写；第 1 条 P7-gx 已落地，余下第 2·3·4 条）
 
-审计入口：原版通用插件配置表 `main:src/plugins/PluginConfigOverlay.tsx` +
-`main:src/plugins/controls.tsx` + `main:src/styles/plugin-config.css`（此前 `grep -c "plugin-config.css" docs/`
-= 0——面板的**控件面**（不是它的卡片语言 R59，那已在别处对照）从未逐条对照）。本构建对应
-`internal/settingsui/pluginsheet.go`（`PluginSheet`）、`internal/settingsui/config.go`（集成自己的表单）、
-`internal/launcher/config.go` + `internal/shell/pluginconfig.go`（表的开合与写回）、
-`internal/plugincfg/schema.go`（schema）、词条在 `internal/i18n/copy.go`。依赖检查：`go.mod` 已是
-**v0.5.1** = `releases/latest`（本轮复核 v0.5.1，无版本可升）；只对照 `main`
+审计入口：原版终端表面 chrome 的**度量与颜色**表 `main:src/styles/terminal.css`（浮栏
+`.terminal-bar`/`.terminal-bar__title`、状态点 `.terminal-bar__dot`、抽屉 `.terminal-settings*`、驻留条
+`.terminal-resident`、空态 `.terminal-empty`），本构建对应 `internal/terminalui/terminalui.go` 的
+`titleBar`/`statusDot`/`residentNote`/`View` 与 `internal/terminalui/drawer.go`。此前 `grep -c` 复核：
+`terminal-bar__title`、`terminal-settings__row`、`terminal-setting-range`、`terminal-resident`、
+`terminal-empty`、`terminal-copy-notice` 在 `docs/` 全为 0——`terminal.css` 只对照过浮栏的**词与
+tooltip**（P7-fl/fm）与空态两行（P7-cm），度量与颜色从未逐条比对。依赖检查：`go.mod` 已是
+**v0.5.1** = `go list -m -versions` 的最新（`api.github.com` 本轮被限流），无版本可升；只对照 `main`
 （`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
 
-1. **（本轮落地，P7-gu）Action 控件是框架的填充按钮，不是原版 R38 的 quiet hairline pill。**
-   - 原版对照：`plugin-config.css:223-260` 的 `.plugin-config-action__button`——`height:28u`、
-     `padding:0 10u`、`border:1px solid var(--glass-control-edge)`、`border-radius:999px`、
-     `background:var(--glass-control)`、`font-size:var(--text-caption)`；`--danger` 变体
-     `border-color: color-mix(in srgb, var(--text-warning) 45%, transparent)`、`color:var(--text-warning)`、
-     `background:transparent`；`hover` 抬到 `--glass-control-hover`；`:focus-visible` 走 `--accent-ring`。
-     原版 `config-schema.ts:210-219` 的 action 字段把 `confirmKey` 接 `plugins.config.clearHistoryConfirm`
-     （`i18n.ts:248`），`cancelKey` 接 `clearHistoryCancel`（`:249`）。
-   - 本构建（改前）：`pluginsheet.go:268-288` 的 `sheetAction` 用 `ui.Button`（框架填充按钮：14u 侧内边距、
-     中性描边、正文步进）；`plugincfg/schema.go:370,410` 的 `Confirm` 复用按钮词
-     `ClipboardClearButton`（"Clear"/"清空"），armed 行读成第二颗同字按钮而非问句。
-   - 落地 file:line（已按此落地）：`internal/settingsui/pluginsheet.go` 新增
-     `sheetActionButton(c, label, danger, run)`（`MinHeight(Space(7))` / `Padding(0, Space(2.5))` /
-     `Radius(Space(3.5))` / `Border(1, edge)` / `Background(plane)` / `Caption` 墨字），
-     `sheetAction` 三颗按钮改走它、簇的 `Gap` 对齐原版 6u、失败行走 `tokens.Caption`；
-     `internal/i18n` 新增 `ClipboardClearConfirm`（en/zh 逐字取 `i18n.ts:248,1146`），
-     `internal/plugincfg/schema.go` 两处 `clear_history` 改接它。
-   - 验收（已过）：`internal/settingsui/pluginsheetface_test.go` 两条——
-     `TestThePluginActionButtonIsTheReferenceHairlinePill`（盒高 == 28u、标签两侧 10u、danger 描边与墨色
-     都是暖色、药丸圆角顶行拉进 ≥5px）与 `TestThePluginActionClusterIsWarmAndAsksBeforeItActs`（活表：
-     danger 药丸右缘外有暖色描边、armed 第二帧画出 `Clear history?` 问句且它不是按钮词）、
-     `internal/i18n/i18n_test.go` 的 `TestClipboardClearConfirmIsTheReferenceQuestion`（en/zh 逐字 +
-     与按钮词不同）。变异核查：改回 `ui.Button` → 圆角/毡色/危险色/右缘四条红；
-     确认词改回 `ClipboardClearButton` → 问句条红。
+#### P7-gx-1 · 浮栏身份行与状态点的字级/颜色/环（**本轮落地，P7-gx**）
 
-2. **（本轮落地，P7-gv）Text 字段不是原版的控件盒，而是框架的默认输入框。**
-   - 原版对照：`plugin-config.css:97-118` 的 `.plugin-config-text`——`box-sizing:border-box`、
-     `height:28u`、`border:1px solid var(--glass-control-edge)`、`border-radius:var(--radius-sm)`、
-     `background:var(--glass-field)`、`box-shadow:var(--glass-field-shadow)`、`color:var(--text-primary)`、
-     `font-size:var(--text-body)`、`padding:0 8u`。
-   - 本构建（改前）：`pluginsheet.go:135-138` 的 `plugincfg.Text` 走 `a.text(...)`，而
-     `settingsui.go:3047` 的 `textInput(c, &edit).Placeholder(...).Width(220)` 是框架默认输入框
-     （不是 28u 盒、无 control-edge 发丝与 `--glass-field` 槽底）。
-   - 落地 file:line：`pluginsheet.go` 的 `plugincfg.Text` 分支改为自画 28u 盒（背景 `tokens.Field`、
-     1px `tokens.ControlEdge`、`Radius(tokens.RadiusSM)`、正文步进），`ui.TextInput` 去掉自己的面；
-     若框架无法去掉输入框自带面，则在文档如实记录该缺口。
-   - 验收：渲染测试——盒高 == 28u、盒底与卡片底像素差可测（`--glass-field` 槽）、两侧 8u 内边距。
-     变异核查：改回 `a.text` → 高度/槽底断言红。
+- **原版对照**：`main:src/styles/terminal.css:165-175`（`.terminal-bar__title { color: var(--text-secondary);
+  font-size: var(--text-body); font-weight: 580; line-height: 1; letter-spacing: -0.01em }`）、
+  `:148-157`（`.terminal-bar__dot { width:7px; height:7px; background: var(--accent);
+  box-shadow: var(--elev-halo) }`）、`:158-163`（`.terminal-bar__dot--exited { background:
+  var(--text-tertiary); box-shadow: none; opacity: 0.7 }`）；`main:src/styles/base.css:206-207`
+  （`--elev-halo: 0 0 0 2px var(--accent-halo)`）、`:693`（dark `--accent-halo: rgba(143,183,255,0.18)`）、
+  `:958`（light `rgba(6,74,166,0.24)`）。
+- **本构建（改前偏离）**：`internal/terminalui/terminalui.go:1094-1096` 的身份文字是
+  `FontSize(t.FontSize - 1)` + `TextColor(t.TextMuted)`（小一档、且是 muted 而非 secondary，无
+  `letter-spacing`）；`statusDot`（`:1136-1152`）退出态落 `t.TextMuted`（亮一档）、活态完全没有
+  `--elev-halo` 环，且 `theme.Tokens` 没有 `--accent-halo` 这个 token。
+- **落地 file:line（已落地）**：`internal/theme/theme.go` 新增 `Tokens.AccentHalo`（palette 两个外观
+  各一份，`theme_test.go` 钉值）；`internal/terminalui/terminalui.go:1095` 的身份文字改
+  `FontSize(t.FontSize)` + `TextColor(tokens.TextSecondary)` + `LetterSpacing(-0.01*t.FontSize)`，
+  `:1144` 退出点改 `tokens.TextTertiary`，`:1150` 活点加 `dot.Shadow(0, 0, 0, t.Space(0.5),
+  tokens.AccentHalo)`（2u 环）。详见「最近几轮」P7-gx 记录。
+- **验收（已过）**：`internal/terminalui/barchrome_test.go` 的
+  `TestTheTerminalBarTitleIsTheReferenceSecondaryBody` 与
+  `TestTheTerminalBarDotCarriesItsHaloAndWearsTertiary`（点用**中心像素**法与参考实心填充逐字节比）。
+  变异核查：改回 `FontSize-1`/`TextMuted` → 两条红；退出点换回 `TextMuted` → 中心
+  `{33 33 37}` ≠ `{30 30 34}` 红；去掉 `dot.Shadow` → 活点宽 6 == 裸点宽 6 红。
 
-3. **（本轮落地，P7-gw）Number / Slider 字段的控件盒不是原版的 R59 面。**
-   - 原版对照：`plugin-config.css:120-182` 的 `.plugin-config-number`（28u 盒、`--glass-field` +
-     `--glass-field-shadow`、8u 内边距、数值右对齐 tabular）与 `.plugin-config-slider`（轨道 16u 高、
-     `accent-color`、值文字 `--text-caption` / `--text-muted`、`min-width:48u`）。
-   - 本构建（改前）：`pluginsheet.go` 的 `sheetSlider`/`sheetNumber` 用 `ui.Slider`/`ui.NumberInput`，
-     数值行没有原版的 28u field 盒与 `--glass-field-shadow`；slider 的值文字是 `t.FontSize` 而非 caption。
-   - 落地 file:line（已按此落地）：新增 `sheetFieldSlot`（`Field` + `ControlEdge` + `RadiusSM` +
-     `tokens.FieldSlot`，text/number 共用），`sheetNumberSlot` 用 `TextInputBase`（52u / 右对齐 / tabular，
-     单位在盒内 caption+muted，gap 4u），`sheetSlider` 值文字改 `tokens.Caption` + `TextMuted` + tabular
-     + 48u 右对齐列、gap 10u；`internal/theme/theme.go` 加 `Tokens.FieldSlot`；`App.pluginNumberDrafts` 存
-     编辑中的草稿。详见「最近几轮」P7-gw 记录。
-   - 验收（已过）：`internal/settingsui/plugincontrols_test.go` 三条——number 槽高 == 28u 且与卡片面差
-     ≥40、单位/值是 caption register、打字边输边应用且越界 clamp。变异核查：改回 `ui.NumberInput` /
-     `t.FontSize` / 去掉草稿 → 对应断言红。
+#### P7-gx-2 · 抽屉 slider 的宽度、读数与格宽都不是原版的数（**待做**）
 
-> 「具体待办（P7-gu 重写）」至此 3 条全部落地，清单归零。下一轮回到「对照原版排查偏离点」，
-> 换一个全文档从未审计的原版入口（`grep -c` = 0）重新写实待办。
+- **原版对照**：`main:src/styles/terminal.css:654-658`（`.terminal-settings { display:grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 6px 18px }`）、`:660-675`
+  （`.terminal-settings__row { gap:10px; min-height:30px }`、`.terminal-settings__label
+  { color: var(--text-secondary); font-size: var(--text-body); font-weight: 560 }`）、`:677-692`
+  （`.terminal-settings__control { gap:8px }`、`.terminal-setting-range { width: 110px; accent-color:
+  var(--accent) }`）；读数 `main:src/styles/settings.css:854-865`（`.terminal-setting-control__value
+  { color: var(--accent); font-family: "SF Mono", Menlo…; font-size: var(--text-body);
+  font-variant-numeric: tabular-nums; font-weight: 600 }`）。原版的行由 `TerminalAppearance.tsx:367-380`
+  的 strip 变体渲染（label + control + `<output class="terminal-setting-control__value">`）。
+- **本构建（现状偏离）**：`internal/terminalui/drawer.go:72,100` 的两个 range 是
+  `Width(t.Space(22))` = 88px（原版 110px = `Space(27.5)`）；`:76-78`、`:104-106` 的读数是
+  `FontSize(tokens.Emphasis).TextColor(t.TextMuted)`（原版是 body 步 + accent + tabular + 600）；
+  `:68` 起的格下限 `MinWidth(t.Space(60))` = 240px（原版 230px = `Space(57.5)`）。抽屉的其它度量
+  （`Padding(10u,12u)`、`GapX(18u)/GapY(6u)`、`MinHeight(30u)`、label 的 body/560/TextSecondary、
+  control 的 8u 沟）都已对齐，只剩这三处。
+- **落地 file:line**：`drawer.go` 的两个 `Width(t.Space(22))` → `Width(t.Space(27.5))`；两处读数改
+  `FontSize(tokens.Body).TextColor(tokens.Accent).FontFeatures("tnum").FontWeight(600)`；`drawerRow`
+  的格下限调用从 `Space(60)` → `Space(57.5)`。
+- **验收**：活抽屉里 slider 的盒宽 == `Space(27.5)`；读数的墨迹像素等于 accent、宽度更接近 body
+  参考而非 emphasis；格下限盒宽 == `Space(57.5)`。变异核查：改回 `Space(22)` → 盒宽断言红。
+
+#### P7-gx-3 · 浮栏悬停时缺原版的 `--elev-bar` 阴影（**待做**）
+
+- **原版对照**：`main:src/styles/terminal.css:99-104`——`.terminal-bar { box-shadow: none;
+  transition: box-shadow var(--dur-3) ease }`，`@media (hover:hover) { .terminal-bar:hover
+  { box-shadow: var(--elev-bar) } }`；`--elev-bar` 是 `main:src/styles/base.css:224-226` 的
+  `0 6px 16px rgba(0,0,0,calc(0.18 * var(--elev-shadow-scale)))`——CSS 注释点名它是「把深度重新投在
+  下面滚动的内容上」的轻阴影，是「这里可以拖」的暗示，不是第四级 elevation。
+- **本构建（现状偏离）**：`internal/terminalui/terminalui.go` 的 `titleBar`（`:1073-1117`）在 hover 时
+  只把身份行与按钮 `revealed`，从不给浮栏自己加阴影；`barFrame` 的浮栏是纯透明。
+- **落地 file:line**：`titleBar` 的 `bar` 在 `bar.Hovered()` 时加
+  `bar.Shadow(0, t.Space(1.5), t.Space(4), 0, ui.RGBA(0, 0, 0, 0.18))`（`6u=24px` 落点、`16u=64px`
+  不糊、`0.18` 的 alpha），未悬停时不加。
+- **验收**：悬停浮栏后，浮栏正下方 `Space(7)` 起的一行像素比未悬停时更暗（同帧同列对比，
+  与 `feedbackNote` 的 `--elev-3` 合成检查同法）。
+
+#### P7-gx-4 · 空态多画了一行原版没有的说明（**待做**）
+
+- **原版对照**：`main:src/App.tsx:3852-3872` 的空态只有 `<p class="terminal-empty__title">`
+  （`terminal.emptyTitle`，`main:src/styles/terminal.css:346-350` 的 `--text-emphasis`）加两条
+  `.terminal-empty__line`（Enter / 用户自己的返回键，`:356-368`），**没有**第二段说明。
+- **本构建（现状偏离）**：`internal/terminalui/terminalui.go:736-742` 在标题之后、两条动作行之前
+  多画了一句 `ui.Text(c, hint)`（`copy.Hint` = “The session has not started yet.”），与 `EmptyTitle`
+  （“No terminal session yet”）语义重复，原版没有这一行。`copy.Hint` 全仓库只有这一个调用方。
+- **落地 file:line**：去掉 `terminalui.go` 空态分支里的 `hint` 变量与那句 `ui.Text(c, hint)`；
+  `internal/i18n` 的 `Terminal.Hint`（en/zh）若无其它引用一并删；`view_test.go` 的
+  `TestTerminalEmptyState` 去掉对 “The session has not started yet.” 的断言。
+- **验收**：空态的 `tt.Texts()` 只有 `EmptyTitle` 与两条动作行的词，不再含 Hint 串。
+
+> 「具体待办（P7-gx 重写）」第 1 条（P7-gx）已落地；第 2·3·4 条是下一轮最高优先级。
 
 审计入口：原版 About 页的深链行 `main:src/settings/DeepLinkRow.tsx`（它吃的行基元
 `main:src/settings/SettingsRows.tsx` 的 `SettingsAction`，以及 `main:src/styles/settings.css:682-730`
