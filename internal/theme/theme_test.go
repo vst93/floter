@@ -422,3 +422,36 @@ func TestHighContrastSwapsTheStrokeAndPlaceholderTokens(t *testing.T) {
 		})
 	}
 }
+
+// IconSurface is the warm amber plane (base.css's `--system-icon-surface`),
+// not the warning ink at a low alpha: quoting the label's colour here painted
+// the launcher feedback row pink-red. The two tokens must be measurably
+// different in both appearances.
+func TestIconSurfaceIsTheWarmPlaneNotTheWarningInk(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		systemDark bool
+		want       ui.Color
+		wantHover  ui.Color
+	}{
+		{"dark", true, ui.RGBA(255, 176, 132, 0.115), ui.RGBA(255, 176, 132, 0.2)},
+		{"light", false, ui.RGBA(214, 118, 44, 0.13), ui.RGBA(214, 118, 44, 0.21)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := settings.Settings{Theme: "auto"}
+			tokens := ForPreferences(s, tc.systemDark, ui.Preferences{})
+			if tokens.IconSurface != tc.want {
+				t.Errorf("IconSurface = %v, want %v", tokens.IconSurface, tc.want)
+			}
+			if tokens.IconSurfaceHover != tc.wantHover {
+				t.Errorf("IconSurfaceHover = %v, want %v", tokens.IconSurfaceHover, tc.wantHover)
+			}
+			// The plane must not equal the warning ink: the launcher feedback
+			// row quotes this token as its fill, and the warning colour is
+			// reserved for the label.
+			if tokens.IconSurface == tokens.Theme.Warning {
+				t.Error("IconSurface equals Warning: the feedback row would read pink-red instead of warm amber")
+			}
+		})
+	}
+}
