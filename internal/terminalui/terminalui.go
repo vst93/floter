@@ -1067,6 +1067,15 @@ func (a *App) titleBar(c *ui.Context, copy i18n.Terminal) {
 	// (`.terminal-bar__identity` / `.terminal-panel__actions` reveal the same
 	// way).
 	revealed := bar.Hovered() || bar.FocusWithin()
+	// `.terminal-bar:hover { box-shadow: var(--elev-bar) }` (`terminal.css:99-104`):
+	// reaching for the bar re-casts a light shadow — `0 6px 16px` at
+	// `0.18 * --elev-shadow-scale` — onto the content scrolling under it, the
+	// reference's one cue that the bar itself is a draggable handle. Only the
+	// pointer raises it; keyboard focus reveals the identity without lifting the
+	// surface, exactly as `:hover` does.
+	if bar.Hovered() {
+		bar.Shadow(0, t.Space(1.5), t.Space(4), 0, ui.RGBA(0, 0, 0, 0.18))
+	}
 	bar.Children(func() {
 		// The identity line names the program on screen and, once it has ended,
 		// the code it returned — the reference's `identityTitle`, which is both

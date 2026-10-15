@@ -100,6 +100,38 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
+> **本轮：P7-gz 终端浮栏悬停时的 `--elev-bar` 阴影（`terminal.css:99-104` 的
+> `@media (hover:hover) .terminal-bar:hover { box-shadow: var(--elev-bar) }`）**
+> ——P7-gy 收尾后「具体待办（P7-gx 重写）」余下第 3·4 条，本轮取第 3 条落地。依赖检查：`go.mod`
+> 已是 **v0.5.1**，`go list -m -versions` 复核无 v0.5.2+（`api.github.com/releases/latest` 本轮被
+> 限流，故改用 proxy 列表），无版本可升；只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），
+> 未翻历史提交。
+>
+> **偏离（P7-gz·悬停浮栏不给它自己投影）**：原版 `.terminal-bar`（`terminal.css:90-97`）本身
+> `background: transparent; box-shadow: none`，但在 `@media (hover:hover)` 下 `:hover` 加上
+> `--elev-bar`——`base.css:224-226` 的 `0 6px 16px rgba(0,0,0,calc(0.18 * var(--elev-shadow-scale)))`，
+> CSS 注释点名它是「把深度重新投在下面滚动的内容上」的轻阴影，是「这里可以拖」的暗示，不是第四级
+> elevation。**本构建（改前）**：`internal/terminalui/terminalui.go` 的 `titleBar`（`:1059-1077`）
+> 悬停时只把身份行与按钮 `revealed`，从不给浮栏自己加阴影——浮栏在指针下抬不起来。
+>
+> **落地**：`internal/terminalui/terminalui.go` 的 `titleBar` 在 `bar.Hovered()` 时调
+> `bar.Shadow(0, t.Space(1.5), t.Space(4), 0, ui.RGBA(0, 0, 0, 0.18))`——offset/blur 取原版的
+> `0 6px 16px` 折成 `Space`，alpha 用 base `0.18`（与 `sessionNote`/`feedbackNote` 用 `--elev-3` 的
+> base `0.3` 同法，本构建的阴影都不随窗口透明度缩放）；键盘焦点仍只揭示身份行、不抬升表面，与原版
+> `:hover` 一致。
+>
+> **验收**：新增 `internal/terminalui/barshadow_test.go` 的
+> `TestTheTerminalBarLiftsItsShadowOnHover`——在灰色画布上以「指针在浮栏上」与「指针离开」两帧同列对比：
+> 浮栏正下方第一行（`Space(7)` 处）在悬停帧更暗（实测 idle 184 → hovered 158）、未悬停帧那一行就是
+> 裸画布（±4）、离浮栏 30px 外两帧无差（阴影有落点、不是平铺）。变异核查：删掉 `bar.Shadow` → 悬停行
+> 与 idle 完全同值（184 == 184）红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：「具体待办（P7-gx 重写）」第 3 条（P7-gx-3）已落地，余下第 4 条（空态多画一行说明）
+> 是下一轮最高优先级。
+
 > **本轮：P7-gy 终端外观抽屉的 slider 宽度/读数/格宽回到原版 `terminal.css`（`.terminal-settings`
 > 的 `minmax(230px, 1fr)`、`.terminal-setting-range` 的 `width: 110px`、
 > `.terminal-setting-control__value` 的 body/等宽/accent/tabular）**
@@ -7143,20 +7175,23 @@ tooltip**（P7-fl/fm）与空态两行（P7-cm），度量与颜色从未逐条�
   两 floor 下的折点与中间窗口）；变异核查：`drawerRangeWidth` → 22 / `drawerReadout` → Emphasis+Muted /
   `drawerCellFloor` → 60，三条各红。详见上文 P7-gy 记录。
 
-#### P7-gx-3 · 浮栏悬停时缺原版的 `--elev-bar` 阴影（**待做**）
+#### P7-gx-3 · 浮栏悬停时缺原版的 `--elev-bar` 阴影（**本轮落地，P7-gz**）
 
 - **原版对照**：`main:src/styles/terminal.css:99-104`——`.terminal-bar { box-shadow: none;
   transition: box-shadow var(--dur-3) ease }`，`@media (hover:hover) { .terminal-bar:hover
   { box-shadow: var(--elev-bar) } }`；`--elev-bar` 是 `main:src/styles/base.css:224-226` 的
   `0 6px 16px rgba(0,0,0,calc(0.18 * var(--elev-shadow-scale)))`——CSS 注释点名它是「把深度重新投在
   下面滚动的内容上」的轻阴影，是「这里可以拖」的暗示，不是第四级 elevation。
-- **本构建（现状偏离）**：`internal/terminalui/terminalui.go` 的 `titleBar`（`:1073-1117`）在 hover 时
-  只把身份行与按钮 `revealed`，从不给浮栏自己加阴影；`barFrame` 的浮栏是纯透明。
-- **落地 file:line**：`titleBar` 的 `bar` 在 `bar.Hovered()` 时加
-  `bar.Shadow(0, t.Space(1.5), t.Space(4), 0, ui.RGBA(0, 0, 0, 0.18))`（`6u=24px` 落点、`16u=64px`
-  不糊、`0.18` 的 alpha），未悬停时不加。
-- **验收**：悬停浮栏后，浮栏正下方 `Space(7)` 起的一行像素比未悬停时更暗（同帧同列对比，
-  与 `feedbackNote` 的 `--elev-3` 合成检查同法）。
+- **本构建（改前偏离）**：`internal/terminalui/terminalui.go` 的 `titleBar` 在 hover 时
+  只把身份行与按钮 `revealed`，从不给浮栏自己加阴影；浮栏是纯透明。
+- **落地 file:line（已落地，P7-gz）**：`internal/terminalui/terminalui.go:1076-1078` 的 `titleBar` 在
+  `bar.Hovered()` 时加 `bar.Shadow(0, t.Space(1.5), t.Space(4), 0, ui.RGBA(0, 0, 0, 0.18))`（offset/blur
+  取原版 `0 6px 16px` 折成 `Space`、alpha 取 base `0.18`），未悬停时不加；键盘焦点仍只揭示身份行、
+  不抬升表面。
+- **验收（已过，P7-gz）**：`internal/terminalui/barshadow_test.go` 的
+  `TestTheTerminalBarLiftsItsShadowOnHover`——灰画布上「指针在浮栏上 / 指针离开」两帧同列对比：
+  浮栏正下方 `Space(7)` 起的第一行悬停帧更暗（实测 184 → 158）、未悬停帧那一行是裸画布、离浮栏
+  30px 外两帧无差。变异核查：删掉 `bar.Shadow` → 两帧同值红。详见上文 P7-gz 记录。
 
 #### P7-gx-4 · 空态多画了一行原版没有的说明（**待做**）
 
@@ -7171,8 +7206,8 @@ tooltip**（P7-fl/fm）与空态两行（P7-cm），度量与颜色从未逐条�
   `TestTerminalEmptyState` 去掉对 “The session has not started yet.” 的断言。
 - **验收**：空态的 `tt.Texts()` 只有 `EmptyTitle` 与两条动作行的词，不再含 Hint 串。
 
-> 「具体待办（P7-gx 重写）」第 1 条（P7-gx）与第 2 条（P7-gx-2，P7-gy）已落地；第 3·4 条是下一轮
-> 最高优先级。
+> 「具体待办（P7-gx 重写）」第 1 条（P7-gx）、第 2 条（P7-gx-2，P7-gy）与第 3 条（P7-gx-3，P7-gz）
+> 已落地；只剩第 4 条（空态多画一行说明）是下一轮最高优先级。
 
 审计入口：原版 About 页的深链行 `main:src/settings/DeepLinkRow.tsx`（它吃的行基元
 `main:src/settings/SettingsRows.tsx` 的 `SettingsAction`，以及 `main:src/styles/settings.css:682-730`
