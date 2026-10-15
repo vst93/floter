@@ -1,0 +1,76 @@
+package settingsui
+
+import (
+	"github.com/egoist/mygo/ui"
+
+	"floter/internal/i18n"
+	"floter/internal/launcher"
+)
+
+// emptyState is the reference's one empty region, `SettingsEmpty`
+// (`SettingsRows.tsx:218-244`; `settings.css:633-676,1393`): one quiet glyph,
+// the state in one line, the grey why underneath with its 320u measure, and an
+// optional inline entry. Nothing here is chrome — an empty region is a
+// sentence, not a card — so it is presentation only: every page keeps owning
+// its own words, its own mark and its own way out.
+//
+// floor is the region's own floor. The reference's list placeholder is 92u
+// (`.settings-empty`), and a page whose empty region *is* its whole body
+// overrides it with the taller 160u (`.session-manager > .settings-empty`).
+// Zero means the 92u list floor.
+func (a *App) emptyState(c *ui.Context, iconName, title, hint string, floor float32, action func()) ui.Element {
+	tokens := a.tokens(c)
+	t := c.Theme()
+	if floor <= 0 {
+		floor = t.Space(23) // 92u, the reference's list-placeholder floor
+	}
+	// `place-content: center; justify-items: center` is the column's own
+	// centring on both axes; `text-align: center` is the copy's.
+	region := ui.Column(c).FillWidth().MinHeight(floor).
+		Gap(t.Space(2)).Padding(t.Space(6)).Center()
+	region.Children(func() {
+		if glyph, ok := launcher.Glyph(iconName); ok {
+			// `.settings-empty__icon`: 22px (Space(5.5)), `--text-tertiary`,
+			// opacity 0.72 — quiet beneath the sentence it introduces.
+			ui.Icon(c, glyph).Size(t.Space(5.5), t.Space(5.5)).
+				TextColor(tokens.TextTertiary).Opacity(0.72)
+		}
+		// `.settings-empty__title`: `--text-secondary` at 580, the body step.
+		ui.Text(c, title).FontSize(tokens.Body).FontWeight(580).
+			LineHeight(1.4).TextColor(tokens.TextSecondary).TextAlign(ui.Center)
+		if hint != "" {
+			// `.settings-empty__hint`: a 320u measure, `--text-caption` in
+			// `--text-tertiary`.
+			ui.Text(c, hint).FontSize(tokens.Caption).LineHeight(1.5).
+				MaxWidth(t.Space(80)).TextColor(tokens.TextTertiary).TextAlign(ui.Center)
+		}
+		if action != nil {
+			// `.settings-empty__action`: inline, 2u above it.
+			ui.Column(c).Margin(t.Space(0.5), 0, 0, 0).Children(action)
+		}
+	})
+	return region
+}
+
+// sessionsEmptyFace is the Sessions page's empty state as a pure choice, the
+// reference's `error ? ... : loading ? ... : ...` three-way
+// (`SessionsPage.tsx:142-167`). The shell's session list is in-process and
+// synchronous, so this build can only reach the resting arm; the other two are
+// kept here so the marks and the words cannot drift from the old dictionary,
+// and are exercised by the mapping's own test.
+type sessionsEmptyFace struct {
+	Icon  string
+	Title string
+	Hint  string
+}
+
+func sessionsEmptyFaceFor(copy i18n.Settings, failed, loading bool) sessionsEmptyFace {
+	switch {
+	case failed:
+		return sessionsEmptyFace{Icon: "alert", Title: copy.SessionsError, Hint: copy.SessionsRefreshHint}
+	case loading:
+		return sessionsEmptyFace{Icon: "refresh", Title: copy.SessionsLoading}
+	default:
+		return sessionsEmptyFace{Icon: "square-terminal", Title: copy.SessionsEmpty, Hint: copy.SessionsEmptyHint}
+	}
+}

@@ -63,6 +63,15 @@ var (
 	// two stacked pages the copy action itself uses.
 	glyphCopy      = ui.MustParseSVG([]byte(glyphSource(`<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>`)))
 	glyphClipboard = ui.MustParseSVG([]byte(glyphSource(`<rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>`)))
+	// glyphSquareTerminal is lucide's SquareTerminal, the mark the reference's
+	// Sessions page used both for a session row and for the resting empty state
+	// (`SessionsPage.tsx:151,186`): the terminal idea inside its own rounded
+	// square, where `glyphTerminal` above is the bare prompt.
+	glyphSquareTerminal = ui.MustParseSVG([]byte(glyphSource(`<path d="m7 11 2-2-2-2"/><path d="M11 13h4"/><rect width="18" height="18" x="3" y="3" rx="2"/>`)))
+	// glyphRefresh is lucide's RefreshCw, the mark the reference drew while the
+	// sessions list was being fetched (`SessionsPage.tsx:148`). Its two arrows
+	// are a different shape from `glyphRestart`'s single loop.
+	glyphRefresh = ui.MustParseSVG([]byte(glyphSource(`<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>`)))
 )
 
 // rowGlyph picks the mark for a row from what the row is: an application shows
@@ -241,6 +250,10 @@ func Glyph(name string) (*ui.SVG, bool) {
 		return glyphCheck, true
 	case "copy":
 		return glyphCopy, true
+	case "square-terminal":
+		return glyphSquareTerminal, true
+	case "refresh":
+		return glyphRefresh, true
 	case "file":
 		return glyphFile, true
 	case "folder":

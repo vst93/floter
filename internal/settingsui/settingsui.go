@@ -1143,8 +1143,15 @@ func (a *App) sessions(c *ui.Context, copy i18n.Settings) {
 	t := c.Theme()
 	sessions := a.sortedSessions()
 	if len(sessions) == 0 {
-		ui.Column(c).FillWidth().Gap(t.Space(3)).Padding(t.Space(4)).Center().Children(func() {
-			ui.Text(c, copy.SessionsNone).FontSize(t.FontSize).TextColor(t.TextMuted)
+		// The reference's shared empty region (`SessionsPage.tsx:142-167,
+		// 218-244`): the mark, the state in one line and the grey why under
+		// it, with the page-body floor (`.session-manager > .settings-empty`
+		// is 160u, where the list placeholder is 92u). This build's session
+		// list is in-process and synchronous, so only the resting arm of the
+		// reference's three-way is reachable (see `sessionsEmptyFaceFor`); the
+		// page's own New session control stays the way out.
+		face := sessionsEmptyFaceFor(copy, false, false)
+		a.emptyState(c, face.Icon, face.Title, face.Hint, t.Space(40), func() {
 			if a.Actions.NewSession != nil {
 				if ui.Button(c, copy.SessionsNew).Clicked() {
 					a.Actions.NewSession()

@@ -592,7 +592,7 @@ func TestSessionsPage(t *testing.T) {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	if !tt.HasText("No sessions are running.") {
+	if !tt.HasText("No persistent sessions") {
 		t.Errorf("missing the empty session state: %q", tt.Texts())
 	}
 

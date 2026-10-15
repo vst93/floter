@@ -422,9 +422,16 @@ type Settings struct {
 	ShowMenubarIconHint      string
 	ShowCommandsInSearch     string
 	ShowCommandsInSearchHint string
-	SessionsNone             string
-	SessionsClose            string
-	SessionsActive           string
+	// The Sessions page's empty region, the reference's three-way state
+	// (`SessionsPage.tsx:142-167`): a list being fetched, the resting empty
+	// state, a failed list and the failure's own hint.
+	SessionsLoading     string
+	SessionsEmpty       string
+	SessionsEmptyHint   string
+	SessionsError       string
+	SessionsRefreshHint string
+	SessionsClose       string
+	SessionsActive      string
 	// SessionsSortNewest and SessionsSortOldest name the sessions list's own
 	// order control: the word it shows is the order in force, and pressing it
 	// swaps to the other (the old page's `terminal.sortNewest` /

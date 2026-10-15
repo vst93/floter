@@ -11,7 +11,7 @@
 浏览器、计算器、系统集成、打包与 CI 全部就位。三平台都能构建，Linux 打包
 （可执行文件 + .deb + tar.gz）与 macOS 打包（.app + .dmg）都已在本机跑通，并在真实数据上验证过
 （旧扩展仓库、剪贴板历史、扩展配置）。仓库里只有 `cmd/` + `internal/` 的 Go 实现（约 30k 行，
-含测试）。**1396 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
+含测试）。**1400 项测试全绿**（`go test -v ./... | grep -c -- "--- PASS"`，含子测试）。
 
 ## 快速上手（换到新电脑后）
 
@@ -22,7 +22,7 @@ git checkout mygo-rewrite
 # 门槛（全部必须过）
 gofmt -l cmd internal          # 必须为空
 go vet ./...
-go test -count=1 ./...         # 1396 项测试
+go test -count=1 ./...         # 1400 项测试
 GOOS=linux go build ./... && GOOS=windows go build ./... && GOOS=darwin go build ./...
 
 # 开发运行（打开真实窗口）
@@ -100,7 +100,62 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **本轮：P7-gk 共享文本动作回到原版 `.settings-reset` 的度量与交互——24u 底、2u 内边距、
+> **本轮：P7-gl Sessions 页的空态回到原版共享的 `SettingsEmpty`——三态映射 + 22u 图标记号 +
+> 8u 标题/提示间距 + 160u 页体底（原版 `src/settings/SessionsPage.tsx:142-167`、
+> `src/settings/SettingsRows.tsx:218-244`、`src/styles/settings.css:633-676,1393`、
+> `src/i18n.ts:162-166,1069-1073`）**
+> ——P7-gk 收尾后「具体待办（P7-gk 重写）」有 3 条待做，本轮取最高优先级第 1 条落地。依赖检查：
+> `go.mod` 已是 **v0.5.1** = GitHub releases latest（本轮以 `go list -m -versions` 复核，v0.5.1 即
+> latest tag；`releases/latest` 仍被 API 限流），无版本可升；只对照 `main`
+> （`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离（P7-gl·Sessions 空态是一行裸文本，不是原版的共享空态）**：原版
+> `SessionsPage.tsx:142-167` 在 `sessions.length === 0` 时走共享的 `SettingsEmpty`
+> （`SettingsRows.tsx:218-244`）——`error ? AlertCircle : loading ? RefreshCw : SquareTerminal`
+> （均 22px、`strokeWidth 1.6`）三态图标，标题取 `terminal.sessionsError` /
+> `terminal.sessionsLoading` / `terminal.sessionsEmpty`，提示取 `terminal.sessionsRefreshHint` /
+> 无 / `terminal.sessionsEmptyHint`；CSS `.settings-empty`（`settings.css:633-676`）给 92u 底、
+> 24u padding、8u gap、图标 `--text-tertiary` @0.72、标题 `--text-secondary` 580、提示
+> `--text-caption` 320u；`.session-manager > .settings-empty`（`:1393`）把这条列表的底抬到 160u
+> （空态*就是*整页 body）。**本构建（改前）**：`settingsui.go` 的空态是 `Gap(Space(3))` +
+> `Padding(Space(4))` 的一行 `copy.SessionsNone`（“No sessions are running.”）+ 一个
+> `ui.Button(SessionsNew)`，没有图标、没有提示、没有 160u 底，且词条与 `terminal.sessionsEmpty`
+> （“No persistent sessions”/“暂无持久化会话”）不同。
+>
+> **落地**：
+> - `internal/settingsui/empty.go`（新）：共享 `emptyState`——`MinHeight(floor)`（0 → 92u）、
+>   `Gap(t.Space(2))`、`Padding(t.Space(6))`、`Center()`；图标记号 22u（`t.Space(5.5)`）
+>   `TextTertiary` @0.72；标题 `tokens.Body` 580 `TextSecondary`；提示 `tokens.Caption`
+>   `TextTertiary` `MaxWidth(t.Space(80))`；可选 action 槽（`Margin(t.Space(0.5),0,0,0)`）。
+>   同文件 `sessionsEmptyFaceFor(copy, failed, loading)` 是原版三态选择的纯函数。
+> - `internal/settingsui/settingsui.go` 的 `sessions` 空支改走 `a.emptyState(..., t.Space(40), …)`
+>   （160u），页面 own 的 `New session` 控制留在空态里做出路。
+> - `internal/launcher/glyphs.go`：新增 `square-terminal`（lucide SquareTerminal）与 `refresh`
+>   （lucide RefreshCw）两个记号并进闭集。
+> - `internal/i18n`：删掉自造的 `SessionsNone`，补原版五条 `SessionsLoading`/`SessionsEmpty`/
+>   `SessionsEmptyHint`/`SessionsError`/`SessionsRefreshHint`（en/zh 逐字取
+>   `i18n.ts:162-166,1069-1073`）。
+>
+> **取舍（如实记录）**：本构建的会话列表来自进程内的 `a.Terminal.Sessions`（同步读），没有原版
+> broker 轮询带来的 loading/error 帧；三态映射与词条/记号都按原版落地并经测试钉住，但页面只会走
+> 默认支。原版 error 的 `role="alert"` 仍无 `ui.Role` 枚举（既有「已知差距」），本轮不接线。
+>
+> **验收**：`internal/settingsui/empty_test.go` 三条——
+> `TestTheEmptyRegionWearsTheReferenceSettingsEmptyMetrics`（绑定空态盒：高 == 160u、title/hint
+> 间距 == 8u、标题上方 22u 带内有图标记号且墨迹高度 ≈22u）、
+> `TestTheSessionsEmptyStateIsTheReferenceEmptyRegion`（活页：画出 `SessionsEmpty`/`SessionsEmptyHint`/
+> `SessionsNew`、不再出现旧句、点 `New session` 恰好触发一次）、
+> `TestSessionsEmptyFaceFollowsTheReferenceThreeWay`（resting/loading/failed 三支 + 失败优先 + zh）；
+> `internal/i18n/i18n_test.go` 的 `TestSessionsEmptyWordsMatchTheOldDictionary`（en/zh 五条逐字）。
+> 变异核查：去掉 `MinHeight` → 盒高 115 红；把记号名查成 `""` → 「no glyph ink」红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go tool mygo vet .` 净、
+> `go test -count=1 ./...` 全绿（1400 项）、`GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：第 1 条（P7-gl）落地；「具体待办（P7-gk 重写）」还剩第 2 条（Integrations 页空态
+> 改用同一 `emptyState`）与第 3 条（自定义快捷键空态同改 + keyboard/＋ 记号），是下一轮最高优先级。
+
+> **上一轮：P7-gk 共享文本动作回到原版 `.settings-reset` 的度量与交互——24u 底、2u 内边距、
 > `--radius-xs`，hover/active 只降墨色透明度（原版 `src/settings/SettingsRows.tsx:201-216`、
 > `src/styles/settings.css:682-730`）**
 > ——P7-gj 收尾后「具体待办（P7-gi 重写）」只剩第 3 条（共享文本动的 `.settings-reset` 度量），
@@ -6546,7 +6601,7 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 > About 页深链行，把清单重写为上面 3 条带 file:line / 原版对照 / 验收标准的具体待办，并取第 1 条
 > 落地（P7-gi）。第 2·3 条随后由 P7-gj / P7-gk 结清，本清单归零。
 
-### 具体待办（P7-gk 重写；第 1–3 条待做）
+### 具体待办（P7-gk 重写；第 1 条 P7-gl 已落地，第 2–3 条待做）
 
 审计入口：原版 `main:src/settings/SettingsRows.tsx` 的 `SettingsEmpty`（`:218-244`）与它的 CSS
 `main:src/styles/settings.css:633-676`、`:1393`（`.session-manager > .settings-empty` 的整身接管）、
@@ -6559,7 +6614,7 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 `go.mod` 已是 **v0.5.1** = latest tag（本轮以 `go list -m -versions` 复核），无版本可升；只对照
 `main`，未翻历史提交。
 
-1. **（待做，P7-gl）Sessions 页的空态是一行裸文本，不是原版的三态空态。**
+1. **（本轮落地，P7-gl）Sessions 页的空态是一行裸文本，不是原版的三态空态。**
    - 原版对照：`SessionsPage.tsx:142-167` 在 `sessions.length === 0` 时走 `SettingsEmpty`：
      `alert={error}`、图标三态（error → `AlertCircle`、loading → `RefreshCw`、默认 `SquareTerminal`，
      均 22px、`strokeWidth 1.6`、`aria-hidden`）、title 三态（`terminal.sessionsError` /
@@ -6580,6 +6635,12 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
      且 `New session` 仍是空态里的出路（原版的 `SettingsEmpty` 没有 action 槽，出路是页面 own 的
      `ui.Button`，与原版 `SessionsPage` 一致）；一条词表测试钉住四条新词逐字。变异核查：去掉 160u 底
      或图标任一 → 对应断言红。
+   - **P7-gl 落地**：`internal/settingsui/empty.go`（新，共享 `emptyState` + 三态纯函数
+     `sessionsEmptyFaceFor`）、`internal/settingsui/settingsui.go` 的 `sessions` 空支、
+     `internal/launcher/glyphs.go` 的 `square-terminal`/`refresh` 记号、`internal/i18n` 的五条原版词
+     （删自造 `SessionsNone`）。测试：`internal/settingsui/empty_test.go` 三条 +
+     `internal/i18n/i18n_test.go` 的 `TestSessionsEmptyWordsMatchTheOldDictionary`。三项都与验收
+     对应；三态里 loading/failed 在本构建无来源（会话列表进程内同步），如实记录在顶部 P7-gl 记录。
 
 2. **（待做，P7-gm）Integrations 页的空态是一行裸文本，不是原版的 `SettingsEmpty`。**
    - 原版对照：`ExtensionsPanel.tsx:3177-3191` 的 `EmptyState` 一律走 `SettingsEmpty`：`icon` 是

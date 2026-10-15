@@ -202,6 +202,33 @@ func TestTerminalBarWordsMatchTheOldDictionary(t *testing.T) {
 	}
 }
 
+// The Sessions page's empty words, as the old dictionary spelled them
+// (`main:src/i18n.ts:162-166,1069-1073`). The page used to ship its own
+// invented sentence ("No sessions are running."); this pins the reference's
+// five so the empty region cannot drift back to it.
+func TestSessionsEmptyWordsMatchTheOldDictionary(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		got  string
+		want string
+	}{
+		{"en loading", en.Settings.SessionsLoading, "Loading sessions…"},
+		{"en empty", en.Settings.SessionsEmpty, "No persistent sessions"},
+		{"en empty hint", en.Settings.SessionsEmptyHint, "Start a terminal session to see it here"},
+		{"en error", en.Settings.SessionsError, "Persistent sessions could not be loaded"},
+		{"en refresh hint", en.Settings.SessionsRefreshHint, "Check your connection and try again"},
+		{"zh loading", zh.Settings.SessionsLoading, "正在加载会话…"},
+		{"zh empty", zh.Settings.SessionsEmpty, "暂无持久化会话"},
+		{"zh empty hint", zh.Settings.SessionsEmptyHint, "启动终端会话后，会在此处显示"},
+		{"zh error", zh.Settings.SessionsError, "持久化会话加载失败"},
+		{"zh refresh hint", zh.Settings.SessionsRefreshHint, "请检查网络连接后重试"},
+	} {
+		if tc.got != tc.want {
+			t.Errorf("%s = %q, want %q", tc.name, tc.got, tc.want)
+		}
+	}
+}
+
 // The four removal notices, as the old dictionary spelled them
 // (`main:src/i18n.ts:545-547,1430-1432`). The kind that picks one is the
 // shell's business; this pins the words themselves so a future kind-aware
