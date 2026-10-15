@@ -2824,9 +2824,11 @@ func (a *App) general(c *ui.Context, copy i18n.Settings) {
 		// `:533`): the glass effect on one card and the two transparency sliders
 		// on a second, the group's two explanations drawn as footnotes under both
 		// (the reference's `.settings-section__hint` at the end of the section)
-		// rather than repeated on every row. The old port drew it second, right
-		// under Appearance.
-		a.sectionFoot(c, copy.Material, "", []string{copy.GlassHint, copy.TransparencyHint}, func() {
+		// rather than repeated on every row. It is also the reference's one
+		// section spaced looser than the rest — `.settings-section--material`
+		// (`settings.css:767-772`), which `sectionMaterial` keeps. The old port
+		// drew it second, right under Appearance.
+		a.sectionMaterial(c, copy.Material, []string{copy.GlassHint, copy.TransparencyHint}, func() {
 			a.card(c, func() {
 				a.pick(c, copy.Glass, "", copy.GlassSteps, s.GlassStep,
 					func(id string) { a.set(func(s *settings.Settings) { s.GlassStep = id }) })

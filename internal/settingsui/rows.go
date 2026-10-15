@@ -37,24 +37,16 @@ func (a *App) pageColumn(c *ui.Context, fn func()) {
 }
 
 // section draws a titled group: the title, its one-line explanation, and
-// the cards fn builds under them.
-func (a *App) section(c *ui.Context, title, hint string, fn func()) {
-	a.sectionFoot(c, title, hint, nil, fn)
-}
-
-// sectionFoot is section with the group's own footnotes under its cards. The
-// reference drew a group's explanations as `.settings-section__hint` lines at
-// the *end* of the section when they spoke for the whole group rather than for
-// one row (the material section's glass and transparency notes), so the two
-// cards above them carry no repeated per-row hint.
-func (a *App) sectionFoot(c *ui.Context, title, hint string, footnotes []string, fn func()) {
-	a.sectionGroup(c, title, func() {
+// the cards fn builds under them. The explanation is a `.settings-section__hint`
+// line at the *end* of the section, after the cards it explains — the reference
+// draws a group's explanations as `.settings-section__hint` lines at the end of
+// the section when they speak for the whole group rather than for one row, so
+// the cards above them carry no repeated per-row hint.
+func (a *App) section(c *ui.Context, title, hint string, fn func()) ui.Element {
+	return a.sectionGroup(c, title, func() {
 		a.sectionHeading(c, title, nil)
 		ui.Column(c).FillWidth().Gap(c.Theme().Space(2.5)).Children(fn)
 		a.sectionHint(c, hint)
-		for _, note := range footnotes {
-			a.sectionHint(c, note)
-		}
 	})
 }
 
@@ -65,15 +57,48 @@ func (a *App) sectionFoot(c *ui.Context, title, hint string, footnotes []string,
 // labelled group — and it also gives a test the group's own box: the page gap
 // between two sections is the room from one group's bottom edge to the next
 // group's top edge (`pageColumn`), which no text box shows.
-func (a *App) sectionGroup(c *ui.Context, title string, fn func()) {
-	group := ui.Column(c).FillWidth().Gap(c.Theme().Space(2))
+func (a *App) sectionGroup(c *ui.Context, title string, fn func()) ui.Element {
+	return a.sectionGroupSpaced(c, title, c.Theme().Space(2), 0, fn)
+}
+
+// sectionGroupSpaced is sectionGroup for a section that is spaced differently
+// from the shared 8u: the General page's material group is the reference's one
+// `.settings-section--material`, `gap: 10u` and `padding: 10u 0`
+// (`settings.css:767-772`). The padding is *inside* the group box, so the page
+// gap between the material section and its neighbour stays the shared 22u
+// (`pageColumn`) while the group itself keeps the reference's own breathing
+// room. A zero padding leaves the plain group.
+func (a *App) sectionGroupSpaced(c *ui.Context, title string, gap, padding float32, fn func()) ui.Element {
+	group := ui.Column(c).FillWidth().Gap(gap)
+	if padding > 0 {
+		group = group.Padding(padding, 0)
+	}
 	group.Label(sectionLabel(title))
 	group.Children(fn)
+	return group
 }
 
 // sectionLabel names a section's group. The `\u00a0section` suffix keeps the
 // label from colliding with the title text's own node in `Tester.Find`.
 func sectionLabel(title string) string { return title + "\u00a0section" }
+
+// sectionMaterial is section for the material group, the reference's one
+// section that is spaced differently: `.settings-section--material` is both
+// `gap: 10u` and `padding: 10u 0` (`settings.css:767-772`), against the 8u gap
+// every other `.settings-section` keeps (`:411-419`). Its two cards are already
+// 10u apart (`.settings-cards { gap: 10u }`, `:491-495`), the same column gap
+// section draws, so only the group's own gap and padding differ. The group's two
+// explanations are footnotes under both cards, as the reference draws them.
+func (a *App) sectionMaterial(c *ui.Context, title string, footnotes []string, fn func()) ui.Element {
+	t := c.Theme()
+	return a.sectionGroupSpaced(c, title, t.Space(2.5), t.Space(2.5), func() {
+		a.sectionHeading(c, title, nil)
+		ui.Column(c).FillWidth().Gap(t.Space(2.5)).Children(fn)
+		for _, note := range footnotes {
+			a.sectionHint(c, note)
+		}
+	})
+}
 
 // sectionInline is section for the deep-link group: the reference puts that
 // group's one-line explanation inside `heading-main`, directly under the title

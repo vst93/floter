@@ -100,6 +100,42 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
+> **本轮：P7-gt 材质 section 回到原版自己的 10u 间距与 10u 上下内边距（`.settings-section--material`，
+> 原版 `src/styles/settings.css:767-772,491-495`）**
+> ——P7-gs 收尾后「具体待办（P7-gr 重写）」只剩第 3 条，本轮取它落地。依赖检查：`go.mod` 已是
+> **v0.5.1**，`releases/latest` 复核仍为 v0.5.1（无新版），无版本可升；只对照 `main`
+> （`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离（P7-gt·材质区与其它 section 用同一个 8u 间距）**：原版 General 页的材质区是唯一一个
+> `.settings-section--material`，它同时是 `gap: calc(var(--u) * 10)` 与 `padding: calc(var(--u) * 10) 0`
+> （`settings.css:767-772`），比普通 `.settings-section` 的 8u（`:411-419`）更松；它的两张卡之间又是
+> `.settings-cards { gap: 10u }`（`:491-495`）。**本构建（改前）**：`internal/settingsui/rows.go` 的
+> `sectionFoot` 被所有 section 共用，只有 `Gap(t.Space(2))`（8u），材质区没有自己的 10u gap 与
+> `padding: 10u 0`。
+>
+> **落地**：
+> - `internal/settingsui/rows.go`：新增 `sectionGroupSpaced(c, title, gap, padding, fn)`——sectionGroup
+>   的可选间距版本（`padding > 0` 时 `Padding(padding, 0)`），`sectionGroup` 委托它；新增材质专用的
+>   `sectionMaterial(c, title, footnotes, fn)`（`gap: 10u`、`padding: 10u 0`，脚注在两张卡之下），
+>   `sectionFoot` 被它取代并删除；`section`/`sectionGroup` 现在返回组元素（调用方照旧忽略），测试
+>   因此能取到组自己的盒子。
+> - `internal/settingsui/settingsui.go`：`general` 的材质段从 `a.sectionFoot(...)` 改走
+>   `a.sectionMaterial(...)`。
+> - 10u 内边距落在**组盒子内部**，所以它与相邻 section 的 22u 页沟（`pageColumn`，P7-gs）不变。
+>
+> **验收**：`internal/settingsui/materialspacing_test.go` 两条——
+> `TestTheMaterialSectionKeepsItsOwnSpacing`（用盒子供两张卡，逐条读组内四沟 heading→卡、卡→卡、
+> 卡→脚注、脚注→脚注 == 10u，组上/下内边距 == 10u；同法构建的普通 section 仍是 8u 且无内边距）与
+> `TestTheLiveMaterialSectionUsesItsOwnSpacing`（General 页上的材质组同法测量）。间距从
+> `c.Theme()`（帧自己的主题，Space(2.5)=10u）读，不用旁边另建的主题（后者 Space(2.5)=9）。变异核查：
+> 把 `sectionMaterial` 改回 `Space(2)`/无内边距 → 两条共 8 处断言红（实测 8 ≠ 10、0 ≠ 10）。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿（29 包）、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：「具体待办（P7-gr 重写）」3 条全部落地、清单归零。下一轮按规则先换一个尚未单独
+> 审计的原版入口，把「尚未做」重新写实，再取第 1 条落地。
+
 > **本轮：P7-gs General 页 section 之间的沟回到原版 `.settings-page` 的 22u，并把五个页共用的页列
 > 提成 `pageColumn`（原版 `src/styles/settings.css:379-387`）**
 > ——P7-gr 收尾后「具体待办（P7-gr 重写）」第 1 条已落地，本轮取最高优先级第 2 条落地。依赖检查：
@@ -10792,7 +10828,7 @@ P7-gn 收尾后清单归零。本轮按审计入口 `main:src/styles/settings.cs
   `TestTheSessionsSortControlLeadsWithTheReferenceMark`（排序词左侧 5u 沟里是 accent 记号墨迹；
   `arrow-up-down` 在字形表里；按下后词翻面）。刷新键缺席部分不再有测试——它是不画的控件。
 
-### 具体待办（P7-gr 重写；第 1 条 P7-gr、第 2 条 P7-gs 已落地，余下第 3 条）
+### 具体待办（P7-gr 重写；3 条已全部落地：第 1 条 P7-gr、第 2 条 P7-gs、第 3 条 P7-gt）
 
 P7-gq 收尾后清单归零。本轮按审计入口 `main:src/settings/GeneralPage.tsx` 的**顶层 section 顺序**
 （此前只对照过单卡内的行序 P7-ca、分组归类 P7-by/P7-bz，页面级的 section 先后从未有 file:line
@@ -10829,16 +10865,20 @@ P7-gq 收尾后清单归零。本轮按审计入口 `main:src/settings/GeneralPa
   且与 Shortcuts 页的沟相等（用 section 组盒子测量，非文字盒）。变异核查：`pageColumn` 改回
   `Space(4)` → 5 条断言同时红（16.0 ≠ 22.0）。
 
-#### P7-gr-3 · 材质 section 自己的 10u 间距与 10u 内边距
+#### P7-gr-3 · 材质 section 自己的 10u 间距与 10u 内边距（**本轮落地，P7-gt**）
 
 - **原版对照**：`.settings-section--material { padding: calc(var(--u) * 10) 0 }` 且
   `{ gap: calc(var(--u) * 10) }`（`main:src/styles/settings.css:767-772`）、`.settings-cards
   { gap: calc(var(--u) * 10) }`（`:491-495`）——材质区比普通 section（`gap: 8u`，`:411-419`）更松。
-- **本构建（偏离）**：`internal/settingsui/rows.go:47` 的 `sectionFoot` 对所有 section 都用同一个
+- **本构建（改前偏离）**：`internal/settingsui/rows.go` 的 `sectionFoot` 对所有 section 都用同一个
   `Gap(t.Space(2))`（8u），没有材质区自己的 10u gap 与 `padding: 10u 0`。
-- **落地 file:line（待落地）**：给 `sectionFoot` 增加材质区专用的间距（或让材质调用点传入 10u
-  gap/内边距），使材质区 heading→玻璃卡、玻璃卡→透明度卡、卡片→脚注的沟都是 10u，且区上下各留
-  10u 内边距。
-- **验收标准（待写）**：新测试断言材质区的 heading→玻璃卡、玻璃卡→透明度卡、卡片→脚注三处沟都是
-  `Space(2.5)`（10u），区上下各有 10u 内边距；并断言普通 section（如 Appearance）仍是 8u，避免把
-  材质区的特殊间距串到所有 section。
+- **落地 file:line（已落地）**：`internal/settingsui/rows.go` 新增 `sectionGroupSpaced`（可选 gap +
+  `Padding(padding, 0)`）与材质专用的 `sectionMaterial`（`gap: 10u`、`padding: 10u 0`，脚注在两张卡
+  之下）；`sectionFoot` 被 `sectionMaterial` 取代并删除；`internal/settingsui/settingsui.go` 的
+  `general` 材质段改走 `a.sectionMaterial`。10u 内边距落在组盒子**内部**，所以它不改变与相邻 section
+  的 22u 页沟（`pageColumn`）。详见「最近几轮」P7-gt 记录。
+- **验收（已过）**：`internal/settingsui/materialspacing_test.go` 两条——
+  `TestTheMaterialSectionKeepsItsOwnSpacing`（heading→卡、卡→卡、卡→脚注、脚注→脚注四沟 == 10u；
+  组上/下内边距 == 10u；同法构建的普通 section 仍是 8u 且无内边距）与
+  `TestTheLiveMaterialSectionUsesItsOwnSpacing`（General 页上的材质组同法测量）。变异核查：
+  `sectionMaterial` 改回 `Space(2)`/无内边距 → 两条共 8 处断言红。
