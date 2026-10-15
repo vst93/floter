@@ -2836,7 +2836,7 @@ func (a *App) general(c *ui.Context, copy i18n.Settings) {
 		// drew it second, right under Appearance.
 		a.sectionMaterial(c, copy.Material, []string{copy.GlassHint, copy.TransparencyHint}, func() {
 			a.card(c, func() {
-				a.pick(c, copy.Glass, "", copy.GlassSteps, s.GlassStep,
+				a.glassPick(c, copy.Glass, "", copy.GlassSteps, s.GlassStep,
 					func(id string) { a.set(func(s *settings.Settings) { s.GlassStep = id }) })
 			})
 			a.cardLabeled(c, copy.GroupTransparency, func() {
@@ -2863,6 +2863,21 @@ func (a *App) general(c *ui.Context, copy i18n.Settings) {
 // the choice sits on its own full-width line under the label rather than in a
 // trailing slot.
 func (a *App) pick(c *ui.Context, label, description string, options []i18n.Option, current string, apply func(string)) {
+	a.pickWith(c, a.segmented, label, description, options, current, apply)
+}
+
+// glassPick is `pick` for the material picker alone. The reference draws that
+// one track with `.glass-intensity__segments` (`main:src/styles/settings.css:
+// 792-799`) — labels centered because a glass stop is a *choice*, where every
+// other segmented row is a row of labels read left to right — so it routes
+// through `SegmentedGlassFill` instead of the base form.
+func (a *App) glassPick(c *ui.Context, label, description string, options []i18n.Option, current string, apply func(string)) {
+	a.pickWith(c, a.glassSegmented, label, description, options, current, apply)
+}
+
+// pickWith is the one body `pick` and `glassPick` share; draw is the segmented
+// form that carries the labels (base or glass).
+func (a *App) pickWith(c *ui.Context, draw func(*ui.Context, []string, int, func(int)), label, description string, options []i18n.Option, current string, apply func(string)) {
 	index := optionIndex(options, current)
 	labels := make([]string, len(options))
 	for i, option := range options {
@@ -2870,7 +2885,7 @@ func (a *App) pick(c *ui.Context, label, description string, options []i18n.Opti
 	}
 	chosen := ""
 	a.stackedRow(c, label, description, func() {
-		a.segmented(c, labels, index, func(i int) {
+		draw(c, labels, index, func(i int) {
 			if i >= 0 && i < len(options) {
 				chosen = options[i].ID
 			}
@@ -2888,6 +2903,12 @@ func (a *App) pick(c *ui.Context, label, description string, options []i18n.Opti
 // reference's control spans the row, so it takes the full-width form.
 func (a *App) segmented(c *ui.Context, labels []string, current int, apply func(int)) {
 	control.SegmentedFill(c, a.tokens(c), labels, current, apply)
+}
+
+// glassSegmented is `segmented` for the material picker: the reference's one
+// centered track (`.glass-intensity__segments`).
+func (a *App) glassSegmented(c *ui.Context, labels []string, current int, apply func(int)) {
+	control.SegmentedGlassFill(c, a.tokens(c), labels, current, apply)
 }
 
 // choose builds one labeled drop-down choice, for lists too long to line up

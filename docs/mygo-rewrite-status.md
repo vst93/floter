@@ -100,6 +100,44 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
+> **本轮：P7-hd 分段控件只有材质选择器居中，其余段回到原版的「行」左对齐（原版
+> `main:src/styles/settings.css:1055,1060` 的 `.settings-option { text-align:left; padding:0 9u }`
+> 对照 `:792-799` 的 `.glass-intensity__segments .settings-option { text-align:center; justify-items:center;
+> padding:0 6u }`）**
+> ——P7-hc 收尾后「具体待办（P7-hb 重写）」余下第 3 条，本轮取它落地，P7-hb 重写的 3 条全部结清。
+> 依赖检查：`go.mod` 已是 **v0.5.1** = `go list -m -versions github.com/egoist/mygo` 的最新
+> （`api.github.com/repos/egoist/mygo/releases/latest` 仍被限流），无版本可升；只对照 `main`
+> （`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离（P7-hb-3·基础段一律居中）**：原版裸 `.settings-option` 写 `text-align: left`
+> （`settings.css:1060`），`Padding: 0 9u`（`:1055`），所以共享轨道 `.settings-options--inline` 里的
+> 一个段是**行**——标签贴 9u 内缩、从左往右读；`SegmentedChoice`（theme/language/interface-size/字体、
+> 插件表的 radio、终端抽屉的 padding/cursor）都走这一形。唯一居中的是材质选择器
+> `.glass-intensity__segments .settings-option`（`:792-799`）：`text-align:center; justify-items:center`
+> 且水平内缩收到 `0 6u`——CSS 自带的注释点明理由「A stop's label is the effect's name; centered
+> because the segment is a choice, not a row」，即基础段是「行」、材质段才是「选择」。**本构建（改前）**：
+> `internal/control/control.go` 的段一律 `Justify(ui.Center)`，所有调用方（设置页 pick、插件表
+> sheetRadio、终端抽屉）都被居中，没有两态。
+>
+> **落地**：`internal/control/control.go` 的 `segmented` 加 `glass` 形参——基础态 `inset = Space(2.25)`
+> （9u）、`Justify(ui.Start)`；材质态 `inset = Space(1.5)`（6u）、`Justify(ui.Center)`。新增导出
+> `SegmentedGlassFill`（材质专用的全宽形），`Segmented`/`SegmentedFill` 保持基础态。
+> `internal/settingsui/settingsui.go` 把 `pick` 拆成 `pickWith` + 两条包装：`pick`（基础）与
+> **仅材质段用的** `glassPick`；新增 `a.glassSegmented`，General 页的材质 `a.pick(copy.Glass,…)` 改走
+> `a.glassPick`。别的调用方调用未改，因此这次改动只把它们从「居中」纠正为原版的「行」。
+>
+> **验收**：新增 `internal/control/segmentalign_test.go` 的
+> `TestTheBaseSegmentsAreRowsAndOnlyTheGlassTrackIsCentered`——从活控件采未选段标签自己的墨迹，量它
+> 离段左右边的留白：基础段左留白 == 9u（`Space(2.25)`）且远小于右留白（是行），材质段左右留白相等
+> （居中）且左留白 > 9u，且两形段高仍是 30u（`Space(7.5)`）。变异核查：把基础态改回 `Justify(ui.Center)`
+> → 基础段左留白读成 80.2、右 81.4，与 9u 及「右留白 > 半宽」两条同时红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：「具体待办（P7-hb 重写）」第 3 条（P7-hb-3）已落地，**3 条全部结清、清单归零**，
+> 下一轮回到「对照原版排查偏离点」。
+
 > **本轮：P7-hc 分段控件的标签整条轨道都回到原版的 `--text-strong`/580（原版
 > `main:src/styles/settings.css:1060,1111-1120` 的 `.settings-option { text-align:left }`、
 > `.settings-option__label { color: var(--text-strong); font-weight: 580 }`，对每个段一样）**
@@ -7207,7 +7245,7 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-### 具体待办（P7-hb 重写；第 1 条 P7-hb、第 2 条 P7-hc 已落地，余下第 3 条）
+### 具体待办（P7-hb 重写；3 条已全部落地：第 1 条 P7-hb、第 2 条 P7-hc、第 3 条 P7-hd）
 
 审计入口：原版设置页与终端抽屉共用的**分段控件** `main:src/settings/SettingsRows.tsx` 的
 `SegmentedChoice`（`:152-197`）与 `main:src/styles/settings.css` 的
@@ -7250,7 +7288,7 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
   `TextMuted` 的合成值（选中/未选三段都测）。变异核查：把 `TextMuted`/500 分支加回 → 未选段读成
   `{146 147 150}` 而目标是 `{236 237 239}`，红。
 
-#### P7-hb-3 · 基础段的标签被居中，原版把非材质段当「行」左对齐，只有材质选择器居中（**待做**）
+#### P7-hb-3 · 基础段的标签被居中，原版把非材质段当「行」左对齐，只有材质选择器居中（**本轮落地，P7-hd**）
 
 - **原版对照**：`.settings-option { text-align: left }`（`main:src/styles/settings.css:1060`）——
   `SegmentedChoice` 的按钮里只有一个 `.settings-option__label`，落在 `grid-template-columns:
@@ -7263,12 +7301,16 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 - **本构建（改前偏离）**：`internal/control/control.go:47` 的段一律 `Justify(ui.Center)`，它的两个
   调用方（`internal/settingsui/settingsui.go:2860` 的 `pick` 与 `internal/terminalui/drawer.go` 的
   外观选择器）都因此居中，没有左对齐与材质专用的居中两态。
-- **落地 file:line（待做）**：给 `control.Segmented`/`SegmentedFill` 一个对齐参数（或加一个
-  `SegmentedGlass` 变体），基础态 `Justify(ui.Start)`，材质 `pick` 传居中 + `Space(1.5)` = 6u 水平内缩；
-  别的调用方保持现状。
-- **验收标准**：`internal/control` 一条测试对照两条轨道——基础段的标签墨迹左缘比材质段靠左（差为
-  `Space(2.25) - Space(1.5)` = 3u 再加居中偏移的一半，即基础标签左缘在段内 9u 处、材质标签以段中心
-  对称），且两者高度仍是 30u；变异核查：把基础态改回 `Justify(ui.Center)` → 红。
+- **落地 file:line（已落地，P7-hd）**：`internal/control/control.go` 的 `segmented` 加 `glass` 形参
+  （基础态 `Justify(ui.Start)` + `Space(2.25)` = 9u；材质态 `Justify(ui.Center)` + `Space(1.5)` = 6u），
+  新增导出 `SegmentedGlassFill`；`internal/settingsui/settingsui.go` 的 `pick` 拆出 `pickWith`，
+  新增仅材质段用的 `glassPick`/`a.glassSegmented`，General 页的材质 pick 改走 `a.glassPick`；
+  别的调用方调用未改，默认回到原版的「行」。
+- **验收（已过，P7-hd）**：`internal/control/segmentalign_test.go` 的
+  `TestTheBaseSegmentsAreRowsAndOnlyTheGlassTrackIsCentered`——基础段标签墨迹左缘离段左边 == 9u 且
+  远小于右留白；材质段左右墨迹留白相等（居中）且左留白 > 9u；两形段高仍是 30u。
+  变异核查：基础态改回 `Justify(ui.Center)` → 基础段左留白 80.2、右 81.4，与 9u/「右留白 > 半宽」
+  两条同时红。
 
 ### 具体待办（P7-gx 重写；第 1 条 P7-gx 已落地，余下第 2·3·4 条）
 

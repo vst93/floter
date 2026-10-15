@@ -20,7 +20,7 @@ import (
 //
 // labels[i] stands for option i; apply runs with the index the user chose.
 func Segmented(c *ui.Context, tokens theme.Tokens, labels []string, current int, apply func(int)) {
-	segmented(c, tokens, labels, current, apply, false)
+	segmented(c, tokens, labels, current, apply, false, false)
 }
 
 // SegmentedFill is Segmented at the row's full width: the reference's stacked
@@ -29,12 +29,26 @@ func Segmented(c *ui.Context, tokens theme.Tokens, labels []string, current int,
 // card and the segments share the line. The trailing form sizes to its labels;
 // this one is the choice under its own label.
 func SegmentedFill(c *ui.Context, tokens theme.Tokens, labels []string, current int, apply func(int)) {
-	segmented(c, tokens, labels, current, apply, true)
+	segmented(c, tokens, labels, current, apply, true, false)
 }
 
-// segmented is the one implementation both forms share; fill only changes how
-// the track and its segments take their width.
-func segmented(c *ui.Context, tokens theme.Tokens, labels []string, current int, apply func(int), fill bool) {
+// SegmentedGlassFill is the material picker's own variant of the full-width
+// form: the reference's `.glass-intensity__segments` (`main:src/styles/
+// settings.css:792-799`) is the *only* segmented track whose labels are
+// centered rather than left-aligned as a row, and the only one whose horizontal
+// inset tightens from 9u to 6u. CSS's own comment names the reason — "A stop's
+// label is the effect's name; centered because the segment is a choice, not a
+// row" — so the base form keeps the row reading and this one carries the choice
+// reading. The rest of the segment material (30u floor, raised pane, accent
+// keyline) is unchanged.
+func SegmentedGlassFill(c *ui.Context, tokens theme.Tokens, labels []string, current int, apply func(int)) {
+	segmented(c, tokens, labels, current, apply, true, true)
+}
+
+// segmented is the one implementation every form shares; fill only changes how
+// the track and its segments take their width, glass only the label's alignment
+// and the segment's horizontal inset.
+func segmented(c *ui.Context, tokens theme.Tokens, labels []string, current int, apply func(int), fill, glass bool) {
 	t := c.Theme()
 	track := ui.Row(c).Shrink(0).Padding(t.Space(0.5)).Gap(t.Space(0.5)).Radius(999).
 		Background(tokens.Track)
@@ -45,6 +59,17 @@ func segmented(c *ui.Context, tokens theme.Tokens, labels []string, current int,
 	// stack the raised panes carry read backwards (see `theme.Tokens.LensInset`,
 	// base.css's `--elev-track` / `--glass-lens-stack-inset`).
 	tokens.LensInset(track)
+	// The bare `.settings-option` writes `text-align: left` (`settings.css:1060`)
+	// with `padding: 0 9u` (`:1055`), so a segment is a row: its label starts at
+	// the inset and reads left to right. Only `.glass-intensity__segments`
+	// flips it to `text-align: center; justify-items: center` and tightens the
+	// inset to `0 6u` (`:792-799`).
+	inset := t.Space(2.25) // 9u
+	justify := ui.Start
+	if glass {
+		inset = t.Space(1.5) // 6u
+		justify = ui.Center
+	}
 	track.Children(func() {
 		for i, label := range labels {
 			i, label := i, label
@@ -53,8 +78,8 @@ func segmented(c *ui.Context, tokens theme.Tokens, labels []string, current int,
 			// — the height comes from the floor, not from vertical padding, so
 			// every segment is one box high whether its label is short or long.
 			// `AlignItems(ui.Center)` is what puts the line box on the middle.
-			segment := ui.Row(c).Focusable().Padding(0, t.Space(2.25)).MinHeight(t.Space(7.5)).
-				Radius(999).AlignItems(ui.Center).Justify(ui.Center).Label(label)
+			segment := ui.Row(c).Focusable().Padding(0, inset).MinHeight(t.Space(7.5)).
+				Radius(999).AlignItems(ui.Center).Justify(justify).Label(label)
 			if fill {
 				segment.Grow(1)
 			}
