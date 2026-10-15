@@ -9,6 +9,7 @@ import (
 	"floter/internal/control"
 	"floter/internal/i18n"
 	"floter/internal/settings"
+	"floter/internal/theme"
 )
 
 // ToggleDrawer opens or closes the terminal's own appearance drawer: the bar's
@@ -44,8 +45,7 @@ func (a *App) set(mutate func(*settings.Settings)) {
 func (a *App) drawer(c *ui.Context, copy i18n.Terminal) {
 	t := c.Theme()
 	tokens := tokensOf(a, c)
-	s := a.Store.Snapshot()
-	scopy := i18n.For(s.Language).Settings
+	scopy := i18n.For(a.Store.Snapshot().Language).Settings
 
 	strip := ui.Row(c).FillWidth().Shrink(0).
 		Padding(t.Space(2.5), t.Space(3)).Gap(t.Space(2.5)).AlignItems(ui.Start).
@@ -53,154 +53,198 @@ func (a *App) drawer(c *ui.Context, copy i18n.Terminal) {
 		BorderWidth(0, 0, 1, 0).BorderColor(tokens.ControlEdge).
 		Label(scopy.GroupTerminal)
 	strip.Children(func() {
-		// The rows are a wrapping grid, as the reference's
-		// `repeat(auto-fit, minmax(230px, 1fr))` was: a cell grows to its share
-		// of the line and a line holds as many cells as fit, so the strip
-		// reflows with the window instead of scrolling.
-		grid := ui.Row(c).Grow(1).Wrap().GapX(t.Space(4.5)).GapY(t.Space(1.5))
-		grid.Children(func() {
-			// One row per axis, in the schema's own order (internal/control):
-			// the drawer is the surface that carries the full set, so it paints
-			// every axis the schema names. The order the rows appear in is the
-			// schema's, never a second list kept here.
-			rows := map[control.AppearanceAxis]func(){
-				control.AxisFontSize: func() {
-					a.drawerRow(c, t.Space(60), scopy.FontSize, func() {
-						value := float64(s.FontSize)
-						changed := false
-						if ui.Slider(c, &value, float64(settings.MinFontSize), float64(settings.MaxFontSize)).
-							Width(t.Space(22)).Changed() {
-							changed = true
-						}
-						ui.Text(c, fmt.Sprintf("%d px", int(math.Round(value)))).
-							FontSize(tokens.Emphasis).TextColor(t.TextMuted)
-						if changed {
-							a.set(func(s *settings.Settings) { s.FontSize = int(math.Round(value)) })
-						}
-					})
-				},
-				control.AxisFontFamily: func() {
-					a.drawerRow(c, t.Space(60), scopy.FontFamily, func() {
-						families := FontFamilyOptions(s.FontFamily)
-						selected := s.FontFamily
-						chosen := ""
-						if ui.Select(c, &selected, families).Grow(1).Changed() {
-							chosen = selected
-						}
-						if chosen != "" {
-							a.set(func(s *settings.Settings) { s.FontFamily = chosen })
-						}
-					})
-				},
-				control.AxisLineHeight: func() {
-					a.drawerRow(c, t.Space(60), scopy.LineHeight, func() {
-						value := s.TerminalLineHeight
-						changed := false
-						if ui.Slider(c, &value, settings.MinTerminalLineHeight, settings.MaxTerminalLineHeight).
-							Width(t.Space(22)).Changed() {
-							changed = true
-						}
-						ui.Text(c, fmt.Sprintf("%.2f\u00d7", value)).
-							FontSize(tokens.Emphasis).TextColor(t.TextMuted)
-						if changed {
-							a.set(func(s *settings.Settings) { s.TerminalLineHeight = value })
-						}
-					})
-				},
-				control.AxisPadding: func() {
-					a.drawerRow(c, t.Space(60), scopy.Padding, func() {
-						control.Segmented(c, tokens, optionLabels(scopy.Paddings),
-							optionIndex(scopy.Paddings, s.TerminalPadding), func(i int) {
-								a.set(func(s *settings.Settings) { s.TerminalPadding = scopy.Paddings[i].ID })
-							})
-					})
-				},
-				control.AxisCursorShape: func() {
-					a.drawerRow(c, t.Space(60), scopy.CursorShape, func() {
-						control.Segmented(c, tokens, optionLabels(scopy.CursorShapes),
-							optionIndex(scopy.CursorShapes, s.CursorShape), func(i int) {
-								a.set(func(s *settings.Settings) { s.CursorShape = scopy.CursorShapes[i].ID })
-							})
-					})
-				},
-				control.AxisCursorBlink: func() {
-					on := s.CursorBlink
-					switched := false
-					clicked := a.drawerRow(c, t.Space(60), scopy.CursorBlink, func() {
-						if ui.Switch(c, &on).Label(scopy.CursorBlink).Changed() {
-							switched = true
-						}
-					})
-					// The row's own label is the switch's name, so clicking it toggles
-					// too — unless the switch itself was the target, in which case its
-					// own report already carried the new value.
-					if clicked && !switched {
-						on = !on
-					}
-					if switched || clicked {
-						a.set(func(s *settings.Settings) { s.CursorBlink = on })
-					}
-				},
-				// The paste boundary's own switch: it is the one appearance-schema
-				// axis that changes what a paste sends rather than how the
-				// terminal looks, and it lives in the drawer because the reference
-				// kept it on the strip (`page: "strip"`). The rule it turns on is
-				// in this package's pasteText.
-				control.AxisPasteSafe: func() {
-					on := s.TerminalPasteSafe
-					switched := false
-					clicked := a.drawerRow(c, t.Space(60), scopy.PasteSafe, func() {
-						if ui.Switch(c, &on).Label(scopy.PasteSafe).Changed() {
-							switched = true
-						}
-					})
-					if clicked && !switched {
-						on = !on
-					}
-					if switched || clicked {
-						a.set(func(s *settings.Settings) { s.TerminalPasteSafe = on })
-					}
-				},
-				// The palette row is the wide one: the picker beside the miniature
-				// terminal that shows what the choice paints, so it asks for a line
-				// of its own when the grid would otherwise squeeze the preview.
-				control.AxisPalette: func() {
-					a.drawerRow(c, t.Space(95), scopy.Palette, func() {
-						selected := optionLabel(scopy.Palettes, s.TerminalTheme)
-						chosen := ""
-						if ui.Select(c, &selected, optionLabels(scopy.Palettes)).
-							Grow(1).Changed() {
-							for _, option := range scopy.Palettes {
-								if option.Label == selected {
-									chosen = option.ID
-									break
-								}
-							}
-						}
-						// The preview follows the picker in the same frame the choice is
-						// made, so a click on the select repaints the block immediately.
-						shown := s.TerminalTheme
-						if chosen != "" {
-							shown = chosen
-						}
-						PalettePreview(c, tokens, shown, scopy.PalettePreview, t.Space(37))
-						if chosen != "" {
-							a.set(func(s *settings.Settings) { s.TerminalTheme = chosen })
-						}
-					})
-				},
-			}
-			for _, axis := range control.AppearanceAxes() {
-				if row, ok := rows[axis]; ok {
-					row()
-				}
-			}
-		})
+		a.drawerGrid(c, t.Space(drawerCellFloor))
 		// The drawer's own dismiss, in the corner a card's close button lives
 		// in: the same 28u icon button the bar's gear/X is, so the module can
 		// be dismissed from where it opened or from itself.
 		a.barButton(c, "close", copy.SettingsClose, copy.SettingsClose, a.CloseDrawer)
 	})
+}
+
+// drawerCellFloor is the reference's `minmax(230px, 1fr)` floor for a row's
+// grid cell (`.terminal-settings`, `terminal.css:654-658`): 230px in the old
+// build's unit is 57.5 of this build's `--u`, not the 60 (240px) the old port
+// rounded it to. It is a parameter of drawerGrid so a test can hold the shelf
+// it moves.
+const drawerCellFloor = 57.5
+
+// paletteCellFloor is the palette row's own cell floor. The reference's grid
+// is uniform (`minmax(230px, 1fr)` for every row), but its palette row carries
+// the picker beside the miniature preview, so forcing the widest row onto a
+// line of its own keeps the preview from being squeezed — the same intent the
+// reference's growing content gave it.
+const paletteCellFloor = 95
+
+// drawerGrid is the strip's wrapping grid and its rows, in the schema's own
+// order (internal/control): the drawer carries the full appearance set, so it
+// paints every axis the schema names — never a second list kept here. The
+// cellFloor is the floor below which a row moves to the next line rather than
+// squeezing its control.
+func (a *App) drawerGrid(c *ui.Context, cellFloor float32) {
+	t := c.Theme()
+	tokens := tokensOf(a, c)
+	s := a.Store.Snapshot()
+	scopy := i18n.For(s.Language).Settings
+
+	grid := ui.Row(c).Grow(1).Wrap().GapX(t.Space(4.5)).GapY(t.Space(1.5))
+	grid.Children(func() {
+		rows := map[control.AppearanceAxis]func(){
+			control.AxisFontSize: func() {
+				a.drawerRow(c, cellFloor, scopy.FontSize, func() {
+					value := float64(s.FontSize)
+					changed := false
+					if drawerRange(c, &value, float64(settings.MinFontSize), float64(settings.MaxFontSize)).
+						Changed() {
+						changed = true
+					}
+					drawerReadout(c, tokens, fmt.Sprintf("%d px", int(math.Round(value))))
+					if changed {
+						a.set(func(s *settings.Settings) { s.FontSize = int(math.Round(value)) })
+					}
+				})
+			},
+			control.AxisFontFamily: func() {
+				a.drawerRow(c, cellFloor, scopy.FontFamily, func() {
+					families := FontFamilyOptions(s.FontFamily)
+					selected := s.FontFamily
+					chosen := ""
+					if ui.Select(c, &selected, families).Grow(1).Changed() {
+						chosen = selected
+					}
+					if chosen != "" {
+						a.set(func(s *settings.Settings) { s.FontFamily = chosen })
+					}
+				})
+			},
+			control.AxisLineHeight: func() {
+				a.drawerRow(c, cellFloor, scopy.LineHeight, func() {
+					value := s.TerminalLineHeight
+					changed := false
+					if drawerRange(c, &value, settings.MinTerminalLineHeight, settings.MaxTerminalLineHeight).
+						Changed() {
+						changed = true
+					}
+					drawerReadout(c, tokens, fmt.Sprintf("%.2f\u00d7", value))
+					if changed {
+						a.set(func(s *settings.Settings) { s.TerminalLineHeight = value })
+					}
+				})
+			},
+			control.AxisPadding: func() {
+				a.drawerRow(c, cellFloor, scopy.Padding, func() {
+					control.Segmented(c, tokens, optionLabels(scopy.Paddings),
+						optionIndex(scopy.Paddings, s.TerminalPadding), func(i int) {
+							a.set(func(s *settings.Settings) { s.TerminalPadding = scopy.Paddings[i].ID })
+						})
+				})
+			},
+			control.AxisCursorShape: func() {
+				a.drawerRow(c, cellFloor, scopy.CursorShape, func() {
+					control.Segmented(c, tokens, optionLabels(scopy.CursorShapes),
+						optionIndex(scopy.CursorShapes, s.CursorShape), func(i int) {
+							a.set(func(s *settings.Settings) { s.CursorShape = scopy.CursorShapes[i].ID })
+						})
+				})
+			},
+			control.AxisCursorBlink: func() {
+				on := s.CursorBlink
+				switched := false
+				clicked := a.drawerRow(c, cellFloor, scopy.CursorBlink, func() {
+					if ui.Switch(c, &on).Label(scopy.CursorBlink).Changed() {
+						switched = true
+					}
+				})
+				// The row's own label is the switch's name, so clicking it toggles
+				// too — unless the switch itself was the target, in which case its
+				// own report already carried the new value.
+				if clicked && !switched {
+					on = !on
+				}
+				if switched || clicked {
+					a.set(func(s *settings.Settings) { s.CursorBlink = on })
+				}
+			},
+			// The paste boundary's own switch: it is the one appearance-schema
+			// axis that changes what a paste sends rather than how the
+			// terminal looks, and it lives in the drawer because the reference
+			// kept it on the strip (`page: "strip"`). The rule it turns on is
+			// in this package's pasteText.
+			control.AxisPasteSafe: func() {
+				on := s.TerminalPasteSafe
+				switched := false
+				clicked := a.drawerRow(c, cellFloor, scopy.PasteSafe, func() {
+					if ui.Switch(c, &on).Label(scopy.PasteSafe).Changed() {
+						switched = true
+					}
+				})
+				if clicked && !switched {
+					on = !on
+				}
+				if switched || clicked {
+					a.set(func(s *settings.Settings) { s.TerminalPasteSafe = on })
+				}
+			},
+			// The palette row is the wide one: the picker beside the miniature
+			// terminal that shows what the choice paints, so it asks for a line
+			// of its own when the grid would otherwise squeeze the preview.
+			control.AxisPalette: func() {
+				a.drawerRow(c, t.Space(paletteCellFloor), scopy.Palette, func() {
+					selected := optionLabel(scopy.Palettes, s.TerminalTheme)
+					chosen := ""
+					if ui.Select(c, &selected, optionLabels(scopy.Palettes)).
+						Grow(1).Changed() {
+						for _, option := range scopy.Palettes {
+							if option.Label == selected {
+								chosen = option.ID
+								break
+							}
+						}
+					}
+					// The preview follows the picker in the same frame the choice is
+					// made, so a click on the select repaints the block immediately.
+					shown := s.TerminalTheme
+					if chosen != "" {
+						shown = chosen
+					}
+					PalettePreview(c, tokens, shown, scopy.PalettePreview, t.Space(37))
+					if chosen != "" {
+						a.set(func(s *settings.Settings) { s.TerminalTheme = chosen })
+					}
+				})
+			},
+		}
+		for _, axis := range control.AppearanceAxes() {
+			if row, ok := rows[axis]; ok {
+				row()
+			}
+		}
+	})
+}
+
+// terminalSettingValueFont is the monospace stack the reference gave
+// `.terminal-setting-control__value` (`settings.css:854-865`).
+const terminalSettingValueFont = "SF Mono, Menlo, Monaco, Consolas, monospace"
+
+// drawerRangeWidth is the reference's `.terminal-setting-range` width
+// (`terminal.css:677-692`): a fixed `width: 110px` track, which in this build's
+// unit is 27.5 — not the 22 (88px) the old port rounded it to.
+const drawerRangeWidth = 27.5
+
+// drawerRange is the strip's slider: the reference's fixed-width range, which
+// does not size to its cell (a wrapping cell's control would otherwise grow and
+// shrink with the window). The caller reads `.Changed()` for the write.
+func drawerRange(c *ui.Context, value *float64, lo, hi float64) ui.Element {
+	return ui.Slider(c, value, lo, hi).Width(c.Theme().Space(drawerRangeWidth))
+}
+
+// drawerReadout is the strip's live value: the reference's
+// `.terminal-setting-control__value` (`settings.css:854-865`) — the body step in
+// the monospace stack, `tabular-nums` at 600, in the accent — not the muted
+// emphasis step one size down the old port wrote.
+func drawerReadout(c *ui.Context, tokens theme.Tokens, text string) ui.Element {
+	return ui.Text(c, text).
+		Font(terminalSettingValueFont).FontSize(tokens.Body).
+		TextColor(tokens.Theme.Accent).FontWeight(600).FontFeatures("tnum")
 }
 
 // drawerRow is one appearance row: its label at the start and its control at

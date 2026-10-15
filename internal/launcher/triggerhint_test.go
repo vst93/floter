@@ -125,7 +125,7 @@ func TestTriggerHintFits(t *testing.T) {
 		natural, line = c.MeasureText(0, ui.Span{Text: text, Size: t.FontSize - 1})
 		cell, _ = c.MeasureText(0, ui.Span{Text: "0", Size: t.FontSize - 1})
 		wideApp.View(c)
-	}, 200, int(WindowHeight("small")))
+	}, 300, int(WindowHeight("small")))
 	wide.Frame()
 	if room < cell*triggerHintMinCells {
 		t.Fatalf("the test window has no room to show the nudge: %v < %v", room, cell*triggerHintMinCells)

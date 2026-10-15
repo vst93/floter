@@ -112,7 +112,7 @@ func (a *App) triggerHintRoom(c *ui.Context, t *ui.Theme) float32 {
 	// Items after the field: the nudge, the clear control, then the buttons.
 	// Every adjacent pair carries the row's gap, and each button also keeps
 	// the margin the old row put before it (`.collapsed-card__settings`).
-	return width - 2*t.Space(4) -
+	return width - 2*t.Space(16) -
 		gap*float32(2+buttons) -
 		t.Space(7)*float32(1+buttons) -
 		t.Space(2)*float32(buttons)

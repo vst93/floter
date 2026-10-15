@@ -899,7 +899,7 @@ func (a *App) View(c *ui.Context) {
 			Background(tk.Hairline)
 
 		ui.Row(c).Absolute().Top(0).Left(0).Right(0).Height(fieldRow).
-			Background(tk.FieldFill).Padding(0, t.Space(4)).
+			Background(tk.FieldFill).Padding(0, t.Space(16)).
 			AlignItems(ui.Center).Gap(t.Space(1)).Children(func() {
 			// The scope mark: the mode that owns the field, at its left — the
 			// icon says a plugin owns it and the muted word says which one
@@ -907,10 +907,11 @@ func (a *App) View(c *ui.Context) {
 			// was consumed on entry, so this is the only place the mode is
 			// named.
 			if glyph, name, ok := a.scopeMark(copy); ok {
-				mark := ui.Row(c).Shrink(0).Gap(t.Space(1)).AlignItems(ui.Center)
+				mark := ui.Row(c).Shrink(0).Gap(t.Space(6)).AlignItems(ui.Center).
+					Margin(0, t.Space(10), 0, 0)
 				mark.Children(func() {
 					ui.Icon(c, glyph).Size(t.Space(4), t.Space(4)).TextColor(t.TextMuted)
-					ui.Text(c, name).FontSize(t.FontSize).TextColor(t.TextMuted)
+					ui.Text(c, name).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
 				})
 			}
 			field := ui.TextInput(c.Key("launcher.search"), &a.Query).
@@ -1537,7 +1538,7 @@ func (a *App) row(c *ui.Context, item Item, i int) {
 		// build's `--text-tertiary` on `.launcher-status__icon`.
 		tokens := theme.ForPreferences(a.settings(), t.Dark, c.Preferences())
 		note := ui.Row(c).FillWidth().MinHeight(t.Space(launcherStatusUnits)).
-			AlignItems(ui.Center).Padding(0, t.Space(3)).Gap(t.Space(2.5))
+			AlignItems(ui.Center).Padding(0, t.Space(12)).Gap(t.Space(10))
 		note.Children(func() {
 			// The 28u icon column, as `.launcher-status__icon` was: no plate,
 			// only the mark.
@@ -1576,7 +1577,7 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 	}
 	row := ui.Row(c.Key(item.ID)).FillWidth().Focusable().MinHeight(floor).
 		AlignItems(ui.Center).
-		Padding(0, t.Space(3)).Radius(tokens.RadiusMD).Gap(t.Space(2.5)).
+		Padding(0, t.Space(12)).Radius(tokens.RadiusMD).Gap(t.Space(10)).
 		Transition(rowTransition)
 	// A history row is one step quieter than a match: the old build's
 	// `.launcher-result--history { opacity: 0.92 }`.
