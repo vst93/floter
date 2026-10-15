@@ -100,6 +100,40 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
+> **本轮：P7-he 设置侧栏悬停/选中把字色抬回原版的 `--text-primary`（原版 `main:src/styles/settings.css:142,154,168`
+> 的 `.settings-sidebar__item` 三态；`main:src/App.tsx:2903-2927` 的 `<nav class="settings-sidebar">`）**
+> ——P7-hd 收尾后「具体待办（P7-hb 重写）」3 条全部结清、清单归零，本轮按规则回到「对照原版排查偏离点」，
+> 换一个**全文档从未单独审计**的原版入口：设置侧栏。`grep -c` 复核：`settings-sidebar` 在 `docs/` 全文
+> 只出现于设置页键盘导航的 P7-dc/dd（`src/settings-nav.ts`），侧栏的**度量/字色/图标记号**从未逐字段
+> 比对。依赖检查：`go.mod` 已是 **v0.5.1** = `git ls-remote --tags github.com/egoist/mygo` 的最新
+> （`api.github.com/repos/egoist/mygo/releases/latest` 本轮仍被限流），无版本可升；只对照 `main`
+> （`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离（P7-he-1·悬停不抬字色、选中用 `--text-strong`）**：原版侧栏条目三态的字色都由 CSS 写死——
+> 静止 `--text-muted`（`settings.css:142`）、`:hover` `--text-primary`（`:154`）、`--active`
+> `--text-primary`（`:168`）；选中态另把前导图标染 accent（`:172-174`），标签本身永不 accent，也永不
+> 在 hover 时保留 muted。**本构建（改前）**：`internal/settingsui/settingsui.go` 的 `sidebarRow` 里
+> `color := t.TextMuted; if selected { color = tokens.TextStrong }`——指针悬停完全不动字色（悬停行与静止
+> 行同墨），选中的页面则用 `--text-strong`（比原版的 `--text-primary` 差一丝）。
+>
+> **落地**：`internal/settingsui/settingsui.go:1024` 把两态收敛为
+> `if selected || row.Hovered() { color = t.Text }`（`t.Text` 即 base.css 的 `--text-primary`，
+> `internal/theme/theme.go` 的 palette `text`）；前导图标继续吃这同一个 `color`，选中态再叠加 `t.Accent`
+> （原样保留）。
+>
+> **验收**：新增 `internal/settingsui/sidebarink_test.go` 的
+> `TestTheSidebarItemLiftsItsInkOnHoverAndSelection`——驱动活的「Sessions」条目（它不在当页，静止态可读），
+> 从标签自己的盒子采「离其所在平面最远」的墨迹像素：静止 ≈ `--text-muted` 合成值、悬停 ≈ `--text-primary`
+> 合成值且与静止的通道差 ≥ 40、选中 ≈ `--text-primary` 合成值且与静止差 ≥ 40。变异核查：摘掉
+> `row.Hovered()` 一支 → 悬停读回 `--text-muted`（`{113 113 122}` vs 目标 `{29 29 31}`），三条断言同时红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：「尚未做」被重写为下面 3 条带 file:line / 原版对照 / 验收标准的具体待办
+> （见文末「具体待办（P7-he 重写）」）；本轮取第 1 条落地。余下第 2 条（侧栏前导图标的记号）、
+> 第 3 条（前导图标的尺寸/描边）待下一轮。
+
 > **本轮：P7-hd 分段控件只有材质选择器居中，其余段回到原版的「行」左对齐（原版
 > `main:src/styles/settings.css:1055,1060` 的 `.settings-option { text-align:left; padding:0 9u }`
 > 对照 `:792-799` 的 `.glass-intensity__segments .settings-option { text-align:center; justify-items:center;
@@ -11443,3 +11477,59 @@ P7-gq 收尾后清单归零。本轮按审计入口 `main:src/settings/GeneralPa
   组上/下内边距 == 10u；同法构建的普通 section 仍是 8u 且无内边距）与
   `TestTheLiveMaterialSectionUsesItsOwnSpacing`（General 页上的材质组同法测量）。变异核查：
   `sectionMaterial` 改回 `Space(2)`/无内边距 → 两条共 8 处断言红。
+
+### 具体待办（P7-he 重写；第 1 条 P7-he-1 已落地，余下第 2·3 条）
+
+P7-hd 收尾后清单归零。本轮按审计入口 `main:src/App.tsx:2903-2927` 的设置侧栏
+`<nav class="settings-sidebar">` 与 `main:src/styles/settings.css:104-186` 的
+`.settings-sidebar` / `.settings-sidebar__item`（含 `:hover` / `--active` / `--active svg` /
+`[data-entry-focus]`）逐字段比对，把清单重写为下面 3 条带 file:line / 原版对照 / 验收标准的具体待办，
+并取第 1 条落地。此前 `settings-sidebar` 只在 P7-dc/dd（设置页键盘导航 `src/settings-nav.ts`）出现，
+侧栏的**度量/字色/图标记号**从未逐字段比对。
+
+#### P7-he-1 · 悬停不抬字色、选中用 `--text-strong`（**本轮落地，P7-he**）
+
+- **原版对照**：`main:src/styles/settings.css:137-146`（`.settings-sidebar__item` 静止，
+  `color: var(--text-muted)` 在 `:142`）、`:151-157`（`@media (hover:hover) {
+  .settings-sidebar__item:hover { background: var(--glass-control-hover); color: var(--text-primary);
+  box-shadow: var(--elev-0) } }`）、`:166-170`（`.settings-sidebar__item--active { background:
+  var(--glass-raised-quiet); color: var(--text-primary); box-shadow: var(--elev-0) }`）、`:172-174`
+  （`--active svg { color: var(--accent) }`）——标签永不 accent，也永不在 hover 时保留 muted。
+- **本构建（改前偏离）**：`internal/settingsui/settingsui.go:1019-1022` 的 `sidebarRow` 只写
+  `color := t.TextMuted; if selected { color = tokens.TextStrong }`；hover 分支只换背景 + lens、不动
+  `color`，选中的页面用 `--text-strong` 而非 `--text-primary`。
+- **落地 file:line（已落地）**：`internal/settingsui/settingsui.go:1024` 改为
+  `if selected || row.Hovered() { color = t.Text }`，前导图标继续吃同一个 `color`（选中态再叠 `t.Accent`）。
+- **验收（已过）**：`internal/settingsui/sidebarink_test.go` 的
+  `TestTheSidebarItemLiftsItsInkOnHoverAndSelection`（静止 ≈ muted 合成值、悬停 ≈ primary 合成值且与静止
+  的通道差 ≥ 40、选中 ≈ primary 合成值且与静止差 ≥ 40）。变异核查：摘掉 `row.Hovered()` 一支 → 悬停读回
+  `--text-muted`（`{113 113 122}` vs 目标 `{29 29 31}`），三条断言同时红。
+
+#### P7-he-2 · 侧栏前导图标的记号不是原版的 lucide 集合（**未做**）
+
+- **原版对照**：`main:src/App.tsx:2903-2908` 的五元组 `[["general", SlidersHorizontal],
+  ["sessions", SquareTerminal], ["shortcuts", Keyboard], ["integrations", Blocks], ["about", Info]]`
+  （lucide-react），`:2925` 统一 `<Icon size={15} strokeWidth={2} />`。
+- **本构建（现状偏离）**：`internal/settingsui/settingsui.go:1043-1052` 的 `pageGlyph` 把
+  general→`settings`、sessions→`terminal`、shortcuts→`star`、integrations→`file`、about→`alert`——
+  五个里四个不同名、不同形（`star`/`file`/`alert` 与「快捷键/集成/关于」的语义也对不上）。记号词汇
+  `internal/launcher/glyphs.go` 已有 `square-terminal`（`:270`）、`keyboard`（`:276`）、`info`（`:262`）、
+  `package`（`:274`），缺 `sliders-horizontal` 与 `blocks`。
+- **落地 file:line（建议）**：`internal/launcher/glyphs.go` 按 `glyphSource` 的 24×24 描边模板增
+  `sliders-horizontal`（lucide SlidersHorizontal）与 `blocks`（lucide Blocks）两条 path；
+  `internal/settingsui/settingsui.go` 的 `pageGlyph` 改为 general→`sliders-horizontal`、
+  sessions→`square-terminal`、shortcuts→`keyboard`、integrations→`blocks`、about→`info`。
+- **验收（建议）**：新增测试读出五条侧栏条目的前导图标记号名（或它们的 path 指纹），逐一 == 上面五元组的
+  映射，且与旧名（`settings`/`terminal`/`star`/`file`/`alert`）逐一不同。
+
+#### P7-he-3 · 前导图标的尺寸不是原版的字面 15（本构建 16u 且随界面档缩放）（**未做**）
+
+- **原版对照**：`main:src/App.tsx:2925` 的 `<Icon size={15} strokeWidth={2} />`——15px 是**字面值**，
+  不乘 `--ui-scale`，所以任何界面档下侧栏图标都停在 15px；描边 `2`（本构建 `glyphs.go` 的
+  `glyphSource` 已定 `stroke-width="2"`，只差尺寸）。
+- **本构建（现状偏离）**：`internal/settingsui/settingsui.go:1026` 用
+  `.Size(t.Space(4), t.Space(4))`（= 16u，且随界面档 `f` 缩放：默认 0.9 档 ≈ 14.4、Large 档 17.6）。
+- **落地 file:line（建议）**：`internal/settingsui/settingsui.go:1026` 改字面 `.Size(15, 15)`（前导图标
+  与其余行图标不同，侧栏这一处原版就是固定 15，不随档走）。
+- **验收（建议）**：新增测试量前导图标的墨迹盒宽高，在默认与最大/最小界面档下都 == 15（若框架的
+  `Size` 走逻辑 u 则为 15u），且与相邻行图标（16u 档）拉开差。

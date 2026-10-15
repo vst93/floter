@@ -1014,9 +1014,15 @@ func (a *App) sidebarRow(c *ui.Context, i int) {
 		// rung): a pointed-at row is the chosen row's weight of mark.
 		tokens.Lens(row)
 	}
+	// The reference puts the row's ink on one of three rungs
+	// (`settings.css:137,152-156,166-170`): `--text-muted` at rest,
+	// `--text-primary` under the pointer, and `--text-primary` on the chosen
+	// page. The old port kept the resting muted ink for hover too and used
+	// `--text-strong` for the chosen page, so a pointed-at row never lit and
+	// the current one was a hair dimmer than the reference's own.
 	color := t.TextMuted
-	if selected {
-		color = tokens.TextStrong
+	if selected || row.Hovered() {
+		color = t.Text
 	}
 	row.Children(func() {
 		if glyph, ok := pageGlyph(i); ok {
