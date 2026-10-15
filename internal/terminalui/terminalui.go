@@ -733,13 +733,16 @@ func (a *App) View(c *ui.Context) {
 			// `.terminal-empty__line` drew them (the key in a badge, the label
 			// beside it, neutral text rather than a filled control).
 			ui.Column(c).Grow(1).FillWidth().Center().Gap(t.Space(2.5)).Children(func() {
-				title := copy.EmptyTitle
-				hint := copy.Hint
+				// The reference's empty state is exactly three things: the title and
+				// the two lines that leave the page (`main:src/App.tsx:3852-3872`
+				// draws `terminal-empty__title` over two `terminal-empty__line`s and
+				// no second sentence), so no static tip is printed between them. A
+				// failed start is the one addition: its reason is shown here instead
+				// of the lines' own silence.
+				ui.Text(c, copy.EmptyTitle).FontSize(t.FontSize + 1).TextColor(t.TextMuted)
 				if a.Err != nil {
-					title, hint = copy.EmptyTitle, a.Err.Error()
+					ui.Text(c, a.Err.Error()).FontSize(t.FontSize).TextColor(t.TextMuted)
 				}
-				ui.Text(c, title).FontSize(t.FontSize + 1).TextColor(t.TextMuted)
-				ui.Text(c, hint).FontSize(t.FontSize).TextColor(t.TextMuted)
 				// The keys the lines print are the keys that work: Enter starts a
 				// session, and the back line is the user's own new-command binding,
 				// as the old build's `formatShortcut(shortcuts.new_command)` drew it.

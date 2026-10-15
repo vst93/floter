@@ -30,13 +30,25 @@ func render(t *testing.T, a *App, w, h int) *ui.Tester {
 
 func TestTerminalEmptyState(t *testing.T) {
 	closed := 0
-	a := New(newStore(), Actions{Close: func() { closed++ }}, nil)
+	copy := i18n.For("en").Terminal
+	a := New(newStore(), Actions{
+		Close:      func() { closed++ },
+		NewCommand: func() {},
+	}, nil)
 	tt := render(t, a, 860, 600)
 	if !tt.HasText("Terminal") {
 		t.Errorf("missing the title: %q", tt.Texts())
 	}
-	if !tt.HasText("The session has not started yet.") {
-		t.Errorf("missing the empty hint: %q", tt.Texts())
+	// The empty state is the reference's three things and nothing else: the
+	// title over the two lines that leave the page, with no second sentence
+	// between them (`main:src/App.tsx:3852-3872`).
+	for _, want := range []string{copy.EmptyTitle, copy.EmptyNew, copy.EmptyBack} {
+		if !tt.HasText(want) {
+			t.Errorf("the empty state is missing %q: %q", want, tt.Texts())
+		}
+	}
+	if tt.HasText("The session has not started yet.") {
+		t.Errorf("the empty state drew a tip the reference does not: %q", tt.Texts())
 	}
 	if _, ok := tt.Find("Close terminal"); !ok {
 		t.Errorf("the close control is not labeled: %q", tt.Texts())

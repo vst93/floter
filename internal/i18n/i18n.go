@@ -1126,11 +1126,10 @@ type Terminal struct {
 	SettingsOpen     string
 	SettingsOpenHint string
 	SettingsClose    string
-	// Hint is the empty state shown while no session runs.
-	Hint string
 	// EmptyTitle, EmptyNew and EmptyBack are the empty state's title, the
 	// control that opens a blank session, and the one that returns to the
-	// launcher.
+	// launcher. The reference's empty state is exactly these three; it draws
+	// no second sentence, so there is no Hint field.
 	EmptyTitle string
 	EmptyNew   string
 	EmptyBack  string

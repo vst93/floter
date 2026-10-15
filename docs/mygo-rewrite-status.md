@@ -100,6 +100,36 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
+> **本轮：P7-ha 终端空态去掉原版没有的第二句说明（原版 `main:src/App.tsx:3852-3872` 的空态只有
+> `terminal-empty__title` + 两条 `terminal-empty__line`；`main:src/styles/terminal.css:346-350`）**
+> ——P7-gz 收尾后「具体待办（P7-gx 重写）」只剩第 4 条，本轮取它落地，P7-gx 重写的 4 条全部结清。
+> 依赖检查：`go.mod` 已是 **v0.5.1** = GitHub releases latest（本轮 `releases/latest` 复核为
+> v0.5.1），无版本可升；只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离（P7-ha·空态多画了一句原版没有的说明）**：原版的空态是标题 + 两条**都是真动作**的行
+> （Enter / 用户自己的返回键，`App.tsx:3852-3872`），标题用 `--text-emphasis`
+> （`terminal.css:346-350`），**没有**第二段说明。**本构建（改前）**：`internal/terminalui/terminalui.go`
+> 的空态分支在标题之后多画了一句 `ui.Text(c, copy.Hint)`——`copy.Hint` = “The session has not
+> started yet.”，与标题 “No terminal session yet” 语义重复（`internal/i18n/copy.go:953,1802`）。
+>
+> **落地**：`internal/terminalui/terminalui.go` 的空态分支删掉 `hint` 变量与那句 `copy.Hint`，只留
+> `EmptyTitle` 与两条动作行（`emptyLine`）；启动失败时**唯一**保留的一行是 `a.Err.Error()`，
+> 因为原版这页没有自己的启动错误面，而本构建要如实说出为什么没能开会话（`TestTerminalSessionErrorShows`
+> 继续覆盖）。`internal/i18n/i18n.go` 删除 `Terminal.Hint` 字段（en/zh 两份字面量同步删值，结构化
+> Copy 因此编译期确认无漏）；`internal/terminalui/view_test.go` 的 `TestTerminalEmptyState` 改断言
+> 空态**有** `EmptyTitle`/`EmptyNew`/`EmptyBack`、**无** “The session has not started yet.”；
+> `internal/shell/shell_test.go` 的终端快照把该串换成 `EmptyTitle`。
+>
+> **验收**：`TestTerminalEmptyState`（空态三件套在、被删的句子不在）、`TestTerminalSessionErrorShows`
+> （失败原因仍显示）、`TestSurfaceSnapshots` 的 terminal 例（快照改要 `No terminal session yet`）。
+> 变异核查：把 `copy.Hint` 那一行加回 → `TestTerminalEmptyState` 的「不再含 Hint 串」条红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 29 包全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：「具体待办（P7-gx 重写）」第 4 条（P7-gx-4）已落地，**4 条全部结清、清单归零**。
+> 下一轮回到「对照原版排查偏离点」，换一个尚未单独审计的原版入口重新写实待办。
+
 > **本轮：P7-gz 终端浮栏悬停时的 `--elev-bar` 阴影（`terminal.css:99-104` 的
 > `@media (hover:hover) .terminal-bar:hover { box-shadow: var(--elev-bar) }`）**
 > ——P7-gy 收尾后「具体待办（P7-gx 重写）」余下第 3·4 条，本轮取第 3 条落地。依赖检查：`go.mod`
@@ -7193,7 +7223,7 @@ tooltip**（P7-fl/fm）与空态两行（P7-cm），度量与颜色从未逐条�
   浮栏正下方 `Space(7)` 起的第一行悬停帧更暗（实测 184 → 158）、未悬停帧那一行是裸画布、离浮栏
   30px 外两帧无差。变异核查：删掉 `bar.Shadow` → 两帧同值红。详见上文 P7-gz 记录。
 
-#### P7-gx-4 · 空态多画了一行原版没有的说明（**待做**）
+#### P7-gx-4 · 空态多画了一行原版没有的说明（**本轮落地，P7-ha**）
 
 - **原版对照**：`main:src/App.tsx:3852-3872` 的空态只有 `<p class="terminal-empty__title">`
   （`terminal.emptyTitle`，`main:src/styles/terminal.css:346-350` 的 `--text-emphasis`）加两条
@@ -7201,13 +7231,17 @@ tooltip**（P7-fl/fm）与空态两行（P7-cm），度量与颜色从未逐条�
 - **本构建（现状偏离）**：`internal/terminalui/terminalui.go:736-742` 在标题之后、两条动作行之前
   多画了一句 `ui.Text(c, hint)`（`copy.Hint` = “The session has not started yet.”），与 `EmptyTitle`
   （“No terminal session yet”）语义重复，原版没有这一行。`copy.Hint` 全仓库只有这一个调用方。
-- **落地 file:line**：去掉 `terminalui.go` 空态分支里的 `hint` 变量与那句 `ui.Text(c, hint)`；
-  `internal/i18n` 的 `Terminal.Hint`（en/zh）若无其它引用一并删；`view_test.go` 的
-  `TestTerminalEmptyState` 去掉对 “The session has not started yet.” 的断言。
-- **验收**：空态的 `tt.Texts()` 只有 `EmptyTitle` 与两条动作行的词，不再含 Hint 串。
+- **落地 file:line（已落地，P7-ha）**：`internal/terminalui/terminalui.go` 的空态分支删掉 `hint` 变量与
+  那句 `ui.Text(c, hint)`，只留 `EmptyTitle` 与两条 `emptyLine`；启动失败时唯一保留的一行是
+  `a.Err.Error()`（原版这页没有启动错误面，本构建如实说出开不了会话的原因）。`internal/i18n/i18n.go`
+  删 `Terminal.Hint` 字段、`internal/i18n/copy.go` 删 en/zh 两份值。
+- **验收（已过，P7-ha）**：`internal/terminalui/view_test.go` 的 `TestTerminalEmptyState` 断言空态有
+  `EmptyTitle`/`EmptyNew`/`EmptyBack` 且**不含** “The session has not started yet.”；
+  `TestTerminalSessionErrorShows` 继续覆盖失败原因；`internal/shell/shell_test.go` 的终端快照 want 改
+  `No terminal session yet`。变异核查：把 `copy.Hint` 那一行加回 → 红。
 
-> 「具体待办（P7-gx 重写）」第 1 条（P7-gx）、第 2 条（P7-gx-2，P7-gy）与第 3 条（P7-gx-3，P7-gz）
-> 已落地；只剩第 4 条（空态多画一行说明）是下一轮最高优先级。
+> 「具体待办（P7-gx 重写）」4 条全部落地：第 1 条 P7-gx、第 2 条 P7-gx-2（P7-gy）、第 3 条 P7-gx-3
+> （P7-gz）、第 4 条 P7-gx-4（P7-ha）。**清单归零**，下一轮回到「对照原版排查偏离点」。
 
 审计入口：原版 About 页的深链行 `main:src/settings/DeepLinkRow.tsx`（它吃的行基元
 `main:src/settings/SettingsRows.tsx` 的 `SettingsAction`，以及 `main:src/styles/settings.css:682-730`

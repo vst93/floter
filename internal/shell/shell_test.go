@@ -176,7 +176,7 @@ func TestSurfaceSnapshots(t *testing.T) {
 			surface: SurfaceTerminal,
 			w:       int(s.TerminalWidth),
 			h:       int(s.TerminalHeight),
-			want:    []string{"Terminal", "The session has not started yet."},
+			want:    []string{"Terminal", "No terminal session yet"},
 		},
 	}
 
