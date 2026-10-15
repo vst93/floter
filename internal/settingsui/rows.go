@@ -40,20 +40,53 @@ func (a *App) section(c *ui.Context, title, hint string, fn func()) {
 func (a *App) sectionFoot(c *ui.Context, title, hint string, footnotes []string, fn func()) {
 	t := c.Theme()
 	ui.Column(c).FillWidth().Gap(t.Space(2)).Children(func() {
-		// The group's title is the ladder's title step at 620 in the strong
-		// colour, its one-line explanation the body step at 500 in the muted
-		// one — `.settings-section__label` / `__hint`.
-		ui.Text(c, title).FontSize(t.FontSize + 2).FontWeight(620).TextColor(a.tokens(c).TextStrong)
-		if hint != "" {
-			ui.Text(c, hint).FontSize(t.FontSize).FontWeight(500).TextColor(t.TextMuted)
-		}
+		a.sectionHeading(c, title, nil)
 		ui.Column(c).FillWidth().Gap(t.Space(2.5)).Children(fn)
+		a.sectionHint(c, hint)
 		for _, note := range footnotes {
-			if note != "" {
-				ui.Text(c, note).FontSize(t.FontSize).FontWeight(500).TextColor(t.TextMuted)
-			}
+			a.sectionHint(c, note)
 		}
 	})
+}
+
+// sectionHeading is the reference's `.settings-section__heading`
+// (`settings.css:421-438`): the group's label, inset 2u from the page's edge
+// and bottom-aligned against the group's own action with the reference's 12u
+// gutter between them. The label is the reference's `heading-main` block — the
+// one place the pane ever put an explanation *under* a title, which is the
+// deep-link row's inline hint, not a group hint (those are `sectionHint`
+// lines after the cards). The old port drew the title flush with the card and
+// centred the action on the block instead of resting it on the block's bottom
+// edge.
+func (a *App) sectionHeading(c *ui.Context, title string, action func()) ui.Element {
+	t := c.Theme()
+	row := ui.Row(c).FillWidth().AlignItems(ui.End).Justify(ui.SpaceBetween).
+		Gap(t.Space(3)).Padding(0, t.Space(0.5))
+	row.Children(func() {
+		// `.settings-section__label` is the ladder's title step at 620 in the
+		// strong colour.
+		ui.Column(c).Grow(1).Children(func() {
+			ui.Text(c, title).FontSize(t.FontSize + 2).FontWeight(620).TextColor(a.tokens(c).TextStrong)
+		})
+		if action != nil {
+			action()
+		}
+	})
+	return row
+}
+
+// sectionHint is the reference's `.settings-section__hint` line
+// (`settings.css:1198-1206`): the group's one-line explanation, the body step
+// at 500 in the muted colour, inset 2u like the heading above it. The reference
+// drew it at the *end* of the section — after the cards it explains — not in
+// the heading, which is why the title block above it stays a single line.
+func (a *App) sectionHint(c *ui.Context, hint string) {
+	if hint == "" {
+		return
+	}
+	t := c.Theme()
+	ui.Text(c, hint).FontSize(t.FontSize).FontWeight(500).TextColor(t.TextMuted).
+		Padding(0, t.Space(0.5))
 }
 
 // card draws one grouped card: the resting control plane, its hairline
@@ -324,22 +357,18 @@ func (a *App) stackedRow(c *ui.Context, label, sublabel string, control func()) 
 }
 
 // sectionWithAction is a section whose title row carries the group's own
-// action at its end, baseline-aligned with the title: the reference pane's
-// "Restore defaults" idiom (`.settings-section__heading-actions`).
+// action at its end: the reference pane's "Restore defaults" idiom
+// (`.settings-section__heading-actions`).
 func (a *App) sectionWithAction(c *ui.Context, title, hint, actionLabel string, run func(), fn func()) {
 	t := c.Theme()
 	ui.Column(c).FillWidth().Gap(t.Space(2)).Children(func() {
-		heading := ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(t.Space(3))
-		heading.Children(func() {
-			ui.Text(c, title).FontSize(t.FontSize + 2).FontWeight(620).TextColor(a.tokens(c).TextStrong)
-			if hint != "" {
-				ui.Text(c, hint).FontSize(t.FontSize).FontWeight(500).TextColor(t.TextMuted).Grow(1)
-			}
+		a.sectionHeading(c, title, func() {
 			if run != nil {
 				a.action(c, actionLabel, run)
 			}
 		})
 		fn()
+		a.sectionHint(c, hint)
 	})
 }
 

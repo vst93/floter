@@ -1,0 +1,115 @@
+package settingsui
+
+import (
+	"testing"
+
+	"github.com/egoist/mygo/ui"
+
+	"floter/internal/i18n"
+	"floter/internal/theme"
+)
+
+// The reference's group heading is `.settings-section__heading`
+// (`settings.css:421-438`): a row inset 2u from the page's edge, its two ends
+// 12u apart, bottom-aligned (`align-items: flex-end`), the action resting on
+// the title block's bottom edge. The old port drew the title flush with the
+// card and centred the action on the block. Rendering the heading on its own
+// reads both without the surrounding page.
+func TestTheSectionHeadingIsTheReferenceRow(t *testing.T) {
+	en := i18n.For("en").Settings
+	store := newStore(t)
+	a := New(store, Actions{})
+	tokens := theme.ForPreferences(store.Snapshot(), false, ui.Preferences{})
+	title := "Appearance"
+
+	var rowRef, actionRef ui.Handle
+	var rowBox, actionBox ui.Rect
+	tt := ui.NewTester(func(c *ui.Context) {
+		a.sectionHeading(c, title, func() {
+			a.action(c, en.ShortcutsReset, func() {}).Bind(&actionRef)
+		}).Bind(&rowRef)
+		rowBox = c.Resolve(rowRef).Bounds()
+		actionBox = c.Resolve(actionRef).Bounds()
+	}, 640, 200)
+	tt.Frame()
+
+	titleBox, ok := tt.Find(title)
+	if !ok {
+		t.Fatalf("the group title is missing: %q", tt.Texts())
+	}
+
+	// `.settings-section__heading { padding: 0 calc(var(--u) * 2) }`.
+	if got := titleBox.X - rowBox.X; absFloat(got-tokens.Theme.Space(0.5)) > 1 {
+		t.Errorf("heading inset = %v, want the reference's 2u (%v)", got, tokens.Theme.Space(0.5))
+	}
+	// `align-items: flex-end`: the action rests on the block's bottom edge; it
+	// is not centred on it.
+	if got := actionBox.Y + actionBox.H; absFloat(got-(rowBox.Y+rowBox.H)) > 1 {
+		t.Errorf("action bottom = %v, want the heading's bottom %v (flex-end)", got, rowBox.Y+rowBox.H)
+	}
+	// `justify-content: space-between`: the action is the row's right end.
+	if actionBox.X < titleBox.X+titleBox.W {
+		t.Errorf("action X = %v, want it right of the title's end %v", actionBox.X, titleBox.X+titleBox.W)
+	}
+}
+
+// The group's one-line explanation is a `.settings-section__hint` line at the
+// *end* of the section, after the cards it explains (`settings.css:1198-1206`;
+// `ShortcutsPage.tsx:424`, `GeneralPage.tsx:597-598`). The old port drew it
+// inside the heading, a second line under the title, which is why the heading
+// carried two text lines instead of the reference's one. Building a section
+// with a box for its card reads where the hint lands.
+func TestTheGroupHintRidesAfterItsCards(t *testing.T) {
+	store := newStore(t)
+	a := New(store, Actions{})
+	tokens := theme.ForPreferences(store.Snapshot(), false, ui.Preferences{})
+	title, hint := "Appearance", "Auto follows your system appearance."
+
+	var cardRef ui.Handle
+	var cardBox ui.Rect
+	tt := ui.NewTester(func(c *ui.Context) {
+		a.section(c, title, hint, func() {
+			ui.Box(c).FillWidth().Height(60).Bind(&cardRef)
+		})
+		cardBox = c.Resolve(cardRef).Bounds()
+	}, 640, 200)
+	tt.Frame()
+
+	hintBox, ok := tt.Find(hint)
+	if !ok {
+		t.Fatalf("the group hint is missing: %q", tt.Texts())
+	}
+	if hintBox.Y < cardBox.Y+cardBox.H {
+		t.Errorf("the group hint (Y=%v) is not after the card's bottom (%v)", hintBox.Y, cardBox.Y+cardBox.H)
+	}
+	// `.settings-section__hint { padding: 0 calc(var(--u) * 2) }`: the same 2u
+	// inset the heading's title keeps.
+	if got := hintBox.X - cardBox.X; absFloat(got-tokens.Theme.Space(0.5)) > 1 {
+		t.Errorf("hint inset = %v, want the reference's 2u (%v)", got, tokens.Theme.Space(0.5))
+	}
+}
+
+// On the live Shortcuts page the hint is not a second line of the heading: it
+// sits well below the title, after the card of shortcut rows. The old port put
+// it one 8u gap under the title.
+func TestTheLiveShortcutsHintIsNotInTheHeading(t *testing.T) {
+	en := i18n.For("en").Settings
+	a := New(newStore(t), Actions{})
+	tt := render(t, a, 720, 1000)
+	if err := tt.Click("Shortcuts"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+
+	title, ok := tt.Find(en.ShortcutsToggle)
+	if !ok {
+		t.Fatalf("the Shortcuts group title is missing: %q", tt.Texts())
+	}
+	hint, ok := tt.Find(en.ShortcutsHint)
+	if !ok {
+		t.Fatalf("the Shortcuts explanation is missing: %q", tt.Texts())
+	}
+	if gap := hint.Y - (title.Y + title.H); gap < 20 {
+		t.Errorf("live title-to-hint gap = %v, want the hint after the cards, not under the title", gap)
+	}
+}

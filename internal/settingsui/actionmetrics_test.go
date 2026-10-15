@@ -104,3 +104,43 @@ func TestTheTextActionHoverDimsTheInkOnly(t *testing.T) {
 		t.Errorf("hover did not dim the ink: min channel %d → %d", restInk, hoverInk)
 	}
 }
+
+// The reference's `.settings-section__heading` is a flex row, flex-end aligned,
+// space-between, 12u gap, 2u side padding (`settings.css:421-429`). The action
+// sits at the row's right end, bottom-aligned with the title block — not
+// centred mid-height. This drives the live Shortcuts group's heading and
+// checks the action's box against the reference's geometry.
+func TestSectionHeadingActionSitsAtTheRightEndBottomAligned(t *testing.T) {
+	en := i18n.For("en").Settings
+	a := New(newStore(t), Actions{})
+	tt := render(t, a, 720, 800)
+	if err := tt.Click("Shortcuts"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	action, ok := tt.Find(en.ShortcutsReset)
+	if !ok {
+		t.Fatalf("the reset action is missing: %q", tt.Texts())
+	}
+	title, ok := tt.Find(en.ShortcutsToggle)
+	if !ok {
+		t.Fatalf("the section title is missing: %q", tt.Texts())
+	}
+	// The action's right edge sits at least 60% across the content column —
+	// the reference's space-between pushes it to the row's right end, not
+	// beside the title.
+	if action.X+action.W < 60 {
+		t.Errorf("the action is not at the right end: right edge at %v", action.X+action.W)
+	}
+	// The action is bottom-aligned with the heading block (flex-end), not
+	// centred on it: its bottom edge is within 2u of the block's bottom.
+	// The block is title + hint stacked, so the action's bottom matches the
+	// hint's bottom (or the title's if there is no hint).
+	blockBottom := title.Y + title.H
+	if hint, ok := tt.Find(en.ShortcutsHint); ok {
+		blockBottom = hint.Y + hint.H
+	}
+	if diff := action.Y + action.H - blockBottom; diff < -2 || diff > 2 {
+		t.Errorf("the action is not bottom-aligned: bottom delta %v", diff)
+	}
+}
