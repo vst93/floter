@@ -245,6 +245,45 @@ func (a *App) sheetNumber(c *ui.Context, sheet PluginSheet, field plugincfg.Fiel
 	}
 }
 
+// sheetActionButton draws one of the overlay's action buttons (R38,
+// `plugin-config.css:223-260`). It is deliberately **not** the framework's
+// filled `Button`: the reference's control is a quiet hairline pill that
+// spends no accent fill — a 28u height, 10u of side padding, a
+// `--glass-control-edge` hairline, a `999px` corner (half the 28u height, so
+// the shape is a pill), the `--glass-control` plane and the `--text-caption`
+// step in `--text-primary`. The danger variant is the one the destructive
+// command wears: `color-mix(in srgb, var(--text-warning) 45%, transparent)` on
+// its hairline, `--text-warning` on its ink, and a transparent plane, so it
+// reads as the destructive action without becoming the overlay's primary one.
+// Hover lifts either face to `--glass-control-hover`.
+func (a *App) sheetActionButton(c *ui.Context, label string, danger bool, run func()) ui.Element {
+	t := c.Theme()
+	tokens := a.tokens(c)
+	button := ui.ButtonBase(c).
+		MinHeight(t.Space(7)).
+		Padding(0, t.Space(2.5)).
+		Radius(t.Space(3.5))
+	ink := t.Text
+	edge := tokens.ControlEdge
+	plane := tokens.Control
+	if danger {
+		ink = t.Warning
+		edge = t.Warning.Alpha(0.45)
+		plane = ui.Transparent
+	}
+	if button.Hovered() {
+		plane = tokens.ControlHover
+	}
+	button.Border(1, edge).Background(plane)
+	button.Children(func() {
+		ui.Text(c, label).FontSize(tokens.Caption).TextColor(ink)
+	})
+	if button.Clicked() {
+		run()
+	}
+	return button
+}
+
 // sheetAction is the two-step button: the first press arms it (the button
 // becomes the confirm question, with the way back beside it), the second
 // runs the command. The status line is the sheet's own failure caption.
@@ -254,27 +293,23 @@ func (a *App) sheetAction(c *ui.Context, sheet PluginSheet, field plugincfg.Fiel
 	// The row's own label is a hit target, as it is for every other kind: it
 	// arms the button, so the whole row answers the first press.
 	clicked := a.row(c, field.Label, field.Help, func() {
-		ui.Row(c).Gap(t.Space(2)).AlignItems(ui.Center).Children(func() {
+		// The reference's cluster: inline-flex, flex-end, a 6u gap
+		// (`.plugin-config-action`, `plugin-config.css:218-224`).
+		ui.Row(c).Gap(t.Space(1.5)).AlignItems(ui.Center).Wrap().Children(func() {
 			if armed {
 				// The armed button is the old build's danger button: the
-				// same control, its own colour.
-				if ui.Button(c, field.Confirm).TextColor(t.Danger).Clicked() {
-					sheet.Run(field.Key)
-				}
-				if ui.Button(c, field.Cancel).Clicked() {
-					sheet.Unarm(field.Key)
-				}
+				// same quiet hairline pill, its own warning face.
+				a.sheetActionButton(c, field.Confirm, true, func() { sheet.Run(field.Key) })
+				a.sheetActionButton(c, field.Cancel, false, func() { sheet.Unarm(field.Key) })
 				return
 			}
 			if sheet.ActionFailed == field.Key && field.Failed != "" {
 				// The refused run's line sits beside the button, not in the
 				// sheet's write-failure slot: the old build's
 				// `.plugin-config-action__status`, the field's own wording.
-				ui.Text(c, field.Failed).FontSize(t.FontSize - 1).TextColor(t.Warning)
+				ui.Text(c, field.Failed).FontSize(a.tokens(c).Caption).TextColor(t.Warning)
 			}
-			if ui.Button(c, field.Label).Clicked() {
-				sheet.Arm(field.Key)
-			}
+			a.sheetActionButton(c, field.Label, true, func() { sheet.Arm(field.Key) })
 		})
 	})
 	if clicked && !armed {
