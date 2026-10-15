@@ -98,6 +98,9 @@ func (a *App) uninstallDialog(c *ui.Context, copy i18n.Settings, integration Int
 		draft = UninstallComponents{RemoveHostConfig: true, RemoveToolData: true, RemoveArtifacts: true}
 		a.uninstallDraft[integration.ID] = draft
 	}
+	// busy is the reference's own prop: both actions carry `disabled={busy}`
+	// while a removal is in flight (`ComponentizedUninstallDialog.tsx:126,142`).
+	busy := a.uninstallBusy[integration.ID]
 	open := true
 	// pane and cancel are the focus bookkeeping: the reference gives the
 	// cancel button the focus on mount, and the request must land after the
@@ -146,15 +149,24 @@ func (a *App) uninstallDialog(c *ui.Context, copy i18n.Settings, integration Int
 					a.uninstallPartRow(c, part)
 				}
 			})
+			// A failed removal leaves the pane open with the failure on itself:
+			// the reference kept the dialog mounted on error and told the user
+			// through the app's notice stack
+			// (`showError(errorMessage(error))`, `src/ExtensionsPanel.tsx:1314-1341`).
+			// On this surface the same sentence rides the family's own error band
+			// (`.extensions-notice--error`, `src/styles/extensions.css:174-178`).
+			if message := a.uninstallError[integration.ID]; message != "" {
+				a.noticeBand(c, true, message, func(*ui.Element) {})
+			}
 			// `.extensions-dialog-actions { justify-content: flex-end; gap: 7px }`
 			// (`:74-78`): the pair sits at the row's right end, seven units apart.
 			ui.Row(c).FillWidth().Gap(t.Space(1.75)).Justify(ui.End).AlignItems(ui.Center).Children(func() {
 				// The reference focuses Cancel on mount
 				// (`cancelRef.current?.focus({ preventScroll: true })`), the one
 				// target that keeps the answer to "remove all of this?" a deliberate
-				// one. The two actions are the reference's own `busy` pair; this
-				// build's uninstall never reports in flight, so both stay enabled.
-				if a.uninstallActionButton(c, copy.PermissionsCancel, false, false, nil).Bind(&cancel).Clicked() {
+				// one. Both actions carry the reference's `busy` prop, so a question
+				// already being answered cannot be answered again.
+				if a.uninstallActionButton(c, copy.PermissionsCancel, false, busy, nil).Bind(&cancel).Clicked() {
 					a.uninstallOpen[integration.ID] = false
 					return
 				}
@@ -162,11 +174,30 @@ func (a *App) uninstallDialog(c *ui.Context, copy i18n.Settings, integration Int
 				// `settings.extensions.uninstall` — one word for every kind the
 				// dialog serves (`ComponentizedUninstallDialog.tsx:161`), not the
 				// per-kind verb the row and the bar carry.
-				if a.uninstallActionButton(c, copy.IntegrationsUninstall, true, false, checkIcon).Clicked() {
-					if a.Actions.UninstallComponents != nil {
-						a.Actions.UninstallComponents(integration.ID, integration.Name, integration.removalKind(), draft)
+				if a.uninstallActionButton(c, copy.IntegrationsUninstall, true, busy, checkIcon).Clicked() {
+					if a.Actions.UninstallComponents == nil {
+						// The dialog only opens when the shell wired the componentized
+						// action, so this arm is the headless-test fallback.
+						a.uninstallOpen[integration.ID] = false
+						return
 					}
-					a.uninstallOpen[integration.ID] = false
+					if a.uninstallBusy == nil {
+						a.uninstallBusy = map[string]bool{}
+					}
+					if a.uninstallError != nil {
+						delete(a.uninstallError, integration.ID)
+					}
+					a.uninstallBusy[integration.ID] = true
+					id := integration.ID
+					// The dialog stays up until the shell reports back: the reference
+					// awaited the mutation and only then closed the dialog, so the
+					// busy face is visible for exactly as long as the work runs.
+					a.Actions.UninstallComponents(id, integration.Name, integration.removalKind(), draft, func(err error) {
+						a.finishComponentizedUninstall(id, err)
+					})
+					if a.Actions.Invalidate != nil {
+						a.Actions.Invalidate()
+					}
 					return
 				}
 			})
@@ -186,6 +217,35 @@ func (a *App) uninstallDialog(c *ui.Context, copy i18n.Settings, integration Int
 	}
 	a.uninstallDraft[integration.ID] = draft
 	return dialog
+}
+
+// finishComponentizedUninstall settles the dialog after the shell reports a
+// componentized removal back on the main thread. A nil error is the
+// reference's success arm: the dialog closes (the reference dropped
+// `uninstallDialogTarget` only after `await` and raised its own notice, which
+// the shell does here). A non-nil error keeps the dialog up with the failure
+// on it and both answer pills usable again — the reference's `runMutation`
+// `finally` cleared `busy` either way, but nothing unmounted the dialog
+// (`src/ExtensionsPanel.tsx:1314-1341`).
+func (a *App) finishComponentizedUninstall(id string, err error) {
+	delete(a.uninstallBusy, id)
+	if err != nil {
+		if a.uninstallError == nil {
+			a.uninstallError = map[string]string{}
+		}
+		a.uninstallError[id] = err.Error()
+	} else {
+		if a.uninstallError != nil {
+			delete(a.uninstallError, id)
+		}
+		if a.uninstallOpen == nil {
+			a.uninstallOpen = map[string]bool{}
+		}
+		a.uninstallOpen[id] = false
+	}
+	if a.Actions.Invalidate != nil {
+		a.Actions.Invalidate()
+	}
 }
 
 // uninstallActionButton draws one of the dialog's two actions as the

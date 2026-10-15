@@ -101,7 +101,7 @@ func TestEachIntegrationCardShowsItsOwnRemovalVerb(t *testing.T) {
 	en := i18n.For("en").Settings
 	a := newTestApp()
 	a.Actions = Actions{
-		UninstallComponents: func(string, string, string, UninstallComponents) {},
+		UninstallComponents: func(string, string, string, UninstallComponents, func(error)) {},
 	}
 	a.Integrations = func() []Integration {
 		return []Integration{
@@ -290,7 +290,7 @@ func TestOnlyOwnedKindsOpenTheComponentizedDialog(t *testing.T) {
 	var componentsFor, plainFor, plainKinds []string
 	a := newTestApp()
 	a.Actions = Actions{
-		UninstallComponents: func(id, name, kind string, components UninstallComponents) {
+		UninstallComponents: func(id, name, kind string, components UninstallComponents, done func(error)) {
 			componentsFor = append(componentsFor, id)
 		},
 		UninstallIntegration: func(id, name, kind string) {
@@ -361,7 +361,7 @@ func TestAnNpmRowAsksTheBarThenTheDialog(t *testing.T) {
 	var componentsFor, plainFor, componentKinds []string
 	a := newTestApp()
 	a.Actions = Actions{
-		UninstallComponents: func(id, name, kind string, components UninstallComponents) {
+		UninstallComponents: func(id, name, kind string, components UninstallComponents, done func(error)) {
 			componentsFor = append(componentsFor, id)
 			componentKinds = append(componentKinds, kind)
 		},

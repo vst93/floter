@@ -106,7 +106,14 @@ type Actions struct {
 	// checkboxes name. Nil falls back to UninstallIntegration. The kind is
 	// passed for the same reason as above: custom is "deleted", npm is
 	// "uninstalled".
-	UninstallComponents func(id string, name string, kind string, components UninstallComponents)
+	//
+	// done reports the removal back to the dialog that asked, on the main
+	// thread: a nil error closes it (the reference's
+	// `setUninstallDialogTarget(null)` after `await`), and a non-nil error
+	// leaves it open with its answer buttons usable again, exactly as the
+	// reference's `runMutation` `finally` did (`src/ExtensionsPanel.tsx:1314-1341`).
+	// It may be nil, in which case the caller closes the dialog at once.
+	UninstallComponents func(id string, name string, kind string, components UninstallComponents, done func(error))
 	// DiagnoseIntegration asks an integration's provider to check itself.
 	DiagnoseIntegration func(id string)
 	// RepairIntegration re-checks an installed package and repairs it when the
@@ -702,6 +709,12 @@ type App struct {
 	// dialog open, and uninstallDraft its checkboxes.
 	uninstallOpen  map[string]bool
 	uninstallDraft map[string]UninstallComponents
+	// uninstallBusy is which integrations have a componentized removal in
+	// flight, so the dialog's two pills hold the reference's disabled face
+	// (`ComponentizedUninstallDialog.tsx:126,142`) until the answer lands, and
+	// uninstallError the last failure on a dialog that stayed open.
+	uninstallBusy  map[string]bool
+	uninstallError map[string]string
 	// auditOpen is which integrations have their permission audit unfolded,
 	// configOpen which configuration forms are open, configDrafts their form
 	// state, and configError the last save's error.
@@ -4764,6 +4777,11 @@ func (a *App) removeConfirmation(c *ui.Context, copy i18n.Settings, integration 
 			if integration.componentizedRemoval() && a.Actions.UninstallComponents != nil {
 				if a.uninstallOpen == nil {
 					a.uninstallOpen = map[string]bool{}
+				}
+				// A fresh ask starts clean: last time's failure does not ride the
+				// new dialog (`uninstallError` is only about the open one).
+				if a.uninstallError != nil {
+					delete(a.uninstallError, integration.ID)
 				}
 				a.uninstallOpen[integration.ID] = true
 				return

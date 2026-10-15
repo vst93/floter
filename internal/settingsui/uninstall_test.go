@@ -1,6 +1,7 @@
 package settingsui
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 
@@ -60,7 +61,7 @@ func TestComponentizedUninstallDrawsTheReferenceRows(t *testing.T) {
 	var uninstalled []UninstallComponents
 	a := newTestApp()
 	a.Actions = Actions{
-		UninstallComponents: func(id, name, kind string, components UninstallComponents) {
+		UninstallComponents: func(id, name, kind string, components UninstallComponents, done func(error)) {
 			uninstalled = append(uninstalled, components)
 		},
 	}
@@ -140,7 +141,7 @@ func TestComponentizedUninstallKeepsCancelFirst(t *testing.T) {
 	en := i18n.For("en").Settings
 	var confirmed int
 	a := newTestApp()
-	a.Actions = Actions{UninstallComponents: func(string, string, string, UninstallComponents) { confirmed++ }}
+	a.Actions = Actions{UninstallComponents: func(string, string, string, UninstallComponents, func(error)) { confirmed++ }}
 	a.Integrations = func() []Integration {
 		return []Integration{{ID: "npm", Name: "NPM Tool", DistributionSource: "npm"}}
 	}
@@ -311,3 +312,116 @@ func TestComponentizedUninstallActionsDisableWhileBusy(t *testing.T) {
 // `uninstallDialog` and `uninstallActionButton` and verified by code review
 // against the reference CSS; the headless Tester does not expose computed
 // line-height for direct measurement.
+
+// The removal is in flight between the confirm press and the shell's report.
+// The reference awaited the mutation with `busy` true, so both
+// `.extensions-action-button`s carried `disabled={busy}`
+// (`ComponentizedUninstallDialog.tsx:126,142`) and the dialog only unmounted on
+// success (`src/ExtensionsPanel.tsx:1314-1341`). This build used to close the
+// dialog the moment the confirm was pressed, so the removal was invisible and
+// a second press could start a second one.
+func TestComponentizedUninstallHoldsTheBusyFaceUntilTheShellAnswers(t *testing.T) {
+	en := i18n.For("en").Settings
+	a := uninstallTestApp()
+	var answer func(error)
+	confirmed := 0
+	a.Actions.UninstallComponents = func(id, name, kind string, components UninstallComponents, done func(error)) {
+		confirmed++
+		answer = done
+	}
+	a.uninstallOpen = map[string]bool{"npm": true}
+	var ref ui.Handle
+	tt := ui.NewTester(func(c *ui.Context) {
+		if a.uninstallOpen["npm"] {
+			a.uninstallDialog(c, en, npmTool()).Bind(&ref)
+		}
+	}, 640, 800)
+	tt.Frame()
+	tt.Frame()
+
+	pressRightOfCancel(t, tt)
+	if answer == nil {
+		t.Fatalf("the confirm never reached the shell: %v", tt.Texts())
+	}
+	if confirmed != 1 {
+		t.Fatalf("the confirm ran %d times, want 1", confirmed)
+	}
+	if !a.uninstallBusy["npm"] {
+		t.Errorf("the removal is not marked in flight")
+	}
+	if !a.uninstallOpen["npm"] || !tt.HasText(en.IntegrationsUninstallDescription) {
+		t.Fatalf("the dialog closed before the shell answered: %v", tt.Texts())
+	}
+	// Cancel is disabled while busy, so the question cannot be answered twice.
+	if err := tt.Click(en.PermissionsCancel); err == nil {
+		tt.Frame()
+	}
+	if !a.uninstallOpen["npm"] {
+		t.Errorf("Cancel answered while the removal was in flight")
+	}
+
+	// The shell's success closes the dialog and clears the flag.
+	answer(nil)
+	tt.Frame()
+	tt.Frame()
+	if a.uninstallOpen["npm"] || a.uninstallBusy["npm"] {
+		t.Errorf("success left the dialog up: open=%v busy=%v", a.uninstallOpen["npm"], a.uninstallBusy["npm"])
+	}
+	if tt.HasText(en.IntegrationsUninstallDescription) {
+		t.Errorf("the dialog is still on screen after success: %v", tt.Texts())
+	}
+}
+
+// A failed removal keeps the dialog open with the failure on it and both pills
+// usable again — the reference's `runMutation` cleared `busy` in `finally` but
+// only `removed` unmounted the dialog, and the error reached the user through
+// `showError` (`src/ExtensionsPanel.tsx:1314-1341`). Here the sentence is the
+// panel's own error band, since the settings surface is where the user reads
+// it.
+func TestComponentizedUninstallFailureKeepsTheDialogOpen(t *testing.T) {
+	en := i18n.For("en").Settings
+	a := uninstallTestApp()
+	var answer func(error)
+	a.Actions.UninstallComponents = func(id, name, kind string, components UninstallComponents, done func(error)) {
+		answer = done
+	}
+	invalidated := 0
+	a.Actions.Invalidate = func() { invalidated++ }
+	a.uninstallOpen = map[string]bool{"npm": true}
+	var ref ui.Handle
+	tt := ui.NewTester(func(c *ui.Context) {
+		if a.uninstallOpen["npm"] {
+			a.uninstallDialog(c, en, npmTool()).Bind(&ref)
+		}
+	}, 640, 800)
+	tt.Frame()
+	tt.Frame()
+
+	pressRightOfCancel(t, tt)
+	if answer == nil {
+		t.Fatalf("the confirm never reached the shell: %v", tt.Texts())
+	}
+	answer(errors.New("the package manager refused"))
+	tt.Frame()
+	tt.Frame()
+	if !a.uninstallOpen["npm"] {
+		t.Fatalf("the failure closed the dialog")
+	}
+	if a.uninstallBusy["npm"] {
+		t.Errorf("the failure left the removal marked in flight")
+	}
+	if !tt.HasText("the package manager refused") {
+		t.Errorf("the failure is not on the dialog: %v", tt.Texts())
+	}
+	if invalidated == 0 {
+		t.Errorf("the failure did not ask for a frame")
+	}
+	// The pills are usable again: Cancel answers the question.
+	if err := tt.Click(en.PermissionsCancel); err != nil {
+		t.Fatalf("click Cancel after the failure: %v (texts %v)", err, tt.Texts())
+	}
+	tt.Frame()
+	if a.uninstallOpen["npm"] {
+		t.Errorf("Cancel did not answer after the failure")
+	}
+}

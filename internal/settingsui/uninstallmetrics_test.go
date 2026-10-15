@@ -84,7 +84,7 @@ func (f uninstallFrame) mustFind(t *testing.T, text string) ui.Rect {
 // uninstall action, with nothing else on the page.
 func uninstallTestApp() *App {
 	a := newTestApp()
-	a.Actions = Actions{UninstallComponents: func(string, string, string, UninstallComponents) {}}
+	a.Actions = Actions{UninstallComponents: func(string, string, string, UninstallComponents, func(error)) {}}
 	a.Integrations = func() []Integration {
 		return []Integration{{ID: "npm", Name: "NPM Tool", DistributionSource: "npm"}}
 	}

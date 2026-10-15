@@ -746,7 +746,7 @@ func New(opts Options) *App {
 				a.RefreshIntegrations(context.Background())
 			}()
 		},
-		UninstallComponents: func(id, name, kind string, components settingsui.UninstallComponents) {
+		UninstallComponents: func(id, name, kind string, components settingsui.UninstallComponents, done func(error)) {
 			// The settings page's own componentized dialog already asked (the
 			// checkboxes are the question); arriving here is the answer. A
 			// removal stops the integration's runs before any file moves: a
@@ -761,12 +761,22 @@ func New(opts Options) *App {
 				})
 				if err != nil {
 					log.Printf("floter: could not uninstall %s: %v", id, err)
+					// The dialog stays open on failure, so the notice says what the
+					// panel could not: the removal did not land. Same sentence the
+					// plain removal's failure raises.
+					a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationRemoveFailed(name) })
+					if done != nil {
+						a.onMain(func() { done(err) })
+					}
 					return
 				}
 				a.notifyIntegrationRemoval(kind, name)
 				log.Printf("floter: uninstalled %s (config=%v data=%v artifacts=%v)",
 					id, result2.RemovedHostConfig, result2.RemovedToolData, result2.RemovedArtifacts)
 				a.RefreshIntegrations(context.Background())
+				if done != nil {
+					a.onMain(func() { done(nil) })
+				}
 			}()
 		},
 		UninstallIntegration: func(id, name, kind string) {

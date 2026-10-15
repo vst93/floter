@@ -95,7 +95,7 @@ func TestEachIntegrationCardShowsItsOwnKind(t *testing.T) {
 	en := i18n.For("en").Settings
 	a := newTestApp()
 	a.Actions = Actions{
-		UninstallComponents: func(string, string, string, UninstallComponents) {},
+		UninstallComponents: func(string, string, string, UninstallComponents, func(error)) {},
 	}
 	a.Integrations = func() []Integration {
 		return []Integration{
