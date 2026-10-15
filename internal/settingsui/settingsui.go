@@ -1039,20 +1039,25 @@ func (a *App) sidebarRow(c *ui.Context, i int) {
 	}
 }
 
-// pageGlyph is the mark a settings page leads with: the same vocabulary the
-// launcher's rows speak, so a page and the thing it configures look alike.
+// pageGlyph is the mark a settings page leads with: the exact lucide set the
+// reference's sidebar named (`main:src/App.tsx:2903-2908`),
+// `[general SlidersHorizontal, sessions SquareTerminal, shortcuts Keyboard,
+// integrations Blocks, about Info]`, drawn through the launcher's shared
+// vocabulary so a page and the thing it configures look alike. It is not the
+// page's *content* glyph (a star for shortcuts, a file for integrations): the
+// reference picks a shape per page, not the first mark to hand.
 func pageGlyph(page int) (*ui.SVG, bool) {
 	switch page {
 	case PageGeneral:
-		return launcher.Glyph("settings")
+		return launcher.Glyph("sliders-horizontal")
 	case PageSessions:
-		return launcher.Glyph("terminal")
+		return launcher.Glyph("square-terminal")
 	case PageShortcuts:
-		return launcher.Glyph("star")
+		return launcher.Glyph("keyboard")
 	case PageIntegrations:
-		return launcher.Glyph("file")
+		return launcher.Glyph("blocks")
 	case PageAbout:
-		return launcher.Glyph("alert")
+		return launcher.Glyph("info")
 	}
 	return nil, false
 }

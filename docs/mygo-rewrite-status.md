@@ -100,6 +100,35 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
+> **本轮：P7-hf 设置侧栏前导图标记号回到原版 App.tsx 的五元组（原版 `main:src/App.tsx:2903-2908`
+> 的 `[general SlidersHorizontal, sessions SquareTerminal, shortcuts Keyboard, integrations Blocks,
+> about Info]`，`:2925` `<Icon size={15} strokeWidth={2}/>`）**
+> ——P7-he-1 收尾后「具体待办（P7-he 重写）」余下第 2·3 条，本轮取第 2 条落地。依赖检查：
+> `go.mod` 已是 **v0.5.1** = `go list -m -versions github.com/egoist/mygo` 的最新（无 v0.5.2+），
+> 只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离（P7-he-2）**：原版侧栏逐页给出**指定**的 lucide 记号（`App.tsx:2903-2908`）——滑块
+> （General）、方框终端（Sessions）、键盘（Shortcuts）、积木（Integrations）、信息（About）。**本构建
+> （改前）**：`internal/settingsui/settingsui.go` 的 `pageGlyph` 落 general→`settings`、sessions→`terminal`、
+> shortcuts→`star`、integrations→`file`、about→`alert`——五个里四个形状不同，且 `star`/`file`/`alert`
+> 与所在页语义对不上。
+>
+> **落地**：`internal/launcher/glyphs.go` 按 `glyphSource` 的 24×24 描边模板新增两条 lucide-react
+> v1.31.0 的 path——`glyphSlidersHorizontal`（`sliders-horizontal`）与 `glyphBlocks`（`blocks`），并注册
+> 进 `Glyph()`；`internal/settingsui/settingsui.go` 的 `pageGlyph` 改为 general→`sliders-horizontal`、
+> sessions→`square-terminal`、shortcuts→`keyboard`、integrations→`blocks`、about→`info`。
+>
+> **验收**：新增 `internal/settingsui/sidebarglyph_test.go` 两条——
+> `TestTheSidebarPagesLeadWithTheReferenceMarks`（五页逐一对上原版名、与旧名逐一不同、五记号两两不同）与
+> `TestTheLauncherGainsTheTwoReferenceMarks`（`sliders-horizontal`/`blocks` 已进共享词汇且不是邻居的别名）。
+> 变异核查：把 `pageGlyph` 的 general 改回 `settings` → 名字与「旧名」两条断言同时红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：「具体待办（P7-he 重写）」第 2 条（P7-he-2）已落地，余下第 3 条（前导图标的
+> 尺寸应为字面 15、不随界面档缩放）待下一轮。
+
 > **本轮：P7-he 设置侧栏悬停/选中把字色抬回原版的 `--text-primary`（原版 `main:src/styles/settings.css:142,154,168`
 > 的 `.settings-sidebar__item` 三态；`main:src/App.tsx:2903-2927` 的 `<nav class="settings-sidebar">`）**
 > ——P7-hd 收尾后「具体待办（P7-hb 重写）」3 条全部结清、清单归零，本轮按规则回到「对照原版排查偏离点」，
@@ -11478,7 +11507,7 @@ P7-gq 收尾后清单归零。本轮按审计入口 `main:src/settings/GeneralPa
   `TestTheLiveMaterialSectionUsesItsOwnSpacing`（General 页上的材质组同法测量）。变异核查：
   `sectionMaterial` 改回 `Space(2)`/无内边距 → 两条共 8 处断言红。
 
-### 具体待办（P7-he 重写；第 1 条 P7-he-1 已落地，余下第 2·3 条）
+### 具体待办（P7-he 重写；第 1 条 P7-he-1、第 2 条 P7-he-2 已落地，余下第 3 条）
 
 P7-hd 收尾后清单归零。本轮按审计入口 `main:src/App.tsx:2903-2927` 的设置侧栏
 `<nav class="settings-sidebar">` 与 `main:src/styles/settings.css:104-186` 的
@@ -11505,7 +11534,7 @@ P7-hd 收尾后清单归零。本轮按审计入口 `main:src/App.tsx:2903-2927`
   的通道差 ≥ 40、选中 ≈ primary 合成值且与静止差 ≥ 40）。变异核查：摘掉 `row.Hovered()` 一支 → 悬停读回
   `--text-muted`（`{113 113 122}` vs 目标 `{29 29 31}`），三条断言同时红。
 
-#### P7-he-2 · 侧栏前导图标的记号不是原版的 lucide 集合（**未做**）
+#### P7-he-2 · 侧栏前导图标的记号不是原版的 lucide 集合（**本轮落地，P7-hf**）
 
 - **原版对照**：`main:src/App.tsx:2903-2908` 的五元组 `[["general", SlidersHorizontal],
   ["sessions", SquareTerminal], ["shortcuts", Keyboard], ["integrations", Blocks], ["about", Info]]`
@@ -11515,12 +11544,14 @@ P7-hd 收尾后清单归零。本轮按审计入口 `main:src/App.tsx:2903-2927`
   五个里四个不同名、不同形（`star`/`file`/`alert` 与「快捷键/集成/关于」的语义也对不上）。记号词汇
   `internal/launcher/glyphs.go` 已有 `square-terminal`（`:270`）、`keyboard`（`:276`）、`info`（`:262`）、
   `package`（`:274`），缺 `sliders-horizontal` 与 `blocks`。
-- **落地 file:line（建议）**：`internal/launcher/glyphs.go` 按 `glyphSource` 的 24×24 描边模板增
-  `sliders-horizontal`（lucide SlidersHorizontal）与 `blocks`（lucide Blocks）两条 path；
-  `internal/settingsui/settingsui.go` 的 `pageGlyph` 改为 general→`sliders-horizontal`、
+- **落地 file:line（已落地）**：`internal/launcher/glyphs.go` 新增 `glyphSlidersHorizontal`
+  （`sliders-horizontal`）与 `glyphBlocks`（`blocks`）两条 lucide-react v1.31.0 的 path，并注册进
+  `Glyph()`；`internal/settingsui/settingsui.go` 的 `pageGlyph` 改为 general→`sliders-horizontal`、
   sessions→`square-terminal`、shortcuts→`keyboard`、integrations→`blocks`、about→`info`。
-- **验收（建议）**：新增测试读出五条侧栏条目的前导图标记号名（或它们的 path 指纹），逐一 == 上面五元组的
-  映射，且与旧名（`settings`/`terminal`/`star`/`file`/`alert`）逐一不同。
+- **验收（已过）**：`internal/settingsui/sidebarglyph_test.go` 两条——
+  `TestTheSidebarPagesLeadWithTheReferenceMarks`（五页逐一对上原版名、与旧名逐一不同、五记号两两不同）与
+  `TestTheLauncherGainsTheTwoReferenceMarks`（两条新记号已进共享词汇且不是邻居别名）。变异核查：
+  `pageGlyph` 的 general 改回 `settings` → 名字与「旧名」两条断言同时红。
 
 #### P7-he-3 · 前导图标的尺寸不是原版的字面 15（本构建 16u 且随界面档缩放）（**未做**）
 
