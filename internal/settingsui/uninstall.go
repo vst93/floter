@@ -8,6 +8,45 @@ import (
 	"floter/internal/i18n"
 )
 
+// modalDialog shows a dialog over the window while *open is true, with the
+// reference's own modal contract: Escape closes it, but a press on the scrim
+// does not. It is the framework's own DialogBase shape — an `Absolute`
+// backdrop at inset 0 that centers the panel, marked `Modal()` so the focus
+// moves in, Tab stays inside and the window's shortcuts behind it wait — with
+// one change: the scrim press is swallowed rather than answered.
+//
+// DialogBase itself cannot serve the second half: its backdrop is
+// `dismissed := back.Clicked() || back.OverlayShortcut(0, KeyEscape)`
+// (`mygo@v0.5.1/ui/base.go:481`), so the two gestures are indistinguishable
+// once the call returns. The reference's overlay carried `role="dialog"` /
+// `aria-modal` and no `onClick` at all
+// (`ComponentizedUninstallDialog.tsx:55-63`): a press outside the panel did
+// nothing, and only Escape or an explicit answer left. For a destructive
+// question that difference is the whole point — one stray press must not
+// answer "cancel".
+//
+// The press is still swallowed, not passed on: the backdrop is the topmost
+// element under the pointer, so the hit chain never reaches the row's button
+// behind the overlay. The returned `dismissed` reports the one gesture that
+// does close it.
+func (a *App) modalDialog(c *ui.Context, open *bool, fn func(backdrop, panel ui.Element)) (panel ui.Element, dismissed bool) {
+	if !*open {
+		return ui.Element{}, false
+	}
+	ui.Overlay(c, func() {
+		back := ui.Box(c).Absolute().Left(0).Top(0).Right(0).Bottom(0).Center().Modal()
+		if back.OverlayShortcut(0, ui.KeyEscape) {
+			*open = false
+			dismissed = true
+		}
+		back.Children(func() {
+			panel = ui.Box(c).Role(ui.RoleDialog)
+			panel.Children(func() { fn(back, panel) })
+		})
+	})
+	return panel, dismissed
+}
+
 // checkIcon is the reference's confirm-button glyph (`<Check size={14}
 // strokeWidth={2} />` in `ComponentizedUninstallDialog.tsx:160`): a stroked
 // 24×24 path, the mark every destructive confirm in the family leads with, so a
@@ -108,7 +147,7 @@ func (a *App) uninstallDialog(c *ui.Context, copy i18n.Settings, integration Int
 	// the dialog itself. Binding the pane lets the request stop once the
 	// focus is in it, so Tab still reaches the confirm button.
 	var pane, cancel ui.Handle
-	dialog := ui.DialogBase(c, &open, func(backdrop, panel ui.Element) {
+	panelEl, dismissed := a.modalDialog(c, &open, func(backdrop, panel ui.Element) {
 		// `.extensions-dialog-overlay { inset: 0; place-items: center; padding:
 		// 20px; background: var(--surface-scrim) }` (`:6-16`). The scrim is the
 		// reference's own `rgba(0, 0, 0, 0.34)` (`base.css:699`) in every theme.
@@ -203,7 +242,7 @@ func (a *App) uninstallDialog(c *ui.Context, copy i18n.Settings, integration Int
 			})
 		})
 	})
-	if dialog.Dismissed() {
+	if dismissed {
 		if a.uninstallOpen == nil {
 			a.uninstallOpen = map[string]bool{}
 		}
@@ -212,11 +251,11 @@ func (a *App) uninstallDialog(c *ui.Context, copy i18n.Settings, integration Int
 	// Give Cancel the focus while the pane does not already hold it: the
 	// request applies after the overlay recorded its opener, so closing gives
 	// the focus back to the control that opened the dialog.
-	if !pane.FocusWithin(c) {
+	if panelEl.Valid() && !pane.FocusWithin(c) {
 		cancel.Focus(c)
 	}
 	a.uninstallDraft[integration.ID] = draft
-	return dialog
+	return panelEl
 }
 
 // finishComponentizedUninstall settles the dialog after the shell reports a

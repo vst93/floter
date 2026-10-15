@@ -208,7 +208,7 @@ func TestTheRemovalConfirmationAsksTheKindsOwnQuestion(t *testing.T) {
 func TestEachRemovalConfirmationAsksItsOwnQuestionOnScreen(t *testing.T) {
 	en := i18n.For("en").Settings
 	a := newTestApp()
-	a.Actions = Actions{UninstallIntegration: func(string, string, string) {}}
+	a.Actions = Actions{UninstallIntegration: func(string, string, string, func(error)) {}}
 	a.Integrations = func() []Integration {
 		return []Integration{
 			{ID: "custom", Name: "Custom Tool", Generated: true, DistributionSource: "local"},
@@ -293,9 +293,12 @@ func TestOnlyOwnedKindsOpenTheComponentizedDialog(t *testing.T) {
 		UninstallComponents: func(id, name, kind string, components UninstallComponents, done func(error)) {
 			componentsFor = append(componentsFor, id)
 		},
-		UninstallIntegration: func(id, name, kind string) {
+		UninstallIntegration: func(id, name, kind string, done func(error)) {
 			plainFor = append(plainFor, id)
 			plainKinds = append(plainKinds, kind)
+			if done != nil {
+				done(nil)
+			}
 		},
 	}
 	a.Integrations = func() []Integration {
@@ -365,8 +368,11 @@ func TestAnNpmRowAsksTheBarThenTheDialog(t *testing.T) {
 			componentsFor = append(componentsFor, id)
 			componentKinds = append(componentKinds, kind)
 		},
-		UninstallIntegration: func(id, name, kind string) {
+		UninstallIntegration: func(id, name, kind string, done func(error)) {
 			plainFor = append(plainFor, id)
+			if done != nil {
+				done(nil)
+			}
 		},
 	}
 	a.Integrations = func() []Integration {

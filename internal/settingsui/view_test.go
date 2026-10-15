@@ -1188,8 +1188,18 @@ func TestIntegrationsPage(t *testing.T) {
 	toggledTo := false
 	removedID, removedName := "", ""
 	a := New(newStore(t), Actions{
-		SetIntegrationEnabled: func(id string, enabled bool) { toggled, toggledTo = id, enabled },
-		UninstallIntegration:  func(id, name, kind string) { removedID, removedName = id, name },
+		SetIntegrationEnabled: func(id string, enabled bool, done func(error)) {
+			toggled, toggledTo = id, enabled
+			if done != nil {
+				done(nil)
+			}
+		},
+		UninstallIntegration: func(id, name, kind string, done func(error)) {
+			removedID, removedName = id, name
+			if done != nil {
+				done(nil)
+			}
+		},
 	})
 	a.Integrations = func() []Integration {
 		return []Integration{
@@ -1317,7 +1327,12 @@ func TestIntegrationsPage(t *testing.T) {
 func TestGeneratedIntegrationRemovalBar(t *testing.T) {
 	removedID, removedName := "", ""
 	a := New(newStore(t), Actions{
-		UninstallIntegration: func(id, name, kind string) { removedID, removedName = id, name },
+		UninstallIntegration: func(id, name, kind string, done func(error)) {
+			removedID, removedName = id, name
+			if done != nil {
+				done(nil)
+			}
+		},
 	})
 	a.Integrations = func() []Integration {
 		return []Integration{{
@@ -3257,7 +3272,7 @@ func TestDetectedToolsSection(t *testing.T) {
 func TestDisableAsksFirst(t *testing.T) {
 	toggled := []bool{}
 	a := New(newStore(t), Actions{
-		SetIntegrationEnabled: func(id string, enabled bool) { toggled = append(toggled, enabled) },
+		SetIntegrationEnabled: func(id string, enabled bool, _ func(error)) { toggled = append(toggled, enabled) },
 	})
 	a.Integrations = func() []Integration {
 		return []Integration{{ID: "io.github.vst93.v", Name: "V Tools", Enabled: true, Running: true}}

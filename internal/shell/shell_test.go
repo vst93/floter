@@ -1988,7 +1988,7 @@ func TestDisablingStopsARunInFlight(t *testing.T) {
 		}
 		time.Sleep(time.Millisecond)
 	}
-	a.Settings.Actions.SetIntegrationEnabled(entry.IntegrationID, false)
+	a.Settings.Actions.SetIntegrationEnabled(entry.IntegrationID, false, nil)
 
 	select {
 	case err := <-done:

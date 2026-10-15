@@ -96,12 +96,25 @@ type Actions struct {
 	// NewSession starts another terminal session.
 	NewSession func()
 	// SetIntegrationEnabled turns an installed extension on or off.
-	SetIntegrationEnabled func(id string, enabled bool)
+	//
+	// done reports the write back to the confirmation band that asked, on the
+	// main thread: a nil error closes it (the reference's
+	// `setDisableTarget(null)` after `await runMutation`), and a non-nil error
+	// leaves the band open with its answer pill usable again, exactly as the
+	// reference's `runMutation` `finally` did (`src/ExtensionsPanel.tsx:1274-1283`).
+	// It may be nil for the enable direction, which asks nothing.
+	SetIntegrationEnabled func(id string, enabled bool, done func(error))
 	// UninstallIntegration removes an installed extension. The kind is the
 	// same `removalKind` the confirmation bar spoke in, so the shell's
 	// completion notification can be the kind's own word rather than one
 	// generic "removed" (`src/ExtensionsPanel.tsx:1286-1340`).
-	UninstallIntegration func(id string, name string, kind string)
+	//
+	// done reports the removal back to the band that asked, on the main thread:
+	// a nil error closes it (the reference's `setRemovalTarget(null)` after
+	// `await runMutation`), and a non-nil error leaves it open with its answer
+	// pill usable again (`src/ExtensionsPanel.tsx:1296-1304`). It may be nil, in
+	// which case the band closes at once.
+	UninstallIntegration func(id string, name string, kind string, done func(error))
 	// UninstallComponents removes the parts of an installed extension the
 	// checkboxes name. Nil falls back to UninstallIntegration. The kind is
 	// passed for the same reason as above: custom is "deleted", npm is
@@ -550,12 +563,28 @@ type App struct {
 	// scroller's offset.
 	disableConfirm map[string]bool
 	removeConfirm  map[string]bool
-	runValues      map[string]map[string]string
-	runError       string
-	runOpen        map[string]bool
-	runOutputs     map[string]RunResult
-	outputOpen     map[string]bool
-	outputScroll   map[string]*ui.ScrollState
+	// disableConfirmAt and removeConfirmAt are when each question was asked:
+	// the reference armed both bars with `useTimedReset(removalTarget, …)` /
+	// `useTimedReset(disableTarget, …)` and its default 3000 ms window
+	// (`src/hooks/useTimedReset.ts:3`, `src/ExtensionsPanel.tsx:864-865`), so an
+	// ask left unanswered withdraws instead of staying armed on a later glance.
+	disableConfirmAt map[string]time.Time
+	removeConfirmAt  map[string]time.Time
+	// disableBusy and removeBusy mark the bands whose answer is in flight, so
+	// the confirm pill holds the reference's disabled face (`disabled={busy}`,
+	// `opacity: 0.4`, no hover/press) until the shell reports back; the error
+	// maps carry the failure that left a band open, exactly as the uninstall
+	// dialog's busy/error pair does (`ComponentizedUninstallDialog.tsx:126`).
+	disableBusy  map[string]bool
+	disableError map[string]string
+	removeBusy   map[string]bool
+	removeError  map[string]string
+	runValues    map[string]map[string]string
+	runError     string
+	runOpen      map[string]bool
+	runOutputs   map[string]RunResult
+	outputOpen   map[string]bool
+	outputScroll map[string]*ui.ScrollState
 
 	// The local-tool form's draft: what the user has typed, and the
 	// permissions they have ticked. It lives on the panel so a keystroke
@@ -869,6 +898,10 @@ func (a *App) View(c *ui.Context) {
 	// `killArmTimer` reverted the button after three seconds, so an ask left
 	// unanswered does not stay armed on a later glance.
 	a.expireSessionClose(c)
+	// The two inline confirmations carry the same clock: the reference armed
+	// their targets with `useTimedReset` and its own three-second default
+	// (`src/ExtensionsPanel.tsx:864-865`).
+	a.expireConfirmations(c)
 
 	// The panel's very first frame puts the keyboard on the sidebar. The
 	// shell's own `FocusSidebar` runs when the surface opens, before the list
@@ -2191,7 +2224,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			}
 		})
 		if enableChanged && a.Actions.SetIntegrationEnabled != nil {
-			a.Actions.SetIntegrationEnabled(integration.ID, enabled)
+			a.Actions.SetIntegrationEnabled(integration.ID, enabled, nil)
 		}
 		if a.disableConfirm[integration.ID] {
 			a.disableConfirmation(c, copy, integration)
@@ -4489,7 +4522,11 @@ func (a *App) requestDisable(id string) {
 	if a.disableConfirm == nil {
 		a.disableConfirm = map[string]bool{}
 	}
+	if a.disableConfirmAt == nil {
+		a.disableConfirmAt = map[string]time.Time{}
+	}
 	a.disableConfirm[id] = true
+	a.disableConfirmAt[id] = a.now()
 }
 
 // barButton is the compact inline button the reference drew inside a notice
@@ -4536,6 +4573,13 @@ func (a *App) barButton(c *ui.Context, label string, danger, disabled bool, icon
 			ink = t.Text
 			button = button.Background(plane).Border(1, edge)
 		}
+	}
+	// `.extensions-action-button:active:not(:disabled) { transform: scale(0.97) }`
+	// (`extensions.css:138-140`): the press sinks the pill a hair, over the
+	// same `--dur-2` transform transition. The disabled pill keeps its resting
+	// shape, exactly as the dialog's own action pill does.
+	if !disabled && button.Pressed() {
+		button.Scale(0.97, 0.97)
 	}
 	// `.extension-discard-bar .extensions-action-button` only overrides the
 	// size, padding, radius and font; the rest is the shared
@@ -4623,24 +4667,86 @@ func (a *App) noticeBand(c *ui.Context, danger bool, sentence string, answers fu
 // leading alert mark, then one sentence holding the title and the consequence
 // together (`{disableTitle} {disableDescription}`), then Cancel and the Disable
 // action on the same row.
+//
+// The confirm pill carries the reference's own `disabled={busy}`
+// (`DisableConfirmation.tsx:67`) while its Cancel key never does (`:65`):
+// pressing Disable marks the band in flight and the band stays up until the
+// shell reports back, so a slow or failed write is visible rather than assumed,
+// but the question can still be answered with "no" at any time. The reference
+// awaited `runMutation` and only then cleared `disableTarget`
+// (`src/ExtensionsPanel.tsx:1274-1283`); here the same hand-off is the `done`
+// callback the shell calls on the main thread.
 func (a *App) disableConfirmation(c *ui.Context, copy i18n.Settings, integration Integration) {
-	cancel := a.noticeBand(c, false,
-		copy.DisableTitle(integration.Name)+" "+copy.DisableDescription,
-		func(cancel *ui.Element) {
-			*cancel = a.barButton(c, copy.IntegrationsCancel, false, false, nil, func() {
-				a.disableConfirm[integration.ID] = false
-			})
-			a.barButton(c, copy.DisableConfirm, false, false, mustGlyph("power"), func() {
-				a.disableConfirm[integration.ID] = false
-				if a.Actions.SetIntegrationEnabled != nil {
-					a.Actions.SetIntegrationEnabled(integration.ID, false)
-				}
+	id := integration.ID
+	busy := a.disableBusy[id]
+	sentence := copy.DisableTitle(integration.Name) + " " + copy.DisableDescription
+	if message := a.disableError[id]; message != "" {
+		// A failed write stays on the band, in the family's own error register:
+		// the reference reached the user through `showError` while the band it
+		// kept mounted said nothing (`src/ExtensionsPanel.tsx:1274-1283`).
+		sentence = message
+	}
+	cancel := a.noticeBand(c, false, sentence, func(cancel *ui.Element) {
+		*cancel = a.barButton(c, copy.IntegrationsCancel, false, false, nil, func() {
+			a.disableConfirm[id] = false
+		})
+		a.barButton(c, copy.DisableConfirm, false, busy, mustGlyph("power"), func() {
+			if a.Actions.SetIntegrationEnabled == nil {
+				a.disableConfirm[id] = false
+				return
+			}
+			a.markDisableBusy(id)
+			a.Actions.SetIntegrationEnabled(id, false, func(err error) {
+				a.finishDisableConfirmation(id, err)
 			})
 		})
+	})
 	// The reference's useEffect focuses the Cancel button on open, so the
 	// first Enter or Escape answers the question without the pointer moving.
 	// A zero-value Element's Focus is a no-op, so no nil check is needed.
 	cancel.Focus()
+}
+
+// markDisableBusy records that a disable is in flight and drops the last
+// failure, so the band's busy face speaks for the new attempt rather than the
+// old one.
+func (a *App) markDisableBusy(id string) {
+	if a.disableBusy == nil {
+		a.disableBusy = map[string]bool{}
+	}
+	if a.disableError != nil {
+		delete(a.disableError, id)
+	}
+	a.disableBusy[id] = true
+}
+
+// finishDisableConfirmation settles the disable band after the shell reports
+// back. A nil error is the reference's success arm: the band closes (the
+// reference dropped `disableTarget` only after the await). A non-nil error
+// keeps the band up with the failure on it and the answer pill usable again —
+// the reference's `runMutation` cleared `busy` in `finally`, but only a
+// successful write dismissed the band (`src/ExtensionsPanel.tsx:1274-1283`).
+func (a *App) finishDisableConfirmation(id string, err error) {
+	if a.disableBusy != nil {
+		delete(a.disableBusy, id)
+	}
+	if err != nil {
+		if a.disableError == nil {
+			a.disableError = map[string]string{}
+		}
+		a.disableError[id] = err.Error()
+	} else {
+		if a.disableError != nil {
+			delete(a.disableError, id)
+		}
+		if a.disableConfirm == nil {
+			a.disableConfirm = map[string]bool{}
+		}
+		a.disableConfirm[id] = false
+	}
+	if a.Actions.Invalidate != nil {
+		a.Actions.Invalidate()
+	}
 }
 
 // requestRemove opens the confirmation for deleting an integration.
@@ -4648,7 +4754,55 @@ func (a *App) requestRemove(id string) {
 	if a.removeConfirm == nil {
 		a.removeConfirm = map[string]bool{}
 	}
+	if a.removeConfirmAt == nil {
+		a.removeConfirmAt = map[string]time.Time{}
+	}
 	a.removeConfirm[id] = true
+	a.removeConfirmAt[id] = a.now()
+}
+
+// confirmWindow is how long an inline confirmation waits for its answer: the
+// reference armed both bars with `useTimedReset(removalTarget, …)` /
+// `useTimedReset(disableTarget, …)` and its default timeout of 3000 ms
+// (`src/hooks/useTimedReset.ts:3`, `src/ExtensionsPanel.tsx:864-865`). An ask
+// one moment is not still armed on a later glance.
+const confirmWindow = 3 * time.Second
+
+// expireConfirmations withdraws any inline question that has waited longer than
+// its window, and keeps the frames coming while one is live so the deadline is
+// reached on a still page exactly as it is with a hand on it. A band whose
+// answer is already in flight is left alone: the reference's timer was cleared
+// on unmount, but its own `busy` face outlives a press that has not landed yet.
+func (a *App) expireConfirmations(c *ui.Context) {
+	now := a.now()
+	live := false
+	for id, at := range a.disableConfirmAt {
+		if !a.disableConfirm[id] {
+			delete(a.disableConfirmAt, id)
+			continue
+		}
+		if now.Sub(at) > confirmWindow && !a.disableBusy[id] {
+			a.disableConfirm[id] = false
+			delete(a.disableConfirmAt, id)
+			continue
+		}
+		live = true
+	}
+	for id, at := range a.removeConfirmAt {
+		if !a.removeConfirm[id] {
+			delete(a.removeConfirmAt, id)
+			continue
+		}
+		if now.Sub(at) > confirmWindow && !a.removeBusy[id] {
+			a.removeConfirm[id] = false
+			delete(a.removeConfirmAt, id)
+			continue
+		}
+		live = true
+	}
+	if live && c != nil {
+		c.AnimationFrame()
+	}
 }
 
 // sessionCloseWindow is how long a session's close question waits for its
@@ -4755,6 +4909,7 @@ func (a *App) cancelConfirmations() {
 // too — a system card that says "Disconnect" asks "Disconnect?", never
 // "Uninstall?".
 func (a *App) removeConfirmation(c *ui.Context, copy i18n.Settings, integration Integration) {
+	id := integration.ID
 	// The reference's confirm button leads with the kind's own mark: a system
 	// integration is unplugged (`<Unplug size={14} />`), every other kind is
 	// trashed (`<Trash2 size={14} />`) — `RemovalConfirmation.tsx:47`.
@@ -4762,39 +4917,101 @@ func (a *App) removeConfirmation(c *ui.Context, copy i18n.Settings, integration 
 	if integration.removalKind() == RemovalSystem {
 		confirmIcon = mustGlyph("unplug")
 	}
-	cancel := a.noticeBand(c, true, integration.removalSentence(copy), func(cancel *ui.Element) {
+	// The componentized door is the reference's fork, not a failure: it opens
+	// the dialog without marking this band busy, because the answer to the
+	// question the band asked has already landed. The reference's own bar only
+	// ever ran `disabled={busy}` when it ran the mutation itself
+	// (`RemovalConfirmation.tsx:44`), and its Cancel key never carried the flag
+	// at all (`:43`) — a question you cannot cancel while it is being answered
+	// is a different question.
+	componentized := integration.componentizedRemoval() && a.Actions.UninstallComponents != nil
+	busy := a.removeBusy[id] && !componentized
+	sentence := integration.removalSentence(copy)
+	if message := a.removeError[id]; message != "" {
+		// A failed removal stays on the band, in the family's own error
+		// register; the reference reached the user through `showError` while
+		// the band it kept mounted said nothing
+		// (`src/ExtensionsPanel.tsx:1296-1304`).
+		sentence = message
+	}
+	cancel := a.noticeBand(c, true, sentence, func(cancel *ui.Element) {
 		*cancel = a.barButton(c, copy.IntegrationsCancel, false, false, nil, func() {
-			a.removeConfirm[integration.ID] = false
+			a.removeConfirm[id] = false
 		})
-		a.barButton(c, integration.removalLabel(copy), true, false, confirmIcon, func() {
-			a.removeConfirm[integration.ID] = false
+		a.barButton(c, integration.removalLabel(copy), true, busy, confirmIcon, func() {
 			// The reference's confirm branches by kind
 			// (`src/ExtensionsPanel.tsx:1286-1304`): npm and custom go on to
 			// the componentized dialog, which asks which data to keep before
 			// anything moves; a system-owned built-in and a linked local
 			// package have nothing of floter's to pick over, so their confirm
 			// runs the plain removal.
-			if integration.componentizedRemoval() && a.Actions.UninstallComponents != nil {
+			if componentized {
+				a.removeConfirm[id] = false
 				if a.uninstallOpen == nil {
 					a.uninstallOpen = map[string]bool{}
 				}
 				// A fresh ask starts clean: last time's failure does not ride the
 				// new dialog (`uninstallError` is only about the open one).
 				if a.uninstallError != nil {
-					delete(a.uninstallError, integration.ID)
+					delete(a.uninstallError, id)
 				}
-				a.uninstallOpen[integration.ID] = true
+				a.uninstallOpen[id] = true
 				return
 			}
-			if a.Actions.UninstallIntegration != nil {
-				a.Actions.UninstallIntegration(integration.ID, integration.Name, integration.removalKind())
+			if a.Actions.UninstallIntegration == nil {
+				a.removeConfirm[id] = false
+				return
 			}
+			a.markRemoveBusy(id)
+			a.Actions.UninstallIntegration(id, integration.Name, integration.removalKind(), func(err error) {
+				a.finishRemoveConfirmation(id, err)
+			})
 		})
 	})
 	// The reference's useEffect focuses the Cancel button on open, so the
 	// first Enter or Escape answers the question without the pointer moving.
 	// A zero-value Element's Focus is a no-op, so no nil check is needed.
 	cancel.Focus()
+}
+
+// markRemoveBusy records that a plain removal is in flight and drops the last
+// failure, so the band's busy face speaks for the new attempt rather than the
+// old one.
+func (a *App) markRemoveBusy(id string) {
+	if a.removeBusy == nil {
+		a.removeBusy = map[string]bool{}
+	}
+	if a.removeError != nil {
+		delete(a.removeError, id)
+	}
+	a.removeBusy[id] = true
+}
+
+// finishRemoveConfirmation settles the removal band after the shell reports
+// back. A nil error is the reference's success arm: the band closes. A
+// non-nil error keeps the band up with the failure on it and the answer pill
+// usable again (`src/ExtensionsPanel.tsx:1296-1304`).
+func (a *App) finishRemoveConfirmation(id string, err error) {
+	if a.removeBusy != nil {
+		delete(a.removeBusy, id)
+	}
+	if err != nil {
+		if a.removeError == nil {
+			a.removeError = map[string]string{}
+		}
+		a.removeError[id] = err.Error()
+	} else {
+		if a.removeError != nil {
+			delete(a.removeError, id)
+		}
+		if a.removeConfirm == nil {
+			a.removeConfirm = map[string]bool{}
+		}
+		a.removeConfirm[id] = false
+	}
+	if a.Actions.Invalidate != nil {
+		a.Actions.Invalidate()
+	}
 }
 
 // installFolderRow installs a package directory the user points at: the same

@@ -779,7 +779,7 @@ func New(opts Options) *App {
 				}
 			}()
 		},
-		UninstallIntegration: func(id, name, kind string) {
+		UninstallIntegration: func(id, name, kind string, done func(error)) {
 			// The settings page has already asked inline (the removal bar);
 			// arriving here is the answer. A removal stops the integration's
 			// runs before any file moves: a program still writing its own
@@ -790,10 +790,20 @@ func New(opts Options) *App {
 				if err := extensions.Uninstall(a.Paths, id, false); err != nil {
 					log.Printf("floter: could not uninstall %s: %v", id, err)
 					a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationRemoveFailed(name) })
+					// The band stays up with the failure on it, so the notice says
+					// what the panel could not: the removal did not land.
+					if done != nil {
+						a.onMain(func() { done(err) })
+					}
 					return
 				}
 				a.notifyIntegrationRemoval(kind, name)
 				a.RefreshIntegrations(context.Background())
+				// The band closes only now: the reference awaited the mutation and
+				// dropped `removalTarget` after it (`src/ExtensionsPanel.tsx:1296-1304`).
+				if done != nil {
+					a.onMain(func() { done(nil) })
+				}
 			}()
 		},
 		InstallUpdate:         a.installUpdate,
@@ -844,15 +854,23 @@ func New(opts Options) *App {
 				a.RefreshIntegrations(context.Background())
 			}()
 		},
-		SetIntegrationEnabled: func(id string, enabled bool) {
+		SetIntegrationEnabled: func(id string, enabled bool, done func(error)) {
 			if !enabled {
 				// Disabling is a mark, but a run in flight is stopped now: the
 				// old set_enabled's disable branch kills its runs before the flag
 				// is written (R98).
 				a.Runs.Kill(id)
 			}
-			if err := a.Integrations.SetEnabled(id, enabled); err != nil {
+			err := a.Integrations.SetEnabled(id, enabled)
+			if err != nil {
 				log.Printf("floter: could not change %s: %v", id, err)
+			}
+			// The confirmation band only waits for the flag write, not for the
+			// provider refresh behind it: the reference awaited
+			// `extensions_disable` itself and the re-probe was its own
+			// background step (`src/ExtensionsPanel.tsx:1274-1283`).
+			if done != nil {
+				a.onMain(func() { done(err) })
 			}
 			// Enabling an integration asks its provider again, in the
 			// background: its commands must appear without a restart.

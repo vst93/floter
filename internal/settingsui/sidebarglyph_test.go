@@ -80,3 +80,29 @@ func TestTheLauncherGainsTheTwoReferenceMarks(t *testing.T) {
 		}
 	}
 }
+
+// The leading mark is a *literal* 15 DIPs: the reference writes
+// `<Icon size={15} strokeWidth={2} />` in the JSX (`main:src/App.tsx:2925`), so
+// the five sidebar marks sit at 15px under every interface-size step — unlike
+// every other icon in this app, which is sized in `--u`. A `Space(4)` here
+// tracked the step and left the mark at 14.4 even at the shipped default.
+func TestTheSidebarMarkIsALiteralFifteen(t *testing.T) {
+	if sidebarGlyphSize != 15 {
+		t.Fatalf("the sidebar's leading mark is %v DIPs, want the reference's literal 15", sidebarGlyphSize)
+	}
+	// It must not be reached through `Space`: the whole point is that the step
+	// does not move it. Under the shipped step the two differ already.
+	for _, scale := range []float32{0.9, 1.0, 1.25} {
+		var stepped float32
+		tt := ui.NewTester(func(c *ui.Context) { stepped = c.Theme().Space(4) }, 100, 100)
+		tt.SetScale(scale)
+		tt.Frame()
+		if stepped == 0 {
+			t.Fatal("the frame resolved no theme")
+		}
+		if stepped == sidebarGlyphSize {
+			t.Errorf("at scale %v the step's Space(4) is %v, the same as the mark; the mark is not step-independent",
+				scale, stepped)
+		}
+	}
+}

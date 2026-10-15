@@ -22,7 +22,7 @@ func BenchmarkGeneralFrame(b *testing.B) {
 // of integrations and their command switches.
 func BenchmarkIntegrationsFrame(b *testing.B) {
 	a := New(newStoreFor(b), Actions{
-		SetIntegrationEnabled: func(string, bool) {},
+		SetIntegrationEnabled: func(string, bool, func(error)) {},
 		SetCommandEnabled:     func(string, string, bool) {},
 	})
 	a.Integrations = func() []Integration {

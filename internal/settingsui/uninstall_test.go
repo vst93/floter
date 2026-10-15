@@ -425,3 +425,62 @@ func TestComponentizedUninstallFailureKeepsTheDialogOpen(t *testing.T) {
 		t.Errorf("Cancel did not answer after the failure")
 	}
 }
+
+// The reference's overlay carries no `onClick` at all
+// (`ComponentizedUninstallDialog.tsx:55-63`): a press on the scrim outside the
+// panel does nothing, and only Escape or an explicit answer leaves. The
+// framework's own DialogBase cannot serve that half — its backdrop is
+// `back.Clicked() || back.OverlayShortcut(0, KeyEscape)` in one expression
+// (`mygo@v0.5.1/ui/base.go:481`) — so the dialog draws its own backdrop with
+// `modalDialog`, which swallows the press and keeps Escape. For a destructive
+// question the difference is the whole point: one stray press must not answer
+// "cancel".
+func TestComponentizedUninstallScrimPressDoesNotCloseTheDialog(t *testing.T) {
+	en := i18n.For("en").Settings
+	a := uninstallTestApp()
+	a.uninstallOpen = map[string]bool{"npm": true}
+	var pane ui.Rect
+	tt := ui.NewTester(func(c *ui.Context) {
+		if a.uninstallOpen["npm"] {
+			var ref ui.Handle
+			a.uninstallDialog(c, en, npmTool()).Bind(&ref)
+			if box := c.Resolve(ref); box.Valid() {
+				pane = box.Bounds()
+			}
+		}
+	}, 640, 480)
+	tt.Frame()
+	tt.Frame()
+	if !tt.HasText(en.IntegrationsUninstallDescription) {
+		t.Fatalf("the dialog did not open: %v", tt.Texts())
+	}
+	if pane.W == 0 {
+		t.Fatalf("the dialog's pane has no box")
+	}
+
+	// The pane is centered; the window corners are well outside it.
+	for _, corner := range [][2]float32{{4, 4}, {636, 4}, {4, 476}, {636, 476}} {
+		if corner[0] >= pane.X && corner[0] <= pane.X+pane.W && corner[1] >= pane.Y && corner[1] <= pane.Y+pane.H {
+			t.Fatalf("the corner %v is inside the pane %v", corner, pane)
+		}
+		tt.Press(corner[0], corner[1])
+		tt.Release(corner[0], corner[1])
+		tt.Frame()
+		tt.Frame()
+		if !a.uninstallOpen["npm"] {
+			t.Fatalf("a scrim press at %v closed the dialog", corner)
+		}
+		if !tt.HasText(en.IntegrationsUninstallDescription) {
+			t.Fatalf("a scrim press at %v took the dialog off screen: %v", corner, tt.Texts())
+		}
+	}
+
+	// Escape still closes it.
+	tt.Key(0, ui.KeyEscape)
+	tt.Frame()
+	tt.Frame()
+	if a.uninstallOpen["npm"] {
+		t.Errorf("Escape left the dialog open")
+	}
+	_ = pane
+}

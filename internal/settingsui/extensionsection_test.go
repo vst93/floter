@@ -315,8 +315,8 @@ func TestIntegrationToggleTrailsTheActions(t *testing.T) {
 		ID: "pkg", Name: "V Tools", DistributionSource: "local",
 		Enabled: true, Running: true, RuntimeAvailable: true,
 	}, Actions{
-		UninstallIntegration:  func(string, string, string) {},
-		SetIntegrationEnabled: func(string, bool) {},
+		UninstallIntegration:  func(string, string, string, func(error)) {},
+		SetIntegrationEnabled: func(string, bool, func(error)) {},
 	})
 	tt := integrationPage(t, a, 720, 900)
 
