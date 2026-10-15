@@ -2,10 +2,13 @@ package settingsui
 
 import (
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
+	"floter/internal/extensions"
 	"floter/internal/i18n"
+	"floter/internal/settings"
 )
 
 // The Integrations panel's group header is the reference's own
@@ -163,5 +166,168 @@ func TestTheActionButtonsWearTheReferencePill(t *testing.T) {
 	// side inset inside the pill.
 	if got := label.X - box.X; absFloat(got-pad) > 1 {
 		t.Errorf("leading inset = %v, want the reference's 10u (%v)", got, pad)
+	}
+}
+
+// integrationPage renders the Integrations page over one app, the way the
+// panel's own tests reach the list.
+func integrationPage(t *testing.T, a *App, w, h int) *ui.Tester {
+	t.Helper()
+	tt := render(t, a, w, h)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatalf("open Integrations: %v", err)
+	}
+	tt.Frame()
+	return tt
+}
+
+// oneIntegrationApp is integrationPage's fixture: an app whose installed list
+// is the one integration, with the actions a row needs wired.
+func oneIntegrationApp(integration Integration, actions Actions) *App {
+	a := New(settings.NewStore(settings.Default()), actions)
+	a.Integrations = func() []Integration { return []Integration{integration} }
+	return a
+}
+
+// The reference's title line is `name` then `v{currentVersion}` in one
+// `.extension-row__title` flex row (`src/extensions/ExtensionRow.tsx:207-230`),
+// not a version parked on its own identity row. The old port printed the name
+// and description as one label and the version far below on the identity line.
+func TestIntegrationTitleCarriesTheVersion(t *testing.T) {
+	a := oneIntegrationApp(Integration{
+		ID: "dev.floter.tool", Name: "V Tools", Publisher: "vst", Version: "1.2.3",
+		Enabled: true, Running: true,
+	}, Actions{})
+	tt := integrationPage(t, a, 720, 900)
+
+	name := mustFind(t, tt, "V Tools")
+	version := mustFind(t, tt, "v1.2.3")
+	// The version sits on the name's own line, immediately after the name.
+	if version.Y < name.Y || version.Y > name.Y+name.H {
+		t.Errorf("the version at %v is not on the title line at %v", version, name)
+	}
+	if version.X < name.X+name.W {
+		t.Errorf("the version at x=%v is not after the name ending at x=%v", version.X, name.X+name.W)
+	}
+	// It stays above the meta line the version used to live on.
+	identity := mustFind(t, tt, "vst · 1.2.3 · dev.floter.tool")
+	if version.Y >= identity.Y {
+		t.Errorf("the version at %v is not above the meta line at %v", version, identity)
+	}
+}
+
+// The freshness dot is the reference's `.extension-row__dot` in the *title*
+// line (`src/extensions/ExtensionRow.tsx:220-230`), trailing the name and
+// version, not a control at the row's trailing edge. The old port drew it in
+// the first row's control slot, beside the state word and the unavailable
+// badge.
+func TestFreshnessDotRidesTheTitle(t *testing.T) {
+	en := i18n.For("en").Settings
+	count := 4
+	a := oneIntegrationApp(Integration{
+		ID: "dev.floter.tool", Name: "Tool", Version: "9.9.9",
+		Enabled: true, Running: true, RuntimeAvailable: false,
+	}, Actions{
+		Freshness: func(id string) (extensions.Freshness, bool) {
+			if id != "dev.floter.tool" {
+				return extensions.Freshness{}, false
+			}
+			return extensions.Freshness{
+				AtSeconds:            time.Now().Unix(),
+				Source:               extensions.FreshnessProbe,
+				Result:               extensions.FreshnessSuccess,
+				Delta:                extensions.DeltaUnchanged,
+				CommandCount:         &count,
+				PreviousCommandCount: &count,
+			}, true
+		},
+	})
+	tt := integrationPage(t, a, 720, 900)
+
+	name := mustFind(t, tt, "Tool")
+	version := mustFind(t, tt, "v9.9.9")
+	dot := mustFind(t, tt, en.FreshnessDot(en.FreshnessDotSynced))
+	// Same title line as the name, after the version.
+	if dot.Y < name.Y || dot.Y > name.Y+name.H {
+		t.Errorf("the dot at %v is not on the title line at %v", dot, name)
+	}
+	if dot.X < version.X+version.W {
+		t.Errorf("the dot at x=%v is not after the version ending at x=%v", dot.X, version.X+version.W)
+	}
+	// It is not in the control slot: the unavailable badge keeps that end of
+	// the row, and the dot stays to its left.
+	badge := mustFind(t, tt, en.RuntimeUnavailable)
+	if dot.X >= badge.X {
+		t.Errorf("the dot at x=%v is in the control slot (badge x=%v), not the title", dot.X, badge.X)
+	}
+}
+
+// The reference's `.extension-row__meta` is one line under the title carrying
+// the package identity, the kind, the runtime source and the state word
+// (`src/extensions/ExtensionRow.tsx:255-282`). The old port scattered identity,
+// kind and state across separate rows (and drew the state in the control slot).
+func TestIntegrationMetaLineCombinesTheFacts(t *testing.T) {
+	en := i18n.For("en").Settings
+	a := oneIntegrationApp(Integration{
+		ID: "dev.floter.tool", Name: "Tool", Publisher: "acme", Version: "1.0.0",
+		DistributionSource: "npm", RuntimeSource: "managed",
+		Enabled: true, Running: true, RuntimeAvailable: true,
+	}, Actions{})
+	tt := integrationPage(t, a, 720, 900)
+
+	name := mustFind(t, tt, "Tool")
+	meta := []ui.Rect{
+		mustFind(t, tt, "acme · 1.0.0 · dev.floter.tool"),
+		mustFind(t, tt, en.IntegrationsKindNPM),
+		mustFind(t, tt, en.IntegrationsRuntimeManaged),
+		mustFind(t, tt, en.IntegrationsRunning),
+	}
+	for _, r := range meta {
+		if r.Y < name.Y+name.H {
+			t.Errorf("the meta fact at %v is not under the title ending at %v", r, name.Y+name.H)
+		}
+	}
+	// All four share the one meta line: their boxes overlap vertically, even
+	// though each register's line box is a different height.
+	sameLine := func(a, b ui.Rect) bool {
+		return a.Y < b.Y+b.H && b.Y < a.Y+a.H
+	}
+	for _, r := range meta[1:] {
+		if !sameLine(meta[0], r) {
+			t.Errorf("the meta fact at %v is not on the identity fact's line at %v", r, meta[0])
+		}
+	}
+	// The reference's order: identity, kind, runtime source, state.
+	for i := 1; i < len(meta); i++ {
+		if meta[i].X <= meta[i-1].X {
+			t.Errorf("meta fact %d at x=%v is not after fact %d at x=%v", i, meta[i].X, i-1, meta[i-1].X)
+		}
+	}
+}
+
+// The toggle is the reference's `.extension-row__toggle-slot`, at the far end
+// of the actions *after* every action button (`src/extensions/ExtensionRow.tsx:437-458`).
+// The old port drew it first, inside the row's control slot, before the run,
+// repair and removal doors.
+func TestIntegrationToggleTrailsTheActions(t *testing.T) {
+	en := i18n.For("en").Settings
+	a := oneIntegrationApp(Integration{
+		ID: "pkg", Name: "V Tools", DistributionSource: "local",
+		Enabled: true, Running: true, RuntimeAvailable: true,
+	}, Actions{
+		UninstallIntegration:  func(string, string, string) {},
+		SetIntegrationEnabled: func(string, bool) {},
+	})
+	tt := integrationPage(t, a, 720, 900)
+
+	remove := mustFind(t, tt, en.IntegrationsRemovePackage)
+	toggle := mustFind(t, tt, en.IntegrationsEnable)
+	if toggle.X <= remove.X {
+		t.Errorf("the toggle at x=%v does not trail the removal button at x=%v", toggle.X, remove.X)
+	}
+	// Same actions row: the two are centred on one another (the switch is a
+	// touch taller than the pill, so the check is the vertical centres).
+	if absFloat((toggle.Y+toggle.H/2)-(remove.Y+remove.H/2)) > remove.H/2 {
+		t.Errorf("the toggle at %v is not on the actions row at %v", toggle, remove)
 	}
 }

@@ -310,6 +310,13 @@ type Integration struct {
 	// (`src/extensions/ExtensionRow.tsx:109-114`).
 	DistributionSource string
 	RuntimeOwnership   string
+	// RuntimeSource is where the runtime lives, the reference's own
+	// `runtimeSource` projection (`managed`/`system`/`bundled`,
+	// `src-tauri/src/commands/extensions.rs:540-550`): a package that bundles
+	// its runtime is `bundled`, an executable or descriptor runtime is
+	// `managed` when Floter owns it and `system` when the machine does. It is
+	// the meta line's third fact, beside the package identity and the kind.
+	RuntimeSource string
 	// Highlighted marks the integration a `floter://register` link named, so
 	// its card wears the link's mark
 	// (`src/extensions/ExtensionRow.tsx:196-205,290`). It is a status mark,
@@ -1612,6 +1619,41 @@ func (a *App) runtimeUnavailableBadge(c *ui.Context, copy i18n.Settings, integra
 	})
 }
 
+// integrationMeta is the reference's single `.extension-row__meta` line under
+// the title (`src/extensions/ExtensionRow.tsx:255-282`): the package identity,
+// the integration kind, the runtime source and the state word, in the caption
+// register the reference drew them. The three plain facts share the tertiary
+// ink and a `·` separator; the state word keeps its own colour (accent while
+// running, a warm chip while broken, secondary while off) through stateMark,
+// which is why it is a separate node rather than one joined string.
+func (a *App) integrationMeta(c *ui.Context, copy i18n.Settings, integration Integration) {
+	t := c.Theme()
+	tokens := a.tokens(c)
+	facts := make([]string, 0, 3)
+	if id := integration.identity(); id != "" {
+		facts = append(facts, id)
+	}
+	if kind := integration.integrationKind(copy); kind != "" {
+		facts = append(facts, kind)
+	}
+	if source := integration.runtimeSourceLabel(copy); source != "" {
+		facts = append(facts, source)
+	}
+	sep := "·"
+	ui.Row(c).FillWidth().Wrap().GapX(t.Space(2)).GapY(t.Space(1)).AlignItems(ui.Center).Children(func() {
+		for i, fact := range facts {
+			if i > 0 {
+				ui.Text(c, sep).FontSize(tokens.Caption).TextColor(tokens.TextTertiary).Opacity(0.7)
+			}
+			ui.Text(c, fact).FontSize(tokens.Caption).FontWeight(500).TextColor(tokens.TextTertiary)
+		}
+		if len(facts) > 0 {
+			ui.Text(c, sep).FontSize(tokens.Caption).TextColor(tokens.TextTertiary).Opacity(0.7)
+		}
+		a.stateMark(c, integration, copy)
+	})
+}
+
 // healthDetail draws the stored probe report's own lines under the Health row
 // (the old build's `extension-health` block): every probe the last run
 // recorded with its duration, then the failed ones with the reason a retry
@@ -1754,6 +1796,7 @@ func approvalApprovedAt(at uint64) string {
 // alias), and the row of doors — check, re-scan, uninstall.
 func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Integration) {
 	t := c.Theme()
+	tokens := a.tokens(c)
 	// The row's own one-word freshness, read once and used twice: the mark
 	// beside the name and the fuller row below it, projected from the same
 	// value so the two can never disagree.
@@ -1767,16 +1810,37 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 		if integration.Highlighted {
 			highlight = copy.RegisterHighlight
 		}
-		a.rowNote(c, integration.Name, integration.Description, highlight, func() {
-			if hasFreshness {
-				a.freshnessDot(c, copy, freshness)
-			}
-			a.stateMark(c, integration, copy)
+		// The title row is the reference's own `.extension-row__title`: the
+		// name, the version beside it and the freshness mark trailing both,
+		// all in the label column, with the runtime-unavailable chip as the
+		// row's only control. The old port printed the version on a separate
+		// identity row and the freshness dot in the control slot.
+		a.cardRow(c, ui.Center, func() {
 			if !integration.RuntimeAvailable {
 				a.runtimeUnavailableBadge(c, copy, integration)
 			}
+		}, func() {
+			title := ui.Row(c).FillWidth().Wrap().GapX(t.Space(1.5)).GapY(t.Space(1)).AlignItems(ui.Center)
+			title.Children(func() {
+				ui.Text(c, integration.Name).FontSize(t.FontSize + 1).FontWeight(580).TextColor(tokens.TextStrong)
+				if integration.Version != "" {
+					ui.Text(c, "v"+integration.Version).FontSize(t.FontSize).FontWeight(500).TextColor(tokens.TextTertiary)
+				}
+				if hasFreshness {
+					a.freshnessDot(c, copy, freshness)
+				}
+			})
+			if integration.Description != "" {
+				ui.Text(c, integration.Description).FontSize(t.FontSize).FontWeight(500).TextColor(t.TextMuted)
+			}
+			if highlight != "" {
+				ui.Text(c, highlight).FontSize(t.FontSize).FontWeight(500).TextColor(t.Warning)
+			}
+			// The reference's single `.extension-row__meta` line replaces the
+			// old separate identity row: the package identity, the kind, the
+			// runtime source and the state word together under the title.
+			a.integrationMeta(c, copy, integration)
 		})
-		a.row(c, integration.identityLine(copy), "", func() {})
 
 		if len(integration.Permissions) > 0 && !integration.Orphan {
 			labelClicked := a.row(c, copy.IntegrationsPermissions, a.permissionLine(integration, copy), func() {
@@ -1938,21 +2002,11 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 
 		enabled := integration.Enabled
 		enableChanged := false
-		enableLabelClicked := a.row(c, copy.IntegrationsEnable, "", func() {
-			if a.Actions.SetIntegrationEnabled != nil {
-				on := enabled
-				if a.switchControl(c, &on).Label(copy.IntegrationsEnable).Changed() {
-					// Turning an integration *off* stops whatever it is
-					// running, so it asks first — a mark the user did not mean
-					// is a command dead mid-flight. Turning one on is no
-					// question at all.
-					if !on {
-						a.requestDisable(integration.ID)
-					} else {
-						enabled, enableChanged = on, true
-					}
-				}
-			}
+		// The actions row keeps no label of its own: the reference drew the
+		// action cluster and the toggle beside the row's title, not under an
+		// "Enabled" heading (`src/extensions/ExtensionRow.tsx:288-458`). The
+		// switch's own accessible name is what a test and a screen reader read.
+		a.row(c, "", "", func() {
 			// The row's Run button: on a runnable row it runs the integration —
 			// straight away when it declares no inputs, or unfolding the inline
 			// parameter form when it does (the same button is the disclosure, so
@@ -2056,14 +2110,22 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			case a.Actions.UninstallComponents != nil:
 				a.uninstallComponentsRow(c, copy, integration)
 			}
-		})
-		if enableLabelClicked {
-			if enabled {
-				a.requestDisable(integration.ID)
-			} else {
-				enabled, enableChanged = !enabled, true
+			// The enable/disable toggle rides at the very end of the actions,
+			// after the removal door, where the reference's separate
+			// `.extension-row__toggle-slot` sat (`src/extensions/ExtensionRow.tsx:437-458`).
+			// Its handling is unchanged: turning one *off* asks first because it
+			// stops whatever is running; turning one on is no question at all.
+			if a.Actions.SetIntegrationEnabled != nil {
+				on := enabled
+				if a.switchControl(c, &on).Label(copy.IntegrationsEnable).Changed() {
+					if !on {
+						a.requestDisable(integration.ID)
+					} else {
+						enabled, enableChanged = on, true
+					}
+				}
 			}
-		}
+		})
 		if enableChanged && a.Actions.SetIntegrationEnabled != nil {
 			a.Actions.SetIntegrationEnabled(integration.ID, enabled)
 		}
@@ -2194,6 +2256,23 @@ func (i Integration) integrationKind(copy i18n.Settings) string {
 		return copy.IntegrationsKindSystem
 	default:
 		return copy.IntegrationsKindPackage
+	}
+}
+
+// runtimeSourceLabel is where the runtime lives, the meta line's third slot
+// (`src/extensions/ExtensionRow.tsx:233`). The word follows the reference's own
+// `runtimeSource` projection; an unknown source (a fixture with no projection)
+// prints nothing rather than inventing a home for the runtime.
+func (i Integration) runtimeSourceLabel(copy i18n.Settings) string {
+	switch i.RuntimeSource {
+	case "managed":
+		return copy.IntegrationsRuntimeManaged
+	case "system":
+		return copy.IntegrationsRuntimeSystem
+	case "bundled":
+		return copy.IntegrationsRuntimeBundled
+	default:
+		return ""
 	}
 }
 

@@ -517,6 +517,13 @@ type Settings struct {
 	IntegrationsKindNPM     string
 	IntegrationsKindSystem  string
 	IntegrationsKindPackage string
+	// IntegrationsRuntime* is the meta line's runtime-source slot
+	// (`src/extensions/ExtensionRow.tsx:233`): where the runtime lives —
+	// `managed` (Floter owns it), `system` (the machine owns it) or
+	// `bundled` (the package ships it). An empty source prints nothing.
+	IntegrationsRuntimeManaged string
+	IntegrationsRuntimeSystem  string
+	IntegrationsRuntimeBundled string
 	// DismissNotice labels the toast's close control: the old build's
 	// `settings.extensions.dismissNotice`.
 	DismissNotice string
