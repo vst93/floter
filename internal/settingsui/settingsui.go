@@ -2603,7 +2603,10 @@ func (a *App) shortcutControl(c *ui.Context, copy i18n.Settings, action, value s
 			if ev.Kind != ui.InputKeyDown {
 				return false
 			}
-			if ev.Key == ui.KeyEscape {
+			// Escape gives up the recording, but only a bare Escape: a modified
+			// Escape is a chord the user may want to record (the old build's
+			// `if (event.key === "Escape" && bare) onCancel()`).
+			if ev.Key == ui.KeyEscape && ev.Mods == 0 {
 				a.recording = false
 				return true
 			}

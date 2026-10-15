@@ -247,11 +247,14 @@ func modifierList(mods ui.Modifiers) []string {
 }
 
 // FromKey builds an accelerator from a key event, for the recorder. It
-// requires at least one modifier: a bare key would take over ordinary typing.
-// Shift alone is accepted, as the old build's `shortcutFromEvent` did — its
-// `parts` array included `Shift` and the result passed `normalize_shortcut`.
+// requires at least one modifier, with one exception: a bare function key is
+// allowed, because the old build's `ShortcutRecorder` let a modifier-less
+// `F\d{1,2}` through (`if (bare && !/^F\d{1,2}$/.test(next)) return;`). Every
+// other bare key would take over ordinary typing. Shift alone is accepted, as
+// the old build's `shortcutFromEvent` did — its `parts` array included
+// `Shift` and the result passed `normalize_shortcut`.
 func FromKey(mods ui.Modifiers, key ui.Key) (string, bool) {
-	if mods&(ui.Super|ui.Ctrl|ui.Alt|ui.Shift) == 0 {
+	if mods&(ui.Super|ui.Ctrl|ui.Alt|ui.Shift) == 0 && !isFunctionKey(key) {
 		return "", false
 	}
 	name, ok := KeyName(key)
@@ -259,6 +262,13 @@ func FromKey(mods ui.Modifiers, key ui.Key) (string, bool) {
 		return "", false
 	}
 	return join(modifierList(mods), name), true
+}
+
+// isFunctionKey reports whether a key is one of the function keys, the one
+// family a recorder accepts without a modifier. The old build's regex allowed
+// F1-F99; this build's key enum stops at F12, so F1-F12 is the whole family.
+func isFunctionKey(key ui.Key) bool {
+	return key >= ui.KeyF1 && key <= ui.KeyF12
 }
 
 // NormalizeResultShortcut normalizes a `select_result` binding to the family

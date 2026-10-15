@@ -1548,6 +1548,65 @@ func TestShortcutRecorder(t *testing.T) {
 	if recorded != "" || !a.recording {
 		t.Errorf("a bare key recorded %q, recording=%v", recorded, a.recording)
 	}
+
+	// A modified Escape is a chord, not the cancel gesture: the old build's
+	// recorder cancelled only on a *bare* Escape (`event.key === "Escape" &&
+	// bare`), so Ctrl+Esc records like any other combination.
+	tt.Key(ui.Ctrl, ui.KeyEscape)
+	tt.Frame()
+	if recorded != "toggle_window=Ctrl+Esc" {
+		t.Errorf("a modified Escape recorded %q", recorded)
+	}
+	if a.recording {
+		t.Error("the recorder stayed on after a modified Escape")
+	}
+}
+
+// The custom-shortcut recorder follows the same rule as the built-in one: a
+// bare Escape gives up the recording, but a modified Escape is a chord the user
+// may want to bind. The reference's `ShortcutRecorder` is shared by both call
+// sites and cancelled only on `event.key === "Escape" && bare`, so the custom
+// row's recorder must record Ctrl+Esc rather than treat it as the cancel
+// gesture.
+func TestCustomShortcutRecorderTreatsModifiedEscapeAsAChord(t *testing.T) {
+	a := New(newStore(t), Actions{})
+	tt := render(t, a, 720, 1000)
+	if err := tt.Click("Shortcuts"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	tt.Scroll(400, 300, 0, 900)
+	tt.Frame()
+
+	// The draft row's recorder opens on the "Record key" placeholder.
+	if err := tt.Click("Record key"); err != nil {
+		t.Fatalf("the custom recorder: %v", err)
+	}
+	tt.Frame()
+	if !a.customRecording {
+		t.Fatalf("the custom recorder did not open: %q", tt.Texts())
+	}
+
+	// A bare Escape cancels and stores nothing...
+	tt.Key(0, ui.KeyEscape)
+	tt.Frame()
+	if a.customRecording || a.customKey != "" {
+		t.Errorf("a bare Escape recorded %q, recording=%v", a.customKey, a.customRecording)
+	}
+
+	// ...but a modified Escape is recorded like any other chord.
+	if err := tt.Click("Record key"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	tt.Key(ui.Ctrl, ui.KeyEscape)
+	tt.Frame()
+	if a.customRecording {
+		t.Error("a modified Escape left the custom recorder on")
+	}
+	if a.customKey != "Ctrl+Esc" {
+		t.Errorf("a modified Escape recorded %q, want Ctrl+Esc", a.customKey)
+	}
 }
 
 // The Plugins page shows the built-in plugins' settings and writes every
@@ -1712,6 +1771,58 @@ func TestCustomShortcutsPage(t *testing.T) {
 	tt.Frame()
 	if !tt.HasText("Most likely used by another app") {
 		t.Errorf("the rejection is missing: %q", tt.Texts())
+	}
+}
+
+// Choosing "Command line…" on a saved row starts a command draft instead of
+// storing the picker's sentinel: the reference's `setAction` turned the row
+// into a command draft (action empty, text field visible) and dropped it from
+// the persisted list until a command was typed. Storing the literal `command`
+// would otherwise make the shell run a program named `command`.
+func TestCustomShortcutCommandOptionStartsADraft(t *testing.T) {
+	entries := []settings.CustomShortcut{{Key: "Cmd+Shift+P", Action: "plugin:clipboard"}}
+	var committed [][]settings.CustomShortcut
+	a := New(newStore(t), Actions{
+		CustomShortcuts: func() []settings.CustomShortcut { return entries },
+		SetCustomShortcuts: func(list []settings.CustomShortcut) []CustomShortcutRejection {
+			committed = append(committed, list)
+			entries = list
+			return nil
+		},
+	})
+	tt := render(t, a, 720, 1000)
+	if err := tt.Click("Shortcuts"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	tt.Scroll(400, 300, 0, 900)
+	tt.Frame()
+
+	// The row's picker sits on the plugin; choose the command-line slot.
+	if err := tt.Click("Clipboard history"); err != nil {
+		t.Fatalf("the row picker: %v", err)
+	}
+	tt.Frame()
+	if err := tt.Click("Command line\u2026"); err != nil {
+		t.Fatalf("the command option: %v", err)
+	}
+	tt.Frame()
+
+	for _, list := range committed {
+		for _, entry := range list {
+			if entry.Action == "command" {
+				t.Fatalf("the picker sentinel was persisted: %+v", list)
+			}
+		}
+	}
+	if a.customAction != commandAction || a.customKey != "Cmd+Shift+P" {
+		t.Errorf("the sentinel did not become a draft: action=%q key=%q", a.customAction, a.customKey)
+	}
+	if len(committed) == 0 {
+		t.Fatalf("the row was not committed away")
+	}
+	if last := committed[len(committed)-1]; len(last) != 0 {
+		t.Errorf("the row stayed persisted after switching to a command draft: %+v", last)
 	}
 }
 
@@ -2237,7 +2348,7 @@ func TestAppShortcutRowsRecord(t *testing.T) {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	for _, want := range []string{"App keys", "New command", "Open a terminal window", "Run the n-th result"} {
+	for _, want := range []string{"App keys", "New command", "Continue in system terminal", "Select result 1-9"} {
 		if !tt.HasText(want) {
 			t.Errorf("missing %q in %q", want, tt.Texts())
 		}
@@ -3800,7 +3911,7 @@ func TestRestoreDefaultsRuns(t *testing.T) {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	if err := tt.Click("Restore the shipped keys"); err != nil {
+	if err := tt.Click("Restore defaults"); err != nil {
 		t.Fatalf("restore: %v", err)
 	}
 	tt.Frame()

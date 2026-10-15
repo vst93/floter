@@ -109,6 +109,10 @@ func TestFromKey(t *testing.T) {
 		{ui.Super, ui.Key0, "Cmd+0"},
 		{ui.Shift, ui.KeyS, "Shift+S"},
 		{ui.Shift, ui.KeyF5, "Shift+F5"},
+		// A bare function key is the one modifier-less chord the recorder
+		// accepts, as the old build's `ShortcutRecorder` did.
+		{0, ui.KeyF5, "F5"},
+		{0, ui.KeyF12, "F12"},
 	}
 	for _, tc := range cases {
 		got, ok := FromKey(tc.mods, tc.key)
@@ -125,9 +129,12 @@ func TestFromKey(t *testing.T) {
 		}
 	}
 
-	// A bare key is not a shortcut.
+	// A bare key that is not a function key is not a shortcut.
 	if _, ok := FromKey(0, ui.KeyS); ok {
 		t.Error("a bare key was accepted")
+	}
+	if _, ok := FromKey(0, ui.KeySpace); ok {
+		t.Error("a bare space was accepted")
 	}
 	if _, ok := FromKey(ui.Super, ui.KeyUnknown); ok {
 		t.Error("an unknown key was accepted")
@@ -302,10 +309,18 @@ func TestParseAndMatch(t *testing.T) {
 		t.Errorf("CmdOrCtrl = %v off macOS", mods)
 	}
 
-	// A binding without Shift accepts the letter either way; one with Shift
-	// requires it.
-	if !Match("Cmd+G", ui.Super|ui.Shift, ui.KeyG) {
-		t.Error("a shifted letter did not match a binding without Shift")
+	// A binding without Shift is not the shifted press: the modifiers must
+	// match exactly, as the old build's `matchesShortcut` required.
+	if Match("Cmd+G", ui.Super|ui.Shift, ui.KeyG) {
+		t.Error("a shifted letter matched a binding without Shift")
+	}
+	if !Match("Cmd+Shift+G", ui.Super|ui.Shift, ui.KeyG) {
+		t.Error("the shifted letter did not match its own binding")
+	}
+	// The delete key is drawn for ⇧⌫: the r55 shortcut only claims the
+	// unshifted press, because ⇧⌫ selects backwards.
+	if Match("Cmd+Backspace", ui.Super|ui.Shift, ui.KeyBackspace) {
+		t.Error("a shifted delete matched the unshifted delete binding")
 	}
 	if Match("Cmd+Shift+G", ui.Super, ui.KeyG) {
 		t.Error("a binding with Shift matched an unshifted letter")

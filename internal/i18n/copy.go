@@ -798,7 +798,7 @@ var en = Copy{
 
 		ShortcutsToggle:   "Show / hide floter",
 		ShortcutsHint:     "The global keys floter answers, and the ones you bind yourself.",
-		ShortcutRecord:    "Record",
+		ShortcutRecord:    "Record a new shortcut",
 		ShortcutRecording: "Press keys\u2026",
 		ShortcutRejected:  "Already used by another app",
 
@@ -807,15 +807,15 @@ var en = Copy{
 		ShortcutNames: map[string]string{
 			"toggle_window":          "Show / hide floter",
 			"new_command":            "New command",
-			"open_external_terminal": "Open a terminal window",
-			"copy_selection":         "Copy the selection",
+			"open_external_terminal": "Continue in system terminal",
+			"copy_selection":         "Copy selection",
 			"paste":                  "Paste",
 			"open_settings":          "Open settings",
-			"select_result":          "Run the n-th result",
+			"select_result":          "Select result 1-9",
 		},
 
 		ShortcutsCustom:      "Custom shortcuts",
-		ShortcutsCustomHint:  "Bind a key to a plugin, an action, or a command line. A command line runs with no window at all.",
+		ShortcutsCustomHint:  "Custom shortcuts work everywhere. Commands run silently; plugins open normally.",
 		ShortcutsNone:        "No custom shortcuts yet",
 		ShortcutsEmptyHint:   "Bind a key to launch a plugin or run a command, anywhere — commands run silently.",
 		ShortcutsAddFirst:    "Add the first one",
@@ -823,9 +823,9 @@ var en = Copy{
 		ShortcutsBind:        "Bind",
 		ShortcutsRemove:      "Remove",
 		ShortcutsCommand:     "Command line",
-		ShortcutsCommandHint: "Run silently, e.g. say done",
+		ShortcutsCommandHint: "e.g. say done",
 		ShortcutsRecordKey:   "Record key",
-		ShortcutsReset:       "Restore the shipped keys",
+		ShortcutsReset:       "Restore defaults",
 		ShortcutsRejected:    shortcutsRejectedEN,
 		ShortcutsActions: []Option{
 			{"plugin:clipboard", "Clipboard history"},
@@ -834,7 +834,7 @@ var en = Copy{
 			{"action:toggle_window", "Show / hide floter"},
 			{"action:new_command", "New command"},
 			{"action:open_settings", "Open settings"},
-			{"action:open_external_terminal", "Open a terminal window"},
+			{"action:open_external_terminal", "Continue in system terminal"},
 			{"command", "Command line\u2026"},
 		},
 
@@ -1654,7 +1654,7 @@ var zh = Copy{
 
 		ShortcutsToggle:   "显示 / 隐藏 floter",
 		ShortcutsHint:     "floter 响应的全局按键，以及你自己绑定的按键。",
-		ShortcutRecord:    "录制",
+		ShortcutRecord:    "录制新的快捷键",
 		ShortcutRecording: "请按组合键…",
 		ShortcutRejected:  "该组合键已被其他应用占用",
 
@@ -1663,15 +1663,15 @@ var zh = Copy{
 		ShortcutNames: map[string]string{
 			"toggle_window":          "显示 / 隐藏 floter",
 			"new_command":            "新命令",
-			"open_external_terminal": "打开终端窗口",
-			"copy_selection":         "复制选中内容",
+			"open_external_terminal": "在系统终端中继续",
+			"copy_selection":         "复制所选内容",
 			"paste":                  "粘贴",
 			"open_settings":          "打开设置",
-			"select_result":          "运行第 N 个结果",
+			"select_result":          "选择第 1-9 项结果",
 		},
 
 		ShortcutsCustom:      "自定义快捷键",
-		ShortcutsCustomHint:  "把一个按键绑定到插件、动作或命令行；命令行会完全静默地运行。",
+		ShortcutsCustomHint:  "自定义快捷键全局生效。命令静默执行；插件按正常方式打开。",
 		ShortcutsNone:        "还没有自定义快捷键",
 		ShortcutsEmptyHint:   "绑定一个按键，随处启动插件或执行命令——命令静默运行。",
 		ShortcutsAddFirst:    "添加第一个",
@@ -1679,9 +1679,9 @@ var zh = Copy{
 		ShortcutsBind:        "绑定",
 		ShortcutsRemove:      "移除",
 		ShortcutsCommand:     "命令行",
-		ShortcutsCommandHint: "静默运行，例如 say done",
+		ShortcutsCommandHint: "例如 say done",
 		ShortcutsRecordKey:   "录制按键",
-		ShortcutsReset:       "恢复默认按键",
+		ShortcutsReset:       "还原默认",
 		ShortcutsRejected:    shortcutsRejectedZH,
 		ShortcutsActions: []Option{
 			{"plugin:clipboard", "剪贴板历史"},
@@ -1690,7 +1690,7 @@ var zh = Copy{
 			{"action:toggle_window", "显示 / 隐藏 floter"},
 			{"action:new_command", "新命令"},
 			{"action:open_settings", "打开设置"},
-			{"action:open_external_terminal", "打开终端窗口"},
+			{"action:open_external_terminal", "在系统终端中继续"},
 			{"command", "命令行…"},
 		},
 

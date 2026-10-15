@@ -169,6 +169,51 @@ func TestCustomShortcutRejectionWordsMatchTheOldDictionary(t *testing.T) {
 	}
 }
 
+// TestShortcutAreaWordsMatchTheOldDictionary pins the Shortcuts page's own
+// words to the old build's dictionary (`main:src/i18n.ts:386-413,1273-1300`).
+// The Go page split the map into a summon-key card and an app-keys card, but
+// the row names, the restore label, the recorder's accessible name, the custom
+// group's hint and the command field's placeholder are still the reference's,
+// and the old port had drifted on all of them.
+func TestShortcutAreaWordsMatchTheOldDictionary(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		got  string
+		want string
+	}{
+		{"en restore", en.Settings.ShortcutsReset, "Restore defaults"},
+		{"en record", en.Settings.ShortcutRecord, "Record a new shortcut"},
+		{"en open external", en.Settings.ShortcutNames["open_external_terminal"], "Continue in system terminal"},
+		{"en copy", en.Settings.ShortcutNames["copy_selection"], "Copy selection"},
+		{"en select result", en.Settings.ShortcutNames["select_result"], "Select result 1-9"},
+		{"en picker open external", shortcutActionLabel(en.Settings, "action:open_external_terminal"), "Continue in system terminal"},
+		{"en custom hint", en.Settings.ShortcutsCustomHint, "Custom shortcuts work everywhere. Commands run silently; plugins open normally."},
+		{"en command placeholder", en.Settings.ShortcutsCommandHint, "e.g. say done"},
+		{"zh restore", zh.Settings.ShortcutsReset, "还原默认"},
+		{"zh record", zh.Settings.ShortcutRecord, "录制新的快捷键"},
+		{"zh open external", zh.Settings.ShortcutNames["open_external_terminal"], "在系统终端中继续"},
+		{"zh copy", zh.Settings.ShortcutNames["copy_selection"], "复制所选内容"},
+		{"zh select result", zh.Settings.ShortcutNames["select_result"], "选择第 1-9 项结果"},
+		{"zh picker open external", shortcutActionLabel(zh.Settings, "action:open_external_terminal"), "在系统终端中继续"},
+		{"zh custom hint", zh.Settings.ShortcutsCustomHint, "自定义快捷键全局生效。命令静默执行；插件按正常方式打开。"},
+		{"zh command placeholder", zh.Settings.ShortcutsCommandHint, "例如 say done"},
+	} {
+		if tc.got != tc.want {
+			t.Errorf("%s = %q, want %q", tc.name, tc.got, tc.want)
+		}
+	}
+}
+
+// shortcutActionLabel reads one custom-shortcut picker option's label by id.
+func shortcutActionLabel(copy Settings, id string) string {
+	for _, option := range copy.ShortcutsActions {
+		if option.ID == id {
+			return option.Label
+		}
+	}
+	return ""
+}
+
 // The terminal bar's two controls and the terminal view's accessible name, as
 // the old dictionary spelled them (`main:src/i18n.ts:146-147,149-150,
 // 1054-1055,1057-1058`). The hints interpolate the user's own chord, so the

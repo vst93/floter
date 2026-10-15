@@ -124,16 +124,15 @@ func parseKey(name string) (ui.Key, bool) {
 	return 0, false
 }
 
-// Match reports whether a key event is the one an accelerator binds.
+// Match reports whether a key event is the one an accelerator binds. The
+// modifiers must match exactly, as the old build's `matchesShortcut` required:
+// `Cmd+Shift+G` is not `Cmd+G`, and `Shift+Backspace` is not the delete key.
+// A letter binding without Shift still matches the unshifted press, because
+// the key enum reports the base key either way.
 func Match(accelerator string, mods ui.Modifiers, key ui.Key) bool {
 	wanted, wantedKey, ok := Parse(accelerator)
 	if !ok || wantedKey != key {
 		return false
-	}
-	// Shift is part of a letter's spelling (Cmd+Shift+P) but a bare letter is
-	// typed with Shift too, so a binding without Shift accepts either case.
-	if wanted&ui.Shift == 0 {
-		mods &^= ui.Shift
 	}
 	return mods == wanted
 }

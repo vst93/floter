@@ -102,7 +102,9 @@ func (a *App) customSection(c *ui.Context, copy i18n.Settings) {
 						if ev.Kind != ui.InputKeyDown {
 							return false
 						}
-						if ev.Key == ui.KeyEscape {
+						// Escape gives up the recording, but only a bare Escape: a
+						// modified Escape is a chord the user may want to record.
+						if ev.Key == ui.KeyEscape && ev.Mods == 0 {
 							a.customRecording = false
 							return true
 						}
@@ -228,10 +230,21 @@ func (a *App) addCustomShortcut() {
 	a.customKey, a.customCommand = "", ""
 }
 
-// updateCustomShortcut rewrites one row's action.
+// updateCustomShortcut rewrites one row's action. The picker's
+// "Command line…" slot is a mode, not an action: the reference's `setAction`
+// turned the row into a command draft (action empty, a text field visible)
+// instead of storing the sentinel, so choosing it here carries the row's key
+// into the draft and drops the binding rather than persisting the literal word
+// `command` — which would otherwise run a shell command named `command`.
 func (a *App) updateCustomShortcut(index int, entry settings.CustomShortcut) {
 	entries := append([]settings.CustomShortcut{}, a.customShortcuts()...)
 	if index < 0 || index >= len(entries) {
+		return
+	}
+	if entry.Action == commandAction {
+		a.customKey, a.customCommand, a.customAction = entry.Key, "", commandAction
+		entries = append(entries[:index], entries[index+1:]...)
+		a.commitCustomShortcuts(entries)
 		return
 	}
 	entries[index] = entry
