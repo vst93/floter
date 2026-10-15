@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/egoist/mygo/plugins/terminal"
+	"github.com/egoist/mygo/transfer"
 
 	"floter/internal/settings"
 )
@@ -84,14 +85,18 @@ func TestEverySessionCarriesThePasteBoundary(t *testing.T) {
 	}
 
 	// Safe paste off: only the separator rule applies.
-	if !opts.OnPaste("go\u3000version") {
+	if !opts.OnPaste(transfer.TextData("go\u3000version")) {
 		t.Error("a paste carrying a Unicode separator was not taken")
 	}
-	if opts.OnPaste("go version") {
+	if opts.OnPaste(transfer.TextData("go version")) {
 		t.Error("a clean paste must be left to the framework")
 	}
-	if opts.OnPaste("go version\n") {
+	if opts.OnPaste(transfer.TextData("go version\n")) {
 		t.Error("with safe paste off a trailing break must stay")
+	}
+	// A paste with no text representation (an image) is the framework's own.
+	if opts.OnPaste(transfer.New(transfer.NewItem(transfer.Bytes(transfer.PNG, []byte{1})))) {
+		t.Error("a paste with no text must be left to the framework")
 	}
 
 	// Safe paste on: the trailing break goes too. The setting is read per
@@ -99,10 +104,10 @@ func TestEverySessionCarriesThePasteBoundary(t *testing.T) {
 	if err := store.Update(func(s *settings.Settings) { s.TerminalPasteSafe = true }); err != nil {
 		t.Fatalf("update: %v", err)
 	}
-	if !opts.OnPaste("go version\n") {
+	if !opts.OnPaste(transfer.TextData("go version\n")) {
 		t.Error("safe paste did not take the trailing break")
 	}
-	if opts.OnPaste("go version") {
+	if opts.OnPaste(transfer.TextData("go version")) {
 		t.Error("safe paste must still leave a clean paste alone")
 	}
 }

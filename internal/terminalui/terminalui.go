@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/plugins/terminal"
+	"github.com/egoist/mygo/transfer"
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/glassmap"
@@ -188,18 +189,26 @@ func (a *App) startSession(dir string, mutate ...func(*terminal.Options)) (*Sess
 			apply(&opts)
 		}
 	}
-	// The paste boundary (internal/inputtext). A paste is a string seam: the
+	// The paste boundary (internal/inputtext). A paste is a text seam: the
 	// clipboard can carry a Unicode space separator a shell would read as part
 	// of a word, and — with safe paste on — the trailing line break that ran
-	// the command where it was copied. The hook rewrites the text and takes the
-	// paste, so the program sees the bytes the boundary approves; a paste that
-	// needs no rewrite is left to the framework's own path. The setting is read
+	// the command where it was copied. The hook reads the clipboard's text
+	// representation, rewrites it, and takes the paste so the program sees the
+	// bytes the boundary approves; a paste with no text representation (an
+	// image, a file list) or one that needs no rewrite is left to the
+	// framework's own path, which handles every format. The setting is read
 	// per paste, so the drawer's switch applies to the session on screen
 	// without restarting it.
 	var term *terminal.Terminal
 	var session *Session
-	opts.OnPaste = func(text string) bool {
-		rewritten, changed := pasteText(text, a.Store.Snapshot().TerminalPasteSafe)
+	opts.OnPaste = func(d transfer.Data) bool {
+		raw, err := d.Read(transfer.Text)
+		if err != nil {
+			// No text to rewrite: leave the framework to paste the clipboard's
+			// own formats (an image, a file list).
+			return false
+		}
+		rewritten, changed := pasteText(string(raw), a.Store.Snapshot().TerminalPasteSafe)
 		if !changed || term == nil {
 			return false
 		}

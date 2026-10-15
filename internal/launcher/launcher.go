@@ -1574,7 +1574,7 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 	if subtitle != "" {
 		floor = t.Space(rowTwoLineUnits)
 	}
-	row := ui.Row(c).Key(item.ID).FillWidth().Focusable().MinHeight(floor).
+	row := ui.Row(c.Key(item.ID)).FillWidth().Focusable().MinHeight(floor).
 		AlignItems(ui.Center).
 		Padding(0, t.Space(3)).Radius(tokens.RadiusMD).Gap(t.Space(2.5)).
 		Transition(rowTransition)

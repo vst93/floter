@@ -535,7 +535,7 @@ func (a *App) outputRow(c *ui.Context, row extensions.Row, i int) {
 					TextColor(t.TextMuted)
 			})
 	}
-	style := ui.Row(c).Key(row.ID).FillWidth().Padding(t.Space(1.5), t.Space(2)).Radius(t.Radius).Gap(t.Space(2))
+	style := ui.Row(c.Key(row.ID)).FillWidth().Padding(t.Space(1.5), t.Space(2)).Radius(t.Radius).Gap(t.Space(2))
 	selected := i == a.output.Selected && row.Runnable()
 	switch {
 	case selected:
