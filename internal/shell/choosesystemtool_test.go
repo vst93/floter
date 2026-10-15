@@ -191,7 +191,7 @@ func TestReconnectAsksWhichExecutableToBind(t *testing.T) {
 		}
 		return candidates[1].Path, true
 	}
-	a.reconnectIntegration(id)
+	a.reconnectIntegration(id, nil)
 
 	want := i18n.For("en").Notifications.IntegrationReconnected("Moved Tool")
 	if got := waitForNotice(t, log); got != want {

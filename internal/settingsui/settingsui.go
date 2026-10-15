@@ -132,12 +132,18 @@ type Actions struct {
 	// RepairIntegration re-checks an installed package and repairs it when the
 	// record drifted from what is on disk: the old host's `extensions_repair`,
 	// behind the Wrench a broken row shows. Nil hides the button.
-	RepairIntegration func(id string)
+	//
+	// done reports the re-check back to the row that asked, on the main thread:
+	// the row's button leaves its in-flight face on the answer, whatever it
+	// was, exactly as the reference's `runMutation` cleared `busy` in `finally`
+	// (`src/ExtensionsPanel.tsx:1190-1210`). It may be nil, in which case the
+	// row settles itself.
+	RepairIntegration func(id string, done func(error))
 	// ReconnectIntegration re-derives a system integration's runtime binding
 	// from the search path: the old host's `extensions_reconnect_system`, and
 	// the only repair a row whose program moved can offer. Nil hides the
-	// button.
-	ReconnectIntegration func(id string)
+	// button. done is the same in-flight hand-off as RepairIntegration's.
+	ReconnectIntegration func(id string, done func(error))
 	// OpenHomepage sends the user to an integration's own page — the
 	// reference's `installTool` arm for a row whose runtime floter does not
 	// own and cannot look for. Nil hides that button.
@@ -579,6 +585,11 @@ type App struct {
 	disableError map[string]string
 	removeBusy   map[string]bool
 	removeError  map[string]string
+	// repairBusy marks the integrations whose re-check or reconnect is in
+	// flight, so the row's own button wears the reference's turning LoaderCircle
+	// and its `disabled={busy}` face until the shell reports back
+	// (`src/extensions/ExtensionRow.tsx:313-330,345-372`).
+	repairBusy   map[string]bool
 	runValues    map[string]map[string]string
 	runError     string
 	runOpen      map[string]bool
@@ -2149,17 +2160,13 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			// still has its way back.
 			if integration.Broken {
 				if a.Actions.RepairIntegration != nil {
-					if a.actionButton(c, copy.IntegrationsRecheck).Tooltip(copy.IntegrationsRecheck).Clicked() {
-						a.Actions.RepairIntegration(integration.ID)
-					}
+					a.repairAction(c, integration.ID, copy.IntegrationsRecheck, copy.IntegrationsRecheck, a.Actions.RepairIntegration)
 				}
 			} else {
 				switch integration.repairKind() {
 				case repairReconnect:
 					if a.Actions.ReconnectIntegration != nil {
-						if a.actionButton(c, integration.repairLabel(copy)).Tooltip(integration.repairTooltip(copy)).Clicked() {
-							a.Actions.ReconnectIntegration(integration.ID)
-						}
+						a.repairAction(c, integration.ID, integration.repairLabel(copy), integration.repairTooltip(copy), a.Actions.ReconnectIntegration)
 					}
 				case repairHomepage:
 					if a.Actions.OpenHomepage != nil {
@@ -2548,6 +2555,49 @@ func (i Integration) repairTooltip(copy i18n.Settings) string {
 		return copy.IntegrationsReconnectUnboundHint
 	}
 	return i.repairLabel(copy)
+}
+
+// repairAction draws the row's re-check / reconnect entry and holds it in the
+// in-flight face from the press until the shell calls back, so a press that
+// has not landed is visible rather than assumed. The reference drew exactly
+// this pair (`src/extensions/ExtensionRow.tsx:313-330,345-372`): one button
+// whose icon became a turning LoaderCircle and whose `disabled={busy}` face
+// stayed until `runMutation`'s `finally`.
+func (a *App) repairAction(c *ui.Context, id, label, tooltip string, run func(string, func(error))) {
+	if a.repairBusy[id] {
+		a.busyActionButton(c, label, "extensions.repair."+id).Tooltip(tooltip)
+		return
+	}
+	if a.actionButton(c, label).Tooltip(tooltip).Clicked() {
+		a.startRepair(id, run)
+	}
+}
+
+// startRepair marks a row's re-check or reconnect as in flight and hands the
+// shell the id to work on with the callback that settles the row.
+func (a *App) startRepair(id string, run func(string, func(error))) {
+	if a.repairBusy == nil {
+		a.repairBusy = map[string]bool{}
+	}
+	a.repairBusy[id] = true
+	run(id, func(_ error) { a.finishRepair(id) })
+	if a.Actions.Invalidate != nil {
+		a.Actions.Invalidate()
+	}
+}
+
+// finishRepair settles a row after the shell reports a re-check or reconnect
+// back on the main thread. The reference's `runMutation` cleared `busy` in
+// `finally` whether the work succeeded or failed, and a failure reached the
+// user through the app's own notice rather than through the row
+// (`src/ExtensionsPanel.tsx:1190-1210,1255-1267`).
+func (a *App) finishRepair(id string) {
+	if a.repairBusy != nil {
+		delete(a.repairBusy, id)
+	}
+	if a.Actions.Invalidate != nil {
+		a.Actions.Invalidate()
+	}
 }
 
 func (a *App) installedIntegrations() []Integration {

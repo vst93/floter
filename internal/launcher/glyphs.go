@@ -77,6 +77,11 @@ var (
 	// sessions list was being fetched (`SessionsPage.tsx:148`). Its two arrows
 	// are a different shape from `glyphRestart`'s single loop.
 	glyphRefresh = ui.MustParseSVG([]byte(glyphSource(`<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>`)))
+	// glyphLoaderCircle is lucide's LoaderCircle (lucide-react 1.31.0's own
+	// path), the reference's in-flight mark: the broken ring an extension row's
+	// repair action swaps its Wrench / RefreshCw for while the work runs
+	// (`src/extensions/ExtensionRow.tsx:305,325,364`).
+	glyphLoaderCircle = ui.MustParseSVG([]byte(glyphSource(`<path d="M21 12a9 9 0 1 1-6.219-8.56"/>`)))
 	// glyphPackage is lucide's Package (lucide-react 1.31.0's own path), the
 	// mark the reference's installed-integrations list drew when it was empty
 	// (`ExtensionsPanel.tsx:2462`, `<Package size={20} strokeWidth={2}/>`).
@@ -302,6 +307,8 @@ func Glyph(name string) (*ui.SVG, bool) {
 		return glyphSquareTerminal, true
 	case "refresh":
 		return glyphRefresh, true
+	case "loader-circle":
+		return glyphLoaderCircle, true
 	case "package":
 		return glyphPackage, true
 	case "keyboard":

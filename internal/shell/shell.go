@@ -1695,7 +1695,7 @@ func (a *App) diagnoseIntegration(id string) {
 // is the reference's repaired/rechecked split: a record that changed says so,
 // one that was already right says the tool is working (`ExtensionsPanel.tsx`,
 // `report.repaired ? repairedNotice : recheckedNotice`).
-func (a *App) reconnectIntegration(id string) {
+func (a *App) reconnectIntegration(id string, done func(error)) {
 	name := id
 	var manifest extensions.Manifest
 	recorded := ""
@@ -1716,6 +1716,13 @@ func (a *App) reconnectIntegration(id string) {
 		if known {
 			chosen, ok := a.recommendedToolPath(name, manifest, recorded)
 			if !ok {
+				// The user dismissed the chooser: the row leaves its in-flight
+				// face on the same "no answer" the reference's `finally` gave it.
+				a.onMain(func() {
+					if done != nil {
+						done(nil)
+					}
+				})
 				return
 			}
 			path = chosen
@@ -1736,6 +1743,9 @@ func (a *App) reconnectIntegration(id string) {
 			a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationChecked(name) })
 		}
 		a.onMain(func() {
+			if done != nil {
+				done(err)
+			}
 			if a.Win != nil {
 				a.Win.Invalidate()
 			}
@@ -1748,7 +1758,7 @@ func (a *App) reconnectIntegration(id string) {
 // behind the Wrench a broken row shows. The notice is the reference's
 // repaired/rechecked split (`src/ExtensionsPanel.tsx:1255-1267`,
 // `report.repaired ? repairedNotice : recheckedNotice`).
-func (a *App) repairIntegration(id string) {
+func (a *App) repairIntegration(id string, done func(error)) {
 	name := id
 	if integration, ok := a.Integrations.Inventory().WithID(id); ok && integration.Name != "" {
 		name = integration.Name
@@ -1769,6 +1779,9 @@ func (a *App) repairIntegration(id string) {
 			a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationRechecked(name) })
 		}
 		a.onMain(func() {
+			if done != nil {
+				done(err)
+			}
 			if a.Win != nil {
 				a.Win.Invalidate()
 			}

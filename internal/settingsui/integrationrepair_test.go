@@ -100,7 +100,7 @@ func TestEachUnavailableRowShowsItsOwnRepair(t *testing.T) {
 
 	a := newTestApp()
 	a.Actions = Actions{
-		ReconnectIntegration: func(id string) { reconnected = append(reconnected, id) },
+		ReconnectIntegration: func(id string, _ func(error)) { reconnected = append(reconnected, id) },
 		OpenHomepage:         func(url string) { opened = append(opened, url) },
 		UninstallComponents:  func(string, string, string, UninstallComponents, func(error)) {},
 	}
@@ -177,8 +177,8 @@ func TestABrokenRowOffersTheRecheck(t *testing.T) {
 
 	a := newTestApp()
 	a.Actions = Actions{
-		RepairIntegration:    func(id string) { repaired = append(repaired, id) },
-		ReconnectIntegration: func(id string) { reconnected = append(reconnected, id) },
+		RepairIntegration:    func(id string, _ func(error)) { repaired = append(repaired, id) },
+		ReconnectIntegration: func(id string, _ func(error)) { reconnected = append(reconnected, id) },
 		UninstallComponents:  func(string, string, string, UninstallComponents, func(error)) {},
 	}
 	a.Integrations = func() []Integration {

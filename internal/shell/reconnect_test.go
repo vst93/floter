@@ -143,7 +143,7 @@ func TestTheReconnectActionRebindsAMovedProgram(t *testing.T) {
 		t.Fatalf("homepage = %q, want none", before[0].Homepage)
 	}
 
-	a.reconnectIntegration(id)
+	a.reconnectIntegration(id, nil)
 
 	// The notice is the reference's "repaired" arm: the record changed, so the
 	// sentence says the row was reconnected rather than that it was checked.
@@ -179,7 +179,7 @@ func TestAReconnectWithNothingToBindToReportsIt(t *testing.T) {
 
 	log := &noticeLog{}
 	a := reconnectApp(t, paths, log)
-	a.reconnectIntegration(id)
+	a.reconnectIntegration(id, nil)
 
 	want := i18n.For("en").Notifications.IntegrationCheckFailed("Moved Tool")
 	if got := waitForNotice(t, log); got != want {
@@ -242,7 +242,7 @@ func TestTheRepairNoticesSplitRepairedFromRechecked(t *testing.T) {
 		paths, id := reconnectFixture(t, program(t))
 		log := &noticeLog{}
 		a := reconnectApp(t, paths, log)
-		a.repairIntegration(id)
+		a.repairIntegration(id, nil)
 
 		want := i18n.For("en").Notifications.IntegrationRechecked("Moved Tool")
 		if got := waitForNotice(t, log); got != want {
@@ -268,7 +268,7 @@ func TestTheRepairNoticesSplitRepairedFromRechecked(t *testing.T) {
 
 		log := &noticeLog{}
 		a := reconnectApp(t, paths, log)
-		a.repairIntegration(id)
+		a.repairIntegration(id, nil)
 
 		want := i18n.For("en").Notifications.IntegrationRepaired("Moved Tool")
 		if got := waitForNotice(t, log); got != want {
@@ -282,6 +282,57 @@ func TestTheRepairNoticesSplitRepairedFromRechecked(t *testing.T) {
 		}
 		if after.Entry.ManifestPath == entry.ManifestPath {
 			t.Errorf("ManifestPath = %q, want the stale path rewritten", after.Entry.ManifestPath)
+		}
+	})
+}
+
+// The panel holds the row's button in its in-flight face until the shell
+// answers, so the shell reports the outcome back on the same main-thread hop as
+// the notification — success and failure alike, the reference's `runMutation`
+// `finally` (`src/ExtensionsPanel.tsx:1190-1210`). A shell that forgot the
+// callback would leave the button spinning forever.
+func TestTheRepairReportsBackToTheRow(t *testing.T) {
+	t.Run("a repair reports success", func(t *testing.T) {
+		here := filepath.Join(t.TempDir(), "systool")
+		if err := os.WriteFile(here, []byte("#!/bin/sh\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		paths, id := reconnectFixture(t, here)
+		log := &noticeLog{}
+		a := reconnectApp(t, paths, log)
+
+		done := make(chan error, 1)
+		a.repairIntegration(id, func(err error) { done <- err })
+		select {
+		case err := <-done:
+			if err != nil {
+				t.Errorf("a verified package reported %v", err)
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatal("the row was never told the repair finished")
+		}
+	})
+
+	t.Run("a reconnect reports its failure", func(t *testing.T) {
+		gone := filepath.Join(t.TempDir(), "systool")
+		paths, id := reconnectFixture(t, gone)
+		restoreCandidates := extensions.StubToolCandidates(func(...string) []extensions.ExecutableCandidate { return nil })
+		defer restoreCandidates()
+		restore := extensions.StubToolLookup(func(...string) (string, bool) { return "", false })
+		defer restore()
+
+		log := &noticeLog{}
+		a := reconnectApp(t, paths, log)
+
+		done := make(chan error, 1)
+		a.reconnectIntegration(id, func(err error) { done <- err })
+		select {
+		case err := <-done:
+			if err == nil {
+				t.Error("a reconnect with nothing to bind to reported success")
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatal("the row was never told the reconnect finished")
 		}
 	})
 }

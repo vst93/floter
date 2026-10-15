@@ -7,6 +7,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/launcher"
+	"floter/internal/motion"
 	"floter/internal/theme"
 )
 
@@ -287,21 +288,78 @@ func (a *App) actionButton(c *ui.Context, label string) ui.Element {
 // The corner is passed rather than derived so a caller can keep the reference's
 // 999px shape (half the box) at its own height.
 func (a *App) extensionActionButton(c *ui.Context, label string, height, radius, fontSize float32) ui.Element {
+	button, ink := a.extensionActionFace(c, height, radius, false)
+	button.Children(func() {
+		ui.Text(c, label).FontSize(fontSize).FontWeight(600).TextColor(ink)
+	})
+	return button
+}
+
+// extensionActionFace is the action pill without its content: the shared
+// `.extensions-action-button` frame (`extensions.css:1313-1338`) that both the
+// resting button and the in-flight one wear, so the two faces cannot drift
+// apart. It returns the button and the ink its content wears; a disabled face
+// keeps the resting plane, as the reference's
+// `:hover:not(:disabled)` / `:disabled` pair did (`extensions.css:91,124-129`).
+func (a *App) extensionActionFace(c *ui.Context, height, radius float32, disabled bool) (ui.Element, ui.Color) {
 	t := c.Theme()
 	tokens := a.tokens(c)
 	button := ui.ButtonBase(c).
 		MinHeight(height).Padding(0, t.Space(2.5)).Radius(radius)
 	ink, edge, plane := tokens.TextStrong, tokens.ControlEdge, tokens.Control
-	if button.Hovered() {
+	if !disabled && button.Hovered() {
 		ink, edge, plane = t.Text, tokens.AccentEdge, tokens.ControlHover
 	}
 	button.Border(1, edge).Background(plane).
 		Transition(ui.ElementTransition{Colors: true, Duration: 120 * time.Millisecond})
 	tokens.Lens(button)
+	return button, ink
+}
+
+// The in-flight mark's cadence: one full circle every 0.9 s, the framework's
+// own spinner cadence (`ui.Spinner`). The turn is read through motion, so a
+// desktop that asked for less motion draws the ring at rest.
+const (
+	actionSpinnerTurn    = 360
+	actionSpinnerPerTurn = 900 * time.Millisecond
+)
+
+// actionSpinner draws the panel's in-flight mark inside an action pill:
+// lucide's LoaderCircle, turning while the work runs. The reference swapped
+// the row action's own glyph (its Wrench / RefreshCw) for exactly this one
+// (`src/extensions/ExtensionRow.tsx:305,325,364`); on this pane the mark sits
+// beside the action's word instead of replacing it, because the word is what
+// tells a native pane *which* action is running. `key` names the loop, so two
+// busy rows on one page turn independently.
+func (a *App) actionSpinner(c *ui.Context, ink ui.Color, key string) {
+	t := c.Theme()
+	icon := ui.Icon(c, mustGlyph("loader-circle")).
+		Size(t.Space(2.5), t.Space(2.5)).TextColor(ink).Shrink(0)
+	icon.Rotate(actionSpinnerTurn * motion.Value(c, func() float32 {
+		return icon.Loop(key, actionSpinnerPerTurn, ui.Linear)
+	}))
+}
+
+// busyActionButton draws an action pill in its in-flight face: the word the
+// user pressed, preceded by the turning LoaderCircle, faded and unclickable
+// for exactly as long as the work runs. It is the reference's
+// `aria-busy` / `disabled={busy}` icon button
+// (`src/extensions/ExtensionRow.tsx:313-330,345-372`) on a button that carries
+// words, so a press that has not landed is visible rather than assumed.
+func (a *App) busyActionButton(c *ui.Context, label, key string) ui.Element {
+	t := c.Theme()
+	tokens := a.tokens(c)
+	button, ink := a.extensionActionFace(c, t.Space(7.5), t.Space(3.75), true)
+	button.Gap(t.Space(1.25))
 	button.Children(func() {
-		ui.Text(c, label).FontSize(fontSize).FontWeight(600).TextColor(ink)
+		a.actionSpinner(c, ink, key)
+		ui.Text(c, label).FontSize(tokens.Body).FontWeight(600).TextColor(ink)
 	})
-	return button
+	// `.extensions-action-button:disabled { opacity: 0.4; cursor: default;
+	// pointer-events: none }` (`extensions.css:1369-1373`): the framework's
+	// flag carries the pointer half, the flatness and the cursor are the other
+	// two.
+	return button.Disabled(true).Opacity(0.4).Cursor(ui.CursorDefault)
 }
 
 // switchControl draws one switch: the framework's Switch inside the recessed
