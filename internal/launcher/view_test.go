@@ -521,32 +521,37 @@ func TestClipboardModeWithoutAStore(t *testing.T) {
 	}
 }
 
-// A status note is the panel's mute one-liner: it draws the reference's
-// 12u side padding, not the 3u the rest of the list uses, so the sentence
-// starts at the same column as the query text and the filter chips.
+// A status note is the panel's mute one-liner, and the reference draws it as
+// one of the row family: `.launcher-status` pads the same 12u as
+// `.launcher-result` (`src/styles/launcher.css:1099-1114,1480-1491`) and leads
+// with the same 28u icon column, so its sentence lands on the same text column
+// as every result row's title. One `Space(n)` is four reference units
+// (`internal/theme/theme.go`), so 12u is `Space(3)` — the `Space(12)` the note
+// briefly carried pushed it 36u right of the column it shares.
 func TestStatusNotePaddingMatchesReference(t *testing.T) {
-	a := testApp()
-	// A status item is the mode's own "the plugin is off" line.
-	a.Items = []Item{{ID: "status-off", Title: "Browser plugin is off", status: true}}
+	// The column, taken from an ordinary result row.
+	plain := testApp()
+	rows := render(t, plain)
+	title, ok := rows.Find(plain.Catalog()[0].Title)
+	if !ok {
+		t.Fatalf("the first result row's title was not found: %q", rows.Texts())
+	}
+
+	// The same column, taken from a status note: the clipboard mode with the
+	// history switched off is one real note and nothing else.
+	a, _ := clipboardApp(t)
+	clipboardOff(t, a)
+	a.EnterClipboard()
 	tt := render(t, a)
 	tt.Frame()
-
-	if !tt.HasText("Browser plugin is off") {
-		t.Fatalf("the status line is missing: %q", tt.Texts())
-	}
-
-	// The status note's text starts at the panel's 4u inset plus its own 12u
-	// padding — the same column as the query text and the filter chips. The
-	// reference's `.launcher-status` uses `padding: 0 calc(var(--u) * 12)`.
-	rect, ok := tt.Find("Browser plugin is off")
+	note := a.copy().ClipboardDisabled
+	rect, ok := tt.Find(note)
 	if !ok {
-		t.Fatal("the status note text was not found")
+		t.Fatalf("the status note text was not found: %q", tt.Texts())
 	}
-	// 4u (panel inset) + 12u (status padding) = 16u. With Spacing=4, that is
-	// 64 device pixels. Allow 1px rounding.
-	want := 64.0
-	if rect.X < want-1 || rect.X > want+1 {
-		t.Errorf("status note text X = %v, want ~%v (16u from card edge)", rect.X, want)
+	if rect.X != title.X {
+		t.Errorf("status note text X = %v, want %v (the text column a result row's title sits on)",
+			rect.X, title.X)
 	}
 }
 

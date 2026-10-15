@@ -1537,7 +1537,7 @@ func (a *App) row(c *ui.Context, item Item, i int) {
 		// build's `--text-tertiary` on `.launcher-status__icon`.
 		tokens := theme.ForPreferences(a.settings(), t.Dark, c.Preferences())
 		note := ui.Row(c).FillWidth().MinHeight(t.Space(launcherStatusUnits)).
-			AlignItems(ui.Center).Padding(0, t.Space(12)).Gap(t.Space(2.5))
+			AlignItems(ui.Center).Padding(0, t.Space(3)).Gap(t.Space(2.5))
 		note.Children(func() {
 			// The 28u icon column, as `.launcher-status__icon` was: no plate,
 			// only the mark.
