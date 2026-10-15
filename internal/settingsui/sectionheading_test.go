@@ -118,3 +118,44 @@ func TestTheLiveShortcutsHintIsNotInTheHeading(t *testing.T) {
 		t.Errorf("live title-to-hint gap = %v, want the hint after the cards, not under the title", gap)
 	}
 }
+
+// The reference's one heading that carries its own explanation is the
+// deep-link group (`DeepLinkRow.tsx:61-64`): `heading-main` is a 1px stack of
+// the label and `settings-section__hint--inline` (`settings.css:1209-1211`),
+// so the hint rides *above* the card, in the title's own column. The old port
+// drew it as a group hint after the card, like every other section.
+func TestTheDeepLinkHintRidesInsideItsHeading(t *testing.T) {
+	en := i18n.For("en").Settings
+	a := New(newStore(t), Actions{CopyText: func(string) {}})
+	tt := render(t, a, 720, 1000)
+	if err := tt.Click("About"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+
+	title, ok := tt.Find(en.DeepLinkTitle)
+	if !ok {
+		t.Fatalf("the deep-link title is missing: %q", tt.Texts())
+	}
+	hint, ok := tt.Find(en.DeepLinkHint)
+	if !ok {
+		t.Fatalf("the deep-link hint is missing: %q", tt.Texts())
+	}
+	value, ok := tt.Find(deepLinkConnectExample)
+	if !ok {
+		t.Fatalf("the deep-link card is missing: %q", tt.Texts())
+	}
+	// `--inline` stays in `heading-main`, so the hint is *before* the card
+	// rather than the `sectionHint` line every other group keeps after it.
+	if hint.Y >= value.Y {
+		t.Errorf("the deep-link hint (Y=%v) is not above the card (Y=%v)", hint.Y, value.Y)
+	}
+	// The heading-main stack shares the title's own column.
+	if absFloat(hint.X-title.X) > 1 {
+		t.Errorf("the inline hint X = %v, want the title's column %v", hint.X, title.X)
+	}
+	// `heading-main { gap: 1px }`: the hint rides one pixel under the label.
+	if got := hint.Y - (title.Y + title.H); absFloat(got-1) > 1 {
+		t.Errorf("title-to-inline-hint gap = %v, want heading-main's 1px", got)
+	}
+}

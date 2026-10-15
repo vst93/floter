@@ -2603,7 +2603,7 @@ func (a *App) about(c *ui.Context, copy i18n.Settings) {
 		// user can find out that floter answers `floter://` at all. Copying a
 		// line is confirmed on the button itself (the old build's own 1.6s
 		// "Link copied"), because a clipboard write is otherwise silent.
-		a.section(c, copy.DeepLinkTitle, copy.DeepLinkHint, func() {
+		a.sectionInline(c, copy.DeepLinkTitle, copy.DeepLinkHint, func() {
 			a.card(c, func() {
 				for _, link := range []string{deepLinkConnectExample, deepLinkRegisterExample} {
 					link := link

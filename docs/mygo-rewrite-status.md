@@ -100,6 +100,45 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
+> **本轮：P7-gp 深链标题的说明回到原版 `heading-main` 的 `--inline` 第二行——说明在卡片之前、
+> 与标题同列、间距 1px（原版 `src/settings/DeepLinkRow.tsx:61-64`、`src/styles/settings.css:430-434,
+> 1209-1211`）**
+> ——P7-go 收尾后「具体待办（P7-go 重写）」还剩第 2·3 条，本轮取最高优先级第 2 条落地。依赖检查：
+> `go.mod` 已是 **v0.5.1** = latest tag（`go list -m -versions` 复核，无 v0.5.2+；`releases/latest`
+> 仍被 API 限流），无版本可升；只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离（P7-gp·深链说明被画成卡片之后的普通分组说明）**：原版 `DeepLinkRow.tsx:61-64` 的
+> `heading-main` 是 `display:grid; gap:1px`（`settings.css:430-434`）的 label +
+> `settings-section__hint settings-section__hint--inline` 两行，`--inline { padding: 0 }`
+> （`:1209-1211`）——这是原版**唯一**一条骑在标题块内的说明，因此它画在**卡片之前**、与标题同列、
+> 间距 1px。**本构建（改前）**：P7-go 把标题说明统一改成卡片之后的 `sectionHint` 行，深链这条也
+> 被一并挪到了卡片后面，与「标题块内第二行」的原版位置不符。
+>
+> **落地**：
+> - `internal/settingsui/rows.go`：`sectionHeading`（`:73`）改为委托新的 `sectionHeadingInline`
+>   （`:83`）——`heading-main` 用 `ui.Column(...).Gap(1)` 复刻 1px 栈，inline hint 走同列的
+>   muted/body/500 文本；新增 `sectionInline`（`:56`）——卡片之前带 inline 说明的分组，卡片与 2u
+>   分节间距与 `section` 一致。
+> - `internal/settingsui/settingsui.go:2606`：深链段由 `a.section` 改走 `a.sectionInline`。
+> - `internal/settingsui/sectionheading_test.go`：新增 `TestTheDeepLinkHintRidesInsideItsHeading`
+>   （说明在卡片之前、与标题同列、间距 == 1px）。
+>
+> **验收**：`TestTheDeepLinkHintRidesInsideItsHeading`。变异核查：把 `settingsui.go:2606` 改回
+> `a.section` → 说明跑到卡片之后（hint Y=412 > value Y=329），且间距变 107，两条断言同时红。
+> 既有 `sectionHint` 调用方不变，由 `TestTheGroupHintRidesAfterItsCards`、
+> `TestTheLiveShortcutsHintIsNotInTheHeading` 继续覆盖。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿（29 包）、
+> `GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **旁注（如实记录）**：工作区里发现一份**未提交、且测试失败**的组件化卸载 WIP（`uninstall.go` +
+> `uninstall_test.go` 的 gap/16px margin 改动，其测试用文本盒测行间距、断言恒不可能成立）。它不在
+> 任何待办清单里，本轮不擅自吞入绿门槛提交；已把补丁留在 `/tmp/uninstall-wip.patch` 并回退这两份
+> 文件，保持本轮提交聚焦且全绿。
+>
+> **清单状态**：「具体待办（P7-go 重写）」第 2 条本轮落地；只剩第 3 条（Sessions 标题行的排序/
+> 刷新控件）是下一轮最高优先级。
+
 > **本轮：P7-go 分组标题行回到原版的 `.settings-section__heading`——标题 inset 2u、动作底对齐、
 > 分组说明改回卡片之后的 `__hint` 行（原版 `src/styles/settings.css:411-448,1198-1206`、
 > `src/settings/ShortcutsPage.tsx:383-424`、`src/settings/SettingsRows.tsx:200-216`）**
@@ -10581,7 +10620,7 @@ P7-fg 收尾后「具体待办（P7-ff 重写）」归零。本轮按审计入�
 - **验收（已过）**：`TestTheRemovalBandWearsTheErrorTint` 里钉住两条横条都取同一个 `IntegrationsCancel`；
   结构化 Copy 缺字段会在编译期报错。
 
-### 具体待办（P7-go 重写；第 1 条 P7-go 已落地，余下第 2·3 条）
+### 具体待办（P7-go 重写；第 1 条 P7-go、第 2 条 P7-gp 已落地，余下第 3 条）
 
 P7-gn 收尾后清单归零。本轮按审计入口 `main:src/styles/settings.css` 的 `.settings-section__heading` /
 `__heading-main` / `__label` / `__hint`（此前只对照过行、文本动作与空态，标题行本身没有 file:line
@@ -10605,7 +10644,7 @@ P7-gn 收尾后清单归零。本轮按审计入口 `main:src/styles/settings.cs
 - **验收（已过）**：`internal/settingsui/sectionheading_test.go` 三条 + `actionmetrics_test.go` 的
   `TestSectionHeadingActionSitsAtTheRightEndBottomAligned`。
 
-#### P7-go-2 · 深链标题的说明是原版的 `--inline` 说明，应留在 heading-main 里（**下一轮最高优先级**）
+#### P7-go-2 · 深链标题的说明是原版的 `--inline` 说明，应留在 heading-main 里（**P7-gp 已落地**）
 
 - **原版对照**：`main:src/settings/DeepLinkRow.tsx:61-64` 的 heading-main 里放 label 与
   `<p className="settings-section__hint settings-section__hint--inline">{t("settings.deepLinkHint")}</p>`；
@@ -10614,11 +10653,11 @@ P7-gn 收尾后清单归零。本轮按审计入口 `main:src/styles/settings.cs
 - **本构建（改前偏离）**：`internal/settingsui/settingsui.go:2606` 的
   `a.section(c, copy.DeepLinkTitle, copy.DeepLinkHint, ...)` 在 P7-go 之后把这条说明画成卡片之后的
   `sectionHint` 行，与「标题块内第二行」的原版位置不符。
-- **落地 file:line（待做）**：给 `internal/settingsui/rows.go:61` 的 `sectionHeading` 加一个可选
-  inline hint 槽（`ui.Column(...).Gap(1)`，即 `heading-main` 的 1px stack），
-  `internal/settingsui/settingsui.go:2606` 的深链段改走它。
-- **验收（待做）**：活页 About 页——`copy.DeepLinkHint` 的墨迹顶边 < 深链卡片顶边（说明在卡片
-  **之前**），且与 `copy.DeepLinkTitle` 同列、间距 == 1px；`sectionHint` 的既有调用方不变。
+- **落地 file:line（已落地）**：`internal/settingsui/rows.go:83` 的 `sectionHeadingInline` 给
+  `heading-main` 用 `ui.Column(...).Gap(1)` 复刻 1px 栈、`:56` 的 `sectionInline` 把卡片画在
+  inline 说明之后，`internal/settingsui/settingsui.go:2606` 的深链段改走它。详见「最近几轮」P7-gp 记录。
+- **验收（已过）**：`internal/settingsui/sectionheading_test.go` 的
+  `TestTheDeepLinkHintRidesInsideItsHeading`（说明在卡片之前、与标题同列、间距 == 1px）。
 
 #### P7-go-3 · Sessions 标题行缺原版的两个控件（排序记号 + 独立刷新图标键）
 

@@ -49,6 +49,18 @@ func (a *App) sectionFoot(c *ui.Context, title, hint string, footnotes []string,
 	})
 }
 
+// sectionInline is section for the deep-link group: the reference puts that
+// group's one-line explanation inside `heading-main`, directly under the title
+// (`DeepLinkRow.tsx:61-64`), rather than in a `sectionHint` line after the
+// cards. The card and the 2u section gap are the same as section's.
+func (a *App) sectionInline(c *ui.Context, title, hint string, fn func()) {
+	t := c.Theme()
+	ui.Column(c).FillWidth().Gap(t.Space(2)).Children(func() {
+		a.sectionHeadingInline(c, title, hint, nil)
+		ui.Column(c).FillWidth().Gap(t.Space(2.5)).Children(fn)
+	})
+}
+
 // sectionHeading is the reference's `.settings-section__heading`
 // (`settings.css:421-438`): the group's label, inset 2u from the page's edge
 // and bottom-aligned against the group's own action with the reference's 12u
@@ -59,14 +71,31 @@ func (a *App) sectionFoot(c *ui.Context, title, hint string, footnotes []string,
 // centred the action on the block instead of resting it on the block's bottom
 // edge.
 func (a *App) sectionHeading(c *ui.Context, title string, action func()) ui.Element {
+	return a.sectionHeadingInline(c, title, "", action)
+}
+
+// sectionHeadingInline is sectionHeading for the reference's one heading that
+// carries its own explanation: the deep-link row's `heading-main` block
+// (`DeepLinkRow.tsx:61-64`; `settings.css:430-434`), a 1px stack of label and
+// `settings-section__hint--inline` hint (`:1209-1211`, padding 0). Every other
+// group's explanation is a `sectionHint` line after its cards. An empty hint
+// keeps the plain single-line heading the rest of the pane uses.
+func (a *App) sectionHeadingInline(c *ui.Context, title, inlineHint string, action func()) ui.Element {
 	t := c.Theme()
 	row := ui.Row(c).FillWidth().AlignItems(ui.End).Justify(ui.SpaceBetween).
 		Gap(t.Space(3)).Padding(0, t.Space(0.5))
 	row.Children(func() {
-		// `.settings-section__label` is the ladder's title step at 620 in the
-		// strong colour.
-		ui.Column(c).Grow(1).Children(func() {
+		// `heading-main` is the reference's `display:grid; gap:1px`, so the
+		// inline hint rides one pixel under the title in the same column.
+		ui.Column(c).Grow(1).Gap(1).Children(func() {
+			// `.settings-section__label` is the ladder's title step at 620 in the
+			// strong colour.
 			ui.Text(c, title).FontSize(t.FontSize + 2).FontWeight(620).TextColor(a.tokens(c).TextStrong)
+			if inlineHint != "" {
+				// `--inline` drops the 2u inset the group hint keeps, but is
+				// otherwise the same body step at 500 in the muted colour.
+				ui.Text(c, inlineHint).FontSize(t.FontSize).FontWeight(500).TextColor(t.TextMuted)
+			}
 		})
 		if action != nil {
 			action()
