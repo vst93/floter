@@ -14,6 +14,7 @@ import (
 	"floter/internal/settings"
 	"floter/internal/shortcuts"
 	"floter/internal/terminalui"
+	"floter/internal/theme"
 	"time"
 )
 
@@ -1744,6 +1745,68 @@ func TestCustomShortcutsEmptyState(t *testing.T) {
 	tt.Frame()
 	if !tt.HasText(copy.ShortcutRecording) {
 		t.Errorf("the recorder did not open: %q", tt.Texts())
+	}
+}
+
+// The recording state wears the reference's `.shortcut-recorder--recording`
+// face (`settings.css:1478-1504`): the raised-quiet pane, the accent edge
+// and the accent prompt. The old port drew a flat surface and left the
+// prompt in the default ink, so an armed recorder read as a plain button.
+func TestShortcutRecordingStateWearsTheRaisedQuietFace(t *testing.T) {
+	a := New(newStore(t), Actions{})
+	a.Shortcut = "Alt+Space"
+	tt := render(t, a, 720, 580)
+	if err := tt.Click("Shortcuts"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if err := tt.Click(shortcuts.Display("Alt+Space")); err != nil {
+		t.Fatalf("recorder: %v", err)
+	}
+	tt.Frame()
+	if !tt.HasText("Press keys…") {
+		t.Fatalf("the recorder did not open: %q", tt.Texts())
+	}
+	// The prompt sits in the raised-quiet pane, not on a flat surface.
+	rect, ok := tt.Find("Press keys…")
+	if !ok {
+		t.Fatalf("the recording prompt is missing: %q", tt.Texts())
+	}
+	// Sample inside the capture box's fill, clear of the accent glyphs.
+	bg := sample(tt, rect.X+20, rect.Y+2)
+	prefs := ui.Preferences{}
+	tokens := theme.ForPreferences(a.Store.Snapshot(), false, prefs)
+	if bg != tokens.RaisedQuiet {
+		t.Errorf("recording background = %v, want the raised-quiet %v", bg, tokens.RaisedQuiet)
+	}
+}
+
+// An unfinished custom-shortcut draft is dimmed to 0.62 — the reference's
+// `settings-row--muted` (`settings.css:567-569`) — so the eye knows which
+// halves are set. A whole row (key + action) wears full opacity.
+func TestCustomShortcutDraftRowMuting(t *testing.T) {
+	cases := []struct {
+		name     string
+		key      string
+		action   string
+		command  string
+		complete bool
+	}{
+		{"no key", "", "plugin:clipboard", "", false},
+		{"key but no action", "Cmd+J", "", "", false},
+		{"key and command text", "Cmd+J", "command", "say done", true},
+		{"key and action", "Cmd+J", "plugin:clipboard", "", true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			a := New(newStore(t), Actions{})
+			a.customKey = tc.key
+			a.customAction = tc.action
+			a.customCommand = tc.command
+			if got := a.customRowComplete(); got != tc.complete {
+				t.Errorf("customRowComplete() = %v, want %v", got, tc.complete)
+			}
+		})
 	}
 }
 
