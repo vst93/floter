@@ -19,23 +19,17 @@ var checkIcon = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" 
 // row — and the three data categories are checkboxes, with the old build's
 // rule that selecting all of them removes the data directory as a whole.
 
-// uninstallComponentsRow draws the uninstall controls for one integration: the
-// button that expands the componentized dialog (each of the integration's
-// parts, the program included, named before anything is removed).
+// uninstallComponentsRow draws the uninstall controls for one integration:
+// when the componentized dialog is open it is the dialog itself — the door
+// into it is the kind's own removal bar (`requestRemove` →
+// `removeConfirmation`), whose confirm opens this, exactly as the reference's
+// `confirmRemoval` routed npm and custom on to the dialog
+// (`src/ExtensionsPanel.tsx:1286-1304`).
 func (a *App) uninstallComponentsRow(c *ui.Context, copy i18n.Settings, integration Integration) {
-	if a.Actions.UninstallComponents == nil || integration.Orphan {
+	if !a.uninstallOpen[integration.ID] {
 		return
 	}
-	if a.uninstallOpen[integration.ID] {
-		a.uninstallDialog(c, copy, integration)
-		return
-	}
-	if ui.Button(c, integration.removalLabel(copy)+"…").Clicked() {
-		if a.uninstallOpen == nil {
-			a.uninstallOpen = map[string]bool{}
-		}
-		a.uninstallOpen[integration.ID] = true
-	}
+	a.uninstallDialog(c, copy, integration)
 }
 
 // uninstallParts is the dialog's four rows in the reference's own order:
@@ -117,51 +111,65 @@ func (a *App) uninstallDialog(c *ui.Context, copy i18n.Settings, integration Int
 		// reference's own `rgba(0, 0, 0, 0.34)` (`base.css:699`) in every theme.
 		backdrop.Background(ui.RGBA(0, 0, 0, 0.34)).Padding(t.Space(5))
 		// `.extensions-dialog` (`:17-34`): the pane's own material and edge.
-		panel.FillWidth().
+		// `max-height: calc(100% - 40px)` and `color: var(--text-primary)`
+		// (`:17-34`): the overlay's own 20px padding on each side makes 100% of
+		// its content box exactly that expression, so the pane can never grow
+		// past the window it centers in.
+		panel.FillWidth().MaxHeightPercent(100).
 			Padding(t.Space(4.25)).MinWidth(t.Space(105)).MaxWidth(t.Space(120)).
-			Radius(tokens.RadiusXS).Border(1, tokens.InputStroke).
-			Background(tokens.Float).Bind(&pane)
+			Radius(tokens.RadiusSM).Border(1, tokens.InputStroke).
+			Background(tokens.Float).TextColor(t.Text).Bind(&pane)
 		// The floater's throw and its lit top rim, as `--elev-3` composed them —
 		// the same two shadows the terminal panel's own note carries.
 		panel.Shadow(0, t.Space(2.5), t.Space(6.5), 0, ui.RGBA(0, 0, 0, 0.3))
 		panel.Shadow(0, t.Space(0.25), t.Space(0.5), 0, ui.RGBA(0, 0, 0, 0.2))
 		panel.InsetShadow(0, 1, 0, 0, tokens.LensRim)
-		// `.extensions-dialog-title { color: var(--text-strong); font-size: 13px }`
-		// (`:41-45`): the ladder's title step, not the body step this dialog
-		// used to draw its heading at.
-		ui.Text(c, copy.IntegrationsUninstallTitle(integration.Name)).
-			FontSize(tokens.Title).Bold().TextColor(tokens.TextStrong)
-		// `.extensions-dialog-hint { margin: 6px 0 0; font-size: 10.5px;
-		// line-height: 1.45 }` (`:46-51`).
-		ui.Box(c).FillWidth().Padding(t.Space(1.5), 0, 0, 0).Children(func() {
-			ui.Text(c, copy.IntegrationsUninstallDescription).
-				FontSize(uninstallSubBody(t)).TextColor(t.TextMuted).LineHeight(1.45)
-		})
-		// `.extensions-uninstall-components { gap: 8px; margin: 16px 0 }`.
-		ui.Column(c).FillWidth().Gap(t.Space(2)).Padding(t.Space(4), 0).Children(func() {
-			for _, part := range uninstallParts(copy, &draft) {
-				a.uninstallPartRow(c, part)
-			}
-		})
-		// `.extensions-dialog-actions { justify-content: flex-end; gap: 7px }`
-		// (`:74-78`): the pair sits at the row's right end, seven units apart.
-		ui.Row(c).FillWidth().Gap(t.Space(1.75)).Justify(ui.End).AlignItems(ui.Center).Children(func() {
-			// The reference focuses Cancel on mount
-			// (`cancelRef.current?.focus({ preventScroll: true })`), the one
-			// target that keeps the answer to "remove all of this?" a deliberate
-			// one. The two actions are the reference's own `busy` pair; this
-			// build's uninstall never reports in flight, so both stay enabled.
-			if a.uninstallActionButton(c, copy.PermissionsCancel, false, false, nil).Bind(&cancel).Clicked() {
-				a.uninstallOpen[integration.ID] = false
-				return
-			}
-			if a.uninstallActionButton(c, integration.removalLabel(copy), true, false, checkIcon).Clicked() {
-				if a.Actions.UninstallComponents != nil {
-					a.Actions.UninstallComponents(integration.ID, integration.Name, integration.removalKind(), draft)
+		// `overflow-y: auto` (`:17-34`): a short window scrolls the questions
+		// instead of pushing the actions outside the pane. The scroll viewport
+		// is the pane's content box, so the 17px padding stays put exactly as
+		// the reference's scroll container keeps it.
+		ui.Scroll(c).FillWidth().Grow(1).Children(func() {
+			// `.extensions-dialog-title { color: var(--text-strong); font-size: 13px }`
+			// (`:41-45`): the ladder's title step, not the body step this dialog
+			// used to draw its heading at.
+			ui.Text(c, copy.IntegrationsUninstallTitle(integration.Name)).
+				FontSize(tokens.Title).Bold().TextColor(tokens.TextStrong)
+			// `.extensions-dialog-hint { margin: 6px 0 0; font-size: 10.5px;
+			// line-height: 1.45 }` (`:46-51`).
+			ui.Box(c).FillWidth().Padding(t.Space(1.5), 0, 0, 0).Children(func() {
+				ui.Text(c, copy.IntegrationsUninstallDescription).
+					FontSize(uninstallSubBody(t)).TextColor(t.TextMuted).LineHeight(1.45)
+			})
+			// `.extensions-uninstall-components { gap: 8px; margin: 16px 0 }`.
+			ui.Column(c).FillWidth().Gap(t.Space(2)).Padding(t.Space(4), 0).Children(func() {
+				for _, part := range uninstallParts(copy, &draft) {
+					a.uninstallPartRow(c, part)
 				}
-				a.uninstallOpen[integration.ID] = false
-				return
-			}
+			})
+			// `.extensions-dialog-actions { justify-content: flex-end; gap: 7px }`
+			// (`:74-78`): the pair sits at the row's right end, seven units apart.
+			ui.Row(c).FillWidth().Gap(t.Space(1.75)).Justify(ui.End).AlignItems(ui.Center).Children(func() {
+				// The reference focuses Cancel on mount
+				// (`cancelRef.current?.focus({ preventScroll: true })`), the one
+				// target that keeps the answer to "remove all of this?" a deliberate
+				// one. The two actions are the reference's own `busy` pair; this
+				// build's uninstall never reports in flight, so both stay enabled.
+				if a.uninstallActionButton(c, copy.PermissionsCancel, false, false, nil).Bind(&cancel).Clicked() {
+					a.uninstallOpen[integration.ID] = false
+					return
+				}
+				// The confirm verb is the reference's own
+				// `settings.extensions.uninstall` — one word for every kind the
+				// dialog serves (`ComponentizedUninstallDialog.tsx:161`), not the
+				// per-kind verb the row and the bar carry.
+				if a.uninstallActionButton(c, copy.IntegrationsUninstall, true, false, checkIcon).Clicked() {
+					if a.Actions.UninstallComponents != nil {
+						a.Actions.UninstallComponents(integration.ID, integration.Name, integration.removalKind(), draft)
+					}
+					a.uninstallOpen[integration.ID] = false
+					return
+				}
+			})
 		})
 	})
 	if dialog.Dismissed() {
@@ -203,19 +211,36 @@ func (a *App) uninstallActionButton(c *ui.Context, label string, danger bool, bu
 	t := c.Theme()
 	tokens := a.tokens(c)
 	// The pill's corner is half the 30px control height (the reference writes
-	// `border-radius: 999px`, which the browser clamps to exactly that).
+	// `border-radius: 999px`, which the browser clamps to exactly that). The
+	// reference pins both `height` and `min-height` to the family's 30px
+	// control step, so the height is set, not just floored.
 	button := ui.ButtonBase(c).Label(label).
-		MinHeight(t.Space(7.5)).Padding(0, t.Space(2.5)).Gap(t.Space(1.25)).
-		Radius(t.Space(3.75)).Disabled(busy)
+		Height(t.Space(7.5)).Padding(0, t.Space(2.5)).Gap(t.Space(1.25)).
+		Radius(t.Space(3.75))
 	ink, edge, plane := tokens.TextStrong, tokens.ControlEdge, tokens.Control
 	if danger {
 		ink = t.Warning
 	}
-	if button.Hovered() {
+	// `:hover:not(:disabled)` (`extensions.css:1340-1344`): a disabled pill
+	// keeps its resting face under the pointer.
+	if !busy && button.Hovered() {
 		ink, edge, plane = t.Text, tokens.AccentEdge, tokens.ControlHover
 	}
 	button.Border(1, edge).Background(plane).
 		Transition(ui.ElementTransition{Colors: true, Position: true, Duration: 120 * time.Millisecond})
+	// `.extensions-action-button:active:not(:disabled) { transform: scale(0.97) }`
+	// (`extensions.css:138-140`): the press sinks the pill a hair, over the
+	// same `--dur-2` transform transition.
+	if !busy && button.Pressed() {
+		button.Scale(0.97, 0.97)
+	}
+	if busy {
+		// `.extensions-action-button:disabled { opacity: 0.4; cursor: default;
+		// pointer-events: none }` (`extensions.css:1369-1373`). The disabled
+		// flag carries the pointer-events half; the flatness and the cursor
+		// are the two the framework does not paint for us.
+		button.Disabled(true).Opacity(0.4).Cursor(ui.CursorDefault)
+	}
 	// The control's own `--elev-0`: the same lens the cards on the surface
 	// carry, so the pill reads as a pane of the same glass.
 	tokens.Lens(button)
@@ -294,7 +319,15 @@ func (a *App) uninstallPartRow(c *ui.Context, part uninstallPart) ui.Element {
 		tokens.Lens(card)
 	}
 	card.Children(func() {
-		box := ui.Checkbox(c, &on, "").Label(part.Label)
+		// `.extensions-uninstall-component { grid-template-columns: 20px 1fr;
+		// gap: 4px 12px }` with the checkbox itself `width: 16px; height:
+		// 16px; margin-top: 2px` (`:60-91`). The 20px column is what keeps
+		// the label's column aligned across the four rows even though the box
+		// is only 16px wide; laying the row out as a flex pair left the label
+		// 4px tighter than the reference. The 2px top margin drops the box
+		// off the card's top edge exactly as the grid's does.
+		box := ui.Checkbox(c, &on, "").Label(part.Label).
+			Width(t.Space(5)).Padding(t.Space(0.5), 0, 0, 0)
 		if part.Fixed {
 			box.Disabled(true)
 			// `input[type="checkbox"]:disabled { cursor: not-allowed }`

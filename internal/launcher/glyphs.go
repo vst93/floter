@@ -49,6 +49,11 @@ var (
 	glyphInfo   = ui.MustParseSVG([]byte(glyphSource(`<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>`)))
 	glyphWindow = ui.MustParseSVG([]byte(glyphSource(`<rect width="20" height="16" x="2" y="4" rx="2"/><path d="M6 8h.01"/><path d="M10 8h.01"/>`)))
 	glyphClose  = ui.MustParseSVG([]byte(glyphSource(`<path d="M18 6 6 18"/><path d="m6 6 12 12"/>`)))
+	// glyphPin is lucide's Pin, the reference's detach button for external
+	// commands (R84 — `.collapsed-card__settings` with a `<Pin size={16}/>`).
+	// The pin puts the plugin page's command + current argv into its own
+	// window that never follows the launcher's summon/hide.
+	glyphPin = ui.MustParseSVG([]byte(glyphSource(`<path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1z"/>`)))
 	// The toast marks: the old build's own kind icons (its `ToastStack` drew
 	// lucide's AlertCircle / TriangleAlert / Check at 15px). They belong to the
 	// same closed set the settings sidebar reads, so the shell's toast viewport
@@ -269,6 +274,8 @@ func Glyph(name string) (*ui.SVG, bool) {
 		return glyphWindow, true
 	case "close":
 		return glyphClose, true
+	case "pin":
+		return glyphPin, true
 	case "clipboard":
 		return glyphClipboard, true
 	case "clock":

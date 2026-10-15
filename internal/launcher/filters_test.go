@@ -1019,8 +1019,12 @@ func TestResultNumberBadge(t *testing.T) {
 }
 
 // A command whose output the launcher shows itself carries the space-bar
-// nudge on its row, as the old build's R65 put there; a terminal-route command
-// does not, since its output goes to the terminal surface.
+// keycap on its row, as the old build's R65 put there; a terminal-route
+// command does not, since its output goes to the terminal surface. The
+// field's own nudge — the promise that one space enters the mode — is the
+// entry rule's, not the route's, so it shows either way as one paragraph
+// (`␣ {name} · enter`); the page's only *standalone* `␣` is the row's
+// keycap, and its presence is what the route decides.
 func TestDirectOutputNudge(t *testing.T) {
 	direct := commandApp()
 	for i := range direct.Commands {
@@ -1032,15 +1036,30 @@ func TestDirectOutputNudge(t *testing.T) {
 	if !tt.HasText("\u2423") {
 		t.Errorf("the space-bar nudge is missing: %q", tt.Texts())
 	}
+	if n := countTexts(tt, "\u2423"); n != 1 {
+		t.Errorf("the direct page shows %d standalone \u2423, want the row's keycap alone: %q", n, tt.Texts())
+	}
 	// A terminal-route command runs where a terminal runs it, and its row
-	// carries no nudge.
+	// carries no keycap: only the field nudge's paragraph, which names the
+	// command, is left — no bare keycap anywhere.
 	terminal := commandApp()
 	terminal.Query = "JSON"
 	tt = render(t, terminal)
 	tt.Frame()
-	if tt.HasText("\u2423") {
-		t.Errorf("a terminal-route row carries the nudge: %q", tt.Texts())
+	if n := countTexts(tt, "\u2423"); n != 0 {
+		t.Errorf("a terminal-route row carries the keycap: %d standalone \u2423: %q", n, tt.Texts())
 	}
+}
+
+// countTexts counts the frame's labels that say exactly s.
+func countTexts(tt *ui.Tester, s string) int {
+	n := 0
+	for _, text := range tt.Texts() {
+		if text == s {
+			n++
+		}
+	}
+	return n
 }
 
 // A browser search with the plugin switched off says so, instead of claiming

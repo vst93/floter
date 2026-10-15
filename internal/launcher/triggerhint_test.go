@@ -110,7 +110,8 @@ func TestTriggerHintFits(t *testing.T) {
 	}
 
 	// In the real row the room is the row's inner width less the controls
-	// that keep their size; the nudge's box in a window the old 160px field
+	// that keep their size, capped at half the row (the reference's
+	// `max-width: 50%`); the nudge's box in a window the old 160px field
 	// floor hid it in is far above six cells, so it stays.
 	text := "Clipboard history \u00b7 enter"
 	var room, natural, cell float32
@@ -133,7 +134,9 @@ func TestTriggerHintFits(t *testing.T) {
 	if natural <= room {
 		t.Fatalf("the nudge was not squeezed in the test window: %v <= %v", natural, room)
 	}
-	box, ok := wide.Find(text)
+	// The key and the name are one paragraph (`RichText`), so the frame's
+	// label carries both.
+	box, ok := wide.Find("\u2423" + text)
 	if !ok {
 		t.Fatalf("the nudge is missing at 200px: %q", wide.Texts())
 	}

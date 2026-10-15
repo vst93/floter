@@ -904,6 +904,16 @@ func (a *App) View(c *ui.Context) {
 		ui.Row(c).Absolute().Top(0).Left(0).Right(0).Height(fieldRow).
 			Background(tk.FieldFill).Padding(0, t.Space(16)).
 			AlignItems(ui.Center).Gap(t.Space(1)).Children(func() {
+			// The launcher's implicit drag handle (R10-B): a 28px band
+			// across the card's top, painted under the field and the buttons
+			// so the field keeps every one of its clicks. The card itself is
+			// no longer a drag surface — a press on a result row or a hint
+			// must never move the window — so the one place that does is
+			// this invisible band. The field and the buttons are drawn after
+			// it (later children paint over it), so their clicks land on
+			// them, and only the band's own blank area starts a drag.
+			ui.Box(c).Absolute().Top(0).Left(0).Right(0).Height(t.Space(7)).
+				DragWindow().Background(ui.Transparent)
 			// The scope mark: the mode that owns the field, at its left — the
 			// icon says a plugin owns it and the muted word says which one
 			// (`.collapsed-card__scope` / `__scope-name`). The trigger word
@@ -972,8 +982,23 @@ func (a *App) View(c *ui.Context) {
 				// wrapped nudge would take back the band R48 removed. The
 				// only loss is the hide `triggerHintShown` decides.
 				if hint := a.triggerHintText(); hint != "" && a.triggerHintShown(c, t, hint) {
-					ui.Text(c, hint).FontSize(t.FontSize - 1).TextColor(t.TextMuted).
-						SingleLine().Ellipsis("\u2026")
+					// The nudge is two spans in the old build (R48): the
+					// space key in `--text-tertiary` at weight 620, then the
+					// command's name in `--text-muted` at 520 — the key
+					// reads as the quiet half of the pair, not a second
+					// label competing with the field. The pair rides the
+					// row as `flex: 0 1 auto` with `min-width: 0` and a
+					// `max-width: 50%` cap (`.collapsed-card__trigger-hint`):
+					// the field yields the room, the nudge shrinks to it —
+					// the key never does (`flex: 0 0 auto`), and the name
+					// is the one part that may be cut, so a collision trims
+					// the nudge's tail rather than the key.
+					tokens := theme.ForPreferences(a.settings(), t.Dark, c.Preferences())
+					ui.RichText(c,
+						ui.Span{Text: "␣", Weight: 620, Color: tokens.TextTertiary},
+						ui.Span{Text: hint, Weight: 520, Color: t.TextMuted},
+					).FontSize(t.FontSize-1).SingleLine().Ellipsis("…").
+						MinWidth(0).MaxWidthPercent(50).Margin(0, 0, 0, t.Space(2))
 				}
 				if a.Query != "" {
 					// The clear control is the same 28u transparent square the
@@ -1008,6 +1033,14 @@ func (a *App) View(c *ui.Context) {
 				a.pluginGear(c, copy, id)
 			} else {
 				a.fieldButtons(c, copy)
+			}
+			// R84 · the pin. Puts the plugin page's command + current argv
+			// into its own window that never follows the launcher's
+			// summon/hide — the user's 「独立固定、不自动消失」. Sits inside
+			// the field row, after the ternary, so both branches keep their
+			// original trailing sets and the pin is additive only.
+			if a.mode != nil && a.mode.Command.Execution.Mode == "external" && a.Actions.DetachOutput != nil {
+				a.pinButton(c, copy)
 			}
 		})
 	})
@@ -2309,12 +2342,18 @@ func (a *App) fieldButtons(c *ui.Context, copy i18n.Launcher) {
 		e := ui.Row(c).Focusable().Shrink(0).Size(t.Space(7), t.Space(7)).
 			Radius(tokens.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).
 			Label(label).Tooltip(hint).Margin(0, 0, 0, t.Space(2))
+		// The reference's `.collapsed-card__settings:hover` lifts the
+		// mark one step (`--text-strong`) and adds the resting plane's
+		// own shadow (`--elev-0`, the full control lens): the button is a
+		// control that answers the pointer, not a bare glyph on the row.
+		mark := t.TextMuted
 		if e.Hovered() {
-			e.Background(t.SurfaceHover)
+			e = tokens.Lens(e.Background(t.SurfaceHover))
+			mark = tokens.TextStrong
 		}
 		e.Children(func() {
 			if glyph, ok := Glyph(glyphName); ok {
-				ui.Icon(c, glyph).Size(t.Space(4), t.Space(4)).TextColor(t.TextMuted)
+				ui.Icon(c, glyph).Size(t.Space(4), t.Space(4)).TextColor(mark)
 			}
 		})
 		if e.Clicked() {
@@ -2349,15 +2388,50 @@ func (a *App) pluginGear(c *ui.Context, copy i18n.Launcher, id string) {
 	e := ui.Row(c).Focusable().Shrink(0).Size(t.Space(7), t.Space(7)).
 		Radius(tokens.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).
 		Label(label).Tooltip(hint).Margin(0, 0, 0, t.Space(2))
+	// The reference's `.collapsed-card__settings:hover` lifts the mark one
+	// step (`--text-strong`) and adds the resting plane's own shadow
+	// (`--elev-0`, the full control lens): the button is a control that
+	// answers the pointer, not a bare glyph on the row.
+	mark := t.TextMuted
 	if e.Hovered() {
-		e.Background(t.SurfaceHover)
+		e = tokens.Lens(e.Background(t.SurfaceHover))
+		mark = tokens.TextStrong
 	}
 	e.Children(func() {
 		if glyph, ok := Glyph(glyphName); ok {
-			ui.Icon(c, glyph).Size(t.Space(4), t.Space(4)).TextColor(t.TextMuted)
+			ui.Icon(c, glyph).Size(t.Space(4), t.Space(4)).TextColor(mark)
 		}
 	})
 	if e.Clicked() {
 		a.toggleConfig(id)
+	}
+}
+
+// pinButton is the field row's trailing control for an external command
+// (R84): a pin that puts the plugin page's command + current argv into
+// its own window that never follows the launcher's summon/hide. Same
+// 28u transparent square as the other settings buttons — the gear
+// that opened the sheet, and the pin are additive only.
+func (a *App) pinButton(c *ui.Context, copy i18n.Launcher) {
+	t := c.Theme()
+	tokens := theme.ForPreferences(a.settings(), t.Dark, c.Preferences())
+	e := ui.Row(c).Focusable().Shrink(0).Size(t.Space(7), t.Space(7)).
+		Radius(tokens.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).
+		Label(copy.OutputDetach).Tooltip(copy.OutputDetachHint).
+		Margin(0, 0, 0, t.Space(2))
+	// The same hover as the row's other buttons: the resting plane's own
+	// lens (`--elev-0`) and the mark one step up.
+	mark := t.TextMuted
+	if e.Hovered() {
+		e = tokens.Lens(e.Background(t.SurfaceHover))
+		mark = tokens.TextStrong
+	}
+	e.Children(func() {
+		if glyph, ok := Glyph("pin"); ok {
+			ui.Icon(c, glyph).Size(t.Space(4), t.Space(4)).TextColor(mark)
+		}
+	})
+	if e.Clicked() {
+		a.Actions.DetachOutput(OutputView{Entry: a.mode, Args: strings.Split(a.Query, " ")})
 	}
 }

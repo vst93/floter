@@ -2144,30 +2144,23 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 					}
 				}
 			}
-			// Removal is two different questions by kind. npm and custom are
-			// the kinds whose files floter owns and whose data categories the
-			// user may pick, so their row opens the componentized dialog
-			// directly. A system-owned built-in and a linked local package have
-			// no data of floter's to delete, so — exactly as the reference's
-			// `confirmRemoval` did (`src/ExtensionsPanel.tsx:1286-1304`) — they
-			// first ask the kind's own removal bar
-			// (`requestRemove` → `removeConfirmation`), whose confirm runs the
-			// plain removal. Before this branch the two actions were wired in
-			// the shell and *every* kind opened the componentized dialog, which
-			// handed system/package rows data-deletion checkboxes the reference
-			// never drew.
-			switch {
-			case integration.componentizedRemoval() && a.Actions.UninstallComponents != nil:
-				a.uninstallComponentsRow(c, copy, integration)
-			case a.Actions.UninstallIntegration != nil:
+			// Removal is one door for every kind: the row's button asks the
+			// kind's own removal bar (`requestRemove` → `removeConfirmation`),
+			// and the bar's confirm branches — npm and custom go on to the
+			// componentized dialog, a system-owned built-in and a linked local
+			// package run the plain removal, exactly as the reference's
+			// `confirmRemoval` did (`src/ExtensionsPanel.tsx:1286-1304`).
+			// Before this branch the two actions were wired in the shell and
+			// some kinds skipped the bar, which handed npm and custom rows one
+			// question fewer than the reference asked.
+			if (a.Actions.UninstallIntegration != nil || a.Actions.UninstallComponents != nil) && !integration.Orphan {
 				if a.actionButton(c, integration.removalLabel(copy)).Clicked() {
 					a.requestRemove(integration.ID)
 				}
-			// Only the componentized action is wired (some callers' fixtures
-			// are): fall back to its door so the row still offers its removal.
-			case a.Actions.UninstallComponents != nil:
-				a.uninstallComponentsRow(c, copy, integration)
 			}
+			// The componentized dialog, once the bar's confirm opened it,
+			// floats over the row.
+			a.uninstallComponentsRow(c, copy, integration)
 			// The enable/disable toggle rides at the very end of the actions,
 			// after the removal door, where the reference's separate
 			// `.extension-row__toggle-slot` sat (`src/extensions/ExtensionRow.tsx:437-458`).
@@ -4521,6 +4514,7 @@ func (a *App) barButton(c *ui.Context, label string, danger, disabled bool, icon
 		Height(t.Space(6)).
 		Padding(0, t.Space(2)).
 		Radius(tokens.RadiusXS).
+		Gap(t.Space(1.25)).
 		Background(plane).Border(1, edge)
 	if !disabled {
 		if button.Hovered() {
@@ -4530,14 +4524,25 @@ func (a *App) barButton(c *ui.Context, label string, danger, disabled bool, icon
 			button = button.Background(plane).Border(1, edge)
 		}
 	}
+	// `.extension-discard-bar .extensions-action-button` only overrides the
+	// size, padding, radius and font; the rest is the shared
+	// `.extensions-action-button` face (`extensions.css:1313-1385`): the
+	// `--elev-0` lens, the 5px `--extensions-inline-gap`, 600 weight at
+	// `line-height: 1`, and the `--dur-2` colour transition. The 24px button
+	// was a flat tint without them.
+	button.Transition(ui.ElementTransition{Colors: true, Position: true, Duration: 120 * time.Millisecond})
+	tokens.Lens(button)
 	button.Children(func() {
 		if icon != nil {
 			ui.Icon(c, icon).Size(t.Space(3.5), t.Space(3.5))
 		}
-		ui.Text(c, label).FontSize(tokens.Caption).TextColor(ink)
+		ui.Text(c, label).FontSize(tokens.Caption).FontWeight(600).TextColor(ink).LineHeight(1)
 	})
 	if disabled {
-		button = button.Disabled(true)
+		// `:disabled { opacity: 0.4; cursor: default; pointer-events: none }`:
+		// the framework's flag carries the pointer half, the flatness and the
+		// cursor are the two it does not paint.
+		button = button.Disabled(true).Opacity(0.4).Cursor(ui.CursorDefault)
 	}
 	if !disabled && button.Clicked() {
 		run()
@@ -4570,23 +4575,30 @@ func (a *App) barButton(c *ui.Context, label string, danger, disabled bool, icon
 func (a *App) noticeBand(c *ui.Context, danger bool, sentence string, answers func(*ui.Element)) ui.Element {
 	t := c.Theme()
 	tokens := a.tokens(c)
-	ink, edge := tokens.TextSecondary, tokens.ControlEdge
+	ink := tokens.TextSecondary
 	if danger {
-		ink, edge = t.Warning, t.Warning
+		ink = t.Warning
 	}
 	var cancel ui.Element
-	ui.Row(c).FillWidth().Gap(t.Space(2)).AlignItems(ui.Center).
+	band := ui.Row(c).FillWidth().Gap(t.Space(2)).AlignItems(ui.Center).
 		Padding(t.Space(2), t.Space(2.5)).Margin(0, t.Space(3)).
-		Radius(tokens.RadiusSM).Background(tokens.Control).Border(1, edge).
-		Children(func() {
-			ui.Icon(c, mustGlyph("alert")).Size(t.Space(3.75), t.Space(3.75)).
-				TextColor(ink)
-			// The question is one flowing sentence, not a bold title over a
-			// muted body: the band speaks in one ink throughout.
-			ui.Text(c, sentence).FontSize(t.FontSize).TextColor(ink).Grow(1).
-				LineHeight(1.45)
-			answers(&cancel)
-		})
+		Radius(tokens.RadiusSM).Background(tokens.Control).Border(1, tokens.ControlEdge)
+	// `.extensions-notice--error` keeps the band's `--ext-border` and layers
+	// the warning as its own inset keyline (`extensions.css:174-178`), rather
+	// than recolouring the border: the error band is the neutral pane with an
+	// amber ring, not a second edge.
+	if danger {
+		band.InsetShadow(0, 0, 0, 1, t.Warning)
+	}
+	band.Children(func() {
+		ui.Icon(c, mustGlyph("alert")).Size(t.Space(3.75), t.Space(3.75)).
+			TextColor(ink)
+		// The question is one flowing sentence, not a bold title over a
+		// muted body: the band speaks in one ink throughout.
+		ui.Text(c, sentence).FontSize(t.FontSize).TextColor(ink).Grow(1).
+			LineHeight(1.45)
+		answers(&cancel)
+	})
 	return cancel
 }
 
@@ -4743,6 +4755,19 @@ func (a *App) removeConfirmation(c *ui.Context, copy i18n.Settings, integration 
 		})
 		a.barButton(c, integration.removalLabel(copy), true, false, confirmIcon, func() {
 			a.removeConfirm[integration.ID] = false
+			// The reference's confirm branches by kind
+			// (`src/ExtensionsPanel.tsx:1286-1304`): npm and custom go on to
+			// the componentized dialog, which asks which data to keep before
+			// anything moves; a system-owned built-in and a linked local
+			// package have nothing of floter's to pick over, so their confirm
+			// runs the plain removal.
+			if integration.componentizedRemoval() && a.Actions.UninstallComponents != nil {
+				if a.uninstallOpen == nil {
+					a.uninstallOpen = map[string]bool{}
+				}
+				a.uninstallOpen[integration.ID] = true
+				return
+			}
 			if a.Actions.UninstallIntegration != nil {
 				a.Actions.UninstallIntegration(integration.ID, integration.Name, integration.removalKind())
 			}

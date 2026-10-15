@@ -72,11 +72,16 @@ func TestComponentizedUninstallDrawsTheReferenceRows(t *testing.T) {
 		t.Fatalf("click Integrations: %v (texts %v)", err, tt.Texts())
 	}
 	tt.Frame()
-	// The row's own button expands the dialog.
-	if err := tt.Click(en.IntegrationsUninstall + "…"); err != nil {
+	// The row's button asks the kind's removal bar, whose confirm opens the
+	// dialog (`confirmRemoval`, src/ExtensionsPanel.tsx:1286-1304).
+	if err := tt.Click(en.IntegrationsUninstall); err != nil {
 		t.Fatalf("click the uninstall button: %v (texts %v)", err, tt.Texts())
 	}
 	tt.Frame()
+	if !tt.HasText(en.RemoveTitle("NPM Tool")) {
+		t.Fatalf("the row did not ask its removal bar: %v", tt.Texts())
+	}
+	pressRightOfCancel(t, tt)
 
 	if !tt.HasText(en.IntegrationsUninstallTitle("NPM Tool")) {
 		t.Errorf("the dialog does not name the integration: %v", tt.Texts())
@@ -114,9 +119,9 @@ func TestComponentizedUninstallDrawsTheReferenceRows(t *testing.T) {
 		t.Fatalf("click host configuration: %v (texts %v)", err, tt.Texts())
 	}
 	tt.Frame()
-	if err := tt.Click(en.IntegrationsUninstall); err != nil {
-		t.Fatalf("click the confirm button: %v (texts %v)", err, tt.Texts())
-	}
+	// The dialog's confirm sits right of its Cancel: the row's own button
+	// behind the overlay carries the same verb, so the press is positional.
+	pressRightOfCancel(t, tt)
 	tt.Frame()
 	if len(uninstalled) != 1 {
 		t.Fatalf("the confirm button called the action %d times, want 1", len(uninstalled))
@@ -133,8 +138,9 @@ func TestComponentizedUninstallDrawsTheReferenceRows(t *testing.T) {
 // button last (`ComponentizedUninstallDialog.tsx:119-141`).
 func TestComponentizedUninstallKeepsCancelFirst(t *testing.T) {
 	en := i18n.For("en").Settings
+	var confirmed int
 	a := newTestApp()
-	a.Actions = Actions{UninstallComponents: func(string, string, string, UninstallComponents) {}}
+	a.Actions = Actions{UninstallComponents: func(string, string, string, UninstallComponents) { confirmed++ }}
 	a.Integrations = func() []Integration {
 		return []Integration{{ID: "npm", Name: "NPM Tool", DistributionSource: "npm"}}
 	}
@@ -143,20 +149,23 @@ func TestComponentizedUninstallKeepsCancelFirst(t *testing.T) {
 		t.Fatalf("click Integrations: %v", err)
 	}
 	tt.Frame()
-	if err := tt.Click(en.IntegrationsUninstall + "…"); err != nil {
+	// The dialog opens through the kind's removal bar (`confirmRemoval`,
+	// src/ExtensionsPanel.tsx:1286-1304).
+	if err := tt.Click(en.IntegrationsUninstall); err != nil {
 		t.Fatalf("click the uninstall button: %v (texts %v)", err, tt.Texts())
 	}
 	tt.Frame()
-	cancel, ok := tt.Find(en.PermissionsCancel)
-	if !ok {
+	pressRightOfCancel(t, tt)
+	if _, ok := tt.Find(en.PermissionsCancel); !ok {
 		t.Fatalf("the dialog is missing Cancel: %v", tt.Texts())
 	}
-	confirm, ok := tt.Find(en.IntegrationsUninstall)
-	if !ok {
-		t.Fatalf("the dialog is missing the confirm button: %v", tt.Texts())
-	}
-	if cancel.X >= confirm.X {
-		t.Errorf("Cancel (x=%v) is not before the confirm button (x=%v)", cancel.X, confirm.X)
+	// The confirm is the pill right of Cancel: pressing it runs the removal
+	// (the row's own button behind the overlay carries the same verb, so the
+	// press is positional, and the order — Cancel first, the destructive
+	// button last — is what the press landing on the confirm pins).
+	pressRightOfCancel(t, tt)
+	if confirmed != 1 {
+		t.Errorf("pressing right of Cancel did not confirm (ran %d times)", confirmed)
 	}
 }
 

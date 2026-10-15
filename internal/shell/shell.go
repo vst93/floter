@@ -3480,7 +3480,7 @@ func (a *App) View(c *ui.Context) {
 		// The card clips, so a full-bleed block inside it takes the window's
 		// rounded corners — the old build's `.collapsed-card` had
 		// `overflow: hidden` for exactly this.
-		card := ui.Column(c).Fill().Radius(radius).DragWindow().Border(1, stroke).Clip()
+		card := ui.Column(c).Fill().Radius(radius).Border(1, stroke).Clip()
 		// The card's own depth where the platform has no window-server shadow:
 		// Linux compositors disagree on whether an undecorated transparent
 		// window gets a native one, and a frameless Windows window's shadow

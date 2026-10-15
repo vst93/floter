@@ -3,8 +3,27 @@ package settingsui
 import (
 	"testing"
 
+	"github.com/egoist/mygo/ui"
+
 	"floter/internal/i18n"
 )
+
+// pressRightOfCancel presses the pill that rides right of a Cancel button —
+// the removal bar's confirm and the dialog's confirm both do — because the
+// row's own removal button behind them carries the same verb and Find takes
+// the first match. The hover first is what moves the pointer onto the pill:
+// the framework ignores a down that arrives from nowhere.
+func pressRightOfCancel(t *testing.T, tt *ui.Tester) {
+	t.Helper()
+	cancel, ok := tt.Find(i18n.For("en").Settings.PermissionsCancel)
+	if !ok {
+		t.Fatalf("no Cancel to press beside: %v", tt.Texts())
+	}
+	tt.ClickAt(cancel.X+cancel.W+20, cancel.Y-30)
+	tt.Frame()
+	tt.ClickAt(cancel.X+cancel.W+20, cancel.Y+cancel.H/2)
+	tt.Frame()
+}
 
 // The removal verb is picked by kind, not spoken in one generic word. The
 // reference told four kinds apart (`src/extensions/ExtensionRow.tsx:109-114`)
@@ -331,12 +350,13 @@ func TestOnlyOwnedKindsOpenTheComponentizedDialog(t *testing.T) {
 	}
 }
 
-// The npm half of the fork: a package row opens the componentized dialog
-// directly (no removal bar in between), and confirming it runs the
-// componentized action — never the plain removal. The reference routed
-// npm/custom through the dialog and system/package through the bar
-// (`src/ExtensionsPanel.tsx:1290-1304`); this is the npm branch.
-func TestAnNpmRowGoesStraightToTheComponentizedDialog(t *testing.T) {
+// The npm half of the fork: a package row asks the kind's own removal bar,
+// and the bar's confirm goes on to the componentized dialog — the reference
+// asked both questions (`uninstallExtension` arms the bar for every kind,
+// `confirmRemoval` then routes npm/custom on to the dialog,
+// `src/ExtensionsPanel.tsx:1269,1286-1304`). Confirming the dialog runs the
+// componentized action — never the plain removal.
+func TestAnNpmRowAsksTheBarThenTheDialog(t *testing.T) {
 	en := i18n.For("en").Settings
 	var componentsFor, plainFor, componentKinds []string
 	a := newTestApp()
@@ -360,34 +380,32 @@ func TestAnNpmRowGoesStraightToTheComponentizedDialog(t *testing.T) {
 	}
 	tt.Frame()
 
-	// The npm row asks the componentized dialog directly — not the kind's own
-	// removal bar. The row's button carries the ellipsis suffix
-	// (`uninstallComponentsRow` appends it).
-	if err := tt.Click(en.IntegrationsUninstall + "…"); err != nil {
-		t.Fatalf("click Uninstall…: %v (texts %v)", err, tt.Texts())
+	// The row's button asks the kind's own removal bar first.
+	if err := tt.Click(en.IntegrationsUninstall); err != nil {
+		t.Fatalf("click Uninstall: %v (texts %v)", err, tt.Texts())
 	}
 	tt.Frame()
-	if !tt.HasText(en.IntegrationsUninstallTitle("NPM Tool")) {
-		t.Errorf("the npm row did not open the componentized dialog: %v", tt.Texts())
-	}
-	if tt.HasText(en.IntegrationsUninstallTitle("NPM Tool") + "?") {
-		t.Errorf("the npm row asked the kind's removal bar instead of the dialog: %v", tt.Texts())
-	}
-	for _, barOnly := range []string{en.IntegrationsDisconnectTitle("NPM Tool")} {
-		if tt.HasText(barOnly) {
-			t.Errorf("the npm row drew the removal bar (%q): %v", barOnly, tt.Texts())
-		}
+	if !tt.HasText(en.RemoveTitle("NPM Tool")) {
+		t.Fatalf("the npm row did not ask its removal bar: %v", tt.Texts())
 	}
 	if len(componentsFor) != 0 || len(plainFor) != 0 {
-		t.Fatalf("the removal happened before the dialog was answered: components=%v plain=%v", componentsFor, plainFor)
+		t.Fatalf("the removal happened before it was answered: components=%v plain=%v", componentsFor, plainFor)
+	}
+
+	// Confirming the bar opens the componentized dialog — the bar itself
+	// runs nothing.
+	pressRightOfCancel(t, tt)
+	if !tt.HasText(en.IntegrationsUninstallTitle("NPM Tool")) {
+		t.Fatalf("confirming the bar did not open the componentized dialog: %v", tt.Texts())
+	}
+	if len(componentsFor) != 0 || len(plainFor) != 0 {
+		t.Fatalf("the bar's confirm ran a removal: components=%v plain=%v", componentsFor, plainFor)
 	}
 
 	// Confirming the dialog runs the componentized action, never the plain
-	// removal. The dialog's confirm button carries the bare verb (no ellipsis).
-	if err := tt.Click(en.IntegrationsUninstall); err != nil {
-		t.Fatalf("click the dialog's confirm: %v (texts %v)", err, tt.Texts())
-	}
-	tt.Frame()
+	// removal. The dialog's confirm sits right of its Cancel — the row's own
+	// button carries the same verb, so the press is positional.
+	pressRightOfCancel(t, tt)
 	if len(componentsFor) != 1 || componentsFor[0] != "npm" {
 		t.Errorf("confirming the dialog called the componentized removal %v, want [npm]", componentsFor)
 	}

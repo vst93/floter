@@ -96,7 +96,10 @@ const triggerHintMinCells = 6
 // field to nothing and shrinks the nudge (the framework's own order, the
 // reference's `flex: 1 1 0` beside `flex: 0 1 auto`) — so only the controls
 // that keep their size and the gaps between them count against the row's inner
-// width. The nudge itself is not counted: this is the room it may take.
+// width. The nudge itself is not counted: this is the room it may take, capped
+// at half the row's inner width as the reference's `max-width: 50%` is
+// (`.collapsed-card__trigger-hint`): a long name never becomes the row's
+// dominant element, so the drawn box is the smaller of the two.
 func (a *App) triggerHintRoom(c *ui.Context, t *ui.Theme) float32 {
 	width, _ := c.Size()
 	// The row's trailing controls are the two ways in the old build kept
@@ -109,13 +112,18 @@ func (a *App) triggerHintRoom(c *ui.Context, t *ui.Theme) float32 {
 		buttons++
 	}
 	gap := t.Space(1)
+	inner := width - 2*t.Space(16)
 	// Items after the field: the nudge, the clear control, then the buttons.
 	// Every adjacent pair carries the row's gap, and each button also keeps
 	// the margin the old row put before it (`.collapsed-card__settings`).
-	return width - 2*t.Space(16) -
+	room := inner -
 		gap*float32(2+buttons) -
 		t.Space(7)*float32(1+buttons) -
 		t.Space(2)*float32(buttons)
+	if cap := inner / 2; room > cap {
+		room = cap
+	}
+	return room
 }
 
 // triggerHintFits reports whether a nudge whose own text measures `natural`
