@@ -701,6 +701,12 @@ type App struct {
 	// PluginScroll keeps the plugin configuration sheet's offset, so a long
 	// schema scrolls where the user left it.
 	PluginScroll ui.ScrollState
+	// pluginNumberDrafts holds a number field's in-progress text while its box
+	// has the keyboard, so a half-typed or emptied value is not overwritten by
+	// the stored one mid-edit; an entry is dropped when the box loses focus and
+	// the field re-reads its value (the framework's `ui.NumberInput` did the
+	// same with its own local draft).
+	pluginNumberDrafts map[string]string
 
 	// installName and installVersion are the npm install field's contents.
 	installName    string

@@ -615,6 +615,33 @@ func (t Tokens) LensInset(e ui.Element) ui.Element {
 	return e
 }
 
+// FieldSlot draws the inset a text or number field is cut into the glass with:
+// base.css's `--glass-field-shadow` (`:524-527` dark, `:887-888` light) — the
+// window's contact inset crouched under the top edge plus the lens's own rim
+// (and, on dark glass, its bottom shade). It is the one layer the plugin
+// configuration sheet's 28u controls (`.plugin-config-text` /
+// `.plugin-config-number`, `plugin-config.css:97-118`) carry that a bare
+// `--glass-field` fill does not: without it the slot reads as a flat brighter
+// pane rather than as a slot cut *into* the glass. The stack consumes the lens
+// family, so `[data-glass]` grades it exactly as it grades Lens and LensInset.
+//
+// The layers append one at a time through InsetShadow, so the first layer
+// lands under the later ones; the reference lists the contact shadow first and
+// CSS paints the first shadow on top, so it goes in last — the same reversal
+// LensInset does. Light glass has no bottom shade in its field shadow, and its
+// rim is a fixed near-opaque white rather than the graded lens token.
+func (t Tokens) FieldSlot(e ui.Element) ui.Element {
+	if t.Appearance == Light {
+		e.InsetShadow(0, 1, 0, 0, ui.RGBA(255, 255, 255, 0.85))
+		e.InsetShadow(0, 1, 2, 0, ui.RGBA(0, 0, 0, 0.06))
+		return e
+	}
+	e.InsetShadow(0, -1, 0, 0, t.LensEdge)
+	e.InsetShadow(0, 1, 0, 0, t.LensRim)
+	e.InsetShadow(0, 1, 2, 0, t.ShadowContact)
+	return e
+}
+
 // ANSI is the sixteen program colours a command's own output is drawn with,
 // per appearance: base.css's `--ansi-black` through `--ansi-bright-white`.
 //

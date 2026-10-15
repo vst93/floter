@@ -100,6 +100,55 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
+> **本轮：P7-gw 插件配置表的 Number/Slider 控件面回到原版 R59（`plugin-config.css:97-192` 的
+> 28u `--glass-field` 槽 + `--glass-field-shadow`；slider 值回 `--text-caption`/`--text-muted`/tabular）**
+> ——P7-gu/P7-gv 之后「具体待办（P7-gu 重写）」只剩第 3 条，本轮取它落地。依赖检查：`go.mod` 已是
+> **v0.5.1**，`goproxy.io` 的 `@v/list` 复核仍到 v0.5.1（`api.github.com` 本轮被限流，故改用 proxy 列表），
+> 无版本可升；只对照 `main`（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+>
+> **偏离 1（Number 是框架的 `ui.NumberInput`）**：原版 R59 的 `.plugin-config-number`
+> （`plugin-config.css:153-164`，与 `.plugin-config-text` 共享 `:97-118` 的盒：`height:28u`、
+> `border:1px solid var(--glass-control-edge)`、`--radius-sm`、`background:var(--glass-field)`、
+> `box-shadow:var(--glass-field-shadow)`）是**单位在盒内、输入右对齐的 52u 槽**：`display:inline-flex`、
+> `gap:4u`、`padding:0 8u`，`__input` 宽 52u、tabular、右对齐、无自盒，`__unit` 是 `--text-caption` +
+> `--text-muted`。**本构建（改前）**：`pluginsheet.go` 的 `plugincfg.Number` 走 `a.sheetNumber` 的
+> `ui.NumberInput`——框架自带的带框面板 + `−`/`+` 步进器 + 正文步进，盒高与 `--glass-field-shadow`
+> 都不是原版的。
+>
+> **偏离 2（Slider 值文字是正文步进）**：原版 `.plugin-config-slider__value`
+> （`plugin-config.css:174-192`）是 `--text-caption` + `--text-muted` + `tabular-nums` +
+> `min-width:48u` 右对齐，轨道与值之间 `gap:10u`。**本构建（改前）**：`sheetSlider` 的值文字是
+> `t.FontSize`（正文步进）、gap 8u，没有 48u 值列。
+>
+> **落地**：
+> - `internal/settingsui/pluginsheet.go`：新增共享的 `sheetFieldSlot(c)`（28u、`Padding(0,8u)`、
+>   `RadiusSM`、`ControlEdge` 发丝、`Field` 底、`tokens.FieldSlot` 的内阴影栈），`sheetTextField` 与新的
+>   `sheetNumberSlot` 都走它；`sheetNumber` 不再用 `ui.NumberInput`，改画原版槽（`TextInputBase`
+>   宽 52u / `TextAlign(End)` / `FontFeatures("tnum")`，单位在盒内 caption+muted，gap 4u）；数值边输边
+>   应用、越界在写回时按 `clampNumber` 收进 schema 的 `[Min,Max]`，半打的文本存进 `App.pluginNumberDrafts`
+>   直到失焦再回读存储值（与框架 `ui.NumberInput` 的本地草稿同义）。`sheetSlider` 的值文字改
+>   `tokens.Caption`/`TextMuted`/tabular、放 48u 右对齐列，轨道→值 gap 回到 10u。
+> - `internal/theme/theme.go`：新增 `Tokens.FieldSlot`——base.css 的 `--glass-field-shadow`
+>   （`:524-527` dark：contact + lens-rim + lens-edge；`:887-888` light：一条固定 0.85 白 rim + 0.06
+>   黑 contact，无底影），层序与 `LensInset` 同法（后加者在上）。
+> - `internal/settingsui/settingsui.go`：`App` 新增 `pluginNumberDrafts map[string]string`。
+>
+> **验收**：`internal/settingsui/plugincontrols_test.go` 三条——
+> `TestThePluginNumberControlIsTheReferenceGlassSlot`（活 Browser 表：单位左侧一列扫出 28u 高的
+> `--glass-field` 面、与卡片面差 ≥40；单位宽度更接近 caption 而非 body）、
+> `TestThePluginSliderValueIsTheReferenceCaption`（活 Clipboard 表：值文字宽度更接近 caption 而非 body）
+> 与 `TestThePluginNumberControlAppliesAndClampsTyping`（聚焦→清空→打 "45" 得 45，不粘前值；打 "99999"
+> 写回被 clamp 到 `MaxBrowserHistoryDays`）。变异核查：把 `sheetNumber` 改回 `ui.NumberInput` → 槽高
+> 断言红；把 slider 值改回 `t.FontSize` → register 断言红；去掉草稿状态 → 打字断言红（得 450）。
+>
+> **门槛**：在隔离 worktree（HEAD + 本轮改动）`gofmt -l cmd internal` 空、`go vet ./...` 净、
+> `go test -count=1 ./...` 29 包全绿、`GOOS=linux/windows/darwin go build ./...` 三平台通过。
+>
+> **清单状态**：`docs/mygo-rewrite-status.md` 的「具体待办（P7-gu 重写）」第 3 条已落地，清单归零 →
+> 下一轮回到「对照原版排查偏离点」，换一个未审计的原版入口重新写实待办。
+> **本轮插曲（如实记录）**：与本轮并发的另一个 pi 正在同一工作树改 `uninstall.go` / `zzprobe_test.go`
+> （卸载对话框的组件化 WIP，且 `zzprobe_test.go` 编译不过），本轮不吞入，改动在隔离 worktree 完成并提交。
+
 > **本轮：P7-gu/P7-gv 插件配置表的控件面回到原版 R59（`plugin-config.css:97-118` 的
 > `.plugin-config-text` 28u 玻璃槽；`:223-260` 的 `.plugin-config-action__button` 安静 hairline 药丸，
 > 危险变体取 `--text-warning`；`:218-224` 的 6u 按钮簇；`src/i18n.ts:248,1146` 的确认问句）**
@@ -6968,16 +7017,23 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
    - 验收：渲染测试——盒高 == 28u、盒底与卡片底像素差可测（`--glass-field` 槽）、两侧 8u 内边距。
      变异核查：改回 `a.text` → 高度/槽底断言红。
 
-3. **（待做）Number / Slider 字段的控件盒不是原版的 R59 面。**
+3. **（本轮落地，P7-gw）Number / Slider 字段的控件盒不是原版的 R59 面。**
    - 原版对照：`plugin-config.css:120-182` 的 `.plugin-config-number`（28u 盒、`--glass-field` +
      `--glass-field-shadow`、8u 内边距、数值右对齐 tabular）与 `.plugin-config-slider`（轨道 16u 高、
      `accent-color`、值文字 `--text-caption` / `--text-muted`、`min-width:48u`）。
-   - 本构建（现状）：`pluginsheet.go:208-245` 的 `sheetSlider`/`sheetNumber` 用 `ui.Slider`/`ui.NumberInput`，
+   - 本构建（改前）：`pluginsheet.go` 的 `sheetSlider`/`sheetNumber` 用 `ui.Slider`/`ui.NumberInput`，
      数值行没有原版的 28u field 盒与 `--glass-field-shadow`；slider 的值文字是 `t.FontSize` 而非 caption。
-   - 落地 file:line：`sheetNumber` 的 `ui.NumberInput` 包一层 28u field 盒；`sheetSlider` 的值文字改
-     `tokens.Caption` + `TextMuted`；`boundedText` 的数值改 tabular。
-   - 验收：渲染测试——number 盒高 == 28u、盒底与卡片底有可测差；slider 值文字墨色 == `--text-muted`
-     合成值且字级 == caption。变异核查：去掉盒/改回 `FontSize` → 对应断言红。
+   - 落地 file:line（已按此落地）：新增 `sheetFieldSlot`（`Field` + `ControlEdge` + `RadiusSM` +
+     `tokens.FieldSlot`，text/number 共用），`sheetNumberSlot` 用 `TextInputBase`（52u / 右对齐 / tabular，
+     单位在盒内 caption+muted，gap 4u），`sheetSlider` 值文字改 `tokens.Caption` + `TextMuted` + tabular
+     + 48u 右对齐列、gap 10u；`internal/theme/theme.go` 加 `Tokens.FieldSlot`；`App.pluginNumberDrafts` 存
+     编辑中的草稿。详见「最近几轮」P7-gw 记录。
+   - 验收（已过）：`internal/settingsui/plugincontrols_test.go` 三条——number 槽高 == 28u 且与卡片面差
+     ≥40、单位/值是 caption register、打字边输边应用且越界 clamp。变异核查：改回 `ui.NumberInput` /
+     `t.FontSize` / 去掉草稿 → 对应断言红。
+
+> 「具体待办（P7-gu 重写）」至此 3 条全部落地，清单归零。下一轮回到「对照原版排查偏离点」，
+> 换一个全文档从未审计的原版入口（`grep -c` = 0）重新写实待办。
 
 审计入口：原版 About 页的深链行 `main:src/settings/DeepLinkRow.tsx`（它吃的行基元
 `main:src/settings/SettingsRows.tsx` 的 `SettingsAction`，以及 `main:src/styles/settings.css:682-730`

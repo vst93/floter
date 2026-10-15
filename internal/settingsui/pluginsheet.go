@@ -3,6 +3,7 @@ package settingsui
 import (
 	"math"
 	"strconv"
+	"strings"
 
 	"github.com/egoist/mygo/ui"
 
@@ -216,15 +217,26 @@ func (a *App) sheetCheckboxes(c *ui.Context, sheet PluginSheet, field plugincfg.
 // and trailed by the schema's unit word.
 func (a *App) sheetSlider(c *ui.Context, sheet PluginSheet, field plugincfg.Field, value float64) {
 	t := c.Theme()
+	tokens := a.tokens(c)
 	v := value
 	changed := false
 	a.stackedRow(c, field.Label, field.Help, func() {
-		ui.Row(c).FillWidth().Gap(t.Space(2)).AlignItems(ui.Center).Children(func() {
+		// The reference's track-and-readout row: a 10u gap between the track
+		// and its value (`.plugin-config-slider { gap: 10u }`,
+		// `plugin-config.css:165-172`).
+		ui.Row(c).FillWidth().Gap(t.Space(2.5)).AlignItems(ui.Center).Children(func() {
 			e := ui.Slider(c, &v, field.Min, field.Max).Grow(1)
 			if e.Changed() {
 				changed = true
 			}
-			ui.Text(c, boundedText(field, v)).FontSize(t.FontSize).TextColor(t.TextMuted)
+			// The value is the reference's `.plugin-config-slider__value`
+			// (`plugin-config.css:174-192`): the caption step, muted ink and
+			// tabular figures, right-aligned in a 48u column so a dragged
+			// number does not shift its neighbours.
+			ui.Row(c).MinWidth(t.Space(12)).Justify(ui.End).Children(func() {
+				ui.Text(c, boundedText(field, v)).FontSize(tokens.Caption).
+					TextColor(t.TextMuted).FontFeatures("tnum").SingleLine()
+			})
 		})
 	})
 	if changed {
@@ -232,26 +244,90 @@ func (a *App) sheetSlider(c *ui.Context, sheet PluginSheet, field plugincfg.Fiel
 	}
 }
 
-// sheetNumber is a trailing row: the label and help at the start, a stepper
-// at the end.
+// sheetNumber is a trailing row: the label and help at the start, the
+// reference's number control at the end.
 func (a *App) sheetNumber(c *ui.Context, sheet PluginSheet, field plugincfg.Field, value float64) {
-	t := c.Theme()
 	v := value
 	changed := false
 	a.row(c, field.Label, field.Help, func() {
-		ui.Row(c).Gap(t.Space(1.5)).AlignItems(ui.Center).Children(func() {
-			e := ui.NumberInput(c, &v, field.Min, field.Max, field.Step).Label(field.Label).Width(90)
-			if e.Changed() {
-				changed = true
-			}
-			if field.Unit != "" {
-				ui.Text(c, field.Unit).FontSize(t.FontSize).TextColor(t.TextMuted)
-			}
-		})
+		var slotChanged bool
+		_, slotChanged = a.sheetNumberSlot(c, field, &v)
+		changed = slotChanged
 	})
 	if changed {
-		sheet.Change(field.Key, v)
+		sheet.Change(field.Key, clampNumber(field, v))
 	}
+}
+
+// sheetNumberSlot draws the reference's number control (R59): the unit rides
+// *inside* the field slot beside the input, and the input right-aligns against
+// it (`plugin-config.css:120-164`). It is deliberately **not** the framework's
+// `ui.NumberInput`: that control draws its own bordered pane and a pair of
+// `−`/`+` steppers the reference never had, so inside the reference's 28u slot
+// it read as a box within a box. A parseable keystroke applies at once and the
+// caller clamps the reported value to the schema's bounds; while the box keeps
+// the keyboard, its in-progress text lives in `pluginNumberDrafts` so a
+// half-typed or emptied value is not overwritten by the stored one mid-edit.
+//
+// It returns the slot for a caller that wants to bind it, and whether the
+// frame's typing changed the value.
+func (a *App) sheetNumberSlot(c *ui.Context, field plugincfg.Field, value *float64) (ui.Element, bool) {
+	t := c.Theme()
+	tokens := a.tokens(c)
+	if a.pluginNumberDrafts == nil {
+		a.pluginNumberDrafts = map[string]string{}
+	}
+	draft, ok := a.pluginNumberDrafts[field.Key]
+	if !ok {
+		draft = formatFieldNumber(*value)
+	}
+	changed := false
+	// The number box is the field slot plus the reference's 4u gap between
+	// the input and its unit (`.plugin-config-number { gap: 4u }`,
+	// `plugin-config.css:153-157`).
+	slot := a.sheetFieldSlot(c).Gap(t.Space(1))
+	slot.Children(func() {
+		// The input is the reference's own `.plugin-config-number__input`: 52u
+		// wide, right-aligned, tabular figures, no box of its own (the slot is
+		// the box).
+		text := draft
+		in := ui.TextInputBase(c, &text).Width(t.Space(13)).
+			TextAlign(ui.End).FontFeatures("tnum").Label(field.Label)
+		if in.Changed() {
+			a.pluginNumberDrafts[field.Key] = text
+			if parsed, err := strconv.ParseFloat(strings.TrimSpace(text), 64); err == nil {
+				*value = parsed
+				changed = true
+			}
+		} else if !in.Focused() {
+			// The keyboard is elsewhere: the field reads the stored value
+			// again, so a refused write never strands a half-typed one.
+			delete(a.pluginNumberDrafts, field.Key)
+		}
+		if field.Unit != "" {
+			// `.plugin-config-number__unit` is the caption step in the muted
+			// register (`plugin-config.css:159-164`), not the control's body
+			// step.
+			ui.Text(c, field.Unit).FontSize(tokens.Caption).
+				TextColor(t.TextMuted).SingleLine()
+		}
+	})
+	return slot, changed
+}
+
+// sheetFieldSlot draws the overlay's field box (R59, `plugin-config.css:97-118`):
+// the reference's 28u control — a `--glass-field` fill, a
+// `--glass-control-edge` hairline, the `--radius-sm` corner and the
+// `--glass-field-shadow` inset stack. A text or number control's value lives
+// inside it; the control itself is the caller's child, so the slot never draws
+// a second surface under it.
+func (a *App) sheetFieldSlot(c *ui.Context) ui.Element {
+	t := c.Theme()
+	tokens := a.tokens(c)
+	slot := ui.Row(c).MinHeight(t.Space(7)).AlignItems(ui.Center).
+		Padding(0, t.Space(2)).Radius(tokens.RadiusSM).
+		Border(1, tokens.ControlEdge).Background(tokens.Field)
+	return tokens.FieldSlot(slot)
 }
 
 // sheetTextField draws the overlay's own text control (R59,
@@ -263,15 +339,11 @@ func (a *App) sheetNumber(c *ui.Context, sheet PluginSheet, field plugincfg.Fiel
 // the framework's look-free base, so its own padding, surface and border do
 // not fight the slot.
 func (a *App) sheetTextField(c *ui.Context, placeholder string, value *string) ui.Element {
-	t := c.Theme()
-	tokens := a.tokens(c)
-	field := ui.Row(c).FillWidth().MinHeight(t.Space(7)).AlignItems(ui.Center).
-		Padding(0, t.Space(2)).Radius(tokens.RadiusSM).
-		Border(1, tokens.ControlEdge).Background(tokens.Field)
-	field.Children(func() {
+	slot := a.sheetFieldSlot(c).FillWidth()
+	slot.Children(func() {
 		ui.TextInputBase(c, value).Placeholder(placeholder).Grow(1)
 	})
-	return field
+	return slot
 }
 
 // sheetActionButton draws one of the overlay's action buttons (R38,
@@ -372,6 +444,24 @@ func quantize(value, step float64) float64 {
 		return value
 	}
 	return math.Round(value/step) * step
+}
+
+// formatFieldNumber is the number a number field edits: the shortest decimal
+// spelling of the value, so "30" shows as "30" and not "30.000000".
+func formatFieldNumber(value float64) string {
+	return strconv.FormatFloat(value, 'f', -1, 64)
+}
+
+// clampNumber holds a typed value inside the schema's bounds, as the
+// framework's number input clamped a stepped one.
+func clampNumber(field plugincfg.Field, value float64) float64 {
+	if value < field.Min {
+		return field.Min
+	}
+	if value > field.Max {
+		return field.Max
+	}
+	return value
 }
 
 func stringsOf(value any) []string {
