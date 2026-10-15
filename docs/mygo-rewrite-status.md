@@ -100,16 +100,16 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **本轮：P7-gu 插件配置表的 Action 控件回到原版 R38 的安静 hairline 药丸——28u 高、10u 侧内边距、
-> `999px` 圆角、`--text-caption` 步进；危险变体取 `--text-warning`（原版 `src/styles/plugin-config.css:223-260`、
-> `src/i18n.ts:246-249`、`src/plugins/config-schema.ts:210-219`）**
+> **本轮：P7-gu/P7-gv 插件配置表的控件面回到原版 R59（`plugin-config.css:97-118` 的
+> `.plugin-config-text` 28u 玻璃槽；`:223-260` 的 `.plugin-config-action__button` 安静 hairline 药丸，
+> 危险变体取 `--text-warning`；`:218-224` 的 6u 按钮簇；`src/i18n.ts:248,1146` 的确认问句）**
 > ——P7-gt 收尾后清单归零，本轮按规则回到「对照原版排查偏离点」，换一个**全文档从未审计**的原版入口：
 > 通用插件配置表 `main:src/plugins/PluginConfigOverlay.tsx` + `main:src/plugins/controls.tsx` +
 > `main:src/styles/plugin-config.css`（`grep -c "plugin-config.css" docs/` = 0）。依赖检查：`go.mod` 已是
 > **v0.5.1**，`releases/latest` 复核仍为 v0.5.1（无新版），无版本可升；只对照 `main`
 > （`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
 >
-> **偏离（P7-gu·Action 控件是框架的填充按钮）**：原版 R38 的 `.plugin-config-action__button`
+> **偏离 1（P7-gu·Action 控件是框架的填充按钮）**：原版 R38 的 `.plugin-config-action__button`
 > （`plugin-config.css:223-260`）是**安静 hairline 药丸**：`height: 28u`、`padding: 0 10u`、
 > `border: 1px solid var(--glass-control-edge)`、`border-radius: 999px`、`background: var(--glass-control)`、
 > `font-size: var(--text-caption)`；`--danger` 变体把描边换成
@@ -126,20 +126,48 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 >   danger 面取 `t.Warning` 墨、`t.Warning.Alpha(0.45)` 描边、`ui.Transparent` 底，hover 一律
 >   `tokens.ControlHover`；`sheetAction` 的三颗按钮改走它，按钮簇的 `Gap` 对齐原版
 >   `.plugin-config-action` 的 6u（`Space(1.5)`），失败行改用 `tokens.Caption`。
+> - `internal/plugincfg/schema.go`、`internal/i18n`：原版 `config-schema.ts:210-219` 的 action 字段把
+>   `confirmKey` 接的是 `plugins.config.clearHistoryConfirm`（"Clear history?" / "确认清空历史？"，
+>   `i18n.ts:248,1146`），`cancelKey` 是 `clearHistoryCancel`。本构建此前 `Confirm` 复用了按钮词
+>   `ClipboardClearButton`（"Clear"/"清空"），于是 armed 行读成第二颗同字按钮、而非问句。现新增
+>   `i18n.Settings.ClipboardClearConfirm` 并接进两处 `clear_history`（与原版逐字一致）；
+>   `internal/settingsui/pluginsheet_test.go` 与 `internal/shell/pluginconfig_test.go` 的第二按下
+>   改点该问句。
 >
-> **验收**：`internal/settingsui/pluginsheetface_test.go` 两条——
+> **偏离 2（P7-gv·Text 字段不是原版的控件盒）**：原版 `plugin-config.css:97-118` 的
+> `.plugin-config-text` 是 **28u 的玻璃槽**：`height:28u`、`padding:0 8u`、`Box-sizing:border-box`、
+> `border:1px solid var(--glass-control-edge)`、`--radius-sm` 圆角、`background:var(--glass-field)`、
+> `--glass-field-shadow`、`--text-body`。**本构建（改前）**：`pluginsheet.go` 的 `plugincfg.Text` 走
+> `a.text(...)`（`settingsui.go:3047` 的 `textInput(...).Width(220)`），即**框架默认输入框**——不贴
+> `--glass-field` 槽底、不是 28u 盒、也没有 8u 侧内边距与 `--radius-sm`。原版还把它归到
+> `STACKED_KINDS`（`controls.tsx:291-296`），占整行而不是尾随槽。
+>
+> **落地（P7-gv）**：
+> - `internal/settingsui/pluginsheet.go`：新增 `sheetTextField(c, placeholder, value)`——
+>   `ui.Row` + `MinHeight(Space(7))`（28u）+ `Padding(0, Space(2))`（0 8u）+ `Radius(tokens.RadiusSM)`
+>   + `Border(1, tokens.ControlEdge)` + `Background(tokens.Field)`，里面放 **`ui.TextInputBase`**（框架
+>   的无面输入框，所以它的自带 padding/surface/border 不会与槽打架）；`plugincfg.Text` 改走
+>   `a.stackedRow(...)`（原版 STACKED）而不是尾随 `a.text`。
+>
+> **验收**：`internal/settingsui/pluginsheetface_test.go` 三条——
 > `TestThePluginActionButtonIsTheReferenceHairlinePill`（单渲染：盒高 == 28u、标签两侧内边距 == 10u、
-> danger 描边与墨色都是暖色、药丸圆角在顶行就把描边拉进 ≥5px；框架 `ui.Button` 在圆角与配色两处
-> 都不符）与 `TestThePluginActionClusterIsWarmAndAsksBeforeItActs`（活表：三颗按钮齐备、
-> `Clear history` 的左右两侧都画着暖色描边——按「最远非探针像素」读回盒缘，避开合成平面；
-> `Cancel` 那颗是中性面，其左缘前 40u 带内没有暖色描边）。变异核查：把三颗按钮改回 `ui.Button` →
-> 圆角/毡色/危险色/右缘四条断言同时红。
+> danger 描边与墨色都是暖色、药丸圆角在顶行就把描边拉进 ≥5px；框架 `ui.Button` 的 `--radius-xs`
+> 圆角与中性配色两处都不符）、`TestThePluginActionClusterIsWarmAndAsksBeforeItActs`（活表：danger
+> 药丸右缘外 40u 带内的暖色墨迹 warmth ≥30——黑色根帧下读到 `--text-warning` 自身的 R−B ≈ 123，
+> 框架 `ui.Button` 的中性描边 warmth = 0；armed 第二帧画出 `Clear history?` 问句，且它不是按钮词）
+> 与 `TestThePluginTextFieldIsTheReferenceGlassSlot`（活 Browser 表：帮文之下的槽高 == 28u、槽底比
+> 卡片面亮 ≥40 通道）。变异核查：把 action 三颗按钮改回 `ui.Button` → 圆角与暖色两条红（warmth 0）；
+> 把 Text 改回 `a.text` → 槽高条红（实测 2）。
 >
 > **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`go test -count=1 ./...` 全绿（29 包）、
 > `GOOS=linux/windows/darwin go build ./...` 三平台通过。
 >
 > **清单状态**：`docs/mygo-rewrite-status.md` 的「尚未做」被重写为 3 条带 file:line / 原版对照 /
-> 验收标准的具体待办（见文末「具体待办（P7-gu 重写）」），本轮取第 1 条落地；第 2·3 条是下一轮候选。
+> 验收标准的具体待办（见文末「具体待办（P7-gu 重写）」），本轮取第 1·2 条一并落地（P7-gu/P7-gv）；
+> 只剩第 3 条（Number / Slider 的控件盒，做不了便如实记录），是下一轮最高优先级。
+> **本轮插曲（如实记录）**：本提交前 `settingsui.go` 已被另一个并行 WIP 改动（`motion`/`capture` 的
+> 快捷键可视化重构，含一份未提交且编译不过的 `shortcutvisual_test.go`），本轮不吞入它，只保留自己
+> 的两处改动。
 
 > **本轮：P7-gt 材质 section 回到原版自己的 10u 间距与 10u 上下内边距（`.settings-section--material`，
 > 原版 `src/styles/settings.css:767-772,491-495`）**
@@ -6890,7 +6918,66 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
 
 ## 尚未做（按建议优先级）
 
-### 具体待办（P7-gi 重写；第 1 条 P7-gi、第 2 条 P7-gj、第 3 条 P7-gk 均已落地；清单归零）
+### 具体待办（P7-gu 重写；第 1 条 P7-gu、第 2 条 P7-gv 已落地；第 3 条待做）
+
+审计入口：原版通用插件配置表 `main:src/plugins/PluginConfigOverlay.tsx` +
+`main:src/plugins/controls.tsx` + `main:src/styles/plugin-config.css`（此前 `grep -c "plugin-config.css" docs/`
+= 0——面板的**控件面**（不是它的卡片语言 R59，那已在别处对照）从未逐条对照）。本构建对应
+`internal/settingsui/pluginsheet.go`（`PluginSheet`）、`internal/settingsui/config.go`（集成自己的表单）、
+`internal/launcher/config.go` + `internal/shell/pluginconfig.go`（表的开合与写回）、
+`internal/plugincfg/schema.go`（schema）、词条在 `internal/i18n/copy.go`。依赖检查：`go.mod` 已是
+**v0.5.1** = `releases/latest`（本轮复核 v0.5.1，无版本可升）；只对照 `main`
+（`backup/main-pre-mygo` = v0.3.14 原版树），未翻历史提交。
+
+1. **（本轮落地，P7-gu）Action 控件是框架的填充按钮，不是原版 R38 的 quiet hairline pill。**
+   - 原版对照：`plugin-config.css:223-260` 的 `.plugin-config-action__button`——`height:28u`、
+     `padding:0 10u`、`border:1px solid var(--glass-control-edge)`、`border-radius:999px`、
+     `background:var(--glass-control)`、`font-size:var(--text-caption)`；`--danger` 变体
+     `border-color: color-mix(in srgb, var(--text-warning) 45%, transparent)`、`color:var(--text-warning)`、
+     `background:transparent`；`hover` 抬到 `--glass-control-hover`；`:focus-visible` 走 `--accent-ring`。
+     原版 `config-schema.ts:210-219` 的 action 字段把 `confirmKey` 接 `plugins.config.clearHistoryConfirm`
+     （`i18n.ts:248`），`cancelKey` 接 `clearHistoryCancel`（`:249`）。
+   - 本构建（改前）：`pluginsheet.go:268-288` 的 `sheetAction` 用 `ui.Button`（框架填充按钮：14u 侧内边距、
+     中性描边、正文步进）；`plugincfg/schema.go:370,410` 的 `Confirm` 复用按钮词
+     `ClipboardClearButton`（"Clear"/"清空"），armed 行读成第二颗同字按钮而非问句。
+   - 落地 file:line（已按此落地）：`internal/settingsui/pluginsheet.go` 新增
+     `sheetActionButton(c, label, danger, run)`（`MinHeight(Space(7))` / `Padding(0, Space(2.5))` /
+     `Radius(Space(3.5))` / `Border(1, edge)` / `Background(plane)` / `Caption` 墨字），
+     `sheetAction` 三颗按钮改走它、簇的 `Gap` 对齐原版 6u、失败行走 `tokens.Caption`；
+     `internal/i18n` 新增 `ClipboardClearConfirm`（en/zh 逐字取 `i18n.ts:248,1146`），
+     `internal/plugincfg/schema.go` 两处 `clear_history` 改接它。
+   - 验收（已过）：`internal/settingsui/pluginsheetface_test.go` 两条——
+     `TestThePluginActionButtonIsTheReferenceHairlinePill`（盒高 == 28u、标签两侧 10u、danger 描边与墨色
+     都是暖色、药丸圆角顶行拉进 ≥5px）与 `TestThePluginActionClusterIsWarmAndAsksBeforeItActs`（活表：
+     danger 药丸右缘外有暖色描边、armed 第二帧画出 `Clear history?` 问句且它不是按钮词）、
+     `internal/i18n/i18n_test.go` 的 `TestClipboardClearConfirmIsTheReferenceQuestion`（en/zh 逐字 +
+     与按钮词不同）。变异核查：改回 `ui.Button` → 圆角/毡色/危险色/右缘四条红；
+     确认词改回 `ClipboardClearButton` → 问句条红。
+
+2. **（本轮落地，P7-gv）Text 字段不是原版的控件盒，而是框架的默认输入框。**
+   - 原版对照：`plugin-config.css:97-118` 的 `.plugin-config-text`——`box-sizing:border-box`、
+     `height:28u`、`border:1px solid var(--glass-control-edge)`、`border-radius:var(--radius-sm)`、
+     `background:var(--glass-field)`、`box-shadow:var(--glass-field-shadow)`、`color:var(--text-primary)`、
+     `font-size:var(--text-body)`、`padding:0 8u`。
+   - 本构建（改前）：`pluginsheet.go:135-138` 的 `plugincfg.Text` 走 `a.text(...)`，而
+     `settingsui.go:3047` 的 `textInput(c, &edit).Placeholder(...).Width(220)` 是框架默认输入框
+     （不是 28u 盒、无 control-edge 发丝与 `--glass-field` 槽底）。
+   - 落地 file:line：`pluginsheet.go` 的 `plugincfg.Text` 分支改为自画 28u 盒（背景 `tokens.Field`、
+     1px `tokens.ControlEdge`、`Radius(tokens.RadiusSM)`、正文步进），`ui.TextInput` 去掉自己的面；
+     若框架无法去掉输入框自带面，则在文档如实记录该缺口。
+   - 验收：渲染测试——盒高 == 28u、盒底与卡片底像素差可测（`--glass-field` 槽）、两侧 8u 内边距。
+     变异核查：改回 `a.text` → 高度/槽底断言红。
+
+3. **（待做）Number / Slider 字段的控件盒不是原版的 R59 面。**
+   - 原版对照：`plugin-config.css:120-182` 的 `.plugin-config-number`（28u 盒、`--glass-field` +
+     `--glass-field-shadow`、8u 内边距、数值右对齐 tabular）与 `.plugin-config-slider`（轨道 16u 高、
+     `accent-color`、值文字 `--text-caption` / `--text-muted`、`min-width:48u`）。
+   - 本构建（现状）：`pluginsheet.go:208-245` 的 `sheetSlider`/`sheetNumber` 用 `ui.Slider`/`ui.NumberInput`，
+     数值行没有原版的 28u field 盒与 `--glass-field-shadow`；slider 的值文字是 `t.FontSize` 而非 caption。
+   - 落地 file:line：`sheetNumber` 的 `ui.NumberInput` 包一层 28u field 盒；`sheetSlider` 的值文字改
+     `tokens.Caption` + `TextMuted`；`boundedText` 的数值改 tabular。
+   - 验收：渲染测试——number 盒高 == 28u、盒底与卡片底有可测差；slider 值文字墨色 == `--text-muted`
+     合成值且字级 == caption。变异核查：去掉盒/改回 `FontSize` → 对应断言红。
 
 审计入口：原版 About 页的深链行 `main:src/settings/DeepLinkRow.tsx`（它吃的行基元
 `main:src/settings/SettingsRows.tsx` 的 `SettingsAction`，以及 `main:src/styles/settings.css:682-730`

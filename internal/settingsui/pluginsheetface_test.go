@@ -5,6 +5,9 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"floter/internal/i18n"
+	"floter/internal/plugincfg"
+	"floter/internal/settings"
 	"floter/internal/theme"
 )
 
@@ -96,5 +99,111 @@ func TestThePluginActionButtonIsTheReferenceHairlinePill(t *testing.T) {
 	}
 	if inset := leftmost - box.X; inset < 5 {
 		t.Errorf("the corner inset at the top row = %v, want a pill's wide curve", inset)
+	}
+}
+
+// The live sheet's two faces, driven through the frame the app really draws:
+// the resting row offers the destructive command as a danger hairline pill,
+// and the armed row asks the reference's own question. The cluster is read by
+// pixel so a framework `ui.Button` (a neutral, near-square, body-step control)
+// cannot pass. The root is painted black so the translucent danger hairline
+// composites to its own warm hue instead of over the frame's glass.
+func TestThePluginActionClusterIsWarmAndAsksBeforeItActs(t *testing.T) {
+	copy := i18n.For("en").Settings
+	schema, values := plugincfg.Clipboard(copy, settings.DefaultClipboardSettings())
+	a := New(newStore(t), Actions{})
+	armed := ""
+	sheet := PluginSheet{
+		Schema: schema, Values: values,
+		Arm:   func(key string) { armed = key },
+		Unarm: func(key string) { armed = "" },
+	}
+	render := func() *ui.Tester {
+		tt := ui.NewTester(func(c *ui.Context) {
+			c.Root().Background(ui.RGB(0, 0, 0))
+			a.PluginSheet(c, sheet)
+		}, 720, 700)
+		tt.Frame()
+		return tt
+	}
+
+	tt := render()
+	label, ok := tt.Find(copy.ClipboardClear)
+	if !ok {
+		t.Fatalf("the action is missing: %q", tt.Texts())
+	}
+	// The danger pill's hairline is the warmest ink to the label's right — the
+	// framework Button's neutral border has no warm side at all.
+	best := -256
+	for x := int(label.X+label.W) + 1; x < int(label.X+label.W)+40; x++ {
+		p := sample(tt, float32(x), label.Y+label.H/2)
+		if d := int(p.R) - int(p.B); d > best {
+			best = d
+		}
+	}
+	if best < 30 {
+		t.Errorf("the action's hairline is not warm (warmth %d)", best)
+	}
+
+	// The first press arms it; the second frame asks the question.
+	if err := tt.Click(copy.ClipboardClear); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if armed != "clear_history" {
+		t.Fatalf("armed = %q", armed)
+	}
+	sheet.Armed = armed
+	tt = render()
+	if !tt.HasText(copy.ClipboardClearConfirm) {
+		t.Errorf("the armed row does not ask %q: %q", copy.ClipboardClearConfirm, tt.Texts())
+	}
+	if copy.ClipboardClearConfirm == copy.ClipboardClearButton {
+		t.Error("the confirmation word is the button's own word")
+	}
+}
+
+// R59's `.plugin-config-text` (`plugin-config.css:97-118`) is a 28u slot cut
+// into the glass: a `--glass-field` fill, a `--glass-control-edge` hairline, a
+// `--radius-sm` corner, the body step and 8u of side padding. The old port
+// handed the field to the framework's `ui.TextInput`, whose own padded
+// surface is none of those numbers. The live browser sheet is the one schema
+// with a `text` field, so the row is read there — its label and its field box
+// by pixel.
+func TestThePluginTextFieldIsTheReferenceGlassSlot(t *testing.T) {
+	copy := i18n.For("en").Settings
+	store := newStore(t)
+	a := New(store, Actions{})
+	schema, values := plugincfg.Browser(copy, settings.DefaultBrowserPlugin(), nil)
+	sheet := PluginSheet{Schema: schema, Values: values}
+	tt := renderSheet(t, a, sheet, 720, 1400)
+
+	if !tt.HasText(copy.BrowserCustomDir) {
+		t.Fatalf("the text field's label is missing: %q", tt.Texts())
+	}
+	hint, ok := tt.Find(copy.BrowserCustomDirHint)
+	if !ok {
+		t.Fatalf("the text field's help is missing: %q", tt.Texts())
+	}
+	// The field is a stacked row: its slot sits under the label and its help,
+	// so scan a column below the help for the recessed plane — the run of
+	// rows noticeably brighter than the card's own `--glass-control` surface.
+	card := sample(tt, 300, hint.Y-4)
+	rows := []int{}
+	for y := int(hint.Y+hint.H) + 2; y < int(hint.Y+hint.H)+80; y++ {
+		if p := sample(tt, 300, float32(y)); int(p.R)-int(card.R) > 40 {
+			rows = append(rows, y)
+		}
+	}
+	if len(rows) == 0 {
+		t.Fatalf("no field slot under %q's help: %q", copy.BrowserCustomDir, tt.Texts())
+	}
+	if h := rows[len(rows)-1] - rows[0] + 1; h < 27 || h > 29 {
+		t.Errorf("the field slot's height = %v, want the reference's 28u", h)
+	}
+	// The slot is a recessed plane of its own, not the row's surface: its
+	// fill differs from the card the rows sit on.
+	if delta := channelDelta(card, sample(tt, 300, float32(rows[1]))); delta < 40 {
+		t.Errorf("the field slot is not a distinct plane: card %v (delta %d)", card, delta)
 	}
 }

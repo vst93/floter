@@ -134,8 +134,17 @@ func (a *App) sheetField(c *ui.Context, sheet PluginSheet, field plugincfg.Field
 		a.sheetNumber(c, sheet, field, number)
 	case plugincfg.Text:
 		text, _ := value.(string)
-		a.text(c, field.Label, field.Help, field.Placeholder, text,
-			func(next string) { sheet.Change(field.Key, next) })
+		edit := text
+		// The reference stacks a free-text field: it takes the row's full
+		// width, not a trailing slot (`.plugin-config-text { width: 100% }`,
+		// `plugin-config.css:110-113`; `STACKED_KINDS` in
+		// `plugins/controls.tsx:291-296`).
+		a.stackedRow(c, field.Label, field.Help, func() {
+			input := a.sheetTextField(c, field.Placeholder, &edit).Label(field.Label)
+			if input.Submitted() {
+				sheet.Change(field.Key, edit)
+			}
+		})
 	case plugincfg.Action:
 		a.sheetAction(c, sheet, field)
 	}
@@ -243,6 +252,26 @@ func (a *App) sheetNumber(c *ui.Context, sheet PluginSheet, field plugincfg.Fiel
 	if changed {
 		sheet.Change(field.Key, v)
 	}
+}
+
+// sheetTextField draws the overlay's own text control (R59,
+// `plugin-config.css:97-118`). It is deliberately not the framework's
+// `ui.TextInput`: the reference's field is a 28u slot cut into the glass — a
+// `--glass-field` fill, a `--glass-control-edge` hairline, the `--radius-sm`
+// corner, the body step and 8u of side padding, with the field's hairline and
+// inset shadow telling the user the value lives inside it. The input itself is
+// the framework's look-free base, so its own padding, surface and border do
+// not fight the slot.
+func (a *App) sheetTextField(c *ui.Context, placeholder string, value *string) ui.Element {
+	t := c.Theme()
+	tokens := a.tokens(c)
+	field := ui.Row(c).FillWidth().MinHeight(t.Space(7)).AlignItems(ui.Center).
+		Padding(0, t.Space(2)).Radius(tokens.RadiusSM).
+		Border(1, tokens.ControlEdge).Background(tokens.Field)
+	field.Children(func() {
+		ui.TextInputBase(c, value).Placeholder(placeholder).Grow(1)
+	})
+	return field
 }
 
 // sheetActionButton draws one of the overlay's action buttons (R38,
