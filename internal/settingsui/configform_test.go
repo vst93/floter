@@ -3,6 +3,7 @@ package settingsui
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -54,15 +55,23 @@ func configFormApp(t *testing.T, schema []ConfigField, values map[string]any) (*
 		Config: schema, ConfigValues: values,
 	}
 	a := oneIntegrationApp(integration, Actions{
-		SaveConfiguration: func(id string, values map[string]any) error {
+		SaveConfiguration: func(id string, values map[string]any, done func(error)) {
 			calls.saved = append(calls.saved, values)
-			return nil
+			if done != nil {
+				done(nil)
+			}
 		},
-		ExportConfiguration: func(id string, values map[string]any) {
+		ExportConfiguration: func(id string, values map[string]any, done func(error)) {
 			calls.exports = append(calls.exports, id)
+			if done != nil {
+				done(nil)
+			}
 		},
-		CopyConfiguration: func(id string, values map[string]any) {
+		CopyConfiguration: func(id string, values map[string]any, done func(error)) {
 			calls.copied = append(calls.copied, configCopy{id: id, values: values})
+			if done != nil {
+				done(nil)
+			}
 		},
 		NotifySuccess: func(text string) {
 			calls.success = append(calls.success, text)
@@ -314,7 +323,7 @@ func TestTheConfigMultiselectIsOneListBox(t *testing.T) {
 			c.SetTheme(tokens.Theme)
 			ui.Column(c).Padding(24).Children(func() {
 				a.extensionMetrics(func() {
-					a.configMultiselectBox(c, func() {}).Bind(&ref)
+					a.configMultiselectBox(c, nil, func() {}).Bind(&ref)
 				})
 			})
 			rect = c.Resolve(ref).Bounds()
@@ -339,5 +348,424 @@ func TestTheConfigMultiselectIsOneListBox(t *testing.T) {
 	if alpha.X <= label.X+60 {
 		t.Errorf("the option at x=%v sits on/near the label column at x=%v; it belongs inside the list box in the second column",
 			alpha.X, label.X)
+	}
+}
+
+// The schema bounds the reference left to the native control
+// (`min={field.minimum ?? undefined}` … `ExtensionsPanel.tsx:3251-3256`) are
+// said *at the field*: the browser drew its own validity state on the input,
+// and a native pane has none, so the sentence rides the field's own caption
+// line — the same column as its description — rather than only the form's
+// bottom line. `ConfigValueProblem` is the one place the bounds are checked, so
+// the host's validation and the form's hint cannot drift.
+func TestTheConfigFieldCarriesItsOwnBoundsHint(t *testing.T) {
+	en := i18n.For("en").Settings
+	minimum, maximum := 0.5, 9.0
+	minLength := 4
+	number := ConfigField{Key: "retries", Label: "Retries", Type: "number", Minimum: &minimum, Maximum: &maximum}
+	text := ConfigField{Key: "endpoint", Label: "Endpoint", Type: "text", MinLength: &minLength}
+
+	if _, problem := ConfigValueProblem(number, "3", en); problem != "" {
+		t.Errorf("an in-range number reported %q, want none", problem)
+	}
+	if _, problem := ConfigValueProblem(number, "12", en); problem != en.ConfigOutOfRange {
+		t.Errorf("an out-of-range number reported %q, want %q", problem, en.ConfigOutOfRange)
+	}
+	if _, problem := ConfigValueProblem(number, "abc", en); problem != en.ConfigNumber {
+		t.Errorf("a non-number reported %q, want %q", problem, en.ConfigNumber)
+	}
+	if _, problem := ConfigValueProblem(text, "ab", en); problem != en.ConfigOutOfLength {
+		t.Errorf("a too-short text reported %q, want %q", problem, en.ConfigOutOfLength)
+	}
+	// An empty number is no value at all — the reference's
+	// `event.target.value === "" ? null` — and an empty text is legal.
+	if value, problem := ConfigValueProblem(number, "", en); problem != "" || value != nil {
+		t.Errorf("an empty number gave (%v, %q), want (nil, \"\")", value, problem)
+	}
+	if _, problem := ConfigValueProblem(text, "", en); problem != "" {
+		t.Errorf("an empty text reported %q, want none", problem)
+	}
+
+	// The sentence the form shows for one field: a field with a problem wears
+	// it, and the problem does not borrow between fields.
+	a, _ := configFormApp(t, []ConfigField{number}, map[string]any{})
+	a.noteConfigFieldError("dev.floter.tool", "retries", en.ConfigOutOfRange)
+	tt := integrationPage(t, a, 900, 1400)
+	if !tt.HasText(en.ConfigOutOfRange) {
+		t.Errorf("the field hint is not drawn at the field: %q", tt.Texts())
+	}
+	if got := a.configFieldProblem(a.Integrations()[0], number); got != en.ConfigOutOfRange {
+		t.Errorf("the field's own hint = %q, want %q", got, en.ConfigOutOfRange)
+	}
+	other := ConfigField{Key: "other", Label: "Other", Type: "number"}
+	if got := a.configFieldProblem(a.Integrations()[0], other); got != "" {
+		t.Errorf("a neighbouring field borrowed the hint: %q", got)
+	}
+	a.clearConfigFieldError("dev.floter.tool", "retries")
+	if got := a.configFieldProblem(a.Integrations()[0], number); got != "" {
+		t.Errorf("the hint survived a satisfied edit: %q", got)
+	}
+}
+
+// Folding a configuration form whose draft has unsaved edits is the reference's
+// own two-step (`if (configDirty) { setDetailsDiscardArmed(true); return }`,
+// `ExtensionsPanel.tsx:2056-2060`): the first press asks, the panel draws the
+// discard bar under the form, and only an answer folds it. The old port flipped
+// the form shut on one press and dropped the edits silently.
+func TestFoldingADirtyConfigFormAsksFirst(t *testing.T) {
+	en := i18n.For("en").Settings
+	a, _ := configFormApp(t,
+		[]ConfigField{{Key: "token", Label: "Token", Type: "text"}},
+		map[string]any{"token": "abc"},
+	)
+	tt := integrationPage(t, a, 900, 1400)
+	if !tt.HasText(en.ConfigOpen) {
+		t.Fatalf("the Configure row is missing: %q", tt.Texts())
+	}
+
+	// Dirtying the draft and pressing Configure asks rather than closing.
+	a.draft(a.Integrations()[0]).values["token"] = "edited"
+	tt.Frame()
+	if err := tt.Click(en.ConfigOpen); err != nil {
+		t.Fatalf("press %q: %v", en.ConfigOpen, err)
+	}
+	tt.Frame()
+	if !tt.HasText(en.ConfigDiscardConfirm) {
+		t.Errorf("a dirty form folded with no question: %q", tt.Texts())
+	}
+	if !tt.HasText(en.ConfigDiscard) {
+		t.Errorf("the discard bar has no %q answer: %q", en.ConfigDiscard, tt.Texts())
+	}
+	// The form stayed open, and the two-step did not lose the edit.
+	if !a.configOpen["dev.floter.tool"] {
+		t.Error("the first press folded the form instead of asking")
+	}
+	if !tt.HasText(en.ConfigUnsaved) {
+		t.Errorf("the edit was lost while the question was up: %q", tt.Texts())
+	}
+
+	// Cancel answers "keep": the question goes and the form stays open.
+	if err := tt.Click(en.ConfigCancel); err != nil {
+		t.Fatalf("press %q: %v", en.ConfigCancel, err)
+	}
+	tt.Frame()
+	if tt.HasText(en.ConfigDiscardConfirm) {
+		t.Errorf("Cancel left the question up: %q", tt.Texts())
+	}
+	if !a.configOpen["dev.floter.tool"] {
+		t.Error("Cancel folded the form")
+	}
+
+	// Discard answers "drop": the question and the form both go, and the draft
+	// with them.
+	a.draft(a.Integrations()[0]).values["token"] = "edited again"
+	tt.Frame()
+	if err := tt.Click(en.ConfigOpen); err != nil {
+		t.Fatalf("press %q: %v", en.ConfigOpen, err)
+	}
+	tt.Frame()
+	if !tt.HasText(en.ConfigDiscardConfirm) {
+		t.Fatalf("the second ask did not appear: %q", tt.Texts())
+	}
+	if err := tt.Click(en.ConfigDiscard); err != nil {
+		t.Fatalf("press %q: %v", en.ConfigDiscard, err)
+	}
+	tt.Frame()
+	if a.configOpen["dev.floter.tool"] {
+		t.Error("Discard left the form open")
+	}
+	if tt.HasText(en.ConfigDiscardConfirm) {
+		t.Errorf("Discard left the question up: %q", tt.Texts())
+	}
+	// A fold that was asked for *always* drops the draft: the next open reads
+	// the stored values.
+	draft := a.draft(a.Integrations()[0])
+	if draft.values["token"] != "abc" {
+		t.Errorf("the draft kept an edit: %v", draft.values)
+	}
+}
+
+// A form that matches what is stored folds on one press: the reference only
+// asked when `configDirty` (`ExtensionsPanel.tsx:2056-2060`).
+func TestFoldingACleanConfigFormDoesNotAsk(t *testing.T) {
+	en := i18n.For("en").Settings
+	a, _ := configFormApp(t,
+		[]ConfigField{{Key: "token", Label: "Token", Type: "text"}},
+		map[string]any{"token": "abc"},
+	)
+	tt := integrationPage(t, a, 900, 1400)
+	if err := tt.Click(en.ConfigOpen); err != nil {
+		t.Fatalf("press %q: %v", en.ConfigOpen, err)
+	}
+	tt.Frame()
+	if a.configOpen["dev.floter.tool"] {
+		t.Error("a clean form did not fold on the first press")
+	}
+	if tt.HasText(en.ConfigDiscardConfirm) {
+		t.Errorf("a clean form asked: %q", tt.Texts())
+	}
+	// A form that folded clean reopens folded away from its edits: this one had
+	// none, so the token still reads what is stored.
+	if got := a.draft(a.Integrations()[0]).values["token"]; got != "abc" {
+		t.Errorf("the reopened draft reads %v, want the stored %q", got, "abc")
+	}
+}
+
+// The toolbar's two icon-buttons share the reference's one `configOperation`
+// slot: while a copy or an export runs, *both* are disabled
+// (`disabled={Boolean(configOperation)}` on each,
+// `ExtensionsPanel.tsx:2994,2997`), and the reference's own
+// `configOperationRef.current` guard refused a second press even before the
+// render. The old port left both always pressable, so a slow export could be
+// started twice over.
+func TestTheConfigToolbarHoldsOneOperationAtATime(t *testing.T) {
+	en := i18n.For("en").Settings
+	calls := &configFormCalls{}
+	release := make(chan struct{})
+	integration := Integration{
+		ID: "dev.floter.tool", Name: "V Tools", Version: "1.2.3",
+		Enabled: true, Running: true, RuntimeAvailable: true,
+		Config:       []ConfigField{{Key: "token", Label: "Token", Type: "text"}},
+		ConfigValues: map[string]any{"token": "abc"},
+	}
+	// The copy stays in flight until the test releases it, so the disabled
+	// face is observable across frames.
+	a := oneIntegrationApp(integration, Actions{
+		CopyConfiguration: func(id string, values map[string]any, done func(error)) {
+			calls.copied = append(calls.copied, configCopy{id: id, values: values})
+			go func() { <-release; done(nil) }()
+		},
+		ExportConfiguration: func(id string, values map[string]any, done func(error)) {
+			calls.exports = append(calls.exports, id)
+			done(nil)
+		},
+	})
+	a.configOpen = map[string]bool{"dev.floter.tool": true}
+	tt := integrationPage(t, a, 900, 1400)
+
+	if err := tt.Click(en.ConfigCopy); err != nil {
+		t.Fatalf("press %q: %v", en.ConfigCopy, err)
+	}
+	tt.Frame()
+	if len(calls.copied) != 1 {
+		t.Fatalf("the copy ran %d times, want 1", len(calls.copied))
+	}
+	if got := a.configOperationNow("dev.floter.tool"); got != "copy" {
+		t.Fatalf("the operation slot reads %q, want copy", got)
+	}
+	// Both buttons are disabled: a second copy and an export both refuse.
+	tt.Click(en.ConfigCopy)
+	tt.Frame()
+	if len(calls.copied) != 1 {
+		t.Errorf("a second copy ran while one was in flight (%d calls)", len(calls.copied))
+	}
+	tt.Click(en.ConfigExport)
+	tt.Frame()
+	if len(calls.exports) != 0 {
+		t.Errorf("an export ran while a copy was in flight (%d calls)", len(calls.exports))
+	}
+
+	// Once the copy lands the slot is free again and the export runs.
+	close(release)
+	tt.Frame()
+	deadline := time.Now().Add(2 * time.Second)
+	for a.configOperationNow("dev.floter.tool") != "" && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+		tt.Frame()
+	}
+	if got := a.configOperationNow("dev.floter.tool"); got != "" {
+		t.Fatalf("the operation slot stayed %q after the copy landed", got)
+	}
+	if err := tt.Click(en.ConfigExport); err != nil {
+		t.Fatalf("press %q: %v", en.ConfigExport, err)
+	}
+	tt.Frame()
+	if len(calls.exports) != 1 {
+		t.Errorf("the export ran %d times, want 1", len(calls.exports))
+	}
+}
+
+// The Save wears the reference's own in-flight word while the write is out:
+// `busy?.kind === "save" ? t("settings.extensions.saving") :
+// t("settings.extensions.save")` (`ExtensionsPanel.tsx:3020`), with the
+// button — and the Defaults beside it — disabled by that same `busy`
+// (`disabled={Boolean(busy) || …}`, `:3016,3019`). The old port wrote
+// synchronously and had no such face.
+func TestTheConfigSaveWearsItsSavingWordWhileInFlight(t *testing.T) {
+	en := i18n.For("en").Settings
+	release := make(chan struct{})
+	writes := 0
+	integration := Integration{
+		ID: "dev.floter.tool", Name: "V Tools", Version: "1.2.3",
+		Enabled: true, Running: true, RuntimeAvailable: true,
+		Config:       []ConfigField{{Key: "token", Label: "Token", Type: "text"}},
+		ConfigValues: map[string]any{"token": "abc"},
+	}
+	a := oneIntegrationApp(integration, Actions{
+		SaveConfiguration: func(id string, values map[string]any, done func(error)) {
+			writes++
+			go func() { <-release; done(nil) }()
+		},
+	})
+	a.configOpen = map[string]bool{"dev.floter.tool": true}
+	tt := integrationPage(t, a, 900, 1400)
+
+	// Dirty the draft so the Save is live.
+	a.draft(a.Integrations()[0]).values["token"] = "edited"
+	tt.Frame()
+	if !tt.HasText(en.ConfigSave) {
+		t.Fatalf("the Save is missing before the press: %q", tt.Texts())
+	}
+	if err := tt.Click(en.ConfigSave); err != nil {
+		t.Fatalf("press %q: %v", en.ConfigSave, err)
+	}
+	tt.Frame()
+	if writes != 1 {
+		t.Fatalf("the Save wrote %d times, want 1", writes)
+	}
+	if !tt.HasText(en.ConfigSaving) {
+		t.Errorf("the Save does not read %q while the write is out: %q", en.ConfigSaving, tt.Texts())
+	}
+	if tt.HasText(en.ConfigSave) {
+		t.Errorf("the resting word %q is still drawn while the write is out: %q", en.ConfigSave, tt.Texts())
+	}
+	// While the write is out both pills refuse a press: a second Save does not
+	// write, and Defaults does not move the draft.
+	tt.Click(en.ConfigSave)
+	tt.Click(en.ConfigDefaults)
+	tt.Frame()
+	if writes != 1 {
+		t.Errorf("a second Save wrote while one was in flight (%d writes)", writes)
+	}
+	if got := a.draft(a.Integrations()[0]).values["token"]; got != "edited" {
+		t.Errorf("Defaults moved the draft while the Save was in flight: token = %v", got)
+	}
+
+	// The landed write gives the resting face back and re-baselines the form.
+	close(release)
+	deadline := time.Now().Add(2 * time.Second)
+	for a.configSaveBusy["dev.floter.tool"] && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+		tt.Frame()
+	}
+	if a.configSaveBusy["dev.floter.tool"] {
+		t.Fatal("the Save stayed in flight after the write landed")
+	}
+	if tt.HasText(en.ConfigSaving) {
+		t.Errorf("the %q word survived the write: %q", en.ConfigSaving, tt.Texts())
+	}
+	if tt.HasText(en.ConfigUnsaved) {
+		t.Errorf("the form did not re-baseline to %q: %q", en.ConfigSavedState, tt.Texts())
+	}
+}
+
+// A multiselect longer than the reference's 66px viewport scrolls *inside* the
+// box rather than growing it: the native `select[multiple]` the reference drew
+// is a fixed 66px list box whose options scroll under it
+// (`.extension-config-field select[multiple]`, `extensions.css:2420-2423`), and
+// a box that grew with its option list pushed the form's actions off the card.
+// The scroller rides the field's own state, so the scroll is where the user
+// left it rather than at its start on every frame.
+//
+// The box is therefore capped at the viewport whatever it holds, while a short
+// list keeps the reference's 66px floor — the two halves of the same rule.
+func TestTheConfigMultiselectScrollsInsideItsViewport(t *testing.T) {
+	options := func(n int) []string {
+		out := make([]string, 0, n)
+		for i := 0; i < n; i++ {
+			out = append(out, "option-"+string(rune('a'+i)))
+		}
+		return out
+	}
+	measure := func(a *App, field ConfigField) float32 {
+		var ref ui.Handle
+		var rect ui.Rect
+		tt := ui.NewTester(func(c *ui.Context) {
+			c.SetTheme(a.tokens(c).Theme)
+			ui.Column(c).Padding(24).Children(func() {
+				a.extensionMetrics(func() {
+					a.configFieldGrid(c, field, "Tags", "", "",
+						func() ui.Element {
+							return a.configMultiselectBox(c, a.configListScroll("dev.floter.tool", field.Key), func() {
+								for _, option := range field.Options {
+									ui.Text(c, option)
+								}
+							}).Bind(&ref)
+						})
+				})
+			})
+			rect = c.Resolve(ref).Bounds()
+		}, 400, 300)
+		tt.Frame()
+		return rect.H
+	}
+
+	a, _ := configFormApp(t, []ConfigField{{Key: "tags", Label: "Tags", Type: "multiselect"}}, map[string]any{})
+	short := ConfigField{Key: "short", Label: "Short", Type: "multiselect", Options: options(3)}
+	shortH := measure(a, short)
+	if absFloat(shortH-66) > 1 {
+		t.Errorf("a three-option box is %vpx high, want the reference's 66px floor", shortH)
+	}
+	long := ConfigField{Key: "long", Label: "Long", Type: "multiselect", Options: options(12)}
+	longH := measure(a, long)
+	if absFloat(longH-66) > 1 {
+		t.Errorf("a twelve-option box is %vpx high, want the same 66px viewport (the options scroll inside it)", longH)
+	}
+
+	// The live form's box scrolls: its content is taller than its viewport, so
+	// the wheel moves it and the offset is kept between frames.
+	b, _ := configFormApp(t,
+		[]ConfigField{{Key: "tags", Label: "Tags", Type: "multiselect", Options: options(12)}},
+		map[string]any{},
+	)
+	tt := integrationPage(t, b, 900, 1400)
+	state := b.configListScroll("dev.floter.tool", "tags")
+	if state.MaxY <= 0 {
+		t.Fatalf("the long option list has nowhere to scroll (max %v)", state.MaxY)
+	}
+	if _, ok := tt.Find("option-a"); !ok {
+		t.Fatalf("the box's first option is missing: %q", tt.Texts())
+	}
+	top, _ := tt.Find("option-a")
+	tt.Scroll(top.X+4, top.Y+2, 0, 40)
+	tt.Frame()
+	if state.Y == 0 {
+		t.Error("the wheel did not move the list box's options")
+	}
+	if state.Y > state.MaxY {
+		t.Errorf("the list box scrolled to %v past its end %v", state.Y, state.MaxY)
+	}
+}
+
+// Only a host-owned configuration wears the form. The reference gated the
+// whole section on `configuration.descriptor.owner === "host"` and drew an
+// "Open configuration" button for a `tool`-owned one
+// (`ExtensionsPanel.tsx:2975-2986`); a host form drawn over values the tool
+// owns would offer to write them.
+func TestAToolOwnedConfigurationDoesNotWearTheForm(t *testing.T) {
+	en := i18n.For("en").Settings
+	a, _ := configFormApp(t,
+		[]ConfigField{{Key: "token", Label: "Token", Type: "text"}},
+		map[string]any{"token": "abc"},
+	)
+	integration := a.Integrations()[0]
+	integration.ConfigOwner = "tool"
+	a.Integrations = func() []Integration { return []Integration{integration} }
+
+	tt := integrationPage(t, a, 900, 1400)
+	if tt.HasText(en.ConfigOpen) {
+		t.Errorf("a tool-owned configuration drew the Configure row: %q", tt.Texts())
+	}
+	if tt.HasText(en.ConfigSave) || tt.HasText("Token") {
+		t.Errorf("a tool-owned configuration drew the host form: %q", tt.Texts())
+	}
+
+	// The same integration with the owner the reference requires (host) wears
+	// it: the gate is the owner, not the schema's presence.
+	integration.ConfigOwner = "host"
+	a.Integrations = func() []Integration { return []Integration{integration} }
+	tt = integrationPage(t, a, 900, 1400)
+	if !tt.HasText(en.ConfigOpen) {
+		t.Errorf("a host-owned configuration lost its Configure row: %q", tt.Texts())
 	}
 }

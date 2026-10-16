@@ -298,9 +298,15 @@ const transferNoticeID = "floter-transfer-notice"
 // real schema — never a copy the form made — so a field the form cannot show
 // still redacts correctly, and the clipboard write is the one place a secret
 // could leak: the redaction is what stops it.
-func (a *App) copyConfiguration(id string, values map[string]any) {
+func (a *App) copyConfiguration(id string, values map[string]any, done func(error)) {
+	finish := func(err error) {
+		if done != nil {
+			a.onMain(func() { done(err) })
+		}
+	}
 	description, ok := a.Integrations.Description(id)
 	if !ok || description.Configuration == nil {
+		finish(nil)
 		return
 	}
 	document, err := extensions.ExportConfiguration(id, description.Configuration.ConfigVersion,
@@ -308,15 +314,19 @@ func (a *App) copyConfiguration(id string, values map[string]any) {
 	if err != nil {
 		log.Printf("floter: could not build the configuration copy for %s: %v", id, err)
 		a.queueNotice(a.SettingsCopy().IntegrationsTransferBad, refusalNotice)
+		finish(err)
 		return
 	}
-	// The notice first, then the clipboard write off the caller's thread: the
-	// clibpoard reaches the OS (the reference awaited its own async
-	// `extensions_config_copy`), and a background write keeps a surface that
-	// asked for the copy from waiting on the platform clipboard.
+	// The worker the reference awaited (`extensions_config_copy` then
+	// `navigator.clipboard.writeText`): the write is put on the clipboard and
+	// the handler is cleared when it lands, so the button's in-flight face is
+	// gone with it and a second press during the write cannot start another.
 	a.notifySuccess(a.SettingsCopy().ConfigCopied)
 	text := string(document)
-	go mygo.Clipboard.WriteText(text)
+	go func() {
+		mygo.Clipboard.WriteText(text)
+		finish(nil)
+	}()
 }
 
 // exportConfiguration asks for a path and writes one integration's host-owned
@@ -328,9 +338,15 @@ func (a *App) copyConfiguration(id string, values map[string]any) {
 // machine in the file. A clean write raises the success notice; a refused
 // dialog or a failed document is silent-or-noticed the same way the
 // integrations export is.
-func (a *App) exportConfiguration(id string, values map[string]any) {
+func (a *App) exportConfiguration(id string, values map[string]any, done func(error)) {
+	finish := func(err error) {
+		if done != nil {
+			a.onMain(func() { done(err) })
+		}
+	}
 	description, ok := a.Integrations.Description(id)
 	if !ok || description.Configuration == nil {
+		finish(nil)
 		return
 	}
 	document, err := extensions.ExportConfiguration(id, description.Configuration.ConfigVersion,
@@ -338,6 +354,7 @@ func (a *App) exportConfiguration(id string, values map[string]any) {
 	if err != nil {
 		log.Printf("floter: could not build the configuration export for %s: %v", id, err)
 		a.queueNotice(a.SettingsCopy().IntegrationsTransferBad, refusalNotice)
+		finish(err)
 		return
 	}
 	go func() {
@@ -347,16 +364,20 @@ func (a *App) exportConfiguration(id string, values map[string]any) {
 			// `extensions_config_export` treats a closed picker as "nothing to
 			// do", not as a failure to report (it returns `Ok(None)`).
 			log.Printf("floter: could not pick a path for the configuration export of %s: %v", id, err)
+			finish(err)
 			return
 		}
 		if path == "" {
-			return // the user closed the dialog
+			finish(nil) // the user closed the dialog
+			return
 		}
 		if err := os.WriteFile(path, document, 0o600); err != nil {
 			log.Printf("floter: could not write %s: %v", path, err)
 			a.queueNotice(a.SettingsCopy().IntegrationsTransferBad, refusalNotice)
+			finish(err)
 			return
 		}
 		a.notifySuccess(a.SettingsCopy().ConfigExported)
+		finish(nil)
 	}()
 }

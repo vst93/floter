@@ -2,7 +2,6 @@ package settingsui
 
 import (
 	"encoding/json"
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -108,7 +107,10 @@ func (a *App) configFields(c *ui.Context, copy i18n.Settings, integration Integr
 			a.configField(c, copy, integration, *draft, field)
 		}
 		if a.configError[integration.ID] != "" {
-			ui.Text(c, a.configError[integration.ID]).FontSize(t.FontSize - 1).TextColor(t.Danger)
+			// The failure the shell reported on the Save is the reference's own
+			// `.extensions-notice--error` sentence under the fields
+			// (`ExtensionsPanel.tsx:2674`), not a bare red line.
+			a.noticeLine(c, a.configError[integration.ID])
 		}
 		a.configActions(c, copy, integration, draft)
 	})
@@ -120,11 +122,14 @@ func (a *App) configFields(c *ui.Context, copy i18n.Settings, integration Integr
 // "Saved" while the draft matches what is stored and "Unsaved changes" — in
 // the warning ink, `.extension-config-status--dirty` — while it does not, so
 // the user sees whether a save is pending without pressing one. The copy and
-// export icon-buttons sit behind it, disabled while a write is in flight.
+// export icon-buttons sit behind it, disabled while either is in flight: the
+// reference's one `configOperation` item disables both
+// (`disabled={Boolean(configOperation)}`, `ExtensionsPanel.tsx:2994,2997`).
 func (a *App) configToolbar(c *ui.Context, copy i18n.Settings, integration Integration, draft *configDraft) {
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 	dirty := a.configDirty(integration, draft)
+	busy := a.configOperations[integration.ID] != ""
 	ui.Row(c).FillWidth().AlignItems(ui.Center).Justify(ui.SpaceBetween).Children(func() {
 		status := copy.ConfigSavedState
 		ink := tokens.TextTertiary
@@ -133,17 +138,66 @@ func (a *App) configToolbar(c *ui.Context, copy i18n.Settings, integration Integ
 		}
 		ui.Text(c, status).FontSize(tokens.Caption).FontWeight(500).TextColor(ink)
 		ui.Row(c).AlignItems(ui.Center).Gap(t.Space(0.5)).Children(func() {
-			copyDisabled := a.Actions.CopyConfiguration == nil
+			copyDisabled := a.Actions.CopyConfiguration == nil || busy
 			copyButton := a.extensionIconButton(c, "copy", copy.ConfigCopy, copyDisabled)
 			if copyButton.Clicked() && !copyDisabled {
-				a.Actions.CopyConfiguration(integration.ID, draft.values)
+				a.startConfigOperation(integration.ID, "copy", func(done func(error)) {
+					a.Actions.CopyConfiguration(integration.ID, draft.values, done)
+				})
 			}
-			exportDisabled := a.Actions.ExportConfiguration == nil
+			exportDisabled := a.Actions.ExportConfiguration == nil || busy
 			exportButton := a.extensionIconButton(c, "file-down", copy.ConfigExport, exportDisabled)
 			if exportButton.Clicked() && !exportDisabled {
-				a.Actions.ExportConfiguration(integration.ID, draft.values)
+				a.startConfigOperation(integration.ID, "export", func(done func(error)) {
+					a.Actions.ExportConfiguration(integration.ID, draft.values, done)
+				})
 			}
 		})
+	})
+}
+
+// startConfigOperation marks one integration's copy or export as in flight and
+// hands the host the callback that settles it, on the main thread. The
+// reference claimed its one `configOperation` slot before starting it and kept
+// it until `finally` (`ExtensionsPanel.tsx:2019-2048`), which is what holds the
+// two icon-buttons disabled for as long as the work runs.
+func (a *App) startConfigOperation(id, operation string, run func(done func(error))) {
+	if a.configOperations == nil {
+		a.configOperations = map[string]string{}
+	}
+	a.configOperations[id] = operation
+	run(func(error) { a.finishConfigOperation(id) })
+}
+
+// finishConfigOperation releases the slot and asks for a frame, so the
+// buttons' disabled face is gone with it, exactly as the reference's `finally`
+// did.
+func (a *App) finishConfigOperation(id string) {
+	if a.configOperations != nil {
+		delete(a.configOperations, id)
+	}
+	if a.Actions.Invalidate != nil {
+		a.Actions.Invalidate()
+	}
+}
+
+// configOperationNow reports whether an integration has a copy or export in
+// flight, for the shell's own hand-off and the tests.
+func (a *App) configOperationNow(id string) string { return a.configOperations[id] }
+
+// noticeLine draws one `.extensions-notice` sentence on the form's own column:
+// the framework's warning mark then the words, the pane and the warning keyline
+// the reference's `.extensions-notice--error` wears (`extensions.css:146-178`).
+func (a *App) noticeLine(c *ui.Context, sentence string) {
+	t := a.cardTheme(c)
+	tokens := a.tokens(c)
+	band := ui.Row(c).FillWidth().Gap(t.Space(2)).AlignItems(ui.Center).
+		Padding(t.Space(2), t.Space(3)).Radius(tokens.RadiusSM).
+		Background(tokens.Control).Border(1, tokens.ControlEdge)
+	band.InsetShadow(0, 0, 0, 1, t.Warning)
+	band.Children(func() {
+		ui.Icon(c, mustGlyph("alert")).Size(t.Space(3.75), t.Space(3.75)).TextColor(t.Warning)
+		ui.Text(c, sentence).FontSize(tokens.Body).TextColor(t.Warning).Grow(1).LineHeight(1.45)
 	})
 }
 
@@ -157,9 +211,18 @@ func (a *App) configActions(c *ui.Context, copy i18n.Settings, integration Integ
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 	ui.Row(c).FillWidth().AlignItems(ui.Center).Justify(ui.SpaceBetween).Children(func() {
+		// Both pills are disabled while an operation is in flight
+		// (`disabled={Boolean(busy) || Boolean(configOperation)}` on the
+		// Defaults, `disabled={Boolean(busy) || !configDirty}` on the Save),
+		// where `busy` is one per-integration item held for every mutation of
+		// that row (`ExtensionsPanel.tsx:3016,3019`).
+		busy := a.configOperations[integration.ID] != "" || a.configSaveBusy[integration.ID]
 		defaults := a.extensionGlyphActionButton(c, "rotate-ccw", copy.ConfigDefaults,
 			t.Space(7.5), t.Space(3.75), tokens.Body)
-		if defaults.Clicked() {
+		if busy {
+			defaults = defaults.Disabled(true).Opacity(0.4).Cursor(ui.CursorDefault)
+		}
+		if defaults.Clicked() && !busy {
 			// The reference's `configurationDefaults` writes every field whose
 			// schema declared a default back to it, leaving the others as they
 			// are (`ExtensionsPanel.tsx:2013-2016`).
@@ -172,31 +235,60 @@ func (a *App) configActions(c *ui.Context, copy i18n.Settings, integration Integ
 		// The Save is the *primary* accent pill (`.extensions-action-button--primary`,
 		// `ExtensionsPanel.tsx:3019-3021`), disabled while the draft matches what is
 		// stored or while there is nobody to write it — the reference's
-		// `disabled={!configDirty}`.
-		saveDisabled := a.Actions.SaveConfiguration == nil || !a.configDirty(integration, draft)
-		save := a.extensionPrimaryButton(c, copy.ConfigSave)
+		// `disabled={!configDirty}`. While the write is out its label is the
+		// reference's `configSaving` word rather than `save`
+		// (`busy?.kind === "save" ? t("settings.extensions.saving") :
+		// t("settings.extensions.save")`, `ExtensionsPanel.tsx:3020`).
+		saveDisabled := a.Actions.SaveConfiguration == nil || !a.configDirty(integration, draft) || busy
+		saveLabel := copy.ConfigSave
+		if a.configSaveBusy[integration.ID] {
+			saveLabel = copy.ConfigSaving
+		}
+		save := a.extensionPrimaryButton(c, saveLabel)
 		if saveDisabled {
 			save = save.Disabled(true).Opacity(0.4).Cursor(ui.CursorDefault)
 		}
 		if save.Clicked() && !saveDisabled {
-			if err := a.Actions.SaveConfiguration(integration.ID, draft.values); err != nil {
-				a.configError[integration.ID] = err.Error()
-				return
+			if a.configSaveBusy == nil {
+				a.configSaveBusy = map[string]bool{}
 			}
-			// The reference sets the saved values to what it just wrote
-			// (`setSavedConfigValues(saved.values)`, `ExtensionsPanel.tsx:2001`),
-			// so the form reads "Saved" at once rather than waiting on the
-			// shell's off-thread refresh.
-			a.configError[integration.ID] = ""
-			draft.saved = cloneConfigValues(draft.values)
-			// The landed save is good news, so it raises the reference's success
-			// notice (`showSuccess("configSaved")`, `ExtensionsPanel.tsx:2002`),
-			// never the danger ink the error line wears.
-			if a.Actions.NotifySuccess != nil {
-				a.Actions.NotifySuccess(copy.ConfigSaved)
-			}
+			a.configSaveBusy[integration.ID] = true
+			a.Actions.SaveConfiguration(integration.ID, draft.values, func(err error) {
+				a.finishConfigSave(integration.ID, err, copy)
+			})
 		}
 	})
+}
+
+// finishConfigSave settles the form after a save reports back, on the main
+// thread: the in-flight word gives way, the failure — if any — goes on the
+// form's notice line, and a landed write re-baselines the draft and raises the
+// success notice, exactly as the reference's `saveConfiguration` did
+// (`setSavedConfigValues(saved.values)` then `showSuccess("configSaved")`,
+// `ExtensionsPanel.tsx:1993-2007`).
+func (a *App) finishConfigSave(id string, err error, copy i18n.Settings) {
+	if a.configSaveBusy != nil {
+		delete(a.configSaveBusy, id)
+	}
+	if err != nil {
+		a.configError[id] = err.Error()
+	} else {
+		// The reference sets the saved values to what it just wrote, so the form
+		// reads "Saved" at once rather than waiting on the shell's off-thread
+		// refresh.
+		a.configError[id] = ""
+		if draft, ok := a.configDrafts[id]; ok {
+			draft.saved = cloneConfigValues(draft.values)
+		}
+		// The landed save is good news, so it raises the reference's success
+		// notice, never the danger ink the error line wears.
+		if a.Actions.NotifySuccess != nil {
+			a.Actions.NotifySuccess(copy.ConfigSaved)
+		}
+	}
+	if a.Actions.Invalidate != nil {
+		a.Actions.Invalidate()
+	}
 }
 
 // configDirty reports whether a draft differs from the values it was last
@@ -261,7 +353,7 @@ func configValuesEqual(a, b any) bool {
 // field wears, as the reference's `<b>` did. The 118px column and the 12px/
 // 4px gaps are the panel's literal px, taken through `cardSpace`, so the grid
 // keeps one geometry at every interface step.
-func (a *App) configFieldGrid(c *ui.Context, field ConfigField, label, requiredLabel string, control func() ui.Element) {
+func (a *App) configFieldGrid(c *ui.Context, field ConfigField, label, requiredLabel, hint string, control func() ui.Element) {
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 	grid := ui.Grid(c).FillWidth().
@@ -286,6 +378,16 @@ func (a *App) configFieldGrid(c *ui.Context, field ConfigField, label, requiredL
 		if field.Description != "" {
 			ui.Text(c, field.Description).FontSize(tokens.Caption).FontWeight(500).
 				TextColor(tokens.TextTertiary).ColumnStart(2)
+		}
+		// The schema's own bounds, said *at the field*: the reference handed
+		// `min`/`max`/`minLength`/`maxLength` to the native control
+		// (`ExtensionsPanel.tsx:3251-3256`) and let the browser draw its validity
+		// state on the field itself. A native pane has no such state, so the
+		// sentence goes on the field's own caption line — the same column as the
+		// description — rather than only at the bottom of the form.
+		if hint != "" {
+			ui.Text(c, hint).FontSize(tokens.Caption).FontWeight(500).
+				TextColor(t.Warning).ColumnStart(2)
 		}
 	})
 }
@@ -322,7 +424,7 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 			on = value
 		}
 		changed := false
-		a.configFieldGrid(c, field, label, copy.ConfigRequired, func() ui.Element {
+		a.configFieldGrid(c, field, label, copy.ConfigRequired, "", func() ui.Element {
 			e := a.switchControl(c, &on).Label(label)
 			if e.Changed() {
 				changed = true
@@ -345,7 +447,7 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 			selected = copy.ConfigNone
 		}
 		chosen, cleared := "", false
-		a.configFieldGrid(c, field, label, copy.ConfigRequired, func() ui.Element {
+		a.configFieldGrid(c, field, label, copy.ConfigRequired, "", func() ui.Element {
 			e := a.configSelect(c, &selected, labels, label)
 			if e.Changed() {
 				if noneOffered && selected == copy.ConfigNone {
@@ -381,8 +483,8 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 		// and the 66px floor — holding the tick options as rows inside it, rather
 		// than the loose ruled rows the old port drew. A list box reads as one
 		// control, which is what the reference's `select[multiple]` is.
-		a.configFieldGrid(c, field, label, copy.ConfigRequired, func() ui.Element {
-			return a.configMultiselectBox(c, func() {
+		a.configFieldGrid(c, field, label, copy.ConfigRequired, "", func() ui.Element {
+			return a.configMultiselectBox(c, a.configListScroll(integration.ID, field.Key), func() {
 				for _, option := range field.Options {
 					option := option
 					on := ticked[option]
@@ -405,18 +507,15 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 			value = strconv.FormatFloat(number, 'f', -1, 64)
 		}
 		edit := value
-		a.configFieldGrid(c, field, label, copy.ConfigRequired, func() ui.Element {
+		a.configFieldGrid(c, field, label, copy.ConfigRequired, a.configFieldProblem(integration, field), func() ui.Element {
 			e := a.extensionField(c, &edit, configFieldMetrics).Placeholder(field.Key).Label(label).FillWidth()
 			if e.Submitted() {
-				number, err := strconv.ParseFloat(strings.TrimSpace(edit), 64)
-				switch {
-				case err != nil:
-					a.configError[integration.ID] = fmt.Sprintf("%s: %s", label, copy.ConfigNumber)
-				case field.Minimum != nil && number < *field.Minimum || field.Maximum != nil && number > *field.Maximum:
-					a.configError[integration.ID] = fmt.Sprintf("%s: %s", label, copy.ConfigOutOfRange)
-				default:
-					a.configError[integration.ID] = ""
-					draft.values[field.Key] = number
+				value, problem := ConfigValueProblem(field, edit, copy)
+				if problem != "" {
+					a.noteConfigFieldError(integration.ID, field.Key, problem)
+				} else {
+					a.clearConfigFieldError(integration.ID, field.Key)
+					draft.values[field.Key] = value
 				}
 			}
 			return e
@@ -424,23 +523,91 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 	default: // text, password, path
 		value, _ := draft.values[field.Key].(string)
 		edit := value
-		a.configFieldGrid(c, field, label, copy.ConfigRequired, func() ui.Element {
+		a.configFieldGrid(c, field, label, copy.ConfigRequired, a.configFieldProblem(integration, field), func() ui.Element {
 			e := a.extensionField(c, &edit, configFieldMetrics).Placeholder(field.Key).Label(label).FillWidth()
 			if kind == "password" {
 				e = e.Password()
 			}
 			if e.Submitted() {
-				length := len([]rune(edit))
-				if (field.MinLength != nil && length < *field.MinLength) ||
-					(field.MaxLength != nil && length > *field.MaxLength) {
-					a.configError[integration.ID] = fmt.Sprintf("%s: %s", label, copy.ConfigOutOfLength)
+				value, problem := ConfigValueProblem(field, edit, copy)
+				if problem != "" {
+					a.noteConfigFieldError(integration.ID, field.Key, problem)
 				} else {
-					a.configError[integration.ID] = ""
-					draft.values[field.Key] = edit
+					a.clearConfigFieldError(integration.ID, field.Key)
+					draft.values[field.Key] = value
 				}
 			}
 			return e
 		})
+	}
+}
+
+// ConfigValueProblem checks one field's submitted text against the schema bounds
+// the reference handed to the native control (`min`/`max` on the number input,
+// `minLength`/`maxLength` on a text one, `ExtensionsPanel.tsx:3251-3256`) and
+// returns the value a save would carry plus the sentence to show at the field,
+// empty when the text is acceptable. A number field that is empty carries no
+// value at all, exactly as the reference's `event.target.value === "" ? null`
+// did; a text field keeps its text, empty included.
+//
+// It is exported from the panel so the host's own validation and the form's
+// own hint cannot drift into two rules, and so a test can pin the bounds
+// without driving a keystroke through the toolkit's editor.
+func ConfigValueProblem(field ConfigField, edit string, copy i18n.Settings) (any, string) {
+	switch strings.ToLower(field.Type) {
+	case "number":
+		if strings.TrimSpace(edit) == "" {
+			return nil, ""
+		}
+		number, err := strconv.ParseFloat(strings.TrimSpace(edit), 64)
+		if err != nil {
+			return nil, copy.ConfigNumber
+		}
+		if field.Minimum != nil && number < *field.Minimum || field.Maximum != nil && number > *field.Maximum {
+			return nil, copy.ConfigOutOfRange
+		}
+		return number, ""
+	default:
+		// `minlength` is not checked on an empty value, as the HTML constraint it
+		// mirrors (`minLength={field.type === "text" ? … : undefined}`,
+		// `ExtensionsPanel.tsx:3255`) is not either: an untouched field is empty,
+		// not too short.
+		if edit == "" {
+			return edit, ""
+		}
+		length := len([]rune(edit))
+		if field.MinLength != nil && length < *field.MinLength || field.MaxLength != nil && length > *field.MaxLength {
+			return nil, copy.ConfigOutOfLength
+		}
+		return edit, ""
+	}
+}
+
+// configFieldProblem is the sentence shown at one field, or empty.
+func (a *App) configFieldProblem(integration Integration, field ConfigField) string {
+	return a.configFieldErrors[configFieldErrorKey(integration.ID, field.Key)]
+}
+
+// configFieldErrorKey names one field's own hint, so two integrations — or two
+// fields of one — cannot borrow each other's sentence.
+func configFieldErrorKey(id, key string) string { return id + "\x00" + key }
+
+// noteConfigFieldError puts a sentence at one field. The reference's own
+// `detailError` — which is what the form's bottom line carries — was untouched
+// by a keystroke (`ExtensionsPanel.tsx:3011`), so a host-side failure stays
+// where it was put: the field's hint is about the schema, the bottom line about
+// the write.
+func (a *App) noteConfigFieldError(id, key, problem string) {
+	if a.configFieldErrors == nil {
+		a.configFieldErrors = map[string]string{}
+	}
+	a.configFieldErrors[configFieldErrorKey(id, key)] = problem
+}
+
+// clearConfigFieldError drops one field's sentence once an edit satisfies it.
+func (a *App) clearConfigFieldError(id, key string) {
+	if a.configFieldErrors != nil {
+		delete(a.configFieldErrors, configFieldErrorKey(id, key))
 	}
 }
 
@@ -482,17 +649,32 @@ func configOptionMatches(options []string, word string) bool {
 // reference's 66px floor (`extensions.css:2420-2423`) — with fn filling the
 // tick rows inside it. It is one element, not a column of rows, so the field
 // reads as the single native control the reference drew.
-func (a *App) configMultiselectBox(c *ui.Context, fn func()) ui.Element {
+//
+// The box is a *viewport*, not a growing list: a native `select[multiple]` of
+// the reference's 66px keeps that height however many options it holds and
+// scrolls the rest under it, so a long option list cannot push the form's
+// actions off the card. The inner scroller is therefore capped at the 66px
+// viewport less the box's own 4px vertical padding, and a short list keeps the
+// same 66px floor rather than shrinking. The scroller rides the box's own
+// state, so a scroll stays where the user left it.
+func (a *App) configMultiselectBox(c *ui.Context, scroll *ui.ScrollState, fn func()) ui.Element {
 	tokens := a.tokens(c)
 	t := a.cardTheme(c)
-	box := ui.Column(c).FillWidth().MinHeight(a.cardSpace(t, 16.5)).
-		Padding(a.cardSpace(t, 1), a.cardSpace(t, 2)).
-		Gap(a.cardSpace(t, 0.5)).
+	padY, padX := a.cardSpace(t, 1), a.cardSpace(t, 2)
+	border := float32(1) // the box's own 1px keyline, inside its 66px
+	viewport := a.cardSpace(t, 16.5)
+	box := ui.Column(c).FillWidth().MinHeight(viewport).
+		Padding(padY, padX).
 		Border(1, tokens.ControlEdge).
 		Radius(tokens.RadiusSM).
-		Background(tokens.Field)
+		Background(tokens.Field).
+		Clip()
 	box = tokens.FieldSlot(box)
-	box.Children(fn)
+	box.Children(func() {
+		ui.Scroll(c).FillWidth().MaxHeight(viewport - 2*padY - 2*border).TrackScroll(scroll).Children(func() {
+			ui.Column(c).FillWidth().Gap(a.cardSpace(t, 0.5)).Children(fn)
+		})
+	})
 	return box
 }
 
@@ -528,4 +710,20 @@ func tickedToValues(options []string, ticked map[string]bool) []any {
 		}
 	}
 	return out
+}
+
+// configListScroll keeps one multiselect list box's offset, so an option list
+// longer than the box's 66px viewport scrolls where the user left it rather
+// than jumping to its start on every redraw.
+func (a *App) configListScroll(id, key string) *ui.ScrollState {
+	if a.configListScrolls == nil {
+		a.configListScrolls = map[string]*ui.ScrollState{}
+	}
+	name := id + "\x00" + key
+	state, ok := a.configListScrolls[name]
+	if !ok {
+		state = &ui.ScrollState{}
+		a.configListScrolls[name] = state
+	}
+	return state
 }

@@ -3019,10 +3019,16 @@ func TestIntegrationConfigurationFormEndToEnd(t *testing.T) {
 	if list[0].Config[1].Type != "password" {
 		t.Errorf("field types = %+v", list[0].Config)
 	}
+	// The provider's own owner reaches the row: the settings form is drawn for
+	// a `host`-owned configuration and not for a `tool`-owned one
+	// (`configuration.descriptor.owner`, `ExtensionsPanel.tsx:2975`).
+	if list[0].ConfigOwner != "host" {
+		t.Errorf("config owner = %q, want %q", list[0].ConfigOwner, "host")
+	}
 
 	// A save through the action writes the values, and the password lands in
 	// the secrets file rather than the values file.
-	if err := a.saveIntegrationConfiguration("dev.floter.configured", map[string]any{
+	if err := a.saveIntegrationConfigurationNow("dev.floter.configured", map[string]any{
 		"endpoint": "https://example.com", "token": "s3cret", "region": "eu",
 	}); err != nil {
 		t.Fatal(err)
@@ -3770,7 +3776,7 @@ func TestConfigurationExportWritesTheRedactedDocument(t *testing.T) {
 	clearNotices(a)
 	a.exportConfiguration("dev.floter.configured", map[string]any{
 		"endpoint": "https://example.com", "token": "s3cret", "region": "eu",
-	})
+	}, nil)
 	waitForGoroutines()
 
 	data, err := os.ReadFile(exportPath)
@@ -3807,7 +3813,7 @@ func TestConfigurationCopyRaisesTheNotice(t *testing.T) {
 	clearNotices(a)
 	a.copyConfiguration("dev.floter.configured", map[string]any{
 		"endpoint": "https://example.com", "token": "s3cret", "region": "eu",
-	})
+	}, nil)
 	waitForGoroutines()
 	if !noticeSays(a, copy.ConfigCopied) {
 		t.Errorf("the copy raised no %q notice", copy.ConfigCopied)

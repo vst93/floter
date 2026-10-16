@@ -242,22 +242,29 @@ type Actions struct {
 	// ChooseProgram asks the user to point at a program; nil hides the picker.
 	ChooseProgram func() (string, error)
 	// SaveConfiguration validates and stores an integration's configuration
-	// values, moving its password fields into the secrets file.
-	SaveConfiguration func(id string, values map[string]any) error
+	// values, moving its password fields into the secrets file. `done` reports
+	// the write back on the main thread, whatever it did — the reference's
+	// `runMutation` cleared `busy` in `finally`
+	// (`ExtensionsPanel.tsx:1993-2007`) — so the Save's in-flight face is
+	// swapped for the reference's `configSaving` word until the answer lands.
+	// It is called exactly once, synchronously or from a goroutine.
+	SaveConfiguration func(id string, values map[string]any, done func(error))
 	// ExportConfiguration asks for a path and writes one integration's
 	// host-owned configuration there, as the reference's
 	// `extensions_config_export` did (`ExtensionsPanel.tsx:2036-2048`): the
 	// toolbar's export icon-button. Values are the form's current draft, so a
 	// user can export an unsaved edit. The host owns the document, the dialog
 	// and the write, so the schema it validates against is the real one, never
-	// a copy the form made. Nil hides the button.
-	ExportConfiguration func(id string, values map[string]any)
+	// a copy the form made. `done` is the same in-flight hand-off as
+	// SaveConfiguration's; nil hides the button.
+	ExportConfiguration func(id string, values map[string]any, done func(error))
 	// CopyConfiguration puts one integration's host-owned configuration on the
 	// clipboard as the reference's `extensions_config_copy` did
 	// (`ExtensionsPanel.tsx:2019-2031`): the toolbar's copy icon-button. Like
 	// `ExportConfiguration`, the host builds the document from the real schema
-	// and raises the success notice; nil turns the button into a no-op.
-	CopyConfiguration func(id string, values map[string]any)
+	// and raises the success notice; `done` is the same in-flight hand-off. Nil
+	// turns the button into a no-op.
+	CopyConfiguration func(id string, values map[string]any, done func(error))
 	// ClearClipboardHistory drops every clipboard entry that is not a
 	// favourite.
 	ClearClipboardHistory func()
@@ -339,6 +346,12 @@ type Integration struct {
 	// empty when the integration declares none.
 	Config       []ConfigField
 	ConfigValues map[string]any
+	// ConfigOwner is the provider's own word for who holds the values: the
+	// reference's `configuration.descriptor.owner` (`ExtensionsPanel.tsx:2975`).
+	// Only a `host`-owned configuration is the form's to draw — a tool's own
+	// configuration is opened where the tool keeps it — so a `tool` owner
+	// hides the form's section (see configOwnerIsHost).
+	ConfigOwner string
 	// ConfigVersion is the schema generation the stored values were written
 	// against, carried so a copied or exported configuration names it (the
 	// reference's `ConfigurationExportDocument.config_version`,
@@ -820,6 +833,33 @@ type App struct {
 	configOpen   map[string]bool
 	configDrafts map[string]*configDraft
 	configError  map[string]string
+	// configOperations is which integrations have a copy or export in flight
+	// ("copy" or "export"), configSaveBusy which have a save in flight, and
+	// configDiscard which have asked to fold a dirty form away. The
+	// reference's one `configOperation` item disabled both the toolbar's
+	// icon-buttons (`disabled={Boolean(configOperation)}`,
+	// `ExtensionsPanel.tsx:2994,2997`) — a copy and an export cannot run at
+	// once — while `busy.kind === "save"` swapped the Save's own word
+	// (`ExtensionsPanel.tsx:3020`: `t("settings.extensions.saving")`).
+	configOperations map[string]string
+	configSaveBusy   map[string]bool
+	configDiscard    map[string]bool
+	// configDiscardAt is when each fold-away question was asked: the reference
+	// armed it with `useTimedReset(detailsDiscardArmed, …)` and its 3000 ms
+	// default (`ExtensionsPanel.tsx:866,2056-2060`), so an ask left unanswered
+	// withdraws.
+	configDiscardAt map[string]time.Time
+	// configFieldErrors is the sentence shown at one field of one integration,
+	// keyed by the integration and the field (see configFieldErrorKey): the
+	// reference left the schema's `min`/`max`/`minLength`/`maxLength` bounds to
+	// the native control, which drew its own validity state *at the field*
+	// (`ExtensionsPanel.tsx:3251-3256`), so the hint belongs there rather than
+	// only on the form's own bottom line.
+	configFieldErrors map[string]string
+	// configListScrolls keeps each multiselect list box's own offset, keyed by
+	// the integration and the field, so a long option list scrolls inside the
+	// reference's 66px viewport where the user left it.
+	configListScrolls map[string]*ui.ScrollState
 	// shortcutsSuspended is the last state reported to the shell, so the
 	// recorder releases the global keys once and takes them back once.
 	shortcutsSuspended bool
@@ -2135,12 +2175,19 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			})
 		}
 
-		if len(integration.Config) > 0 && !integration.Orphan {
+		if configOwnerIsHost(integration) && !integration.Orphan {
 			opened := a.row(c, copy.ConfigOpen, "", func() {
 				if a.actionButton(c, copy.ConfigOpen).Clicked() {
 					a.toggleConfig(integration.ID)
 				}
-			}, func() { a.configFields(c, copy, integration) })
+			}, func() { a.configFields(c, copy, integration) }, func() {
+				// The discard bar is the reference's own sibling of the form
+				// (`ExtensionsPanel.tsx:3029-3035`): it appears while the
+				// fold-away question is armed and the draft is still dirty.
+				if a.configDiscard[integration.ID] && a.configDirty(integration, a.draft(integration)) {
+					a.configDiscardBar(c, copy, integration)
+				}
+			})
 			if opened {
 				a.toggleConfig(integration.ID)
 			}
@@ -2385,13 +2432,129 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 	})
 }
 
+// configOwnerIsHost reports whether an integration's configuration is the
+// form's to draw.
+//
+// The reference gated the whole form on `configuration.descriptor.owner ===
+// "host"` (`ExtensionsPanel.tsx:2975`) and drew an "Open configuration"
+// button for a `tool`-owned one; the schema on which `owner` is *required*
+// (`docs/extensions/schemas/provider-description.schema.json`) leaves a
+// provider that omits it invalid, so no owner and `host` are the same thing
+// here. A `tool` owner is the one case that must not wear the form: its
+// editor lives at the tool, and drawing a host form over it would offer to
+// write values the tool owns.
+func configOwnerIsHost(integration Integration) bool {
+	return len(integration.Config) > 0 && !strings.EqualFold(integration.ConfigOwner, "tool")
+}
+
 // toggleConfig folds or unfolds one integration's configuration form.
+//
+// Folding a form whose draft has unsaved edits is the reference's own
+// two-step: the first press only *asks* (`if (configDirty) {
+// setDetailsDiscardArmed(true); return }`, `ExtensionsPanel.tsx:2056-2060`)
+// and the panel draws the discard bar under the form; the question is answered
+// by keeping the form open or by discarding, which is what finally folds it.
+// Opening a folded form is never a question.
 func (a *App) toggleConfig(id string) {
 	if a.configOpen == nil {
 		a.configOpen = map[string]bool{}
 	}
-	a.configOpen[id] = !a.configOpen[id]
+	if a.configOpen[id] {
+		if integration, ok := a.integrationByID(id); ok && a.configDirty(integration, a.draft(integration)) {
+			a.armConfigDiscard(id)
+			return
+		}
+		a.closeConfig(id)
+		return
+	}
+	a.configOpen[id] = true
 	a.configError[id] = ""
+	a.disarmConfigDiscard(id)
+}
+
+// integrationByID finds an integration in the list the panel is drawing.
+func (a *App) integrationByID(id string) (Integration, bool) {
+	for _, integration := range a.installedIntegrations() {
+		if integration.ID == id {
+			return integration, true
+		}
+	}
+	return Integration{}, false
+}
+
+// armConfigDiscard asks before a dirty form is folded away. The reference armed
+// its own question with `useTimedReset(detailsDiscardArmed, …)` and the same
+// three-second window the removal and disable bars use
+// (`ExtensionsPanel.tsx:866`), so an ask left unanswered withdraws instead of
+// staying armed on a later glance.
+func (a *App) armConfigDiscard(id string) {
+	if a.configDiscard == nil {
+		a.configDiscard = map[string]bool{}
+	}
+	if a.configDiscardAt == nil {
+		a.configDiscardAt = map[string]time.Time{}
+	}
+	a.configDiscard[id] = true
+	a.configDiscardAt[id] = a.now()
+}
+
+// disarmConfigDiscard answers the question with "keep": the form stays open,
+// exactly as the reference's Cancel did (`setDetailsDiscardArmed(false)`).
+func (a *App) disarmConfigDiscard(id string) {
+	if a.configDiscard != nil {
+		delete(a.configDiscard, id)
+	}
+	if a.configDiscardAt != nil {
+		delete(a.configDiscardAt, id)
+	}
+}
+
+// closeConfig folds one integration's form away and drops the draft: a form
+// opened again reads the stored values, which is the reference's own effect on
+// the selected integration changing (`ExtensionsPanel.tsx:1094-1096`).
+func (a *App) closeConfig(id string) {
+	a.disarmConfigDiscard(id)
+	if a.configOpen != nil {
+		delete(a.configOpen, id)
+	}
+	if a.configDrafts != nil {
+		delete(a.configDrafts, id)
+	}
+	if a.configError != nil {
+		delete(a.configError, id)
+	}
+	if a.configFieldErrors != nil {
+		prefix := id + "\x00"
+		for key := range a.configFieldErrors {
+			if strings.HasPrefix(key, prefix) {
+				delete(a.configFieldErrors, key)
+			}
+		}
+	}
+}
+
+// discardConfigChanges is the discard bar's destructive answer: the edits are
+// dropped and the form closes (the reference's `discardDetailsChanges`,
+// `ExtensionsPanel.tsx:2135-2138`).
+func (a *App) discardConfigChanges(id string) { a.closeConfig(id) }
+
+// configDiscardBar draws the reference's `.extension-discard-bar`
+// (`extensions.css:2455-2482`, `ExtensionsPanel.tsx:3029-3035`): the error
+// notice with the question, then Cancel and the destructive Discard. It is
+// drawn under the form, and only while the question is armed *and* the draft is
+// still dirty — the reference's `detailsDiscardArmed && configDirty`.
+func (a *App) configDiscardBar(c *ui.Context, copy i18n.Settings, integration Integration) {
+	band := a.noticeBand(c, true, copy.ConfigDiscardConfirm, func(cancel *ui.Element) {
+		*cancel = a.barButton(c, copy.ConfigCancel, false, false, nil, func() {
+			a.disarmConfigDiscard(integration.ID)
+		})
+		a.barButton(c, copy.ConfigDiscard, true, false, nil, func() {
+			a.discardConfigChanges(integration.ID)
+		})
+	})
+	// The reference's own effect puts focus on Cancel, so the first Enter or
+	// Escape answers "keep" without the pointer moving.
+	band.Focus()
 }
 
 // toggleAudit folds or unfolds one integration's permission audit.
@@ -5078,6 +5241,21 @@ func (a *App) expireConfirmations(c *ui.Context) {
 		if now.Sub(at) > confirmWindow && !a.removeBusy[id] {
 			a.removeConfirm[id] = false
 			delete(a.removeConfirmAt, id)
+			continue
+		}
+		live = true
+	}
+	// The configuration form's fold-away question carries the same clock: the
+	// reference armed it with the identical `useTimedReset` and 3000 ms default
+	// (`ExtensionsPanel.tsx:866`).
+	for id, at := range a.configDiscardAt {
+		if !a.configDiscard[id] {
+			delete(a.configDiscardAt, id)
+			continue
+		}
+		if now.Sub(at) > confirmWindow {
+			delete(a.configDiscard, id)
+			delete(a.configDiscardAt, id)
 			continue
 		}
 		live = true

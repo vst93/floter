@@ -519,7 +519,7 @@ var en = Copy{
 		ApprovalRecordChanged:            "The manifest has changed since this approval. Re-approve to cover the current version.",
 		IntegrationsFailureDetail:        "Failure detail",
 		ConfigOpen:                       "Configure",
-		ConfigSave:                       "Save",
+		ConfigSave:                       "Save configuration",
 		ConfigSaved:                      "Saved",
 		ConfigRequired:                   "required",
 		ConfigNumber:                     "a number is expected",
@@ -533,10 +533,20 @@ var en = Copy{
 		ConfigExported:                   "Configuration exported",
 		ConfigOutOfRange:                 "outside its allowed range",
 		ConfigOutOfLength:                "outside its allowed length",
-		IntegrationsExport:               "Export",
-		IntegrationsImport:               "Import",
-		IntegrationsExporting:            "Exporting…",
-		IntegrationsImporting:            "Importing…",
+		// The reference's `settings.extensions.saving`: the Save's own in-flight
+		// word, swapped in for the button's label while the write is out
+		// (`ExtensionsPanel.tsx:3020`).
+		ConfigSaving: "Saving…",
+		// The reference's `configDiscardConfirm` / `discard` / `cancel`: the
+		// inline bar asked before a dirty form is folded away
+		// (`ExtensionsPanel.tsx:2028-2030,3029-3035`).
+		ConfigDiscardConfirm:  "Discard unsaved configuration changes?",
+		ConfigDiscard:         "Discard",
+		ConfigCancel:          "Cancel",
+		IntegrationsExport:    "Export",
+		IntegrationsImport:    "Import",
+		IntegrationsExporting: "Exporting…",
+		IntegrationsImporting: "Importing…",
 		// The reference's `settings.extensions.exportedNotice`: the count, and
 		// why it is not everything (secrets and device paths never travel).
 		IntegrationsExported: func(count int) string {
@@ -1390,7 +1400,7 @@ var zh = Copy{
 		ApprovalRecordChanged:            "此批准之后清单已变化，建议重新审批以覆盖当前版本。",
 		IntegrationsFailureDetail:        "故障详情",
 		ConfigOpen:                       "配置",
-		ConfigSave:                       "保存",
+		ConfigSave:                       "保存配置",
 		ConfigSaved:                      "已保存",
 		ConfigRequired:                   "必填",
 		ConfigNumber:                     "这里要填数字",
@@ -1404,6 +1414,10 @@ var zh = Copy{
 		ConfigExported:                   "配置已导出",
 		ConfigOutOfRange:                 "超出允许范围",
 		ConfigOutOfLength:                "超出允许长度",
+		ConfigSaving:                     "正在保存…",
+		ConfigDiscardConfirm:             "放弃未保存的配置更改？",
+		ConfigDiscard:                    "丢弃",
+		ConfigCancel:                     "取消",
 		IntegrationsExport:               "导出",
 		IntegrationsImport:               "导入",
 		IntegrationsExporting:            "正在导出…",

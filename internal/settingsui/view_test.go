@@ -2497,12 +2497,14 @@ func TestConfigurationForm(t *testing.T) {
 	min := 0.5
 	max := 9.0
 	a := New(newStore(t), Actions{
-		SaveConfiguration: func(id string, values map[string]any) error {
+		SaveConfiguration: func(id string, values map[string]any, done func(error)) {
 			if saved == nil {
 				saved = map[string]map[string]any{}
 			}
 			saved[id] = values
-			return nil
+			if done != nil {
+				done(nil)
+			}
 		},
 	})
 	a.Integrations = func() []Integration {
@@ -2554,7 +2556,7 @@ func TestConfigurationForm(t *testing.T) {
 		t.Fatalf("multiselect: %v", err)
 	}
 	tt.Frame()
-	if err := tt.Click("Save"); err != nil {
+	if err := tt.Click(i18n.For("en").Settings.ConfigSave); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
@@ -2583,14 +2585,16 @@ func TestConfigurationForm(t *testing.T) {
 	// write), so the form is dirtied again first: the Save is disabled while
 	// it matches what was saved, exactly as the reference's
 	// `disabled={!configDirty}`.
-	a.Actions.SaveConfiguration = func(string, map[string]any) error {
-		return errors.New("the endpoint is unreachable")
+	a.Actions.SaveConfiguration = func(_ string, _ map[string]any, done func(error)) {
+		if done != nil {
+			done(errors.New("the endpoint is unreachable"))
+		}
 	}
 	if err := tt.Click("b"); err != nil {
 		t.Fatalf("re-dirty: %v", err)
 	}
 	tt.Frame()
-	tt.Click("Save")
+	tt.Click(i18n.For("en").Settings.ConfigSave)
 	tt.Frame()
 	if !tt.HasText("the endpoint is unreachable") {
 		t.Errorf("the error is missing: %q", tt.Texts())

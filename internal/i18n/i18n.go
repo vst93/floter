@@ -675,6 +675,17 @@ type Settings struct {
 	// host's own validation.
 	ConfigOutOfRange  string
 	ConfigOutOfLength string
+	// ConfigSaving is the Save button's in-flight word, swapped in for
+	// ConfigSave while the write is out (the reference's
+	// `settings.extensions.saving`, `ExtensionsPanel.tsx:3020`).
+	ConfigSaving string
+	// ConfigDiscardConfirm is the question a dirty form's fold-away asks, and
+	// ConfigDiscard / ConfigCancel its two answers (the reference's
+	// `settings.extensions.configDiscardConfirm` / `.discard` / `.cancel`,
+	// `ExtensionsPanel.tsx:3029-3035`).
+	ConfigDiscardConfirm string
+	ConfigDiscard        string
+	ConfigCancel         string
 	// The export and import of the integration list. Exporting/Importing are the
 	// busy lines shown while a transfer is in flight (the reference's
 	// `settings.extensions.exporting` / `.importing`).

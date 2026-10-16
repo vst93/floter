@@ -1953,7 +1953,16 @@ func (a *App) setShortcutsSuspended(suspended bool) {
 // configuration: the values go through the same validation the old build ran,
 // and the password fields land in a new secrets generation rather than in the
 // values file.
-func (a *App) saveIntegrationConfiguration(id string, values map[string]any) error {
+func (a *App) saveIntegrationConfiguration(id string, values map[string]any, done func(error)) {
+	err := a.saveIntegrationConfigurationNow(id, values)
+	if done != nil {
+		a.onMain(func() { done(err) })
+	}
+}
+
+// saveIntegrationConfigurationNow is the write itself, so the hand-off above can
+// report whatever it did back on the main thread.
+func (a *App) saveIntegrationConfigurationNow(id string, values map[string]any) error {
 	description, ok := a.Integrations.Description(id)
 	if !ok {
 		return errors.New("extensions: no such integration")
@@ -2002,6 +2011,11 @@ func applyIntegrationConfig(store *extensions.Store, paths extensions.Paths, ite
 		return
 	}
 	item.ConfigValues = stored.Values
+	// Who holds the values: the reference's `configuration.descriptor.owner`
+	// (`ExtensionsPanel.tsx:2975`). The form is drawn for a `host` owner and
+	// withheld for a `tool` one, whose editor lives at the tool
+	// (see settingsui.configOwnerIsHost).
+	item.ConfigOwner = configuration.Owner
 	// The generation the stored values were written against, so a copied or
 	// exported configuration can name it (the reference's
 	// `ConfigurationExportDocument.config_version`). The stored value wins
