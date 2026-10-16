@@ -440,7 +440,7 @@ func (a *App) assignNumbers(results []Item) map[int]int {
 	// here would shift every badge by one and let `⌘1` run the shell row.
 	resultCount := 0
 	for _, item := range results {
-		if !strings.HasPrefix(item.ID, "bar:") {
+		if !strings.HasPrefix(item.ID, "bar:") && item.ID != bareTerminalRowID {
 			resultCount++
 		}
 	}
@@ -455,7 +455,7 @@ func (a *App) assignNumbers(results []Item) map[int]int {
 	}
 	count := 0
 	for i, item := range results {
-		if item.Run == nil || strings.HasPrefix(item.ID, "bar:") {
+		if item.Run == nil || strings.HasPrefix(item.ID, "bar:") || item.ID == bareTerminalRowID {
 			continue
 		}
 		if i < first || i > last {
@@ -902,7 +902,7 @@ func (a *App) View(c *ui.Context) {
 			Background(tk.Hairline)
 
 		ui.Row(c).Absolute().Top(0).Left(0).Right(0).Height(fieldRow).
-			Background(tk.FieldFill).Padding(0, t.Space(16)).
+			Background(tk.FieldFill).Padding(0, t.Space(4)).
 			AlignItems(ui.Center).Gap(t.Space(1)).Children(func() {
 			// The launcher's implicit drag handle (R10-B): a 28px band
 			// across the card's top, painted under the field and the buttons
@@ -920,8 +920,8 @@ func (a *App) View(c *ui.Context) {
 			// was consumed on entry, so this is the only place the mode is
 			// named.
 			if glyph, name, ok := a.scopeMark(copy); ok {
-				mark := ui.Row(c).Shrink(0).Gap(t.Space(6)).AlignItems(ui.Center).
-					Margin(0, t.Space(10), 0, 0)
+				mark := ui.Row(c).Shrink(0).Gap(t.Space(1.5)).AlignItems(ui.Center).
+					Margin(0, t.Space(2.5), 0, 0)
 				mark.Children(func() {
 					ui.Icon(c, glyph).Size(t.Space(4), t.Space(4)).TextColor(t.TextMuted)
 					ui.Text(c, name).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
@@ -954,12 +954,16 @@ func (a *App) View(c *ui.Context) {
 			}
 			if field.Changed() {
 				// A fresh query starts on its own default: the action bar for a
-				// command line, URL or path, the first runnable result otherwise
-				// (the reference's `defaultsToActionBar` / `firstRunnableResultIndex`).
-				// The action bar is a row of this list, so its default is its index.
-				// The results are recomputed here: `results` was built before the
-				// field took the keystroke and no longer matches the query.
-				a.Selected = a.defaultSelection(a.Results())
+				// dead-key query, the first runnable result otherwise (the
+				// reference's `defaultsToActionBar` / `firstRunnableResultIndex`).
+				// The bar is not a row of this list — it is the panel's pinned
+				// footer (see Results) — so its default is its own index, past
+				// the last match. The results are recomputed here: `results` was
+				// built before the field took the keystroke and no longer matches
+				// the query.
+				next := a.Results()
+				a.Selected = a.defaultSelection(next)
+				a.chosenRow = -1
 				// The keystroke is accounted for, so the next frame's own query
 				// check does not undo a step the keyboard takes from here.
 				a.defaultedQuery = a.Query
@@ -1574,14 +1578,14 @@ func (a *App) row(c *ui.Context, item Item, i int) {
 		// build's `--text-tertiary` on `.launcher-status__icon`.
 		tokens := theme.ForPreferences(a.settings(), t.Dark, c.Preferences())
 		note := ui.Row(c).FillWidth().MinHeight(t.Space(launcherStatusUnits)).
-			AlignItems(ui.Center).Padding(0, t.Space(12)).Gap(t.Space(10))
+			AlignItems(ui.Center).Padding(0, t.Space(3)).Gap(t.Space(2.5))
 		note.Children(func() {
 			// The 28u icon column, as `.launcher-status__icon` was: no plate,
 			// only the mark.
 			ui.Box(c).Size(t.Space(7), t.Space(7)).Shrink(0).
 				AlignItems(ui.Center).Justify(ui.Center).Children(func() {
 				if glyph, ok := Glyph("info"); ok {
-					ui.Icon(c, glyph).Size(t.Space(3.5), t.Space(3.5)).
+					ui.Icon(c, glyph).Size(t.Space(4), t.Space(4)).
 						TextColor(tokens.TextTertiary)
 				}
 			})
@@ -1613,7 +1617,7 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 	}
 	row := ui.Row(c.Key(item.ID)).FillWidth().Focusable().MinHeight(floor).
 		AlignItems(ui.Center).
-		Padding(0, t.Space(12)).Radius(tokens.RadiusMD).Gap(t.Space(10)).
+		Padding(0, t.Space(3)).Radius(tokens.RadiusMD).Gap(t.Space(2.5)).
 		Transition(rowTransition)
 	// A history row is one step quieter than a match: the old build's
 	// `.launcher-result--history { opacity: 0.92 }`.
@@ -1627,10 +1631,13 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 	isBar := strings.HasPrefix(item.ID, "bar:")
 	if isBar {
 		// The bar is the panel's own pinned footer (`.launcher-action-bar`):
-		// 3u above it — a constant, so the bottom edge never jumps when the
-		// result count crosses zero — and a floor of its own 42u, which the
-		// window charges as the old build's 45u.
-		floor = t.Space(11.25)
+		// a floor of its own 42u — one `Space(n)` is four reference units, so
+		// that is `Space(10.5)` — and the 3u breath above it as this row's own
+		// margin (`margin-top: calc(var(--u) * 3)`). The window charges the two
+		// together as the old build's 45u band (see Height's bar arm), and the
+		// breath is a *constant*, so the bottom edge never jumps when the result
+		// count crosses zero.
+		floor = t.Space(10.5)
 		row.Margin(t.Space(0.75), 0, 0, 0)
 	}
 	// The press is the one state a row takes on top of the tint: the control
@@ -2108,9 +2115,12 @@ func (a *App) defaultsToActionBar(results []Item) bool {
 
 // defaultSelection is the row a fresh query starts on: the action bar when
 // `defaultsToActionBar` says Enter belongs to it, else the first runnable
-// result — the reference's `firstRunnableResultIndex < 0 ? 0 : ...`. The
-// action bar is excluded from the fallback so a query that matches a catalog
-// command does not start on the shell row merely because the bar is drawn.
+// result — the reference's `firstRunnableResultIndex < 0 ? 0 : ...`.
+//
+// Only the *dead-key* case reaches the bar: a query that answers nothing (or
+// nothing runnable) has no result to sit on, and the footer is then the only
+// row Enter could mean. A query that matches a catalog command keeps the
+// selection on that command and the bar stays the footer it is.
 func (a *App) defaultSelection(results []Item) int {
 	bar := actionBarIndex(results)
 	if bar >= 0 && a.defaultsToActionBar(a.otherResults()) {

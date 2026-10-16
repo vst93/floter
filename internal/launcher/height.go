@@ -108,7 +108,8 @@ type RowInfo struct {
 	// rather than a result row's floor.
 	Heading bool
 	// Bar marks the action bar, whose own 3u breath above it and 42u band the
-	// window charges together, as the old build's 45u.
+	// window charges together, as the old build's 45u — the one row the panel
+	// charges a breath for.
 	Bar bool
 	// Status marks a plugin's status note, which the old build charged its own
 	// 30u band (`LAUNCHER_STATUS_UNITS`), shorter than a compact result row.

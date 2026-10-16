@@ -119,13 +119,15 @@ func TestAShortListIsNumberedWhole(t *testing.T) {
 	a.Query = "al"
 	tt := render(t, a)
 	tt.Frame()
-	if got := a.numbers[1]; got != 1 {
-		t.Errorf("row 1 number = %d, want 1 (%v)", got, a.numbers)
+	// The action bar is the panel's pinned footer (the last entry), not a
+	// row of the matched list, so the family starts on the first real result.
+	if got := a.numbers[0]; got != 1 {
+		t.Errorf("row 0 number = %d, want 1 (%v)", got, a.numbers)
 	}
-	if got := a.numbers[2]; got != 2 {
-		t.Errorf("row 2 number = %d, want 2 (%v)", got, a.numbers)
+	if got := a.numbers[1]; got != 2 {
+		t.Errorf("row 1 number = %d, want 2 (%v)", got, a.numbers)
 	}
-	if _, ok := a.numbers[0]; ok {
+	if _, ok := a.numbers[len(a.Results())-1]; ok {
 		t.Errorf("the action bar was numbered: %v", a.numbers)
 	}
 }

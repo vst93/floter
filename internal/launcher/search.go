@@ -746,26 +746,29 @@ func (a *App) Results() []Item {
 	}
 	var out []Item
 	// A power word claims the query before anything else matches: a user who
-	// types "restart" means the machine. The action bar follows, for a URL, a
-	// path or a command the field is holding — and a shell command is drawn
-	// whenever the catalogue matched something, because the row is the terminal
-	// hand-off for a result the field is showing (a query that matched a catalog
-	// command used to hide it — 「目前缺失」). The gate is the *matches*, not the
-	// field's own text: a command that matched nothing draws no row over the
-	// "No results" page (Enter still runs it — see App.activate).
+	// types "restart" means the machine, so those rows lead. Then the answer
+	// itself — the calculator's, the built-in commands over an empty field, the
+	// ranked catalogue over a typed one.
 	other := a.otherResults()
 	out = append(out, a.powerItems()...)
-	out = append(out, a.actionBarItemsWith(other, true)...)
-	// The calculator answer is `other`'s first row (see otherResults); it is
-	// not appended a second time here — that duplicate took two numbered
-	// slots for one answer.
 	out = append(out, other...)
-	// The held modifier's own line is the list's **last** row, on the empty
-	// page *and* over a query (the report 「输入内容之后按住 Super 键，底部
-	// 应该固定出现「在终端中打开」的选项」). It is appended here, after the
-	// action bar and the matched rows, so it is genuinely at the bottom; and
-	// after `other` has been handed to `actionBarItemsWith` so the shell row's
-	// presence gate still sees only the *matches* and not this row.
+	// The action bar is the panel's **pinned footer**, not a first row: the old
+	// build drew it *below* the scroller (`.launcher-action-bar`, a sibling of
+	// `.launcher-results`, not a row inside it), which is why it is appended
+	// after every match here. Its row is the field's own hand-off — run the line
+	// in the terminal, open the URL, open the path — and it is drawn whenever
+	// the query is something the field itself can act on *and* the list has a
+	// match to sit under (`visibleActionBar`'s gate, which reads the matches and
+	// not the field's text; see `actionBarItemsWith`). The user's report
+	// 「现在固定在第一项」 was this row drawn first, above the results; the
+	// reference's footer position is the fix.
+	out = append(out, a.actionBarItemsWith(other, true)...)
+	// The held modifier's own line closes the panel, on the empty page *and*
+	// over a query (the report 「输入内容之后按住 Super 键，底部应该固定出现
+	// 「在终端中打开」的选项」). It rides the modifier — it is gone the moment the
+	// key is released — and it is appended after the bar so it is genuinely the
+	// last line, the way the reference appended its own held row below the
+	// recents.
 	if item, ok := a.heldTerminalItem(); ok {
 		out = append(out, item)
 	}

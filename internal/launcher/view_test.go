@@ -1654,11 +1654,11 @@ func TestResultShortcutsRunTheNumberedRow(t *testing.T) {
 	tt := render(t, a)
 	a.Query = "app"
 	tt.Frame()
-	// The action bar's shell row heads the matched list and takes no number
-	// (the old build ran `resultShortcutSlots` over `displayedResults`, which
-	// excludes the bar), so the family starts on the row behind it: 1..9 then
-	// 0 on the tenth numberable row.
-	if got := a.numbers[1]; got != 1 {
+	// The action bar is the panel's pinned footer (the list's last entry) and
+	// takes no number — the old build ran `resultShortcutSlots` over
+	// `displayedResults`, which excludes the bar — so the family starts on the
+	// first real result: 1..9 then 0 on the tenth numberable row.
+	if got := a.numbers[0]; got != 1 {
 		t.Errorf("the first result row's number = %d (%v)", got, a.numbers)
 	}
 	last := 0
@@ -1673,7 +1673,7 @@ func TestResultShortcutsRunTheNumberedRow(t *testing.T) {
 	if _, ok := a.numbers[last+1]; ok {
 		t.Errorf("an eleventh row was numbered: %v", a.numbers)
 	}
-	if _, ok := a.numbers[0]; ok {
+	if _, ok := a.numbers[len(a.Results())-1]; ok {
 		t.Errorf("the action bar was numbered: %v", a.numbers)
 	}
 	if !tt.HasText("1") {
