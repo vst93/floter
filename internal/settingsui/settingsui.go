@@ -568,6 +568,16 @@ type App struct {
 	cardTitleFloor float32
 	cardLineGap    float32
 
+	// cardUnit is the metric unit the surface being drawn uses when its
+	// reference CSS is *not* written in `--u`: zero keeps the theme's own
+	// `Space` (4·scale), and a positive value is the literal unit the surface
+	// pins instead (4 for the extension panel, whose `extensions.css` is
+	// written in literal px — a 66px row, a 30px chip, an 8px padding — and so
+	// does not follow the interface step). It is set for the duration of a
+	// draw by extensionMetrics and read through cardSpace/cardTheme, so a
+	// helper that sizes its own metrics follows the surface it is drawn on.
+	cardUnit float32
+
 	// disableConfirm marks the integrations whose switch was turned off and
 	// is waiting for the user's answer. removeConfirm marks the ones whose
 	// destructive button was pressed and is likewise waiting — the old
@@ -1084,7 +1094,7 @@ func (a *App) permissionTier(c *ui.Context, label, hint string, enforced bool, l
 	if len(permissions) == 0 {
 		return
 	}
-	t := c.Theme()
+	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 	ui.Column(c).FillWidth().Gap(t.Space(1)).Children(func() {
 		ui.Text(c, label).FontSize(t.FontSize - 1).FontWeight(650).TextColor(tokens.TextStrong)
@@ -1482,36 +1492,42 @@ func (a *App) integrations(c *ui.Context, copy i18n.Settings) {
 	integrations := a.installedIntegrations()
 	a.pageColumn(c, func() {
 		ui.Text(c, copy.IntegrationsHint).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
-		a.basePluginSection(c, copy)
-		a.localToolSection(c, copy)
-		a.detectedSection(c, copy)
-		a.recommendedRow(c, copy)
-		a.transferRow(c, copy)
-		a.installRow(c, copy)
-		a.installFolderRow(c, copy)
-		// The PATH commands' own switch sits with the integrations, as the old
-		// panel had it: it decides whether the search offers them at all.
-		a.card(c, func() {
-			a.checkbox(c, copy.ShowCommandsInSearch, copy.ShowCommandsInSearchHint,
-				settings.ShowCommandsInSearch(a.Store.Snapshot()),
-				func(on bool) {
-					a.set(func(s *settings.Settings) { s.SetShowCommandsInSearch(on) })
-				})
-		})
-		if len(integrations) == 0 {
-			// The reference's shared empty region (`ExtensionsPanel.tsx:2462,
-			// 3177-3191`): the installed list's own `Package` mark at 20px, the
-			// state in one line, on the 92u list floor. The reference's
-			// `EmptyState` also carries a first-load spinner and a filtered-query
-			// echo on the hint line; this build's list is in-process and has no
-			// filter, so neither has a source and only the resting arm is drawn.
-			a.emptyState(c, "package", copy.IntegrationsEmpty, "", t.Space(5), 0, nil)
-			return
-		}
-		a.extensionSection(c, copy.IntegrationsInstalled, len(integrations), func() {
-			for _, integration := range integrations {
-				a.integrationRow(c, copy, integration)
+		// The panel's own content is `extensions.css`, written in literal px, so
+		// it does not follow the interface step the way the settings pages' `--u`
+		// metrics do (the page column's own gap above still scales). Everything
+		// drawn inside wears the extension unit.
+		a.extensionMetrics(func() {
+			a.basePluginSection(c, copy)
+			a.localToolSection(c, copy)
+			a.detectedSection(c, copy)
+			a.recommendedRow(c, copy)
+			a.transferRow(c, copy)
+			a.installRow(c, copy)
+			a.installFolderRow(c, copy)
+			// The PATH commands' own switch sits with the integrations, as the old
+			// panel had it: it decides whether the search offers them at all.
+			a.card(c, func() {
+				a.checkbox(c, copy.ShowCommandsInSearch, copy.ShowCommandsInSearchHint,
+					settings.ShowCommandsInSearch(a.Store.Snapshot()),
+					func(on bool) {
+						a.set(func(s *settings.Settings) { s.SetShowCommandsInSearch(on) })
+					})
+			})
+			if len(integrations) == 0 {
+				// The reference's shared empty region (`ExtensionsPanel.tsx:2462,
+				// 3177-3191`): the installed list's own `Package` mark at 20px, the
+				// state in one line, on the 92u list floor. The reference's
+				// `EmptyState` also carries a first-load spinner and a filtered-query
+				// echo on the hint line; this build's list is in-process and has no
+				// filter, so neither has a source and only the resting arm is drawn.
+				a.emptyState(c, "package", copy.IntegrationsEmpty, "", a.cardSpace(t, 5), 0, nil)
+				return
 			}
+			a.extensionSection(c, copy.IntegrationsInstalled, len(integrations), func() {
+				for _, integration := range integrations {
+					a.integrationRow(c, copy, integration)
+				}
+			})
 		})
 	})
 }
@@ -1577,7 +1593,7 @@ func (a *App) basePluginSection(c *ui.Context, copy i18n.Settings) {
 						// `extensions.css:2610-2614`): a 24u height and the
 						// emphasis step, so it never out-shouts the plugin name
 						// beside it.
-						t := c.Theme()
+						t := a.cardTheme(c)
 						configure := a.extensionActionButton(c, copy.PluginConfigure,
 							t.Space(6), t.Space(3), a.tokens(c).Emphasis)
 						configure.Label(copy.PluginConfigure + " " + plugin.Name)
@@ -1654,7 +1670,7 @@ func (a *App) recommendedRow(c *ui.Context, copy i18n.Settings) {
 // (its one authoring row) but follows the same three states: disabled while
 // busy, one busy line, and the report block below.
 func (a *App) transferRow(c *ui.Context, copy i18n.Settings) {
-	t := c.Theme()
+	t := a.cardTheme(c)
 	busy := a.TransferBusy != ""
 	ui.Row(c).FillWidth().Gap(t.Space(1)).AlignItems(ui.Center).
 		Padding(0, 0, t.Space(1), 0).Children(func() {
@@ -1688,7 +1704,7 @@ func (a *App) installRow(c *ui.Context, copy i18n.Settings) {
 	if a.Actions.InstallFromRegistry == nil {
 		return
 	}
-	t := c.Theme()
+	t := a.cardTheme(c)
 	name, version := a.installName, a.installVersion
 	requested := false
 	ui.Row(c).FillWidth().Gap(t.Space(1)).AlignItems(ui.Center).
@@ -1713,7 +1729,7 @@ func (a *App) installRow(c *ui.Context, copy i18n.Settings) {
 // mark. It is a state, not an action — the row's switch is the action — so no
 // state spends an accent fill.
 func (a *App) stateMark(c *ui.Context, integration Integration, copy i18n.Settings) {
-	t := c.Theme()
+	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 	text := integration.state(copy)
 	switch {
@@ -1738,7 +1754,7 @@ func (a *App) stateMark(c *ui.Context, integration Integration, copy i18n.Settin
 // one. It is a state mark, not an action — the row's repair button (drawn
 // separately) is the action, and this chip only says why the button is there.
 func (a *App) runtimeUnavailableBadge(c *ui.Context, copy i18n.Settings, integration Integration) {
-	t := c.Theme()
+	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 	label := copy.RuntimeUnavailable
 	if code := integration.FailureCode; code != "" {
@@ -1762,7 +1778,7 @@ func (a *App) runtimeUnavailableBadge(c *ui.Context, copy i18n.Settings, integra
 // running, a warm chip while broken, secondary while off) through stateMark,
 // which is why it is a separate node rather than one joined string.
 func (a *App) integrationMeta(c *ui.Context, copy i18n.Settings, integration Integration) {
-	t := c.Theme()
+	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 	facts := make([]string, 0, 3)
 	if id := integration.identity(); id != "" {
@@ -1795,7 +1811,7 @@ func (a *App) integrationMeta(c *ui.Context, copy i18n.Settings, integration Int
 // decision needs, then when the run happened. The status word above stays
 // the row's value; these lines are its detail.
 func (a *App) healthDetail(c *ui.Context, copy i18n.Settings, report *HealthReport) {
-	t := c.Theme()
+	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 	if len(report.Probes) > 0 {
 		a.row(c, copy.IntegrationsHealthChecks, "", func() {})
@@ -1873,7 +1889,7 @@ func healthCheckedAt(raw string) string {
 // on disk no longer match the approval. No record is one empty-state line,
 // not a block of placeholders.
 func (a *App) approvalDetail(c *ui.Context, copy i18n.Settings, record *ApprovalRecord) {
-	t := c.Theme()
+	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 	if record == nil {
 		a.row(c, copy.ApprovalRecord, copy.ApprovalRecordNone, func() {})
@@ -1935,7 +1951,7 @@ func approvalApprovedAt(at uint64) string {
 // row keeps the card's plane and an unlit rule (hover lights it in cardRow).
 func (a *App) integrationRowFace(c *ui.Context, integration Integration) rowFace {
 	tokens := a.tokens(c)
-	t := c.Theme()
+	t := a.cardTheme(c)
 	switch {
 	case integration.Broken:
 		return rowFace{Face: tokens.RaisedWarm, FaceSet: true, Inset: t.Warning, Bar: t.Warning}
@@ -1949,7 +1965,7 @@ func (a *App) integrationRowFace(c *ui.Context, integration Integration) rowFace
 // it declares, what it can run (each command a row with its switch and its
 // alias), and the row of doors — check, re-scan, uninstall.
 func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Integration) {
-	t := c.Theme()
+	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 	// The row's own one-word freshness, read once and used twice: the mark
 	// beside the name and the fuller row below it, projected from the same
@@ -2342,7 +2358,7 @@ func (a *App) toggleAudit(id string) {
 // permission allows, and whether the host itself decides it. The list is folded
 // away until the user asks for it, so a row stays a row.
 func (a *App) permissionAudit(c *ui.Context, copy i18n.Settings, integration Integration) {
-	t := c.Theme()
+	t := a.cardTheme(c)
 	language := a.Store.Snapshot().Language
 	if a.actionButton(c, copy.IntegrationsPermissions).Clicked() {
 		if a.auditOpen == nil {
@@ -2364,7 +2380,14 @@ func (a *App) permissionAudit(c *ui.Context, copy i18n.Settings, integration Int
 		}
 		disclosure = append(disclosure, permission)
 	}
-	ui.Column(c).FillWidth().Gap(t.Space(3)).Padding(0, 0, t.Space(1), 0).Children(func() {
+	// The audit is a `below` block of the Permissions row: it is drawn on the
+	// card's content column, so it carries the row's own inset to put its tier
+	// labels on the same column as the row labels above them. Without it the
+	// labels sit flush against the card's edge, one whole inset left of the
+	// labels they explain (the reference's `.extension-permission-list` pads
+	// its own list, `extensions.css:1497-1503`).
+	inset := a.rowInset(t)
+	ui.Column(c).FillWidth().Gap(t.Space(3)).Padding(0, inset, t.Space(1), inset).Children(func() {
 		a.permissionTier(c, copy.PermissionsEnforcedLabel, copy.PermissionsEnforcedHint, true, language, enforced)
 		a.permissionTier(c, copy.PermissionsDisclosureLabel, copy.PermissionsDisclosureHint, false, language, disclosure)
 	})
@@ -4086,7 +4109,7 @@ func (a *App) toolIssueUnder(c *ui.Context, copy i18n.Settings, issues []extensi
 // form's current draft, so it is what the user sees now rather than what the
 // form opened with.
 func (a *App) toolContentActions(c *ui.Context, copy i18n.Settings, mode, command, program, args, script, language string) {
-	t := c.Theme()
+	t := a.cardTheme(c)
 	a.actionRow(c, func() {
 		ui.Row(c).Gap(t.Space(1)).AlignItems(ui.Center).Children(func() {
 			if mode == routeScript {
@@ -4495,7 +4518,7 @@ func freshnessState(copy i18n.Settings, freshness extensions.Freshness) string {
 // list move without reading every row's timeline. Only a change earns warmth;
 // a synced list is a quiet secondary dot and an unknown one is muted.
 func (a *App) freshnessDot(c *ui.Context, copy i18n.Settings, freshness extensions.Freshness) {
-	t := c.Theme()
+	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 	dot := freshness.DotState()
 	color := t.TextMuted
@@ -4735,7 +4758,7 @@ func (a *App) requestDisable(id string) {
 // before their label, so the mark a destructive confirm is recognized by
 // comes before the word it confirms.
 func (a *App) barButton(c *ui.Context, label string, danger, disabled bool, icon *ui.SVG, run func()) ui.Element {
-	t := c.Theme()
+	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 	ink := tokens.TextStrong
 	edge := tokens.ControlEdge
@@ -4820,7 +4843,7 @@ func (a *App) barButton(c *ui.Context, label string, danger, disabled bool, icon
 // (`RemovalConfirmation.tsx:17-18`), so the first press of Enter or Escape
 // answers the question without the pointer moving.
 func (a *App) noticeBand(c *ui.Context, danger bool, sentence string, answers func(*ui.Element)) ui.Element {
-	t := c.Theme()
+	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 	ink := tokens.TextSecondary
 	if danger {
@@ -5327,105 +5350,113 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 	for _, issue := range issues {
 		issueByIndex[issue.Index] = issue
 	}
-	theme := c.Theme()
-	// The form's own frame: the heading and hint the reference drew above the
-	// inputs (`RunParamForm.tsx`: `.extension-run-params__head` +
-	// `customRunValuesHint`), so a user meets the form as a named block rather
-	// than as rows that appear under the commands.
-	ui.Column(c).FillWidth().Gap(theme.Space(0.5)).Children(func() {
-		ui.Text(c, copy.RunValues).FontSize(theme.FontSize + 1).FontWeight(600).
-			TextColor(a.tokens(c).TextStrong)
-		ui.Text(c, copy.RunValuesHint).FontSize(theme.FontSize - 1).TextColor(theme.TextMuted)
-	})
-	a.card(c, func() {
-		for index, param := range integration.Params {
-			index, param := index, param
-			label := param.Label
-			if label == "" {
-				label = param.ID
-			}
-			// The row's second line is the parameter's *kind* (the reference's
-			// `customParamType.*` `<small>`), with the required marker beside it;
-			// the placeholder belongs to the input, where the reference put it.
-			sublabel := runParamKindLabel(copy, param.Kind)
-			if param.Required {
-				sublabel = strings.TrimSpace(sublabel + "  ·  " + copy.RunRequired)
-			}
-			// The row's own reason, printed under it inside the card.
-			below := []func(){}
-			if issue, ok := issueByIndex[index]; ok {
-				below = append(below, func() {
-					ui.Text(c, paramValueIssueMessage(copy, issue)).
-						FontSize(theme.FontSize-1).TextColor(theme.Danger).
-						Margin(theme.Space(1), theme.Space(3.5))
-				})
-			}
-			switch param.Kind {
-			case extensions.ParamBoolean:
-				on := truthyValue(values[param.ID])
-				labelClicked := a.row(c, label, sublabel, func() {
-					if a.switchControl(c, &on).Label(label).Changed() {
-						values[param.ID] = boolValue(on)
-					}
-				}, below...)
-				if labelClicked {
-					values[param.ID] = boolValue(!on)
+	theme := a.cardTheme(c)
+	// The form is a `below` block of the Run row, drawn on the card's content
+	// column: it carries the row's own inset so the heading, the input rows'
+	// card and the Run actions all start on the row labels' column instead of
+	// flush against the card's edge (the reference's `.extension-run-params`
+	// box, `extensions.css:1224-1236`, sits inside the row's own padding).
+	inset := a.rowInset(theme)
+	ui.Column(c).FillWidth().Padding(0, inset, 0, inset).Children(func() {
+		// The form's own frame: the heading and hint the reference drew above the
+		// inputs (`RunParamForm.tsx`: `.extension-run-params__head` +
+		// `customRunValuesHint`), so a user meets the form as a named block rather
+		// than as rows that appear under the commands.
+		ui.Column(c).FillWidth().Gap(theme.Space(0.5)).Children(func() {
+			ui.Text(c, copy.RunValues).FontSize(theme.FontSize + 1).FontWeight(600).
+				TextColor(a.tokens(c).TextStrong)
+			ui.Text(c, copy.RunValuesHint).FontSize(theme.FontSize - 1).TextColor(theme.TextMuted)
+		})
+		a.card(c, func() {
+			for index, param := range integration.Params {
+				index, param := index, param
+				label := param.Label
+				if label == "" {
+					label = param.ID
 				}
-			case extensions.ParamSelect:
-				index := 0
-				for i, option := range param.Options {
-					if option == values[param.ID] {
-						index = i
-					}
+				// The row's second line is the parameter's *kind* (the reference's
+				// `customParamType.*` `<small>`), with the required marker beside it;
+				// the placeholder belongs to the input, where the reference put it.
+				sublabel := runParamKindLabel(copy, param.Kind)
+				if param.Required {
+					sublabel = strings.TrimSpace(sublabel + "  ·  " + copy.RunRequired)
 				}
-				a.row(c, label, sublabel, func() {
-					if a.segmentedControl(c, &index, param.Options...).Changed() &&
-						index >= 0 && index < len(param.Options) {
-						values[param.ID] = param.Options[index]
+				// The row's own reason, printed under it inside the card.
+				below := []func(){}
+				if issue, ok := issueByIndex[index]; ok {
+					below = append(below, func() {
+						ui.Text(c, paramValueIssueMessage(copy, issue)).
+							FontSize(theme.FontSize-1).TextColor(theme.Danger).
+							Margin(theme.Space(1), theme.Space(3.5))
+					})
+				}
+				switch param.Kind {
+				case extensions.ParamBoolean:
+					on := truthyValue(values[param.ID])
+					labelClicked := a.row(c, label, sublabel, func() {
+						if a.switchControl(c, &on).Label(label).Changed() {
+							values[param.ID] = boolValue(on)
+						}
+					}, below...)
+					if labelClicked {
+						values[param.ID] = boolValue(!on)
 					}
-				}, below...)
-			default:
-				value := values[param.ID]
-				a.row(c, label, sublabel, func() {
-					textInput(c, &value).Label(label).Width(220).Placeholder(param.Placeholder)
-				}, below...)
-				values[param.ID] = value
+				case extensions.ParamSelect:
+					index := 0
+					for i, option := range param.Options {
+						if option == values[param.ID] {
+							index = i
+						}
+					}
+					a.row(c, label, sublabel, func() {
+						if a.segmentedControl(c, &index, param.Options...).Changed() &&
+							index >= 0 && index < len(param.Options) {
+							values[param.ID] = param.Options[index]
+						}
+					}, below...)
+				default:
+					value := values[param.ID]
+					a.row(c, label, sublabel, func() {
+						textInput(c, &value).Label(label).Width(220).Placeholder(param.Placeholder)
+					}, below...)
+					values[param.ID] = value
+				}
 			}
+		})
+		// The form's footnote: the injection note (values are argv, never a shell
+		// line) and the route the manifest already declares, stated before the Run
+		// button so the user knows where the output lands — the reference's
+		// `customParamInjectionNote` and its `customRunOutputHint*` pair.
+		ui.Text(c, copy.RunInjectionNote).FontSize(theme.FontSize - 1).TextColor(theme.TextMuted)
+		outputHint := copy.RunOutputHintBackground
+		if integration.OutputMode == extensions.RouteTerminal {
+			outputHint = copy.RunOutputHintTerminal
+		}
+		ui.Text(c, outputHint).FontSize(theme.FontSize - 1).TextColor(theme.TextMuted)
+		ui.Row(c).Gap(theme.Space(1)).AlignItems(ui.Center).Children(func() {
+			run := a.actionButton(c, copy.RunLabel)
+			if len(issues) > 0 {
+				run = run.Disabled(true)
+			}
+			if run.Clicked() && len(issues) == 0 {
+				a.runError = ""
+				if failure := a.Actions.RunWithParams(integration.ID, values); failure != nil {
+					a.runError = paramFailureMessage(copy, params, failure)
+				}
+			}
+			// Cancel folds the form away without running (the reference's
+			// `customRunCancel`). The answers stay in `runValues`, so reopening the
+			// form keeps the user's in-progress edits — the reference's
+			// `runParamMemory`, session memory seeded only on a fresh open.
+			if a.actionButton(c, copy.RunCancel).Clicked() {
+				a.runOpen[integration.ID] = false
+				a.runError = ""
+			}
+		})
+		if a.runError != "" {
+			ui.Text(c, a.runError).FontSize(theme.FontSize - 1).TextColor(theme.Danger)
 		}
 	})
-	// The form's footnote: the injection note (values are argv, never a shell
-	// line) and the route the manifest already declares, stated before the Run
-	// button so the user knows where the output lands — the reference's
-	// `customParamInjectionNote` and its `customRunOutputHint*` pair.
-	ui.Text(c, copy.RunInjectionNote).FontSize(theme.FontSize - 1).TextColor(theme.TextMuted)
-	outputHint := copy.RunOutputHintBackground
-	if integration.OutputMode == extensions.RouteTerminal {
-		outputHint = copy.RunOutputHintTerminal
-	}
-	ui.Text(c, outputHint).FontSize(theme.FontSize - 1).TextColor(theme.TextMuted)
-	ui.Row(c).Gap(theme.Space(1)).AlignItems(ui.Center).Children(func() {
-		run := a.actionButton(c, copy.RunLabel)
-		if len(issues) > 0 {
-			run = run.Disabled(true)
-		}
-		if run.Clicked() && len(issues) == 0 {
-			a.runError = ""
-			if failure := a.Actions.RunWithParams(integration.ID, values); failure != nil {
-				a.runError = paramFailureMessage(copy, params, failure)
-			}
-		}
-		// Cancel folds the form away without running (the reference's
-		// `customRunCancel`). The answers stay in `runValues`, so reopening the
-		// form keeps the user's in-progress edits — the reference's
-		// `runParamMemory`, session memory seeded only on a fresh open.
-		if a.actionButton(c, copy.RunCancel).Clicked() {
-			a.runOpen[integration.ID] = false
-			a.runError = ""
-		}
-	})
-	if a.runError != "" {
-		ui.Text(c, a.runError).FontSize(theme.FontSize - 1).TextColor(theme.Danger)
-	}
 }
 
 // runParamKindLabel is one parameter kind's own word, the reference's
@@ -5510,7 +5541,7 @@ func (a *App) runOutput(c *ui.Context, copy i18n.Settings, integration Integrati
 		}
 		return
 	}
-	t := c.Theme()
+	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 	ui.Column(c).FillWidth().Gap(t.Space(1.5)).Padding(t.Space(2), t.Space(3.5)).Children(func() {
 		ui.Row(c).FillWidth().Gap(t.Space(2)).AlignItems(ui.Center).Children(func() {
@@ -5578,7 +5609,7 @@ var paramKinds = []string{
 // rendered where they happened so a save never had to bounce back from the
 // backend to explain a typo. A muted warning line, not a red banner.
 func (a *App) issueUnder(c *ui.Context, message string) {
-	t := c.Theme()
+	t := a.cardTheme(c)
 	ui.Text(c, message).FontSize(t.FontSize-1).TextColor(t.Warning).
 		Padding(0, t.Space(3.5)).SingleLine()
 }
@@ -5592,7 +5623,7 @@ func (a *App) issueUnder(c *ui.Context, message string) {
 // A flag that is not one argv token is refused at connect time, so the editor
 // does not have to police the spelling here.
 func (a *App) toolParamsEditor(c *ui.Context, copy i18n.Settings) {
-	t := c.Theme()
+	t := a.cardTheme(c)
 	a.section(c, copy.ParamsTitle, copy.ParamsHint, func() {
 		if len(a.toolParams) == 0 {
 			ui.Text(c, copy.ParamsEmpty).FontSize(t.FontSize - 1).TextColor(t.TextMuted)

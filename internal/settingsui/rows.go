@@ -49,7 +49,7 @@ func (a *App) pageColumn(c *ui.Context, fn func()) {
 func (a *App) section(c *ui.Context, title, hint string, fn func()) ui.Element {
 	return a.sectionGroup(c, title, func() {
 		a.sectionHeading(c, title, nil)
-		ui.Column(c).FillWidth().Gap(c.Theme().Space(2.5)).Children(fn)
+		ui.Column(c).FillWidth().Gap(a.cardTheme(c).Space(2.5)).Children(fn)
 		a.sectionHint(c, hint)
 	})
 }
@@ -62,7 +62,7 @@ func (a *App) section(c *ui.Context, title, hint string, fn func()) ui.Element {
 // between two sections is the room from one group's bottom edge to the next
 // group's top edge (`pageColumn`), which no text box shows.
 func (a *App) sectionGroup(c *ui.Context, title string, fn func()) ui.Element {
-	return a.sectionGroupSpaced(c, title, c.Theme().Space(2), 0, fn)
+	return a.sectionGroupSpaced(c, title, a.cardTheme(c).Space(2), 0, fn)
 }
 
 // sectionGroupSpaced is sectionGroup for a section that is spaced differently
@@ -135,7 +135,7 @@ func (a *App) sectionHeading(c *ui.Context, title string, action func()) ui.Elem
 // group's explanation is a `sectionHint` line after its cards. An empty hint
 // keeps the plain single-line heading the rest of the pane uses.
 func (a *App) sectionHeadingInline(c *ui.Context, title, inlineHint string, action func()) ui.Element {
-	t := c.Theme()
+	t := a.cardTheme(c)
 	row := ui.Row(c).FillWidth().AlignItems(ui.End).Justify(ui.SpaceBetween).
 		Gap(t.Space(3)).Padding(0, t.Space(0.5))
 	row.Children(func() {
@@ -167,7 +167,7 @@ func (a *App) sectionHint(c *ui.Context, hint string) {
 	if hint == "" {
 		return
 	}
-	t := c.Theme()
+	t := a.cardTheme(c)
 	ui.Row(c).FillWidth().Padding(0, t.Space(0.5)).Children(func() {
 		ui.Text(c, hint).FontSize(t.FontSize).FontWeight(500).TextColor(t.TextMuted)
 	})
@@ -188,7 +188,7 @@ func (a *App) sectionHint(c *ui.Context, hint string) {
 // not at the end of the section the way the settings cards do, so fn draws
 // its own hint first (`extensionHint`) and its cards after.
 func (a *App) extensionSection(c *ui.Context, title string, count int, fn func()) ui.Element {
-	t := c.Theme()
+	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 	return a.sectionGroup(c, title, func() {
 		ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(t.Space(2)).
@@ -220,7 +220,7 @@ func (a *App) extensionHint(c *ui.Context, hint string, caption bool) {
 		return
 	}
 	tokens := a.tokens(c)
-	t := c.Theme()
+	t := a.cardTheme(c)
 	inset, size := t.Space(0.5), tokens.Body
 	if caption {
 		inset, size = t.Space(1), tokens.Caption
@@ -261,9 +261,12 @@ func (a *App) cardLabeled(c *ui.Context, label string, fn func()) {
 // so its title row is a 66u floor and every row under it — Permissions,
 // Freshness, the command list — shares the same 8u inset and 4u line gap,
 // which is what makes their labels and the card's separators line up on the
-// extension row's own text column. The override is scoped to this card: a card
-// nested inside it (the run form, the config fields) resets to the settings
-// geometry through `card`.
+// extension row's own text column. The inset/floor/gap override is scoped to
+// this card: a card nested inside it (the run form, the config fields) resets
+// to the settings geometry through `card`. The *unit* is not: the integration
+// card is drawn inside `extensionMetrics`, so every helper that sizes itself
+// through cardTheme/cardSpace — this frame's rows and the nested cards alike —
+// keeps the extension panel's literal-px metrics.
 func (a *App) cardGeometry(c *ui.Context, inset, titleFloor, lineGap float32, label string, fn func()) {
 	tokens := a.tokens(c)
 	saved := a.cardRows
@@ -298,7 +301,7 @@ func (a *App) rowInset(t *ui.Theme) float32 {
 	if a.cardRowInset > 0 {
 		return a.cardRowInset
 	}
-	return t.Space(3.5)
+	return a.cardSpace(t, 3.5)
 }
 
 // rowLineGap is the gap a row's label column puts between its label and its
@@ -314,6 +317,46 @@ func (a *App) rowLineGap() float32 {
 	return 1
 }
 
+// extensionMetrics runs fn with the extension panel's own metric unit: the
+// reference's `extensions.css` is written in literal px (a 66px row, a 30px
+// chip, an 8px padding) and therefore does not follow the interface step the
+// way the settings pages' `--u` metrics do. Inside fn, cardTheme pins
+// `Space(n)` to the literal 4n, so a helper that sizes its own metrics draws
+// the reference's own numbers at any interface size. The setting is scoped and
+// restored, and the framework's own widgets (a switch, an input) still read the
+// context theme, so the controls the reference *does* scale keep scaling.
+func (a *App) extensionMetrics(fn func()) {
+	saved := a.cardUnit
+	a.cardUnit = 4
+	defer func() { a.cardUnit = saved }()
+	fn()
+}
+
+// cardSpace is one metric of the surface being drawn, in that surface's own
+// unit: the theme's `Space(n)` (4n·scale) for the settings pages, or the
+// literal 4n for the extension panel, whose reference CSS is written in
+// literal px. A helper that computes a size for itself rather than through a
+// theme copy reads its unit here.
+func (a *App) cardSpace(t *ui.Theme, n float32) float32 {
+	if a.cardUnit > 0 {
+		return a.cardUnit * n
+	}
+	return t.Space(n)
+}
+
+// cardTheme is the theme a drawing function should size its own metrics
+// against: the framework theme, or — inside the extension panel, whose
+// reference CSS is written in literal px — a copy whose Spacing is pinned to
+// the literal 4px unit, so every `t.Space(n)` in the function is 4n at any
+// interface step. Colours and the font ladder come through unchanged.
+func (a *App) cardTheme(c *ui.Context) *ui.Theme {
+	t := *c.Theme()
+	if a.cardUnit > 0 {
+		t.Spacing = a.cardUnit
+	}
+	return &t
+}
+
 // actionButton draws one of the card's action buttons — the reference's
 // `.extensions-action-button` (`extensions.css:1313-1338`): the extension
 // panel's shared pill, a 30u control (`.extensions-control-height`), 10u of
@@ -325,7 +368,7 @@ func (a *App) rowLineGap() float32 {
 // same four inset layers the card wears, and `--glass-lens-scale` grades it
 // with the glass stop.
 func (a *App) actionButton(c *ui.Context, label string) ui.Element {
-	t := c.Theme()
+	t := a.cardTheme(c)
 	return a.extensionActionButton(c, label, t.Space(7.5), t.Space(3.75), a.tokens(c).Body)
 }
 
@@ -351,7 +394,7 @@ func (a *App) extensionActionButton(c *ui.Context, label string, height, radius,
 // keeps the resting plane, as the reference's
 // `:hover:not(:disabled)` / `:disabled` pair did (`extensions.css:91,124-129`).
 func (a *App) extensionActionFace(c *ui.Context, height, radius float32, disabled bool) (ui.Element, ui.Color) {
-	t := c.Theme()
+	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 	button := ui.ButtonBase(c).
 		MinHeight(height).Padding(0, t.Space(2.5)).Radius(radius)
@@ -381,7 +424,7 @@ const (
 // tells a native pane *which* action is running. `key` names the loop, so two
 // busy rows on one page turn independently.
 func (a *App) actionSpinner(c *ui.Context, ink ui.Color, key string) {
-	t := c.Theme()
+	t := a.cardTheme(c)
 	icon := ui.Icon(c, mustGlyph("loader-circle")).
 		Size(t.Space(2.5), t.Space(2.5)).TextColor(ink).Shrink(0)
 	icon.Rotate(actionSpinnerTurn * motion.Value(c, func() float32 {
@@ -396,7 +439,7 @@ func (a *App) actionSpinner(c *ui.Context, ink ui.Color, key string) {
 // (`src/extensions/ExtensionRow.tsx:313-330,345-372`) on a button that carries
 // words, so a press that has not landed is visible rather than assumed.
 func (a *App) busyActionButton(c *ui.Context, label, key string) ui.Element {
-	t := c.Theme()
+	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 	button, ink := a.extensionActionFace(c, t.Space(7.5), t.Space(3.75), true)
 	button.Gap(t.Space(1.25))
@@ -534,7 +577,7 @@ func (a *App) rowTop(c *ui.Context, label, sublabel, note string, control func()
 // carries its own state decoration, both handed straight to cardRow.
 func (a *App) rowAligned(c *ui.Context, align ui.Align, lead func(), face rowFace, label string, sublabels []rowLine, note string, control func(), below ...func()) bool {
 	tokens := a.tokens(c)
-	t := c.Theme()
+	t := a.cardTheme(c)
 	return a.cardRow(c, align, lead, face, control, func() {
 		// The label is the emphasis step (580, strong) and the grey second line
 		// the body step (500, muted).
@@ -619,7 +662,7 @@ type rowFace struct {
 // it sits between).
 func (a *App) cardRow(c *ui.Context, align ui.Align, lead func(), face rowFace, control func(), draw func(), below ...func()) bool {
 	tokens := a.tokens(c)
-	t := c.Theme()
+	t := a.cardTheme(c)
 	inset := a.rowInset(t)
 	first := a.cardRows == 0
 	a.cardRows++
@@ -707,7 +750,7 @@ const deepLinkValueFont = "SF Mono, Menlo, Monaco, Consolas, monospace"
 // (`extensions.css:833-837`).
 func (a *App) extensionIcon(c *ui.Context, detected bool) ui.Element {
 	tokens := a.tokens(c)
-	t := c.Theme()
+	t := a.cardTheme(c)
 	chip := ui.Box(c).Width(t.Space(7.5)).Height(t.Space(7.5)).Shrink(0).
 		Border(1, tokens.ControlEdge).Radius(tokens.RadiusSM).
 		Background(tokens.Control).Center()
