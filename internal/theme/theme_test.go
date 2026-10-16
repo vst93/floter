@@ -510,3 +510,66 @@ func TestRaisedWarmIsTheWarmPlane(t *testing.T) {
 		})
 	}
 }
+
+// AccentTintQuiet is the launcher selection's own rung of the accent-tint
+// family (base.css's `--accent-tint-quiet`): the fill a result row wears when
+// the emphasis is its 700-weight title rather than the fill. Unlike the
+// single-number `--accent-tint`, it is a *per-appearance* token — dark 0.085,
+// light 0.065 — because the same pastel blue over near-black gains contrast
+// while the same alpha over white barely moves the pixel. The port had quoted
+// the dark number as `Accent.Alpha(0.085)` for both appearances, so the light
+// launcher painted its selected row a rung too heavy.
+func TestAccentTintQuietStepsDownInTheLightAppearance(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		systemDark bool
+		want       ui.Color
+	}{
+		{"dark", true, ui.RGBA(143, 183, 255, 0.085)},
+		{"light", false, ui.RGBA(6, 74, 166, 0.065)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tokens := ForPreferences(settings.Settings{Theme: "auto"}, tc.systemDark, ui.Preferences{})
+			if tokens.AccentTintQuiet != tc.want {
+				t.Errorf("AccentTintQuiet = %v, want the reference's --accent-tint-quiet %v", tokens.AccentTintQuiet, tc.want)
+			}
+			// It is the accent's own hue at a quieter alpha, not a second
+			// colour: the two must share R/G/B and differ only in alpha.
+			if tokens.AccentTintQuiet.R != tokens.Theme.Accent.R ||
+				tokens.AccentTintQuiet.G != tokens.Theme.Accent.G ||
+				tokens.AccentTintQuiet.B != tokens.Theme.Accent.B {
+				t.Errorf("AccentTintQuiet %v is a different hue from the accent %v", tokens.AccentTintQuiet, tokens.Theme.Accent)
+			}
+		})
+	}
+}
+
+// SystemIconText is the ink a warm system-icon plane carries (base.css's
+// `--system-icon-text`): the amber ink the launcher's power rows draw their
+// glyph in. It is a token of its own, not the warning colour, and it differs
+// by appearance — a pale warm peach on dark, a burnt orange on light.
+func TestSystemIconTextIsItsOwnAmberInkNotTheWarningColour(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		systemDark bool
+		want       ui.Color
+	}{
+		{"dark", true, ui.RGBA(255, 209, 178, 0.82)},
+		{"light", false, ui.Hex("#a24d15")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tokens := ForPreferences(settings.Settings{Theme: "auto"}, tc.systemDark, ui.Preferences{})
+			if tokens.SystemIconText != tc.want {
+				t.Errorf("SystemIconText = %v, want the reference's --system-icon-text %v", tokens.SystemIconText, tc.want)
+			}
+			if tokens.SystemIconText == tokens.Theme.Warning {
+				t.Error("SystemIconText equals the warning ink: the power glyph would wear the label's red-grey")
+			}
+			// Warm, not neutral: the plate it sits on is amber, so its ink
+			// leads red over blue on both appearances.
+			if tokens.SystemIconText.R <= tokens.SystemIconText.B {
+				t.Errorf("SystemIconText %v does not read warm (R=%d, B=%d)", tokens.SystemIconText, tokens.SystemIconText.R, tokens.SystemIconText.B)
+			}
+		})
+	}
+}

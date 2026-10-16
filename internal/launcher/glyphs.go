@@ -230,14 +230,18 @@ func clipboardKindOf(entry *clipboardpkg.Entry) string {
 // iconPlate is the 28u cell every row leads with: the resting control fill, a
 // small radius and a hairline shadow. A power action's plate is warm rather
 // than the neutral fill — the one launcher entry that cannot be undone by
-// closing a window, as the old build's `--system-icon-surface` said.
+// closing a window, as the old build's `--system-icon-surface` said
+// (`.launcher-result__icon--system`). The warm face is the *system-icon plane*
+// token, not the warning ink at a low alpha: the port had quoted
+// `t.Warning.Alpha(0.14)`, which paints the label's own hue as the plate and
+// is the wrong colour on both appearances.
 func (a *App) iconPlate(c *ui.Context, warm bool) ui.Element {
 	tokens := theme.ForPreferences(a.settings(), c.Theme().Dark, c.Preferences())
 	t := c.Theme()
 	plate := ui.Box(c).Size(t.Space(7), t.Space(7)).Radius(tokens.RadiusSM).
 		AlignItems(ui.Center).Justify(ui.Center).Shrink(0)
 	if warm {
-		plate.Background(t.Warning.Alpha(0.14))
+		plate.Background(tokens.IconSurface)
 	} else {
 		plate.Background(tokens.Control)
 	}

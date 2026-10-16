@@ -85,9 +85,20 @@ func (a *App) saveAlert(c *ui.Context, copy i18n.Settings) {
 	}
 	t := c.Theme()
 	tokens := a.tokens(c)
+	// The banner's fill is the reference toast's own pane
+	// (`.settings-save-alert--toast`, `main:src/styles/settings.css:204-210`):
+	// `--glass-float`, the floating pane's denser tint. The port quoted the
+	// *warning ink* at 12% instead, so the pane carried the sentence's own
+	// colour as its wash — the ink belongs on the glyph and the words, and the
+	// pane is the sheet they sit on (the same mistake the launcher's feedback
+	// row made with `t.Warning.Alpha`, see `Tokens.IconSurface`). The
+	// reference's `--elev-3` cast is not reproduced here: this build draws the
+	// banner in the page's own column rather than as a fixed floater, so a
+	// broad ambient blur would darken the page under it rather than lift the
+	// banner off it.
 	banner := ui.Row(c).FillWidth().Padding(t.Space(2), t.Space(3)).Gap(t.Space(2)).
 		AlignItems(ui.Center).Radius(tokens.RadiusSM).
-		Background(t.Warning.Alpha(0.12))
+		Background(tokens.Float)
 	// The banner comes in rather than appearing: the reference's
 	// `@keyframes settings-toast-enter` carries it from transparent, a hair
 	// small and 6px low. A value "starts at the first target", so the first

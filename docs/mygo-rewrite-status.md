@@ -100,6 +100,43 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
+> **本轮：P7-hh 用户报告复查 + 启动器/主题的选中与暖色面 token 对齐原版**
+>
+> 用户报告的两条（① 搜索页左右大空白；② 输入内容时「在终端中打开」固定第一项、缺选中态）经像素级
+> 复跑为 `5c2d60d` 已修、验收全绿（`actionbarfooter_test.go` 五条 + `filters_test.go` 的
+> `TestHeldModifierBareTerminalRow`）。前置清理：`git status` 干净，无未提交改动。随后回到常规迭代，
+> 按「颜色/间距」优先清掉四条**未被记录**的 token 偏离。
+>
+> **本轮清空的四条（原版 `main:src/styles/*.css` 逐 token 对照）**：
+> 1. **结果行选中底色硬编码了一档**（P7-hh-1）。原版 `.launcher-result--selected`
+>    （`launcher.css:1156`）取 `--accent-tint-quiet`，该 token **按外观分两值**：dark
+>    `base.css:683` 0.085、light `:945` 0.065。本构建 `launcher.go`/`output.go` 两处都写
+>    `Accent.Alpha(0.085)`，浅色选中行被涂重一档。落地：`theme.Tokens.AccentTintQuiet`
+>    （两外观各一值）+ 两个调用点改它。
+> 2. **电源行暖色盘与其墨色都穿标签色**（P7-hh-2）。原版 `.launcher-result__icon--system`
+>    （`launcher.css:1232-1235`）用 `--system-icon-surface` + `--system-icon-text`
+>    （`base.css:703-705,961-963`），独立于 `--text-warning`。本构建 `glyphs.go` 用
+>    `Warning.Alpha(0.14)`、`launcher.go:1823` 用 `t.Warning`。落地：暖盘改 `tokens.IconSurface`、
+>    字形改新增 `Tokens.SystemIconText`。
+> 3. **电源确认行底色穿标签色**（P7-hh-3）。原版 `.launcher-system-confirm`（`launcher.css:756-770`）
+>    盘是 `--system-icon-surface`、墨才是 warning。本构建 `power.go:138` 用 `Warning.Alpha(0.12)`。
+>    落地改 `tokens.IconSurface`。
+> 4. **设置写失败横幅的盘穿标签色**（P7-hh-4）。原版 `.settings-save-alert--toast`
+>    （`settings.css:204-210`）盘是 `--glass-float`。本构建 `savealert.go:90` 用
+>    `Warning.Alpha(0.12)`。落地改 `tokens.Float`；**有意偏离**：不叠 `--elev-3` 宽投影（横幅画在
+>    页内列而非 fixed floater，宽模糊会压暗页面），理由写进注释。
+>
+> **验收**：`internal/theme/theme_test.go` 新增两条（`AccentTintQuiet` 两外观逐值且与 accent 同色相；
+> `SystemIconText` 两外观逐值、!= warning、暖色）；新文件 `internal/launcher/selface_test.go` 三条
+> 像素测试（选中行带 == 本外观 token 合成值且 != 另一外观；暖盘字形墨 == `SystemIconText` 不透明值
+> 且 != warning；确认行底 == `IconSurface` 合成值）。变异核查：三处换回旧写法各自把对应断言打红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./internal/...` 净、`GOOS=linux/windows/darwin go build`
+> 三平台过、`go test -count=1 ./internal/{theme,launcher,settingsui,shell}` 全绿。
+>
+> **清单状态**：`.pending-bugs.md` 顶部新增「本轮清空（P7-hh）」四条，均落地；仍挂的结构性一条
+> （扩展面板「配置区块容器形状」）不变。
+
 > **本轮：P7-hg 用户报告复查 + 启动器行状态/指针交互对齐原版 R21（原版
 > `main:src/launcher/LauncherResults.tsx:859-862,1059` 的 `onPointerEnter` 接手选择、
 > `main:src/styles/launcher.css:1512-1519,1579-1583,1647-1663` 的按压与选中面）**

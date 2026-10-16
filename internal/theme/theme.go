@@ -167,6 +167,16 @@ type Tokens struct {
 	// edge is the strong one so the pill reads as a control, not as a tint.
 	AccentEdgeStrong ui.Color
 	AccentHalo       ui.Color
+	// AccentTintQuiet is the accent at the quietest rung of its tint family
+	// (base.css's `--accent-tint-quiet`): the fill a launcher result row's
+	// selection wears, where the emphasis is the row's own type — the title at
+	// 700 — rather than the fill. It is one rung below `--accent-tint` and it
+	// is a *per-appearance* token (dark 0.085, light 0.065): the same pastel
+	// blue over near-black gains contrast, while the same alpha over white
+	// barely moves the pixel, so the light appearance needs the lighter rung.
+	// Quoting one number for both appearances painted the light row's
+	// selection with the dark rung (the launcher's `Accent.Alpha(0.085)`).
+	AccentTintQuiet ui.Color
 	// Sunken is the settings content pane's own fill (base.css's
 	// `--surface-sunken`): the settings panel is a reading surface, and it
 	// carries a fill of its own so it reads one step denser than the frame.
@@ -196,6 +206,14 @@ type Tokens struct {
 	// label's own hue (the row read pink-red instead of warm orange).
 	IconSurface      ui.Color
 	IconSurfaceHover ui.Color
+	// SystemIconText is the ink a warm system-icon plane carries (base.css's
+	// `--system-icon-text`): the amber ink the launcher's power rows draw their
+	// glyph in. It is a token of its own, not the warning ink: the dark
+	// appearance reads it as a pale warm peach and the light one as a burnt
+	// orange (`#a24d15`), while the warning colour is a near-neutral red-grey
+	// reserved for a *label*. The port painted the warm plate's glyph with
+	// `t.Warning`, which is the wrong hue on both appearances.
+	SystemIconText ui.Color
 
 	// The text ladder, in points at the current step: base.css's registers,
 	// which the codebase had been spelling as offsets off the body size (a
@@ -406,6 +424,7 @@ func ForPreferences(s settings.Settings, systemDark bool, prefs ui.Preferences) 
 		AccentEdge:       p.accentEdge,
 		AccentEdgeStrong: p.accentEdgeStrong,
 		AccentHalo:       p.accentHalo,
+		AccentTintQuiet:  p.accentTintQuiet,
 		Hairline:         hairline,
 		TextStrong:       textStrong,
 		TextSecondary:    textSecondary,
@@ -414,6 +433,7 @@ func ForPreferences(s settings.Settings, systemDark bool, prefs ui.Preferences) 
 		// the frame's tint it does not follow the transparency slider.
 		IconSurface:      p.iconSurface,
 		IconSurfaceHover: p.iconSurfaceHover,
+		SystemIconText:   p.systemIconText,
 	}
 }
 
@@ -464,10 +484,15 @@ func paletteFor(appearance Appearance) palette {
 			accentEdge:       ui.RGBA(6, 74, 166, 0.36),
 			accentEdgeStrong: ui.RGBA(6, 74, 166, 0.68),
 			accentHalo:       ui.RGBA(6, 74, 166, 0.24),
+			// The launcher selection's own rung: the light appearance steps the
+			// tint down (base.css `--accent-tint-quiet: rgba(6, 74, 166, 0.065)`)
+			// because the dark appearance's 0.085 reads heavier over white.
+			accentTintQuiet: ui.RGBA(6, 74, 166, 0.065),
 			// The warm system-icon plane, the light appearance's amber (base.css
 			// `--system-icon-surface` / `--system-icon-surface-hover`).
 			iconSurface:      ui.RGBA(214, 118, 44, 0.13),
 			iconSurfaceHover: ui.RGBA(214, 118, 44, 0.21),
+			systemIconText:   ui.Hex("#a24d15"),
 		}
 	}
 	return palette{
@@ -510,10 +535,16 @@ func paletteFor(appearance Appearance) palette {
 		accentEdge:       ui.RGBA(143, 183, 255, 0.3),
 		accentEdgeStrong: ui.RGBA(143, 183, 255, 0.72),
 		accentHalo:       ui.RGBA(143, 183, 255, 0.18),
+		// The launcher selection's own rung (base.css `--accent-tint-quiet:
+		// rgba(143, 183, 255, 0.085)`).
+		accentTintQuiet: ui.RGBA(143, 183, 255, 0.085),
 		// The warm system-icon plane, the dark appearance's amber (base.css
-		// `--system-icon-surface` / `--system-icon-surface-hover`).
+		// `--system-icon-surface` / `--system-icon-surface-hover`), and its
+		// own ink (`--system-icon-text`): a pale warm peach, not the warning
+		// red-grey.
 		iconSurface:      ui.RGBA(255, 176, 132, 0.115),
 		iconSurfaceHover: ui.RGBA(255, 176, 132, 0.2),
+		systemIconText:   ui.RGBA(255, 209, 178, 0.82),
 	}
 }
 
@@ -560,7 +591,9 @@ type palette struct {
 	accentEdge                                                              ui.Color
 	accentEdgeStrong                                                        ui.Color
 	accentHalo                                                              ui.Color
+	accentTintQuiet                                                         ui.Color
 	iconSurface, iconSurfaceHover                                           ui.Color
+	systemIconText                                                          ui.Color
 }
 
 // round1 rounds to one decimal, so a scaled metric stays a value a CSS

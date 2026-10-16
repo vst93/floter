@@ -125,7 +125,11 @@ func (a *App) powerMessage() string {
 
 // confirmPowerRow draws the pending confirmation: its icon, its sentence, the
 // action's own button and the way back. It is docked under the list, where the
-// feedback row is, so it belongs to the list rather than floating over it.
+// feedback row is, so it belongs to the list rather than floating over it. The
+// band's fill is the reference's own `.launcher-system-confirm`
+// (`main:src/styles/launcher.css:756-770`): `--system-icon-surface`, the warm
+// amber plane a power entry wears — **not** the warning ink at a low alpha,
+// which is the label's colour and belongs on the icon and the sentence.
 func (a *App) confirmPowerRow(c *ui.Context) {
 	if a.pendingPower == "" {
 		return
@@ -135,7 +139,7 @@ func (a *App) confirmPowerRow(c *ui.Context) {
 	tokens := theme.ForPreferences(a.settings(), t.Dark, c.Preferences())
 	ui.Row(c).Absolute().Bottom(0).Left(t.Space(1)).Right(t.Space(1)).Height(t.Space(7)).
 		Padding(0, t.Space(3)).Gap(t.Space(2)).AlignItems(ui.Center).
-		Radius(tokens.RadiusSM).Background(t.Warning.Alpha(0.12)).Children(func() {
+		Radius(tokens.RadiusSM).Background(tokens.IconSurface).Children(func() {
 		ui.Icon(c, glyphAlert).Size(t.Space(4), t.Space(4)).TextColor(t.Warning)
 		ui.Text(c, a.powerMessage()).FontSize(t.FontSize).FontWeight(580).
 			TextColor(t.Warning).Grow(1)

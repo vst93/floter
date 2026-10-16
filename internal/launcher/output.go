@@ -537,11 +537,14 @@ func (a *App) outputRow(c *ui.Context, row extensions.Row, i int) {
 	}
 	style := ui.Row(c.Key(row.ID)).FillWidth().Padding(t.Space(1.5), t.Space(2)).Radius(t.Radius).Gap(t.Space(2))
 	selected := i == a.output.Selected && row.Runnable()
+	tokens := theme.ForPreferences(a.settings(), t.Dark, c.Preferences())
 	switch {
 	case selected:
-		// The list's own selection: a quiet accent tint with the emphasis in
-		// the row's type, exactly as the launcher's rows draw it.
-		style.Background(t.Accent.Alpha(0.085))
+		// The list's own selection: the accent's quietest tint rung with the
+		// emphasis in the row's type, exactly as the launcher's rows draw it.
+		// It is `--accent-tint-quiet`, a per-appearance token, so the light
+		// appearance's selection is not painted with the dark rung's alpha.
+		style.Background(tokens.AccentTintQuiet)
 	case row.Status || row.Disabled:
 		// A note is not a door: it stays muted and never highlights.
 	default:

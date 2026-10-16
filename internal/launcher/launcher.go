@@ -1741,10 +1741,13 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 		row.Shadow(0, t.Space(0.25), t.Space(0.5), 0, tokens.ShadowContact)
 		row.InsetShadow(0, 1, 0, 0, tokens.LensRim)
 	case i == a.Selected:
-		// The old build's selection: a quiet accent tint, and the emphasis is
-		// the row's own type — the title at 700 — rather than a ring or a
-		// shadow. The tint places the row; the weight announces it.
-		row.Background(t.Accent.Alpha(0.085))
+		// The old build's selection: the accent's quietest tint rung, and the
+		// emphasis is the row's own type — the title at 700 — rather than a
+		// ring or a shadow. The tint places the row; the weight announces it.
+		// The rung is `--accent-tint-quiet`, a *per-appearance* token (dark
+		// 0.085, light 0.065), not one hard-coded alpha: quoting the dark
+		// number painted the light appearance's selection too heavy.
+		row.Background(tokens.AccentTintQuiet)
 	}
 	// R21 · the pointer takes the selection over on *entry*, exactly as
 	// `LauncherResults.tsx:859-862` does: entering a row selects it, while
@@ -1812,7 +1815,12 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 					icon := ui.Icon(c, glyph).Size(t.Space(4), t.Space(4))
 					switch {
 					case warm:
-						icon.TextColor(t.Warning)
+						// The warm plane's own ink (`--system-icon-text`), not the
+						// warning colour: the warning ink is a near-neutral red-grey
+						// reserved for a *label*, while the power plate's glyph is the
+						// amber ink the reference's `.launcher-result__icon--system`
+						// carried (`launcher.css:1234`).
+						icon.TextColor(tokens.SystemIconText)
 					case browserRow:
 						icon.TextColor(t.TextMuted)
 					default:
