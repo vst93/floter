@@ -554,6 +554,20 @@ type App struct {
 	// cursor, reset by card and never read outside it.
 	cardRows int
 
+	// cardRowInset, cardTitleFloor and cardLineGap are the row geometry the
+	// card being built wears when it is not the settings default: zero means
+	// the settings card's own 14u inset, 44u floor and 1px line gap. The
+	// integration card is the one caller that sets them (cardGeometry),
+	// because it draws the reference's `.extension-row` — an 8u padding, a 66u
+	// floor and a 4px line gap (`extensions.css:15-16,733-744,879-880`) — so
+	// its title row and every row under it line up on the extension row's own
+	// text column. `card` resets them to the default, so a card nested inside
+	// the integration card (the run form, the config fields) keeps the
+	// settings geometry.
+	cardRowInset   float32
+	cardTitleFloor float32
+	cardLineGap    float32
+
 	// disableConfirm marks the integrations whose switch was turned off and
 	// is waiting for the user's answer. removeConfirm marks the ones whose
 	// destructive button was pressed and is likewise waiting — the old
@@ -1941,7 +1955,14 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 	// beside the name and the fuller row below it, projected from the same
 	// value so the two can never disagree.
 	freshness, hasFreshness := a.freshnessOf(integration)
-	a.card(c, func() {
+	// The card wears the reference extension row's own geometry, not the
+	// settings card's: `.extension-row` is a 66px row with 8px of padding and a
+	// 4px line gap (`extensions.css:15-16,733-744,879-880`), so the title row is
+	// a 66u floor and every row under it — Permissions, Freshness, the command
+	// list, the action cluster — shares the same 8u inset and 4u line gap. That
+	// is what makes the title's name, the sub-rows' labels and the card's
+	// separators line up on one text column.
+	a.cardGeometry(c, t.Space(2), t.Space(16.5), t.Space(1), "", func() {
 		// The link's mark: a row the `floter://register` link named wears the
 		// reference's own sentence under its description (the reference drew a
 		// dot before the name; a native pane has no tooltip, so the word itself
@@ -1960,7 +1981,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 				a.runtimeUnavailableBadge(c, copy, integration)
 			}
 		}, func() {
-			title := ui.Row(c).FillWidth().Wrap().GapX(t.Space(1.5)).GapY(t.Space(1)).AlignItems(ui.Center)
+			title := ui.Row(c).FillWidth().Wrap().GapX(t.Space(2)).GapY(t.Space(1)).AlignItems(ui.Center)
 			title.Children(func() {
 				ui.Text(c, integration.Name).FontSize(t.FontSize + 1).FontWeight(580).TextColor(tokens.TextStrong)
 				if integration.Version != "" {
@@ -3424,7 +3445,7 @@ func (a *App) palettePreview(c *ui.Context, copy i18n.Settings, name string) {
 func (a *App) slider(c *ui.Context, label, description, low, high string, value, lo, hi float64, format func(float64) string, apply func(float64)) {
 	tokens := a.tokens(c)
 	t := c.Theme()
-	inset := t.Space(3.5)
+	inset := a.rowInset(t)
 	v := value
 	chosen := false
 	first := a.cardRows == 0
@@ -4749,7 +4770,14 @@ func (a *App) barButton(c *ui.Context, label string, danger, disabled bool, icon
 	// `--elev-0` lens, the 5px `--extensions-inline-gap`, 600 weight at
 	// `line-height: 1`, and the `--dur-2` colour transition. The 24px button
 	// was a flat tint without them.
-	button.Transition(ui.ElementTransition{Colors: true, Position: true, Duration: 120 * time.Millisecond})
+	// `.extensions-action-button` transitions only its colours and its
+	// `transform` (`extensions.css:1331`: `background-color`, `border-color`,
+	// `color`, `transform`), never its place in the parent. The old port also
+	// asked for a position transition, which made a newly built pill slide
+	// from where its predecessor stood — the disable band's pills drifted up
+	// under a sentence that had already settled, so a press aimed at the pill
+	// could miss it mid-flight.
+	button.Transition(ui.ElementTransition{Colors: true, Duration: 120 * time.Millisecond})
 	tokens.Lens(button)
 	button.Children(func() {
 		if icon != nil {

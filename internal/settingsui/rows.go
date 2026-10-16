@@ -244,10 +244,36 @@ func (a *App) card(c *ui.Context, fn func()) {
 // `aria-label` on a card whose visible title is the section heading above it
 // (the transparency card inside the material section).
 func (a *App) cardLabeled(c *ui.Context, label string, fn func()) {
+	a.cardGeometry(c, 0, 0, 0, label, fn)
+}
+
+// cardGeometry draws a card whose rows wear geometry other than the settings
+// default. `inset` is every row's horizontal inset (the label column and the
+// separator's own margin), `titleFloor` is the height floor of the card's
+// *first* row alone — the settings card's 44u floor for every row under it —
+// and `lineGap` is the gap between a row's label and its sub-lines. A zero
+// value keeps the settings card's own numbers (a 14u inset, a 44u floor and a
+// 1px line gap), so `card` and `cardLabeled` are just this with zeroes.
+//
+// The integration card is the one caller that asks for the reference
+// extension row's own geometry instead: `.extension-row` is a 66px row with
+// 8px of padding and a 4px line gap (`extensions.css:15-16,733-744,879-880`),
+// so its title row is a 66u floor and every row under it — Permissions,
+// Freshness, the command list — shares the same 8u inset and 4u line gap,
+// which is what makes their labels and the card's separators line up on the
+// extension row's own text column. The override is scoped to this card: a card
+// nested inside it (the run form, the config fields) resets to the settings
+// geometry through `card`.
+func (a *App) cardGeometry(c *ui.Context, inset, titleFloor, lineGap float32, label string, fn func()) {
 	tokens := a.tokens(c)
 	saved := a.cardRows
+	savedInset, savedFloor, savedGap := a.cardRowInset, a.cardTitleFloor, a.cardLineGap
 	a.cardRows = 0
-	defer func() { a.cardRows = saved }()
+	a.cardRowInset, a.cardTitleFloor, a.cardLineGap = inset, titleFloor, lineGap
+	defer func() {
+		a.cardRows = saved
+		a.cardRowInset, a.cardTitleFloor, a.cardLineGap = savedInset, savedFloor, savedGap
+	}()
 	// The card wears the reference's plane: the resting control fill, the
 	// control edge (not the window's stronger `--input-stroke`), the card
 	// radius step and the lens (`--elev-0`). It is a *plane*, never glass —
@@ -263,6 +289,29 @@ func (a *App) cardLabeled(c *ui.Context, label string, fn func()) {
 	}
 	tokens.Lens(card)
 	card.Children(fn)
+}
+
+// rowInset is the horizontal inset a card row wears: the settings card's own
+// 14u (`--u * 14`), or the override cardGeometry set for the card being built
+// (the integration card's reference extension-row padding, 8u).
+func (a *App) rowInset(t *ui.Theme) float32 {
+	if a.cardRowInset > 0 {
+		return a.cardRowInset
+	}
+	return t.Space(3.5)
+}
+
+// rowLineGap is the gap a row's label column puts between its label and its
+// sub-lines: the settings row's own 1px (`.settings-row__main { gap: 1px }`,
+// `settings.css:528-531`), or the override cardGeometry set for the card being
+// built (the extension row's `.extension-row__main { gap: 4px }`,
+// `extensions.css:879-880`, which the integration title row's name, version,
+// meta and description all share).
+func (a *App) rowLineGap() float32 {
+	if a.cardLineGap > 0 {
+		return a.cardLineGap
+	}
+	return 1
 }
 
 // actionButton draws one of the card's action buttons — the reference's
@@ -558,20 +607,30 @@ type rowFace struct {
 }
 
 // cardRow is the frame every row helper shares: the separator inset above the
-// row (except the card's first), the 44u floor, the leading rule's 1px slot,
-// the label column and the trailing control slot. lead draws the row's own
-// leading mark — the extension rows' package chip — so a row that needs one
-// reuses the frame instead of copying it. face carries the row's own state
-// decoration (the leading rule, a face override, an inner keyline). draw paints
-// the label column's own content — a label with its second lines, or a code
-// chip — so a new kind of label reuses the frame instead of copying it (which
-// is how the deep-link chip drifted from the rows it sits between).
+// row (except the card's first), the height floor (the settings card's 44u,
+// or the title floor cardGeometry named for the card's first row), the leading
+// rule's 1px slot, the label column and the trailing control slot. lead draws
+// the row's own leading mark — the extension rows' package chip — so a row
+// that needs one reuses the frame instead of copying it. face carries the
+// row's own state decoration (the leading rule, a face override, an inner
+// keyline). draw paints the label column's own content — a label with its
+// second lines, or a code chip — so a new kind of label reuses the frame
+// instead of copying it (which is how the deep-link chip drifted from the rows
+// it sits between).
 func (a *App) cardRow(c *ui.Context, align ui.Align, lead func(), face rowFace, control func(), draw func(), below ...func()) bool {
 	tokens := a.tokens(c)
 	t := c.Theme()
-	inset := t.Space(3.5)
+	inset := a.rowInset(t)
 	first := a.cardRows == 0
 	a.cardRows++
+	floor := t.Space(11)
+	if first && a.cardTitleFloor > 0 {
+		// The card's title row can wear the reference extension row's 66u
+		// floor (`.extension-row { min-height: var(--extensions-row-height) }`,
+		// `extensions.css:15-16,733-744`) while every row under it keeps the
+		// settings card's own 44u.
+		floor = a.cardTitleFloor
+	}
 	clicked := false
 	ui.Column(c).FillWidth().Children(func() {
 		if !first {
@@ -587,7 +646,7 @@ func (a *App) cardRow(c *ui.Context, align ui.Align, lead func(), face rowFace, 
 		// included) while the content keeps its inset: the 1px slot plus the
 		// content's own `inset-1` padding add back up to the old inset, so a
 		// plain row's content does not move.
-		row := ui.Row(c).FillWidth().AlignItems(ui.Stretch).MinHeight(t.Space(11))
+		row := ui.Row(c).FillWidth().AlignItems(ui.Stretch).MinHeight(floor)
 		if face.FaceSet {
 			row = row.Background(face.Face)
 		}
@@ -615,7 +674,7 @@ func (a *App) cardRow(c *ui.Context, align ui.Align, lead func(), face rowFace, 
 				if lead != nil {
 					lead()
 				}
-				names := ui.Column(c).Grow(1).MinWidth(0).Gap(1)
+				names := ui.Column(c).Grow(1).MinWidth(0).Gap(a.rowLineGap())
 				names.Children(draw)
 				if names.Clicked() {
 					clicked = true
@@ -673,7 +732,7 @@ func (a *App) extensionIcon(c *ui.Context, detected bool) ui.Element {
 func (a *App) stackedRow(c *ui.Context, label, sublabel string, control func()) {
 	tokens := a.tokens(c)
 	t := c.Theme()
-	inset := t.Space(3.5)
+	inset := a.rowInset(t)
 	first := a.cardRows == 0
 	a.cardRows++
 	ui.Column(c).FillWidth().Children(func() {
@@ -727,7 +786,7 @@ func (a *App) sectionWithControls(c *ui.Context, title, hint string, controls fu
 func (a *App) actionRow(c *ui.Context, control func()) {
 	tokens := a.tokens(c)
 	t := c.Theme()
-	inset := t.Space(3.5)
+	inset := a.rowInset(t)
 	first := a.cardRows == 0
 	a.cardRows++
 	ui.Column(c).FillWidth().Children(func() {
