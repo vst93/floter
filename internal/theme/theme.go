@@ -272,7 +272,12 @@ func ForPreferences(s settings.Settings, systemDark bool, prefs ui.Preferences) 
 	// The framework's control radius is the ladder's `--radius-sm` (9px),
 	// not its own 6px stock value: a button or a field on a surface is the
 	// ladder's second step, and the card and window keep their own steps.
-	t.Radius = round1(RadiusSM * f)
+	// base.css writes the whole radius ladder in literal px (`--radius-xs:
+	// 6px; --radius-sm: 9px; --radius-md: 12px; --radius-lg: 14px`,
+	// base.css:93-96), so a corner does not follow `--ui-scale` the way a
+	// font or a `--u` metric does: the ladder is the one set of numbers the
+	// old build kept fixed while the interface grew. See `Tokens.RadiusSM`.
+	t.Radius = RadiusSM
 
 	// The strokes and planes the views read directly are the same palette
 	// values, per appearance, exactly as base.css wrote them.
@@ -349,22 +354,24 @@ func ForPreferences(s settings.Settings, systemDark bool, prefs ui.Preferences) 
 	display := round1(17 * f)
 
 	return Tokens{
-		Appearance:        appearance,
-		Theme:             &t,
-		Sunken:            baseFill.Alpha(sunken),
-		RaisedQuiet:       raisedQuiet,
-		RaisedWarm:        p.iconSurface,
-		Float:             floatFill.Alpha(floatAlpha),
-		Caption:           caption,
-		Body:              body,
-		Emphasis:          emphasis,
-		Title:             title,
-		Display:           display,
-		Scale:             scale,
-		RadiusXS:          round1(RadiusXS * f),
-		RadiusSM:          round1(RadiusSM * f),
-		RadiusMD:          round1(RadiusMD * f),
-		RadiusLG:          round1(RadiusLG * f),
+		Appearance:  appearance,
+		Theme:       &t,
+		Sunken:      baseFill.Alpha(sunken),
+		RaisedQuiet: raisedQuiet,
+		RaisedWarm:  p.iconSurface,
+		Float:       floatFill.Alpha(floatAlpha),
+		Caption:     caption,
+		Body:        body,
+		Emphasis:    emphasis,
+		Title:       title,
+		Display:     display,
+		Scale:       scale,
+		// The radius ladder is literal px, as base.css wrote it: a corner is
+		// not a `--u` metric and does not move with the interface step.
+		RadiusXS:          RadiusXS,
+		RadiusSM:          RadiusSM,
+		RadiusMD:          RadiusMD,
+		RadiusLG:          RadiusLG,
 		InputStroke:       stroke,
 		InputStrokeActive: strokeActive,
 		Control:           control,

@@ -59,20 +59,43 @@ func TestForScalesByTheInterfaceStep(t *testing.T) {
 	if got, want := small.Theme.FontSize, round1(one.Theme.FontSize*0.9); got != want {
 		t.Errorf("small font = %v, want %v", got, want)
 	}
-	if got, want := small.RadiusMD, round1(RadiusMD*0.9); got != want {
-		t.Errorf("small radius md = %v, want %v", got, want)
+	if got, want := small.RadiusMD, float32(RadiusMD); got != want {
+		t.Errorf("small radius md = %v, want the ladder's literal %v", got, want)
 	}
 
 	large := For(settings.Settings{Theme: "dark", UIScale: "large"}, false)
 	if large.Appearance != Dark {
 		t.Errorf("large appearance = %q, want dark", large.Appearance)
 	}
-	if got, want := large.RadiusLG, round1(RadiusLG*1.1); got != want {
-		t.Errorf("large radius lg = %v, want %v", got, want)
+	if got, want := large.RadiusLG, float32(RadiusLG); got != want {
+		t.Errorf("large radius lg = %v, want the ladder's literal %v", got, want)
 	}
 	// An unknown step lands on the shipped default's factor, never zero.
 	if got := For(settings.Settings{Theme: "auto", UIScale: "huge"}, false).Scale; got != 0.9 {
 		t.Errorf("unknown step scale = %v, want the shipped 0.9", got)
+	}
+}
+
+// base.css writes the radius ladder in literal px and keeps it out of
+// `--ui-scale`: the window and the card keep 14/12/9/6 at every interface step,
+// unlike the `--u` metrics around them (base.css:93-96). The port used to
+// multiply the ladder by the step, so a `small` chip was 8.1px and a `large` one
+// 9.9px instead of the reference's 9. The framework's own control radius reads
+// the same `--radius-sm`, so it is literal too.
+func TestTheRadiusLadderIsLiteralAtEveryInterfaceStep(t *testing.T) {
+	want := struct{ xs, sm, md, lg float32 }{RadiusXS, RadiusSM, RadiusMD, RadiusLG}
+	for _, step := range []string{"small", "default", "large", "huge"} {
+		tokens := For(settings.Settings{Theme: "dark", UIScale: step}, true)
+		if tokens.RadiusXS != want.xs || tokens.RadiusSM != want.sm ||
+			tokens.RadiusMD != want.md || tokens.RadiusLG != want.lg {
+			t.Errorf("[%s] radius ladder = %v/%v/%v/%v, want the literal %v/%v/%v/%v",
+				step, tokens.RadiusXS, tokens.RadiusSM, tokens.RadiusMD, tokens.RadiusLG,
+				want.xs, want.sm, want.md, want.lg)
+		}
+		if tokens.Theme.Radius != RadiusSM {
+			t.Errorf("[%s] the framework control radius = %v, want the ladder's literal %v",
+				step, tokens.Theme.Radius, RadiusSM)
+		}
 	}
 }
 

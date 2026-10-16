@@ -294,6 +294,35 @@ func (a *App) cardGeometry(c *ui.Context, inset, titleFloor, lineGap float32, la
 	card.Children(fn)
 }
 
+// runParamsBox draws the reference's `.extension-run-params` box
+// (`extensions.css:1224-1236`): the run form's own surface, a `--surface-sunken`
+// plane under a `--glass-control-edge` hairline with the `--ext-radius` corner.
+// The reference's box carries no lens and no card plane — it is a recess the
+// inputs sit *in*, not a raised card — so the run form does not wear the
+// settings card's `--glass-control` fill, its `--radius-md` corner or its
+// `--elev-0` stack. Its rows keep the row machinery and the extension row
+// counter, but they carry the box's own 8px inset instead of the settings
+// card's 14u, so a parameter's input sits 1px + 8px inside the frame, matching
+// the reference's `padding: 8px`, not 1px + 14px.
+func (a *App) runParamsBox(c *ui.Context, fn func()) {
+	tokens := a.tokens(c)
+	t := a.cardTheme(c)
+	saved := a.cardRows
+	savedInset, savedFloor, savedGap := a.cardRowInset, a.cardTitleFloor, a.cardLineGap
+	a.cardRows = 0
+	a.cardRowInset, a.cardTitleFloor, a.cardLineGap = a.cardSpace(t, 2), 0, 0
+	defer func() {
+		a.cardRows = saved
+		a.cardRowInset, a.cardTitleFloor, a.cardLineGap = savedInset, savedFloor, savedGap
+	}()
+	box := ui.Column(c).FillWidth().
+		Border(1, tokens.ControlEdge).
+		Radius(tokens.RadiusSM).
+		Background(tokens.Sunken).
+		Clip()
+	box.Children(fn)
+}
+
 // rowInset is the horizontal inset a card row wears: the settings card's own
 // 14u (`--u * 14`), or the override cardGeometry set for the card being built
 // (the integration card's reference extension-row padding, 8u).
@@ -496,9 +525,26 @@ func (a *App) busySwitchControl(c *ui.Context, on *bool, key string) ui.Element 
 
 // segmentedControl draws one of the custom-tool form's segmented pickers
 // (the reference's `.extension-custom-mode`): the framework's `Segmented`
-// inside the recessed lens, the same groove a switch's track is.
+// inside the recessed lens, the same groove a switch's track is. The
+// reference's `.extension-custom-mode` is written in literal px — a 3px track
+// padding, a 2px gap and a 999px stadium (`extensions.css:1752-1759`) — so
+// inside the extension panel the control's metrics are pinned to the panel's
+// literal unit for the duration of the build: the framework sizes the track
+// and every segment from the context theme's `Spacing`/`Radius`, which follow
+// the interface step, and a picker that shrank at `small` would be the one
+// control in the panel that did. The pin is scoped to this call, so the row
+// switches beside it keep following the step.
 func (a *App) segmentedControl(c *ui.Context, index *int, labels ...string) ui.Element {
-	return a.tokens(c).LensInset(ui.Segmented(c, index, labels...))
+	if a.cardUnit <= 0 {
+		return a.tokens(c).LensInset(ui.Segmented(c, index, labels...))
+	}
+	saved := c.Theme()
+	pinned := *saved
+	pinned.Spacing = a.cardUnit
+	c.SetTheme(&pinned)
+	e := ui.Segmented(c, index, labels...)
+	c.SetTheme(saved)
+	return a.tokens(c).LensInset(e)
 }
 
 // row draws one row of a card: the label and its optional grey second line

@@ -3389,7 +3389,7 @@ func (a *App) choose(c *ui.Context, label, description string, options []i18n.Op
 	}
 	chosen := ""
 	a.row(c, label, description, func() {
-		e := ui.Select(c, &selected, labels).Label(label).Width(220).Radius(999)
+		e := a.chooseSelect(c, &selected, labels, label)
 		if e.Changed() {
 			for _, option := range options {
 				if option.Label == selected {
@@ -3402,6 +3402,20 @@ func (a *App) choose(c *ui.Context, label, description string, options []i18n.Op
 	if chosen != "" {
 		apply(chosen)
 	}
+}
+
+// chooseSelect builds the drop-down `choose` draws: the framework's Select at
+// the surface's own metric. The extension panel's `.extension-config-field
+// input, select` share one literal box (`extensions.css:2402-2417`), so inside
+// `extensionMetrics` the trigger is pinned to that box and does not follow the
+// interface step; on the settings pages, where `cardUnit` is zero, it keeps the
+// framework's `--u` metrics and scales, as the reference's own fields did.
+func (a *App) chooseSelect(c *ui.Context, selected *string, labels []string, label string) ui.Element {
+	e := ui.Select(c, selected, labels).Label(label).Width(220).Radius(999)
+	if a.cardUnit > 0 {
+		e = e.MinHeight(28).Padding(4, 8)
+	}
+	return e
 }
 
 // paletteRow is the terminal palette row: the labeled picker, with a
@@ -3852,7 +3866,7 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 				a.keyValue(c, copy.LocalToolId, a.toolEditing)
 			}
 			a.row(c, copy.LocalToolName, "", func() {
-				textInput(c, &name).Label(copy.LocalToolName).Width(240).Grow(1).Placeholder("Ripgrep")
+				a.extensionField(c, &name, customFieldMetrics).Label(copy.LocalToolName).Width(240).Grow(1).Placeholder("Ripgrep")
 			}, func() {
 				a.toolIssueUnder(c, copy, issues, extensions.CustomFieldName)
 			})
@@ -3875,7 +3889,7 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 				a.scriptRows(c, copy, &language, &script, issues)
 			} else {
 				a.row(c, copy.LocalToolProgram, copy.LocalToolProgramHint, func() {
-					textInput(c, &program).Label(copy.LocalToolProgram).Width(240).Grow(1).
+					a.extensionField(c, &program, customFieldMetrics).Label(copy.LocalToolProgram).Width(240).Grow(1).
 						Placeholder(copy.LocalToolProgramPlaceholder)
 					if a.Actions.ChooseProgram != nil {
 						if a.actionButton(c, copy.LocalToolChoose).Clicked() {
@@ -3887,20 +3901,20 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 				})
 			}
 			a.row(c, copy.LocalToolCommand, copy.LocalToolCommandHint, func() {
-				textInput(c, &command).Label(copy.LocalToolCommand).Width(160).Placeholder("rg")
+				a.extensionField(c, &command, customFieldMetrics).Label(copy.LocalToolCommand).Width(160).Placeholder("rg")
 			}, func() {
 				a.toolIssueUnder(c, copy, issues, extensions.CustomFieldCommand)
 			})
 			if mode != routeScript {
 				a.row(c, copy.LocalToolArgs, copy.LocalToolArgsHint, func() {
-					textInput(c, &args).Label(copy.LocalToolArgs).Width(220).Placeholder("--floter")
+					a.extensionField(c, &args, customFieldMetrics).Label(copy.LocalToolArgs).Width(220).Placeholder("--floter")
 				})
 				a.row(c, copy.LocalToolVersionArgs, copy.LocalToolVersionArgsHint, func() {
-					textInput(c, &versionArgs).Label(copy.LocalToolVersionArgs).Width(160).Placeholder("--version")
+					a.extensionField(c, &versionArgs, customFieldMetrics).Label(copy.LocalToolVersionArgs).Width(160).Placeholder("--version")
 				})
 			}
 			a.row(c, copy.LocalToolVersion, copy.LocalToolVersionHint, func() {
-				textInput(c, &version).Label(copy.LocalToolVersion).Width(120).Placeholder("0.0.1")
+				a.extensionField(c, &version, customFieldMetrics).Label(copy.LocalToolVersion).Width(120).Placeholder("0.0.1")
 			}, func() {
 				a.toolIssueUnder(c, copy, issues, extensions.CustomFieldVersion)
 			})
@@ -3912,7 +3926,7 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 			// backend stores the honest empty rather than a generated sentence.
 			if mode != routeScript {
 				a.row(c, copy.LocalToolDescription, "", func() {
-					textInput(c, &description).Label(copy.LocalToolDescription).Width(240).Grow(1).
+					a.extensionField(c, &description, customFieldMetrics).Label(copy.LocalToolDescription).Width(240).Grow(1).
 						Placeholder(copy.LocalToolDescriptionPlaceholder)
 				})
 			}
@@ -5367,7 +5381,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 				TextColor(a.tokens(c).TextStrong)
 			ui.Text(c, copy.RunValuesHint).FontSize(theme.FontSize - 1).TextColor(theme.TextMuted)
 		})
-		a.card(c, func() {
+		a.runParamsBox(c, func() {
 			for index, param := range integration.Params {
 				index, param := index, param
 				label := param.Label
@@ -5417,7 +5431,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 				default:
 					value := values[param.ID]
 					a.row(c, label, sublabel, func() {
-						textInput(c, &value).Label(label).Width(220).Placeholder(param.Placeholder)
+						a.extensionField(c, &value, configFieldMetrics).Label(label).Width(220).Placeholder(param.Placeholder)
 					}, below...)
 					values[param.ID] = value
 				}
@@ -5661,10 +5675,10 @@ func (a *App) toolParamsEditor(c *ui.Context, copy i18n.Settings) {
 						}
 					}, func() {
 						a.row(c, copy.ParamsLabel, "", func() {
-							textInput(c, &label).Label(copy.ParamsLabel).Width(180)
+							a.extensionField(c, &label, customFieldMetrics).Label(copy.ParamsLabel).Width(180)
 						})
 						a.row(c, copy.ParamsID, "", func() {
-							textInput(c, &id).Label(copy.ParamsID).Width(120).Placeholder("target")
+							a.extensionField(c, &id, customFieldMetrics).Label(copy.ParamsID).Width(120).Placeholder("target")
 						})
 						a.row(c, copy.ParamsKind, "", func() {
 							a.segmentedControl(c, &kindIndex, paramKindLabels(copy)...).Label(copy.ParamsKind)
@@ -5673,14 +5687,14 @@ func (a *App) toolParamsEditor(c *ui.Context, copy i18n.Settings) {
 						// its value is its flag, so a field hint means nothing.
 						if paramKinds[kindIndex] != extensions.ParamBoolean {
 							a.row(c, copy.ParamsPlaceholder, "", func() {
-								textInput(c, &placeholder).Label(copy.ParamsPlaceholder).Width(180)
+								a.extensionField(c, &placeholder, customFieldMetrics).Label(copy.ParamsPlaceholder).Width(180)
 							})
 						}
 						a.row(c, copy.ParamsDefault, "", func() {
-							textInput(c, &def).Label(copy.ParamsDefault).Width(180)
+							a.extensionField(c, &def, customFieldMetrics).Label(copy.ParamsDefault).Width(180)
 						})
 						a.row(c, copy.ParamsFlag, "", func() {
-							textInput(c, &flag).Label(copy.ParamsFlag).Width(120).Placeholder("--target")
+							a.extensionField(c, &flag, customFieldMetrics).Label(copy.ParamsFlag).Width(120).Placeholder("--target")
 						})
 						if paramKinds[kindIndex] == extensions.ParamSelect {
 							a.row(c, copy.ParamsOptions, copy.ParamsOptionsHint, func() {

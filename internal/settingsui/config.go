@@ -168,7 +168,7 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 		value, _ := draft.values[field.Key].(string)
 		edit := value
 		a.row(c, label, description, func() {
-			input := textInput(c, &edit).Placeholder(field.Key).Label(label).Width(220)
+			input := a.extensionField(c, &edit, configFieldMetrics).Placeholder(field.Key).Label(label).Width(220)
 			if kind == "password" {
 				input = input.Password()
 			}
