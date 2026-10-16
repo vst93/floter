@@ -91,9 +91,12 @@ func TestEveryNamedControlDrawsALensRung(t *testing.T) {
 		},
 		{
 			selector: ".extension-custom-mode",
-			file:     "../settingsui/rows.go",
-			marker:   "a.tokens(c).LensInset(ui.Segmented(c, index, labels...))",
-			test:     "settingsui.TestTheCustomModeControlCarriesTheStopLens",
+			file:     "../control/control.go",
+			// The panel's picker is the same shared body the settings pages' picker
+			// draws (`control.SegmentedIndex`), so its recessed track lands the
+			// lens in one place for both surfaces.
+			marker: "tokens.LensInset(track)",
+			test:   "control.TestTheSegmentedControlCarriesTheStopLens",
 		},
 		// Switch track (recessed lens).
 		{

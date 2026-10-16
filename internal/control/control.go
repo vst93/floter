@@ -50,7 +50,36 @@ func SegmentedGlassFill(c *ui.Context, tokens theme.Tokens, labels []string, cur
 // and the segment's horizontal inset.
 func segmented(c *ui.Context, tokens theme.Tokens, labels []string, current int, apply func(int), fill, glass bool) {
 	t := c.Theme()
-	track := ui.Row(c).Shrink(0).Padding(t.Space(0.5)).Gap(t.Space(0.5)).Radius(999).
+	// The settings-side track's own inset: `.settings-options--inline { padding:
+	// calc(var(--u) * 2); gap: calc(var(--u) * 2) }` (`settings.css:1016-1022`).
+	selected := current
+	track := SegmentedIndex(c, tokens, &selected, labels, fill, glass, t.Space(0.5), t.Space(0.5))
+	if track.Changed() {
+		apply(selected)
+	}
+}
+
+// SegmentedIndex is `segmented` over the caller's own index pointer: it draws
+// the reference's track and segments and returns the track, whose Changed
+// reports a new choice. It is the same material `Segmented`/`SegmentedFill`
+// draw — one body, so the extension panel's own picker (which needs the pointer
+// form, because it writes the chosen index back into its draft) cannot drift
+// into a second shape for the same choice.
+//
+// `pad` is the track's own inset from its segments and `gap` the room between
+// them. The settings pages' track is `2u` for both; the extension panel's
+// `.extension-custom-mode` writes a literal 3px pad and a 2px gap
+// (`extensions.css:1752`), so it passes its own pair in. The shape — the 999px
+// stadium and the accent-keyline chosen pane — is the same for both.
+func SegmentedIndex(c *ui.Context, tokens theme.Tokens, selected *int, labels []string, fill, glass bool, pad, gap float32) ui.Element {
+	t := c.Theme()
+	parts := ui.SegmentedBase(c, selected, len(labels))
+	track := parts.Track
+	// The track is the reference's stadium: a 999px corner, not the ladder's
+	// control step (`.settings-options--inline { border-radius: 999px }`,
+	// `settings.css:1016-1029`; `.extension-custom-mode { border-radius: 999px }`,
+	// `extensions.css:1752`).
+	track.Shrink(0).Padding(pad).Gap(gap).Radius(999).
 		Background(tokens.Track)
 	if fill {
 		track.FillWidth()
@@ -78,13 +107,13 @@ func segmented(c *ui.Context, tokens theme.Tokens, labels []string, current int,
 			// — the height comes from the floor, not from vertical padding, so
 			// every segment is one box high whether its label is short or long.
 			// `AlignItems(ui.Center)` is what puts the line box on the middle.
-			segment := ui.Row(c).Focusable().Padding(0, inset).MinHeight(t.Space(7.5)).
+			segment := parts.Segment(i).Padding(0, inset).MinHeight(t.Space(7.5)).
 				Radius(999).AlignItems(ui.Center).Justify(justify).Label(label)
 			if fill {
 				segment.Grow(1)
 			}
 			switch {
-			case i == current:
+			case i == *selected:
 				// The chosen segment is a raised pane: the resting raised lens
 				// (`--elev-0`) plus the accent keyline that says "chosen", and
 				// deliberately not an accent fill. The framework's `ui.Button`-
@@ -104,11 +133,9 @@ func segmented(c *ui.Context, tokens theme.Tokens, labels []string, current int,
 			segment.Children(func() {
 				ui.Text(c, label).FontSize(tokens.Emphasis).FontWeight(580).TextColor(tokens.TextStrong)
 			})
-			if segment.Clicked() {
-				apply(i)
-			}
 		}
 	})
+	return track
 }
 
 // AppearanceAxis names one of the terminal's appearance controls. Two surfaces

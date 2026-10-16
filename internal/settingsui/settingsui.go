@@ -578,6 +578,15 @@ type App struct {
 	// helper that sizes its own metrics follows the surface it is drawn on.
 	cardUnit float32
 
+	// cardNoRules suppresses the row separator for the duration of a draw.
+	// The reference's `.extension-run-params` is a grid whose rows are spaced
+	// 6px apart and never ruled (`extensions.css:1224-1233` — only `gap`, no
+	// hairline), so the run form must not read as a settings card's ruled rows.
+	// runParamsBox sets it while its rows are drawn and restores it after; zero
+	// means the ordinary settings behaviour, where every row but the first
+	// draws the rule.
+	cardNoRules bool
+
 	// disableConfirm marks the integrations whose switch was turned off and
 	// is waiting for the user's answer. removeConfirm marks the ones whose
 	// destructive button was pressed and is likewise waiting — the old
@@ -1709,8 +1718,8 @@ func (a *App) installRow(c *ui.Context, copy i18n.Settings) {
 	requested := false
 	ui.Row(c).FillWidth().Gap(t.Space(1)).AlignItems(ui.Center).
 		Padding(0, 0, t.Space(1), 0).Children(func() {
-		textInput(c, &name).Placeholder(copy.IntegrationsPackageHint).Label(copy.IntegrationsPackageHint).Grow(1)
-		textInput(c, &version).Placeholder(copy.IntegrationsVersionHint).Width(160)
+		a.textInput(c, &name).Placeholder(copy.IntegrationsPackageHint).Label(copy.IntegrationsPackageHint).Grow(1)
+		a.textInput(c, &version).Placeholder(copy.IntegrationsVersionHint).Width(160)
 		if a.actionButton(c, copy.IntegrationsInstall).Clicked() {
 			requested = true
 		}
@@ -1728,14 +1737,27 @@ func (a *App) installRow(c *ui.Context, copy i18n.Settings) {
 // is a warm chip with the warning ring, and anything else is a quiet secondary
 // mark. It is a state, not an action — the row's switch is the action — so no
 // state spends an accent fill.
+// stateMark is an integration's own state, in the reference's language
+// (`.extension-status`): a running integration is accent *text*, a broken one
+// is a warm chip with the warning ring, and anything else is a quiet secondary
+// mark. It is a state, not an action — the row's switch is the action — so no
+// state spends an accent fill.
+//
+// The broken chip is the reference's `.extension-status--broken`
+// (`extensions.css:1020-1025`) to the letter: a `--glass-raised-warm` fill
+// (`tokens.RaisedWarm`, the amber plane — *not* the warning ink at a low alpha,
+// which tinted the chip with the label's own hue), the `--text-warning` 1px
+// keyline and the `--ext-radius` (9px) corner. The `2px 6px` padding is the
+// panel's literal px, so it goes through `cardSpace`/`cardTheme` like the rest
+// of `extensions.css`.
 func (a *App) stateMark(c *ui.Context, integration Integration, copy i18n.Settings) {
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 	text := integration.state(copy)
 	switch {
 	case integration.Broken:
-		chip := ui.Row(c).Padding(t.Space(0.5), t.Space(1.5)).Radius(tokens.RadiusXS).
-			Background(t.Warning.Alpha(0.14))
+		chip := ui.Row(c).Padding(t.Space(0.5), t.Space(1.5)).Radius(tokens.RadiusSM).
+			Background(tokens.RaisedWarm)
 		chip.InsetShadow(0, 0, 0, 1, t.Warning)
 		chip.Children(func() {
 			ui.Text(c, text).FontSize(t.FontSize - 1).FontWeight(600).TextColor(t.Warning)
@@ -1753,7 +1775,13 @@ func (a *App) stateMark(c *ui.Context, integration Integration, copy i18n.Settin
 // localisation), with the specific cause beside it only when the list knows
 // one. It is a state mark, not an action — the row's repair button (drawn
 // separately) is the action, and this chip only says why the button is there.
-func (a *App) runtimeUnavailableBadge(c *ui.Context, copy i18n.Settings, integration Integration) {
+//
+// Its face is `stateMark`'s broken chip: the `--glass-raised-warm`
+// (`tokens.RaisedWarm`) fill, the `--text-warning` 1px keyline and the
+// `--ext-radius` (9px) corner — the same three facts the reference's one
+// `.extension-status--broken` rule carried for both readers
+// (`extensions.css:1020-1025`).
+func (a *App) runtimeUnavailableBadge(c *ui.Context, copy i18n.Settings, integration Integration) ui.Element {
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 	label := copy.RuntimeUnavailable
@@ -1762,12 +1790,13 @@ func (a *App) runtimeUnavailableBadge(c *ui.Context, copy i18n.Settings, integra
 			label += " · " + cause
 		}
 	}
-	chip := ui.Row(c).Padding(t.Space(0.5), t.Space(1.5)).Radius(tokens.RadiusXS).
-		Background(t.Warning.Alpha(0.14))
+	chip := ui.Row(c).Padding(t.Space(0.5), t.Space(1.5)).Radius(tokens.RadiusSM).
+		Background(tokens.RaisedWarm)
 	chip.InsetShadow(0, 0, 0, 1, t.Warning)
 	chip.Children(func() {
 		ui.Text(c, label).FontSize(t.FontSize - 1).FontWeight(600).TextColor(t.Warning)
 	})
+	return chip
 }
 
 // integrationMeta is the reference's single `.extension-row__meta` line under
@@ -2128,7 +2157,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 					// per keystroke (see debounce.go).
 					a.row(c, copy.IntegrationsCommandAlias, "", func() {
 						alias := command.Alias
-						if textInput(c, &alias).Placeholder(copy.IntegrationsCommandAliasPlaceholder).
+						if a.aliasField(c, &alias).Placeholder(copy.IntegrationsCommandAliasPlaceholder).
 							Label(copy.IntegrationsCommandAlias).Width(180).Changed() &&
 							a.Actions.SetCommandAlias != nil {
 							a.debounceAlias(integration.ID, command.ID, alias)
@@ -3410,12 +3439,19 @@ func (a *App) choose(c *ui.Context, label, description string, options []i18n.Op
 // `extensionMetrics` the trigger is pinned to that box and does not follow the
 // interface step; on the settings pages, where `cardUnit` is zero, it keeps the
 // framework's `--u` metrics and scales, as the reference's own fields did.
+//
+// Both faces are the reference's *field* rung, not the framework's control
+// rung: `.settings-select` (`settings.css:919-940`) and
+// `.extension-config-field select` (`extensions.css:2402-2417`) both paint
+// `--glass-field` under `--glass-field-shadow`, so the trigger wears
+// `fieldFace` rather than the opaque `--glass-control` the framework's own
+// Select draws.
 func (a *App) chooseSelect(c *ui.Context, selected *string, labels []string, label string) ui.Element {
 	e := ui.Select(c, selected, labels).Label(label).Width(220).Radius(999)
 	if a.cardUnit > 0 {
 		e = e.MinHeight(28).Padding(4, 8)
 	}
-	return e
+	return a.fieldFace(c, e)
 }
 
 // paletteRow is the terminal palette row: the labeled picker, with a
@@ -3441,7 +3477,7 @@ func (a *App) paletteRow(c *ui.Context, copy i18n.Settings, current string, appl
 	// splits the select and the preview apart (`settings.css:871-878`).
 	a.stackedRow(c, copy.Palette, "", func() {
 		ui.Row(c).FillWidth().Justify(ui.SpaceBetween).AlignItems(ui.Center).Children(func() {
-			e := ui.Select(c, &selected, labels).Label(copy.Palette).Width(220).Radius(999)
+			e := a.fieldFace(c, ui.Select(c, &selected, labels).Label(copy.Palette).Width(220).Radius(999))
 			if e.Changed() {
 				for _, option := range options {
 					if option.Label == selected {
@@ -3552,7 +3588,7 @@ func (a *App) checkbox(c *ui.Context, label, description string, on bool, apply 
 func (a *App) text(c *ui.Context, label, description, placeholder, value string, apply func(string)) {
 	edit := value
 	a.row(c, label, description, func() {
-		e := textInput(c, &edit).Placeholder(placeholder).Label(label).Width(220)
+		e := a.textInput(c, &edit).Placeholder(placeholder).Label(label).Width(220)
 		if e.Submitted() {
 			apply(edit)
 		}
@@ -3726,7 +3762,7 @@ func (a *App) residencyRow(c *ui.Context, copy i18n.Settings) {
 
 	t := c.Theme()
 	a.row(c, copy.SurfaceResidency, copy.SurfaceResidencyHint, func() {
-		e := ui.Select(c, &selected, labels).Label(copy.SurfaceResidency).Width(200).Radius(999)
+		e := a.fieldFace(c, ui.Select(c, &selected, labels).Label(copy.SurfaceResidency).Width(200).Radius(999))
 		if e.Changed() {
 			for i, label := range labels {
 				if label == selected {
@@ -3738,7 +3774,7 @@ func (a *App) residencyRow(c *ui.Context, copy i18n.Settings) {
 		if !a.residencyCustomOpen {
 			return
 		}
-		input := textInput(c, &a.residencyDraft).Label(copy.SurfaceResidencyCustomLabel).
+		input := a.textInput(c, &a.residencyDraft).Label(copy.SurfaceResidencyCustomLabel).
 			Placeholder(copy.SurfaceResidencyCustomUnit).Width(90)
 		ui.Text(c, copy.SurfaceResidencyCustomUnit).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
 		if input.Submitted() || ui.Button(c, copy.SurfaceResidencyCustomApply).Clicked() {
@@ -5447,8 +5483,21 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 			outputHint = copy.RunOutputHintTerminal
 		}
 		ui.Text(c, outputHint).FontSize(theme.FontSize - 1).TextColor(theme.TextMuted)
-		ui.Row(c).Gap(theme.Space(1)).AlignItems(ui.Center).Children(func() {
-			run := a.actionButton(c, copy.RunLabel)
+		// The reference's `.extension-run-params__actions` is a right-aligned
+		// flex row (justify-content: flex-end, a 8px gap) with Cancel first and
+		// the accent-filled Run last (`RunParamForm.tsx:129-145`;
+		// `extensions.css:1300-1305`) — the affirmative action ends the line,
+		// not begins it.
+		ui.Row(c).FillWidth().Gap(theme.Space(2)).AlignItems(ui.Center).Justify(ui.End).Children(func() {
+			// Cancel folds the form away without running (the reference's
+			// `customRunCancel`). The answers stay in `runValues`, so reopening the
+			// form keeps the user's in-progress edits — the reference's
+			// `runParamMemory`, session memory seeded only on a fresh open.
+			if a.actionButton(c, copy.RunCancel).Clicked() {
+				a.runOpen[integration.ID] = false
+				a.runError = ""
+			}
+			run := a.extensionPrimaryButton(c, copy.RunLabel)
 			if len(issues) > 0 {
 				run = run.Disabled(true)
 			}
@@ -5457,14 +5506,6 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 				if failure := a.Actions.RunWithParams(integration.ID, values); failure != nil {
 					a.runError = paramFailureMessage(copy, params, failure)
 				}
-			}
-			// Cancel folds the form away without running (the reference's
-			// `customRunCancel`). The answers stay in `runValues`, so reopening the
-			// form keeps the user's in-progress edits — the reference's
-			// `runParamMemory`, session memory seeded only on a fresh open.
-			if a.actionButton(c, copy.RunCancel).Clicked() {
-				a.runOpen[integration.ID] = false
-				a.runError = ""
 			}
 		})
 		if a.runError != "" {

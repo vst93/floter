@@ -36,7 +36,7 @@ func measureField(t *testing.T, step string, extension bool) fieldMeasurement {
 				if extension {
 					a.extensionField(c, &value, configFieldMetrics).Bind(&ref).Width(200)
 				} else {
-					textInput(c, &value).Bind(&ref).Width(200)
+					a.textInput(c, &value).Bind(&ref).Width(200)
 				}
 			}
 			if extension {

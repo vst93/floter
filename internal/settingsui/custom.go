@@ -133,7 +133,7 @@ func (a *App) customSection(c *ui.Context, copy i18n.Settings) {
 				})
 				if a.customAction == commandAction {
 					command := a.customCommand
-					textInput(c, &command).Placeholder(copy.ShortcutsCommandHint).
+					a.textInput(c, &command).Placeholder(copy.ShortcutsCommandHint).
 						Label(copy.ShortcutsCommand).Grow(1)
 					a.customCommand = command
 				}
@@ -176,7 +176,7 @@ func (a *App) customActionPicker(c *ui.Context, copy i18n.Settings, current stri
 	}
 	selected := labels[index]
 	chosen := ""
-	if ui.Select(c, &selected, labels).Radius(999).Changed() {
+	if a.fieldFace(c, ui.Select(c, &selected, labels).Radius(999)).Changed() {
 		for _, option := range options {
 			if option.Label == selected {
 				chosen = option.ID

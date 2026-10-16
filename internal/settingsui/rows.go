@@ -6,6 +6,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"floter/internal/control"
 	"floter/internal/launcher"
 	"floter/internal/motion"
 	"floter/internal/theme"
@@ -198,7 +199,7 @@ func (a *App) extensionSection(c *ui.Context, title string, count int, fn func()
 				return
 			}
 			chip := ui.Row(c).MinWidth(t.Space(6.25)).Height(t.Space(4.5)).
-				Padding(0, t.Space(1.75)).Radius(tokens.RadiusXS).Center()
+				Padding(0, t.Space(1.75)).Radius(tokens.RadiusSM).Center()
 			chip.Children(func() {
 				ui.Text(c, strconv.Itoa(count)).FontSize(tokens.Caption).
 					FontWeight(600).TextColor(tokens.TextSecondary)
@@ -302,20 +303,28 @@ func (a *App) cardGeometry(c *ui.Context, inset, titleFloor, lineGap float32, la
 // settings card's `--glass-control` fill, its `--radius-md` corner or its
 // `--elev-0` stack. Its rows keep the row machinery and the extension row
 // counter, but they carry the box's own 8px inset instead of the settings
-// card's 14u, so a parameter's input sits 1px + 8px inside the frame, matching
-// the reference's `padding: 8px`, not 1px + 14px.
+// card's 14u and they draw **no separator at all**: the reference is a
+// `display: grid` with a `gap: 6px` and no hairline
+// (`extensions.css:1224-1233`), so a parameter's input sits 1px + 8px inside
+// the frame and the rows read as a spaced grid, not as a column of ruled
+// settings rows (`cardNoRules` drops the separator `cardRow` would otherwise
+// draw above every row but the first, and the box takes the reference's own
+// 6px `gap` between rows).
 func (a *App) runParamsBox(c *ui.Context, fn func()) {
 	tokens := a.tokens(c)
 	t := a.cardTheme(c)
 	saved := a.cardRows
 	savedInset, savedFloor, savedGap := a.cardRowInset, a.cardTitleFloor, a.cardLineGap
+	savedNoRules := a.cardNoRules
 	a.cardRows = 0
 	a.cardRowInset, a.cardTitleFloor, a.cardLineGap = a.cardSpace(t, 2), 0, 0
+	a.cardNoRules = true
 	defer func() {
 		a.cardRows = saved
 		a.cardRowInset, a.cardTitleFloor, a.cardLineGap = savedInset, savedFloor, savedGap
+		a.cardNoRules = savedNoRules
 	}()
-	box := ui.Column(c).FillWidth().
+	box := ui.Column(c).FillWidth().Gap(t.Space(1.5)).
 		Border(1, tokens.ControlEdge).
 		Radius(tokens.RadiusSM).
 		Background(tokens.Sunken).
@@ -437,6 +446,31 @@ func (a *App) extensionActionFace(c *ui.Context, height, radius float32, disable
 	return button, ink
 }
 
+// extensionPrimaryButton is the reference's accent face of the same pill:
+// `.extensions-action-button--primary` (`extensions.css:1347-1364`) — the
+// `--accent` fill, the `--accent-edge-strong` edge, the raised top rim
+// (`--glass-raised-rim`) and the `--accent-contrast` ink. It is the one
+// affirmative action in its block (the run form's Run, the config form's Save),
+// never a state, so it spends the accent fill the neutral pills' keyline
+// deliberately keeps for a chosen slot. A disabled primary dims to the same
+// 0.4 the reference's `:disabled` applied, keeping the accent plane.
+func (a *App) extensionPrimaryButton(c *ui.Context, label string) ui.Element {
+	t := a.cardTheme(c)
+	tokens := a.tokens(c)
+	button := ui.ButtonBase(c).
+		MinHeight(t.Space(7.5)).Padding(0, t.Space(2.5)).Radius(t.Space(3.75))
+	button.Border(1, tokens.AccentEdgeStrong).Background(t.Accent).
+		Transition(ui.ElementTransition{Colors: true, Duration: 120 * time.Millisecond})
+	// `box-shadow: inset 0 1px 0 var(--glass-raised-rim)`: the raised top rim
+	// is what makes the accent pill read as a lit control rather than a flat
+	// accent block (the neutral pill gets the same from `Lens`).
+	button.InsetShadow(0, 1, 0, 0, tokens.LensRim)
+	button.Children(func() {
+		ui.Text(c, label).FontSize(tokens.Body).FontWeight(600).TextColor(t.AccentText)
+	})
+	return button
+}
+
 // The in-flight mark's cadence: one full circle every 0.9 s, the framework's
 // own spinner cadence (`ui.Spinner`). The turn is read through motion, so a
 // desktop that asked for less motion draws the ring at rest.
@@ -524,27 +558,38 @@ func (a *App) busySwitchControl(c *ui.Context, on *bool, key string) ui.Element 
 }
 
 // segmentedControl draws one of the custom-tool form's segmented pickers
-// (the reference's `.extension-custom-mode`): the framework's `Segmented`
-// inside the recessed lens, the same groove a switch's track is. The
-// reference's `.extension-custom-mode` is written in literal px — a 3px track
-// padding, a 2px gap and a 999px stadium (`extensions.css:1752-1759`) — so
-// inside the extension panel the control's metrics are pinned to the panel's
-// literal unit for the duration of the build: the framework sizes the track
-// and every segment from the context theme's `Spacing`/`Radius`, which follow
-// the interface step, and a picker that shrank at `small` would be the one
-// control in the panel that did. The pin is scoped to this call, so the row
-// switches beside it keep following the step.
+// (the reference's `.extension-custom-mode`). It is the same material the
+// settings pages' picker draws (`control.Segmented`): the reference's stadium
+// track (`border-radius: 999px`, `extensions.css:1752`) holding pill segments
+// whose chosen one is a raised pane with the `--accent-edge` keyline
+// (`.extension-custom-mode__item--active`, `extensions.css:1759`). The old port
+// drew the framework's `ui.Segmented` here — a rounded rectangle with a
+// darkened chosen segment — so the panel's picker and the settings pages'
+// picker were two shapes for the same choice.
+//
+// The reference's `.extension-custom-mode` is written in literal px — a 3px
+// track padding, a 2px gap and the 999px stadium (`extensions.css:1752-1759`)
+// — so inside the extension panel the control's metrics are pinned to the
+// panel's literal unit for the duration of the build: the shared body sizes the
+// track and every segment from the context theme's `Spacing`/`Radius`, which
+// follow the interface step, and a picker that shrank at `small` would be the
+// one control in the panel that did. The pin is scoped to this call, so the row
+// switches beside it keep following the step the way the reference's `--u`
+// rows do.
 func (a *App) segmentedControl(c *ui.Context, index *int, labels ...string) ui.Element {
-	if a.cardUnit <= 0 {
-		return a.tokens(c).LensInset(ui.Segmented(c, index, labels...))
-	}
 	saved := c.Theme()
-	pinned := *saved
-	pinned.Spacing = a.cardUnit
-	c.SetTheme(&pinned)
-	e := ui.Segmented(c, index, labels...)
+	if a.cardUnit > 0 {
+		pinned := *saved
+		pinned.Spacing = a.cardUnit
+		c.SetTheme(&pinned)
+	}
+	// The reference's own numbers: a 3px track padding (0.75 unit) and a 2px
+	// gap (0.5 unit), both taken through `cardSpace` so they are the panel's
+	// literal px inside `extensionMetrics` and the settings `--u` outside it.
+	t := a.cardTheme(c)
+	track := control.SegmentedIndex(c, a.tokens(c), index, labels, false, false, a.cardSpace(t, 0.75), a.cardSpace(t, 0.5))
 	c.SetTheme(saved)
-	return a.tokens(c).LensInset(e)
+	return track
 }
 
 // row draws one row of a card: the label and its optional grey second line
@@ -722,10 +767,11 @@ func (a *App) cardRow(c *ui.Context, align ui.Align, lead func(), face rowFace, 
 	}
 	clicked := false
 	ui.Column(c).FillWidth().Children(func() {
-		if !first {
+		if !first && !a.cardNoRules {
 			// The row separator, inset on both sides and never running to
 			// the card's frame; drawn above so only the card's first row
-			// has none.
+			// has none. A surface whose reference has no ruled rows (the
+			// run form's `.extension-run-params` grid) suppresses it.
 			ui.Box(c).FillWidth().Height(1).Background(tokens.Hairline).
 				MarginX(inset).Shrink(0)
 		}
