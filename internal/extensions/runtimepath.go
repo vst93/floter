@@ -168,6 +168,7 @@ func loginShellDirs() []string {
 		// -ilc: interactive and login, which is where path_helper and a
 		// version manager's hooks both live.
 		cmd := exec.Command(shell, "-ilc", `printf "__floter_path__%s" "$PATH"`)
+		isolateProbe(cmd)
 		out, err := cmd.Output()
 		if err != nil {
 			done <- ""

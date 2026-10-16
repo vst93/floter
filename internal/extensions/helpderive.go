@@ -30,6 +30,7 @@ func ProbeHelpText(ctx context.Context, binding RuntimeBinding, integration Inte
 	defer cancel()
 	argv := append(append([]string{}, binding.Args...), args...)
 	cmd := exec.CommandContext(probeCtx, binding.Program, argv...)
+	isolateProbe(cmd)
 	cmd.Stdin = nil
 	// The working directory only helps a tool that reads its own package
 	// files; a directory that is not there would fail the exec outright

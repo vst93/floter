@@ -162,6 +162,7 @@ func runProbe(ctx context.Context, binding RuntimeBinding, integration Integrati
 	// and both streams captured.
 	argv := append(append([]string{}, binding.Args...), probe.Args...)
 	cmd := exec.CommandContext(probeCtx, binding.Program, argv...)
+	isolateProbe(cmd)
 	cmd.Stdin = nil
 	if dir := integration.PackageDir(); dir != "" {
 		cmd.Dir = dir

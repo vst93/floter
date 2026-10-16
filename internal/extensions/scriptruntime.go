@@ -52,6 +52,7 @@ func probeProgramVersion(ctx context.Context, path string) string {
 	probeCtx, cancel := context.WithTimeout(ctx, scriptVersionTimeout)
 	defer cancel()
 	cmd := exec.CommandContext(probeCtx, path, "--version")
+	isolateProbe(cmd)
 	cmd.Stdin = nil
 	cmd.WaitDelay = time.Second
 	var stdout, stderr bytes.Buffer
