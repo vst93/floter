@@ -119,6 +119,19 @@ var (
 	// `<Unplug size={14} />`): two plugs pulled apart, the word-picture for
 	// disconnecting from the OS.
 	glyphUnplug = ui.MustParseSVG([]byte(glyphSource(`<path d="m19 5 3-3"/><path d="m2 22 3-3"/><path d="M6.3 20.3a2.4 2.4 0 0 0 3.4 0L12 18l-6-6-2.3 2.3a2.4 2.4 0 0 0 0 3.4Z"/><path d="m2 6 6 6 2.3-2.3a2.4 2.4 0 0 0 0-3.4L8.7 4a2.4 2.4 0 0 0-3.4 0Z"/><path d="m12 12 6 6 2.3-2.3a2.4 2.4 0 0 0 0-3.4L18.7 10a2.4 2.4 0 0 0-3.4 0Z"/>`)))
+	// glyphFileDown is lucide's FileDown, the mark the reference's config
+	// toolbar led its export icon-button with (`ExtensionsPanel.tsx:2995`,
+	// `<FileDown size={14} strokeWidth={2}/>`): a page with its downward arrow,
+	// the word-picture for "write this to a file". A mark of its own because
+	// the copy button beside it is `Copy`; the two icon-buttons must not
+	// speak the same shape.
+	glyphFileDown = ui.MustParseSVG([]byte(glyphSource(`<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M12 18v-6"/><path d="m9 15 3 3 3-3"/>`)))
+	// glyphRotateCcw is lucide's RotateCcw, the mark the reference's config
+	// form's "Restore defaults" pill led with (`ExtensionsPanel.tsx:3017`,
+	// `<RotateCcw size={14} strokeWidth={2}/>`): a counter-clockwise turn,
+	// the word-picture for "put it back the way it was". It is a different
+	// shape from `glyphRestart`'s single-loop arrow.
+	glyphRotateCcw = ui.MustParseSVG([]byte(glyphSource(`<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>`)))
 )
 
 // rowGlyph picks the mark for a row from what the row is: an application shows
@@ -319,6 +332,10 @@ func Glyph(name string) (*ui.SVG, bool) {
 		return glyphTrash, true
 	case "unplug":
 		return glyphUnplug, true
+	case "file-down":
+		return glyphFileDown, true
+	case "rotate-ccw":
+		return glyphRotateCcw, true
 	case "arrow-up-down":
 		return glyphArrowUpDown, true
 	case "file":

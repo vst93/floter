@@ -809,6 +809,8 @@ func New(opts Options) *App {
 		InstallUpdate:         a.installUpdate,
 		ConnectRecommended:    a.connectRecommended,
 		SaveConfiguration:     a.saveIntegrationConfiguration,
+		ExportConfiguration:   a.exportConfiguration,
+		CopyConfiguration:     a.copyConfiguration,
 		ClearClipboardHistory: func() { a.clearClipboardHistoryAsks(a.confirmClearClipboard) },
 		OpenPluginConfig:      a.openPluginConfig,
 		SetPluginEnabled: func(id string, enabled bool) {
@@ -2000,6 +2002,15 @@ func applyIntegrationConfig(store *extensions.Store, paths extensions.Paths, ite
 		return
 	}
 	item.ConfigValues = stored.Values
+	// The generation the stored values were written against, so a copied or
+	// exported configuration can name it (the reference's
+	// `ConfigurationExportDocument.config_version`). The stored value wins
+	// when the file recorded one; the schema's own generation fills in
+	// otherwise, exactly as `SaveConfiguration` carries it forward.
+	item.ConfigVersion = stored.ConfigVersion
+	if item.ConfigVersion == 0 {
+		item.ConfigVersion = configuration.ConfigVersion
+	}
 }
 
 // optionsAsStrings renders a field's options for the form: a select's options

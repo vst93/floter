@@ -575,6 +575,70 @@ func newGeneration() (string, error) {
 	return hex.EncodeToString(buffer), nil
 }
 
+// ConfigurationExportDocument is the reference's `ConfigurationExportDocument`
+// (`src-tauri/src/extensions/config.rs:88-93`): the envelope a copied or
+// exported configuration travels in, so the JSON names the integration, the
+// schema generation the values were written against, and the values
+// themselves — never a bare value map that nothing can attribute.
+//
+// `formatVersion` is the reference's own `format_version: 1`, fixed: the
+// document shape is versioned independently of the repository's sync format.
+type ConfigurationExportDocument struct {
+	FormatVersion int            `json:"formatVersion"`
+	ExtensionID   string         `json:"extensionId"`
+	ConfigVersion int            `json:"configVersion"`
+	Values        map[string]any `json:"values"`
+}
+
+// ConfigurationExportFormatVersion is the export document's version, the
+// reference's `format_version: 1` (`src-tauri/src/extensions/config.rs:209`).
+const ConfigurationExportFormatVersion = 1
+
+// ExportConfiguration renders one host-owned configuration as the JSON a
+// copy or export hands out: the reference's `extensions_config_copy` /
+// `extensions_config_export`, which both call `export_json`
+// (`src-tauri/src/extensions/config.rs:194-217`). Passwords are replaced by
+// the placeholder `redactExportedPasswords` applies, so a credential never
+// leaves the machine in the document.
+//
+// The values are validated against the schema first — the reference called
+// `validate_values` before it built the document — so a copy of a draft that
+// does not fit the schema is refused rather than written.
+func ExportConfiguration(id string, configVersion int, schema []ConfigField, values map[string]any) ([]byte, error) {
+	if err := ValidateConfiguration(schema, values); err != nil {
+		return nil, err
+	}
+	document := ConfigurationExportDocument{
+		FormatVersion: ConfigurationExportFormatVersion,
+		ExtensionID:   id,
+		ConfigVersion: configVersion,
+		Values:        redactExportedPasswords(schema, values),
+	}
+	data, err := json.MarshalIndent(document, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	return append(data, '\n'), nil
+}
+
+// redactExportedPasswords replaces every password field's value with the
+// placeholder, the reference's `redact_exported_passwords`: an exported
+// document names which fields are secrets but never carries them.
+func redactExportedPasswords(schema []ConfigField, values map[string]any) map[string]any {
+	out := make(map[string]any, len(values))
+	for key, value := range values {
+		out[key] = value
+	}
+	for _, field := range schema {
+		if strings.EqualFold(field.Type, "password") {
+			if _, ok := out[field.Key]; ok {
+				out[field.Key] = PasswordPlaceholder
+			}
+		}
+	}
+	return out
+}
+
 // writeSecrets writes one secrets generation, atomically and privately.
 func writeSecrets(dir, generation string, secrets map[string]any) error {
 	if secrets == nil {

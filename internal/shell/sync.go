@@ -290,3 +290,73 @@ func homeDirOrEmpty() string {
 // transferNoticeID is the export toast's own id, distinct from the refusal and
 // drift notices': news of a finished export must not replace either.
 const transferNoticeID = "floter-transfer-notice"
+
+// copyConfiguration puts one integration's host-owned configuration on the
+// clipboard as the reference's `extensions_config_copy` did
+// (`ExtensionsPanel.tsx:2019-2031`): the same export document the file export
+// writes, then the success notice. The document is built from the provider's
+// real schema — never a copy the form made — so a field the form cannot show
+// still redacts correctly, and the clipboard write is the one place a secret
+// could leak: the redaction is what stops it.
+func (a *App) copyConfiguration(id string, values map[string]any) {
+	description, ok := a.Integrations.Description(id)
+	if !ok || description.Configuration == nil {
+		return
+	}
+	document, err := extensions.ExportConfiguration(id, description.Configuration.ConfigVersion,
+		description.Configuration.Schema, values)
+	if err != nil {
+		log.Printf("floter: could not build the configuration copy for %s: %v", id, err)
+		a.queueNotice(a.SettingsCopy().IntegrationsTransferBad, refusalNotice)
+		return
+	}
+	// The notice first, then the clipboard write off the caller's thread: the
+	// clibpoard reaches the OS (the reference awaited its own async
+	// `extensions_config_copy`), and a background write keeps a surface that
+	// asked for the copy from waiting on the platform clipboard.
+	a.notifySuccess(a.SettingsCopy().ConfigCopied)
+	text := string(document)
+	go mygo.Clipboard.WriteText(text)
+}
+
+// exportConfiguration asks for a path and writes one integration's host-owned
+// configuration there, as the reference's `extensions_config_export` did
+// (`src-tauri/src/commands/extensions.rs:2500-2530`, `ExtensionsPanel.tsx:
+// 2036-2048`). The document is the reference's own
+// `ConfigurationExportDocument` shape (see `extensions.ExportConfiguration`),
+// with passwords replaced by the placeholder, so a credential never leaves the
+// machine in the file. A clean write raises the success notice; a refused
+// dialog or a failed document is silent-or-noticed the same way the
+// integrations export is.
+func (a *App) exportConfiguration(id string, values map[string]any) {
+	description, ok := a.Integrations.Description(id)
+	if !ok || description.Configuration == nil {
+		return
+	}
+	document, err := extensions.ExportConfiguration(id, description.Configuration.ConfigVersion,
+		description.Configuration.Schema, values)
+	if err != nil {
+		log.Printf("floter: could not build the configuration export for %s: %v", id, err)
+		a.queueNotice(a.SettingsCopy().IntegrationsTransferBad, refusalNotice)
+		return
+	}
+	go func() {
+		path, err := a.saveFile("floter-" + id + "-config.json")
+		if err != nil {
+			// The dialog failed or the user closed it: the reference's
+			// `extensions_config_export` treats a closed picker as "nothing to
+			// do", not as a failure to report (it returns `Ok(None)`).
+			log.Printf("floter: could not pick a path for the configuration export of %s: %v", id, err)
+			return
+		}
+		if path == "" {
+			return // the user closed the dialog
+		}
+		if err := os.WriteFile(path, document, 0o600); err != nil {
+			log.Printf("floter: could not write %s: %v", path, err)
+			a.queueNotice(a.SettingsCopy().IntegrationsTransferBad, refusalNotice)
+			return
+		}
+		a.notifySuccess(a.SettingsCopy().ConfigExported)
+	}()
+}

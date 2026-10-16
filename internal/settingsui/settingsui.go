@@ -244,6 +244,20 @@ type Actions struct {
 	// SaveConfiguration validates and stores an integration's configuration
 	// values, moving its password fields into the secrets file.
 	SaveConfiguration func(id string, values map[string]any) error
+	// ExportConfiguration asks for a path and writes one integration's
+	// host-owned configuration there, as the reference's
+	// `extensions_config_export` did (`ExtensionsPanel.tsx:2036-2048`): the
+	// toolbar's export icon-button. Values are the form's current draft, so a
+	// user can export an unsaved edit. The host owns the document, the dialog
+	// and the write, so the schema it validates against is the real one, never
+	// a copy the form made. Nil hides the button.
+	ExportConfiguration func(id string, values map[string]any)
+	// CopyConfiguration puts one integration's host-owned configuration on the
+	// clipboard as the reference's `extensions_config_copy` did
+	// (`ExtensionsPanel.tsx:2019-2031`): the toolbar's copy icon-button. Like
+	// `ExportConfiguration`, the host builds the document from the real schema
+	// and raises the success notice; nil turns the button into a no-op.
+	CopyConfiguration func(id string, values map[string]any)
 	// ClearClipboardHistory drops every clipboard entry that is not a
 	// favourite.
 	ClearClipboardHistory func()
@@ -325,6 +339,11 @@ type Integration struct {
 	// empty when the integration declares none.
 	Config       []ConfigField
 	ConfigValues map[string]any
+	// ConfigVersion is the schema generation the stored values were written
+	// against, carried so a copied or exported configuration names it (the
+	// reference's `ConfigurationExportDocument.config_version`,
+	// `src-tauri/src/extensions/config.rs:88-93`). Zero when nothing is known.
+	ConfigVersion int
 	// Generated marks an integration the host itself created from a local
 	// tool's own help: only these can be re-probed, so only these get the
 	// button.

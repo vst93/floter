@@ -645,6 +645,36 @@ type Settings struct {
 	ConfigSaved    string
 	ConfigRequired string
 	ConfigNumber   string
+	// ConfigNone is a non-required select's empty first option (the
+	// reference's `settings.extensions.configNone`, the `<option value="">`
+	// its `!field.required` branch prepends, `ExtensionsPanel.tsx:3226`).
+	ConfigNone string
+	// ConfigSavedState / ConfigUnsaved are the toolbar's status word, the
+	// reference's `settings.extensions.configSavedState` / `.configUnsaved`
+	// (`ExtensionsPanel.tsx:2990-2992`): "Saved" while the draft matches the
+	// stored values, "Unsaved changes" while it does not.
+	ConfigSavedState string
+	ConfigUnsaved    string
+	// ConfigDefaults is the toolbar's restore action (the reference's
+	// `settings.extensions.configDefaults`, `ExtensionsPanel.tsx:3017`).
+	ConfigDefaults string
+	// ConfigCopy / ConfigExport are the two icon-buttons' accessible names
+	// (the reference's `settings.extensions.copyConfiguration` /
+	// `.exportConfiguration`, `ExtensionsPanel.tsx:2994-2999`).
+	ConfigCopy   string
+	ConfigExport string
+	// ConfigCopied / ConfigExported are the two success notices the toolbar
+	// raises (the reference's `settings.extensions.configCopied` /
+	// `.configExported`, `ExtensionsPanel.tsx:2026,2043`).
+	ConfigCopied   string
+	ConfigExported string
+	// ConfigOutOfRange / ConfigOutOfLength word the two schema constraints the
+	// native control carried (`min`/`max` and `minLength`/`maxLength`,
+	// `ExtensionsPanel.tsx:3251-3256`) as a sentence under the form when a
+	// value falls outside them; the save refuses it either way through the
+	// host's own validation.
+	ConfigOutOfRange  string
+	ConfigOutOfLength string
 	// The export and import of the integration list. Exporting/Importing are the
 	// busy lines shown while a transfer is in flight (the reference's
 	// `settings.extensions.exporting` / `.importing`).

@@ -514,7 +514,10 @@ func TestTheConfigFieldsWearTheTwoColumnGrid(t *testing.T) {
 			c.SetTheme(a.tokens(c).Theme)
 			ui.Column(c).Padding(24).Children(func() {
 				a.extensionMetrics(func() {
-					a.configPlane(c, func() {
+					// The real form's own wrapper: the reference's
+					// `.extension-config-form` is one 12px grid, so the fields are
+					// laid out directly under it with no intermediate plane.
+					ui.Column(c).FillWidth().Gap(12).Children(func() {
 						a.configField(c, en, Integration{ID: "x"}, draft, ConfigField{
 							Key: "token", Label: "Token", Type: "text", Description: "the api token",
 						})

@@ -3702,3 +3702,114 @@ func TestTerminalOpenExternalFailureSpeaksInThePanel(t *testing.T) {
 		t.Errorf("the panel did not draw the notice: want %q, got %q", want, tt.Texts())
 	}
 }
+
+// configuredIntegrationFixture is one installed integration whose provider
+// describes a host-owned configuration: a required text endpoint, a required
+// password token and a required select region. It is the fixture the
+// configuration form's own shell tests render against, so the schema and the
+// config generation are real rather than a stub.
+func configuredIntegrationFixture(t *testing.T, saveDialog func(string) (string, error)) (*App, extensions.Paths) {
+	t.Helper()
+	paths := extensions.FromRoot(t.TempDir())
+	if err := paths.Ensure(); err != nil {
+		t.Fatal(err)
+	}
+	pkg := filepath.Join(paths.Extensions, "dev.floter.configured")
+	if err := os.MkdirAll(pkg, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(pkg, "floter.extension.json"), []byte(`{
+	  "schemaVersion": "2.0", "id": "dev.floter.configured", "name": "Configured",
+	  "distribution": {"type": "local"},
+	  "runtime": {"type": "script", "language": "shell", "path": "tool.sh"},
+	  "provider": {"type": "executable", "argsPrefix": ["--floter"]}
+	}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(pkg, "tool.sh"), []byte("#!/bin/sh\ncat <<'JSONEOF'\n"+
+		`{"protocolVersion":"1.0","provider":{"id":"dev.floter.configured","name":"Configured","version":"1.0.0"},
+		  "configuration":{"configVersion":1,"owner":"host","schema":[
+		    {"key":"endpoint","type":"text","required":true},
+		    {"key":"token","type":"password","required":true},
+		    {"key":"region","type":"select","options":["eu","us"]}]}}`+
+		"\nJSONEOF\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(paths.RepositoryFile, []byte(`{
+	  "schemaVersion": 1,
+	  "extensions": {"dev.floter.configured": {"id": "dev.floter.configured", "name": "Configured",
+	    "state": "enabled", "enabled": true, "packageVersion": "1.0.0",
+	    "manifestPath": "`+filepath.Join(pkg, "floter.extension.json")+`",
+	    "installedAt": 1, "updatedAt": 1}}
+	}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	a := New(Options{
+		Store:                settings.NewStore(settings.Default()),
+		Paths:                paths,
+		NewTerminal:          func(terminal.Options) (*terminal.Terminal, error) { return nil, errors.New("no library in tests") },
+		RunSilentCommand:     func(string) error { return nil },
+		OpenExternalTerminal: func() error { return nil },
+		SaveFileDialog:       saveDialog,
+		OpenFileDialog:       func() (string, error) { return "", nil },
+		ConfirmPermissions:   func(extensions.PermissionApproval) bool { return true },
+	})
+	a.RefreshIntegrations(context.Background())
+	return a, paths
+}
+
+// The configuration export writes the reference's `ConfigurationExportDocument`
+// to the path the dialog returns, with the password redacted, and raises the
+// success notice — the reference's `extensions_config_export`
+// (`ExtensionsPanel.tsx:2036-2048`).
+func TestConfigurationExportWritesTheRedactedDocument(t *testing.T) {
+	exportPath := filepath.Join(t.TempDir(), "floter-config.json")
+	a, _ := configuredIntegrationFixture(t, func(string) (string, error) { return exportPath, nil })
+	copy := i18n.For("en").Settings
+
+	clearNotices(a)
+	a.exportConfiguration("dev.floter.configured", map[string]any{
+		"endpoint": "https://example.com", "token": "s3cret", "region": "eu",
+	})
+	waitForGoroutines()
+
+	data, err := os.ReadFile(exportPath)
+	if err != nil {
+		t.Fatalf("the export was not written: %v", err)
+	}
+	text := string(data)
+	for _, want := range []string{`"extensionId": "dev.floter.configured"`, `"formatVersion": 1`, `"endpoint": "https://example.com"`} {
+		if !strings.Contains(text, want) {
+			t.Errorf("the exported document lacks %s:\n%s", want, text)
+		}
+	}
+	if strings.Contains(text, "s3cret") {
+		t.Errorf("the exported document carries the password:\n%s", text)
+	}
+	if !strings.Contains(text, "[REDACTED]") {
+		t.Errorf("the exported document does not redact the password:\n%s", text)
+	}
+	if !noticeSays(a, copy.ConfigExported) {
+		t.Errorf("the export raised no %q notice", copy.ConfigExported)
+	}
+}
+
+// The configuration copy builds the same redacted document from the
+// provider's real schema and raises the copy notice — the reference's
+// `extensions_config_copy` (`ExtensionsPanel.tsx:2019-2031`). The document
+// itself is pinned by `TestExportConfigurationRedactsAndNames` in the
+// extensions package; here the observable is the success notice the shell
+// raises over the real provider.
+func TestConfigurationCopyRaisesTheNotice(t *testing.T) {
+	a, _ := configuredIntegrationFixture(t, func(string) (string, error) { return "", nil })
+	copy := i18n.For("en").Settings
+
+	clearNotices(a)
+	a.copyConfiguration("dev.floter.configured", map[string]any{
+		"endpoint": "https://example.com", "token": "s3cret", "region": "eu",
+	})
+	waitForGoroutines()
+	if !noticeSays(a, copy.ConfigCopied) {
+		t.Errorf("the copy raised no %q notice", copy.ConfigCopied)
+	}
+}

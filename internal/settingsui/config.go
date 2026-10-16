@@ -1,6 +1,7 @@
 package settingsui
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -22,6 +23,14 @@ import (
 type configDraft struct {
 	values  map[string]any
 	enabled []string // the multiSelect options that are ticked
+	// saved is the values the form last wrote (or read), the baseline the
+	// dirty check compares against. The shell refreshes the integration list
+	// off the main thread, so until that lands `integration.ConfigValues` is
+	// still the *previous* generation; keeping the baseline beside the draft
+	// is what lets a Save flip the status to "Saved" at once, exactly as the
+	// reference's `setSavedConfigValues(saved.values)` did
+	// (`ExtensionsPanel.tsx:2001`).
+	saved map[string]any
 }
 
 // draft is the form state for an integration, seeded from its loaded values
@@ -44,10 +53,26 @@ func (a *App) draft(integration Integration) *configDraft {
 				values[field.Key] = field.Default
 			}
 		}
-		draft = &configDraft{values: values}
+		draft = &configDraft{values: values, saved: cloneConfigValues(values)}
 		a.configDrafts[integration.ID] = draft
+	} else if draft.saved == nil {
+		// A draft opened before this baseline existed: seed it from the
+		// values it was created with, so the dirty check has a baseline.
+		draft.saved = cloneConfigValues(draft.values)
 	}
 	return draft
+}
+
+// cloneConfigValues is a shallow copy of a value map: the values are JSON
+// scalars and lists the draft never mutates in place (a field's value is
+// replaced whole), so a shallow copy is the baseline the dirty check needs
+// without sharing the map the form edits.
+func cloneConfigValues(values map[string]any) map[string]any {
+	out := make(map[string]any, len(values))
+	for key, value := range values {
+		out[key] = value
+	}
+	return out
 }
 
 // configFields draws the form for one integration's configuration: the
@@ -71,64 +96,161 @@ func (a *App) configFields(c *ui.Context, copy i18n.Settings, integration Integr
 	// the card's edge (the reference's `.extension-config-form`,
 	// `extensions.css:2369-2373`, is inset the same way).
 	inset := a.rowInset(t)
-	ui.Column(c).FillWidth().Gap(t.Space(2)).Padding(0, inset, 0, inset).Children(func() {
-		// The configuration is one plane of fields: the reference's
-		// `.extension-config-form` is a `display: grid` with a 12px gap and no
-		// rules (`extensions.css:2369-2373`), so a field is a spaced grid row,
-		// not a settings card's ruled row. Each field's own two-column grid is
-		// what `configField` draws.
-		a.configPlane(c, func() {
-			for _, field := range integration.Config {
-				a.configField(c, copy, integration, *draft, field)
-			}
-		})
+	ui.Column(c).FillWidth().Gap(a.cardSpace(t, 3)).Padding(0, inset, 0, inset).Children(func() {
+		// The reference's `.extension-config-form` is one `display: grid` with a
+		// 12px gap (`extensions.css:2369-2373`, literal px) holding the toolbar,
+		// the fields and the action row as *its own* children, in order — no
+		// plane and no rules between them. The old port wrapped the fields in a
+		// second filled card, so the form read as a bordered box inside the
+		// integration card rather than the reference's flat grid.
+		a.configToolbar(c, copy, integration, draft)
+		for _, field := range integration.Config {
+			a.configField(c, copy, integration, *draft, field)
+		}
 		if a.configError[integration.ID] != "" {
 			ui.Text(c, a.configError[integration.ID]).FontSize(t.FontSize - 1).TextColor(t.Danger)
 		}
-		// The reference's `.extension-config-form__actions` is a right-aligned
-		// row (`justify-content: space-between` with the form's one affirmative
-		// action at its end; `extensions.css:2375`). The Save is the *primary*
-		// accent pill (`.extensions-action-button--primary`,
-		// `ExtensionsPanel.tsx:3019-3021`), not the framework's flat button the
-		// old port drew, and it ends the line.
-		ui.Row(c).FillWidth().AlignItems(ui.Center).Justify(ui.End).Children(func() {
-			save := a.extensionPrimaryButton(c, copy.ConfigSave)
-			if a.Actions.SaveConfiguration == nil {
-				save = save.Disabled(true)
+		a.configActions(c, copy, integration, draft)
+	})
+}
+
+// configToolbar draws the reference's `.extension-config-toolbar`
+// (`extensions.css:2374-2376`, `ExtensionsPanel.tsx:2989-3000`): the status
+// word at its start and the two icon-buttons at its end. The status reads
+// "Saved" while the draft matches what is stored and "Unsaved changes" — in
+// the warning ink, `.extension-config-status--dirty` — while it does not, so
+// the user sees whether a save is pending without pressing one. The copy and
+// export icon-buttons sit behind it, disabled while a write is in flight.
+func (a *App) configToolbar(c *ui.Context, copy i18n.Settings, integration Integration, draft *configDraft) {
+	t := a.cardTheme(c)
+	tokens := a.tokens(c)
+	dirty := a.configDirty(integration, draft)
+	ui.Row(c).FillWidth().AlignItems(ui.Center).Justify(ui.SpaceBetween).Children(func() {
+		status := copy.ConfigSavedState
+		ink := tokens.TextTertiary
+		if dirty {
+			status, ink = copy.ConfigUnsaved, t.Warning
+		}
+		ui.Text(c, status).FontSize(tokens.Caption).FontWeight(500).TextColor(ink)
+		ui.Row(c).AlignItems(ui.Center).Gap(t.Space(0.5)).Children(func() {
+			copyDisabled := a.Actions.CopyConfiguration == nil
+			copyButton := a.extensionIconButton(c, "copy", copy.ConfigCopy, copyDisabled)
+			if copyButton.Clicked() && !copyDisabled {
+				a.Actions.CopyConfiguration(integration.ID, draft.values)
 			}
-			if save.Clicked() && a.Actions.SaveConfiguration != nil {
-				if err := a.Actions.SaveConfiguration(integration.ID, draft.values); err != nil {
-					a.configError[integration.ID] = err.Error()
-					return
-				}
-				a.configError[integration.ID] = copy.ConfigSaved
+			exportDisabled := a.Actions.ExportConfiguration == nil
+			exportButton := a.extensionIconButton(c, "file-down", copy.ConfigExport, exportDisabled)
+			if exportButton.Clicked() && !exportDisabled {
+				a.Actions.ExportConfiguration(integration.ID, draft.values)
 			}
 		})
 	})
 }
 
-// configPlane is the config form's own plane. The reference's
-// `.extension-config-form` is a `display: grid` with a 12px gap and no rules
-// (`extensions.css:2369-2373`), so its fields are spaced grid rows rather than
-// a settings card's ruled rows. The plane keeps the grouped-card face — the
-// resting control fill, the control edge, the card radius and `--elev-0` — and
-// the extension row's own 8px inset, and its children are the two-column grids
-// `configField` draws. It resets the row counter so a following nested row
-// (the multiselect's tick list) does not open on a rule.
-func (a *App) configPlane(c *ui.Context, fn func()) {
+// configActions draws the reference's `.extension-config-form__actions`
+// (`extensions.css:2375`, `ExtensionsPanel.tsx:3015-3022`): a right-aligned
+// row whose start is the neutral "Restore defaults" pill (the `RotateCcw`
+// mark then the word) and whose end is the primary accent Save. It is
+// `justify-content: space-between`, so the two ends answer to the row's own
+// edges rather than to each other.
+func (a *App) configActions(c *ui.Context, copy i18n.Settings, integration Integration, draft *configDraft) {
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
-	saved := a.cardRows
-	a.cardRows = 0
-	defer func() { a.cardRows = saved }()
-	plane := ui.Column(c).FillWidth().Gap(a.cardSpace(t, 3)).
-		Padding(a.cardSpace(t, 2)).
-		Border(1, tokens.ControlEdge).
-		Radius(tokens.RadiusMD).
-		Background(tokens.Control).
-		Clip()
-	tokens.Lens(plane)
-	plane.Children(fn)
+	ui.Row(c).FillWidth().AlignItems(ui.Center).Justify(ui.SpaceBetween).Children(func() {
+		defaults := a.extensionGlyphActionButton(c, "rotate-ccw", copy.ConfigDefaults,
+			t.Space(7.5), t.Space(3.75), tokens.Body)
+		if defaults.Clicked() {
+			// The reference's `configurationDefaults` writes every field whose
+			// schema declared a default back to it, leaving the others as they
+			// are (`ExtensionsPanel.tsx:2013-2016`).
+			for _, field := range integration.Config {
+				if field.Default != nil {
+					draft.values[field.Key] = field.Default
+				}
+			}
+		}
+		// The Save is the *primary* accent pill (`.extensions-action-button--primary`,
+		// `ExtensionsPanel.tsx:3019-3021`), disabled while the draft matches what is
+		// stored or while there is nobody to write it — the reference's
+		// `disabled={!configDirty}`.
+		saveDisabled := a.Actions.SaveConfiguration == nil || !a.configDirty(integration, draft)
+		save := a.extensionPrimaryButton(c, copy.ConfigSave)
+		if saveDisabled {
+			save = save.Disabled(true).Opacity(0.4).Cursor(ui.CursorDefault)
+		}
+		if save.Clicked() && !saveDisabled {
+			if err := a.Actions.SaveConfiguration(integration.ID, draft.values); err != nil {
+				a.configError[integration.ID] = err.Error()
+				return
+			}
+			// The reference sets the saved values to what it just wrote
+			// (`setSavedConfigValues(saved.values)`, `ExtensionsPanel.tsx:2001`),
+			// so the form reads "Saved" at once rather than waiting on the
+			// shell's off-thread refresh.
+			a.configError[integration.ID] = ""
+			draft.saved = cloneConfigValues(draft.values)
+			// The landed save is good news, so it raises the reference's success
+			// notice (`showSuccess("configSaved")`, `ExtensionsPanel.tsx:2002`),
+			// never the danger ink the error line wears.
+			if a.Actions.NotifySuccess != nil {
+				a.Actions.NotifySuccess(copy.ConfigSaved)
+			}
+		}
+	})
+}
+
+// configDirty reports whether a draft differs from the values it was last
+// read or written with: the reference's `configDirty`, a JSON comparison of
+// the edited values against the saved ones (`ExtensionsPanel.tsx:969-970`).
+//
+// The baseline is the draft's own `saved` copy rather than the integration's
+// `ConfigValues`, because a Save re-baselines at once (the reference's
+// `setSavedConfigValues(saved.values)`) while the shell's list refresh has
+// not landed yet; comparing against the stale list would leave the form
+// reading "Unsaved changes" for a save that just succeeded. A field the file
+// does not mention but whose schema declares a default shows that default
+// (`value={configValues[field.key] ?? field.default}`), so the comparison is
+// against the *effective* value — the baseline when it has one, the default
+// otherwise.
+func (a *App) configDirty(integration Integration, draft *configDraft) bool {
+	if draft == nil {
+		return false
+	}
+	for _, field := range integration.Config {
+		effective, hasEffective := draft.saved[field.Key]
+		if !hasEffective {
+			effective, hasEffective = field.Default, field.Default != nil
+		}
+		current, hasCurrent := draft.values[field.Key]
+		if !hasEffective {
+			// Nothing saved and no default: the field reads empty until the
+			// user writes something, and only then is the form dirty.
+			if hasCurrent {
+				return true
+			}
+			continue
+		}
+		if !hasCurrent || !configValuesEqual(effective, current) {
+			return true
+		}
+	}
+	return false
+}
+
+// configValuesEqual compares two configuration values by their JSON shape: a
+// number arrives as `float64` from both the stored file and the draft, a list
+// as `[]any`, and text as `string`, so a structural comparison is what tells
+// an edit from a redraw.
+func configValuesEqual(a, b any) bool {
+	left, err := json.Marshal(a)
+	if err != nil {
+		return false
+	}
+	right, err := json.Marshal(b)
+	if err != nil {
+		return false
+	}
+	return string(left) == string(right)
 }
 
 // configFieldGrid lays one config field on the reference's
@@ -139,7 +261,7 @@ func (a *App) configPlane(c *ui.Context, fn func()) {
 // field wears, as the reference's `<b>` did. The 118px column and the 12px/
 // 4px gaps are the panel's literal px, taken through `cardSpace`, so the grid
 // keeps one geometry at every interface step.
-func (a *App) configFieldGrid(c *ui.Context, field ConfigField, label string, control func() ui.Element) {
+func (a *App) configFieldGrid(c *ui.Context, field ConfigField, label, requiredLabel string, control func() ui.Element) {
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 	grid := ui.Grid(c).FillWidth().
@@ -151,7 +273,13 @@ func (a *App) configFieldGrid(c *ui.Context, field ConfigField, label string, co
 		name.Children(func() {
 			ui.Text(c, label).FontSize(t.FontSize).FontWeight(500).TextColor(tokens.TextSecondary).SingleLine()
 			if field.Required {
-				ui.Text(c, "*").FontSize(t.FontSize).FontWeight(600).TextColor(t.Warning).SingleLine()
+				// The reference's `b { margin-left: 3px }` marker is the warning
+				// `*` with the word "required" as its accessible name
+				// (`aria-label={t("settings.extensions.required")}`,
+				// `ExtensionsPanel.tsx:3266`). A native pane has no aria label, so
+				// the word rides the tooltip the framework does draw.
+				ui.Text(c, "*").FontSize(t.FontSize).FontWeight(600).TextColor(t.Warning).
+					SingleLine().Tooltip(requiredLabel)
 			}
 		})
 		control().ColumnStart(2)
@@ -194,7 +322,7 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 			on = value
 		}
 		changed := false
-		a.configFieldGrid(c, field, label, func() ui.Element {
+		a.configFieldGrid(c, field, label, copy.ConfigRequired, func() ui.Element {
 			e := a.switchControl(c, &on).Label(label)
 			if e.Changed() {
 				changed = true
@@ -205,30 +333,35 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 			draft.values[field.Key] = on
 		}
 	case "select":
-		options := make([]i18n.Option, 0, len(field.Options))
-		for _, option := range field.Options {
-			options = append(options, i18n.Option{ID: option, Label: option})
-		}
-		labels := make([]string, len(options))
-		for i, option := range options {
-			labels[i] = option.Label
-		}
+		// The reference's option list is the schema's options with a leading
+		// empty option for a non-required field (`{!field.required && <option
+		// value="">}` with `configNone`, `ExtensionsPanel.tsx:3226-3228`), so a
+		// non-required choice can be cleared back to "not set".
+		labels := configSelectLabels(field, copy.ConfigNone)
+		noneOffered := !field.Required && len(labels) == len(field.Options)+1
 		current, _ := draft.values[field.Key].(string)
 		selected := current
-		chosen := ""
-		a.configFieldGrid(c, field, label, func() ui.Element {
+		if selected == "" && noneOffered {
+			selected = copy.ConfigNone
+		}
+		chosen, cleared := "", false
+		a.configFieldGrid(c, field, label, copy.ConfigRequired, func() ui.Element {
 			e := a.configSelect(c, &selected, labels, label)
 			if e.Changed() {
-				for _, option := range options {
-					if option.Label == selected {
-						chosen = option.ID
-						break
-					}
+				if noneOffered && selected == copy.ConfigNone {
+					cleared = true
+					return e
 				}
+				chosen = selected
 			}
 			return e
 		})
-		if chosen != "" {
+		if cleared {
+			// The reference writes `null` for the empty option
+			// (`event.target.value === "" ? null : …`), which the schema reads
+			// back as "unset".
+			draft.values[field.Key] = nil
+		} else if chosen != "" {
 			draft.values[field.Key] = chosen
 		}
 	case "multiselect":
@@ -240,29 +373,22 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 				}
 			}
 		}
-		// The reference draws the field as one native multiple `select` on the
-		// grid's second column (`.extension-config-field select[multiple]`,
-		// `extensions.css:2420-2423`). This toolkit has no multi-select, so the
-		// tick list is its stand-in: the field's own label heads the list on the
-		// label column, and one check-box row per option follows, the label at
-		// the start and the box at the end. A list of tick boxes reads as the
-		// list of rows it is, and it keeps the reference's two-column field grid
-		// (the label column holds the caption, the options the second column).
-		a.configFieldGrid(c, field, label, func() ui.Element {
-			list := ui.Column(c).FillWidth().Gap(a.cardSpace(a.cardTheme(c), 0.5))
-			list.Children(func() {
+		// The reference draws the field as one native multiple `select` — a
+		// single list box (`min-height: 66px; border-radius: var(--radius-sm)`,
+		// `.extension-config-field select[multiple]`, `extensions.css:2420-2423`).
+		// This toolkit has no multi-select widget, so the field is one *box* of
+		// the same shape — the `--glass-field` face, the `--radius-sm` corner
+		// and the 66px floor — holding the tick options as rows inside it, rather
+		// than the loose ruled rows the old port drew. A list box reads as one
+		// control, which is what the reference's `select[multiple]` is.
+		a.configFieldGrid(c, field, label, copy.ConfigRequired, func() ui.Element {
+			return a.configMultiselectBox(c, func() {
 				for _, option := range field.Options {
 					option := option
 					on := ticked[option]
 					boxChanged := false
-					labelClicked := a.row(c, option, "", func() {
-						if ui.Checkbox(c, &on, option).Label(option).Clicked() {
-							boxChanged = true
-						}
-					})
+					labelClicked := a.configOptionRow(c, option, &on, &boxChanged)
 					if labelClicked {
-						// The row's own label is a hit target: clicking it ticks the
-						// option, as the framework's Field does for its control.
 						on = !on
 						boxChanged = true
 					}
@@ -272,7 +398,6 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 					}
 				}
 			})
-			return list
 		})
 	case "number":
 		value := ""
@@ -280,13 +405,17 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 			value = strconv.FormatFloat(number, 'f', -1, 64)
 		}
 		edit := value
-		a.configFieldGrid(c, field, label, func() ui.Element {
+		a.configFieldGrid(c, field, label, copy.ConfigRequired, func() ui.Element {
 			e := a.extensionField(c, &edit, configFieldMetrics).Placeholder(field.Key).Label(label).FillWidth()
 			if e.Submitted() {
 				number, err := strconv.ParseFloat(strings.TrimSpace(edit), 64)
-				if err != nil {
+				switch {
+				case err != nil:
 					a.configError[integration.ID] = fmt.Sprintf("%s: %s", label, copy.ConfigNumber)
-				} else {
+				case field.Minimum != nil && number < *field.Minimum || field.Maximum != nil && number > *field.Maximum:
+					a.configError[integration.ID] = fmt.Sprintf("%s: %s", label, copy.ConfigOutOfRange)
+				default:
+					a.configError[integration.ID] = ""
 					draft.values[field.Key] = number
 				}
 			}
@@ -295,17 +424,98 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 	default: // text, password, path
 		value, _ := draft.values[field.Key].(string)
 		edit := value
-		a.configFieldGrid(c, field, label, func() ui.Element {
+		a.configFieldGrid(c, field, label, copy.ConfigRequired, func() ui.Element {
 			e := a.extensionField(c, &edit, configFieldMetrics).Placeholder(field.Key).Label(label).FillWidth()
 			if kind == "password" {
 				e = e.Password()
 			}
 			if e.Submitted() {
-				draft.values[field.Key] = edit
+				length := len([]rune(edit))
+				if (field.MinLength != nil && length < *field.MinLength) ||
+					(field.MaxLength != nil && length > *field.MaxLength) {
+					a.configError[integration.ID] = fmt.Sprintf("%s: %s", label, copy.ConfigOutOfLength)
+				} else {
+					a.configError[integration.ID] = ""
+					draft.values[field.Key] = edit
+				}
 			}
 			return e
 		})
 	}
+}
+
+// configSelectLabels builds one select field's option list: the schema's own
+// options, with the reference's `configNone` word prepended for a
+// non-required field (`{!field.required && <option value="">}`,
+// `ExtensionsPanel.tsx:3226-3228`). A required field has no empty option —
+// clearing it is not a legal value. It is a named helper rather than inline
+// so the rule is one place a test can read.
+//
+// An option whose own text already is the `none` word drops the sentinel: the
+// reference tells the two apart by the DOM value (`""` against the option's
+// own text), which a label-only widget cannot. Rather than misread a real
+// option as "clear", the empty option is simply not offered and the label
+// stands for its own value.
+func configSelectLabels(field ConfigField, none string) []string {
+	labels := make([]string, 0, len(field.Options)+1)
+	if !field.Required && !configOptionMatches(field.Options, none) {
+		labels = append(labels, none)
+	}
+	labels = append(labels, field.Options...)
+	return labels
+}
+
+// configOptionMatches reports whether any of the field's options already is
+// the given word, so the empty option would collide with a real one.
+func configOptionMatches(options []string, word string) bool {
+	for _, option := range options {
+		if option == word {
+			return true
+		}
+	}
+	return false
+}
+
+// configMultiselectBox draws the multiselect field's one list box: the
+// reference's `.extension-config-field select[multiple]` shape — a
+// `--glass-field` face under its inset slot, a `--radius-sm` corner and the
+// reference's 66px floor (`extensions.css:2420-2423`) — with fn filling the
+// tick rows inside it. It is one element, not a column of rows, so the field
+// reads as the single native control the reference drew.
+func (a *App) configMultiselectBox(c *ui.Context, fn func()) ui.Element {
+	tokens := a.tokens(c)
+	t := a.cardTheme(c)
+	box := ui.Column(c).FillWidth().MinHeight(a.cardSpace(t, 16.5)).
+		Padding(a.cardSpace(t, 1), a.cardSpace(t, 2)).
+		Gap(a.cardSpace(t, 0.5)).
+		Border(1, tokens.ControlEdge).
+		Radius(tokens.RadiusSM).
+		Background(tokens.Field)
+	box = tokens.FieldSlot(box)
+	box.Children(fn)
+	return box
+}
+
+// configOptionRow draws one tick option inside the multiselect list box: the
+// option's word at the start and the check box at its end, in one compact
+// row, so the box reads as the option list it stands in for. It reports
+// whether the option's own word was clicked (the label is a hit target, as
+// the framework's own Field makes a control's label).
+func (a *App) configOptionRow(c *ui.Context, option string, on *bool, changed *bool) bool {
+	t := a.cardTheme(c)
+	tokens := a.tokens(c)
+	clicked := false
+	ui.Row(c).FillWidth().AlignItems(ui.Center).Justify(ui.SpaceBetween).
+		Gap(a.cardSpace(t, 2)).MinHeight(a.cardSpace(t, 5)).Children(func() {
+		word := ui.Text(c, option).FontSize(tokens.Body).FontWeight(500).TextColor(tokens.TextSecondary)
+		if word.Clicked() {
+			clicked = true
+		}
+		if ui.CheckboxBase(c, on).Label(option).Clicked() {
+			*changed = true
+		}
+	})
+	return clicked
 }
 
 // tickedToValues is a multiselect's ticked options as the value a save writes,

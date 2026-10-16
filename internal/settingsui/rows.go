@@ -471,6 +471,58 @@ func (a *App) extensionPrimaryButton(c *ui.Context, label string) ui.Element {
 	return button
 }
 
+// extensionIconButton is the reference's `.extensions-icon-button`
+// (`extensions.css:60-132`): the square icon-only control the config toolbar
+// carries, a `--extensions-icon-size` (30px) box with the `--ext-radius` (9px)
+// corner, a transparent face and `--text-secondary` ink. Hover lights the
+// `--glass-control-edge` keyline, the `--ext-bg-hover` fill, the `--elev-0`
+// lens and `--text-primary`; a disabled button dims to the reference's 0.42
+// and keeps the resting face. It is the icon-shaped sibling of
+// `extensionActionButton`, so the toolbar's two controls share one vocabulary.
+func (a *App) extensionIconButton(c *ui.Context, glyphName, label string, disabled bool) ui.Element {
+	t := a.cardTheme(c)
+	tokens := a.tokens(c)
+	button := ui.ButtonBase(c).Label(label).
+		Size(t.Space(7.5), t.Space(7.5)).
+		Border(1, ui.Transparent).
+		Radius(tokens.RadiusSM).
+		Background(ui.Transparent).
+		Center().
+		Transition(ui.ElementTransition{Colors: true, Duration: 120 * time.Millisecond})
+	ink := tokens.TextSecondary
+	switch {
+	case disabled:
+		button = button.Opacity(0.42).Cursor(ui.CursorDefault).Disabled(true)
+	case button.Hovered():
+		// `.extensions-icon-button:hover:not(:disabled)`: one keyline, the
+		// ladder's hover fill, the resting lens and the strong ink.
+		ink = t.Text
+		button = button.Border(1, tokens.ControlEdge).Background(tokens.ControlHover)
+		tokens.Lens(button)
+	}
+	button.Children(func() {
+		ui.Icon(c, mustGlyph(glyphName)).Size(t.Space(3.5), t.Space(3.5)).TextColor(ink)
+	})
+	return button
+}
+
+// extensionGlyphActionButton is `extensionActionButton` with the reference's
+// optional leading mark: the `.extensions-action-button` whose content is a
+// lucide glyph then the word, at the panel's own `--extensions-inline-gap`
+// (5px, `extensions.css:14,1313-1324`). The config form's "Restore defaults"
+// is its one caller today, but the shape is the shared pill so the mark and
+// the word keep the same face as every other action.
+func (a *App) extensionGlyphActionButton(c *ui.Context, glyphName, label string, height, radius, fontSize float32) ui.Element {
+	t := a.cardTheme(c)
+	button, ink := a.extensionActionFace(c, height, radius, false)
+	button.Gap(t.Space(1.25))
+	button.Children(func() {
+		ui.Icon(c, mustGlyph(glyphName)).Size(t.Space(3.5), t.Space(3.5)).TextColor(ink)
+		ui.Text(c, label).FontSize(fontSize).FontWeight(600).TextColor(ink)
+	})
+	return button
+}
+
 // The in-flight mark's cadence: one full circle every 0.9 s, the framework's
 // own spinner cadence (`ui.Spinner`). The turn is read through motion, so a
 // desktop that asked for less motion draws the ring at rest.

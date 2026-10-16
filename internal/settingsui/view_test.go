@@ -2578,10 +2578,18 @@ func TestConfigurationForm(t *testing.T) {
 		t.Logf("verbose = %v", values["verbose"])
 	}
 
-	// A save error is reported on the form rather than vanishing.
+	// A save error is reported on the form rather than vanishing. The form is
+	// clean after the save above (the reference re-baselines on a landed
+	// write), so the form is dirtied again first: the Save is disabled while
+	// it matches what was saved, exactly as the reference's
+	// `disabled={!configDirty}`.
 	a.Actions.SaveConfiguration = func(string, map[string]any) error {
 		return errors.New("the endpoint is unreachable")
 	}
+	if err := tt.Click("b"); err != nil {
+		t.Fatalf("re-dirty: %v", err)
+	}
+	tt.Frame()
 	tt.Click("Save")
 	tt.Frame()
 	if !tt.HasText("the endpoint is unreachable") {

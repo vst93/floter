@@ -198,3 +198,55 @@ func TestSavedConfigurationInjects(t *testing.T) {
 	}
 	_ = json.Marshal
 }
+
+// ExportConfiguration is the reference's `export_json`
+// (`src-tauri/src/extensions/config.rs:194-217`): one host-owned configuration
+// as the `ConfigurationExportDocument` a copy or an export hands out. It is
+// built only from a value map that validates against the schema, and it
+// replaces every password field's value with the placeholder so a credential
+// never leaves the machine in the document.
+func TestExportConfigurationRedactsAndNames(t *testing.T) {
+	schema := []ConfigField{
+		{Key: "endpoint", Type: "text"},
+		{Key: "api_token", Type: "password"},
+	}
+	values := map[string]any{"endpoint": "https://example.com", "api_token": "s3cret"}
+
+	data, err := ExportConfiguration("dev.floter.tool", 7, schema, values)
+	if err != nil {
+		t.Fatalf("ExportConfiguration: %v", err)
+	}
+	var document struct {
+		FormatVersion int            `json:"formatVersion"`
+		ExtensionID   string         `json:"extensionId"`
+		ConfigVersion int            `json:"configVersion"`
+		Values        map[string]any `json:"values"`
+	}
+	if err := json.Unmarshal(data, &document); err != nil {
+		t.Fatalf("the export is not readable JSON: %v\n%s", err, data)
+	}
+	if document.FormatVersion != ConfigurationExportFormatVersion {
+		t.Errorf("formatVersion = %d, want %d", document.FormatVersion, ConfigurationExportFormatVersion)
+	}
+	if document.ExtensionID != "dev.floter.tool" {
+		t.Errorf("extensionId = %q", document.ExtensionID)
+	}
+	if document.ConfigVersion != 7 {
+		t.Errorf("configVersion = %d, want the schema generation 7", document.ConfigVersion)
+	}
+	if document.Values["endpoint"] != "https://example.com" {
+		t.Errorf("endpoint = %v, want the plain value", document.Values["endpoint"])
+	}
+	if document.Values["api_token"] != PasswordPlaceholder {
+		t.Errorf("api_token = %v, want the placeholder %q", document.Values["api_token"], PasswordPlaceholder)
+	}
+	if strings.Contains(string(data), "s3cret") {
+		t.Errorf("the secret is in the exported document:\n%s", data)
+	}
+
+	// A draft that does not fit the schema is refused rather than exported:
+	// the reference validated before it built the document.
+	if _, err := ExportConfiguration("dev.floter.tool", 7, schema, map[string]any{"endpoint": 42}); err == nil {
+		t.Error("a value of the wrong type was exported")
+	}
+}
