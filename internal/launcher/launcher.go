@@ -633,6 +633,39 @@ func (a *App) resultNumber(number int) string {
 	return shortcuts.Badge(settings.Shortcut(a.settings(), settings.ShortcutSelectResult), strconv.Itoa(number))
 }
 
+// rowActionText is a row's trailing key slot — the numbered badge or a
+// command row's `Tab` affordance — in the reference's own register
+// (`.launcher-result__action`): the body step at weight 620, `--text-tertiary`
+// (lifted to `--text-primary` on the selected row), with a fixed 30u minimum
+// and a right-aligned box so the badges of a column line up. The port used the
+// body-minus-one step in `--text-muted`, one register too quiet and one size
+// too small, and the slot was content-sized rather than the reference's fixed
+// 30u. The ⌘1-⌘0 family and the `Tab` hint are drawn by this one helper so
+// the two cannot drift apart.
+func (a *App) rowActionText(c *ui.Context, text string, selected bool) {
+	tokens := theme.ForPreferences(a.settings(), c.Theme().Dark, c.Preferences())
+	t := c.Theme()
+	color := tokens.TextTertiary
+	if selected {
+		color = t.Text
+	}
+	ui.Text(c, text).FontSize(tokens.Body).FontWeight(620).TextColor(color).
+		MinWidth(t.Space(7.5)).TextAlign(ui.End).Shrink(0)
+}
+
+// barHintText is the action bar's own `⌘↩` hint, in the reference's
+// `.launcher-action-bar__hint` register — one step quieter than a result row's
+// trailing badge: the caption size at 500, `--text-tertiary`, in the
+// terminal's monospace stack with the badge's own 2u/6u padding.
+// (`.launcher-action-bar__hint`, `launcher.css:1608-1623`.)
+func (a *App) barHintText(c *ui.Context, text string) {
+	tokens := theme.ForPreferences(a.settings(), c.Theme().Dark, c.Preferences())
+	t := c.Theme()
+	ui.Text(c, text).Font(a.settings().FontFamily).FontSize(tokens.Caption).
+		FontWeight(500).TextColor(tokens.TextTertiary).
+		Padding(0, t.Space(1.5)).Shrink(0)
+}
+
 // Feedback shows a line under the list, for a caller outside the launcher
 // (the shell's power action, when the system refused it).
 func (a *App) Feedback(message string) {
@@ -1669,8 +1702,35 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 		// rows reads as one column whatever each row is. Its content is the
 		// row's own icon, a clipboard thumbnail, or a glyph from the closed
 		// set (see glyphs.go).
-		warm := strings.HasPrefix(item.ID, "cmd:power-")
-		plate := a.iconPlate(c, warm)
+		//
+		// Three families override the base rule, exactly as the reference's
+		// own CSS did:
+		//
+		//   * the browser list drops the plate and keeps a bare muted glyph
+		//     (`.launcher-result__icon--browser`, R30): eight identical grey
+		//     plates down a column read as eight controls, not eight links;
+		//   * the two power actions wear the warm system plane and its own
+		//     text colour (`.launcher-result__icon--system`);
+		//   * a recents (history) row wears `--surface-control` at muted ink
+		//     (`.launcher-result--history .launcher-result__icon`).
+		//
+		// The glyph ink follows the plate it sits on: `--text-secondary` for a
+		// plated row (the base `.launcher-result__icon` colour), `--text-muted`
+		// for a browser row. The port drew every glyph in `--text-muted` on a
+		// plate, one register too quiet for the reference.
+		warm := strings.HasPrefix(item.ID, "power-")
+		browserRow := item.web != nil || item.tab != nil
+		// A browser row's cell is bare — transparent, unshadowed, no lens — so
+		// a column of links reads as text rather than as a toolbar
+		// (`.launcher-result__icon--browser`). iconPlate draws the plated cell
+		// every other family wears; the browser family takes a plain 28u box.
+		var plate ui.Element
+		if browserRow {
+			plate = ui.Box(c).Size(t.Space(7), t.Space(7)).Shrink(0).
+				AlignItems(ui.Center).Justify(ui.Center)
+		} else {
+			plate = a.iconPlate(c, warm)
+		}
 		plate.Children(func() {
 			switch {
 			case item.icon != nil:
@@ -1682,10 +1742,13 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 			default:
 				if glyph, ok := rowGlyph(item); ok {
 					icon := ui.Icon(c, glyph).Size(t.Space(4), t.Space(4))
-					if warm {
+					switch {
+					case warm:
 						icon.TextColor(t.Warning)
-					} else {
+					case browserRow:
 						icon.TextColor(t.TextMuted)
+					default:
+						icon.TextColor(tokens.TextSecondary)
 					}
 				}
 			}
@@ -1861,10 +1924,14 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 			}
 		}
 		if number, ok := a.numbers[i]; ok {
-			ui.Text(c, a.resultNumber(number)).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+			a.rowActionText(c, a.resultNumber(number), i == a.Selected)
 		}
 		if item.Shortcut != "" {
-			ui.Text(c, item.Shortcut).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+			if isBar {
+				a.barHintText(c, item.Shortcut)
+			} else {
+				a.rowActionText(c, item.Shortcut, i == a.Selected)
+			}
 		}
 	})
 	if row.Clicked() && !removed {

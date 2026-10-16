@@ -404,18 +404,17 @@ func (a *App) clipboardItems() []Item {
 			break
 		}
 		kept = append(kept, entry)
-		shortcut := ""
-		if entry.Favorite {
-			shortcut = "★"
-		}
+		// A favourited row shows its state through the star *control* at its
+		// trailing edge (see rowBody's rowFavorite branch), never through a
+		// `★` badge in the row's key slot: the reference's own row carries no
+		// such text, and printing both made a starred entry wear two stars.
 		out = append(out, Item{
-			ID:       "clip:" + entry.ID,
-			Title:    clipboardRowTitle(copy, entry),
-			Detail:   clipboardRowSubtitle(copy, entry, now),
-			Shortcut: shortcut,
-			Run:      func() { a.copyClip(entry) },
-			clip:     &entry,
-			thumb:    a.clipThumb(entry),
+			ID:     "clip:" + entry.ID,
+			Title:  clipboardRowTitle(copy, entry),
+			Detail: clipboardRowSubtitle(copy, entry, now),
+			Run:    func() { a.copyClip(entry) },
+			clip:   &entry,
+			thumb:  a.clipThumb(entry),
 		})
 	}
 	// The thumbnail memo is bounded by the rows this search actually builds

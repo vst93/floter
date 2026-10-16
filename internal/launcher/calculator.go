@@ -159,16 +159,15 @@ func (a *App) calculatorItems() []Item {
 		}
 		history++
 		entry := entry
-		shortcut := ""
-		if entry.Favorite {
-			shortcut = "★"
-		}
+		// A favourited row shows its state through the star *control* at its
+		// trailing edge, never a `★` badge in the key slot: the reference's
+		// own row carries no such text, and printing both made a starred entry
+		// wear two stars (the clipboard row's twin).
 		out = append(out, Item{
 			ID:       "calc:" + entry.ID,
 			Title:    entry.Expression,
 			Detail:   calculatorRowTime(entry, now, copy),
 			trailing: entry.Result,
-			Shortcut: shortcut,
 			Run:      func() { a.copyCalculation(entry) },
 			calc:     &entry,
 		})

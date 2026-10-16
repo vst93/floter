@@ -187,21 +187,30 @@ func rowGlyph(item Item) (*ui.SVG, bool) {
 		// exactly the icon the reference did not draw.
 	case "system-terminal-bare":
 		return glyphTerminal, true
-	case "cmd:terminal":
+	// The built-in command rows. Their ids carry no `cmd:` prefix (see
+	// `commands()` in search.go): the port's glyph switch once tested
+	// `cmd:settings` and friends, which matched nothing, so every built-in
+	// row fell through to the recents' clock — the icon the reference did
+	// not draw. The marks follow the reference's own `SystemActionIcon` /
+	// command-icon split: terminal → the chevron, settings → the gear,
+	// browser → the globe, clipboard → the type mark, calculator → the
+	// calculator, the two power actions → the restart arrow and the power
+	// mark, quit → the power mark.
+	case "terminal":
 		return glyphTerminal, true
-	case "cmd:settings":
+	case "settings":
 		return glyphSettings, true
-	case "cmd:browser":
+	case "browser":
 		return glyphGlobe, true
-	case "cmd:clipboard":
-		return glyphText, true
-	case "cmd:calculator":
+	case "clipboard":
+		return glyphClipboard, true
+	case "calculator":
 		return glyphCalculator, true
-	case "cmd:power-restart":
+	case "power-restart":
 		return glyphRestart, true
-	case "cmd:power-shutdown":
+	case "power-shutdown":
 		return glyphPower, true
-	case "cmd:quit":
+	case "quit":
 		return glyphPower, true
 	}
 	if strings.HasPrefix(item.ID, "tool:") || item.alias != "" {

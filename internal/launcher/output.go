@@ -580,7 +580,7 @@ func (a *App) outputRow(c *ui.Context, row extensions.Row, i int) {
 		// launcher's own rows print it. Only rows the family can reach carry
 		// one, so a status note stays unnumbered.
 		if number, ok := a.outputNumbers[i]; ok {
-			ui.Text(c, a.resultNumber(number)).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+			a.rowActionText(c, a.resultNumber(number), selected)
 		}
 	})
 	if style.Clicked() && row.Runnable() {

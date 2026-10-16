@@ -1160,8 +1160,13 @@ func TestCalculatorModeFiltersAndFavorites(t *testing.T) {
 	if len(fixture.toggled) != 1 || fixture.toggled[0] != "1" {
 		t.Errorf("toggled %v", fixture.toggled)
 	}
-	if !tt.HasText("★") {
-		t.Errorf("the star is not shown: %q", tt.Texts())
+	// The starred row shows its star *control*, and never a second `★` badge:
+	// the reference's row carries the control alone.
+	if _, ok := tt.Find("Unfavorite"); !ok {
+		t.Errorf("the starred row's own star is not shown: %q", tt.Texts())
+	}
+	if tt.HasText("★") {
+		t.Errorf("a starred row wears a second `★` badge beside its star control: %q", tt.Texts())
 	}
 
 	// Escape leaves the mode.
@@ -1254,8 +1259,13 @@ func TestClipboardModeFavoritesAndDelete(t *testing.T) {
 	if !store.Entries()[a.Selected].Favorite {
 		t.Fatalf("the star did not land: %+v", store.Entries())
 	}
-	if !tt.HasText("★") {
-		t.Errorf("the star is not shown: %q", tt.Texts())
+	// The starred row shows its star *control* rather than a `★` badge, so a
+	// starred entry never wears two stars.
+	if _, ok := tt.Find("Unfavorite"); !ok {
+		t.Errorf("the starred row's own star is not shown: %q", tt.Texts())
+	}
+	if tt.HasText("★") {
+		t.Errorf("a starred row wears a second `★` badge beside its star control: %q", tt.Texts())
 	}
 
 	// The delete is a two-step: the first press of ⌘⌫ arms the row, the
