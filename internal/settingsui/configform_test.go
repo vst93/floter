@@ -740,6 +740,162 @@ func TestTheConfigMultiselectScrollsInsideItsViewport(t *testing.T) {
 // Only a host-owned configuration wears the form. The reference gated the
 // whole section on `configuration.descriptor.owner === "host"` and drew an
 // "Open configuration" button for a `tool`-owned one
+// A tool-owned configuration is the reference's "Open configuration" outlet:
+// the block title and the ExternalLink-marked action that runs the provider's
+// own `openCommand` (`ExtensionsPanel.tsx:2977-2986`). The old port withheld
+// the whole section for a `tool` owner, so a user had no way to reach the
+// tool's own editor from the card.
+func TestAToolOwnedConfigurationOffersTheOpenButton(t *testing.T) {
+	en := i18n.For("en").Settings
+	a, _ := configFormApp(t,
+		[]ConfigField{{Key: "token", Label: "Token", Type: "text"}},
+		map[string]any{"token": "abc"},
+	)
+	integration := a.Integrations()[0]
+	integration.ConfigOwner = "tool"
+	integration.ConfigOpenCommand = []string{"tool", "config", "--edit"}
+	opened := make([][]string, 0, 1)
+	a.Actions.OpenConfiguration = func(id string, argv []string) {
+		opened = append(opened, argv)
+	}
+	a.Integrations = func() []Integration { return []Integration{integration} }
+
+	tt := integrationPage(t, a, 900, 1400)
+	if !tt.HasText(en.ConfigOpenConfiguration) {
+		t.Fatalf("a tool-owned configuration lost its %q action: %q", en.ConfigOpenConfiguration, tt.Texts())
+	}
+	if tt.HasText(en.ConfigSave) {
+		t.Errorf("a tool-owned configuration drew the host form: %q", tt.Texts())
+	}
+	if err := tt.Click(en.ConfigOpenConfiguration); err != nil {
+		t.Fatalf("press %q: %v", en.ConfigOpenConfiguration, err)
+	}
+	tt.Frame()
+	if len(opened) != 1 {
+		t.Fatalf("the open action ran %d times, want 1", len(opened))
+	}
+	if got := strings.Join(opened[0], " "); got != "tool config --edit" {
+		t.Errorf("the open action ran %q, want the provider's openCommand", got)
+	}
+
+	// A provider that declared no `openCommand` leaves the action disabled —
+	// the reference's `disabled={!configuration.openPlan}` — and a press does
+	// nothing.
+	integration.ConfigOpenCommand = nil
+	a.Integrations = func() []Integration { return []Integration{integration} }
+	opened = opened[:0]
+	tt = integrationPage(t, a, 900, 1400)
+	if err := tt.Click(en.ConfigOpenConfiguration); err != nil {
+		t.Fatalf("press %q: %v", en.ConfigOpenConfiguration, err)
+	}
+	tt.Frame()
+	if len(opened) != 0 {
+		t.Errorf("the disabled open action ran %d times, want 0", len(opened))
+	}
+}
+
+// The form's bounds are checked as the user types, not only on Enter: the
+// reference's inputs were controlled and the browser drew its `:invalid` state
+// on every keystroke (`ExtensionsPanel.tsx:3251-3256`). The old port waited for
+// `Submitted`, so a field over its bounds said nothing until Enter.
+func TestTheConfigFieldValidatesAsTheUserTypes(t *testing.T) {
+	en := i18n.For("en").Settings
+	minimum, maximum := 0.5, 9.0
+	number := ConfigField{Key: "retries", Label: "Retries", Type: "number", Minimum: &minimum, Maximum: &maximum}
+	a, _ := configFormApp(t, []ConfigField{number}, map[string]any{})
+	tt := integrationPage(t, a, 900, 1400)
+
+	// Focus the field's own box, in the second grid column, and type an
+	// out-of-range number — no Enter.
+	label := mustFind(t, tt, "Retries")
+	tt.ClickAt(label.X+240, label.Y+label.H/2)
+	tt.Frame()
+	tt.Type("99")
+	tt.Frame()
+	if !tt.HasText(en.ConfigOutOfRange) {
+		t.Errorf("an out-of-range field said nothing while typing: %q", tt.Texts())
+	}
+	// The typed text survives the redraw — the field is controlled, as the
+	// reference's was — so the same wrong number is still there after the frame
+	// and still flagged. Backspacing into range clears the sentence at once.
+	if got := a.draft(a.Integrations()[0]).live["retries"]; got != "99" {
+		t.Errorf("the typed text did not survive the redraw: live = %q, want %q", got, "99")
+	}
+	tt.TypeKey(0, ui.KeyBackspace, "")
+	tt.Frame()
+	if got := a.draft(a.Integrations()[0]).live["retries"]; got != "9" {
+		t.Errorf("the backspace did not reach the live text: live = %q, want %q", got, "9")
+	}
+	if tt.HasText(en.ConfigOutOfRange) {
+		t.Errorf("an in-range 9 still wears %q: %q", en.ConfigOutOfRange, tt.Texts())
+	}
+}
+
+// The whole-row `busy` the reference handed every `ConfigFieldControl`
+// (`disabled={Boolean(busy)}`, `ExtensionsPanel.tsx:3004,3198`) locks the
+// form's own fields too: while another operation on the same integration is in
+// flight, a field refuses input.
+func TestARowOperationLocksTheConfigFields(t *testing.T) {
+	number := ConfigField{Key: "token", Label: "Token", Type: "text"}
+	a, _ := configFormApp(t, []ConfigField{number}, map[string]any{"token": "abc"})
+	a.repairBusy = map[string]bool{"dev.floter.tool": true}
+	tt := integrationPage(t, a, 900, 1400)
+
+	label := mustFind(t, tt, "Token")
+	tt.ClickAt(label.X+240, label.Y+label.H/2)
+	tt.Frame()
+	tt.Type("xyz")
+	tt.Frame()
+	if got := a.draft(a.Integrations()[0]).values["token"]; got != "abc" {
+		t.Errorf("a locked field took typing: token = %v, want the stored %q", got, "abc")
+	}
+
+	// With the row idle again the same edit lands.
+	a.repairBusy = nil
+	tt.Frame()
+	tt.ClickAt(label.X+240, label.Y+label.H/2)
+	tt.Frame()
+	tt.Type("z")
+	tt.Frame()
+	if got := a.draft(a.Integrations()[0]).values["token"]; got == "abc" {
+		t.Errorf("an unlocked field refused typing: token = %v", got)
+	}
+}
+
+// A native `select[multiple]` extends a range from the last clicked option on
+// Shift (`ExtensionsPanel.tsx:3229-3243` draws one); the toolkit hands the
+// click's modifiers through, so the box keeps the habit even without a native
+// multi-select widget.
+func TestTheConfigMultiselectExtendsARangeOnShift(t *testing.T) {
+	a, _ := configFormApp(t,
+		[]ConfigField{{
+			Key: "tags", Label: "Tags", Type: "multiselect",
+			Options: []string{"alpha", "beta", "gamma"},
+		}},
+		map[string]any{},
+	)
+	tt := integrationPage(t, a, 900, 1400)
+
+	// A plain click on `alpha` anchors the range at it.
+	if err := tt.Click("alpha"); err != nil {
+		t.Fatalf("click alpha: %v", err)
+	}
+	tt.Frame()
+	// Shift-click on `delta` extends through the three between.
+	if err := tt.ClickWith(ui.Shift, "gamma"); err != nil {
+		t.Fatalf("shift-click gamma: %v", err)
+	}
+	tt.Frame()
+	values, _ := a.draft(a.Integrations()[0]).values["tags"].([]any)
+	got := make([]string, 0, len(values))
+	for _, value := range values {
+		got = append(got, value.(string))
+	}
+	if strings.Join(got, ",") != "alpha,beta,gamma" {
+		t.Errorf("the Shift-range selected %v, want alpha…gamma", got)
+	}
+}
+
 // (`ExtensionsPanel.tsx:2975-2986`); a host form drawn over values the tool
 // owns would offer to write them.
 func TestAToolOwnedConfigurationDoesNotWearTheForm(t *testing.T) {
@@ -754,10 +910,16 @@ func TestAToolOwnedConfigurationDoesNotWearTheForm(t *testing.T) {
 
 	tt := integrationPage(t, a, 900, 1400)
 	if tt.HasText(en.ConfigOpen) {
-		t.Errorf("a tool-owned configuration drew the Configure row: %q", tt.Texts())
+		t.Errorf("a tool-owned configuration drew the host Configure row: %q", tt.Texts())
 	}
-	if tt.HasText(en.ConfigSave) || tt.HasText("Token") {
+	if tt.HasText(en.ConfigSave) {
 		t.Errorf("a tool-owned configuration drew the host form: %q", tt.Texts())
+	}
+	// It wears the reference's own outlet instead: the Configuration block
+	// title and the "Open configuration" action
+	// (`ExtensionsPanel.tsx:2971-2986`).
+	if !tt.HasText(en.ConfigSection) || !tt.HasText(en.ConfigOpenConfiguration) {
+		t.Errorf("a tool-owned configuration is missing its open outlet: %q", tt.Texts())
 	}
 
 	// The same integration with the owner the reference requires (host) wears
@@ -767,5 +929,45 @@ func TestAToolOwnedConfigurationDoesNotWearTheForm(t *testing.T) {
 	tt = integrationPage(t, a, 900, 1400)
 	if !tt.HasText(en.ConfigOpen) {
 		t.Errorf("a host-owned configuration lost its Configure row: %q", tt.Texts())
+	}
+}
+
+// The reference handed the bounds to the native control and the browser drew
+// the invalid state *on the field* — a red keyline as well as the message
+// (`ExtensionsPanel.tsx:3251-3256`). A bare input that carries `Error` marks
+// its node invalid, and the input's own border rule paints that in the danger
+// ink, so the field reads as wrong and not only its caption below.
+func TestAnOutOfRangeFieldWearsTheDangerStroke(t *testing.T) {
+	minimum, maximum := 0.5, 9.0
+	number := ConfigField{Key: "retries", Label: "Retries", Type: "number", Minimum: &minimum, Maximum: &maximum}
+	a, _ := configFormApp(t, []ConfigField{number}, map[string]any{})
+	tt := integrationPage(t, a, 900, 1400)
+
+	label := mustFind(t, tt, "Retries")
+	y := int(label.Y + label.H/2)
+	// The field box's own right edge: scan the row for the strongest warm
+	// (red-dominant) pixel, the danger keyline's signature.
+	warmest := func() int {
+		img := tt.Image()
+		best := 0
+		for x := int(label.X + 60); x < int(label.X+340) && x < 900; x++ {
+			r, g, b, _ := img.At(x, y).RGBA()
+			if redness := int(r>>8) - int(g>>8) - int(b>>8); redness > best {
+				best = redness
+			}
+		}
+		return best
+	}
+
+	valid := warmest()
+	tt.ClickAt(label.X+240, label.Y+label.H/2)
+	tt.Frame()
+	tt.Type("99")
+	tt.Frame()
+	if !tt.HasText(i18n.For("en").Settings.ConfigOutOfRange) {
+		t.Fatal("the out-of-range field said nothing while typing")
+	}
+	if invalid := warmest(); invalid <= valid {
+		t.Errorf("the invalid field's keyline is not warmer than a clean one: %d vs %d", invalid, valid)
 	}
 }

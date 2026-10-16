@@ -710,6 +710,7 @@ func New(opts Options) *App {
 		InstallDetected:    a.openShellCommand,
 		InstallFromFolder:  a.installPackageFolder,
 		RunWithParams:      a.runWithParams,
+		OpenConfiguration:  a.openConfiguration,
 		ChooseFolder:       a.chooseProgram,
 		CopyText:           func(text string) { mygo.Clipboard.WriteText(text) },
 		ChooseProgram:      a.chooseProgram,
@@ -1987,10 +1988,27 @@ func applyIntegrationConfig(store *extensions.Store, paths extensions.Paths, ite
 	// The schema comes from the provider's description, whose configuration
 	// block is optional: an integration without one has nothing to render.
 	description, ok := store.Description(item.ID)
-	if !ok || description.Configuration == nil || len(description.Configuration.Schema) == 0 {
+	if !ok || description.Configuration == nil {
 		return
 	}
 	configuration := description.Configuration
+	// Who holds the values: the reference's `configuration.descriptor.owner`
+	// (`ExtensionsPanel.tsx:2975`). The form is drawn for a `host` owner and
+	// replaced by the "Open configuration" button for a `tool` one, whose
+	// editor lives at the tool (see settingsui.configOwnerIsHost /
+	// .configOwnerIsTool).
+	item.ConfigOwner = configuration.Owner
+	if strings.EqualFold(configuration.Owner, "tool") {
+		// A tool-owned configuration has no host schema; the provider's own
+		// `openCommand` is what the card offers to run. The owner rides on
+		// `item.ConfigOwner`, so the card's own gate (`configOwnerIsTool`)
+		// sees it without a schema.
+		item.ConfigOpenCommand = append([]string{}, configuration.OpenCommand...)
+		return
+	}
+	if len(configuration.Schema) == 0 {
+		return
+	}
 	for _, field := range configuration.Schema {
 		item.Config = append(item.Config, settingsui.ConfigField{
 			Key:         field.Key,
@@ -2011,11 +2029,6 @@ func applyIntegrationConfig(store *extensions.Store, paths extensions.Paths, ite
 		return
 	}
 	item.ConfigValues = stored.Values
-	// Who holds the values: the reference's `configuration.descriptor.owner`
-	// (`ExtensionsPanel.tsx:2975`). The form is drawn for a `host` owner and
-	// withheld for a `tool` one, whose editor lives at the tool
-	// (see settingsui.configOwnerIsHost).
-	item.ConfigOwner = configuration.Owner
 	// The generation the stored values were written against, so a copied or
 	// exported configuration can name it (the reference's
 	// `ConfigurationExportDocument.config_version`). The stored value wins
@@ -2120,6 +2133,21 @@ func (a *App) openInstallSession(command string) {
 // shell ends, the terminal page leaves with it (R62, see Terminal.RunCommandLine).
 func (a *App) openShellCommand(command string) {
 	a.Terminal.RunCommandLine(command)
+	a.Open(SurfaceTerminal)
+}
+
+// openConfiguration runs a tool-owned configuration's `openCommand` argv on
+// the terminal page: the reference's `onOpenCommand(plan, …)` arm for a
+// `tool` owner, which spawns the provider's own editor
+// (`ExtensionsPanel.tsx:2982`). It is the integration card's "Open
+// configuration" hand-off (see settingsui.configOpenToolRow).
+func (a *App) openConfiguration(id string, argv []string) {
+	if len(argv) == 0 {
+		return
+	}
+	if err := a.Terminal.RunCommand(argv, "current", nil); err != nil {
+		log.Printf("floter: could not open the configuration of %s: %v", id, err)
+	}
 	a.Open(SurfaceTerminal)
 }
 

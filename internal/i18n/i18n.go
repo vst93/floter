@@ -645,6 +645,14 @@ type Settings struct {
 	ConfigSaved    string
 	ConfigRequired string
 	ConfigNumber   string
+	// ConfigSection and ConfigOpenConfiguration are the tool-owned
+	// configuration's outlet: the reference's
+	// `settings.extensions.configuration` block title and its
+	// `settings.extensions.openConfiguration` button word
+	// (`ExtensionsPanel.tsx:2971-2986`). A `tool` owner has no host form, so
+	// the card offers the button that opens the tool's own editor instead.
+	ConfigSection           string
+	ConfigOpenConfiguration string
 	// ConfigNone is a non-required select's empty first option (the
 	// reference's `settings.extensions.configNone`, the `<option value="">`
 	// its `!field.required` branch prepends, `ExtensionsPanel.tsx:3226`).

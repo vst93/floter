@@ -509,7 +509,7 @@ func TestTheConfigFieldsWearTheTwoColumnGrid(t *testing.T) {
 	for _, step := range []string{"small", "large"} {
 		store := stepStore(t, step)
 		a := New(store, Actions{})
-		draft := configDraft{values: map[string]any{}}
+		draft := &configDraft{values: map[string]any{}}
 		tt := ui.NewTester(func(c *ui.Context) {
 			c.SetTheme(a.tokens(c).Theme)
 			ui.Column(c).Padding(24).Children(func() {

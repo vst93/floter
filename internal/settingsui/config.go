@@ -20,8 +20,22 @@ import (
 
 // configDraft is one integration's form state.
 type configDraft struct {
-	values  map[string]any
-	enabled []string // the multiSelect options that are ticked
+	values map[string]any
+	// live is each text or number field's displayed text while it is being
+	// edited, keyed by the field's key. The reference's own inputs were
+	// *controlled* by the form state — `value={displayJson(value ?? "")}` with
+	// `onChange` writing straight back (`ExtensionsPanel.tsx:3218-3258`) — so a
+	// half-typed value that the schema bounds have not accepted yet was still
+	// what the field showed, and the browser drew its validity state on it. A
+	// native pane keeps the text in this map so it survives the redraw the same
+	// way, while `values` holds what a save would carry.
+	live map[string]string
+	// multiAnchor is each multiselect list box's last clicked option index,
+	// keyed by the field. A native `select[multiple]` extends a range from that
+	// anchor on Shift-click (`Ctrl`/`Cmd`-click toggles one, a plain click
+	// starts over), and the toolkit hands the click's modifiers through, so a
+	// range is the one selection habit this box can keep.
+	multiAnchor map[string]int
 	// saved is the values the form last wrote (or read), the baseline the
 	// dirty check compares against. The shell refreshes the integration list
 	// off the main thread, so until that lands `integration.ConfigValues` is
@@ -30,6 +44,52 @@ type configDraft struct {
 	// reference's `setSavedConfigValues(saved.values)` did
 	// (`ExtensionsPanel.tsx:2001`).
 	saved map[string]any
+}
+
+// liveText is one field's displayed text: what the user has typed, or the
+// fallback the field's stored value renders as.
+func (d *configDraft) liveText(field ConfigField, fallback string) string {
+	if d.live != nil {
+		if text, ok := d.live[field.Key]; ok {
+			return text
+		}
+	}
+	return fallback
+}
+
+// setLive records one field's displayed text, so a half-typed value survives
+// the redraw.
+func (d *configDraft) setLive(field ConfigField, text string) {
+	if d.live == nil {
+		d.live = map[string]string{}
+	}
+	d.live[field.Key] = text
+}
+
+// clearLive drops every field's live text, so the fields fall back to their
+// `values`: what Restore defaults and a landed Save need, since both move the
+// values behind the fields' backs.
+func (d *configDraft) clearLive() { d.live = nil }
+
+// multiAnchorAt is one multiselect field's last clicked option index, or -1
+// when it has none yet.
+func (d *configDraft) multiAnchorAt(field ConfigField) int {
+	if d.multiAnchor == nil {
+		return -1
+	}
+	index, ok := d.multiAnchor[field.Key]
+	if !ok {
+		return -1
+	}
+	return index
+}
+
+// setMultiAnchor records the option a range extends from.
+func (d *configDraft) setMultiAnchor(field ConfigField, index int) {
+	if d.multiAnchor == nil {
+		d.multiAnchor = map[string]int{}
+	}
+	d.multiAnchor[field.Key] = index
 }
 
 // draft is the form state for an integration, seeded from its loaded values
@@ -74,6 +134,15 @@ func cloneConfigValues(values map[string]any) map[string]any {
 	return out
 }
 
+// configLocked reports whether the form's fields must refuse input: the
+// reference passed one whole-row `busy` to every `ConfigFieldControl`
+// (`disabled={Boolean(busy)}`, `ExtensionsPanel.tsx:3004,3198`), and that
+// `busy` is held for *any* mutation of the row — the re-check, the toggle,
+// the uninstall — not only for the form's own save. So a field, a switch and
+// a select are locked while another operation on the same integration is in
+// flight, exactly as the row's action cluster is (see `rowBusy`).
+func (a *App) configLocked(id string) bool { return a.rowBusy(id) }
+
 // configFields draws the form for one integration's configuration: the
 // fields and the save button, shown while the form is open. The toggle that
 // opens it is the integration row's own (see integrationRow).
@@ -104,7 +173,7 @@ func (a *App) configFields(c *ui.Context, copy i18n.Settings, integration Integr
 		// integration card rather than the reference's flat grid.
 		a.configToolbar(c, copy, integration, draft)
 		for _, field := range integration.Config {
-			a.configField(c, copy, integration, *draft, field)
+			a.configField(c, copy, integration, draft, field)
 		}
 		if a.configError[integration.ID] != "" {
 			// The failure the shell reported on the Save is the reference's own
@@ -216,7 +285,7 @@ func (a *App) configActions(c *ui.Context, copy i18n.Settings, integration Integ
 		// Defaults, `disabled={Boolean(busy) || !configDirty}` on the Save),
 		// where `busy` is one per-integration item held for every mutation of
 		// that row (`ExtensionsPanel.tsx:3016,3019`).
-		busy := a.configOperations[integration.ID] != "" || a.configSaveBusy[integration.ID]
+		busy := a.configLocked(integration.ID) || a.configOperations[integration.ID] != "" || a.configSaveBusy[integration.ID]
 		defaults := a.extensionGlyphActionButton(c, "rotate-ccw", copy.ConfigDefaults,
 			t.Space(7.5), t.Space(3.75), tokens.Body)
 		if busy {
@@ -225,7 +294,10 @@ func (a *App) configActions(c *ui.Context, copy i18n.Settings, integration Integ
 		if defaults.Clicked() && !busy {
 			// The reference's `configurationDefaults` writes every field whose
 			// schema declared a default back to it, leaving the others as they
-			// are (`ExtensionsPanel.tsx:2013-2016`).
+			// are (`ExtensionsPanel.tsx:2013-2016`). A field mid-edit shows its
+			// live text, so the reset also drops that text: otherwise the new
+			// default would sit behind a stale half-typed value.
+			draft.clearLive()
 			for _, field := range integration.Config {
 				if field.Default != nil {
 					draft.values[field.Key] = field.Default
@@ -279,6 +351,11 @@ func (a *App) finishConfigSave(id string, err error, copy i18n.Settings) {
 		a.configError[id] = ""
 		if draft, ok := a.configDrafts[id]; ok {
 			draft.saved = cloneConfigValues(draft.values)
+			// The reference set the displayed values to what it just wrote
+			// (`setConfigValues(saved.values)`), so a field mid-edit falls back
+			// to the saved value rather than keeping a live text that now equals
+			// it anyway.
+			draft.clearLive()
 		}
 		// The landed save is good news, so it raises the reference's success
 		// notice, never the danger ink the error line wears.
@@ -410,12 +487,13 @@ func (a *App) configSelect(c *ui.Context, selected *string, labels []string, lab
 // old port drew each field as a settings row (label left, control right, the
 // description under the *label*), so a form's controls did not share one
 // column and the description sat on the wrong side of the field.
-func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integration, draft configDraft, field ConfigField) {
+func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integration, draft *configDraft, field ConfigField) {
 	label := field.Label
 	if label == "" {
 		label = field.Key
 	}
 	kind := strings.ToLower(field.Type)
+	locked := a.configLocked(integration.ID)
 
 	switch kind {
 	case "boolean":
@@ -426,7 +504,10 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 		changed := false
 		a.configFieldGrid(c, field, label, copy.ConfigRequired, "", func() ui.Element {
 			e := a.switchControl(c, &on).Label(label)
-			if e.Changed() {
+			if locked {
+				e = e.Disabled(true).Opacity(0.6).Cursor(ui.CursorDefault)
+			}
+			if e.Changed() && !locked {
 				changed = true
 			}
 			return e
@@ -449,7 +530,10 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 		chosen, cleared := "", false
 		a.configFieldGrid(c, field, label, copy.ConfigRequired, "", func() ui.Element {
 			e := a.configSelect(c, &selected, labels, label)
-			if e.Changed() {
+			if locked {
+				e = e.Disabled(true).Opacity(0.6).Cursor(ui.CursorDefault)
+			}
+			if e.Changed() && !locked {
 				if noneOffered && selected == copy.ConfigNone {
 					cleared = true
 					return e
@@ -484,57 +568,137 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 		// than the loose ruled rows the old port drew. A list box reads as one
 		// control, which is what the reference's `select[multiple]` is.
 		a.configFieldGrid(c, field, label, copy.ConfigRequired, "", func() ui.Element {
-			return a.configMultiselectBox(c, a.configListScroll(integration.ID, field.Key), func() {
-				for _, option := range field.Options {
-					option := option
+			box := a.configMultiselectBox(c, a.configListScroll(integration.ID, field.Key), func() {
+				for index, option := range field.Options {
+					index, option := index, option
 					on := ticked[option]
 					boxChanged := false
-					labelClicked := a.configOptionRow(c, option, &on, &boxChanged)
+					labelClicked, mods := a.configOptionRow(c, option, &on, &boxChanged, locked)
 					if labelClicked {
 						on = !on
 						boxChanged = true
 					}
-					if boxChanged {
-						ticked[option] = on
-						draft.values[field.Key] = tickedToValues(field.Options, ticked)
+					if !boxChanged || locked {
+						continue
 					}
+					// A native `select[multiple]` extends a range from the last
+					// clicked option on Shift, toggles one on Ctrl/Cmd, and starts
+					// over on a plain click; the box keeps that habit (the toolkit
+					// hands the click's modifiers through). A range sets each
+					// option between anchor and target, as the browser does.
+					if mods&ui.Shift != 0 && draft.multiAnchorAt(field) >= 0 {
+						from, to := draft.multiAnchorAt(field), index
+						if from > to {
+							from, to = to, from
+						}
+						for i := from; i <= to && i < len(field.Options); i++ {
+							ticked[field.Options[i]] = true
+						}
+					} else {
+						ticked[option] = on
+					}
+					draft.setMultiAnchor(field, index)
+					draft.values[field.Key] = tickedToValues(field.Options, ticked)
 				}
 			})
+			if locked {
+				box = box.Opacity(0.6).Cursor(ui.CursorDefault)
+			}
+			return box
 		})
 	case "number":
 		value := ""
 		if number, ok := draft.values[field.Key].(float64); ok {
 			value = strconv.FormatFloat(number, 'f', -1, 64)
 		}
-		edit := value
-		a.configFieldGrid(c, field, label, copy.ConfigRequired, a.configFieldProblem(integration, field), func() ui.Element {
+		edit := draft.liveText(field, value)
+		problem := a.configFieldProblem(integration, field)
+		a.configFieldGrid(c, field, label, copy.ConfigRequired, problem, func() ui.Element {
 			e := a.extensionField(c, &edit, configFieldMetrics).Placeholder(field.Key).Label(label).FillWidth()
-			if e.Submitted() {
-				value, problem := ConfigValueProblem(field, edit, copy)
-				if problem != "" {
+			if problem != "" {
+				// The reference handed the bounds to the native control and let
+				// the browser draw its validity state *on the field* — a red
+				// keyline (`:invalid`) as well as the message. `Error` carries
+				// the same stroke on a bare input: it marks the node invalid,
+				// which the input's own border rule paints in the danger ink
+				// (the sentence itself is the grid's caption line above).
+				e = e.Error(problem)
+			}
+			if locked {
+				e = e.Disabled(true).Opacity(0.6).Cursor(ui.CursorDefault)
+			}
+			// The reference's input is controlled: every keystroke writes the
+			// field's own value back, so the bounds are checked as the user types
+			// and the sentence at the field appears at once — that is the
+			// browser's `:invalid` state the reference relied on
+			// (`ExtensionsPanel.tsx:3251-3256`). The typed value lands in the
+			// draft regardless (a number that is empty or unparsable becomes
+			// `null`, exactly as the browser's `valueAsNumber` did), so the form
+			// reads "Unsaved changes" and a Save carries what is on screen; a
+			// value the schema refuses is the *host's* save-time refusal, which
+			// the form's own error line reports.
+			if e.Changed() && !locked {
+				draft.setLive(field, edit)
+				// The draft keeps the raw `valueAsNumber` the browser would have
+				// stored, so the host's own save-time validation is what refuses
+				// an out-of-range number.
+				text := strings.TrimSpace(edit)
+				if number, err := strconv.ParseFloat(text, 64); err == nil && text != "" {
+					draft.values[field.Key] = number
+				} else {
+					draft.values[field.Key] = nil
+				}
+				if _, problem := ConfigValueProblem(field, edit, copy); problem != "" {
 					a.noteConfigFieldError(integration.ID, field.Key, problem)
 				} else {
 					a.clearConfigFieldError(integration.ID, field.Key)
+				}
+			}
+			if e.Submitted() && !locked {
+				value, problem := ConfigValueProblem(field, edit, copy)
+				if problem == "" {
 					draft.values[field.Key] = value
+					a.clearConfigFieldError(integration.ID, field.Key)
+				} else {
+					a.noteConfigFieldError(integration.ID, field.Key, problem)
 				}
 			}
 			return e
 		})
 	default: // text, password, path
 		value, _ := draft.values[field.Key].(string)
-		edit := value
-		a.configFieldGrid(c, field, label, copy.ConfigRequired, a.configFieldProblem(integration, field), func() ui.Element {
+		edit := draft.liveText(field, value)
+		problem := a.configFieldProblem(integration, field)
+		a.configFieldGrid(c, field, label, copy.ConfigRequired, problem, func() ui.Element {
 			e := a.extensionField(c, &edit, configFieldMetrics).Placeholder(field.Key).Label(label).FillWidth()
 			if kind == "password" {
 				e = e.Password()
 			}
-			if e.Submitted() {
-				value, problem := ConfigValueProblem(field, edit, copy)
-				if problem != "" {
+			if problem != "" {
+				e = e.Error(problem)
+			}
+			if locked {
+				e = e.Disabled(true).Opacity(0.6).Cursor(ui.CursorDefault)
+			}
+			// A text field is controlled the same way: every keystroke is the
+			// field's text, the bounds are checked at once, and the typed text —
+			// not a sanitized one — is the draft value, as the browser's
+			// `event.target.value` was (`ExtensionsPanel.tsx:3253-3257`).
+			if e.Changed() && !locked {
+				draft.setLive(field, edit)
+				draft.values[field.Key] = edit
+				if _, problem := ConfigValueProblem(field, edit, copy); problem != "" {
 					a.noteConfigFieldError(integration.ID, field.Key, problem)
 				} else {
 					a.clearConfigFieldError(integration.ID, field.Key)
-					draft.values[field.Key] = value
+				}
+			}
+			if e.Submitted() && !locked {
+				draft.values[field.Key] = edit
+				if _, problem := ConfigValueProblem(field, edit, copy); problem != "" {
+					a.noteConfigFieldError(integration.ID, field.Key, problem)
+				} else {
+					a.clearConfigFieldError(integration.ID, field.Key)
 				}
 			}
 			return e
@@ -681,23 +845,34 @@ func (a *App) configMultiselectBox(c *ui.Context, scroll *ui.ScrollState, fn fun
 // configOptionRow draws one tick option inside the multiselect list box: the
 // option's word at the start and the check box at its end, in one compact
 // row, so the box reads as the option list it stands in for. It reports
-// whether the option's own word was clicked (the label is a hit target, as
-// the framework's own Field makes a control's label).
-func (a *App) configOptionRow(c *ui.Context, option string, on *bool, changed *bool) bool {
+// whether the option was clicked — the word is a hit target, as the
+// framework's own Field makes a control's label — and the modifier keys the
+// click held, so the box can extend a range the way a native
+// `select[multiple]` does. A locked box refuses every tick, the whole-row
+// `busy` the reference handed the native `select[multiple]`
+// (`disabled={disabled}`, `ExtensionsPanel.tsx:3222,3234`).
+func (a *App) configOptionRow(c *ui.Context, option string, on *bool, changed *bool, locked bool) (bool, ui.Modifiers) {
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 	clicked := false
+	var mods ui.Modifiers
 	ui.Row(c).FillWidth().AlignItems(ui.Center).Justify(ui.SpaceBetween).
 		Gap(a.cardSpace(t, 2)).MinHeight(a.cardSpace(t, 5)).Children(func() {
 		word := ui.Text(c, option).FontSize(tokens.Body).FontWeight(500).TextColor(tokens.TextSecondary)
-		if word.Clicked() {
+		if word.Clicked() && !locked {
 			clicked = true
+			mods = word.ClickModifiers()
 		}
-		if ui.CheckboxBase(c, on).Label(option).Clicked() {
+		box := ui.CheckboxBase(c, on).Label(option)
+		if locked {
+			box = box.Disabled(true)
+		}
+		if box.Clicked() && !locked {
 			*changed = true
+			mods = box.ClickModifiers()
 		}
 	})
-	return clicked
+	return clicked, mods
 }
 
 // tickedToValues is a multiselect's ticked options as the value a save writes,

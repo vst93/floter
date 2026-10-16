@@ -179,6 +179,11 @@ type Actions struct {
 	// combination with a `run_param_*` key, which the form words under itself.
 	// Nil hides the form.
 	RunWithParams func(id string, values map[string]string) *extensions.ParamFailure
+	// OpenConfiguration runs a tool-owned configuration's `openCommand` argv:
+	// the reference's `onOpenCommand(plan, …)` arm for a `tool` owner, which
+	// spawns the provider's own editor (`ExtensionsPanel.tsx:2982`). Nil
+	// leaves the card's "Open configuration" button disabled.
+	OpenConfiguration func(id string, argv []string)
 	// InstallFromFolder installs a package directory the user picks, and
 	// ChooseFolder asks them for one. Nil hides the row.
 	InstallFromFolder func(dir string)
@@ -352,6 +357,13 @@ type Integration struct {
 	// configuration is opened where the tool keeps it — so a `tool` owner
 	// hides the form's section (see configOwnerIsHost).
 	ConfigOwner string
+	// ConfigOpenCommand is the tool-owned configuration's open command: the
+	// provider's `openCommand` argv, carried so the card can offer the
+	// reference's "Open configuration" button
+	// (`ExtensionsPanel.tsx:2977-2986`). Empty when there is nothing to open,
+	// in which case the button is drawn disabled — the reference's
+	// `disabled={!configuration.openPlan}`.
+	ConfigOpenCommand []string
 	// ConfigVersion is the schema generation the stored values were written
 	// against, carried so a copied or exported configuration names it (the
 	// reference's `ConfigurationExportDocument.config_version`,
@@ -2191,6 +2203,13 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			if opened {
 				a.toggleConfig(integration.ID)
 			}
+		} else if configOwnerIsTool(integration) && !integration.Orphan {
+			// A tool-owned configuration has no host form: the reference drew an
+			// "Open configuration" button instead, running the provider's own
+			// `openCommand` (`ExtensionsPanel.tsx:2977-2986`). The button is
+			// disabled when the provider declared no `openCommand`, exactly as
+			// the reference's `disabled={!configuration.openPlan}` did.
+			a.configOpenToolRow(c, copy, integration)
 		}
 
 		if len(integration.Commands) > 0 && !integration.Orphan {
@@ -2447,6 +2466,17 @@ func configOwnerIsHost(integration Integration) bool {
 	return len(integration.Config) > 0 && !strings.EqualFold(integration.ConfigOwner, "tool")
 }
 
+// configOwnerIsTool reports whether an integration's configuration is the
+// tool's own to open: the reference's `configuration.descriptor.owner ===
+// "tool"` arm (`ExtensionsPanel.tsx:2977`). Such a card carries the "Open
+// configuration" button rather than the host form. The gate is the owner
+// alone, not the schema's presence — a `tool` owner declares no host schema,
+// and its `openCommand` may be empty, in which case the button is drawn
+// disabled (the reference's `disabled={!configuration.openPlan}`).
+func configOwnerIsTool(integration Integration) bool {
+	return strings.EqualFold(integration.ConfigOwner, "tool")
+}
+
 // toggleConfig folds or unfolds one integration's configuration form.
 //
 // Folding a form whose draft has unsaved edits is the reference's own
@@ -2537,6 +2567,27 @@ func (a *App) closeConfig(id string) {
 // dropped and the form closes (the reference's `discardDetailsChanges`,
 // `ExtensionsPanel.tsx:2135-2138`).
 func (a *App) discardConfigChanges(id string) { a.closeConfig(id) }
+
+// configOpenToolRow draws a tool-owned configuration's one outlet: the
+// reference's `settings.extensions.configuration` block title and the
+// "Open configuration" action that runs the provider's own `openCommand`
+// (`ExtensionsPanel.tsx:2971-2986`). The action is the panel's ordinary
+// action pill, carrying the reference's ExternalLink mark then the word, and
+// it is disabled when the provider declared no `openCommand` — the
+// reference's `disabled={!configuration.openPlan}`.
+func (a *App) configOpenToolRow(c *ui.Context, copy i18n.Settings, integration Integration) {
+	a.row(c, copy.ConfigSection, "", func() {
+		openable := len(integration.ConfigOpenCommand) > 0 && a.Actions.OpenConfiguration != nil
+		button := a.extensionGlyphActionButton(c, "link", copy.ConfigOpenConfiguration,
+			a.cardTheme(c).Space(7.5), a.cardTheme(c).Space(3.75), a.tokens(c).Body)
+		if !openable {
+			button = button.Disabled(true).Opacity(0.4).Cursor(ui.CursorDefault)
+		}
+		if button.Clicked() && openable {
+			a.Actions.OpenConfiguration(integration.ID, append([]string{}, integration.ConfigOpenCommand...))
+		}
+	})
+}
 
 // configDiscardBar draws the reference's `.extension-discard-bar`
 // (`extensions.css:2455-2482`, `ExtensionsPanel.tsx:3029-3035`): the error
