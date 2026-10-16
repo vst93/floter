@@ -1,5 +1,13 @@
 # Build output
 /dist/
+/.mygo/
+/src/mygo.ts
+
+# Leftovers from the retired Tauri/React implementation
+/node_modules/
+/pnpm-lock.yaml
+/src-tauri/target/
+/src-tauri/gen/
 
 # Editor directories and files
 .vscode/*
