@@ -136,6 +136,17 @@ func TestTheActionBarTakesTheSelectionOnACommandLine(t *testing.T) {
 	if got, want := img.RGBAAt(10, y), img.RGBAAt(3, y); got == want {
 		t.Errorf("the selected footer's band is not tinted: %v at x=10, %v at x=3", got, want)
 	}
+	// The bar is a *lit pane*, not a flat tint: the raised pane's own contact
+	// shadow (`--glass-raised-shadow` = `--elev-2` + `--glass-raised-rim`,
+	// `main:src/styles/launcher.css:1579-1583`). The shadow lands just below
+	// the row's box, so the pixels under the bar are darker than the panel's
+	// own fill while the bar is selected — compare the same row on a page where
+	// a match keeps the choice (the test below).
+	below := img.RGBAAt(200, int(rect.Y+rect.H)+1)
+	panel := img.RGBAAt(200, int(rect.Y+rect.H)+6)
+	if below == panel {
+		t.Errorf("the selected footer casts no shadow below itself: %v vs the panel %v", below, panel)
+	}
 	// Enter runs the footer, not the tool row above it: the bar is the field's
 	// own hand-off and it is the row the choice is on.
 	tt.TypeKey(0, ui.KeyEnter, "")

@@ -100,6 +100,36 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
+> **本轮：P7-hg 用户报告复查 + 启动器行状态/指针交互对齐原版 R21（原版
+> `main:src/launcher/LauncherResults.tsx:859-862,1059` 的 `onPointerEnter` 接手选择、
+> `main:src/styles/launcher.css:1512-1519,1579-1583,1647-1663` 的按压与选中面）**
+>
+> 用户报告的两条（① 搜索页左右大空白；② 输入内容时「在终端中打开」固定第一项、缺选中态）经复跑
+> 均为 `5c2d60d` 已修，验收全绿；本轮先做实际核对（像素级量文本列、量动作栏位置与选中带），确认
+> 已符合原版，再回归到常规迭代。
+>
+> **本轮常规迭代（发现并落地 3 条启动器差异）**：
+> 1. **指针进入未接手选择，而是另涂一层 hover 面**（P7-hg-1）。原版 R21 明确「指针进入即选中，没有
+>    pointer-only 高亮」（`LauncherResults.tsx:859-862`；`launcher.css:1653-1663`），本构建却在
+>    `launcher.go` 的 `case row.Hovered()` 只涂 `SurfaceHover`，可同时亮两行、Enter 跑的不是指针下的行。
+>    落地：新增 `hoveredRow`/`hoverFrameRow` **进入边**（不是每帧重申），仅当进入新行且
+>    `rowSelectable && Run != nil` 时移选择；构建前清 `-1`、构建后记基线。
+> 2. **动作栏选中面只 hover 填充、无抬升**（P7-hg-2）。原版 `.launcher-action-bar--selected`
+>    = `--glass-raised-quiet` + `--glass-raised-shadow`（`launcher.css:1579-1583`；
+>    `base.css:190-191,530,605`）。落地：`tokens.RaisedQuiet` + `Shadow`（`--elev-2`）+ `InsetShadow` 顶缘。
+> 3. **行按压无 `scale(0.986)`**（P7-hg-3）。原版 `:active` 缩 1.4%（`launcher.css:1512-1519,1647-1651`），
+>    本构建只换底色。落地：`row.Pressed()` 时 `row.Scale(0.986, 0.986)`。
+>
+> **验收**：新增 `internal/launcher/pointerselect_test.go` 三条（进入即选中 / 静置指针不吃键盘步 /
+> 跳过标题行）；`actionbarfooter_test.go` 的 `TestTheActionBarTakesTheSelectionOnACommandLine` 增一段
+> 钉 footer 选中态的接触投影。变异核查：去掉进入边判据 → 静置条红；去掉 `row.Shadow` → 投影条红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`GOOS=linux/windows/darwin go build ./...` 过、
+> `go test -count=1 ./internal/{launcher,shell,settingsui}` 全绿。
+>
+> **清单状态**：`.pending-bugs.md` 顶部三条（P7-hg-1/2/3）全部落地；启动器「仍未锁定」为空，
+> 只剩「扩展面板·配置表单」的结构性一条。
+
 > **本轮：P7-hf 设置侧栏前导图标记号回到原版 App.tsx 的五元组（原版 `main:src/App.tsx:2903-2908`
 > 的 `[general SlidersHorizontal, sessions SquareTerminal, shortcuts Keyboard, integrations Blocks,
 > about Info]`，`:2925` `<Icon size={15} strokeWidth={2}/>`）**

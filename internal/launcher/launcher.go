@@ -243,6 +243,17 @@ type App struct {
 	// scrolled only when the choice changed.
 	chosenRow int
 
+	// hoveredRow is the row the pointer was over the frame before, and
+	// hoverFrameRow the one it is over in the frame being built. The pair is
+	// what makes the pointer's selection an *entry edge* rather than a
+	// per-frame re-assert — the reference's `onPointerEnter`
+	// (`LauncherResults.tsx:859-862`). Re-asserting every frame would undo a
+	// keyboard step the moment the pointer rested on the row the selection
+	// had just left (the conflict `launcher.css:1653-1663` names); an edge
+	// leaves the two devices sharing one state.
+	hoveredRow    int
+	hoverFrameRow int
+
 	// Rows are what the last View built, in order: each visible row's text
 	// lines and whether it is a block's heading. Font and Spacing are the
 	// theme's own values. The shell reads them to size the window to the list
@@ -774,7 +785,9 @@ func (a *App) SetQuery(query string) {
 // New builds the launcher state over a settings store and the shell's
 // actions.
 func New(store *settings.Store, actions Actions) *App {
-	return &App{Store: store, Actions: actions}
+	// The pointer's baseline starts at "no row": the zero value would make the
+	// first frame read row 0 as already entered (see a.hoveredRow).
+	return &App{Store: store, Actions: actions, hoveredRow: -1, hoverFrameRow: -1}
 }
 
 // settings is the current normalized settings.
@@ -880,6 +893,18 @@ func (a *App) View(c *ui.Context) {
 	listEdge := edge + chips
 
 	ui.Box(c).Fill().Background(tk.Sunken).Children(func() {
+		// R21 · the pointer's selection is an *entry edge*, not a per-frame
+		// re-assert (the reference's `onPointerEnter`,
+		// `LauncherResults.tsx:859-862`). The row this pass builds reports
+		// itself into `hoverFrameRow`; the pass before it is `hoveredRow`, the
+		// baseline each row's entry is read against. The roll happens here,
+		// before any early return below can skip it, and the counter is then
+		// reset for the pass about to build: a pointer over no row (or a page
+		// with no rows — the empty state, the configuration sheet, the output
+		// view) therefore clears the state rather than leaving a stale index
+		// a later list rebuild would read as "already entered".
+		a.hoveredRow = a.hoverFrameRow
+		a.hoverFrameRow = -1
 		// The panel is the launcher's reading surface: the old build's
 		// `--surface-sunken`, one step denser than the card's own glass, so
 		// the rows sit on a recess rather than on the frame (`.launcher-bottom`).
@@ -1690,18 +1715,49 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 	// *less* opaque than the resting pane - the row sinks into the glass
 	// instead of popping out of it.
 	rowPressed := row.Pressed()
+	// `.launcher-result:not(.launcher-result--unavailable):active { transform:
+	// scale(0.986) }` and `.launcher-action-bar:active` likewise
+	// (`main:src/styles/launcher.css:1512-1519,1647-1651`): the press sinks the
+	// row a hair into the glass, over the same 120ms transform transition the
+	// transition carries (Colors only, left to the row's own `--dur-2` ease).
+	if rowPressed {
+		row.Scale(0.986, 0.986)
+	}
 	switch {
 	case rowPressed:
 		row.Background(t.SurfacePressed)
 	case i == a.Selected && isBar:
-		row.Background(t.SurfaceHover)
+		// The action bar's own selection: the neutral raised pane the old
+		// build's settings used (`.launcher-action-bar--selected` —
+		// `--glass-raised-quiet` plus `--glass-raised-shadow`,
+		// `main:src/styles/launcher.css:1579-1583`). It is the control-hover
+		// lift with the raised pane's own shadow — the `--elev-2` contact cast
+		// (`0 1px 2px rgba(0,0,0,0.2)`) and the 1px lit top rim
+		// (`--glass-raised-rim`) — so the bar reads as a lit pane among the
+		// transparent result rows rather than as a flat grey block, and the
+		// `⌘↩` badge is what says it runs on Enter. The port had only the
+		// bare hover fill: the bar was the one *selected* row with no lift.
+		row.Background(tokens.RaisedQuiet)
+		row.Shadow(0, t.Space(0.25), t.Space(0.5), 0, tokens.ShadowContact)
+		row.InsetShadow(0, 1, 0, 0, tokens.LensRim)
 	case i == a.Selected:
 		// The old build's selection: a quiet accent tint, and the emphasis is
 		// the row's own type — the title at 700 — rather than a ring or a
 		// shadow. The tint places the row; the weight announces it.
 		row.Background(t.Accent.Alpha(0.085))
-	case row.Hovered():
-		row.Background(t.SurfaceHover)
+	}
+	// R21 · the pointer takes the selection over on *entry*, exactly as
+	// `LauncherResults.tsx:859-862` does: entering a row selects it, while
+	// resting on a row does nothing, so the row under the cursor and the row
+	// Enter runs are one row and a keyboard step is never undone by a pointer
+	// that happens to sit still on the row the selection just left (the
+	// conflict `launcher.css:1653-1663` names). The row is the list's own key
+	// (`Key(item.ID)`), so its hover flag is asked here, as the row is built.
+	if row.Hovered() {
+		a.hoverFrameRow = i
+		if i != a.hoveredRow && rowSelectable(item) && item.Run != nil {
+			a.Selected = i
+		}
 	}
 	// A history row's own delete control: the focused text field owns the
 	// editing keys, so the delete the old build put on a key is a button here
