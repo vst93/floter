@@ -19,9 +19,18 @@ type i18nLauncher = i18n.Launcher
 // A user who types a URL means "open this", one who types a path means "open
 // this" (or a terminal beside it), and one who types anything else that looks
 // like a command means "run it". The old build rendered these as a bar under
-// the field, which Enter defaulted to; here they are the first rows of the
-// same list, so the keys and the pointer reach them exactly like every other
-// result.
+// the field, which Enter defaulted to; here they are rows of the same list, so
+// the keys and the pointer reach them exactly like every other result.
+//
+// A bar row's registers follow the reference's own split
+// (`main:src/launcher/LauncherResults.tsx:1067-1068`): the *title* is the
+// `actionBar.value` — the string the action hands over (the command line, the
+// URL, the path) — and the *subtitle* is the `actionBar.label`, the action's
+// own word (`Run in shell`, `Open in browser`, `Open in files`, ...). The
+// title is the code-bearing register, so `rowBody` sets it in the terminal's
+// monospace at 520 (`main:src/styles/launcher.css:1632-1638`), while the
+// subtitle keeps the body's own interface face. The port had the two swapped,
+// which put the monospace (and the literal value) on the action word instead.
 
 // URLQuery matches a page address: its scheme is what makes it one, not its
 // shape. The scheme is case-insensitive, as the old build's own pattern was:
@@ -132,8 +141,8 @@ func (a *App) actionBarItemsWith(other []Item, gated bool) []Item {
 		}
 		return []Item{{
 			ID:       "bar:url",
-			Title:    copy.OpenInBrowser,
-			Detail:   value,
+			Title:    value,
+			Detail:   copy.OpenInBrowser,
 			Shortcut: a.enterBadge(),
 			Run: func() {
 				if a.Actions.OpenURL != nil {
@@ -150,9 +159,9 @@ func (a *App) actionBarItemsWith(other []Item, gated bool) []Item {
 		if err != nil {
 			// A path that is not there yet is still offered: creating it is
 			// what the command is for. The terminal row stands beside it.
-			return []Item{a.barPathRows(expanded, value, false, copy)[1]}
+			return []Item{a.barPathRows(expanded, false, copy)[1]}
 		}
-		rows := a.barPathRows(expanded, value, info.IsDir(), copy)
+		rows := a.barPathRows(expanded, info.IsDir(), copy)
 		out := []Item{rows[0]}
 		out = append(out, rows[1:]...)
 		return out
@@ -172,8 +181,8 @@ func (a *App) actionBarItemsWith(other []Item, gated bool) []Item {
 	if parsed.ShellSyntax {
 		return []Item{{
 			ID:       "bar:shell",
-			Title:    copy.RunInShell,
-			Detail:   value,
+			Title:    value,
+			Detail:   copy.RunInShell,
 			Shortcut: a.enterBadge(),
 			Run: func() {
 				a.historyRemember(value)
@@ -200,8 +209,8 @@ func (a *App) actionBarItemsWith(other []Item, gated bool) []Item {
 	if len(parsed.Environment) > 0 {
 		return []Item{{
 			ID:       "bar:shell",
-			Title:    copy.RunInShell,
-			Detail:   value,
+			Title:    value,
+			Detail:   copy.RunInShell,
 			Shortcut: a.enterBadge(),
 			Run: func() {
 				a.historyRemember(value)
@@ -217,8 +226,8 @@ func (a *App) actionBarItemsWith(other []Item, gated bool) []Item {
 	}
 	return []Item{{
 		ID:       "bar:shell",
-		Title:    copy.RunInShell,
-		Detail:   value,
+		Title:    value,
+		Detail:   copy.RunInShell,
 		Shortcut: a.enterBadge(),
 		Run: func() {
 			a.historyRemember(value)
@@ -230,20 +239,24 @@ func (a *App) actionBarItemsWith(other []Item, gated bool) []Item {
 }
 
 // barPathRows is a path's rows: open, a terminal beside it, and a copy of the
-// path itself.
-func (a *App) barPathRows(expanded, raw string, isDir bool, copy i18nLauncher) []Item {
+// path itself. Each row's *title* is the string the action acts on — the path
+// itself, or the directory the terminal enters — and its *subtitle* is the
+// action's own word, exactly as the reference's `.launcher-action-bar__title`
+// (`actionBar.value`) / `__subtitle` (`actionBar.label`) split it
+// (`main:src/launcher/LauncherResults.tsx:1067-1068`). The title is therefore
+// the row's monospace, code-bearing register.
+func (a *App) barPathRows(expanded string, isDir bool, copy i18nLauncher) []Item {
 	directory := expanded
-	title := copy.OpenInFiles
+	label := copy.OpenInFiles
 	if !isDir {
 		directory = filepath.Dir(expanded)
-		title = copy.OpenFile
+		label = copy.OpenFile
 	}
-	quoted := shellQuoteForCD(directory)
 	return []Item{
 		{
 			ID:       "bar:path-open",
-			Title:    title,
-			Detail:   expanded,
+			Title:    expanded,
+			Detail:   label,
 			Shortcut: a.enterBadge(),
 			Run: func() {
 				if a.Actions.OpenPath != nil {
@@ -255,8 +268,8 @@ func (a *App) barPathRows(expanded, raw string, isDir bool, copy i18nLauncher) [
 		},
 		{
 			ID:       "bar:path-cd",
-			Title:    copy.FileCd,
-			Detail:   directory,
+			Title:    directory,
+			Detail:   copy.FileCd,
 			Shortcut: a.enterBadge(),
 			Run: func() {
 				if a.Actions.OpenInTerminal != nil {
@@ -267,9 +280,10 @@ func (a *App) barPathRows(expanded, raw string, isDir bool, copy i18nLauncher) [
 			},
 		},
 		{
-			ID:     "bar:path-copy",
-			Title:  copy.FileCopyPath + "  " + filepath.Base(expanded),
-			Detail: quoted,
+			ID:       "bar:path-copy",
+			Title:    expanded,
+			Detail:   copy.FileCopyPath,
+			Shortcut: a.enterBadge(),
 			Run: func() {
 				if a.Actions.Copy != nil {
 					a.Actions.Copy(expanded)
@@ -302,15 +316,6 @@ func (a *App) homeDirOrEmpty() string {
 		return ""
 	}
 	return home
-}
-
-// shellQuoteForCD quotes a directory for the interactive shell, the way the
-// drops package does for its own `cd`.
-func shellQuoteForCD(directory string) string {
-	if !strings.ContainsAny(directory, " \t'\"\\$`&|;<>()*?[]{}~!#") {
-		return directory
-	}
-	return "'" + strings.ReplaceAll(directory, "'", `'\''`) + "'"
 }
 
 // defaultsToShell is whether Enter should land on the shell row rather than

@@ -1,6 +1,7 @@
 package launcher
 
 import (
+	"image/color"
 	"strings"
 	"testing"
 
@@ -8,6 +9,11 @@ import (
 
 	"floter/internal/apps"
 )
+
+// panelFill is the light panel's own fill the bar rows are drawn on: a pixel
+// holding it means "nothing is painted here", which is what a rounded corner
+// leaves at the box's own corner.
+var panelFill = color.RGBA{R: 254, G: 254, B: 254, A: 255}
 
 // R-next · The action bar is the panel's **pinned footer**, not a first row.
 //
@@ -195,4 +201,158 @@ func TestTheFieldAndTheRowsShareTheReferenceTextColumn(t *testing.T) {
 	} else {
 		t.Fatal("the first result's title was not drawn")
 	}
+}
+
+// R-next · The bar row's two text registers follow the reference's split: the
+// *title* is the string the action hands over (the command line, the URL, the
+// path) and the *subtitle* is the action's own word.
+//
+// `main:src/launcher/LauncherResults.tsx:1067-1068` prints
+// `{actionBar.value}` in `.launcher-action-bar__title` and `{actionBar.label}`
+// in `.launcher-action-bar__subtitle`; `.launcher-action-bar__title`
+// (`main:src/styles/launcher.css:1632-1638`) is the monospace register,
+// because the string it holds is code. The port had the two swapped: the
+// action word was the title (and so wore the monospace) while the command line
+// was the subtitle — the visible result of which is that the row reads
+// "Run in terminal" in the code face and the line you are about to run in the
+// interface one.
+func TestTheActionBarTitleIsTheValueNotTheActionWord(t *testing.T) {
+	a := testApp()
+	a.SetTools([]apps.App{{Name: "git", Path: "/usr/bin/git"}}, true)
+	tt := render(t, a)
+	tt.Type("git")
+	tt.Frame()
+
+	results := a.Results()
+	var bar *Item
+	for i := range results {
+		if strings.HasPrefix(results[i].ID, "bar:") {
+			bar = &results[i]
+		}
+	}
+	if bar == nil {
+		t.Fatalf("the bar row is missing: %v", ids(results))
+	}
+	// The title is the typed line; the subtitle is the action's word. The
+	// word must not be the row's title (it belongs to the subtitle slot).
+	if bar.Title != "git" {
+		t.Errorf("the bar's title = %q, want the typed line %q", bar.Title, "git")
+	}
+	if bar.Detail != "Run in terminal" {
+		t.Errorf("the bar's subtitle = %q, want the action word %q", bar.Detail, "Run in terminal")
+	}
+	// Both texts are drawn, and the value's box is the wide one — the action
+	// word sits under it in the subtitle slot.
+	valueRect, ok := tt.Find("git")
+	if !ok {
+		t.Fatal("the bar's value was not drawn")
+	}
+	wordRect, ok := tt.Find("Run in terminal")
+	if !ok {
+		t.Fatal("the bar's action word was not drawn")
+	}
+	if wordRect.Y <= valueRect.Y {
+		t.Errorf("the action word is not the subtitle: value y=%.0f, word y=%.0f",
+			valueRect.Y, wordRect.Y)
+	}
+
+	// A URL query prints the address as the title and "Open in browser" as the
+	// subtitle, the same split.
+	b := testApp()
+	tb := render(t, b)
+	tb.Type("https://example.com/docs")
+	tb.Frame()
+	var urlBar *Item
+	for i := range b.Results() {
+		if b.Results()[i].ID == "bar:url" {
+			bar := b.Results()[i]
+			urlBar = &bar
+		}
+	}
+	if urlBar == nil {
+		t.Fatalf("the url bar is missing: %v", ids(b.Results()))
+	}
+	if urlBar.Title != "https://example.com/docs" || urlBar.Detail != "Open in browser" {
+		t.Errorf("the url bar = (%q, %q), want (value, action word)",
+			urlBar.Title, urlBar.Detail)
+	}
+}
+
+// R-next · The footer's top corners are square when a list sits above it.
+//
+// The reference welds the pinned bar to the scroller with
+// `.launcher-results + .launcher-action-bar { border-radius: 0 0
+// var(--radius-md) var(--radius-md) }` (`main:src/styles/launcher.css:1556-1562`):
+// the bar keeps its own full rounding only when no result list precedes it (a
+// URL that matched nothing). The port is a single in-list row family, so "a
+// list precedes it" is "some row is drawn above the footer" — a bar at the
+// list's head keeps the rounding, a bar after a match squares its top corners.
+func TestTheActionBarSquaresItsTopCornersOverAList(t *testing.T) {
+	// The bar after a match: its top-left corner is already the row's own fill.
+	a := testApp()
+	a.SetTools([]apps.App{{Name: "git", Path: "/usr/bin/git"}}, true)
+	ta := render(t, a)
+	ta.Type("git")
+	ta.Frame()
+
+	// The bar at the list's head (a URL with no match): its top-left corner is
+	// still the panel's fill, i.e. the corner is rounded away.
+	b := testApp()
+	tb := render(t, b)
+	tb.Type("https://example.com/nope")
+	tb.Frame()
+
+	corner := func(tt *ui.Tester) (top int, px color.RGBA) {
+		img := tt.Image()
+		// Find the bar band's top edge just inside its left inset (x=6), then
+		// read the corner pixel one step further out (x=4, the panel's own 4u
+		// inset): a squared corner paints the row's fill there, a rounded one
+		// leaves the panel (or its faint edge) showing under the arc.
+		top = -1
+		for y := 50; y < 200; y++ {
+			c := img.RGBAAt(6, y)
+			if panelDistance(c) > 8 {
+				top = y
+				break
+			}
+		}
+		if top < 0 {
+			t.Fatalf("the bar band was not found: %q", tt.Texts())
+		}
+		return top, img.RGBAAt(4, top)
+	}
+
+	barTop, squared := corner(ta)
+	if panelDistance(squared) <= 8 {
+		t.Errorf("the footer over a list is rounded at its top-left corner (y=%d): %v", barTop, squared)
+	}
+	_, rounded := corner(tb)
+	if panelDistance(rounded) > 8 {
+		t.Errorf("the footer with no list above it is squared at its top-left corner: %v over panel %v",
+			rounded, panelFill)
+	}
+}
+
+// panelDistance is how far a pixel is from the panel's own fill, in summed
+// channels: 0 means "nothing is painted here", a row's fill reads as tens.
+func panelDistance(c color.RGBA) int {
+	d := int(c.R) - int(panelFill.R)
+	if d < 0 {
+		d = -d
+	}
+	g := int(c.G) - int(panelFill.G)
+	if g < 0 {
+		g = -g
+	}
+	if g > d {
+		d = g
+	}
+	b := int(c.B) - int(panelFill.B)
+	if b < 0 {
+		b = -b
+	}
+	if b > d {
+		d = b
+	}
+	return d
 }

@@ -1672,6 +1672,18 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 		// count crosses zero.
 		floor = t.Space(10.5)
 		row.Margin(t.Space(0.75), 0, 0, 0)
+		// The bar is welded to the list above it: the old build turned the
+		// footer's top corners square whenever a result list preceded it
+		// (`.launcher-results + .launcher-action-bar { border-radius: 0 0
+		// var(--radius-md) var(--radius-md) }`, `main:src/styles/launcher.css:
+		// 1556-1562`), so the two read as one card rather than as a separate
+		// pane. The bar is this list's last row, so "a list precedes it" is
+		// "some row is drawn above it" — a bar that is the *only* row (a URL
+		// that matched no application, say) keeps its own full rounding, which
+		// is the reference's no-scroller case.
+		if i > 0 {
+			row.Radius(0, 0, tokens.RadiusMD, tokens.RadiusMD)
+		}
 	}
 	// The press is the one state a row takes on top of the tint: the control
 	// material's own press face (base.css's --glass-control-press), which is
@@ -1768,9 +1780,11 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 				// `.launcher-result--selected .launcher-result__title` did.
 				title := ui.Text(c, item.Title).FontSize(t.FontSize + 2).
 					FontWeight(580).TextColor(tokens.TextStrong).SingleLine()
-				// The action bar's title is a command line the user is handing
-				// over, so it is the terminal's own monospace at 520 (the old
-				// `.launcher-action-bar__title`).
+				// The action bar's title is the string the user is handing
+				// over — the command line, the URL, the path — so it is the
+				// terminal's own monospace at 520 (the old
+				// `.launcher-action-bar__title`). The action's own word is the
+				// row's subtitle, which keeps the interface face.
 				if isBar {
 					title.Font(a.settings().FontFamily).FontWeight(520)
 				}
