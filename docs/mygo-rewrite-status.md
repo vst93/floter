@@ -100,6 +100,68 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
+> **本轮：P7-hp 用户报告第四次复查 + Integrations 面板命令列表行族对齐原版**
+>
+> 用户报告的两条（① 搜索页左右大空白；② 输入内容时「在终端中打开」固定第一项、缺选中态）本轮
+> **第四次复跑**：空字段 caret x=16、结果行标题 x=54（本轮在 `small`/`default`/`large` 三档均实测）;
+> 输入 `term`/`git` 时动作栏是列表**末行**、`defaultsToShell` 把它交给选择（`git` query：before=0 →
+> bar 已在末行；selected=1 即 footer，带 `RaisedQuiet` + 接触投影 + 顶缘的选中面）；按住 `ui.Cmd`
+> 时 `term` query 的末行变为 `system-terminal-bare` 且 selected=2，松手后行消失。
+> `actionbarfooter_test.go` 七条 + `filters_test.go` 的 `TestHeldModifierBareTerminalRow` +
+> `search_test.go` 的 `TestMatchEmptyQueryKeepsTheCatalog` 全绿，确认 `5c2d60d` 已修。前置清理：
+> `git status` 干净，无未提交改动。`git log`/`git status`/全量门槛均确认无遗留。
+>
+> 随后回到常规迭代。按「用户可感知的视觉/交互差异优先」做了一次**参考 CSS 选择器普查**：
+> 把 `main:src/styles/{base,launcher,settings,extensions,terminal,plugin-config}.css` 的 502 个类名对
+> `internal/` + `docs/` + `.pending-bugs.md` 的提及集合做差，仍有 290 个从未出现。其中
+> `.extension-command-list__*` + `.extension-command-alias__*`（12 个选择器，设置面板里**成规模的
+> 唯一一处 `docs/` 与 `.pending-bugs.md` 双双为 0 提及的行族**）最值得先做——正文
+> `main:src/ExtensionsPanel.tsx:2777-2871` 与样式 `extensions.css:2206-2322` 从未逐字段比对过。
+>
+> **本轮清空的五条（原版 `ExtensionsPanel.tsx` + `extensions.css` 逐字段对照）**：
+> 1. **命令不是普通卡片行，是 `--hairline` 边的 `--glass-control` 盘**（P7-hp-1）。原版
+>    `.extension-command-list > .extension-command-list__row`（`extensions.css:2211-2220`）是
+>    `display:grid; gap:8px; padding:10px 12px; margin-bottom:8px; border:1px solid var(--hairline);
+>    border-radius:var(--ext-radius); background:var(--glass-control)`。本构建对每个命令画一条无盘的
+>    `a.row`。落地：新增 `commandList` / `commandPlate` 按原版逐字段绘制。
+> 2. **关态整盘暗一档（0.62），本构建没有**（P7-hp-2）。原版
+>    `.extension-command-list__row--off { opacity: 0.62 }`（`:2226-2228`，注释写明是 de-emphasis
+>    不是 disable）。落地：`commandPlate` 对 `!command.Enabled` 落 `Opacity(0.62)`。
+> 3. **行内三行寄存器错档，且缺「呼出词」行**（P7-hp-3）。原版 identity = `<code>{name}</code>`
+>    （caption/`--text-secondary`）+ 描述（空则 `noDescription`）+ `Summon with: …`
+>    （caption/`--text-muted`/0.85，`extensions.css:2257-2262,2310-2322`）。本构建行标签是正文档 strong
+>    墨、无描述也无呼出词行。落地：新增 `commandIdentity` + `commandTriggerWords`/`firstTriggerWord`
+>    （按原版 `pluginCommandTriggers`：id/name/aliases 各取首词、小写去重、空词丢弃）；`settingsui.Command`
+>    新增 `Aliases`，shell 从 `CommandInfo.Aliases` 灌入。
+> 4. **「· runtime unavailable」后缀是自造的**（P7-hp-4）。原版可用性只在扩展级 metadata 印一次
+>    （`ExtensionsPanel.tsx:2694-2695`），命令盘上没有任何 `available` 分支；`commandEnable` /
+>    `noDescription` / `commandTriggers` / `commandAliasFor` 四词是原版自己的，本构建缺。落地：删
+>    `IntegrationsUnavailable`，新增上述四键（en/zh 逐字取 `i18n.ts:560,570,571,573`）。
+> 5. **别名编辑器是盘的第二行（不是独立行），开关的点击面接错**（P7-hp-5）。原版
+>    `.extension-command-alias`（`:2270-2303`）与 identity 同在盘内；开关是独立 `<button
+>    aria-label={commandEnable}>`，整行标签不是第二个控制。本构建把别名框单开一条 `a.row`，且
+>    `labelClicked` 把整个标签框接成了开关。落地：新增 `commandAliasEditor`（label + input + taken
+>    同列）；`commandIdentity` 只读开关自身的 `.Changed()`。
+>
+> **验收**：新增 `internal/settingsui/commandlist_test.go` 三条——
+> `TestTheCommandListDrawsTheReferencePlates`（caption/hint/呼出词/`noDescription`/两个别名框都在，
+> 盘内像素 ≠ 页面像素，关态盘像素 ≠ 开态盘像素）、
+> `TestOnlyTheCommandSwitchTogglesTheCommand`（点命令名**不**翻转、点
+> `IntegrationsCommandEnable("Build")` 翻转并报下一状态）、
+> `TestCommandTriggerWordsMatchTheReferenceVocabulary`（5 行表）。变异核查：去掉盘的 Background+Border → 第一条红
+> （`{245 245 245} == {245 245 245}`）；加 `identity.Clicked()` → 第二条红
+> （`the command's name toggled the switch: [[ext jv true]]`）。同轮把两条 pin 旧形状的测试对齐
+> 新形状：`view_test.go` 的 `TestIntegrationCommandSwitches`（去自造后缀、按 `commandEnable` 点）、
+> `debounce_test.go` 的 `TestCommandAliasFieldDebouncesTyping`（点 `IntegrationsCommandAliasFor("Just run")`）。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./internal/...` 净、
+> `GOOS=linux/windows/darwin go build` 三平台过、
+> `go test -count=1 ./internal/{settingsui,i18n,shell,launcher,extensions}` 全绿。
+>
+> **清单状态**：`.pending-bugs.md` 顶部新增「本轮清空（Integrations 面板 · 命令列表行族 · P7-hp）」
+> 五条全部落地；新增一条**仍未锁定**（呼出词行的「仅 registry 认识时印」闸门，属集成逻辑），
+> 加上原有「扩展面板·配置表单」结构性一条。
+
 > **本轮：P7-ho 用户报告第三次复查 + 独立插件窗口（列表臂 / bar 寄存器 / body 面）对齐原版**
 >
 > 用户报告的两条（① 搜索页左右大空白；② 输入内容时「在终端中打开」固定第一项、缺选中态）本轮

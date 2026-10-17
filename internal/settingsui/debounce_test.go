@@ -134,13 +134,13 @@ func TestCommandAliasFieldDebouncesTyping(t *testing.T) {
 	}
 	tt.Frame()
 
-	rect, ok := tt.Find(copy.IntegrationsCommandAlias)
+	rect, ok := tt.Find(copy.IntegrationsCommandAliasFor("Just run"))
 	if !ok {
 		t.Fatalf("the alias field is not on screen: %q", tt.Texts())
 	}
-	tt.ClickAt(rect.X+rect.W+20, rect.Y+rect.H/2)
+	tt.ClickAt(rect.X+rect.W/2, rect.Y+rect.H/2)
 	tt.Frame()
-	if !tt.Focused(copy.IntegrationsCommandAlias) {
+	if !tt.Focused(copy.IntegrationsCommandAliasFor("Just run")) {
 		t.Fatal("the alias field did not take the keyboard")
 	}
 

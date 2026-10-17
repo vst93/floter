@@ -1667,18 +1667,15 @@ func TestIntegrationCommandSwitches(t *testing.T) {
 	if !tt.HasText("Just run") || !tt.HasText("Build") {
 		t.Fatalf("the command switches = %q", tt.Texts())
 	}
-	// A command whose runtime does not resolve says so rather than lying
-	// about being ready.
-	if !tt.HasText("Build  \u00b7  runtime unavailable") {
-		t.Errorf("the unavailable note is missing: %q", tt.Texts())
-	}
 	// The per-command switches carry their own caption and the one line that
 	// says what a switch does, above the list rather than on every row.
 	en := i18n.For("en").Settings
 	if !tt.HasText(en.IntegrationsCommands) || !tt.HasText(en.IntegrationsCommandsHint) {
 		t.Errorf("the command list caption/hint = %q", tt.Texts())
 	}
-	if err := tt.Click("Build  \u00b7  runtime unavailable"); err != nil {
+	// The switch's own accessible name is the reference's `commandEnable`
+	// wording, and it is the switch — not the row's label — that toggles.
+	if err := tt.Click(en.IntegrationsCommandEnable("Build")); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()

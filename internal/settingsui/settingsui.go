@@ -490,6 +490,12 @@ type Command struct {
 	ID          string
 	Name        string
 	Description string
+	// Aliases are the descriptor's own declared aliases, which together with
+	// the id and the name form the summon vocabulary the panel prints — the
+	// reference's `pluginCommandTriggers(command)` reads exactly these three
+	// sources (`plugins/external.ts:86-97`), so the words the panel shows are
+	// the words that enter the mode.
+	Aliases []string
 	// Enabled is whether the command may be summoned from the launcher.
 	Enabled bool
 	// Available is whether the integration's runtime resolves right now: a
@@ -2236,51 +2242,9 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			// The per-command switches' caption and the one line that says
 			// what a switch does, printed above the list rather than repeated
 			// on every row (the old build's R39).
-			a.row(c, copy.IntegrationsCommands, copy.IntegrationsCommandsHint, func() {})
-			for _, command := range integration.Commands {
-				command := command
-				label := command.Name
-				if label == "" {
-					label = command.ID
-				}
-				// A command whose runtime does not resolve says so on its own
-				// line rather than lying about being ready.
-				if !command.Available {
-					label += "  \u00b7  " + copy.IntegrationsUnavailable
-				}
-				on := command.Enabled
-				changed := false
-				labelClicked := a.row(c, label, "", func() {
-					if a.switchControl(c, &on).Label(label).Changed() {
-						changed = true
-					}
-				}, func() {
-					// The alias editor rides the command list itself: "this
-					// command, this alias" is edited where the command is
-					// already named. It is a text field, so it rides the
-					// reference's 180ms debounce: one write per pause, not one
-					// per keystroke (see debounce.go).
-					a.row(c, copy.IntegrationsCommandAlias, "", func() {
-						alias := command.Alias
-						if a.aliasField(c, &alias).Placeholder(copy.IntegrationsCommandAliasPlaceholder).
-							Label(copy.IntegrationsCommandAlias).Width(180).Changed() &&
-							a.Actions.SetCommandAlias != nil {
-							a.debounceAlias(integration.ID, command.ID, alias)
-						}
-						if command.Taken {
-							ui.Text(c, copy.IntegrationsCommandAliasTaken).
-								FontSize(t.FontSize - 1).TextColor(t.Danger)
-						}
-					})
-				})
-				if labelClicked {
-					on = !on
-					changed = true
-				}
-				if changed && a.Actions.SetCommandEnabled != nil {
-					a.Actions.SetCommandEnabled(integration.ID, command.ID, on)
-				}
-			}
+			a.sectionHeading(c, copy.IntegrationsCommands, nil)
+			a.sectionHint(c, copy.IntegrationsCommandsHint)
+			a.commandList(c, copy, integration)
 		}
 
 		if len(integration.Params) > 0 {
@@ -2673,6 +2637,161 @@ func (a *App) permissionAudit(c *ui.Context, copy i18n.Settings, integration Int
 		a.permissionTier(c, copy.PermissionsEnforcedLabel, copy.PermissionsEnforcedHint, true, language, enforced)
 		a.permissionTier(c, copy.PermissionsDisclosureLabel, copy.PermissionsDisclosureHint, false, language, disclosure)
 	})
+}
+
+// commandList draws an integration's commands as the reference's
+// `.extension-command-list` (`ExtensionsPanel.tsx:2777-2871`,
+// `extensions.css:2206-2281`): one plate per command, each holding the
+// identity line (name, description, the words that summon it and the launcher
+// switch) above the alias editor at the plate's full width. The port had one
+// flat settings row per command with the alias editor as its grey second line,
+// which is neither the reference's two-line plate nor its bordered list.
+func (a *App) commandList(c *ui.Context, copy i18n.Settings, integration Integration) {
+	t := a.cardTheme(c)
+	ui.Column(c).FillWidth().Gap(t.Space(2)).Children(func() {
+		for _, command := range integration.Commands {
+			command := command
+			a.commandPlate(c, copy, integration.ID, command)
+		}
+	})
+}
+
+// commandPlate is one command's card in the reference's list
+// (`.extension-command-list > .extension-command-list__row`): a
+// `--hairline`-edged, `--glass-control`-filled plate with the `--ext-radius`
+// corner and a 10px/12px padding pair. A command whose launcher switch is off
+// is dimmed as a whole (opacity 0.62) so its state reads before the switch is
+// found — a de-emphasis, never a disable (the alias editor and the switch stay
+// live).
+func (a *App) commandPlate(c *ui.Context, copy i18n.Settings, extensionID string, command Command) {
+	t := a.cardTheme(c)
+	tokens := a.tokens(c)
+	plate := ui.Column(c).FillWidth().Gap(t.Space(2)).
+		Padding(t.Space(2.5), t.Space(3)).
+		Radius(tokens.RadiusSM).Background(tokens.Control)
+	// `.extension-command-list__row` is a hairline-edged plate; the edge is a
+	// real 1px border here because the reference's own box is `border: 1px` and
+	// the plate's box was never a pinned metric.
+	plate.Border(1, tokens.Hairline)
+	if !command.Enabled {
+		plate.Opacity(0.62)
+	}
+	plate.Children(func() {
+		a.commandIdentity(c, copy, extensionID, command)
+		a.commandAliasEditor(c, copy, extensionID, command)
+	})
+}
+
+// commandIdentity is the reference's `.extension-command-list__head`
+// (`ExtensionsPanel.tsx:2815-2843`): the command's name, its description and
+// the words that summon it on the left, the launcher switch on the right. The
+// name is a `<code>` the reference set in the caption register at
+// `--text-secondary` (`.extension-command-list code`,
+// `extensions.css:2310-2316`); the description and the trigger line are the
+// muted caption the list's `span` rule gave (`:2318-2322`).
+func (a *App) commandIdentity(c *ui.Context, copy i18n.Settings, extensionID string, command Command) {
+	t := a.cardTheme(c)
+	tokens := a.tokens(c)
+	on := command.Enabled
+	toggled := false
+	name := command.Name
+	if name == "" {
+		name = command.ID
+	}
+	h := ui.Row(c).FillWidth().AlignItems(ui.Start).Gap(t.Space(3))
+	h.Children(func() {
+		identity := ui.Column(c).Grow(1).MinWidth(0).Gap(t.Space(0.5))
+		identity.Children(func() {
+			ui.Text(c, name).FontSize(tokens.Caption).
+				TextColor(tokens.TextSecondary).SingleLine().Ellipsis("\u2026")
+			description := command.Description
+			if description == "" {
+				description = copy.IntegrationsNoDescription
+			}
+			ui.Text(c, description).FontSize(tokens.Caption).
+				TextColor(t.TextMuted).SingleLine().Ellipsis("\u2026")
+			// The summon words are the reference's own "Summon with: …" line,
+			// printed only when the command is one the provider registry knows —
+			// the same vocabulary the launcher's trigger parser reads.
+			if words := commandTriggerWords(command); len(words) > 0 {
+				ui.Text(c, copy.IntegrationsCommandsTriggers(strings.Join(words, ", "))).
+					FontSize(tokens.Caption).TextColor(t.TextMuted).Opacity(0.85).
+					SingleLine().Ellipsis("\u2026")
+			}
+		})
+		// The switch rides the identity line's own top (the reference's
+		// `align-items: flex-start` + `margin-top: 2px`). Its own click is the
+		// toggle — never the whole line's, or the label would toggle too and
+		// the two would cancel.
+		if a.switchControl(c, &on).Label(copy.IntegrationsCommandEnable(name)).
+			Margin(t.Space(0.5), 0, 0, 0).Changed() {
+			toggled = true
+		}
+	})
+	if toggled && a.Actions.SetCommandEnabled != nil {
+		a.Actions.SetCommandEnabled(extensionID, command.ID, on)
+	}
+}
+
+// commandAliasEditor is the reference's `.extension-command-alias`
+// (`ExtensionsPanel.tsx:2852-2868`): the caption label over the input, on the
+// plate's full width. The input is the panel's own inline box (see
+// `aliasField`), and the taken note is the muted caption line under it. It is
+// a text field, so it rides the reference's 180ms debounce: one write per
+// pause, not one per keystroke (see debounce.go).
+func (a *App) commandAliasEditor(c *ui.Context, copy i18n.Settings, extensionID string, command Command) {
+	t := a.cardTheme(c)
+	tokens := a.tokens(c)
+	ui.Column(c).FillWidth().Gap(t.Space(0.5)).Children(func() {
+		ui.Text(c, copy.IntegrationsCommandAlias).FontSize(tokens.Caption).TextColor(t.TextMuted)
+		alias := command.Alias
+		name := command.Name
+		if name == "" {
+			name = command.ID
+		}
+		if a.aliasField(c, &alias).Placeholder(copy.IntegrationsCommandAliasPlaceholder).
+			Label(copy.IntegrationsCommandAliasFor(name)).FillWidth().Changed() &&
+			a.Actions.SetCommandAlias != nil {
+			a.debounceAlias(extensionID, command.ID, alias)
+		}
+		if command.Taken {
+			ui.Text(c, copy.IntegrationsCommandAliasTaken).
+				FontSize(tokens.Caption).TextColor(t.TextMuted)
+		}
+	})
+}
+
+// commandTriggerWords is a command's summon vocabulary: its id, its name and
+// its declared aliases, each reduced to its first whitespace-separated token —
+// the reference's `pluginCommandTriggers` (`plugins/external.ts:86-97`), which
+// the launcher's trigger parser reads too, so the words the plate prints are
+// exactly the words that enter the mode. A word that does not begin with an
+// ASCII letter or digit is dropped: the trigger split the launcher applies
+// needs a typeable first character, and the reference's own de-duplication
+// would otherwise print a word nothing can summon.
+func commandTriggerWords(command Command) []string {
+	seen := map[string]bool{}
+	words := make([]string, 0, 3)
+	for _, source := range append([]string{command.ID, command.Name}, command.Aliases...) {
+		word := firstTriggerWord(strings.TrimSpace(source))
+		key := strings.ToLower(word)
+		if word == "" || seen[key] {
+			continue
+		}
+		seen[key] = true
+		words = append(words, word)
+	}
+	return words
+}
+
+// firstTriggerWord is the first whitespace-separated token of a source word:
+// the reference reduces every trigger source to it because the mode is entered
+// by one word followed by a space (`plugins/external.ts:79-84`).
+func firstTriggerWord(source string) string {
+	if fields := strings.Fields(source); len(fields) > 0 {
+		return fields[0]
+	}
+	return ""
 }
 
 // permissionLine names the package's permissions, marking the ones the host

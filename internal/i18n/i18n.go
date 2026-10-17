@@ -575,6 +575,21 @@ type Settings struct {
 	// IntegrationsCommands is the per-command switch list's caption, and
 	// IntegrationsCommandsHint explains what a switch does.
 	IntegrationsCommands string
+	// IntegrationsCommandsTriggers is the "Summon with: {words}" line a
+	// command row prints when the provider registry knows the command
+	// (`settings.extensions.commandTriggers`, `src/i18n.ts:570`) — the same
+	// vocabulary `pluginCommandTriggers` builds, so the words the panel
+	// prints are exactly the words that enter the mode.
+	IntegrationsCommandsTriggers func(words string) string
+	// IntegrationsCommandEnable is a command switch's own accessible name:
+	// "Enable {command} in the launcher" (`settings.extensions.commandEnable`,
+	// `src/i18n.ts:571`).
+	IntegrationsCommandEnable func(command string) string
+	// IntegrationsNoDescription is the reference's stand-in for a command
+	// the provider described without a description
+	// (`settings.extensions.noDescription`, `src/i18n.ts:560`): the row says
+	// so rather than leaving the line blank.
+	IntegrationsNoDescription string
 	// The orphan operations: adopting a package directory the repository does
 	// not name, and deleting one.
 	IntegrationsAdopt       string
@@ -976,7 +991,11 @@ type Settings struct {
 	IntegrationsCommandAlias            string
 	IntegrationsCommandAliasPlaceholder string
 	IntegrationsCommandAliasTaken       string
-	IntegrationsUnavailable             string
+	// IntegrationsCommandAliasFor is the alias field's own accessible name:
+	// "Alias for {command}" (`settings.extensions.commandAliasFor`,
+	// `src/i18n.ts:573`), so a screen reader names the command the field
+	// belongs to.
+	IntegrationsCommandAliasFor func(command string) string
 	// RuntimeUnavailable is the badge the reference's ExtensionRow drew in the
 	// meta line when `!extension.runtimeAvailable`
 	// (`src/extensions/ExtensionRow.tsx:258-272`): "Tool unavailable" /

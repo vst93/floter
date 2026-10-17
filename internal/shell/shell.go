@@ -1436,6 +1436,7 @@ func (a *App) integrationList() []settingsui.Integration {
 			ID:          info.CommandID,
 			Name:        info.Name,
 			Description: info.Description,
+			Aliases:     append([]string{}, info.Aliases...),
 			Enabled:     switches.Enabled(info.ExtensionID, info.CommandID),
 			Available:   info.Available,
 			Alias:       alias,
