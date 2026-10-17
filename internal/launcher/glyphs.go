@@ -56,6 +56,13 @@ var (
 	glyphInfo   = ui.MustParseSVG([]byte(glyphSource(`<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>`)))
 	glyphWindow = ui.MustParseSVG([]byte(glyphSource(`<rect width="20" height="16" x="2" y="4" rx="2"/><path d="M6 8h.01"/><path d="M10 8h.01"/>`)))
 	glyphClose  = ui.MustParseSVG([]byte(glyphSource(`<path d="M18 6 6 18"/><path d="m6 6 12 12"/>`)))
+	// glyphChevronRight and glyphChevronDown are lucide's two disclosure marks,
+	// the pair the reference's run-output block leads and closes with
+	// (`ExtensionRow.tsx:516-527` opens the folded affordance with a 12px
+	// `ChevronRight`, `:483-497` closes the open block with a 14px
+	// `ChevronDown`).
+	glyphChevronRight = ui.MustParseSVG([]byte(glyphSource(`<path d="m9 18 6-6-6-6"/>`)))
+	glyphChevronDown  = ui.MustParseSVG([]byte(glyphSource(`<path d="m6 9 6 6 6-6"/>`)))
 	// glyphPin is lucide's Pin, the reference's detach button for external
 	// commands (R84 — `.collapsed-card__settings` with a `<Pin size={16}/>`).
 	// The pin puts the plugin page's command + current argv into its own
@@ -318,6 +325,10 @@ func Glyph(name string) (*ui.SVG, bool) {
 		return glyphWindow, true
 	case "close":
 		return glyphClose, true
+	case "chevron-right":
+		return glyphChevronRight, true
+	case "chevron-down":
+		return glyphChevronDown, true
 	case "pin":
 		return glyphPin, true
 	case "clipboard":

@@ -30,6 +30,7 @@ import (
 	"floter/internal/settings"
 	"floter/internal/shortcuts"
 	"floter/internal/terminalui"
+	"floter/internal/theme"
 )
 
 // The settings pages, in sidebar order.
@@ -5999,51 +6000,142 @@ func paramFailureMessage(copy i18n.Settings, params []extensions.ParamDefinition
 	}
 }
 
-// runOutput is one integration's last background run, drawn in its row: a
-// folded "View output" line, and the block itself when open — a fixed-height
-// scroller inside the card, never an overlay, because routine feedback does
-// not deserve a dialog. The old panel's `.extension-row__output` had the same
-// four facts: the heading, the truncation mark at both ends, the empty line,
-// and the way to fold it again.
+// The run-output block: one integration's last background run, drawn in its
+// row — a folded "View output" line, and the block itself when open, a
+// fixed-height scroller in the row's own column rather than an overlay, because
+// routine feedback does not deserve a dialog. The reference's
+// `.extension-row__output` (`extensions.css:1199-1267`) is the shape; see
+// `runoutput_test.go` for the pins.
+//
+// runOutputFont is the captured-output block's own type: the reference set
+// `.extension-row__output-body` in the terminal's monospace stack
+// (`extensions.css:1210-1221`) because the text it holds is a program's own
+// output, not a sentence.
+const runOutputFont = "SF Mono, Menlo, Monaco, Consolas, monospace"
+
+// runOutputFace is the block's own fill: the reference's `--surface-sunken`
+// recess (`extensions.css:1199-1205`) — the same shell the run form's box
+// wears — never the card's raised `--glass-control` plane the port gave it.
+// Named here rather than inlined so the one fact has one home and a test can
+// read it without guessing at a composite.
+func runOutputFace(tokens theme.Tokens) ui.Color { return tokens.Sunken }
+
+// runOutputToggleFace is the folded affordance's fill at rest and under the
+// pointer: transparent, then `--ext-bg-hover` (`extensions.css:1249,1252-1255`).
+func runOutputToggleFace(tokens theme.Tokens, hovered bool) ui.Color {
+	if hovered {
+		return tokens.ControlHover
+	}
+	return ui.Transparent
+}
+
+// runOutput is the last background run's captured output, drawn as the
+// reference's `.extension-row__output` block (`extensions.css:1199-1223`, the
+// markup at `ExtensionRow.tsx:478-512`).
 func (a *App) runOutput(c *ui.Context, copy i18n.Settings, integration Integration) {
 	result, ok := a.runOutputs[integration.ID]
 	if !ok || integration.Orphan {
 		return
 	}
 	if !a.outputOpen[integration.ID] {
-		if a.row(c, copy.RunViewOutput, "", func() {
-			if a.actionButton(c, copy.RunViewOutput).Clicked() {
-				a.setRunOutputOpen(integration.ID, true)
-			}
-		}) {
-			a.setRunOutputOpen(integration.ID, true)
-		}
+		// The folded affordance is not a settings row with an action pill: the
+		// reference's `.extension-row__output-toggle` is a **text control** that
+		// names what it opens — a 12px ChevronRight then the word — on its own
+		// line so it cannot be mistaken for one of the row's icon actions
+		// (`ExtensionRow.tsx:516-527`, `extensions.css:1243-1256`). The port
+		// drew a whole ruled row whose whole label was the pill.
+		a.runOutputToggle(c, copy, integration.ID)
 		return
 	}
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
-	ui.Column(c).FillWidth().Gap(t.Space(1.5)).Padding(t.Space(2), t.Space(3.5)).Children(func() {
-		ui.Row(c).FillWidth().Gap(t.Space(2)).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, copy.RunLastOutput).FontSize(t.FontSize - 1).FontWeight(600).TextColor(tokens.TextStrong)
-			if result.Truncated {
-				ui.Text(c, copy.RunOutputTruncated).FontSize(t.FontSize - 1).TextColor(t.Warning)
-			}
-			ui.Row(c).Grow(1)
-			if a.actionButton(c, copy.RunHideOutput).Clicked() {
-				a.setRunOutputOpen(integration.ID, false)
-			}
+	// The block is the row's own full-width line, exactly as the run form's box
+	// is: it spans the row's *content column* (the inset every row's label
+	// carries), not the card's frame — the reference draws it inside
+	// `.extension-row__open`'s `main` cell, one row padding in from the card
+	// (`extensions.css:1199`, `ExtensionRow.tsx:478-490`). The port let it span
+	// the card, where it read as a second card rather than as the row's own
+	// block.
+	inset := a.rowInset(t)
+	ui.Column(c).FillWidth().Padding(0, inset, 0, inset).Children(func() {
+		ui.Column(c).FillWidth().Gap(t.Space(1)).Padding(t.Space(1.5), t.Space(2)).
+			// The block wears the reference's own surface: `.extension-row__output` is a
+			// `--surface-sunken` recess under a `--glass-control-edge` hairline with the
+			// `--ext-radius` corner — the same shell the run form's box wears, so the two
+			// inline blocks read as one family (and neither as a raised card).
+			Border(1, tokens.ControlEdge).Radius(tokens.RadiusSM).Background(runOutputFace(tokens)).Clip().
+			Children(func() {
+				// The head: the block's own name in the caption register at 600 in
+				// `--text-tertiary`, the truncation mark as an unstyled aside beside it,
+				// and the close chevron at the row's end (`extensions.css:1226-1235`).
+				ui.Row(c).FillWidth().Gap(t.Space(2)).AlignItems(ui.Center).Children(func() {
+					ui.Text(c, copy.RunLastOutput).FontSize(tokens.Caption).FontWeight(600).
+						TextColor(tokens.TextTertiary)
+					if result.Truncated {
+						ui.Text(c, copy.RunOutputTruncated).FontSize(tokens.Caption).
+							TextColor(tokens.TextTertiary)
+					}
+					ui.Row(c).Grow(1)
+					if a.extensionIconButton(c, "chevron-down", copy.RunHideOutput, false).Clicked() {
+						a.setRunOutputOpen(integration.ID, false)
+					}
+				})
+				// The captured text itself: the monospace stack at the caption step, 1.45
+				// line height and the strong ink, selectable because a reader copies out
+				// of it (`extensions.css:1238-1258`). The empty state keeps the same line
+				// box, in muted italics rather than as a blank sliver (`:1259-1267`).
+				ui.Scroll(c.Key("settings.runoutput." + integration.ID)).TrackScroll(a.runOutputScroll(integration.ID)).
+					FillWidth().MaxHeight(t.Space(45)).Children(func() {
+					if !result.HasOutput() {
+						ui.Text(c, copy.RunNoOutput).FontSize(tokens.Caption).
+							TextColor(t.TextMuted).Italic()
+						return
+					}
+					ui.Text(c, result.Text()).Font(runOutputFont).FontSize(tokens.Caption).
+						TextColor(tokens.TextStrong).LineHeight(1.45).Wrap().Selectable()
+				})
+				// The truncation mark at the *end* of the text: the place a reader
+				// reaches when the output stops, which the head's own mark cannot say
+				// once they have scrolled (`ExtensionRow.tsx:503-511`).
+				if result.Truncated {
+					ui.Text(c, copy.RunOutputTruncatedTail).FontSize(tokens.Caption).
+						TextColor(tokens.TextTertiary).Italic()
+				}
+			})
+	})
+}
+
+// runOutputToggle is the folded output block's own affordance: the reference's
+// `.extension-row__output-toggle` (`extensions.css:1243-1256`,
+// `ExtensionRow.tsx:516-527`) — a 12px ChevronRight then the word, on the row's
+// own line, transparent at rest and lifting to the hover fill under the
+// pointer. It is a text control, not an icon button, which is what keeps it
+// from reading as one of the row's four action pills.
+func (a *App) runOutputToggle(c *ui.Context, copy i18n.Settings, id string) {
+	t := a.cardTheme(c)
+	tokens := a.tokens(c)
+	// The affordance is the row's own full-width line, like the block it opens:
+	// it carries the row's content-column inset, so its chevron and word start
+	// where the opened block's head does rather than at the card's frame.
+	inset := a.rowInset(t)
+	ui.Column(c).FillWidth().Padding(0, inset, 0, inset).Children(func() {
+		ink := tokens.TextTertiary
+		button := ui.ButtonBase(c).Label(copy.RunViewOutput).FillWidth().
+			MinHeight(t.Space(7)).Gap(t.Space(1)).Padding(0, t.Space(2)).
+			AlignItems(ui.Center).Justify(ui.Start).
+			Border(0, ui.Transparent).Radius(tokens.RadiusXS).
+			Background(ui.Transparent)
+		hovered := button.Hovered()
+		if hovered {
+			ink = t.Text
+		}
+		button.Background(runOutputToggleFace(tokens, hovered))
+		button.Children(func() {
+			ui.Icon(c, mustGlyph("chevron-right")).Size(t.Space(3), t.Space(3)).TextColor(ink)
+			ui.Text(c, copy.RunViewOutput).FontSize(tokens.Caption).TextColor(ink)
 		})
-		ui.Scroll(c.Key("settings.runoutput." + integration.ID)).TrackScroll(a.runOutputScroll(integration.ID)).
-			FillWidth().MaxHeight(t.Space(22)).Children(func() {
-			if !result.HasOutput() {
-				ui.Text(c, copy.RunNoOutput).FontSize(t.FontSize).TextColor(t.TextMuted)
-				return
-			}
-			ui.Text(c, result.Text()).FontSize(t.FontSize).TextColor(t.Text).
-				Font(a.Store.Snapshot().FontFamily).Selectable()
-		})
-		if result.Truncated {
-			ui.Text(c, copy.RunOutputTruncatedTail).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+		if button.Clicked() {
+			a.setRunOutputOpen(id, true)
 		}
 	})
 }
