@@ -100,6 +100,56 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
+> **本轮：P7-hk/P7-hj 用户报告复查 + 启动器告警行与行尾控件对齐原版**
+>
+> 用户报告的两条（① 搜索页左右大空白；② 输入内容时「在终端中打开」固定第一项、缺选中态）本轮再次
+> 逐项复跑：`internal/launcher/actionbarfooter_test.go` 五条 + `filters_test.go` 的
+> `TestHeldModifierBareTerminalRow` 全绿，确认 `5c2d60d` 已修。前置清理：`git status` 干净，无未提交
+> 改动。随后回到常规迭代，按「用户可感知的视觉差异优先」审计**唯一从未逐字段对照过的告警行家族**
+> （`.launcher-system-confirm` / `.launcher-feedback`，两者在 `docs/` 里的选择器出现数都是 0）。
+>
+> **本轮清空的两条（原版 `main:src/styles/launcher.css` 逐字段对照）**：
+> 1. **电源确认的两个按钮穿了框架的通用填充药丸**（P7-hj-1）。原版
+>    `.launcher-system-confirm__execute` / `__cancel`（`launcher.css:783-830`）都是同一个 24u 安静
+>    chip（8u 侧 padding、1px 透明 hairline、`--radius-xs`、带自身的 `--text-warning` 墨、600）；
+>    只有 execute 一支落 `--glass-raised-warm` + `--glass-control-edge` + `--glass-raised-shadow`，
+>    hover 升到 `--glass-raised-warm-hover`，cancel 静止透明、hover 落 `--glass-control-hover` +
+>    `--text-primary`。本构建两个都写 `ui.Button`（框架灰调填充面 + 自身 padding/radius）。落地：
+>    `power.go` 新增 `confirmPowerButton` 按两支各自画像绘制；行的 28u 高改回原版 30u、sentence
+>    字重 580 → 560。
+> 2. **warning 反馈行的盘是死代码，且取自 token 的 hover 档**（P7-hj-2）。原版
+>    `.launcher-feedback--warning`（`launcher.css:711-716`）的盘是 `--glass-raised-warm`
+>    （`base.css:611` = `--system-icon-surface` 的别名，与静止盘同值）。本构建先在
+>    `feedback.Background(background)` 落盘、**之后**才在 `if a.toastWarning` 里改写 `background`，
+>    所以 warning 分支的盘从未被画上；且改写值本身是 `tokens.IconSurfaceHover`（错一档）。落地：
+>    `.Background` 移到 variant 分支之后，warning 支改 `tokens.RaisedWarm`。
+>
+> **验收**：新增 `internal/launcher/powerfaces_test.go` 两条——
+> `TestThePowerConfirmButtonsWearTheirOwnFaces`（execute 盒内平面 == `IconSurface` 不透明合成值、
+> cancel 静止 == band 自身）、`TestTheWarningFeedbackRowPaintsTheRestingWarmPlane`（进入动画跑满后
+> 行的空白像素 == `RaisedWarm` 合成值、且 != `IconSurfaceHover` 合成值）。变异核查：两个按钮换回
+> `ui.Button` → 灰盘 `{244 244 245}` vs 暖色 `{244 221 203}` 红；warning 盘换回 `IconSurfaceHover`
+> → `{245 225 209}` vs `{249 236 227}` 红；把 `.Background` 挪回分支前 → 死代码再现、两条都红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./internal/...` 净、`GOOS=linux/windows/darwin go build`
+> 三平台过、`go test -count=1 ./internal/{launcher,shell,settingsui}` 全绿。
+>
+> **同轮追加的 P7-hk 三条（行尾控件与 status 记号，原版 `launcher.css:1378-1431` +
+> `LauncherResults.tsx:987-991,752-754,1001-1005`）**：
+> 1. **行尾 pin 自成一幅面孔**：`rowControl` 是 `launcher-result__pin collapsed-card__settings`，
+>    即复用字段行的共享三态；本构建却用 muted 墨 + 平 hover 面、无按压。落地改走
+>    `fieldSettingsButton` 的同一面孔（验收 `TestTheRowPinSinksLikeTheSharedFieldControl`）。
+> 2. **收藏星墨重一档且从不填充**：原版静止 tertiary、hover/on 抬到 secondary，且
+>    `fill={favorite ? "currentColor" : "none"}`（字面 13）；本构建静止 muted、hover/favorite 抬到
+>    primary、字形 14u 随档且永远描边。落地：墨改 tertiary/secondary，新增 `glyphStarFilled`
+>    （`Glyph("star-filled")`）、字形字面 13、收藏态用填充记号（验收
+>    `TestTheFavouritedStarIsPaintedIn`）。
+> 3. **status 的 `info` 记号 16u 随档**：原版是字面 14；落地改 `Size(14, 14)`（验收
+>    `TestTheStatusNoteMarkIsTheReferenceLiteralFourteen`）。
+>
+> **清单状态**：`.pending-bugs.md` 顶部新增「本轮清空（P7-hj/P7-hk）」共 5 条，均落地；启动器
+> 「仍未锁定」归零，只剩「扩展面板·配置表单」的结构性一条。
+
 > **本轮：P7-hi 用户报告复查 + 启动器字段行横向接缝与共享控件面对齐原版**
 >
 > 用户报告的两条（① 搜索页左右大空白；② 输入内容时「在终端中打开」固定第一项、缺选中态）本轮

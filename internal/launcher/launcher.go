@@ -1292,16 +1292,35 @@ func (a *App) modeShortcuts(c *ui.Context) {
 // rowControl is one of a launcher row's own trailing controls: a 20u hit
 // region and its mark, which the selection brings with it — the reference's
 // `.launcher-result__pin`, never a filled pill in a list of quiet rows.
+//
+// The reference's pin is literally `.launcher-result__pin collapsed-card__settings`
+// (`LauncherResults.tsx:1001-1005`): it wears the field row's own shared control
+// faces at the row's 20u size — resting in `--text-tertiary`
+// (`main:src/styles/launcher.css:397`), the pointer lifting it to
+// `--glass-control-hover` + `--text-strong` + the resting lens (`:400-404`), and
+// the press sinking it 0.92 over `--glass-control-press` (`:407-411`). The port
+// had given it a face of its own — muted ink, a flat `--glass-control-hover`
+// fill and no press — so the row's pin and the field's four trailing controls
+// did not answer the pointer alike.
 func (a *App) rowControl(c *ui.Context, name, label string, run func()) {
 	t := c.Theme()
+	tokens := theme.ForPreferences(a.settings(), t.Dark, c.Preferences())
 	control := ui.Row(c).Focusable().Shrink(0).Size(t.Space(5), t.Space(5)).
-		AlignItems(ui.Center).Justify(ui.Center).Label(label).Tooltip(label)
-	if control.Hovered() {
-		control.Background(t.SurfaceHover)
+		Radius(tokens.RadiusXS).AlignItems(ui.Center).Justify(ui.Center).
+		Label(label).Tooltip(label).
+		Transition(ui.ElementTransition{Duration: 120 * time.Millisecond, Colors: true})
+	ink := tokens.TextTertiary
+	switch {
+	case control.Pressed():
+		control.Background(tokens.ControlPress).Scale(0.92, 0.92)
+		ink = tokens.TextStrong
+	case control.Hovered():
+		tokens.Lens(control.Background(tokens.ControlHover))
+		ink = tokens.TextStrong
 	}
 	control.Children(func() {
 		if glyph, ok := Glyph(name); ok {
-			ui.Icon(c, glyph).Size(t.Space(3.5), t.Space(3.5)).TextColor(t.TextMuted)
+			ui.Icon(c, glyph).Size(t.Space(3.5), t.Space(3.5)).TextColor(ink)
 		}
 	})
 	if control.Clicked() {
@@ -1649,11 +1668,14 @@ func (a *App) row(c *ui.Context, item Item, i int) {
 			AlignItems(ui.Center).Padding(0, t.Space(3)).Gap(t.Space(2.5))
 		note.Children(func() {
 			// The 28u icon column, as `.launcher-status__icon` was: no plate,
-			// only the mark.
+			// only the mark — and the mark is the reference's **literal** 14
+			// (`<InfoIcon size={14}/>`, `main:src/launcher/LauncherResults.tsx:752-754`),
+			// not a `--u` step: the glyph stays 14px at every interface size while the
+			// column around it scales.
 			ui.Box(c).Size(t.Space(7), t.Space(7)).Shrink(0).
 				AlignItems(ui.Center).Justify(ui.Center).Children(func() {
 				if glyph, ok := Glyph("info"); ok {
-					ui.Icon(c, glyph).Size(t.Space(4), t.Space(4)).
+					ui.Icon(c, glyph).Size(14, 14).
 						TextColor(tokens.TextTertiary)
 				}
 			})
@@ -1962,6 +1984,13 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 		// hovered or chosen, and shown whenever the entry is starred. Clicking
 		// it stars the entry without running the row.
 		//
+		// Its ink is the reference's own ladder: `--text-tertiary` at rest
+		// (`.launcher-result__favorite`, `main:src/styles/launcher.css:1378-1387`),
+		// lifted to `--text-secondary` on hover or while favourited (`:1395-1397`)
+		// — **never** the accent, and never a pane behind it. The port had rested
+		// on the heavier `--text-muted` and lifted all the way to `--text-primary`,
+		// one register heavy at both ends.
+		//
 		// R50 · the star is hidden while the row's delete is armed: the old
 		// build's `!deleteArmed` condition swapped the star for the "press
 		// again" note, so a half-finished confirmation never offered a
@@ -1978,13 +2007,25 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 			if !shown {
 				star.Opacity(0)
 			}
-			color := t.TextMuted
+			// The star is a state marker, not a control: `--text-secondary` is the
+			// strongest colour it ever takes (`:1395-1397`), whether hovered or on.
+			color := tokens.TextTertiary
 			if favorite || star.Hovered() {
-				color = t.Text
+				color = tokens.TextSecondary
 			}
+			// The star's mark is the reference's literal 13
+			// (`<StarIcon size={13}/>`, `LauncherResults.tsx:987-991`) and it is
+			// **painted in** while the entry is starred — the same icon with
+			// `fill={currentColor}` — where a stroke-only mark reads as "not starred"
+			// at this size. The port drew it at `Space(3.5)` (14u, scaling with the
+			// interface step) and never filled it.
 			star.Children(func() {
-				if glyph, ok := Glyph("star"); ok {
-					ui.Icon(c, glyph).Size(t.Space(3.5), t.Space(3.5)).TextColor(color)
+				name := "star"
+				if favorite {
+					name = "star-filled"
+				}
+				if glyph, ok := Glyph(name); ok {
+					ui.Icon(c, glyph).Size(13, 13).TextColor(color)
 				}
 			})
 			if star.Clicked() {
@@ -2347,7 +2388,7 @@ func (a *App) feedbackRow(c *ui.Context) {
 	background := tokens.IconSurface
 	feedback := ui.Row(c).Absolute().Bottom(0).Left(t.Space(1)).Right(t.Space(1)).Height(t.Space(7.5)).
 		Padding(0, t.Space(3)).Gap(t.Space(2)).AlignItems(ui.Center).
-		Radius(tokens.RadiusSM).Background(background).
+		Radius(tokens.RadiusSM).
 		// The row enters as the old build's `feedback-enter` did (its
 		// --dur-3, 160ms).
 		Transition(ui.ElementTransition{
@@ -2355,16 +2396,25 @@ func (a *App) feedbackRow(c *ui.Context) {
 			Duration: 160 * time.Millisecond,
 		})
 	if a.toastWarning {
-		// `.launcher-feedback--warning` takes the raised-warm plane (the same
-		// token's hover rung), the warning keyline and `--glass-raised-shadow`:
-		// the `--elev-2` contact step (a function of the frame's own alpha, so
-		// its 0.2 is scaled here exactly as the terminal note's is) plus the
-		// pane's lit top rim. The non-warning row carries none of them.
-		background, weight = tokens.IconSurfaceHover, 600
+		// `.launcher-feedback--warning` takes the raised-warm plane, the warning
+		// keyline and `--glass-raised-shadow`: the `--elev-2` contact step (a
+		// function of the frame's own alpha, so its 0.2 is scaled here exactly as
+		// the terminal note's is) plus the pane's lit top rim. The non-warning row
+		// carries none of them.
+		//
+		// The warning's fill is `--glass-raised-warm`, which base.css declares as an
+		// **alias of `--system-icon-surface`** (`base.css:611`) — the same amber
+		// plane the resting row already wears. Only the keyline, the shadows and the
+		// weight step up.
+		background, weight = tokens.RaisedWarm, 600
 		feedback.Border(1, tone)
 		feedback.Shadow(0, t.Space(0.25), t.Space(0.5), 0, ui.RGBA(0, 0, 0, 0.2))
 		feedback.InsetShadow(0, 1, 0, 0, tokens.LensRim)
 	}
+	// The fill lands after the variant has picked it: painting the row before
+	// the branch ran left the warning's own plane unreachable — the row read the
+	// resting amber in both states.
+	feedback.Background(background)
 	feedback.Children(func() {
 		ui.Icon(c, glyphAlert).Size(t.Space(4), t.Space(4)).TextColor(tone)
 		ui.Text(c, a.toast).FontSize(t.FontSize).FontWeight(weight).TextColor(tone).Grow(1)

@@ -130,6 +130,11 @@ func (a *App) powerMessage() string {
 // (`main:src/styles/launcher.css:756-770`): `--system-icon-surface`, the warm
 // amber plane a power entry wears — **not** the warning ink at a low alpha,
 // which is the label's colour and belongs on the icon and the sentence.
+//
+// The band is the launcher's own 30u alert row (`min-height: calc(var(--u) *
+// 30)`, `:757`), the same band `.launcher-feedback` reserves, and its sentence
+// rides the body step at 560 (`:766-767`) — the port had drawn the row 28u tall
+// with the sentence at 580, two units short and one weight heavy.
 func (a *App) confirmPowerRow(c *ui.Context) {
 	if a.pendingPower == "" {
 		return
@@ -137,19 +142,63 @@ func (a *App) confirmPowerRow(c *ui.Context) {
 	copy := a.copy()
 	t := c.Theme()
 	tokens := theme.ForPreferences(a.settings(), t.Dark, c.Preferences())
-	ui.Row(c).Absolute().Bottom(0).Left(t.Space(1)).Right(t.Space(1)).Height(t.Space(7)).
+	ui.Row(c).Absolute().Bottom(0).Left(t.Space(1)).Right(t.Space(1)).Height(t.Space(7.5)).
 		Padding(0, t.Space(3)).Gap(t.Space(2)).AlignItems(ui.Center).
 		Radius(tokens.RadiusSM).Background(tokens.IconSurface).Children(func() {
 		ui.Icon(c, glyphAlert).Size(t.Space(4), t.Space(4)).TextColor(t.Warning)
-		ui.Text(c, a.powerMessage()).FontSize(t.FontSize).FontWeight(580).
+		ui.Text(c, a.powerMessage()).FontSize(t.FontSize).FontWeight(560).
 			TextColor(t.Warning).Grow(1)
-		if ui.Button(c, a.powerActionName()).Clicked() {
-			a.confirmPower()
-		}
-		if ui.Button(c, copy.PowerCancel).Clicked() {
-			a.pendingPower = ""
-		}
+		a.confirmPowerButton(c, tokens, a.powerActionName(), true, a.confirmPower)
+		a.confirmPowerButton(c, tokens, copy.PowerCancel, false, func() { a.pendingPower = "" })
 	})
+}
+
+// confirmPowerButton draws one of the confirmation's two buttons: the
+// reference's `.launcher-system-confirm__execute` / `__cancel`
+// (`main:src/styles/launcher.css:783-830`). Both are the same quiet 24u chip —
+// an inline-flex box, 8u of side padding, a 1px transparent hairline and the
+// xs corner, carrying the band's own `--text-warning` ink at 600 — and the
+// *execute* face is the one the warm raised pane paints: `--glass-raised-warm`
+// (the `--system-icon-surface` plane), the `--glass-control-edge` hairline and
+// `--glass-raised-shadow` (the `--elev-2` contact cast plus the lit top rim).
+// Its hover is the warmer plane (`--glass-raised-warm-hover`); the cancel's is
+// the control ladder's own hover with the hairline and `--text-primary`.
+//
+// The port had drawn both with the framework's filled `ui.Button` — the theme's
+// grey pane, its radius and its body padding — so the confirmation read as a
+// pair of generic pills inside a warm band rather than as the reference's own
+// hairline chips.
+func (a *App) confirmPowerButton(c *ui.Context, tokens theme.Tokens, label string, execute bool, run func()) {
+	t := c.Theme()
+	button := ui.Row(c).Focusable().Shrink(0).MinHeight(t.Space(6)).
+		Padding(0, t.Space(2)).Radius(tokens.RadiusXS).
+		AlignItems(ui.Center).Justify(ui.Center).Label(label).
+		Transition(ui.ElementTransition{Colors: true, Duration: 120 * time.Millisecond})
+	ink := t.Warning
+	plane := ui.Transparent
+	edge := ui.Transparent
+	if execute {
+		plane, edge = tokens.RaisedWarm, tokens.ControlEdge
+	}
+	switch {
+	case execute && button.Hovered():
+		plane = tokens.IconSurfaceHover
+	case !execute && button.Hovered():
+		plane, edge, ink = tokens.ControlHover, tokens.ControlEdge, t.Text
+	}
+	button.Border(1, edge).Background(plane)
+	if execute {
+		// `--glass-raised-shadow` = the `--elev-2` contact step and the 1px lit
+		// top rim, exactly the action bar's own raised pane (see `rowBody`).
+		button.Shadow(0, t.Space(0.25), t.Space(0.5), 0, tokens.ShadowContact)
+		button.InsetShadow(0, 1, 0, 0, tokens.LensRim)
+	}
+	button.Children(func() {
+		ui.Text(c, label).FontSize(t.FontSize).FontWeight(600).TextColor(ink).SingleLine()
+	})
+	if button.Clicked() {
+		run()
+	}
 }
 
 // confirmPower runs the action the panel asked about, once, and clears it.

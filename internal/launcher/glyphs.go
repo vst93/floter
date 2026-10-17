@@ -28,13 +28,20 @@ func glyphSource(body string) string {
 // The glyph set, parsed once: a parse failure would be a programming error, so
 // the sources are trusted at the boundary that owns them.
 var (
-	glyphTerminal   = ui.MustParseSVG([]byte(glyphSource(`<polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/>`)))
-	glyphClock      = ui.MustParseSVG([]byte(glyphSource(`<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>`)))
-	glyphFile       = ui.MustParseSVG([]byte(glyphSource(`<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/>`)))
-	glyphFolder     = ui.MustParseSVG([]byte(glyphSource(`<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>`)))
-	glyphGlobe      = ui.MustParseSVG([]byte(glyphSource(`<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>`)))
-	glyphBookmark   = ui.MustParseSVG([]byte(glyphSource(`<path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/>`)))
-	glyphStar       = ui.MustParseSVG([]byte(glyphSource(`<path d="M11.5 3.1a.5.5 0 0 1 1 0l2.2 4.4 4.9.7a.5.5 0 0 1 .3.9l-3.6 3.4.9 4.9a.5.5 0 0 1-.8.5L12 15.6l-4.4 2.3a.5.5 0 0 1-.8-.5l.9-4.9L4.1 9.1a.5.5 0 0 1 .3-.9l4.9-.7z"/>`)))
+	glyphTerminal = ui.MustParseSVG([]byte(glyphSource(`<polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/>`)))
+	glyphClock    = ui.MustParseSVG([]byte(glyphSource(`<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>`)))
+	glyphFile     = ui.MustParseSVG([]byte(glyphSource(`<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/>`)))
+	glyphFolder   = ui.MustParseSVG([]byte(glyphSource(`<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>`)))
+	glyphGlobe    = ui.MustParseSVG([]byte(glyphSource(`<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>`)))
+	glyphBookmark = ui.MustParseSVG([]byte(glyphSource(`<path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/>`)))
+	glyphStar     = ui.MustParseSVG([]byte(glyphSource(`<path d="M11.5 3.1a.5.5 0 0 1 1 0l2.2 4.4 4.9.7a.5.5 0 0 1 .3.9l-3.6 3.4.9 4.9a.5.5 0 0 1-.8.5L12 15.6l-4.4 2.3a.5.5 0 0 1-.8-.5l.9-4.9L4.1 9.1a.5.5 0 0 1 .3-.9l4.9-.7z"/>`)))
+	// glyphStarFilled is the same lucide Star with its interior painted, the
+	// reference's favourited face (`LauncherResults.tsx:987-991` fills the path
+	// with `currentColor` when the entry is starred, `none` otherwise). It is a
+	// second source rather than a property toggle because the framework's icons
+	// carry no runtime fill switch — `ui.Icon` paints whatever the SVG says, in
+	// the text colour.
+	glyphStarFilled = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 3.1a.5.5 0 0 1 1 0l2.2 4.4 4.9.7a.5.5 0 0 1 .3.9l-3.6 3.4.9 4.9a.5.5 0 0 1-.8.5L12 15.6l-4.4 2.3a.5.5 0 0 1-.8-.5l.9-4.9L4.1 9.1a.5.5 0 0 1 .3-.9l4.9-.7z"/></svg>`))
 	glyphImage      = ui.MustParseSVG([]byte(glyphSource(`<rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/>`)))
 	glyphLink       = ui.MustParseSVG([]byte(glyphSource(`<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>`)))
 	glyphText       = ui.MustParseSVG([]byte(glyphSource(`<path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/>`)))
@@ -313,6 +320,8 @@ func Glyph(name string) (*ui.SVG, bool) {
 		return glyphClock, true
 	case "star":
 		return glyphStar, true
+	case "star-filled":
+		return glyphStarFilled, true
 	case "power":
 		return glyphPower, true
 	case "alert":
