@@ -2922,24 +2922,27 @@ func TestFreshnessRow(t *testing.T) {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	if !tt.HasText("Command list") {
-		t.Fatalf("the freshness row is missing: %q", tt.Texts())
+	// The block's own label is the reference's `freshness` word: the drawer's
+	// section h4 (`ExtensionsPanel.tsx:3133`), not the port's "Command list".
+	if !tt.HasText("Freshness") {
+		t.Fatalf("the freshness block is missing: %q", tt.Texts())
 	}
 	if !tt.HasText("Succeeded") {
 		t.Errorf("the result is missing: %q", tt.Texts())
 	}
-	// The delta says how far the list moved, and the count is the real one.
-	if !tt.HasText("Commands 3") {
+	// The count is its own node (the reference's `__count`), beside its own
+	// label and the delta word — not one glued sentence.
+	if !tt.HasText("3") {
 		t.Errorf("the count is missing: %q", tt.Texts())
 	}
-	if !tt.HasText("+2 since the scan before") {
+	if !tt.HasText("+2 since the previous probe") {
 		t.Errorf("the delta is missing: %q", tt.Texts())
 	}
-	// A never-probed integration shows no row at all.
+	// A never-probed integration shows no block at all.
 	a.Actions.Freshness = func(string) (extensions.Freshness, bool) { return extensions.Freshness{}, false }
 	tt.Frame()
-	if tt.HasText("Command list") {
-		t.Errorf("a never-probed integration shows a freshness row: %q", tt.Texts())
+	if tt.HasText("Freshness") {
+		t.Errorf("a never-probed integration shows a freshness block: %q", tt.Texts())
 	}
 }
 

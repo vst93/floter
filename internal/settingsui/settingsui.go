@@ -2169,9 +2169,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 		// integration nothing has ever probed — "unknown" is its own state,
 		// not a row of zeroes.
 		if hasFreshness {
-			a.row(c, copy.Freshness, a.freshnessDetail(copy, freshness), func() {
-				ui.Text(c, freshnessState(copy, freshness)).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
-			})
+			a.freshnessSection(c, copy, integration, freshness)
 		}
 
 		// The stored lifecycle health: the probe report lives in the repository,
@@ -5010,10 +5008,122 @@ func freshnessDotLabel(copy i18n.Settings, dot extensions.FreshnessDot) string {
 	return copy.FreshnessDot(word)
 }
 
-// freshnessDetail is the row's grey line: when the list was last derived and
-// how it moved. Every "we do not know" has its own words — a first scan has
-// nothing to compare against, and a never-probed integration has no time at
-// all.
+// freshnessSection draws the drawer's freshness block at the reference's own
+// faces (`ExtensionsPanel.tsx:3076-3176`, `extensions.css:1997-2119`): a block
+// label, a two-cell metadata grid, the command-count line, and the secondary
+// health-source note. What it replaces was one ruled card row whose grey
+// subline carried every fact in the row's own register.
+func (a *App) freshnessSection(c *ui.Context, copy i18n.Settings, integration Integration, freshness extensions.Freshness) {
+	t := a.cardTheme(c)
+	tokens := a.tokens(c)
+	// The section is the extension drawer's block label: the reference's
+	// `.extension-detail-block h4` — sentence case at the *secondary* ink,
+	// caption 620 (`extensions.css:2008-2013`). It is one voice with the
+	// metadata grid's own `dt` labels one line below, not the uppercase 650 in
+	// tertiary grey the port had reached for.
+	ui.Row(c).FillWidth().Children(func() {
+		ui.Text(c, copy.Freshness).FontSize(tokens.Caption).FontWeight(620).
+			TextColor(tokens.TextSecondary)
+	})
+	// The when/result line: the reference's two-column `.extension-metadata` grid
+	// (`extensions.css:2022-2050`) — a `dt` label at the *tertiary* caption step
+	// and its `dd` value at the *body* step in `--text-secondary`, two cells to a
+	// row with an 8u/16u gap pair. The port had flattened the pair into one
+	// ruled card row whose grey subline carried both facts in the row's register.
+	meta := ui.Row(c).FillWidth().GapX(t.Space(3)).GapY(0)
+	meta.Children(func() {
+		a.metadataCell(c, copy.FreshnessLastProbe, freshnessWhenValue(copy, freshness))
+		a.metadataCell(c, copy.FreshnessResult, freshnessState(copy, freshness))
+	})
+	// The command-count line: a flex row, not a metadata cell — the reference's
+	// `.extension-freshness__commands` (`extensions.css:2077-2111`) puts a
+	// tertiary caption label and the count at the row's own *body* step side by
+	// side with an 8u gap, then the muted `·` and the caption delta word; the
+	// port had folded both facts into the subline's prose.
+	count := copy.FreshnessCommandsUnknown
+	if freshness.CommandCount != nil {
+		count = strconv.Itoa(*freshness.CommandCount)
+	}
+	line := ui.Row(c).FillWidth().Gap(t.Space(2)).AlignItems(ui.Center)
+	line.Children(func() {
+		ui.Text(c, copy.FreshnessCommands).FontSize(tokens.Caption).
+			TextColor(tokens.TextTertiary)
+		ui.Text(c, count).FontSize(t.FontSize).FontWeight(600).
+			TextColor(tokens.TextStrong)
+		// The separator is the reference's own muted `·` between the count and the
+		// delta word (`extensions.css:2096-2103`); the delta word itself steps up
+		// one register — `--text-secondary` — only when the list actually moved,
+		// because a real movement is information and "no change" is not
+		// (`:2105-2111`).
+		ui.Text(c, "\u00b7").FontSize(tokens.Caption).TextColor(t.TextMuted)
+		ui.Text(c, freshnessDeltaWord(copy, freshness)).FontSize(tokens.Caption).
+			TextColor(freshnessDeltaInk(freshness, tokens, t)).SingleLine()
+	})
+	// The health report is the source of the time, not of the count: the
+	// reference states that once, as a *secondary* `.extension-detail-note` — one
+	// muted caption line with no pane, no rule and no border
+	// (`extensions.css:2006-2011,2114-2119`).
+	if freshness.Source == extensions.FreshnessHealth {
+		ui.Text(c, copy.FreshnessHealthSource).FontSize(tokens.Caption).
+			TextColor(t.TextMuted).Wrap()
+	}
+}
+
+// metadataCell is one `.extension-metadata` cell: its `dt` at the tertiary
+// caption step and its `dd` at the body step in the secondary ink
+// (`extensions.css:2033-2050`). The reference sized the value one step above
+// its own label, which is what keeps the pair from reading as two rows of the
+// same register.
+func (a *App) metadataCell(c *ui.Context, label, value string) {
+	tokens := a.tokens(c)
+	t := a.cardTheme(c)
+	ui.Column(c).Grow(1).MinWidth(0).Children(func() {
+		ui.Text(c, label).FontSize(tokens.Caption).TextColor(tokens.TextTertiary)
+		ui.Text(c, value).FontSize(t.FontSize).TextColor(tokens.TextSecondary).
+			SingleLine()
+	})
+}
+
+// freshnessWhenValue is the metadata grid's "last probe" value: how long ago
+// the list was derived, or the reference's "Never probed" word when nothing
+// ever did (`ExtensionsPanel.tsx:3136-3145`).
+func freshnessWhenValue(copy i18n.Settings, freshness extensions.Freshness) string {
+	if freshness.AtSeconds == 0 {
+		return copy.FreshnessNever
+	}
+	return freshnessWhen(copy, time.Since(time.Unix(freshness.AtSeconds, 0)))
+}
+
+// freshnessDeltaWord is the reference's `.extension-freshness__delta-text`
+// (`extensions.css:2100-2111`): the one sentence the count moved by, one per
+// kind. The count rides the copy's own formatter, so a locale words it itself.
+func freshnessDeltaWord(copy i18n.Settings, freshness extensions.Freshness) string {
+	switch freshness.Delta {
+	case extensions.DeltaIncrease:
+		return copy.FreshnessDeltaIncrease(freshness.DeltaCount())
+	case extensions.DeltaDecrease:
+		return copy.FreshnessDeltaDecrease(freshness.DeltaCount())
+	case extensions.DeltaUnchanged:
+		return copy.FreshnessDeltaUnchanged
+	default:
+		return copy.FreshnessDeltaUnknown
+	}
+}
+
+// freshnessDeltaInk is the delta word's register: `--text-secondary` once the
+// list actually moved, `--text-muted` otherwise (`extensions.css:2096-2111`).
+func freshnessDeltaInk(freshness extensions.Freshness, tokens theme.Tokens, t *ui.Theme) ui.Color {
+	switch freshness.Delta {
+	case extensions.DeltaIncrease, extensions.DeltaDecrease:
+		return tokens.TextSecondary
+	default:
+		return t.TextMuted
+	}
+}
+
+// freshnessDetail is the section's whole detail line, kept for the panel's own
+// readers (the shell's tests and diagnostics). The section itself draws the
+// facts in their own registers through freshnessSection.
 func (a *App) freshnessDetail(copy i18n.Settings, freshness extensions.Freshness) string {
 	parts := []string{}
 	if freshness.AtSeconds > 0 {

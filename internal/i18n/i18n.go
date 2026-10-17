@@ -874,6 +874,8 @@ type Settings struct {
 	// derivation went, and how the list moved. "Unknown" is its own word
 	// everywhere — a fabricated zero or "no change" is a lie.
 	Freshness                string
+	FreshnessLastProbe       string
+	FreshnessResult          string
 	FreshnessNever           string
 	FreshnessJustNow         string
 	FreshnessRelative        func(value int, unit RelativeUnit) string
