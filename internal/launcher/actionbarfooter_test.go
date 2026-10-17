@@ -45,7 +45,7 @@ func TestTheActionBarClosesTheListNotHeadsIt(t *testing.T) {
 	}
 	// The bar is the *footer*: it must be the last thing drawn on the panel, so
 	// its row box sits below every matched row's.
-	barRect, ok := tt.Find("Run in terminal")
+	barRect, ok := tt.Find("Run in shell")
 	if !ok {
 		t.Fatal("the bar row was not drawn")
 	}
@@ -127,7 +127,7 @@ func TestTheActionBarTakesTheSelectionOnACommandLine(t *testing.T) {
 	// The drawn row carries the selection, so its band is tinted against the
 	// panel's own fill at the same height — the visible "selected style" the
 	// report said was missing.
-	rect, ok := tt.Find("Run in terminal")
+	rect, ok := tt.Find("Run in shell")
 	if !ok {
 		t.Fatal("the selected footer was not drawn")
 	}
@@ -172,7 +172,7 @@ func TestAnUnselectedActionBarStaysQuiet(t *testing.T) {
 	if a.Selected == bar {
 		t.Fatalf("the match did not keep the selection: selected=%d bar=%d", a.Selected, bar)
 	}
-	rect, ok := tt.Find("Run in terminal")
+	rect, ok := tt.Find("Run in shell")
 	if !ok {
 		t.Fatal("the bar row was not drawn")
 	}
@@ -225,7 +225,7 @@ func TestTheFieldAndTheRowsShareTheReferenceTextColumn(t *testing.T) {
 // because the string it holds is code. The port had the two swapped: the
 // action word was the title (and so wore the monospace) while the command line
 // was the subtitle — the visible result of which is that the row reads
-// "Run in terminal" in the code face and the line you are about to run in the
+// "Run in shell" in the code face and the line you are about to run in the
 // interface one.
 func TestTheActionBarTitleIsTheValueNotTheActionWord(t *testing.T) {
 	a := testApp()
@@ -249,8 +249,8 @@ func TestTheActionBarTitleIsTheValueNotTheActionWord(t *testing.T) {
 	if bar.Title != "git" {
 		t.Errorf("the bar's title = %q, want the typed line %q", bar.Title, "git")
 	}
-	if bar.Detail != "Run in terminal" {
-		t.Errorf("the bar's subtitle = %q, want the action word %q", bar.Detail, "Run in terminal")
+	if bar.Detail != "Run in shell" {
+		t.Errorf("the bar's subtitle = %q, want the action word %q", bar.Detail, "Run in shell")
 	}
 	// Both texts are drawn, and the value's box is the wide one — the action
 	// word sits under it in the subtitle slot.
@@ -258,7 +258,7 @@ func TestTheActionBarTitleIsTheValueNotTheActionWord(t *testing.T) {
 	if !ok {
 		t.Fatal("the bar's value was not drawn")
 	}
-	wordRect, ok := tt.Find("Run in terminal")
+	wordRect, ok := tt.Find("Run in shell")
 	if !ok {
 		t.Fatal("the bar's action word was not drawn")
 	}

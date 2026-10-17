@@ -146,7 +146,7 @@ func TestNoResultsShowsTheEmptyMessage(t *testing.T) {
 	if !tt.HasText("No results") {
 		t.Errorf("the empty message is missing: %q", tt.Texts())
 	}
-	if tt.HasText("Run in terminal") {
+	if tt.HasText("Run in shell") {
 		t.Errorf("the shell row was offered over an empty page: %q", tt.Texts())
 	}
 }
@@ -825,7 +825,7 @@ func TestBrowserModeWithoutAProfile(t *testing.T) {
 	tt.Frame()
 	tt.TypeKey(0, ui.KeyEnter, "")
 	tt.Frame()
-	if !tt.HasText("No browser profile was found") {
+	if !tt.HasText("No supported browser was found on this computer") {
 		t.Errorf("the empty state = %q", tt.Texts())
 	}
 }
@@ -931,7 +931,7 @@ func TestSystemCommandsJoinTheSearchWhenEnabled(t *testing.T) {
 	a.SetTools(tools, false)
 	a.Query = "ripgrep"
 	tt.Frame()
-	if tt.HasText("Run in terminal") {
+	if tt.HasText("Run in shell") {
 		t.Errorf("the shell row was offered over an empty page: %q", tt.Texts())
 	}
 	if !tt.HasText("No results") {
@@ -1744,7 +1744,7 @@ func TestFilesModeOffersTheDropActions(t *testing.T) {
 	if !a.InFilesMode() {
 		t.Fatal("the files mode did not open")
 	}
-	for _, want := range []string{"Open  report.pdf", "Open a terminal in  report.pdf", "Copy the path of  report.pdf"} {
+	for _, want := range []string{"Open  report.pdf", "cd in terminal  report.pdf", "Copy path  report.pdf"} {
 		if !tt.HasText(want) {
 			t.Fatalf("row %q is missing: %q", want, tt.Texts())
 		}
@@ -2180,7 +2180,7 @@ func TestActionBarRows(t *testing.T) {
 	a.ResetQuery()
 	tt.Type(dir)
 	tt.Frame()
-	if !tt.HasText("Open in file manager") || !tt.HasText("Open a terminal in") {
+	if !tt.HasText("Open in files") || !tt.HasText("cd in terminal") {
 		t.Fatalf("the path rows are missing: %q", tt.Texts())
 	}
 	tt.TypeKey(0, ui.KeyEnter, "")
@@ -2206,7 +2206,7 @@ func TestActionBarRows(t *testing.T) {
 	a.ResetQuery()
 	tt.Type("git status")
 	tt.Frame()
-	if tt.HasText("Run in terminal") {
+	if tt.HasText("Run in shell") {
 		t.Errorf("the shell row was offered over an empty page: %q", tt.Texts())
 	}
 	tt.TypeKey(0, ui.KeyEnter, "")
@@ -2223,7 +2223,7 @@ func TestActionBarRows(t *testing.T) {
 	tt.Frame()
 	tt.Type("git")
 	tt.Frame()
-	if !tt.HasText("Run in terminal") {
+	if !tt.HasText("Run in shell") {
 		t.Fatalf("the shell row is missing beside a match: %q", tt.Texts())
 	}
 	tt.TypeKey(0, ui.KeyEnter, "")
@@ -3011,7 +3011,7 @@ func TestTheDropCapCountsFilesNotRows(t *testing.T) {
 
 	// A needle that matches one action word keeps that row and drops the
 	// others — the filter is the rows', the cap is the files'.
-	a.Query = "copy the path"
+	a.Query = "copy path"
 	filtered := a.filesItems()
 	openRows := 0
 	for _, item := range filtered {

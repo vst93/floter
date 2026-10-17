@@ -329,6 +329,18 @@ type Integration struct {
 	Diagnosis string
 	// DiagnosisFailed marks a check that reported a problem.
 	DiagnosisFailed bool
+	// DiagnosisChecks is what the last check looked at, in the provider's own
+	// order: each check's id, the provider's status word for it and its
+	// sentence. The reference's `.extension-diagnostics` grid prints one row
+	// per check, so the status a single `Diagnosis` string could only
+	// summarise is readable fact by fact
+	// (`main:src/ExtensionsPanel.tsx:2895-2901`).
+	DiagnosisChecks []DiagnosisCheck
+	// DiagnosisStatus is the provider's own overall verdict for that check
+	// (`diagnose.status`, `ExtensionsPanel.tsx:2896`), which the grid's summary
+	// line prints in the provider's vocabulary. Empty when the provider named
+	// none.
+	DiagnosisStatus string
 	// Health is the stored lifecycle probe report's status, empty when the
 	// manifest declares no probes. It survives across runs (the repository
 	// keeps it), so a row shows how the tool was last found to be.
@@ -412,6 +424,16 @@ type Integration struct {
 	// reference's `RunParamForm` did with `extension.output`
 	// (`src/extensions/ExtensionRow.tsx:465-467`).
 	OutputMode string
+}
+
+// DiagnosisCheck is one thing a provider's last health check looked at, as
+// the `.extension-diagnostics` grid draws it: the provider's own status word
+// (never translated — it is the vocabulary the provider answered in) and its
+// message.
+type DiagnosisCheck struct {
+	ID      string
+	Status  string
+	Message string
 }
 
 // HealthReport is the stored lifecycle probe report's detail, as the card
@@ -1942,34 +1964,180 @@ func (a *App) integrationMeta(c *ui.Context, copy i18n.Settings, integration Int
 // the row's value; these lines are its detail.
 func (a *App) healthDetail(c *ui.Context, copy i18n.Settings, report *HealthReport) {
 	t := a.cardTheme(c)
-	if len(report.Probes) > 0 {
-		a.row(c, copy.IntegrationsHealthChecks, "", func() {}, func() {
-			ui.Column(c).FillWidth().Children(func() {
+	tokens := a.tokens(c)
+	// The block the reference draws under the Health row is a column with an
+	// 8u gap (`ExtensionsPanel.tsx:2920-2972`, `extensions.css:2182`), and
+	// each of its groups opens with the reference's own `__label`: a caption
+	// at 620 on the secondary ink, one voice with the block labels around it
+	// (`extensions.css:2191`) — never a ruled card row with a 44u floor and a
+	// separator. The port drew each group that way, so the checks read as
+	// four unrelated settings rows instead of one block's list.
+	//
+	// The reference's `capabilities` half (its `Features` / `Limitations`
+	// groups) is deliberately not drawn: the original never populated it (its
+	// reprobe path passed `Default::default()`, `probe_executor.rs:18`), so
+	// both groups are dead on both sides — see the note in
+	// `internal/extensions/helpderive.go`. Its own empty state is the same
+	// dead end: the port sets `Health` and `HealthReport` together.
+	block := ui.Column(c).FillWidth().Gap(t.Space(2))
+	block.Children(func() {
+		if len(report.Probes) > 0 {
+			// The checks group keeps the reference's own label and then one
+			// probe line each — mark, monospace id, trailing duration.
+			ui.Column(c).FillWidth().Gap(t.Space(1)).Children(func() {
+				ui.Text(c, copy.IntegrationsHealthChecks).FontSize(tokens.Caption).
+					FontWeight(620).TextColor(tokens.TextSecondary)
 				for _, probe := range report.Probes {
 					probe := probe
 					a.healthProbeRow(c, probe)
 				}
 			})
-		})
-	}
-	var failed []HealthProbe
-	for _, probe := range report.Probes {
-		if !probe.Passed {
-			failed = append(failed, probe)
 		}
-	}
-	if len(failed) > 0 {
-		a.row(c, copy.IntegrationsHealthFailures, "", func() {}, func() {
+		var failed []HealthProbe
+		for _, probe := range report.Probes {
+			if !probe.Passed {
+				failed = append(failed, probe)
+			}
+		}
+		if len(failed) > 0 {
 			ui.Column(c).FillWidth().Gap(t.Space(1)).Children(func() {
+				ui.Text(c, copy.IntegrationsHealthFailures).FontSize(tokens.Caption).
+					FontWeight(620).TextColor(tokens.TextSecondary)
 				for _, probe := range failed {
 					probe := probe
 					a.healthFailureCard(c, copy, probe)
 				}
 			})
-		})
+		}
+		if when := healthCheckedAt(report.CheckedAt); when != "" {
+			ui.Text(c, copy.IntegrationsHealthCheckedAt(when)).FontSize(tokens.Caption).
+				TextColor(t.TextMuted).Wrap()
+		}
+	})
+}
+
+// diagnosticsSection draws the drawer's Diagnostics block at the reference's
+// own face (`main:src/ExtensionsPanel.tsx:2892-2902`,
+// `main:src/styles/extensions.css:2207-2210,2324-2350`): a block label, the
+// verdict word as a summary line, then one grid row per check — the check's
+// own status word in a fixed 54px column and its message in the rest, each
+// row closed by a 1px hairline. What it replaces was the whole check reduced
+// to one ruled card row whose grey subline carried the summary and whose
+// trailing slot carried the integration's own state word (a third fact that
+// had nothing to do with the check).
+func (a *App) diagnosticsSection(c *ui.Context, copy i18n.Settings, integration Integration) {
+	tokens := a.tokens(c)
+	t := a.cardTheme(c)
+	// The block label: the drawer's `.extension-detail-block h4` — sentence case
+	// at the secondary ink, caption 620 (`extensions.css:2008-2013`), one voice
+	// with the metadata grid's own `dt` labels.
+	ui.Row(c).FillWidth().Children(func() {
+		ui.Text(c, copy.IntegrationsDiagnostics).FontSize(tokens.Caption).FontWeight(620).
+			TextColor(tokens.TextSecondary)
+	})
+	if !integration.diagnosisRan() {
+		// No check ran at all (the provider answered with nothing): the
+		// reference's own empty line (`extensions.css:2054-2059`,
+		// `--text-muted` body). A check that ran but reported no rows is *not*
+		// this state — its verdict is the summary line on its own.
+		ui.Text(c, copy.IntegrationsDiagnosticsUnavailable).FontSize(t.FontSize).
+			TextColor(t.TextMuted).Wrap()
+		return
 	}
-	if when := healthCheckedAt(report.CheckedAt); when != "" {
-		a.row(c, copy.IntegrationsHealthCheckedAt(when), "", func() {})
+	// The verdict is the reference's plain summary span: `justify-self: start`,
+	// a `2px 0` padding pair, no pane, no dot and **no weight of its own** —
+	// the rule sets colour and `capitalize` alone, and the caption step
+	// inherits the body's 400 (`extensions.css:2324-2332`). The port drew it
+	// at 620, one step heavier than the reference's own summary. Its colour
+	// follows the *status word it prints*, the same classification the check
+	// rows below use (the reference ranged `--${diagnose.status}` over both,
+	// `ExtensionsPanel.tsx:2896-2899`), so a verdict the finding flag does not
+	// cover still wears its own state's ink.
+	verdict := diagnosisVerdict(integration, copy)
+	ui.Text(c, capitalizeWord(verdict)).FontSize(tokens.Caption).
+		TextColor(statusInk(verdict, tokens, t, tokens.TextSecondary))
+	// One row per check: the reference's `.extension-diagnostics > div` is a
+	// `54px minmax(0,1fr)` grid with an 8px gap, a `8px 0` padding pair and a
+	// 1px bottom hairline — dropped on the last row
+	// (`extensions.css:2344-2350,2306-2308`).
+	for i, check := range integration.DiagnosisChecks {
+		a.diagnosisCheckRow(c, check, i == len(integration.DiagnosisChecks)-1)
+	}
+}
+
+// diagnosisCheckRow is one `.extension-diagnostics > div`: the status word in
+// the grid's own 54px column and the message in the rest, on the caption step.
+func (a *App) diagnosisCheckRow(c *ui.Context, check DiagnosisCheck, last bool) {
+	tokens := a.tokens(c)
+	t := a.cardTheme(c)
+	// The status word is the provider's *raw* vocabulary (`extensions.css:2341`
+	// capitalises only the first letter, `capitalize`), so it is not translated:
+	// it is the word the provider answered in.
+	ui.Column(c).FillWidth().Children(func() {
+		grid := ui.Grid(c).FillWidth().Padding(t.Space(2), 0).
+			ColumnTracks(ui.Fixed(a.cardSpace(t, 13.5)), ui.Fr(1)).
+			GapX(t.Space(2)).AlignItems(ui.Start)
+		grid.Children(func() {
+			ui.Text(c, capitalizeWord(check.Status)).FontSize(tokens.Caption).
+				TextColor(statusInk(check.Status, tokens, t, tokens.TextTertiary)).ColumnStart(1)
+			ui.Text(c, check.Message).FontSize(tokens.Caption).
+				TextColor(t.TextMuted).Wrap().ColumnStart(2)
+		})
+		if !last {
+			ui.Box(c).FillWidth().Height(1).Background(tokens.Hairline).Shrink(0)
+		}
+	})
+}
+
+// diagnosisVerdict is the summary line's word: the provider's own overall
+// status when it gave one, and the integration's state word when the check
+// itself said nothing (`Diagnosis` is that fallback's spelling).
+func diagnosisVerdict(integration Integration, copy i18n.Settings) string {
+	if status := strings.TrimSpace(integration.DiagnosisStatus); status != "" {
+		return status
+	}
+	if word := strings.TrimSpace(integration.Diagnosis); word != "" {
+		return word
+	}
+	return integration.state(copy)
+}
+
+// diagnosisRan reports whether any check reported anything at all: the
+// provider's own verdict, a summary word this build derived, or a check row.
+// None of the three is the reference's "Diagnostics are unavailable." state.
+func (i Integration) diagnosisRan() bool {
+	return strings.TrimSpace(i.DiagnosisStatus) != "" ||
+		strings.TrimSpace(i.Diagnosis) != "" || len(i.DiagnosisChecks) > 0
+}
+
+// capitalizeWord applies the reference's `text-transform: capitalize` to one
+// provider-supplied word (`extensions.css:2331,2341`): the first letter is
+// uppercased and the rest is left exactly as the provider spelled it, so a
+// vocabulary this build does not know still prints its own word.
+func capitalizeWord(word string) string {
+	trimmed := strings.TrimSpace(word)
+	if trimmed == "" {
+		return trimmed
+	}
+	first := []rune(trimmed)[0]
+	return strings.ToUpper(string(first)) + string([]rune(trimmed)[1:])
+}
+
+// statusInk is one status word's colour, the reference's own split: `ok` and
+// `healthy` take the accent, `error` and `broken` the warning, and every other
+// word the caller's quiet register (`extensions.css:2334-2346`). The summary
+// line and the check rows share this classifier because the reference ranged
+// the *same* `--${diagnose.status}` / `--${check.status}` modifier over both;
+// only the fallback differs — the summary sits on `--text-secondary`, a check
+// row on the quieter `--text-tertiary` (`:2329` vs `:2360`).
+func statusInk(status string, tokens theme.Tokens, t *ui.Theme, quiet ui.Color) ui.Color {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "ok", "healthy":
+		return t.Accent
+	case "error", "broken":
+		return t.Warning
+	default:
+		return quiet
 	}
 }
 
@@ -2192,14 +2360,8 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			a.approvalDetail(c, copy, integration.Approval)
 		}
 
-		if integration.Diagnosis != "" {
-			color := t.TextMuted
-			if integration.DiagnosisFailed {
-				color = t.Danger
-			}
-			a.row(c, copy.IntegrationsDiagnostics, integration.Diagnosis, func() {
-				ui.Text(c, integration.state(copy)).FontSize(t.FontSize - 1).TextColor(color)
-			})
+		if integration.diagnosisRan() {
+			a.diagnosticsSection(c, copy, integration)
 		}
 		if reason := failureReason(copy, integration.FailureCode, integration.FailureDetail); reason != "" {
 			a.row(c, copy.IntegrationsFailureDetail, "", func() {

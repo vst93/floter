@@ -626,11 +626,22 @@ type Settings struct {
 	// check produces. They are two rows: the health is what the last probe run
 	// recorded (and it survives across runs), the diagnostics are what this
 	// session's check just said.
-	IntegrationsHealthy     string
-	IntegrationsHealth      string
-	IntegrationsDegraded    string
-	IntegrationsUnhealthy   string
-	IntegrationsDiagnostics string
+	IntegrationsHealthy   string
+	IntegrationsHealth    string
+	IntegrationsDegraded  string
+	IntegrationsUnhealthy string
+	// IntegrationsHealthUnknown is the fourth word of the reference's status
+	// vocabulary (`settings.extensions.healthStatus.unknown`, `i18n.ts:621`):
+	// a report the repository holds but never ran, which the reference prints
+	// as its own word rather than as a missing row. It is also the word a
+	// status this build cannot place falls back to, so an unrecognized value
+	// never prints as a blank chip.
+	IntegrationsHealthUnknown string
+	IntegrationsDiagnostics   string
+	// The live check's own grid (the reference's `.extension-diagnostics`): the
+	// verdict word, then one row per check the provider looked at. The
+	// unavailable line is the empty state when no check has run.
+	IntegrationsDiagnosticsUnavailable string
 	// The stored report's detail: every probe the last run recorded (its id and
 	// how long it took), the failed ones with their exit code, stderr and
 	// whether a retry is worth it, and when the run happened.

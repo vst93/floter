@@ -1548,6 +1548,13 @@ func (a *App) integrationList() []settingsui.Integration {
 				item.Health = copy.IntegrationsDegraded
 			case extensions.HealthUnhealthy:
 				item.Health = copy.IntegrationsUnhealthy
+			case extensions.HealthUnknown:
+				// The fourth word of the reference's ladder
+				// (`settings.extensions.healthStatus.unknown`, `i18n.ts:621`):
+				// a report the repository holds whose probes never ran. Leaving
+				// it out printed no Health row at all, which is the reference's
+				// *no report* state — a different fact from "nothing ran".
+				item.Health = copy.IntegrationsHealthUnknown
 			}
 			item.HealthReport = healthReportView(report, integration.Manifest.Lifecycle.Probes)
 		}
@@ -1567,6 +1574,25 @@ func (a *App) integrationList() []settingsui.Integration {
 		out = append(out, settingsui.Integration{ID: id, Name: id, Orphan: true})
 	}
 	return out
+}
+
+// diagnosisChecks projects a provider's own diagnosis onto the grid's rows:
+// the id, the provider's status word and its message, in the order the
+// provider answered in. The status is left as the provider spelled it (the
+// reference's `.extension-check--${status}` ranged over the *raw* status,
+// `ExtensionsPanel.tsx:2899`), so a vocabulary this build does not know still
+// prints its own word rather than a blank.
+func diagnosisChecks(diagnosis extensions.Diagnosis) []settingsui.DiagnosisCheck {
+	if len(diagnosis.Checks) == 0 {
+		return nil
+	}
+	checks := make([]settingsui.DiagnosisCheck, 0, len(diagnosis.Checks))
+	for _, check := range diagnosis.Checks {
+		checks = append(checks, settingsui.DiagnosisCheck{
+			ID: check.ID, Status: check.Status, Message: check.Message,
+		})
+	}
+	return checks
 }
 
 // healthReportView projects the repository's stored probe report onto the
@@ -1632,6 +1658,13 @@ func (a *App) diagnoseIntegration(id string) {
 		case err != nil:
 			result.Diagnosis, result.DiagnosisFailed = err.Error(), true
 		default:
+			// The provider's own checks are kept fact by fact: the reference's
+			// `.extension-diagnostics` grid prints one row per check and the
+			// provider's own verdict above them
+			// (`ExtensionsPanel.tsx:2895-2901`). The summary string below is the
+			// fallback a grid-less reader sees, not the whole story.
+			result.DiagnosisStatus = diagnosis.Status
+			result.DiagnosisChecks = diagnosisChecks(diagnosis)
 			var problems []string
 			for _, check := range diagnosis.Checks {
 				if check.Status != "ok" {

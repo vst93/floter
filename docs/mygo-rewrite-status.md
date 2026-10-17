@@ -100,6 +100,64 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
+> **本轮：P7-ht 用户报告第七次复跑 + 启动器动作词/浏览器副本回原版 + Diagnostics/Health 区块压回原版**
+>
+> 前置清理：`git status` 有 4 个文件未提交（`internal/i18n/{copy,i18n}.go`、
+> `internal/settingsui/settingsui.go`、`internal/shell/shell.go`），逐条对照原版核实后**判为有效保留**
+> —— 内容是上一轮记录的「下一步」：Integrations Diagnostics 区块的 `.extension-diagnostics` 网格
+> （`DiagnosisChecks`/`DiagnosisStatus` 投影 + 54px/1fr 行 + 1px hairline）与 copy 词表重排
+> （`go test ./internal/i18n` 与空白差异校验证明后者是纯格式）。本轮在其上继续补完。
+>
+> **用户报告的两条第七次复跑**（本轮用独立探针做**实测**，不是重新推断）：
+> - 左右空白：720×437 生产帧上，空字段 caret x=16、结果行标题 x=54，选中行着色盒 x=4..715 ——
+>   `.launcher-results > * { width: calc(100% - 8u); justify-self: center }`
+>   （`launcher.css:840-843`）的 4u 对称沟槽；另在真实外壳帧上量过（Linux inset 10u、卡面
+>   x=11..708），卡内文本列仍是 16/54，卡外 10u 是平台投影边距。**两侧无死白边**。
+> - 「在终端中打开」：`Results()` 实测顺序 —— `restart` 查询得
+>   `[power:restart, power-restart, bar:shell]`（动作栏**末行**、选中在匹配行）；按住 `ui.Cmd` 得
+>   `[power:restart, power-restart, bar:shell, system-terminal-bare]`（裸终端行**末行**、
+>   `Selected=3`）；松手该行消失、选择回默认。均符合原版 R60/R64。
+>
+> **本轮新发现并修掉动作词副本**（用户报的正是这个行族，此前从未逐键比对过）。审计入口是
+> **词典逐键差集**：原版 `main:src/i18n.ts` 拆成 `en`（:6-934）与 `zh`（:943-1764）两张表
+> （同 757 键、仅 4 键同值），本构建 `copy.go` 的两个 `Launcher` 块按字段名映射回 `launcher.*`
+> 键逐键比。结果：启动器 128 字段里只剩 1 条差异（等价写法）。清掉四条：
+> 1. `RunInShell` en「Run in terminal」→ 原版 **「Run in shell」**（`i18n.ts:55,981`）；
+> 2. `FileCd`「Open a terminal in」→ **「cd in terminal」**（`:91,1010`）；
+> 3. `FileCopyPath`「Copy the path of」→ **「Copy path」**（`:92,1011`）；
+> 4. `OpenInFiles`/`BrowserEmpty`/`BrowserNoProfile`/`BrowserDisabled` 四条整句回原版
+>    （`:62,133,134,135` 及 zh `:986,1045,1046,1047`）——最后一条把原版的「——」破折号、`›`
+>    分隔符与句尾无句号都改回了原样。
+> 落地：`internal/i18n/copy.go` 8 处；`launcher/view_test.go`、`actionbarfooter_test.go` 的
+> 断言随词更新（含 `TestTheDropCapCountsFilesNotRows` 的 needle `"copy path"`）。
+>
+> **随后清掉 P7-hr 记下的结构性残留**（Diagnostics/Health 区块）：
+> 5. Diagnostics summary 的 `FontWeight(620)` 是自加的（原版只给颜色 + `capitalize`，
+>    `extensions.css:2324-2332`）；provider 的两个词都未 capitalize；上色只读
+>    `DiagnosisFailed` 布尔而非**词本身**。落地 `capitalizeWord` + `statusInk`（两个词位共用
+>    同一个 `--${status}` 分类器，fallback 不同：summary `--text-secondary`、check
+>    `--text-tertiary`），`diagnosisVerdictInk` 删除。
+> 6. Health 区块的组标题从 `a.row(...)`（44u 卡行 + 分隔线）压回 `.extension-health__label`
+>    （caption 620 secondary，`extensions.css:2191`）+ `gap 4px` 的列；`Checked …` 从卡行改
+>    muted caption 行。**有意偏离**：原版 `capabilities` 的 Features/Limitations 两组不画 ——
+>    原版自己从未填充（reprobe 传 `Default::default()`，`probe_executor.rs:18`），本构建的
+>    `helpderive.go` 也删过这条死路径，两边都是死代码。
+> 7. 健康状态词从本构建的三词碎片（小写 `healthy`/`degraded`/`not working`、无 `unknown`）
+>    回到原版四词阶梯（`i18n.ts:618-621`）；`unknown` 此前**一行都不画**，现在印「Unknown」。
+>    落地 `IntegrationsHealthUnknown` + `shell.go` 的 `integrationList` 补 `HealthUnknown` 分支。
+>
+> **验收**：`internal/settingsui/healthfaces_test.go` 新增两条（
+> `TestTheDiagnosticsWordsAreCapitalised`：provider 小写 `ok` 读作 `Ok`；
+> `TestTheHealthGroupsAreLabelledNotRuledRows`：probe 行在标题下一行、标题高 < 卡行标签高）；
+> `shell_test.go` 的 `TestHealthShowsOnTheRow` 与 `view_test.go` 的
+> `TestStoredHealthShowsOnTheRow` 改钉原版四词。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./internal/...` 净、三平台 `go build ./...` 过、
+> `go test -count=1 ./internal/{i18n,launcher,settingsui,shell,theme,extensions}` 全绿。
+>
+> **清单状态**：`.pending-bugs.md` 顶部新增「本轮清空（P7-ht）」七条；新记一条仍未锁定
+> （health chip 按本地化词比对而非 raw status 枚举）。
+
 > **本轮：P7-hs 用户报告复查（升级为像素断言）+ Integrations 表单 · 参数编辑器对齐原版**
 >
 > 用户报告的两条（① 搜索页左右大空白；② 输入内容时「在终端中打开」固定第一项、缺选中态）本轮

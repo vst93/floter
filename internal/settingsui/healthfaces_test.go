@@ -34,7 +34,7 @@ func integrationWithHealth(t *testing.T, report *HealthReport, approval *Approva
 	a.Integrations = func() []Integration {
 		return []Integration{{
 			ID: "dev.floter.probed", Name: "Probed Tool", Enabled: true,
-			Health: "degraded", HealthReport: report, Approval: approval,
+			Health: "Degraded", HealthReport: report, Approval: approval,
 		}}
 	}
 	tt := render(t, a, 720, 1100)
@@ -68,7 +68,7 @@ func TestTheHealthVerdictWearsItsOwnChip(t *testing.T) {
 		}
 		a := New(store, Actions{})
 		a.Integrations = func() []Integration {
-			return []Integration{{ID: "dev.floter.bad", Name: "Bad Tool", Enabled: true, Health: "degraded"}}
+			return []Integration{{ID: "dev.floter.bad", Name: "Bad Tool", Enabled: true, Health: "Degraded"}}
 		}
 		tt := render(t, a, 720, 900)
 		if err := tt.Click("Integrations"); err != nil {
@@ -76,7 +76,7 @@ func TestTheHealthVerdictWearsItsOwnChip(t *testing.T) {
 		}
 		tt.Frame()
 
-		word, ok := tt.Find("degraded")
+		word, ok := tt.Find("Degraded")
 		if !ok {
 			t.Fatalf("the verdict word is missing: %q", tt.Texts())
 		}
@@ -126,9 +126,13 @@ func TestProbeLinesAreTheReferenceCompactRows(t *testing.T) {
 	}
 	// The probe line is the caption step, not the body emphasis a card row's
 	// label wears: the drawn text box is shorter than the row's own label.
-	label, ok := tt.Find("Checks")
+	// The group label above it ("Checks") is the same caption step as the
+	// probe id — it is the reference's `__label`, one voice with the block —
+	// so the comparison is against a *card row's* label, which is what the
+	// old ruled-row layout would have given the id.
+	label, ok := tt.Find("Health")
 	if !ok {
-		t.Fatalf("the Checks label is missing: %q", tt.Texts())
+		t.Fatalf("the Health row label is missing: %q", tt.Texts())
 	}
 	if id.H >= label.H {
 		t.Errorf("the probe id is drawn at the label's own step: id h=%.0f, label h=%.0f", id.H, label.H)
@@ -267,4 +271,73 @@ func hasInk(img *image.RGBA, x0, y0, x1, y1 int) bool {
 		}
 	}
 	return false
+}
+
+// The Health block's groups are the reference's `__label` lines, not ruled
+// card rows: `ExtensionsPanel.tsx:2945-2969` opens the checks group with the
+// label and then lists the probe lines *inside it*, so "Checks" is a caption
+// at 620 on the secondary ink (`extensions.css:2191`) sitting directly above
+// its own content — not a 44u settings row carrying a 44u row of detail below
+// it. The difference is measurable: a ruled row would put the card's own
+// separator between the label and the row, and the label would sit on the
+// card's row floor with the detail block folded under it.
+func TestTheHealthGroupsAreLabelledNotRuledRows(t *testing.T) {
+	tt, _ := integrationWithHealth(t, testHealthReport(), nil)
+	label, ok := tt.Find("Checks")
+	if !ok {
+		t.Fatalf("the checks label is missing: %q", tt.Texts())
+	}
+	probe, ok := tt.Find("up")
+	if !ok {
+		t.Fatalf("the first probe line is missing: %q", tt.Texts())
+	}
+	// The label leads its own content: the probe line starts to its *left*
+	// (the label is the block's heading, the probe carries the id column) and
+	// begins on the line below it.
+	if probe.Y <= label.Y {
+		t.Errorf("the probe line is not below the label: label y=%.0f, probe y=%.0f",
+			label.Y, probe.Y)
+	}
+	// The label is the caption step: a card row's own label is the emphasis
+	// step (`t.FontSize + 1`), which the block label must not wear.
+	row, ok := tt.Find("Health")
+	if !ok {
+		t.Fatalf("the Health row label is missing: %q", tt.Texts())
+	}
+	if label.H >= row.H {
+		t.Errorf("the group label is drawn at a card row's step: label h=%.0f, row label h=%.0f",
+			label.H, row.H)
+	}
+}
+
+// The diagnostics block capitalises both words the way the reference's
+// `text-transform: capitalize` does (`extensions.css:2331,2341`): the summary
+// word and every check's own status, first letter up and the rest left as the
+// provider spelled it. A provider's lowercase `ok` therefore reads `Ok`.
+func TestTheDiagnosticsWordsAreCapitalised(t *testing.T) {
+	a := New(newStore(t), Actions{})
+	a.Integrations = func() []Integration {
+		return []Integration{{
+			ID: "dev.floter.dx", Name: "Dx Tool", Enabled: true,
+			DiagnosisStatus: "ok",
+			DiagnosisChecks: []DiagnosisCheck{{ID: "version", Status: "ok", Message: "answered"}},
+		}}
+	}
+	tt := render(t, a, 720, 900)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !tt.HasText("Ok") {
+		t.Errorf("the verdict word was not capitalised: %q", tt.Texts())
+	}
+	if !tt.HasText("Diagnostics") {
+		t.Errorf("the diagnostics block label is missing: %q", tt.Texts())
+	}
+	// The check row prints its status word and its message — the reference's
+	// own two cells (`ExtensionsPanel.tsx:2899`). The check's *id* is the
+	// React key there, never a third printed fact, so it is not a row.
+	if !tt.HasText("answered") {
+		t.Errorf("the check's own message is missing: %q", tt.Texts())
+	}
 }

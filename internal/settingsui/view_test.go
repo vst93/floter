@@ -3033,8 +3033,8 @@ func TestStoredHealthShowsOnTheRow(t *testing.T) {
 	a := New(newStore(t), Actions{})
 	a.Integrations = func() []Integration {
 		return []Integration{
-			{ID: "dev.floter.healthy", Name: "Alpha Tool", Enabled: true, Health: "healthy"},
-			{ID: "dev.floter.broken", Name: "Beta Tool", Enabled: true, Broken: true, Health: "not working"},
+			{ID: "dev.floter.healthy", Name: "Alpha Tool", Enabled: true, Health: "Healthy"},
+			{ID: "dev.floter.broken", Name: "Beta Tool", Enabled: true, Broken: true, Health: "Unhealthy"},
 			{ID: "dev.floter.diagnosed", Name: "Gamma Tool", Enabled: true, Diagnosis: "ok"},
 		}
 	}
@@ -3048,10 +3048,10 @@ func TestStoredHealthShowsOnTheRow(t *testing.T) {
 	if !tt.HasText("Health") {
 		t.Fatalf("the health label is missing: %q", tt.Texts())
 	}
-	if !tt.HasText("healthy") {
+	if !tt.HasText("Healthy") {
 		t.Errorf("the stored health is missing: %q", tt.Texts())
 	}
-	if !tt.HasText("not working") {
+	if !tt.HasText("Unhealthy") {
 		t.Errorf("a broken tool's stored health is missing: %q", tt.Texts())
 	}
 	// The live check's own sentence is a different row with its own label, so
@@ -3091,7 +3091,7 @@ func TestStoredHealthReportShowsItsProbes(t *testing.T) {
 	a := New(newStore(t), Actions{})
 	a.Integrations = func() []Integration {
 		return []Integration{{
-			ID: "dev.floter.probed", Name: "Probed Tool", Enabled: true, Health: "degraded",
+			ID: "dev.floter.probed", Name: "Probed Tool", Enabled: true, Health: "Degraded",
 			HealthReport: &HealthReport{
 				CheckedAt: when,
 				Probes: []HealthProbe{
@@ -3121,7 +3121,7 @@ func TestStoredHealthReportShowsItsProbes(t *testing.T) {
 	// report, and "nothing has ever probed" has its own (absent) shape.
 	b := New(newStore(t), Actions{})
 	b.Integrations = func() []Integration {
-		return []Integration{{ID: "dev.floter.plain", Name: "Plain Tool", Enabled: true, Health: "healthy"}}
+		return []Integration{{ID: "dev.floter.plain", Name: "Plain Tool", Enabled: true, Health: "Healthy"}}
 	}
 	bt := render(t, b, 720, 900)
 	if err := bt.Click("Integrations"); err != nil {

@@ -3229,7 +3229,7 @@ func TestHealthShowsOnTheRow(t *testing.T) {
 		t.Fatal(err)
 	}
 	a.RefreshIntegrations(context.Background())
-	if got := a.integrationList()[0].Health; got != "healthy" {
+	if got := a.integrationList()[0].Health; got != "Healthy" {
 		t.Errorf("health after a reprobe = %q", got)
 	}
 	// The report's detail reaches the card: both probes, their durations and
@@ -3263,7 +3263,7 @@ func TestHealthShowsOnTheRow(t *testing.T) {
 		t.Fatal(err)
 	}
 	a.RefreshIntegrations(context.Background())
-	if got := a.integrationList()[0].Health; got != "not working" {
+	if got := a.integrationList()[0].Health; got != "Unhealthy" {
 		t.Errorf("broken health = %q", got)
 	}
 	// A failed required probe is not retryable; the failed optional one is.
