@@ -111,15 +111,14 @@ func (a *App) triggerHintRoom(c *ui.Context, t *ui.Theme) float32 {
 	if a.Actions.OpenSettings != nil {
 		buttons++
 	}
-	gap := t.Space(1)
+	// The row's own seams are the children's margins, not a flex `gap`: the
+	// reference's `.collapsed-card__input-row` carries no `gap`, and each trailing
+	// control opens with `margin-left: 8u` (`launcher.css:388`). So a control rides
+	// at `Size + margin` = `Space(7) + Space(2)`, and the nudge's room is what the
+	// row's inner width leaves after them — it is not counted itself, since this is
+	// the width it may take.
 	inner := width - 2*t.Space(4)
-	// Items after the field: the nudge, the clear control, then the buttons.
-	// Every adjacent pair carries the row's gap, and each button also keeps
-	// the margin the old row put before it (`.collapsed-card__settings`).
-	room := inner -
-		gap*float32(2+buttons) -
-		t.Space(7)*float32(1+buttons) -
-		t.Space(2)*float32(buttons)
+	room := inner - (t.Space(7)+t.Space(2))*float32(1+buttons)
 	if cap := inner / 2; room > cap {
 		room = cap
 	}

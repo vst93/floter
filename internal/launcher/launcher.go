@@ -961,7 +961,15 @@ func (a *App) View(c *ui.Context) {
 
 		ui.Row(c).Absolute().Top(0).Left(0).Right(0).Height(fieldRow).
 			Background(tk.FieldFill).Padding(0, t.Space(4)).
-			AlignItems(ui.Center).Gap(t.Space(1)).Children(func() {
+			AlignItems(ui.Center).Children(func() {
+			// The reference's `.collapsed-card__input-row` is a plain flex row with
+			// **no** `gap`: every child's spacing is its own margin — the scope mark
+			// ends with `margin-right: 10u` (`launcher.css:324`), the trigger nudge and
+			// the trailing buttons each open with `margin-left: 8u`
+			// (`:543`, `:388`). The port put a uniform 4u `Gap` on the row instead,
+			// which added a step the design does not spend in front of the nudge and
+			// the buttons (12u where the reference draws 8u) and shortened the field
+			// by 4u per trailing item. The row keeps the reference's own seams now.
 			// The launcher's implicit drag handle (R10-B): a 28px band
 			// across the card's top, painted under the field and the buttons
 			// so the field keeps every one of its clicks. The card itself is
@@ -1064,27 +1072,29 @@ func (a *App) View(c *ui.Context) {
 				}
 				if a.Query != "" {
 					// The clear control is the same 28u transparent square the
-					// field's other two buttons are (`.collapsed-card__settings`):
-					// a bare mark that only lands on the resting plane while
-					// hovered, never a filled pill in the search row.
-					clear := ui.Row(c).Focusable().Shrink(0).Size(t.Space(7), t.Space(7)).
-						Radius(tk.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).
-						Label(copy.Clear)
-					if clear.Hovered() {
-						clear.Background(t.SurfaceHover)
-					}
-					clear.Children(func() {
+					// field's other buttons are (`.collapsed-card__settings`),
+					// drawn through the one control the row shares: `--text-tertiary`
+					// at rest, `--text-strong` under the pointer, and the 0.92 press
+					// the reference's `:active` rule takes (`launcher.css:397-411`).
+					// The port had given this one button its own face — muted ink,
+					// plain hover fill, no press — so the four trailing controls did
+					// not answer the pointer alike.
+					a.fieldSettingsButton(c, tk, copy.Clear, "", func(mark ui.Color) {
 						if glyph, ok := Glyph("close"); ok {
-							ui.Icon(c, glyph).Size(t.Space(4), t.Space(4)).TextColor(t.TextMuted)
+							ui.Icon(c, glyph).Size(t.Space(4), t.Space(4)).TextColor(mark)
 						}
-					})
-					if clear.Clicked() {
+					}, func() {
 						a.Query = ""
 						a.Selected = 0
 						a.FocusSearch()
-					}
+					})
 				} else {
-					ui.Text(c, copy.Hint).FontSize(t.FontSize).TextColor(t.TextMuted)
+					// The empty field's own trailing hint (a port addition: the
+					// reference leaves the wording to the input's `placeholder`). It opens
+					// on the same 8u the trailing controls use, so the field's tail is one
+					// rhythm with no row-wide gap to lean on.
+					ui.Text(c, copy.Hint).FontSize(t.FontSize).TextColor(t.TextMuted).
+						Margin(0, 0, 0, t.Space(2))
 				}
 			}
 			// The field row's trailing control. In a built-in plugin mode it is
@@ -2482,8 +2492,56 @@ func (a *App) scopeMark(copy i18n.Launcher) (*ui.SVG, string, bool) {
 // fieldButtons draws the field row's trailing controls: the two ways in the
 // old build kept beside the field — the sessions page and the settings — each
 // a glyph button whose own label names it for assistive technology.
+// fieldSettingsButton draws one of the field row's trailing icon controls:
+// the reference's `.collapsed-card__settings` (`main:src/styles/launcher.css:
+// 382-419`), which all three of them (sessions, settings, the plugin gear and
+// the pin) share as one control. It is a 28u transparent square with a 9u
+// corner, its mark at rest in `--text-tertiary` (`:397`), and the 8u margin the
+// old row put before it.
+//
+// Two states ride on top of the resting face, and the port had neither:
+//
+//   - `:hover:not(:disabled)` (`:400-404`) lifts the mark one step to
+//     `--text-strong` *and* lights the control's own hover fill with the
+//     resting plane's lens (`--elev-0`); and
+//   - `:active:not(:disabled)` (`:407-411`) sinks the button a hair into the
+//     glass — `transform: scale(0.92)` over `--glass-control-press`, its
+//     shadow gone — which is the press the row's other controls already take.
+//
+// The transition (`:397`, `color var(--dur-2) ease, background var(--dur-2)
+// ease, transform var(--dur-1) ease`) is where the 120ms colour step and the
+// 80ms transform step come from; the framework animates both off one
+// `ElementTransition`, so the colours ride the 120ms step and the press scale
+// is a render-time transform under the same use.
+func (a *App) fieldSettingsButton(c *ui.Context, tokens theme.Tokens, label, hint string, mark func(mark ui.Color), run func()) {
+	t := c.Theme()
+	e := ui.Row(c).Focusable().Shrink(0).Size(t.Space(7), t.Space(7)).
+		Radius(tokens.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).
+		Label(label).Tooltip(hint).Margin(0, 0, 0, t.Space(2)).
+		Transition(ui.ElementTransition{Duration: 120 * time.Millisecond, Colors: true})
+	// The reference's `.collapsed-card__settings` carries three faces: the
+	// resting mark in `--text-tertiary`, the hover lift (`--glass-control-hover`
+	// + `--elev-0` + `--text-strong`), and the press (the scale and
+	// `--glass-control-press`). The press wins over the hover, as the CSS's
+	// `:active` rule does over `:hover`.
+	ink := tokens.TextTertiary
+	switch {
+	case e.Pressed():
+		e = e.Background(tokens.ControlPress).Scale(0.92, 0.92)
+		ink = tokens.TextStrong
+	case e.Hovered():
+		e = tokens.Lens(e.Background(tokens.ControlHover))
+		ink = tokens.TextStrong
+	}
+	e.Children(func() { mark(ink) })
+	if e.Clicked() {
+		run()
+	}
+}
+
 func (a *App) fieldButtons(c *ui.Context, copy i18n.Launcher) {
 	t := c.Theme()
+	tokens := theme.ForPreferences(a.settings(), t.Dark, c.Preferences())
 	// The field's own buttons are the reference's `.collapsed-card__settings`:
 	// a 28u square on the row, a 9u radius, its mark in the tertiary colour,
 	// and a hover that lights the mark one step - with the 8u margin the old
@@ -2493,27 +2551,11 @@ func (a *App) fieldButtons(c *ui.Context, copy i18n.Launcher) {
 		if run == nil {
 			return
 		}
-		tokens := theme.ForPreferences(a.settings(), t.Dark, c.Preferences())
-		e := ui.Row(c).Focusable().Shrink(0).Size(t.Space(7), t.Space(7)).
-			Radius(tokens.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).
-			Label(label).Tooltip(hint).Margin(0, 0, 0, t.Space(2))
-		// The reference's `.collapsed-card__settings:hover` lifts the
-		// mark one step (`--text-strong`) and adds the resting plane's
-		// own shadow (`--elev-0`, the full control lens): the button is a
-		// control that answers the pointer, not a bare glyph on the row.
-		mark := t.TextMuted
-		if e.Hovered() {
-			e = tokens.Lens(e.Background(t.SurfaceHover))
-			mark = tokens.TextStrong
-		}
-		e.Children(func() {
+		a.fieldSettingsButton(c, tokens, label, hint, func(mark ui.Color) {
 			if glyph, ok := Glyph(glyphName); ok {
 				ui.Icon(c, glyph).Size(t.Space(4), t.Space(4)).TextColor(mark)
 			}
-		})
-		if e.Clicked() {
-			run()
-		}
+		}, run)
 	}
 	// The settings button's line names the key that opens the same surface, and
 	// it is the user's own binding: the old build interpolated the live
@@ -2540,26 +2582,11 @@ func (a *App) pluginGear(c *ui.Context, copy i18n.Launcher, id string) {
 		label, glyphName = copy.ConfigurePluginClose, "close"
 		hint = copy.ConfigurePluginCloseHint
 	}
-	e := ui.Row(c).Focusable().Shrink(0).Size(t.Space(7), t.Space(7)).
-		Radius(tokens.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).
-		Label(label).Tooltip(hint).Margin(0, 0, 0, t.Space(2))
-	// The reference's `.collapsed-card__settings:hover` lifts the mark one
-	// step (`--text-strong`) and adds the resting plane's own shadow
-	// (`--elev-0`, the full control lens): the button is a control that
-	// answers the pointer, not a bare glyph on the row.
-	mark := t.TextMuted
-	if e.Hovered() {
-		e = tokens.Lens(e.Background(t.SurfaceHover))
-		mark = tokens.TextStrong
-	}
-	e.Children(func() {
+	a.fieldSettingsButton(c, tokens, label, hint, func(mark ui.Color) {
 		if glyph, ok := Glyph(glyphName); ok {
 			ui.Icon(c, glyph).Size(t.Space(4), t.Space(4)).TextColor(mark)
 		}
-	})
-	if e.Clicked() {
-		a.toggleConfig(id)
-	}
+	}, func() { a.toggleConfig(id) })
 }
 
 // pinButton is the field row's trailing control for an external command
@@ -2570,23 +2597,11 @@ func (a *App) pluginGear(c *ui.Context, copy i18n.Launcher, id string) {
 func (a *App) pinButton(c *ui.Context, copy i18n.Launcher) {
 	t := c.Theme()
 	tokens := theme.ForPreferences(a.settings(), t.Dark, c.Preferences())
-	e := ui.Row(c).Focusable().Shrink(0).Size(t.Space(7), t.Space(7)).
-		Radius(tokens.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).
-		Label(copy.OutputDetach).Tooltip(copy.OutputDetachHint).
-		Margin(0, 0, 0, t.Space(2))
-	// The same hover as the row's other buttons: the resting plane's own
-	// lens (`--elev-0`) and the mark one step up.
-	mark := t.TextMuted
-	if e.Hovered() {
-		e = tokens.Lens(e.Background(t.SurfaceHover))
-		mark = tokens.TextStrong
-	}
-	e.Children(func() {
+	a.fieldSettingsButton(c, tokens, copy.OutputDetach, copy.OutputDetachHint, func(mark ui.Color) {
 		if glyph, ok := Glyph("pin"); ok {
 			ui.Icon(c, glyph).Size(t.Space(4), t.Space(4)).TextColor(mark)
 		}
-	})
-	if e.Clicked() {
+	}, func() {
 		a.Actions.DetachOutput(OutputView{Entry: a.mode, Args: strings.Split(a.Query, " ")})
-	}
+	})
 }

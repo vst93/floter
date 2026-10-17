@@ -100,6 +100,42 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
+> **本轮：P7-hi 用户报告复查 + 启动器字段行横向接缝与共享控件面对齐原版**
+>
+> 用户报告的两条（① 搜索页左右大空白；② 输入内容时「在终端中打开」固定第一项、缺选中态）本轮
+> 再次逐项复跑：`internal/launcher/actionbarfooter_test.go` 五条 + `filters_test.go` 的
+> `TestHeldModifierBareTerminalRow` 全绿，确认 `5c2d60d` 已修。前置清理：`git status` 只剩
+> `internal/launcher/launcher.go` 的未提交改动（一个**有效**的 `fieldSettingsButton` 抽取：会话/设置/
+> 插件齿轮/pin 四个尾随控件改走原版 `.collapsed-card__settings` 的三态，予以保留并补完），两个
+> 调试用 `zzprobe*_test.go` 为无效探针，删除。
+>
+> **本轮清空的两条（原版 `main:src/styles/launcher.css` 逐字段对照）**：
+> 1. **字段行多了一条原版没有的 4u flex `gap`**（P7-hi-1）。原版 `.collapsed-card__input-row`
+>    （`launcher.css:251-253`）是 `display:flex; align-items:center`、**无 `gap`**：每个子元素的间距
+>    都在自己的 margin 上——scope mark `margin-right: 10u`（`:324`）、trigger nudge 与各尾随按钮
+>    `margin-left: 8u`（`:543`, `:388`）。本构建 `launcher.go:964` 写 `.Gap(t.Space(1))`，于是
+>    nudge→clear→sessions→settings 每道缝都成了 12u（原版 8u），字段也被每个尾随项各挤掉 4u。
+>    落地：字段行去掉 `.Gap`；`triggerhint.go` 的 `triggerHintRoom` 由「gap×(2+buttons)+尺寸」改为
+>    「每个尾随控件 `Space(7)+Space(2)`」，与绘制同源。
+> 2. **清除控件自成一幅面孔**（P7-hi-2）。原版 `.collapsed-card__settings`（`launcher.css:382-411`）
+>    给会话/设置/插件齿轮/pin 共用三态：静止 `--text-tertiary`（`:397`）、`:hover` 落
+>    `--glass-control-hover`+`--elev-0`+`--text-strong`（`:400-404`）、`:active` 缩 0.92 叠
+>    `--glass-control-press`（`:407-411`）；清除按钮是这一族的第五个。本构建却给了它 `t.TextMuted`
+>    墨 + `t.SurfaceHover` 面 + **无按压**。落地：clear 改由 `a.fieldSettingsButton` 绘制。
+>
+> **验收**：新增 `internal/launcher/fieldseam_test.go` 的
+> `TestTheFieldRowSpendsNoFlexGapBetweenItsTrailingControls`（Clear→Sessions→Settings 两道缝逐一对上
+> `Space(2)`）与 `internal/launcher/fieldface_test.go` 的
+> `TestTheFieldRowClearControlWearsTheSharedControlFace`（三个尾随控件静止墨都 ≈ `--text-tertiary`
+> 合成值且 != `--text-muted`；按住时盒缩到 25.76，即 `scale(0.92)`）。变异核查：字段行 `.Gap` 放回 →
+> 缝读 12 红；clear 换回旧写法（muted 墨 + 无按压）→ 静止墨读 stored muted 值且按压盒仍 28，两条红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./internal/...` 净、`GOOS=linux/windows/darwin go build`
+> 三平台过、`go test -count=1 ./internal/{launcher,theme,shell,settingsui}` 全绿。
+>
+> **清单状态**：`.pending-bugs.md` 顶部新增「本轮清空（P7-hi）」两条，均落地；启动器「仍未锁定」
+> 为空，只剩「扩展面板·配置表单」的结构性一条。
+
 > **本轮：P7-hh 用户报告复查 + 启动器/主题的选中与暖色面 token 对齐原版**
 >
 > 用户报告的两条（① 搜索页左右大空白；② 输入内容时「在终端中打开」固定第一项、缺选中态）经像素级
