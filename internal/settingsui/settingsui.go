@@ -1935,20 +1935,15 @@ func (a *App) integrationMeta(c *ui.Context, copy i18n.Settings, integration Int
 // the row's value; these lines are its detail.
 func (a *App) healthDetail(c *ui.Context, copy i18n.Settings, report *HealthReport) {
 	t := a.cardTheme(c)
-	tokens := a.tokens(c)
 	if len(report.Probes) > 0 {
-		a.row(c, copy.IntegrationsHealthChecks, "", func() {})
-		for _, probe := range report.Probes {
-			probe := probe
-			a.row(c, probe.ID, "", func() {
-				mark, color := "\u2713", t.Accent
-				if !probe.Passed {
-					mark, color = "\u2717", t.Danger
+		a.row(c, copy.IntegrationsHealthChecks, "", func() {}, func() {
+			ui.Column(c).FillWidth().Children(func() {
+				for _, probe := range report.Probes {
+					probe := probe
+					a.healthProbeRow(c, probe)
 				}
-				ui.Text(c, mark).FontSize(t.FontSize).TextColor(color)
-				ui.Text(c, healthDuration(probe.DurationMs)).FontSize(t.FontSize - 1).TextColor(tokens.TextSecondary)
 			})
-		}
+		})
 	}
 	var failed []HealthProbe
 	for _, probe := range report.Probes {
@@ -1957,18 +1952,14 @@ func (a *App) healthDetail(c *ui.Context, copy i18n.Settings, report *HealthRepo
 		}
 	}
 	if len(failed) > 0 {
-		a.row(c, copy.IntegrationsHealthFailures, "", func() {})
-		for _, probe := range failed {
-			probe := probe
-			lines := []rowLine{{Text: copy.IntegrationsHealthExitCode(healthExitCode(probe.ExitCode))}}
-			if probe.Stderr != "" {
-				lines = append(lines, rowLine{Text: probe.Stderr})
-			}
-			if probe.Retryable {
-				lines = append(lines, rowLine{Text: copy.IntegrationsHealthRetryable})
-			}
-			a.rowLines(c, probe.ID, lines, func() {})
-		}
+		a.row(c, copy.IntegrationsHealthFailures, "", func() {}, func() {
+			ui.Column(c).FillWidth().Gap(t.Space(1)).Children(func() {
+				for _, probe := range failed {
+					probe := probe
+					a.healthFailureCard(c, copy, probe)
+				}
+			})
+		})
 	}
 	if when := healthCheckedAt(report.CheckedAt); when != "" {
 		a.row(c, copy.IntegrationsHealthCheckedAt(when), "", func() {})
@@ -2031,27 +2022,40 @@ func (a *App) approvalDetail(c *ui.Context, copy i18n.Settings, record *Approval
 	a.row(c, copy.ApprovalRecordDigest, digest, func() {})
 	a.row(c, copy.ApprovalRecordDigestCurrent, current, func() {})
 	language := a.Store.Snapshot().Language
-	if len(record.Enforced) == 0 && len(record.Disclosure) == 0 {
-		a.row(c, copy.ApprovalRecordPermissions, copy.ApprovalRecordPermissionsNone, func() {})
-	} else {
-		for _, permission := range record.Enforced {
-			a.row(c, i18n.PermissionLabel(language, permission), "", func() {
-				ui.Text(c, copy.PermissionsEnforcedLabel).FontSize(t.FontSize - 1).TextColor(t.Accent)
-			})
-		}
-		for _, permission := range record.Disclosure {
-			a.row(c, i18n.PermissionLabel(language, permission), "", func() {
-				ui.Text(c, copy.PermissionsDisclosureLabel).FontSize(t.FontSize - 1).TextColor(tokens.TextSecondary)
-			})
+	stale := extensions.ApprovalIsStale(record.ApprovedDigest, record.CurrentDigest)
+	// The changed-manifest warning is *reported*, never acted on: "the approval
+	// no longer covers the bytes on disk" is a prompt to re-approve, not a
+	// version state to restore. Unknown (either side missing) stays silent. It
+	// rides under the permissions row as the reference's own
+	// `.extension-approval-record__stale` banner (`extensions.css:2171-2179`),
+	// never as a nameless ruled card row with a lone `!`.
+	staleBelow := func() {
+		if stale {
+			a.approvalStaleBanner(c, copy)
 		}
 	}
-	// A changed manifest is *reported*, never acted on: "the approval no
-	// longer covers the bytes on disk" is a prompt to re-approve, not a
-	// version state to restore. Unknown (either side missing) stays silent.
-	if extensions.ApprovalIsStale(record.ApprovedDigest, record.CurrentDigest) {
-		a.row(c, "", copy.ApprovalRecordChanged, func() {
-			ui.Text(c, "!").FontSize(t.FontSize - 1).FontWeight(620).TextColor(t.Warning)
-		})
+	if len(record.Enforced) == 0 && len(record.Disclosure) == 0 {
+		a.row(c, copy.ApprovalRecordPermissions, copy.ApprovalRecordPermissionsNone, func() {}, staleBelow)
+	} else {
+		// The reference draws the approved permissions as *pills* under the
+		// label, never as one ruled row per id: an enforced id wears the
+		// recognizable raised-quiet + accent-keyline face its twin in the audit
+		// list has, a disclosure id the plain icon-surface face
+		// (`.extension-approval-record__permission`, `extensions.css:2149-2168`).
+		a.row(c, copy.ApprovalRecordPermissions, "", func() {}, func() {
+			ui.Column(c).FillWidth().Gap(t.Space(2)).Children(func() {
+				if len(record.Enforced) > 0 {
+					ui.Text(c, copy.PermissionsEnforcedLabel).FontSize(tokens.Caption).
+						FontWeight(620).TextColor(tokens.TextSecondary)
+					a.approvalPermissionPills(c, language, record.Enforced, true)
+				}
+				if len(record.Disclosure) > 0 {
+					ui.Text(c, copy.PermissionsDisclosureLabel).FontSize(tokens.Caption).
+						FontWeight(620).TextColor(tokens.TextSecondary)
+					a.approvalPermissionPills(c, language, record.Disclosure, false)
+				}
+			})
+		}, staleBelow)
 	}
 }
 
@@ -2168,15 +2172,8 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 		// runs in this session — and a check refreshes it. The status word is
 		// the row's value; the live findings are the diagnostics row below.
 		if integration.Health != "" {
-			tone := t.TextMuted
-			switch integration.Health {
-			case copy.IntegrationsUnhealthy:
-				tone = t.Danger
-			case copy.IntegrationsDegraded:
-				tone = t.Warning
-			}
 			a.row(c, copy.IntegrationsHealth, "", func() {
-				ui.Text(c, integration.Health).FontSize(t.FontSize - 1).TextColor(tone)
+				a.healthStatusChip(c, copy, integration.Health)
 			})
 		}
 		if integration.HealthReport != nil {

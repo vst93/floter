@@ -100,6 +100,58 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
+> **本轮：P7-hn 用户报告复查 + Integrations 页健康／批准区块对齐原版**
+>
+> 用户报告的两条（① 搜索页左右大空白；② 输入内容时「在终端中打开」固定第一项、缺选中态）本轮不仅
+> 复跑测试，还**直接量了像素**：空字段的 caret 落在 x=16、结果行标题落在 x=54（即原版
+> `.collapsed-card__input-row{padding:0 16u}` 与 `.launcher-result{padding:0 12u}` 的文本列），
+> 输入 `term` 时动作栏是列表**末行**（`[0] terminal, [1] bar:shell`）、且 `defaultsToShell` 把选择交给
+> 它；再按住修饰键，末行变成本构建的裸终端行（`[2] system-terminal-bare`）并且选中。这些与
+> `actionbarfooter_test.go` 七条 + `filters_test.go` 的 `TestHeldModifierBareTerminalRow` 一致，确认
+> `5c2d60d` 已修。前置清理：`git status` 干净，无未提交改动。
+>
+> 随后回到常规迭代。先做一次**参考 CSS 选择器普查**（把 `main:src/styles/` 六张表里的 502 个类名
+> 与 `internal/`+`docs/` 的提及集合做差），筛出「在本构建与文档里都从未出现过」的家族。
+> `.extension-health__*` 与 `.extension-approval-record__*` 是**唯一一处 `docs/` 与 `.pending-bugs.md`
+> 双双为 0 提及**的设置区块（Integrations 页的正文 `main:src/ExtensionsPanel.tsx:2892-2975` + 样式
+> `extensions.css:2020-2204,2124-2179`），本轮把它当审计入口，清掉五条差异：
+>
+> 1. **健康判定不是 chip，是行尾的一个灰词**（P7-hn-1）。原版 `.extension-health__status`
+>    （`extensions.css:2184-2188`）是 `2px 8px` / `--radius-sm` / 620 / caption 的四张脸蛋：
+>    healthy = raised-quiet + `--elev-0` + `inset 0 0 0 1px var(--accent-edge)` + strong；
+>    degraded/unhealthy = raised-warm + warning keyline + warning 墨；unknown 透明 + muted。
+>    本构建只把状态词当行尾值（三档墨、无盘）。落地：新增 `healthStatusChip`/`healthStatusFace`/
+>    `statusWearsLens`，Health 行改走它。
+> 2. **探针行不是紧凑行**（P7-hn-2）。原版 `.extension-health__probe`（`:2193-2198`）：`padding:4px 0`、
+>    `gap:8px`、底缘 hairline；11px Check/X 记号（passed=strong 而非 accent）、等宽 id、右对齐 ms。
+>    本构建每个探针是一个带尾槽的规则行、正文档字。落地：`healthProbeRow`（字面 11px 记号 + 等宽 id +
+>    右对齐 caption 时长 + hairline 底缘），改画在「Checks」行的 below 块。
+> 3. **失败卡不是暖卡**（P7-hn-3）。原版 `.extension-health__failure`（`:2200-2203`）是暖盘 +
+>    `inset 0 0 0 1px var(--text-warning)` + `border-left: 2px` + `--ext-radius`。本构建把 exit/stderr/
+>    Retryable 摊成行的灰行。落地：`healthFailureCard`。
+> 4. **已批准权限不是药丸族**（P7-hn-4）。原版 `.extension-approval-record__permission`（`:2124-2168`）
+>    是 `4px 8px` / `--radius-xs` / `--icon-surface` 盘药丸，enforced 换成 raised-quiet +
+>    `inset 0 0 0 1px var(--accent-edge)` + primary 墨。本构建一 id 一规则行 + 尾槽层级词。落地：
+>    `approvalPermissionPills`（两档药丸），`approvalDetail` 改为 tier 标题 + 药丸族。
+> 5. **批准变更横幅不是暖横幅**（P7-hn-5）。原版 `.extension-approval-record__stale`（`:2171-2179`）是
+>    暖盘 + 2px warning 左边 + secondary caption 句。本构建是「无名行 + 一个 `!`」。落地：
+>    `approvalStaleBanner`，作为权限行的 below 块画在权限族之后。
+>
+> **验收**：新增 `internal/settingsui/healthfaces_test.go` 四条
+> （`TestTheHealthVerdictWearsItsOwnChip`、`TestProbeLinesAreTheReferenceCompactRows`、
+> `TestTheFailureCardWearsTheWarmRasiedPlane`、`TestTheApprovedPermissionsAreTheReferencePills`），
+> 四条各自带明/暗两外观子跑。变异核查：换回裸 `ui.Text` 状态词 → chip 两条断言红；探针换回
+> `MinHeight(Space(11))` 普通行 → 三条断言红；失败卡 `RaisedWarm`→`Control` → 暖色断言红；
+> 权限药丸换回「一 id 一行」→ 两条断言红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./internal/settingsui` 净、
+> `GOOS=linux/windows/darwin go build` 三平台过、
+> `go test -count=1 ./internal/{settingsui,i18n,launcher,shell}` 全绿（shell 曾有一次环境相关的
+> opener 失败，复跑三次均过）。
+>
+> **清单状态**：`.pending-bugs.md` 顶部新增「本轮清空（Integrations 页健康／批准区块 · P7-hn）」
+> 五条，均落地；仍挂的结构性一条（扩展面板「配置区块容器形状」）不变。
+
 > **本轮：P7-hm 用户报告复查 + Sessions 页行族与 About 页更新动作对齐原版**
 >
 > 用户报告的两条（① 搜索页左右大空白；② 输入内容时「在终端中打开」固定第一项、缺选中态）本轮再次
