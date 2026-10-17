@@ -3,6 +3,8 @@ package settingsui
 import (
 	"testing"
 	"time"
+
+	"floter/internal/i18n"
 )
 
 // A session's close question carries its own three-second clock, as the
@@ -17,30 +19,31 @@ func TestTheSessionCloseQuestionExpiresAndDoesNotCrossPages(t *testing.T) {
 	}
 	now := time.Unix(1_700_000_000, 0)
 	a.Now = func() time.Time { return now }
+	en := i18n.For("en").Settings
 	tt := render(t, a, 720, 760)
 	if err := tt.Click("Sessions"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	if err := tt.Click("Close session"); err != nil {
+	if err := tt.Click(en.SessionsKill); err != nil {
 		t.Fatalf("close: %v", err)
 	}
 	tt.Frame()
-	if !tt.HasText("Close it?") {
+	if !tt.HasText(en.SessionsKillArm) {
 		t.Fatalf("the close did not arm: %v", tt.Texts())
 	}
 
 	// Inside the window the question is still up.
 	now = now.Add(2 * time.Second)
 	tt.Frame()
-	if !tt.HasText("Close it?") {
+	if !tt.HasText(en.SessionsKillArm) {
 		t.Fatalf("the question left inside its window: %v", tt.Texts())
 	}
 
 	// Past it the button is the plain close control again, unanswered.
 	now = now.Add(4 * time.Second)
 	tt.Frame()
-	if tt.HasText("Close it?") {
+	if tt.HasText(en.SessionsKillArm) {
 		t.Errorf("the question outlived its window: %v", tt.Texts())
 	}
 	if closed != 0 {
@@ -48,11 +51,11 @@ func TestTheSessionCloseQuestionExpiresAndDoesNotCrossPages(t *testing.T) {
 	}
 
 	// Arm again, then leave the page: the question does not come back with it.
-	if err := tt.Click("Close session"); err != nil {
+	if err := tt.Click(en.SessionsKill); err != nil {
 		t.Fatalf("close: %v", err)
 	}
 	tt.Frame()
-	if !tt.HasText("Close it?") {
+	if !tt.HasText(en.SessionsKillArm) {
 		t.Fatalf("the close did not arm: %v", tt.Texts())
 	}
 	if err := tt.Click("General"); err != nil {
@@ -63,7 +66,7 @@ func TestTheSessionCloseQuestionExpiresAndDoesNotCrossPages(t *testing.T) {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	if tt.HasText("Close it?") {
+	if tt.HasText(en.SessionsKillArm) {
 		t.Errorf("the question survived a page change: %v", tt.Texts())
 	}
 	if closed != 0 {

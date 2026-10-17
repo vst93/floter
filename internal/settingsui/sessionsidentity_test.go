@@ -1,6 +1,10 @@
 package settingsui
 
-import "testing"
+import (
+	"testing"
+
+	"floter/internal/i18n"
+)
 
 // The close question names a session by identity, not by its position in the
 // list: the reference's `killArmedId` held the stable `session.sessionId`
@@ -17,6 +21,7 @@ func TestTheCloseArmFollowsTheSessionWhenTheListShrinks(t *testing.T) {
 		{ID: 3, Title: "C", Running: true, Index: 2},
 	}
 	a.Sessions = func() []Session { return sessions }
+	en := i18n.For("en").Settings
 	tt := render(t, a, 720, 760)
 	if err := tt.Click("Sessions"); err != nil {
 		t.Fatal(err)
@@ -25,7 +30,7 @@ func TestTheCloseArmFollowsTheSessionWhenTheListShrinks(t *testing.T) {
 
 	a.armSessionClose(2)
 	tt.Frame()
-	if !tt.HasText("Close it?") {
+	if !tt.HasText(en.SessionsKillArm) {
 		t.Fatalf("the close did not arm: %v", tt.Texts())
 	}
 
@@ -36,10 +41,10 @@ func TestTheCloseArmFollowsTheSessionWhenTheListShrinks(t *testing.T) {
 		{ID: 3, Title: "C", Running: true, Index: 1},
 	}
 	tt.Frame()
-	if !tt.HasText("Close it?") {
+	if !tt.HasText(en.SessionsKillArm) {
 		t.Fatalf("the question did not survive a neighbouring deletion: %v", tt.Texts())
 	}
-	if err := tt.Click("Close it?"); err != nil {
+	if err := tt.Click(en.SessionsKillArm); err != nil {
 		t.Fatalf("confirm: %v", err)
 	}
 	tt.Frame()
@@ -59,6 +64,7 @@ func TestTheCloseArmIsDroppedWhenItsSessionDisappears(t *testing.T) {
 		{ID: 2, Title: "B", Running: true, Index: 1},
 	}
 	a.Sessions = func() []Session { return sessions }
+	en := i18n.For("en").Settings
 	tt := render(t, a, 720, 760)
 	if err := tt.Click("Sessions"); err != nil {
 		t.Fatal(err)
@@ -66,7 +72,7 @@ func TestTheCloseArmIsDroppedWhenItsSessionDisappears(t *testing.T) {
 	tt.Frame()
 	a.armSessionClose(2)
 	tt.Frame()
-	if !tt.HasText("Close it?") {
+	if !tt.HasText(en.SessionsKillArm) {
 		t.Fatalf("the close did not arm: %v", tt.Texts())
 	}
 
@@ -74,13 +80,13 @@ func TestTheCloseArmIsDroppedWhenItsSessionDisappears(t *testing.T) {
 	// A, and nothing can be confirmed.
 	sessions = []Session{{ID: 1, Title: "A", Running: true, Index: 0}}
 	tt.Frame()
-	if tt.HasText("Close it?") {
+	if tt.HasText(en.SessionsKillArm) {
 		t.Errorf("the question outlived its session: %v", tt.Texts())
 	}
 	if a.anySessionArmed() {
 		t.Errorf("the arm for the departed session was not dropped (the state, not just the label)")
 	}
-	if err := tt.Click("Close it?"); err == nil {
+	if err := tt.Click(en.SessionsKillArm); err == nil {
 		t.Errorf("a confirm control was still clickable after its session left")
 	}
 	if closed != 0 {

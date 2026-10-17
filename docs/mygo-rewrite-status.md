@@ -100,6 +100,62 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
+> **本轮：P7-hm 用户报告复查 + Sessions 页行族与 About 页更新动作对齐原版**
+>
+> 用户报告的两条（① 搜索页左右大空白；② 输入内容时「在终端中打开」固定第一项、缺选中态）本轮再次
+> 逐项复跑：`internal/launcher/actionbarfooter_test.go` 七条 + `filters_test.go` 的
+> `TestHeldModifierBareTerminalRow` 全绿，确认 `5c2d60d` 已修。前置清理：`git status` 干净，无未提交
+> 改动。随后回到常规迭代。按「用户可感知的视觉/交互差异优先」先做了一次**参考 CSS 选择器普查**
+> （把 `main:src/styles/{launcher,settings,extensions,terminal}.css` 的类名与 `docs/` 对照，找从未
+> 出现过的选择器），Sessions 页的 `.session-manager__*` 行族与 About 页的 `.update-banner__*` 是设置
+> 面板里两片**唯一从未逐字段对照过**的区域（此前只比对过排序轴、行事实与关闭武装），本轮取它们落地。
+>
+> **本轮清空的七条（原版 `main:src/settings/SessionsPage.tsx` + `main:src/styles/settings.css`
+> `.session-manager__*` / `.update-banner__*` 逐字段对照）**：
+> 1. **行尾两个控件穿了框架的带字按钮，问句还画了第二排按钮**（P7-hm-1）。原版行尾只有两个 28u
+>    图标键（`Play` = `terminal.sessionResume`、`Trash2` = `terminal.sessionKill`），关闭问句是把 bin
+>    **就地在原位撑成** `.session-manager__kill-confirm` 暖药丸（`settings.css:1330-1347`），压根没有
+>    「Keep / Close it?」这对答案键（问句由 3s 时钟、Escape 或行消失收场，`:99-107`）。本构建却画
+>    `ui.Button` 的「Show」「Close session」+ 第二排「Close it?」「Keep」。落地：`rows.go` 新增
+>    `sessionIconButton` / `sessionKillConfirm` 按原版逐字段绘制。
+> 2. **i18n 四个词是自造的**（P7-hm-2）。原版只有 `terminal.sessionResume` /
+>    `terminal.sessionKill` / `terminal.sessionKillArm`（`i18n.ts:180-182`）；本构建的
+>    `SessionsShow`/`SessionsClose`/`SessionsCloseConfirm`/`SessionsCloseCancel` 全删，换成原版三词。
+> 3. **行前导格是空的**（P7-hm-3）。原版 `SessionsPage.tsx:186-187` 的 `<SquareTerminal size={16}/>`
+>    落在共享 `.settings-row__icon` 槽（26u、`--icon-surface`、`--radius-xs`，`settings.css:511-518`）。
+>    落地：`rows.go` 新增 `sessionChip`。
+> 4. **两条灰行寄存器错档**（P7-hm-4）。原版 cwd 是等宽 + caption（`:1272-1276`）、meta 是 caption +
+>    tabular（`:1280-1286`）；本构建两条都在正文档、cwd 不等宽。落地：`rowLine` 加 `Mono` 标记，段行
+>    恒 caption，目录行 caption + `deepLinkValueFont`。
+> 5. **两条灰行与 label 都不截断**（P7-hm-5）。原版 `nowrap + ellipsis`（`:1240-1244`）；落地补
+>    `SingleLine()`。
+> 6. **更新动作穿框架灰盘**（P7-hm-6）。原版 `.update-banner__button`（`settings.css:1542-1568`）是
+>    accent 盘 + `--glass-raised-rim` 顶缘 + 999px + `6u/14u` + 600 + hover 0.9 / disabled 0.6。
+>    落地：新增 `updateButton`。
+> 7. **进度条轨道多了真边框、读数不在 caption/secondary/右对齐档**（P7-hm-7）。原版用
+>    `inset 0 0 0 1px`（`:1577-1583`）、读数 `--text-caption`/`--text-secondary`/右对齐（`:1592-1599`）。
+>    落地：`updateProgress` 改 inset keyline + caption/secondary/End；列宽改 `MinWidth`。
+>
+> **验收**：新增 `internal/settingsui/sessionrow_test.go` 六条——
+> `TestTheSessionTrailingControlsAreTheReferenceIconButtons`（两个 28u 方、问句绕过就地在原位撑宽、
+> 旧四词一个都不出现）、`TestTheSessionKillQuestionWearsTheWarmPill`（药丸内像素 ≠ 卡片盘）、
+> `TestTheSessionRowLeadsWithTheSessionsMark`（label 左有记号、三记号在共享词汇里）、
+> `TestTheSessionCwdLineIsTheBlocksOnlyMonoLine`（cwd 是块里唯一 mono 行）、
+> `TestTheUpdateActionWearsTheReferenceAccentPill`（盒内更近 accent、盒高在 28u 档）、
+> `TestTheSessionCwdAndMetaRideTheCaptionStep`。既有 `sessionsclock_test.go` / `sessionsidentity_test.go` /
+> `sessionsstate_test.go` / `view_test.go` 的对应断言随新词更新。变异核查：换回 `ui.Button` 两个分支
+> → 旧四词断言红 + 盒高 22 ≠ 28；`sessionKillConfirm` 换回卡片盘 → 药丸断言红；`Mono` 摘掉 →
+> 唯一 mono 行断言红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./internal/{i18n,settingsui,launcher}` 净、
+> `GOOS=linux/windows/darwin go build` 三平台过、
+> `go test -count=1 ./internal/{i18n,settingsui,launcher,shell}` 全绿。
+>
+> **清单状态**：`.pending-bugs.md` 顶部新增「本轮清空（Sessions 页行族 · P7-hm）」五条与
+> 「本轮清空（About 页更新动作 · P7-hm）」两条，共 7 条全部落地；仍未锁定的只剩「扩展面板·配置表单」
+> 的结构性一条。
+
+
 > **本轮：P7-hk/P7-hj 用户报告复查 + 启动器告警行与行尾控件对齐原版**
 >
 > 用户报告的两条（① 搜索页左右大空白；② 输入内容时「在终端中打开」固定第一项、缺选中态）本轮再次

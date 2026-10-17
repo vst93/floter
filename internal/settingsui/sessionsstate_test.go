@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
+
+	"floter/internal/i18n"
 )
 
 // The sessions meta line keeps the state word as a segment of its own, so
@@ -178,6 +180,7 @@ func TestClickingAResumableSessionRowResumesIt(t *testing.T) {
 	}
 	tt.Frame()
 
+	en := i18n.For("en").Settings
 	if err := tt.Click("vim"); err != nil {
 		t.Fatalf("click the resumable row: %v", err)
 	}
@@ -196,10 +199,10 @@ func TestClickingAResumableSessionRowResumesIt(t *testing.T) {
 		t.Fatalf("an active/exited row answered a click: %v", shown)
 	}
 	// The explicit control is the same action, and still there.
-	if err := tt.Click("Show"); err != nil {
+	if err := tt.Click(en.SessionsResume); err != nil {
 		t.Fatalf("click Show: %v", err)
 	}
-	if len(shown) != 2 || shown[1] != 1 {
-		t.Fatalf("Show did not resume the session: %v", shown)
+	if len(shown) != 2 || shown[1] != 0 {
+		t.Fatalf("the on-screen session's Play control resumed %v, want to re-select 0", shown)
 	}
 }

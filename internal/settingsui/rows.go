@@ -657,9 +657,16 @@ func (a *App) row(c *ui.Context, label, sublabel string, control func(), below .
 // the row's muted grey; a line may instead be several segments, each in a
 // role's own colour — the sessions meta line, whose state word is the
 // accent while its session runs and the quiet grey once it has exited.
+//
+// Mono marks a line that is a *value* rather than prose: the reference sets a
+// session row's working directory in its monospace stack
+// (`.session-manager__cwd { font-family: "SF Mono", Menlo, … }`,
+// `main:src/styles/settings.css:1272-1276`) because a path reads as data, where
+// a hint reads as a sentence.
 type rowLine struct {
 	Text     string
 	Segments []rowSegment
+	Mono     bool
 }
 
 // rowSegment is one piece of a row's meta line.
@@ -699,6 +706,103 @@ func (a *App) iconRow(c *ui.Context, detected bool, label, sublabel string, cont
 		[]rowLine{{Text: sublabel}}, "", control, below...)
 }
 
+// sessionChip is the sessions row's leading mark: the reference's
+// `.settings-row__icon` (`settings.css:511-518`) — a 26u square with the
+// `--radius-xs` corner carrying the `--icon-surface` plane and lucide's
+// SquareTerminal at 16px in `--text-secondary` (`SessionsPage.tsx:186-187`,
+// `<SquareTerminal size={16} strokeWidth={1.8}/>`). It is the *same* slot the
+// integrations row fills with its package chip: the sessions page draws the
+// shared `SettingsRow`, so its leading cell is the settings row's own, not the
+// extension panel's package chip.
+func (a *App) sessionChip(c *ui.Context) ui.Element {
+	tokens := a.tokens(c)
+	t := a.cardTheme(c)
+	// base.css's `--icon-surface` is an alias of `--glass-control`
+	// (`base.css:620`), so the chip's plane is the resting control rung.
+	chip := ui.Box(c).Width(t.Space(6.5)).Height(t.Space(6.5)).Shrink(0).
+		Radius(tokens.RadiusXS).Background(tokens.Control).Center()
+	chip.Children(func() {
+		ui.Icon(c, mustGlyph("square-terminal")).Size(t.Space(4), t.Space(4)).
+			TextColor(tokens.TextSecondary)
+	})
+	return chip
+}
+
+// sessionIconButton is the sessions row's own trailing control: the
+// reference's `.session-manager__icon-button` (`settings.css:1299-1310`) — a
+// 28u square with a transparent face, a `1px` transparent keyline that lights
+// to `--glass-control-edge` under the pointer, the `--radius-sm` corner and
+// `--text-muted` ink. Hover lifts the fill to `--glass-control-hover` and the
+// ink to `--text-primary`; a `--danger` button keeps the fill and swaps its ink
+// to `--text-warning` (`:1336-1340`); a disabled one dims to the reference's
+// 0.4. The reference's Play button may also carry the accent resume dot in its
+// top-right corner (`:1319-1327`, `:203`), which is the only accent on the row.
+func (a *App) sessionIconButton(c *ui.Context, glyphName, label string, danger, resumable, disabled bool, run func()) {
+	tokens := a.tokens(c)
+	t := c.Theme()
+	button := ui.ButtonBase(c).Label(label).Tooltip(label).
+		Size(t.Space(7), t.Space(7)).Border(1, ui.Transparent).
+		Radius(tokens.RadiusSM).Background(ui.Transparent).Center()
+	ink := t.TextMuted
+	switch {
+	case disabled:
+		button.Opacity(0.4).Cursor(ui.CursorDefault).Disabled(true)
+	case button.Hovered():
+		button.Border(1, tokens.ControlEdge).Background(tokens.ControlHover)
+		if danger {
+			ink = t.Warning
+		} else {
+			ink = t.Text
+		}
+	}
+	button.Children(func() {
+		ui.Icon(c, mustGlyph(glyphName)).Size(t.Space(3.5), t.Space(3.5)).TextColor(ink)
+	})
+	if resumable {
+		// The accent micro-badge that marks a running-but-detached session as
+		// resumable (`.session-manager__resume-dot`): 5u in the button's own
+		// top-right corner, the one accent a session row ever spends.
+		ui.Box(c).Absolute().Top(t.Space(0.75)).Right(t.Space(0.75)).
+			Size(t.Space(1.25), t.Space(1.25)).Radius(t.Space(1.25)).
+			Background(t.Accent).PassThrough()
+	}
+	if button.Clicked() && !disabled {
+		run()
+	}
+}
+
+// sessionKillConfirm is the reference's `.session-manager__kill-confirm`
+// (`settings.css:1330-1347`): the row's destructive question as a 28u pill —
+// `--text-warning` keyline and ink, the `--glass-raised-warm` plane, the
+// `--glass-raised-shadow` lens, 9u of side padding, the caption step at 620 and
+// the Trash2 mark at 13px before the word (`SessionsPage.tsx:216-229`). Hover
+// lifts the plane to `--glass-raised-warm-hover`; a disabled question dims to
+// the reference's 0.4.
+func (a *App) sessionKillConfirm(c *ui.Context, label string, disabled bool, run func()) {
+	tokens := a.tokens(c)
+	t := c.Theme()
+	pill := ui.ButtonBase(c).Label(label).Tooltip(label).
+		MinHeight(t.Space(7)).Padding(0, t.Space(2.25)).Radius(999).
+		Border(1, t.Warning).Background(tokens.RaisedWarm).
+		AlignItems(ui.Center).Center().Gap(t.Space(1.25))
+	// `box-shadow: var(--glass-raised-shadow)`: the `--elev-2` contact cast plus
+	// the lit top rim, the same pair the launcher's raised panes wear.
+	pill.Shadow(0, t.Space(0.25), t.Space(0.5), 0, tokens.ShadowContact)
+	pill.InsetShadow(0, 1, 0, 0, tokens.LensRim)
+	if disabled {
+		pill = pill.Opacity(0.4).Cursor(ui.CursorDefault).Disabled(true)
+	} else if pill.Hovered() {
+		pill.Background(tokens.IconSurfaceHover)
+	}
+	pill.Children(func() {
+		ui.Icon(c, mustGlyph("trash")).Size(13, 13).TextColor(t.Warning)
+		ui.Text(c, label).FontSize(tokens.Body).FontWeight(620).TextColor(t.Warning)
+	})
+	if pill.Clicked() && !disabled {
+		run()
+	}
+}
+
 // rowNote is row with one more line: a warning-coloured note under the
 // description, for the one thing a row has to disclose rather than describe
 // (the clipboard's privacy line). An empty note draws nothing.
@@ -730,7 +834,13 @@ func (a *App) rowAligned(c *ui.Context, align ui.Align, lead func(), face rowFac
 				// A meta line is the old page's `.session-manager__meta`: a
 				// wrapping flex row of its own facts, each a span with its own
 				// colour, so the state word can be the accent while the size
-				// and start time stay quiet.
+				// and start time stay quiet. It is the *caption* step with
+				// tabular figures, not the body step its label wears
+				// (`.session-manager__meta { font-size: var(--text-caption);
+				// font-variant-numeric: tabular-nums }`,
+				// `main:src/styles/settings.css:1280-1286`), and its two gaps
+				// are the reference's own `4u` rows / `10u` columns (`gap:
+				// calc(var(--u)*4) calc(var(--u)*10)`, `:1285`).
 				meta := ui.Row(c).FillWidth().Wrap().GapX(t.Space(2.5)).GapY(t.Space(1))
 				meta.Children(func() {
 					for _, segment := range sublabel.Segments {
@@ -738,7 +848,8 @@ func (a *App) rowAligned(c *ui.Context, align ui.Align, lead func(), face rowFac
 						if segment.Role == rowSegmentAccent {
 							color = t.Accent
 						}
-						ui.Text(c, segment.Text).FontSize(t.FontSize).FontWeight(500).TextColor(color)
+						ui.Text(c, segment.Text).FontSize(tokens.Caption).FontWeight(500).
+							TextColor(color)
 					}
 				})
 				continue
@@ -746,7 +857,23 @@ func (a *App) rowAligned(c *ui.Context, align ui.Align, lead func(), face rowFac
 			if sublabel.Text == "" {
 				continue
 			}
-			ui.Text(c, sublabel.Text).FontSize(t.FontSize).FontWeight(500).TextColor(t.TextMuted)
+			// The plain second line is the reference's `.settings-row__sublabel`:
+			// the body step at 500 in `--text-muted`, single-line so a long value
+			// ellipsizes in the text column instead of growing the row
+			// (`.session-manager__row .settings-row__label` / `__cwd` both
+			// `nowrap`, `settings.css:1240-1244`). A *mono* line is a value
+			// rather than prose — the reference sets a session's working
+			// directory in its own monospace stack at the caption step
+			// (`.session-manager__cwd`, `settings.css:1272-1276`).
+			size := t.FontSize
+			if sublabel.Mono {
+				size = tokens.Caption
+			}
+			e := ui.Text(c, sublabel.Text).FontSize(size).FontWeight(500).
+				TextColor(t.TextMuted).SingleLine()
+			if sublabel.Mono {
+				e.Font(deepLinkValueFont)
+			}
 		}
 		if note != "" {
 			ui.Text(c, note).FontSize(t.FontSize).FontWeight(500).TextColor(t.Warning)

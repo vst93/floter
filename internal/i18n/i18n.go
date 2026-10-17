@@ -430,7 +430,6 @@ type Settings struct {
 	SessionsEmptyHint   string
 	SessionsError       string
 	SessionsRefreshHint string
-	SessionsClose       string
 	SessionsActive      string
 	// SessionsSortNewest and SessionsSortOldest name the sessions list's own
 	// order control: the word it shows is the order in force, and pressing it
@@ -438,12 +437,15 @@ type Settings struct {
 	// `terminal.sortOldest`).
 	SessionsSortNewest string
 	SessionsSortOldest string
-	SessionsShow       string
 	SessionsNew        string
-	// Closing a session kills its program, so it arms first: the question the
-	// armed control asks and the way back from it.
-	SessionsCloseConfirm string
-	SessionsCloseCancel  string
+	// The row's two icon controls carry the reference's own words: the Play
+	// button is `terminal.sessionResume` and the bin is `terminal.sessionKill`,
+	// and closing a session kills its program so the bin arms first into the
+	// question pill — the reference's `terminal.sessionKillArm`, never a second
+	// pair of buttons (`SessionsPage.tsx:203-232`; `i18n.ts:180-182`).
+	SessionsResume  string
+	SessionsKill    string
+	SessionsKillArm string
 
 	// The permission dialog the installer shows, and the permission line
 	// the integrations list draws.

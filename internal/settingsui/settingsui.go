@@ -1460,35 +1460,56 @@ func (a *App) sessions(c *ui.Context, copy i18n.Settings) {
 					// The row says what the session is doing — attached (on
 					// screen), running behind the one that is, or how the
 					// program went — and, under it, where the shell is and
-					// when the session started.
-					activated := a.rowLines(c, session.Title, sessionLines(session), func() {
-						ui.Row(c).Gap(t.Space(1)).AlignItems(ui.Center).Children(func() {
-							if !session.Active && a.Actions.SelectSession != nil {
-								if ui.Button(c, copy.SessionsShow).Clicked() {
-									a.Actions.SelectSession(session.Index)
+					// when the session started. Its leading mark is the
+					// reference's own `.settings-row__icon` chip with lucide's
+					// SquareTerminal (`SessionsPage.tsx:186-187`), which is the
+					// shared settings-row slot and not the extension panel's
+					// package chip.
+					activated := a.rowAligned(c, ui.Center, func() { a.sessionChip(c) }, rowFace{},
+						session.Title, sessionLines(session), "", func() {
+							// The trailing controls are the reference's two 28u icon
+							// buttons (`SessionsPage.tsx:203-232`): Play (disabled once
+							// the session has exited, while it is on screen, or while
+							// another row's action runs) and Trash2 (disabled for the
+							// same busy window). They sit in a 3u-gap row
+							// (`.session-manager__actions { gap: 3u }`, `:1333-1336`).
+							ui.Row(c).Gap(t.Space(0.75)).AlignItems(ui.Center).Children(func() {
+								// The reference disables a row's controls while *another*
+								// row's action is in flight (`actionId !== null`,
+								// `SessionsPage.tsx:204,226`), and this build's arm is
+								// the one such state a session has.
+								// The reference's own reservations for the two controls
+								// (`SessionsPage.tsx:204-206,226`): the Play button is
+								// disabled on an *exited* session (`disabled={session.exited
+								// || busy || actionId !== null}`), and the bin is disabled
+								// only while this build has an action in flight — which it
+								// never does, since a resume and a close both call straight
+								// through to the shell. Its accent resume dot marks the
+								// running-but-detached row it is *for* (`:203`).
+								if a.Actions.SelectSession != nil {
+									a.sessionIconButton(c, "play", copy.SessionsResume,
+										false, resumable, !session.Running,
+										func() { a.Actions.SelectSession(session.Index) })
 								}
-							}
-							// Closing a session kills its program, so it arms
-							// first — the same two-step the panel's own
-							// destructive controls use.
-							if a.Actions.CloseSessionAt == nil {
-								return
-							}
-							if a.armedSession != 0 && a.armedSession == session.ID {
-								if ui.Button(c, copy.SessionsCloseConfirm).TextColor(t.Danger).Clicked() {
-									a.disarmSessionClose()
-									a.Actions.CloseSessionAt(session.Index)
+								if a.Actions.CloseSessionAt == nil {
+									return
 								}
-								if ui.Button(c, copy.SessionsCloseCancel).Clicked() {
-									a.disarmSessionClose()
+								// Closing a session kills its program, so the control
+								// arms first — the reference's two-step in place, where
+								// the icon button *expands into* the warm question pill
+								// rather than drawing a second row of buttons
+								// (`SessionsPage.tsx:216-229`).
+								if a.armedSession == session.ID {
+									a.sessionKillConfirm(c, copy.SessionsKillArm, false, func() {
+										a.disarmSessionClose()
+										a.Actions.CloseSessionAt(session.Index)
+									})
+									return
 								}
-								return
-							}
-							if ui.Button(c, copy.SessionsClose).Clicked() {
-								a.armSessionClose(session.ID)
-							}
+								a.sessionIconButton(c, "trash", copy.SessionsKill,
+									true, false, false, func() { a.armSessionClose(session.ID) })
+							})
 						})
-					})
 					if activated && resumable && a.Actions.SelectSession != nil {
 						a.Actions.SelectSession(session.Index)
 					}
@@ -1527,11 +1548,13 @@ func (a *App) sortedSessions() []Session {
 // the old page's `.session-manager__cwd` and its `.session-manager__meta`
 // line. The state word is a segment of its own so it can carry its colour:
 // the accent while the session runs, the quiet grey once it has exited, as
-// `.session-state` and `.session-state--exited` did.
+// `.session-state` and `.session-state--exited` did. The directory is marked
+// `Mono`, because the reference draws it in its monospace stack — a path is a
+// value, `settings.css:1272-1276`.
 func sessionLines(session Session) []rowLine {
 	var lines []rowLine
 	if session.Dir != "" {
-		lines = append(lines, rowLine{Text: session.Dir})
+		lines = append(lines, rowLine{Text: session.Dir, Mono: true})
 	}
 	if meta := sessionMeta(session); len(meta) > 0 {
 		lines = append(lines, rowLine{Segments: meta})
@@ -3228,17 +3251,45 @@ func (a *App) updateRow(c *ui.Context, copy i18n.Settings) {
 		case state.Progress != nil:
 			a.updateProgress(c, state.Progress)
 		case state.Downloading:
-			ui.Button(c, copy.UpdateInstalling).Disabled(true)
+			a.updateButton(c, copy.UpdateInstalling, true, nil)
 		case state.Failed:
-			if ui.Button(c, copy.UpdateRetry).Clicked() && a.Actions.InstallUpdate != nil {
-				a.Actions.InstallUpdate()
-			}
+			a.updateButton(c, copy.UpdateRetry, false, a.Actions.InstallUpdate)
 		case state.Available:
-			if ui.Button(c, copy.UpdateDownload).Clicked() && a.Actions.InstallUpdate != nil {
-				a.Actions.InstallUpdate()
-			}
+			a.updateButton(c, copy.UpdateDownload, false, a.Actions.InstallUpdate)
 		}
 	})
+}
+
+// updateButton is the About page's one accent control: the reference's
+// `.update-banner__button` (`settings.css:1542-1568`) — the accent fill with
+// `--accent-contrast` ink, the `--glass-raised-rim` top edge (`inset 0 1px 0`),
+// a `999px` stadium, `6u/14u` of padding, the emphasis step at 600, and no
+// keyline at all (`border: none`). Hover fades the whole button to the
+// reference's `opacity: 0.9` (its `:not(:disabled):hover`, `:1565-1567`); a
+// disabled face is the reference's `opacity: 0.6` with the pointer refused
+// (`:1557-1561`). It is the one thing on the page the user presses, so it is
+// the page's whole accent budget.
+func (a *App) updateButton(c *ui.Context, label string, disabled bool, run func()) {
+	tokens := a.tokens(c)
+	t := c.Theme()
+	button := ui.ButtonBase(c).Label(label).
+		MinHeight(t.Space(7)).Padding(t.Space(1.5), t.Space(3.5)).Radius(999).
+		Background(t.Accent)
+	// `box-shadow: inset 0 1px 0 var(--glass-raised-rim)`: the lit top rim is
+	// what makes the accent pill read as a raised control.
+	button.InsetShadow(0, 1, 0, 0, tokens.LensRim)
+	switch {
+	case disabled:
+		button = button.Opacity(0.6).Cursor(ui.CursorDefault).Disabled(true)
+	case button.Hovered():
+		button = button.Opacity(0.9)
+	}
+	button.Children(func() {
+		ui.Text(c, label).FontSize(tokens.Emphasis).FontWeight(600).TextColor(t.AccentText)
+	})
+	if button.Clicked() && !disabled && run != nil {
+		run()
+	}
 }
 
 // updateProgress is the old `.update-banner__progress`: a track with the
@@ -3258,16 +3309,25 @@ func (a *App) updateProgress(c *ui.Context, progress *UpdateProgress) {
 			fraction = 0
 		}
 	}
-	ui.Column(c).Shrink(0).Width(track).Gap(t.Space(1.25)).Children(func() {
+	ui.Column(c).MinWidth(track).Shrink(0).Gap(t.Space(1.25)).Children(func() {
+		// `.update-banner__progress-track` is a 4u groove with the ladder's
+		// small corner and the track edge as an *inset* keyline
+		// (`settings.css:1577-1583`), so the bar rides inside a 1px recess
+		// rather than inside a border that grows the box.
 		bar := ui.Row(c).Width(track).Height(t.Space(1)).Radius(tokens.RadiusXS).
-			Background(tokens.Track).Border(1, tokens.TrackEdge)
+			Background(tokens.Track)
+		bar.InsetShadow(0, 0, 0, 1, tokens.TrackEdge)
 		bar.Children(func() {
 			if fraction > 0 {
 				ui.Box(c).Width(track * fraction).Height(t.Space(1)).
 					Radius(tokens.RadiusXS).Background(t.Accent)
 			}
 		})
-		ui.Text(c, updateProgressLabel(progress)).FontSize(tokens.Caption).TextColor(t.TextMuted)
+		// `.update-banner__progress-label` is the caption step in
+		// `--text-secondary` with tabular figures, right-aligned under the
+		// track (`settings.css:1592-1599`).
+		ui.Text(c, updateProgressLabel(progress)).FontSize(tokens.Caption).
+			TextColor(tokens.TextSecondary).TextAlign(ui.End).SingleLine()
 	})
 }
 

@@ -697,6 +697,7 @@ func TestTerminalCardReadoutsMatchTheDrawer(t *testing.T) {
 }
 
 func TestSessionsPage(t *testing.T) {
+	en := i18n.For("en").Settings
 	store := newStore(t)
 	a := New(store, Actions{})
 	tt := render(t, a, 720, 760)
@@ -735,41 +736,54 @@ func TestSessionsPage(t *testing.T) {
 	}
 	// Closing a session kills its program, so the control arms first: one
 	// press asks, and the second ends it.
-	if err := tt.Click("Close session"); err != nil {
+	if err := tt.Click(en.SessionsKill); err != nil {
 		t.Fatalf("close: %v", err)
 	}
 	tt.Frame()
 	if closed != 0 {
 		t.Fatalf("the first press closed a session: %d", closed)
 	}
-	if !tt.HasText("Close it?") {
+	if !tt.HasText(en.SessionsKillArm) {
 		t.Fatalf("the armed question is missing: %q", tt.Texts())
 	}
-	if err := tt.Click("Keep"); err != nil {
-		t.Fatalf("cancel: %v", err)
-	}
+	// The reference's armed question has no separate Cancel button: it is
+	// disarmed by the three-second window, by Escape, or by the row leaving
+	// the list (`SessionsPage.tsx:99-107`). A second press on a *different*
+	// row's bin is not an answer either.
+	tt.Key(0, ui.KeyEscape)
 	tt.Frame()
 	if closed != 0 {
 		t.Errorf("the way back closed a session: %d", closed)
 	}
-	if err := tt.Click("Close session"); err != nil {
+	if tt.HasText(en.SessionsKillArm) {
+		t.Errorf("Escape left the question armed: %v", tt.Texts())
+	}
+	if err := tt.Click(en.SessionsKill); err != nil {
 		t.Fatalf("close: %v", err)
 	}
 	tt.Frame()
-	if err := tt.Click("Close it?"); err != nil {
+	if err := tt.Click(en.SessionsKillArm); err != nil {
 		t.Fatalf("confirm: %v", err)
 	}
 	tt.Frame()
 	if closed != 1 {
 		t.Errorf("close session ran with index %d, want 0", closed-1)
 	}
-	// Resuming another session hands its index back.
-	if err := tt.Click("Show"); err != nil {
-		t.Fatalf("show: %v", err)
+	// Resuming hands the row's index back. The reference's Play button is
+	// disabled only on an *exited* session (`disabled={session.exited || busy}`,
+	// `SessionsPage.tsx:206`), so the first one the page draws belongs to the
+	// session already on screen — pressing it re-selects that same session.
+	tt.Frame()
+	before := shown
+	if err := tt.Click(en.SessionsResume); err != nil {
+		t.Fatalf("resume: %v", err)
 	}
 	tt.Frame()
-	if shown != 2 {
-		t.Errorf("show ran with index %d, want 1", shown-1)
+	if shown != before+1 {
+		t.Errorf("the Play control did not resume: shown %d -> %d", before, shown)
+	}
+	if shown-1 != 0 {
+		t.Errorf("the Play control ran with index %d, want the first row's 0", shown-1)
 	}
 	// A new session is the page's own control.
 	started := 0
@@ -789,6 +803,7 @@ func TestSessionsPage(t *testing.T) {
 // (`disarmKill`) that answered the question and swallowed the key. With
 // nothing armed, the same key is the panel's way out again.
 func TestEscapeDisarmsASessionClose(t *testing.T) {
+	en := i18n.For("en").Settings
 	closed, closes := 0, 0
 	a := New(newStore(t), Actions{
 		CloseSessionAt: func(index int) { closed = index + 1 },
@@ -802,11 +817,11 @@ func TestEscapeDisarmsASessionClose(t *testing.T) {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	if err := tt.Click("Close session"); err != nil {
+	if err := tt.Click(en.SessionsKill); err != nil {
 		t.Fatalf("close: %v", err)
 	}
 	tt.Frame()
-	if !tt.HasText("Close it?") {
+	if !tt.HasText(en.SessionsKillArm) {
 		t.Fatalf("the close did not arm: %v", tt.Texts())
 	}
 
@@ -818,7 +833,7 @@ func TestEscapeDisarmsASessionClose(t *testing.T) {
 	if closed != 0 {
 		t.Errorf("Escape closed a session: %d", closed)
 	}
-	if tt.HasText("Close it?") {
+	if tt.HasText(en.SessionsKillArm) {
 		t.Errorf("Escape left the question armed: %v", tt.Texts())
 	}
 

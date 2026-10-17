@@ -116,6 +116,12 @@ var (
 	// `["integrations", Blocks]`): one block stacked against two others, the
 	// pieces a plugin platform is built from.
 	glyphBlocks = ui.MustParseSVG([]byte(glyphSource(`<path d="M10 22V7a1 1 0 0 0-1-1H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5a1 1 0 0 0-1-1H2"/><rect width="8" height="8" x="14" y="2" rx="1"/>`)))
+	// glyphPlay is lucide's Play, the mark the reference's Sessions page put on
+	// its per-row resume button (`SessionsPage.tsx:211-213`,
+	// `<Play size={14} strokeWidth={1.9}/>`): one triangle pointing right, the
+	// word-picture for "bring this session back on screen". Its `stroke-width`
+	// is the reference's own 1.9, kept as the source's literal.
+	glyphPlay = ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"/></svg>`))
 	// glyphTrash is lucide's Trash2, the mark the reference's removal
 	// confirmation bar led its danger button with (`RemovalConfirmation.tsx:47`,
 	// `<Trash2 size={14} />`): a bin with its lid and two vertical lines, the
@@ -352,6 +358,8 @@ func Glyph(name string) (*ui.SVG, bool) {
 		return glyphPlus, true
 	case "trash":
 		return glyphTrash, true
+	case "play":
+		return glyphPlay, true
 	case "unplug":
 		return glyphUnplug, true
 	case "file-down":
