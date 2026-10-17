@@ -100,7 +100,55 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **本轮：P7-hp 用户报告第四次复查 + Integrations 面板命令列表行族对齐原版**
+> **本轮：P7-hs 用户报告复查（升级为像素断言）+ Integrations 表单 · 参数编辑器对齐原版**
+>
+> 用户报告的两条（① 搜索页左右大空白；② 输入内容时「在终端中打开」固定第一项、缺选中态）本轮
+> **第六次复跑**，并把两条从「索引正确」升级成**像素事实**（此前几轮只钉了索引与文本列）：
+> - ① 新增 `internal/launcher/actionbarfooter_test.go` 的 `TestTheListIsTheCentredReferenceColumn`：
+>   量选中行的着色盒从 x=4 到 x=715，正是原版 `.launcher-results > * { width: calc(100% - 8u);
+>   justify-self: center }`（`main:src/styles/launcher.css:840-843`）的 4u 对称沟槽；配合既有的
+>   caret x=16 / 结果行标题 x=54，左右都没有死白边。
+> - ② 新增同文件的 `TestTheHeldRowWearsTheSelectedFace`：`zzzz` 查询 + 按住 `ui.Cmd` 后裸终端行是
+>   列表唯一/末行，其着色带 ≠ 面板填充（把「缺选中态」钉成像素）；`Results()` 的 `bar:` 末行与
+>   `filters_test.go` 的 `TestHeldModifierBareTerminalRow`（末行 / 选中 / 松手消失）继续覆盖位置语义。
+> - 前置清理：`git status` 干净，无未提交改动。
+>
+> 随后回到常规迭代。审计入口是**参考 CSS 选择器普查**（`main:src/styles/` 六张表的 502 个类名对
+> `internal/` + `docs/` + `.pending-bugs.md` 的提及集合做差，254 个从未出现）。其中
+> `.extension-param-editor__*`（7 个选择器）与 `.extension-argument-editor__*`（5 个）在 `docs/` 与
+> `.pending-bugs.md` 里**双双为 0 提及**——正文 `main:src/extensions/CustomIntegrationDrawer.tsx:81-104`
+> 与样式 `extensions.css:1854-1883` 从未逐字段比对过。本轮把「本地工具」表单的参数编辑器从
+> 「settings 卡里一条 `a.row`（Input N）+ 六条字段行」压回原版的**记录盘**，清掉六条：
+> 1. 每个参数是一条 `--hairline` 记录盘（`padding:8px; gap:6px; border:1px solid var(--hairline);
+>    radius:--ext-radius`），不是 settings 行。
+> 2. 字段是 `repeat(auto-fit, minmax(140px,1fr))` 的内联网格（`gap:6px 8px`，label = caption 600
+>    muted + 3px 栈），不是六个整行（720 宽下 3 列 × 2 行）。
+> 3. required 是 14px 复选盒 + 4px 间隙（`ui.CheckboxBase` 保点击/Space/角色，自绘 accent 勾选面），
+>    不是行尾开关。
+> 4. remove 是 28px 图标键（`.extensions-icon-button` + `__row` 的 28px 覆盖），不是文字按钮。
+> 5. 标题 / 空态 / 添加键是 argument-editor 的语言：caption 600 muted 标题 + 28px plus 键，
+>    空态是 **dashed** hairline 盒（padding 8 / min-height 28 / tertiary caption），hint 是 caption
+>    tertiary 1.35。
+> 6. copy 词逐条回原版（Add parameter / Remove parameter / Parameter ID / Flag (optional) /
+>    Options (one per line) / Toggle / 单选 / 脚本不带参数也能正常运行。），删掉无读者的
+>    `ParamsOptionsHint` 与自造的 `ParamsRow`（「Input N」）。
+>
+> 落地：新增 `internal/settingsui/parameditor.go`（`toolParamsEditor` / `paramPlate` / `paramField` /
+> `paramSelect` / `paramRequiredToggle` / `paramIconButton` / `paramEditorError`），删掉
+> `settingsui.go` 里的旧实现；`internal/i18n/{i18n,copy}.go` 同步词表；`params_test.go` 重写为
+> `TestTheParamEditorDrawsTheReferencePlates`（盘边像素 / 字段同排 / 布尔隐藏 placeholder /
+> required 勾选面 / remove 回空态 / 添加键 28×28），`view_test.go` 三条旧词断言同步。
+> 变异核查：去掉盘的 `Border` → 盘边断言红（`{254 254 254}`）；改回 `a.section` 的文字添加键 →
+> 28×28 断言红。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./internal/...` 净、`GOOS=linux/windows/darwin
+> go build ./...` 三平台过、`go test -count=1 ./internal/{settingsui,i18n,shell,launcher}` 全绿。
+>
+> **清单状态**：`.pending-bugs.md` 顶部新增「本轮清空（Integrations 表单 · 参数编辑器 · P7-hs）」
+> 六条全部落地；新增一条**仍未锁定**（`ui.Select` 弹出层 / `TextArea` 内容框仍走 framework 控件面，
+> 以及 caption 标签点击聚焦——属 framework 控件面差异），原有「扩展面板·配置表单」结构性一条不变。
+
+> **上一轮：P7-hp 用户报告第四次复查 + Integrations 面板命令列表行族对齐原版**
 >
 > 用户报告的两条（① 搜索页左右大空白；② 输入内容时「在终端中打开」固定第一项、缺选中态）本轮
 > **第四次复跑**：空字段 caret x=16、结果行标题 x=54（本轮在 `small`/`default`/`large` 三档均实测）;

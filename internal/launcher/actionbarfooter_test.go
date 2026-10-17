@@ -367,3 +367,72 @@ func panelDistance(c color.RGBA) int {
 	}
 	return d
 }
+
+// R-next · The list is the reference's centred column: every row is
+// `calc(100% - 8u)` wide and `justify-self: center`
+// (`main:src/styles/launcher.css:840-843`), i.e. the panel keeps exactly 4u on
+// each side of a row — the same 4u the row's own 12u padding needs to land the
+// text on the field's 16u column.
+//
+// The user's first report is 「搜索页面左右两边各有一大块空白」. The insets had
+// once been written in the wrong unit (Space(16) is 64u, not 16u), which put a
+// 64u gutter around every row; the text column is pinned above, and this pins
+// the other half of the same fact: the row's painted box spans the panel from
+// its 4u gutter to the mirror-image 4u gutter, so neither edge carries a dead
+// margin.
+func TestTheListIsTheCentredReferenceColumn(t *testing.T) {
+	a := testApp()
+	tt := render(t, a)
+	tt.Frame()
+	row, ok := tt.Find("Open settings") // the empty page's selected first row
+	if !ok {
+		t.Fatalf("the first result was not drawn: %q", tt.Texts())
+	}
+	img := tt.Image()
+	y := int(row.Y + row.H/2)
+	// The panel's own fill, read outside the row's box (the 4u gutter is the
+	// panel and nothing else).
+	panel := img.RGBAAt(1, y)
+	left, right := -1, -1
+	for x := 0; x < InputWindowWidth; x++ {
+		if img.RGBAAt(x, y) != panel {
+			if left < 0 {
+				left = x
+			}
+			right = x
+		}
+	}
+	if left != 4 {
+		t.Errorf("the row's box starts at x=%d, want the reference's 4u gutter", left)
+	}
+	if right != InputWindowWidth-5 {
+		t.Errorf("the row's box ends at x=%d, want %d (the mirrored 4u gutter)",
+			right, InputWindowWidth-5)
+	}
+}
+
+// R-next · The held modifier's row takes the selected face. It is the row Enter
+// would run — `syncHeldModifier` puts the choice on the list's last line — so
+// the user's 「应该有选中样式（当前缺失）」 is a painted fact, not an index: the
+// band carries the row's tint rather than the panel's own fill.
+func TestTheHeldRowWearsTheSelectedFace(t *testing.T) {
+	a := testApp()
+	tt := render(t, a)
+	// A query that matches nothing: the held row is the list's only row, so
+	// there is no neighbouring match that could own the tint instead.
+	tt.Type("zzzz")
+	tt.Frame()
+	tt.HoldModifiers(ui.Cmd)
+	tt.Frame()
+	row, ok := tt.Find("Open a terminal")
+	if !ok {
+		t.Fatalf("the held row was not drawn: %q", tt.Texts())
+	}
+	img := tt.Image()
+	const x = 600 // past the row's texts, where only the row's fill shows
+	sel := img.RGBAAt(x, int(row.Y+row.H/2))
+	panel := img.RGBAAt(1, int(row.Y+row.H/2))
+	if sel == panel {
+		t.Errorf("the held row is untinted: %v over the panel's %v", sel, panel)
+	}
+}

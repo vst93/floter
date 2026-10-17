@@ -756,8 +756,6 @@ type Settings struct {
 	ParamsFlag        string
 	ParamsRequired    string
 	ParamsOptions     string
-	ParamsOptionsHint string
-	ParamsRow         func(number int) string
 	ParamsKindText    string
 	ParamsKindNumber  string
 	ParamsKindBoolean string

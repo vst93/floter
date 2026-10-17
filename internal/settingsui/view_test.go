@@ -3665,15 +3665,15 @@ func TestConnectFormDeclaresInputs(t *testing.T) {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	if !tt.HasText("Parameters") || !tt.HasText("None declared") {
+	if !tt.HasText("Parameters") || !tt.HasText("The script runs fine without parameters.") {
 		t.Fatalf("the inputs editor is missing: %q", tt.Texts())
 	}
-	if err := tt.Click("Add an input"); err != nil {
+	if err := tt.Click("Add parameter"); err != nil {
 		t.Fatalf("add: %v", err)
 	}
 	tt.Frame()
-	if !tt.HasText("Input 1") {
-		t.Fatalf("the row is missing: %q", tt.Texts())
+	if !tt.HasText("Parameter ID") {
+		t.Fatalf("the plate is missing: %q", tt.Texts())
 	}
 	// The row exists but has no id yet: it is not a declaration.
 	a.toolName, a.toolProgram = "Gadget", "/usr/bin/rg"
@@ -3691,7 +3691,7 @@ func TestConnectFormDeclaresInputs(t *testing.T) {
 	}
 	// Removing the row takes it back out.
 	tt.Frame()
-	if err := tt.Click("Remove"); err != nil {
+	if err := tt.Click("Remove parameter"); err != nil {
 		t.Fatalf("remove: %v", err)
 	}
 	tt.Frame()
@@ -3717,7 +3717,7 @@ func TestConnectFormNamesAnUnfinishedInputAndRefusesToSave(t *testing.T) {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	if err := tt.Click("Add an input"); err != nil {
+	if err := tt.Click(copy.ParamsAdd); err != nil {
 		t.Fatalf("add: %v", err)
 	}
 	tt.Frame()
@@ -3802,6 +3802,7 @@ func TestParamOptionsNewlineCodec(t *testing.T) {
 // the integration declares now, and the submit rewrites it (the id names it)
 // rather than connecting a second one.
 func TestEditGeneratedIntegration(t *testing.T) {
+	copy := i18n.For("en").Settings
 	edited := []struct {
 		id   string
 		tool CustomTool
@@ -3841,8 +3842,9 @@ func TestEditGeneratedIntegration(t *testing.T) {
 		t.Fatalf("edit: %v", err)
 	}
 	tt.Frame()
-	// The form is open and filled from the integration.
-	if !tt.HasText("Ripgrep") || !tt.HasText("Input 1") {
+	// The form is open and filled from the integration: its declared parameter
+	// is the plate's own row, so the field that proves it is the id column.
+	if !tt.HasText("Ripgrep") || !tt.HasText(copy.ParamsID) || a.toolParams[0].ID != "target" {
 		t.Fatalf("the form was not filled: %q", tt.Texts())
 	}
 	if a.toolEditing != "local.abc" || a.toolProgram != "/usr/bin/rg" {
