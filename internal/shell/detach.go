@@ -10,6 +10,7 @@ import (
 	"floter/internal/i18n"
 	"floter/internal/launcher"
 	"floter/internal/settings"
+	"floter/internal/theme"
 )
 
 // The detached output window: one captured run in a window of its own, which
@@ -141,8 +142,25 @@ func (a *App) detachOutput(view launcher.OutputView) {
 	a.detached = append(a.detached, detached)
 }
 
-// detachedView draws one detached window: its title, the two controls that
-// belong to it (re-run and close), and the output itself.
+// The detached window's chrome, in the reference's own units (`--u`, four to
+// a `Space`): `.plugin-window__bar`'s `10u 14u` padding and its 8u gap, the
+// bar's hairline floor, the body's 14u inset, and the list rows' 8u/10u plate
+// with the 4u gap between them (`main:src/styles/launcher.css:1715-1818`).
+const (
+	detachedBarPadY      = 2.5 // 10u
+	detachedBarPadX      = 3.5 // 14u
+	detachedBarGap       = 2   // 8u
+	detachedBarActionGap = 1.5 // 6u
+	detachedBarButtonX   = 2.5 // 10u
+	detachedBarButtonY   = 1   // 4u
+	detachedBodyInset    = 3.5 // 14u
+	detachedRowGap       = 1   // 4u
+	detachedRowPadX      = 2.5 // 10u
+	detachedRowPadY      = 2   // 8u
+)
+
+// detachedView draws one detached window: its bar (the command's name and its
+// two controls), and the output itself.
 func (a *App) detachedView(c *ui.Context, detached *detachedOutput) {
 	// The window is its own Context: the shell sets the floter theme on the
 	// panel's, and a detached window that did not would paint the framework's
@@ -153,23 +171,55 @@ func (a *App) detachedView(c *ui.Context, detached *detachedOutput) {
 	t := c.Theme()
 	copy := i18n.For(a.Store.Snapshot().Language).Launcher
 	// A detached window is opaque (`.plugin-window`): the near-solid stand-in,
-	// not the panel's glass tint.
+	// not the panel's glass tint. The window is a plain column: the bar is
+	// `flex: 0 0 auto` and the body takes the rest, so the body scrolls under a
+	// bar that never moves (`launcher.css:1715-1723`).
 	c.Root().Background(tokens.Opaque)
 
-	ui.Column(c).Fill().Padding(t.Space(3)).Gap(t.Space(2)).Children(func() {
-		ui.Row(c).FillWidth().Gap(t.Space(2)).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, detached.title).FontSize(t.FontSize).FontWeight(650).
-				TextColor(t.Text).Grow(1)
+	ui.Column(c).Fill().Children(func() {
+		a.detachedBar(c, detached, tokens, t, copy)
+		a.detachedBodyView(c, detached, tokens, t, copy)
+	})
+}
+
+// detachedBar is the reference's `.plugin-window__bar`: a slim header holding
+// the command's name (muted, caption-sized) on the left and the two controls
+// on the right, separated from the body by one `--hairline` rule
+// (`DetachedPluginApp.tsx:284-320`, `launcher.css:1724-1745`).
+func (a *App) detachedBar(c *ui.Context, detached *detachedOutput, tokens theme.Tokens, t *ui.Theme, copy i18n.Launcher) {
+	bar := ui.Row(c).FillWidth().Shrink(0).
+		Padding(t.Space(detachedBarPadY), t.Space(detachedBarPadX)).
+		Gap(t.Space(detachedBarGap)).AlignItems(ui.Center)
+	// The bar's own floor: `border-bottom: 1px solid var(--hairline)`. An inset
+	// shadow rather than a border, so the bar's box does not grow by the line
+	// the reference never charged.
+	bar.InsetShadow(0, -1, 0, 0, tokens.Hairline)
+	bar.Children(func() {
+		// The title is the *request's* own label, muted and at the caption
+		// step, single-line and ellipsized: `plugin-window__title`'s
+		// `font-size: var(--text-caption); font-weight: 500; color:
+		// var(--text-muted)`. The port drew it at 650 in the primary ink — the
+		// window's loudest object, where the reference keeps it the quietest.
+		ui.Text(c, detached.title).FontSize(tokens.Caption).FontWeight(500).
+			LetterSpacing(tokens.Caption * 0.01).TextColor(t.TextMuted).Grow(1).
+			SingleLine().Ellipsis("\u2026")
+		actions := ui.Row(c).Shrink(0).Gap(t.Space(detachedBarActionGap)).AlignItems(ui.Center)
+		actions.Children(func() {
 			// The window's own controls are the reference's bar buttons: a
 			// transparent mark that only lands on a pane while hovered. A
 			// disabled one (the re-run key while a run is in flight) reports no
 			// clicks and dims to the reference's 0.5 opacity — and, as its
 			// `:hover:not(:disabled)` asks, never lights up either.
 			barButton := func(label string, enabled bool, run func()) ui.Element {
-				button := ui.Row(c).Focusable().Shrink(0).Padding(t.Space(1), t.Space(2.5)).
+				button := ui.Row(c).Focusable().Shrink(0).
+					Padding(t.Space(detachedBarButtonY), t.Space(detachedBarButtonX)).
 					Radius(tokens.RadiusSM).Label(label)
 				if !enabled {
 					button.Disabled(true)
+					// The reference's `:disabled { opacity: 0.5 }`: the dim is the
+					// *key's* own, so the framework's disabled flag alone (which
+					// changes no ink) would leave the key looking live.
+					button.Opacity(0.5)
 				} else if button.Hovered() {
 					button.Background(tokens.ControlHover)
 				}
@@ -202,44 +252,86 @@ func (a *App) detachedView(c *ui.Context, detached *detachedOutput) {
 				}
 			})
 		})
-		ui.Scroll(c.Key("detached.output")).TrackScroll(&detached.scroll).Fill().
-			Border(1, tokens.ControlEdge).Radius(tokens.RadiusMD).Padding(t.Space(2)).Children(func() {
-			// The body is the old build's state machine
-			// (`DetachedPluginApp.tsx:329-350`): one line while a run is in
-			// flight, the localised failure when a run never started, a word
-			// when a finished run had nothing to show, and otherwise the
-			// output itself. A window that has not run yet says so instead of
-			// borrowing the empty state of a run that did.
-			text, failed := detachedBody(detached, copy)
-			color := t.Text
-			if failed {
-				color = t.Warning
-			}
-			ui.Text(c, text).FontSize(tokens.Caption).Font(detached.view.FontFamily).
-				TextColor(color)
-		})
 	})
 }
 
-// detachedBody is what the window's body holds: the run's own text when it has
-// any, and otherwise the one state the body is in. The order is the reference
-// body's: a run in flight and a refused run each replace the output, and only a
-// finished run with nothing to show reaches the empty word.
-func detachedBody(detached *detachedOutput, copy i18n.Launcher) (string, bool) {
-	switch {
-	case detached.running:
-		// The reference drew `launcher.externalRunning` for the whole run and
-		// did not draw the previous output beside it.
-		return copy.OutputWindowRunning, false
-	case detached.failed != "":
-		return detached.failed, true
-	case detached.view.Text != "":
-		return detached.view.Text, false
-	case detached.ran:
-		return copy.OutputWindowEmpty, false
-	default:
-		return copy.OutputWindowIdle, false
+// detachedBodyView is the reference's `.plugin-window__body`: the run state
+// machine's one line, the text arm's verbatim block, or the list arm's rows —
+// scrolling under the bar inside one 14u inset (`DetachedPluginApp.tsx:322-350`,
+// `launcher.css:1776-1818`).
+func (a *App) detachedBodyView(c *ui.Context, detached *detachedOutput, tokens theme.Tokens, t *ui.Theme, copy i18n.Launcher) {
+	body := ui.Scroll(c.Key("detached.output")).TrackScroll(&detached.scroll).Fill().
+		Padding(t.Space(detachedBodyInset))
+	body.Children(func() {
+		// The state machine's own three lines come first: while a run is in
+		// flight, after a refusal, and for a finished run with nothing to show
+		// (`DetachedPluginApp.tsx:325-338`). The list and the text are the two
+		// "done" arms, and only a list reaches the rows.
+		switch {
+		case detached.running:
+			detachedStatus(c, copy.OutputWindowRunning, false, tokens, t)
+		case detached.failed != "":
+			detachedStatus(c, detached.failed, true, tokens, t)
+		case len(detached.view.Text) > 0 && !detached.view.IsList:
+			detachedText(c, detached, tokens, t)
+		case detached.view.IsList:
+			detachedList(c, detached.view.Rows, tokens, t)
+		case detached.ran:
+			detachedStatus(c, copy.OutputWindowEmpty, false, tokens, t)
+		default:
+			detachedStatus(c, copy.OutputWindowIdle, false, tokens, t)
+		}
+	})
+}
+
+// detachedStatus draws one line of the run state machine
+// (`.plugin-window__status`): caption-sized, muted, and in the warning ink when
+// the run was refused (`launcher.css:1783-1789`).
+func detachedStatus(c *ui.Context, text string, failed bool, tokens theme.Tokens, t *ui.Theme) {
+	ink := t.TextMuted
+	if failed {
+		ink = t.Warning
 	}
+	ui.Text(c, text).FontSize(tokens.Caption).TextColor(ink)
+}
+
+// detachedText draws the text arm verbatim in the terminal's monospace
+// (`.launcher-plugin-text`, `launcher.css:2615-2637`): the body register at a
+// 1.45 line, pre-wrapped, selectable — the output is text the user may want,
+// and selecting it is what copies it. The port drew it at the caption step in
+// the primary ink, one register quiet where the reference reads it as output.
+func detachedText(c *ui.Context, detached *detachedOutput, tokens theme.Tokens, t *ui.Theme) {
+	ui.Text(c, detached.view.Text).Font(detached.view.FontFamily).
+		FontSize(tokens.Body).LineHeight(1.45).
+		TextColor(tokens.TextSecondary).Wrap().Selectable()
+}
+
+// detachedList is the list arm: the reference's `.plugin-window__list`, a
+// column of `.plugin-window__row` plates — the resting control fill, a 9u
+// corner, 8u/10u of padding and a 4u gap between rows
+// (`DetachedPluginApp.tsx:341-350`, `launcher.css:1792-1818`). A status row is
+// information about the list rather than an entry in it, so it wears the muted
+// status line instead of a plate (the same split the launcher's own list makes).
+func detachedList(c *ui.Context, rows []extensions.Row, tokens theme.Tokens, t *ui.Theme) {
+	ui.Column(c).FillWidth().Gap(t.Space(detachedRowGap)).Children(func() {
+		for _, row := range rows {
+			if row.Status {
+				detachedStatus(c, row.Title, false, tokens, t)
+				continue
+			}
+			plate := ui.Column(c).FillWidth().Gap(t.Space(0.5)).
+				Padding(t.Space(detachedRowPadY), t.Space(detachedRowPadX)).
+				Radius(tokens.RadiusSM).Background(tokens.Control)
+			plate.Children(func() {
+				ui.Text(c, row.Title).FontSize(tokens.Caption).FontWeight(500).
+					TextColor(tokens.TextStrong).SingleLine().Ellipsis("\u2026")
+				if row.Subtitle != "" {
+					ui.Text(c, row.Subtitle).FontSize(tokens.Caption).
+						TextColor(t.TextMuted).SingleLine().Ellipsis("\u2026")
+				}
+			})
+		}
+	})
 }
 
 // rerunDetached runs the window's command again, in the background, and puts

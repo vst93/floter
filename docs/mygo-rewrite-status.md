@@ -100,7 +100,62 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
-> **本轮：P7-hn 用户报告复查 + Integrations 页健康／批准区块对齐原版**
+> **本轮：P7-ho 用户报告第三次复查 + 独立插件窗口（列表臂 / bar 寄存器 / body 面）对齐原版**
+>
+> 用户报告的两条（① 搜索页左右大空白；② 输入内容时「在终端中打开」固定第一项、缺选中态）本轮
+> **第三次像素级复跑**：空字段 caret x=16、结果行标题 x=54（原版 `.collapsed-card__input-row` 的
+> 16u 与 `.launcher-result` 的 12u 文本列）；输入 `term`/`git` 时动作栏是列表**末行**、`defaultsToShell`
+> 把它交给选择（`git` query → selected = footer，带 raised 选中面）；按住修饰键时末行是裸终端行。
+> `actionbarfooter_test.go` 七条 + `filters_test.go` 的 `TestHeldModifierBareTerminalRow` +
+> `search_test.go` 的 `TestMatchEmptyQueryKeepsTheCatalog` 全绿，确认 `5c2d60d` 已修。前置清理：
+> `git status` 干净，无未提交改动。
+>
+> 随后回到常规迭代。先做**参考 CSS 选择器普查**（`main:src/styles/` 六张表的 502 个类名对
+> `internal/` + `docs/` + `.pending-bugs.md` 的提及集合做差，331 个从未出现），筛出
+> `plugin-window__*`（原版独立插件窗口 `main:src/plugin-window/DetachedPluginApp.tsx` 的样式族，
+> `launcher.css:1715-1818`）。本构建对应 `internal/shell/{detach,pinned}.go`，此前只对照过词表、
+> bar 的 X/禁用态与 body 三态，**列表臂、bar 的几何/寄存器、body 的面与文本寄存器从未比对**。清掉四条：
+>
+> 1. **列表臂根本没画**（P7-ho-1，**用户可感知最重的一条**）。原版把列表 emission 解析成
+>    `plugin-window__row` 行盘（`DetachedPluginApp.tsx:341-350`；`launcher.css:1792-1818`）。本构建
+>    `detachedView` 无条件画 `OutputView.Text`，而列表的 Text 是**协议本身**
+>    （`{"output":[{"id":…}]}`）——把列表钉到独立窗口的命令会把自己的 wire format 摊在用户面前。
+>    落地：`detachedBodyView` 补 **list** 分支 + `detachedList`（`--glass-control` 盘、`--radius-sm`、
+>    `8u/10u` 内边距、行间 `4u`；title = caption/500/strong、subtitle = caption/muted；status 行走
+>    muted 状态行）。
+> 2. **body 画了原版没有的卡片框**（P7-ho-2）。原版 `.plugin-window__body` 只有 `padding: 14u`
+>    （`launcher.css:1776-1781`）。本构建给了 `Border(1)+Radius(MD)+Padding(Space(2))`。落地：单层
+>    `Padding(Space(3.5))`、无框。
+> 3. **bar 标题寄存器错档、禁用键不暗**（P7-ho-3）。原版 `.plugin-window__title` 是 caption/500/muted/
+>    `letter-spacing:0.01em`（`:1733-1744`），键 `:disabled` 落 `opacity: 0.5`（`:1771-1774`）。本构建
+>    标题 `FontSize+650+Text`（窗口最响），禁用键只置 `Disabled(true)`。落地：标题改 caption/500/muted/
+>    0.01/单行省略；键补 `Opacity(0.5)`；bar 补齐 `10u 14u` 内边距、`8u` 间隙、`6u` 键间距、`4u/10u`
+>    键内边距 + 一条 `InsetShadow` 发线。
+> 4. **文本臂寄存器与可选中性**（P7-ho-4）。原版走 `PluginTextView` 的 `.launcher-plugin-text`：body 档、
+>    `line-height: 1.45`、`--text-secondary`、`pre-wrap`、`user-select: text`（`launcher.css:2615-2637`
+>    ——R63 的「选中即复制」落在它上面）。本构建画 caption + primary、无 `Selectable`。落地改 body/1.45/
+>    secondary/`Wrap().Selectable()`。
+>
+> 同批把**文本钉住窗口**（原版**同一条 `plugin-window` 表面的 text arm**）补上 bar（标题 + Close
+> 图标键、**无 Rerun**——快照没有命令可跑）+ 同一个 body；此前它是个无 chrome 的裸窗口，用户没有
+> 应用内关闭入口。新增 `pinnedView` 供测试渲染，`pinned` 加 `win` 字段让 Close 键可达窗口。
+>
+> **验收**：新增 `internal/shell/detachlist_test.go` 三条——
+> `TestTheDetachedWindowDrawsTheListArmAsRows`、`TestThePinnedWindowWearsTheReferenceBar`、
+> `TestTheDetachedBodyDrawsNoCardFrame`。变异核查：列表臂换回 `detachedStatus(text)` → 第一条红
+> （wire format 上屏）；bar 标题换回 `FontSize+650+Text` → 第二条红（标题盒高 == body 盒高）；
+> body 换回 `Border+Radius+Space(2)` → 第三条红（x=8.2 ≠ 14.0）。顺手删掉视图规则重复的旧死函数
+> `detachedBody`（「算出来没人读的字段是 bug 的化石」）。
+>
+> **门槛**：`gofmt -l cmd internal` 空、`go vet ./...` 净、`GOOS=linux/windows/darwin go build` 三平台过、
+> `go test -count=1 ./internal/{shell,launcher,settingsui}` 全绿。
+>
+> **清单状态**：`.pending-bugs.md` 顶部新增「本轮清空（独立插件窗口 · P7-ho）」四条，均落地；
+> 同处记下新发现的两条**仍未锁定**（列表臂分页缺失——`OutputFor` 已把 Rows 截到 2 页 20 行且窗口
+> 从不 `loadMoreOutputPage`，>20 行的列表在独立窗口被截断；R65 选中即复制未接），按纪律属集成逻辑，
+> 留给后续轮次；「扩展面板·配置表单」的结构性一条不变。
+
+> **上一轮：P7-hn 用户报告复查 + Integrations 页健康／批准区块对齐原版**
 >
 > 用户报告的两条（① 搜索页左右大空白；② 输入内容时「在终端中打开」固定第一项、缺选中态）本轮不仅
 > 复跑测试，还**直接量了像素**：空字段的 caret 落在 x=16、结果行标题落在 x=54（即原版
