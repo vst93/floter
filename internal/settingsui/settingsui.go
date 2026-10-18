@@ -345,6 +345,16 @@ type Integration struct {
 	// manifest declares no probes. It survives across runs (the repository
 	// keeps it), so a row shows how the tool was last found to be.
 	Health string
+	// HealthStatus is the **raw** status word `Health` was printed from
+	// (`extensions.HealthHealthy` &c.), which is what the chip's own face is
+	// keyed on: the reference writes the modifier class straight from the
+	// report (`className={`extension-health__status
+	// extension-health__status--${healthReport.status}`}`,
+	// `main:src/ExtensionsPanel.tsx:2924`), never from the translated word.
+	// Reading the localized word back meant a word-table change — or a status
+	// the four-word ladder does not name — silently dropped the chip to the
+	// transparent `unknown` face. Empty when the row carries no report.
+	HealthStatus string
 	// HealthReport is that same stored report's detail: every probe with its
 	// duration, the failed ones with their exit code and stderr, and when the
 	// run happened. Nil when nothing has ever probed the integration.
@@ -2419,7 +2429,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 		// the row's value; the live findings are the diagnostics row below.
 		if integration.Health != "" {
 			a.row(c, copy.IntegrationsHealth, "", func() {
-				a.healthStatusChip(c, copy, integration.Health)
+				a.healthStatusChip(c, copy, integration.Health, integration.HealthStatus)
 			})
 		}
 		if integration.HealthReport != nil {

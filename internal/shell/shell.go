@@ -1541,6 +1541,10 @@ func (a *App) integrationList() []settingsui.Integration {
 		// the tool was last found to be even before a check runs.
 		if report := integration.Entry.ProbeReport; report != nil && report.Status != "" {
 			copy := i18n.For(a.Store.Snapshot().Language).Settings
+			// The raw status rides along with the word: the chip's face is
+			// keyed on the enum, never on the translation (see
+			// settingsui.Integration.HealthStatus).
+			item.HealthStatus = report.Status
 			switch report.Status {
 			case extensions.HealthHealthy:
 				item.Health = copy.IntegrationsHealthy
@@ -1691,6 +1695,7 @@ func (a *App) diagnoseIntegration(id string) {
 		// the tool was last found to be even before a check runs.
 		if report := integration.Entry.ProbeReport; report != nil && report.Status != "" {
 			copy := i18n.For(a.Store.Snapshot().Language).Settings
+			result.HealthStatus = report.Status
 			switch report.Status {
 			case extensions.HealthHealthy:
 				result.Health = copy.IntegrationsHealthy

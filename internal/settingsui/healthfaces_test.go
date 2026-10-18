@@ -341,3 +341,43 @@ func TestTheDiagnosticsWordsAreCapitalised(t *testing.T) {
 		t.Errorf("the check's own message is missing: %q", tt.Texts())
 	}
 }
+
+// The chip's face is keyed on the raw status enum, never on the printed word.
+//
+// The reference composes the modifier class straight from the report —
+// `className={`extension-health__status extension-health__status--${healthReport.status}`}`
+// (`main:src/ExtensionsPanel.tsx:2924`) — so `unhealthy` wears the warm pane
+// whatever language the word beside it is printed in. The port compared the
+// *localized* word (`copy.IntegrationsHealthy` &c.), so a word-table change, or
+// any status outside the four-word ladder, silently dropped the chip to the
+// transparent `unknown` face: a warning that stopped reading as one.
+func TestTheHealthChipReadsTheRawStatusNotTheWord(t *testing.T) {
+	a := New(newStore(t), Actions{})
+	a.Integrations = func() []Integration {
+		return []Integration{{
+			ID: "dev.floter.bad", Name: "Bad Tool", Enabled: true,
+			// A word the ladder does not name, over a status the reference does.
+			Health: "某项异常", HealthStatus: "unhealthy",
+		}}
+	}
+	tt := render(t, a, 720, 900)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+
+	word, ok := tt.Find("某项异常")
+	if !ok {
+		t.Fatalf("the verdict word is missing: %q", tt.Texts())
+	}
+	img := tt.Image()
+	cy := int(word.Y + word.H/2)
+	got := imagePixel(img, int(word.X)-5, cy)
+	plain := imagePixel(img, 200, cy)
+	if panelClose(got, plain, 3) {
+		t.Errorf("the chip fell back to the plain row for a status the raw enum names: %v", got)
+	}
+	if !(got.R > got.B) {
+		t.Errorf("the chip's plane is not the warm one the raw `unhealthy` asks for: %v", got)
+	}
+}

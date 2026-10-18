@@ -3,6 +3,7 @@ package settingsui
 import (
 	"github.com/egoist/mygo/ui"
 
+	"floter/internal/extensions"
 	"floter/internal/i18n"
 	"floter/internal/launcher"
 	"floter/internal/theme"
@@ -37,10 +38,10 @@ import (
 //
 // The chip's geometry is the reference's: a `2px 8px` padding pair, the
 // `--ext-radius` (= `--radius-sm`) corner and 620 on the caption step.
-func (a *App) healthStatusChip(c *ui.Context, copy i18n.Settings, status string) ui.Element {
+func (a *App) healthStatusChip(c *ui.Context, copy i18n.Settings, status, raw string) ui.Element {
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
-	plane, keyline, ink := healthStatusFace(tokens, t, copy, status)
+	plane, keyline, ink := healthStatusFace(tokens, t, copy, status, raw)
 	chip := ui.Row(c).Shrink(0).Padding(t.Space(0.5), t.Space(2)).
 		Radius(tokens.RadiusSM)
 	if plane.A > 0 {
@@ -52,7 +53,7 @@ func (a *App) healthStatusChip(c *ui.Context, copy i18n.Settings, status string)
 	// A healthy or warm chip keeps the reference's `--elev-0` lens on top of
 	// its keyline (the reference composes `var(--elev-0), inset 0 0 0 1px …`);
 	// the transparent `unknown` face carries neither.
-	if statusWearsLens(copy, status) {
+	if statusWearsLens(copy, status, raw) {
 		tokens.Lens(chip)
 	}
 	chip.Children(func() {
@@ -61,15 +62,18 @@ func (a *App) healthStatusChip(c *ui.Context, copy i18n.Settings, status string)
 	return chip
 }
 
-// healthStatusFace resolves the three colours one status word wears. The word
-// is localized (the shell hands the row `copy.IntegrationsHealthy` &c.), so the
-// comparison is against the copy's own spelling — the same rule the row already
-// followed to tint the word.
-func healthStatusFace(tokens theme.Tokens, t *ui.Theme, copy i18n.Settings, status string) (plane, keyline, ink ui.Color) {
-	switch status {
-	case copy.IntegrationsHealthy:
+// healthStatusFace resolves the three colours one status word wears. The
+// **raw** status enum decides — the reference composes the chip's modifier
+// class from the report itself (`.extension-health__status--${status}`,
+// `ExtensionsPanel.tsx:2924`) — and the localized word is only the fallback for
+// a caller that has nothing else. The word is a *display* string: comparing it
+// meant a translation change, or a status outside the four-word ladder, dropped
+// a chip to the transparent `unknown` face without a word of complaint.
+func healthStatusFace(tokens theme.Tokens, t *ui.Theme, copy i18n.Settings, status, raw string) (plane, keyline, ink ui.Color) {
+	switch healthKindOf(copy, status, raw) {
+	case healthHealthy:
 		return tokens.RaisedQuiet, tokens.AccentEdge, tokens.TextStrong
-	case copy.IntegrationsDegraded, copy.IntegrationsUnhealthy:
+	case healthDegraded, healthUnhealthy:
 		return tokens.RaisedWarm, t.Warning, t.Warning
 	default:
 		// `unknown` (and any word this build cannot place): transparent, muted.
@@ -77,12 +81,47 @@ func healthStatusFace(tokens theme.Tokens, t *ui.Theme, copy i18n.Settings, stat
 	}
 }
 
+// healthKind is which of the reference's four faces a chip wears.
+type healthKind int
+
+const (
+	healthUnknown healthKind = iota
+	healthHealthy
+	healthDegraded
+	healthUnhealthy
+)
+
+// healthKindOf reads the raw status first and the printed word second: a row
+// the shell built carries `HealthStatus`, and a caller (or a stored row) that
+// has only the word still gets the face it names.
+func healthKindOf(copy i18n.Settings, status, raw string) healthKind {
+	switch raw {
+	case extensions.HealthHealthy:
+		return healthHealthy
+	case extensions.HealthDegraded:
+		return healthDegraded
+	case extensions.HealthUnhealthy:
+		return healthUnhealthy
+	case extensions.HealthUnknown:
+		return healthUnknown
+	}
+	switch status {
+	case copy.IntegrationsHealthy:
+		return healthHealthy
+	case copy.IntegrationsDegraded:
+		return healthDegraded
+	case copy.IntegrationsUnhealthy:
+		return healthUnhealthy
+	}
+	return healthUnknown
+}
+
 // statusWearsLens reports whether a status chip draws the reference's `--elev-0`
 // lens, which it composes only where it also draws a keyline: the two chip
 // faces and never the transparent `unknown` one.
-func statusWearsLens(copy i18n.Settings, status string) bool {
-	switch status {
-	case copy.IntegrationsHealthy, copy.IntegrationsDegraded, copy.IntegrationsUnhealthy:
+func statusWearsLens(copy i18n.Settings, status, raw string) bool {
+	switch healthKindOf(copy, status, raw) {
+	case healthHealthy, healthDegraded, healthUnhealthy:
 		return true
 	}
 	return false
