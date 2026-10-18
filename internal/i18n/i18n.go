@@ -1042,11 +1042,12 @@ type Settings struct {
 	ShortcutsAdd         string
 	ShortcutsBind        string
 	ShortcutsRemove      string
+	ShortcutsAction      string
+	ShortcutsConflict    string
+	ShortcutsOccupied    string
 	ShortcutsCommand     string
 	ShortcutsCommandHint string
-	ShortcutsRecordKey   string
 	ShortcutsReset       string
-	ShortcutsRejected    func(key, reason string) string
 	ShortcutsActions     []Option
 
 	// The Plugins page: the built-in plugins' own settings.

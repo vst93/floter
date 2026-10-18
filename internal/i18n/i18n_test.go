@@ -140,32 +140,24 @@ func TestScriptRuntimeWordsMatchTheOldDictionary(t *testing.T) {
 
 // TestCustomShortcutRejectionWordsMatchTheOldDictionary pins both rejection
 // sentences in both languages to the old build's own two words
-// (`main:src/i18n.ts:412-413,1299-1300`). The reason is the token the shell
-// reports, so `conflict`/`occupied` themselves never reach the reader.
+// (`main:src/i18n.ts:412-413,1299-1300`). They are the *row's* sublabel — the
+// old page's `settings.customShortcutsConflict` / `…Occupied`
+// (`ShortcutsPage.tsx:267-274`) — not a "Could not bind …" sentence at the top
+// of the page, which the old build never had.
 func TestCustomShortcutRejectionWordsMatchTheOldDictionary(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		got  string
 		want string
 	}{
-		{"en conflict", en.Settings.ShortcutsRejected("Cmd+J", "conflict"), "Could not bind Cmd+J: Already used by another floter shortcut"},
-		{"en occupied", en.Settings.ShortcutsRejected("Cmd+J", "occupied"), "Could not bind Cmd+J: Most likely used by another app"},
-		{"zh conflict", zh.Settings.ShortcutsRejected("Cmd+J", "conflict"), "无法绑定 Cmd+J：已被 floter 的其他快捷键占用"},
-		{"zh occupied", zh.Settings.ShortcutsRejected("Cmd+J", "occupied"), "无法绑定 Cmd+J：可能已被其他应用占用"},
+		{"en conflict", en.Settings.ShortcutsConflict, "Already used by another floter shortcut"},
+		{"en occupied", en.Settings.ShortcutsOccupied, "Most likely used by another app"},
+		{"zh conflict", zh.Settings.ShortcutsConflict, "已被 floter 的其他快捷键占用"},
+		{"zh occupied", zh.Settings.ShortcutsOccupied, "可能已被其他应用占用"},
 	} {
 		if tc.got != tc.want {
 			t.Errorf("%s = %q, want %q", tc.name, tc.got, tc.want)
 		}
-	}
-	// An unknown token has no word of its own, so it is shown verbatim rather
-	// than dropped: the reader still learns what the shell said. The two
-	// words are absent from the old dictionary, so this is the only branch
-	// that may carry a token straight through.
-	if got := en.Settings.ShortcutsRejected("Cmd+J", "something-new"); got != "Could not bind Cmd+J: something-new" {
-		t.Errorf("unknown reason = %q", got)
-	}
-	if got := zh.Settings.ShortcutsRejected("Cmd+J", "something-new"); got != "无法绑定 Cmd+J：something-new" {
-		t.Errorf("unknown reason (zh) = %q", got)
 	}
 }
 

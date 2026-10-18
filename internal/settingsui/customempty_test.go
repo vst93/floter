@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/i18n"
+	"floter/internal/settings"
 )
 
 // The custom-shortcuts empty state is the reference's SettingsEmpty
@@ -145,5 +146,66 @@ func TestTheCustomShortcutsEmptyRegionHasTheListFloor(t *testing.T) {
 	}
 	if h := bottom - top + 1; h < icon*0.5 || h > icon+2 {
 		t.Errorf("glyph ink height = %v, want the reference's 22u mark (%v)", h, icon)
+	}
+}
+
+// Recording on a saved row edits that row: the reference passed the row's own
+// id into `capture(row.id, next)` (`ShortcutsPage.tsx:361-371`), so a re-record
+// replaced the row's key instead of filling the row being made.
+func TestACustomRowsRecorderEditsItsOwnRow(t *testing.T) {
+	entries := []settings.CustomShortcut{{Key: "Cmd+Shift+P", Action: "plugin:clipboard"}}
+	var committed [][]settings.CustomShortcut
+	a := New(newStore(t), Actions{
+		CustomShortcuts: func() []settings.CustomShortcut { return entries },
+		SetCustomShortcuts: func(list []settings.CustomShortcut) []CustomShortcutRejection {
+			committed = append(committed, list)
+			entries = list
+			return nil
+		},
+	})
+	a.customRecording, a.customRecordRow = true, 0
+	a.captureCustomKey(i18n.For("en").Settings, "Ctrl+Shift+Q")
+
+	if a.customKey != "" {
+		t.Errorf("the saved row's key landed in the draft row: %q", a.customKey)
+	}
+	if len(committed) != 1 || committed[0][0].Key != "Ctrl+Shift+Q" {
+		t.Fatalf("committed = %+v", committed)
+	}
+	// The action travelled with the key rather than being reset by the edit.
+	if committed[0][0].Action != "plugin:clipboard" {
+		t.Errorf("the row's action = %q", committed[0][0].Action)
+	}
+}
+
+// A key another custom row already holds is refused where it was recorded and
+// the sentence hangs under that row, as the reference's `localRejection` did
+// (`ShortcutsPage.tsx:361-371,267-274`).
+func TestADuplicateCustomKeyIsRefusedOnItsRow(t *testing.T) {
+	en := i18n.For("en").Settings
+	entries := []settings.CustomShortcut{
+		{Key: "Cmd+Shift+P", Action: "plugin:clipboard"},
+		{Key: "Cmd+Shift+O", Action: "plugin:browser"},
+	}
+	var committed int
+	a := New(newStore(t), Actions{
+		CustomShortcuts: func() []settings.CustomShortcut { return entries },
+		SetCustomShortcuts: func(list []settings.CustomShortcut) []CustomShortcutRejection {
+			committed++
+			entries = list
+			return nil
+		},
+	})
+	a.customRecording, a.customRecordRow = true, 1
+	a.captureCustomKey(en, "Cmd+Shift+P")
+
+	if committed != 0 {
+		t.Errorf("a duplicate key reached the shell (%d commits)", committed)
+	}
+	if a.customWarning(en, "Cmd+Shift+O", 1) != en.ShortcutsConflict {
+		t.Errorf("the row kept no warning: %q", a.customWarning(en, "Cmd+Shift+O", 1))
+	}
+	if got := a.customWarning(en, "Cmd+Shift+P", 0); got != "" {
+		t.Errorf("the warning landed on the wrong row: %q", got)
 	}
 }

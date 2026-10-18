@@ -940,13 +940,22 @@ type App struct {
 	installName    string
 	installVersion string
 
-	// The custom-shortcut row being made: the recorded key, the chosen action
-	// and, for a command line, its text. customFeedback is the last rejection.
+	// The custom-shortcut row being made: whether it is on screen at all (the
+	// reference's Add put it there), the recorded key, the chosen action and,
+	// for a command line, its text. customRecordRow names the row the recorder
+	// is editing: an index into the stored list, or -1 for the row being made.
+	customDraftOpen bool
 	customRecording bool
+	customRecordRow int
 	customKey       string
 	customAction    string
 	customCommand   string
-	customFeedback  string
+	// customDuplicate is a key this section refused on the spot (another custom
+	// row already holds it), and customRejections are the keys the shell could
+	// not register with the system. Both hang under the row that holds the key.
+	customDuplicate    string
+	customDuplicateRow int
+	customRejections   []CustomShortcutRejection
 
 	// rejectedShortcut is the action whose last recording the page refused —
 	// the reference's `rejectedAction`. It carries the warning at the top of
@@ -974,7 +983,7 @@ const (
 
 // New builds the settings surface over a store.
 func New(store *settings.Store, actions Actions) *App {
-	a := &App{Store: store, Actions: actions}
+	a := &App{Store: store, Actions: actions, customRecordRow: -1}
 	// The sidebar is a click-only list: it is *not* given a cursor, so the
 	// framework's own list navigation never claims ↑/↓. The reference's page
 	// keys are the window's, not the sidebar's — they walk the pages from

@@ -917,6 +917,9 @@ type rowFace struct {
 	// Inset is the 1px inner keyline a selected (accent) or broken (warning)
 	// row draws (the reference's `inset 0 0 0 1px`), transparent for none.
 	Inset ui.Color
+	// Muted dims the whole row to the reference's 0.62 — the half-made
+	// custom-shortcut row (`.settings-row--muted`, `settings.css:564-569`).
+	Muted bool
 }
 
 // cardRow is the frame every row helper shares: the separator inset above the
@@ -966,6 +969,9 @@ func (a *App) cardRow(c *ui.Context, align ui.Align, lead func(), face rowFace, 
 		}
 		if face.Inset.A > 0 {
 			row = row.InsetShadow(0, 0, 0, 1, face.Inset)
+		}
+		if face.Muted {
+			row = row.Opacity(0.62)
 		}
 		bar := face.Bar
 		switch {

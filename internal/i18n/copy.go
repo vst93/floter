@@ -6,17 +6,6 @@ import "strconv"
 // The reason is one of the two tokens the shell reports — `conflict` for a
 // key that shadows one of the app's own, `occupied` for one the system would
 // not take — mapped to the sentence the old build's page showed.
-func shortcutsRejectedEN(key, reason string) string {
-	switch reason {
-	case "conflict":
-		return "Could not bind " + key + ": Already used by another floter shortcut"
-	case "occupied":
-		return "Could not bind " + key + ": Most likely used by another app"
-	default:
-		return "Could not bind " + key + ": " + reason
-	}
-}
-
 // The calculator's retention windows, as the picker labels them.
 func calculatorRetentionEN(days int) string {
 	if days <= 0 {
@@ -33,17 +22,6 @@ func calculatorRetentionZH(days int) string {
 		return "永不过期"
 	}
 	return strconv.Itoa(days) + " 天"
-}
-
-func shortcutsRejectedZH(key, reason string) string {
-	switch reason {
-	case "conflict":
-		return "无法绑定 " + key + "：已被 floter 的其他快捷键占用"
-	case "occupied":
-		return "无法绑定 " + key + "：可能已被其他应用占用"
-	default:
-		return "无法绑定 " + key + "：" + reason
-	}
 }
 
 // freshnessRelativeEN words a past time the way the platform's own
@@ -847,12 +825,13 @@ var en = Copy{
 		ShortcutsAddFirst:    "Add the first one",
 		ShortcutsAdd:         "Add",
 		ShortcutsBind:        "Bind",
-		ShortcutsRemove:      "Remove",
+		ShortcutsRemove:      "Remove shortcut",
+		ShortcutsAction:      "Action",
+		ShortcutsConflict:    "Already used by another floter shortcut",
+		ShortcutsOccupied:    "Most likely used by another app",
 		ShortcutsCommand:     "Command line",
 		ShortcutsCommandHint: "e.g. say done",
-		ShortcutsRecordKey:   "Record key",
 		ShortcutsReset:       "Restore defaults",
-		ShortcutsRejected:    shortcutsRejectedEN,
 		ShortcutsActions: []Option{
 			{"plugin:clipboard", "Clipboard history"},
 			{"plugin:browser", "Browser history"},
@@ -1723,12 +1702,13 @@ var zh = Copy{
 		ShortcutsAddFirst:    "添加第一个",
 		ShortcutsAdd:         "添加",
 		ShortcutsBind:        "绑定",
-		ShortcutsRemove:      "移除",
+		ShortcutsRemove:      "删除快捷键",
+		ShortcutsAction:      "执行动作",
+		ShortcutsConflict:    "已被 floter 的其他快捷键占用",
+		ShortcutsOccupied:    "可能已被其他应用占用",
 		ShortcutsCommand:     "命令行",
 		ShortcutsCommandHint: "例如 say done",
-		ShortcutsRecordKey:   "录制按键",
 		ShortcutsReset:       "还原默认",
-		ShortcutsRejected:    shortcutsRejectedZH,
 		ShortcutsActions: []Option{
 			{"plugin:clipboard", "剪贴板历史"},
 			{"plugin:browser", "浏览器历史"},

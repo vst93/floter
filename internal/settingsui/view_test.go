@@ -1608,8 +1608,9 @@ func TestCustomShortcutRecorderTreatsModifiedEscapeAsAChord(t *testing.T) {
 	tt.Scroll(400, 300, 0, 900)
 	tt.Frame()
 
-	// The draft row's recorder opens on the "Record key" placeholder.
-	if err := tt.Click("Record key"); err != nil {
+	// The heading's "Add" puts the reference's draft row on screen and arms
+	// its recorder (`ShortcutsPage.tsx:213-220,362-367`).
+	if err := tt.Click("Add"); err != nil {
 		t.Fatalf("the custom recorder: %v", err)
 	}
 	tt.Frame()
@@ -1625,7 +1626,7 @@ func TestCustomShortcutRecorderTreatsModifiedEscapeAsAChord(t *testing.T) {
 	}
 
 	// ...but a modified Escape is recorded like any other chord.
-	if err := tt.Click("Record key"); err != nil {
+	if err := tt.Click("Add"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
@@ -1742,10 +1743,10 @@ func TestCustomShortcutsPage(t *testing.T) {
 	tt.Scroll(400, 300, 0, 900)
 	tt.Frame()
 
-	// Recording a key fills the new row, and Bind persists the binding.
-	// (The heading's own "Add" starts a new binding, so the row's commit
-	// button wears a word of its own.)
-	if err := tt.Click("Record key"); err != nil {
+	// The heading's "Add" puts the row being made on screen and arms its
+	// recorder; Bind persists the binding. (The heading's own "Add" starts a
+	// new binding, so the row's commit button wears a word of its own.)
+	if err := tt.Click("Add"); err != nil {
 		t.Fatalf("record: %v", err)
 	}
 	tt.Frame()
@@ -1781,7 +1782,7 @@ func TestCustomShortcutsPage(t *testing.T) {
 	if last[0].Action != "plugin:browser" {
 		t.Errorf("retargeted action = %q", last[0].Action)
 	}
-	if err := tt.Click("Remove"); err != nil {
+	if err := tt.Click("Remove shortcut"); err != nil {
 		t.Fatalf("remove: %v", err)
 	}
 	tt.Frame()
@@ -1790,10 +1791,16 @@ func TestCustomShortcutsPage(t *testing.T) {
 		t.Errorf("after a removal = %+v", last)
 	}
 
-	// A key the system refused is reported rather than looking bound.
+	// A key the system refused is reported under the row that holds it rather
+	// than looking bound: the reference's `rejectionFor(row.key)` matched the
+	// warning to the row, so the sentence lives on the row's sublabel.
 	rejections = []CustomShortcutRejection{{Key: "Cmd+J", Reason: CustomShortcutReasonOccupied}}
-	if err := tt.Click("Remove"); err != nil {
-		t.Fatal(err)
+	if err := tt.Click("Clipboard history"); err != nil {
+		t.Fatalf("the remaining row's picker: %v", err)
+	}
+	tt.Frame()
+	if err := tt.Click("Browser history"); err != nil {
+		t.Fatalf("retarget for the rejection round-trip: %v", err)
 	}
 	tt.Frame()
 	if !tt.HasText("Most likely used by another app") {
@@ -1967,7 +1974,10 @@ func TestCustomShortcutRejectionWording(t *testing.T) {
 				CustomShortcuts: func() []settings.CustomShortcut { return entries },
 				SetCustomShortcuts: func(list []settings.CustomShortcut) []CustomShortcutRejection {
 					entries = list
-					return []CustomShortcutRejection{{Key: "Cmd+J", Reason: tc.reason}}
+					// The refused key is the row's own binding, so the warning has
+					// the row to sit under (the reference matched rejections to rows
+					// by key, `ShortcutsPage.tsx:271-274`).
+					return []CustomShortcutRejection{{Key: "Cmd+Shift+P", Reason: tc.reason}}
 				},
 			})
 			tt := render(t, a, 720, 1000)
@@ -1977,7 +1987,13 @@ func TestCustomShortcutRejectionWording(t *testing.T) {
 			tt.Frame()
 			tt.Scroll(400, 300, 0, 900)
 			tt.Frame()
-			if err := tt.Click("Remove"); err != nil {
+			// Retargeting the row commits the list; the warning belongs to the
+			// row's own key, so it is drawn under that row.
+			if err := tt.Click("Clipboard history"); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			if err := tt.Click("Browser history"); err != nil {
 				t.Fatal(err)
 			}
 			tt.Frame()
@@ -2491,7 +2507,7 @@ func TestRecorderSuspendsTheGlobalShortcuts(t *testing.T) {
 	suspended = nil
 	tt.Scroll(400, 300, 0, 900)
 	tt.Frame()
-	if err := tt.Click("Record key"); err != nil {
+	if err := tt.Click("Add"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
