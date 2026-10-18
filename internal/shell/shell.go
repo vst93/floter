@@ -1225,6 +1225,11 @@ func (a *App) Start() {
 		Vibrancy: vibrancyForStop(runtime.GOOS, s.GlassStep),
 		Content:  ui.View(a.View),
 	})
+	// A frameless window on Windows still carries the caption bits mygo builds
+	// every style from, and with the acrylic material's extended frame that
+	// shows as a non-client band around the card and the system's caption
+	// buttons over its top-right corner (see chrome_windows.go).
+	stripSystemChrome(a.Win.NativeHandle())
 	// A Windows shortcut's icon is a PowerShell extraction, so it runs off the
 	// drawing thread (internal/apps); the frame it finishes is asked for here.
 	apps.SetIconInvalidate(func() { a.Win.Invalidate() })
@@ -3704,7 +3709,8 @@ func (a *App) View(c *ui.Context) {
 	c.Root().Background(ui.Transparent)
 
 	t := c.Theme()
-	topUnits, rightUnits, bottomUnits, leftUnits := a.inset()
+	material := a.windowShowsMaterial(c)
+	topUnits, rightUnits, bottomUnits, leftUnits := a.insetFor(material)
 	top, right, bottom, left := t.Space(topUnits), t.Space(rightUnits), t.Space(bottomUnits), t.Space(leftUnits)
 	// The card's one edge (base.css's --input-stroke): a plain 1px stroke,
 	// lit one step while the window has the keyboard — the rim the old
@@ -3743,6 +3749,11 @@ func (a *App) View(c *ui.Context) {
 	a.logGeometry(windowWidth, cardWidth)
 	ui.Column(c).Fill().Padding(top, right, bottom, left).AlignItems(ui.Center).Children(func() {
 		radius := surface.Tokens.RadiusLG
+		if !material {
+			// The card is the whole window there: rounded corners would leave
+			// four wedges of the window's frame color at the corners.
+			radius = 0
+		}
 		// The card clips, so a full-bleed block inside it takes the window's
 		// rounded corners — the old build's `.collapsed-card` had
 		// `overflow: hidden` for exactly this.
@@ -3757,6 +3768,10 @@ func (a *App) View(c *ui.Context) {
 			card.Shadow(0, t.Space(1), t.Space(4.5), 0, surface.Tokens.ShadowAmbient)
 			card.Shadow(0, t.Space(0.25), t.Space(1.25), 0, surface.Tokens.ShadowContact)
 		case "windows":
+			if !material {
+				// A card that fills the window has no margin to cast into.
+				break
+			}
 			card.Shadow(0, t.Space(1), t.Space(4), 0, surface.Tokens.ShadowAmbient)
 			card.Shadow(0, t.Space(0.25), t.Space(1), 0, surface.Tokens.ShadowContact)
 		}
@@ -3787,7 +3802,14 @@ func (a *App) View(c *ui.Context) {
 		if a.Surf == SurfaceTerminal {
 			spec = glassmap.SpecForPreferences(s.GlassStep, s.TerminalOpacity, c.Preferences().HighContrast)
 		}
-		faceTop, faceBottom := surface.Tokens.FaceFill(spec.TintAlpha)
+		faceAlpha := spec.TintAlpha
+		if !material {
+			// Nothing behind the card to read through: the frame's alpha would
+			// only let the window's own frame color show, so the face is
+			// painted at full opacity and the card is a solid panel.
+			faceAlpha = 1
+		}
+		faceTop, faceBottom := surface.Tokens.FaceFill(faceAlpha)
 		card.Children(func() {
 			// The panel's fill is one translucent tint at the frame's own alpha —
 			// the reference's `--glass-tint-alpha` — and the stop's sheen is the
@@ -3975,6 +3997,40 @@ func (a *App) holdContractWidth(windowWidth float32) {
 // left/right blank could ever be. They are handed to `t.Space` at the call
 // site, so the drawn card and the charged window height stay one decision
 // (see launcher.windowInset).
+// windowShowsMaterial reports whether the desktop shows through the window
+// behind the card — the glass the design is built on.
+//
+// Windows only has a material from 11 22H2 (mygo's system backdrops); where
+// the framework reports none, the transparent margin around the card would
+// show the window's own opaque frame color instead of the desktop — a ring of
+// background the design never draws (「窗口周边外圈还有一圈额外的底色」) and,
+// on a client wider than the 720 contract, the two blank blocks beside the card
+// (「搜索页面左右两边各有一大块空白」). There the card covers the window and
+// is opaque (see insetFor, the card's radius and the face's alpha in View).
+//
+// Only a real window on Windows can be in that state: macOS and Linux
+// composite the transparent margin themselves (no material, but the desktop
+// shows), and a headless frame (the pixel tests, where `a.Win == nil`) renders
+// the glass the design draws.
+func (a *App) windowShowsMaterial(c *ui.Context) bool {
+	if runtime.GOOS != "windows" || a.Win == nil {
+		return true
+	}
+	return c.Vibrancy()
+}
+
+// insetFor is inset with the window's material taken into account: where the
+// framework reports no material behind the content (Windows before 11 22H2,
+// and any platform whose compositor gives none), the band the card leaves
+// around itself would be the window's own frame color rather than the desktop,
+// so the card takes the whole window instead.
+func (a *App) insetFor(material bool) (top, right, bottom, left float32) {
+	if !material {
+		return 0, 0, 0, 0
+	}
+	return a.inset()
+}
+
 func (a *App) inset() (top, right, bottom, left float32) {
 	if a.Surf != SurfaceLauncher {
 		if runtime.GOOS == "linux" || runtime.GOOS == "windows" {
@@ -4061,6 +4117,9 @@ func (a *App) resize() {
 	if resizable != a.lastResizable {
 		a.Win.SetResizable(resizable)
 		a.lastResizable = resizable
+		// SetResizable writes the style bits back (the thick frame, and the
+		// maximize box with it), so the caption goes off again here.
+		stripSystemChrome(a.Win.NativeHandle())
 	}
 	minW, minH := 0, 0
 	if resizable {
