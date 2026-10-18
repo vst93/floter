@@ -287,6 +287,14 @@ type App struct {
 	// screen, unselected, and the highlight pinned to the list's first line.
 	// Empty when the modifier is up, so the next press asserts again.
 	heldRowKey string
+	// barRowKey is the same shape key for the action bar, which is the row the
+	// modifier hands the selection to when the field has text: the reference
+	// draws no held row for a typed query (R64) and the bar is the row that
+	// acts on the line. It is asserted on the same shape changes the held row
+	// is, so typing with the modifier down keeps the bar lit while an arrow
+	// step off it survives (the reference's effect re-runs on `query` and the
+	// list's length, not on the selection).
+	barRowKey string
 
 	// toast is a message to show in the panel's docked status row, set by an
 	// action, and toastWarning marks it a warning — the blocking tone the old
@@ -865,6 +873,7 @@ func (a *App) View(c *ui.Context) {
 	// list must not leave it drawn without the highlight (see
 	// holdHeldRowSelection).
 	a.holdHeldRowSelection(results)
+	a.holdBarSelection(results)
 	a.clampSelection(len(results))
 	a.assignNumbers(results)
 	// The output list, while it owns the band, carries the same numbered family
@@ -2494,6 +2503,7 @@ func (a *App) syncHeldModifier(c *ui.Context) {
 			}
 		} else {
 			a.heldRowKey = ""
+			a.barRowKey = ""
 			if rowShowing || strings.TrimSpace(a.Query) != "" {
 				// The row the modifier put on screen is gone. The selection
 				// returns to the page's own default — the reference's
@@ -2538,6 +2548,38 @@ func (a *App) holdHeldRowSelection(results []Item) {
 // the row count and the query the row was placed over.
 func heldRowKey(results []Item, query string) string {
 	return strconv.Itoa(len(results)) + "\x00" + query
+}
+
+// holdBarSelection keeps the action bar selected while the modifier is held
+// over a *typed* query, which is the row the modifier's press edge hands the
+// selection to there (see syncHeldModifier: a typed query draws no held row,
+// R64, so the bar is the row that acts on the line).
+//
+// Without it the selection the press edge set was lost on the very next
+// keystroke: the query's own default reset (the `a.Query != a.defaultedQuery`
+// branch in View) lands on the first match, so the bar stayed on screen and
+// unselected for as long as the user kept typing with the key down — the report
+// 「应该有选中样式（当前缺失）」. The reference's effect depends on `query` and
+// the list's length (`main:src/App.tsx:2065-2082`), so it re-runs on exactly
+// those changes and not on an arrow step: the key below is the same shape key
+// the held row uses, so an arrow step off the bar survives until the list
+// itself changes.
+func (a *App) holdBarSelection(results []Item) {
+	if !a.modifierHeld || a.output != nil || a.pluginModeActive() || strings.TrimSpace(a.Query) == "" {
+		a.barRowKey = ""
+		return
+	}
+	bar := actionBarIndex(results)
+	if bar < 0 {
+		a.barRowKey = ""
+		return
+	}
+	key := heldRowKey(results, a.Query)
+	if key == a.barRowKey {
+		return
+	}
+	a.barRowKey = key
+	a.Selected = bar
 }
 
 // heldRowShowing reports whether the held row is in the list right now: it is

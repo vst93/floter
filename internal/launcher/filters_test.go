@@ -1140,3 +1140,44 @@ func TestHeldModifierRowIsNotScrolledIntoView(t *testing.T) {
 			now, lastNow, first, last, a.Selected)
 	}
 }
+
+// The modifier over a typed query hands the selection to the action bar (a
+// typed query draws no held row, R64 — see heldTerminalItem), and the bar keeps
+// it for as long as the key is down: every keystroke rebuilds the list, and the
+// query's own default reset used to land on the first match, leaving the bar on
+// screen and unlit — the report 「应该有选中样式（当前缺失）」. Releasing the key
+// gives the page's own default back.
+func TestTheHeldModifierKeepsTheBarSelectedWhileTyping(t *testing.T) {
+	a := testApp()
+	tt := render(t, a)
+	a.SetQuery("open settings")
+	tt.Frame()
+	results := a.Results()
+	bar := actionBarIndex(results)
+	if bar < 0 {
+		t.Fatalf("the query drew no action bar: %+v", results)
+	}
+	tt.HoldModifiers(ui.Cmd)
+	tt.Frame()
+	if a.Selected != bar {
+		t.Errorf("the modifier's press put the selection on %d, want the bar %d", a.Selected, bar)
+	}
+	// A keystroke with the key still down: the bar is still the row the
+	// modifier acts on, so it keeps the selection.
+	a.SetQuery("open setting")
+	tt.Frame()
+	results = a.Results()
+	bar = actionBarIndex(results)
+	if bar < 0 {
+		t.Fatalf("the bar left the list after a keystroke: %+v", results)
+	}
+	if a.Selected != bar {
+		t.Errorf("typing with the modifier down moved the selection to %d, want the bar %d", a.Selected, bar)
+	}
+	// Released: the page's own default comes back.
+	tt.HoldModifiers(0)
+	tt.Frame()
+	if want := a.defaultSelection(a.Results()); a.Selected != want {
+		t.Errorf("the release left the selection on %d, want the page's default %d", a.Selected, want)
+	}
+}

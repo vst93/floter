@@ -246,18 +246,21 @@ func TestTheCardIsTheWindowLessThePlatformsInset(t *testing.T) {
 	}
 }
 
-// The search page keeps the reference's 720 column when the window is wider.
+// The search page fills a window the design did not ask for.
 //
-// 「搜索页面左右两边各有一大块空白」 is, on a window the design did not ask for,
-// exactly what a card stretched to the window's own width looks like: every
-// horizontal number in the reference is measured against a 720-wide window
-// (`lib.rs:93,129-138` — 「the launcher's 720px column is the window contract」),
-// and `.collapsed-card { width: 100% }` (`launcher.css:8-13`) is 100% of *that*
-// column. A compositor that hands the toplevel a wider box (a tiling WM before
-// the floating hint lands, a session that ignores the size request) must not
-// stretch the column: the card stays the contract's width and is centred, with
-// the window's own transparency at the sides.
-func TestTheSearchPageKeepsTheReferenceColumnInAWiderWindow(t *testing.T) {
+// 「搜索页面左右两边各有一大块空白」 was answered twice, in opposite directions.
+// `5c2d60d` stretched nothing and `7ca7510` capped the card at the contract's 720
+// and centred it — and the cap is what *paints* the report: on a window wider
+// than 720 (a compositor that hands the toplevel a wider box, a DPI whose
+// physical client does not divide back to the requested DIP width) the card sits
+// in the middle with the window's own transparency at its sides, i.e. two bands
+// of nothing inside the window. The reference draws `.collapsed-card { width:
+// 100% }` (`launcher.css:8-13`) of whatever window it has, and the 720 contract
+// is held by the *window* instead (App.holdContractWidth asks for it again from
+// the frame that saw the wrong width). So: the card reaches the platform's
+// inset on both sides, and the design's numbers stay measured from the card's own
+// edge.
+func TestTheSearchPageFillsAWiderWindow(t *testing.T) {
 	for _, width := range []int{900, 1200, 1600} {
 		a := appKeysApp()
 		tt := ui.NewTester(func(c *ui.Context) { a.View(c) }, width, 420)
@@ -266,13 +269,11 @@ func TestTheSearchPageKeepsTheReferenceColumnInAWiderWindow(t *testing.T) {
 		_, rightUnits, _, leftUnits := a.inset()
 		spacing := float32(a.Launcher.Spacing)
 		insetLeft, insetRight := leftUnits*spacing, rightUnits*spacing
-		column := float32(720) - insetLeft - insetRight
-		gutter := (float32(width) - column) / 2
 
 		// The card's stroke is painted inside its box: the content box is the
-		// column less the two strokes, and the two gutters are equal.
-		wantLeft := gutter + 1
-		wantRight := float32(width) - gutter - 2
+		// window less the insets and the two strokes.
+		wantLeft := insetLeft + 1
+		wantRight := float32(width) - insetRight - 2
 		img := tt.Image()
 		field, ok := tt.Find("Search")
 		if !ok {
@@ -290,16 +291,16 @@ func TestTheSearchPageKeepsTheReferenceColumnInAWiderWindow(t *testing.T) {
 			}
 		}
 		if absf(float32(runLeft)-wantLeft) > 1 {
-			t.Errorf("%d: the card starts at x=%d, want the centred 720 column's x=%.0f", width, runLeft, wantLeft)
+			t.Errorf("%d: the card starts at x=%d, want the platform's inset x=%.0f", width, runLeft, wantLeft)
 		}
 		if absf(float32(runRight)-wantRight) > 1 {
-			t.Errorf("%d: the card ends at x=%d, want the centred 720 column's x=%.0f", width, runRight, wantRight)
+			t.Errorf("%d: the card ends at x=%d, want x=%.0f (a band of nothing inside the window?)", width, runRight, wantRight)
 		}
-		// The field's own text sits on the reference's 16u from the card, not
-		// 16u from the window: the column moved, the design did not stretch.
+		// The field's own text still sits on the reference's 16u from the
+		// card's edge, so the card widening moves the design's origin with it.
 		unit := spacing / 4
 		if want := float32(runLeft) + 16*unit; absf(field.X-want) > 1.5 {
-			t.Errorf("%d: the query starts at x=%.1f, want the column's 16u (%.1f)", width, field.X, want)
+			t.Errorf("%d: the query starts at x=%.1f, want the card's 16u (%.1f)", width, field.X, want)
 		}
 	}
 }
@@ -387,5 +388,66 @@ func TestThePlatformInsetIsTheReferenceUnitLadder(t *testing.T) {
 			t.Errorf("%s: the field block spans %d..%d, want the card's content box %d..%d",
 				step, runLeft, runRight, int(left), int(right))
 		}
+	}
+}
+
+// The card is the reference's `width: 100%` (`main:src/styles/launcher.css:8-13`)
+// and never a column capped at the 720 contract: a window wider than the
+// contract shows a wider card, not the desktop at the card's sides.
+//
+// P7-hx capped the card at 720 and centred it, which is the identity only while
+// the window really is 720 wide. On a window that comes back wider (a platform
+// that ignores the size request, a DPI whose physical client does not divide
+// back to the requested DIP width) the cap painted the window's own margin as
+// two bands of nothing beside the card — the very report it was written for.
+// The window is now pulled back to the contract instead (see holdContractWidth),
+// so the design's column is restored by resizing and the card always reaches the
+// platform's inset.
+func TestTheCardFillsTheWindowItIsGiven(t *testing.T) {
+	for _, tc := range []struct {
+		window, left, right float32
+	}{
+		{480, 0, 0},
+		{720, 2.5, 2.5},
+		{1000, 2.5, 2.5},
+		{1600, 1, 2.5},
+	} {
+		want := tc.window - tc.left - tc.right
+		if got := CardWidth(SurfaceLauncher, tc.window, tc.left, tc.right); got != want {
+			t.Errorf("card in a %v-wide window = %v, want %v (window less the insets)",
+				tc.window, got, want)
+		}
+	}
+	// A frame wider than the contract: the card's own edge (its 1px stroke,
+	// the first thing that is not the window's shadow) sits on the platform's
+	// inset, so no band of desktop is left inside the window beside it.
+	a := appKeysApp()
+	tt := appKeysRender(t, a)
+	tt.SetSize(1000, 420)
+	tt.Frame()
+	row, ok := tt.Find("Open settings")
+	if !ok {
+		t.Fatalf("no result row on the wide frame: %q", tt.Texts())
+	}
+	spacing := float32(a.Launcher.Spacing)
+	_, rightUnits, _, leftUnits := a.inset()
+	left := leftUnits * spacing
+	right := 1000 - rightUnits*spacing
+	img := tt.Image()
+	y := int(row.Y + row.H/2)
+	edgeLeft, edgeRight := -1, -1
+	for x := 0; x < 1000; x++ {
+		if img.RGBAAt(x, y).A > 60 {
+			if edgeLeft < 0 {
+				edgeLeft = x
+			}
+			edgeRight = x
+		}
+	}
+	if absf(float32(edgeLeft)-left) > 2 {
+		t.Errorf("the card starts at x=%d, want the platform's %.1f inset", edgeLeft, left)
+	}
+	if absf(float32(edgeRight)-right) > 2 {
+		t.Errorf("the card ends at x=%d, want the platform's %.1f inset", edgeRight, right)
 	}
 }

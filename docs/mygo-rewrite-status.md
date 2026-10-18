@@ -100,6 +100,28 @@ FLOTER_REGISTRY_TEST=1 go test ./internal/extensions -run TestRealRegistry  # �
 
 ## 最近几轮（详细记录见 plan）
 
+> **本轮：P7-id 搜索页空白换方向修（撤封顶 · 窗口拉回 720 契约）+ 按住行选中态补全**
+>
+> 用户报告的两条本轮按「方向调整」重做第一条：
+> - ① 左右空白：撤掉 P7-hx 的「卡片封顶 720 + 居中」——窗口比 720 宽时，封顶本身
+>   就是「卡片居中、两侧露出窗口底色」的形状（Windows acrylic 上就是两片灰底，
+>   与 ② 同源）。原版是 `.collapsed-card { width: 100% }`（`main:src/styles/
+>   launcher.css:8-13`），720 是**窗口**契约。落地 `shell.CardWidth`
+>   （= 窗口 − 平台 inset，不再封顶）+ `App.holdContractWidth`
+>   （宽了就再请求一次 720×当前高，400ms 间隔 / 最多 3 次，拒绝则卡片撑满）。
+> - ② 按住行：位置/存在性已在原版（空查询末行、松手消失、打字不出行）。缺的
+>   「选中样式」是**打字时丢失**：击键的查询默认重置把选中挪回首行。落地
+>   `barRowKey` + `holdBarSelection`，按列表形状键把选中钉回动作栏，箭头离开不
+>   拉回，松手清键（与原版 effect 依赖 `query`/`displayedResultsLength` 一致）。
+>
+> **验收**：`shell/searchcolumn_test.go` 的 `TestTheSearchPageFillsAWiderWindow`
+> （900/1200/1600：卡片 inset→inset、文本仍 16u）+ `TestTheCardFillsTheWindowItIsGiven`
+> （`CardWidth` 恒等式 + 宽帧像素边缘；旧的封顶断言删除并在注释写明反向原因）；
+> `launcher/filters_test.go` 的 `TestTheHeldModifierKeepsTheBarSelectedWhileTyping`。
+>
+> **门槛**：`gofmt -l internal cmd` 空、`go vet` 净、三平台 `go build ./...` 过、
+> `go test -count=1 ./internal/{launcher,shell}` 全绿。
+
 > **本轮：P7-ht 用户报告第七次复跑 + 启动器动作词/浏览器副本回原版 + Diagnostics/Health 区块压回原版**
 >
 > 前置清理：`git status` 有 4 个文件未提交（`internal/i18n/{copy,i18n}.go`、

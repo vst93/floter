@@ -440,6 +440,13 @@ type App struct {
 	lastW, lastH       int
 	lastResizable      bool
 	lastMinW, lastMinH int
+	// contractAt and contractTries rate-limit the window's pull back to the
+	// 720-wide contract (see holdContractWidth): a window wider than the
+	// contract is asked to shrink, at most contractTries times and no more
+	// often than contractGap, so a platform that refuses the size cannot turn
+	// the request into a resize loop.
+	contractAt    time.Time
+	contractTries int
 	// launcherTarget is the height the launcher's list asked for (the View
 	// measures it); walkLauncherHeight eases the window there.
 	launcherTarget int
@@ -3643,17 +3650,19 @@ func (a *App) View(c *ui.Context) {
 	// contract」, `:129-138`), and `.collapsed-card { width: 100% }`
 	// (`launcher.css:8-13`) is 100% of *that* window: every horizontal number
 	// in the design — the field's 16u, a row's 54u, the panel's 4u gutter — is
-	// measured against it. The port draws the card as 100% of whatever window
-	// it is given, which is the same thing only while the window really is
-	// 720 wide; a compositor that ignores the size request (a tiling WM, a
-	// session that tiles the toplevel before the floating hint lands) hands
-	// the card a wider box, and the design's column then floats in the middle
-	// of a stretched panel — the report 「搜索页面左右两边各有一大块空白」.
-	// So the card keeps the contract's width and is centred in the window it
-	// was given, with the desktop showing at the sides exactly as it does
-	// around a 720-wide floating panel. At 720 (and narrower) this is the
-	// identity: card = window - the platform's inset, which is the only band
-	// the reference draws.
+	// measured against it.
+	//
+	// The card is that `width: 100%` and nothing else: it fills the window it
+	// is given, less the platform's inset, which is the only band the
+	// reference draws. The port capped it at the contract's 720 and centred it
+	// instead (P7-hx), which is the identity only while the window really is
+	// 720 wide — and where the window is wider (a platform that ignores the
+	// size request, a DPI that makes the client wider than the request) the
+	// cap painted the desktop *inside* the window as two bands of nothing
+	// beside the card, which is exactly the report it was written for
+	// (「搜索页面左右两边各有一大块空白」). The window is held at the
+	// contract instead (see holdContractWidth), so the design's column is
+	// restored by resizing rather than by leaving the card's sides empty.
 	windowWidth, _ := c.Size()
 	if windowWidth <= 0 {
 		// A window that has not been sized yet (the first frame of a session
@@ -3661,15 +3670,8 @@ func (a *App) View(c *ui.Context) {
 		// than a zero-width card.
 		windowWidth = float32(launcher.InputWindowWidth)
 	}
-	cardWidth := windowWidth - left - right
-	if a.Surf != SurfaceTerminal {
-		if reference := float32(launcher.InputWindowWidth) - left - right; cardWidth > reference {
-			cardWidth = reference
-		}
-	}
-	if cardWidth < 0 {
-		cardWidth = 0
-	}
+	a.holdContractWidth(windowWidth)
+	cardWidth := CardWidth(a.Surf, windowWidth, left, right)
 	ui.Column(c).Fill().Padding(top, right, bottom, left).AlignItems(ui.Center).Children(func() {
 		radius := surface.Tokens.RadiusLG
 		// The card clips, so a full-bleed block inside it takes the window's
@@ -3824,6 +3826,70 @@ func SummonShortcut(s settings.Settings) string {
 		}
 	}
 	return defaultSummonShortcut
+}
+
+// CardWidth is the card's width for a surface in a window of windowWidth,
+// less the platform's inset on each side: the reference's
+// `.collapsed-card { width: 100% }` (`main:src/styles/launcher.css:8-13`)
+// measured against the shell it sits in. It never depends on the surface, so a
+// launcher card and a settings card in the same window are the same width —
+// the surfaces differ in what they draw inside the card, not in how much of the
+// window the card takes.
+func CardWidth(surf Surface, windowWidth, left, right float32) float32 {
+	_ = surf
+	width := windowWidth - left - right
+	if width < 0 {
+		return 0
+	}
+	return width
+}
+
+// contractGap and contractAttempts bound the window's pull back to the 720
+// contract.
+const (
+	contractGap      = 400 * time.Millisecond
+	contractAttempts = 3
+)
+
+// holdContractWidth keeps the window at the reference's 720-wide column.
+//
+// The window is *asked* for 720 DIP when it is created and on every surface
+// change (see targetSize), and on every platform that honours the request this
+// is a no-op. Where the client comes back wider — a compositor that sizes the
+// toplevel itself, a DPI whose physical client does not divide back to the
+// requested DIP width — the card would either be stretched with the window (the
+// design's column lost) or, as it was capped before, sit in the middle of a
+// wider window with the desktop showing at its sides (「搜索页面左右两边各有
+// 一大块空白」). So the window is asked again, from inside the frame that saw
+// the wrong width: the same call `resize` makes, with the height the frame is
+// already at. Three tries, a gap apart, and the request is left alone — a
+// platform that refuses it gets a stretched card, which still has no empty band
+// in it (see CardWidth).
+func (a *App) holdContractWidth(windowWidth float32) {
+	if a.Win == nil || a.Surf == SurfaceTerminal {
+		return
+	}
+	contract := float32(launcher.InputWindowWidth)
+	if windowWidth <= contract+1 {
+		// The window is at the contract: the counter starts over, so a later
+		// resize that strays is answered afresh.
+		a.contractTries = 0
+		return
+	}
+	if a.contractTries >= contractAttempts {
+		return
+	}
+	if !a.contractAt.IsZero() && a.now().Sub(a.contractAt) < contractGap {
+		return
+	}
+	height := a.lastH
+	if height <= 0 {
+		return
+	}
+	a.contractTries++
+	a.contractAt = a.now()
+	a.lastW, a.lastH = launcher.InputWindowWidth, height
+	a.Win.SetSize(launcher.InputWindowWidth, height)
 }
 
 // inset is the card's distance to the window edge per platform, from
