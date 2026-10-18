@@ -3,6 +3,18 @@
   "identifier": "com.v.floter",
   "version": "0.3.15",
   "main": "./cmd/floter",
+  "icon": "resources/icon.png",
   "urlSchemes": ["floter"],
-  "macos": { "minimumSystemVersion": "13.0" }
+  "macos": { "minimumSystemVersion": "13.0" },
+  "linux": {
+    "maintainer": "vst93 <vst93@users.noreply.github.com>",
+    "comment": "A floating panel: launcher, terminal and settings in one summon",
+    "categories": ["Utility", "System", "TerminalEmulator"],
+    "command": "floter"
+  },
+  "updates": {
+    "publicKey": "OcN9S0rMlzRBOsxlY7SP0jzmWiTFe5LKwnhi6e0onWI=",
+    "github": "vst93/floter",
+    "tagPrefix": "mygo-v"
+  }
 }

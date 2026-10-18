@@ -1,0 +1,429 @@
+name: Release (mygo)
+
+# 构建并发布 mygo 原生版（本分支）的安装包。
+#
+# 与 go.yml 的分工：go.yml 是每次推送的测试门（test + 各平台构建冒烟），
+# 这个 workflow 只在**发版**时跑，产出用户能直接安装的形态：
+#
+#   macOS    floter-<v>-macos-apple-silicon.dmg / .app.zip
+#            floter-<v>-macos-intel.dmg / .app.zip
+#   Windows  floter-<v>-windows-x86_64-setup.exe（NSIS）
+#            floter-<v>-windows-arm64-setup.exe（NSIS）
+#   Linux    floter-<v>-linux-x86_64.deb / .rpm / .pkg.tar.zst
+#            floter-<v>-linux-arm64.deb / .rpm / .pkg.tar.zst
+#            install.sh + floter-<v>-linux-<arch>.tar.gz（通用安装脚本）
+#   更新     update-<target>.json + *.delta + 签名（需要 MYGO_UPDATER_PRIVATE_KEY）
+#
+# mygo 自己产出 dmg / .app / NSIS setup / deb / tar.gz + install.sh；rpm 与
+# pacman（pkg.tar.zst）它不产出，这里用 nfpm 和手工打包补上（与 bili-fm 的
+# release-mygo.yml 同一套做法）。
+#
+# 发版方式：
+#   1) 直接触发（推荐）：
+#        gh workflow run release-mygo.yml --ref mygo-rewrite -f version=0.3.16
+#   2) 推 tag：git tag mygo-v0.3.16 && git push origin mygo-v0.3.16
+#
+# 版本号只在**这次构建的工作区**里改写（mygo.json + CHANGELOG.md），不提交回
+# 分支：分支上的 mygo.json 始终是上一个已发布的版本，发版由这个 workflow 定版。
+
+on:
+  push:
+    tags:
+      - 'mygo-v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号（如 0.3.16）。留空则把 mygo.json 里的 patch 加一'
+        required: false
+        default: ''
+      notes:
+        description: '更新说明。留空则从 git log 自动生成'
+        required: false
+        default: ''
+      prerelease:
+        description: '标记为预览版 (true/false)。留空则按版本号自动判断'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-mygo
+  cancel-in-progress: false
+
+jobs:
+  # ── 版本号、tag、release ─────────────────────────────────────────────
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      notes: ${{ steps.notes.outputs.notes }}
+      prerelease: ${{ steps.prerelease.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 计算版本号
+        id: version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          set -e
+          CURRENT=$(grep -oP '"version":\s*"\K[^"]+' mygo.json)
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            VERSION="${GITHUB_REF_NAME#mygo-v}"
+          elif [ -n "$INPUT_VERSION" ]; then
+            VERSION="$INPUT_VERSION"
+          else
+            BASE="${CURRENT%%[-+]*}"
+            MAJOR=$(echo "$BASE" | cut -d. -f1)
+            MINOR=$(echo "$BASE" | cut -d. -f2)
+            PATCH=$(echo "$BASE" | cut -d. -f3)
+            VERSION="$MAJOR.$MINOR.$((PATCH + 1))"
+          fi
+          if ! [[ "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::不是合法的语义化版本号：$VERSION" >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "版本号 $VERSION（当前 mygo.json 是 $CURRENT，来自 $GITHUB_REF_TYPE $GITHUB_REF_NAME）"
+
+      - name: 判断是否预览版
+        id: prerelease
+        env:
+          INPUT_PRE: ${{ inputs.prerelease }}
+        run: |
+          PRE="$INPUT_PRE"
+          VERSION="${{ steps.version.outputs.version }}"
+          if echo "$VERSION" | grep -qiE '-(alpha|beta|preview|rc)'; then
+            PRE="true"
+          elif [ -z "$PRE" ]; then
+            PRE="false"
+          fi
+          echo "prerelease=$PRE" >> "$GITHUB_OUTPUT"
+          echo "预览版: $PRE"
+
+      - name: 生成更新说明
+        id: notes
+        env:
+          INPUT_NOTES: ${{ inputs.notes }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          if [ -n "$INPUT_NOTES" ]; then
+            NOTES="$INPUT_NOTES"
+          else
+            LAST_TAG=$(git describe --tags --abbrev=0 --match 'mygo-v*' 2>/dev/null || echo "")
+            if [ -n "$LAST_TAG" ]; then
+              COMMITS=$(git log --pretty=format:"- %s" "$LAST_TAG"..HEAD | head -40)
+            else
+              COMMITS=$(git log --pretty=format:"- %s" -20)
+            fi
+            NOTES=$(cat <<EOF
+          ## 更新内容
+
+          $COMMITS
+
+          ---
+
+          ## 下载安装
+
+          | 文件 | 平台 |
+          |------|------|
+          | \`floter-$VERSION-macos-apple-silicon.dmg\` | macOS（Apple Silicon） |
+          | \`floter-$VERSION-macos-intel.dmg\` | macOS（Intel） |
+          | \`floter-$VERSION-windows-x86_64-setup.exe\` | Windows (x86_64) |
+          | \`floter-$VERSION-windows-arm64-setup.exe\` | Windows (ARM64) |
+          | \`floter-$VERSION-linux-x86_64.deb\` | Debian/Ubuntu (x86_64) |
+          | \`floter-$VERSION-linux-arm64.deb\` | Debian/Ubuntu (ARM64) |
+          | \`floter-$VERSION-linux-x86_64.rpm\` | Fedora/RHEL/openSUSE (x86_64) |
+          | \`floter-$VERSION-linux-x86_64.pkg.tar.zst\` | Arch Linux (x86_64) |
+          | \`install.sh\` + \`floter-$VERSION-linux-<arch>.tar.gz\` | 任意 Linux（装到 ~/.local） |
+
+          > **这是 mygo 原生版**：界面用 Go 原生绘制，不依赖 webview。
+          >
+          > **应用内更新不跨版本**：原生版与 Tauri 版的更新签名不兼容，从旧版升级
+          > 需要手动安装一次。
+          EOF
+          )
+          fi
+          {
+            echo "notes<<MYGO_EOF"
+            echo "$NOTES"
+            echo "MYGO_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: 建 release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NOTES: ${{ steps.notes.outputs.notes }}
+          PRE: ${{ steps.prerelease.outputs.prerelease }}
+        run: |
+          set -e
+          VERSION="${{ steps.version.outputs.version }}"
+          if [ "$GITHUB_REF_TYPE" != "tag" ]; then
+            git tag -f "mygo-v$VERSION" && git push -f origin "mygo-v$VERSION"
+          fi
+          if gh release view "mygo-v$VERSION" >/dev/null 2>&1; then
+            echo "release 已存在，跳过创建"
+          else
+            printf '%s\n' "$NOTES" > /tmp/notes.md
+            gh release create "mygo-v$VERSION" \
+              --title "floter (原生版) $VERSION" \
+              --notes-file /tmp/notes.md \
+              $([ "$PRE" = "true" ] && echo "--prerelease")
+          fi
+
+  # ── 各平台构建 ──────────────────────────────────────────────────────
+  build:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # 按架构分开出包：universal 会把两个架构的二进制塞进同一个 dmg，
+          # 体积翻倍，而用户只需要自己架构那一个。
+          - os: macos-latest
+            platform: darwin/amd64,darwin/arm64
+            label: macos
+          # 22.04 而不是 latest：Linux 包的 glibc 基线跟发行版对齐。
+          - os: ubuntu-22.04
+            platform: linux/amd64,linux/arm64
+            label: linux
+          - os: windows-latest
+            platform: windows/amd64,windows/arm64
+            label: windows
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: 写入版本号与更新说明并构建
+        shell: bash
+        env:
+          # 更新签名私钥：给每个平台的归档签名并写 update-<target>.json。
+          # 应用内置的是对应公钥（mygo.json 的 updates.publicKey）。
+          # 没配这个 secret 时构建照常，只是不产出更新文件（应用内更新不可用）。
+          MYGO_UPDATER_PRIVATE_KEY: ${{ secrets.MYGO_UPDATER_PRIVATE_KEY }}
+        run: |
+          set -e
+          VERSION="${{ needs.prepare.outputs.version }}"
+          # 版本号只写进这次构建的工作区，不提交回分支。用 -i.bak 同时兼容
+          # GNU sed（Linux）与 BSD sed（macOS）。
+          sed -i.bak -E 's/("version"[[:space:]]*:[[:space:]]*")[^"]*/\1'"$VERSION"'/' mygo.json
+          rm -f mygo.json.bak
+          grep '"version"' mygo.json
+
+          # 更新清单的更新说明取自 CHANGELOG.md 里本版本的小节，所以把
+          # [Unreleased] 就地改成版本号（仓库自己的约定，见 CHANGELOG.md 开头）。
+          # 没有 [Unreleased] 小节时补一个，内容就是这次生成的说明。
+          if grep -qE '^## \[Unreleased\]' CHANGELOG.md; then
+            sed -i.bak -E "0,/^## \[Unreleased\].*/s//## [$VERSION] - $(date +%F)/" CHANGELOG.md
+            rm -f CHANGELOG.md.bak
+          else
+            printf '## [%s] - %s\n\n%s\n\n' "$VERSION" "$(date +%F)" "${{ needs.prepare.outputs.notes }}" > /tmp/section.md
+            cat CHANGELOG.md >> /tmp/section.md
+            mv /tmp/section.md CHANGELOG.md
+          fi
+          head -5 CHANGELOG.md
+
+          go tool mygo build -platform ${{ matrix.platform }}
+
+      # ── Linux：补 rpm 与 pacman（mygo 不产出）──────────────────────
+      - name: 生成 rpm 与 pacman 包
+        if: matrix.label == 'linux'
+        run: |
+          set -e
+          VERSION="${{ needs.prepare.outputs.version }}"
+          # bsdtar 在 Ubuntu 上由 libarchive-tools 提供，用来生成 .MTREE
+          sudo apt-get update -qq && sudo apt-get install -y -qq libarchive-tools
+          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
+          for PAIR in "amd64:x86_64" "arm64:aarch64"; do
+            GOARCH="${PAIR%%:*}"
+            PKGARCH="${PAIR##*:}"
+            SRC="dist/linux-$GOARCH"
+
+            # --- rpm（nfpm）---
+            cat > "/tmp/nfpm-$GOARCH.yaml" <<YAML
+          name: floter
+          arch: $PKGARCH
+          platform: linux
+          version: $VERSION
+          maintainer: vst93 <vst93@users.noreply.github.com>
+          description: "A floating panel launcher: apps, files, math and terminal"
+          license: MIT
+          contents:
+            # 目录形状与 mygo 自己的 .deb 一致（/opt/floter + /usr/bin 软链 +
+            # hicolor 图标），这样 deb 与 rpm 装出来是同一套路径。
+            - src: $SRC/floter
+              dst: /opt/floter/floter
+            - src: $SRC/libghostty-vt.so
+              dst: /opt/floter/libghostty-vt.so
+            - src: $SRC/libmygo-sqlite3.so
+              dst: /opt/floter/libmygo-sqlite3.so
+            - src: $SRC/floter.png
+              dst: /usr/share/icons/hicolor/512x512/apps/floter.png
+            - src: $SRC/floter.desktop
+              dst: /usr/share/applications/floter.desktop
+          YAML
+            "$(go env GOPATH)/bin/nfpm" package -f "/tmp/nfpm-$GOARCH.yaml" -p rpm -t /tmp/
+            # nfpm 会把版本号里的 "-preview.1" 规范化成 "~preview.1"（rpm 的
+            # 版本语义），所以按通配取实际文件名，不要拼死。
+            RPM=$(ls -t /tmp/floter-*.rpm | head -1)
+            mv "$RPM" "$SRC/floter-$VERSION-linux-$PKGARCH.rpm"
+
+            # --- pacman（手工 tar，格式就是 .PKGINFO + 文件树）---
+            ROOT=$(mktemp -d)
+            install -Dm755 "$SRC/floter" "$ROOT/opt/floter/floter"
+            install -Dm755 "$SRC/libghostty-vt.so" "$ROOT/opt/floter/libghostty-vt.so"
+            install -Dm755 "$SRC/libmygo-sqlite3.so" "$ROOT/opt/floter/libmygo-sqlite3.so"
+            install -Dm644 "$SRC/floter.png" "$ROOT/usr/share/icons/hicolor/512x512/apps/floter.png"
+            install -Dm644 "$SRC/floter.desktop" "$ROOT/usr/share/applications/floter.desktop"
+            mkdir -p "$ROOT/usr/bin"
+            ln -sf ../../opt/floter/floter "$ROOT/usr/bin/floter"
+            SIZE=$(du -sb "$ROOT" | cut -f1)
+            # pacman 的版本格式是 pkgver-pkgrel，**pkgver 里不能有 `-`**；
+            # Arch 没有 Debian/rpm 那种 `~` 预发布约定，惯例改用 `.`。
+            PKGVER="${VERSION//-/.}-1"
+            {
+              echo "pkgname = floter"
+              echo "pkgver = $PKGVER"
+              echo "pkgdesc = A floating panel launcher: apps, files, math and terminal"
+              echo "url = https://github.com/vst93/floter"
+              echo "builddate = $(date +%s)"
+              echo "packager = vst93"
+              echo "size = $SIZE"
+              echo "arch = $PKGARCH"
+              echo "license = MIT"
+              echo "depend = gtk3"
+              echo "depend = webkit2gtk-4.1"
+            } > "$ROOT/.PKGINFO"
+            # .MTREE 是 pacman 用来校验文件完整性的清单，缺了会警告。
+            ( cd "$ROOT" && LANG=C bsdtar -czf .MTREE --format=mtree \
+                --options='!all,use-set,type,uid,gid,mode,time,size,md5,sha256,link' \
+                .PKGINFO opt usr )
+            ( cd "$ROOT" && tar --zstd -cf "$OLDPWD/$SRC/floter-$VERSION-linux-$PKGARCH.pkg.tar.zst" .PKGINFO .MTREE opt usr )
+            rm -rf "$ROOT"
+          done
+
+      # ── 重命名并收集 ───────────────────────────────────────────────
+      - name: 收集产物
+        shell: bash
+        run: |
+          set -e
+          VERSION="${{ needs.prepare.outputs.version }}"
+          mkdir -p out
+          OUT="$PWD/out"
+          case "${{ matrix.label }}" in
+            macos)
+              for PAIR in "arm64:apple-silicon" "amd64:intel"; do
+                A="${PAIR%%:*}"; NAME="${PAIR##*:}"
+                D="dist/darwin-$A"
+                [ -d "$D" ] || continue
+                APP=$(ls -d "$D"/*.app 2>/dev/null | head -1 || true)
+                if [ -n "$APP" ]; then
+                  ( cd "$D" && zip -qry "$OUT/floter-$VERSION-macos-$NAME.app.zip" "$(basename "$APP")" )
+                fi
+                DMG=$(ls "$D"/*.dmg 2>/dev/null | head -1 || true)
+                [ -n "$DMG" ] && cp "$DMG" "$OUT/floter-$VERSION-macos-$NAME.dmg"
+                cp "$D"/floter-*-darwin-$A.tar.gz "$OUT/" 2>/dev/null || true
+                cp "$D"/update-darwin-$A.json "$OUT/" 2>/dev/null || true
+                cp "$D"/*.delta "$OUT/" 2>/dev/null || true
+              done
+              ;;
+            linux)
+              cp dist/linux-amd64/*.deb "$OUT/floter-$VERSION-linux-x86_64.deb"
+              cp dist/linux-arm64/*.deb "$OUT/floter-$VERSION-linux-arm64.deb"
+              cp dist/linux-amd64/*.rpm "$OUT/floter-$VERSION-linux-x86_64.rpm"
+              cp dist/linux-arm64/*.rpm "$OUT/floter-$VERSION-linux-arm64.rpm"
+              cp dist/linux-amd64/*.pkg.tar.zst "$OUT/floter-$VERSION-linux-x86_64.pkg.tar.zst"
+              cp dist/linux-arm64/*.pkg.tar.zst "$OUT/floter-$VERSION-linux-arm64.pkg.tar.zst"
+              cp dist/linux-amd64/install.sh "$OUT/install.sh"
+              # 更新归档必须用**原名**：update-<target>.json 里的 url 指的就是
+              # 这个名字，install.sh 也按 <name>-<version>-<target>.tar.gz 找同
+              # 目录的归档。改名会让应用内更新 404、install.sh 找不到包。
+              for A in amd64 arm64; do
+                cp dist/linux-$A/floter-*-linux-$A.tar.gz "$OUT/" 2>/dev/null || true
+                cp "dist/linux-$A/update-linux-$A.json" "$OUT/" 2>/dev/null || true
+                cp dist/linux-$A/*.delta "$OUT/" 2>/dev/null || true
+              done
+              ;;
+            windows)
+              for A in amd64 arm64; do
+                D="dist/windows-$A"
+                [ -d "$D" ] || continue
+                EXE="$D/floter.exe"
+                [ -f "$EXE" ] && cp "$EXE" "$OUT/floter-$VERSION-windows-$A.exe"
+                SETUP=$(ls "$D"/*Setup*.exe 2>/dev/null | head -1 || true)
+                [ -n "$SETUP" ] && cp "$SETUP" "$OUT/floter-$VERSION-windows-$A-setup.exe"
+                cp "$D"/floter-*-windows-$A.tar.gz "$OUT/" 2>/dev/null || true
+                cp "dist/windows-$A/update-windows-$A.json" "$OUT/" 2>/dev/null || true
+                cp "$D"/*.delta "$OUT/" 2>/dev/null || true
+              done
+              ;;
+          esac
+          ls -la out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mygo-${{ matrix.label }}
+          path: out/*
+          if-no-files-found: error
+
+  # ── 发布 ────────────────────────────────────────────────────────────
+  release:
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: 上传到 release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          VERSION="${{ needs.prepare.outputs.version }}"
+          ls -la artifacts
+          gh release upload "mygo-v$VERSION" artifacts/* --clobber --repo "${{ github.repository }}"
+
+      # 更新清单里的 url 必须指向真的传上去的文件。漏传或改名过一次，
+      # 应用内更新会在所有平台 404，而且只有用户点了更新才会发现 ——
+      # 所以这里在发布时直接卡住。
+      - name: 校验更新清单指向的文件都在
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          VERSION="${{ needs.prepare.outputs.version }}"
+          REPO="${{ github.repository }}"
+          gh release view "mygo-v$VERSION" --repo "$REPO" --json assets \
+            -q '.assets[].name' > /tmp/published.txt
+          FAIL=0
+          for f in artifacts/update-*.json; do
+            [ -f "$f" ] || continue
+            NAME=$(python3 -c "import json,sys,os;print(os.path.basename(json.load(open(sys.argv[1]))['url']))" "$f")
+            if grep -qx "$NAME" /tmp/published.txt; then
+              echo "  ok   $(basename "$f") -> $NAME"
+            else
+              echo "::error::$(basename "$f") 指向的 $NAME 不在 release 里，应用内更新会 404"
+              FAIL=1
+            fi
+          done
+          [ "$FAIL" = "0" ] || exit 1
+          echo "更新清单校验通过"
+
+      - name: 完成
+        run: |
+          echo "已发布：https://github.com/${{ github.repository }}/releases/tag/mygo-v${{ needs.prepare.outputs.version }}"
