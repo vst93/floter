@@ -3757,7 +3757,21 @@ func (a *App) View(c *ui.Context) {
 		// The card clips, so a full-bleed block inside it takes the window's
 		// rounded corners — the old build's `.collapsed-card` had
 		// `overflow: hidden` for exactly this.
-		card := ui.Column(c).Width(cardWidth).FillHeight().Radius(radius).Border(1, stroke).Clip()
+		//
+		// `FillWidth` and not `Width(cardWidth)`: the card *is* whatever the
+		// padded column has left, which is `.collapsed-card { width: 100% }`
+		// by construction. The two are the same number while `c.Size()`
+		// answers the window the frame was drawn into, and the explicit
+		// width was the only way for them to disagree — a first frame before
+		// the surface was sized (the 720 fallback above against a window that
+		// is not 720), a platform whose reported client does not divide back
+		// to the requested DIP width, a DPI step between the frame's read and
+		// the card's paint. Every one of those drew the card narrower than
+		// the band it sits in, i.e. the two blocks of nothing beside it the
+		// user reported (「搜索页面左右两边各有一大块空白」). Filling cannot
+		// disagree with the window it fills; `cardWidth` stays for the
+		// geometry log and the height accounting only.
+		card := ui.Column(c).FillWidth().FillHeight().Radius(radius).Border(1, stroke).Clip()
 		// The card's own depth where the platform has no window-server shadow:
 		// Linux compositors disagree on whether an undecorated transparent
 		// window gets a native one, and a frameless Windows window's shadow

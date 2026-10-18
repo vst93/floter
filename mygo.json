@@ -1,7 +1,7 @@
 {
   "name": "floter",
   "identifier": "com.v.floter",
-  "version": "0.3.15",
+  "version": "0.3.16",
   "main": "./cmd/floter",
   "icon": "resources/icon.png",
   "urlSchemes": ["floter"],
