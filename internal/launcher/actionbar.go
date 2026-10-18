@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"floter/internal/i18n"
 )
@@ -155,13 +156,12 @@ func (a *App) actionBarItemsWith(other []Item, gated bool) []Item {
 	}
 	if kind == actionPath {
 		expanded := expandPath(value, a.homeDirOrEmpty())
-		info, err := os.Stat(expanded)
-		if err != nil {
+		if !a.pathExists(expanded) {
 			// A path that is not there yet is still offered: creating it is
 			// what the command is for. The terminal row stands beside it.
 			return []Item{a.barPathRows(expanded, false, copy)[1]}
 		}
-		rows := a.barPathRows(expanded, info.IsDir(), copy)
+		rows := a.barPathRows(expanded, a.pathIsDir(expanded), copy)
 		out := []Item{rows[0]}
 		out = append(out, rows[1:]...)
 		return out
@@ -347,4 +347,44 @@ func (a *App) defaultsToShell(results []Item) bool {
 		return true
 	}
 	return commandWords[strings.ToLower(value)]
+}
+
+// pathStatTTL is how long the action bar remembers a typed path's own answer.
+// The bar is rebuilt every frame (the catalogue is a pure function of the
+// query), so without a memo an `os.Stat` of the typed path ran sixty times a
+// second; on a network share, a sleeping disk or a disconnected drive that one
+// call is the window frozen (「很多界面经常卡死」). A quarter second is longer
+// than a frame and shorter than the time a user needs to notice a path they
+// just created appearing — the row's own text never comes from the stat.
+const pathStatTTL = 250 * time.Millisecond
+
+// statPath answers whether a path exists and whether it is a directory,
+// memoised for pathStatTTL. The answer is the bar's *own* reading of the
+// filesystem, so a query that is a path keeps offering the create-it and
+// open-it rows either way.
+func (a *App) statPath(path string) (isDir, exists bool) {
+	now := a.now()
+	if a.pathStatPath == path && !a.pathStatAt.IsZero() && now.Sub(a.pathStatAt) < pathStatTTL {
+		return a.pathStatIsDir, a.pathStatExists
+	}
+	info, err := os.Stat(path)
+	a.pathStatPath, a.pathStatAt = path, now
+	if err != nil {
+		a.pathStatIsDir, a.pathStatExists = false, false
+		return false, false
+	}
+	a.pathStatIsDir, a.pathStatExists = info.IsDir(), true
+	return a.pathStatIsDir, true
+}
+
+// pathExists and pathIsDir are statPath's two answers, for the call sites that
+// read one of them.
+func (a *App) pathExists(path string) bool {
+	_, exists := a.statPath(path)
+	return exists
+}
+
+func (a *App) pathIsDir(path string) bool {
+	isDir, _ := a.statPath(path)
+	return isDir
 }

@@ -352,6 +352,14 @@ type App struct {
 	// clipboard images'.
 	icons  map[string]*ui.Bitmap
 	thumbs map[string]*ui.Bitmap
+	// pathStat is the action bar's memo of the last typed path's own answer.
+	// The bar is rebuilt every frame, so a path query used to `os.Stat` the
+	// path sixty times a second — on a network share or a sleeping disk that
+	// is the whole window stopped answering, not a slow row.
+	pathStatPath   string
+	pathStatIsDir  bool
+	pathStatExists bool
+	pathStatAt     time.Time
 	// output is the captured output of a background command run, shown in
 	// place of the result list; Output keeps its scroll offset.
 	output *OutputView

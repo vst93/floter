@@ -1228,6 +1228,10 @@ func (a *App) Start() {
 	// A Windows shortcut's icon is a PowerShell extraction, so it runs off the
 	// drawing thread (internal/apps); the frame it finishes is asked for here.
 	apps.SetIconInvalidate(func() { a.Win.Invalidate() })
+	// A clipboard image's thumbnail is decoded off the drawing thread for the
+	// same reason (a 4K screenshot is tens of megabytes of pixels, decoded on
+	// every keystroke before): the frame it finishes is asked for here.
+	launcher.SetThumbInvalidate(func() { a.Win.Invalidate() })
 	a.Win.OnClosed(func() {
 		if runtime.GOOS != "darwin" {
 			a.quit()

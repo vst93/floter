@@ -2116,10 +2116,19 @@ func TestClipboardImageThumbnail(t *testing.T) {
 	if !tt.HasText(a.copy().ClipboardTypeImage + " · 0m") {
 		t.Fatalf("the image row has no type/age subtitle: %q", tt.Texts())
 	}
-	// The thumbnail is decoded and cached by its file's path.
-	thumb := a.clipThumb(entry)
+	// The thumbnail is decoded off the drawing thread and cached by its
+	// file's path: the first frames draw the row without it, and one lands
+	// shortly after.
+	var thumb *ui.Bitmap
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		if thumb = a.clipThumb(entry); thumb != nil {
+			break
+		}
+		time.Sleep(2 * time.Millisecond)
+	}
 	if thumb == nil {
-		t.Fatal("the thumbnail was not decoded")
+		t.Fatal("the thumbnail was never decoded")
 	}
 	if len(a.thumbs) != 1 {
 		t.Errorf("thumbs cache = %v", a.thumbs)
@@ -2135,6 +2144,44 @@ func TestClipboardImageThumbnail(t *testing.T) {
 	}
 	if got := a.clipThumb(text); got != nil {
 		t.Errorf("a text entry produced a thumbnail: %v", got)
+	}
+}
+
+// The report 「很多界面经常卡死」: the clipboard mode's rows are built on the
+// search path, which runs on every keystroke, and decoding a screenshot there
+// stopped the window. The first call must only *ask* for the decode; the row
+// draws without its thumbnail and the next frame draws it.
+func TestTheThumbnailDecodeStaysOffTheDrawingThread(t *testing.T) {
+	store := clipboard.NewStore(clipboard.FromConfigRoot(t.TempDir()), 0)
+	var buffer bytes.Buffer
+	if err := png.Encode(&buffer, imageNewRGBA(64)); err != nil {
+		t.Fatal(err)
+	}
+	entry, _, err := store.AddImage(buffer.Bytes(), 64, 64)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := testApp()
+	a.Clipboard = store
+	landed := make(chan struct{}, 4)
+	SetThumbInvalidate(func() {
+		select {
+		case landed <- struct{}{}:
+		default:
+		}
+	})
+	t.Cleanup(func() { SetThumbInvalidate(nil) })
+
+	if got := a.clipThumb(entry); got != nil {
+		t.Fatal("the first frame decoded the thumbnail on the drawing thread")
+	}
+	select {
+	case <-landed:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the background decode never asked for a frame")
+	}
+	if got := a.clipThumb(entry); got == nil {
+		t.Fatal("the landed thumbnail was not drawn")
 	}
 }
 
