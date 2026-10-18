@@ -3595,7 +3595,8 @@ func (a *App) View(c *ui.Context) {
 	c.Root().Background(ui.Transparent)
 
 	t := c.Theme()
-	top, right, bottom, left := a.inset()
+	topUnits, rightUnits, bottomUnits, leftUnits := a.inset()
+	top, right, bottom, left := t.Space(topUnits), t.Space(rightUnits), t.Space(bottomUnits), t.Space(leftUnits)
 	// The card's one edge (base.css's --input-stroke): a plain 1px stroke,
 	// lit one step while the window has the keyboard — the rim the old
 	// build's R72 kept when it deleted the second one.
@@ -3761,19 +3762,32 @@ func SummonShortcut(s settings.Settings) string {
 
 // inset is the card's distance to the window edge per platform, from
 // base.css's `.collapsed-shell` and the panels' own margin.
+//
+// The numbers are the reference's **units**, not pixels: base.css writes
+// `.platform-linux .collapsed-shell { padding: calc(var(--u) * 10) }` and
+// Windows' `calc(var(--u) * 4) calc(var(--u) * 10) calc(var(--u) * 12)
+// calc(var(--u) * 4)` (`base.css:1503,1591-1607`), and `--u` is `1px *
+// ui-scale`. The port kept the pixel readings, so the card was 2px narrower
+// than the design's at the shipped `small` step (10px a side where the
+// reference draws 9) — the one horizontal band the launcher's own rules do
+// not account for, and therefore the only thing the search page's
+// left/right blank could ever be. They are handed to `t.Space` at the call
+// site, so the drawn card and the charged window height stay one decision
+// (see launcher.windowInset).
 func (a *App) inset() (top, right, bottom, left float32) {
 	if a.Surf != SurfaceLauncher {
 		if runtime.GOOS == "linux" || runtime.GOOS == "windows" {
-			return 10, 10, 10, 10
+			return 2.5, 2.5, 2.5, 2.5 // 10u
 		}
 		return 0, 0, 0, 0
 	}
 	switch runtime.GOOS {
 	case "linux":
-		return 10, 10, 10, 10
+		return 2.5, 2.5, 2.5, 2.5 // 10u a side
 	case "windows":
-		// More room at the bottom and right for the card's shadow.
-		return 4, 10, 12, 4
+		// More room at the bottom and right for the card's shadow:
+		// `4u 10u 12u 4u`.
+		return 1, 2.5, 3, 1
 	default:
 		return 0, 0, 0, 0
 	}

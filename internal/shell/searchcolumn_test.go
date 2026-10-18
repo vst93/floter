@@ -1,6 +1,7 @@
 package shell
 
 import (
+	"runtime"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
@@ -38,9 +39,7 @@ func TestTheSearchColumnIsTheReferenceUnitsAtTheShippedStep(t *testing.T) {
 	}
 	unit := float32(a.Launcher.Spacing / 4)
 
-	_, right, _, left := a.inset()
-	cardLeft := left + 1 // the card's own 1px stroke sits inside its box
-	cardRight := float32(720) - right - 1
+	cardLeft, cardRight := cardEdges(a)
 
 	field, ok := tt.Find("Search")
 	if !ok {
@@ -107,10 +106,10 @@ func TestTheHeldRowIsTheLastLineOfTheShippedList(t *testing.T) {
 		t.Fatalf("the held row was not drawn: %q", tt.Texts())
 	}
 	img := tt.Image()
-	_, right, _, left := a.inset()
-	panel := img.RGBAAt(int(left)+2, int(row.Y+row.H/2))
+	cardLeft, cardRight := cardEdges(a)
+	panel := img.RGBAAt(int(cardLeft)+1, int(row.Y+row.H/2))
 	tinted := 0
-	for x := int(left) + 2; x < 720-int(right)-2; x++ {
+	for x := int(cardLeft) + 1; x < int(cardRight); x++ {
 		if img.RGBAAt(x, int(row.Y+row.H/2)) != panel {
 			tinted++
 		}
@@ -206,13 +205,13 @@ func TestTheCardIsTheWindowLessThePlatformsInset(t *testing.T) {
 		t.Fatalf("the field was not drawn: %q", tt.Texts())
 	}
 	img := tt.Image()
-	_, right, _, left := a.inset()
+	cardLeft, cardRight := cardEdges(a)
 	y := int(field.Y + field.H/2)
 
 	// The field block's own fill, sampled at the card's middle: a narrow block
 	// would move this column's colour too, so the sample cannot be taken from
 	// a column the block's edge might have passed over.
-	fill := img.RGBAAt((int(left)+720-int(right))/2, y)
+	fill := img.RGBAAt(int((cardLeft+cardRight)/2), y)
 	runLeft, runRight := -1, -1
 	for x := 0; x < 720; x++ {
 		if img.RGBAAt(x, y) == fill {
@@ -228,14 +227,25 @@ func TestTheCardIsTheWindowLessThePlatformsInset(t *testing.T) {
 	// The window's inset is all that is left of the frame, and the field block
 	// runs from the card's own first pixel to its last: the stroke is painted
 	// *inside* the card's box, not beside it.
-	if want := int(left) + 1; runLeft != want {
+	if want := int(cardLeft); runLeft != want {
 		t.Errorf("the field block starts at x=%d, want x=%d: the card is narrower than the window's inset allows (a blank band inside the card)",
 			runLeft, want)
 	}
-	if want := 720 - int(right) - 2; runRight != want {
+	if want := int(cardRight); runRight != want {
 		t.Errorf("the field block ends at x=%d, want x=%d: the card is narrower than the window's inset allows (a blank band inside the card)",
 			runRight, want)
 	}
+}
+
+// cardEdges is the card's own content box on the shipped frame, in DIPs: the
+// window (720) less the platform's inset — `App.inset` answers in the
+// reference's units, so it is handed through the theme's own `Space` — and the
+// card's 1px stroke, which is painted inside the card's box. The two numbers
+// are the first and the last pixel the card's content owns.
+func cardEdges(a *App) (left, right float32) {
+	_, rightUnits, _, leftUnits := a.inset()
+	spacing := float32(a.Launcher.Spacing)
+	return leftUnits*spacing + 1, float32(720) - rightUnits*spacing - 2
 }
 
 func absf(v float32) float32 {
@@ -257,4 +267,58 @@ func absi(v int) int {
 		return -v
 	}
 	return v
+}
+
+// The platform's inset is the reference's unit ladder, not a pixel constant.
+//
+// `base.css` writes the shell's padding as `calc(var(--u) * 10)` a side on
+// Linux (`:1591-1607`), and `--u` is `1px * ui-scale` (`:53`) — so the card's
+// distance to the window edge is nine pixels at the shipped `small` step, ten
+// at `medium` and eleven at `large`, and the card is 720 less twice that at
+// every one of them. The port had the pixel reading (10 a side) hard-coded, so
+// the card was two pixels narrower than the design at the default step and two
+// wider at `large` — the one horizontal band the launcher's own rules do not
+// account for, and the only thing 「搜索页面左右大空白」 could ever have been.
+// This pins the drawn card against the step's own unit.
+func TestThePlatformInsetIsTheReferenceUnitLadder(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("the ladder's Linux reading (10u a side) is the one asserted")
+	}
+	for _, step := range []string{"small", "medium", "large"} {
+		a := appKeysAppAtScale(step)
+		tt := appKeysRender(t, a)
+		tt.Frame()
+
+		unit := float32(a.Launcher.Spacing / 4)
+		left, right := cardEdges(a)
+		if want := 10*unit + 1; absf(left-want) > 0.5 {
+			t.Errorf("%s: the card's content starts at %.1f, want the reference's 10u (%.1f)", step, left, want)
+		}
+		if want := float32(720) - 10*unit - 2; absf(right-want) > 0.5 {
+			t.Errorf("%s: the card's content ends at %.1f, want the mirrored 10u (%.1f)", step, right, want)
+		}
+
+		// The drawn frame agrees: the field block is full-bleed across the
+		// card, so the run of its own fill is the card's content box.
+		field, ok := tt.Find("Search")
+		if !ok {
+			t.Fatalf("%s: the field was not drawn: %q", step, tt.Texts())
+		}
+		img := tt.Image()
+		y := int(field.Y + field.H/2)
+		fill := img.RGBAAt(int((left+right)/2), y)
+		runLeft, runRight := -1, -1
+		for x := 0; x < 720; x++ {
+			if img.RGBAAt(x, y) == fill {
+				if runLeft < 0 {
+					runLeft = x
+				}
+				runRight = x
+			}
+		}
+		if runLeft != int(left) || runRight != int(right) {
+			t.Errorf("%s: the field block spans %d..%d, want the card's content box %d..%d",
+				step, runLeft, runRight, int(left), int(right))
+		}
+	}
 }

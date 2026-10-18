@@ -103,7 +103,7 @@ func TestGeometryChargesTheRowsOwnLineBoxes(t *testing.T) {
 	}
 	// The row's floor wins over its own content: 40u with a subtitle.
 	// chrome 66u + 40u floor + the platform's margin.
-	want := int(roundHalf(66 + 40 + windowInset()))
+	want := int(roundHalf(66 + 40 + windowInset(4)))
 	if two != want {
 		t.Errorf("a two-line row is %d, want the 40u floor's %d", two, want)
 	}
@@ -116,7 +116,7 @@ func TestGeometryChargesTheRowsOwnLineBoxes(t *testing.T) {
 	}
 	// The heading's own line box is the body one (a caller that has not
 	// measured is given the font's own size, which is the floor of a real box).
-	wantHeading := int(roundHalf(66 + 2.5*4 + 11 + windowInset()))
+	wantHeading := int(roundHalf(66 + 2.5*4 + 11 + windowInset(4)))
 	if heading != wantHeading {
 		t.Errorf("a heading is %d, want %d", heading, wantHeading)
 	}

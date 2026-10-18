@@ -436,3 +436,67 @@ func TestTheHeldRowWearsTheSelectedFace(t *testing.T) {
 		t.Errorf("the held row is untinted: %v over the panel's %v", sel, panel)
 	}
 }
+
+// R-next · The held row keeps the selection while the query changes under it.
+//
+// The user's second report, verbatim: 「输入框中有输入内容时出现的「在终端中打
+// 开」项：现在固定在第一项（错误）…原版行为：按住时默认加到底部，松手就消失
+// （不是固定项）…应该有选中样式（当前缺失）」.
+//
+// Holding the modifier and *then* typing is the ordinary gesture, and it is
+// where the port lost the row's selection: the keystroke's own default (`View`'s
+// `defaultedQuery` reset, and the field's own handler) moved the highlight to
+// the first match while the held row stayed drawn at the list's end — a row the
+// user read as pinned, unselected, with the choice 「固定在第一项」. The
+// reference's heldBareTerminal effect re-runs on `query` and
+// `displayedResultsLength` (`main:src/App.tsx:2065-2082`), so every rebuild of
+// the list hands the selection back to the row.
+func TestTheHeldRowKeepsTheSelectionWhileTyping(t *testing.T) {
+	a := testApp()
+	tt := render(t, a)
+	tt.HoldModifiers(ui.Cmd)
+	tt.Frame()
+	if got, want := a.Selected, len(a.Results())-1; got != want {
+		t.Fatalf("the press edge did not select the held row: selected=%d want=%d", got, want)
+	}
+
+	// Typing rebuilds the list under the held row: the row must still be the
+	// list's last line *and* the selected one.
+	tt.Type("term")
+	tt.Frame()
+	results := a.Results()
+	if len(results) < 2 {
+		t.Fatalf("the query drew no rows to lose the selection to: %v", ids(results))
+	}
+	if last := results[len(results)-1].ID; last != bareTerminalRowID {
+		t.Fatalf("the held row is not the list's last line: %v", ids(results))
+	}
+	if got, want := a.Selected, len(results)-1; got != want {
+		t.Errorf("typing moved the selection off the held row: selected=%d want=%d (%v)",
+			got, want, ids(results))
+	}
+	// The painted fact the report names: the row's band carries the tint, not
+	// the panel's own fill.
+	row, ok := tt.Find(a.copy().BareTerminal)
+	if !ok {
+		t.Fatalf("the held row was not drawn: %q", tt.Texts())
+	}
+	img := tt.Image()
+	const x = 600 // past the row's texts, where only the row's fill shows
+	sel := img.RGBAAt(x, int(row.Y+row.H/2))
+	panel := img.RGBAAt(1, int(row.Y+row.H/2))
+	if sel == panel {
+		t.Errorf("the held row lost its selected face while typing: %v over the panel's %v", sel, panel)
+	}
+
+	// Releasing still gives the row up and returns the choice to the page's
+	// own default — the row is not a fixed item.
+	tt.HoldModifiers(0)
+	tt.Frame()
+	if hasItem(a.Results(), bareTerminalRowID) {
+		t.Errorf("the held row survived the release: %v", ids(a.Results()))
+	}
+	if a.Selected == len(a.Results())-1 {
+		t.Errorf("the release left the choice on the vanished row's slot: selected=%d", a.Selected)
+	}
+}

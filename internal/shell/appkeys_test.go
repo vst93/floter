@@ -367,3 +367,12 @@ func TestAHalfFinishedDeleteDoesNotOutliveTheLauncherSurface(t *testing.T) {
 		t.Errorf("a row went while the launcher was away: %d entries", got)
 	}
 }
+
+// appKeysAppAtScale is appKeysApp at another interface step: the frames whose
+// geometry is the theme's own unit (`--u`) are measured at every step, not
+// only at the shipped default.
+func appKeysAppAtScale(step string) *App {
+	s := settings.Default()
+	s.UIScale = step
+	return New(Options{Store: settings.NewStore(s)})
+}

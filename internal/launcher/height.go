@@ -84,14 +84,22 @@ func HoldRows(held, rows int) int {
 }
 
 // windowInset is the transparent margin the window carries around the card,
-// in pixels: Linux and Windows reserve room for the card's shadow, macOS
-// needs none. The same numbers the shell's inset() draws with.
-func windowInset() float64 {
+// in pixels at the geometry's own step: Linux and Windows reserve room for the
+// card's shadow, macOS needs none. It is the shell's `inset()` in the same
+// units — `calc(var(--u) * 10)` a side on Linux, `4u` + `12u` vertically on
+// Windows (`base.css:1503,1591-1607`) — so the drawn card and the charged
+// window are one decision. The port had these as bare pixels (20 / 16), which
+// charged 2px more than the design draws at the shipped `small` step and left
+// the card 2px short of the window's own height.
+func windowInset(spacing float64) float64 {
+	if spacing <= 0 {
+		spacing = 4
+	}
 	switch runtime.GOOS {
 	case "linux":
-		return 20 // 10 DIPs a side
+		return 5 * spacing // 10u a side
 	case "windows":
-		return 16 // 4 + 12 vertical
+		return 4 * spacing // 4u + 12u vertically
 	default:
 		return 0
 	}
@@ -285,11 +293,11 @@ func (g Geometry) Height() int {
 		// window past the band the launcher gave it.
 		cap := 0.0
 		if g.Cap > 0 {
-			cap = g.Cap - chrome - windowInset()
+			cap = g.Cap - chrome - windowInset(spacing)
 		}
 		height = chrome + g.Config.Height(float64(spacing/4), cap)
 	}
-	height = math.Round(height + windowInset())
+	height = math.Round(height + windowInset(spacing))
 	if g.Cap > 0 && height > g.Cap {
 		height = math.Round(g.Cap)
 	}

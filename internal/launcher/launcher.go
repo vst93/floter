@@ -277,6 +277,16 @@ type App struct {
 	// heldWasDown is the modifier's state the frame before, so the press and
 	// release edges are one transition each.
 	heldWasDown bool
+	// heldRowKey is the list shape the held row's selection was last asserted
+	// for: the row count and the query, joined. The reference's own effect
+	// re-runs on `query` and `displayedResultsLength` (`main:src/App.tsx:2065-2082`,
+	// the heldBareTerminal effect), so a keystroke while the modifier is down
+	// re-takes the selection for the held row instead of letting the fresh
+	// query's default land on the first match — the report 「按住时…应该有选中
+	// 样式（当前缺失）」, where typing with the modifier held left the row on
+	// screen, unselected, and the highlight pinned to the list's first line.
+	// Empty when the modifier is up, so the next press asserts again.
+	heldRowKey string
 
 	// toast is a message to show in the panel's docked status row, set by an
 	// action, and toastWarning marks it a warning — the blocking tone the old
@@ -841,6 +851,11 @@ func (a *App) View(c *ui.Context) {
 		a.Selected, a.chosenRow = a.defaultSelection(results), -1
 		a.defaultedQuery = a.Query
 	}
+	// The held row's own claim on the selection is asserted last: while the
+	// modifier is down the row is on screen, and a keystroke that rebuilds the
+	// list must not leave it drawn without the highlight (see
+	// holdHeldRowSelection).
+	a.holdHeldRowSelection(results)
 	a.clampSelection(len(results))
 	a.assignNumbers(results)
 	// The output list, while it owns the band, carries the same numbered family
@@ -2452,8 +2467,11 @@ func (a *App) syncHeldModifier(c *ui.Context) {
 		if down {
 			if _, ok := a.heldTerminalItem(); ok {
 				// The held row is the list's last line, so its index is the
-				// last one — on the empty page and over a query alike.
+				// last one — on the empty page and over a query alike. The
+				// key is recorded here so holdHeldRowSelection does not
+				// re-assert it again this frame.
 				a.Selected = len(results) - 1
+				a.heldRowKey = heldRowKey(results, a.Query)
 			} else if strings.TrimSpace(a.Query) != "" {
 				// No held row (a plugin mode, or the output view owns the
 				// keys), but the field holds a query: the modifier hands the
@@ -2466,13 +2484,51 @@ func (a *App) syncHeldModifier(c *ui.Context) {
 					a.Selected = bar
 				}
 			}
-		} else if rowShowing || strings.TrimSpace(a.Query) != "" {
-			// The row the modifier put on screen is gone. The selection
-			// returns to the page's own default — the reference's
-			// `firstRunnableResultIndex`.
-			a.Selected = a.defaultSelection(results)
+		} else {
+			a.heldRowKey = ""
+			if rowShowing || strings.TrimSpace(a.Query) != "" {
+				// The row the modifier put on screen is gone. The selection
+				// returns to the page's own default — the reference's
+				// `firstRunnableResultIndex`.
+				a.Selected = a.defaultSelection(results)
+			}
 		}
 	}
+}
+
+// holdHeldRowSelection keeps the selection on the held row for as long as the
+// row is on screen and the list it lives in has changed under it.
+//
+// The reference's heldBareTerminal effect depends on `query` and
+// `displayedResultsLength` (`main:src/App.tsx:2065-2082`), so every keystroke
+// that rebuilds the list re-runs it and the row takes the selection again.
+// The port asserted the selection on the modifier's press edge only, and the
+// query's own default (`View`'s `defaultedQuery` reset, and the field's
+// keystroke) then moved the highlight to the first match while the held row
+// stayed drawn — a row the user read as pinned and unselected: 「输入框中有输入
+// 内容时出现的「在终端中打开」项：现在固定在第一项（错误）…应该有选中样式
+// （当前缺失）」. It runs after that reset, so the held row wins.
+//
+// A step off the row with the arrows is *not* undone: the key only changes
+// when the list's own shape does (the row count or the query), exactly as the
+// reference's dependency list re-runs only on those changes.
+func (a *App) holdHeldRowSelection(results []Item) {
+	if !a.modifierHeld || len(results) == 0 || results[len(results)-1].ID != bareTerminalRowID {
+		a.heldRowKey = ""
+		return
+	}
+	key := heldRowKey(results, a.Query)
+	if key == a.heldRowKey {
+		return
+	}
+	a.heldRowKey = key
+	a.Selected = len(results) - 1
+}
+
+// heldRowKey names the list shape the held row's selection was asserted for:
+// the row count and the query the row was placed over.
+func heldRowKey(results []Item, query string) string {
+	return strconv.Itoa(len(results)) + "\x00" + query
 }
 
 // heldRowShowing reports whether the held row is in the list right now: it is
