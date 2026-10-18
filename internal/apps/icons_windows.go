@@ -34,6 +34,12 @@ func psQuote(value string) string {
 	return "'" + strings.ReplaceAll(value, "'", "''") + "'"
 }
 
+// deferredIcon reports whether an application's icon needs the shell's own
+// database: a shortcut carries its icon inside it, and the only way to a PNG is
+// a PowerShell launch (`extractIcon`). That is a process, so it never runs on
+// the drawing thread.
+func deferredIcon(app App) bool { return app.IconPath == "" }
+
 // extractIcon extracts a shortcut's icon into the cache.
 func extractIcon(app App) []byte {
 	if app.Path == "" {

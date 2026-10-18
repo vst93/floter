@@ -457,6 +457,9 @@ type App struct {
 	// residencyOn is the residency surface the last frame noted, so entering
 	// one starts the clock exactly once (see noteResidency).
 	residencyOn string
+	// terminalSpawnAt is when a terminal hand-off last ran, so a key held down
+	// (or a global shortcut the desktop repeats) cannot start one per repeat.
+	terminalSpawnAt time.Time
 }
 
 // New builds the app and its surfaces.
@@ -1155,6 +1158,20 @@ func (a *App) Start() {
 		Height:      h,
 		Frameless:   true,
 		Transparent: true,
+		// The panel shape, which is what a launcher is: floating above every
+		// app on every workspace, out of the taskbar and the app switcher, and
+		// — on Windows — a `WS_POPUP` tool window rather than a decorated
+		// `WS_OVERLAPPED`: a plain frameless window there keeps WS_CAPTION and
+		// WS_SYSMENU in its style, and where the acrylic material extends the
+		// frame, DWM paints the system menu's buttons over the top-right corner
+		// (the report 「右上角还显示了系统自带的三大金刚按钮（缩小、扩大、
+		// 关闭）」) and its own frame shows as a ring of background around the
+		// card (「窗口周边外圈还有一圈额外的底色」). A panel has no system
+		// menu to draw, keeps no redirection bitmap (so the transparent margin
+		// really is transparent — 「背景透明都没做到」), and is the same shape
+		// on the other two platforms: a non-activating NSPanel on macOS and a
+		// layer-shell overlay on Linux, out of the window cycle there too.
+		Panel: true,
 		// The window's own shadow: macOS's window server casts one that
 		// follows the card's rounded, transparent content; the other
 		// platforms' would follow the window's rectangle (a square shadow
@@ -1173,6 +1190,9 @@ func (a *App) Start() {
 		Vibrancy: vibrancyForStop(runtime.GOOS, s.GlassStep),
 		Content:  ui.View(a.View),
 	})
+	// A Windows shortcut's icon is a PowerShell extraction, so it runs off the
+	// drawing thread (internal/apps); the frame it finishes is asked for here.
+	apps.SetIconInvalidate(func() { a.Win.Invalidate() })
 	a.Win.OnClosed(func() {
 		if runtime.GOOS != "darwin" {
 			a.quit()

@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"floter/internal/i18n"
 	"floter/internal/spawn"
@@ -103,12 +104,41 @@ func systemOpener() string {
 	}
 }
 
+// terminalSpawnGap is how long a terminal hand-off is left alone after one
+// ran: a shortcut held down (or a global hotkey the desktop repeats while the
+// key is down) fired the hand-off once per repeat, and every hand-off is a
+// *process* — a shell in the panel, or another emulator window. The report
+// 「这边的某些快捷键会导致反复弹出终端，从而导致卡死」 is that storm: the
+// repeat rate of a held key outruns anything the user can see, and the machine
+// ends up with dozens of shells and a window that cannot keep up. One hand-off
+// per press is the intent of the key, so the second one inside the gap is a
+// repeat, not a request.
+const terminalSpawnGap = 750 * time.Millisecond
+
+// allowTerminalSpawn reports whether a terminal hand-off may run now, and
+// records it when it may. The clock is the app's own, so the rule is a unit
+// test rather than a stopwatch.
+func (a *App) allowTerminalSpawn() bool {
+	now := a.now()
+	if !a.terminalSpawnAt.IsZero() && now.Sub(a.terminalSpawnAt) < terminalSpawnGap {
+		return false
+	}
+	a.terminalSpawnAt = now
+	return true
+}
+
 // openInTerminal opens the terminal surface in a directory: the dropped file's
 // "cd" action, and the action bar's own path action. The session is a bare one
 // (the user's shell), so the directory is somewhere to start rather than a
 // command to watch.
 func (a *App) openInTerminal(dir string) {
 	if a.Terminal == nil {
+		return
+	}
+	if !a.allowTerminalSpawn() {
+		// A repeat of the same key: the session the first press started is
+		// the one to show, not a second shell beside it.
+		a.Open(SurfaceTerminal)
 		return
 	}
 	a.Terminal.RunShellIn(dir)
@@ -120,6 +150,9 @@ func (a *App) openInTerminal(dir string) {
 // the panel, so this is a *new* window rather than a hand-off of the session
 // the panel holds.
 func (a *App) openTerminalWindow() {
+	if !a.allowTerminalSpawn() {
+		return
+	}
 	if err := a.OpenExternalTerminal(); err != nil {
 		log.Printf("floter: could not open the terminal: %v", err)
 		a.onMain(func() { a.Launcher.WarnFeedback(a.Launcher.Copy().OpenTermFailed) })

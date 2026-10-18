@@ -180,6 +180,13 @@ func (a *App) startSession(dir string, mutate ...func(*terminal.Options)) (*Sess
 	if a.NewTerminal == nil {
 		return nil, errors.New("terminalui: no terminal available")
 	}
+	// The page keeps a bounded number of sessions. Every session is a shell
+	// process, and a hand-off a held shortcut repeats (or a key the desktop
+	// repeats) would otherwise fork one per repeat until the machine has
+	// nothing left to draw a frame with — the report 「这边的某些快捷键会
+	// 导致反复弹出终端，从而导致卡死」. The oldest session is the one that
+	// goes, which is the one the user stopped looking at first.
+	a.trimSessions()
 	opts := a.options()
 	if strings.TrimSpace(dir) != "" && !isKeywordDir(dir) {
 		opts.Dir = dir
@@ -233,6 +240,34 @@ func (a *App) startSession(dir string, mutate ...func(*terminal.Options)) (*Sess
 	a.nextSessionID++
 	session = &Session{ID: a.nextSessionID, Term: term, Created: time.Now()}
 	return session, nil
+}
+
+// maxSessions is how many sessions the page keeps alive at once.
+const maxSessions = 16
+
+// trimSessions closes the oldest sessions until one more can be added, leaving
+// the one on screen alone: a session the user is looking at is never the one
+// collected for room.
+func (a *App) trimSessions() {
+	for len(a.Sessions) >= maxSessions {
+		victim := -1
+		for i := range a.Sessions {
+			if i != a.Active {
+				victim = i
+				break
+			}
+		}
+		if victim < 0 {
+			return
+		}
+		if session := a.Sessions[victim]; session.Term != nil {
+			_ = session.Term.Close()
+		}
+		a.Sessions = append(a.Sessions[:victim], a.Sessions[victim+1:]...)
+		if victim < a.Active {
+			a.Active--
+		}
+	}
 }
 
 // pasteText is the terminal's paste rule: with safe paste on, one trailing

@@ -326,3 +326,23 @@ func TestEmptyStateLines(t *testing.T) {
 		t.Errorf("the back line ran new-command %d times, want 1", newCommands)
 	}
 }
+
+// The page keeps a bounded number of sessions: every one is a shell process,
+// and a hand-off a held shortcut repeats must not be able to fork one per
+// repeat until the window stops drawing (the report 「某些快捷键会导致反复
+// 弹出终端，从而导致卡死」). The oldest goes and the session on screen stays.
+func TestSessionsAreCapped(t *testing.T) {
+	// A terminal the test does not have to close: the sessions here exist to
+	// count, and `terminal.Terminal`'s Close wants a live VT.
+	empty := func(terminal.Options) (*terminal.Terminal, error) { return nil, nil }
+	a := New(newStore(), Actions{}, empty)
+	for i := 0; i < maxSessions+4; i++ {
+		a.NewSession()
+	}
+	if len(a.Sessions) != maxSessions {
+		t.Fatalf("sessions = %d, want %d", len(a.Sessions), maxSessions)
+	}
+	if a.Active != len(a.Sessions)-1 {
+		t.Errorf("the newest session is not the one on screen: active = %d", a.Active)
+	}
+}

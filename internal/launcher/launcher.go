@@ -430,6 +430,15 @@ func (a *App) appIcon(app apps.App) *ui.Bitmap {
 			bitmap = decoded
 		}
 	}
+	if bitmap == nil && apps.IconPending(app) {
+		// The icon is being extracted in the background (a Windows
+		// shortcut's, which is a process launch). Remembering nothing for
+		// this frame keeps the row's answer open: the frame the extraction
+		// asks for reads the icon, and the drawing thread never waits for a
+		// process — a launch per row on the first summon was the seconds of
+		// 「卡死」.
+		return nil
+	}
 	a.icons[app.Path] = bitmap
 	return bitmap
 }

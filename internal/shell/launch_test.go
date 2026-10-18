@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -315,5 +316,29 @@ func TestAShellSyntaxLineOpensTheTerminalSurface(t *testing.T) {
 	a.Launcher.Actions.RunInShell("ls -la | grep go")
 	if a.Surf != SurfaceTerminal {
 		t.Errorf("surface = %v, want terminal", a.Surf)
+	}
+}
+
+// A shortcut the desktop repeats while its key is held must start one
+// terminal, not one per repeat: the hand-off is a process (an emulator window,
+// or a shell in the panel), and a held key outruns anything the user can see.
+// The report 「这边的某些快捷键会导致反复弹出终端，从而导致卡死」 is that
+// storm; the second press inside the gap is a repeat.
+func TestTerminalHandOffIgnoresRepeats(t *testing.T) {
+	calls := &launchCalls{}
+	a := launchTestApp(t, calls)
+	clock := time.Unix(1000, 0)
+	a.now = func() time.Time { return clock }
+
+	a.openTerminalWindow()
+	a.openTerminalWindow()
+	a.openTerminalWindow()
+	if calls.external != 1 {
+		t.Fatalf("three presses started %d terminals, want 1", calls.external)
+	}
+	clock = clock.Add(terminalSpawnGap + time.Millisecond)
+	a.openTerminalWindow()
+	if calls.external != 2 {
+		t.Errorf("a press after the gap started %d terminals in total, want 2", calls.external)
 	}
 }

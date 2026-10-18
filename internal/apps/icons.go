@@ -23,25 +23,98 @@ import (
 var (
 	iconMu    sync.Mutex
 	iconCache = map[string][]byte{}
+	// iconPending is the set of applications whose icon a background
+	// extraction is producing right now, so a redraw does not start a second
+	// one for the same row.
+	iconPending = map[string]bool{}
+	// iconInvalidate asks the interface for another frame once an icon
+	// landed. It is set by the shell (SetIconInvalidate); nil simply means the
+	// next frame that would draw the row draws it.
+	iconInvalidate func()
 )
+
+// iconExtractions bounds the background extractions: each one is a process
+// launch, and a scan of hundreds of applications must not start hundreds of
+// them at once.
+var iconExtractions = make(chan struct{}, 2)
+
+// SetIconInvalidate installs the callback that asks the interface for a frame
+// when a background icon extraction finishes. Safe from any goroutine.
+func SetIconInvalidate(fn func()) {
+	iconMu.Lock()
+	iconInvalidate = fn
+	iconMu.Unlock()
+}
 
 // Icon returns an application's icon as PNG bytes, or nil when it has none
 // this build can read.
+//
+// An icon the platform has to *extract* (a Windows shortcut's, which lives in
+// the shell's own database and takes a PowerShell launch) is never extracted on
+// the calling goroutine: this is the drawing thread, and a launch per row froze
+// the whole window for seconds on the first summon (the report 「很多界面经常
+// 卡死」). The first call starts the extraction, returns nil, and asks for a
+// frame when the bytes arrive; IconPending reports that a row is waiting, so its
+// reader does not remember the empty answer as final.
 func Icon(app App) []byte {
 	if app.Path == "" {
 		return nil
 	}
 	iconMu.Lock()
 	cached, ok := iconCache[app.Path]
+	pending := iconPending[app.Path]
 	iconMu.Unlock()
 	if ok {
 		return cached
+	}
+	if deferredIcon(app) {
+		if !pending {
+			extractIconAsync(app)
+		}
+		return nil
 	}
 	icon := readIcon(app)
 	iconMu.Lock()
 	iconCache[app.Path] = icon
 	iconMu.Unlock()
 	return icon
+}
+
+// IconPending reports whether an application's icon is being extracted in the
+// background: an empty Icon now is not the final answer for that row.
+func IconPending(app App) bool {
+	if app.Path == "" {
+		return false
+	}
+	iconMu.Lock()
+	defer iconMu.Unlock()
+	return iconPending[app.Path]
+}
+
+// extractIconAsync runs one platform extraction off the drawing thread and asks
+// for a frame when it lands. The path is marked pending first, so the frames in
+// between ask for the icon without starting a second extraction.
+func extractIconAsync(app App) {
+	iconMu.Lock()
+	if iconPending[app.Path] {
+		iconMu.Unlock()
+		return
+	}
+	iconPending[app.Path] = true
+	iconMu.Unlock()
+	go func() {
+		iconExtractions <- struct{}{}
+		icon := readIcon(app)
+		<-iconExtractions
+		iconMu.Lock()
+		iconCache[app.Path] = icon
+		delete(iconPending, app.Path)
+		invalidate := iconInvalidate
+		iconMu.Unlock()
+		if invalidate != nil && len(icon) > 0 {
+			invalidate()
+		}
+	}()
 }
 
 // readIcon reads the icon for one application: a file the platform named, or
