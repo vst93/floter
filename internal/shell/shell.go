@@ -3609,12 +3609,44 @@ func (a *App) View(c *ui.Context) {
 	if a.Win != nil && a.Win.IsFocused() {
 		stroke = surface.Tokens.InputStrokeActive
 	}
-	ui.Column(c).Fill().Padding(top, right, bottom, left).Children(func() {
+	// The reference's window contract is a **720-wide column** (`lib.rs:93`,
+	// `INPUT_WINDOW_WIDTH`; 「the launcher's 720px column is the window
+	// contract」, `:129-138`), and `.collapsed-card { width: 100% }`
+	// (`launcher.css:8-13`) is 100% of *that* window: every horizontal number
+	// in the design — the field's 16u, a row's 54u, the panel's 4u gutter — is
+	// measured against it. The port draws the card as 100% of whatever window
+	// it is given, which is the same thing only while the window really is
+	// 720 wide; a compositor that ignores the size request (a tiling WM, a
+	// session that tiles the toplevel before the floating hint lands) hands
+	// the card a wider box, and the design's column then floats in the middle
+	// of a stretched panel — the report 「搜索页面左右两边各有一大块空白」.
+	// So the card keeps the contract's width and is centred in the window it
+	// was given, with the desktop showing at the sides exactly as it does
+	// around a 720-wide floating panel. At 720 (and narrower) this is the
+	// identity: card = window - the platform's inset, which is the only band
+	// the reference draws.
+	windowWidth, _ := c.Size()
+	if windowWidth <= 0 {
+		// A window that has not been sized yet (the first frame of a session
+		// without a real surface) still draws the contract's column rather
+		// than a zero-width card.
+		windowWidth = float32(launcher.InputWindowWidth)
+	}
+	cardWidth := windowWidth - left - right
+	if a.Surf != SurfaceTerminal {
+		if reference := float32(launcher.InputWindowWidth) - left - right; cardWidth > reference {
+			cardWidth = reference
+		}
+	}
+	if cardWidth < 0 {
+		cardWidth = 0
+	}
+	ui.Column(c).Fill().Padding(top, right, bottom, left).AlignItems(ui.Center).Children(func() {
 		radius := surface.Tokens.RadiusLG
 		// The card clips, so a full-bleed block inside it takes the window's
 		// rounded corners — the old build's `.collapsed-card` had
 		// `overflow: hidden` for exactly this.
-		card := ui.Column(c).Fill().Radius(radius).Border(1, stroke).Clip()
+		card := ui.Column(c).Width(cardWidth).FillHeight().Radius(radius).Border(1, stroke).Clip()
 		// The card's own depth where the platform has no window-server shadow:
 		// Linux compositors disagree on whether an undecorated transparent
 		// window gets a native one, and a frameless Windows window's shadow

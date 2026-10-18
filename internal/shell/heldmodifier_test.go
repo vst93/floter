@@ -1,9 +1,12 @@
 package shell
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
+
+	"floter/internal/launcher"
 )
 
 // The held app modifier's row, end to end: pressing it puts a bare
@@ -51,28 +54,63 @@ func TestHeldModifierRowGrowsTheWindowAndRecedes(t *testing.T) {
 	}
 }
 
-// A typed query keeps the held row: it is the list's last line over the query
-// too (the user's report 「输入内容之后按住 Super 键，底部应该固定出现「在终端
-// 中打开」的选项」). The reference's R64 narrowed the row to the empty field;
-// this build restores R60's wider gesture at the user's request, so the row —
-// and the window grown for it — is present with the modifier down whatever the
-// field holds.
-func TestHeldModifierRowStaysOverAQuery(t *testing.T) {
+// A typed query draws no held row at all: the reference's one placement is the
+// empty field (R64, `main:src/launcher/terminal-row.ts:77-85` — 「前面加的按住
+// 在列表额外增加终端选项的逻辑要去掉」). The port had kept R60's wider gesture,
+// so with a query typed the action word appeared beside the matches — the report
+// 「输入框中有输入内容时出现的「在终端中打开」项：现在固定在第一项（错误）」.
+//
+// The modifier still has a job on a typed query: it hands the selection to the
+// action bar, the reference's `setSelectedActionBar(true)` on the keydown.
+func TestATypedQueryDrawsNoHeldRow(t *testing.T) {
 	a := appKeysApp()
 	tt := appKeysRender(t, a)
-	tt.Type("z")
+	tt.Type("git")
+	tt.HoldModifiers(ui.Cmd)
+	tt.Frame()
+	results := a.Launcher.Results()
+	if hasLauncherItem(a, "system-terminal-bare") {
+		t.Fatalf("a typed query drew the held row: %+v", results)
+	}
+	if tt.HasText("Open Terminal") {
+		t.Errorf("the held row's action word is on the page over a query: %q", tt.Texts())
+	}
+	// The modifier's own hand-off: the bar takes the choice when the query
+	// offers one (here `git` matches the tool row, so the bar is drawn).
+	if bar := lastBarIndex(results); bar >= 0 && a.Launcher.Selected != bar {
+		t.Errorf("the modifier left the selection on %d, want the action bar %d",
+			a.Launcher.Selected, bar)
+	}
+}
+
+// The row's one placement is the empty page's last line, and it keeps the
+// selection there while the list is rebuilt under it (the empty page's list can
+// change shape — a dropped file, a clipboard row — without the modifier moving).
+func TestTheHeldRowIsTheEmptyPagesLastLine(t *testing.T) {
+	a := appKeysApp()
+	tt := appKeysRender(t, a)
 	tt.HoldModifiers(ui.Cmd)
 	tt.Frame()
 	results := a.Launcher.Results()
 	if !hasLauncherItem(a, "system-terminal-bare") {
-		t.Fatalf("the held row hid over a query: %+v", results)
+		t.Fatalf("the empty page drew no held row: %+v", results)
 	}
 	if results[len(results)-1].ID != "system-terminal-bare" {
-		t.Errorf("the held row is not the last line over a query: %+v", results)
+		t.Errorf("the held row is not the last line: %+v", results)
 	}
 	if a.Launcher.Selected != len(results)-1 {
 		t.Errorf("the selection is on %d, want the held row %d", a.Launcher.Selected, len(results)-1)
 	}
+}
+
+// lastBarIndex is the index of the action bar row in a list, or -1.
+func lastBarIndex(results []launcher.Item) int {
+	for i, item := range results {
+		if strings.HasPrefix(item.ID, "bar:") {
+			return i
+		}
+	}
+	return -1
 }
 
 func hasLauncherItem(a *App, id string) bool {

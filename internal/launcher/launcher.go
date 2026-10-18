@@ -2467,15 +2467,14 @@ func (a *App) syncHeldModifier(c *ui.Context) {
 		if down {
 			if _, ok := a.heldTerminalItem(); ok {
 				// The held row is the list's last line, so its index is the
-				// last one — on the empty page and over a query alike. The
-				// key is recorded here so holdHeldRowSelection does not
-				// re-assert it again this frame.
+				// last one. The key is recorded here so
+				// holdHeldRowSelection does not re-assert it again this frame.
 				a.Selected = len(results) - 1
 				a.heldRowKey = heldRowKey(results, a.Query)
 			} else if strings.TrimSpace(a.Query) != "" {
-				// No held row (a plugin mode, or the output view owns the
-				// keys), but the field holds a query: the modifier hands the
-				// selection to the action bar, the old build's
+				// No held row — a typed query draws none (R64), and a plugin
+				// mode or the output view owns the list — so the modifier
+				// hands the selection to the action bar, the old build's
 				// `setSelectedActionBar(true)` on the modifier's keydown. The
 				// bar is a row of this list, so it is selected by its index;
 				// it is drawn for a non-empty query now (see
@@ -2500,14 +2499,15 @@ func (a *App) syncHeldModifier(c *ui.Context) {
 // row is on screen and the list it lives in has changed under it.
 //
 // The reference's heldBareTerminal effect depends on `query` and
-// `displayedResultsLength` (`main:src/App.tsx:2065-2082`), so every keystroke
-// that rebuilds the list re-runs it and the row takes the selection again.
-// The port asserted the selection on the modifier's press edge only, and the
-// query's own default (`View`'s `defaultedQuery` reset, and the field's
-// keystroke) then moved the highlight to the first match while the held row
-// stayed drawn — a row the user read as pinned and unselected: 「输入框中有输入
-// 内容时出现的「在终端中打开」项：现在固定在第一项（错误）…应该有选中样式
-// （当前缺失）」. It runs after that reset, so the held row wins.
+// `displayedResultsLength` (`main:src/App.tsx:2065-2082`), so every rebuild of
+// the list re-runs it and the row takes the selection again. The port asserted
+// the selection on the modifier's press edge only, so a later rebuild could
+// leave the row drawn without the highlight — a row the user read as pinned and
+// unselected: 「…应该有选中样式（当前缺失）」. It runs after the query's own
+// default reset, so the held row wins while it is on screen.
+//
+// The row only exists on an empty field (R64, see heldTerminalItem), so this is
+// the empty page's own assertion; a typed query never has a row to keep.
 //
 // A step off the row with the arrows is *not* undone: the key only changes
 // when the list's own shape does (the row count or the query), exactly as the
@@ -2540,18 +2540,24 @@ func (a *App) heldRowShowing() bool {
 }
 
 // heldTerminalItem is the row the held modifier offers: a bare terminal
-// session, on the ordinary page, whether the field is empty or holds a query.
-// A plugin mode owns its own list and shows no row of its own; the output view
-// owns the keys and shows none either.
+// session, on the ordinary page, **on an empty field**. A plugin mode owns its
+// own list and shows no row of its own; the output view owns the keys and shows
+// none either.
 //
 // The reference's own history has both shapes: R60 appended the row under the
 // modifier whatever the field held (「按住 cmd 时也自动增加底部的终端执行项」),
-// and R64 narrowed it to the empty field. The user's report 「输入内容之后按住
-// Super 键，底部应该固定出现「在终端中打开」的选项」 asks for R60's wider
-// gesture back, so the row rides the modifier on a query too and is the list's
-// last line either way (see `Results`).
+// and R64 retired that half at the user's own request — 「前面加的按住在列表
+// 额外增加终端选项的逻辑要去掉」 — so `bareTerminalPlacement` returns null for
+// a non-empty field (`main:src/launcher/terminal-row.ts:77-85`) and a typed
+// query draws the row not at all. The port had kept R60's wider gesture, so
+// with a query typed the action word showed up as an ordinary result beside
+// the matches — the report 「输入框中有输入内容时出现的「在终端中打开」项：
+// 现在固定在第一项（错误）」. One placement only: the empty page, last line.
 func (a *App) heldTerminalItem() (Item, bool) {
 	if !a.modifierHeld || a.output != nil || a.pluginModeActive() {
+		return Item{}, false
+	}
+	if strings.TrimSpace(a.Query) != "" {
 		return Item{}, false
 	}
 	copy := a.copy()
@@ -2559,9 +2565,13 @@ func (a *App) heldTerminalItem() (Item, bool) {
 		ID:     bareTerminalRowID,
 		Title:  copy.BareTerminal,
 		Detail: copy.BareTerminalHint,
-		// The chord that put the row on screen is the chord that opens it, so
-		// the hint is the action bar's own.
-		Shortcut: a.enterBadge(),
+		// No trailing badge: the reference's row is an ordinary `system` row
+		// with no `shortcut` of its own (`main:src/launcher/terminal-row.ts`
+		// `bareTerminalRow`), and the numbered family never reaches it (R67) —
+		// `LauncherResults` draws `resultShortcutSlots[index]`, which is null
+		// there. The port had printed the action bar's ⌘⏎ on it, a slot the
+		// design leaves empty; the chord still opens the row (the modifier is
+		// down when Enter is pressed, see `View`).
 		Run: func() {
 			if a.Actions.OpenTerminal != nil {
 				a.Actions.OpenTerminal()

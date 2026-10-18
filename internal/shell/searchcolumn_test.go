@@ -82,14 +82,13 @@ func TestTheSearchColumnIsTheReferenceUnitsAtTheShippedStep(t *testing.T) {
 }
 
 // The held modifier's row on the shipped frame: 「按住时默认加到底部」 is a
-// position fact (the row is the list's last line, over a query as well as on
-// the empty page), 「松手就消失」 a presence fact, and 「应该有选中样式」 the
-// painted band — the row wears the selection tint across the same column the
-// rows above it do, not the panel's own fill.
+// position fact (the row is the empty page's last line, below the recents),
+// 「松手就消失」 a presence fact, and 「应该有选中样式」 the painted band — the row
+// wears the selection tint across the same column the rows above it do, not the
+// panel's own fill.
 func TestTheHeldRowIsTheLastLineOfTheShippedList(t *testing.T) {
 	a := appKeysApp()
 	tt := appKeysRender(t, a)
-	tt.Type("ls")
 	tt.Frame()
 
 	tt.HoldModifiers(ui.Cmd)
@@ -130,27 +129,27 @@ func TestTheHeldRowIsTheLastLineOfTheShippedList(t *testing.T) {
 }
 
 // The user's second report, in one frame: the terminal *surface*'s row and the
-// modifier-held *action* row are two different rows.
+// modifier-held *action* row never share a page.
 //
 // The reference keeps the two registers apart in copy (`main:src/i18n.ts:886-887`
 // `system.terminal` / `system.terminalSubtitle` for the catalog row, `:59-60`
 // `launcher.terminalRow` / `launcher.terminalRowSubtitle` for the held row) and
-// in place (the catalog row is an ordinary match, the held row is the list's
-// last line and takes the selection). This build had used the held row's
-// 「Open Terminal」 as the catalog row's own title, so a typed query drew the
-// *action* word as an ordinary result — the report 「输入框中有输入内容时出现的
-// 「在终端中打开」项：现在固定在第一项」. With the surface named 「Terminal」
-// again, the action word is back to being one row, at the bottom, only while
-// the modifier is down.
+// in place: the catalog row is an ordinary match, the held row is the *empty*
+// page's last line (`main:src/launcher/terminal-row.ts:77-85` — a typed query
+// draws the held row not at all, R64). This build had used the held row's
+// 「Open Terminal」 as the catalog row's own title, and then drew the held row
+// over a query as well, so a typed query showed the action word as an ordinary
+// result — the report 「输入框中有输入内容时出现的「在终端中打开」项：现在固定在
+// 第一项」. Both halves are pinned here: the surface's row is the only terminal
+// row over a query, and the action row exists on the empty field alone.
 func TestTheTerminalSurfaceAndTheHeldActionAreTwoRows(t *testing.T) {
 	a := appKeysApp()
 	tt := appKeysRender(t, a)
 	tt.Type("terminal")
 	tt.Frame()
 
-	// The surface's row: an ordinary match, and no held row yet.
-	surfaceRow, ok := tt.Find("Terminal")
-	if !ok {
+	// The surface's row: an ordinary match, and no held row.
+	if _, ok := tt.Find("Terminal"); !ok {
 		t.Fatalf("the terminal surface's row is not drawn: %q", tt.Texts())
 	}
 	if tt.HasText("Open Terminal") {
@@ -161,13 +160,23 @@ func TestTheTerminalSurfaceAndTheHeldActionAreTwoRows(t *testing.T) {
 		t.Fatalf("the query did not reach the terminal surface: %+v", results)
 	}
 
-	// Held: the action row joins as the list's last line and takes the
-	// selection, below the surface row rather than above it.
+	// Held over that query: still no held row — the reference's R64 placement.
+	tt.HoldModifiers(ui.Cmd)
+	tt.Frame()
+	if tt.HasText("Open Terminal") {
+		t.Errorf("a typed query drew the held row: %q", tt.Texts())
+	}
+
+	// The row's one page is the empty field, where it is the last line.
+	tt.HoldModifiers(0)
+	tt.Frame()
+	a.Launcher.Query = ""
+	tt.Frame()
 	tt.HoldModifiers(ui.Cmd)
 	tt.Frame()
 	heldRow, ok := tt.Find("Open Terminal")
 	if !ok {
-		t.Fatalf("the held row was not drawn: %q", tt.Texts())
+		t.Fatalf("the empty page drew no held row: %q", tt.Texts())
 	}
 	results = a.Launcher.Results()
 	if last := results[len(results)-1].ID; last != "system-terminal-bare" {
@@ -176,9 +185,9 @@ func TestTheTerminalSurfaceAndTheHeldActionAreTwoRows(t *testing.T) {
 	if a.Launcher.Selected != len(results)-1 {
 		t.Errorf("the selection is on %d, want the held row %d", a.Launcher.Selected, len(results)-1)
 	}
-	if heldRow.Y <= surfaceRow.Y {
-		t.Errorf("the held row is drawn above the surface's own row: held y=%.0f, surface y=%.0f",
-			heldRow.Y, surfaceRow.Y)
+	if row, ok := tt.Find("Open settings"); ok && heldRow.Y <= row.Y {
+		t.Errorf("the held row is drawn above the first row: held y=%.0f, first y=%.0f",
+			heldRow.Y, row.Y)
 	}
 }
 
@@ -234,6 +243,64 @@ func TestTheCardIsTheWindowLessThePlatformsInset(t *testing.T) {
 	if want := int(cardRight); runRight != want {
 		t.Errorf("the field block ends at x=%d, want x=%d: the card is narrower than the window's inset allows (a blank band inside the card)",
 			runRight, want)
+	}
+}
+
+// The search page keeps the reference's 720 column when the window is wider.
+//
+// 「搜索页面左右两边各有一大块空白」 is, on a window the design did not ask for,
+// exactly what a card stretched to the window's own width looks like: every
+// horizontal number in the reference is measured against a 720-wide window
+// (`lib.rs:93,129-138` — 「the launcher's 720px column is the window contract」),
+// and `.collapsed-card { width: 100% }` (`launcher.css:8-13`) is 100% of *that*
+// column. A compositor that hands the toplevel a wider box (a tiling WM before
+// the floating hint lands, a session that ignores the size request) must not
+// stretch the column: the card stays the contract's width and is centred, with
+// the window's own transparency at the sides.
+func TestTheSearchPageKeepsTheReferenceColumnInAWiderWindow(t *testing.T) {
+	for _, width := range []int{900, 1200, 1600} {
+		a := appKeysApp()
+		tt := ui.NewTester(func(c *ui.Context) { a.View(c) }, width, 420)
+		tt.Frame()
+
+		_, rightUnits, _, leftUnits := a.inset()
+		spacing := float32(a.Launcher.Spacing)
+		insetLeft, insetRight := leftUnits*spacing, rightUnits*spacing
+		column := float32(720) - insetLeft - insetRight
+		gutter := (float32(width) - column) / 2
+
+		// The card's stroke is painted inside its box: the content box is the
+		// column less the two strokes, and the two gutters are equal.
+		wantLeft := gutter + 1
+		wantRight := float32(width) - gutter - 2
+		img := tt.Image()
+		field, ok := tt.Find("Search")
+		if !ok {
+			t.Fatalf("%d: the field was not drawn: %q", width, tt.Texts())
+		}
+		y := int(field.Y + field.H/2)
+		fill := img.RGBAAt(int((wantLeft+wantRight)/2), y)
+		runLeft, runRight := -1, -1
+		for x := 0; x < width; x++ {
+			if img.RGBAAt(x, y) == fill {
+				if runLeft < 0 {
+					runLeft = x
+				}
+				runRight = x
+			}
+		}
+		if absf(float32(runLeft)-wantLeft) > 1 {
+			t.Errorf("%d: the card starts at x=%d, want the centred 720 column's x=%.0f", width, runLeft, wantLeft)
+		}
+		if absf(float32(runRight)-wantRight) > 1 {
+			t.Errorf("%d: the card ends at x=%d, want the centred 720 column's x=%.0f", width, runRight, wantRight)
+		}
+		// The field's own text sits on the reference's 16u from the card, not
+		// 16u from the window: the column moved, the design did not stretch.
+		unit := spacing / 4
+		if want := float32(runLeft) + 16*unit; absf(field.X-want) > 1.5 {
+			t.Errorf("%d: the query starts at x=%.1f, want the column's 16u (%.1f)", width, field.X, want)
+		}
 	}
 }
 

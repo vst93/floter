@@ -770,12 +770,12 @@ func (a *App) Results() []Item {
 	// 「现在固定在第一项」 was this row drawn first, above the results; the
 	// reference's footer position is the fix.
 	out = append(out, a.actionBarItemsWith(other, true)...)
-	// The held modifier's own line closes the panel, on the empty page *and*
-	// over a query (the report 「输入内容之后按住 Super 键，底部应该固定出现
-	// 「在终端中打开」的选项」). It rides the modifier — it is gone the moment the
-	// key is released — and it is appended after the bar so it is genuinely the
-	// last line, the way the reference appended its own held row below the
-	// recents.
+	// The held modifier's own line closes the panel — on the *empty* field only,
+	// which is the reference's one placement (R64,
+	// `main:src/launcher/terminal-row.ts:77-85`: a typed query draws the row not
+	// at all). It rides the modifier — it is gone the moment the key is
+	// released — and it is appended after the bar so it is genuinely the last
+	// line, below the recents, the way the reference appended its own held row.
 	if item, ok := a.heldTerminalItem(); ok {
 		out = append(out, item)
 	}

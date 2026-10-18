@@ -418,10 +418,8 @@ func TestTheListIsTheCentredReferenceColumn(t *testing.T) {
 func TestTheHeldRowWearsTheSelectedFace(t *testing.T) {
 	a := testApp()
 	tt := render(t, a)
-	// A query that matches nothing: the held row is the list's only row, so
-	// there is no neighbouring match that could own the tint instead.
-	tt.Type("zzzz")
-	tt.Frame()
+	// The empty page: the row's one placement (R64). It closes the list, below
+	// the built-in commands and the recents.
 	tt.HoldModifiers(ui.Cmd)
 	tt.Frame()
 	row, ok := tt.Find("Open Terminal")
@@ -437,21 +435,19 @@ func TestTheHeldRowWearsTheSelectedFace(t *testing.T) {
 	}
 }
 
-// R-next · The held row keeps the selection while the query changes under it.
+// R-next · The held row's one page is the empty field.
 //
 // The user's second report, verbatim: 「输入框中有输入内容时出现的「在终端中打
 // 开」项：现在固定在第一项（错误）…原版行为：按住时默认加到底部，松手就消失
 // （不是固定项）…应该有选中样式（当前缺失）」.
 //
-// Holding the modifier and *then* typing is the ordinary gesture, and it is
-// where the port lost the row's selection: the keystroke's own default (`View`'s
-// `defaultedQuery` reset, and the field's own handler) moved the highlight to
-// the first match while the held row stayed drawn at the list's end — a row the
-// user read as pinned, unselected, with the choice 「固定在第一项」. The
-// reference's heldBareTerminal effect re-runs on `query` and
-// `displayedResultsLength` (`main:src/App.tsx:2065-2082`), so every rebuild of
-// the list hands the selection back to the row.
-func TestTheHeldRowKeepsTheSelectionWhileTyping(t *testing.T) {
+// The reference's placement is a function of the *query*: `bareTerminalPlacement`
+// returns "appended" on an empty field and null the moment one character is
+// typed (R64, `main:src/launcher/terminal-row.ts:77-85` — the user's own earlier
+// correction, 「前面加的按住在列表额外增加终端选项的逻辑要去掉」). The port had
+// kept R60's wider gesture, so a typed query drew the action word beside the
+// matches; the row is now the empty page's alone.
+func TestTheHeldRowIsTheEmptyPagesAlone(t *testing.T) {
 	a := testApp()
 	tt := render(t, a)
 	tt.HoldModifiers(ui.Cmd)
@@ -460,43 +456,42 @@ func TestTheHeldRowKeepsTheSelectionWhileTyping(t *testing.T) {
 		t.Fatalf("the press edge did not select the held row: selected=%d want=%d", got, want)
 	}
 
-	// Typing rebuilds the list under the held row: the row must still be the
-	// list's last line *and* the selected one.
+	// Typing gives the row up: no action word on the page, and the choice
+	// returns to the query's own default (the action bar for a command line).
 	tt.Type("term")
 	tt.Frame()
-	results := a.Results()
-	if len(results) < 2 {
-		t.Fatalf("the query drew no rows to lose the selection to: %v", ids(results))
+	if hasItem(a.Results(), bareTerminalRowID) {
+		t.Fatalf("a typed query kept the held row: %v", ids(a.Results()))
 	}
-	if last := results[len(results)-1].ID; last != bareTerminalRowID {
-		t.Fatalf("the held row is not the list's last line: %v", ids(results))
+	if tt.HasText(a.copy().BareTerminal) {
+		t.Errorf("the held row's action word is still on screen: %q", tt.Texts())
 	}
-	if got, want := a.Selected, len(results)-1; got != want {
-		t.Errorf("typing moved the selection off the held row: selected=%d want=%d (%v)",
-			got, want, ids(results))
-	}
-	// The painted fact the report names: the row's band carries the tint, not
-	// the panel's own fill.
-	row, ok := tt.Find(a.copy().BareTerminal)
-	if !ok {
-		t.Fatalf("the held row was not drawn: %q", tt.Texts())
-	}
-	img := tt.Image()
-	const x = 600 // past the row's texts, where only the row's fill shows
-	sel := img.RGBAAt(x, int(row.Y+row.H/2))
-	panel := img.RGBAAt(1, int(row.Y+row.H/2))
-	if sel == panel {
-		t.Errorf("the held row lost its selected face while typing: %v over the panel's %v", sel, panel)
+	if a.Selected >= len(a.Results()) {
+		t.Errorf("the selection = %d, past the list's %d rows", a.Selected, len(a.Results()))
 	}
 
-	// Releasing still gives the row up and returns the choice to the page's
-	// own default — the row is not a fixed item.
+	// Clearing the field brings it back — last, and selected.
+	a.Query = ""
+	tt.Frame()
+	results := a.Results()
+	if last := results[len(results)-1].ID; last != bareTerminalRowID {
+		t.Fatalf("the cleared field did not bring the row back as the last line: %v", ids(results))
+	}
+	if a.Selected != len(results)-1 {
+		t.Errorf("the selection is on %d, want the held row %d", a.Selected, len(results)-1)
+	}
+
+	// The row carries no trailing badge: the reference's `bareTerminalRow` has
+	// no `shortcut`, and the numbered family never reaches it (R67), so
+	// `LauncherResults` leaves the slot empty there.
+	if held := results[len(results)-1]; held.Shortcut != "" {
+		t.Errorf("the held row prints a shortcut %q; the reference's slot is empty", held.Shortcut)
+	}
+
+	// Releasing gives the row up for good — it is not a fixed item.
 	tt.HoldModifiers(0)
 	tt.Frame()
 	if hasItem(a.Results(), bareTerminalRowID) {
 		t.Errorf("the held row survived the release: %v", ids(a.Results()))
-	}
-	if a.Selected == len(a.Results())-1 {
-		t.Errorf("the release left the choice on the vanished row's slot: selected=%d", a.Selected)
 	}
 }
