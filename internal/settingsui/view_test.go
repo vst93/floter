@@ -1860,6 +1860,63 @@ func TestCustomShortcutCommandOptionStartsADraft(t *testing.T) {
 	}
 }
 
+// A stored command line is editable in place, not a value printed beside the
+// picker: the reference's `input.settings-select.custom-shortcut__command`
+// (`ShortcutsPage.tsx:288-330`) holds the row's command and Enter commits the
+// trimmed text as the row's action (`commitCommand`, `:204-216`).
+func TestSavedCustomCommandLineEditsInPlace(t *testing.T) {
+	entries := []settings.CustomShortcut{{Key: "Cmd+Shift+P", Action: "say done"}}
+	var committed [][]settings.CustomShortcut
+	a := New(newStore(t), Actions{
+		CustomShortcuts: func() []settings.CustomShortcut { return entries },
+		SetCustomShortcuts: func(list []settings.CustomShortcut) []CustomShortcutRejection {
+			committed = append(committed, list)
+			entries = list
+			return nil
+		},
+	})
+	tt := render(t, a, 720, 1000)
+	if err := tt.Click("Shortcuts"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	tt.Scroll(400, 300, 0, 900)
+	tt.Frame()
+
+	copy := i18n.For("en").Settings
+	// The field's value is not a text node; its accessible name is.
+	rect, ok := tt.Find(copy.ShortcutsCommand)
+	if !ok {
+		t.Fatalf("the command line field is not on the row: %q", tt.Texts())
+	}
+	// The text sits at the field's start, so the far edge is past it and the
+	// caret lands at the end of the value.
+	tt.ClickAt(rect.X+rect.W-8, rect.Y+rect.H/2)
+	tt.Frame()
+	if !tt.Focused(copy.ShortcutsCommand) {
+		t.Fatal("the command line did not take the keyboard")
+	}
+
+	tt.Type("!")
+	tt.Frame()
+	if len(committed) != 0 {
+		t.Fatalf("a keystroke wrote the row at once: %v", committed)
+	}
+
+	tt.Key(0, ui.KeyEnter)
+	tt.Frame()
+	if len(committed) != 1 {
+		t.Fatalf("Enter did not commit the row: %v", committed)
+	}
+	got := committed[0]
+	if len(got) != 1 || got[0].Key != "Cmd+Shift+P" || got[0].Action != "say done!" {
+		t.Fatalf("committed %+v, want the trimmed command as the action", got)
+	}
+	if _, ok := a.customEdits["Cmd+Shift+P"]; ok {
+		t.Error("the committed draft still shadows the stored action")
+	}
+}
+
 // The empty custom-shortcuts region carries the reference's SettingsEmpty
 // shape: a quiet glyph, the state in one line, the grey hint underneath and
 // the inline entry that leaves the empty region. The old page's own empty

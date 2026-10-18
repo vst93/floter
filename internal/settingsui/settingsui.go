@@ -956,6 +956,12 @@ type App struct {
 	customDuplicate    string
 	customDuplicateRow int
 	customRejections   []CustomShortcutRejection
+	// customEdits holds a saved row's command line while it is being typed in
+	// place, keyed by the binding. The reference kept the same draft on the row
+	// (`row.command`) and committed it on Enter/blur (`ShortcutsPage.tsx:204-216`);
+	// the port's fields commit on Enter, so the text lives here between frames
+	// and is dropped when the row's action is rewritten or the row is removed.
+	customEdits map[string]string
 
 	// rejectedShortcut is the action whose last recording the page refused —
 	// the reference's `rejectedAction`. It carries the warning at the top of

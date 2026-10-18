@@ -151,6 +151,9 @@ func (a *App) captureCustomKey(copy i18n.Settings, accelerator string) {
 		return
 	}
 	a.customDuplicate = ""
+	// The in-place command draft belongs to the old key; the new binding starts
+	// from the stored action.
+	delete(a.customEdits, entries[a.customRecordRow].Key)
 	entries[a.customRecordRow] = settings.CustomShortcut{
 		Key:    accelerator,
 		Action: entries[a.customRecordRow].Action,
@@ -190,6 +193,7 @@ func (a *App) customWarning(copy i18n.Settings, key string, row int) string {
 // controls pinned to the right of nothing.
 func (a *App) customShortcutRow(c *ui.Context, copy i18n.Settings, entry settings.CustomShortcut, index int) {
 	tokens := a.tokens(c)
+	t := a.cardTheme(c)
 	action := entry.Action
 	commandLine := !strings.HasPrefix(action, "plugin:") && !strings.HasPrefix(action, "action:")
 	a.cardRow(c, ui.Center, nil, rowFace{}, func() {
@@ -197,14 +201,31 @@ func (a *App) customShortcutRow(c *ui.Context, copy i18n.Settings, entry setting
 			a.updateCustomShortcut(index, settings.CustomShortcut{Key: entry.Key, Action: next})
 		})
 		if commandLine {
-			// A command line the user already stored is a value on the row, in
-			// the monospace stack the page uses for values, beside the picker that
-			// currently reads "Command line…" (`ShortcutsPage.tsx:288-296`). It is
-			// read-only here: the reference edited it in place, and this build's
-			// editing path is the draft row, so a field that swallowed keystrokes
-			// and dropped them would be worse than the value itself.
-			ui.Text(c, action).Font(deepLinkValueFont).FontSize(tokens.Caption).
-				TextColor(tokens.TextSecondary).SingleLine()
+			// A stored command line is the reference's editable
+			// `input.settings-select.custom-shortcut__command`
+			// (`ShortcutsPage.tsx:288-330`): the field wears the box of the
+			// select beside it — a 28u pill cut into the glass (`settings.css:923-943`)
+			// — and Enter stores the trimmed text as the row's action
+			// (`commitCommand`, `:204-216`). What is typed lives in
+			// `customEdits` between frames, as the reference kept it on the row
+			// (`row.command`), so a half-typed command is not overwritten by the
+			// stored one.
+			text := action
+			if draft, ok := a.customEdits[entry.Key]; ok {
+				text = draft
+			}
+			field := a.textInput(c, &text).Label(copy.ShortcutsCommand).
+				Placeholder(copy.ShortcutsCommandHint).Width(220).
+				MinHeight(t.Space(7)).Padding(0, t.Space(2.5)).Radius(999)
+			if field.Changed() {
+				if a.customEdits == nil {
+					a.customEdits = map[string]string{}
+				}
+				a.customEdits[entry.Key] = text
+			}
+			if field.Submitted() {
+				a.commitCustomCommand(index, text)
+			}
 		}
 	}, func() {
 		ui.Row(c).AlignItems(ui.Center).Children(func() {
@@ -364,6 +385,21 @@ func (a *App) addCustomShortcut() {
 	a.customKey, a.customCommand = "", ""
 }
 
+// commitCustomCommand writes a saved row's edited command line. The
+// reference's `commitCommand` (`ShortcutsPage.tsx:204-216`) trimmed what the
+// field held and left the row untouched when that was empty or the action it
+// already carried; otherwise the text became the row's stored action. The
+// draft is dropped by `updateCustomShortcut`, so a committed row reads the
+// stored value back from the settings rather than the text just typed.
+func (a *App) commitCustomCommand(index int, text string) {
+	next := strings.TrimSpace(text)
+	entries := a.customShortcuts()
+	if index < 0 || index >= len(entries) || next == "" || next == entries[index].Action {
+		return
+	}
+	a.updateCustomShortcut(index, settings.CustomShortcut{Key: entries[index].Key, Action: next})
+}
+
 // updateCustomShortcut rewrites one row's action. The picker's
 // "Command line…" slot is a mode, not an action: the reference's `setAction`
 // turned the row into a command draft (action empty, a text field visible)
@@ -375,6 +411,10 @@ func (a *App) updateCustomShortcut(index int, entry settings.CustomShortcut) {
 	if index < 0 || index >= len(entries) {
 		return
 	}
+	// Whatever was typed into the row's command field is committed (or dropped
+	// with the binding); the row must not keep showing a draft over a new
+	// action, as the reference's `setAction` cleared `row.command` too.
+	delete(a.customEdits, entries[index].Key)
 	if entry.Action == commandAction {
 		a.customKey, a.customCommand, a.customAction = entry.Key, "", commandAction
 		a.customDraftOpen = true
@@ -392,6 +432,7 @@ func (a *App) removeCustomShortcut(index int) {
 	if index < 0 || index >= len(entries) {
 		return
 	}
+	delete(a.customEdits, entries[index].Key)
 	entries = append(entries[:index], entries[index+1:]...)
 	a.commitCustomShortcuts(entries)
 }
