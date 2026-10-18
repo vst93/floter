@@ -136,7 +136,7 @@ func TestDrawnPitchIsTheChargedRow(t *testing.T) {
 	if rect, ok := tt.Find("Open settings"); ok {
 		first = rect.Y
 	}
-	if rect, ok := tt.Find("Open terminal"); ok {
+	if rect, ok := tt.Find("Terminal"); ok {
 		second = rect.Y
 	}
 	if first == 0 || second == 0 {

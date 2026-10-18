@@ -129,7 +129,10 @@ type Launcher struct {
 	CommandConflict string
 	// ResultsLabel names the results list for assistive technology.
 	ResultsLabel string
-	// The built-in commands the P1 catalog offers.
+	// The built-in commands the P1 catalog offers. `CommandTerminal` names the
+	// terminal *surface* (the reference's `system.terminal`), never the
+	// modifier-held row's action word — that one is `BareTerminal`
+	// (`main:src/i18n.ts:59-60,886-887`).
 	CommandSettings       string
 	CommandSettingsHint   string
 	CommandTerminal       string

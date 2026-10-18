@@ -28,7 +28,7 @@ func TestTranscriptionKeyFoldsWidthCaseAndPunctuation(t *testing.T) {
 	different := [][2]string{
 		{"QQ音乐", "WeCom"},
 		{"Safari", "Firefox"},
-		{"Open settings", "Open terminal"},
+		{"Open settings", "Terminal"},
 	}
 	for _, pair := range different {
 		if isTranscription(pair[0], pair[1]) {

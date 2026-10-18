@@ -47,7 +47,7 @@ func TestLauncherShowsTheCatalogWithTheFieldFocused(t *testing.T) {
 	a := testApp()
 	tt := render(t, a)
 
-	for _, want := range []string{"Open settings", "Open terminal", "Quit floter", "Type to search", "Search"} {
+	for _, want := range []string{"Open settings", "Terminal", "Quit floter", "Type to search", "Search"} {
 		if !tt.HasText(want) {
 			t.Errorf("missing %q in %q", want, tt.Texts())
 		}
@@ -63,7 +63,10 @@ func TestTypingFiltersAndEnterRunsTheTopResult(t *testing.T) {
 
 	tt.Type("terminal")
 	tt.Frame()
-	if !tt.HasText("Open terminal") {
+	// The row is the reference's 「Terminal」 (`system.terminal`), not the
+	// held row's action word (`launcher.terminalRow`): the two registers are
+	// distinct rows, so a query that reaches the surface names the surface.
+	if _, ok := tt.Find("Terminal"); !ok {
 		t.Fatalf("the terminal command is gone: %q", tt.Texts())
 	}
 	if tt.HasText("Open settings") || tt.HasText("Quit floter") {
@@ -126,7 +129,7 @@ func TestEscapeDismissesOnlyWithAnEmptyQuery(t *testing.T) {
 func TestClickingARowRunsIt(t *testing.T) {
 	a := testApp()
 	tt := render(t, a)
-	if err := tt.Click("Open terminal"); err != nil {
+	if err := tt.Click("Terminal"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
@@ -157,7 +160,7 @@ func TestLauncherLanguageFollowsTheStore(t *testing.T) {
 		t.Fatal(err)
 	}
 	tt := render(t, a)
-	if !tt.HasText("打开终端") {
+	if !tt.HasText("终端") {
 		t.Errorf("missing the Chinese command: %q", tt.Texts())
 	}
 }
@@ -856,7 +859,7 @@ func TestEmptyQueryOffersRecentApplications(t *testing.T) {
 	a := testApp()
 	found := []apps.App{
 		{Name: "Safari", Path: "/Applications/Safari.app"},
-		{Name: "Terminal", Path: "/System/Applications/Utilities/Terminal.app"},
+		{Name: "Notes", Path: "/System/Applications/Notes.app"},
 		{Name: "Editor", Path: "/Applications/Editor.app"},
 	}
 	a.SetApps(found)
@@ -880,7 +883,7 @@ func TestEmptyQueryOffersRecentApplications(t *testing.T) {
 	if !tt.HasText("Editor") || !tt.HasText("Safari") {
 		t.Fatalf("the recents did not show: %q", texts)
 	}
-	if tt.HasText("Terminal") {
+	if tt.HasText("Notes") {
 		t.Errorf("an unlaunched application showed: %q", texts)
 	}
 	if position["Open settings"] > position["Editor"] {

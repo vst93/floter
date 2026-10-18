@@ -49,7 +49,7 @@ func TestTheActionBarClosesTheListNotHeadsIt(t *testing.T) {
 	if !ok {
 		t.Fatal("the bar row was not drawn")
 	}
-	topRect, ok := tt.Find("Open terminal")
+	topRect, ok := tt.Find("Terminal")
 	if !ok {
 		t.Fatal("the matched row was not drawn")
 	}

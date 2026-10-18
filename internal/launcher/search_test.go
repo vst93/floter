@@ -98,11 +98,15 @@ func TestMatchRequiresEveryTerm(t *testing.T) {
 
 func TestMatchCaseInsensitiveAndPrefixBeatsSubstring(t *testing.T) {
 	a := testApp()
+	// Case does not matter: `OPEN` takes the settings row *in its title*
+	// (the top rung) and the terminal row through its second line (the last
+	// rung — the reference's `system.terminal` row is titled 「Terminal」, so
+	// its title is no longer the string that reaches it, see
+	// `i18n.Launcher.CommandTerminal`). Both are found, and the title hit
+	// comes first.
 	got := a.Match("OPEN")
-	// "Open settings" and "Open terminal" both start with it; the "quit"
-	// row's detail does not contain it.
-	if len(got) != 2 {
-		t.Fatalf("Match(OPEN) = %v", ids(got))
+	if len(got) != 2 || got[0].ID != "settings" || got[1].ID != "terminal" {
+		t.Fatalf("Match(OPEN) = %v, want the settings row then the terminal one", ids(got))
 	}
 }
 

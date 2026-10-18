@@ -159,7 +159,7 @@ func TestSurfaceSnapshots(t *testing.T) {
 			surface: SurfaceLauncher,
 			w:       launcher.InputWindowWidth,
 			h:       int(launcher.WindowHeight(s.UIScale)),
-			want:    []string{"Open settings", "Open terminal", "Quit floter", "Type to search"},
+			want:    []string{"Open settings", "Terminal", "Quit floter", "Type to search"},
 		},
 		{
 			name:    "settings",

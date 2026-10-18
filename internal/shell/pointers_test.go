@@ -18,7 +18,7 @@ func TestHazeVeilLetsThePointerThrough(t *testing.T) {
 	a := New(Options{Store: settings.NewStore(settings.Default())})
 	tt := ui.NewTester(func(c *ui.Context) { a.View(c) }, 720, 420)
 	tt.Frame()
-	for _, label := range []string{"Open settings", "Open terminal"} {
+	for _, label := range []string{"Open settings", "Terminal"} {
 		if err := tt.Click(label); err != nil {
 			t.Fatalf("%s: %v", label, err)
 		}
@@ -28,7 +28,7 @@ func TestHazeVeilLetsThePointerThrough(t *testing.T) {
 			if a.Surf != SurfaceSettings {
 				t.Errorf("%s left surf=%v", label, a.Surf)
 			}
-		case "Open terminal":
+		case "Terminal":
 			if a.Surf != SurfaceTerminal {
 				t.Errorf("%s left surf=%v", label, a.Surf)
 			}

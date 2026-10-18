@@ -130,6 +130,114 @@ func TestTheHeldRowIsTheLastLineOfTheShippedList(t *testing.T) {
 	}
 }
 
+// The user's second report, in one frame: the terminal *surface*'s row and the
+// modifier-held *action* row are two different rows.
+//
+// The reference keeps the two registers apart in copy (`main:src/i18n.ts:886-887`
+// `system.terminal` / `system.terminalSubtitle` for the catalog row, `:59-60`
+// `launcher.terminalRow` / `launcher.terminalRowSubtitle` for the held row) and
+// in place (the catalog row is an ordinary match, the held row is the list's
+// last line and takes the selection). This build had used the held row's
+// 「Open Terminal」 as the catalog row's own title, so a typed query drew the
+// *action* word as an ordinary result — the report 「输入框中有输入内容时出现的
+// 「在终端中打开」项：现在固定在第一项」. With the surface named 「Terminal」
+// again, the action word is back to being one row, at the bottom, only while
+// the modifier is down.
+func TestTheTerminalSurfaceAndTheHeldActionAreTwoRows(t *testing.T) {
+	a := appKeysApp()
+	tt := appKeysRender(t, a)
+	tt.Type("terminal")
+	tt.Frame()
+
+	// The surface's row: an ordinary match, and no held row yet.
+	surfaceRow, ok := tt.Find("Terminal")
+	if !ok {
+		t.Fatalf("the terminal surface's row is not drawn: %q", tt.Texts())
+	}
+	if tt.HasText("Open Terminal") {
+		t.Errorf("the held row's action word is on the page with the modifier up: %q", tt.Texts())
+	}
+	results := a.Launcher.Results()
+	if len(results) == 0 || results[0].ID != "terminal" {
+		t.Fatalf("the query did not reach the terminal surface: %+v", results)
+	}
+
+	// Held: the action row joins as the list's last line and takes the
+	// selection, below the surface row rather than above it.
+	tt.HoldModifiers(ui.Cmd)
+	tt.Frame()
+	heldRow, ok := tt.Find("Open Terminal")
+	if !ok {
+		t.Fatalf("the held row was not drawn: %q", tt.Texts())
+	}
+	results = a.Launcher.Results()
+	if last := results[len(results)-1].ID; last != "system-terminal-bare" {
+		t.Fatalf("the held row is not the list's last line: %+v", results)
+	}
+	if a.Launcher.Selected != len(results)-1 {
+		t.Errorf("the selection is on %d, want the held row %d", a.Launcher.Selected, len(results)-1)
+	}
+	if heldRow.Y <= surfaceRow.Y {
+		t.Errorf("the held row is drawn above the surface's own row: held y=%.0f, surface y=%.0f",
+			heldRow.Y, surfaceRow.Y)
+	}
+}
+
+// The card is the window less the platform's own inset — the second half of
+// the user's first report.
+//
+// 「搜索页面左右两边各有一大块空白」 can only be a *third* band of blank: a card
+// narrower than the window it was given. The reference has exactly one such
+// band and it is the platform's: `.collapsed-card { width: 100% }`
+// (`main:src/styles/launcher.css:8-13`) inside `.platform-linux
+// .collapsed-shell { padding: calc(var(--u) * 10) }` (`base.css:1591-1607`) —
+// the room the card's cast shadow lands in, 10u a side on Linux and 4u/10u on
+// Windows, none on macOS. Its field row is full-bleed across that card
+// (`:212-215`, the 16u is *padding*, not a narrower block) and so is the panel
+// under it. So: the only unpainted columns are the platform's own, and the
+// field's fill reaches the card's stroke on both sides.
+func TestTheCardIsTheWindowLessThePlatformsInset(t *testing.T) {
+	a := appKeysApp()
+	tt := appKeysRender(t, a)
+	tt.Frame()
+
+	field, ok := tt.Find("Search")
+	if !ok {
+		t.Fatalf("the field was not drawn: %q", tt.Texts())
+	}
+	img := tt.Image()
+	_, right, _, left := a.inset()
+	y := int(field.Y + field.H/2)
+
+	// The field block's own fill, sampled at the card's middle: a narrow block
+	// would move this column's colour too, so the sample cannot be taken from
+	// a column the block's edge might have passed over.
+	fill := img.RGBAAt((int(left)+720-int(right))/2, y)
+	runLeft, runRight := -1, -1
+	for x := 0; x < 720; x++ {
+		if img.RGBAAt(x, y) == fill {
+			if runLeft < 0 {
+				runLeft = x
+			}
+			runRight = x
+		}
+	}
+	if runLeft < 0 {
+		t.Fatalf("the field block was not painted at y=%d", y)
+	}
+	// The window's inset is all that is left of the frame, and the field block
+	// runs from the card's own first pixel to its last: the stroke is painted
+	// *inside* the card's box, not beside it.
+	if want := int(left) + 1; runLeft != want {
+		t.Errorf("the field block starts at x=%d, want x=%d: the card is narrower than the window's inset allows (a blank band inside the card)",
+			runLeft, want)
+	}
+	if want := 720 - int(right) - 2; runRight != want {
+		t.Errorf("the field block ends at x=%d, want x=%d: the card is narrower than the window's inset allows (a blank band inside the card)",
+			runRight, want)
+	}
+}
+
 func absf(v float32) float32 {
 	if v < 0 {
 		return -v

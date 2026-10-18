@@ -57,7 +57,7 @@ func TestTheSelectedRowWearsThePerAppearanceQuietTint(t *testing.T) {
 		if !ok {
 			t.Fatalf("%s: the first result was not drawn: %q", themeName, tt.Texts())
 		}
-		second, ok := tt.Find("Open terminal") // the unselected row one band below
+		second, ok := tt.Find("Terminal") // the unselected row one band below
 		if !ok {
 			t.Fatalf("%s: the second result was not drawn: %q", themeName, tt.Texts())
 		}

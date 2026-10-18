@@ -651,11 +651,19 @@ func (a *App) openApp(app apps.App) {
 	}
 }
 
-// Catalog is every item the launcher can show: the built-in commands, the
-// scanned applications and the extensions' commands.
+// Catalog is every item the launcher can show: the scanned applications, the
+// built-in commands and the extensions' commands, in that order.
+//
+// The order is the reference's own tie-break, not an accident: its search walks
+// `searchableApps` before `SYSTEM_COMMANDS` and then sorts *stably* by score
+// (`main:src/hooks/useLauncherCatalog.ts:1201-1293`), so when an application
+// and a built-in command score the same rung — `terminal` names the Terminal.app
+// and the 「Terminal」 command alike — the application is the row that wins.
+// Listing the commands first inverted that: the same query put the built-in
+// 「Terminal」 above the application the user was actually reaching for.
 func (a *App) Catalog() []Item {
-	items := a.commands()
-	items = append(items, a.appItems()...)
+	items := a.appItems()
+	items = append(items, a.commands()...)
 	items = append(items, a.toolItems()...)
 	items = append(items, a.toolInstallItems()...)
 	items = append(items, a.toolInvokeItems()...)

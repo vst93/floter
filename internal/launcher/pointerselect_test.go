@@ -23,8 +23,8 @@ func TestThePointerTakesTheSelectionOnEntry(t *testing.T) {
 	if a.Selected != 0 {
 		t.Fatalf("the page did not start on row 0: selected=%d", a.Selected)
 	}
-	// Entering "Open terminal" (row 1) moves the choice to it.
-	rect, ok := tt.Find("Open terminal")
+	// Entering the terminal row (row 1) moves the choice to it.
+	rect, ok := tt.Find("Terminal")
 	if !ok {
 		t.Fatalf("no terminal row: %q", tt.Texts())
 	}
@@ -63,7 +63,7 @@ func TestThePointerTakesTheSelectionOnEntry(t *testing.T) {
 func TestARestingPointerDoesNotFightTheKeyboard(t *testing.T) {
 	a := testApp()
 	tt := render(t, a)
-	rect, ok := tt.Find("Open terminal")
+	rect, ok := tt.Find("Terminal")
 	if !ok {
 		t.Fatalf("no terminal row: %q", tt.Texts())
 	}
