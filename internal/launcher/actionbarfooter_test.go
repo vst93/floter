@@ -424,7 +424,7 @@ func TestTheHeldRowWearsTheSelectedFace(t *testing.T) {
 	tt.Frame()
 	tt.HoldModifiers(ui.Cmd)
 	tt.Frame()
-	row, ok := tt.Find("Open a terminal")
+	row, ok := tt.Find("Open Terminal")
 	if !ok {
 		t.Fatalf("the held row was not drawn: %q", tt.Texts())
 	}

@@ -1711,46 +1711,119 @@ func (a *App) basePluginSection(c *ui.Context, copy i18n.Settings) {
 		a.extensionHint(c, copy.BasePluginsHint, false)
 		for _, plugin := range plugins {
 			plugin := plugin
-			a.card(c, func() {
-				enabled := plugin.Enabled
-				changed := false
-				labelClicked := a.rowTop(c, plugin.Name, plugin.Hint, plugin.Privacy, func() {
-					if a.Actions.OpenPluginConfig != nil {
-						// The visible text is the reference's "Configure"; the
-						// accessible name names the plugin, because three buttons
-						// reading "Configure" alone are three buttons a screen
-						// reader cannot tell apart. It is the card's own
-						// one-step-down pill
-						// (`.extensions-base-plugin__configure`,
-						// `extensions.css:2610-2614`): a 24u height and the
-						// emphasis step, so it never out-shouts the plugin name
-						// beside it.
-						t := a.cardTheme(c)
-						configure := a.extensionActionButton(c, copy.PluginConfigure,
-							t.Space(6), t.Space(3), a.tokens(c).Emphasis)
-						configure.Label(copy.PluginConfigure + " " + plugin.Name)
-						if configure.Clicked() {
-							a.Actions.OpenPluginConfig(plugin.ID)
-						}
-					}
-					if plugin.Toggleable && a.Actions.SetPluginEnabled != nil {
-						on := enabled
-						if a.switchControl(c, &on).Label(plugin.Name).Changed() {
-							enabled, changed = on, true
-						}
-					}
-				})
-				// The name is a hit target, as every switch row's is: pressing
-				// the words toggles the control beside them.
-				if labelClicked && plugin.Toggleable && a.Actions.SetPluginEnabled != nil {
-					enabled, changed = !enabled, true
-				}
-				if changed {
-					a.Actions.SetPluginEnabled(plugin.ID, enabled)
-				}
-			})
+			a.card(c, func() { a.basePluginCard(c, copy, plugin) })
 		}
 	})
+}
+
+// basePluginCard is one built-in plugin's own card — the reference's
+// `.extensions-base-plugin` (`extensions.css:2550-2563`): a 66px **floor**, a
+// 16px gap between its two columns, a `12px 14px` padding pair, the panel's
+// `--ext-border` hairline and the card ladder's `--radius-md` on the
+// `--glass-control` plane (the face `card` already paints, which is why this
+// draws the reference's *interior* and not a card of its own).
+//
+// The interior is the reference's two columns, aligned to the top rather than
+// centred (`align-items: flex-start`):
+//
+//	.extensions-base-plugin__main  name, description, optional privacy note,
+//	                               a `flex column` with a 3px gap
+//	.extensions-base-plugin__actions  the Configure pill (24px, emphasis
+//	                               step) and the switch — never the row's own
+//	                               trailing slot (`cardRow`'s 44u floor and
+//	                               8px gap are the settings card's, not this
+//	                               card's)
+//
+// The three text lines are the reference's own registers: the name is the
+// **title** step (13px) at line-height 1.5 with no weight of its own, the
+// description the **emphasis** step (12px) at 1.5 in `--text-secondary`, and
+// the privacy note the **body** step (11px) in `--text-warning` with a 2px top
+// padding — `.settings-privacy-hint`'s ink, worn by the one row that discloses
+// rather than describes. The port had flattened all three into one settings
+// row: the name at the emphasis step, the description one register too quiet
+// (`--text-muted`) and single-line, the note weight-500 with no padding.
+func (a *App) basePluginCard(c *ui.Context, copy i18n.Settings, plugin basePlugin) {
+	t := a.cardTheme(c)
+	tokens := a.tokens(c)
+	enabled, changed := plugin.Enabled, false
+	labelClicked := false
+	// `min-height: 66px` (`--extensions-row-height` is 66) at the extension
+	// panel's literal unit, with the card's own `align-items: flex-start`.
+	// The floor is what the reference's own note buys (`extensions.css:2540-2549`):
+	// the card's arithmetic — two 12px paddings, two 1px borders, a 19.5px name
+	// line, a 3px gap and one 18px description line — lands on ~66.5px, so a
+	// plugin whose description is short (or absent) must not draw a card
+	// shorter than the one that carries it. Without the floor the calculator's
+	// one-line card settled ~3px under the clipboard's three-line card, and the
+	// column of cards lost its shared edge.
+	// 66px is a `border-box` floor in the reference (base.css's `*` reset), so
+	// the two 1px borders are *inside* it: the row's own floor is the 64px
+	// interior. `MinHeight(Space(16))` is 64 at the panel's literal unit.
+	row := ui.Row(c).FillWidth().Gap(t.Space(4)).MinHeight(t.Space(16)).
+		AlignItems(ui.Start).Padding(t.Space(3), t.Space(3.5))
+	row.Children(func() {
+		// The copy column: `min-width: 0`, a `flex column` with the
+		// reference's 3px gap. Its name and description wrap, as the
+		// reference's do (no `nowrap` here, unlike a settings row's sublabel).
+		main := ui.Column(c).Grow(1).MinWidth(0).Gap(t.Space(0.75))
+		main.Children(func() {
+			ui.Text(c, plugin.Name).FontSize(tokens.Title).LineHeight(1.5).
+				TextColor(tokens.TextStrong)
+			if plugin.Hint != "" {
+				ui.Text(c, plugin.Hint).FontSize(tokens.Emphasis).LineHeight(1.5).
+					TextColor(tokens.TextSecondary).Wrap()
+			}
+			if plugin.Privacy != "" {
+				// `.extensions-base-plugin__privacy` + `.settings-privacy-hint`:
+				// the body step in the warning ink, its own `2px 2px 0` padding.
+				ui.Text(c, plugin.Privacy).FontSize(tokens.Body).
+					Padding(t.Space(0.5), t.Space(0.5), 0, t.Space(0.5)).
+					TextColor(t.Warning).Wrap()
+			}
+		})
+		if main.Clicked() {
+			labelClicked = true
+		}
+		// The controls column: `flex: 0 0 auto`, centred, the reference's 10px
+		// gap. The switch takes the reference's 2px optical nudge off the
+		// card's top edge.
+		actions := ui.Row(c).Shrink(0).Gap(t.Space(2.5)).AlignItems(ui.Center)
+		actions.Children(func() {
+			if a.Actions.OpenPluginConfig != nil {
+				// The visible text is the reference's "Configure"; the
+				// accessible name names the plugin, because three buttons
+				// reading "Configure" alone are three buttons a screen
+				// reader cannot tell apart. It is the card's own
+				// one-step-down pill
+				// (`.extensions-base-plugin__configure`,
+				// `extensions.css:2610-2614`): a 24u height and the
+				// emphasis step, so it never out-shouts the plugin name
+				// beside it.
+				configure := a.extensionActionButton(c, copy.PluginConfigure,
+					t.Space(6), t.Space(3), tokens.Emphasis)
+				configure.Label(copy.PluginConfigure + " " + plugin.Name)
+				if configure.Clicked() {
+					a.Actions.OpenPluginConfig(plugin.ID)
+				}
+			}
+			if plugin.Toggleable && a.Actions.SetPluginEnabled != nil {
+				on := enabled
+				sw := a.switchControl(c, &on).Label(plugin.Name).Margin(t.Space(0.5), 0, 0, 0)
+				if sw.Changed() {
+					enabled, changed = on, true
+				}
+			}
+		})
+	})
+	// The name is a hit target, as every switch row's is: pressing the words
+	// toggles the control beside them. The reference wires only the switch
+	// itself; the wider target is this build's own addition.
+	if labelClicked && plugin.Toggleable && a.Actions.SetPluginEnabled != nil {
+		enabled, changed = !enabled, true
+	}
+	if changed {
+		a.Actions.SetPluginEnabled(plugin.ID, enabled)
+	}
 }
 
 // RecommendedTool is one shipped package, as the page lists it.
