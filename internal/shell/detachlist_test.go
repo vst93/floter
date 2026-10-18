@@ -3,6 +3,7 @@ package shell
 import (
 	"image/color"
 	"math"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -168,4 +169,93 @@ func TestTheDetachedBodyDrawsNoCardFrame(t *testing.T) {
 // launcherColor reads a frame pixel as the ui.Color the tokens use.
 func launcherColor(c color.RGBA) ui.Color {
 	return ui.Color{R: c.R, G: c.G, B: c.B, A: c.A}
+}
+
+// R95 · the detached window's list arm pages exactly as the launcher's does.
+//
+// The reference read the shared protocol rule and the shared page size in both
+// windows (`DetachedPluginApp.tsx:109-127, 248-270` — `pagePluginEmission`,
+// `PLUGIN_INITIAL_PAGES`, the scroll trigger against
+// `PLUGIN_LOAD_MORE_THRESHOLD`), and the port wired the trigger into the
+// launcher's own output view only. A plugin that emitted more than the first
+// window therefore had rows in its detached window that nothing could reach:
+// the list was silently truncated at two pages.
+func TestTheDetachedListPagesLikeTheLauncher(t *testing.T) {
+	a := New(Options{Store: settings.NewStore(settings.Default())})
+	run := extensions.CapturedRun{Stdout: "[" + detachRows(25) + "]"}
+	view := a.Launcher.OutputFor(run, nil, nil)
+	if want := extensions.PageSize * extensions.InitialPages; len(view.Rows) != want {
+		t.Fatalf("the first window holds %d rows, want %d", len(view.Rows), want)
+	}
+	detached := &detachedOutput{title: "jv", ran: true, view: view}
+	tt := ui.NewTester(func(c *ui.Context) { a.detachedView(c, detached) }, 720, 460)
+	tt.Frame()
+	if tt.HasText("Row 25") {
+		t.Fatalf("a row beyond the loaded window is on screen: %q", tt.Texts())
+	}
+
+	// Scrolled to the end, the body asks for the next page and draws it.
+	detached.scroll.Y = math.MaxFloat32
+	tt.Frame()
+	tt.Frame()
+	if !tt.HasText("Row 25") {
+		t.Fatalf("the next page never came: %q", tt.Texts())
+	}
+	if detached.view.Page != nil {
+		t.Errorf("the complete list still claims a page: %+v", detached.view.Page)
+	}
+}
+
+// A plugin that pages itself is asked with the cursor it named — in its own
+// window, not only in the panel — and a page that does not speak the protocol
+// ends the list instead of being asked for forever.
+func TestTheDetachedSelfPagingListReplaysItsCursor(t *testing.T) {
+	a := New(Options{Store: settings.NewStore(settings.Default())})
+	entry := &extensions.CommandEntry{
+		IntegrationID: "test.ext",
+		Command:       extensions.Command{ID: "paged", Name: "Paged"},
+	}
+	// Twenty rows: more than the window can show, so its end is not on screen
+	// and the trigger has not fired yet (the reference's own first-page size).
+	first := `{"output":[` + detachRows(20) + `],"page":{"cursor":"c1","hasMore":true}}`
+	view := a.Launcher.OutputFor(extensions.CapturedRun{Stdout: first}, nil, entry)
+	if !view.Declared || view.Page == nil || !view.Page.HasMore {
+		t.Fatalf("the self-paging emission was not read as one: %+v", view.Page)
+	}
+	var asks int
+	var gotCursor string
+	a.Launcher.Actions.LoadOutputPage = func(_ extensions.CommandEntry, _ []string, cursor string, done func(extensions.CapturedRun, error)) {
+		asks++
+		gotCursor = cursor
+		done(extensions.CapturedRun{Stdout: `{"output":[{"id":"last","title":"Last"}],"page":{"cursor":null,"hasMore":false}}`}, nil)
+	}
+	detached := &detachedOutput{title: "jv", ran: true, view: view}
+	tt := ui.NewTester(func(c *ui.Context) { a.detachedView(c, detached) }, 720, 460)
+	tt.Frame()
+	if asks != 0 {
+		t.Fatalf("an unscrolled body asked for a page: %d", asks)
+	}
+	detached.scroll.Y = math.MaxFloat32
+	tt.Frame()
+	if asks != 1 || gotCursor != "c1" {
+		t.Fatalf("the cursor was not replayed: asked %d times with %q", asks, gotCursor)
+	}
+	tt.Frame()
+	if !tt.HasText("Last") {
+		t.Fatalf("the fetched page was not drawn: %q", tt.Texts())
+	}
+	// The plugin said it was done: the trigger stops asking.
+	tt.Frame()
+	if asks != 1 {
+		t.Errorf("a finished list was asked again: %d", asks)
+	}
+}
+
+// detachRows is n list-protocol rows, numbered from one.
+func detachRows(n int) string {
+	rows := make([]string, 0, n)
+	for i := 1; i <= n; i++ {
+		rows = append(rows, `{"id":"r`+strconv.Itoa(i)+`","title":"Row `+strconv.Itoa(i)+`"}`)
+	}
+	return strings.Join(rows, ",")
 }

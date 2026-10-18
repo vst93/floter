@@ -49,7 +49,25 @@ type detachedOutput struct {
 	// older content cannot overwrite the run the user pinned after replacing
 	// it (the old build's newest-run-wins rule).
 	generation int
+	// loadingMore is whether a page fetch for a self-paging list is in flight,
+	// so the scroll trigger asks once per page rather than once per frame.
+	// An in-memory window has no fetch and never sets it.
+	loadingMore bool
+	// frames counts the body's layouts, so the scroll trigger can tell a body
+	// that has not been measured yet (every `ScrollState` reads zero on its
+	// first frame) from one whose content genuinely fits its box. Only a body
+	// that fits its box *and* claims another page is at its end with `MaxY` at
+	// zero, and that one still asks — the reference's `remaining <= 48` reads
+	// zero there too.
+	frames int
 }
+
+// detachLoadMoreGap is how close to the body's end the scroll has to be for
+// the next page to be asked for: the reference's shared
+// `PLUGIN_LOAD_MORE_THRESHOLD` (`main:src/launcher/plugin-mode.ts:496`, 48),
+// which the detached window read through the same constant the launcher's own
+// list did (`DetachedPluginApp.tsx:267-270`).
+const detachLoadMoreGap = 48
 
 // detachContentKey is the identity of what a detached window holds: a command
 // by its integration and its own id, and a run with no command behind it by
@@ -107,6 +125,7 @@ func (a *App) detachOutput(view launcher.OutputView) {
 		existing.view = view
 		existing.title = title
 		existing.running = false
+		existing.loadingMore = false
 		existing.generation++
 		if existing.win != nil {
 			existing.win.SetTitle(detachWindowTitle(title))
@@ -260,6 +279,7 @@ func (a *App) detachedBar(c *ui.Context, detached *detachedOutput, tokens theme.
 // scrolling under the bar inside one 14u inset (`DetachedPluginApp.tsx:322-350`,
 // `launcher.css:1776-1818`).
 func (a *App) detachedBodyView(c *ui.Context, detached *detachedOutput, tokens theme.Tokens, t *ui.Theme, copy i18n.Launcher) {
+	detached.frames++
 	body := ui.Scroll(c.Key("detached.output")).TrackScroll(&detached.scroll).Fill().
 		Padding(t.Space(detachedBodyInset))
 	body.Children(func() {
@@ -276,12 +296,99 @@ func (a *App) detachedBodyView(c *ui.Context, detached *detachedOutput, tokens t
 			detachedText(c, detached, tokens, t)
 		case detached.view.IsList:
 			detachedList(c, detached.view.Rows, tokens, t)
+			// R95 · the list arm pages exactly as the launcher's does: reaching
+			// the end of what is loaded asks for the next page. The port drew the
+			// first window only, so a plugin that emitted more than two pages had
+			// rows in this window that nothing could reach — the reference's
+			// scroll trigger (`DetachedPluginApp.tsx:248-270`) had no port at all.
+			detachedAskForMore(a, detached)
 		case detached.ran:
 			detachedStatus(c, copy.OutputWindowEmpty, false, tokens, t)
 		default:
 			detachedStatus(c, copy.OutputWindowIdle, false, tokens, t)
 		}
 	})
+}
+
+// detachedAskForMore runs the window's scroll trigger: while the list has
+// another page and the body is scrolled within the reference's threshold of
+// its end, ask for it. The trigger reads the scroller's own geometry
+// (`detached.scroll.MaxY` / `Y`), so a taller window needs no second budget and
+// a resize cannot make it lie.
+//
+// `frames > 1` is the "the body has been measured" test: the container writes
+// MaxY as it lays the content out, so a frame before the first layout reads 0
+// and would otherwise look like a body already at its end (and pull a page on
+// the window's very first frame).
+func detachedAskForMore(a *App, detached *detachedOutput) {
+	view := &detached.view
+	if view.Page == nil || !view.Page.HasMore || detached.loadingMore {
+		return
+	}
+	if detached.frames <= 1 {
+		return
+	}
+	if detached.scroll.MaxY-detached.scroll.Y > detachLoadMoreGap {
+		return
+	}
+	a.loadMoreDetachedPage(detached)
+}
+
+// loadMoreDetachedPage asks for the next page of the window's list, the same
+// two arms the launcher's own output view has (`launcher.loadMoreOutputPage`):
+// a self-paging plugin is re-run with the cursor from its last emission, and an
+// in-memory window simply grows by one page. A complete list, or a fetch already
+// in flight, is left alone.
+func (a *App) loadMoreDetachedPage(detached *detachedOutput) {
+	view := &detached.view
+	if !view.IsList || view.Page == nil || !view.Page.HasMore || detached.loadingMore {
+		return
+	}
+	if view.Declared {
+		if view.Entry == nil || a.Launcher.Actions.LoadOutputPage == nil {
+			return
+		}
+		detached.loadingMore = true
+		generation := detached.generation
+		entry := *view.Entry
+		args := append([]string{}, view.Args...)
+		cursor := view.Page.Cursor
+		a.Launcher.Actions.LoadOutputPage(entry, args, cursor, func(run extensions.CapturedRun, err error) {
+			if detached.generation != generation {
+				return // the window's content was replaced while the page ran
+			}
+			detached.loadingMore = false
+			emission, ok := extensions.ParseEmission(run.Stdout)
+			if !ok {
+				// The plugin stopped speaking the protocol: keep what we have and
+				// stop asking, rather than looping on a page we cannot read.
+				view.Page = &extensions.Page{}
+			} else {
+				view.Rows = extensions.MergeRows(view.Rows, emission.Rows)
+				view.AllRows = view.Rows
+				if emission.Page != nil {
+					view.Page = emission.Page
+				} else {
+					view.Page = &extensions.Page{}
+				}
+			}
+			if detached.win != nil {
+				detached.win.Invalidate()
+			}
+		})
+		return
+	}
+	view.PagesLoaded++
+	rows, page := extensions.WindowRows(view.AllRows, view.PagesLoaded)
+	view.Rows = rows
+	if page.HasMore {
+		view.Page = &page
+	} else {
+		view.Page = nil
+	}
+	if detached.win != nil {
+		detached.win.Invalidate()
+	}
 }
 
 // detachedStatus draws one line of the run state machine
@@ -368,6 +475,9 @@ func (a *App) applyDetachedRun(detached *detachedOutput, generation int, view la
 	detached.running = false
 	detached.ran = true
 	detached.failed = ""
+	// A new answer starts its list at the first window again, as the reference's
+	// run reset the page count (`DetachedPluginApp.tsx:126`).
+	detached.loadingMore = false
 	// A run that overran its deadline after saying something is not a refusal:
 	// the reference read its output (see `extensions.runCaptured`).
 	if runErr != nil && view.Text == "" {
