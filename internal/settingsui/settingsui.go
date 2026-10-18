@@ -2458,7 +2458,14 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 		}
 
 		if configOwnerIsHost(integration) && !integration.Orphan {
-			opened := a.row(c, copy.ConfigOpen, "", func() {
+			// The row *is* the reference's configuration block title: the panel
+			// drew `<h4>{t("settings.extensions.configuration")}</h4>` above the
+			// form (`ExtensionsPanel.tsx:2971-2975`), and the block's own action
+			// carried the verb. Labelling the row with the verb instead printed
+			// "Configure" twice on one line and gave the block a different name
+			// from its tool-owned sibling, which already leads with
+			// `ConfigSection` (see configOpenToolRow).
+			opened := a.row(c, copy.ConfigSection, "", func() {
 				if a.actionButton(c, copy.ConfigOpen).Clicked() {
 					a.toggleConfig(integration.ID)
 				}

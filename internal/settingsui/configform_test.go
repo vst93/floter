@@ -930,6 +930,22 @@ func TestAToolOwnedConfigurationDoesNotWearTheForm(t *testing.T) {
 	if !tt.HasText(en.ConfigOpen) {
 		t.Errorf("a host-owned configuration lost its Configure row: %q", tt.Texts())
 	}
+	// The row's label is the reference's block title, and the verb is the
+	// block's one action: the old port printed "Configure" on both the label
+	// and the button, so one line named the block twice and the block was not
+	// called what the reference calls it.
+	if !tt.HasText(en.ConfigSection) {
+		t.Errorf("a host-owned configuration lost its Configuration block title: %q", tt.Texts())
+	}
+	verbs := 0
+	for _, text := range tt.Texts() {
+		if text == en.ConfigOpen {
+			verbs++
+		}
+	}
+	if verbs != 1 {
+		t.Errorf("the Configure word appears %d times on the host-owned block, want the button alone: %q", verbs, tt.Texts())
+	}
 }
 
 // The reference handed the bounds to the native control and the browser drew
