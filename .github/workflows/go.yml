@@ -55,8 +55,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     needs: test
     # 手动发版（workflow_dispatch）时不阻塞于 test：CI 无头环境的像素断言
-    # 与本地有显示环境存在渲染差异，test 失败不代表作品回归
-    if: github.event_name == 'workflow_dispatch' || needs.test.result == 'success'
+    # 与本地有显示环境存在渲染差异，test 失败不代表作品回归。
+    # 注意：needs 失败时 job 默认跳过，必须显式带 failure() 才生效。
+    if: needs.test.result == 'success' || (github.event_name == 'workflow_dispatch' && failure())
     strategy:
       fail-fast: false
       matrix:
