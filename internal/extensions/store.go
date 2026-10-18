@@ -213,6 +213,15 @@ type CommandInfo struct {
 	Description string
 	Aliases     []string
 	Available   bool
+	// Declared is whether the *provider's descriptor* declared this command.
+	// The host synthesizes one command of its own — the tool-owned
+	// configuration editor (`ConfigurationCommand`) — and the reference's
+	// registry (`catalog::plugin_command_registry`, `main:src-tauri/src/
+	// extensions/catalog.rs:427-449`) lists declared commands only, so the
+	// panel's "Summon with: …" line is printed for a declared command and not
+	// for the synthesized one (`ExtensionsPanel.tsx:2824-2829`, which gates the
+	// line on `externalCommands.find(...)`).
+	Declared bool
 }
 
 // CommandRegistry lists every command of every integration that has a
@@ -232,10 +241,11 @@ func (s *Store) CommandRegistry() []CommandInfo {
 		_, resolveErr := ResolveRuntime(integration)
 		available := resolveErr == nil
 		commands := description.Commands
+		declared := len(commands)
 		if configuration, ok := ConfigurationCommand(integration, description); ok {
 			commands = append(append([]Command{}, commands...), configuration)
 		}
-		for _, command := range commands {
+		for index, command := range commands {
 			out = append(out, CommandInfo{
 				ExtensionID: integration.Entry.ID,
 				CommandID:   command.ID,
@@ -243,6 +253,7 @@ func (s *Store) CommandRegistry() []CommandInfo {
 				Description: command.Description,
 				Aliases:     append([]string{}, command.Aliases...),
 				Available:   available,
+				Declared:    index < declared,
 			})
 		}
 	}

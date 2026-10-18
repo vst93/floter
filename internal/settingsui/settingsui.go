@@ -531,6 +531,12 @@ type Command struct {
 	Aliases []string
 	// Enabled is whether the command may be summoned from the launcher.
 	Enabled bool
+	// Declared is whether the provider's descriptor declared this command, as
+	// opposed to one the host synthesized (the tool-owned configuration
+	// editor). The reference prints the summon words only for a command its
+	// registry knows (`ExtensionsPanel.tsx:2824-2829`), and the synthesized
+	// command is never in it (`main:src-tauri/src/extensions/catalog.rs:427-449`).
+	Declared bool
 	// Available is whether the integration's runtime resolves right now: a
 	// command whose runtime is missing is still listed, and says so.
 	Available bool
@@ -2978,11 +2984,15 @@ func (a *App) commandIdentity(c *ui.Context, copy i18n.Settings, extensionID str
 				TextColor(t.TextMuted).SingleLine().Ellipsis("\u2026")
 			// The summon words are the reference's own "Summon with: …" line,
 			// printed only when the command is one the provider registry knows —
-			// the same vocabulary the launcher's trigger parser reads.
-			if words := commandTriggerWords(command); len(words) > 0 {
-				ui.Text(c, copy.IntegrationsCommandsTriggers(strings.Join(words, ", "))).
-					FontSize(tokens.Caption).TextColor(t.TextMuted).Opacity(0.85).
-					SingleLine().Ellipsis("\u2026")
+			// the same vocabulary the launcher's trigger parser reads. A command
+			// the host synthesized (the tool-owned configuration editor) is not in
+			// that registry, so it prints no line (`ExtensionsPanel.tsx:2824-2829`).
+			if command.Declared {
+				if words := commandTriggerWords(command); len(words) > 0 {
+					ui.Text(c, copy.IntegrationsCommandsTriggers(strings.Join(words, ", "))).
+						FontSize(tokens.Caption).TextColor(t.TextMuted).Opacity(0.85).
+						SingleLine().Ellipsis("\u2026")
+				}
 			}
 		})
 		// The switch rides the identity line's own top (the reference's

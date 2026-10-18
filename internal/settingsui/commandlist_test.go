@@ -29,16 +29,18 @@ import (
 // unavailable` suffix it invented, and hung the alias editor off that row as a
 // *second* ruled row. These pin the reference's shape.
 
-// commandListIntegration is a two-command integration for the tests below: one
-// enabled command with a description and a declared alias, and one command
-// whose switch is off, with neither.
+// commandListIntegration is a three-command integration for the tests below: one
+// enabled command with a description and a declared alias, one command whose
+// switch is off with neither, and the host's own synthesized configuration
+// command (never declared by the provider, so it prints no summon line).
 func commandListIntegration() Integration {
 	return Integration{
 		ID: "ext", Name: "V Tools", Enabled: true, Running: true,
 		DistributionSource: "local", RuntimeOwnership: "system",
 		Commands: []Command{
-			{ID: "jv", Name: "JSON Viewer", Description: "View JSON", Aliases: []string{"jview", "viewer"}, Enabled: true, Available: true},
-			{ID: "build", Name: "Build", Enabled: false},
+			{ID: "jv", Name: "JSON Viewer", Description: "View JSON", Aliases: []string{"jview", "viewer"}, Enabled: true, Available: true, Declared: true},
+			{ID: "build", Name: "Build", Enabled: false, Declared: true},
+			{ID: "configuration", Name: "Configuration", Description: "Edit this integration's configuration"},
 		},
 	}
 }
@@ -94,6 +96,12 @@ func TestTheCommandListDrawsTheReferencePlates(t *testing.T) {
 	// line blank (the reference's `noDescription`).
 	if want := copy.IntegrationsNoDescription; !tt.HasText(want) {
 		t.Errorf("the no-description line %q is missing: %q", want, tt.Texts())
+	}
+	// The host's synthesized configuration command is not in the provider
+	// registry, so it prints no summon line — only the declared commands do
+	// (`ExtensionsPanel.tsx:2824-2829`).
+	if want := copy.IntegrationsCommandsTriggers("configuration, Configuration"); tt.HasText(want) {
+		t.Errorf("the synthesized command printed a summon line %q: %q", want, tt.Texts())
 	}
 	// The alias editor is the reference's own field, named for its command.
 	if want := copy.IntegrationsCommandAliasFor("JSON Viewer"); !tt.HasText(want) {

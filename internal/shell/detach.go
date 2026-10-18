@@ -2,10 +2,12 @@ package shell
 
 import (
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
+	"floter/internal/clipboard"
 	"floter/internal/extensions"
 	"floter/internal/i18n"
 	"floter/internal/launcher"
@@ -60,6 +62,16 @@ type detachedOutput struct {
 	// zero, and that one still asks — the reference's `remaining <= 48` reads
 	// zero there too.
 	frames int
+	// selectionText is the selection the body's copy-on-select gesture saw on
+	// the previous frame, and selectionCopied the one it last wrote. The
+	// reference copies on `mouseup` (`DetachedPluginApp.tsx:270-285`, R65); a
+	// selection that is the same on two frames in a row has stopped moving, and
+	// that is the release (see detachedCopyOnSelect). The port had no
+	// copy-on-select at all — selecting a row's text and letting go copied
+	// nothing.
+	selectionText   string
+	selectionCopied string
+	selectionAt     time.Time
 }
 
 // detachLoadMoreGap is how close to the body's end the scroll has to be for
@@ -293,9 +305,9 @@ func (a *App) detachedBodyView(c *ui.Context, detached *detachedOutput, tokens t
 		case detached.failed != "":
 			detachedStatus(c, detached.failed, true, tokens, t)
 		case len(detached.view.Text) > 0 && !detached.view.IsList:
-			detachedText(c, detached, tokens, t)
+			a.detachedCopyOnSelect(c, detached, detachedText(c, detached, tokens, t))
 		case detached.view.IsList:
-			detachedList(c, detached.view.Rows, tokens, t)
+			a.detachedCopyOnSelect(c, detached, detachedList(c, detached.view.Rows, tokens, t))
 			// R95 · the list arm pages exactly as the launcher's does: reaching
 			// the end of what is loaded asks for the next page. The port drew the
 			// first window only, so a plugin that emitted more than two pages had
@@ -407,10 +419,92 @@ func detachedStatus(c *ui.Context, text string, failed bool, tokens theme.Tokens
 // 1.45 line, pre-wrapped, selectable — the output is text the user may want,
 // and selecting it is what copies it. The port drew it at the caption step in
 // the primary ink, one register quiet where the reference reads it as output.
-func detachedText(c *ui.Context, detached *detachedOutput, tokens theme.Tokens, t *ui.Theme) {
-	ui.Text(c, detached.view.Text).Font(detached.view.FontFamily).
+//
+// The element is returned so the caller can run the copy-on-select gesture on
+// it (see detachedCopyOnSelect).
+func detachedText(c *ui.Context, detached *detachedOutput, tokens theme.Tokens, t *ui.Theme) ui.Element {
+	return ui.Text(c, detached.view.Text).Font(detached.view.FontFamily).
 		FontSize(tokens.Body).LineHeight(1.45).
 		TextColor(tokens.TextSecondary).Wrap().Selectable()
+}
+
+// detachSelectionSettle is how long a selection has to stay unchanged before
+// it is copied: the reference copied on `mouseup`, and a selection that has
+// stopped changing is a selection whose drag is over. It is short enough to be
+// invisible and long enough that a drag's intermediate frames — which move the
+// selection every frame — never reach it.
+const detachSelectionSettle = 120 * time.Millisecond
+
+// detachedCopyOnSelect is R65's copy-on-select: the reference's list and text
+// arms both write the selection to the clipboard on `mouseup`
+// (`DetachedPluginApp.tsx:270-285` for the list arm, `PluginTextView`'s own
+// gesture for the text arm), so letting go of a drag copies what it covered.
+// The framework's Selectable already copies on the explicit chord; this is the
+// gesture the reference added on top of it.
+//
+// A release is read as *a selection that stopped changing*, because the
+// framework reports a press on the paragraph the selection started in, not on
+// this container (and asking that paragraph whether it is pressed would take
+// its selectability away — see `Pressed`'s flag). So the gesture is: the
+// selection moving starts the clock, and the first frame that sees the same
+// text `detachSelectionSettle` later writes it. The frame itself is asked for
+// (`Context.After`), so a release that lands in the same frame as the last move
+// still copies, without waiting for some unrelated reason to draw again.
+func (a *App) detachedCopyOnSelect(c *ui.Context, detached *detachedOutput, container ui.Element) {
+	text := selectedText(container)
+	now := time.Now()
+	if text == "" {
+		detached.selectionText, detached.selectionCopied, detached.selectionAt = "", "", time.Time{}
+		return
+	}
+	if text != detached.selectionText {
+		// The selection moved: it is still being dragged. Remember it, and ask
+		// for the frame that reads it once it rests.
+		detached.selectionText, detached.selectionCopied = text, ""
+		detached.selectionAt = now
+		c.After(detachSelectionSettle)
+		return
+	}
+	if text == detached.selectionCopied {
+		return
+	}
+	if rest := now.Sub(detached.selectionAt); rest < detachSelectionSettle {
+		c.After(detachSelectionSettle - rest)
+		return
+	}
+	detached.selectionCopied = text
+	// The watcher must not record what the app itself wrote, exactly as the
+	// clipboard page's own copy does (see copyClipboardEntry).
+	a.selfCopied = text
+	if a.writeClipboard != nil {
+		a.writeClipboard(ClipboardPayload{Kind: clipboard.KindText, Text: text})
+	}
+}
+
+// selectedText is the text a Selectable container's selection covers, its
+// paragraphs joined the way the framework's own copy joins them: newlines, in
+// build order.
+func selectedText(container ui.Element) string {
+	var parts []string
+	for _, part := range container.SelectedTexts() {
+		runes := []rune(part.Text)
+		start, end := part.Start, part.End
+		if start < 0 {
+			start = 0
+		}
+		if end > len(runes) {
+			end = len(runes)
+		}
+		if start >= end {
+			continue
+		}
+		parts = append(parts, string(runes[start:end]))
+	}
+	text := strings.Join(parts, "\n")
+	if strings.TrimSpace(text) == "" {
+		return ""
+	}
+	return text
 }
 
 // detachedList is the list arm: the reference's `.plugin-window__list`, a
@@ -419,8 +513,8 @@ func detachedText(c *ui.Context, detached *detachedOutput, tokens theme.Tokens, 
 // (`DetachedPluginApp.tsx:341-350`, `launcher.css:1792-1818`). A status row is
 // information about the list rather than an entry in it, so it wears the muted
 // status line instead of a plate (the same split the launcher's own list makes).
-func detachedList(c *ui.Context, rows []extensions.Row, tokens theme.Tokens, t *ui.Theme) {
-	ui.Column(c).FillWidth().Gap(t.Space(detachedRowGap)).Children(func() {
+func detachedList(c *ui.Context, rows []extensions.Row, tokens theme.Tokens, t *ui.Theme) ui.Element {
+	return ui.Column(c).FillWidth().Gap(t.Space(detachedRowGap)).Selectable().Children(func() {
 		for _, row := range rows {
 			if row.Status {
 				detachedStatus(c, row.Title, false, tokens, t)

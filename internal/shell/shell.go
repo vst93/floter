@@ -1510,6 +1510,7 @@ func (a *App) integrationList() []settingsui.Integration {
 			Name:        info.Name,
 			Description: info.Description,
 			Aliases:     append([]string{}, info.Aliases...),
+			Declared:    info.Declared,
 			Enabled:     switches.Enabled(info.ExtensionID, info.CommandID),
 			Available:   info.Available,
 			Alias:       alias,

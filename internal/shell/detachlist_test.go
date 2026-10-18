@@ -6,9 +6,11 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
+	"floter/internal/clipboard"
 	"floter/internal/extensions"
 	"floter/internal/i18n"
 	"floter/internal/launcher"
@@ -258,4 +260,58 @@ func detachRows(n int) string {
 		rows = append(rows, `{"id":"r`+strconv.Itoa(i)+`","title":"Row `+strconv.Itoa(i)+`"}`)
 	}
 	return strings.Join(rows, ",")
+}
+
+// R65 · the list arm's copy-on-select: the reference writes the selection to the
+// clipboard on `mouseup` (`main:src/plugin-window/DetachedPluginApp.tsx:270-285`),
+// so letting go of a drag copies what it covered. The port had no such gesture —
+// the rows were plain text, and the only way to copy was the explicit chord.
+func TestTheDetachedListCopiesTheSelectionOnRelease(t *testing.T) {
+	var copied []ClipboardPayload
+	a := New(Options{
+		Store:          settings.NewStore(settings.Default()),
+		WriteClipboard: func(payload ClipboardPayload) { copied = append(copied, payload) },
+	})
+	run := extensions.CapturedRun{Stdout: `{"output":[` +
+		`{"id":"a","title":"Alpha","subtitle":"one"},` +
+		`{"id":"b","title":"Beta"}]}`}
+	view := a.Launcher.OutputFor(run, nil, nil)
+	detached := &detachedOutput{title: "jv", ran: true, view: view}
+	tt := ui.NewTester(func(c *ui.Context) { a.detachedView(c, detached) }, 720, 460)
+	tt.Frame()
+
+	row, ok := tt.Find("Alpha")
+	if !ok {
+		t.Fatalf("the row was not drawn: %q", tt.Texts())
+	}
+	y := row.Y + row.H/2
+	tt.Press(row.X+1, y)
+	tt.Frame()
+	// The drag itself copies nothing: the reference waits for the release.
+	tt.Move(row.X+row.W-1, y)
+	tt.Frame()
+	if len(copied) != 0 {
+		t.Fatalf("the drag wrote the clipboard before it rested: %v", copied)
+	}
+	// The release: the selection stops changing, and the frame the settle asked
+	// for writes it.
+	tt.Release(row.X+row.W-1, y)
+	tt.Frame()
+	time.Sleep(detachSelectionSettle + 40*time.Millisecond)
+	tt.Frame()
+	if len(copied) != 1 {
+		t.Fatalf("the release copied %d payloads, want one: %v", len(copied), copied)
+	}
+	if copied[0].Kind != clipboard.KindText || strings.TrimSpace(copied[0].Text) == "" {
+		t.Fatalf("the release copied %+v, want the selected text", copied[0])
+	}
+	// What the app wrote is recorded, so the watcher does not re-record it.
+	if a.selfCopied != copied[0].Text {
+		t.Errorf("selfCopied = %q, want the copied text %q", a.selfCopied, copied[0].Text)
+	}
+	// The same selection is not written twice.
+	tt.Frame()
+	if len(copied) != 1 {
+		t.Errorf("a still selection was copied again: %v", copied[1:])
+	}
 }
