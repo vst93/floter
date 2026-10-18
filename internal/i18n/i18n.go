@@ -134,7 +134,6 @@ type Launcher struct {
 	// modifier-held row's action word — that one is `BareTerminal`
 	// (`main:src/i18n.ts:59-60,886-887`).
 	CommandSettings       string
-	CommandSettingsHint   string
 	CommandTerminal       string
 	CommandTerminalHint   string
 	CommandClipboard      string
@@ -144,7 +143,6 @@ type Launcher struct {
 	CommandBrowser        string
 	CommandBrowserHint    string
 	CommandQuit           string
-	CommandQuitHint       string
 	// The captured-output view: its empty state, its status words and its
 	// key hint.
 	OutputEmpty     string

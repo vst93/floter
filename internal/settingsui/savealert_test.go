@@ -85,11 +85,10 @@ func TestTheSaveFailureBannerEntersOnItsOwnMotion(t *testing.T) {
 		t.Errorf("the banner's first frame was already in place: progress = %v", got)
 	}
 
-	// It lands: the spring reaches its place and stops asking for frames.
-	deadline := time.Now().Add(2 * time.Second)
-	for a.SaveAlertAnimating() && time.Now().Before(deadline) {
-		time.Sleep(20 * time.Millisecond)
-		tt.Frame()
+	// It lands: the spring reaches its place and stops asking for frames. The
+	// tester's clock is its own, so the walk is Advance's, not the wall clock's.
+	for i := 0; i < 40 && a.SaveAlertAnimating(); i++ {
+		tt.Advance(50 * time.Millisecond)
 	}
 	if a.SaveAlertAnimating() {
 		t.Fatal("the enter animation never settled")

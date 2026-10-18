@@ -363,8 +363,9 @@ func TestTerminalBarButtonsCarryTheirHints(t *testing.T) {
 		tt.Move(cx, cy)
 		tt.Frame()
 		tt.Frame()
-		// The tip waits for the pointer to rest (Base UI's 600ms).
-		time.Sleep(700 * time.Millisecond)
+		// The tip waits for the pointer to rest (Base UI's 600ms), on the
+		// tester's own clock, which stands still until it is walked.
+		tt.Advance(700 * time.Millisecond)
 		tt.Frame()
 		if !tt.HasText(want.hint) {
 			t.Errorf("the %q control has no tooltip %q: %q", want.label, want.hint, tt.Texts())
@@ -440,9 +441,9 @@ func dotFrame(t *testing.T, reduce bool) (*ui.Tester, ui.Color) {
 		a.View(c)
 	}, 860, 600)
 	tt.SetPreferences(ui.Preferences{ReduceMotion: reduce})
-	tt.Move(400, 14) // over the bar: the identity row shows
-	tt.Frame()       // the dot appears here, and the loop starts with it
-	time.Sleep(400 * time.Millisecond)
+	tt.Move(400, 14)                   // over the bar: the identity row shows
+	tt.Frame()                         // the dot appears here, and the loop starts with it
+	tt.Advance(400 * time.Millisecond) // 400 ms into the breath
 	tt.Frame()
 	return tt, accent
 }

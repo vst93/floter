@@ -2,6 +2,7 @@ package launcher
 
 import (
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -85,9 +86,8 @@ func TestTheWarningFeedbackRowPaintsTheRestingWarmPlane(t *testing.T) {
 	// The row enters over 160ms (`feedbackRow`'s Enter transition), so the frame
 	// has to settle before the fill is read: a mid-animation frame still shows
 	// the panel through it.
-	for i := 0; i < 30; i++ {
-		tt.Frame()
-	}
+	tt.Frame()
+	tt.Advance(200 * time.Millisecond)
 	msg, ok := tt.Find("boom")
 	if !ok {
 		t.Fatalf("the warning row is not drawn: %q", tt.Texts())
@@ -238,6 +238,9 @@ func TestTheFavouritedStarIsPaintedIn(t *testing.T) {
 		tt.Frame()
 		tt.TypeKey(0, ui.KeyEnter, "")
 		tt.Frame()
+		// The rows enter over 120ms (`rowTransition`) on the tester's own
+		// clock, which stands still until it is walked.
+		tt.Advance(200 * time.Millisecond)
 		name := "Favorite"
 		if favorite {
 			name = "Unfavorite"

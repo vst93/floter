@@ -3085,8 +3085,9 @@ func TestFreshnessDotProjectsTheRowState(t *testing.T) {
 	if rect, ok := tt.Find(label); ok {
 		before := countOf(label)
 		tt.Move(rect.X+rect.W/2, rect.Y+rect.H/2)
-		// The tip waits for the pointer to rest (Base UI's 600ms).
-		time.Sleep(700 * time.Millisecond)
+		// The tip waits for the pointer to rest (Base UI's 600ms), and the
+		// tester's clock is its own: the wait is Advance's.
+		tt.Advance(700 * time.Millisecond)
 		tt.Frame()
 		if countOf(label) <= before {
 			t.Errorf("the dot has no tooltip (nodes %d → %d): %q", before, countOf(label), tt.Texts())
@@ -4009,7 +4010,7 @@ func TestSettingsHeaderButtonsCarryTheirHints(t *testing.T) {
 		tt.Frame()
 		tt.Move(rect.X+rect.W/2, rect.Y+rect.H/2)
 		// The tip waits for the pointer to rest (Base UI's 600ms).
-		time.Sleep(700 * time.Millisecond)
+		tt.Advance(700 * time.Millisecond)
 		tt.Frame()
 		if !tt.HasText(want.hint) {
 			t.Errorf("the %q control has no tooltip %q: %q", want.label, want.hint, tt.Texts())

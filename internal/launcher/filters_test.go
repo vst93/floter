@@ -496,7 +496,7 @@ func TestPluginGearCarriesItsHints(t *testing.T) {
 		tt.Frame()
 		tt.Move(rect.X+rect.W/2, rect.Y+rect.H/2)
 		// The tip waits for the pointer to rest (Base UI's 600ms).
-		time.Sleep(700 * time.Millisecond)
+		tt.Advance(700 * time.Millisecond)
 		tt.Frame()
 	}
 	hover(copy.ConfigurePlugin)

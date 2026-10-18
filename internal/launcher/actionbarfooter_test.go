@@ -4,6 +4,7 @@ import (
 	"image/color"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -115,6 +116,10 @@ func TestTheActionBarTakesTheSelectionOnACommandLine(t *testing.T) {
 	tt := render(t, a)
 	tt.Type("git")
 	tt.Frame()
+	// The rows enter over 120ms (`rowTransition`), and the tester's clock is
+	// its own: without the walk the row is read at opacity 0, i.e. the panel's
+	// fill, and the selected face looks missing.
+	tt.Advance(200 * time.Millisecond)
 
 	results := a.Results()
 	bar := len(results) - 1
@@ -305,6 +310,7 @@ func TestTheActionBarSquaresItsTopCornersOverAList(t *testing.T) {
 	ta := render(t, a)
 	ta.Type("git")
 	ta.Frame()
+	ta.Advance(200 * time.Millisecond) // the rows' 120ms enter
 
 	// The bar at the list's head (a URL with no match): its top-left corner is
 	// still the panel's fill, i.e. the corner is rounded away.
@@ -312,6 +318,7 @@ func TestTheActionBarSquaresItsTopCornersOverAList(t *testing.T) {
 	tb := render(t, b)
 	tb.Type("https://example.com/nope")
 	tb.Frame()
+	tb.Advance(200 * time.Millisecond)
 
 	corner := func(tt *ui.Tester) (top int, px color.RGBA) {
 		img := tt.Image()

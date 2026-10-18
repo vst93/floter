@@ -2492,7 +2492,7 @@ func TestFieldRowButtonsCarryTheirHints(t *testing.T) {
 		tt.Frame()
 		tt.Move(rect.X+rect.W/2, rect.Y+rect.H/2)
 		// The tip waits for the pointer to rest (Base UI's 600ms).
-		time.Sleep(700 * time.Millisecond)
+		tt.Advance(700 * time.Millisecond)
 		tt.Frame()
 		if !tt.HasText(want.text) {
 			t.Errorf("the %q control has no tooltip %q: %q", want.label, want.text, tt.Texts())
@@ -2518,7 +2518,7 @@ func TestFieldRowButtonsCarryTheirHints(t *testing.T) {
 	tt.Move(rect.X+rect.W/2, rect.Y+rect.H+120)
 	tt.Frame()
 	tt.Move(rect.X+rect.W/2, rect.Y+rect.H/2)
-	time.Sleep(700 * time.Millisecond)
+	tt.Advance(700 * time.Millisecond)
 	tt.Frame()
 	if !tt.HasText(rebound) {
 		t.Errorf("the title did not follow the rebind: want %q in %q", rebound, tt.Texts())
@@ -2711,8 +2711,9 @@ func TestDirectOutputRowCarriesTheSpaceKeycapTooltip(t *testing.T) {
 		t.Fatal("the keycap has no copy to show")
 	}
 	tt.Move(rect.X+rect.W/2, rect.Y+rect.H/2)
-	// The tip waits for the pointer to rest (Base UI's 600ms).
-	time.Sleep(700 * time.Millisecond)
+	// The tip waits for the pointer to rest (Base UI's 600ms); the tester's
+	// clock is its own, so the wait is Advance's, not the wall clock's.
+	tt.Advance(700 * time.Millisecond)
 	tt.Frame()
 	if !tt.HasText(hint) {
 		t.Errorf("the keycap has no tooltip: %q", tt.Texts())
@@ -2737,8 +2738,9 @@ func hoverRested(tt *ui.Tester, rect ui.Rect) {
 	tt.Move(rect.X+rect.W/2, rect.Y+rect.H+120)
 	tt.Frame()
 	tt.Move(rect.X+rect.W/2, rect.Y+rect.H/2)
-	// The tip waits for the pointer to rest (Base UI's 600ms).
-	time.Sleep(700 * time.Millisecond)
+	// The tip waits for the pointer to rest (Base UI's 600ms); the tester's
+	// clock is its own, so the wait is Advance's, not the wall clock's.
+	tt.Advance(700 * time.Millisecond)
 	tt.Frame()
 }
 
