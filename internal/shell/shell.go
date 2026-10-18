@@ -485,9 +485,14 @@ type App struct {
 	toggleAt time.Time
 	// loggedWidth and loggedSurface are the frame width and surface the last
 	// geometry line was logged for (see logGeometry): one line per distinct
-	// width, not one per frame.
+	// width, not one per frame. loggedWindowW/H are the window's own size at
+	// that line, so a window that changes size without the frame following it
+	// (the mismatch the report 「搜索页面左右两边各有一大块空白」 is about) logs
+	// too, not only a frame-width change.
 	loggedWidth   float32
 	loggedSurface Surface
+	loggedWindowW int
+	loggedWindowH int
 }
 
 // New builds the app and its surfaces.
@@ -3730,8 +3735,8 @@ func (a *App) View(c *ui.Context) {
 		windowWidth = float32(launcher.InputWindowWidth)
 	}
 	a.holdContractWidth(windowWidth)
-	a.logGeometry(windowWidth)
 	cardWidth := CardWidth(a.Surf, windowWidth, left, right)
+	a.logGeometry(windowWidth, cardWidth)
 	ui.Column(c).Fill().Padding(top, right, bottom, left).AlignItems(ui.Center).Children(func() {
 		radius := surface.Tokens.RadiusLG
 		// The card clips, so a full-bleed block inside it takes the window's
@@ -4136,22 +4141,30 @@ func scriptContent(integration extensions.Integration) string {
 	return string(data)
 }
 
-// logGeometry writes one line per distinct frame width: the size the View is
-// drawing into, the window's own size, and the surface. The two are the same
+// logGeometry writes one line per distinct geometry: the size the View is
+// drawing into (`frame`), the card it derived from that (`card`), the window's
+// own size (`window`), and the surface. The frame and the window are the same
 // number on every platform that honours the size request, and the whole
 // 「搜索页面左右两边各有一大块空白」 family of reports turns on whether they
 // differ — a client that comes back wider than the contract draws a card in a
 // band it was not designed for, a client that comes back narrower is cut off.
-// Eight rounds of that report were answered by inference because the numbers
-// never left the machine; this is the line a report can quote.
-func (a *App) logGeometry(windowWidth float32) {
-	if a.Surf == a.loggedSurface && windowWidth == a.loggedWidth {
-		return
-	}
-	a.loggedSurface, a.loggedWidth = a.Surf, windowWidth
+//
+// The card is logged beside them because the two candidate causes read
+// differently in one line: `frame == window` with `card` much narrower than
+// `window` is the insets (the platform's own band), while `card < window` with
+// the insets small is a card that did not fill the frame. Eight rounds of that
+// report were answered by inference because the numbers never left the machine;
+// this is the line a report can quote.
+func (a *App) logGeometry(windowWidth, cardWidth float32) {
 	if a.Win == nil {
 		return
 	}
 	w, h := a.Win.Size()
-	log.Printf("floter: geometry surface=%s frame=%.1f window=%dx%d", a.Surf.Name(), windowWidth, w, h)
+	if a.Surf == a.loggedSurface && windowWidth == a.loggedWidth && w == a.loggedWindowW && h == a.loggedWindowH {
+		return
+	}
+	a.loggedSurface, a.loggedWidth = a.Surf, windowWidth
+	a.loggedWindowW, a.loggedWindowH = w, h
+	log.Printf("floter: geometry surface=%s frame=%.1f card=%.1f window=%dx%d",
+		a.Surf.Name(), windowWidth, cardWidth, w, h)
 }
