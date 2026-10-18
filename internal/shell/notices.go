@@ -156,17 +156,73 @@ func (a *App) flushNotices(c *ui.Context) {
 // Error and warning share the amber band: the reference's own R9-1 note on the
 // CSS says so ("it shares the error band's amber *label*"), and the kind earns
 // its keep by the *icon* and the accessibility role, not a second colour.
-// Success wears the accent; an untagged toast wears the theme's ordinary text,
-// so a caller that sets no `Type` still reads as plain information.
-func toastTone(t *ui.Theme, kind string) ui.Color {
+// Success wears the accent; an untagged toast wears `--text-secondary`, the
+// rule's own default (`.app-toast { color: var(--text-secondary) }`,
+// `extensions.css:291-296`), so a caller that sets no `Type` still reads as
+// plain information rather than as a row's label.
+func toastTone(tokens theme.Tokens, kind string) ui.Color {
 	switch kind {
 	case "error", "warning":
-		return t.Warning
+		return tokens.Theme.Warning
 	case "success":
-		return t.Accent
+		return tokens.Theme.Accent
 	default:
-		return t.Text
+		return tokens.TextSecondary
 	}
+}
+
+// toastEnter is the entrance's length: the old build's `--dur-4` (220ms,
+// `base.css:349`), the surface-arrival duration its `app-toast-in` ran at.
+const toastEnter = 220 * time.Millisecond
+
+// toastSpring carries an entrance's progress 0→1 along the curve `--spring`
+// draws (`cubic-bezier(0.34, 1.56, 0.64, 1)`, `base.css:334`): an ease-out-back
+// whose overshoot is small, so the pane lands on its place rather than stopping
+// at it, and the travel above the rest position reads the same as the CSS one.
+func toastSpring(p float32) float32 {
+	u := p - 1
+	const pull = 0.6
+	return 1 + (pull+1)*u*u*u + pull*u*u
+}
+
+// toastNow reads the entrance clock: the injected one in a test, the wall clock
+// otherwise.
+func (a *App) toastNow() time.Time {
+	if a.toastClock != nil {
+		return a.toastClock()
+	}
+	return time.Now()
+}
+
+// toastEntrances reports how far each showing toast is through its entrance —
+// 0 on the frame it joined the stack, 1 once `toastEnter` has passed. Ids it
+// saw and no longer sees are forgotten, so a toast raised again under the same
+// id (the framework replaces that toast and restarts its time) springs in
+// again rather than arriving already settled.
+func (a *App) toastEntrances(now time.Time, toasts []ui.Toast) map[string]float32 {
+	if a.toastSeen == nil {
+		a.toastSeen = make(map[string]time.Time, len(toasts))
+	}
+	showing := make(map[string]bool, len(toasts))
+	for _, toast := range toasts {
+		showing[toast.ID] = true
+	}
+	for id := range a.toastSeen {
+		if !showing[id] {
+			delete(a.toastSeen, id)
+		}
+	}
+	progress := make(map[string]float32, len(toasts))
+	for _, toast := range toasts {
+		at, ok := a.toastSeen[toast.ID]
+		if !ok {
+			at = now
+			a.toastSeen[toast.ID] = at
+		}
+		p := float32(now.Sub(at)) / float32(toastEnter)
+		progress[toast.ID] = min(max(p, 0), 1)
+	}
+	return progress
 }
 
 // toastMark is the icon each kind leads with: the old build's `ToastStack` drew
@@ -211,6 +267,15 @@ func (a *App) toastViewport(c *ui.Context) {
 		t := c.Theme()
 		tokens := theme.ForPreferences(a.Store.Snapshot(), t.Dark, c.Preferences())
 		copy := i18n.For(a.Store.Snapshot().Language).Settings
+		// The entrance: the old `.app-toast` arrived on `app-toast-in`
+		// (`src/styles/extensions.css:393-403`), a `--dur-4` travel at `--spring`
+		// from `scale(0.98) translateY(-6px)` and zero opacity to rest. React
+		// mounted the element, so the keyframes ran from the frame the toast
+		// joined the stack; the clock here starts on the same edge. Computed over
+		// every showing toast, before the launcher drops the older ones from
+		// layout, so a toast hidden by that rule still keeps its start time.
+		now := a.toastNow()
+		entrances := a.toastEntrances(now, toasts)
 		if collapsed {
 			// One toast, newest wins. Earlier ones are dropped from layout, not
 			// just hidden, so the thin window never reserves a second row.
@@ -228,7 +293,7 @@ func (a *App) toastViewport(c *ui.Context) {
 			if !p.Root.Valid() {
 				continue
 			}
-			tone := toastTone(t, toast.Type)
+			tone := toastTone(tokens, toast.Type)
 			// The column's own width: `min(360px, 100% - 32px)` on the full-height
 			// surfaces, `min(300px, 100% - 12px)` on the launcher strip.
 			want, room := t.Space(90), width-t.Space(8)
@@ -247,6 +312,30 @@ func (a *App) toastViewport(c *ui.Context) {
 				p.Root.Height(t.Space(5)).Padding(0, t.Space(2)).Gap(t.Space(1.5))
 				dismiss = t.Space(4.5)
 			}
+			// The cast shadow the floating pane was missing: `--elev-3` on a
+			// full-height surface (`base.css:208-211` — `0 10px 26px` ambient,
+			// `0 1px 2px` contact, and the lit top rim) and its compact derivation
+			// `--elev-3-compact` (`:222-223` — the ambient throw alone) for the
+			// launcher's 20px strip, where a rim highlight has no room to read.
+			if collapsed {
+				p.Root.Shadow(0, t.Space(1.5), t.Space(4.5), 0, tokens.ShadowAmbient)
+			} else {
+				p.Root.Shadow(0, t.Space(10), t.Space(26), 0, tokens.ShadowAmbient).
+					Shadow(0, t.Space(0.25), t.Space(0.5), 0, tokens.ShadowContact).
+					InsetShadow(0, 1, 0, 0, tokens.EdgeHighlight)
+			}
+			// The entrance itself: one eased travel 0→1 driving all three of the
+			// keyframes' properties. The curve overshoots a touch past its target,
+			// as `--spring` does, so the pane settles instead of stopping; the
+			// opacity clamps at 1, which is what a spring keyframe does too.
+			progress := entrances[toast.ID]
+			if progress < 1 {
+				c.AnimationFrame()
+			}
+			settle := toastSpring(progress)
+			p.Root.Opacity(min(settle, 1)).
+				Scale(0.98+0.02*settle, 0.98+0.02*settle).
+				Translate(0, -t.Space(0.75)*(1-settle))
 			p.Root.Children(func() {
 				if name := toastMark(toast.Type); name != "" {
 					if glyph, ok := launcher.Glyph(name); ok {
@@ -290,12 +379,18 @@ func (a *App) toastViewport(c *ui.Context) {
 				button := ui.Row(c).Focusable().Shrink(0).Size(dismiss, dismiss).
 					Radius(tokens.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).
 					Label(copy.DismissNotice)
+				// `.app-toast__dismiss:hover` (`extensions.css:383-386`) moves the
+				// glyph's ink to `--text-strong` as well as the fill to
+				// `--glass-control-hover`: the control darkens, it does not just
+				// gain a tint.
+				dismissInk := tokens.TextTertiary
 				if button.Hovered() {
 					button.Background(tokens.ControlHover)
+					dismissInk = tokens.TextStrong
 				}
 				button.Children(func() {
 					ui.Icon(c, launcherGlyph("close")).Size(mark, mark).
-						TextColor(tokens.TextTertiary)
+						TextColor(dismissInk)
 				})
 				if button.Clicked() {
 					c.CloseToast(toast.ID)

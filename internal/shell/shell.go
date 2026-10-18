@@ -248,6 +248,15 @@ type App struct {
 	noticeMu sync.Mutex
 	notices  []ui.Toast
 	refusals *refusalGate
+	// toastSeen is when each showing toast first appeared, keyed by its id: the
+	// entrance animation's clock (the old build's `app-toast-in` keyframes ran
+	// from the element's own mount, which React gave it on the frame the toast
+	// joined the stack). Ids no longer showing are dropped, so a toast raised
+	// again with the same id springs in again.
+	toastSeen map[string]time.Time
+	// toastClock reads the clock the entrance animation is measured on; nil is
+	// time.Now, and a test injects one to step the spring without waiting.
+	toastClock func() time.Time
 	// registerTarget is the executable path a `floter://register` link named,
 	// and registerTimer the beat that clears the mark: the highlight is a
 	// moment, not a mode (the reference's `useTimedReset(registerTarget, …)`

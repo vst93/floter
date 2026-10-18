@@ -1,6 +1,7 @@
 package shell
 
 import (
+	"image"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -10,6 +11,8 @@ import (
 
 	"floter/internal/i18n"
 	"floter/internal/launcher"
+	"floter/internal/settings"
+	"floter/internal/theme"
 )
 
 // The refusal gate coalesces one automatic failure per key: the first raise
@@ -62,20 +65,20 @@ func pendingNotices(a *App) int {
 // on the CSS says the warning "shares the error band's amber label"), the
 // `--success` one wears the accent, and each kind leads with its own icon.
 func TestToastTonesAndMarksFollowTheirKind(t *testing.T) {
-	theme := ui.DarkTheme()
+	tokens := theme.ForPreferences(settings.Settings{}, true, ui.Preferences{})
 	cases := []struct {
 		kind string
 		mark string
 		want ui.Color
 	}{
-		{"error", "alert", theme.Warning},
-		{"warning", "triangle-alert", theme.Warning},
-		{"success", "check", theme.Accent},
-		{"", "", theme.Text},
-		{"other", "", theme.Text},
+		{"error", "alert", tokens.Theme.Warning},
+		{"warning", "triangle-alert", tokens.Theme.Warning},
+		{"success", "check", tokens.Theme.Accent},
+		{"", "", tokens.TextSecondary},
+		{"other", "", tokens.TextSecondary},
 	}
 	for _, tc := range cases {
-		if got := toastTone(theme, tc.kind); got != tc.want {
+		if got := toastTone(tokens, tc.kind); got != tc.want {
 			t.Errorf("toastTone(%q) = %v, want %v", tc.kind, got, tc.want)
 		}
 		if got := toastMark(tc.kind); got != tc.mark {
@@ -361,4 +364,113 @@ func TestTheSuccessNoticeCarriesItsKindAndWindow(t *testing.T) {
 	if got := pendingNotices(a); got != 0 {
 		t.Errorf("an empty success queued %d notices", got)
 	}
+}
+
+// The toast arrives the way the old build's `app-toast-in` keyframes did: not
+// painted at all on the frame it joins the stack, part-way through its fade a
+// moment later, and at rest once `--dur-4` (220ms) has passed. The clock is
+// injected, so the three moments are exact rather than a race with the test
+// machine's speed.
+func TestTheToastSpringsInOverTheSurfaceDuration(t *testing.T) {
+	a := newApp(t)
+	now := time.Unix(0, 0)
+	a.toastClock = func() time.Time { return now }
+	tt := ui.NewTester(func(c *ui.Context) { a.View(c) }, 720, 520)
+	tt.Frame()
+
+	a.warnNotice("Where am I")
+	tt.Frame()
+	rect, ok := tt.Find("Where am I")
+	if !ok {
+		t.Fatalf("the notice is not drawn: %q", tt.Texts())
+	}
+	// The sentence's own box is the pane's fill once the pane is opaque, and
+	// the page behind it while it is not — so its modal colour tracks the fade.
+	start, _ := shellModalColor(tt, rect)
+
+	now = now.Add(40 * time.Millisecond)
+	tt.Frame()
+	middle, _ := shellModalColor(tt, rect)
+
+	now = now.Add(toastEnter)
+	tt.Frame()
+	settled, _ := shellModalColor(tt, rect)
+	tt.Frame()
+	after, _ := shellModalColor(tt, rect)
+
+	if shellColorDistance(start, settled) == 0 {
+		t.Errorf("the toast was painted at full strength on its first frame: %v", start)
+	}
+	if shellColorDistance(middle, start) == 0 {
+		t.Errorf("the toast did not start fading: start %v, 40ms later %v", start, middle)
+	}
+	if shellColorDistance(middle, settled) == 0 {
+		t.Errorf("the toast was already settled 40ms in, on a 220ms entrance: %v", settled)
+	}
+	if after != settled {
+		t.Errorf("the toast kept moving after its entrance: %v then %v", settled, after)
+	}
+}
+
+// The pane floats on the elevation ladder: the old `.app-toast` carried
+// `--elev-3` (`0 10px 26px` ambient + `0 1px 2px` contact + the lit rim,
+// `base.css:208-211`), so the content just under it is darkened. The frame
+// before the toast was raised is the same page, unshadowed — the comparison
+// point, so the page's own artwork cancels out.
+func TestTheToastFloatsOnTheElevationLadder(t *testing.T) {
+	a := newApp(t)
+	now := time.Unix(0, 0)
+	a.toastClock = func() time.Time { return now }
+	strings := i18n.For("en").Settings
+	a.Open(SurfaceSettings)
+	tt := ui.NewTester(func(c *ui.Context) { a.View(c) }, 720, 520)
+	tt.Frame()
+	before := shellFrameCopy(tt.Image())
+
+	a.warnNotice("Where am I")
+	tt.Frame()
+	// The frame it joined the stack started its entrance; step the clock past
+	// `--dur-4` and let it land before measuring the shadow it casts.
+	now = now.Add(toastEnter)
+	tt.Frame()
+	dismiss, ok := tt.Find(strings.DismissNotice)
+	if !ok {
+		t.Fatalf("the toast has no dismiss control: %q", tt.Texts())
+	}
+	// The dismiss control is the pane's tallest child, so its box plus the
+	// pane's 8u padding and 1px border is the pane's bottom edge; a few pixels
+	// under that is where the ambient throw lands.
+	x := int(dismiss.X + dismiss.W/2)
+	y := int(dismiss.Y+dismiss.H) + 8 + 1 + 4
+	base := shellPixelAt(before, x, y)
+	drawn := shellPixelAt(tt.Image(), x, y)
+	if shellColorDistance(drawn, base) == 0 {
+		t.Fatalf("the toast casts no shadow: (%d,%d) is still %v", x, y, base)
+	}
+	if luma(drawn) >= luma(base) {
+		t.Errorf("the cast shadow lights the page: %v became %v", base, drawn)
+	}
+}
+
+// shellPixelAt reads one pixel of a frame; a coordinate outside it is no
+// colour at all.
+func shellPixelAt(img *image.RGBA, x, y int) ui.Color {
+	if x < 0 || y < 0 || x >= img.Rect.Dx() || y >= img.Rect.Dy() {
+		return ui.Color{}
+	}
+	i := y*img.Stride + x*4
+	return ui.Color{R: img.Pix[i], G: img.Pix[i+1], B: img.Pix[i+2], A: img.Pix[i+3]}
+}
+
+// shellFrameCopy freezes a frame: the tester reuses its image buffer, so a
+// comparison point from an earlier frame has to be copied out of it.
+func shellFrameCopy(img *image.RGBA) *image.RGBA {
+	out := image.NewRGBA(img.Rect)
+	copy(out.Pix, img.Pix)
+	return out
+}
+
+// luma is a colour's brightness, for "did this get darker".
+func luma(c ui.Color) int {
+	return int(c.R)*299 + int(c.G)*587 + int(c.B)*114
 }
