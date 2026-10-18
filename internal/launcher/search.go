@@ -93,6 +93,14 @@ type Item struct {
 }
 
 // commands is the built-in command list, labeled in the launcher's language.
+//
+// It is the old build's `SYSTEM_COMMANDS` (`main:src/hooks/useLauncherCatalog.ts:184-292`)
+// row for row and in its order: restart, shutdown, clipboard, browser,
+// calculator, terminal. Six rows — settings and quit are *not* rows there, and
+// they are not rows here either: both live on the tray menu
+// (`shell.InstallTray`) and on the macOS app menu (`RoleQuit`), which is where
+// the old build kept them, so the front door does not grow two rows the
+// reference build never drew.
 func (a *App) commands() []Item {
 	c := a.copy()
 	power := c
@@ -102,41 +110,6 @@ func (a *App) commands() []Item {
 	// a Chinese UI and by `cq` on a Latin one. The initials are written out —
 	// these are the app's own commands, not a table-sized set.
 	return []Item{
-		{
-			ID:     "settings",
-			Title:  c.CommandSettings,
-			Detail: c.CommandSettingsHint,
-			Search: settingsSearch,
-			Run:    a.Actions.OpenSettings,
-		},
-		{
-			ID:     "terminal",
-			Title:  c.CommandTerminal,
-			Detail: c.CommandTerminalHint,
-			Search: terminalSearch,
-			Run:    a.Actions.OpenTerminal,
-		},
-		{
-			ID:     "browser",
-			Title:  c.CommandBrowser,
-			Detail: c.CommandBrowserHint,
-			Search: browserSearch,
-			Run:    a.enterBrowser,
-		},
-		{
-			ID:     "clipboard",
-			Title:  c.CommandClipboard,
-			Detail: c.CommandClipboardHint,
-			Search: clipboardSearch,
-			Run:    a.enterClipboard,
-		},
-		{
-			ID:     "calculator",
-			Title:  c.CommandCalculator,
-			Detail: c.CommandCalculatorHint,
-			Search: calculatorSearch,
-			Run:    a.enterCalculator,
-		},
 		{
 			ID:     "power-restart",
 			Title:  power.PowerRestart,
@@ -152,11 +125,32 @@ func (a *App) commands() []Item {
 			Run:    func() { a.runPower(PowerShutdown) },
 		},
 		{
-			ID:     "quit",
-			Title:  c.CommandQuit,
-			Detail: c.CommandQuitHint,
-			Search: quitSearch,
-			Run:    a.Actions.Quit,
+			ID:     "clipboard",
+			Title:  c.CommandClipboard,
+			Detail: c.CommandClipboardHint,
+			Search: clipboardSearch,
+			Run:    a.enterClipboard,
+		},
+		{
+			ID:     "browser",
+			Title:  c.CommandBrowser,
+			Detail: c.CommandBrowserHint,
+			Search: browserSearch,
+			Run:    a.enterBrowser,
+		},
+		{
+			ID:     "calculator",
+			Title:  c.CommandCalculator,
+			Detail: c.CommandCalculatorHint,
+			Search: calculatorSearch,
+			Run:    a.enterCalculator,
+		},
+		{
+			ID:     "terminal",
+			Title:  c.CommandTerminal,
+			Detail: c.CommandTerminalHint,
+			Search: terminalSearch,
+			Run:    a.Actions.OpenTerminal,
 		},
 	}
 }

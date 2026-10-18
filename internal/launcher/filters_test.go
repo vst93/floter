@@ -1150,7 +1150,7 @@ func TestHeldModifierRowIsNotScrolledIntoView(t *testing.T) {
 func TestTheHeldModifierKeepsTheBarSelectedWhileTyping(t *testing.T) {
 	a := testApp()
 	tt := render(t, a)
-	a.SetQuery("open settings")
+	a.SetQuery("term")
 	tt.Frame()
 	results := a.Results()
 	bar := actionBarIndex(results)
@@ -1164,7 +1164,7 @@ func TestTheHeldModifierKeepsTheBarSelectedWhileTyping(t *testing.T) {
 	}
 	// A keystroke with the key still down: the bar is still the row the
 	// modifier acts on, so it keeps the selection.
-	a.SetQuery("open setting")
+	a.SetQuery("termi")
 	tt.Frame()
 	results = a.Results()
 	bar = actionBarIndex(results)

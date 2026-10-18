@@ -32,16 +32,20 @@ func testApp() *App {
 func TestCatalogIsAuthoredOrderAndLocalized(t *testing.T) {
 	a := testApp()
 	got := a.Catalog()
-	if len(got) != 8 {
-		t.Fatalf("catalog has %d items, want 8", len(got))
+	// The reference's `SYSTEM_COMMANDS`, row for row
+	// (`main:src/hooks/useLauncherCatalog.ts:184-292`): six rows, power first,
+	// the terminal last. Settings and quit are not rows there — they live on
+	// the tray and the macOS app menu.
+	if len(got) != 6 {
+		t.Fatalf("catalog has %d items, want 6", len(got))
 	}
-	want := []string{"settings", "terminal", "browser", "clipboard", "calculator", "power-restart", "power-shutdown", "quit"}
+	want := []string{"power-restart", "power-shutdown", "clipboard", "browser", "calculator", "terminal"}
 	for i, id := range want {
 		if got[i].ID != id {
 			t.Errorf("catalog[%d] = %s, want %s", i, got[i].ID, id)
 		}
 	}
-	if got[0].Title != "Open settings" {
+	if got[0].Title != "Restart the computer" {
 		t.Errorf("english title = %q", got[0].Title)
 	}
 
@@ -49,8 +53,28 @@ func TestCatalogIsAuthoredOrderAndLocalized(t *testing.T) {
 	if err := zh.Store.Update(func(s *settings.Settings) { s.Language = "zh" }); err != nil {
 		t.Fatal(err)
 	}
-	if title := zh.Catalog()[0].Title; title != "打开设置" {
+	if title := zh.Catalog()[0].Title; title != "重启电脑" {
 		t.Errorf("zh title = %q", title)
+	}
+}
+
+// Settings and quit are not launcher rows: the reference's built-in list is its
+// six `SYSTEM_COMMANDS` (`main:src/hooks/useLauncherCatalog.ts:184-292`), and
+// both of the port's extra rows are tray and macOS app-menu doors
+// (`shell.trayMenu`, `RoleQuit`). A query cannot reach them here either.
+func TestSettingsAndQuitAreNotLauncherRows(t *testing.T) {
+	a := testApp()
+	for _, id := range ids(a.Catalog()) {
+		if id == "settings" || id == "quit" {
+			t.Errorf("the built-in list grew a %q row", id)
+		}
+	}
+	for _, query := range []string{"quit", "exit", "退出", "tc", "settings", "设置", "sz"} {
+		for _, item := range a.Match(query) {
+			if item.ID == "quit" || item.ID == "settings" {
+				t.Errorf("query %q reached a %q row", query, item.ID)
+			}
+		}
 	}
 }
 
@@ -58,25 +82,25 @@ func TestMatchEmptyQueryKeepsTheCatalog(t *testing.T) {
 	a := testApp()
 	for _, query := range []string{"", "   "} {
 		got := a.Match(query)
-		if len(got) != 8 {
-			t.Errorf("query %q matched %d, want all 8", query, len(got))
+		if len(got) != 6 {
+			t.Errorf("query %q matched %d, want all 6", query, len(got))
 		}
 	}
 }
 
 func TestMatchRanksTitleBeforeDetail(t *testing.T) {
 	a := testApp()
-	// "settings" is a title word of item 0, and appears in the detail of
-	// none of the others, so it ranks first.
-	got := a.Match("settings")
-	if len(got) == 0 || got[0].ID != "settings" {
-		t.Fatalf("Match(settings) = %v", ids(got))
+	// "restart" is a title word of item 0, and appears in the detail of none
+	// of the others, so it ranks first.
+	got := a.Match("restart")
+	if len(got) == 0 || got[0].ID != "power-restart" {
+		t.Fatalf("Match(restart) = %v", ids(got))
 	}
-	// "app" is the start of "Appearance..." in item 0's detail, and of
-	// nothing else.
-	got = a.Match("app")
-	if len(got) == 0 || got[0].ID != "settings" {
-		t.Fatalf("Match(app) = %v", ids(got))
+	// "bookmarks" is only in the browser row's second line, and reaches it
+	// all the same.
+	got = a.Match("bookmarks")
+	if len(got) == 0 || got[0].ID != "browser" {
+		t.Fatalf("Match(bookmarks) = %v", ids(got))
 	}
 	if got := a.Match("zzz"); len(got) != 0 {
 		t.Errorf("Match(zzz) = %v, want nothing", ids(got))
@@ -85,28 +109,30 @@ func TestMatchRanksTitleBeforeDetail(t *testing.T) {
 
 func TestMatchRequiresEveryTerm(t *testing.T) {
 	a := testApp()
-	// Both terms land on the quit item ("quit floter" / "Exit the
-	// application completely").
-	got := a.Match("quit floter")
-	if len(got) != 1 || got[0].ID != "quit" {
-		t.Fatalf("Match(quit floter) = %v", ids(got))
+	// Both terms land on the restart row ("Restart the computer" / "Asks
+	// first, then restarts").
+	got := a.Match("restart asks")
+	if len(got) != 1 || got[0].ID != "power-restart" {
+		t.Fatalf("Match(restart asks) = %v", ids(got))
 	}
-	if got := a.Match("quit terminal"); len(got) != 0 {
-		t.Errorf("Match(quit terminal) = %v, want nothing", ids(got))
+	if got := a.Match("restart bookmarks"); len(got) != 0 {
+		t.Errorf("Match(restart bookmarks) = %v, want nothing", ids(got))
 	}
 }
 
 func TestMatchCaseInsensitiveAndPrefixBeatsSubstring(t *testing.T) {
 	a := testApp()
-	// Case does not matter: `OPEN` takes the settings row *in its title*
-	// (the top rung) and the terminal row through its second line (the last
-	// rung — the reference's `system.terminal` row is titled 「Terminal」, so
-	// its title is no longer the string that reaches it, see
-	// `i18n.Launcher.CommandTerminal`). Both are found, and the title hit
-	// comes first.
-	got := a.Match("OPEN")
-	if len(got) != 2 || got[0].ID != "settings" || got[1].ID != "terminal" {
-		t.Fatalf("Match(OPEN) = %v, want the settings row then the terminal one", ids(got))
+	// Case does not matter: `TERMINAL` takes the terminal row through its
+	// title, the top rung.
+	got := a.Match("TERMINAL")
+	if len(got) == 0 || got[0].ID != "terminal" {
+		t.Fatalf("Match(TERMINAL) = %v, want the terminal row first", ids(got))
+	}
+	// A title prefix outranks a hit further in: `shut` opens the shutdown
+	// row's title, so that row leads.
+	got = a.Match("shut")
+	if len(got) == 0 || got[0].ID != "power-shutdown" {
+		t.Fatalf("Match(shut) = %v, want the shutdown row first", ids(got))
 	}
 }
 
@@ -268,7 +294,7 @@ func TestAppsJoinTheSearchOnceTyped(t *testing.T) {
 	})
 
 	// An empty query shows the built-in commands alone.
-	if got := a.Results(); len(got) != 8 {
+	if got := a.Results(); len(got) != 6 {
 		t.Errorf("empty query shows %d rows (%v)", len(got), ids(got))
 	}
 

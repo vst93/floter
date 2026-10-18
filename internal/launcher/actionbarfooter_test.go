@@ -205,7 +205,7 @@ func TestTheFieldAndTheRowsShareTheReferenceTextColumn(t *testing.T) {
 		t.Fatal("the field's caret was not drawn")
 	}
 	// A result row's title starts on 16u + the 28u icon + the 10u gap = 54u.
-	if r, ok := tt.Find("Open settings"); ok {
+	if r, ok := tt.Find("Restart the computer"); ok {
 		if got := int(r.X); got != 54 {
 			t.Errorf("a result title starts at x=%d, want the reference's 54", got)
 		}
@@ -384,7 +384,7 @@ func TestTheListIsTheCentredReferenceColumn(t *testing.T) {
 	a := testApp()
 	tt := render(t, a)
 	tt.Frame()
-	row, ok := tt.Find("Open settings") // the empty page's selected first row
+	row, ok := tt.Find("Restart the computer") // the empty page's selected first row
 	if !ok {
 		t.Fatalf("the first result was not drawn: %q", tt.Texts())
 	}

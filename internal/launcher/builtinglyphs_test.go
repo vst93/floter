@@ -49,14 +49,12 @@ func TestEveryBuiltInRowLeadsWithItsOwnMark(t *testing.T) {
 		id    string
 		glyph string
 	}{
-		{"settings", "settings"},
 		{"terminal", "terminal"},
 		{"browser", "globe"},
 		{"clipboard", "clipboard"},
 		{"calculator", "calculator"},
 		{"power-restart", "restart"},
 		{"power-shutdown", "power"},
-		{"quit", "power"},
 	}
 	for _, c := range cases {
 		item, ok := byID[c.id]
@@ -105,7 +103,7 @@ func TestThePowerRowsWearTheWarmPlate(t *testing.T) {
 		c := img.RGBAAt(int(rect.X)-26, int(rect.Y+rect.H/2))
 		return uint32(c.R), uint32(c.B)
 	}
-	neutralR, neutralB := cell("Open settings")
+	neutralR, neutralB := cell("Clipboard history")
 	powerR, powerB := cell("Shut down the computer")
 	if powerR <= powerB {
 		t.Errorf("the power cell is not warm: r=%d b=%d", powerR, powerB)

@@ -212,14 +212,13 @@ func rowGlyph(item Item) (*ui.SVG, bool) {
 	// `cmd:settings` and friends, which matched nothing, so every built-in
 	// row fell through to the recents' clock — the icon the reference did
 	// not draw. The marks follow the reference's own `SystemActionIcon` /
-	// command-icon split: terminal → the chevron, settings → the gear,
-	// browser → the globe, clipboard → the type mark, calculator → the
-	// calculator, the two power actions → the restart arrow and the power
-	// mark, quit → the power mark.
+	// command-icon split: terminal → the chevron, browser → the globe,
+	// clipboard → the type mark, calculator → the calculator, the two power
+	// actions → the restart arrow and the power mark. The list is the
+	// reference's six rows — settings and quit are tray/menu rows and never
+	// reach here (`commands()` in search.go).
 	case "terminal":
 		return glyphTerminal, true
-	case "settings":
-		return glyphSettings, true
 	case "browser":
 		return glyphGlobe, true
 	case "clipboard":
@@ -229,8 +228,6 @@ func rowGlyph(item Item) (*ui.SVG, bool) {
 	case "power-restart":
 		return glyphRestart, true
 	case "power-shutdown":
-		return glyphPower, true
-	case "quit":
 		return glyphPower, true
 	}
 	if strings.HasPrefix(item.ID, "tool:") || item.alias != "" {

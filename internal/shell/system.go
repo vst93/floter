@@ -89,18 +89,35 @@ func (a *App) ApplyMenubarIcon() {
 	}
 }
 
+// trayMenu is the tray icon's menu, as a plain value so a test can check its
+// shape on any platform (a real tray needs a window and a desktop session).
+//
+// It is also the app's only settings and quit door outside macOS: the
+// launcher's built-in rows are the reference's six (`launcher.commands`), which
+// carry neither, so a build without a tray keeps quit on the macOS app menu
+// (`RoleQuit`) and nowhere else — exactly as the reference did
+// (`main:src/hooks/useLauncherCatalog.ts:184-292`).
+func trayMenu(copy i18n.Launcher, show, settings, reload, quit func()) *mygo.Menu {
+	return mygo.NewMenu([]*mygo.MenuItem{
+		{Label: copy.TrayShow, Click: func(*mygo.MenuItem, *mygo.Window) { show() }},
+		{Label: copy.TraySettings, Click: func(*mygo.MenuItem, *mygo.Window) { settings() }},
+		{Label: copy.TrayReload, Click: func(*mygo.MenuItem, *mygo.Window) { reload() }},
+		mygo.Separator(),
+		{Label: copy.TrayQuit, Click: func(*mygo.MenuItem, *mygo.Window) { quit() }},
+	})
+}
+
 // InstallTray adds the menu bar icon: show the panel, open the settings,
 // re-scan what is installed, and quit — the four things a tray icon is for.
 // The labels follow the stored language, so the tray never lags behind the UI.
 func (a *App) InstallTray() {
 	copy := i18n.For(a.Store.Snapshot().Language).Launcher
-	menu := mygo.NewMenu([]*mygo.MenuItem{
-		{Label: copy.TrayShow, Click: func(*mygo.MenuItem, *mygo.Window) { a.Toggle() }},
-		{Label: copy.TraySettings, Click: func(*mygo.MenuItem, *mygo.Window) { a.Open(SurfaceSettings) }},
-		{Label: copy.TrayReload, Click: func(*mygo.MenuItem, *mygo.Window) { a.Rescan() }},
-		mygo.Separator(),
-		{Label: copy.TrayQuit, Click: func(*mygo.MenuItem, *mygo.Window) { a.quit() }},
-	})
+	menu := trayMenu(copy,
+		a.Toggle,
+		func() { a.Open(SurfaceSettings) },
+		a.Rescan,
+		a.quit,
+	)
 
 	tray, err := mygo.NewTray(mygo.TrayOptions{
 		Icon:    appIconBytes(a.appIcon),

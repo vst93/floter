@@ -159,7 +159,7 @@ func TestSurfaceSnapshots(t *testing.T) {
 			surface: SurfaceLauncher,
 			w:       launcher.InputWindowWidth,
 			h:       int(launcher.WindowHeight(s.UIScale)),
-			want:    []string{"Open settings", "Terminal", "Quit floter", "Type to search"},
+			want:    []string{"Restart the computer", "Shut down the computer", "Terminal", "Type to search"},
 		},
 		{
 			name:    "settings",
@@ -215,7 +215,7 @@ func TestSurfaceSwitchesThemeAndLanguage(t *testing.T) {
 	}
 	tt := ui.NewTester(a.View, launcher.InputWindowWidth, int(launcher.WindowHeight("small")))
 	tt.Frame()
-	if !tt.HasText("打开设置") {
+	if !tt.HasText("重启电脑") {
 		t.Errorf("missing the Chinese command: %q", tt.Texts())
 	}
 }
@@ -956,6 +956,48 @@ func TestMenuTemplate(t *testing.T) {
 	}
 	if items[1].Submenu[1].Accelerator != "CmdOrCtrl+Shift+T" {
 		t.Errorf("terminal accelerator = %q", items[1].Submenu[1].Accelerator)
+	}
+}
+
+// The tray menu is the app's settings and quit door outside macOS. The
+// launcher's built-in rows are the reference's six and carry neither
+// (`main:src/hooks/useLauncherCatalog.ts:184-292`), so this menu has to keep
+// both: a tray-less build would otherwise have no quit path at all, and the
+// port would have deleted its only door.
+func TestTrayMenuKeepsSettingsAndQuit(t *testing.T) {
+	copy := i18n.For("en").Launcher
+	var show, settingsCalls, reload, quit int
+	menu := trayMenu(copy,
+		func() { show++ },
+		func() { settingsCalls++ },
+		func() { reload++ },
+		func() { quit++ },
+	)
+	items := menu.Items()
+	if len(items) != 5 {
+		t.Fatalf("tray items = %d, want 5 (four actions and a separator)", len(items))
+	}
+	want := []string{copy.TrayShow, copy.TraySettings, copy.TrayReload, "", copy.TrayQuit}
+	for i, label := range want {
+		if items[i].Label != label {
+			t.Errorf("tray item %d = %q, want %q", i, items[i].Label, label)
+		}
+	}
+	if items[3].Type != mygo.MenuItemSeparator {
+		t.Errorf("the separator is missing: %+v", items[3])
+	}
+	for _, it := range items {
+		if it.Click != nil {
+			it.Click(it, nil)
+		}
+	}
+	if show != 1 || settingsCalls != 1 || reload != 1 || quit != 1 {
+		t.Errorf("tray actions ran %d/%d/%d/%d", show, settingsCalls, reload, quit)
+	}
+	// The labels follow the stored language, so the tray never lags the UI.
+	zhCopy := i18n.For("zh").Launcher
+	if got := trayMenu(zhCopy, func() {}, func() {}, func() {}, func() {}).Items()[4].Label; got != zhCopy.TrayQuit || got == copy.TrayQuit {
+		t.Errorf("the tray quit label did not follow the language: %q", got)
 	}
 }
 

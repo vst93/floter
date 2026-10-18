@@ -53,11 +53,11 @@ func TestTheSelectedRowWearsThePerAppearanceQuietTint(t *testing.T) {
 		tt := render(t, a)
 		tt.Frame()
 		img := tt.Image()
-		first, ok := tt.Find("Open settings") // the empty page's selected first row
+		first, ok := tt.Find("Restart the computer") // the empty page's selected first row
 		if !ok {
 			t.Fatalf("%s: the first result was not drawn: %q", themeName, tt.Texts())
 		}
-		second, ok := tt.Find("Terminal") // the unselected row one band below
+		second, ok := tt.Find("Shut down the computer") // the unselected row one band below
 		if !ok {
 			t.Fatalf("%s: the second result was not drawn: %q", themeName, tt.Texts())
 		}

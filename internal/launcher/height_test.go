@@ -133,10 +133,10 @@ func TestDrawnPitchIsTheChargedRow(t *testing.T) {
 	tt.Frame()
 	// Two adjacent rows of the same shape (both carry a subtitle).
 	var first, second float32
-	if rect, ok := tt.Find("Open settings"); ok {
+	if rect, ok := tt.Find("Restart the computer"); ok {
 		first = rect.Y
 	}
-	if rect, ok := tt.Find("Terminal"); ok {
+	if rect, ok := tt.Find("Shut down the computer"); ok {
 		second = rect.Y
 	}
 	if first == 0 || second == 0 {

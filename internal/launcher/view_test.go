@@ -47,7 +47,7 @@ func TestLauncherShowsTheCatalogWithTheFieldFocused(t *testing.T) {
 	a := testApp()
 	tt := render(t, a)
 
-	for _, want := range []string{"Open settings", "Terminal", "Quit floter", "Type to search", "Search"} {
+	for _, want := range []string{"Restart the computer", "Shut down the computer", "Terminal", "Type to search", "Search"} {
 		if !tt.HasText(want) {
 			t.Errorf("missing %q in %q", want, tt.Texts())
 		}
@@ -69,7 +69,7 @@ func TestTypingFiltersAndEnterRunsTheTopResult(t *testing.T) {
 	if _, ok := tt.Find("Terminal"); !ok {
 		t.Fatalf("the terminal command is gone: %q", tt.Texts())
 	}
-	if tt.HasText("Open settings") || tt.HasText("Quit floter") {
+	if tt.HasText("Restart the computer") || tt.HasText("Shut down the computer") {
 		t.Errorf("the query did not filter: %q", tt.Texts())
 	}
 	tt.TypeKey(0, ui.KeyEnter, "")
@@ -86,10 +86,14 @@ func TestArrowsMoveTheChoiceAndEnterRunsIt(t *testing.T) {
 	if a.Selected != 0 {
 		t.Fatalf("selected = %d, want 0", a.Selected)
 	}
-	tt.Key(0, ui.KeyDown)
-	tt.Frame()
-	if a.Selected != 1 {
-		t.Fatalf("Down selected %d, want 1", a.Selected)
+	// The terminal is the reference's last built-in row, so walk down to it:
+	// five steps from the restart row.
+	for i := 0; i < 5; i++ {
+		tt.Key(0, ui.KeyDown)
+		tt.Frame()
+	}
+	if a.Selected != 5 {
+		t.Fatalf("Down five times selected %d, want the terminal row 5", a.Selected)
 	}
 	tt.Key(0, ui.KeyEnter)
 	tt.Frame()
@@ -97,11 +101,11 @@ func TestArrowsMoveTheChoiceAndEnterRunsIt(t *testing.T) {
 		t.Errorf("Enter ran %v, want terminal", testRuns)
 	}
 
-	// Up wraps back to the last item.
-	tt.Key(0, ui.KeyUp)
+	// Down past the last item wraps to the first.
+	tt.Key(0, ui.KeyDown)
 	tt.Frame()
 	if a.Selected != 0 {
-		t.Errorf("Up from 1 selected %d, want 0 (wrap to 0 of 3 after terminal ran)", a.Selected)
+		t.Errorf("Down from the last row selected %d, want 0 (wrap)", a.Selected)
 	}
 }
 
@@ -2301,10 +2305,6 @@ func TestBuiltinCommandsPinyinAndLanguage(t *testing.T) {
 		{"jsq", "calculator"},        // 计算器 → jsq
 		{"终端", "terminal"},           // the word itself
 		{"zd", "terminal"},           // 终端 → zd
-		{"设置", "settings"},           // the word itself
-		{"sz", "settings"},           // 设置 → sz
-		{"退出", "quit"},               // the word itself
-		{"tc", "quit"},               // 退出 → tc
 		{"restart", "power-restart"}, // the English wording on a Chinese UI
 		{"关机", "power-shutdown"},     // the Chinese wording on an English UI
 	} {

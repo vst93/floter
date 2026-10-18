@@ -50,7 +50,7 @@ func TestTheSearchColumnIsTheReferenceUnitsAtTheShippedStep(t *testing.T) {
 			field.X, want, cardLeft)
 	}
 
-	row, ok := tt.Find("Open settings")
+	row, ok := tt.Find("Restart the computer")
 	if !ok {
 		t.Fatalf("the first result was not drawn: %q", tt.Texts())
 	}
@@ -185,7 +185,7 @@ func TestTheTerminalSurfaceAndTheHeldActionAreTwoRows(t *testing.T) {
 	if a.Launcher.Selected != len(results)-1 {
 		t.Errorf("the selection is on %d, want the held row %d", a.Launcher.Selected, len(results)-1)
 	}
-	if row, ok := tt.Find("Open settings"); ok && heldRow.Y <= row.Y {
+	if row, ok := tt.Find("Restart the computer"); ok && heldRow.Y <= row.Y {
 		t.Errorf("the held row is drawn above the first row: held y=%.0f, first y=%.0f",
 			heldRow.Y, row.Y)
 	}
@@ -425,7 +425,7 @@ func TestTheCardFillsTheWindowItIsGiven(t *testing.T) {
 	tt := appKeysRender(t, a)
 	tt.SetSize(1000, 420)
 	tt.Frame()
-	row, ok := tt.Find("Open settings")
+	row, ok := tt.Find("Restart the computer")
 	if !ok {
 		t.Fatalf("no result row on the wide frame: %q", tt.Texts())
 	}

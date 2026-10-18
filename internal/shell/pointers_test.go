@@ -15,43 +15,28 @@ import (
 // row could hide behind — the row showed (Find reads labels) but no press
 // ever reached it.
 func TestHazeVeilLetsThePointerThrough(t *testing.T) {
-	a := New(Options{Store: settings.NewStore(settings.Default())})
-	tt := ui.NewTester(func(c *ui.Context) { a.View(c) }, 720, 420)
-	tt.Frame()
-	for _, label := range []string{"Open settings", "Terminal"} {
+	// Each row gets a fresh app: the first arms a power confirmation, which
+	// would otherwise be the state the second row reads. The built-in list is
+	// the reference's six rows (no settings, no quit — both are tray and app
+	// menu rows), so the veil is exercised on a power row and on the terminal.
+	for _, label := range []string{"Restart the computer", "Terminal"} {
+		a := New(Options{Store: settings.NewStore(settings.Default())})
+		tt := ui.NewTester(func(c *ui.Context) { a.View(c) }, 720, 420)
+		tt.Frame()
 		if err := tt.Click(label); err != nil {
 			t.Fatalf("%s: %v", label, err)
 		}
 		tt.Frame()
 		switch label {
-		case "Open settings":
-			if a.Surf != SurfaceSettings {
-				t.Errorf("%s left surf=%v", label, a.Surf)
+		case "Restart the computer":
+			if a.Launcher.PowerPending() == "" {
+				t.Errorf("%s did not arm the confirmation", label)
 			}
 		case "Terminal":
 			if a.Surf != SurfaceTerminal {
 				t.Errorf("%s left surf=%v", label, a.Surf)
 			}
 		}
-		// Back to the launcher for the next row: the terminal surface
-		// holds the window's height, so the launcher's rows sit where the
-		// launcher's own band puts them again.
-		a.Open(SurfaceLauncher)
-		tt.SetSize(720, 420)
-		tt.Frame()
-	}
-	// Quit is the last row: a fresh app whose quit is a recorded call, so
-	// the assert outlives the window.
-	quits := 0
-	a2 := New(Options{Store: settings.NewStore(settings.Default()), Quit: func() { quits++ }})
-	tt2 := ui.NewTester(func(c *ui.Context) { a2.View(c) }, 720, 420)
-	tt2.Frame()
-	if err := tt2.Click("Quit floter"); err != nil {
-		t.Fatalf("quit: %v", err)
-	}
-	tt2.Frame()
-	if quits != 1 {
-		t.Errorf("Quit ran %d times, want 1", quits)
 	}
 }
 

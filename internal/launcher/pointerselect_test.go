@@ -23,10 +23,10 @@ func TestThePointerTakesTheSelectionOnEntry(t *testing.T) {
 	if a.Selected != 0 {
 		t.Fatalf("the page did not start on row 0: selected=%d", a.Selected)
 	}
-	// Entering the terminal row (row 1) moves the choice to it.
-	rect, ok := tt.Find("Terminal")
+	// Entering the shutdown row (row 1) moves the choice to it.
+	rect, ok := tt.Find("Shut down the computer")
 	if !ok {
-		t.Fatalf("no terminal row: %q", tt.Texts())
+		t.Fatalf("no shutdown row: %q", tt.Texts())
 	}
 	tt.Move(rect.X+rect.W/2, rect.Y+rect.H/2)
 	tt.Frame()
@@ -46,14 +46,14 @@ func TestThePointerTakesTheSelectionOnEntry(t *testing.T) {
 		t.Errorf("a later frame re-asserted the pointer's row: selected=%d want 2", a.Selected)
 	}
 	// Entering another row moves it again.
-	other, ok := tt.Find("Quit floter")
+	other, ok := tt.Find("Browser history")
 	if !ok {
-		t.Fatalf("no quit row: %q", tt.Texts())
+		t.Fatalf("no browser row: %q", tt.Texts())
 	}
 	tt.Move(other.X+other.W/2, other.Y+other.H/2)
 	tt.Frame()
-	if a.Selected != 7 {
-		t.Errorf("entering another row did not select it: selected=%d want 7", a.Selected)
+	if a.Selected != 3 {
+		t.Errorf("entering another row did not select it: selected=%d want 3", a.Selected)
 	}
 }
 
@@ -63,9 +63,9 @@ func TestThePointerTakesTheSelectionOnEntry(t *testing.T) {
 func TestARestingPointerDoesNotFightTheKeyboard(t *testing.T) {
 	a := testApp()
 	tt := render(t, a)
-	rect, ok := tt.Find("Terminal")
+	rect, ok := tt.Find("Shut down the computer")
 	if !ok {
-		t.Fatalf("no terminal row: %q", tt.Texts())
+		t.Fatalf("no shutdown row: %q", tt.Texts())
 	}
 	tt.Move(rect.X+rect.W/2, rect.Y+rect.H/2)
 	tt.Frame()
