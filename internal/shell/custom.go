@@ -165,9 +165,10 @@ func (a *App) runAppAction(id string) {
 	case settings.CustomActionOpenSettings:
 		a.Open(SurfaceSettings)
 	case settings.CustomActionOpenExternalTerminal:
-		if err := a.OpenExternalTerminal(); err != nil {
-			log.Printf("floter: could not open a terminal: %v", err)
-		}
+		// A custom shortcut is the same hand-off as the built-in one, so it goes
+		// through the same single-flight gate: a held key repeats, and each
+		// hand-off is a process.
+		a.openTerminalWindow()
 	default:
 		log.Printf("floter: no action named %q", id)
 	}

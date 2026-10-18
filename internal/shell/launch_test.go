@@ -342,3 +342,55 @@ func TestTerminalHandOffIgnoresRepeats(t *testing.T) {
 		t.Errorf("a press after the gap started %d terminals in total, want 2", calls.external)
 	}
 }
+
+// Every route to the user's own emulator goes through the same gate: the
+// launcher's row, the terminal page's hint, and a custom shortcut's action.
+// Before this, only the launcher's own callback was gated, so the other two
+// started a window per key repeat — the same storm by another door.
+func TestEveryExternalTerminalRouteIsSingleFlight(t *testing.T) {
+	calls := &launchCalls{}
+	a := launchTestApp(t, calls)
+	clock := time.Unix(2000, 0)
+	a.now = func() time.Time { return clock }
+
+	a.runAppAction(settings.CustomActionOpenExternalTerminal)
+	a.runAppAction(settings.CustomActionOpenExternalTerminal)
+	if calls.external != 1 {
+		t.Fatalf("the custom action started %d terminals, want 1", calls.external)
+	}
+
+	clock = clock.Add(terminalSpawnGap + time.Millisecond)
+	a.spawnExternalTerminal(func(error) {})
+	if calls.external != 2 {
+		t.Errorf("a hand-off after the gap started %d terminals in total, want 2", calls.external)
+	}
+	// And the terminal page's hint shares the same clock: an immediate repeat
+	// is dropped rather than opening a third window.
+	a.spawnExternalTerminal(func(error) {})
+	if calls.external != 2 {
+		t.Errorf("a repeat right after the gap started %d terminals, want 2", calls.external)
+	}
+}
+
+// A held summon key strobes the panel: the desktop repeats it, so every repeat
+// asked for a reveal or a dismissal, and the window flips as fast as the keys
+// arrive. One toggle per press is the intent.
+func TestSummonToggleIgnoresKeyRepeats(t *testing.T) {
+	a := launchTestApp(t, &launchCalls{})
+	clock := time.Unix(3000, 0)
+	a.now = func() time.Time { return clock }
+
+	if !a.allowToggle() {
+		t.Fatal("the first press was dropped")
+	}
+	for i := range 5 {
+		if a.allowToggle() {
+			t.Fatalf("repeat %d was treated as a press", i+1)
+		}
+		clock = clock.Add(20 * time.Millisecond)
+	}
+	clock = clock.Add(toggleGap)
+	if !a.allowToggle() {
+		t.Error("a press after the gap was dropped")
+	}
+}

@@ -66,6 +66,19 @@ const (
 // ParseSurface reads a surface name, for a caller that wants to open one by
 // name (FLOTER_OPEN in cmd/floter, so a smoke test can start on any of the
 // three). The empty string is the launcher.
+// Name is the surface's name, the same word ParseSurface reads: the geometry
+// line logs it, so a report names the surface it came from.
+func (s Surface) Name() string {
+	switch s {
+	case SurfaceSettings:
+		return "settings"
+	case SurfaceTerminal:
+		return "terminal"
+	default:
+		return "launcher"
+	}
+}
+
 func ParseSurface(name string) (Surface, bool) {
 	switch name {
 	case "", "launcher":
@@ -467,6 +480,14 @@ type App struct {
 	// terminalSpawnAt is when a terminal hand-off last ran, so a key held down
 	// (or a global shortcut the desktop repeats) cannot start one per repeat.
 	terminalSpawnAt time.Time
+	// toggleAt is when the panel was last revealed or dismissed, so a summon
+	// shortcut the desktop repeats cannot strobe the window (see Toggle).
+	toggleAt time.Time
+	// loggedWidth and loggedSurface are the frame width and surface the last
+	// geometry line was logged for (see logGeometry): one line per distinct
+	// width, not one per frame.
+	loggedWidth   float32
+	loggedSurface Surface
 }
 
 // New builds the app and its surfaces.
@@ -960,14 +981,16 @@ func New(opts Options) *App {
 			// rather than attaching to the running one. A machine with no
 			// emulator to open says so in the panel itself (the old build's
 			// `terminal-feedback` line) instead of appearing to do nothing.
-			if err := a.OpenExternalTerminal(); err != nil {
+			// The hand-off is single-flight like the launcher's: the hint is a
+			// click target and its chord repeats, and each hand-off is a process.
+			a.spawnExternalTerminal(func(err error) {
 				log.Printf("floter: could not open a terminal: %v", err)
 				a.onMain(func() {
 					copy := i18n.For(a.Store.Snapshot().Language).Launcher
 					a.Terminal.ShowFeedback(copy.OpenTermFailed)
 					a.Terminal.FocusTerminal()
 				})
-			}
+			})
 		},
 		Title: func(title string) {
 			a.onMain(func() {
@@ -2199,6 +2222,12 @@ func (a *App) clearClipboardHistoryAsks(confirm func(title string) bool) {
 // typed into it: the shell is the user's (their proxy, mirror and environment
 // already in effect), and it outlives the install.
 func (a *App) openInstallSession(command string) {
+	if !a.allowTerminalSpawn() {
+		// A repeat of the press that opened the install session: the session
+		// it started is the one to show, not a second shell beside it.
+		a.Open(SurfaceTerminal)
+		return
+	}
 	a.Terminal.RunShellWithCommand(command)
 	a.Open(SurfaceTerminal)
 }
@@ -2207,6 +2236,10 @@ func (a *App) openInstallSession(command string) {
 // shell. The session carries the line rather than merely hosting it: when the
 // shell ends, the terminal page leaves with it (R62, see Terminal.RunCommandLine).
 func (a *App) openShellCommand(command string) {
+	if !a.allowTerminalSpawn() {
+		a.Open(SurfaceTerminal)
+		return
+	}
 	a.Terminal.RunCommandLine(command)
 	a.Open(SurfaceTerminal)
 }
@@ -3175,10 +3208,25 @@ func (a *App) rememberSettingsPage(name string) {
 	_ = a.Store.Update(func(s *settings.Settings) { s.SetLastSettingsPage(name) })
 }
 
+// toggleGap is how long a summon/dismiss toggle is left alone after one ran.
+//
+// A global shortcut is not a one-shot event: most desktops repeat the key
+// while it is held (and a keyboard that repeats at 30/s is the normal case),
+// so a held summon key asked the panel to show and hide as fast as the keys
+// arrived — the window strobes, every frame queues a placement and a focus
+// change, and the app looks hung (「这边的某些快捷键会导致反复弹出」). The
+// intent of the key is one toggle per press, so a second one inside the gap is
+// a repeat, not a request. The gap is short enough that a deliberate
+// dismiss-then-summon (two taps) still lands on both sides.
+const toggleGap = 300 * time.Millisecond
+
 // Toggle shows the launcher, or hides the window when it is already the
 // frontmost thing the user is looking at.
 func (a *App) Toggle() {
 	if a.Win == nil {
+		return
+	}
+	if !a.allowToggle() {
 		return
 	}
 	if a.Win.IsVisible() && a.Win.IsFocused() {
@@ -3186,6 +3234,17 @@ func (a *App) Toggle() {
 		return
 	}
 	a.summon()
+}
+
+// allowToggle reports whether a reveal or a dismissal may run now, and records
+// it when it may (see toggleGap).
+func (a *App) allowToggle() bool {
+	now := a.now()
+	if !a.toggleAt.IsZero() && now.Sub(a.toggleAt) < toggleGap {
+		return false
+	}
+	a.toggleAt = now
+	return true
 }
 
 // summon reveals the window from a dismissal. The surface the user was on — a
@@ -3671,6 +3730,7 @@ func (a *App) View(c *ui.Context) {
 		windowWidth = float32(launcher.InputWindowWidth)
 	}
 	a.holdContractWidth(windowWidth)
+	a.logGeometry(windowWidth)
 	cardWidth := CardWidth(a.Surf, windowWidth, left, right)
 	ui.Column(c).Fill().Padding(top, right, bottom, left).AlignItems(ui.Center).Children(func() {
 		radius := surface.Tokens.RadiusLG
@@ -4074,4 +4134,24 @@ func scriptContent(integration extensions.Integration) string {
 		return ""
 	}
 	return string(data)
+}
+
+// logGeometry writes one line per distinct frame width: the size the View is
+// drawing into, the window's own size, and the surface. The two are the same
+// number on every platform that honours the size request, and the whole
+// 「搜索页面左右两边各有一大块空白」 family of reports turns on whether they
+// differ — a client that comes back wider than the contract draws a card in a
+// band it was not designed for, a client that comes back narrower is cut off.
+// Eight rounds of that report were answered by inference because the numbers
+// never left the machine; this is the line a report can quote.
+func (a *App) logGeometry(windowWidth float32) {
+	if a.Surf == a.loggedSurface && windowWidth == a.loggedWidth {
+		return
+	}
+	a.loggedSurface, a.loggedWidth = a.Surf, windowWidth
+	if a.Win == nil {
+		return
+	}
+	w, h := a.Win.Size()
+	log.Printf("floter: geometry surface=%s frame=%.1f window=%dx%d", a.Surf.Name(), windowWidth, w, h)
 }

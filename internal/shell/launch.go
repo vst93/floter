@@ -150,12 +150,25 @@ func (a *App) openInTerminal(dir string) {
 // the panel, so this is a *new* window rather than a hand-off of the session
 // the panel holds.
 func (a *App) openTerminalWindow() {
+	a.spawnExternalTerminal(func(err error) {
+		log.Printf("floter: could not open the terminal: %v", err)
+		a.onMain(func() { a.Launcher.WarnFeedback(a.Launcher.Copy().OpenTermFailed) })
+	})
+}
+
+// spawnExternalTerminal is the one gate every external-terminal hand-off goes
+// through: the launcher's row and shortcut, the terminal page's own hint, and a
+// custom shortcut's action all ask here. Each hand-off is a *process* and a
+// window, so a key the desktop repeats (or two bindings pointing at the same
+// action) must not start one per repeat — the report 「某些快捷键会导致反复弹出
+// 终端，从而导致卡死」 was exactly that storm. The failed callback says where a
+// machine with no emulator to open reports it: the surface the press came from.
+func (a *App) spawnExternalTerminal(failed func(error)) {
 	if !a.allowTerminalSpawn() {
 		return
 	}
 	if err := a.OpenExternalTerminal(); err != nil {
-		log.Printf("floter: could not open the terminal: %v", err)
-		a.onMain(func() { a.Launcher.WarnFeedback(a.Launcher.Copy().OpenTermFailed) })
+		failed(err)
 	}
 }
 
