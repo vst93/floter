@@ -355,6 +355,20 @@ func (a *App) rowLineGap() float32 {
 	return 1
 }
 
+// rowFloorPx is a card row's height floor: the reference's `.settings-row` is a
+// literal 44px box (`min-height: 44px`, `settings.css:511-518`), so the floor
+// is that literal and not `--u * 11`. At the shipped step `--u * 11` is 39.6 —
+// four and a half pixels short of the box the reference drew, which is half of
+// why every settings row read pinched — and at `large` it is 48.4, i.e. a row
+// taller than the design's own. It is the same rule as the radius ladder (a
+// corner is a literal px, not a `--u` metric): the floor is a touch target, the
+// one number in the row that does not grow with the text it holds.
+//
+// The taller of the two wins, so a step that draws its text bigger than the
+// literal floor (the `large` step's 13.2pt body in a 44px row) still gets a row
+// its content fits in.
+const rowFloorPx = 44
+
 // extensionMetrics runs fn with the extension panel's own metric unit: the
 // reference's `extensions.css` is written in literal px (a 66px row, a 30px
 // chip, an 8px padding) and therefore does not follow the interface step the
@@ -923,9 +937,10 @@ type rowFace struct {
 }
 
 // cardRow is the frame every row helper shares: the separator inset above the
-// row (except the card's first), the height floor (the settings card's 44u,
-// or the title floor cardGeometry named for the card's first row), the leading
-// rule's 1px slot, the label column and the trailing control slot. lead draws
+// row (except the card's first), the height floor (the settings card's 44px,
+// see rowFloorPx, or the title floor cardGeometry named for the card's first
+// row), the leading rule's 1px slot, the label column and the trailing control
+// slot. lead draws
 // the row's own leading mark — the extension rows' package chip — so a row
 // that needs one reuses the frame instead of copying it. face carries the
 // row's own state decoration (the leading rule, a face override, an inner
@@ -939,7 +954,7 @@ func (a *App) cardRow(c *ui.Context, align ui.Align, lead func(), face rowFace, 
 	inset := a.rowInset(t)
 	first := a.cardRows == 0
 	a.cardRows++
-	floor := t.Space(11)
+	floor := max(t.Space(11), rowFloorPx)
 	if first && a.cardTitleFloor > 0 {
 		// The card's title row can wear the reference extension row's 66u
 		// floor (`.extension-row { min-height: var(--extensions-row-height) }`,
@@ -957,8 +972,9 @@ func (a *App) cardRow(c *ui.Context, align ui.Align, lead func(), face rowFace, 
 			ui.Box(c).FillWidth().Height(1).Background(tokens.Hairline).
 				MarginX(inset).Shrink(0)
 		}
-		// The row is the reference's own: a 44u floor, a 12u gap, a 9u padding
-		// pair. It is split in two so the leading rule can run the row's whole
+		// The row is the reference's own: a 12u gap and a 9u padding pair, over
+		// a floor of 44 (see rowFloorPx) or the step's own 44u, whichever is
+		// taller. It is split in two so the leading rule can run the row's whole
 		// height (the reference's `::before` spans `inset-block: 0`, padding
 		// included) while the content keeps its inset: the 1px slot plus the
 		// content's own `inset-1` padding add back up to the old inset, so a
@@ -990,7 +1006,7 @@ func (a *App) cardRow(c *ui.Context, align ui.Align, lead func(), face rowFace, 
 				rule.Background(bar)
 			}
 			ui.Row(c).Grow(1).MinWidth(0).Gap(t.Space(3)).AlignItems(align).
-				Padding(t.Space(1.5), inset-1).Children(func() {
+				Padding(t.Space(2.25), inset-1).Children(func() {
 				if lead != nil {
 					lead()
 				}
@@ -1059,7 +1075,7 @@ func (a *App) stackedRow(c *ui.Context, label, sublabel string, control func()) 
 		if !first {
 			ui.Box(c).FillWidth().Height(1).Background(tokens.Hairline).MarginX(inset).Shrink(0)
 		}
-		ui.Column(c).FillWidth().Gap(t.Space(1)).Padding(t.Space(1.5), inset).Children(func() {
+		ui.Column(c).FillWidth().Gap(t.Space(1)).Padding(t.Space(2.25), inset).Children(func() {
 			// The label and its grey line keep the same steps as any trailing
 			// row: the reference's `.settings-row__label` is `--text-emphasis`
 			// and `.settings-row__sublabel` is `--text-body` for both shapes
@@ -1113,7 +1129,7 @@ func (a *App) actionRow(c *ui.Context, control func()) {
 		if !first {
 			ui.Box(c).FillWidth().Height(1).Background(tokens.Hairline).MarginX(inset).Shrink(0)
 		}
-		ui.Column(c).FillWidth().Padding(t.Space(1.5), inset).Children(control)
+		ui.Column(c).FillWidth().Padding(t.Space(2.25), inset).Children(control)
 	})
 }
 

@@ -477,9 +477,11 @@ type App struct {
 	// residencyOn is the residency surface the last frame noted, so entering
 	// one starts the clock exactly once (see noteResidency).
 	residencyOn string
-	// terminalSpawnAt is when a terminal hand-off last ran, so a key held down
-	// (or a global shortcut the desktop repeats) cannot start one per repeat.
-	terminalSpawnAt time.Time
+	// spawnAt is when each kind of process hand-off last ran, so a key held
+	// down (or a global shortcut the desktop repeats) cannot start one per
+	// repeat. Every route that starts a process asks allowSpawn first (see
+	// launch.go).
+	spawnAt map[string]time.Time
 	// toggleAt is when the panel was last revealed or dismissed, so a summon
 	// shortcut the desktop repeats cannot strobe the window (see Toggle).
 	toggleAt time.Time
@@ -671,10 +673,11 @@ func New(opts Options) *App {
 			}()
 		},
 		RunInTerminal: func(argv []string) {
-			if err := a.Terminal.RunCommand(argv, "current", nil); err != nil {
-				log.Printf("floter: could not run %v: %v", argv, err)
-			}
-			a.Open(SurfaceTerminal)
+			a.openTerminalSession(func() {
+				if err := a.Terminal.RunCommand(argv, "current", nil); err != nil {
+					log.Printf("floter: could not run %v: %v", argv, err)
+				}
+			})
 		},
 		// RunInShell is the launcher's own shell line (`ls | grep go`, which only
 		// a shell can read): the session exists to carry that line, so it is
@@ -696,10 +699,11 @@ func New(opts Options) *App {
 			a.Hide()
 		},
 		RunInTerminalWithEnv: func(argv []string, env []string) {
-			if err := a.Terminal.RunCommand(argv, "current", env); err != nil {
-				log.Printf("floter: could not run %v: %v", argv, err)
-			}
-			a.Open(SurfaceTerminal)
+			a.openTerminalSession(func() {
+				if err := a.Terminal.RunCommand(argv, "current", env); err != nil {
+					log.Printf("floter: could not run %v: %v", argv, err)
+				}
+			})
 		},
 		SearchBrowser: a.searchBrowser,
 	})
@@ -715,8 +719,7 @@ func New(opts Options) *App {
 			a.Open(SurfaceTerminal)
 		},
 		NewSession: func() {
-			a.Terminal.NewSession()
-			a.Open(SurfaceTerminal)
+			a.openTerminalSession(func() { a.Terminal.NewSession() })
 		},
 		CloseSessionAt:       a.Terminal.CloseSession,
 		DiagnoseIntegration:  a.diagnoseIntegration,
@@ -2249,26 +2252,14 @@ func (a *App) clearClipboardHistoryAsks(confirm func(title string) bool) {
 // typed into it: the shell is the user's (their proxy, mirror and environment
 // already in effect), and it outlives the install.
 func (a *App) openInstallSession(command string) {
-	if !a.allowTerminalSpawn() {
-		// A repeat of the press that opened the install session: the session
-		// it started is the one to show, not a second shell beside it.
-		a.Open(SurfaceTerminal)
-		return
-	}
-	a.Terminal.RunShellWithCommand(command)
-	a.Open(SurfaceTerminal)
+	a.openTerminalSession(func() { a.Terminal.RunShellWithCommand(command) })
 }
 
 // openShellCommand opens the launcher's shell-syntax line in the user's own
 // shell. The session carries the line rather than merely hosting it: when the
 // shell ends, the terminal page leaves with it (R62, see Terminal.RunCommandLine).
 func (a *App) openShellCommand(command string) {
-	if !a.allowTerminalSpawn() {
-		a.Open(SurfaceTerminal)
-		return
-	}
-	a.Terminal.RunCommandLine(command)
-	a.Open(SurfaceTerminal)
+	a.openTerminalSession(func() { a.Terminal.RunCommandLine(command) })
 }
 
 // openConfiguration runs a tool-owned configuration's `openCommand` argv on
@@ -2280,10 +2271,11 @@ func (a *App) openConfiguration(id string, argv []string) {
 	if len(argv) == 0 {
 		return
 	}
-	if err := a.Terminal.RunCommand(argv, "current", nil); err != nil {
-		log.Printf("floter: could not open the configuration of %s: %v", id, err)
-	}
-	a.Open(SurfaceTerminal)
+	a.openTerminalSession(func() {
+		if err := a.Terminal.RunCommand(argv, "current", nil); err != nil {
+			log.Printf("floter: could not open the configuration of %s: %v", id, err)
+		}
+	})
 }
 
 // recommendedTools is the shipped packages and whether the inventory has
@@ -2904,10 +2896,11 @@ func knownPermission(permission string) bool {
 func (a *App) runCommand(entry extensions.CommandEntry, args []string) {
 	argv := append([]string{entry.Program}, entry.Args...)
 	argv = append(argv, args...)
-	if err := a.Terminal.RunCommand(argv, entry.Dir, entry.Env); err != nil {
-		log.Printf("floter: could not run %s: %v", entry.Command.ID, err)
-	}
-	a.Open(SurfaceTerminal)
+	a.openTerminalSession(func() {
+		if err := a.Terminal.RunCommand(argv, entry.Dir, entry.Env); err != nil {
+			log.Printf("floter: could not run %s: %v", entry.Command.ID, err)
+		}
+	})
 }
 
 // runCommandCaptured runs a command whose manifest sends its output to the

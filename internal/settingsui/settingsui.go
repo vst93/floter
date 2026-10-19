@@ -4277,7 +4277,7 @@ func (a *App) slider(c *ui.Context, row sliderRow) {
 		if !first {
 			ui.Box(c).FillWidth().Height(1).Background(tokens.Hairline).MarginX(inset).Shrink(0)
 		}
-		ui.Column(c).FillWidth().Gap(t.Space(1)).Padding(t.Space(1.5), inset).Children(func() {
+		ui.Column(c).FillWidth().Gap(t.Space(1)).Padding(t.Space(2.25), inset).Children(func() {
 			// The title line carries the value, pushed to the far end, as the
 			// reference's `.settings-slider__head` does: the number is a readout,
 			// not a second control, and a rolling counter is how the motion

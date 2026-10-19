@@ -104,27 +104,59 @@ func systemOpener() string {
 	}
 }
 
-// terminalSpawnGap is how long a terminal hand-off is left alone after one
-// ran: a shortcut held down (or a global hotkey the desktop repeats while the
-// key is down) fired the hand-off once per repeat, and every hand-off is a
-// *process* — a shell in the panel, or another emulator window. The report
-// 「这边的某些快捷键会导致反复弹出终端，从而导致卡死」 is that storm: the
-// repeat rate of a held key outruns anything the user can see, and the machine
-// ends up with dozens of shells and a window that cannot keep up. One hand-off
-// per press is the intent of the key, so the second one inside the gap is a
-// repeat, not a request.
-const terminalSpawnGap = 750 * time.Millisecond
+// spawnGap is how long a process hand-off is left alone after one ran: a
+// shortcut held down (or a global hotkey the desktop repeats while the key is
+// down) fired the hand-off once per repeat, and every hand-off is a *process* —
+// a shell in the panel, another emulator window, or a detached command line.
+// The report 「这边的某些快捷键会导致反复弹出终端，从而导致卡死」 is that
+// storm: the repeat rate of a held key outruns anything the user can see, and
+// the machine ends up with dozens of shells and a window that cannot keep up.
+// One hand-off per press is the intent of the key, so the second one inside the
+// gap is a repeat, not a request.
+const spawnGap = 750 * time.Millisecond
 
-// allowTerminalSpawn reports whether a terminal hand-off may run now, and
-// records it when it may. The clock is the app's own, so the rule is a unit
-// test rather than a stopwatch.
-func (a *App) allowTerminalSpawn() bool {
+// The hand-off kinds the gate keeps apart. Two different hand-offs inside one
+// gap are two presses — opening the user's emulator and then running a command
+// is a person, not a repeating key — so each kind carries its own clock, and
+// only a *repeat of the same hand-off* is dropped.
+const (
+	spawnSession  = "session"
+	spawnExternal = "external"
+	spawnCommand  = "command"
+)
+
+// allowSpawn reports whether a hand-off of this kind may run now, and records
+// it when it may. Every route that starts a process — a session in the panel,
+// the user's own emulator, a detached command line — asks here first, so the
+// rule is one rule and not a guard per callback (the bug this closes was three
+// routes sharing a storm and only one of them gated). The clock is the app's
+// own, so the rule is a unit test rather than a stopwatch.
+func (a *App) allowSpawn(kind string) bool {
 	now := a.now()
-	if !a.terminalSpawnAt.IsZero() && now.Sub(a.terminalSpawnAt) < terminalSpawnGap {
+	if a.spawnAt == nil {
+		a.spawnAt = make(map[string]time.Time, 3)
+	}
+	if last := a.spawnAt[kind]; !last.IsZero() && now.Sub(last) < spawnGap {
 		return false
 	}
-	a.terminalSpawnAt = now
+	a.spawnAt[kind] = now
 	return true
+}
+
+// openTerminalSession is the one gate every in-panel session goes through: run
+// starts the session, and the terminal surface comes forward either way, so a
+// repeat of the press that started it shows that session rather than forking a
+// second shell beside it. A session is a shell process, and a held key repeats
+// at a rate nothing on screen can follow — the report 「反复弹出终端，从而导致
+// 卡死」.
+func (a *App) openTerminalSession(run func()) {
+	if a.Terminal == nil {
+		return
+	}
+	if a.allowSpawn(spawnSession) {
+		run()
+	}
+	a.Open(SurfaceTerminal)
 }
 
 // openInTerminal opens the terminal surface in a directory: the dropped file's
@@ -132,17 +164,7 @@ func (a *App) allowTerminalSpawn() bool {
 // (the user's shell), so the directory is somewhere to start rather than a
 // command to watch.
 func (a *App) openInTerminal(dir string) {
-	if a.Terminal == nil {
-		return
-	}
-	if !a.allowTerminalSpawn() {
-		// A repeat of the same key: the session the first press started is
-		// the one to show, not a second shell beside it.
-		a.Open(SurfaceTerminal)
-		return
-	}
-	a.Terminal.RunShellIn(dir)
-	a.Open(SurfaceTerminal)
+	a.openTerminalSession(func() { a.Terminal.RunShellIn(dir) })
 }
 
 // openTerminalWindow opens the user's own terminal emulator, with a login
@@ -164,7 +186,7 @@ func (a *App) openTerminalWindow() {
 // 终端，从而导致卡死」 was exactly that storm. The failed callback says where a
 // machine with no emulator to open reports it: the surface the press came from.
 func (a *App) spawnExternalTerminal(failed func(error)) {
-	if !a.allowTerminalSpawn() {
+	if !a.allowSpawn(spawnExternal) {
 		return
 	}
 	if err := a.OpenExternalTerminal(); err != nil {

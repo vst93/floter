@@ -94,21 +94,27 @@ func TestTheExtensionFieldKeepsItsMetricsAtEveryInterfaceStep(t *testing.T) {
 		t.Errorf("the extension field's horizontal padding moves with the interface step: %vpx at small, %vpx at large",
 			small.inset, large.inset)
 	}
-	if absFloat(small.height-28) > 1 || absFloat(large.height-28) > 1 {
+	// The 28px is the reference's `min-height` and stays a floor: the box never
+	// goes under it at any step, and a step whose own type needs more than 28px
+	// pushes it taller — exactly what `min-height` does over the reference's
+	// scaled `--text-body`. What the pin owns is the literal *metrics*: the 4/8
+	// padding (the 9px inset above) and the floor, not a fixed box.
+	if absFloat(small.height-28) > 1 || large.height < 28-1 {
 		t.Errorf("the extension field's box is %vpx (small) / %vpx (large), want the reference's 28px floor",
 			small.height, large.height)
 	}
-	if absFloat(small.height-large.height) > 1 {
-		t.Errorf("the extension field's box height moves with the interface step: %vpx at small, %vpx at large",
-			small.height, large.height)
-	}
 
-	// The contrast that proves the pin is scoped: a General-page field keeps
-	// the framework's `--u` metrics and grows with the step.
+	// The contrast that proves the pin is scoped and real: a General-page field
+	// keeps the framework's `--u` metrics and grows by the whole step, while the
+	// pinned field moves only as far as its own text line box pushes it.
 	setSmall, setLarge := measureField(t, "small", false), measureField(t, "large", false)
 	if setLarge.height-setSmall.height < 3 {
 		t.Errorf("the settings field is %vpx at small and %vpx at large; it must keep following the interface step",
 			setSmall.height, setLarge.height)
+	}
+	if pinned, loose := large.height-small.height, setLarge.height-setSmall.height; pinned >= loose {
+		t.Errorf("the pinned extension field moved %vpx across the two steps while the settings field moved %vpx: the pin is not holding",
+			pinned, loose)
 	}
 	if setLarge.inset-setSmall.inset < 2 {
 		t.Errorf("the settings field's padding is %vpx at small and %vpx at large; it must keep following the interface step",
@@ -209,16 +215,19 @@ func TestTheExtensionSelectKeepsItsMetricsAtEveryInterfaceStep(t *testing.T) {
 	}
 
 	small, large := measure("small", true), measure("large", true)
-	if absFloat(small-28) > 1 || absFloat(large-28) > 1 {
+	// The 28px is a floor, not a fixed box: it never goes under, and the step's
+	// own type can push it taller (see the field's own test).
+	if absFloat(small-28) > 1 || large < 28-1 {
 		t.Errorf("the extension select is %vpx (small) / %vpx (large), want the reference's 28px floor", small, large)
-	}
-	if absFloat(small-large) > 1 {
-		t.Errorf("the extension select's box moves with the interface step: %vpx at small, %vpx at large", small, large)
 	}
 	setSmall, setLarge := measure("small", false), measure("large", false)
 	if setLarge-setSmall < 3 {
 		t.Errorf("the settings select is %vpx at small and %vpx at large; it must keep following the step",
 			setSmall, setLarge)
+	}
+	if pinned, loose := large-small, setLarge-setSmall; pinned >= loose {
+		t.Errorf("the pinned extension select moved %vpx across the two steps while the settings one moved %vpx: the pin is not holding",
+			pinned, loose)
 	}
 }
 

@@ -166,24 +166,58 @@ func TestSunkenFollowsTheOpacity(t *testing.T) {
 	}
 }
 
-// The ladder scales once, by the step: the display register at the Large step
-// is 17 points times 1.1, not "body plus six points" - the offset that grew
-// with every step above the shipped one.
+// The ladder scales once, by the step: every register at the Large step is its
+// own base times 1.1, not "body plus an offset" - the offset that grew with
+// every step above the shipped one.
+//
+// The ladder is one rung above the reference's (11/12/13/14/19), because the
+// **shipped** step is `small` = 0.9: one rung up is what makes the shipped step
+// draw base.css's own 10/11/12/13/17. The old ladder was the base numbers, so
+// the shipped step drew the whole design at 90% (a 9pt caption, a 10.8pt
+// emphasis) and every surface read cramped - 「整体 UI/UX 很 小气」.
 func TestLadderScalesWithTheStep(t *testing.T) {
 	large := For(settings.Settings{Theme: "dark", UIScale: "large"}, false)
-	if large.Display < 18.6 || large.Display > 18.8 {
-		t.Errorf("display at Large = %v, want 17 x 1.1", large.Display)
+	if large.Display < 20.8 || large.Display > 21.0 {
+		t.Errorf("display at Large = %v, want 19 x 1.1", large.Display)
 	}
-	if large.Title < 14.2 || large.Title > 14.4 {
-		t.Errorf("title at Large = %v, want 13 x 1.1", large.Title)
+	if large.Title < 15.3 || large.Title > 15.5 {
+		t.Errorf("title at Large = %v, want 14 x 1.1", large.Title)
 	}
-	if large.Body < 12.0 || large.Body > 12.2 {
-		t.Errorf("body at Large = %v, want 11 x 1.1", large.Body)
+	if large.Body < 13.1 || large.Body > 13.3 {
+		t.Errorf("body at Large = %v, want 12 x 1.1", large.Body)
 	}
-	// The shipped step: 0.9.
+	// The shipped step: 0.9. Its registers land on base.css's own physical
+	// sizes — caption 10, body 11, emphasis 12, title 13, display 17 — within
+	// half a point, which is the whole point of the rung.
 	small := For(settings.Settings{Theme: "dark"}, false)
-	if small.Display < 15.2 || small.Display > 15.4 {
-		t.Errorf("display at Small = %v, want 17 x 0.9", small.Display)
+	for _, reg := range []struct {
+		name   string
+		got    float32
+		want   float64
+		expect float32
+	}{
+		{"caption", small.Caption, 10, 9.9},
+		{"body", small.Body, 11, 10.8},
+		{"emphasis", small.Emphasis, 12, 11.7},
+		{"title", small.Title, 13, 12.6},
+		{"display", small.Display, 17, 17.1},
+	} {
+		if d := float64(reg.got) - reg.want; d > 0.5 || d < -0.5 {
+			t.Errorf("the shipped step's %s = %v, want the reference's %v (one rung up x 0.9)",
+				reg.name, reg.got, reg.want)
+		}
+		// And its own number, spelled out: a test that only compares against
+		// the reference's sizes is satisfied by any rung that lands near it,
+		// and the regression this guards is the ladder sliding back down.
+		if reg.got != reg.expect {
+			t.Errorf("the shipped step's %s = %v, want %v (11/12/13/14/19 x 0.9)",
+				reg.name, reg.got, reg.expect)
+		}
+	}
+	// The framework's own body size is the ladder's body register, so a widget
+	// the views do not size by hand is the same size as the text beside it.
+	if small.Theme.FontSize != small.Body {
+		t.Errorf("the theme's font size = %v, want the body register %v", small.Theme.FontSize, small.Body)
 	}
 }
 

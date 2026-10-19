@@ -336,7 +336,7 @@ func TestTerminalHandOffIgnoresRepeats(t *testing.T) {
 	if calls.external != 1 {
 		t.Fatalf("three presses started %d terminals, want 1", calls.external)
 	}
-	clock = clock.Add(terminalSpawnGap + time.Millisecond)
+	clock = clock.Add(spawnGap + time.Millisecond)
 	a.openTerminalWindow()
 	if calls.external != 2 {
 		t.Errorf("a press after the gap started %d terminals in total, want 2", calls.external)
@@ -359,7 +359,7 @@ func TestEveryExternalTerminalRouteIsSingleFlight(t *testing.T) {
 		t.Fatalf("the custom action started %d terminals, want 1", calls.external)
 	}
 
-	clock = clock.Add(terminalSpawnGap + time.Millisecond)
+	clock = clock.Add(spawnGap + time.Millisecond)
 	a.spawnExternalTerminal(func(error) {})
 	if calls.external != 2 {
 		t.Errorf("a hand-off after the gap started %d terminals in total, want 2", calls.external)

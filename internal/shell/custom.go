@@ -130,6 +130,13 @@ func (a *App) runCustomShortcut(action string) {
 	case "action":
 		a.runAppAction(value)
 	default:
+		// A command line is a process too, and a held shortcut repeats: the
+		// same gate the terminal hand-offs use keeps one press to one process
+		// (the report 「某些快捷键会导致反复弹出终端」 covers a shortcut bound
+		// to a command that opens a window of its own).
+		if !a.allowSpawn(spawnCommand) {
+			return
+		}
 		if err := a.runSilentCommand(value); err != nil {
 			log.Printf("floter: custom shortcut command %q: %v", value, err)
 		}

@@ -144,9 +144,15 @@ func TestTheCommandAliasFieldKeepsItsLiteralBoxAndCorner(t *testing.T) {
 			small.inset, large.inset)
 	}
 	// The box is the caption register, not the body-scale framework field the
-	// old port drew: it is under the 28px/30px pills beside it.
-	if small.height >= 28 || large.height >= 28 {
-		t.Errorf("the alias field's box is %vpx (small) / %vpx (large), want the caption-scale box, not a 28px pill",
+	// old port drew: it stays under the 30px control pill beside it at *every*
+	// step (the pill is a literal 30u box while the alias is a caption line and
+	// its literal 4/8 padding), and it is not the same box at both steps — the
+	// caption font follows the step even though the padding is literal. A fixed
+	// 28px ceiling would be the wrong acceptance: the caption register grows
+	// with the step, so at `large` a caption-scale box is legitimately past 28
+	// and only has to stay under the pill.
+	if small.height >= 30 || large.height >= 30 {
+		t.Errorf("the alias field's box is %vpx (small) / %vpx (large), want a caption-scale box under the 30px control pill",
 			small.height, large.height)
 	}
 	if small.height == large.height {
@@ -603,8 +609,12 @@ func TestTheAffirmativeActionWearsThePrimaryAccentFace(t *testing.T) {
 
 		img := tt.Image()
 		black := ui.RGBA(0, 0, 0, 1)
-		pfill := imagePixel(img, int(primary.X+primary.W/2), int(primary.Y+primary.H/2))
-		nfill := imagePixel(img, int(neutral.X+neutral.W/2), int(neutral.Y+neutral.H/2))
+		// Sampled near each pill's leading edge, inside the fill and clear of
+		// the centred label: the label is the row's own body text, so its ink
+		// reaches the box's middle as the type grows and a centre sample would
+		// read a glyph instead of the face.
+		pfill := imagePixel(img, int(primary.X+6), int(primary.Y+primary.H/2))
+		nfill := imagePixel(img, int(neutral.X+6), int(neutral.Y+neutral.H/2))
 		wantAccent := panelOver(tokens.Theme.Accent, black)
 		wantControl := panelOver(tokens.Control, black)
 		if !panelClose(pfill, wantAccent, 6) {

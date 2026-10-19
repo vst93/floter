@@ -56,11 +56,18 @@ const (
 	RadiusMD = 12
 	RadiusLG = 14
 
-	// BodyUnits is the body text size in the old app's unit, `--text-body`:
-	// 11px at scale 1. Every size in this codebase is in the same unit (a
+	// BodyUnits is the body text size in this codebase's own unit, `--text-body`
+	// one rung up: 12px at scale 1. Every size in this file's unit (a
 	// `Space(n)` is four of them), so the framework theme's point size is set
 	// from it rather than from the framework's own default.
-	BodyUnits = 11
+	//
+	// The reference's own register is 11px *at its scale 1*; the shipped
+	// interface step is `small` (0.9), so the ladder is written one rung up and
+	// the shipped step lands on the reference's physical sizes (see the ladder
+	// in ForPlatform). Reading the design off the shipped step instead means
+	// every user sees the design at its own size without first finding
+	// 「界面大小」 — which is what made the whole app read as 小气.
+	BodyUnits = 12
 )
 
 // Tokens is the resolved theme: the appearance, the framework theme the
@@ -384,14 +391,25 @@ func ForPlatform(s settings.Settings, systemDark bool, prefs ui.Preferences, goo
 		floatFill = ui.RGB(252, 252, 254)
 	}
 
-	// The ladder, at the step: base.css's own registers (caption 10, body 11,
-	// emphasis 12, title 13, display 17), each scaled once here rather than
-	// spelled as an offset wherever a register is needed.
-	caption := round1(10 * f)
-	body := round1(11 * f)
-	emphasis := round1(12 * f)
-	title := round1(13 * f)
-	display := round1(17 * f)
+	// The ladder, at the step: the reference's own registers (caption 10, body
+	// 11, emphasis 12, title 13, display 17) one rung up (11/12/13/14/19), each
+	// scaled once here rather than spelled as an offset wherever a register is
+	// needed.
+	//
+	// One rung up is what makes the **shipped** step the reference's own sizes:
+	// `small` is 0.9, and 11/12/13/14/19 x 0.9 = 9.9/10.8/11.7/12.6/17.1, i.e.
+	// base.css's 10/11/12/13/17 within a tenth of a point. The ladder used to
+	// be the base numbers themselves, so the shipped step drew the design at
+	// 90% — a 9pt caption, a 10.8pt emphasis, a 15.3pt display — and every
+	// surface read cramped against the window it sat in (「整体 UI/UX 很
+	// 小气」). A step above the shipped one now draws *larger* than the
+	// reference rather than the reference shrinking below it: the ladder is a
+	// named size, the step is the user's magnification of it.
+	caption := round1(11 * f)
+	body := round1(12 * f)
+	emphasis := round1(13 * f)
+	title := round1(14 * f)
+	display := round1(19 * f)
 
 	return Tokens{
 		Appearance:  appearance,
