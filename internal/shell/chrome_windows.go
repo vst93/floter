@@ -50,11 +50,11 @@ const (
 // (DWMWA_WINDOW_CORNER_PREFERENCE, 33). Both are drawn *outside* the app's own
 // card: the border is the 「窗口周边外圈还有一圈额外的底色」 line, and the
 // system's rounding clips the transparent corners into opaque wedges against the
-// card's own smaller radius. The card is the whole of the window's chrome, so
-// the border goes (DWMWA_COLOR_NONE, 0xFFFFFFFE — the documented "no border"
-// value, not black) and the rectangle stays square
-// (DWMWCP_DONOTROUND), which leaves the card's own rounding as the only one on
-// screen — the same shape macOS and Linux give it.
+// card's own radius. The card is the whole of the window's chrome, so the border
+// goes (DWMWA_COLOR_NONE, 0xFFFFFFFE — the documented "no border" value, not
+// black) and the rectangle stays square (DWMWCP_DONOTROUND), which leaves the
+// card's own 14px rounding as the only one on screen — the same shape, and the
+// same figure, macOS and Linux give it.
 const (
 	dwmwaWindowCornerPreference = 33
 	dwmwaBorderColor            = 34

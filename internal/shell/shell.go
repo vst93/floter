@@ -3910,10 +3910,9 @@ func (a *App) View(c *ui.Context) {
 	a.logGeometry(windowWidth, cardWidth, material, left, right)
 	ui.Column(c).Fill().Padding(top, right, bottom, left).AlignItems(ui.Center).Children(func() {
 		// The card *is* the window on every surface, so its corner is the
-		// window's own: 14px off Windows, 8px there — DWM rounds the window at
-		// its 8px preset, and a 14px card corner inside it leaves the frame's
-		// color showing as four crescents (base.css:66/1492, and see
-		// theme.WindowsWindowRadius).
+		// design's own 14px (base.css:66) — the same on all three platforms,
+		// because DWM no longer rounds the window on Windows (see
+		// theme.windowRadiusFor and shell.dressWindowsFrame).
 		radius := surface.Tokens.WindowRadius
 		if !material {
 			// The card is the whole window there: rounded corners would leave
@@ -4152,6 +4151,15 @@ const (
 // in it (see CardWidth).
 func (a *App) holdContractWidth(windowWidth float32) {
 	if a.Win == nil || a.Surf == SurfaceTerminal {
+		return
+	}
+	// A frame that is mid-walk already asks the window for the contract's width
+	// (walkLauncherHeight's SetSize is 720 wide by construction), so the pull
+	// would be a second synchronous SetWindowPos in the same frame for a width
+	// the frame has just requested. The walk is the one that has to run — it is
+	// the height the keystroke asked for — and the pull resumes on the first
+	// frame the walk has landed.
+	if a.lastH != a.launcherTarget {
 		return
 	}
 	contract := float32(launcher.InputWindowWidth)

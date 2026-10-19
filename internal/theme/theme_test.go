@@ -765,36 +765,35 @@ func TestThePlatformsMaterialReachesTheTokens(t *testing.T) {
 	}
 }
 
-// The window's own corner is the platform's, not the design's.
+// The window's own corner is one number on all three platforms.
 //
 // base.css carries two `--window-radius` values: 14px for the default sheet and
-// 8px inside `.platform-windows` (`base.css:66,1492`), because Windows' DWM
-// rounds every window at its own ~8px preset (`DWMWCP_ROUND`) and the card's
-// corner has to follow it — a 14px card corner inside an 8px window corner
-// leaves the system's frame color showing as a crescent in each corner, which
-// is one of the pieces the user read as 「窗口周边外圈还有一圈额外的底色」.
+// 8px inside `.platform-windows` (`base.css:66,1492`). The 8px was not a taste
+// decision — it followed DWM, which rounds every top-level window at its own
+// ~8px preset, and a 14px card corner inside an 8px window corner leaves the
+// system's frame color showing as a crescent in each corner (one of the pieces
+// the user read as 「窗口周边外圈还有一圈额外的底色」).
 //
-// The port had one radius for all three platforms (RadiusLG), so Windows' card
-// was the reference's macOS corner. The three answers are pinned by name here
-// so no host's suite can only see its own.
-func TestTheWindowsWindowCornerFollowsDWM(t *testing.T) {
+// This build takes the system's rounding off the window instead
+// (`DWMWCP_DONOTROUND`, see shell.dressWindowsFrame and the constants pinned in
+// chrome_windows_test.go), so the window's rectangle is square and the card's
+// corner is the only one on screen — and it is the design's own 14px, the figure
+// macOS and Linux draw. The three answers are pinned by name here so no host's
+// suite can only see its own.
+func TestTheWindowCornerIsTheDesignsOnEveryPlatform(t *testing.T) {
 	s := settings.Settings{}
-	for _, tc := range []struct {
-		goos string
-		want float32
-	}{
-		{"windows", 8},
-		{"darwin", RadiusLG},
-		{"linux", RadiusLG},
-	} {
-		got := ForPlatform(s, true, ui.Preferences{}, tc.goos).WindowRadius
-		if got != tc.want {
-			t.Errorf("%s window radius = %v, want %v", tc.goos, got, tc.want)
+	for _, goos := range []string{"windows", "darwin", "linux"} {
+		tokens := ForPlatform(s, true, ui.Preferences{}, goos)
+		if tokens.WindowRadius != RadiusLG {
+			t.Errorf("%s window radius = %v, want the design's %v", goos, tokens.WindowRadius, float32(RadiusLG))
 		}
-		// The rung it replaces is untouched: `--radius-lg` stays 14px in the
-		// ladder (a card holding controls), whatever the window's corner is.
-		if lg := ForPlatform(s, true, ui.Preferences{}, tc.goos).RadiusLG; lg != RadiusLG {
-			t.Errorf("%s RadiusLG = %v, want the ladder's %v", tc.goos, lg, float32(RadiusLG))
+		// The rung the card takes and the rung the ladder names are the same
+		// number: a card holding controls and the window are one corner here.
+		if tokens.RadiusLG != RadiusLG {
+			t.Errorf("%s RadiusLG = %v, want the ladder's %v", goos, tokens.RadiusLG, float32(RadiusLG))
 		}
+	}
+	if RadiusLG != 14 {
+		t.Errorf("the ladder's window rung = %v, want base.css's 14px", float32(RadiusLG))
 	}
 }

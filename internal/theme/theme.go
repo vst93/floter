@@ -56,16 +56,6 @@ const (
 	RadiusMD = 12
 	RadiusLG = 14
 
-	// WindowsWindowRadius is the window's own corner on Windows: DWM rounds
-	// every window at its ~8px preset (`DWMWCP_ROUND`), so base.css pins
-	// `--window-radius` to that same figure there (`base.css:1492`) instead of
-	// the 14px the other two platforms use (`base.css:66`). The card draws
-	// *inward* from the window's own edge, so a 14px card corner inside an 8px
-	// window corner leaves the DWM background showing as a crescent at each
-	// corner — one of the pieces the user read as 「窗口周边外圈还有一圈额外的
-	// 底色」. See windowRadiusFor.
-	WindowsWindowRadius = 8
-
 	// BodyUnits is the body text size in this codebase's own unit, `--text-body`
 	// one rung up: 12px at scale 1. Every size in this file's unit (a
 	// `Space(n)` is four of them), so the framework theme's point size is set
@@ -80,17 +70,21 @@ const (
 	BodyUnits = 12
 )
 
-// windowRadiusFor is the corner a surface that *is* the window draws. Windows
-// is the one platform whose window is rounded by the system at its own preset,
-// and a card whose corner is larger than the window's shows the system's frame
-// color in the four crescents between the two arcs (see
-// WindowsWindowRadius). macOS's 14px is the window server's own corner there
-// and Linux's is the compositor's; the card matches it. It takes the platform
-// as a parameter so all three answers are one table a test reads on any host.
-func windowRadiusFor(goos string) float32 {
-	if goos == "windows" {
-		return WindowsWindowRadius
-	}
+// windowRadiusFor is the corner a surface that *is* the window draws: the
+// design's 14px on all three platforms (`base.css:66`).
+//
+// Windows used to be the exception — base.css pins `--window-radius` to 8px
+// inside `.platform-windows` (`:1492`) because DWM rounds every top-level window
+// at its own ~8px preset, and a card corner larger than the window's leaves the
+// system's frame color showing as a crescent between the two arcs. This build no
+// longer lets DWM round the window: `shell.dressWindowsFrame` asks for
+// `DWMWCP_DONOTROUND` and takes the system border off as well, so the window's
+// rectangle is square and the card's corner is the only corner on screen. That
+// corner is the design's own 14px, the same figure macOS and Linux draw — which
+// is the point: the three platforms are meant to look like one app.
+//
+// The platform stays a parameter so the table is readable on any host.
+func windowRadiusFor(string) float32 {
 	return RadiusLG
 }
 
@@ -108,13 +102,13 @@ type Tokens struct {
 	RadiusXS float32
 	RadiusSM float32
 	RadiusMD float32
-	// RadiusLG is the window or a full panel's corner off Windows; on Windows
-	// the window itself is what decides the corner, and that is WindowRadius
-	// (see WindowsWindowRadius).
+	// RadiusLG is the window or a full panel's corner: 14px.
 	RadiusLG float32
 	// WindowRadius is the corner a surface that *is* the window draws: the
-	// launcher card, the settings card and the terminal panel. It is RadiusLG
-	// everywhere but Windows, which rounds the window at 8px.
+	// launcher card, the settings card and the terminal panel. It is RadiusLG on
+	// every platform — the window's own rectangle is square everywhere this
+	// build runs, because DWM's rounding is switched off (see
+	// windowRadiusFor).
 	WindowRadius float32
 
 	// InputStroke is the one edge a card or a control draws (base.css's

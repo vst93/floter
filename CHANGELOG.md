@@ -17,6 +17,12 @@ floter 面向用户的变更记录。格式参考 [Keep a Changelog](https://kee
 
 ### Fixed
 
+- **Windows 的卡片圆角与 macOS/Linux 对齐（14px）**：Windows 的卡片此前用 8px，理由只有一个
+  ——DWM 会自己把每个窗口圆角裁到 ~8px，14px 的卡片角会在四角漏出系统框色。本版改为让 DWM
+  **不**圆角（`DWMWCP_DONOTROUND`）、同时去掉它画的那一圈 1px 边框，于是窗口矩形是方的、屏幕
+  上唯一的圆角就是卡片自己的圆角——和另外两个平台同一个 14px、同一个形状。三平台一致性优先
+  的又一处收口。
+
 - **玻璃滑到「关」时 Windows 窗口整体变不透明**：Windows 的「桌面能不能透过来」是建窗时由
   material 推出的窗口终身 style（`noRedirect`），此前 `off` 档请求「无 material」，窗口因此
   永远不透明，而 macOS/Linux 同一档仍然透出桌面（「背景透明都没做到」里的一条）。现在三平台
