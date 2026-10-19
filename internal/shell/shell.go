@@ -12,6 +12,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"math"
 	"os"
@@ -3797,9 +3798,14 @@ func (a *App) View(c *ui.Context) {
 	}
 	a.holdContractWidth(windowWidth)
 	cardWidth := CardWidth(a.Surf, windowWidth, left, right)
-	a.logGeometry(windowWidth, cardWidth)
+	a.logGeometry(windowWidth, cardWidth, material, left, right)
 	ui.Column(c).Fill().Padding(top, right, bottom, left).AlignItems(ui.Center).Children(func() {
-		radius := surface.Tokens.RadiusLG
+		// The card *is* the window on every surface, so its corner is the
+		// window's own: 14px off Windows, 8px there — DWM rounds the window at
+		// its 8px preset, and a 14px card corner inside it leaves the frame's
+		// color showing as four crescents (base.css:66/1492, and see
+		// theme.WindowsWindowRadius).
+		radius := surface.Tokens.WindowRadius
 		if !material {
 			// The card is the whole window there: rounded corners would leave
 			// four wedges of the window's frame color at the corners.
@@ -4316,7 +4322,7 @@ func scriptContent(integration extensions.Integration) string {
 // the insets small is a card that did not fill the frame. Eight rounds of that
 // report were answered by inference because the numbers never left the machine;
 // this is the line a report can quote.
-func (a *App) logGeometry(windowWidth, cardWidth float32) {
+func (a *App) logGeometry(windowWidth, cardWidth float32, material bool, left, right float32) {
 	if a.Win == nil {
 		return
 	}
@@ -4326,6 +4332,23 @@ func (a *App) logGeometry(windowWidth, cardWidth float32) {
 	}
 	a.loggedSurface, a.loggedWidth = a.Surf, windowWidth
 	a.loggedWindowW, a.loggedWindowH = w, h
-	log.Printf("floter: geometry surface=%s frame=%.1f card=%.1f window=%dx%d",
-		a.Surf.Name(), windowWidth, cardWidth, w, h)
+	log.Print(geometryLine(runtime.GOOS, a.Surf.Name(), windowWidth, cardWidth, w, h, material, left, right))
+}
+
+// geometryLine is the geometry report as one line of text: the numbers a
+// report about 「窗口外圈底色」/「搜索页左右空白」 has to quote, so the answer
+// does not come from inference again.
+//
+// The three width readings are what separate the candidates: `frame != window`
+// is a client that came back at another size (a compositor sizing its own
+// toplevel, a DPI step), `frame == window` with `card < frame` is the
+// platform's own inset band, and `card == frame` with a band still visible on
+// screen is neither of those — it is the window's material (`material=false`
+// means the card is painted opaque over the whole window instead, see
+// windowShowsMaterial). The inset pair is printed beside the card because the
+// two are one decision (`insetFor`).
+func geometryLine(goos, surface string, frame, card float32, windowW, windowH int, material bool, left, right float32) string {
+	return fmt.Sprintf(
+		"floter: geometry surface=%s os=%s frame=%.1f card=%.1f window=%dx%d inset.l=%.1f inset.r=%.1f material=%t",
+		surface, goos, frame, card, windowW, windowH, left, right, material)
 }

@@ -834,7 +834,10 @@ func (a *App) View(c *ui.Context) {
 	spec := glassmap.SpecForPreferencesOS(runtime.GOOS, stored.GlassStep, stored.TerminalOpacity, c.Preferences().HighContrast)
 	session := a.Current()
 	running := session != nil && session.Term != nil
-	ui.Box(c).Fill().Radius(tokens.RadiusLG).Background(panelFill(stored.TerminalTheme, running, spec, tokens)).Children(func() {
+	// The panel is the window's own face (terminal.css:31 draws it at
+	// `--window-radius`), so its corner is the window's: 14px, and 8px on
+	// Windows, where DWM rounds the window at that preset.
+	ui.Box(c).Fill().Radius(tokens.WindowRadius).Background(panelFill(stored.TerminalTheme, running, spec, tokens)).Children(func() {
 		if session == nil || session.Term == nil {
 			// The empty state: what the page is, and the two lines that leave
 			// it — each its own key and label, as the old build's
