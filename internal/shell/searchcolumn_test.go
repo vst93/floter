@@ -253,12 +253,18 @@ func TestTheCardIsTheWindowLessThePlatformsInset(t *testing.T) {
 	}
 	// The window's inset is all that is left of the frame, and the field block
 	// runs from the card's own first pixel to its last: the stroke is painted
-	// *inside* the card's box, not beside it.
-	if want := int(cardLeft); runLeft != want {
+	// *inside* the card's box, not beside it. The tolerance is one pixel and it
+	// is the edge's antialiasing, not a band: a card narrower than its window
+	// leaves the platform's inset (4u and up) blank, which is several columns,
+	// while a run that starts one column inside the card's own edge is the same
+	// edge landing on a fractional device pixel (Windows' line box sits half a
+	// pixel off, so its left column is the blend of the fill and the frame).
+	const edgeSlack = 1
+	if want := int(cardLeft); absi(runLeft-want) > edgeSlack {
 		t.Errorf("the field block starts at x=%d, want x=%d: the card is narrower than the window's inset allows (a blank band inside the card)",
 			runLeft, want)
 	}
-	if want := int(cardRight); runRight != want {
+	if want := int(cardRight); absi(runRight-want) > edgeSlack {
 		t.Errorf("the field block ends at x=%d, want x=%d: the card is narrower than the window's inset allows (a blank band inside the card)",
 			runRight, want)
 	}

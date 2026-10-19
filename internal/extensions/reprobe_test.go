@@ -52,8 +52,8 @@ func reprobeFixture(t *testing.T, toolScript string) (Paths, string) {
 	  "extensions": {"dev.floter.tool": {"id": "dev.floter.tool", "name": "Tool",
 	    "publisherId": "local-user", "providerKind": "static-descriptor",
 	    "state": "enabled", "enabled": true,
-	    "manifestPath": "` + filepath.Join(pkg, manifestFileName) + `",
-	    "executablePath": "` + executable + `",
+	    "manifestPath": "` + jsonEscaped(filepath.Join(pkg, manifestFileName)) + `",
+	    "executablePath": "` + jsonEscaped(executable) + `",
 	    "installedAt": 1, "updatedAt": 1}}
 	}`
 	if err := os.WriteFile(paths.RepositoryFile, []byte(repository), 0o644); err != nil {

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 
 	"floter/internal/extensions"
@@ -67,7 +68,12 @@ func (t Tool) Materialize(dir string) error {
 		if entry.IsDir() {
 			continue
 		}
-		data, err := packages.ReadFile(filepath.Join(t.Dir, entry.Name()))
+		// The path into an embed.FS is slash-separated on every platform: a
+		// filepath.Join here hands Windows a `v-tools\\floter.extension.json`,
+		// which io/fs rejects as an invalid path, so connecting a shipped
+		// package failed on Windows with "file does not exist" before any
+		// install ran.
+		data, err := packages.ReadFile(path.Join(t.Dir, entry.Name()))
 		if err != nil {
 			return err
 		}

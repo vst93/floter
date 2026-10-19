@@ -41,10 +41,10 @@ func syncFixture(t *testing.T) (Paths, string) {
 	repo := `{"schemaVersion":1,"extensions":{
 	  "dev.floter.scripted": {"id":"dev.floter.scripted","name":"Scripted","state":"enabled","enabled":true,
 	    "packageVersion":"1.2.0","distributionSource":"local","runtimeOwnership":"bundled",
-	    "manifestPath":"` + filepath.Join(scriptDir, manifestFileName) + `","installedAt":1,"updatedAt":1},
+	    "manifestPath":"` + jsonEscaped(filepath.Join(scriptDir, manifestFileName)) + `","installedAt":1,"updatedAt":1},
 	  "dev.floter.static": {"id":"dev.floter.static","name":"Static","state":"disabled","enabled":false,
 	    "packageVersion":"0.5.0","distributionSource":"npm","runtimeOwnership":"system",
-	    "manifestPath":"` + filepath.Join(staticDir, manifestFileName) + `","installedAt":1,"updatedAt":1}
+	    "manifestPath":"` + jsonEscaped(filepath.Join(staticDir, manifestFileName)) + `","installedAt":1,"updatedAt":1}
 	}}`
 	writeFile(t, paths.RepositoryFile, repo)
 

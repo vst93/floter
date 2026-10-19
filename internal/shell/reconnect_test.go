@@ -66,7 +66,7 @@ func reconnectFixture(t *testing.T, bound string) (extensions.Paths, string) {
       "id": "dev.floter.moved", "name": "Moved Tool", "state": "enabled", "enabled": true,
       "distributionSource": "local", "runtimeOwnership": "system",
       "packageVersion": "1.0.0", "manifestPath": "",
-      "executablePath": "`+bound+`",
+      "executablePath": "`+jsonEscaped(bound)+`",
       "channel": "stable", "installedAt": 1, "updatedAt": 1
     }
   }

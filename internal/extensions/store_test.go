@@ -66,14 +66,14 @@ func fixture(t *testing.T) (Paths, string) {
       "id": "io.github.vst93.v", "name": "V Tools", "publisherName": "vst",
       "distributionSource": "local", "runtimeOwnership": "system", "providerKind": "executable",
       "state": "enabled", "enabled": true, "packageVersion": "0.0.12",
-      "manifestPath": "", "executablePath": "`+executable+`", "channel": "stable",
+      "manifestPath": "", "executablePath": "`+jsonEscaped(executable)+`", "channel": "stable",
       "installedAt": 1, "updatedAt": 1
     },
     "dev.floter.static": {
       "id": "dev.floter.static", "name": "Static Tools", "publisherName": "floter",
       "distributionSource": "built-in", "runtimeOwnership": "bundled", "providerKind": "static-descriptor",
       "state": "disabled", "enabled": false, "packageVersion": "1.0.0",
-      "manifestPath": "`+filepath.Join(staticPkg, manifestFileName)+`", "executablePath": "", "channel": "stable",
+      "manifestPath": "`+jsonEscaped(filepath.Join(staticPkg, manifestFileName))+`", "executablePath": "", "channel": "stable",
       "installedAt": 1, "updatedAt": 1
     }
   }
@@ -198,7 +198,7 @@ func TestStoreRecordsProviderFailures(t *testing.T) {
   "extensions": {
     "bad.tool": {
       "id": "bad.tool", "name": "Bad", "state": "enabled", "enabled": true,
-      "packageVersion": "1.0.0", "manifestPath": "", "executablePath": "`+executable+`",
+      "packageVersion": "1.0.0", "manifestPath": "", "executablePath": "`+jsonEscaped(executable)+`",
       "channel": "stable", "installedAt": 1, "updatedAt": 1
     }
   }
@@ -258,7 +258,7 @@ func TestCommandEntriesCarryTheConfiguration(t *testing.T) {
   "extensions": {
     "dev.floter.configured": {
       "id": "dev.floter.configured", "name": "Configured", "state": "enabled", "enabled": true,
-      "packageVersion": "1.0.0", "manifestPath": "", "executablePath": "`+tool+`", "channel": "stable",
+      "packageVersion": "1.0.0", "manifestPath": "", "executablePath": "`+jsonEscaped(tool)+`", "channel": "stable",
       "installedAt": 1, "updatedAt": 1
     }
   }

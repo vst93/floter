@@ -56,10 +56,10 @@ func TestCommandRouteFollowsTheManifestOutput(t *testing.T) {
 	  "schemaVersion": 1,
 	  "extensions": {
 	    "dev.floter.bg": {"id": "dev.floter.bg", "name": "bg", "state": "enabled", "enabled": true,
-	      "manifestPath": "` + filepath.Join(paths.Extensions, "dev.floter.bg", manifestFileName) + `",
+	      "manifestPath": "` + jsonEscaped(filepath.Join(paths.Extensions, "dev.floter.bg", manifestFileName)) + `",
 	      "installedAt": 1, "updatedAt": 1},
 	    "dev.floter.term": {"id": "dev.floter.term", "name": "term", "state": "enabled", "enabled": true,
-	      "manifestPath": "` + filepath.Join(paths.Extensions, "dev.floter.term", manifestFileName) + `",
+	      "manifestPath": "` + jsonEscaped(filepath.Join(paths.Extensions, "dev.floter.term", manifestFileName)) + `",
 	      "installedAt": 1, "updatedAt": 1}
 	  }
 	}`

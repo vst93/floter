@@ -41,7 +41,7 @@ func TestLaunchOverrides(t *testing.T) {
 	if err := os.WriteFile(paths.RepositoryFile, []byte(`{
 	  "schemaVersion": 1,
 	  "extensions": {"dev.floter.launched": {"id": "dev.floter.launched", "name": "Launched",
-	    "state": "enabled", "enabled": true, "manifestPath": "`+filepath.Join(dir, manifestFileName)+`",
+	    "state": "enabled", "enabled": true, "manifestPath": "`+jsonEscaped(filepath.Join(dir, manifestFileName))+`",
 	    "installedAt": 1, "updatedAt": 1}}
 	}`), 0o644); err != nil {
 		t.Fatal(err)
@@ -172,7 +172,7 @@ func TestNoLaunchOverrides(t *testing.T) {
 	if err := os.WriteFile(paths.RepositoryFile, []byte(`{
 	  "schemaVersion": 1,
 	  "extensions": {"dev.floter.plain": {"id": "dev.floter.plain", "name": "Plain",
-	    "state": "enabled", "enabled": true, "manifestPath": "`+filepath.Join(dir, manifestFileName)+`",
+	    "state": "enabled", "enabled": true, "manifestPath": "`+jsonEscaped(filepath.Join(dir, manifestFileName))+`",
 	    "installedAt": 1, "updatedAt": 1}}
 	}`), 0o644); err != nil {
 		t.Fatal(err)

@@ -92,8 +92,8 @@ exit 3
 	    "publisherId": "local-user", "publisherName": "Local user",
 	    "distributionSource": "local", "runtimeOwnership": "system",
 	    "providerKind": "static-descriptor", "state": "enabled", "enabled": true,
-	    "manifestPath": "` + filepath.Join(pkg, "floter.extension.json") + `",
-	    "executablePath": "` + executable + `",
+	    "manifestPath": "` + jsonEscaped(filepath.Join(pkg, "floter.extension.json")) + `",
+	    "executablePath": "` + jsonEscaped(executable) + `",
 	    "toolVersion": "` + recorded + `",
 	    "channel": "stable", "installedAt": 1, "updatedAt": 1}}
 	}`

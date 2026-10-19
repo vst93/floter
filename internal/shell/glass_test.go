@@ -176,23 +176,28 @@ func TestTheFrameSheenIsFixedAcrossStops(t *testing.T) {
 			}
 		}
 		// The sheen is a lit highlight, so the effect stops are clearly
-		// lighter than the off frame in this band.
+		// lighter than the off frame in this band — where the stops share one
+		// tint. A platform that veils each stop differently (macOS) also
+		// compensates the tint per stop, so the band's mean colour is a blend of
+		// three different fills, and a thinner fill mixes more of the backdrop in:
+		// the comparison of "lighter than off" is then not a statement about the
+		// sheen at all. That claim lives in internal/theme, per stop.
 		luminance := func(r, g, b float64) float64 { return r + g + b }
 		offL := luminance(offR, offG, offB)
 		fL := luminance(fR, fG, fB)
 		rL := luminance(rR, rG, rB)
 		lL := luminance(lR, lG, lB)
-		if fL-offL < 5 {
-			t.Errorf("%s: the effect stops only lit the frame by %.1f of colour (off %.1f, frosted %.1f); want a visible sheen",
-				theme, fL-offL, offL, fL)
-		}
-		// And the stop does **not** grade the frame's face: the reference's
-		// sheen is the same fixed token on every effect stop, so the three
-		// stops must be the same colour in this band (the residual few tenths
-		// are the control lens bleeding into the band mean). The stops' own
-		// difference is the control lens, graded by the per-package pixel
-		// tests — see the census in glasscensus_test.go.
 		if stopsShareOneTint(settings.DefaultMainOpacity) {
+			if fL-offL < 5 {
+				t.Errorf("%s: the effect stops only lit the frame by %.1f of colour (off %.1f, frosted %.1f); want a visible sheen",
+					theme, fL-offL, offL, fL)
+			}
+			// And the stop does **not** grade the frame's face: the reference's
+			// sheen is the same fixed token on every effect stop, so the three
+			// stops must be the same colour in this band (the residual few tenths
+			// are the control lens bleeding into the band mean). The stops' own
+			// difference is the control lens, graded by the per-package pixel
+			// tests — see the census in glasscensus_test.go.
 			if spread := max(lL, max(fL, rL)) - min(lL, min(fL, rL)); spread > 1 {
 				t.Errorf("%s: the stops moved the frame's own face by %.2f of colour (frosted %.1f, regular %.1f, liquid %.1f); the sheen is a fixed token, not a rung",
 					theme, spread, fL, rL, lL)
@@ -202,10 +207,11 @@ func TestTheFrameSheenIsFixedAcrossStops(t *testing.T) {
 			// 0.22 / 0.34), and the tint is compensated for it per stop — so the
 			// three frames are *meant* to have three different fills, and a
 			// thinner fill blends less of the backdrop into the band's mean
-			// colour. The claim itself (the sheen is a fixed token, not a rung)
-			// is pinned where it has a meaning: internal/theme's own
-			// TestTheFrameSheenIsFixedAcrossStops compares the sheen to
-			// capAlpha(fill) stop by stop, on every platform's table.
+			// colour. The claims themselves (the sheen is a fixed token, not a
+			// rung; and it is a lit highlight over the fill) are pinned where they
+			// have a meaning: internal/theme's own TestTheFrameSheenIsFixedAcrossStops
+			// compares the sheen to capAlpha(fill) stop by stop, on every
+			// platform's table.
 			t.Logf("%s: the platform veils the stops differently, so the band's colour is compared per stop (see internal/theme)", theme)
 		}
 	}

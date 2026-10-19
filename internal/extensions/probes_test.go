@@ -47,7 +47,7 @@ func probesFixture(t *testing.T, requiredStatus, optionalStatus string) (Paths, 
 	  "schemaVersion": 1,
 	  "extensions": {"dev.floter.probed": {"id": "dev.floter.probed", "name": "Probed",
 	    "state": "enabled", "enabled": true, "packageVersion": "1.0.0",
-	    "manifestPath": "`+filepath.Join(dir, manifestFileName)+`",
+	    "manifestPath": "`+jsonEscaped(filepath.Join(dir, manifestFileName))+`",
 	    "installedAt": 1, "updatedAt": 1}}
 	}`), 0o644); err != nil {
 		t.Fatal(err)
@@ -135,7 +135,7 @@ func TestReprobeRecordsAnUnresolvableRuntime(t *testing.T) {
 	  "schemaVersion": 1,
 	  "extensions": {"dev.floter.vanished": {"id": "dev.floter.vanished", "name": "Vanished",
 	    "state": "enabled", "enabled": true,
-	    "manifestPath": "`+filepath.Join(dir, manifestFileName)+`",
+	    "manifestPath": "`+jsonEscaped(filepath.Join(dir, manifestFileName))+`",
 	    "installedAt": 1, "updatedAt": 1}}
 	}`), 0o644); err != nil {
 		t.Fatal(err)
@@ -242,7 +242,7 @@ func TestReprobeRefusesWhatItCannotProbe(t *testing.T) {
 	if err := os.WriteFile(bare.RepositoryFile, []byte(`{
 	  "schemaVersion": 1,
 	  "extensions": {"dev.floter.bare": {"id": "dev.floter.bare", "name": "Bare",
-	    "state": "enabled", "enabled": true, "manifestPath": "`+filepath.Join(bareDir, manifestFileName)+`",
+	    "state": "enabled", "enabled": true, "manifestPath": "`+jsonEscaped(filepath.Join(bareDir, manifestFileName))+`",
 	    "installedAt": 1, "updatedAt": 1}}
 	}`), 0o644); err != nil {
 		t.Fatal(err)

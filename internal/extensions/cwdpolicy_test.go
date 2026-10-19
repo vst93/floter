@@ -127,7 +127,7 @@ func TestObjectCwdPolicyRefreshes(t *testing.T) {
 	}
 
 	writeCwdIntegration(t, paths, "dev.floter.root", `{"policy":"projectRoot","markers":[".git"],"maxDepth":4}`)
-	writeCwdIntegration(t, paths, "dev.floter.fixed", `{"policy":"fixed","path":"`+fixedDir+`"}`)
+	writeCwdIntegration(t, paths, "dev.floter.fixed", `{"policy":"fixed","path":"`+jsonEscaped(fixedDir)+`"}`)
 
 	store := OpenStore(paths)
 	store.Refresh(context.Background())
@@ -210,8 +210,7 @@ func writeCwdIntegration(t *testing.T, paths Paths, id, cwd string) {
 	if repo.Extensions == nil {
 		repo.Extensions = map[string]json.RawMessage{}
 	}
-	entry := `{"id":"` + id + `","name":"Cwd","state":"enabled","enabled":true,"manifestPath":"` +
-		filepath.Join(dir, manifestFileName) + `","installedAt":1,"updatedAt":1}`
+	entry := `{"id":"` + id + `","name":"Cwd","state":"enabled","enabled":true,"manifestPath":"` + jsonEscaped(filepath.Join(dir, manifestFileName)) + `","installedAt":1,"updatedAt":1}`
 	repo.Extensions[id] = json.RawMessage(entry)
 	data, err := json.Marshal(repo)
 	if err != nil {

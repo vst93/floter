@@ -546,7 +546,7 @@ func integrationFixture(t *testing.T) extensions.Paths {
       "id": "io.github.vst93.v", "name": "V Tools", "publisherName": "vst",
       "distributionSource": "local", "runtimeOwnership": "system", "providerKind": "executable",
       "state": "enabled", "enabled": true, "packageVersion": "0.0.12",
-      "manifestPath": "", "executablePath": "` + executable + `", "channel": "stable",
+      "manifestPath": "", "executablePath": "` + jsonEscaped(executable) + `", "channel": "stable",
       "installedAt": 1, "updatedAt": 1
     }
   }
@@ -1117,7 +1117,7 @@ esac
   "extensions": {
     "dev.floter.completer": {
       "id": "dev.floter.completer", "name": "Completer", "state": "enabled", "enabled": true,
-      "packageVersion": "1.0.0", "manifestPath": "", "executablePath": "`+executable+`",
+      "packageVersion": "1.0.0", "manifestPath": "", "executablePath": "`+jsonEscaped(executable)+`",
       "channel": "stable", "installedAt": 1, "updatedAt": 1
     }
   }
@@ -1190,7 +1190,7 @@ esac
   "extensions": {
     "dev.floter.diagnosed": {
       "id": "dev.floter.diagnosed", "name": "Diagnosed", "state": "enabled", "enabled": true,
-      "packageVersion": "1.0.0", "manifestPath": "", "executablePath": "`+executable+`",
+      "packageVersion": "1.0.0", "manifestPath": "", "executablePath": "`+jsonEscaped(executable)+`",
       "channel": "stable", "installedAt": 1, "updatedAt": 1
     }
   }
@@ -3038,7 +3038,7 @@ func TestIntegrationConfigurationFormEndToEnd(t *testing.T) {
 	  "schemaVersion": 1,
 	  "extensions": {"dev.floter.configured": {"id": "dev.floter.configured", "name": "Configured",
 	    "state": "enabled", "enabled": true, "packageVersion": "1.0.0",
-	    "manifestPath": "`+filepath.Join(pkg, "floter.extension.json")+`",
+	    "manifestPath": "`+jsonEscaped(filepath.Join(pkg, "floter.extension.json"))+`",
 	    "installedAt": 1, "updatedAt": 1}}
 	}`), 0o644); err != nil {
 		t.Fatal(err)
@@ -3248,7 +3248,7 @@ func TestHealthShowsOnTheRow(t *testing.T) {
 	if err := os.WriteFile(paths.RepositoryFile, []byte(`{
 	  "schemaVersion": 1,
 	  "extensions": {"dev.floter.health": {"id": "dev.floter.health", "name": "Healthy",
-	    "state": "enabled", "enabled": true, "manifestPath": "`+filepath.Join(pkg, "floter.extension.json")+`",
+	    "state": "enabled", "enabled": true, "manifestPath": "`+jsonEscaped(filepath.Join(pkg, "floter.extension.json"))+`",
 	    "installedAt": 1, "updatedAt": 1}}
 	}`), 0o644); err != nil {
 		t.Fatal(err)
@@ -3364,7 +3364,7 @@ func TestApprovalRecordReachesTheCard(t *testing.T) {
 	repo := strings.NewReplacer("{DIGEST}", digest).Replace(`{
 	  "schemaVersion": 1,
 	  "extensions": {"dev.floter.approved": {"id": "dev.floter.approved", "name": "Approved",
-	    "state": "enabled", "enabled": true, "manifestPath": "` + filepath.Join(pkg, "floter.extension.json") + `",
+	    "state": "enabled", "enabled": true, "manifestPath": "` + jsonEscaped(filepath.Join(pkg, "floter.extension.json")) + `",
 	    "installedAt": 1, "updatedAt": 1,
 	    "approvedPermissions": ["environment", "network-fetch"], "approvedAt": 1750000000,
 	    "approvedManifestDigest": "{DIGEST}"}}
@@ -3422,7 +3422,7 @@ func TestApprovalRecordReachesTheCard(t *testing.T) {
 	if err := os.WriteFile(paths.RepositoryFile, []byte(`{
 	  "schemaVersion": 1,
 	  "extensions": {"dev.floter.approved": {"id": "dev.floter.approved", "name": "Approved",
-	    "state": "enabled", "enabled": true, "manifestPath": "`+filepath.Join(pkg, "floter.extension.json")+`",
+	    "state": "enabled", "enabled": true, "manifestPath": "`+jsonEscaped(filepath.Join(pkg, "floter.extension.json"))+`",
 	    "installedAt": 1, "updatedAt": 1}}
 	}`), 0o644); err != nil {
 		t.Fatal(err)
@@ -3458,7 +3458,7 @@ func TestDebugPersistedReport(t *testing.T) {
 	if err := os.WriteFile(paths.RepositoryFile, []byte(`{
 	  "schemaVersion": 1,
 	  "extensions": {"dev.floter.health": {"id": "dev.floter.health", "name": "Healthy",
-	    "state": "enabled", "enabled": true, "manifestPath": "`+filepath.Join(pkg, "floter.extension.json")+`",
+	    "state": "enabled", "enabled": true, "manifestPath": "`+jsonEscaped(filepath.Join(pkg, "floter.extension.json"))+`",
 	    "installedAt": 1, "updatedAt": 1}}
 	}`), 0o644); err != nil {
 		t.Fatal(err)
@@ -3794,7 +3794,7 @@ func configuredIntegrationFixture(t *testing.T, saveDialog func(string) (string,
 	  "schemaVersion": 1,
 	  "extensions": {"dev.floter.configured": {"id": "dev.floter.configured", "name": "Configured",
 	    "state": "enabled", "enabled": true, "packageVersion": "1.0.0",
-	    "manifestPath": "`+filepath.Join(pkg, "floter.extension.json")+`",
+	    "manifestPath": "`+jsonEscaped(filepath.Join(pkg, "floter.extension.json"))+`",
 	    "installedAt": 1, "updatedAt": 1}}
 	}`), 0o644); err != nil {
 		t.Fatal(err)

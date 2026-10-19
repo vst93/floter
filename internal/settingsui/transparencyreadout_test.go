@@ -108,15 +108,40 @@ func TestTheTransparencySlidersExplainWhenTheyCannotMove(t *testing.T) {
 		return
 	}
 	// The reason is under the rows it is about, not floating at the top of the
-	// page.
-	reason, _ := tt.Find(copy.TransparencyUnavailable)
-	for _, row := range []string{copy.MainOpacity, copy.TerminalOpacity} {
-		slider, ok := tt.Find(row)
+	// page. Each row draws its own copy (the hint is the row's, drawn after the
+	// track), so the question is asked in drawing order rather than of the one
+	// box Find returns: the two hints and the two rows come in the same order,
+	// and every hint is drawn after the row it belongs to. Comparing the first
+	// hint's y to the second row's y instead read as "the reason floats above
+	// the terminal slider" on a host whose hint wraps a line lower, which is the
+	// font's business, not the page's.
+	texts := tt.Texts()
+	var reasonAt []int
+	rowAt := map[string]int{}
+	rows := []string{copy.MainOpacity, copy.TerminalOpacity}
+	for i, text := range texts {
+		if text == copy.TransparencyUnavailable {
+			reasonAt = append(reasonAt, i)
+		}
+		for _, row := range rows {
+			if text == row {
+				if _, seen := rowAt[row]; !seen {
+					rowAt[row] = i
+				}
+			}
+		}
+	}
+	if len(reasonAt) < len(rows) {
+		t.Fatalf("the reason %q is drawn %d time(s), want one under each of the %d rows: %q",
+			copy.TransparencyUnavailable, len(reasonAt), len(rows), texts)
+	}
+	for i, row := range rows {
+		at, ok := rowAt[row]
 		if !ok {
 			t.Fatalf("the %q row is missing", row)
 		}
-		if reason.Y <= slider.Y {
-			t.Errorf("the reason at %v is not under the %q row at %v", reason, row, slider)
+		if reasonAt[i] < at {
+			t.Errorf("the reason is drawn before the %q row (reason #%d at %d, row at %d)", row, i, reasonAt[i], at)
 		}
 	}
 }
