@@ -4095,13 +4095,22 @@ func (a *App) insetFor(material bool) (top, right, bottom, left float32) {
 }
 
 func (a *App) inset() (top, right, bottom, left float32) {
-	if a.Surf != SurfaceLauncher {
-		if runtime.GOOS == "linux" || runtime.GOOS == "windows" {
+	return insetForOS(runtime.GOOS, a.Surf)
+}
+
+// insetForOS is inset for a named platform, so the three bands are one table a
+// test can read on any host rather than three branches only the platform that
+// runs them ever sees: a wrong Windows number was invisible to the Linux and
+// macOS suites, which is exactly how the port's own 10px/9px unit slip survived
+// (see inset). The values are the reference's `--u` multiples.
+func insetForOS(goos string, surf Surface) (top, right, bottom, left float32) {
+	if surf != SurfaceLauncher {
+		if goos == "linux" || goos == "windows" {
 			return 2.5, 2.5, 2.5, 2.5 // 10u
 		}
 		return 0, 0, 0, 0
 	}
-	switch runtime.GOOS {
+	switch goos {
 	case "linux":
 		return 2.5, 2.5, 2.5, 2.5 // 10u a side
 	case "windows":

@@ -564,3 +564,77 @@ func TestAFullListKeepsItsTenthResultAndTheFooter(t *testing.T) {
 		t.Errorf("the tenth result's number = %d (present %v), want the 0 slot (%v)", got, ok, a.numbers)
 	}
 }
+
+// R-next · Over a typed query the modifier hands the footer the selection, and
+// a list that grows under it does not take the choice away.
+//
+// The user's report had three parts, and this is the third: 「应该有选中样式
+// （当前缺失）」. A typed query draws no held row (R64, see heldTerminalItem), so
+// the modifier's press edge hands the choice to the action bar — the old build's
+// `setSelectedActionBar(true)` — and the bar is the row Enter then runs.
+//
+// The bar is the list's *last* row, so its index moves whenever a row arrives
+// under it: the catalogue's own scan finishing, a plugin's list refreshing, a
+// clipboard entry landing. The press edge set an index; without re-asserting it
+// the choice stays on that index and the modifier's "run this line" row is the
+// one row the user is *not* on — `holdBarSelection` is what keeps the two
+// together, and nothing pinned it.
+func TestTheHeldModifierKeepsTheActionBarSelectedOverAGrowingList(t *testing.T) {
+	a := testApp()
+	tt := render(t, a)
+	tt.Type("ter")
+	tt.Frame()
+
+	results := a.Results()
+	bar := len(results) - 1
+	if !strings.HasPrefix(results[bar].ID, "bar:") {
+		t.Fatalf("the bar is not the list's last row: %v", ids(results))
+	}
+	if a.Selected == bar {
+		t.Fatalf("the match kept the selection with the modifier up: selected=%d bar=%d", a.Selected, bar)
+	}
+
+	// The press edge: the modifier hands the footer the choice.
+	tt.HoldModifiers(ui.Cmd)
+	tt.Frame()
+	if a.Selected != bar {
+		t.Fatalf("the modifier left the selection on %d, want the footer %d (%v)", a.Selected, bar, ids(results))
+	}
+
+	// A row arrives under the held bar (a tool the scan just found, a plugin's
+	// own refresh). The bar is no longer at the index the press edge set, and
+	// the choice has to move with it.
+	a.SetTools([]apps.App{{Name: "termls", Path: "/usr/bin/termls"}}, true)
+	tt.Frame()
+	results = a.Results()
+	bar = len(results) - 1
+	if !strings.HasPrefix(results[bar].ID, "bar:") {
+		t.Fatalf("the grown list has no footer: %v", ids(results))
+	}
+	if bar == 3 {
+		t.Fatalf("the list did not grow, so the index never moved: %v", ids(results))
+	}
+	if a.Selected != bar {
+		t.Errorf("the grown list left the selection on %d, want the held footer %d (%v)", a.Selected, bar, ids(results))
+	}
+
+	// And the held selection is the *drawn* one: the bar's band carries the
+	// raised pane against the panel's own fill at the same height.
+	rect, ok := tt.Find("Run in shell")
+	if !ok {
+		t.Fatalf("the held footer was not drawn: %q", tt.Texts())
+	}
+	img := tt.Image()
+	y := int(rect.Y + rect.H/2)
+	if got, want := img.RGBAAt(10, y), img.RGBAAt(3, y); got == want {
+		t.Errorf("the held footer's band is not tinted: %v at x=10, %v at x=3", got, want)
+	}
+
+	// Released, the choice goes back to the page's own default — a match, not
+	// the footer.
+	tt.HoldModifiers(0)
+	tt.Frame()
+	if bar := actionBarIndex(a.Results()); a.Selected == bar {
+		t.Errorf("the released modifier left the footer selected: %v", ids(a.Results()))
+	}
+}

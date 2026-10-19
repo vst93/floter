@@ -51,3 +51,51 @@ func newChromeTestApp(t *testing.T) *App {
 	t.Helper()
 	return New(Options{Store: settings.NewStore(settings.Default())})
 }
+
+// The three platforms' bands, read on whatever host runs the suite.
+//
+// The band is the whole of the card's distance to the window edge, so a wrong
+// number there *is* the 「窗口周边外圈还有一圈额外的底色」 ring and, on the
+// horizontal pair, 「搜索页面左右两边各有一大块空白」 — and the port's own
+// history has one such slip (10px written where the design draws 10u). The
+// values are `base.css`'s platform rules (`:1503,1591-1607`): `.platform-linux
+// .collapsed-shell { padding: calc(var(--u) * 10) }`, Windows' `4u 10u 12u 4u`
+// for the launcher's shadow room and `10u` for the panels, macOS none. They are
+// pinned per platform because only one of them is ever *drawn* by the host.
+func TestThePlatformBandsAreTheReferenceUnits(t *testing.T) {
+	cases := []struct {
+		goos string
+		surf Surface
+		want [4]float32 // top, right, bottom, left
+	}{
+		{"linux", SurfaceLauncher, [4]float32{2.5, 2.5, 2.5, 2.5}},
+		{"linux", SurfaceSettings, [4]float32{2.5, 2.5, 2.5, 2.5}},
+		{"linux", SurfaceTerminal, [4]float32{2.5, 2.5, 2.5, 2.5}},
+		{"windows", SurfaceLauncher, [4]float32{1, 2.5, 3, 1}},
+		{"windows", SurfaceSettings, [4]float32{2.5, 2.5, 2.5, 2.5}},
+		{"windows", SurfaceTerminal, [4]float32{2.5, 2.5, 2.5, 2.5}},
+		{"darwin", SurfaceLauncher, [4]float32{0, 0, 0, 0}},
+		{"darwin", SurfaceSettings, [4]float32{0, 0, 0, 0}},
+		{"darwin", SurfaceTerminal, [4]float32{0, 0, 0, 0}},
+	}
+	for _, c := range cases {
+		top, right, bottom, left := insetForOS(c.goos, c.surf)
+		got := [4]float32{top, right, bottom, left}
+		if got != c.want {
+			t.Errorf("%s/%v: band = %v, want %v (units, `--u` × 4 = one Space step)",
+				c.goos, c.surf, got, c.want)
+		}
+	}
+}
+
+// The drawn card is the window less that band, on every platform: the window's
+// own width and the card's are one number, which is what keeps the two bands
+// beside the search page from existing at all.
+func TestTheCardIsTheWindowLessTheBand(t *testing.T) {
+	for _, goos := range []string{"linux", "windows", "darwin"} {
+		_, right, _, left := insetForOS(goos, SurfaceLauncher)
+		if got, want := CardWidth(SurfaceLauncher, 720, left, right), 720-left-right; got != want {
+			t.Errorf("%s: card width = %v, want the window's 720 less the band %v", goos, got, want)
+		}
+	}
+}
