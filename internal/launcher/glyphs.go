@@ -15,8 +15,6 @@ import (
 	"floter/internal/browser"
 	clipboardpkg "floter/internal/clipboard"
 	"floter/internal/settings"
-	"floter/internal/shortcuts"
-	"floter/internal/theme"
 )
 
 // glyphSource is one icon's own SVG, as lucide draws it: a 24×24 viewBox,
@@ -253,7 +251,7 @@ func clipboardKindOf(entry *clipboardpkg.Entry) string {
 // `t.Warning.Alpha(0.14)`, which paints the label's own hue as the plate and
 // is the wrong colour on both appearances.
 func (a *App) iconPlate(c *ui.Context, warm bool) ui.Element {
-	tokens := theme.ForPreferences(a.settings(), c.Theme().Dark, c.Preferences())
+	tokens := a.tokens(c)
 	t := c.Theme()
 	plate := ui.Box(c).Size(t.Space(7), t.Space(7)).Radius(tokens.RadiusSM).
 		AlignItems(ui.Center).Justify(ui.Center).Shrink(0)
@@ -272,7 +270,7 @@ func (a *App) iconPlate(c *ui.Context, warm bool) ui.Element {
 // binding's modifiers with Enter, formatted as a key badge — `⌘↩` on macOS,
 // `Ctrl+↩` elsewhere, exactly as the old build's action bar printed it.
 func (a *App) enterBadge() string {
-	return shortcuts.Badge(settings.Shortcut(a.settings(), settings.ShortcutSelectResult), "enter")
+	return a.badge(a.shortcut(settings.ShortcutSelectResult), "enter")
 }
 
 // outputGlyph maps a list-protocol row's icon name onto the glyph set. The

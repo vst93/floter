@@ -18,6 +18,10 @@ type Store struct {
 	confirmed Settings
 	listeners []func(Settings)
 	lastErr   error
+	// version advances every time the in-memory value changes, so a reader
+	// that memoizes a snapshot (the launcher's frame does) can tell a stale
+	// copy from the current one without comparing the whole value.
+	version uint64
 
 	// save is the write path, a field so tests can observe or refuse one
 	// without a real file. Production always uses Save.
@@ -44,6 +48,15 @@ func OpenStore(path string) (*Store, error) {
 
 // Path is the file the store writes to, empty for an in-memory store.
 func (st *Store) Path() string { return st.path }
+
+// Version is a counter that advances with every accepted change to the
+// in-memory settings. It is the cheap key a reader memoizes a snapshot by:
+// same version, same value.
+func (st *Store) Version() uint64 {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	return st.version
+}
 
 // Snapshot returns a copy of the current settings, normalized. The copy is
 // safe to keep: mutating it does not touch the store.
@@ -75,6 +88,7 @@ func (st *Store) Update(mutate func(*Settings)) error {
 			rollback := clone(st.confirmed)
 			changed := !equal(previous, rollback)
 			st.current = rollback
+			st.version++
 			listeners := append([]func(Settings){}, st.listeners...)
 			rolled := clone(rollback)
 			st.mu.Unlock()
@@ -89,6 +103,7 @@ func (st *Store) Update(mutate func(*Settings)) error {
 		}
 	}
 	st.current = next
+	st.version++
 	st.confirmed = clone(next)
 	st.lastErr = nil
 	listeners := append([]func(Settings){}, st.listeners...)
@@ -117,6 +132,7 @@ func (st *Store) Preview(mutate func(*Settings)) {
 		return
 	}
 	st.current = next
+	st.version++
 	listeners := append([]func(Settings){}, st.listeners...)
 	changed := clone(next)
 	st.mu.Unlock()
@@ -149,6 +165,7 @@ func (st *Store) Commit() error {
 		rollback := clone(st.confirmed)
 		changed := !equal(st.current, rollback)
 		st.current = rollback
+		st.version++
 		listeners := append([]func(Settings){}, st.listeners...)
 		rolled := clone(rollback)
 		st.mu.Unlock()

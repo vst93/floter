@@ -205,6 +205,21 @@ type App struct {
 	Store   *settings.Store
 	Actions Actions
 
+	// The frame's memo of the settings snapshot and of the theme tokens built
+	// from it (see `settings` and `tokens`). Both were rebuilt per row before,
+	// which is where most of a frame's allocations went.
+	settingsVersion  uint64
+	settingsCached   settings.Settings
+	settingsValid    bool
+	tokensKey        tokensKey
+	tokensCached     theme.Tokens
+	tokensValid      bool
+	shortcutsVersion uint64
+	shortcutsCached  map[string]string
+	shortcutsValid   bool
+	// badges memoizes the key badges the rows wear (see `badge`).
+	badges map[badgeKey]string
+
 	Query    string
 	Selected int
 
@@ -757,8 +772,30 @@ var rowTransition = ui.ElementTransition{
 // elsewhere, as the old build's `formatResultShortcut` printed it. A binding
 // the settings could not parse shows the bare digit, as theirs did.
 func (a *App) resultNumber(number int) string {
-	return shortcuts.Badge(settings.Shortcut(a.settings(), settings.ShortcutSelectResult), strconv.Itoa(number))
+	return a.badge(a.shortcut(settings.ShortcutSelectResult), strconv.Itoa(number))
 }
+
+// badge is shortcuts.Badge over a memo. Badge parses the accelerator (a split
+// and a builder) on every call, and a list of ten numbered rows asks for ten
+// badges every frame — the same handful of strings, rebuilt. The badge is a
+// pure function of the binding and the key, and the binding rides in the key,
+// so a settings change is a new entry rather than a stale hit.
+func (a *App) badge(accelerator, key string) string {
+	k := badgeKey{accelerator: accelerator, key: key}
+	if v, ok := a.badges[k]; ok {
+		return v
+	}
+	v := shortcuts.Badge(accelerator, key)
+	if a.badges == nil {
+		a.badges = make(map[badgeKey]string, 12)
+	}
+	a.badges[k] = v
+	return v
+}
+
+// badgeKey is the pair a badge is a pure function of; a struct rather than a
+// joined string, so asking for a badge a frame already drew allocates nothing.
+type badgeKey struct{ accelerator, key string }
 
 // rowActionText is a row's trailing key slot — the numbered badge or a
 // command row's `Tab` affordance — in the reference's own register
@@ -770,7 +807,7 @@ func (a *App) resultNumber(number int) string {
 // 30u. The ⌘1-⌘0 family and the `Tab` hint are drawn by this one helper so
 // the two cannot drift apart.
 func (a *App) rowActionText(c *ui.Context, text string, selected bool) {
-	tokens := theme.ForPreferences(a.settings(), c.Theme().Dark, c.Preferences())
+	tokens := a.tokens(c)
 	t := c.Theme()
 	color := tokens.TextTertiary
 	if selected {
@@ -786,7 +823,7 @@ func (a *App) rowActionText(c *ui.Context, text string, selected bool) {
 // terminal's monospace stack with the badge's own 2u/6u padding.
 // (`.launcher-action-bar__hint`, `launcher.css:1608-1623`.)
 func (a *App) barHintText(c *ui.Context, text string) {
-	tokens := theme.ForPreferences(a.settings(), c.Theme().Dark, c.Preferences())
+	tokens := a.tokens(c)
 	t := c.Theme()
 	ui.Text(c, text).Font(a.settings().FontFamily).FontSize(tokens.Caption).
 		FontWeight(500).TextColor(tokens.TextTertiary).
@@ -913,7 +950,71 @@ func New(store *settings.Store, actions Actions) *App {
 }
 
 // settings is the current normalized settings.
-func (a *App) settings() settings.Settings { return a.Store.Snapshot() }
+func (a *App) settings() settings.Settings {
+	if a.Store == nil {
+		return settings.Settings{}
+	}
+	// The frame reads the settings from every row it draws (the row's tokens,
+	// its glyphs, the bar's faces). Snapshot copies the whole value — including
+	// the map of keys this build does not own — so asking it once per row was
+	// the single largest allocation source of a frame (28% of the objects in
+	// BenchmarkLauncherFrame). The store's version is the exact key: same
+	// version, same value, and a change (a slider's preview included) bumps it,
+	// so the memo can never serve a value the store no longer holds.
+	version := a.Store.Version()
+	if a.settingsValid && a.settingsVersion == version {
+		return a.settingsCached
+	}
+	s := a.Store.Snapshot()
+	a.settingsVersion, a.settingsCached, a.settingsValid = version, s, true
+	return s
+}
+
+// tokensKey is what the theme's tokens depend on: the settings value (by
+// version), the appearance the frame resolved, and the desktop's preferences.
+type tokensKey struct {
+	version uint64
+	dark    bool
+	prefs   ui.Preferences
+}
+
+// shortcut is settings.Shortcut over the frame's own resolved binding map.
+// `ShortcutsOf` builds the whole map (a fresh map and its shipped bindings)
+// on every call, and every numbered row asked for the select-result binding —
+// one map per row per frame, which the profile showed as the largest single
+// allocation source left. The bindings are a pure function of the settings
+// value, so the memo is keyed by the store's version like the tokens are.
+func (a *App) shortcut(action string) string {
+	var version uint64
+	if a.Store != nil {
+		version = a.Store.Version()
+	}
+	if !a.shortcutsValid || a.shortcutsVersion != version {
+		a.shortcutsCached = settings.ShortcutsOf(a.settings())
+		a.shortcutsVersion, a.shortcutsValid = version, true
+	}
+	return a.shortcutsCached[action]
+}
+
+// tokens is the frame's theme tokens. `theme.ForPreferences` builds a whole
+// theme (a fresh ui.Theme plus the token ladder over it) on every call, and
+// every row asked for its own copy — ten builds of the same value per frame.
+// The row's tokens depend on the settings, the appearance and the desktop
+// preferences only, so one memo answers the whole frame (and any later frame
+// that nothing has changed for).
+func (a *App) tokens(c *ui.Context) theme.Tokens {
+	t := c.Theme()
+	key := tokensKey{dark: t.Dark, prefs: c.Preferences()}
+	if a.Store != nil {
+		key.version = a.Store.Version()
+	}
+	if a.tokensValid && a.tokensKey == key {
+		return a.tokensCached
+	}
+	tk := theme.ForPreferences(a.settings(), t.Dark, key.prefs)
+	a.tokensKey, a.tokensCached, a.tokensValid = key, tk, true
+	return tk
+}
 
 // FocusSearch asks for the keyboard focus on the query field. The launcher
 // calls it every frame: the field owns the keyboard while the surface shows,
@@ -979,7 +1080,7 @@ func (a *App) View(c *ui.Context) {
 
 	// The window's height is the content's own: measure every row's lines
 	// off the theme, so the shell can size the window to the list it holds.
-	tk := theme.ForPreferences(a.settings(), t.Dark, c.Preferences())
+	tk := a.tokens(c)
 	a.Font = float64(t.FontSize)
 	a.Spacing = float64(t.Spacing)
 	// The rows' two line boxes, measured rather than assumed: the framework
@@ -1212,7 +1313,7 @@ func (a *App) View(c *ui.Context) {
 					// the key never does (`flex: 0 0 auto`), and the name
 					// is the one part that may be cut, so a collision trims
 					// the nudge's tail rather than the key.
-					tokens := theme.ForPreferences(a.settings(), t.Dark, c.Preferences())
+					tokens := a.tokens(c)
 					ui.RichText(c,
 						ui.Span{Text: "␣", Weight: 620, Color: tokens.TextTertiary},
 						ui.Span{Text: hint, Weight: 520, Color: t.TextMuted},
@@ -1471,7 +1572,7 @@ func (a *App) modeShortcuts() {
 // did not answer the pointer alike.
 func (a *App) rowControl(c *ui.Context, name, label string, run func()) {
 	t := c.Theme()
-	tokens := theme.ForPreferences(a.settings(), t.Dark, c.Preferences())
+	tokens := a.tokens(c)
 	control := ui.Row(c).Focusable().Shrink(0).Size(t.Space(5), t.Space(5)).
 		Radius(tokens.RadiusXS).AlignItems(ui.Center).Justify(ui.Center).
 		Label(label).Tooltip(label).
@@ -1828,7 +1929,7 @@ func (a *App) row(c *ui.Context, item Item, i int) {
 	if item.status {
 		// The icon column's own step, one quieter than the sentence: the old
 		// build's `--text-tertiary` on `.launcher-status__icon`.
-		tokens := theme.ForPreferences(a.settings(), t.Dark, c.Preferences())
+		tokens := a.tokens(c)
 		note := ui.Row(c).FillWidth().MinHeight(t.Space(launcherStatusUnits)).
 			AlignItems(ui.Center).Padding(0, t.Space(3)).Gap(t.Space(2.5))
 		note.Children(func() {
@@ -1860,7 +1961,7 @@ func (a *App) row(c *ui.Context, item Item, i int) {
 // rowBody is the row itself: the plate, the text column, the controls.
 func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 	t := c.Theme()
-	tokens := theme.ForPreferences(a.settings(), t.Dark, c.Preferences())
+	tokens := a.tokens(c)
 	// The row's own box: one 40u height for every result, subtitle or not (see
 	// rowUnits). A one-line row is not a shorter row — it is the same box with
 	// one line in it — so the height the window is charged is the height the
@@ -2579,7 +2680,7 @@ func (a *App) feedbackRow(c *ui.Context) {
 	}
 	c.AnimationFrame()
 	t := c.Theme()
-	tokens := theme.ForPreferences(a.settings(), t.Dark, c.Preferences())
+	tokens := a.tokens(c)
 	// The old build's own row: a 30u band, the panel's 12u inset, the body
 	// step at 560 (600 for a warning), and the alert glyph at 16u. A warning
 	// is the stronger face — a border in the warning colour and a heavier
@@ -2881,7 +2982,7 @@ func (a *App) fieldSettingsButton(c *ui.Context, tokens theme.Tokens, label, hin
 
 func (a *App) fieldButtons(c *ui.Context, copy i18n.Launcher) {
 	t := c.Theme()
-	tokens := theme.ForPreferences(a.settings(), t.Dark, c.Preferences())
+	tokens := a.tokens(c)
 	// The field's own buttons are the reference's `.collapsed-card__settings`:
 	// a 28u square on the row, a 9u radius, its mark in the tertiary colour,
 	// and a hover that lights the mark one step - with the 8u margin the old
@@ -2900,7 +3001,7 @@ func (a *App) fieldButtons(c *ui.Context, copy i18n.Launcher) {
 	// The settings button's line names the key that opens the same surface, and
 	// it is the user's own binding: the old build interpolated the live
 	// `open_settings` accelerator into `settings.openHint`.
-	settingsHint := copy.FieldSettingsHint(shortcuts.Display(settings.Shortcut(a.settings(), settings.ShortcutOpenSettings)))
+	settingsHint := copy.FieldSettingsHint(shortcuts.Display(a.shortcut(settings.ShortcutOpenSettings)))
 	button("terminal", copy.FieldSessions, copy.FieldSessionsHint, a.Actions.OpenSessions)
 	button("settings", copy.FieldSettings, settingsHint, a.Actions.OpenSettings)
 }
@@ -2914,7 +3015,7 @@ func (a *App) fieldButtons(c *ui.Context, copy i18n.Launcher) {
 // is up, so this is the control that stays.
 func (a *App) pluginGear(c *ui.Context, copy i18n.Launcher, id string) {
 	t := c.Theme()
-	tokens := theme.ForPreferences(a.settings(), t.Dark, c.Preferences())
+	tokens := a.tokens(c)
 	open := a.configOpen() && a.config.Schema.Plugin == id
 	label, glyphName := copy.ConfigurePlugin, "settings"
 	hint := copy.ConfigurePluginHint
@@ -2936,7 +3037,7 @@ func (a *App) pluginGear(c *ui.Context, copy i18n.Launcher, id string) {
 // that opened the sheet, and the pin are additive only.
 func (a *App) pinButton(c *ui.Context, copy i18n.Launcher) {
 	t := c.Theme()
-	tokens := theme.ForPreferences(a.settings(), t.Dark, c.Preferences())
+	tokens := a.tokens(c)
 	a.fieldSettingsButton(c, tokens, copy.OutputDetach, copy.OutputDetachHint, func(mark ui.Color) {
 		if glyph, ok := Glyph("pin"); ok {
 			ui.Icon(c, glyph).Size(t.Space(4), t.Space(4)).TextColor(mark)

@@ -18,7 +18,6 @@ import (
 	"floter/internal/i18n"
 	"floter/internal/settings"
 	"floter/internal/shortcuts"
-	"floter/internal/theme"
 )
 
 // FilterAxis is one dimension a mode's list can be filtered by.
@@ -184,7 +183,7 @@ func (a *App) filtersRow(c *ui.Context, top float32) {
 	}
 	copy := a.copy()
 	t := c.Theme()
-	tokens := theme.ForPreferences(a.settings(), t.Dark, c.Preferences())
+	tokens := a.tokens(c)
 	ui.Row(c).Absolute().Top(top).Left(0).Right(0).Height(a.filtersHeight(c)).
 		Padding(0, t.Space(4)).Gap(t.Space(3.5)).AlignItems(ui.Center).Children(func() {
 		for _, value := range axis.Values {
