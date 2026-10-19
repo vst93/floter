@@ -540,7 +540,19 @@ const maxResultSlots = 10
 // previous frame's, exactly as the old build's key handler read the last
 // render's slots, so a scroll renumbers the family on the next frame.
 func (a *App) assignNumbers(results []Item) map[int]int {
-	numbers := map[int]int{}
+	// The family is at most ten entries and it is rebuilt every frame, so the
+	// map is the frame's own working set rather than a fresh allocation per
+	// keystroke: it is cleared and refilled, which keeps the frame's object
+	// count (and therefore the GC work behind 「界面经常卡死」) flat. Nothing
+	// outside the frame holds the returned map — the readers are the row's own
+	// badge and the digit chord, both of them inside this frame — so clearing
+	// it cannot be observed as a stale read.
+	numbers := a.numbers
+	if numbers == nil {
+		numbers = make(map[int]int, maxResultSlots)
+	} else {
+		clear(numbers)
+	}
 	// The action bar is not a result: the old build's `resultShortcutSlots`
 	// ran over `displayedResults` (which excludes the bar), so the bar takes
 	// no number and the family starts on the first real result. Counting it

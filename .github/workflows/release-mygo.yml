@@ -99,7 +99,15 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           if echo "$VERSION" | grep -qiE '-(alpha|beta|preview|rc)'; then
             PRE="true"
-          elif [ -z "$PRE" ]; then
+          else
+            # 一个没有预发布后缀的版本**就是**正式版，哪怕 dispatch 时手滑把
+            # prerelease 填成了 true：pre-release 不会被 `releases/latest` 返回，
+            # 于是 install.sh / 更新检查永远拿上一个版本——0.3.19 就是这样被标成
+            # 预览版的，用户在 0.3.15 上反复复现已经修好的两条（「搜索页左右空白」
+            # 「在终端中打开」），而修好的构建就躺在 releases 里没人装得到。
+            if [ "$PRE" = "true" ]; then
+              echo "::warning::版本 $VERSION 没有预发布后缀，按正式版发布（忽略 prerelease=true）"
+            fi
             PRE="false"
           fi
           echo "prerelease=$PRE" >> "$GITHUB_OUTPUT"
@@ -167,12 +175,19 @@ jobs:
           fi
           if gh release view "mygo-v$VERSION" >/dev/null 2>&1; then
             echo "release 已存在，跳过创建"
+            # 已存在的正式版仍要保证它能被装到：之前被标成 pre-release 的同号
+            # release 在这里拉回正式版并抢占 latest（0.3.19 的补救路径）。
+            if [ "$PRE" != "true" ]; then
+              gh release edit "mygo-v$VERSION" --prerelease=false --latest
+            fi
           else
             printf '%s\n' "$NOTES" > /tmp/notes.md
+            # 正式版显式抢占 latest：用户装到的必须是这个版本，而不是
+            # releases 里最新 *那个* pre-release（见上面「判断是否预览版」）。
             gh release create "mygo-v$VERSION" \
               --title "floter (原生版) $VERSION" \
               --notes-file /tmp/notes.md \
-              $([ "$PRE" = "true" ] && echo "--prerelease")
+              $([ "$PRE" = "true" ] && echo "--prerelease" || echo "--latest")
           fi
 
   # ── 各平台构建 ──────────────────────────────────────────────────────
