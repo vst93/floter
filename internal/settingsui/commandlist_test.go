@@ -32,7 +32,8 @@ import (
 // commandListIntegration is a three-command integration for the tests below: one
 // enabled command with a description and a declared alias, one command whose
 // switch is off with neither, and the host's own synthesized configuration
-// command (never declared by the provider, so it prints no summon line).
+// command (never declared by the provider, so it is not a command of this list
+// at all — the reference draws it as the "Configuration" block instead).
 func commandListIntegration() Integration {
 	return Integration{
 		ID: "ext", Name: "V Tools", Enabled: true, Running: true,
@@ -98,10 +99,19 @@ func TestTheCommandListDrawsTheReferencePlates(t *testing.T) {
 		t.Errorf("the no-description line %q is missing: %q", want, tt.Texts())
 	}
 	// The host's synthesized configuration command is not in the provider
-	// registry, so it prints no summon line — only the declared commands do
-	// (`ExtensionsPanel.tsx:2824-2829`).
+	// registry, so the list has no plate for it: no summon line, and neither of
+	// the plate's two controls (the launcher switch and the alias field). The
+	// reference's list *is* the registry (`ExtensionsPanel.tsx:2777-2871` over
+	// `externalCommands`), and a tool-owned configuration is the block above
+	// with an "Open configuration" action (`:2971-2986`).
 	if want := copy.IntegrationsCommandsTriggers("configuration, Configuration"); tt.HasText(want) {
 		t.Errorf("the synthesized command printed a summon line %q: %q", want, tt.Texts())
+	}
+	if want := copy.IntegrationsCommandEnable("Configuration"); tt.HasText(want) {
+		t.Errorf("the synthesized command has a launcher switch %q: %q", want, tt.Texts())
+	}
+	if want := copy.IntegrationsCommandAliasFor("Configuration"); tt.HasText(want) {
+		t.Errorf("the synthesized command has an alias field %q: %q", want, tt.Texts())
 	}
 	// The alias editor is the reference's own field, named for its command.
 	if want := copy.IntegrationsCommandAliasFor("JSON Viewer"); !tt.HasText(want) {

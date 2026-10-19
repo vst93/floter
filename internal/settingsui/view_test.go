@@ -1655,8 +1655,8 @@ func TestIntegrationCommandSwitches(t *testing.T) {
 		return []Integration{{
 			ID: "io.github.vst93.v", Name: "V Tools", Enabled: true, Running: true,
 			Commands: []Command{
-				{ID: "jv", Name: "Just run", Enabled: true, Available: true},
-				{ID: "build", Name: "Build", Enabled: false},
+				{ID: "jv", Name: "Just run", Enabled: true, Available: true, Declared: true},
+				{ID: "build", Name: "Build", Enabled: false, Declared: true},
 			},
 		}}
 	}

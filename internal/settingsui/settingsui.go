@@ -2510,13 +2510,23 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			a.configOpenToolRow(c, copy, integration)
 		}
 
-		if len(integration.Commands) > 0 && !integration.Orphan {
+		// Only the commands the provider's descriptor declared are *commands* to
+		// this panel. The host synthesizes an editor command for a tool-owned
+		// configuration, and the reference never lists it: its command list is
+		// `externalCommands` filtered by extension, which is the provider
+		// registry (`main:src-tauri/src/extensions/catalog.rs:427-449`), and a
+		// tool-owned configuration is the "Configuration" block above with an
+		// "Open configuration" action (`ExtensionsPanel.tsx:2971-2986`). The
+		// synthesized row here carried a launcher switch and an alias field for
+		// a command the launcher does not accept (see the shell's
+		// `launcherCommands`), i.e. two controls that could not do anything.
+		if commands := declaredCommands(integration.Commands); len(commands) > 0 && !integration.Orphan {
 			// The per-command switches' caption and the one line that says
 			// what a switch does, printed above the list rather than repeated
 			// on every row (the old build's R39).
 			a.sectionHeading(c, copy.IntegrationsCommands, nil)
 			a.sectionHint(c, copy.IntegrationsCommandsHint)
-			a.commandList(c, copy, integration)
+			a.commandList(c, copy, integration.ID, commands)
 		}
 
 		if len(integration.Params) > 0 {
@@ -2918,14 +2928,28 @@ func (a *App) permissionAudit(c *ui.Context, copy i18n.Settings, integration Int
 // switch) above the alias editor at the plate's full width. The port had one
 // flat settings row per command with the alias editor as its grey second line,
 // which is neither the reference's two-line plate nor its bordered list.
-func (a *App) commandList(c *ui.Context, copy i18n.Settings, integration Integration) {
+func (a *App) commandList(c *ui.Context, copy i18n.Settings, extensionID string, commands []Command) {
 	t := a.cardTheme(c)
 	ui.Column(c).FillWidth().Gap(t.Space(2)).Children(func() {
-		for _, command := range integration.Commands {
+		for _, command := range commands {
 			command := command
-			a.commandPlate(c, copy, integration.ID, command)
+			a.commandPlate(c, copy, extensionID, command)
 		}
 	})
+}
+
+// declaredCommands keeps the commands the provider's descriptor declared and
+// drops the ones the host synthesized (a tool-owned configuration's editor).
+// The reference's command list is the provider registry, which never holds the
+// synthesized command; see commandList's caller.
+func declaredCommands(commands []Command) []Command {
+	out := make([]Command, 0, len(commands))
+	for _, command := range commands {
+		if command.Declared {
+			out = append(out, command)
+		}
+	}
+	return out
 }
 
 // commandPlate is one command's card in the reference's list

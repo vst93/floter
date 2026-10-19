@@ -125,7 +125,7 @@ func TestCommandAliasFieldDebouncesTyping(t *testing.T) {
 	a.Integrations = func() []Integration {
 		return []Integration{{
 			ID: "ext", Name: "V Tools", Enabled: true, Running: true,
-			Commands: []Command{{ID: "cmd", Name: "Just run", Enabled: true, Available: true}},
+			Commands: []Command{{ID: "cmd", Name: "Just run", Enabled: true, Available: true, Declared: true}},
 		}}
 	}
 	tt := render(t, a, 720, 760)
