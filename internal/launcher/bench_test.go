@@ -2,6 +2,7 @@ package launcher
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
@@ -42,5 +43,33 @@ func BenchmarkLauncherEmptyFrame(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		tt.Frame()
+	}
+}
+
+// BenchmarkMatch measures the ranking alone, over a catalog the size of a
+// loaded desktop: it is the one part of a keystroke that walks every row, so
+// its allocations are what the frame's garbage is made of (the ranking reads
+// the catalog's rows in place and copies only the winners — see Match).
+func BenchmarkMatch(b *testing.B) {
+	items := make([]Item, 0, 500)
+	for i := 0; i < 500; i++ {
+		title := fmt.Sprintf("Application %d", i)
+		detail := "/Applications/App " + fmt.Sprintf("%d.app", i)
+		id := fmt.Sprintf("app:%d", i)
+		// The catalog's own pre-lowered columns (see App.Catalog): without
+		// them the benchmark would measure strings.ToLower, which a real
+		// catalog never pays per keystroke.
+		items = append(items, Item{
+			ID: id, Title: title, Detail: detail,
+			lowerID: strings.ToLower(id), lowerTitle: strings.ToLower(title),
+			lowerDetail: strings.ToLower(detail),
+		})
+	}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if got := Match(items, "application 4"); len(got) == 0 {
+			b.Fatal("no match")
+		}
 	}
 }

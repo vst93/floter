@@ -949,15 +949,18 @@ func Match(items []Item, query string) []Item {
 		return out
 	}
 
-	ranked := make([]struct {
-		item  Item
-		score int
-	}, 0, len(items))
-	for _, item := range items {
+	// The ranking is over *indices*, not over copies of the rows: an Item is
+	// a dozen strings and a closure, and the port used to copy every match
+	// into an intermediate slice (and again into the result) on every
+	// keystroke. The catalog is a cached slice the App keeps, so the rows are
+	// read in place and only the winners are copied out — once, in order.
+	scores := make([]int, len(items))
+	order := make([]int, 0, len(items))
+	for i := range items {
 		best := 0
 		ok := true
 		for _, term := range terms {
-			score, found := itemScore(item, term)
+			score, found := itemScore(&items[i], term)
 			if !found {
 				ok = false
 				break
@@ -966,21 +969,25 @@ func Match(items []Item, query string) []Item {
 				best = score
 			}
 		}
-		if ok {
-			if hint := aliasHint(item, terms[0]); hint != "" {
-				item.matchedAlias = hint
-			}
-			ranked = append(ranked, struct {
-				item  Item
-				score int
-			}{item, best})
+		if !ok {
+			continue
 		}
+		scores[i] = best
+		order = append(order, i)
 	}
-	sort.SliceStable(ranked, func(i, j int) bool { return ranked[i].score < ranked[j].score })
+	// Stable over the catalog's own order: equal scores keep the order they
+	// were made in, which is what `sort.SliceStable` on the indices does.
+	sort.SliceStable(order, func(a, b int) bool { return scores[order[a]] < scores[order[b]] })
 
-	out := make([]Item, len(ranked))
-	for i, r := range ranked {
-		out[i] = r.item
+	out := make([]Item, len(order))
+	for k, i := range order {
+		out[k] = items[i]
+		// The alias the row was reached through is named in its subtitle, and
+		// it is written on the *copy*: the catalog slice is cached across
+		// frames, so a hint left on it would outlive the query that earned it.
+		if hint := aliasHint(items[i], terms[0]); hint != "" {
+			out[k].matchedAlias = hint
+		}
 	}
 	return out
 }
@@ -1028,7 +1035,7 @@ func aliasRank(candidate, term string) (int, bool) {
 //
 // A PATH command's alias runs through the same ladder as its name, so an alias
 // hit ranks exactly where the name would (an exact alias is not second class).
-func itemScore(item Item, term string) (int, bool) {
+func itemScore(item *Item, term string) (int, bool) {
 	title := lowered(item.lowerTitle, item.Title)
 	score, matched := candidateScore(title, term)
 	if item.alias != "" {
@@ -1096,11 +1103,21 @@ func isSubsequence(term, candidate string) bool {
 }
 
 // wordPrefixMatch reports whether any word of s starts with term.
+//
+// The words are scanned in place: `strings.FieldsFunc` allocated a slice (and
+// a string header per word) for every row of the catalog on every keystroke,
+// which is one allocation per row for the rung a query reaches on almost every
+// row — the ranking's whole garbage. A word starts where a word rune follows a
+// non-word one (or the string itself), which is the split FieldsFunc made.
 func wordPrefixMatch(s, term string) bool {
-	for _, word := range strings.FieldsFunc(s, func(r rune) bool { return !isWordRune(r) }) {
-		if strings.HasPrefix(word, term) {
+	start := true
+	for i := 0; i < len(s); {
+		r, size := utf8.DecodeRuneInString(s[i:])
+		if start && isWordRune(r) && strings.HasPrefix(s[i:], term) {
 			return true
 		}
+		start = !isWordRune(r)
+		i += size
 	}
 	return false
 }
