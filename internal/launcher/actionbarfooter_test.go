@@ -143,14 +143,23 @@ func TestTheActionBarTakesTheSelectionOnACommandLine(t *testing.T) {
 	}
 	// The bar is a *lit pane*, not a flat tint: the raised pane's own contact
 	// shadow (`--glass-raised-shadow` = `--elev-2` + `--glass-raised-rim`,
-	// `main:src/styles/launcher.css:1579-1583`). The shadow lands just below
-	// the row's box, so the pixels under the bar are darker than the panel's
-	// own fill while the bar is selected — compare the same row on a page where
-	// a match keeps the choice (the test below).
-	below := img.RGBAAt(200, int(rect.Y+rect.H)+1)
-	panel := img.RGBAAt(200, int(rect.Y+rect.H)+6)
-	if below == panel {
-		t.Errorf("the selected footer casts no shadow below itself: %v vs the panel %v", below, panel)
+	// `main:src/styles/launcher.css:1579-1583`). The footer is pinned to the
+	// window's bottom edge (see actionBarFooter), so the cast has nowhere to
+	// fall *below* it — it falls **beside** it, into the panel's own 4u inset:
+	// x=3, one step left of the row's box, is darker at the bar's own height
+	// than the same column is further up the panel.
+	side := img.RGBAAt(3, y)
+	clean := img.RGBAAt(3, y-60)
+	if side == clean {
+		t.Errorf("the selected footer casts no shadow beside itself: %v vs the panel %v", side, clean)
+	}
+	// Pinned: the footer's band ends at the window's own bottom edge, the
+	// reference's `.launcher-action-bar` sitting below the scroller rather than
+	// scrolling with it. The pixel just under the row's box is therefore the
+	// last one the window has, not the panel's tail.
+	if _, bottom := img.Bounds().Max.X, img.Bounds().Max.Y; int(rect.Y+rect.H) < bottom-2 {
+		t.Errorf("the footer is not pinned to the window's bottom edge: row ends at %.0f, window %d",
+			rect.Y+rect.H, bottom)
 	}
 	// Enter runs the footer, not the tool row above it: the bar is the field's
 	// own hand-off and it is the row the choice is on.
@@ -326,8 +335,12 @@ func TestTheActionBarSquaresItsTopCornersOverAList(t *testing.T) {
 		// read the corner pixel one step further out (x=4, the panel's own 4u
 		// inset): a squared corner paints the row's fill there, a rounded one
 		// leaves the panel (or its faint edge) showing under the arc.
+		//
+		// The footer is pinned to the panel's bottom edge (see
+		// actionBarFooter), so the band is found at the *end* of the panel, not
+		// in its first 200 pixels.
 		top = -1
-		for y := 50; y < 200; y++ {
+		for y := 50; y < img.Bounds().Max.Y; y++ {
 			c := img.RGBAAt(6, y)
 			if panelDistance(c) > 8 {
 				top = y
@@ -637,4 +650,94 @@ func TestTheHeldModifierKeepsTheActionBarSelectedOverAGrowingList(t *testing.T) 
 	if bar := actionBarIndex(a.Results()); a.Selected == bar {
 		t.Errorf("the released modifier left the footer selected: %v", ids(a.Results()))
 	}
+}
+
+// R-next · The footer is pinned, so a full list cannot push it off the window.
+//
+// The port drew the bar as the scroller's *last row*: with nine matches above
+// it the row sat exactly at the window's bottom edge, and the tenth pushed it
+// past it — the footer was drawn at y=563 in a 471px window, i.e. only a scroll
+// (or the held modifier's own scroll-into-view) could reach it. The reference
+// draws `.launcher-action-bar` as a sibling *below* `.launcher-results`
+// (`main:src/launcher/LauncherResults.tsx:1043-1073`), so it is on screen
+// whatever the list is doing. This pins the fix: at the window height the app
+// itself asks for, the bar's band is inside the window and below every match.
+func TestTheFooterStaysPinnedOverAFullList(t *testing.T) {
+	wide := func(app *App) {
+		var list []apps.App
+		for _, name := range []string{
+			"app-a", "app-b", "app-c", "app-d", "app-e", "app-f", "app-g",
+			"app-h", "app-i", "app-j", "app-k", "app-l", "app-m", "app-n",
+		} {
+			list = append(list, apps.App{Name: name, Path: "/usr/bin/" + name})
+		}
+		app.SetApps(list)
+	}
+	// The window the app asks for, measured off a frame that has room: the
+	// test frame is taller than the charged window on purpose (see render), so
+	// the charged height has to be read from the app, not from the tester.
+	a := testApp()
+	wide(a)
+	charged := 0
+	a.Actions.ResizeTo = func(h int) { charged = h }
+	ta := render(t, a)
+	ta.Type("app")
+	ta.Frame()
+
+	results := a.Results()
+	bar := actionBarIndex(results)
+	if bar < 0 || bar != len(results)-1 {
+		t.Fatalf("the bar is not the list's last row: %v", ids(results))
+	}
+	if bar <= rowBudget {
+		t.Fatalf("the list is not long enough to overflow the window: %d rows", bar)
+	}
+	if charged <= 0 {
+		t.Fatal("the app asked for no window height")
+	}
+
+	b := testApp()
+	wide(b)
+	b.Query = "app"
+	frame := ui.NewTester(func(c *ui.Context) { b.View(c) }, InputWindowWidth, charged)
+	frame.Frame()
+
+	rect, ok := frame.Find("Run in shell")
+	if !ok {
+		t.Fatalf("the footer was not drawn at all: %q", frame.Texts())
+	}
+	bottom := float64(rect.Y + rect.H)
+	if bottom > float64(charged) {
+		t.Errorf("the footer is below the window's bottom edge: %.0f > %d", bottom, charged)
+	}
+	// Its band's own top edge: the footer is the last thing on the panel, so
+	// nothing of the scroller is drawn under it.
+	footerTop := float64(charged) - actionBarBand(b, results)
+	if got := float64(rect.Y + rect.H); got < footerTop-4 {
+		t.Errorf("the footer is not at the panel's bottom: it ends at %.0f, band top %.0f", got, footerTop)
+	}
+	// The scroller stops at the footer's top edge: the first match is drawn
+	// above it, and the footer's band holds no match at all.
+	r, ok := frame.Find("app-a")
+	if !ok {
+		t.Fatalf("the first match was not drawn: %q", frame.Texts())
+	}
+	if float64(r.Y+r.H) > footerTop+1 {
+		t.Errorf("the first match runs under the footer: %.0f > %.0f", float64(r.Y+r.H), footerTop)
+	}
+	if bar > rowBudget && frame.HasText("app-n") {
+		if last, ok := frame.Find("app-n"); ok && float64(last.Y+last.H) > footerTop+1 {
+			t.Errorf("the last match runs under the footer: %.0f > %.0f", float64(last.Y+last.H), footerTop)
+		}
+	}
+}
+
+// actionBarBand is the band the bar rows take at the bottom of the panel, in
+// pixels, as the view reserves it: one `actionBarUnits` step per bar row.
+func actionBarBand(a *App, results []Item) float64 {
+	bar := actionBarIndex(results)
+	if bar < 0 {
+		return 0
+	}
+	return a.Spacing * actionBarUnits * float64(len(results)-bar)
 }

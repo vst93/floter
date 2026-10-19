@@ -29,6 +29,14 @@ const (
 	// charged by `Geometry.Height` for a row the view marks `Status`.
 	launcherStatusUnits = 7.5
 
+	// actionBarUnits is one action-bar row's band: its own 42u floor plus the
+	// 3u breath above it, the old build's `LAUNCHER_ACTION_BAR_UNITS` (45u).
+	// The footer is charged per row outside the ten-row budget and the view
+	// reserves exactly this band at the scroller's bottom edge (see
+	// `actionBarFooter`), so the window, the pinned footer and the list's own
+	// tail are one number.
+	actionBarUnits = 11.25
+
 	// The rows' own registers, as `.launcher-result` declared them: the title
 	// is the ladder's title step (two units above the body), the subtitle the
 	// body step, and a block heading the body step with its own 6u/4u padding
@@ -275,7 +283,7 @@ func (g Geometry) Height() int {
 		if info.Bar {
 			// The action bar: its own 3u breath and 42u band, which the old
 			// build charged together as `LAUNCHER_ACTION_BAR_UNITS`.
-			lines += 11.25 * spacing
+			lines += actionBarUnits * spacing
 			continue
 		}
 		if info.Status {

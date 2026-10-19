@@ -142,7 +142,7 @@ func (a *App) confirmPowerRow(c *ui.Context) {
 	copy := a.copy()
 	t := c.Theme()
 	tokens := theme.ForPreferences(a.settings(), t.Dark, c.Preferences())
-	ui.Row(c).Absolute().Bottom(0).Left(t.Space(1)).Right(t.Space(1)).Height(t.Space(7.5)).
+	ui.Row(c).Absolute().Bottom(a.footerBand).Left(t.Space(1)).Right(t.Space(1)).Height(t.Space(7.5)).
 		Padding(0, t.Space(3)).Gap(t.Space(2)).AlignItems(ui.Center).
 		Radius(tokens.RadiusSM).Background(tokens.IconSurface).Children(func() {
 		ui.Icon(c, glyphAlert).Size(t.Space(4), t.Space(4)).TextColor(t.Warning)

@@ -266,6 +266,11 @@ type App struct {
 	// leaves the two devices sharing one state.
 	hoveredRow    int
 	hoverFrameRow int
+	// footerBand is the band the pinned action-bar footer occupies at the
+	// panel's bottom edge this frame, in pixels (see actionBarSplit). The
+	// docked rows — the toast and the power confirmation — sit above it, so a
+	// footer and a message never paint over each other.
+	footerBand float32
 
 	// Rows are what the last View built, in order: each visible row's text
 	// lines and whether it is a block's heading. Font and Spacing are the
@@ -980,6 +985,12 @@ func (a *App) View(c *ui.Context) {
 	// starts below them, and the window's height charges their band too.
 	chips := a.filtersHeight(c)
 	listEdge := edge + chips
+	// The action bar's pinned footer: where the composed list stops being the
+	// scroller's and the band the footer reserves at the panel's bottom edge
+	// (see actionBarSplit). Resolved before the panel is built because the
+	// docked rows below need it too.
+	var barStart int
+	barStart, a.footerBand = a.actionBarSplit(c, results)
 
 	ui.Box(c).Fill().Background(tk.Sunken).Children(func() {
 		// R21 · the pointer's selection is an *entry edge*, not a per-frame
@@ -1025,10 +1036,23 @@ func (a *App) View(c *ui.Context) {
 			// the trackpad and the arrows - and the choice scrolls itself
 			// into view; it is only the bar that is gone. The scrollbar's
 			// insets push it past the list's own clip, which is what hides it.
-			ui.List(c.Key("launcher.results"), &a.List, len(results), func(i int) {
+			//
+			// The action bar is **not** one of these rows: it is the panel's
+			// pinned footer, drawn below this scroller (see actionBarFooter).
+			// As a row it was the list's last one, so a query that filled the
+			// window pushed it past the bottom edge and only a scroll (or the
+			// held modifier's own scroll-into-view) brought it back — the
+			// reference's `.launcher-action-bar` is a *sibling* of
+			// `.launcher-results` (`main:src/launcher/LauncherResults.tsx:1043-1073`)
+			// and never scrolls. The scroller's bottom padding is the band the
+			// footer occupies, so its last row stops above the footer instead
+			// of running under it.
+			ui.List(c.Key("launcher.results"), &a.List, barStart, func(i int) {
 				a.row(c, results[i], i)
-			}).Fill().Padding(listEdge, t.Space(1), 0, t.Space(1)).Label(copy.ResultsLabel).
+			}).Grow(1).FillWidth().MinHeight(0).
+				Padding(listEdge, t.Space(1), t.Space(0.5), t.Space(1)).Label(copy.ResultsLabel).
 				ScrollbarInsets(0, 4096, 0, 0)
+			a.actionBarFooter(c, results, barStart)
 		}
 
 		// The chips row floats under the field, the list scrolling beneath it.
@@ -1219,7 +1243,17 @@ func (a *App) View(c *ui.Context) {
 	if a.Selected != a.chosenRow {
 		a.chosenRow = a.Selected
 		if !a.heldRowShowing() || a.Selected != len(a.Results())-1 {
-			a.List.ScrollIntoView(a.Selected)
+			// The pinned footer is never scrolled into view: it is not a row of
+			// the scroller at all, it is the band below it, so it is on screen
+			// by construction. Asking the list for its index would land the
+			// scroll past the last row it has.
+			row := a.Selected
+			if bar := actionBarIndex(a.Results()); bar >= 0 && row >= bar {
+				row = bar - 1
+			}
+			if row >= 0 {
+				a.List.ScrollIntoView(row)
+			}
 		}
 	}
 
@@ -2401,6 +2435,43 @@ func (a *App) defaultsToActionBar(results []Item) bool {
 	return a.defaultsToShell(results)
 }
 
+// actionBarSplit is where the composed list stops being the scroller's and
+// becomes the pinned footer, and the band that footer occupies in pixels. A
+// page with no bar answers the whole list and no band.
+//
+// The split is by *index*: the bar rows keep the indices they have in
+// `Results`, so the keyboard, the pointer, `defaultSelection` and the numbers
+// reach them exactly as they did when they were the list's own last rows. Only
+// their place on the panel changed.
+func (a *App) actionBarSplit(c *ui.Context, results []Item) (int, float32) {
+	start := actionBarIndex(results)
+	if start < 0 {
+		return len(results), 0
+	}
+	return start, c.Theme().Space(actionBarUnits * float32(len(results)-start))
+}
+
+// actionBarFooter draws the action bar as the panel's pinned footer: the band
+// under the scroller that the reference gave `.launcher-action-bar`, a sibling
+// of `.launcher-results` rather than one of its rows
+// (`main:src/launcher/LauncherResults.tsx:1043-1073`). The scroller above it
+// grows into the rest of the panel, so the two never overlap: a row scrolled to
+// the split stops at the footer's top edge, and the footer needs no fill of its
+// own (the panel's glass stays one pane).
+func (a *App) actionBarFooter(c *ui.Context, results []Item, start int) {
+	if start >= len(results) {
+		return
+	}
+	t := c.Theme()
+	band := t.Space(actionBarUnits * float32(len(results)-start))
+	ui.Column(c).FillWidth().Shrink(0).Height(band).MinHeight(0).
+		Padding(0, t.Space(1)).Children(func() {
+		for i := start; i < len(results); i++ {
+			a.row(c, results[i], i)
+		}
+	})
+}
+
 // defaultSelection is the row a fresh query starts on: the action bar when
 // `defaultsToActionBar` says Enter belongs to it, else the first runnable
 // result — the reference's `firstRunnableResultIndex < 0 ? 0 : ...`.
@@ -2478,7 +2549,7 @@ func (a *App) feedbackRow(c *ui.Context) {
 	// separate token (`theme.Tokens.IconSurface`), and the warning variant's
 	// `--glass-raised-warm` is an alias of the very same value.
 	background := tokens.IconSurface
-	feedback := ui.Row(c).Absolute().Bottom(0).Left(t.Space(1)).Right(t.Space(1)).Height(t.Space(7.5)).
+	feedback := ui.Row(c).Absolute().Bottom(a.footerBand).Left(t.Space(1)).Right(t.Space(1)).Height(t.Space(7.5)).
 		Padding(0, t.Space(3)).Gap(t.Space(2)).AlignItems(ui.Center).
 		Radius(tokens.RadiusSM).
 		// The row enters as the old build's `feedback-enter` did (its
