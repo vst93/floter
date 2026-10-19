@@ -122,3 +122,29 @@ func TestTheTokenizerNormalizesThroughOneFunction(t *testing.T) {
 		}
 	}
 }
+
+// TestALineWithoutAssignmentsAllocatesNoEnvironment: the environment map is the
+// parse's only per-line table, and the action bar re-parses the field on every
+// frame (`actionbar.go`), so a line that carries no leading `NAME=value` must
+// not build one. Nil and empty answer the same question — `len` and a missing
+// key — so the lazy map is the whole of the change; the read side needs no
+// branch (see `parseEnvironment` callers in actionbar.go).
+func TestALineWithoutAssignmentsAllocatesNoEnvironment(t *testing.T) {
+	if parsed := ParseCommandLine("git status"); parsed.Environment != nil {
+		t.Errorf("a line with no assignment built an environment map: %v", parsed.Environment)
+	}
+	// A missing key still reads as absent, so the callers that look one up
+	// need no nil check of their own.
+	if v, ok := ParseCommandLine("git status").Environment["FOO"]; ok || v != "" {
+		t.Errorf("a missing key answered %q, %v", v, ok)
+	}
+	// The first assignment builds it, and only the leading run of them lands
+	// in it.
+	parsed := ParseCommandLine("A=1 git B=2")
+	if parsed.Environment["A"] != "1" || len(parsed.Environment) != 1 {
+		t.Errorf("environment = %v, want only A=1", parsed.Environment)
+	}
+	if parsed.CommandIndex != 1 {
+		t.Errorf("command index = %d, want 1", parsed.CommandIndex)
+	}
+}

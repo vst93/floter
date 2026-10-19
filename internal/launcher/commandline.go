@@ -44,18 +44,14 @@ type CommandLine struct {
 // the app hands to a program as argv.
 func ParseCommandLine(value string) CommandLine {
 	value = inputtext.NormalizeSpaces(value)
-	parsed := CommandLine{Environment: map[string]string{}, CommandIndex: -1}
+	// `Environment` starts nil and is built on the first leading assignment: a
+	// line with none (every ordinary command, and the action bar's own row on
+	// every frame — see actionbar.go) then allocates no map at all, and the
+	// field's zero value already answers `len(env) == 0` and a missing key.
+	parsed := CommandLine{CommandIndex: -1}
 	var token strings.Builder
 	tokenStarted, escaped, shellSyntax := false, false, false
 	quote := byte(0)
-
-	finish := func() {
-		if tokenStarted {
-			parsed.Tokens = append(parsed.Tokens, token.String())
-			token.Reset()
-			tokenStarted = false
-		}
-	}
 	for i := 0; i < len(value); i++ {
 		char := value[i]
 		switch {
@@ -84,7 +80,15 @@ func ParseCommandLine(value string) CommandLine {
 			}
 		case char == ' ' || char == '\t':
 			if quote == 0 {
-				finish()
+				// The word ends here. Inlined rather than a closure: the token
+				// is finished once per word, and a captured `finish` made the
+				// builder escape on every call (one allocation per line, on the
+				// frame's path).
+				if tokenStarted {
+					parsed.Tokens = append(parsed.Tokens, token.String())
+					token.Reset()
+					tokenStarted = false
+				}
 			} else {
 				token.WriteByte(char)
 			}
@@ -97,11 +101,22 @@ func ParseCommandLine(value string) CommandLine {
 			tokenStarted = true
 		}
 	}
-	finish()
+	// The last word ends at the end of the line.
+	if tokenStarted {
+		parsed.Tokens = append(parsed.Tokens, token.String())
+		token.Reset()
+		tokenStarted = false
+	}
 
 	for index, token := range parsed.Tokens {
-		if assignment := environmentAssignment.FindStringSubmatch(token); assignment != nil {
-			parsed.Environment[assignment[1]] = assignment[2]
+		// `FindStringSubmatchIndex` and not `FindStringSubmatch`: the two
+		// halves are offsets into the token, so a line's words are classified
+		// without a []string per word on the frame's path.
+		if at := environmentAssignment.FindStringSubmatchIndex(token); at != nil {
+			if parsed.Environment == nil {
+				parsed.Environment = make(map[string]string, 2)
+			}
+			parsed.Environment[token[at[2]:at[3]]] = token[at[4]:at[5]]
 			continue
 		}
 		parsed.CommandIndex = index
