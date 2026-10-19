@@ -730,6 +730,11 @@ func (a *App) recentItems(limit int) []Item {
 // an empty state). The rest is the ranked catalog: the list view builds only
 // the rows in view, so a broad query is as cheap a frame as a narrow one.
 func (a *App) Results() []Item {
+	// One count per full walk of the catalog. A frame calls this exactly once
+	// (View reuses the slice), and that is an invariant a test can read: the
+	// launcher used to walk it twice — once to ask whether the held row was on
+	// screen, once for the list — so every keystroke paid two full matches.
+	a.searchRuns++
 	if a.mode != nil {
 		return a.argumentItems(*a.mode)
 	}

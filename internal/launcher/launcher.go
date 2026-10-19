@@ -313,6 +313,23 @@ type App struct {
 	// step off it survives (the reference's effect re-runs on `query` and the
 	// list's length, not on the selection).
 	barRowKey string
+	// heldRowShown is whether the held row was the list's last line on the
+	// frame before. The release edge asks it to decide whether the selection
+	// has to be handed back to the page's default, and the answer is a fact
+	// about the *previous* frame: once the modifier is up the row is already
+	// gone, so this frame's own list cannot answer it.
+	//
+	// It is recorded here rather than recomputed by asking Results() again
+	// (which is what `heldRowShowing` did, once per frame — a second full
+	// catalog match beside the frame's own, on an idle launcher as much as a
+	// busy one; see App.searchRuns).
+	heldRowShown bool
+	// searchRuns counts the frame's own catalog work (see Results). It exists
+	// so a test can pin that a frame searches **once**: the launcher used to
+	// walk the catalog twice per frame — once for the held row's presence, once
+	// for the list — and a duplicated full match is the cheapest way to read a
+	// keystroke as a stall.
+	searchRuns int
 
 	// toast is a message to show in the panel's docked status row, set by an
 	// action, and toastWarning marks it a warning — the blocking tone the old
@@ -915,14 +932,16 @@ func (a *App) View(c *ui.Context) {
 	// puts a "new terminal session" line at the list's end and hands it the
 	// selection, so Enter reaches it. Releasing the modifier gives the
 	// selection back.
-	a.syncHeldModifier(c)
+	// The frame's one catalog walk: syncHeldModifier builds it after the
+	// modifier's state lands, so it is the list this frame draws and there is
+	// no second search to disagree with it (see App.searchRuns).
+	results := a.syncHeldModifier(c)
 	// The chord that put the row on screen is the chord that opens it: the
 	// modifier is still down when the user presses Enter, so the plain
 	// Enter's own path (the field's submit) is not the one that fires.
 	if item, ok := a.heldTerminalItem(); ok && c.Shortcut(ui.Cmd, ui.KeyEnter) {
 		item.Run()
 	}
-	results := a.Results()
 	// A query the field has not accounted for gets that query's own default
 	// before any row reads the choice (see defaultedQuery).
 	if a.Query != a.defaultedQuery {
@@ -935,7 +954,7 @@ func (a *App) View(c *ui.Context) {
 	// holdHeldRowSelection).
 	a.holdHeldRowSelection(results)
 	a.holdBarSelection(results)
-	a.clampSelection(len(results))
+	a.clampSelection(results)
 	a.assignNumbers(results)
 	// The output list, while it owns the band, carries the same numbered family
 	// over its own rows.
@@ -1242,13 +1261,16 @@ func (a *App) View(c *ui.Context) {
 	// into view; it is simply given the room.
 	if a.Selected != a.chosenRow {
 		a.chosenRow = a.Selected
-		if !a.heldRowShowing() || a.Selected != len(a.Results())-1 {
+		// The held row is the list's last line and it was recorded from this
+		// frame's own list (see heldRowShown), so neither question below
+		// needs a second catalog walk.
+		if !a.heldRowShown || a.Selected != len(results)-1 {
 			// The pinned footer is never scrolled into view: it is not a row of
 			// the scroller at all, it is the band below it, so it is on screen
 			// by construction. Asking the list for its index would land the
 			// scroll past the last row it has.
 			row := a.Selected
-			if bar := actionBarIndex(a.Results()); bar >= 0 && row >= bar {
+			if bar := actionBarIndex(results); bar >= 0 && row >= bar {
 				row = bar - 1
 			}
 			if row >= 0 {
@@ -2371,7 +2393,13 @@ func rowSelectable(item Item) bool { return !item.heading && !item.status }
 // block's heading line is a label and a plugin's status note is information,
 // neither of them a choice, so the arrows step over both.
 func (a *App) nextSelectable(from, delta int) int {
-	results := a.Results()
+	return nextSelectableIn(a.Results(), from, delta)
+}
+
+// nextSelectableIn is nextSelectable over a list the caller already holds: the
+// draw clamps its choice against the slice it built, and asking for a fresh
+// catalog there was the draw's second full match (see App.searchRuns).
+func nextSelectableIn(results []Item, from, delta int) int {
 	n := len(results)
 	if n == 0 {
 		return 0
@@ -2479,7 +2507,7 @@ func (a *App) actionBarFooter(c *ui.Context, results []Item, start int) {
 // selection on that command and the bar stays the footer it is.
 func (a *App) defaultSelection(results []Item) int {
 	bar := actionBarIndex(results)
-	if bar >= 0 && a.defaultsToActionBar(a.otherResults()) {
+	if bar >= 0 && a.defaultsToActionBar(results) {
 		return bar
 	}
 	for i, item := range results {
@@ -2495,13 +2523,14 @@ func (a *App) defaultSelection(results []Item) int {
 }
 
 // clampSelection keeps the choice on a row the keyboard can act on: a heading
-// the list shrank onto is stepped past.
-func (a *App) clampSelection(n int) {
+// the list shrank onto is stepped past. It reads the list the draw already
+// built — the same list the caller measured the count from.
+func (a *App) clampSelection(results []Item) {
+	n := len(results)
 	a.Selected = ClampIndex(a.Selected, n)
-	results := a.Results()
-	if a.Selected < len(results) && !rowSelectable(results[a.Selected]) {
-		a.Selected = a.nextSelectable(a.Selected, 1)
-		if a.Selected >= len(results) {
+	if a.Selected < n && !rowSelectable(results[a.Selected]) {
+		a.Selected = nextSelectableIn(results, a.Selected, 1)
+		if a.Selected >= n {
 			a.Selected = ClampIndex(a.Selected-1, n)
 		}
 	}
@@ -2597,18 +2626,25 @@ func (a *App) FeedbackVisible() bool { return a.toast != "" }
 // list carries no selection, so an arrow step off the row during the gesture
 // is discarded on release, exactly as the reference's is. There is no delay:
 // the row and the selection move on the same frame the modifier's state lands.
-func (a *App) syncHeldModifier(c *ui.Context) {
+func (a *App) syncHeldModifier(c *ui.Context) []Item {
 	down := c.Modifiers()&ui.Cmd == ui.Cmd
 	// "Was the row showing" has to be asked of the frame before: once
-	// modifierHeld is down the row is already gone. The row's own predicate
-	// reads modifierHeld, so the state lands before the edge is handled.
-	rowShowing := a.heldRowShowing()
+	// modifierHeld is down the row is already gone (see heldRowShown).
+	rowShowing := a.heldRowShown
 	// The row's own predicate reads modifierHeld, so the state lands before
 	// the edge is handled.
 	a.modifierHeld = down
+	// The frame's **one** catalog walk, taken after the state landed so the
+	// list it returns is the list this frame draws: the held row is in it
+	// exactly when this frame's modifier state says it is. The caller reuses
+	// this slice for the rest of the frame rather than asking again — a second
+	// full match per frame was the launcher's quietest cost (see
+	// App.searchRuns) and it bought nothing: the two calls disagreed by
+	// definition whenever the state had just changed.
+	results := a.Results()
+	a.heldRowShown = len(results) > 0 && results[len(results)-1].ID == bareTerminalRowID
 	if down != a.heldWasDown {
 		a.heldWasDown = down
-		results := a.Results()
 		if down {
 			if _, ok := a.heldTerminalItem(); ok {
 				// The held row is the list's last line, so its index is the
@@ -2639,6 +2675,7 @@ func (a *App) syncHeldModifier(c *ui.Context) {
 			}
 		}
 	}
+	return results
 }
 
 // holdHeldRowSelection keeps the selection on the held row for as long as the
@@ -2707,14 +2744,6 @@ func (a *App) holdBarSelection(results []Item) {
 	}
 	a.barRowKey = key
 	a.Selected = bar
-}
-
-// heldRowShowing reports whether the held row is in the list right now: it is
-// the one row whose presence rides the modifier, and the one selection the
-// scroll skip and the release edge are written against.
-func (a *App) heldRowShowing() bool {
-	results := a.Results()
-	return len(results) > 0 && results[len(results)-1].ID == bareTerminalRowID
 }
 
 // heldTerminalItem is the row the held modifier offers: a bare terminal
