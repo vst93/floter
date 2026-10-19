@@ -151,6 +151,7 @@ func TestProbeLinesAreTheReferenceCompactRows(t *testing.T) {
 // leading rule (`extensions.css:2200-2203`), never a plain ruled row whose
 // second line happens to be the exit code.
 func TestTheFailureCardWearsTheWarmRasiedPlane(t *testing.T) {
+	skipWithoutTheReferenceFont(t)
 	tt, _ := integrationWithHealth(t, testHealthReport(), nil)
 	code, ok := tt.Find("exit: 3")
 	if !ok {

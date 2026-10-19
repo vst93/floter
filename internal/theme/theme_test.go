@@ -435,34 +435,48 @@ func withStep(s settings.Settings, step string) settings.Settings {
 // (:628-629 dark 0.046/0.01, :906-907 light 0.66/0.22) and do **not** vary
 // with `[data-glass]`: the only token a stop moves is `--glass-lens-scale`,
 // and that grades the **control** lens (TestLensScalesWithTheGlassStop), not
-// the frame's lit face. So the frame's sheen is the same on `frosted`,
-// `regular` and `liquid` — an earlier rewrite graded it by the stop to make the
-// stops visible where the window has no material, which is exactly the
-// deviation F3b removes — and the off stop drops it with the material.
+// the frame's lit face. An earlier rewrite graded the sheen by the stop to make
+// the stops visible where the window has no material, which is exactly the
+// deviation F3b removes; the off stop drops it with the material.
+//
+// The stop *does* reach the painted sheen through one number: `capAlpha` holds
+// the sheen at or under the frame's own alpha (`spec.TintAlpha`), which is per
+// stop **and** per platform (a macOS window's material is compensated out of the
+// tint, so its frame is thinner than Linux's). Where the cap binds — the light
+// appearance's 0.66 token always, the dark one's 0.046 only on a very thin
+// frame — the three stops therefore read apart, and that is the cap, not a
+// graded token. So the invariant is asserted per stop: each stop's sheen is the
+// palette's fixed token capped at *that stop's* frame alpha, never the token
+// scaled by the stop's own lens rung.
 func TestTheFrameSheenIsFixedAcrossStops(t *testing.T) {
 	for _, appearance := range []string{"dark", "light"} {
 		base := settings.Settings{Theme: appearance, MainOpacity: settings.DefaultMainOpacity}
-		frosted := For(withStep(base, "frosted"), true)
-		regular := For(withStep(base, "regular"), true)
-		liquid := For(withStep(base, "liquid"), true)
-
-		// The three effect stops paint the same lit face: the sheen is not a
-		// rung.
-		if frosted.SheenTop != regular.SheenTop || regular.SheenTop != liquid.SheenTop {
-			t.Errorf("%s: the stop graded the sheen's top: %v / %v / %v", appearance, frosted.SheenTop, regular.SheenTop, liquid.SheenTop)
-		}
-		if frosted.SheenBottom != regular.SheenBottom || regular.SheenBottom != liquid.SheenBottom {
-			t.Errorf("%s: the stop graded the sheen's bottom: %v / %v / %v", appearance, frosted.SheenBottom, regular.SheenBottom, liquid.SheenBottom)
-		}
-		// And it is the reference's own fixed token, capped at the frame's
-		// alpha so `FaceFill`'s compensation can keep the frame's alpha the
-		// slider's (see `baseAlpha`).
-		spec := glassmap.SpecForOS(runtime.GOOS, "regular", settings.DefaultMainOpacity)
 		palette := paletteFor(Appearance(appearance))
-		wantTop := capAlpha(palette.sheenTop, spec.TintAlpha)
-		wantBottom := capAlpha(palette.sheenBottom, spec.TintAlpha)
-		if regular.SheenTop != wantTop || regular.SheenBottom != wantBottom {
-			t.Errorf("%s: sheen = %v / %v, want the palette's capped %v / %v", appearance, regular.SheenTop, regular.SheenBottom, wantTop, wantBottom)
+		var tokens []Tokens
+		for _, step := range []string{"frosted", "regular", "liquid"} {
+			got := For(withStep(base, step), true)
+			tokens = append(tokens, got)
+			spec := glassmap.SpecForOS(runtime.GOOS, step, settings.DefaultMainOpacity)
+			wantTop := capAlpha(palette.sheenTop, spec.TintAlpha)
+			wantBottom := capAlpha(palette.sheenBottom, spec.TintAlpha)
+			if got.SheenTop != wantTop || got.SheenBottom != wantBottom {
+				t.Errorf("%s/%s: sheen = %v / %v, want the palette's fixed token capped at the frame's %v / %v",
+					appearance, step, got.SheenTop, got.SheenBottom, wantTop, wantBottom)
+			}
+			// The sheen never makes the frame denser than the slider asked for.
+			if float32(got.SheenTop.A)/255 > spec.TintAlpha+0.004 || float32(got.SheenBottom.A)/255 > spec.TintAlpha+0.004 {
+				t.Errorf("%s/%s: the sheen is heavier than the frame: %v / %v over %v",
+					appearance, step, got.SheenTop, got.SheenBottom, spec.TintAlpha)
+			}
+		}
+		// Where the cap is inert on all three stops the lit face is one token,
+		// i.e. the stop graded nothing at all.
+		if tokens[0].SheenTop.A == palette.sheenTop.A && tokens[1].SheenTop.A == palette.sheenTop.A && tokens[2].SheenTop.A == palette.sheenTop.A {
+			for _, got := range tokens[1:] {
+				if got.SheenTop != tokens[0].SheenTop || got.SheenBottom != tokens[0].SheenBottom {
+					t.Errorf("%s: the stop graded an uncapped sheen: %v / %v", appearance, got.SheenTop, got.SheenBottom)
+				}
+			}
 		}
 		// The off stop has no glass, so it paints no sheen at all.
 		if off := For(withStep(base, "off"), true); off.SheenTop.A != 0 || off.SheenBottom.A != 0 {

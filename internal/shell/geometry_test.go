@@ -125,6 +125,7 @@ func TestTargetSizeUsesTheMeasuredGeometry(t *testing.T) {
 // header's title sit on the same line, at the same band height, on both
 // appearances.
 func TestSettingsHeaderSharesTheLauncherFieldRowBand(t *testing.T) {
+	skipWithoutTheReferenceFont(t)
 	store := settings.NewStore(settings.Default())
 	a := New(Options{Store: store})
 

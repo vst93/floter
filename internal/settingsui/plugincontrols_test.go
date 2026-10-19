@@ -18,6 +18,7 @@ import (
 // field, so the slot is read there — the field's own plane and its height by
 // pixel, the unit's register by measurement.
 func TestThePluginNumberControlIsTheReferenceGlassSlot(t *testing.T) {
+	skipWithoutTheReferenceFont(t)
 	copy := i18n.For("en").Settings
 	store := newStore(t)
 	a := New(store, Actions{})

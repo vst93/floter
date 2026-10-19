@@ -124,6 +124,7 @@ func TestTheOutputBlockIsTheReferenceRecess(t *testing.T) {
 // read is that the text is *not* the body step the port set it in, and that it
 // is selectable.
 func TestTheCapturedTextIsTheTerminalRegister(t *testing.T) {
+	skipWithoutTheReferenceFont(t)
 	en := i18n.For("en").Settings
 	a := oneIntegrationApp(Integration{
 		ID: "dev.floter.tool", Name: "V Tools", Version: "1.2.3",

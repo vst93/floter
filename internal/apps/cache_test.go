@@ -38,7 +38,14 @@ func TestCachedScanRoundTrip(t *testing.T) {
 
 	// An unrelated directory does not invalidate it.
 	other := t.TempDir()
-	if _, err := os.Create(filepath.Join(other, "x")); err != nil {
+	// Closed before the temp dir is cleaned up: Windows refuses to remove a
+	// file another handle still holds, and the failure lands on the cleanup
+	// rather than on anything the cache did.
+	f, err := os.Create(filepath.Join(other, "x"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
 		t.Fatal(err)
 	}
 	StoreScan(roots, scan)

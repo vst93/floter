@@ -70,6 +70,7 @@ func renderOneField(t *testing.T, store *settings.Store, dark bool, draw func(c 
 // first row than the pill's half-height curve; and the whole box is the caption
 // register, under the 28px pill beside it.
 func TestTheCommandAliasFieldKeepsItsLiteralBoxAndCorner(t *testing.T) {
+	skipWithoutTheReferenceFont(t)
 	type shape struct{ height, inset, corner float32 }
 	measure := func(step string, pill bool) shape {
 		t.Helper()
@@ -247,6 +248,7 @@ func TestTheFieldsWearTheFieldRungNotTheControlRung(t *testing.T) {
 // accent-hued ink (the blue-leaning keyline) the framework's neutral pressed
 // fill does not.
 func TestTheExtensionPickerWearsTheSameStadiumShapeAsTheSettingsPicker(t *testing.T) {
+	skipWithoutTheReferenceFont(t)
 	store := settings.NewStore(settings.Default())
 	a := New(store, Actions{})
 	tokens := theme.ForPreferences(store.Snapshot(), true, ui.Preferences{})
@@ -587,6 +589,7 @@ func TestTheConfigFieldsWearTheTwoColumnGrid(t *testing.T) {
 // `--accent-contrast`, which is measurably apart from the neutral pill's
 // `--text-strong`.
 func TestTheAffirmativeActionWearsThePrimaryAccentFace(t *testing.T) {
+	skipWithoutTheReferenceFont(t)
 	store := settings.NewStore(settings.Default())
 	a := New(store, Actions{})
 	for _, dark := range []bool{false, true} {

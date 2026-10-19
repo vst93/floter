@@ -17,6 +17,7 @@ import (
 // the title block is the taller child and the two alignments differ — with a
 // single-line title and the real 24u action they would coincide.
 func TestTheSectionHeadingIsTheReferenceRow(t *testing.T) {
+	skipWithoutTheReferenceFont(t)
 	store := newStore(t)
 	a := New(store, Actions{})
 	tokens := theme.ForPreferences(store.Snapshot(), false, ui.Preferences{})

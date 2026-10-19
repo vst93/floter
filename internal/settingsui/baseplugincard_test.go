@@ -133,6 +133,7 @@ func TestTheBasePluginCardsAreTheirOwnBoxes(t *testing.T) {
 // wrapping, not a single ellipsized line), and the privacy note at the body
 // step in the warning ink — the one line that discloses rather than describes.
 func TestTheBasePluginCardTextRunsTheReferenceLadder(t *testing.T) {
+	skipWithoutTheReferenceFont(t)
 	en := i18n.For("en").Settings
 	a := basePluginApp(t)
 	tt := render(t, a, 720, 1000)

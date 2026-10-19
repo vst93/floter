@@ -227,15 +227,18 @@ func TestMigrateLegacySplitsThePreGlassStrength(t *testing.T) {
 }
 
 func TestLegacySettingsPathsNamesTheBackupAndIdentifierDirs(t *testing.T) {
+	// The paths are built with the host's separator (`filepath.Join`), so the
+	// expectations are too: a literal "/config/floter" is a Linux-only answer,
+	// and on Windows the same list reads `\config\floter`.
 	paths := LegacySettingsPaths("/config", "/data")
 	want := []string{
-		"/config/floter/settings.json.backup",
-		"/config/com.v.floter/settings.json",
-		"/config/v.floter/settings.json",
-		"/config/floter-go/settings.json",
-		"/data/com.v.floter/settings.json",
-		"/data/v.floter/settings.json",
-		"/data/floter-go/settings.json",
+		filepath.Join("/config", "floter", "settings.json.backup"),
+		filepath.Join("/config", "com.v.floter", "settings.json"),
+		filepath.Join("/config", "v.floter", "settings.json"),
+		filepath.Join("/config", "floter-go", "settings.json"),
+		filepath.Join("/data", "com.v.floter", "settings.json"),
+		filepath.Join("/data", "v.floter", "settings.json"),
+		filepath.Join("/data", "floter-go", "settings.json"),
 	}
 	if len(paths) != len(want) {
 		t.Fatalf("paths = %v", paths)

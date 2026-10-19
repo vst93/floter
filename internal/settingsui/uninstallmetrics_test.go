@@ -285,6 +285,7 @@ func TestComponentizedUninstallActionsAreTheReferencePill(t *testing.T) {
 // same line laid out at that size — the two differ, which is what makes the
 // reading a test rather than a restatement.
 func TestComponentizedUninstallTypeRegisters(t *testing.T) {
+	skipWithoutTheReferenceFont(t)
 	en := i18n.For("en").Settings
 	a := uninstallTestApp()
 	integration := npmTool()

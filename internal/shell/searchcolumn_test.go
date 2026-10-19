@@ -215,23 +215,41 @@ func TestTheCardIsTheWindowLessThePlatformsInset(t *testing.T) {
 	}
 	img := tt.Image()
 	cardLeft, cardRight := cardEdges(a)
-	y := int(field.Y + field.H/2)
 
-	// The field block's own fill, sampled at the card's middle: a narrow block
-	// would move this column's colour too, so the sample cannot be taken from
-	// a column the block's edge might have passed over.
-	fill := img.RGBAAt(int((cardLeft+cardRight)/2), y)
+	// The field block's own fill is sampled at the card's middle column, and
+	// the run is measured on the **widest** row of the field's band rather than
+	// on one fixed row: which row of a row box carries the field's fill is the
+	// font's business (a line box is taller on Windows' Segoe than on Linux'
+	// DejaVu, so `field.Y + field.H/2` lands inside the fill on one host and on
+	// the field's own top stroke on another — that is a red test on the
+	// environment, not a band inside the card). The band's widest run is the
+	// question being asked: does the block reach the card's edges at all.
+	fill := img.RGBAAt(int((cardLeft+cardRight)/2), int(field.Y+field.H/2))
 	runLeft, runRight := -1, -1
-	for x := 0; x < 720; x++ {
-		if img.RGBAAt(x, y) == fill {
-			if runLeft < 0 {
-				runLeft = x
+	top := int(field.Y)
+	bottom := int(field.Y+field.H) - 1
+	if bottom < top {
+		bottom = top
+	}
+	for y := top; y <= bottom; y++ {
+		if y < 0 || y >= img.Bounds().Dy() {
+			continue
+		}
+		first, last := -1, -1
+		for x := 0; x < 720 && x < img.Bounds().Dx(); x++ {
+			if img.RGBAAt(x, y) == fill {
+				if first < 0 {
+					first = x
+				}
+				last = x
 			}
-			runRight = x
+		}
+		if first >= 0 && (runLeft < 0 || last-first > runRight-runLeft) {
+			runLeft, runRight = first, last
 		}
 	}
 	if runLeft < 0 {
-		t.Fatalf("the field block was not painted at y=%d", y)
+		t.Fatalf("the field block was not painted between y=%d and y=%d", top, bottom)
 	}
 	// The window's inset is all that is left of the frame, and the field block
 	// runs from the card's own first pixel to its last: the stroke is painted

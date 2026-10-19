@@ -22,6 +22,7 @@ import (
 // primary action. Rendering the face on its own reads its box and its ink
 // without the surrounding sheet.
 func TestThePluginActionButtonIsTheReferenceHairlinePill(t *testing.T) {
+	skipWithoutTheReferenceFont(t)
 	store := newStore(t)
 	a := New(store, Actions{})
 	tokens := theme.ForPreferences(store.Snapshot(), false, ui.Preferences{})
@@ -171,6 +172,7 @@ func TestThePluginActionClusterIsWarmAndAsksBeforeItActs(t *testing.T) {
 // with a `text` field, so the row is read there — its label and its field box
 // by pixel.
 func TestThePluginTextFieldIsTheReferenceGlassSlot(t *testing.T) {
+	skipWithoutTheReferenceFont(t)
 	copy := i18n.For("en").Settings
 	store := newStore(t)
 	a := New(store, Actions{})

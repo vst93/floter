@@ -111,6 +111,7 @@ func TestTheTextActionHoverDimsTheInkOnly(t *testing.T) {
 // centred mid-height. This drives the live Shortcuts group's heading and
 // checks the action's box against the reference's geometry.
 func TestSectionHeadingActionSitsAtTheRightEndBottomAligned(t *testing.T) {
+	skipWithoutTheReferenceFont(t)
 	en := i18n.For("en").Settings
 	a := New(newStore(t), Actions{})
 	tt := render(t, a, 720, 800)

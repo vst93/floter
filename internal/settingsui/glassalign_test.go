@@ -23,6 +23,7 @@ import (
 // rows have transparent segment faces, so the glyphs are the only ink, and the
 // air on each side tells a row from a centered choice.
 func TestTheMaterialPickCentersWhereTheBasePickIsARow(t *testing.T) {
+	skipWithoutTheReferenceFont(t)
 	a := New(newStore(t), Actions{})
 	var tokens theme.Tokens
 	tt := ui.NewTester(func(c *ui.Context) {
