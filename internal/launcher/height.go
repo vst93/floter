@@ -114,14 +114,26 @@ func HoldRows(held, rows int) int {
 // charged 2px more than the design draws at the shipped `small` step and left
 // the card 2px short of the window's own height.
 func windowInset(spacing float64) float64 {
+	return windowInsetOS(runtime.GOOS, spacing)
+}
+
+// windowInsetOS is windowInset for a named platform, for the same reason the
+// shell's `insetForOS` is: the charged height and the drawn card are one
+// decision per platform, and a Windows-only slip in the charged number was
+// invisible to the Linux and macOS suites — the platform that runs the test is
+// the only one whose branch it read. The values are the shell's own ladder
+// (`internal/shell.insetForOS`) summed top-to-bottom, so the window is charged
+// exactly the band the card leaves: Linux 10u a side (20u), Windows 4u above
+// and 12u below (16u), macOS none.
+func windowInsetOS(goos string, spacing float64) float64 {
 	if spacing <= 0 {
 		spacing = 4
 	}
-	switch runtime.GOOS {
+	switch goos {
 	case "linux":
-		return 5 * spacing // 10u a side
+		return 5 * spacing // 2 × 10u
 	case "windows":
-		return 4 * spacing // 4u + 12u vertically
+		return 4 * spacing // 4u + 12u
 	default:
 		return 0
 	}

@@ -1,6 +1,7 @@
 package launcher
 
 import (
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -277,5 +278,41 @@ func TestTheActionBarIsChargedOutsideTheBudget(t *testing.T) {
 	onlyBar := Geometry{Font: 14, Spacing: 4, Rows: []RowInfo{bar}, Held: 1}.Height()
 	if onlyBar >= gotNine {
 		t.Errorf("a bar-only page = %d, not shorter than nine rows plus a bar %d", onlyBar, gotNine)
+	}
+}
+
+// The margin the window is charged is the card's own band per platform, and it
+// is read off a table rather than the host's `runtime.GOOS`, so the Windows and
+// macOS numbers are pinned by the Linux suite too (the shell's `insetForOS` is
+// written the same way, for the same reason: a wrong Windows number was
+// invisible on the machine that ran the tests). The sums are the shell's
+// ladder — `internal/shell.insetForOS` — top plus bottom, so the charged
+// window and the drawn card cannot drift apart.
+func TestTheChargedMarginIsTheCardsBandOnEveryPlatform(t *testing.T) {
+	// spacing is one Space unit, four reference units: the shell hands the
+	// same table to `t.Space`, so 4 is the shipped `small` step's pixel size.
+	const spacing = 4
+	for _, tt := range []struct {
+		goos   string
+		top    float64 // in Space units, the shell's insetForOS
+		bottom float64
+	}{
+		{"linux", 2.5, 2.5},
+		{"windows", 1, 3},
+		{"darwin", 0, 0},
+	} {
+		want := (tt.top + tt.bottom) * spacing
+		if got := windowInsetOS(tt.goos, spacing); got != want {
+			t.Errorf("windowInsetOS(%q) = %v, want %v (the shell's inset top+bottom)", tt.goos, got, want)
+		}
+		// The host wrapper is the same function on the host's own name.
+		if runtime.GOOS == tt.goos && windowInset(spacing) != want {
+			t.Errorf("windowInset() = %v on %s, want %v", windowInset(spacing), tt.goos, want)
+		}
+	}
+	// A zero spacing is the unmeasured frame's step: the table answers at the
+	// default rather than charging nothing.
+	if windowInsetOS("linux", 0) != 5*4 {
+		t.Errorf("windowInsetOS(linux, 0) = %v, want the default step's 20", windowInsetOS("linux", 0))
 	}
 }
