@@ -13,6 +13,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -812,11 +813,28 @@ func (a *App) CloseAll() {
 // View builds the terminal surface: a title row over the session, or the
 // empty state when none runs.
 func (a *App) View(c *ui.Context) {
-	copy := i18n.For(a.Store.Snapshot().Language).Terminal
+	stored := a.Store.Snapshot()
+	copy := i18n.For(stored.Language).Terminal
 	t := c.Theme()
+	tokens := tokensOf(a, c)
 
-	ui.Box(c).Fill().Children(func() {
-		session := a.Current()
+	// The panel's own background is **one** layer, at the alpha the terminal
+	// slider asks for less the share the card's face already carries
+	// (glassmap.Spec.CanvasAlpha). Both layers used to paint the slider, so 46%
+	// showed as `1-(1-0.46)^2` = 71% (「终端透明度滚轴说的和看到的不一致」); the
+	// frame now carries its share and this one the rest, and the two composite
+	// back to the slider once.
+	//
+	// The colour is the palette's own for a named palette, and the window's for
+	// the shipped `inherit` — so an inherit session looks exactly as it did,
+	// while a palette reaches a running session on the next frame (the plugin's
+	// view is transparent; see canvasFill). The empty page takes the window's
+	// colour too: there is no session whose palette it would be, and the page's
+	// own ink has to stay readable on it.
+	spec := glassmap.SpecForPreferencesOS(runtime.GOOS, stored.GlassStep, stored.TerminalOpacity, c.Preferences().HighContrast)
+	session := a.Current()
+	running := session != nil && session.Term != nil
+	ui.Box(c).Fill().Radius(tokens.RadiusLG).Background(panelFill(stored.TerminalTheme, running, spec, tokens)).Children(func() {
 		if session == nil || session.Term == nil {
 			// The empty state: what the page is, and the two lines that leave
 			// it — each its own key and label, as the old build's
@@ -879,9 +897,7 @@ func (a *App) View(c *ui.Context) {
 			// the plugin (the session is transparent, see options). Rebuilt from
 			// the stored settings every frame, so a palette picked while a
 			// session runs lands without restarting it.
-			stored := a.Store.Snapshot()
 			ui.Box(c).Fill().Radius(tokensOf(a, c).RadiusLG).Border(1, edge).
-				Background(canvasFill(stored.TerminalTheme, stored.TerminalOpacity, c.Preferences().HighContrast)).
 				Children(func() {
 					terminal.View(c, session.Term).Fill().Padding(pad).Bind(&a.Focus).Label(copy.Input)
 				})
@@ -1294,38 +1310,34 @@ func cursorStyle(shape string) terminal.CursorStyle {
 	}
 }
 
-// canvasFill is the colour the terminal surface paints behind the canvas: a
-// named palette's own background at the terminal slider's alpha, and nothing
-// at all for the shipped `inherit` (and for an id this build does not know,
-// the same as the renderer's own fallback).
+// panelFill is the colour the terminal surface paints behind its content: a
+// named palette's own background, and the window's background for the shipped
+// `inherit` (and for an id this build does not know, the same as the renderer's
+// own fallback).
 //
-// It is the one place the palette's transparency reaches pixels (P7-dr): the
-// plugin's view is transparent, and this layer is read from the stored settings
-// on every frame, so the palette and the slider apply to a session that is
-// already running. The old build met the same case by rebuilding its renderer
-// on each mount rather than by reconfiguring the running one.
-func canvasFill(name string, opacity uint8, highContrast bool) ui.Color {
-	spec, ok := palettes[name]
-	if !ok {
-		return ui.Color{}
+// It is the one place the palette reaches pixels (P7-dr): the plugin's view is
+// transparent, and this layer is read from the stored settings on every frame,
+// so the palette and the slider apply to a session that is already running. The
+// old build met the same case by rebuilding its renderer on each mount rather
+// than by reconfiguring the running one.
+//
+// The alpha is the terminal slider's *less* the share the card's face already
+// carries (glassmap.Spec.CanvasAlpha), so the panel is one sheet: the two
+// layers composite back to the slider once. It used to be the slider straight,
+// on top of a card face that painted the slider too, so 46% read as 71%.
+//
+// `running` says whether a session is on screen: the palette's colour belongs
+// to a session, and the empty page keeps the window's own colour so its ink
+// stays readable on a light palette.
+func panelFill(name string, running bool, spec glassmap.Spec, tokens theme.Tokens) ui.Color {
+	colour := ui.RGB(18, 19, 22)
+	if tokens.Theme != nil {
+		colour = tokens.Theme.Background
 	}
-	return packed(spec.bg).Alpha(canvasAlpha(opacity, highContrast))
-}
-
-// canvasAlpha is the alpha the old build painted its canvas at, and it is the
-// frame's own rule rather than the slider read straight: base.css's
-// `min(--glass-solid-top, max(--glass-frame-floor, --terminal-opacity))` - the
-// very pair glassmap folds into the veil under this layer, so the canvas and
-// the veil agree on how solid the terminal is. A fully opaque canvas would drop
-// the material's sheen and rim into invisibility and read as paint, which is
-// why the top is 0.98 and not 1; the floor is inert until the desktop asks for
-// more contrast.
-func canvasAlpha(opacity uint8, highContrast bool) float32 {
-	alpha := min(glassmap.SolidTop, float32(opacity)/100)
-	if highContrast {
-		alpha = max(glassmap.ContrastFrameFloor, alpha)
+	if p, ok := palettes[name]; ok && running {
+		colour = packed(p.bg)
 	}
-	return alpha
+	return colour.Alpha(spec.CanvasAlpha())
 }
 
 // themeFor builds the plugin theme (or the light/dark pair) for a stored

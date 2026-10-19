@@ -1,6 +1,8 @@
 package launcher
 
 import (
+	"runtime"
+
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/glassmap"
@@ -59,12 +61,22 @@ func StringsFor(language string) Strings {
 // `prefers-contrast: more` block: the stronger stroke tokens in the theme and
 // the dialled-back material in the glass spec.
 func Resolve(s settings.Settings, systemDark bool, prefs ui.Preferences) Surface {
+	return ResolveOS(s, systemDark, prefs, runtime.GOOS)
+}
+
+// ResolveOS is Resolve for a named platform: the glass fill is compensated for
+// the veil the window's own material lays over the desktop
+// (glassmap.MaterialVeil), and the platform is a parameter so the three tables
+// are one decision a test can read on any host. The tokens and the spec are
+// resolved with the *same* platform, so the frame's fill and the panes the
+// views paint over it cannot disagree about how solid the window is.
+func ResolveOS(s settings.Settings, systemDark bool, prefs ui.Preferences, goos string) Surface {
 	s = settings.Normalize(s)
 	return Surface{
 		Settings: s,
 		Strings:  StringsFor(s.Language),
 		Theme:    ResolveTheme(s.Theme, systemDark),
-		Tokens:   theme.ForPreferences(s, systemDark, prefs),
-		Glass:    glassmap.SpecForPreferences(s.GlassStep, s.MainOpacity, prefs.HighContrast),
+		Tokens:   theme.ForPlatform(s, systemDark, prefs, goos),
+		Glass:    glassmap.SpecForPreferencesOS(goos, s.GlassStep, s.MainOpacity, prefs.HighContrast),
 	}
 }

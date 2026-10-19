@@ -246,20 +246,26 @@ func TestTurningTheGlassOnKeepsTheTransparency(t *testing.T) {
 	}
 }
 
-// The frame's alpha is the transparency slider's on **every** stop. The
-// acceptance is the rendered alpha of the window's own background, read at
-// each slider stop for each glass stop: the off frame is the reference, and
-// every effect stop must sit on it, band for band. This is the pixel table
-// the report 「开玻璃透明底仍失效」 asks for.
+// The frame's alpha is the transparency slider's on **every** effect stop, and
+// the three stops agree with each other band for band: the material's own
+// weight is compensated out of the tint (glassmap.MaterialVeil), so one slider
+// position is one solidity whether the stop is `frosted`, `regular` or
+// `liquid`. That is the pixel-level acceptance of the report 「同一个透明度在三
+// 档下观感不同」.
 //
-// The layer that failed it was the **frame's sheen**, painted as a separate
-// translucent layer over the fill. The sheen is a stop-graded highlight, so
-// only the glass-on frames carried it: it composites its own alpha over the
-// fill, and the light appearance added up to 0.11 of alpha in the result band
-// at the default 47% (0.564 off → 0.678 regular, 0.746 liquid). The fix bakes
-// the sheen into the fill's own alpha budget — `theme.Tokens.FaceFill` chooses
-// the tint alpha that composites with the sheen back to the frame's alpha — so
-// the stop grades the lit face's colour, never the frame's thickness.
+// The `off` stop is a **separate** reading, and the one place the two ladders
+// are allowed to differ: it carries no material, so it carries a readability
+// floor instead (glassmap.OffFrameFloor) — at the slider's bottom end a plain
+// tint with no blur behind it would put the text on the wallpaper. Every other
+// slider position is the slider's own value on every stop.
+//
+// The layer that used to break this was the **frame's sheen**, painted as a
+// separate translucent layer over the fill. The sheen is a stop-graded
+// highlight, so only the glass-on frames carried it: it composites its own
+// alpha over the fill, and the light appearance added up to 0.11 of alpha in
+// the result band at the default 47%. `theme.Tokens.FaceFill` bakes the sheen
+// into the fill's own alpha budget, so the stop grades the lit face's colour,
+// never the frame's thickness.
 func TestTheFrameAlphaIsTheSlidersOnEveryStop(t *testing.T) {
 	// The window's own background bands, all below the field block: the top of
 	// the list, its middle and its bottom.
@@ -271,33 +277,42 @@ func TestTheFrameAlphaIsTheSlidersOnEveryStop(t *testing.T) {
 		{"middle", 200, 260},
 		{"bottom", 350, 400},
 	}
-	stops := []string{"off", "frosted", "regular", "liquid"}
+	stops := []string{"frosted", "regular", "liquid"}
 
 	for _, theme := range []string{"dark", "light"} {
 		for _, opacity := range []uint8{settings.MinWindowOpacity, settings.DefaultMainOpacity, settings.MaxWindowOpacity} {
 			off := renderStopOpacity(t, theme, "off", opacity)
+			offBottom := meanBandAlpha(off, bands[2].y0, bands[2].y1)
 			t.Logf("%s appearance, transparency %d%% — mean alpha per band:", theme, opacity)
 			for _, band := range bands {
 				offA := meanBandAlpha(off, band.y0, band.y1)
 				line := fmt.Sprintf("  %-7s off %.3f", band.name, offA)
+				first := meanBandAlpha(renderStopOpacity(t, theme, stops[0], opacity), band.y0, band.y1)
 				for _, step := range stops[1:] {
 					a := meanBandAlpha(renderStopOpacity(t, theme, step, opacity), band.y0, band.y1)
-					line += fmt.Sprintf("  %s %.3f (%+.3f)", step, a, a-offA)
-					// The stop must not make the frame denser: the off frame is the
-					// ceiling, band for band. The compensated base is a linear
-					// gradient under the sheen's linear one, so the composite is
-					// exactly the slider's alpha at both ends and dips a few
-					// thousandths below it in between (a thinner frame, never a
-					// denser one).
-					if d := a - offA; d > 0.005 {
-						t.Errorf("%s %d%% %s: %s is %.3f, %+.3f denser than the off frame %.3f — the stop must not cost transparency",
-							theme, opacity, band.name, step, a, d, offA)
-					} else if d < -0.03 {
-						t.Errorf("%s %d%% %s: %s is %.3f, %+.3f from the off frame %.3f",
-							theme, opacity, band.name, step, a, d, offA)
+					line += fmt.Sprintf("  %s %.3f (%+.3f)", step, a, a-first)
+					// One alpha truth: the stops are the same thickness, so a
+					// stop switch cannot change how solid the window is.
+					if d := a - first; d > 0.01 || d < -0.01 {
+						t.Errorf("%s %d%% %s: %s is %.3f, %+.3f from %s %.3f — the stops must share one alpha",
+							theme, opacity, band.name, step, a, d, stops[0], first)
 					}
 				}
 				t.Log(line)
+			}
+			// The `off` stop's floor is the one rung of its own: never thinner
+			// than the floor, and (with no material behind it) the densest
+			// reading at the slider's bottom end.
+			if offBottom < glassmap.OffFrameFloor-0.02 {
+				t.Errorf("%s %d%%: the off frame's bottom is %.3f, want at least the readability floor %.2f",
+					theme, opacity, offBottom, glassmap.OffFrameFloor)
+			}
+			if opacity == settings.MinWindowOpacity {
+				thin := meanBandAlpha(renderStopOpacity(t, theme, "regular", opacity), bands[2].y0, bands[2].y1)
+				if offBottom <= thin {
+					t.Errorf("%s: the off frame (%.3f) is not denser than the blurred regular frame (%.3f) at the slider's bottom — the floor is inert",
+						theme, offBottom, thin)
+				}
 			}
 		}
 	}
@@ -318,7 +333,13 @@ func TestVibrancyFollowsTheGlassStop(t *testing.T) {
 		{"darwin", "jelly", mygo.VibrancySidebar}, // a legacy id migrates
 		{"windows", "frosted", mygo.VibrancyAcrylic},
 		{"windows", "liquid", mygo.VibrancyAcrylic},
+		// `off` removes the material on every platform, not only on macOS:
+		// the early return this used to take for Windows and Linux kept
+		// Windows' Acrylic, so a glass-off Windows window still blurred what
+		// was behind it (「关了玻璃还是有磨砂」).
+		{"windows", "off", mygo.VibrancyNone},
 		{"linux", "regular", mygo.VibrancyNone},
+		{"linux", "off", mygo.VibrancyNone},
 	}
 	for _, tc := range cases {
 		if got := vibrancyForStop(tc.goos, tc.step); got != tc.want {

@@ -35,7 +35,13 @@
 //
 // `main_opacity` stays what it was: the frame's only alpha truth. The stop
 // never moves it — `frosted` asks for the most veil (0.6) and `liquid` the
-// least (0.2), but the veil is the material's own weight, not the fill's.
+// least (0.2), but the veil is the material's own weight, not the fill's. What
+// the stop *does* move is how much of that alpha the app has to paint itself:
+// the window's material already lays a veil of its own over the desktop, and
+// the tint is compensated for it (see MaterialVeil, Spec.Target), so one slider
+// position shows one solidity on every stop. `Spec.Composite` is that number —
+// the one the settings page prints — and `Spec.TintAlpha` is what the panel
+// paints to reach it.
 //
 // `glass.ScrollEdge` (and `glass.Blur`) are used where they do have a
 // counterpart: content scrolling *inside* the window, under a bar (the
@@ -68,10 +74,23 @@ type Spec struct {
 	// fill — the transparency slider is the frame's only alpha truth — but it
 	// is kept so the material choice and the report can name it.
 	HazeAlpha float32
-	// TintAlpha is the panel's fill alpha, 0..1: the frame's own alpha, the
-	// transparency slider, on every stop. The `off` and effect stops share it,
-	// so turning the glass on never makes the window denser.
+	// TintAlpha is the panel's fill alpha, 0..1: the alpha the panel *paints*,
+	// which is the transparency slider less the veil the window's own material
+	// already contributes (see Material). The `off` and effect stops share the
+	// rule, so turning the glass on never makes the window denser.
 	TintAlpha float32
+	// Target is the alpha the frame is asked to **composite** to: the
+	// transparency slider (floored for `off`, capped at SolidTop). TintAlpha is
+	// the fill that composites with Material back to it, so the same slider
+	// position shows the same solidity on every stop (「透明度与玻璃档位相互
+	// 影响」). It is carried so the contrast preference can lift the visible
+	// floor and re-derive the fill.
+	Target float32
+	// Material is the veil the window's backdrop material already lays over the
+	// desktop, 0..1 (see MaterialVeil): 0 where the platform has no material of
+	// its own, which is every stop on Linux and Windows in this build. It is the
+	// amount TintAlpha was compensated against, so Composite is exact.
+	Material float32
 	// Blur is the stop's backdrop blur in DIPs, base.css's `--glass-step-blur`
 	// (10/22/28). The panel cannot run its own `backdrop-filter`, so this is
 	// what the window's vibrancy material is chosen from: the blur ladder is
@@ -118,6 +137,18 @@ var stops = map[string]struct {
 // max(frame_floor, opacity))` did.
 const SolidTop = 0.98
 
+// OffFrameFloor is the readability floor the `off` stop carries: the stop
+// really does turn the blur off (see MaterialVeil: no material on any
+// platform), so at the slider's bottom end the text would sit on the raw
+// desktop. The floor is the same *shape* as ContrastFrameFloor — a floor on
+// the frame's own alpha, not a replacement for the slider — and it is the one
+// rung the effect stops do not need, because their backdrop is blurred: a
+// frosted pane stays readable much thinner than a plain tint does. It is why
+// the `off` stop reads denser than a glass stop at the slider's bottom end,
+// which is the honest answer: with the blur gone, the tint is the whole of the
+// material.
+const OffFrameFloor = 0.35
+
 // ContrastFrameFloor is base.css's `--glass-frame-floor` under
 // `@media (prefers-contrast: more)`: the low end of the transparency slider is
 // lifted to near-solid, on every stop. The old build's comment says why it is
@@ -133,6 +164,64 @@ const ContrastFrameFloor = 0.86
 // near-flat pane while the pane keeps its stronger edge.
 const ContrastLensScale = 0.6
 
+// MaterialVeil is the veil the window's own backdrop material lays over the
+// desktop on its own, as a self-solidity 0..1, per platform and stop: the
+// weight the panel's tint does *not* have to carry.
+//
+// macOS is the one platform with a material per stop (shell.vibrancyForStop):
+// `under-page` is the thinnest (the frosted end), `under-window` the standard
+// pane, `sidebar` the densest. Those three materials are what made the same
+// 47% read three different ways — the material's own weight sat on top of a
+// tint that was the same number on every stop (「同一个透明度在三档下观感
+// 不同」) — so the mapping compensates for it instead of pretending it is not
+// there. Windows 11's Acrylic is one backdrop for every stop and Linux has no
+// material at all, so both carry 0 here: the tint is the whole of the glass and
+// needs no compensation. (Acrylic does add a veil of its own; it is left at 0
+// until the number can be calibrated against a real window, which is the same
+// rule the three macOS numbers follow — one table, one place to tune.)
+//
+// The numbers are the materials' own weights, not a sample of a wallpaper: a
+// material's opacity is a property of the material, so the table is what a
+// screenshot against a flat canvas would confirm. They are deliberately modest
+// — a veil of v caps the slider's low end at v (a tint cannot be negative),
+// so a heavy reading would make the bottom of the slider inert.
+func MaterialVeil(goos, step string) float32 {
+	if goos != "darwin" {
+		return 0
+	}
+	switch settings.NormalizeGlassStep(step) {
+	case "off":
+		return 0
+	case "frosted":
+		return 0.12 // under-page: the thinnest of the three
+	case "liquid":
+		return 0.34 // sidebar: the densest
+	default:
+		return 0.22 // under-window: the standard pane
+	}
+}
+
+// compensate is the fill alpha that composites with a material veil back to
+// target: `1-(1-fill)(1-veil) == target`. It is the same over-frame algebra the
+// content pane and the sheen use, in the other direction: those two split one
+// alpha between two layers the app paints itself, this one takes away the layer
+// the *window server* already painted. A veil heavier than the target leaves no
+// fill at all (the material is already denser than the slider asks), and the top
+// is the frame's own SolidTop so a maxed slider still reads as glass.
+func compensate(target, veil float32) float32 {
+	if veil <= 0 {
+		return min(SolidTop, target)
+	}
+	if veil >= 1 {
+		return 0
+	}
+	fill := (target - veil) / (1 - veil)
+	if fill < 0 {
+		return 0
+	}
+	return min(SolidTop, fill)
+}
+
 // floatStep is the fixed lift a floating pane carries over the frame's tint,
 // base.css's `--glass-float-alpha = var(--glass-tint-alpha) + 0.1`: a drawer,
 // dialog, toast or resident note is always denser than the frame it floats
@@ -140,14 +229,19 @@ const ContrastLensScale = 0.6
 const floatStep = 0.1
 
 // SpecFor maps a stored glass_step and main_opacity onto the plugin's
-// parameters. Both inputs are normalized first, so a hand-edited value
-// behaves exactly as the loader would.
+// parameters for a window with no material of its own (Linux, and any render
+// without a window). SpecForOS is the mapping the app uses, because the
+// window's backdrop material is part of the answer.
+//
+// Both inputs are normalized first, so a hand-edited value behaves exactly as
+// the loader would.
 //
 // The panel's fill is the frame's own alpha — the transparency slider's value,
-// `min(--glass-solid-top, opacity)` — on every stop. The old build's
-// `--glass-tint-alpha` raised that with the stop's dimming layer, which is
-// what made the glass-on frame denser than the `off` frame and the slider's
-// low end inert (「关闭液态玻璃效果时透明底可以了，但是开启时又没有透明了」).
+// `min(--glass-solid-top, opacity)`, less the veil the window's material
+// already contributes — on every stop. The old build's `--glass-tint-alpha`
+// raised that with the stop's dimming layer, which is what made the glass-on
+// frame denser than the `off` frame and the slider's low end inert
+// (「关闭液态玻璃效果时透明底可以了，但是开启时又没有透明了」).
 // The stop's haze (`HazeAlpha`) is still carried — it names how much veil the
 // stop asks for, and the material choice reads it — but it never moves the
 // fill: the slider is the frame's only alpha truth, exactly as it is on `off`.
@@ -156,10 +250,18 @@ const floatStep = 0.1
 // the OS material (shell.vibrancyForStop) and the control lens (LensScale),
 // which is the rung the scene paints itself.
 func SpecFor(step string, mainOpacity uint8) Spec {
+	return SpecForOS("linux", step, mainOpacity)
+}
+
+// SpecForOS is SpecFor for a named platform: the stop's window material
+// (shell.vibrancyForStop) has a weight of its own, and the tint is compensated
+// against it (see MaterialVeil) so one slider position shows one solidity on
+// every stop. The platform is a parameter rather than a read of runtime.GOOS so
+// the three tables are one decision a test can read on any host.
+func SpecForOS(goos, step string, mainOpacity uint8) Spec {
 	normalized := settings.NormalizeGlassStep(step)
 	opacity := settings.NormalizeOpacity(mainOpacity, settings.DefaultMainOpacity)
-	alpha := float32(opacity) / 100
-	frame := min(SolidTop, alpha)
+	target := min(SolidTop, float32(opacity)/100)
 
 	if normalized == "off" {
 		// No glass effect — no lens, no haze, no blur — but the frame's own
@@ -167,22 +269,42 @@ func SpecFor(step string, mainOpacity uint8) Spec {
 		// desktop shows through the plain tint, unblurred. The `off` stop used
 		// to take the near-solid stand-in here, which is what read as the
 		// app's transparent bottom failing (「应用的透明底是失效的」).
-		return Spec{Translucent: true, Glass: false, Style: glass.Clear, TintAlpha: frame}
+		//
+		// The stop carries no material, so the readability floor is the whole
+		// of its compensation: with the blur gone, a 10% tint would put the
+		// text straight on the wallpaper.
+		alpha := max(OffFrameFloor, target)
+		return Spec{Translucent: true, Glass: false, Style: glass.Clear, TintAlpha: alpha, Target: alpha}
 	}
 	stop, ok := stops[normalized]
 	if !ok { // only reachable without the loader's normalization
 		stop = stops["regular"]
 	}
+	veil := MaterialVeil(goos, normalized)
 	return Spec{
 		Translucent: true,
 		Glass:       true,
 		Style:       stop.style,
 		HazeAlpha:   stop.dim,
-		TintAlpha:   frame,
+		TintAlpha:   compensate(target, veil),
+		Target:      target,
+		Material:    veil,
 		Blur:        stop.blur,
 		Saturate:    stop.saturate,
 		LensScale:   stop.lens,
 	}
+}
+
+// Composite is the alpha the frame actually shows over the desktop: the fill
+// the app paints, composited with the veil the window's material paints for it.
+// It is the number the settings page prints (「有效不透明度」) and the number a
+// test can assert the slider against — the slider is the ask, this is the
+// answer.
+func (s Spec) Composite() float32 {
+	if !s.Translucent {
+		return 1
+	}
+	return 1 - (1-s.Material)*(1-s.TintAlpha)
 }
 
 // Contrast is the spec a desktop that asked for more contrast gets: the
@@ -193,11 +315,17 @@ func SpecFor(step string, mainOpacity uint8) Spec {
 // three this changes, and the blur is deliberately left alone, exactly as the
 // old build left it. An opaque spec (the stand-in for a window with no
 // transparency at all) is returned unchanged.
+//
+// The floor is applied to the **visible** alpha and the fill re-derived from
+// it, so the preference means the same thing on every stop: 0.86 of the frame,
+// not 0.86 of a fill that the window's material then adds to.
 func (s Spec) Contrast() Spec {
 	if !s.Translucent {
 		return s
 	}
-	s.TintAlpha = max(ContrastFrameFloor, min(SolidTop, s.TintAlpha))
+	target := max(ContrastFrameFloor, min(SolidTop, s.Composite()))
+	s.Target = target
+	s.TintAlpha = compensate(target, s.Material)
 	s.HazeAlpha = 0
 	s.LensScale *= ContrastLensScale
 	return s
@@ -207,7 +335,14 @@ func (s Spec) Contrast() Spec {
 // pair every caller that owns a `*ui.Context` has: a desktop that asked for
 // more contrast gets the material dialled back (see Spec.Contrast).
 func SpecForPreferences(step string, mainOpacity uint8, highContrast bool) Spec {
-	spec := SpecFor(step, mainOpacity)
+	return SpecForPreferencesOS("linux", step, mainOpacity, highContrast)
+}
+
+// SpecForPreferencesOS is SpecForPreferences for a named platform: the
+// app's own path, because the material it compensates for is the one the
+// platform's window server paints.
+func SpecForPreferencesOS(goos, step string, mainOpacity uint8, highContrast bool) Spec {
+	spec := SpecForOS(goos, step, mainOpacity)
 	if highContrast {
 		spec = spec.Contrast()
 	}
@@ -259,6 +394,54 @@ func (s Spec) FloatAlpha() float32 {
 		return 1
 	}
 	return min(1, s.TintAlpha+floatStep)
+}
+
+// TerminalFrameShare is the share of the terminal's alpha the **card face**
+// carries; the terminal's own background (its canvas: the palette's colour, or
+// the window's for the shipped `inherit`) carries the rest. See
+// Spec.TerminalFrameAlpha.
+//
+// The terminal has two backgrounds by design — the app's frame, which the
+// title bar and the panel's margin sit on, and the canvas, which is the colour
+// the user picked — and both used to paint the terminal slider, so 46% showed
+// as `1-(1-0.46)^2` = 71% (「终端透明度滚轴说的和看到的不一致」). Splitting the
+// alpha between the two layers keeps one visible number: the frame keeps the
+// smaller share, because the canvas is the colour the user chose and it has to
+// dominate, while the share still leaves the bar and the margin legible.
+const TerminalFrameShare = 0.4
+
+// TerminalFrameAlpha is the alpha the card face carries on the terminal
+// surface: its share of the frame's alpha (see TerminalFrameShare). The
+// terminal's canvas then paints CanvasAlpha over it, so the two composite back
+// to TintAlpha — the terminal slider, once.
+func (s Spec) TerminalFrameAlpha() float32 {
+	if !s.Translucent {
+		return 1
+	}
+	return s.TintAlpha * TerminalFrameShare
+}
+
+// CanvasAlpha is the alpha the terminal's own background carries over the card
+// face: the fill that composites with TerminalFrameAlpha to the frame's alpha.
+// It is the over-frame algebra ContentAlpha uses, so the terminal's canvas is
+// one sheet with the panel it sits on rather than a second full tint.
+func (s Spec) CanvasAlpha() float32 {
+	if !s.Translucent {
+		return 1
+	}
+	return overFrame(s.TerminalFrameAlpha(), s.TintAlpha)
+}
+
+// TransparencyAvailable reports whether the window can show the desktop at
+// all: a Windows window without a system backdrop (before 11 22H2) has no
+// material behind its content, so a translucent frame would show the window's
+// own frame colour instead of the desktop and the card is painted opaque
+// (shell.windowShowsMaterial). The transparency slider cannot do anything
+// there, so the settings page disables it with the reason instead of leaving a
+// knob that moves nothing (「滑块整条失效」). macOS and Linux always composite
+// their own windows, so they always answer true.
+func TransparencyAvailable(goos string, vibrancy bool) bool {
+	return goos != "windows" || vibrancy
 }
 
 // Frame is the panel's own fill: the frame's tint at the reference's

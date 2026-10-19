@@ -12,6 +12,7 @@ package theme
 
 import (
 	"math"
+	"runtime"
 
 	"github.com/egoist/mygo/ui"
 
@@ -241,7 +242,21 @@ func For(s settings.Settings, systemDark bool) Tokens {
 // and a desktop that asked for more contrast gets base.css's
 // `prefers-contrast: more` tokens: the stronger strokes and the readable
 // placeholder, plus the material changes (glassmap.Spec.Contrast).
+//
+// It is ForPlatform for the window this build is running in: the glass fill is
+// compensated for the platform's own material (glassmap.MaterialVeil), so the
+// tokens of a macOS window and a Linux one are not the same numbers. A caller
+// that wants the other platform's look — a test reading all three tables on one
+// host — asks ForPlatform directly.
 func ForPreferences(s settings.Settings, systemDark bool, prefs ui.Preferences) Tokens {
+	return ForPlatform(s, systemDark, prefs, runtime.GOOS)
+}
+
+// ForPlatform is ForPreferences for a named platform (the `goos` strings the
+// rest of the build uses). The platform reaches the look in exactly one place:
+// the glass spec, whose fill is the transparency slider less the veil the
+// window's material already contributes (glassmap.SpecForPreferencesOS).
+func ForPlatform(s settings.Settings, systemDark bool, prefs ui.Preferences, goos string) Tokens {
 	s = settings.Normalize(s)
 	appearance := Resolve(s.Theme, systemDark)
 
@@ -319,7 +334,7 @@ func ForPreferences(s settings.Settings, systemDark bool, prefs ui.Preferences) 
 	// 0.62-0.80 band (which the slider barely moved), and an earlier rewrite
 	// then painted the pane at the frame's own alpha, stacking two full tints
 	// into a near-opaque bottom. See glassmap.Spec.ContentAlpha.
-	spec := glassmap.SpecForPreferences(s.GlassStep, s.MainOpacity, prefs.HighContrast)
+	spec := glassmap.SpecForPreferencesOS(goos, s.GlassStep, s.MainOpacity, prefs.HighContrast)
 	sunken := spec.ContentAlpha()
 	floatAlpha := spec.FloatAlpha()
 	// The panel's sheen is the glass's lit face. The off stop has no glass, so
@@ -646,8 +661,21 @@ func (t Tokens) FaceFill(alpha float32) (top, bottom ui.Color) {
 	if t.Theme != nil {
 		bg = t.Theme.Background
 	}
-	return ui.RGBA(bg.R, bg.G, bg.B, baseAlpha(alpha, t.SheenTop)),
-		ui.RGBA(bg.R, bg.G, bg.B, baseAlpha(alpha, t.SheenBottom))
+	sheenTop, sheenBottom := t.SheenAt(alpha)
+	return ui.RGBA(bg.R, bg.G, bg.B, baseAlpha(alpha, sheenTop)),
+		ui.RGBA(bg.R, bg.G, bg.B, baseAlpha(alpha, sheenBottom))
+}
+
+// SheenAt is the frame's lit face capped at `alpha`, the alpha the face is
+// actually painted at: the layer FaceFill compensates for. The tokens are
+// already capped at the *frame's* alpha (see the `sheenTop` note in
+// ForPlatform), which is the right cap for the window's own card; a surface
+// whose face carries a thinner alpha — the terminal's, which shares the
+// terminal slider with its panel (glassmap.Spec.TerminalFrameAlpha) — has to
+// cap it again, or a light appearance's 0.66 sheen would paint the whole face
+// at its own alpha and the frame would be denser than the slider asked for.
+func (t Tokens) SheenAt(alpha float32) (top, bottom ui.Color) {
+	return capAlpha(t.SheenTop, alpha), capAlpha(t.SheenBottom, alpha)
 }
 
 // baseAlpha is the fill alpha a sheen of alpha s composites over to frame:

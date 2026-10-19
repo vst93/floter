@@ -1160,6 +1160,18 @@ type Settings struct {
 
 	// Percent renders an opacity value ("47%").
 	Percent func(n uint8) string
+	// EffectiveOpacity is the transparency card's one readout line: what the
+	// window actually shows once the glass material's own weight is counted
+	// (glassmap.Spec.Composite). The slider is the ask; this is the answer, and
+	// they differ where the material has a floor of its own.
+	EffectiveOpacity string
+	// EffectiveOpacityValue renders that number ("≈ 68%").
+	EffectiveOpacityValue func(n uint8) string
+	// TransparencyUnavailable is why the two transparency sliders are disabled
+	// on a window that cannot show the desktop at all (a Windows window
+	// without a system backdrop: the card is painted opaque there, so a slider
+	// would move nothing).
+	TransparencyUnavailable string
 }
 
 // Notifications is the copy of the system notifications a background action

@@ -1,6 +1,7 @@
 package theme
 
 import (
+	"runtime"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
@@ -325,7 +326,7 @@ func TestTheFrameSheenIsFixedAcrossStops(t *testing.T) {
 		// And it is the reference's own fixed token, capped at the frame's
 		// alpha so `FaceFill`'s compensation can keep the frame's alpha the
 		// slider's (see `baseAlpha`).
-		spec := glassmap.SpecFor("regular", settings.DefaultMainOpacity)
+		spec := glassmap.SpecForOS(runtime.GOOS, "regular", settings.DefaultMainOpacity)
 		palette := paletteFor(Appearance(appearance))
 		wantTop := capAlpha(palette.sheenTop, spec.TintAlpha)
 		wantBottom := capAlpha(palette.sheenBottom, spec.TintAlpha)
@@ -339,24 +340,30 @@ func TestTheFrameSheenIsFixedAcrossStops(t *testing.T) {
 	}
 }
 
-// The sheen is a fixed token, not the frame's tint scaled: at the slider's
-// bottom the dark appearance keeps the reference's own 0.046 (well under the
-// tint, so the cap is inert), while the light appearance's 0.66 is capped to
-// the thin frame. Either way the frame's alpha stays the slider's — the
-// `FaceFill` compensation is the other half of that promise.
+// The sheen is a fixed token, not the frame's tint scaled: where the tint is
+// thicker than the dark appearance's own 0.046 the cap is inert and the pixel is
+// the reference's fixed alpha, while the light appearance's 0.66 is always
+// capped to the thin frame. Either way the frame's alpha stays the slider's —
+// the `FaceFill` compensation is the other half of that promise.
+//
+// The reading is taken at the shipped default rather than at the slider's
+// bottom: a macOS window's material is compensated out of the tint
+// (glassmap.MaterialVeil), so at the bottom end the fill can be 0 there and the
+// cap would bite on every platform's token, which says nothing about the token.
 func TestTheFrameSheenIsTheFixedTokenNotTheTint(t *testing.T) {
 	at := func(appearance string, opacity uint8) Tokens {
 		return For(settings.Settings{Theme: appearance, MainOpacity: opacity}, true)
 	}
-	// The dark token is under the tint at the slider's bottom, so the cap is
-	// inert and the pixel is the reference's own fixed alpha.
-	if got, want := at("dark", settings.MinWindowOpacity).SheenTop, paletteFor(Dark).sheenTop; got != want {
-		t.Errorf("the dark sheen at the slider's bottom = %v, want the fixed token %v", got, want)
+	// The dark token is under the tint at the shipped default on every
+	// platform, so the cap is inert and the pixel is the reference's own fixed
+	// alpha.
+	if got, want := at("dark", settings.DefaultMainOpacity).SheenTop, paletteFor(Dark).sheenTop; got != want {
+		t.Errorf("the dark sheen = %v, want the fixed token %v", got, want)
 	}
 	// The light token is heavier than a thin frame, so the cap bites — but the
 	// value is still the fixed token capped, never the tint scaled.
 	light := paletteFor(Light)
-	spec := glassmap.SpecFor("liquid", settings.MinWindowOpacity)
+	spec := glassmap.SpecForOS(runtime.GOOS, "liquid", settings.MinWindowOpacity)
 	want := capAlpha(light.sheenTop, spec.TintAlpha)
 	got := at("light", settings.MinWindowOpacity).SheenTop
 	if got != want {
@@ -571,5 +578,44 @@ func TestSystemIconTextIsItsOwnAmberInkNotTheWarningColour(t *testing.T) {
 				t.Errorf("SystemIconText %v does not read warm (R=%d, B=%d)", tokens.SystemIconText, tokens.SystemIconText.R, tokens.SystemIconText.B)
 			}
 		})
+	}
+}
+
+// The platform reaches the tokens: a macOS window's backdrop material already
+// lays a veil of its own over the desktop (glassmap.MaterialVeil), so the tint
+// the app paints is thinner there than on a platform with no material — while
+// the alpha the user *sees* is the slider's on both. That is the whole point of
+// the compensation: one slider position, one solidity, whichever material the
+// window server puts behind it.
+func TestThePlatformsMaterialReachesTheTokens(t *testing.T) {
+	s := settings.Settings{Theme: "dark", GlassStep: "regular", MainOpacity: settings.DefaultMainOpacity}
+	darwin := ForPlatform(s, true, ui.Preferences{}, "darwin")
+	linux := ForPlatform(s, true, ui.Preferences{}, "linux")
+	windows := ForPlatform(s, true, ui.Preferences{}, "windows")
+
+	// The fill is thinner under a material...
+	if darwin.Sunken.A >= linux.Sunken.A {
+		t.Errorf("the darwin content pane = %d, want thinner than the material-free %d", darwin.Sunken.A, linux.Sunken.A)
+	}
+	if darwin.Float.A >= linux.Float.A {
+		t.Errorf("the darwin floating pane = %d, want thinner than the material-free %d", darwin.Float.A, linux.Float.A)
+	}
+	// ...and the sheen is capped to that thinner fill, or `FaceFill` could not
+	// composite back to the slider's own alpha.
+	if darwin.SheenTop.A > linux.SheenTop.A {
+		t.Errorf("the darwin sheen = %d, want at most the material-free %d", darwin.SheenTop.A, linux.SheenTop.A)
+	}
+	// Windows has one backdrop for every stop and this build does not
+	// compensate for it yet (glassmap.MaterialVeil), so it paints the tint a
+	// material-free platform does.
+	if windows.Sunken != linux.Sunken {
+		t.Errorf("windows content pane = %v, want the uncompensated %v", windows.Sunken, linux.Sunken)
+	}
+	// The visible alpha is the slider's on all three.
+	for _, goos := range []string{"darwin", "windows", "linux"} {
+		spec := glassmap.SpecForOS(goos, s.GlassStep, s.MainOpacity)
+		if diff := spec.Composite() - float32(s.MainOpacity)/100; diff > 1e-6 || diff < -1e-6 {
+			t.Errorf("%s composite = %v, want the slider's %v", goos, spec.Composite(), float32(s.MainOpacity)/100)
+		}
 	}
 }

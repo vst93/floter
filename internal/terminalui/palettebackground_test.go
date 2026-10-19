@@ -8,42 +8,59 @@ import (
 
 	"floter/internal/glassmap"
 	"floter/internal/settings"
+	"floter/internal/theme"
 )
 
-// The layer the terminal surface paints behind the canvas is the palette's own
-// background at the terminal slider's alpha - and nothing at all for `inherit`
-// and for an id this build does not know, which is the renderer's own fallback
-// too.
+// The layer the terminal surface paints behind its content is the palette's own
+// background — and the window's own for `inherit` and for an id this build does
+// not know, which is the renderer's own fallback too.
 //
-// The alpha is the *frame's* rule, not the slider read straight: the old
-// build's canvas carried base.css's
-// `min(--glass-solid-top, max(--glass-frame-floor, --terminal-opacity))`, so
-// the canvas agrees with the veil glassmap paints under it, a fully opaque
-// canvas cannot drop the material's sheen into invisibility, and a desktop that
-// asked for more contrast lifts the low end.
-func TestCanvasFillFollowsThePalette(t *testing.T) {
+// The alpha is the terminal slider's **less** the share the card's face already
+// carries (glassmap.Spec.CanvasAlpha): the panel is one sheet, so 46% reads as
+// 46% instead of the `1-(1-0.46)^2` = 71% two full tints composited to. The
+// slider's own rule still holds underneath (the solid top, the contrast floor),
+// because the spec is where those live now.
+func TestThePanelFillFollowsThePalette(t *testing.T) {
+	dark := theme.For(settings.Default(), true)
+	spec := glassmap.SpecFor("regular", settings.DefaultTerminalOpacity)
 	cases := []struct {
-		name         string
-		opacity      uint8
-		highContrast bool
-		want         ui.Color
+		name    string
+		running bool
+		opacity uint8
+		want    ui.Color
 	}{
-		{"inherit", 46, false, ui.Color{}},
-		{"not-a-palette", 46, false, ui.Color{}},
-		{"forest", 46, false, ui.RGB(0x0f, 0x1a, 0x14).Alpha(0.46)},
-		{"forest", 10, false, ui.RGB(0x0f, 0x1a, 0x14).Alpha(0.1)},
-		// The slider's top is 0.98: an opaque canvas would read as paint.
-		{"forest", 100, false, ui.RGB(0x0f, 0x1a, 0x14).Alpha(glassmap.SolidTop)},
-		// A desktop that asked for more contrast lifts the low end.
-		{"forest", 46, true, ui.RGB(0x0f, 0x1a, 0x14).Alpha(glassmap.ContrastFrameFloor)},
-		{"forest", 100, true, ui.RGB(0x0f, 0x1a, 0x14).Alpha(glassmap.SolidTop)},
-		// The contrast floor never raises the near-solid top.
-		{"paper", 0, true, ui.RGB(0xf4, 0xef, 0xe4).Alpha(glassmap.ContrastFrameFloor)},
+		// A named palette paints its own colour, at the canvas's share of the
+		// slider.
+		{"forest", true, 46, ui.RGB(0x0f, 0x1a, 0x14).Alpha(spec.CanvasAlpha())},
+		// `inherit` and an unknown id paint the window's own background, so an
+		// inherit session looks exactly as it did.
+		{"inherit", true, 46, dark.Theme.Background.Alpha(spec.CanvasAlpha())},
+		{"not-a-palette", true, 46, dark.Theme.Background.Alpha(spec.CanvasAlpha())},
+		// The empty page keeps the window's colour even with a light palette
+		// selected: there is no session whose colour it would be, and the page's
+		// own ink has to stay readable on it.
+		{"paper", false, 46, dark.Theme.Background.Alpha(spec.CanvasAlpha())},
 	}
 	for _, tc := range cases {
-		if got := canvasFill(tc.name, tc.opacity, tc.highContrast); got != tc.want {
-			t.Errorf("canvasFill(%q, %d, %v) = %v, want %v", tc.name, tc.opacity, tc.highContrast, got, tc.want)
+		got := panelFill(tc.name, tc.running, glassmap.SpecFor("regular", tc.opacity), dark)
+		if got != tc.want {
+			t.Errorf("panelFill(%q, running=%v, %d%%) = %v, want %v", tc.name, tc.running, tc.opacity, got, tc.want)
 		}
+	}
+	// The fill rides the slider: a thinner slider is a thinner panel, and the
+	// top is the near-solid one rather than paint.
+	thin := panelFill("forest", true, glassmap.SpecFor("regular", settings.MinWindowOpacity), dark)
+	thick := panelFill("forest", true, glassmap.SpecFor("regular", settings.MaxWindowOpacity), dark)
+	if thin.A >= thick.A {
+		t.Errorf("the panel did not rise with the slider: %d vs %d", thin.A, thick.A)
+	}
+	if thick.A >= 255 {
+		t.Errorf("the panel's top = %d, want the near-solid top rather than paint", thick.A)
+	}
+	// A desktop that asked for more contrast lifts the low end.
+	high := panelFill("forest", true, glassmap.SpecForPreferences("regular", settings.MinWindowOpacity, true), dark)
+	if high.A <= thin.A {
+		t.Errorf("the contrast floor did not reach the panel: %d vs %d", high.A, thin.A)
 	}
 }
 

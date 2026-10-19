@@ -3336,12 +3336,21 @@ func vibrancyFor(goos string) mygo.Vibrancy {
 // backdrop that blurs - Acrylic - so all stops keep it and the tint and lens
 // carry the ladder there. Linux has none.
 func vibrancyForStop(goos, step string) mygo.Vibrancy {
+	// `off` means off on every platform, not only on macOS. The early return
+	// this used to take for Windows and Linux handed the `off` stop the
+	// platform's one backdrop anyway, so a Windows window with the glass
+	// switched off still blurred what was behind it (「关了玻璃还是有磨砂」) and
+	// the stop read differently on each platform. The stop that removes the
+	// material removes it everywhere; the tint's own alpha is then the whole of
+	// the glass, exactly as it is on Linux.
+	normalized := settings.NormalizeGlassStep(step)
+	if normalized == "off" {
+		return mygo.VibrancyNone
+	}
 	if goos != "darwin" {
 		return vibrancyFor(goos)
 	}
-	switch settings.NormalizeGlassStep(step) {
-	case "off":
-		return mygo.VibrancyNone
+	switch normalized {
 	case "frosted":
 		return mygo.VibrancyUnderPage
 	case "liquid":
@@ -3863,9 +3872,16 @@ func (a *App) View(c *ui.Context) {
 		// slider there and the main one everywhere else.
 		spec := surface.Glass
 		if a.Surf == SurfaceTerminal {
-			spec = glassmap.SpecForPreferences(s.GlassStep, s.TerminalOpacity, c.Preferences().HighContrast)
+			spec = glassmap.SpecForPreferencesOS(runtime.GOOS, s.GlassStep, s.TerminalOpacity, c.Preferences().HighContrast)
 		}
+		// The terminal's card face carries only its share of the slider: the
+		// terminal's own background (its canvas, the palette's colour) paints
+		// the rest, so the two composite back to the slider once instead of
+		// squaring it (see glassmap.Spec.TerminalFrameAlpha).
 		faceAlpha := spec.TintAlpha
+		if a.Surf == SurfaceTerminal {
+			faceAlpha = spec.TerminalFrameAlpha()
+		}
 		if !material {
 			// Nothing behind the card to read through: the frame's alpha would
 			// only let the window's own frame color show, so the face is
@@ -3907,6 +3923,13 @@ func (a *App) View(c *ui.Context) {
 			if a.Surf == SurfaceLauncher {
 				padBottom = t.Space(launcher.TailUnits)
 			}
+			// The sheen is capped at the alpha the face is *actually* painted
+			// at, which is the frame's own on every surface but the terminal's
+			// (its face carries a share of the terminal slider; see
+			// glassmap.Spec.TerminalFrameAlpha). Capping at the frame's alpha
+			// instead would let a light appearance's 0.66 sheen paint the whole
+			// terminal face at its own alpha, denser than the slider asked for.
+			sheenTop, sheenBottom := surface.Tokens.SheenAt(faceAlpha)
 			face := ui.Column(c).Fill().Radius(radius).
 				LinearGradient(ui.LinearGradient{From: faceTop, To: faceBottom, Angle: 180}).DragWindow()
 			face.Children(func() {
@@ -3915,7 +3938,7 @@ func (a *App) View(c *ui.Context) {
 				// from reading as a flat wash. The off stop's sheen tokens are
 				// zero, so the same gradient draws nothing there.
 				ui.Box(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).Radius(radius).PassThrough().
-					LinearGradient(ui.LinearGradient{From: surface.Tokens.SheenTop, To: surface.Tokens.SheenBottom, Angle: 180})
+					LinearGradient(ui.LinearGradient{From: sheenTop, To: sheenBottom, Angle: 180})
 				ui.Column(c).Fill().Padding(padTop, padX, padBottom, padX).Children(func() { a.surface(c) })
 			})
 		})
@@ -4076,10 +4099,10 @@ func (a *App) holdContractWidth(windowWidth float32) {
 // shows), and a headless frame (the pixel tests, where `a.Win == nil`) renders
 // the glass the design draws.
 func (a *App) windowShowsMaterial(c *ui.Context) bool {
-	if runtime.GOOS != "windows" || a.Win == nil {
+	if a.Win == nil {
 		return true
 	}
-	return c.Vibrancy()
+	return glassmap.TransparencyAvailable(runtime.GOOS, c.Vibrancy())
 }
 
 // insetFor is inset with the window's material taken into account: where the
