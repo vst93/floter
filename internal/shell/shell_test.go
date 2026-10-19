@@ -11,6 +11,7 @@ import (
 	"errors"
 	"image"
 	"image/png"
+	"math"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -103,15 +104,21 @@ func TestTargetSizePerSurface(t *testing.T) {
 	a := newApp(t)
 	s := a.Store.Snapshot()
 
-	if w, h := a.targetSize(s); w != launcher.InputWindowWidth || h != int(launcher.WindowHeight(s.UIScale)) {
+	// The expectation is the *same* function the surface asks, rounded the way
+	// it rounds. `int()` truncates: the collapsed launcher's height is
+	// `82 * 0.9 + 240 = 313.8` on Windows and `86 * 0.9 + 240 = 317.4` on
+	// Linux, so truncation agreed with `math.Round` on the host this was
+	// written on and was a pixel short on Windows — a red suite for a correct
+	// window (「launcher size = 720x314」).
+	if w, h := a.targetSize(s); w != launcher.InputWindowWidth || h != int(math.Round(launcher.WindowHeight(s.UIScale))) {
 		t.Errorf("launcher size = %dx%d", w, h)
 	}
 	a.Surf = SurfaceSettings
-	if w, h := a.targetSize(s); w != launcher.InputWindowWidth || h != SettingsHeight(s.UIScale, 0) {
+	if w, h := a.targetSize(s); w != launcher.InputWindowWidth || h != SettingsHeight(s.UIScale, a.workArea) {
 		t.Errorf("settings size = %dx%d", w, h)
 	}
 	a.Surf = SurfaceTerminal
-	if w, h := a.targetSize(s); w != int(s.TerminalWidth) || h != int(s.TerminalHeight) {
+	if w, h := a.targetSize(s); w != int(math.Round(s.TerminalWidth)) || h != int(math.Round(s.TerminalHeight)) {
 		t.Errorf("terminal size = %dx%d", w, h)
 	}
 }

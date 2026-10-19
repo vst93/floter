@@ -1862,10 +1862,25 @@ func TestToolInstallRows(t *testing.T) {
 	if !tt.HasText("Install ripgrep") {
 		t.Fatalf("the install row is missing: %q", tt.Texts())
 	}
-	// The row shows the command it would copy, and the manager it is for.
-	if !tt.HasText("cargo install ripgrep") && !tt.HasText("sudo apt install ripgrep") &&
-		!tt.HasText("brew install ripgrep") && !tt.HasText("sudo pacman -S ripgrep") {
-		t.Errorf("the command is missing: %q", tt.Texts())
+	// The row shows the command it would copy, and the manager it is for. The
+	// command is read from the catalog's own answer for *this* platform rather
+	// than listed here: a hardcoded shortlist is a contract with the host's
+	// package managers, and Windows' `winget install --id BurntSushi.ripgrep.MSVC
+	// -e` was simply absent from it, so the suite was red there for a row that
+	// drew correctly (`tools.Look` with an empty search path picks the
+	// platform's first recipe).
+	want := ""
+	for _, state := range states {
+		if state.Name == "ripgrep" {
+			want = state.Command
+			break
+		}
+	}
+	if want == "" {
+		t.Fatalf("the catalog offered no install command for ripgrep on %s", tools.Platform())
+	}
+	if !tt.HasText(want) {
+		t.Errorf("the command %q is missing: %q", want, tt.Texts())
 	}
 	// A Chinese keyword finds the tool too.
 	a.Query = "搜索"
