@@ -2,7 +2,10 @@
 
 package shell
 
-import "syscall"
+import (
+	"syscall"
+	"unsafe"
+)
 
 // The style bits a frameless window must not carry on Windows.
 //
@@ -30,6 +33,17 @@ const (
 	swpFrameChanged = 0x0020
 )
 
+// dwmwaSystemBackdropType is DWMWA_SYSTEMBACKDROP_TYPE (38), the attribute that
+// picks which system backdrop DWM composites behind the client area, and
+// dwmsbtNone (1) is "no backdrop": nothing is composited there, so what the page
+// leaves transparent shows the desktop. The material's extended frame is left
+// alone — that frame is what makes the client area the window's whole surface in
+// the first place.
+const (
+	dwmwaSystemBackdropType = 38
+	dwmsbtNone              = 1
+)
+
 // gwlStyle is GetWindowLongPtr's GWL_STYLE index (-16): a variable, because a
 // negative constant does not convert to uintptr.
 var gwlStyle int32 = -16
@@ -41,6 +55,9 @@ var (
 	procGetWindowLong    = user32DLL.NewProc("GetWindowLongW")
 	procSetWindowLong    = user32DLL.NewProc("SetWindowLongW")
 	procSetWindowPos     = user32DLL.NewProc("SetWindowPos")
+
+	dwmapiDLL                 = syscall.NewLazyDLL("dwmapi.dll")
+	procDwmSetWindowAttribute = dwmapiDLL.NewProc("DwmSetWindowAttribute")
 )
 
 // windowStyle reads the window's style, through the pointer-width entry point
@@ -78,4 +95,22 @@ func stripSystemChrome(hwnd uintptr) {
 	setWindowStyle(hwnd, cleared)
 	procSetWindowPos.Call(hwnd, 0, 0, 0, 0, 0,
 		swpNoMove|swpNoSize|swpNoZOrder|swpNoActivate|swpFrameChanged)
+}
+
+// clearWindowsBackdrop drops the system backdrop behind a window's content
+// while keeping the window's own transparency: the `off` glass stop means no
+// blur and no haze, not an opaque window (see windowVibrancyFor).
+//
+// The window's material bit stays set, and that bit is what lets the desktop
+// through, so the frame's tint is read over the desktop exactly as it is on
+// macOS and Linux with the glass switched off. Asking the framework for "no
+// material" instead would take the bit off — and it is the window's for life,
+// so the panel would stay opaque until the app restarted.
+func clearWindowsBackdrop(hwnd uintptr) {
+	if hwnd == 0 {
+		return
+	}
+	backdrop := int32(dwmsbtNone)
+	procDwmSetWindowAttribute.Call(hwnd, uintptr(dwmwaSystemBackdropType),
+		uintptr(unsafe.Pointer(&backdrop)), unsafe.Sizeof(backdrop))
 }

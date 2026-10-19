@@ -17,6 +17,16 @@ floter 面向用户的变更记录。格式参考 [Keep a Changelog](https://kee
 
 ### Fixed
 
+- **玻璃滑到「关」时 Windows 窗口整体变不透明**：Windows 的「桌面能不能透过来」是建窗时由
+  material 推出的窗口终身 style（`noRedirect`），此前 `off` 档请求「无 material」，窗口因此
+  永远不透明，而 macOS/Linux 同一档仍然透出桌面（「背景透明都没做到」里的一条）。现在三平台
+  都按平台 material 建窗，`off` 档只在运行时清掉 DWM 的 backdrop：模糊、雾、透镜都撤掉，框
+  自己的 tint 照旧压在桌面上——和另外两个平台同一个观感。
+- **反复按同一个快捷键导致终端/面板反复弹出并卡死**：`Open` 打开「已经在屏幕上的那个面」
+  不再是一次新进入。此前每次按键重复都会把终端外观重刷到每个存活会话（每个会话一次转义
+  序列写）、重新 show/focus/invalidate 窗口，按键重复率 30/s 时主线程整帧都花在已经做过的
+  事上。现在重入只做该面自己的焦点；面切换、窗口不可见、窗口不在前台时照旧把窗口带到前面。
+
 - **Windows 背景透明 / 外圈底色 / 三大金刚按钮**：launcher 主窗口改为 panel 形态（Windows
   上是无 caption 的 `WS_POPUP` 工具窗），并显式剥掉框架默认带上的 `WS_CAPTION` /
   `WS_SYSMENU` / 最小化与最大化位；DWM 不再在右上角画系统按钮，外圈也不再是窗口自己的

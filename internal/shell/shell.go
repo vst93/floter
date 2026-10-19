@@ -1096,9 +1096,7 @@ func New(opts Options) *App {
 				// window's own material, which is the blur the panel cannot
 				// run itself (see vibrancyForStop).
 				a.lastGlassStep = s.GlassStep
-				if a.Win != nil {
-					a.Win.SetVibrancy(vibrancyForStop(runtime.GOOS, s.GlassStep))
-				}
+				a.applyWindowMaterial(s.GlassStep)
 			}
 			if icon := storedAppIcon(s); icon != a.lastAppIcon {
 				a.lastAppIcon, a.appIcon = icon, icon
@@ -1226,7 +1224,7 @@ func (a *App) Start() {
 		// for the same thing - macOS's NSVisualEffectView, Windows 11's
 		// system backdrops. Linux has none, and there the glass tint and
 		// the haze veil are the whole of the material.
-		Vibrancy: vibrancyForStop(runtime.GOOS, s.GlassStep),
+		Vibrancy: windowVibrancyFor(runtime.GOOS, s.GlassStep),
 		Content:  ui.View(a.View),
 	})
 	// A frameless window on Windows still carries the caption bits mygo builds
@@ -1234,6 +1232,10 @@ func (a *App) Start() {
 	// shows as a non-client band around the card and the system's caption
 	// buttons over its top-right corner (see chrome_windows.go).
 	stripSystemChrome(a.Win.NativeHandle())
+	// The window was built with the platform's material so that its
+	// transparency is not tied to the glass stop (see windowVibrancyFor); a
+	// window that starts on the `off` stop clears the backdrop here.
+	a.applyWindowMaterial(s.GlassStep)
 	// A Windows shortcut's icon is a PowerShell extraction, so it runs off the
 	// drawing thread (internal/apps); the frame it finishes is asked for here.
 	apps.SetIconInvalidate(func() { a.Win.Invalidate() })
@@ -3106,7 +3108,21 @@ func (a *App) scanApps() {
 }
 
 // Open switches to a surface, sizing and focusing it.
+//
+// Opening the surface that is already on screen is the *same* surface, not a
+// new entry: only the focus the press asks for runs again. Everything else in
+// here is entry work — the settings page is restored, the terminal's
+// appearance is re-applied to every live session (an escape-sequence write per
+// session), the window is placed, shown, focused and invalidated — and a
+// shortcut repeats while its key is held (a desktop's repeat rate is 30/s), so
+// every repeat used to run the whole entry path again. That is the report
+// 「这边的某些快捷键会导致反复弹出终端，从而导致卡死」: the window was pulled
+// forward once per repeat and the main thread spent each frame on work the user
+// had already had. The reference is a view swap — swapping to the view that is
+// already mounted renders nothing — and this is the same rule spelled for a
+// surface switch.
 func (a *App) Open(s Surface) {
+	entering := a.Surf != s
 	// Leaving the settings surface writes any debounced slider/alias change
 	// before the page goes away; the value was already live in the frame.
 	if a.Surf == SurfaceSettings && s != SurfaceSettings && a.Settings != nil {
@@ -3123,7 +3139,11 @@ func (a *App) Open(s Surface) {
 	a.Surf = s
 	switch s {
 	case SurfaceSettings:
-		a.restoreSettingsPage()
+		// The page is the one the visit left: restoring it on a repeat would
+		// undo a page the user has since switched to in the same visit.
+		if entering {
+			a.restoreSettingsPage()
+		}
 		a.Settings.FocusSidebar()
 	case SurfaceTerminal:
 		a.Terminal.EnsureSession()
@@ -3134,13 +3154,29 @@ func (a *App) Open(s Surface) {
 		// the same rule is spelled on the way back in. The store listener only
 		// refreshes while the terminal is the active surface, so a change made
 		// on the settings page would otherwise never reach the live session.
-		a.refreshTerminal()
+		// A re-entry is not a mount: the session on screen already carries it.
+		if entering {
+			a.refreshTerminal()
+		}
 		a.Terminal.FocusTerminal()
 	default:
 		a.Launcher.FocusSearch()
 	}
 	a.resize()
-	a.Show()
+	if a.Win == nil || revealNeeded(entering, a.Win.IsVisible(), a.Win.IsFocused()) {
+		a.Show()
+	}
+}
+
+// revealNeeded reports whether an entry into a surface has to bring the window
+// forward. A surface switch always does (the new page has to be seen), and so
+// does a window that is not on screen or not the frontmost window (the press
+// came from the tray, a shortcut, or a link, and the user is looking at
+// something else). A window already showing the surface the press asks for
+// needs nothing: showing and focusing it again is what made a held shortcut
+// strobe the panel (see Open).
+func revealNeeded(entering, visible, focused bool) bool {
+	return entering || !visible || !focused
 }
 
 // The terminal's window is the one surface the user can resize, so a drag is
@@ -3317,6 +3353,41 @@ func vibrancyFor(goos string) mygo.Vibrancy {
 	}
 }
 
+// windowVibrancyFor is the material a window is *created* with, which is not
+// always the stop's material on Windows.
+//
+// A Windows window's "no redirection bitmap" bit — the bit that lets what the
+// page leaves transparent show the desktop instead of the window's own opaque
+// surface — is derived from the material the window was built with and is the
+// window's for life (mygo: `noRedirect = o.Vibrancy != ""`, a style Windows
+// neither adds nor removes later). Asking for no material at creation therefore
+// makes the window opaque for good: with the glass slid to `off`, the panel on
+// Windows turned into an opaque rectangle while macOS and Linux kept the tint
+// translucent (「背景透明都没做到」, and the one stop that read differently on
+// the three platforms). So the window is always built with the platform's
+// material here, and the `off` stop clears only the *backdrop* at runtime
+// (windowMaterialCall) — the blur goes, the transparency stays.
+func windowVibrancyFor(goos, step string) mygo.Vibrancy {
+	if goos == "windows" {
+		return vibrancyFor(goos)
+	}
+	return vibrancyForStop(goos, step)
+}
+
+// windowMaterialCall is what a glass stop asks of a live window: the material
+// to set, and whether the backdrop behind it has to be cleared instead.
+//
+// Windows is the one platform whose `off` stop cannot be spelled as "no
+// material" (see windowVibrancyFor): there the stop keeps the window's material
+// and the backdrop behind it is cleared, which is exactly what `off` means — no
+// blur, no haze, no lens, and the frame's own tint over the desktop.
+func windowMaterialCall(goos, step string) (material mygo.Vibrancy, clearBackdrop bool) {
+	if goos == "windows" && settings.NormalizeGlassStep(step) == "off" {
+		return mygo.VibrancyNone, true
+	}
+	return vibrancyForStop(goos, step), false
+}
+
 // vibrancyForStop is the window material for a platform and a glass stop. The
 // stop is the effect ladder, and the old build's `--glass-step-blur`
 // (10/22/28px) is the rung the framework can carry: the panel cannot run its
@@ -3352,6 +3423,23 @@ func vibrancyForStop(goos, step string) mygo.Vibrancy {
 	default:
 		return mygo.VibrancyUnderWindow
 	}
+}
+
+// applyWindowMaterial puts a glass stop on the live window (see
+// windowMaterialCall for what the stop asks for). Off Windows this is the
+// framework's own material swap; on Windows the `off` stop keeps the window's
+// material and clears the backdrop behind it, which is what leaves the panel
+// translucent there instead of opaque.
+func (a *App) applyWindowMaterial(step string) {
+	if a.Win == nil {
+		return
+	}
+	material, clearBackdrop := windowMaterialCall(runtime.GOOS, step)
+	if clearBackdrop {
+		clearWindowsBackdrop(a.Win.NativeHandle())
+		return
+	}
+	a.Win.SetVibrancy(material)
 }
 
 // placeWindow centres the panel in a display's work area, in that display's own
