@@ -197,3 +197,89 @@ func TestTheHeldRowOnlyExistsOnTheEmptyField(t *testing.T) {
 		}
 	}
 }
+
+// TestTheCardReachesTheWindowsSideEdges is the 「搜索页面左右两边各有一大块
+// 空白」 report read on the shipped frame: the list's own rect reaches the
+// panel's edges, with no band of the window's colour beside it. The wider
+// window is the case that report was written for — a card capped at the 720
+// contract and centred inside a wider window leaves exactly two such bands,
+// and `holdContractWidth` cannot act on a headless frame, so this reads the
+// card's own width rule (fill the window) rather than the resize that usually
+// keeps the two equal.
+func TestTheCardReachesTheWindowsSideEdges(t *testing.T) {
+	base := appKeysApp()
+	_, right, _, left := base.inset()
+	for _, width := range []int{720, 1000} {
+		app := appKeysApp()
+		tt := ui.NewTester(func(c *ui.Context) { app.View(c) }, width, 420)
+		tt.Frame()
+		spacing := float32(app.Launcher.Spacing)
+		list, ok := tt.Find("Launcher results")
+		if !ok {
+			t.Fatalf("the list was not drawn at %d wide: %q", width, tt.Texts())
+		}
+		leftGap := list.X - left*spacing
+		rightGap := float32(width) - right*spacing - (list.X + list.W)
+		if leftGap > 3 {
+			t.Errorf("window %d wide: the list starts %.1f past the panel's left edge — a blank band beside the card",
+				width, leftGap)
+		}
+		if rightGap > 3 {
+			t.Errorf("window %d wide: the list ends %.1f short of the panel's right edge — a blank band beside the card",
+				width, rightGap)
+		}
+		// ...and the face is painted at that edge, so the band is not merely
+		// "the list thinks it is wide": the pixel under the list's first
+		// column is the panel's own.
+		if _, _, _, alpha := tt.Image().At(int(list.X)+2, int(list.Y+list.H/2)).RGBA(); alpha>>8 < 100 {
+			t.Errorf("window %d wide: the panel is not painted under the list's first column (alpha %d)",
+				width, alpha>>8)
+		}
+	}
+}
+
+// TestTheFooterIsNeverTheFirstRowOfATypedPage is 「现在固定在第一项」 and 「不是
+// 固定项」 read off the shipped frame: a typed page's footer sits under every
+// result row, and a query the catalogue does not answer draws no footer at all
+// — the reference's `visibleActionBar` gate reads `launcherResults.length > 0`
+// (`main:src/App.tsx:1543-1550`), so a command line with no match has no row
+// above the field's own hand-off to sit under.
+func TestTheFooterIsNeverTheFirstRowOfATypedPage(t *testing.T) {
+	a := appKeysApp()
+	tt := appKeysRender(t, a)
+	tt.Type("term")
+	tt.Frame()
+	bar, ok := tt.Find("Run in shell")
+	if !ok {
+		t.Fatalf("the action bar was not drawn over a matched query: %q", tt.Texts())
+	}
+	result, ok := tt.Find("Terminal")
+	if !ok {
+		t.Fatalf("the matched row was not drawn: %q", tt.Texts())
+	}
+	if bar.Y <= result.Y {
+		t.Errorf("the footer starts at y=%.1f, not below the first result at y=%.1f: it is drawn as a first row",
+			bar.Y, result.Y)
+	}
+
+	// A URL is the footer's own page: the bar is the only row, and it is the
+	// page's default selection — the selected style is the row's own index.
+	a.Launcher.Query = "https://example.com"
+	a.Launcher.Selected = 0
+	tt.Frame()
+	if results := a.Launcher.Results(); len(results) != 1 || results[0].ID != "bar:url" {
+		t.Fatalf("the URL page is %v, want the single bar row", results)
+	}
+	if a.Launcher.Selected != 0 {
+		t.Errorf("the URL page selects row %d, want the bar it is", a.Launcher.Selected)
+	}
+
+	// No match, no footer: the shell fallback is a control *for a matched
+	// list*, never a fixed row of its own.
+	a.Launcher.Query = "git status --short"
+	a.Launcher.Selected = 0
+	tt.Frame()
+	if _, ok := tt.Find("Run in shell"); ok {
+		t.Errorf("an unmatched command line drew the footer: %q", tt.Texts())
+	}
+}
