@@ -724,7 +724,42 @@ func (a *App) options() terminal.Options {
 		OnTitle:     a.Actions.Title,
 		OpenLink:    a.Actions.OpenLink,
 		OnNotify:    a.Actions.Notify,
+		Keybinds:    terminalKeybinds(s),
 	}
+}
+
+// terminalKeybinds binds the app's own `copy_selection` and `paste` shortcuts
+// onto the terminal's own actions, which is where the reference answered them
+// (`main:src/hooks/useAppKeyboard.ts:214-226`: `copy_selection` before `paste`,
+// after the dismiss table and `open_external_terminal`).
+//
+// The port shipped both settings with no reader at all — the settings page
+// recorded them and nothing on the terminal surface answered them — so a
+// rebind was a lie. They are bindings of the plugin rather than a shortcut on
+// the element around it because only the plugin can reach the selection: its
+// `ActionCopy` copies what is selected, and `Performable` gives it the
+// reference's condition exactly (a copy claims the key only when there is a
+// selection, so a `Ctrl+C` binding still interrupts the foreground process —
+// `main:src/hooks/useAppKeyboard.ts:219-222`, "Copy only claims the combination
+// when there is something to copy"). Paste is not performable, as the
+// reference claimed it unconditionally.
+//
+// These are creation-time options: a session already running keeps the keys it
+// started with, and a rebind reaches the next one (see Refresh, which has no
+// binding setter to call).
+func terminalKeybinds(s settings.Settings) []terminal.Keybind {
+	m := settings.ShortcutsOf(s)
+	var binds []terminal.Keybind
+	add := func(action string, a terminal.Action, performable bool) {
+		mods, key, ok := shortcuts.Parse(m[action])
+		if !ok {
+			return
+		}
+		binds = append(binds, terminal.Keybind{Mods: mods, Key: key, Action: a, Performable: performable})
+	}
+	add(settings.ShortcutCopySelection, terminal.ActionCopy, true)
+	add(settings.ShortcutPaste, terminal.ActionPaste, false)
+	return binds
 }
 
 // Pad is the inset around the terminal, from the padding step: the three

@@ -5,6 +5,7 @@ import (
 	"image"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -262,7 +263,9 @@ func TestSnapshotSaveAndRestore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Mode().Perm() != 0o600 {
+	// Windows has no POSIX permission bits: Go reports a fixed 0666 there, so
+	// the privacy of the snapshot is a promise only the POSIX platforms keep.
+	if runtime.GOOS != "windows" && info.Mode().Perm() != 0o600 {
 		t.Errorf("snapshot mode = %v", info.Mode().Perm())
 	}
 	entries, err := os.ReadDir(filepath.Dir(path))
