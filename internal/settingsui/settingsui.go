@@ -24,6 +24,7 @@ import (
 
 	"floter/internal/control"
 	"floter/internal/extensions"
+	"floter/internal/glassmap"
 	"floter/internal/i18n"
 	"floter/internal/launcher"
 	"floter/internal/scriptlang"
@@ -3995,24 +3996,28 @@ func (a *App) general(c *ui.Context, copy i18n.Settings) {
 						// the card-only hint (`TerminalAppearance.tsx:190-195`): the
 						// settings card shows `sublabel: terminalAppearanceHint` on the
 						// font-size row, while the terminal's own drawer keeps it out.
-						a.slider(c, copy.FontSize, copy.TerminalHint, copy.ScaleSmall, copy.ScaleLarge,
-							float64(s.FontSize),
-							settings.MinFontSize, settings.MaxFontSize,
-							func(v float64) string { return fmt.Sprintf("%d px", int(math.Round(v))) },
-							func(v float64) {
+						a.slider(c, sliderRow{
+							label: copy.FontSize, description: copy.TerminalHint,
+							low: copy.ScaleSmall, high: copy.ScaleLarge,
+							value: float64(s.FontSize), lo: settings.MinFontSize, hi: settings.MaxFontSize,
+							format: func(v float64) string { return fmt.Sprintf("%d px", int(math.Round(v))) },
+							apply: func(v float64) {
 								a.previewSetting(func(s *settings.Settings) { s.FontSize = int(math.Round(v)) })
-							})
+							},
+						})
 					},
 					control.AxisLineHeight: func() {
 						// `.toFixed(2)` — the step is 0.05, so one decimal dropped the
 						// hundredths the reference shows (`TerminalAppearance.tsx:210-215`).
-						a.slider(c, copy.LineHeight, "", copy.ScaleSmall, copy.ScaleLarge,
-							s.TerminalLineHeight,
-							settings.MinTerminalLineHeight, settings.MaxTerminalLineHeight,
-							func(v float64) string { return fmt.Sprintf("%.2f\u00d7", v) },
-							func(v float64) {
+						a.slider(c, sliderRow{
+							label: copy.LineHeight, low: copy.ScaleSmall, high: copy.ScaleLarge,
+							value: s.TerminalLineHeight,
+							lo:    settings.MinTerminalLineHeight, hi: settings.MaxTerminalLineHeight,
+							format: func(v float64) string { return fmt.Sprintf("%.2f\u00d7", v) },
+							apply: func(v float64) {
 								a.previewSetting(func(s *settings.Settings) { s.TerminalLineHeight = v })
-							})
+							},
+						})
 					},
 					control.AxisPalette: func() {
 						a.paletteRow(c, copy, s.TerminalTheme,
@@ -4042,18 +4047,36 @@ func (a *App) general(c *ui.Context, copy i18n.Settings) {
 					func(id string) { a.set(func(s *settings.Settings) { s.GlassStep = id }) })
 			})
 			a.cardLabeled(c, copy.GroupTransparency, func() {
-				a.slider(c, copy.MainOpacity, "",
-					copy.TransparencyScaleLow, copy.TransparencyScaleHigh,
-					float64(s.MainOpacity), settings.MinWindowOpacity, settings.MaxWindowOpacity,
-					func(v float64) string { return copy.Percent(clampPercent(v)) },
-					func(v float64) { a.previewSetting(func(s *settings.Settings) { s.MainOpacity = clampPercent(v) }) })
-				a.slider(c, copy.TerminalOpacity, "",
-					copy.TransparencyScaleLow, copy.TransparencyScaleHigh,
-					float64(s.TerminalOpacity), settings.MinWindowOpacity, settings.MaxWindowOpacity,
-					func(v float64) string { return copy.Percent(clampPercent(v)) },
-					func(v float64) {
+				// A window the system gives no material to has nothing for the
+				// desktop to show through (shell.windowShowsMaterial paints the
+				// card solid there), so both sliders are drawn disabled with the
+				// reason rather than left as knobs that move nothing
+				// (「滑块整条失效」).
+				disabled := ""
+				if !glassmap.TransparencyAvailable(runtime.GOOS, c.Vibrancy()) {
+					disabled = copy.TransparencyUnavailable
+				}
+				a.slider(c, sliderRow{
+					label: copy.MainOpacity, low: copy.TransparencyScaleLow, high: copy.TransparencyScaleHigh,
+					value: float64(s.MainOpacity), lo: settings.MinWindowOpacity, hi: settings.MaxWindowOpacity,
+					format:   func(v float64) string { return copy.Percent(clampPercent(v)) },
+					apply:    func(v float64) { a.previewSetting(func(s *settings.Settings) { s.MainOpacity = clampPercent(v) }) },
+					disabled: disabled,
+				})
+				a.slider(c, sliderRow{
+					label: copy.TerminalOpacity, low: copy.TransparencyScaleLow, high: copy.TransparencyScaleHigh,
+					value: float64(s.TerminalOpacity), lo: settings.MinWindowOpacity, hi: settings.MaxWindowOpacity,
+					format: func(v float64) string { return copy.Percent(clampPercent(v)) },
+					apply: func(v float64) {
 						a.previewSetting(func(s *settings.Settings) { s.TerminalOpacity = clampPercent(v) })
-					})
+					},
+					disabled: disabled,
+				})
+				// The one readout the group carries: what the window *shows*,
+				// once the glass material's own weight is counted. The slider is
+				// the ask; this is the answer, and it differs where the material
+				// has a floor of its own (glassmap.Spec.Composite).
+				a.effectiveOpacity(c, copy, s)
 			})
 		})
 	})
@@ -4218,17 +4241,35 @@ func (a *App) palettePreview(c *ui.Context, copy i18n.Settings, name string) {
 	terminalui.PalettePreview(c, a.tokens(c), name, copy.PalettePreview, c.Theme().Space(37))
 }
 
+// sliderRow is one range row's content: its words, its axis, its value, what a
+// change does, and — when the row cannot be moved — the sentence that says why.
+// It is a struct rather than nine positional arguments because the two
+// transparency rows are the only ones that can be disabled, and a bare string
+// in the middle of a call is the kind of argument a later reader silently
+// shifts.
+type sliderRow struct {
+	label, description string
+	// low and high are the axis' own words at the track's two ends; when both
+	// are empty the scale line is not drawn rather than inventing an axis.
+	low, high     string
+	value, lo, hi float64
+	format        func(float64) string
+	apply         func(float64)
+	// disabled, when set, is why the row cannot be moved: the track is drawn
+	// disabled and the sentence is printed under it. It is what a window the
+	// system gives no material to shows instead of a knob that moves nothing.
+	disabled string
+}
+
 // slider builds one stacked row: the label and its live readout on the title
 // line, the hint under them, the track at full width, and one word at each end
 // of the track naming the axis — the reference's `.settings-slider__head` +
-// `SettingsScale` shape (the macOS range row). `low`/`high` are the axis' own
-// words; when both are empty the scale line is not drawn rather than inventing
-// an axis.
-func (a *App) slider(c *ui.Context, label, description, low, high string, value, lo, hi float64, format func(float64) string, apply func(float64)) {
+// `SettingsScale` shape (the macOS range row).
+func (a *App) slider(c *ui.Context, row sliderRow) {
 	tokens := a.tokens(c)
 	t := c.Theme()
 	inset := a.rowInset(t)
-	v := value
+	v := row.value
 	chosen := false
 	first := a.cardRows == 0
 	a.cardRows++
@@ -4244,28 +4285,59 @@ func (a *App) slider(c *ui.Context, label, description, low, high string, value,
 			// emphasis step (`.settings-row__label`), the readout the body step
 			// (`.terminal-setting-control__value`).
 			ui.Row(c).FillWidth().AlignItems(ui.Center).Justify(ui.SpaceBetween).Children(func() {
-				ui.Text(c, label).FontSize(t.FontSize + 1).FontWeight(580).TextColor(tokens.TextStrong)
-				ui.Text(c, format(v)).FontSize(t.FontSize).TextColor(tokens.TextStrong).
+				ui.Text(c, row.label).FontSize(t.FontSize + 1).FontWeight(580).TextColor(tokens.TextStrong)
+				ui.Text(c, row.format(v)).FontSize(t.FontSize).TextColor(tokens.TextStrong).
 					ContentTransition(ui.ContentTransition{Numeric: true})
 			})
-			if description != "" {
-				ui.Text(c, description).FontSize(t.FontSize).TextColor(t.TextMuted)
+			if row.description != "" {
+				ui.Text(c, row.description).FontSize(t.FontSize).TextColor(t.TextMuted)
 			}
-			e := ui.Slider(c, &v, lo, hi).FillWidth()
-			if e.Changed() {
+			track := ui.Slider(c, &v, row.lo, row.hi).FillWidth()
+			if row.disabled != "" {
+				track.Disabled(true)
+			}
+			if track.Changed() {
 				chosen = true
 			}
-			if low != "" || high != "" {
+			if row.low != "" || row.high != "" {
+				// The axis' words are the ladder's caption step, not "body
+				// minus two": at the shipped `small` step that offset was 7.9pt,
+				// the smallest ink on any page, and the two words that say what
+				// the track's ends mean were the hardest thing to read in the
+				// row they belong to.
 				ui.Row(c).FillWidth().AlignItems(ui.Center).Justify(ui.SpaceBetween).Children(func() {
-					ui.Text(c, low).FontSize(t.FontSize - 2).FontWeight(500).TextColor(t.TextMuted)
-					ui.Text(c, high).FontSize(t.FontSize - 2).FontWeight(500).TextColor(t.TextMuted)
+					ui.Text(c, row.low).FontSize(tokens.Caption).FontWeight(500).TextColor(t.TextMuted)
+					ui.Text(c, row.high).FontSize(tokens.Caption).FontWeight(500).TextColor(t.TextMuted)
 				})
+			}
+			if row.disabled != "" {
+				ui.Text(c, row.disabled).FontSize(tokens.Caption).FontWeight(500).TextColor(tokens.TextTertiary)
 			}
 		})
 	})
-	if chosen {
-		apply(v)
+	if chosen && row.disabled == "" {
+		row.apply(v)
 	}
+}
+
+// effectiveOpacity is the transparency group's one readout line: what the
+// window actually shows once the glass material's own weight is counted
+// (glassmap.Spec.Composite). It is the answer to the two sliders above it — the
+// slider is the ask — and it is the number that made the coupling visible: the
+// same 47% used to show three different ways across the three materials, and a
+// window with no material at all used to show nothing.
+func (a *App) effectiveOpacity(c *ui.Context, copy i18n.Settings, s settings.Settings) {
+	tokens := a.tokens(c)
+	t := c.Theme()
+	inset := a.rowInset(t)
+	spec := glassmap.SpecForPreferencesOS(runtime.GOOS, s.GlassStep, s.MainOpacity, c.Preferences().HighContrast)
+	percent := uint8(math.Round(float64(spec.Composite()) * 100))
+	ui.Row(c).FillWidth().AlignItems(ui.Center).Justify(ui.SpaceBetween).
+		Padding(t.Space(1), inset).Children(func() {
+		ui.Text(c, copy.EffectiveOpacity).FontSize(tokens.Caption).FontWeight(500).TextColor(tokens.TextTertiary)
+		ui.Text(c, copy.EffectiveOpacityValue(percent)).FontSize(tokens.Caption).FontWeight(560).
+			TextColor(tokens.TextSecondary).ContentTransition(ui.ContentTransition{Numeric: true})
+	})
 }
 
 // checkbox builds one self-labeling check box in the form's content column:

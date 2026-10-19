@@ -158,6 +158,11 @@ func TestSpecForSpendsMainOpacityOnTheComposite(t *testing.T) {
 // replacement: a slider already past it keeps its own value, and the top is
 // still the solid top.
 func TestTheOffStopKeepsAReadabilityFloor(t *testing.T) {
+	// The floor's own value, spelled out: a test that compares against the
+	// constant cannot tell a tuned floor from a deleted one.
+	if OffFrameFloor != 0.35 {
+		t.Errorf("the off stop's readability floor = %v, want 0.35", OffFrameFloor)
+	}
 	if got := SpecFor("off", settings.MinWindowOpacity).TintAlpha; got != OffFrameFloor {
 		t.Errorf("off at the slider's bottom = %v, want the floor %v", got, OffFrameFloor)
 	}
@@ -424,6 +429,11 @@ func TestTheTerminalSplitsItsAlphaBetweenFrameAndCanvas(t *testing.T) {
 				}
 			}
 		}
+	}
+	// The share's own value, spelled out: a test that reads the constant cannot
+	// tell a tuned split from a deleted one.
+	if TerminalFrameShare != 0.4 {
+		t.Errorf("the terminal's frame share = %v, want 0.4", TerminalFrameShare)
 	}
 	// The canvas is the larger share: it carries the colour the user picked, so
 	// the palette must dominate the panel it paints.

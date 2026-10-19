@@ -308,6 +308,10 @@ var en = Copy{
 		TransparencyScaleLow:  "Transparent",
 		TransparencyScaleHigh: "Solid",
 
+		EffectiveOpacity:        "Effective opacity",
+		EffectiveOpacityValue:   effectiveOpacityEN,
+		TransparencyUnavailable: "This window cannot show the desktop behind it: the system gives it no material to sit on, so the card is painted solid. Transparency is unavailable here.",
+
 		Scale:      "Interface size",
 		ScaleHint:  "Scales every interface element - text, buttons and inputs. Small is the default.",
 		ScaleSmall: "Small",
@@ -1193,6 +1197,10 @@ var zh = Copy{
 
 		TransparencyScaleLow:  "透明",
 		TransparencyScaleHigh: "不透明",
+
+		EffectiveOpacity:        "有效不透明度",
+		EffectiveOpacityValue:   effectiveOpacityEN,
+		TransparencyUnavailable: "这个窗口无法透出桌面：系统没有给它可依附的背板材质，卡片只能画成实底。这里的透明度不可用。",
 
 		Scale:      "界面大小",
 		ScaleHint:  "缩放所有界面元素——文字、按钮与输入框。默认为「小」。",
