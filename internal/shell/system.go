@@ -747,7 +747,18 @@ func (a *App) InstallMenu() {
 // commands, the install catalog and the applications. It is the tray's own
 // "I changed something on this machine" press, and it is safe from the tray's
 // goroutine.
+//
+// One rescan at a time (see scanFlight). The three scans it starts are latched
+// individually, but the provider refresh is synchronous and can take seconds on
+// a machine with a slow tool, so a second press while the first is still
+// reading is the same request and is dropped: the tray item is a menu entry the
+// user can hold down, and every repeat used to start another provider probe on
+// the tray's goroutine.
 func (a *App) Rescan() {
+	if !a.rescan.begin() {
+		return
+	}
+	defer a.rescan.end()
 	a.scanApps()
 	a.scanTools()
 	a.scanToolCatalog()

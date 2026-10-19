@@ -2609,10 +2609,7 @@ func awaitCatalogIdle(t *testing.T, a *App) {
 	t.Helper()
 	deadline := time.Now().Add(2 * time.Second)
 	for {
-		a.catalogMu.Lock()
-		scanning := a.catalogScanning
-		a.catalogMu.Unlock()
-		if !scanning {
+		if !a.catalogScan.busy() {
 			return
 		}
 		if time.Now().After(deadline) {

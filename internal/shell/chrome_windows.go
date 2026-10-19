@@ -44,6 +44,24 @@ const (
 	dwmsbtNone              = 1
 )
 
+// The window-frame attributes that take the *rest* of the system's chrome off a
+// frameless panel: DWM draws a one-pixel border around every top-level window
+// and, on Windows 11, rounds the window's rectangle to the system corner radius
+// (DWMWA_WINDOW_CORNER_PREFERENCE, 33). Both are drawn *outside* the app's own
+// card: the border is the 「窗口周边外圈还有一圈额外的底色」 line, and the
+// system's rounding clips the transparent corners into opaque wedges against the
+// card's own smaller radius. The card is the whole of the window's chrome, so
+// the border goes (DWMWA_COLOR_NONE, 0xFFFFFFFE — the documented "no border"
+// value, not black) and the rectangle stays square
+// (DWMWCP_DONOTROUND), which leaves the card's own rounding as the only one on
+// screen — the same shape macOS and Linux give it.
+const (
+	dwmwaWindowCornerPreference = 33
+	dwmwaBorderColor            = 34
+	dwmcpDoNotRound             = 1
+	dwmwaColorNone              = 0xFFFFFFFE
+)
+
 // gwlStyle is GetWindowLongPtr's GWL_STYLE index (-16): a variable, because a
 // negative constant does not convert to uintptr.
 var gwlStyle int32 = -16
@@ -82,11 +100,15 @@ func setWindowStyle(hwnd uintptr, style uintptr) {
 
 // stripSystemChrome takes the caption, the window menu and the minimize and
 // maximize boxes off a frameless window, and asks Windows to recompute the
-// frame so the non-client band goes with them.
+// frame so the non-client band goes with them. The frame DWM still draws on top
+// of that — its border line and its corner rounding — comes off in
+// dressWindowsFrame, which is applied on every call: mygo re-adds the style bits
+// on a resize, and the frame attributes are cheap enough to restate each time.
 func stripSystemChrome(hwnd uintptr) {
 	if hwnd == 0 {
 		return
 	}
+	dressWindowsFrame(hwnd)
 	style := windowStyle(hwnd)
 	cleared := style &^ (wsCaption | wsSysMenu | wsMinimizeBox | wsMaximizeBox)
 	if cleared == style {
@@ -95,6 +117,24 @@ func stripSystemChrome(hwnd uintptr) {
 	setWindowStyle(hwnd, cleared)
 	procSetWindowPos.Call(hwnd, 0, 0, 0, 0, 0,
 		swpNoMove|swpNoSize|swpNoZOrder|swpNoActivate|swpFrameChanged)
+}
+
+// dressWindowsFrame removes the border DWM draws around the window and keeps
+// the window's rectangle square, so the card's own rounded, transparent edge is
+// the only edge on screen. Both attributes are ignored by systems that do not
+// know them (the border colour is Windows 11 21H2+, the corner preference
+// 22000+), and a refusal is not an error worth reporting: the window is still a
+// frameless panel, it just keeps the system's own border.
+func dressWindowsFrame(hwnd uintptr) {
+	if hwnd == 0 {
+		return
+	}
+	corner := int32(dwmcpDoNotRound)
+	procDwmSetWindowAttribute.Call(hwnd, uintptr(dwmwaWindowCornerPreference),
+		uintptr(unsafe.Pointer(&corner)), unsafe.Sizeof(corner))
+	border := uint32(dwmwaColorNone)
+	procDwmSetWindowAttribute.Call(hwnd, uintptr(dwmwaBorderColor),
+		uintptr(unsafe.Pointer(&border)), unsafe.Sizeof(border))
 }
 
 // clearWindowsBackdrop drops the system backdrop behind a window's content

@@ -11,3 +11,8 @@ func stripSystemChrome(hwnd uintptr) {}
 // as "no material" there (see windowMaterialCall), because macOS's and Linux's
 // windows do not lose their transparency with the material.
 func clearWindowsBackdrop(hwnd uintptr) {}
+
+// dressWindowsFrame is a no-op off Windows: DWM's border line and corner
+// rounding are Windows' own chrome, and neither platform draws an equivalent
+// around a frameless panel.
+func dressWindowsFrame(hwnd uintptr) {}

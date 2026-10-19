@@ -442,11 +442,13 @@ type App struct {
 	// lookTools resolves the install catalog against this machine's search
 	// path (see Options.LookTools).
 	lookTools func() []tools.State
-	// catalogMu guards catalogScanning: the catalog is read one scan at a
-	// time, so a refresh that arrives while one is in flight shares it rather
-	// than duplicating it (the old build's in-flight fetch).
-	catalogMu       sync.Mutex
-	catalogScanning bool
+	// catalogScan, appsScan, toolsScan and rescan are the one-at-a-time
+	// latches over the background re-reads (see scanFlight): a refresh that
+	// arrives while one is in flight is dropped rather than duplicated.
+	catalogScan scanFlight
+	appsScan    scanFlight
+	toolsScan   scanFlight
+	rescan      scanFlight
 
 	quit     func()
 	workArea float64
@@ -1396,7 +1398,14 @@ func (a *App) scanTools() {
 		a.Launcher.SetTools(nil, false)
 		return
 	}
+	// One PATH scan at a time (see scanFlight): the settings toggle and the
+	// tray's rescan both land here, and a burst of presses must not start a
+	// walk of every PATH directory per press.
+	if !a.toolsScan.begin() {
+		return
+	}
 	go func() {
+		defer a.toolsScan.end()
 		found := apps.ScanCommands(apps.CommandDirs())
 		a.onMain(func() { a.Launcher.SetTools(found, true) })
 	}()
@@ -1412,20 +1421,14 @@ func (a *App) scanTools() {
 // second one, exactly as the old build's `refreshToolCatalog` reused its
 // in-flight promise.
 func (a *App) scanToolCatalog() {
-	a.catalogMu.Lock()
-	if a.catalogScanning {
-		a.catalogMu.Unlock()
+	if !a.catalogScan.begin() {
 		return
 	}
-	a.catalogScanning = true
-	a.catalogMu.Unlock()
 	go func() {
+		defer a.catalogScan.end()
 		states := a.lookTools()
 		a.onMain(func() {
 			a.Launcher.SetToolCatalog(states)
-			a.catalogMu.Lock()
-			a.catalogScanning = false
-			a.catalogMu.Unlock()
 		})
 	}()
 }
@@ -3100,7 +3103,14 @@ func (a *App) scanApps() {
 		a.onMain(func() { a.Launcher.SetApps(found) })
 		return
 	}
+	// One application scan at a time (see scanFlight): the tray's rescan is
+	// the user's own "I installed something" press and can be pressed again
+	// before the first walk finishes.
+	if !a.appsScan.begin() {
+		return
+	}
 	go func() {
+		defer a.appsScan.end()
 		found := apps.Scan(roots)
 		apps.StoreScan(roots, found)
 		a.onMain(func() { a.Launcher.SetApps(found) })
@@ -3476,6 +3486,14 @@ func (a *App) placeWindow() {
 	// grows into the terminal when a session opens, and it must still fit.
 	reference := a.Store.Snapshot().TerminalHeight
 	x, y := placement(areaX, areaY, areaWidth, areaHeight, width, reference)
+	// Placing a window that is already there is a no-op: Show places before
+	// the reveal and again after it (macOS drops geometry set on a window that
+	// is not yet mapped), and on every platform where the first placement
+	// stuck the second would otherwise ask the window manager to move the panel
+	// to where it already is.
+	if atX, atY := a.Win.Position(); atX == x && atY == y {
+		return
+	}
 	a.Win.SetPosition(x, y)
 }
 
@@ -3546,7 +3564,10 @@ func placement(areaX, areaY, areaWidth, areaHeight, windowW, referenceH float64)
 //
 // The placement happens before the reveal and again after it — macOS drops
 // geometry set on a window that is not yet mapped — and both land in the same
-// frame, so the panel is never seen in between.
+// frame, so the panel is never seen in between. The second one is a no-op where
+// the first stuck: placeWindow compares against the window's own position (see
+// placeWindow), so a platform that honours geometry on an unmapped window is
+// not asked to move the panel to where it already is.
 //
 // A reveal is also the one moment the install catalog is re-read (R68): a tool
 // installed in the user's own shell while the window was hidden must stop being
