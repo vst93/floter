@@ -49,6 +49,17 @@ const historyClearMods = ui.Ctrl | ui.Shift
 // member of the settings' shortcut map: the user never asked to rebind it.
 var historyDeleteMods = ui.Cmd
 
+// historyStarMods is the history star's chord, the reference's `CmdOrCtrl+D`
+// (`main:src/launcher.ts:461` `CLIPBOARD_FAVORITE_SHORTCUT`, `:521`
+// `CALCULATOR_FAVORITE_SHORTCUT`): ⌘D on macOS, Ctrl+D elsewhere — the app
+// modifier, not both at once. It is mode-local (one surface, one meaning) and
+// deliberately not in the settings' shortcut map.
+//
+// It lives here rather than in `modeShortcuts` because the editor would take
+// it first: macOS reads Ctrl+D as delete-char, so a `Shortcut` registration
+// never saw the press and the star never lit (P7-iv).
+var historyStarMods = ui.Cmd
+
 // historyDeleteConfirm is the old build's `HISTORY_DELETE_CONFIRM_MS`: an armed
 // row waits this long for its confirming press, then disarms itself (the old
 // handler armed a timer at `HISTORY_DELETE_CONFIRM_MS + 50`). Stillness must
@@ -76,6 +87,14 @@ func (a *App) fieldKeys(ev ui.InputEvent) bool {
 	if a.appChordKeys(ev) {
 		// Any key but the confirming one cancels an armed delete, chords
 		// included — the old build's rule, kept in one place.
+		a.disarmDelete()
+		return true
+	}
+	// The history star's own key, claimed only while a history mode owns the
+	// field — elsewhere ⌘D/Ctrl+D keeps whatever it meant. The view runs it on
+	// the frame that follows, where the row it stars is the one on screen.
+	if ev.Key == ui.KeyD && ev.Mods == historyStarMods && (a.calculatorMode || a.clipboard) {
+		a.pendingFavorite = true
 		a.disarmDelete()
 		return true
 	}

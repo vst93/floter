@@ -811,3 +811,52 @@ func TestTheNumberedFamilyAnswersThroughTheField(t *testing.T) {
 		t.Errorf("an unbound digit ran a row: %v", ran)
 	}
 }
+
+// The history star's key is `CmdOrCtrl+D` — ⌘D on macOS, Ctrl+D elsewhere
+// (`main:src/launcher.ts:461,521`) — and it is the field's, not the view's:
+// a focused text field's editor takes a modified D before any `Shortcut`
+// registration is asked (macOS reads Ctrl+D as delete-char), so the port's
+// `c.Shortcut(ui.Super|ui.Ctrl, ui.KeyD)` was never answered by a real press —
+// it asked for *both* modifiers at once, and the editor got there first
+// anyway. The field claims the press, and the view spends the claim.
+func TestTheHistoryStarAnswersThroughTheField(t *testing.T) {
+	a, store := clipboardApp(t)
+	tt := render(t, a)
+	a.EnterClipboard()
+	tt.Frame()
+
+	// The seam itself: the press is the field's, so the editor never sees it.
+	star := ui.InputEvent{Kind: ui.InputKeyDown, Key: ui.KeyD, Mods: historyStarMods}
+	if !a.fieldKeys(star) {
+		t.Fatal("the field did not claim the star's chord")
+	}
+	if !a.pendingFavorite {
+		t.Error("the claim was not recorded for the view to spend")
+	}
+	// Outside the two history modes the same press is the editor's.
+	a.leaveClipboard()
+	if a.fieldKeys(star) {
+		t.Error("the star's chord was claimed on the ordinary page")
+	}
+	// The claims above are this test's, not a press: drop them before the
+	// frame that reads them.
+	a.pendingFavorite = false
+	a.EnterClipboard()
+	tt.Frame()
+
+	// The press as a real frame delivers it, then the frame that spends it.
+	tt.Key(historyStarMods, ui.KeyD)
+	tt.Frame()
+	if !store.Entries()[a.Selected].Favorite {
+		t.Fatalf("the star did not land: %+v", store.Entries())
+	}
+	if a.pendingFavorite {
+		t.Error("the claim outlived the frame that spent it")
+	}
+	// Both modifiers at once is not the chord: it stars nothing.
+	tt.Key(ui.Super|ui.Ctrl, ui.KeyD)
+	tt.Frame()
+	if !store.Entries()[a.Selected].Favorite {
+		t.Error("the old both-modifiers literal starred the row")
+	}
+}

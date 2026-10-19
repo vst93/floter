@@ -3,6 +3,8 @@ package settingsui
 import (
 	"github.com/egoist/mygo/ui"
 
+	"floter/internal/settings"
+	"floter/internal/shortcuts"
 	"floter/internal/theme"
 )
 
@@ -37,6 +39,27 @@ func (a *App) textInput(c *ui.Context, value *string) ui.Element {
 	e := a.fieldFace(c, ui.TextInput(c, value))
 	e.Shortcut(0, ui.KeyUp)
 	e.Shortcut(0, ui.KeyDown)
+	// The user's own chords are the field's, before the editor's: the
+	// framework asks the focused element's HandleInput first, and the editor
+	// after it — so on macOS a binding recorded as `Alt+N` was typed as ñ and
+	// the settings page closed nothing (the same root cause as the launcher's
+	// field, see launcher/fieldkeys.go). Only the new-command binding is
+	// claimed here, because it is the one the settings surface answers:
+	// `DISMISS_TABLE.settings["new-command"]` closes the panel
+	// (`main:src/surface-policy.ts:216`), which is `Actions.Close`.
+	e.HandleInput(func(ev ui.InputEvent) bool {
+		if ev.Kind != ui.InputKeyDown {
+			return false
+		}
+		mods, key, ok := shortcuts.Parse(settings.Shortcut(a.Store.Snapshot(), settings.ShortcutNewCommand))
+		if !ok || ev.Mods != mods || ev.Key != key {
+			return false
+		}
+		if a.Actions.Close != nil {
+			a.Actions.Close()
+		}
+		return true
+	})
 	return e
 }
 

@@ -376,3 +376,40 @@ func appKeysAppAtScale(step string) *App {
 	s.UIScale = step
 	return New(Options{Store: settings.NewStore(s)})
 }
+
+// The external-terminal binding is answered on the terminal surface too.
+//
+// The reference's terminal branch resolved the app's keys before forwarding
+// anything (`main:src/hooks/useAppKeyboard.ts:191-233`: the dismiss table, then
+// `open_external_terminal`, then the selection copy), so the binding works
+// wherever the user is looking. The port had answered it on the launcher only:
+// on the terminal surface the press went to the program as an ESC-prefixed
+// chord, which is the promise the settings page makes and did not keep
+// (P7-iv). A chord recorded as `Alt+J` is the case that proves it — the
+// terminal takes Alt+letter for itself.
+func TestTheExternalTerminalBindingAnswersOnTheTerminal(t *testing.T) {
+	opened := 0
+	a := New(Options{
+		Store: settings.NewStore(settings.Default()),
+		OpenExternalTerminal: func() error {
+			opened++
+			return nil
+		},
+	})
+	if err := a.Store.Update(func(s *settings.Settings) {
+		s.SetShortcut(settings.ShortcutOpenExternalTerminal, "Alt+J")
+	}); err != nil {
+		t.Fatal(err)
+	}
+	a.Open(SurfaceTerminal)
+	tt := appKeysRender(t, a)
+
+	tt.Key(ui.Alt, ui.KeyJ)
+	tt.Frame()
+	if opened != 1 {
+		t.Fatalf("the binding opened the terminal %d times, want 1", opened)
+	}
+	if a.Surf != SurfaceTerminal {
+		t.Errorf("surf = %v, want the terminal", a.Surf)
+	}
+}

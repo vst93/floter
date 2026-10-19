@@ -3669,6 +3669,17 @@ func (a *App) appShortcuts(c *ui.Context) {
 		if mods, key, ok := shortcuts.Parse(settings.Shortcut(a.Store.Snapshot(), settings.ShortcutNewCommand)); ok && c.Shortcut(mods, key) {
 			a.returnToInput()
 		}
+		// The reference's terminal branch answered the external-terminal
+		// binding before forwarding anything to the shell
+		// (`main:src/hooks/useAppKeyboard.ts:191-233`: the dismiss table,
+		// then `open_external_terminal`, then the selection copy), so a
+		// binding recorded as `Alt+N` opens the user's terminal rather than
+		// reaching the program as an ESC-prefixed chord. The port had left
+		// this one to the program — the same promise the settings page makes
+		// and did not keep on this surface (P7-iv).
+		if mods, key, ok := shortcuts.Parse(settings.Shortcut(a.Store.Snapshot(), settings.ShortcutOpenExternalTerminal)); ok && c.Shortcut(mods, key) {
+			a.openTerminalWindow()
+		}
 	case SurfaceSettings:
 		if c.Shortcut(ui.Cmd, ui.KeyW) {
 			a.Open(SurfaceLauncher)

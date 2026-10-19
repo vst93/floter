@@ -1162,7 +1162,7 @@ func TestCalculatorModeFiltersAndFavorites(t *testing.T) {
 	tt.Frame()
 	tt.Key(0, ui.KeyDown)
 	tt.Frame()
-	tt.Key(ui.Super|ui.Ctrl, ui.KeyD)
+	tt.Key(ui.Cmd, ui.KeyD)
 	tt.Frame()
 	if len(fixture.toggled) != 1 || fixture.toggled[0] != "1" {
 		t.Errorf("toggled %v", fixture.toggled)
@@ -1261,7 +1261,7 @@ func TestClipboardModeFavoritesAndDelete(t *testing.T) {
 	}
 
 	// The star key toggles the selected entry, and the row shows it.
-	tt.Key(ui.Super|ui.Ctrl, ui.KeyD)
+	tt.Key(ui.Cmd, ui.KeyD)
 	tt.Frame()
 	if !store.Entries()[a.Selected].Favorite {
 		t.Fatalf("the star did not land: %+v", store.Entries())

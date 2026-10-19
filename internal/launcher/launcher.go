@@ -216,6 +216,10 @@ type App struct {
 	pendingChord    string
 	pendingDigit    int
 	pendingDigitSet bool
+	// pendingFavorite is the history star's mode-local chord as the field
+	// claimed it (⌘D / Ctrl+D, see `historyStarMods`): the editor would take
+	// the press on macOS, so the view runs it a frame later.
+	pendingFavorite bool
 
 	// Apps is the installed applications the shell scanned, and Commands the
 	// enabled extensions' commands; both join the results once the user
@@ -901,7 +905,7 @@ func (a *App) View(c *ui.Context) {
 	// that mode's own face, not a page of the app's.
 	a.syncConfig()
 	a.askBrowser()
-	a.modeShortcuts(c)
+	a.modeShortcuts()
 	// The held-modifier row's premise: the app modifier down on an empty field
 	// puts a "new terminal session" line at the list's end and hands it the
 	// selection, so Enter reaches it. Releasing the modifier gives the
@@ -1354,23 +1358,28 @@ func (a *App) View(c *ui.Context) {
 
 // The mode-local keys: the history's star, which belongs to the calculator
 // and clipboard modes rather than to the launcher's own shortcut map. It is
-// the old build's key — the app modifier plus D — and is not rebindable,
-// because a control the user never asked to rebind does not belong in the
-// settings map.
+// the old build's key — `CmdOrCtrl+D`, the bookmark convention the star
+// echoes (`main:src/launcher.ts:461,521`) — and is not rebindable, because a
+// control the user never asked to rebind does not belong in the settings map.
 //
-// The modes' other key, the history row's delete, cannot live here: a focused
-// text field's editor takes every Backspace before any `Shortcut` registration
-// is asked, so the field answers it itself (see fieldkeys.go).
-func (a *App) modeShortcuts(c *ui.Context) {
+// The press itself is claimed by the field (`historyStarMods`, fieldkeys.go):
+// a focused text field's editor takes a modified D before any `Shortcut`
+// registration is asked — macOS reads Ctrl+D as delete-char — so the field is
+// the seam and this is where the claim is spent.
+//
+// The modes' other key, the history row's delete, cannot live here for the
+// same reason (see fieldkeys.go).
+func (a *App) modeShortcuts() {
+	favorite := a.pendingFavorite
+	a.pendingFavorite = false
+	if !favorite {
+		return
+	}
 	switch {
 	case a.calculatorMode:
-		if c.Shortcut(ui.Super|ui.Ctrl, ui.KeyD) {
-			a.toggleCalculatorFavorite()
-		}
+		a.toggleCalculatorFavorite()
 	case a.clipboard:
-		if c.Shortcut(ui.Super|ui.Ctrl, ui.KeyD) {
-			a.toggleClipFavorite()
-		}
+		a.toggleClipFavorite()
 	}
 }
 
