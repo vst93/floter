@@ -222,9 +222,14 @@ func TestBadge(t *testing.T) {
 			t.Errorf("Badge = %q", got)
 		}
 	}
-	// Enter is the return arrow on every platform.
-	if got := Badge("Ctrl+1", "enter"); got != "Ctrl+\u21a9" {
-		t.Errorf("Badge(enter) = %q", got)
+	// Enter is the return arrow on every platform, and the modifier glyph
+	// follows the platform's spelling of Control: ⌃ on macOS, "Ctrl" elsewhere.
+	wantEnter := "Ctrl+\u21a9"
+	if runtime.GOOS == "darwin" {
+		wantEnter = "\u2303\u21a9"
+	}
+	if got := Badge("Ctrl+1", "enter"); got != wantEnter {
+		t.Errorf("Badge(enter) = %q, want %q", got, wantEnter)
 	}
 	// An unparseable binding still prints the key alone.
 	if got := Badge("nonsense", "3"); got != "3" {

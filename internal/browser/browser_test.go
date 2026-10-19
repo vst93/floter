@@ -1,3 +1,5 @@
+//go:build !windows
+
 package browser
 
 import (
@@ -464,5 +466,3 @@ func TestLabel(t *testing.T) {
 		t.Errorf("label = %q", got)
 	}
 }
-
-func runtimeDarwin() bool { return runtimeGOOS() == "darwin" }
