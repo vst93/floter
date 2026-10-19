@@ -117,7 +117,7 @@ func TestTheClipboardOffNoteIsChargedTheStatusBand(t *testing.T) {
 	}
 	// The note's own band is `launcherStatusUnits` spacing units, shorter than
 	// a one-line result row's floor: the same note drawn as an ordinary row
-	// would be charged `rowOneLineUnits` and the window would be the taller.
+	// would be charged `rowUnits` and the window would be the taller.
 	geometry := func(rows []RowInfo) Geometry {
 		return Geometry{
 			Font: a.Font, Spacing: a.Spacing, Rows: rows, Held: len(rows),
@@ -126,9 +126,9 @@ func TestTheClipboardOffNoteIsChargedTheStatusBand(t *testing.T) {
 	}
 	note := geometry(a.Rows).Height()
 	plain := geometry([]RowInfo{{Lines: 1}}).Height()
-	if note != plain-int((rowOneLineUnits-launcherStatusUnits)*a.Spacing) {
+	if note != plain-int((rowUnits-launcherStatusUnits)*a.Spacing) {
 		t.Errorf("the note prices the window at %d; a status note is %d short of a one-line row (%d)",
-			note, int((rowOneLineUnits-launcherStatusUnits)*a.Spacing), plain)
+			note, int((rowUnits-launcherStatusUnits)*a.Spacing), plain)
 	}
 	// And it is a band row in the count the window holds, not a row plus a
 	// band: one note is one row of the ten-row budget.

@@ -722,7 +722,7 @@ func pluginTextRows(text string) int {
 		lines = strings.Count(text, "\n") + 1
 	}
 	height := math.Max(pluginTextMinUnits, math.Min(float64(lines*pluginTextLineUnits), pluginTextMaxUnits))
-	return int(math.Ceil(height / rowTwoLineUnits))
+	return int(math.Ceil(height / rowUnits))
 }
 
 // outputRows is the band table for the captured-output view in front of the
@@ -741,7 +741,7 @@ func (a *App) outputRows() (rows []RowInfo, held, sections int) {
 		n := pluginTextRows(view.Text)
 		rows = make([]RowInfo, n)
 		for i := range rows {
-			rows[i].Band = rowTwoLineUnits
+			rows[i].Band = rowUnits
 		}
 		return rows, n, 0
 	}

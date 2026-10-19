@@ -280,6 +280,17 @@ func TestContentAndFloatRideTheSlider(t *testing.T) {
 	if got, want := visible(thick), float32(1); diff(got, want) {
 		t.Errorf("the high stop's visible pane = %v, want opaque %v", got, want)
 	}
+	// The step itself is pinned, not only asserted through itself: a revert to
+	// the reference's 0.06 band is a recess a viewer cannot resolve over the
+	// frame's own tint (see contentStep), and a test written in terms of the
+	// constant would pass at either number.
+	if contentStep != 0.09 {
+		t.Errorf("contentStep = %v, want the 0.09 recess this build draws", contentStep)
+	}
+	mid := SpecFor("regular", settings.DefaultMainOpacity)
+	if got, want := visible(mid), float32(settings.DefaultMainOpacity)/100+0.09; diff(got, want) {
+		t.Errorf("the default slider's visible pane = %v, want the frame + the 0.09 step %v", got, want)
+	}
 	// The bottom end is close to the frame's own alpha, not the near-opaque
 	// double sheet the old code drew.
 	if a := visible(thin); a >= 0.7 {

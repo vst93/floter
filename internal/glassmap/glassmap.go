@@ -358,7 +358,17 @@ func SpecForPreferencesOS(goos, step string, mainOpacity uint8, highContrast boo
 // it over half the band it moves the frame. The pane is now painted at the
 // alpha that *composites* to `frame + contentStep` over the frame, so the app's
 // background (top, middle and bottom) is the frame tint the slider owns.
-const contentStep = 0.06
+//
+// The step is `0.09`, not the reference's *visible* 0.06 band: at a 47% frame a
+// 0.06 ask is carried by a pane at 0.11 alpha, which over the frame's own tint
+// and the list's hairlines is not a recess a viewer resolves — the panel read as
+// the card with rows loose on it, one of the flatnesses behind 「整体 UI/UX 很
+// 小气」. A 0.09 step paints the pane at 0.17 over the same frame: still one
+// sheet, still the slider's tint, but now visibly one level below the field row
+// it sits under. It is bounded the same way it was — the pane composites to
+// `frame + step` and never to a second tint — so a maxed slider still lands on
+// solid and a thin one still shows the desktop.
+const contentStep = 0.09
 
 // overFrame returns the alpha a pane must carry to composite to target over
 // a frame of alpha frame: `1 - (1-frame)(1-pane) == target`.

@@ -49,18 +49,21 @@ func TestHoldRows(t *testing.T) {
 }
 
 // The height is the card's own band: the field row, the edge, the rows and
-// the frame, at the theme's values. A list of one-line rows is shorter than
-// a list of two-line rows; a held count with no list yet prices the worst
-// case, so the room the next row arrives into is already there.
+// the frame, at the theme's values. A row is one box — a subtitle does not
+// make it taller (see rowUnits) — while a held count with no list yet prices
+// the worst case, so the room the next row arrives into is already there.
 func TestGeometryHeight(t *testing.T) {
 	base := Geometry{Font: 14, Spacing: 4, Rows: []RowInfo{{Lines: 1}}, Held: 1}.Height()
 	if base <= 0 {
 		t.Fatalf("height = %d", base)
 	}
-	// A second line makes the window taller by one line box.
+	// A second line sits inside the same box: the row gained a subtitle and the
+	// window did not move — the reference's "same count, no resize" invariant
+	// (`result-budget.ts:290-296`). The port drew the one-line row at 34u, so a
+	// row gaining a subtitle used to grow the window by 6u.
 	two := Geometry{Font: 14, Spacing: 4, Rows: []RowInfo{{Lines: 2}}, Held: 1}.Height()
-	if two <= base {
-		t.Errorf("a two-line row = %d, want taller than a one-line %d", two, base)
+	if two != base {
+		t.Errorf("a two-line row = %d, want the same 40u box as a one-line %d", two, base)
 	}
 	// A held band prices rows the list does not have yet.
 	band := Geometry{Font: 14, Spacing: 4, Rows: []RowInfo{{Lines: 1}}, Held: 5}.Height()
@@ -89,23 +92,25 @@ func TestGeometryHeight(t *testing.T) {
 	}
 }
 
-// The window is charged with the line boxes the rows actually draw, and a
-// row's floor (40u with a subtitle, 34u without) still wins where it is
-// taller. A two-line row's content — the title register and the subtitle
-// register, with no vertical padding — is charged, and a heading is its own
-// band (one body line and the 6u/4u padding pair), not a row's floor.
+// A row's box (40u) wins over its own content, and it is the same box with a
+// subtitle or without: two lines of the row's registers are 30u at the shipped
+// sizes, so both rows draw the 40u box and the window is charged it. A heading
+// is its own band (one body line and the 6u/4u padding pair), not a row's box.
 func TestGeometryChargesTheRowsOwnLineBoxes(t *testing.T) {
 	// Two lines at the drawn scales, in the units the view uses.
 	two := Geometry{Font: 11, Spacing: 4, Rows: []RowInfo{{Lines: 2}}, Held: 1}.Height()
 	one := Geometry{Font: 11, Spacing: 4, Rows: []RowInfo{{Lines: 1}}, Held: 1}.Height()
-	if two <= one {
-		t.Errorf("a two-line row is %d, not taller than a one-line %d", two, one)
+	if two != one {
+		t.Errorf("a two-line row is %d, a one-line row %d; both are the 40u box", two, one)
 	}
-	// The row's floor wins over its own content: 40u with a subtitle.
-	// chrome 66u + 40u floor + the platform's margin.
+	// The row's box wins over its own content. chrome 66u + 40u box + the
+	// platform's margin.
 	want := int(roundHalf(66 + 40 + windowInset(4)))
 	if two != want {
-		t.Errorf("a two-line row is %d, want the 40u floor's %d", two, want)
+		t.Errorf("a two-line row is %d, want the 40u box's %d", two, want)
+	}
+	if one != want {
+		t.Errorf("a one-line row is %d, want the same 40u box's %d", one, want)
 	}
 	// A heading is charged its own band — one body line at 1.4 and the 6u/4u
 	// padding pair — not a row's floor, so a list of headings is shorter than
@@ -223,7 +228,7 @@ func TestStatusAndSectionBands(t *testing.T) {
 // taller font cannot make the block taller than the rows it stands for.
 func TestBandRowsArePricedAsTheirBand(t *testing.T) {
 	const spacing = 4.0
-	band := Geometry{Font: 14, Spacing: spacing, Rows: []RowInfo{{Band: rowTwoLineUnits}}, Held: 1}.Height()
+	band := Geometry{Font: 14, Spacing: spacing, Rows: []RowInfo{{Band: rowUnits}}, Held: 1}.Height()
 	twoLine := Geometry{Font: 14, Spacing: spacing, Rows: []RowInfo{{Lines: 2}}, Held: 1}.Height()
 	if band != twoLine {
 		t.Errorf("a band row is %d, a two-line row %d", band, twoLine)

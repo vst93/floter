@@ -475,6 +475,21 @@ func ForPlatform(s settings.Settings, systemDark bool, prefs ui.Preferences, goo
 // Everything here is the old build's value: the pastel accent, the
 // translucent white (dark) or black (light) control ladder, the content
 // recess's own colour and the near-solid stand-in.
+//
+// The surface ladder is the one set of numbers this build raised over the
+// reference's: `stroke` > `controlEdge` > `hairline` > `control`, the four
+// rungs that say a card, its rows and the planes on them are different depths.
+// The old build drew all of them under a 0.08 alpha (dark: 0.08/0.06/0.07/
+// 0.055), which over a translucent dark frame is one or two levels of grey —
+// below what a 1x display resolves — so a card was a card only because of its
+// shadow, its rows had no rule and its controls no edge: every surface read as
+// one flat pane, and the window read as pinched however generous its padding
+// was (「整体 UI/UX 很 小气」). The rungs keep their order and their ratios, one
+// step brighter: the card's edge clears the row's hairline, the hairline clears
+// a control plane. They stay light-handed — 0.1 white over a dark frame is a
+// quarter of the contrast the contrast preference's own tokens use
+// (`contrast()`'s 0.42/0.34) — so the ladder buys depth without becoming a
+// border-on-every-box design.
 func paletteFor(appearance Appearance) palette {
 	if appearance == Light {
 		return palette{
@@ -488,16 +503,16 @@ func paletteFor(appearance Appearance) palette {
 			accentHover:      ui.Hex("#0a5ecb"),
 			accentPressed:    ui.Hex("#05408f"),
 			accentText:       ui.Hex("#f7f9ff"),
-			stroke:           ui.RGBA(0, 0, 0, 0.1),
+			stroke:           ui.RGBA(0, 0, 0, 0.12),
 			strokeActive:     ui.RGBA(10, 108, 255, 0.28),
-			control:          ui.RGBA(0, 0, 0, 0.035),
-			controlHover:     ui.RGBA(0, 0, 0, 0.06),
-			controlPress:     ui.RGBA(0, 0, 0, 0.022),
-			controlEdge:      ui.RGBA(0, 0, 0, 0.07),
-			track:            ui.RGBA(0, 0, 0, 0.05),
-			trackEdge:        ui.RGBA(0, 0, 0, 0.07),
+			control:          ui.RGBA(0, 0, 0, 0.05),
+			controlHover:     ui.RGBA(0, 0, 0, 0.075),
+			controlPress:     ui.RGBA(0, 0, 0, 0.032),
+			controlEdge:      ui.RGBA(0, 0, 0, 0.1),
+			track:            ui.RGBA(0, 0, 0, 0.06),
+			trackEdge:        ui.RGBA(0, 0, 0, 0.08),
 			field:            ui.RGBA(255, 255, 255, 0.5),
-			hairline:         ui.RGBA(0, 0, 0, 0.08),
+			hairline:         ui.RGBA(0, 0, 0, 0.1),
 			selection:        ui.RGBA(6, 74, 166, 0.1),
 			focus:            ui.RGBA(6, 74, 166, 0.82),
 			warning:          ui.Hex("#9c1f18"),
@@ -539,16 +554,16 @@ func paletteFor(appearance Appearance) palette {
 		accentHover:      ui.Hex("#a9c8ff"),
 		accentPressed:    ui.Hex("#7aa7ff"),
 		accentText:       ui.Hex("#15171b"),
-		stroke:           ui.RGBA(255, 255, 255, 0.08),
+		stroke:           ui.RGBA(255, 255, 255, 0.11),
 		strokeActive:     ui.RGBA(143, 183, 255, 0.24),
-		control:          ui.RGBA(255, 255, 255, 0.055),
-		controlHover:     ui.RGBA(255, 255, 255, 0.085),
-		controlPress:     ui.RGBA(255, 255, 255, 0.038),
-		controlEdge:      ui.RGBA(255, 255, 255, 0.06),
-		track:            ui.RGBA(255, 255, 255, 0.07),
-		trackEdge:        ui.RGBA(255, 255, 255, 0.06),
+		control:          ui.RGBA(255, 255, 255, 0.075),
+		controlHover:     ui.RGBA(255, 255, 255, 0.105),
+		controlPress:     ui.RGBA(255, 255, 255, 0.05),
+		controlEdge:      ui.RGBA(255, 255, 255, 0.1),
+		track:            ui.RGBA(255, 255, 255, 0.09),
+		trackEdge:        ui.RGBA(255, 255, 255, 0.075),
 		field:            ui.RGBA(255, 255, 255, 0.03),
-		hairline:         ui.RGBA(255, 255, 255, 0.07),
+		hairline:         ui.RGBA(255, 255, 255, 0.09),
 		selection:        ui.RGBA(143, 183, 255, 0.13),
 		focus:            ui.RGBA(122, 167, 255, 0.78),
 		warning:          ui.RGBA(255, 178, 164, 0.82),

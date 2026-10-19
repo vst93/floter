@@ -186,16 +186,40 @@ func TestThePowerConfirmBandWearsTheWarmPlane(t *testing.T) {
 	if !ok {
 		t.Fatalf("the confirmation is not drawn: %q", tt.Texts())
 	}
-	// The gap between the glyph and the sentence is the band's own fill.
-	band := tt.Image().RGBAAt(int(msg.X)-2, int(msg.Y+msg.H/2))
+	// The gap between the glyph and the sentence is the band's own fill; the
+	// panel it sits on is read from the same line, left of the band's own
+	// inset, rather than assumed. (The assumption used to be the literal
+	// `{254 254 254}` the light sunken pane composited to; the pane's own
+	// recess moved by a level when the content step was raised — see
+	// glassmap.contentStep — and a constant would have to be re-tuned by hand
+	// on every such change.)
+	img := tt.Image()
+	cy := int(msg.Y + msg.H/2)
+	band := img.RGBAAt(int(msg.X)-2, cy)
+	panel := img.RGBAAt(1, cy)
 	tokens := theme.ForPreferences(a.settings(), false, ui.Preferences{})
-	panel := color.RGBA{254, 254, 254, 255}
 	want := over(tokens.IconSurface, panel)
 	wash := over(tokens.Theme.Warning.Alpha(0.12), panel)
-	if band != want {
-		t.Errorf("the confirmation band is %v, want the warm plane %v over the panel (→ %v)", band, tokens.IconSurface, want)
+	// One level of slack per channel: the band is composited by the renderer and
+	// `want` by this file's own arithmetic, and the two round the same alpha
+	// differently by a fraction. The wash it must not be is 20 levels away, so
+	// the slack costs the assertion nothing.
+	if d := channelGap(band, want); d > 1 {
+		t.Errorf("the confirmation band is %v, want the warm plane %v over the panel (→ %v; %d levels off)",
+			band, tokens.IconSurface, want, d)
 	}
 	if band == wash {
 		t.Errorf("the confirmation band is the warning ink at 12%% (%v), not the warm plane", wash)
 	}
+}
+
+// channelGap is the largest per-channel difference of two rendered pixels.
+func channelGap(a, b color.RGBA) int {
+	gap := func(x, y uint8) int {
+		if x > y {
+			return int(x - y)
+		}
+		return int(y - x)
+	}
+	return max(gap(a.R, b.R), max(gap(a.G, b.G), gap(a.B, b.B)))
 }

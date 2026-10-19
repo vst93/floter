@@ -265,6 +265,99 @@ func TestPaletteComesFromBaseCSS(t *testing.T) {
 	}
 }
 
+// The surface ladder is ordered and visible: four rungs a viewer can tell
+// apart, in the order the design means them — the card's edge over the row's
+// hairline, the hairline over a control plane, the plane over nothing.
+//
+// The rungs were all under 0.08 alpha, which over a translucent dark frame is
+// one or two levels of grey: the ladder existed in the token file and nowhere
+// on screen, so a card was a card only because of its shadow (「整体 UI/UX 很
+// 小气」). These assertions are the numbers, rung by rung, plus the order: a
+// revert to the flat ladder fails both the exact values and the ordering, and
+// an over-correction into a border-on-every-box design fails the ceiling
+// against the contrast preference's own tokens.
+func TestTheSurfaceLadderHasAStepToSee(t *testing.T) {
+	alpha := func(c ui.Color) float32 { return float32(c.A) / 255 }
+	cases := []struct {
+		name         string
+		systemDark   bool
+		stroke       ui.Color
+		controlEdge  ui.Color
+		hairline     ui.Color
+		control      ui.Color
+		controlHover ui.Color
+		controlPress ui.Color
+		track        ui.Color
+	}{
+		{
+			name: "light", systemDark: false,
+			stroke:       ui.RGBA(0, 0, 0, 0.12),
+			controlEdge:  ui.RGBA(0, 0, 0, 0.1),
+			hairline:     ui.RGBA(0, 0, 0, 0.1),
+			control:      ui.RGBA(0, 0, 0, 0.05),
+			controlHover: ui.RGBA(0, 0, 0, 0.075),
+			controlPress: ui.RGBA(0, 0, 0, 0.032),
+			track:        ui.RGBA(0, 0, 0, 0.06),
+		},
+		{
+			name: "dark", systemDark: true,
+			stroke:       ui.RGBA(255, 255, 255, 0.11),
+			controlEdge:  ui.RGBA(255, 255, 255, 0.1),
+			hairline:     ui.RGBA(255, 255, 255, 0.09),
+			control:      ui.RGBA(255, 255, 255, 0.075),
+			controlHover: ui.RGBA(255, 255, 255, 0.105),
+			controlPress: ui.RGBA(255, 255, 255, 0.05),
+			track:        ui.RGBA(255, 255, 255, 0.09),
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tk := ForPreferences(settings.Settings{Theme: "auto", GlassStep: "regular"}, tc.systemDark, ui.Preferences{})
+			rungs := []struct {
+				name string
+				got  ui.Color
+				want ui.Color
+			}{
+				{"InputStroke", tk.InputStroke, tc.stroke},
+				{"ControlEdge", tk.ControlEdge, tc.controlEdge},
+				{"Hairline", tk.Hairline, tc.hairline},
+				{"Control", tk.Control, tc.control},
+				{"ControlHover", tk.ControlHover, tc.controlHover},
+				{"ControlPress", tk.ControlPress, tc.controlPress},
+				{"Track", tk.Track, tc.track},
+			}
+			for _, rung := range rungs {
+				if rung.got != rung.want {
+					t.Errorf("%s = %v, want %v", rung.name, rung.got, rung.want)
+				}
+			}
+			// The order is the design: card edge, then the row's rule, then a
+			// control plane; hover lifts a pane and a press sinks it below rest.
+			if !(alpha(tc.stroke) >= alpha(tc.controlEdge) && alpha(tc.controlEdge) >= alpha(tc.hairline) &&
+				alpha(tc.hairline) > alpha(tc.control)) {
+				t.Errorf("the ladder is out of order: stroke %.3f, edge %.3f, hairline %.3f, control %.3f",
+					alpha(tc.stroke), alpha(tc.controlEdge), alpha(tc.hairline), alpha(tc.control))
+			}
+			if alpha(tc.controlHover) <= alpha(tc.control) || alpha(tc.controlPress) >= alpha(tc.control) {
+				t.Errorf("the pointer ladder is flat: hover %.3f, rest %.3f, press %.3f",
+					alpha(tc.controlHover), alpha(tc.control), alpha(tc.controlPress))
+			}
+			// A control plane is a plane, not a hairline: it has to be a step a
+			// 1x display resolves over the frame it sits on.
+			if alpha(tc.control) < 0.045 {
+				t.Errorf("a control plane at %.3f is below the step a 1x display resolves", alpha(tc.control))
+			}
+			// And the ladder stays light-handed: the desktop that asked for more
+			// contrast must still get a visibly stronger edge, or this rung has
+			// eaten the preference.
+			high := ForPreferences(settings.Settings{Theme: "auto", GlassStep: "regular"}, tc.systemDark, ui.Preferences{HighContrast: true})
+			if alpha(high.InputStroke) <= 2*alpha(tc.stroke) {
+				t.Errorf("the contrast stroke %.3f is not clearly above this rung's %.3f", alpha(high.InputStroke), alpha(tc.stroke))
+			}
+		})
+	}
+}
+
 // The sidebar's chosen page is the opaque raised rung: the framework paints
 // the accent behind a chosen list row, so a translucent lift would read as a
 // blue pill, which is exactly what the reference's quiet pill is not.

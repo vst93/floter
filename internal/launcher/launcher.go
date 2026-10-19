@@ -1822,15 +1822,12 @@ func (a *App) row(c *ui.Context, item Item, i int) {
 func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 	t := c.Theme()
 	tokens := theme.ForPreferences(a.settings(), t.Dark, c.Preferences())
-	// The row's own floor: the old app's rows were fixed heights, 42u with a
-	// subtitle and 34u without, and a one-line row of body text is shorter
-	// than 34u — the height the window is charged must be the height the row
-	// draws, so the floor is set here and read there.
-	floor := t.Space(rowOneLineUnits)
+	// The row's own box: one 40u height for every result, subtitle or not (see
+	// rowUnits). A one-line row is not a shorter row — it is the same box with
+	// one line in it — so the height the window is charged is the height the
+	// row draws, and a row gaining a subtitle never resizes the window.
+	floor := t.Space(rowUnits)
 	subtitle := rowSubtitle(item)
-	if subtitle != "" {
-		floor = t.Space(rowTwoLineUnits)
-	}
 	row := ui.Row(c.Key(item.ID)).FillWidth().Focusable().MinHeight(floor).
 		AlignItems(ui.Center).
 		Padding(0, t.Space(3)).Radius(tokens.RadiusMD).Gap(t.Space(2.5)).

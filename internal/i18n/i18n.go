@@ -1296,10 +1296,12 @@ func For(language string) Copy {
 
 func percentEN(n uint8) string { return itoa(n) + "%" }
 
-// effectiveOpacityEN is the readout's value: the slider's own percentage with
-// the approximation mark, because it is the composite of a slider and a
-// material's weight, not a number the user typed.
-func effectiveOpacityEN(n uint8) string { return "\u2248 " + itoa(n) + "%" }
+// effectiveOpacityValue is the readout's value: the slider's own percentage
+// with the approximation mark, because it is the composite of a slider and a
+// material's weight, not a number the user typed. The form is the same in both
+// languages — a number and a sign — so both copies share it rather than each
+// spelling it out.
+func effectiveOpacityValue(n uint8) string { return "\u2248 " + itoa(n) + "%" }
 func itoa(n uint8) string {
 	if n == 0 {
 		return "0"

@@ -76,10 +76,18 @@ func TestTheBaseSegmentsAreRowsAndOnlyTheGlassTrackIsCentered(t *testing.T) {
 			if left < 0 {
 				t.Fatalf("no glyph ink found in segment %q", label)
 			}
-			// A centered label has equal air on both sides of its ink.
-			if abs(left-right) > 2 {
-				t.Errorf("the glass segment %q is not centered: left gap %.2f, right gap %.2f",
-					label, left, right)
+			// A centered label has equal air on both sides of its ink — nearly.
+			// What the segment centers is the text's layout box, and a glyph's
+			// side bearings put the visible ink a pixel or two off that box's
+			// middle ("Large" ends on an `e`, whose right bearing is the wider
+			// one). The tolerance is therefore a share of the segment's width
+			// rather than a fixed pixel count, which a font-size rung cannot
+			// push over: a left-aligned label misses the middle by more than
+			// half the segment (see the base form above), an order of magnitude
+			// outside this.
+			if abs(left-right) > seg.W/20 {
+				t.Errorf("the glass segment %q is not centered: left gap %.2f, right gap %.2f (width %.2f)",
+					label, left, right, seg.W)
 			}
 			// And it is clearly right of the base form's 9u inset.
 			if left <= inset {
@@ -109,7 +117,7 @@ func renderSegmented(t *testing.T, labels []string, draw func(*ui.Context, theme
 
 // segmentGlyphEdges returns the air between the segment's own edges and the ink
 // of its label, plus the ink width. It scans only the segment's middle rows, so
-// the track's lens rim at the top and bottom is never mistaken for a glyph.
+// the track's lens rim at the top and bottom is never mistaken for a glyph, and
 func segmentGlyphEdges(tt *ui.Tester, r ui.Rect) (left, right, width float32) {
 	img := tt.Image()
 	x0, x1 := int(r.X+0.5), int(r.X+r.W-0.5)

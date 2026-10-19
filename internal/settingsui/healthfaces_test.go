@@ -178,10 +178,10 @@ func TestTheFailureCardWearsTheWarmRasiedPlane(t *testing.T) {
 
 // The recorded permissions are the reference's pill family
 // (`extensions.css:2149-2168`): each id is its own chip, an enforced one
-// wearing the raised-quiet + accent keyline its twin in the audit list has, a
-// disclosure one the plain icon-surface face. The port drew them as one ruled
-// row per id with a trailing tier word, which put a second line's emphasis on
-// an id and gave the pill family no face at all.
+// wearing the accent-washed quiet pane and the accent keyline its twin in the
+// audit list has, a disclosure one the plain neutral control face. The port
+// drew them as one ruled row per id with a trailing tier word, which put a
+// second line's emphasis on an id and gave the pill family no face at all.
 func TestTheApprovedPermissionsAreTheReferencePills(t *testing.T) {
 	record := &ApprovalRecord{
 		At: 1700000000, ApprovedDigest: "sha256-aaaabbbbcccc", CurrentDigest: "sha256-ddddeeeeffff",
@@ -227,18 +227,31 @@ func TestTheApprovedPermissionsAreTheReferencePills(t *testing.T) {
 		enforcedPlane := imagePixel(img, int(enforcedPill.X)-5, int(enforcedPill.Y+enforcedPill.H/2))
 		disclosurePlane := imagePixel(img, int(disclosurePill.X)-5, int(disclosurePill.Y+disclosurePill.H/2))
 		// The enforced pill's own face is what "floter refused" must read as:
-		// it is not the plain row plane, it is the raised-quiet + accent
-		// keyline its twin in the audit list wears. (The disclosure pill's fill
-		// is the reference's `--glass-control`, which over a dark card is a
-		// near-invisible 0.035 lift by design — its 1px `--glass-control-edge`
-		// hairline is what draws it, so the fill is not pinned here.) The two
-		// tiers keep the reference's *recognisable shape difference*: the
-		// enforced pill's face is not the disclosure pill's, so the two groups
-		// read apart in the record exactly as they do in the review list.
+		// it is not the plain row plane, it is the accent-washed quiet pane
+		// and accent keyline its twin in the audit list wears. (The disclosure
+		// pill's fill is the reference's `--glass-control`, which over a dark
+		// card is a near-invisible lift by design — its 1px
+		// `--glass-control-edge` hairline is what draws it, so its *fill* is
+		// not pinned here.)
 		if panelClose(enforcedPlane, plain, 3) {
 			t.Errorf("[%s enforced] the permission has no pill plane: it is still a bare label", appearance)
 		}
-		if panelClose(enforcedPlane, disclosurePlane, 3) {
+		// The two tiers are told apart by hue, not by a grey level: the
+		// enforced pill carries the accent's wash, so its blue clears its red
+		// by a margin no rounding makes, while the declared pill stays the
+		// neutral control plane (its three channels within a few levels of one
+		// another). A revert to the bare raised-quiet pane fails this — at the
+		// ladder's alphas a neutral lift and a neutral control plane are the
+		// same face, three levels apart, which is what the tiers used to be.
+		if d := int(enforcedPlane.B) - int(enforcedPlane.R); d < 8 {
+			t.Errorf("[%s enforced] the pill's face is not the accent's: %v is %d levels from grey",
+				appearance, enforcedPlane, d)
+		}
+		if spread := channelSpread(disclosurePlane); spread > 5 {
+			t.Errorf("[%s] the declared pill is not the neutral control plane: %v spreads %d levels",
+				appearance, disclosurePlane, spread)
+		}
+		if panelClose(enforcedPlane, disclosurePlane, 10) {
 			t.Errorf("[%s] the two permission tiers wear one face: enforced %v, disclosure %v",
 				appearance, enforcedPlane, disclosurePlane)
 		}
@@ -249,6 +262,22 @@ func TestTheApprovedPermissionsAreTheReferencePills(t *testing.T) {
 			t.Errorf("[%s] the changed-manifest banner is missing: %q", appearance, tt.Texts())
 		}
 	}
+}
+
+// channelSpread is the largest difference between a rendered pixel's channels:
+// zero on a grey, large on a hue. It is how a test tells a neutral plane from
+// an accent-washed one without pinning either's exact value.
+func channelSpread(c ui.Color) int {
+	lo, hi := c.R, c.R
+	for _, v := range []uint8{c.G, c.B} {
+		if v < lo {
+			lo = v
+		}
+		if v > hi {
+			hi = v
+		}
+	}
+	return int(hi - lo)
 }
 
 // abs is the positive difference of two floats, for the line-alignment check.

@@ -209,7 +209,15 @@ func (a *App) healthFailureCard(c *ui.Context, copy i18n.Settings, probe HealthP
 // plane with a `--glass-control-edge` hairline and the `--radius-xs` corner.
 // An *enforced* permission is the recognisable other half of the review list's
 // shape difference — the raised-quiet pane and the accent keyline — so "what
-// floter refused" keeps the same face in the record as in the audit.
+// floter refused" keeps the same face in the record as in the audit. The pane
+// is the accent's quietest wash *over* that raised plane: a neutral raised
+// pane and the disclosure pill's neutral control plane are the same lift at
+// this ladder's alphas (three grey levels apart in the light appearance, which
+// is under what a 1x display resolves), so the tier that says "floter blocked
+// this" was told apart from the tier that says "declared" by a 1px ring and
+// nothing else. The wash is the accent, so the two groups read apart by hue
+// before anything is read, and it is the same quietest rung the launcher marks
+// its selection with — one meaning, one colour, on every surface.
 func (a *App) approvalPermissionPills(c *ui.Context, language string, permissions []string, enforced bool) ui.Element {
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
@@ -220,7 +228,7 @@ func (a *App) approvalPermissionPills(c *ui.Context, language string, permission
 			pill := ui.Row(c).Shrink(0).Padding(t.Space(1), t.Space(2)).
 				Radius(tokens.RadiusXS)
 			if enforced {
-				pill = pill.Background(tokens.RaisedQuiet)
+				pill = pill.Background(tokens.AccentTintQuiet.Over(tokens.RaisedQuiet))
 				pill.InsetShadow(0, 0, 0, 1, tokens.AccentEdge)
 			} else {
 				pill = pill.Border(1, tokens.ControlEdge).Background(tokens.Control)

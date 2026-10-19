@@ -29,16 +29,37 @@ import (
 	"floter/internal/tools"
 )
 
+// frameHeight is the frame a list of rows asks for: the launcher's own geometry
+// (height.go) at the shipped interface step, rounded up, with the platform's
+// transparent margin already inside the number (see windowInset).
+//
+// A test frame is fixed — the app itself resizes the window to its content
+// (`ResizeTo`) — so the frame is derived from the same arithmetic the app
+// charges instead of a headroom constant beside it. It used to be
+// `WindowHeight("small") + 120`, which was exactly a ten-row list at a 34u row
+// and one row short of it at the row's real 40u box (see rowUnits): the tenth
+// result fell off the frame, so `\u2318 0` had no row to run.
+func frameHeight(rows int) int {
+	// The spacing these frames are drawn at is the context theme's, which in a
+	// tester is the framework's own (the shell installs the app's theme on the
+	// real window's context); the launcher reads its Space() from the same
+	// place, so the frame and the rows are one decision here too.
+	spacing := float64(ui.LightTheme().Spacing)
+	geometry := Geometry{Spacing: spacing, Rows: make([]RowInfo, rows), Held: rows}
+	// Two pixels of slack: Height rounds its own fractions down, and a frame a
+	// fraction of a pixel short clips the last row.
+	return geometry.Height() + 2
+}
+
 // render draws one frame of the launcher at the given size and returns the
 // tester, so a test can type, click and read what shows.
 func render(t *testing.T, a *App) *ui.Tester {
 	t.Helper()
-	// The frame is the window the shell opens plus the band a full list needs:
-	// the launcher resizes itself to its content in the app (`ResizeTo`), and
-	// a test frame is fixed, so it is given the room a ten-row list asks for.
+	// The frame is the room a full list — the numbered family's ten rows —
+	// asks for, so every row the window's budget holds is drawn and numbered.
 	tt := ui.NewTester(func(c *ui.Context) {
 		a.View(c)
-	}, InputWindowWidth, int(WindowHeight("small"))+120)
+	}, InputWindowWidth, frameHeight(maxResultSlots))
 	tt.Frame()
 	return tt
 }

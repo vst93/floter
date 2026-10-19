@@ -20,10 +20,24 @@ import (
 // without a subtitle. See `launcher.css` (`.collapsed-card__input-row` at 56u,
 // `.launcher-bottom`'s 4u/2u padding) and `result-budget.ts`.
 const (
-	fieldRowUnits   = 14  // 56u
-	breathUnits     = 1   // 4u
-	rowTwoLineUnits = 10  // 40u (result-budget.ts's ROW_HEIGHT_TWO_LINE)
-	rowOneLineUnits = 8.5 // 34u
+	fieldRowUnits = 14 // 56u
+	breathUnits   = 1  // 4u
+	// rowUnits is a result row's own box: `40u`. It is **one** box for every
+	// row — with a subtitle or without.
+	//
+	// The reference draws it that way: `.launcher-result` is
+	// `height: calc(var(--u) * 40)` (`launcher.css:1099-1104`), and the second
+	// constant beside it, `ROW_HEIGHT_COMPACT = 34` (`result-budget.ts:75`), is
+	// exported but read by nothing — no rule and no budget charges 34u. The port
+	// read the pair as a ladder and drew a one-line row at 34u, four and a half
+	// pixels short of the reference's box at the shipped step, which is the
+	// pinched row the user saw (「整体小气」) and a window that grew by 6u the
+	// moment a row gained a subtitle.
+	//
+	// One box is also the invariant `result-budget.ts` states: a row gaining a
+	// subtitle does not move the window, because every row is charged
+	// `ROW_HEIGHT_TWO_LINE` whether the list shows one line or two.
+	rowUnits = 10 // 40u
 	// launcherStatusUnits is a plugin's status note: the old build's
 	// `LAUNCHER_STATUS_UNITS`, 30u -- shorter than a compact result row, and
 	// charged by `Geometry.Height` for a row the view marks `Status`.
@@ -190,8 +204,8 @@ type Geometry struct {
 
 // Height is the window height a geometry asks for: the card's own chrome —
 // the field's row (56u), the breath under it (4u) and the panel's insets (4u
-// above, 2u below) — the rows at their own heights (a 12u padding pair plus
-// their lines, never under the 40u/34u a row draws at), the chips or feedback
+// above, 2u below) — the rows at their own box, never under the 40u a result
+// row draws at, the chips or feedback
 // bands when they show, and the platform's transparent margin; never above the
 // cap. The old app resolved the same arithmetic on the browser side and wrote
 // it as `66 + rows × 40` (see `result-budget.ts`).
@@ -302,13 +316,10 @@ func (g Geometry) Height() int {
 		if count < 1 {
 			count = 1
 		}
-		// A row is its content or its own floor, whichever is taller: the old
-		// app's rows were fixed heights — 40u with a subtitle, 34u without —
-		// and a one-line row of body text is shorter than 34u.
-		floor := rowOneLineUnits * spacing
-		if count >= 2 {
-			floor = rowTwoLineUnits * spacing
-		}
+		// A row is its content or its own box, whichever is taller: the old
+		// app's rows were one fixed 40u height, subtitle or not, and a one-line
+		// row of body text is shorter than that.
+		floor := rowUnits * spacing
 		// The title's line box and the subtitle's, as the view measured them:
 		// the number the window is charged is the number the text takes.
 		content := rowPadding + titleLine
