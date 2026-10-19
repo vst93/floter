@@ -651,6 +651,7 @@ func (a *App) Refresh() {
 		}
 		session.Term.SetFont(opts.Font)
 		session.Term.SetTheme(opts.Theme, opts.DarkTheme)
+		session.Term.SetCopyOnSelect(opts.CopyOnSelect)
 	}
 }
 
@@ -707,6 +708,14 @@ func (a *App) options() terminal.Options {
 		NoBlink:   !s.CursorBlink,
 		Theme:     theme,
 		DarkTheme: darkTheme,
+		// The selection that ends lands on the clipboard, as the reference's
+		// `terminal_select_copy` did (`main:src/App.tsx:875` → the renderer's
+		// `selectCopy`, which copied on `selectionchange`). It shipped with no
+		// reader at all: the settings page recorded it and the terminal surface
+		// never asked, so the switch did nothing. The plugin owns both halves —
+		// `Options.CopyOnSelect` at creation and `SetCopyOnSelect` for a session
+		// already running (Refresh).
+		CopyOnSelect: copyOnSelect(s.TerminalSelectCopy),
 		// The view never paints a background of its own (P7-dr). The transparency
 		// is the terminal slider's, and it lives one layer up: this surface paints
 		// the palette's colour - or, for the shipped `inherit`, nothing at all, so
@@ -726,6 +735,17 @@ func (a *App) options() terminal.Options {
 		OnNotify:    a.Actions.Notify,
 		Keybinds:    terminalKeybinds(s),
 	}
+}
+
+// copyOnSelect maps the terminal's `select_copy` setting onto the plugin's
+// policy. The plugin has two stops — copy the selection to the clipboard, or
+// copy nothing — and the setting is the same two: a finished selection lands
+// on the clipboard, or it waits for `copy_selection`.
+func copyOnSelect(on bool) terminal.CopyOnSelect {
+	if on {
+		return terminal.CopyOnSelectClipboard
+	}
+	return terminal.CopyOnSelectNone
 }
 
 // terminalKeybinds binds the app's own `copy_selection` and `paste` shortcuts
