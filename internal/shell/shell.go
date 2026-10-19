@@ -1428,10 +1428,22 @@ func (a *App) scanToolCatalog() {
 // command with no switch entry has never been enabled, so the launcher does
 // not offer it: the per-command switches are the gate, exactly as the old
 // build's integrations panel was.
+//
+// The host's synthesized configuration editor is not one of them: the
+// reference's registry lists the provider's declared commands only
+// (`catalog::plugin_command_registry`, `main:src-tauri/src/extensions/
+// catalog.rs:427-449`), so `configuration` is not a mode a user can type into
+// the launcher — the editor is the settings panel's own form
+// (`ExtensionsPanel.tsx:2971-2975`, whose summon line is gated on the same
+// registry, `:2824-2829`). The command still exists for the panel; it just
+// carries no launcher trigger word.
 func (a *App) launcherCommands() []extensions.CommandEntry {
 	switches := settings.CommandSwitchesOf(a.Store.Snapshot())
 	var out []extensions.CommandEntry
 	for _, entry := range a.Integrations.CommandEntries() {
+		if !entry.Declared {
+			continue
+		}
 		if switches.Enabled(entry.IntegrationID, entry.Command.ID) {
 			out = append(out, entry)
 		}
@@ -3579,6 +3591,20 @@ func (a *App) resizeLauncher(height int) {
 // nothing - the common case, a keystroke that left the list the same size.
 func (a *App) walkLauncherHeight(c *ui.Context) {
 	if a.Win == nil || a.Surf != SurfaceLauncher || a.launcherTarget == 0 {
+		return
+	}
+	// The steady state first, and cheaply: the window already carries the
+	// target (the walk landed, or the keystroke left the list the same size).
+	// Nothing is asked of the platform and no animation carrier is built, so a
+	// launcher sitting still costs the window server nothing — the old path
+	// still allocated the carrier and read the animation channel every frame
+	// just to conclude the same thing. `lastH` is the height this process last
+	// *asked* the window for, which is the only number a walk can reason
+	// about: a platform that rounds the request up would otherwise be asked
+	// again every frame, forever (one synchronous SetWindowPos per frame, the
+	// queue that reads as a freeze), so the readback is deliberately not the
+	// window's own size.
+	if a.lastH == a.launcherTarget {
 		return
 	}
 	current := float32(a.lastH)

@@ -297,6 +297,13 @@ func TestCommandEntriesCarryTheConfiguration(t *testing.T) {
 	}
 	found := false
 	for _, entry := range entries {
+		// Only the descriptor's own command is declared: the synthesized
+		// editor is the host's, and the reference's registry lists declared
+		// commands only, so the launcher gives it no trigger word (see
+		// CommandEntry.Declared).
+		if want := entry.Command.ID != "configuration"; entry.Declared != want {
+			t.Errorf("command %q declared = %v, want %v", entry.Command.ID, entry.Declared, want)
+		}
 		if entry.Command.ID == "configuration" {
 			found = true
 			if len(entry.Args) != 2 || entry.Args[0] != "config" {

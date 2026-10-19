@@ -291,6 +291,16 @@ type CommandEntry struct {
 	// Env is the integration's configured environment ("KEY=value"),
 	// injected when the command runs.
 	Env []string
+
+	// Declared is whether the provider's descriptor declared this command, as
+	// opposed to the host synthesizing it — the tool-owned configuration
+	// editor (`ConfigurationCommand`). The reference's command registry lists
+	// declared commands only (`catalog::plugin_command_registry`,
+	// `main:src-tauri/src/extensions/catalog.rs:427-449`), so the launcher has
+	// no `configuration` mode: the editor is a row in the settings panel and
+	// nothing else (`ExtensionsPanel.tsx:2824-2829` gates its summon line on
+	// the same registry).
+	Declared bool
 }
 
 // CommandEntries flattens every running integration's commands.
@@ -316,6 +326,7 @@ func (s *Store) CommandEntries() []CommandEntry {
 		injection := Inject(description.Configuration, stored.Values, Injection{})
 
 		commands := description.Commands
+		declared := len(commands)
 		if configuration, ok := ConfigurationCommand(integration, description); ok {
 			commands = append(append([]Command{}, commands...), configuration)
 		}
@@ -327,7 +338,7 @@ func (s *Store) CommandEntries() []CommandEntry {
 		// workingDirectory means; an unavailable home is the old host's
 		// empty answer (inherit).
 		home, _ := os.UserHomeDir()
-		for _, command := range commands {
+		for index, command := range commands {
 			// The runtime binding runs the integration's own executable (an
 			// interpreter and its script, or the tool itself), so those leading
 			// arguments come first.
@@ -365,6 +376,9 @@ func (s *Store) CommandEntries() []CommandEntry {
 				// `runCommandWith` and its direct-output row).
 				Route: integration.Manifest.Route(),
 				Env:   env,
+				// Everything past the descriptor's own list is the host's
+				// synthesized editor (see Declared).
+				Declared: index < declared,
 			}
 			entry.Args = append(entry.Args, injection.Args...)
 			out = append(out, entry)
