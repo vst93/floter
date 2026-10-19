@@ -502,3 +502,65 @@ func TestTheHeldRowIsTheEmptyPagesAlone(t *testing.T) {
 		t.Errorf("the held row survived the release: %v", ids(a.Results()))
 	}
 }
+
+// A full list keeps its tenth result **and** the footer.
+//
+// The reference draws the bar as a sibling below the scroller and budgets ten
+// *results* (`main:src/launcher/LauncherResults.tsx:1043-1073`,
+// `main:src/launcher/result-budget.ts:47-49` — 「九项加一个底部的…项」, then
+// 「上方一共有 10 项了，应该最大只能有 9 项」: the ten are the rows above the
+// bar). The port charged the bar as one of the ten, so with a full list the bar
+// was the eleventh band the window never paid for: the tenth result kept its
+// slot and the 「在终端中打开」 row was drawn below the window's bottom edge.
+func TestAFullListKeepsItsTenthResultAndTheFooter(t *testing.T) {
+	a := testApp()
+	found := make([]apps.App, rowBudget)
+	for i := range found {
+		found[i] = apps.App{Name: "app" + string(rune('a'+i)), Path: "/usr/bin/app"}
+	}
+	a.SetApps(found)
+	tt := render(t, a)
+	a.SetQuery("app")
+	tt.Frame()
+
+	results := a.Results()
+	bar := len(results) - 1
+	if !strings.HasPrefix(results[bar].ID, "bar:") {
+		t.Fatalf("the bar is not the list's last row: %v", ids(results))
+	}
+	// Ten results above the bar: the budget is the results', not the bands'.
+	if bar != rowBudget {
+		t.Fatalf("%d results above the bar, want the whole budget of %d: %v", bar, rowBudget, ids(results))
+	}
+	// The window pays for those ten bands and the bar's own band on top.
+	geometry := Geometry{
+		Font: a.Font, Spacing: a.Spacing, Rows: a.Rows, Held: len(a.Rows),
+		TitleLine: a.TitleLine, SubtitleLine: a.SubtitleLine,
+	}
+	height := geometry.Height()
+	withoutBar := Geometry{
+		Font: a.Font, Spacing: a.Spacing, Rows: a.Rows[:bar], Held: bar,
+		TitleLine: a.TitleLine, SubtitleLine: a.SubtitleLine,
+	}.Height()
+	if band := float64(a.Spacing) * 11.25; height-withoutBar < int(band)-1 || height-withoutBar > int(band)+1 {
+		t.Errorf("the bar adds %d to the window, want its own %.0f band", height-withoutBar, band)
+	}
+	// Sized to that height, the last result and the footer are both on screen:
+	// the footer is not drawn past the window's bottom edge.
+	tt.SetSize(InputWindowWidth, height)
+	tt.Frame()
+	for _, title := range []string{results[bar-1].Title, results[bar].Title} {
+		rect, ok := tt.Find(title)
+		if !ok {
+			t.Fatalf("%q was not drawn: %q", title, tt.Texts())
+		}
+		if bottom := rect.Y + rect.H; bottom > float32(height)+1 {
+			t.Errorf("%q ends at y=%.1f, past the %d-high window", title, bottom, height)
+		}
+	}
+	// And the tenth result keeps the tenth key of the numbered family — `0`,
+	// the slot right beside `9` (see maxResultSlots' family).
+	if got, ok := a.numbers[bar-1]; !ok || got != 0 {
+		t.Errorf("the tenth result's number = %d (present %v), want the 0 slot (%v)", got, ok, a.numbers)
+	}
+}

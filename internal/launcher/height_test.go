@@ -229,3 +229,48 @@ func TestBandRowsArePricedAsTheirBand(t *testing.T) {
 		t.Errorf("a band row is %d, a two-line row %d", band, twoLine)
 	}
 }
+
+// The action bar is the panel's footer, not one of the ten rows.
+//
+// The reference draws it as a sibling below the scroller
+// (`main:src/launcher/LauncherResults.tsx:1043-1073`) and its budget counts
+// results only — `MAX_RESULTS = 10` (`main:src/launcher/result-budget.ts:47-49`),
+// 「九项加一个底部的单独进入剪切板的项」, later 「上方一共有 10 项了，应该最大
+// 只能有 9 项」 (R19: the ten are the rows *above* the bar). So a full list plus
+// a bar is ten results **and** the bar's own band, never nine results and a bar
+// the window did not pay for — that bar was the eleventh band, drawn below the
+// window's bottom edge, i.e. the 「在终端中打开」 row vanishing exactly when the
+// list was full.
+func TestTheActionBarIsChargedOutsideTheBudget(t *testing.T) {
+	bar := RowInfo{Bar: true}
+	rows := func(n int) []RowInfo {
+		out := make([]RowInfo, n)
+		for i := range out {
+			out[i].Lines = 2
+		}
+		return out
+	}
+
+	full := Geometry{Font: 14, Spacing: 4, Rows: rows(rowBudget), Held: rowBudget}.Height()
+	// Ten results plus the bar: the ten results keep their own bands and the
+	// bar adds its 11.25u band on top.
+	withBar := append(rows(rowBudget), bar)
+	got := Geometry{Font: 14, Spacing: 4, Rows: withBar, Held: len(withBar)}.Height()
+	want := full + int(roundHalf(11.25*4))
+	if got != want {
+		t.Errorf("ten results plus the bar = %d, want %d (the budget's rows and the bar's own band)", got, want)
+	}
+	// The bar does not take a result's slot: nine results plus the bar is one
+	// result row shorter than the ten above, not two.
+	nine := append(rows(rowBudget-1), bar)
+	gotNine := Geometry{Font: 14, Spacing: 4, Rows: nine, Held: len(nine)}.Height()
+	if gotNine >= got {
+		t.Errorf("nine results plus the bar = %d, not shorter than ten plus the bar %d", gotNine, got)
+	}
+	// A page whose only row is the bar (a URL that matched nothing) pays for
+	// that one band and no hint band under it.
+	onlyBar := Geometry{Font: 14, Spacing: 4, Rows: []RowInfo{bar}, Held: 1}.Height()
+	if onlyBar >= gotNine {
+		t.Errorf("a bar-only page = %d, not shorter than nine rows plus a bar %d", onlyBar, gotNine)
+	}
+}

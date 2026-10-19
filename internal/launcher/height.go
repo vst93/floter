@@ -153,6 +153,12 @@ type Geometry struct {
 	// needs (see HoldRows), capped at the budget. Rows beyond the list's own
 	// are charged the worst case, so a window holding four rows in a five-row
 	// band has the room the next row arrives into.
+	//
+	// It is the *content* count, not the capped one: `Height` caps the results
+	// itself and charges the action bar outside that cap (see the footer's own
+	// paragraph there), so a capped count would lose the last result to the
+	// bar. `App.HeldRows` is the capped count the app keeps for its own
+	// accounting and is not this field's value.
 	Held int
 	// Filter says a plugin mode's chips row is drawn under the field, which
 	// adds its band to the height (the old build's LAUNCHER_FILTER_UNITS).
@@ -218,12 +224,47 @@ func (g Geometry) Height() int {
 	bodyLine := subtitleLine
 
 	lines := 0.0
-	rows := RowCount(g.Held)
+	// The action bar is the panel's pinned footer and is charged **outside**
+	// the ten-row budget.
+	//
+	// The reference draws it as a sibling below the scroller —
+	// `{actionBar && <button className="launcher-action-bar">}` sits after the
+	// results div is closed (`main:src/launcher/LauncherResults.tsx:1043-1073`)
+	// — and its budget counts results only: `MAX_RESULTS = 10`
+	// (`main:src/launcher/result-budget.ts:47-49`), which the user spelled out
+	// as 「九项加一个底部的单独进入剪切板的项」 and later 「上方一共有 10 项了，
+	// 应该最大只能有 9 项」 (R19) — the rows *above* the bar. The port priced
+	// the bar as one of the ten, so a full list lost a match to it and, worse,
+	// the bar was the eleventh band the window never paid for: it was drawn
+	// below the window's bottom edge, i.e. the 「在终端中打开」 row disappeared
+	// exactly when the list was full. A URL or a path draws two bar rows
+	// (`barPathRows`), and both are the footer.
+	bars := 0
+	for i := len(g.Rows) - 1; i >= 0 && g.Rows[i].Bar; i-- {
+		bars++
+	}
+	if bars > g.Held {
+		bars = g.Held
+	}
+	resultsHeld := g.Held - bars
+	rows := 0
+	if resultsHeld > 0 || bars == 0 {
+		// RowCount's one-row floor is the empty page's hint band; a page whose
+		// only row is the bar has no hint band to pay for.
+		rows = RowCount(resultsHeld)
+	}
+	drawn := make([]RowInfo, 0, rows+bars)
 	for i := 0; i < rows; i++ {
-		info := RowInfo{Lines: 2} // the worst case: a row with a subtitle
 		if i < len(g.Rows) {
-			info = g.Rows[i]
+			drawn = append(drawn, g.Rows[i])
+			continue
 		}
+		drawn = append(drawn, RowInfo{Lines: 2}) // the worst case: a row with a subtitle
+	}
+	for j := 0; j < bars; j++ {
+		drawn = append(drawn, g.Rows[len(g.Rows)-bars+j])
+	}
+	for _, info := range drawn {
 		if info.Band > 0 {
 			// A row that names its own band: the captured-output text form's
 			// `ROW_HEIGHT_TWO_LINE` block row, charged as the old build charged

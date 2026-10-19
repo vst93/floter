@@ -957,7 +957,7 @@ func (a *App) View(c *ui.Context) {
 	a.HeldRows = HoldRows(a.HeldRows, held)
 	if a.Actions.ResizeTo != nil {
 		geometry := Geometry{
-			Font: a.Font, Spacing: a.Spacing, Rows: rows, Held: a.HeldRows,
+			Font: a.Font, Spacing: a.Spacing, Rows: rows, Held: len(rows),
 			TitleLine: a.TitleLine, SubtitleLine: a.SubtitleLine,
 			Filter:   a.filtersVisible(),
 			Feedback: a.toast != "" || a.pendingPower != "",

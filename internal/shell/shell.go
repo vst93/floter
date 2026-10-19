@@ -4132,13 +4132,23 @@ func (a *App) launcherHeight(s settings.Settings) int {
 	// The target height's filter band is the launcher's own: a mode's chips
 	// row is on screen exactly while that mode owns the field, which the
 	// launcher's state knows and the shell does not.
+	// The height is charged from the *content* rows, not the capped count:
+	// `Geometry` caps the results at the ten-row budget itself and charges the
+	// action bar outside that cap (a full list is ten results **and** the
+	// footer). `HeldRows` is the capped count, so it would price the footer as
+	// one of the ten and leave the window a band short — the footer clipped
+	// again. `Rows` is the list the last frame drew, which is the content.
+	held := len(a.Launcher.Rows)
+	if held == 0 {
+		held = a.Launcher.HeldRows
+	}
 	return launcher.Geometry{
 		Font:         a.Launcher.Font,
 		Spacing:      a.Launcher.Spacing,
 		TitleLine:    a.Launcher.TitleLine,
 		SubtitleLine: a.Launcher.SubtitleLine,
 		Rows:         a.Launcher.Rows,
-		Held:         a.Launcher.HeldRows,
+		Held:         held,
 		Filter:       a.Launcher.FiltersVisible(),
 		Feedback:     a.Launcher.FeedbackVisible(),
 		Config:       a.Launcher.ConfigSchema(),
