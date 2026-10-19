@@ -356,13 +356,23 @@ jobs:
               done
               ;;
             windows)
-              for A in amd64 arm64; do
+              # The setup asset is named the way the release notes table and
+              # docs/release.md spell it: `windows-x86_64-setup.exe`, not
+              # `windows-amd64-...`. The two used to disagree — the workflow
+              # copied mygo's `amd64` directory name straight into the asset,
+              # so the table's link 404'd and the download the docs describe
+              # did not exist. The tarball and update manifest keep the
+              # `amd64` spelling the build produces and the manifest's own
+              # `url` refers to (see docs/release.md: archives are not
+              # renamed).
+              for PAIR in "amd64:x86_64" "arm64:arm64"; do
+                A="${PAIR%%:*}"; N="${PAIR##*:}"
                 D="dist/windows-$A"
                 [ -d "$D" ] || continue
                 EXE="$D/floter.exe"
                 [ -f "$EXE" ] && cp "$EXE" "$OUT/floter-$VERSION-windows-$A.exe"
                 SETUP=$(ls "$D"/*Setup*.exe 2>/dev/null | head -1 || true)
-                [ -n "$SETUP" ] && cp "$SETUP" "$OUT/floter-$VERSION-windows-$A-setup.exe"
+                [ -n "$SETUP" ] && cp "$SETUP" "$OUT/floter-$VERSION-windows-$N-setup.exe"
                 cp "$D"/floter-*-windows-$A.tar.gz "$OUT/" 2>/dev/null || true
                 cp "dist/windows-$A/update-windows-$A.json" "$OUT/" 2>/dev/null || true
                 cp "$D"/*.delta "$OUT/" 2>/dev/null || true

@@ -293,7 +293,7 @@ func TestTheSurfaceLadderHasAStepToSee(t *testing.T) {
 			name: "light", systemDark: false,
 			stroke:       ui.RGBA(0, 0, 0, 0.12),
 			controlEdge:  ui.RGBA(0, 0, 0, 0.1),
-			hairline:     ui.RGBA(0, 0, 0, 0.1),
+			hairline:     ui.RGBA(0, 0, 0, 0.09),
 			control:      ui.RGBA(0, 0, 0, 0.05),
 			controlHover: ui.RGBA(0, 0, 0, 0.075),
 			controlPress: ui.RGBA(0, 0, 0, 0.032),
@@ -333,7 +333,11 @@ func TestTheSurfaceLadderHasAStepToSee(t *testing.T) {
 			}
 			// The order is the design: card edge, then the row's rule, then a
 			// control plane; hover lifts a pane and a press sinks it below rest.
-			if !(alpha(tc.stroke) >= alpha(tc.controlEdge) && alpha(tc.controlEdge) >= alpha(tc.hairline) &&
+			// Every rung is a *step*, not a plateau: the light palette's
+			// edge and hairline were both 0.1, so a grouped row's rule and a
+			// control's edge painted the same line and the ladder had one
+			// rung fewer than it claimed.
+			if !(alpha(tc.stroke) > alpha(tc.controlEdge) && alpha(tc.controlEdge) > alpha(tc.hairline) &&
 				alpha(tc.hairline) > alpha(tc.control)) {
 				t.Errorf("the ladder is out of order: stroke %.3f, edge %.3f, hairline %.3f, control %.3f",
 					alpha(tc.stroke), alpha(tc.controlEdge), alpha(tc.hairline), alpha(tc.control))

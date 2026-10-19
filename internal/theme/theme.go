@@ -525,26 +525,32 @@ func ForPlatform(s settings.Settings, systemDark bool, prefs ui.Preferences, goo
 func paletteFor(appearance Appearance) palette {
 	if appearance == Light {
 		return palette{
-			background:       ui.Hex("#fafafc"),
-			text:             ui.Hex("#1d1d1f"),
-			textStrong:       ui.RGBA(23, 23, 26, 0.96),
-			textMuted:        ui.RGBA(60, 60, 67, 0.78),
-			textSecondary:    ui.RGBA(60, 60, 67, 0.86),
-			textTertiary:     ui.RGBA(60, 60, 67, 0.72),
-			accent:           ui.Hex("#064aa6"),
-			accentHover:      ui.Hex("#0a5ecb"),
-			accentPressed:    ui.Hex("#05408f"),
-			accentText:       ui.Hex("#f7f9ff"),
-			stroke:           ui.RGBA(0, 0, 0, 0.12),
-			strokeActive:     ui.RGBA(10, 108, 255, 0.28),
-			control:          ui.RGBA(0, 0, 0, 0.05),
-			controlHover:     ui.RGBA(0, 0, 0, 0.075),
-			controlPress:     ui.RGBA(0, 0, 0, 0.032),
-			controlEdge:      ui.RGBA(0, 0, 0, 0.1),
-			track:            ui.RGBA(0, 0, 0, 0.06),
-			trackEdge:        ui.RGBA(0, 0, 0, 0.08),
-			field:            ui.RGBA(255, 255, 255, 0.5),
-			hairline:         ui.RGBA(0, 0, 0, 0.1),
+			background:    ui.Hex("#fafafc"),
+			text:          ui.Hex("#1d1d1f"),
+			textStrong:    ui.RGBA(23, 23, 26, 0.96),
+			textMuted:     ui.RGBA(60, 60, 67, 0.78),
+			textSecondary: ui.RGBA(60, 60, 67, 0.86),
+			textTertiary:  ui.RGBA(60, 60, 67, 0.72),
+			accent:        ui.Hex("#064aa6"),
+			accentHover:   ui.Hex("#0a5ecb"),
+			accentPressed: ui.Hex("#05408f"),
+			accentText:    ui.Hex("#f7f9ff"),
+			stroke:        ui.RGBA(0, 0, 0, 0.12),
+			strokeActive:  ui.RGBA(10, 108, 255, 0.28),
+			control:       ui.RGBA(0, 0, 0, 0.05),
+			controlHover:  ui.RGBA(0, 0, 0, 0.075),
+			controlPress:  ui.RGBA(0, 0, 0, 0.032),
+			controlEdge:   ui.RGBA(0, 0, 0, 0.1),
+			track:         ui.RGBA(0, 0, 0, 0.06),
+			trackEdge:     ui.RGBA(0, 0, 0, 0.08),
+			field:         ui.RGBA(255, 255, 255, 0.5),
+			// One step under the control edge, as the dark palette's is: the
+			// ladder says a row's hairline is *quieter* than a control's edge
+			// (`stroke > controlEdge > hairline > control`), and the light
+			// palette had the two at the same 0.1, so a row rule and a control
+			// edge drew the same line — the last rung of the ladder with no
+			// step in it.
+			hairline:         ui.RGBA(0, 0, 0, 0.09),
 			selection:        ui.RGBA(6, 74, 166, 0.1),
 			focus:            ui.RGBA(6, 74, 166, 0.82),
 			warning:          ui.Hex("#9c1f18"),
