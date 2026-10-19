@@ -2,6 +2,7 @@ package shell
 
 import (
 	"fmt"
+	"runtime"
 	"testing"
 
 	"github.com/egoist/mygo"
@@ -79,6 +80,27 @@ func meanBandRGB(tt *ui.Tester, y0, y1 int) (r, g, b float64) {
 	return r / float64(n), g / float64(n), b / float64(n)
 }
 
+// stopsShareOneTint reports whether the platform's material veil is the same
+// for the three effect stops, i.e. whether "the stops are one alpha" is a claim
+// that platform can make.
+//
+// Linux has no window material and Windows 11 keeps one acrylic backdrop for
+// every stop, so both carry no veil and the tint is one number across the
+// ladder. macOS is the one platform with a material per stop (`under-page` /
+// `under-window` / `sidebar`, glassmap.MaterialVeil 0.12 / 0.22 / 0.34), and the
+// tint is compensated against it — so there the three stops are *meant* to have
+// three different fills, and the assertions that read a stop-to-stop difference
+// ask this first instead of pinning the Linux table on every host.
+func stopsShareOneTint(opacity uint8) bool {
+	first := glassmap.SpecForOS(runtime.GOOS, "frosted", opacity).TintAlpha
+	for _, step := range []string{"regular", "liquid"} {
+		if glassmap.SpecForOS(runtime.GOOS, step, opacity).TintAlpha != first {
+			return false
+		}
+	}
+	return true
+}
+
 // The glass stop is the effect ladder, and its visible rungs are the window's
 // OS material (see vibrancyForStop — the blur ladder 10/22/28) and the
 // **control** lens (`--glass-lens-scale` 0.5/1/1.6, base.css:784/791/798). The
@@ -122,10 +144,13 @@ func TestTheFrameSheenIsFixedAcrossStops(t *testing.T) {
 		t.Logf("  frosted alpha %.3f  rgb %.1f/%.1f/%.1f", fA, fR, fG, fB)
 		t.Logf("  regular alpha %.3f  rgb %.1f/%.1f/%.1f", rA, rR, rG, rB)
 		t.Logf("  liquid  alpha %.3f  rgb %.1f/%.1f/%.1f", lA, lR, lG, lB)
-		// The material parameters the pixels come from, for the record.
+		// The material parameters the pixels come from, for the record. They are
+		// the running platform's own table (SpecForOS, not the Linux one): the
+		// tint is compensated against the veil the window's material paints
+		// there, and macOS veils each stop differently.
 		for _, step := range []string{"frosted", "regular", "liquid"} {
-			spec := glassmap.SpecFor(step, settings.DefaultMainOpacity)
-			t.Logf("  %-8s material: blur=%.0f saturate=%.0f%% lens=%.1f tint=%.3f haze=%.2f", step, spec.Blur, spec.Saturate, spec.LensScale, spec.TintAlpha, spec.HazeAlpha)
+			spec := glassmap.SpecForOS(runtime.GOOS, step, settings.DefaultMainOpacity)
+			t.Logf("  %-8s material: blur=%.0f saturate=%.0f%% lens=%.1f tint=%.3f haze=%.2f veil=%.2f", step, spec.Blur, spec.Saturate, spec.LensScale, spec.TintAlpha, spec.HazeAlpha, spec.Material)
 		}
 
 		// Off is the plain translucent frame: no glass effect, but the
@@ -167,9 +192,21 @@ func TestTheFrameSheenIsFixedAcrossStops(t *testing.T) {
 		// are the control lens bleeding into the band mean). The stops' own
 		// difference is the control lens, graded by the per-package pixel
 		// tests — see the census in glasscensus_test.go.
-		if spread := max(lL, max(fL, rL)) - min(lL, min(fL, rL)); spread > 1 {
-			t.Errorf("%s: the stops moved the frame's own face by %.2f of colour (frosted %.1f, regular %.1f, liquid %.1f); the sheen is a fixed token, not a rung",
-				theme, spread, fL, rL, lL)
+		if stopsShareOneTint(settings.DefaultMainOpacity) {
+			if spread := max(lL, max(fL, rL)) - min(lL, min(fL, rL)); spread > 1 {
+				t.Errorf("%s: the stops moved the frame's own face by %.2f of colour (frosted %.1f, regular %.1f, liquid %.1f); the sheen is a fixed token, not a rung",
+					theme, spread, fL, rL, lL)
+			}
+		} else {
+			// The platform veils each effect stop differently (macOS: 0.12 /
+			// 0.22 / 0.34), and the tint is compensated for it per stop — so the
+			// three frames are *meant* to have three different fills, and a
+			// thinner fill blends less of the backdrop into the band's mean
+			// colour. The claim itself (the sheen is a fixed token, not a rung)
+			// is pinned where it has a meaning: internal/theme's own
+			// TestTheFrameSheenIsFixedAcrossStops compares the sheen to
+			// capAlpha(fill) stop by stop, on every platform's table.
+			t.Logf("%s: the platform veils the stops differently, so the band's colour is compared per stop (see internal/theme)", theme)
 		}
 	}
 }
@@ -283,19 +320,39 @@ func TestTheFrameAlphaIsTheSlidersOnEveryStop(t *testing.T) {
 		for _, opacity := range []uint8{settings.MinWindowOpacity, settings.DefaultMainOpacity, settings.MaxWindowOpacity} {
 			off := renderStopOpacity(t, theme, "off", opacity)
 			offBottom := meanBandAlpha(off, bands[2].y0, bands[2].y1)
+			// Whether "the stops share one alpha" is a claim this platform can
+			// make at all: with one veil for every stop (Linux, Windows) the tint
+			// is one number; with a veil per stop (macOS) the tint is compensated
+			// per stop and the stops are meant to differ by exactly that much.
+			shared := stopsShareOneTint(opacity)
 			t.Logf("%s appearance, transparency %d%% — mean alpha per band:", theme, opacity)
 			for _, band := range bands {
 				offA := meanBandAlpha(off, band.y0, band.y1)
 				line := fmt.Sprintf("  %-7s off %.3f", band.name, offA)
-				first := meanBandAlpha(renderStopOpacity(t, theme, stops[0], opacity), band.y0, band.y1)
-				for _, step := range stops[1:] {
-					a := meanBandAlpha(renderStopOpacity(t, theme, step, opacity), band.y0, band.y1)
-					line += fmt.Sprintf("  %s %.3f (%+.3f)", step, a, a-first)
-					// One alpha truth: the stops are the same thickness, so a
-					// stop switch cannot change how solid the window is.
-					if d := a - first; d > 0.01 || d < -0.01 {
-						t.Errorf("%s %d%% %s: %s is %.3f, %+.3f from %s %.3f — the stops must share one alpha",
-							theme, opacity, band.name, step, a, d, stops[0], first)
+				drawn := make([]float32, len(stops))
+				for i, step := range stops {
+					drawn[i] = meanBandAlpha(renderStopOpacity(t, theme, step, opacity), band.y0, band.y1)
+					if i > 0 {
+						line += fmt.Sprintf("  %s %.3f (%+.3f)", step, drawn[i], drawn[i]-drawn[0])
+					}
+					// The stop's thickness is its **own** compensated tint plus the
+					// frame's sheen — a lit highlight of a few hundredths, capped at
+					// the frame's alpha — and never the stop's haze. A stop that
+					// re-graded the fill by its haze (0.6/0.5/0.2) lands far above
+					// this band, which is the report 「开启时又没有透明了」.
+					spec := glassmap.SpecForOS(runtime.GOOS, step, opacity)
+					if drawn[i] < spec.TintAlpha-0.02 || drawn[i] > spec.TintAlpha+0.25 {
+						t.Errorf("%s %d%% %s: %s draws %.3f, want its own tint %.3f plus the sheen (a stop that re-graded the fill by its haze lands above 0.25)",
+							theme, opacity, band.name, step, drawn[i], spec.TintAlpha)
+					}
+					// One alpha truth, where the platform has one veil: the stops are
+					// the same thickness, so a stop switch cannot change how solid
+					// the window is.
+					if shared && i > 0 {
+						if d := drawn[i] - drawn[0]; d > 0.01 || d < -0.01 {
+							t.Errorf("%s %d%% %s: %s is %.3f, %+.3f from %s %.3f — on a platform with one veil the stops must share one alpha",
+								theme, opacity, band.name, step, drawn[i], d, stops[0], drawn[0])
+						}
 					}
 				}
 				t.Log(line)

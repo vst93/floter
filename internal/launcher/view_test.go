@@ -2624,7 +2624,10 @@ func TestTheSourceWordSitsAtTheRowsRightEdge(t *testing.T) {
 	if source.X < title.X+title.W {
 		t.Errorf("the source sits inside the title: title %+v source %+v", title, source)
 	}
-	badge, ok := tt.Find("Ctrl+1")
+	// The badge is the app's own formatting of the select-result binding, so the
+	// expected text is asked of the app (`⌘1` on macOS, `Ctrl+1` elsewhere) rather
+	// than spelled out as one platform's.
+	badge, ok := tt.Find(a.resultNumber(1))
 	if !ok {
 		t.Fatalf("the row has no numbered badge: %q", tt.Texts())
 	}

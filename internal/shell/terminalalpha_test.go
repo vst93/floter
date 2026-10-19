@@ -58,21 +58,31 @@ func renderTerminalPage(t *testing.T, mutate func(*settings.Settings)) *ui.Teste
 // rendered page is the slider's own alpha; painting either layer at the full
 // slider again puts the page back over 0.6 and this goes red.
 func TestTheTerminalsVisibleAlphaIsTheSlider(t *testing.T) {
+	// The slider is the target the page composites back to; the alpha the page
+	// actually *paints* is the platform's own spec, because the window's
+	// backdrop material already lays a veil of its own (macOS: 0.12/0.22/0.34
+	// per stop, glassmap.MaterialVeil). Reading the raw slider here would pin the
+	// Linux table on every host: on macOS a 46% page paints 31% and composites
+	// back to 46% through the material.
+	specFor := func(opacity uint8) glassmap.Spec {
+		return glassmap.SpecForOS(runtime.GOOS, "regular", opacity)
+	}
 	for _, opacity := range []uint8{settings.DefaultTerminalOpacity, 70} {
 		tt := renderTerminalPage(t, func(s *settings.Settings) {
 			s.TerminalOpacity = opacity
 		})
 		// A band in the middle of the panel, clear of the bar and the drawer.
 		got := meanBandAlpha(tt, 300, 340)
-		want := float32(opacity) / 100
+		spec := specFor(opacity)
+		want := spec.TintAlpha
 		if d := got - want; d > 0.03 || d < -0.03 {
-			t.Errorf("the terminal at %d%% renders at %.3f, want the slider's %.3f (a second full tint would read %.3f)",
-				opacity, got, want, 1-(1-want)*(1-want))
+			t.Errorf("the terminal at %d%% renders at %.3f, want the platform's fill %.3f (the slider's %.3f less its material veil %.2f; a second full tint would read %.3f)",
+				opacity, got, want, float32(opacity)/100, spec.Material, 1-(1-want)*(1-want))
 		}
 	}
 	// The two layers are the split the spec names, not a number the view made
 	// up: the face's share and the panel's share composite to the slider.
-	spec := glassmap.SpecForOS(runtime.GOOS, "regular", settings.DefaultTerminalOpacity)
+	spec := specFor(settings.DefaultTerminalOpacity)
 	if got, want := spec.TerminalFrameAlpha(), spec.TintAlpha*glassmap.TerminalFrameShare; got != want {
 		t.Errorf("the terminal's frame share = %v, want %v", got, want)
 	}

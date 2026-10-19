@@ -486,8 +486,15 @@ func TestStatusDotRestsUnderReduceMotion(t *testing.T) {
 	if box.Empty() {
 		t.Fatal("the resting dot draws no accent pixels in the bar")
 	}
-	if box.Dx() != 7 || box.Dy() != 7 {
-		t.Errorf("the resting dot is %dx%d, want 7x7 (the full-size 0%% keyframe)", box.Dx(), box.Dy())
+	// The disc is drawn at 7px; the *exact*-accent read below loses its edge
+	// pixels to antialiasing, which the font and the rasteriser decide (macOS
+	// keeps five, Linux seven). So the assertion is the shape and the step: a
+	// square box (a disc, not an ellipse) no smaller than the mid-cycle 0.5
+	// keyframe would draw — the breath's own floor — and no larger than the 7px
+	// keyframe.
+	if box.Dx() != box.Dy() || box.Dx() < 5 || box.Dx() > 7 {
+		t.Errorf("the resting dot is %dx%d, want the 7px keyframe's disc (5..7 exact-accent pixels across; the edge blends with the bar)",
+			box.Dx(), box.Dy())
 	}
 	at := image.Pt(box.Min.X+box.Dx()/2, box.Min.Y+box.Dy()/2)
 

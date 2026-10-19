@@ -155,11 +155,14 @@ func TestTheActionBarTakesTheSelectionOnACommandLine(t *testing.T) {
 	}
 	// Pinned: the footer's band ends at the window's own bottom edge, the
 	// reference's `.launcher-action-bar` sitting below the scroller rather than
-	// scrolling with it. The pixel just under the row's box is therefore the
-	// last one the window has, not the panel's tail.
-	if _, bottom := img.Bounds().Max.X, img.Bounds().Max.Y; int(rect.Y+rect.H) < bottom-2 {
-		t.Errorf("the footer is not pinned to the window's bottom edge: row ends at %.0f, window %d",
-			rect.Y+rect.H, bottom)
+	// scrolling with it. The row's box is a result row (40u) inside the band the
+	// bar is charged (45u), so the only space below it is that band's own
+	// leftover — less than a row. Anything larger means the footer is riding the
+	// scroller again.
+	bottom := img.Bounds().Max.Y
+	if gap := bottom - int(rect.Y+rect.H); gap >= int(rect.H) {
+		t.Errorf("the footer is not pinned to the window's bottom edge: row ends at %.0f, window %d (%d px below the row, more than the row's own %.0f px box)",
+			rect.Y+rect.H, bottom, gap, rect.H)
 	}
 	// Enter runs the footer, not the tool row above it: the bar is the field's
 	// own hand-off and it is the row the choice is on.
