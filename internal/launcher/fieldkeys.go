@@ -5,6 +5,9 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
+
+	"floter/internal/settings"
+	"floter/internal/shortcuts"
 )
 
 // The keys the launcher's search field answers itself, before the text editor
@@ -68,6 +71,14 @@ func (a *App) fieldKeys(ev ui.InputEvent) bool {
 	if ev.Kind != ui.InputKeyDown {
 		return false
 	}
+	// The user's own bindings come first: a chord the settings page sold the
+	// user is theirs even where the editor would type it (see appChordKeys).
+	if a.appChordKeys(ev) {
+		// Any key but the confirming one cancels an armed delete, chords
+		// included — the old build's rule, kept in one place.
+		a.disarmDelete()
+		return true
+	}
 	// An armed delete is cancelled by any key except the one that confirms it
 	// — the old build's rule, and the reason a stray press cannot be confirmed
 	// later by an unrelated keystroke. Escape stops there instead of going on
@@ -103,6 +114,63 @@ func (a *App) fieldKeys(ev ui.InputEvent) bool {
 		return true
 	}
 	return false
+}
+
+// appChordKeys claims the user's rebindable chords on the field itself, and
+// runs them there.
+//
+// The framework decides a key in this order (`ui`'s keyDownPhysical): the
+// focused element's HandleInput, then the editor's own `wants`, then the
+// `Shortcut` registrations. The editor wants every `Option`+printable on
+// macOS — ⌥N types ñ — so a binding the user recorded as `Alt+N` never
+// reached the shortcut layer at all: the settings page offered the chord and
+// the app never answered it. The field is the one seam in front of the editor,
+// so the launcher's own bindings are matched here.
+//
+// The chords are the ones the launcher's own view answers — the app keys
+// (`appShortcuts`) and the numbered result family — with one substitution the
+// shell makes: on the launcher surface the new-command chord hides the window
+// (`shell.appShortcuts` runs before the launcher's view), which is
+// `Actions.Dismiss`. Everything the user did not bind is left to the editor:
+// ⌥N still types ñ.
+func (a *App) appChordKeys(ev ui.InputEvent) bool {
+	m := a.settings()
+	for _, action := range []string{
+		settings.ShortcutNewCommand,
+		settings.ShortcutOpenExternalTerminal,
+		settings.ShortcutOpenSettings,
+	} {
+		if !chordPressed(ev, settings.Shortcut(m, action)) {
+			continue
+		}
+		a.pendingChord = action
+		return true
+	}
+	digit, ok := chordDigit(ev, m)
+	if !ok {
+		return false
+	}
+	a.pendingDigit, a.pendingDigitSet = digit, true
+	return true
+}
+
+// chordPressed reports whether the event is exactly the chord the accelerator
+// spells: the same modifiers, in the same set, and the same key.
+func chordPressed(ev ui.InputEvent, accelerator string) bool {
+	mods, key, ok := shortcuts.Parse(accelerator)
+	return ok && ev.Mods == mods && ev.Key == key
+}
+
+// chordDigit reports which digit of the result family the event is, if any.
+// The family is the settings' select_result binding, so a rebind moves every
+// digit with it and a chord nobody bound answers nothing.
+func chordDigit(ev ui.InputEvent, m settings.Settings) (int, bool) {
+	for digit := 0; digit <= 9; digit++ {
+		if chordPressed(ev, settings.SelectResultDigit(m, digit)) {
+			return digit, true
+		}
+	}
+	return 0, false
 }
 
 // pluginModeActive reports whether a plugin mode owns the field: the old

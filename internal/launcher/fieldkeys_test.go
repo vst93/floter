@@ -1,14 +1,17 @@
 package launcher
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/egoist/mygo/ui"
 
+	"floter/internal/apps"
 	"floter/internal/calculator"
 	"floter/internal/drops"
 	"floter/internal/i18n"
+	"floter/internal/settings"
 )
 
 // The two keys the search field answers before the editor sees them: the
@@ -720,5 +723,91 @@ func TestLeavePluginModeIsTheOnlyLadder(t *testing.T) {
 		if a.leavePluginMode() {
 			t.Error("the ladder reported a second mode")
 		}
+	}
+}
+
+// The settings page sells the launcher's own keys as rebindable, and the field
+// is the seam that keeps that promise: the framework asks the focused
+// element's HandleInput before the editor's `wants`, so a chord recorded as an
+// `Alt`+letter — which macOS's editor types as `ñ` for ⌥N — still answers.
+// The press is claimed before the editor, so the action runs and the field
+// keeps the text it had.
+func TestTheFieldsOwnBindingsAnswerThroughTheField(t *testing.T) {
+	a := testApp()
+	a.Query = "app"
+	tt := render(t, a)
+	if err := a.Store.Update(func(s *settings.Settings) {
+		s.SetShortcut(settings.ShortcutNewCommand, "Alt+N")
+		s.SetShortcut(settings.ShortcutOpenSettings, "Alt+Shift+O")
+	}); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+
+	// The new command: on the launcher surface the shell answers it by hiding
+	// the window, which is the launcher's own Dismiss.
+	tt.Key(ui.Alt, ui.KeyN)
+	tt.Frame()
+	if got := testRuns["dismiss"]; got != 1 {
+		t.Errorf("the rebound new command hid the window %d times, want 1", got)
+	}
+	if a.Query != "app" {
+		t.Errorf("the chord typed into the field: %q", a.Query)
+	}
+
+	// Open settings, on the same seam.
+	tt.Key(ui.Alt|ui.Shift, ui.KeyO)
+	tt.Frame()
+	if got := testRuns["settings"]; got != 1 {
+		t.Errorf("the rebound open-settings opened %d times, want 1", got)
+	}
+	if a.Query != "app" {
+		t.Errorf("the chord typed into the field: %q", a.Query)
+	}
+
+	// A chord the user gave up answers nothing: ⌥⇧P was never bound.
+	tt.Key(ui.Alt|ui.Shift, ui.KeyP)
+	tt.Frame()
+	if testRuns["dismiss"] != 1 || testRuns["settings"] != 1 {
+		t.Errorf("an unbound chord ran something: %v", testRuns)
+	}
+}
+
+// The numbered family rides the same seam: a rebind to an `Alt`+digit spelling
+// still runs the row the badge prints, and the field keeps its text.
+func TestTheNumberedFamilyAnswersThroughTheField(t *testing.T) {
+	a := testApp()
+	found := make([]apps.App, 0, 3)
+	for i := 0; i < 3; i++ {
+		found = append(found, apps.App{Name: fmt.Sprintf("App %02d", i), Path: fmt.Sprintf("/Applications/App %02d.app", i)})
+	}
+	a.SetApps(found)
+	ran := []string{}
+	a.Actions.OpenApp = func(app apps.App) { ran = append(ran, app.Name) }
+
+	tt := render(t, a)
+	a.Query = "app"
+	tt.Frame()
+	if err := a.Store.Update(func(s *settings.Settings) {
+		s.SetShortcut(settings.ShortcutSelectResult, "Alt+1")
+	}); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+
+	tt.Key(ui.Alt, ui.Key3)
+	tt.Frame()
+	if len(ran) != 1 || ran[0] != "App 02" {
+		t.Fatalf("ran %v, want the third row", ran)
+	}
+	if a.Query != "app" {
+		t.Errorf("the chord typed into the field: %q", a.Query)
+	}
+
+	// The digit the family no longer holds answers nothing: ⌥5 is unbound.
+	tt.Key(ui.Alt, ui.Key5)
+	tt.Frame()
+	if len(ran) != 1 {
+		t.Errorf("an unbound digit ran a row: %v", ran)
 	}
 }

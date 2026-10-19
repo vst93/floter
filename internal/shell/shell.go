@@ -3678,8 +3678,19 @@ func (a *App) appShortcuts(c *ui.Context) {
 			a.Open(SurfaceLauncher)
 		}
 	default:
-		if mods, key, ok := shortcuts.Parse(settings.Shortcut(a.Store.Snapshot(), settings.ShortcutNewCommand)); ok && c.Shortcut(mods, key) {
-			a.Hide()
+		// The launcher's own field answers the new-command chord, and it must
+		// be the only one that registers it: a `Shortcut` registration makes
+		// the framework skip the field's HandleInput (`rt.claimed` in
+		// `keyDownPhysical`), and macOS's editor then takes the chord as text
+		// — an `Option`+letter binding would never be answered. The field
+		// resolves the chord and the launcher's view hides the window through
+		// `Actions.Dismiss`. The captured-output view is the one state that
+		// does not keep the keyboard on the field, so the chord is asked here
+		// while it is open.
+		if a.Launcher.InOutputView() {
+			if mods, key, ok := shortcuts.Parse(settings.Shortcut(a.Store.Snapshot(), settings.ShortcutNewCommand)); ok && c.Shortcut(mods, key) {
+				a.Hide()
+			}
 		}
 	}
 }

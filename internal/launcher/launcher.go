@@ -208,6 +208,15 @@ type App struct {
 	Query    string
 	Selected int
 
+	// pendingChord and pendingDigit are the user's own bindings as the field
+	// claimed them (see `appChordKeys`): the field is the only seam in front
+	// of the editor, so it resolves the chord and the view runs it on the
+	// frame that follows, where the list and its numbers are the ones on
+	// screen.
+	pendingChord    string
+	pendingDigit    int
+	pendingDigitSet bool
+
 	// Apps is the installed applications the shell scanned, and Commands the
 	// enabled extensions' commands; both join the results once the user
 	// types.
@@ -518,12 +527,23 @@ func (a *App) assignNumbers(results []Item) map[int]int {
 	return numbers
 }
 
+// takePendingDigit takes the digit of the result family the field claimed, if
+// any. The field is the one seam in front of the editor (see
+// `appChordKeys`), so the chord arrives here already resolved; taking it
+// clears it, and the caller cannot ask twice.
+func (a *App) takePendingDigit() (int, bool) {
+	if !a.pendingDigitSet {
+		return 0, false
+	}
+	a.pendingDigitSet = false
+	return a.pendingDigit, true
+}
+
 // pressedResultDigit reports the digit of the result family whose chord is
-// down, if any. The modifiers come from the settings' select_result binding,
-// so rebinding the family moves every number with it. Each Shortcut call
-// consumes the press it matches, so the first binding that answers wins and
-// the caller cannot ask twice.
-func (a *App) pressedResultDigit(c *ui.Context) (int, bool) {
+// down, if any, for the views that do not keep the keyboard on the search
+// field (the captured-output list). The modifiers come from the settings'
+// select_result binding, so rebinding the family moves every number with it.
+func pressedResultDigit(a *App, c *ui.Context) (int, bool) {
 	for digit := 0; digit <= 9; digit++ {
 		key := ui.Key0
 		if digit > 0 {
@@ -542,20 +562,29 @@ func (a *App) pressedResultDigit(c *ui.Context) (int, bool) {
 
 // resultShortcuts runs the row a number names, reporting whether the key was
 // one of them.
-func (a *App) resultShortcuts(c *ui.Context, results []Item) bool {
-	digit, ok := a.pressedResultDigit(c)
+func (a *App) resultShortcuts(results []Item) bool {
+	digit, ok := a.takePendingDigit()
 	if !ok {
 		return false
 	}
+	a.runResultDigit(results, digit)
+	return true
+}
+
+// runResultDigit runs the row the digit names, against the numbers the last
+// frame handed out. It is the one place a numbered row is run: the shortcut
+// layer reaches it through `resultShortcuts`, and the field reaches it
+// through `appChordKeys` — a bound chord the editor would otherwise take as
+// text (an `Option`+letter on macOS) never gets to the shortcut layer at all.
+func (a *App) runResultDigit(results []Item, digit int) {
 	for index, number := range a.numbers {
 		if number != digit || index >= len(results) {
 			continue
 		}
 		a.Selected = index
 		a.activate(results)
-		return true
+		return
 	}
-	return true
 }
 
 // outputShortcuts runs the numbered row of the captured-output list. The
@@ -569,9 +598,22 @@ func (a *App) outputShortcuts(c *ui.Context) bool {
 	if a.output == nil || !a.output.IsList {
 		return false
 	}
-	digit, ok := a.pressedResultDigit(c)
+	// The output view does not keep the keyboard on the search field, so the
+	// digit never reaches the field's seam: it is asked here, where the view
+	// registers it, as the ordinary page's digits used to be.
+	digit, ok := pressedResultDigit(a, c)
 	if !ok {
 		return false
+	}
+	a.runOutputDigit(digit)
+	return true
+}
+
+// runOutputDigit runs the output list's row the digit names, the output view's
+// half of `runResultDigit`.
+func (a *App) runOutputDigit(digit int) {
+	if a.output == nil || !a.output.IsList {
+		return
 	}
 	for index, number := range a.outputNumbers {
 		if number != digit || index >= len(a.output.Rows) {
@@ -579,9 +621,8 @@ func (a *App) outputShortcuts(c *ui.Context) bool {
 		}
 		a.output.Selected = index
 		a.runOutputRow()
-		return true
+		return
 	}
-	return true
 }
 
 // appShortcuts runs the app's own rebindable keys: a new command clears
@@ -594,32 +635,35 @@ func (a *App) outputShortcuts(c *ui.Context) bool {
 // the page lets the user record and never answers is a promise the app does
 // not keep. The launcher is where the old build answered `open_settings`
 // (the collapsed surface), so this is the surface that owes it.
-func (a *App) appShortcuts(c *ui.Context) bool {
-	m := a.settings()
-	for _, action := range []string{
-		settings.ShortcutNewCommand,
-		settings.ShortcutOpenExternalTerminal,
-		settings.ShortcutOpenSettings,
-	} {
-		mods, key, ok := shortcuts.Parse(settings.Shortcut(m, action))
-		if !ok || !c.Shortcut(mods, key) {
-			continue
-		}
-		switch action {
-		case settings.ShortcutNewCommand:
-			a.ResetQuery()
-		case settings.ShortcutOpenExternalTerminal:
-			if a.Actions.OpenTerminalWindow != nil {
-				a.Actions.OpenTerminalWindow()
-			}
-		case settings.ShortcutOpenSettings:
-			if a.Actions.OpenSettings != nil {
-				a.Actions.OpenSettings()
-			}
-		}
-		return true
+func (a *App) appShortcuts() bool {
+	action := a.pendingChord
+	if action == "" {
+		return false
 	}
-	return false
+	a.pendingChord = ""
+	switch action {
+	case settings.ShortcutNewCommand:
+		// On the launcher surface the shell answers the new-command chord by
+		// hiding the window, and that is `Actions.Dismiss` (the shell's own
+		// `appShortcuts` leaves this surface to the field now, so the chord
+		// would otherwise fall between the two). Without a window to hide —
+		// a test, a detached view — the chord keeps its own meaning: the
+		// empty field a new command asks for.
+		if a.Actions.Dismiss != nil {
+			a.Actions.Dismiss()
+		} else {
+			a.ResetQuery()
+		}
+	case settings.ShortcutOpenExternalTerminal:
+		if a.Actions.OpenTerminalWindow != nil {
+			a.Actions.OpenTerminalWindow()
+		}
+	case settings.ShortcutOpenSettings:
+		if a.Actions.OpenSettings != nil {
+			a.Actions.OpenSettings()
+		}
+	}
+	return true
 }
 
 // emptyMessage is what the list says when it has nothing: a plugin mode names
@@ -1226,10 +1270,10 @@ func (a *App) View(c *ui.Context) {
 	// The app's own keys (new command, external terminal), then the result
 	// shortcuts: the app modifier plus a number runs the n-th row that can be
 	// run, as the old build's ⌘1–⌘0 did.
-	if a.appShortcuts(c) {
+	if a.appShortcuts() {
 		return
 	}
-	if a.resultShortcuts(c, results) {
+	if a.resultShortcuts(results) {
 		return
 	}
 
