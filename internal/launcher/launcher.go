@@ -330,6 +330,17 @@ type App struct {
 	// for the list — and a duplicated full match is the cheapest way to read a
 	// keystroke as a stall.
 	searchRuns int
+	// catalog is the built catalog and the shape of the inputs it was built
+	// from (see Catalog): the rows and their lowered search registers are made
+	// once per rescan, new command set or language, not once per keystroke.
+	catalog         []Item
+	catalogShapeWas catalogShape
+	catalogBuilt    bool
+	catalogBuilds   int
+	// catalogRev is the revision the setters bump: the inputs that have no
+	// length of their own to compare (a rescan that returns the same number of
+	// applications, an alias the user changed) still have to rebuild the rows.
+	catalogRev int
 
 	// toast is a message to show in the panel's docked status row, set by an
 	// action, and toastWarning marks it a warning — the blocking tone the old
@@ -838,11 +849,15 @@ func (a *App) ResetQuery() {
 }
 
 // SetApps replaces the scanned applications.
-func (a *App) SetApps(found []apps.App) { a.Apps = found }
+func (a *App) SetApps(found []apps.App) {
+	a.Apps = found
+	a.catalogRev++
+}
 
 // SetCommands replaces the extensions' commands.
 func (a *App) SetCommands(found []extensions.CommandEntry) {
 	a.Commands = found
+	a.catalogRev++
 	// Two integrations may declare the same command word; the launcher enters
 	// the first, so the rows say the word is shared rather than letting the
 	// shadowed one look like the only answer.
@@ -869,11 +884,13 @@ func (a *App) SetRecent(paths []string, show bool) {
 // SetCommandAliases — so turning the PATH rows off does not drop them.
 func (a *App) SetTools(tools []apps.App, show bool) {
 	a.Tools, a.ShowTools = tools, show
+	a.catalogRev++
 }
 
 // SetCommandAliases replaces the user's alias per command.
 func (a *App) SetCommandAliases(aliases settings.CommandAliases) {
 	a.Aliases = aliases
+	a.catalogRev++
 }
 
 // SetQuery puts text in the field, for a deep link that names what to search

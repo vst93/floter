@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/egoist/mygo/ui"
 
@@ -90,6 +91,28 @@ type Item struct {
 	// calculator's answer, which the old build's R50 let the expression make
 	// room for rather than truncating.
 	trailing string
+	// The search registers, folded once when the catalog is built (see
+	// App.Catalog). Every keystroke asks each row's four registers whether the
+	// term appears in them, and folding them on that path is one allocation per
+	// register per row per key. The catalog is the one place that knows a row's
+	// text will not change, so the fold happens there and the search reads
+	// these. A row built outside the catalog (a clipboard entry, a dropped file,
+	// a browser tab) leaves them empty and is folded on the spot, exactly as
+	// before: `lowered` is the one accessor either way.
+	lowerTitle  string
+	lowerDetail string
+	lowerID     string
+	lowerSearch string
+	lowerAlias  string
+}
+
+// lowered reports a search register in its folded form: the value cached when
+// the catalog was built when there is one, the fold itself otherwise.
+func lowered(cached, value string) string {
+	if cached != "" {
+		return cached
+	}
+	return strings.ToLower(value)
 }
 
 // commands is the built-in command list, labeled in the launcher's language.
@@ -655,14 +678,69 @@ func (a *App) openApp(app apps.App) {
 // and the 「Terminal」 command alike — the application is the row that wins.
 // Listing the commands first inverted that: the same query put the built-in
 // 「Terminal」 above the application the user was actually reaching for.
+//
+// The catalog is built once per set of inputs and then reused (see
+// catalogShape): every keystroke walks it, and making the rows first — an
+// `Item` per application, a `strings.Join` of its aliases, a folded copy of its
+// four search registers for every one of them — was half of a keystroke's cost
+// and nearly all of its garbage (600 applications: ~200µs, 3.4k allocations
+// per frame, measured). The returned slice is shared, so read it and never
+// append to it: `Match` copies the rows it ranks and the callers that compose a
+// list build their own.
 func (a *App) Catalog() []Item {
+	shape := a.catalogShape()
+	if a.catalogBuilt && a.catalogShapeWas == shape {
+		return a.catalog
+	}
 	items := a.appItems()
 	items = append(items, a.commands()...)
 	items = append(items, a.toolItems()...)
 	items = append(items, a.toolInstallItems()...)
 	items = append(items, a.toolInvokeItems()...)
 	items = append(items, a.commandItems()...)
+	for i := range items {
+		items[i].lowerTitle = strings.ToLower(items[i].Title)
+		items[i].lowerDetail = strings.ToLower(items[i].Detail)
+		items[i].lowerID = strings.ToLower(items[i].ID)
+		items[i].lowerSearch = strings.ToLower(items[i].Search)
+		items[i].lowerAlias = strings.ToLower(items[i].alias)
+	}
+	a.catalog, a.catalogBuilt, a.catalogShapeWas = items, true, shape
+	// Counted only so a test can read the cache: how many times the rows were
+	// made, which the search must not be paying per keystroke.
+	a.catalogBuilds++
 	return items
+}
+
+// catalogShape is what a built catalog was made from. Every input the rows read
+// is in it: the setters' revision (a rescan, a new command set, a changed
+// alias), the interface language (the built-in commands' wording), and the
+// lists' own lengths — the last only so a caller that assigns a field instead
+// of calling its setter still rebuilds rather than serving rows for a list it
+// no longer has.
+type catalogShape struct {
+	revision  int
+	language  string
+	apps      int
+	tools     int
+	showTools bool
+	commands  int
+	installs  int
+	aliases   int
+}
+
+// catalogShape is the current shape of the catalog's inputs.
+func (a *App) catalogShape() catalogShape {
+	return catalogShape{
+		revision:  a.catalogRev,
+		language:  a.settings().Language,
+		apps:      len(a.Apps),
+		tools:     len(a.Tools),
+		showTools: a.ShowTools,
+		commands:  len(a.Commands),
+		installs:  len(a.InstallCatalog),
+		aliases:   len(a.Aliases),
+	}
 }
 
 // appItem is one application as a row, titled with the name the user's own
@@ -918,11 +996,11 @@ func aliasHint(item Item, term string) string {
 	if item.alias == "" || term == "" {
 		return ""
 	}
-	aliasScore, aliasMatched := aliasRank(strings.ToLower(item.alias), term)
+	aliasScore, aliasMatched := aliasRank(lowered(item.lowerAlias, item.alias), term)
 	if !aliasMatched {
 		return ""
 	}
-	titleScore, titleMatched := aliasRank(strings.ToLower(item.Title), term)
+	titleScore, titleMatched := aliasRank(lowered(item.lowerTitle, item.Title), term)
 	if titleMatched && titleScore <= aliasScore {
 		return ""
 	}
@@ -951,19 +1029,19 @@ func aliasRank(candidate, term string) (int, bool) {
 // A PATH command's alias runs through the same ladder as its name, so an alias
 // hit ranks exactly where the name would (an exact alias is not second class).
 func itemScore(item Item, term string) (int, bool) {
-	title := strings.ToLower(item.Title)
+	title := lowered(item.lowerTitle, item.Title)
 	score, matched := candidateScore(title, term)
 	if item.alias != "" {
-		if aliasScore, aliasMatched := candidateScore(strings.ToLower(item.alias), term); aliasMatched && (!matched || aliasScore < score) {
+		if aliasScore, aliasMatched := candidateScore(lowered(item.lowerAlias, item.alias), term); aliasMatched && (!matched || aliasScore < score) {
 			score, matched = aliasScore, true
 		}
 	}
 	if matched {
 		return score, true
 	}
-	if strings.Contains(strings.ToLower(item.Detail), term) ||
-		strings.Contains(strings.ToLower(item.ID), term) ||
-		strings.Contains(strings.ToLower(item.Search), term) {
+	if strings.Contains(lowered(item.lowerDetail, item.Detail), term) ||
+		strings.Contains(lowered(item.lowerID, item.ID), term) ||
+		strings.Contains(lowered(item.lowerSearch, item.Search), term) {
 		return 3, true
 	}
 	return 0, false
@@ -992,18 +1070,21 @@ func candidateScore(candidate, term string) (int, bool) {
 
 // isSubsequence reports whether every rune of term appears in candidate, in
 // order, with anything between.
+//
+// It walks both strings' runes in place: the rune-slice version allocated two
+// slices for every row a query did not match — a few thousand per keystroke on
+// a machine-wide catalog, on the very path a stall is read from.
 func isSubsequence(term, candidate string) bool {
-	if len([]rune(term)) > len([]rune(candidate)) {
-		return false
-	}
-	candidateRunes := []rune(candidate)
 	cursor := 0
-	for _, char := range term {
+	for i := 0; i < len(term); {
+		want, size := utf8.DecodeRuneInString(term[i:])
+		i += size
 		matched := false
-		for ; cursor < len(candidateRunes); cursor++ {
-			if candidateRunes[cursor] == char {
+		for cursor < len(candidate) {
+			got, gotSize := utf8.DecodeRuneInString(candidate[cursor:])
+			cursor += gotSize
+			if got == want {
 				matched = true
-				cursor++
 				break
 			}
 		}

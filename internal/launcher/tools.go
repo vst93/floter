@@ -19,7 +19,10 @@ import (
 // scan finds the executable itself, which is the thing the user wants to run.
 
 // SetToolCatalog replaces the catalog state the install rows are built from.
-func (a *App) SetToolCatalog(states []tools.State) { a.InstallCatalog = states }
+func (a *App) SetToolCatalog(states []tools.State) {
+	a.InstallCatalog = states
+	a.catalogRev++
+}
 
 // toolInstallItems is the install rows for a query: the tools the catalog
 // knows, that are not installed, and whose name or keywords the query matches.
