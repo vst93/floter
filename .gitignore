@@ -25,3 +25,6 @@
 
 # Agent harness lock file (per-run, never part of the repo)
 .pi-lock
+
+# Go test binaries left by `go test -c`
+*.test
