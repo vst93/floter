@@ -19,6 +19,7 @@ import (
 
 // writeCandidate writes a runnable fixture a candidate can point at.
 func writeCandidate(t *testing.T, path string) {
+	requirePOSIXShell(t)
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatal(err)

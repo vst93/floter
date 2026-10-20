@@ -29,6 +29,7 @@ import (
 // reports `version`, with `recorded` as the version the repository holds. The
 // package shape is the connect flow's own (`<data>/<id>/integration`).
 func driftAppFixture(t *testing.T, version, recorded string) (extensions.Paths, string) {
+	requirePOSIXShell(t)
 	t.Helper()
 	paths := extensions.FromRoot(t.TempDir())
 	if err := paths.Ensure(); err != nil {
@@ -223,6 +224,7 @@ func TestTheDriftReprobeStaysSilentWithoutAVersion(t *testing.T) {
 // A failed re-probe is soft: the row is untouched, no toast is raised, and the
 // previous descriptor stays.
 func TestTheDriftReprobeFailsSoft(t *testing.T) {
+	requirePOSIXShell(t)
 	paths, id := driftAppFixture(t, "2.0.0", "1.0.0")
 	// Replace the executable with one that answers its version but nothing
 	// usable for a derivation, so the re-probe errors.

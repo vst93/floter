@@ -88,6 +88,7 @@ func TestLocalInstallReviewListsDeclaredPermissions(t *testing.T) {
 // the given permissions JSON fragment (e.g. `"permissions": ["environment"]`,
 // or empty for none).
 func writeLocalPackage(t *testing.T, dir, permissions string) {
+	requirePOSIXShell(t)
 	t.Helper()
 	manifest := `{
   "schemaVersion": "2.0", "id": "dev.floter.reviewed", "name": "Reviewed",

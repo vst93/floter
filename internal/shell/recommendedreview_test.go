@@ -69,6 +69,7 @@ func TestRecommendedInstallReviewNamesTheToolAndTiersItsPermissions(t *testing.T
 // once the user confirms the review: declining leaves the machine untouched,
 // confirming installs the package (ExtensionsPanel.tsx:1349-1400).
 func TestRecommendedConnectReviewsBeforeCommitting(t *testing.T) {
+	requirePOSIXShell(t)
 	// The shipped package runs the V toolchain; a fixture stands in for it, so
 	// the test does not depend on the machine having V installed.
 	restore := extensions.StubToolLookup(func(names ...string) (string, bool) {

@@ -253,6 +253,7 @@ func TestPlatformsTravelIntoTheManifest(t *testing.T) {
 // own rule). One mapping clears them, so an executable built after visiting
 // script mode still connects.
 func TestAnExecutableCarriesNoScriptFields(t *testing.T) {
+	requirePOSIXShell(t)
 	if runtime.GOOS == "windows" {
 		t.Skip("the fixture is a shell script")
 	}

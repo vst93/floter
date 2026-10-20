@@ -46,6 +46,7 @@ func TestTheRegisterLinkSaysWhenNoToolMatches(t *testing.T) {
 // link's mark: the reference drew the dot only on the named row
 // (`src/extensions/ExtensionRow.tsx:196-205,290`).
 func TestTheRegisterLinkMarksTheProgramItNamed(t *testing.T) {
+	requirePOSIXShell(t)
 	a := New(Options{
 		Store: settings.NewStore(settings.Default()),
 		Paths: extensions.FromRoot(t.TempDir()),
@@ -98,6 +99,7 @@ func TestTheRegisterLinkMarksTheProgramItNamed(t *testing.T) {
 // reference's `useTimedReset(registerTarget, …)`,
 // `src/ExtensionsPanel.tsx:1546`).
 func TestTheRegisterMarkIsAMoment(t *testing.T) {
+	requirePOSIXShell(t)
 	a := newApp(t)
 	a.registerHighlight = 20 * time.Millisecond
 
@@ -123,6 +125,7 @@ func TestTheRegisterMarkIsAMoment(t *testing.T) {
 // empty path: the register link may hand back the search-path link while the
 // inventory records the resolved binary.
 func TestSameExecutableResolvesSymlinks(t *testing.T) {
+	requirePOSIXShell(t)
 	dir := t.TempDir()
 	real := filepath.Join(dir, "rg")
 	if err := os.WriteFile(real, []byte("#!/bin/sh\n"), 0o755); err != nil {

@@ -115,6 +115,7 @@ func waitForNotice(t *testing.T, log *noticeLog) string {
 // to end — the page projects the row as needing the repair, the action rebinds
 // the entry to where the program is now, and the page stops offering it.
 func TestTheReconnectActionRebindsAMovedProgram(t *testing.T) {
+	requirePOSIXShell(t)
 	gone := filepath.Join(t.TempDir(), "systool")
 	paths, id := reconnectFixture(t, gone)
 	here := filepath.Join(t.TempDir(), "systool")
@@ -229,6 +230,7 @@ func TestTheRepairOpensTheProjectPageItWasGiven(t *testing.T) {
 // "re-check complete: healthy". A repair that always said one of the two would
 // make the other unreachable, which is what this walks end to end.
 func TestTheRepairNoticesSplitRepairedFromRechecked(t *testing.T) {
+	requirePOSIXShell(t)
 	program := func(t *testing.T) string {
 		t.Helper()
 		here := filepath.Join(t.TempDir(), "systool")
@@ -292,6 +294,7 @@ func TestTheRepairNoticesSplitRepairedFromRechecked(t *testing.T) {
 // `finally` (`src/ExtensionsPanel.tsx:1190-1210`). A shell that forgot the
 // callback would leave the button spinning forever.
 func TestTheRepairReportsBackToTheRow(t *testing.T) {
+	requirePOSIXShell(t)
 	t.Run("a repair reports success", func(t *testing.T) {
 		here := filepath.Join(t.TempDir(), "systool")
 		if err := os.WriteFile(here, []byte("#!/bin/sh\n"), 0o755); err != nil {
