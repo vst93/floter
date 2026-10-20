@@ -154,6 +154,13 @@ type Actions struct {
 	// generated custom integration and rebuilds its command list. Nil
 	// hides the button.
 	ReprobeCommands func(id string)
+	// ReprobeHealth re-runs an integration's stored lifecycle probes and
+	// writes the new report back to the repository: the reference's
+	// `extensions_reprobe` (`ExtensionsPanel.tsx:1139-1155`, `handleReprobe`),
+	// which the Health block's own refresh button calls
+	// (`:2908-2918`). Nil hides that button, exactly as the reference draws
+	// it only when a report is on screen.
+	ReprobeHealth func(id string)
 	// SetShortcut records a new accelerator for an action id.
 	SetShortcut func(id, accelerator string)
 	// InstallFromRegistry installs a package from the npm registry.
@@ -2451,7 +2458,25 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 		// the row's value; the live findings are the diagnostics row below.
 		if integration.Health != "" {
 			a.row(c, copy.IntegrationsHealth, "", func() {
-				a.healthStatusChip(c, copy, integration.Health, integration.HealthStatus)
+				// The reference's heading carries the re-run control beside the
+				// block's name (`.extension-detail-heading` is a
+				// `space-between` flex row, `extensions.css:2015-2020`), and the
+				// status chip opens the report under it. This build's row *is*
+				// that heading, so the chip and the button share the slot: the
+				// chip is the block's value and the button its one action.
+				ui.Row(c).Gap(t.Space(1.5)).AlignItems(ui.Center).Children(func() {
+					a.healthStatusChip(c, copy, integration.Health, integration.HealthStatus)
+					// `healthReprobe` runs only while the stored report has a schema
+					// the host can execute (`Reprobe` refuses with `ErrNoProbes`
+					// otherwise), which is exactly the state the reference gates
+					// the button on: `healthReport &&` (`:2909`).
+					if a.Actions.ReprobeHealth != nil && integration.HealthReport != nil {
+						label := copy.IntegrationsHealthReprobe
+						if a.extensionIconButton(c, "refresh", label, a.rowBusy(integration.ID)).Clicked() {
+							a.Actions.ReprobeHealth(integration.ID)
+						}
+					}
+				})
 			})
 		}
 		if integration.HealthReport != nil {

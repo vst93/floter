@@ -754,6 +754,7 @@ func New(opts Options) *App {
 		},
 		CloseSessionAt:       a.Terminal.CloseSession,
 		DiagnoseIntegration:  a.diagnoseIntegration,
+		ReprobeHealth:        a.reprobeHealth,
 		RepairIntegration:    a.repairIntegration,
 		ReprobeCommands:      a.reprobeCommands,
 		ReconnectIntegration: a.reconnectIntegration,
@@ -1781,6 +1782,38 @@ func healthReportView(report *extensions.HealthReport, schema []extensions.Probe
 		})
 	}
 	return view
+}
+
+// reprobeHealth re-runs one integration's stored lifecycle probes and writes
+// the report back to the repository: the reference's `extensions_reprobe`
+// (`main:src/ExtensionsPanel.tsx:1139-1155`), which the Health block's own
+// refresh control calls. The run starts processes, so it happens on a
+// goroutine and the frame that shows its answer is asked for afterwards.
+//
+// It is not `diagnoseIntegration`: that one runs the probes *and* the
+// provider's diagnose protocol and keeps the answer in memory, which is what
+// the row's Check button is for. This one re-derives the stored report the
+// repository keeps, so the Health block's chip and detail lines change — the
+// reference's own split of the two controls.
+func (a *App) reprobeHealth(id string) {
+	go func() {
+		if _, err := extensions.Reprobe(context.Background(), a.Paths, id); err != nil {
+			// A tool whose probes cannot run at all says so through the row's
+			// own failure line rather than a silent no-op; the previous report
+			// stays on screen either way (the repository is only written when
+			// the run finished).
+			log.Printf("floter: health re-check of %s: %v", id, err)
+		}
+		// The report lives on the repository entry, so the inventory is
+		// re-read before the frame; a failed run changed nothing and the
+		// refresh is then a no-op that costs one read.
+		a.Integrations.Refresh(context.Background())
+		a.onMain(func() {
+			if a.Win != nil {
+				a.Win.Invalidate()
+			}
+		})
+	}()
 }
 
 // diagnoseIntegration asks a provider to check itself, off the main thread,

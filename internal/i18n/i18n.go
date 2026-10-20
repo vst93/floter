@@ -656,6 +656,14 @@ type Settings struct {
 	IntegrationsHealthRetryable string
 	IntegrationsHealthExitCode  func(code string) string
 	IntegrationsHealthCheckedAt func(when string) string
+	// IntegrationsHealthReprobe is the Health block's own re-run control: the
+	// reference draws a refresh icon button in the block's `h4`
+	// (`.extension-detail-heading`, `extensions.css:2015-2020`) whenever a
+	// report is on screen (`ExtensionsPanel.tsx:2908-2918`), and it is the only
+	// way to re-derive the stored report without leaving the page. The port
+	// had no control at all, so a stale report could only be refreshed by
+	// opening the diagnostics' own check button — a different probe run.
+	IntegrationsHealthReprobe string
 	// The approval record block (the old host's R7-8): what the recorded
 	// approval covered, when it happened, and against which manifest — the
 	// on-disk digest beside the recorded one, so "what I approved" and "what

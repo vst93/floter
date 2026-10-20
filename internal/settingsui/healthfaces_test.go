@@ -6,6 +6,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"floter/internal/i18n"
 	"floter/internal/settings"
 )
 
@@ -409,5 +410,46 @@ func TestTheHealthChipReadsTheRawStatusNotTheWord(t *testing.T) {
 	}
 	if !(got.R > got.B) {
 		t.Errorf("the chip's plane is not the warm one the raw `unhealthy` asks for: %v", got)
+	}
+}
+
+// The Health block's re-run control is the reference's own button in the
+// block's heading (`ExtensionsPanel.tsx:2908-2918`: a `.extensions-icon-button`
+// carrying `RefreshCw` at 14px, labelled `settings.extensions.healthReprobe`,
+// drawn only while a report is on screen). The port had no control at all — a
+// stored report could only be refreshed by the diagnostics' Check button, which
+// is a *different* probe run (it also runs the provider's diagnose protocol and
+// keeps its answer in memory) — so the one surface that shows the stored report
+// could not re-derive it.
+//
+// Two facts are pinned: the control exists and is reachable by the reference's
+// own accessible name, and pressing it calls the host's re-run for *that*
+// integration. A control that draws but does nothing is the failure shape this
+// whole audit keeps finding, so the callback is asserted rather than assumed.
+func TestTheHealthBlockRerunsItsOwnChecks(t *testing.T) {
+	a := New(newStore(t), Actions{})
+	called := ""
+	a.Actions.ReprobeHealth = func(id string) { called = id }
+	a.Integrations = func() []Integration {
+		return []Integration{{
+			ID: "dev.floter.probed", Name: "Probed Tool", Enabled: true,
+			Health: "Degraded", HealthReport: testHealthReport(),
+		}}
+	}
+	tt := render(t, a, 720, 1100)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	label := i18n.For("en").Settings.IntegrationsHealthReprobe
+	if !tt.HasText(label) {
+		t.Fatalf("the health re-run control is missing (%q): %q", label, tt.Texts())
+	}
+	if err := tt.Click(label); err != nil {
+		t.Fatalf("the health re-run control is not clickable: %v", err)
+	}
+	tt.Frame()
+	if called != "dev.floter.probed" {
+		t.Errorf("pressing the control called %q, want dev.floter.probed", called)
 	}
 }
