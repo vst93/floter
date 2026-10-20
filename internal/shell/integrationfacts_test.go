@@ -275,3 +275,82 @@ func TestARefreshDropsTheFactsMemo(t *testing.T) {
 		t.Errorf("the refilled list is wrong: %+v", list)
 	}
 }
+
+// The card's freshness row is asked once per row per frame —
+// `settingsui.integrationRow` reads `Actions.Freshness` while drawing each card
+// — and the answer costs a stat of the package directory plus a read of
+// `help-probe.json`. It is the third member of this file's family (the runtime
+// probe and the manifest digest are the other two), so it reads the same memo.
+//
+// This pins the wiring: the first ask answers and is remembered, and the sixty
+// frames a second that follow it move no clock and touch no disk.
+func TestTheFreshnessRowReadsTheFactsMemo(t *testing.T) {
+	paths := integrationFixture(t)
+	resetIntegrationFacts()
+	a := New(Options{Store: settings.NewStore(settings.Default()), Paths: paths})
+	a.RefreshIntegrations(context.Background())
+
+	// The sidecar beside the descriptor: the source the row reports.
+	pkg := filepath.Join(paths.Extensions, "io.github.vst93.v")
+	sidecar := `{"probedAt":1700000000,"rootArgumentCount":1,"subcommandCount":0,` +
+		`"commandCount":1,"previousCommandCount":1}`
+	if err := os.WriteFile(filepath.Join(pkg, "help-probe.json"), []byte(sidecar), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	invalidateIntegrationFacts()
+
+	freshness, ok := a.integrationFreshness("io.github.vst93.v")
+	if !ok {
+		t.Fatal("the freshness row answered nothing for an integration that has a sidecar")
+	}
+	if freshness.Source != extensions.FreshnessProbe || freshness.CommandCount == nil ||
+		*freshness.CommandCount != 1 {
+		t.Fatalf("the row answered %+v, want the sidecar's probe", freshness)
+	}
+
+	// The memo now holds it, so the row's own ask did not have to be repeated.
+	facts, _, _ := integrationFactsMemo.snapshot()
+	if fact, ok := facts["io.github.vst93.v"]; !ok || !fact.hasFreshness {
+		t.Fatalf("the row's answer was not remembered: %+v", facts)
+	}
+
+	// Sixty frames later: the same answer, and the memo is the same one (the
+	// proof that no frame re-read the sidecar — a re-read would replace the
+	// fact, and the identity it carries is what the list's pass compares).
+	for frame := 0; frame < 60; frame++ {
+		again, ok := a.integrationFreshness("io.github.vst93.v")
+		if !ok || again.AtSeconds != freshness.AtSeconds {
+			t.Fatalf("frame %d answered differently: %+v", frame, again)
+		}
+	}
+}
+
+// A row asked about on its own answers only the freshness question, and the
+// list's pass must not trust it for the other two: a partial fact that was
+// served as complete would draw the repair verb for a program that is right
+// there.
+func TestAPartialFactIsRefilledByTheList(t *testing.T) {
+	paths := integrationFixture(t)
+	resetIntegrationFacts()
+	a := New(Options{Store: settings.NewStore(settings.Default()), Paths: paths})
+	a.RefreshIntegrations(context.Background())
+
+	// One row asks first (the freshness block draws before the list is built
+	// on a surface that draws a single card).
+	a.integrationFreshness("io.github.vst93.v")
+	facts, _, _ := integrationFactsMemo.snapshot()
+	if !facts["io.github.vst93.v"].partial {
+		t.Fatalf("the row's own answer was not recorded as partial: %+v", facts)
+	}
+
+	// The list's pass answers in full: the runtime probe is filled in, and the
+	// card therefore does not offer to repair a runtime that resolves.
+	list := a.integrationList()
+	if len(list) != 1 || !list[0].RuntimeAvailable {
+		t.Fatalf("the list served the partial fact: %+v", list)
+	}
+	facts, _, _ = integrationFactsMemo.snapshot()
+	if facts["io.github.vst93.v"].partial {
+		t.Errorf("the list's pass left the fact partial")
+	}
+}

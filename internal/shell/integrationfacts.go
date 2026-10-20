@@ -20,7 +20,14 @@ import (
 //   - `extensions.ManifestDigest` reads and hashes the manifest so the card can
 //     say whether what the user approved is still what is on disk.
 //
-// Neither answer changes between two frames a sixtieth of a second apart, and on
+// A third one joined them when the freshness block landed: `integrationRow`
+// asks `Actions.Freshness` per row per frame, which resolves the integration in
+// the inventory (a lock and a linear scan) and then calls
+// `extensions.FreshnessOf` — an `os.Stat` of the package directory and an
+// `os.ReadFile` of `help-probe.json`. Rows multiply that: twenty integrations
+// is twenty stat+read pairs a frame, on the same thread, on the same disks.
+//
+// None of these answers changes between two frames a sixtieth of a second apart, and on
 // a machine whose PATH runs over a network share (or a sleeping disk, or a
 // Windows drive letter that has been unmapped) each stat is milliseconds — the
 // report 「很多界面经常卡死」 with the settings page on screen. This is the same
@@ -53,6 +60,18 @@ type integrationFact struct {
 	// read at all. It is only asked for an entry that carries an approval.
 	digest    string
 	hasDigest bool
+	// freshness is what the card's freshness block reports (the help-probe
+	// sidecar beside the descriptor, else the repository's health report), and
+	// hasFreshness whether anything has ever probed this integration — the
+	// reference draws no block at all for one nothing has probed.
+	freshness    extensions.Freshness
+	hasFreshness bool
+	// partial marks a fact that answered only the freshness question (it was
+	// remembered from a single row's own ask — see `App.integrationFreshness`).
+	// The list's pass is what answers the runtime probe and the digest, so a
+	// partial fact is treated as unanswered there rather than served as a row
+	// that offers the repair verb for a program that is right there.
+	partial bool
 	// key is the identity the fact was computed from (see integrationFactKey).
 	key string
 }
@@ -99,6 +118,12 @@ func computeIntegrationFacts(items []extensions.Integration) map[string]integrat
 				fact.digest, fact.hasDigest = digest, true
 			}
 		}
+		// The freshness block's own read: the sidecar beside the descriptor and
+		// the repository's health report, via `PackageDir` — a stat plus a file
+		// read per integration, which is why it is here and not on the row.
+		if freshness := extensions.FreshnessOf(integration.Paths, integration); freshness.Known() {
+			fact.freshness, fact.hasFreshness = freshness, true
+		}
 		out[integration.Entry.ID] = fact
 	}
 	return out
@@ -115,6 +140,24 @@ func (m *integrationFactsCache) snapshot() (map[string]integrationFact, time.Tim
 func (m *integrationFactsCache) publish(facts map[string]integrationFact, at time.Time) {
 	m.mu.Lock()
 	m.facts, m.computed, m.pending = facts, at, false
+	m.mu.Unlock()
+}
+
+// rememberIntegrationFact adds one computed fact to the memo without moving its
+// clock, and copy-on-write like `publish`: the map handed to a reader stays
+// immutable, so a frame already holding the old one keeps a consistent answer.
+//
+// It exists for the surface that asks about a single row without building the
+// list first (see `App.integrationFreshness`): the question is answered once and
+// remembered, so the frames after it are a map lookup rather than a stat.
+func rememberIntegrationFact(m *integrationFactsCache, id string, fact integrationFact) {
+	m.mu.Lock()
+	merged := make(map[string]integrationFact, len(m.facts)+1)
+	for key, value := range m.facts {
+		merged[key] = value
+	}
+	merged[id] = fact
+	m.facts = merged
 	m.mu.Unlock()
 }
 
@@ -152,7 +195,7 @@ func refreshIntegrationFacts(
 	var changed []extensions.Integration
 	for _, integration := range items {
 		fact, known := facts[integration.Entry.ID]
-		if !known || fact.key != integrationFactKey(integration) {
+		if !known || fact.partial || fact.key != integrationFactKey(integration) {
 			changed = append(changed, integration)
 		}
 	}

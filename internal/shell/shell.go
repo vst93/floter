@@ -2575,16 +2575,40 @@ func executableName(path string) string {
 
 // integrationFreshness reports what is known about one integration's command
 // list, for the card's freshness row.
+//
+// It is asked **per row per frame** — `settingsui.integrationRow` reads it once
+// while drawing each card — so it reads the facts memo rather than the disk
+// (see integrationfacts.go). The work it used to do per call was a lock, a
+// linear scan of the inventory, an `os.Stat` of the package directory and an
+// `os.ReadFile` of `help-probe.json`: twenty integrations made that twenty
+// stat+read pairs a frame on the drawing thread, the same shape as the runtime
+// probe and the manifest digest that are memoised beside it.
+//
+// The question is asked about one id without building the list first, so a miss
+// is answered here and remembered: a page drawing its first frame pays each row
+// once, and every frame after it is a map lookup. A rebuild of the inventory
+// drops the memo (`RefreshIntegrations`), which is when an answer may change.
 func (a *App) integrationFreshness(id string) (extensions.Freshness, bool) {
+	// This is the whole cost of a drawn row: one lock and one map lookup. The
+	// list's own pass fills the same memo when the page is built, so a card row
+	// almost always finds its answer waiting; a row asked about on its own (a
+	// test, or a surface that draws one card) pays the stat once and is
+	// remembered. A rebuild of the repository drops the memo, which is exactly
+	// when an answer may change.
+	facts, _, _ := integrationFactsMemo.snapshot()
+	if fact, ok := facts[id]; ok && fact.key != "" {
+		return fact.freshness, fact.hasFreshness
+	}
 	integration, ok := a.Integrations.Inventory().WithID(id)
 	if !ok {
 		return extensions.Freshness{}, false
 	}
-	freshness := extensions.FreshnessOf(a.Paths, integration)
-	if !freshness.Known() {
-		return extensions.Freshness{}, false
+	fact := integrationFact{key: integrationFactKey(integration), partial: true}
+	if freshness := extensions.FreshnessOf(integration.Paths, integration); freshness.Known() {
+		fact.freshness, fact.hasFreshness = freshness, true
 	}
-	return freshness, true
+	rememberIntegrationFact(&integrationFactsMemo, id, fact)
+	return fact.freshness, fact.hasFreshness
 }
 
 // toolForEdit is what a generated integration declares now, for the form to
