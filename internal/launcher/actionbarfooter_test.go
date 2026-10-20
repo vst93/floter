@@ -504,11 +504,23 @@ func TestTheHeldRowIsTheEmptyPagesAlone(t *testing.T) {
 		t.Errorf("the selection is on %d, want the held row %d", a.Selected, len(results)-1)
 	}
 
-	// The row carries no trailing badge: the reference's `bareTerminalRow` has
-	// no `shortcut`, and the numbered family never reaches it (R67), so
-	// `LauncherResults` leaves the slot empty there.
-	if held := results[len(results)-1]; held.Shortcut != "" {
-		t.Errorf("the held row prints a shortcut %q; the reference's slot is empty", held.Shortcut)
+	// The row's trailing badge is the action bar's own chord — not the empty
+	// slot the port had, and not a number either.
+	//
+	// R67 on the reference itself (`main:src/launcher/LauncherResults.tsx:1004-1018`):
+	// the row carries no `shortcut` of its own in `bareTerminalRow`, and the
+	// numbered family never reaches it — `resultShortcutSlots[index]` is null
+	// there — so `LauncherResults` substitutes `actionBarShortcut` for exactly
+	// this row (`isBareTerminalRow(item) ? actionBarShortcut : …`). The port
+	// read only the first half of that and printed nothing where every other
+	// row on the page prints its key; this pins the substituted chord.
+	held := results[len(results)-1]
+	if want := a.enterBadge(); held.Shortcut != want {
+		t.Errorf("the held row prints %q, want the action bar's chord %q (R67)",
+			held.Shortcut, want)
+	}
+	if held.Shortcut == "" {
+		t.Error("the held row is the page's only row with no key hint at all")
 	}
 
 	// Releasing gives the row up for good — it is not a fixed item.

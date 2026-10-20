@@ -2902,13 +2902,19 @@ func (a *App) heldTerminalItem() (Item, bool) {
 		ID:     bareTerminalRowID,
 		Title:  copy.BareTerminal,
 		Detail: copy.BareTerminalHint,
-		// No trailing badge: the reference's row is an ordinary `system` row
-		// with no `shortcut` of its own (`main:src/launcher/terminal-row.ts`
-		// `bareTerminalRow`), and the numbered family never reaches it (R67) —
-		// `LauncherResults` draws `resultShortcutSlots[index]`, which is null
-		// there. The port had printed the action bar's ⌘⏎ on it, a slot the
-		// design leaves empty; the chord still opens the row (the modifier is
-		// down when Enter is pressed, see `View`).
+		// The trailing badge is the action bar's own chord, and R67 says so on
+		// the reference itself (`main:src/launcher/LauncherResults.tsx:1004-1018`):
+		// the row's own `shortcut` is absent and the numbered family never
+		// reaches it (its `resultShortcutSlots[index]` is null), so without this
+		// it is the only row on the page with no key hint at all — the user asked
+		// for exactly that (「按住 super 键动态添加的打开终端项也要有快捷键提示」).
+		// The port read the first half of that rule (no `shortcut`, empty slot)
+		// and dropped the `isBareTerminalRow(item) ? actionBarShortcut` branch
+		// that replaces the empty slot, so the row was the one row on the page
+		// printing nothing where every other row prints its key. The chord is the
+		// same one that opens it: ⌘ put the row on screen and ⌘⏎ runs it (see
+		// `View`).
+		Shortcut: a.enterBadge(),
 		Run: func() {
 			if a.Actions.OpenTerminal != nil {
 				a.Actions.OpenTerminal()
