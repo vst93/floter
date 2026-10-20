@@ -65,10 +65,24 @@ jobs:
         with:
           fetch-depth: 0
 
+      # 默认版本号由 `internal/versioning` 算，不由 mygo.json 加一算：分支上的
+      # mygo.json 是**分支的快照，不是发布的快照**（下面那句「版本号只写在这次
+      # 构建的工作区里」就是原因），所以它一直停在 0.3.24，而 release 已经走到
+      # 0.3.25。用它加一就会算出 0.3.25 —— 一个用户已经装上的版本 —— 然后
+      # `gh release upload --clobber` 把这个 release 的资产换成新的字节：同号
+      # 不同包，更新器比版本号，于是那些人永远收不到这次修复。规则与测试在
+      # `internal/versioning`（三平台可跑），这里只负责把「已存在的版本」喂给它。
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
       - name: 计算版本号
         id: version
         env:
           INPUT_VERSION: ${{ inputs.version }}
+          # 撞号检查要能问 release 是否存在。
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -e
           CURRENT=$(grep -oP '"version":\s*"\K[^"]+' mygo.json)
@@ -77,14 +91,22 @@ jobs:
           elif [ -n "$INPUT_VERSION" ]; then
             VERSION="$INPUT_VERSION"
           else
-            BASE="${CURRENT%%[-+]*}"
-            MAJOR=$(echo "$BASE" | cut -d. -f1)
-            MINOR=$(echo "$BASE" | cut -d. -f2)
-            PATCH=$(echo "$BASE" | cut -d. -f3)
-            VERSION="$MAJOR.$MINOR.$((PATCH + 1))"
+            # 远端与本地的 tag 都要，去重后交给 Go：远端是权威（本地 shallow /
+            # fork 的 tag 可能缺），本地作为 ls-remote 失败时的兜底。
+            EXISTING=$( (git ls-remote --tags origin 'refs/tags/mygo-v*' 2>/dev/null || true)
+                       git tag --list 'mygo-v*' 2>/dev/null || true
+                       grep '^## \[' CHANGELOG.md 2>/dev/null | sed -nE 's/^## \[([0-9][^]]*)\].*/\1/p' || true )
+            VERSION=$(go run ./internal/versioning/cmd/next-version -current "$CURRENT" $EXISTING)
           fi
           if ! [[ "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
             echo "::error::不是合法的语义化版本号：$VERSION" >&2
+            exit 1
+          fi
+          # 显式点了一个已存在的版本 = 重建它（有意为之，允许 clobber）；自动算出
+          # 的版本撞上已有 release 则一定是规则出了问题，宁可红也不覆盖用户的包。
+          if [ "$GITHUB_REF_TYPE" != "tag" ] && [ -z "$INPUT_VERSION" ] \
+             && gh release view "mygo-v$VERSION" >/dev/null 2>&1; then
+            echo "::error::算出的版本 $VERSION 已经有 release 了，拒绝用新构建覆盖它（同号不同包会让更新器失效）" >&2
             exit 1
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
