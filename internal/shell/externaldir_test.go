@@ -2,6 +2,7 @@ package shell
 
 import (
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/plugins/terminal"
 
@@ -42,5 +43,42 @@ func TestTheTerminalHandOffAsksForTheSessionsDirectory(t *testing.T) {
 	// was told a directory would pass it on rather than dropping it.
 	if got := silent.externalTerminalDir(); got != "" {
 		t.Errorf("a session with no report is %q, want the empty login-shell directory", got)
+	}
+}
+
+// The hand-off's process probe is not the drawing thread's work: `spawn.
+// TerminalAt` walks candidate emulators and watches each for an early death
+// (`spawn.earlyExitWindow`) under a `spawn.probeBudget` of 400ms, so on a
+// machine whose first candidate is broken the press blocked the frame that
+// drew it — and a key the desktop repeats queued one probe per repeat behind
+// that frame (the 「反复弹出终端，从而导致卡死」 report). The probe therefore
+// runs off the press, and this pins it the only way it can be pinned without a
+// stopwatch: `openTerminalWindow` returns while the probe has not run yet.
+func TestTheTerminalProbeLeavesTheDrawingThread(t *testing.T) {
+	release := make(chan struct{})
+	ran := make(chan struct{})
+	original := terminalAt
+	terminalAt = func(string) error {
+		<-release // hold the probe until the test has seen the press return
+		close(ran)
+		return nil
+	}
+	t.Cleanup(func() { terminalAt = original })
+
+	a := launchTestApp(t, &launchCalls{})
+	a.openExternalTerminal = nil
+	a.openTerminalWindow()
+	// The press has returned and the probe has still not finished: it is off
+	// the frame.
+	select {
+	case <-ran:
+		t.Fatal("the probe ran on the drawing thread")
+	default:
+	}
+	close(release)
+	select {
+	case <-ran:
+	case <-time.After(3 * time.Second):
+		t.Fatal("the probe never ran")
 	}
 }

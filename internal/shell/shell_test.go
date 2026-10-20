@@ -19,6 +19,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -1711,7 +1712,9 @@ func TestCustomShortcutsRegisterAndRun(t *testing.T) {
 	live := map[string]func(){}
 	taken := map[string]bool{"Cmd+Shift+T": true}
 	silent := []string{}
-	external := 0
+	// The external-terminal hand-off runs its process probe off the drawing
+	// thread (see spawnExternalTerminal), so the count crosses goroutines.
+	var external atomic.Int32
 
 	initial := settings.Default()
 	initial.SetCustomShortcuts([]settings.CustomShortcut{
@@ -1735,7 +1738,7 @@ func TestCustomShortcutsRegisterAndRun(t *testing.T) {
 		},
 		UnregisterShortcut:   func(accelerator string) { delete(live, accelerator) },
 		RunSilentCommand:     func(command string) error { silent = append(silent, command); return nil },
-		OpenExternalTerminal: func() error { external++; return nil },
+		OpenExternalTerminal: func() error { external.Add(1); return nil },
 	})
 
 	rejections := a.ApplyCustomShortcuts()
@@ -1769,8 +1772,14 @@ func TestCustomShortcutsRegisterAndRun(t *testing.T) {
 		t.Errorf("new_command: surface %v query %q", a.Surf, a.Launcher.Query)
 	}
 	live["Cmd+Shift+E"]()
-	if external != 1 {
-		t.Errorf("external terminal ran %d times", external)
+	// The hand-off is asynchronous now: wait for it, then settle so a second
+	// run the gate wrongly allowed would be counted too.
+	for external.Load() == 0 && time.Now().Before(time.Now().Add(3*time.Second)) {
+		time.Sleep(5 * time.Millisecond)
+	}
+	time.Sleep(50 * time.Millisecond)
+	if got := external.Load(); got != 1 {
+		t.Errorf("external terminal ran %d times", got)
 	}
 
 	// Anything else is a command line, run silently.
@@ -3808,6 +3817,12 @@ func TestTerminalOpenExternalFailureSpeaksInThePanel(t *testing.T) {
 	}
 	a.Open(SurfaceTerminal)
 	a.Terminal.Actions.OpenExternal()
+	// The hand-off is a process probe and runs off the drawing thread (see
+	// shell.spawnExternalTerminal), so the notice lands a moment later.
+	deadline := time.Now().Add(3 * time.Second)
+	for !a.Terminal.FeedbackVisible() && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+	}
 	if !a.Terminal.FeedbackVisible() {
 		t.Fatal("the failure was silent")
 	}

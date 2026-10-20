@@ -211,9 +211,37 @@ func (a *App) spawnExternalTerminal(failed func(error)) {
 	if !a.allowSpawn(spawnExternal) {
 		return
 	}
-	if err := a.OpenExternalTerminal(); err != nil {
-		failed(err)
+	// The hand-off is a *probe*, not just a fork: `spawn.TerminalAt` starts
+	// candidate emulators and watches each for an early death
+	// (`spawn.earlyExitWindow`), bounded by `spawn.probeBudget` — a machine
+	// whose first candidate is a broken emulator therefore spends the whole
+	// budget before it answers. That used to run inside the press, i.e. on the
+	// drawing thread, so a press the desktop repeats (or a user pressing the
+	// shortcut again) queued probe after probe behind a frozen frame — the
+	// 「反复弹出终端，从而导致卡死」 report's second half. The press keeps its
+	// single-flight gate here and the process work happens off the frame; the
+	// failure comes back through the caller's callback, which is already
+	// marshalled to the main thread by every caller.
+	//
+	// The directory is read *here*, on the calling thread: the sessions are the
+	// drawing thread's own state, and only the process work may leave it.
+	dir := a.externalTerminalDir()
+	if a.openExternalTerminal != nil {
+		// An injected hand-off is not a process probe — it is a stand-in that
+		// answers at once (a test's recorder, a host's own emulator call), so
+		// it runs where the press is rather than making every caller of this
+		// gate asynchronous. Only `spawn.TerminalAt`'s candidate walk is
+		// expensive enough to owe the frame a goroutine.
+		if err := a.openExternalTerminal(); err != nil {
+			failed(err)
+		}
+		return
 	}
+	go func() {
+		if err := a.openExternalTerminalAt(dir); err != nil {
+			failed(err)
+		}
+	}()
 }
 
 // openTerminalLink opens what a Command+click in the terminal points at: a

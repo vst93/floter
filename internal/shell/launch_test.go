@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sync"
 	"testing"
 	"time"
 
@@ -23,11 +24,48 @@ import (
 // run: opening a path, the terminal in a directory, the user's own terminal,
 // and a power action.
 type launchCalls struct {
+	// mu guards external: the external-terminal hand-off runs its process
+	// probe off the drawing thread (see spawnExternalTerminal), so the count
+	// is written from another goroutine. The other fields are filled from the
+	// test's own thread.
+	mu         sync.Mutex
+	external   int
 	opened     []string
 	terminals  []string
-	external   int
 	installs   []string
 	powerCalls []string
+}
+
+// noteExternal records one hand-off to the user's own emulator.
+func (c *launchCalls) noteExternal() {
+	c.mu.Lock()
+	c.external++
+	c.mu.Unlock()
+}
+
+// externalCount is how many hand-offs have run so far.
+func (c *launchCalls) externalCount() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.external
+}
+
+// waitExternal waits for the hand-off count to reach want, and then lets a
+// little more time pass so a *second* hand-off the test is asserting against
+// would have had the chance to land: the probe is asynchronous now, so a bare
+// read of the count would pass whichever way the gate behaved.
+func (c *launchCalls) waitExternal(t *testing.T, want int) {
+	t.Helper()
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		if c.externalCount() >= want {
+			// Settle: a repeat the gate wrongly allowed would arrive here.
+			time.Sleep(50 * time.Millisecond)
+			return
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	t.Fatalf("the terminal was opened %d times, want %d", c.externalCount(), want)
 }
 
 func launchTestApp(t *testing.T, calls *launchCalls) *App {
@@ -42,7 +80,7 @@ func launchTestApp(t *testing.T, calls *launchCalls) *App {
 		RunPowerCommand:  func(action string) error { calls.powerCalls = append(calls.powerCalls, action); return nil },
 		RunSilentCommand: func(string) error { return nil },
 		OpenExternalTerminal: func() error {
-			calls.external++
+			calls.noteExternal()
 			return nil
 		},
 	})
@@ -95,8 +133,9 @@ func TestExternalTerminalShortcutOpensATerminal(t *testing.T) {
 	// The launcher's own action is what the shortcut fires, and the shell
 	// answers it now.
 	a.Launcher.Actions.OpenTerminalWindow()
-	if calls.external != 1 {
-		t.Errorf("the terminal was opened %d times", calls.external)
+	calls.waitExternal(t, 1)
+	if got := calls.externalCount(); got != 1 {
+		t.Errorf("the terminal was opened %d times", got)
 	}
 	_ = launcher.PowerRestart
 }
@@ -354,13 +393,15 @@ func TestTerminalHandOffIgnoresRepeats(t *testing.T) {
 	a.openTerminalWindow()
 	a.openTerminalWindow()
 	a.openTerminalWindow()
-	if calls.external != 1 {
-		t.Fatalf("three presses started %d terminals, want 1", calls.external)
+	calls.waitExternal(t, 1)
+	if got := calls.externalCount(); got != 1 {
+		t.Fatalf("three presses started %d terminals, want 1", got)
 	}
 	clock = clock.Add(spawnGap + time.Millisecond)
 	a.openTerminalWindow()
-	if calls.external != 2 {
-		t.Errorf("a press after the gap started %d terminals in total, want 2", calls.external)
+	calls.waitExternal(t, 2)
+	if got := calls.externalCount(); got != 2 {
+		t.Errorf("a press after the gap started %d terminals in total, want 2", got)
 	}
 }
 
@@ -376,20 +417,22 @@ func TestEveryExternalTerminalRouteIsSingleFlight(t *testing.T) {
 
 	a.runAppAction(settings.CustomActionOpenExternalTerminal)
 	a.runAppAction(settings.CustomActionOpenExternalTerminal)
-	if calls.external != 1 {
-		t.Fatalf("the custom action started %d terminals, want 1", calls.external)
+	calls.waitExternal(t, 1)
+	if got := calls.externalCount(); got != 1 {
+		t.Fatalf("the custom action started %d terminals, want 1", got)
 	}
 
 	clock = clock.Add(spawnGap + time.Millisecond)
 	a.spawnExternalTerminal(func(error) {})
-	if calls.external != 2 {
-		t.Errorf("a hand-off after the gap started %d terminals in total, want 2", calls.external)
+	calls.waitExternal(t, 2)
+	if got := calls.externalCount(); got != 2 {
+		t.Errorf("a hand-off after the gap started %d terminals in total, want 2", got)
 	}
 	// And the terminal page's hint shares the same clock: an immediate repeat
 	// is dropped rather than opening a third window.
 	a.spawnExternalTerminal(func(error) {})
-	if calls.external != 2 {
-		t.Errorf("a repeat right after the gap started %d terminals, want 2", calls.external)
+	if got := calls.externalCount(); got != 2 {
+		t.Errorf("a repeat right after the gap started %d terminals, want 2", got)
 	}
 }
 

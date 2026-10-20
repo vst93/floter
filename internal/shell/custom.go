@@ -200,11 +200,23 @@ func (a *App) runSilentCommand(command string) error {
 // it was. The Go build runs its terminal in-process, so this is a *new* shell
 // rather than a hand-off of the running session — the directory is what carries
 // the session over.
+//
+// It blocks for as long as the emulator probe takes (`spawn.probeBudget`), so a
+// UI path must not call it directly: `spawnExternalTerminal` is the gate the
+// surfaces use, and it runs this off the drawing thread.
 func (a *App) OpenExternalTerminal() error {
+	return a.openExternalTerminalAt(a.externalTerminalDir())
+}
+
+// openExternalTerminalAt is OpenExternalTerminal for a directory already
+// sampled: the sessions are the drawing thread's own state, so the directory is
+// read there and only the process work moves off it (see
+// spawnExternalTerminal).
+func (a *App) openExternalTerminalAt(dir string) error {
 	if a.openExternalTerminal != nil {
 		return a.openExternalTerminal()
 	}
-	return terminalAt(a.externalTerminalDir())
+	return terminalAt(dir)
 }
 
 // terminalAt is the one call that starts an emulator, named so a test can stand
