@@ -18,6 +18,7 @@ import (
 	"runtime/debug"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -1308,14 +1309,23 @@ func TestClipboardFormatHelpers(t *testing.T) {
 }
 
 func TestCopyClipboardEntryRestoresTheKind(t *testing.T) {
+	var mu sync.Mutex
 	var written []ClipboardPayload
+	images := make(chan ClipboardPayload, 1)
 	store := settings.NewStore(settings.Default())
 	a := New(Options{
 		Store:       store,
 		Paths:       extensions.FromRoot(t.TempDir()),
 		NewTerminal: func(terminal.Options) (*terminal.Terminal, error) { return nil, errors.New("no library in tests") },
 		OpenAtLogin: func() bool { return false }, SetOpenAtLogin: func(bool) error { return nil },
-		WriteClipboard: func(payload ClipboardPayload) { written = append(written, payload) },
+		WriteClipboard: func(payload ClipboardPayload) {
+			mu.Lock()
+			written = append(written, payload)
+			mu.Unlock()
+			if payload.Kind == clipboard.KindImage {
+				images <- payload
+			}
+		},
 	})
 
 	// A file list goes back as files, an image as bytes, text as text.
@@ -1324,29 +1334,78 @@ func TestCopyClipboardEntryRestoresTheKind(t *testing.T) {
 		t.Fatal(err)
 	}
 	a.copyClipboardEntry(entry)
+	mu.Lock()
 	if len(written) != 1 || written[0].Kind != clipboard.KindFiles || len(written[0].Paths) != 2 {
 		t.Fatalf("files payload = %+v", written)
 	}
+	mu.Unlock()
 	if a.selfCopied != "" {
 		t.Errorf("a file copy recorded text: %q", a.selfCopied)
 	}
 
+	// The image's bytes are read off the drawing thread, so the payload lands
+	// on a later frame: the pick must return without it (that is the guard
+	// below), and the write is awaited here.
 	png := testPNGBytes(t)
 	image, _, err := a.Clipboard.AddImage(png, 4, 4)
 	if err != nil {
 		t.Fatal(err)
 	}
 	a.copyClipboardEntry(image)
-	if len(written) != 2 || written[1].Kind != clipboard.KindImage || len(written[1].Image) != len(png) {
-		t.Errorf("image payload = %+v", written[1].Kind)
+	select {
+	case payload := <-images:
+		if len(payload.Image) != len(png) {
+			t.Errorf("image payload carried %d bytes, want %d", len(payload.Image), len(png))
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("the image was never written back")
 	}
 
 	a.copyClipboardEntry(clipboard.Entry{Kind: clipboard.KindText, Text: "hello"})
-	if len(written) != 3 || written[2].Text != "hello" {
-		t.Errorf("text payload = %+v", written[2])
+	mu.Lock()
+	last := written[len(written)-1]
+	mu.Unlock()
+	if last.Kind != clipboard.KindText || last.Text != "hello" {
+		t.Errorf("text payload = %+v", last)
 	}
 	if a.selfCopied != "hello" {
 		t.Errorf("selfCopied = %q", a.selfCopied)
+	}
+}
+
+// The image half of a clipboard pick is a file read, and the history's file is
+// a whole screenshot. It used to run inside `copyClipboardEntry`, i.e. between
+// two frames on the thread that draws them — the pinned image is tens of
+// megabytes, on the same disk the terminal is writing to (the report 「很多界面
+// 经常卡死」). The pick now returns first and the read lands on a goroutine, so
+// the guard is: the writer has not been called yet when the pick returns.
+func TestTheImageCopyLeavesTheDrawingThread(t *testing.T) {
+	written := make(chan ClipboardPayload, 1)
+	a := New(Options{
+		Store:       settings.NewStore(settings.Default()),
+		Paths:       extensions.FromRoot(t.TempDir()),
+		NewTerminal: func(terminal.Options) (*terminal.Terminal, error) { return nil, errors.New("no library in tests") },
+		OpenAtLogin: func() bool { return false }, SetOpenAtLogin: func(bool) error { return nil },
+		WriteClipboard: func(payload ClipboardPayload) { written <- payload },
+	})
+	png := testPNGBytes(t)
+	image, _, err := a.Clipboard.AddImage(png, 4, 4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.copyClipboardEntry(image)
+	select {
+	case <-written:
+		t.Fatal("the image was written on the drawing thread")
+	default:
+	}
+	select {
+	case payload := <-written:
+		if payload.Kind != clipboard.KindImage || len(payload.Image) != len(png) {
+			t.Errorf("payload = %+v, want the image's own bytes", payload.Kind)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("the background read never landed")
 	}
 }
 

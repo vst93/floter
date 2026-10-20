@@ -2830,27 +2830,23 @@ func (a *App) openURL(browserID, url string) error {
 }
 
 // copyClipboardEntry puts a clipboard entry back on the clipboard: its text,
-// its file list, or its image. The payload is built here (an image is read
-// from the history) and written by the injected writer.
+// its file list, or its image. The payload is built here and written by the
+// injected writer.
+//
+// An image's bytes are the one part read off the drawing thread: this runs on
+// the key press (or the row's click), and the history's own file is a whole
+// screenshot — the read and the clipboard write must not sit between two
+// frames (the report 「很多界面经常卡死」). Text and a file list are already in
+// hand, so they are written here and now, in the order the user's picks
+// arrive.
 func (a *App) copyClipboardEntry(entry clipboard.Entry) {
+	if entry.Kind == clipboard.KindImage {
+		a.copyClipboardImage(entry)
+		return
+	}
 	payload := ClipboardPayload{Kind: entry.Kind, Text: entry.Text}
-	switch entry.Kind {
-	case clipboard.KindFiles:
+	if entry.Kind == clipboard.KindFiles {
 		payload.Paths = append([]string{}, entry.Paths...)
-	case clipboard.KindImage:
-		path := a.Clipboard.ImagePath(entry)
-		if path == "" {
-			return
-		}
-		png, err := os.ReadFile(path)
-		if err != nil {
-			log.Printf("floter: could not read the pinned image: %v", err)
-			a.onMain(func() {
-				a.Launcher.WarnFeedback(i18n.For(a.Store.Snapshot().Language).Launcher.ClipboardCopyFailed)
-			})
-			return
-		}
-		payload.Image = png
 	}
 	// The watcher must not record what the app itself wrote.
 	if entry.Kind == clipboard.KindText {
@@ -2861,6 +2857,35 @@ func (a *App) copyClipboardEntry(entry clipboard.Entry) {
 	if a.writeClipboard != nil {
 		a.writeClipboard(payload)
 	}
+}
+
+// copyClipboardImage reads a pinned image off the drawing thread and writes it
+// back on the main one. A read that fails is reported on the surface the pick
+// came from, as the inline path did.
+func (a *App) copyClipboardImage(entry clipboard.Entry) {
+	if a.Clipboard == nil {
+		return
+	}
+	path := a.Clipboard.ImagePath(entry)
+	if path == "" {
+		return
+	}
+	go func() {
+		png, err := os.ReadFile(path)
+		if err != nil {
+			log.Printf("floter: could not read the pinned image: %v", err)
+			a.onMain(func() {
+				a.Launcher.WarnFeedback(i18n.For(a.Store.Snapshot().Language).Launcher.ClipboardCopyFailed)
+			})
+			return
+		}
+		a.onMain(func() {
+			a.selfCopied = ""
+			if a.writeClipboard != nil {
+				a.writeClipboard(ClipboardPayload{Kind: clipboard.KindImage, Image: png})
+			}
+		})
+	}()
 }
 
 // systemClipboardWrite is the default clipboard writer: the system clipboard
