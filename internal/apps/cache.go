@@ -22,6 +22,14 @@ import (
 // the disk is asked again.
 const signatureCheckInterval = 30 * time.Second
 
+// scanMaxAge is how long a cached scan is trusted at all, whatever its
+// signature says. The signature covers the filesystem; on Windows it cannot see
+// the uninstall registry, which is where a program that ships no shortcut lives,
+// so a cached list would never learn about one (`max_cache_age`,
+// `main:src-tauri/src/commands/apps/windows.rs:85`, the reference's own fallback
+// "for installers that only edit values in an existing child key").
+const scanMaxAge = 30 * time.Minute
+
 // scanCache holds the last scan, its signature, and when the signature was
 // computed.
 var (
@@ -31,6 +39,7 @@ var (
 	scanSigAt   time.Time
 	scanHasSig  bool
 	scanHasApps bool
+	scanStored  time.Time
 )
 
 // SourceSignature is the FNV-1a hash of the paths the scan would observe —
@@ -113,6 +122,10 @@ func CachedScan(roots []string) (found []App, upToDate bool) {
 		return nil, false
 	}
 	now := time.Now()
+	if !scanStored.IsZero() && now.Sub(scanStored) >= scanMaxAge {
+		// Stale however fresh the filesystem looks (see scanMaxAge).
+		return scanApps, false
+	}
 	if !scanHasSig || now.Sub(scanSigAt) >= signatureCheckInterval {
 		scanSig = SourceSignature(roots)
 		scanSigAt = now
@@ -135,4 +148,5 @@ func StoreScan(roots []string, found []App) {
 	scanSigAt = time.Now()
 	scanHasSig = true
 	scanHasApps = true
+	scanStored = time.Now()
 }

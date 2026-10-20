@@ -17,6 +17,7 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/transfer"
 
+	"floter/internal/apps"
 	"floter/internal/extensions"
 	"floter/internal/i18n"
 	"floter/internal/settings"
@@ -759,6 +760,10 @@ func (a *App) Rescan() {
 		return
 	}
 	defer a.rescan.end()
+	// The user is saying a program was installed a moment ago, so the registry's
+	// own 30-minute memo is the one thing that must not answer this scan (see
+	// apps.ResetRegistryCache).
+	apps.ResetRegistryCache()
 	a.scanApps()
 	a.scanTools()
 	a.scanToolCatalog()

@@ -106,3 +106,22 @@ func TestPathsSignature(t *testing.T) {
 		t.Error("an empty list hashed like a non-empty one")
 	}
 }
+
+// A cached scan older than scanMaxAge is rebuilt even when every source it
+// observed is still identical: on Windows the signature cannot see the uninstall
+// registry, so a program installed without a Start Menu shortcut would never
+// reach the list (the reference's `max_cache_age`).
+func TestACachedScanGoesStaleByAge(t *testing.T) {
+	dir := t.TempDir()
+	roots := []string{dir}
+	StoreScan(roots, []App{{Name: "Safari", Path: filepath.Join(dir, "Safari.app")}})
+	if _, upToDate := CachedScan(roots); !upToDate {
+		t.Fatal("a scan just stored is not up to date")
+	}
+	scanMu.Lock()
+	scanStored = time.Now().Add(-scanMaxAge - time.Minute)
+	scanMu.Unlock()
+	if _, upToDate := CachedScan(roots); upToDate {
+		t.Error("a scan older than the maximum age was still served as up to date")
+	}
+}

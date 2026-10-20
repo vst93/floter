@@ -68,6 +68,11 @@ type App struct {
 	// the entry is installed at all. It is not part of an App's identity — only
 	// ScanLinux reads it, to drop entries for programs that are not here.
 	tryExec string
+	// target is what a Windows shortcut points at, when it could be read. The
+	// registry's entries name executables directly, so this is what lets the
+	// second source skip a program the Start Menu already listed (the
+	// reference's shared `seen_targets`, `windows.rs:60-76`).
+	target string
 }
 
 // launchCommand is the program and arguments Open runs for an app that carries
@@ -172,6 +177,11 @@ func Scan(roots []string) []App {
 			break
 		}
 	}
+	if runtime.GOOS == "windows" {
+		// The Start Menu is not the whole of what is installed (see
+		// scanRegistryPrograms): the uninstall keys fill the gaps.
+		found = append(found, scanRegistryPrograms(found)...)
+	}
 	return dedupe(found)
 }
 
@@ -257,10 +267,65 @@ func ScanWindows(root string) []App {
 			Path:     path,
 			Aliases:  buildAliases(base, "", candidates),
 			Initials: computeInitials(base, ""),
+			target:   target,
 		})
 		return true
 	})
 	sortApps(out)
+	return out
+}
+
+// scanRegistryPrograms is the Windows scan's second source: the programs the
+// uninstall registry lists but no Start Menu shortcut names — a driver's control
+// panel, a per-user install into a folder nobody put in `Programs`, a program
+// whose installer the user told to create no shortcut at all
+// (`collect_registry_programs`, `windows.rs:260-330`).
+//
+// The rows it adds are the same shape the shortcut scan produces: the
+// executable's name is the Latin alias of a Chinese display name, the pinyin
+// initials make the name reachable the way they are on macOS and Linux, and a
+// program already listed — by target or by name — is not listed twice. Off
+// Windows the sources are nil and this is a no-op.
+func scanRegistryPrograms(existing []App) []App {
+	sources := registrySources()
+	if len(sources) == 0 {
+		return nil
+	}
+	seenTargets := make(map[string]bool, len(existing))
+	seenNames := make(map[string]bool, len(existing))
+	for _, app := range existing {
+		if app.target != "" {
+			seenTargets[strings.ToLower(app.target)] = true
+		}
+		seenNames[strings.ToLower(app.Name)] = true
+	}
+	var out []App
+	for _, text := range sources {
+		for _, program := range ParseRegistryPrograms(text) {
+			executable := program.Executable()
+			if executable == "" {
+				continue
+			}
+			targetKey := strings.ToLower(executable)
+			nameKey := strings.ToLower(program.DisplayName)
+			if seenTargets[targetKey] || seenNames[nameKey] {
+				continue
+			}
+			seenTargets[targetKey] = true
+			seenNames[nameKey] = true
+			var candidates []string
+			if name := ShortcutTargetName(executable); name != "" {
+				candidates = append(candidates, name)
+			}
+			out = append(out, App{
+				Name:     program.DisplayName,
+				Path:     executable,
+				Aliases:  buildAliases(program.DisplayName, "", candidates),
+				Initials: computeInitials(program.DisplayName, ""),
+				target:   executable,
+			})
+		}
+	}
 	return out
 }
 
