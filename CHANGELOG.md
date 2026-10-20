@@ -17,6 +17,13 @@ floter 面向用户的变更记录。格式参考 [Keep a Changelog](https://kee
 
 ### Fixed
 
+- **三平台的测试门禁重新可信（Windows 的 CI 连续 8 个提交全红）**：`Test (windows-latest)`
+  一直红着，红的原因是两条断言在赌平台假设而不是产品行为——一条等 NTFS 在新建子目录时立刻
+  更新父目录的 mtime（NTFS 不保证，缓存签名哈希的是**路径名**，Windows 上一直是好的），一条
+  拿 `#!/bin/sh` 扩展当夹具（Windows 没有 `sh`，扩展的脚本语言在那里是 `powershell`）。前者
+  改成断言产品真正的契约，后者显式跳过。对用户的影响是间接但关键的：Windows 的行为此前没有
+  任何可执行的门禁，回归只能等实机报障。
+
 - **Windows 的卡片圆角与 macOS/Linux 对齐（14px）**：Windows 的卡片此前用 8px，理由只有一个
   ——DWM 会自己把每个窗口圆角裁到 ~8px，14px 的卡片角会在四角漏出系统框色。本版改为让 DWM
   **不**圆角（`DWMWCP_DONOTROUND`）、同时去掉它画的那一圈 1px 边框，于是窗口矩形是方的、屏幕

@@ -3135,6 +3135,7 @@ func TestPowerFallbacksRun(t *testing.T) {
 // permission dialog an install uses, and a refusal connects nothing. The
 // register link brings the integrations page up and stops there.
 func TestDeepLinkConnectAndRegister(t *testing.T) {
+	requirePOSIXShell(t)
 	paths := extensions.FromRoot(t.TempDir())
 	if err := paths.Ensure(); err != nil {
 		t.Fatal(err)
@@ -3219,6 +3220,7 @@ func TestDeepLinkConnectAndRegister(t *testing.T) {
 // A stored lifecycle health is shown on the row, from the repository entry the
 // reprobe persisted.
 func TestHealthShowsOnTheRow(t *testing.T) {
+	requirePOSIXShell(t)
 	paths := extensions.FromRoot(t.TempDir())
 	if err := paths.Ensure(); err != nil {
 		t.Fatal(err)
@@ -3432,6 +3434,7 @@ func TestApprovalRecordReachesTheCard(t *testing.T) {
 
 // The persisted report, for the debugging of the health display.
 func TestDebugPersistedReport(t *testing.T) {
+	requirePOSIXShell(t)
 	paths := extensions.FromRoot(t.TempDir())
 	if err := paths.Ensure(); err != nil {
 		t.Fatal(err)
@@ -3762,6 +3765,7 @@ func TestTerminalOpenExternalFailureSpeaksInThePanel(t *testing.T) {
 // config generation are real rather than a stub.
 func configuredIntegrationFixture(t *testing.T, saveDialog func(string) (string, error)) (*App, extensions.Paths) {
 	t.Helper()
+	requirePOSIXShell(t)
 	paths := extensions.FromRoot(t.TempDir())
 	if err := paths.Ensure(); err != nil {
 		t.Fatal(err)

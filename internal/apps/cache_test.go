@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestCachedScanRoundTrip(t *testing.T) {
@@ -60,19 +61,46 @@ func TestPathsSignature(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(dir, "a"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	one := pathsSignature([]string{dir})
-	// Order does not matter.
-	two := pathsSignature([]string{dir})
-	if one != two {
+	one := SourceSignature([]string{dir})
+	// The same sources hash the same way, and the order they are listed in
+	// does not matter: the paths are sorted before they are hashed.
+	if two := SourceSignature([]string{dir}); one != two {
 		t.Errorf("the same sources hashed differently: %d vs %d", one, two)
 	}
-	// A new entry changes the signature.
+	other := t.TempDir()
+	if SourceSignature([]string{dir, other}) != SourceSignature([]string{other, dir}) {
+		t.Error("the sources' order changed the signature")
+	}
+
+	// A new entry changes the signature. What covers it is the entry's own
+	// path — the cache hashes the roots *and* their first two levels of names,
+	// not the root's modification time, which is a guarantee Windows does not
+	// give: NTFS writes a directory's timestamps when its handle closes, so a
+	// child created moments ago may leave the parent's mtime untouched. This
+	// test used to hash a bare root path and wait on that mtime; it read as a
+	// cache bug on windows-latest while the cache was answering correctly.
 	if err := os.MkdirAll(filepath.Join(dir, "b"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if pathsSignature([]string{dir}) == one {
+	if SourceSignature([]string{dir}) == one {
 		t.Error("a new entry did not change the signature")
 	}
+
+	// A change in place — same name, new mtime — is covered too: each path's
+	// modification time is mixed into the hash. The file's own time is set
+	// explicitly rather than waited on, so this holds on every filesystem.
+	tool := filepath.Join(dir, "a", "tool")
+	if err := os.WriteFile(tool, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	before := SourceSignature([]string{dir})
+	if err := os.Chtimes(tool, time.Unix(1000000, 0), time.Unix(1000000, 0)); err != nil {
+		t.Fatal(err)
+	}
+	if SourceSignature([]string{dir}) == before {
+		t.Error("a touched file did not change the signature")
+	}
+
 	// An empty list hashes to something, and different lists differ.
 	if pathsSignature(nil) == pathsSignature([]string{dir}) {
 		t.Error("an empty list hashed like a non-empty one")
