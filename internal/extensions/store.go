@@ -227,6 +227,16 @@ type CommandInfo struct {
 // CommandRegistry lists every command of every integration that has a
 // provider description, sorted by (extension id, command id) so the panel's
 // rows are deterministic.
+//
+// The rows carry no runtime answer. `CommandInfo.Available` used to be filled
+// here by calling ResolveRuntime per integration, and that call is a stat walk
+// (a `system` runtime with no recorded path is looked up by name in every
+// search directory) — paid again on every call of a function the settings page
+// builds its whole list from, sixty times a second while the page is open. The
+// answer is the same one the card's own rows already ask for, and the shell
+// holds it in the integration-facts memo (internal/shell/integrationfacts.go),
+// so it is filled from there and this function stays a pure projection of the
+// store's inventory.
 func (s *Store) CommandRegistry() []CommandInfo {
 	s.mu.Lock()
 	inventory, descriptions := s.inventory, s.descriptions
@@ -238,8 +248,7 @@ func (s *Store) CommandRegistry() []CommandInfo {
 		if !ok {
 			continue
 		}
-		_, resolveErr := ResolveRuntime(integration)
-		available := resolveErr == nil
+		available := false
 		commands := description.Commands
 		declared := len(commands)
 		if configuration, ok := ConfigurationCommand(integration, description); ok {

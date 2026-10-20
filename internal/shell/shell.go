@@ -1557,6 +1557,19 @@ func (a *App) integrationList() []settingsui.Integration {
 	aliases := settings.CommandAliasesOf(a.Store.Snapshot())
 	resolved := settings.ResolveCommandAliases(aliases)
 	commands := map[string][]settingsui.Command{}
+	// The per-integration system calls the page used to pay on every frame
+	// come from one memo (see integrationfacts.go): the runtime probe and the
+	// manifest digest are a stat walk and a file read, and the settings page
+	// rebuilds this list sixty times a second.
+	facts := a.integrationFacts(inventory.Integrations)
+	// `CommandRegistry` is a pure projection of the description table (it used
+	// to resolve every runtime itself — one stat walk per integration per
+	// frame, the same number the memo above already holds), so a command row's
+	// own availability comes from the memo, by extension.
+	commandAvailable := func(id string) bool {
+		fact, ok := facts[id]
+		return ok && fact.available
+	}
 	for _, info := range a.Integrations.CommandRegistry() {
 		alias := aliases[info.CommandID]
 		_, live := resolved[info.CommandID]
@@ -1567,17 +1580,12 @@ func (a *App) integrationList() []settingsui.Integration {
 			Aliases:     append([]string{}, info.Aliases...),
 			Declared:    info.Declared,
 			Enabled:     switches.Enabled(info.ExtensionID, info.CommandID),
-			Available:   info.Available,
+			Available:   commandAvailable(info.ExtensionID),
 			Alias:       alias,
 			Taken:       strings.TrimSpace(alias) != "" && !live,
 		})
 	}
 	out := make([]settingsui.Integration, 0, len(inventory.Integrations))
-	// The two per-integration system calls the page used to pay on every frame
-	// come from one memo (see integrationfacts.go): the runtime probe and the
-	// manifest digest are a stat walk and a file read, and the settings page
-	// rebuilds this list sixty times a second.
-	facts := a.integrationFacts(inventory.Integrations)
 	for _, integration := range inventory.Integrations {
 		item := settingsui.Integration{
 			ID:          integration.Entry.ID,

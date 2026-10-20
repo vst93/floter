@@ -354,3 +354,41 @@ func TestAPartialFactIsRefilledByTheList(t *testing.T) {
 		t.Errorf("the list's pass left the fact partial")
 	}
 }
+
+// The command registry is a projection, not a probe.
+//
+// `Store.CommandRegistry` used to answer "does this integration's runtime
+// resolve" for every command by calling `ResolveRuntime` itself — one stat walk
+// per integration per call, and the settings page calls the whole list builder
+// sixty times a second while it is open. That is the fourth instance of the
+// same shape this file exists for (the runtime probe, the manifest digest, the
+// freshness sidecar, the discovered tools), and it was the one still on the
+// drawing thread after them.
+//
+// The fixture's runtime *does* resolve (its provider is a script on disk), so
+// the two answers differ and the rule is visible: the registry alone says
+// nothing about runnability, and only the list — which asks the memo — says
+// the integration is runnable.
+func TestTheCommandRegistryDoesNotProbeTheRuntime(t *testing.T) {
+	paths := integrationFixture(t)
+	resetIntegrationFacts()
+	a := New(Options{Store: settings.NewStore(settings.Default()), Paths: paths})
+	a.RefreshIntegrations(context.Background())
+
+	rows := a.Integrations.CommandRegistry()
+	if len(rows) != 1 {
+		t.Fatalf("the registry listed %+v", rows)
+	}
+	if rows[0].Available {
+		t.Errorf("the registry answered the runtime question itself: %+v", rows[0])
+	}
+
+	// The list asks the memo, which does probe — once, behind the first frame.
+	list := a.integrationList()
+	if len(list) != 1 || len(list[0].Commands) != 1 {
+		t.Fatalf("integration list = %+v", list)
+	}
+	if !list[0].RuntimeAvailable || !list[0].Commands[0].Available {
+		t.Errorf("the card did not report the resolving runtime: %+v", list[0])
+	}
+}
