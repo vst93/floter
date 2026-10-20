@@ -1228,8 +1228,11 @@ func (a *App) Start() {
 		DisableShadow: runtime.GOOS != "darwin",
 		SkipTaskbar:   true,
 		// The launcher and settings are fixed panels; only the terminal
-		// is resizable, which resize turns on per surface.
-		DisableResize: true,
+		// is resizable, which resize turns on per surface. A Wayland
+		// session is the exception: there a lock would clamp the app's own
+		// resizes as well, so the panel is built unlocked (see
+		// panelResizable).
+		DisableResize: !panelResizable(false, runtime.GOOS, os.Getenv),
 		// The desktop behind the panel is what the glass reads: the old
 		// build's `backdrop-filter` smeared it (a WebKitGTK build composites
 		// the window's own backdrop), and this is the framework's material
@@ -4348,7 +4351,12 @@ func (a *App) resize() {
 	if a.Win == nil {
 		return
 	}
-	resizable := a.Surf == SurfaceTerminal
+	// The surface's own answer, then the session's: on Wayland a locked panel
+	// would clamp the app's own resizes too (see panelResizable), so the flag
+	// stays unlocked there — the terminal, which asks for it anyway, comes back
+	// unchanged.
+	wantResizable := a.Surf == SurfaceTerminal
+	resizable := panelResizable(wantResizable, runtime.GOOS, os.Getenv)
 	if resizable != a.lastResizable {
 		a.Win.SetResizable(resizable)
 		a.lastResizable = resizable
@@ -4356,8 +4364,10 @@ func (a *App) resize() {
 		// maximize box with it), so the caption goes off again here.
 		stripSystemChrome(a.Win.NativeHandle())
 	}
+	// The *terminal's* minimum is the surface's own rule, not the applied
+	// flag's: an unlocked launcher on Wayland must still shrink to its slab.
 	minW, minH := 0, 0
-	if resizable {
+	if wantResizable {
 		minW, minH = settings.MinTerminalWidth, settings.MinTerminalHeight
 	}
 	if minW != a.lastMinW || minH != a.lastMinH {
