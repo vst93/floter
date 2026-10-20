@@ -48,6 +48,11 @@ func (a *App) openPath(path string) {
 		fail(resolved, err)
 		return
 	}
+	// One open per press: Enter repeats while it is held, and every open is a
+	// process on the desktop (see allowActivate).
+	if !a.allowActivate("path\x00" + resolved) {
+		return
+	}
 	if a.openPathCommand != nil {
 		if err := a.openPathCommand(resolved); err != nil {
 			fail(resolved, err)
@@ -114,6 +119,12 @@ const (
 	spawnSession  = "session"
 	spawnExternal = "external"
 	spawnCommand  = "command"
+	// spawnActivate is the row-activation family: opening an application, a
+	// path, a page, or a tool's own window. Each of those is a process too,
+	// and Enter repeats while it is held, so holding Enter on a file row used
+	// to open the file at the keyboard's repeat rate. It is keyed by *what*
+	// the row points at (see allowActivate), not by the kind alone.
+	spawnActivate = "activate"
 )
 
 // allowSpawn reports whether a hand-off of this kind may run now, and records
@@ -127,11 +138,31 @@ func (a *App) allowSpawn(kind string) bool {
 	if a.spawnAt == nil {
 		a.spawnAt = make(map[string]time.Time, 3)
 	}
+	// The table is keyed by target for the activation family, so a long
+	// session of opening rows one after another would grow it without bound.
+	// Nothing in it is worth remembering for longer than the gap: dropping the
+	// whole table starts every clock over, which is what an old entry already
+	// is.
+	if len(a.spawnAt) > 64 {
+		a.spawnAt = make(map[string]time.Time, 3)
+	}
 	if last := a.spawnAt[kind]; !last.IsZero() && now.Sub(last) < spawnGap {
 		return false
 	}
 	a.spawnAt[kind] = now
 	return true
+}
+
+// allowActivate is allowSpawn for a row activation, keyed by the target the row
+// points at: a repeat of the *same* row inside the gap is a repeat of the key,
+// while stepping to another row and pressing Enter is a person choosing a
+// second thing. A target-less activation (nothing to key on) is always let
+// through — the row's own handler has already decided it has work to do.
+func (a *App) allowActivate(target string) bool {
+	if target == "" {
+		return true
+	}
+	return a.allowSpawn(spawnActivate + "\x00" + target)
 }
 
 // openTerminalSession is the one gate every in-panel session goes through: run

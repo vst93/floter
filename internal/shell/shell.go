@@ -642,6 +642,11 @@ func New(opts Options) *App {
 		},
 		CopyClip: a.copyClipboardEntry,
 		OpenApp: func(app apps.App) {
+			// A held Enter repeats, and an app is a process and a window: one
+			// launch per press (see allowActivate).
+			if !a.allowActivate("app\x00" + app.Path) {
+				return
+			}
 			if err := app.Open(); err != nil {
 				log.Printf("floter: could not open %s: %v", app.Name, err)
 				a.onMain(func() { a.Launcher.WarnFeedback(i18n.For(a.Store.Snapshot().Language).Launcher.OpenAppFailed) })
@@ -691,6 +696,11 @@ func New(opts Options) *App {
 		// capture, and the launcher clears and hides the way any row does.
 		SpawnDetached: func(argv []string) {
 			if len(argv) == 0 {
+				return
+			}
+			// The row's own window is a process as well: a repeat of the key
+			// must not start a second copy (see allowActivate).
+			if !a.allowActivate("tool\x00" + strings.Join(argv, "\x00")) {
 				return
 			}
 			if err := spawn.Program(argv[0], argv[1:]...); err != nil {
@@ -2776,6 +2786,10 @@ func (a *App) browserTargets() []i18n.Option {
 func (a *App) openURL(browserID, url string) error {
 	if browserID == "" && !isWebURL(url) {
 		return errNonWebURL
+	}
+	// A held Enter repeats; one page per press is the intent of the key.
+	if !a.allowActivate("url\x00" + browserID + "\x00" + url) {
+		return nil
 	}
 	if a.openURLCommand != nil {
 		return a.openURLCommand(browserID, url)

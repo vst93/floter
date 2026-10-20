@@ -127,6 +127,8 @@ func TestEveryLauncherActionIsWired(t *testing.T) {
 func TestTerminalLinkOpening(t *testing.T) {
 	calls := &launchCalls{}
 	a := launchTestApp(t, calls)
+	clock := time.Unix(1700000000, 0)
+	a.now = func() time.Time { return clock }
 	opened := []string{}
 	a.openURLCommand = func(browserID, url string) error { opened = append(opened, "url:"+url); return nil }
 
@@ -163,7 +165,16 @@ func TestTerminalLinkOpening(t *testing.T) {
 	if len(calls.opened) != 1 || calls.opened[0] != file {
 		t.Errorf("opened paths = %v", calls.opened)
 	}
+	// A repeat of the same click inside the spawn gap is the key repeating,
+	// not a second request: one file, one window (see allowActivate).
+	if !a.openTerminalLink(file) {
+		t.Errorf("a repeated click was not claimed")
+	}
+	if len(calls.opened) != 1 {
+		t.Errorf("a repeat opened the path twice: %v", calls.opened)
+	}
 	// A compiler's `:line:col` is stripped when the whole string is not a file.
+	clock = clock.Add(time.Second)
 	if !a.openTerminalLink(file + ":12:3") {
 		t.Errorf("a path with a line suffix did not open")
 	}
@@ -188,16 +199,26 @@ func TestOpenPathResolvesAndRequiresExistence(t *testing.T) {
 	a := launchTestApp(t, calls)
 	home := t.TempDir()
 	a.homeDir = home
+	clock := time.Unix(1700000000, 0)
+	a.now = func() time.Time { return clock }
 	file := filepath.Join(home, "note.txt")
 	if err := os.WriteFile(file, []byte("hi"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	// `~` and a bare relative path both land in the home directory.
+	// `~` and a bare relative path both land in the home directory. They are
+	// two presses a second apart: inside the spawn gap the second one is a
+	// repeat of the first (see allowActivate).
 	a.openPath("~/note.txt")
+	clock = clock.Add(time.Second)
 	a.openPath("note.txt")
 	if want := []string{file, file}; !reflect.DeepEqual(calls.opened, want) {
 		t.Fatalf("opened = %v, want %v", calls.opened, want)
+	}
+	// The same path twice within the gap is one open.
+	a.openPath("note.txt")
+	if len(calls.opened) != 2 {
+		t.Fatalf("a repeat opened the path again: %v", calls.opened)
 	}
 
 	// A path that is not there never reaches the opener, and says so in the
@@ -392,5 +413,42 @@ func TestSummonToggleIgnoresKeyRepeats(t *testing.T) {
 	clock = clock.Add(toggleGap)
 	if !a.allowToggle() {
 		t.Error("a press after the gap was dropped")
+	}
+}
+
+// A row activation is a process on the desktop, and Enter repeats while it is
+// held: one open per press. The rule is keyed by the row's own target, so a
+// repeat of the same row is dropped while stepping to another row and pressing
+// Enter still opens the second thing — the report 「反复弹出终端，从而导致卡死」
+// is the same storm one row over.
+func TestARowActivationIsOneProcessPerPress(t *testing.T) {
+	clock := time.Unix(1700000000, 0)
+	a := launchTestApp(t, &launchCalls{})
+	a.now = func() time.Time { return clock }
+
+	if !a.allowActivate("path\x00/a/one.txt") {
+		t.Fatal("the first open of a row was refused")
+	}
+	if a.allowActivate("path\x00/a/one.txt") {
+		t.Error("a repeat of the same row inside the gap was let through")
+	}
+	if !a.allowActivate("path\x00/a/two.txt") {
+		t.Error("a different row inside the gap was refused")
+	}
+	clock = clock.Add(spawnGap)
+	if !a.allowActivate("path\x00/a/one.txt") {
+		t.Error("the same row after the gap was refused")
+	}
+	// A target-less activation is the handler's own decision, not a repeat.
+	if !a.allowActivate("") || !a.allowActivate("") {
+		t.Error("a target-less activation was gated")
+	}
+	// The table does not grow without bound over a long session.
+	for i := 0; i < 200; i++ {
+		clock = clock.Add(spawnGap)
+		a.allowActivate("url\x00https://example.com/" + string(rune('a'+i%26)) + string(rune('a'+i/26)))
+	}
+	if len(a.spawnAt) > 65 {
+		t.Errorf("the spawn table grew to %d entries", len(a.spawnAt))
 	}
 }
