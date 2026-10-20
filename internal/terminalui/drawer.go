@@ -164,11 +164,29 @@ func (a *App) drawerGrid(c *ui.Context, cellFloor float32) {
 					a.set(func(s *settings.Settings) { s.CursorBlink = on })
 				}
 			},
-			// The paste boundary's own switch: it is the one appearance-schema
-			// axis that changes what a paste sends rather than how the
-			// terminal looks, and it lives in the drawer because the reference
-			// kept it on the strip (`page: "strip"`). The rule it turns on is
-			// in this package's pasteText.
+			// The copy-on-select switch: a finished selection lands on the
+			// clipboard, which is what the terminal surface has read from
+			// `terminal_select_copy` all along (`internal/terminalui` →
+			// `Options.CopyOnSelect` at creation, `SetCopyOnSelect` on Refresh).
+			// The row is here because the setting was wired and unreachable:
+			// nothing drew it, so it shipped as a knob only settings.json could
+			// turn. The reference keeps it on the strip
+			// (`main:src/settings/TerminalAppearance.tsx:328-338`).
+			control.AxisSelectCopy: func() {
+				on := s.TerminalSelectCopy
+				switched := false
+				clicked := a.drawerRow(c, cellFloor, scopy.SelectCopy, func() {
+					if ui.Switch(c, &on).Label(scopy.SelectCopy).Changed() {
+						switched = true
+					}
+				})
+				if clicked && !switched {
+					on = !on
+				}
+				if switched || clicked {
+					a.set(func(s *settings.Settings) { s.TerminalSelectCopy = on })
+				}
+			},
 			control.AxisPasteSafe: func() {
 				on := s.TerminalPasteSafe
 				switched := false

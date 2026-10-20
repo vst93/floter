@@ -158,6 +158,20 @@ const (
 	AxisCursorShape AppearanceAxis = "cursor_shape"
 	AxisCursorBlink AppearanceAxis = "cursor_blink"
 	AxisPalette     AppearanceAxis = "palette"
+	// AxisSelectCopy is the copy-on-select switch (`terminal_select_copy`): a
+	// selection that ends lands on the clipboard instead of waiting for the
+	// copy chord. The reference keeps it on the strip
+	// (`main:src/settings/TerminalAppearance.tsx:328-338`, `page: "strip"`), so
+	// it is a drawer row and not a card row — the settings card is the few
+	// controls the user called important.
+	//
+	// It is here because the setting was *wired and invisible*: the terminal
+	// surface read it (`internal/terminalui/options` → `Options.CopyOnSelect`,
+	// and `Refresh` → `SetCopyOnSelect` for a running session) while no view
+	// ever offered it, so a user could only reach it by editing settings.json —
+	// the same 「磁盘上有、UI 上没有」 shape that used to be recorded against the
+	// four dead knobs.
+	AxisSelectCopy AppearanceAxis = "select_copy"
 	// AxisPasteSafe is the safe-paste switch: it belongs to the drawer alone
 	// (the reference's `page: "strip"`), because the rule it turns on is a
 	// terminal-input rule, not a look.
@@ -168,7 +182,8 @@ const (
 func AppearanceAxes() []AppearanceAxis {
 	return []AppearanceAxis{
 		AxisFontFamily, AxisFontSize, AxisLineHeight, AxisPadding,
-		AxisCursorShape, AxisCursorBlink, AxisPalette, AxisPasteSafe,
+		AxisCursorShape, AxisCursorBlink, AxisPalette, AxisSelectCopy,
+		AxisPasteSafe,
 	}
 }
 
@@ -179,7 +194,7 @@ func AppearanceAxes() []AppearanceAxis {
 // never touches persistence: a value set from the drawer keeps applying.
 func OnSettingsCard(axis AppearanceAxis) bool {
 	switch axis {
-	case AxisPadding, AxisCursorShape, AxisCursorBlink, AxisPasteSafe:
+	case AxisPadding, AxisCursorShape, AxisCursorBlink, AxisSelectCopy, AxisPasteSafe:
 		return false
 	}
 	return true

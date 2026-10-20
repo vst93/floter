@@ -234,7 +234,7 @@ func TestTheDrawerGridCellsKeepTheReferenceFloor(t *testing.T) {
 	en := i18n.For("en").Settings
 	labels := []string{
 		en.FontFamily, en.FontSize, en.LineHeight, en.Padding,
-		en.CursorShape, en.CursorBlink, en.Palette, en.PasteSafe,
+		en.CursorShape, en.CursorBlink, en.Palette, en.SelectCopy, en.PasteSafe,
 	}
 	rowsAt := func(floorStep float32, w int) int {
 		a := drawerApp(t)

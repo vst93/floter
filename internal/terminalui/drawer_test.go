@@ -50,6 +50,7 @@ func TestTerminalDrawerShowsTheAppearanceRows(t *testing.T) {
 		control.AxisCursorBlink: "Blinking cursor",
 		control.AxisPalette:     "Terminal palette",
 		control.AxisPasteSafe:   "Safe paste",
+		control.AxisSelectCopy:  "Copy on select",
 	}
 	if len(labels) != len(control.AppearanceAxes()) {
 		t.Fatalf("the test names %d axes, the schema has %d", len(labels), len(control.AppearanceAxes()))
@@ -120,6 +121,21 @@ func TestTerminalDrawerWritesEachSetting(t *testing.T) {
 	tt.Frame()
 	if a.Store.Snapshot().CursorBlink {
 		t.Error("the blink switch did not turn off")
+	}
+
+	// The copy-on-select switch: it shipped wired (`terminal_select_copy` →
+	// `Options.CopyOnSelect`) and unreachable, because nothing drew it. The
+	// shipped value is on, so the click has to turn it off and the store has to
+	// carry that — the part a row that draws without writing would miss.
+	if !a.Store.Snapshot().TerminalSelectCopy {
+		t.Fatal("the shipped select-copy value is off; this test turns it off")
+	}
+	if err := tt.Click("Copy on select"); err != nil {
+		t.Fatalf("select copy: %v", err)
+	}
+	tt.Frame()
+	if a.Store.Snapshot().TerminalSelectCopy {
+		t.Error("the copy-on-select switch did not turn off")
 	}
 
 	// The palette trigger shows the stored value; the drop-down picks another.

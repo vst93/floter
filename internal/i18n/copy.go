@@ -325,6 +325,7 @@ var en = Copy{
 		LineHeight:     "Line height",
 		Padding:        "Padding",
 		Palette:        "Terminal palette",
+		SelectCopy:     "Copy on select",
 		PasteSafe:      "Safe paste",
 		PalettePreview: "Palette preview",
 
@@ -1215,6 +1216,7 @@ var zh = Copy{
 		LineHeight:     "行距",
 		Padding:        "边距",
 		Palette:        "终端配色",
+		SelectCopy:     "选中即复制",
 		PasteSafe:      "粘贴不执行",
 		PalettePreview: "配色预览",
 

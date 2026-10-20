@@ -7764,14 +7764,19 @@ gofmt/vet/build/test，package 矩阵在 Windows 上只上传 `dist/*/*.exe` 就
   遗留的 `last_settings_page: "plugins"` 会落到第一页。旧版 Integrations 页自己的「基础插件」区
   （三个内置插件 + 开关 + 「配置」）已在 P7-u 补上，它也是浏览器模式空态文案指向的那扇门。
 
-- 终端外观的**四个**设置磁盘上存在、会被保留，但当前无 UI、也不起作用：
-  `terminal_bold`（加粗模式：粗体字/亮色）、`terminal_scrollbar`、`terminal_select_copy`（选中即复制）、
+- 终端外观的**三个**设置磁盘上存在、会被保留，但当前无 UI、也不起作用：
+  `terminal_bold`（加粗模式：粗体字/亮色）、`terminal_scrollbar`、
   `terminal_wheel_lines`。mygo 的 terminal 插件（`plugins/terminal`）
-  没有暴露这些旋钮（内部固定：滚动条总画、滚轮步长固定、复制仅 ⌘C、
+  没有暴露这些旋钮（内部固定：滚动条总画、滚轮步长固定、
   bold 由字体权重决定），所以 Go 侧既不能渲染（渲染了就是骗人）也不能接线。等框架暴露后再补。
   **订正（P7-an）**：`terminal_paste_safe`（粘贴不执行）曾和这四个记在一起，是**错的**——
   `Options.OnPaste`（`plugins/terminal/terminal.go:116`，v0.4.6 就有）一直存在，这个设置是死的
   只因为本构建从未设过那个 hook。P7-an 接上了它，它现在有自己的抽屉行（`control.AxisPasteSafe`）。
+  **订正（P7-ku）**：`terminal_select_copy`（选中即复制）也在这个名单里，同样是**错的**——
+  `Options.CopyOnSelect` 与 `SetCopyOnSelect` 一直都在（v0.5.1 就有），`internal/terminalui`
+  从 P7-dr 起就把它写进 `options()`、并在 `Refresh` 里推给运行中的会话。死的是**界面**：
+  没有任何一行画它，用户只能改 settings.json。P7-ku 补上了抽屉行（`control.AxisSelectCopy`），
+  它现在与 `terminal_paste_safe` 并列。
   字号/字体族/光标形状/闪烁/行高/内边距/调色板/透明度**已全部接线**，字体族还带真实安装探测。
   注：光标形状与闪烁只在**新建会话**时生效（框架的 `terminal.Terminal` 只有 `SetFont`/`SetTheme`，
   没有运行期的光标 setter），所以终端抽屉里这两行也是下一会话才看得到；字号/行距/内边距对打开的
@@ -10033,11 +10038,13 @@ Go 侧把原版的三条规则写偏了。依赖检查：`go list -m -versions g
    文本钩子，或让 `Options.OnKey` 看到 text-only 键（`plugins/terminal/terminal.go:124` 文档写明 Linux
    上看不到）。接线点：`Options.OnKey` 里对 text-only 键做规范化（粘贴与 App 自拼命令行两条既有路不动）。
    验收：键入的全角空格在到达 shell 前被规范化；既有两条路不回退。
-3. **终端外观四个死旋钮**（`terminal_bold` / `terminal_scrollbar` / `terminal_select_copy` /
-   `terminal_wheel_lines`）。要什么：`plugins/terminal` 暴露这四个旋钮（滚动条开关、滚轮步长、选中即
-   复制、bold 模式）。接线点：`internal/terminalui/` 的抽屉行 + settings 已存盘字段。验收：四行回到终端
-   抽屉、改动实时生效（选中即复制/滚动条/滚轮步长）或下一会话生效（bold 若随 SetFont），且不再有
-   「磁盘上有、UI 上没有」的字段。
+3. **终端外观三个死旋钮**（`terminal_bold` / `terminal_scrollbar` / `terminal_wheel_lines`）。要什么：
+   `plugins/terminal` 暴露这三个旋钮（滚动条开关、滚轮步长、bold 模式）。接线点：`internal/terminalui/`
+   的抽屉行 + settings 已存盘字段。验收：三行回到终端抽屉、改动实时生效（滚动条/滚轮步长）或下一会话
+   生效（bold 若随 SetFont），且不再有「磁盘上有、UI 上没有」的字段。
+   **P7-ku 更新**：`terminal_select_copy` 从这条里**退出**——它的框架口子一直在
+   （`Options.CopyOnSelect` / `SetCopyOnSelect`），缺的只是抽屉行，P7-ku 已补
+   （`control.AxisSelectCopy`）。
 
 > 卡框架项未落地前不假装接线（渲染了就是骗人）；其余可实现的偏离点继续逐区域对照 `main` 排查。
 

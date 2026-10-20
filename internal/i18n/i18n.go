@@ -374,6 +374,11 @@ type Settings struct {
 	LineHeight   string
 	Padding      string
 	Palette      string
+	// SelectCopy names the copy-on-select switch: a selection that ends lands
+	// on the clipboard instead of waiting for the copy chord. It is the
+	// terminal drawer's own row (internal/control, AxisSelectCopy), as the
+	// reference's `terminal_select_copy` is (`page: "strip"`).
+	SelectCopy string
 	// PasteSafe names the safe-paste switch: a pasted command loses the one
 	// trailing line break that would run it before it was read. It is the
 	// terminal drawer's own row (internal/control, AxisPasteSafe).

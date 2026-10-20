@@ -63,9 +63,9 @@ func TestSegmentedKeepsTheChosenOptionMarked(t *testing.T) {
 
 // TestAppearanceAxesSplit: the schema is the one place that decides which
 // surface paints which terminal-appearance row (R42/R55). The settings card is
-// a strict subset of the drawer in the schema's own order; the four axes the
-// drawer keeps to itself are the padding, the cursor shape, the blink and the
-// safe-paste switch.
+// a strict subset of the drawer in the schema's own order; the five axes the
+// drawer keeps to itself are the padding, the cursor shape, the blink, the
+// copy-on-select switch and the safe-paste switch.
 func TestAppearanceAxesSplit(t *testing.T) {
 	all := AppearanceAxes()
 	seen := make(map[AppearanceAxis]bool, len(all))
@@ -100,7 +100,7 @@ func TestAppearanceAxesSplit(t *testing.T) {
 		t.Errorf("the card keeps %d of %d axes; the drawer must keep more", len(card), len(all))
 	}
 
-	// The drawer-only set is exactly the four the reference hides on the card.
+	// The drawer-only set is exactly the five the reference hides on the card.
 	drawerOnly := map[AppearanceAxis]bool{}
 	for _, axis := range all {
 		if !OnSettingsCard(axis) {
@@ -109,7 +109,7 @@ func TestAppearanceAxesSplit(t *testing.T) {
 	}
 	want := map[AppearanceAxis]bool{
 		AxisPadding: true, AxisCursorShape: true, AxisCursorBlink: true,
-		AxisPasteSafe: true,
+		AxisSelectCopy: true, AxisPasteSafe: true,
 	}
 	if len(drawerOnly) != len(want) {
 		t.Fatalf("the drawer-only axes are %v, want %v", drawerOnly, want)
