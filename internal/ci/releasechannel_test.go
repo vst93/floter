@@ -72,3 +72,37 @@ func TestTheStampedVersionIsAPlainSemver(t *testing.T) {
 		t.Errorf("mygo.json version %q is not major.minor.patch", manifest.Version)
 	}
 }
+
+// A release renames `## [Unreleased]` into `## [<version>] - <date>`, and the
+// workflow does it with `count=1` (release-mygo.yml, the python heredoc): one
+// heading, because a changelog has one "next release" section by definition.
+//
+// The file had **two** of them — a merge left the 0.3.7-era block in place above
+// the block the current cycle was appending to. The release would have renamed
+// the first (the older one) and left the second standing, so every version
+// after it would have shipped the *previous* cycle's notes under its own
+// number while the current cycle's entries stayed under `[Unreleased]` forever.
+// That is the same failure shape as the pre-release flag in
+// TestAPlainVersionIsAlwaysTheLatestRelease: the pipeline is green, the version
+// is published, and the notes the user reads are one release behind.
+//
+// The count the workflow assumes is pinned here rather than the merge that
+// caused it, so a second `[Unreleased]` reintroduced by any later merge fails on
+// the commit that adds it.
+func TestTheChangelogHasOneUnreleasedSection(t *testing.T) {
+	changelog := repoFile(t, "CHANGELOG.md")
+	if n := strings.Count(changelog, "\n## [Unreleased]"); n != 1 {
+		t.Errorf("CHANGELOG.md has %d `## [Unreleased]` sections, want 1: the release renames one (count=1), so a second leaves its notes unfiled forever", n)
+	}
+	// And it is the *first* section: the workflow's regexp is anchored to a line
+	// start and takes the first match, so a released heading above it would make
+	// the rename fire on the wrong block entirely.
+	first := strings.Index(changelog, "\n## [")
+	if first < 0 {
+		t.Fatal("CHANGELOG.md has no release heading")
+	}
+	line, _, _ := strings.Cut(changelog[first+1:], "\n")
+	if line != "## [Unreleased]" {
+		t.Errorf("the changelog's first section is %q, want `## [Unreleased]`: the release renames the first match", line)
+	}
+}
