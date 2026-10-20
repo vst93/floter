@@ -3753,8 +3753,23 @@ func (a *App) arrivalVisible() bool {
 // 0 on the frame it started, 1 once `shellEnter` has passed. A panel that has
 // never arrived, that is settled, or that the desktop asks to keep still draws
 // 1: the animation is a nicety of a reveal, never a condition of a frame.
-func (a *App) shellEnterProgress() float32 {
+//
+// R161 · the desktop's "reduce motion" preference is one of the reasons to draw
+// settled, and it has to be asked *here* rather than left to the framework: the
+// travel is the app's own clock driving four properties by hand (see View), so
+// the framework's Animate/transition collapse never sees it. The old build's
+// `prefers-reduced-motion` block named `.collapsed-shell`, `.terminal-shell` and
+// `.settings-shell` outright — the three shells this one function animates —
+// and turned their `shell-enter` off (`main:src/styles/base.css:1312-1314,
+// 1332-1335`), so a user who asked the system for less motion got a panel that
+// was simply *there*. Without this the preference moved every other transition
+// in the app and left the most conspicuous one running.
+func (a *App) shellEnterProgress(c *ui.Context) float32 {
 	if !a.enterLive || a.enterAt.IsZero() {
+		return 1
+	}
+	if c != nil && c.Preferences().ReduceMotion {
+		a.enterLive = false
 		return 1
 	}
 	elapsed := a.now().Sub(a.enterAt)
@@ -3990,7 +4005,7 @@ func (a *App) View(c *ui.Context) {
 	// on a reveal — Show sets the clock, and a mere focus change does not — and a
 	// frame that has never been revealed draws settled, so every headless frame
 	// and the first frame of a session are the finished shape.
-	entrance := a.shellEnterProgress()
+	entrance := a.shellEnterProgress(c)
 	if entrance < 1 {
 		c.AnimationFrame()
 	}

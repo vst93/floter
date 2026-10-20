@@ -199,7 +199,16 @@ func (a *App) toastNow() time.Time {
 // saw and no longer sees are forgotten, so a toast raised again under the same
 // id (the framework replaces that toast and restarts its time) springs in
 // again rather than arriving already settled.
-func (a *App) toastEntrances(now time.Time, toasts []ui.Toast) map[string]float32 {
+// toastEntrances reports how far each showing toast is through its entrance,
+// 0 on the frame it joined the stack and 1 once `toastEnter` has passed.
+//
+// R161 · a desktop that asked for less motion gets every toast at rest: the
+// travel is this app's own clock (see toastViewport), so the framework's
+// collapse never sees it, and the old build's `prefers-reduced-motion` block
+// named `.app-toast` outright — `animation: none` (`main:src/styles/base.css:
+// 1316-1321`). The clocks are still taken, so a toast that appears while the
+// preference is on does not animate later when it is turned off.
+func (a *App) toastEntrances(now time.Time, toasts []ui.Toast, reduceMotion bool) map[string]float32 {
 	if a.toastSeen == nil {
 		a.toastSeen = make(map[string]time.Time, len(toasts))
 	}
@@ -218,6 +227,10 @@ func (a *App) toastEntrances(now time.Time, toasts []ui.Toast) map[string]float3
 		if !ok {
 			at = now
 			a.toastSeen[toast.ID] = at
+		}
+		if reduceMotion {
+			progress[toast.ID] = 1
+			continue
 		}
 		p := float32(now.Sub(at)) / float32(toastEnter)
 		progress[toast.ID] = min(max(p, 0), 1)
@@ -275,7 +288,7 @@ func (a *App) toastViewport(c *ui.Context) {
 		// every showing toast, before the launcher drops the older ones from
 		// layout, so a toast hidden by that rule still keeps its start time.
 		now := a.toastNow()
-		entrances := a.toastEntrances(now, toasts)
+		entrances := a.toastEntrances(now, toasts, c.Preferences().ReduceMotion)
 		if collapsed {
 			// One toast, newest wins. Earlier ones are dropped from layout, not
 			// just hidden, so the thin window never reserves a second row.

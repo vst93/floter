@@ -3,6 +3,8 @@ package shell
 import (
 	"testing"
 	"time"
+
+	"github.com/egoist/mygo/ui"
 )
 
 // The panel arrives the way the reference's `shell-enter` says it does.
@@ -85,7 +87,7 @@ func TestOnlyAWindowArrives(t *testing.T) {
 	if a.enterLive {
 		t.Errorf("a panel with no window started an arrival")
 	}
-	if got := a.shellEnterProgress(); got != 1 {
+	if got := a.shellEnterProgress(nil); got != 1 {
 		t.Errorf("a panel that never arrived reports progress %v, want 1 (settled)", got)
 	}
 
@@ -105,11 +107,11 @@ func TestOnlyAWindowArrives(t *testing.T) {
 	if !a.enterLive {
 		t.Fatalf("a reveal onto a window started no arrival")
 	}
-	if got := a.shellEnterProgress(); got > 0.001 {
+	if got := a.shellEnterProgress(nil); got > 0.001 {
 		t.Errorf("the arrival's first frame is at %v, want 0", got)
 	}
 	now = now.Add(shellEnter)
-	if got := a.shellEnterProgress(); got != 1 {
+	if got := a.shellEnterProgress(nil); got != 1 {
 		t.Errorf("the arrival is at %v after its 220ms, want 1", got)
 	}
 	if a.enterLive {
@@ -164,5 +166,98 @@ func TestTheArrivalTravelsOnTheSpringCurve(t *testing.T) {
 	if shellEnterOriginX != 0.5 || shellEnterOriginY != 0 {
 		t.Errorf("the arrival's origin is (%v, %v), want the reference's center top",
 			shellEnterOriginX, shellEnterOriginY)
+	}
+}
+
+// R161 · The desktop's "reduce motion" preference turns the arrival off.
+//
+// The travel is the app's own clock driving opacity, scale and the lift by
+// hand, so the framework's Animate/transition collapse never sees it — and the
+// old build's `prefers-reduced-motion` block named `.collapsed-shell`,
+// `.terminal-shell` and `.settings-shell` outright and set their `shell-enter`
+// to `animation: none` (`main:src/styles/base.css:1312-1314`). Without this the
+// preference would move every other transition in the app and leave the most
+// conspicuous one running.
+//
+// The assertion is the frame: a reveal under the preference draws exactly what
+// the settled frame draws, and the travel stops asking for animation frames.
+func TestTheArrivalRestsWhenTheDesktopAsksForLessMotion(t *testing.T) {
+	a := appKeysApp()
+	a.arrivalSeen = func() bool { return true }
+	now := time.Date(2026, 10, 20, 12, 0, 0, 0, time.UTC)
+	a.now = func() time.Time { return now }
+	tt := appKeysRender(t, a)
+
+	// The settled frame at this size, with the travel never started.
+	a.enterLive = false
+	tt.Frame()
+	settled := bandImage(tt)
+
+	// A reveal under the preference: the clock is set, so the *state* says an
+	// arrival is live — and the frame must still be the settled one.
+	tt.SetPreferences(ui.Preferences{ReduceMotion: true, TextScale: 1})
+	a.startShellEnter()
+	if !a.enterLive {
+		t.Fatalf("the reveal set no arrival clock at all")
+	}
+	tt.Frame()
+	if diff := bandDiff(bandImage(tt), settled, 0, 0, settled.Bounds().Dx(), settled.Bounds().Dy()); diff != 0 {
+		t.Errorf("the arrival drew under reduce motion: %d pixels differ from the settled frame", diff)
+	}
+	if a.enterLive {
+		t.Errorf("the arrival is still live: the next frame would animate it")
+	}
+	if tt.FramePending() {
+		t.Errorf("a reduce-motion frame asked for another animation frame")
+	}
+
+	// The same reveal without the preference *does* travel, which is what makes
+	// the check above mean something: the two frames differ.
+	tt.SetPreferences(ui.Preferences{TextScale: 1})
+	a.startShellEnter()
+	tt.Frame()
+	if diff := bandDiff(bandImage(tt), settled, 0, 0, settled.Bounds().Dx(), settled.Bounds().Dy()); diff == 0 {
+		t.Errorf("the arrival no longer animates at all: with the preference off the reveal draws the settled frame")
+	}
+}
+
+// R161 · The toasts' entrance follows the same preference, for the same reason:
+// the old build's block names `.app-toast` and sets `animation: none`
+// (`main:src/styles/base.css:1316-1321`), and this build drives that travel
+// from its own clock rather than from a framework Animate.
+//
+// The reading is the map the viewport draws from: every toast is at rest (1) on
+// the frame it joins the stack, and the clock is still recorded so a toast that
+// appears under the preference does not animate when it is turned off.
+func TestTheToastEntranceRestsUnderReduceMotion(t *testing.T) {
+	a := appKeysApp()
+	now := time.Date(2026, 10, 20, 12, 0, 0, 0, time.UTC)
+	toasts := []ui.Toast{{ID: "a"}, {ID: "b"}}
+
+	moving := a.toastEntrances(now, toasts, false)
+	for _, toast := range toasts {
+		if got := moving[toast.ID]; got != 0 {
+			t.Errorf("the toasts open at %v, want 0 (the entrance's first keyframe)", got)
+		}
+	}
+	// Halfway through the travel, still moving; at the end, landed.
+	if got := a.toastEntrances(now.Add(toastEnter/2), toasts, false); got["a"] <= 0 || got["a"] >= 1 {
+		t.Errorf("the entrance is at %v halfway through, want strictly between 0 and 1", got["a"])
+	}
+	if got := a.toastEntrances(now.Add(toastEnter), toasts, false); got["a"] != 1 {
+		t.Errorf("the entrance is at %v after %v, want 1", got["a"], toastEnter)
+	}
+
+	// The same stack under the preference: at rest on the first frame, and the
+	// start time the same answer (so nothing animates later).
+	a.toastSeen = nil
+	still := a.toastEntrances(now, toasts, true)
+	for _, toast := range toasts {
+		if got := still[toast.ID]; got != 1 {
+			t.Errorf("a reduce-motion toast is at %v, want 1 (at rest)", got)
+		}
+		if _, ok := a.toastSeen[toast.ID]; !ok {
+			t.Errorf("the toast's clock was not taken under reduce motion: turning the preference off would animate it late")
+		}
 	}
 }
