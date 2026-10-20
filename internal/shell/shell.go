@@ -3514,20 +3514,23 @@ func (a *App) placeWindow() {
 	a.Win.SetPosition(x, y)
 }
 
-// windowDisplay is the display the window is on: the one whose bounds hold its
-// centre, and the primary one when the window is nowhere (or the framework
-// cannot say).
+// windowDisplay is the display a summon belongs on, in the reference's own
+// order of strategies (see summonDisplay and focusdisplay.go): the screen under
+// the mouse — where the user is actually looking — then the screen the window
+// is already on, then the primary one. The port answered only the middle
+// strategy, so a panel left on the first monitor always came back there even
+// while the user worked on the second (the reference's `focused_monitor`
+// puts the cursor first,
+// `main:src-tauri/src/lib.rs:363-398`).
 func (a *App) windowDisplay() mygo.Display {
 	displays := mygo.Screen.Displays()
 	if len(displays) == 0 {
 		return mygo.Screen.PrimaryDisplay()
 	}
+	pointer, trusted := pointerPoint()
 	x, y := a.Win.Position()
 	w, h := a.Win.Size()
-	if display, ok := displayContaining(displays, x, y, w, h); ok {
-		return display
-	}
-	return mygo.Screen.PrimaryDisplay()
+	return summonDisplay(displays, pointer, trusted, x, y, w, h)
 }
 
 // displayContaining is the display a window's centre falls in, reporting
