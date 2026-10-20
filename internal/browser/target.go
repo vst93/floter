@@ -56,22 +56,50 @@ func OpenURL(browserID, url string) error {
 	if url == "" {
 		return errors.New("browser: no URL to open")
 	}
-	switch runtime.GOOS {
+	candidates, err := openURLCandidates(runtime.GOOS, browserID, url)
+	if err != nil {
+		return err
+	}
+	var lastErr error
+	for _, argv := range candidates {
+		if err := spawn.Program(argv[0], argv[1:]...); err != nil {
+			lastErr = err
+			continue
+		}
+		return nil
+	}
+	if lastErr == nil {
+		lastErr = ErrNoBrowser
+	}
+	return lastErr
+}
+
+// openURLCandidates is the argv that opens `url`, per platform, so the rule can
+// be read (and exercised) without spawning a browser.
+//
+// Windows hands the URL to `explorer`, which is the reference's opener
+// (`main:src-tauri/src/commands/actions.rs:20-32`): it calls `ShellExecute` on
+// its argument. The port went through `cmd /c start`, which re-parses the
+// string as a *command line* — `&` separates commands to `cmd.exe` even inside
+// quotes, and a URL's query string is full of them, so
+// `https://example.com/?a=1&b=2` opened `…?a=1` and tried to run `b=2`. The
+// reference refuses `cmd /c start` for exactly this reason.
+//
+// macOS tries the named application first and the default browser second: an
+// `open -a <missing app>` only fails after `open` itself has started, so the
+// fallback has to be a second spawn rather than an error from the first.
+func openURLCandidates(goos, browserID, url string) ([][]string, error) {
+	switch goos {
 	case "darwin":
 		if app, ok := macAppName(browserID); ok {
-			if err := spawn.Program("open", "-a", app, url); err == nil {
-				return nil
-			}
+			return [][]string{{"open", "-a", app, url}, {"open", url}}, nil
 		}
-		return spawn.Program("open", url)
+		return [][]string{{"open", url}}, nil
 	case "windows":
-		// `start` is a cmd builtin, not an executable; the empty argument is
-		// the window-title slot, which `start` would otherwise take the URL
-		// for.
-		return spawn.Program("cmd", "/c", "start", "", url)
+		return [][]string{{"explorer", url}}, nil
 	case "linux":
-		return spawn.Program("xdg-open", url)
+		return [][]string{{"xdg-open", url}}, nil
 	default:
-		return fmt.Errorf("browser: opening %s is not supported on this platform", url)
+		return nil, fmt.Errorf("browser: opening %s is not supported on this platform", url)
 	}
 }

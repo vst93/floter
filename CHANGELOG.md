@@ -17,6 +17,21 @@ floter 面向用户的变更记录。格式参考 [Keep a Changelog](https://kee
 
 ### Fixed
 
+- **Windows 上「在系统终端中继续」什么都不弹**：这条本来是开一个终端窗口，可它走的
+  `spawn.Program` 给每个子进程都加了 `DETACHED_PROCESS`——对浏览器和用户自己的应用是对的，
+  对控制台程序等于「没有控制台」，于是 `cmd` 起得来、窗口却不存在。现在 Windows 的外部终端
+  改成由 `cmd /c start "" …` 向控制台宿主申请一个新窗口（装了 Windows Terminal 则先试
+  `wt`）。另外 Linux 的候选表补回原版的完整顺序（`xdg-terminal-exec` 优先，含 `foot` /
+  `tilix` / `terminator` / `urxvt`），macOS 默认回到一定存在的系统 Terminal——此前先试
+  `open -a iTerm` 之类，而 `open` 找不到应用时是「启动成功后退出 1」，第一个猜错就吞掉了
+  整个回落链，用户看到的是没反应。
+
+- **Windows 上带查询串的链接只打开了前半截**：`https://…/?a=1&b=2` 此前经 `cmd /c start`
+  交出去，而 `cmd.exe` 会把这段字符串重新当成命令行解析——`&` 在引号里也是命令分隔符，于是
+  页面停在 `…?a=1`，后半截被当成命令执行。原版为此明确不用 `cmd /c start`（`actions.rs`
+  :20-32 的注释），改用 `explorer`（`ShellExecute`）；本版跟原版一致。macOS/Linux 这条路径
+  本来就是单个 argv 交给 `open`/`xdg-open`，三平台现在同一种语义。
+
 - **应用内更新第一次真的能用（此前每一版都发布，但用户永远收不到）**：发布工作流一直要
   `MYGO_UPDATER_PRIVATE_KEY` 才产出 `update-<target>.json` 与签名，而仓库里从来没有这个
   secret——于是 `mygo-v0.3.24` 的 17 个资产里没有一份更新清单，装了应用的人既不会看到新版本
