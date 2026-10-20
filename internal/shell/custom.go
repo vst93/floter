@@ -195,18 +195,32 @@ func (a *App) runSilentCommand(command string) error {
 	return spawn.Command(command)
 }
 
-// OpenExternalTerminal opens the user's terminal emulator with a login shell,
-// so work can continue in a real terminal window. The Go build runs its
-// terminal in-process, so this is a *new* shell rather than a hand-off of the
-// running session.
+// OpenExternalTerminal opens the user's terminal emulator at the directory the
+// active session reported, so work can continue in a real terminal window where
+// it was. The Go build runs its terminal in-process, so this is a *new* shell
+// rather than a hand-off of the running session — the directory is what carries
+// the session over.
 func (a *App) OpenExternalTerminal() error {
 	if a.openExternalTerminal != nil {
 		return a.openExternalTerminal()
 	}
-	return openTerminalEmulator()
+	return terminalAt(a.externalTerminalDir())
 }
 
-// openTerminalEmulator starts the first terminal emulator this machine has.
-func openTerminalEmulator() error {
-	return spawn.Terminal()
+// terminalAt is the one call that starts an emulator, named so a test can stand
+// in for the process.
+var terminalAt = spawn.TerminalAt
+
+// externalTerminalDir is where a hand-off opens: the active session's own
+// directory (the `OSC 7` report `terminalui` keeps), and "" — a login shell
+// wherever the emulator opens — while no session has reported one yet. The
+// reference reads the same field off its session
+// (`main:src-tauri/src/terminal/session.rs:643-663`: `open_terminal_session(dir,
+// …)`), and hands off from the launcher as well as from the terminal page, so
+// the surface on screen does not decide this.
+func (a *App) externalTerminalDir() string {
+	if a.Terminal == nil {
+		return ""
+	}
+	return a.Terminal.DirOf(a.Terminal.Active)
 }

@@ -18,10 +18,19 @@ import (
 // reports the spawn's own error; the child runs on and is reaped in the
 // background.
 func Program(program string, args ...string) error {
+	return ProgramIn("", program, args...)
+}
+
+// ProgramIn is Program, started in `dir`. An empty dir inherits this process's
+// own, which is what every launch that has no opinion wants.
+func ProgramIn(dir, program string, args ...string) error {
 	if strings.TrimSpace(program) == "" {
 		return errors.New("spawn: no program to start")
 	}
 	cmd := exec.Command(program, args...)
+	if dir != "" {
+		cmd.Dir = dir
+	}
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = nil, nil, nil
 	return start(cmd)
 }
@@ -50,14 +59,37 @@ func Command(command string) error {
 // Terminal opens the user's terminal emulator with a shell, trying
 // `$TERMINAL` first and then the emulators the platform usually has.
 func Terminal() error {
+	return TerminalAt("")
+}
+
+// TerminalAt is Terminal opened *at* a directory: the active session's own
+// (`terminalui`'s OSC 7 report), which is what a hand-off owes the user — a
+// shell that starts where the work is, not in the app's own directory or the
+// home the emulator would otherwise pick.
+//
+// The reference does the same thing twice over
+// (`main:src-tauri/src/terminal/session.rs:1295-1380`): the emulator process is
+// started with `current_dir(dir)`, and the emulators that do *not* start their
+// shell in the process's directory — the ones that hand the window to a running
+// server and so have no cwd to inherit, like gnome-terminal or konsole — get
+// their own directory flag as well. An empty dir keeps the old behaviour
+// exactly: a login shell wherever the emulator opens.
+func TerminalAt(dir string) error {
 	if emulator := strings.TrimSpace(os.Getenv("TERMINAL")); emulator != "" {
-		if err := Program(emulator); err == nil {
-			return nil
+		// `$TERMINAL` is a *command line*, not a program name: the
+		// documented way to pin a single-instance emulator
+		// (`TERMINAL="kitty --single-instance"`) used to be looked up as
+		// an executable called `kitty --single-instance`, which never
+		// exists, so the variable was silently ignored.
+		if argv := splitCommandLine(emulator); len(argv) > 0 {
+			if err := ProgramIn(dir, argv[0], argv[1:]...); err == nil {
+				return nil
+			}
 		}
 	}
 	var lastErr error
-	for _, candidate := range terminalEmulators() {
-		if err := Program(candidate[0], candidate[1:]...); err != nil {
+	for _, candidate := range terminalLaunchersFor(runtime.GOOS, dir) {
+		if err := ProgramIn(dir, candidate[0], candidate[1:]...); err != nil {
 			lastErr = err
 			continue
 		}
@@ -72,6 +104,110 @@ func Terminal() error {
 // terminalEmulators lists the emulators to try on this platform.
 func terminalEmulators() [][]string {
 	return terminalEmulatorsFor(runtime.GOOS)
+}
+
+// terminalLaunchersFor is the candidate table with a working directory in it:
+// the same emulators, in the same order, each asked for `dir` the way its own
+// command line spells it. A dir of "" is the bare table, byte for byte.
+func terminalLaunchersFor(goos, dir string) [][]string {
+	candidates := terminalEmulatorsFor(goos)
+	if dir == "" {
+		return candidates
+	}
+	launchers := make([][]string, 0, len(candidates))
+	for _, candidate := range candidates {
+		launchers = append(launchers, withDirectory(goos, candidate, dir))
+	}
+	return launchers
+}
+
+// withDirectory adds `dir` to one candidate's argv, for the emulators that do
+// not inherit the process's directory; the rest are left alone because
+// ProgramIn already starts them in it.
+//
+// The flags are the reference's own table, terminal by terminal
+// (`session.rs:1319-1378`), so a machine whose emulator is any of these opens
+// where the session was rather than in the home directory.
+func withDirectory(goos string, candidate []string, dir string) []string {
+	argv := append([]string(nil), candidate...)
+	switch goos {
+	case "darwin":
+		// `open -b com.apple.Terminal <dir>`: the reference's own no-command
+		// branch (`session.rs:1172-1180`) asks `open` for a window at the
+		// directory, which the system Terminal opens a shell in.
+		return append(argv, dir)
+	case "windows":
+		if len(argv) == 1 && argv[0] == "wt" {
+			return append(argv, "-d", dir)
+		}
+		// `cmd /c start "" cmd` starts its console in cmd.exe's own
+		// directory, which ProgramIn sets.
+		return argv
+	}
+	switch argv[0] {
+	case "gnome-terminal", "xfce4-terminal", "tilix", "terminator", "ghostty":
+		return append(argv, "--working-directory="+dir)
+	case "konsole":
+		return append(argv, "--workdir", dir)
+	case "kitty":
+		return append(argv, "--directory", dir)
+	case "alacritty":
+		return append(argv, "--working-directory", dir)
+	case "wezterm":
+		return append(argv, "start", "--cwd", dir)
+	}
+	// xdg-terminal-exec, x-terminal-emulator, foot, urxvt and xterm start
+	// their shell in the directory they were started in.
+	return argv
+}
+
+// splitCommandLine splits a command line into a program and its arguments, for
+// the values a user writes in `$TERMINAL`: whitespace separates words, single
+// and double quotes group them, and a backslash escapes the next character
+// outside single quotes. It is deliberately not a shell: nothing is expanded,
+// nothing is run twice.
+func splitCommandLine(line string) []string {
+	var words []string
+	var word strings.Builder
+	started := false
+	var quote byte
+	flush := func() {
+		if started {
+			words = append(words, word.String())
+			word.Reset()
+			started = false
+		}
+	}
+	for i := 0; i < len(line); i++ {
+		c := line[i]
+		switch {
+		case quote != 0:
+			if c == quote {
+				quote = 0
+				continue
+			}
+			if c == '\\' && quote == '"' && i+1 < len(line) {
+				i++
+				word.WriteByte(line[i])
+				continue
+			}
+			word.WriteByte(c)
+		case c == '\'' || c == '"':
+			quote = c
+			started = true
+		case c == '\\' && i+1 < len(line):
+			i++
+			word.WriteByte(line[i])
+			started = true
+		case c == ' ' || c == '\t' || c == '\n' || c == '\r':
+			flush()
+		default:
+			word.WriteByte(c)
+			started = true
+		}
+	}
+	flush()
+	return words
 }
 
 // terminalEmulatorsFor is terminalEmulators for a named platform, so the three
