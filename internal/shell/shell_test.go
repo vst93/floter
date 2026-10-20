@@ -3006,6 +3006,7 @@ func TestPowerCommands(t *testing.T) {
 // the settings page, seeded with this machine's values, and a save writes the
 // values back (the password into the secrets file).
 func TestIntegrationConfigurationFormEndToEnd(t *testing.T) {
+	requirePOSIXShell(t)
 	paths := extensions.FromRoot(t.TempDir())
 	if err := paths.Ensure(); err != nil {
 		t.Fatal(err)
