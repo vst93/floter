@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 )
 
 // A Windows shortcut keeps its icon inside the shell's own database, so the
@@ -21,11 +22,40 @@ import (
 // iconExtractScript is the PowerShell program that extracts one icon. The
 // source path and the target file are appended as arguments, so a path with a
 // quote in it cannot break the script.
+//
+// A `.lnk` is resolved through the shell's own interface first: the icon
+// database is keyed by the *program* a shortcut launches, and
+// `ExtractAssociatedIcon` on the shortcut itself answers the shortcut's icon
+// only on the versions that resolve it — the reference asks
+// `WScript.Shell.CreateShortcut(...).TargetPath` for exactly this reason
+// (`main:src-tauri/src/commands/apps/windows.rs:124-152`).
 func iconExtractScript(source, target string) string {
-	return "Add-Type -AssemblyName System.Drawing; " +
-		"$icon = [System.Drawing.Icon]::ExtractAssociatedIcon(" + psQuote(source) + "); " +
+	return "$ErrorActionPreference='Stop'; " +
+		"$source = " + psQuote(source) + "; " +
+		"if ($source.ToLower().EndsWith('.lnk')) { " +
+		"$shell = New-Object -ComObject WScript.Shell; " +
+		"$source = $shell.CreateShortcut($source).TargetPath }; " +
+		"if (-not $source) { exit 1 }; " +
+		"Add-Type -AssemblyName System.Drawing; " +
+		"$icon = [System.Drawing.Icon]::ExtractAssociatedIcon($source); " +
 		"if (-not $icon) { exit 1 }; " +
 		"$icon.ToBitmap().Save(" + psQuote(target) + ", [System.Drawing.Imaging.ImageFormat]::Png)"
+}
+
+// createNoWindow keeps a helper process's console off the screen: every
+// extraction is a `powershell` launch, and one per row that flashes a black
+// window on the desktop is a visible bug of its own (the reference passes the
+// same flag, `windows.rs:44` `CREATE_NO_WINDOW`).
+const createNoWindow = 0x08000000
+
+// hiddenPowerShell is the `*exec.Cmd` for an icon extraction: no profile, no
+// console window, no inherited streams.
+func hiddenPowerShell(script string) *exec.Cmd {
+	cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive",
+		"-WindowStyle", "Hidden", "-Command", script)
+	cmd.Stdin, cmd.Stdout, cmd.Stderr = nil, nil, nil
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: createNoWindow}
+	return cmd
 }
 
 // psQuote quotes a value for a PowerShell single-quoted string, where a quote
@@ -53,9 +83,7 @@ func extractIcon(app App) []byte {
 		return nil
 	}
 	script := iconExtractScript(app.Path, target)
-	cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", script)
-	cmd.Stdin, cmd.Stdout, cmd.Stderr = nil, nil, nil
-	if err := cmd.Run(); err != nil {
+	if err := hiddenPowerShell(script).Run(); err != nil {
 		return nil
 	}
 	data, err := os.ReadFile(target)
@@ -67,9 +95,7 @@ func extractIcon(app App) []byte {
 
 // runPowerShell runs one script, for the tests and the shortcut helper.
 func runPowerShell(script string) error {
-	cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", script)
-	cmd.Stdin, cmd.Stdout, cmd.Stderr = nil, nil, nil
-	return cmd.Run()
+	return hiddenPowerShell(script).Run()
 }
 
 // windowsIconCachePath is where a shortcut's icon is cached: the user's cache

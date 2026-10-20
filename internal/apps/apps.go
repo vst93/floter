@@ -200,15 +200,64 @@ func ScanDarwin(root string) []App {
 }
 
 // ScanWindows collects the .lnk shortcuts under root.
+//
+// Each shortcut's own target is read (see shortcut.go), and everything the
+// reference derives from it comes with it:
+//
+//   - the target must be a program a user launches, or the shortcut is not a
+//     row at all — the Start Menu also holds the uninstallers and the read-me
+//     links every installer drops beside its program
+//     (`is_launchable_target`, `windows.rs:539-549`);
+//   - two shortcuts pointing at one program are one row (the reference dedupes
+//     on the lowercased target, `windows.rs:234-247`);
+//   - the executable's own name is a search alias, which is what keeps
+//     「企业微信.lnk」 reachable from a Latin keyboard as `WXWork`
+//     (`build_aliases`, `executable_name`), and the name's pinyin initials are
+//     the Chinese front door the macOS and Linux scans already have.
+//
+// A shortcut whose target cannot be read is still a row: Windows resolves it
+// itself when the file is opened, which is the reference's own decision.
 func ScanWindows(root string) []App {
 	var out []App
+	seenTargets := map[string]bool{}
+	seenNames := map[string]bool{}
 	walk(root, func(path string, d os.DirEntry) bool {
 		name := d.Name()
 		if d.IsDir() || !strings.HasSuffix(strings.ToLower(name), ".lnk") {
 			return true
 		}
 		base := name[:len(name)-len(".lnk")]
-		out = append(out, App{Name: base, Path: path})
+		target, hasTarget := ShortcutTarget(path)
+		if hasTarget {
+			if !IsLaunchableTarget(target) {
+				return true
+			}
+			key := strings.ToLower(target)
+			if seenTargets[key] {
+				return true
+			}
+			seenTargets[key] = true
+		}
+		nameKey := strings.ToLower(base)
+		if seenNames[nameKey] {
+			return true
+		}
+		seenNames[nameKey] = true
+
+		// A shortcut named in Chinese still points at a program with a Latin
+		// name, so the executable's own name is the alias that keeps the row
+		// typeable (and it is dropped when it repeats the shortcut's name, as
+		// `build_aliases` does for every scanner).
+		var candidates []string
+		if executable := ShortcutTargetName(target); executable != "" {
+			candidates = append(candidates, executable)
+		}
+		out = append(out, App{
+			Name:     base,
+			Path:     path,
+			Aliases:  buildAliases(base, "", candidates),
+			Initials: computeInitials(base, ""),
+		})
 		return true
 	})
 	sortApps(out)

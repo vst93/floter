@@ -24,6 +24,30 @@ func TestIconExtractScriptQuotes(t *testing.T) {
 	}
 }
 
+// A shortcut's icon lives in the shell's database keyed by the program it
+// launches, so the script resolves the target first — `ExtractAssociatedIcon`
+// on the `.lnk` itself is not the answer the reference gives.
+func TestIconExtractScriptResolvesAShortcut(t *testing.T) {
+	script := iconExtractScript(`C:\Start Menu\WeCom.lnk`, `C:\cache\out.png`)
+	for _, want := range []string{"WScript.Shell", "CreateShortcut", "TargetPath", "EndsWith('.lnk')"} {
+		if !strings.Contains(script, want) {
+			t.Errorf("the script never resolves the shortcut (%q missing): %s", want, script)
+		}
+	}
+}
+
+// The extraction is a process launch per row: it must not flash a console
+// window on the desktop.
+func TestTheExtractionHasNoConsoleWindow(t *testing.T) {
+	cmd := hiddenPowerShell("exit 0")
+	if cmd.SysProcAttr == nil || !cmd.SysProcAttr.HideWindow {
+		t.Fatalf("the extraction shows a window: %+v", cmd.SysProcAttr)
+	}
+	if cmd.SysProcAttr.CreationFlags&createNoWindow == 0 {
+		t.Errorf("the extraction has no CREATE_NO_WINDOW: %#x", cmd.SysProcAttr.CreationFlags)
+	}
+}
+
 // A real extraction: PowerShell is part of Windows, so this runs wherever the
 // suite does.
 func TestExtractIconFromAShortcut(t *testing.T) {
