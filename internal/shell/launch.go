@@ -4,7 +4,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
@@ -55,7 +54,12 @@ func (a *App) openPath(path string) {
 		}
 		return
 	}
-	if err := spawn.Program(systemOpener(), resolved); err != nil {
+	// The platform's own opener, from the one shared table (`spawn.Open`):
+	// ShellExecute by name on Windows, `open` on macOS, and `xdg-open` with the
+	// reference's own fallbacks on Linux. The port had a second, hand-written
+	// opener here (`systemOpener`), so a path and a page could be opened by two
+	// different programs on the same machine.
+	if err := spawn.Open(resolved); err != nil {
 		fail(resolved, err)
 	}
 }
@@ -89,19 +93,6 @@ func resolvePath(path, home string) string {
 		return home
 	}
 	return filepath.Join(home, rest)
-}
-
-// systemOpener is the platform's own opener: the one command every desktop
-// answers with a path.
-func systemOpener() string {
-	switch runtime.GOOS {
-	case "darwin":
-		return "open"
-	case "windows":
-		return "explorer"
-	default:
-		return "xdg-open"
-	}
 }
 
 // spawnGap is how long a process hand-off is left alone after one ran: a

@@ -75,31 +75,32 @@ func OpenURL(browserID, url string) error {
 }
 
 // openURLCandidates is the argv that opens `url`, per platform, so the rule can
-// be read (and exercised) without spawning a browser.
+// be read (and exercised) without spawning a browser. The default opener is
+// the app's one shared table (`spawn.OpenCandidates`), so a page and a path are
+// opened by the same program on the same machine; only macOS adds a candidate
+// in front of it.
 //
-// Windows hands the URL to `explorer`, which is the reference's opener
-// (`main:src-tauri/src/commands/actions.rs:20-32`): it calls `ShellExecute` on
-// its argument. The port went through `cmd /c start`, which re-parses the
-// string as a *command line* — `&` separates commands to `cmd.exe` even inside
-// quotes, and a URL's query string is full of them, so
-// `https://example.com/?a=1&b=2` opened `…?a=1` and tried to run `b=2`. The
-// reference refuses `cmd /c start` for exactly this reason.
+// A URL is handed over as **one argument**, never through a shell: the port
+// went through `cmd /c start`, which re-parses the string as a *command line* —
+// `&` separates commands to `cmd.exe`, and a URL's query string is full of
+// them, so `https://example.com/?a=1&b=2` opened `…?a=1` and tried to run
+// `b=2`. The reference refuses `cmd /c start` for exactly this reason
+// (`main:src-tauri/src/commands/actions.rs:20-32`).
 //
 // macOS tries the named application first and the default browser second: an
 // `open -a <missing app>` only fails after `open` itself has started, so the
 // fallback has to be a second spawn rather than an error from the first.
 func openURLCandidates(goos, browserID, url string) ([][]string, error) {
-	switch goos {
-	case "darwin":
-		if app, ok := macAppName(browserID); ok {
-			return [][]string{{"open", "-a", app, url}, {"open", url}}, nil
-		}
-		return [][]string{{"open", url}}, nil
-	case "windows":
-		return [][]string{{"explorer", url}}, nil
-	case "linux":
-		return [][]string{{"xdg-open", url}}, nil
-	default:
+	defaults := spawn.OpenCandidates(goos, url)
+	if len(defaults) == 0 {
 		return nil, fmt.Errorf("browser: opening %s is not supported on this platform", url)
 	}
+	if goos != "darwin" {
+		return defaults, nil
+	}
+	if app, ok := macAppName(browserID); ok {
+		candidates := [][]string{{"open", "-a", app, url}}
+		return append(candidates, defaults...), nil
+	}
+	return defaults, nil
 }
