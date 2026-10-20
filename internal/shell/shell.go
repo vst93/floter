@@ -463,6 +463,16 @@ type App struct {
 	// the request into a resize loop.
 	contractAt    time.Time
 	contractTries int
+	// frameSize is the size this frame will ask the window for, collected
+	// from every rule that has an opinion (the height walk and the contract
+	// pull) and applied as one SetSize at the end of the frame (see
+	// framesize.go): two synchronous resizes between a frame's layout and its
+	// paint is the queue that reads as a freeze.
+	frameSize sizeRequest
+	// setWindowSize replaces the frame's own resize, for a test that has no
+	// window but must see how many times and at what size the frame asked (see
+	// framesize.go); nil drives the real window.
+	setWindowSize func(width, height int)
 	// launcherTarget is the height the launcher's list asked for (the View
 	// measures it); walkLauncherHeight eases the window there.
 	launcherTarget int
@@ -3858,11 +3868,12 @@ func (a *App) shellEnterProgress(c *ui.Context) float32 {
 // its velocity when the target changes mid-flight, but it also overshoots and
 // takes 500ms to settle, which reads as the edge lagging a keystroke; the
 // reference deliberately chose a short curve. The element's AnimateTo keeps
-// the frames coming until the value lands, and the last step's SetSize is the
-// only one the platform sees at the end. A window that is already there does
-// nothing - the common case, a keystroke that left the list the same size.
+// the frames coming until the value lands, and the height is asked for once per
+// frame — through requestWindowSize, which coalesces it with the same frame's
+// pull back to the contract (see framesize.go). A window that is already there
+// does nothing - the common case, a keystroke that left the list the same size.
 func (a *App) walkLauncherHeight(c *ui.Context) {
-	if a.Win == nil || a.Surf != SurfaceLauncher || a.launcherTarget == 0 {
+	if !a.hasWindow() || a.Surf != SurfaceLauncher || a.launcherTarget == 0 {
 		return
 	}
 	// The steady state first, and cheaply: the window already carries the
@@ -3888,8 +3899,10 @@ func (a *App) walkLauncherHeight(c *ui.Context) {
 	if int(math.Round(float64(height))) == int(current) {
 		return
 	}
-	a.Win.SetSize(launcher.InputWindowWidth, int(math.Round(float64(height))))
-	a.lastW, a.lastH = launcher.InputWindowWidth, int(math.Round(float64(height)))
+	// The ask is collected, not made here: the frame's own pull back to the
+	// 720 contract may want the same window at the same moment, and the two
+	// are one size (see framesize.go).
+	a.requestWindowSize(launcher.InputWindowWidth, int(math.Round(float64(height))))
 }
 
 // launcherHeightAnimation is the walk's motion: the reference's 150ms
@@ -4065,6 +4078,10 @@ func (a *App) View(c *ui.Context) {
 		// than a zero-width card.
 		windowWidth = float32(launcher.InputWindowWidth)
 	}
+	// The frame's size requests are collected here and applied by
+	// flushWindowSize once the surface has been built, so at most one
+	// synchronous SetSize happens per frame (see framesize.go).
+	defer a.flushWindowSize()
 	a.holdContractWidth(windowWidth)
 	cardWidth := CardWidth(a.Surf, windowWidth, left, right)
 	a.logGeometry(windowWidth, cardWidth, material, c.Vibrancy(), left, right)
@@ -4330,15 +4347,17 @@ const (
 // platform that refuses it gets a stretched card, which still has no empty band
 // in it (see CardWidth).
 func (a *App) holdContractWidth(windowWidth float32) {
-	if a.Win == nil || a.Surf == SurfaceTerminal {
+	if !a.hasWindow() || a.Surf == SurfaceTerminal {
 		return
 	}
 	// A frame that is mid-walk already asks the window for the contract's width
-	// (walkLauncherHeight's SetSize is 720 wide by construction), so the pull
-	// would be a second synchronous SetWindowPos in the same frame for a width
-	// the frame has just requested. The walk is the one that has to run — it is
-	// the height the keystroke asked for — and the pull resumes on the first
-	// frame the walk has landed.
+	// (walkLauncherHeight asks 720 wide by construction), so the pull would be
+	// a second size request in the same frame for a width the frame has just
+	// asked for. The walk is the one that has to run — it is the height the
+	// keystroke asked for — and the pull resumes on the first frame the walk
+	// has landed. (One request per frame would coalesce the two anyway; this
+	// keeps the pull's own budget from being spent on a frame whose height was
+	// not the contract's business.)
 	if a.lastH != a.launcherTarget {
 		return
 	}
@@ -4361,8 +4380,7 @@ func (a *App) holdContractWidth(windowWidth float32) {
 	}
 	a.contractTries++
 	a.contractAt = a.now()
-	a.lastW, a.lastH = launcher.InputWindowWidth, height
-	a.Win.SetSize(launcher.InputWindowWidth, height)
+	a.requestWindowSize(launcher.InputWindowWidth, height)
 }
 
 // inset is the card's distance to the window edge per platform, from
@@ -4542,6 +4560,10 @@ func (a *App) resize() {
 		return
 	}
 	a.lastW, a.lastH = w, h
+	// A surface change is not a frame: it runs between frames, so this one
+	// call is the transition itself rather than a per-frame ask. The frame's
+	// own requests (the height walk and the contract pull) are coalesced by
+	// flushWindowSize (see framesize.go).
 	a.Win.SetSize(w, h)
 	// The launcher's walk follows the surface's own resize: without this a
 	// summon would land the window at the slab and the next View frame
