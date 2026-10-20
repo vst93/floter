@@ -3921,7 +3921,7 @@ func (a *App) View(c *ui.Context) {
 	}
 	a.holdContractWidth(windowWidth)
 	cardWidth := CardWidth(a.Surf, windowWidth, left, right)
-	a.logGeometry(windowWidth, cardWidth, material, left, right)
+	a.logGeometry(windowWidth, cardWidth, material, c.Vibrancy(), left, right)
 	ui.Column(c).Fill().Padding(top, right, bottom, left).AlignItems(ui.Center).Children(func() {
 		// The card *is* the window on every surface, so its corner is the
 		// design's own 14px (base.css:66) — the same on all three platforms,
@@ -4453,7 +4453,7 @@ func scriptContent(integration extensions.Integration) string {
 // the insets small is a card that did not fill the frame. Eight rounds of that
 // report were answered by inference because the numbers never left the machine;
 // this is the line a report can quote.
-func (a *App) logGeometry(windowWidth, cardWidth float32, material bool, left, right float32) {
+func (a *App) logGeometry(windowWidth, cardWidth float32, material, vibrancy bool, left, right float32) {
 	if a.Win == nil {
 		return
 	}
@@ -4463,7 +4463,17 @@ func (a *App) logGeometry(windowWidth, cardWidth float32, material bool, left, r
 	}
 	a.loggedSurface, a.loggedWidth = a.Surf, windowWidth
 	a.loggedWindowW, a.loggedWindowH = w, h
-	log.Print(geometryLine(runtime.GOOS, a.Surf.Name(), windowWidth, cardWidth, w, h, material, left, right))
+	// vibrancy is the framework's own answer (`mygo`'s `Context.Vibrancy`:
+	// "the window shows its material"). On Windows that flag is mygo's
+	// `noRedirect` (`mygo@v0.5.5/internal/windows/window.go:131`), which needs a
+	// system backdrop (`win32.go:67`, Windows 11 22H2+). So this one line
+	// separates the three readings of the report 「背景透明都没做到」:
+	// `material=false vibrancy=false` = the system has no backdrop at all (the
+	// card is drawn opaque over the whole window, see insetFor); `material=false
+	// vibrancy=true` = the material exists and the stop asked it off;
+	// `material=true` = the glass is on and the margin is real transparency.
+	log.Print(geometryLine(runtime.GOOS, a.Surf.Name(), windowWidth, cardWidth, w, h, material, left, right),
+		" vibrancy=", vibrancy)
 }
 
 // geometryLine is the geometry report as one line of text: the numbers a
