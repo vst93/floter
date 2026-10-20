@@ -488,6 +488,14 @@ type App struct {
 	// toggleAt is when the panel was last revealed or dismissed, so a summon
 	// shortcut the desktop repeats cannot strobe the window (see Toggle).
 	toggleAt time.Time
+	// enterAt is when the current arrival started: the arrival animation belongs
+	// to a reveal (see Show) and to a surface swap, not to every frame, so a
+	// surface change starts a new one and a hidden panel draws settled.
+	enterAt   time.Time
+	enterLive bool
+	// arrivalSeen stands in for "there is a window" in a test: the arrival only
+	// happens in a real one (see arrivalVisible).
+	arrivalSeen func() bool
 	// loggedWidth and loggedSurface are the frame width and surface the last
 	// geometry line was logged for (see logGeometry): one line per distinct
 	// width, not one per frame. loggedWindowW/H are the window's own size at
@@ -3164,6 +3172,14 @@ func (a *App) Open(s Surface) {
 		a.Launcher.DisarmDelete()
 	}
 	a.Surf = s
+	// A surface swap is an arrival of its own: the card the user sees after the
+	// press is a different page in the same window, and the reference animated
+	// each surface's shell in (`shell-enter`, `base.css:1244-1256`). Only a real
+	// *entry* starts one — re-ordering the surface the user is already on is not
+	// a new page.
+	if entering {
+		a.startShellEnter()
+	}
 	switch s {
 	case SurfaceSettings:
 		// The page is the one the visit left: restoring it on a repeat would
@@ -3605,6 +3621,11 @@ func (a *App) Show() {
 	}
 	a.shownAt = a.now()
 	if rehome {
+		// A reveal is the window arriving on screen: the reference's
+		// `shell-enter` ran every time the surface's shell mounted, and a
+		// summon is exactly that mount. A window that was already visible
+		// (a mode switch, a focus change) keeps the frame it has.
+		a.startShellEnter()
 		a.placeWindow()
 	}
 	a.Win.Show()
@@ -3710,6 +3731,72 @@ func (a *App) resizeLauncher(height int) {
 		return
 	}
 	a.launcherTarget = height
+}
+
+// shellEnter is the arrival's length: the reference's `--dur-4` (220ms,
+// `main:src/styles/base.css:349`), the duration its `shell-enter` ran at.
+//
+// The travel's own three numbers are the keyframes' own literals
+// (`:1251-1253`): the opening scale, the 6px lift and the origin the transform
+// grows from. They are named here rather than written into the `View` call so
+// the shape has one source — the frame is drawn from these, and the test that
+// pins them reads the same three names.
+const (
+	shellEnter = 220 * time.Millisecond
+	// shellEnterScale is `scale(0.97)` at the arrival's start.
+	shellEnterScale = 0.97
+	// shellEnterLift is `translateY(6px)` at the arrival's start, in DIP.
+	shellEnterLift = 6
+	// shellEnterOrigin is `transform-origin: center top`, as fractions of the
+	// box: the pane grows down from its own top edge.
+	shellEnterOriginX = 0.5
+	shellEnterOriginY = 0
+)
+
+// startShellEnter marks the panel as arriving: the clock is set and the surface
+// being entered is recorded, so a surface swap starts its own travel rather than
+// inheriting one that is already part-way through.
+//
+// Without a window there is nothing arriving: the headless frames the pixel
+// tests draw (and a process that has not built its window yet) stay settled, so
+// the arrangement every other assertion reads — the card's edges, the column's
+// units — is the finished shape and never a frame of the travel.
+func (a *App) startShellEnter() {
+	if !a.arrivalVisible() {
+		return
+	}
+	a.enterAt = a.now()
+	a.enterLive = true
+}
+
+// arrivalVisible reports whether there is a window for an arrival to happen in.
+// A headless frame — every pixel test in this suite, and a process that has not
+// built its window yet — has none, and `arrivalSeen` is the seam a test uses to
+// stand in for one.
+func (a *App) arrivalVisible() bool {
+	if a.arrivalSeen != nil {
+		return a.arrivalSeen()
+	}
+	return a.Win != nil
+}
+
+// shellEnterProgress reports how far the panel's arrival is through its travel —
+// 0 on the frame it started, 1 once `shellEnter` has passed. A panel that has
+// never arrived, that is settled, or that the desktop asks to keep still draws
+// 1: the animation is a nicety of a reveal, never a condition of a frame.
+func (a *App) shellEnterProgress() float32 {
+	if !a.enterLive || a.enterAt.IsZero() {
+		return 1
+	}
+	elapsed := a.now().Sub(a.enterAt)
+	if elapsed <= 0 {
+		return 0
+	}
+	if elapsed >= shellEnter {
+		a.enterLive = false
+		return 1
+	}
+	return float32(elapsed) / float32(shellEnter)
 }
 
 // walkLauncherHeight moves the window to the launcher's target height on the
@@ -3928,7 +4015,27 @@ func (a *App) View(c *ui.Context) {
 	a.holdContractWidth(windowWidth)
 	cardWidth := CardWidth(a.Surf, windowWidth, left, right)
 	a.logGeometry(windowWidth, cardWidth, material, c.Vibrancy(), left, right)
-	ui.Column(c).Fill().Padding(top, right, bottom, left).AlignItems(ui.Center).Children(func() {
+	// The panel's arrival: the reference's `shell-enter` (`base.css:1244-1256`),
+	// one eased travel 0→1 driving opacity, scale and the 6px lift together, so
+	// a summon reads as a pane *landing* rather than a window appearing. It runs
+	// on a reveal — Show sets the clock, and a mere focus change does not — and a
+	// frame that has never been revealed draws settled, so every headless frame
+	// and the first frame of a session are the finished shape.
+	entrance := a.shellEnterProgress()
+	if entrance < 1 {
+		c.AnimationFrame()
+	}
+	settle := toastSpring(entrance)
+	root := ui.Column(c).Fill().Padding(top, right, bottom, left).AlignItems(ui.Center)
+	root.Opacity(min(settle, 1)).
+		// `transform-origin: center top`: the pane grows *down* from its top
+		// edge, the shape a panel hanging from the top of the screen takes.
+		TransformOrigin(shellEnterOriginX, shellEnterOriginY).
+		Scale(shellEnterScale+(1-shellEnterScale)*settle, shellEnterScale+(1-shellEnterScale)*settle).
+		// The reference writes `translateY(6px)` as a literal, not a `--u`
+		// multiple, so the lift is the same 6 DIP at every interface step.
+		Translate(0, shellEnterLift*(1-settle))
+	root.Children(func() {
 		// The card *is* the window on every surface, so its corner is the
 		// design's own 14px (base.css:66) — the same on all three platforms,
 		// because DWM no longer rounds the window on Windows (see
