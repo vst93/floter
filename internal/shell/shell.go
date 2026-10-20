@@ -1552,6 +1552,7 @@ func (a *App) RefreshIntegrations(ctx context.Context) {
 	// the memo is dropped with it: an install, a repair or a reconnect must show
 	// its answer on the next frame, not after the TTL.
 	invalidateIntegrationFacts()
+	invalidateStoredConfigs()
 	a.onMain(func() { a.Launcher.SetCommands(a.launcherCommands()) })
 	// R7-7 · the silent drift re-probe. The list is already assembled from the
 	// previous descriptor, so the check runs behind it: a slow or hung tool
@@ -1572,6 +1573,11 @@ func (a *App) integrationList() []settingsui.Integration {
 	// manifest digest are a stat walk and a file read, and the settings page
 	// rebuilds this list sixty times a second.
 	facts := a.integrationFacts(inventory.Integrations)
+	// The other per-frame syscall this list used to pay: `applyIntegrationConfig`
+	// reads the stored configuration document and the secrets generation it
+	// names — two blocking reads per configurable row, per frame. Same shape as
+	// the facts above, so the same memo (see configmemo.go).
+	configs := a.storedConfigs(inventory.Integrations)
 	// `CommandRegistry` is a pure projection of the description table (it used
 	// to resolve every runtime itself — one stat walk per integration per
 	// frame, the same number the memo above already holds), so a command row's
@@ -1719,7 +1725,7 @@ func (a *App) integrationList() []settingsui.Integration {
 		if a.Integrations == nil {
 			log.Printf("floter: the extension store is nil in integrationList")
 		}
-		applyIntegrationConfig(a.Integrations, a.Paths, &item, integration)
+		applyIntegrationConfig(a.Integrations, a.Paths, &item, integration, configs[integration.Entry.ID])
 		a.diagnosisMu.Lock()
 		if diagnosis, ok := a.diagnoses[item.ID]; ok {
 			item.Diagnosis, item.DiagnosisFailed = diagnosis.Diagnosis, diagnosis.DiagnosisFailed
@@ -2164,6 +2170,10 @@ func (a *App) saveIntegrationConfigurationNow(id string, values map[string]any) 
 	if err := extensions.SaveConfiguration(a.Paths, id, description.Configuration.Schema, values); err != nil {
 		return err
 	}
+	// The values just written are what the card has to draw, so the memo that
+	// serves the form's starting values is dropped rather than waiting out its
+	// TTL (see configmemo.go).
+	invalidateStoredConfigs()
 	// The provider sees the new values the next time it is asked.
 	go a.RefreshIntegrations(context.Background())
 	return nil
@@ -2172,7 +2182,11 @@ func (a *App) saveIntegrationConfigurationNow(id string, values map[string]any) 
 // applyIntegrationConfig copies an integration's configuration schema and its
 // stored values onto the settings row. The whole thing is guarded: a schema
 // this build cannot render must not take the list down.
-func applyIntegrationConfig(store *extensions.Store, paths extensions.Paths, item *settingsui.Integration, integration extensions.Integration) {
+//
+// The stored values arrive as `stored` rather than being read here: this runs
+// once per row per frame, and the read is two blocking files (the document and
+// the secrets generation it names). See configmemo.go.
+func applyIntegrationConfig(store *extensions.Store, paths extensions.Paths, item *settingsui.Integration, integration extensions.Integration, stored storedConfig) {
 	defer func() {
 		if r := recover(); r != nil {
 			log.Printf("floter: could not read the configuration of %s: %v", item.ID, r)
@@ -2217,17 +2231,14 @@ func applyIntegrationConfig(store *extensions.Store, paths extensions.Paths, ite
 			MaxLength:   field.MaxLength,
 		})
 	}
-	stored, err := extensions.LoadStoredConfiguration(paths.Data, item.ID)
-	if err != nil {
-		return
-	}
-	item.ConfigValues = stored.Values
+	storedValues, storedVersion := stored.values, stored.version
+	item.ConfigValues = storedValues
 	// The generation the stored values were written against, so a copied or
 	// exported configuration can name it (the reference's
 	// `ConfigurationExportDocument.config_version`). The stored value wins
 	// when the file recorded one; the schema's own generation fills in
 	// otherwise, exactly as `SaveConfiguration` carries it forward.
-	item.ConfigVersion = stored.ConfigVersion
+	item.ConfigVersion = storedVersion
 	if item.ConfigVersion == 0 {
 		item.ConfigVersion = configuration.ConfigVersion
 	}
