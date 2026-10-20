@@ -227,6 +227,9 @@ jobs:
           # 应用内置的是对应公钥（mygo.json 的 updates.publicKey）。
           # 没配这个 secret 时构建照常，只是不产出更新文件（应用内更新不可用）。
           MYGO_UPDATER_PRIVATE_KEY: ${{ secrets.MYGO_UPDATER_PRIVATE_KEY }}
+          # 本次发布的更新说明（prepare 从 git log 生成），只在 CHANGELOG 没有
+          # [Unreleased] 小节时用来补一节。经 env 传入，不进 shell 字符串。
+          NOTES: ${{ needs.prepare.outputs.notes }}
         run: |
           set -e
           VERSION="${{ needs.prepare.outputs.version }}"
@@ -239,15 +242,25 @@ jobs:
           # 更新清单的更新说明取自 CHANGELOG.md 里本版本的小节，所以把
           # [Unreleased] 就地改成版本号（仓库自己的约定，见 CHANGELOG.md 开头）。
           # 没有 [Unreleased] 小节时补一个，内容就是这次生成的说明。
-          if grep -qE '^## \[Unreleased\]' CHANGELOG.md; then
-            sed -i.bak -E "0,/^## \[Unreleased\].*/s//## [$VERSION] - $(date +%F)/" CHANGELOG.md
-            rm -f CHANGELOG.md.bak
-          else
-            printf '## [%s] - %s\n\n%s\n\n' "$VERSION" "$(date +%F)" "${{ needs.prepare.outputs.notes }}" > /tmp/section.md
-            cat CHANGELOG.md >> /tmp/section.md
-            mv /tmp/section.md CHANGELOG.md
-          fi
-          head -5 CHANGELOG.md
+          #
+          # 这里用 python 而不是 `sed 0,/re/`：`0,` 地址是 GNU 扩展，BSD sed
+          # （macOS runner）不认，替换会**静默不生效**——0.3.25 那次发布就是这么
+          # 红的（macOS job：「CHANGELOG.md has no notes for 0.3.25」），而那个报错
+          # 只在配了签名私钥、真的要产出更新清单时才会出现，所以它在没配 secret
+          # 的那些版本里一直藏着。Linux/Windows 的 GNU sed 正常，只有 mac 一个
+          # 平台红。修好的东西发不出去的教训已经够多，这里不再赌 sed 方言。
+          python3 -c '
+          import datetime, os, pathlib, re, sys
+          path = pathlib.Path("CHANGELOG.md")
+          text = path.read_text(encoding="utf-8")
+          heading = "## [%s] - %s" % (sys.argv[1], datetime.date.today().isoformat())
+          notes = os.environ.get("NOTES", "").strip() or "- 本次发布。"
+          new, n = re.subn(r"(?m)^## \[Unreleased\].*$", heading, text, count=1)
+          if not n:
+              new = heading + "\n\n" + notes + "\n\n" + text
+          path.write_text(new, encoding="utf-8")
+          print("\n".join(new.split("\n")[:5]))
+          ' "$VERSION"
 
           go tool mygo build -platform ${{ matrix.platform }}
 
