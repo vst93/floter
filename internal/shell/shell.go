@@ -1537,6 +1537,11 @@ const maxRecentApps = 10
 // after it, on the goroutine it spawns itself.
 func (a *App) RefreshIntegrations(ctx context.Context) {
 	a.Integrations.Refresh(ctx)
+	// The per-integration facts (runtime probe, manifest digest — see
+	// integrationfacts.go) describe the inventory this refresh just replaced, so
+	// the memo is dropped with it: an install, a repair or a reconnect must show
+	// its answer on the next frame, not after the TTL.
+	invalidateIntegrationFacts()
 	a.onMain(func() { a.Launcher.SetCommands(a.launcherCommands()) })
 	// R7-7 · the silent drift re-probe. The list is already assembled from the
 	// previous descriptor, so the check runs behind it: a slow or hung tool
@@ -1568,6 +1573,11 @@ func (a *App) integrationList() []settingsui.Integration {
 		})
 	}
 	out := make([]settingsui.Integration, 0, len(inventory.Integrations))
+	// The two per-integration system calls the page used to pay on every frame
+	// come from one memo (see integrationfacts.go): the runtime probe and the
+	// manifest digest are a stat walk and a file read, and the settings page
+	// rebuilds this list sixty times a second.
+	facts := a.integrationFacts(inventory.Integrations)
 	for _, integration := range inventory.Integrations {
 		item := settingsui.Integration{
 			ID:          integration.Entry.ID,
@@ -1584,11 +1594,13 @@ func (a *App) integrationList() []settingsui.Integration {
 			DistributionSource: integration.Entry.DistributionSource,
 			RuntimeOwnership:   integration.Entry.RuntimeOwnership,
 		}
-		// The runtime the entry was bound to, resolved again for this frame: a
-		// row whose program moved or vanished offers the reference's repair
-		// action instead of a run it could not perform
-		// (`src/extensions/ExtensionRow.tsx:345-370`).
-		if _, err := extensions.ResolveRuntime(integration); err == nil {
+		// The runtime the entry was bound to, as the memo last found it: a row
+		// whose program moved or vanished offers the reference's repair action
+		// instead of a run it could not perform
+		// (`src/extensions/ExtensionRow.tsx:345-370`). The probe is a stat walk
+		// (a `system` runtime with no recorded path is looked up by name in every
+		// search directory), so it is memoised rather than re-asked per frame.
+		if fact, ok := facts[integration.Entry.ID]; ok && fact.available {
 			item.RuntimeAvailable = true
 		}
 		// The project's own page, when the manifest names one: the repair a row
@@ -1635,8 +1647,8 @@ func (a *App) integrationList() []settingsui.Integration {
 			if integration.Entry.ApprovedManifestDigest != nil {
 				approval.ApprovedDigest = *integration.Entry.ApprovedManifestDigest
 			}
-			if digest, err := extensions.ManifestDigest(integration.ManifestPath()); err == nil {
-				approval.CurrentDigest = digest
+			if digest, ok := facts[integration.Entry.ID]; ok && digest.hasDigest {
+				approval.CurrentDigest = digest.digest
 			}
 			for _, permission := range integration.Entry.ApprovedPermissions {
 				if extensions.PermissionEnforced(permission) {
