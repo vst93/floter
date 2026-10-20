@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+	"time"
 )
 
 // Program starts a program detached, with no inherited standard streams. It
@@ -27,12 +28,18 @@ func ProgramIn(dir, program string, args ...string) error {
 	if strings.TrimSpace(program) == "" {
 		return errors.New("spawn: no program to start")
 	}
+	return start(programCmd(dir, program, args...))
+}
+
+// programCmd is the command line every launch path builds: the program's own
+// argv, started in `dir` when it has an opinion, with no inherited streams.
+func programCmd(dir, program string, args ...string) *exec.Cmd {
 	cmd := exec.Command(program, args...)
 	if dir != "" {
 		cmd.Dir = dir
 	}
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = nil, nil, nil
-	return start(cmd)
+	return cmd
 }
 
 // Command runs a shell command line with no window and no terminal: the user's
@@ -82,14 +89,19 @@ func TerminalAt(dir string) error {
 		// an executable called `kitty --single-instance`, which never
 		// exists, so the variable was silently ignored.
 		if argv := splitCommandLine(emulator); len(argv) > 0 {
-			if err := ProgramIn(dir, argv[0], argv[1:]...); err == nil {
+			if err := startCandidate(dir, argv, true); err == nil {
 				return nil
 			}
 		}
 	}
 	var lastErr error
+	// The probe budget: each candidate is watched for its own early death (see
+	// startWatched) only while the hand-off as a whole is still inside this
+	// window, so a machine with a dozen broken emulators reports its failure in
+	// about this long rather than a dozen times over.
+	deadline := time.Now().Add(probeBudget)
 	for _, candidate := range terminalLaunchersFor(runtime.GOOS, dir) {
-		if err := ProgramIn(dir, candidate[0], candidate[1:]...); err != nil {
+		if err := startCandidate(dir, candidate, time.Now().Before(deadline)); err != nil {
 			lastErr = err
 			continue
 		}
@@ -286,4 +298,56 @@ func start(cmd *exec.Cmd) error {
 	// long-lived browser or terminal from becoming a zombie of this process.
 	go func() { _ = cmd.Wait() }()
 	return nil
+}
+
+// earlyExitWindow is how long a *launcher* is watched for an early death, and
+// probeBudget bounds the whole hand-off's watching (see TerminalAt).
+//
+// A terminal emulator that is on the machine but cannot open its window — no
+// display, a single-instance server it cannot reach, a broken config — exits
+// within a few milliseconds with a non-zero status, and `Start` reporting
+// nothing is exactly the case the port used to call success: the user pressed
+// 「在系统终端中继续」, no window appeared, and no message said why. The watch
+// is short because it sits on the launch path: an emulator that is still alive
+// after it is the window the user asked for.
+const (
+	earlyExitWindow = 150 * time.Millisecond
+	probeBudget     = 400 * time.Millisecond
+)
+
+// startCandidate starts one emulator argv. With `watch` it waits out
+// earlyExitWindow so a launcher that dies at once is reported (and the next
+// candidate gets its turn) instead of being counted as a launch.
+func startCandidate(dir string, argv []string, watch bool) error {
+	if len(argv) == 0 || strings.TrimSpace(argv[0]) == "" {
+		return errors.New("spawn: no program to start")
+	}
+	cmd := programCmd(dir, argv[0], argv[1:]...)
+	if !watch {
+		return start(cmd)
+	}
+	return startWatched(cmd)
+}
+
+// startWatched starts cmd and watches it for earlyExitWindow. A child that
+// exits **0** inside the window is a hand-off, not a failure: the emulators
+// that ask a running server for the window (gnome-terminal, konsole, kitty
+// --single-instance) exit successfully the moment the server has it. A child
+// that exits non-zero is the launch that never appeared, and its own error is
+// returned so the caller can try the next candidate and, in the end, say why.
+func startWatched(cmd *exec.Cmd) error {
+	detach(cmd)
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
+	select {
+	case err := <-done:
+		return err
+	case <-time.After(earlyExitWindow):
+		// Still alive: the window the user asked for. The goroutine above keeps
+		// reaping it for as long as it lives.
+		return nil
+	}
 }
