@@ -230,6 +230,9 @@ jobs:
           # 本次发布的更新说明（prepare 从 git log 生成），只在 CHANGELOG 没有
           # [Unreleased] 小节时用来补一节。经 env 传入，不进 shell 字符串。
           NOTES: ${{ needs.prepare.outputs.notes }}
+          # Windows 的 Python 把 stdout 当 cp1252，print 那段中文头部会
+          # UnicodeEncodeError；文件读写已经显式 utf-8，这里只需修终端编码。
+          PYTHONIOENCODING: utf-8
         run: |
           set -e
           VERSION="${{ needs.prepare.outputs.version }}"
