@@ -1266,6 +1266,14 @@ func (a *App) Start() {
 	// same reason (a 4K screenshot is tens of megabytes of pixels, decoded on
 	// every keystroke before): the frame it finishes is asked for here.
 	launcher.SetThumbInvalidate(func() { a.Win.Invalidate() })
+	// The Detected list is a full-disk discovery walk, and the settings page
+	// draws it every frame (see detectedtools.go): it is computed on a
+	// goroutine, and the frame it finishes is asked for here.
+	SetDetectedInvalidate(func() {
+		if a.Win != nil {
+			a.Win.Invalidate()
+		}
+	})
 	a.Win.OnClosed(func() {
 		if runtime.GOOS != "darwin" {
 			a.quit()
@@ -2373,45 +2381,6 @@ func (a *App) recommendedToolPath(name string, manifest extensions.Manifest, rec
 	default:
 		return a.chooseSystemTool(name, candidates)
 	}
-}
-
-// detectedTools is the programs this machine has that nothing has connected
-// yet: the inventory's own ranking, cut to the ones a person would recognise
-// and capped so the page stays a list of what is installed.
-func (a *App) detectedTools() []settingsui.DetectedTool {
-	candidates := inventory.Shared().Candidates()
-	connected := map[string]bool{}
-	for _, integration := range a.Integrations.Inventory().Integrations {
-		if path := integration.Entry.ExecutablePath; path != "" {
-			connected[path] = true
-			if resolved, err := filepath.EvalSymlinks(path); err == nil {
-				connected[resolved] = true
-			}
-		}
-	}
-	out := make([]settingsui.DetectedTool, 0, maxDetectedTools)
-	dirs := extensions.SearchDirectories()
-	platform := tools.Platform()
-	managers := tools.DetectManagers(dirs)
-	for _, candidate := range candidates {
-		if !candidate.Available || candidate.Path == "" || connected[candidate.Path] {
-			continue
-		}
-		// A GUI bundle's own helper executables are not "tools a person
-		// connects": the curated ranking already puts the recognisable names
-		// first, so the cap collects them.
-		out = append(out, settingsui.DetectedTool{
-			Name:             candidate.Name,
-			Path:             candidate.Path,
-			Description:      candidate.Description,
-			RuntimeAvailable: candidate.Available,
-			InstallCommand:   detectedInstallCommand(candidate, platform, managers),
-		})
-		if len(out) >= maxDetectedTools {
-			break
-		}
-	}
-	return out
 }
 
 // maxDetectedTools is how many discovered programs the page offers: the

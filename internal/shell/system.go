@@ -762,5 +762,9 @@ func (a *App) Rescan() {
 	a.scanApps()
 	a.scanTools()
 	a.scanToolCatalog()
+	// The Detected list is derived from the inventory this rescan just re-read
+	// (see detectedtools.go), so its memo is dropped with the rest: the next
+	// frame walks again instead of serving the pre-rescan answer.
+	invalidateDetectedTools()
 	a.RefreshIntegrations(context.Background())
 }
