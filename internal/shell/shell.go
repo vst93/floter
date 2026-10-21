@@ -4218,11 +4218,14 @@ func (a *App) View(c *ui.Context) {
 		// is its own floating window and takes the *platform* edge instead — the
 		// two rim strokes `base.css` writes for Windows and Linux, with the
 		// focused rung of the top one, and nothing at all on macOS (see
-		// cardEdge and panelEdge).
+		// cardEdge and panelEdge). A desktop that asked for more contrast
+		// collapses Windows' pair into the one `--stroke-contrast` ring
+		// (`base.css:1576-1584`, the `@media (prefers-contrast: more)` block).
+		contrast := c.Preferences().HighContrast
 		if a.Surf != SurfaceLauncher {
-			drawPanelEdge(card, surface.Tokens, runtime.GOOS, a.Surf == SurfaceTerminal)
+			drawPanelEdge(card, surface.Tokens, runtime.GOOS, a.Surf == SurfaceTerminal, contrast)
 		} else {
-			drawCardEdge(card, surface.Tokens, runtime.GOOS, focused)
+			drawCardEdge(card, surface.Tokens, runtime.GOOS, focused, contrast)
 		}
 		// The launcher's blocks run edge to edge: the field row is full-bleed
 		// (`.collapsed-card__input-row`) and the panel below it is the card's

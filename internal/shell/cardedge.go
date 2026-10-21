@@ -29,11 +29,21 @@ import (
 // light, and `--accent-glow` at `:687` / `:955`.) macOS draws none of them: the
 // window server lights and casts the frame there.
 //
-// The port drew the card as a bare 1px `Border` plus a cast shadow and no inset
-// edge at all, so the top of the card never caught the light and its bottom
-// never darkened — the two strokes that make a translucent pane read as a pane
-// rather than as a rectangle of tint, on both platforms whose sheets ask for
-// them.
+// Windows has one rung above those two: a desktop that asked for more contrast
+// gets **one** ring instead of the pair —
+//
+//	@media (prefers-contrast: more) {
+//	  .platform-windows .collapsed-card,
+//	  .platform-windows .settings-card,
+//	  .platform-windows .terminal-panel {
+//	    box-shadow: 0 4px 16px …, 0 1px 4px …, inset 0 0 0 1px var(--stroke-contrast);
+//	  }
+//	}
+//
+// (`main:src/styles/base.css:1576-1584`), which is what this table's
+// `contrast` argument selects. Linux has no such block: its two strokes stay,
+// with `--stroke-contrast` already carried by the palette (`theme.contrast()`).
+// macOS keeps drawing none.
 //
 // The table is a pure function of the platform and the keyboard so a test can
 // read all three platforms on any host: a Windows-only or Linux-only branch is
@@ -56,7 +66,12 @@ type cardEdgeStroke struct {
 // The order is the reference's: the accent keyline (Linux, focused only) before
 // the two rim strokes, because `box-shadow` paints in declaration order and the
 // keyline is the one that has to sit on top of the frame's own tint.
-func cardEdge(tokens theme.Tokens, goos string, focused bool) []cardEdgeStroke {
+//
+// `contrast` is the desktop's `prefers-contrast: more` answer and only Windows
+// branches on it: its block replaces the pair with one `--stroke-contrast`
+// ring, so the resting and focused states are the *same* face there — the
+// reference's contrast rule has no `:focus-within` counterpart.
+func cardEdge(tokens theme.Tokens, goos string, focused, contrast bool) []cardEdgeStroke {
 	top := tokens.EdgeHighlight
 	// The focused rung of the same stroke: the reference's `:focus-within`
 	// rules swap `--edge-highlight` for `--edge-highlight-active` while the
@@ -67,6 +82,10 @@ func cardEdge(tokens theme.Tokens, goos string, focused bool) []cardEdgeStroke {
 	}
 	switch goos {
 	case "windows":
+		if contrast {
+			// … inset 0 0 0 1px var(--stroke-contrast), the pair gone.
+			return []cardEdgeStroke{{Spread: 1, Color: tokens.InputStroke}}
+		}
 		return []cardEdgeStroke{
 			{Y: 1, Color: top},
 			{Y: -1, Color: tokens.EdgeShadow},
@@ -88,8 +107,8 @@ func cardEdge(tokens theme.Tokens, goos string, focused bool) []cardEdgeStroke {
 }
 
 // drawCardEdge paints cardEdge onto the card.
-func drawCardEdge(card ui.Element, tokens theme.Tokens, goos string, focused bool) {
-	for _, stroke := range cardEdge(tokens, goos, focused) {
+func drawCardEdge(card ui.Element, tokens theme.Tokens, goos string, focused, contrast bool) {
+	for _, stroke := range cardEdge(tokens, goos, focused, contrast) {
 		card.InsetShadow(stroke.X, stroke.Y, 0, stroke.Spread, stroke.Color)
 	}
 }
@@ -123,13 +142,27 @@ func drawCardEdge(card ui.Element, tokens theme.Tokens, goos string, focused boo
 // its rule asks for.
 //
 // `terminal` selects that panel; the settings card leaves it false.
-func panelEdge(tokens theme.Tokens, goos string, terminal bool) []cardEdgeStroke {
+//
+// The contrast rung is Windows' too, and it covers the terminal panel's keycap
+// pair as well: `base.css:1576-1584` names all three surfaces, so the one ring
+// replaces whichever pair the surface would have worn.
+func panelEdge(tokens theme.Tokens, goos string, terminal, contrast bool) []cardEdgeStroke {
 	top, bottom := tokens.EdgeHighlight, tokens.EdgeShadow
 	if goos == "windows" && terminal {
 		top, bottom = tokens.KeycapHighlight, tokens.KeycapShadow
 	}
 	switch goos {
-	case "windows", "linux":
+	case "windows":
+		if contrast {
+			return []cardEdgeStroke{{Spread: 1, Color: tokens.InputStroke}}
+		}
+		// The two strokes the platform block names; the rim's side whispers
+		// are not restated, so they are gone.
+		return []cardEdgeStroke{
+			{Y: 1, Color: top},
+			{Y: -1, Color: bottom},
+		}
+	case "linux":
 		// The two strokes the platform block names; the rim's side whispers
 		// are not restated, so they are gone.
 		return []cardEdgeStroke{
@@ -147,8 +180,8 @@ func panelEdge(tokens theme.Tokens, goos string, terminal bool) []cardEdgeStroke
 }
 
 // drawPanelEdge paints panelEdge onto a panel.
-func drawPanelEdge(panel ui.Element, tokens theme.Tokens, goos string, terminal bool) {
-	for _, stroke := range panelEdge(tokens, goos, terminal) {
+func drawPanelEdge(panel ui.Element, tokens theme.Tokens, goos string, terminal, contrast bool) {
+	for _, stroke := range panelEdge(tokens, goos, terminal, contrast) {
 		panel.InsetShadow(stroke.X, stroke.Y, 0, stroke.Spread, stroke.Color)
 	}
 }

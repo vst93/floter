@@ -24,7 +24,7 @@ import (
 // sheets ask for them, which is why nothing caught it before.
 func TestTheCardEdgeIsThePlatformsOwnTable(t *testing.T) {
 	tokens := theme.ForPreferences(settings.Default(), true, ui.Preferences{})
-	resting := cardEdge(tokens, "windows", false)
+	resting := cardEdge(tokens, "windows", false, false)
 	if len(resting) != 2 {
 		t.Fatalf("windows card edge = %d strokes, want the rim's 2: %+v", len(resting), resting)
 	}
@@ -34,7 +34,7 @@ func TestTheCardEdgeIsThePlatformsOwnTable(t *testing.T) {
 	if resting[1].Y != -1 || resting[1].Color != tokens.EdgeShadow {
 		t.Errorf("windows bottom stroke = %+v, want inset 0 -1px 0 EdgeShadow", resting[1])
 	}
-	if got := cardEdge(tokens, "darwin", false); got != nil {
+	if got := cardEdge(tokens, "darwin", false, false); got != nil {
 		t.Errorf("macOS draws a card edge: %+v (the window server lights the frame there)", got)
 	}
 }
@@ -48,8 +48,8 @@ func TestTheCardEdgeBrightensWithTheKeyboard(t *testing.T) {
 			t.Fatalf("dark=%v: the focused top edge is the resting one", dark)
 		}
 		for _, goos := range []string{"windows", "linux"} {
-			resting := cardEdge(tokens, goos, false)
-			focused := cardEdge(tokens, goos, true)
+			resting := cardEdge(tokens, goos, false, false)
+			focused := cardEdge(tokens, goos, true, false)
 			if focusTop(t, focused) != tokens.EdgeHighlightActive {
 				t.Errorf("dark=%v %s: the focused top stroke is not EdgeHighlightActive", dark, goos)
 			}
@@ -65,7 +65,7 @@ func TestTheCardEdgeBrightensWithTheKeyboard(t *testing.T) {
 		}
 		// Linux, focused: the accent ring is drawn, and it is the ring token
 		// rather than either of the two others the accent has.
-		linux := cardEdge(tokens, "linux", true)
+		linux := cardEdge(tokens, "linux", true, false)
 		if len(linux) != 3 {
 			t.Fatalf("dark=%v: the focused Linux card edge = %d strokes, want 3: %+v", dark, len(linux), linux)
 		}
@@ -76,7 +76,7 @@ func TestTheCardEdgeBrightensWithTheKeyboard(t *testing.T) {
 			t.Errorf("dark=%v: --accent-glow is not a rung of its own", dark)
 		}
 		// At rest Linux draws no ring: the reference's resting rule has none.
-		for _, stroke := range cardEdge(tokens, "linux", false) {
+		for _, stroke := range cardEdge(tokens, "linux", false, false) {
 			if stroke.Spread != 0 {
 				t.Errorf("dark=%v: a resting Linux card draws a keyline: %+v", dark, stroke)
 			}
@@ -112,7 +112,7 @@ func TestAPanelEdgeIsThePlatformsTableNotTheRim(t *testing.T) {
 		}
 		for _, goos := range []string{"windows", "linux"} {
 			// The settings card: the edge pair, and no side whisper.
-			settingsEdge := panelEdge(tokens, goos, false)
+			settingsEdge := panelEdge(tokens, goos, false, false)
 			if len(settingsEdge) != 2 {
 				t.Errorf("dark=%v %s: the settings panel edge = %d strokes, want 2: %+v",
 					dark, goos, len(settingsEdge), settingsEdge)
@@ -126,7 +126,7 @@ func TestAPanelEdgeIsThePlatformsTableNotTheRim(t *testing.T) {
 				t.Errorf("dark=%v %s: the settings panel's crown is not EdgeHighlight", dark, goos)
 			}
 			// The Windows terminal panel is the one surface with its own pair.
-			terminalEdge := panelEdge(tokens, goos, true)
+			terminalEdge := panelEdge(tokens, goos, true, false)
 			top, bottom := panelTops(terminalEdge)
 			if goos == "windows" {
 				if top != tokens.KeycapHighlight || bottom != tokens.KeycapShadow {
@@ -140,7 +140,7 @@ func TestAPanelEdgeIsThePlatformsTableNotTheRim(t *testing.T) {
 			}
 		}
 		// macOS keeps base.css's `--glass-rim-shadow`: four strokes.
-		mac := panelEdge(tokens, "darwin", false)
+		mac := panelEdge(tokens, "darwin", false, false)
 		if len(mac) != 4 {
 			t.Fatalf("dark=%v: the macOS panel edge = %d strokes, want the rim's 4: %+v", dark, len(mac), mac)
 		}
@@ -153,6 +153,59 @@ func TestAPanelEdgeIsThePlatformsTableNotTheRim(t *testing.T) {
 		if sides != 2 {
 			t.Errorf("dark=%v: the macOS panel kept %d side whispers, want 2", dark, sides)
 		}
+	}
+}
+
+// The contrast rung: a desktop that asked for more contrast gets Windows' one
+// ring in place of the pair, on the card and on both panels — the terminal's
+// keycap pair included, because the reference's block names all three surfaces.
+//
+//	@media (prefers-contrast: more) {
+//	  .platform-windows .collapsed-card,
+//	  .platform-windows .settings-card,
+//	  .platform-windows .terminal-panel {
+//	    box-shadow: …, inset 0 0 0 1px var(--stroke-contrast);
+//	  }
+//	}
+//
+// (`main:src/styles/base.css:1576-1584`.) The ring's colour is the palette's
+// stroke under the preference, which is `--stroke-contrast` (`theme.contrast()`)
+// — the same token base.css swaps in, so one decision feeds both.
+//
+// The port had no contrast argument at all: a Windows desktop that asked for
+// more contrast still got the resting pair, and the reference's stronger ring
+// was never drawn on any of the three surfaces.
+func TestTheContrastRungIsWindowsOneRing(t *testing.T) {
+	resting := theme.ForPreferences(settings.Default(), true, ui.Preferences{})
+	ringed := theme.ForPreferences(settings.Default(), true, ui.Preferences{HighContrast: true})
+	if ringed.InputStroke == resting.InputStroke {
+		t.Fatalf("the contrast palette's stroke is the resting one")
+	}
+	// Windows: one ring, on the card and on both panels, focused or not.
+	for _, focused := range []bool{false, true} {
+		strokes := cardEdge(ringed, "windows", focused, true)
+		if len(strokes) != 1 || strokes[0].Spread != 1 || strokes[0].Color != ringed.InputStroke {
+			t.Errorf("focused=%v: the contrast card edge = %+v, want one InputStroke ring", focused, strokes)
+		}
+	}
+	for _, terminal := range []bool{false, true} {
+		strokes := panelEdge(ringed, "windows", terminal, true)
+		if len(strokes) != 1 || strokes[0].Spread != 1 || strokes[0].Color != ringed.InputStroke {
+			t.Errorf("terminal=%v: the contrast panel edge = %+v, want one InputStroke ring", terminal, strokes)
+		}
+	}
+	// Linux and macOS are untouched: their blocks have no contrast override.
+	if got := cardEdge(ringed, "linux", false, true); len(got) != 2 {
+		t.Errorf("linux contrast card edge = %d strokes, want the resting 2", len(got))
+	}
+	if got := cardEdge(ringed, "darwin", false, true); got != nil {
+		t.Errorf("macOS drew a contrast card edge: %+v", got)
+	}
+	if got := panelEdge(ringed, "linux", true, true); len(got) != 2 {
+		t.Errorf("linux contrast panel edge = %d strokes, want the resting 2", len(got))
+	}
+	if got := panelEdge(ringed, "darwin", false, true); len(got) != 4 {
+		t.Errorf("macOS contrast panel edge = %d strokes, want the rim's 4", len(got))
 	}
 }
 
