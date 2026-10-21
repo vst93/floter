@@ -193,23 +193,27 @@ func TestTheRowLeadingRuleLightsOnHover(t *testing.T) {
 	}
 }
 
-// The row a `floter://register` link named wears the reference's
-// `.extension-row--register` (`extensions.css:793-811`): the raised quiet pane,
-// the accent inner keyline and the accent leading rule. A broken row wears
-// `.extension-row--broken` (`:843-853`): the warm raised pane, the warning
-// keyline and the warning rule. This pins the state-to-face mapping the
-// integration row asks for, so a later change cannot quietly drop one of the
-// three marks.
+// The row a `floter://register` link named is the row the link **chose**, so it
+// wears the contract's neutral selection rung (`RowSelected`) and nothing else:
+// no keyline, no leading rule. A broken row wears `.extension-row--broken`
+// (`extensions.css:843-853`): the warm raised pane, the warning keyline and the
+// warning rule. This pins the state-to-face mapping the integration row asks
+// for, so a later change cannot quietly drop one of the marks.
+//
+// P8-c 重定基线（§6.3 第 2 条 / §5），**S**（结构真变了）：旧映射是
+// `RaisedQuiet` + `AccentEdge` + `accent` bar 三处都给 register 行。合约 §4.3
+// 末句说选中行在列表里一次都不带 accent，§5 只给 accent 留侧栏图标/主 CTA/焦点环
+// /控件状态，所以这三处全换成中性：面 `RowSelected`，无环，无前导规则条。
 func TestTheIntegrationRowFaceFollowsItsState(t *testing.T) {
 	a := New(newStore(t), Actions{})
 
 	var faces struct{ plain, register, broken rowFace }
 	var tokens theme.Tokens
-	var warning, accent ui.Color
+	var warning ui.Color
 	tt := ui.NewTester(func(c *ui.Context) {
 		tokens = a.tokens(c)
 		c.SetTheme(tokens.Theme)
-		warning, accent = c.Theme().Warning, c.Theme().Accent
+		warning = c.Theme().Warning
 		faces.plain = a.integrationRowFace(c, Integration{})
 		faces.register = a.integrationRowFace(c, Integration{Highlighted: true})
 		faces.broken = a.integrationRowFace(c, Integration{Broken: true})
@@ -219,15 +223,17 @@ func TestTheIntegrationRowFaceFollowsItsState(t *testing.T) {
 	if faces.plain.Bar.A != 0 || faces.plain.FaceSet || faces.plain.Inset.A != 0 {
 		t.Errorf("a plain row wears %+v, want no rule, no face and no keyline", faces.plain)
 	}
-	if !faces.register.FaceSet || faces.register.Face != tokens.RaisedQuiet {
-		t.Errorf("the register row's face is %v (set %v), want the raised quiet pane %v",
-			faces.register.Face, faces.register.FaceSet, tokens.RaisedQuiet)
+	if !faces.register.FaceSet || faces.register.Face != tokens.RowSelected {
+		t.Errorf("the register row's face is %v (set %v), want the neutral RowSelected %v",
+			faces.register.Face, faces.register.FaceSet, tokens.RowSelected)
 	}
-	if faces.register.Inset != tokens.AccentEdge {
-		t.Errorf("the register row's keyline is %v, want the accent edge %v", faces.register.Inset, tokens.AccentEdge)
+	if faces.register.Inset.A != 0 {
+		t.Errorf("the register row's keyline is %v, want none (accent belongs to the leading mark alone)",
+			faces.register.Inset)
 	}
-	if faces.register.Bar != accent {
-		t.Errorf("the register row's rule is %v, want the accent %v", faces.register.Bar, accent)
+	if faces.register.Bar.A != 0 {
+		t.Errorf("the register row's leading rule is %v, want none (§4.3: a selected list row carries no accent)",
+			faces.register.Bar)
 	}
 	if !faces.broken.FaceSet || faces.broken.Face != tokens.RaisedWarm {
 		t.Errorf("the broken row's face is %v (set %v), want the warm pane %v",
@@ -270,64 +276,73 @@ func TestTheBrokenRowWearsTheWarmPane(t *testing.T) {
 }
 
 // The face a state asks for is painted, not just computed: the register row's
-// raised quiet pane and accent keyline, and the broken row's warm pane and
-// warning keyline, all land on the frame at the row's own edges. A face that
+// neutral selected pane, and the broken row's warm pane with its warning
+// keyline and rule, all land on the frame at the row's own edges. A face that
 // only lived in the mapping would leave the live row on the card's plane.
+//
+// P8-c 重定基线（§6.3 第 2 条）：register 行的环与前导规则条被合约收掉（S）。
+// 所以两行不再共用同一套三段断言：broken 行仍要求「环与前导规则条都要站得
+// 出面」，register 行反过来要求「面站得出来，而环与前导规则条都 **在**」——
+// 这就是 §5 的禁止侧。
 func TestTheRowFacePaintsItsPaneAndKeyline(t *testing.T) {
 	a := New(newStore(t), Actions{})
 
-	cases := []struct {
-		name string
-		face func(c *ui.Context) rowFace
-	}{
-		{"register", func(c *ui.Context) rowFace {
-			return a.integrationRowFace(c, Integration{Highlighted: true})
-		}},
-		{"broken", func(c *ui.Context) rowFace {
-			return a.integrationRowFace(c, Integration{Broken: true})
-		}},
+	type measure struct {
+		pane, key, bar ui.Color
+	}
+	read := func(face func(c *ui.Context) rowFace) measure {
+		t.Helper()
+		var labelRef ui.Handle
+		var labelBox ui.Rect
+		var inset float32
+		tt := ui.NewTester(func(c *ui.Context) {
+			c.SetTheme(a.tokens(c).Theme)
+			a.cardRows = 0 // the row is the card's first
+			inset = c.Theme().Space(3.5)
+			a.cardRow(c, ui.Center, nil, face(c), func() {}, func() {
+				ui.Text(c, "V Tools").Bind(&labelRef)
+			})
+			labelBox = c.Resolve(labelRef).Bounds()
+		}, 480, 120)
+		tt.Frame()
+		rowX := labelBox.X - inset
+		midY := labelBox.Y + labelBox.H/2
+		return measure{
+			pane: sample(tt, rowX+6, midY),
+			key:  sample(tt, rowX+6, 0.5), // the 1px keyline on the top edge
+			bar:  sample(tt, rowX+0.5, midY),
+		}
 	}
 
-	pane := map[string]ui.Color{}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			var labelRef ui.Handle
-			var labelBox ui.Rect
-			var inset float32
-			tt := ui.NewTester(func(c *ui.Context) {
-				c.SetTheme(a.tokens(c).Theme)
-				a.cardRows = 0 // the row is the card's first
-				inset = c.Theme().Space(3.5)
-				face := tc.face(c)
-				a.cardRow(c, ui.Center, nil, face, func() {}, func() {
-					ui.Text(c, "V Tools").Bind(&labelRef)
-				})
-				labelBox = c.Resolve(labelRef).Bounds()
-			}, 480, 120)
-			tt.Frame()
+	register := read(func(c *ui.Context) rowFace {
+		return a.integrationRowFace(c, Integration{Highlighted: true})
+	})
+	broken := read(func(c *ui.Context) rowFace {
+		return a.integrationRowFace(c, Integration{Broken: true})
+	})
 
-			rowX := labelBox.X - inset
-			midY := labelBox.Y + labelBox.H/2
-			panePixel := sample(tt, rowX+6, midY)
-			keyPixel := sample(tt, rowX+6, 0.5) // the 1px keyline on the top edge
-			barPixel := sample(tt, rowX+0.5, midY)
+	// The register row's *pane* stands off the card (`RowSelected` over it),
+	// and neither the keyline nor the leading rule draws at all.
+	if channelDelta(register.pane, register.key) > 3 {
+		t.Errorf("the register row still wears a keyline: top edge %v vs its pane %v", register.key, register.pane)
+	}
+	if channelDelta(register.bar, register.pane) > 3 {
+		t.Errorf("the register row still draws a leading rule: %v vs its pane %v", register.bar, register.pane)
+	}
 
-			if channelDelta(keyPixel, panePixel) < 12 {
-				t.Errorf("the keyline %v does not stand off the pane %v; the row has no inner edge",
-					keyPixel, panePixel)
-			}
-			if channelDelta(barPixel, panePixel) < 20 {
-				t.Errorf("the leading rule %v does not stand off the pane %v; the row has no rule",
-					barPixel, panePixel)
-			}
-			pane[tc.name] = panePixel
-		})
+	// The broken row keeps all three marks.
+	if channelDelta(broken.key, broken.pane) < 12 {
+		t.Errorf("the broken row's keyline %v does not stand off its pane %v; the row has no inner edge",
+			broken.key, broken.pane)
+	}
+	if channelDelta(broken.bar, broken.pane) < 20 {
+		t.Errorf("the broken row's leading rule %v does not stand off its pane %v", broken.bar, broken.pane)
 	}
 
 	// The two faces are different panes, not one shared warm-or-quiet lift.
-	if delta := channelDelta(pane["register"], pane["broken"]); delta < 8 {
+	if delta := channelDelta(register.pane, broken.pane); delta < 8 {
 		t.Errorf("the register pane %v and the broken pane %v are the same (delta %d)",
-			pane["register"], pane["broken"], delta)
+			register.pane, broken.pane, delta)
 	}
 }
 

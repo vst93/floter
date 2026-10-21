@@ -1043,12 +1043,24 @@ const deepLinkValueFont = "SF Mono, Menlo, Monaco, Consolas, monospace"
 // as a ghost: the reference's dashed edge, no plane and `--text-tertiary` ink
 // (`extensions.css:833-837`).
 func (a *App) extensionIcon(c *ui.Context, detected bool) ui.Element {
+	return a.packageChip(c, detected, false)
+}
+
+// packageChip is `extensionIcon` with the chosen mark: `chosen` paints the
+// glyph in the accent. It is the **one** place an integration row may carry the
+// accent (docs/raycast-design.md §6.3 第 2 条: the row's plane went neutral, so
+// "this is the row the register link named" is said by the leading mark alone,
+// exactly as §5 第 1 条 says it for the settings sidebar).
+func (a *App) packageChip(c *ui.Context, detected, chosen bool) ui.Element {
 	tokens := a.tokens(c)
 	t := a.cardTheme(c)
 	chip := ui.Box(c).Width(t.Space(7.5)).Height(t.Space(7.5)).Shrink(0).
 		Border(1, tokens.ControlEdge).Radius(tokens.RadiusSM).
 		Background(tokens.Control).Center()
 	ink := tokens.TextSecondary
+	if chosen {
+		ink = t.Accent
+	}
 	if detected {
 		chip = chip.BorderStyle(ui.BorderDashed).Background(ui.Transparent)
 		ink = tokens.TextTertiary

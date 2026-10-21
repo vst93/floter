@@ -13,6 +13,7 @@ import (
 	"floter/internal/extensions"
 	"floter/internal/i18n"
 	"floter/internal/launcher"
+	"floter/internal/settings"
 	"floter/internal/theme"
 )
 
@@ -545,4 +546,262 @@ func paintedBox(img *image.RGBA, page ui.Color) ui.Rect {
 		return ui.Rect{}
 	}
 	return ui.Rect{X: float32(left), Y: float32(top), W: float32(right - left + 1), H: float32(bottom - top + 1)}
+}
+
+// The P8-c pins for the settings surface: §6.3's four rows plus the two accent
+// states §5 (as P8-c rewrote it) keeps legal. They are here rather than in the
+// per-feature files because what they assert is the *contract*, not a widget.
+
+// ⑥ §5 第 3 条 · The chosen segment of a segmented control carries the accent
+// keyline. This is a **positive** pin: §5 was widened in P8-c from three
+// places to four, and the third one — "a control in its chosen/on state" —
+// had no test reading it before, so a later round could have stripped the
+// keyline as "the old base.css language" with nothing to stop it.
+func TestTheChosenSegmentKeepsItsAccentKeyline(t *testing.T) {
+	a := New(newStore(t), Actions{})
+	var tokens theme.Tokens
+	var box ui.Rect
+	var ref ui.Handle
+	tt := ui.NewTester(func(c *ui.Context) {
+		tokens = a.tokens(c)
+		c.SetTheme(tokens.Theme)
+		c.Root().Background(ui.RGB(255, 255, 255))
+		ui.Column(c).Padding(20).Children(func() {
+			// The segmented control returns nothing, so its box is read off a
+			// wrapping row: the row sizes to the track (the track is its only
+			// child and does not grow).
+			ui.Row(c).Bind(&ref).Children(func() {
+				a.segmented(c, []string{"System", "Light", "Dark"}, 1, func(int) {})
+			})
+		})
+		box = c.Resolve(ref).Bounds()
+	}, 600, 140)
+	tt.Frame()
+
+	// The chosen segment is the middle third of the track: its keyline is the
+	// accent at 0.55, so the frame shows a warm run along its top edge.
+	third := box.W / 3
+	mid := int(box.X + box.W/2)
+	// The keyline is a 1px inset on the chosen pane, i.e. a row or two inside
+	// the track's own top edge (the track is padded).
+	warmest, at := -999, ui.Rect{}
+	for y := int(box.Y); y < int(box.Y)+5; y++ {
+		for x := mid - int(third)/2; x < mid+int(third)/2; x++ {
+			p := imagePixel(tt.Image(), x, y)
+			if d := int(p.R) - int(p.B); d > warmest {
+				warmest, at = d, ui.Rect{X: float32(x), Y: float32(y)}
+			}
+		}
+	}
+	if warmest < 40 {
+		t.Fatalf("the chosen segment's own edge is %d levels warm (warmest at %v): the accent keyline is gone",
+			warmest, at)
+	}
+	// And the *unchosen* segments' edges are not: the keyline is the chosen
+	// state's, not the whole track's.
+	for _, third := range []int{0, 2} {
+		x0 := int(box.X) + third*int(box.W)/3 + 8
+		x1 := int(box.X) + (third+1)*int(box.W)/3 - 8
+		worst := -999
+		for y := int(box.Y); y < int(box.Y)+5; y++ {
+			for x := x0; x < x1; x++ {
+				if d := int(imagePixel(tt.Image(), x, y).R) - int(imagePixel(tt.Image(), x, y).B); d > worst {
+					worst = d
+				}
+			}
+		}
+		if worst > 20 {
+			t.Errorf("an unchosen segment's edge is %d levels warm: the accent keyline spread to the whole track", worst)
+		}
+	}
+}
+
+// ⑦ §5 第 3 条 · A switch in its ON state is the accent. The other half of the
+// widened §5: the ON fill is a *state*, not decoration, so it keeps the accent
+// while a switch that is off wears the neutral track.
+func TestTheSwitchOnStateCarriesTheAccent(t *testing.T) {
+	a := New(newStore(t), Actions{})
+	measure := func(on bool) (warmest int, tokens theme.Tokens) {
+		t.Helper()
+		var box ui.Rect
+		var ref ui.Handle
+		tt := ui.NewTester(func(c *ui.Context) {
+			tokens = a.tokens(c)
+			c.SetTheme(tokens.Theme)
+			c.Root().Background(ui.RGB(255, 255, 255))
+			ui.Column(c).Padding(20).Children(func() {
+				value := on
+				a.switchControl(c, &value).Bind(&ref)
+			})
+			box = c.Resolve(ref).Bounds()
+		}, 300, 120)
+		tt.Frame()
+		warmest = -999
+		for y := int(box.Y); y < int(box.Y+box.H); y++ {
+			for x := int(box.X); x < int(box.X+box.W); x++ {
+				p := imagePixel(tt.Image(), x, y)
+				if d := int(p.R) - int(p.B); d > warmest {
+					warmest = d
+				}
+			}
+		}
+		return warmest, tokens
+	}
+	onWarm, tokens := measure(true)
+	offWarm, _ := measure(false)
+	// The accent's own R−B (the red these tokens ship) is ~150; a grey track's
+	// is a handful of levels.
+	if warm := int(tokens.Theme.Accent.R) - int(tokens.Theme.Accent.B); warm < 100 {
+		t.Fatalf("the accent is not the red this pin measures against (%d)", warm)
+	}
+	if onWarm < 100 {
+		t.Errorf("the switch's ON state is %d levels warm (R−B): §5 第 3 条 keeps the accent here", onWarm)
+	}
+	if offWarm > 12 {
+		t.Errorf("the switch's OFF state is %d levels warm (R−B): the accent belongs to the ON state alone", offWarm)
+	}
+}
+
+// ⑧ §6.3 第 2 条 · The integration row a register link named wears the neutral
+// `RowSelected` over the card — **no** accent bar and no accent keyline — and
+// the accent is spent on its leading package mark instead.
+//
+// Mutation M3 (put `RaisedQuiet` + `AccentEdge` + the accent bar back) turns
+// this red.
+func TestTheRegisterRowIsTheNeutralSelectedRung(t *testing.T) {
+	a := oneIntegrationApp(Integration{
+		ID: "dev.floter.reg", Name: "Register Me", Enabled: true,
+		Highlighted: true, RuntimeAvailable: true,
+	}, Actions{})
+	a.Integrations = func() []Integration {
+		return []Integration{
+			{ID: "plain", Name: "Plain Tool", Enabled: true, RuntimeAvailable: true},
+			{ID: "dev.floter.reg", Name: "Register Me", Enabled: true, Highlighted: true, RuntimeAvailable: true},
+		}
+	}
+	tt, tokens := renderThemed(t, a, 720, 1400)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	img := tt.Image()
+
+	// The register row's title and the plain row's, so the two planes can be
+	// compared at the same offset inside each row.
+	marked := mustFind(t, tt, "Register Me")
+	plain := mustFind(t, tt, "Plain Tool")
+	// The row's plane, read left of the title (past the 30u chip and its gap).
+	at := func(r ui.Rect, dx int) ui.Color {
+		return imagePixel(img, int(r.X)-dx, int(r.Y+r.H/2))
+	}
+	card := panelSurface(tt, plain)
+
+	// The plane is `RowSelected` over the card: no lift to an opaque pane.
+	got := at(marked, 6)
+	want := panelOver(tokens.RowSelected, card)
+	if !panelClose(got, want, 6) {
+		t.Errorf("the register row's plane = %v, want RowSelected over the card (%v)", got, want)
+	}
+	// And it is *not* the old raised-quiet lift, which is an opaque pane and
+	// therefore visibly brighter than any translucent wash over this card.
+	if old := panelOver(tokens.RaisedQuiet.Alpha(0.99), card); panelClose(got, old, 3) {
+		t.Errorf("the register row's plane = %v is the old RaisedQuiet pane (%v)", got, old)
+	}
+	// No accent anywhere on the row's plane: the warmest plane pixel (clear of
+	// the title's own glyphs and the chip's accent mark) is neutral.
+	warmest, at2 := -999, ui.Rect{}
+	for y := int(marked.Y) - 4; y < int(marked.Y+marked.H)+4; y++ {
+		for x := int(marked.X) - 8; x < int(marked.X+marked.W)+8; x++ {
+			p := imagePixel(img, x, y)
+			if d := int(p.R) - int(p.B); d > warmest {
+				warmest, at2 = d, ui.Rect{X: float32(x), Y: float32(y)}
+			}
+		}
+	}
+	// The chip's package glyph sits left of the title and *does* carry the
+	// accent (§5 第 1 条的同一处理), so the plane check stays on the row's
+	// own field, right of the chip's column.
+	planeWarmest := -999
+	for y := int(marked.Y) - 4; y < int(marked.Y+marked.H)+4; y++ {
+		for x := int(marked.X) - 2; x < int(marked.X+marked.W)+8; x++ {
+			if d := int(imagePixel(img, x, y).R) - int(imagePixel(img, x, y).B); d > planeWarmest {
+				planeWarmest = d
+			}
+		}
+	}
+	if planeWarmest > 30 {
+		t.Errorf("a pixel of the register row's field is %d levels warm at %v: the accent plane/bar is back",
+			planeWarmest, at2)
+	}
+	// The leading mark **is** the accent: the counter-pin, so a change that
+	// stripped both would fail.
+	warmest, markAt := -999, ui.Rect{}
+	for y := int(marked.Y) - 8; y < int(marked.Y+marked.H)+8; y++ {
+		for x := int(marked.X) - 50; x < int(marked.X)-8; x++ {
+			p := imagePixel(img, x, y)
+			if d := int(p.R) - int(p.B); d > warmest {
+				warmest, markAt = d, ui.Rect{X: float32(x), Y: float32(y)}
+			}
+		}
+	}
+	if warmest < 40 {
+		t.Errorf("the register row's leading package mark carries no accent (%d levels warm at %v)",
+			warmest, markAt)
+	}
+}
+
+// ⑨ §0(b) · The settings fields are the `Control` rung and **not** the `Field`
+// rung: one field material per app, and the 0.85 light rim is gone.
+//
+// The pin reads the view's own `fieldFace` on both appearances: the face it
+// paints is `Control` over the page, and the deprecated `Field` + `FieldSlot`
+// stack — the one whose light rim is 21× §1's gloss cap — is not what appears.
+func TestTheSettingsFieldsWearTheControlRung(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		appearance := "light"
+		if dark {
+			appearance = "dark"
+		}
+		store := settings.NewStore(settings.Default())
+		if err := store.Update(func(s *settings.Settings) { s.Theme = appearance }); err != nil {
+			t.Fatal(err)
+		}
+		a := New(store, Actions{})
+		tokens := theme.ForPreferences(store.Snapshot(), dark, ui.Preferences{})
+		value := ""
+		var ref ui.Handle
+		var box ui.Rect
+		tt := ui.NewTester(func(c *ui.Context) {
+			c.SetTheme(tokens.Theme)
+			c.Root().Background(ui.RGB(0, 0, 0))
+			ui.Column(c).Padding(24).Children(func() {
+				a.textInput(c, &value).Bind(&ref).Width(220)
+			})
+			box = c.Resolve(ref).Bounds()
+		}, 400, 160)
+		tt.Frame()
+		img := tt.Image()
+
+		page := ui.RGBA(0, 0, 0, 1)
+		face := imagePixel(img, int(box.X+box.W/2), int(box.Y+box.H/2))
+		if want := panelOver(tokens.Control, page); !panelClose(face, want, 3) {
+			t.Errorf("[%s] the field's face = %v, want Control over the page (%v)", appearance, face, want)
+		}
+		if field := panelOver(tokens.Field, page); !panelClose(tokens.Field, tokens.Control, 3) &&
+			panelClose(face, field, 3) {
+			t.Errorf("[%s] the field's face = %v is the deprecated --glass-field rung (%v)", appearance, face, field)
+		}
+		// The 0.85 white rim the old slot painted on light glass: no row inside
+		// the field's top edge may be that bright. `Control` + one hairline has
+		// nothing above the face there.
+		if !dark {
+			for y := int(box.Y); y < int(box.Y)+3; y++ {
+				for x := int(box.X) + 6; x < int(box.X+box.W)-6; x++ {
+					if p := imagePixel(img, x, y); p.R > 200 && p.G > 200 && p.B > 200 {
+						t.Fatalf("[light] the field's inner rim at (%d,%d) is %v: the 0.85 FieldSlot rim is back", x, y, p)
+					}
+				}
+			}
+		}
+	}
 }

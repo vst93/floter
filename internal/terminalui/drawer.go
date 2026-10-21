@@ -34,6 +34,12 @@ func (a *App) set(mutate func(*settings.Settings)) {
 // exactly where they were. The reference's user asked for 「简洁、不繁琐」, so
 // the rows are a flat, wrapping grid: no tabs, no sub-headings, no second card.
 //
+// P8-c 复核（§6.2 第 8 条）：面与几何全部保留（`Control` 一档 + 16u/12u 的
+// padding 对 + 10u 的 gap），只有上边那条线从 `ControlEdge` 降成 §4.1 的**弱
+// 发丝** `HairlineSoft`：抽屉是面板里的一个 block，不是一面独立的控件；块与块
+// 之间的分工在合约里由弱发丝承担（§1 的不变量一：卡的边与分区线是同一条发丝的
+// 两种宽度）。
+//
 // Only the axes this build can actually apply are drawn. The reference's strip
 // also carried the bold mode, the wheel step, select-to-copy and the scrollbar
 // switch; the framework's terminal exposes no knob for those, and a control
@@ -50,7 +56,7 @@ func (a *App) drawer(c *ui.Context, copy i18n.Terminal) {
 	strip := ui.Row(c).FillWidth().Shrink(0).
 		Padding(t.Space(2.5), t.Space(3)).Gap(t.Space(2.5)).AlignItems(ui.Start).
 		Background(tokens.Control).
-		BorderWidth(0, 0, 1, 0).BorderColor(tokens.ControlEdge).
+		BorderWidth(0, 0, 1, 0).BorderColor(tokens.HairlineSoft).
 		Label(scopy.GroupTerminal)
 	strip.Children(func() {
 		a.drawerGrid(c, t.Space(drawerCellFloor))
@@ -257,12 +263,17 @@ func drawerRange(c *ui.Context, value *float64, lo, hi float64) ui.Element {
 
 // drawerReadout is the strip's live value: the reference's
 // `.terminal-setting-control__value` (`settings.css:854-865`) — the body step in
-// the monospace stack, `tabular-nums` at 600, in the accent — not the muted
-// emphasis step one size down the old port wrote.
+// the monospace stack with `tabular-nums` at 600 — in the **neutral strong**
+// ink, not the accent.
+//
+// P8-c 重定基线（§6.2 第 7 条 / §5）：`Accent` → `TextStrong`。这个读数是「滑轴
+// 现在的值是什么」，它不回答「哪个被选中/哪个是开的」，所以 accent 在这里
+// 越界。register与权重（body 步、mono、`tnum`、600）零改动——读到它的人仍然
+// 看得见数位对齐，只是不再靠色相吸引注意力。
 func drawerReadout(c *ui.Context, tokens theme.Tokens, text string) ui.Element {
 	return ui.Text(c, text).
 		Font(terminalSettingValueFont).FontSize(tokens.Body).
-		TextColor(tokens.Theme.Accent).FontWeight(600).FontFeatures("tnum")
+		TextColor(tokens.TextStrong).FontWeight(600).FontFeatures("tnum")
 }
 
 // drawerRow is one appearance row: its label at the start and its control at

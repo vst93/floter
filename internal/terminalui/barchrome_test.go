@@ -124,13 +124,21 @@ func TestTheTerminalBarTitleIsTheReferenceSecondaryBody(t *testing.T) {
 	}
 }
 
-// The bar's status dot (`src/styles/terminal.css:150-168`): the live one wears
-// the accent with `--elev-halo` — `0 0 0 2px var(--accent-halo)` — and once the
-// program ends it drops the halo and takes the *tertiary* step, not the muted
+// The bar's status dot (`src/styles/terminal.css:150-168`): the live one is the
+// accent, and once the program ends it takes the *tertiary* step, not the muted
 // one the old port read (`--text-tertiary`). Read off the live bar: the dot's
-// centre pixel against the exact composite of a solid fill, and the ink's width
-// against the same dot without its ring.
-func TestTheTerminalBarDotCarriesItsHaloAndWearsTertiary(t *testing.T) {
+// centre pixel against the exact composite of a solid fill, and its width
+// against the same dot on a held session.
+//
+// P8-c 重定基线（§6.2 第 5 条 / §1）：旧测试的名字与第三条断言是「live dot
+// **有** halo」——`--elev-halo` 的 `0 0 0 2px var(--accent-halo)` 把 1.75u 的
+// 点撑成了一圈 2u 的红晕。合约把光泽压到 alpha ≤ 0.04，而 `AccentHalo` 是
+// 0.2（上限的 5 倍），所以 halo 整圈去掉，让那 1.75u 的点自己说话。
+//
+// 旧值 → 新值：`dot.Shadow(..., AccentHalo)` 的 2u 环 → 无环。断言从
+// 「live 比 held 宽 ≥3px」翻成「live 与 held 同宽，且点周围那圈像素就是笔杆
+// 自己的底色」——旧条文的反证。
+func TestTheTerminalBarDotDropsItsHaloAndWearsTertiary(t *testing.T) {
 	// The held session's dot is still: no halo, and the tertiary step.
 	held := New(newStore(), Actions{}, nil)
 	withSession(held, &terminal.Terminal{})
@@ -160,11 +168,57 @@ func TestTheTerminalBarDotCarriesItsHaloAndWearsTertiary(t *testing.T) {
 	if got, want := dotCenter(lt, lMinX, lMaxX), tok.Theme.Accent; !sameRGB(got, want) {
 		t.Errorf("the live dot's centre = %v, want the accent (%v)", got, want)
 	}
-	// The ring lights columns the bare dot does not: the halo is `--elev-halo`'s
-	// `0 0 0 2px var(--accent-halo)`.
-	if liveW, heldW := lMaxX-lMinX+1, hMaxX-hMinX+1; liveW < heldW+3 {
-		t.Errorf("the live dot is %d wide and the bare dot %d: the 2u halo is not drawn", liveW, heldW)
+	// No halo: the ink box is the bare 1.75u dot, the same width a held
+	// session's dot has. A 2u ring added three columns on each side.
+	if liveW, heldW := lMaxX-lMinX+1, hMaxX-hMinX+1; liveW > heldW+1 {
+		t.Errorf("the live dot is %d wide and the bare dot %d: the dropped 2u halo is back", liveW, heldW)
 	}
+	// And the pixels just outside the dot are the bar's own page: a halo is a
+	// *ring*, so the first column past the ink has to be the backdrop again.
+	// The bar itself is transparent, so the row reads as the root's black.
+	midY := (dotTop(lt, (lMinX+lMaxX)/2) + dotBottom(lt, (lMinX+lMaxX)/2)) / 2
+	for _, x := range []int{lMinX - 2, lMaxX + 2} {
+		if p := sample(lt, x, midY); channelDelta(p, ui.RGBA(0, 0, 0, 1)) > 6 {
+			t.Errorf("the pixel %d right of the live dot is %v, not the bar's own backdrop: the halo is back", x, p)
+		}
+	}
+}
+
+// dotTop and dotBottom are the first and last rows of a dot's own ink in the
+// bar, at one column: the midline a halo check samples beside.
+func dotTop(tt *ui.Tester, cx int) int {
+	img := tt.Image()
+	for y := 0; y < 40; y++ {
+		i := y*img.Stride + cx*4
+		if int(img.Pix[i])+int(img.Pix[i+1])+int(img.Pix[i+2]) > 20 {
+			return y
+		}
+	}
+	return 0
+}
+
+func dotBottom(tt *ui.Tester, cx int) int {
+	img := tt.Image()
+	for y := 39; y >= 0; y-- {
+		i := y*img.Stride + cx*4
+		if int(img.Pix[i])+int(img.Pix[i+1])+int(img.Pix[i+2]) > 20 {
+			return y
+		}
+	}
+	return 0
+}
+
+// channelDelta is the largest per-channel difference between two colours: the
+// same ruler `internal/settingsui`'s pixel pins use.
+func channelDelta(a, b ui.Color) int {
+	d := absInt(int(a.R) - int(b.R))
+	if x := absInt(int(a.G) - int(b.G)); x > d {
+		d = x
+	}
+	if x := absInt(int(a.B) - int(b.B)); x > d {
+		d = x
+	}
+	return d
 }
 
 // dotCenter is the middle pixel of a dot's ink box in the bar: inside the

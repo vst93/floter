@@ -178,11 +178,17 @@ func textWidthAt(t *testing.T, tok theme.Tokens, text string, mutate func(ui.Ele
 
 // The range's live readout is the reference's `.terminal-setting-control__value`
 // (`settings.css:854-865`): `--text-body` in monospace with `tabular-nums` at
-// 600, in the accent — not the muted emphasis step one size down the old port
-// wrote. The live strip is read: the ink's own box against the same string laid
-// out at the body and emphasis registers, and its colour against the frame's
-// accent.
-func TestTheDrawerReadoutIsTheAccentBodyRegister(t *testing.T) {
+// 600 — not the muted emphasis step one size down the old port wrote. The live
+// strip is read: the ink's own box against the same string laid out at the body
+// and emphasis registers, and its colour against the frame's neutral ink.
+//
+// P8-c 重定基线（§6.2 第 7 条 / §5）：旧测试的第三条断言是「读数的墨是 accent」
+// ——`Accent` → `TextStrong`。这个读数是「滑轴现在的值是什么」，它不回答「哪个
+// 被选中/哪个是开的」，所以 accent 在这里越界（§5 的判据）。register 与权重
+// （body 步、mono、`tnum`、600）零改动，颜色从 accent 换成中性墨，所以第三条
+// 断言翻成：墨**跟着 TextStrong 走**且**不是** accent（R−B / R−G 落在灰墨的
+// 那几级上，远离 accent 的 ~152/~157）。
+func TestTheDrawerReadoutIsTheNeutralBodyRegister(t *testing.T) {
 	a := drawerApp(t)
 	f := drawDrawerMetrics(t, a)
 	tok := f.tokens
@@ -201,27 +207,45 @@ func TestTheDrawerReadoutIsTheAccentBodyRegister(t *testing.T) {
 		t.Errorf("the readout is not the body step (box %v, body probe %v, emphasis probe %v)", rect.W, want, emphasis)
 	}
 
-	// Its ink is the accent: an antialiased accent-only ink over the black root
-	// is `c * {229, 72, 77}`, so its red-minus-blue gap is far wider than a grey
-	// ink's (the muted step is near-neutral, its gap a few units).
+	// Its ink is the neutral strong step, not the accent: an antialiased
+	// accent-only ink over the black root is `c * {245, 84, 78}`, so its
+	// red-minus-blue gap is ~150; a grey ink's gap is a few units at most,
+	// however bright it is.
 	//
-	// P8-a 重定基线：旧 base.css 的 accent 是蓝 `#064aa6`，所以这条断言读的是
-	// `B - R` / `G - R`（~160/~68）；Raycast 合约 §1 的 accent 是红
-	// `#E5484D`，同一条「墨跟着 accent 走」的断言改读 `R - B` / `R - G`
-	// （~152/~157，按覆盖率缩放）。
+	// P8-c 重定基线：旧断言要求 R−B ≥40 且 R−G ≥15（accent）；合约 §5 把
+	// 文字用 accent 禁掉，所以同一条「墨是哪个寄存器」的断言改成两极：读数墨
+	// 贴着 `TextStrong` 的合成值，同时落在灰墨的色相容差内。
 	img := f.frame.Image()
-	bestRB, bestRG := -1, -1
+	near, bestHue := ui.Color{}, 0
+	best := -1
 	for y := int(rect.Y); y < int(rect.Y+rect.H)+2; y++ {
 		for x := int(rect.X); x < int(rect.X+rect.W); x++ {
 			i := y*img.Stride + x*4
-			r, g, b := int(img.Pix[i]), int(img.Pix[i+1]), int(img.Pix[i+2])
-			if r-b > bestRB {
-				bestRB, bestRG = r-b, r-g
+			p := ui.Color{R: img.Pix[i], G: img.Pix[i+1], B: img.Pix[i+2], A: img.Pix[i+3]}
+			lum := int(p.R) + int(p.G) + int(p.B)
+			if lum > best {
+				best, near = lum, p
+				bestHue = absInt(int(p.R) - int(p.B))
+				if x := absInt(int(p.R) - int(p.G)); x > bestHue {
+					bestHue = x
+				}
 			}
 		}
 	}
-	if bestRB < 40 || bestRG < 15 {
-		t.Errorf("the readout's ink is not the accent: its strongest pixel is red-minus-blue %d, red-minus-green %d (want the accent's ~152/~157 scaled by coverage)", bestRB, bestRG)
+	if best < 0 {
+		t.Fatal("the readout drew no ink in its own box")
+	}
+	// Grey: no channel stands off the others like the accent's red does.
+	if bestHue > 12 {
+		t.Errorf("the readout's brightest pixel %v is %d levels off grey: it carries a hue (the accent is back)",
+			near, bestHue)
+	}
+	// And it is the *strong* neutral: a step above the muted secondary ink
+	// the label beside it wears, i.e. readability came from contrast, not hue.
+	strongOverBlack := flatColor(tok, tok.TextStrong, 1)
+	if gray := int(near.R) + int(near.G) + int(near.B); gray < (int(strongOverBlack.R)+int(strongOverBlack.G)+int(strongOverBlack.B))*3/4 {
+		t.Errorf("the readout's ink %v is dimmer than the neutral strong step %v at three-quarters coverage",
+			near, strongOverBlack)
 	}
 }
 

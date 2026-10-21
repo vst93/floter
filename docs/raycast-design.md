@@ -5,8 +5,8 @@
 >
 > 本文件是本仓的**单一来源**：视图只读 `theme.Tokens`，不写字面色值。
 >
-> 切片：P8-a = 合约 + token 层 + 启动器表面（已做）。设置页、终端、集成/弹层
-> 留给 P8-b / P8-c，§6 给出差距清单。
+> 切片：P8-a = 合约 + token 层 + 启动器表面（已做）。P8-b = 设置页（已做）。
+> P8-c = 终端 + 集成/弹层 + accent 预算勘误（已做），§6 给出逐条落地。
 
 ---
 
@@ -161,22 +161,37 @@ padding 全花在文本列上（查询与行标题都从 16u 起），在行内�
   transform**（mygo 的渲染红线：整棵子树会掉进逐像素路径）。
 - 选中即时，不做缩放/弹跳；按下的 `0.986` 是唯一的几何变化。
 
-## §5 accent 的用途（全仓只允许三处）
+## §5 accent 的用途（四类，判据一句话）
 
 1. **设置侧栏选中项的前导图标**（`internal/settingsui/settingsui.go:1332`）。
 2. **主 CTA 填充**（`internal/settingsui/settingsui.go:3719` 的 `updateButton`）。
-3. **焦点环**（`Focus` / `InputStrokeActive` / `AccentGlow`，见
+3. **控件处于「已选 / 已开」状态时的状态色**：分段控件的选中段 keyline、开关的
+   ON 态、收音机的选中项。这是**状态**，不是装饰——它回答的正是「哪个被选中了」。
+4. **焦点环**（`Focus` / `InputStrokeActive` / `AccentGlow`，见
    `internal/theme/theme.go`）。
+
+仍禁止：列表选中行、页脚、分组头、空态、行 hover/按下、图标底、弹层危险动作的
+彩色环、终端状态灯的 halo、抽屉读数文字。
+
+**判断标准一句话**：accent 只能回答「哪个被选中 / 哪个是开的」，不能回答「这块
+面好看」。
+
+> P8-c 勘误：本节在 P8-b 时写成「全仓只允许三处」，实测（General 页 1591 个
+> accent 像素，分四带：侧栏图标、三组分段控件的选中段、开关 ON 态）发现条文写窄
+> 了——Raycast 的分段控件选中项和开关 ON 态**本来就是** accent。这不是实现跑偏，
+> 是合约漏了「控件状态」这一类。第 3 条即补上的那一类，并各有正面 pin 钉住
+> （`TestTheChosenSegmentKeepsItsAccentKeyline`、`TestTheSwitchOnStateCarriesTheAccent`）。
 
 其余一切——启动器选中行、页脚、分组头、空态、行 hover/按下、图标底——**不用
 accent**。`AccentHalo` / `AccentGlow` 在启动器表面上一次都不画（Linux 聚焦卡的
-keyline 属于卡片壳，不属于列表）。
+keyline 属于卡片壳，不属于列表）；`AccentHalo` 在终端的状态灯上也于 P8-c 去掉
+（§6.2 第 5 条）。
 
 反证留在测试里：`selface_test.go` 的选中行断言既等于 `RowSelected` 的合成值，
 又证明「R−B 的差」与无彩色不足一个阈值（即不含 accent 的粉），
 `raycast_test.go` 另有一条直接读三通道相等的 pin。
 
-## §6 未落地页面的差距清单（P8-b / P8-c 直接引用）
+## §6 差距清单（P8-b / P8-c 已全部落地）
 
 ### §6.1 设置页（P8-b，**已落地**）
 
@@ -208,27 +223,37 @@ keyline 属于卡片壳，不属于列表）。
 | 录制器静息 hover（`settingsui.go:3638`） | hover 把边抬到 `t.Accent` | hover 只抬面（`ControlHover`）与字（`TextStrong`），不抬色相 | `已落地` |
 | 录制器的 armed 面（`settingsui.go:3569`、`custom.go:78`） | `RaisedQuiet` 不透面 | `Control`（与静息同一档面）+ accent 环 | `已落地` |
 
-### §6.2 终端（P8-c）
+### §6.2 终端（P8-c，**已落地**）
 
-| 位置 | 现状 | 应改成 |
-|---|---|---|
-| `internal/terminalui/terminalui.go:864` 面板 | `Radius(tokens.WindowRadius)` + `panelFill` | 保留（面板**是**窗口，§2）；`panelFill` 的档位要按 §1 的低光泽上限复核 |
-| `internal/terminalui/terminalui.go:926` 会话挂载 | `Radius(RadiusLG)`(12) + 1px `edge` | 终端画布在面板里，应用 `RadiusMD`(10)（面板内的块）；12 只给「是窗口」的面 |
-| `internal/terminalui/terminalui.go:1104` 反馈条 | `RadiusMD` + `ControlEdge` + `Float` | 保留几何；`Float` 的低光泽要复核 |
-| `internal/terminalui/terminalui.go:1150` 警告条 | `RadiusMD` + `Border(tokens.AccentEdge)` | accent 环在这一处不属于 §5 的三处：改 `t.Warning.Alpha(...)` 或 `ControlEdge` |
-| `internal/terminalui/terminalui.go:1298` 状态灯 | `Shadow(0,0,0,Space(0.5), AccentHalo)` | `--elev-halo` 是旧语言的辉光；合约要**去掉 halo**，只留一个 1.75u 的 accent 点（§1 低光泽） |
-| `internal/terminalui/terminalui.go:1198` 标题条 | hover 时 `Shadow(0, Space(1.5), Space(4), 0, rgba(0,0,0,0.18))` | 保留（它是「可拖拽手柄」的唯一提示）；但让它读 `ShadowContact` 而不是字面 rgba |
-| `internal/terminalui/drawer.go:265` 读数 | `FontSize(Body)` + `Accent` + 600 | accent 在这里越界（§5）；改 `TextStrong` + tnum |
-| `internal/terminalui/drawer.go:45` 抽屉面 | 浮层（`Float` + `RadiusMD`） | 保留；抽屉的边缘按 §4.1 的弱发丝线 |
+| 位置 | 旧 | 新 | 落地 |
+|---|---|---|---|
+| 面板（`internal/terminalui/terminalui.go:866`） | `Radius(WindowRadius)` + `panelFill` | 保留（面板**是**窗口，§2），并抽成 `panelCorner`；`panelFill` 只有一层面（调色板底色 × `CanvasAlpha`），无 rim/sheen/lens，故无光泽要压 | `已落地` — `terminalui.go:866`（`panelCorner`），复核见报告 §① 第 1 条 |
+| 会话挂载（`terminalui.go:932`） | `Radius(RadiusLG)`(12) + 1px `edge` | **`RadiusMD`(10)**（面板内的块；12 只给「是窗口」的面），抽成 `mountCorner` | `已落地` — `terminalui.go:931-932`（`mountCorner`）+ `terminalui.go:1359-1368`（两个 helper） |
+| 反馈条（`terminalui.go:1110`） | `RadiusMD` + `ControlEdge` + `Float` | 几何保留；`Float` 只是一层不透面（`TintAlpha + floatStep`，无 rim/sheen），低光泽复核通过 | `已落地` — `terminalui.go:1110`，复核见报告 §① 第 3 条 |
+| 警告条（`terminalui.go:1161`） | `Border(tokens.AccentEdge)` | **`Border(tokens.ControlEdge)`** —— accent 环不属于 §5 的任何一处；语义由 warning 墨 + 15u 警示字形说 | `已落地` — `terminalui.go:1161` |
+| 状态灯（`terminalui.go:1298`） | `Shadow(0,0,0,Space(0.5), AccentHalo)` | **去掉 halo**，只留 1.75u 的 accent 点（§1 光泽上限 0.04，`AccentHalo` 是 0.2） | `已落地` — `terminalui.go:1301-1306` |
+| 标题条（`terminalui.go:1216`） | hover `Shadow(…, rgba(0,0,0,0.18))` | 读 **`tokens.ShadowContact`**（深 0.40 / 浅 0.10），不再写字面 rgba | `已落地` — `terminalui.go:1222` |
+| 抽屉读数（`internal/terminalui/drawer.go:276`） | `FontSize(Body)` + `Theme.Accent` + 600 | **`TextStrong`** + tnum（register 与权重不动：body / mono / tnum / 600） | `已落地` — `drawer.go:274-277` |
+| 抽屉面（`drawer.go:59`） | 浮层几何 + `BorderColor(ControlEdge)` 的上边线 | 几何保留（`Control` 面 + 16/12u padding + 10u gap）；上边线按 §4.1 降为**弱发丝** `HairlineSoft` | `已落地` — `drawer.go:59` |
 
-### §6.3 集成页 / 弹层（P8-c）
+### §6.3 集成页 / 弹层（P8-c，**已落地**）
 
-| 位置 | 现状 | 应改成 |
-|---|---|---|
-| `internal/settingsui/settingsui.go:1994` 状态 chip | `RadiusSM` + `RaisedWarm` + `t.Warning` inset | 同上表 §6.1 |
-| `internal/settingsui/settingsui.go:2373` 行面 | `RaisedQuiet` + `AccentEdge` + `Accent` bar | 中性：`RowSelected` / `RowHover`，accent 只留前导图标 |
-| `internal/settingsui/pluginsheet.go:360` 弹层动作 | `Radius(Space(3.5))` + `danger` 用 `t.Warning.Alpha(0.45)` | 半径改 `RadiusSM`；danger 的环保留（语义色），但不要额外 accent |
-| `internal/settingsui/pluginsheet.go` 弹层面 | `Float` + `RadiusMD` | 保留；确认低光泽（无彩色 rim） |
+| 位置 | 旧 | 新 | 落地 |
+|---|---|---|---|
+| 状态 chip（`internal/settingsui/settingsui.go:1994`） | `RadiusSM` + `RaisedWarm` + `t.Warning` inset | P8-b 已改成 `ControlEdge` 环，本片复核并**补正面 pin**（`TestTheStatusChipRingIsTheControlEdge` 已在 P8-b 落地，P8-c 复核像素侧仍绿） | `已落地`（复核） — `settingsui.go:1989-1993`、`healthfaces.go:47,78` |
+| 行面（`settingsui.go:2376`，原 2368） | `RaisedQuiet` + `AccentEdge` + `Accent` bar | **`RowSelected`** 一档，无环、无前导规则条；accent 只留前导图标（`packageChip(…, chosen)`） | `已落地` — `settingsui.go:2372-2379`（`integrationRowFace`）、`settingsui.go:2412`（`packageChip` 调用）、`rows.go:1044-1069`（`packageChip`） |
+| 弹层动作（`internal/settingsui/pluginsheet.go:368`） | `Radius(Space(3.5))` + `danger` 用 `t.Warning.Alpha(0.45)` | P8-b 已把半径改 `RadiusSM`；danger 的**语义色环保留**（`t.Warning` 语义，不是 accent），本片确认无额外 accent | `已落地`（复核） — `pluginsheet.go:367-377` |
+| 弹层面（`pluginsheet.go`） | `Float` + `RadiusMD` | 保留；确认无彩色 rim（`Float` 是一次 `floatFill.Alpha`，无 rim/sheen 叠层） | `已落地`（复核） — 见报告 §① 第 4 条 |
+
+### §6 末尾 · P8-c 自加条目（第 13 条）
+
+§6.2/§6.3 没列、但同一族语言、本片一并收敛的：
+
+| 位置 | 旧 | 新 | 落地 |
+|---|---|---|---|
+| `fieldFace` 的字段材质（`internal/settingsui/textinput.go:76`） | `tokens.Field` + `FieldSlot`（浅色下 0.85 白边） | `tokens.Control` + `ControlEdge` 一档（与弹层 `sheetFieldSlot` 同面） | `已落地` — `textinput.go:64-77` |
+| 多选列表箱（`internal/settingsui/config.go:830`） | `tokens.Field` + `FieldSlot` | `tokens.Control` 一档（同一个应用里字段只有一种材质） | `已落地` — `config.go:826-840` |
+| `theme.Tokens.FieldSlot`（`internal/theme/theme.go:1019`） | 0.85 白边的凹痕叠层 | 标记 `Deprecated`，**保留函数体**（删除留给下一次清理轮；已 grep 确认无其它调用点） | `已落地` — `theme.go:1004-1031` |
 
 **启动器里自己没做的两处**（不在 §6 表里，写在 §4 对应小节）：
 §4.2 的搜索行前导放大镜、§4.6 的 `⌘K` 动作面（chord 未绑定）。
@@ -239,4 +264,4 @@ keyline 属于卡片壳，不属于列表）。
 |---|---|---|
 | P8-a | 合约文档 + token 层 + 启动器表面（卡片/搜索行/列表/分组头/页脚/空态/键帽） | **本轮完成** |
 | P8-b | 设置页（侧栏/分组块/行/控件/弹层）+ 两个空态 | **本轮完成**（`⌘K` 动作面未做，见 §4.6） |
-| P8-c | 终端表面（页签/边框/滚动边缘/抽屉）+ 集成页 + 通知/浮层 | 排队 |
+| P8-c | 终端表面（页签/边框/滚动边缘/抽屉）+ 集成页 + 通知/浮层 + §5 accent 预算勘误 | **本轮完成**（§6.2/§6.3 全部 `已落地`；§5 从「三处」改为四类，新增 9 条正面 pin） |

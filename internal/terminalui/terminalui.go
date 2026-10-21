@@ -859,9 +859,11 @@ func (a *App) View(c *ui.Context) {
 	session := a.Current()
 	running := session != nil && session.Term != nil
 	// The panel is the window's own face (terminal.css:31 draws it at
-	// `--window-radius`), so its corner is the window's: 14px, and 8px on
-	// Windows, where DWM rounds the window at that preset.
-	ui.Box(c).Fill().Radius(tokens.WindowRadius).Background(panelFill(stored.TerminalTheme, running, spec, tokens)).Children(func() {
+	// `--window-radius`), so its corner is the window's: 12 on all three
+	// platforms (docs/raycast-design.md §2). P8-c 复核（§6.2 第 1 条）：半径
+	// 保留，`panelFill` 只有一层面（调色板的底色 × `CanvasAlpha`），不叠
+	// rim/sheen/lens，所以它身上没有需要压到 0.04 以下的光泽。
+	ui.Box(c).Fill().Radius(panelCorner(tokens)).Background(panelFill(stored.TerminalTheme, running, spec, tokens)).Children(func() {
 		if session == nil || session.Term == nil {
 			// The empty state: what the page is, and the two lines that leave
 			// it — each its own key and label, as the old build's
@@ -923,7 +925,11 @@ func (a *App) View(c *ui.Context) {
 			// the plugin (the session is transparent, see options). Rebuilt from
 			// the stored settings every frame, so a palette picked while a
 			// session runs lands without restarting it.
-			ui.Box(c).Fill().Radius(tokensOf(a, c).RadiusLG).Border(1, edge).
+			//
+			// P8-c 重定基线（§6.2 第 2 条）：画布圆角 12 → `RadiusMD`(10)。12
+			// 是「这张面**是**窗口」的档（§2：窗口、整张卡），而终端画布是面板
+			// **里**的一块，和分组卡/浮层同档；面板自己仍是 `WindowRadius`(12)。
+			ui.Box(c).Fill().Radius(mountCorner(tokensOf(a, c))).Border(1, edge).
 				Children(func() {
 					// No `Padding` here: the inset belongs to the grid and is
 					// Options.Padding now (see options). An element's padding
@@ -1143,11 +1149,16 @@ func (a *App) feedbackNote(c *ui.Context) {
 	t := c.Theme()
 	tokens := theme.ForPreferences(a.Store.Snapshot(), t.Dark, c.Preferences())
 	// The reference's own notice: 12u from the panel's top-left corner, the
-	// 7u/10u padding pair, the accent keyline and the floater's fill, a 15u
-	// alert glyph and the body step at 560 in the warning colour.
+	// 7u/10u padding pair, the floater's fill, a 15u alert glyph and the body
+	// step at 560 in the warning colour.
+	//
+	// P8-c 重定基线（§6.2 第 4 条 / §5）：环 `AccentEdge` → `ControlEdge`。accent
+	// 只回答「哪个被选中/哪个是开的」，而这条是「某个动作没做成」——它的语义
+	// 已经由那行 warning 墨和 15u 的警示字形说了，一圈 accent 环不在 §5 的
+	// 任何合法处。几何（12u 起点、28u/40u 的 padding、`RadiusMD`）零改动。
 	notice := ui.Row(c).Absolute().Top(t.Space(3)).Left(t.Space(3)).
 		Gap(t.Space(2)).AlignItems(ui.Center).Padding(t.Space(1.75), t.Space(2.5)).
-		Radius(tokens.RadiusMD).Border(1, tokens.AccentEdge).
+		Radius(tokens.RadiusMD).Border(1, tokens.ControlEdge).
 		Background(tokens.Float).
 		Transition(ui.ElementTransition{
 			Enter:    &ui.Motion{Y: -2},
@@ -1213,7 +1224,10 @@ func (a *App) titleBar(c *ui.Context, copy i18n.Terminal) {
 	// pointer raises it; keyboard focus reveals the identity without lifting the
 	// surface, exactly as `:hover` does.
 	if bar.Hovered() {
-		bar.Shadow(0, t.Space(1.5), t.Space(4), 0, ui.RGBA(0, 0, 0, 0.18))
+		// P8-c 重定基线（§6.2 第 6 条）：投影读 `ShadowContact`，不再写字面
+		// `rgba(0, 0, 0, 0.18)`。同一条 throw 在两套外观下是两档（深 0.40 /
+		// 浅 0.10），字面值把它钉成了第三档，浅色下比合约重、深色下比合约轻。
+		bar.Shadow(0, t.Space(1.5), t.Space(4), 0, tokensOf(a, c).ShadowContact)
 	}
 	bar.Children(func() {
 		// The identity line names the program on screen and, once it has ended,
@@ -1293,9 +1307,11 @@ func (a *App) statusDot(c *ui.Context) {
 		return
 	}
 	dot.Background(t.Accent)
-	// `.terminal-bar__dot { box-shadow: var(--elev-halo) }` (`:150-156`) — the
-	// reference's one non-elevation shadow, a 2u ring of `--accent-halo`.
-	dot.Shadow(0, 0, 0, t.Space(0.5), tokens.AccentHalo)
+	// P8-c 重定基线（§6.2 第 5 条 / §1）：`--elev-halo` 的 2u `AccentHalo` 环
+	// 去掉，只留这个 1.75u 的 accent 点。光环是旧 glass 语言的辉光——§1 把
+	// 光泽一律压到 alpha ≤ 0.04，而 `AccentHalo` 是 0.2（上限的 5 倍），并且
+	// 「哪个进程是活的」是一个**点**的存在与否，不需要一圈晕来强调。呼吸
+	// 动画（透明度与缩放）是旧 build 自己的动效，不在墨与面的条文里，保留。
 	// The breath is the old build's own animation: the light fades to half and
 	// shrinks a little, twice over five seconds, so a running session reads
 	// as alive without a spinner. Its keyframes are the reference — opacity 1
@@ -1339,6 +1355,17 @@ func cursorStyle(shape string) terminal.CursorStyle {
 		return terminal.CursorBar
 	}
 }
+
+// panelCorner and mountCorner are the two corner rungs of the terminal page,
+// named so a pin can hold the pair apart (docs/raycast-design.md §2 / §6.2 第
+// 1-2 条). The panel **is** the window, so it takes `WindowRadius` (12); the
+// session's canvas is a block **inside** it, so it takes `RadiusMD` (10) — the
+// same rung a grouped card or a floating pane wears. base.css drew both at
+// `--window-radius`, which made a block inside the panel read as a second
+// window: three faces deep, three windows stacked.
+func panelCorner(tokens theme.Tokens) float32 { return tokens.WindowRadius }
+
+func mountCorner(tokens theme.Tokens) float32 { return tokens.RadiusMD }
 
 // panelFill is the colour the terminal surface paints behind its content: a
 // named palette's own background, and the window's background for the shipped

@@ -9,20 +9,17 @@ import (
 )
 
 // textInput is the settings surface's one text field: the framework's field at
-// the surface's own `--u` metric, wearing the reference's *field* face instead
-// of the framework's control face.
+// the surface's own `--u` metric, wearing the surface's one field face (see
+// `fieldFace`).
 //
 // The reference writes a text field's material as `--glass-field` under the
 // `--glass-field-shadow` inset stack — `.settings-select`, `.residency-control
 // __input` (`settings.css:919-940,964-977`), `.extension-config-field input,
 // select` (`extensions.css:2402-2417`), `.extension-custom-form input`
-// (`extensions.css:1770-1781`) all say it — while the framework's `ui.TextInput`
-// paints its own `--glass-control` resting pane (`theme.Tokens.Control`, which
-// is what `ui.Theme.Surface` carries) with the stronger `--input-stroke` edge.
-// `.glass-field` is the thinner rung of the same ladder (dark 0.03 against the
-// control's 0.055, light 0.5 against the control's 0.035 — `base.css:517,880
-// vs :894`), so a field the framework drew read a step *heavier* than the slot
-// the reference asked for, everywhere one appeared.
+// (`extensions.css:1770-1781`) all say it — and the old port carried that stack
+// verbatim. P8-c 收掉了它（见 `fieldFace`）：`--glass-field-shadow` 在浅色下的
+// 白边是 0.85，与合约 §1 的 0.04 光泽上限互斥，所以字段和弹层字段槽一样走
+// `Control` + `ControlEdge` 一档。
 //
 // The `↑`/`↓` rule is the settings surface's own: ↑/↓ never walk the sidebar
 // while the keyboard is in a text field, whether the field is single- or
@@ -63,15 +60,20 @@ func (a *App) textInput(c *ui.Context, value *string) ui.Element {
 	return e
 }
 
-// fieldFace lays the reference's field material over an element: the
-// `--glass-field` fill, the `--glass-control-edge` hairline and the
-// `--glass-field-shadow` inset stack (`theme.Tokens.FieldSlot`). It is the one
-// place a field's material is decided, so a config input, a run parameter, a
-// residency field and a shortcut command cannot drift into two faces.
+// fieldFace lays the reference's field material over an element: one quiet
+// pane plus one hairline. It is the one place a field's material is decided,
+// so a config input, a run parameter, a residency field and a shortcut command
+// cannot drift into two faces.
+//
+// P8-c 重定基线（docs/raycast-design.md §0(b)/§6.1）：旧的 `--glass-field` 面 +
+// `--glass-field-shadow` 凹槽（`theme.Tokens.FieldSlot`）收成 `Control` +
+// `ControlEdge` 一档，与弹层的 `sheetFieldSlot` 同面。理由是合约自己的上限：
+// §1 把光泽（rim/sheen/lens）一律压到 alpha ≤ 0.04，而 `FieldSlot` 在浅色下
+// 的白边是 **0.85**——上限的 21 倍；Raycast 的输入框是一档浅面 + 一条发丝边，
+// 没有内侧白边。旧材质在图上就是「输入框像一块玻璃砖」，这正是本片要收掉的。
 func (a *App) fieldFace(c *ui.Context, e ui.Element) ui.Element {
 	tokens := a.tokens(c)
-	e = e.Background(tokens.Field).Border(1, tokens.ControlEdge)
-	return tokens.FieldSlot(e)
+	return e.Background(tokens.Control).Border(1, tokens.ControlEdge)
 }
 
 // extensionFieldMetrics is the literal box one of the extension panel's text

@@ -808,11 +808,17 @@ func configOptionMatches(options []string, word string) bool {
 }
 
 // configMultiselectBox draws the multiselect field's one list box: the
-// reference's `.extension-config-field select[multiple]` shape — a
-// `--glass-field` face under its inset slot, a `--radius-sm` corner and the
-// reference's 66px floor (`extensions.css:2420-2423`) — with fn filling the
-// tick rows inside it. It is one element, not a column of rows, so the field
-// reads as the single native control the reference drew.
+// reference's `.extension-config-field select[multiple]` shape — a field face,
+// a `--radius-sm` corner and the reference's 66px floor
+// (`extensions.css:2420-2423`) — with fn filling the tick rows inside it. It is
+// one element, not a column of rows, so the field reads as the single native
+// control the reference drew.
+//
+// P8-c 随 §0(b) 重定基线：面 `tokens.Field` + `FieldSlot` 凹痕叠层 → `Control`
+// 一档（与 `fieldFace`/`sheetFieldSlot` 同面）。同一个应用里字段只有一种材质：
+// `--glass-field-shadow` 在浅色下的白边是 0.85，与合约 §1 的 0.04 上限互斥，
+// 而列表箱跟其他字段是同一族控件。几何（66px 地板、`RadiusSM`、1px 边、
+// 4px/8px 的 padding 对）零改动。
 //
 // The box is a *viewport*, not a growing list: a native `select[multiple]` of
 // the reference's 66px keeps that height however many options it holds and
@@ -831,9 +837,8 @@ func (a *App) configMultiselectBox(c *ui.Context, scroll *ui.ScrollState, fn fun
 		Padding(padY, padX).
 		Border(1, tokens.ControlEdge).
 		Radius(tokens.RadiusSM).
-		Background(tokens.Field).
+		Background(tokens.Control).
 		Clip()
-	box = tokens.FieldSlot(box)
 	box.Children(func() {
 		ui.Scroll(c).FillWidth().MaxHeight(viewport - 2*padY - 2*border).TrackScroll(scroll).Children(func() {
 			ui.Column(c).FillWidth().Gap(a.cardSpace(t, 0.5)).Children(fn)

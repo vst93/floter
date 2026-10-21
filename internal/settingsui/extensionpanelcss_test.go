@@ -175,17 +175,21 @@ func TestTheCommandAliasFieldKeepsItsLiteralBoxAndCorner(t *testing.T) {
 	}
 }
 
-// The extension panel's fields wear the reference's *field* rung —
-// `--glass-field` under `--glass-field-shadow` — and not the framework
-// `ui.TextInput`'s control rung (`--glass-control`, what `ui.Theme.Surface`
-// carries). `.glass-field` is the thinner of the two (dark 0.03 against 0.055,
-// light 0.5 against 0.035), so the framework's face read a step heavier than
-// the slot the reference asked for, everywhere one appeared.
+// The extension panel's fields wear the **control** rung — `Control` under the
+// `ControlEdge` hairline — and not the old `--glass-field` slot with its
+// `--glass-field-shadow` inset stack.
+//
+// P8-c 重定基线（docs/raycast-design.md §0(b)）：这条 pin 原来正面要求「必须是
+// Field 档、不能是 Control 档」，方向反过来。原因是合约自己的上限：§1 把光泽
+// （rim/sheen/lens）一律压到 alpha ≤ 0.04，而 `FieldSlot` 在浅色下的白边是
+// **0.85**——上限的 21 倍；Raycast 的输入框是一档浅面 + 一条发丝边，没有内侧
+// 白边。弹层的 `sheetFieldSlot` 在 P8-b 已经收敛到 `Control`，于是同一个应用里
+// 出现了两种字段材质，现在统一。
 //
 // The test paints a black root and reads the fill at the middle of the field,
-// then compares it to `--glass-field` and `--glass-control` composited over the
-// same black: the field must match the former and miss the latter.
-func TestTheFieldsWearTheFieldRungNotTheControlRung(t *testing.T) {
+// then compares it to `Control` composited over the same black: the field must
+// match it, and must not match `Field`.
+func TestTheFieldsWearTheControlRungNotTheFieldRung(t *testing.T) {
 	for _, dark := range []bool{false, true} {
 		appearance := "light"
 		if dark {
@@ -201,15 +205,15 @@ func TestTheFieldsWearTheFieldRungNotTheControlRung(t *testing.T) {
 			t.Helper()
 			tt, rect := renderOneField(t, store, dark, draw)
 			got := imagePixel(tt.Image(), int(rect.X+rect.W/2), int(rect.Y+rect.H/2))
-			wantField := panelOver(tokens.Field, ui.RGBA(0, 0, 0, 1))
 			wantControl := panelOver(tokens.Control, ui.RGBA(0, 0, 0, 1))
-			if !panelClose(got, wantField, 3) {
-				t.Errorf("[%s %s] the field fill is %v, want --glass-field over the window (%v)",
-					appearance, name, got, wantField)
-			}
-			if panelClose(got, wantControl, 3) {
-				t.Errorf("[%s %s] the field fill is %v, which is --glass-control over the window (%v): the field wears the control rung",
+			wantField := panelOver(tokens.Field, ui.RGBA(0, 0, 0, 1))
+			if !panelClose(got, wantControl, 3) {
+				t.Errorf("[%s %s] the field fill is %v, want Control over the window (%v)",
 					appearance, name, got, wantControl)
+			}
+			if !panelClose(wantField, wantControl, 3) && panelClose(got, wantField, 3) {
+				t.Errorf("[%s %s] the field fill is %v, which is --glass-field over the window (%v): the field wears the deprecated slot rung",
+					appearance, name, got, wantField)
 			}
 		}
 

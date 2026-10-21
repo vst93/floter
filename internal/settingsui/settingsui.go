@@ -2352,12 +2352,20 @@ func approvalApprovedAt(at uint64) string {
 }
 
 // integrationRowFace is the decoration the integration row's own state asks
-// for. A row a `floter://register` link named wears the reference's
-// `.extension-row--register`: the raised quiet pane, the accent inner keyline
-// and the accent leading rule. A broken row wears `.extension-row--broken`: the
-// warm raised pane, the warning keyline and the warning rule, so an unusable
-// integration reads at a glance instead of only in its status word. Every other
-// row keeps the card's plane and an unlit rule (hover lights it in cardRow).
+// for. A broken row wears `.extension-row--broken`: the warm raised pane, the
+// warning keyline and the warning rule, so an unusable integration reads at a
+// glance instead of only in its status word. A row a `floter://register` link
+// named is the row the link **chose**, so it wears the contract's neutral
+// selection rung (`RowSelected`, docs/raycast-design.md §4.3) with no keyline
+// and no leading rule. Every other row keeps the card's plane and an unlit
+// rule (hover lights it in cardRow).
+//
+// P8-c 重定基线（§6.3 第 2 条 / §5）：命名行的 `RaisedQuiet` + `AccentEdge` +
+// accent bar → `RowSelected`，accent 只留给前导图标。旧面是 base.css 的
+// `.extension-row--register`（升起的静默面 + accent 内环 + accent 前导条），
+// 三处都是 accent；而 §5 的判据是「accent 只能回答『哪个被选中』，不能回答
+// 『这块面好看』」——这一行确实是被选的，但**选中行**在列表里从不拿 accent
+// （§4.3 末句），所以选中本身用中性档，前导图标是唯一可带 accent 的位置。
 func (a *App) integrationRowFace(c *ui.Context, integration Integration) rowFace {
 	tokens := a.tokens(c)
 	t := a.cardTheme(c)
@@ -2365,7 +2373,7 @@ func (a *App) integrationRowFace(c *ui.Context, integration Integration) rowFace
 	case integration.Broken:
 		return rowFace{Face: tokens.RaisedWarm, FaceSet: true, Inset: t.Warning, Bar: t.Warning}
 	case integration.Highlighted:
-		return rowFace{Face: tokens.RaisedQuiet, FaceSet: true, Inset: tokens.AccentEdge, Bar: t.Accent}
+		return rowFace{Face: tokens.RowSelected, FaceSet: true}
 	}
 	return rowFace{}
 }
@@ -2401,7 +2409,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 		// all in the label column, with the runtime-unavailable chip as the
 		// row's only control. The old port printed the version on a separate
 		// identity row and the freshness dot in the control slot.
-		a.cardRow(c, ui.Center, func() { a.extensionIcon(c, false) }, a.integrationRowFace(c, integration), func() {
+		a.cardRow(c, ui.Center, func() { a.packageChip(c, false, integration.Highlighted) }, a.integrationRowFace(c, integration), func() {
 			if !integration.RuntimeAvailable {
 				a.runtimeUnavailableBadge(c, copy, integration)
 			}

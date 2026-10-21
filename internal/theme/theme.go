@@ -1011,6 +1011,14 @@ func (t Tokens) LensInset(e ui.Element) ui.Element {
 // pane rather than as a slot cut *into* the glass. The stack consumes the lens
 // family, so `[data-glass]` grades it exactly as it grades Lens and LensInset.
 //
+// Deprecated: P8-c 收掉了它的最后一处调用（`docs/raycast-design.md` §0(b)）。
+// 这个叠层在浅色下的白边是 **0.85**，而合约 §1 把光泽（rim/sheen/lens）一律
+// 压到 alpha ≤ 0.04——上限的 21 倍。Raycast 的输入框是一档浅面 + 一条发丝边，
+// 没有内侧白边，而本叠层在图上就是「输入框像一块玻璃砖」。设置页的字段现在走
+// `theme.Tokens.Control` + `ControlEdge` 一档（`settingsui.fieldFace` /
+// `sheetFieldSlot` / `configMultiselectBox`）。函数体保留不删：本次只做视觉
+// 收敛，删除留给下一次清理轮（仓库层面已 grep 确认无其它调用点）。
+//
 // The layers append one at a time through InsetShadow, so the first layer
 // lands under the later ones; the reference lists the contact shadow first and
 // CSS paints the first shadow on top, so it goes in last — the same reversal
