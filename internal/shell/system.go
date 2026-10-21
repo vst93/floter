@@ -108,6 +108,36 @@ func trayMenu(copy i18n.Launcher, show, settings, reload, quit func()) *mygo.Men
 	})
 }
 
+// trayID names floter's tray icon across launches (mygo's TrayOptions.ID,
+// v0.6.0). It is a **published contract**: the two platforms that use it keep
+// the user's own placement of the icon under this key — macOS remembers where
+// the icon was dragged in the menu bar (⌘-drag), and Windows remembers whether
+// the user kept it on the taskbar or in the overflow — so changing the string
+// is the same as dropping the settings the user chose. The naming surface is
+// the one `scheme` and the app id already use: the plain application name.
+// Linux's panels place their icons themselves and ignore it.
+const trayID = "floter"
+
+// trayOptions is the tray mygo is asked for, apart from the menu and the icon
+// data so that the identity it carries can be asserted without a system tray
+// (see TestTrayKeepsItsIdentity).
+//
+// IconIsTemplate stays false: it tells macOS to tint a black-and-transparent
+// icon to the menu bar's colour (and Windows to show it white on a dark
+// taskbar), which is right for a glyph and wrong for floter's mark — both
+// embedded icons are the coloured logo, not a mask (the dark icon carries 951
+// of its 1008 opaque pixels in colour), so a tint would flatten the mark to a
+// silhouette. The appearance the user picks in settings is the app's own
+// answer to the taskbar's brightness.
+func trayOptions(icon []byte, menu *mygo.Menu) mygo.TrayOptions {
+	return mygo.TrayOptions{
+		ID:      trayID,
+		Icon:    icon,
+		ToolTip: trayID,
+		Menu:    menu,
+	}
+}
+
 // InstallTray adds the menu bar icon: show the panel, open the settings,
 // re-scan what is installed, and quit — the four things a tray icon is for.
 // The labels follow the stored language, so the tray never lags behind the UI.
@@ -120,11 +150,7 @@ func (a *App) InstallTray() {
 		a.quit,
 	)
 
-	tray, err := mygo.NewTray(mygo.TrayOptions{
-		Icon:    appIconBytes(a.appIcon),
-		ToolTip: "floter",
-		Menu:    menu,
-	})
+	tray, err := mygo.NewTray(trayOptions(appIconBytes(a.appIcon), menu))
 	if err != nil {
 		log.Printf("floter: could not add the tray icon: %v", err)
 		return

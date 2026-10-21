@@ -1010,6 +1010,45 @@ func TestTrayMenuKeepsSettingsAndQuit(t *testing.T) {
 	}
 }
 
+// A tray icon's identity is what keeps the user's own placement of it across
+// launches (mygo's TrayOptions.ID, v0.6.0): macOS remembers where the icon was
+// ⌘-dragged in the menu bar, and Windows remembers whether the user kept it on
+// the taskbar or in the overflow. So the ID is a published contract — changing
+// the string loses those settings — and the number mygo is handed has to be the
+// stable one for every icon and every language.
+//
+// The tray itself needs a system notification area, so the assertion is on the
+// options floter builds (trayOptions), not on a live tray.
+func TestTrayKeepsItsIdentity(t *testing.T) {
+	if trayID != "floter" {
+		t.Fatalf("trayID = %q, want the published \"floter\"; changing it drops every "+
+			"user's saved menu bar and taskbar placement", trayID)
+	}
+	for _, lang := range []string{"en", "zh"} {
+		copy := i18n.For(lang).Launcher
+		for _, icon := range []string{"dark", "light"} {
+			o := trayOptions(appIconBytes(icon), trayMenu(copy, func() {}, func() {}, func() {}, func() {}))
+			if o.ID != trayID {
+				t.Errorf("%s/%s: tray ID = %q, want %q", lang, icon, o.ID, trayID)
+			}
+			if o.ToolTip != trayID {
+				t.Errorf("%s/%s: tooltip = %q, want %q", lang, icon, o.ToolTip, trayID)
+			}
+			if len(o.Icon) == 0 || o.Menu == nil {
+				t.Errorf("%s/%s: the tray lost its icon or menu", lang, icon)
+			}
+		}
+	}
+	// IconIsTemplate tells macOS to tint a black-and-transparent icon to the
+	// menu bar's colour (and Windows to show it white on a dark taskbar), which
+	// suits a glyph, not floter's coloured mark: both embedded icons carry their
+	// colour, so a tint would flatten the logo to a silhouette. The stored app
+	// icon stays the app's own answer to the taskbar's brightness.
+	if trayOptions(nil, nil).IconIsTemplate {
+		t.Error("the tray asked for a template icon; floter's marks are coloured, not masks")
+	}
+}
+
 // The Settings… item advertises the user's own `open_settings` binding, so a
 // rebind moves the menu accelerator instead of leaving a frozen Cmd+, behind.
 func TestMenuSettingsAcceleratorFollowsTheBinding(t *testing.T) {

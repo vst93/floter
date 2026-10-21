@@ -138,6 +138,20 @@ func TestOptionsFollowTheSettings(t *testing.T) {
 	if a.Pad() != 3 {
 		t.Errorf("regular padding = %v, want 3", a.Pad())
 	}
+	// The step reaches the plugin's own Padding (mygo v0.6.0), which is where
+	// the grid's room comes from. It used to ride the view's element padding,
+	// which is inert on a leaf: an element's padding insets children, and the
+	// terminal's draw callback is handed the whole border box. See
+	// TestThePaddingStepReachesThePlugin.
+	if got, want := o.Padding, (terminal.Padding{X: 3, Y: 3}); got != want {
+		t.Errorf("regular plugin padding = %+v, want %+v", got, want)
+	}
+	// PaddingBackground is the zero value and paints nothing with Transparent:
+	// the grid's room stays empty, as it was when the inset was merely
+	// reserved.
+	if o.PaddingColor != terminal.PaddingBackground {
+		t.Errorf("padding colour = %v, want the transparent default", o.PaddingColor)
+	}
 	if o.OnTitle == nil {
 		t.Error("the plugin callbacks are not wired")
 	}
@@ -171,6 +185,9 @@ func TestOptionsFollowTheSettings(t *testing.T) {
 	if a.Pad() != 6 {
 		t.Errorf("relaxed padding = %v, want 6", a.Pad())
 	}
+	if got, want := o.Padding, (terminal.Padding{X: 6, Y: 6}); got != want {
+		t.Errorf("relaxed plugin padding = %+v, want %+v", got, want)
+	}
 	if o.Theme == nil {
 		t.Fatal("the forest palette did not build")
 	}
@@ -200,6 +217,63 @@ func TestOptionsFollowTheSettings(t *testing.T) {
 		if got := cursorStyle(shape); got != want {
 			t.Errorf("cursorStyle(%q) = %v, want %v", shape, got, want)
 		}
+	}
+}
+
+// TestThePaddingStepReachesThePlugin pins A1's real finding: the padding step
+// reaches the grid through Options.Padding, and cannot through the view's
+// element padding. The second half is the antichain — it is what proves the
+// first half was a no-op rather than a working carrier that merely changed
+// hands.
+func TestThePaddingStepReachesThePlugin(t *testing.T) {
+	steps := []struct {
+		name string
+		want float32
+	}{
+		{"compact", 1},
+		{"regular", 3},
+		{"relaxed", 6},
+	}
+	for _, step := range steps {
+		store := newStore()
+		if err := store.Update(func(s *settings.Settings) { s.TerminalPadding = step.name }); err != nil {
+			t.Fatal(err)
+		}
+		a := New(store, Actions{}, nil)
+		o := a.options()
+		if a.Pad() != step.want {
+			t.Errorf("%s: Pad() = %v, want %v", step.name, a.Pad(), step.want)
+		}
+		if got, want := o.Padding, (terminal.Padding{X: step.want, Y: step.want}); got != want {
+			t.Errorf("%s: Options.Padding = %+v, want %+v", step.name, got, want)
+		}
+	}
+
+	// An element's Padding insets its children. A drawn leaf has none, and the
+	// callback is handed the whole border box, so `Padding(pad)` on the
+	// terminal's view could never move the grid. This is why A1 is a migration
+	// and not a deletion: the number had no carrier before v0.6.0's
+	// Options.Padding.
+	var withPad, without ui.Rect
+	tt := ui.NewTester(func(c *ui.Context) {
+		ui.Column(c).Fill().Children(func() {
+			ui.Box(c).Fill().Padding(24).Draw(func(_ *ui.Painter, r ui.Rect) { withPad = r })
+		})
+	}, 200, 200)
+	tt.Frame()
+	tt2 := ui.NewTester(func(c *ui.Context) {
+		ui.Column(c).Fill().Children(func() {
+			ui.Box(c).Fill().Padding(0).Draw(func(_ *ui.Painter, r ui.Rect) { without = r })
+		})
+	}, 200, 200)
+	tt2.Frame()
+	if withPad != without {
+		t.Errorf("element padding moved a draw rect: %+v vs %+v; if mygo ever makes padding "+
+			"inset a leaf's draw box, Options.Padding is no longer the only carrier and this "+
+			"migration needs revisiting", withPad, without)
+	}
+	if want := (ui.Rect{X: 0, Y: 0, W: 200, H: 200}); without != want {
+		t.Errorf("the draw rect = %+v, want the whole border box %+v", without, want)
 	}
 }
 

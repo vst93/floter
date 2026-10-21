@@ -3052,8 +3052,18 @@ func (a *App) runCommandCaptured(entry extensions.CommandEntry, args []string, d
 		defer forget()
 		run, err := extensions.RunCaptured(ctx, entry, args)
 		a.onMain(func() {
-			done(run, err)
+			// The notification is the *last* thing the run does, and it comes
+			// before the caller's callback because the callback is what says the
+			// run is over: a caller that hands the answer to a waiting test (or
+			// to any other observer) must find the notice already raised, or it
+			// reads the run as silent. The four callers here — the panel's row,
+			// the detached window, the launcher's own run, and the tests — only
+			// write view state, so neither order changes what is drawn; this one
+			// is the order that keeps 「the run finished」 one event rather than
+			// two racing halves (the race `-race` reported on
+			// TestCapturedRunNotifiesOnlyWhenHidden: notifications = []).
 			a.notifyRun(entry, run, err)
+			done(run, err)
 		})
 	}()
 }

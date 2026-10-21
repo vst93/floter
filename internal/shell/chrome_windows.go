@@ -104,6 +104,31 @@ func setWindowStyle(hwnd uintptr, style uintptr) {
 // of that — its border line and its corner rounding — comes off in
 // dressWindowsFrame, which is applied on every call: mygo re-adds the style bits
 // on a resize, and the frame attributes are cheap enough to restate each time.
+//
+// **Why this is still here after mygo v0.6.0 added
+// WindowOptions.HideWindowButtons** (P7-lf, from reading
+// `mygo@v0.6.0/internal/windows/window.go`): that option cannot reach a
+// frameless window, which is the only kind floter creates. Upstream computes
+// its hidden-title-bar flag as
+//
+//	w.hiddenTitleBar = !o.Frameless && (o.TitleBarStyle == "hidden" || o.TitleBarStyle == "hiddenInset")
+//
+// (`window.go:121`), so `Frameless: true` makes the flag false whatever
+// `TitleBarStyle` or `HideWindowButtons` say, and the two places the option is
+// read are both behind it: the caption bar is only built for a hidden title bar
+// (`window.go:186`) and `shownButtons()` returns its empty list only from that
+// bar's layout (`titlebar.go:151-155`). `styles()` (`window.go:223-250`) keeps
+// building from `WS_OVERLAPPEDWINDOW` regardless — it strips `WS_SYSMENU` only
+// for `Panel`, which is why floter's panel window lost the window menu from
+// upstream while the launcher's caption, minimize and maximize boxes still had
+// to come off here. The alternative — a hidden title bar instead of a frameless
+// window — is not a swap: it keeps an upstream-drawn band and a shadow laid out
+// around the window's rectangle, which is exactly the 「外圈额外的底色」 the
+// reports brought us here to remove, and the app's card is the whole of the
+// window's chrome. So the local strip stays, and this note is the ledger of
+// which bit belongs to whom: the caption/menu/boxes are ours because upstream
+// will not touch a frameless window's style; the DWM border and the corner
+// rounding are ours because upstream's equivalents ride `TitleBarStyle` too.
 func stripSystemChrome(hwnd uintptr) {
 	if hwnd == 0 {
 		return

@@ -731,10 +731,34 @@ func (a *App) options() terminal.Options {
 		// its renderer on every mount; here the layer the palette colours is the
 		// app's own, so the setting reaches a running session on the next frame.
 		Transparent: true,
-		OnTitle:     a.Actions.Title,
-		OpenLink:    a.Actions.OpenLink,
-		OnNotify:    a.Actions.Notify,
-		Keybinds:    terminalKeybinds(s),
+		// The grid's room around the text, which the padding step owns
+		// (compact 1, regular 3, relaxed 6 DIPs — the three values
+		// `main:src/terminal/terminal-appearance.ts:85-87` shipped, read by
+		// the reference's canvas renderer as both `paddingX` and
+		// `paddingY`).
+		//
+		// The element's own `Padding(pad)` used to be the carrier and never
+		// worked: an element's padding insets its *children*, and the
+		// terminal's view is a leaf whose draw callback is handed the whole
+		// border box, so the setting reached nothing and the grid sat at the
+		// plugin's fixed 6 across and 4 down whatever the user picked. The
+		// plugin takes the number itself (Options.Padding, mygo v0.6.0), so
+		// this is where the setting now lands.
+		//
+		// PaddingColor stays the zero value (PaddingBackground), which with
+		// Transparent paints nothing at all in the padding: the same empty
+		// room the reserved inset already left, so the change moves where the
+		// text starts and leaves the surface under it alone.
+		//
+		// A creation-time option with no setter, like Transparent above: a
+		// session already running keeps the inset it started with, and the
+		// next one takes the new step. That is not a regression but the first
+		// time the step does anything at all.
+		Padding:  terminal.Padding{X: a.Pad(), Y: a.Pad()},
+		OnTitle:  a.Actions.Title,
+		OpenLink: a.Actions.OpenLink,
+		OnNotify: a.Actions.Notify,
+		Keybinds: terminalKeybinds(s),
 	}
 }
 
@@ -886,7 +910,6 @@ func (a *App) View(c *ui.Context) {
 		// `.terminal-bar`). The drawer is a sibling of the canvas, so opening
 		// it shrinks the canvas (and resizes the PTY) rather than covering the
 		// session's output.
-		pad := a.Pad()
 		// The focused canvas takes the accent edge (`.terminal-panel__mount:
 		// focus-within`), the same lit frame the launcher's card takes.
 		edge := tokensOf(a, c).InputStroke
@@ -902,7 +925,11 @@ func (a *App) View(c *ui.Context) {
 			// session runs lands without restarting it.
 			ui.Box(c).Fill().Radius(tokensOf(a, c).RadiusLG).Border(1, edge).
 				Children(func() {
-					terminal.View(c, session.Term).Fill().Padding(pad).Bind(&a.Focus).Label(copy.Input)
+					// No `Padding` here: the inset belongs to the grid and is
+					// Options.Padding now (see options). An element's padding
+					// insets its children, which a terminal's view has none
+					// of, so the call that used to sit here was inert.
+					terminal.View(c, session.Term).Fill().Bind(&a.Focus).Label(copy.Input)
 				})
 			// The resident note rides the canvas, so the docked drawer cannot
 			// sit under it.
