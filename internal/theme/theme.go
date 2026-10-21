@@ -202,6 +202,25 @@ type Tokens struct {
 	// port kept only the resting rung, so the top edge never brightened with the
 	// stroke and the sheen (see `SheenAtFocus`) — the third half of one rule.
 	EdgeHighlightActive ui.Color
+	// KeycapHighlight and KeycapShadow are the *keycap* pair base.css gives a
+	// key's top and bottom (`--keycap-highlight` / `--keycap-shadow`: dark
+	// `0.07`/`0.28` at `:657-658`, light `0.9`/`0.09` at `:917-918`). They are
+	// not a second edge palette: the terminal panel's rim is written with them
+	// on Windows
+	//
+	//	.platform-windows .terminal-panel {
+	//	  box-shadow: …, inset 0 1px 0 var(--keycap-highlight),
+	//	                inset 0 -1px 0 var(--keycap-shadow);
+	//	}
+	//
+	// (`main:src/styles/base.css:1567-1574`), because a terminal panel is a
+	// *keycap-shaped* slab rather than a sheet lying on a surface: its top is
+	// the lit crown of a key and its bottom the seat under it, both quieter
+	// than the card's own rim (0.07 against 0.15 in the dark appearance). The
+	// port drew every panel with the card's rim, so the Windows terminal wore
+	// an edge twice as bright as its own rule asks for.
+	KeycapHighlight ui.Color
+	KeycapShadow    ui.Color
 	// AccentEdge is the accent as a 1px keyline (base.css's `--accent-edge`):
 	// the emphasis a chosen segment or a recommended badge carries without an
 	// accent fill. AccentHalo is the accent as a soft ring (base.css's
@@ -512,6 +531,8 @@ func ForPlatform(s settings.Settings, systemDark bool, prefs ui.Preferences, goo
 		EdgeHighlightActive: p.edgeHighlightActive,
 		EdgeShadow:          p.edgeShadow,
 		EdgeHighlightX:      p.edgeHighlightX,
+		KeycapHighlight:     p.keycapHighlight,
+		KeycapShadow:        p.keycapShadow,
 		AccentEdge:          p.accentEdge,
 		AccentEdgeStrong:    p.accentEdgeStrong,
 		AccentHalo:          p.accentHalo,
@@ -600,9 +621,13 @@ func paletteFor(appearance Appearance) palette {
 			edgeHighlightActive: ui.RGBA(255, 255, 255, 0.96),
 			edgeShadow:          ui.RGBA(0, 0, 0, 0.07),
 			edgeHighlightX:      ui.RGBA(255, 255, 255, 0.6),
-			accentEdge:          ui.RGBA(6, 74, 166, 0.36),
-			accentEdgeStrong:    ui.RGBA(6, 74, 166, 0.68),
-			accentHalo:          ui.RGBA(6, 74, 166, 0.24),
+			// `--keycap-highlight` / `--keycap-shadow` (`base.css:917-918`):
+			// the terminal panel's own rim on Windows.
+			keycapHighlight:  ui.RGBA(255, 255, 255, 0.9),
+			keycapShadow:     ui.RGBA(0, 0, 0, 0.09),
+			accentEdge:       ui.RGBA(6, 74, 166, 0.36),
+			accentEdgeStrong: ui.RGBA(6, 74, 166, 0.68),
+			accentHalo:       ui.RGBA(6, 74, 166, 0.24),
 			// `--accent-glow` (`base.css:955`): the light card's focus ring.
 			accentGlow: ui.RGBA(6, 74, 166, 0.2),
 			// The launcher selection's own rung: the light appearance steps the
@@ -659,9 +684,13 @@ func paletteFor(appearance Appearance) palette {
 		edgeHighlightActive: ui.RGBA(255, 255, 255, 0.18),
 		edgeShadow:          ui.RGBA(0, 0, 0, 0.28),
 		edgeHighlightX:      ui.RGBA(255, 255, 255, 0.04),
-		accentEdge:          ui.RGBA(143, 183, 255, 0.3),
-		accentEdgeStrong:    ui.RGBA(143, 183, 255, 0.72),
-		accentHalo:          ui.RGBA(143, 183, 255, 0.18),
+		// `--keycap-highlight` / `--keycap-shadow` (`base.css:657-658`): the
+		// terminal panel's own rim on Windows, a step quieter than the edge.
+		keycapHighlight:  ui.RGBA(255, 255, 255, 0.07),
+		keycapShadow:     ui.RGBA(0, 0, 0, 0.28),
+		accentEdge:       ui.RGBA(143, 183, 255, 0.3),
+		accentEdgeStrong: ui.RGBA(143, 183, 255, 0.72),
+		accentHalo:       ui.RGBA(143, 183, 255, 0.18),
 		// `--accent-glow` (`base.css:687`): the same ring, quieter in the dark
 		// appearance because it traces a whole panel rather than a dot.
 		accentGlow: ui.RGBA(143, 183, 255, 0.08),
@@ -720,6 +749,7 @@ type palette struct {
 	shadowAmbient, shadowContact                                            ui.Color
 	edgeHighlight, edgeShadow, edgeHighlightX                               ui.Color
 	edgeHighlightActive                                                     ui.Color
+	keycapHighlight, keycapShadow                                           ui.Color
 	accentEdge                                                              ui.Color
 	accentEdgeStrong                                                        ui.Color
 	accentHalo                                                              ui.Color

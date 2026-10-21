@@ -95,3 +95,76 @@ func focusTop(t *testing.T, strokes []cardEdgeStroke) ui.Color {
 	t.Fatalf("the edge table has no top stroke: %+v", strokes)
 	return ui.Color{}
 }
+
+// A *panel*'s edge is not the card's edge: base.css's platform blocks name two
+// strokes for the settings card and the terminal panel, so the rim's two side
+// whispers are gone there, and the Windows terminal panel wears the quieter
+// keycap pair instead of the edge pair.
+//
+//	main:src/styles/settings.css:27 / terminal.css:41   → var(--glass-rim-shadow)
+//	main:src/styles/base.css:1541-1556, 1609-1617       → the platform's two
+//	main:src/styles/base.css:1567-1574                  → the keycap pair (terminal)
+func TestAPanelEdgeIsThePlatformsTableNotTheRim(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		tokens := theme.ForPreferences(settings.Default(), dark, ui.Preferences{})
+		if tokens.KeycapHighlight == tokens.EdgeHighlight {
+			t.Fatalf("dark=%v: the keycap crown is the edge's own", dark)
+		}
+		for _, goos := range []string{"windows", "linux"} {
+			// The settings card: the edge pair, and no side whisper.
+			settingsEdge := panelEdge(tokens, goos, false)
+			if len(settingsEdge) != 2 {
+				t.Errorf("dark=%v %s: the settings panel edge = %d strokes, want 2: %+v",
+					dark, goos, len(settingsEdge), settingsEdge)
+			}
+			for _, stroke := range settingsEdge {
+				if stroke.X != 0 {
+					t.Errorf("dark=%v %s: a panel draws the rim's side whisper: %+v", dark, goos, stroke)
+				}
+			}
+			if top, _ := panelTops(settingsEdge); top != tokens.EdgeHighlight {
+				t.Errorf("dark=%v %s: the settings panel's crown is not EdgeHighlight", dark, goos)
+			}
+			// The Windows terminal panel is the one surface with its own pair.
+			terminalEdge := panelEdge(tokens, goos, true)
+			top, bottom := panelTops(terminalEdge)
+			if goos == "windows" {
+				if top != tokens.KeycapHighlight || bottom != tokens.KeycapShadow {
+					t.Errorf("dark=%v windows: the terminal panel's rim = %v/%v, want KeycapHighlight/KeycapShadow",
+						dark, top, bottom)
+				}
+			} else if top != tokens.EdgeHighlight || bottom != tokens.EdgeShadow {
+				// Linux has no terminal-panel rule of its own: the group rule
+				// (`:1609-1617`) is the whole of it.
+				t.Errorf("dark=%v linux: the terminal panel's rim = %v/%v, want the edge pair", dark, top, bottom)
+			}
+		}
+		// macOS keeps base.css's `--glass-rim-shadow`: four strokes.
+		mac := panelEdge(tokens, "darwin", false)
+		if len(mac) != 4 {
+			t.Fatalf("dark=%v: the macOS panel edge = %d strokes, want the rim's 4: %+v", dark, len(mac), mac)
+		}
+		sides := 0
+		for _, stroke := range mac {
+			if stroke.X != 0 && stroke.Color == tokens.EdgeHighlightX {
+				sides++
+			}
+		}
+		if sides != 2 {
+			t.Errorf("dark=%v: the macOS panel kept %d side whispers, want 2", dark, sides)
+		}
+	}
+}
+
+// panelTops is a panel edge's crown and its seat.
+func panelTops(strokes []cardEdgeStroke) (top, bottom ui.Color) {
+	for _, stroke := range strokes {
+		switch {
+		case stroke.Y == 1:
+			top = stroke.Color
+		case stroke.Y == -1:
+			bottom = stroke.Color
+		}
+	}
+	return top, bottom
+}

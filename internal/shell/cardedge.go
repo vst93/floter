@@ -93,3 +93,62 @@ func drawCardEdge(card ui.Element, tokens theme.Tokens, goos string, focused boo
 		card.InsetShadow(stroke.X, stroke.Y, 0, stroke.Spread, stroke.Color)
 	}
 }
+
+// panelEdge is a *panel's* inset edges — the settings card and the terminal
+// panel — for a platform. A panel is not the launcher card: it sits *on* a
+// surface, so its resting rule is base.css's `--glass-rim-shadow` (four inset
+// strokes), and the two platform blocks replace that with two.
+//
+//	/* settings.css:27, terminal.css:41 — the resting rule on every platform */
+//	box-shadow: var(--glass-rim-shadow);
+//	/* base.css:1541-1556 (Windows), :1609-1617 (Linux) — the platform's own */
+//	… inset 0 1px 0 var(--edge-highlight),
+//	  inset 0 -1px 0 var(--edge-shadow);
+//
+// So macOS keeps all four (the lit top, the dark bottom and the whisper on both
+// sides) and Windows and Linux keep **two**: the platform rules name the top and
+// the bottom only. The port drew the four-stroke rim on all three platforms, so
+// the two side whispers `base.css` deliberately drops there were still painted —
+// a 1px lit line inside each side edge of the settings card and the terminal
+// panel, on the two platforms whose sheets ask for none.
+//
+// Windows adds one more distinction: its **terminal** panel is the one surface
+// with its own pair. `.platform-windows .terminal-panel`
+// (`main:src/styles/base.css:1567-1574`) writes
+// `inset 0 1px 0 var(--keycap-highlight)` and
+// `inset 0 -1px 0 var(--keycap-shadow)` — the keycap pair, a step quieter than
+// the edge's own (0.07 against 0.15 in the dark appearance) — because a terminal
+// panel is a keycap-shaped slab rather than a sheet lying on a surface. The port
+// gave it the edge pair, so the Windows terminal's crown was twice as bright as
+// its rule asks for.
+//
+// `terminal` selects that panel; the settings card leaves it false.
+func panelEdge(tokens theme.Tokens, goos string, terminal bool) []cardEdgeStroke {
+	top, bottom := tokens.EdgeHighlight, tokens.EdgeShadow
+	if goos == "windows" && terminal {
+		top, bottom = tokens.KeycapHighlight, tokens.KeycapShadow
+	}
+	switch goos {
+	case "windows", "linux":
+		// The two strokes the platform block names; the rim's side whispers
+		// are not restated, so they are gone.
+		return []cardEdgeStroke{
+			{Y: 1, Color: top},
+			{Y: -1, Color: bottom},
+		}
+	}
+	// macOS: the base rule's `--glass-rim-shadow`, whole.
+	return []cardEdgeStroke{
+		{Y: 1, Color: top},
+		{Y: -1, Color: bottom},
+		{X: 1, Color: tokens.EdgeHighlightX},
+		{X: -1, Color: tokens.EdgeHighlightX},
+	}
+}
+
+// drawPanelEdge paints panelEdge onto a panel.
+func drawPanelEdge(panel ui.Element, tokens theme.Tokens, goos string, terminal bool) {
+	for _, stroke := range panelEdge(tokens, goos, terminal) {
+		panel.InsetShadow(stroke.X, stroke.Y, 0, stroke.Spread, stroke.Color)
+	}
+}
