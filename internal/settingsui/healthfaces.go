@@ -37,7 +37,13 @@ import (
 // muted ink, because "nothing has run yet" is not a state to shout about.
 //
 // The chip's geometry is the reference's: a `2px 8px` padding pair, the
-// `--ext-radius` (= `--radius-sm`) corner and 620 on the caption step.
+// `--ext-radius` (= `--radius-sm`) corner and the caption step at 600 (§6.1
+// 第 8 条 puts the weight cap there: 字重 ≤600).
+//
+// P8-b 重定基线：卡片的透镜已经从设置页的分组卡与侧栏行上去掉（§6.1 第 1/3
+// 条），chip 是同一族控件，所以它也不再把 `--elev-0` 叠在发丝线上——一圈
+// `ControlEdge` 已经说清了「这是一个 chip」。低光泽的合约下，一个 4px 高的
+// 药丸不需要内侧高光（§1）。
 func (a *App) healthStatusChip(c *ui.Context, copy i18n.Settings, status, raw string) ui.Element {
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
@@ -50,14 +56,8 @@ func (a *App) healthStatusChip(c *ui.Context, copy i18n.Settings, status, raw st
 	if keyline.A > 0 {
 		chip = chip.InsetShadow(0, 0, 0, 1, keyline)
 	}
-	// A healthy or warm chip keeps the reference's `--elev-0` lens on top of
-	// its keyline (the reference composes `var(--elev-0), inset 0 0 0 1px …`);
-	// the transparent `unknown` face carries neither.
-	if statusWearsLens(copy, status, raw) {
-		tokens.Lens(chip)
-	}
 	chip.Children(func() {
-		ui.Text(c, status).FontSize(tokens.Caption).FontWeight(620).TextColor(ink)
+		ui.Text(c, status).FontSize(tokens.Caption).FontWeight(600).TextColor(ink)
 	})
 	return chip
 }
@@ -69,12 +69,18 @@ func (a *App) healthStatusChip(c *ui.Context, copy i18n.Settings, status, raw st
 // a caller that has nothing else. The word is a *display* string: comparing it
 // meant a translation change, or a status outside the four-word ladder, dropped
 // a chip to the transparent `unknown` face without a word of complaint.
+//
+// P8-b 重定基线（自加第 12 条）：`healthy` 曾是 `RaisedQuiet` + `AccentEdge`
+// （一圈 accent 环），那是 §5 三处之外的 accent。合约下环只有两档，所以健康的
+// 环降到 `ControlEdge`、面降到 `Control`，而 `degraded`/`unhealthy` 的暖面
+// （系统语义色）保留、只把 `t.Warning` 的环换成 `ControlEdge`（§6.1 第 8 条
+// 的同一处理）。状态靠**面与字色**说，不靠彩色描边。
 func healthStatusFace(tokens theme.Tokens, t *ui.Theme, copy i18n.Settings, status, raw string) (plane, keyline, ink ui.Color) {
 	switch healthKindOf(copy, status, raw) {
 	case healthHealthy:
-		return tokens.RaisedQuiet, tokens.AccentEdge, tokens.TextStrong
+		return tokens.Control, tokens.ControlEdge, tokens.TextStrong
 	case healthDegraded, healthUnhealthy:
-		return tokens.RaisedWarm, t.Warning, t.Warning
+		return tokens.RaisedWarm, tokens.ControlEdge, t.Warning
 	default:
 		// `unknown` (and any word this build cannot place): transparent, muted.
 		return ui.Transparent, ui.Transparent, t.TextMuted
@@ -114,17 +120,6 @@ func healthKindOf(copy i18n.Settings, status, raw string) healthKind {
 		return healthUnhealthy
 	}
 	return healthUnknown
-}
-
-// statusWearsLens reports whether a status chip draws the reference's `--elev-0`
-// lens, which it composes only where it also draws a keyline: the two chip
-// faces and never the transparent `unknown` one.
-func statusWearsLens(copy i18n.Settings, status, raw string) bool {
-	switch healthKindOf(copy, status, raw) {
-	case healthHealthy, healthDegraded, healthUnhealthy:
-		return true
-	}
-	return false
 }
 
 // healthProbeRow draws one probe line the way `LauncherResults`' sibling
@@ -207,17 +202,13 @@ func (a *App) healthFailureCard(c *ui.Context, copy i18n.Settings, probe HealthP
 // approvalPermissionPills draws the recorded permissions the reference way
 // (`extensions.css:2149-2168`): each id a `4px 8px` pill on the icon-surface
 // plane with a `--glass-control-edge` hairline and the `--radius-xs` corner.
-// An *enforced* permission is the recognisable other half of the review list's
-// shape difference — the raised-quiet pane and the accent keyline — so "what
-// floter refused" keeps the same face in the record as in the audit. The pane
-// is the accent's quietest wash *over* that raised plane: a neutral raised
-// pane and the disclosure pill's neutral control plane are the same lift at
-// this ladder's alphas (three grey levels apart in the light appearance, which
-// is under what a 1x display resolves), so the tier that says "floter blocked
-// this" was told apart from the tier that says "declared" by a 1px ring and
-// nothing else. The wash is the accent, so the two groups read apart by hue
-// before anything is read, and it is the same quietest rung the launcher marks
-// its selection with — one meaning, one colour, on every surface.
+//
+// P8-b 重定基线：两级都是**中性**面。旧 enforced = `AccentTintQuiet.Over(
+// RaisedQuiet)` + `AccentEdge` inset，与「已声明」靠色相分开——那是旧 glass
+// 语言把 accent 当「选中」用的写法，而合约 §5 只允许 accent 落在三处（侧栏前导
+// 图标、主 CTA、焦点环），权限审计不属于其中任何一处（§6.1）。两级现在靠
+// **线**分开：enforced 是 `Control` + 一圈 `ControlEdge` keyline（一个实心控件），
+// 声明的只有同一圈发丝（一个空面），字色差一阶。
 func (a *App) approvalPermissionPills(c *ui.Context, language string, permissions []string, enforced bool) ui.Element {
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
@@ -226,15 +217,13 @@ func (a *App) approvalPermissionPills(c *ui.Context, language string, permission
 		for _, permission := range permissions {
 			permission := permission
 			pill := ui.Row(c).Shrink(0).Padding(t.Space(1), t.Space(2)).
-				Radius(tokens.RadiusXS)
-			if enforced {
-				pill = pill.Background(tokens.AccentTintQuiet.Over(tokens.RaisedQuiet))
-				pill.InsetShadow(0, 0, 0, 1, tokens.AccentEdge)
-			} else {
-				pill = pill.Border(1, tokens.ControlEdge).Background(tokens.Control)
-			}
+				Radius(tokens.RadiusXS).
+				Border(1, tokens.ControlEdge).Background(tokens.Control)
 			ink := tokens.TextSecondary
 			if enforced {
+				// The only thing that tells the two tiers apart now is the ink
+				// step and the tier heading above each group: both pills wear one
+				// neutral control face (see the note above).
 				ink = t.Text
 			}
 			pill.Children(func() {

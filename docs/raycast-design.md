@@ -178,21 +178,35 @@ keyline 属于卡片壳，不属于列表）。
 
 ## §6 未落地页面的差距清单（P8-b / P8-c 直接引用）
 
-### §6.1 设置页（P8-b）
+### §6.1 设置页（P8-b，**已落地**）
 
-| 位置 | 现状 | 应改成 |
+| 位置 | 改成的 | 落地 |
 |---|---|---|
-| `internal/settingsui/settingsui.go:1301` 侧栏选中行 | `RaisedQuiet`（不透明抬升面）+ `tokens.Lens` | Raycast 侧栏选中也是**中性**：`RowSelected` 叠在面板上，镜片去掉（或降到 `LensRim` 一档） |
-| `internal/settingsui/settingsui.go:1292` 侧栏行圆角 | `RadiusSM`（8） | 保留 8；但行块左右缩进要对齐 §4.3 的 8u 语汇 |
-| `internal/settingsui/settingsui.go:1332` 侧栏前导图标 | 选中时 `t.Accent` | **保留**（§5 第 1 条，这是 accent 的三处之一） |
-| `internal/settingsui/rows.go:288` 分组卡 | `RadiusMD`(10) + `ControlEdge` + `Control` + `tokens.Lens` | 合约下面板内的块是 10 + 弱发丝线（`HairlineSoft`），镜片去掉；面用 `Control` |
-| `internal/settingsui/rows.go:1188` `fadeRule`（横/竖分隔） | 渐变发丝（`lead 0.12 / solid 0.76`） | Raycast 的分隔是**一条实弱发丝**（`HairlineSoft`），渐隐属于旧语言；删除渐变，改画 1px |
-| `internal/settingsui/pluginsheet.go:328` 字段槽 | `RadiusSM` + `ControlEdge` + `Field` + `FieldSlot` | 保留几何；面收敛到 `KeycapFace`/`Control` 一档（低光泽） |
-| `internal/settingsui/pluginsheet.go:366` 弹层按钮 | `Radius(t.Space(3.5))`（跟随 `--u`） | 半径梯是 literal：`RadiusSM`(8)，不许 `Space()` 化 |
-| `internal/settingsui/healthfaces.go:231` 权限药丸 | `AccentTintQuiet.Over(RaisedQuiet)` + `AccentEdge` inset | 合约只用中性：`Control` + `ControlEdge`；accent 留给 §5 的三处 |
-| `internal/settingsui/settingsui.go:1994,2028` 状态 chip | `RaisedWarm` + `t.Warning` 环 | 预热面保留（系统语义色），但环降到 `ControlEdge`，字重不超过 600 |
-| `internal/settingsui/settingsui.go:3719` 主 CTA | `Radius(999)` 胶囊 + `t.Accent` | **保留 accent**（§5 第 2 条）；胶囊改 `RadiusSM`(8)——Raycast 的 CTA 是圆角按钮，不是药丸 |
-| `internal/settingsui/settingsui.go:3569` 录制器 | `RaisedQuiet` + `Border(t.Accent)` | 录制中才允许 accent 环；静息用 `Control` |
+| 侧栏选中行（`internal/settingsui/settingsui.go:1302`） | 中性 `RowSelected`，镜片去掉；圆角保留 8 | `已落地` — `settingsui.go:1286`（`sidebarRow`） |
+| 侧栏行圆角/缩进（`settingsui.go:1290`） | 保留 `RadiusSM`(8)；行块缩进沿用侧栏自己的 12u 列内 padding（§4.3 的 8u 语汇在 148u 的固定列里已由列 padding 承担，本片不改水平度量） | `已落地` — 度量零改动，见报告「判不准项」第 1 条 |
+| 侧栏前导图标（`settingsui.go:1328`） | **保留** `t.Accent`（§5 第 1 条） | `已落地`（未改，反证 pin：`TestTheSidebarChosenGlyphKeepsTheAccent`） |
+| 分组卡（`internal/settingsui/rows.go:288`） | 面 `Control`、边弱发丝 `HairlineSoft`、半径 10、无镜片 | `已落地` — `rows.go:288-292`（`cardGeometry` 的卡片框） |
+| 分隔线（`internal/settingsui/rows.go:1193`） | 渐变发丝 → **一条实弱发丝** `HairlineSoft`（1px，全宽同色） | `已落地` — `rows.go:1193`（`hairlineRule`，替换原 `fadeRule`）；调用点 `settingsui.go:1194,1228` |
+| 弹层字段槽（`internal/settingsui/pluginsheet.go:327`） | 几何保留（28u / `RadiusSM` / `ControlEdge` / 8u），面收敛到 `Control` 一档，去掉 `FieldSlot` 凹痕叠层 | `已落地` — `pluginsheet.go:327` |
+| 弹层按钮半径（`pluginsheet.go:363`） | `Radius(t.Space(3.5))` → `RadiusSM`(8)（literal，不随 `--ui-scale`） | `已落地` — `pluginsheet.go:368` |
+| 权限药丸（`internal/settingsui/healthfaces.go:212`） | 两级都中性：`Control` + `ControlEdge`；accent inset 去掉 | `已落地` — `healthfaces.go:212` |
+| 状态 chip（`settingsui.go:1983`、`healthfaces.go:47`） | 预热面保留，环降到 `ControlEdge`，字重 620 → **600**；`healthy` 的 `RaisedQuiet`+`AccentEdge` → `Control`+`ControlEdge` | `已落地` — `healthfaces.go:47,78`、`settingsui.go:1983,2014`（自加第 12 条） |
+| 主 CTA（`settingsui.go:3714`） | **保留 accent 填充**（§5 第 2 条），胶囊 → `RadiusSM`(8) | `已落地` — `settingsui.go:3717-3718`（`updateButton` 的 `Radius`/`Background`） |
+| 录制器（`settingsui.go:3556`、`custom.go:76`） | 静息 `Control`；只有录制中才 accent 环；静息 hover 不再把边抬成 accent | `已落地` — `settingsui.go:3567-3569`（armed）、`settingsui.go:3627-3639`（静息）、`custom.go:76-79`（custom armed） |
+| 空态（`internal/settingsui/empty.go:30`） | §4.7：主句 emphasis + `TextStrong`，图标 `TextSecondary`，无底板无 accent | `已落地` — `empty.go:30`（`customempty` / `integrationsempty` 两处都走这一个原语） |
+
+### §6 末尾 · P8-b 自加条目（第 12 条）
+
+§6.1 没列、但同属设置页的旧 glass 语言残留，本片一并收敛：
+
+| 位置 | 旧 | 新 | 落地 |
+|---|---|---|---|
+| 健康 chip 的 `healthy` 面与环（`healthfaces.go:78`） | `RaisedQuiet` 不透面 + `AccentEdge` accent 环 | `Control` + `ControlEdge`（面上只留一档中性洗） | `已落地` |
+| 健康 chip 的透镜（`healthfaces.go:47`） | 在发丝环上再叠 `--elev-0`（`tokens.Lens`） | 只有那一圈 `ControlEdge`；4px 高的药丸不要内侧高光 | `已落地` |
+| `stateMark` / `runtimeUnavailableBadge` 的 broken chip（`settingsui.go:1983,2014`） | `t.Warning` 1px 环 | `ControlEdge`（预热面保留，环中性），字重 ≤600 | `已落地` |
+| 分组卡的分隔线（`rows.go:1188` 旧 `fadeRule`） | 三段渐变，颜色取**强**发丝 | 一条 `HairlineSoft` 实线 | `已落地`（并入 §6.1 第 4 条） |
+| 录制器静息 hover（`settingsui.go:3638`） | hover 把边抬到 `t.Accent` | hover 只抬面（`ControlHover`）与字（`TextStrong`），不抬色相 | `已落地` |
+| 录制器的 armed 面（`settingsui.go:3569`、`custom.go:78`） | `RaisedQuiet` 不透面 | `Control`（与静息同一档面）+ accent 环 | `已落地` |
 
 ### §6.2 终端（P8-c）
 
@@ -224,5 +238,5 @@ keyline 属于卡片壳，不属于列表）。
 | 片 | 范围 | 状态 |
 |---|---|---|
 | P8-a | 合约文档 + token 层 + 启动器表面（卡片/搜索行/列表/分组头/页脚/空态/键帽） | **本轮完成** |
-| P8-b | 设置页（侧栏/分组块/行/控件/弹层）+ 两个空态 + `⌘K` 动作面 | 排队 |
+| P8-b | 设置页（侧栏/分组块/行/控件/弹层）+ 两个空态 | **本轮完成**（`⌘K` 动作面未做，见 §4.6） |
 | P8-c | 终端表面（页签/边框/滚动边缘/抽屉）+ 集成页 + 通知/浮层 | 排队 |

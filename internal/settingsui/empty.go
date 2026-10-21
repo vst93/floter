@@ -14,6 +14,11 @@ import (
 // sentence, not a card — so it is presentation only: every page keeps owning
 // its own words, its own mark and its own way out.
 //
+// P8-b 重定基线（合约 §4.7）：主句从 body + `TextSecondary` 抬到
+// **emphasis + `TextStrong`**，图标从 `TextTertiary`@0.72 抬到 `TextSecondary`
+// （「图标次文字色」）。旧值是「一条灰句」，读起来像错误提示；合约的空态
+// 是「一句陈述」。无底板、无 accent——这两样本就没有，且仍然不能有。
+//
 // floor is the region's own floor. The reference's list placeholder is 92u
 // (`.settings-empty`), and a page whose empty region *is* its whole body
 // overrides it with the taller 160u (`.session-manager > .settings-empty`).
@@ -37,14 +42,15 @@ func (a *App) emptyState(c *ui.Context, iconName, title, hint string, iconSize, 
 		Gap(t.Space(2)).Padding(t.Space(6)).Center()
 	region.Children(func() {
 		if glyph, ok := launcher.Glyph(iconName); ok {
-			// `.settings-empty__icon`: `--text-tertiary`, opacity 0.72 — quiet
-			// beneath the sentence it introduces.
+			// `.settings-empty__icon`: the second ink step, quiet beneath the
+			// sentence it introduces (§4.7「图标次文字色」).
 			ui.Icon(c, glyph).Size(iconSize, iconSize).
-				TextColor(tokens.TextTertiary).Opacity(0.72)
+				TextColor(tokens.TextSecondary)
 		}
-		// `.settings-empty__title`: `--text-secondary` at 580, the body step.
-		ui.Text(c, title).FontSize(tokens.Body).FontWeight(580).
-			LineHeight(1.4).TextColor(tokens.TextSecondary).TextAlign(ui.Center)
+		// `.settings-empty__title`: the emphasis step in the strong ink —
+		// one statement, not a grey line that reads as a complaint (§4.7).
+		ui.Text(c, title).FontSize(tokens.Emphasis).FontWeight(580).
+			LineHeight(1.4).TextColor(tokens.TextStrong).TextAlign(ui.Center)
 		if hint != "" {
 			// `.settings-empty__hint`: a 320u measure, `--text-caption` in
 			// `--text-tertiary`.

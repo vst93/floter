@@ -278,20 +278,21 @@ func (a *App) cardGeometry(c *ui.Context, inset, titleFloor, lineGap float32, la
 		a.cardRows = saved
 		a.cardRowInset, a.cardTitleFloor, a.cardLineGap = savedInset, savedFloor, savedGap
 	}()
-	// The card wears the reference's plane: the resting control fill, the
-	// control edge (not the window's stronger `--input-stroke`), the card
-	// radius step and the lens (`--elev-0`). It is a *plane*, never glass —
-	// the material belongs to the window shell — and the clip keeps the
-	// first and last rows inside the rounded corners.
+	// The card wears the contract's plane (`docs/raycast-design.md` §6.1): the
+	// resting control fill, the *weak* hairline (`HairlineSoft`) as its edge,
+	// the panel-block radius step (10) and **no lens** — a low-gloss design
+	// 靠「面 + 线 + 字阶」分层，不靠高光（§1）。
+	//
+	// P8-b 重定基线：旧 `ControlEdge` + `Control` + `--elev-0` 透镜 →
+	// `HairlineSoft` + `Control`，镜片去掉；半径 10 保留。
 	card := ui.Column(c).FillWidth().
-		Border(1, tokens.ControlEdge).
+		Border(1, tokens.HairlineSoft).
 		Radius(tokens.RadiusMD).
 		Background(tokens.Control).
 		Clip()
 	if label != "" {
 		card.Label(label)
 	}
-	tokens.Lens(card)
 	card.Children(fn)
 }
 
@@ -1179,37 +1180,21 @@ func (a *App) actionWithGlyph(c *ui.Context, glyphName, label string, clicked fu
 	return row
 }
 
-// fadeRule draws base.css's `--hairline-fade`: a 1px rule that dissolves into
-// the surface at both ends instead of stopping at the frame — the settings
-// header's and sidebar's separator. mygo's gradient carries two stops, so the
-// fade is three segments: a short transparent-to-hairline lead-in, the solid
-// middle, and the mirrored lead-out. vertical draws it top-to-bottom for the
-// sidebar's column separator.
-func (a *App) fadeRule(c *ui.Context, vertical bool) {
+// hairlineRule draws the settings panel's two separators — the header's rule
+// against the body and the sidebar's rule against the content pane — as **one
+// solid weak hairline** (`docs/raycast-design.md` §1/§6.1).
+//
+// P8-b 重定基线：旧 base.css 的 `--hairline-fade` 是两段渐隐（lead 0.12 / solid
+// 0.76，竖排 0.1 / 0.8，颜色取强发丝 `Hairline`）→ 合约下分隔就是一条
+// `HairlineSoft`，两端与中段同色、不渐隐。渐隐属于旧的液态玻璃语言（§1 的
+// 低光泽上限之外还有「线属于材质」这层暗示）；Raycast 的分隔是一条**结构线**，
+// 它说的是「这里是两段」，所以它不溶解、也不借用卡片的强边。vertical draws it
+// top-to-bottom for the sidebar's column separator.
+func (a *App) hairlineRule(c *ui.Context, vertical bool) {
 	tokens := a.tokens(c)
-	segment := func(from, to ui.Color, lead float32) {
-		e := ui.Box(c).Grow(lead)
-		angle := float32(90)
-		if vertical {
-			e, angle = e.Width(1), 180
-		} else {
-			e = e.Height(1)
-		}
-		e.Gradient(from, to, angle)
-	}
-	lead, solid := float32(0.12), float32(0.76)
 	if vertical {
-		lead, solid = 0.1, 0.8
+		ui.Column(c).FillHeight().Width(1).Background(tokens.HairlineSoft)
+		return
 	}
-	var rule ui.Element
-	if vertical {
-		rule = ui.Column(c).FillHeight().Width(1)
-	} else {
-		rule = ui.Row(c).FillWidth().Height(1)
-	}
-	rule.Children(func() {
-		segment(ui.Transparent, tokens.Hairline, lead)
-		segment(tokens.Hairline, tokens.Hairline, solid)
-		segment(tokens.Hairline, ui.Transparent, lead)
-	})
+	ui.Row(c).FillWidth().Height(1).Background(tokens.HairlineSoft)
 }

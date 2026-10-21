@@ -26,6 +26,12 @@ type lensLanding struct {
 	marker   string // the lens call that must still be in file
 	test     string // the pixel test that grades it, when one exists
 	pending  string // why there is no landing yet ("" when landed)
+	// dropped names the pin that proves the lens was removed *on purpose*: the
+	// Raycast contract replaced the liquid-glass lens on that control with a
+	// neutral face and a 1px hairline (`docs/raycast-design.md` §1/§6.1), so
+	// the census's job here is the opposite of a landing — it must fail if the
+	// lens comes *back* without the contract changing.
+	dropped string
 }
 
 func TestEveryNamedControlDrawsALensRung(t *testing.T) {
@@ -59,14 +65,17 @@ func TestEveryNamedControlDrawsALensRung(t *testing.T) {
 		{
 			selector: ".settings-sidebar__item:hover",
 			file:     "../settingsui/settingsui.go",
-			marker:   "tokens.Lens(row)",
-			// hover-only; the sidebar row also wears this lens when chosen.
+			// The sidebar row's lens is gone by contract, not by accident.
+			marker:  "tokens.Lens(row)",
+			dropped: "docs/raycast-design.md §6.1 第 1 条: the chosen/hovered page is the neutral RowSelected/RowHover rung with no lens (P8-b)",
+			test:    "settingsui.TestTheSidebarSelectionIsTheNeutralRowSelected",
 		},
 		{
 			selector: ".settings-section__card",
 			file:     "../settingsui/rows.go",
 			marker:   "tokens.Lens(card)",
-			test:     "settingsui.TestTheSettingsCardControlsCarryTheStopLens/.settings-section__card",
+			dropped:  "docs/raycast-design.md §6.1 第 3 条: the grouped card wears Control + HairlineSoft at radius 10, no lens (P8-b)",
+			test:     "settingsui.TestTheGroupedCardWearsTheContractsFaceEdgeAndCorner",
 		},
 		{
 			selector: ".launcher-result__icon",
@@ -148,8 +157,24 @@ func TestEveryNamedControlDrawsALensRung(t *testing.T) {
 		landing := landing
 		t.Run(landing.selector, func(t *testing.T) {
 			if landing.pending != "" {
-				if landing.file != "" || landing.marker != "" {
+				if landing.file != "" || landing.marker != "" || landing.dropped != "" {
 					t.Errorf("a pending control must not claim a landing: %+v", landing)
+				}
+				return
+			}
+			if landing.dropped != "" {
+				// The contract removed this lens: the draw point must *not* call it
+				// any more, and the pin named in `test` is what proves the new face.
+				if landing.file == "" || landing.test == "" {
+					t.Fatalf("a dropped control needs a file and the pin that replaces it: %+v", landing)
+				}
+				source, err := os.ReadFile(filepath.Join(root, "internal/shell", landing.file))
+				if err != nil {
+					t.Fatalf("read %s: %v", landing.file, err)
+				}
+				if landing.marker != "" && strings.Contains(string(source), landing.marker) {
+					t.Errorf("%s draws %s again; the Raycast contract dropped that lens (%s)",
+						landing.file, landing.marker, landing.dropped)
 				}
 				return
 			}

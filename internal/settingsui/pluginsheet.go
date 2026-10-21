@@ -316,18 +316,21 @@ func (a *App) sheetNumberSlot(c *ui.Context, field plugincfg.Field, value *float
 }
 
 // sheetFieldSlot draws the overlay's field box (R59, `plugin-config.css:97-118`):
-// the reference's 28u control — a `--glass-field` fill, a
-// `--glass-control-edge` hairline, the `--radius-sm` corner and the
-// `--glass-field-shadow` inset stack. A text or number control's value lives
-// inside it; the control itself is the caller's child, so the slot never draws
-// a second surface under it.
+// the reference's 28u control — a text or number control's value lives inside
+// it; the control itself is the caller's child, so the slot never draws a
+// second surface under it.
+//
+// P8-b 重定基线：面 `--glass-field` + `--glass-field-shadow` 凹槽 → 合约 §6.1 的
+// 低光泽一档。几何（28u 高、`RadiusSM` 圆角、`ControlEdge` 发丝、8u 侧 padding）
+// 全部保留，只把面收敛到 `Control`/`KeycapFace` 一档：一个字段槽不需要额外的
+// 凹痕叠层，因为它坐在已经比卡更亮的面里。
 func (a *App) sheetFieldSlot(c *ui.Context) ui.Element {
 	t := c.Theme()
 	tokens := a.tokens(c)
 	slot := ui.Row(c).MinHeight(t.Space(7)).AlignItems(ui.Center).
 		Padding(0, t.Space(2)).Radius(tokens.RadiusSM).
-		Border(1, tokens.ControlEdge).Background(tokens.Field)
-	return tokens.FieldSlot(slot)
+		Border(1, tokens.ControlEdge).Background(tokens.Control)
+	return slot
 }
 
 // sheetTextField draws the overlay's own text control (R59,
@@ -363,7 +366,7 @@ func (a *App) sheetActionButton(c *ui.Context, label string, danger bool, run fu
 	button := ui.ButtonBase(c).
 		MinHeight(t.Space(7)).
 		Padding(0, t.Space(2.5)).
-		Radius(t.Space(3.5))
+		Radius(tokens.RadiusSM)
 	ink := t.Text
 	edge := tokens.ControlEdge
 	plane := tokens.Control

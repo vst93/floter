@@ -67,41 +67,54 @@ func rowMeanRGB(tt *ui.Tester, y, x0, x1 int) float64 {
 	return sum / float64(n)
 }
 
-// The raised lens: the button and the card get strictly brighter with the
-// stop (a lit rim and a broad sheen, under a dark shade that is the smaller
-// term), so the whole frame's light budget rises.
+// The raised lens: a control that still draws a lens (`.extensions-action-button`)
+// gets strictly brighter with the stop (a lit rim and a broad sheen, under a dark
+// shade that is the smaller term), so the whole frame's light budget rises.
+//
+// P8-b 重定基线（S：结构变了）：`.settings-section__card` 之前也在这张清单上，
+// 因为旧卡带 `--elev-0` 透镜；合约 §6.1 第 3 条把分组卡的镜片去掉，所以这条
+// 子测试**不再要求卡随玻璃档变亮**，而是反过来说「卡的面不再吃透镜」：四个
+// 玻璃档上帧的光量必须一格不变。这是一个更强的 pin——一个不小心把透镜加回来
+// 的改动会直接把它撞红。卡的静态面（`Control` + `HairlineSoft` + 半径 10）由
+// `raycast_test.go` 的 `TestTheGroupedCardWearsTheContractsFaceEdgeAndCorner`
+// 钉住。
 func TestTheSettingsCardControlsCarryTheStopLens(t *testing.T) {
-	landings := []struct {
-		selector string
-		draw     func(c *ui.Context, a *App)
-	}{
-		// `.extensions-action-button` / `.settings-save-alert button`.
-		{".extensions-action-button", func(c *ui.Context, a *App) {
+	// A control that still carries the lens: the button rises with the stop.
+	sums := make(map[string]float64)
+	for _, step := range []string{"off", "frosted", "regular", "liquid"} {
+		sums[step] = frameRGBSum(renderLensControl(t, step, 400, 120, func(c *ui.Context, a *App) {
 			a.actionButton(c, "Check")
-		}},
-		// `.settings-section__card`: the raised pane holding a row.
-		{".settings-section__card", func(c *ui.Context, a *App) {
+		}))
+		t.Logf("%-26s %-8s rgb sum %.1f", ".extensions-action-button", step, sums[step])
+	}
+	if !(sums["off"] < sums["frosted"] && sums["frosted"] < sums["regular"] && sums["regular"] < sums["liquid"]) {
+		t.Errorf("the control's lens did not rise with the stop: off %.0f, frosted %.0f, regular %.0f, liquid %.0f",
+			sums["off"], sums["frosted"], sums["regular"], sums["liquid"])
+	}
+	if d := sums["liquid"] - sums["regular"]; d < 300 {
+		t.Errorf("regular→liquid moved %.0f of colour, want a visible spread", d)
+	}
+
+	// The grouped card no longer carries the lens: its light budget is the
+	// same on every stop, because `Control` is a fixed token and a low-gloss
+	// design does not grade a card's face with `--glass-lens-scale` (§1/§6.1
+	// 第 3 条).
+	cards := make(map[string]float64)
+	for _, step := range []string{"off", "frosted", "regular", "liquid"} {
+		cards[step] = frameRGBSum(renderLensControl(t, step, 400, 120, func(c *ui.Context, a *App) {
 			a.card(c, func() {
 				a.row(c, "Row", "hint", func() { a.actionButton(c, "Go") })
 			})
-		}},
+		}))
+		t.Logf("%-26s %-8s rgb sum %.1f", ".settings-section__card", step, cards[step])
 	}
-	for _, landing := range landings {
-		landing := landing
-		t.Run(landing.selector, func(t *testing.T) {
-			sums := make(map[string]float64)
-			for _, step := range []string{"off", "frosted", "regular", "liquid"} {
-				sums[step] = frameRGBSum(renderLensControl(t, step, 400, 120, landing.draw))
-				t.Logf("%-26s %-8s rgb sum %.1f", landing.selector, step, sums[step])
-			}
-			if !(sums["off"] < sums["frosted"] && sums["frosted"] < sums["regular"] && sums["regular"] < sums["liquid"]) {
-				t.Errorf("%s: the control's lens did not rise with the stop: off %.0f, frosted %.0f, regular %.0f, liquid %.0f",
-					landing.selector, sums["off"], sums["frosted"], sums["regular"], sums["liquid"])
-			}
-			if d := sums["liquid"] - sums["regular"]; d < 300 {
-				t.Errorf("%s: regular→liquid moved %.0f of colour, want a visible spread", landing.selector, d)
-			}
-		})
+	// The button inside the card alone accounts for the stop's whole effect: the
+	// card's own contribution is constant, so the total may rise with the stop,
+	// but never by *more* than the button's own bare-frame rise (a card lens
+	// would add to it).
+	if rise := cards["liquid"] - cards["off"]; rise > sums["liquid"]-sums["off"]+50 {
+		t.Errorf("the card's frame rose %.0f with the stop, more than its own button's %.0f: the card is wearing a lens again",
+			rise, sums["liquid"]-sums["off"])
 	}
 }
 

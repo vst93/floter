@@ -1994,10 +1994,12 @@ func TestCustomShortcutsEmptyState(t *testing.T) {
 	}
 }
 
-// The recording state wears the reference's `.shortcut-recorder--recording`
-// face (`settings.css:1478-1504`): the raised-quiet pane, the accent edge
-// and the accent prompt. The old port drew a flat surface and left the
-// prompt in the default ink, so an armed recorder read as a plain button.
+// The recording state wears the armed recorder's face (§6.1 第 10 条): the same
+// `Control` face as the resting recorder, the accent ring and the accent prompt.
+// The old port drew a flat surface and left the prompt in the default ink, so an
+// armed recorder read as a plain button; P8-b 重定基线：旧 `RaisedQuiet`（一个
+// 不透明的抬升面）→ `Control`（与静息同一档面）+ accent 环——accent 只允许在
+// 录制中作为环出现，而面不能是第二个材质（§1）。
 func TestShortcutRecordingStateWearsTheRaisedQuietFace(t *testing.T) {
 	a := New(newStore(t), Actions{})
 	a.Shortcut = "Alt+Space"
@@ -2013,7 +2015,8 @@ func TestShortcutRecordingStateWearsTheRaisedQuietFace(t *testing.T) {
 	if !tt.HasText("Press keys…") {
 		t.Fatalf("the recorder did not open: %q", tt.Texts())
 	}
-	// The prompt sits in the raised-quiet pane, not on a flat surface.
+	// The prompt sits on the armed recorder's Control face, not on the old
+	// opaque raised pane.
 	rect, ok := tt.Find("Press keys…")
 	if !ok {
 		t.Fatalf("the recording prompt is missing: %q", tt.Texts())
@@ -2022,8 +2025,15 @@ func TestShortcutRecordingStateWearsTheRaisedQuietFace(t *testing.T) {
 	bg := sample(tt, rect.X+20, rect.Y+2)
 	prefs := ui.Preferences{}
 	tokens := theme.ForPreferences(a.Store.Snapshot(), false, prefs)
-	if bg != tokens.RaisedQuiet {
-		t.Errorf("recording background = %v, want the raised-quiet %v", bg, tokens.RaisedQuiet)
+	// The box sits on the card's plane, so its pixel is `Control` over the
+	// card it lands on — read that card beside the box and compare.
+	card := sample(tt, rect.X-30, rect.Y+2)
+	want := panelOver(tokens.Control, card)
+	if !panelClose(bg, want, 8) {
+		t.Errorf("recording background = %v, want the Control face over the card (%v)", bg, want)
+	}
+	if bg == tokens.RaisedQuiet {
+		t.Errorf("recording background = %v is still the old raised-quiet pane", bg)
 	}
 }
 

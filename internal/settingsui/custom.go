@@ -65,17 +65,19 @@ func (a *App) customSection(c *ui.Context, copy i18n.Settings) {
 		})
 }
 
-// customCapturePane is the armed recorder the reference drew for a recording
-// row (`.shortcut-recorder--recording`, `settings.css:1478-1504`): the
-// raised-quiet plane, the accent edge and the accent prompt — an armed state,
-// not a primary action. It owns the keyboard for as long as it is drawn; a bare
-// Escape gives the recording up and a chord without a modifier is not a
-// shortcut at all.
+// customCapturePane is the armed recorder the custom-shortcuts row draws while
+// it records: the same `Control` face as the resting recorder, plus the accent
+// ring and the accent prompt — an armed state, not a primary action (§6.1 第 10
+// 条：静息用 `Control`，只有录制中才用 accent 环). It owns the keyboard for as
+// long as it is drawn; a bare Escape gives the recording up and a chord without
+// a modifier is not a shortcut at all.
+//
+// P8-b 重定基线：`RaisedQuiet` 不透面 → `Control`（与静息同一档面）。
 func (a *App) customCapturePane(c *ui.Context, copy i18n.Settings, capture func(accelerator string)) {
 	t := c.Theme()
 	tokens := a.tokens(c)
 	pane := ui.Box(c).Focusable().Padding(t.Space(1), t.Space(2)).Radius(tokens.RadiusSM).
-		Background(tokens.RaisedQuiet).Border(1, t.Accent).Label(copy.ShortcutRecording)
+		Background(tokens.Control).Border(1, t.Accent).Label(copy.ShortcutRecording)
 	pane.Children(func() {
 		ui.Text(c, copy.ShortcutRecording).FontSize(t.FontSize).TextColor(t.Accent)
 	})

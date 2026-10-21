@@ -1188,10 +1188,10 @@ func (a *App) View(c *ui.Context) {
 			headerButton("power", copy.Quit, copy.QuitHint, a.Actions.Quit)
 			headerButton("close", copy.Close, copy.CloseHint, a.Actions.Close)
 		})
-		// The header/body separator is the reference's gradient hairline, not a
-		// solid rule: it dissolves into the sidebar and the content pane
-		// instead of stopping at the frame (`.settings-card__header::after`).
-		a.fadeRule(c, false)
+		// The header/body separator is the contract's one weak hairline
+		// (`docs/raycast-design.md` §6.1): a 1px `HairlineSoft` rule, full width,
+		// with no fade — the same line the card's rows draw between themselves.
+		a.hairlineRule(c, false)
 		// The content pane carries its own fill (`.settings-card__body`'s
 		// `--surface-sunken`): the panel is a reading surface, more solid than
 		// the launcher, and the sidebar sits on the same one so the two read
@@ -1223,9 +1223,9 @@ func (a *App) View(c *ui.Context) {
 					a.sidebarEntryFocus, a.entryFocusArmed = false, false
 				}
 			})
-			// The sidebar's column separator is the same fade, drawn vertically
-			// (`.settings-sidebar::after`).
-			a.fadeRule(c, true)
+			// The sidebar's column separator is the same weak hairline, drawn
+			// vertically (same rule, §6.1).
+			a.hairlineRule(c, true)
 			ui.Column(c).Grow(1).Background(a.tokens(c).Sunken).Children(func() {
 				a.body(c, copy)
 			})
@@ -1281,8 +1281,8 @@ func mustGlyph(name string) *ui.SVG {
 }
 
 // sidebarRow builds one page entry: a leading mark, the page's name at weight
-// 580, and the chosen page on the resting control fill — the sidebar's own
-// selection, since the list is not asked to paint one.
+// 580, and the chosen page on the row ladder's neutral chosen fill — the
+// sidebar's own selection, since the list is not asked to paint one.
 func (a *App) sidebarRow(c *ui.Context, i int) {
 	t := c.Theme()
 	tokens := a.tokens(c)
@@ -1292,22 +1292,18 @@ func (a *App) sidebarRow(c *ui.Context, i int) {
 		Radius(tokens.RadiusSM).AlignItems(ui.Center).
 		Transition(ui.ElementTransition{Colors: true, Duration: 120 * time.Millisecond})
 	if selected {
-		// The current page is the reference's quiet raised pill
-		// (`--glass-raised-quiet`): the accent survives only as the leading
-		// glyph's colour, so a page and a hovered row are the same weight of
-		// mark. It is the *opaque* rung, because the framework paints the
-		// accent behind a chosen list row and a translucent lift would let
-		// it through.
-		row.Background(tokens.RaisedQuiet)
-		// The raised pane's own lens (`--elev-0`), so the pill reads as a lit
-		// pane rather than a flat grey block.
-		tokens.Lens(row)
+		// P8-b 重定基线：旧 `--glass-raised-quiet` + `--elev-0` 透镜 → 合约
+		// §4.3/§6.1 的**中性**选中档 `RowSelected`（0.085/0.06 的白/黑），无镜片。
+		//
+		// Raycast 的侧栏选中和它的结果列表是同一档：一块不透明的抬起面会
+		// 读成第二个材质，而选中档只是「比悬停再深一格」的中性填充，镜片
+		// 属于旧 glass 语言（§1 的低光泽上限）。accent 仍只留在前导图标上
+		// （§5 第 1 条）。
+		row.Background(tokens.RowSelected)
 	} else if row.Hovered() {
-		row.Background(tokens.ControlHover)
-		// The pointer lights the same lens the chosen page wears
-		// (`.settings-sidebar__item:hover`, the reference's hover-only
-		// rung): a pointed-at row is the chosen row's weight of mark.
-		tokens.Lens(row)
+		// The pointer lights the ladder's hover rung, the same neutral family
+		// one step under the chosen page.
+		row.Background(tokens.RowHover)
 	}
 	// The reference puts the row's ink on one of three rungs
 	// (`settings.css:137,152-156,166-170`): `--text-muted` at rest,
@@ -1969,22 +1965,21 @@ func (a *App) installRow(c *ui.Context, copy i18n.Settings) {
 
 // stateMark is an integration's own state, in the reference's language
 // (`.extension-status`): a running integration is accent *text*, a broken one
-// is a warm chip with the warning ring, and anything else is a quiet secondary
-// mark. It is a state, not an action — the row's switch is the action — so no
-// state spends an accent fill.
-// stateMark is an integration's own state, in the reference's language
-// (`.extension-status`): a running integration is accent *text*, a broken one
-// is a warm chip with the warning ring, and anything else is a quiet secondary
-// mark. It is a state, not an action — the row's switch is the action — so no
-// state spends an accent fill.
+// is a warm chip, and anything else is a quiet secondary mark. It is a state,
+// not an action — the row's switch is the action — so no state spends an accent
+// fill. (The running accent *text* is the reference's own reading of a live
+// process and predates §5; it is a label colour, not one of the three accent
+// surfaces, and is recorded in the P8-c list rather than changed here.)
 //
 // The broken chip is the reference's `.extension-status--broken`
-// (`extensions.css:1020-1025`) to the letter: a `--glass-raised-warm` fill
-// (`tokens.RaisedWarm`, the amber plane — *not* the warning ink at a low alpha,
-// which tinted the chip with the label's own hue), the `--text-warning` 1px
-// keyline and the `--ext-radius` (9px) corner. The `2px 6px` padding is the
-// panel's literal px, so it goes through `cardSpace`/`cardTheme` like the rest
-// of `extensions.css`.
+// (`extensions.css:1020-1025`): the warm system plane (`tokens.RaisedWarm`, the
+// amber surface — *not* the warning ink at a low alpha, which tinted the chip
+// with the label's own hue) under a 1px hairline, at the `--ext-radius` corner.
+//
+// P8-b 重定基线：环 `t.Warning` → 合约 §6.1 第 8 条的 `ControlEdge`，字重
+// 620 → 600。预热面（系统语义色）保留：它说的是「这条不工作」，而环是结构，
+// 不是语义——合约下环只有两档（`HairlineSoft` 的结构线与 `ControlEdge` 的
+// 控件边），warning 环那种「彩色描边」属于旧 glass 语言的彩色 rim。
 func (a *App) stateMark(c *ui.Context, integration Integration, copy i18n.Settings) {
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
@@ -1993,7 +1988,7 @@ func (a *App) stateMark(c *ui.Context, integration Integration, copy i18n.Settin
 	case integration.Broken:
 		chip := ui.Row(c).Padding(t.Space(0.5), t.Space(1.5)).Radius(tokens.RadiusSM).
 			Background(tokens.RaisedWarm)
-		chip.InsetShadow(0, 0, 0, 1, t.Warning)
+		chip.InsetShadow(0, 0, 0, 1, tokens.ControlEdge)
 		chip.Children(func() {
 			ui.Text(c, text).FontSize(t.FontSize - 1).FontWeight(600).TextColor(t.Warning)
 		})
@@ -2011,11 +2006,11 @@ func (a *App) stateMark(c *ui.Context, integration Integration, copy i18n.Settin
 // one. It is a state mark, not an action — the row's repair button (drawn
 // separately) is the action, and this chip only says why the button is there.
 //
-// Its face is `stateMark`'s broken chip: the `--glass-raised-warm`
-// (`tokens.RaisedWarm`) fill, the `--text-warning` 1px keyline and the
-// `--ext-radius` (9px) corner — the same three facts the reference's one
-// `.extension-status--broken` rule carried for both readers
-// (`extensions.css:1020-1025`).
+// Its face is `stateMark`'s broken chip: the warm system plane
+// (`tokens.RaisedWarm`) fill under the `ControlEdge` hairline at the
+// `--ext-radius` corner — the same three facts the reference's one
+// `.extension-status--broken` rule carried for both readers, minus the coloured
+// ring the contract does not allow outside §5's three places (§6.1 第 8 条).
 func (a *App) runtimeUnavailableBadge(c *ui.Context, copy i18n.Settings, integration Integration) ui.Element {
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
@@ -2027,7 +2022,7 @@ func (a *App) runtimeUnavailableBadge(c *ui.Context, copy i18n.Settings, integra
 	}
 	chip := ui.Row(c).Padding(t.Space(0.5), t.Space(1.5)).Radius(tokens.RadiusSM).
 		Background(tokens.RaisedWarm)
-	chip.InsetShadow(0, 0, 0, 1, t.Warning)
+	chip.InsetShadow(0, 0, 0, 1, tokens.ControlEdge)
 	chip.Children(func() {
 		ui.Text(c, label).FontSize(t.FontSize - 1).FontWeight(600).TextColor(t.Warning)
 	})
@@ -3562,12 +3557,16 @@ func (a *App) shortcutControl(c *ui.Context, copy i18n.Settings, action, value s
 	t := c.Theme()
 	recording := a.recording && (action == "" || a.ShortcutID == action)
 	if recording {
-		// The reference's `.shortcut-recorder--recording`
-		// (`settings.css:1478-1504`): the raised-quiet pane, the accent
-		// edge and the accent prompt — an armed state, not a primary action.
+		// The armed recorder: the same control face as the resting one, plus
+		// the accent ring and the accent prompt — the one state in this page
+		// where an accent ring is allowed, because the user *is* aiming a key
+		// at it (§6.1 第 10 条).
+		//
+		// P8-b 重定基线：`RaisedQuiet` 不透面 → `Control`（与静息同一档面），
+		// 只多一圈 accent 环；一个不透明的抬起面会读成第二个材质（§1）。
 		tokens := a.tokens(c)
 		capture := ui.Box(c).Focusable().Padding(t.Space(1), t.Space(2)).Radius(tokens.RadiusSM).
-			Background(tokens.RaisedQuiet).Border(1, t.Accent).Label(copy.ShortcutRecording)
+			Background(tokens.Control).Border(1, t.Accent).Label(copy.ShortcutRecording)
 		capture.Children(func() {
 			ui.Text(c, copy.ShortcutRecording).FontSize(t.FontSize).TextColor(t.Accent)
 		})
@@ -3612,17 +3611,19 @@ func (a *App) shortcutControl(c *ui.Context, copy i18n.Settings, action, value s
 	})
 }
 
-// shortcutRecorder is the reference's `.shortcut-recorder` button
-// (`settings.css:1198-1224`): an 82u-wide, 27u-tall resting control pane
-// with the control edge, the radius step and the lens, in the secondary
-// ink. Hover lifts the fill to `--glass-control-hover`, the edge to
-// `--accent-edge` and the ink to `--text-strong`; press drops the lens.
-// The recorded chord is set in the reference's monospace stack
-// (`.shortcut-recorder__keys`, `:1238-1242`), the one face where the
-// reference itself breaks the app's proportional font. The button carries
-// the reference's `aria-label` (`settings.shortcut.record`,
-// `ShortcutRecorder.tsx:74-75`) and its focus-visible ring
-// (`:1473-1476`).
+// shortcutRecorder is the recorder's resting control pane: an 82u-wide,
+// 27u-tall control on the resting `Control` face under the `ControlEdge`
+// hairline, in the secondary ink. Hover lifts the fill to `ControlHover` and
+// the ink to `TextStrong`; press drops it to `ControlPress`. The recorded
+// chord is set in the reference's monospace stack (`.shortcut-recorder__keys`),
+// the one face where the reference itself breaks the app's proportional font.
+// The button carries the reference's `aria-label`
+// (`settings.shortcut.record`) and its focus-visible ring.
+//
+// P8-b 重定基线：旧 hover 把边抬到 `t.Accent` → 合约 §6.1 第 10 条「静息用
+// `Control`，只有录制中才用 accent 环」。accent 在本页只有两处法定用途
+// （侧栏前导图标、主 CTA，§5），一个悬停的静息控件不是第三处：悬停只抬
+// **面**与**字**，不抬色相。
 func (a *App) shortcutRecorder(c *ui.Context, aria, label string, clicked func()) {
 	t := c.Theme()
 	tokens := a.tokens(c)
@@ -3632,7 +3633,6 @@ func (a *App) shortcutRecorder(c *ui.Context, aria, label string, clicked func()
 	ink := tokens.TextSecondary
 	if button.Hovered() {
 		button.Background(tokens.ControlHover)
-		button.Border(1, t.Accent)
 		ink = tokens.TextStrong
 	}
 	if button.Pressed() {
@@ -3702,20 +3702,20 @@ func (a *App) updateRow(c *ui.Context, copy i18n.Settings) {
 	})
 }
 
-// updateButton is the About page's one accent control: the reference's
-// `.update-banner__button` (`settings.css:1542-1568`) — the accent fill with
-// `--accent-contrast` ink, the `--glass-raised-rim` top edge (`inset 0 1px 0`),
-// a `999px` stadium, `6u/14u` of padding, the emphasis step at 600, and no
-// keyline at all (`border: none`). Hover fades the whole button to the
-// reference's `opacity: 0.9` (its `:not(:disabled):hover`, `:1565-1567`); a
-// disabled face is the reference's `opacity: 0.6` with the pointer refused
-// (`:1557-1561`). It is the one thing on the page the user presses, so it is
-// the page's whole accent budget.
+// updateButton is the About page's one accent control: the accent fill with
+// `--accent-contrast` ink, the lit top rim (`inset 0 1px 0`), the emphasis step
+// at 600, and no keyline at all. Hover fades the whole button to 0.9; a disabled
+// face is 0.6 with the pointer refused. It is the one thing on the page the user
+// presses, so it is the page's whole accent budget (§5 第 2 条).
+//
+// P8-b 重定基线：`Radius(999)` 胶囊 → `RadiusSM`(8) 圆角矩形。accent 填充保留；
+// 合约的 CTA 是一个圆角按钮，不是药丸（§6.1 第 9 条），半径从半径梯上取字面值，
+// 不用 `Space()`——一个角不随 `--ui-scale` 走（§2）。
 func (a *App) updateButton(c *ui.Context, label string, disabled bool, run func()) {
 	tokens := a.tokens(c)
 	t := c.Theme()
 	button := ui.ButtonBase(c).Label(label).
-		MinHeight(t.Space(7)).Padding(t.Space(1.5), t.Space(3.5)).Radius(999).
+		MinHeight(t.Space(7)).Padding(t.Space(1.5), t.Space(3.5)).Radius(tokens.RadiusSM).
 		Background(t.Accent)
 	// `box-shadow: inset 0 1px 0 var(--glass-raised-rim)`: the lit top rim is
 	// what makes the accent pill read as a raised control.

@@ -12,11 +12,16 @@ import (
 )
 
 // R59's number control (`plugin-config.css:120-164`) is not the framework's
-// `ui.NumberInput`: the reference's number lives in the same 28u `--glass-field`
-// slot as a text field, with its unit riding inside the box and the input
-// right-aligned against it. The live browser sheet is the schema with a number
-// field, so the slot is read there — the field's own plane and its height by
-// pixel, the unit's register by measurement.
+// `ui.NumberInput`: the reference's number lives in the same 28u slot as a text
+// field, with its unit riding inside the box and the input right-aligned
+// against it. The live browser sheet is the schema with a number field, so the
+// slot is read there — the field's own plane and its height by pixel, the unit's
+// register by measurement.
+//
+// P8-b 重定基线（V）：槽的面从 `--glass-field`（比卡亮得多的凹槽）收敛到
+// `Control`（§6.1 第 5 条）。几何（28u 高、`RadiusSM`、8u 侧 padding、单位字
+// 骑在槽内）全部不变，所以这里的尺寸断言原样保留；只有「槽是一个明显比卡亮
+// 的面」这一条改成「槽是同一档 `Control` 洗，边界是 `ControlEdge` 发丝」。
 func TestThePluginNumberControlIsTheReferenceGlassSlot(t *testing.T) {
 	skipWithoutTheReferenceFont(t)
 	copy := i18n.For("en").Settings
@@ -45,14 +50,15 @@ func TestThePluginNumberControlIsTheReferenceGlassSlot(t *testing.T) {
 		t.Fatalf("the number's unit is missing: %q", tt.Texts())
 	}
 	// The unit rides inside the slot, so a hair left of it is the slot's own
-	// plane. Scan a column there for the run the `--glass-field` fill paints,
-	// against the row's card plane (read left of the row's own label).
+	// plane. The sheet is drawn on a transparent root, so the reading is the
+	// fill's *alpha* against the card row's: the slot is one `Control` wash
+	// denser than the card it sits on, not the old `--glass-field` pane.
 	center := unit.Y + unit.H/2
 	card := sample(tt, label.X-6, center)
 	xs := unit.X - 1
 	top, bottom := float32(-1), float32(-1)
 	for y := int(center) - 24; y <= int(center)+24; y++ {
-		if channelDelta(sample(tt, xs, float32(y)), card) > 40 {
+		if sample(tt, xs, float32(y)).A > card.A+4 {
 			if top < 0 {
 				top = float32(y)
 			}
@@ -64,10 +70,6 @@ func TestThePluginNumberControlIsTheReferenceGlassSlot(t *testing.T) {
 	}
 	if h := bottom - top + 1; h < 27 || h > 29 {
 		t.Errorf("the number slot's height = %v, want the reference's 28u", h)
-	}
-	// The slot is a distinct plane from the card the row sits on.
-	if delta := channelDelta(card, sample(tt, xs, center)); delta < 40 {
-		t.Errorf("the number slot is not a distinct plane: card %v (delta %d)", card, delta)
 	}
 	// The unit is the reference's caption register, not the control's body
 	// step the old port read it at.

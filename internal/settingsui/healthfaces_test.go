@@ -179,11 +179,13 @@ func TestTheFailureCardWearsTheWarmRasiedPlane(t *testing.T) {
 }
 
 // The recorded permissions are the reference's pill family
-// (`extensions.css:2149-2168`): each id is its own chip, an enforced one
-// wearing the accent-washed quiet pane and the accent keyline its twin in the
-// audit list has, a disclosure one the plain neutral control face. The port
-// drew them as one ruled row per id with a trailing tier word, which put a
-// second line's emphasis on an id and gave the pill family no face at all.
+// The recorded permissions are the reference's pill family
+// (`extensions.css:2149-2168`): each id is its own chip.
+//
+// P8-b 重定基线（S：结构变了）：旧断言要求 enforced 药丸贴 accent（`R - B ≥ 8`
+// 证明它带着 accent 淡染）+ declared 中性；合约 §6.1 第 7 条把两级都改成**中性**
+// 面（`Control` + `ControlEdge`），accent 只留给 §5 的三处。所以这条 pin 反向：
+// 两级的**面都不许偏色**、都不许有 accent inset，分开两条的是 tier 标题与字色阶。
 func TestTheApprovedPermissionsAreTheReferencePills(t *testing.T) {
 	record := &ApprovalRecord{
 		At: 1700000000, ApprovedDigest: "sha256-aaaabbbbcccc", CurrentDigest: "sha256-ddddeeeeffff",
@@ -218,48 +220,21 @@ func TestTheApprovedPermissionsAreTheReferencePills(t *testing.T) {
 		mustFind(t, tt, "Declared, not blocked")
 		disclosurePill := mustFind(t, tt, "Read files")
 
-		// Each pill's own leading edge band is a chip plane — a fill distinct
-		// from the plain row it sits on (the block above the group is a row).
 		img := tt.Image()
-		// The plane the pills sit on is the card's own row; sample it at the
-		// same line, well to the right of both pills.
-		plain := imagePixel(img, 600, int(enforcedPill.Y+enforcedPill.H/2))
-		// The pill's left padding is 8px, so its plane starts ~8px before the
-		// label text; sample there, at the pill's own mid-line.
 		enforcedPlane := imagePixel(img, int(enforcedPill.X)-5, int(enforcedPill.Y+enforcedPill.H/2))
 		disclosurePlane := imagePixel(img, int(disclosurePill.X)-5, int(disclosurePill.Y+disclosurePill.H/2))
-		// The enforced pill's own face is what "floter refused" must read as:
-		// it is not the plain row plane, it is the accent-washed quiet pane
-		// and accent keyline its twin in the audit list wears. (The disclosure
-		// pill's fill is the reference's `--glass-control`, which over a dark
-		// card is a near-invisible lift by design — its 1px
-		// `--glass-control-edge` hairline is what draws it, so its *fill* is
-		// not pinned here.)
-		if panelClose(enforcedPlane, plain, 3) {
-			t.Errorf("[%s enforced] the permission has no pill plane: it is still a bare label", appearance)
-		}
-		// The two tiers are told apart by hue, not by a grey level: the
-		// enforced pill carries the accent's wash, so its red clears its blue
-		// by a margin no rounding makes, while the declared pill stays the
-		// neutral control plane (its three channels within a few levels of one
-		// another). A revert to the bare raised-quiet pane fails this — at the
-		// ladder's alphas a neutral lift and a neutral control plane are the
-		// same face, three levels apart, which is what the tiers used to be.
-		//
-		// P8-a 重定基线：旧 base.css 的 accent 是蓝 `#8fb7ff`/`#064aa6`，读的是
-		// `B - R`；Raycast 合约 §1 的 accent 是红 `#F5544E`/`#E5484D`，同一条
-		// 「贴 accent 的面必须偏色」的断言改读 `R - B`（红蓝差 166 / 141）。
-		if d := int(enforcedPlane.R) - int(enforcedPlane.B); d < 8 {
-			t.Errorf("[%s enforced] the pill's face is not the accent's: %v is %d levels from grey",
-				appearance, enforcedPlane, d)
-		}
-		if spread := channelSpread(disclosurePlane); spread > 5 {
-			t.Errorf("[%s] the declared pill is not the neutral control plane: %v spreads %d levels",
-				appearance, disclosurePlane, spread)
-		}
-		if panelClose(enforcedPlane, disclosurePlane, 10) {
-			t.Errorf("[%s] the two permission tiers wear one face: enforced %v, disclosure %v",
-				appearance, enforcedPlane, disclosurePlane)
+
+		// Both faces are neutral: no channel leads another, so neither pill can
+		// be carrying the accent's wash (§5: the accent is spent in exactly
+		// three places, and a permission pill is none of them).
+		for _, tc := range []struct {
+			name  string
+			plane ui.Color
+		}{{"enforced", enforcedPlane}, {"declared", disclosurePlane}} {
+			if spread := channelSpread(tc.plane); spread > 5 {
+				t.Errorf("[%s %s] the permission pill is not neutral: %v spreads %d levels",
+					appearance, tc.name, tc.plane, spread)
+			}
 		}
 
 		// The changed-manifest sentence is the reference's own banner, drawn in

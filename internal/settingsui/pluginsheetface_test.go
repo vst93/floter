@@ -164,13 +164,18 @@ func TestThePluginActionClusterIsWarmAndAsksBeforeItActs(t *testing.T) {
 	}
 }
 
-// R59's `.plugin-config-text` (`plugin-config.css:97-118`) is a 28u slot cut
-// into the glass: a `--glass-field` fill, a `--glass-control-edge` hairline, a
-// `--radius-sm` corner, the body step and 8u of side padding. The old port
-// handed the field to the framework's `ui.TextInput`, whose own padded
-// surface is none of those numbers. The live browser sheet is the one schema
-// with a `text` field, so the row is read there — its label and its field box
-// by pixel.
+// R59's `.plugin-config-text` (`plugin-config.css:97-118`) is a 28u slot: the
+// `--radius-sm` corner, the `ControlEdge` hairline, the body step and 8u of side
+// padding. The old port handed the field to the framework's `ui.TextInput`,
+// whose own padded surface is none of those numbers. The live browser sheet is
+// the one schema with a `text` field, so the row is read there — its label and
+// its field box by pixel.
+//
+// P8-b 重定基线：面从 `--glass-field`（一个比卡亮得多的凹槽）收敛到
+// `Control`/`KeycapFace` 一档（§6.1 第 5 条），「凹」这件事不再靠亮度差，
+// 而靠 `ControlEdge` 的那一圈发丝。所以这条 pin 从「亮度明显高于卡」改成
+// 「面与卡同档、只多一层 `Control` 的洗」，并且读 fill 的 **alpha**：
+// sheet 画在透明根上（启动器的带子透上来），alpha 才是这里的面差。
 func TestThePluginTextFieldIsTheReferenceGlassSlot(t *testing.T) {
 	skipWithoutTheReferenceFont(t)
 	copy := i18n.For("en").Settings
@@ -188,13 +193,21 @@ func TestThePluginTextFieldIsTheReferenceGlassSlot(t *testing.T) {
 		t.Fatalf("the text field's help is missing: %q", tt.Texts())
 	}
 	// The field is a stacked row: its slot sits under the label and its help,
-	// so scan a column below the help for the recessed plane — the run of
-	// rows noticeably brighter than the card's own `--glass-control` surface.
+	// so scan a column below the help for the slot's own face. The sheet is
+	// drawn on a transparent root (the launcher's band shows through it), so
+	// the reading is the fill's *alpha*: the card is one wash and the slot is
+	// that wash plus its own.
 	card := sample(tt, 300, hint.Y-4)
+	// The slot is the *first* contiguous run of a denser face under the help:
+	// the row's own tail and the next row's separator are other runs, and they
+	// are not this box.
 	rows := []int{}
 	for y := int(hint.Y+hint.H) + 2; y < int(hint.Y+hint.H)+80; y++ {
-		if p := sample(tt, 300, float32(y)); int(p.R)-int(card.R) > 40 {
+		dense := sample(tt, 300, float32(y)).A > card.A+4
+		if dense {
 			rows = append(rows, y)
+		} else if len(rows) > 0 {
+			break
 		}
 	}
 	if len(rows) == 0 {
@@ -203,9 +216,18 @@ func TestThePluginTextFieldIsTheReferenceGlassSlot(t *testing.T) {
 	if h := rows[len(rows)-1] - rows[0] + 1; h < 27 || h > 29 {
 		t.Errorf("the field slot's height = %v, want the reference's 28u", h)
 	}
-	// The slot is a recessed plane of its own, not the row's surface: its
-	// fill differs from the card the rows sit on.
-	if delta := channelDelta(card, sample(tt, 300, float32(rows[1]))); delta < 40 {
-		t.Errorf("the field slot is not a distinct plane: card %v (delta %d)", card, delta)
+	// The slot's face is the *same low-gloss rung* as the card it sits on
+	// (§6.1 第 5 条): one `Control` wash over the card's, never the
+	// `--glass-field` pane the old build cut into the glass (0.5 of white in
+	// the light appearance, which is four times this step). Read clear of the
+	// field's own text.
+	face := sample(tt, 600, float32(rows[len(rows)/2]))
+	if face.A > card.A+40 {
+		t.Errorf("the field slot's fill is alpha %d over the card's %d: it is not the Control rung",
+			face.A, card.A)
+	}
+	if face.A <= card.A {
+		t.Errorf("the field slot draws no face at all: alpha %d against the card's %d",
+			face.A, card.A)
 	}
 }

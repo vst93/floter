@@ -9,23 +9,24 @@ import (
 	"floter/internal/settings"
 )
 
-// The custom-shortcuts empty state is the reference's SettingsEmpty
-// (`ShortcutsPage.tsx:240-252`): the 22px Keyboard mark, the state in
-// `--text-secondary`, the grey hint underneath, and the "Add the first one"
-// text action — a `.settings-reset` with a leading ＋ mark, never a filled
-// button. The old port drew a muted line, a `text` glyph and a `ui.Button`, so
-// the mark, the ink and the way out had all drifted.
+// The custom-shortcuts empty state is the contract's empty region
+// (`docs/raycast-design.md` §4.7): the 22px Keyboard mark in the second ink
+// step, the state on the emphasis step in the strong ink, the quiet hint
+// underneath, and the "Add the first one" text action — a `.settings-reset`
+// with a leading ＋ mark, never a filled button. P8-b 重定基线：主句从 body +
+// `--text-secondary` 抬到 emphasis + `--text-strong`、图标从 `--text-tertiary`@0.72
+// 抬到 `--text-secondary`，对标 §4.7 的「主文字 emphasis 步 / 图标次文字色」。
 func TestTheCustomShortcutsEmptyStateIsTheReferenceEmptyRegion(t *testing.T) {
 	en := i18n.For("en").Settings
 	a := New(newStore(t), Actions{})
 
 	// The region resolves its own colors from the theme the app draws in;
 	// capture the same tokens from that context rather than a second one.
-	var secondary, muted ui.Color
+	var secondary, strong ui.Color
 	var icon float32
 	tt := ui.NewTester(func(c *ui.Context) {
 		tokens := a.tokens(c)
-		secondary, muted = tokens.TextSecondary, tokens.Theme.TextMuted
+		secondary, strong = tokens.TextSecondary, tokens.TextStrong
 		icon = c.Theme().Space(5.5) // the reference's 22px Keyboard mark
 		a.View(c)
 	}, 720, 1000)
@@ -48,15 +49,19 @@ func TestTheCustomShortcutsEmptyStateIsTheReferenceEmptyRegion(t *testing.T) {
 		t.Errorf("the old self-made empty sentence is still drawn: %q", tt.Texts())
 	}
 
-	// The title is `--text-secondary`, the reference primitive's own step —
-	// measurably apart from the `--text-muted` the old line wore.
+	// The title wears the contract's empty-state step (§4.7): the emphasis
+	// register in the *strong* ink, one statement rather than a grey line.
+	//
+	// P8-b 重定基线：旧 body + `--text-secondary` → emphasis + `--text-strong`
+	// （`docs/raycast-design.md` §4.7「主文字 emphasis 步」）。旧值读起来像一条
+	// 错误提示；合约的空态是一句陈述，所以它用主文字色。
 	bg, _ := modalColor(tt, title)
 	ink := inkColor(tt, title)
-	if want := overSurface(secondary, bg); !colorClose(ink, want, 14) {
-		t.Errorf("title ink = %v, want the reference's --text-secondary over the card (%v)", ink, want)
+	if want := overSurface(strong, bg); !colorClose(ink, want, 14) {
+		t.Errorf("title ink = %v, want the contract's --text-strong over the card (%v)", ink, want)
 	}
-	if old := overSurface(muted, bg); colorClose(ink, old, 14) {
-		t.Errorf("title ink = %v wears the old muted step, not --text-secondary", ink)
+	if old := overSurface(secondary, bg); colorClose(ink, old, 14) {
+		t.Errorf("title ink = %v still wears the old --text-secondary step", ink)
 	}
 
 	// The mark is the 22px Keyboard glyph above the title, drawn from the

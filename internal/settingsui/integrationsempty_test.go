@@ -27,11 +27,11 @@ func TestTheIntegrationsEmptyStateIsTheReferenceEmptyRegion(t *testing.T) {
 	// capture the same tokens from that context rather than a second one. The
 	// old line wore the framework theme's `TextMuted`; the reference primitive
 	// wears the palette's `TextSecondary` (`theme.Tokens`).
-	var secondary, muted ui.Color
+	var secondary, strong ui.Color
 	var iconSize float32
 	tt := ui.NewTester(func(c *ui.Context) {
 		tokens := a.tokens(c)
-		secondary, muted = tokens.TextSecondary, tokens.Theme.TextMuted
+		secondary, strong = tokens.TextSecondary, tokens.TextStrong
 		iconSize = c.Theme().Space(5) // the reference's 20px Package mark
 		a.View(c)
 	}, 720, 760)
@@ -62,15 +62,17 @@ func TestTheIntegrationsEmptyStateIsTheReferenceEmptyRegion(t *testing.T) {
 		t.Errorf("glyph ink height = %v, want the reference's 20u mark (%v)", h, iconSize)
 	}
 
-	// The title is `--text-secondary`, the reference primitive's own step —
-	// measurably apart from the `--text-muted` the old line wore.
+	// The title wears the contract's empty-state step (§4.7): emphasis in the
+	// *strong* ink, measurably apart from the old body/`--text-secondary` line.
+	//
+	// P8-b 重定基线：旧 body + `--text-secondary` → emphasis + `--text-strong`。
 	ink := inkColor(tt, title)
-	want := overSurface(secondary, bg)
+	want := overSurface(strong, bg)
 	if !colorClose(ink, want, 14) {
-		t.Errorf("title ink = %v, want the reference's --text-secondary over the card (%v)", ink, want)
+		t.Errorf("title ink = %v, want the contract's --text-strong over the card (%v)", ink, want)
 	}
-	if old := overSurface(muted, bg); colorClose(ink, old, 14) {
-		t.Errorf("title ink = %v wears the old muted step, not --text-secondary", ink)
+	if old := overSurface(secondary, bg); colorClose(ink, old, 14) {
+		t.Errorf("title ink = %v still wears the old --text-secondary step", ink)
 	}
 }
 
@@ -94,8 +96,15 @@ func TestTheIntegrationsEmptyRegionHasTheListFloor(t *testing.T) {
 	if box.H < floor {
 		t.Errorf("empty region height = %v, want the list floor 92u (%v)", box.H, floor)
 	}
-	if box.H > floor+1 {
-		t.Errorf("empty region height = %v, want the 92u floor, not a taller box", box.H)
+	// The floor is the *list* floor, not the Sessions page's 160u page-body
+	// override (`settings.css:1393`) — that is the distinction this pin draws.
+	//
+	// P8-b 重定基线：断言从「不超过 92u 一格」改为「仍取列表档，不是页体档」：
+	// §4.7 把空态主句从 body 抬到 emphasis（合约 §3 唯一允许的字号变动），
+	// 行盒因此比 92u 的 MinHeight 高 2px（92 → 94）。92u 仍是一个 **floor**
+	// （MinHeight）而不是固定高，所以真正的不动点是「取列表档而非页体档」。
+	if pageFloor := float32(160); box.H >= pageFloor {
+		t.Errorf("empty region height = %v, want under the page-body floor (%v)", box.H, pageFloor)
 	}
 
 	title, ok := tt.Find(en.IntegrationsEmpty)
