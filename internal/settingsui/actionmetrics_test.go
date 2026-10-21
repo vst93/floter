@@ -55,13 +55,19 @@ func TestTheTextActionsWearTheReferenceResetMetrics(t *testing.T) {
 }
 
 // `.settings-reset:not(:disabled):hover { opacity: .78 }` and `:active { opacity:
-// .6 }` (`settings.css:713-721`): the interaction dims the *ink*, it never
+// .6 }` (`settings.css:713-721`): the interaction moves the *ink*, it never
 // paints a band behind it. The old port swapped a `SurfaceHover` background in,
 // so the words' edge was the only thing that moved — the plane under them lit
 // up. This drives the live Shortcuts group's "Restore defaults" so the action
-// is the one the app really draws, then checks both halves of that: the ink
-// lightens on hover, and the transparent plane does not change at all.
-func TestTheTextActionHoverDimsTheInkOnly(t *testing.T) {
+// is the one the app really draws.
+//
+// P8-d 重定基线（**V**，旧值 → 新值）：静息 `t.Accent`（≈`{229,72,77}`）→
+// `tokens.TextSecondary`，hover `t.Accent` + 0.78 透明度（"变淡"）→
+// `t.Text` + 0.78 透明度（墨更重一档）。旧断言问的是「hover 后最小通道变大
+// （变淡）吗」——它只对红色墨成立；新断言问的是合约真正说的两件事：**面一格
+// 未动**，以及**墨的对比度抬高了**（离面的距离变大，在深浅两套外观里都成
+// 立），并额外钉住「抬的是明度不是色相」（两个状态都不得带彩度）。
+func TestTheTextActionHoverLiftsTheInkOnly(t *testing.T) {
 	en := i18n.For("en").Settings
 	a := New(newStore(t), Actions{})
 	tt := render(t, a, 720, 800)
@@ -77,31 +83,53 @@ func TestTheTextActionHoverDimsTheInkOnly(t *testing.T) {
 	// 1u left of the glyphs is inside the action's own 2u padding, where there
 	// is plane and no ink.
 	plane := func() ui.Color { return sample(tt, label.X-1, midY) }
-	ink := func() int {
-		min := 256
+	// ink is the pixel of the label band farthest from the plane it sits on:
+	// the glyph's own colour. Antialiased glyph edges sit between the two, so
+	// "farthest" is the ink and "nearest" would be the plane.
+	ink := func() ui.Color {
+		bg := plane()
+		var best ui.Color
+		far := -1
 		for x := int(label.X); x < int(label.X+label.W); x++ {
-			p := sample(tt, float32(x), midY)
-			if int(p.R) < min {
-				min = int(p.R)
+			for y := int(label.Y); y < int(label.Y+label.H); y++ {
+				p := sample(tt, float32(x), float32(y))
+				if d := colorDistance(p, bg); d > far {
+					far, best = d, p
+				}
 			}
 		}
-		return min
+		return best
 	}
 
 	restPlane, restInk := plane(), ink()
-	if restInk >= 200 {
-		t.Fatalf("the resting label is not accent ink (min channel %d)", restInk)
+	// Neutral at rest: the action's words are grey, not a hue. This is the
+	// half that fails if the accent comes back (it is ~150 levels from grey).
+	if d := int(restInk.R) - int(restInk.B); d > 14 || d < -14 {
+		t.Fatalf("the resting label carries a hue (%v, R−B %d): the accent is back", restInk, d)
+	}
+	if colorDistance(restInk, restPlane) < 60*60*3 {
+		t.Fatalf("the resting label %v does not stand off its plane %v: the probe cannot read it",
+			restInk, restPlane)
 	}
 	tt.Move(label.X+label.W/2, midY)
 	tt.Frame()
 	hoverPlane, hoverInk := plane(), ink()
 
 	if delta := channelDelta(restPlane, hoverPlane); delta > 2 {
-		t.Errorf("hover painted the plane: %v → %v (delta %d); the reference only dims the ink",
+		t.Errorf("hover painted the plane: %v → %v (delta %d); the reference only moves the ink",
 			restPlane, hoverPlane, delta)
 	}
-	if hoverInk <= restInk {
-		t.Errorf("hover did not dim the ink: min channel %d → %d", restInk, hoverInk)
+	// The ink gains contrast under the pointer (on light it darkens, on dark it
+	// brightens) — the reference's `opacity: .78` read against a heavier rung.
+	if colorDistance(hoverInk, hoverPlane) <= colorDistance(restInk, restPlane) {
+		t.Errorf("hover did not lift the ink: %v (Δ %d) → %v (Δ %d) against the plane %v",
+			restInk, colorDistance(restInk, restPlane),
+			hoverInk, colorDistance(hoverInk, hoverPlane), hoverPlane)
+	}
+	// …and it is still a grey: hover moves the *lightness*, never the hue.
+	if d := int(hoverInk.R) - int(hoverInk.B); d > 14 || d < -14 {
+		t.Errorf("the hovered label carries a hue (%v, R−B %d); hover must not raise the accent",
+			hoverInk, d)
 	}
 }
 

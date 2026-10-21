@@ -59,6 +59,7 @@ func (a *App) transferReport(c *ui.Context, copy i18n.Settings) {
 		return
 	}
 	t := c.Theme()
+	tokens := a.tokens(c)
 	ui.Column(c).FillWidth().Gap(t.Space(1.5)).Children(func() {
 		if len(report.ExcludedFields) > 0 {
 			names := make([]string, 0, len(report.ExcludedFields))
@@ -85,12 +86,17 @@ func (a *App) transferReport(c *ui.Context, copy i18n.Settings) {
 			transferNotice(c, t.Warning, "alert", body)
 			return
 		}
-		transferNotice(c, t.Accent, "check", copy.IntegrationsImportSummary(report.Succeeded, report.Skipped))
+		transferNotice(c, tokens.TextStrong, "check", copy.IntegrationsImportSummary(report.Succeeded, report.Skipped))
 	})
 }
 
 // transferNotice is one line of the report block: the reference's
 // `.extensions-notice` mark beside its sentence, in the kind's own colour.
+//
+// P8-d 重定基线（§5 判据）：导入成功的 ✓ + 句曾是 `t.Accent`。成功是一个**结果
+// 语义**，不是「哪个被选中 / 哪个是开的」；accent 在这里只充当「这条重要」的
+// 高亮，属于 §5 禁止的那一类。改 `TextStrong`（同一行的失败/警告仍然是
+// `t.Warning` 语义色：语义色不是 accent，不在本预算内）。
 func transferNotice(c *ui.Context, color ui.Color, mark, text string) {
 	t := c.Theme()
 	ui.Row(c).FillWidth().Gap(t.Space(2)).AlignItems(ui.Start).Children(func() {

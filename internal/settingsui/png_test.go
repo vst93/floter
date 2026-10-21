@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -108,4 +109,91 @@ func writePNG(t *testing.T, path string, tt *ui.Tester) {
 	f.Close()
 	img := tt.Image()
 	t.Logf("%s (%dx%d)", path, img.Rect.Dx(), img.Rect.Dy())
+}
+
+// The P8-d visual evidence: §6 the task book's four frames — the integrations
+// page (permission dots, the running state word and the healthy status word all
+// in one screen) and the sessions page (the reset action and the resumable dot)
+// — in both appearances, as the pixels the pins above are reading.
+//
+// Opt-in for the same reason as the P8-c dump: a test run should not litter
+// /tmp, so the round that produced the report ran it once with `FLOTER_PNG=1`.
+func TestDumpP8DIntegrationAndSessionPNGs(t *testing.T) {
+	if os.Getenv("FLOTER_PNG") == "" {
+		t.Skip("set FLOTER_PNG=1 to write the round's visual evidence")
+	}
+	for _, dark := range []bool{true, false} {
+		appearance := "light"
+		if dark {
+			appearance = "dark"
+		}
+		store := settings.NewStore(settings.Default())
+		if err := store.Update(func(s *settings.Settings) { s.Theme = appearance }); err != nil {
+			t.Fatal(err)
+		}
+		// ① The integrations page: the enforced/declared permission dots, the
+		// running state word beside a disabled one, and the diagnostics block's
+		// healthy summary — the three inks P8-d re-routed.
+		record := &ApprovalRecord{
+			At: 1700000000, ApprovedDigest: "sha256-aaaa", CurrentDigest: "sha256-aaaa",
+			Enforced: []string{"clipboard-write"}, Disclosure: []string{"filesystem-read"},
+		}
+		a := New(store, Actions{})
+		// The permission audit is folded away until asked for; this frame is the
+		// one the task book wants (permission dots + the running word + the
+		// healthy status word on one screen), so it is opened.
+		a.auditOpen = map[string]bool{"dev.floter.on": true}
+		a.Integrations = func() []Integration {
+			return []Integration{
+				{ID: "dev.floter.on", Name: "Plain Tool", Enabled: true, Running: true,
+					RuntimeAvailable: true, Version: "1.0.0", Publisher: "vst",
+					Description: "A tool that does one thing.", Approval: record,
+					Permissions:     []string{"clipboard-write", "filesystem-read"},
+					Enforced:        map[string]bool{"clipboard-write": true},
+					DiagnosisStatus: "healthy",
+					DiagnosisChecks: []DiagnosisCheck{{ID: "version", Status: "healthy", Message: "answered"}}},
+				{ID: "dev.floter.off", Name: "Off Tool", Enabled: false,
+					RuntimeAvailable: true, Version: "0.4.1", Description: "Turned off on purpose."},
+				{ID: "dev.floter.bad", Name: "Broken Tool", Enabled: true, Broken: true,
+					RuntimeAvailable: false, Version: "0.9.0", Description: "Its runtime is gone.",
+					DiagnosisStatus: "error",
+					DiagnosisChecks: []DiagnosisCheck{{ID: "version", Status: "error", Message: "no answer"}}},
+			}
+		}
+		a.selectPage(PageIntegrations)
+		tt := ui.NewTester(func(c *ui.Context) {
+			c.SetTheme(a.tokens(c).Theme)
+			a.View(c)
+		}, 860, 1400)
+		tt.SetDark(dark)
+		tt.Frame()
+		tt.Frame()
+		writePNG(t, filepath.Join("/tmp", "floter-p8d-integrations-"+appearance+".png"), tt)
+
+		// ② The sessions page: the reset action (neutral at rest and on hover)
+		// and the resumable dot in the resume button's corner.
+		sessions := settings.NewStore(settings.Default())
+		if err := sessions.Update(func(s *settings.Settings) { s.Theme = appearance }); err != nil {
+			t.Fatal(err)
+		}
+		sa := New(sessions, Actions{SelectSession: func(int) {}, CloseSessionAt: func(int) {}})
+		created := time.Date(2024, 1, 2, 15, 4, 0, 0, time.Local)
+		sa.Sessions = func() []Session {
+			return []Session{
+				{ID: 1, Title: "zsh", Running: true, Index: 0,
+					Note: "Running · attached", Size: "80×24", Created: created},
+				{ID: 2, Title: "build", Running: false, Index: 1,
+					Note: "Exited", Size: "100×30", Created: created},
+			}
+		}
+		sa.selectPage(PageSessions)
+		stt := ui.NewTester(func(c *ui.Context) {
+			c.SetTheme(sa.tokens(c).Theme)
+			sa.View(c)
+		}, 860, 760)
+		stt.SetDark(dark)
+		stt.Frame()
+		stt.Frame()
+		writePNG(t, filepath.Join("/tmp", "floter-p8d-sessions-"+appearance+".png"), stt)
+	}
 }

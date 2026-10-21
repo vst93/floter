@@ -142,22 +142,24 @@ func imagePixel(img *image.RGBA, x, y int) ui.Color {
 	return ui.Color{R: img.Pix[i], G: img.Pix[i+1], B: img.Pix[i+2], A: img.Pix[i+3]}
 }
 
-// The reference lights a 1px accent rule on the row's leading edge on hover
+// The row's leading rule used to light to the accent on hover
 // (`.extension-row::before` + `:hover::before { background: var(--accent) }`,
-// `extensions.css:747-771`) over the ladder's hover fill. The old port only
-// swapped the fill in. This hovers a live row and reads the rule's own pixel at
-// the row's left edge.
-func TestTheRowLeadingRuleLightsOnHover(t *testing.T) {
+// `extensions.css:747-771`). P8-d 重定基线（**S**，结构真变了）：合约 §5 把
+// 「行 hover/按下」列在禁止清单里，所以 `cardRow` 的 hover 分支不再碰
+// `bar`——行 hover 只抬**面**（`SurfaceHover`）。旧结构：hover 时 `bar =
+// t.Accent`；新结构：hover 只 `row.Background(t.SurfaceHover)`，前导条的颜色
+// 永远由 `face.Bar` 决定。所以这条断言翻面：hover 后前导条**必须仍与紧邻
+// 的面同色**（没有条），而行面**必须抬起来**，且整行**没有任何 accent 像素**。
+func TestTheRowLeadingRuleStaysDarkOnHover(t *testing.T) {
 	a := New(newStore(t), Actions{})
 
 	var labelRef ui.Handle
 	var labelBox ui.Rect
 	var inset float32
-	var accent ui.Color
 	tt := ui.NewTester(func(c *ui.Context) {
 		c.SetTheme(a.tokens(c).Theme)
 		a.cardRows = 0 // the row is the card's first, as on a live card
-		inset, accent = c.Theme().Space(3.5), c.Theme().Accent
+		inset = c.Theme().Space(3.5)
 		a.cardRow(c, ui.Center, nil, rowFace{}, func() {}, func() {
 			ui.Text(c, "V Tools").Bind(&labelRef)
 		})
@@ -165,7 +167,7 @@ func TestTheRowLeadingRuleLightsOnHover(t *testing.T) {
 	}, 480, 120)
 	tt.Frame()
 
-	// The row's left edge is the label's inset back: the 1px rule plus the
+	// The row's left edge is the label's inset back: the 1px rule slot plus the
 	// content's own `inset-1` padding add up to `inset`.
 	rowX := labelBox.X - inset
 	midY := labelBox.Y + labelBox.H/2
@@ -178,15 +180,26 @@ func TestTheRowLeadingRuleLightsOnHover(t *testing.T) {
 	hoverNext := sample(tt, rowX+1.5, midY)
 
 	if channelDelta(restRule, restNext) > 6 {
-		t.Errorf("the rule is lit at rest (%v vs the plane %v); the reference draws it only on hover",
+		t.Errorf("the rule is lit at rest (%v vs the plane %v); a plain row draws no rule at all",
 			restRule, restNext)
 	}
-	if channelDelta(hoverRule, hoverNext) < 30 {
-		t.Errorf("hover did not light the leading rule: rule %v, plane %v", hoverRule, hoverNext)
+	// The flip: hover must NOT light the slot. The rule slot keeps the row's
+	// own hover plane, so the two pixels agree.
+	if delta := channelDelta(hoverRule, hoverNext); delta > 6 {
+		t.Errorf("hover lit the leading rule: slot %v vs the plane beside it %v (delta %d); "+
+			"§5 forbids a rule on row hover", hoverRule, hoverNext, delta)
 	}
-	// The rule is the accent, not just any lift.
-	if delta := channelDelta(hoverRule, accent); delta > 60 {
-		t.Errorf("the lit rule is %v, want the accent %v", hoverRule, accent)
+	// And no pixel of the row is the accent: the whole row is scanned, not just
+	// the rule slot, so a bar painted anywhere on hover is caught.
+	img := tt.Image()
+	for y := int(labelBox.Y) - 4; y < int(labelBox.Y+labelBox.H)+4; y++ {
+		for x := int(rowX); x < int(labelBox.X+labelBox.W)+8; x++ {
+			p := imagePixel(img, x, y)
+			if warm := int(p.R) - int(p.B); warm > 60 {
+				t.Fatalf("the hovered row carries an accent pixel at (%d,%d): %v (%d levels warm)",
+					x, y, p, warm)
+			}
+		}
 	}
 	if channelDelta(hoverNext, restNext) < 4 {
 		t.Errorf("hover did not lift the row's fill: %v → %v", restNext, hoverNext)

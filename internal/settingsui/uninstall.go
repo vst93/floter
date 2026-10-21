@@ -297,8 +297,9 @@ func (a *App) finishComponentizedUninstall(id string, err error) {
 // side, rounds 9px and weights 400 — four numbers the reference does not
 // write. The danger variant is the *ink* alone, `--text-warning`, not a red
 // plane: the reference's destructive action is quieter than the framework's.
-// Hover lifts the plane to `--glass-control-hover` and the hairline to
-// `--accent-edge`, over the reference's own `--dur-2` (120ms).
+// Hover lifts the plane to `--glass-control-hover`; the hairline stays the
+// neutral `--stroke-control` (P8-d: it used to rise to `--accent-edge`, which
+// §5 forbids on hover — see the note at the hover arm).
 //
 // `icon` leads the word when it is not nil — `<Check size={14} strokeWidth={2} />`
 // is the reference's first child, so the mark a destructive confirm is
@@ -322,8 +323,19 @@ func (a *App) uninstallActionButton(c *ui.Context, label string, danger bool, bu
 	}
 	// `:hover:not(:disabled)` (`extensions.css:1340-1344`): a disabled pill
 	// keeps its resting face under the pointer.
+	//
+	// P8-d 重定基线（§5 禁止侧「行 hover/按下」与「弹层危险动作的彩色环」）：
+	// hover 曾把边抬到 `tokens.AccentEdge`。accent 在这里只回答「指针在这
+	// 条上」，而那既不是选中也不是开启；危险语义由 `t.Warning` 的**墨与
+	// 文案**说，不靠 hover 变色相。所以 hover 边仍是 `ControlEdge`，只抬面
+	// （`ControlHover`）——与 P8-b 录制器静息 hover 同一个处理；而且危险按钮的
+	// 墨在 hover 时**仍是 `t.Warning`**（旧值会把它换成 `t.Text`）：如果 hover
+	// 把警告墨换成普通墨，那就等于用「变色相」代替了语义。
 	if !busy && button.Hovered() {
-		ink, edge, plane = t.Text, tokens.AccentEdge, tokens.ControlHover
+		edge, plane = tokens.ControlEdge, tokens.ControlHover
+		if !danger {
+			ink = t.Text
+		}
 	}
 	button.Border(1, edge).Background(plane).
 		Transition(ui.ElementTransition{Colors: true, Position: true, Duration: 120 * time.Millisecond})
@@ -411,8 +423,11 @@ func (a *App) uninstallPartRow(c *ui.Context, part uninstallPart) ui.Element {
 		// `--elev-0` shadow, so the pressed pane is the fill alone.
 		card.Background(tokens.ControlPress)
 	case card.Hovered():
+		// P8-d 重定基线（§5 禁止侧）：hover 边曾是 `tokens.AccentEdge`。一张被
+		// 勾选的卡片不是「被选中/被打开」的控件状态，hover 更是 §5 明写的禁止
+		// 项——边保持 `ControlEdge`，只抬面（`ControlHover`）。
 		card.Background(tokens.ControlHover)
-		card.Border(1, tokens.AccentEdge)
+		card.Border(1, tokens.ControlEdge)
 		tokens.Lens(card)
 	default:
 		tokens.Lens(card)

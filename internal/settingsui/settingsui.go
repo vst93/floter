@@ -1627,15 +1627,15 @@ func sessionLines(session Session) []rowLine {
 }
 
 // sessionMeta is the meta line's segments — the state word, the screen size
-// and the start time — each its own segment so the state word can take the
-// accent while the session runs and the quiet grey once it has exited. It is
-// empty when the session reported none of the three.
+// and the start time — each its own segment so the state word can take a
+// brighter ink while the session runs and the quiet grey once it has exited. It
+// is empty when the session reported none of the three.
 func sessionMeta(session Session) []rowSegment {
 	var segments []rowSegment
 	if session.Note != "" {
 		role := rowSegmentTertiary
 		if session.Running {
-			role = rowSegmentAccent
+			role = rowSegmentStrong
 		}
 		segments = append(segments, rowSegment{Text: session.Note, Role: role})
 	}
@@ -1993,7 +1993,12 @@ func (a *App) stateMark(c *ui.Context, integration Integration, copy i18n.Settin
 			ui.Text(c, text).FontSize(t.FontSize - 1).FontWeight(600).TextColor(t.Warning)
 		})
 	case integration.Enabled:
-		ui.Text(c, text).FontSize(t.FontSize - 1).TextColor(t.Accent)
+		// P8-d 重定基线（§5 判据）：「运行中」曾用 `t.Accent`。它说的是「这条
+		// 是活的」——一个持续状态，不是「哪个被选中 / 哪个是开的」。改
+		// `TextStrong`；`default` 分支的 `TextSecondary` 就是另一档，两档之间
+		// 靠明度分层（§5 新补的那句：中性档之间的差异不属本预算，靠明度分层
+		// 是鼓励的做法），所以「运行中 vs 关」仍然分得开，只是不再用色相。
+		ui.Text(c, text).FontSize(t.FontSize - 1).TextColor(tokens.TextStrong)
 	default:
 		ui.Text(c, text).FontSize(t.FontSize - 1).TextColor(tokens.TextSecondary)
 	}
@@ -2231,16 +2236,23 @@ func capitalizeWord(word string) string {
 }
 
 // statusInk is one status word's colour, the reference's own split: `ok` and
-// `healthy` take the accent, `error` and `broken` the warning, and every other
-// word the caller's quiet register (`extensions.css:2334-2346`). The summary
-// line and the check rows share this classifier because the reference ranged
-// the *same* `--${diagnose.status}` / `--${check.status}` modifier over both;
-// only the fallback differs — the summary sits on `--text-secondary`, a check
-// row on the quieter `--text-tertiary` (`:2329` vs `:2360`).
+// `healthy` take the strong ink, `error` and `broken` the warning, and every
+// other word the caller's quiet register (`extensions.css:2334-2346`). The
+// summary line and the check rows share this classifier because the reference
+// ranged the *same* `--${diagnose.status}` / `--${check.status}` modifier over
+// both; only the fallback differs — the summary sits on `--text-secondary`, a
+// check row on the quieter `--text-tertiary` (`:2329` vs `:2360`).
+//
+// P8-d 重定基线（§5 判据）：`ok`/`healthy` 曾是 `t.Accent`。accent 只回答
+// 「哪个被选中 / 哪个是开的」（§5 四类），一个「这条好」的**结果语义**不在
+// 其中——它既不是控件状态，也不是主 CTA。所以这两个词降到 `TextStrong`（与
+// 它右边那列消息的 `TextMuted` 仍差两档，读得出「结论 vs 说明」），而
+// `error`/`broken` 保留 `t.Warning`：那是**语义色**，不是 accent（§5 第 3 条的
+// 状态色说的是控件自己的选中/开启，语义色另有一支）。
 func statusInk(status string, tokens theme.Tokens, t *ui.Theme, quiet ui.Color) ui.Color {
 	switch strings.ToLower(strings.TrimSpace(status)) {
 	case "ok", "healthy":
-		return t.Accent
+		return tokens.TextStrong
 	case "error", "broken":
 		return t.Warning
 	default:
@@ -5716,9 +5728,9 @@ func (a *App) requestDisable(id string) {
 // `src/styles/extensions.css:2473-2481`): the panel's 30px pill is overridden
 // to a 24px ladder step — height 24px, padding 0 8px, caption font, the
 // radius-xs corner — so the answers read as part of the band rather than as
-// floating controls. Hover lifts the plane to the control-hover step and
-// takes the edge up to the accent keyline, the reference's
-// `.extensions-action-button:hover:not(:disabled)`. A disabled button keeps
+// floating controls. Hover lifts the plane to the control-hover step; the
+// hairline stays the neutral `ControlEdge` (P8-d: it used to rise to the accent
+// keyline, which §5 forbids on hover). A disabled button keeps
 // its resting face and ignores the press.
 // barButton is the reference's inline action button inside a notice band
 // (`extensions.css:1313-1385`): a 24px pill with 8px of side padding, a
@@ -5726,7 +5738,7 @@ func (a *App) requestDisable(id string) {
 // discard bar's answers share. The danger variant is the ink alone
 // (`--text-warning`), not a red plane: the reference's destructive action is
 // quieter than the framework's filled Button. Hover lifts the plane to
-// `--glass-control-hover` and the hairline to `--accent-edge`, and the ink
+// `--glass-control-hover`, and the ink
 // moves to `--text-primary` for both the neutral and the danger button — the
 // reference's own `:hover` rule applies to `--danger` too. The icon, when
 // one is passed, leads the word: the reference's confirm buttons are
@@ -5750,8 +5762,13 @@ func (a *App) barButton(c *ui.Context, label string, danger, disabled bool, icon
 		Background(plane).Border(1, edge)
 	if !disabled {
 		if button.Hovered() {
+			// P8-d 重定基线（§5 禁止侧「行 hover/按下」）：hover 边曾是
+			// `tokens.AccentEdge`。这是同族的最后一处尾巴（`rows.go` 的
+			// `extensionActionFace`、`uninstall.go` 的两个 pill 与本条是同一
+			// 个 `.extensions-action-button` hover 规则）——accent 不能回答
+			// 「指针在这条上」，边保持 `ControlEdge`，只抬面与墨。
 			plane = tokens.ControlHover
-			edge = tokens.AccentEdge
+			edge = tokens.ControlEdge
 			ink = t.Text
 			button = button.Background(plane).Border(1, edge)
 		}

@@ -446,6 +446,10 @@ func (a *App) extensionActionButton(c *ui.Context, label string, height, radius,
 // apart. It returns the button and the ink its content wears; a disabled face
 // keeps the resting plane, as the reference's
 // `:hover:not(:disabled)` / `:disabled` pair did (`extensions.css:91,124-129`).
+//
+// P8-d 重定基线（§5 禁止侧）：hover 边曾是 `tokens.AccentEdge`。accent 不能
+// 回答「指针在这条上」；hover 只抬面（`ControlHover`）与墨（`t.Text`），边
+// 保持在 `ControlEdge`。
 func (a *App) extensionActionFace(c *ui.Context, height, radius float32, disabled bool) (ui.Element, ui.Color) {
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
@@ -453,7 +457,7 @@ func (a *App) extensionActionFace(c *ui.Context, height, radius float32, disable
 		MinHeight(height).Padding(0, t.Space(2.5)).Radius(radius)
 	ink, edge, plane := tokens.TextStrong, tokens.ControlEdge, tokens.Control
 	if !disabled && button.Hovered() {
-		ink, edge, plane = t.Text, tokens.AccentEdge, tokens.ControlHover
+		ink, edge, plane = t.Text, tokens.ControlEdge, tokens.ControlHover
 	}
 	button.Border(1, edge).Background(plane).
 		Transition(ui.ElementTransition{Colors: true, Duration: 120 * time.Millisecond})
@@ -670,8 +674,10 @@ func (a *App) row(c *ui.Context, label, sublabel string, control func(), below .
 
 // rowLine is one grey line under a row's label. Plain text is painted in
 // the row's muted grey; a line may instead be several segments, each in a
-// role's own colour — the sessions meta line, whose state word is the
-// accent while its session runs and the quiet grey once it has exited.
+// role's own colour — the sessions meta line, whose state word takes the strong
+// rung while its session runs and the quiet grey once it has exited (P8-d:
+// neither is the accent; §5's judgment is that "running" is a state, not a
+// choice).
 //
 // Mono marks a line that is a *value* rather than prose: the reference sets a
 // session row's working directory in its monospace stack
@@ -699,9 +705,12 @@ const (
 	// line was drawn in: the screen size and the start time, and the state
 	// word of a session that has exited.
 	rowSegmentTertiary rowSegmentRole = iota
-	// rowSegmentAccent is the live accent `.session-state` used while the
-	// session is running.
-	rowSegmentAccent
+	// rowSegmentStrong is the strong ink the old `.session-state` used while the
+	// session is running. P8-d 重定基线（§5 判据）：它曾是 `rowSegmentAccent`
+	// （`t.Accent`），但「运行中」是一个持续状态，不是「哪个被选中 / 哪个是
+	// 开的」——accent 不能回答「这是活的」。改中性后，运行中的那一段与已退出
+	// 的 `rowSegmentTertiary` 仍然差两档，靠明度分层（§5 新补的那句）。
+	rowSegmentStrong
 )
 
 // rowLines is row with a second line that is itself several lines: the
@@ -774,12 +783,17 @@ func (a *App) sessionIconButton(c *ui.Context, glyphName, label string, danger, 
 		ui.Icon(c, mustGlyph(glyphName)).Size(t.Space(3.5), t.Space(3.5)).TextColor(ink)
 	})
 	if resumable {
-		// The accent micro-badge that marks a running-but-detached session as
+		// The micro-badge that marks a running-but-detached session as
 		// resumable (`.session-manager__resume-dot`): 5u in the button's own
-		// top-right corner, the one accent a session row ever spends.
+		// top-right corner.
+		//
+		// P8-d 重定基线（§5 判据）：它曾是 `t.Accent`。它说的是「这条可以
+		// 恢复」——一个动作的**机会**，既不是「这条被选中」，也不是「这个控件
+		// 是开的」，更不属于主 CTA（§5 四类一个都不沾）。改 `TextSecondary`；
+		// 召唤力交给位置（按钮自己的右上角）与按钮本身的 hover 档，不用色相。
 		ui.Box(c).Absolute().Top(t.Space(0.75)).Right(t.Space(0.75)).
 			Size(t.Space(1.25), t.Space(1.25)).Radius(t.Space(1.25)).
-			Background(t.Accent).PassThrough()
+			Background(tokens.TextSecondary).PassThrough()
 	}
 	if button.Clicked() && !disabled {
 		run()
@@ -860,8 +874,8 @@ func (a *App) rowAligned(c *ui.Context, align ui.Align, lead func(), face rowFac
 				meta.Children(func() {
 					for _, segment := range sublabel.Segments {
 						color := tokens.TextTertiary
-						if segment.Role == rowSegmentAccent {
-							color = t.Accent
+						if segment.Role == rowSegmentStrong {
+							color = tokens.TextStrong
 						}
 						ui.Text(c, segment.Text).FontSize(tokens.Caption).FontWeight(500).
 							TextColor(color)
@@ -995,11 +1009,12 @@ func (a *App) cardRow(c *ui.Context, align ui.Align, lead func(), face rowFace, 
 		case row.Pressed():
 			row = row.Background(t.SurfacePressed)
 		case row.Hovered():
-			// The reference's `:hover:not(.extension-row--detected)` lights both
-			// the ladder's hover fill and the accent rule, over whatever state
-			// the row was in.
+			// The reference's `:hover:not(.extension-row--detected)` lights the
+			// ladder's hover fill. P8-d 重定基线（§5 禁止侧「行 hover/按下」）：
+			// 前导规则条曾经也在此抬到 `t.Accent`——那正是 §5 明写的禁止项。
+			// 行 hover 只抬**面**（`SurfaceHover`），前导条的颜色由行自己的状态
+			// （`face.Bar`）决定，不因指针而变。
 			row = row.Background(t.SurfaceHover)
-			bar = t.Accent
 		}
 		row.Children(func() {
 			rule := ui.Box(c).Width(1).Shrink(0)
@@ -1164,6 +1179,11 @@ func (a *App) action(c *ui.Context, label string, clicked func()) ui.Element {
 // the *ink* rather than painting a band behind it. The old port padded the row
 // by 4u/6u, rounded it to `--radius-sm` and filled it on hover, so the same
 // words stood 4u taller and turned into a control the reference never drew.
+//
+// P8-d 重定基线（§5 判据）：图标与文字都曾是 `t.Accent`。一个可点的文字动作
+// 不是「哪个被选中 / 哪个是开的」——accent 在那里回答的是「这条重要/能点」，
+// 正是 §5 禁止的那一类。静息 `TextSecondary`、hover `t.Text`：只抬**墨的明度**，
+// 不抬色相，与 P8-b 录制器静息 hover 的处理同构（`shortcutRecorder`）。
 func (a *App) actionWithGlyph(c *ui.Context, glyphName, label string, clicked func()) ui.Element {
 	t := c.Theme()
 	tokens := a.tokens(c)
@@ -1172,19 +1192,21 @@ func (a *App) actionWithGlyph(c *ui.Context, glyphName, label string, clicked fu
 	if glyphName != "" {
 		row.Gap(t.Space(1.25))
 	}
+	ink := tokens.TextSecondary
 	switch {
 	case row.Pressed():
 		row.Opacity(0.6) // `.settings-reset:active { opacity: .6 }`
 	case row.Hovered():
 		row.Opacity(0.78) // `.settings-reset:not(:disabled):hover { opacity: .78 }`
+		ink = t.Text
 	}
 	row.Children(func() {
 		if glyphName != "" {
 			if glyph, ok := launcher.Glyph(glyphName); ok {
-				ui.Icon(c, glyph).Size(t.Space(3.25), t.Space(3.25)).TextColor(t.Accent)
+				ui.Icon(c, glyph).Size(t.Space(3.25), t.Space(3.25)).TextColor(ink)
 			}
 		}
-		ui.Text(c, label).FontSize(t.FontSize).TextColor(t.Accent)
+		ui.Text(c, label).FontSize(t.FontSize).TextColor(ink)
 	})
 	if row.Clicked() {
 		clicked()

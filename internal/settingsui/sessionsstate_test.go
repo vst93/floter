@@ -10,9 +10,12 @@ import (
 )
 
 // The sessions meta line keeps the state word as a segment of its own, so
-// the old page's two state colours can come back: `.session-state` is the
-// accent while the session runs, `.session-state--exited` the quiet grey
-// after it has exited, and the size/start time stay on that quiet grey.
+// the old page's two state colours could come back. P8-d 重定基线（**V**，角
+// 色改名）：`rowSegmentAccent` → `rowSegmentStrong`。旧断言要求「运行中的状态
+// 词是 accent」（`t.Accent`），新条文要求它是中性里更亮的那一档
+// （`tokens.TextStrong`）——`ok/healthy`/`运行中` 都是结果/持续状态，不是
+// 「哪个被选中 / 哪个是开的」（§5 判据）。已退出的仍然是 `TextTertiary`，
+// 两档靠明度分层——§5 新补的那句说这是**鼓励**的做法。
 func TestSessionLinesMarkTheStateWordWithItsOwnColourRole(t *testing.T) {
 	created := time.Date(2024, 1, 2, 15, 4, 0, 0, time.Local)
 	running := Session{
@@ -41,8 +44,8 @@ func TestSessionLinesMarkTheStateWordWithItsOwnColourRole(t *testing.T) {
 		if meta[2].Role != rowSegmentTertiary {
 			t.Errorf("%s created role = %v, want the quiet grey", name, meta[2].Role)
 		}
-		if got := meta[0].Role; got != rowSegmentAccent && name == "running" {
-			t.Errorf("running state role = %v, want the accent", got)
+		if got := meta[0].Role; got != rowSegmentStrong && name == "running" {
+			t.Errorf("running state role = %v, want the strong neutral rung", got)
 		}
 		if got := meta[0].Role; got != rowSegmentTertiary && name == "exited" {
 			t.Errorf("exited state role = %v, want the quiet grey", got)
@@ -51,9 +54,13 @@ func TestSessionLinesMarkTheStateWordWithItsOwnColourRole(t *testing.T) {
 }
 
 // The old page painted the state word in two different colours, not one: a
-// running session's state is the accent while the size and start time stay
-// muted, and an exited session's state joins them. This pins the rendered
-// result, not just the role plumbing.
+// running session's state stands above the size and start time, and an exited
+// session's state joins them. This pins the rendered result, not just the role
+// plumbing.
+//
+// P8-d 重定基线：五条断言原样保留（它们是「两档可区分」的关系断言，不引用
+// 具体色值），**零改动**——这一条按 **B** 跑就是绿的，正是「行为没变，只换了
+// ink 来源」的证据：运行中与已退出仍不相同、运行中仍不与 size 同色。
 func TestSessionStateWordsCarryTheOldStateColours(t *testing.T) {
 	a := New(newStore(t), Actions{})
 	a.Sessions = func() []Session {

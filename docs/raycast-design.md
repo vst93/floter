@@ -163,8 +163,8 @@ padding 全花在文本列上（查询与行标题都从 16u 起），在行内�
 
 ## §5 accent 的用途（四类，判据一句话）
 
-1. **设置侧栏选中项的前导图标**（`internal/settingsui/settingsui.go:1332`）。
-2. **主 CTA 填充**（`internal/settingsui/settingsui.go:3719` 的 `updateButton`）。
+1. **设置侧栏选中项的前导图标**（`internal/settingsui/settingsui.go:1328`）。
+2. **主 CTA 填充**（`internal/settingsui/settingsui.go:3739` 的 `updateButton`）。
 3. **控件处于「已选 / 已开」状态时的状态色**：分段控件的选中段 keyline、开关的
    ON 态、收音机的选中项。这是**状态**，不是装饰——它回答的正是「哪个被选中了」。
 4. **焦点环**（`Focus` / `InputStrokeActive` / `AccentGlow`，见
@@ -175,6 +175,12 @@ padding 全花在文本列上（查询与行标题都从 16u 起），在行内�
 
 **判断标准一句话**：accent 只能回答「哪个被选中 / 哪个是开的」，不能回答「这块
 面好看」。
+
+> **预算只约束色相，不约束明度**：本条约束的是**墨与面的色相**；中性档之间的
+> 差异（`TextStrong`/`TextSecondary`/`TextTertiary`、`RowHover`/`RowSelected`/
+> `RowPressed`）不属本预算，靠明度分层是**鼓励**的做法。一句「这条不要 accent」
+> 的正确改法通常是**降一档明度**（`Accent` → `TextStrong`）而不是把所有差异
+> 抹平；两条中性断言反过来也要能分出上下（P8-d 的 pin 就看这个）。
 
 > P8-c 勘误：本节在 P8-b 时写成「全仓只允许三处」，实测（General 页 1591 个
 > accent 像素，分四带：侧栏图标、三组分段控件的选中段、开关 ON 态）发现条文写窄
@@ -190,6 +196,34 @@ keyline 属于卡片壳，不属于列表）；`AccentHalo` 在终端的状态�
 反证留在测试里：`selface_test.go` 的选中行断言既等于 `RowSelected` 的合成值，
 又证明「R−B 的差」与无彩色不足一个阈值（即不含 accent 的粉），
 `raycast_test.go` 另有一条直接读三通道相等的 pin。
+
+### 注脚：边界四条（P8-d 定审）
+
+§5 的四类只写了「控件状态」。以下四条一直卡在边缘（既像状态又像标记），P8-d
+逐条定审并把理由写在这里，避免下一轮又把它们当成越界重新改一遍。**两条保留 / 一条
+改中性 / 一条保留**：
+
+1. **权限 ● 标记（集成页权限列表）→ 保留 accent**
+   （`internal/settingsui/settingsui.go` 的 `permissionTier`）。它就是「已强制」的
+   另一种画法：实心/空心即 ON/OFF，属第 3 条的状态色，只是把「开关」换成了
+   「●/○」两个字形。P8-d 另有一条守卫 pin（`TestThePermissionDotAndTheRegisterChipKeepTheAccent`）
+   防止一刀切把 accent 全删掉。
+2. **更新进度条填充 → 保留 accent**
+   （`internal/settingsui/settingsui.go:3785`，`updateRow` 里的 `update-banner__progress-fill`）。
+   它不是装饰，而是**主 CTA 的派生物**：同一个下载动作的进度，属第 2 条主 CTA
+   填充那条预算的延伸。进度条没有第二套中性视觉语汇可用，换成灰档会丢「这条
+   正在动」这个唯一的含义。
+3. **会话可恢复红点（5u 徽标）→ 改中性**（`internal/settingsui/rows.go` 的
+   `sessionIconButton`）。它说的是「这条**可以恢复**」——一个动作的**机会**，
+   既不是「这条被选中/被打开」，也不属于主 CTA。P8-d 改为 `TextSecondary`；
+   召唤力交给**位置**（按钮自己的右上角）与按钮本身的 hover 档，不用色相。
+4. **`packageChip` 的 register 行前导图标 → 保留**
+   （`internal/settingsui/rows.go` 的 `packageChip(…, chosen)`）。它就是第 1 条的
+   同一个处理（选中项的前导图标），与设置侧栏的同名位置同构；P8-c 已落地，
+   P8-d 补同一守卫 pin 的后半（`TestThePermissionDotAndTheRegisterChipKeepTheAccent`）。
+
+判这四条的方法是同一个：问它回答的是「哪个被选中 / 哪个是开的 / 这是主 CTA 的
+一部分」还是「这块面好看 / 这条重要 / 这是活的」。前者合法，后者越界。
 
 ## §6 差距清单（P8-b / P8-c 已全部落地）
 
@@ -258,6 +292,27 @@ keyline 属于卡片壳，不属于列表）；`AccentHalo` 在终端的状态�
 **启动器里自己没做的两处**（不在 §6 表里，写在 §4 对应小节）：
 §4.2 的搜索行前导放大镜、§4.6 的 `⌘K` 动作面（chord 未绑定）。
 
+### §6.4 P8-d · accent 花名册收口（**已落地**）
+
+不新增功能、不改交互、不动几何：只把「文字/标记用 accent」的越界处改成中性墨，
+并把 §5 的判据第一次落到全仓（§5 注脚四条即本片的定审）。
+
+| 位置 | 旧 | 新 | 落地 |
+|---|---|---|---|
+| `statusInk` 的 `ok`/`healthy`（`internal/settingsui/settingsui.go`） | `t.Accent` | `tokens.TextStrong`；`error`/`broken` **保留** `t.Warning`（语义色不是 accent） | `已落地` — pin `TestStatusInkIsNeutralWhenHealthyAndWarningWhenNot` |
+| `stateMark` 的启用分支（「运行中」字，同上） | `t.Accent` | `tokens.TextStrong`（与 `default` 分支的 `TextSecondary` 差一档明度） | `已落地` — pin `TestTheRunningStateMarkIsTheNeutralStrongRung` |
+| `rowSegmentRole`（`rows.go`） | `rowSegmentAccent` → `t.Accent` | 更名为 `rowSegmentStrong` → `tokens.TextStrong`（会话 meta 的「运行中」） | `已落地` — pin `TestTheSessionRunningSegmentIsNeutral` |
+| `actionWithGlyph`（`rows.go`，reset 行图标 + 文字） | `t.Accent` | 静息 `tokens.TextSecondary`，hover `t.Text`（只抬明度） | `已落地` — pin `TestTheResetActionIsNeutralAtRestAndOnHover` |
+| `cardRow` 的 hover 前导规则条（`rows.go`） | hover 时 `bar = t.Accent` | **删掉**该 bar（hover 只抬面 `SurfaceHover`）；这是 §5 明写的禁止项「行 hover/按下」 | `已落地` — pin `TestTheCardRowHoverCarriesNoAccentPixel` |
+| `transferReport` 导入成功提示（`transfer.go`） | `t.Accent` | `tokens.TextStrong`（成功是结果语义，不是选中） | `已落地` — pin `TestTheImportSummaryIsNeutral` |
+| `uninstallActionButton` 危险确认按钮 hover 边（`uninstall.go`） | `tokens.AccentEdge`（且 hover 把 warning 墨改成 `t.Text`） | hover 边 `ControlEdge`、面 `ControlHover`，**墨仍是 `t.Warning`**：危险语义留在墨与文案上 | `已落地` — pin `TestTheDangerPillHoverKeepsTheNeutralEdgeAndTheWarningInk` |
+| `uninstallPartRow` 勾选卡 hover 边（同上） | `tokens.AccentEdge` | `ControlEdge` | `已落地` — 同一条 pin 的后半 |
+| `extensionActionFace` hover 边（`rows.go`） | `tokens.AccentEdge` | `ControlEdge` | `已落地` — 同一条 pin |
+| `barButton` hover 边（`settingsui.go`，P8-d 自加第 14 条：同一个 `.extensions-action-button` hover 规则的最后一处尾巴） | `tokens.AccentEdge` | `ControlEdge` | `已落地` — 同一条 pin |
+
+**判不准四条 → 定审结果**（理由见 §5 注脚）：权限 ● **保留**、更新进度条**保留**、
+会话可恢复红点**改中性**、`packageChip` 前导图标**保留**。
+
 ## §7 切片表
 
 | 片 | 范围 | 状态 |
@@ -265,3 +320,4 @@ keyline 属于卡片壳，不属于列表）；`AccentHalo` 在终端的状态�
 | P8-a | 合约文档 + token 层 + 启动器表面（卡片/搜索行/列表/分组头/页脚/空态/键帽） | **本轮完成** |
 | P8-b | 设置页（侧栏/分组块/行/控件/弹层）+ 两个空态 | **本轮完成**（`⌘K` 动作面未做，见 §4.6） |
 | P8-c | 终端表面（页签/边框/滚动边缘/抽屉）+ 集成页 + 通知/浮层 + §5 accent 预算勘误 | **本轮完成**（§6.2/§6.3 全部 `已落地`；§5 从「三处」改为四类，新增 9 条正面 pin） |
+| P8-d | accent 花名册收口：越界 9 处转中性 + 判不准 4 条定审 + §5 注脚 + 视觉 pin 处置 | **本轮完成**（§6.4 全部 `已落地`；§5 补「只约束色相、鼓励明度分层」一句与边界四条注脚；新增 10 条 pin + 2 张×2 视觉证据） |

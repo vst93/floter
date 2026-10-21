@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -803,5 +804,542 @@ func TestTheSettingsFieldsWearTheControlRung(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+// The P8-d pins: §5's one-line judgment ("accent can only answer which one is
+// chosen / which one is on") read against the surfaces that had been spending
+// it on something else. Each is written **正面 + 反面** in pairs: the accent is
+// *not* there, and the neutral rung that replaced it still reads as a rung (a
+// pin that only proves "not red" would pass on a blank frame).
+//
+// ⑩ §5 判据 · `statusInk` 的 `healthy` 是中性且比 quiet 档更亮；
+// `error` 仍是 `Warning` 色相。正面 + 反面成对。
+func TestStatusInkIsNeutralWhenHealthyAndWarningWhenNot(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		appearance := "light"
+		if dark {
+			appearance = "dark"
+		}
+		tokens := theme.ForPreferences(settings.Settings{Theme: appearance}, dark, ui.Preferences{})
+		// The classifier needs the framework theme for the two semantic inks —
+		// the same resolved one the view installs, not the framework's stock
+		// palette (whose `Warning` is a different amber).
+		var th *ui.Theme
+		probe := ui.NewTester(func(c *ui.Context) {
+			c.SetTheme(tokens.Theme)
+			th = c.Theme()
+		}, 10, 10)
+		probe.SetDark(dark)
+		probe.Frame()
+
+		for _, quiet := range []ui.Color{tokens.TextSecondary, tokens.TextTertiary} {
+			for _, word := range []string{"ok", "Ok", " HEALTHY "} {
+				got := statusInk(word, tokens, th, quiet)
+				// 反面：不是 accent（accent 自身是 ~150 级暖）。
+				if d := int(got.R) - int(got.B); d > 14 || d < -14 {
+					t.Errorf("[%s] statusInk(%q) = %v carries a hue (R−B %d): the accent is back",
+						appearance, word, got, d)
+				}
+				if channelDelta(got, tokens.Theme.Accent) < 60 {
+					t.Errorf("[%s] statusInk(%q) = %v is the accent %v", appearance, word, got, tokens.Theme.Accent)
+				}
+				// 正面：它是 strong 档，而且**比 caller 的 quiet 档更亮**
+				// （浅色下 TextStrong 比 TextTertiary 更暗，所以比的是「离
+				// 面的距离」——两档的对比度，而不是通道大小）。
+				if channelDelta(got, tokens.TextStrong) > 12 {
+					t.Errorf("[%s] statusInk(%q) = %v, want the strong text rung %v",
+						appearance, word, got, tokens.TextStrong)
+				}
+				if contrast(got) <= contrast(quiet) {
+					t.Errorf("[%s] statusInk(%q) = %v (contrast %d) is not above its quiet fallback %v (contrast %d): "+
+						"the healthy word must still outrank the row it sits in",
+						appearance, word, got, contrast(got), quiet, contrast(quiet))
+				}
+			}
+		}
+		// The error side keeps the semantic colour: a warning *is* a warning.
+		for _, word := range []string{"error", "broken", "BROKEN"} {
+			if got := statusInk(word, tokens, th, tokens.TextTertiary); got != tokens.Theme.Warning {
+				t.Errorf("[%s] statusInk(%q) = %v, want the warning ink %v",
+					appearance, word, got, tokens.Theme.Warning)
+			}
+		}
+		// And the fallback is still the caller's own quiet rung, untouched.
+		for _, word := range []string{"unknown", "", "pending"} {
+			if got := statusInk(word, tokens, th, tokens.TextTertiary); got != tokens.TextTertiary {
+				t.Errorf("[%s] statusInk(%q) = %v, want the caller's quiet rung %v",
+					appearance, word, got, tokens.TextTertiary)
+			}
+		}
+	}
+}
+
+// contrast is an ink's distance from mid-grey: a coarse stand-in for "how much
+// this ink stands off the plane", used to order two neutral rungs without
+// assuming which way round the appearance goes.
+func contrast(c ui.Color) int {
+	mean := (int(c.R) + int(c.G) + int(c.B)) / 3
+	if mean > 127 {
+		return mean - 127
+	}
+	return 127 - mean
+}
+
+// ⑪ §5 判据 · 集成页「运行中」的状态字是中性，且比 `TextTertiary` 亮。
+//
+// The chip's plane is read as the row's own fill and the word's ink as the
+// pixel of its box farthest from that fill — the glyph's own colour, not an
+// antialiased edge.
+func TestTheRunningStateMarkIsTheNeutralStrongRung(t *testing.T) {
+	copy := i18n.For("en").Settings
+	a := New(newStore(t), Actions{})
+	a.Integrations = func() []Integration {
+		return []Integration{
+			{ID: "dev.floter.on", Name: "Plain Tool", Enabled: true, RuntimeAvailable: true},
+			{ID: "dev.floter.off", Name: "Off Tool", Enabled: false, RuntimeAvailable: true},
+		}
+	}
+	tt, tokens := renderThemed(t, a, 720, 1200)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	running := mustFind(t, tt, copy.IntegrationsRunning)
+	off := mustFind(t, tt, copy.IntegrationsOff)
+	runningInk, offInk := inkColor(tt, running), inkColor(tt, off)
+	// 反面：不是 accent。
+	if d := int(runningInk.R) - int(runningInk.B); d > 14 || d < -14 {
+		t.Errorf("the running word %v carries a hue (R−B %d): the accent is back", runningInk, d)
+	}
+	if channelDelta(runningInk, tokens.Theme.Accent) < 60 {
+		t.Errorf("the running word %v is the accent %v", runningInk, tokens.Theme.Accent)
+	}
+	// 正面：strong 档，且**比 tertiary 那档更亮**（这里比的是同一页面上
+	// 两档中性墨的对比度：运行中 vs 关）。
+	if channelDelta(runningInk, tokens.TextStrong) > 16 {
+		t.Errorf("the running word %v, want the strong rung %v", runningInk, tokens.TextStrong)
+	}
+	if contrast(runningInk) <= contrast(tokens.TextTertiary) {
+		t.Errorf("the running word %v (contrast %d) is not above TextTertiary %v (contrast %d)",
+			runningInk, contrast(runningInk), tokens.TextTertiary, contrast(tokens.TextTertiary))
+	}
+	// The "off" word is the other neutral rung, and the two must stay apart —
+	// §5's new sentence says the neutral ladder is *encouraged* to separate by
+	// lightness. A change that flattened both to one ink fails here.
+	if channelDelta(runningInk, offInk) < 20 {
+		t.Errorf("running %v and off %v read at one level: the neutral ladder collapsed",
+			runningInk, offInk)
+	}
+}
+
+// ⑫ §5 判据 · 会话 meta 的「运行中」段是中性（不是 accent）。
+func TestTheSessionRunningSegmentIsNeutral(t *testing.T) {
+	a := New(newStore(t), Actions{SelectSession: func(int) {}})
+	a.Sessions = func() []Session {
+		created := time.Date(2024, 1, 2, 15, 4, 0, 0, time.Local)
+		return []Session{{
+			ID: 1, Title: "zsh", Running: true, Index: 0,
+			Note: "Running · attached", Size: "80×24", Created: created,
+		}}
+	}
+	tt, tokens := renderThemed(t, a, 720, 760)
+	if err := tt.Click("Sessions"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	state := inkColor(tt, mustFind(t, tt, "Running · attached"))
+	size := inkColor(tt, mustFind(t, tt, "80×24"))
+	// 反面：不是 accent。
+	if d := int(state.R) - int(state.B); d > 14 || d < -14 {
+		t.Errorf("the running state word %v carries a hue (R−B %d): the accent is back", state, d)
+	}
+	if channelDelta(state, tokens.Theme.Accent) < 60 {
+		t.Errorf("the running state word %v is the accent %v", state, tokens.Theme.Accent)
+	}
+	// 正面：strong 档，并且仍然与它右边的 size 段分得开（明度分层）。
+	if channelDelta(state, tokens.TextStrong) > 16 {
+		t.Errorf("the running state word %v, want the strong rung %v", state, tokens.TextStrong)
+	}
+	if channelDelta(state, size) < 20 {
+		t.Errorf("the running state word %v and its size neighbour %v read at one level", state, size)
+	}
+}
+
+// ⑬ §5 判据 · reset 行的图标与文字静息中性；hover 后**仍然**中性（只变亮，
+// 不变色相）。The action is drawn on its own so both frames are readable
+// without the surrounding page.
+func TestTheResetActionIsNeutralAtRestAndOnHover(t *testing.T) {
+	a := New(newStore(t), Actions{})
+	var ref ui.Handle
+	var box ui.Rect
+	var tokens theme.Tokens
+	tt := ui.NewTester(func(c *ui.Context) {
+		tokens = a.tokens(c)
+		c.SetTheme(tokens.Theme)
+		c.Root().Background(ui.RGB(255, 255, 255))
+		ui.Row(c).Padding(20).Children(func() {
+			a.actionWithGlyph(c, "plus", "Add one", func() {}).Bind(&ref)
+		})
+		box = c.Resolve(ref).Bounds()
+	}, 400, 120)
+	tt.Frame()
+
+	warmest := func() (ui.Color, int) {
+		img := tt.Image()
+		var worst ui.Color
+		best := -999
+		for y := int(box.Y) - 2; y < int(box.Y+box.H)+2; y++ {
+			for x := int(box.X) - 2; x < int(box.X+box.W)+2; x++ {
+				p := imagePixel(img, x, y)
+				if d := int(p.R) - int(p.B); d > best {
+					best, worst = d, p
+				}
+			}
+		}
+		return worst, best
+	}
+
+	restBox := box
+	_, restWarm := warmest()
+	restInk := inkColor(tt, mustFind(t, tt, "Add one"))
+	// 反面：静息时图标与文字都不带色相。
+	if restWarm > 20 {
+		t.Fatalf("the resting action is %d levels warm: the accent is on its icon or its word", restWarm)
+	}
+	if channelDelta(restInk, tokens.Theme.Accent) < 60 {
+		t.Fatalf("the resting action's ink %v is the accent %v", restInk, tokens.Theme.Accent)
+	}
+	// 正面：静息是 secondary 档。
+	if channelDelta(restInk, tokens.TextSecondary) > 16 {
+		t.Errorf("the resting action's ink = %v, want the secondary rung %v", restInk, tokens.TextSecondary)
+	}
+
+	tt.Move(restBox.X+restBox.W/2, restBox.Y+restBox.H/2)
+	tt.Frame()
+	_, hoverWarm := warmest()
+	hoverInk := inkColor(tt, mustFind(t, tt, "Add one"))
+	// 反面：hover 也没把色相抬起来。
+	if hoverWarm > 20 {
+		t.Errorf("the hovered action is %d levels warm: hover raised the accent", hoverWarm)
+	}
+	if channelDelta(hoverInk, tokens.Theme.Accent) < 60 {
+		t.Errorf("the hovered action's ink %v is the accent %v", hoverInk, tokens.Theme.Accent)
+	}
+	// 正面：hover 让墨更重一档（明度，不是色相）。
+	if contrast(hoverInk) <= contrast(restInk) {
+		t.Errorf("hover did not lift the action's ink: %v (contrast %d) → %v (contrast %d)",
+			restInk, contrast(restInk), hoverInk, contrast(hoverInk))
+	}
+	// Faded by the reference's own `opacity: .78`, the primary rung composites
+	// to a specific grey — read it rather than the raw token.
+	if want := panelOver(tokens.Theme.Text.Alpha(0.78), ui.RGB(255, 255, 255)); channelDelta(hoverInk, want) > 16 {
+		t.Errorf("the hovered action's ink = %v, want the primary rung at .78 (%v)", hoverInk, want)
+	}
+}
+
+// ⑭ §5 禁止侧「行 hover/按下」· `cardRow` 的 hover 帧里**没有**任何 accent
+// 像素（扫整行，不只是前导条那一列）。反面 + 正面成对：行面确实抬起来了。
+func TestTheCardRowHoverCarriesNoAccentPixel(t *testing.T) {
+	a := New(newStore(t), Actions{})
+	var labelRef ui.Handle
+	var labelBox ui.Rect
+	tt := ui.NewTester(func(c *ui.Context) {
+		c.SetTheme(a.tokens(c).Theme)
+		a.cardRows = 0
+		a.cardRow(c, ui.Center, nil, rowFace{}, func() {}, func() {
+			ui.Text(c, "V Tools").Bind(&labelRef)
+		})
+		labelBox = c.Resolve(labelRef).Bounds()
+	}, 480, 120)
+	tt.Frame()
+
+	restPlane := sample(tt, labelBox.X+labelBox.W+20, labelBox.Y+labelBox.H/2)
+	tt.Move(labelBox.X+labelBox.W/2, labelBox.Y+labelBox.H/2)
+	tt.Frame()
+	hoverPlane := sample(tt, labelBox.X+labelBox.W+20, labelBox.Y+labelBox.H/2)
+
+	// The whole row, from 60u left of the label (past the leading rule slot) to
+	// well right of it, is scanned: a bar painted anywhere on hover is caught.
+	img := tt.Image()
+	warmest, at := -999, ui.Rect{}
+	for y := int(labelBox.Y) - 6; y < int(labelBox.Y+labelBox.H)+6; y++ {
+		for x := int(labelBox.X) - 60; x < int(labelBox.X+labelBox.W)+40; x++ {
+			if x < 0 || y < 0 {
+				continue
+			}
+			p := imagePixel(img, x, y)
+			if d := int(p.R) - int(p.B); d > warmest {
+				warmest, at = d, ui.Rect{X: float32(x), Y: float32(y)}
+			}
+		}
+	}
+	if warmest > 20 {
+		t.Errorf("the hovered row carries an accent pixel at %v (%d levels warm): the hover bar is back",
+			at, warmest)
+	}
+	// 正面：hover 确实抬了面——扫到的平面比静息更亮（深色）或更暗（浅色），
+	// 也就是「只抬面」这件事真的发生了，而不是整行没反应。
+	if channelDelta(hoverPlane, restPlane) < 3 {
+		t.Errorf("hover moved nothing: plane %v → %v; the row must still lift its face", restPlane, hoverPlane)
+	}
+}
+
+// ⑮ §5 判据 · 导入成功提示是中性（成功是结果语义，不是选中）。
+func TestTheImportSummaryIsNeutral(t *testing.T) {
+	a := New(newStore(t), Actions{})
+	a.TransferReport = &ImportReport{Path: "/tmp/backup.json", Succeeded: 4, Skipped: 1}
+	var tokens theme.Tokens
+	tt := ui.NewTester(func(c *ui.Context) {
+		tokens = a.tokens(c)
+		c.SetTheme(tokens.Theme)
+		a.transferReport(c, i18n.For("en").Settings)
+	}, 600, 300)
+	tt.Frame()
+	summary := mustFind(t, tt, "Imported 4, unchanged 1")
+	ink := inkColor(tt, summary)
+	// 反面：不是 accent。
+	if d := int(ink.R) - int(ink.B); d > 14 || d < -14 {
+		t.Errorf("the import summary %v carries a hue (R−B %d): the accent is back", ink, d)
+	}
+	if channelDelta(ink, tokens.Theme.Accent) < 60 {
+		t.Errorf("the import summary %v is the accent %v", ink, tokens.Theme.Accent)
+	}
+	// 正面：strong 档（与同一块里失败行的 `t.Warning` 判然不同）。
+	if channelDelta(ink, tokens.TextStrong) > 16 {
+		t.Errorf("the import summary = %v, want the strong rung %v", ink, tokens.TextStrong)
+	}
+
+	// The failure line keeps the semantic colour — the other half of the pair.
+	a.TransferReport = &ImportReport{
+		Path:   "/tmp/backup.json",
+		Failed: []TransferFailure{{ID: "a", Reason: "no package"}},
+	}
+	tt.Frame()
+	if !tt.HasText("Failed: a: no package") {
+		t.Fatalf("the failure line is missing: %q", tt.Texts())
+	}
+	failure := mustFind(t, tt, "Failed: a: no package")
+	if got := inkColor(tt, failure); channelDelta(got, tokens.Theme.Warning) > 24 {
+		t.Errorf("the failure detail = %v, want the warning ink %v (a semantic colour, not the accent)",
+			got, tokens.Theme.Warning)
+	}
+}
+
+// ⑯ §5 禁止侧 · 卸载弹层的危险按钮 hover 边是 `ControlEdge`（不是 accent），
+// **但**墨仍是 `t.Warning`（危险语义没丢）；勾选卡 hover 边同理。
+//
+// The pill and the card are drawn on their own over a white page so the 1px
+// edge is a stable pixel. A control's border composites over its *own* plane
+// (`Control` rests, `ControlHover` under the pointer), so the expected edge is
+// the border token over that plane, not over the page.
+func TestTheDangerPillHoverKeepsTheNeutralEdgeAndTheWarningInk(t *testing.T) {
+	a := New(newStore(t), Actions{})
+	page := ui.RGB(255, 255, 255)
+	var tokens theme.Tokens
+	var pillRef, cardRef ui.Handle
+	var pillBox, cardBox ui.Rect
+	off := false
+	part := uninstallPart{Label: "Host configuration", Hint: "Remove it.", Value: &off}
+	tt := ui.NewTester(func(c *ui.Context) {
+		tokens = a.tokens(c)
+		c.SetTheme(tokens.Theme)
+		c.Root().Background(page)
+		ui.Column(c).Padding(20).Gap(20).Children(func() {
+			ui.Row(c).Children(func() {
+				a.uninstallActionButton(c, "Uninstall", true, false, checkIcon).Bind(&pillRef)
+			})
+			a.uninstallPartRow(c, part).Bind(&cardRef)
+		})
+		pillBox = c.Resolve(pillRef).Bounds()
+		cardBox = c.Resolve(cardRef).Bounds()
+	}, 520, 200)
+	tt.Frame()
+
+	// topEdge is the 1px border at the box's mid-span, clear of the rounding.
+	topEdge := func(box ui.Rect) ui.Color {
+		return imagePixel(tt.Image(), int(box.X+box.W/2), int(box.Y))
+	}
+	// nearest reports the closest pixel of a box's *interior* (2px in from the
+	// border) to a target colour, so a border never counts as ink.
+	nearest := func(box ui.Rect, target ui.Color) (ui.Color, int) {
+		img := tt.Image()
+		var best ui.Color
+		near := 1 << 30
+		for y := int(box.Y) + 2; y < int(box.Y+box.H)-2; y++ {
+			for x := int(box.X) + 2; x < int(box.X+box.W)-2; x++ {
+				p := imagePixel(img, x, y)
+				if d := channelDelta(p, target); d < near {
+					near, best = d, p
+				}
+			}
+		}
+		return best, near
+	}
+	// The accent is ~99 levels from the warning ink on every channel, so a
+	// "closer to the warning than to the accent" read is unambiguous.
+	accentFree := func(name string, box ui.Rect) {
+		if _, near := nearest(box, tokens.Theme.Accent); near < 30 {
+			t.Errorf("%s carries a pixel within %d levels of the accent %v: the accent is back",
+				name, near, tokens.Theme.Accent)
+		}
+	}
+
+	// Rest: the edge is `ControlEdge` over the resting `Control` plane.
+	restFace := panelOver(tokens.Control, page)
+	if got, want := topEdge(pillBox), panelOver(tokens.ControlEdge, restFace); !panelClose(got, want, 6) {
+		t.Errorf("the danger pill's resting edge = %v, want ControlEdge over Control (%v)", got, want)
+	}
+	accentFree("the resting danger pill", pillBox)
+
+	tt.Move(pillBox.X+pillBox.W/2, pillBox.Y+pillBox.H/2)
+	tt.Frame()
+	tt.Advance(300 * time.Millisecond)
+
+	// 反面：hover 边不是 accent（AccentEdge over the same plane is a pink
+	// ring, ~{240 150 152}).
+	hoverEdge := topEdge(pillBox)
+	hoverFace := panelOver(tokens.ControlHover, page)
+	if warm := int(hoverEdge.R) - int(hoverEdge.B); warm > 20 {
+		t.Errorf("the danger pill's hover edge %v is %d levels warm: the accent ring is back", hoverEdge, warm)
+	}
+	if channelDelta(hoverEdge, panelOver(tokens.AccentEdge, hoverFace)) < 12 {
+		t.Errorf("the danger pill's hover edge %v is the old AccentEdge", hoverEdge)
+	}
+	// 正面：它仍是 `ControlEdge` 那一档——hover 只抬面，不抬边。
+	if want := panelOver(tokens.ControlEdge, hoverFace); !panelClose(hoverEdge, want, 6) {
+		t.Errorf("the danger pill's hover edge = %v, want the neutral ControlEdge over the hover plane (%v)",
+			hoverEdge, want)
+	}
+	// 墨仍是 warning：危险语义留在墨上，不靠 hover 变色相。
+	if _, near := nearest(pillBox, tokens.Theme.Warning); near > 24 {
+		t.Errorf("the hovered danger pill has no warning ink (nearest pixel is %d levels off %v): "+
+			"hover replaced the danger semantic", near, tokens.Theme.Warning)
+	}
+	accentFree("the hovered danger pill", pillBox)
+
+	// The check card, the same treatment: its border is `ControlEdge` at rest
+	// and under the pointer.
+	tt.Move(0, 0)
+	tt.Frame()
+	tt.Advance(300 * time.Millisecond)
+	if got, want := topEdge(cardBox), panelOver(tokens.ControlEdge, restFace); !panelClose(got, want, 6) {
+		t.Errorf("the uninstall card's resting edge = %v, want ControlEdge over Control (%v)", got, want)
+	}
+	tt.Move(cardBox.X+cardBox.W/2, cardBox.Y+cardBox.H/2)
+	tt.Frame()
+	tt.Advance(300 * time.Millisecond)
+	cardEdge := topEdge(cardBox)
+	if warm := int(cardEdge.R) - int(cardEdge.B); warm > 20 {
+		t.Errorf("the hovered uninstall card's edge %v is %d levels warm: the accent edge is back", cardEdge, warm)
+	}
+	if channelDelta(cardEdge, panelOver(tokens.AccentEdge, hoverFace)) < 12 {
+		t.Errorf("the hovered uninstall card's edge %v is the old AccentEdge", cardEdge)
+	}
+	if want := panelOver(tokens.ControlEdge, hoverFace); !panelClose(cardEdge, want, 6) {
+		t.Errorf("the hovered uninstall card's edge = %v, want the neutral ControlEdge (%v)", cardEdge, want)
+	}
+	accentFree("the hovered uninstall card", cardBox)
+}
+
+// ⑰ §5 判据 · 会话可恢复红点改中性。
+//
+// The dot is 5u in the resume button's own top-right corner; its centre is read
+// from the same three tokens the view uses, so the probe cannot drift from the
+// geometry it is measuring.
+func TestTheSessionResumeDotIsNeutral(t *testing.T) {
+	a := New(newStore(t), Actions{SelectSession: func(int) {}})
+	a.Sessions = func() []Session {
+		created := time.Date(2024, 1, 2, 15, 4, 0, 0, time.Local)
+		return []Session{{
+			ID: 1, Title: "zsh", Running: true, Index: 0,
+			Note: "Running", Size: "80×24", Created: created,
+		}}
+	}
+	tt, tokens := renderThemed(t, a, 720, 760)
+	if err := tt.Click("Sessions"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	btn := mustFind(t, tt, i18n.For("en").Settings.SessionsResume)
+	img := tt.Image()
+	// `.session-manager__resume-dot`: Top/Right 0.75u, 1.25u square.
+	cx := btn.X + btn.W - tokens.Theme.Space(0.75) - tokens.Theme.Space(1.25)/2
+	cy := btn.Y + tokens.Theme.Space(0.75) + tokens.Theme.Space(1.25)/2
+	got := imagePixel(img, int(cx), int(cy))
+	// 反面：不是 accent。
+	if d := int(got.R) - int(got.B); d > 14 || d < -14 {
+		t.Errorf("the resume dot %v carries a hue (R−B %d): the accent is back", got, d)
+	}
+	if channelDelta(got, tokens.Theme.Accent) < 60 {
+		t.Errorf("the resume dot %v is the accent %v", got, tokens.Theme.Accent)
+	}
+	// 正面：它是 secondary 那一档中性墨（颜色值本身就读得出来）。
+	if channelDelta(got, tokens.TextSecondary) > 12 {
+		t.Errorf("the resume dot = %v, want the secondary neutral rung %v", got, tokens.TextSecondary)
+	}
+}
+
+// ⑱ 守卫（反证）· 权限 ● 与 `packageChip` 的前导图标**仍然**是 accent ——
+// 这两条防「一刀切把 accent 全删了」。
+//
+// §5 注脚第 1 条与第 4 条已把这两处定审为合法：前者是「已强制」的 ON/OFF
+// 画法（实心/空心即 ON/OFF），后者是「选中项的前导图标」与设置侧栏同构。
+func TestThePermissionDotAndTheRegisterChipKeepTheAccent(t *testing.T) {
+	a := New(newStore(t), Actions{})
+	var tokens theme.Tokens
+	tt := ui.NewTester(func(c *ui.Context) {
+		tokens = a.tokens(c)
+		c.SetTheme(tokens.Theme)
+		a.card(c, func() {
+			a.permissionTier(c, "Floter enforces", "hint", true, "en", []string{"clipboard-write"})
+			a.permissionTier(c, "Declared", "hint2", false, "en", []string{"filesystem-read"})
+		})
+	}, 660, 420)
+	tt.Frame()
+
+	enforced := inkColor(tt, mustFind(t, tt, "\u25cf"))
+	declared := inkColor(tt, mustFind(t, tt, "\u25cb"))
+	// 正面：实心点就是 accent。
+	if channelDelta(enforced, tokens.Theme.Accent) > 24 {
+		t.Errorf("the enforced permission dot %v is not the accent %v (§5 注脚第 1 条)", enforced, tokens.Theme.Accent)
+	}
+	if d := int(enforced.R) - int(enforced.B); d < 100 {
+		t.Errorf("the enforced permission dot %v is only %d levels warm; the accent is ~152", enforced, d)
+	}
+	// 反面（同一对的另一半）：空心点不是 accent —— 「实心/空心即 ON/OFF」
+	// 这个读法要求两者判然分开，否则 ● 的 accent 也就没有意义了。
+	if d := int(declared.R) - int(declared.B); d > 14 || d < -14 {
+		t.Errorf("the declared permission ring %v carries a hue (R−B %d): the ON/OFF split is gone", declared, d)
+	}
+
+	// The register row's leading package chip, the other guarded accent.
+	reg := New(newStore(t), Actions{})
+	reg.Integrations = func() []Integration {
+		return []Integration{{ID: "dev.floter.reg", Name: "Register Me", Enabled: true,
+			Highlighted: true, RuntimeAvailable: true}}
+	}
+	rtt, rtokens := renderThemed(t, reg, 720, 1000)
+	if err := rtt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	rtt.Frame()
+	title := mustFind(t, rtt, "Register Me")
+	img := rtt.Image()
+	warmest, at := -999, ui.Rect{}
+	for y := int(title.Y) - 8; y < int(title.Y+title.H)+8; y++ {
+		for x := int(title.X) - 50; x < int(title.X)-8; x++ {
+			p := imagePixel(img, x, y)
+			if d := int(p.R) - int(p.B); d > warmest {
+				warmest, at = d, ui.Rect{X: float32(x), Y: float32(y)}
+			}
+		}
+	}
+	if warmest < 40 {
+		t.Errorf("the register row's leading package mark carries no accent (%d levels warm at %v); "+
+			"§5 注脚第 4 条 keeps it", warmest, at)
+	}
+	if channelDelta(rtokens.Theme.Accent, rtokens.RowSelected) == 0 {
+		t.Fatal("the accent and the row rung coincide: the probe cannot tell them apart")
 	}
 }
