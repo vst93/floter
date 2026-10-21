@@ -4211,15 +4211,19 @@ func (a *App) View(c *ui.Context) {
 			card.Shadow(0, t.Space(1), t.Space(4), 0, surface.Tokens.ShadowAmbient)
 			card.Shadow(0, t.Space(0.25), t.Space(1), 0, surface.Tokens.ShadowContact)
 		}
-		// The launcher's card is its own floating window and carries no rim (the
-		// old build's R72 removed it); the settings and terminal panels sit *on*
-		// a surface, so they take `--glass-rim-shadow`: the lit top edge, the
-		// dark bottom edge and the whisper of a stroke on both sides.
+		// The settings and terminal panels sit *on* a surface, so they take the
+		// whole `--glass-rim-shadow`: the lit top edge, the dark bottom edge and
+		// the whisper of a stroke on both sides. The launcher card is its own
+		// floating window and takes the *platform* edge instead — the two rim
+		// strokes `base.css` writes for Windows and Linux, with the focused rung
+		// of the top one, and nothing at all on macOS (see cardEdge).
 		if a.Surf != SurfaceLauncher {
 			card.InsetShadow(0, 1, 0, 0, surface.Tokens.EdgeHighlight)
 			card.InsetShadow(0, -1, 0, 0, surface.Tokens.EdgeShadow)
 			card.InsetShadow(1, 0, 0, 0, surface.Tokens.EdgeHighlightX)
 			card.InsetShadow(-1, 0, 0, 0, surface.Tokens.EdgeHighlightX)
+		} else {
+			drawCardEdge(card, surface.Tokens, runtime.GOOS, focused)
 		}
 		// The launcher's blocks run edge to edge: the field row is full-bleed
 		// (`.collapsed-card__input-row`) and the panel below it is the card's

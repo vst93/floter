@@ -194,6 +194,14 @@ type Tokens struct {
 	EdgeHighlight  ui.Color
 	EdgeShadow     ui.Color
 	EdgeHighlightX ui.Color
+	// EdgeHighlightActive is the lit top edge's *focused* step (base.css's
+	// `--edge-highlight-active`: dark `0.18` at `:633`, light `0.96` at `:911`),
+	// which the platform card rules swap in on `:focus-within`
+	// (`.platform-windows .collapsed-card:focus-within`,
+	// `main:src/styles/base.css:1558-1565`; the Linux pair at `:1625-1632`). The
+	// port kept only the resting rung, so the top edge never brightened with the
+	// stroke and the sheen (see `SheenAtFocus`) — the third half of one rule.
+	EdgeHighlightActive ui.Color
 	// AccentEdge is the accent as a 1px keyline (base.css's `--accent-edge`):
 	// the emphasis a chosen segment or a recommended badge carries without an
 	// accent fill. AccentHalo is the accent as a soft ring (base.css's
@@ -209,6 +217,15 @@ type Tokens struct {
 	// edge is the strong one so the pill reads as a control, not as a tint.
 	AccentEdgeStrong ui.Color
 	AccentHalo       ui.Color
+	// AccentGlow is the accent as a panel-sized focus ring (base.css's
+	// `--accent-glow`: dark `rgba(143,183,255,0.08)` at `:687`, light
+	// `rgba(6,74,166,0.2)` at `:955`). It is a *third* rung, not a repeat of
+	// `AccentHalo` (0.18/0.24) or `AccentEdge` (0.30/0.36): the Linux card rule
+	// swaps it in for the 1px keyline while the card holds the keyboard
+	// (`.platform-linux .collapsed-card:focus-within`,
+	// `main:src/styles/base.css:1625-1632`), and a card built without it never
+	// showed the Linux keyboard cue at all.
+	AccentGlow ui.Color
 	// AccentTintQuiet is the accent at the quietest rung of its tint family
 	// (base.css's `--accent-tint-quiet`): the fill a launcher result row's
 	// selection wears, where the emphasis is the row's own type — the title at
@@ -485,23 +502,24 @@ func ForPlatform(s settings.Settings, systemDark bool, prefs ui.Preferences, goo
 		// The frame's lit face is the reference's fixed token, capped at the
 		// frame's own alpha (see the `sheenTop` note above); the stop does not
 		// grade it.
-		SheenTop:          sheenTop,
-		SheenBottom:       sheenBottom,
-		SheenTopActive:    sheenTopActive,
-		SheenBottomActive: sheenBottomActive,
-		ShadowAmbient:     p.shadowAmbient,
-		ShadowContact:     p.shadowContact,
-		EdgeHighlight:     p.edgeHighlight,
-		EdgeShadow:        p.edgeShadow,
-		EdgeHighlightX:    p.edgeHighlightX,
-		AccentEdge:        p.accentEdge,
-		AccentEdgeStrong:  p.accentEdgeStrong,
-		AccentHalo:        p.accentHalo,
-		AccentTintQuiet:   p.accentTintQuiet,
-		Hairline:          hairline,
-		TextStrong:        textStrong,
-		TextSecondary:     textSecondary,
-		TextTertiary:      textTertiary,
+		SheenTop:            sheenTop,
+		SheenBottom:         sheenBottom,
+		SheenTopActive:      sheenTopActive,
+		SheenBottomActive:   sheenBottomActive,
+		ShadowAmbient:       p.shadowAmbient,
+		ShadowContact:       p.shadowContact,
+		EdgeHighlight:       p.edgeHighlight,
+		EdgeHighlightActive: p.edgeHighlightActive,
+		EdgeShadow:          p.edgeShadow,
+		EdgeHighlightX:      p.edgeHighlightX,
+		AccentEdge:          p.accentEdge,
+		AccentEdgeStrong:    p.accentEdgeStrong,
+		AccentHalo:          p.accentHalo,
+		AccentTintQuiet:     p.accentTintQuiet,
+		Hairline:            hairline,
+		TextStrong:          textStrong,
+		TextSecondary:       textSecondary,
+		TextTertiary:        textTertiary,
 		// The warm plane is a fixed per-appearance token in base.css — unlike
 		// the frame's tint it does not follow the transparency slider.
 		IconSurface:      p.iconSurface,
@@ -574,16 +592,19 @@ func paletteFor(appearance Appearance) palette {
 			// (`:908-909` light, `:630-631` dark): the lit face the card wears
 			// while it has the keyboard (`.collapsed-card:focus-within`,
 			// `main:src/styles/launcher.css:136-144`).
-			sheenTopActive:    ui.RGBA(255, 255, 255, 0.78),
-			sheenBottomActive: ui.RGBA(255, 255, 255, 0.28),
-			shadowAmbient:     ui.RGBA(0, 0, 0, 0.18),
-			shadowContact:     ui.RGBA(0, 0, 0, 0.12),
-			edgeHighlight:     ui.RGBA(255, 255, 255, 0.92),
-			edgeShadow:        ui.RGBA(0, 0, 0, 0.07),
-			edgeHighlightX:    ui.RGBA(255, 255, 255, 0.6),
-			accentEdge:        ui.RGBA(6, 74, 166, 0.36),
-			accentEdgeStrong:  ui.RGBA(6, 74, 166, 0.68),
-			accentHalo:        ui.RGBA(6, 74, 166, 0.24),
+			sheenTopActive:      ui.RGBA(255, 255, 255, 0.78),
+			sheenBottomActive:   ui.RGBA(255, 255, 255, 0.28),
+			shadowAmbient:       ui.RGBA(0, 0, 0, 0.18),
+			shadowContact:       ui.RGBA(0, 0, 0, 0.12),
+			edgeHighlight:       ui.RGBA(255, 255, 255, 0.92),
+			edgeHighlightActive: ui.RGBA(255, 255, 255, 0.96),
+			edgeShadow:          ui.RGBA(0, 0, 0, 0.07),
+			edgeHighlightX:      ui.RGBA(255, 255, 255, 0.6),
+			accentEdge:          ui.RGBA(6, 74, 166, 0.36),
+			accentEdgeStrong:    ui.RGBA(6, 74, 166, 0.68),
+			accentHalo:          ui.RGBA(6, 74, 166, 0.24),
+			// `--accent-glow` (`base.css:955`): the light card's focus ring.
+			accentGlow: ui.RGBA(6, 74, 166, 0.2),
 			// The launcher selection's own rung: the light appearance steps the
 			// tint down (base.css `--accent-tint-quiet: rgba(6, 74, 166, 0.065)`)
 			// because the dark appearance's 0.085 reads heavier over white.
@@ -633,11 +654,17 @@ func paletteFor(appearance Appearance) palette {
 		shadowAmbient:     ui.RGBA(0, 0, 0, 0.3),
 		shadowContact:     ui.RGBA(0, 0, 0, 0.2),
 		edgeHighlight:     ui.RGBA(255, 255, 255, 0.15),
-		edgeShadow:        ui.RGBA(0, 0, 0, 0.28),
-		edgeHighlightX:    ui.RGBA(255, 255, 255, 0.04),
-		accentEdge:        ui.RGBA(143, 183, 255, 0.3),
-		accentEdgeStrong:  ui.RGBA(143, 183, 255, 0.72),
-		accentHalo:        ui.RGBA(143, 183, 255, 0.18),
+		// The focused step (`base.css:633`): the rim nudged brighter while the
+		// card holds the keyboard, the same edge the stroke's active rung is.
+		edgeHighlightActive: ui.RGBA(255, 255, 255, 0.18),
+		edgeShadow:          ui.RGBA(0, 0, 0, 0.28),
+		edgeHighlightX:      ui.RGBA(255, 255, 255, 0.04),
+		accentEdge:          ui.RGBA(143, 183, 255, 0.3),
+		accentEdgeStrong:    ui.RGBA(143, 183, 255, 0.72),
+		accentHalo:          ui.RGBA(143, 183, 255, 0.18),
+		// `--accent-glow` (`base.css:687`): the same ring, quieter in the dark
+		// appearance because it traces a whole panel rather than a dot.
+		accentGlow: ui.RGBA(143, 183, 255, 0.08),
 		// The launcher selection's own rung (base.css `--accent-tint-quiet:
 		// rgba(143, 183, 255, 0.085)`).
 		accentTintQuiet: ui.RGBA(143, 183, 255, 0.085),
@@ -692,9 +719,11 @@ type palette struct {
 	sheenTopActive, sheenBottomActive                                       ui.Color
 	shadowAmbient, shadowContact                                            ui.Color
 	edgeHighlight, edgeShadow, edgeHighlightX                               ui.Color
+	edgeHighlightActive                                                     ui.Color
 	accentEdge                                                              ui.Color
 	accentEdgeStrong                                                        ui.Color
 	accentHalo                                                              ui.Color
+	accentGlow                                                              ui.Color
 	accentTintQuiet                                                         ui.Color
 	iconSurface, iconSurfaceHover                                           ui.Color
 	systemIconText                                                          ui.Color
