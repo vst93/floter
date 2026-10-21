@@ -18,6 +18,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 )
 
 // MonoFontCandidates are the faces the picker offers when they are installed,
@@ -93,18 +94,104 @@ var fontExtensions = map[string]bool{
 	".dfont": true, ".pfb": true, ".pcf.gz": true, ".pcf": true,
 }
 
-// detectedFonts is the memoised answer, and the once that fills it.
+// The font probe is the app's fourth "memo + background pass + ask for a
+// frame" (see apps/icons.go, launcher/thumb.go, shell/detectedtools.go): the
+// walk is disk IO over whole font directories, and it used to run on the
+// drawing thread.
+//
+// Two things were wrong with the old `sync.Once`:
+//
+//   - **It blocked a frame.** `FontFamilyOptions` is asked while the settings
+//     page's Terminal card and the terminal's appearance drawer are *built*,
+//     i.e. once per painted frame. `detectMonospaceFonts` measures ~504µs on
+//     this machine (`BenchmarkFontWalk`) — thirty milliseconds a second of pure
+//     directory walking while either surface is up, and several times that on a
+//     cold page cache, a network home directory, or the Windows and macOS
+//     source sets this Linux box does not have. That is the shape of
+//     「很多界面经常卡死」 the rest of this campaign closed one call site at a
+//     time; this was the last one left on a per-frame path.
+//   - **It could never see a new font.** A `sync.Once` is for life, so a face
+//     installed after the first frame stayed missing from the picker until the
+//     app restarted — the 「磁盘上有、UI 上没有」 family this repo has recorded
+//     against four dead terminal knobs, here in the one control whose whole job
+//     is to list what the machine has.
+//
+// The replacement is one clock and one goroutine: a frame reads the memo and
+// nothing else; a cold or stale memo starts a single background pass that
+// answers with what it has (the shipped fallback list on the very first frame,
+// which is what a machine with none of the candidates shows anyway); the pass
+// lands off-thread and asks for one frame.
+
+// fontWalkTTL is how long a font answer stands. Detection is a directory walk,
+// not a file watch, so a face installed while the app is running is picked up
+// the next time anything asks after the TTL — two minutes is short enough that
+// "I just installed JetBrains Mono" is answered by the next visit to the
+// picker, and long enough that a page left open walks twice a minute at worst.
+const fontWalkTTL = 2 * time.Minute
+
+// fontWalk is the process's one font answer, and the pass filling it (there is
+// one terminal UI per process, exactly as there is one inventory).
+var fontWalk struct {
+	mu       sync.Mutex
+	names    []string
+	computed time.Time
+	pending  bool
+}
+
+// fontWalkInvalidate is asked for a frame when a background pass lands, so a
+// picker that is up redraws with the detected faces instead of waiting for the
+// user's next keystroke. The shell wires it to its window (see New).
 var (
-	fontsOnce   sync.Once
-	fontsCached []string
+	fontWalkInvalidateMu sync.Mutex
+	fontWalkInvalidate   func()
 )
 
+// SetFontWalkInvalidate installs the callback that asks for a frame when a
+// background font pass lands.
+func SetFontWalkInvalidate(fn func()) {
+	fontWalkInvalidateMu.Lock()
+	fontWalkInvalidate = fn
+	fontWalkInvalidateMu.Unlock()
+}
+
 // DetectMonospaceFonts reports which of the candidates the machine has, by
-// name. It returns nil when the font directories cannot be read, and the
-// caller then falls back to the shipped list.
+// name, and starts the walk when the answer is cold or stale. It returns nil
+// when nothing has been detected yet and nothing was cached — the caller falls
+// back to the shipped list — and it never touches the disk on the calling
+// thread.
 func DetectMonospaceFonts() []string {
-	fontsOnce.Do(func() { fontsCached = detectMonospaceFonts() })
-	return fontsCached
+	fontWalk.mu.Lock()
+	names, computed, pending := fontWalk.names, fontWalk.computed, fontWalk.pending
+	stale := computed.IsZero() || time.Since(computed) > fontWalkTTL
+	start := stale && !pending
+	if start {
+		fontWalk.pending = true
+	}
+	fontWalk.mu.Unlock()
+	if start {
+		go runFontWalk()
+	}
+	return names
+}
+
+// runFontWalk is the one background pass: it walks, records the answer and asks
+// for a frame. A failed walk records an empty (not nil) answer with a fresh
+// timestamp, so a machine whose font directories cannot be read does not retry
+// the walk on every frame.
+func runFontWalk() {
+	names := detectMonospaceFonts()
+	if names == nil {
+		names = []string{}
+	}
+	fontWalk.mu.Lock()
+	fontWalk.names, fontWalk.computed, fontWalk.pending = names, time.Now(), false
+	fontWalk.mu.Unlock()
+	fontWalkInvalidateMu.Lock()
+	invalidate := fontWalkInvalidate
+	fontWalkInvalidateMu.Unlock()
+	if invalidate != nil {
+		invalidate()
+	}
 }
 
 // detectMonospaceFonts walks the platform's font directories once.

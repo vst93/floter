@@ -1285,6 +1285,16 @@ func (a *App) Start() {
 			a.Win.Invalidate()
 		}
 	})
+	// The font picker's list is a walk of the platform's font directories, and
+	// the settings card and the appearance drawer ask for it while they are
+	// *built* (once a frame). It is the same shape as the three above — a memo on
+	// the drawing thread, the walk on a goroutine — so the frame it finishes is
+	// asked for here too.
+	terminalui.SetFontWalkInvalidate(func() {
+		if a.Win != nil {
+			a.Win.Invalidate()
+		}
+	})
 	a.Win.OnClosed(func() {
 		if runtime.GOOS != "darwin" {
 			a.quit()
