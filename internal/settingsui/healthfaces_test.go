@@ -239,13 +239,17 @@ func TestTheApprovedPermissionsAreTheReferencePills(t *testing.T) {
 			t.Errorf("[%s enforced] the permission has no pill plane: it is still a bare label", appearance)
 		}
 		// The two tiers are told apart by hue, not by a grey level: the
-		// enforced pill carries the accent's wash, so its blue clears its red
+		// enforced pill carries the accent's wash, so its red clears its blue
 		// by a margin no rounding makes, while the declared pill stays the
 		// neutral control plane (its three channels within a few levels of one
 		// another). A revert to the bare raised-quiet pane fails this — at the
 		// ladder's alphas a neutral lift and a neutral control plane are the
 		// same face, three levels apart, which is what the tiers used to be.
-		if d := int(enforcedPlane.B) - int(enforcedPlane.R); d < 8 {
+		//
+		// P8-a 重定基线：旧 base.css 的 accent 是蓝 `#8fb7ff`/`#064aa6`，读的是
+		// `B - R`；Raycast 合约 §1 的 accent 是红 `#F5544E`/`#E5484D`，同一条
+		// 「贴 accent 的面必须偏色」的断言改读 `R - B`（红蓝差 166 / 141）。
+		if d := int(enforcedPlane.R) - int(enforcedPlane.B); d < 8 {
 			t.Errorf("[%s enforced] the pill's face is not the accent's: %v is %d levels from grey",
 				appearance, enforcedPlane, d)
 		}

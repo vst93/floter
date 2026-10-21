@@ -48,13 +48,29 @@ func Resolve(theme string, systemDark bool) Appearance {
 	}
 }
 
-// The radius scale from base.css, at scale 1: an inner chip, a control on a
-// surface, a card holding controls, and the window or a full panel.
+// The radius scale, at scale 1, in Raycast's own steps (`docs/raycast-design.md`
+// §2): an icon plate, a row or a button, a block inside a panel, and the window
+// or a card.
+//
+//	radius  6  icon plate (XS)
+//	radius  8  row, button (SM)
+//	radius 10  block inside a panel (MD)
+//	radius 12  window, card (LG)
+//	radius  5  keycap (KeycapRadius)
+//
+// The ladder is literal px (as base.css wrote it): a corner does not follow
+// `--ui-scale` the way a font or a `--u` metric does.
 const (
 	RadiusXS = 6
-	RadiusSM = 9
-	RadiusMD = 12
-	RadiusLG = 14
+	RadiusSM = 8
+	RadiusMD = 10
+	RadiusLG = 12
+
+	// KeycapRadius is the corner a keycap draws: Raycast's 20x20 pressable
+	// legend, one step under the icon plate's. It has no rung of its own in the
+	// four-step ladder above — a keycap is smaller than any surface the ladder
+	// names — so it is its own number rather than an alias.
+	KeycapRadius = 5
 
 	// BodyUnits is the body text size in this codebase's own unit, `--text-body`
 	// one rung up: 12px at scale 1. Every size in this file's unit (a
@@ -71,7 +87,7 @@ const (
 )
 
 // windowRadiusFor is the corner a surface that *is* the window draws: the
-// design's 14px on all three platforms (`base.css:66`).
+// design's 12px on all three platforms (`docs/raycast-design.md` §2).
 //
 // Windows used to be the exception — base.css pins `--window-radius` to 8px
 // inside `.platform-windows` (`:1492`) because DWM rounds every top-level window
@@ -80,7 +96,7 @@ const (
 // longer lets DWM round the window: `shell.dressWindowsFrame` asks for
 // `DWMWCP_DONOTROUND` and takes the system border off as well, so the window's
 // rectangle is square and the card's corner is the only corner on screen. That
-// corner is the design's own 14px, the same figure macOS and Linux draw — which
+// corner is the design's own 12px, the same figure macOS and Linux draw — which
 // is the point: the three platforms are meant to look like one app.
 //
 // The platform stays a parameter so the table is readable on any host.
@@ -102,14 +118,16 @@ type Tokens struct {
 	RadiusXS float32
 	RadiusSM float32
 	RadiusMD float32
-	// RadiusLG is the window or a full panel's corner: 14px.
+	// RadiusLG is the window or a full panel's corner: 12px.
 	RadiusLG float32
 	// WindowRadius is the corner a surface that *is* the window draws: the
-	// launcher card, the settings card and the terminal panel. It is RadiusLG on
-	// every platform — the window's own rectangle is square everywhere this
-	// build runs, because DWM's rounding is switched off (see
+	// launcher card, the settings card and the terminal panel. It is RadiusLG
+	// (12) on every platform — the window's own rectangle is square everywhere
+	// this build runs, because DWM's rounding is switched off (see
 	// windowRadiusFor).
 	WindowRadius float32
+	// KeycapRadius is a keycap's corner: 5, the step under the icon plate's 6.
+	KeycapRadius float32
 
 	// InputStroke is the one edge a card or a control draws (base.css's
 	// `--input-stroke`), and InputStrokeActive its focused step — the lit
@@ -124,6 +142,29 @@ type Tokens struct {
 	Control     ui.Color
 	ControlEdge ui.Color
 	Hairline    ui.Color
+	// HairlineSoft is the weaker of the design's two hairlines
+	// (`docs/raycast-design.md` §1): the rule between rows and inside a block,
+	// one step under the card's own edge. Hairline is the stronger rung, and it
+	// is the card's 1px border; this one is what the field row draws against
+	// the list and what the footer draws against the list above it.
+	HairlineSoft ui.Color
+	// RowHover, RowSelected and RowPressed are the launcher row's own three
+	// fills: Raycast's list is *neutral*, not accent-tinted — a hovered row is
+	// 0.045 of white over the near-black card, the chosen row 0.085, and a
+	// pressed row 0.11, with no border and no glow at any rung. They are their
+	// own tokens rather than the framework's `SurfaceHover`/`Selection` because
+	// the list's ladder has to be paintable on the card's glass at these exact
+	// alphas (see `Tokens.AccentTintQuiet` for the language this replaces: the
+	// chosen row used to be the accent's quiet tint).
+	RowHover    ui.Color
+	RowSelected ui.Color
+	RowPressed  ui.Color
+	// KeycapFace and KeycapEdge are the pressable legend's plate: the fill and
+	// its hairline (Raycast's 20x20 keycap, `docs/raycast-design.md` §4.5).
+	// They are not the `KeycapHighlight`/`KeycapShadow` pair — those are the
+	// Windows terminal panel's own rim, a different token for a different job.
+	KeycapFace ui.Color
+	KeycapEdge ui.Color
 	// ControlHover and ControlPress are the control ladder's two other
 	// rungs (base.css's `--glass-control-hover` / `--glass-control-press`):
 	// a pointer over a pane lifts it, a pointer down sinks it *below* the
@@ -504,12 +545,19 @@ func ForPlatform(s settings.Settings, systemDark bool, prefs ui.Preferences, goo
 		RadiusMD:          RadiusMD,
 		RadiusLG:          RadiusLG,
 		WindowRadius:      windowRadiusFor(goos),
+		KeycapRadius:      KeycapRadius,
 		InputStroke:       stroke,
 		InputStrokeActive: strokeActive,
 		Control:           control,
 		ControlHover:      controlHover,
 		ControlPress:      controlPress,
 		ControlEdge:       controlEdge,
+		HairlineSoft:      p.hairlineSoft,
+		RowHover:          p.rowHover,
+		RowSelected:       p.rowSelected,
+		RowPressed:        p.rowPressed,
+		KeycapFace:        p.keycapFace,
+		KeycapEdge:        p.keycapEdge,
 		Track:             track,
 		TrackEdge:         p.trackEdge,
 		Field:             field,
@@ -572,51 +620,66 @@ func ForPlatform(s settings.Settings, systemDark bool, prefs ui.Preferences, goo
 func paletteFor(appearance Appearance) palette {
 	if appearance == Light {
 		return palette{
-			background:    ui.Hex("#fafafc"),
-			text:          ui.Hex("#1d1d1f"),
-			textStrong:    ui.RGBA(23, 23, 26, 0.96),
-			textMuted:     ui.RGBA(60, 60, 67, 0.78),
-			textSecondary: ui.RGBA(60, 60, 67, 0.86),
-			textTertiary:  ui.RGBA(60, 60, 67, 0.72),
-			accent:        ui.Hex("#064aa6"),
-			accentHover:   ui.Hex("#0a5ecb"),
-			accentPressed: ui.Hex("#05408f"),
-			accentText:    ui.Hex("#f7f9ff"),
-			stroke:        ui.RGBA(0, 0, 0, 0.12),
-			strokeActive:  ui.RGBA(10, 108, 255, 0.28),
+			background:    ui.Hex("#F7F7F8"),
+			text:          ui.Hex("#1B1B1D"),
+			textStrong:    ui.Hex("#1B1B1D"),
+			textSecondary: ui.Hex("#6B6B70"),
+			textTertiary:  ui.Hex("#8E8E94"),
+			// The soft rung between the two: base.css's `--text-muted` sat
+			// between `--text-secondary` and `--text-tertiary` too, and the
+			// framework has a fourth slot for it (`ui.Theme.TextMuted`, the
+			// muted label and the field placeholder). Raycast names three inks,
+			// so this one is derived rather than quoted: it is the midpoint of
+			// the contract's secondary `#6B6B70` and tertiary `#8E8E94`, a step a
+			// 1x display resolves away from both (`docs/raycast-design.md` §1).
+			// It must not collapse onto either: three of this table's own tests
+			// read `--text-tertiary` and *not* `--text-muted`, and a duplicate
+			// would make that an unanswerable question.
+			textMuted:     ui.Hex("#808087"),
+			accent:        ui.Hex("#E5484D"),
+			accentHover:   ui.Hex("#F0555A"),
+			accentPressed: ui.Hex("#CC3B40"),
+			accentText:    ui.Hex("#FFFFFF"),
+			stroke:        ui.RGBA(0, 0, 0, 0.09),
+			strokeActive:  ui.RGBA(229, 72, 77, 0.55),
 			control:       ui.RGBA(0, 0, 0, 0.05),
 			controlHover:  ui.RGBA(0, 0, 0, 0.075),
 			controlPress:  ui.RGBA(0, 0, 0, 0.032),
-			controlEdge:   ui.RGBA(0, 0, 0, 0.1),
-			track:         ui.RGBA(0, 0, 0, 0.06),
-			trackEdge:     ui.RGBA(0, 0, 0, 0.08),
-			field:         ui.RGBA(255, 255, 255, 0.5),
-			// One step under the control edge, as the dark palette's is: the
-			// ladder says a row's hairline is *quieter* than a control's edge
-			// (`stroke > controlEdge > hairline > control`), and the light
-			// palette had the two at the same 0.1, so a row rule and a control
-			// edge drew the same line — the last rung of the ladder with no
-			// step in it.
+			// A control's own edge is the keycap pair's hairline (§1: 0.06 light),
+			// one step under the card's strong 0.09.
+			controlEdge: ui.RGBA(0, 0, 0, 0.06),
+			track:       ui.RGBA(0, 0, 0, 0.06),
+			trackEdge:   ui.RGBA(0, 0, 0, 0.08),
+			field:       ui.RGBA(255, 255, 255, 0.5),
 			hairline:    ui.RGBA(0, 0, 0, 0.09),
-			selection:   ui.RGBA(6, 74, 166, 0.1),
-			focus:       ui.RGBA(6, 74, 166, 0.82),
-			warning:     ui.Hex("#9c1f18"),
+			// Raycast's weaker hairline (`docs/raycast-design.md` §1).
+			hairlineSoft: ui.RGBA(0, 0, 0, 0.055),
+			// The row's neutral ladder: hover 0.04, chosen 0.06, pressed 0.08.
+			rowHover:    ui.RGBA(0, 0, 0, 0.04),
+			rowSelected: ui.RGBA(0, 0, 0, 0.06),
+			rowPressed:  ui.RGBA(0, 0, 0, 0.08),
+			keycapFace:  ui.RGBA(0, 0, 0, 0.05),
+			keycapEdge:  ui.RGBA(0, 0, 0, 0.06),
+			selection:   ui.RGBA(229, 72, 77, 0.16),
+			focus:       ui.RGBA(229, 72, 77, 0.82),
+			warning:     ui.Hex("#9C1F18"),
 			scrollbar:   ui.RGBA(60, 60, 67, 0.24),
-			opaque:      ui.RGBA(250, 250, 252, 0.995),
-			fieldFill:   ui.RGBA(252, 252, 254, 0.997),
-			lensRim:     ui.RGBA(255, 255, 255, 0.9),
-			lensSheen:   ui.RGBA(255, 255, 255, 0.5),
-			lensEdge:    ui.RGBA(0, 0, 0, 0.08),
-			sheenTop:    ui.RGBA(255, 255, 255, 0.66),
-			sheenBottom: ui.RGBA(255, 255, 255, 0.22),
-			// base.css's `--sheen-top-active` / `--sheen-bottom-active`
-			// (`:908-909` light, `:630-631` dark): the lit face the card wears
-			// while it has the keyboard (`.collapsed-card:focus-within`,
-			// `main:src/styles/launcher.css:136-144`).
-			sheenTopActive:      ui.RGBA(255, 255, 255, 0.78),
-			sheenBottomActive:   ui.RGBA(255, 255, 255, 0.28),
+			opaque:      ui.RGBA(247, 247, 248, 0.995),
+			fieldFill:   ui.RGBA(250, 250, 251, 0.997),
+			// The lens family, capped at 0.04: Raycast is a low-gloss design, so
+			// the control's own rim, sheen and shade are a whisper rather than the
+			// lens the old sheet drew (`docs/raycast-design.md` §4.1). The
+			// `[data-glass]` stop still grades them through `--glass-lens-scale`.
+			lensRim:     ui.RGBA(255, 255, 255, 0.04),
+			lensSheen:   ui.RGBA(255, 255, 255, 0.04),
+			lensEdge:    ui.RGBA(0, 0, 0, 0.04),
+			sheenTop:    ui.RGBA(255, 255, 255, 0.04),
+			sheenBottom: ui.RGBA(255, 255, 255, 0.01),
+			// The focus step of the same pair: a lit face, still inside the cap.
+			sheenTopActive:      ui.RGBA(255, 255, 255, 0.05),
+			sheenBottomActive:   ui.RGBA(255, 255, 255, 0.012),
 			shadowAmbient:       ui.RGBA(0, 0, 0, 0.18),
-			shadowContact:       ui.RGBA(0, 0, 0, 0.12),
+			shadowContact:       ui.RGBA(0, 0, 0, 0.1),
 			edgeHighlight:       ui.RGBA(255, 255, 255, 0.92),
 			edgeHighlightActive: ui.RGBA(255, 255, 255, 0.96),
 			edgeShadow:          ui.RGBA(0, 0, 0, 0.07),
@@ -625,15 +688,13 @@ func paletteFor(appearance Appearance) palette {
 			// the terminal panel's own rim on Windows.
 			keycapHighlight:  ui.RGBA(255, 255, 255, 0.9),
 			keycapShadow:     ui.RGBA(0, 0, 0, 0.09),
-			accentEdge:       ui.RGBA(6, 74, 166, 0.36),
-			accentEdgeStrong: ui.RGBA(6, 74, 166, 0.68),
-			accentHalo:       ui.RGBA(6, 74, 166, 0.24),
-			// `--accent-glow` (`base.css:955`): the light card's focus ring.
-			accentGlow: ui.RGBA(6, 74, 166, 0.2),
-			// The launcher selection's own rung: the light appearance steps the
-			// tint down (base.css `--accent-tint-quiet: rgba(6, 74, 166, 0.065)`)
-			// because the dark appearance's 0.085 reads heavier over white.
-			accentTintQuiet: ui.RGBA(6, 74, 166, 0.065),
+			accentEdge:       ui.RGBA(229, 72, 77, 0.55),
+			accentEdgeStrong: ui.RGBA(229, 72, 77, 0.85),
+			accentHalo:       ui.RGBA(229, 72, 77, 0.2),
+			// `--accent-glow`: the light card's focus ring.
+			accentGlow: ui.RGBA(229, 72, 77, 0.12),
+			// The accent as a quiet fill (`rgba(229, 72, 77, 0.10)`).
+			accentTintQuiet: ui.RGBA(229, 72, 77, 0.1),
 			// The warm system-icon plane, the light appearance's amber (base.css
 			// `--system-icon-surface` / `--system-icon-surface-hover`).
 			iconSurface:      ui.RGBA(214, 118, 44, 0.13),
@@ -642,43 +703,69 @@ func paletteFor(appearance Appearance) palette {
 		}
 	}
 	return palette{
-		background:    ui.Hex("#121316"),
-		text:          ui.Hex("#f2f3f5"),
-		textStrong:    ui.RGBA(244, 245, 247, 0.96),
-		textMuted:     ui.RGBA(238, 239, 242, 0.55),
-		textSecondary: ui.RGBA(238, 239, 242, 0.74),
-		textTertiary:  ui.RGBA(238, 239, 242, 0.48),
-		accent:        ui.Hex("#8fb7ff"),
-		accentHover:   ui.Hex("#a9c8ff"),
-		accentPressed: ui.Hex("#7aa7ff"),
-		accentText:    ui.Hex("#15171b"),
-		stroke:        ui.RGBA(255, 255, 255, 0.11),
-		strokeActive:  ui.RGBA(143, 183, 255, 0.24),
-		control:       ui.RGBA(255, 255, 255, 0.075),
-		controlHover:  ui.RGBA(255, 255, 255, 0.105),
-		controlPress:  ui.RGBA(255, 255, 255, 0.05),
-		controlEdge:   ui.RGBA(255, 255, 255, 0.1),
-		track:         ui.RGBA(255, 255, 255, 0.09),
-		trackEdge:     ui.RGBA(255, 255, 255, 0.075),
-		field:         ui.RGBA(255, 255, 255, 0.03),
-		hairline:      ui.RGBA(255, 255, 255, 0.09),
-		selection:     ui.RGBA(143, 183, 255, 0.13),
-		focus:         ui.RGBA(122, 167, 255, 0.78),
-		warning:       ui.RGBA(255, 178, 164, 0.82),
-		scrollbar:     ui.RGBA(238, 239, 242, 0.15),
-		opaque:        ui.RGBA(26, 27, 30, 0.99),
-		fieldFill:     ui.RGBA(33, 34, 37, 0.99),
-		lensRim:       ui.RGBA(255, 255, 255, 0.15),
-		lensSheen:     ui.RGBA(255, 255, 255, 0.06),
-		lensEdge:      ui.RGBA(0, 0, 0, 0.15),
-		sheenTop:      ui.RGBA(255, 255, 255, 0.046),
-		sheenBottom:   ui.RGBA(255, 255, 255, 0.01),
-		// The focus step of the same pair (`base.css:630-631`).
-		sheenTopActive:    ui.RGBA(255, 255, 255, 0.056),
+		background:    ui.Hex("#0E0E10"),
+		text:          ui.Hex("#EDEDEF"),
+		textStrong:    ui.Hex("#EDEDEF"),
+		textSecondary: ui.Hex("#9A9AA0"),
+		textTertiary:  ui.Hex("#6E6E76"),
+		// The soft rung between them (see the light palette's note): the
+		// midpoint of the contract's `#9A9AA0` and `#6E6E76`.
+		textMuted:     ui.Hex("#85858D"),
+		accent:        ui.Hex("#F5544E"),
+		accentHover:   ui.Hex("#FF6B62"),
+		accentPressed: ui.Hex("#DC4640"),
+		accentText:    ui.Hex("#1B1B1D"),
+		// The card's 1px edge is Raycast's *strong* hairline (`#FFFFFF` at
+		// 0.09, `docs/raycast-design.md` §1); the hairline rung below is the
+		// same number, because in Raycast's language a card's border and a
+		// section's rule are one hairline seen at two widths, not two colours.
+		stroke:       ui.RGBA(255, 255, 255, 0.09),
+		strokeActive: ui.RGBA(245, 84, 78, 0.55),
+		control:      ui.RGBA(255, 255, 255, 0.075),
+		controlHover: ui.RGBA(255, 255, 255, 0.105),
+		controlPress: ui.RGBA(255, 255, 255, 0.05),
+		// A control's own edge is the keycap pair's hairline (§1: 0.07 dark),
+		// one step under the card's strong 0.09.
+		controlEdge: ui.RGBA(255, 255, 255, 0.07),
+		track:       ui.RGBA(255, 255, 255, 0.09),
+		trackEdge:   ui.RGBA(255, 255, 255, 0.075),
+		field:       ui.RGBA(255, 255, 255, 0.03),
+		hairline:    ui.RGBA(255, 255, 255, 0.09),
+		// Raycast's weaker hairline: the rule between rows and inside a block
+		// (0.055, `docs/raycast-design.md` §1).
+		hairlineSoft: ui.RGBA(255, 255, 255, 0.055),
+		// The row's own neutral ladder, in Raycast's numbers: hover 0.045, the
+		// chosen row 0.085, a pressed row 0.11. None of them is the accent —
+		// the list's selection is a neutral fill.
+		rowHover:    ui.RGBA(255, 255, 255, 0.045),
+		rowSelected: ui.RGBA(255, 255, 255, 0.085),
+		rowPressed:  ui.RGBA(255, 255, 255, 0.11),
+		// The keycap's plate: the fill and its hairline.
+		keycapFace: ui.RGBA(255, 255, 255, 0.075),
+		keycapEdge: ui.RGBA(255, 255, 255, 0.07),
+		selection:  ui.RGBA(245, 84, 78, 0.16),
+		focus:      ui.RGBA(245, 84, 78, 0.82),
+		warning:    ui.RGBA(255, 178, 164, 0.82),
+		scrollbar:  ui.RGBA(238, 239, 242, 0.15),
+		opaque:     ui.RGBA(20, 20, 22, 0.99),
+		fieldFill:  ui.RGBA(28, 28, 31, 0.99),
+		// The lens family, capped at 0.04: Raycast is a low-gloss design, so
+		// the control's own rim, sheen and shade are a whisper rather than the
+		// lens the old sheet drew (`docs/raycast-design.md` §4.1). The
+		// `[data-glass]` stop still grades them through `--glass-lens-scale`.
+		lensRim:     ui.RGBA(255, 255, 255, 0.04),
+		lensSheen:   ui.RGBA(255, 255, 255, 0.04),
+		lensEdge:    ui.RGBA(0, 0, 0, 0.04),
+		sheenTop:    ui.RGBA(255, 255, 255, 0.04),
+		sheenBottom: ui.RGBA(255, 255, 255, 0.01),
+		// The focus step of the same pair: a lit face, still inside the cap.
+		sheenTopActive:    ui.RGBA(255, 255, 255, 0.05),
 		sheenBottomActive: ui.RGBA(255, 255, 255, 0.012),
-		shadowAmbient:     ui.RGBA(0, 0, 0, 0.3),
-		shadowContact:     ui.RGBA(0, 0, 0, 0.2),
-		edgeHighlight:     ui.RGBA(255, 255, 255, 0.15),
+		// Raycast's card cast: `0 18px 48px rgba(0,0,0,.55)` and
+		// `0 1px 2px rgba(0,0,0,.40)` (`docs/raycast-design.md` §4.1).
+		shadowAmbient: ui.RGBA(0, 0, 0, 0.55),
+		shadowContact: ui.RGBA(0, 0, 0, 0.4),
+		edgeHighlight: ui.RGBA(255, 255, 255, 0.15),
 		// The focused step (`base.css:633`): the rim nudged brighter while the
 		// card holds the keyboard, the same edge the stroke's active rung is.
 		edgeHighlightActive: ui.RGBA(255, 255, 255, 0.18),
@@ -688,15 +775,16 @@ func paletteFor(appearance Appearance) palette {
 		// terminal panel's own rim on Windows, a step quieter than the edge.
 		keycapHighlight:  ui.RGBA(255, 255, 255, 0.07),
 		keycapShadow:     ui.RGBA(0, 0, 0, 0.28),
-		accentEdge:       ui.RGBA(143, 183, 255, 0.3),
-		accentEdgeStrong: ui.RGBA(143, 183, 255, 0.72),
-		accentHalo:       ui.RGBA(143, 183, 255, 0.18),
-		// `--accent-glow` (`base.css:687`): the same ring, quieter in the dark
-		// appearance because it traces a whole panel rather than a dot.
-		accentGlow: ui.RGBA(143, 183, 255, 0.08),
-		// The launcher selection's own rung (base.css `--accent-tint-quiet:
-		// rgba(143, 183, 255, 0.085)`).
-		accentTintQuiet: ui.RGBA(143, 183, 255, 0.085),
+		accentEdge:       ui.RGBA(245, 84, 78, 0.55),
+		accentEdgeStrong: ui.RGBA(245, 84, 78, 0.85),
+		accentHalo:       ui.RGBA(245, 84, 78, 0.2),
+		// `--accent-glow`: the same ring, quieter. It is not drawn on the
+		// launcher card (`docs/raycast-design.md` §1): the launcher's selected
+		// row is neutral and the card carries no accent glow.
+		accentGlow: ui.RGBA(245, 84, 78, 0.1),
+		// The accent as a fill, at the quietest rung: Raycast's `rgba(245, 84,
+		// 78, 0.14)`, used by the three places §1 allows the accent a face.
+		accentTintQuiet: ui.RGBA(245, 84, 78, 0.14),
 		// The warm system-icon plane, the dark appearance's amber (base.css
 		// `--system-icon-surface` / `--system-icon-surface-hover`), and its
 		// own ink (`--system-icon-text`): a pale warm peach, not the warning
@@ -757,6 +845,14 @@ type palette struct {
 	accentTintQuiet                                                         ui.Color
 	iconSurface, iconSurfaceHover                                           ui.Color
 	systemIconText                                                          ui.Color
+	// The Raycast surface set (`docs/raycast-design.md` §1/§4): the weak
+	// hairline and the launcher row's neutral three-rung state ladder, plus
+	// the pressable keycap's plate.
+	hairlineSoft           ui.Color
+	rowHover               ui.Color
+	rowSelected            ui.Color
+	rowPressed             ui.Color
+	keycapFace, keycapEdge ui.Color
 }
 
 // round1 rounds to one decimal, so a scaled metric stays a value a CSS

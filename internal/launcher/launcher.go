@@ -809,15 +809,13 @@ func (a *App) badge(accelerator, key string) string {
 // joined string, so asking for a badge a frame already drew allocates nothing.
 type badgeKey struct{ accelerator, key string }
 
-// rowActionText is a row's trailing key slot — the numbered badge or a
-// command row's `Tab` affordance — in the reference's own register
-// (`.launcher-result__action`): the body step at weight 620, `--text-tertiary`
-// (lifted to `--text-primary` on the selected row), with a fixed 30u minimum
-// and a right-aligned box so the badges of a column line up. The port used the
-// body-minus-one step in `--text-muted`, one register too quiet and one size
-// too small, and the slot was content-sized rather than the reference's fixed
-// 30u. The ⌘1-⌘0 family and the `Tab` hint are drawn by this one helper so
-// the two cannot drift apart.
+// rowActionText is a row's trailing *text* slot — a command row's `Tab`
+// affordance and the armed-delete note. A key is not text: it goes through
+// `rowKeycap`, which draws the chord as the keycap plates
+// (`docs/raycast-design.md` §4.5). The reference's own `.launcher-result__action`
+// register is the body step at weight 620, `--text-tertiary` (lifted to
+// `--text-primary` on the selected row), with a fixed 30u minimum and a
+// right-aligned box so the slots of a column line up.
 func (a *App) rowActionText(c *ui.Context, text string, selected bool) {
 	tokens := a.tokens(c)
 	t := c.Theme()
@@ -829,17 +827,28 @@ func (a *App) rowActionText(c *ui.Context, text string, selected bool) {
 		MinWidth(t.Space(7.5)).TextAlign(ui.End).Shrink(0)
 }
 
-// barHintText is the action bar's own `⌘↩` hint, in the reference's
-// `.launcher-action-bar__hint` register — one step quieter than a result row's
-// trailing badge: the caption size at 500, `--text-tertiary`, in the
-// terminal's monospace stack with the badge's own 2u/6u padding.
-// (`.launcher-action-bar__hint`, `launcher.css:1608-1623`.)
+// rowKeycap is a row's trailing *key* slot: the chord drawn as Raycast draws it
+// — one 20x20 keycap per key, 2u apart, no `+` between them, in the tertiary
+// ink (`docs/raycast-design.md` §4.5). `⌘1` on macOS is two plates; `Ctrl+1`
+// elsewhere is two as well, because the words the badge spells are the same two
+// keys.
+func (a *App) rowKeycap(c *ui.Context, tokens theme.Tokens, badge string) ui.Element {
+	keys := keycapLabels(badge)
+	row := ui.Row(c).Shrink(0).Gap(c.Theme().Space(keycapGapUnits)).AlignItems(ui.Center)
+	row.Children(func() {
+		for _, label := range keys {
+			keycap(c, tokens, c.Theme(), label)
+		}
+	})
+	return row
+}
+
+// barHintText is the action bar's own key hint. It is the same keycap the rows
+// draw — the bar's chord is a key, not a label — one step quieter in the
+// reference's `.launcher-action-bar__hint` register (`.launcher-action-bar__hint`,
+// `launcher.css:1608-1623`).
 func (a *App) barHintText(c *ui.Context, text string) {
-	tokens := a.tokens(c)
-	t := c.Theme()
-	ui.Text(c, text).Font(a.settings().FontFamily).FontSize(tokens.Caption).
-		FontWeight(500).TextColor(tokens.TextTertiary).
-		Padding(0, t.Space(1.5)).Shrink(0)
+	a.rowKeycap(c, a.tokens(c), text)
 }
 
 // Feedback shows a line under the list, for a caller outside the launcher
@@ -1170,8 +1179,13 @@ func (a *App) View(c *ui.Context) {
 		if a.configOpen() {
 			a.configBody(c, listEdge)
 		} else if len(results) == 0 {
+			// The empty state is Raycast's quiet page: the sentence in the
+			// primary ink at the emphasis step, centred in the band, with no
+			// plate, no accent and no mark of its own
+			// (`docs/raycast-design.md` §4.7).
 			ui.Column(c).FillWidth().Padding(t.Space(3)).Center().Children(func() {
-				ui.Text(c, a.emptyMessage(copy)).FontSize(t.FontSize).TextColor(t.TextMuted)
+				ui.Text(c, a.emptyMessage(copy)).FontSize(tk.Emphasis).
+					TextColor(tk.TextStrong).SingleLine()
 			})
 		} else {
 			// The list builds only the rows in view, so a catalog of
@@ -1199,7 +1213,14 @@ func (a *App) View(c *ui.Context) {
 			ui.List(c.Key("launcher.results"), &a.List, barStart, func(i int) {
 				a.row(c, results[i], i)
 			}).Grow(1).FillWidth().MinHeight(0).
-				Padding(listEdge, t.Space(1), t.Space(0.5), t.Space(1)).Label(copy.ResultsLabel).
+				// The list's own gutter is the row block's inset: Raycast's
+				// selected row is a rounded pill that does *not* run to the card's
+				// edge, so the block sits 8u in from it on both sides
+				// (`docs/raycast-design.md` §4.3). The gutter and the row's own
+				// padding are one sum — 8u + 8u is the 16u the row's icon column
+				// has always started on — so the column moves by nothing while the
+				// block's painted edge moves 4u in.
+				Padding(listEdge, t.Space(2), t.Space(0.5), t.Space(2)).Label(copy.ResultsLabel).
 				ScrollbarInsets(0, 4096, 0, 0)
 			a.actionBarFooter(c, results, barStart)
 		}
@@ -1213,15 +1234,15 @@ func (a *App) View(c *ui.Context) {
 		// they passed under the field, which the user read as a shadow cast
 		// by the input.
 
-		// The field block's own floor: one hairline, the reference's R31
-		// 「输入框下方阴影可以只保留 1px」. The field row is a near-solid,
-		// brighter block (`.collapsed-card__input-row`'s
-		// `--glass-field` over `--surface-opaque`); the line is what says
-		// where it ends.
-		ui.Box(c).Absolute().Top(fieldRow - 1).Left(0).Right(0).Height(1).PassThrough().
-			Background(tk.Hairline)
-
-		ui.Row(c).Absolute().Top(0).Left(0).Right(0).Height(fieldRow).
+		// The field block, keyed so its identity does not depend on its *place*
+		// among the panel's children: the framework names an element by its
+		// parent's id and its sibling index unless it is given a Key, so moving
+		// the floor rule behind this row (below) renumbered the row itself and
+		// every focus and animation state under it was rebuilt from scratch —
+		// the footer bar's own 120ms enter never started, and the selected pill
+		// stayed un-painted on the frame the shell's pins read. The key makes the
+		// row the same element before and after the rule moved.
+		ui.Row(c.Key("launcher.fieldRow")).Absolute().Top(0).Left(0).Right(0).Height(fieldRow).
 			Background(tk.FieldFill).Padding(0, t.Space(4)).
 			AlignItems(ui.Center).Children(func() {
 			// The reference's `.collapsed-card__input-row` is a plain flex row with
@@ -1242,6 +1263,14 @@ func (a *App) View(c *ui.Context) {
 			// them, and only the band's own blank area starts a drag.
 			ui.Box(c).Absolute().Top(0).Left(0).Right(0).Height(t.Space(7)).
 				DragWindow().Background(ui.Transparent)
+			// The search row draws no leading mark: Raycast's magnifier sits in
+			// its own gutter *left* of the text column, and this card's field row
+			// spends all 16u of its padding on the column itself (the query and
+			// every row title start on 16u — see
+			// TestTheFieldAndTheRowsShareTheReferenceTextColumn). A mark placed
+			// inside the row would push the whole text column 22u right, which is
+			// the one horizontal metric this slice may not move. The gap is listed
+			// in docs/raycast-design.md §4.2 as the search row's one open item.
 			// The scope mark: the mode that owns the field, at its left — the
 			// icon says a plugin owns it and the muted word says which one
 			// (`.collapsed-card__scope` / `__scope-name`). The trigger word
@@ -1377,6 +1406,24 @@ func (a *App) View(c *ui.Context) {
 				a.pinButton(c, copy)
 			}
 		})
+
+		// The field block's own floor: one *weak* hairline
+		// (`docs/raycast-design.md` §4.2). Raycast's search row is not a
+		// floating input box — it is the card's first band, and the line under
+		// it is the same rule a block draws inside itself, not the card's own
+		// 1px edge, so it takes the quieter rung.
+		//
+		// It is drawn **after** the field row, not before it: both are absolute
+		// children of the same box, so the later sibling paints over the earlier
+		// one. Built in front of the row (where it used to be), the row's own
+		// `Top(0)..Height(fieldRow)` fill — y=0..fieldRow-1 — covered this line's
+		// single row at y=fieldRow-1 outright, and the rule the contract promises
+		// simply was not in the frame (the port's R31 「输入框下方只保留 1px」
+		// never painted from the day it landed). Same position, later paint: the
+		// line is the block's last pixel, which is what 「这块的下沿」 means, and
+		// the height chain moves by nothing.
+		ui.Box(c).Absolute().Top(fieldRow - 1).Left(0).Right(0).Height(1).PassThrough().
+			Background(tk.HairlineSoft)
 	})
 
 	// Keep the chosen row in view when the keyboard moved the choice (the
@@ -1922,13 +1969,21 @@ func (a *App) row(c *ui.Context, item Item, i int) {
 	// A block's title line: the list's own label, drawn in the row's own
 	// column, never selectable and never numbered.
 	if item.heading {
-		// A block's title line: the body step at 1.4, weight 620, muted, with
-		// its own 6u/4u padding pair — `.launcher-section-title`, which the
-		// window charges as a band of its own rather than a row's floor.
+		// The group header is Raycast's: the caption step at weight 500 in the
+		// secondary ink, left-aligned with the row *text* rather than with the
+		// row's box (`docs/raycast-design.md` §4.4). Its **size** does not move
+		// — the task book's size rule admits a weight, a letter-spacing and a
+		// colour in this slice, never a register — so it keeps the body step and
+		// takes the reference's 500/secondary pair. The band the window charges
+		// is unchanged too (see headingPadding). The inset is the row block's own
+		// gutter (12u) plus the row's 4u padding plus the icon column's 28u and
+		// the 10u gap, so the label sits on the same column a row's title does.
+		tokens := a.tokens(c)
 		ui.Row(c).FillWidth().Padding(t.Space(1.5), t.Space(3), t.Space(1), t.Space(3)).
 			Children(func() {
-				ui.Text(c, item.Title).FontSize(t.FontSize).FontWeight(620).
-					TextColor(t.TextMuted)
+				ui.Text(c, item.Title).FontSize(t.FontSize).FontWeight(500).
+					TextColor(tokens.TextSecondary).SingleLine().
+					Margin(0, 0, 0, t.Space(10.5))
 			})
 		return
 	}
@@ -1943,7 +1998,7 @@ func (a *App) row(c *ui.Context, item Item, i int) {
 		// build's `--text-tertiary` on `.launcher-status__icon`.
 		tokens := a.tokens(c)
 		note := ui.Row(c).FillWidth().MinHeight(t.Space(launcherStatusUnits)).
-			AlignItems(ui.Center).Padding(0, t.Space(3)).Gap(t.Space(2.5))
+			AlignItems(ui.Center).Padding(0, t.Space(2)).Gap(t.Space(2.5))
 		note.Children(func() {
 			// The 28u icon column, as `.launcher-status__icon` was: no plate,
 			// only the mark — and the mark is the reference's **literal** 14
@@ -1982,7 +2037,7 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 	subtitle := rowSubtitle(item)
 	row := ui.Row(c.Key(item.ID)).FillWidth().Focusable().MinHeight(floor).
 		AlignItems(ui.Center).
-		Padding(0, t.Space(3)).Radius(tokens.RadiusMD).Gap(t.Space(2.5)).
+		Padding(0, t.Space(2)).Radius(tokens.RadiusSM).Gap(t.Space(2.5)).
 		Transition(rowTransition)
 	// A history row is one step quieter than a match: the old build's
 	// `.launcher-result--history { opacity: 0.92 }`.
@@ -2014,7 +2069,7 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 		// that matched no application, say) keeps its own full rounding, which
 		// is the reference's no-scroller case.
 		if i > 0 {
-			row.Radius(0, 0, tokens.RadiusMD, tokens.RadiusMD)
+			row.Radius(0, 0, tokens.RadiusSM, tokens.RadiusSM)
 		}
 	}
 	// The press is the one state a row takes on top of the tint: the control
@@ -2032,29 +2087,31 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 	}
 	switch {
 	case rowPressed:
-		row.Background(t.SurfacePressed)
+		// A pressed row takes Raycast's heaviest neutral rung: it sinks *into*
+		// the card rather than lighting up (`docs/raycast-design.md` §4.3).
+		row.Background(tokens.RowPressed)
 	case i == a.Selected && isBar:
-		// The action bar's own selection: the neutral raised pane the old
-		// build's settings used (`.launcher-action-bar--selected` —
-		// `--glass-raised-quiet` plus `--glass-raised-shadow`,
-		// `main:src/styles/launcher.css:1579-1583`). It is the control-hover
-		// lift with the raised pane's own shadow — the `--elev-2` contact cast
-		// (`0 1px 2px rgba(0,0,0,0.2)`) and the 1px lit top rim
-		// (`--glass-raised-rim`) — so the bar reads as a lit pane among the
-		// transparent result rows rather than as a flat grey block, and the
-		// `⌘↩` badge is what says it runs on Enter. The port had only the
-		// bare hover fill: the bar was the one *selected* row with no lift.
-		row.Background(tokens.RaisedQuiet)
-		row.Shadow(0, t.Space(0.25), t.Space(0.5), 0, tokens.ShadowContact)
-		row.InsetShadow(0, 1, 0, 0, tokens.LensRim)
+		// The action bar's own selection: the same neutral chosen-row fill a
+		// result takes. Raycast's footer row is not a different material from
+		// the list above it — the port gave it the settings surface's raised
+		// pane and a cast shadow, which read as a second control inside the
+		// footer.
+		row.Background(tokens.RowSelected)
 	case i == a.Selected:
-		// The old build's selection: the accent's quietest tint rung, and the
-		// emphasis is the row's own type — the title at 700 — rather than a
-		// ring or a shadow. The tint places the row; the weight announces it.
-		// The rung is `--accent-tint-quiet`, a *per-appearance* token (dark
-		// 0.085, light 0.065), not one hard-coded alpha: quoting the dark
-		// number painted the light appearance's selection too heavy.
-		row.Background(tokens.AccentTintQuiet)
+		// The chosen row is a *neutral* fill: Raycast's selected result is
+		// 0.085 of white over the near-black card (0.06 of black over the light
+		// one), with no border, no ring and no glow, and the accent is not spent
+		// here at all (`docs/raycast-design.md` §1/§4.3). The emphasis is the
+		// fill plus the title's own weight (700) — the accent's tint
+		// (`AccentTintQuiet`) belongs to the settings surface now, not the list.
+		row.Background(tokens.RowSelected)
+	}
+	// The pointer's own rung: a hovered row that is *not* the choice takes the
+	// lighter fill, so the pointer over a row the keyboard is on does not paint
+	// a third state on top of the chosen one (the entry rule below hands the
+	// choice over anyway; this covers the frame the two are the same row).
+	if row.Hovered() && i != a.Selected && rowSelectable(item) && item.Run != nil {
+		row.Background(tokens.RowHover)
 	}
 	// R21 · the pointer takes the selection over on *entry*, exactly as
 	// `LauncherResults.tsx:859-862` does: entering a row selects it, while
@@ -2205,18 +2262,12 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 		// deliberately generic (「就笼统点，简洁点，让用户意识到可以按空格就行了」),
 		// a visual mark whose tooltip carries the sentence.
 		if item.direct {
-			// The space keycap (R65): a bare `␣` on a 18u bevel — border,
-			// control fill, keycap shadow — not a sentence. The whole
-			// explanation lives in the row's tooltip.
-			key := ui.Row(c).Shrink(0).MinWidth(t.Space(4.5)).Height(t.Space(4.5)).
-				Padding(0, t.Space(1)).Radius(tokens.RadiusXS).
-				Border(1, tokens.ControlEdge).Background(tokens.Control).
-				AlignItems(ui.Center).Justify(ui.Center).
-				Tooltip(copy.DirectOutputHint)
-			key.InsetShadow(0, 1, 0, 0, tokens.LensRim)
-			key.Children(func() {
-				ui.Text(c, "\u2423").FontSize(tokens.Caption).TextColor(tokens.TextSecondary)
-			})
+			// The space keycap (R65): a bare `␣` on the shared keycap plate —
+			// the same 20x20, radius-5, keycap-face-and-edge box every other
+			// key in the list draws (`docs/raycast-design.md` §4.5) — not a
+			// sentence. The whole explanation lives in the row's tooltip.
+			key := keycap(c, tokens, t, "\u2423")
+			key.Tooltip(copy.DirectOutputHint)
 		}
 		// The source word: the row's provenance, in a fixed slot at the row's
 		// right edge — the integration that contributed a command, the package
@@ -2328,14 +2379,31 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 			}
 		}
 		if number, ok := a.numbers[i]; ok {
-			a.rowActionText(c, a.resultNumber(number), i == a.Selected)
+			a.rowKeycap(c, tokens, a.resultNumber(number))
 		}
 		if item.Shortcut != "" {
 			if isBar {
 				a.barHintText(c, item.Shortcut)
 			} else {
-				a.rowActionText(c, item.Shortcut, i == a.Selected)
+				a.rowKeycap(c, tokens, item.Shortcut)
 			}
+		}
+		// The footer's own actions legend rides *this row*, not an absolute
+		// overlay: `⌘K` (`docs/raycast-design.md` §4.6). It is the same keycap
+		// chord the hint beside it draws, so the row's flex layout puts the two
+		// side by side and the hint can never be painted under it — which is what
+		// the absolute legend did once both became two-plate chords (the overlap
+		// was visible in the exported frame, not just in arithmetic).
+		//
+		// The chord is **not bound** in this build: the task book keeps the
+		// keyboard model untouched, and P8-b is where the actions surface it will
+		// open arrives. The gap is listed in docs/raycast-design.md.
+		if isBar {
+			// The legend is its own group at the row's tail, one 8u step clear of
+			// the hint beside it: the two chords are different facts (this row
+			// runs on `⌘↩`; `⌘K` opens the actions surface), and with one plate
+			// per key they would otherwise read as a single four-key card.
+			a.rowKeycap(c, tokens, footerActionsBadge()).Margin(0, 0, 0, t.Space(2))
 		}
 	})
 	if row.Clicked() && !removed {
@@ -2618,13 +2686,49 @@ func (a *App) actionBarFooter(c *ui.Context, results []Item, start int) {
 		return
 	}
 	t := c.Theme()
+	tokens := a.tokens(c)
 	band := t.Space(actionBarUnits * float32(len(results)-start))
-	ui.Column(c).FillWidth().Shrink(0).Height(band).MinHeight(0).
-		Padding(0, t.Space(1)).Children(func() {
+	// The footer's own row block takes the *list's* gutter, not the panel's:
+	// Raycast's footer row is a row of the same column, so its pill starts on
+	// the same 8u the rows above it do (`docs/raycast-design.md` §4.3/§4.6).
+	// It sat on 4u — the panel's own inset — so the held/selected footer's pill
+	// was 4u wider on each side than every row above it and the column read as
+	// two different columns at the seam.
+	footer := ui.Column(c).FillWidth().Shrink(0).Height(band).MinHeight(0).
+		Padding(0, t.Space(2))
+	footer.Children(func() {
 		for i := start; i < len(results); i++ {
 			a.row(c, results[i], i)
 		}
 	})
+	// The footer's own chrome is drawn *over* the band, never as a row of it:
+	// the band's height and the window's height chain are the same numbers they
+	// were (see actionBarUnits), so the rule costs the layout nothing. The
+	// actions legend is not here: it is a child of the bar row itself (see
+	// rowBody), so that the row's own hint and the legend share one flex line
+	// instead of two boxes drawing over each other.
+	footer.Children(func() {
+		// Raycast's footer rule: the *weak* hairline that separates the band from
+		// the list above it (`docs/raycast-design.md` §4.6). The footer is a
+		// block of the card, not a second card, so it takes the quieter rung —
+		// not the card's own 1px edge, and not the accent-tinted divider the port
+		// drew.
+		ui.Box(c).Absolute().Top(0).Left(0).Right(0).Height(1).PassThrough().
+			Background(tokens.HairlineSoft)
+	})
+}
+
+// footerActionsBadge is the actions legend's own chord, in the platform's
+// spelling: `⌘K` where the app modifier is Command, `Ctrl+K` where it is
+// Control. It goes through the same `shortcuts.Badge` a real binding does, so
+// the footer's legend and a row's keycap cannot disagree about how this
+// platform writes a chord.
+func footerActionsBadge() string {
+	mod := "Ctrl"
+	if runtime.GOOS == "darwin" {
+		mod = "Cmd"
+	}
+	return shortcuts.Badge(mod+"+K", "K")
 }
 
 // defaultSelection is the row a fresh query starts on: the action bar when

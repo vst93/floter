@@ -31,7 +31,7 @@ func TestTheIntegrationsEmptyStateIsTheReferenceEmptyRegion(t *testing.T) {
 	var iconSize float32
 	tt := ui.NewTester(func(c *ui.Context) {
 		tokens := a.tokens(c)
-		secondary, muted = tokens.TextSecondary, c.Theme().TextMuted
+		secondary, muted = tokens.TextSecondary, tokens.Theme.TextMuted
 		iconSize = c.Theme().Space(5) // the reference's 20px Package mark
 		a.View(c)
 	}, 720, 760)

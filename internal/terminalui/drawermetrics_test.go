@@ -202,21 +202,26 @@ func TestTheDrawerReadoutIsTheAccentBodyRegister(t *testing.T) {
 	}
 
 	// Its ink is the accent: an antialiased accent-only ink over the black root
-	// is `c * {6, 74, 166}`, so its blue-minus-red gap is far wider than a grey
+	// is `c * {229, 72, 77}`, so its red-minus-blue gap is far wider than a grey
 	// ink's (the muted step is near-neutral, its gap a few units).
+	//
+	// P8-a 重定基线：旧 base.css 的 accent 是蓝 `#064aa6`，所以这条断言读的是
+	// `B - R` / `G - R`（~160/~68）；Raycast 合约 §1 的 accent 是红
+	// `#E5484D`，同一条「墨跟着 accent 走」的断言改读 `R - B` / `R - G`
+	// （~152/~157，按覆盖率缩放）。
 	img := f.frame.Image()
-	bestBR, bestGR := -1, -1
+	bestRB, bestRG := -1, -1
 	for y := int(rect.Y); y < int(rect.Y+rect.H)+2; y++ {
 		for x := int(rect.X); x < int(rect.X+rect.W); x++ {
 			i := y*img.Stride + x*4
 			r, g, b := int(img.Pix[i]), int(img.Pix[i+1]), int(img.Pix[i+2])
-			if b-r > bestBR {
-				bestBR, bestGR = b-r, g-r
+			if r-b > bestRB {
+				bestRB, bestRG = r-b, r-g
 			}
 		}
 	}
-	if bestBR < 40 || bestGR < 15 {
-		t.Errorf("the readout's ink is not the accent: its strongest pixel is blue-minus-red %d, green-minus-red %d (want the accent's ~160/~68 scaled by coverage)", bestBR, bestGR)
+	if bestRB < 40 || bestRG < 15 {
+		t.Errorf("the readout's ink is not the accent: its strongest pixel is red-minus-blue %d, red-minus-green %d (want the accent's ~152/~157 scaled by coverage)", bestRB, bestRG)
 	}
 }
 

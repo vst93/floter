@@ -283,11 +283,16 @@ func TestTheExtensionPickerWearsTheSameStadiumShapeAsTheSettingsPicker(t *testin
 				break
 			}
 		}
+		// P8-a 重定基线：旧 base.css 的 accent 是蓝 `#8fb7ff`/`#064aa6`，所以
+		// 「贴 accent 的墨」读的是 `B - R`；Raycast 合约 §1 的 accent 是红
+		// `#F5544E`/`#E5484D`，同一条断言改读 `R - B`（红蓝差 166 / 141）。框架
+		// 那套 picker 用的是 mygo stock 的蓝、且没有 accent 环，所以它的读数仍
+		// 落在负侧，两者的分离不被这次换向抹平。
 		accent := -256
 		for y := int(rect.Y); y < int(rect.Y+rect.H); y++ {
 			for x := int(rect.X); x < int(rect.X+rect.W); x++ {
 				p := imagePixel(img, x, y)
-				if d := int(p.B) - int(p.R); d > accent {
+				if d := int(p.R) - int(p.B); d > accent {
 					accent = d
 				}
 			}
@@ -328,10 +333,10 @@ func TestTheExtensionPickerWearsTheSameStadiumShapeAsTheSettingsPicker(t *testin
 			extRatio, framework.topInset/framework.height)
 	}
 	if extension.accent < 8 {
-		t.Errorf("the extension picker's chosen segment has no accent ring: bluest pixel lean %d", extension.accent)
+		t.Errorf("the extension picker's chosen segment has no accent ring: reddest pixel lean %d", extension.accent)
 	}
 	if framework.accent >= extension.accent {
-		t.Errorf("the framework picker is bluer (%d) than the extension picker (%d); the extension picker must be the accented one",
+		t.Errorf("the framework picker leans redder (%d) than the extension picker (%d); the extension picker must be the accented one",
 			framework.accent, extension.accent)
 	}
 }

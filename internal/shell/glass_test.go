@@ -188,9 +188,20 @@ func TestTheFrameSheenIsFixedAcrossStops(t *testing.T) {
 		rL := luminance(rR, rG, rB)
 		lL := luminance(lR, lG, lB)
 		if stopsShareOneTint(settings.DefaultMainOpacity) {
-			if fL-offL < 5 {
-				t.Errorf("%s: the effect stops only lit the frame by %.1f of colour (off %.1f, frosted %.1f); want a visible sheen",
-					theme, fL-offL, offL, fL)
+			// P8-a 重定基线：旧 base.css 的浅色 `--sheen-top` 是 0.66，深色
+			// 0.046，所以「开到玻璃要看得出亮」可以要求 ≥5 个色阶。合约 §4.1
+			// 把**玻璃高光与透镜一律压到 alpha ≤ 0.04**（Raycast 是低光泽
+			// 设计），浅色档位的固定 token 因此只有 0.04 —— 那个「≥5 色阶」
+			// 的下界与合约互斥，量的已不是这条设计语言里的高光。改钉合约真正
+			// 写下的两件事，且都是严格不等式：
+			//   1. 开玻璃比关玻璃**更亮**（高光是加光，不是减光）；
+			//   2. 高光的色阶量不超过合约上限（0.04 x 帧面 = 少量色阶），
+			//      即它确实是「a whisper」，而不是旧版的大面积增亮。
+			// 具体 token 与 cap 的等值断言在 internal/theme 的
+			// TestTheFrameSheenIsFixedAcrossStops / ...TheFixedTokenNotTheTint。
+			if fL <= offL {
+				t.Errorf("%s: the effect stops did not light the frame at all (off %.1f, frosted %.1f); the sheen is a lit highlight",
+					theme, offL, fL)
 			}
 			// And the stop does **not** grade the frame's face: the reference's
 			// sheen is the same fixed token on every effect stop, so the three

@@ -53,6 +53,10 @@ var (
 	// `LauncherResults.tsx:752-754`).
 	glyphInfo   = ui.MustParseSVG([]byte(glyphSource(`<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>`)))
 	glyphWindow = ui.MustParseSVG([]byte(glyphSource(`<rect width="20" height="16" x="2" y="4" rx="2"/><path d="M6 8h.01"/><path d="M10 8h.01"/>`)))
+	// glyphSearch is lucide's Search: the mark Raycast leads its search row
+	// with, 16px at stroke 2 in the secondary ink (`docs/raycast-design.md`
+	// §4.2). The launcher's field drew no mark at all before this slice.
+	glyphSearch = ui.MustParseSVG([]byte(glyphSource(`<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>`)))
 	glyphClose  = ui.MustParseSVG([]byte(glyphSource(`<path d="M18 6 6 18"/><path d="m6 6 12 12"/>`)))
 	// glyphChevronRight and glyphChevronDown are lucide's two disclosure marks,
 	// the pair the reference's run-output block leads and closes with
@@ -253,16 +257,17 @@ func clipboardKindOf(entry *clipboardpkg.Entry) string {
 func (a *App) iconPlate(c *ui.Context, warm bool) ui.Element {
 	tokens := a.tokens(c)
 	t := c.Theme()
-	plate := ui.Box(c).Size(t.Space(7), t.Space(7)).Radius(tokens.RadiusSM).
+	plate := ui.Box(c).Size(t.Space(7), t.Space(7)).Radius(tokens.RadiusXS).
 		AlignItems(ui.Center).Justify(ui.Center).Shrink(0)
 	if warm {
 		plate.Background(tokens.IconSurface)
 	} else {
 		plate.Background(tokens.Control)
 	}
-	// The reference's `--elev-0` lens: without it the 28u cell is a flat
-	// tint, and a column of them reads as eight controls rather than as one
-	// glass surface (`.launcher-result__icon`).
+	// Raycast's plate is flat: the control lens is capped at 0.04 by the
+	// palette (`docs/raycast-design.md` §4.1), so the stack is still the stop's
+	// own (`--glass-lens-scale` grades it) but no longer reads as a lit pane of
+	// glass.
 	return tokens.Lens(plate)
 }
 
@@ -384,6 +389,8 @@ func Glyph(name string) (*ui.SVG, bool) {
 		return glyphImage, true
 	case "bookmark":
 		return glyphBookmark, true
+	case "search":
+		return glyphSearch, true
 	}
 	return nil, false
 }

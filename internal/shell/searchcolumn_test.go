@@ -25,9 +25,10 @@ import (
 //
 // This asserts the two numbers the design actually names, in *units*, so it
 // holds at every interface step: the query's text starts on 16u and a result
-// row's title on 54u (4u of panel gutter + the row's 12u padding + its 28u icon
-// column + the 10u gap), both measured from the card's own content edge — and
-// the row's painted box keeps the reference's 4u gutter on either side.
+// row's title on 54u (8u of row-block gutter + the row's 8u padding + its 28u
+// icon column + the 10u gap), both measured from the card's own content edge —
+// and the row's painted box keeps the contract's 8u gutter on either side
+// (`docs/raycast-design.md` §4.3).
 func TestTheSearchColumnIsTheReferenceUnitsAtTheShippedStep(t *testing.T) {
 	a := appKeysApp()
 	tt := appKeysRender(t, a)
@@ -58,9 +59,13 @@ func TestTheSearchColumnIsTheReferenceUnitsAtTheShippedStep(t *testing.T) {
 		t.Errorf("the result's title starts at x=%.1f, want the reference's 54u (%.1f)", row.X, want)
 	}
 
-	// The row's own box: `calc(100% - 8u)` centred in the panel
-	// (`launcher.css:840-843`), i.e. 4u of panel on either side of it. The
-	// selected row is the one whose tint is painted, so it is the box read here.
+	// The row's own box: `calc(100% - 8u)` centred in the panel, i.e. 8u of
+	// panel on either side of it — the same 8u the row's own padding (8u) needs
+	// to land the text on the field's 16u column. P8-a 重定基线：旧 base.css 值
+	// 「4u 沟槽 + 行内 12u padding」→ 合约 §4.3「行块内缩 8u + 行内 8u」，两者是
+	// 同一个 16u 的和，所以文本列 54u 未动，只有行块的绘制边向内移了 4u。
+	// The selected row is the one whose tint is painted, so it is the box read
+	// here.
 	img := tt.Image()
 	y := int(row.Y + row.H/2)
 	panel := img.RGBAAt(int(cardLeft)+1, y)
@@ -73,11 +78,11 @@ func TestTheSearchColumnIsTheReferenceUnitsAtTheShippedStep(t *testing.T) {
 			boxRight = x
 		}
 	}
-	if want := iround(cardLeft + 4*unit); absi(boxLeft-want) > 1 {
-		t.Errorf("the row's box starts at x=%d, want the reference's 4u gutter (x=%d)", boxLeft, want)
+	if want := iround(cardLeft + 8*unit); absi(boxLeft-want) > 1 {
+		t.Errorf("the row's box starts at x=%d, want the contract's 8u gutter (x=%d)", boxLeft, want)
 	}
-	if want := iround(cardRight - 4*unit); absi(boxRight-want) > 1 {
-		t.Errorf("the row's box ends at x=%d, want the mirrored 4u gutter (x=%d)", boxRight, want)
+	if want := iround(cardRight - 8*unit); absi(boxRight-want) > 1 {
+		t.Errorf("the row's box ends at x=%d, want the mirrored 8u gutter (x=%d)", boxRight, want)
 	}
 }
 

@@ -9,6 +9,8 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/apps"
+	"floter/internal/settings"
+	"floter/internal/theme"
 )
 
 // panelFill is the light panel's own fill the bar rows are drawn on: a pixel
@@ -129,29 +131,58 @@ func TestTheActionBarTakesTheSelectionOnACommandLine(t *testing.T) {
 	if a.Selected != bar {
 		t.Errorf("the selection is on row %d, want the footer %d (%v)", a.Selected, bar, ids(results))
 	}
-	// The drawn row carries the selection, so its band is tinted against the
+	// The drawn row carries the selection, so its block is tinted against the
 	// panel's own fill at the same height — the visible "selected style" the
-	// report said was missing.
+	// report said was missing. P8-a 重定基线：旧 base.css 值 → 合约 §4.6——页脚
+	// 不再是「抬升面 + 旁边投影」的第二张卡，而只是卡片的一个 block，所以选中
+	// 的可见性落在**行内药丸**上（合约 §4.3 的中性圆角块），而非页脚自己的面。
 	rect, ok := tt.Find("Run in shell")
 	if !ok {
 		t.Fatal("the selected footer was not drawn")
 	}
 	img := tt.Image()
 	y := int(rect.Y + rect.H/2)
-	if got, want := img.RGBAAt(10, y), img.RGBAAt(3, y); got == want {
-		t.Errorf("the selected footer's band is not tinted: %v at x=10, %v at x=3", got, want)
+	gutter := int(ui.LightTheme().Space(2)) // the row block's 8u inset
+	panel := img.RGBAAt(1, y)
+	// The pill starts on the block's own gutter, so two pixels in is inside it
+	// with no glyph over it.
+	pill := img.RGBAAt(gutter+2, y)
+	if pill == panel {
+		t.Errorf("the selected footer's pill is not tinted: %v at x=%d over the panel %v",
+			pill, gutter+2, panel)
 	}
-	// The bar is a *lit pane*, not a flat tint: the raised pane's own contact
-	// shadow (`--glass-raised-shadow` = `--elev-2` + `--glass-raised-rim`,
-	// `main:src/styles/launcher.css:1579-1583`). The footer is pinned to the
-	// window's bottom edge (see actionBarFooter), so the cast has nowhere to
-	// fall *below* it — it falls **beside** it, into the panel's own 4u inset:
-	// x=3, one step left of the row's box, is darker at the bar's own height
-	// than the same column is further up the panel.
+	tokens := theme.ForPreferences(settings.Normalize(a.settings()), false, ui.Preferences{})
+	if want := over(tokens.RowSelected, panel); !closeRGB(pill, want) {
+		t.Errorf("the selected footer's pill is %v, want the neutral chosen-row rung %v over the panel (→ %v)",
+			pill, tokens.RowSelected, want)
+	}
+	// And the footer casts no shadow beside itself: the band left of the pill is
+	// the panel, the same colour it is further up. The old build gave the footer
+	// the raised pane's contact cast, which fell into the panel's own 4u inset.
+	// `docs/raycast-design.md` §4.6: the footer is a block of the card, so it has
+	// no elevation of its own — and a cast reaching past the block's gutter was
+	// the tell that it was drawn as a floating pane instead.
 	side := img.RGBAAt(3, y)
 	clean := img.RGBAAt(3, y-60)
-	if side == clean {
-		t.Errorf("the selected footer casts no shadow beside itself: %v vs the panel %v", side, clean)
+	if side != clean {
+		t.Errorf("the selected footer casts a shadow beside itself (%v at its own height, %v further up); "+
+			"the contract's footer is a block of the card, not a raised pane", side, clean)
+	}
+	// The footer's block sits on the *same* 8u gutter the list's rows do
+	// (`docs/raycast-design.md` §4.3/§4.6), so the seam between the list and the
+	// footer is one column rather than two: the pill's painted left edge is the
+	// block's gutter, exactly what TestTheListIsTheCentredReferenceColumn pins
+	// for a row above it.
+	footerLeft := -1
+	for x := 0; x < InputWindowWidth; x++ {
+		if img.RGBAAt(x, y) != panel {
+			footerLeft = x
+			break
+		}
+	}
+	if footerLeft != gutter {
+		t.Errorf("the footer's block starts at x=%d, want the list's own 8u gutter (x=%d)",
+			footerLeft, gutter)
 	}
 	// Pinned: the footer's band ends at the window's own bottom edge, the
 	// reference's `.launcher-action-bar` sitting below the scroller rather than
@@ -306,17 +337,26 @@ func TestTheActionBarTitleIsTheValueNotTheActionWord(t *testing.T) {
 	}
 }
 
-// R-next · The footer's top corners are square when a list sits above it.
+// R-next · The footer's top edge is one weak hairline, and the row block inside
+// it squares its top corners when a list sits above it.
 //
-// The reference welds the pinned bar to the scroller with
-// `.launcher-results + .launcher-action-bar { border-radius: 0 0
-// var(--radius-md) var(--radius-md) }` (`main:src/styles/launcher.css:1556-1562`):
-// the bar keeps its own full rounding only when no result list precedes it (a
-// URL that matched nothing). The port is a single in-list row family, so "a
-// list precedes it" is "some row is drawn above the footer" — a bar at the
-// list's head keeps the rounding, a bar after a match squares its top corners.
+// P8-a 重定基线：旧 base.css 值 → 合约 §4.6。先验产品（任务书第 4 条）：
+// 合约下页脚顶部只是一条 1px 弱发丝线，**没有**抬升面、也没有自己的块。逐像素
+// 复核过两张图（有列表 / 无列表）：
+//
+//   - 两边的 y=443 都是整行一条 `HairlineSoft` 合成值（239,239,240），x=0..719
+//     全宽——页脚没有在卡片的角上画任何成块的方角，产品正确；
+//   - 两者唯一的差别在发丝线**之下**的那一行：有列表时行块的左沿在沟槽处是
+//     238 的直角（rowRadius = 0,0,8,8，「焊在列表上」），无列表时同一位置是
+//     250→244→240 的弧（完整的 8px 圆角，即「没有列表可焊」）。
+//
+// 旧断言（`x=4` 的 `panelDistance > 8`）量的是旧结构：旧页脚是一个填满的抬升面，
+// 它的左上角就在面板的 4u 内缩处。合约下 x=4 已落在 8u 沟槽的面板上，而它读到的
+// 「方角」其实是那条通栏弱发丝线本身（正确产品），不是块。所以这条改成量合约
+// 真正说的两件事：顶边只有一条发丝线，且行块的**上**两角由「上面有没有列表」
+// 决定。
 func TestTheActionBarSquaresItsTopCornersOverAList(t *testing.T) {
-	// The bar after a match: its top-left corner is already the row's own fill.
+	// The bar after a match: the block is welded to the list above it.
 	a := testApp()
 	a.SetTools([]apps.App{{Name: "git", Path: "/usr/bin/git"}}, true)
 	ta := render(t, a)
@@ -324,46 +364,88 @@ func TestTheActionBarSquaresItsTopCornersOverAList(t *testing.T) {
 	ta.Frame()
 	ta.Advance(200 * time.Millisecond) // the rows' 120ms enter
 
-	// The bar at the list's head (a URL with no match): its top-left corner is
-	// still the panel's fill, i.e. the corner is rounded away.
+	// The bar at the list's head (a URL with no match): it keeps its own full
+	// rounding, because there is no list to weld to.
 	b := testApp()
 	tb := render(t, b)
 	tb.Type("https://example.com/nope")
 	tb.Frame()
 	tb.Advance(200 * time.Millisecond)
 
-	corner := func(tt *ui.Tester) (top int, px color.RGBA) {
+	tokens := theme.ForPreferences(settings.Normalize(a.settings()), false, ui.Preferences{})
+	gutter := int(ui.LightTheme().Space(2)) // the row block's 8u inset
+
+	// bandTop finds the footer's top edge: the panel's *last* full-width rule.
+	// The field block's fill and its own hairline are full-width too, so the scan
+	// starts below the field's band and keeps the last row painted edge to edge
+	// (nothing full-width is drawn under the footer).
+	bandTop := func(tt *ui.Tester) int {
 		img := tt.Image()
-		// Find the bar band's top edge just inside its left inset (x=6), then
-		// read the corner pixel one step further out (x=4, the panel's own 4u
-		// inset): a squared corner paints the row's fill there, a rounded one
-		// leaves the panel (or its faint edge) showing under the arc.
-		//
-		// The footer is pinned to the panel's bottom edge (see
-		// actionBarFooter), so the band is found at the *end* of the panel, not
-		// in its first 200 pixels.
-		top = -1
-		for y := 50; y < img.Bounds().Max.Y; y++ {
-			c := img.RGBAAt(6, y)
-			if panelDistance(c) > 8 {
-				top = y
-				break
+		panel := img.RGBAAt(1, 300)
+		last := -1
+		for y := 100; y < img.Bounds().Max.Y; y++ {
+			if img.RGBAAt(1, y) != panel && img.RGBAAt(gutter+2, y) != panel &&
+				img.RGBAAt(InputWindowWidth-1, y) != panel {
+				last = y
 			}
 		}
-		if top < 0 {
-			t.Fatalf("the bar band was not found: %q", tt.Texts())
+		if last < 0 {
+			t.Fatalf("the footer's band was not found: %q", tt.Texts())
 		}
-		return top, img.RGBAAt(4, top)
+		return last
 	}
 
-	barTop, squared := corner(ta)
-	if panelDistance(squared) <= 8 {
-		t.Errorf("the footer over a list is rounded at its top-left corner (y=%d): %v", barTop, squared)
-	}
-	_, rounded := corner(tb)
-	if panelDistance(rounded) > 8 {
-		t.Errorf("the footer with no list above it is squared at its top-left corner: %v over panel %v",
-			rounded, panelFill)
+	// Both cases: the top edge is exactly one pixel of the weak hairline, full
+	// width, and it is nothing heavier than that (the contract's §4.6 rule). A
+	// raised pane's own edge — a card's strong 1px border, or a filled band's
+	// top rim — would be a different, darker colour here.
+	for _, tc := range []struct {
+		name  string
+		tt    *ui.Tester
+		above bool
+	}{{"list above", ta, true}, {"no list above", tb, false}} {
+		t.Run(tc.name, func(t *testing.T) {
+			img := tc.tt.Image()
+			top := bandTop(tc.tt)
+			panel := img.RGBAAt(1, top)
+			if !closeRGB(panel, over(tokens.HairlineSoft, img.RGBAAt(1, top-2))) {
+				t.Errorf("the footer's top edge at y=%d is %v, want the weak hairline %v over the panel",
+					top, panel, tokens.HairlineSoft)
+			}
+			// Every column on that row carries the same hairline, so the rule is
+			// full-width rather than a block's own border.
+			for _, x := range []int{gutter, InputWindowWidth / 2, InputWindowWidth - gutter} {
+				if img.RGBAAt(x, top) != panel {
+					t.Errorf("the footer's rule is not full-width: x=%d at y=%d is %v, the rule is %v",
+						x, top, img.RGBAAt(x, top), panel)
+				}
+			}
+			// One pixel below it is the band: nothing is painted there, so the
+			// footer has no face of its own.
+			if below := img.RGBAAt(gutter+2, top+1); closeRGB(below, over(tokens.Control, panel)) {
+				t.Errorf("the footer paints a face of its own under its rule (%v at y=%d); "+
+					"the contract's footer is a block of the card, not a raised pane", below, top+1)
+			}
+
+			// The block's own top-left corner, read on the band's first content
+			// row: a squared corner paints the pill's fill right at the gutter, a
+			// rounded one leaves the panel showing under the arc.
+			img = tc.tt.Image()
+			top = bandTop(tc.tt)
+			panel = img.RGBAAt(1, top)
+			corner := img.RGBAAt(gutter, top+3)
+			if tc.above {
+				if panelDistance(corner) <= 8 {
+					t.Errorf("the footer over a list is rounded at its top-left corner (y=%d): %v",
+						top+3, corner)
+				}
+				return
+			}
+			if panelDistance(corner) > 8 {
+				t.Errorf("the footer with no list above it is squared at its top-left corner: %v over panel %v",
+					corner, panelFill)
+			}
+		})
 	}
 }
 
@@ -391,30 +473,34 @@ func panelDistance(c color.RGBA) int {
 	return d
 }
 
+// P8-a 重定基线：旧 base.css 值「行块左右各 4u 沟槽」→ 合约 §4.3「行块内缩 8u，
+// 选中填充成为一块不顶到卡片边的圆角 8 药丸」。行内 padding 从 12u 降到 8u 与行块
+// 内缩的 +4u 相互抵掉，所以文本列（54u）一个字都没动——这条只钉绘制边的位移。
+//
 // R-next · The list is the reference's centred column: every row is
-// `calc(100% - 8u)` wide and `justify-self: center`
-// (`main:src/styles/launcher.css:840-843`), i.e. the panel keeps exactly 4u on
-// each side of a row — the same 4u the row's own 12u padding needs to land the
-// text on the field's 16u column.
+// `calc(100% - 8u)` wide and `justify-self: center`, so the panel keeps 8u on
+// each side of a row block.
 //
 // The user's first report is 「搜索页面左右两边各有一大块空白」. The insets had
 // once been written in the wrong unit (Space(16) is 64u, not 16u), which put a
 // 64u gutter around every row; the text column is pinned above, and this pins
 // the other half of the same fact: the row's painted box spans the panel from
-// its 4u gutter to the mirror-image 4u gutter, so neither edge carries a dead
-// margin.
+// its 8u gutter to the mirror-image 8u gutter, so neither edge carries a dead
+// margin and the selected pill does not run into the card's own edge.
 func TestTheListIsTheCentredReferenceColumn(t *testing.T) {
 	a := testApp()
 	tt := render(t, a)
 	tt.Frame()
+	// The gutter in pixels: `Space(2)` is 8 reference units (one Space is 4u).
+	gutter := int(ui.LightTheme().Space(2))
 	row, ok := tt.Find("Restart the computer") // the empty page's selected first row
 	if !ok {
 		t.Fatalf("the first result was not drawn: %q", tt.Texts())
 	}
 	img := tt.Image()
 	y := int(row.Y + row.H/2)
-	// The panel's own fill, read outside the row's box (the 4u gutter is the
-	// panel and nothing else).
+	// The panel's own fill, read outside the row's box (the gutter is the panel
+	// and nothing else).
 	panel := img.RGBAAt(1, y)
 	left, right := -1, -1
 	for x := 0; x < InputWindowWidth; x++ {
@@ -425,12 +511,11 @@ func TestTheListIsTheCentredReferenceColumn(t *testing.T) {
 			right = x
 		}
 	}
-	if left != 4 {
-		t.Errorf("the row's box starts at x=%d, want the reference's 4u gutter", left)
+	if left != gutter {
+		t.Errorf("the row's box starts at x=%d, want the contract's 8u gutter (x=%d)", left, gutter)
 	}
-	if right != InputWindowWidth-5 {
-		t.Errorf("the row's box ends at x=%d, want %d (the mirrored 4u gutter)",
-			right, InputWindowWidth-5)
+	if want := InputWindowWidth - gutter - 1; right != want {
+		t.Errorf("the row's box ends at x=%d, want %d (the mirrored 8u gutter)", right, want)
 	}
 }
 
@@ -645,17 +730,34 @@ func TestTheHeldModifierKeepsTheActionBarSelectedOverAGrowingList(t *testing.T) 
 	if a.Selected != bar {
 		t.Errorf("the grown list left the selection on %d, want the held footer %d (%v)", a.Selected, bar, ids(results))
 	}
+	// The rows enter over 120ms (`rowTransition`) and the tester's clock is its
+	// own: the row the fixture just grew was still at opacity 0 when it was read,
+	// so the walk below is what makes the pill's fill real.
+	tt.Advance(200 * time.Millisecond)
 
-	// And the held selection is the *drawn* one: the bar's band carries the
-	// raised pane against the panel's own fill at the same height.
+	// And the held selection is the *drawn* one: the footer's own pill (the
+	// chosen-row rung inside the row block) against the panel at the same height.
+	//
+	// P8-a 重定基线：旧 base.css 值 → 合约 §4.3/§4.6。旧读点是 x=10（落在旧 4u
+	// 沟槽的内侧面板上），量的是「页脚的抬升面 vs 面板」；合约下页脚不带自己的面，
+	// 选中只画在**行块内**的药丸上，所以读点要按 8u 缩进重算到药丸里（block 的
+	// gutter + 2px），否则量到的是药丸外的面板，看上去「没染色」。
 	rect, ok := tt.Find("Run in shell")
 	if !ok {
 		t.Fatalf("the held footer was not drawn: %q", tt.Texts())
 	}
 	img := tt.Image()
 	y := int(rect.Y + rect.H/2)
-	if got, want := img.RGBAAt(10, y), img.RGBAAt(3, y); got == want {
-		t.Errorf("the held footer's band is not tinted: %v at x=10, %v at x=3", got, want)
+	gutter := int(ui.LightTheme().Space(2)) // the row block's 8u inset
+	panel := img.RGBAAt(1, y)
+	pill := img.RGBAAt(gutter+2, y)
+	if pill == panel {
+		t.Errorf("the held footer's pill is not tinted: %v at x=%d over the panel %v", pill, gutter+2, panel)
+	}
+	tokens := theme.ForPreferences(settings.Normalize(a.settings()), false, ui.Preferences{})
+	if want := over(tokens.RowSelected, panel); !closeRGB(pill, want) {
+		t.Errorf("the held footer's pill is %v, want the neutral chosen-row rung %v over the panel (→ %v)",
+			pill, tokens.RowSelected, want)
 	}
 
 	// Released, the choice goes back to the page's own default — a match, not

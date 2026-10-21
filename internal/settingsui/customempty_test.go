@@ -25,7 +25,7 @@ func TestTheCustomShortcutsEmptyStateIsTheReferenceEmptyRegion(t *testing.T) {
 	var icon float32
 	tt := ui.NewTester(func(c *ui.Context) {
 		tokens := a.tokens(c)
-		secondary, muted = tokens.TextSecondary, c.Theme().TextMuted
+		secondary, muted = tokens.TextSecondary, tokens.Theme.TextMuted
 		icon = c.Theme().Space(5.5) // the reference's 22px Keyboard mark
 		a.View(c)
 	}, 720, 1000)

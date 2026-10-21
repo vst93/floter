@@ -31,19 +31,17 @@ func closeRGB(a, b color.RGBA) bool {
 	return diff(a.R, b.R) <= 2 && diff(a.G, b.G) <= 2 && diff(a.B, b.B) <= 2
 }
 
-// The selected result row's fill is the reference's `--accent-tint-quiet`, a
-// *per-appearance* token: the dark appearance writes 0.085 of its pastel blue,
-// the light one 0.065 of its darker blue (`main:src/styles/base.css:683,945`;
-// `.launcher-result--selected`, `main:src/styles/launcher.css:1156`). The port
-// hard-coded `Accent.Alpha(0.085)` for both appearances, so the light launcher
-// painted its chosen row with the dark rung — a heavier wash over white than
-// the reference asked for.
+// The selected result row's fill is the contract's **neutral** chosen-row rung,
+// `RowSelected` (`docs/raycast-design.md` §1/§4.3), and it carries no accent.
 //
-// The test renders the empty page in each appearance and reads the selected
-// row's own band on its blank right side (past the text, where the row's fill
-// shows with nothing over it): the pixel must equal the token composited over
-// the *unselected* row's fill, so the assertion names the exact token rather
-// than "tinted somehow".
+// P8-a 重定基线：旧 base.css 值 → 合约 §4.3。旧 pin 钉的是「选中行 = accent 的
+// 静默淡染」（`--accent-tint-quiet`，dark 0.085 / light 0.065 的蓝）。合约把启动
+// 器列表的选中改成**中性**：`rgba(255,255,255,0.085)` / `rgba(0,0,0,0.06)`，且写明
+// 「accent 不出现在启动器选中行」。所以这条测试量的事实换成了两件：
+//
+//  1. 选中行 = `RowSelected` 在面板上的合成值（两套外观各自的 rung 不同）；
+//  2. 它**不含 accent**：合成后的像素三个通道相差不超过 2 级（中性填充不可能带
+//     色偏），并且它也不等于 accent 的静默淡染（反证，防止回退到旧语言）。
 func TestTheSelectedRowWearsThePerAppearanceQuietTint(t *testing.T) {
 	rowFill := func(themeName string) (sel, rest color.RGBA, tokens theme.Tokens) {
 		a := testApp()
@@ -73,33 +71,50 @@ func TestTheSelectedRowWearsThePerAppearanceQuietTint(t *testing.T) {
 	lightSel, lightRest, lightTok := rowFill("light")
 	darkSel, darkRest, darkTok := rowFill("dark")
 
-	// The two appearances' tokens must differ (that is the reference's own
-	// split: dark 0.085, light 0.065).
-	if lightTok.AccentTintQuiet == darkTok.AccentTintQuiet {
-		t.Fatalf("the quiet tint is one value for both appearances: %v", lightTok.AccentTintQuiet)
+	// The two appearances' tokens must differ (the contract splits them: dark
+	// 0.085 of white, light 0.06 of black).
+	if lightTok.RowSelected == darkTok.RowSelected {
+		t.Fatalf("the chosen-row rung is one value for both appearances: %v", lightTok.RowSelected)
 	}
 
 	for _, tc := range []struct {
-		name       string
-		sel, rest  color.RGBA
-		wantColor  ui.Color
-		otherColor ui.Color
+		name      string
+		sel, rest color.RGBA
+		want      ui.Color
+		accent    ui.Color
 	}{
-		{"light", lightSel, lightRest, lightTok.AccentTintQuiet, darkTok.AccentTintQuiet},
-		{"dark", darkSel, darkRest, darkTok.AccentTintQuiet, lightTok.AccentTintQuiet},
+		{"light", lightSel, lightRest, lightTok.RowSelected, lightTok.AccentTintQuiet},
+		{"dark", darkSel, darkRest, darkTok.RowSelected, darkTok.AccentTintQuiet},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			want := over(tc.wantColor, tc.rest)
+			want := over(tc.want, tc.rest)
 			if !closeRGB(tc.sel, want) {
-				t.Errorf("the selected row is %v, want %v (the quiet tint %v over the panel %v)",
-					tc.sel, want, tc.wantColor, tc.rest)
+				t.Errorf("the selected row is %v, want %v (the neutral chosen-row rung %v over the row's own %v)",
+					tc.sel, want, tc.want, tc.rest)
 			}
-			// The *other* appearance's rung must not be what is painted: that
-			// is exactly the bug this pins (one hard-coded alpha).
-			other := over(tc.otherColor, tc.rest)
-			if closeRGB(tc.sel, other) {
-				t.Errorf("the %s selection is painted with the other appearance's rung %v (%v)",
-					tc.name, tc.otherColor, other)
+			// No accent: a *neutral* fill cannot shift one channel against the
+			// other, so the composite's own spread across R/G/B is a couple of
+			// levels at most. An accent-tinted row (the accent is a saturated
+			// red) would read tens of levels of R against B.
+			spread := 0
+			for _, d := range []int{int(tc.sel.R) - int(tc.sel.G), int(tc.sel.G) - int(tc.sel.B), int(tc.sel.R) - int(tc.sel.B)} {
+				if d < 0 {
+					d = -d
+				}
+				if d > spread {
+					spread = d
+				}
+			}
+			if spread > 2 {
+				t.Errorf("the selected row is %v: its channels differ by %d levels, so the fill carries a hue "+
+					"(the contract's chosen row is neutral)", tc.sel, spread)
+			}
+			// …and it is not the old accent wash: the anti-regression half. The
+			// accent's quiet tint over the same row is a *red* plane, so the two
+			// must be visibly apart.
+			if wash := over(tc.accent, tc.rest); closeRGB(tc.sel, wash) {
+				t.Errorf("the %s selection is painted with the accent's quiet tint %v (%v); "+
+					"the contract's row fill is neutral", tc.name, tc.accent, wash)
 			}
 		})
 	}

@@ -221,53 +221,74 @@ func TestLadderScalesWithTheStep(t *testing.T) {
 	}
 }
 
-// The palette is base.css's, not the framework's stock one: the pastel
-// accent, the translucent control ladder and the near-black glass. These are
+// The palette is the Raycast contract's, not the framework's stock one: the
+// red accent, the translucent control ladder and the near-black card. These are
 // the tokens the whole app is drawn against, so a regression here repaints
 // every surface at once.
+//
+// P8-a 重定基线：这条测试原本钉的是旧 Tauri 版 base.css 的调色板（深色
+// `#121316` / accent 蓝 `#8fb7ff`，浅色 `#fafafc` / accent 蓝 `#064aa6`）。
+// 本片按 `docs/raycast-design.md` §1 换了整张调色板，所以断言的**具体数值**
+// 换成合约值，断言本身（「accent 是两个具体色值、面板是近黑/近白、文字是
+// 主墨、control 阶梯是半透明的」）一条没放宽。
 func TestPaletteComesFromBaseCSS(t *testing.T) {
 	dark := For(settings.Settings{Theme: "dark"}, true)
-	if dark.Theme.Accent != ui.Hex("#8fb7ff") {
-		t.Errorf("dark accent = %v, want the pastel #8fb7ff", dark.Theme.Accent)
+	// 旧值 #8fb7ff（柔蓝）→ 合约 §1 的 accent #F5544E。
+	if dark.Theme.Accent != ui.Hex("#F5544E") {
+		t.Errorf("dark accent = %v, want the contract's #F5544E", dark.Theme.Accent)
 	}
-	if dark.Theme.Background != ui.Hex("#121316") {
-		t.Errorf("dark background = %v, want the glass tint #121316", dark.Theme.Background)
+	// 旧值 #121316 → 合约 §1 的面板 #0E0E10。
+	if dark.Theme.Background != ui.Hex("#0E0E10") {
+		t.Errorf("dark background = %v, want the contract's panel #0E0E10", dark.Theme.Background)
 	}
-	if dark.Theme.Text != ui.Hex("#f2f3f5") {
-		t.Errorf("dark text = %v, want --text-primary", dark.Theme.Text)
+	// 旧值 #f2f3f5 → 合约 §1 的主文字 #EDEDEF。
+	if dark.Theme.Text != ui.Hex("#EDEDEF") {
+		t.Errorf("dark text = %v, want the contract's primary ink #EDEDEF", dark.Theme.Text)
 	}
 	// The control ladder is translucent white, not an opaque grey: the
 	// framework's stock SurfaceHover would paint a solid block over the glass.
 	if dark.Theme.SurfaceHover.A >= 255 {
 		t.Errorf("dark hover = %v, want a translucent lift", dark.Theme.SurfaceHover)
 	}
-	if dark.Theme.AccentText != ui.Hex("#15171b") {
-		t.Errorf("dark accent text = %v, want --accent-contrast", dark.Theme.AccentText)
+	// 旧值 #15171b → 合约 §1 的 accent 静默面上的字 #1B1B1D。
+	if dark.Theme.AccentText != ui.Hex("#1B1B1D") {
+		t.Errorf("dark accent text = %v, want the contract's #1B1B1D", dark.Theme.AccentText)
 	}
 
 	light := For(settings.Settings{Theme: "light"}, false)
-	if light.Theme.Accent != ui.Hex("#064aa6") {
-		t.Errorf("light accent = %v, want the darker #064aa6", light.Theme.Accent)
+	// 旧值 #064aa6（深蓝）→ 合约 §1 的浅色 accent #E5484D。
+	if light.Theme.Accent != ui.Hex("#E5484D") {
+		t.Errorf("light accent = %v, want the contract's #E5484D", light.Theme.Accent)
 	}
-	if light.Theme.Background != ui.Hex("#fafafc") {
-		t.Errorf("light background = %v, want #fafafc", light.Theme.Background)
+	// 旧值 #fafafc → 合约 §1 的浅色面板 #F7F7F8。
+	if light.Theme.Background != ui.Hex("#F7F7F8") {
+		t.Errorf("light background = %v, want the contract's panel #F7F7F8", light.Theme.Background)
 	}
-	if light.Theme.Text != ui.Hex("#1d1d1f") {
-		t.Errorf("light text = %v, want --text-primary", light.Theme.Text)
+	// 旧值 #1d1d1f → 合约 §1 的主文字 #1B1B1D。
+	if light.Theme.Text != ui.Hex("#1B1B1D") {
+		t.Errorf("light text = %v, want the contract's primary ink #1B1B1D", light.Theme.Text)
 	}
-	// The halo is `--accent-halo` (base.css:693,958): the accent at a fixed
-	// low alpha, the live status dot's ring, not a second accent fill.
-	if want := ui.RGBA(143, 183, 255, 0.18); dark.AccentHalo != want {
+	// The halo is the accent at a fixed low alpha — the live status dot's ring,
+	// not a second accent fill. 旧值 dark {143,183,255,.18} / light
+	// {6,74,166,.24}，按合约 accent 换色、alpha 取 §1 的 0.20。
+	if want := ui.RGBA(245, 84, 78, 0.2); dark.AccentHalo != want {
 		t.Errorf("dark accent halo = %v, want %v", dark.AccentHalo, want)
 	}
-	if want := ui.RGBA(6, 74, 166, 0.24); light.AccentHalo != want {
+	if want := ui.RGBA(229, 72, 77, 0.2); light.AccentHalo != want {
 		t.Errorf("light accent halo = %v, want %v", light.AccentHalo, want)
 	}
 }
 
-// The surface ladder is ordered and visible: four rungs a viewer can tell
-// apart, in the order the design means them — the card's edge over the row's
-// hairline, the hairline over a control plane, the plane over nothing.
+// P8-a 重定基线：这条测试原本钉 base.css 的**四级**表面梯
+// `stroke > controlEdge > hairline > control`。Raycast 合约 §1 写的是另一种
+// 结构——两条发丝（强 0.09 = 卡的 1px 边，弱 0.055 = 行与块内的分隔线）加一条
+// 中性的行态梯（hover 0.045 / 选中 0.085 / 按下 0.11）——所以这里的**结构**变了：
+// 原来四级各自严格递减，现在强发丝 > 弱发丝，且行态三档逐级递增。逐条具体数值
+// 仍然写死（没有一处加容差、没有一处放松成「非空」），断言的密度反而更高了。
+//
+// The surface ladder is ordered and visible: the card's strong hairline over
+// the weak rule, the weak rule over the resting plane, and the row's own three
+// state steps rising hover → selected → pressed.
 //
 // The rungs were all under 0.08 alpha, which over a translucent dark frame is
 // one or two levels of grey: the ladder existed in the token file and nowhere
@@ -284,16 +305,23 @@ func TestTheSurfaceLadderHasAStepToSee(t *testing.T) {
 		stroke       ui.Color
 		controlEdge  ui.Color
 		hairline     ui.Color
+		hairlineSoft ui.Color
 		control      ui.Color
 		controlHover ui.Color
 		controlPress ui.Color
 		track        ui.Color
 	}{
+		// P8-a 重定基线：合约 §1 只给「强发丝 0.09 / 弱发丝 0.055」，卡的 1px
+		// 边就是强发丝——旧 base.css 的浅色 stroke 0.12、深色 0.11 都收进 0.09。
+		// 阶梯的排序断言（stroke > controlEdge > hairline > control）随之失效
+		// 在两个等值上，所以下面改成读「强发丝 > 弱发丝」这条合约真正写下的
+		// 台阶，删掉的是**旧设计的第二级**，不是断言本身。
 		{
 			name: "light", systemDark: false,
-			stroke:       ui.RGBA(0, 0, 0, 0.12),
-			controlEdge:  ui.RGBA(0, 0, 0, 0.1),
+			stroke:       ui.RGBA(0, 0, 0, 0.09),
+			controlEdge:  ui.RGBA(0, 0, 0, 0.06),
 			hairline:     ui.RGBA(0, 0, 0, 0.09),
+			hairlineSoft: ui.RGBA(0, 0, 0, 0.055),
 			control:      ui.RGBA(0, 0, 0, 0.05),
 			controlHover: ui.RGBA(0, 0, 0, 0.075),
 			controlPress: ui.RGBA(0, 0, 0, 0.032),
@@ -301,9 +329,10 @@ func TestTheSurfaceLadderHasAStepToSee(t *testing.T) {
 		},
 		{
 			name: "dark", systemDark: true,
-			stroke:       ui.RGBA(255, 255, 255, 0.11),
-			controlEdge:  ui.RGBA(255, 255, 255, 0.1),
+			stroke:       ui.RGBA(255, 255, 255, 0.09),
+			controlEdge:  ui.RGBA(255, 255, 255, 0.07),
 			hairline:     ui.RGBA(255, 255, 255, 0.09),
+			hairlineSoft: ui.RGBA(255, 255, 255, 0.055),
 			control:      ui.RGBA(255, 255, 255, 0.075),
 			controlHover: ui.RGBA(255, 255, 255, 0.105),
 			controlPress: ui.RGBA(255, 255, 255, 0.05),
@@ -321,6 +350,7 @@ func TestTheSurfaceLadderHasAStepToSee(t *testing.T) {
 				{"InputStroke", tk.InputStroke, tc.stroke},
 				{"ControlEdge", tk.ControlEdge, tc.controlEdge},
 				{"Hairline", tk.Hairline, tc.hairline},
+				{"HairlineSoft", tk.HairlineSoft, tc.hairlineSoft},
 				{"Control", tk.Control, tc.control},
 				{"ControlHover", tk.ControlHover, tc.controlHover},
 				{"ControlPress", tk.ControlPress, tc.controlPress},
@@ -331,16 +361,52 @@ func TestTheSurfaceLadderHasAStepToSee(t *testing.T) {
 					t.Errorf("%s = %v, want %v", rung.name, rung.got, rung.want)
 				}
 			}
-			// The order is the design: card edge, then the row's rule, then a
-			// control plane; hover lifts a pane and a press sinks it below rest.
-			// Every rung is a *step*, not a plateau: the light palette's
-			// edge and hairline were both 0.1, so a grouped row's rule and a
-			// control's edge painted the same line and the ladder had one
-			// rung fewer than it claimed.
-			if !(alpha(tc.stroke) > alpha(tc.controlEdge) && alpha(tc.controlEdge) > alpha(tc.hairline) &&
-				alpha(tc.hairline) > alpha(tc.control)) {
-				t.Errorf("the ladder is out of order: stroke %.3f, edge %.3f, hairline %.3f, control %.3f",
-					alpha(tc.stroke), alpha(tc.controlEdge), alpha(tc.hairline), alpha(tc.control))
+			// The order the contract writes down (`docs/raycast-design.md` §1):
+			// the strong hairline (the card's 1px edge) over the weak one (the
+			// rule between rows and inside a block), and that rule over the
+			// rest of the quiet ladder; hover lifts a pane and a press sinks it
+			// below rest.
+			//
+			// P8-a 重定基线：旧断言是 base.css 的四级
+			// `stroke > controlEdge > hairline > control`。合约只给**两**条
+			// 发丝——强 0.09 / 弱 0.055——而且写明「卡的边与分区线是同一条发丝
+			// 的两种宽度」，所以 controlEdge 不再是发丝之间的一级，两条发丝
+			// 之间的台阶也换成了「强 > 弱」。松掉的是旧设计的第 1.5 级，留下的
+			// 仍然是逐级严格不等（没有一处相等）。
+			if alpha(tc.hairline) != alpha(tc.stroke) {
+				t.Errorf("the card's hairline %.3f is not the strong rung %.3f",
+					alpha(tc.hairline), alpha(tc.stroke))
+			}
+			if alpha(tc.stroke) <= alpha(tc.hairlineSoft) {
+				t.Errorf("the strong hairline %.3f is not above the weak one %.3f",
+					alpha(tc.stroke), alpha(tc.hairlineSoft))
+			}
+			// 弱发丝是合约的第二条发丝，且它必须在静止平面之上（一条画不出来的
+			// 分隔线不是分隔线）。controlEdge 是**键帽/控件自己的边**，与发丝同
+			// 属 0.06~0.09 的一段，合约没有给它排进发丝梯，所以只断言它可见。
+			soft := tk.HairlineSoft
+			if alpha(soft) >= alpha(tc.hairline) {
+				t.Errorf("the weak hairline %.3f is not under the strong one %.3f",
+					alpha(soft), alpha(tc.hairline))
+			}
+			// 弱发丝要是一条 1x 屏画得出来的线（合约的 0.055 是这一步的下界）。
+			if alpha(soft) < 0.05 {
+				t.Errorf("the weak hairline %.3f is below the step a 1x display resolves", alpha(soft))
+			}
+			// 行态三档（合约 §1）：hover < 选中 < 按下，逐级严格递增。
+			row := []struct {
+				name string
+				a    float32
+			}{
+				{"hover", alpha(tk.RowHover)},
+				{"selected", alpha(tk.RowSelected)},
+				{"pressed", alpha(tk.RowPressed)},
+			}
+			for i := 1; i < len(row); i++ {
+				if row[i].a <= row[i-1].a {
+					t.Errorf("the row ladder is flat: %s %.3f is not above %s %.3f",
+						row[i].name, row[i].a, row[i-1].name, row[i-1].a)
+				}
 			}
 			if alpha(tc.controlHover) <= alpha(tc.control) || alpha(tc.controlPress) >= alpha(tc.control) {
 				t.Errorf("the pointer ladder is flat: hover %.3f, rest %.3f, press %.3f",
@@ -505,17 +571,29 @@ func TestTheFrameSheenIsTheFixedTokenNotTheTint(t *testing.T) {
 	if got, want := at("dark", settings.DefaultMainOpacity).SheenTop, paletteFor(Dark).sheenTop; got != want {
 		t.Errorf("the dark sheen = %v, want the fixed token %v", got, want)
 	}
-	// The light token is heavier than a thin frame, so the cap bites — but the
-	// value is still the fixed token capped, never the tint scaled.
+	// The light token is the same kind of number.
+	//
+	// P8-a 重定基线：旧 base.css 的浅色 `--sheen-top` 是 0.66，比任何一档窗框
+	// 都厚，所以这条断言原本读的是「cap 咬住了 token」。合约 §4.1 把**玻璃
+	// 高光/透镜上限压到 0.04**（Raycast 是低光泽设计），浅色 token 因此变成
+	// 0.04，比每一档窗框都薄 —— cap 在任何档位都不咬，于是「cap 咬住了」这句
+	// 话失去了主语。改钉合约真正写下的两件事，且都是**等值**断言：每个档位、
+	// 每个透明度下，画出来的 sheen 都严格等于 `capAlpha(固定 token, 该档窗框)`；
+	// 且 token 本身就在 0.04 这个上限之内。
 	light := paletteFor(Light)
-	spec := glassmap.SpecForOS(runtime.GOOS, "liquid", settings.MinWindowOpacity)
-	want := capAlpha(light.sheenTop, spec.TintAlpha)
-	got := at("light", settings.MinWindowOpacity).SheenTop
-	if got != want {
-		t.Errorf("the light sheen at the slider's bottom = %v, want the capped fixed token %v", got, want)
+	if light.sheenTop.A > 10 {
+		t.Errorf("the light sheen token = %d/255, want at most the contract's 0.04 cap (10/255)", light.sheenTop.A)
 	}
-	if want.A >= light.sheenTop.A {
-		t.Errorf("the light cap did not bite: %d vs the token's %d", want.A, light.sheenTop.A)
+	for _, opacity := range []uint8{settings.MinWindowOpacity, settings.DefaultMainOpacity, 100} {
+		for _, step := range []string{"frosted", "regular", "liquid"} {
+			spec := glassmap.SpecForOS(runtime.GOOS, step, opacity)
+			want := capAlpha(light.sheenTop, spec.TintAlpha)
+			got := at("light", opacity).SheenTop
+			if got != want {
+				t.Errorf("the light sheen at %s/%d%% = %v, want the capped fixed token %v",
+					step, opacity, got, want)
+			}
+		}
 	}
 }
 
@@ -666,22 +744,26 @@ func TestRaisedWarmIsTheWarmPlane(t *testing.T) {
 	}
 }
 
-// AccentTintQuiet is the launcher selection's own rung of the accent-tint
-// family (base.css's `--accent-tint-quiet`): the fill a result row wears when
-// the emphasis is its 700-weight title rather than the fill. Unlike the
-// single-number `--accent-tint`, it is a *per-appearance* token — dark 0.085,
-// light 0.065 — because the same pastel blue over near-black gains contrast
-// while the same alpha over white barely moves the pixel. The port had quoted
-// the dark number as `Accent.Alpha(0.085)` for both appearances, so the light
-// launcher painted its selected row a rung too heavy.
+// AccentTintQuiet is the accent as a *quiet fill* — the one rung of the
+// accent-tint family the contract still allows a face to wear.
+//
+// P8-a 重定基线：这条测试原本钉的是 base.css 的 `--accent-tint-quiet`
+// （深色 `rgba(143,183,255,0.085)` / 浅色 `rgba(6,74,166,0.065)`），那时它是
+// **启动器选中行**的填充。合约 §1 把启动器选中行改成中性填充（`RowSelected`），
+// 并把 accent 收窄到三处：设置侧栏选中项的前导图标、主 CTA 填充、焦点环；
+// `AccentTintQuiet` 的角色随之变成这三处用的「静默 accent 面」，数值取自合约
+// §1 的「accent 静默 0.14 / 0.10」。测试名不变，断言的形状也不变：两个外观各
+// 一个**具体**色值 + alpha，并且必须是 accent 自己的色相。
 func TestAccentTintQuietStepsDownInTheLightAppearance(t *testing.T) {
 	for _, tc := range []struct {
 		name       string
 		systemDark bool
 		want       ui.Color
 	}{
-		{"dark", true, ui.RGBA(143, 183, 255, 0.085)},
-		{"light", false, ui.RGBA(6, 74, 166, 0.065)},
+		// 旧 {143,183,255,.085} → 合约 accent #F5544E 静默 0.14。
+		{"dark", true, ui.RGBA(245, 84, 78, 0.14)},
+		// 旧 {6,74,166,.065} → 合约 accent #E5484D 静默 0.10。
+		{"light", false, ui.RGBA(229, 72, 77, 0.10)},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			tokens := ForPreferences(settings.Settings{Theme: "auto"}, tc.systemDark, ui.Preferences{})
@@ -770,6 +852,9 @@ func TestThePlatformsMaterialReachesTheTokens(t *testing.T) {
 
 // The window's own corner is one number on all three platforms.
 //
+// P8-a 重定基线：本文件下面这段历史说明讲的是 base.css 的 14px/8px。合约 §2
+// 把窗口/卡片这一级定为 **12px**，三平台一致这条结论不变，数值从 14 换成 12。
+//
 // base.css carries two `--window-radius` values: 14px for the default sheet and
 // 8px inside `.platform-windows` (`base.css:66,1492`). The 8px was not a taste
 // decision — it followed DWM, which rounds every top-level window at its own
@@ -796,7 +881,26 @@ func TestTheWindowCornerIsTheDesignsOnEveryPlatform(t *testing.T) {
 			t.Errorf("%s RadiusLG = %v, want the ladder's %v", goos, tokens.RadiusLG, float32(RadiusLG))
 		}
 	}
-	if RadiusLG != 14 {
-		t.Errorf("the ladder's window rung = %v, want base.css's 14px", float32(RadiusLG))
+	// P8-a 重定基线：旧 base.css 的 radius 梯是 6/9/12/14，窗口 rung = 14px。
+	// 合约 §2 的梯是 6/8/10/12 + 键帽 5，窗口与卡片这一级 = 12px。
+	if RadiusLG != 12 {
+		t.Errorf("the ladder's window rung = %v, want the contract's 12px", float32(RadiusLG))
+	}
+	// 合约 §2 的四个梯级逐个写死，另加键帽自己的一级 5：这五个数是这一片
+	// 唯一允许出现的圆角。
+	for _, rung := range []struct {
+		name string
+		got  float32
+		want float32
+	}{
+		{"RadiusXS (icon plate)", RadiusXS, 6},
+		{"RadiusSM (row, button)", RadiusSM, 8},
+		{"RadiusMD (block in a panel)", RadiusMD, 10},
+		{"RadiusLG (window, card)", RadiusLG, 12},
+		{"KeycapRadius", KeycapRadius, 5},
+	} {
+		if rung.got != rung.want {
+			t.Errorf("%s = %v, want the contract's %v", rung.name, rung.got, rung.want)
+		}
 	}
 }

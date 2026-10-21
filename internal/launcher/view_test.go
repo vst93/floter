@@ -2609,6 +2609,11 @@ func TestTypingATriggerWordAndSpaceEntersTheCommandMode(t *testing.T) {
 // edge — after the row's own marks and before its keys — never inline after the
 // title, where a narrow window's ellipsis eats it first, precisely when "where
 // did this result come from" matters most.
+//
+// P8-a 重定基线：旧 base.css 值 → 合约 §4.5。徽标不再是一整串 `Ctrl+1` 文本，而
+// 是两块键帽，所以「源词在徽标左侧」这条几何按**第一块板**重算：源词的右沿必须
+// 停在该行第一枚键的左沿之前（板上是键帽自己的 padding，而键圈的边界才是绘制
+// 起点），两块板整体仍然满在行块内。
 func TestTheSourceWordSitsAtTheRowsRightEdge(t *testing.T) {
 	a := commandApp()
 	tt := render(t, a)
@@ -2624,15 +2629,21 @@ func TestTheSourceWordSitsAtTheRowsRightEdge(t *testing.T) {
 	if source.X < title.X+title.W {
 		t.Errorf("the source sits inside the title: title %+v source %+v", title, source)
 	}
-	// The badge is the app's own formatting of the select-result binding, so the
-	// expected text is asked of the app (`⌘1` on macOS, `Ctrl+1` elsewhere) rather
-	// than spelled out as one platform's.
-	badge, ok := tt.Find(a.resultNumber(1))
-	if !ok {
-		t.Fatalf("the row has no numbered badge: %q", tt.Texts())
+	// The badge is the app's own formatting of the select-result binding, drawn
+	// as the keycap chord it is: one plate per key (`Ctrl` + `1` here, `⌘` + `1`
+	// on macOS), asked of the app rather than spelled out as one platform's.
+	labels := keycapLabels(a.resultNumber(1))
+	if len(labels) < 2 {
+		t.Fatalf("the numbered badge %q did not split into keys: %v", a.resultNumber(1), labels)
 	}
-	if source.X+source.W > badge.X {
-		t.Errorf("the source overlaps the badge: source %+v badge %+v", source, badge)
+	first, ok := tt.Find(labels[0])
+	if !ok {
+		t.Fatalf("the row has no numbered badge (%q missing): %q", labels[0], tt.Texts())
+	}
+	badgePlate := plateAround(tt, first)
+	if source.X+source.W > badgePlate.X {
+		t.Errorf("the source overlaps the badge's first key: source %+v key %q's plate %+v",
+			source, labels[0], badgePlate)
 	}
 }
 
