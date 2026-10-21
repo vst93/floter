@@ -581,6 +581,9 @@ func TestHighContrastSwapsTheStrokeAndPlaceholderTokens(t *testing.T) {
 				tk.Sunken, tk.RaisedQuiet, tk.Float = ui.Color{}, ui.Color{}, ui.Color{}
 				tk.LensRim, tk.LensSheen, tk.LensEdge = ui.Color{}, ui.Color{}, ui.Color{}
 				tk.SheenTop, tk.SheenBottom = ui.Color{}, ui.Color{}
+				// The focused pair is capped at the same frame alpha, so the
+				// material floor moves it too (see SheenAtFocus).
+				tk.SheenTopActive, tk.SheenBottomActive = ui.Color{}, ui.Color{}
 				return tk
 			}
 			if got, want := blank(high), blank(plain); got != want {

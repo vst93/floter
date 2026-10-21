@@ -170,6 +170,15 @@ type Tokens struct {
 	// (see `FaceFill`).
 	SheenTop    ui.Color
 	SheenBottom ui.Color
+	// SheenTopActive and SheenBottomActive are the card's lit face *while it
+	// has the keyboard*: base.css's `--sheen-top-active` / `--sheen-bottom-active`
+	// (`:630-631` dark, `:908-909` light), which `.collapsed-card:focus-within`
+	// paints instead of the resting pair (`main:src/styles/launcher.css:136-144`).
+	// Capped at the frame's alpha exactly as the resting pair is, so raising the
+	// face never makes the frame denser than the slider asked for (see
+	// `SheenAt`).
+	SheenTopActive    ui.Color
+	SheenBottomActive ui.Color
 	// ShadowAmbient and ShadowContact are the window's own cast shadow
 	// (base.css's `--window-shadow-ambient` / `--window-shadow-contact`): the
 	// broad throw and the tight contact edge a card carries where the platform
@@ -390,9 +399,12 @@ func ForPlatform(s settings.Settings, systemDark bool, prefs ui.Preferences, goo
 	// colour, not the fill's truth (the sheen used to sit over the frame's tint
 	// and add its own alpha — 「开玻璃透明底失效」).
 	sheenTop, sheenBottom := ui.Color{}, ui.Color{}
+	sheenTopActive, sheenBottomActive := ui.Color{}, ui.Color{}
 	if spec.Glass {
 		sheenTop = capAlpha(p.sheenTop, spec.TintAlpha)
 		sheenBottom = capAlpha(p.sheenBottom, spec.TintAlpha)
+		sheenTopActive = capAlpha(p.sheenTopActive, spec.TintAlpha)
+		sheenBottomActive = capAlpha(p.sheenBottomActive, spec.TintAlpha)
 	}
 	baseFill := t.Background
 	if appearance == Dark {
@@ -473,21 +485,23 @@ func ForPlatform(s settings.Settings, systemDark bool, prefs ui.Preferences, goo
 		// The frame's lit face is the reference's fixed token, capped at the
 		// frame's own alpha (see the `sheenTop` note above); the stop does not
 		// grade it.
-		SheenTop:         sheenTop,
-		SheenBottom:      sheenBottom,
-		ShadowAmbient:    p.shadowAmbient,
-		ShadowContact:    p.shadowContact,
-		EdgeHighlight:    p.edgeHighlight,
-		EdgeShadow:       p.edgeShadow,
-		EdgeHighlightX:   p.edgeHighlightX,
-		AccentEdge:       p.accentEdge,
-		AccentEdgeStrong: p.accentEdgeStrong,
-		AccentHalo:       p.accentHalo,
-		AccentTintQuiet:  p.accentTintQuiet,
-		Hairline:         hairline,
-		TextStrong:       textStrong,
-		TextSecondary:    textSecondary,
-		TextTertiary:     textTertiary,
+		SheenTop:          sheenTop,
+		SheenBottom:       sheenBottom,
+		SheenTopActive:    sheenTopActive,
+		SheenBottomActive: sheenBottomActive,
+		ShadowAmbient:     p.shadowAmbient,
+		ShadowContact:     p.shadowContact,
+		EdgeHighlight:     p.edgeHighlight,
+		EdgeShadow:        p.edgeShadow,
+		EdgeHighlightX:    p.edgeHighlightX,
+		AccentEdge:        p.accentEdge,
+		AccentEdgeStrong:  p.accentEdgeStrong,
+		AccentHalo:        p.accentHalo,
+		AccentTintQuiet:   p.accentTintQuiet,
+		Hairline:          hairline,
+		TextStrong:        textStrong,
+		TextSecondary:     textSecondary,
+		TextTertiary:      textTertiary,
 		// The warm plane is a fixed per-appearance token in base.css — unlike
 		// the frame's tint it does not follow the transparency slider.
 		IconSurface:      p.iconSurface,
@@ -544,26 +558,32 @@ func paletteFor(appearance Appearance) palette {
 			// palette had the two at the same 0.1, so a row rule and a control
 			// edge drew the same line — the last rung of the ladder with no
 			// step in it.
-			hairline:         ui.RGBA(0, 0, 0, 0.09),
-			selection:        ui.RGBA(6, 74, 166, 0.1),
-			focus:            ui.RGBA(6, 74, 166, 0.82),
-			warning:          ui.Hex("#9c1f18"),
-			scrollbar:        ui.RGBA(60, 60, 67, 0.24),
-			opaque:           ui.RGBA(250, 250, 252, 0.995),
-			fieldFill:        ui.RGBA(252, 252, 254, 0.997),
-			lensRim:          ui.RGBA(255, 255, 255, 0.9),
-			lensSheen:        ui.RGBA(255, 255, 255, 0.5),
-			lensEdge:         ui.RGBA(0, 0, 0, 0.08),
-			sheenTop:         ui.RGBA(255, 255, 255, 0.66),
-			sheenBottom:      ui.RGBA(255, 255, 255, 0.22),
-			shadowAmbient:    ui.RGBA(0, 0, 0, 0.18),
-			shadowContact:    ui.RGBA(0, 0, 0, 0.12),
-			edgeHighlight:    ui.RGBA(255, 255, 255, 0.92),
-			edgeShadow:       ui.RGBA(0, 0, 0, 0.07),
-			edgeHighlightX:   ui.RGBA(255, 255, 255, 0.6),
-			accentEdge:       ui.RGBA(6, 74, 166, 0.36),
-			accentEdgeStrong: ui.RGBA(6, 74, 166, 0.68),
-			accentHalo:       ui.RGBA(6, 74, 166, 0.24),
+			hairline:    ui.RGBA(0, 0, 0, 0.09),
+			selection:   ui.RGBA(6, 74, 166, 0.1),
+			focus:       ui.RGBA(6, 74, 166, 0.82),
+			warning:     ui.Hex("#9c1f18"),
+			scrollbar:   ui.RGBA(60, 60, 67, 0.24),
+			opaque:      ui.RGBA(250, 250, 252, 0.995),
+			fieldFill:   ui.RGBA(252, 252, 254, 0.997),
+			lensRim:     ui.RGBA(255, 255, 255, 0.9),
+			lensSheen:   ui.RGBA(255, 255, 255, 0.5),
+			lensEdge:    ui.RGBA(0, 0, 0, 0.08),
+			sheenTop:    ui.RGBA(255, 255, 255, 0.66),
+			sheenBottom: ui.RGBA(255, 255, 255, 0.22),
+			// base.css's `--sheen-top-active` / `--sheen-bottom-active`
+			// (`:908-909` light, `:630-631` dark): the lit face the card wears
+			// while it has the keyboard (`.collapsed-card:focus-within`,
+			// `main:src/styles/launcher.css:136-144`).
+			sheenTopActive:    ui.RGBA(255, 255, 255, 0.78),
+			sheenBottomActive: ui.RGBA(255, 255, 255, 0.28),
+			shadowAmbient:     ui.RGBA(0, 0, 0, 0.18),
+			shadowContact:     ui.RGBA(0, 0, 0, 0.12),
+			edgeHighlight:     ui.RGBA(255, 255, 255, 0.92),
+			edgeShadow:        ui.RGBA(0, 0, 0, 0.07),
+			edgeHighlightX:    ui.RGBA(255, 255, 255, 0.6),
+			accentEdge:        ui.RGBA(6, 74, 166, 0.36),
+			accentEdgeStrong:  ui.RGBA(6, 74, 166, 0.68),
+			accentHalo:        ui.RGBA(6, 74, 166, 0.24),
 			// The launcher selection's own rung: the light appearance steps the
 			// tint down (base.css `--accent-tint-quiet: rgba(6, 74, 166, 0.065)`)
 			// because the dark appearance's 0.085 reads heavier over white.
@@ -576,45 +596,48 @@ func paletteFor(appearance Appearance) palette {
 		}
 	}
 	return palette{
-		background:       ui.Hex("#121316"),
-		text:             ui.Hex("#f2f3f5"),
-		textStrong:       ui.RGBA(244, 245, 247, 0.96),
-		textMuted:        ui.RGBA(238, 239, 242, 0.55),
-		textSecondary:    ui.RGBA(238, 239, 242, 0.74),
-		textTertiary:     ui.RGBA(238, 239, 242, 0.48),
-		accent:           ui.Hex("#8fb7ff"),
-		accentHover:      ui.Hex("#a9c8ff"),
-		accentPressed:    ui.Hex("#7aa7ff"),
-		accentText:       ui.Hex("#15171b"),
-		stroke:           ui.RGBA(255, 255, 255, 0.11),
-		strokeActive:     ui.RGBA(143, 183, 255, 0.24),
-		control:          ui.RGBA(255, 255, 255, 0.075),
-		controlHover:     ui.RGBA(255, 255, 255, 0.105),
-		controlPress:     ui.RGBA(255, 255, 255, 0.05),
-		controlEdge:      ui.RGBA(255, 255, 255, 0.1),
-		track:            ui.RGBA(255, 255, 255, 0.09),
-		trackEdge:        ui.RGBA(255, 255, 255, 0.075),
-		field:            ui.RGBA(255, 255, 255, 0.03),
-		hairline:         ui.RGBA(255, 255, 255, 0.09),
-		selection:        ui.RGBA(143, 183, 255, 0.13),
-		focus:            ui.RGBA(122, 167, 255, 0.78),
-		warning:          ui.RGBA(255, 178, 164, 0.82),
-		scrollbar:        ui.RGBA(238, 239, 242, 0.15),
-		opaque:           ui.RGBA(26, 27, 30, 0.99),
-		fieldFill:        ui.RGBA(33, 34, 37, 0.99),
-		lensRim:          ui.RGBA(255, 255, 255, 0.15),
-		lensSheen:        ui.RGBA(255, 255, 255, 0.06),
-		lensEdge:         ui.RGBA(0, 0, 0, 0.15),
-		sheenTop:         ui.RGBA(255, 255, 255, 0.046),
-		sheenBottom:      ui.RGBA(255, 255, 255, 0.01),
-		shadowAmbient:    ui.RGBA(0, 0, 0, 0.3),
-		shadowContact:    ui.RGBA(0, 0, 0, 0.2),
-		edgeHighlight:    ui.RGBA(255, 255, 255, 0.15),
-		edgeShadow:       ui.RGBA(0, 0, 0, 0.28),
-		edgeHighlightX:   ui.RGBA(255, 255, 255, 0.04),
-		accentEdge:       ui.RGBA(143, 183, 255, 0.3),
-		accentEdgeStrong: ui.RGBA(143, 183, 255, 0.72),
-		accentHalo:       ui.RGBA(143, 183, 255, 0.18),
+		background:    ui.Hex("#121316"),
+		text:          ui.Hex("#f2f3f5"),
+		textStrong:    ui.RGBA(244, 245, 247, 0.96),
+		textMuted:     ui.RGBA(238, 239, 242, 0.55),
+		textSecondary: ui.RGBA(238, 239, 242, 0.74),
+		textTertiary:  ui.RGBA(238, 239, 242, 0.48),
+		accent:        ui.Hex("#8fb7ff"),
+		accentHover:   ui.Hex("#a9c8ff"),
+		accentPressed: ui.Hex("#7aa7ff"),
+		accentText:    ui.Hex("#15171b"),
+		stroke:        ui.RGBA(255, 255, 255, 0.11),
+		strokeActive:  ui.RGBA(143, 183, 255, 0.24),
+		control:       ui.RGBA(255, 255, 255, 0.075),
+		controlHover:  ui.RGBA(255, 255, 255, 0.105),
+		controlPress:  ui.RGBA(255, 255, 255, 0.05),
+		controlEdge:   ui.RGBA(255, 255, 255, 0.1),
+		track:         ui.RGBA(255, 255, 255, 0.09),
+		trackEdge:     ui.RGBA(255, 255, 255, 0.075),
+		field:         ui.RGBA(255, 255, 255, 0.03),
+		hairline:      ui.RGBA(255, 255, 255, 0.09),
+		selection:     ui.RGBA(143, 183, 255, 0.13),
+		focus:         ui.RGBA(122, 167, 255, 0.78),
+		warning:       ui.RGBA(255, 178, 164, 0.82),
+		scrollbar:     ui.RGBA(238, 239, 242, 0.15),
+		opaque:        ui.RGBA(26, 27, 30, 0.99),
+		fieldFill:     ui.RGBA(33, 34, 37, 0.99),
+		lensRim:       ui.RGBA(255, 255, 255, 0.15),
+		lensSheen:     ui.RGBA(255, 255, 255, 0.06),
+		lensEdge:      ui.RGBA(0, 0, 0, 0.15),
+		sheenTop:      ui.RGBA(255, 255, 255, 0.046),
+		sheenBottom:   ui.RGBA(255, 255, 255, 0.01),
+		// The focus step of the same pair (`base.css:630-631`).
+		sheenTopActive:    ui.RGBA(255, 255, 255, 0.056),
+		sheenBottomActive: ui.RGBA(255, 255, 255, 0.012),
+		shadowAmbient:     ui.RGBA(0, 0, 0, 0.3),
+		shadowContact:     ui.RGBA(0, 0, 0, 0.2),
+		edgeHighlight:     ui.RGBA(255, 255, 255, 0.15),
+		edgeShadow:        ui.RGBA(0, 0, 0, 0.28),
+		edgeHighlightX:    ui.RGBA(255, 255, 255, 0.04),
+		accentEdge:        ui.RGBA(143, 183, 255, 0.3),
+		accentEdgeStrong:  ui.RGBA(143, 183, 255, 0.72),
+		accentHalo:        ui.RGBA(143, 183, 255, 0.18),
 		// The launcher selection's own rung (base.css `--accent-tint-quiet:
 		// rgba(143, 183, 255, 0.085)`).
 		accentTintQuiet: ui.RGBA(143, 183, 255, 0.085),
@@ -666,6 +689,7 @@ type palette struct {
 	opaque, fieldFill                                                       ui.Color
 	lensRim, lensSheen, lensEdge                                            ui.Color
 	sheenTop, sheenBottom                                                   ui.Color
+	sheenTopActive, sheenBottomActive                                       ui.Color
 	shadowAmbient, shadowContact                                            ui.Color
 	edgeHighlight, edgeShadow, edgeHighlightX                               ui.Color
 	accentEdge                                                              ui.Color
@@ -722,11 +746,22 @@ func blendOpaque(base, over ui.Color) ui.Color {
 // frame's alpha is the transparency slider's on every stop, while the stop
 // still grades the lit face's colour (the sheen the scene paints itself).
 func (t Tokens) FaceFill(alpha float32) (top, bottom ui.Color) {
+	return t.FaceFillAt(alpha, false)
+}
+
+// FaceFillAt is FaceFill for a named focus state: `focus` picks the reference's
+// raised `--sheen-*-active` pair, so the fill under it is compensated against
+// *that* sheen and the card's frame alpha stays the slider's while the lit face
+// lifts (`.collapsed-card:focus-within`).
+func (t Tokens) FaceFillAt(alpha float32, focus bool) (top, bottom ui.Color) {
 	bg := ui.RGB(18, 19, 22)
 	if t.Theme != nil {
 		bg = t.Theme.Background
 	}
 	sheenTop, sheenBottom := t.SheenAt(alpha)
+	if focus {
+		sheenTop, sheenBottom = t.SheenAtFocus(alpha)
+	}
 	return ui.RGBA(bg.R, bg.G, bg.B, baseAlpha(alpha, sheenTop)),
 		ui.RGBA(bg.R, bg.G, bg.B, baseAlpha(alpha, sheenBottom))
 }
@@ -741,6 +776,22 @@ func (t Tokens) FaceFill(alpha float32) (top, bottom ui.Color) {
 // at its own alpha and the frame would be denser than the slider asked for.
 func (t Tokens) SheenAt(alpha float32) (top, bottom ui.Color) {
 	return capAlpha(t.SheenTop, alpha), capAlpha(t.SheenBottom, alpha)
+}
+
+// SheenAtFocus is SheenAt for the card that has the keyboard: the reference's
+// `--sheen-*-active` pair, capped at the alpha the face is painted at for the
+// same reason the resting pair is (see SheenAt).
+//
+// The reference lifts the card's lit face on `:focus-within` — the same rule
+// that lights its stroke (`main:src/styles/launcher.css:136-144`:
+// `border-color: var(--input-stroke-active); background:
+// linear-gradient(180deg, var(--sheen-top-active), var(--sheen-bottom-active)),
+// var(--launcher-tint)`). The port carried the stroke half of that rule and not
+// the face half, so the launcher's card looked identical whether or not it had
+// the keyboard — the one focus cue the design spends on the whole panel was
+// half missing on all three platforms.
+func (t Tokens) SheenAtFocus(alpha float32) (top, bottom ui.Color) {
+	return capAlpha(t.SheenTopActive, alpha), capAlpha(t.SheenBottomActive, alpha)
 }
 
 // baseAlpha is the fill alpha a sheen of alpha s composites over to frame:

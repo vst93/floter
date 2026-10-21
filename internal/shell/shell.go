@@ -246,6 +246,11 @@ type App struct {
 
 	// Win is the window, created by Start.
 	Win *mygo.Window
+	// cardFocus replaces the window's own focus reading for the card's
+	// focus-within face (the stroke and the raised sheen). A headless frame has
+	// no window to hold the keyboard, so both halves of that rule would be
+	// unobservable; nil reads the real window.
+	cardFocus func() bool
 	// windowVisible replaces the window's own visibility reading in Show. A
 	// test has no window to put on screen, so it drives the reveal decision
 	// through this seam; nil reads the real window (and, with no window at
@@ -4104,7 +4109,8 @@ func (a *App) View(c *ui.Context) {
 	// lit one step while the window has the keyboard — the rim the old
 	// build's R72 kept when it deleted the second one.
 	stroke := surface.Tokens.InputStroke
-	if a.Win != nil && a.Win.IsFocused() {
+	focused := a.cardFocused()
+	if focused {
 		stroke = surface.Tokens.InputStrokeActive
 	}
 	// The reference's window contract is a **720-wide column** (`lib.rs:93`,
@@ -4246,7 +4252,10 @@ func (a *App) View(c *ui.Context) {
 			// painted at full opacity and the card is a solid panel.
 			faceAlpha = 1
 		}
-		faceTop, faceBottom := surface.Tokens.FaceFill(faceAlpha)
+		// The card's lit face follows the keyboard exactly as its stroke does:
+		// the reference's `.collapsed-card:focus-within` swaps both at once
+		// (`main:src/styles/launcher.css:136-144`). See SheenAtFocus.
+		faceTop, faceBottom := surface.Tokens.FaceFillAt(faceAlpha, focused)
 		card.Children(func() {
 			// The panel's fill is one translucent tint at the frame's own alpha —
 			// the reference's `--glass-tint-alpha` — and the stop's sheen is the
@@ -4288,6 +4297,9 @@ func (a *App) View(c *ui.Context) {
 			// instead would let a light appearance's 0.66 sheen paint the whole
 			// terminal face at its own alpha, denser than the slider asked for.
 			sheenTop, sheenBottom := surface.Tokens.SheenAt(faceAlpha)
+			if focused {
+				sheenTop, sheenBottom = surface.Tokens.SheenAtFocus(faceAlpha)
+			}
 			face := ui.Column(c).Fill().Radius(radius).
 				LinearGradient(ui.LinearGradient{From: faceTop, To: faceBottom, Angle: 180}).DragWindow()
 			face.Children(func() {
@@ -4471,6 +4483,19 @@ func (a *App) windowShowsMaterial(c *ui.Context) bool {
 		return true
 	}
 	return glassmap.TransparencyAvailable(runtime.GOOS, c.Vibrancy())
+}
+
+// cardFocused reports whether the card has the keyboard, which is what the
+// reference's `.collapsed-card:focus-within` rule keys on: the lit stroke, the
+// raised sheen and the focus ring all belong to the card that has focus. A
+// headless frame has no window, and a window that is not the frontmost one does
+// not hold the keyboard either — both read as unfocused, which is the resting
+// face.
+func (a *App) cardFocused() bool {
+	if a.cardFocus != nil {
+		return a.cardFocus()
+	}
+	return a.Win != nil && a.Win.IsFocused()
 }
 
 // insetFor is inset with the window's material taken into account: where the
