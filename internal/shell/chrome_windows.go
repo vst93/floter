@@ -113,11 +113,11 @@ func setWindowStyle(hwnd uintptr, style uintptr) {
 //
 //	w.hiddenTitleBar = !o.Frameless && (o.TitleBarStyle == "hidden" || o.TitleBarStyle == "hiddenInset")
 //
-// (`window.go:121`), so `Frameless: true` makes the flag false whatever
+// (`window.go:133`), so `Frameless: true` makes the flag false whatever
 // `TitleBarStyle` or `HideWindowButtons` say, and the two places the option is
 // read are both behind it: the caption bar is only built for a hidden title bar
-// (`window.go:186`) and `shownButtons()` returns its empty list only from that
-// bar's layout (`titlebar.go:151-155`). `styles()` (`window.go:223-250`) keeps
+// (`window.go:196`) and `shownButtons()` returns its empty list only from that
+// bar's layout (`titlebar.go:151-158`). `styles()` (`window.go:235-258`) keeps
 // building from `WS_OVERLAPPEDWINDOW` regardless — it strips `WS_SYSMENU` only
 // for `Panel`, which is why floter's panel window lost the window menu from
 // upstream while the launcher's caption, minimize and maximize boxes still had
@@ -129,6 +129,17 @@ func setWindowStyle(hwnd uintptr, style uintptr) {
 // which bit belongs to whom: the caption/menu/boxes are ours because upstream
 // will not touch a frameless window's style; the DWM border and the corner
 // rounding are ours because upstream's equivalents ride `TitleBarStyle` too.
+//
+// **P9-a 复核，mygo v0.6.3** (upstream #612, 「Windows 最大化 + 隐藏标题栏 + 材质
+// 时 DWM 不再画标题按钮」): the fix is `glassMargins`/`extendGlass`
+// (`window.go:1075-1102`), which stops extending the material's frame over the
+// top of a *maximized* hidden-title-bar window — the strip DWM paints its three
+// buttons in — and extends it from the bottom instead. Both of its inputs come
+// from `w.hiddenTitleBar`, which is false for every window floter creates, so
+// the new branch is unreachable here and the conclusion of P7-lf stands: the
+// local strip is still the only thing that takes the caption off a frameless
+// window. It also cannot fight upstream: the style bits this function clears are
+// the ones `styles()` sets unconditionally from `WS_OVERLAPPEDWINDOW`.
 func stripSystemChrome(hwnd uintptr) {
 	if hwnd == 0 {
 		return
