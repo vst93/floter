@@ -163,6 +163,10 @@ type Actions struct {
 	ReprobeHealth func(id string)
 	// SetShortcut records a new accelerator for an action id.
 	SetShortcut func(id, accelerator string)
+	// ShortcutRefused reports whether the shell's last attempt to bind id was
+	// refused by the system (another app holds the chord). Nil means nothing
+	// can tell, and the recorder keeps its optimistic reading.
+	ShortcutRefused func(id string) bool
 	// InstallFromRegistry installs a package from the npm registry.
 	InstallFromRegistry func(name, constraint string)
 	// SetCommandEnabled turns one of an integration's commands on or off: a
@@ -3677,6 +3681,14 @@ func (a *App) recordShortcut(action, accelerator string) {
 		a.rejectedShortcut = ""
 		if a.Actions.SetShortcut != nil {
 			a.Actions.SetShortcut(action, accelerator)
+			// The map has already accepted the chord; the system may still
+			// refuse it (another app holds it). The shell keeps the old key
+			// in that case and writes nothing, so the row says the
+			// reference's sentence rather than leaving a chord on screen
+			// that nothing answers.
+			if a.Actions.ShortcutRefused != nil && a.Actions.ShortcutRefused(action) {
+				a.rejectedShortcut = action
+			}
 		}
 	case settings.ShortcutRefused:
 		a.rejectedShortcut = action

@@ -489,6 +489,11 @@ type App struct {
 
 	// ShortcutErr is why the global shortcut could not be registered.
 	ShortcutErr error
+	// shortcutRefusal is the action whose last registration the system refused
+	// (another app holds the chord). ShortcutErr says that something failed;
+	// this says which action did, so the settings recorder can point at its own
+	// row instead of leaving the new chord looking active.
+	shortcutRefusal string
 
 	// now is the clock the residency rule reads; tests replace it.
 	now func() time.Time
@@ -806,6 +811,7 @@ func New(opts Options) *App {
 		CopyText:           func(text string) { mygo.Clipboard.WriteText(text) },
 		ChooseProgram:      a.chooseProgram,
 		SetShortcut:        a.setShortcut,
+		ShortcutRefused:    a.shortcutWasRefused,
 		SetPage:            a.rememberSettingsPage,
 		SetCommandEnabled:  a.setCommandEnabled,
 		SetCommandAlias:    a.setCommandAlias,
@@ -1423,7 +1429,13 @@ func (a *App) setShortcut(id, accelerator string) {
 		return
 	}
 	if err := a.registerShortcut(normalized, a.Toggle); err != nil {
+		// The system holds the chord (another app took it): the old key stays
+		// registered and nothing is written, so the page owes the user a word
+		// about the new one not taking. ShortcutRefused carries this back to
+		// the recorder, which draws the reference's
+		// `settings.shortcut.rejected` sentence in that row.
 		log.Printf("floter: could not register %s: %v", normalized, err)
+		a.ShortcutErr, a.shortcutRefusal = err, id
 		return
 	}
 	if a.summonKey != "" {
@@ -1432,6 +1444,7 @@ func (a *App) setShortcut(id, accelerator string) {
 	a.summonKey = normalized
 	a.Settings.Shortcut = normalized
 	a.ShortcutErr = nil
+	a.shortcutRefusal = ""
 
 	if err := a.Store.Update(func(s *settings.Settings) {
 		s.SetExtra("hotkey", normalized)
@@ -2168,7 +2181,10 @@ func (a *App) ApplySummonShortcut() {
 		return
 	}
 	if err := a.registerShortcut(accelerator, a.Toggle); err != nil {
+		// Same refusal as setShortcut's: the chord the settings name is not
+		// the one the system holds now, and the page has to be able to say so.
 		log.Printf("floter: could not register %s: %v", accelerator, err)
+		a.ShortcutErr, a.shortcutRefusal = err, settings.ShortcutToggleWindow
 		return
 	}
 	if a.summonKey != "" {
@@ -2177,6 +2193,16 @@ func (a *App) ApplySummonShortcut() {
 	a.summonKey = accelerator
 	a.Settings.Shortcut = accelerator
 	a.ShortcutErr = nil
+	a.shortcutRefusal = ""
+}
+
+// shortcutWasRefused reports whether the last attempt to bind id was refused by
+// the system. The settings recorder asks it right after writing, and the row
+// whose chord did not take says "Already used by another app" — the sentence
+// the copy has always carried, which only floter's own conflicts could reach
+// before (P9-k).
+func (a *App) shortcutWasRefused(id string) bool {
+	return id != "" && a.shortcutRefusal == id
 }
 
 // setShortcutsSuspended releases the global shortcuts while a settings
