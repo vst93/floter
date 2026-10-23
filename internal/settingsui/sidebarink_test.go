@@ -134,3 +134,18 @@ func panelOver(over, base ui.Color) ui.Color {
 func panelClose(a, b ui.Color, tol int) bool {
 	return channelDelta(a, b) <= tol
 }
+
+// discriminating states that a two-candidate guard can actually fire. The
+// shape `!panelClose(want, other, tol) && panelClose(got, other, tol)` — "the
+// pixel is not A, it is B" — is dead when A and B are themselves within tol:
+// the first clause is then always false and the pin silently stops covering
+// what its comment claims. P9-b found the grouped card's edge pin in exactly
+// that state (HairlineSoft 229 vs ControlEdge 228 over the card's face, tol 2),
+// so every remaining guard of this shape now says out loud that it can fire.
+func discriminating(t *testing.T, what string, want, other ui.Color, tol int) {
+	t.Helper()
+	if gap := channelDelta(want, other); gap <= tol {
+		t.Fatalf("%s: the two candidates are %d level(s) apart (%v vs %v), inside this pin's own tolerance %d — the guard can never fire",
+			what, gap, want, other, tol)
+	}
+}

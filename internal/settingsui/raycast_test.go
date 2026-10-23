@@ -149,6 +149,10 @@ func TestTheSettingsRulesAreOneSolidWeakHairline(t *testing.T) {
 	}
 	want := panelOver(tokens.HairlineSoft, pane)
 	strong := panelOver(tokens.Hairline, pane)
+	// The guard below says "not the strong hairline"; it can only say that if
+	// the two tiers are further apart than its own tolerance (they are: 8
+	// levels over this pane).
+	discriminating(t, "the header's rule", want, strong, 2)
 	for _, x := range []int{3, 100, 360, 700} {
 		got := imagePixel(img, x, ruleY)
 		if !panelClose(got, want, 4) {
@@ -204,62 +208,96 @@ func TestTheSettingsRulesAreOneSolidWeakHairline(t *testing.T) {
 
 // §6.1 第 3 条 · The grouped card is `Control` + `HairlineSoft` at radius 10 —
 // no lens and no control-edge keyline.
+//
+// P9-b 重定基线：这条 pin 原来只画浅色外观，而且它的「不是 ControlEdge」守卫是死的——
+// 写成 `!panelClose(weak, controlEdge, 2) && panelClose(edge, controlEdge, 3)`，可浅色下
+// 两档发丝叠在卡片面上只差 **1/255**（229 vs 228），第一个条件恒假，守卫永远不开火
+// （P9-a 的变异实验就是这么发现它的：把卡片边换成 ControlEdge，pin 依然绿）。
+// 现在两种外观都画，守卫换成没有魔数容差的判别式：卡片边必须**离弱发丝比离控件边更近**。
+// 深色下两档差 4/255（32 vs 36），浅色下差 1/255——判别式两种外观都能开火，
+// 而任何 `panelClose(..., tol≥1)` 的写法在浅色下都必然失明。
 func TestTheGroupedCardWearsTheContractsFaceEdgeAndCorner(t *testing.T) {
 	a := New(newStore(t), Actions{})
 	if tokens := theme.ForPreferences(a.Store.Snapshot(), false, ui.Preferences{}); tokens.RadiusMD != 10 {
 		t.Errorf("the panel-block radius is %v, want the contract's 10 (RadiusMD)", tokens.RadiusMD)
 	}
-	var tokens theme.Tokens
-	tt := ui.NewTester(func(c *ui.Context) {
-		tokens = a.tokens(c)
-		c.SetTheme(tokens.Theme)
-		c.Root().Background(ui.RGB(255, 255, 255))
-		ui.Column(c).Padding(20).Children(func() {
-			a.card(c, func() {
-				a.row(c, "Row", "hint", func() {})
-			})
+	for _, appearance := range []string{"light", "dark"} {
+		t.Run(appearance, func(t *testing.T) {
+			store := newStore(t)
+			if err := store.Update(func(s *settings.Settings) { s.Theme = appearance }); err != nil {
+				t.Fatal(err)
+			}
+			a := New(store, Actions{})
+			// The page the card is painted on: white under the light card,
+			// black under the dark one. Both are opaque, so a token composited
+			// over them is readable as the card's own face.
+			page0 := ui.RGB(255, 255, 255)
+			if appearance == "dark" {
+				page0 = ui.RGB(0, 0, 0)
+			}
+			var tokens theme.Tokens
+			tt := ui.NewTester(func(c *ui.Context) {
+				tokens = a.tokens(c)
+				c.SetTheme(tokens.Theme)
+				c.Root().Background(page0)
+				ui.Column(c).Padding(20).Children(func() {
+					a.card(c, func() {
+						a.row(c, "Row", "hint", func() {})
+					})
+				})
+			}, 400, 200)
+			tt.Frame()
+			img := tt.Image()
+			page := imagePixel(img, 2, 2)
+			// The card's own box, found by its extent: the outermost painted columns
+			// and rows (the 20u page padding is the page colour on all four sides).
+			box := paintedBox(img, page)
+			// The card's face: Control over the page, read inside the card clear of
+			// its rows' ink.
+			face := imagePixel(img, int(box.X+box.W)-6, int(box.Y+box.H/2))
+			if want := panelOver(tokens.Control, page); !panelClose(face, want, 5) {
+				t.Errorf("the card's face = %v, want Control over the page (%v)", face, want)
+			}
+			// Its edge is the *weak* hairline, and it is one pixel: the card's first
+			// painted row over the page.
+			edgeY := -1
+			for y := 0; y < img.Rect.Dy(); y++ {
+				if channelDelta(imagePixel(img, 200, y), page) > 4 {
+					edgeY = y
+					break
+				}
+			}
+			if edgeY < 0 {
+				t.Fatalf("the card's edge was not drawn")
+			}
+			cardFace := panelOver(tokens.Control, page)
+			edge := imagePixel(img, 200, edgeY)
+			// The border is composited over the card's own face (a border is inside
+			// the box), which is what makes the edge readable as this card's outline
+			// rather than as a line on the page.
+			weak := panelOver(tokens.HairlineSoft, cardFace)
+			if !panelClose(edge, weak, 4) {
+				t.Errorf("the card's edge = %v, want HairlineSoft over the card's face (%v)", edge, weak)
+			}
+			// And it is *not* the ControlEdge tier. A magnitude check cannot say
+			// this — the two tiers are one level apart over this face — so the
+			// pin asks which of the two the edge is nearer to. The canary above
+			// keeps the question answerable: if a future token change collapses
+			// the two tiers onto one pixel, this pin has lost its subject and
+			// says so instead of passing.
+			controlEdge := panelOver(tokens.ControlEdge, cardFace)
+			if channelDelta(weak, controlEdge) == 0 {
+				t.Fatalf("HairlineSoft and ControlEdge both composite to %v over this card's face: this pin can no longer tell the two tiers apart", weak)
+			}
+			if channelDelta(edge, controlEdge) <= channelDelta(edge, weak) {
+				t.Errorf("the card's edge = %v sits nearer the ControlEdge tier (%v) than the weak hairline (%v); §6.1 第 3 条 gives it the weak hairline",
+					edge, controlEdge, weak)
+			}
+			// No lens: the card's top inner row is its face, not a lit rim.
+			if inner := imagePixel(img, 200, edgeY+2); channelDelta(inner, face) > 4 {
+				t.Errorf("the card still wears a lens: its top inner row %v is not its face %v", inner, face)
+			}
 		})
-	}, 400, 200)
-	tt.Frame()
-	img := tt.Image()
-	page := imagePixel(img, 2, 2)
-	// The card's own box, found by its extent: the outermost painted columns
-	// and rows (the 20u page padding is the page colour on all four sides).
-	box := paintedBox(img, page)
-	// The card's face: Control over the page, read inside the card clear of
-	// its rows' ink.
-	face := imagePixel(img, int(box.X+box.W)-6, int(box.Y+box.H/2))
-	if want := panelOver(tokens.Control, page); !panelClose(face, want, 5) {
-		t.Errorf("the card's face = %v, want Control over the page (%v)", face, want)
-	}
-	// Its edge is the *weak* hairline, and it is one pixel: the card's first
-	// painted row over the page.
-	edgeY := -1
-	for y := 0; y < img.Rect.Dy(); y++ {
-		if channelDelta(imagePixel(img, 200, y), page) > 4 {
-			edgeY = y
-			break
-		}
-	}
-	if edgeY < 0 {
-		t.Fatalf("the card's edge was not drawn")
-	}
-	cardFace := panelOver(tokens.Control, page)
-	edge := imagePixel(img, 200, edgeY)
-	// The border is composited over the card's own face (a border is inside
-	// the box), which is what makes the edge readable as this card's outline
-	// rather than as a line on the page.
-	weak := panelOver(tokens.HairlineSoft, cardFace)
-	if !panelClose(edge, weak, 4) {
-		t.Errorf("the card's edge = %v, want HairlineSoft over the card's face (%v)", edge, weak)
-	}
-	if controlEdge := panelOver(tokens.ControlEdge, cardFace); !panelClose(weak, controlEdge, 2) &&
-		panelClose(edge, controlEdge, 3) {
-		t.Errorf("the card's edge = %v is the old ControlEdge keyline; §6.1 第 3 条 gives it the weak hairline", edge)
-	}
-	// No lens: the card's top inner row is its face, not a lit rim.
-	if inner := imagePixel(img, 200, edgeY+2); channelDelta(inner, face) > 4 {
-		t.Errorf("the card still wears a lens: its top inner row %v is not its face %v", inner, face)
 	}
 }
 
@@ -788,8 +826,9 @@ func TestTheSettingsFieldsWearTheControlRung(t *testing.T) {
 		if want := panelOver(tokens.Control, page); !panelClose(face, want, 3) {
 			t.Errorf("[%s] the field's face = %v, want Control over the page (%v)", appearance, face, want)
 		}
-		if field := panelOver(tokens.Field, page); !panelClose(tokens.Field, tokens.Control, 3) &&
-			panelClose(face, field, 3) {
+		field := panelOver(tokens.Field, page)
+		discriminating(t, "the field's face", field, panelOver(tokens.Control, page), 3)
+		if !panelClose(tokens.Field, tokens.Control, 3) && panelClose(face, field, 3) {
 			t.Errorf("[%s] the field's face = %v is the deprecated --glass-field rung (%v)", appearance, face, field)
 		}
 		// The 0.85 white rim the old slot painted on light glass: no row inside

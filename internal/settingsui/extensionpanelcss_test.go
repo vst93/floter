@@ -207,6 +207,7 @@ func TestTheFieldsWearTheControlRungNotTheFieldRung(t *testing.T) {
 			got := imagePixel(tt.Image(), int(rect.X+rect.W/2), int(rect.Y+rect.H/2))
 			wantControl := panelOver(tokens.Control, ui.RGBA(0, 0, 0, 1))
 			wantField := panelOver(tokens.Field, ui.RGBA(0, 0, 0, 1))
+			discriminating(t, "the field's fill", wantField, wantControl, 3)
 			if !panelClose(got, wantControl, 3) {
 				t.Errorf("[%s %s] the field fill is %v, want Control over the window (%v)",
 					appearance, name, got, wantControl)
