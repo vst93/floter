@@ -174,34 +174,6 @@ func TestThePowerGlyphsWearTheSystemIconInk(t *testing.T) {
 	}
 }
 
-// darkestInCell returns the darkest pixel in a row's 28u icon cell: the glyph
-// ink, on whatever plane it sits.
-func darkestInCell(tt *ui.Tester, title string) color.RGBA {
-	rect, ok := tt.Find(title)
-	if !ok {
-		panic("row not drawn: " + title)
-	}
-	img := tt.Image()
-	best := img.RGBAAt(int(rect.X)-34, int(rect.Y))
-	sum := func(c color.RGBA) int { return int(c.R) + int(c.G) + int(c.B) }
-	for y := int(rect.Y); y < int(rect.Y+rect.H); y++ {
-		for x := int(rect.X) - 34; x < int(rect.X)-12; x++ {
-			if c := img.RGBAAt(x, y); sum(c) < sum(best) {
-				best = c
-			}
-		}
-	}
-	return best
-}
-
-// opaque renders a translucent colour over white at full opacity, as the
-// glyph ink is drawn once the plane behind it has been composited.
-func opaque(c ui.Color) color.RGBA {
-	a := float64(c.A) / 255
-	mix := func(v uint8) uint8 { return uint8(float64(v)*a + 255*(1-a) + 0.5) }
-	return color.RGBA{mix(c.R), mix(c.G), mix(c.B), 255}
-}
-
 // The power confirmation band is the reference's `.launcher-system-confirm`
 // (`main:src/styles/launcher.css:756-770`): a `--system-icon-surface` fill —
 // the warm amber plane a power entry wears — carrying the warning ink on its

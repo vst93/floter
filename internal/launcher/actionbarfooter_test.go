@@ -1,7 +1,6 @@
 package launcher
 
 import (
-	"image/color"
 	"strings"
 	"testing"
 	"time"
@@ -12,11 +11,6 @@ import (
 	"floter/internal/settings"
 	"floter/internal/theme"
 )
-
-// panelFill is the light panel's own fill the bar rows are drawn on: a pixel
-// holding it means "nothing is painted here", which is what a rounded corner
-// leaves at the box's own corner.
-var panelFill = color.RGBA{R: 254, G: 254, B: 254, A: 255}
 
 // R-next · The action bar is the panel's **pinned footer**, not a first row.
 //
@@ -109,13 +103,17 @@ func TestTheActionBarTakesNoNumber(t *testing.T) {
 // no runnable command plan), and this build inherited that rule
 // (`defaultsToShell`) — the placement was the only thing hiding it.
 func TestTheActionBarTakesTheSelectionOnACommandLine(t *testing.T) {
+	forEachAppearance(t, actionBarTakesTheSelectionOnACommandLine)
+}
+
+func actionBarTakesTheSelectionOnACommandLine(t *testing.T, dark bool) {
 	a := testApp()
 	// The `git` row is a PATH tool: runnable, but not a *command plan*, which
 	// is the distinction `shouldDefaultToActionBar` turns on.
 	a.SetTools([]apps.App{{Name: "git", Path: "/usr/bin/git"}}, true)
 	ran := 0
 	a.Actions.RunInTerminal = func([]string) { ran++ }
-	tt := render(t, a)
+	tt := renderIn(t, a, dark)
 	tt.Type("git")
 	tt.Frame()
 	// The rows enter over 120ms (`rowTransition`), and the tester's clock is
@@ -151,7 +149,7 @@ func TestTheActionBarTakesTheSelectionOnACommandLine(t *testing.T) {
 		t.Errorf("the selected footer's pill is not tinted: %v at x=%d over the panel %v",
 			pill, gutter+2, panel)
 	}
-	tokens := theme.ForPreferences(settings.Normalize(a.settings()), false, ui.Preferences{})
+	tokens := theme.ForPreferences(settings.Normalize(a.settings()), dark, ui.Preferences{})
 	if want := over(tokens.RowSelected, panel); !closeRGB(pill, want) {
 		t.Errorf("the selected footer's pill is %v, want the neutral chosen-row rung %v over the panel (→ %v)",
 			pill, tokens.RowSelected, want)
@@ -207,8 +205,12 @@ func TestTheActionBarTakesTheSelectionOnACommandLine(t *testing.T) {
 // R-next · A page where a match keeps the choice leaves the footer untinted —
 // "selected" is a state the row has only when Enter would run it.
 func TestAnUnselectedActionBarStaysQuiet(t *testing.T) {
+	forEachAppearance(t, unselectedActionBarStaysQuiet)
+}
+
+func unselectedActionBarStaysQuiet(t *testing.T, dark bool) {
 	a := testApp()
-	tt := render(t, a)
+	tt := renderIn(t, a, dark)
 	tt.Type("term")
 	tt.Frame()
 
@@ -356,10 +358,14 @@ func TestTheActionBarTitleIsTheValueNotTheActionWord(t *testing.T) {
 // 真正说的两件事：顶边只有一条发丝线，且行块的**上**两角由「上面有没有列表」
 // 决定。
 func TestTheActionBarSquaresItsTopCornersOverAList(t *testing.T) {
+	forEachAppearance(t, actionBarSquaresItsTopCornersOverAList)
+}
+
+func actionBarSquaresItsTopCornersOverAList(t *testing.T, dark bool) {
 	// The bar after a match: the block is welded to the list above it.
 	a := testApp()
 	a.SetTools([]apps.App{{Name: "git", Path: "/usr/bin/git"}}, true)
-	ta := render(t, a)
+	ta := renderIn(t, a, dark)
 	ta.Type("git")
 	ta.Frame()
 	ta.Advance(200 * time.Millisecond) // the rows' 120ms enter
@@ -367,12 +373,12 @@ func TestTheActionBarSquaresItsTopCornersOverAList(t *testing.T) {
 	// The bar at the list's head (a URL with no match): it keeps its own full
 	// rounding, because there is no list to weld to.
 	b := testApp()
-	tb := render(t, b)
+	tb := renderIn(t, b, dark)
 	tb.Type("https://example.com/nope")
 	tb.Frame()
 	tb.Advance(200 * time.Millisecond)
 
-	tokens := theme.ForPreferences(settings.Normalize(a.settings()), false, ui.Preferences{})
+	tokens := theme.ForPreferences(settings.Normalize(a.settings()), dark, ui.Preferences{})
 	gutter := int(ui.LightTheme().Space(2)) // the row block's 8u inset
 
 	// bandTop finds the footer's top edge: the panel's *last* full-width rule.
@@ -432,45 +438,26 @@ func TestTheActionBarSquaresItsTopCornersOverAList(t *testing.T) {
 			// rounded one leaves the panel showing under the arc.
 			img = tc.tt.Image()
 			top = bandTop(tc.tt)
-			panel = img.RGBAAt(1, top)
+			// The unpainted panel, read two rows above the rule (the rule's own
+			// row is the hairline, not the panel).
+			blank := img.RGBAAt(1, top-2)
 			corner := img.RGBAAt(gutter, top+3)
+			// P9-f 重定基线：`panelDistance` 量的是**浅色**面板常量（254,254,254），
+			// 深色下「什么都没画」的角落在它眼里差着 230 个色阶，圆角会被读成方角。
+			// 改成与该外观实际读到的面板比（同阈值 8）。
 			if tc.above {
-				if panelDistance(corner) <= 8 {
+				if channelDistance(corner, blank) <= 8 {
 					t.Errorf("the footer over a list is rounded at its top-left corner (y=%d): %v",
 						top+3, corner)
 				}
 				return
 			}
-			if panelDistance(corner) > 8 {
+			if channelDistance(corner, blank) > 8 {
 				t.Errorf("the footer with no list above it is squared at its top-left corner: %v over panel %v",
-					corner, panelFill)
+					corner, blank)
 			}
 		})
 	}
-}
-
-// panelDistance is how far a pixel is from the panel's own fill, in summed
-// channels: 0 means "nothing is painted here", a row's fill reads as tens.
-func panelDistance(c color.RGBA) int {
-	d := int(c.R) - int(panelFill.R)
-	if d < 0 {
-		d = -d
-	}
-	g := int(c.G) - int(panelFill.G)
-	if g < 0 {
-		g = -g
-	}
-	if g > d {
-		d = g
-	}
-	b := int(c.B) - int(panelFill.B)
-	if b < 0 {
-		b = -b
-	}
-	if b > d {
-		d = b
-	}
-	return d
 }
 
 // P8-a 重定基线：旧 base.css 值「行块左右各 4u 沟槽」→ 合约 §4.3「行块内缩 8u，
@@ -488,8 +475,12 @@ func panelDistance(c color.RGBA) int {
 // its 8u gutter to the mirror-image 8u gutter, so neither edge carries a dead
 // margin and the selected pill does not run into the card's own edge.
 func TestTheListIsTheCentredReferenceColumn(t *testing.T) {
+	forEachAppearance(t, listIsTheCentredReferenceColumn)
+}
+
+func listIsTheCentredReferenceColumn(t *testing.T, dark bool) {
 	a := testApp()
-	tt := render(t, a)
+	tt := renderIn(t, a, dark)
 	tt.Frame()
 	// The gutter in pixels: `Space(2)` is 8 reference units (one Space is 4u).
 	gutter := int(ui.LightTheme().Space(2))
@@ -524,8 +515,12 @@ func TestTheListIsTheCentredReferenceColumn(t *testing.T) {
 // the user's 「应该有选中样式（当前缺失）」 is a painted fact, not an index: the
 // band carries the row's tint rather than the panel's own fill.
 func TestTheHeldRowWearsTheSelectedFace(t *testing.T) {
+	forEachAppearance(t, heldRowWearsTheSelectedFace)
+}
+
+func heldRowWearsTheSelectedFace(t *testing.T, dark bool) {
 	a := testApp()
-	tt := render(t, a)
+	tt := renderIn(t, a, dark)
 	// The empty page: the row's one placement (R64). It closes the list, below
 	// the built-in commands and the recents.
 	tt.HoldModifiers(ui.Cmd)
@@ -540,6 +535,16 @@ func TestTheHeldRowWearsTheSelectedFace(t *testing.T) {
 	panel := img.RGBAAt(1, int(row.Y+row.H/2))
 	if sel == panel {
 		t.Errorf("the held row is untinted: %v over the panel's %v", sel, panel)
+	}
+	// And it is specifically the *chosen-row* rung, not just any tint: the two
+	// neutral rungs above it (hover 0.045 / selected 0.085 in the dark, 0.04 /
+	// 0.06 in the light) are different fills, and "tinted" alone would pass on
+	// a row that wore the hover rung. Mutation check: `launcher.go`'s selected
+	// branch → `RowHover` reddens this line on both appearances.
+	tokens := theme.ForPreferences(settings.Normalize(a.settings()), dark, ui.Preferences{})
+	if want := over(tokens.RowSelected, panel); !closeRGB(sel, want) {
+		t.Errorf("the held row's fill is %v, want the neutral chosen-row rung %v over the panel (→ %v)",
+			sel, tokens.RowSelected, want)
 	}
 }
 
@@ -693,8 +698,12 @@ func TestAFullListKeepsItsTenthResultAndTheFooter(t *testing.T) {
 // one row the user is *not* on — `holdBarSelection` is what keeps the two
 // together, and nothing pinned it.
 func TestTheHeldModifierKeepsTheActionBarSelectedOverAGrowingList(t *testing.T) {
+	forEachAppearance(t, heldModifierKeepsTheActionBarSelectedOverAGrowingList)
+}
+
+func heldModifierKeepsTheActionBarSelectedOverAGrowingList(t *testing.T, dark bool) {
 	a := testApp()
-	tt := render(t, a)
+	tt := renderIn(t, a, dark)
 	tt.Type("ter")
 	tt.Frame()
 
@@ -754,7 +763,7 @@ func TestTheHeldModifierKeepsTheActionBarSelectedOverAGrowingList(t *testing.T) 
 	if pill == panel {
 		t.Errorf("the held footer's pill is not tinted: %v at x=%d over the panel %v", pill, gutter+2, panel)
 	}
-	tokens := theme.ForPreferences(settings.Normalize(a.settings()), false, ui.Preferences{})
+	tokens := theme.ForPreferences(settings.Normalize(a.settings()), dark, ui.Preferences{})
 	if want := over(tokens.RowSelected, panel); !closeRGB(pill, want) {
 		t.Errorf("the held footer's pill is %v, want the neutral chosen-row rung %v over the panel (→ %v)",
 			pill, tokens.RowSelected, want)

@@ -129,8 +129,12 @@ func TestTheRowLadderIsNeutralAndOrdered(t *testing.T) {
 // §4.3 + §2 · The row block is inset 8u on both sides and draws an 8px corner,
 // and the text column it lands on is still the field's 54u one.
 func TestTheRowBlockIsTheInsetRoundedPill(t *testing.T) {
+	forEachAppearance(t, rowBlockIsTheInsetRoundedPill)
+}
+
+func rowBlockIsTheInsetRoundedPill(t *testing.T, dark bool) {
 	a := testApp()
-	tt := render(t, a)
+	tt := renderIn(t, a, dark)
 	tt.Frame()
 	img := tt.Image()
 	row, ok := tt.Find("Restart the computer")
@@ -158,7 +162,7 @@ func TestTheRowBlockIsTheInsetRoundedPill(t *testing.T) {
 	// The pill's own top-left corner is an arc: at the block's first row the
 	// gutter column still shows the panel, and only a few rows down does the
 	// fill reach it. A square corner would paint the gutter at y=0 of the block.
-	tokens := theme.ForPreferences(settings.Normalize(a.settings()), false, ui.Preferences{})
+	tokens := theme.ForPreferences(settings.Normalize(a.settings()), dark, ui.Preferences{})
 	if tokens.RadiusSM != 8 {
 		t.Errorf("the row's corner token is %v, want the contract's 8 (RadiusSM)", tokens.RadiusSM)
 	}
@@ -235,8 +239,12 @@ func TestTheKeycapIsTheContractsPlate(t *testing.T) {
 // §4.6 · The footer is a block of the card: one weak hairline on top, no pane of
 // its own, and the actions legend at its right edge as the same keycap chord.
 func TestTheFooterIsABlockWithTheWeakRule(t *testing.T) {
+	forEachAppearance(t, footerIsABlockWithTheWeakRule)
+}
+
+func footerIsABlockWithTheWeakRule(t *testing.T, dark bool) {
 	a := testApp()
-	tt := render(t, a)
+	tt := renderIn(t, a, dark)
 	tt.Type("term")
 	tt.Frame()
 	// The modifier hands the footer the choice, so its row block paints the
@@ -248,7 +256,7 @@ func TestTheFooterIsABlockWithTheWeakRule(t *testing.T) {
 	tt.Advance(300 * 1e6) // the rows' 120ms enter
 	tt.Frame()
 	img := tt.Image()
-	tokens := theme.ForPreferences(settings.Normalize(a.settings()), false, ui.Preferences{})
+	tokens := theme.ForPreferences(settings.Normalize(a.settings()), dark, ui.Preferences{})
 	row, ok := tt.Find("Run in shell")
 	if !ok {
 		t.Fatalf("the footer's row was not drawn: %q", tt.Texts())
@@ -309,13 +317,17 @@ func TestTheFooterIsABlockWithTheWeakRule(t *testing.T) {
 // list, its selected row and its footer are neutral planes, and the accent is
 // spent in exactly three places that are not this surface (§5).
 func TestTheLauncherListCarriesNoAccent(t *testing.T) {
+	forEachAppearance(t, launcherListCarriesNoAccent)
+}
+
+func launcherListCarriesNoAccent(t *testing.T, dark bool) {
 	a := testApp()
-	tt := render(t, a)
+	tt := renderIn(t, a, dark)
 	tt.Frame()
 	tt.Advance(300 * 1e6)
 	tt.Frame()
 	img := tt.Image()
-	tokens := theme.ForPreferences(settings.Normalize(a.settings()), false, ui.Preferences{})
+	tokens := theme.ForPreferences(settings.Normalize(a.settings()), dark, ui.Preferences{})
 	accent := tokens.Theme.Accent
 	// The field band is the card's first band and legitimately holds the field's
 	// own controls; below it is the list and the footer, where the accent has no

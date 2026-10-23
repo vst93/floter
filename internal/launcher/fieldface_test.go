@@ -28,9 +28,13 @@ import (
 // clear button's old `TextMuted` ink back and the resting read matches the muted
 // composite instead, failing the first assertion.
 func TestTheFieldRowClearControlWearsTheSharedControlFace(t *testing.T) {
+	forEachAppearance(t, fieldRowClearControlFace)
+}
+
+func fieldRowClearControlFace(t *testing.T, dark bool) {
 	a := testApp()
 	a.Actions.OpenSessions = func() {}
-	tt := render(t, a)
+	tt := renderIn(t, a, dark)
 	tt.Type("x")
 	tt.Frame()
 
@@ -41,7 +45,7 @@ func TestTheFieldRowClearControlWearsTheSharedControlFace(t *testing.T) {
 	// The field block's own blank plane, sampled well left of the trailing
 	// controls: what both inks are drawn over.
 	field := tt.Image().RGBAAt(400, int(clear.Y+clear.H/2))
-	tokens := theme.ForPreferences(a.settings(), false, ui.Preferences{})
+	tokens := theme.ForPreferences(a.settings(), dark, ui.Preferences{})
 
 	// Rest: every one of the row's trailing controls rests on the shared
 	// control's ink, `--text-tertiary` (`main:src/styles/launcher.css:397`).
@@ -56,7 +60,7 @@ func TestTheFieldRowClearControlWearsTheSharedControlFace(t *testing.T) {
 		if !ok {
 			t.Fatalf("the field row has no %q control: %q", name, tt.Texts())
 		}
-		ink := darkestIn(tt, r)
+		ink := inkOn(tt, r, field)
 		if !nearRGB(ink, tertiary, 7) {
 			t.Errorf("the %s mark rests at %v, want the shared control's --text-tertiary %v", name, ink, tertiary)
 		}
@@ -97,22 +101,6 @@ func imgPlane(tt *ui.Tester, r ui.Rect) color.RGBA {
 		}
 	}
 	return plane
-}
-
-// darkestIn returns the darkest pixel in a box: the glyph's own ink.
-func darkestIn(tt *ui.Tester, r ui.Rect) color.RGBA {
-	img := tt.Image()
-	best := 1 << 30
-	var ink color.RGBA
-	for y := int(r.Y); y < int(r.Y+r.H); y++ {
-		for x := int(r.X); x < int(r.X+r.W); x++ {
-			c := img.RGBAAt(x, y)
-			if s := int(c.R) + int(c.G) + int(c.B); s < best {
-				best, ink = s, c
-			}
-		}
-	}
-	return ink
 }
 
 // inkOver draws one straight-alpha token over an opaque plane.

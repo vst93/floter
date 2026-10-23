@@ -29,11 +29,27 @@ func renderIn(t *testing.T, a *App, dark bool) *ui.Tester {
 	return tt
 }
 
+// forEachAppearance runs one pin on both appearances, each on its own App.
+//
+// The fixtures accumulate state as they are driven (results, row transitions,
+// a held modifier), so a second appearance reusing the same App would read the
+// first one's leftovers. Each subtest therefore builds its own app and only
+// takes the appearance as a parameter.
+func forEachAppearance(t *testing.T, pin func(t *testing.T, dark bool)) {
+	t.Helper()
+	for _, appearance := range []struct {
+		name string
+		dark bool
+	}{{"light", false}, {"dark", true}} {
+		t.Run(appearance.name, func(t *testing.T) { pin(t, appearance.dark) })
+	}
+}
+
 // inkOn reads a glyph's own ink off the plane it is drawn on: the pixel
 // farthest (summed channels) from that plane.
 //
-// `darkestIn` is the light-appearance half of this probe — there the ink is
-// darker than its plane. In the dark appearance the same ink is *lighter* than
+// Reading the *darkest* pixel is the light-appearance half of this probe —
+// there the ink is darker than its plane. In the dark appearance the same ink is *lighter* than
 // its plane, so "darkest pixel" silently reads the plane (or the plate's own
 // edge) and an assertion built on it passes on a glyph that was never drawn.
 func inkOn(tt *ui.Tester, r ui.Rect, plane color.RGBA) color.RGBA {
