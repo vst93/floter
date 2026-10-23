@@ -91,25 +91,36 @@ func TestEveryBuiltInRowLeadsWithItsOwnMark(t *testing.T) {
 // centre is the title's x less ~26px at the shipped step, not less 38 (that
 // lands on the plate's rounded edge, where the lens has nothing yet painted).
 func TestThePowerRowsWearTheWarmPlate(t *testing.T) {
-	a := testApp()
-	tt := render(t, a)
-	tt.Frame()
-	img := tt.Image()
-	cell := func(title string) (r, b uint32) {
-		rect, ok := tt.Find(title)
-		if !ok {
-			t.Fatalf("the row %q was not drawn: %q", title, tt.Texts())
-		}
-		c := img.RGBAAt(int(rect.X)-26, int(rect.Y+rect.H/2))
-		return uint32(c.R), uint32(c.B)
-	}
-	neutralR, neutralB := cell("Clipboard history")
-	powerR, powerB := cell("Shut down the computer")
-	if powerR <= powerB {
-		t.Errorf("the power cell is not warm: r=%d b=%d", powerR, powerB)
-	}
-	if neutralR >= neutralB+8 {
-		t.Errorf("the neutral cell reads warm too: r=%d b=%d", neutralR, neutralB)
+	// P9-e: both appearances. The warm plate is a translucent wash on both sides
+	// (light 0.13 / dark 0.115), so "the power cell leads red over blue, the
+	// neutral one does not" is a claim about a composite in either — the light
+	// run alone could not see a plate painted with an opaque light-only amber.
+	for _, tc := range []struct {
+		name string
+		dark bool
+	}{{"light", false}, {"dark", true}} {
+		t.Run(tc.name, func(t *testing.T) {
+			a := testApp()
+			tt := renderIn(t, a, tc.dark)
+			tt.Frame()
+			img := tt.Image()
+			cell := func(title string) (r, b uint32) {
+				rect, ok := tt.Find(title)
+				if !ok {
+					t.Fatalf("the row %q was not drawn: %q", title, tt.Texts())
+				}
+				c := img.RGBAAt(int(rect.X)-26, int(rect.Y+rect.H/2))
+				return uint32(c.R), uint32(c.B)
+			}
+			neutralR, neutralB := cell("Clipboard history")
+			powerR, powerB := cell("Shut down the computer")
+			if powerR <= powerB {
+				t.Errorf("the power cell is not warm: r=%d b=%d", powerR, powerB)
+			}
+			if neutralR >= neutralB+8 {
+				t.Errorf("the neutral cell reads warm too: r=%d b=%d", neutralR, neutralB)
+			}
+		})
 	}
 }
 

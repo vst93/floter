@@ -24,45 +24,55 @@ import (
 // Mutation check: put `ui.Button` back for the execute chip and its fill lands
 // on the theme's grey control pane instead of the warm plane.
 func TestThePowerConfirmButtonsWearTheirOwnFaces(t *testing.T) {
-	a := testApp()
-	a.Actions.Power = func(string) {}
-	tt := render(t, a)
-	tt.Type("restart")
-	tt.Frame()
-	tt.TypeKey(0, ui.KeyEnter, "")
-	tt.Frame()
+	// P9-e: both appearances. The warm pane is translucent on both sides of the
+	// contract (light 0.13 / dark 0.115, `theme.go`), so the *same* `inkOver`
+	// over the band has to hold in either — a chip painted with an opaque
+	// light-only value would pass on the light run and miss here.
+	for _, tc := range []struct {
+		name string
+		dark bool
+	}{{"light", false}, {"dark", true}} {
+		t.Run(tc.name, func(t *testing.T) {
+			a := testApp()
+			a.Actions.Power = func(string) {}
+			tt := renderIn(t, a, tc.dark)
+			tt.Type("restart")
+			tt.Frame()
+			tt.TypeKey(0, ui.KeyEnter, "")
+			tt.Frame()
 
-	tokens := theme.ForPreferences(a.settings(), false, ui.Preferences{})
-	img := tt.Image()
-	// The band's own blank plane, sampled between the glyph and the sentence:
-	// what the execute chip's plane composites over.
-	msg, ok := tt.Find(a.copy().PowerConfirmMessage(PowerRestart))
-	if !ok {
-		t.Fatalf("the confirmation is not drawn: %q", tt.Texts())
-	}
-	band := img.RGBAAt(int(msg.X)-2, int(msg.Y+msg.H/2))
-	// The execute chip's plane is the *opaque* warm pane over the band:
-	// `--system-icon-surface` composited to opacity, which is visibly warmer
-	// (a different hue) than the translucent band it sits on.
-	warm := inkOver(tokens.IconSurface, band)
-	execute, ok := tt.Find(a.copy().PowerRestartAction)
-	if !ok {
-		t.Fatalf("the execute button is missing: %q", tt.Texts())
-	}
-	// Sample inside the chip, above the label's line box so no glyph ink
-	// interferes.
-	got := img.RGBAAt(int(execute.X+execute.W/2), int(execute.Y+3))
-	if !nearRGB(got, warm, 8) {
-		t.Errorf("the execute chip's plane = %v, want the warm raised pane %v", got, warm)
-	}
-	// The cancel chip is transparent (`background: transparent`): its fill is
-	// the band itself.
-	cancel, ok := tt.Find(a.copy().PowerCancel)
-	if !ok {
-		t.Fatalf("the cancel button is missing: %q", tt.Texts())
-	}
-	if got := img.RGBAAt(int(cancel.X+cancel.W/2), int(cancel.Y+3)); !nearRGB(got, band, 4) {
-		t.Errorf("the cancel chip paints a plane: %v, want the band's own %v", got, band)
+			tokens := theme.ForPreferences(a.settings(), tc.dark, ui.Preferences{})
+			img := tt.Image()
+			// The band's own blank plane, sampled between the glyph and the
+			// sentence: what the execute chip's plane composites over.
+			msg, ok := tt.Find(a.copy().PowerConfirmMessage(PowerRestart))
+			if !ok {
+				t.Fatalf("the confirmation is not drawn: %q", tt.Texts())
+			}
+			band := img.RGBAAt(int(msg.X)-2, int(msg.Y+msg.H/2))
+			// The execute chip's plane is the warm pane over the band, which is
+			// visibly warmer (a different hue) than the band it sits on.
+			warm := inkOver(tokens.IconSurface, band)
+			execute, ok := tt.Find(a.copy().PowerRestartAction)
+			if !ok {
+				t.Fatalf("the execute button is missing: %q", tt.Texts())
+			}
+			// Sample inside the chip, above the label's line box so no glyph ink
+			// interferes.
+			got := img.RGBAAt(int(execute.X+execute.W/2), int(execute.Y+3))
+			if !nearRGB(got, warm, 8) {
+				t.Errorf("the execute chip's plane = %v, want the warm raised pane %v", got, warm)
+			}
+			// The cancel chip is transparent (`background: transparent`): its fill
+			// is the band itself.
+			cancel, ok := tt.Find(a.copy().PowerCancel)
+			if !ok {
+				t.Fatalf("the cancel button is missing: %q", tt.Texts())
+			}
+			if got := img.RGBAAt(int(cancel.X+cancel.W/2), int(cancel.Y+3)); !nearRGB(got, band, 4) {
+				t.Errorf("the cancel chip paints a plane: %v, want the band's own %v", got, band)
+			}
+		})
 	}
 }
 
@@ -80,34 +90,45 @@ func TestThePowerConfirmButtonsWearTheirOwnFaces(t *testing.T) {
 // Mutation check: swap `RaisedWarm` for `IconSurfaceHover` and the reading lands
 // on the hover composite instead.
 func TestTheWarningFeedbackRowPaintsTheRestingWarmPlane(t *testing.T) {
-	a := testApp()
-	tt := render(t, a)
-	a.WarnFeedback("boom")
-	// The row enters over 160ms (`feedbackRow`'s Enter transition), so the frame
-	// has to settle before the fill is read: a mid-animation frame still shows
-	// the panel through it.
-	tt.Frame()
-	tt.Advance(200 * time.Millisecond)
-	msg, ok := tt.Find("boom")
-	if !ok {
-		t.Fatalf("the warning row is not drawn: %q", tt.Texts())
-	}
-	img := tt.Image()
-	// The row's own blank plane, sampled just right of the sentence: the
-	// sentence grows to fill the row, so the pixels past it are the row's fill
-	// with no glyph ink over them.
-	got := img.RGBAAt(int(msg.X+msg.W)+4, int(msg.Y+msg.H/2))
-	// The panel the row sits on: sampled well above the docked band, in the
-	// result list's own recess.
-	panel := img.RGBAAt(int(msg.X+msg.W)+4, int(msg.Y)-80)
-	tokens := theme.ForPreferences(a.settings(), false, ui.Preferences{})
-	want := inkOver(tokens.RaisedWarm, panel)
-	hover := inkOver(tokens.IconSurfaceHover, panel)
-	if !nearRGB(got, want, 3) {
-		t.Errorf("the warning row's fill = %v, want the resting warm plane %v", got, want)
-	}
-	if nearRGB(got, hover, 3) {
-		t.Errorf("the warning row wears the warm *hover* rung %v, not the resting plane", hover)
+	// P9-e: both appearances. `RaisedWarm` is `IconSurface` (an alias in the
+	// token table), and on the dark side that token is a 0.115 wash over the
+	// panel — the resting/hover pair sits 4-6 levels apart there, so the pin has
+	// to be read on both or the alias could drift on the side nobody drew.
+	for _, tc := range []struct {
+		name string
+		dark bool
+	}{{"light", false}, {"dark", true}} {
+		t.Run(tc.name, func(t *testing.T) {
+			a := testApp()
+			tt := renderIn(t, a, tc.dark)
+			a.WarnFeedback("boom")
+			// The row enters over 160ms (`feedbackRow`'s Enter transition), so the
+			// frame has to settle before the fill is read: a mid-animation frame
+			// still shows the panel through it.
+			tt.Frame()
+			tt.Advance(200 * time.Millisecond)
+			msg, ok := tt.Find("boom")
+			if !ok {
+				t.Fatalf("the warning row is not drawn: %q", tt.Texts())
+			}
+			img := tt.Image()
+			// The row's own blank plane, sampled just right of the sentence: the
+			// sentence grows to fill the row, so the pixels past it are the row's
+			// fill with no glyph ink over them.
+			got := img.RGBAAt(int(msg.X+msg.W)+4, int(msg.Y+msg.H/2))
+			// The panel the row sits on: sampled well above the docked band, in
+			// the result list's own recess.
+			panel := img.RGBAAt(int(msg.X+msg.W)+4, int(msg.Y)-80)
+			tokens := theme.ForPreferences(a.settings(), tc.dark, ui.Preferences{})
+			want := inkOver(tokens.RaisedWarm, panel)
+			hover := inkOver(tokens.IconSurfaceHover, panel)
+			if !nearRGB(got, want, 3) {
+				t.Errorf("the warning row's fill = %v, want the resting warm plane %v", got, want)
+			}
+			if nearRGB(got, hover, 3) {
+				t.Errorf("the warning row wears the warm *hover* rung %v, not the resting plane", hover)
+			}
+		})
 	}
 }
 

@@ -132,20 +132,45 @@ func TestTheSelectedRowWearsThePerAppearanceQuietTint(t *testing.T) {
 // shows): over the warm plane the glyph's own hue must lead red over blue, as
 // the amber ink does and the warning colour does not.
 func TestThePowerGlyphsWearTheSystemIconInk(t *testing.T) {
-	a := testApp()
-	tt := render(t, a)
-	tt.Frame()
+	// P9-e: both appearances, with a plane-relative ink probe. The amber ink is
+	// translucent on the dark side (`systemIconText` 0.82, `theme.go:798`), so
+	// the expected value is that ink composited over the plate the glyph sits on
+	// — `opaque()` (over white) is only the light half of the same fact, and on
+	// the dark run it would name a bright ink nobody drew.
+	for _, tc := range []struct {
+		name string
+		dark bool
+	}{{"light", false}, {"dark", true}} {
+		t.Run(tc.name, func(t *testing.T) {
+			a := testApp()
+			tt := renderIn(t, a, tc.dark)
+			tt.Frame()
 
-	// The plate's darkest pixel is the glyph's own ink; it must match the
-	// amber system-icon token, and must *not* match the warning colour.
-	ink := darkestInCell(tt, "Shut down the computer")
-	tokens := theme.ForPreferences(a.settings(), false, ui.Preferences{})
-	want := opaque(tokens.SystemIconText)
-	if !closeRGB(ink, want) {
-		t.Errorf("the power glyph is %v, want the amber system-icon ink %v", ink, want)
-	}
-	if warn := opaque(tokens.Theme.Warning); closeRGB(ink, warn) {
-		t.Errorf("the power glyph wears the warning colour %v, not the amber system-icon ink", warn)
+			// The row's 28u icon cell, inside the plate: the glyph and its plane,
+			// nothing else.
+			title, ok := tt.Find("Shut down the computer")
+			if !ok {
+				t.Fatalf("the power row was not drawn: %q", tt.Texts())
+			}
+			cell := ui.Rect{X: title.X - 34, Y: title.Y, W: 22, H: title.H}
+			// The plate's own fill, read inside the 28u plate but left of the
+			// 14u glyph: `imgPlane` over the whole cell is the *row* fill on the
+			// dark side, where the 0.115 wash covers less of the window than the
+			// row around it, and a top-edge sample lands on the row too (the
+			// plate is 28u inside a taller row).
+			img := tt.Image()
+			plane := img.RGBAAt(int(title.X)-38, int(title.Y+title.H/2))
+			ink := inkOn(tt, cell, plane)
+
+			tokens := theme.ForPreferences(a.settings(), tc.dark, ui.Preferences{})
+			want := inkOver(tokens.SystemIconText, plane)
+			if !closeRGB(ink, want) {
+				t.Errorf("the power glyph is %v, want the amber system-icon ink %v over its plate %v", ink, want, plane)
+			}
+			if warn := inkOver(tokens.Theme.Warning, plane); closeRGB(ink, warn) {
+				t.Errorf("the power glyph wears the warning colour %v, not the amber system-icon ink", warn)
+			}
+		})
 	}
 }
 
@@ -187,44 +212,56 @@ func opaque(c ui.Color) color.RGBA {
 // candidate fills differ by a few units, so the assertion names the token
 // rather than reading the pixel as "warm".
 func TestThePowerConfirmBandWearsTheWarmPlane(t *testing.T) {
-	a := testApp()
-	a.Actions.Power = func(string) {}
-	tt := render(t, a)
-	tt.Type("restart")
-	tt.Frame()
-	tt.TypeKey(0, ui.KeyEnter, "")
-	tt.Frame()
-	if a.PowerPending() != PowerRestart {
-		t.Fatalf("pending = %q", a.PowerPending())
-	}
-	msg, ok := tt.Find(a.copy().PowerConfirmMessage(PowerRestart))
-	if !ok {
-		t.Fatalf("the confirmation is not drawn: %q", tt.Texts())
-	}
-	// The gap between the glyph and the sentence is the band's own fill; the
-	// panel it sits on is read from the same line, left of the band's own
-	// inset, rather than assumed. (The assumption used to be the literal
-	// `{254 254 254}` the light sunken pane composited to; the pane's own
-	// recess moved by a level when the content step was raised — see
-	// glassmap.contentStep — and a constant would have to be re-tuned by hand
-	// on every such change.)
-	img := tt.Image()
-	cy := int(msg.Y + msg.H/2)
-	band := img.RGBAAt(int(msg.X)-2, cy)
-	panel := img.RGBAAt(1, cy)
-	tokens := theme.ForPreferences(a.settings(), false, ui.Preferences{})
-	want := over(tokens.IconSurface, panel)
-	wash := over(tokens.Theme.Warning.Alpha(0.12), panel)
-	// One level of slack per channel: the band is composited by the renderer and
-	// `want` by this file's own arithmetic, and the two round the same alpha
-	// differently by a fraction. The wash it must not be is 20 levels away, so
-	// the slack costs the assertion nothing.
-	if d := channelGap(band, want); d > 1 {
-		t.Errorf("the confirmation band is %v, want the warm plane %v over the panel (→ %v; %d levels off)",
-			band, tokens.IconSurface, want, d)
-	}
-	if band == wash {
-		t.Errorf("the confirmation band is the warning ink at 12%% (%v), not the warm plane", wash)
+	// P9-e: both appearances. `IconSurface` is a translucent wash on either side
+	// (light 0.13 / dark 0.115), and the pin already composites it over the panel
+	// it samples — so the dark run is the same arithmetic over a different panel,
+	// which is exactly the read that would catch a band filled with a fixed
+	// light value.
+	for _, tc := range []struct {
+		name string
+		dark bool
+	}{{"light", false}, {"dark", true}} {
+		t.Run(tc.name, func(t *testing.T) {
+			a := testApp()
+			a.Actions.Power = func(string) {}
+			tt := renderIn(t, a, tc.dark)
+			tt.Type("restart")
+			tt.Frame()
+			tt.TypeKey(0, ui.KeyEnter, "")
+			tt.Frame()
+			if a.PowerPending() != PowerRestart {
+				t.Fatalf("pending = %q", a.PowerPending())
+			}
+			msg, ok := tt.Find(a.copy().PowerConfirmMessage(PowerRestart))
+			if !ok {
+				t.Fatalf("the confirmation is not drawn: %q", tt.Texts())
+			}
+			// The gap between the glyph and the sentence is the band's own fill;
+			// the panel it sits on is read from the same line, left of the band's
+			// own inset, rather than assumed. (The assumption used to be the literal
+			// `{254 254 254}` the light sunken pane composited to; the pane's own
+			// recess moved by a level when the content step was raised — see
+			// glassmap.contentStep — and a constant would have to be re-tuned by hand
+			// on every such change.)
+			img := tt.Image()
+			cy := int(msg.Y + msg.H/2)
+			band := img.RGBAAt(int(msg.X)-2, cy)
+			panel := img.RGBAAt(1, cy)
+			tokens := theme.ForPreferences(a.settings(), tc.dark, ui.Preferences{})
+			want := over(tokens.IconSurface, panel)
+			wash := over(tokens.Theme.Warning.Alpha(0.12), panel)
+			// One level of slack per channel: the band is composited by the
+			// renderer and `want` by this file's own arithmetic, and the two round
+			// the same alpha differently by a fraction. The wash it must not be is
+			// 20 levels away, so the slack costs the assertion nothing.
+			if d := channelGap(band, want); d > 1 {
+				t.Errorf("the confirmation band is %v, want the warm plane %v over the panel (→ %v; %d levels off)",
+					band, tokens.IconSurface, want, d)
+			}
+			if band == wash {
+				t.Errorf("the confirmation band is the warning ink at 12%% (%v), not the warm plane", wash)
+			}
+		})
 	}
 }
 
