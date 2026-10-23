@@ -60,8 +60,21 @@ func main() {
 
 	app := shell.New(shell.Options{Store: store, RefreshIntegrations: true})
 
+	// The command line is the second spelling of the three actions the
+	// floter:// links carry — `floter register rg` beside
+	// `floter://register?cmd=rg` (docs/extensions/README.zh-CN.md) — and the
+	// arguments of a launch reach nothing else: the framework delivers the URLs
+	// among them itself (mygo's OnOpenURL), and these are the words.
+	firstLink, hasFirstLink := shell.LinkFromArguments(os.Args[1:])
+
 	mygo.App.OnSecondInstance(func(args []string, workingDir string) {
 		app.Show()
+		// A second launch carries its own words: `floter register rg` from a
+		// terminal while the app is already up used to bring the window forward
+		// and drop the name.
+		if link, ok := shell.LinkFromArguments(args); ok {
+			app.HandleURL(link)
+		}
 	})
 	// A click on a completion notification brings the panel back. Registered
 	// before Run so the click that launched the app (macOS keeps notifications
@@ -74,6 +87,12 @@ func main() {
 
 	mygo.App.WhenReady(func() {
 		app.Start()
+		// After Start, which is where the scheme is registered; before
+		// FLOTER_OPEN, which is a smoke test's override of the starting
+		// surface rather than a request of its own.
+		if hasFirstLink {
+			app.HandleURL(firstLink)
+		}
 		// FLOTER_OPEN names the surface to start on, for a smoke test that
 		// drives the packaged app: launcher (the default), settings or
 		// terminal.
