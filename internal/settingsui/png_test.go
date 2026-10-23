@@ -197,3 +197,29 @@ func TestDumpP8DIntegrationAndSessionPNGs(t *testing.T) {
 		writePNG(t, filepath.Join("/tmp", "floter-p8d-sessions-"+appearance+".png"), stt)
 	}
 }
+
+// The P9-c evidence: the settings page itself in both appearances, read through
+// the same settled `renderIn` the dark subtests use. It exists because the dark
+// half of those pins is a *picture*, and a picture is worth checking with eyes
+// once per round even when the numbers are green.
+func TestDumpTheSettingsPageInBothAppearances(t *testing.T) {
+	if os.Getenv("FLOTER_PNG") == "" {
+		t.Skip("set FLOTER_PNG=1 to write the round's visual evidence")
+	}
+	for _, appearance := range appearanceNames {
+		t.Run(appearance.name, func(t *testing.T) {
+			a := New(newStore(t), Actions{})
+			a.Integrations = func() []Integration {
+				return []Integration{
+					{ID: "dev.floter.plain", Name: "Plain Tool", Enabled: true, Running: true,
+						RuntimeAvailable: true, Version: "1.0.0", Publisher: "vst",
+						Description: "A tool that does one thing."},
+					{ID: "dev.floter.bad", Name: "Broken Tool", Enabled: true, Broken: true,
+						RuntimeAvailable: false, Version: "0.9.0", Description: "Its runtime is gone."},
+				}
+			}
+			tt, _ := renderIn(t, a, 860, 900, appearance.dark)
+			writePNG(t, filepath.Join("/tmp", "floter-P9-c-settings-"+appearance.name+".png"), tt)
+		})
+	}
+}
