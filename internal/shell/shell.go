@@ -2354,7 +2354,12 @@ func optionsAsStrings(options []any) []string {
 // connectFromLink installs (after the user's approval) a manifest a
 // `floter://connect` link carried. A relative path resolves against the home
 // directory, and a missing or unreadable manifest is refused rather than
-// installed.
+// installed. Every outcome is reported: a failure after the review raises the
+// same refusal the earlier checks do, and a landed install goes through the
+// app's completion path — the one `connectLocalTool` (the UI's one-press
+// connect) already uses — so a link and a press tell the user the same thing.
+// The one exception is a declined permission review: that is the user's
+// decision, and it stays quiet.
 func (a *App) connectFromLink(manifest string) {
 	go func() {
 		expanded := manifest
@@ -2390,9 +2395,24 @@ func (a *App) connectFromLink(manifest string) {
 		entry, err := prepared.Commit(approved)
 		if err != nil {
 			log.Printf("floter: %s was not connected: %v", prepared.Name(), err)
+			// A user who declined the permission review made a decision, not a
+			// mistake: the link's own "could not be opened" sentence would be a
+			// lie, so the decline is the one outcome that stays quiet (the UI
+			// path speaks there for its own reasons; see connectLocalTool).
+			if errors.Is(err, extensions.ErrPermissionApprovalRequired) {
+				return
+			}
+			// Any other failure is the link's promise falling through after the
+			// review: the same refusal the two earlier failures raise, so the
+			// user is not left with a page that opened for nothing.
+			a.refuseLink()
 			return
 		}
 		log.Printf("floter: connected %s %s", entry.Name, entry.PackageVersion)
+		// The UI's one-press connect reports its result through the app's one
+		// completion path; a link that runs the same flow reports the same way
+		// (panel on screen → its own row, hidden → a system notification).
+		a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationInstalled(entry.Name) })
 		a.RefreshIntegrations(context.Background())
 	}()
 }
