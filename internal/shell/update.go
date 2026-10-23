@@ -118,10 +118,35 @@ func (a *App) setUpdate(mutate func(*settingsui.UpdateState)) {
 			return
 		}
 		mutate(&a.Settings.Update)
+		a.reportProgress()
 		if a.Win != nil {
 			a.Win.Invalidate()
 		}
 	})
+}
+
+// reportProgress hands a running update download to the system's own progress
+// surface — the taskbar button on Windows, the Dock icon on macOS, the
+// launcher entry on docks that implement the Unity API — so the download is
+// visible while the panel is hidden. It derives the bar from the current
+// state rather than from the transition that produced it: Downloading false
+// or no Progress clears the bar, which is exactly the finish, failure and
+// start cases without four call sites each remembering to clear.
+func (a *App) reportProgress() {
+	if a.Settings == nil {
+		return
+	}
+	var bar mygo.ProgressBar
+	if state := a.Settings.Update; state.Downloading && state.Progress != nil {
+		bar.Value = settingsui.UpdateFraction(state.Progress)
+	}
+	if a.setProgressBar != nil {
+		a.setProgressBar(bar)
+		return
+	}
+	if a.Win != nil {
+		a.Win.SetProgressBar(bar)
+	}
 }
 
 // relaunchApp starts the freshly installed version, which is the old build's

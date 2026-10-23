@@ -3754,6 +3754,18 @@ func (a *App) updateButton(c *ui.Context, label string, disabled bool, run func(
 	}
 }
 
+// UpdateFraction is the share of an update download that is done, between 0
+// and 1, and 0 while the feed has not named a total. The About page's own
+// track and the system's progress surface (the taskbar button, the Dock icon,
+// the launcher entry) read it from here, so the two cannot drift: one download
+// has one fraction.
+func UpdateFraction(p *UpdateProgress) float64 {
+	if p == nil || p.Total <= 0 {
+		return 0
+	}
+	return min(max(float64(p.Downloaded)/float64(p.Total), 0), 1)
+}
+
 // updateProgress is the old `.update-banner__progress`: a track with the
 // accent bar over it and the tabular readout under it (`42% · 1.5 MB / 3.6 MB`,
 // or just the downloaded count when the feed named no total).
@@ -3761,16 +3773,7 @@ func (a *App) updateProgress(c *ui.Context, progress *UpdateProgress) {
 	t := c.Theme()
 	tokens := a.tokens(c)
 	track := t.Space(45)
-	fraction := float32(0)
-	if progress.Total > 0 {
-		fraction = float32(progress.Downloaded) / float32(progress.Total)
-		if fraction > 1 {
-			fraction = 1
-		}
-		if fraction < 0 {
-			fraction = 0
-		}
-	}
+	fraction := float32(UpdateFraction(progress))
 	ui.Column(c).MinWidth(track).Shrink(0).Gap(t.Space(1.25)).Children(func() {
 		// `.update-banner__progress-track` is a 4u groove with the ladder's
 		// small corner and the track edge as an *inset* keyline

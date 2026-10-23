@@ -192,6 +192,10 @@ type Options struct {
 	// Notify raises a system notification; nil uses the framework's, and
 	// tests record what would have been shown.
 	Notify func(title, body string)
+	// SetProgressBar shows a task's progress on the system's own surface (the
+	// taskbar button, the Dock icon or the launcher entry); nil uses the
+	// window's, and tests record the value. The zero ProgressBar clears it.
+	SetProgressBar func(mygo.ProgressBar)
 	// Relaunch starts the freshly installed version after an update; nil uses
 	// the framework's own relaunch, and tests record the call.
 	Relaunch func()
@@ -409,6 +413,7 @@ type App struct {
 	saveFileDialog       func(defaultName string) (string, error)
 	openFileDialog       func() (string, error)
 	notify               func(title, body string)
+	setProgressBar       func(mygo.ProgressBar)
 	relaunch             func()
 	// onScreen overrides the panel's on-screen answer; tests replace it so
 	// the two completion channels (the panel's own row, the system
@@ -578,6 +583,7 @@ func New(opts Options) *App {
 		saveFileDialog:       opts.SaveFileDialog,
 		openFileDialog:       opts.OpenFileDialog,
 		notify:               opts.Notify,
+		setProgressBar:       opts.SetProgressBar,
 		relaunch:             opts.Relaunch,
 		confirmDialog:        opts.ConfirmDialog,
 		runPowerCommand:      opts.RunPowerCommand,
@@ -3233,6 +3239,26 @@ func (a *App) Notify(title, body string) {
 	if err := notification.Show(); err != nil {
 		log.Printf("floter: could not show a notification: %v", err)
 	}
+}
+
+// NotificationClicked brings the panel back when the user clicks one of the
+// app's notifications (registered before Run, so a click that launched the app
+// arrives too). A completion notification is raised only while the panel is
+// hidden (see notifyRun / notifyCompletion), and what it is about — a finished
+// background run's output — lives on the launcher, so a click returns there
+// rather than to whichever page the hidden panel was left on. A click that
+// lands while the panel is already on screen leaves the user where they are:
+// the notification was stale by then, and yanking them off the page they are
+// reading would be worse than doing nothing.
+func (a *App) NotificationClicked(string) {
+	a.onMain(func() {
+		if a.panelOnScreen() {
+			return
+		}
+		// Open reveals the window itself when it is not on screen
+		// (revealNeeded), so a separate Show would be a second summon.
+		a.Open(SurfaceLauncher)
+	})
 }
 
 // scanApps hands the launcher the installed applications: the previous scan

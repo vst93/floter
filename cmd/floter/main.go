@@ -63,6 +63,10 @@ func main() {
 	mygo.App.OnSecondInstance(func(args []string, workingDir string) {
 		app.Show()
 	})
+	// A click on a completion notification brings the panel back. Registered
+	// before Run so the click that launched the app (macOS keeps notifications
+	// past the run that raised them) is received too; see NotificationClicked.
+	mygo.App.OnNotificationClick(app.NotificationClicked)
 	mygo.App.OnOpenURL(func(rawURL string) {
 		log.Printf("floter: opening %s", rawURL)
 		app.HandleURL(rawURL)
