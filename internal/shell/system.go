@@ -174,15 +174,17 @@ func (a *App) HandleURL(rawURL string) {
 	if err != nil {
 		// A malformed URL is a user-visible dead end, not noise: bring the
 		// panel forward and say so — once per window, since an external
-		// trigger can repeat on its own (the old build's MalformedUrl).
-		a.Open(SurfaceLauncher)
+		// trigger can repeat on its own (the old build's MalformedUrl). The
+		// refusal is about the link, not a reason to abandon the page the
+		// user was reading: `refuseLink` reveals without switching surfaces.
 		a.refuseLink()
 		return
 	}
 	if !strings.EqualFold(parsed.Scheme, scheme) {
 		// A scheme this app does not handle is not ours to complain about
-		// (the old build kept UnsupportedScheme silent).
-		a.Open(SurfaceLauncher)
+		// (the old build kept UnsupportedScheme silent), but a foreign link
+		// is still a reason to come forward — without changing the surface.
+		a.reveal()
 		return
 	}
 	switch strings.ToLower(parsed.Host) {

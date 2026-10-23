@@ -265,6 +265,12 @@ type App struct {
 	// nil drives the real window. Not part of Options: the app always has a
 	// real hide, only tests need to see it.
 	hideWindow func()
+	// showWindow replaces the window's own reveal inside Show. A test has no
+	// window to bring forward, so the reveal decision (the panel came forward,
+	// whatever it was showing) would be unobservable; nil drives the real
+	// window. Not part of Options: the app always has a real show, only tests
+	// need to see it.
+	showWindow func()
 	// notices are the toasts queued for the next frame, and refusals is the
 	// gate that keeps one bad external trigger from repeating its sentence in
 	// a loop (see notices.go).
@@ -3781,6 +3787,13 @@ func placement(areaX, areaY, areaWidth, areaHeight, windowW, referenceH float64)
 // the decision reads the same visibility the framework's own OnShow does, so a
 // scan already in flight is shared rather than duplicated (see scanToolCatalog).
 func (a *App) Show() {
+	// A test has no window to bring forward, so the reveal decision is driven
+	// through this seam: it stands in for the whole reveal (the panel came
+	// forward, whatever it was showing). The real path below is untouched.
+	if a.showWindow != nil {
+		a.showWindow()
+		return
+	}
 	rehome := placementForReveal(a.windowWasVisible())
 	if rehome {
 		a.scanToolCatalog()

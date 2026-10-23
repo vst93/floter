@@ -436,13 +436,24 @@ func launcherGlyph(name string) *ui.SVG {
 // and raises the one refusal sentence — unless the same refusal is still inside
 // its window, in which case one attempt's worth of noise is enough. Safe to
 // call from a background goroutine (a `connect` that failed after the review).
+//
+// The window coalesces the sentence, not the reveal: a repeat inside the
+// window is still a reason to come forward, so `reveal` runs before the gate
+// and only the toast is dropped.
 func (a *App) refuseLink() {
+	a.reveal()
 	if a.refusals == nil || !a.refusals.allow(refusalKey) {
 		return
 	}
 	message := i18n.For(a.Store.Snapshot().Language).Settings.DeepLinkRejected
 	a.onMain(func() {
-		a.Show()
 		a.queueNotice(message, refusalNotice)
 	})
+}
+
+// reveal brings the panel forward without changing what it is showing: the old
+// build's `focus_main`. A surface switch is a different gesture (`Open`); a
+// refused or foreign link only asks to be seen where the user already is.
+func (a *App) reveal() {
+	a.onMain(func() { a.Show() })
 }
