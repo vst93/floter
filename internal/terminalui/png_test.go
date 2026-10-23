@@ -12,8 +12,10 @@ import (
 	"floter/internal/settings"
 )
 
-// The P8-c visual evidence: the terminal page in both appearances, written to
-// /tmp so the report can point at a file rather than at a description.
+// The P8-e visual evidence: the terminal page in both appearances, written to
+// /tmp so the report can point at a file rather than at a description. What the
+// two frames have to show is the bar's status dot — the live one, neutral and
+// breathing, beside the session's name.
 //
 // The dump is opt-in (`FLOTER_PNG=1`) because a test run should not litter /tmp;
 // the round that produced the report ran it once with the switch on.
@@ -42,11 +44,11 @@ func TestDumpTerminalPagePNGs(t *testing.T) {
 		tt.SetDark(dark)
 		tt.SetPreferences(ui.Preferences{ReduceMotion: true})
 		// The pointer rests on the bar so the identity row — and its status dot —
-		// is in the picture: the dot is what §6.2 第 5 条 is about.
+		// is in the picture: the dot is what P8-e §1 A is about.
 		tt.Move(420, 12)
 		tt.Frame()
 		tt.Frame()
-		path := filepath.Join(dir, "floter-p8c-terminal-"+appearance+".png")
+		path := filepath.Join(dir, "floter-p8e-terminal-"+appearance+".png")
 		f, err := os.Create(path) // #nosec G304 -- a fixed /tmp path this test owns
 		if err != nil {
 			t.Fatal(err)

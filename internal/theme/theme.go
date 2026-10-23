@@ -287,14 +287,18 @@ type Tokens struct {
 	// showed the Linux keyboard cue at all.
 	AccentGlow ui.Color
 	// AccentTintQuiet is the accent at the quietest rung of its tint family
-	// (base.css's `--accent-tint-quiet`): the fill a launcher result row's
-	// selection wears, where the emphasis is the row's own type — the title at
-	// 700 — rather than the fill. It is one rung below `--accent-tint` and it
-	// is a *per-appearance* token (dark 0.085, light 0.065): the same pastel
-	// blue over near-black gains contrast, while the same alpha over white
-	// barely moves the pixel, so the light appearance needs the lighter rung.
-	// Quoting one number for both appearances painted the light row's
-	// selection with the dark rung (the launcher's `Accent.Alpha(0.085)`).
+	// (base.css's `--accent-tint-quiet`): one rung below `--accent-tint`, and a
+	// *per-appearance* token (dark 0.085, light 0.065) — the same pastel over
+	// near-black gains contrast, while the same alpha over white barely moves
+	// the pixel, so the light appearance needs the lighter rung. Quoting one
+	// number for both appearances painted the light row's selection with the
+	// dark rung (the launcher's `Accent.Alpha(0.085)`).
+	//
+	// Deprecated: P8-e 收掉了它的最后一处生产调用（`internal/launcher/output.go`
+	// 的选中行改 `RowSelected`）——§5 明写禁止「列表选中行」用 accent，而这一处
+	// 是 §5 判据落地后的最后一个例外。仓库层面已 grep 确认零生产调用点（只剩
+	// 这个字段定义与 `internal/theme/theme_test.go` 的值 pin）。字段保留不删：
+	// 本次只做视觉收敛，删除留给下一次清理轮（同 P8-c 对 `FieldSlot` 的处理）。
 	AccentTintQuiet ui.Color
 	// Sunken is the settings content pane's own fill (base.css's
 	// `--surface-sunken`): the settings panel is a reading surface, and it

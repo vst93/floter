@@ -540,11 +540,11 @@ func (a *App) outputRow(c *ui.Context, row extensions.Row, i int) {
 	tokens := a.tokens(c)
 	switch {
 	case selected:
-		// The list's own selection: the accent's quietest tint rung with the
-		// emphasis in the row's type, exactly as the launcher's rows draw it.
-		// It is `--accent-tint-quiet`, a per-appearance token, so the light
-		// appearance's selection is not painted with the dark rung's alpha.
-		style.Background(tokens.AccentTintQuiet)
+		// P8-e 重定基线（§5 禁止清单「列表选中行」）：旧值是
+		// `tokens.AccentTintQuiet`——一块带色相的洗。选中行是中性面，与启动器
+		// 列表（P8-a）的选中行同一档 `tokens.RowSelected`，两套外观各自的 rung
+		// 由 token 自己分。旧值 → 新值：`AccentTintQuiet` → `RowSelected`。
+		style.Background(tokens.RowSelected)
 	case row.Status || row.Disabled:
 		// A note is not a door: it stays muted and never highlights.
 	default:

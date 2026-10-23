@@ -124,11 +124,19 @@ func TestTheTerminalBarTitleIsTheReferenceSecondaryBody(t *testing.T) {
 	}
 }
 
-// The bar's status dot (`src/styles/terminal.css:150-168`): the live one is the
-// accent, and once the program ends it takes the *tertiary* step, not the muted
-// one the old port read (`--text-tertiary`). Read off the live bar: the dot's
-// centre pixel against the exact composite of a solid fill, and its width
+// The bar's status dot (`src/styles/terminal.css:150-168`): both states take
+// the *tertiary* step (never the muted one the old port read, `--text-tertiary`
+// in the reference), and the live one at full opacity against the exited one's
+// 0.7 — the difference is the breath, not the hue. Read off the live bar: the
+// dot's centre pixel against the exact composite of a solid fill, and its width
 // against the same dot on a held session.
+//
+// P8-e 重定基线（V）：旧断言钉着 `live → Theme.Accent`（且是「accent 点」的
+// 名字）。§5 只允许 accent 回答「哪个被选中 / 哪个是开的」——「这个进程是活的」
+// 两者都不是，所以色相转中性：live 与 exited 现在同一档墨
+// `tokens.TextTertiary`，只差呼吸（与 exited 的 0.7 静止）。旧值 → 新值：
+// `live dot = Theme.Accent` → `tokens.TextTertiary`（实测峰值像素见 P8-e 报告：
+// 深色 110,110,118；浅色 142,142,148，两套外观都读得出）。
 //
 // P8-c 重定基线（§6.2 第 5 条 / §1）：旧测试的名字与第三条断言是「live dot
 // **有** halo」——`--elev-halo` 的 `0 0 0 2px var(--accent-halo)` 把 1.75u 的
@@ -157,7 +165,8 @@ func TestTheTerminalBarDotDropsItsHaloAndWearsTertiary(t *testing.T) {
 	}
 
 	// The live dot, at rest: reduce motion pins the breath at its 0% keyframe,
-	// so the ink is the full-opacity accent and its ring.
+	// so the ink is the full-opacity tertiary step — the same hue as a held
+	// session's dot, one opacity step brighter.
 	live := New(newStore(), Actions{}, nil)
 	withSession(live, &terminal.Terminal{})
 	lt, tok, _ := barFrame(t, live, true)
@@ -165,8 +174,12 @@ func TestTheTerminalBarDotDropsItsHaloAndWearsTertiary(t *testing.T) {
 	if lMaxX < 0 {
 		t.Fatalf("the live session's bar drew no status dot: %q", lt.Texts())
 	}
-	if got, want := dotCenter(lt, lMinX, lMaxX), tok.Theme.Accent; !sameRGB(got, want) {
-		t.Errorf("the live dot's centre = %v, want the accent (%v)", got, want)
+	if got, want := dotCenter(lt, lMinX, lMaxX), tok.TextTertiary; !sameRGB(got, want) {
+		t.Errorf("the live dot's centre = %v, want the tertiary step (%v)", got, want)
+	}
+	// …and it is *not* the accent: §5 gives the live/dead question no hue.
+	if accent := tok.Theme.Accent; sameRGB(dotCenter(lt, lMinX, lMaxX), accent) {
+		t.Errorf("the live dot still wears the accent (%v): a running process is not a chosen row", accent)
 	}
 	// No halo: the ink box is the bare 1.75u dot, the same width a held
 	// session's dot has. A 2u ring added three columns on each side.

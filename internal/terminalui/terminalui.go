@@ -1293,7 +1293,7 @@ func (a *App) titleBar(c *ui.Context, copy i18n.Terminal) {
 	})
 }
 
-// statusDot is the bar's status light: the accent, breathing while the
+// statusDot is the bar's status light: a neutral dot breathing while the
 // session runs, and a still grey dot once the program has ended.
 func (a *App) statusDot(c *ui.Context) {
 	t := c.Theme()
@@ -1306,9 +1306,14 @@ func (a *App) statusDot(c *ui.Context) {
 		dot.Background(tokens.TextTertiary).Opacity(0.7)
 		return
 	}
-	dot.Background(t.Accent)
+	// P8-e 重定基线（§5 判据）：旧值是 `t.Accent`，但「这个进程是活的」不是
+	// 「哪个被选中 / 哪个是开的」，accent 无权回答它——所以色相转中性，
+	// `tokens.TextTertiary`，与 exited 态同一档（两者只差明度与动效）。存活由
+	// 「动」说：呼吸仍在，色相不再参与。旧值 → 新值：`t.Accent` →
+	// `tokens.TextTertiary`（深色下峰值仍读得出，两侧实测见 P8-e 报告）。
+	dot.Background(tokens.TextTertiary)
 	// P8-c 重定基线（§6.2 第 5 条 / §1）：`--elev-halo` 的 2u `AccentHalo` 环
-	// 去掉，只留这个 1.75u 的 accent 点。光环是旧 glass 语言的辉光——§1 把
+	// 去掉，只留这个 1.75u 的点。光环是旧 glass 语言的辉光——§1 把
 	// 光泽一律压到 alpha ≤ 0.04，而 `AccentHalo` 是 0.2（上限的 5 倍），并且
 	// 「哪个进程是活的」是一个**点**的存在与否，不需要一圈晕来强调。呼吸
 	// 动画（透明度与缩放）是旧 build 自己的动效，不在墨与面的条文里，保留。

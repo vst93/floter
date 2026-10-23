@@ -512,9 +512,9 @@ func dotFrame(t *testing.T, reduce bool) (*ui.Tester, ui.Color) {
 		return nil, errors.New("no library in tests")
 	})
 	withSession(a, &terminal.Terminal{})
-	var accent ui.Color
+	var ink ui.Color
 	tt := ui.NewTester(func(c *ui.Context) {
-		accent = c.Theme().Accent
+		ink = tokensOf(a, c).TextTertiary
 		a.View(c)
 	}, 860, 600)
 	tt.SetPreferences(ui.Preferences{ReduceMotion: reduce})
@@ -522,17 +522,17 @@ func dotFrame(t *testing.T, reduce bool) (*ui.Tester, ui.Color) {
 	tt.Frame()                         // the dot appears here, and the loop starts with it
 	tt.Advance(400 * time.Millisecond) // 400 ms into the breath
 	tt.Frame()
-	return tt, accent
+	return tt, ink
 }
 
-// accentBox is the bounding box of the pixels that are the accent colour
-// exactly, 0..1 blending left out: the dot's ink at full opacity.
-func accentBox(img *image.RGBA, accent ui.Color) image.Rectangle {
+// inkBox is the bounding box of the pixels that are the dot's ink colour
+// exactly, 0..1 blending left out: the dot at full opacity.
+func inkBox(img *image.RGBA, ink ui.Color) image.Rectangle {
 	minX, minY, maxX, maxY := 1<<30, 1<<30, -1, -1
 	for y := 0; y < 40; y++ {
 		for x := 0; x < 400; x++ {
 			i := y*img.Stride + x*4
-			if img.Pix[i] == accent.R && img.Pix[i+1] == accent.G && img.Pix[i+2] == accent.B {
+			if img.Pix[i] == ink.R && img.Pix[i+1] == ink.G && img.Pix[i+2] == ink.B {
 				minX, minY = min(minX, x), min(minY, y)
 				maxX, maxY = max(maxX, x), max(maxY, y)
 			}
@@ -547,18 +547,23 @@ func accentBox(img *image.RGBA, accent ui.Color) image.Rectangle {
 // The status dot's breath is the app's own loop, and the desktop's
 // reduce-motion preference stops it: the old build's stylesheet names the
 // breath and turns it off (`animation: none`), which leaves the dot at its 0%
-// keyframe — the accent at full opacity and full size. The framework's Loop
-// would turn regardless (a loop "shows that something is going on"), so the
-// app reads the preference itself, through internal/motion.
+// keyframe — full opacity, full size. The framework's Loop would turn
+// regardless (a loop "shows that something is going on"), so the app reads the
+// preference itself, through internal/motion.
 //
 // The keyframes are 1 -> 0.5 -> 1 over 2.4 s, so the two cases are read off
-// one mid-cycle frame: a still, exact-accent 7px dot under reduce motion, and
-// a blended, shrunk one when the breath runs.
+// one mid-cycle frame: a still, exact-ink 7px dot under reduce motion, and a
+// blended, shrunk one when the breath runs.
+//
+// P8-e 重定基线（V）：这条测试量的是**呼吸**（reduce motion 停在 0% 关键帧、
+// 动效开启时混合），不是色相；但它的探针原先读 accent，点转中性后就找不到
+// 像素了。旧值 → 新值：探针 `c.Theme().Accent` → `tokens.TextTertiary`（就是
+// 点现在穿的墨）。断言的**行为**（静止 = 满不透明、呼吸 = 混过）一字未改。
 func TestStatusDotRestsUnderReduceMotion(t *testing.T) {
-	still, accent := dotFrame(t, true)
-	box := accentBox(still.Image(), accent)
+	still, ink := dotFrame(t, true)
+	box := inkBox(still.Image(), ink)
 	if box.Empty() {
-		t.Fatal("the resting dot draws no accent pixels in the bar")
+		t.Fatal("the resting dot draws no ink pixels in the bar")
 	}
 	// The disc is drawn at 7px; the *exact*-accent read below loses its edge
 	// pixels to antialiasing, which the font and the rasteriser decide (macOS
@@ -567,16 +572,16 @@ func TestStatusDotRestsUnderReduceMotion(t *testing.T) {
 	// keyframe would draw — the breath's own floor — and no larger than the 7px
 	// keyframe.
 	if box.Dx() != box.Dy() || box.Dx() < 5 || box.Dx() > 7 {
-		t.Errorf("the resting dot is %dx%d, want the 7px keyframe's disc (5..7 exact-accent pixels across; the edge blends with the bar)",
+		t.Errorf("the resting dot is %dx%d, want the 7px keyframe's disc (5..7 exact-ink pixels across; the edge blends with the bar)",
 			box.Dx(), box.Dy())
 	}
 	at := image.Pt(box.Min.X+box.Dx()/2, box.Min.Y+box.Dy()/2)
 
-	breathing, breathAccent := dotFrame(t, false)
+	breathing, breathInk := dotFrame(t, false)
 	img := breathing.Image()
 	i := at.Y*img.Stride + at.X*4
-	if img.Pix[i] == breathAccent.R && img.Pix[i+1] == breathAccent.G && img.Pix[i+2] == breathAccent.B {
-		t.Errorf("the dot is the untouched accent at %v 400 ms into the loop: the breath never ran", at)
+	if img.Pix[i] == breathInk.R && img.Pix[i+1] == breathInk.G && img.Pix[i+2] == breathInk.B {
+		t.Errorf("the dot is the untouched ink at %v 400 ms into the loop: the breath never ran", at)
 	}
 }
 

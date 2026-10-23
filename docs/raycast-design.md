@@ -171,7 +171,7 @@ padding 全花在文本列上（查询与行标题都从 16u 起），在行内�
    `internal/theme/theme.go`）。
 
 仍禁止：列表选中行、页脚、分组头、空态、行 hover/按下、图标底、弹层危险动作的
-彩色环、终端状态灯的 halo、抽屉读数文字。
+彩色环、终端状态灯（已去掉 halo，P8-e 再去掉色相——只靠呼吸动）、抽屉读数文字。
 
 **判断标准一句话**：accent 只能回答「哪个被选中 / 哪个是开的」，不能回答「这块
 面好看」。
@@ -191,7 +191,7 @@ padding 全花在文本列上（查询与行标题都从 16u 起），在行内�
 其余一切——启动器选中行、页脚、分组头、空态、行 hover/按下、图标底——**不用
 accent**。`AccentHalo` / `AccentGlow` 在启动器表面上一次都不画（Linux 聚焦卡的
 keyline 属于卡片壳，不属于列表）；`AccentHalo` 在终端的状态灯上也于 P8-c 去掉
-（§6.2 第 5 条）。
+（§6.2 第 5 条），P8-e 再去掉它的**色相**——那个点现在穿 `TextTertiary`，存活只由呼吸动说（§6.2 的「状态灯」行 / §6.5 第 1 条）。
 
 反证留在测试里：`selface_test.go` 的选中行断言既等于 `RowSelected` 的合成值，
 又证明「R−B 的差」与无彩色不足一个阈值（即不含 accent 的粉），
@@ -265,7 +265,7 @@ keyline 属于卡片壳，不属于列表）；`AccentHalo` 在终端的状态�
 | 会话挂载（`terminalui.go:932`） | `Radius(RadiusLG)`(12) + 1px `edge` | **`RadiusMD`(10)**（面板内的块；12 只给「是窗口」的面），抽成 `mountCorner` | `已落地` — `terminalui.go:931-932`（`mountCorner`）+ `terminalui.go:1359-1368`（两个 helper） |
 | 反馈条（`terminalui.go:1110`） | `RadiusMD` + `ControlEdge` + `Float` | 几何保留；`Float` 只是一层不透面（`TintAlpha + floatStep`，无 rim/sheen），低光泽复核通过 | `已落地` — `terminalui.go:1110`，复核见报告 §① 第 3 条 |
 | 警告条（`terminalui.go:1161`） | `Border(tokens.AccentEdge)` | **`Border(tokens.ControlEdge)`** —— accent 环不属于 §5 的任何一处；语义由 warning 墨 + 15u 警示字形说 | `已落地` — `terminalui.go:1161` |
-| 状态灯（`terminalui.go:1298`） | `Shadow(0,0,0,Space(0.5), AccentHalo)` | **去掉 halo**，只留 1.75u 的 accent 点（§1 光泽上限 0.04，`AccentHalo` 是 0.2） | `已落地` — `terminalui.go:1301-1306` |
+| 状态灯（`terminalui.go:1298`） | `Shadow(0,0,0,Space(0.5), AccentHalo)` + `t.Accent` 的点 | **去掉 halo**，只留 1.75u 的点（§1 光泽上限 0.04，`AccentHalo` 是 0.2）；P8-e 再把点的**填充**从 `t.Accent` 改 `tokens.TextTertiary`，呼吸动效保留 | `已落地` — P8-c：`terminalui.go:1301-1306`；P8-e：`terminalui.go:1309-1315`（见 §6.5 第 1 条） |
 | 标题条（`terminalui.go:1216`） | hover `Shadow(…, rgba(0,0,0,0.18))` | 读 **`tokens.ShadowContact`**（深 0.40 / 浅 0.10），不再写字面 rgba | `已落地` — `terminalui.go:1222` |
 | 抽屉读数（`internal/terminalui/drawer.go:276`） | `FontSize(Body)` + `Theme.Accent` + 600 | **`TextStrong`** + tnum（register 与权重不动：body / mono / tnum / 600） | `已落地` — `drawer.go:274-277` |
 | 抽屉面（`drawer.go:59`） | 浮层几何 + `BorderColor(ControlEdge)` 的上边线 | 几何保留（`Control` 面 + 16/12u padding + 10u gap）；上边线按 §4.1 降为**弱发丝** `HairlineSoft` | `已落地` — `drawer.go:59` |
@@ -313,6 +313,36 @@ keyline 属于卡片壳，不属于列表）；`AccentHalo` 在终端的状态�
 **判不准四条 → 定审结果**（理由见 §5 注脚）：权限 ● **保留**、更新进度条**保留**、
 会话可恢复红点**改中性**、`packageChip` 前导图标**保留**。
 
+### §6.5 P8-e · accent 收口最后三处（**已落地**）
+
+P8-d 报告 §⑥ 把全仓 accent 收敛到 25 个代码位点后，还剩三条**确实越界、但不在
+P8-d 授权范围内**的位点。三者同一族（都不是「哪个被选中 / 哪个是开的」），一轮收完，
+§5 的规则才第一次真正做到全仓一致。只改墨，不动几何/交互/文案。
+
+| # | 位置 | 旧 | 新 | 落地 |
+|---|---|---|---|---|
+| 1 | 终端状态灯（`internal/terminalui/terminalui.go` 的 `statusDot`） | 活着的会话 = `t.Accent` 的点（带呼吸） | **`tokens.TextTertiary`**，呼吸保留——存活由「动」说，不由色相说。exited 态的 0.7 灰点不动 | `已落地` — `terminalui.go:1309-1315`；pin `TestTheStatusDotIsNeutralAndStillBreathes`（正面：通道差 ≤ 12；反面：不是 accent；呼吸：两帧墨量差 ≥ 500）、`TestTheExitedStatusDotStaysAGreyDot` |
+| 2 | 成功 toast（`internal/shell/notices.go` 的 `toastTone`） | `success → Theme.Accent` | **`tokens.TextStrong`**（比未标记 toast 的 `TextSecondary` 高一档明度）；成功语义靠 ✓ 字形与文案。warning/error 的语义色原样保留 | `已落地` — `notices.go:168`；pin `TestToastTonesAndMarksFollowTheirKind`（V 翻面） |
+| 3 | 输出面板选中行（`internal/launcher/output.go` 的 `outputRow`） | `tokens.AccentTintQuiet` | **`tokens.RowSelected`**（与启动器列表 P8-a 的选中行同一档） | `已落地` — `output.go:547`；pin `TestTheOutputSelectedRowIsTheNeutralChosenRung`（两套外观，正面 + 反证 + 行内零 accent 像素） |
+
+**随之收口的 token**：`theme.Tokens.AccentTintQuiet` 在本次改动后**零生产调用点**
+（只剩字段定义与 `theme_test.go` 的值 pin），按 P8-c 对 `FieldSlot` 的处理标
+`Deprecated` 并**保留函数体/字段**，删除留给下一次清理轮。
+
+**新增守卫**（§2，同 `TestTheTerminalViewsPaintFromTokensNotLiterals` 一族）：
+
+1. `TestTheTerminalAndShellViewsSpendNoAccent` —— `internal/terminalui/terminalui.go`
+   与 `internal/shell/notices.go` 的生产行不得再出现 `Accent`（注释除外）。
+2. `TestTheStatusDotIsNeutralAndStillBreathes` + `TestTheExitedStatusDotStaysAGreyDot`
+   —— 正面（无彩度、呼吸在、exited 仍是灰点）与反面（不是 accent）成对。
+3. `TestTheOutputSelectedRowIsTheNeutralChosenRung` —— 面 == `RowSelected` over 面板底，
+   且行内无 accent 像素。
+
+**为什么 success 用 `TextStrong` 而不是 `TextSecondary`**：未标记 toast 已经穿
+`TextSecondary`（CSS 的默认 `color`）。若成功也用它，「确认」与「普通信息」就只剩
+一个 ✓ 字形可分；§5 注脚允许并**鼓励**用中性档之间的明度分层，而 P8-d 已把同族的
+导入成功提示（`transferReport`）定在 `TextStrong`，两者同语汇。
+
 ## §7 切片表
 
 | 片 | 范围 | 状态 |
@@ -321,3 +351,4 @@ keyline 属于卡片壳，不属于列表）；`AccentHalo` 在终端的状态�
 | P8-b | 设置页（侧栏/分组块/行/控件/弹层）+ 两个空态 | **本轮完成**（`⌘K` 动作面未做，见 §4.6） |
 | P8-c | 终端表面（页签/边框/滚动边缘/抽屉）+ 集成页 + 通知/浮层 + §5 accent 预算勘误 | **本轮完成**（§6.2/§6.3 全部 `已落地`；§5 从「三处」改为四类，新增 9 条正面 pin） |
 | P8-d | accent 花名册收口：越界 9 处转中性 + 判不准 4 条定审 + §5 注脚 + 视觉 pin 处置 | **本轮完成**（§6.4 全部 `已落地`；§5 补「只约束色相、鼓励明度分层」一句与边界四条注脚；新增 10 条 pin + 2 张×2 视觉证据） |
+| P8-e | accent 收口最后三处：终端状态灯去色相、成功 toast 转中性、输出面板选中行改 `RowSelected` | **本轮完成**（§6.5 全部 `已落地`；§5/§6.2 同步；`AccentTintQuiet` 标 `Deprecated`；新增 4 条 pin + 3 张×2 视觉证据） |

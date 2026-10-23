@@ -121,8 +121,9 @@ func (a *App) warnNotice(message string) {
 // `onNotify("success", …)`, raised for something that completed without a
 // failure. The About page's deep-link copy is the raiser the reference had —
 // it called `onCopied` so the app's toast stack said "Link copied" as well as
-// the button — and the app's viewport paints this kind in the accent with the
-// check mark (`toastMark("success")`).
+// the button — and the app's viewport paints this kind with the neutral strong
+// ink and the check mark (`toastMark("success")`): P8-e 把它的色相收回
+// 中性，成功由 ✓ 字形与文案说。
 func (a *App) notifySuccess(message string) {
 	if message == "" {
 		return
@@ -156,16 +157,22 @@ func (a *App) flushNotices(c *ui.Context) {
 // Error and warning share the amber band: the reference's own R9-1 note on the
 // CSS says so ("it shares the error band's amber *label*"), and the kind earns
 // its keep by the *icon* and the accessibility role, not a second colour.
-// Success wears the accent; an untagged toast wears `--text-secondary`, the
-// rule's own default (`.app-toast { color: var(--text-secondary) }`,
-// `extensions.css:291-296`), so a caller that sets no `Type` still reads as
-// plain information rather than as a row's label.
+// An untagged toast wears `--text-secondary`, the rule's own default
+// (`.app-toast { color: var(--text-secondary) }`, `extensions.css:291-296`), so
+// a caller that sets no `Type` still reads as plain information rather than as
+// a row's label.
+//
+// P8-e 重定基线（§5 判据）：success 旧值是 `Theme.Accent`，但「一次动作成功了」
+// 不是「哪个被选中 / 哪个是开的」，accent 无权回答它——成功语义由 ✓ 字形与
+// 文案说，不靠色相。新值 `TextStrong`：比未标记 toast 的 `TextSecondary` 高
+// 一档明度，「确认」与「普通信息」仍分得出上下（§5 注脚：只约束色相，鼓励
+// 明度分层），又与同族的导入成功提示（P8-d 的 `transferReport`）同语汇。
 func toastTone(tokens theme.Tokens, kind string) ui.Color {
 	switch kind {
 	case "error", "warning":
 		return tokens.Theme.Warning
 	case "success":
-		return tokens.Theme.Accent
+		return tokens.TextStrong
 	default:
 		return tokens.TextSecondary
 	}

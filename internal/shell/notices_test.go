@@ -63,7 +63,14 @@ func pendingNotices(a *App) int {
 // The toast's tone and mark follow the kind its raiser tagged it with: the old
 // build's `.app-toast--error` and `--warning` share the amber band (its own note
 // on the CSS says the warning "shares the error band's amber label"), the
-// `--success` one wears the accent, and each kind leads with its own icon.
+// `--success` one wears the **neutral** strong step, and each kind leads with
+// its own icon and, for success, its ✓ glyph.
+//
+// P8-e 重定基线（V）：旧断言钉着 `success → tokens.Theme.Accent`，但 §5 只
+// 允许 accent 回答「哪个被选中 / 哪个是开的」——「一次动作成功了」两者都不是，
+// 所以这一条翻面改成钉 `tokens.TextStrong`（比未标记 toast 的
+// `TextSecondary` 高一档明度，确认与普通信息仍分得出上下）。
+// **warning/error 的断言原样保留**：那是语义色，不是 accent。
 func TestToastTonesAndMarksFollowTheirKind(t *testing.T) {
 	tokens := theme.ForPreferences(settings.Settings{}, true, ui.Preferences{})
 	cases := []struct {
@@ -73,7 +80,7 @@ func TestToastTonesAndMarksFollowTheirKind(t *testing.T) {
 	}{
 		{"error", "alert", tokens.Theme.Warning},
 		{"warning", "triangle-alert", tokens.Theme.Warning},
-		{"success", "check", tokens.Theme.Accent},
+		{"success", "check", tokens.TextStrong},
 		{"", "", tokens.TextSecondary},
 		{"other", "", tokens.TextSecondary},
 	}
@@ -335,8 +342,8 @@ func TestWarningNoticeShowsWhereTheUserIs(t *testing.T) {
 
 // The confirmation notice is the old build's success toast: the About page's
 // deep-link copy raises it with its own "Link copied", and it carries the
-// success kind (the accent band and the check mark) and the shortest window,
-// because the news is good and needs no time to digest.
+// success kind (the neutral strong ink and the check mark) and the shortest
+// window, because the news is good and needs no time to digest.
 func TestTheSuccessNoticeCarriesItsKindAndWindow(t *testing.T) {
 	a := newApp(t)
 	sentence := i18n.For("en").Settings.DeepLinkCopied

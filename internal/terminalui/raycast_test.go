@@ -63,8 +63,8 @@ func delta(a, b ui.Color) int {
 	return d
 }
 
-// ① §6.2 第 5 条 · The live status dot carries **no halo**: the 1.75u accent
-// disc, and the pixels just around it are the bar's own backdrop.
+// ① §6.2 第 5 条 · The live status dot carries **no halo**: the 1.75u disc is
+// the whole mark, and the pixels just around it are the bar's own backdrop.
 //
 // The old mark was base.css's `--elev-halo` — `0 0 0 2px var(--accent-halo)`,
 // the accent at 0.2 — a ring three columns wider than the dot on each side.
@@ -72,6 +72,12 @@ func delta(a, b ui.Color) int {
 // halo is gone and the dot alone says "this session is live".
 //
 // Mutation M1 (put `dot.Shadow(..., AccentHalo)` back) turns this red.
+//
+// P8-e 重定基线（S）：这条 pin 的**结构**换了——它原先靠「bar 里唯一的暖墨就是
+// 那个点」来定位（`R−B ≥ 40` 的像素盒），点转中性后这个前提不存在了。新的定位
+// 是「不是笔杆底色的像素盒」：点仍在每行高度内，它的墨色不参与定位。断言量的事
+// （盒子是 1.75u 的圆盘、盒外一圈就是笔杆底色）一字未改。
+// 旧结构 → 新结构：accent-hued 像素盒 → 与 backdrop 有差的像素盒。
 func TestTheStatusDotCarriesNoHalo(t *testing.T) {
 	live := New(newStore(), Actions{}, nil)
 	withSession(live, &terminal.Terminal{})
@@ -81,37 +87,27 @@ func TestTheStatusDotCarriesNoHalo(t *testing.T) {
 	tt.Move(150, 14)
 	tt.Frame()
 
-	// The dot is the only warm ink in the bar: the identity title beside it is
-	// a grey. So its box is the extent of the accent-hued pixels, and the
-	// backdrop is the bar's own transparency — the root's black.
-	img := tt.Image()
+	// The dot's box is the extent of the ink standing off the bar's own row,
+	// read inside the bar's leading inset and clear of the title: the ink is a
+	// neutral now, so the probe cannot be a hue — it is the ink's own contrast
+	// against the column to its right, which is bar and nothing else.
 	minX, minY, maxX, maxY := 1<<30, 1<<30, -1, -1
-	warmest := -999
-	for y := 0; y < 40; y++ {
-		for x := 0; x < 300; x++ {
-			i := y*img.Stride + x*4
-			r, b := int(img.Pix[i]), int(img.Pix[i+2])
-			d := r - b
-			if d > warmest {
-				warmest = d
+	for y := 0; y < 24; y++ {
+		bar := pixel(tt, 20, y)
+		for x := 0; x < 20; x++ {
+			if delta(pixel(tt, x, y), bar) >= 40 {
+				minX, minY = min(minX, x), min(minY, y)
+				maxX, maxY = max(maxX, x), max(maxY, y)
 			}
-			if d < 40 {
-				continue
-			}
-			minX, minY = min(minX, x), min(minY, y)
-			maxX, maxY = max(maxX, x), max(maxY, y)
 		}
 	}
 	if maxX < 0 {
-		t.Fatalf("the live bar drew no accent dot: %q", tt.Texts())
-	}
-	if warmest < 60 {
-		t.Fatalf("the dot is not the accent (warmest R−B %d)", warmest)
+		t.Fatalf("the live bar drew no status dot: %q", tt.Texts())
 	}
 	// The box is the bare 1.75u disc: 7 columns, as the token paints it. A 2u
 	// `AccentHalo` ring — the accent at 0.2 — spread it to 11.
 	if w, h := maxX-minX+1, maxY-minY+1; w > 8 || h > 8 {
-		t.Errorf("the live dot's accent box is %dx%d; the 1.75u disc is 7x7 and a 2u halo made it 11x11", w, h)
+		t.Errorf("the live dot's box is %dx%d; the 1.75u disc is 7x7 and a 2u halo made it 11x11", w, h)
 	}
 	// And the pixels a ring would paint — two rows above and below the disc, at
 	// its own centre column, and two columns either side — are the bar's own
