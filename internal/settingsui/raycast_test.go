@@ -63,6 +63,45 @@ func renderThemed(t *testing.T, a *App, w, h int) (*ui.Tester, theme.Tokens) {
 	return renderIn(t, a, w, h, false)
 }
 
+// subPage is the plane a sub-surface pin draws its one widget on. The light
+// half has always been white — the pins' own stable reading plane; the dark
+// half is the theme's dark base fill (`internal/theme/theme.go:489-494`), so a
+// dark pin reads the widget against the plane it actually sits on instead of
+// white. Both are opaque, which is what makes a 1px edge readable.
+func subPage(dark bool) ui.Color {
+	if dark {
+		return ui.RGB(17, 18, 20)
+	}
+	return ui.RGB(255, 255, 255)
+}
+
+// renderOn is renderIn for a *sub-surface*: one widget drawn on a bare root
+// rather than the whole page. `draw` installs the tokens itself (it is the only
+// place that sees the context) and paints the widget; the frame read afterwards
+// is already past the appearance switch, same as renderIn.
+func renderOn(t *testing.T, w, h int, dark bool, a *App, draw func(c *ui.Context)) (*ui.Tester, theme.Tokens) {
+	t.Helper()
+	var tokens theme.Tokens
+	tt := ui.NewTester(func(c *ui.Context) {
+		tokens = a.tokens(c)
+		c.SetTheme(tokens.Theme)
+		c.Root().Background(subPage(dark))
+		draw(c)
+	}, w, h)
+	tt.SetDark(dark)
+	tt.Advance(500 * time.Millisecond)
+	tt.Frame()
+	// P9-b's lesson, applied here: without this the dark half would silently
+	// measure a light frame (the pins' expected values are computed from the
+	// same tokens, so a wrong appearance stays green). `TestTheDarkAppearanceIs
+	// ActuallyDark` is the page-level version of the same canary.
+	if tokens.Theme.Dark != dark {
+		t.Fatalf("renderOn resolved Dark=%v, want %v: the sub-surface pin would be reading the other appearance",
+			tokens.Theme.Dark, dark)
+	}
+	return tt, tokens
+}
+
 // appearanceNames is the pair every appearance-aware pin runs, in the order the
 // subtests are reported.
 var appearanceNames = []struct {
@@ -478,60 +517,63 @@ func TestThePrimaryCTAIsAnAccentButtonAtRadiusSM(t *testing.T) {
 // steps below differ by 22% in their `Space()` unit, so a `Space(3.5)` corner
 // cannot pass both.
 func TestTheOverlayButtonCornerIsLiteralAtEveryStep(t *testing.T) {
-	cornerInset := func(step string) (float32, theme.Tokens) {
-		t.Helper()
-		store := stepStore(t, step)
-		a := New(store, Actions{})
-		var tokens theme.Tokens
-		var ref ui.Handle
-		var box ui.Rect
-		tt := ui.NewTester(func(c *ui.Context) {
-			tokens = a.tokens(c)
-			c.SetTheme(tokens.Theme)
-			c.Root().Background(ui.RGB(255, 255, 255))
-			ui.Column(c).Padding(40).Children(func() {
-				ui.Row(c).Children(func() {
-					a.sheetActionButton(c, "Clear history", false, func() {}).Bind(&ref)
+	for _, appearance := range appearanceNames {
+		t.Run(appearance.name, func(t *testing.T) {
+			dark := appearance.dark
+			page := subPage(dark)
+			cornerInset := func(step string) (float32, theme.Tokens) {
+				t.Helper()
+				store := stepStore(t, step)
+				a := New(store, Actions{})
+				var ref ui.Handle
+				var box ui.Rect
+				tt, tokens := renderOn(t, 400, 200, dark, a, func(c *ui.Context) {
+					ui.Column(c).Padding(40).Children(func() {
+						ui.Row(c).Children(func() {
+							a.sheetActionButton(c, "Clear history", false, func() {}).Bind(&ref)
+						})
+					})
+					box = c.Resolve(ref).Bounds()
 				})
-			})
-			box = c.Resolve(ref).Bounds()
-		}, 400, 200)
-		tt.Frame()
-		img := tt.Image()
-		left := -1
-		for x := int(box.X) - 2; x < int(box.X+box.W)+2; x++ {
-			if p := imagePixel(img, x, int(box.Y)+1); p.R < 252 || p.G < 252 || p.B < 252 {
-				left = x
-				break
+				img := tt.Image()
+				left := -1
+				for x := int(box.X) - 2; x < int(box.X+box.W)+2; x++ {
+					// The page is not always white (P9-d): "not the page" is what marks
+					// the button's first painted column, in either appearance.
+					if p := imagePixel(img, x, int(box.Y)+1); channelDelta(p, page) > 3 {
+						left = x
+						break
+					}
+				}
+				if left < 0 {
+					t.Fatalf("[%s] the button's top row draws no edge", step)
+				}
+				return float32(left) - box.X, tokens
 			}
-		}
-		if left < 0 {
-			t.Fatalf("[%s] the button's top row draws no edge", step)
-		}
-		return float32(left) - box.X, tokens
-	}
-	smallInset, smallTokens := cornerInset("small")
-	largeInset, largeTokens := cornerInset("large")
-	if smallTokens.RadiusSM != 8 || largeTokens.RadiusSM != 8 {
-		t.Errorf("the corner token moved with the step: small %v, large %v, want 8 at both",
-			smallTokens.RadiusSM, largeTokens.RadiusSM)
-	}
-	// The same literal corner on a taller box: the inset a radius-8 arc makes
-	// on its first painted row grows with the box only because the row is
-	// measured from a taller box's own top, and the two steps' boxes differ.
-	// What must hold is that neither corner is the `Space(3.5)` stadium the old
-	// code asked for: that would be 12.6 and 15.4, i.e. more than half the box.
-	for _, tc := range []struct {
-		step  string
-		inset float32
-	}{{"small", smallInset}, {"large", largeInset}} {
-		if tc.inset > 6 {
-			t.Errorf("[%s] the overlay button's first row starts %v px in: a stadium, not RadiusSM(8)",
-				tc.step, tc.inset)
-		}
-		if tc.inset < 1 {
-			t.Errorf("[%s] the overlay button has no corner (inset %v)", tc.step, tc.inset)
-		}
+			smallInset, smallTokens := cornerInset("small")
+			largeInset, largeTokens := cornerInset("large")
+			if smallTokens.RadiusSM != 8 || largeTokens.RadiusSM != 8 {
+				t.Errorf("the corner token moved with the step: small %v, large %v, want 8 at both",
+					smallTokens.RadiusSM, largeTokens.RadiusSM)
+			}
+			// The same literal corner on a taller box: the inset a radius-8 arc makes
+			// on its first painted row grows with the box only because the row is
+			// measured from a taller box's own top, and the two steps' boxes differ.
+			// What must hold is that neither corner is the `Space(3.5)` stadium the old
+			// code asked for: that would be 12.6 and 15.4, i.e. more than half the box.
+			for _, tc := range []struct {
+				step  string
+				inset float32
+			}{{"small", smallInset}, {"large", largeInset}} {
+				if tc.inset > 6 {
+					t.Errorf("[%s] the overlay button's first row starts %v px in: a stadium, not RadiusSM(8)",
+						tc.step, tc.inset)
+				}
+				if tc.inset < 1 {
+					t.Errorf("[%s] the overlay button has no corner (inset %v)", tc.step, tc.inset)
+				}
+			}
+		})
 	}
 }
 
@@ -689,61 +731,62 @@ func paintedBox(img *image.RGBA, page ui.Color) ui.Rect {
 // had no test reading it before, so a later round could have stripped the
 // keyline as "the old base.css language" with nothing to stop it.
 func TestTheChosenSegmentKeepsItsAccentKeyline(t *testing.T) {
-	a := New(newStore(t), Actions{})
-	var tokens theme.Tokens
-	var box ui.Rect
-	var ref ui.Handle
-	tt := ui.NewTester(func(c *ui.Context) {
-		tokens = a.tokens(c)
-		c.SetTheme(tokens.Theme)
-		c.Root().Background(ui.RGB(255, 255, 255))
-		ui.Column(c).Padding(20).Children(func() {
-			// The segmented control returns nothing, so its box is read off a
-			// wrapping row: the row sizes to the track (the track is its only
-			// child and does not grow).
-			ui.Row(c).Bind(&ref).Children(func() {
-				a.segmented(c, []string{"System", "Light", "Dark"}, 1, func(int) {})
+	for _, appearance := range appearanceNames {
+		t.Run(appearance.name, func(t *testing.T) {
+			dark := appearance.dark
+			a := New(newStore(t), Actions{})
+			var box ui.Rect
+			var ref ui.Handle
+			tt, _ := renderOn(t, 600, 140, dark, a, func(c *ui.Context) {
+				ui.Column(c).Padding(20).Children(func() {
+					// The segmented control returns nothing, so its box is read off a
+					// wrapping row: the row sizes to the track (the track is its only
+					// child and does not grow).
+					ui.Row(c).Bind(&ref).Children(func() {
+						a.segmented(c, []string{"System", "Light", "Dark"}, 1, func(int) {})
+					})
+				})
+				box = c.Resolve(ref).Bounds()
 			})
-		})
-		box = c.Resolve(ref).Bounds()
-	}, 600, 140)
-	tt.Frame()
 
-	// The chosen segment is the middle third of the track: its keyline is the
-	// accent at 0.55, so the frame shows a warm run along its top edge.
-	third := box.W / 3
-	mid := int(box.X + box.W/2)
-	// The keyline is a 1px inset on the chosen pane, i.e. a row or two inside
-	// the track's own top edge (the track is padded).
-	warmest, at := -999, ui.Rect{}
-	for y := int(box.Y); y < int(box.Y)+5; y++ {
-		for x := mid - int(third)/2; x < mid+int(third)/2; x++ {
-			p := imagePixel(tt.Image(), x, y)
-			if d := int(p.R) - int(p.B); d > warmest {
-				warmest, at = d, ui.Rect{X: float32(x), Y: float32(y)}
-			}
-		}
-	}
-	if warmest < 40 {
-		t.Fatalf("the chosen segment's own edge is %d levels warm (warmest at %v): the accent keyline is gone",
-			warmest, at)
-	}
-	// And the *unchosen* segments' edges are not: the keyline is the chosen
-	// state's, not the whole track's.
-	for _, third := range []int{0, 2} {
-		x0 := int(box.X) + third*int(box.W)/3 + 8
-		x1 := int(box.X) + (third+1)*int(box.W)/3 - 8
-		worst := -999
-		for y := int(box.Y); y < int(box.Y)+5; y++ {
-			for x := x0; x < x1; x++ {
-				if d := int(imagePixel(tt.Image(), x, y).R) - int(imagePixel(tt.Image(), x, y).B); d > worst {
-					worst = d
+			// The chosen segment is the middle third of the track: its keyline is the
+			// accent at 0.55, so the frame shows a warm run along its top edge. The
+			// accent is the same red in both appearances, so the thresholds hold.
+			third := box.W / 3
+			mid := int(box.X + box.W/2)
+			// The keyline is a 1px inset on the chosen pane, i.e. a row or two inside
+			// the track's own top edge (the track is padded).
+			warmest, at := -999, ui.Rect{}
+			for y := int(box.Y); y < int(box.Y)+5; y++ {
+				for x := mid - int(third)/2; x < mid+int(third)/2; x++ {
+					p := imagePixel(tt.Image(), x, y)
+					if d := int(p.R) - int(p.B); d > warmest {
+						warmest, at = d, ui.Rect{X: float32(x), Y: float32(y)}
+					}
 				}
 			}
-		}
-		if worst > 20 {
-			t.Errorf("an unchosen segment's edge is %d levels warm: the accent keyline spread to the whole track", worst)
-		}
+			if warmest < 40 {
+				t.Fatalf("the chosen segment's own edge is %d levels warm (warmest at %v): the accent keyline is gone",
+					warmest, at)
+			}
+			// And the *unchosen* segments' edges are not: the keyline is the chosen
+			// state's, not the whole track's.
+			for _, third := range []int{0, 2} {
+				x0 := int(box.X) + third*int(box.W)/3 + 8
+				x1 := int(box.X) + (third+1)*int(box.W)/3 - 8
+				worst := -999
+				for y := int(box.Y); y < int(box.Y)+5; y++ {
+					for x := x0; x < x1; x++ {
+						if d := int(imagePixel(tt.Image(), x, y).R) - int(imagePixel(tt.Image(), x, y).B); d > worst {
+							worst = d
+						}
+					}
+				}
+				if worst > 20 {
+					t.Errorf("an unchosen segment's edge is %d levels warm: the accent keyline spread to the whole track", worst)
+				}
+			}
+		})
 	}
 }
 
@@ -751,45 +794,47 @@ func TestTheChosenSegmentKeepsItsAccentKeyline(t *testing.T) {
 // widened §5: the ON fill is a *state*, not decoration, so it keeps the accent
 // while a switch that is off wears the neutral track.
 func TestTheSwitchOnStateCarriesTheAccent(t *testing.T) {
-	a := New(newStore(t), Actions{})
-	measure := func(on bool) (warmest int, tokens theme.Tokens) {
-		t.Helper()
-		var box ui.Rect
-		var ref ui.Handle
-		tt := ui.NewTester(func(c *ui.Context) {
-			tokens = a.tokens(c)
-			c.SetTheme(tokens.Theme)
-			c.Root().Background(ui.RGB(255, 255, 255))
-			ui.Column(c).Padding(20).Children(func() {
-				value := on
-				a.switchControl(c, &value).Bind(&ref)
-			})
-			box = c.Resolve(ref).Bounds()
-		}, 300, 120)
-		tt.Frame()
-		warmest = -999
-		for y := int(box.Y); y < int(box.Y+box.H); y++ {
-			for x := int(box.X); x < int(box.X+box.W); x++ {
-				p := imagePixel(tt.Image(), x, y)
-				if d := int(p.R) - int(p.B); d > warmest {
-					warmest = d
+	for _, appearance := range appearanceNames {
+		t.Run(appearance.name, func(t *testing.T) {
+			dark := appearance.dark
+			a := New(newStore(t), Actions{})
+			measure := func(on bool) (warmest int, tokens theme.Tokens) {
+				t.Helper()
+				var box ui.Rect
+				var ref ui.Handle
+				tt, tokens := renderOn(t, 300, 120, dark, a, func(c *ui.Context) {
+					ui.Column(c).Padding(20).Children(func() {
+						value := on
+						a.switchControl(c, &value).Bind(&ref)
+					})
+					box = c.Resolve(ref).Bounds()
+				})
+				warmest = -999
+				for y := int(box.Y); y < int(box.Y+box.H); y++ {
+					for x := int(box.X); x < int(box.X+box.W); x++ {
+						p := imagePixel(tt.Image(), x, y)
+						if d := int(p.R) - int(p.B); d > warmest {
+							warmest = d
+						}
+					}
 				}
+				return warmest, tokens
 			}
-		}
-		return warmest, tokens
-	}
-	onWarm, tokens := measure(true)
-	offWarm, _ := measure(false)
-	// The accent's own R−B (the red these tokens ship) is ~150; a grey track's
-	// is a handful of levels.
-	if warm := int(tokens.Theme.Accent.R) - int(tokens.Theme.Accent.B); warm < 100 {
-		t.Fatalf("the accent is not the red this pin measures against (%d)", warm)
-	}
-	if onWarm < 100 {
-		t.Errorf("the switch's ON state is %d levels warm (R−B): §5 第 3 条 keeps the accent here", onWarm)
-	}
-	if offWarm > 12 {
-		t.Errorf("the switch's OFF state is %d levels warm (R−B): the accent belongs to the ON state alone", offWarm)
+			onWarm, tokens := measure(true)
+			offWarm, _ := measure(false)
+			// The accent's own R−B (the red these tokens ship) is ~150; a grey track's
+			// is a handful of levels. Both appearances ship the same red, so the
+			// thresholds hold on the dark track as well.
+			if warm := int(tokens.Theme.Accent.R) - int(tokens.Theme.Accent.B); warm < 100 {
+				t.Fatalf("the accent is not the red this pin measures against (%d)", warm)
+			}
+			if onWarm < 100 {
+				t.Errorf("the switch's ON state is %d levels warm (R−B): §5 第 3 条 keeps the accent here", onWarm)
+			}
+			if offWarm > 12 {
+				t.Errorf("the switch's OFF state is %d levels warm (R−B): the accent belongs to the ON state alone", offWarm)
+			}
+		})
 	}
 }
 
@@ -1116,159 +1161,170 @@ func TestTheSessionRunningSegmentIsNeutral(t *testing.T) {
 // 不变色相）。The action is drawn on its own so both frames are readable
 // without the surrounding page.
 func TestTheResetActionIsNeutralAtRestAndOnHover(t *testing.T) {
-	a := New(newStore(t), Actions{})
-	var ref ui.Handle
-	var box ui.Rect
-	var tokens theme.Tokens
-	tt := ui.NewTester(func(c *ui.Context) {
-		tokens = a.tokens(c)
-		c.SetTheme(tokens.Theme)
-		c.Root().Background(ui.RGB(255, 255, 255))
-		ui.Row(c).Padding(20).Children(func() {
-			a.actionWithGlyph(c, "plus", "Add one", func() {}).Bind(&ref)
-		})
-		box = c.Resolve(ref).Bounds()
-	}, 400, 120)
-	tt.Frame()
+	for _, appearance := range appearanceNames {
+		t.Run(appearance.name, func(t *testing.T) {
+			dark := appearance.dark
+			page := subPage(dark)
+			a := New(newStore(t), Actions{})
+			var ref ui.Handle
+			var box ui.Rect
+			tt, tokens := renderOn(t, 400, 120, dark, a, func(c *ui.Context) {
+				ui.Row(c).Padding(20).Children(func() {
+					a.actionWithGlyph(c, "plus", "Add one", func() {}).Bind(&ref)
+				})
+				box = c.Resolve(ref).Bounds()
+			})
 
-	warmest := func() (ui.Color, int) {
-		img := tt.Image()
-		var worst ui.Color
-		best := -999
-		for y := int(box.Y) - 2; y < int(box.Y+box.H)+2; y++ {
-			for x := int(box.X) - 2; x < int(box.X+box.W)+2; x++ {
-				p := imagePixel(img, x, y)
-				if d := int(p.R) - int(p.B); d > best {
-					best, worst = d, p
+			warmest := func() (ui.Color, int) {
+				img := tt.Image()
+				var worst ui.Color
+				best := -999
+				for y := int(box.Y) - 2; y < int(box.Y+box.H)+2; y++ {
+					for x := int(box.X) - 2; x < int(box.X+box.W)+2; x++ {
+						p := imagePixel(img, x, y)
+						if d := int(p.R) - int(p.B); d > best {
+							best, worst = d, p
+						}
+					}
 				}
+				return worst, best
 			}
-		}
-		return worst, best
-	}
 
-	restBox := box
-	_, restWarm := warmest()
-	restInk := inkColor(tt, mustFind(t, tt, "Add one"))
-	// 反面：静息时图标与文字都不带色相。
-	if restWarm > 20 {
-		t.Fatalf("the resting action is %d levels warm: the accent is on its icon or its word", restWarm)
-	}
-	if channelDelta(restInk, tokens.Theme.Accent) < 60 {
-		t.Fatalf("the resting action's ink %v is the accent %v", restInk, tokens.Theme.Accent)
-	}
-	// 正面：静息是 secondary 档。
-	if channelDelta(restInk, tokens.TextSecondary) > 16 {
-		t.Errorf("the resting action's ink = %v, want the secondary rung %v", restInk, tokens.TextSecondary)
-	}
+			restBox := box
+			_, restWarm := warmest()
+			restInk := inkColor(tt, mustFind(t, tt, "Add one"))
+			// 反面：静息时图标与文字都不带色相。
+			if restWarm > 20 {
+				t.Fatalf("the resting action is %d levels warm: the accent is on its icon or its word", restWarm)
+			}
+			if channelDelta(restInk, tokens.Theme.Accent) < 60 {
+				t.Fatalf("the resting action's ink %v is the accent %v", restInk, tokens.Theme.Accent)
+			}
+			// 正面：静息是 secondary 档。
+			if channelDelta(restInk, tokens.TextSecondary) > 16 {
+				t.Errorf("the resting action's ink = %v, want the secondary rung %v", restInk, tokens.TextSecondary)
+			}
 
-	tt.Move(restBox.X+restBox.W/2, restBox.Y+restBox.H/2)
-	tt.Frame()
-	_, hoverWarm := warmest()
-	hoverInk := inkColor(tt, mustFind(t, tt, "Add one"))
-	// 反面：hover 也没把色相抬起来。
-	if hoverWarm > 20 {
-		t.Errorf("the hovered action is %d levels warm: hover raised the accent", hoverWarm)
-	}
-	if channelDelta(hoverInk, tokens.Theme.Accent) < 60 {
-		t.Errorf("the hovered action's ink %v is the accent %v", hoverInk, tokens.Theme.Accent)
-	}
-	// 正面：hover 让墨更重一档（明度，不是色相）。
-	if contrast(hoverInk) <= contrast(restInk) {
-		t.Errorf("hover did not lift the action's ink: %v (contrast %d) → %v (contrast %d)",
-			restInk, contrast(restInk), hoverInk, contrast(hoverInk))
-	}
-	// Faded by the reference's own `opacity: .78`, the primary rung composites
-	// to a specific grey — read it rather than the raw token.
-	if want := panelOver(tokens.Theme.Text.Alpha(0.78), ui.RGB(255, 255, 255)); channelDelta(hoverInk, want) > 16 {
-		t.Errorf("the hovered action's ink = %v, want the primary rung at .78 (%v)", hoverInk, want)
+			tt.Move(restBox.X+restBox.W/2, restBox.Y+restBox.H/2)
+			tt.Frame()
+			_, hoverWarm := warmest()
+			hoverInk := inkColor(tt, mustFind(t, tt, "Add one"))
+			// 反面：hover 也没把色相抬起来。
+			if hoverWarm > 20 {
+				t.Errorf("the hovered action is %d levels warm: hover raised the accent", hoverWarm)
+			}
+			if channelDelta(hoverInk, tokens.Theme.Accent) < 60 {
+				t.Errorf("the hovered action's ink %v is the accent %v", hoverInk, tokens.Theme.Accent)
+			}
+			// 正面：hover 让墨更重一档（明度，不是色相）。
+			if contrast(hoverInk) <= contrast(restInk) {
+				t.Errorf("hover did not lift the action's ink: %v (contrast %d) → %v (contrast %d)",
+					restInk, contrast(restInk), hoverInk, contrast(hoverInk))
+			}
+			// Faded by the reference's own `opacity: .78`, the primary rung composites
+			// to a specific grey — read it rather than the raw token. The plane is the
+			// appearance's own page (P9-d), not always white.
+			if want := panelOver(tokens.Theme.Text.Alpha(0.78), page); channelDelta(hoverInk, want) > 16 {
+				t.Errorf("the hovered action's ink = %v, want the primary rung at .78 (%v)", hoverInk, want)
+			}
+		})
 	}
 }
 
 // ⑭ §5 禁止侧「行 hover/按下」· `cardRow` 的 hover 帧里**没有**任何 accent
 // 像素（扫整行，不只是前导条那一列）。反面 + 正面成对：行面确实抬起来了。
 func TestTheCardRowHoverCarriesNoAccentPixel(t *testing.T) {
-	a := New(newStore(t), Actions{})
-	var labelRef ui.Handle
-	var labelBox ui.Rect
-	tt := ui.NewTester(func(c *ui.Context) {
-		c.SetTheme(a.tokens(c).Theme)
-		a.cardRows = 0
-		a.cardRow(c, ui.Center, nil, rowFace{}, func() {}, func() {
-			ui.Text(c, "V Tools").Bind(&labelRef)
+	for _, appearance := range appearanceNames {
+		t.Run(appearance.name, func(t *testing.T) {
+			dark := appearance.dark
+			a := New(newStore(t), Actions{})
+			var labelRef ui.Handle
+			var labelBox ui.Rect
+			tt, _ := renderOn(t, 480, 120, dark, a, func(c *ui.Context) {
+				a.cardRows = 0
+				a.cardRow(c, ui.Center, nil, rowFace{}, func() {}, func() {
+					ui.Text(c, "V Tools").Bind(&labelRef)
+				})
+				labelBox = c.Resolve(labelRef).Bounds()
+			})
+
+			restPlane := sample(tt, labelBox.X+labelBox.W+20, labelBox.Y+labelBox.H/2)
+			tt.Move(labelBox.X+labelBox.W/2, labelBox.Y+labelBox.H/2)
+			tt.Frame()
+			hoverPlane := sample(tt, labelBox.X+labelBox.W+20, labelBox.Y+labelBox.H/2)
+
+			// The whole row, from 60u left of the label (past the leading rule slot) to
+			// well right of it, is scanned: a bar painted anywhere on hover is caught.
+			img := tt.Image()
+			warmest, at := -999, ui.Rect{}
+			for y := int(labelBox.Y) - 6; y < int(labelBox.Y+labelBox.H)+6; y++ {
+				for x := int(labelBox.X) - 60; x < int(labelBox.X+labelBox.W)+40; x++ {
+					if x < 0 || y < 0 {
+						continue
+					}
+					p := imagePixel(img, x, y)
+					if d := int(p.R) - int(p.B); d > warmest {
+						warmest, at = d, ui.Rect{X: float32(x), Y: float32(y)}
+					}
+				}
+			}
+			if warmest > 20 {
+				t.Errorf("the hovered row carries an accent pixel at %v (%d levels warm): the hover bar is back",
+					at, warmest)
+			}
+			// 正面：hover 确实抬了面——扫到的平面比静息更亮（深色）或更暗（浅色），
+			// 也就是「只抬面」这件事真的发生了，而不是整行没反应。
+			if channelDelta(hoverPlane, restPlane) < 3 {
+				t.Errorf("hover moved nothing: plane %v → %v; the row must still lift its face", restPlane, hoverPlane)
+			}
 		})
-		labelBox = c.Resolve(labelRef).Bounds()
-	}, 480, 120)
-	tt.Frame()
-
-	restPlane := sample(tt, labelBox.X+labelBox.W+20, labelBox.Y+labelBox.H/2)
-	tt.Move(labelBox.X+labelBox.W/2, labelBox.Y+labelBox.H/2)
-	tt.Frame()
-	hoverPlane := sample(tt, labelBox.X+labelBox.W+20, labelBox.Y+labelBox.H/2)
-
-	// The whole row, from 60u left of the label (past the leading rule slot) to
-	// well right of it, is scanned: a bar painted anywhere on hover is caught.
-	img := tt.Image()
-	warmest, at := -999, ui.Rect{}
-	for y := int(labelBox.Y) - 6; y < int(labelBox.Y+labelBox.H)+6; y++ {
-		for x := int(labelBox.X) - 60; x < int(labelBox.X+labelBox.W)+40; x++ {
-			if x < 0 || y < 0 {
-				continue
-			}
-			p := imagePixel(img, x, y)
-			if d := int(p.R) - int(p.B); d > warmest {
-				warmest, at = d, ui.Rect{X: float32(x), Y: float32(y)}
-			}
-		}
-	}
-	if warmest > 20 {
-		t.Errorf("the hovered row carries an accent pixel at %v (%d levels warm): the hover bar is back",
-			at, warmest)
-	}
-	// 正面：hover 确实抬了面——扫到的平面比静息更亮（深色）或更暗（浅色），
-	// 也就是「只抬面」这件事真的发生了，而不是整行没反应。
-	if channelDelta(hoverPlane, restPlane) < 3 {
-		t.Errorf("hover moved nothing: plane %v → %v; the row must still lift its face", restPlane, hoverPlane)
 	}
 }
 
 // ⑮ §5 判据 · 导入成功提示是中性（成功是结果语义，不是选中）。
 func TestTheImportSummaryIsNeutral(t *testing.T) {
-	a := New(newStore(t), Actions{})
-	a.TransferReport = &ImportReport{Path: "/tmp/backup.json", Succeeded: 4, Skipped: 1}
-	var tokens theme.Tokens
-	tt := ui.NewTester(func(c *ui.Context) {
-		tokens = a.tokens(c)
-		c.SetTheme(tokens.Theme)
-		a.transferReport(c, i18n.For("en").Settings)
-	}, 600, 300)
-	tt.Frame()
-	summary := mustFind(t, tt, "Imported 4, unchanged 1")
-	ink := inkColor(tt, summary)
-	// 反面：不是 accent。
-	if d := int(ink.R) - int(ink.B); d > 14 || d < -14 {
-		t.Errorf("the import summary %v carries a hue (R−B %d): the accent is back", ink, d)
-	}
-	if channelDelta(ink, tokens.Theme.Accent) < 60 {
-		t.Errorf("the import summary %v is the accent %v", ink, tokens.Theme.Accent)
-	}
-	// 正面：strong 档（与同一块里失败行的 `t.Warning` 判然不同）。
-	if channelDelta(ink, tokens.TextStrong) > 16 {
-		t.Errorf("the import summary = %v, want the strong rung %v", ink, tokens.TextStrong)
-	}
+	for _, appearance := range appearanceNames {
+		t.Run(appearance.name, func(t *testing.T) {
+			dark := appearance.dark
+			a := New(newStore(t), Actions{})
+			a.TransferReport = &ImportReport{Path: "/tmp/backup.json", Succeeded: 4, Skipped: 1}
+			tt, tokens := renderOn(t, 600, 300, dark, a, func(c *ui.Context) {
+				a.transferReport(c, i18n.For("en").Settings)
+			})
+			summary := mustFind(t, tt, "Imported 4, unchanged 1")
+			ink := inkColor(tt, summary)
+			// 反面：不是 accent。
+			if d := int(ink.R) - int(ink.B); d > 14 || d < -14 {
+				t.Errorf("the import summary %v carries a hue (R−B %d): the accent is back", ink, d)
+			}
+			if channelDelta(ink, tokens.Theme.Accent) < 60 {
+				t.Errorf("the import summary %v is the accent %v", ink, tokens.Theme.Accent)
+			}
+			// 正面：strong 档（与同一块里失败行的 `t.Warning` 判然不同）。
+			if channelDelta(ink, tokens.TextStrong) > 16 {
+				t.Errorf("the import summary = %v, want the strong rung %v", ink, tokens.TextStrong)
+			}
 
-	// The failure line keeps the semantic colour — the other half of the pair.
-	a.TransferReport = &ImportReport{
-		Path:   "/tmp/backup.json",
-		Failed: []TransferFailure{{ID: "a", Reason: "no package"}},
-	}
-	tt.Frame()
-	if !tt.HasText("Failed: a: no package") {
-		t.Fatalf("the failure line is missing: %q", tt.Texts())
-	}
-	failure := mustFind(t, tt, "Failed: a: no package")
-	if got := inkColor(tt, failure); channelDelta(got, tokens.Theme.Warning) > 24 {
-		t.Errorf("the failure detail = %v, want the warning ink %v (a semantic colour, not the accent)",
-			got, tokens.Theme.Warning)
+			// The failure line keeps the semantic colour — the other half of the pair.
+			a.TransferReport = &ImportReport{
+				Path:   "/tmp/backup.json",
+				Failed: []TransferFailure{{ID: "a", Reason: "no package"}},
+			}
+			tt.Frame()
+			if !tt.HasText("Failed: a: no package") {
+				t.Fatalf("the failure line is missing: %q", tt.Texts())
+			}
+			failure := mustFind(t, tt, "Failed: a: no package")
+			// The dark appearance's warning is a straight-alpha colour (0.82), so the
+			// pixel the renderer leaves is that ink over the plane, not the raw token.
+			// P9-d re-baseline: light compared to the raw token (opaque there); dark
+			// compares to the token composited over its own page.
+			wantFailure := panelOver(tokens.Theme.Warning, subPage(dark))
+			if got := inkColor(tt, failure); channelDelta(got, wantFailure) > 24 {
+				t.Errorf("the failure detail = %v, want the warning ink %v over the page (%v)",
+					got, tokens.Theme.Warning, wantFailure)
+			}
+		})
 	}
 }
 
@@ -1280,112 +1336,116 @@ func TestTheImportSummaryIsNeutral(t *testing.T) {
 // (`Control` rests, `ControlHover` under the pointer), so the expected edge is
 // the border token over that plane, not over the page.
 func TestTheDangerPillHoverKeepsTheNeutralEdgeAndTheWarningInk(t *testing.T) {
-	a := New(newStore(t), Actions{})
-	page := ui.RGB(255, 255, 255)
-	var tokens theme.Tokens
-	var pillRef, cardRef ui.Handle
-	var pillBox, cardBox ui.Rect
-	off := false
-	part := uninstallPart{Label: "Host configuration", Hint: "Remove it.", Value: &off}
-	tt := ui.NewTester(func(c *ui.Context) {
-		tokens = a.tokens(c)
-		c.SetTheme(tokens.Theme)
-		c.Root().Background(page)
-		ui.Column(c).Padding(20).Gap(20).Children(func() {
-			ui.Row(c).Children(func() {
-				a.uninstallActionButton(c, "Uninstall", true, false, checkIcon).Bind(&pillRef)
+	for _, appearance := range appearanceNames {
+		t.Run(appearance.name, func(t *testing.T) {
+			dark := appearance.dark
+			page := subPage(dark)
+			a := New(newStore(t), Actions{})
+			var pillRef, cardRef ui.Handle
+			var pillBox, cardBox ui.Rect
+			off := false
+			part := uninstallPart{Label: "Host configuration", Hint: "Remove it.", Value: &off}
+			tt, tokens := renderOn(t, 520, 200, dark, a, func(c *ui.Context) {
+				ui.Column(c).Padding(20).Gap(20).Children(func() {
+					ui.Row(c).Children(func() {
+						a.uninstallActionButton(c, "Uninstall", true, false, checkIcon).Bind(&pillRef)
+					})
+					a.uninstallPartRow(c, part).Bind(&cardRef)
+				})
+				pillBox = c.Resolve(pillRef).Bounds()
+				cardBox = c.Resolve(cardRef).Bounds()
 			})
-			a.uninstallPartRow(c, part).Bind(&cardRef)
-		})
-		pillBox = c.Resolve(pillRef).Bounds()
-		cardBox = c.Resolve(cardRef).Bounds()
-	}, 520, 200)
-	tt.Frame()
 
-	// topEdge is the 1px border at the box's mid-span, clear of the rounding.
-	topEdge := func(box ui.Rect) ui.Color {
-		return imagePixel(tt.Image(), int(box.X+box.W/2), int(box.Y))
-	}
-	// nearest reports the closest pixel of a box's *interior* (2px in from the
-	// border) to a target colour, so a border never counts as ink.
-	nearest := func(box ui.Rect, target ui.Color) (ui.Color, int) {
-		img := tt.Image()
-		var best ui.Color
-		near := 1 << 30
-		for y := int(box.Y) + 2; y < int(box.Y+box.H)-2; y++ {
-			for x := int(box.X) + 2; x < int(box.X+box.W)-2; x++ {
-				p := imagePixel(img, x, y)
-				if d := channelDelta(p, target); d < near {
-					near, best = d, p
+			// topEdge is the 1px border at the box's mid-span, clear of the rounding.
+			topEdge := func(box ui.Rect) ui.Color {
+				return imagePixel(tt.Image(), int(box.X+box.W/2), int(box.Y))
+			}
+			// nearest reports the closest pixel of a box's *interior* (2px in from the
+			// border) to a target colour, so a border never counts as ink.
+			nearest := func(box ui.Rect, target ui.Color) (ui.Color, int) {
+				img := tt.Image()
+				var best ui.Color
+				near := 1 << 30
+				for y := int(box.Y) + 2; y < int(box.Y+box.H)-2; y++ {
+					for x := int(box.X) + 2; x < int(box.X+box.W)-2; x++ {
+						p := imagePixel(img, x, y)
+						if d := channelDelta(p, target); d < near {
+							near, best = d, p
+						}
+					}
+				}
+				return best, near
+			}
+			// The accent is ~99 levels from the warning ink on every channel, so a
+			// "closer to the warning than to the accent" read is unambiguous.
+			accentFree := func(name string, box ui.Rect) {
+				if _, near := nearest(box, tokens.Theme.Accent); near < 30 {
+					t.Errorf("%s carries a pixel within %d levels of the accent %v: the accent is back",
+						name, near, tokens.Theme.Accent)
 				}
 			}
-		}
-		return best, near
-	}
-	// The accent is ~99 levels from the warning ink on every channel, so a
-	// "closer to the warning than to the accent" read is unambiguous.
-	accentFree := func(name string, box ui.Rect) {
-		if _, near := nearest(box, tokens.Theme.Accent); near < 30 {
-			t.Errorf("%s carries a pixel within %d levels of the accent %v: the accent is back",
-				name, near, tokens.Theme.Accent)
-		}
-	}
 
-	// Rest: the edge is `ControlEdge` over the resting `Control` plane.
-	restFace := panelOver(tokens.Control, page)
-	if got, want := topEdge(pillBox), panelOver(tokens.ControlEdge, restFace); !panelClose(got, want, 6) {
-		t.Errorf("the danger pill's resting edge = %v, want ControlEdge over Control (%v)", got, want)
-	}
-	accentFree("the resting danger pill", pillBox)
+			// Rest: the edge is `ControlEdge` over the resting `Control` plane.
+			restFace := panelOver(tokens.Control, page)
+			if got, want := topEdge(pillBox), panelOver(tokens.ControlEdge, restFace); !panelClose(got, want, 6) {
+				t.Errorf("the danger pill's resting edge = %v, want ControlEdge over Control (%v)", got, want)
+			}
+			accentFree("the resting danger pill", pillBox)
 
-	tt.Move(pillBox.X+pillBox.W/2, pillBox.Y+pillBox.H/2)
-	tt.Frame()
-	tt.Advance(300 * time.Millisecond)
+			tt.Move(pillBox.X+pillBox.W/2, pillBox.Y+pillBox.H/2)
+			tt.Frame()
+			tt.Advance(300 * time.Millisecond)
 
-	// 反面：hover 边不是 accent（AccentEdge over the same plane is a pink
-	// ring, ~{240 150 152}).
-	hoverEdge := topEdge(pillBox)
-	hoverFace := panelOver(tokens.ControlHover, page)
-	if warm := int(hoverEdge.R) - int(hoverEdge.B); warm > 20 {
-		t.Errorf("the danger pill's hover edge %v is %d levels warm: the accent ring is back", hoverEdge, warm)
-	}
-	if channelDelta(hoverEdge, panelOver(tokens.AccentEdge, hoverFace)) < 12 {
-		t.Errorf("the danger pill's hover edge %v is the old AccentEdge", hoverEdge)
-	}
-	// 正面：它仍是 `ControlEdge` 那一档——hover 只抬面，不抬边。
-	if want := panelOver(tokens.ControlEdge, hoverFace); !panelClose(hoverEdge, want, 6) {
-		t.Errorf("the danger pill's hover edge = %v, want the neutral ControlEdge over the hover plane (%v)",
-			hoverEdge, want)
-	}
-	// 墨仍是 warning：危险语义留在墨上，不靠 hover 变色相。
-	if _, near := nearest(pillBox, tokens.Theme.Warning); near > 24 {
-		t.Errorf("the hovered danger pill has no warning ink (nearest pixel is %d levels off %v): "+
-			"hover replaced the danger semantic", near, tokens.Theme.Warning)
-	}
-	accentFree("the hovered danger pill", pillBox)
+			// 反面：hover 边不是 accent（AccentEdge over the same plane is a pink
+			// ring, ~{240 150 152}).
+			hoverEdge := topEdge(pillBox)
+			hoverFace := panelOver(tokens.ControlHover, page)
+			if warm := int(hoverEdge.R) - int(hoverEdge.B); warm > 20 {
+				t.Errorf("the danger pill's hover edge %v is %d levels warm: the accent ring is back", hoverEdge, warm)
+			}
+			if channelDelta(hoverEdge, panelOver(tokens.AccentEdge, hoverFace)) < 12 {
+				t.Errorf("the danger pill's hover edge %v is the old AccentEdge", hoverEdge)
+			}
+			// 正面：它仍是 `ControlEdge` 那一档——hover 只抬面，不抬边。
+			if want := panelOver(tokens.ControlEdge, hoverFace); !panelClose(hoverEdge, want, 6) {
+				t.Errorf("the danger pill's hover edge = %v, want the neutral ControlEdge over the hover plane (%v)",
+					hoverEdge, want)
+			}
+			// 墨仍是 warning：危险语义留在墨上，不靠 hover 变色相。深色下 warning 是
+			// 0.82 的直通 alpha（`theme.go:752`），落在药丸自己的 hover 面上，所以
+			// 期望值是该墨合成到 hoverFace 之后的颜色（P9-d 重定基线：浅色 warning 不透明，
+			// 合成后与原始 token 相同，判据不变）。
+			wantWarning := panelOver(tokens.Theme.Warning, hoverFace)
+			if _, near := nearest(pillBox, wantWarning); near > 24 {
+				t.Errorf("the hovered danger pill has no warning ink (nearest pixel is %d levels off %v over the hover face): "+
+					"hover replaced the danger semantic", near, wantWarning)
+			}
+			accentFree("the hovered danger pill", pillBox)
 
-	// The check card, the same treatment: its border is `ControlEdge` at rest
-	// and under the pointer.
-	tt.Move(0, 0)
-	tt.Frame()
-	tt.Advance(300 * time.Millisecond)
-	if got, want := topEdge(cardBox), panelOver(tokens.ControlEdge, restFace); !panelClose(got, want, 6) {
-		t.Errorf("the uninstall card's resting edge = %v, want ControlEdge over Control (%v)", got, want)
+			// The check card, the same treatment: its border is `ControlEdge` at rest
+			// and under the pointer.
+			tt.Move(0, 0)
+			tt.Frame()
+			tt.Advance(300 * time.Millisecond)
+			if got, want := topEdge(cardBox), panelOver(tokens.ControlEdge, restFace); !panelClose(got, want, 6) {
+				t.Errorf("the uninstall card's resting edge = %v, want ControlEdge over Control (%v)", got, want)
+			}
+			tt.Move(cardBox.X+cardBox.W/2, cardBox.Y+cardBox.H/2)
+			tt.Frame()
+			tt.Advance(300 * time.Millisecond)
+			cardEdge := topEdge(cardBox)
+			if warm := int(cardEdge.R) - int(cardEdge.B); warm > 20 {
+				t.Errorf("the hovered uninstall card's edge %v is %d levels warm: the accent edge is back", cardEdge, warm)
+			}
+			if channelDelta(cardEdge, panelOver(tokens.AccentEdge, hoverFace)) < 12 {
+				t.Errorf("the hovered uninstall card's edge %v is the old AccentEdge", cardEdge)
+			}
+			if want := panelOver(tokens.ControlEdge, hoverFace); !panelClose(cardEdge, want, 6) {
+				t.Errorf("the hovered uninstall card's edge = %v, want the neutral ControlEdge (%v)", cardEdge, want)
+			}
+			accentFree("the hovered uninstall card", cardBox)
+		})
 	}
-	tt.Move(cardBox.X+cardBox.W/2, cardBox.Y+cardBox.H/2)
-	tt.Frame()
-	tt.Advance(300 * time.Millisecond)
-	cardEdge := topEdge(cardBox)
-	if warm := int(cardEdge.R) - int(cardEdge.B); warm > 20 {
-		t.Errorf("the hovered uninstall card's edge %v is %d levels warm: the accent edge is back", cardEdge, warm)
-	}
-	if channelDelta(cardEdge, panelOver(tokens.AccentEdge, hoverFace)) < 12 {
-		t.Errorf("the hovered uninstall card's edge %v is the old AccentEdge", cardEdge)
-	}
-	if want := panelOver(tokens.ControlEdge, hoverFace); !panelClose(cardEdge, want, 6) {
-		t.Errorf("the hovered uninstall card's edge = %v, want the neutral ControlEdge (%v)", cardEdge, want)
-	}
-	accentFree("the hovered uninstall card", cardBox)
 }
 
 // ⑰ §5 判据 · 会话可恢复红点改中性。
