@@ -17,6 +17,8 @@ import (
 	"strings"
 
 	"github.com/egoist/mygo"
+
+	"floter/internal/xdg"
 )
 
 // maxApps bounds a scan, so a pathological directory tree cannot make the
@@ -157,57 +159,24 @@ func Roots() []string {
 // linuxDataHome is the per-user data directory the XDG Base Directory
 // Specification defines: `$XDG_DATA_HOME` when it is set to an absolute path,
 // and `~/.local/share` otherwise (the spec's own fallback for a relative or
-// missing value).
+// missing value). It is `xdg.DataHome`, kept under this name because it is how
+// the rest of this package and its pins ask the question.
 func linuxDataHome() string {
-	if dir := strings.TrimSpace(os.Getenv("XDG_DATA_HOME")); dir != "" && filepath.IsAbs(dir) {
-		return dir
-	}
-	return filepath.Join(homeDir(), ".local", "share")
+	return xdg.DataHome()
 }
 
 // linuxRoots is where a Linux publishes its desktop entries, in **precedence
-// order**: the user's own directory first, then the system's, then the package
-// exports, then whatever else `$XDG_DATA_DIRS` advertises.
-//
-// The order is the reference's (`roots()`, `main:src-tauri/src/commands/apps/
-// linux.rs:186-205`), and it is the half of the rule that makes a user's
+// order** — the reference's (`roots()`, `main:src-tauri/src/commands/apps/
+// linux.rs:186-205`), which is the half of the rule that makes a user's
 // override win: a `.desktop` file under `$XDG_DATA_HOME` shadows the system
 // copy of the same id, which only works if the user's directory is scanned
-// first (see desktopFileID). `$XDG_DATA_HOME` and `$XDG_DATA_DIRS` are read
-// here rather than assumed to be `~/.local/share` and `/usr/share`: a custom
-// prefix, a container, or a distribution that publishes its applications
-// somewhere else is where a hard-coded list finds nothing.
+// first (see desktopFileID).
 //
-// A `dataDir` that is already in the list (the default `/usr/local/share` and
-// `/usr/share` usually are) contributes nothing, exactly as the reference's
-// `if !roots.contains(&candidate)` does.
+// The table itself lives in `internal/xdg`, because the tool inventory asks the
+// same question and used to answer it differently (see that package's doc);
+// this function is the name `apps` and its pins use.
 func linuxRoots(dataHome string, dataDirs []string) []string {
-	var roots []string
-	add := func(dir string) {
-		if dir == "" {
-			return
-		}
-		for _, existing := range roots {
-			if existing == dir {
-				return
-			}
-		}
-		roots = append(roots, dir)
-	}
-	if dataHome != "" {
-		add(filepath.Join(dataHome, "applications"))
-		add(filepath.Join(dataHome, "flatpak", "exports", "share", "applications"))
-	}
-	add("/usr/local/share/applications")
-	add("/usr/share/applications")
-	add("/var/lib/flatpak/exports/share/applications")
-	add("/var/lib/snapd/desktop/applications")
-	for _, dataDir := range dataDirs {
-		if dataDir = strings.TrimSpace(dataDir); dataDir != "" {
-			add(filepath.Join(dataDir, "applications"))
-		}
-	}
-	return roots
+	return xdg.DesktopRoots(dataHome, dataDirs)
 }
 
 // Scan reads the applications under the given roots, sorted by name.

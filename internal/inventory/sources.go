@@ -4,8 +4,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
+
+	"floter/internal/xdg"
 )
 
 // The per-platform sources: the fixed OS roots outside the search path
@@ -25,36 +26,16 @@ func discoverLinux(merge func(path, name, description string, source DiscoverySo
 	discoverExecutableDirectory(merge, "/nix/var/nix/profiles/default/bin", SourceNix, QualityNativeSupport)
 }
 
-// linuxDesktopRoots is where a Linux publishes its desktop entries:
-// XDG_DATA_HOME (or ~/.local/share) first, then the system's data dirs,
-// then the flatpak exports beside them.
+// linuxDesktopRoots is where a Linux publishes its desktop entries. It is the
+// same table the launcher's application scan reads (`internal/xdg`), so one
+// desktop entry is found — and its `Name=`/`Comment=` used — the same way by the
+// application list and by the tool inventory. Before this package asked `xdg`,
+// it kept its own copy: the fixed system roots were appended in the opposite
+// order (`/usr/share` before `/usr/local/share`, so a local administrator's
+// override lost), the environment's directories came first rather than after,
+// and the two system package-export roots were missing altogether.
 func linuxDesktopRoots() []string {
-	var roots []string
-	dataHome := os.Getenv("XDG_DATA_HOME")
-	if dataHome == "" || !filepath.IsAbs(dataHome) {
-		if home, err := os.UserHomeDir(); err == nil {
-			dataHome = filepath.Join(home, ".local", "share")
-		}
-	}
-	if dataHome != "" {
-		roots = append(roots,
-			filepath.Join(dataHome, "applications"),
-			filepath.Join(dataHome, "flatpak", "exports", "share", "applications"),
-		)
-	}
-	for _, dataDir := range filepath.SplitList(os.Getenv("XDG_DATA_DIRS")) {
-		if dataDir == "" {
-			continue
-		}
-		roots = append(roots,
-			filepath.Join(dataDir, "applications"),
-			filepath.Join(dataDir, "flatpak", "exports", "share", "applications"),
-		)
-	}
-	if runtime.GOOS == "linux" {
-		roots = append(roots, "/usr/share/applications", "/usr/local/share/applications")
-	}
-	return roots
+	return xdg.DesktopRootsFromEnv()
 }
 
 // mergeEntries reads desktop entries in from a list of directories: each
