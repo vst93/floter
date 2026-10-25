@@ -222,6 +222,11 @@ type Options struct {
 	// path; nil uses the real tools.Look. Tests replace it so a refresh runs
 	// with no filesystem, and no process, in the way.
 	LookTools func() []tools.State
+	// ScanApps finds the installed applications; nil scans the platform's own
+	// roots through the in-process scan cache. Tests replace it so the scan's
+	// arrival — and with it the recents rebuild it triggers — can be observed
+	// with no filesystem walk in the way.
+	ScanApps func() []apps.App
 }
 
 // ClipboardPayload is one clipboard entry, ready to be written back: its
@@ -458,6 +463,9 @@ type App struct {
 	// lookTools resolves the install catalog against this machine's search
 	// path (see Options.LookTools).
 	lookTools func() []tools.State
+	// scanAppsFn is the application scan the shell was handed (see
+	// Options.ScanApps); nil means the platform's own roots.
+	scanAppsFn func() []apps.App
 	// catalogScan, appsScan, toolsScan and rescan are the one-at-a-time
 	// latches over the background re-reads (see scanFlight): a refresh that
 	// arrives while one is in flight is dropped rather than duplicated.
@@ -602,6 +610,7 @@ func New(opts Options) *App {
 		openURLCommand:       opts.OpenURL,
 		homeDir:              opts.HomeDir,
 		lookTools:            opts.LookTools,
+		scanAppsFn:           opts.ScanApps,
 		appIcon:              storedAppIcon(opts.Store.Snapshot()),
 		lastAppIcon:          storedAppIcon(opts.Store.Snapshot()),
 		lastGlassStep:        opts.Store.Snapshot().GlassStep,
@@ -3313,9 +3322,13 @@ func (a *App) NotificationClicked(string) {
 // background. Either way the search grows or stays without the window waiting
 // on a filesystem walk.
 func (a *App) scanApps() {
+	if a.scanAppsFn != nil {
+		a.onMain(func() { a.setApps(a.scanAppsFn()) })
+		return
+	}
 	roots := apps.Roots()
 	if found, upToDate := apps.CachedScan(roots); upToDate {
-		a.onMain(func() { a.Launcher.SetApps(found) })
+		a.onMain(func() { a.setApps(found) })
 		return
 	}
 	// One application scan at a time (see scanFlight): the tray's rescan is
@@ -3328,8 +3341,25 @@ func (a *App) scanApps() {
 		defer a.appsScan.end()
 		found := apps.Scan(roots)
 		apps.StoreScan(roots, found)
-		a.onMain(func() { a.Launcher.SetApps(found) })
+		a.onMain(func() { a.setApps(found) })
 	}()
+}
+
+// setApps hands the launcher the applications a scan just found, and re-derives
+// the recents from them.
+//
+// The application list is the recents' own input: `refreshRecents` ranks the
+// usage counts against the scan order, and drops every path the list no longer
+// has (see its `order` table). So the two facts have to arrive together — the
+// launcher used to take the list alone, and the recents were only rebuilt when
+// the user launched something (`OpenApp`) or toggled `show_recent_in_launcher`.
+// A cold start therefore left `App.ShowRecent` at its zero value, which reads
+// as "the switch is off": the empty query's most-used block was missing on
+// every launch until the first app was started, and a tray rescan that found a
+// newly installed app never offered it either.
+func (a *App) setApps(found []apps.App) {
+	a.Launcher.SetApps(found)
+	a.refreshRecents()
 }
 
 // Open switches to a surface, sizing and focusing it.
