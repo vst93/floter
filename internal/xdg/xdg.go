@@ -99,6 +99,67 @@ func DesktopRootsFromEnv() []string {
 	return DesktopRoots(DataHome(), DataDirs())
 }
 
+// DesktopWalkDepth is how deep below a desktop root the walk descends for a
+// `.desktop` entry: distributions nest entries a couple of levels deep
+// (`kde4/`, `screensavers/`), and the reference implementation caps the walk at
+// three levels (`collect_entries`/`collect_desktop_paths`,
+// `main:src-tauri/src/commands/apps/linux.rs`, `if depth > 3 { return; }`). The
+// launcher's application scan and the tool inventory both pass this one value,
+// so a nested entry is a row in both lists or in neither.
+const DesktopWalkDepth = 3
+
+// WalkDesktopEntries visits every `*.desktop` file below root, in the
+// order the directories are read. Distributions nest entries a couple of levels
+// deep (`kde4/`, `screensavers/`), so the walk descends into subdirectories up
+// to maxDepth levels below root (0 = only root's own files) — the same depth
+// cap the reference implementation applies (`collect_entries`/
+// `collect_desktop_paths`, `main:src-tauri/src/commands/apps/linux.rs`, whose
+// guard is `if depth > 3 { return; }`).
+//
+// A directory entry is judged with `os.Stat`, so a symlinked directory is
+// descended into exactly as the reference's `Path::is_dir()` does; the depth cap
+// keeps a symlink cycle finite. This is the one walk both the launcher's
+// application scan (`internal/apps`) and the tool inventory
+// (`internal/inventory`) read a desktop entry through, so a nested entry is
+// either a row in both lists or in neither.
+func WalkDesktopEntries(root string, maxDepth int, visit func(path string)) {
+	walkDesktopEntries(root, 0, maxDepth, visit)
+}
+
+func walkDesktopEntries(dir string, depth, maxDepth int, visit func(path string)) {
+	if depth > maxDepth {
+		return
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+	for _, entry := range entries {
+		path := filepath.Join(dir, entry.Name())
+		if isDirectory(path, entry) {
+			walkDesktopEntries(path, depth+1, maxDepth, visit)
+			continue
+		}
+		if filepath.Ext(entry.Name()) == ".desktop" {
+			visit(path)
+		}
+	}
+}
+
+// isDirectory reports whether path is a directory, following a symlink: a
+// symlinked directory holds entries the walk has to see, the same way the
+// reference's `Path::is_dir()` follows it.
+func isDirectory(path string, entry os.DirEntry) bool {
+	if entry.IsDir() {
+		return true
+	}
+	if entry.Type()&os.ModeSymlink == 0 {
+		return false
+	}
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
+}
+
 // homeDir is the user's home, `/` when the platform will not say — the same
 // fallback `apps.homeDir` has always used, so a machine with no `$HOME` keeps
 // resolving to the same paths it did before this package existed.

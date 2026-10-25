@@ -363,3 +363,47 @@ func TestTheUserDesktopEntryShadowsTheSystemCopyOfTheSameID(t *testing.T) {
 		t.Errorf("name = %q, want the user's entry", out[0].Name)
 	}
 }
+
+// A desktop entry nested a level or two below the root (`kde4/`,
+// `screensavers/`) is a tool exactly as a top-level one is: the walk descends
+// into subdirectories, the same walk the launcher's application scan uses.
+func TestANestedDesktopEntryIsRead(t *testing.T) {
+	root := desktopFixture(t, t.TempDir(), filepath.Join("kde4", "konsole.desktop"), `[Desktop Entry]
+Name=Konsole
+Exec=/usr/bin/konsole
+Type=Application
+`)
+	stubDesktopSeams(t, func(program string) (string, bool) { return program, true },
+		[]string{filepath.Join(t.TempDir(), "flatpak-exports")}, filepath.Join(t.TempDir(), "snap-bin"))
+
+	byPath := map[string]*Candidate{}
+	mergeEntries(mergeInto(byPath), []string{root}, SourceDesktop, QualityNativeSupport)
+	out := ranked(byPath)
+	if len(out) != 1 {
+		t.Fatalf("%d candidates, want the nested Konsole entry: %+v", len(out), out)
+	}
+	if filepath.Base(out[0].Path) != "konsole" || out[0].Name != "Konsole" {
+		t.Errorf("candidate = %+v, want the nested Konsole entry", out[0])
+	}
+}
+
+// The nested entry's id is its path below the root with the separators turned
+// into dashes (`kde4/konsole.desktop` -> `kde4-konsole.desktop`), so the user's
+// copy shadows the system copy of the same nested entry exactly as a top-level
+// one does.
+func TestTheNestedDesktopIDShadowsTheSystemCopy(t *testing.T) {
+	userRoot := desktopFixture(t, t.TempDir(), filepath.Join("kde4", "konsole.desktop"), "[Desktop Entry]\nName=Konsole (mine)\nExec=/opt/mine/konsole\nType=Application\n")
+	systemRoot := desktopFixture(t, t.TempDir(), filepath.Join("kde4", "konsole.desktop"), "[Desktop Entry]\nName=Konsole\nExec=/usr/bin/konsole\nType=Application\n")
+	stubDesktopSeams(t, func(program string) (string, bool) { return program, true },
+		[]string{filepath.Join(t.TempDir(), "flatpak-exports")}, filepath.Join(t.TempDir(), "snap-bin"))
+
+	byPath := map[string]*Candidate{}
+	mergeEntries(mergeInto(byPath), []string{userRoot, systemRoot}, SourceDesktop, QualityNativeSupport)
+	out := ranked(byPath)
+	if len(out) != 1 {
+		t.Fatalf("%d candidates, want only the user's nested copy: %+v", len(out), out)
+	}
+	if out[0].Name != "Konsole (mine)" || !strings.Contains(filepath.ToSlash(out[0].Path), "/opt/mine/") {
+		t.Errorf("candidate = %+v, want the user's nested override", out[0])
+	}
+}

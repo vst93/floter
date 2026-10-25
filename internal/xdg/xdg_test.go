@@ -1,8 +1,10 @@
 package xdg
 
 import (
+	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"testing"
 )
 
@@ -121,5 +123,71 @@ func TestDesktopRootsFromEnvUsesBothVariables(t *testing.T) {
 		if !found {
 			t.Errorf("DesktopRootsFromEnv = %v, missing %q", got, root)
 		}
+	}
+}
+
+// writeEntry writes a file, creating its directories, and returns its path.
+func writeEntry(t *testing.T, path, content string) string {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+// walkEntries is WalkDesktopEntries as a sorted list of the paths it visited.
+func walkEntries(root string, depth int) []string {
+	var got []string
+	WalkDesktopEntries(root, depth, func(path string) {
+		got = append(got, path)
+	})
+	sort.Strings(got)
+	return got
+}
+
+// The walk descends into subdirectories: a distribution nests entries a couple
+// of levels deep (`kde4/`, `screensavers/`), and those entries have to be rows
+// exactly as a top-level one is.
+func TestWalkDesktopEntriesDescendsIntoSubdirectories(t *testing.T) {
+	root := t.TempDir()
+	top := writeEntry(t, filepath.Join(root, "top.desktop"), "[Desktop Entry]\n")
+	nested := writeEntry(t, filepath.Join(root, "kde4", "konsole.desktop"), "[Desktop Entry]\n")
+	deep := writeEntry(t, filepath.Join(root, "screensavers", "x", "y", "z.desktop"), "[Desktop Entry]\n")
+
+	got := walkEntries(root, DesktopWalkDepth)
+	want := []string{nested, deep, top}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("walked %v, want %v", got, want)
+	}
+}
+
+// The depth cap is the reference's: a file three levels below the root is read,
+// one four levels below is not (`collect_desktop_paths`, `if depth > 3`).
+func TestWalkDesktopEntriesStopsAtTheReferenceDepth(t *testing.T) {
+	root := t.TempDir()
+	atThree := writeEntry(t, filepath.Join(root, "a", "b", "c", "kept.desktop"), "[Desktop Entry]\n")
+	writeEntry(t, filepath.Join(root, "a", "b", "c", "d", "dropped.desktop"), "[Desktop Entry]\n")
+
+	got := walkEntries(root, DesktopWalkDepth)
+	if !reflect.DeepEqual(got, []string{atThree}) {
+		t.Fatalf("walked %v, want only %q", got, atThree)
+	}
+}
+
+// Only `*.desktop` files are visited: the walk answers "where are the desktop
+// entries", not "what is in this tree", so a `README` or a `*.desktop.bak`
+// beside an entry is not one.
+func TestWalkDesktopEntriesVisitsOnlyDesktopFiles(t *testing.T) {
+	root := t.TempDir()
+	entry := writeEntry(t, filepath.Join(root, "app.desktop"), "[Desktop Entry]\n")
+	writeEntry(t, filepath.Join(root, "README"), "not an entry\n")
+	writeEntry(t, filepath.Join(root, "app.desktop.bak"), "[Desktop Entry]\n")
+
+	got := walkEntries(root, DesktopWalkDepth)
+	if !reflect.DeepEqual(got, []string{entry}) {
+		t.Fatalf("walked %v, want only %q", got, entry)
 	}
 }

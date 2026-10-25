@@ -415,20 +415,17 @@ func ScanLinux(root string) []App {
 // deduplicates nothing, which is what a single root needs.
 func scanLinuxRoot(root string, seenIDs map[string]bool) []App {
 	var out []App
-	walk(root, func(path string, d os.DirEntry) bool {
-		if d.IsDir() || !strings.HasSuffix(d.Name(), ".desktop") {
-			return true
-		}
+	xdg.WalkDesktopEntries(root, xdg.DesktopWalkDepth, func(path string) {
 		if seenIDs != nil {
 			id := desktopFileID(root, path)
 			if seenIDs[id] {
-				return true
+				return
 			}
 			seenIDs[id] = true
 		}
 		entry, ok := ParseDesktopFile(path)
 		if !ok {
-			return true
+			return
 		}
 		// `TryExec` is the entry's own "is this installed" probe: a program it
 		// names that is not here means the application is not installed either
@@ -436,12 +433,11 @@ func scanLinuxRoot(root string, seenIDs map[string]bool) []App {
 		// check that needs the filesystem/PATH, so it lives in the scan rather
 		// than in the pure reader.
 		if entry.tryExec != "" && !executableAvailable(entry.tryExec) {
-			return true
+			return
 		}
 		entry.IconPath = desktopIconFile(entry.Icon)
 		entry.Initials = computeInitials(entry.Name, entry.Localized)
 		out = append(out, entry)
-		return true
 	})
 	sortApps(out)
 	return out

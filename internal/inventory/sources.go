@@ -65,30 +65,22 @@ func mergeEntries(merge mergeFunc, directories []string, source DiscoverySource,
 	// The same rule the launcher's application scan follows.
 	seen := map[string]bool{}
 	for _, directory := range directories {
-		entries, err := os.ReadDir(directory)
-		if err != nil {
-			continue
-		}
-		for _, entry := range entries {
-			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".desktop") {
-				continue
-			}
-			path := filepath.Join(directory, entry.Name())
+		xdg.WalkDesktopEntries(directory, xdg.DesktopWalkDepth, func(path string) {
 			id := desktopFileID(directory, path)
 			if seen[id] {
-				continue
+				return
 			}
 			seen[id] = true
 			desktop, ok := parseDesktopEntry(path)
 			if !ok {
-				continue
+				return
 			}
 			target, ok := desktopEntryTarget(desktop)
 			if !ok {
-				continue
+				return
 			}
 			merge(target, desktop.Name, desktop.Comment, source, quality)
-		}
+		})
 	}
 }
 
