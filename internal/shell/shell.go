@@ -2626,9 +2626,7 @@ func (a *App) installPackageFolder(dir string) {
 		prepared, err := extensions.PrepareLocal(a.Paths, dir)
 		if err != nil {
 			log.Printf("floter: could not review %s: %v", dir, err)
-			a.onMain(func() {
-				a.Launcher.WarnFeedback(i18n.For(a.Store.Snapshot().Language).Settings.LocalToolFailed)
-			})
+			a.panelFeedback(i18n.For(a.Store.Snapshot().Language).Settings.LocalToolFailed, true)
 			return
 		}
 		if !a.reviewLocalInstall(prepared) {
@@ -2640,9 +2638,7 @@ func (a *App) installPackageFolder(dir string) {
 		entry, err := prepared.Commit(true)
 		if err != nil {
 			log.Printf("floter: %s was not installed: %v", dir, err)
-			a.onMain(func() {
-				a.Launcher.WarnFeedback(i18n.For(a.Store.Snapshot().Language).Settings.LocalToolFailed)
-			})
+			a.panelFeedback(i18n.For(a.Store.Snapshot().Language).Settings.LocalToolFailed, true)
 			return
 		}
 		a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationInstalled(entry.Name) })
@@ -2830,9 +2826,7 @@ func (a *App) connectLocalTool(tool settingsui.CustomTool) {
 		prepared, err := extensions.PrepareCustom(context.Background(), paths, request)
 		if err != nil {
 			log.Printf("floter: could not prepare the local tool %s: %v", tool.Name, err)
-			a.onMain(func() {
-				a.Launcher.WarnFeedback(i18n.For(a.Store.Snapshot().Language).Settings.LocalToolFailed)
-			})
+			a.panelFeedback(i18n.For(a.Store.Snapshot().Language).Settings.LocalToolFailed, true)
 			return
 		}
 		approved := true
@@ -2842,9 +2836,7 @@ func (a *App) connectLocalTool(tool settingsui.CustomTool) {
 		entry, err := prepared.Commit(approved)
 		if err != nil {
 			log.Printf("floter: could not connect %s: %v", tool.Name, err)
-			a.onMain(func() {
-				a.Launcher.WarnFeedback(i18n.For(a.Store.Snapshot().Language).Settings.LocalToolFailed)
-			})
+			a.panelFeedback(i18n.For(a.Store.Snapshot().Language).Settings.LocalToolFailed, true)
 			return
 		}
 		a.notifyCompletion(func(c i18n.Notifications) string { return c.IntegrationInstalled(entry.Name) })
@@ -3248,9 +3240,12 @@ func (a *App) notifyCompletion(render func(i18n.Notifications) string) {
 	message := render(copy)
 	// The window that is on screen is told in its own panel: a system
 	// notification for something the user is already looking at is noise, and
-	// a completion that says nothing at all is worse.
+	// a completion that says nothing at all is worse. Which panel that is
+	// depends on the surface (see panelFeedback): the launcher's docked row,
+	// the terminal's note, or — on the settings page, which has no row — the
+	// app's toast stack.
 	if a.panelOnScreen() {
-		a.onMain(func() { a.Launcher.Feedback(message) })
+		a.panelFeedback(message, false)
 		return
 	}
 	a.Notify(copy.Title, message)

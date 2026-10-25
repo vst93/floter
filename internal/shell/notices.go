@@ -136,6 +136,49 @@ func (a *App) notifySuccess(message string) {
 	})
 }
 
+// panelFeedback tells the surface that is *on screen* about a completion or a
+// failure, in that surface's own panel.
+//
+// Each surface answers where it can: the launcher has its docked row
+// (launcher.go's feedbackRow) and the terminal its floating note
+// (terminalui's feedbackNote). The settings page has neither — it draws no
+// status row of its own — so it speaks through the app's toast stack, the same
+// channel a refused `floter://` link uses. That is what keeps the settings
+// page's Connect failure reading the same sentence whether it came from the
+// button or from `floter://connect`: before this, both the completion and the
+// failure branches handed their sentence to the *launcher's* row, which is not
+// drawn while the settings page is the surface on screen — so the user saw
+// nothing, and the sentence sat in the launcher until they went back there and
+// it surfaced, stale, for three seconds.
+//
+// The read of a.Surf and the writes it decides happen on the main thread: a
+// caller may be a background install that finished off it.
+func (a *App) panelFeedback(message string, warning bool) {
+	if message == "" {
+		return
+	}
+	a.onMain(func() {
+		switch {
+		case a.Surf == SurfaceTerminal && a.Terminal != nil:
+			a.Terminal.ShowFeedback(message)
+		case a.Surf == SurfaceLauncher:
+			if warning {
+				a.Launcher.WarnFeedback(message)
+			} else {
+				a.Launcher.Feedback(message)
+			}
+		default:
+			// The settings page (and any surface without a status row): the app's
+			// toast stack, drawn by toastViewport on every surface.
+			kind, window := "success", successNotice
+			if warning {
+				kind, window = "error", warningNotice
+			}
+			a.queueToast(ui.Toast{ID: "floter-notice", Title: message, Type: kind, Timeout: window})
+		}
+	})
+}
+
 // flushNotices hands the queued notices to the framework's own toast stack,
 // once, at the start of a frame (the engine rebuilds a frame up to three
 // times, so clearing the queue here is what keeps one notice from being added
