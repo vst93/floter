@@ -1,6 +1,9 @@
 package launcher
 
 import (
+	"image/png"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
@@ -8,6 +11,36 @@ import (
 	"floter/internal/settings"
 	"floter/internal/theme"
 )
+
+// TestDumpKeycapSlotPNGs writes the P9-r visual evidence: the command row's Tab
+// keycap slot (and the footer's own chord beside it) in both appearances, so the
+// round's report can say what the pin measured. Opt-in (`FLOTER_PNG=1`); a plain
+// run must not litter /tmp.
+func TestDumpKeycapSlotPNGs(t *testing.T) {
+	if os.Getenv("FLOTER_PNG") == "" {
+		t.Skip("set FLOTER_PNG=1 to write the round's visual evidence")
+	}
+	for _, dark := range []bool{false, true} {
+		appearance := "light"
+		if dark {
+			appearance = "dark"
+		}
+		a := commandApp()
+		tt := renderIn(t, a, dark)
+		path := filepath.Join("/tmp", "floter-P9-r-keycapslot-"+appearance+".png")
+		f, err := os.Create(path) // #nosec G304 -- a fixed /tmp path this test owns
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := png.Encode(f, tt.Image()); err != nil {
+			f.Close()
+			t.Fatal(err)
+		}
+		f.Close()
+		img := tt.Image()
+		t.Logf("%s (%dx%d) dark=%v", path, img.Rect.Dx(), img.Rect.Dy(), dark)
+	}
+}
 
 // The row's trailing slot: Raycast prints a *key*, not a sentence
 // (`docs/raycast-design.md` §4.5).
@@ -25,11 +58,18 @@ import (
 // 量的是**两块板**——各自的盒高（20u）、各自的圆角 token（5）、它们之间的缝，
 // 以及「没有 `Ctrl+1` 这一整串、也没有 `+`」。
 func TestTheRowTrailingBadgeIsTheReferenceActionSlot(t *testing.T) {
-	a := testApp()
-	tt := render(t, a)
-	tt.Frame()
+	forEachAppearance(t, rowTrailingBadgePin)
+}
 
-	tokens := theme.ForPreferences(settings.Normalize(a.settings()), false, ui.Preferences{})
+// rowTrailingBadgePin is the badge pin on one appearance. The keycap's plate
+// height, its seam, its face and its right alignment are geometry, so they must
+// hold in both — P9-b…P9-f brought the other pixel pins to both appearances;
+// this one was still light-only (P9-r).
+func rowTrailingBadgePin(t *testing.T, dark bool) {
+	a := testApp()
+	tt := renderIn(t, a, dark)
+
+	tokens := theme.ForPreferences(settings.Normalize(a.settings()), dark, ui.Preferences{})
 	plate := float32(tokens.Theme.Space(keycapUnits)) // 20u: a keycap's own box
 
 	// The badge is a *chord*, so it is drawn as one plate per key: `Ctrl` and
@@ -108,11 +148,17 @@ func TestTheRowTrailingBadgeIsTheReferenceActionSlot(t *testing.T) {
 // ——它量的是两套语汇。新的这条换成：两者**同一枚键帽**（同高、同圆角 token），
 // 且页脚的动作图例也是同一枚（`⌘K` 不再是一块拼好的长板）。
 func TestTheCommandRowTabHintUsesTheRowSlot(t *testing.T) {
-	a := commandApp()
-	tt := render(t, a)
-	tt.Frame()
+	forEachAppearance(t, commandRowTabHintPin)
+}
 
-	tokens := theme.ForPreferences(settings.Normalize(a.settings()), false, ui.Preferences{})
+// commandRowTabHintPin is the same-keycap-shape pin on one appearance: the row's
+// Tab plate, the footer's chord and its action legend are all one keycap, and
+// that identity is geometry, not ink — so it must hold in both (P9-r).
+func commandRowTabHintPin(t *testing.T, dark bool) {
+	a := commandApp()
+	tt := renderIn(t, a, dark)
+
+	tokens := theme.ForPreferences(settings.Normalize(a.settings()), dark, ui.Preferences{})
 	if tokens.KeycapRadius != theme.KeycapRadius {
 		t.Fatalf("the keycap radius token = %v, want the contract's %v",
 			tokens.KeycapRadius, float32(theme.KeycapRadius))
