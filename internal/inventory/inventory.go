@@ -132,12 +132,21 @@ func (in *Inventory) refresh() {
 	in.generated = time.Now()
 }
 
-// discover walks every source and merges what it finds into one ranked
-// list.
-func discover(directories []string) []Candidate {
-	byPath := map[string]*Candidate{}
-	merge := func(path, name, description string, source DiscoverySource, quality DiscoveryQuality) {
-		available := isExecutable(path)
+// mergeFunc is how every discovery source reports a candidate: the path it
+// found, the name and description it knows, and where it read it.
+type mergeFunc func(path, name, description string, source DiscoverySource, quality DiscoveryQuality)
+
+// executableFile is the discovery's one "is this a program" judgement, a var
+// so a test can drive a full walk over fixture files on a platform whose
+// executable bit means something else.
+var executableFile = isExecutable
+
+// mergeInto is the one merge table: the same executable found by two sources is
+// one candidate carrying both sources, the better quality, and the first
+// non-blank description.
+func mergeInto(byPath map[string]*Candidate) mergeFunc {
+	return func(path, name, description string, source DiscoverySource, quality DiscoveryQuality) {
+		available := executableFile(path)
 		id := normalized(path)
 		existing, ok := byPath[id]
 		if !ok {
@@ -160,6 +169,13 @@ func discover(directories []string) []Candidate {
 			existing.Description = description
 		}
 	}
+}
+
+// discover walks every source and merges what it finds into one ranked
+// list.
+func discover(directories []string) []Candidate {
+	byPath := map[string]*Candidate{}
+	merge := mergeInto(byPath)
 	discoverPath(merge, directories)
 	switch runtime.GOOS {
 	case "linux":
@@ -169,6 +185,11 @@ func discover(directories []string) []Candidate {
 	case "windows":
 		discoverWindows(merge)
 	}
+	return ranked(byPath)
+}
+
+// ranked turns the merge table into the ranked list.
+func ranked(byPath map[string]*Candidate) []Candidate {
 	out := make([]Candidate, 0, len(byPath))
 	for _, candidate := range byPath {
 		out = append(out, *candidate)
@@ -188,14 +209,14 @@ func discover(directories []string) []Candidate {
 }
 
 // discoverPath walks the search path's directories.
-func discoverPath(merge func(path, name, description string, source DiscoverySource, quality DiscoveryQuality), directories []string) {
+func discoverPath(merge mergeFunc, directories []string) {
 	for _, directory := range directories {
 		discoverExecutableDirectory(merge, directory, SourcePath, QualityAutoDetected)
 	}
 }
 
 // discoverExecutableDirectory reads one directory's executables in.
-func discoverExecutableDirectory(merge func(path, name, description string, source DiscoverySource, quality DiscoveryQuality), directory string, source DiscoverySource, quality DiscoveryQuality) {
+func discoverExecutableDirectory(merge mergeFunc, directory string, source DiscoverySource, quality DiscoveryQuality) {
 	entries, err := os.ReadDir(directory)
 	if err != nil {
 		return
@@ -205,7 +226,7 @@ func discoverExecutableDirectory(merge func(path, name, description string, sour
 			continue
 		}
 		path := filepath.Join(directory, entry.Name())
-		if !isExecutable(path) {
+		if !executableFile(path) {
 			continue
 		}
 		merge(path, entry.Name(), "", source, quality)
