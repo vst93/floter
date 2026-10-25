@@ -158,7 +158,7 @@ func (a *App) computeDetectedTools() []settingsui.DetectedTool {
 	out := make([]settingsui.DetectedTool, 0, maxDetectedTools)
 	dirs := extensions.SearchDirectories()
 	platform := tools.Platform()
-	managers := tools.DetectManagers(dirs)
+	managers := tools.DetectManagers(dirs, platform)
 	for _, candidate := range candidates {
 		if !candidate.Available || candidate.Path == "" {
 			continue

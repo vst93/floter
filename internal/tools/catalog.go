@@ -275,10 +275,10 @@ type State struct {
 // Look resolves the catalog against a search path. The path is a parameter so
 // a test never depends on what the machine actually has installed.
 func Look(dirs []string, platform string) []State {
-	detected := DetectManagers(dirs)
+	detected := DetectManagers(dirs, platform)
 	states := make([]State, 0, len(Catalog))
 	for _, entry := range Catalog {
-		state := State{Entry: entry, Installed: Installed(entry, dirs)}
+		state := State{Entry: entry, Installed: Installed(entry, dirs, platform)}
 		if recipe, ok := ChosenRecipe(entry, platform, detected); ok {
 			state.Manager, state.Package = recipe.Manager, recipe.Package
 			state.Command = InstallCommand(recipe.Manager, recipe.Package)
@@ -290,19 +290,19 @@ func Look(dirs []string, platform string) []State {
 
 // Installed reports whether any of a tool's probe names resolves in the search
 // path. Detection is a `stat`, never a spawn: no version is claimed.
-func Installed(entry Entry, dirs []string) bool {
-	return Probe(entry, dirs) != ""
+func Installed(entry Entry, dirs []string, platform string) bool {
+	return Probe(entry, dirs, platform) != ""
 }
 
 // Probe is the probe name that resolved, empty when none did.
-func Probe(entry Entry, dirs []string) string {
+func Probe(entry Entry, dirs []string, platform string) string {
 	for _, name := range entry.Probes {
-		for _, candidate := range candidateNames(name) {
+		for _, candidate := range candidateNames(platform, name) {
 			for _, dir := range dirs {
 				if dir == "" {
 					continue
 				}
-				if isExecutable(filepath.Join(dir, candidate)) {
+				if isExecutable(platform, filepath.Join(dir, candidate)) {
 					return candidate
 				}
 			}
@@ -313,10 +313,10 @@ func Probe(entry Entry, dirs []string) string {
 
 // DetectManagers lists the managers this machine has, as ids, in the table's
 // order.
-func DetectManagers(dirs []string) []string {
+func DetectManagers(dirs []string, platform string) []string {
 	var found []string
 	for _, manager := range Managers {
-		if managerPresent(manager, dirs) {
+		if managerPresent(manager, dirs, platform) {
 			found = append(found, manager.ID)
 		}
 	}
@@ -324,11 +324,11 @@ func DetectManagers(dirs []string) []string {
 }
 
 // managerPresent reports whether any of a manager's candidate names resolves.
-func managerPresent(manager Manager, dirs []string) bool {
+func managerPresent(manager Manager, dirs []string, platform string) bool {
 	for _, name := range manager.Candidates {
-		for _, candidate := range candidateNames(name) {
+		for _, candidate := range candidateNames(platform, name) {
 			for _, dir := range dirs {
-				if dir != "" && isExecutable(filepath.Join(dir, candidate)) {
+				if dir != "" && isExecutable(platform, filepath.Join(dir, candidate)) {
 					return true
 				}
 			}
@@ -356,22 +356,40 @@ func ChosenRecipe(entry Entry, platform string, detected []string) (Recipe, bool
 }
 
 // candidateNames are the file names one probe may resolve to: on Windows a
-// program is named with its extension.
-func candidateNames(name string) []string {
-	if runtime.GOOS != "windows" {
+// program is named with its extension. `platform` is the same key `Look` was
+// given — reading it (not `runtime.GOOS`) is what lets a Linux host pin the
+// Windows ladder; an empty value falls back to the host.
+func candidateNames(platform, name string) []string {
+	if platform == "" {
+		platform = runtime.GOOS
+	}
+	if platform != "windows" {
 		return []string{name}
 	}
 	return []string{name + ".exe", name + ".cmd", name + ".bat", name + ".com", name}
 }
 
-// isExecutable reports whether path is a regular file the user can run.
-func isExecutable(path string) bool {
+// isExecutable reports whether path is a regular file the user can run: the
+// executable bit on Unix, an executable extension on Windows. `platform` is the
+// same key `Look` was given, so a test can probe Windows on a Linux host; an
+// empty value falls back to the host (`runtime.GOOS`). The Windows branch reads
+// the same four extensions `inventory.isExecutable` does, so a plain `.txt` is
+// not a program. (`apps.isExecutableFile` stays Unix-only on purpose: it only
+// serves `.desktop` `TryExec=`, a Linux/macOS concept.)
+func isExecutable(platform, path string) bool {
 	info, err := os.Stat(path)
 	if err != nil || info.IsDir() {
 		return false
 	}
-	if runtime.GOOS == "windows" {
-		return true
+	if platform == "" {
+		platform = runtime.GOOS
+	}
+	if platform == "windows" {
+		switch strings.ToLower(filepath.Ext(path)) {
+		case ".exe", ".cmd", ".bat", ".com":
+			return true
+		}
+		return false
 	}
 	return info.Mode()&0o111 != 0
 }

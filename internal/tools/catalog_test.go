@@ -188,7 +188,7 @@ func TestMatchesAndProbe(t *testing.T) {
 	// Probe prefers the first name that resolves.
 	dir := t.TempDir()
 	writeExecutable(t, dir, "batcat")
-	if got := Probe(ripgrep.Entry, []string{dir}); got != "" {
+	if got := Probe(ripgrep.Entry, []string{dir}, PlatformLinux); got != "" {
 		t.Errorf("ripgrep probed %q", got)
 	}
 	var bat Entry
@@ -197,15 +197,15 @@ func TestMatchesAndProbe(t *testing.T) {
 			bat = entry
 		}
 	}
-	if got := Probe(bat, []string{dir}); got != "batcat" {
+	if got := Probe(bat, []string{dir}, PlatformLinux); got != "batcat" {
 		t.Errorf("bat probed %q", got)
 	}
 	// A probe prefers an earlier candidate name over a later one.
 	writeExecutable(t, dir, "bat")
-	if got := Probe(bat, []string{dir}); got != "bat" {
+	if got := Probe(bat, []string{dir}, PlatformLinux); got != "bat" {
 		t.Errorf("bat probed %q, want the first candidate", got)
 	}
-	if got := Probe(bat, nil); got != "" {
+	if got := Probe(bat, nil, PlatformLinux); got != "" {
 		t.Errorf("an empty path probed %q", got)
 	}
 }
