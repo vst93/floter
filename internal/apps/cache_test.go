@@ -73,12 +73,13 @@ func TestPathsSignature(t *testing.T) {
 	}
 
 	// A new entry changes the signature. What covers it is the entry's own
-	// path — the cache hashes the roots *and* their first two levels of names,
-	// not the root's modification time, which is a guarantee Windows does not
-	// give: NTFS writes a directory's timestamps when its handle closes, so a
-	// child created moments ago may leave the parent's mtime untouched. This
-	// test used to hash a bare root path and wait on that mtime; it read as a
-	// cache bug on windows-latest while the cache was answering correctly.
+	// path — the cache hashes the roots *and* every entry the platform's scan
+	// reads (see appWalkDepth), not the root's modification time, which is a
+	// guarantee Windows does not give: NTFS writes a directory's timestamps when
+	// its handle closes, so a child created moments ago may leave the parent's
+	// mtime untouched. This test used to hash a bare root path and wait on that
+	// mtime; it read as a cache bug on windows-latest while the cache was
+	// answering correctly.
 	if err := os.MkdirAll(filepath.Join(dir, "b"), 0o755); err != nil {
 		t.Fatal(err)
 	}

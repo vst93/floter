@@ -9,6 +9,7 @@ package apps
 
 import (
 	"bufio"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -24,6 +25,22 @@ import (
 // maxApps bounds a scan, so a pathological directory tree cannot make the
 // launcher's list enormous.
 const maxApps = 500
+
+// How deep each platform's scan descends, taken from the reference's own
+// guards rather than picked here: a macOS bundle sits at most two folders below
+// a root (`collect_apps`, `main:src-tauri/src/commands/apps/macos.rs`, `if depth
+// > 2 { return; }`), a vendor nests its shortcuts a couple of levels below
+// `Programs` on Windows (`collect_shortcuts`, `windows.rs`, `if depth > 4 {
+// return; }`), and a Linux distribution nests desktop entries three levels down
+// (`collect_entries`, `linux.rs`, which is `xdg.DesktopWalkDepth`).
+//
+// They are different numbers on purpose: each is the depth that platform
+// actually publishes at. What must not differ is the walk itself, so all three
+// go through `xdg.WalkEntries` (see walk).
+const (
+	darwinWalkDepth  = 2
+	windowsWalkDepth = 4
+)
 
 // App is one installed application.
 type App struct {
@@ -210,9 +227,9 @@ func Scan(roots []string) []App {
 // such as Utilities but never into a bundle.
 func ScanDarwin(root string) []App {
 	var out []App
-	walk(root, func(path string, d os.DirEntry) bool {
+	walk(root, darwinWalkDepth, func(path string, d fs.DirEntry, isDir bool) bool {
 		name := d.Name()
-		if !d.IsDir() || !strings.HasSuffix(name, ".app") {
+		if !isDir || !strings.HasSuffix(name, ".app") {
 			return true
 		}
 		info := readBundle(path)
@@ -282,9 +299,9 @@ func ScanWindows(root string) []App {
 // scanWindowsRoot is ScanWindows with the scan's identity keys handed in.
 func scanWindowsRoot(root string, seenTargets, seenNames map[string]bool) []App {
 	var out []App
-	walk(root, func(path string, d os.DirEntry) bool {
+	walk(root, windowsWalkDepth, func(path string, d fs.DirEntry, isDir bool) bool {
 		name := d.Name()
-		if d.IsDir() || !strings.HasSuffix(strings.ToLower(name), ".lnk") {
+		if isDir || !strings.HasSuffix(strings.ToLower(name), ".lnk") {
 			return true
 		}
 		base := name[:len(name)-len(".lnk")]
@@ -443,19 +460,13 @@ func scanLinuxRoot(root string, seenIDs map[string]bool) []App {
 	return out
 }
 
-// walk visits every entry under root, depth-first; visit returns whether to
-// descend into a directory.
-func walk(root string, visit func(path string, d os.DirEntry) bool) {
-	entries, err := os.ReadDir(root)
-	if err != nil {
-		return
-	}
-	for _, d := range entries {
-		path := filepath.Join(root, d.Name())
-		if visit(path, d) && d.IsDir() {
-			walk(path, visit)
-		}
-	}
+// walk is how the two non-Linux scans read a tree: every entry is handed to
+// visit, and the descent — including whether a symlinked folder counts as one —
+// is `xdg.WalkEntries`', the same walk the Linux desktop-entry scans use. The
+// depth is the caller's because it is the one number the reference spells
+// differently per platform (see darwinWalkDepth).
+func walk(root string, maxDepth int, visit func(path string, d fs.DirEntry, isDir bool) bool) {
+	xdg.WalkEntries(root, maxDepth, visit)
 }
 
 // executableAvailable reports whether a `TryExec=` program can be run: an

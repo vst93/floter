@@ -17,6 +17,7 @@
 package xdg
 
 import (
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -123,10 +124,36 @@ const DesktopWalkDepth = 3
 // (`internal/inventory`) read a desktop entry through, so a nested entry is
 // either a row in both lists or in neither.
 func WalkDesktopEntries(root string, maxDepth int, visit func(path string)) {
-	walkDesktopEntries(root, 0, maxDepth, visit)
+	WalkEntries(root, maxDepth, func(path string, d fs.DirEntry, isDir bool) bool {
+		if !isDir && filepath.Ext(d.Name()) == ".desktop" {
+			visit(path)
+		}
+		return true
+	})
 }
 
-func walkDesktopEntries(dir string, depth, maxDepth int, visit func(path string)) {
+// WalkEntries visits every entry below root, depth-first, in the order the
+// directories are read, descending into directories up to maxDepth levels below
+// root (0 = only root's own entries) — the shape the reference implementation's
+// collectors have (`collect_entries`, `collect_shortcuts`, `collect_apps` in
+// `main:src-tauri/src/commands/apps/`), each with its own depth cap.
+//
+// It is the one walk the application scans share: the Linux desktop-entry scans
+// in `apps` and `inventory`, the macOS `.app` scan, the Windows `.lnk` scan, and
+// the cache's signature walk all read the filesystem through it. So "how deep
+// does a scan look" and "does a symlinked folder count" have one answer per
+// platform rather than one per collector — which is what they used to have:
+// the Linux scans stopped at three levels while the macOS and Windows ones had
+// no cap at all, and only the Linux one followed a symlink.
+//
+// visit is handed the entry's path, its `fs.DirEntry`, and whether it is a
+// directory (symlinks resolved, see isDirectory); returning true descends into
+// it. The depth cap keeps a symlink cycle finite.
+func WalkEntries(root string, maxDepth int, visit func(path string, d fs.DirEntry, isDir bool) bool) {
+	walkTree(root, 0, maxDepth, visit)
+}
+
+func walkTree(dir string, depth, maxDepth int, visit func(path string, d fs.DirEntry, isDir bool) bool) {
 	if depth > maxDepth {
 		return
 	}
@@ -136,20 +163,23 @@ func walkDesktopEntries(dir string, depth, maxDepth int, visit func(path string)
 	}
 	for _, entry := range entries {
 		path := filepath.Join(dir, entry.Name())
-		if isDirectory(path, entry) {
-			walkDesktopEntries(path, depth+1, maxDepth, visit)
-			continue
-		}
-		if filepath.Ext(entry.Name()) == ".desktop" {
-			visit(path)
+		isDir := directoryOf(path, entry)
+		if visit(path, entry, isDir) && isDir {
+			walkTree(path, depth+1, maxDepth, visit)
 		}
 	}
 }
 
+// directoryOf is the walk's one "is this a directory" probe; it is a variable
+// so a pin can drive the walk's descent decision without creating a symlink,
+// which needs a privilege Windows does not always grant. Production never
+// replaces it.
+var directoryOf = isDirectory
+
 // isDirectory reports whether path is a directory, following a symlink: a
 // symlinked directory holds entries the walk has to see, the same way the
 // reference's `Path::is_dir()` follows it.
-func isDirectory(path string, entry os.DirEntry) bool {
+func isDirectory(path string, entry fs.DirEntry) bool {
 	if entry.IsDir() {
 		return true
 	}

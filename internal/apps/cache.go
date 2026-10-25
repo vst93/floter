@@ -2,11 +2,14 @@ package apps
 
 import (
 	"encoding/binary"
+	"io/fs"
 	"os"
-	"path/filepath"
+	"runtime"
 	"sort"
 	"sync"
 	"time"
+
+	"floter/internal/xdg"
 )
 
 // The application scan's cache: the launcher opens with the previous scan
@@ -14,9 +17,13 @@ import (
 // a summon cheap instead of a filesystem walk.
 //
 // The signature is the old build's `paths_signature`: the paths of the roots
-// and of their first two levels of entries, sorted and hashed (FNV-1a) with
+// and of every entry the platform's scan reads, sorted and hashed (FNV-1a) with
 // each path's length and modification time. A signature that matches says the
 // sources the scan observed are the ones still on disk.
+//
+// "Every entry the platform's scan reads" is the point: the depth is the
+// platform's own (see appWalkDepth), and the walk is the scan's own
+// (`xdg.WalkEntries`), so the cache cannot be blind to an entry the scan lists.
 
 // signatureCheckInterval is how long a computed signature is trusted before
 // the disk is asked again.
@@ -43,36 +50,51 @@ var (
 )
 
 // SourceSignature is the FNV-1a hash of the paths the scan would observe —
-// the roots and their first two levels of entries — with each path's length
-// and modification time mixed in.
+// the roots and the entries their platform's scan reads — with each path's
+// length and modification time mixed in.
 func SourceSignature(roots []string) uint64 {
+	return signatureFor(runtime.GOOS, roots)
+}
+
+// appWalkDepth is how deep this platform's scan reads, and therefore how deep
+// the signature has to look: a signature that stopped above an entry the scan
+// reads would leave the cache trusting a list the disk no longer matches. The
+// numbers are the scanners' own (see darwinWalkDepth); Linux reads desktop
+// entries through `xdg.DesktopWalkDepth`.
+func appWalkDepth(platform string) int {
+	switch platform {
+	case "darwin":
+		return darwinWalkDepth
+	case "windows":
+		return windowsWalkDepth
+	default:
+		return xdg.DesktopWalkDepth
+	}
+}
+
+// signatureFor is SourceSignature for one platform's scanners. It takes the
+// platform rather than reading it, so the depth table can be pinned from any
+// host (the scans themselves are pure I/O over explicit roots).
+func signatureFor(platform string, roots []string) uint64 {
 	var sources []string
 	sources = append(sources, roots...)
 	for _, root := range roots {
-		collectSignaturePaths(root, 0, &sources)
+		collectSignaturePaths(root, appWalkDepth(platform), &sources)
 	}
 	return pathsSignature(sources)
 }
 
 // collectSignaturePaths gathers the paths whose identity the signature covers:
-// the roots and their first two levels of entries, which is the depth the
-// scanners themselves read.
-func collectSignaturePaths(root string, depth int, sources *[]string) {
-	if depth > 2 {
-		return
-	}
+// every entry the platform's scan reads, through the same walk the scan itself
+// uses (`xdg.WalkEntries`) and to the same depth. A symlinked folder is
+// descended into here exactly as it is there, so the signature covers what the
+// scan saw.
+func collectSignaturePaths(root string, maxDepth int, sources *[]string) {
 	*sources = append(*sources, root)
-	entries, err := os.ReadDir(root)
-	if err != nil {
-		return
-	}
-	for _, entry := range entries {
-		path := filepath.Join(root, entry.Name())
+	xdg.WalkEntries(root, maxDepth, func(path string, d fs.DirEntry, isDir bool) bool {
 		*sources = append(*sources, path)
-		if depth < 1 && entry.IsDir() {
-			collectSignaturePaths(path, depth+1, sources)
-		}
-	}
+		return true
+	})
 }
 
 // pathsSignature is the FNV-1a hash of sorted, deduplicated paths, with each
