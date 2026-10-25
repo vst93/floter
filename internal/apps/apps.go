@@ -143,14 +143,7 @@ func Roots() []string {
 			}
 		}
 	default:
-		candidates = []string{
-			"/usr/share/applications",
-			"/usr/local/share/applications",
-			"/var/lib/flatpak/exports/share/applications",
-			"/var/lib/snapd/desktop/applications",
-			filepath.Join(homeDir(), ".local", "share", "applications"),
-			filepath.Join(homeDir(), ".local", "share", "flatpak", "exports", "share", "applications"),
-		}
+		candidates = linuxRoots(linuxDataHome(), filepath.SplitList(os.Getenv("XDG_DATA_DIRS")))
 	}
 	var roots []string
 	for _, dir := range candidates {
@@ -161,26 +154,85 @@ func Roots() []string {
 	return roots
 }
 
-// Scan reads the applications under the given roots, sorted by name.
-func Scan(roots []string) []App {
-	var found []App
-	for _, root := range roots {
-		switch runtime.GOOS {
-		case "darwin":
-			found = append(found, ScanDarwin(root)...)
-		case "windows":
-			found = append(found, ScanWindows(root)...)
-		default:
-			found = append(found, ScanLinux(root)...)
+// linuxDataHome is the per-user data directory the XDG Base Directory
+// Specification defines: `$XDG_DATA_HOME` when it is set to an absolute path,
+// and `~/.local/share` otherwise (the spec's own fallback for a relative or
+// missing value).
+func linuxDataHome() string {
+	if dir := strings.TrimSpace(os.Getenv("XDG_DATA_HOME")); dir != "" && filepath.IsAbs(dir) {
+		return dir
+	}
+	return filepath.Join(homeDir(), ".local", "share")
+}
+
+// linuxRoots is where a Linux publishes its desktop entries, in **precedence
+// order**: the user's own directory first, then the system's, then the package
+// exports, then whatever else `$XDG_DATA_DIRS` advertises.
+//
+// The order is the reference's (`roots()`, `main:src-tauri/src/commands/apps/
+// linux.rs:186-205`), and it is the half of the rule that makes a user's
+// override win: a `.desktop` file under `$XDG_DATA_HOME` shadows the system
+// copy of the same id, which only works if the user's directory is scanned
+// first (see desktopFileID). `$XDG_DATA_HOME` and `$XDG_DATA_DIRS` are read
+// here rather than assumed to be `~/.local/share` and `/usr/share`: a custom
+// prefix, a container, or a distribution that publishes its applications
+// somewhere else is where a hard-coded list finds nothing.
+//
+// A `dataDir` that is already in the list (the default `/usr/local/share` and
+// `/usr/share` usually are) contributes nothing, exactly as the reference's
+// `if !roots.contains(&candidate)` does.
+func linuxRoots(dataHome string, dataDirs []string) []string {
+	var roots []string
+	add := func(dir string) {
+		if dir == "" {
+			return
 		}
-		if len(found) >= maxApps {
-			break
+		for _, existing := range roots {
+			if existing == dir {
+				return
+			}
+		}
+		roots = append(roots, dir)
+	}
+	if dataHome != "" {
+		add(filepath.Join(dataHome, "applications"))
+		add(filepath.Join(dataHome, "flatpak", "exports", "share", "applications"))
+	}
+	add("/usr/local/share/applications")
+	add("/usr/share/applications")
+	add("/var/lib/flatpak/exports/share/applications")
+	add("/var/lib/snapd/desktop/applications")
+	for _, dataDir := range dataDirs {
+		if dataDir = strings.TrimSpace(dataDir); dataDir != "" {
+			add(filepath.Join(dataDir, "applications"))
 		}
 	}
-	if runtime.GOOS == "windows" {
+	return roots
+}
+
+// Scan reads the applications under the given roots, sorted by name.
+//
+// The roots are in precedence order, and each platform's scanner is given the
+// state that decides which of two entries is the same application (a Linux
+// desktop-file id, a Windows shortcut target or name) — so one application is
+// one row, and the row that survives is the one from the earlier root.
+func Scan(roots []string) []App {
+	var found []App
+	switch runtime.GOOS {
+	case "darwin":
+		for _, root := range roots {
+			found = append(found, ScanDarwin(root)...)
+			if len(found) >= maxApps {
+				break
+			}
+		}
+	case "windows":
+		found = append(found, scanWindowsRoots(roots)...)
 		// The Start Menu is not the whole of what is installed (see
 		// scanRegistryPrograms): the uninstall keys fill the gaps.
 		found = append(found, scanRegistryPrograms(found)...)
+	default:
+		found = append(found, scanLinuxRoots(roots)...)
 	}
 	return dedupe(found)
 }
@@ -209,7 +261,34 @@ func ScanDarwin(root string) []App {
 	return out
 }
 
+// scanWindowsRoots collects the .lnk shortcuts under every root, in precedence
+// order, keeping one row per program.
+//
+// The two identity keys — the lowercased target and the lowercased name — are
+// shared across every root, as the reference shares them (`scan()`,
+// `main:src-tauri/src/commands/apps/windows.rs:52-63`): one program's shortcut
+// in the user's Start Menu and in the machine's is one row, and the user's
+// comes first. They are then handed to the registry pass, which is why it can
+// see what the shortcuts already listed.
+func scanWindowsRoots(roots []string) []App {
+	var found []App
+	seenTargets := map[string]bool{}
+	seenNames := map[string]bool{}
+	for _, root := range roots {
+		found = append(found, scanWindowsRoot(root, seenTargets, seenNames)...)
+		if len(found) >= maxApps {
+			break
+		}
+	}
+	return found
+}
+
 // ScanWindows collects the .lnk shortcuts under root.
+//
+// `seenTargets` and `seenNames` are the scan's own identity keys, lowercased:
+// they are passed in rather than created here so that every root shares them
+// (see Scan). `ScanWindows` itself starts empty ones, which is one root's worth
+// of deduplication.
 //
 // Each shortcut's own target is read (see shortcut.go), and everything the
 // reference derives from it comes with it:
@@ -228,9 +307,12 @@ func ScanDarwin(root string) []App {
 // A shortcut whose target cannot be read is still a row: Windows resolves it
 // itself when the file is opened, which is the reference's own decision.
 func ScanWindows(root string) []App {
+	return scanWindowsRoot(root, map[string]bool{}, map[string]bool{})
+}
+
+// scanWindowsRoot is ScanWindows with the scan's identity keys handed in.
+func scanWindowsRoot(root string, seenTargets, seenNames map[string]bool) []App {
 	var out []App
-	seenTargets := map[string]bool{}
-	seenNames := map[string]bool{}
 	walk(root, func(path string, d os.DirEntry) bool {
 		name := d.Name()
 		if d.IsDir() || !strings.HasSuffix(strings.ToLower(name), ".lnk") {
@@ -329,13 +411,51 @@ func scanRegistryPrograms(existing []App) []App {
 	return out
 }
 
+// scanLinuxRoots collects the .desktop entries under every root, in precedence
+// order, and keeps one row per desktop-file id.
+//
+// A desktop-file id is unique across the whole search path: the entry under the
+// user's own directory *is* the application, and the system copy of the same id
+// is shadowed by it. That is the reference's `seen_ids` (`scan()`,
+// `main:src-tauri/src/commands/apps/linux.rs:56-67`), and without it a user
+// override is a second row beside the original rather than an override. The id
+// is claimed before the entry is parsed, exactly as the reference claims it, so
+// a broken user entry hides the system one instead of showing both.
+func scanLinuxRoots(roots []string) []App {
+	var found []App
+	seenIDs := make(map[string]bool)
+	for _, root := range roots {
+		found = append(found, scanLinuxRoot(root, seenIDs)...)
+		if len(found) >= maxApps {
+			break
+		}
+	}
+	return found
+}
+
 // ScanLinux collects the .desktop entries under root, skipping the ones the
 // desktop hides and the ones with no program to run.
+//
+// It is one root on its own, so it has no id table to consult; `Scan` uses
+// scanLinuxRoots, which does.
 func ScanLinux(root string) []App {
+	return scanLinuxRoot(root, nil)
+}
+
+// scanLinuxRoot is ScanLinux with the scan's id table handed in: a nil table
+// deduplicates nothing, which is what a single root needs.
+func scanLinuxRoot(root string, seenIDs map[string]bool) []App {
 	var out []App
 	walk(root, func(path string, d os.DirEntry) bool {
 		if d.IsDir() || !strings.HasSuffix(d.Name(), ".desktop") {
 			return true
+		}
+		if seenIDs != nil {
+			id := desktopFileID(root, path)
+			if seenIDs[id] {
+				return true
+			}
+			seenIDs[id] = true
 		}
 		entry, ok := ParseDesktopFile(path)
 		if !ok {
@@ -617,6 +737,19 @@ func desktopFileStem(path string) string {
 		return base[:len(base)-len(ext)]
 	}
 	return base
+}
+
+// desktopFileID is a `.desktop` entry's id: its path below the applications
+// directory with the separators turned into dashes (`kde4/konsole.desktop` →
+// `kde4-konsole.desktop`). It is the key the search path is unique on — the
+// same id in two roots is one application — and the reference computes it the
+// same way (`desktop_file_id`, `main:src-tauri/src/commands/apps/linux.rs:265`).
+func desktopFileID(root, path string) string {
+	rel, err := filepath.Rel(root, path)
+	if err != nil || rel == "" || rel == "." {
+		return filepath.Base(path)
+	}
+	return strings.ReplaceAll(filepath.ToSlash(rel), "/", "-")
 }
 
 // executableName is the program an `Exec=`/`TryExec=` value runs, without its
