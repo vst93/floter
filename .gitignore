@@ -28,3 +28,6 @@
 
 # Go test binaries left by `go test -c`
 *.test
+
+# pi CLI runtime artifacts (goal pool, not project data)
+.pi/
