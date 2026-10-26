@@ -2362,10 +2362,12 @@ func optionsAsStrings(options []any) []string {
 }
 
 // connectFromLink installs (after the user's approval) a manifest a
-// `floter://connect` link carried. A relative path resolves against the home
-// directory, and a missing or unreadable manifest is refused rather than
-// installed. Every outcome is reported: a failure after the review raises the
-// same refusal the earlier checks do, and a landed install goes through the
+// `floter://connect` link carried. The value arrives already resolved — the
+// link's own value-to-path rule (a `~` prefix, a home-relative path, a refused
+// traversal) is `linkManifestValue` (linkmanifest.go), which the router runs
+// before the page opens — and a missing or unreadable manifest is refused rather
+// than installed. Every outcome is reported: a failure after the review raises
+// the same refusal the earlier checks do, and a landed install goes through the
 // app's completion path — the one `connectLocalTool` (the UI's one-press
 // connect) already uses — so a link and a press tell the user the same thing.
 // The one exception is a declined permission review: that is the user's
@@ -2373,13 +2375,6 @@ func optionsAsStrings(options []any) []string {
 func (a *App) connectFromLink(manifest string) {
 	go func() {
 		expanded := manifest
-		if rest, ok := strings.CutPrefix(expanded, "~"); ok {
-			home, _ := os.UserHomeDir()
-			expanded = filepath.Join(home, strings.TrimPrefix(rest, "/"))
-		} else if !filepath.IsAbs(expanded) {
-			home, _ := os.UserHomeDir()
-			expanded = filepath.Join(home, expanded)
-		}
 		info, err := os.Stat(expanded)
 		if err != nil {
 			log.Printf("floter: the connected manifest is not there: %v", err)
@@ -2389,7 +2384,15 @@ func (a *App) connectFromLink(manifest string) {
 		staged := expanded
 		if !info.IsDir() {
 			// The install takes a package directory: the manifest's own
-			// directory is the package.
+			// directory is the package. A value that names a file must be a
+			// `.json` one (the reference's ManifestNotJson, deep_link.rs:334-336):
+			// the file's name is otherwise never read, so any readable name would
+			// connect whatever package lives next to it.
+			if !manifestFileFits(expanded) {
+				log.Printf("floter: the connected manifest is not a .json file: %s", expanded)
+				a.refuseLink()
+				return
+			}
 			staged = filepath.Dir(expanded)
 		}
 		prepared, err := extensions.PrepareLocal(a.Paths, staged)

@@ -206,10 +206,12 @@ func (a *App) HandleURL(rawURL string) {
 		// A tool ships these links in its README: `connect` carries a manifest
 		// that is reviewed here, and connecting is still the user's own
 		// approval. The table above already refused every key but `manifest`;
-		// a link with no manifest at all is refused before the page is touched
-		// (the old build's MissingManifest).
-		manifest := strings.TrimSpace(parsed.Query().Get("manifest"))
-		if manifest == "" {
+		// the value has its own gate (`linkManifestValue`, linkmanifest.go),
+		// and a value it refuses — an empty one, a control character, a URL, a
+		// `..` traversal — is refused before the page is touched (the old
+		// build's MissingManifest, ManifestInsecure and ManifestTraversal).
+		manifest, ok := linkManifestValue(parsed.Query().Get("manifest"))
+		if !ok {
 			a.refuseLink()
 			return
 		}

@@ -94,6 +94,19 @@ Node.js，扩展也不能借助 NPM 生命周期脚本绕开管理器。
 }
 ```
 
+### 从链接接入扩展包（`floter://connect`）
+
+已有 `floter.extension.json` 的包可以用一条链接走同一次安装审查：
+`floter://connect?manifest=/path/to/tool.json`（终端里 `floter connect /path/to/tool.json`
+是同一条链接）。`manifest` 可以是包目录本身，也可以是包里的 manifest 文件；后者必须是
+`.json` 结尾（包取它所在的目录）。路径可以写绝对路径，也可以写 `~` 或相对路径——
+相对路径按 home 解析，与安装器的习惯一致。
+
+链接的取值也有一条形状：空值、含控制字符、含 `..` 上溯组件、以及任何 URL（本版没有远程
+manifest 的安装路径）都会被整条拒绝。被拒的链接只说一句“链接打不开”，不切页、不装东西。
+通过取值检查的链接也只是把集成页带上来并走一次权限审查：**接入仍然需要用户批准**，
+拒绝审查就什么都不装，也不会多说什么。
+
 ### 从链接一步接入（`floter://register`）
 
 已经装在 `PATH` 上的工具不需要写 manifest：`floter://register?cmd=rg`（或终端里的
