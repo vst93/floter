@@ -234,6 +234,16 @@ func (a *App) HandleURL(rawURL string) {
 			a.refuseLink()
 			return
 		}
+		// The optional `args` hint has no reader here, but it still has a
+		// shape: the reference refuses a token that is not shell-inert, and a
+		// link it refuses must not be accepted here (`linkArgsFit`,
+		// linkargshint.go). Same order as the reference's `parse_url`, which
+		// validates the name first (`deep_link.rs:496-501`), and the same
+		// place: before the page opens.
+		if !linkArgsFit(parsed.Query().Get("args")) {
+			a.refuseLink()
+			return
+		}
 		a.Open(SurfaceSettings)
 		a.Settings.Page = settingsui.PageIntegrations
 		a.registerFromLink(name)

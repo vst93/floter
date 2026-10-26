@@ -44,7 +44,7 @@ func TestLinkQueryFits(t *testing.T) {
 		{"register", "cmd=rg", true, "the documented spelling"},
 		{"register", "tool=rg", true, "the old build's second spelling"},
 		{"register", "program=rg", true, "the old build's third spelling"},
-		{"register", "cmd=rg&args=--hidden", true, "args is in the table (README:97-104)"},
+		{"register", "cmd=rg&args=src", true, "args is in the table (README:97-104)"},
 		{"register", "cmd=rg&confirm=1", true, "confirm is in the table (deep_link.rs:487)"},
 		{"register", "confirm=1&confirm=1", true, "a flag carries no value, so a repeat is inert"},
 		{"register", "cmd=rg&manifest=/a/tool.json", false, "the reference's own refusal case (:1515)"},
@@ -192,9 +192,12 @@ func TestALinkTakesOneValuePerSlot(t *testing.T) {
 	}
 
 	// The table's readerless keys: the link routes, the name is what answers.
+	// P10-i 重定基线：`args=--hidden` → `args=src`。前导 `-` 是值判据的事
+	// （`linkArgsFit`，linkargshint.go），不是表的事；这里钉的是「表内的键
+	// 不被拒」，所以值取一个合法 token。
 	const name = "floter-no-such-tool-p10h"
 	for _, link := range []string{
-		"floter://register?cmd=" + name + "&args=--hidden",
+		"floter://register?cmd=" + name + "&args=src",
 		"floter://register?cmd=" + name + "&confirm=1",
 		"floter://register?cmd=" + name + "&confirm=1&confirm=1",
 	} {

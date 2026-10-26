@@ -23,7 +23,10 @@ import "net/url"
 //     (`docs/extensions/README.zh-CN.md:97-104`). The reference shows it on the
 //     review surface and never runs it; this build has no surface for it, so it
 //     is accepted and dropped. Refusing it would refuse a link the reference
-//     accepts, and the guide already told users it is allowed.
+//     accepts, and the guide already told users it is allowed. Being in this
+//     table is not the whole rule though: the *value* has its own gate
+//     (`linkArgsFit`, linkargshint.go), because the reference judges a hint it
+//     never runs too.
 //   - `confirm` is the terminal spelling's `--yes` folded into a query parameter
 //     (`deep_link.rs:487`). This build's register link already runs the
 //     one-press connect path, so there is no second step for a confirmation to
