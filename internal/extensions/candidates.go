@@ -2,7 +2,9 @@ package extensions
 
 import (
 	"path/filepath"
+	"runtime"
 
+	"floter/internal/progname"
 	"floter/internal/progtype"
 )
 
@@ -31,7 +33,7 @@ type ExecutableCandidate struct {
 // the many-match form of LookTool, for the flows that must ask which program
 // the user means rather than silently taking the first.
 func LookTools(names ...string) []ExecutableCandidate {
-	return lookToolsIn(SearchDirectories(), names...)
+	return lookToolsIn(runtime.GOOS, SearchDirectories(), names...)
 }
 
 // lookTools is the seam the candidate enumeration goes through, so a test can
@@ -49,8 +51,20 @@ func StubToolCandidates(lookup func(names ...string) []ExecutableCandidate) func
 	return func() { lookTools = previous }
 }
 
-// lookToolsIn is LookTools over an explicit directory list.
-func lookToolsIn(dirs []string, names ...string) []ExecutableCandidate {
+// lookToolsIn is LookTools over an explicit directory list and platform key,
+// so a test can resolve against a fixture. The join is `progname.Ladder` for
+// the reason spelled out on `lookToolIn`: a name is a probe, and on Windows the
+// program a bare `rg` asks for is `rg.exe`.
+//
+// `Name` is the file name that was found (`rg.exe`), not the name that was
+// asked for (`rg`), because that is what the candidate *is*: the reference's
+// PATH discovery names a candidate `path.file_name()`
+// (src-tauri/src/extensions/inventory.rs:434-451), this build's inventory does
+// the same (`merge(path, entry.Name(), …)`, inventory.go:239), and the register
+// link names the integration `filepath.Base` of the path it resolved
+// (shell/system.go:269). The chooser row, the Detected row and the register card
+// therefore title one program one way.
+func lookToolsIn(platform string, dirs []string, names ...string) []ExecutableCandidate {
 	var out []ExecutableCandidate
 	seen := map[string]bool{}
 	for _, dir := range dirs {
@@ -58,19 +72,21 @@ func lookToolsIn(dirs []string, names ...string) []ExecutableCandidate {
 			if name == "" {
 				continue
 			}
-			path := filepath.Join(dir, name)
-			if !progtype.HostLenient(path) {
-				continue
+			for _, probe := range progname.Ladder(platform, name) {
+				path := filepath.Join(dir, probe)
+				if !progtype.ForLenient(platform, path) {
+					continue
+				}
+				key := path
+				if resolved, err := filepath.EvalSymlinks(path); err == nil {
+					key = resolved
+				}
+				if seen[key] {
+					continue
+				}
+				seen[key] = true
+				out = append(out, ExecutableCandidate{Name: probe, Path: path, Sources: []string{"path"}})
 			}
-			key := path
-			if resolved, err := filepath.EvalSymlinks(path); err == nil {
-				key = resolved
-			}
-			if seen[key] {
-				continue
-			}
-			seen[key] = true
-			out = append(out, ExecutableCandidate{Name: name, Path: path, Sources: []string{"path"}})
 		}
 	}
 	return out

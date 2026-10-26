@@ -5,6 +5,7 @@ package extensions
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -30,7 +31,7 @@ func TestLookToolsListsEveryMatchInSearchOrder(t *testing.T) {
 	writeExecutable(t, filepath.Join(second, "tool"))
 	writeExecutable(t, filepath.Join(second, "other"))
 
-	got := lookToolsIn([]string{first, second}, "tool")
+	got := lookToolsIn(runtime.GOOS, []string{first, second}, "tool")
 	if len(got) != 2 {
 		t.Fatalf("candidates = %+v, want two", got)
 	}
@@ -51,7 +52,7 @@ func TestLookToolsDoesNotCountASymlinkTwice(t *testing.T) {
 	if err := os.Symlink(filepath.Join(real, "tool"), filepath.Join(link, "tool")); err != nil {
 		t.Skipf("symlinks unavailable: %v", err)
 	}
-	if got := lookToolsIn([]string{real, link}, "tool"); len(got) != 1 {
+	if got := lookToolsIn(runtime.GOOS, []string{real, link}, "tool"); len(got) != 1 {
 		t.Errorf("candidates = %+v, want the symlink folded into its target", got)
 	}
 }

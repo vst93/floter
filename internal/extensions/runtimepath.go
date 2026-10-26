@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"floter/internal/progname"
 	"floter/internal/progtype"
 )
 
@@ -59,7 +60,7 @@ func SearchDirectories() []string {
 // LookTool finds the first of the names that exists as a runnable file in
 // the search path, and returns its full path.
 func LookTool(names ...string) (string, bool) {
-	return lookToolIn(SearchDirectories(), names...)
+	return lookToolIn(runtime.GOOS, SearchDirectories(), names...)
 }
 
 // lookTool and findInterpreter are the two lookups runtime resolution goes
@@ -89,17 +90,36 @@ func StubInterpreterLookup(lookup func(language string) (string, bool)) func() {
 	return func() { findInterpreter = previous }
 }
 
-// lookToolIn is LookTool over an explicit directory list, so a test can point
-// it at a fixture instead of depending on the machine's PATH.
-func lookToolIn(dirs []string, names ...string) (string, bool) {
+// lookToolIn is LookTool over an explicit directory list and platform key, so a
+// test can point it at a fixture instead of depending on the machine's PATH.
+//
+// A name is a *probe*, not a file name: on Windows the program a bare name asks
+// for is `rg.exe`, so the join is made of `progname.Ladder`. That table already
+// answered this question for the tool catalog's probes (`tools.Probe`,
+// catalog.go:366-370), and the reference answered it the same way
+// (`executable_name_matches`, src-tauri/src/extensions/resolver.rs:118-133: an
+// expected name with no extension also matches the four launcher spellings).
+// Without it a bare name resolved on Linux and macOS and nowhere on Windows:
+// `floter://register?cmd=rg` — the spelling `docs/extensions/README.zh-CN.md`
+// documents — said "not found" on a machine whose Detected row connects the same
+// `rg` in one press, and `FindInterpreter("powershell")` (whose names are the
+// bare `pwsh` / `powershell`) could not resolve `pwsh.exe` at all.
+//
+// The directory is the outer loop and the ladder the inner one, so the search
+// path keeps its priority over the suffix: `dir1/rg.cmd` still beats
+// `dir2/rg.exe`. The judgement stays `progtype.ForLenient` — the permissive
+// strategy for a name the user gave, unchanged by this round.
+func lookToolIn(platform string, dirs []string, names ...string) (string, bool) {
 	for _, dir := range dirs {
 		for _, name := range names {
 			if name == "" {
 				continue
 			}
-			candidate := filepath.Join(dir, name)
-			if progtype.HostLenient(candidate) {
-				return candidate, true
+			for _, probe := range progname.Ladder(platform, name) {
+				candidate := filepath.Join(dir, probe)
+				if progtype.ForLenient(platform, candidate) {
+					return candidate, true
+				}
 			}
 		}
 	}

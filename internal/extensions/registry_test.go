@@ -312,7 +312,7 @@ func stubTool(t *testing.T, names ...string) {
 		}
 	}
 	previous := lookTool
-	lookTool = func(wanted ...string) (string, bool) { return lookToolIn([]string{dir}, wanted...) }
+	lookTool = func(wanted ...string) (string, bool) { return lookToolIn(runtime.GOOS, []string{dir}, wanted...) }
 	t.Cleanup(func() { lookTool = previous })
 }
 

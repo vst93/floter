@@ -320,11 +320,11 @@ func TestInterpreterNamesAndLookingUp(t *testing.T) {
 	if err := os.Chmod(tool, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	found, ok := lookToolIn([]string{dir}, "nope", "some-tool")
+	found, ok := lookToolIn(runtime.GOOS, []string{dir}, "nope", "some-tool")
 	if !ok || found != tool {
 		t.Errorf("lookToolIn = %q, %v", found, ok)
 	}
-	if _, ok := lookToolIn([]string{dir}, "nope"); ok {
+	if _, ok := lookToolIn(runtime.GOOS, []string{dir}, "nope"); ok {
 		t.Error("a missing tool was found")
 	}
 
