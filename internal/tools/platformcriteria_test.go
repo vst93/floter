@@ -63,50 +63,6 @@ func TestTheProbeLadderFollowsThePlatformKeyNotTheHost(t *testing.T) {
 	}
 }
 
-// TestTheWindowsExecutableTestNeedsAnExecutableExtension pins the second half:
-// isExecutable on Windows used to accept any regular file, so `notes.txt`
-// counted as a program. It now reads the same four extensions
-// `inventory.isExecutable` does.
-func TestTheWindowsExecutableTestNeedsAnExecutableExtension(t *testing.T) {
-	dir := t.TempDir()
-	for _, name := range []string{"rg.exe", "run.cmd", "go.bat", "old.com", "RG.EXE"} {
-		if !isExecutable(PlatformWindows, writeFile(t, dir, name, 0o644)) {
-			t.Errorf("%s was not executable on windows", name)
-		}
-	}
-	// A plain file, whatever its mode, is not a program on Windows.
-	for _, name := range []string{"notes.txt", "README", "rg", "makefile"} {
-		if isExecutable(PlatformWindows, writeFile(t, dir, name, 0o755)) {
-			t.Errorf("%s was executable on windows", name)
-		}
-	}
-	// A directory and a missing path are never executable.
-	if isExecutable(PlatformWindows, dir) {
-		t.Error("a directory was executable on windows")
-	}
-	if isExecutable(PlatformWindows, filepath.Join(dir, "absent.exe")) {
-		t.Error("a missing path was executable on windows")
-	}
-
-	// The Unix side keeps the executable-bit rule: mode decides, the name does
-	// not. A Windows host emulates every file as 0666, so the bit rule cannot
-	// be exercised there — the block is conditional rather than skipped, so the
-	// Windows half above still runs.
-	if runtime.GOOS != "windows" {
-		if !isExecutable(PlatformLinux, writeFile(t, dir, "rg", 0o755)) {
-			t.Error("a 0o755 file was not executable on linux")
-		}
-		if isExecutable(PlatformLinux, writeFile(t, dir, "quiet", 0o644)) {
-			t.Error("a 0o644 file was executable on linux")
-		}
-		// rg.exe was written 0o644 above (the first loop), so the bit rule must
-		// say no: this is the "no extension magic on Unix" half.
-		if isExecutable(PlatformLinux, filepath.Join(dir, "rg.exe")) {
-			t.Error("rg.exe was executable on linux without the execute bit")
-		}
-	}
-}
-
 // TestABareNameIsNotInstalledOnWindows is the user-visible consequence: a
 // `rg` with no extension in the search path must not light up the Windows
 // catalog, and `rg.exe` must.

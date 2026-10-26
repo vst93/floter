@@ -3,9 +3,10 @@ package apps
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strings"
+
+	"floter/internal/progtype"
 )
 
 // CommandDirs is the directories the shell's commands live in: the process's
@@ -44,7 +45,10 @@ func ScanCommands(dirs []string) []App {
 				continue
 			}
 			path := filepath.Join(dir, name)
-			if !runnable(path) {
+			// `progtype.Host` is the same "is this a program" judgement the
+			// app scan and the tool inventory use: the executable bit on Unix,
+			// one of the four program extensions on Windows.
+			if !progtype.Host(path) {
 				continue
 			}
 			byName[name] = App{Name: name, Path: path}
@@ -76,23 +80,4 @@ func isCommandName(name string) bool {
 		return false
 	}
 	return true
-}
-
-// runnable reports whether a path is a regular file the user can run.
-func runnable(path string) bool {
-	info, err := os.Stat(path)
-	if err != nil || !info.Mode().IsRegular() {
-		return false
-	}
-	if runtime.GOOS == "windows" {
-		// On Windows a command is a .exe, .cmd or .bat; anything else is
-		// data.
-		switch strings.ToLower(filepath.Ext(path)) {
-		case ".exe", ".cmd", ".bat", ".com":
-			return true
-		default:
-			return false
-		}
-	}
-	return info.Mode().Perm()&0o111 != 0
 }

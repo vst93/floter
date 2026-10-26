@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"floter/internal/extensions"
+	"floter/internal/progtype"
 	"floter/internal/xdg"
 )
 
@@ -438,7 +439,7 @@ func LookPath(name string) (string, bool) {
 			continue
 		}
 		candidate := filepath.Join(directory, name)
-		if isExecutable(candidate) {
+		if progtype.Host(candidate) {
 			return candidate, true
 		}
 	}

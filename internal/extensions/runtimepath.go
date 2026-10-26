@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"floter/internal/progtype"
 )
 
 // The conventional tool directories a Finder/Dock launch never inherits. The
@@ -96,7 +98,7 @@ func lookToolIn(dirs []string, names ...string) (string, bool) {
 				continue
 			}
 			candidate := filepath.Join(dir, name)
-			if isExecutableFile(candidate) {
+			if progtype.HostLenient(candidate) {
 				return candidate, true
 			}
 		}
@@ -187,18 +189,6 @@ func loginShellDirs() []string {
 	case <-time.After(5 * time.Second):
 		return nil
 	}
-}
-
-// isExecutableFile reports whether path is a regular file the user can run.
-func isExecutableFile(path string) bool {
-	info, err := os.Stat(path)
-	if err != nil || info.IsDir() {
-		return false
-	}
-	if runtime.GOOS == "windows" {
-		return true
-	}
-	return info.Mode()&0o111 != 0
 }
 
 func splitPath(path string) []string {

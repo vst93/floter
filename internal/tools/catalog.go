@@ -10,10 +10,11 @@
 package tools
 
 import (
-	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"floter/internal/progtype"
 )
 
 // The platform keys every per-platform table is addressed by.
@@ -302,7 +303,7 @@ func Probe(entry Entry, dirs []string, platform string) string {
 				if dir == "" {
 					continue
 				}
-				if isExecutable(platform, filepath.Join(dir, candidate)) {
+				if progtype.For(platform, filepath.Join(dir, candidate)) {
 					return candidate
 				}
 			}
@@ -328,7 +329,7 @@ func managerPresent(manager Manager, dirs []string, platform string) bool {
 	for _, name := range manager.Candidates {
 		for _, candidate := range candidateNames(platform, name) {
 			for _, dir := range dirs {
-				if dir != "" && isExecutable(platform, filepath.Join(dir, candidate)) {
+				if dir != "" && progtype.For(platform, filepath.Join(dir, candidate)) {
 					return true
 				}
 			}
@@ -367,31 +368,6 @@ func candidateNames(platform, name string) []string {
 		return []string{name}
 	}
 	return []string{name + ".exe", name + ".cmd", name + ".bat", name + ".com", name}
-}
-
-// isExecutable reports whether path is a regular file the user can run: the
-// executable bit on Unix, an executable extension on Windows. `platform` is the
-// same key `Look` was given, so a test can probe Windows on a Linux host; an
-// empty value falls back to the host (`runtime.GOOS`). The Windows branch reads
-// the same four extensions `inventory.isExecutable` does, so a plain `.txt` is
-// not a program. (`apps.isExecutableFile` stays Unix-only on purpose: it only
-// serves `.desktop` `TryExec=`, a Linux/macOS concept.)
-func isExecutable(platform, path string) bool {
-	info, err := os.Stat(path)
-	if err != nil || info.IsDir() {
-		return false
-	}
-	if platform == "" {
-		platform = runtime.GOOS
-	}
-	if platform == "windows" {
-		switch strings.ToLower(filepath.Ext(path)) {
-		case ".exe", ".cmd", ".bat", ".com":
-			return true
-		}
-		return false
-	}
-	return info.Mode()&0o111 != 0
 }
 
 // Matches reports whether a query's terms all appear in a tool's name, id,

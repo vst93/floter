@@ -19,6 +19,7 @@ import (
 
 	"github.com/egoist/mygo"
 
+	"floter/internal/progtype"
 	"floter/internal/xdg"
 )
 
@@ -472,27 +473,26 @@ func walk(root string, maxDepth int, visit func(path string, d fs.DirEntry, isDi
 // executableAvailable reports whether a `TryExec=` program can be run: an
 // absolute or relative path must name an executable file, a bare name must be
 // found in `PATH` (the original's `executable_available`).
+//
+// The judgement is `progtype.Host`, the same one the inventory's PATH probe and
+// the tool catalog use. Only the Unix half of it is ever reached in practice —
+// `TryExec=` is a `.desktop` key, and `Scan` only reads `.desktop` entries on
+// the non-Darwin, non-Windows branch — but the Windows half is
+// the extension strategy rather than the "always false" this probe used to
+// fall into, because a Windows caller asking about `foo.exe` should hear yes.
 func executableAvailable(program string) bool {
 	if strings.ContainsRune(program, os.PathSeparator) || strings.ContainsRune(program, '/') {
-		return isExecutableFile(program)
+		return progtype.Host(program)
 	}
 	for _, dir := range filepath.SplitList(os.Getenv("PATH")) {
 		if dir == "" {
 			dir = "."
 		}
-		if isExecutableFile(filepath.Join(dir, program)) {
+		if progtype.Host(filepath.Join(dir, program)) {
 			return true
 		}
 	}
 	return false
-}
-
-// isExecutableFile reports whether path is a regular file with any execute bit
-// set. The mode bits are emulated on Windows (files read as 0666), so a probe
-// there is permissive rather than wrong: it never hides an installed entry.
-func isExecutableFile(path string) bool {
-	info, err := os.Stat(path)
-	return err == nil && info.Mode().IsRegular() && info.Mode().Perm()&0o111 != 0
 }
 
 // desktopLocales is the locale ladder for a `.desktop` entry's localized

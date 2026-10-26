@@ -10,6 +10,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"floter/internal/progtype"
 )
 
 // Connecting a local tool: the flow behind "point floter at a program on this
@@ -247,7 +249,7 @@ func normalizeCustom(request CustomRequest) (CustomRequest, error) {
 		if request.ExecutablePath == "" {
 			return request, fmt.Errorf("%w: no program", ErrBadRequest)
 		}
-		if !isExecutableFile(request.ExecutablePath) {
+		if !progtype.HostLenient(request.ExecutablePath) {
 			return request, fmt.Errorf("%w: %s cannot be run", ErrBadRequest, request.ExecutablePath)
 		}
 		if request.Command == "" {

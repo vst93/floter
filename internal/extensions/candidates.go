@@ -2,6 +2,8 @@ package extensions
 
 import (
 	"path/filepath"
+
+	"floter/internal/progtype"
 )
 
 // ExecutableCandidate is one program the search path offers for a system
@@ -57,7 +59,7 @@ func lookToolsIn(dirs []string, names ...string) []ExecutableCandidate {
 				continue
 			}
 			path := filepath.Join(dir, name)
-			if !isExecutableFile(path) {
+			if !progtype.HostLenient(path) {
 				continue
 			}
 			key := path

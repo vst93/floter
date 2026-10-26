@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"floter/internal/progtype"
 )
 
 // The provider protocol operations and the argument that asks for a version.
@@ -48,7 +50,7 @@ func ResolveRuntime(integration Integration) (RuntimeBinding, error) {
 	switch manifest.Runtime.Type {
 	case "system":
 		if path := integration.Entry.ExecutablePath; path != "" {
-			if isExecutableFile(path) {
+			if progtype.HostLenient(path) {
 				return RuntimeBinding{Program: path}, nil
 			}
 			return RuntimeBinding{}, NewBindingFailure(BindingCodeMissing, BindingMissingDetail(path))

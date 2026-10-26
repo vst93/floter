@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"floter/internal/extensions"
+	"floter/internal/progtype"
 )
 
 // The tool inventory: every executable this machine offers from more than
@@ -138,8 +139,11 @@ type mergeFunc func(path, name, description string, source DiscoverySource, qual
 
 // executableFile is the discovery's one "is this a program" judgement, a var
 // so a test can drive a full walk over fixture files on a platform whose
-// executable bit means something else.
-var executableFile = isExecutable
+// executable bit means something else. The judgement itself is
+// `progtype.Host`, the host's extension-or-execute-bit rule, shared with the
+// PATH probes and the app scan (see that package for why Windows has two
+// strategies and this one is the extension strategy).
+var executableFile = progtype.Host
 
 // mergeInto is the one merge table: the same executable found by two sources is
 // one candidate carrying both sources, the better quality, and the first
@@ -231,23 +235,6 @@ func discoverExecutableDirectory(merge mergeFunc, directory string, source Disco
 		}
 		merge(path, entry.Name(), "", source, quality)
 	}
-}
-
-// isExecutable reports whether a path is a file the user could run: the
-// executable bit on Unix, an executable extension on Windows.
-func isExecutable(path string) bool {
-	info, err := os.Stat(path)
-	if err != nil || info.IsDir() {
-		return false
-	}
-	if runtime.GOOS == "windows" {
-		switch strings.ToLower(filepath.Ext(path)) {
-		case ".exe", ".cmd", ".bat", ".com":
-			return true
-		}
-		return false
-	}
-	return info.Mode()&0o111 != 0
 }
 
 // normalized is a path's identity: absolute, cleaned, and on Windows

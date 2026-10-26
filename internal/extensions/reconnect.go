@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"floter/internal/progtype"
 )
 
 // ErrNotSystemOwned is what a reconnect reports for an integration whose
@@ -63,7 +65,7 @@ func ReconnectAt(paths Paths, id, executablePath string) (ReconnectReport, error
 
 	var binding RuntimeBinding
 	if executablePath != "" {
-		if !isExecutableFile(executablePath) {
+		if !progtype.HostLenient(executablePath) {
 			return ReconnectReport{}, NewBindingFailure(BindingCodeMissing, BindingMissingDetail(executablePath))
 		}
 		binding = RuntimeBinding{Program: executablePath}
