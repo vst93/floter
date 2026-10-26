@@ -32,6 +32,14 @@
 // `executable_name` strips any extension with `file_stem`). Stripping exactly a
 // launcher suffix is ours, and it is the better rule — `foo.tar.gz` is not
 // renamed `foo.tar`.
+//
+// `apps` keeps the reference's `file_stem` rule on its two own surfaces
+// (`ShortcutTargetName` from `windows.rs:321-324`, `desktopFileStem` from
+// `linux.rs:434-440`), because there the stem is a searchable alias of a
+// program the user installed, spelled the way the installer spelled it. The
+// disagreement is pinned — names and all — in `apps.filestem_test.go`
+// (`TestTheTwoStemRulesDisagreeOnPurpose`), so a later merge of the two rules
+// goes red instead of silently renaming programs.
 package progname
 
 import (

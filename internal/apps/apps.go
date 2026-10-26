@@ -706,14 +706,12 @@ func desktopAliases(path, name, localized, genericName, keywords, startupWMClass
 }
 
 // desktopFileStem is a `.desktop` path's file name without its extension, the
-// stem the original fed to `identifier_aliases`.
-func desktopFileStem(path string) string {
-	base := filepath.Base(path)
-	if ext := filepath.Ext(base); ext != "" && len(ext) < len(base) {
-		return base[:len(base)-len(ext)]
-	}
-	return base
-}
+// stem the original fed to `identifier_aliases` (`file_stem`,
+// `linux.rs:434-440`). It drops *any* final extension through the same
+// `fileStem` `ShortcutTargetName` uses; it is not `progname.Stem`, which strips
+// only a launcher suffix (see the note there and the pins in
+// `filestem_test.go`).
+func desktopFileStem(path string) string { return fileStem(filepath.Base(path)) }
 
 // desktopFileID is a `.desktop` entry's id: its path below the applications
 // directory with the separators turned into dashes (`kde4/konsole.desktop` →

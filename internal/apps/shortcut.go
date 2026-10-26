@@ -195,14 +195,39 @@ func IsLaunchableTarget(target string) bool {
 
 // ShortcutTargetName is the program a target names, without its path or
 // extension: `C:\Program Files\WXWork\WXWork.exe` is WXWork — the reference's
-// `executable_name` (`windows.rs:353-357`).
+// `executable_name` (`windows.rs:321-324`), which is Rust's `file_stem` and so
+// drops *any* final extension, not just a launcher suffix.
+//
+// That is a different question from `progname.Stem`'s, which strips exactly
+// `.exe`/`.cmd`/`.bat`/`.com` and lowercases, because there the answer becomes a
+// connected program's command word (`report.tar.gz` must not turn into
+// `report.tar`). The two rules are pinned against each other — with the numbers
+// they disagree on — in `filestem_test.go`, so merging them goes red instead of
+// silently renaming programs.
+//
+// A name with no extension at all names nothing: `windows.rs:321` would hand
+// back the whole name, but every caller here has already passed a target through
+// `IsLaunchableTarget` or the registry's `.exe` test, so this stays empty.
 func ShortcutTargetName(target string) string {
 	base := shortcutBaseName(target)
-	ext := extensionOf(base)
-	if ext == "" || ext == base {
+	stem := fileStem(base)
+	if stem == base {
 		return ""
 	}
-	return strings.TrimSuffix(base, ext)
+	return stem
+}
+
+// fileStem is a path element without its final extension, and the element
+// itself when there is nothing to drop — Rust's `Path::file_stem`, which both
+// `ShortcutTargetName` (`windows.rs:321`) and `desktopFileStem`
+// (`linux.rs:434-440`) are built on. A leading dot is not an extension
+// separator, so `.desktop` keeps its name; a trailing dot is, so `app.` is
+// `app`; and only the last segment goes, so `report.tar.gz` is `report.tar`.
+func fileStem(base string) string {
+	if i := strings.LastIndexByte(base, '.'); i > 0 {
+		return base[:i]
+	}
+	return base
 }
 
 // shortcutBaseName is a Windows path's last element. Both separators are split
