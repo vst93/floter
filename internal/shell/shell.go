@@ -2680,8 +2680,32 @@ func (a *App) reviewRecommendedConnect(prepared extensions.Prepared) bool {
 }
 
 // connectDetected connects one of the discovered programs, with the words the
-// discovery already knows about it.
+// discovery already knows about it (see detectedToolRequest for the two
+// fallbacks that fill in what discovery left blank).
 func (a *App) connectDetected(tool settingsui.DetectedTool) {
+	a.connectLocalTool(detectedToolRequest(tool))
+}
+
+// detectedToolRequest is the connect request a discovered program makes: the
+// words discovery already knows about it, plus the two fallbacks that fill in
+// what it left blank. It is pure over the one row, so the fallbacks are pinned
+// directly rather than through a goroutine that writes a package.
+//
+// The name is discovery's own, trimmed: it is what the row showed, so a connect
+// must not rename it (`RG.EXE` stays `RG.EXE`). Only a name that is nothing but
+// whitespace falls back — to the executable's own word, lowercased and with the
+// launcher suffix gone, which is what the launcher and the detected row's own
+// search spelling already use (`progname.FromPath`). A `.desktop` whose
+// `Name=` is blank spaces is how a real machine reaches that branch: the app
+// scan keeps it (`apps.go` only drops the *empty* name), so the row arrives
+// here with a name nothing can be drawn from. The fallback is a floor, not a
+// validation: a row with neither name nor path still names nothing, and
+// `PrepareCustom` is what refuses it.
+//
+// The version probe defaults to `--version` only when discovery knew nothing
+// better; every candidate this build's inventory hands over leaves it blank, so
+// this is the live branch for every detected connect.
+func detectedToolRequest(tool settingsui.DetectedTool) settingsui.CustomTool {
 	name := strings.TrimSpace(tool.Name)
 	if name == "" {
 		name = progname.FromPath(tool.Path)
@@ -2690,7 +2714,7 @@ func (a *App) connectDetected(tool settingsui.DetectedTool) {
 	if versionArgs == "" {
 		versionArgs = "--version"
 	}
-	a.connectLocalTool(settingsui.CustomTool{
+	return settingsui.CustomTool{
 		Name:        name,
 		Program:     tool.Path,
 		Description: tool.Description,
@@ -2700,7 +2724,7 @@ func (a *App) connectDetected(tool settingsui.DetectedTool) {
 		// with `platformRequired` before anything is written (the reference's
 		// connect went through a backend that knew the platform).
 		Platforms: []string{settingsui.CurrentPlatform()},
-	})
+	}
 }
 
 // integrationFreshness reports what is known about one integration's command
