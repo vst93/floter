@@ -187,7 +187,17 @@ func (a *App) HandleURL(rawURL string) {
 		a.reveal()
 		return
 	}
-	switch strings.ToLower(parsed.Host) {
+	action := strings.ToLower(parsed.Host)
+	// The query has to be the shape the action's table describes before any
+	// branch reads a key out of it: a key the reference does not name is a
+	// refusal there (`Reject::UnknownParameter`, `deep_link.rs:491`), not a
+	// value to skip over (`linkparams.go`). Like the name rule below, the
+	// refusal comes before the page opens.
+	if !linkQueryFits(action, parsed.Query()) {
+		a.refuseLink()
+		return
+	}
+	switch action {
 	case "settings":
 		a.Open(SurfaceSettings)
 	case "terminal":
@@ -195,8 +205,9 @@ func (a *App) HandleURL(rawURL string) {
 	case "connect":
 		// A tool ships these links in its README: `connect` carries a manifest
 		// that is reviewed here, and connecting is still the user's own
-		// approval. A link with no manifest at all is refused before the page
-		// is touched (the old build's MissingManifest).
+		// approval. The table above already refused every key but `manifest`;
+		// a link with no manifest at all is refused before the page is touched
+		// (the old build's MissingManifest).
 		manifest := strings.TrimSpace(parsed.Query().Get("manifest"))
 		if manifest == "" {
 			a.refuseLink()
@@ -213,7 +224,9 @@ func (a *App) HandleURL(rawURL string) {
 		// (a path, a traversal, a shell string), which is the reference's
 		// `validate_command` (`bareCommandName`, linkname.go). Both refusals
 		// come before the page opens: a refused link is a sentence, not a
-		// trip to the integrations page.
+		// trip to the integrations page. The table above already refused every
+		// key but the three name spellings and the two it accepts without a
+		// reader (`linkparams.go`).
 		name, ok := bareCommandName(firstNonEmpty(parsed.Query().Get("cmd"),
 			parsed.Query().Get("tool"), parsed.Query().Get("program"),
 			strings.TrimPrefix(parsed.Path, "/")))
