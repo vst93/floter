@@ -47,6 +47,26 @@ Tauri + Rust + React 实现（见 `docs/archive/` 与 git 历史），那套代�
 `plugin-window-geometry.json` → 框架 `window-state.json`。迁移幂等（`migrated-from-old.json`
 即标记）、不覆盖已有数据、迁移前备份，返回 `MigrationReport` 供无头测试断言。
 
+## 轮次档案：spec 与报告进仓库，不进 /tmp
+
+每一轮的**规格**与**验收报告**是项目文档，不是临时产物。`/tmp` 会被清，攒在里面的决策等于丢掉。
+
+约定：
+
+| 文件 | 位置 | 内容 |
+|---|---|---|
+| 规格 | `docs/rounds/<轮号>-spec.md` | 动手前写：意图、逐条落地项（file:line）、零改动红线、门槛与基线数字、mutation 计划 |
+| 报告 | `docs/rounds/<轮号>-report.md` | 收尾写：V/B/S 台账、门槛实测数字、mutation 的原始报错串、仍待 |
+| 残骸 | `docs/rounds/<轮号>-orphan.diff` | 仅当一轮被打断、主线清树时留档 |
+
+- 一轮一个轮号（`P9-x`、`P9-y`…）；同一轮被打断后重派沿用轮号，用 `-retry` / `-orphan` 后缀区分，
+  别另起轮号把历史撕开。
+- 这些文件随本轮的 `git add -A && git commit` 一起进仓库。
+- **报告必须增量写**（每完成一步就落盘）——攒到最后一刻，一旦被打断，整轮的账就没了。
+- 下一轮开头读的是 `docs/rounds/` 里**最新那份 report**，不是 /tmp、也不是记忆。
+
+已归档：`P9-x`（含第一次被打断的 orphan diff 与两份 spec）、`P9-z`。
+
 ## 门槛（每次改动都要过）
 
 ```sh

@@ -1,0 +1,79 @@
+diff --git a/internal/inventory/inventory.go b/internal/inventory/inventory.go
+index eda4cd2..14e5739 100644
+--- a/internal/inventory/inventory.go
++++ b/internal/inventory/inventory.go
+@@ -10,6 +10,7 @@ import (
+ 	"time"
+ 
+ 	"floter/internal/extensions"
++	"floter/internal/progtype"
+ )
+ 
+ // The tool inventory: every executable this machine offers from more than
+@@ -233,23 +234,6 @@ func discoverExecutableDirectory(merge mergeFunc, directory string, source Disco
+ 	}
+ }
+ 
+-// isExecutable reports whether a path is a file the user could run: the
+-// executable bit on Unix, an executable extension on Windows.
+-func isExecutable(path string) bool {
+-	info, err := os.Stat(path)
+-	if err != nil || info.IsDir() {
+-		return false
+-	}
+-	if runtime.GOOS == "windows" {
+-		switch strings.ToLower(filepath.Ext(path)) {
+-		case ".exe", ".cmd", ".bat", ".com":
+-			return true
+-		}
+-		return false
+-	}
+-	return info.Mode()&0o111 != 0
+-}
+-
+ // normalized is a path's identity: absolute, cleaned, and on Windows
+ // lowercased (the filesystem is not case-sensitive there).
+ func normalized(path string) string {
+diff --git a/internal/inventory/sources.go b/internal/inventory/sources.go
+index 1a02fe7..8d99052 100644
+--- a/internal/inventory/sources.go
++++ b/internal/inventory/sources.go
+@@ -7,6 +7,7 @@ import (
+ 	"strings"
+ 
+ 	"floter/internal/extensions"
++	"floter/internal/progtype"
+ 	"floter/internal/xdg"
+ )
+ 
+@@ -438,7 +439,7 @@ func LookPath(name string) (string, bool) {
+ 			continue
+ 		}
+ 		candidate := filepath.Join(directory, name)
+-		if isExecutable(candidate) {
++		if progtype.IsExecutable(candidate) {
+ 			return candidate, true
+ 		}
+ 	}
+diff --git a/internal/tools/catalog.go b/internal/tools/catalog.go
+index 211636c..802d5db 100644
+--- a/internal/tools/catalog.go
++++ b/internal/tools/catalog.go
+@@ -302,7 +302,7 @@ func Probe(entry Entry, dirs []string, platform string) string {
+ 				if dir == "" {
+ 					continue
+ 				}
+-				if isExecutable(platform, filepath.Join(dir, candidate)) {
++				if progtype.IsExecutableFor(platform, filepath.Join(dir, candidate)) {
+ 					return candidate
+ 				}
+ 			}
+@@ -328,7 +328,7 @@ func managerPresent(manager Manager, dirs []string, platform string) bool {
+ 	for _, name := range manager.Candidates {
+ 		for _, candidate := range candidateNames(platform, name) {
+ 			for _, dir := range dirs {
+-				if dir != "" && isExecutable(platform, filepath.Join(dir, candidate)) {
++				if dir != "" && progtype.IsExecutableFor(platform, filepath.Join(dir, candidate)) {
+ 					return true
+ 				}
+ 			}
