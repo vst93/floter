@@ -182,6 +182,15 @@ func readUint32(data []byte, offset uint64) uint32 {
 // drops exactly those: a target must be a program this system can start
 // (`.exe`/`.bat`/`.cmd`), and its name must not read `uninst`/`unins`
 // (`windows.rs:539-549`).
+//
+// The port is faithful to that rule except in two places it decided otherwise,
+// and both are pinned in `startmenufilter_test.go` rather than left to be
+// rediscovered: a trailing space is trimmed off the name before the extension
+// is read (the reference asks `ends_with` of the whole string, and a
+// `LinkInfo` base path may carry one), and a target that is *only* an extension
+// (`.exe`) names nothing here (Rust's `file_stem(".exe")` is `.exe`, so the
+// reference answers true). Neither is reachable; the answers are recorded so a
+// later "match the reference exactly" pass changes a decision, not a mystery.
 func IsLaunchableTarget(target string) bool {
 	name := shortcutBaseName(target)
 	switch strings.ToLower(extensionOf(name)) {
