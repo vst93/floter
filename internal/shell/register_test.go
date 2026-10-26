@@ -41,10 +41,41 @@ func TestTheRegisterLinkSaysWhenNoToolMatches(t *testing.T) {
 	}
 }
 
-// A link that names a program this machine has connects it through the same
+// stubLookTool replaces the register link's name probe for a test, and returns
+// through t.Cleanup. The probe is a variable for exactly this (`lookTool`,
+// system.go) — the seam `internal/extensions` keeps for its own lookups
+// (`runtimepath.go:70-76`): the real one reads the machine's search path, and
+// `extensions.SearchPath` is computed once per process (`runtimepath.go:33-53`),
+// so a test cannot choose it.
+func stubLookTool(t *testing.T, lookup func(names ...string) (string, bool)) {
+	t.Helper()
+	previous := lookTool
+	lookTool = lookup
+	t.Cleanup(func() { lookTool = previous })
+}
+
+// stubOneTool answers the one name with the one path, and nothing else.
+func stubOneTool(t *testing.T, name, path string) {
+	t.Helper()
+	stubLookTool(t, func(names ...string) (string, bool) {
+		for _, asked := range names {
+			if asked == name {
+				return path, true
+			}
+		}
+		return "", false
+	})
+}
+
+// A link that names a program the probe finds connects it through the same
 // one-press flow the Detected row uses, and the resulting card wears the
 // link's mark: the reference drew the dot only on the named row
 // (`src/extensions/ExtensionRow.tsx:196-205,290`).
+//
+// The link carries a **name**, not a path: the router refuses anything that is
+// not a bare command name (`bareCommandName`, linkname.go), so the fixture is
+// what the name probe answers with — the reference's register resolves through
+// the discovery inventory the same way (`deep_link.rs:1136-1180`).
 func TestTheRegisterLinkMarksTheProgramItNamed(t *testing.T) {
 	requirePOSIXShell(t)
 	a := New(Options{
@@ -58,7 +89,8 @@ func TestTheRegisterLinkMarksTheProgramItNamed(t *testing.T) {
 	if err := os.WriteFile(path, []byte("#!/bin/sh\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	a.registerFromLink(path)
+	stubOneTool(t, "rg", path)
+	a.registerFromLink("rg")
 
 	if a.registerTarget != path {
 		t.Fatalf("registerTarget = %q, want %q", a.registerTarget, path)
@@ -88,8 +120,8 @@ func TestTheRegisterLinkMarksTheProgramItNamed(t *testing.T) {
 	// Registering the same program again is not a second connect: the
 	// reference said "already connected" rather than "not found"
 	// (`src/ExtensionsPanel.tsx:1516-1524`).
-	a.registerFromLink(path)
-	want := i18n.For("en").Settings.RegisterAlreadyConnected(path)
+	a.registerFromLink("rg")
+	want := i18n.For("en").Settings.RegisterAlreadyConnected("rg")
 	if got := pendingNoticeText(a); got != want {
 		t.Errorf("the second link reads %q, want %q", got, want)
 	}
@@ -107,7 +139,8 @@ func TestTheRegisterMarkIsAMoment(t *testing.T) {
 	if err := os.WriteFile(path, []byte("#!/bin/sh\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	a.registerFromLink(path)
+	stubOneTool(t, "rg", path)
+	a.registerFromLink("rg")
 	if a.registerTarget != path {
 		t.Fatalf("registerTarget = %q, want %q", a.registerTarget, path)
 	}
@@ -156,5 +189,31 @@ func TestSameExecutableResolvesSymlinks(t *testing.T) {
 		if got := sameExecutable(tc.left, tc.right); got != tc.want {
 			t.Errorf("sameExecutable(%q, %q) = %v, want %v", tc.left, tc.right, got, tc.want)
 		}
+	}
+}
+
+// The router is the gate, and there is no second door behind it: a caller that
+// hands registerFromLink a path gets "not found", never a connect. The
+// reference has no path branch at all — `validate_command` refuses one before
+// the resolver runs (`deep_link.rs:364-390`) — while this build used to take an
+// absolute path as it was, with no question about whether it was a program
+// (`system.go:252-260`), so `floter://register?cmd=C:\notes.txt` connected a
+// text file. The branch is gone; this pin is what keeps it gone.
+func TestTheRegisterLinkDoesNotTakeAPath(t *testing.T) {
+	a := newApp(t)
+	stubOneTool(t, "rg", filepath.Join(t.TempDir(), "rg"))
+
+	path := filepath.Join(t.TempDir(), "notes.txt")
+	if err := os.WriteFile(path, []byte("notes\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	a.registerFromLink(path)
+
+	if a.registerTarget != "" {
+		t.Errorf("a path was marked as a register target: %q", a.registerTarget)
+	}
+	want := i18n.For("en").Settings.RegisterNotFound(path)
+	if got := pendingNoticeText(a); got != want {
+		t.Errorf("a path reads %q, want %q", got, want)
 	}
 }

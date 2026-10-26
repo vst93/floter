@@ -209,10 +209,15 @@ func (a *App) HandleURL(rawURL string) {
 		// The register form names the program: `cmd`, `tool` or `program`
 		// (the old build's three spellings), or a positional path. A name is
 		// what the link is for; one with none is refused like a connect with
-		// no manifest.
-		name := firstNonEmpty(parsed.Query().Get("cmd"), parsed.Query().Get("tool"),
-			parsed.Query().Get("program"), strings.TrimPrefix(parsed.Path, "/"))
-		if name == "" {
+		// no manifest — and so is a value that is not a bare command name
+		// (a path, a traversal, a shell string), which is the reference's
+		// `validate_command` (`bareCommandName`, linkname.go). Both refusals
+		// come before the page opens: a refused link is a sentence, not a
+		// trip to the integrations page.
+		name, ok := bareCommandName(firstNonEmpty(parsed.Query().Get("cmd"),
+			parsed.Query().Get("tool"), parsed.Query().Get("program"),
+			strings.TrimPrefix(parsed.Path, "/")))
+		if !ok {
 			a.refuseLink()
 			return
 		}
@@ -239,9 +244,17 @@ func (a *App) HandleURL(rawURL string) {
 // it marks appears only after the connect lands, which runs off this thread.
 const registerHighlightWindow = 5 * time.Second
 
-// registerFromLink handles the program a `floter://register` link named: a
-// name is resolved on the search path, and an absolute path is taken as it
-// is. The reference's register link does **not** connect anything by itself —
+// lookTool is the register link's name probe, a variable so a test can resolve
+// against a fixture instead of depending on the machine having the package's
+// tool installed. It is the same seam `internal/extensions` keeps for its own
+// lookups (`runtimepath.go:70-76`).
+var lookTool = extensions.LookTool
+
+// registerFromLink handles the program a `floter://register` link named: the
+// name is resolved on the search path, and that is the only way in — the router
+// has already refused anything that is not a bare command name
+// (`bareCommandName`, linkname.go), so this function never sees a path. The
+// reference's register link does **not** connect anything by itself —
 // it marks the row the link named so the user still makes the connect
 // decision (`src/ExtensionsPanel.tsx:1500-1548`). This build connects through
 // the same one-press flow the Detected row uses, and marks the card that
@@ -249,14 +262,10 @@ const registerHighlightWindow = 5 * time.Second
 // resolve, leaves the list alone and says which it was instead of connecting
 // a second copy or half a package.
 func (a *App) registerFromLink(name string) {
-	path := name
-	if !filepath.IsAbs(path) {
-		resolved, ok := extensions.LookTool(name)
-		if !ok {
-			a.registerNotice(func(c i18n.Settings) string { return c.RegisterNotFound(name) })
-			return
-		}
-		path = resolved
+	path, ok := lookTool(name)
+	if !ok {
+		a.registerNotice(func(c i18n.Settings) string { return c.RegisterNotFound(name) })
+		return
 	}
 	// A tool that is already connected has no unconnected card to mark, and
 	// saying "not found" would be false, so the two outcomes get two
