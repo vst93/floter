@@ -41,9 +41,9 @@ func TestLinkQueryFits(t *testing.T) {
 
 		// register: three name spellings share one slot; args and confirm are
 		// accepted without a reader.
-		{"register", "cmd=rg", true, "the documented spelling"},
-		{"register", "tool=rg", true, "the old build's second spelling"},
-		{"register", "program=rg", true, "the old build's third spelling"},
+		{"register", "cmd=rg", true, "the documented spelling; the reference's only one"},
+		{"register", "tool=rg", true, "this build's alias; the reference refuses it (UnknownParameter)"},
+		{"register", "program=rg", true, "this build's alias; the reference refuses it (UnknownParameter)"},
 		{"register", "cmd=rg&args=src", true, "args is in the table (README:97-104)"},
 		{"register", "cmd=rg&confirm=1", true, "confirm is in the table (deep_link.rs:487)"},
 		{"register", "confirm=1&confirm=1", true, "a flag carries no value, so a repeat is inert"},

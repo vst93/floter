@@ -44,7 +44,9 @@ var linkParamSlots = map[string]map[string]string{
 		"manifest": "manifest",
 	},
 	"register": {
-		// One name, three spellings (`system.go`), one slot.
+		// One name, three query spellings, one slot. Only `cmd` is the
+		// reference's (`deep_link.rs:472`); `tool` and `program` are this
+		// build's aliases, pinned in `registername_test.go`.
 		"cmd":     "name",
 		"tool":    "name",
 		"program": "name",

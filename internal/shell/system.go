@@ -219,16 +219,19 @@ func (a *App) HandleURL(rawURL string) {
 		a.Settings.Page = settingsui.PageIntegrations
 		a.connectFromLink(manifest)
 	case "register":
-		// The register form names the program: `cmd`, `tool` or `program`
-		// (the old build's three spellings), or a positional path. A name is
-		// what the link is for; one with none is refused like a connect with
-		// no manifest — and so is a value that is not a bare command name
-		// (a path, a traversal, a shell string), which is the reference's
+		// The register form names the program: `cmd` is the reference's only
+		// spelling (`deep_link.rs:472`); `tool`, `program` and a positional
+		// path are this build's aliases, which the reference refuses
+		// (`UnknownParameter` / `UnknownParameter` / `MissingCommand`). They
+		// are pinned, not accidental (`registername_test.go`). A name is what
+		// the link is for; one with none is refused like a connect with no
+		// manifest — and so is a value that is not a bare command name (a
+		// path, a traversal, a shell string), which is the reference's
 		// `validate_command` (`bareCommandName`, linkname.go). Both refusals
-		// come before the page opens: a refused link is a sentence, not a
-		// trip to the integrations page. The table above already refused every
-		// key but the three name spellings and the two it accepts without a
-		// reader (`linkparams.go`).
+		// come before the page opens: a refused link is a sentence, not a trip
+		// to the integrations page. The table above already refused every key
+		// but the three name spellings and the two it accepts without a reader
+		// (`linkparams.go`).
 		name, ok := bareCommandName(firstNonEmpty(parsed.Query().Get("cmd"),
 			parsed.Query().Get("tool"), parsed.Query().Get("program"),
 			strings.TrimPrefix(parsed.Path, "/")))

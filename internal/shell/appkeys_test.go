@@ -220,10 +220,12 @@ func TestPlacementOnlyOnAFreshReveal(t *testing.T) {
 	}
 }
 
-// A `floter://register` link names a program the machine already has; the
-// three spellings the old build accepted all reach it, and a name nothing can
-// resolve is refused rather than half-connected. The link is the discovery →
-// connect loop's own door.
+// A `floter://register` link names a program the machine already has; the four
+// spellings this build accepts all reach it. `cmd` is the reference's only one;
+// `tool`, `program` and the positional path are this build's aliases, refused
+// there (pinned in registername_test.go). A name nothing can resolve is refused
+// rather than half-connected. The link is the discovery → connect loop's own
+// door.
 func TestRegisterDeepLinkNamesAProgram(t *testing.T) {
 	for _, raw := range []string{
 		"floter://register?cmd=rg",
