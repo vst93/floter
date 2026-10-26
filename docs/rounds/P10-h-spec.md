@@ -102,6 +102,10 @@ GOOS=linux|windows|darwin go build ./...               # 实测：过
 
 本轮目标：PASS 2091 → **2095**（+4），函数 1701 → **1705**（+4），SKIP 15 不变，FAIL 0。
 
+> 落地后实际是 **+5**：写规格时把「命令行归一化永不产生表外键」
+> （`TestTheCommandLineNeverSpellsAnUnknownParameter`）漏算了，它也值得一条独立 pin。
+> 实测 2096 / 1706，见报告 §6。
+
 ## mutation 计划（≥2，每条说明会让哪个 pin 变红）
 
 1. **删掉闸门**：把 `linkQueryFits` 改成 `return true`。预期
