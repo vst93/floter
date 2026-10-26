@@ -1,6 +1,7 @@
 package apps
 
 import (
+	"path/filepath"
 	"testing"
 
 	"floter/internal/progname"
@@ -94,5 +95,59 @@ func TestTheTwoStemRulesDisagreeOnPurpose(t *testing.T) {
 	}
 	if got := progname.Stem("WXWork.exe"); got != "wxwork" {
 		t.Errorf("progname.Stem(WXWork.exe) = %q, want wxwork (a command word is lowercase)", got)
+	}
+}
+
+// The three faces of one file name, pinned against each other. P10-a pinned two
+// of them (`fileStem` vs `progname.Stem`); the third — the alias a `.desktop`'s
+// `Exec=` value contributes, `executableName` (`apps.go:732`, Rust's
+// `executable_name` at `linux.rs:458-466`, i.e. `file_name`) — strips nothing,
+// and it is what the launcher's search actually matches on. So one installed
+// program has three answers:
+//
+//	alias face    `/c/bin/RG.EXE` → `RG.EXE`   (strips nothing, keeps case)
+//	stem face     `/c/bin/RG.EXE` → `RG`       (any extension, keeps case)
+//	command face  `/c/bin/RG.EXE` → `rg`       (a launcher suffix, lowercased)
+//
+// The command face is the narrow one on purpose: `extensions.validCustomCommand`
+// (`customvalidate.go:118`) accepts lowercase letters, digits, `-` and `_` only,
+// so the stem face's `RG` is not a command word at all. Merging any two of these
+// three renames something the user can see — a search alias, or the word that
+// summons a connected tool — so this test names the names they disagree on.
+func TestTheThreeNameFacesDisagreeOnPurpose(t *testing.T) {
+	cases := []struct {
+		path string
+		// alias is what `executableName` (the `Exec=`/`TryExec=` face) hands
+		// back; stem is `fileStem`; cmd is `progname.FromPath`.
+		alias, stem, cmd string
+	}{
+		{"/c/bin/RG.EXE", "RG.EXE", "RG", "rg"},
+		{"/c/bin/rg.exe", "rg.exe", "rg", "rg"},
+		{"/c/bin/rg.exe.txt", "rg.exe.txt", "rg.exe", "rg.exe.txt"},
+		{"/opt/report.tar.gz", "report.tar.gz", "report.tar", "report.tar.gz"},
+		{"/usr/bin/foo", "foo", "foo", "foo"},
+	}
+	for _, tc := range cases {
+		if got := executableName([]string{tc.path, "%U"}); got != tc.alias {
+			t.Errorf("alias face of %q = %q, want %q (strips nothing)", tc.path, got, tc.alias)
+		}
+		if got := fileStem(filepath.Base(tc.path)); got != tc.stem {
+			t.Errorf("stem face of %q = %q, want %q (any extension)", tc.path, got, tc.stem)
+		}
+		if got := progname.FromPath(tc.path); got != tc.cmd {
+			t.Errorf("command face of %q = %q, want %q (a launcher suffix, lowercased)", tc.path, got, tc.cmd)
+		}
+	}
+	// The consequences, not just the spellings: the alias face never loses a
+	// character, the stem face loses exactly one dot segment, and only the
+	// command face is lowercase — which is what makes it a legal command word.
+	if got, want := executableName([]string{"/c/bin/RG.EXE"}), "RG.EXE"; got != want {
+		t.Fatalf("alias face = %q, want %q", got, want)
+	}
+	if got := fileStem("RG.EXE"); got != "RG" {
+		t.Fatalf("stem face = %q, want RG (case kept, extension gone)", got)
+	}
+	if got := progname.FromPath("/c/bin/RG.EXE"); got != "rg" {
+		t.Fatalf("command face = %q, want rg (lowercased)", got)
 	}
 }
