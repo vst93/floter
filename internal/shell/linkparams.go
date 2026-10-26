@@ -53,6 +53,12 @@ var linkParamSlots = map[string]map[string]string{
 		"args":    "args",
 		"confirm": "",
 	},
+	// The reference's `open` takes no parameters whatsoever (`deep_link.rs:
+	// 467-500`): every query key triggers `Reject::UnknownParameter`. This row
+	// captures that divergence from this build's `search?q=…` feature; the
+	// refusal would be an interaction change (see P10-l spec), so it is pinned
+	// rather than applied.
+	"open": {},
 }
 
 // linkQueryFits reports whether a link's query is the shape its action's table

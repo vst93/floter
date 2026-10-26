@@ -202,6 +202,15 @@ func (a *App) HandleURL(rawURL string) {
 		a.Open(SurfaceSettings)
 	case "terminal":
 		a.Open(SurfaceTerminal)
+	case "open":
+		// The reference's `open` does nothing but route: focus or summon the
+		// main window (`deep_link.rs:12`). It takes **no** parameters;
+		// any query key triggers `UnknownParameter` (`parse_url`, `:492`).
+		// This build's `search?q=…` feature would be broken by applying that
+		// rule, so the divergence is pinned rather than applied (see P10-l
+		// spec). The handler here is a no-op stub: bring the window forward
+		// without switching surface or prefilling.
+		a.Open(SurfaceLauncher)
 	case "connect":
 		// A tool ships these links in its README: `connect` carries a manifest
 		// that is reviewed here, and connecting is still the user's own

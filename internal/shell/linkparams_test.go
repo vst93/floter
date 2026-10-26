@@ -60,7 +60,11 @@ func TestLinkQueryFits(t *testing.T) {
 		{"terminal", "foo=1", true, "this build's own host"},
 		{"search", "q=x", true, "this build's documented prefill"},
 		{"", "q=x", true, "floter://?q=x, the bare launcher"},
-		{"open", "q=x", true, "open is ours; the reference's open takes nothing"},
+		// The reference's `open` takes nothing; this build pins the divergence
+		// rather than applying it (P10-l spec). So the table rejects any key.
+		{"open", "", true, "the reference also accepts empty query"},
+		{"open", "q=x", false, "the reference's open refuses all keys"},
+		{"open", "query=x", false, "every key is refused by the reference"},
 	}
 	for _, tc := range cases {
 		if got := linkQueryFits(tc.action, query(t, tc.query)); got != tc.want {
@@ -208,6 +212,52 @@ func TestALinkTakesOneValuePerSlot(t *testing.T) {
 		}
 		if got, want := pendingNoticeText(a), i18n.For("en").Settings.RegisterNotFound(name); got != want {
 			t.Errorf("%s reads %q, want the miss %q", link, got, want)
+		}
+	}
+}
+
+// The reference's `open` action takes no parameters (`deep_link.rs:467-500`):
+// every query key triggers `Reject::UnknownParameter`. This build pins the
+// divergence rather than applying it (P10-l spec), because doing so would break
+// the documented `search?q=…` feature. The pin here says: the table rejects any
+// key; HandleURL brings the window forward without switching surfaces or filling
+// queries.
+func TestTheOpenActionAcceptsNothing(t *testing.T) {
+	want := i18n.For("en").Settings.DeepLinkRejected
+
+	// Accepted: empty query.
+	{
+		a := newApp(t)
+		initialSurface := a.Surf
+		a.HandleURL("floter://open")
+		// The handler opens the launcher surface to summon the window;
+		// anything else would be an interaction change not approved in P10-l.
+		if a.Surf != SurfaceLauncher {
+			t.Errorf("floter://open opened %v, want SurfaceLauncher", a.Surf)
+		}
+		// Verify that the launcher sees the open event but does nothing else.
+		// (No prefill, no surface switch, no navigation.)
+		_ = initialSurface
+	}
+
+	// Rejected: any query key makes the whole link refuse.
+	for _, link := range []string{
+		"floter://open?q=x",
+		"floter://open?query=y",
+		"floter://open?q=search&foo=bar",
+	} {
+		a := newApp(t)
+		surface := a.Surf
+		page := a.Settings.Page
+		a.HandleURL(link)
+		if a.Surf != surface {
+			t.Errorf("%s switched surface to %v", link, a.Surf)
+		}
+		if a.Settings.Page != page {
+			t.Errorf("%s changed page to %v", link, a.Settings.Page)
+		}
+		if got := pendingNoticeText(a); got != want {
+			t.Errorf("%s reads %q, want %q", link, got, want)
 		}
 	}
 }
