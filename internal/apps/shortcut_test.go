@@ -145,6 +145,11 @@ func TestUninstallersAreNotRows(t *testing.T) {
 		{`C:\Program Files\App\app.EXE`, true},
 		{`C:\app\run.bat`, true},
 		{`C:\app\run.cmd`, true},
+		// The launchable set is deliberately narrower than `progname`'s four:
+		// the reference drops `.com` here too (`windows.rs:539-549`), because a
+		// `.com` shortcut in the Start Menu is a leftover DOS entry. The four
+		// suffixes themselves are one table; this filter is not that table.
+		{`C:\app\legacy.com`, false},
 		{`C:\Program Files\App\unins000.exe`, false},
 		{`C:\Program Files\App\Uninstall.exe`, false},
 		{`C:\Program Files\App\uninst.exe`, false},

@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"floter/internal/progname"
 )
 
 // The curated allow-list: the one hand-authored input to discovery's
@@ -54,16 +56,10 @@ var curated = func() map[string]bool {
 // CuratedStem lowercases a name and strips a Windows launcher suffix, so
 // `rg.exe`, `rg.cmd` and `rg` all compare equal against the list. The one
 // spelling rule: the ranking and every caller normalize through it, so a
-// name cannot be curated under one spelling and not another.
-func CuratedStem(name string) string {
-	name = strings.ToLower(strings.TrimSpace(name))
-	for _, suffix := range []string{".exe", ".cmd", ".bat", ".com"} {
-		if trimmed, ok := strings.CutSuffix(name, suffix); ok {
-			return trimmed
-		}
-	}
-	return name
-}
+// name cannot be curated under one spelling and not another. The rule itself
+// is `progname.Stem` — the same four-suffix table the program test and the
+// probe ladder read.
+func CuratedStem(name string) string { return progname.Stem(name) }
 
 // IsCurated reports whether a name is on the list.
 func IsCurated(name string) bool { return curated[CuratedStem(name)] }

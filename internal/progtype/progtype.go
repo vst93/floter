@@ -24,14 +24,10 @@ package progtype
 
 import (
 	"os"
-	"path/filepath"
 	"runtime"
-	"strings"
-)
 
-// windowsProgramExtensions are the four names Windows itself treats as a
-// program. Kept in one place so the two extension-aware callers cannot drift.
-var windowsProgramExtensions = []string{".exe", ".cmd", ".bat", ".com"}
+	"floter/internal/progname"
+)
 
 // Host reports whether path is a program on the machine running floter: the
 // host's own rule, which on Windows is the extension strategy. It is
@@ -98,18 +94,14 @@ func unixProgram(path string) bool {
 	return info.Mode().IsRegular() && info.Mode().Perm()&0o111 != 0
 }
 
-// windowsProgram is the extension strategy.
+// windowsProgram is the extension strategy. The four suffixes themselves live
+// in `progname`, which also generates the probe ladder and strips the suffix
+// back off: one table, three directions.
 func windowsProgram(path string) bool {
 	if _, ok := file(path); !ok {
 		return false
 	}
-	extension := strings.ToLower(filepath.Ext(path))
-	for _, known := range windowsProgramExtensions {
-		if extension == known {
-			return true
-		}
-	}
-	return false
+	return progname.IsLauncher(path)
 }
 
 // windowsFile is the permissive strategy: any file will do.

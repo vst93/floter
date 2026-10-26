@@ -14,6 +14,7 @@ import (
 	"runtime"
 	"strings"
 
+	"floter/internal/progname"
 	"floter/internal/progtype"
 )
 
@@ -360,14 +361,12 @@ func ChosenRecipe(entry Entry, platform string, detected []string) (Recipe, bool
 // program is named with its extension. `platform` is the same key `Look` was
 // given — reading it (not `runtime.GOOS`) is what lets a Linux host pin the
 // Windows ladder; an empty value falls back to the host.
+//
+// The ladder itself is `progname.Ladder`: the four launcher suffixes are one
+// table shared with the rule that decides a file is a program and the rule
+// that strips the suffix back off a program's name.
 func candidateNames(platform, name string) []string {
-	if platform == "" {
-		platform = runtime.GOOS
-	}
-	if platform != "windows" {
-		return []string{name}
-	}
-	return []string{name + ".exe", name + ".cmd", name + ".bat", name + ".com", name}
+	return progname.Ladder(platform, name)
 }
 
 // Matches reports whether a query's terms all appear in a tool's name, id,

@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"floter/internal/progname"
 	"floter/internal/progtype"
 )
 
@@ -253,7 +254,7 @@ func normalizeCustom(request CustomRequest) (CustomRequest, error) {
 			return request, fmt.Errorf("%w: %s cannot be run", ErrBadRequest, request.ExecutablePath)
 		}
 		if request.Command == "" {
-			request.Command = strings.ToLower(executableCommand(request.ExecutablePath))
+			request.Command = progname.FromPath(request.ExecutablePath)
 		}
 	case "script":
 		if request.ScriptLanguage == "" {
@@ -292,18 +293,6 @@ func normalizeCustom(request CustomRequest) (CustomRequest, error) {
 		return request, err
 	}
 	return request, nil
-}
-
-// executableCommand is the word a program's own file name gives: `rg` from
-// `/usr/bin/rg`, with a Windows launcher suffix dropped.
-func executableCommand(path string) string {
-	name := filepath.Base(path)
-	for _, suffix := range []string{".exe", ".cmd", ".bat", ".com"} {
-		if trimmed, ok := strings.CutSuffix(strings.ToLower(name), suffix); ok {
-			return trimmed
-		}
-	}
-	return name
 }
 
 // reserveCustomPackage mints an id and creates its package directory. The
@@ -414,7 +403,7 @@ func customDescription(request CustomRequest) string {
 // customManifest builds the manifest the host writes for a connected tool.
 func customManifest(id string, request CustomRequest) Manifest {
 	description := customDescription(request)
-	runtime := Runtime{Type: "system", ExecutableNames: []string{executableCommand(request.ExecutablePath)}}
+	runtime := Runtime{Type: "system", ExecutableNames: []string{progname.FromPath(request.ExecutablePath)}}
 	if request.Mode == "script" {
 		runtime = Runtime{
 			Type:        "script",

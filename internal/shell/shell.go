@@ -42,6 +42,7 @@ import (
 	"floter/internal/i18n"
 	"floter/internal/inventory"
 	"floter/internal/launcher"
+	"floter/internal/progname"
 	"floter/internal/scriptlang"
 	"floter/internal/settings"
 	"floter/internal/settingsui"
@@ -2553,7 +2554,7 @@ const maxDetectedTools = 12
 // tool. The recipe is chosen by a manager the machine actually has, exactly as
 // the launcher's install rows do.
 func detectedInstallCommand(candidate inventory.Candidate, platform string, managers []string) string {
-	name := strings.ToLower(executableName(candidate.Path))
+	name := progname.FromPath(candidate.Path)
 	for _, entry := range tools.Catalog {
 		for _, probe := range entry.Probes {
 			if strings.ToLower(probe) != name {
@@ -2683,7 +2684,7 @@ func (a *App) reviewRecommendedConnect(prepared extensions.Prepared) bool {
 func (a *App) connectDetected(tool settingsui.DetectedTool) {
 	name := strings.TrimSpace(tool.Name)
 	if name == "" {
-		name = executableName(tool.Path)
+		name = progname.FromPath(tool.Path)
 	}
 	versionArgs := tool.VersionArgs
 	if versionArgs == "" {
@@ -2700,17 +2701,6 @@ func (a *App) connectDetected(tool settingsui.DetectedTool) {
 		// connect went through a backend that knew the platform).
 		Platforms: []string{settingsui.CurrentPlatform()},
 	})
-}
-
-// executableName is a program's own file name without its launcher suffix.
-func executableName(path string) string {
-	name := filepath.Base(path)
-	for _, suffix := range []string{".exe", ".cmd", ".bat", ".com"} {
-		if trimmed, ok := strings.CutSuffix(strings.ToLower(name), suffix); ok {
-			return trimmed
-		}
-	}
-	return name
 }
 
 // integrationFreshness reports what is known about one integration's command
