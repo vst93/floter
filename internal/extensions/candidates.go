@@ -56,6 +56,11 @@ func StubToolCandidates(lookup func(names ...string) []ExecutableCandidate) func
 // the reason spelled out on `lookToolIn`: a name is a probe, and on Windows the
 // program a bare `rg` asks for is `rg.exe`.
 //
+// The judgement is `progtype.For`, the same extension strategy the lookup uses
+// and the same one every other name probe in this build uses. A chooser row is
+// the worst place for a permissive "yes": the user is being asked to pick a
+// program, and a file Windows cannot run is not one.
+//
 // `Name` is the file name that was found (`rg.exe`), not the name that was
 // asked for (`rg`), because that is what the candidate *is*: the reference's
 // PATH discovery names a candidate `path.file_name()`
@@ -74,7 +79,7 @@ func lookToolsIn(platform string, dirs []string, names ...string) []ExecutableCa
 			}
 			for _, probe := range progname.Ladder(platform, name) {
 				path := filepath.Join(dir, probe)
-				if !progtype.ForLenient(platform, path) {
+				if !progtype.For(platform, path) {
 					continue
 				}
 				key := path

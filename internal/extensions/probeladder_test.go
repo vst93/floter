@@ -18,7 +18,7 @@ import (
 // 额外接受四个启动器拼写）。本轮把 `extensions` 的两条也接上同一个梯子。
 //
 // 这些用例用 `platform` 参数而不是 `runtime.GOOS`，所以 Linux 的 CI 也能钉住 Windows 的
-// 答案（`progtype.ForLenient("windows", …)` 只问「存在且不是目录」，与宿主无关）。
+// 答案（`progtype.For("windows", …)` 只按扩展名判，与宿主无关）。
 
 // writeProbeFixture writes a file the way an installer would leave a program:
 // present, not a directory. On Windows the name is the whole story; on Unix the
@@ -75,11 +75,13 @@ func TestTheInterpreterNamesResolveThroughTheLadder(t *testing.T) {
 }
 
 // TestTheLadderOrderIsTheSuffixOrderThenTheBareName pins which spelling wins
-// when a directory holds several: `.exe` first, then `.cmd`, `.bat`, `.com`, and
-// the bare name last. Each case removes the winner, so the order is measured
-// rather than asserted once.
+// when a directory holds several: `.exe` first, then `.cmd`, `.bat`, `.com`.
+// Each case removes the winner, so the order is measured rather than asserted
+// once. The ladder's last rung is the bare name; P10-f moved that rung out of
+// this loop because on Windows it is table shape, not an answer — see the bare
+// name block below.
 func TestTheLadderOrderIsTheSuffixOrderThenTheBareName(t *testing.T) {
-	order := []string{"tool.exe", "tool.cmd", "tool.bat", "tool.com", "tool"}
+	order := []string{"tool.exe", "tool.cmd", "tool.bat", "tool.com"}
 	for start := range order {
 		dir := t.TempDir()
 		for _, name := range order[start:] {
@@ -90,6 +92,24 @@ func TestTheLadderOrderIsTheSuffixOrderThenTheBareName(t *testing.T) {
 		if !ok || found != want {
 			t.Errorf("with %v present, lookToolIn(\"tool\") = %q, %v; want %q", order[start:], found, ok, want)
 		}
+	}
+	// P10-f 重定判据：旧断言「只剩裸名时仍解析」→ 新断言「裸名是梯子最后一格，但 Windows
+	// 判据拒绝一个无扩展名的文件」。The rung is still generated (`progname.Ladder`
+	// appends it, and on Unix it is the only rung), yet on Windows a file with no
+	// launcher suffix is not a program — the reference's PATH discovery only ever
+	// yields entries its extension strategy accepts (inventory.rs:439, :1088), and
+	// every other name probe in this build asks `progtype.For` the same way.
+	bare := t.TempDir()
+	writeProbeFixture(t, filepath.Join(bare, "tool"))
+	if ladder := progname.Ladder("windows", "tool"); ladder[len(ladder)-1] != "tool" {
+		t.Errorf("ladder = %v; the bare name is its last rung", ladder)
+	}
+	if found, ok := lookToolIn("windows", []string{bare}, "tool"); ok {
+		t.Errorf("lookToolIn(\"tool\") = %q; a file Windows cannot run by name is not a program", found)
+	}
+	// On Unix that same file is the program: the rung is not dead there.
+	if found, ok := lookToolIn("linux", []string{bare}, "tool"); !ok || found != filepath.Join(bare, "tool") {
+		t.Errorf("linux lookToolIn(\"tool\") = %q, %v; the bare name is the Unix spelling", found, ok)
 	}
 	// Nothing on the ladder is not a hit: a file the suffixes do not cover is
 	// never renamed into one.

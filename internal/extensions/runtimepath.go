@@ -107,8 +107,22 @@ func StubInterpreterLookup(lookup func(language string) (string, bool)) func() {
 //
 // The directory is the outer loop and the ladder the inner one, so the search
 // path keeps its priority over the suffix: `dir1/rg.cmd` still beats
-// `dir2/rg.exe`. The judgement stays `progtype.ForLenient` — the permissive
-// strategy for a name the user gave, unchanged by this round.
+// `dir2/rg.exe`.
+//
+// The judgement is `progtype.For`, the extension strategy: a name here is a
+// *probe* the system makes on the user's behalf, not a path the user picked, so
+// the file it lands on has to be a program by name. Every other name probe in
+// this build asks the same question the same way (`tools.Probe`,
+// catalog.go:307; the `.desktop` program probe, apps.go:485; the inventory's
+// PATH walk, inventory.go:146), and the reference's PATH discovery filters each
+// directory entry through its extension strategy too (inventory.rs:439,
+// is_executable at :1088). The permissive `progtype.ForLenient` belongs to the
+// three places where the user hands over a path that already exists
+// (`provider.go:53`, `reconnect.go:68`, `custom.go:253`) — a wrong "no" there
+// would hide the program they just chose. Getting *this* one wrong is the other
+// direction: a wrong "yes" puts a file Windows cannot run in front of the user
+// as an integration to connect (`floter://register?cmd=notes.txt`), as a
+// `.desktop` entry's target, or as a chooser row.
 func lookToolIn(platform string, dirs []string, names ...string) (string, bool) {
 	for _, dir := range dirs {
 		for _, name := range names {
@@ -117,7 +131,7 @@ func lookToolIn(platform string, dirs []string, names ...string) (string, bool) 
 			}
 			for _, probe := range progname.Ladder(platform, name) {
 				candidate := filepath.Join(dir, probe)
-				if progtype.ForLenient(platform, candidate) {
+				if progtype.For(platform, candidate) {
 					return candidate, true
 				}
 			}
