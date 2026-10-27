@@ -26,6 +26,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -241,22 +242,29 @@ func (s *Store) Add(expression, result string) (Entry, error) {
 		Result:     result,
 		CreatedAt:  s.now().UnixMilli(),
 	}
-	for _, existing := range s.entries {
-		if existing.Expression == expression && existing.Favorite {
-			entry.Favorite = true
-			break
+	if err := s.mutateLocked(func() error {
+		for _, existing := range s.entries {
+			if existing.Expression == expression && existing.Favorite {
+				entry.Favorite = true
+				break
+			}
 		}
-	}
-	kept := make([]Entry, 0, len(s.entries)+1)
-	for _, existing := range s.entries {
-		if existing.Expression == expression {
-			continue
+		kept := make([]Entry, 0, len(s.entries)+1)
+		for _, existing := range s.entries {
+			if existing.Expression == expression {
+				continue
+			}
+			kept = append(kept, existing)
 		}
-		kept = append(kept, existing)
+		s.entries = append([]Entry{entry}, kept...)
+		s.pruneLocked()
+		return nil
+	}); err != nil {
+		// Nothing was published, so nothing is handed back: the caller retries
+		// with a fresh entry rather than acting on a row the disk never took.
+		return Entry{}, err
 	}
-	s.entries = append([]Entry{entry}, kept...)
-	s.pruneLocked()
-	return entry, s.saveLocked()
+	return entry, nil
 }
 
 // SetFavorite stars or unstars one entry, and prunes: an unstared row is no
@@ -264,35 +272,40 @@ func (s *Store) Add(expression, result string) (Entry, error) {
 func (s *Store) SetFavorite(id string, favorite bool) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	found := false
-	for i := range s.entries {
-		if s.entries[i].ID == id {
+	return s.mutateLocked(func() error {
+		for i := range s.entries {
+			if s.entries[i].ID != id {
+				continue
+			}
 			s.entries[i].Favorite = favorite
-			found = true
-			break
+			s.pruneLocked()
+			return nil
 		}
-	}
-	if !found {
 		return ErrNoEntry
-	}
-	s.pruneLocked()
-	return s.saveLocked()
+	})
 }
 
 // ToggleFavorite flips one entry's star.
 func (s *Store) ToggleFavorite(id string) (bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for i := range s.entries {
-		if s.entries[i].ID != id {
-			continue
+	favorite := false
+	err := s.mutateLocked(func() error {
+		for i := range s.entries {
+			if s.entries[i].ID != id {
+				continue
+			}
+			s.entries[i].Favorite = !s.entries[i].Favorite
+			favorite = s.entries[i].Favorite
+			s.pruneLocked()
+			return nil
 		}
-		s.entries[i].Favorite = !s.entries[i].Favorite
-		favorite := s.entries[i].Favorite
-		s.pruneLocked()
-		return favorite, s.saveLocked()
+		return ErrNoEntry
+	})
+	if err != nil {
+		return false, err
 	}
-	return false, ErrNoEntry
+	return favorite, nil
 }
 
 // Delete drops one entry, and prunes: the old build funnelled every write path
@@ -301,45 +314,57 @@ func (s *Store) ToggleFavorite(id string) (bool, error) {
 func (s *Store) Delete(id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	kept := make([]Entry, 0, len(s.entries))
-	found := false
-	for _, entry := range s.entries {
-		if entry.ID == id {
-			found = true
-			continue
+	return s.mutateLocked(func() error {
+		kept := make([]Entry, 0, len(s.entries))
+		found := false
+		for _, entry := range s.entries {
+			if entry.ID == id {
+				found = true
+				continue
+			}
+			kept = append(kept, entry)
 		}
-		kept = append(kept, entry)
-	}
-	if !found {
-		return ErrNoEntry
-	}
-	s.entries = kept
-	s.pruneLocked()
-	return s.saveLocked()
+		if !found {
+			return ErrNoEntry
+		}
+		s.entries = kept
+		s.pruneLocked()
+		return nil
+	})
 }
 
 // Clear drops every entry that is not a favourite.
 func (s *Store) Clear() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	kept := make([]Entry, 0, len(s.entries))
-	for _, entry := range s.entries {
-		if entry.Favorite {
-			kept = append(kept, entry)
+	return s.mutateLocked(func() error {
+		kept := make([]Entry, 0, len(s.entries))
+		for _, entry := range s.entries {
+			if entry.Favorite {
+				kept = append(kept, entry)
+			}
 		}
-	}
-	s.entries = kept
-	return s.saveLocked()
+		s.entries = kept
+		return nil
+	})
 }
 
 // SetRetention updates the capacity and the age window, and prunes.
+//
+// The retention itself is not part of the rollback: it is a setting the
+// settings page already persisted and only pushes here, so a failed index write
+// must not forget it. What is rolled back is the prune, which is a change to
+// the history: the rows the new capacity would drop are still in the index on
+// disk, and the next successful write applies the capacity again.
 func (s *Store) SetRetention(maxItems, retentionDays int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.maxItems = clampMaxItems(maxItems)
-	s.retentionDays = NormalizeRetentionDays(retentionDays)
-	s.pruneLocked()
-	return s.saveLocked()
+	return s.mutateLocked(func() error {
+		s.maxItems = clampMaxItems(maxItems)
+		s.retentionDays = NormalizeRetentionDays(retentionDays)
+		s.pruneLocked()
+		return nil
+	})
 }
 
 // MaxItems and RetentionDays are the retention in force.
@@ -438,6 +463,31 @@ func loadIndex(path string) []Entry {
 		kept = append(kept, entry)
 	}
 	return kept
+}
+
+// mutateLocked runs one change and publishes it only if the index write lands:
+// clone → mutate → save → keep. A refused mutation and a failed save both put
+// the previous entries back, so memory never shows a row the disk has not taken
+// — and a prune that was never persisted never becomes permanent.
+//
+// This is the same contract the clipboard store keeps
+// (internal/clipboard/clipboard.go `mutateLocked`, P11-c), and the one the
+// reference's calculator writes follow (`calculator_history.rs` `update`: lock,
+// load, apply, prune, `save_index(&kept)?` — a failed save returns `Err` and the
+// caller keeps the list it already had). The two stores share the contract, not
+// the code: they have no shared write path, and the clipboard's rollback also
+// carries a list of image files to drop once the write commits.
+func (s *Store) mutateLocked(mutate func() error) error {
+	before := slices.Clone(s.entries)
+	if err := mutate(); err != nil {
+		s.entries = before
+		return err
+	}
+	if err := s.saveLocked(); err != nil {
+		s.entries = before
+		return err
+	}
+	return nil
 }
 
 // saveLocked writes the index atomically: a temporary file in the same
