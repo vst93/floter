@@ -5,6 +5,7 @@ package apps
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"image"
 	"image/png"
 	"os"
@@ -813,5 +814,62 @@ func TestDesktopLaunchCommand(t *testing.T) {
 	bare := App{Path: "/Applications/Thing.app"}
 	if program, args := bare.launchCommand(); program != "" || args != nil {
 		t.Errorf("path launchCommand = %q %v", program, args)
+	}
+}
+
+// The app-open path is internal/spawn's, not this package's own copy of it: the
+// detachment rules (own session on Unix, no console on Windows, the Windows
+// `.cmd`/`.bat` interpreter hop) live in one package, and this is the wiring
+// that reaches them — the home directory as the working directory, the entry's
+// program and argv, and the `gio` fallback for a D-Bus-activatable entry whose
+// `gio` is missing. The port used to restate the detachment here, which is why
+// the Windows rules could not reach this path at all.
+func TestTheAppLaunchPathIsTheSpawnPackagesOwn(t *testing.T) {
+	type call struct {
+		dir     string
+		program string
+		args    []string
+	}
+	var calls []call
+	original := launchProgram
+	launchProgram = func(dir, program string, args ...string) error {
+		calls = append(calls, call{dir: dir, program: program, args: args})
+		if program == "gio" {
+			return errors.New("no gio on this machine")
+		}
+		return nil
+	}
+	defer func() { launchProgram = original }()
+
+	dbus := App{
+		Path:            "/usr/share/applications/org.gnome.Nautilus.desktop",
+		Exec:            []string{"nautilus", "--new-window"},
+		DBusActivatable: true,
+	}
+	if err := dbus.Open(); err != nil {
+		t.Fatalf("Open of a D-Bus entry whose gio is missing must fall back to Exec, got %v", err)
+	}
+	want := []call{
+		{dir: homeDir(), program: "gio", args: []string{"launch", dbus.Path}},
+		{dir: homeDir(), program: "nautilus", args: []string{"--new-window"}},
+	}
+	if len(calls) != len(want) {
+		t.Fatalf("launches = %+v, want %+v", calls, want)
+	}
+	for i := range want {
+		if calls[i].dir != want[i].dir || calls[i].program != want[i].program ||
+			!reflect.DeepEqual(calls[i].args, want[i].args) {
+			t.Errorf("launch %d = %+v, want %+v", i, calls[i], want[i])
+		}
+	}
+
+	// An ordinary entry is one launch, in the user's home, with its own argv.
+	calls = nil
+	plain := App{Path: "/usr/share/applications/foo.desktop", Exec: []string{"/usr/bin/foo", "--flag"}}
+	if err := plain.Open(); err != nil {
+		t.Fatalf("Open of an Exec entry: %v", err)
+	}
+	if len(calls) != 1 || calls[0].program != "/usr/bin/foo" || !reflect.DeepEqual(calls[0].args, []string{"--flag"}) {
+		t.Errorf("plain launch = %+v, want one launch of /usr/bin/foo --flag", calls)
 	}
 }

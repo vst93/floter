@@ -169,3 +169,65 @@ func TestTheTerminalEnvironmentIsACommandLine(t *testing.T) {
 		}
 	}
 }
+
+// A Windows `.cmd`/`.bat` program is a script, not an executable image, so
+// `CreateProcess` refuses it with "not a valid application" — the reference's
+// own truth table (`main:src-tauri/src/process_launch.rs:264-300`) wraps
+// exactly those in `cmd /c` and leaves everything else alone.
+func TestAWindowsCommandScriptIsGivenToTheInterpreter(t *testing.T) {
+	// Not shims: an ordinary executable, a name that merely *contains* the
+	// suffix, and a `.cmd` that is only the second-to-last extension.
+	for _, program := range []string{
+		`C:\tools\flameshot.exe`,
+		"mycmd",
+		`C:\tools\tool.cmd.exe`,
+		"/usr/bin/foo",
+		"",
+	} {
+		if argv, ok := cmdScriptWrap(program, []string{"--clipboard"}); ok {
+			t.Errorf("%q must not be wrapped, got %v", program, argv)
+		}
+	}
+
+	// Shims: both suffixes, either case, with the arguments forwarded verbatim
+	// and in order — nothing added, nothing dropped, nothing re-parsed.
+	for _, program := range []string{
+		`C:\tools\flameshot.cmd`,
+		`C:\tools\flameshot.bat`,
+		`C:\Tools\Flameshot.CMD`,
+		`C:\Tools\Flameshot.Bat`,
+	} {
+		argv, ok := cmdScriptWrap(program, []string{"--clipboard", "a b"})
+		if !ok {
+			t.Fatalf("%q must be wrapped for the command interpreter", program)
+		}
+		want := []string{"cmd", "/c", program, "--clipboard", "a b"}
+		if !reflect.DeepEqual(argv, want) {
+			t.Errorf("wrap(%q) = %v, want %v", program, argv, want)
+		}
+	}
+}
+
+// The wrap is the *platform's* answer, not the name's: on Linux and macOS a
+// `.cmd` file is just a file name and must reach the OS unchanged, which is why
+// programArgv takes the goos rather than reading runtime.GOOS inside.
+func TestACommandScriptIsOnlyWrappedOnWindows(t *testing.T) {
+	const script = `C:\tools\flameshot.cmd`
+	program, args := programArgv("windows", script, []string{"a"})
+	if program != "cmd" || !reflect.DeepEqual(args, []string{"/c", script, "a"}) {
+		t.Errorf(`windows launches %q %v, want "cmd" ["/c" %q "a"]`, program, args, script)
+	}
+	for _, goos := range []string{"linux", "darwin", "freebsd"} {
+		program, args := programArgv(goos, script, []string{"a"})
+		if program != script || !reflect.DeepEqual(args, []string{"a"}) {
+			t.Errorf("%s launches %q %v, want the program untouched (%q [a])", goos, program, args, script)
+		}
+	}
+	// A plain program is a no-op on every platform, byte for byte.
+	for _, goos := range []string{"windows", "linux", "darwin"} {
+		program, args := programArgv(goos, `C:\tools\flameshot.exe`, []string{"--clipboard"})
+		if program != `C:\tools\flameshot.exe` || !reflect.DeepEqual(args, []string{"--clipboard"}) {
+			t.Errorf("%s rewrote an ordinary executable: %q %v", goos, program, args)
+		}
+	}
+}

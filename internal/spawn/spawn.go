@@ -33,13 +33,60 @@ func ProgramIn(dir, program string, args ...string) error {
 
 // programCmd is the command line every launch path builds: the program's own
 // argv, started in `dir` when it has an opinion, with no inherited streams.
+//
+// The program itself comes from programArgv, so a Windows command script is
+// handed to the interpreter here and nowhere else.
 func programCmd(dir, program string, args ...string) *exec.Cmd {
+	program, args = programArgv(runtime.GOOS, program, args)
 	cmd := exec.Command(program, args...)
 	if dir != "" {
 		cmd.Dir = dir
 	}
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = nil, nil, nil
 	return cmd
+}
+
+// programArgv is the program and argv a launch hands the OS, for a named
+// platform: the program itself, except on Windows, where a `.cmd`/`.bat` script
+// is not an executable image and has to be given to the command interpreter
+// instead (see cmdScriptWrap).
+//
+// The platform is a parameter rather than `runtime.GOOS` read inside, so the
+// table is one list a test can read: on Linux and macOS `.cmd` is just a file
+// name and is never re-pointed at an interpreter.
+func programArgv(goos, program string, args []string) (string, []string) {
+	if goos != "windows" {
+		return program, args
+	}
+	if argv, ok := cmdScriptWrap(program, args); ok {
+		return argv[0], argv[1:]
+	}
+	return program, args
+}
+
+// cmdScriptWrap is the reference's `windows_cmd_shim_wrap`
+// (`main:src-tauri/src/process_launch.rs:236-262`): a Windows `.cmd`/`.bat`
+// program is a *script*, not an executable image, so `CreateProcess` refuses it
+// with "not a valid application" and the child has to be handed to `cmd /c`
+// instead. The discovery layer really does offer such shims —
+// `apps.IsLaunchableTarget` (`apps/shortcut.go:194`) accepts `.exe`/`.bat`/
+// `.cmd`, so a Start Menu entry pointing at a batch wrapper was listed as
+// runnable and then failed to start.
+//
+// Only the **program** is inspected, case-insensitively: `mycmd` and
+// `tool.cmd.exe` are not shims. The arguments are forwarded verbatim and in
+// order — nothing is re-parsed, because the interpreter is handed an argv, not
+// a command line. Pure and not build-tagged, so the truth table runs on every
+// platform and the false branch is provably a byte-for-byte no-op.
+func cmdScriptWrap(program string, args []string) ([]string, bool) {
+	lower := strings.ToLower(program)
+	if !strings.HasSuffix(lower, ".cmd") && !strings.HasSuffix(lower, ".bat") {
+		return nil, false
+	}
+	argv := make([]string, 0, len(args)+2)
+	argv = append(argv, "cmd", "/c", program)
+	argv = append(argv, args...)
+	return argv, true
 }
 
 // Command runs a shell command line with no window and no terminal: the user's

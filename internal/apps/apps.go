@@ -11,13 +11,14 @@ import (
 	"bufio"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
 
 	"github.com/egoist/mygo"
+
+	"floter/internal/spawn"
 
 	"floter/internal/progtype"
 	"floter/internal/xdg"
@@ -127,21 +128,30 @@ func (a App) Open() error {
 	return err
 }
 
+// launchProgram is internal/spawn's detached launch: the one place the
+// detachment rules live (own session on Unix, no console on Windows, null
+// streams, reaped in the background), plus the Windows interpreter hop a
+// `.cmd`/`.bat` program needs. A variable so the wiring — the home directory,
+// the program, the argv and the `gio` fallback — is something the tests can
+// read instead of something only a real launch exercises.
+var launchProgram = spawn.ProgramIn
+
 // launchDetached starts a program that outlives the launcher: the launcher must
 // not wait for it, it must not die with the launcher, and - the Linux case this
 // build ships for - it must not share the launcher's process group or session,
-// where a signal meant for either would reach both. (internal/spawn's own
-// detach, restated here so the two cannot drift.)
+// where a signal meant for either would reach both.
+//
+// This package used to restate the detachment itself (`detach_unix.go` /
+// `detach_windows.go`, "restated here so the two cannot drift"), which meant the
+// app-open path could not have the reference's Windows rules at all: R74's
+// `.cmd`/`.bat` interpreter hop and the `CREATE_NO_WINDOW` flag live in
+// internal/spawn, so a Start Menu entry pointing at a batch wrapper was listed
+// as launchable and then failed with "not a valid application". The rules are
+// one answer now, in one package; the only thing this keeps of its own is the
+// working directory, which is the app's (the user's home) rather than the
+// launcher's.
 func launchDetached(program string, args ...string) error {
-	cmd := exec.Command(program, args...)
-	cmd.Dir = homeDir()
-	cmd.Stdin, cmd.Stdout, cmd.Stderr = nil, nil, nil
-	detachExec(cmd)
-	if err := cmd.Start(); err != nil {
-		return err
-	}
-	go func() { _ = cmd.Wait() }()
-	return nil
+	return launchProgram(homeDir(), program, args...)
 }
 
 // Roots is the platform's application directories, existing ones only.
