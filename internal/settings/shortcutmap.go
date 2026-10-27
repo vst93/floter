@@ -128,18 +128,51 @@ func CustomShortcutConflict(s Settings, accelerator string) bool {
 	if strings.TrimSpace(accelerator) == "" {
 		return false
 	}
+	// The summon key is excluded here because it is not this map's to judge:
+	// the shell holds it in `a.summonKey` and compares it itself
+	// (`internal/shell/custom.go`), so `ShortcutToggleWindow`'s row is only a
+	// picture of a binding the system owns.
+	return shortcutShadowedBy(s, accelerator, ShortcutToggleWindow) != ""
+}
+
+// shortcutShadowedBy is the one answer to "does anything already answer for
+// this chord?", and it returns the action that does (or ""). `ignore` names
+// the actions not to compare against: the one being written, and — for a
+// custom global binding — the summon key, which the shell judges separately.
+//
+// The comparison is not literal, because `select_result` is a *family*: it is
+// stored as its head (the user's modifiers and the digit `1`) and every other
+// digit under those modifiers is a key the app already answers for. A literal
+// comparison is what let the app's own recorder accept `Ctrl+5` for
+// `new_command` while the result list still drew a `5` badge on its fifth row
+// — a key that was on screen and dead, because `launcher.appChordKeys` matches
+// the app's keys first and swallows the event. Both callers now ask this one
+// question, so the custom-shortcut page and the app-shortcut page cannot
+// disagree about which chords are free.
+func shortcutShadowedBy(s Settings, accelerator string, ignore ...string) string {
+	resolved := ShortcutsOf(s)
 	for _, action := range ShortcutActions {
-		if action == ShortcutToggleWindow {
+		if containsAction(ignore, action) {
 			continue
 		}
-		existing := Shortcut(s, action)
+		existing := resolved[action]
 		if existing == "" {
 			continue
 		}
 		if shortcuts.Equal(existing, accelerator) {
-			return true
+			return action
 		}
 		if action == ShortcutSelectResult && shortcuts.SameResultFamily(existing, accelerator) {
+			return action
+		}
+	}
+	return ""
+}
+
+// containsAction reports whether an action id is in a list of them.
+func containsAction(list []string, action string) bool {
+	for _, candidate := range list {
+		if candidate == action {
 			return true
 		}
 	}
@@ -156,6 +189,14 @@ func (s *Settings) SetShortcut(action, accelerator string) bool {
 	}
 	normalized, ok := normalizeShortcut(action, accelerator)
 	if !ok {
+		return false
+	}
+	// The write path asks the same question the recorder asks: a chord another
+	// action already answers for is not stored, so a settings file can never
+	// hold two actions on one key — including a digit of the `select_result`
+	// family. Rewriting an action's own binding is not a conflict (it ignores
+	// itself), so a no-op write still succeeds.
+	if shortcutShadowedBy(*s, normalized, action) != "" {
 		return false
 	}
 	raw := map[string]any{}
@@ -212,13 +253,11 @@ func ShortcutRecordingOf(s Settings, action, accelerator string) ShortcutRecordi
 	if shortcuts.Equal(Shortcut(s, action), normalized) {
 		return ShortcutUnchanged
 	}
-	for _, candidate := range ShortcutActions {
-		if candidate == action {
-			continue
-		}
-		if shortcuts.Equal(Shortcut(s, candidate), normalized) {
-			return ShortcutRefused
-		}
+	// The same predicate the custom-shortcut page uses, so the two pages cannot
+	// disagree about which chords are free; the family of `select_result`
+	// counts as one key, not just its head.
+	if shortcutShadowedBy(s, normalized, action) != "" {
+		return ShortcutRefused
 	}
 	return ShortcutRecorded
 }

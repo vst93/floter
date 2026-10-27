@@ -228,7 +228,49 @@ func TestShortcutRecordingRefusesAChordAnotherActionHolds(t *testing.T) {
 	if got := ShortcutRecordingOf(family, ShortcutCopySelection, "Cmd+Shift+1"); got != ShortcutRefused {
 		t.Errorf("the family head for another action: got %v, want refused", got)
 	}
-	if got := ShortcutRecordingOf(family, ShortcutCopySelection, "Cmd+Shift+5"); got != ShortcutRecorded {
-		t.Errorf("a digit outside the head: got %v, want recorded", got)
+	// P11-j 重定基线：旧判据只看族头（`Equal`），`Cmd+Shift+5` 被判成
+	// `ShortcutRecorded`——而那个键正是族里第 5 个数字，录进去之后启动器
+	// 第 5 行仍画着 `⌘⇧5` 键帽、按下去却被 `new_command` 之类的应用键
+	// 先吞掉（`launcher.appChordKeys`），是「画着、按不动」的死键。
+	// 族算一整族 → `ShortcutRefused`。
+	if got := ShortcutRecordingOf(family, ShortcutCopySelection, "Cmd+Shift+5"); got != ShortcutRefused {
+		t.Errorf("another digit of the family: got %v, want refused", got)
+	}
+	// A digit under *other* modifiers is not the family: same digit, different
+	// chord.
+	if got := ShortcutRecordingOf(family, ShortcutCopySelection, "Cmd+Alt+5"); got != ShortcutRecorded {
+		t.Errorf("a digit under other modifiers: got %v, want recorded", got)
+	}
+}
+
+// TestSetShortcutRefusesAChordTheResultFamilyHolds is the write path's half of
+// the same rule: the recorder already refuses, but `SetShortcut` is also
+// reached from the shell and from a settings file, so the map itself must not
+// be able to hold two actions on one key — the family included.
+func TestSetShortcutRefusesAChordTheResultFamilyHolds(t *testing.T) {
+	s, err := Parse([]byte(`{"shortcuts": {"select_result": "Cmd+Shift+1"}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.SetShortcut(ShortcutNewCommand, "Cmd+Shift+4") {
+		t.Fatal("a digit of the result family was stored for another action")
+	}
+	if got := Shortcut(s, ShortcutNewCommand); got != "Ctrl+W" && got != "Cmd+W" {
+		t.Errorf("a refused write changed the binding: %q", got)
+	}
+	// The same digit under other modifiers is a different chord.
+	if !s.SetShortcut(ShortcutNewCommand, "Cmd+Alt+4") {
+		t.Fatal("a chord outside the family was refused")
+	}
+	if got := Shortcut(s, ShortcutNewCommand); got != "Cmd+Alt+4" {
+		t.Errorf("new_command = %q", got)
+	}
+	// Rewriting an action's own binding is not a conflict with itself.
+	if !s.SetShortcut(ShortcutNewCommand, "Cmd+Alt+4") {
+		t.Error("rewriting an action's own binding was refused")
+	}
+	// A chord another action literally holds is refused too.
+	if s.SetShortcut(ShortcutOpenSettings, "Cmd+Alt+4") {
+		t.Error("a chord another action holds was stored")
 	}
 }
