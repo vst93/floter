@@ -19,6 +19,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"floter/internal/xdg"
 )
 
 // MonoFontCandidates are the faces the picker offers when they are installed,
@@ -60,7 +62,23 @@ var FallbackFontFamilies = []string{
 // fontDirs are the directories a platform keeps its font files in.
 func fontDirs() []string {
 	home, _ := os.UserHomeDir()
-	switch runtime.GOOS {
+	return fontDirsFor(runtime.GOOS, home, os.Getenv("SystemRoot"), os.Getenv("LOCALAPPDATA"), xdg.DataHome())
+}
+
+// fontDirsFor is fontDirs with the environment passed in, so each platform's
+// table can be asserted from any host — the same shape the browser and
+// application tables use (`browser.chromiumBrowsers`, `apps`' platform tables).
+//
+// The Linux arm reads the *data directory* rather than assuming one: the fonts
+// a user installs for themselves live in `$XDG_DATA_HOME/fonts` (that is the
+// directory fontconfig itself reads), and `$XDG_DATA_HOME` is set to something
+// other than `~/.local/share` often enough — a relocated home, a container, a
+// machine whose dotfiles pin it — that spelling the fallback in here would hide
+// every font the user installed. `xdg.DataHome` is the one answer to "where is
+// the per-user data directory" in this build, including the specification's
+// rule that a *relative* value is ignored.
+func fontDirsFor(goos, home, systemRoot, localAppData, dataHome string) []string {
+	switch goos {
 	case "darwin":
 		return []string{
 			"/System/Library/Fonts",
@@ -68,18 +86,17 @@ func fontDirs() []string {
 			filepath.Join(home, "Library", "Fonts"),
 		}
 	case "windows":
-		systemRoot := os.Getenv("SystemRoot")
 		if systemRoot == "" {
 			systemRoot = `C:\Windows`
 		}
 		dirs := []string{filepath.Join(systemRoot, "Fonts")}
-		if local := os.Getenv("LOCALAPPDATA"); local != "" {
-			dirs = append(dirs, filepath.Join(local, "Microsoft", "Windows", "Fonts"))
+		if localAppData != "" {
+			dirs = append(dirs, filepath.Join(localAppData, "Microsoft", "Windows", "Fonts"))
 		}
 		return dirs
 	default:
 		return []string{
-			filepath.Join(home, ".local", "share", "fonts"),
+			filepath.Join(dataHome, "fonts"),
 			filepath.Join(home, ".fonts"),
 			"/usr/share/fonts",
 			"/usr/local/share/fonts",

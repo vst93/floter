@@ -28,6 +28,8 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+
+	"floter/internal/xdg"
 )
 
 // migratedFileName is the copy of the legacy file a migration leaves behind,
@@ -202,23 +204,34 @@ func samePath(a, b string) bool {
 // macOS, $XDG_DATA_HOME or ~/.local/share on Linux. A Tauri build's default
 // app-data directory is identifier-based, so the migration looks here too.
 func platformDataDir() string {
-	switch runtime.GOOS {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		home = ""
+	}
+	return dataDirFor(runtime.GOOS, home, os.Getenv("LOCALAPPDATA"), xdg.DataHome())
+}
+
+// dataDirFor is platformDataDir with the environment passed in, so the table
+// can be asserted from any host.
+//
+// The Linux arm delegates to the one answer this build has for "where is the
+// per-user data directory" (`xdg.DataHome`, which also enforces the
+// specification's rule that a *relative* `$XDG_DATA_HOME` is ignored). It used
+// to spell the same two paths out by hand — and without that rule, so a
+// `XDG_DATA_HOME=rel/dir` made the legacy import look for
+// `com.v.floter/settings.json` under the process's current directory: nothing
+// found when the user launched floter from somewhere else, or another
+// directory's settings imported when they launched it from the wrong place.
+func dataDirFor(goos, home, localAppData, dataHome string) string {
+	switch goos {
 	case "windows":
-		return os.Getenv("LOCALAPPDATA")
+		return localAppData
 	case "darwin":
-		home, err := os.UserHomeDir()
-		if err != nil {
+		if home == "" {
 			return ""
 		}
 		return filepath.Join(home, "Library", "Application Support")
 	default:
-		if dir := os.Getenv("XDG_DATA_HOME"); dir != "" {
-			return dir
-		}
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return ""
-		}
-		return filepath.Join(home, ".local", "share")
+		return dataHome
 	}
 }
