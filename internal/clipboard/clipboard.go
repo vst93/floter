@@ -450,7 +450,7 @@ func (s *Store) AddText(text string) (Entry, bool, error) {
 		CreatedAt: s.now().UnixMilli(),
 		extra:     map[string]any{},
 	}
-	s.insertLocked(entry)
+	entry = s.insertLocked(entry)
 	s.pruneLocked()
 	return entry, true, s.saveLocked()
 }
@@ -498,7 +498,7 @@ func (s *Store) AddImageCaption(png []byte, width, height int, caption string) (
 		CreatedAt: s.now().UnixMilli(),
 		extra:     map[string]any{},
 	}
-	s.insertLocked(entry)
+	entry = s.insertLocked(entry)
 	s.pruneLocked()
 	return entry, true, s.saveLocked()
 }
@@ -543,23 +543,42 @@ func (s *Store) addFilesEntry(cleaned []string, hash string) (Entry, bool, error
 		CreatedAt: s.now().UnixMilli(),
 		extra:     map[string]any{},
 	}
-	s.insertLocked(entry)
+	entry = s.insertLocked(entry)
 	s.pruneLocked()
 	return entry, true, s.saveLocked()
 }
 
-// insertLocked puts an entry at the front, dropping an earlier copy of the
-// same clip.
-func (s *Store) insertLocked(entry Entry) {
+// insertLocked puts an entry at the front, folding an earlier copy of the same
+// clip into it — with one exception: a copy the user favorited is never folded
+// away. It stays where it is, and its flag carries onto the fresh entry that
+// lands on top. Re-copying something must not unpin it, and must not make the
+// star disappear along with the row.
+//
+// This is the reference's rule, verbatim
+// (`clipboard_history/store.rs:206-217` `fold_capture`:
+// `retain(|entry| !matches(entry) || entry.favorite)` then
+// `capture.favorite = carries_favorite`).
+//
+// It returns the entry that was actually stored: the fresh one, now possibly
+// carrying the flag it inherited, so a caller never reports a `Favorite` the
+// history does not have.
+func (s *Store) insertLocked(entry Entry) Entry {
+	for _, existing := range s.entries {
+		if existing.Kind == entry.Kind && existing.Hash == entry.Hash && existing.Favorite {
+			entry.Favorite = true
+			break
+		}
+	}
 	kept := make([]Entry, 0, len(s.entries)+1)
 	kept = append(kept, entry)
 	for _, existing := range s.entries {
-		if existing.Kind == entry.Kind && existing.Hash == entry.Hash {
+		if existing.Kind == entry.Kind && existing.Hash == entry.Hash && !existing.Favorite {
 			continue
 		}
 		kept = append(kept, existing)
 	}
 	s.entries = kept
+	return entry
 }
 
 // ImagePath is where an image entry's PNG lives.
