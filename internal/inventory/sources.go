@@ -16,18 +16,50 @@ import (
 // each with the source a candidate names. Best-effort throughout: a
 // directory that is not there contributes nothing.
 
+// toolRoot is one fixed directory a discovery reads and the source a candidate
+// found there names.
+type toolRoot struct {
+	dir    string
+	source DiscoverySource
+}
+
 // discoverLinux reads the desktop entries and the Linux package exports.
 func discoverLinux(merge mergeFunc) {
 	mergeEntries(merge, linuxDesktopRoots(), SourceDesktop, QualityNativeSupport)
-	flatpakRoots, snapRoot := linuxExportRoots()
-	for _, directory := range flatpakRoots {
-		discoverExecutableDirectory(merge, directory, SourceFlatpak, QualityNativeSupport)
+	walkToolRoots(merge, linuxPackageRoots())
+}
+
+// walkToolRoots reads every root of a table in, in order.
+func walkToolRoots(merge mergeFunc, roots []toolRoot) {
+	for _, root := range roots {
+		discoverExecutableDirectory(merge, root.dir, root.source, QualityNativeSupport)
 	}
+}
+
+// nixRoots is where a Nix profile publishes its bin. A var so a test can point
+// it at a fixture.
+var nixRoots = func() []string {
+	var roots []string
 	if home, err := os.UserHomeDir(); err == nil {
-		discoverExecutableDirectory(merge, filepath.Join(home, ".nix-profile", "bin"), SourceNix, QualityNativeSupport)
+		roots = append(roots, filepath.Join(home, ".nix-profile", "bin"))
 	}
-	discoverExecutableDirectory(merge, snapRoot, SourceSnap, QualityNativeSupport)
-	discoverExecutableDirectory(merge, "/nix/var/nix/profiles/default/bin", SourceNix, QualityNativeSupport)
+	return append(roots, "/nix/var/nix/profiles/default/bin")
+}
+
+// linuxPackageRoots is the Linux package-export table: the flatpak and snap
+// wrappers plus both Nix profiles. It reads `linuxExportRoots`, so the export
+// walk and a desktop entry's `flatpak run`/`snap run` mapping still name one
+// directory. A var so a test can point the whole table at a fixture.
+var linuxPackageRoots = func() []toolRoot {
+	flatpakRoots, snapRoot := linuxExportRoots()
+	roots := make([]toolRoot, 0, len(flatpakRoots)+3)
+	for _, directory := range flatpakRoots {
+		roots = append(roots, toolRoot{directory, SourceFlatpak})
+	}
+	for _, directory := range nixRoots() {
+		roots = append(roots, toolRoot{directory, SourceNix})
+	}
+	return dedupeRoots(append(roots, toolRoot{snapRoot, SourceSnap}))
 }
 
 // linuxExportRoots is where a Linux package manager writes the wrappers that
@@ -52,7 +84,7 @@ var linuxExportRoots = func() (flatpak []string, snap string) {
 // order (`/usr/share` before `/usr/local/share`, so a local administrator's
 // override lost), the environment's directories came first rather than after,
 // and the two system package-export roots were missing altogether.
-func linuxDesktopRoots() []string {
+var linuxDesktopRoots = func() []string {
 	return xdg.DesktopRootsFromEnv()
 }
 
@@ -379,13 +411,23 @@ func flatpakRunAppID(argv []string) (string, bool) {
 // discoverMacOS reads Homebrew's bins and the applications LaunchServices
 // knows.
 func discoverMacOS(merge mergeFunc) {
-	for _, directory := range []string{"/usr/local/bin", "/opt/homebrew/bin"} {
+	for _, directory := range brewRoots() {
 		discoverExecutableDirectory(merge, directory, SourceBrew, QualityNativeSupport)
 	}
-	home, _ := os.UserHomeDir()
-	for _, directory := range []string{"/Applications", "/System/Applications", filepath.Join(home, "Applications")} {
+	for _, directory := range macAppRoots() {
 		discoverMacOSApps(merge, directory)
 	}
+}
+
+// brewRoots is where Homebrew publishes its bins. A var so a test can point it
+// at a fixture.
+var brewRoots = func() []string { return []string{"/usr/local/bin", "/opt/homebrew/bin"} }
+
+// macAppRoots is where LaunchServices' bundles live. A var so a test can point
+// it at a fixture.
+var macAppRoots = func() []string {
+	home, _ := os.UserHomeDir()
+	return []string{"/Applications", "/System/Applications", filepath.Join(home, "Applications")}
 }
 
 // discoverMacOSApps reads an applications directory's bundles: the
@@ -421,13 +463,61 @@ func discoverMacOSApps(merge mergeFunc, directory string) {
 
 // discoverWindows reads Chocolatey's, Scoop's and WinGet's shims.
 func discoverWindows(merge mergeFunc) {
-	discoverExecutableDirectory(merge, `C:\ProgramData\chocolatey\bin`, SourceChocolatey, QualityNativeSupport)
+	walkToolRoots(merge, windowsToolRoots())
+}
+
+// windowsToolRoots is where Windows' package managers publish their shims. The
+// Chocolatey root is named twice on purpose: `C:\ProgramData\chocolatey\bin` is
+// the default install, and `%ProgramData%` is where an administrator who
+// redirected the shared data directory put it — a machine that moved
+// `ProgramData` has no shims at the literal path at all. On a default install
+// the two spell the same directory, and `dedupeRoots` walks it once. The
+// reference names both too (`inventory.rs` `discover_windows`). A var so a test
+// can point the table at a fixture.
+var windowsToolRoots = func() []toolRoot {
+	roots := []toolRoot{{`C:\ProgramData\chocolatey\bin`, SourceChocolatey}}
+	if programData := os.Getenv("ProgramData"); programData != "" {
+		roots = append(roots, toolRoot{filepath.Join(programData, "chocolatey", "bin"), SourceChocolatey})
+	}
 	if home, err := os.UserHomeDir(); err == nil {
-		discoverExecutableDirectory(merge, filepath.Join(home, "scoop", "shims"), SourceScoop, QualityNativeSupport)
+		roots = append(roots, toolRoot{filepath.Join(home, "scoop", "shims"), SourceScoop})
 	}
 	if localAppData := os.Getenv("LOCALAPPDATA"); localAppData != "" {
-		discoverExecutableDirectory(merge, filepath.Join(localAppData, "Microsoft", "WinGet", "Links"), SourceWinGet, QualityNativeSupport)
+		roots = append(roots, toolRoot{filepath.Join(localAppData, "Microsoft", "WinGet", "Links"), SourceWinGet})
 	}
+	return dedupeRoots(roots)
+}
+
+// dedupeRoots drops a root the table already names: a directory walked twice
+// contributes the same candidates twice, and a table that names one directory
+// two ways is a table with a bug, not a second source.
+func dedupeRoots(roots []toolRoot) []toolRoot {
+	out := roots[:0]
+	for _, root := range roots {
+		seen := false
+		for _, kept := range out {
+			if sameRoot(kept.dir, root.dir) {
+				seen = true
+				break
+			}
+		}
+		if !seen {
+			out = append(out, root)
+		}
+	}
+	return out
+}
+
+// sameRoot reports whether two roots are the same directory spelled two ways.
+// Windows accepts either separator and compares paths without case, so the
+// comparison folds both — `C:\ProgramData\chocolatey\bin` and a `%ProgramData%`
+// expanded to the same place are one root.
+func sameRoot(left, right string) bool {
+	fold := func(value string) string {
+		value = strings.ReplaceAll(value, `\`, "/")
+		return strings.ToLower(filepath.ToSlash(filepath.Clean(value)))
+	}
+	return fold(left) == fold(right)
 }
 
 // LookPath is the inventory's own answer to `exec.LookPath`, for the

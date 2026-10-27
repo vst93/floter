@@ -38,6 +38,28 @@ const (
 	SourceWinGet        DiscoverySource = "winget"
 )
 
+// discoverySources is the closed vocabulary: every source this package can name
+// on a candidate, in the order the reference declares them.
+//
+// The reference's enum carries five more — `Dpkg`, `Rpm`, `Pacman`, `Registry`,
+// `Wsl` (`extensions/inventory.rs:24-40`) — and produces none of them: the four
+// package-manager and WSL variants are referenced nowhere but the enum itself,
+// and `Registry` appears once inside a unit test that needed an arbitrary
+// variant. The frontend's union type is a vocabulary, not a discovery. So there
+// is no "multi-source inventory" gap here: this list is the whole of it.
+var discoverySources = []DiscoverySource{
+	SourcePath,
+	SourceDesktop,
+	SourceFlatpak,
+	SourceSnap,
+	SourceNix,
+	SourceBrew,
+	SourceLaunchService,
+	SourceChocolatey,
+	SourceScoop,
+	SourceWinGet,
+}
+
 // DiscoveryQuality is the trust the discovery has in a candidate: an OS
 // that published a name for it outranks a bare PATH hit.
 type DiscoveryQuality string

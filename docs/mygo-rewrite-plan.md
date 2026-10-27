@@ -621,9 +621,14 @@ CI 是三平台矩阵，但两处断言只在作者机器上成立，Linux 上�
 - **推荐工具接管**：仓库里的参考包移到 `internal/extensions/recommended/v-tools` 并 `go:embed`，
   Integrations 页列出**尚未安装**的推荐工具，一键「接管」= 落盘 → 走与其他本地工具**完全相同**的
   安装管线（权限照旧审批、失败照旧通知）；全部装好后该区消失。
-- 未做：旧版的多来源工具清点（dpkg/rpm/pacman/flatpak/snap/nix/brew/注册表/scoop/choco/winget/WSL）
-  ——那套主要用于「已发现工具 → 接管」的列表；Go 侧 PATH 命令扫描 + 本地/npm 安装 + 推荐工具接管
-  覆盖了同一目标的主要路径。
+- **不是未做（P10-n 已定性）**：旧版的「多来源工具清点」列了 dpkg/rpm/pacman/flatpak/snap/nix/brew/
+  注册表/scoop/choco/winget/WSL 十二个来源，但参考**自己只产出十个**——`Dpkg`/`Rpm`/`Pacman`/`Wsl`
+  在参考源码里除枚举自身零引用，`Registry` 只在一条单元测试里被当作任意枚举值用过
+  （`extensions/inventory.rs:24-40` 枚举 vs 产出点）。那五个是前端的**词汇表**，不是清点代码。
+  本仓的十个来源（`path`/`desktop`/`flatpak`/`snap`/`nix`/`brew`/`launch-services`/`chocolatey`/
+  `scoop`/`winget`）与参考的产出点逐条对齐，并由 `internal/inventory/sourcetable_test.go` 钉住
+  「声明的每个来源都够得着」+「四张平台根表按值」。补这一轮时还补上了参考有、本仓漏的一条：
+  Windows 的 `%ProgramData%\chocolatey\bin`（`ProgramData` 被重定向的机器上字面量路径不存在）。
 
 ### P4-t 快捷键收尾（已做）
 
