@@ -55,9 +55,26 @@ var discoverySources = []DiscoverySource{
 	SourceNix,
 	SourceBrew,
 	SourceLaunchService,
-	SourceChocolatey,
 	SourceScoop,
+	SourceChocolatey,
 	SourceWinGet,
+}
+
+// sourceRank is a source's position in the vocabulary, which is the reference's
+// declaration order (`extensions/inventory.rs:24-40`). A candidate's `Sources`
+// is kept in this order rather than in discovery order, the way the reference's
+// `insert` sorts on every push (`inventory.rs:996-998`): two machines that found
+// the same program through the same sources list them the same way, and a
+// reader (the chooser's detail line) never sees an order that is an accident of
+// which walk ran first. A value outside the table sorts last — the table is
+// closed (see TestTheSourceVocabularyIsClosed), so that is unreachable.
+func sourceRank(source DiscoverySource) int {
+	for index, known := range discoverySources {
+		if known == source {
+			return index
+		}
+	}
+	return len(discoverySources)
 }
 
 // DiscoveryQuality is the trust the discovery has in a candidate: an OS
@@ -187,6 +204,9 @@ func mergeInto(byPath map[string]*Candidate) mergeFunc {
 		}
 		if !hasSource(existing.Sources, source) {
 			existing.Sources = append(existing.Sources, source)
+			sort.SliceStable(existing.Sources, func(i, j int) bool {
+				return sourceRank(existing.Sources[i]) < sourceRank(existing.Sources[j])
+			})
 		}
 		if qualityBetter(quality, existing.Quality) {
 			existing.Quality = quality
