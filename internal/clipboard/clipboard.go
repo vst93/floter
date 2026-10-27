@@ -514,7 +514,7 @@ func (s *Store) AddFiles(paths []string) (Entry, bool, error) {
 	if len(cleaned) == 0 {
 		return Entry{}, false, nil
 	}
-	return s.addFilesEntry(cleaned, HashText(strings.Join(cleaned, "\n")))
+	return s.addFilesEntry(cleaned, filesIdentity(cleaned))
 }
 
 // AddFilesCapture records a file-list clip that already went through
@@ -645,6 +645,16 @@ func (s *Store) loadLocked() {
 	for i := range entries {
 		if entries[i].extra == nil {
 			entries[i].extra = map[string]any{}
+		}
+		// A file list's identity is a set of canonical paths, and an index
+		// written by an earlier build carries whatever the identity function
+		// of that build produced (a newline-joined digest of the spellings it
+		// stored). Refresh it in memory so the next copy of the same files
+		// dedupes instead of adding a duplicate row; the stored paths are the
+		// user's own strings and are never rewritten here (the old build's
+		// `load_index`, `main:src-tauri/src/clipboard_history/mod.rs:90-101`).
+		if entries[i].Kind == KindFiles && len(entries[i].Paths) > 0 {
+			entries[i].Hash = filesIdentity(entries[i].Paths)
 		}
 	}
 	sort.SliceStable(entries, func(i, j int) bool { return entries[i].CreatedAt > entries[j].CreatedAt })

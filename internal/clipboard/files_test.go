@@ -84,13 +84,19 @@ func TestPrepareFiles(t *testing.T) {
 		}
 	})
 
-	// Two different files, or the same two in another order, are different
-	// captures.
-	t.Run("the order is part of the identity", func(t *testing.T) {
+	// Two different files are different captures; the same two in another order
+	// are the same capture — a file picker's arrival order is the user's click
+	// order, not a fact about the copy.
+	// P10-w 重定基线：顺序敏感 → 集合身份（参考 store.rs:220-230 的 files_hash）
+	t.Run("the order is not part of the identity", func(t *testing.T) {
 		first, _ := PrepareFiles([]string{"/tmp/a.txt", "/tmp/b.txt"}, exists)
 		second, _ := PrepareFiles([]string{"/tmp/b.txt", "/tmp/a.txt"}, exists)
-		if first.Hash == second.Hash {
-			t.Error("a reordered file list hashed the same")
+		if first.Hash != second.Hash {
+			t.Error("a reordered file list hashed two ways")
+		}
+		other, _ := PrepareFiles([]string{"/tmp/a.txt", "/tmp/c.txt"}, exists)
+		if first.Hash == other.Hash {
+			t.Error("two different file lists share one identity")
 		}
 	})
 }
@@ -195,4 +201,53 @@ func TestAddFilesCapture(t *testing.T) {
 	if _, added, err := store.AddFilesCapture(FilesCapture{}); err != nil || added {
 		t.Errorf("an empty capture was added: %v, %v", added, err)
 	}
+}
+
+// A file list's identity is the set of its paths, encoded so that no path can
+// impersonate two: the old build's four invariants (`files_hash`,
+// `main:src-tauri/src/clipboard_history/store.rs:676-688` and `:434-444`).
+func TestFilesHash(t *testing.T) {
+	t.Run("order and repeats do not matter", func(t *testing.T) {
+		ab := FilesHash([]string{"/a", "/b"})
+		if ab != FilesHash([]string{"/b", "/a"}) {
+			t.Error("a reordered list hashed two ways")
+		}
+		if ab != FilesHash([]string{"/a", "/a", "/b"}) {
+			t.Error("a repeated path changed the identity")
+		}
+	})
+
+	t.Run("the contents do", func(t *testing.T) {
+		if FilesHash([]string{"/a", "/b"}) == FilesHash([]string{"/a", "/c"}) {
+			t.Error("two different lists share one identity")
+		}
+		if FilesHash(nil) != FilesHash([]string{}) {
+			t.Error("the empty list has two identities")
+		}
+	})
+
+	t.Run("a path boundary is not a separator", func(t *testing.T) {
+		split := FilesHash([]string{"/a/b", "/c"})
+		merged := FilesHash([]string{"/a", "/b/c"})
+		if split == merged {
+			t.Error("two lists with the same concatenation share one identity")
+		}
+	})
+
+	t.Run("a newline inside a name is not two paths", func(t *testing.T) {
+		one := FilesHash([]string{"/a\n/b"})
+		two := FilesHash([]string{"/a", "/b"})
+		if one == two {
+			t.Error("a path containing a newline impersonated two paths")
+		}
+	})
+
+	t.Run("a file list is not a text clip", func(t *testing.T) {
+		if FilesHash([]string{"/a"}) == HashText("/a") {
+			t.Error("a one-path list shares the digest of the same text")
+		}
+		if FilesHash(nil) == HashText("") {
+			t.Error("an empty list shares the digest of empty text")
+		}
+	})
 }

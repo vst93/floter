@@ -1,7 +1,9 @@
 package clipboard
 
 import (
+	"encoding/binary"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -72,7 +74,47 @@ func PrepareFiles(paths []string, exists func(string) bool) (FilesCapture, bool)
 	if len(originals) == 0 {
 		return FilesCapture{}, false
 	}
-	return FilesCapture{Paths: originals, Hash: HashText(strings.Join(canonical, "\n"))}, true
+	return FilesCapture{Paths: originals, Hash: FilesHash(canonical)}, true
+}
+
+// FilesHash is a file list's identity: the **set** of path strings, not the
+// order they arrived in. Sorting and deduplicating first is what makes a list
+// copied in another selection order the same clip — a file picker's arrival
+// order is the user's click order, not a fact about the copy (the old build's
+// `files_hash`, `main:src-tauri/src/clipboard_history/store.rs:220-230`).
+//
+// The encoding is length-prefixed rather than joined: a path may contain a
+// newline on Linux and macOS, so `["/a\n/b"]` and `["/a", "/b"]` are two
+// different copies and must not share a digest. The `files\0` tag keeps a file
+// list from ever colliding with a text entry whose text is the same bytes.
+func FilesHash(paths []string) string {
+	sorted := make([]string, len(paths))
+	copy(sorted, paths)
+	slices.Sort(sorted)
+	sorted = slices.Compact(sorted)
+
+	encoded := make([]byte, 0, len(paths)*16+len("files\x00"))
+	encoded = append(encoded, "files\x00"...)
+	for _, path := range sorted {
+		var length [8]byte
+		binary.BigEndian.PutUint64(length[:], uint64(len(path)))
+		encoded = append(encoded, length[:]...)
+		encoded = append(encoded, path...)
+	}
+	return hashBytes(encoded)
+}
+
+// filesIdentity is the one place a file list's stored identity is computed:
+// the set of its **canonical** spellings, so the same file reached through a
+// symlink or a `..` is one entry. PrepareFiles, Store.AddFiles and the index
+// load all call it, so a list cannot hash one way on capture and another way
+// after a restart.
+func filesIdentity(paths []string) string {
+	canonical := make([]string, len(paths))
+	for index, path := range paths {
+		canonical[index] = canonicalPath(path)
+	}
+	return FilesHash(canonical)
 }
 
 // canonicalPath is the path's resolved spelling, or the path itself when it

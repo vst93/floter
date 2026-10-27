@@ -570,3 +570,113 @@ func testPNG(t *testing.T, width, height int) []byte {
 	}
 	return buffer.Bytes()
 }
+
+// The same batch of files copied again in another order is the same clip, not a
+// second history row: the identity is the set of paths (P10-w).
+func TestAddFilesIsOrderInsensitive(t *testing.T) {
+	store := NewStore(FromConfigRoot(t.TempDir()), 50)
+	if _, added, err := store.AddFiles([]string{"/tmp/a.txt", "/tmp/b.txt"}); err != nil || !added {
+		t.Fatalf("AddFiles = %v, %v", added, err)
+	}
+	if _, added, err := store.AddFiles([]string{"/tmp/b.txt", "/tmp/a.txt"}); err != nil || added {
+		t.Errorf("a reordered list was added twice: %v, %v", added, err)
+	}
+	if entries := store.Entries(); len(entries) != 1 {
+		t.Fatalf("history holds %d entries, want 1", len(entries))
+	}
+	// Another list is another clip.
+	if _, added, err := store.AddFiles([]string{"/tmp/a.txt", "/tmp/c.txt"}); err != nil || !added {
+		t.Errorf("a different list was dropped: %v, %v", added, err)
+	}
+}
+
+// An index written by an earlier build carries that build's file identity (a
+// newline-joined digest). Loading it must refresh the identity in memory — the
+// paths are the user's own strings and stay as they are — so the next copy of
+// the same files dedupes instead of leaving a duplicate row (the old build's
+// `load_index`, `main:src-tauri/src/clipboard_history/mod.rs:90-101`).
+func TestLoadRefreshesFilesIdentity(t *testing.T) {
+	dir := t.TempDir()
+	paths := FromConfigRoot(dir)
+	stored := []string{"/tmp/a.txt", "/tmp/b.txt"}
+	legacy := []Entry{{
+		ID:        "legacy",
+		Kind:      KindFiles,
+		Paths:     stored,
+		Hash:      HashText(strings.Join(stored, "\n")),
+		CreatedAt: time.Now().UnixMilli(),
+	}}
+	data, err := json.Marshal(legacy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeIndex(t, paths, string(data))
+
+	store := NewStore(paths, 50)
+	entries := store.Entries()
+	if len(entries) != 1 {
+		t.Fatalf("entries = %d, want the one stored row", len(entries))
+	}
+	if entries[0].Hash != FilesHash(stored) {
+		t.Errorf("hash = %q, want the refreshed %q", entries[0].Hash, FilesHash(stored))
+	}
+	if len(entries[0].Paths) != 2 || entries[0].Paths[0] != stored[0] || entries[0].Paths[1] != stored[1] {
+		t.Errorf("paths = %q, want the stored strings untouched %q", entries[0].Paths, stored)
+	}
+
+	// The refreshed identity is the one a fresh capture produces, so the same
+	// copy does not add a second row.
+	capture, ok := PrepareFiles(stored, func(string) bool { return true })
+	if !ok {
+		t.Fatal("the capture was rejected")
+	}
+	if capture.Hash != entries[0].Hash {
+		t.Errorf("capture hash = %q, loaded hash = %q", capture.Hash, entries[0].Hash)
+	}
+	if _, added, err := store.AddFilesCapture(capture); err != nil || added {
+		t.Errorf("the same files were added again after the refresh: %v, %v", added, err)
+	}
+}
+
+// The store's search rule is the reference's rule, vector for vector: the
+// eighteen cases below are byte-for-byte the shared fixture in
+// `main:src-tauri/src/clipboard_history/search.rs` (which the old build's node
+// suite reads back to keep the two languages from drifting). They are pinned
+// here so a later change to `searchFields`/`matches` has to face the same
+// table the reference faces.
+func TestSearchMatchesTheSharedContractVectors(t *testing.T) {
+	cases := []struct {
+		name   string
+		kind   string
+		text   string
+		paths  []string
+		query  string
+		expect bool
+	}{
+		{"empty query matches everything", KindText, "hello", nil, "", true},
+		{"whitespace-only query matches everything", KindText, "hello", nil, "   ", true},
+		{"single token hits the text field", KindText, "hello world", nil, "hello", true},
+		{"AND: two tokens in one text field", KindText, "hello world", nil, "world hello", true},
+		{"AND: one missing token rejects", KindText, "hello world", nil, "hello missing", false},
+		{"case-insensitive hit", KindText, "Rust Async", nil, "rUsT aSYNC", true},
+		{"CJK token", KindText, "剪贴板历史", nil, "剪贴板", true},
+		{"CJK two tokens AND", KindText, "剪贴板历史", nil, "历史 剪贴板", true},
+		{"files entry matches a path token", KindFiles, "", []string{"/tmp/report.pdf"}, "report", true},
+		{"files entry matches a full path token", KindFiles, "", []string{"/tmp/report.pdf"}, "/tmp/report.pdf", true},
+		{"files entry ignores a stray text field", KindFiles, "hidden", []string{"/tmp/a.txt"}, "hidden", false},
+		{"files entry misses an absent path token", KindFiles, "", []string{"/tmp/a.txt"}, "zzz", false},
+		{"bare image answers to its name", KindImage, "", nil, "图片", true},
+		{"bare image answers to img", KindImage, "", nil, "IMG", true},
+		{"captioned image matches its caption", KindImage, "diagram", nil, "diagram", true},
+		{"captioned image: tokens may hit different fields", KindImage, "diagram", nil, "diagram 图片", true},
+		{"text entry does not answer to the image word", KindText, "diagram", nil, "diagram 图片", false},
+		{"non-files text entry matches its text", KindText, "hidden", nil, "hidden", true},
+	}
+	for _, tc := range cases {
+		entry := Entry{Kind: tc.kind, Text: tc.text, Paths: tc.paths}
+		tokens := strings.Fields(strings.ToLower(tc.query))
+		if got := matches(entry, tokens); got != tc.expect {
+			t.Errorf("shared vector drifted: %s: matches(%q) = %v, want %v", tc.name, tc.query, got, tc.expect)
+		}
+	}
+}
