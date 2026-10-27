@@ -291,6 +291,34 @@ func hashBytes(data []byte) string {
 	return hex.EncodeToString(sum[:])
 }
 
+// ImageHash is an image entry's identity: its PNG bytes, and — when a copy
+// carried text beside the pixels — that caption. Re-copying the same pixels
+// with different text is different history; the same pair hashes equal and
+// dedupes. An empty caption hashes exactly as the pixels alone, which is what
+// keeps AddImage's digest unchanged.
+func ImageHash(png []byte, caption string) string {
+	if caption == "" {
+		return hashBytes(png)
+	}
+	hashed := make([]byte, 0, len(png)+len(caption))
+	hashed = append(hashed, png...)
+	hashed = append(hashed, caption...)
+	return hashBytes(hashed)
+}
+
+// CaptionFor is the text stored beside an image: the clipboard's text trimmed,
+// or "" when it is whitespace-only or too large to keep. Whitespace-only text
+// does not count — screenshots routinely ride along invisible leftovers — and
+// it is stored trimmed so a row preview's first line is the caption's first
+// line.
+func CaptionFor(text string) string {
+	trimmed := strings.TrimSpace(text)
+	if trimmed == "" || len(trimmed) > MaxTextBytes {
+		return ""
+	}
+	return trimmed
+}
+
 // ErrNotFound is what an operation on an unknown id reports.
 var ErrNotFound = errors.New("clipboard: no such entry")
 
@@ -427,14 +455,22 @@ func (s *Store) AddText(text string) (Entry, bool, error) {
 	return entry, true, s.saveLocked()
 }
 
-// AddImage records an image clip: the PNG is written under images/ with the
-// entry's id as its name, and an entry with the same digest moves to the
-// front.
+// AddImage records an image clip with no caption beside it.
 func (s *Store) AddImage(png []byte, width, height int) (Entry, bool, error) {
+	return s.AddImageCaption(png, width, height, "")
+}
+
+// AddImageCaption records an image clip: the PNG is written under images/ with
+// the entry's id as its name, and an entry with the same digest moves to the
+// front. The caption is the text the same copy carried (an editor handing over
+// pixels plus their caption), stored as the entry's own text so one copy is one
+// entry — never the text alone shadowing the image.
+func (s *Store) AddImageCaption(png []byte, width, height int, caption string) (Entry, bool, error) {
 	if len(png) == 0 {
 		return Entry{}, false, nil
 	}
-	hash := hashBytes(png)
+	caption = CaptionFor(caption)
+	hash := ImageHash(png, caption)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -454,6 +490,7 @@ func (s *Store) AddImage(png []byte, width, height int) (Entry, bool, error) {
 	entry := Entry{
 		ID:        id,
 		Kind:      KindImage,
+		Text:      caption,
 		ImageFile: file,
 		Width:     width,
 		Height:    height,
@@ -477,8 +514,21 @@ func (s *Store) AddFiles(paths []string) (Entry, bool, error) {
 	if len(cleaned) == 0 {
 		return Entry{}, false, nil
 	}
-	hash := HashText(strings.Join(cleaned, "\n"))
+	return s.addFilesEntry(cleaned, HashText(strings.Join(cleaned, "\n")))
+}
 
+// AddFilesCapture records a file-list clip that already went through
+// PrepareFiles: the paths it kept, under the identity it computed from their
+// canonical forms.
+func (s *Store) AddFilesCapture(capture FilesCapture) (Entry, bool, error) {
+	if len(capture.Paths) == 0 {
+		return Entry{}, false, nil
+	}
+	return s.addFilesEntry(capture.Paths, capture.Hash)
+}
+
+// addFilesEntry is the file-list insert both entry points share.
+func (s *Store) addFilesEntry(cleaned []string, hash string) (Entry, bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.loadLocked()

@@ -8,6 +8,7 @@ import (
 	stdpng "image/png"
 	"log"
 	"net/url"
+	"os"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -18,6 +19,7 @@ import (
 	"github.com/egoist/mygo/transfer"
 
 	"floter/internal/apps"
+	"floter/internal/clipboard"
 	"floter/internal/extensions"
 	"floter/internal/i18n"
 	"floter/internal/settings"
@@ -465,40 +467,164 @@ func (a *App) watchClipboard() {
 }
 
 // captureClipboard records what is on the clipboard now, if it is something
-// new: an image, a file list, or text. It reports whether the history grew.
+// new: a file list, an image (with the text that rode along as its caption), or
+// text. It reports whether the history grew.
 //
-// The formats decide first because reading a large image on every poll would
-// be wasteful: text is cheap to read and compare every time, and the image
-// path is only taken when the clipboard's format list changed.
+// The order is the reference's (`clipboard_history/monitor.rs:107-186`) and it
+// is load-bearing: a Finder or Explorer selection ALSO carries a plain text
+// rendition of its paths, so text read first would record the paths as one
+// string and lose the file semantics. Files are read first, and when no file
+// list survives PrepareFiles the same copy falls through to its image and text
+// renditions.
+//
+// Identity is the content, never the clipboard's format list: two different
+// screenshots carry the same `image/png` format list, and comparing lists would
+// drop every image after the first. `lastClipboardHash` is what the watcher last
+// recorded, so a repeated poll of unchanged content costs nothing.
 func (a *App) captureClipboard() bool {
-	text := mygo.Clipboard.ReadText()
-	if strings.TrimSpace(text) != "" && text != a.selfCopied && text != a.lastClipboardText {
-		a.lastClipboardText = text
-		_, added, err := a.Clipboard.AddText(text)
+	sample := clipboardSample()
+	if capture, ok := clipboard.PrepareFiles(sample.Paths, clipboardFileExists); ok {
+		if capture.Hash == a.lastClipboardHash {
+			return false
+		}
+		a.lastClipboardHash = capture.Hash
+		_, added, err := a.Clipboard.AddFilesCapture(capture)
+		if err != nil {
+			log.Printf("floter: could not record the copied files (%s): %v", formatKey(sample.formats), err)
+		}
 		return err == nil && added
 	}
 
-	formats := mygo.Clipboard.Formats()
-	key := formatKey(formats)
-	if key == a.lastClipboardFormats {
+	sample.readImage()
+	plan, ok := planCapture(sample)
+	if !ok || plan.Hash == a.lastClipboardHash {
 		return false
 	}
-	a.lastClipboardFormats = key
+	// The watcher must not record what the app itself wrote.
+	if plan.Kind == clipboard.KindText && plan.Text == a.selfCopied {
+		return false
+	}
+	a.lastClipboardHash = plan.Hash
+	var added bool
+	var err error
+	if plan.Kind == clipboard.KindImage {
+		_, added, err = a.Clipboard.AddImageCaption(plan.PNG, plan.Width, plan.Height, plan.Caption)
+	} else {
+		_, added, err = a.Clipboard.AddText(plan.Text)
+	}
+	if err != nil {
+		log.Printf("floter: could not record the clipboard (%s): %v", formatKey(sample.formats), err)
+	}
+	return err == nil && added
+}
 
-	if containsFormat(formats, "image/png") {
-		if data, err := mygo.Clipboard.Read(transfer.PNG); err == nil {
-			if png, err := data.Read(transfer.PNG); err == nil && len(png) > 0 {
-				width, height := imageSize(png)
-				_, added, err := a.Clipboard.AddImage(png, width, height)
-				return err == nil && added
-			}
+// clipSample is one reading of the system clipboard. The image's bytes are not
+// part of the reading: they are the expensive part, and they only matter once
+// no file list won.
+type clipSample struct {
+	Paths   []string
+	Text    string
+	PNG     []byte
+	Width   int
+	Height  int
+	formats []transfer.Format
+}
+
+// readClipboardSample reads the cheap half of the clipboard: the file list, the
+// text and the format list's summary (which the failure log names).
+func readClipboardSample() clipSample {
+	sample := clipSample{Text: mygo.Clipboard.ReadText()}
+	if paths, err := mygo.Clipboard.ReadFiles(); err == nil {
+		sample.Paths = paths
+	}
+	sample.formats = mygo.Clipboard.Formats()
+	return sample
+}
+
+// readImage fills in the image half of the sample.
+func (s *clipSample) readImage() {
+	s.PNG, s.Width, s.Height = clipboardImageReader(s.formats)
+}
+
+// clipboardImage reads the clipboard's PNG rendition, and only when the format
+// list says there is one: fetching a PNG on every poll of a text clipboard would
+// be waste. The reference reads files first and returns before touching pixels
+// for the same reason.
+func clipboardImage(formats []transfer.Format) ([]byte, int, int) {
+	if !containsFormat(formats, "image/png") {
+		return nil, 0, 0
+	}
+	data, err := mygo.Clipboard.Read(transfer.PNG)
+	if err != nil {
+		return nil, 0, 0
+	}
+	png, err := data.Read(transfer.PNG)
+	if err != nil || len(png) == 0 {
+		return nil, 0, 0
+	}
+	width, height := imageSize(png)
+	return png, width, height
+}
+
+// clipboardImageReader is the image reader; tests replace it alongside
+// clipboardSample so a poll can be observed with no system clipboard in the way.
+var clipboardImageReader = clipboardImage
+
+// capturePlan is what one sample records: one kind, the payload, and the
+// identity the store will dedupe on.
+type capturePlan struct {
+	Kind    string
+	Text    string
+	Caption string
+	PNG     []byte
+	Width   int
+	Height  int
+	Hash    string
+}
+
+// planCapture decides what a sample with no usable file list records, in the
+// reference's order: the image first, with the copy's text as its caption, then
+// the text alone.
+//
+// Text and image are decided together because a single copy can carry both: an
+// editor handing over pixels plus their caption must store ONE image entry
+// whose text is that caption — never two entries, and never the text alone
+// shadowing the image. A capture over the size ceilings records nothing at all,
+// the text included, because half of an oversized copy is worse than none.
+func planCapture(sample clipSample) (capturePlan, bool) {
+	if len(sample.PNG) > 0 && sample.Width > 0 && sample.Height > 0 {
+		if len(sample.PNG) > clipboard.MaxImagePNGBytes {
+			return capturePlan{}, false
 		}
+		caption := clipboard.CaptionFor(sample.Text)
+		return capturePlan{
+			Kind:    clipboard.KindImage,
+			Caption: caption,
+			PNG:     sample.PNG,
+			Width:   sample.Width,
+			Height:  sample.Height,
+			Hash:    clipboard.ImageHash(sample.PNG, caption),
+		}, true
 	}
-	if paths, err := mygo.Clipboard.ReadFiles(); err == nil && len(paths) > 0 {
-		_, added, err := a.Clipboard.AddFiles(paths)
-		return err == nil && added
+	if len(sample.Text) > clipboard.MaxTextBytes || strings.TrimSpace(sample.Text) == "" {
+		return capturePlan{}, false
 	}
-	return false
+	return capturePlan{
+		Kind: clipboard.KindText,
+		Text: sample.Text,
+		Hash: clipboard.HashText(sample.Text),
+	}, true
+}
+
+// clipboardSample reads the system clipboard once per poll; tests replace it so
+// the watcher's decision can be observed with no system clipboard in the way.
+var clipboardSample = readClipboardSample
+
+// clipboardFileExists is the file list's "is this path still there" oracle,
+// the only filesystem access the decision needs.
+var clipboardFileExists = func(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 // formatKey is a comparable summary of a format list.

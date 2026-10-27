@@ -435,10 +435,10 @@ type App struct {
 	runPowerCommand func(action string) error
 	openPathCommand func(path string) error
 	openURLCommand  func(browserID, url string) error
-	// lastClipboardText and lastClipboardFormats are what the watcher saw
-	// last, so a poll records only what changed.
-	lastClipboardText    string
-	lastClipboardFormats string
+	// lastClipboardHash is the identity of what the watcher recorded last, so a
+	// poll records only what changed. It is the content's digest, not the
+	// clipboard's format list: two different screenshots carry the same list.
+	lastClipboardHash string
 	// browserProfiles is the discovered browser profiles, and browserMu
 	// guards it: the first search discovers them. browserBase is the custom
 	// base directory they were discovered with, so a settings change
