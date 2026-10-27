@@ -18,6 +18,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -332,6 +333,12 @@ type Store struct {
 	loaded   bool
 	maxItems int
 	now      func() time.Time
+
+	// pendingRemovals are the image files a committed write will drop. They
+	// are collected while the change is still uncommitted and deleted only
+	// after the index lands (see mutateLocked): a write that fails must not
+	// leave a live entry pointing at a file it just deleted.
+	pendingRemovals []string
 }
 
 // NewStore builds a store over the history paths. maxItems caps the
@@ -348,9 +355,47 @@ func (s *Store) SetMaxItems(maxItems int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.maxItems = clampMaxItems(maxItems)
+	return s.mutateLocked(func() error {
+		s.pruneLocked()
+		return nil
+	})
+}
+
+// mutateLocked is the one write path of the history: it applies a change and
+// publishes it only once the index is on disk. A failed write leaves the
+// memory, the index and the image files exactly as they were — the reference's
+// `update_entries`, "Commit the memory snapshot only after its persistence
+// operation succeeds" (`clipboard_history/store.rs:233-241`, and its test
+// `failed_persistence_does_not_publish_a_mutated_cache`, `store.rs:403-420`).
+//
+// The copy is shallow on purpose: every mutation here assigns struct fields or
+// rebuilds the slice, and none edits an entry's `extra` map in place.
+func (s *Store) mutateLocked(mutate func() error) error {
 	s.loadLocked()
-	s.pruneLocked()
-	return s.saveLocked()
+	before := slices.Clone(s.entries)
+	s.pendingRemovals = nil
+	if err := mutate(); err != nil {
+		s.entries = before
+		s.pendingRemovals = nil
+		return err
+	}
+	if err := s.saveLocked(); err != nil {
+		s.entries = before
+		s.pendingRemovals = nil
+		return err
+	}
+	s.dropPendingImagesLocked()
+	return nil
+}
+
+// dropPendingImagesLocked deletes the image files of the entries a committed
+// write dropped. Only a committed write gets here: a file is never removed for
+// a change that did not land.
+func (s *Store) dropPendingImagesLocked() {
+	for _, name := range s.pendingRemovals {
+		_ = os.Remove(filepath.Join(s.paths.Images(), filepath.Base(name)))
+	}
+	s.pendingRemovals = nil
 }
 
 // Entries is the history, newest first.
@@ -450,9 +495,14 @@ func (s *Store) AddText(text string) (Entry, bool, error) {
 		CreatedAt: s.now().UnixMilli(),
 		extra:     map[string]any{},
 	}
-	entry = s.insertLocked(entry)
-	s.pruneLocked()
-	return entry, true, s.saveLocked()
+	if err := s.mutateLocked(func() error {
+		entry = s.insertLocked(entry)
+		s.pruneLocked()
+		return nil
+	}); err != nil {
+		return Entry{}, false, err
+	}
+	return entry, true, nil
 }
 
 // AddImage records an image clip with no caption beside it.
@@ -498,9 +548,18 @@ func (s *Store) AddImageCaption(png []byte, width, height int, caption string) (
 		CreatedAt: s.now().UnixMilli(),
 		extra:     map[string]any{},
 	}
-	entry = s.insertLocked(entry)
-	s.pruneLocked()
-	return entry, true, s.saveLocked()
+	if err := s.mutateLocked(func() error {
+		entry = s.insertLocked(entry)
+		s.pruneLocked()
+		return nil
+	}); err != nil {
+		// The row never landed, so the pixels must not linger either: the
+		// reference takes the freshly written PNG back when its save fails
+		// (`clipboard_history/monitor.rs:294-299`).
+		_ = os.Remove(filepath.Join(s.paths.Images(), file))
+		return Entry{}, false, err
+	}
+	return entry, true, nil
 }
 
 // AddFiles records a file-list clip.
@@ -543,9 +602,14 @@ func (s *Store) addFilesEntry(cleaned []string, hash string) (Entry, bool, error
 		CreatedAt: s.now().UnixMilli(),
 		extra:     map[string]any{},
 	}
-	entry = s.insertLocked(entry)
-	s.pruneLocked()
-	return entry, true, s.saveLocked()
+	if err := s.mutateLocked(func() error {
+		entry = s.insertLocked(entry)
+		s.pruneLocked()
+		return nil
+	}); err != nil {
+		return Entry{}, false, err
+	}
+	return entry, true, nil
 }
 
 // insertLocked puts an entry at the front, folding an earlier copy of the same
@@ -596,9 +660,11 @@ func (s *Store) SetFavorite(id string, favorite bool) error {
 	s.loadLocked()
 	for i := range s.entries {
 		if s.entries[i].ID == id {
-			s.entries[i].Favorite = favorite
-			s.pruneLocked()
-			return s.saveLocked()
+			return s.mutateLocked(func() error {
+				s.entries[i].Favorite = favorite
+				s.pruneLocked()
+				return nil
+			})
 		}
 	}
 	return ErrNotFound
@@ -613,12 +679,14 @@ func (s *Store) Remove(id string) error {
 		if s.entries[i].ID != id {
 			continue
 		}
-		removed := s.entries[i]
-		s.entries = append(s.entries[:i], s.entries[i+1:]...)
-		if removed.ImageFile != "" {
-			_ = os.Remove(filepath.Join(s.paths.Images(), filepath.Base(removed.ImageFile)))
-		}
-		return s.saveLocked()
+		return s.mutateLocked(func() error {
+			removed := s.entries[i]
+			s.entries = append(s.entries[:i], s.entries[i+1:]...)
+			if removed.ImageFile != "" {
+				s.pendingRemovals = append(s.pendingRemovals, removed.ImageFile)
+			}
+			return nil
+		})
 	}
 	return ErrNotFound
 }
@@ -629,18 +697,20 @@ func (s *Store) Clear() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.loadLocked()
-	kept := make([]Entry, 0, len(s.entries))
-	for _, entry := range s.entries {
-		if entry.Favorite {
-			kept = append(kept, entry)
-			continue
+	return s.mutateLocked(func() error {
+		kept := make([]Entry, 0, len(s.entries))
+		for _, entry := range s.entries {
+			if entry.Favorite {
+				kept = append(kept, entry)
+				continue
+			}
+			if entry.ImageFile != "" {
+				s.pendingRemovals = append(s.pendingRemovals, entry.ImageFile)
+			}
 		}
-		if entry.ImageFile != "" {
-			_ = os.Remove(filepath.Join(s.paths.Images(), filepath.Base(entry.ImageFile)))
-		}
-	}
-	s.entries = kept
-	return s.saveLocked()
+		s.entries = kept
+		return nil
+	})
 }
 
 // loadLocked reads the index once. A missing or corrupt index is an empty
@@ -697,9 +767,10 @@ func (s *Store) pruneLocked() {
 			continue
 		}
 		if entry.CreatedAt < cutoff || nonFavorites >= s.maxItems {
-			// A dropped image takes its file with it.
+			// A dropped image takes its file with it — once the pruned history
+			// is committed, never before (see mutateLocked).
 			if entry.ImageFile != "" {
-				_ = os.Remove(filepath.Join(s.paths.Images(), filepath.Base(entry.ImageFile)))
+				s.pendingRemovals = append(s.pendingRemovals, entry.ImageFile)
 			}
 			continue
 		}
