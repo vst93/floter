@@ -11,6 +11,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"floter/internal/statefile"
 )
 
 // The configuration filenames under extension-data/<id>/.
@@ -132,27 +134,7 @@ func SaveStoredConfiguration(dataRoot, id string, stored StoredConfiguration) er
 		return err
 	}
 
-	temporary, err := os.CreateTemp(dir, ".config-*")
-	if err != nil {
-		return err
-	}
-	name := temporary.Name()
-	defer os.Remove(name)
-	if _, err := temporary.Write(append(data, '\n')); err != nil {
-		temporary.Close()
-		return err
-	}
-	if err := temporary.Sync(); err != nil {
-		temporary.Close()
-		return err
-	}
-	if err := temporary.Close(); err != nil {
-		return err
-	}
-	if err := os.Chmod(name, 0o600); err != nil {
-		return err
-	}
-	return os.Rename(name, filepath.Join(dir, configFile))
+	return statefile.Write(filepath.Join(dir, configFile), append(data, '\n'), 0o600)
 }
 
 // parseStoredConfiguration accepts both shapes the old app wrote: the
@@ -676,31 +658,9 @@ func removeOldGenerations(dir, current string) {
 	}
 }
 
-// atomicWriteFile writes data to path: a temporary file in the same directory,
-// flushed, then renamed over the target.
+// atomicWriteFile writes data to path atomically.
 func atomicWriteFile(path string, data []byte) error {
-	dir := filepath.Dir(path)
-	temporary, err := os.CreateTemp(dir, ".config-*")
-	if err != nil {
-		return err
-	}
-	name := temporary.Name()
-	defer os.Remove(name)
-	if _, err := temporary.Write(data); err != nil {
-		temporary.Close()
-		return err
-	}
-	if err := temporary.Sync(); err != nil {
-		temporary.Close()
-		return err
-	}
-	if err := temporary.Close(); err != nil {
-		return err
-	}
-	if err := os.Chmod(name, 0o600); err != nil {
-		return err
-	}
-	return os.Rename(name, path)
+	return statefile.Write(path, data, 0o600)
 }
 
 // parseStoredConfigurationFile reads a configuration file's envelope, for the

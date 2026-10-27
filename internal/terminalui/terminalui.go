@@ -12,7 +12,6 @@ import (
 	"errors"
 	"log"
 	"os"
-	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -29,6 +28,7 @@ import (
 	"floter/internal/motion"
 	"floter/internal/settings"
 	"floter/internal/shortcuts"
+	"floter/internal/statefile"
 	"floter/internal/theme"
 )
 
@@ -513,34 +513,9 @@ func (a *App) restoreSnapshot(term *terminal.Terminal) {
 	term.Feed(data)
 }
 
-// writeFileAtomically writes data to path: a temporary file in the same
-// directory, flushed, then renamed over the target.
+// writeFileAtomically writes data to path atomically.
 func writeFileAtomically(path string, data []byte) error {
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return err
-	}
-	temporary, err := os.CreateTemp(dir, ".snapshot-*")
-	if err != nil {
-		return err
-	}
-	name := temporary.Name()
-	defer os.Remove(name)
-	if _, err := temporary.Write(data); err != nil {
-		temporary.Close()
-		return err
-	}
-	if err := temporary.Sync(); err != nil {
-		temporary.Close()
-		return err
-	}
-	if err := temporary.Close(); err != nil {
-		return err
-	}
-	if err := os.Chmod(name, 0o600); err != nil {
-		return err
-	}
-	return os.Rename(name, path)
+	return statefile.Write(path, data, 0o600)
 }
 
 // RunCommand starts a session whose own program is argv: how an extension's

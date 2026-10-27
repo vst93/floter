@@ -31,6 +31,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"floter/internal/statefile"
 )
 
 // The directory and file names under the config root.
@@ -400,7 +402,16 @@ func (s *Store) pruneLocked() {
 		}
 		if excess := len(indices) - s.maxItems; excess > 0 {
 			sort.SliceStable(indices, func(i, j int) bool {
-				return fresh[indices[i]].CreatedAt < fresh[indices[j]].CreatedAt
+				a, b := fresh[indices[i]], fresh[indices[j]]
+				if a.CreatedAt != b.CreatedAt {
+					return a.CreatedAt < b.CreatedAt
+				}
+				// Equal timestamps: the higher position in the newest-first
+				// list was added earlier, so it is the older of the two. Doom
+				// that one first — otherwise a burst of adds inside one
+				// millisecond would drop the newest rows, the opposite of the
+				// contract above.
+				return indices[i] > indices[j]
 			})
 			doomed := make(map[int]bool, excess)
 			for _, index := range indices[:excess] {
@@ -490,12 +501,8 @@ func (s *Store) mutateLocked(mutate func() error) error {
 	return nil
 }
 
-// saveLocked writes the index atomically: a temporary file in the same
-// directory, flushed, then renamed over the target.
+// saveLocked writes the index atomically.
 func (s *Store) saveLocked() error {
-	if err := os.MkdirAll(s.paths.Root, 0o755); err != nil {
-		return err
-	}
 	entries := s.entries
 	if entries == nil {
 		entries = []Entry{}
@@ -504,34 +511,7 @@ func (s *Store) saveLocked() error {
 	if err != nil {
 		return err
 	}
-	temporary, err := os.CreateTemp(s.paths.Root, ".index-*")
-	if err != nil {
-		return err
-	}
-	name := temporary.Name()
-	defer os.Remove(name)
-	if _, err := temporary.Write(append(data, '\n')); err != nil {
-		temporary.Close()
-		return err
-	}
-	if err := temporary.Sync(); err != nil {
-		temporary.Close()
-		return err
-	}
-	if err := temporary.Close(); err != nil {
-		return err
-	}
-	if err := os.Chmod(name, 0o600); err != nil {
-		return err
-	}
-	if err := os.Rename(name, s.paths.Index()); err != nil {
-		return err
-	}
-	if dir, err := os.Open(s.paths.Root); err == nil {
-		_ = dir.Sync()
-		_ = dir.Close()
-	}
-	return nil
+	return statefile.Write(s.paths.Index(), append(data, '\n'), 0o600)
 }
 
 // clampMaxItems snaps a capacity into the shipped band, the old build's

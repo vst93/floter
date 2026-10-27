@@ -361,3 +361,35 @@ func TestEntryText(t *testing.T) {
 		t.Errorf("a row with no result = %q", got)
 	}
 }
+
+// TestPruneTieBreakDropsTheOldest pins the capacity prune's tie-break: when
+// several rows share a CreatedAt (a burst of adds inside one millisecond, or a
+// test with a frozen clock), the capacity must still drop the *oldest* rows.
+// The rows are held newest-first, so the older of two equal timestamps is the
+// one further down the list — the prune used to drop the front of the list
+// instead, i.e. the newest rows, the opposite of the contract it documents.
+func TestPruneTieBreakDropsTheOldest(t *testing.T) {
+	store := newTestStore(t, MinMaxItems, 0)
+	store.now = func() time.Time { return time.Unix(1_700_000_000, 0) }
+
+	for _, expression := range []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l"} {
+		if _, err := store.Add(expression, "0"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var got []string
+	for _, entry := range store.Entries() {
+		got = append(got, entry.Expression)
+	}
+	// Newest-first, capacity MinMaxItems(10): the ten newest survive, a and b
+	// (the oldest) are gone.
+	want := []string{"l", "k", "j", "i", "h", "g", "f", "e", "d", "c"}
+	if len(got) != len(want) {
+		t.Fatalf("capacity prune kept %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("capacity prune kept %v, want %v (the newest, not the oldest, must survive a tie)", got, want)
+		}
+	}
+}
