@@ -418,13 +418,22 @@ jobs:
               # `amd64` spelling the build produces and the manifest's own
               # `url` refers to (see docs/release.md: archives are not
               # renamed).
+              #
+              # mygo >= v0.7.0 names the NSIS installer
+              # `<slug>-setup-<version>-<arch>.exe` (lower-case `setup`, the
+              # slug it shares with the dmg and the tarball); up to v0.6.4 it
+              # was `<Name> Setup <version> <arch>.exe`. The glob below
+              # follows the current spelling: with the old one the copy
+              # silently found nothing, so the release shipped no Windows
+              # installer while the notes table above kept linking to it.
+              # internal/ci pins the glob against the name the build makes.
               for PAIR in "amd64:x86_64" "arm64:arm64"; do
                 A="${PAIR%%:*}"; N="${PAIR##*:}"
                 D="dist/windows-$A"
                 [ -d "$D" ] || continue
                 EXE="$D/floter.exe"
                 [ -f "$EXE" ] && cp "$EXE" "$OUT/floter-$VERSION-windows-$A.exe"
-                SETUP=$(ls "$D"/*Setup*.exe 2>/dev/null | head -1 || true)
+                SETUP=$(ls "$D"/*-setup-*.exe 2>/dev/null | head -1 || true)
                 [ -n "$SETUP" ] && cp "$SETUP" "$OUT/floter-$VERSION-windows-$N-setup.exe"
                 cp "$D"/floter-*-windows-$A.tar.gz "$OUT/" 2>/dev/null || true
                 cp "dist/windows-$A/update-windows-$A.json" "$OUT/" 2>/dev/null || true
