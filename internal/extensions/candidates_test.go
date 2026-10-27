@@ -133,3 +133,30 @@ func TestReconnectAtRefusesAProgramThatCannotRun(t *testing.T) {
 		t.Fatal("ReconnectAt accepted a program that is not there")
 	}
 }
+
+// The candidate list is directory-major: every name a directory offers comes
+// before the next directory's names, because the search path's order is the
+// operating system's answer to "which program is `alpha`", and a chooser whose
+// first row is the wrong directory's program asks the user to undo the host's
+// own precedence.
+//
+// This is a deliberate divergence from the reference, pinned here so it cannot
+// drift: its ambiguity list is sorted by candidate id — the normalized path —
+// ascending (`src-tauri/src/extensions/resolver.rs:95-98`), which on a real
+// machine puts `/opt/...` before `/usr/bin/...` whatever the search path says.
+// Its ranking function (`inventory::rank_candidates`, `inventory.rs:377`) does
+// not apply here at all; it ranks the Detected suggestions, which this build
+// ranks with `inventory.Priority`.
+func TestLookToolsIsDirectoryMajor(t *testing.T) {
+	first, second := t.TempDir(), t.TempDir()
+	writeExecutable(t, filepath.Join(first, "beta"))
+	writeExecutable(t, filepath.Join(second, "alpha"))
+
+	got := lookToolsIn(runtime.GOOS, []string{first, second}, "alpha", "beta")
+	if len(got) != 2 {
+		t.Fatalf("candidates = %+v, want two", got)
+	}
+	if got[0].Path != filepath.Join(first, "beta") || got[1].Path != filepath.Join(second, "alpha") {
+		t.Errorf("order = %q, %q; want the first directory's match first (directory-major)", got[0].Path, got[1].Path)
+	}
+}

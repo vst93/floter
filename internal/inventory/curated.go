@@ -150,6 +150,26 @@ func isVariantName(name string) bool {
 // isUserOwnedDirectory reports whether an executable lives under a
 // directory the user owns and populated. Best-effort: an unreadable path
 // simply earns no bonus.
+//
+// The first four entries are the reference's list, in its order
+// (`src-tauri/src/extensions/inventory.rs:410-418`): `~/.local/bin`,
+// `~/.cargo/bin`, `~/.nix-profile/bin`, `~/bin`. `~/bin` is easy to forget and
+// it is the oldest of the four — Debian's user bin directory, on `PATH` by
+// default on most desktops — so a tool the user put there must rank with the
+// cargo and nix ones, not below them.
+//
+// The last two are this build's additions, both user-owned bin directories the
+// reference's list does not name: `~/go/bin` is where `go install` puts
+// everything, and the flatpak exports directory is where a flatpak app's
+// runnable wrapper lives. They are a deliberate superset — the ranking only
+// reorders the first twelve rows, and a directory the user populated by hand
+// is exactly the signal the bonus is for.
+//
+// The match requires a separator, so `~/.local/bin-old/x` earns nothing. The
+// reference uses a bare `starts_with` on the joined path
+// (`inventory.rs:412`), which would credit that file; a prefix that is not a
+// directory boundary is not the directory. Pinned in
+// `prioritycontract_test.go`.
 func isUserOwnedDirectory(path string) bool {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -159,6 +179,7 @@ func isUserOwnedDirectory(path string) bool {
 		filepath.Join(home, ".local", "bin"),
 		filepath.Join(home, ".cargo", "bin"),
 		filepath.Join(home, ".nix-profile", "bin"),
+		filepath.Join(home, "bin"),
 		filepath.Join(home, "go", "bin"),
 		filepath.Join(home, ".local", "share", "flatpak", "exports", "bin"),
 	} {
