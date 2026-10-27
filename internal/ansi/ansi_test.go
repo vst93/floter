@@ -206,3 +206,51 @@ func TestNotAControlSequenceKeepsTheText(t *testing.T) {
 		t.Errorf("Plain = %q", got)
 	}
 }
+
+// A designation is three bytes: ESC, an intermediate byte, and the value it
+// designates. The value is never text — reading only two bytes printed it.
+func TestDesignationsAreThreeBytes(t *testing.T) {
+	for _, prefix := range []string{
+		"\x1b(B", // ASCII into G0
+		"\x1b)0", // the line-drawing set into G1
+		"\x1b*A",
+		"\x1b+B",
+		"\x1b-A",
+		"\x1b.B",
+		"\x1b/A",
+		"\x1b#8", // DECALN
+		"\x1b%G", // UTF-8
+	} {
+		if got := Plain(prefix + "hello"); got != "hello" {
+			t.Errorf("Plain(%q) = %q, want %q", prefix+"hello", got, "hello")
+		}
+		// The same designation between two runs of text leaves both.
+		if got := Plain("a" + prefix + "b"); got != "ab" {
+			t.Errorf("Plain(%q) = %q, want %q", "a"+prefix+"b", got, "ab")
+		}
+	}
+}
+
+// The two-byte escapes stay two bytes: a three-byte reading of `ESC =` would
+// eat the character after it.
+func TestTwoByteEscapesStayTwoBytes(t *testing.T) {
+	for _, prefix := range []string{"\x1b=", "\x1b>", "\x1b7", "\x1b8", "\x1bM", "\x1bE"} {
+		if got := Plain(prefix + "hello"); got != "hello" {
+			t.Errorf("Plain(%q) = %q, want %q", prefix+"hello", got, "hello")
+		}
+		if got := Plain("a" + prefix + "b"); got != "ab" {
+			t.Errorf("Plain(%q) = %q, want %q", "a"+prefix+"b", got, "ab")
+		}
+	}
+}
+
+// A designation with no value byte is unterminated: the rest is not printable,
+// and nothing panics.
+func TestTruncatedDesignation(t *testing.T) {
+	if got := Plain("before\x1b("); got != "before" {
+		t.Errorf("a truncated designation left %q", got)
+	}
+	if got := Plain("\x1b"); got != "" {
+		t.Errorf("a bare escape left %q", got)
+	}
+}

@@ -122,8 +122,8 @@ func Parse(text string) []Span {
 			}
 			i = j + 1
 		default:
-			// Any other escape is a two-byte sequence (or an OSC string,
-			// which ends at BEL or ST): dropped, never printed.
+			// Any other escape is a two-byte or three-byte sequence (or an
+			// OSC string, which ends at BEL or ST): dropped, never printed.
 			i = skipEscape(text, i)
 		}
 	}
@@ -136,6 +136,10 @@ func Parse(text string) []Span {
 
 // Plain is the text of spans with every escape read and dropped: what the
 // output *says*, for copying to the clipboard or showing in a plain field.
+//
+// It is also the only way anything else in the tree cleans escapes before
+// reading text — the `--help` derivation (`internal/extensions`) starts from
+// Plain, so there is one reading of a sequence, not one per caller.
 func Plain(text string) string {
 	spans := Parse(text)
 	var out strings.Builder
@@ -171,8 +175,31 @@ func skipEscape(text string, i int) int {
 		}
 		return len(text)
 	default:
+		if isDesignator(text[next]) {
+			// A designation: ESC, an intermediate byte, then the value
+			// it designates — three bytes, none of them a character. A
+			// truncated one has no value to read, so the rest is not
+			// printable either.
+			if next+1 >= len(text) {
+				return len(text)
+			}
+			return next + 2
+		}
 		return next + 1
 	}
+}
+
+// isDesignator reports whether b introduces a three-byte escape: the
+// character-set designations `ESC ( ) * + - . /`, the line-attribute
+// designation `ESC #`, and the encoding selection `ESC %`. Their third byte
+// names a set or a mode and is never text, so reading only two bytes would
+// print it.
+func isDesignator(b byte) bool {
+	switch b {
+	case '(', ')', '*', '+', '-', '.', '/', '#', '%':
+		return true
+	}
+	return false
 }
 
 // invalidParam marks an SGR parameter that is not a number. The original

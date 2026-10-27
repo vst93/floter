@@ -9,6 +9,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"floter/internal/ansi"
 )
 
 func argumentNames(arguments []DerivedArgument) []string {
@@ -606,5 +608,56 @@ func TestSemverFromVersionOutputNeverFabricatesAVersion(t *testing.T) {
 		if got := SemverFromVersionOutput(output); got != "" {
 			t.Errorf("SemverFromVersionOutput(%q) = %q, want none", output, got)
 		}
+	}
+}
+
+// A charset designation (`ESC ( B`) is three bytes and none of them is text:
+// the derivation must not grow a name with a stray `B` glued to its front.
+func TestCharsetDesignationsNeverBecomePartOfAName(t *testing.T) {
+	help := "Options:\n" +
+		"  \x1b(B--verbose   Say more\n" +
+		"  \x1b)0-sort   Sort keys\n"
+	names := argumentNames(DeriveArguments(help))
+	if len(names) != 2 || names[0] != "--verbose" || names[1] != "-sort" {
+		t.Fatalf("names = %v", names)
+	}
+	listing := "\x1b(B📦 jv\x1b(B 1.0.0 👤 dev\n  JSON viewer\n"
+	subcommands := DeriveSubcommands(listing)
+	if len(subcommands) != 1 || subcommands[0].Name != "jv" {
+		t.Errorf("subcommands = %+v", subcommands)
+	}
+}
+
+// One reading of an escape sequence, not one per caller: feeding the raw help
+// and feeding it already read through `ansi.Plain` must derive the same
+// answer, field for field.
+func TestHelpDerivationHasOneEscapeReader(t *testing.T) {
+	help := "\x1b[1mOptions:\x1b[0m\n" +
+		"  \x1b[32m-sort\x1b[0m   Sort keys\n" +
+		"  \x1b[32m-out\x1b[0m <path>  Write path\n" +
+		"\x1b]8;;https://example.com\x1b\\\x1b[33m-h\x1b[0m\x1b]8;;\x1b\\  Help\n" +
+		"\x1b(B--verbose  Say more\n" +
+		"a\x1b[\nbroken   Sequence\n"
+	raw := DeriveArguments(help)
+	read := DeriveArguments(ansi.Plain(help))
+	if len(raw) != len(read) {
+		t.Fatalf("raw = %+v, read = %+v", raw, read)
+	}
+	for i := range raw {
+		if strings.Join(raw[i].Names, ",") != strings.Join(read[i].Names, ",") ||
+			raw[i].ValueHint != read[i].ValueHint || raw[i].Description != read[i].Description {
+			t.Errorf("argument %d: raw = %+v, read = %+v", i, raw[i], read[i])
+		}
+	}
+}
+
+// A broken control sequence (`ESC [` followed by a line break) is not a
+// control sequence: the reader drops the ESC alone and the line after it is
+// still read. The old per-package strip ate one character of it.
+func TestBrokenControlSequenceKeepsTheLine(t *testing.T) {
+	help := "Options:\n  a\x1b[\n-sort   Sort keys\n"
+	names := argumentNames(DeriveArguments(help))
+	if len(names) != 1 || names[0] != "-sort" {
+		t.Fatalf("names = %v", names)
 	}
 }

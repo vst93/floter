@@ -2,6 +2,8 @@ package extensions
 
 import (
 	"strings"
+
+	"floter/internal/ansi"
 )
 
 // The `--help` inference tier: when a tool is connected, the host runs it
@@ -75,7 +77,10 @@ func (d HelpDerivation) Empty() bool {
 // narrow exception — an indented plain-text line following an option whose
 // description is still empty is treated as its description (Go flag style).
 func DeriveArguments(helpOutput string) []DerivedArgument {
-	helpOutput = stripANSI(helpOutput)
+	// Escapes are read by `internal/ansi`, the one reader in the tree: a
+	// tool that colorizes regardless of stdout being a TTY would otherwise
+	// poison every token with sequence fragments.
+	helpOutput = ansi.Plain(helpOutput)
 	var arguments []DerivedArgument
 	seen := map[string]bool{}
 	for _, line := range strings.Split(helpOutput, "\n") {
@@ -497,52 +502,6 @@ func parseSummaryFlags(trimmed string) []rawOption {
 	return out
 }
 
-// stripANSI removes ANSI escape sequences (CSI runs ending in a final byte,
-// OSC strings terminated by BEL or ST, and bare two-byte escapes). Tools
-// that colorize their help regardless of whether stdout is a TTY would
-// otherwise poison every token with escape-sequence fragments.
-func stripANSI(text string) string {
-	var cleaned strings.Builder
-	runes := []rune(text)
-	for i := 0; i < len(runes); i++ {
-		if runes[i] != 0x1b {
-			cleaned.WriteRune(runes[i])
-			continue
-		}
-		if i+1 >= len(runes) {
-			break
-		}
-		switch runes[i+1] {
-		case '[':
-			i += 2
-			// Parameter and intermediate bytes, then one final byte.
-			for ; i < len(runes); i++ {
-				if runes[i] >= 0x40 && runes[i] <= 0x7e {
-					break
-				}
-			}
-		case ']':
-			i += 2
-			for ; i < len(runes); i++ {
-				switch runes[i] {
-				case 0x07:
-				case 0x1b:
-					if i+1 < len(runes) {
-						i++
-					}
-				default:
-					continue
-				}
-				break
-			}
-		default:
-			// Two-byte escape (charset selection etc.) — drop one follower.
-			i++
-		}
-	}
-	return cleaned.String()
-}
-
 // nonCommands never become subcommands, however command-like their row
 // looks.
 var nonCommands = map[string]bool{
@@ -566,7 +525,7 @@ var nonCommands = map[string]bool{
 // entries; names failing the generated-command charset are skipped; results
 // dedupe by name, keep first-seen order, and cap at maxDerivedSubcommands.
 func DeriveSubcommands(helpOutput string) []DerivedSubcommand {
-	helpOutput = stripANSI(helpOutput)
+	helpOutput = ansi.Plain(helpOutput)
 	var subcommands []DerivedSubcommand
 	seen := map[string]bool{}
 	// The index of the most recent v-style row still awaiting its indented
