@@ -2443,6 +2443,15 @@ func (a *App) activate(results []Item) {
 		return
 	}
 	if a.calculatorMode {
+		// The field's text owns Enter when it produced no answer row: an
+		// expression this build refused must say why, not fall through to the
+		// history row the selection happens to sit on (see
+		// `runCalculatorExpression`). An empty field, and a field whose answer
+		// row *is* on the list, keep the row's own Enter.
+		if a.calculatorEnterOwnsTheField(results) {
+			a.runCalculatorExpression()
+			return
+		}
 		if a.Selected >= 0 && a.Selected < len(results) {
 			if run := results[a.Selected].Run; run != nil {
 				run()

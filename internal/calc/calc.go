@@ -14,6 +14,7 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 )
 
 // ErrNotAnExpression is what Eval returns for input that is not arithmetic
@@ -21,13 +22,54 @@ import (
 // typed a broken sum".
 var ErrNotAnExpression = errors.New("calc: not an expression")
 
+// ErrTooLong is what Eval returns for an expression longer than
+// MaxExpressionLength. It is its own refusal because the answer is different:
+// the text was never read, so nothing about it can be said — not even that it
+// is arithmetic.
+var ErrTooLong = errors.New("calc: the expression is too long")
+
+// ErrNotFinite is what Eval returns for a sum that has no finite value:
+// a division or a modulus by zero, and any result that comes out `NaN` or
+// infinite (`sqrt(-1)`, `log(0)`). It is one refusal rather than three because
+// the old build reported all of them the same way — JavaScript's `1/0` is
+// `Infinity`, `1%0` is `NaN`, and both landed on `calculator.error.notFinite`
+// (`src/calculator.ts:199-201`).
+var ErrNotFinite = errors.New("calc: the result is not a number")
+
+// MaxExpressionLength is the longest expression the parser is handed: the old
+// build's `CALCULATOR_MAX_EXPRESSION_LENGTH` (`src/calculator.ts:110-112`).
+// A calculator expression is short, so the cap is the cheap denial-of-service
+// guard for a hostile or accidental paste — it is checked **before** the
+// vocabulary walk and before any recursive descent.
+const MaxExpressionLength = 256
+
+// Expression is the expression the text means: trimmed, with one leading "="
+// removed (the old calculator's key made the intent explicit), and trimmed
+// again. It is this package's **one** normal form: Eval evaluates it, the
+// launcher prints it, and the history stores it — so `1+1`, ` 1+1 ` and `=1+1`
+// are one calculation, and re-evaluating any of them folds into one row rather
+// than stacking a second copy under a different spelling.
+func Expression(raw string) string {
+	text := strings.TrimSpace(raw)
+	text = strings.TrimPrefix(text, "=")
+	return strings.TrimSpace(text)
+}
+
 // Eval evaluates an arithmetic expression. A leading "=" is allowed, as the
 // old calculator's key made the intent explicit. It returns
-// ErrNotAnExpression for input that holds no operator or digit, and an
-// error for a malformed or unrepresentable sum.
+// ErrNotAnExpression for input that holds no operator or digit, ErrTooLong for
+// input past MaxExpressionLength, ErrNotFinite for a sum with no finite value,
+// and an error for a malformed sum.
 func Eval(expr string) (float64, error) {
-	text := strings.TrimSpace(expr)
-	text = strings.TrimSpace(strings.TrimPrefix(text, "="))
+	text := Expression(expr)
+	// The cap comes first, before the vocabulary walk and before any parse: a
+	// hostile or accidental paste is refused without being read, and
+	// `tooLong` outranks `invalid` for a 300-character line that is not even
+	// arithmetic — the reference's own order (`evaluateExpression`:
+	// empty, then length, then parse).
+	if utf8.RuneCountInString(text) > MaxExpressionLength {
+		return 0, ErrTooLong
+	}
 	if text == "" || !hasArithmetic(text) {
 		return 0, ErrNotAnExpression
 	}
@@ -41,7 +83,7 @@ func Eval(expr string) (float64, error) {
 		return 0, errors.New("calc: unexpected " + strconv.QuoteRune(rune(p.src[p.pos])))
 	}
 	if math.IsNaN(v) || math.IsInf(v, 0) {
-		return 0, errors.New("calc: the result is not a number")
+		return 0, ErrNotFinite
 	}
 	return v, nil
 }
@@ -441,7 +483,7 @@ func (p *parser) parseTerm() (float64, error) {
 				return 0, err
 			}
 			if rhs == 0 {
-				return 0, errors.New("calc: division by zero")
+				return 0, ErrNotFinite
 			}
 			v /= rhs
 		case '%':
@@ -451,7 +493,7 @@ func (p *parser) parseTerm() (float64, error) {
 				return 0, err
 			}
 			if rhs == 0 {
-				return 0, errors.New("calc: division by zero")
+				return 0, ErrNotFinite
 			}
 			v = math.Mod(v, rhs)
 		default:

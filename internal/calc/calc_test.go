@@ -3,7 +3,9 @@ package calc
 import (
 	"errors"
 	"math"
+	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 func TestEval(t *testing.T) {
@@ -238,6 +240,113 @@ func TestEvalRejectsUnknownNames(t *testing.T) {
 			t.Errorf("Eval(%q) accepted a broken call", expr)
 		} else if errors.Is(err, ErrNotAnExpression) {
 			t.Errorf("Eval(%q) = ErrNotAnExpression, want a parse error", expr)
+		}
+	}
+}
+
+// TestTheExpressionHasOneNormalForm pins the one normal form this package owns:
+// trimmed, one leading "=" removed, trimmed again. Every surface prints it and
+// the history stores it, so the same sum typed with a stray space or the
+// calculator's "=" key is one calculation rather than two spellings of it.
+func TestTheExpressionHasOneNormalForm(t *testing.T) {
+	cases := []struct{ raw, want string }{
+		{"1+1", "1+1"},
+		{" 1+1 ", "1+1"},
+		{"=1+1", "1+1"},
+		{" =1+1 ", "1+1"},
+		{" = 1+1 ", "1+1"},
+		{"1 + 1", "1 + 1"}, // interior spacing is the user's, not ours
+		{"=", ""},
+		{" = ", ""},
+		{"", ""},
+		{"   ", ""},
+		{"==", "="},
+	}
+	for _, tc := range cases {
+		if got := Expression(tc.raw); got != tc.want {
+			t.Errorf("Expression(%q) = %q, want %q", tc.raw, got, tc.want)
+		}
+	}
+	// Eval reads the same form, so the row the launcher prints and the sum it
+	// evaluated cannot disagree.
+	for _, raw := range []string{"1+1", " 1+1 ", "=1+1", " =1+1 "} {
+		if _, err := Eval(raw); err != nil {
+			t.Errorf("Eval(%q): %v", raw, err)
+		}
+		if got, want := Expression(raw), "1+1"; got != want {
+			t.Errorf("Expression(%q) = %q, want %q", raw, got, want)
+		}
+	}
+}
+
+// TestALongExpressionIsRefusedBeforeItIsParsed pins the reference's
+// `CALCULATOR_MAX_EXPRESSION_LENGTH` (src/calculator.ts:110-112): 256 code
+// points go through, 257 do not, and the refusal happens before the parser is
+// handed anything — a wall of parentheses is refused too, not descended into.
+func TestALongExpressionIsRefusedBeforeItIsParsed(t *testing.T) {
+	// 2 + 2*127 = 256 code points, and a real sum: 11 + 127.
+	longest := "11" + strings.Repeat("+1", 127)
+	if got := utf8.RuneCountInString(longest); got != MaxExpressionLength {
+		t.Fatalf("the fixture is %d code points, want %d", got, MaxExpressionLength)
+	}
+	if value, err := Eval(longest); err != nil {
+		t.Errorf("Eval(256 code points): %v", err)
+	} else if value != 138 {
+		t.Errorf("Eval(256 code points) = %v, want 138", value)
+	}
+
+	tooLong := "1" + strings.Repeat("+1", 128) // 257
+	if _, err := Eval(tooLong); !errors.Is(err, ErrTooLong) {
+		t.Errorf("Eval(257 code points) = %v, want ErrTooLong", err)
+	}
+	// Not arithmetic at all, but past the cap: the cap outranks the vocabulary
+	// gate, so the answer is "too long", not "not an expression".
+	if _, err := Eval(strings.Repeat("a", MaxExpressionLength+1)); !errors.Is(err, ErrTooLong) {
+		t.Errorf("Eval(257 letters) = %v, want ErrTooLong", err)
+	}
+	// The recursion the cap exists for: 257 opening parentheses never reach
+	// the parser.
+	if _, err := Eval(strings.Repeat("(", MaxExpressionLength+1)); !errors.Is(err, ErrTooLong) {
+		t.Errorf("Eval(257 open parentheses) = %v, want ErrTooLong", err)
+	}
+	// Padding is not length: Expression trimmed it away before the count.
+	if _, err := Eval("1+1" + strings.Repeat(" ", 1000)); err != nil {
+		t.Errorf("Eval(padded 1+1): %v", err)
+	}
+	// A count of characters, not of bytes: 303 bytes of ideographic spaces are
+	// 103 code points, so the cap does not fire — the parser then refuses the
+	// line for its own reason (`skipSpace` knows only ASCII space and tab), and
+	// that refusal is *not* "too long".
+	wide := "1" + strings.Repeat("\u3000", 100) + "+1"
+	if len(wide) <= MaxExpressionLength || utf8.RuneCountInString(wide) > MaxExpressionLength {
+		t.Fatalf("the fixture is %d bytes / %d code points, want >256 bytes and <=256 code points",
+			len(wide), utf8.RuneCountInString(wide))
+	}
+	if _, err := Eval(wide); errors.Is(err, ErrTooLong) {
+		t.Errorf("Eval(%d bytes, %d code points) = ErrTooLong; the cap counts characters",
+			len(wide), utf8.RuneCountInString(wide))
+	}
+}
+
+// TestDivisionByZeroIsTheNotFiniteRefusal pins one refusal for every sum that
+// has no finite value: `1/0`, `1%0` and `sqrt(-1)` are the same fact to the
+// user, and the reference reports them all as `calculator.error.notFinite`
+// (src/calculator.ts:199-201, where JavaScript's `1/0` is `Infinity`).
+func TestDivisionByZeroIsTheNotFiniteRefusal(t *testing.T) {
+	for _, expr := range []string{"1/0", "1%0", "sqrt(-1)", "log(0)", "tan(0)/0", "0/0"} {
+		if _, err := Eval(expr); !errors.Is(err, ErrNotFinite) {
+			t.Errorf("Eval(%q) = %v, want ErrNotFinite", expr, err)
+		}
+	}
+	// A malformed sum is a different refusal: nothing was computed, so there is
+	// no value to call non-finite.
+	for _, expr := range []string{"1+", "(1", "1 2 3 +"} {
+		_, err := Eval(expr)
+		if err == nil {
+			t.Fatalf("Eval(%q) accepted a broken sum", expr)
+		}
+		if errors.Is(err, ErrNotFinite) || errors.Is(err, ErrNotAnExpression) || errors.Is(err, ErrTooLong) {
+			t.Errorf("Eval(%q) = %v, want a plain parse error", expr, err)
 		}
 	}
 }

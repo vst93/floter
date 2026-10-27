@@ -200,6 +200,14 @@ type Launcher struct {
 	CalculatorEmpty          string
 	CalculatorRecordFailed   string
 	CalculatorFavoriteFailed string
+	// CalculatorInvalid, CalculatorNotFinite and CalculatorTooLong are what
+	// Enter says when the field's text is not a sum this build can evaluate —
+	// the reference's `calculator.error.invalid` / `.notFinite` / `.tooLong`
+	// (`src/i18n.ts:897-899`). They are the feedback line for a refused
+	// expression, which is a fact about the field, not about the history.
+	CalculatorInvalid   string
+	CalculatorNotFinite string
+	CalculatorTooLong   string
 	// CalculatorYesterday is the history row's time word for an entry made the
 	// day before: the old build's `calculator.yesterday`, printed where a
 	// today entry prints its clock time.

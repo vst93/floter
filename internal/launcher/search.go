@@ -908,12 +908,12 @@ func (a *App) matchedCatalog() []Item {
 // one. Enter copies the answer and clears the field, as the old launcher's
 // calculator did.
 func (a *App) calculator() (Item, bool) {
-	value, err := calc.Eval(a.Query)
+	expression := calc.Expression(a.Query)
+	value, err := calc.Eval(expression)
 	if err != nil {
 		return Item{}, false
 	}
 	result := calc.Format(value)
-	expression := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(a.Query), "="))
 	// The answer is the trailing value, complete at the row's right edge, and
 	// the expression is the title that gives up room — the same row R50 drew
 	// for the history, with the two registers swapped when the query is the

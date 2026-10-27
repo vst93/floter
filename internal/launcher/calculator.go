@@ -1,6 +1,7 @@
 package launcher
 
 import (
+	"errors"
 	"strings"
 	"time"
 
@@ -125,7 +126,7 @@ const CalculatorFetchLimit = calculator.MaxMaxItems
 // (all / favorites) is the list's only filter, as the old build's own mode
 // had it.
 func (a *App) calculatorItems() []Item {
-	expression := strings.TrimSpace(strings.TrimPrefix(a.calculatorQuery(), "="))
+	expression := calc.Expression(a.calculatorQuery())
 	out := make([]Item, 0, len(a.calculatorFound)+1)
 
 	// A fresh expression offers its answer, which Enter evaluates, records and
@@ -232,12 +233,71 @@ func (a *App) copyCalculation(entry calculator.Entry) {
 }
 
 // calculationText is what Enter copies for a fresh calculation: the whole line
-// or the result alone, by the same setting a history row obeys.
+// or the result alone, by the same setting a history row obeys. The line itself
+// is the entry's — `calculator.Entry.Text` is the one producer of
+// `expression = result`, so a fresh calculation and the row it becomes cannot
+// print two different spellings.
 func (a *App) calculationText(expression, result string) string {
-	if a.CopyMode == calculator.CopyResult {
-		return result
+	entry := calculator.Entry{Expression: expression, Result: result}
+	return entry.Text(a.CopyMode)
+}
+
+// runCalculatorExpression evaluates the field's pending expression.
+//
+// It exists for the one case the list cannot answer: a field that holds text
+// which produced no answer row, i.e. an expression `calc.Eval` refused. The
+// reference's Enter is the field's text (`calculatorEnterAction`, so a non-empty
+// field always evaluates) and a failed evaluation says why in the feedback line
+// and leaves the mode open (`App.tsx` `evaluateCalculator`); without this, Enter
+// fell through to whatever history row the selection happened to sit on and
+// copied it.
+func (a *App) runCalculatorExpression() {
+	expression := calc.Expression(a.calculatorQuery())
+	value, err := calc.Eval(expression)
+	if err != nil {
+		a.WarnFeedback(a.calculatorRefusal(err))
+		return
 	}
-	return expression + " = " + result
+	a.runCalculation(expression, calc.Format(value))
+}
+
+// calculatorRefusal is the feedback line for a refused expression: the
+// reference's three `calculator.error.*` keys, most specific first
+// (`src/i18n.ts:897-899`).
+func (a *App) calculatorRefusal(err error) string {
+	copy := a.copy()
+	switch {
+	case errors.Is(err, calc.ErrTooLong):
+		return copy.CalculatorTooLong
+	case errors.Is(err, calc.ErrNotFinite):
+		return copy.CalculatorNotFinite
+	default:
+		return copy.CalculatorInvalid
+	}
+}
+
+// pendingCalculation reports whether a row is the answer for the field's
+// pending expression rather than a stored history entry. It is the row Enter
+// evaluates, and the marker is its identity: a `calc:` row that carries no
+// entry behind it.
+func pendingCalculation(item Item) bool {
+	return item.calc == nil && strings.HasPrefix(item.ID, "calc:")
+}
+
+// calculatorEnterOwnsTheField reports whether Enter belongs to the field's text
+// rather than to the row the selection sits on: the field is not blank and the
+// list holds no answer row for it, which is exactly the case where `calc.Eval`
+// refused the expression.
+func (a *App) calculatorEnterOwnsTheField(results []Item) bool {
+	if calc.Expression(a.calculatorQuery()) == "" {
+		return false
+	}
+	for _, item := range results {
+		if pendingCalculation(item) {
+			return false
+		}
+	}
+	return true
 }
 
 // toggleCalculatorFavorite stars or unstars the chosen row.
