@@ -107,7 +107,7 @@ func TestTheNameProbesAgreeWithTheToolCatalog(t *testing.T) {
 		for _, file := range testCase.files {
 			writeProbeFixture(t, filepath.Join(dir, file))
 		}
-		entry := tools.Entry{ID: "fixture", Name: "Fixture", Probes: []string{testCase.request}}
+		entry := tools.Entry{ID: "fixture", Name: "Fixture", Probes: tools.ProbesEverywhere(testCase.request)}
 		probe := tools.Probe(entry, []string{dir}, "windows")
 		found, ok := lookToolIn("windows", []string{dir}, testCase.request)
 		if (probe != "") != ok {

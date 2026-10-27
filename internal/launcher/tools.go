@@ -43,8 +43,9 @@ func (a *App) toolInstallItems() []Item {
 		state := state
 		// The row is searched by the tool's own vocabulary (its keywords and
 		// the executable names), which is what a query like 搜索 or rg hits.
-		search := strings.Join([]string{state.ID, state.Name,
-			strings.Join(state.Keywords, " "), strings.Join(state.Probes, " ")}, " ")
+		// The string itself is `tools.State.SearchHaystack` — the same one
+		// `Matches` reads, so the gate and the search text cannot disagree.
+		search := state.SearchHaystack()
 		out = append(out, Item{
 			ID:     "install:" + state.ID,
 			Title:  copy.InstallTool(state.Name),
@@ -79,8 +80,7 @@ func (a *App) toolInvokeItems() []Item {
 			continue
 		}
 		state := state
-		search := strings.Join([]string{state.ID, state.Name,
-			strings.Join(state.Keywords, " "), strings.Join(state.Probes, " ")}, " ")
+		search := state.SearchHaystack()
 		argv := append([]string{}, state.Launch...)
 		out = append(out, Item{
 			ID: "invoke:" + state.ID,

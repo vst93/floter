@@ -37,6 +37,54 @@ func Platform() string {
 	}
 }
 
+// ProbeTable is the executable names that mean "this tool is here", per
+// platform key. It is a table rather than one list because the three platforms
+// disagree about what a tool's binary is called, and a name a distribution
+// invented must not light the tool up somewhere that distribution does not
+// exist.
+type ProbeTable map[string][]string
+
+// ProbesEverywhere is the table for a tool whose binary has the same name on
+// all three platforms, which is most of them.
+func ProbesEverywhere(names ...string) ProbeTable {
+	table := make(ProbeTable, 3)
+	for _, platform := range []string{PlatformMacOS, PlatformLinux, PlatformWindows} {
+		table[platform] = names
+	}
+	return table
+}
+
+// For is the candidate names to probe on `platform`. An empty key means the
+// host, the same compatibility rule `candidateNames` has, and an unknown key
+// falls back to the host for the same reason: the answer has to be a real
+// platform's list, never an empty one.
+func (t ProbeTable) For(platform string) []string {
+	if platform == "" {
+		platform = Platform()
+	}
+	if names := t[platform]; len(names) > 0 {
+		return names
+	}
+	return t[Platform()]
+}
+
+// All is every name in the table, in platform order and deduplicated. It is
+// what search reads: a user who knows the tool as `rg` or `batcat` must find it
+// wherever they are, so the search vocabulary is the union, not one column.
+func (t ProbeTable) All() []string {
+	var names []string
+	seen := map[string]bool{}
+	for _, platform := range []string{PlatformMacOS, PlatformLinux, PlatformWindows} {
+		for _, name := range t[platform] {
+			if !seen[name] {
+				seen[name] = true
+				names = append(names, name)
+			}
+		}
+	}
+	return names
+}
+
 // Manager is a package manager floter can phrase a command for.
 type Manager struct {
 	ID string
@@ -44,19 +92,39 @@ type Manager struct {
 	Name string
 	// Candidates are the executable names that mean "this manager is here".
 	Candidates []string
+	// Platforms are where the manager is meaningful, as the same three keys
+	// every per-platform table is addressed by. A recipe never names a manager
+	// outside its own platform (that is what
+	// TestEveryRecipeNamesAManagerValidOnThatPlatform checks), and this field is
+	// the only place that fact is written down: detection itself does not
+	// filter by it, exactly as the old build's `detect_package_managers` did
+	// not — a `brew` in the search path is a `brew` whatever the host is.
+	Platforms []string
 }
 
 // Managers are the package managers, in the order a machine that has several
 // prefers them: a native package manager before a language one.
 var Managers = []Manager{
-	{"brew", "Homebrew", []string{"brew"}},
-	{"winget", "winget", []string{"winget"}},
-	{"pacman", "pacman", []string{"pacman"}},
-	{"apt", "apt", []string{"apt", "apt-get"}},
-	{"dnf", "dnf", []string{"dnf"}},
-	{"npm", "npm", []string{"npm"}},
-	{"cargo", "Cargo", []string{"cargo"}},
-	{"pipx", "pipx", []string{"pipx"}},
+	{"brew", "Homebrew", []string{"brew"}, []string{PlatformMacOS, PlatformLinux}},
+	{"winget", "winget", []string{"winget"}, []string{PlatformWindows}},
+	{"pacman", "pacman", []string{"pacman"}, []string{PlatformLinux}},
+	{"apt", "apt", []string{"apt", "apt-get"}, []string{PlatformLinux}},
+	{"dnf", "dnf", []string{"dnf"}, []string{PlatformLinux}},
+	{"npm", "npm", []string{"npm"}, []string{PlatformMacOS, PlatformLinux, PlatformWindows}},
+	{"cargo", "Cargo", []string{"cargo"}, []string{PlatformMacOS, PlatformLinux, PlatformWindows}},
+	{"pipx", "pipx", []string{"pipx"}, []string{PlatformMacOS, PlatformLinux, PlatformWindows}},
+}
+
+// ManagerPlatforms are the platforms the manager with this id is meaningful on,
+// nil when there is no such manager. The recipe table is checked against this
+// without a second copy of the mapping.
+func ManagerPlatforms(id string) []string {
+	for _, manager := range Managers {
+		if manager.ID == id {
+			return manager.Platforms
+		}
+	}
+	return nil
 }
 
 // ManagerName is what the user calls the manager with this id, empty when
@@ -85,8 +153,11 @@ type Entry struct {
 	// Keywords are extra search vocabulary (the tool's job in both languages,
 	// so a Chinese query finds it).
 	Keywords []string
-	// Probes are the executable names that mean "this tool is here".
-	Probes []string
+	// Probes are the executable names that mean "this tool is here", per
+	// platform. The table is per platform because a name a distribution
+	// invented is only a name on that distribution's platform: `fdfind` is
+	// Debian's spelling of `fd` and means nothing on macOS or Windows.
+	Probes ProbeTable
 	// Recipes are per platform, most preferred first.
 	Recipes map[string][]Recipe
 	// NeedsTerminal marks a full-screen tool, which has to run in a terminal.
@@ -105,7 +176,7 @@ var Catalog = []Entry{
 	{
 		ID: "flameshot", Name: "Flameshot",
 		Keywords: []string{"截图", "screenshot", "screen", "jietu"},
-		Probes:   []string{"flameshot"},
+		Probes:   ProbesEverywhere("flameshot"),
 		// Its own GUI action, started detached: `flameshot gui`.
 		Launch: []string{"flameshot", "gui"},
 		Recipes: map[string][]Recipe{
@@ -117,7 +188,7 @@ var Catalog = []Entry{
 	{
 		ID: "yt-dlp", Name: "yt-dlp",
 		Keywords: []string{"下载", "download", "video", "youtube", "xiazai"},
-		Probes:   []string{"yt-dlp"},
+		Probes:   ProbesEverywhere("yt-dlp"),
 		Recipes: map[string][]Recipe{
 			PlatformMacOS:   {{"brew", "yt-dlp"}},
 			PlatformLinux:   {{"pacman", "yt-dlp"}, {"apt", "yt-dlp"}, {"dnf", "yt-dlp"}, {"pipx", "yt-dlp"}},
@@ -127,7 +198,7 @@ var Catalog = []Entry{
 	{
 		ID: "jq", Name: "jq",
 		Keywords: []string{"json", "解析", "parse", "jiexi"},
-		Probes:   []string{"jq"},
+		Probes:   ProbesEverywhere("jq"),
 		Recipes: map[string][]Recipe{
 			PlatformMacOS:   {{"brew", "jq"}},
 			PlatformLinux:   {{"pacman", "jq"}, {"apt", "jq"}, {"dnf", "jq"}},
@@ -137,8 +208,14 @@ var Catalog = []Entry{
 	{
 		ID: "fd", Name: "fd",
 		Keywords: []string{"查找", "search", "files", "chazhao"},
-		// Debian and Ubuntu install the binary as `fdfind` to avoid a clash.
-		Probes: []string{"fd", "fdfind"},
+		// Debian and Ubuntu install the binary as `fdfind` to avoid a clash —
+		// on Linux only, which is what makes this the one entry that needs a
+		// spelled-out table.
+		Probes: ProbeTable{
+			PlatformMacOS:   {"fd"},
+			PlatformLinux:   {"fd", "fdfind"},
+			PlatformWindows: {"fd"},
+		},
 		Recipes: map[string][]Recipe{
 			PlatformMacOS:   {{"brew", "fd"}},
 			PlatformLinux:   {{"pacman", "fd"}, {"apt", "fd-find"}, {"dnf", "fd-find"}, {"cargo", "fd-find"}},
@@ -148,7 +225,7 @@ var Catalog = []Entry{
 	{
 		ID: "ripgrep", Name: "ripgrep",
 		Keywords: []string{"搜索", "search", "grep", "sousuo"},
-		Probes:   []string{"rg"},
+		Probes:   ProbesEverywhere("rg"),
 		Recipes: map[string][]Recipe{
 			PlatformMacOS:   {{"brew", "ripgrep"}},
 			PlatformLinux:   {{"pacman", "ripgrep"}, {"apt", "ripgrep"}, {"dnf", "ripgrep"}, {"cargo", "ripgrep"}},
@@ -158,7 +235,7 @@ var Catalog = []Entry{
 	{
 		ID: "fzf", Name: "fzf",
 		Keywords: []string{"模糊查找", "fuzzy", "search", "mohuchazhao"},
-		Probes:   []string{"fzf"},
+		Probes:   ProbesEverywhere("fzf"),
 		Recipes: map[string][]Recipe{
 			PlatformMacOS:   {{"brew", "fzf"}},
 			PlatformLinux:   {{"pacman", "fzf"}, {"apt", "fzf"}, {"dnf", "fzf"}},
@@ -168,8 +245,12 @@ var Catalog = []Entry{
 	{
 		ID: "bat", Name: "bat",
 		Keywords: []string{"高亮", "highlight", "cat", "gaoliang"},
-		// Debian and Ubuntu install the binary as `batcat`.
-		Probes: []string{"bat", "batcat"},
+		// Debian and Ubuntu install the binary as `batcat` — on Linux only.
+		Probes: ProbeTable{
+			PlatformMacOS:   {"bat"},
+			PlatformLinux:   {"bat", "batcat"},
+			PlatformWindows: {"bat"},
+		},
 		Recipes: map[string][]Recipe{
 			PlatformMacOS:   {{"brew", "bat"}},
 			PlatformLinux:   {{"pacman", "bat"}, {"apt", "bat"}, {"dnf", "bat"}, {"cargo", "bat"}},
@@ -179,7 +260,7 @@ var Catalog = []Entry{
 	{
 		ID: "eza", Name: "eza",
 		Keywords: []string{"列表", "list", "ls", "liebiao"},
-		Probes:   []string{"eza"},
+		Probes:   ProbesEverywhere("eza"),
 		Recipes: map[string][]Recipe{
 			PlatformMacOS:   {{"brew", "eza"}},
 			PlatformLinux:   {{"pacman", "eza"}, {"apt", "eza"}, {"dnf", "eza"}, {"cargo", "eza"}},
@@ -189,7 +270,7 @@ var Catalog = []Entry{
 	{
 		ID: "tldr", Name: "tldr",
 		Keywords: []string{"帮助", "examples", "man", "bangzhu"},
-		Probes:   []string{"tldr"},
+		Probes:   ProbesEverywhere("tldr"),
 		Recipes: map[string][]Recipe{
 			PlatformMacOS:   {{"brew", "tldr"}},
 			PlatformLinux:   {{"pacman", "tldr"}, {"apt", "tldr"}, {"dnf", "tldr"}, {"npm", "tldr"}},
@@ -199,8 +280,9 @@ var Catalog = []Entry{
 	{
 		ID: "httpie", Name: "HTTPie",
 		Keywords: []string{"http", "api", "请求", "qingqiu"},
-		// The CLI installs as `http` (and `https`), not `httpie`.
-		Probes: []string{"http", "https"},
+		// The CLI installs as `http` (and `https`), not `httpie`, on every
+		// platform.
+		Probes: ProbesEverywhere("http", "https"),
 		Recipes: map[string][]Recipe{
 			PlatformMacOS:   {{"brew", "httpie"}, {"pipx", "httpie"}},
 			PlatformLinux:   {{"pacman", "httpie"}, {"apt", "httpie"}, {"dnf", "httpie"}, {"pipx", "httpie"}},
@@ -210,7 +292,7 @@ var Catalog = []Entry{
 	{
 		ID: "gh", Name: "GitHub CLI",
 		Keywords: []string{"github", "pull request", "pr", "issues"},
-		Probes:   []string{"gh"},
+		Probes:   ProbesEverywhere("gh"),
 		Recipes: map[string][]Recipe{
 			PlatformMacOS: {{"brew", "gh"}},
 			// Arch ships the GitHub CLI under its full name.
@@ -221,7 +303,7 @@ var Catalog = []Entry{
 	{
 		ID: "lazygit", Name: "lazygit",
 		Keywords: []string{"git", "tui", "版本控制", "banbenkongzhi"},
-		Probes:   []string{"lazygit"},
+		Probes:   ProbesEverywhere("lazygit"),
 		Recipes: map[string][]Recipe{
 			PlatformMacOS: {{"brew", "lazygit"}},
 			// No apt recipe: the package only reached Debian and Ubuntu
@@ -298,7 +380,7 @@ func Installed(entry Entry, dirs []string, platform string) bool {
 
 // Probe is the probe name that resolved, empty when none did.
 func Probe(entry Entry, dirs []string, platform string) string {
-	for _, name := range entry.Probes {
+	for _, name := range entry.Probes.For(platform) {
 		for _, candidate := range candidateNames(platform, name) {
 			for _, dir := range dirs {
 				if dir == "" {
@@ -371,17 +453,27 @@ func candidateNames(platform, name string) []string {
 
 // Matches reports whether a query's terms all appear in a tool's name, id,
 // keywords or probe names: the executable a user knows the tool by (`rg`,
-// `batcat`) is search vocabulary too.
+// `batcat`) is search vocabulary too, on every platform.
 func (s State) Matches(terms []string) bool {
 	if len(terms) == 0 {
 		return false
 	}
-	haystack := strings.ToLower(strings.Join([]string{s.ID, s.Name,
-		strings.Join(s.Keywords, " "), strings.Join(s.Probes, " ")}, " "))
+	haystack := s.SearchHaystack()
 	for _, term := range terms {
 		if !strings.Contains(haystack, strings.ToLower(term)) {
 			return false
 		}
 	}
 	return true
+}
+
+// SearchHaystack is the one haystack a launcher query is matched against, and
+// the one string an install or invoke row carries as its search text: the id,
+// the display name, the keywords and every probe name on every platform.
+//
+// It is lowercase and lives here so the three places that used to spell it out
+// (Matches and the launcher's two row builders) cannot drift apart.
+func (s State) SearchHaystack() string {
+	return strings.ToLower(strings.Join([]string{s.ID, s.Name,
+		strings.Join(s.Keywords, " "), strings.Join(s.Probes.All(), " ")}, " "))
 }

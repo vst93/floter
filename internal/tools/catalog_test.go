@@ -28,8 +28,10 @@ func TestCatalogIsConsistent(t *testing.T) {
 			t.Errorf("duplicate id %q", entry.ID)
 		}
 		seen[entry.ID] = true
-		if len(entry.Probes) == 0 {
-			t.Errorf("%s has no probe", entry.ID)
+		for _, platform := range []string{PlatformMacOS, PlatformLinux, PlatformWindows} {
+			if len(entry.Probes.For(platform)) == 0 {
+				t.Errorf("%s has no %s probe", entry.ID, platform)
+			}
 		}
 		// Every recipe names a manager the table knows and a package.
 		for platform, recipes := range entry.Recipes {
@@ -105,9 +107,22 @@ func TestLookDetectsToolsAndManagers(t *testing.T) {
 	if !byID["ripgrep"].Installed {
 		t.Error("ripgrep was not detected")
 	}
-	// The Debian spelling counts as the same tool.
-	if !byID["fd"].Installed {
-		t.Error("fdfind was not detected as fd")
+	// P10-o 重定基线：旧结构（一张扁平探测表）→ 新结构（按平台分表）。`fdfind`
+	// is Debian's spelling of `fd`, so it counts on Linux and nowhere else — the
+	// old build's `probe_candidates` was per platform for exactly this reason.
+	if byID["fd"].Installed {
+		t.Error("fdfind was detected as fd on macos, where that name does not exist")
+	}
+	// A Windows host emulates every file as 0666, so the Unix rule cannot be
+	// exercised there; the negative half above still runs everywhere.
+	if runtime.GOOS != "windows" {
+		linux := map[string]State{}
+		for _, state := range Look(dirs, PlatformLinux) {
+			linux[state.ID] = state
+		}
+		if !linux["fd"].Installed {
+			t.Error("fdfind was not detected as fd on linux")
+		}
 	}
 	if byID["jq"].Installed {
 		t.Error("jq was detected without being there")

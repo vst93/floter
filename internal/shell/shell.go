@@ -2559,7 +2559,7 @@ const maxDetectedTools = 12
 func detectedInstallCommand(candidate inventory.Candidate, platform string, managers []string) string {
 	name := progname.FromPath(candidate.Path)
 	for _, entry := range tools.Catalog {
-		for _, probe := range entry.Probes {
+		for _, probe := range entry.Probes.For(platform) {
 			if strings.ToLower(probe) != name {
 				continue
 			}

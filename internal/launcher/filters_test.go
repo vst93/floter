@@ -220,12 +220,12 @@ func TestToolInvokeRows(t *testing.T) {
 	a.Actions.SpawnDetached = func(argv []string) { spawned = append(spawned, argv) }
 	a.Actions.RunInTerminal = func(argv []string) { terminal = append(terminal, argv) }
 	a.SetToolCatalog([]tools.State{
-		{Entry: tools.Entry{ID: "flameshot", Name: "Flameshot", Probes: []string{"flameshot"},
+		{Entry: tools.Entry{ID: "flameshot", Name: "Flameshot", Probes: tools.ProbesEverywhere("flameshot"),
 			Keywords: []string{"screenshot"}, Launch: []string{"flameshot", "gui"}}, Installed: true},
-		{Entry: tools.Entry{ID: "lazygit", Name: "lazygit", Probes: []string{"lazygit"},
+		{Entry: tools.Entry{ID: "lazygit", Name: "lazygit", Probes: tools.ProbesEverywhere("lazygit"),
 			Keywords: []string{"git"}, Launch: []string{"lazygit"}, NeedsTerminal: true}, Installed: true},
-		{Entry: tools.Entry{ID: "jq", Name: "jq", Probes: []string{"jq"}, Keywords: []string{"json"}}, Installed: true},
-		{Entry: tools.Entry{ID: "fd", Name: "fd", Probes: []string{"fd"}, Keywords: []string{"find"},
+		{Entry: tools.Entry{ID: "jq", Name: "jq", Probes: tools.ProbesEverywhere("jq"), Keywords: []string{"json"}}, Installed: true},
+		{Entry: tools.Entry{ID: "fd", Name: "fd", Probes: tools.ProbesEverywhere("fd"), Keywords: []string{"find"},
 			Recipes: map[string][]tools.Recipe{"linux": {{Manager: "pacman", Package: "fd"}}}},
 			Command: "pacman -S fd", Installed: false},
 	})
@@ -272,7 +272,7 @@ func TestToolInvokeRows(t *testing.T) {
 func TestInstallRowNamesTheManagerAsItsSource(t *testing.T) {
 	a := testApp()
 	a.SetToolCatalog([]tools.State{{
-		Entry: tools.Entry{ID: "fd", Name: "fd", Probes: []string{"fd"}, Keywords: []string{"find"},
+		Entry: tools.Entry{ID: "fd", Name: "fd", Probes: tools.ProbesEverywhere("fd"), Keywords: []string{"find"},
 			Recipes: map[string][]tools.Recipe{"darwin": {{Manager: "brew", Package: "fd"}}}},
 		Installed: false, Manager: "brew", Package: "fd", Command: "brew install fd",
 	}})
