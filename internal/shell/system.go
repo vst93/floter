@@ -448,6 +448,17 @@ func (a *App) watchClipboard() {
 		interval = clipboardPoll
 	}
 	go func() {
+		// A session starts with no memory: the reference builds its `last_hash`
+		// inside the spawned task (`clipboard_history/monitor.rs:443`), so a
+		// stop/start cycle re-reads whatever is on the clipboard instead of
+		// trusting what the previous session saw. Written here, in the only
+		// goroutine that ever touches the field, so a session and its memory
+		// begin and end together.
+		a.lastClipboardHash = ""
+		// A ticker's channel holds one tick: a poll slower than the interval
+		// drops the ticks it missed rather than replaying them, which is the
+		// reference's `MissedTickBehavior::Delay` (`monitor.rs:439`) and also
+		// means samples never overlap — this loop is the only sampler.
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
 		for range ticker.C {
@@ -487,12 +498,16 @@ func (a *App) captureClipboard() bool {
 		if capture.Hash == a.lastClipboardHash {
 			return false
 		}
-		a.lastClipboardHash = capture.Hash
 		_, added, err := a.Clipboard.AddFilesCapture(capture)
 		if err != nil {
 			log.Printf("floter: could not record the copied files (%s): %v", formatKey(sample.formats), err)
+			return false
 		}
-		return err == nil && added
+		// Remembered only once the write landed: a failed capture is retried on
+		// the next poll, as the reference's `capture_result_hash` does
+		// (`monitor.rs:178-186`, "will retry").
+		a.lastClipboardHash = capture.Hash
+		return added
 	}
 
 	sample.readImage()
@@ -504,7 +519,6 @@ func (a *App) captureClipboard() bool {
 	if plan.Kind == clipboard.KindText && plan.Text == a.selfCopied {
 		return false
 	}
-	a.lastClipboardHash = plan.Hash
 	var added bool
 	var err error
 	if plan.Kind == clipboard.KindImage {
@@ -514,8 +528,14 @@ func (a *App) captureClipboard() bool {
 	}
 	if err != nil {
 		log.Printf("floter: could not record the clipboard (%s): %v", formatKey(sample.formats), err)
+		return false
 	}
-	return err == nil && added
+	// Remembered only once the write landed, so a failed capture is retried on
+	// the next poll (the reference's `capture_result_hash`, `monitor.rs:178-186`).
+	// A folded duplicate (`added == false`) is a success too: the history
+	// already holds this content at the front.
+	a.lastClipboardHash = plan.Hash
+	return added
 }
 
 // clipSample is one reading of the system clipboard. The image's bytes are not
