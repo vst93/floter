@@ -2,6 +2,7 @@ package shortcuts
 
 import (
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
@@ -152,7 +153,9 @@ func TestDisplay(t *testing.T) {
 	}{
 		// macOS: the glyphs, and the arrows/delete as symbols.
 		{"darwin", "Cmd+Comma", "\u2318,"},
-		{"darwin", "Cmd+Shift+P", "\u2318\u21e7P"},
+		// P10-y 重定基线：旧 `⌘⇧P` → 新 `⇧⌘P`。词序的来源从「存储串的写入序」
+		// 改成参考 `formatShortcut` 的规范序（⌃⌥⇧⌘），与 `Badge` 同一个产生者。
+		{"darwin", "Cmd+Shift+P", "\u21e7\u2318P"},
 		{"darwin", "Cmd+Up", "\u2318\u2191"},
 		{"darwin", "Cmd+Down", "\u2318\u2193"},
 		{"darwin", "Cmd+Left", "\u2318\u2190"},
@@ -167,6 +170,22 @@ func TestDisplay(t *testing.T) {
 		// A single character is upper case; the named keys keep their spelling.
 		{"linux", "Alt+7", "Alt+7"},
 		{"linux", "Ctrl+Space", "Ctrl+Space"},
+		// The written order of the stored string never shows: two spellings of
+		// one binding draw as one chord, in the reference's order
+		// (Control → Alt → Shift → Meta).
+		{"darwin", "Shift+Cmd+P", "\u21e7\u2318P"},
+		{"darwin", "Ctrl+Alt+Shift+Cmd+K", "\u2303\u2325\u21e7\u2318K"},
+		{"darwin", "Cmd+Ctrl+Alt+Shift+K", "\u2303\u2325\u21e7\u2318K"},
+		{"linux", "Shift+Ctrl+Q", "Ctrl+Shift+Q"},
+		{"windows", "Alt+Ctrl+X", "Ctrl+Alt+X"},
+		// Meta is last on every platform, exactly as the reference wrote it.
+		{"linux", "Super+Shift+K", "Shift+Super+K"},
+		{"windows", "Shift+Super+K", "Shift+Win+K"},
+		// `CmdOrCtrl` is the platform's own modifier: Command on macOS, Control
+		// everywhere else — in the slot that modifier holds.
+		{"darwin", "CmdOrCtrl+Shift+P", "\u21e7\u2318P"},
+		{"linux", "Shift+CmdOrCtrl+P", "Ctrl+Shift+P"},
+		{"windows", "Ctrl+CmdOrCtrl+P", "Ctrl+P"},
 	}
 	for _, tc := range cases {
 		if got := displayFor(tc.goos, tc.accelerator); got != tc.want {
@@ -206,6 +225,21 @@ func TestBadge(t *testing.T) {
 		// Enter is the return arrow on every platform.
 		{"linux", "Ctrl+1", "enter", "Ctrl+\u21a9"},
 		{"darwin", "Cmd+1", "Enter", "\u2318\u21a9"},
+		// The badge and the display are one word order: meta last, whatever
+		// order the stored string wrote.
+		{"darwin", "Cmd+Shift+P", "P", "\u21e7\u2318P"},
+		{"darwin", "Shift+Cmd+P", "P", "\u21e7\u2318P"},
+		{"linux", "Shift+Ctrl+P", "P", "Ctrl+Shift+P"},
+		{"linux", "Shift+Super+P", "P", "Shift+Super+P"},
+		// `CmdOrCtrl` resolves against the *named* platform, not the host: the
+		// darwin row is the one that could not be pinned from Linux before.
+		{"darwin", "CmdOrCtrl+1", "1", "\u23181"},
+		{"windows", "CmdOrCtrl+1", "1", "Ctrl+1"},
+		{"linux", "CmdOrCtrl+Shift+1", "1", "Ctrl+Shift+1"},
+		// A key `Parse` has no enum for still keeps its modifiers, as the old
+		// build's `formatShortcut` drew them.
+		{"linux", "Ctrl+PrintScreen", "PrintScreen", "Ctrl+PrintScreen"},
+		{"darwin", "Cmd+VolumeUp", "VolumeUp", "\u2318VolumeUp"},
 	}
 	for _, tc := range cases {
 		if got := badgeFor(tc.goos, tc.accelerator, tc.key); got != tc.want {
@@ -234,6 +268,36 @@ func TestBadge(t *testing.T) {
 	// An unparseable binding still prints the key alone.
 	if got := Badge("nonsense", "3"); got != "3" {
 		t.Errorf("Badge(junk) = %q", got)
+	}
+}
+
+// TestDisplayAndBadgeAgree is the contract itself: one binding has one word
+// order. The settings page draws a binding with `Display` and a launcher row
+// draws the same binding's badge with `Badge`, so the two faces have to spell
+// the modifiers the same way on every platform — the round that introduced this
+// test found them disagreeing on `Cmd+Shift+P` (⌘⇧P vs ⇧⌘P).
+func TestDisplayAndBadgeAgree(t *testing.T) {
+	accelerators := []string{
+		"Cmd+1", "Ctrl+1", "Super+1", "CmdOrCtrl+1",
+		"Cmd+Shift+P", "Shift+Cmd+P", "Ctrl+Alt+Shift+Cmd+K",
+		"Shift+Ctrl+Q", "Alt+Ctrl+X", "Super+Shift+K",
+		"CmdOrCtrl+Shift+P", "Shift+CmdOrCtrl+P", "Ctrl+Shift+Backspace",
+	}
+	for _, goos := range []string{"darwin", "linux", "windows"} {
+		for _, accelerator := range accelerators {
+			normalized, ok := Normalize(accelerator)
+			if !ok {
+				t.Fatalf("Normalize(%q) failed", accelerator)
+			}
+			parts := strings.Split(normalized, "+")
+			key := parts[len(parts)-1]
+			display := displayFor(goos, accelerator)
+			badge := badgeFor(goos, accelerator, key)
+			if display != badge {
+				t.Errorf("%s: displayFor(%q) = %q, badgeFor = %q — one binding, one word order",
+					goos, accelerator, display, badge)
+			}
+		}
 	}
 }
 

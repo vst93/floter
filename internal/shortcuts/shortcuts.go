@@ -401,18 +401,65 @@ func displayFor(goos, accelerator string) string {
 	}
 	// The spelling is read back from the normalized text, so the display
 	// never has to map an enum back to a name: the parts are the modifiers
-	// and the key.
+	// and the key. The *order* is not read back — `join` writes it meta-first
+	// for the framework, while a chord is drawn in the reference's order (see
+	// chordModifiers).
 	parts := strings.Split(normalized, "+")
-	key := parts[len(parts)-1]
-	modifiers := parts[:len(parts)-1]
-	// macOS shows the glyphs a Mac user reads (⌘⇧⌥⌃); elsewhere the modifier
-	// words joined with `+` and no spaces (`Ctrl+Shift+C`), and the meta key
-	// named the way the platform's own keyboard names it — `Super` on Linux,
-	// `Win` on Windows — so a binding recorded as Super+K reads back as the key
-	// that was pressed, as the old build's `formatShortcut` did.
-	if goos == "darwin" {
-		var out strings.Builder
-		for _, name := range modifiers {
+	return chordPrefix(goos, parts[:len(parts)-1]) + displayKey(parts[len(parts)-1])
+}
+
+// chordOrder is the order a chord's modifiers are drawn in, and it is the
+// reference's: `formatShortcut` parses a binding into four flags and then
+// writes them in one fixed order — Control, Alt, Shift, Meta
+// (`main:src/shortcuts.ts:283-300`). That is Apple's own order (⌃⌥⇧⌘), and the
+// old build used it on every platform. The written order of the stored string
+// is deliberately irrelevant: `Cmd+Shift+P` and `Shift+Cmd+P` are one binding,
+// so they must draw as one chord.
+var chordOrder = []string{modCtrl, modAlt, modShift, modCmd}
+
+// chordModifiers resolves an accelerator's modifier tokens into chordOrder,
+// dropping duplicates and anything this vocabulary does not name.
+//
+// `CmdOrCtrl` is the portable spelling of "the modifier this platform binds":
+// Command on macOS, which is the meta slot, and Control elsewhere, which is the
+// ctrl slot — the same resolution `Parse` makes, but against the *named*
+// platform rather than the host, so a table can be pinned from anywhere.
+func chordModifiers(goos string, modifiers []string) []string {
+	held := make(map[string]bool, len(chordOrder))
+	for _, name := range modifiers {
+		switch name {
+		case "CmdOrCtrl":
+			if goos == "darwin" {
+				held[modCmd] = true
+			} else {
+				held[modCtrl] = true
+			}
+		default:
+			held[name] = true
+		}
+	}
+	ordered := make([]string, 0, len(chordOrder))
+	for _, name := range chordOrder {
+		if held[name] {
+			ordered = append(ordered, name)
+		}
+	}
+	return ordered
+}
+
+// chordPrefix draws a chord's modifiers the way this platform spells them, with
+// the key still to come: the glyphs a Mac user reads (⌃⌥⇧⌘) with no separator,
+// and elsewhere the modifier words each followed by `+` (`Ctrl+Shift+`), the
+// meta key named the way the platform's own keyboard names it — `Super` on
+// Linux, `Win` on Windows — so a binding recorded as Super+K reads back as the
+// key that was pressed, as the old build's `formatShortcut` did.
+//
+// This is the only producer of a chord's word order: `Display` and `Badge` both
+// go through it, so the settings page and a launcher keycap cannot disagree.
+func chordPrefix(goos string, modifiers []string) string {
+	var out strings.Builder
+	for _, name := range chordModifiers(goos, modifiers) {
+		if goos == "darwin" {
 			switch name {
 			case modCtrl:
 				out.WriteString("\u2303")
@@ -420,27 +467,23 @@ func displayFor(goos, accelerator string) string {
 				out.WriteString("\u2325")
 			case modShift:
 				out.WriteString("\u21e7")
-			case modCmd, "CmdOrCtrl":
+			case modCmd:
 				out.WriteString("\u2318")
 			}
+			continue
 		}
-		return out.String() + displayKey(key)
-	}
-	words := make([]string, 0, len(modifiers)+1)
-	for _, name := range modifiers {
 		switch name {
-		case modCtrl, "CmdOrCtrl":
-			words = append(words, "Ctrl")
+		case modCtrl:
+			out.WriteString("Ctrl+")
 		case modAlt:
-			words = append(words, "Alt")
+			out.WriteString("Alt+")
 		case modShift:
-			words = append(words, "Shift")
+			out.WriteString("Shift+")
 		case modCmd:
-			words = append(words, metaKeyWord(goos))
+			out.WriteString(metaKeyWord(goos) + "+")
 		}
 	}
-	words = append(words, displayKey(key))
-	return strings.Join(words, "+")
+	return out.String()
 }
 
 // metaKeyWord is the meta modifier's own name on this platform: the old build
@@ -544,7 +587,7 @@ func Duplicate(key string, keys []string, ignoreIndex int) string {
 }
 
 // Badge formats a binding as the compact key badge a row prints: the glyphs
-// on macOS (⌘⇧⌥⌃) and the words elsewhere (Ctrl, Alt, Shift, and the meta key
+// on macOS (⌃⌥⇧⌘) and the words elsewhere (Ctrl, Alt, Shift, and the meta key
 // named the platform's way), with the key appended — no spaces, because a
 // badge is a key, not a sentence. The `enter` spelling renders as ↩ on every
 // platform, as the old build's result badge did.
@@ -553,43 +596,19 @@ func Badge(accelerator, key string) string {
 }
 
 // badgeFor is Badge with the platform named, so the whole table can be pinned
-// from any host.
+// from any host. It answers the same question `displayFor` does — what is this
+// binding's prefix — so it asks `chordPrefix` rather than re-deriving the order
+// from `Parse`'s flags: two derivations is how the two faces came to disagree.
+// Going through `Normalize` also keeps the modifiers of a key `Parse` has no
+// enum for (`Ctrl+PrintScreen`), which the old build's `formatShortcut` drew.
 func badgeFor(goos, accelerator, key string) string {
-	mods, _, ok := Parse(accelerator)
+	normalized, ok := Normalize(accelerator)
 	if !ok {
 		return key
 	}
-	var out strings.Builder
-	if goos == "darwin" {
-		if mods&ui.Ctrl != 0 {
-			out.WriteString("\u2303")
-		}
-		if mods&ui.Alt != 0 {
-			out.WriteString("\u2325")
-		}
-		if mods&ui.Shift != 0 {
-			out.WriteString("\u21e7")
-		}
-		if mods&ui.Super != 0 {
-			out.WriteString("\u2318")
-		}
-	} else {
-		if mods&ui.Ctrl != 0 {
-			out.WriteString("Ctrl+")
-		}
-		if mods&ui.Alt != 0 {
-			out.WriteString("Alt+")
-		}
-		if mods&ui.Shift != 0 {
-			out.WriteString("Shift+")
-		}
-		if mods&ui.Super != 0 {
-			out.WriteString(metaKeyWord(goos) + "+")
-		}
-	}
+	parts := strings.Split(normalized, "+")
 	if key == "enter" || key == "Enter" {
 		key = "\u21a9"
 	}
-	out.WriteString(displayKey(key))
-	return out.String()
+	return chordPrefix(goos, parts[:len(parts)-1]) + displayKey(key)
 }

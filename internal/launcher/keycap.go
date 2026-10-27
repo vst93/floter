@@ -29,7 +29,7 @@ const (
 // keycapLabels splits a badge into the keys it is made of: the platform's own
 // spelling is what decides, because that is what `shortcuts.Badge` formatted.
 //
-// macOS writes a chord as the modifier glyphs followed by the key (`⌘⇧1`), so
+// macOS writes a chord as the modifier glyphs followed by the key (`⇧⌘1`), so
 // every glyph is one key and an ASCII tail is one more. Every other platform
 // writes it with `+` (`Ctrl+Shift+1`), so the split is that separator. A badge
 // that is a single key is one label either way.
@@ -54,7 +54,7 @@ func keycapLabels(badge string) []string {
 }
 
 // splitGlyphRun splits a macOS badge into its symbolic keys and its trailing
-// ASCII run: `⌘⇧1` is three keys, while `⌘F5` is two (`⌘`, `F5`).
+// ASCII run: `⇧⌘1` is three keys, while `⌘F5` is two (`⌘`, `F5`).
 func splitGlyphRun(badge string) []string {
 	var out []string
 	var ascii strings.Builder
