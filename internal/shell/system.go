@@ -263,13 +263,13 @@ func (a *App) HandleURL(rawURL string) {
 		a.registerFromLink(name)
 	default:
 		a.Open(SurfaceLauncher)
-		// The query rides either the host (floter://?q=x) or the path
-		// (floter://search?q=x).
-		query := parsed.Query().Get("q")
-		if query == "" {
-			query = parsed.Query().Get("query")
-		}
-		if query != "" {
+		// The prefill belongs to the two spellings this build documents
+		// (`floter://search?q=…` and `floter://?q=…`, `mygo-rewrite-plan.md:226`),
+		// not to "any host the switch did not match": a link that names
+		// nothing this router knows opens the launcher and leaves the search
+		// box alone, which is also what the reference's silent
+		// `UnknownAction` amounts to (`deep_link.rs:223-228`).
+		if query := launcherPrefill(parsed); query != "" {
 			a.Launcher.SetQuery(query)
 		}
 	}
