@@ -10,6 +10,7 @@ import (
 	"floter/internal/apps"
 	"floter/internal/extensions"
 	"floter/internal/settings"
+	"floter/internal/usage"
 
 	"github.com/egoist/mygo/plugins/terminal"
 	"github.com/egoist/mygo/ui"
@@ -232,5 +233,57 @@ func TestARescanRebuildsTheRecents(t *testing.T) {
 	a.scanApps()
 	if got := a.Launcher.Recent; len(got) != 1 || got[0] != editor.Path {
 		t.Errorf("recents after uninstalling Safari = %v, want the editor only", got)
+	}
+}
+
+// The most-used list a cold start reads is the one on disk.
+//
+// This is the same page as `TestAFreshStartOffersTheMostUsedApps`, reached the
+// way a real launch reaches it: the counts were written by the previous run
+// (another store, another process), this run's settings file has no
+// `launch_counts` for the one-time import to seed from, and nothing has
+// launched anything yet. The store has to load on the read; the earlier pin
+// could not see this because it built its counts through `Usage.Record`, which
+// loads as a side effect.
+func TestAColdStartReadsTheRecentsFromDisk(t *testing.T) {
+	root := t.TempDir()
+	previous := usage.Open(root)
+	for path, launches := range map[string]int{
+		"/Applications/Safari.app": 3,
+		"/Applications/Editor.app": 1,
+	} {
+		for i := 0; i < launches; i++ {
+			if err := previous.Record(path); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+
+	editor := apps.App{Name: "Editor", Path: "/Applications/Editor.app"}
+	safari := apps.App{Name: "Safari", Path: "/Applications/Safari.app"}
+	found := []apps.App{editor, safari}
+	store := settings.NewStore(settings.Default())
+	if counts := settings.LaunchCountsOf(store.Snapshot()); len(counts) != 0 {
+		t.Fatalf("the fixture has launch counts to import: %v", counts)
+	}
+	a := New(Options{
+		Store: store,
+		Paths: extensions.FromRoot(root),
+		NewTerminal: func(terminal.Options) (*terminal.Terminal, error) {
+			return nil, errors.New("no terminal library in tests")
+		},
+		OpenAtLogin:    func() bool { return false },
+		SetOpenAtLogin: func(bool) error { return nil },
+		ScanApps:       func() []apps.App { return found },
+	})
+
+	a.scanApps()
+
+	if got := a.Launcher.Recent; len(got) != 2 || got[0] != safari.Path {
+		t.Fatalf("recents read from disk = %v, want [%s %s]", got, safari.Path, editor.Path)
+	}
+	heading, rows := recentHeading(a)
+	if !heading || len(rows) != 2 || rows[0] != "Safari" {
+		t.Fatalf("the cold start's page shows heading=%v rows=%v", heading, rows)
 	}
 }

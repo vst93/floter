@@ -101,8 +101,15 @@ func (s *Store) Count(id string) int {
 // Top returns the ids used most, most-used first and, between equals, most
 // recent first. Only ids the caller knows (in keep) are returned, so a
 // deleted application does not linger in the list.
+//
+// It loads the file first, like `Count`: this is the *first* thing a cold
+// start asks (the shell's `refreshRecents`), and the store is lazy — `Open`
+// only remembers the path. Reading before loading answered 「no history」 for
+// the whole first session, so the empty query had no most-used block until the
+// user launched something (the report 「常用应用」不见).
 func (s *Store) Top(limit int, keep func(id string) bool) []string {
 	s.mu.Lock()
+	s.loadLocked()
 	ids := make([]string, 0, len(s.records))
 	records := make(map[string]Record, len(s.records))
 	for id, record := range s.records {
@@ -130,16 +137,17 @@ func (s *Store) Top(limit int, keep func(id string) bool) []string {
 	return known
 }
 
-// Save writes the file, atomically.
+// Save writes the file, atomically. It loads first: this store has no "write
+// this whole map" entry point, so a save from a store that never read the file
+// can only be a mistake — and it used to be a silent one, an empty map over
+// the history.
 func (s *Store) Save() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.path == "" {
 		return nil
 	}
-	if s.records == nil {
-		s.records = map[string]Record{}
-	}
+	s.loadLocked()
 	data, err := json.MarshalIndent(s.records, "", "  ")
 	if err != nil {
 		return err

@@ -124,3 +124,84 @@ func TestSeedFromAnEarlierBuild(t *testing.T) {
 		t.Error("an empty map changed something")
 	}
 }
+
+// A read that comes first still sees the file: the store loads on the read
+// itself, the way `Count` does, so a cold start's "most used" list is not
+// empty until something is launched.
+//
+// The shape here is the real one: one store writes the file, another one —
+// this process's store, opened at startup — only reads. Nothing calls
+// `Record`, `Count` or `Seed` in between, because on a real cold start nothing
+// does: the only other reader at startup is `Seed`, which returns before
+// loading when the settings file has no `launch_counts` to import.
+func TestAColdReadSeesTheFileItDidNotLoad(t *testing.T) {
+	dir := t.TempDir()
+	previous := Open(dir)
+	clock := time.UnixMilli(1_700_000_000_000)
+	previous.now = func() time.Time { return clock }
+	for _, id := range []string{"/Applications/A.app", "/Applications/A.app", "/Applications/B.app"} {
+		if err := previous.Record(id); err != nil {
+			t.Fatal(err)
+		}
+		clock = clock.Add(time.Second)
+	}
+
+	cold := Open(dir)
+	if got := cold.Top(0, nil); !reflect.DeepEqual(got, []string{"/Applications/A.app", "/Applications/B.app"}) {
+		t.Errorf("a cold read's top = %v, want the file's two ids, A first", got)
+	}
+}
+
+// And the caller's filter is asked, which it never was when the map was still
+// nil: `keep` is how the launcher drops applications that are no longer
+// installed, so a read that answers before loading silently drops everything.
+func TestTopLoadsWithoutACountFirst(t *testing.T) {
+	dir := t.TempDir()
+	previous := Open(dir)
+	for _, id := range []string{"/Applications/A.app", "/Applications/B.app"} {
+		if err := previous.Record(id); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	asked := 0
+	cold := Open(dir)
+	got := cold.Top(0, func(id string) bool {
+		asked++
+		return id == "/Applications/B.app"
+	})
+	if !reflect.DeepEqual(got, []string{"/Applications/B.app"}) {
+		t.Errorf("filtered cold read = %v, want [B]", got)
+	}
+	if asked == 0 {
+		t.Error("the filter was never asked: the read answered before loading")
+	}
+}
+
+// A save from a store that has not read the file must not replace it: the
+// store has no "write this whole map" API, so an unloaded save can only be a
+// mistake — and it used to be a silent one, `{}` over the history.
+func TestSaveWithoutAReadKeepsTheFile(t *testing.T) {
+	dir := t.TempDir()
+	previous := Open(dir)
+	for _, id := range []string{"/Applications/A.app", "/Applications/A.app"} {
+		if err := previous.Record(id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	before, err := os.ReadFile(filepath.Join(dir, fileName))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := Open(dir).Save(); err != nil {
+		t.Fatal(err)
+	}
+	after, err := os.ReadFile(filepath.Join(dir, fileName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(before) != string(after) {
+		t.Errorf("an unread store's save replaced the file:\nbefore %s\nafter  %s", before, after)
+	}
+}
