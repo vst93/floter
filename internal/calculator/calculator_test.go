@@ -393,3 +393,33 @@ func TestPruneTieBreakDropsTheOldest(t *testing.T) {
 		}
 	}
 }
+
+// TestAddFoldsTheCanonicalSpellings pins the write entry's normalization: the
+// store must speak the same canonical form as calc.Expression, so `=1+1` (the
+// old calculator key's spelling) and `1+1` are one calculation and fold into
+// one row — the store used to trim only, keeping them as two. This is the
+// boundary completion of P11-g's "one calculation, one spelling".
+func TestAddFoldsTheCanonicalSpellings(t *testing.T) {
+	store := newTestStore(t, DefaultMaxItems, 30)
+
+	first, err := store.Add("=1+1", "2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.Expression != "1+1" {
+		t.Fatalf("the leading = was kept: %q", first.Expression)
+	}
+	if _, err := store.Add("1+1", "2"); err != nil {
+		t.Fatal(err)
+	}
+	if got := store.Entries(); len(got) != 1 {
+		t.Fatalf("the two spellings stacked: %+v", got)
+	}
+	// A padded spelling is the same calculation too.
+	if _, err := store.Add("  = 1+1  ", "2"); err != nil {
+		t.Fatal(err)
+	}
+	if got := store.Entries(); len(got) != 1 || got[0].Expression != "1+1" {
+		t.Fatalf("a padded spelling did not fold: %+v", got)
+	}
+}

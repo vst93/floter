@@ -32,6 +32,7 @@ import (
 	"sync"
 	"time"
 
+	"floter/internal/calc"
 	"floter/internal/statefile"
 )
 
@@ -230,8 +231,15 @@ func (s *Store) Search(query string, favoritesOnly bool, limit int) []Entry {
 
 // Add records a calculation, folding a previous entry with the same
 // expression into the new top row (carrying its favourite flag forward).
+//
+// The expression is normalized through calc.Expression — the one canonical
+// form the launcher evaluates and prints — rather than a local TrimSpace, so
+// the store's write entry speaks the same answer as the read side and the
+// caller: `=1+1` and `1+1` fold into one row instead of stacking two. This is
+// the second place an expression enters the persistent set, so it must not
+// carry a weaker normalizer of its own (P11-g's contract, completed here).
 func (s *Store) Add(expression, result string) (Entry, error) {
-	expression = strings.TrimSpace(expression)
+	expression = calc.Expression(expression)
 	if expression == "" {
 		return Entry{}, errors.New("calculator: no expression to record")
 	}
