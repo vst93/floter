@@ -377,8 +377,18 @@ type App struct {
 	// clipboardInterval is how often the watcher reads the clipboard;
 	// tests shorten it.
 	clipboardInterval time.Duration
-	// clipboardWatching is set while the watcher goroutine runs.
-	clipboardWatching bool
+	// clipboardSession is the running sampler, nil while the history is off.
+	// One session is one enable: the reference's `MonitorHandle`
+	// (`clipboard_history/monitor.rs:418-423`) is the same pair of channels,
+	// and its `sync_runtime` starts and stops it on every settings change.
+	clipboardSession *clipboardSession
+	// clipboardDraining is a sampler that has been told to stop but may still be
+	// inside one capture. The next session waits for it before it clears
+	// lastClipboardHash, so two samplers never write the memory at once.
+	clipboardDraining chan struct{}
+	// clipboardSessions counts the samplers this app has started: one per
+	// enable, however many settings changes happen while one is live.
+	clipboardSessions int
 	// appIcon is the stored app icon ("dark" or "light"), and lastAppIcon
 	// what the tray and window were last given.
 	appIcon     string
@@ -1139,8 +1149,14 @@ func New(opts Options) *App {
 			a.LastClipboardSettings = state
 			a.onMain(func() {
 				a.Clipboard.SetMaxItems(state.MaxItems)
-				if state.Enabled && !a.clipboardWatching {
+				// Both branches are idempotent, as the reference's `sync_runtime`
+				// is (`clipboard_history/mod.rs:436-442`): a start while one is
+				// live does nothing, and turning the history off ends the sampler
+				// now instead of at its next tick (`monitor.rs:463-476`).
+				if state.Enabled {
 					a.watchClipboard()
+				} else {
+					a.stopClipboard()
 				}
 			})
 		}

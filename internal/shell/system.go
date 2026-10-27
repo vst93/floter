@@ -436,18 +436,40 @@ func numeric(value any) (float64, bool) {
 	}
 }
 
+// clipboardSession is one run of the sampler: how to stop it, and how to know
+// that it is gone. It is the reference's `MonitorHandle`
+// (`clipboard_history/monitor.rs:418-423`) — `stop` is its `cancel` flag, `done`
+// is the join handle of the task that `stop` aborts.
+type clipboardSession struct {
+	stop chan struct{}
+	done chan struct{}
+}
+
 // watchClipboard records what the user copies while the app runs: the store
-// owns the history, the watcher only feeds it.
+// owns the history, the watcher only feeds it. One call starts at most one
+// session: the settings handler calls it on every enable, so it is idempotent
+// exactly as the reference's `start` is (`monitor.rs:425-436`).
 func (a *App) watchClipboard() {
-	if a.clipboardWatching || !clipboardState(a.Store.Snapshot()).Enabled {
+	if a.clipboardSession != nil || !clipboardState(a.Store.Snapshot()).Enabled {
 		return
 	}
-	a.clipboardWatching = true
 	interval := a.clipboardInterval
 	if interval <= 0 {
 		interval = clipboardPoll
 	}
+	session := &clipboardSession{stop: make(chan struct{}), done: make(chan struct{})}
+	// A sampler that was stopped while it was inside one capture still owns the
+	// memory until it is gone; the new goroutine waits for it (below) before it
+	// clears the field, so the two never write it at the same time.
+	draining := a.clipboardDraining
+	a.clipboardDraining = nil
+	a.clipboardSession = session
+	a.clipboardSessions++
 	go func() {
+		defer close(session.done)
+		if draining != nil {
+			<-draining
+		}
 		// A session starts with no memory: the reference builds its `last_hash`
 		// inside the spawned task (`clipboard_history/monitor.rs:443`), so a
 		// stop/start cycle re-reads whatever is on the clipboard instead of
@@ -461,10 +483,15 @@ func (a *App) watchClipboard() {
 		// means samples never overlap — this loop is the only sampler.
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
-		for range ticker.C {
-			if !clipboardState(a.Store.Snapshot()).Enabled {
-				a.clipboardWatching = false
+		for {
+			// The stop channel is the only way out, and it is what the setting
+			// turns on the way out of the loop (`stopClipboard`): the reference
+			// checks its cancel flag once per tick (`monitor.rs:445-455`) and
+			// aborts the task outright when the history is turned off.
+			select {
+			case <-session.stop:
 				return
+			case <-ticker.C:
 			}
 			if a.captureClipboard() {
 				a.onMain(func() {
@@ -475,6 +502,20 @@ func (a *App) watchClipboard() {
 			}
 		}
 	}()
+}
+
+// stopClipboard ends the running sampler, if any. Idempotent: the reference's
+// `stop` takes the handle out of its slot first and aborts it after
+// (`clipboard_history/monitor.rs:463-476`), so a second stop is a no-op and a
+// stop with nothing running does not panic.
+func (a *App) stopClipboard() {
+	session := a.clipboardSession
+	if session == nil {
+		return
+	}
+	a.clipboardSession = nil
+	a.clipboardDraining = session.done
+	close(session.stop)
 }
 
 // captureClipboard records what is on the clipboard now, if it is something
