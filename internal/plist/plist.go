@@ -13,6 +13,7 @@ package plist
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/xml"
 	"errors"
@@ -21,18 +22,34 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf16"
 )
 
 // ErrInvalid is what a document that is not a property list reports.
 var ErrInvalid = errors.New("plist: not a property list")
 
+// maxDepth bounds how deeply a document may nest. A malformed or hostile file
+// must be an error, never a stack overflow: a self-referencing object would
+// otherwise recurse until the process dies.
+const maxDepth = 128
+
+// tooDeep is the error a document nested past maxDepth reports.
+func tooDeep() error { return fmt.Errorf("%w: nesting deeper than %d", ErrInvalid, maxDepth) }
+
 // Parse reads a property list in either encoding. The value is one of
 // map[string]any, []any, string, int64, float64, bool, time.Time or []byte.
 func Parse(data []byte) (any, error) {
+	// The binary encoding's header is at offset 0 by definition, and its last
+	// 32 bytes are the trailer — whose final byte is the low byte of the
+	// offset table's position. Trimming "whitespace" off a binary document
+	// therefore corrupts a valid file whenever that offset happens to end in
+	// 0x09, 0x0a, 0x0b, 0x0c, 0x0d or 0x20. Only the XML encoding tolerates
+	// surrounding whitespace.
+	if bytes.HasPrefix(data, []byte("bplist")) {
+		return parseBinary(data)
+	}
 	trimmed := bytes.TrimSpace(data)
 	switch {
-	case bytes.HasPrefix(trimmed, []byte("bplist")):
-		return parseBinary(trimmed)
 	case bytes.HasPrefix(trimmed, []byte("<?xml")), bytes.HasPrefix(trimmed, []byte("<plist")), bytes.HasPrefix(trimmed, []byte("<!")):
 		return parseXML(trimmed)
 	default:
@@ -69,12 +86,15 @@ func parseXML(data []byte) (any, error) {
 		if start.Name.Local != "plist" {
 			continue
 		}
-		return readXMLElement(decoder)
+		return readXMLElement(decoder, 0)
 	}
 }
 
 // readXMLElement reads the next value element.
-func readXMLElement(decoder *xml.Decoder) (any, error) {
+func readXMLElement(decoder *xml.Decoder, depth int) (any, error) {
+	if depth > maxDepth {
+		return nil, tooDeep()
+	}
 	for {
 		token, err := decoder.Token()
 		if err != nil {
@@ -86,9 +106,9 @@ func readXMLElement(decoder *xml.Decoder) (any, error) {
 		}
 		switch start.Name.Local {
 		case "dict":
-			return readXMLDict(decoder)
+			return readXMLDict(decoder, depth+1)
 		case "array":
-			return readXMLArray(decoder)
+			return readXMLArray(decoder, depth+1)
 		case "string":
 			return readXMLText(decoder)
 		case "integer":
@@ -136,13 +156,32 @@ func readXMLElement(decoder *xml.Decoder) (any, error) {
 			if err != nil {
 				return nil, err
 			}
-			return []byte(strings.TrimSpace(text)), nil
+			return decodeXMLData(text)
 		}
 	}
 }
 
+// decodeXMLData reads a `<data>` element: base64 in the XML encoding, which is
+// what makes it the same bytes the binary encoding stores.
+func decodeXMLData(text string) ([]byte, error) {
+	compact := strings.Join(strings.Fields(text), "")
+	if compact == "" {
+		return []byte{}, nil
+	}
+	if decoded, err := base64.StdEncoding.DecodeString(compact); err == nil {
+		return decoded, nil
+	}
+	if decoded, err := base64.RawStdEncoding.DecodeString(compact); err == nil {
+		return decoded, nil
+	}
+	return nil, fmt.Errorf("%w: data is not base64", ErrInvalid)
+}
+
 // readXMLDict reads a dictionary element.
-func readXMLDict(decoder *xml.Decoder) (any, error) {
+func readXMLDict(decoder *xml.Decoder, depth int) (any, error) {
+	if depth > maxDepth {
+		return nil, tooDeep()
+	}
 	dict := map[string]any{}
 	key := ""
 	for {
@@ -160,7 +199,7 @@ func readXMLDict(decoder *xml.Decoder) (any, error) {
 				key = text
 				continue
 			}
-			value, err := readXMLValue(decoder, element)
+			value, err := readXMLValue(decoder, element, depth+1)
 			if err != nil {
 				return nil, err
 			}
@@ -178,12 +217,15 @@ func readXMLDict(decoder *xml.Decoder) (any, error) {
 
 // readXMLValue reads a value element whose start tag the caller has already
 // consumed.
-func readXMLValue(decoder *xml.Decoder, start xml.StartElement) (any, error) {
+func readXMLValue(decoder *xml.Decoder, start xml.StartElement, depth int) (any, error) {
+	if depth > maxDepth {
+		return nil, tooDeep()
+	}
 	switch start.Name.Local {
 	case "dict":
-		return readXMLDict(decoder)
+		return readXMLDict(decoder, depth+1)
 	case "array":
-		return readXMLArray(decoder)
+		return readXMLArray(decoder, depth+1)
 	case "string":
 		return readXMLText(decoder)
 	default:
@@ -233,14 +275,17 @@ func readXMLElementAfter(decoder *xml.Decoder, start xml.StartElement) (any, err
 		if err != nil {
 			return nil, err
 		}
-		return []byte(strings.TrimSpace(text)), nil
+		return decodeXMLData(text)
 	default:
 		return nil, fmt.Errorf("%w: element %q", ErrInvalid, start.Name.Local)
 	}
 }
 
 // readXMLArray reads an array element.
-func readXMLArray(decoder *xml.Decoder) (any, error) {
+func readXMLArray(decoder *xml.Decoder, depth int) (any, error) {
+	if depth > maxDepth {
+		return nil, tooDeep()
+	}
 	array := []any{}
 	for {
 		token, err := decoder.Token()
@@ -249,7 +294,7 @@ func readXMLArray(decoder *xml.Decoder) (any, error) {
 		}
 		switch element := token.(type) {
 		case xml.StartElement:
-			value, err := readXMLValue(decoder, element)
+			value, err := readXMLValue(decoder, element, depth+1)
 			if err != nil {
 				return nil, err
 			}
@@ -320,7 +365,7 @@ func parseBinary(data []byte) (any, error) {
 		return nil, fmt.Errorf("%w: top object out of range", ErrInvalid)
 	}
 	reader := &binaryReader{data: data, offsets: offsets, refSize: refSize}
-	return reader.object(topObject)
+	return reader.object(topObject, 0)
 }
 
 // binaryReader reads objects out of one document.
@@ -331,20 +376,23 @@ type binaryReader struct {
 }
 
 // object reads the object at an offset table index.
-func (r *binaryReader) object(index int) (any, error) {
+func (r *binaryReader) object(index, depth int) (any, error) {
 	if index < 0 || index >= len(r.offsets) {
 		return nil, fmt.Errorf("%w: object index %d", ErrInvalid, index)
 	}
-	return r.value(r.offsets[index])
+	return r.value(r.offsets[index], depth)
 }
 
 // value reads the object starting at an offset.
-func (r *binaryReader) value(offset int) (any, error) {
+func (r *binaryReader) value(offset, depth int) (any, error) {
+	if depth > maxDepth {
+		return nil, tooDeep()
+	}
 	if offset < 0 || offset >= len(r.data) {
 		return nil, fmt.Errorf("%w: object offset %d", ErrInvalid, offset)
 	}
 	marker := r.data[offset]
-	kind, size, next, err := r.length(marker, offset+1)
+	kind, size, extended, next, err := r.length(marker, offset+1)
 	if err != nil {
 		return nil, err
 	}
@@ -359,7 +407,13 @@ func (r *binaryReader) value(offset int) (any, error) {
 			return nil, nil // null and fill bytes
 		}
 	case 0x1: // integer
-		raw, err := r.slice(next, 1<<size)
+		// `size` counts bytes when it came from the extension marker and is
+		// log2(bytes) otherwise.
+		width := size
+		if !extended {
+			width = 1 << size
+		}
+		raw, err := r.slice(next, width)
 		if err != nil {
 			return nil, err
 		}
@@ -376,7 +430,11 @@ func (r *binaryReader) value(offset int) (any, error) {
 			return nil, fmt.Errorf("%w: integer of %d bytes", ErrInvalid, len(raw))
 		}
 	case 0x2: // real
-		raw, err := r.slice(next, 1<<size)
+		width := size
+		if !extended {
+			width = 1 << size
+		}
+		raw, err := r.slice(next, width)
 		if err != nil {
 			return nil, err
 		}
@@ -412,11 +470,14 @@ func (r *binaryReader) value(offset int) (any, error) {
 		if err != nil {
 			return nil, err
 		}
-		runes := make([]rune, 0, size)
+		units := make([]uint16, 0, size)
 		for i := 0; i+1 < len(raw); i += 2 {
-			runes = append(runes, rune(binary.BigEndian.Uint16(raw[i:i+2])))
+			units = append(units, binary.BigEndian.Uint16(raw[i:i+2]))
 		}
-		return string(runes), nil
+		// Surrogate pairs are paired, as the standard library pairs them: a
+		// name holding a non-BMP character (🎮, an extension-B ideograph) is
+		// one character, not two replacement characters.
+		return string(utf16.Decode(units)), nil
 	case 0x8: // UID
 		raw, err := r.slice(next, size+1)
 		if err != nil {
@@ -430,7 +491,7 @@ func (r *binaryReader) value(offset int) (any, error) {
 			if err != nil {
 				return nil, err
 			}
-			item, err := r.object(index)
+			item, err := r.object(index, depth+1)
 			if err != nil {
 				return nil, err
 			}
@@ -446,7 +507,7 @@ func (r *binaryReader) value(offset int) (any, error) {
 			if err != nil {
 				return nil, err
 			}
-			key, err := r.object(keyIndex)
+			key, err := r.object(keyIndex, depth+1)
 			if err != nil {
 				return nil, err
 			}
@@ -458,7 +519,7 @@ func (r *binaryReader) value(offset int) (any, error) {
 			if err != nil {
 				return nil, err
 			}
-			value, err := r.object(valueIndex)
+			value, err := r.object(valueIndex, depth+1)
 			if err != nil {
 				return nil, err
 			}
@@ -470,27 +531,29 @@ func (r *binaryReader) value(offset int) (any, error) {
 	}
 }
 
-// length reads a marker's kind and size, returning where the payload starts.
-// A size of 15 means the real size follows as an integer object.
-func (r *binaryReader) length(marker byte, at int) (kind byte, size int, next int, err error) {
+// length reads a marker's kind and size, returning where the payload starts
+// and whether the size came from the extension marker. A size of 15 means the
+// real size follows as an integer object — and that size counts bytes, whereas
+// the inline field counts log2(bytes) for the integer and real kinds.
+func (r *binaryReader) length(marker byte, at int) (kind byte, size int, extended bool, next int, err error) {
 	kind = marker >> 4
 	size = int(marker & 0x0f)
 	if size != 0x0f {
-		return kind, size, at, nil
+		return kind, size, false, at, nil
 	}
 	if at >= len(r.data) {
-		return 0, 0, 0, fmt.Errorf("%w: size out of range", ErrInvalid)
+		return 0, 0, false, 0, fmt.Errorf("%w: size out of range", ErrInvalid)
 	}
 	lengthMarker := r.data[at]
 	if lengthMarker>>4 != 0x1 {
-		return 0, 0, 0, fmt.Errorf("%w: size is not an integer", ErrInvalid)
+		return 0, 0, false, 0, fmt.Errorf("%w: size is not an integer", ErrInvalid)
 	}
 	width := 1 << (lengthMarker & 0x0f)
 	raw, err := r.slice(at+1, width)
 	if err != nil {
-		return 0, 0, 0, err
+		return 0, 0, false, 0, err
 	}
-	return kind, int(readBigEndian(raw)), at + 1 + width, nil
+	return kind, int(readBigEndian(raw)), true, at + 1 + width, nil
 }
 
 // reference reads an object reference.

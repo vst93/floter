@@ -102,7 +102,9 @@ func TestParseDateAndData(t *testing.T) {
 	if !ok || !when.Equal(time.Date(2024, 1, 2, 3, 4, 5, 0, time.UTC)) {
 		t.Errorf("date = %#v", record["when"])
 	}
-	if blob, ok := record["blob"].([]byte); !ok || string(blob) != "aGk=" {
+	// P11-h 重定基线：`<data>` 以前回的是 base64 文本（`aGk=`），与二进制编码里
+	// 同一份文档回的字节不同；现在两种编码都回解码后的字节。
+	if blob, ok := record["blob"].([]byte); !ok || string(blob) != "hi" {
 		t.Errorf("data = %#v", record["blob"])
 	}
 }

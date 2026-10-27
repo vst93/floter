@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode/utf16"
 
 	"floter/internal/pinyin"
 	"floter/internal/plist"
@@ -159,21 +160,16 @@ func decodeStringsText(data []byte) string {
 		for i := 2; i+1 < len(data); i += 2 {
 			units = append(units, uint16(data[i])|uint16(data[i+1])<<8)
 		}
-		runes := make([]rune, 0, len(units))
-		for _, unit := range units {
-			runes = append(runes, rune(unit))
-		}
-		return string(runes)
+		// Surrogate pairs are paired, as the standard library pairs them: a
+		// name holding a non-BMP character is one character, not two
+		// replacement characters.
+		return string(utf16.Decode(units))
 	case len(data) >= 2 && data[0] == 0xfe && data[1] == 0xff:
 		units := make([]uint16, 0, len(data)/2)
 		for i := 2; i+1 < len(data); i += 2 {
 			units = append(units, uint16(data[i])<<8|uint16(data[i+1]))
 		}
-		runes := make([]rune, 0, len(units))
-		for _, unit := range units {
-			runes = append(runes, rune(unit))
-		}
-		return string(runes)
+		return string(utf16.Decode(units))
 	default:
 		return string(data)
 	}

@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"os"
 	"strings"
+	"unicode/utf16"
 )
 
 // Reading a Windows shortcut's target.
@@ -127,7 +128,7 @@ func linkString(info []byte, unicodeOffset, ansiOffset uint32) (string, bool) {
 			}
 			units = append(units, unit)
 		}
-		return string(utf16Decode(units)), true
+		return string(utf16.Decode(units)), true
 	}
 	if ansiOffset == 0 || uint64(ansiOffset) >= uint64(len(info)) {
 		return "", false
@@ -141,29 +142,6 @@ func linkString(info []byte, unicodeOffset, ansiOffset uint32) (string, bool) {
 		}
 	}
 	return string(bytes[:end]), true
-}
-
-// utf16Decode turns UTF-16 code units into runes, pairing surrogates; an
-// unpaired one becomes U+FFFD rather than shrinking the string.
-func utf16Decode(units []uint16) []rune {
-	out := make([]rune, 0, len(units))
-	for i := 0; i < len(units); i++ {
-		unit := units[i]
-		if unit >= 0xD800 && unit < 0xDC00 && i+1 < len(units) {
-			low := units[i+1]
-			if low >= 0xDC00 && low < 0xE000 {
-				out = append(out, rune(0x10000+(uint32(unit)-0xD800)<<10+(uint32(low)-0xDC00)))
-				i++
-				continue
-			}
-		}
-		if unit >= 0xD800 && unit < 0xE000 {
-			out = append(out, '\uFFFD')
-			continue
-		}
-		out = append(out, rune(unit))
-	}
-	return out
 }
 
 // readUint32 reads a little-endian uint32 at offset, or 0 when the bytes are
