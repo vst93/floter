@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"os"
 )
 
 // Reading a macOS `.icns` icon: the container is a magic, a total length, and
@@ -65,4 +66,39 @@ func isPNGType(kind []byte) bool {
 		}
 	}
 	return false
+}
+
+// icnsConvertArgs is the conversion the reference runs on a macOS icon:
+// `/usr/bin/sips -s format png <source> --out <target>`
+// (`main:src-tauri/src/commands/apps/macos.rs:520-528`). sips reads every entry
+// type the container holds, including the pre-10.7 bitmaps this file's own
+// reader skips, which is why the fall-through in readIcon asks it.
+func icnsConvertArgs(source, target string) []string {
+	return []string{"-s", "format", "png", source, "--out", target}
+}
+
+// convertICNS converts an `.icns` to PNG with `run` and returns the bytes, or
+// nil when the conversion did not produce a PNG.
+//
+// The reference writes its answer to a cache file and hands the *path* to its
+// renderer (`icon_cache_path`, `main:src-tauri/src/commands/apps/mod.rs:549-556`).
+// This build's renderer takes bytes and already caches them per path in memory
+// (`iconCache`), so the target is a temporary file that is read back and
+// removed: no second cache to keep fresh.
+func convertICNS(source string, run func(args []string) error) []byte {
+	target, err := os.CreateTemp("", "floter-icns-*.png")
+	if err != nil {
+		return nil
+	}
+	name := target.Name()
+	target.Close()
+	defer os.Remove(name)
+	if err := run(icnsConvertArgs(source, name)); err != nil {
+		return nil
+	}
+	data, err := os.ReadFile(name)
+	if err != nil || !isPNG(data) {
+		return nil
+	}
+	return data
 }

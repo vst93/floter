@@ -121,23 +121,42 @@ func extractIconAsync(app App) {
 	}()
 }
 
+// platformExtract is the platform's own extraction, the answer for an
+// application whose icon is not a file this build can read. It is a variable
+// so the fall-through in readIcon can be pinned from a host whose own platform
+// has nothing to extract (the gate runs on Linux).
+var platformExtract = extractIcon
+
 // readIcon reads the icon for one application: a file the platform named, or
 // a platform's own extraction.
+//
+// A file that yields no PNG is **not** the end of the answer. An `.icns` may
+// hold only the pre-10.7 bitmap entries (`is32`, `il32`, `it32`), which this
+// build's reader skips on purpose; the reference hands that same file to
+// `/usr/bin/sips` (`main:src-tauri/src/commands/apps/macos.rs:509-530`) and
+// gets an icon, so stopping here would show a first letter where it shows an
+// icon. The same fall-through covers a file that cannot be read at all.
 func readIcon(app App) []byte {
 	if app.IconPath != "" {
-		data, err := os.ReadFile(app.IconPath)
-		if err != nil {
-			return nil
+		if data, err := os.ReadFile(app.IconPath); err == nil {
+			if png := iconFromFile(app.IconPath, data); png != nil {
+				return png
+			}
 		}
-		if strings.HasSuffix(strings.ToLower(app.IconPath), ".icns") {
-			return LargestPNGFromICNS(data)
-		}
-		if !isPNG(data) {
-			return nil
-		}
-		return data
 	}
-	return extractIcon(app)
+	return platformExtract(app)
+}
+
+// iconFromFile turns one icon file's bytes into PNG, or nil when this build
+// cannot read them as an image.
+func iconFromFile(path string, data []byte) []byte {
+	if strings.HasSuffix(strings.ToLower(path), ".icns") {
+		return LargestPNGFromICNS(data)
+	}
+	if !isPNG(data) {
+		return nil
+	}
+	return data
 }
 
 // isPNG reports whether data is a PNG image.
