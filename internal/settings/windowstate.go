@@ -17,6 +17,8 @@ import (
 	"sort"
 
 	"github.com/egoist/mygo"
+
+	"floter/internal/statefile"
 )
 
 // DetachedStateKeyPrefix is the key a detached output window's geometry is
@@ -103,10 +105,13 @@ func MigrateLegacyWindowState(configDir string) (WindowStateReport, error) {
 	if err := os.MkdirAll(root, 0o755); err != nil {
 		return WindowStateReport{Reason: "mkdir-failed"}, err
 	}
-	if err := os.WriteFile(backupPath, data, 0o600); err != nil {
+	// P11-k: both files go through the atomic writer. They used to be two plain
+	// `os.WriteFile` calls, so a crash between the truncate and the write left a
+	// half document where the remembered geometry was.
+	if err := statefile.Write(backupPath, data, 0o600); err != nil {
 		return WindowStateReport{Reason: "backup-failed"}, err
 	}
-	if err := os.WriteFile(newPath, encoded, 0o644); err != nil {
+	if err := statefile.Write(newPath, encoded, 0o644); err != nil {
 		return WindowStateReport{Reason: "save-failed"}, err
 	}
 

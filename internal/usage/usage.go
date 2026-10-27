@@ -14,6 +14,8 @@ import (
 	"sort"
 	"sync"
 	"time"
+
+	"floter/internal/statefile"
 )
 
 // fileName is the file under the app's config root.
@@ -152,27 +154,9 @@ func (s *Store) Save() error {
 	if err != nil {
 		return err
 	}
-	dir := filepath.Dir(s.path)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return err
-	}
-	tmp, err := os.CreateTemp(dir, ".usage-*.tmp")
-	if err != nil {
-		return err
-	}
-	name := tmp.Name()
-	defer os.Remove(name)
-	if _, err := tmp.Write(append(data, '\n')); err != nil {
-		tmp.Close()
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		return err
-	}
-	if err := os.Chmod(name, 0o600); err != nil {
-		return err
-	}
-	return os.Rename(name, s.path)
+	// P11-k: one writer for every state file — this is the copy that used to
+	// skip the flush, so the rename could land before the bytes did.
+	return statefile.Write(s.path, append(data, '\n'), 0o600)
 }
 
 // loadLocked reads the file once.

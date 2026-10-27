@@ -55,8 +55,11 @@ func TestSaveWritesTheRecoveryCopyBesideThePrimary(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read dir: %v", err)
 	}
+	// P11-k 重定基线（S：结构变了）：临时文件前缀从 `.settings-*.tmp` 换成
+	// `statefile.Write` 的 `.floter-state-*.tmp` —— 同一个写入器服务所有状态文件，
+	// 名字不再按包分。断言的内容不变：写完之后目录里不许留下写入中的文件。
 	for _, entry := range entries {
-		if strings.HasPrefix(entry.Name(), ".settings-") && strings.HasSuffix(entry.Name(), ".tmp") {
+		if strings.HasPrefix(entry.Name(), ".floter-state-") && strings.HasSuffix(entry.Name(), ".tmp") {
 			t.Errorf("temporary file left behind: %s", entry.Name())
 		}
 	}

@@ -25,6 +25,8 @@ import (
 	"sync"
 	"time"
 	"unicode"
+
+	"floter/internal/statefile"
 )
 
 // The directory and file names under the config root.
@@ -534,7 +536,9 @@ func (s *Store) AddImageCaption(png []byte, width, height int, caption string) (
 	if err := os.MkdirAll(s.paths.Images(), 0o755); err != nil {
 		return Entry{}, false, err
 	}
-	if err := os.WriteFile(filepath.Join(s.paths.Images(), file), png, 0o600); err != nil {
+	// P11-k: the image is a state file too — a half-written PNG is a row the
+	// launcher can never decode, so it goes through the same atomic writer.
+	if err := statefile.Write(filepath.Join(s.paths.Images(), file), png, 0o600); err != nil {
 		return Entry{}, false, err
 	}
 	entry := Entry{
@@ -793,27 +797,8 @@ func (s *Store) saveLocked() error {
 	if err != nil {
 		return err
 	}
-	tmp, err := os.CreateTemp(s.paths.Root, ".index-*.tmp")
-	if err != nil {
-		return err
-	}
-	name := tmp.Name()
-	defer os.Remove(name)
-	if _, err := tmp.Write(append(data, '\n')); err != nil {
-		tmp.Close()
-		return err
-	}
-	if err := tmp.Sync(); err != nil {
-		tmp.Close()
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		return err
-	}
-	if err := os.Chmod(name, 0o600); err != nil {
-		return err
-	}
-	return os.Rename(name, s.paths.Index())
+	// P11-k: one writer for every state file.
+	return statefile.Write(s.paths.Index(), append(data, '\n'), 0o600)
 }
 
 func clampMaxItems(maxItems int) int {
