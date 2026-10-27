@@ -1,8 +1,9 @@
 package extensions
 
 import (
+	"bytes"
+	"context"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -202,15 +203,19 @@ func loginShellDirs() []string {
 	done := make(chan string, 1)
 	go func() {
 		// -ilc: interactive and login, which is where path_helper and a
-		// version manager's hooks both live.
-		cmd := exec.Command(shell, "-ilc", `printf "__floter_path__%s" "$PATH"`)
-		isolateProbe(cmd)
-		out, err := cmd.Output()
-		if err != nil {
+		// version manager's hooks both live. The five seconds are the same
+		// bound the abandoned-goroutine version used; now the shell dies with
+		// it instead of living on with no reader.
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		cmd := newProbeCommand(ctx, shell, "-ilc", `printf "__floter_path__%s" "$PATH"`)
+		var out bytes.Buffer
+		cmd.Stdout = &out
+		if err := runExtensionCommand(cmd); err != nil {
 			done <- ""
 			return
 		}
-		done <- string(out)
+		done <- out.String()
 	}()
 	select {
 	case out := <-done:

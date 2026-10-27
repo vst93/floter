@@ -161,8 +161,7 @@ func runProbe(ctx context.Context, binding RuntimeBinding, integration Integrati
 	// (its own process environment otherwise), with the standard input closed
 	// and both streams captured.
 	argv := append(append([]string{}, binding.Args...), probe.Args...)
-	cmd := exec.CommandContext(probeCtx, binding.Program, argv...)
-	isolateProbe(cmd)
+	cmd := newProbeCommand(probeCtx, binding.Program, argv...)
 	cmd.Stdin = nil
 	if dir := integration.PackageDir(); dir != "" {
 		cmd.Dir = dir
@@ -171,7 +170,7 @@ func runProbe(ctx context.Context, binding RuntimeBinding, integration Integrati
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	started := time.Now()
-	runErr := cmd.Run()
+	runErr := runExtensionCommand(cmd)
 	duration := time.Since(started)
 
 	record := ProbeRecord{

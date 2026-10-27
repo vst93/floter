@@ -161,7 +161,7 @@ func Describe(ctx context.Context, integration Integration) (Description, error)
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, binding.Program, args...)
+	cmd := newExtensionCommand(ctx, binding.Program, args...)
 	cmd.Env = providerEnv(integration.Manifest)
 	// A provider that hangs (or whose child keeps the pipes open) must not
 	// hold the app: after the context is done, Wait gives the I/O half a
@@ -169,7 +169,7 @@ func Describe(ctx context.Context, integration Integration) (Description, error)
 	cmd.WaitDelay = 500 * time.Millisecond
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
-	runErr := cmd.Run()
+	runErr := runExtensionCommand(cmd)
 
 	command := strings.Join(append([]string{binding.Program}, args...), " ")
 	if ctx.Err() == context.DeadlineExceeded {

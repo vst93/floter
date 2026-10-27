@@ -96,7 +96,7 @@ func runOperation(ctx context.Context, integration Integration, op string, paylo
 
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, binding.Program, args...)
+	cmd := newExtensionCommand(ctx, binding.Program, args...)
 	cmd.Env = providerEnv(integration.Manifest)
 	// A provider that hangs (or whose child keeps the pipes open) must not
 	// hold the app.
@@ -107,7 +107,7 @@ func runOperation(ctx context.Context, integration Integration, op string, paylo
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 
-	runErr := cmd.Run()
+	runErr := runExtensionCommand(cmd)
 	command := strings.Join(append([]string{binding.Program}, args...), " ")
 	if ctx.Err() == context.DeadlineExceeded {
 		return nil, &ProviderError{Op: op, Command: command, Err: fmt.Errorf("timed out after %s", timeout)}

@@ -101,7 +101,7 @@ func runCaptured(ctx context.Context, entry CommandEntry, args []string, cursor 
 	// changes, argv included.
 	program, argv := cmdShimWrap(ProgramIsCmdScript(entry.Program), entry.Program, argv)
 
-	cmd := exec.CommandContext(runCtx, program, argv...)
+	cmd := newExtensionCommand(runCtx, program, argv...)
 	cmd.Stdin = nil
 	if entry.Dir != "" {
 		cmd.Dir = entry.Dir
@@ -123,7 +123,7 @@ func runCaptured(ctx context.Context, entry CommandEntry, args []string, cursor 
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 
 	started := time.Now()
-	runErr := cmd.Run()
+	runErr := runExtensionCommand(cmd)
 	duration := time.Since(started)
 
 	run := CapturedRun{

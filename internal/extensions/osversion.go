@@ -1,8 +1,9 @@
 package extensions
 
 import (
+	"bytes"
+	"context"
 	"fmt"
-	"os/exec"
 	"runtime"
 	"strconv"
 	"strings"
@@ -33,12 +34,19 @@ func HostOSVersion() string {
 // commandVersion runs a program and returns its trimmed stdout, or an empty
 // string when it cannot be run or fails — a version we cannot read, never a
 // guessed one.
+//
+// The command goes through the same constructor as every other extension
+// process, so it is in its own process group and the group is swept when it
+// exits. No timeout is added: the reference's system-version read has none
+// either, and this is a read-only `sw_vers`/`uname -r`/`ver` call.
 func commandVersion(program string, args ...string) string {
-	output, err := exec.Command(program, args...).Output()
-	if err != nil {
+	cmd := newExtensionCommand(context.Background(), program, args...)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	if err := runExtensionCommand(cmd); err != nil {
 		return ""
 	}
-	return strings.TrimSpace(string(output))
+	return strings.TrimSpace(out.String())
 }
 
 // ValidateMinimumOSVersion refuses a manifest whose matched platform override

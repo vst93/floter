@@ -12,7 +12,6 @@ import (
 	"bytes"
 	"context"
 	"os"
-	"os/exec"
 	"strings"
 	"time"
 )
@@ -29,8 +28,7 @@ func ProbeHelpText(ctx context.Context, binding RuntimeBinding, integration Inte
 	probeCtx, cancel := context.WithTimeout(ctx, helpDeriveTimeout)
 	defer cancel()
 	argv := append(append([]string{}, binding.Args...), args...)
-	cmd := exec.CommandContext(probeCtx, binding.Program, argv...)
-	isolateProbe(cmd)
+	cmd := newProbeCommand(probeCtx, binding.Program, argv...)
 	cmd.Stdin = nil
 	// The working directory only helps a tool that reads its own package
 	// files; a directory that is not there would fail the exec outright
@@ -44,7 +42,7 @@ func ProbeHelpText(ctx context.Context, binding RuntimeBinding, integration Inte
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-	runErr := cmd.Run()
+	runErr := runExtensionCommand(cmd)
 	if probeCtx.Err() != nil {
 		return ""
 	}
