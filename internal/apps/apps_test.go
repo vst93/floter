@@ -4,10 +4,7 @@ package apps
 
 import (
 	"bytes"
-	"encoding/binary"
 	"errors"
-	"image"
-	"image/png"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -537,55 +534,6 @@ func TestIcons(t *testing.T) {
 	}
 	if got := desktopIconFile(""); got != "" {
 		t.Errorf("an empty icon name resolved to %q", got)
-	}
-}
-
-// icnsEntry is one entry of the container a test builds.
-type icnsEntry struct {
-	kind    string
-	payload []byte
-}
-
-// icnsContainer builds an .icns file around the given entries.
-func icnsContainer(t *testing.T, entries []icnsEntry) []byte {
-	t.Helper()
-	var body bytes.Buffer
-	for _, entry := range entries {
-		if len(entry.kind) != 4 {
-			t.Fatalf("kind %q is not four bytes", entry.kind)
-		}
-		length := make([]byte, 4)
-		binary.BigEndian.PutUint32(length, uint32(len(entry.payload)+8))
-		body.WriteString(entry.kind)
-		body.Write(length)
-		body.Write(entry.payload)
-	}
-	out := bytes.NewBufferString("icns")
-	total := make([]byte, 4)
-	binary.BigEndian.PutUint32(total, uint32(body.Len()+8))
-	out.Write(total)
-	out.Write(body.Bytes())
-	return out.Bytes()
-}
-
-// pngBytes is a real PNG of the given square size.
-func pngBytes(t *testing.T, size int) []byte {
-	t.Helper()
-	var buffer bytes.Buffer
-	img := image.NewRGBA(image.Rect(0, 0, size, size))
-	if err := png.Encode(&buffer, img); err != nil {
-		t.Fatal(err)
-	}
-	return buffer.Bytes()
-}
-
-func writeBytes(t *testing.T, path string, data []byte) {
-	t.Helper()
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(path, data, 0o644); err != nil {
-		t.Fatal(err)
 	}
 }
 

@@ -7,15 +7,9 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 )
-
-// testPlatforms is a valid non-empty platform list on the machine the suite
-// runs on: a connection must name at least one platform, and the host only
-// loads an integration that supports this machine.
-func testPlatforms() []string { return []string{runtime.GOOS} }
 
 // customToolFixture is a runnable tool on this machine: it answers --version
 // and --help, and its help lists one plugin.
