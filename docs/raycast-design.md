@@ -139,9 +139,22 @@ rim 见 `internal/shell/cardedge.go`（Windows/Linux 各两条，macOS 不画）
 
 ### §4.4 分组头
 
-字阶不动（沿用 body 步），weight 500 + `TextSecondary`，左缩进与行**文字**列对齐
-（`Margin-left: Space(10.5)` = 42u，即 8u 行块 + 8u padding + 28u 图标列的起点-
-行内偏移之和）。窗口为它 charge 的 band 不变（`headingPadding`）。
+字阶不动（沿用 body 步），weight 500 + `TextSecondary`，左缩进与行**文字**列对齐。
+窗口为它 charge 的 band 不变（`headingPadding` 的 6u/4u）。
+
+**分组头的位置只有一个答案（P11-ac 定审）**：分组头落在**本表面结果行标题的那一列**上，
+而且这个位置必须从「行的标题列」这个**和**里推出来，不许另写两个手写数。落法是把行自己的
+横向分量原样搬过来：行内 padding 8u（`rowBody` 的 `Padding(0, t.Space(2))`）+ 图标列 28u
+（`iconPlate` 的 `Space(7)`）+ 该行自己的 gap（启动器列表 10u，输出面板 8u）= 文字的
+`Margin-left`（启动器 38u / 输出面板 36u），于是两边分别落在 **54u** 与 **52u**——各自的
+标题列。
+
+P11-ac 之前这里是两个手写数（行左 padding 12u + `Margin-left` 42u），从来没有从行里推出来；
+P8-a 把行块缩进 4u→8u、行内 padding 12u→8u 之后它们一个都没跟着动，于是**同一件元素在两个
+表面上给了两个错答案**：启动器列表的分组头比它管辖的标题右挂 8u（实测 62u vs 54u），输出
+面板的分组头比它自己的标题左挂 32u（20u vs 52u）。pin：`internal/launcher/headingcolumn_test.go`
+的 `TestTheGroupHeadingSitsOnTheRowsTextColumn`（断言的是两个矩形的 **x 相等**，不是字面数，
+所以以后再挪列两处会一起红）。
 
 ### §4.5 键帽
 
@@ -429,6 +442,25 @@ P8-d 授权范围内**的位点。三者同一族（都不是「哪个被选中 
 `(113,113,122)` = `TextMuted`、填充 `(250,250,251)`，深色 `(161,161,170)` 对填充
 `(28,28,31)`——两套外观下都读得清，都不是 accent。y=28 行上第一个非填充像素是
 **x=54**（文本框的光标），与结果行标题同列。
+
+### §6.9 P11-ac · 列表的分组头落在它自己的文字列上（**已落地**）
+
+用户 2026-10-28：「还是先优化当前的界面、质感、交互逻辑」。本轮取「质感」里最可量的一条：
+**对齐**。分组头是每一屏列表都看得见的一行字，它必须落在它管辖的标题那一列。只改横向缩进，
+纵向 band、字阶、weight、墨、键盘模型全部零改动。
+
+| 位置 | 旧（实测） | 新（实测） | 落地 |
+|---|---|---|---|
+| `internal/launcher/launcher.go` 的 heading 分支 | 左 padding 12u + `Margin-left` 42u → 分组头 **62u**，它下面的标题 54u（右挂 8u） | 左 padding 8u + `Margin-left` 38u（= 图标列 28u + 行 gap 10u）→ **54u** = 合约 §3 的文本列 | `已落地` — pin `TestTheGroupHeadingSitsOnTheRowsTextColumn` |
+| `internal/launcher/output.go` 的 group heading | 左 padding 12u、无图标列/gap 偏移 → 分组头 **20u**，它下面的标题 52u（左挂 32u） | 左 padding 8u + `Margin-left` 36u（= 图标列 28u + 该行 gap 8u）→ **52u** = 输出面板自己的标题列 | `已落地` — 同一条 pin 的后半 |
+
+两处注释当时都写着「与行文字列对齐」（启动器侧甚至写着「sits on the same column a row's
+title does」），而数字对不上——因为它们从没从行里推出来。pin 断言的是**两个矩形的 x 相等**，
+不是某个字面数：以后再挪列，两个表面会一起红。
+
+**图上实测**（`/tmp/floter-P11-ac-list-<light|dark>.png`、`/tmp/floter-P11-ac-output-<light|dark>.png`）：
+启动器列表的分组头与它下面标题的墨都从 **x=55** 起（浅色）；输出面板的 `Group B` 与它下面的
+`Gamma` 都从 **x=53** 起（浅色）。改前同一测量是 62/54 与 20/52。
 
 ## §7 切片表
 | 片 | 范围 | 状态 |

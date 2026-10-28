@@ -1985,15 +1985,23 @@ func (a *App) row(c *ui.Context, item Item, i int) {
 		// — the task book's size rule admits a weight, a letter-spacing and a
 		// colour in this slice, never a register — so it keeps the body step and
 		// takes the reference's 500/secondary pair. The band the window charges
-		// is unchanged too (see headingPadding). The inset is the row block's own
-		// gutter (12u) plus the row's 4u padding plus the icon column's 28u and
-		// the 10u gap, so the label sits on the same column a row's title does.
+		// is unchanged too (see headingPadding).
+		//
+		// P11-ac 重定基线：分组头落在**本表面结果行标题的那一列**上。旧的左缩进
+		// 是两个手写数（行的左 padding 12u + 文字的 `Margin-left` 42u），从来没
+		// 从「行的标题列」这个和里推出来；P8-a 把行块缩进 4u→8u、行内 padding
+		// 12u→8u 之后它们一个都没动，于是标签比它管辖的标题右挂了 8u（实测 62u
+		// vs 54u，旧注释却写着「sits on the same column a row's title does」）。
+		// 现在左缩进就是行自己的那一份：行内 padding 8u（`rowBody` 的
+		// `Padding(0, t.Space(2))`）+ 图标列 28u（`iconPlate` 的 `Space(7)`）+
+		// 行自己的 gap 10u（`rowBody` 的 `Gap(t.Space(2.5))`）= 38u 的
+		// `Margin-left`，加上列表 gutter 的 8u 即合约 §3 的 54u 文本列。
 		tokens := a.tokens(c)
-		ui.Row(c).FillWidth().Padding(t.Space(1.5), t.Space(3), t.Space(1), t.Space(3)).
+		ui.Row(c).FillWidth().Padding(t.Space(1.5), t.Space(2), t.Space(1), t.Space(2)).
 			Children(func() {
 				ui.Text(c, item.Title).FontSize(t.FontSize).FontWeight(500).
 					TextColor(tokens.TextSecondary).SingleLine().
-					Margin(0, 0, 0, t.Space(10.5))
+					Margin(0, 0, 0, t.Space(9.5))
 			})
 		return
 	}

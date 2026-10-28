@@ -526,13 +526,21 @@ func (a *App) outputRow(c *ui.Context, row extensions.Row, i int) {
 	t := c.Theme()
 	if row.Group != "" && (i == 0 || row.Group != a.output.Rows[i-1].Group) {
 		// The same register as the launcher list's own section title: the body
-		// step at 1.4, weight 620, muted, with the 6u/12u/4u inset the rows use.
+		// step at 1.4, weight 620, muted, with the 6u/4u band the rows use.
 		// Both surfaces print a group heading, and the reference's
 		// `.launcher-section-title` is one element, not two.
-		ui.Row(c).FillWidth().Padding(t.Space(1.5), t.Space(3), t.Space(1), t.Space(3)).
+		//
+		// P11-ac 重定基线：分组头落在**本表面结果行标题的那一列**上。旧值是行
+		// 左 padding 12u、没有任何图标列/gap 偏移，于是标签挂在 20u，比它自己的
+		// 标题（52u）左挂了 32u；旧注释写着「the 6u/12u/4u inset the rows use」，
+		// 而行根本没有 12u 的左 inset。现在左缩进是行自己的那一份：行内 padding
+		// 8u（下面的 `Padding(t.Space(1.5), t.Space(2))`）+ 图标列 28u
+		// （`iconPlate` 的 `Space(7)`）+ 该行自己的 gap 8u（`Gap(t.Space(2))`）
+		// = 36u 的 `Margin-left`，加上列表自己的 8u 即 52u。
+		ui.Row(c).FillWidth().Padding(t.Space(1.5), t.Space(2), t.Space(1), t.Space(2)).
 			Children(func() {
 				ui.Text(c, row.Group).FontSize(t.FontSize).FontWeight(620).
-					TextColor(t.TextMuted)
+					TextColor(t.TextMuted).Margin(0, 0, 0, t.Space(9))
 			})
 	}
 	style := ui.Row(c.Key(row.ID)).FillWidth().Padding(t.Space(1.5), t.Space(2)).Radius(t.Radius).Gap(t.Space(2))
