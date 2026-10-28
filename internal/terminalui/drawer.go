@@ -59,6 +59,11 @@ func (a *App) drawer(c *ui.Context, copy i18n.Terminal) {
 		BorderWidth(0, 0, 1, 0).BorderColor(tokens.HairlineSoft).
 		Label(scopy.GroupTerminal)
 	strip.Children(func() {
+		// P11-at：条带从不让开浮条那条带（画布的地板，见 View）：面板比
+		// 网格矮时它按自然高度排在画布之下，多出来的那几行在面板底边被
+		// 窗口裁掉，而不是爬到 y=0 去压标题与关闭钮。让它们可滚需要一个
+		// 会报出自己范围的滚动容器（实测本布局里 `MaxY` 恒为 0，见报告
+		// §5），那是下一条，不在本轮硬凑。
 		a.drawerGrid(c, t.Space(drawerCellFloor))
 		// The drawer's own dismiss, in the corner a card's close button lives
 		// in: the same 28u icon button the bar's gear/X is, so the module can
@@ -92,7 +97,12 @@ func (a *App) drawerGrid(c *ui.Context, cellFloor float32) {
 	s := a.Store.Snapshot()
 	scopy := i18n.For(s.Language).Settings
 
-	grid := ui.Row(c).Grow(1).Wrap().GapX(t.Space(4.5)).GapY(t.Space(1.5))
+	// Shrink(0): the strip scrolls this grid when the panel is shorter than
+	// it (see the call site), so the grid keeps its natural height inside the
+	// viewport instead of being squeezed into it — a squeezed grid clips the
+	// last row to a few units of height (measured at 640×360: `Safe paste`
+	// came back 4u tall).
+	grid := ui.Row(c).FillWidth().Shrink(0).Wrap().GapX(t.Space(4.5)).GapY(t.Space(1.5))
 	grid.Children(func() {
 		rows := map[control.AppearanceAxis]func(){
 			control.AxisFontSize: func() {

@@ -874,7 +874,14 @@ func (a *App) View(c *ui.Context) {
 		// 框叠在一起就是用户读到的「终端页面外圈那圈类玻璃边」。面板是这一页
 		// **唯一**的框，画布只留一层填充；不加 rim/sheen/高光，也不做
 		// floating/overlay 观感（元素 inline、贴进布局）。
-		body := ui.Box(c).Grow(1).FillWidth()
+		// P11-at：画布至少留出浮条那一条带（`titleBar` 的 `Space(7)`）。抽屉
+		// 按网格的自然高度要位置，窗口缩到最小（`MinTerminalHeight` = 360）
+		// 时那个高度比面板还高，于是画布被压到 0、抽屉从 y=0 开始画——正好
+		// 压在浮着的标题条下面：标题 `Terminal` 与 `Font family` 落在同一块
+		// 像素（实测 720×360 重叠 81×8u），抽屉自己的关闭钮与浮条的 X 叠成
+		// 一个（28×18u）。带宽是画布的地板，不是抽屉的预算：抽屉放不下就在
+		// 自己那条带里滚动（`drawer` 的 `DrawerScroll`）。
+		body := ui.Box(c).Grow(1).MinHeight(t.Space(7)).FillWidth()
 		body.Children(func() {
 			// The mount's fill is the terminal's background: the session's own
 			// name for the surface it is drawn on, painted here rather than by

@@ -49,12 +49,20 @@ func TestTheDrawerRowsKeepTheirWordsInsideTheirCells(t *testing.T) {
 // each other, and any run that leaves the window.
 func auditDrawerBand(t *testing.T, tag string, tt *ui.Tester) {
 	t.Helper()
+	auditDrawerBandFrom(t, tag, tt, labelOfDrawer())
+}
+
+// auditDrawerBandFrom is auditDrawerBand with the strip's accessible name given
+// by the caller, so a language whose label is not the English one can be
+// audited by the same rule.
+func auditDrawerBandFrom(t *testing.T, tag string, tt *ui.Tester, label string) {
+	t.Helper()
 	img := tt.Image()
 	if img == nil {
 		t.Fatalf("%s: no frame", tag)
 	}
 	w, h := float32(img.Rect.Dx()), float32(img.Rect.Dy())
-	stripTop, ok := tt.Find(labelOfDrawer())
+	stripTop, ok := tt.Find(label)
 	if !ok {
 		t.Fatalf("%s: the drawer's strip is not on the frame: %q", tag, tt.Texts())
 	}
