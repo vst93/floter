@@ -1131,3 +1131,72 @@ func TestEveryInkStepClearsTheReadableContrast(t *testing.T) {
 		})
 	}
 }
+
+// TestTheAccentFamilyAlreadyClearsTheReadableContrast is P11-am's second half: it
+// closes P11-al's 「仍待」第 2 条 — the accent changed hue and `palette.contrast()`
+// was never re-read against it — by **measuring** instead of guessing.
+//
+// The answer is that the switch must keep its hands off the family. Both
+// appearances' accent already clear AA as ink, as the fill a control is
+// identified by, and as the pair `AccentText` is read on; the high-contrast
+// branch does not touch `accent`, `accentText` or `accentEdge` at all, and this
+// pin says that stays a decision rather than a drift (P11-aa's argument for the
+// inks was that they *were* too quiet; the accent never was).
+func TestTheAccentFamilyAlreadyClearsTheReadableContrast(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		systemDark bool
+	}{
+		{"light", false},
+		{"dark", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := settings.Settings{Theme: "auto", GlassStep: "regular"}
+			plain := ForPreferences(s, tc.systemDark, ui.Preferences{})
+			high := ForPreferences(s, tc.systemDark, ui.Preferences{HighContrast: true})
+
+			// ① The contrast preference leaves the accent family alone.
+			for _, pair := range []struct {
+				name      string
+				high, low ui.Color
+			}{
+				{"Accent", high.Theme.Accent, plain.Theme.Accent},
+				{"AccentText", high.Theme.AccentText, plain.Theme.AccentText},
+				{"AccentEdge", high.AccentEdge, plain.AccentEdge},
+				{"AccentHalo", high.AccentHalo, plain.AccentHalo},
+			} {
+				if pair.high != pair.low {
+					t.Errorf("high contrast moved %s: %v → %v; the family already clears the floor below, "+
+						"so moving it has to be a design decision, not a side effect", pair.name, pair.low, pair.high)
+				}
+			}
+
+			// ② The accent as **ink** (a chosen page's mark, a keyline's glyph):
+			//    AA's 4.5:1 on the panel and on a chosen row's fill.
+			for _, surface := range inkSurfaces(high) {
+				got := contrastRatio(high.Theme.Accent.Over(surface.face), surface.face)
+				if got < 4.5 {
+					t.Errorf("accent ink on %s = %.2f:1, want at least 4.5:1", surface.name, got)
+				}
+				t.Logf("%s: accent ink on %s = %.2f:1", tc.name, surface.name, got)
+			}
+
+			// ③ The ink the accent's own fills carry (the primary CTA's label, a
+			//    switch's ON mark): 4.5:1 against the fill.
+			if got := contrastRatio(high.Theme.AccentText, high.Theme.Accent); got < 4.5 {
+				t.Errorf("AccentText %v on the accent fill %v = %.2f:1, want at least 4.5:1",
+					high.Theme.AccentText, high.Theme.Accent, got)
+			} else {
+				t.Logf("%s: accentText on the accent fill = %.2f:1", tc.name, got)
+			}
+
+			// ④ The fill as a non-text control surface (a switch's ON track, the
+			//    primary CTA's face): WCAG's 3:1 for components.
+			if got := contrastRatio(high.Theme.Accent, high.Theme.Background); got < 3 {
+				t.Errorf("the accent fill against the panel = %.2f:1, want at least 3:1 for a control surface", got)
+			} else {
+				t.Logf("%s: accent fill against the panel = %.2f:1", tc.name, got)
+			}
+		})
+	}
+}

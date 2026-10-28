@@ -333,18 +333,25 @@ func launcherListCarriesNoAccent(t *testing.T, dark bool) {
 	// own controls; below it is the list and the footer, where the accent has no
 	// business being.
 	fieldBottom := int(ui.LightTheme().Space(fieldRowUnits))
+	// P11-am: the ruler reads the accent's own hue off the token, so this scan
+	// keeps its teeth through a recolour (it was the literal red rule and went
+	// blind when P11-al moved the accent to the reference's blue). The base is the
+	// card's own fill in its left gutter, i.e. the neutral every row's surface is
+	// a tint of.
+	base := img.RGBAAt(2, fieldBottom+3)
+	ruler := newAccentRuler(accent, base)
+	if ruler.norm == 0 {
+		t.Fatalf("the accent token %v is neutral: the ruler cannot answer", accent)
+	}
 	tinted := 0
 	var sample color.RGBA
 	for y := fieldBottom + 1; y < img.Bounds().Max.Y-1; y++ {
 		for x := 0; x < InputWindowWidth; x++ {
 			c := img.RGBAAt(x, y)
-			// The accent is a saturated *red*: R well over both G and B, while G
-			// and B stay together (the accent is `#E5484D`, a 5-level spread
-			// between its green and blue). That pair of facts is exactly what
-			// separates it from the warm system-icon amber (`#a24d15`, whose
-			// green is 56 levels over its blue): the power rows' plate is a
-			// legitimate surface colour and must not be counted as accent spend.
-			if int(c.R)-int(c.G) > 24 && int(c.R)-int(c.B) > 24 && absInt(int(c.G)-int(c.B)) <= 8 {
+			// The ruler separates the accent from the warm surfaces that are
+			// colours of their own: the power rows' amber plate and the warning
+			// ink sit off the accent's hue line and are not counted as spend.
+			if ruler.carries(c) {
 				tinted++
 				sample = c
 			}
