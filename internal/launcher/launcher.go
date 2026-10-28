@@ -1183,10 +1183,26 @@ func (a *App) View(c *ui.Context) {
 			// primary ink at the emphasis step, centred in the band, with no
 			// plate, no accent and no mark of its own
 			// (`docs/raycast-design.md` §4.7).
-			ui.Column(c).FillWidth().Padding(t.Space(3)).Center().Children(func() {
-				ui.Text(c, a.emptyMessage(copy)).FontSize(tk.Emphasis).
-					TextColor(tk.TextStrong).SingleLine()
-			})
+			//
+			// P11-ag 重定基线：这块列此前从来没有拿到自己的 band。面板是**整张
+			// 卡**的高度，而字段行是浮在它上面的绝对定位块（`launcher.fieldRow`，
+			// 56u 不透明底），所以 `Center()` 把句子摆在卡片的**顶边**：实测句子
+			// 矩形 y=12–30，字段带占 0–56，整句被字段的底盖住，一个像素都没渲染
+			// 出来（改前那一帧除字段自己的字以外没有别的墨）。于是「一个查询什么
+			// 都没匹配到」在界面上就是**一张空白卡**；插件模式里（剪贴板为空、
+			// 浏览器没配置、计算器没有历史）更常见，因为这些页面既没有列表也没
+			// 有页脚，整页只剩这句没人看得见的话。
+			//
+			// 现在它和列表读同一条带：上边距 `listEdge`（字段行 + 呼吸 + 模式的
+			// chips），`Grow(1)` 撑满面板剩下的高度，句子于是居中在**列表会占据的
+			// 那条带**里，而不是在卡片顶边。墨与字阶不动（Emphasis +
+			// `TextStrong`，§4.7），只有位置换了。
+			ui.Column(c).FillWidth().Grow(1).Center().
+				Padding(listEdge, t.Space(3), t.Space(3), t.Space(3)).
+				Children(func() {
+					ui.Text(c, a.emptyMessage(copy)).FontSize(tk.Emphasis).
+						TextColor(tk.TextStrong).SingleLine()
+				})
 		} else {
 			// The list builds only the rows in view, so a catalog of
 			// hundreds costs a frame like a catalog of three. The choice is

@@ -516,6 +516,22 @@ pin：`internal/terminalui/barreach_test.go` 的
 `TestTheBarRevealsUnderAPointerItDoesNotCatch`（指针停在标题字外的带子里——那里没有可命中
 元素——仍然揭示，离开后折回）。
 
+### §6.13 P11-ag · 空态落在列表那条带里（**已落地**）
+
+§4.7 写的是「一句话，居中在 band 里」。那块 band 此前并不存在：字段行是浮在面板上的
+绝对定位块（`launcher.fieldRow`，56u 不透明底），而空态是一条没有高度、没有内缩的
+`Column`，所以 `Center()` 把句子摆在**卡片顶边**（实测 y=12–30，字段带占 0–56）——
+整句被字段盖住，一个像素都没渲染：一个匹配不到任何东西的查询在界面上是**空白卡**。
+普通页的空态还有 `HasText` 类 pin 兜着（它们读的是构建出来的文本树，不是像素，所以
+一直是绿的）；插件模式（剪贴板为空、浏览器没配置、计算器没有历史）连列表和页脚都没有，
+整页只剩这句看不见的话。
+
+规则一条：**空态与列表读同一条带**——上边距 `listEdge`（字段行 + 呼吸 + 模式的 chips）、
+`Grow(1)` 撑满面板剩下的高度、在带里居中。墨与字阶零改动（`Emphasis` + `TextStrong`，
+无底板/图标/accent）。pin：`internal/launcher/emptystate_test.go` 的
+`TestTheEmptyPageSaysSoUnderTheField`（句子矩形里的**墨量** > 0 + 中心落在带的中点 ±6px）；
+`HasText` 类 pin 保留，它们钉的是文案，不钉可见性。
+
 ## §7 切片表
 | 片 | 范围 | 状态 |
 |---|---|---|
