@@ -137,16 +137,16 @@ func (a *App) drawerGrid(c *ui.Context, cellFloor float32) {
 				})
 			},
 			control.AxisPadding: func() {
-				a.drawerRow(c, cellFloor, scopy.Padding, func() {
-					control.Segmented(c, tokens, optionLabels(scopy.Paddings),
+				a.drawerRowStacked(c, cellFloor, scopy.Padding, func() {
+					control.SegmentedFill(c, tokens, optionLabels(scopy.Paddings),
 						optionIndex(scopy.Paddings, s.TerminalPadding), func(i int) {
 							a.set(func(s *settings.Settings) { s.TerminalPadding = scopy.Paddings[i].ID })
 						})
 				})
 			},
 			control.AxisCursorShape: func() {
-				a.drawerRow(c, cellFloor, scopy.CursorShape, func() {
-					control.Segmented(c, tokens, optionLabels(scopy.CursorShapes),
+				a.drawerRowStacked(c, cellFloor, scopy.CursorShape, func() {
+					control.SegmentedFill(c, tokens, optionLabels(scopy.CursorShapes),
 						optionIndex(scopy.CursorShapes, s.CursorShape), func(i int) {
 							a.set(func(s *settings.Settings) { s.CursorShape = scopy.CursorShapes[i].ID })
 						})
@@ -209,32 +209,17 @@ func (a *App) drawerGrid(c *ui.Context, cellFloor float32) {
 				}
 			},
 			// The palette row is the wide one: the picker beside the miniature
-			// terminal that shows what the choice paints, so it asks for a line
-			// of its own when the grid would otherwise squeeze the preview.
+			// terminal that shows what the choice paints: the picker keeps the
+			// row's label line and the preview takes the line under it, filling the
+			// cell. It used to sit *beside* the picker inside one trailing slot,
+			// and the slot's floor (95u) could not hold label + picker + a fixed
+			// 37u preview: at 900×600 the preview's box ran 24u past its cell and
+			// the next row's label started on the preview's own face (实测
+			// `Palette preview` 压 `Copy on select` 24×22u). A preview that fills
+			// the cell has no width to overflow — the same form the settings page
+			// draws it in (`PalettePreview` at width zero).
 			control.AxisPalette: func() {
-				a.drawerRow(c, t.Space(paletteCellFloor), scopy.Palette, func() {
-					selected := optionLabel(scopy.Palettes, s.TerminalTheme)
-					chosen := ""
-					if ui.Select(c, &selected, optionLabels(scopy.Palettes)).
-						Grow(1).Changed() {
-						for _, option := range scopy.Palettes {
-							if option.Label == selected {
-								chosen = option.ID
-								break
-							}
-						}
-					}
-					// The preview follows the picker in the same frame the choice is
-					// made, so a click on the select repaints the block immediately.
-					shown := s.TerminalTheme
-					if chosen != "" {
-						shown = chosen
-					}
-					PalettePreview(c, tokens, shown, scopy.PalettePreview, t.Space(37))
-					if chosen != "" {
-						a.set(func(s *settings.Settings) { s.TerminalTheme = chosen })
-					}
-				})
+				a.drawerPalette(c, tokens, t.Space(paletteCellFloor), scopy, s)
 			},
 		}
 		for _, axis := range control.AppearanceAxes() {
@@ -294,6 +279,66 @@ func (a *App) drawerRow(c *ui.Context, minWidth float32, label string, build fun
 		slot.Children(build)
 	})
 	return row.Clicked()
+}
+
+// drawerRowStacked is drawerRow for a control that is a *choice of several*
+// and therefore wider than a cell's trailing slot can ever be by guesswork: the
+// label takes its own line and the control fills the one below it. The trailing
+// form measures its content, and a wrapping grid hands a cell no more than the
+// row's floor — so a three-way picker (or the palette's picker-plus-preview)
+// ran past the cell's right edge and painted over the next row's label (实测
+// 900×600：`Underline` 与 `Blinking cursor` 压同一块像素 4.7×22u，`Palette
+// preview` 压 `Copy on select` 24×22u)。The stacked form has no content-driven
+// width to overflow: the control is given the cell and shares it among its
+// segments (`SegmentedFill` / a select that grows, `PalettePreview` at width
+// zero), which is the same form the settings page draws the same choices in.
+func (a *App) drawerRowStacked(c *ui.Context, minWidth float32, label string, build func()) {
+	t := c.Theme()
+	tokens := tokensOf(a, c)
+	column := ui.Column(c).Grow(1).MinWidth(minWidth).
+		Gap(t.Space(1.5)).AlignItems(ui.Start)
+	column.Children(func() {
+		ui.Text(c, label).FontSize(t.FontSize).FontWeight(560).
+			TextColor(tokens.TextSecondary).SingleLine().Shrink(0)
+		line := ui.Row(c).FillWidth().Gap(t.Space(2)).AlignItems(ui.Center)
+		line.Children(build)
+	})
+}
+
+// drawerPalette is the strip's palette row: its label and picker on the row's
+// own line, the miniature terminal filling the line under them. See the call
+// site for why neither the picker nor the preview may sit in a trailing slot.
+func (a *App) drawerPalette(c *ui.Context, tokens theme.Tokens, minWidth float32, scopy i18n.Settings, s settings.Settings) {
+	t := c.Theme()
+	column := ui.Column(c).Grow(1).MinWidth(minWidth).
+		Gap(t.Space(1.5)).AlignItems(ui.Stretch)
+	column.Children(func() {
+		chosen, shown := "", s.TerminalTheme
+		line := ui.Row(c).FillWidth().Gap(t.Space(2.5)).AlignItems(ui.Center)
+		line.Children(func() {
+			ui.Text(c, scopy.Palette).FontSize(t.FontSize).FontWeight(560).
+				TextColor(tokens.TextSecondary).SingleLine().Shrink(0)
+			selected := optionLabel(scopy.Palettes, s.TerminalTheme)
+			if ui.Select(c, &selected, optionLabels(scopy.Palettes)).
+				Grow(1).Changed() {
+				for _, option := range scopy.Palettes {
+					if option.Label == selected {
+						chosen = option.ID
+						break
+					}
+				}
+			}
+			if chosen != "" {
+				shown = chosen
+			}
+		})
+		// The preview follows the picker in the same frame the choice is made,
+		// so a click on the select repaints the block immediately.
+		PalettePreview(c, tokens, shown, scopy.PalettePreview, 0)
+		if chosen != "" {
+			a.set(func(s *settings.Settings) { s.TerminalTheme = chosen })
+		}
+	})
 }
 
 // optionLabels is a copy table's choices as the labels the segmented control

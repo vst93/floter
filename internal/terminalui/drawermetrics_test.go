@@ -2,7 +2,6 @@ package terminalui
 
 import (
 	"fmt"
-	"sort"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
@@ -250,66 +249,53 @@ func TestTheDrawerReadoutIsTheNeutralBodyRegister(t *testing.T) {
 }
 
 // The strip is a wrapping grid whose cells have the reference's floor,
-// `minmax(230px, 1fr)` (`terminal.css:654-658`): 57.5 units. The row count of
-// the live grid is the observable: rendering the real `drawerGrid` at both the
-// reference's 57.5u floor and the old port's 60u (240px) one, and bisecting for
-// the window width at which the grid drops from three row-lines to two, shows
-// the shelf moves with the floor. Between the two breakpoints the reference's
-// grid folds onto two lines and the old port's still needs a third.
+// `minmax(230px, 1fr)` (`terminal.css:654-658`): 57.5 units. Rendering the real
+// `drawerGrid` at both the reference's 57.5u floor and the old port's 60u
+// (240px) one shows the shelf moves with the floor: a wider floor fits fewer
+// cells per line, so the grid folds onto more lines and its last inked row sits
+// lower at the same window width.
+//
+// P11-as 重定基线：这条 pin 以前数的是「标签落在多少条不同的 y 上」。那需要一个
+// **每个单元格等高**的网格——而 P11-as 让两行宽控件（光标形状的三选一、调色板的
+// 选择器+预览）改成上下两行，格子高度就不齐了：标签按各自格子的中线落，y 自然
+// 分叉，于是 57.5u 与 60u 两个 floor 量出同一个断点（1400），信号全丢。改成量
+// **网格自己有多高**（最后一排落墨的 y），语义不变、判据更难糊弄：多折一行就一
+// 定更低，与字体、与格子里的行数无关。
 func TestTheDrawerGridCellsKeepTheReferenceFloor(t *testing.T) {
 	if drawerCellFloor != 57.5 {
 		t.Fatalf("drawerCellFloor = %v, want the reference's 230px = 57.5u", drawerCellFloor)
 	}
-	en := i18n.For("en").Settings
-	labels := []string{
-		en.FontFamily, en.FontSize, en.LineHeight, en.Padding,
-		en.CursorShape, en.CursorBlink, en.Palette, en.SelectCopy, en.PasteSafe,
-	}
-	rowsAt := func(floorStep float32, w int) int {
+	// inkedBottom is the strip's own height: the last row of the grid that has
+	// any ink on it.
+	inkedBottom := func(floorStep float32, w int) int {
 		a := drawerApp(t)
 		tt := ui.NewTester(func(c *ui.Context) {
 			tok := tokensOf(a, c)
 			c.SetTheme(tok.Theme)
 			c.Root().Background(ui.RGBA(0, 0, 0, 1))
 			a.drawerGrid(c, tok.Theme.Space(floorStep))
-		}, w, 600)
+		}, w, 900)
 		tt.Frame()
-		var ys []float32
-		for _, label := range labels {
-			if r, ok := tt.Find(label); ok {
-				ys = append(ys, r.Y)
+		img := tt.Image()
+		if img == nil {
+			t.Fatalf("floor %.1f at %d: no frame", floorStep, w)
+		}
+		bottom := 0
+		for y := img.Rect.Min.Y; y < img.Rect.Max.Y; y++ {
+			for x := img.Rect.Min.X; x < img.Rect.Max.X; x++ {
+				r, g, b, _ := img.At(x, y).RGBA()
+				if r+g+b > 3*0x2000 {
+					bottom = y - img.Rect.Min.Y + 1
+					break
+				}
 			}
 		}
-		sort.Slice(ys, func(i, j int) bool { return ys[i] < ys[j] })
-		n := 0
-		var last float32 = -100
-		for _, y := range ys {
-			if y-last > 3 {
-				n++
-			}
-			last = y
-		}
-		return n
+		return bottom
 	}
-	// The width at which the grid stops needing three row-lines.
-	breakpoint := func(floorStep float32) int {
-		lo, hi := 300, 1400
-		for lo < hi {
-			mid := (lo + hi) / 2
-			if rowsAt(floorStep, mid) <= 2 {
-				hi = mid
-			} else {
-				lo = mid + 1
-			}
-		}
-		return lo
-	}
-	reference, old := breakpoint(drawerCellFloor), breakpoint(60)
+	// A 900px strip fits three 230px cells and not three 240px ones, so the
+	// reference's floor folds one line higher (measured: 170 against 199).
+	reference, old := inkedBottom(drawerCellFloor, 900), inkedBottom(60, 900)
 	if reference >= old {
-		t.Fatalf("the three-line breakpoint at the reference's floor (%d) is not below the old 60u floor's (%d): the floor did not move the shelf", reference, old)
-	}
-	mid := (reference + old) / 2
-	if got, want := rowsAt(drawerCellFloor, mid), rowsAt(60, mid); got >= want {
-		t.Errorf("the %dpx window holds %d row-lines at the reference's floor and %d at the old 60u one: want fewer at the reference's", mid, got, want)
+		t.Fatalf("the grid at the reference's floor is %d tall and at the old 60u floor %d: the floor did not move the shelf", reference, old)
 	}
 }
