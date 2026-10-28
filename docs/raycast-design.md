@@ -483,6 +483,22 @@ gap**（列表 10u、面板 8u），于是标题列一个是 54u、一个是 52u
 图标列、keycap 槽、选中/悬停档一律未动。pin：`internal/launcher/textcolumn_test.go` 的
 `TestTheTwoListsShareOneTextColumn`（断言两个表面的标题 x 相等、两个分组头的 x 相等）。
 
+### §6.11 P11-ae · 终端标题栏的墨属于它浮着的那块面（**已落地**）
+
+浮条（`titleBar`）读窗口的四档墨，浮着的面却是画布（`panelFill` = 调色板底色）。两者相反时
+（浅色窗口 + `ink`/`dusk`/`forest`）窗口的次级墨 `#6B6B70` 在合成面上只有 **1.10:1**——
+而同一块面上调色板自己的前景是 **4.80:1**，所以缺的是**面**不是墨（P11-ad 的选项 (c)
+「墨随合成底明度选」实测不成立：合成面是一层中灰）。
+
+规则一条：`inherit` / 未知 id / **空页**（没有会话，没有它的调色板）→ 窗口四档且
+`Face.A == 0`，逐像素与改前一致；命名调色板 + 有会话 → 浮条穿画布自己的颜色，面 = 调色板
+底色取「让调色板前景在窗口面之上过 4.5:1 的**最小** alpha」（`ink` 浅窗 0.625、`forest`
+0.6875，深色窗口的前景本来就够，取 0），墨 = 调色板前景，quiet 两档 = 同一墨在**合成面**上
+过 3.0:1 / 2.5:1 的最小不透明度。面**只在揭示时**画（静止时不覆盖第一行输出），顶角取
+`panelCorner`，无渐变 / rim / sheen。pin：`internal/terminalui/barink_test.go` 的
+`TestTheBarWearsTheColourOfTheCanvasItFloatsOn`（每套调色板 × 两外观：墨 ≥4.5、quiet 档是
+最静、面是最薄）、`TestTheShippedBarKeepsTheWindowInk`、`TestTheBarPaintsItsOwnFaceOverAPalette`。
+
 ## §7 切片表
 | 片 | 范围 | 状态 |
 |---|---|---|

@@ -10,6 +10,7 @@ package terminalui
 
 import (
 	"errors"
+	"math"
 	"runtime"
 	"strconv"
 	"strings"
@@ -970,6 +971,137 @@ func tokensOf(a *App, c *ui.Context) theme.Tokens {
 	return theme.ForPreferences(a.Store.Snapshot(), c.Theme().Dark, c.Preferences())
 }
 
+// barInks is the ink the floating terminal bar draws with, and the face it
+// draws it on. The bar floats over the *canvas*, not over the window: the panel
+// under it is the palette's own background, so a bar that reads the window's
+// rungs is a window-grey mark on a near-black face whenever the two disagree
+// (light window, `ink`/`dusk`/`forest` palette: under 2:1 for the identity
+// line).
+//
+// P11-ae 重定基线（用户实测 F2「可读性与对比度达标」的延伸）：bar 的墨与面
+// 只回答「它浮在哪块面上」这一个问题——`inherit`、未知 id 与空页（没有会话，
+// 也就没有它的调色板）拿窗口自己的四档、不画面，逐像素与参考的浮条一致；
+// 命名调色板则让 bar 穿画布自己的颜色（面 = 调色板底色，墨 = 调色板前景），
+// 于是它属于它浮着的那块面，就像终端自己的标题行。
+type barInks struct {
+	// Ink is the identity line (the reference's body step in the secondary
+	// register), Muted the bar's glyphs, Tertiary the status dot, and Wash the
+	// pane behind a button the pointer rests on.
+	Ink, Muted, Tertiary, Wash ui.Color
+	// Face is the bar's own fill while it is revealed; a zero alpha means the
+	// bar owns no face and the canvas under it is what the user sees, which is
+	// the window's own case.
+	Face ui.Color
+}
+
+// barFaceContrast is the floor the bar's ink has to clear against its own
+// face: WCAG 2.1 AA for body text, the same number `internal/theme` grades its
+// quiet steps with.
+const barFaceContrast = 4.5
+
+// windowBarInks is the bar's four rungs as the window spells them: the shape
+// the bar has always had, and the shape it keeps wherever no palette owns the
+// face under it.
+func windowBarInks(f *ui.Theme, tokens theme.Tokens) barInks {
+	return barInks{
+		Ink:      tokens.TextSecondary,
+		Muted:    f.TextMuted,
+		Tertiary: tokens.TextTertiary,
+		Wash:     f.SurfaceHover,
+	}
+}
+
+// canvasInks resolves this frame's bar inks from the face the bar floats on.
+func (a *App) canvasInks(c *ui.Context) barInks {
+	tokens := tokensOf(a, c)
+	session := a.Current()
+	return barInksFor(tokens, windowBarInks(c.Theme(), tokens), a.Store.Snapshot().TerminalTheme,
+		session != nil && session.Term != nil)
+}
+
+// barInksFor is the one answer to "what does the bar draw with": `running`
+// says whether a session is on screen (a palette with no session under it is
+// not a face the bar can belong to), and `name` is the stored palette id.
+func barInksFor(tokens theme.Tokens, window barInks, name string, running bool) barInks {
+	spec, ok := palettes[name]
+	if !ok || !running {
+		return window
+	}
+	// The face beneath the canvas: the window's own colour, the same proxy
+	// `panelFill` reads for `inherit` (the desktop behind a translucent window
+	// is not knowable here, and the panel is what the canvas is composited
+	// against inside the app).
+	under := ui.RGB(18, 19, 22)
+	if tokens.Theme != nil {
+		under = tokens.Theme.Background
+	}
+	face := packed(spec.bg)
+	ink := packed(spec.fg)
+	scrim := face.Alpha(barFaceAlpha(ink, face, under))
+	onBar := scrim.Over(under)
+	// The quieter rungs are the same ink as quiet as it can be: each is the
+	// least opacity that still clears its floor, so the bar's whole ladder
+	// scales with the palette instead of mixing two materials.
+	return barInks{
+		Ink:      ink,
+		Muted:    quietRung(ink, onBar, 3.0),
+		Tertiary: quietRung(ink, onBar, 2.5),
+		Wash:     ink.Alpha(0.1),
+		Face:     scrim,
+	}
+}
+
+// quietRung is the least opacity of `ink` over `face` that still clears
+// `floor`: the quietest a secondary rung can be and still be read.
+func quietRung(ink, face ui.Color, floor float64) ui.Color {
+	const steps = 32
+	for i := 1; i <= steps; i++ {
+		rung := ink.Alpha(float32(i) / steps)
+		if inkContrast(rung.Over(face), face) >= floor {
+			return rung
+		}
+	}
+	return ink
+}
+
+// barFaceAlpha is the least alpha at which the bar's own face makes its ink
+// readable on it: the bar is as light as it can be while its text still clears
+// `barFaceContrast` over the face beneath. A palette's foreground and
+// background are designed to be read together, so an opaque face always
+// clears; the search only keeps the bar from being denser than it has to be.
+func barFaceAlpha(ink, face, under ui.Color) float32 {
+	const steps = 32
+	for i := 0; i <= steps; i++ {
+		alpha := float32(i) / steps
+		if inkContrast(ink, face.Alpha(alpha).Over(under)) >= barFaceContrast {
+			return alpha
+		}
+	}
+	return 1
+}
+
+// inkContrast is WCAG 2.1's contrast ratio between an opaque ink and an opaque
+// face.
+func inkContrast(ink, face ui.Color) float64 {
+	lighter, darker := relativeLuminance(ink), relativeLuminance(face)
+	if lighter < darker {
+		lighter, darker = darker, lighter
+	}
+	return (lighter + 0.05) / (darker + 0.05)
+}
+
+// relativeLuminance is WCAG 2.1's relative luminance of one sRGB colour.
+func relativeLuminance(c ui.Color) float64 {
+	linear := func(v uint8) float64 {
+		s := float64(v) / 255
+		if s <= 0.03928 {
+			return s / 12.92
+		}
+		return math.Pow((s+0.055)/1.055, 2.4)
+	}
+	return 0.2126*linear(c.R) + 0.7152*linear(c.G) + 0.0722*linear(c.B)
+}
+
 // Resident marks the session on screen ended: the output stays on screen and
 // the note says how the program went, until the user closes it or starts
 // another.
@@ -1144,16 +1276,23 @@ func (a *App) barButton(c *ui.Context, name, label, hint string, run func()) {
 	button := ui.Row(c).Focusable().Size(t.Space(7), t.Space(7)).Shrink(0).
 		Radius(tokensOf(a, c).RadiusSM).AlignItems(ui.Center).Justify(ui.Center).Label(label).
 		Tooltip(hint)
+	// The bar's inks come from the canvas it floats on (see `canvasInks`): over
+	// a named palette the glyph is the palette's own ink and the hover pane is
+	// a tint of it, so a dark palette in a light window no longer paints a
+	// window-grey mark on a near-black face.
+	inks := a.canvasInks(c)
 	if button.Hovered() {
-		button.Background(t.SurfaceHover)
+		button.Background(inks.Wash)
 		// The pointer lights the resting lens rung (`.toolbar-button:hover`,
 		// the reference's hover-only variant): the bar's icon button is
 		// transparent at rest, so this is the only state it can be graded in.
+		// The lens is the window's rim at ≤0.04 alpha, below the §1 gloss cap:
+		// it reads as neither surface's material, so it stays.
 		tokensOf(a, c).Lens(button)
 	}
 	button.Children(func() {
 		if glyph, ok := launcher.Glyph(name); ok {
-			ui.Icon(c, glyph).Size(t.Space(4), t.Space(4)).TextColor(t.TextMuted)
+			ui.Icon(c, glyph).Size(t.Space(4), t.Space(4)).TextColor(inks.Muted)
 		}
 	})
 	if button.Clicked() {
@@ -1164,6 +1303,8 @@ func (a *App) barButton(c *ui.Context, name, label, hint string, run func()) {
 func (a *App) titleBar(c *ui.Context, copy i18n.Terminal) {
 	t := c.Theme()
 	newCommandHint, openExternalHint := barHints(copy, a.Store.Snapshot())
+	// P11-ae：这一条（以及它里面的点与按钮）的墨来自它浮着的那块面，不是窗口。
+	inks := a.canvasInks(c)
 	bar := ui.Row(c).Absolute().Top(0).Left(0).Right(0).Height(t.Space(7)).
 		Padding(0, t.Space(3)).Gap(t.Space(2)).AlignItems(ui.Center).DragWindow()
 	// The bar's whole content is hidden until the pointer is over it or
@@ -1172,6 +1313,16 @@ func (a *App) titleBar(c *ui.Context, copy i18n.Terminal) {
 	// (`.terminal-bar__identity` / `.terminal-panel__actions` reveal the same
 	// way).
 	revealed := bar.Hovered() || bar.FocusWithin()
+	// A palette that owns the canvas owns the bar too: while the bar is
+	// revealed (the only state its content is drawn in) it carries the palette's
+	// own face, so its ink sits on the material it was measured against. At rest
+	// it paints nothing, so the first lines of output stay uncovered; the top
+	// corners take the panel's radius because the bar's own rectangle is the
+	// panel's top edge.
+	if revealed && inks.Face.A != 0 {
+		bar.Radius(panelCorner(tokensOf(a, c)), panelCorner(tokensOf(a, c)), 0, 0).
+			Background(inks.Face)
+	}
 	// `.terminal-bar:hover { box-shadow: var(--elev-bar) }` (`terminal.css:99-104`):
 	// reaching for the bar re-casts a light shadow — `0 6px 16px` at
 	// `0.18 * --elev-shadow-scale` — onto the content scrolling under it, the
@@ -1203,15 +1354,17 @@ func (a *App) titleBar(c *ui.Context, copy i18n.Terminal) {
 			identity.Opacity(0)
 		}
 		identity.Children(func() {
-			a.statusDot(c)
+			a.statusDot(c, inks)
 			// `.terminal-bar__title` (`terminal.css:150-161`): the body step in
 			// `--text-secondary`, 580, with the reference's `letter-spacing:
 			// -0.01em`. The identity line used to read the muted step one size
 			// down, which made the name of the session on screen the quietest
 			// thing in the bar it names.
+			// P11-ae：墨来自它浮着的那块面（`canvasInks`）——选了命名调色板时
+			// 就是调色板自己的前景，`inherit` 与空页仍是窗口的 `TextSecondary`。
 			ui.Text(c, identityTitle).FontSize(t.FontSize).FontWeight(580).
 				LetterSpacing(-0.01 * t.FontSize).
-				TextColor(tokensOf(a, c).TextSecondary).Ellipsis("\u2026").SingleLine()
+				TextColor(inks.Ink).Ellipsis("\u2026").SingleLine()
 		})
 		// The controls, at the bar's trailing edge: 28u transparent squares
 		// with a 4u gap, hidden and non-interactive until the bar is revealed
@@ -1249,16 +1402,17 @@ func (a *App) titleBar(c *ui.Context, copy i18n.Terminal) {
 }
 
 // statusDot is the bar's status light: a neutral dot breathing while the
-// session runs, and a still grey dot once the program has ended.
-func (a *App) statusDot(c *ui.Context) {
+// session runs, and a still grey dot once the program has ended. Its ink is the
+// bar's own tertiary rung (`canvasInks`), so it belongs to the canvas the bar
+// floats on rather than to the window behind it.
+func (a *App) statusDot(c *ui.Context, inks barInks) {
 	t := c.Theme()
-	tokens := tokensOf(a, c)
 	dot := ui.Box(c).Size(t.Space(1.75), t.Space(1.75)).Radius(t.Space(1.75)).Shrink(0)
 	if a.exited() {
 		// `.terminal-bar__dot--exited` (`terminal.css:163-168`): the tertiary
 		// step, the halo dropped, at the reference's 0.7 opacity. It used to
 		// read the *muted* step, one rung brighter than the reference's.
-		dot.Background(tokens.TextTertiary).Opacity(0.7)
+		dot.Background(inks.Tertiary).Opacity(0.7)
 		return
 	}
 	// P8-e 重定基线（§5 判据）：旧值是 `t.Accent`，但「这个进程是活的」不是
@@ -1266,7 +1420,7 @@ func (a *App) statusDot(c *ui.Context) {
 	// `tokens.TextTertiary`，与 exited 态同一档（两者只差明度与动效）。存活由
 	// 「动」说：呼吸仍在，色相不再参与。旧值 → 新值：`t.Accent` →
 	// `tokens.TextTertiary`（深色下峰值仍读得出，两侧实测见 P8-e 报告）。
-	dot.Background(tokens.TextTertiary)
+	dot.Background(inks.Tertiary)
 	// P8-c 重定基线（§6.2 第 5 条 / §1）：`--elev-halo` 的 2u `AccentHalo` 环
 	// 去掉，只留这个 1.75u 的点。光环是旧 glass 语言的辉光——§1 把
 	// 光泽一律压到 alpha ≤ 0.04，而 `AccentHalo` 是 0.2（上限的 5 倍），并且
