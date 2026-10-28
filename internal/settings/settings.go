@@ -22,6 +22,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"floter/internal/i18n"
 )
 
 const (
@@ -38,7 +40,7 @@ const (
 const (
 	DefaultTheme           = "auto"
 	DefaultGlassStep       = "regular"
-	DefaultLanguage        = "en"
+	DefaultLanguage        = string(i18n.Default)
 	DefaultMainOpacity     = 47
 	DefaultTerminalOpacity = 46
 	DefaultUIScale         = "small"
@@ -111,7 +113,9 @@ const (
 var (
 	themes     = []string{"dark", "light", "auto"}
 	glassSteps = []string{"off", "frosted", "regular", "liquid"}
-	languages  = []string{"en", "zh"}
+	// The language whitelist is not here: `i18n` owns it (language.go), and this
+	// package reads it through NormalizeLanguage so the settings loader and the
+	// interface copy can never disagree about which ids exist.
 
 	// The terminal's string domains, from TERMINAL_THEMES, TERMINAL_PADDINGS,
 	// BOLD_MODES and the cursor shapes.
@@ -548,14 +552,11 @@ func NormalizeGlassStep(step string) string {
 	return DefaultGlassStep
 }
 
-// NormalizeLanguage applies the "en" | "zh" whitelist.
+// NormalizeLanguage applies the "en" | "zh" whitelist. The whitelist itself
+// lives in `internal/i18n`; this forwards so a stored value has one landing
+// spot, whether the reader is the settings loader or the interface copy.
 func NormalizeLanguage(language string) string {
-	for _, candidate := range languages {
-		if language == candidate {
-			return language
-		}
-	}
-	return DefaultLanguage
+	return string(i18n.Normalize(language))
 }
 
 // NormalizeUIScale applies the interface-size whitelist and migrates the

@@ -341,10 +341,7 @@ var en = Copy{
 			{"light", "Light"},
 			{"dark", "Dark"},
 		},
-		Languages: []Option{
-			{"en", "English"},
-			{"zh", "中文"},
-		},
+		Languages: LanguageOptions(),
 		GlassSteps: []Option{
 			{"off", "Off"},
 			{"frosted", "Frosted"},
@@ -1236,10 +1233,7 @@ var zh = Copy{
 			{"light", "浅色"},
 			{"dark", "深色"},
 		},
-		Languages: []Option{
-			{"en", "English"},
-			{"zh", "中文"},
-		},
+		Languages: LanguageOptions(),
 		GlassSteps: []Option{
 			{"off", "关闭"},
 			{"frosted", "磨砂"},

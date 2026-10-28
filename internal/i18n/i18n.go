@@ -17,14 +17,8 @@ const (
 	ZH Language = "zh"
 )
 
-// Normalize maps any stored language value onto the whitelist, exactly as
-// settings.NormalizeLanguage does ("fr" and "" land on English).
-func Normalize(language string) Language {
-	if Language(language) == ZH {
-		return ZH
-	}
-	return EN
-}
+// The whitelist itself, and Normalize, live in language.go: the languages this
+// package ships are one table, and the settings loader reads the same one.
 
 // RelativeUnit is one calendar unit a past time can be named in, as
 // `Intl.RelativeTimeFormat` took it: the old build handed the unit to the
