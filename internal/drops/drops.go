@@ -13,6 +13,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"floter/internal/homepath"
 )
 
 // File is one dropped path, normalized and ready to render.
@@ -50,22 +52,11 @@ func normalize(path, home, cwd string) (File, bool) {
 	if strings.TrimSpace(path) == "" {
 		return File{}, false
 	}
-	if strings.HasPrefix(path, "~") {
-		if home == "" {
-			return File{}, false
-		}
-		// A leading `~` that is the whole path or is followed by a separator
-		// is the home directory. `~alice` is *not* another user's home: a
-		// name that just happens to start with a tilde is a directory
-		// literally called that, so it is joined to home rather than resolved
-		// — exactly the rule `resolve` in the reference follows.
-		rest := path[1:]
-		if rest != "" && !os.IsPathSeparator(rest[0]) {
-			path = filepath.Join(home, path)
-		} else {
-			path = filepath.Join(home, rest)
-		}
+	expanded, ok := homepath.Expand(path, home)
+	if !ok {
+		return File{}, false
 	}
+	path = expanded
 	if !filepath.IsAbs(path) {
 		// A relative path resolves against the directory the drop was
 		// resolved in, never against the process's own working directory.

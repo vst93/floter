@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"floter/internal/homepath"
 	"floter/internal/i18n"
 	"floter/internal/spawn"
 )
@@ -75,29 +76,13 @@ func (a *App) openPath(path string) {
 // kept apart from `openPath` so the rule can be exercised without touching the
 // filesystem.
 func resolvePath(path, home string) string {
-	rest, tilde := strings.CutPrefix(path, "~")
-	if !tilde {
-		if filepath.IsAbs(path) {
-			return path
-		}
-		return filepath.Join(home, path)
+	resolved, ok := homepath.Resolve(path, home)
+	if !ok {
+		// A home that cannot be named leaves the path unresolved; the stat in
+		// openPath refuses it and says so, rather than opening the wrong file.
+		return path
 	}
-	// `~alice` is not another user's home: nothing portable can resolve it, and
-	// a directory literally called `~alice` is the likelier thing a launcher is
-	// being asked about — so it is joined to home rather than treated as a user.
-	if rest != "" && !os.IsPathSeparator(rest[0]) {
-		return filepath.Join(home, path)
-	}
-	// The separators come off before joining: joining a path that starts with
-	// one discards everything to its left and yields the filesystem root. Once
-	// they are gone, `~` and `~/` are both simply the home directory.
-	for rest != "" && os.IsPathSeparator(rest[0]) {
-		rest = rest[1:]
-	}
-	if rest == "" {
-		return home
-	}
-	return filepath.Join(home, rest)
+	return resolved
 }
 
 // spawnGap is how long a process hand-off is left alone after one ran: a

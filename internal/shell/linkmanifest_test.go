@@ -40,6 +40,10 @@ func TestAManifestValueIsAPathThisBuildCanStat(t *testing.T) {
 		{`..\tool.json`, "", "the backslash spelling is a traversal on all three platforms, not just Windows"},
 		{"tool.json", filepath.Join(home, "tool.json"), "divergence: relative resolves against home (plan:690-695)"},
 		{"~/tools/tool.json", filepath.Join(home, "tools", "tool.json"), "divergence: ~ is this build's documented shorthand"},
+		// P11-t 重定基线：`~alice` 旧值 `home/alice` → `home/~alice`。这是本仓
+		// 四处 `~` 展开（动作栏、打开路径、拖入、这里）与参考 `resolve_path`
+		// 共同的拍板：`~alice` 是名字就叫 `~alice` 的目录，不是别人的家目录。
+		{"~alice/tool.json", filepath.Join(home, "~alice", "tool.json"), "a directory literally called ~alice, not another user"},
 		{"~/../tool.json", "", "traversal still wins over the ~ shorthand"},
 		{"https://example.com/tool.json", "", "divergence: no remote manifest install path in this build"},
 		{"file:///home/u/tool.json", "", "same verdict: only https could ever be a manifest (:301-317)"},

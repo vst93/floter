@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"floter/internal/homepath"
 	"floter/internal/i18n"
 )
 
@@ -295,18 +296,18 @@ func (a *App) barPathRows(expanded string, isDir bool, copy i18nLauncher) []Item
 }
 
 // expandPath resolves `~` and a relative path against the user's home.
+//
+// The rule itself lives in `internal/homepath`, because the open-path action,
+// a dropped file and a connect link's manifest all ask the same question. The
+// local part is only the spelling: a path shown in a row and copied to the
+// clipboard should use the platform's own separator.
 func expandPath(value, home string) string {
 	expanded := filepath.FromSlash(strings.TrimSpace(value))
-	if expanded == "~" {
-		return home
+	resolved, ok := homepath.Resolve(expanded, home)
+	if !ok {
+		return expanded
 	}
-	if rest, ok := strings.CutPrefix(expanded, "~/"); ok && home != "" {
-		return filepath.Join(home, rest)
-	}
-	if !filepath.IsAbs(expanded) && home != "" {
-		return filepath.Join(home, expanded)
-	}
-	return expanded
+	return resolved
 }
 
 // homeDirOrEmpty is the user's home, empty when the platform cannot name one.

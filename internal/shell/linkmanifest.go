@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"unicode"
+
+	"floter/internal/homepath"
 )
 
 // linkManifestValue turns a `connect` link's `manifest` value into the path the
@@ -68,23 +70,23 @@ func linkManifestValue(raw string) (string, bool) {
 	}
 	// A home that cannot be resolved cannot produce the path the link promised:
 	// joining against "" would quietly turn the value into a working-directory
-	// relative path, which is a different file. `filepath.Join` cleans the
-	// separator `~` leaves behind (`~/x` and `~\x` both land in the same place),
-	// so no trimming branch is needed — the mutation that adds one back stays
-	// green (report §5).
-	if rest, ok := strings.CutPrefix(value, "~"); ok {
+	// relative path, which is a different file. An absolute value needs no home,
+	// so a machine that will not name one still connects by absolute path.
+	//
+	// The expansion itself is the launcher's own rule (`internal/homepath`), the
+	// same one the action bar and a dropped file use: `~/x` and `~alice/x` mean
+	// the same thing on every surface, and the separators come off before the
+	// join on every platform.
+	if strings.HasPrefix(value, "~") || !filepath.IsAbs(value) {
 		home, err := os.UserHomeDir()
 		if err != nil {
 			return "", false
 		}
-		return filepath.Join(home, rest), true
-	}
-	if !filepath.IsAbs(value) {
-		home, err := os.UserHomeDir()
-		if err != nil {
+		expanded, ok := homepath.Resolve(value, home)
+		if !ok {
 			return "", false
 		}
-		return filepath.Join(home, value), true
+		return expanded, true
 	}
 	return value, true
 }
