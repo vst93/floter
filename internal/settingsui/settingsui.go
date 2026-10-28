@@ -1386,6 +1386,19 @@ func (a *App) selectPage(page int) {
 	if page != PageSessions {
 		a.disarmSessionClose()
 	}
+	// A page's scroll belongs to that page. The reference keys the page's own
+	// scroller with the page (`main:src/App.tsx:2930`
+	// `<main className="settings-content" ... key={settingsPage}>`;
+	// `.settings-content` is the scroller, `main:src/styles/settings.css:233-244`),
+	// so a page change remounts it at the top. This surface has one scroller
+	// for all five pages (`ui.Scroll(c.Key("settings.body"))`), so the reset
+	// has to be said here: without it a click from General scrolled halfway
+	// opened Shortcuts with its heading already above the viewport. The same
+	// page is the same key in the reference — re-clicking the page one is
+	// reading leaves the offset alone.
+	if page != a.Page {
+		a.Body.Y = 0
+	}
 	a.Page = page
 	if a.Actions.SetPage != nil {
 		a.Actions.SetPage(PageName(page))
