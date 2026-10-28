@@ -651,11 +651,17 @@ func paletteFor(appearance Appearance) palette {
 			// It must not collapse onto either: three of this table's own tests
 			// read `--text-tertiary` and *not* `--text-muted`, and a duplicate
 			// would make that an unanswerable question.
-			textMuted:     ui.Hex("#808087"),
-			accent:        ui.Hex("#E5484D"),
-			accentHover:   ui.Hex("#F0555A"),
-			accentPressed: ui.Hex("#CC3B40"),
-			accentText:    ui.Hex("#FFFFFF"),
+			textMuted: ui.Hex("#808087"),
+			// P11-al 重定基线（用户实测 F2「整体红色线条太扎眼」的根因）：参考的
+			// accent 一直是**蓝**。`--accent: #064aa6` / `--accent-contrast: #f7f9ff`
+			// （`main:src/styles/base.css:942-943`），它的注释写着同一个 pastel blue
+			// 在近黑上很亮、在白上几乎没有，所以浅色比深色深得多。旧值 → 新值：
+			// `#E5484D` → `#064AA6`、`#F0555A` → `#0857C4`、`#CC3B40` → `#053C87`、
+			// `#FFFFFF` → `#F7F9FF`。红在本仓只剩语义（`warning`）。
+			accent:        ui.Hex("#064AA6"),
+			accentHover:   ui.Hex("#0857C4"),
+			accentPressed: ui.Hex("#053C87"),
+			accentText:    ui.Hex("#F7F9FF"),
 			stroke:        ui.RGBA(0, 0, 0, 0.09),
 			// P11-z 重定基线：`ui.RGBA(229, 72, 77, 0.55)`（accent 0.55）→ 中性
 			// 0.16。聚焦是明度差，不是色相（见 `Tokens.InputStrokeActive`）。
@@ -678,12 +684,15 @@ func paletteFor(appearance Appearance) palette {
 			rowPressed:  ui.RGBA(0, 0, 0, 0.08),
 			keycapFace:  ui.RGBA(0, 0, 0, 0.05),
 			keycapEdge:  ui.RGBA(0, 0, 0, 0.06),
-			selection:   ui.RGBA(229, 72, 77, 0.16),
-			focus:       ui.RGBA(229, 72, 77, 0.82),
-			warning:     ui.Hex("#9C1F18"),
-			scrollbar:   ui.RGBA(60, 60, 67, 0.24),
-			opaque:      ui.RGBA(247, 247, 248, 0.995),
-			fieldFill:   ui.RGBA(250, 250, 251, 0.997),
+			// `::selection` 在参考里就是 `--accent-tint`（`main:src/styles/base.css:1300`）：
+			// 浅色 `rgba(6,74,166,0.10)`（`:946`）；`focus` 是 `--accent-ring`
+			// `rgba(6,74,166,0.82)`（`:956`）。旧值 → 新值：两条都随 accent 换色。
+			selection: ui.RGBA(6, 74, 166, 0.1),
+			focus:     ui.RGBA(6, 74, 166, 0.82),
+			warning:   ui.Hex("#9C1F18"),
+			scrollbar: ui.RGBA(60, 60, 67, 0.24),
+			opaque:    ui.RGBA(247, 247, 248, 0.995),
+			fieldFill: ui.RGBA(250, 250, 251, 0.997),
 			// The lens family, capped at 0.04: Raycast is a low-gloss design, so
 			// the control's own rim, sheen and shade are a whisper rather than the
 			// lens the old sheet drew (`docs/raycast-design.md` §4.1). The
@@ -704,15 +713,19 @@ func paletteFor(appearance Appearance) palette {
 			edgeHighlightX:      ui.RGBA(255, 255, 255, 0.6),
 			// `--keycap-highlight` / `--keycap-shadow` (`base.css:917-918`):
 			// the terminal panel's own rim on Windows.
-			keycapHighlight:  ui.RGBA(255, 255, 255, 0.9),
-			keycapShadow:     ui.RGBA(0, 0, 0, 0.09),
-			accentEdge:       ui.RGBA(229, 72, 77, 0.55),
-			accentEdgeStrong: ui.RGBA(229, 72, 77, 0.85),
-			accentHalo:       ui.RGBA(229, 72, 77, 0.2),
+			keycapHighlight: ui.RGBA(255, 255, 255, 0.9),
+			keycapShadow:    ui.RGBA(0, 0, 0, 0.09),
+			// 浅色块 `--accent-edge` .36 / `--accent-edge-strong` .68 /
+			// `--accent-halo` .24 / `--accent-glow` .20 / `--accent-tint-quiet` .065
+			// （`main:src/styles/base.css:949-956`）：同一个 alpha 的蓝压在近白上几乎
+			// 不动，所以浅色这几档比深色重。旧值（品牌红，.55/.85/.20/.12/.10）→ 新值。
+			accentEdge:       ui.RGBA(6, 74, 166, 0.36),
+			accentEdgeStrong: ui.RGBA(6, 74, 166, 0.68),
+			accentHalo:       ui.RGBA(6, 74, 166, 0.24),
 			// `--accent-glow`: the light card's focus ring.
-			accentGlow: ui.RGBA(229, 72, 77, 0.12),
-			// The accent as a quiet fill (`rgba(229, 72, 77, 0.10)`).
-			accentTintQuiet: ui.RGBA(229, 72, 77, 0.1),
+			accentGlow: ui.RGBA(6, 74, 166, 0.2),
+			// The accent as a quiet fill (`--accent-tint-quiet`).
+			accentTintQuiet: ui.RGBA(6, 74, 166, 0.065),
 			// The warm system-icon plane, the light appearance's amber (base.css
 			// `--system-icon-surface` / `--system-icon-surface-hover`).
 			iconSurface:      ui.RGBA(214, 118, 44, 0.13),
@@ -728,11 +741,15 @@ func paletteFor(appearance Appearance) palette {
 		textTertiary:  ui.Hex("#6E6E76"),
 		// The soft rung between them (see the light palette's note): the
 		// midpoint of the contract's `#9A9AA0` and `#6E6E76`.
-		textMuted:     ui.Hex("#85858D"),
-		accent:        ui.Hex("#F5544E"),
-		accentHover:   ui.Hex("#FF6B62"),
-		accentPressed: ui.Hex("#DC4640"),
-		accentText:    ui.Hex("#1B1B1D"),
+		textMuted: ui.Hex("#85858D"),
+		// 深色块：`--accent: #8fb7ff`（`main:src/styles/base.css:675`）与
+		// `--accent-contrast: #15171b`（`:676`）。旧值 → 新值：
+		// `#F5544E` → `#8FB7FF`、`#FF6B62` → `#A3C4FF`、`#DC4640` → `#7AA7FF`、
+		// `#1B1B1D` → `#15171B`。
+		accent:        ui.Hex("#8FB7FF"),
+		accentHover:   ui.Hex("#A3C4FF"),
+		accentPressed: ui.Hex("#7AA7FF"),
+		accentText:    ui.Hex("#15171B"),
 		// The card's 1px edge is Raycast's *strong* hairline (`#FFFFFF` at
 		// 0.09, `docs/raycast-design.md` §1); the hairline rung below is the
 		// same number, because in Raycast's language a card's border and a
@@ -763,8 +780,8 @@ func paletteFor(appearance Appearance) palette {
 		// The keycap's plate: the fill and its hairline.
 		keycapFace: ui.RGBA(255, 255, 255, 0.075),
 		keycapEdge: ui.RGBA(255, 255, 255, 0.07),
-		selection:  ui.RGBA(245, 84, 78, 0.16),
-		focus:      ui.RGBA(245, 84, 78, 0.82),
+		selection:  ui.RGBA(143, 183, 255, 0.13),
+		focus:      ui.RGBA(122, 167, 255, 0.78),
 		warning:    ui.RGBA(255, 178, 164, 0.82),
 		scrollbar:  ui.RGBA(238, 239, 242, 0.15),
 		opaque:     ui.RGBA(20, 20, 22, 0.99),
@@ -795,16 +812,16 @@ func paletteFor(appearance Appearance) palette {
 		// terminal panel's own rim on Windows, a step quieter than the edge.
 		keycapHighlight:  ui.RGBA(255, 255, 255, 0.07),
 		keycapShadow:     ui.RGBA(0, 0, 0, 0.28),
-		accentEdge:       ui.RGBA(245, 84, 78, 0.55),
-		accentEdgeStrong: ui.RGBA(245, 84, 78, 0.85),
-		accentHalo:       ui.RGBA(245, 84, 78, 0.2),
+		accentEdge:       ui.RGBA(143, 183, 255, 0.3),
+		accentEdgeStrong: ui.RGBA(143, 183, 255, 0.72),
+		accentHalo:       ui.RGBA(143, 183, 255, 0.18),
 		// `--accent-glow`: the same ring, quieter. It is not drawn on the
 		// launcher card (`docs/raycast-design.md` §1): the launcher's selected
 		// row is neutral and the card carries no accent glow.
-		accentGlow: ui.RGBA(245, 84, 78, 0.1),
+		accentGlow: ui.RGBA(143, 183, 255, 0.08),
 		// The accent as a fill, at the quietest rung: Raycast's `rgba(245, 84,
 		// 78, 0.14)`, used by the three places §1 allows the accent a face.
-		accentTintQuiet: ui.RGBA(245, 84, 78, 0.14),
+		accentTintQuiet: ui.RGBA(143, 183, 255, 0.085),
 		// The warm system-icon plane, the dark appearance's amber (base.css
 		// `--system-icon-surface` / `--system-icon-surface-hover`), and its
 		// own ink (`--system-icon-text`): a pale warm peach, not the warning

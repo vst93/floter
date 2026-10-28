@@ -225,7 +225,7 @@ func TestTheDrawerReadoutIsTheNeutralBodyRegister(t *testing.T) {
 			lum := int(p.R) + int(p.G) + int(p.B)
 			if lum > best {
 				best, near = lum, p
-				bestHue = absInt(int(p.R) - int(p.B))
+				bestHue = absInt(int(p.B) - int(p.R))
 				if x := absInt(int(p.R) - int(p.G)); x > bestHue {
 					bestHue = x
 				}

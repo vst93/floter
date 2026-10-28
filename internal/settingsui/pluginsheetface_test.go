@@ -75,6 +75,9 @@ func TestThePluginActionButtonIsTheReferenceHairlinePill(t *testing.T) {
 	for y := int(label.Y); y < int(label.Y+label.H); y++ {
 		for x := int(label.X); x < int(label.X+label.W); x++ {
 			p := sample(tt, float32(x), float32(y))
+			// Warning ink is still a red (base.css `--text-warning`), so this
+			// probe reads warmth the same way it always did (R−B); P11-al
+			// 只把**测 accent** 的探针翻成 B−R。
 			if d := int(p.R) - int(p.B); d > best {
 				best, warmest = d, p
 			}
@@ -138,6 +141,7 @@ func TestThePluginActionClusterIsWarmAndAsksBeforeItActs(t *testing.T) {
 	best := -256
 	for x := int(label.X+label.W) + 1; x < int(label.X+label.W)+40; x++ {
 		p := sample(tt, float32(x), label.Y+label.H/2)
+		// The danger hairline is warning ink (a red), not the accent: R−B.
 		if d := int(p.R) - int(p.B); d > best {
 			best = d
 		}

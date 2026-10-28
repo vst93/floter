@@ -205,7 +205,7 @@ func TestTheSidebarChosenGlyphKeepsTheAccent(t *testing.T) {
 				for y := int(r.Y); y < int(r.Y+r.H); y++ {
 					for x := int(r.X) + 6; x < int(r.X)+26; x++ {
 						p := imagePixel(img, x, y)
-						if d := int(p.R) - int(p.B); d > best {
+						if d := int(p.B) - int(p.R); d > best {
 							best, ink = d, p
 						}
 					}
@@ -623,6 +623,8 @@ func TestTheStatusChipRingIsTheControlEdge(t *testing.T) {
 			// The chip's warm face: the most common colour in the box just left of the
 			// verdict word (the chip's own 8u padding, clear of glyphs).
 			face := imagePixel(img, int(word.X)-4, int(word.Y+word.H/2))
+			// The chip's warm amber face, measured warm-to-red (R−B): it is not
+			// the accent, so it keeps its own polarity after P11-al.
 			if warmth := int(face.R) - int(face.B); warmth < 8 {
 				t.Fatalf("the verdict chip's face is not warm (%v, %d levels); the probe is not reading the chip",
 					face, warmth)
@@ -760,13 +762,16 @@ func TestTheChosenSegmentKeepsItsAccentKeyline(t *testing.T) {
 			for y := int(box.Y); y < int(box.Y)+5; y++ {
 				for x := mid - int(third)/2; x < mid+int(third)/2; x++ {
 					p := imagePixel(tt.Image(), x, y)
-					if d := int(p.R) - int(p.B); d > warmest {
+					if d := int(p.B) - int(p.R); d > warmest {
 						warmest, at = d, ui.Rect{X: float32(x), Y: float32(y)}
 					}
 				}
 			}
-			if warmest < 40 {
-				t.Fatalf("the chosen segment's own edge is %d levels warm (warmest at %v): the accent keyline is gone",
+			// P11-al 重定基线：旧阈值 40（品牌红 `--accent-edge` 0.55）。参考的
+			// 蓝 keyline 是 `--accent-edge: 0.30`（深）/0.36（浅），压在深色轨道上
+			// 只剩三十几级；实测深 36 / 浅 60。旧 40 → 新 24。
+			if warmest < 24 {
+				t.Fatalf("the chosen segment's own edge is %d levels accent-leaning (bluest at %v): the accent keyline is gone",
 					warmest, at)
 			}
 			// And the *unchosen* segments' edges are not: the keyline is the chosen
@@ -813,7 +818,7 @@ func TestTheSwitchOnStateCarriesTheAccent(t *testing.T) {
 				for y := int(box.Y); y < int(box.Y+box.H); y++ {
 					for x := int(box.X); x < int(box.X+box.W); x++ {
 						p := imagePixel(tt.Image(), x, y)
-						if d := int(p.R) - int(p.B); d > warmest {
+						if d := int(p.B) - int(p.R); d > warmest {
 							warmest = d
 						}
 					}
@@ -825,7 +830,7 @@ func TestTheSwitchOnStateCarriesTheAccent(t *testing.T) {
 			// The accent's own R−B (the red these tokens ship) is ~150; a grey track's
 			// is a handful of levels. Both appearances ship the same red, so the
 			// thresholds hold on the dark track as well.
-			if warm := int(tokens.Theme.Accent.R) - int(tokens.Theme.Accent.B); warm < 100 {
+			if warm := int(tokens.Theme.Accent.B) - int(tokens.Theme.Accent.R); warm < 100 {
 				t.Fatalf("the accent is not the red this pin measures against (%d)", warm)
 			}
 			if onWarm < 100 {
@@ -892,7 +897,7 @@ func TestTheRegisterRowIsTheNeutralSelectedRung(t *testing.T) {
 			for y := int(marked.Y) - 4; y < int(marked.Y+marked.H)+4; y++ {
 				for x := int(marked.X) - 8; x < int(marked.X+marked.W)+8; x++ {
 					p := imagePixel(img, x, y)
-					if d := int(p.R) - int(p.B); d > warmest {
+					if d := int(p.B) - int(p.R); d > warmest {
 						warmest, at2 = d, ui.Rect{X: float32(x), Y: float32(y)}
 					}
 				}
@@ -918,7 +923,7 @@ func TestTheRegisterRowIsTheNeutralSelectedRung(t *testing.T) {
 			for y := int(marked.Y) - 8; y < int(marked.Y+marked.H)+8; y++ {
 				for x := int(marked.X) - 50; x < int(marked.X)-8; x++ {
 					p := imagePixel(img, x, y)
-					if d := int(p.R) - int(p.B); d > warmest {
+					if d := int(p.B) - int(p.R); d > warmest {
 						warmest, markAt = d, ui.Rect{X: float32(x), Y: float32(y)}
 					}
 				}
@@ -1018,7 +1023,7 @@ func TestStatusInkIsNeutralWhenHealthyAndWarningWhenNot(t *testing.T) {
 			for _, word := range []string{"ok", "Ok", " HEALTHY "} {
 				got := statusInk(word, tokens, th, quiet)
 				// 反面：不是 accent（accent 自身是 ~150 级暖）。
-				if d := int(got.R) - int(got.B); d > 14 || d < -14 {
+				if d := int(got.B) - int(got.R); d > 14 || d < -14 {
 					t.Errorf("[%s] statusInk(%q) = %v carries a hue (R−B %d): the accent is back",
 						appearance, word, got, d)
 				}
@@ -1093,7 +1098,7 @@ func TestTheRunningStateMarkIsTheNeutralStrongRung(t *testing.T) {
 			off := mustFind(t, tt, copy.IntegrationsOff)
 			runningInk, offInk := inkColor(tt, running), inkColor(tt, off)
 			// 反面：不是 accent。
-			if d := int(runningInk.R) - int(runningInk.B); d > 14 || d < -14 {
+			if d := int(runningInk.B) - int(runningInk.R); d > 14 || d < -14 {
 				t.Errorf("the running word %v carries a hue (R−B %d): the accent is back", runningInk, d)
 			}
 			if channelDelta(runningInk, tokens.Theme.Accent) < 60 {
@@ -1140,7 +1145,7 @@ func TestTheSessionRunningSegmentIsNeutral(t *testing.T) {
 			state := inkColor(tt, mustFind(t, tt, "Running · attached"))
 			size := inkColor(tt, mustFind(t, tt, "80×24"))
 			// 反面：不是 accent。
-			if d := int(state.R) - int(state.B); d > 14 || d < -14 {
+			if d := int(state.B) - int(state.R); d > 14 || d < -14 {
 				t.Errorf("the running state word %v carries a hue (R−B %d): the accent is back", state, d)
 			}
 			if channelDelta(state, tokens.Theme.Accent) < 60 {
@@ -1182,7 +1187,7 @@ func TestTheResetActionIsNeutralAtRestAndOnHover(t *testing.T) {
 				for y := int(box.Y) - 2; y < int(box.Y+box.H)+2; y++ {
 					for x := int(box.X) - 2; x < int(box.X+box.W)+2; x++ {
 						p := imagePixel(img, x, y)
-						if d := int(p.R) - int(p.B); d > best {
+						if d := int(p.B) - int(p.R); d > best {
 							best, worst = d, p
 						}
 					}
@@ -1263,7 +1268,7 @@ func TestTheCardRowHoverCarriesNoAccentPixel(t *testing.T) {
 						continue
 					}
 					p := imagePixel(img, x, y)
-					if d := int(p.R) - int(p.B); d > warmest {
+					if d := int(p.B) - int(p.R); d > warmest {
 						warmest, at = d, ui.Rect{X: float32(x), Y: float32(y)}
 					}
 				}
@@ -1294,7 +1299,7 @@ func TestTheImportSummaryIsNeutral(t *testing.T) {
 			summary := mustFind(t, tt, "Imported 4, unchanged 1")
 			ink := inkColor(tt, summary)
 			// 反面：不是 accent。
-			if d := int(ink.R) - int(ink.B); d > 14 || d < -14 {
+			if d := int(ink.B) - int(ink.R); d > 14 || d < -14 {
 				t.Errorf("the import summary %v carries a hue (R−B %d): the accent is back", ink, d)
 			}
 			if channelDelta(ink, tokens.Theme.Accent) < 60 {
@@ -1400,7 +1405,7 @@ func TestTheDangerPillHoverKeepsTheNeutralEdgeAndTheWarningInk(t *testing.T) {
 			// ring, ~{240 150 152}).
 			hoverEdge := topEdge(pillBox)
 			hoverFace := panelOver(tokens.ControlHover, page)
-			if warm := int(hoverEdge.R) - int(hoverEdge.B); warm > 20 {
+			if warm := int(hoverEdge.B) - int(hoverEdge.R); warm > 20 {
 				t.Errorf("the danger pill's hover edge %v is %d levels warm: the accent ring is back", hoverEdge, warm)
 			}
 			if channelDelta(hoverEdge, panelOver(tokens.AccentEdge, hoverFace)) < 12 {
@@ -1434,7 +1439,7 @@ func TestTheDangerPillHoverKeepsTheNeutralEdgeAndTheWarningInk(t *testing.T) {
 			tt.Frame()
 			tt.Advance(300 * time.Millisecond)
 			cardEdge := topEdge(cardBox)
-			if warm := int(cardEdge.R) - int(cardEdge.B); warm > 20 {
+			if warm := int(cardEdge.B) - int(cardEdge.R); warm > 20 {
 				t.Errorf("the hovered uninstall card's edge %v is %d levels warm: the accent edge is back", cardEdge, warm)
 			}
 			if channelDelta(cardEdge, panelOver(tokens.AccentEdge, hoverFace)) < 12 {
@@ -1477,7 +1482,7 @@ func TestTheSessionResumeDotIsNeutral(t *testing.T) {
 			cy := btn.Y + tokens.Theme.Space(0.75) + tokens.Theme.Space(1.25)/2
 			got := imagePixel(img, int(cx), int(cy))
 			// 反面：不是 accent。
-			if d := int(got.R) - int(got.B); d > 14 || d < -14 {
+			if d := int(got.B) - int(got.R); d > 14 || d < -14 {
 				t.Errorf("the resume dot %v carries a hue (R−B %d): the accent is back", got, d)
 			}
 			if channelDelta(got, tokens.Theme.Accent) < 60 {
@@ -1518,12 +1523,12 @@ func TestThePermissionDotAndTheRegisterChipKeepTheAccent(t *testing.T) {
 			if channelDelta(enforced, tokens.Theme.Accent) > 24 {
 				t.Errorf("the enforced permission dot %v is not the accent %v (§5 注脚第 1 条)", enforced, tokens.Theme.Accent)
 			}
-			if d := int(enforced.R) - int(enforced.B); d < 100 {
+			if d := int(enforced.B) - int(enforced.R); d < 100 {
 				t.Errorf("the enforced permission dot %v is only %d levels warm; the accent is ~152", enforced, d)
 			}
 			// 反面（同一对的另一半）：空心点不是 accent —— 「实心/空心即 ON/OFF」
 			// 这个读法要求两者判然分开，否则 ● 的 accent 也就没有意义了。
-			if d := int(declared.R) - int(declared.B); d > 14 || d < -14 {
+			if d := int(declared.B) - int(declared.R); d > 14 || d < -14 {
 				t.Errorf("the declared permission ring %v carries a hue (R−B %d): the ON/OFF split is gone", declared, d)
 			}
 
@@ -1544,7 +1549,7 @@ func TestThePermissionDotAndTheRegisterChipKeepTheAccent(t *testing.T) {
 			for y := int(title.Y) - 8; y < int(title.Y+title.H)+8; y++ {
 				for x := int(title.X) - 50; x < int(title.X)-8; x++ {
 					p := imagePixel(img, x, y)
-					if d := int(p.R) - int(p.B); d > warmest {
+					if d := int(p.B) - int(p.R); d > warmest {
 						warmest, at = d, ui.Rect{X: float32(x), Y: float32(y)}
 					}
 				}

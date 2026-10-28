@@ -297,7 +297,7 @@ func TestTheExtensionPickerWearsTheSameStadiumShapeAsTheSettingsPicker(t *testin
 		for y := int(rect.Y); y < int(rect.Y+rect.H); y++ {
 			for x := int(rect.X); x < int(rect.X+rect.W); x++ {
 				p := imagePixel(img, x, y)
-				if d := int(p.R) - int(p.B); d > accent {
+				if d := int(p.B) - int(p.R); d > accent {
 					accent = d
 				}
 			}
@@ -496,6 +496,10 @@ func TestTheBrokenChipWearsTheWarmPlaneNotWarningInk(t *testing.T) {
 			t.Errorf("[dark=%v] the broken chip's fill is %v, the warning ink at 14%% over white (%v): the chip wears the ink, not the warm plane",
 				dark, fill, warnTint)
 		}
+		// The plane is the *warm* amber rung (`--system-icon-surface`), not the
+		// accent: it is measured warm-to-red (R−B), which stays positive when
+		// the accent is the reference's blue. P11-al 把这条探针的符号留在
+		// 「暖面」这一侧：它的判据是橙色，不是 accent。
 		if got := int(fill.R) - int(fill.B); got <= 0 {
 			t.Errorf("[dark=%v] the broken chip's fill %v is not warm (R−B = %d)", dark, fill, got)
 		}

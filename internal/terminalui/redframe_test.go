@@ -85,7 +85,7 @@ func TestTheTerminalCanvasDrawsNoSecondFrame(t *testing.T) {
 			}
 			// ...and no red: F2 retired the accent from this ring, so even if a
 			// stroke came back it must not be the accent's red.
-			if warm := int(edge.R) - int(edge.B); warm > 16 {
+			if warm := int(edge.B) - int(edge.R); warm > 16 {
 				t.Errorf("dark=%v: the canvas's column %d is %d levels warm (R−B): an accent ring is back", dark, x, warm)
 			}
 		}

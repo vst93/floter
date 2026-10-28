@@ -100,7 +100,7 @@ func TestTheOutputSelectedRowIsTheNeutralChosenRung(t *testing.T) {
 func spreadOf(c color.RGBA) int {
 	spread := 0
 	for _, d := range []int{
-		int(c.R) - int(c.G), int(c.G) - int(c.B), int(c.R) - int(c.B),
+		int(c.R) - int(c.G), int(c.G) - int(c.B), int(c.B) - int(c.R),
 	} {
 		if d < 0 {
 			d = -d

@@ -278,7 +278,7 @@ func TestLadderScalesWithTheStep(t *testing.T) {
 }
 
 // The palette is the Raycast contract's, not the framework's stock one: the
-// red accent, the translucent control ladder and the near-black card. These are
+// pastel accent, the translucent control ladder and the near-black card. These are
 // the tokens the whole app is drawn against, so a regression here repaints
 // every surface at once.
 //
@@ -289,9 +289,13 @@ func TestLadderScalesWithTheStep(t *testing.T) {
 // 主墨、control 阶梯是半透明的」）一条没放宽。
 func TestPaletteComesFromBaseCSS(t *testing.T) {
 	dark := For(settings.Settings{Theme: "dark"}, true)
-	// 旧值 #8fb7ff（柔蓝）→ 合约 §1 的 accent #F5544E。
-	if dark.Theme.Accent != ui.Hex("#F5544E") {
-		t.Errorf("dark accent = %v, want the contract's #F5544E", dark.Theme.Accent)
+	// P11-al 重定基线（用户实测 F2）：P8-a 曾把 accent 从 base.css 的
+	// `#8fb7ff` 换成「品牌红」`#F5544E`，用户实测反馈是「整体红色线条太扎眼」。
+	// 参考 `main:src/styles/base.css:675` 从一开始就是 `--accent: #8fb7ff`，
+	// 本仓这张表自己写着「the pastel accent」——所以旧值 → 新值回到参考：
+	// `#F5544E` → `#8FB7FF`。
+	if dark.Theme.Accent != ui.Hex("#8FB7FF") {
+		t.Errorf("dark accent = %v, want base.css's #8FB7FF", dark.Theme.Accent)
 	}
 	// 旧值 #121316 → 合约 §1 的面板 #0E0E10。
 	if dark.Theme.Background != ui.Hex("#0E0E10") {
@@ -306,15 +310,16 @@ func TestPaletteComesFromBaseCSS(t *testing.T) {
 	if dark.Theme.SurfaceHover.A >= 255 {
 		t.Errorf("dark hover = %v, want a translucent lift", dark.Theme.SurfaceHover)
 	}
-	// 旧值 #15171b → 合约 §1 的 accent 静默面上的字 #1B1B1D。
-	if dark.Theme.AccentText != ui.Hex("#1B1B1D") {
-		t.Errorf("dark accent text = %v, want the contract's #1B1B1D", dark.Theme.AccentText)
+	// P11-al 重定基线：`--accent-contrast: #15171b`（base.css:676）。
+	// 旧值 `#1B1B1D`（合约 §1 的 acc​ent 静默面上的字）→ 新值 `#15171B`。
+	if dark.Theme.AccentText != ui.Hex("#15171B") {
+		t.Errorf("dark accent text = %v, want base.css's #15171B", dark.Theme.AccentText)
 	}
 
 	light := For(settings.Settings{Theme: "light"}, false)
-	// 旧值 #064aa6（深蓝）→ 合约 §1 的浅色 accent #E5484D。
-	if light.Theme.Accent != ui.Hex("#E5484D") {
-		t.Errorf("light accent = %v, want the contract's #E5484D", light.Theme.Accent)
+	// P11-al 重定基线：`--accent: #064aa6`（base.css:942）。旧值 `#E5484D` → 新值。
+	if light.Theme.Accent != ui.Hex("#064AA6") {
+		t.Errorf("light accent = %v, want base.css's #064AA6", light.Theme.Accent)
 	}
 	// 旧值 #fafafc → 合约 §1 的浅色面板 #F7F7F8。
 	if light.Theme.Background != ui.Hex("#F7F7F8") {
@@ -327,10 +332,10 @@ func TestPaletteComesFromBaseCSS(t *testing.T) {
 	// The halo is the accent at a fixed low alpha — the live status dot's ring,
 	// not a second accent fill. 旧值 dark {143,183,255,.18} / light
 	// {6,74,166,.24}，按合约 accent 换色、alpha 取 §1 的 0.20。
-	if want := ui.RGBA(245, 84, 78, 0.2); dark.AccentHalo != want {
+	if want := ui.RGBA(143, 183, 255, 0.18); dark.AccentHalo != want {
 		t.Errorf("dark accent halo = %v, want %v", dark.AccentHalo, want)
 	}
-	if want := ui.RGBA(229, 72, 77, 0.2); light.AccentHalo != want {
+	if want := ui.RGBA(6, 74, 166, 0.24); light.AccentHalo != want {
 		t.Errorf("light accent halo = %v, want %v", light.AccentHalo, want)
 	}
 }
@@ -834,10 +839,11 @@ func TestAccentTintQuietStepsDownInTheLightAppearance(t *testing.T) {
 		systemDark bool
 		want       ui.Color
 	}{
-		// 旧 {143,183,255,.085} → 合约 accent #F5544E 静默 0.14。
-		{"dark", true, ui.RGBA(245, 84, 78, 0.14)},
-		// 旧 {6,74,166,.065} → 合约 accent #E5484D 静默 0.10。
-		{"light", false, ui.RGBA(229, 72, 77, 0.10)},
+		// P11-al 重定基线：回到 base.css:686 的 `--accent-tint-quiet`
+		// `rgba(143,183,255,0.085)`。旧（品牌红 0.14）→ 新。
+		{"dark", true, ui.RGBA(143, 183, 255, 0.085)},
+		// `rgba(6,74,166,0.065)`（base.css:948）；旧（品牌红 0.10）→ 新。
+		{"light", false, ui.RGBA(6, 74, 166, 0.065)},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			tokens := ForPreferences(settings.Settings{Theme: "auto"}, tc.systemDark, ui.Preferences{})

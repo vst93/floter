@@ -236,12 +236,12 @@ func TestTheFeedbackNoticeRingIsNotAccent(t *testing.T) {
 	}
 	// The ring is the neutral control edge over the floater's fill, so its
 	// red-minus-blue gap is the floater's own and nothing more.
-	if warm := int(ring.R) - int(ring.B); warm > 16 {
+	if warm := int(ring.B) - int(ring.R); warm > 16 {
 		t.Errorf("the notice's ring %v is %d levels warm (R−B): the accent keyline is back", ring, warm)
 	}
 	// The accent is the counter-example the pin measures against: its own R−B
 	// is ~150, so a 16-level threshold cannot pass it.
-	if warm := int(tokens.Theme.Accent.R) - int(tokens.Theme.Accent.B); warm < 100 {
+	if warm := int(tokens.Theme.Accent.B) - int(tokens.Theme.Accent.R); warm < 100 {
 		t.Fatalf("the accent is not the red this pin measures against (%d)", warm)
 	}
 }

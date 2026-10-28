@@ -104,7 +104,7 @@ func TestTheTextActionHoverLiftsTheInkOnly(t *testing.T) {
 	restPlane, restInk := plane(), ink()
 	// Neutral at rest: the action's words are grey, not a hue. This is the
 	// half that fails if the accent comes back (it is ~150 levels from grey).
-	if d := int(restInk.R) - int(restInk.B); d > 14 || d < -14 {
+	if d := int(restInk.B) - int(restInk.R); d > 14 || d < -14 {
 		t.Fatalf("the resting label carries a hue (%v, R−B %d): the accent is back", restInk, d)
 	}
 	if colorDistance(restInk, restPlane) < 60*60*3 {
@@ -127,7 +127,7 @@ func TestTheTextActionHoverLiftsTheInkOnly(t *testing.T) {
 			hoverInk, colorDistance(hoverInk, hoverPlane), hoverPlane)
 	}
 	// …and it is still a grey: hover moves the *lightness*, never the hue.
-	if d := int(hoverInk.R) - int(hoverInk.B); d > 14 || d < -14 {
+	if d := int(hoverInk.B) - int(hoverInk.R); d > 14 || d < -14 {
 		t.Errorf("the hovered label carries a hue (%v, R−B %d); hover must not raise the accent",
 			hoverInk, d)
 	}

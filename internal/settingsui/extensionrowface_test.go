@@ -195,7 +195,7 @@ func TestTheRowLeadingRuleStaysDarkOnHover(t *testing.T) {
 	for y := int(labelBox.Y) - 4; y < int(labelBox.Y+labelBox.H)+4; y++ {
 		for x := int(rowX); x < int(labelBox.X+labelBox.W)+8; x++ {
 			p := imagePixel(img, x, y)
-			if warm := int(p.R) - int(p.B); warm > 60 {
+			if warm := int(p.B) - int(p.R); warm > 60 {
 				t.Fatalf("the hovered row carries an accent pixel at (%d,%d): %v (%d levels warm)",
 					x, y, p, warm)
 			}

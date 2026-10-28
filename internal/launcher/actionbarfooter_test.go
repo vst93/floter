@@ -300,7 +300,7 @@ func TestTheSearchRowLeadsWithANeutralMark(t *testing.T) {
 				inkInCell++
 				// The accent is red: `#E5484D` has R−B = 152. Neutral ink on
 				// either appearance stays within a few steps.
-				if d := int(c.R) - int(c.B); d > 12 || d < -12 {
+				if d := int(c.B) - int(c.R); d > 12 || d < -12 {
 					warm++
 				}
 			} else {

@@ -31,11 +31,18 @@
 | 行选中填充 | `RowSelected` | `rgba(255,255,255,0.085)` | `rgba(0,0,0,0.06)` |
 | 行按下填充 | `RowPressed` | `rgba(255,255,255,0.11)` | `rgba(0,0,0,0.08)` |
 | 键帽底 / 键帽边 | `KeycapFace` / `KeycapEdge` | `rgba(255,255,255,0.075)` / `0.07` | `rgba(0,0,0,0.05)` / `0.06` |
-| accent（品牌红） | `Theme.Accent` | `#F5544E` | `#E5484D` |
-| accent 静默填充 | `AccentTintQuiet` | `rgba(245,84,78,0.14)` | `rgba(229,72,77,0.10)` |
+| accent（参考的蓝） | `Theme.Accent` | `#8FB7FF` | `#064AA6` |
+| accent 静默填充 | `AccentTintQuiet` | `rgba(143,183,255,0.085)` | `rgba(6,74,166,0.065)` |
 | 卡片外阴影（环境 / 接触） | `ShadowAmbient` / `ShadowContact` | `rgba(0,0,0,0.55)` / `0.40` | `rgba(0,0,0,0.18)` / `0.10` |
 | 卡片受光边 | `EdgeHighlight` | `rgba(255,255,255,0.15)` | `rgba(255,255,255,0.92)` |
 | 低光泽上限（透镜/光泽/卡片 sheen） | `LensRim`/`LensSheen`/`LensEdge`/`SheenTop` | 全部 ≤ `0.04` | 全部 ≤ `0.04` |
+
+**P11-al（用户实测 F2「整体红色线条太扎眼」的根因）**：这两行曾是「品牌红」
+`#F5544E`/`#E5484D`，而参考 `main` 的 accent 从头到尾是蓝
+（`--accent: #8fb7ff` / `#064aa6`，`main:src/styles/base.css:675,942`）；base.css 里红只出现在
+`--ansi-*` 与 `--text-warning`。accent 换回参考的蓝之后，**红在本仓只剩 `Warning` 一族**
+（警告条、危险按钮、破坏性确认）。accent 家族其余档（`accent-edge .30/.36`、
+`-edge-strong .72/.68`、`-halo .18/.24`、`-glow .08/.20`、`selection` `.13`/`.10`、`focus`）同轮对齐。
 
 **两条不变量**（测试在 `internal/theme/theme_test.go`）：
 

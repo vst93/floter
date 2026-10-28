@@ -97,7 +97,7 @@ func TestTheSelectedRowWearsThePerAppearanceQuietTint(t *testing.T) {
 			// levels at most. An accent-tinted row (the accent is a saturated
 			// red) would read tens of levels of R against B.
 			spread := 0
-			for _, d := range []int{int(tc.sel.R) - int(tc.sel.G), int(tc.sel.G) - int(tc.sel.B), int(tc.sel.R) - int(tc.sel.B)} {
+			for _, d := range []int{int(tc.sel.R) - int(tc.sel.G), int(tc.sel.G) - int(tc.sel.B), int(tc.sel.B) - int(tc.sel.R)} {
 				if d < 0 {
 					d = -d
 				}
