@@ -184,8 +184,20 @@ func (a *App) filtersRow(c *ui.Context, top float32) {
 	copy := a.copy()
 	t := c.Theme()
 	tokens := a.tokens(c)
+	// P11-ap：这条带是**透明的**——它浮在结果列表上，底下的行照常画出来、也照常
+	// 能读，所以它自己不是命中目标（`PassThrough`）。没有这一条，整条 20u 的带宽
+	// 从 16u 到窗口右边都是一个死区：行在带子里看得见，指针落上去却既不高亮也不
+	// 能点（实测 720×420、剪贴板模式滚两格后，行的盒子 y 54..94，带子 60..80，
+	// x=200/340/700 三处在 60..78 全都没有行被悬停；点 (340,70) 不动选中，点到
+	// (340,120) 才选中下一行）。只让 chip 与提示字本身作命中目标。
+	//
+	// 参考的 `.launcher-filter` 是 `.launcher-results` 滚动器的**兄弟**（正常流，
+	// `main:src/App.tsx:3407`），永远不会压在行上；本仓让行从字段与 chips 底下滚
+	// 过去（字段行 `Absolute().Top(0)`，列表的 80u 上内边距随内容滚走），这是既
+	// 有设计，于是这条浮带得自己声明透明——与 P11-af 的终端标题栏同一条判据
+	//（`internal/terminalui/terminalui.go:1310`）。
 	ui.Row(c).Absolute().Top(top).Left(0).Right(0).Height(a.filtersHeight(c)).
-		Padding(0, t.Space(4)).Gap(t.Space(3.5)).AlignItems(ui.Center).Children(func() {
+		Padding(0, t.Space(4)).Gap(t.Space(3.5)).AlignItems(ui.Center).PassThrough().Children(func() {
 		for _, value := range axis.Values {
 			value := value
 			// R72: the chip is text, not a pill. The reference dropped the
@@ -218,8 +230,11 @@ func (a *App) filtersRow(c *ui.Context, top float32) {
 		// and the key the list answers, as the old build's
 		// `.launcher-filter__hint` printed it (caption, weight 500, tertiary).
 		if hint := a.filterHint(copy); hint != "" {
+			// 提示是字，不是控件（参考 `.launcher-filter__hint` 从不吃指针），它
+			// 那一段 `Grow(1)` 的盒子盖着的行同样得能点。
 			ui.Text(c, hint).FontSize(t.FontSize - 1).FontWeight(500).
-				TextColor(tokens.TextTertiary).Grow(1).TextAlign(ui.End).SingleLine().Ellipsis("\u2026")
+				TextColor(tokens.TextTertiary).Grow(1).TextAlign(ui.End).SingleLine().Ellipsis("\u2026").
+				PassThrough()
 		}
 	})
 }
