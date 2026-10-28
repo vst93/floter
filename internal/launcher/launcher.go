@@ -291,6 +291,33 @@ type App struct {
 	// a pointer resting on the list turned every notch into a one-row jump
 	// (P11-ah).
 	pointerChose bool
+	// hoverFresh says the pointer's position is the user's own: the pointer
+	// moved, or the user scrolled the list with it, since the app last moved
+	// the content under it. R21's entry edge is read against this one.
+	//
+	// The row-based edge above is not enough on its own: a row *changes under a
+	// still pointer* whenever the list scrolls, and the keyboard makes it
+	// scroll on every step past the window's last row. The port read that as an
+	// entry, so the row that slid under the resting pointer took the choice
+	// back — fifteen arrow steps advanced three rows in the frame that pinned
+	// this. The reference has no such reading to copy: `onPointerEnter` is a
+	// pointer event, and the launcher's own window appearing under the cursor
+	// does not fire one either, so a *still* pointer is never an entry (P11-ai).
+	hoverFresh bool
+	// pointerAt is where the pointer was over the panel in the pass before,
+	// pointerOver whether it was there at all and pointerSeen whether a pass has
+	// read it yet; the three are how "the pointer moved" is answered without a
+	// pointer-event hook. listFirst is the list's first visible row in the pass
+	// before (listFirstSeen: has it been read), so a pass can tell that the
+	// content moved under the pointer. appScrolled is armed by the keyboard's
+	// own reveal and cleared once the list settles: a content move while it
+	// stands is the app's doing, not the user's.
+	pointerAt     [2]float32
+	pointerOver   bool
+	pointerSeen   bool
+	listFirst     int
+	listFirstSeen bool
+	appScrolled   bool
 	// footerBand is the band the pinned action-bar footer occupies at the
 	// panel's bottom edge this frame, in pixels (see actionBarSplit). The
 	// docked rows — the toast and the power confirmation — sit above it, so a
@@ -1160,7 +1187,18 @@ func (a *App) View(c *ui.Context) {
 	var barStart int
 	barStart, a.footerBand = a.actionBarSplit(c, results)
 
-	ui.Box(c).Fill().Background(tk.Sunken).Children(func() {
+	// The panel is the launcher's reading surface: the old build's
+	// `--surface-sunken`, one step denser than the card's own glass, so
+	// the rows sit on a recess rather than on the frame (`.launcher-bottom`).
+	// The field block above is opaque and paints over its top.
+	//
+	// It is also where the pass reads the pointer and the list's offset from:
+	// both are needed before the first row is built, and both are answers about
+	// *this* panel, so the element that encloses every row is the one asked
+	// (`PointerPosition` is local to the element's box).
+	panel := ui.Box(c).Fill().Background(tk.Sunken)
+	panel.Children(func() {
+		a.trackPointer(panel)
 		// R21 · the pointer's selection is an *entry edge*, not a per-frame
 		// re-assert (the reference's `onPointerEnter`,
 		// `LauncherResults.tsx:859-862`). The row this pass builds reports
@@ -1173,10 +1211,6 @@ func (a *App) View(c *ui.Context) {
 		// a later list rebuild would read as "already entered".
 		a.hoveredRow = a.hoverFrameRow
 		a.hoverFrameRow = -1
-		// The panel is the launcher's reading surface: the old build's
-		// `--surface-sunken`, one step denser than the card's own glass, so
-		// the rows sit on a recess rather than on the frame (`.launcher-bottom`).
-		// The field block above is opaque and paints over its top.
 		if a.output != nil {
 			a.outputBody(c, copy, edge)
 			return
@@ -1492,6 +1526,10 @@ func (a *App) View(c *ui.Context) {
 			}
 			if row >= 0 {
 				a.List.ScrollIntoView(row)
+				// The list moves for the keyboard, not for the pointer: what
+				// slides under a pointer that did not move was not entered
+				// (see App.hoverFresh).
+				a.appScrolled = true
 			}
 		}
 	}
@@ -2001,6 +2039,41 @@ func replaceLastWord(line, word string) string {
 	return line[:end] + word
 }
 
+// trackPointer reads this pass's pointer and list offset and answers whether
+// the pointer's position is the user's own (`App.hoverFresh`).
+//
+// The pointer's own coordinates are what makes an entry an entry: a row that
+// arrives under a pointer which did not move was put there by something else —
+// the keyboard's reveal, a query that reflowed the list, the window resizing to
+// its content — and R21's `onPointerEnter` never fires for it. The wheel is the
+// exception on purpose: it *is* a pointer gesture, the user aims with the same
+// pointer, so a notch that carries the content under it hands the choice over
+// row by row (the contract `TestTheWheelScrollsTheListUnderThePointer` pins).
+// The app's own scrolls are therefore told apart from the user's by the offset
+// alone plus the flag the reveal arms: a move while `appScrolled` stands is the
+// app's, and it settles over the passes that follow it.
+func (a *App) trackPointer(panel ui.Element) {
+	x, y, over := panel.PointerPosition()
+	// An unseen pointer is not a moving one: a window that opens under the
+	// cursor does not hand the choice to the row it happens to cover. Arriving
+	// over the panel and leaving it both count as movement — they are the user
+	// taking the pointer somewhere.
+	moved := a.pointerSeen && (over != a.pointerOver || (over && (x != a.pointerAt[0] || y != a.pointerAt[1])))
+	a.pointerAt, a.pointerOver, a.pointerSeen = [2]float32{x, y}, over, true
+	first, _ := a.List.Visible()
+	scrolled := a.listFirstSeen && first != a.listFirst
+	a.listFirst, a.listFirstSeen = first, true
+	switch {
+	case a.appScrolled:
+		a.hoverFresh = false
+		if !scrolled {
+			a.appScrolled = false
+		}
+	case moved || scrolled:
+		a.hoverFresh = true
+	}
+}
+
 // row builds one result: title, detail and an optional shortcut. The chosen
 // row wears the accent as a tint, as the old launcher's rows did.
 func (a *App) row(c *ui.Context, item Item, i int) {
@@ -2170,7 +2243,11 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 	// (`Key(item.ID)`), so its hover flag is asked here, as the row is built.
 	if row.Hovered() {
 		a.hoverFrameRow = i
-		if i != a.hoveredRow && rowSelectable(item) && item.Run != nil {
+		// The entry edge needs the pointer to have *moved*: `hoverFresh` is
+		// false while the content slid under a still pointer because the app
+		// scrolled it (see App.hoverFresh), and true again as soon as the
+		// pointer itself moved or the user wheeled the list.
+		if a.hoverFresh && i != a.hoveredRow && rowSelectable(item) && item.Run != nil {
 			a.Selected = i
 			a.pointerChose = true
 		}

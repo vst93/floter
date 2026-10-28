@@ -544,6 +544,20 @@ pin：`internal/terminalui/barreach_test.go` 的
 pin：`internal/launcher/wheelscroll_test.go` 的 `TestTheWheelScrollsTheListUnderThePointer`
 （四格 120u 后列表必须前进 ≥ 8 行，改前 4 行）与 `TestTheKeyboardStillScrollsItsRowIntoView`。
 
+### §6.15 P11-ai · 指针不动就不算「进入」（**已落地**）
+
+R21 的入口边（§4.3，`onPointerEnter`）在本仓曾被读成「指针底下那一行变了」。行变有两种
+原因：指针动了，或者**内容动了**——而「把选中滚进视野」正是键盘的规则（§6.14），所以键盘
+每跨过窗口末行，静止指针底下的行就换一次人，选中被拉回去。
+
+规则一条：**一个指针位置算「用户给的」，当且仅当指针自己动过**（坐标变化 / 进出面板）；
+**滚轮是例外，它本来就是指针手势**（§6.14 的 pin 要求滚过之后 `Selected == hoveredRow`，
+不动）。app 替键盘滚的那一滚由 reveal 自报家门（`App.appScrolled`），列表静下来才复位。
+窗口出现在光标下不补发 `mouseenter`，所以「开机即选指针那一行」也一并去掉（选中仍是第一行）。
+pin：`internal/launcher/pointeridle_test.go` 的 `TestTheKeyboardWalksTheListUnderARestingPointer`
+（修前 15 步走 3 行 → 修后 15 行）、`TestThePointersWordCountsAgainOnceItMovesAfterAScroll`
+（门不是把指针关掉）、`TestATypedQueryKeepsTheChoiceOffTheIdlePointersRow`。
+
 ## §7 切片表
 | 片 | 范围 | 状态 |
 |---|---|---|
