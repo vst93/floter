@@ -47,6 +47,17 @@
 低光泽上限是 Raycast 与「液态玻璃」的分界：旧的透镜/高光/彩色 rim 全部压到
 0.04 以内，分层靠「面 + 线 + 字阶」，不靠高光。
 
+**可读性不变量（P11-aa）**：用户要求更多对比度时（系统 `prefers-contrast: more`
+→ `ui.Preferences.HighContrast` → `palette.contrast()`），**四档墨**在
+**面板底**与**选中行填充**两个表面上都必须 ≥ 4.5:1（WCAG AA 正文档），且阶梯次序
+（`Text` > `TextSecondary` > `TextMuted` > `TextTertiary`）在两个表面上都保持。
+实测值（两个表面依次）：浅 `#1B1B1D` 16.06/14.2 · `#4E4E54` 7.72/6.75 · muted
+5.68/5.36 · `#66666C` 5.33/4.66；深 `#EDEDEF` 16.49/14.4 · `#B0B0B8` 8.95/7.37 ·
+muted 6.27/5.72 · `#8A8A92` 5.63/4.64。pin：
+`internal/theme/theme_test.go` 的 `TestEveryInkStepClearsTheReadableContrast`。
+**默认外观不承诺这一条**：三档安静墨同时过 4.5:1 在 `#F7F7F8` 上放不进一条 0.02
+宽的亮度窗口（算术见 `docs/rounds/P11-aa-spec.md` 附注），属拍板项。
+
 ## §2 半径梯
 
 literal px，**不随 `--ui-scale` 走**（`Token.Radius*` 在每一档界面大小里都是同一
@@ -369,6 +380,20 @@ P8-d 授权范围内**的位点。三者同一族（都不是「哪个被选中 
 **留下的唯一一条红线**：搜索框的文本光标（框架 `ui/editor_layout.go` 用
 `Theme.Accent` 画 caret）。它不是描边，也不是「这块面好看」——它回答「文字从这里
 进去」，且只有 1px 宽。要不要也改中性属拍板项（`.pending-bugs.md`）。
+
+### §6.7 P11-aa · 高对比度要抬「字」，不只抬「线」（**已落地**）
+
+用户实测 F2（「整体红色线条太扎眼」）的验收标准里写着「保持浅色背景下的**可读性与
+对比度达标**」。P11-z 量的是描边像素，**没有量过一个字**；本轮补上这半边。
+
+| 位置 | 旧 | 新 | 落地 |
+|---|---|---|---|
+| `internal/theme/theme.go` 的 `palette.contrast()`（浅） | 只动 `stroke`/`controlEdge`/`textMuted`；`TextSecondary` `#6B6B70` 4.95:1、`TextTertiary` `#8E8E94` **3.04:1** | `#4E4E54` 7.72:1、`#66666C` 5.33:1（选中行填充上 6.75 / 4.66） | `已落地` — pin `TestEveryInkStepClearsTheReadableContrast` |
+| 同上（深） | `#9A9AA0` 6.89:1、`#6E6E76` **3.82:1** | `#B0B0B8` 8.95:1、`#8A8A92` 5.63:1（填充上 7.37 / 4.64） | `已落地` — 同一条 pin；`TestHighContrastSwapsTheStrokeAndPlaceholderTokens` V 重定基线（旧「只动三条」→ 新「只动五条」） |
+
+**默认外观一个字节都没改**（`paletteFor` 未动），所以普通用户的界面像素级不变。
+剩下的缺口是**默认**浅色安静档的 3.04:1，它是设计取舍（见 §1 可读性不变量与
+`docs/rounds/P11-aa-spec.md` 附注），已进 `.pending-bugs.md` 的需拍板表。
 
 ## §7 切片表
 

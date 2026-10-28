@@ -12,6 +12,7 @@ import (
 	"floter/internal/i18n"
 	"floter/internal/plugincfg"
 	"floter/internal/settings"
+	"floter/internal/theme"
 )
 
 // The P8-c visual evidence: the integrations page and the plugin's
@@ -195,6 +196,50 @@ func TestDumpP8DIntegrationAndSessionPNGs(t *testing.T) {
 		stt.Frame()
 		stt.Frame()
 		writePNG(t, filepath.Join("/tmp", "floter-p8d-sessions-"+appearance+".png"), stt)
+	}
+}
+
+// The P11-aa visual evidence: the settings page's General tab in four frames —
+// {light, dark} × {more contrast off, more contrast on} — because this round is
+// about **words** and the only honest way to show it is the ink they are painted
+// in. The page's section hints and row sublabels are the quiet rungs
+// (`TextTertiary` / `TextMuted`), which is exactly what the switch used to leave
+// alone (light 3.04:1, dark 3.82:1).
+//
+// Opt-in (`FLOTER_PNG=1`) for the same reason as the other dumps.
+func TestDumpP11AAHighContrastPNGs(t *testing.T) {
+	if os.Getenv("FLOTER_PNG") == "" {
+		t.Skip("set FLOTER_PNG=1 to write the round's visual evidence")
+	}
+	for _, dark := range []bool{true, false} {
+		appearance := "light"
+		if dark {
+			appearance = "dark"
+		}
+		for _, contrast := range []bool{false, true} {
+			state := "off"
+			if contrast {
+				state = "on"
+			}
+			store := settings.NewStore(settings.Default())
+			if err := store.Update(func(s *settings.Settings) { s.Theme = appearance }); err != nil {
+				t.Fatal(err)
+			}
+			a := New(store, Actions{})
+			a.selectPage(PageGeneral)
+			tt := ui.NewTester(func(c *ui.Context) {
+				c.SetTheme(a.tokens(c).Theme)
+				a.View(c)
+			}, 860, 1100)
+			tt.SetDark(dark)
+			tt.SetPreferences(ui.Preferences{HighContrast: contrast})
+			tt.Frame()
+			tt.Frame()
+			path := filepath.Join("/tmp", "floter-P11-aa-contrast-"+appearance+"-"+state+".png")
+			writePNG(t, path, tt)
+			tokens := theme.ForPreferences(a.Store.Snapshot(), dark, ui.Preferences{HighContrast: contrast})
+			t.Logf("%s: TextSecondary=%v TextTertiary=%v", path, tokens.TextSecondary, tokens.TextTertiary)
+		}
 	}
 }
 

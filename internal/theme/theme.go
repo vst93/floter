@@ -829,15 +829,33 @@ func paletteFor(appearance Appearance) palette {
 // (mygo's ui/editor/theme.go). The same step also strengthens every quiet
 // label one rung, which is what the old build's `color: var(--text-primary)`
 // on the toast/notice copies asked for.
+//
+// P11-aa（用户实测 F2 遗留的可读性半边）：这个分支以前只抬**线**（`stroke`、
+// `controlEdge`）和一个 placeholder（`textMuted`），把真正承载内容的二级/三级墨留在
+// 原处——浅色 3.04:1、深色 3.82:1，低于 AA 的 4.5:1。开了高对比度的用户于是拿到
+// 一张「线更清楚、字还是一样的淡」的界面。现在四档墨在**面板底**与**选中行填充**
+// 两个表面上都过 4.5:1，且阶梯次序（Text > TextSecondary > TextMuted >
+// TextTertiary）在两个表面上都保持：
+//
+//	浅色  #4E4E54 7.72 / 6.75 · muted 5.68 / 5.36 · #66666C 5.33 / 4.66
+//	深色  #B0B0B8 8.95 / 7.37 · muted 6.27 / 5.72 · #8A8A92 5.63 / 4.64
+//
+// `textMuted` 本来就是这两支里最够读的一条，不动它。**默认外观一个字节都不改**：
+// 安静档三档同时推到 4.5:1 在 `#F7F7F8` 上放不进一条 0.02 宽的亮度窗口（见
+// `docs/rounds/P11-aa-spec.md` 附注），那是拍板项，不是这一支的事。
 func (p palette) contrast(app Appearance) palette {
 	if app == Light {
 		p.stroke = ui.RGBA(0, 0, 0, 0.5)
 		p.controlEdge = ui.RGBA(0, 0, 0, 0.36)
 		p.textMuted = ui.RGBA(28, 28, 32, 0.68)
+		p.textSecondary = ui.Hex("#4E4E54")
+		p.textTertiary = ui.Hex("#66666C")
 	} else {
 		p.stroke = ui.RGBA(255, 255, 255, 0.42)
 		p.controlEdge = ui.RGBA(255, 255, 255, 0.34)
 		p.textMuted = ui.RGBA(242, 243, 245, 0.58)
+		p.textSecondary = ui.Hex("#B0B0B8")
+		p.textTertiary = ui.Hex("#8A8A92")
 	}
 	return p
 }

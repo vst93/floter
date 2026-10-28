@@ -1,6 +1,7 @@
 package theme
 
 import (
+	"math"
 	"runtime"
 	"testing"
 
@@ -658,24 +659,34 @@ func TestTheFrameSheenIsTheFixedTokenNotTheTint(t *testing.T) {
 // rest of the palette is untouched, which is what makes the preference a
 // change of *contrast* rather than a second look.
 func TestHighContrastSwapsTheStrokeAndPlaceholderTokens(t *testing.T) {
+	// P11-aa 重定基线：旧值 = 只动三条（stroke / controlEdge / textMuted）。用户实测
+	// F2 的可读性半边要求「字也要够读」，所以二级与三级墨同样进这支：浅 `#6B6B70` →
+	// `#4E4E54`、`#8E8E94` → `#66666C`；深 `#9A9AA0` → `#B0B0B8`、`#6E6E76` →
+	// `#8A8A92`（两个表面都 ≥ 4.5:1，见 TestEveryInkStepClearsTheReadableContrast）。
 	cases := []struct {
 		name        string
 		systemDark  bool
 		stroke      ui.Color
 		soft        ui.Color
 		placeholder ui.Color
+		secondary   ui.Color
+		tertiary    ui.Color
 	}{
 		{
 			name: "light", systemDark: false,
 			stroke:      ui.RGBA(0, 0, 0, 0.5),
 			soft:        ui.RGBA(0, 0, 0, 0.36),
 			placeholder: ui.RGBA(28, 28, 32, 0.68),
+			secondary:   ui.Hex("#4E4E54"),
+			tertiary:    ui.Hex("#66666C"),
 		},
 		{
 			name: "dark", systemDark: true,
 			stroke:      ui.RGBA(255, 255, 255, 0.42),
 			soft:        ui.RGBA(255, 255, 255, 0.34),
 			placeholder: ui.RGBA(242, 243, 245, 0.58),
+			secondary:   ui.Hex("#B0B0B8"),
+			tertiary:    ui.Hex("#8A8A92"),
 		},
 	}
 	for _, tc := range cases {
@@ -692,6 +703,12 @@ func TestHighContrastSwapsTheStrokeAndPlaceholderTokens(t *testing.T) {
 			}
 			if high.Theme.TextMuted != tc.placeholder {
 				t.Errorf("theme TextMuted = %v, want the placeholder contrast %v", high.Theme.TextMuted, tc.placeholder)
+			}
+			if high.TextSecondary != tc.secondary {
+				t.Errorf("TextSecondary = %v, want the contrast ink %v", high.TextSecondary, tc.secondary)
+			}
+			if high.TextTertiary != tc.tertiary {
+				t.Errorf("TextTertiary = %v, want the contrast ink %v", high.TextTertiary, tc.tertiary)
 			}
 			// The framework theme the widgets read is the same palette: its
 			// Border is the card's stroke, so a button or a field the views
@@ -710,6 +727,8 @@ func TestHighContrastSwapsTheStrokeAndPlaceholderTokens(t *testing.T) {
 			blank := func(tk Tokens) Tokens {
 				tk.Theme = nil
 				tk.InputStroke, tk.ControlEdge = ui.Color{}, ui.Color{}
+				// P11-aa：两档安静墨也是高对比度**允许**移动的（这是本轮的正题）。
+				tk.TextSecondary, tk.TextTertiary = ui.Color{}, ui.Color{}
 				// The three the material floor and the lens damping move.
 				tk.Sunken, tk.RaisedQuiet, tk.Float = ui.Color{}, ui.Color{}, ui.Color{}
 				tk.LensRim, tk.LensSheen, tk.LensEdge = ui.Color{}, ui.Color{}, ui.Color{}
@@ -957,5 +976,152 @@ func TestTheWindowCornerIsTheDesignsOnEveryPlatform(t *testing.T) {
 		if rung.got != rung.want {
 			t.Errorf("%s = %v, want the contract's %v", rung.name, rung.got, rung.want)
 		}
+	}
+}
+
+// inkStep is one rung of the text ladder, top to bottom, as a name and the ink
+// it is painted in.
+type inkStep struct {
+	name string
+	ink  ui.Color
+}
+
+// inkSteps is the ladder in reading order: the primary ink first, the quietest
+// last. The order is the point — a step below must never read stronger than the
+// step above it.
+func inkSteps(tk Tokens) []inkStep {
+	return []inkStep{
+		{"Text", tk.Theme.Text},
+		{"TextSecondary", tk.TextSecondary},
+		{"TextMuted", tk.Theme.TextMuted},
+		{"TextTertiary", tk.TextTertiary},
+	}
+}
+
+// inkSurface is a plane text is actually painted on, as a name and the colour it
+// composites to: the panel itself, and a chosen row's fill over it.
+type inkSurface struct {
+	name string
+	face ui.Color
+}
+
+func inkSurfaces(tk Tokens) []inkSurface {
+	return []inkSurface{
+		{"the panel", tk.Theme.Background},
+		{"a chosen row", tk.RowSelected.Over(tk.Theme.Background)},
+	}
+}
+
+// contrastRatio is WCAG 2.1's contrast ratio between two opaque colours, in the
+// 1:1 (nothing) to 21:1 (black on white) range. The body-text floor the
+// accessibility guideline names is 4.5:1.
+func contrastRatio(a, b ui.Color) float64 {
+	la, lb := relativeLuminance(a), relativeLuminance(b)
+	if la < lb {
+		la, lb = lb, la
+	}
+	return (la + 0.05) / (lb + 0.05)
+}
+
+// relativeLuminance is WCAG 2.1's L: the sRGB channels linearised, then weighted
+// by the eye's own response.
+func relativeLuminance(c ui.Color) float64 {
+	lin := func(v uint8) float64 {
+		s := float64(v) / 255
+		if s <= 0.03928 {
+			return s / 12.92
+		}
+		return math.Pow((s+0.055)/1.055, 2.4)
+	}
+	return 0.2126*lin(c.R) + 0.7152*lin(c.G) + 0.0722*lin(c.B)
+}
+
+// TestEveryInkStepClearsTheReadableContrast is P11-aa's pin, and it is the other
+// half of the user's F2 (「保持浅色背景下的可读性与对比度达标」): P11-z measured
+// strokes, this measures **words**.
+//
+// Two claims, in two directions:
+//
+//   - **高对比度**: every rung of the ladder clears AA's 4.5:1 against both the
+//     panel and a chosen row's fill. Before this round the quiet two rungs never
+//     moved (`palette.contrast` touched the strokes and the placeholder only), so
+//     a user who asked the system for more contrast got sharper lines over the
+//     same faint words — 3.04:1 in light, 3.82:1 in dark.
+//   - **默认外观**: the ladder still strictly descends. The quiet rungs are *not*
+//     asserted to clear 4.5 there: three steps cannot all clear it on `#F7F7F8`
+//     and stay distinguishable (the arithmetic is in
+//     `docs/rounds/P11-aa-spec.md`), so that is a decision for the user, not a
+//     number this test may invent.
+func TestEveryInkStepClearsTheReadableContrast(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		systemDark bool
+	}{
+		{"light", false},
+		{"dark", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := settings.Settings{Theme: "auto", GlassStep: "regular"}
+			plain := ForPreferences(s, tc.systemDark, ui.Preferences{})
+			high := ForPreferences(s, tc.systemDark, ui.Preferences{HighContrast: true})
+
+			// The gap this round closes: the quiet two rungs used to be the same
+			// bytes in both resolutions.
+			if high.TextSecondary == plain.TextSecondary {
+				t.Errorf("more contrast left TextSecondary at %v: the words stay as faint as the lines get sharp", high.TextSecondary)
+			}
+			if high.TextTertiary == plain.TextTertiary {
+				t.Errorf("more contrast left TextTertiary at %v: the words stay as faint as the lines get sharp", high.TextTertiary)
+			}
+
+			// High contrast: 4.5:1 on both surfaces, and the ladder still descends.
+			for _, surface := range inkSurfaces(high) {
+				previous := 0.0
+				for i, step := range inkSteps(high) {
+					got := contrastRatio(step.ink.Over(surface.face), surface.face)
+					if got < 4.5 {
+						t.Errorf("high contrast: %s on %s = %.2f:1, want at least 4.5:1", step.name, surface.name, got)
+					}
+					if i > 0 && got >= previous {
+						t.Errorf("high contrast: %s on %s = %.2f:1 does not sit below the rung above it (%.2f:1)", step.name, surface.name, got, previous)
+					}
+					previous = got
+				}
+			}
+
+			// The default appearance keeps its own ladder (and may stay quiet).
+			for _, surface := range inkSurfaces(plain) {
+				previous := 0.0
+				for i, step := range inkSteps(plain) {
+					got := contrastRatio(step.ink.Over(surface.face), surface.face)
+					if i > 0 && got >= previous {
+						t.Errorf("%s on %s = %.2f:1 does not sit below the rung above it (%.2f:1)", step.name, surface.name, got, previous)
+					}
+					previous = got
+				}
+			}
+
+			// And the switch only ever moves the inks *up*: asking for contrast
+			// can never make a word quieter than the default does.
+			for _, step := range inkSteps(high) {
+				var plainInk ui.Color
+				switch step.name {
+				case "TextSecondary":
+					plainInk = plain.TextSecondary
+				case "TextMuted":
+					plainInk = plain.Theme.TextMuted
+				case "TextTertiary":
+					plainInk = plain.TextTertiary
+				default:
+					continue
+				}
+				face := plain.Theme.Background
+				was := contrastRatio(plainInk.Over(face), face)
+				now := contrastRatio(step.ink.Over(face), face)
+				if now < was {
+					t.Errorf("more contrast made %s quieter: %.2f:1 vs the default's %.2f:1", step.name, now, was)
+				}
+			}
+		})
 	}
 }
