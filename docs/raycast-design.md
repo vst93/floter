@@ -499,6 +499,23 @@ gap**（列表 10u、面板 8u），于是标题列一个是 54u、一个是 52u
 `TestTheBarWearsTheColourOfTheCanvasItFloatsOn`（每套调色板 × 两外观：墨 ≥4.5、quiet 档是
 最静、面是最薄）、`TestTheShippedBarKeepsTheWindowInk`、`TestTheBarPaintsItsOwnFaceOverAPalette`。
 
+### §6.12 P11-af · 终端浮条不吃它下面的指针（**已落地**）
+
+浮条是**浮在画布上**的一条 28u 全宽带，它以前整条 `.DragWindow()`。框架的命中表
+（`ui/runtime.go:1208-1218`）把每个非 `PassThrough`、非 invisible 的元素都记进 `rt.hits`，
+所以这条带把画布最上面 28u（第一/第二行输出）的指针事件全吃掉：点不进、拖不了选区，
+终端的 select-to-copy 在这两行上失效——这是 F3「不要 overlay」在输入侧的后果。
+
+规则一条：**浮条与它的 identity 行、状态点都是 `PassThrough`，窗口拖拽手柄收窄成会话
+标题自己的字**（`.DragWindow()` 只在标题 `Text` 上）；揭示读**指针位置**
+（`PointerPosition()`，它在 `PassThrough` 元素上仍算包含关系），不读命中，所以悬停仍能
+把标题与按钮浮现出来。位置、28u 高、按钮槽位、抽屉几何、键盘模型零改动。
+pin：`internal/terminalui/barreach_test.go` 的
+`TestTheTerminalBarIsNotTheWindowsDragHandle`（源码契约：浮条/identity/状态点 PassThrough、
+`DragWindow()` 只有一处且落在标题上、揭示读 `PointerPosition`）与
+`TestTheBarRevealsUnderAPointerItDoesNotCatch`（指针停在标题字外的带子里——那里没有可命中
+元素——仍然揭示，离开后折回）。
+
 ## §7 切片表
 | 片 | 范围 | 状态 |
 |---|---|---|

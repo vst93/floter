@@ -1306,13 +1306,21 @@ func (a *App) titleBar(c *ui.Context, copy i18n.Terminal) {
 	// P11-ae：这一条（以及它里面的点与按钮）的墨来自它浮着的那块面，不是窗口。
 	inks := a.canvasInks(c)
 	bar := ui.Row(c).Absolute().Top(0).Left(0).Right(0).Height(t.Space(7)).
-		Padding(0, t.Space(3)).Gap(t.Space(2)).AlignItems(ui.Center).DragWindow()
+		Padding(0, t.Space(3)).Gap(t.Space(2)).AlignItems(ui.Center).PassThrough()
 	// The bar's whole content is hidden until the pointer is over it or
 	// something on it has the keyboard, so neither the title nor the buttons
 	// permanently occlude the first lines of output under them
 	// (`.terminal-bar__identity` / `.terminal-panel__actions` reveal the same
 	// way).
-	revealed := bar.Hovered() || bar.FocusWithin()
+	//
+	// P11-af：揭示读**指针位置**，不读命中。这一条是 `PassThrough`：整条带不是
+	// 命中目标，指针落进它下面的画布——否则浮在画布上的 28u 会把第一/第二行
+	// 输出的点击与 drag-select 全吃掉（终端的 `CopyOnSelect` 在这两行上失效），
+	// 这是 F3「不要 overlay」在输入侧的后果。`PointerPosition` 在
+	// `PassThrough` 元素上仍算包含关系（ui/input.go:1265-1274），所以悬停仍能
+	// 把标题与按钮揭示出来。窗口拖拽手柄收窄成会话标题本身（见下面的标题），不再是一整条隐形带。
+	_, _, hovered := bar.PointerPosition()
+	revealed := hovered || bar.FocusWithin()
 	// A palette that owns the canvas owns the bar too: while the bar is
 	// revealed (the only state its content is drawn in) it carries the palette's
 	// own face, so its ink sits on the material it was measured against. At rest
@@ -1329,7 +1337,7 @@ func (a *App) titleBar(c *ui.Context, copy i18n.Terminal) {
 	// reference's one cue that the bar itself is a draggable handle. Only the
 	// pointer raises it; keyboard focus reveals the identity without lifting the
 	// surface, exactly as `:hover` does.
-	if bar.Hovered() {
+	if hovered {
 		// P8-c 重定基线（§6.2 第 6 条）：投影读 `ShadowContact`，不再写字面
 		// `rgba(0, 0, 0, 0.18)`。同一条 throw 在两套外观下是两档（深 0.40 /
 		// 浅 0.10），字面值把它钉成了第三档，浅色下比合约重、深色下比合约轻。
@@ -1349,7 +1357,7 @@ func (a *App) titleBar(c *ui.Context, copy i18n.Terminal) {
 			identityTitle += " \u00b7 " + copy.HeaderExited(session.ExitCode)
 		}
 		identity := ui.Row(c).Grow(1).Gap(t.Space(1.75)).AlignItems(ui.Center).Shrink(0).
-			Label(identityTitle).Tooltip(identityTitle)
+			Label(identityTitle).PassThrough()
 		if !revealed {
 			identity.Opacity(0)
 		}
@@ -1362,9 +1370,15 @@ func (a *App) titleBar(c *ui.Context, copy i18n.Terminal) {
 			// thing in the bar it names.
 			// P11-ae：墨来自它浮着的那块面（`canvasInks`）——选了命名调色板时
 			// 就是调色板自己的前景，`inherit` 与空页仍是窗口的 `TextSecondary`。
+			//
+			// P11-af：**会话标题就是这一页的 title bar**。浮条从整条 `DragWindow`
+			// 收窄到这里，于是拖窗口仍然有手柄（字宽的那一块），而标题右边到
+			// 按钮之间的那条带交给画布：那一段的点击与选区都不再被浮条吃掉。
+			// 提示（截断时的全名）也跟到字上：整行是 `PassThrough`，挂在行上的
+			// tooltip 永远不会被悬停到。
 			ui.Text(c, identityTitle).FontSize(t.FontSize).FontWeight(580).
-				LetterSpacing(-0.01 * t.FontSize).
-				TextColor(inks.Ink).Ellipsis("\u2026").SingleLine()
+				LetterSpacing(-0.01 * t.FontSize).Tooltip(identityTitle).
+				TextColor(inks.Ink).Ellipsis("\u2026").SingleLine().DragWindow()
 		})
 		// The controls, at the bar's trailing edge: 28u transparent squares
 		// with a 4u gap, hidden and non-interactive until the bar is revealed
@@ -1407,7 +1421,11 @@ func (a *App) titleBar(c *ui.Context, copy i18n.Terminal) {
 // floats on rather than to the window behind it.
 func (a *App) statusDot(c *ui.Context, inks barInks) {
 	t := c.Theme()
-	dot := ui.Box(c).Size(t.Space(1.75), t.Space(1.75)).Radius(t.Space(1.75)).Shrink(0)
+	// P11-af: the dot is 7u of the band's first 7u — a plain Box would still be a
+	// hit target there, so the status light follows the bar and the identity row
+	// into `PassThrough` (see titleBar): only the title's own words take the
+	// pointer.
+	dot := ui.Box(c).Size(t.Space(1.75), t.Space(1.75)).Radius(t.Space(1.75)).Shrink(0).PassThrough()
 	if a.exited() {
 		// `.terminal-bar__dot--exited` (`terminal.css:163-168`): the tertiary
 		// step, the halo dropped, at the reference's 0.7 opacity. It used to
