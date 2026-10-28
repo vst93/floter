@@ -5,7 +5,6 @@ import (
 	"image"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -310,44 +309,52 @@ func TestNoPinControlWithoutASession(t *testing.T) {
 	}
 }
 
-// The session's screen is saved when it closes and fed back into the next
-// session, so the last session's scrollback comes back.
-func TestSnapshotSaveAndRestore(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "terminal-snapshot")
-	store := settings.NewStore(settings.Default())
-	a := New(store, Actions{}, func(terminal.Options) (*terminal.Terminal, error) {
-		return nil, errors.New("no library in tests")
-	})
-	a.SnapshotPath = path
-
-	// With no session there is nothing to save, and no error.
-	if err := a.SaveSnapshot(); err != nil {
-		t.Errorf("SaveSnapshot with no session = %v", err)
-	}
-	if _, err := os.Stat(path); !os.IsNotExist(err) {
-		t.Errorf("a snapshot was written with no session: %v", err)
-	}
-
-	// The write is atomic and private: a temporary file in the same
-	// directory, renamed over the target.
-	if err := writeFileAtomically(path, []byte("screen")); err != nil {
-		t.Fatal(err)
-	}
-	info, err := os.Stat(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Windows has no POSIX permission bits: Go reports a fixed 0666 there, so
-	// the privacy of the snapshot is a promise only the POSIX platforms keep.
-	if runtime.GOOS != "windows" && info.Mode().Perm() != 0o600 {
-		t.Errorf("snapshot mode = %v", info.Mode().Perm())
-	}
-	entries, err := os.ReadDir(filepath.Dir(path))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(entries) != 1 {
-		t.Errorf("temporary files were left behind: %v", entries)
+// A session's screen is not saved and replayed into the next one, and this
+// scan is the guard: it is the regression assertion for the report
+// 「打开终端时出现异常字符 / 莫名被输入的内容」.
+//
+// The replayed blob was the plugin's VT export, which carries the *program's*
+// state (modes, scrolling region, tab stops, working directory, keyboard flags,
+// charsets) because its reader is "a terminal attaching again to a session a
+// server keeps" — a terminal with no program. Fed into a terminal that had just
+// started a shell, the new program inherited a dead one's `\e(0` and
+// `\e[?2004h`: plain ASCII came out as box drawing, and a paste came back
+// wrapped in `^[[200~`. The whole feature is gone (see the note in
+// terminalui.go), so no caller may reintroduce it — the sequences cannot be
+// filtered back out without missing the ones that are not decoration.
+func TestTheTerminalSurfaceReplaysNoSavedScreen(t *testing.T) {
+	// The needles are the feature, not one spelling of it: the field, the
+	// saver, the restorer, the file, and the one call that writes a screen the
+	// program did not write. `.Snapshot()` is not one of them: `Store.Snapshot()`
+	// is the settings reader and is everywhere.
+	needles := []string{"SnapshotPath", "SaveSnapshot", "restoreSnapshot", "terminal-snapshot", ".Feed("}
+	dirs := []string{".", filepath.Join("..", "shell")}
+	for _, dir := range dirs {
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, entry := range entries {
+			name := entry.Name()
+			if entry.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+				continue
+			}
+			data, err := os.ReadFile(filepath.Join(dir, name))
+			if err != nil {
+				t.Fatal(err)
+			}
+			for i, line := range strings.Split(string(data), "\n") {
+				// A comment may name what the code must not do.
+				if strings.HasPrefix(strings.TrimSpace(line), "//") {
+					continue
+				}
+				for _, needle := range needles {
+					if strings.Contains(line, needle) {
+						t.Errorf("%s:%d replays a saved screen (%q): %s", filepath.Join(dir, name), i+1, needle, strings.TrimSpace(line))
+					}
+				}
+			}
+		}
 	}
 }
 

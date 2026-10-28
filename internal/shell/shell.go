@@ -660,18 +660,17 @@ func New(opts Options) *App {
 	if a.setOpenAtLogin == nil {
 		a.setOpenAtLogin = mygo.App.SetOpenAtLogin
 	}
-	// The quit path saves the terminal's screen first, so the next start
-	// restores what the user was looking at. Every way out goes through
-	// a.quit (the launcher row, the tray menu, the application menu).
+	// Every way out ends the sessions' programs: one left running behind a
+	// closed panel is a process nobody can reach. Nothing of the screen is
+	// kept — see the note in internal/terminalui (a replayed screen carried
+	// the dead program's charsets and paste mode into the next shell, the
+	// report 「打开终端时出现异常字符」).
 	innerQuit := a.quit
 	a.quit = func() {
 		if a.Settings != nil {
 			a.Settings.Flush()
 		}
 		if a.Terminal != nil {
-			if err := a.Terminal.SaveSnapshot(); err != nil {
-				log.Printf("floter: could not save the terminal snapshot: %v", err)
-			}
 			// Every session's program ends with the app: one left running
 			// behind a closed panel is a process nobody can reach.
 			a.Terminal.CloseAll()
@@ -1119,7 +1118,6 @@ func New(opts Options) *App {
 	// sibling of the canvas, so the PTY resizes while the scrollback stays.
 	termActions.Settings = func() { a.Terminal.ToggleDrawer() }
 	a.Terminal = terminalui.New(opts.Store, termActions, newTerminal)
-	a.Terminal.SnapshotPath = filepath.Join(paths.Root, "terminal-snapshot")
 	a.refreshTerminal = a.Terminal.Refresh
 	if opts.RefreshTerminal != nil {
 		a.refreshTerminal = opts.RefreshTerminal
@@ -1385,13 +1383,10 @@ func (a *App) Start() {
 	if err := a.RegisterScheme(); err != nil {
 		log.Printf("floter: could not register %s://: %v", scheme, err)
 	}
-	// Every way out saves the terminal's screen: the app-level hook covers
+	// Every way out ends the sessions' programs: the app-level hook covers
 	// the menu's quit role, which the framework handles itself.
 	mygo.App.OnQuit(func() {
 		if a.Terminal != nil {
-			if err := a.Terminal.SaveSnapshot(); err != nil {
-				log.Printf("floter: could not save the terminal snapshot: %v", err)
-			}
 			// Every session's program ends with the app: one left running
 			// behind a closed panel is a process nobody can reach.
 			a.Terminal.CloseAll()

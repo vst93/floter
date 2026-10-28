@@ -10,8 +10,6 @@ package terminalui
 
 import (
 	"errors"
-	"log"
-	"os"
 	"runtime"
 	"strconv"
 	"strings"
@@ -28,7 +26,6 @@ import (
 	"floter/internal/motion"
 	"floter/internal/settings"
 	"floter/internal/shortcuts"
-	"floter/internal/statefile"
 	"floter/internal/theme"
 )
 
@@ -138,11 +135,6 @@ type App struct {
 	feedback      string
 	feedbackShown string
 	feedbackUntil time.Time
-
-	// SnapshotPath is where the session's screen is saved when it closes and
-	// read back when the next one starts, so the last session's scrollback
-	// comes back. Empty disables it.
-	SnapshotPath string
 }
 
 // New builds the terminal surface.
@@ -336,7 +328,6 @@ func (a *App) EnsureSession() {
 	a.Sessions = append(a.Sessions, session)
 	a.Active = len(a.Sessions) - 1
 	a.Err = nil
-	a.restoreSnapshot(session.Term)
 }
 
 // NewSession starts another session and shows it: the old build's "new
@@ -460,12 +451,6 @@ func (a *App) CloseSession(index int) {
 	}
 	session := a.Sessions[index]
 	if session.Term != nil {
-		if index == a.Active {
-			// The screen the user is looking at is the one worth saving.
-			if err := a.SaveSnapshot(); err != nil {
-				log.Printf("floter: could not save the terminal snapshot: %v", err)
-			}
-		}
 		_ = session.Term.Close()
 	}
 	a.Sessions = append(a.Sessions[:index], a.Sessions[index+1:]...)
@@ -482,41 +467,37 @@ func (a *App) CloseSession(index int) {
 	a.FocusTerminal()
 }
 
-// SaveSnapshot writes the session's screen to SnapshotPath: the escape
-// sequences that reproduce what the terminal shows, which is what the next
-// session is fed. A session with nothing on screen writes nothing, and a
-// missing path is not an error.
-func (a *App) SaveSnapshot() error {
-	term := a.term()
-	if a.SnapshotPath == "" || term == nil {
-		return nil
-	}
-	data := term.Snapshot()
-	if len(data) == 0 {
-		return nil
-	}
-	return writeFileAtomically(a.SnapshotPath, data)
-}
-
-// restoreSnapshot feeds the saved screen into a fresh session, so the last
-// session's scrollback comes back above the new shell's prompt. The file is
-// left where it is: the next close overwrites it, and a crash therefore
-// restores the state the user last saw.
-func (a *App) restoreSnapshot(term *terminal.Terminal) {
-	if a.SnapshotPath == "" || term == nil {
-		return
-	}
-	data, err := os.ReadFile(a.SnapshotPath)
-	if err != nil || len(data) == 0 {
-		return
-	}
-	term.Feed(data)
-}
-
-// writeFileAtomically writes data to path atomically.
-func writeFileAtomically(path string, data []byte) error {
-	return statefile.Write(path, data, 0o600)
-}
+// A session's screen is **not** saved and replayed into the next one. It used
+// to be, and that was the report 「打开终端时出现异常字符 / 莫名被输入的内容」.
+//
+// `Terminal.Snapshot()` is the plugin's VT export: the scrollback and screen
+// with their styles, and then the modes, the scrolling region, the tab stops,
+// the working directory and the keyboard's flags
+// (`mygo@v0.7.0/plugins/terminal/internal/vt/terminal.go:565-590`). Its own
+// documentation names its reader: "as a terminal attaching again to a session
+// a server keeps" — a terminal with **no program**. This surface fed it into a
+// terminal that had just started a shell, so the new program inherited a dead
+// program's state. Two of those are content, not chrome, and both were
+// reproduced headlessly against libghostty-vt:
+//
+//   - a replayed `\e(0` (G0 = DEC graphics, what `vim` and `ls --color` leave
+//     behind) renders the new shell's plain ASCII as box drawing: `qqq-wxyz`
+//     came out `───-┬│≤≥`.
+//   - a replayed `\e[?2004h` (bracketed paste) wraps a paste in `\e[200~`
+//     `\e[201~` although the new shell never asked, so the shell echoes
+//     `^[[200~hello^[[201~` into the line.
+//
+// There is no sound way to keep the feature with the public API: `Snapshot()`
+// is all-or-nothing and the formatter flags that would drop the program state
+// live in the plugin's internal package. Filtering the sequences back out is
+// the very thing this project forbids — it misses the scrolling region, the
+// working directory and the keyboard flags, and misses them silently. The
+// reference has no such feature either (`git grep -n snapshot main --
+// src/terminal src-tauri/src/terminal` finds only scrollback offsets), so the
+// surface keeps what the reference keeps: a fresh session, nothing replayed.
+// Bringing the last session's scrollback back needs a **text-only** export
+// from the plugin (a mygo feature); it is a decision for the user, not a
+// workaround to invent here.
 
 // RunCommand starts a session whose own program is argv: how an extension's
 // command, and the launcher's structured line, are handed to the terminal.
