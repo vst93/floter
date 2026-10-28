@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"floter/internal/pathlist"
 	"floter/internal/progname"
 	"floter/internal/progtype"
 )
@@ -36,7 +37,7 @@ func SearchPath() string {
 		// The process PATH first, deduplicated as merge_path_entries did: a
 		// corrupted environment can carry the same directory twice.
 		var merged []string
-		for _, dir := range splitPath(os.Getenv("PATH")) {
+		for _, dir := range pathlist.Split(os.Getenv("PATH")) {
 			merged = appendUnique(merged, dir)
 		}
 		for _, dir := range loginShellDirs() {
@@ -55,7 +56,7 @@ func SearchPath() string {
 
 // SearchDirectories is SearchPath split, in order.
 func SearchDirectories() []string {
-	return splitPath(SearchPath())
+	return pathlist.Split(SearchPath())
 }
 
 // LookTool finds the first of the names that exists as a runnable file in
@@ -224,20 +225,10 @@ func loginShellDirs() []string {
 		if index < 0 {
 			return nil
 		}
-		return splitPath(strings.TrimSpace(out[index+len(sentinel):]))
+		return pathlist.Split(strings.TrimSpace(out[index+len(sentinel):]))
 	case <-time.After(5 * time.Second):
 		return nil
 	}
-}
-
-func splitPath(path string) []string {
-	var out []string
-	for _, dir := range strings.Split(path, string(os.PathListSeparator)) {
-		if dir != "" {
-			out = append(out, dir)
-		}
-	}
-	return out
 }
 
 func appendUnique(list []string, value string) []string {

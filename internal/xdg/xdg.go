@@ -21,6 +21,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"floter/internal/pathlist"
 )
 
 // DataHome is the per-user data directory: `$XDG_DATA_HOME` when it is set to
@@ -39,7 +41,7 @@ func DataHome() string {
 // a machine with the variable unset still gets them.
 func DataDirs() []string {
 	var dirs []string
-	for _, dir := range filepath.SplitList(os.Getenv("XDG_DATA_DIRS")) {
+	for _, dir := range pathlist.Split(os.Getenv("XDG_DATA_DIRS")) {
 		if dir = strings.TrimSpace(dir); dir != "" {
 			dirs = append(dirs, dir)
 		}

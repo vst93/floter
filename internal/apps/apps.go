@@ -20,7 +20,7 @@ import (
 
 	"floter/internal/spawn"
 
-	"floter/internal/progtype"
+	"floter/internal/pathlist"
 	"floter/internal/xdg"
 )
 
@@ -173,7 +173,7 @@ func Roots() []string {
 			}
 		}
 	default:
-		candidates = linuxRoots(linuxDataHome(), filepath.SplitList(os.Getenv("XDG_DATA_DIRS")))
+		candidates = linuxRoots(linuxDataHome(), xdg.DataDirs())
 	}
 	var roots []string
 	for _, dir := range candidates {
@@ -485,24 +485,16 @@ func walk(root string, maxDepth int, visit func(path string, d fs.DirEntry, isDi
 // found in `PATH` (the original's `executable_available`).
 //
 // The judgement is `progtype.Host`, the same one the inventory's PATH probe and
-// the tool catalog use. Only the Unix half of it is ever reached in practice —
-// `TryExec=` is a `.desktop` key, and `Scan` only reads `.desktop` entries on
-// the non-Darwin, non-Windows branch — but the Windows half is
-// the extension strategy rather than the "always false" this probe used to
-// fall into, because a Windows caller asking about `foo.exe` should hear yes.
+// the tool catalog use — and the walk itself is `pathlist.Lookup`, the one
+// answer to "where does this program live on PATH". Only the Unix half of it is
+// ever reached in practice — `TryExec=` is a `.desktop` key, and `Scan` only
+// reads `.desktop` entries on the non-Darwin, non-Windows branch — but the
+// Windows half is the extension strategy rather than the "always false" this
+// probe used to fall into, because a Windows caller asking about `foo.exe`
+// should hear yes.
 func executableAvailable(program string) bool {
-	if strings.ContainsRune(program, os.PathSeparator) || strings.ContainsRune(program, '/') {
-		return progtype.Host(program)
-	}
-	for _, dir := range filepath.SplitList(os.Getenv("PATH")) {
-		if dir == "" {
-			dir = "."
-		}
-		if progtype.Host(filepath.Join(dir, program)) {
-			return true
-		}
-	}
-	return false
+	_, found := pathlist.Lookup(program)
+	return found
 }
 
 // desktopLocales is the locale ladder for a `.desktop` entry's localized

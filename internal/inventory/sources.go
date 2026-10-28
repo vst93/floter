@@ -2,12 +2,11 @@ package inventory
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"floter/internal/extensions"
-	"floter/internal/progtype"
+	"floter/internal/pathlist"
 	"floter/internal/xdg"
 )
 
@@ -520,21 +519,10 @@ func sameRoot(left, right string) bool {
 	return fold(left) == fold(right)
 }
 
-// LookPath is the inventory's own answer to `exec.LookPath`, for the
-// caller that asks where a discovered tool lives: the first directory of
-// the search path that carries it.
-func LookPath(name string) (string, bool) {
-	for _, directory := range strings.Split(os.Getenv("PATH"), string(filepath.ListSeparator)) {
-		if directory == "" {
-			continue
-		}
-		candidate := filepath.Join(directory, name)
-		if progtype.Host(candidate) {
-			return candidate, true
-		}
-	}
-	if path, err := exec.LookPath(name); err == nil {
-		return path, true
-	}
-	return "", false
-}
+// LookPath is the inventory's own name for "where does a discovered tool
+// live": the first directory of the search path that carries it, then
+// `exec.LookPath` as the last word. The walk itself is `pathlist.Lookup`, the
+// one answer this repository gives that question — the inventory used to spell
+// its own, which joined a name that already carried a separator to every PATH
+// directory and so reported `<PATH dir>/bin/foo` as the home of `bin/foo`.
+func LookPath(name string) (string, bool) { return pathlist.Lookup(name) }

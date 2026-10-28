@@ -6,21 +6,15 @@ import (
 	"sort"
 	"strings"
 
+	"floter/internal/pathlist"
 	"floter/internal/progtype"
 )
 
 // CommandDirs is the directories the shell's commands live in: the process's
-// PATH, split, with empty entries dropped. A tool found here is run in the
-// terminal rather than launched as an application.
-func CommandDirs() []string {
-	var out []string
-	for _, dir := range strings.Split(os.Getenv("PATH"), string(os.PathListSeparator)) {
-		if dir != "" {
-			out = append(out, dir)
-		}
-	}
-	return out
-}
+// PATH, split the one way this repository splits one (pathlist.Split, which
+// also drops the empty entries). A tool found here is run in the terminal
+// rather than launched as an application.
+func CommandDirs() []string { return pathlist.Split(os.Getenv("PATH")) }
 
 // ScanCommands lists the runnable commands in the given directories, one
 // entry per name (the first directory wins, as a shell resolves them),
