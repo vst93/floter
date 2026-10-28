@@ -28,27 +28,62 @@ var (
 	searchPath string
 )
 
+// homeBaselineDirs is the per-user tool directories appended after the
+// conventional ones: rustup installs `rustc`/`cargo` into `~/.cargo/bin` and the
+// XDG convention puts user binaries in `~/.local/bin`. The order is the
+// reference's `HOME_BASELINE_PATH_DIRS` (runtime_path.rs:131-132). Empty off
+// Windows, where the installers write the process PATH themselves — the
+// reference gates the same list with `#[cfg(unix)]`.
+func homeBaselineDirs() []string {
+	if runtime.GOOS == "windows" {
+		return nil
+	}
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return nil
+	}
+	return []string{
+		filepath.Join(home, ".cargo", "bin"),
+		filepath.Join(home, ".local", "bin"),
+	}
+}
+
+// mergeSearchPath is the append chain SearchPath runs, pure over its inputs so
+// a test can assert the order without touching the process environment: the
+// process PATH first (existing entries keep their priority), then the login
+// shell's answer, then the conventional baseline, then the per-user home
+// directories. Duplicates keep their first position and empty entries are
+// dropped, as the reference's `merge_path_entries` does.
+func mergeSearchPath(process, shell, baseline, home []string) []string {
+	var merged []string
+	for _, dir := range process {
+		merged = appendUnique(merged, dir)
+	}
+	for _, dir := range shell {
+		merged = appendUnique(merged, dir)
+	}
+	for _, dir := range baseline {
+		merged = appendUnique(merged, dir)
+	}
+	for _, dir := range home {
+		merged = appendUnique(merged, dir)
+	}
+	return merged
+}
+
 // SearchPath is the PATH the extension system resolves tools through: the
 // process environment, then a macOS login shell's answer (a version manager
 // puts its toolchain where only the shell knows), then the conventional
-// directories above. It is computed once per process.
+// directories above, then the per-user home directories. It is computed once
+// per process.
 func SearchPath() string {
 	searchOnce.Do(func() {
-		// The process PATH first, deduplicated as merge_path_entries did: a
-		// corrupted environment can carry the same directory twice.
-		var merged []string
-		for _, dir := range pathlist.Split(os.Getenv("PATH")) {
-			merged = appendUnique(merged, dir)
-		}
-		for _, dir := range loginShellDirs() {
-			merged = appendUnique(merged, dir)
-		}
-		for _, dir := range baselineDirs[runtime.GOOS] {
-			merged = appendUnique(merged, dir)
-		}
-		if home, err := os.UserHomeDir(); err == nil && home != "" {
-			merged = appendUnique(merged, filepath.Join(home, ".local", "bin"))
-		}
+		merged := mergeSearchPath(
+			pathlist.Split(os.Getenv("PATH")),
+			loginShellDirs(),
+			baselineDirs[runtime.GOOS],
+			homeBaselineDirs(),
+		)
 		searchPath = strings.Join(merged, string(os.PathListSeparator))
 	})
 	return searchPath
