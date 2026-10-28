@@ -558,6 +558,27 @@ pin：`internal/launcher/pointeridle_test.go` 的 `TestTheKeyboardWalksTheListUn
 （修前 15 步走 3 行 → 修后 15 行）、`TestThePointersWordCountsAgainOnceItMovesAfterAScroll`
 （门不是把指针关掉）、`TestATypedQueryKeepsTheChoiceOffTheIdlePointersRow`。
 
+### §6.16 P11-aj · 一条面上没有两段字压在同一块像素上（**已落地**）
+
+这条不变量看着像「像素细节」，其实是 P11-ag 的同一族：那句话一直在文本树里，只是被
+字段块整块盖住——`Tester.Texts` / `HasText` 对**被盖住的**字与**看得见的**字给同一个
+答案，所以一层层绝对定位的带子（字段行浮在列表上、页脚钉在面板底、设置页的分组标题
+靠 `Gap` 保着）出错时，没有任何断言会红。
+
+判据三条，两个表面同一份：
+
+1. **整窗宽的节点不是一段字**：面板/列表自己的无障碍标签（`ResultsLabel`）按构造包含
+   每一段字，不参与比较；
+2. **被另一个盒完全包含的盒是一块面上一段字**（按钮的字在按钮里），不算压字；
+3. 剩下任意两盒在**两个轴上都重叠 > 1 DIP** 才算压字；任意盒越出窗口边框算「从来没
+   被看见」。
+
+pin：`internal/launcher/textframe_test.go` 的 `TestTheLauncherPaintsNoTextOverText`
+（空页 / 有匹配 / 零匹配 × 两外观，夹具含一个会被省略号截断的超长应用名与行尾键帽）、
+`internal/settingsui/textframe_test.go` 的 `TestTheSettingsPagesPaintNoTextOverText`
+（五页 × 两外观 × `860×900` 与 `720×560`）。本轮实测三表面（启动器 / 设置页 / 终端页）
+零压字、零出框，产品墨与面零改动。
+
 ## §7 切片表
 | 片 | 范围 | 状态 |
 |---|---|---|
