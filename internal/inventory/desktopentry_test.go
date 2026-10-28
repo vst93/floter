@@ -84,6 +84,18 @@ func TestTheDesktopEntryFiltersWhatIsNotATool(t *testing.T) {
 			content: "[Desktop Entry]\nName=Ripgrep\nComment=Fast search\nExec=rg %F\nType=Application\n",
 			want:    true,
 		},
+		// A Windows editor writes a UTF-8 BOM, and U+FEFF is not whitespace, so
+		// a reader that only trimmed spaces saw "\ufeff[Desktop Entry]" as an
+		// unknown line and lost the entry. `internal/apps`'s reader of the same
+		// file had exactly that bug; `internal/textlines` is now the one place
+		// that strips the framing, so both readers agree. CRLF in the same
+		// fixture covers the other half of the framing.
+		{
+			name:    "an entry with a windows BOM and CRLF",
+			id:      "bom.desktop",
+			content: "\ufeff[Desktop Entry]\r\nName=Ripgrep\r\nExec=rg %F\r\nType=Application\r\n",
+			want:    true,
+		},
 		{
 			name:    "a missing Type defaults to an application",
 			id:      "notype.desktop",

@@ -8,7 +8,6 @@
 package apps
 
 import (
-	"bufio"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -21,6 +20,7 @@ import (
 	"floter/internal/spawn"
 
 	"floter/internal/pathlist"
+	"floter/internal/textlines"
 	"floter/internal/xdg"
 )
 
@@ -558,11 +558,10 @@ func unescapeDesktop(value string) string {
 // Exec, or files that cannot be read. The one availability check it does not
 // make is `TryExec` — that needs the filesystem and PATH, so ScanLinux does it.
 func ParseDesktopFile(path string) (App, bool) {
-	f, err := os.Open(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return App{}, false
 	}
-	defer f.Close()
 
 	inEntry := false
 	hidden, noDisplay := false, false
@@ -580,9 +579,8 @@ func ParseDesktopFile(path string) (App, bool) {
 	var comment string
 	commentRank := len(desktopLocales)
 	commentSet := false
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
+	for _, line := range textlines.Split(string(data)) {
+		line = strings.TrimSpace(line)
 		switch {
 		case line == "" || strings.HasPrefix(line, "#"):
 			continue
@@ -659,9 +657,6 @@ func ParseDesktopFile(path string) (App, bool) {
 				dbusActivatable = value == "true"
 			}
 		}
-	}
-	if err := scanner.Err(); err != nil {
-		return App{}, false
 	}
 	argv := SplitDesktopExec(exec)
 	if name == "" || len(argv) == 0 || hidden || noDisplay {

@@ -8,6 +8,7 @@ import (
 	"floter/internal/extensions"
 	"floter/internal/pathid"
 	"floter/internal/pathlist"
+	"floter/internal/textlines"
 	"floter/internal/xdg"
 )
 
@@ -149,8 +150,8 @@ func parseDesktopEntry(path string) (desktopEntry, bool) {
 	}
 	var entry desktopEntry
 	inMain := false
-	for _, line := range strings.Split(string(data), "\n") {
-		line = strings.TrimSpace(strings.TrimPrefix(line, "\ufeff"))
+	for _, line := range textlines.Split(string(data)) {
+		line = strings.TrimSpace(line)
 		switch {
 		case line == "" || strings.HasPrefix(line, "#"):
 		case strings.HasPrefix(line, "["):

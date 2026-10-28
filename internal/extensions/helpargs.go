@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"floter/internal/ansi"
+	"floter/internal/textlines"
 )
 
 // The `--help` inference tier: when a tool is connected, the host runs it
@@ -83,7 +84,7 @@ func DeriveArguments(helpOutput string) []DerivedArgument {
 	helpOutput = ansi.Plain(helpOutput)
 	var arguments []DerivedArgument
 	seen := map[string]bool{}
-	for _, line := range strings.Split(helpOutput, "\n") {
+	for _, line := range textlines.Split(helpOutput) {
 		trimmed := strings.TrimSpace(line)
 		if trimmed == "" || skippedLine(trimmed) {
 			continue
@@ -535,7 +536,7 @@ func DeriveSubcommands(helpOutput string) []DerivedSubcommand {
 	// enabling same-line row recognition there.
 	inCommandSection := false
 
-	for _, line := range strings.Split(helpOutput, "\n") {
+	for _, line := range textlines.Split(helpOutput) {
 		trimmed := strings.TrimSpace(line)
 		if trimmed == "" {
 			continue

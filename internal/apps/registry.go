@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 	"unicode/utf16"
+
+	"floter/internal/textlines"
 )
 
 // The Windows registry's uninstall entries, the scan's second source.
@@ -92,8 +94,7 @@ func ParseRegistryPrograms(text string) []RegistryProgram {
 		}
 		current = RegistryProgram{}
 	}
-	for _, line := range strings.Split(text, "\n") {
-		line = strings.TrimSuffix(line, "\r")
+	for _, line := range textlines.Split(text) {
 		if strings.HasPrefix(line, "HKEY_") {
 			// A new subkey: the entry above it is complete.
 			flush()

@@ -31,6 +31,7 @@ import (
 	"floter/internal/settings"
 	"floter/internal/shortcuts"
 	"floter/internal/terminalui"
+	"floter/internal/textlines"
 	"floter/internal/theme"
 )
 
@@ -6757,7 +6758,7 @@ func (a *App) editorParams() []extensions.ParamDefinition {
 			Flag:        strings.TrimSpace(param.Flag),
 			Required:    param.Required,
 		}
-		for _, option := range strings.Split(param.Options, "\n") {
+		for _, option := range textlines.Split(param.Options) {
 			if trimmed := strings.TrimSpace(option); trimmed != "" {
 				definition.Options = append(definition.Options, trimmed)
 			}

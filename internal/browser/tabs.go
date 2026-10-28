@@ -11,6 +11,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"floter/internal/textlines"
 )
 
 // Tab is one tab a browser has open right now — the plugin's third and most
@@ -176,8 +178,7 @@ func appleScriptActivateTab(app string, window, tab int) string {
 // of the line verbatim.
 func parseAppleScriptTabs(browserID, output string) []Tab {
 	var tabs []Tab
-	for _, line := range strings.Split(output, "\n") {
-		line = strings.TrimSuffix(line, "\r")
+	for _, line := range textlines.Split(output) {
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
