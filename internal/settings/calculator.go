@@ -1,6 +1,10 @@
 package settings
 
-import "strings"
+import (
+	"strings"
+
+	"floter/internal/valuedomain"
+)
 
 // The calculator plugin's settings block lives under the `calculator_plugin`
 // key. The block is carried through (this package does not model it as a
@@ -20,10 +24,12 @@ const (
 // settings picker lists it; 0 means "never expire".
 var CalculatorRetentionDays = []int{0, 1, 7, 30}
 
-// The two copy modes: what Enter copies from a history row.
+// The two copy modes: what Enter copies from a history row. The ids live in
+// `internal/valuedomain`, where the picker and `internal/calculator` read them
+// too.
 const (
-	CalculatorCopyFull   = "full"
-	CalculatorCopyResult = "result"
+	CalculatorCopyFull   = valuedomain.CalculatorCopyFull
+	CalculatorCopyResult = valuedomain.CalculatorCopyResult
 )
 
 // CalculatorPlugin is the calculator plugin's settings block.
@@ -106,12 +112,10 @@ func NormalizeCalculatorRetentionDays(days int) int {
 	return DefaultCalculatorRetentionDays
 }
 
-// NormalizeCalculatorCopyMode accepts one of the two modes; anything else is
-// the whole line. The value is trimmed and lowercased first, so a hand-edited
+// NormalizeCalculatorCopyMode accepts one of the modes; anything else is the
+// whole line. The value is trimmed and lowercased first, so a hand-edited
 // `" Result "` lands on `result` rather than falling back to `full`.
 func NormalizeCalculatorCopyMode(mode string) string {
-	if strings.ToLower(strings.TrimSpace(mode)) == CalculatorCopyResult {
-		return CalculatorCopyResult
-	}
-	return CalculatorCopyFull
+	mode = strings.ToLower(strings.TrimSpace(mode))
+	return Pick(valuedomain.CalculatorCopyModes, mode, CalculatorCopyFull)
 }

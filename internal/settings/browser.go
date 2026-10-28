@@ -2,6 +2,8 @@ package settings
 
 import (
 	"strings"
+
+	"floter/internal/valuedomain"
 )
 
 // The browser plugin's settings block lives under the `browser_plugin` key.
@@ -15,21 +17,17 @@ const browserPluginKey = "browser_plugin"
 const (
 	DefaultBrowserTarget      = "auto"
 	DefaultBrowserHistoryDays = 30
-	DefaultBrowserSortOrder   = "relevance"
-	DefaultBrowserSearchField = "all"
+	DefaultBrowserSortOrder   = valuedomain.BrowserSortRelevance
+	DefaultBrowserSearchField = valuedomain.BrowserFieldAll
 	DefaultCDPPort            = 9222
 	// MaxBrowserHistoryDays is the largest history window the plugin honours
 	// (ten years).
 	MaxBrowserHistoryDays = 3650
 )
 
-// The two enumerated vocabularies, in the order a picker shows them.
-var (
-	BrowserSortOrders     = []string{"relevance", "recent", "alphabetical", "visits"}
-	BrowserSearchFields   = []string{"all", "title", "url"}
-	browserSortOrderSet   = map[string]bool{"relevance": true, "recent": true, "alphabetical": true, "visits": true}
-	browserSearchFieldSet = map[string]bool{"all": true, "title": true, "url": true}
-)
+// The two enumerated vocabularies live in `internal/valuedomain`: they are
+// stored ids, so the picker, this loader and `internal/browser`'s own tables
+// all have to agree on them.
 
 // BrowserPlugin is the browser plugin's settings block.
 type BrowserPlugin struct {
@@ -141,24 +139,18 @@ func NormalizeBrowserTarget(target string) string {
 	return target
 }
 
-// NormalizeBrowserSortOrder accepts one of the four orderings; anything else
-// is the shipped one.
+// NormalizeBrowserSortOrder accepts one of the orderings; anything else is the
+// shipped one.
 func NormalizeBrowserSortOrder(order string) string {
 	order = strings.TrimSpace(strings.ToLower(order))
-	if browserSortOrderSet[order] {
-		return order
-	}
-	return DefaultBrowserSortOrder
+	return Pick(valuedomain.BrowserSortOrders, order, DefaultBrowserSortOrder)
 }
 
-// NormalizeBrowserSearchField accepts one of the three fields; anything else
-// is `all`.
+// NormalizeBrowserSearchField accepts one of the fields; anything else is
+// `all`.
 func NormalizeBrowserSearchField(field string) string {
 	field = strings.TrimSpace(strings.ToLower(field))
-	if browserSearchFieldSet[field] {
-		return field
-	}
-	return DefaultBrowserSearchField
+	return Pick(valuedomain.BrowserSearchFields, field, DefaultBrowserSearchField)
 }
 
 // NormalizeCDPPort maps an unusable debug port onto the browser's own default,

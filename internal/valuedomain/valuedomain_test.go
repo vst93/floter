@@ -78,6 +78,10 @@ func TestDomainsHaveNoDuplicateIDs(t *testing.T) {
 		"paddings":      Paddings,
 		"palettes":      Palettes,
 		"bold modes":    BoldModes,
+
+		"browser sort orders":   BrowserSortOrders,
+		"browser search fields": BrowserSearchFields,
+		"calculator copy modes": CalculatorCopyModes,
 	}
 	for name, ids := range domains {
 		seen := map[string]bool{}

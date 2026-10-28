@@ -56,6 +56,47 @@ var (
 	BoldModes = []string{"font", "bright"}
 )
 
+// The browser plugin's three vocabularies. They are stored inside the
+// `browser_plugin` block rather than as top-level fields, but a stored value
+// is the same problem: the picker offers an id, the loader has to accept
+// exactly those, and the browser package has to know what each one means.
+const (
+	// BrowserSortRelevance is the launcher's own ranking — the order the
+	// merge produced. It is the default and the browser's zero value.
+	BrowserSortRelevance    = "relevance"
+	BrowserSortRecent       = "recent"
+	BrowserSortAlphabetical = "alphabetical"
+	BrowserSortVisits       = "visits"
+)
+
+// BrowserSortOrders are how browser results are ordered, in picker order.
+var BrowserSortOrders = []string{
+	BrowserSortRelevance,
+	BrowserSortRecent,
+	BrowserSortAlphabetical,
+	BrowserSortVisits,
+}
+
+const (
+	// BrowserFieldAll matches the title and the address.
+	BrowserFieldAll   = "all"
+	BrowserFieldTitle = "title"
+	BrowserFieldURL   = "url"
+)
+
+// BrowserSearchFields are what a browser query is matched against, in picker
+// order.
+var BrowserSearchFields = []string{BrowserFieldAll, BrowserFieldTitle, BrowserFieldURL}
+
+// The calculator plugin's copy modes: what Enter copies from a history row.
+const (
+	CalculatorCopyFull   = "full"
+	CalculatorCopyResult = "result"
+)
+
+// CalculatorCopyModes are the copy modes, in picker order.
+var CalculatorCopyModes = []string{CalculatorCopyFull, CalculatorCopyResult}
+
 // ScaleFactors is how big each interface size is. It is the definition of the
 // step, not a settings detail, so it sits beside the ids it names; a step
 // without a factor would silently scale the interface to nothing.

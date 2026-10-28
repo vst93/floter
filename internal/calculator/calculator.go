@@ -34,6 +34,7 @@ import (
 
 	"floter/internal/calc"
 	"floter/internal/statefile"
+	"floter/internal/valuedomain"
 )
 
 // The directory and file names under the config root.
@@ -53,10 +54,12 @@ const (
 // The retention windows the settings page offers; 0 means "never expire".
 var RetentionDays = []int{0, 1, 7, 30}
 
-// The two copy modes: what Enter copies from a history row.
+// The two copy modes: what Enter copies from a history row. The ids live in
+// `internal/valuedomain`, where the settings loader and the picker read them
+// too; `Entry.Text` is their second reader.
 const (
-	CopyFull   = "full"
-	CopyResult = "result"
+	CopyFull   = valuedomain.CalculatorCopyFull
+	CopyResult = valuedomain.CalculatorCopyResult
 )
 
 // Paths is where the history lives.

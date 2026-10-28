@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"floter/internal/calculator"
 	"floter/internal/settings"
 	"floter/internal/valuedomain"
 )
@@ -36,6 +37,9 @@ func TestValueDomainsHaveOneAnswer(t *testing.T) {
 		`[]string{"compact", "regular"}`,    // paddings
 		`[]string{"inherit", "contrast"}`,   // palettes
 		`[]string{"font", "bright"}`,        // bold modes
+		`[]string{"relevance", "recent"`,    // browser sort orders
+		`[]string{"all", "title", "url"}`,   // browser search fields
+		`[]string{"full", "result"}`,        // calculator copy modes
 		`== "light"`,                        // a second app-icon rule
 	}
 
@@ -95,6 +99,9 @@ func TestTheLoaderAndThePickableDomainsAgree(t *testing.T) {
 		{"themes", valuedomain.Themes, settings.NormalizeTheme},
 		{"glass steps", valuedomain.GlassSteps, settings.NormalizeGlassStep},
 		{"scales", valuedomain.Scales, settings.NormalizeUIScale},
+		{"browser sort orders", valuedomain.BrowserSortOrders, settings.NormalizeBrowserSortOrder},
+		{"browser search fields", valuedomain.BrowserSearchFields, settings.NormalizeBrowserSearchField},
+		{"calculator copy modes", valuedomain.CalculatorCopyModes, settings.NormalizeCalculatorCopyMode},
 	}
 
 	for _, domain := range domains {
@@ -148,6 +155,29 @@ func TestTheLoaderAndThePickableDomainsAgree(t *testing.T) {
 	for _, step := range valuedomain.Scales {
 		if factor := settings.UIScaleFactor(step); factor <= 0 {
 			t.Errorf("scale %q has factor %v, want > 0", step, factor)
+		}
+	}
+}
+
+// TestTheCalculatorCopyModesHaveOneAnswer pins the two packages that name the
+// copy modes besides `internal/valuedomain`: the settings loader (which
+// normalizes the stored value) and `internal/calculator` (which reads it when
+// Enter copies a row). Both may alias the domain's constants, but neither may
+// spell the ids again — a re-spelled id that drifts is a mode the user can pick
+// and the reader no longer recognizes.
+func TestTheCalculatorCopyModesHaveOneAnswer(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		got  string
+		want string
+	}{
+		{"settings.CalculatorCopyFull", settings.CalculatorCopyFull, valuedomain.CalculatorCopyFull},
+		{"settings.CalculatorCopyResult", settings.CalculatorCopyResult, valuedomain.CalculatorCopyResult},
+		{"calculator.CopyFull", calculator.CopyFull, valuedomain.CalculatorCopyFull},
+		{"calculator.CopyResult", calculator.CopyResult, valuedomain.CalculatorCopyResult},
+	} {
+		if test.got != test.want {
+			t.Errorf("%s = %q, want %q", test.name, test.got, test.want)
 		}
 	}
 }

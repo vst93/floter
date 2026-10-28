@@ -106,4 +106,41 @@ var (
 		"mist":     "海雾",
 		"amber":    "琥珀",
 	}
+
+	// The browser plugin's two pickers. They are not top-level settings
+	// fields — they live inside the `browser_plugin` block — but they are
+	// stored ids all the same, so their rows are built from
+	// `internal/valuedomain` like every other picker.
+	enBrowserSortOrderLabels = map[string]string{
+		"relevance":    "Launcher ranking",
+		"recent":       "Most recent",
+		"alphabetical": "A to Z",
+		"visits":       "Most visited",
+	}
+	zhBrowserSortOrderLabels = map[string]string{
+		"relevance":    "启动器排序",
+		"recent":       "最近访问",
+		"alphabetical": "按名称",
+		"visits":       "访问最多",
+	}
+
+	enBrowserSearchFieldLabels = map[string]string{
+		"all":   "Title and address",
+		"title": "Title only",
+		"url":   "Address only",
+	}
+	zhBrowserSearchFieldLabels = map[string]string{
+		"all":   "标题与地址",
+		"title": "仅标题",
+		"url":   "仅地址",
+	}
+
+	enCalculatorCopyModeLabels = map[string]string{
+		"full":   "Expression and result",
+		"result": "Result only",
+	}
+	zhCalculatorCopyModeLabels = map[string]string{
+		"full":   "算式与结果",
+		"result": "仅结果",
+	}
 )

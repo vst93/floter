@@ -5,6 +5,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"floter/internal/valuedomain"
 )
 
 // The two kinds a result can be.
@@ -15,13 +17,14 @@ const (
 
 // SearchField is which part of a row a query is matched against: `all` is the
 // title or the URL, `title` and `url` narrow it. Anything else is `all`, as
-// the old build's normalizer decided.
+// the old build's normalizer decided. The ids live in `internal/valuedomain`:
+// this package is their second reader, not their author.
 type SearchField string
 
 const (
-	FieldAll   SearchField = "all"
-	FieldTitle SearchField = "title"
-	FieldURL   SearchField = "url"
+	FieldAll   SearchField = valuedomain.BrowserFieldAll
+	FieldTitle SearchField = valuedomain.BrowserFieldTitle
+	FieldURL   SearchField = valuedomain.BrowserFieldURL
 )
 
 // SortOrder is how results are ordered: `relevance` keeps the launcher's own
@@ -30,10 +33,10 @@ const (
 type SortOrder string
 
 const (
-	SortRelevance    SortOrder = "relevance"
-	SortRecent       SortOrder = "recent"
-	SortAlphabetical SortOrder = "alphabetical"
-	SortVisits       SortOrder = "visits"
+	SortRelevance    SortOrder = valuedomain.BrowserSortRelevance
+	SortRecent       SortOrder = valuedomain.BrowserSortRecent
+	SortAlphabetical SortOrder = valuedomain.BrowserSortAlphabetical
+	SortVisits       SortOrder = valuedomain.BrowserSortVisits
 )
 
 // Options narrow a search: how far back history goes, how many results come
@@ -124,17 +127,43 @@ func searchTokens(query string) []string {
 	return strings.Fields(strings.ToLower(query))
 }
 
+// fieldColumns is which of a row's two columns each search field matches. It
+// is the one place that decides, so the in-memory filter (`matchesTerms`) and
+// the SQL clause (`matchesClause`) cannot disagree about what `title` means.
+//
+// The three shipped fields are the whole table; `columnsFor` falls back to
+// "both" for an id the table does not hold, which is the documented answer for
+// an unknown field (the same one the old normalizer gave), not a fourth entry.
+var fieldColumns = map[SearchField]struct {
+	URL   bool
+	Title bool
+}{
+	FieldAll:   {URL: true, Title: true},
+	FieldTitle: {URL: false, Title: true},
+	FieldURL:   {URL: true, Title: false},
+}
+
+// columnsFor reports whether a field matches the URL and the title.
+func columnsFor(field SearchField) (url, title bool) {
+	columns, ok := fieldColumns[field]
+	if !ok {
+		return true, true
+	}
+	return columns.URL, columns.Title
+}
+
 // matchesTerms reports whether every term appears in the row's fields.
 func matchesTerms(result Result, terms []string, field SearchField) bool {
 	if len(terms) == 0 {
 		return true
 	}
-	haystacks := []string{strings.ToLower(result.Title), strings.ToLower(result.URL)}
-	switch field {
-	case FieldTitle:
-		haystacks = haystacks[:1]
-	case FieldURL:
-		haystacks = haystacks[1:]
+	url, title := columnsFor(field)
+	haystacks := make([]string, 0, 2)
+	if title {
+		haystacks = append(haystacks, strings.ToLower(result.Title))
+	}
+	if url {
+		haystacks = append(haystacks, strings.ToLower(result.URL))
 	}
 	for _, term := range terms {
 		found := false
@@ -151,34 +180,37 @@ func matchesTerms(result Result, terms []string, field SearchField) bool {
 	return true
 }
 
-// orderResults sorts results in place for the configured order. `relevance`
-// is deliberately a no-op: the order the merge produced *is* the launcher's
-// ranking, and re-deriving a match score here would be a second, silently
-// different one.
+// sortOrders is how each ordering compares two rows. `relevance` is
+// deliberately absent: the order the merge produced *is* the launcher's
+// ranking, so it has no comparator to re-derive a second, silently different
+// score with. A missing entry is therefore the no-op `orderResults` takes.
+var sortOrders = map[SortOrder]func(a, b Result) bool{
+	SortAlphabetical: func(a, b Result) bool {
+		left, right := strings.ToLower(a.Label()), strings.ToLower(b.Label())
+		if left != right {
+			return left < right
+		}
+		return a.URL < b.URL
+	},
+	SortRecent: func(a, b Result) bool {
+		return stamp(a).After(stamp(b))
+	},
+	SortVisits: func(a, b Result) bool {
+		if a.Visits != b.Visits {
+			return a.Visits > b.Visits
+		}
+		return stamp(a).After(stamp(b))
+	},
+}
+
+// orderResults sorts results in place for the configured order.
 func orderResults(results []Result, order SortOrder) {
-	switch order {
-	case SortAlphabetical:
-		sort.SliceStable(results, func(i, j int) bool {
-			left, right := strings.ToLower(results[i].Label()), strings.ToLower(results[j].Label())
-			if left != right {
-				return left < right
-			}
-			return results[i].URL < results[j].URL
-		})
-	case SortRecent:
-		sort.SliceStable(results, func(i, j int) bool {
-			return stamp(results[i]).After(stamp(results[j]))
-		})
-	case SortVisits:
-		sort.SliceStable(results, func(i, j int) bool {
-			if results[i].Visits != results[j].Visits {
-				return results[i].Visits > results[j].Visits
-			}
-			return stamp(results[i]).After(stamp(results[j]))
-		})
-	default:
+	less, ok := sortOrders[order]
+	if !ok {
 		// relevance: the merge order, unchanged.
+		return
 	}
+	sort.SliceStable(results, func(i, j int) bool { return less(results[i], results[j]) })
 }
 
 // stamp is when a row is from: its last visit, or when a bookmark was added.
@@ -201,13 +233,14 @@ func matchesClause(terms []string, field SearchField, urlColumn, titleColumn str
 	}
 	var clauses []string
 	var args []any
+	url, title := columnsFor(field)
 	for _, term := range terms {
 		var parts []string
-		if field == FieldAll || field == FieldURL {
+		if url {
 			parts = append(parts, "instr(lower("+urlColumn+"), ?) > 0")
 			args = append(args, term)
 		}
-		if (field == FieldAll || field == FieldTitle) && titleColumn != "" {
+		if title && titleColumn != "" {
 			parts = append(parts, "instr(lower("+titleColumn+"), ?) > 0")
 			args = append(args, term)
 		}

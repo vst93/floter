@@ -30,6 +30,9 @@ func TestPickerOptionsMatchTheStoredDomains(t *testing.T) {
 		{"cursor shapes", valuedomain.CursorShapes, func(s Settings) []Option { return s.CursorShapes }},
 		{"paddings", valuedomain.Paddings, func(s Settings) []Option { return s.Paddings }},
 		{"palettes", valuedomain.Palettes, func(s Settings) []Option { return s.Palettes }},
+		{"browser sort orders", valuedomain.BrowserSortOrders, func(s Settings) []Option { return s.BrowserSortOrders }},
+		{"browser search fields", valuedomain.BrowserSearchFields, func(s Settings) []Option { return s.BrowserSearchFields }},
+		{"calculator copy modes", valuedomain.CalculatorCopyModes, func(s Settings) []Option { return s.CalculatorCopyModes }},
 	}
 
 	copies := map[string]Settings{
@@ -83,6 +86,15 @@ func TestPickerOrderIsTheShippedOrder(t *testing.T) {
 		{"paddings", For("en").Settings.Paddings, []string{"Compact", "Regular", "Relaxed"}},
 		{"palettes", For("en").Settings.Palettes, []string{
 			"Follow app", "High contrast", "Paper", "Ink", "Fog", "Forest", "Dusk", "Mist", "Amber",
+		}},
+		{"browser sort orders", For("en").Settings.BrowserSortOrders, []string{
+			"Launcher ranking", "Most recent", "A to Z", "Most visited",
+		}},
+		{"browser search fields", For("en").Settings.BrowserSearchFields, []string{
+			"Title and address", "Title only", "Address only",
+		}},
+		{"calculator copy modes", For("en").Settings.CalculatorCopyModes, []string{
+			"Expression and result", "Result only",
 		}},
 	} {
 		if len(test.got) != len(test.want) {
