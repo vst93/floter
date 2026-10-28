@@ -445,26 +445,20 @@ func (a *App) outputBody(c *ui.Context, copy i18n.Launcher, edge float32) {
 	t := c.Theme()
 	header := t.Space(4)
 	ui.Column(c).Fill().Children(func() {
-		if view.IsList {
-			ui.Column(c).Fill().Children(func() {
-				ui.List(c.Key("launcher.output.list"), &a.OutputList, len(view.Rows), func(i int) {
-					a.outputRow(c, view.Rows[i], i)
-				}).Fill().Padding(edge+header, t.Space(2), 0, t.Space(2)).Label(view.Title)
-				// The scroll trigger: reaching the end of what is loaded asks for
-				// the next page, exactly as the reference's own list did.
-				if a.OutputList.AtEnd() {
-					a.loadMoreOutputPage()
-				}
-				a.outputFooter(c, copy, view)
-			})
-		} else {
-			ui.Scroll(c.Key("launcher.output")).TrackScroll(&a.Output).Fill().
-				Padding(edge+header, t.Space(3), t.Space(1), t.Space(3)).Children(func() {
-				ui.RichText(c, a.outputSpans(c, view)...).Font(view.FontFamily).
-					FontSize(t.FontSize).TextColor(t.Text).Selectable()
-			})
-		}
-		ui.Column(c).Absolute().Top(edge).Left(t.Space(3)).Right(t.Space(3)).Children(func() {
+		// The strip is the view's own band, not a layer over the text. It sits
+		// in the column above the body, as the reference's
+		// `.plugin-window__bar` is a sibling of `.plugin-window__body`
+		// (`main:src/plugin-window/DetachedPluginApp.tsx:296-329`).
+		//
+		// P11-aq: this used to be an absolute layer (`Absolute().Top(edge)`)
+		// whose height the body only guessed at — it reserved 16u for a 42u
+		// strip (title row + status line), so the status line printed straight
+		// over the first group heading and over the first line of text, and
+		// every run in that 26u band was outside the pointer's reach (a visible
+		// line nobody could select). Laid out in flow, the strip is as tall as
+		// the text it holds and the body starts below it by construction —
+		// there is no reserved height to drift.
+		ui.Column(c).FillWidth().Padding(edge, t.Space(3), 0, t.Space(3)).Children(func() {
 			ui.Row(c).FillWidth().Gap(t.Space(1)).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, view.Title).FontSize(t.FontSize).TextColor(t.Text).Ellipsis("\u2026").SingleLine().Grow(1)
 				// The output's own controls: 28u transparent squares with a
@@ -501,6 +495,30 @@ func (a *App) outputBody(c *ui.Context, copy i18n.Launcher, edge float32) {
 				}
 			})
 			ui.Text(c, view.Status+"  \u00b7  "+a.outputHint(copy, view)).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+		})
+		// The body takes what the strip left: its own inset is the breath below
+		// the status line, not the panel's top edge — the strip already spent
+		// `edge` getting there.
+		ui.Column(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
+			if view.IsList {
+				ui.Column(c).Fill().Children(func() {
+					ui.List(c.Key("launcher.output.list"), &a.OutputList, len(view.Rows), func(i int) {
+						a.outputRow(c, view.Rows[i], i)
+					}).Fill().Padding(header, t.Space(2), 0, t.Space(2)).Label(view.Title)
+					// The scroll trigger: reaching the end of what is loaded asks for
+					// the next page, exactly as the reference's own list did.
+					if a.OutputList.AtEnd() {
+						a.loadMoreOutputPage()
+					}
+					a.outputFooter(c, copy, view)
+				})
+			} else {
+				ui.Scroll(c.Key("launcher.output")).TrackScroll(&a.Output).Fill().
+					Padding(header, t.Space(3), t.Space(1), t.Space(3)).Children(func() {
+					ui.RichText(c, a.outputSpans(c, view)...).Font(view.FontFamily).
+						FontSize(t.FontSize).TextColor(t.Text).Selectable()
+				})
+			}
 		})
 	})
 }
