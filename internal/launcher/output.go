@@ -107,6 +107,15 @@ func (a *App) failureReason(err error) string {
 func (a *App) showOutput(run extensions.CapturedRun, err error, entry *extensions.CommandEntry, args []string) {
 	view := a.OutputFor(run, err, entry)
 	view.Args = args
+	// P11-ar：一份新的捕获输出从它自己的开头开始。`Output` 与 `OutputList` 是
+	// App 级的滚动/列表状态——滚动容器需要它们跨帧保留偏移——但它们也是**跨视图**
+	// 复用的：没有这一步，关掉一份滚到 Y=400 的长输出再跑另一份长输出，新页面就
+	// 从第 ~15 行起步（本轮实测）。这与 P11-ao 是同一条规则（换设置页回顶）：一份
+	// 新内容从它自己的开头开始。只在换上视图之前重置一次；逐帧重建的路径不动，
+	// 否则滚轮每帧被归零。分页续页（`loadMoreOutputPage`）走的是同一份视图，不经过
+	// 这里，所以不受影响。
+	a.Output = ui.ScrollState{}
+	a.OutputList = ui.ListState{}
 	a.output = &view
 	a.Selected, a.chosenRow = 0, -1
 }

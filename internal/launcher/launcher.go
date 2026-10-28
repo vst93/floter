@@ -459,7 +459,10 @@ type App struct {
 	pathStatExists bool
 	pathStatAt     time.Time
 	// output is the captured output of a background command run, shown in
-	// place of the result list; Output keeps its scroll offset.
+	// place of the result list; Output keeps its scroll offset for as long as
+	// that one view is on screen (P11-ar: `showOutput` resets it when a new
+	// capture replaces it, so a second output starts at its own first line
+	// rather than at the first one's offset).
 	output *OutputView
 	Output ui.ScrollState
 	// config is the open plugin-configuration overlay, which takes the result
