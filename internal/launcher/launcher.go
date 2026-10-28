@@ -2968,7 +2968,9 @@ func (a *App) feedbackRow(c *ui.Context) {
 		// weight step up.
 		background, weight = tokens.RaisedWarm, 600
 		feedback.Border(1, tone)
-		feedback.Shadow(0, t.Space(0.25), t.Space(0.5), 0, ui.RGBA(0, 0, 0, 0.2))
+		// P11-an：接触边的 alpha 是 `--elev-shadow-scale` 的函数，不是字面
+		// 0.2（上面那段注释一直这么写着，但算术从来没实现过）。
+		theme.ElevContact(feedback, t, a.Store.Snapshot().MainOpacity)
 		feedback.InsetShadow(0, 1, 0, 0, tokens.LensRim)
 	}
 	// The fill lands after the variant has picked it: painting the row before

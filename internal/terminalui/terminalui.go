@@ -1201,8 +1201,9 @@ func (a *App) residentNote(c *ui.Context, copy i18n.Terminal) {
 			Duration: 160 * time.Millisecond,
 		})
 	// The floater's throw and its lit top rim, as `--elev-3` composed them.
-	note.Shadow(0, t.Space(2.5), t.Space(6.5), 0, ui.RGBA(0, 0, 0, 0.3))
-	note.Shadow(0, t.Space(0.25), t.Space(0.5), 0, ui.RGBA(0, 0, 0, 0.2))
+	// P11-an：投影的 alpha 读 `--elev-shadow-scale`（`theme.ElevThrow`），
+	// 与框的透明度同进退；几何仍是 10/26 与 1/2 两步。
+	theme.ElevThrow(note, t, a.Store.Snapshot().MainOpacity)
 	note.InsetShadow(0, 1, 0, 0, tokens.LensRim)
 	note.Children(func() {
 		ui.Text(c, copy.ProcessExited(session.ExitCode)).FontSize(t.FontSize).
@@ -1251,8 +1252,8 @@ func (a *App) feedbackNote(c *ui.Context) {
 			Enter:    &ui.Motion{Y: -2},
 			Duration: 160 * time.Millisecond,
 		})
-	notice.Shadow(0, t.Space(2.5), t.Space(6.5), 0, ui.RGBA(0, 0, 0, 0.3))
-	notice.Shadow(0, t.Space(0.25), t.Space(0.5), 0, ui.RGBA(0, 0, 0, 0.2))
+	// P11-an：失败提示是同一个浮动层，投景读同一条 `--elev-shadow-scale`。
+	theme.ElevThrow(notice, t, a.Store.Snapshot().MainOpacity)
 	notice.InsetShadow(0, 1, 0, 0, tokens.LensRim)
 	notice.Children(func() {
 		if glyph, ok := launcher.Glyph("alert"); ok {
