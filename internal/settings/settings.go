@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"floter/internal/i18n"
+	"floter/internal/valuedomain"
 )
 
 const (
@@ -108,21 +109,14 @@ const (
 	SurfaceResidencyNever = ^uint32(0)
 )
 
-// The shipped value domains. `glassSteps` includes `off`, the no-material
-// stop R162 added: it is a real stored value and has to round-trip.
+// The shipped value domains are not here: `internal/valuedomain` owns the id
+// lists (the loader, the picker and the renderer all read the same ones), and
+// this package keeps only the migration tables and the keys it writes.
 var (
-	themes     = []string{"dark", "light", "auto"}
-	glassSteps = []string{"off", "frosted", "regular", "liquid"}
-	// The language whitelist is not here: `i18n` owns it (language.go), and this
-	// package reads it through NormalizeLanguage so the settings loader and the
-	// interface copy can never disagree about which ids exist.
-
-	// The terminal's string domains, from TERMINAL_THEMES, TERMINAL_PADDINGS,
-	// BOLD_MODES and the cursor shapes.
-	cursorShapes     = []string{"beam", "block", "underline"}
-	terminalPaddings = []string{"compact", "regular", "relaxed"}
-	terminalPalettes = []string{"inherit", "contrast", "paper", "ink", "fog", "forest", "dusk", "mist", "amber"}
-	boldModes        = []string{"font", "bright"}
+	// The language whitelist is not in `valuedomain` either: `i18n` owns it
+	// (language.go), and this package reads it through NormalizeLanguage so the
+	// settings loader and the interface copy can never disagree about which ids
+	// exist.
 
 	// The pre-GLASS-3STOP five-stop vocabulary and its survivors: an older
 	// settings file's step maps onto the nearest one this build has.
@@ -132,14 +126,6 @@ var (
 		"high":  "liquid",
 		"deep":  "liquid",
 		"jelly": "liquid",
-	}
-
-	// The interface-size steps and their multipliers.
-	uiScaleFactors = map[string]float64{
-		"tiny":    0.8,
-		"small":   0.9,
-		"default": 1.0,
-		"large":   1.1,
 	}
 
 	// R47 retired `larger`; it maps to `large`, its nearest survivor.
@@ -403,12 +389,12 @@ func (s Settings) normalized() Settings {
 	s.UIScale = NormalizeUIScale(s.UIScale)
 	s.FontSize = NormalizeFontSize(s.FontSize)
 	s.FontFamily = NormalizeFontFamily(s.FontFamily)
-	s.CursorShape = Pick(cursorShapes, s.CursorShape, DefaultCursorShape)
+	s.CursorShape = Pick(valuedomain.CursorShapes, s.CursorShape, DefaultCursorShape)
 	s.TerminalLineHeight = NormalizeLineHeight(s.TerminalLineHeight)
-	s.TerminalPadding = Pick(terminalPaddings, s.TerminalPadding, DefaultTerminalPadding)
-	s.TerminalTheme = Pick(terminalPalettes, s.TerminalTheme, DefaultTerminalTheme)
+	s.TerminalPadding = Pick(valuedomain.Paddings, s.TerminalPadding, DefaultTerminalPadding)
+	s.TerminalTheme = Pick(valuedomain.Palettes, s.TerminalTheme, DefaultTerminalTheme)
 	s.TerminalWheelLines = NormalizeWheelLines(s.TerminalWheelLines)
-	s.TerminalBold = Pick(boldModes, s.TerminalBold, DefaultTerminalBold)
+	s.TerminalBold = Pick(valuedomain.BoldModes, s.TerminalBold, DefaultTerminalBold)
 	s.TerminalWidth, s.TerminalHeight = NormalizeTerminalSize(s.TerminalWidth, s.TerminalHeight)
 	s.SurfaceResidencySeconds = NormalizeResidencySeconds(s.SurfaceResidencySeconds)
 	if s.extra == nil {
@@ -494,12 +480,7 @@ func Save(path string, s Settings) error {
 // NormalizeTheme applies the "dark" | "light" | "auto" whitelist. An unknown
 // or empty value falls back to the shipped "auto", as normalize_settings did.
 func NormalizeTheme(theme string) string {
-	for _, candidate := range themes {
-		if theme == candidate {
-			return theme
-		}
-	}
-	return DefaultTheme
+	return Pick(valuedomain.Themes, theme, DefaultTheme)
 }
 
 // splitLegacyGlassStrength splits a pre-glass-step file's single "glass
@@ -541,10 +522,8 @@ func legacyGlassStepFor(legacy int) string {
 // migrates the retired five-stop ids, as normalize_glass_step did.
 func NormalizeGlassStep(step string) string {
 	trimmed := strings.ToLower(strings.TrimSpace(step))
-	for _, candidate := range glassSteps {
-		if trimmed == candidate {
-			return trimmed
-		}
+	if valuedomain.Has(valuedomain.GlassSteps, trimmed) {
+		return trimmed
 	}
 	if mapped, ok := legacyGlassSteps[trimmed]; ok {
 		return mapped
@@ -562,7 +541,7 @@ func NormalizeLanguage(language string) string {
 // NormalizeUIScale applies the interface-size whitelist and migrates the
 // retired `larger` step, as normalize_ui_scale did.
 func NormalizeUIScale(step string) string {
-	if _, ok := uiScaleFactors[step]; ok {
+	if valuedomain.Has(valuedomain.Scales, step) {
 		return step
 	}
 	if mapped, ok := legacyUIScales[step]; ok {
@@ -574,7 +553,7 @@ func NormalizeUIScale(step string) string {
 // UIScaleFactor is the --ui-scale multiplier a step writes. An unknown step
 // yields the shipped step's factor, never zero.
 func UIScaleFactor(step string) float64 {
-	return uiScaleFactors[NormalizeUIScale(step)]
+	return valuedomain.ScaleFactors[NormalizeUIScale(step)]
 }
 
 // NormalizeResidencySeconds clamps the residency window: 0 is off, the

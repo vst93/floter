@@ -1,6 +1,10 @@
 package i18n
 
-import "strconv"
+import (
+	"strconv"
+
+	"floter/internal/valuedomain"
+)
 
 // The custom-shortcut rejection sentence, which names the key and the reason.
 // The reason is one of the two tokens the shell reports — `conflict` for a
@@ -332,49 +336,16 @@ var en = Copy{
 		PasteSafe:      "Safe paste",
 		PalettePreview: "Palette preview",
 
-		AppIcons: []Option{
-			{"dark", "Dark"},
-			{"light", "Light"},
-		},
-		Themes: []Option{
-			{"auto", "Auto"},
-			{"light", "Light"},
-			{"dark", "Dark"},
-		},
-		Languages: LanguageOptions(),
-		GlassSteps: []Option{
-			{"off", "Off"},
-			{"frosted", "Frosted"},
-			{"regular", "Liquid"},
-			{"liquid", "Liquid Max"},
-		},
-		Scales: []Option{
-			{"tiny", "Tiny"},
-			{"small", "Small"},
-			{"default", "Standard"},
-			{"large", "Large"},
-		},
-		CursorShapes: []Option{
-			{"beam", "Beam"},
-			{"block", "Block"},
-			{"underline", "Underline"},
-		},
-		Paddings: []Option{
-			{"compact", "Compact"},
-			{"regular", "Regular"},
-			{"relaxed", "Relaxed"},
-		},
-		Palettes: []Option{
-			{"inherit", "Follow app"},
-			{"contrast", "High contrast"},
-			{"paper", "Paper"},
-			{"ink", "Ink"},
-			{"fog", "Fog"},
-			{"forest", "Forest"},
-			{"dusk", "Dusk"},
-			{"mist", "Mist"},
-			{"amber", "Amber"},
-		},
+		// The seven pickers read their ids from `valuedomain` and only their
+		// labels from here (options.go).
+		AppIcons:     optionsFor(valuedomain.AppIcons, enAppIconLabels),
+		Themes:       optionsFor(valuedomain.Themes, enThemeLabels),
+		Languages:    LanguageOptions(),
+		GlassSteps:   optionsFor(valuedomain.GlassSteps, enGlassStepLabels),
+		Scales:       optionsFor(valuedomain.Scales, enScaleLabels),
+		CursorShapes: optionsFor(valuedomain.CursorShapes, enCursorShapeLabels),
+		Paddings:     optionsFor(valuedomain.Paddings, enPaddingLabels),
+		Palettes:     optionsFor(valuedomain.Palettes, enPaletteLabels),
 
 		LaunchAtStartup:             "Launch at startup",
 		LaunchAtStartupHint:         "Start floter automatically when you log in.",
@@ -1224,49 +1195,14 @@ var zh = Copy{
 		PasteSafe:      "粘贴不执行",
 		PalettePreview: "配色预览",
 
-		AppIcons: []Option{
-			{"dark", "Dark"},
-			{"light", "Light"},
-		},
-		Themes: []Option{
-			{"auto", "自动"},
-			{"light", "浅色"},
-			{"dark", "深色"},
-		},
-		Languages: LanguageOptions(),
-		GlassSteps: []Option{
-			{"off", "关闭"},
-			{"frosted", "磨砂"},
-			{"regular", "液态"},
-			{"liquid", "液态拉满"},
-		},
-		Scales: []Option{
-			{"tiny", "极小"},
-			{"small", "小"},
-			{"default", "标准"},
-			{"large", "大"},
-		},
-		CursorShapes: []Option{
-			{"beam", "竖线"},
-			{"block", "方块"},
-			{"underline", "下划线"},
-		},
-		Paddings: []Option{
-			{"compact", "紧凑"},
-			{"regular", "常规"},
-			{"relaxed", "宽松"},
-		},
-		Palettes: []Option{
-			{"inherit", "跟随应用"},
-			{"contrast", "高对比"},
-			{"paper", "纸张"},
-			{"ink", "墨黑"},
-			{"fog", "雾灰"},
-			{"forest", "森林"},
-			{"dusk", "暮色"},
-			{"mist", "海雾"},
-			{"amber", "琥珀"},
-		},
+		AppIcons:     optionsFor(valuedomain.AppIcons, zhAppIconLabels),
+		Themes:       optionsFor(valuedomain.Themes, zhThemeLabels),
+		Languages:    LanguageOptions(),
+		GlassSteps:   optionsFor(valuedomain.GlassSteps, zhGlassStepLabels),
+		Scales:       optionsFor(valuedomain.Scales, zhScaleLabels),
+		CursorShapes: optionsFor(valuedomain.CursorShapes, zhCursorShapeLabels),
+		Paddings:     optionsFor(valuedomain.Paddings, zhPaddingLabels),
+		Palettes:     optionsFor(valuedomain.Palettes, zhPaletteLabels),
 
 		LaunchAtStartup:             "开机自启动",
 		LaunchAtStartupHint:         "登录系统时自动启动 floter。",

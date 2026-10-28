@@ -33,6 +33,7 @@ import (
 	"floter/internal/terminalui"
 	"floter/internal/textlines"
 	"floter/internal/theme"
+	"floter/internal/valuedomain"
 )
 
 // The settings pages, in sidebar order.
@@ -4438,13 +4439,11 @@ func (a *App) text(c *ui.Context, label, description, placeholder, value string,
 }
 
 // appIcon is the stored app icon, normalized to the two the app ships (dark
-// is the default).
+// is the default). The rule is `valuedomain.NormalizeAppIcon`, the same one the
+// tray reads when it picks the artwork.
 func (a *App) appIcon() string {
 	value, _ := a.Store.Snapshot().Extra()["app_icon"].(string)
-	if value == "light" {
-		return "light"
-	}
-	return "dark"
+	return valuedomain.NormalizeAppIcon(value)
 }
 
 // set writes one settings change through the store. A refused write is not

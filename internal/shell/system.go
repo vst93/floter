@@ -25,33 +25,37 @@ import (
 	"floter/internal/pathid"
 	"floter/internal/settings"
 	"floter/internal/settingsui"
+	"floter/internal/valuedomain"
 )
 
-// The app icons, resized to 32×32 for the menu bar and the taskbar. Dark is
-// the default.
+// The app icons, resized to 32×32 for the menu bar and the taskbar, keyed by
+// the id `valuedomain.AppIcons` lists.
 var (
 	//go:embed assets/tray-dark.png
 	trayIconDark []byte
 	//go:embed assets/tray-light.png
 	trayIconLight []byte
+
+	// trayIcons is the artwork for each stored app-icon id. The ids themselves
+	// are `valuedomain.AppIcons`; `TestEveryAppIconHasArtwork` holds the two in
+	// step, so an icon added to the picker without bytes is a red test rather
+	// than a window wearing the dark one.
+	trayIcons = map[string][]byte{
+		"dark":  trayIconDark,
+		"light": trayIconLight,
+	}
 )
 
-// appIconBytes is the icon for a stored app icon name: anything but "light"
-// is the dark icon, as the old normalization decided.
+// appIconBytes is the icon for a stored app icon name; an unknown name lands
+// on the default, as the old normalization decided.
 func appIconBytes(name string) []byte {
-	if name == "light" {
-		return trayIconLight
-	}
-	return trayIconDark
+	return trayIcons[valuedomain.NormalizeAppIcon(name)]
 }
 
 // storedAppIcon is the app icon the settings file asks for.
 func storedAppIcon(s settings.Settings) string {
 	value, _ := s.Extra()["app_icon"].(string)
-	if value == "light" {
-		return "light"
-	}
-	return "dark"
+	return valuedomain.NormalizeAppIcon(value)
 }
 
 // ApplyAppIcon puts the stored icon on the tray and the window, so a change
