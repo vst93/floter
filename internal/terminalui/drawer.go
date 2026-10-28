@@ -63,9 +63,17 @@ func (a *App) drawer(c *ui.Context, copy i18n.Terminal) {
 	// 滚动元素在列里 `minMain` 自动为 0（`layout.go:723` 的 `!c.scrolls()`
 	// 条件），面板放不下时它被压到画布之下、并且如实地报出 `MaxY > 0`。
 	// 面与线画在**视口**上（不随内容滚走），内边距与网格在内容里（跟着滚）。
+	//
+	// P11-av：这条发丝在**上边**——画布与抽屉交界的那一条（参考
+	// `.terminal-settings-drawer { border-top: 1px solid --glass-control-edge }`
+	// `main:src/styles/terminal.css:627-632`，注释见上面 §P8-c 那段「只有上边
+	// 那条线」）。写的却是 CSS 简写的第三个槽 `BorderWidth(0, 0, 1, 0)` = **下边**：
+	// 抽屉是面板的最后一个孩子，它的下边就是**窗口的底边**——于是 900×600 时
+	// 那一像素发丝画在 `y=599`（窗口最底一行，还压进 12u 圆角的过渡里），而画布
+	// 与抽屉之间 `y=338→339` 只有一条 255→239 的硬阶、没有缝。发丝换到 `top`。
 	strip := ui.Scroll(c).FillWidth().TrackScroll(&a.DrawerScroll).
 		Background(tokens.Control).
-		BorderWidth(0, 0, 1, 0).BorderColor(tokens.HairlineSoft).
+		BorderWidth(1, 0, 0, 0).BorderColor(tokens.HairlineSoft).
 		Label(scopy.GroupTerminal)
 	strip.Children(func() {
 		// The content keeps the grid's natural height: every appearance row
