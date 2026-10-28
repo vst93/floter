@@ -28,6 +28,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"floter/internal/semver"
 )
 
 // Version is a semantic version's numeric core plus its prerelease suffix.
@@ -59,23 +61,21 @@ func (v Version) Base() string {
 
 // Less orders two versions by their numeric core, then by prerelease.
 //
-// Only the core matters for the decision this package makes; the prerelease
-// rule is here so `String`'s output has one meaning and `Less` never says a
-// release is older than its own preview.
+// The rule is semantic versioning 2.0.0's and it lives in `internal/semver`
+// (P11-u), because this package used to answer the same question differently
+// from `internal/extensions`: the prerelease suffixes were compared as strings,
+// so `0.3.26-preview.10` came out *older* than `0.3.26-preview.9` here and newer
+// there. Only the core decides what `Next` computes, so the wrong answer never
+// reached a release — but two answers to "which version is newer" is the same
+// family of bug this package exists to prevent.
 func (v Version) Less(other Version) bool {
-	switch {
-	case v.Major != other.Major:
-		return v.Major < other.Major
-	case v.Minor != other.Minor:
-		return v.Minor < other.Minor
-	case v.Patch != other.Patch:
-		return v.Patch < other.Patch
-	}
-	// A final release is newer than its prereleases: 1.2.3 > 1.2.3-rc.1.
-	if v.Pre == "" || other.Pre == "" {
-		return other.Pre == "" && v.Pre != ""
-	}
-	return v.Pre < other.Pre
+	return semver.Compare(v.semver(), other.semver()) < 0
+}
+
+// semver is the ordering view of a version: the numeric core and the
+// prerelease suffix, which are all `internal/semver` reads.
+func (v Version) semver() semver.Version {
+	return semver.Version{Major: v.Major, Minor: v.Minor, Patch: v.Patch, Prerelease: v.Pre}
 }
 
 // Parse reads a version out of the spellings the repository actually contains:

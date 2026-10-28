@@ -4,6 +4,8 @@ import (
 	"errors"
 	"strconv"
 	"strings"
+
+	"floter/internal/semver"
 )
 
 // Semver is a parsed semantic version: the subset the installer needs —
@@ -75,62 +77,15 @@ func ParseSemver(text string) (Semver, error) {
 }
 
 // Compare orders two versions, prereleases before their release.
+//
+// The ordering itself lives in `internal/semver` (P11-u): a manifest's version
+// and a release tag's version are two grammars but one question, and answering
+// it twice is how `preview.9` ended up newer than `preview.10` in one of them.
 func (v Semver) Compare(other Semver) int {
-	for _, pair := range [][2]int{{v.Major, other.Major}, {v.Minor, other.Minor}, {v.Patch, other.Patch}} {
-		if pair[0] != pair[1] {
-			if pair[0] < pair[1] {
-				return -1
-			}
-			return 1
-		}
-	}
-	switch {
-	case v.Prerelease == other.Prerelease:
-		return 0
-	case v.Prerelease == "":
-		return 1 // a release is greater than any prerelease
-	case other.Prerelease == "":
-		return -1
-	}
-	return comparePrerelease(v.Prerelease, other.Prerelease)
-}
-
-// comparePrerelease orders prerelease identifiers, numerically where both
-// are numbers and lexically otherwise, as the specification says.
-func comparePrerelease(left, right string) int {
-	a, b := strings.Split(left, "."), strings.Split(right, ".")
-	for i := 0; i < len(a) && i < len(b); i++ {
-		an, aerr := strconv.Atoi(a[i])
-		bn, berr := strconv.Atoi(b[i])
-		switch {
-		case aerr == nil && berr == nil:
-			if an != bn {
-				if an < bn {
-					return -1
-				}
-				return 1
-			}
-		case aerr == nil:
-			return -1 // numeric identifiers are lower than alphanumeric
-		case berr == nil:
-			return 1
-		default:
-			if a[i] != b[i] {
-				if a[i] < b[i] {
-					return -1
-				}
-				return 1
-			}
-		}
-	}
-	switch {
-	case len(a) == len(b):
-		return 0
-	case len(a) < len(b):
-		return -1
-	default:
-		return 1
-	}
+	return semver.Compare(
+		semver.Version{Major: v.Major, Minor: v.Minor, Patch: v.Patch, Prerelease: v.Prerelease},
+		semver.Version{Major: other.Major, Minor: other.Minor, Patch: other.Patch, Prerelease: other.Prerelease},
+	)
 }
 
 // Satisfies reports whether a version is in a range: whitespace separates

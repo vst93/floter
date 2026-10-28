@@ -116,3 +116,41 @@ func TestNextIsAlwaysFreeAndWellFormed(t *testing.T) {
 		}
 	}
 }
+
+// The prerelease suffix is ordered by the specification, not as text.
+//
+// P11-u 重定基线：旧值 preview.10 < preview.9（`v.Pre < other.Pre` 字典序）→
+// 新值 preview.9 < preview.10（数字标识符按数值比）。`Next` 只看数值核心，所以
+// 这条错答案从未影响过发布号——但它让同一个问题在两个包里有两个答案。
+func TestPreviewsAreOrderedByNumberNotByText(t *testing.T) {
+	nine, err := Parse("mygo-v0.3.26-preview.9")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ten, err := Parse("mygo-v0.3.26-preview.10")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !nine.Less(ten) {
+		t.Errorf("%s is older than %s, but Less says otherwise", nine, ten)
+	}
+	if ten.Less(nine) {
+		t.Errorf("%s is newer than %s, but Less says otherwise", ten, nine)
+	}
+	// A final release is still newer than its own preview, and an older core
+	// still loses to a newer one whatever the suffix says.
+	release, err := Parse("0.3.26")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !nine.Less(release) || release.Less(nine) {
+		t.Errorf("%s must be older than %s", nine, release)
+	}
+	next, err := Parse("0.3.27-preview.1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !release.Less(next) {
+		t.Errorf("%s must be older than %s", release, next)
+	}
+}
