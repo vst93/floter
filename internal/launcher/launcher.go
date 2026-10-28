@@ -1263,25 +1263,35 @@ func (a *App) View(c *ui.Context) {
 			// them, and only the band's own blank area starts a drag.
 			ui.Box(c).Absolute().Top(0).Left(0).Right(0).Height(t.Space(7)).
 				DragWindow().Background(ui.Transparent)
-			// The search row draws no leading mark: Raycast's magnifier sits in
-			// its own gutter *left* of the text column, and this card's field row
-			// spends all 16u of its padding on the column itself (the query and
-			// every row title start on 16u — see
-			// TestTheFieldAndTheRowsShareTheReferenceTextColumn). A mark placed
-			// inside the row would push the whole text column 22u right, which is
-			// the one horizontal metric this slice may not move. The gap is listed
-			// in docs/raycast-design.md §4.2 as the search row's one open item.
-			// The scope mark: the mode that owns the field, at its left — the
-			// icon says a plugin owns it and the muted word says which one
-			// (`.collapsed-card__scope` / `__scope-name`). The trigger word
-			// was consumed on entry, so this is the only place the mode is
-			// named.
+			// The leading slot holds one thing, in the rows' own icon column.
+			//
+			// The scope mark comes first: the mode that owns the field, its icon
+			// and its muted word (`.collapsed-card__scope` / `__scope-name`).
+			// The trigger word was consumed on entry, so this is the only place
+			// the mode is named. It keeps its natural width — it is a word, and a
+			// clipped word names nothing.
+			//
+			// With no owner the slot holds the reference's magnifier, at the very
+			// geometry every result row's icon plate uses: a 28u cell
+			// (`Space(7)`) and the row's 10u gap (`Space(2.5)`). So the query
+			// starts on 16u + 28u + 10u = 54u, which is the rows' **title** column
+			// (`TestTheFieldAndTheRowsShareTheReferenceTextColumn`): the field and
+			// the list share one text column instead of two. The mark is muted ink
+			// — the placeholder's own register — and spends no accent
+			// (docs/raycast-design.md §4.2 / §5).
 			if glyph, name, ok := a.scopeMark(copy); ok {
 				mark := ui.Row(c).Shrink(0).Gap(t.Space(1.5)).AlignItems(ui.Center).
 					Margin(0, t.Space(2.5), 0, 0)
 				mark.Children(func() {
 					ui.Icon(c, glyph).Size(t.Space(4), t.Space(4)).TextColor(t.TextMuted)
 					ui.Text(c, name).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+				})
+			} else if glyph, ok := Glyph("search"); ok {
+				slot := ui.Box(c).Shrink(0).Size(t.Space(7), t.Space(7)).
+					AlignItems(ui.Center).Justify(ui.Center).
+					Margin(0, t.Space(2.5), 0, 0)
+				slot.Children(func() {
+					ui.Icon(c, glyph).Size(t.Space(4), t.Space(4)).TextColor(t.TextMuted)
 				})
 			}
 			field := ui.TextInput(c.Key("launcher.search"), &a.Query).

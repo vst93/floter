@@ -243,13 +243,20 @@ func unselectedActionBarStaysQuiet(t *testing.T, dark bool) {
 // `Space(4)` and `Space(3)`, not `Space(16)` and `Space(12)`. At the shipped
 // step this build was drawing 57.6px of side padding where the design asks for
 // 14.4 — a query at 64u and row titles at 120u instead of 16 and 54.
+//
+// P11-ab 重定基线：旧值 caret `16` → 新值 `54`。The field used to start on the
+// row's own 16u inset because it had no leading mark; the reference's magnifier
+// now takes the icon cell every result row uses (28u) plus that row's 10u gap,
+// so the query lands on the **rows' title column**. The name of this pin is now
+// literal: one text column, not two.
 func TestTheFieldAndTheRowsShareTheReferenceTextColumn(t *testing.T) {
 	a := testApp()
 	tt := render(t, a)
-	// The empty field's caret sits on the row's own 16u inset.
+	// The empty field's caret sits on the rows' own 54u title column: 16u of
+	// row padding + the 28u icon cell + the 10u gap.
 	if caret, ok := tt.TextCaret(); ok {
-		if got := int(caret.X); got != 16 {
-			t.Errorf("the field's caret starts at x=%d, want the reference's 16", got)
+		if got := int(caret.X); got != 54 {
+			t.Errorf("the field's caret starts at x=%d, want the rows' title column 54", got)
 		}
 	} else {
 		t.Fatal("the field's caret was not drawn")
@@ -261,6 +268,54 @@ func TestTheFieldAndTheRowsShareTheReferenceTextColumn(t *testing.T) {
 		}
 	} else {
 		t.Fatal("the first result's title was not drawn")
+	}
+}
+
+// P11-ab · The search row leads with the reference's magnifier, in the rows'
+// icon cell, in muted ink.
+//
+// `docs/raycast-design.md` §4.2 recorded this as the launcher's one open item:
+// Raycast's magnifier sits in its own gutter left of the text column, and the
+// port drew nothing there. The mark is not decoration to be spent freely — it
+// has to answer 「文字从这里进去」 in the same column the list uses, and it must
+// not spend accent (§5). Three things are pinned here: the ink is *in* the icon
+// cell (16u..44u) and nowhere else, the 10u gap after it is empty, and the ink
+// is neutral.
+func TestTheSearchRowLeadsWithANeutralMark(t *testing.T) {
+	a := testApp()
+	tt := render(t, a)
+	img := tt.Image()
+	// The row's own fill, read off the left padding where nothing is drawn.
+	fill := img.RGBAAt(4, 28)
+	inkInCell, inkInGap, warm := 0, 0, 0
+	// y=55 is the field row's bottom hairline (`HairlineSoft`), which runs the
+	// full width by design; the slot's own ink is above it.
+	for y := 0; y < 55; y++ {
+		for x := 16; x < 54; x++ {
+			c := img.RGBAAt(x, y)
+			if c == fill {
+				continue
+			}
+			if x < 44 {
+				inkInCell++
+				// The accent is red: `#E5484D` has R−B = 152. Neutral ink on
+				// either appearance stays within a few steps.
+				if d := int(c.R) - int(c.B); d > 12 || d < -12 {
+					warm++
+				}
+			} else {
+				inkInGap++
+			}
+		}
+	}
+	if inkInCell == 0 {
+		t.Errorf("the search row draws no leading mark: %q", tt.Texts())
+	}
+	if inkInGap != 0 {
+		t.Errorf("%d ink pixels in the 10u gap (x=44..53): the mark is not in the icon cell", inkInGap)
+	}
+	if warm != 0 {
+		t.Errorf("%d of the leading mark's %d ink pixels are warm (R−B beyond 12): it carries accent ink", warm, inkInCell)
 	}
 }
 

@@ -110,12 +110,19 @@ rim 见 `internal/shell/cardedge.go`（Windows/Linux 各两条，macOS 不画）
 
 高度不变（56u）。字段行是卡片的第一段（`FieldFill`），其下沿是**一条弱发丝线**
 （`HairlineSoft`）：不再是「悬浮输入框 + 阴影」，而是卡里的一段。查询文字走主
-文字（`Theme.Text`）落在 16u 列上；占位符走 `Theme.TextMuted`。
+文字（`Theme.Text`）；占位符走 `Theme.TextMuted`。
 
-**未落地项**：Raycast 的放大镜在文本列**左侧**的独立槽里。本仓的字段行把 16u
-padding 全花在文本列上（查询与行标题都从 16u 起），在行内插标记会把整条文本列
-推右 22u——那是本片唯一不许动的水平度量。所以这一版**不画前导放大镜**，缺口记
-在这里（见 §6 末尾）。
+**前导放大镜（P11-ab 已落地）**：Raycast 的放大镜在文本列**左侧**的独立槽里，本仓
+在 P8-a 时**没画**（缺口记在这里），P11-ab 补上。落法不占字段行的 16u padding：
+放大镜**占用结果行那 28u 的图标列 + 10u gap**（`Space(7)` 的方框、框内居中
+`Space(4)` 的 `Glyph("search")`、右 `Space(2.5)` 的 margin），墨 `TextMuted`
+（与占位符同档，不花 accent）。于是查询从 16u 挪到 **16 + 28 + 10 = 54u**——
+**正好是结果行标题的列**，字段与列表第一次共用一条文字列
+（`TestTheFieldAndTheRowsShareTheReferenceTextColumn` 的名字成为字面事实）。
+**一个模式拥有字段时（scope mark）放大镜让位**：槽里只有一样东西，scope mark
+保持自然宽度（它是一个词，裁了就什么都不指）。pin：
+`internal/launcher/actionbarfooter_test.go` 的 `TestTheSearchRowLeadsWithANeutralMark`
+（墨落在 16..44、44..53 的 gap 为空、墨无暖色）。
 
 ### §4.3 结果列表
 
@@ -306,8 +313,8 @@ keyline 属于卡片壳，不属于列表）；`AccentHalo` 在终端的状态�
 | 多选列表箱（`internal/settingsui/config.go:830`） | `tokens.Field` + `FieldSlot` | `tokens.Control` 一档（同一个应用里字段只有一种材质） | `已落地` — `config.go:826-840` |
 | `theme.Tokens.FieldSlot`（`internal/theme/theme.go:1019`） | 0.85 白边的凹痕叠层 | 标记 `Deprecated`，**保留函数体**（删除留给下一次清理轮；已 grep 确认无其它调用点） | `已落地` — `theme.go:1004-1031` |
 
-**启动器里自己没做的两处**（不在 §6 表里，写在 §4 对应小节）：
-§4.2 的搜索行前导放大镜、§4.6 的 `⌘K` 动作面（chord 未绑定）。
+**启动器里自己没做的一处**（不在 §6 表里，写在 §4 对应小节）：§4.6 的 `⌘K` 动作面
+（chord 未绑定）。§4.2 的搜索行前导放大镜已由 **P11-ab** 补上（见 §6.8）。
 
 ### §6.4 P8-d · accent 花名册收口（**已落地**）
 
@@ -395,8 +402,35 @@ P8-d 授权范围内**的位点。三者同一族（都不是「哪个被选中 
 剩下的缺口是**默认**浅色安静档的 3.04:1，它是设计取舍（见 §1 可读性不变量与
 `docs/rounds/P11-aa-spec.md` 附注），已进 `.pending-bugs.md` 的需拍板表。
 
-## §7 切片表
+### §6.8 P11-ab · 搜索行补上前导放大镜：字段与结果行共用一条文字列（**已落地**）
 
+`docs/raycast-design.md` §4.2 在 P8-a 时把这一条记成「未落地」：Raycast 的放大镜在
+文本列左侧的独立槽里，本仓的字段行把 16u padding 全花在文本列上，插标记会把文本列
+推右 22u。P11-ab 换了个落法——**标记不占 padding，占结果行那 28u 的图标列**。
+只改墨与几何，不动高度链、键盘模型、文案。
+
+| 位置 | 旧 | 新 | 落地 |
+|---|---|---|---|
+| `internal/launcher/launcher.go:1266-1278`（field row，scope mark 之前） | 无元素，只有一段「本片不画前导标记」的注释 | 无 scope 时画 **28u 方框（`Space(7)`）+ 右 10u（`Space(2.5)`）**，框内居中 16u（`Space(4)`）的 `Glyph("search")`，墨 `t.TextMuted` | `已落地` — pin `TestTheSearchRowLeadsWithANeutralMark`（`internal/launcher/actionbarfooter_test.go`）：墨落在 16..44、44..53 的 gap 为空、暖像素 0 |
+| 同一行，scope mark 分支 | 与字段并排，自然宽度 | 不变：**一个模式拥有字段时，槽里只有 scope mark**（放大镜让位） | `已落地` — `TestScopeMarker` 零改动仍绿 |
+| 查询的起始列 | 16u（字段行的 padding 用尽） | **54u** = 16u + 28u 图标列 + 10u gap = 结果行标题的列 | `已落地` — 三条 V 重定基线（`internal/launcher` 一条、`internal/shell` 两条），见报告 §3 台账 |
+
+**V 台账（三条，全部是「旧值 16u → 新值 54u」）**：
+`TestTheFieldAndTheRowsShareTheReferenceTextColumn`（caret 16 → 54）、
+`TestTheSearchColumnIsTheReferenceUnitsAtTheShippedStep`（查询 16u → 54u）、
+`TestTheSearchPageFillsAWiderWindow`（同上，三个窗口宽度）。
+另有一处**测试取样点**的修正（不是放宽断言）：
+`TestThePlatformInsetIsTheReferenceUnitLadder` 原来在**卡片中缝**取「字段行的填充色」
+再扫它的连续段，而占位符现在从 54u 起、正好盖住中缝那个像素——取样点改成卡内左缘
+`left+2`（那里永远是行自己的填充）。断言的仍然是「填充段 == 卡片内容盒」这一条。
+
+**图上实测（`/tmp/floter-P11-ab-searchrow-<light|dark>.png`，720×488）**：放大镜的
+墨落在 `x=23..36, y=21..34`（95 个像素，暖像素 **0**）；浅色最深的墨
+`(113,113,122)` = `TextMuted`、填充 `(250,250,251)`，深色 `(161,161,170)` 对填充
+`(28,28,31)`——两套外观下都读得清，都不是 accent。y=28 行上第一个非填充像素是
+**x=54**（文本框的光标），与结果行标题同列。
+
+## §7 切片表
 | 片 | 范围 | 状态 |
 |---|---|---|
 | P8-a | 合约文档 + token 层 + 启动器表面（卡片/搜索行/列表/分组头/页脚/空态/键帽） | **本轮完成** |

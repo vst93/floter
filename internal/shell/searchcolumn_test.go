@@ -24,10 +24,12 @@ import (
 // pixels would have called a correct frame wrong.
 //
 // This asserts the two numbers the design actually names, in *units*, so it
-// holds at every interface step: the query's text starts on 16u and a result
-// row's title on 54u (8u of row-block gutter + the row's 8u padding + its 28u
-// icon column + the 10u gap), both measured from the card's own content edge —
-// and the row's painted box keeps the contract's 8u gutter on either side
+// holds at every interface step: the query's text starts on 54u — the field's
+// 16u inset, plus the 28u leading cell the reference's magnifier takes, plus
+// the row's 10u gap (P11-ab) — and a result row's title on the same 54u (8u of
+// row-block gutter + the row's 8u padding + its 28u icon column + the 10u
+// gap), both measured from the card's own content edge — and the row's painted
+// box keeps the contract's 8u gutter on either side
 // (`docs/raycast-design.md` §4.3).
 func TestTheSearchColumnIsTheReferenceUnitsAtTheShippedStep(t *testing.T) {
 	a := appKeysApp()
@@ -46,8 +48,12 @@ func TestTheSearchColumnIsTheReferenceUnitsAtTheShippedStep(t *testing.T) {
 	if !ok {
 		t.Fatalf("the field was not drawn: %q", tt.Texts())
 	}
-	if want := cardLeft + 16*unit; absf(field.X-want) > 1.5 {
-		t.Errorf("the query starts at x=%.1f, want the reference's 16u (%.1f) from the card's %.1f edge",
+	// P11-ab 重定基线：旧值 16u → 新值 54u。The field used to start on the row's
+	// own 16u inset; the reference's magnifier now takes the icon cell every
+	// result row uses (28u) plus that row's 10u gap, so the query lands on the
+	// rows' title column instead of a column of its own.
+	if want := cardLeft + 54*unit; absf(field.X-want) > 1.5 {
+		t.Errorf("the query starts at x=%.1f, want the rows' title column 54u (%.1f) from the card's %.1f edge",
 			field.X, want, cardLeft)
 	}
 
@@ -309,7 +315,11 @@ func TestTheSearchPageFillsAWiderWindow(t *testing.T) {
 			t.Fatalf("%d: the field was not drawn: %q", width, tt.Texts())
 		}
 		y := int(field.Y + field.H/2)
-		fill := img.RGBAAt(int((wantLeft+wantRight)/2), y)
+		// The fill is read just inside the card's left edge, not at its middle:
+		// the field row's own text sits on the 54u column and a sample taken at
+		// the card's mid-x can land inside a glyph (P11-ab's magnifier moved the
+		// text right, which is exactly how that sample point first broke).
+		fill := img.RGBAAt(int(wantLeft)+2, y)
 		runLeft, runRight := -1, -1
 		for x := 0; x < width; x++ {
 			if img.RGBAAt(x, y) == fill {
@@ -325,11 +335,12 @@ func TestTheSearchPageFillsAWiderWindow(t *testing.T) {
 		if absf(float32(runRight)-wantRight) > 1 {
 			t.Errorf("%d: the card ends at x=%d, want x=%.0f (a band of nothing inside the window?)", width, runRight, wantRight)
 		}
-		// The field's own text still sits on the reference's 16u from the
+		// The field's own text still sits on the reference's 54u from the
 		// card's edge, so the card widening moves the design's origin with it.
+		// (P11-ab: 16u → 54u — the magnifier's cell and gap come first.)
 		unit := spacing / 4
-		if want := float32(runLeft) + 16*unit; absf(field.X-want) > 1.5 {
-			t.Errorf("%d: the query starts at x=%.1f, want the card's 16u (%.1f)", width, field.X, want)
+		if want := float32(runLeft) + 54*unit; absf(field.X-want) > 1.5 {
+			t.Errorf("%d: the query starts at x=%.1f, want the card's 54u (%.1f)", width, field.X, want)
 		}
 	}
 }
@@ -403,7 +414,11 @@ func TestThePlatformInsetIsTheReferenceUnitLadder(t *testing.T) {
 		}
 		img := tt.Image()
 		y := int(field.Y + field.H/2)
-		fill := img.RGBAAt(int((left+right)/2), y)
+		// The fill is read just inside the card's left edge, not at its middle:
+		// the field row's own text (placeholder included) sits on the 54u column
+		// and a sample taken at the card's mid-x can land inside a glyph — which
+		// is exactly what P11-ab's magnifier shifted the text onto.
+		fill := img.RGBAAt(int(left)+2, y)
 		runLeft, runRight := -1, -1
 		for x := 0; x < 720; x++ {
 			if img.RGBAAt(x, y) == fill {
