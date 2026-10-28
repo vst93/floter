@@ -127,9 +127,64 @@ func TestStrokes(t *testing.T) {
 	if light.InputStroke.R != 0 {
 		t.Errorf("light stroke = %v, want the dark-on-light one", light.InputStroke)
 	}
-	// The focused step takes the accent in both.
+	// The focused step is the same hairline one rung brighter. P11-z 重定基线：
+	// 它曾经是 accent 的 0.55（`ui.RGBA(229,72,77,0.55)` / `ui.RGBA(245,84,78,0.55)`），
+	// 现在只靠明度差（0.09 → 0.16），见 TestTheFocusedCardEdgeIsNeutral。
 	if dark.InputStrokeActive == dark.InputStroke {
 		t.Error("the active stroke is the idle one")
+	}
+}
+
+// P11-z（用户实测 F2「整体红色线条太扎眼」）· The focused card edge is a
+// **neutral** hairline, not the accent.
+//
+// `InputStrokeActive` is what the launcher card's border and (before P11-z) the
+// terminal canvas's border painted while the window had the keyboard. It used
+// to be the accent at 0.55 — a constant red outline around the whole window,
+// which answers 「这个窗口有焦点」 rather than §5's 「哪个被选中 / 哪个是开的」.
+// The focused rung is now the resting hairline one step brighter: same hue
+// (none), one more level of ink.
+//
+// The pin is the negative one the user's report asks for: two appearances, the
+// channels may not disagree (no hue), and the rung must still be *distinguishable*
+// from the resting one (the focus cue is the brightness, so it may not collapse).
+func TestTheFocusedCardEdgeIsNeutral(t *testing.T) {
+	spread := func(c ui.Color) int {
+		d := int(c.R) - int(c.G)
+		if d < 0 {
+			d = -d
+		}
+		for _, pair := range [][2]uint8{{c.G, c.B}, {c.R, c.B}} {
+			if x := int(pair[0]) - int(pair[1]); x < 0 {
+				if -x > d {
+					d = -x
+				}
+			} else if x > d {
+				d = x
+			}
+		}
+		return d
+	}
+	for _, dark := range []bool{false, true} {
+		appearance := "light"
+		if dark {
+			appearance = "dark"
+		}
+		tk := For(settings.Settings{Theme: appearance}, dark)
+		active := tk.InputStrokeActive
+		if s := spread(active); s > 8 {
+			t.Errorf("dark=%v: the focused edge %v has channels %d levels apart: it carries a hue, "+
+				"and §5 lets the accent answer only 「哪个被选中 / 哪个是开的」", dark, active, s)
+		}
+		if active.A == tk.InputStroke.A {
+			t.Errorf("dark=%v: the focused edge is the resting one (%v): the focus cue is the brightness", dark, active)
+		}
+		// The resting rung is the neutral one too, so a red active rung cannot
+		// hide behind a red resting one.
+		rest := tk.InputStroke
+		if s := spread(rest); s > 8 {
+			t.Errorf("dark=%v: the resting edge %v is not neutral either (%d)", dark, rest, s)
+		}
 	}
 }
 

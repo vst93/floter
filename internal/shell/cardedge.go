@@ -63,9 +63,8 @@ type cardEdgeStroke struct {
 // slice means the reference draws no edge there (macOS), not that none has been
 // written yet.
 //
-// The order is the reference's: the accent keyline (Linux, focused only) before
-// the two rim strokes, because `box-shadow` paints in declaration order and the
-// keyline is the one that has to sit on top of the frame's own tint.
+// The order is the reference's: the two rim strokes, top before bottom, because
+// `box-shadow` paints in declaration order.
 //
 // `contrast` is the desktop's `prefers-contrast: more` answer and only Windows
 // branches on it: its block replaces the pair with one `--stroke-contrast`
@@ -91,17 +90,17 @@ func cardEdge(tokens theme.Tokens, goos string, focused, contrast bool) []cardEd
 			{Y: -1, Color: tokens.EdgeShadow},
 		}
 	case "linux":
-		out := make([]cardEdgeStroke, 0, 3)
-		if focused {
-			// `inset 0 0 0 1px var(--accent-glow)`: the Linux card's keyboard
-			// cue is the accent ring, not the brighter top stroke — the two
-			// are drawn together, which is why the ring is first.
-			out = append(out, cardEdgeStroke{Spread: 1, Color: tokens.AccentGlow})
+		// P11-z 重定基线（用户实测 F2）：这里曾加一圈 `inset 0 0 0 1px
+		// AccentGlow`（base.css 的 Linux `:focus-within` keyline）。它回答的是
+		// 「整个窗口有键盘焦点」——§5 的四类里没有这一类，用户读到的就是
+		// 「整体红色线条太扎眼」。焦点现在只由上面那对描边（聚焦时顶边换
+		// `EdgeHighlightActive`）与 `SheenAtFocus` 的亮面说，不再额外画一圈红。
+		// （顺带查到的旧账：`theme.For` 从未给 `AccentGlow` 赋值，所以那一圈
+		// 一直用零值颜色画，实际是隐形的；见 `theme.Tokens.AccentGlow`。）
+		return []cardEdgeStroke{
+			{Y: 1, Color: top},
+			{Y: -1, Color: tokens.EdgeShadow},
 		}
-		return append(out,
-			cardEdgeStroke{Y: 1, Color: top},
-			cardEdgeStroke{Y: -1, Color: tokens.EdgeShadow},
-		)
 	}
 	return nil
 }

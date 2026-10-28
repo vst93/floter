@@ -132,6 +132,12 @@ type Tokens struct {
 	// InputStroke is the one edge a card or a control draws (base.css's
 	// `--input-stroke`), and InputStrokeActive its focused step — the lit
 	// edge a focused card takes, as `.collapsed-card:focus-within` did.
+	//
+	// P11-z 重定基线（用户实测 F2「整体红色线条太扎眼」）：聚焦档**不再是 accent**，
+	// 而是同一根发丝线的亮一档（浅 0.09→0.16 黑，深 0.09→0.16 白）。§5 的判据
+	// 是「accent 只能回答哪个被选中 / 哪个是开的」，而「整个窗口有键盘焦点」两件
+	// 都不是——它是一条常量装饰。§5 的「预算只约束色相，不约束明度」正是这条的
+	// 授权：焦点靠明度差说，不靠色相说。
 	InputStroke       ui.Color
 	InputStrokeActive ui.Color
 
@@ -280,11 +286,17 @@ type Tokens struct {
 	// AccentGlow is the accent as a panel-sized focus ring (base.css's
 	// `--accent-glow`: dark `rgba(143,183,255,0.08)` at `:687`, light
 	// `rgba(6,74,166,0.2)` at `:955`). It is a *third* rung, not a repeat of
-	// `AccentHalo` (0.18/0.24) or `AccentEdge` (0.30/0.36): the Linux card rule
-	// swaps it in for the 1px keyline while the card holds the keyboard
-	// (`.platform-linux .collapsed-card:focus-within`,
-	// `main:src/styles/base.css:1625-1632`), and a card built without it never
-	// showed the Linux keyboard cue at all.
+	// `AccentHalo` (0.18/0.24) or `AccentEdge` (0.30/0.36).
+	//
+	// Deprecated: P11-z 收掉了它的最后一处生产调用（`internal/shell/cardedge.go`
+	// 的 Linux 聚焦卡 inset 环）。那圈环和 `InputStrokeActive` 是同一个语义——
+	// 「整个窗口有键盘焦点」——也就是用户实测 F2 说的「整体红色线条」；焦点改由
+	// `EdgeHighlightActive` 与 `SheenAtFocus` 的亮面表达（两者都保留）。
+	//
+	// 另：P11-z 查到一个旧账——`For` 从未给这个字段赋过值（`Tokens` 构造块里
+	// 只有 `AccentEdge`/`AccentEdgeStrong`/`AccentHalo` 三行），所以那圈环一直
+	// 用零值颜色画，**从来没有真的画出来过**；旧 pin 与零值比较因此永远绿。
+	// 字段保留不删，同 P8-e 对 `AccentTintQuiet` 的处理。
 	AccentGlow ui.Color
 	// AccentTintQuiet is the accent at the quietest rung of its tint family
 	// (base.css's `--accent-tint-quiet`): one rung below `--accent-tint`, and a
@@ -645,10 +657,12 @@ func paletteFor(appearance Appearance) palette {
 			accentPressed: ui.Hex("#CC3B40"),
 			accentText:    ui.Hex("#FFFFFF"),
 			stroke:        ui.RGBA(0, 0, 0, 0.09),
-			strokeActive:  ui.RGBA(229, 72, 77, 0.55),
-			control:       ui.RGBA(0, 0, 0, 0.05),
-			controlHover:  ui.RGBA(0, 0, 0, 0.075),
-			controlPress:  ui.RGBA(0, 0, 0, 0.032),
+			// P11-z 重定基线：`ui.RGBA(229, 72, 77, 0.55)`（accent 0.55）→ 中性
+			// 0.16。聚焦是明度差，不是色相（见 `Tokens.InputStrokeActive`）。
+			strokeActive: ui.RGBA(0, 0, 0, 0.16),
+			control:      ui.RGBA(0, 0, 0, 0.05),
+			controlHover: ui.RGBA(0, 0, 0, 0.075),
+			controlPress: ui.RGBA(0, 0, 0, 0.032),
 			// A control's own edge is the keycap pair's hairline (§1: 0.06 light),
 			// one step under the card's strong 0.09.
 			controlEdge: ui.RGBA(0, 0, 0, 0.06),
@@ -723,8 +737,10 @@ func paletteFor(appearance Appearance) palette {
 		// 0.09, `docs/raycast-design.md` §1); the hairline rung below is the
 		// same number, because in Raycast's language a card's border and a
 		// section's rule are one hairline seen at two widths, not two colours.
-		stroke:       ui.RGBA(255, 255, 255, 0.09),
-		strokeActive: ui.RGBA(245, 84, 78, 0.55),
+		stroke: ui.RGBA(255, 255, 255, 0.09),
+		// P11-z 重定基线：`ui.RGBA(245, 84, 78, 0.55)`（accent 0.55）→ 中性
+		// 0.16（见 `Tokens.InputStrokeActive`）。
+		strokeActive: ui.RGBA(255, 255, 255, 0.16),
 		control:      ui.RGBA(255, 255, 255, 0.075),
 		controlHover: ui.RGBA(255, 255, 255, 0.105),
 		controlPress: ui.RGBA(255, 255, 255, 0.05),

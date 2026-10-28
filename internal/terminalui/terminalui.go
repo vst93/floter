@@ -868,12 +868,11 @@ func (a *App) View(c *ui.Context) {
 		// `.terminal-bar`). The drawer is a sibling of the canvas, so opening
 		// it shrinks the canvas (and resizes the PTY) rather than covering the
 		// session's output.
-		// The focused canvas takes the accent edge (`.terminal-panel__mount:
-		// focus-within`), the same lit frame the launcher's card takes.
-		edge := tokensOf(a, c).InputStroke
-		if a.Focus.Focused(c) {
-			edge = tokensOf(a, c).InputStrokeActive
-		}
+		// P11-z 重定基线（用户实测 F3）：画布这里曾有一条 `Border(1, edge)`，
+		// 聚焦时还是 accent 红。它在面板（12）的框里再套一圈框（10），两层圆角
+		// 框叠在一起就是用户读到的「终端页面外圈那圈类玻璃边」。面板是这一页
+		// **唯一**的框，画布只留一层填充；不加 rim/sheen/高光，也不做
+		// floating/overlay 观感（元素 inline、贴进布局）。
 		body := ui.Box(c).Grow(1).FillWidth()
 		body.Children(func() {
 			// The mount's fill is the terminal's background: the session's own
@@ -885,7 +884,7 @@ func (a *App) View(c *ui.Context) {
 			// P8-c 重定基线（§6.2 第 2 条）：画布圆角 12 → `RadiusMD`(10)。12
 			// 是「这张面**是**窗口」的档（§2：窗口、整张卡），而终端画布是面板
 			// **里**的一块，和分组卡/浮层同档；面板自己仍是 `WindowRadius`(12)。
-			ui.Box(c).Fill().Radius(mountCorner(tokensOf(a, c))).Border(1, edge).
+			ui.Box(c).Fill().Radius(mountCorner(tokensOf(a, c))).
 				Children(func() {
 					// No `Padding` here: the inset belongs to the grid and is
 					// Options.Padding now (see options). An element's padding

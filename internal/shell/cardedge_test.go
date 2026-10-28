@@ -15,8 +15,10 @@ import (
 // `base.css` writes two inset strokes on the card for Windows and Linux —
 // `inset 0 1px 0 var(--edge-highlight)` and `inset 0 -1px 0 var(--edge-shadow)`
 // (`main:src/styles/base.css:1550-1556,1612-1617`) — and swaps the top one for
-// `var(--edge-highlight-active)` on `:focus-within` (`:1558-1565,1625-1632`),
-// with `inset 0 0 0 1px var(--accent-glow)` joining it on Linux. macOS draws
+// `var(--edge-highlight-active)` on `:focus-within` (`:1558-1565,1625-1632`).
+// The reference's Linux rule also adds `inset 0 0 0 1px var(--accent-glow)`;
+// P11-z 删掉了那一圈（用户实测 F2「整体红色线条太扎眼」：它回答的是「整个窗口
+// 有键盘焦点」，不是 §5 的「哪个被选中 / 哪个是开的」）。macOS draws
 // none: the window server lights the frame there.
 //
 // The port drew a bare 1px border and no inset stroke, so the card's top never
@@ -39,8 +41,9 @@ func TestTheCardEdgeIsThePlatformsOwnTable(t *testing.T) {
 	}
 }
 
-// The focused card's top stroke is the brighter rung, and Linux adds the accent
-// ring — the same rule as the stroke and the sheen, on the third half of it.
+// The focused card's top stroke is the brighter rung, and that is the whole of
+// the focus cue on the card's shell — P11-z removed the Linux accent ring that
+// used to join it (see TestTheFocusedCardDrawsNoAccentRing).
 func TestTheCardEdgeBrightensWithTheKeyboard(t *testing.T) {
 	for _, dark := range []bool{false, true} {
 		tokens := theme.ForPreferences(settings.Default(), dark, ui.Preferences{})
@@ -63,22 +66,56 @@ func TestTheCardEdgeBrightensWithTheKeyboard(t *testing.T) {
 					dark, goos, focused[len(focused)-1], resting[len(resting)-1])
 			}
 		}
-		// Linux, focused: the accent ring is drawn, and it is the ring token
-		// rather than either of the two others the accent has.
+		// Linux, focused: the same two strokes as the resting card, with the top
+		// one lit. P11-z 重定基线：这里曾是 3 条（首条是 `Spread: 1` 的
+		// `AccentGlow` inset 环），旧值 → 新值（环删掉，只剩边的一对）。
 		linux := cardEdge(tokens, "linux", true, false)
-		if len(linux) != 3 {
-			t.Fatalf("dark=%v: the focused Linux card edge = %d strokes, want 3: %+v", dark, len(linux), linux)
+		if len(linux) != 2 {
+			t.Fatalf("dark=%v: the focused Linux card edge = %d strokes, want the rim's 2: %+v", dark, len(linux), linux)
 		}
-		if linux[0].Spread != 1 || linux[0].Color != tokens.AccentGlow {
-			t.Errorf("dark=%v: the Linux focus ring = %+v, want inset 0 0 0 1px AccentGlow", dark, linux[0])
-		}
-		if tokens.AccentGlow == tokens.AccentEdge || tokens.AccentGlow == tokens.AccentHalo {
-			t.Errorf("dark=%v: --accent-glow is not a rung of its own", dark)
+		if focusTop(t, linux) != tokens.EdgeHighlightActive {
+			t.Errorf("dark=%v: the focused Linux top stroke is not EdgeHighlightActive", dark)
 		}
 		// At rest Linux draws no ring: the reference's resting rule has none.
 		for _, stroke := range cardEdge(tokens, "linux", false, false) {
 			if stroke.Spread != 0 {
 				t.Errorf("dark=%v: a resting Linux card draws a keyline: %+v", dark, stroke)
+			}
+		}
+	}
+}
+
+// P11-z（用户实测 F2「整体红色线条太扎眼」）· The focused card's shell draws **no
+// accent ring**.
+//
+// It used to draw `inset 0 0 0 1px AccentGlow` on Linux while the card had the
+// keyboard, on top of the red `InputStrokeActive` border the card itself wore —
+// two constant red lines around one rectangle, both answering 「这个窗口有焦点」,
+// which is not one of §5's four uses (「哪个被选中 / 哪个是开的」). The focus cue
+// is the lit top stroke and the lit face; the ring is gone.
+//
+// The pin walks every stroke of every platform's focused card: none may be the
+// accent or any of its rungs, and none may be an inset ring (`Spread == 1`).
+func TestTheFocusedCardDrawsNoAccentRing(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		tokens := theme.ForPreferences(settings.Default(), dark, ui.Preferences{})
+		accentRungs := map[string]ui.Color{
+			"Accent": tokens.Theme.Accent, "AccentHalo": tokens.AccentHalo,
+			"AccentGlow": tokens.AccentGlow, "AccentEdge": tokens.AccentEdge,
+			"AccentEdgeStrong": tokens.AccentEdgeStrong,
+		}
+		for _, goos := range []string{"windows", "linux", "darwin"} {
+			for _, stroke := range cardEdge(tokens, goos, true, false) {
+				if stroke.Spread != 0 {
+					t.Errorf("dark=%v %s: the focused card draws an inset ring: %+v", dark, goos, stroke)
+				}
+				for name, rung := range accentRungs {
+					if stroke.Color == rung {
+						t.Errorf("dark=%v %s: the focused card's stroke is %s (%v); §5 lets the accent answer "+
+							"only 「哪个被选中 / 哪个是开的」, and a window having the keyboard is neither",
+							dark, goos, name, stroke.Color)
+					}
+				}
 			}
 		}
 	}

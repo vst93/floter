@@ -167,11 +167,17 @@ padding 全花在文本列上（查询与行标题都从 16u 起），在行内�
 2. **主 CTA 填充**（`internal/settingsui/settingsui.go:3739` 的 `updateButton`）。
 3. **控件处于「已选 / 已开」状态时的状态色**：分段控件的选中段 keyline、开关的
    ON 态、收音机的选中项。这是**状态**，不是装饰——它回答的正是「哪个被选中了」。
-4. **焦点环**（`Focus` / `InputStrokeActive` / `AccentGlow`，见
-   `internal/theme/theme.go`）。
+4. **控件级焦点环**（框架的 `ui.Theme.Focus`，即 `FocusRing`，以及输入框 caret）。
+   **P11-z 定审（用户实测 F2「整体红色线条太扎眼」）**：本条只到「控件」为止——
+   一个控件在若干兄弟里被键盘选中的那一圈。**窗口/卡片级的整圈描边不属此列**：
+   `InputStrokeActive`（启动器整张卡的 1px 边）与 `AccentGlow`（Linux 聚焦卡的
+   inset 环）回答的是「这个窗口有焦点」，而窗口在用时**永远**有焦点，于是那圈红
+   是常量装饰。两者已改/删：`InputStrokeActive` 现在是同一根发丝线的亮一档
+   （浅 0.09→0.16 黑，深 0.09→0.16 白），`AccentGlow` 标 `Deprecated`。
 
 仍禁止：列表选中行、页脚、分组头、空态、行 hover/按下、图标底、弹层危险动作的
-彩色环、终端状态灯（已去掉 halo，P8-e 再去掉色相——只靠呼吸动）、抽屉读数文字。
+彩色环、终端状态灯（已去掉 halo，P8-e 再去掉色相——只靠呼吸动）、抽屉读数文字、
+**整个窗口/卡片外圈的描边**（P11-z）。
 
 **判断标准一句话**：accent 只能回答「哪个被选中 / 哪个是开的」，不能回答「这块
 面好看」。
@@ -342,6 +348,27 @@ P8-d 授权范围内**的位点。三者同一族（都不是「哪个被选中 
 `TextSecondary`（CSS 的默认 `color`）。若成功也用它，「确认」与「普通信息」就只剩
 一个 ✓ 字形可分；§5 注脚允许并**鼓励**用中性档之间的明度分层，而 P8-d 已把同族的
 导入成功提示（`transferReport`）定在 `TextStrong`，两者同语汇。
+
+### §6.6 P11-z · 用户实测 F2 + F3：红线只回答语义、终端画布不再套第二圈框（**已落地**）
+
+用户实测原话：「整体红色线条太扎眼」「终端页面外圈那圈类玻璃边偏离『轻』的质感」。
+只改墨与面，不动几何/交互/文案。
+
+| 位置 | 旧 | 新 | 落地 |
+|---|---|---|---|
+| `internal/theme/theme.go` 的 `strokeActive`（浅/深） | `rgba(229,72,77,.55)` / `rgba(245,84,78,.55)` | `rgba(0,0,0,.16)` / `rgba(255,255,255,.16)`（静息 `stroke` 0.09 的亮一档） | `已落地` — pin `TestTheFocusedCardEdgeIsNeutral`（两套外观：通道差 ≤ 8，且与静息档不同） |
+| `internal/shell/cardedge.go` 的 Linux 聚焦卡 | 多画一圈 `inset 0 0 0 1px AccentGlow` | 删掉（焦点只由 `EdgeHighlightActive` 与 `SheenAtFocus` 的亮面说） | `已落地` — pin `TestTheFocusedCardDrawsNoAccentRing`；`TestTheCardEdgeBrightensWithTheKeyboard` V 重定基线（3 条 → 2 条） |
+| `internal/terminalui/terminalui.go` 的画布 | `Border(1, edge)`（聚焦时 `InputStrokeActive`），面板(12) 里再套一圈(10) 的框 | 删掉，只留 `Radius(mountCorner)` 的填充：面板是这一页唯一的框 | `已落地` — pin `TestTheTerminalCanvasDrawsNoSecondFrame`（页面最外一列像素 == 画布填充） |
+
+**旧账（本轮查到的）**：`theme.For` 从未给 `Tokens.AccentGlow` 赋过值（构造块只有
+`AccentEdge`/`AccentEdgeStrong`/`AccentHalo` 三行），所以 Linux 那圈 inset 环一直
+用零值颜色画，**从来没真的画出来过**；旧 pin 拿 `tokens.AccentGlow`（零值）去比，
+自然永远绿。本轮删掉那条路径，字段按 P8-e 对 `AccentTintQuiet` 的先例标
+`Deprecated`、保留不删。
+
+**留下的唯一一条红线**：搜索框的文本光标（框架 `ui/editor_layout.go` 用
+`Theme.Accent` 画 caret）。它不是描边，也不是「这块面好看」——它回答「文字从这里
+进去」，且只有 1px 宽。要不要也改中性属拍板项（`.pending-bugs.md`）。
 
 ## §7 切片表
 
