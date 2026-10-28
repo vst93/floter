@@ -532,6 +532,18 @@ pin：`internal/terminalui/barreach_test.go` 的
 `TestTheEmptyPageSaysSoUnderTheField`（句子矩形里的**墨量** > 0 + 中心落在带的中点 ±6px）；
 `HasText` 类 pin 保留，它们钉的是文案，不钉可见性。
 
+### §6.14 P11-ah · 滚轮的距离归滚轮，选中的视野归键盘（**已落地**）
+
+§4.3 的列表是滚轮表面。一格滚轮（120u）该走三行，实测只走一行且是瞬跳。
+
+规则一条：**「把选中的行滚进视野」是键盘的规则，不是指针的**。指针进入某行就接管选中
+（R21）——但那一行**就在指针底下**，`near` 语义下本就不会移动内容；发出去的
+`ScrollIntoView` 唯一的作用是让框架认为「应用接管了偏移」，从而丢弃在途的滚轮滑行
+（`mygo` 的 `glideWheels` 见 `ListState.scrolled` 即退出）。所以指针给的选择不滚，
+键盘步进 / 查询变更后的默认选中 / 历史删除后的邻居接管照旧滚。
+pin：`internal/launcher/wheelscroll_test.go` 的 `TestTheWheelScrollsTheListUnderThePointer`
+（四格 120u 后列表必须前进 ≥ 8 行，改前 4 行）与 `TestTheKeyboardStillScrollsItsRowIntoView`。
+
 ## §7 切片表
 | 片 | 范围 | 状态 |
 |---|---|---|

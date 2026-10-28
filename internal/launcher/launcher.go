@@ -281,6 +281,16 @@ type App struct {
 	// leaves the two devices sharing one state.
 	hoveredRow    int
 	hoverFrameRow int
+	// pointerChose records that the change to Selected this frame came from
+	// the pointer — an entry into a row, a click on it, or its star — rather
+	// than from the keyboard. A row the pointer chose is the row *under the
+	// pointer*, so it is in view by construction: the reveal below skips it.
+	// Revealing it is not merely redundant — the framework reads a
+	// ScrollIntoView as "the app has taken the offset over" and drops a wheel
+	// notch already on its way (`mygo`'s `glideWheels`, `s.list.scrolled`), so
+	// a pointer resting on the list turned every notch into a one-row jump
+	// (P11-ah).
+	pointerChose bool
 	// footerBand is the band the pinned action-bar footer occupies at the
 	// panel's bottom edge this frame, in pixels (see actionBarSplit). The
 	// docked rows — the toast and the power confirmation — sit above it, so a
@@ -1462,12 +1472,16 @@ func (a *App) View(c *ui.Context) {
 	// makes the landing clamp the scroll back: the list slid up and back down
 	// on the press edge (「先上移然后再下移恢复」). The row is never scrolled
 	// into view; it is simply given the room.
+	// Read and clear in one place: the flag is set by this frame's rows, and a
+	// pointer choice must not leave it standing for a later keyboard step.
+	byPointer := a.pointerChose
+	a.pointerChose = false
 	if a.Selected != a.chosenRow {
 		a.chosenRow = a.Selected
 		// The held row is the list's last line and it was recorded from this
 		// frame's own list (see heldRowShown), so neither question below
 		// needs a second catalog walk.
-		if !a.heldRowShown || a.Selected != len(results)-1 {
+		if !byPointer && (!a.heldRowShown || a.Selected != len(results)-1) {
 			// The pinned footer is never scrolled into view: it is not a row of
 			// the scroller at all, it is the band below it, so it is on screen
 			// by construction. Asking the list for its index would land the
@@ -2158,6 +2172,7 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 		a.hoverFrameRow = i
 		if i != a.hoveredRow && rowSelectable(item) && item.Run != nil {
 			a.Selected = i
+			a.pointerChose = true
 		}
 	}
 	// A history row's own delete control: the focused text field owns the
@@ -2392,6 +2407,7 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 				// The toggle acts on the row the star belongs to, which the
 				// pointer has just made the choice.
 				a.Selected = i
+				a.pointerChose = true
 				a.toggleFavorite(item)
 				removed = true
 			}
@@ -2442,6 +2458,7 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 	})
 	if row.Clicked() && !removed {
 		a.Selected = i
+		a.pointerChose = true
 		a.activate(a.Results())
 	}
 }
