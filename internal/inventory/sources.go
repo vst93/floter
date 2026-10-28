@@ -5,10 +5,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"floter/internal/desktopentry"
 	"floter/internal/extensions"
 	"floter/internal/pathid"
 	"floter/internal/pathlist"
-	"floter/internal/textlines"
 	"floter/internal/xdg"
 )
 
@@ -100,7 +100,7 @@ func mergeEntries(merge mergeFunc, directories []string, source DiscoverySource,
 	seen := map[string]bool{}
 	for _, directory := range directories {
 		xdg.WalkDesktopEntries(directory, xdg.DesktopWalkDepth, func(path string) {
-			id := desktopFileID(directory, path)
+			id := desktopentry.FileID(directory, path)
 			if seen[id] {
 				return
 			}
@@ -118,78 +118,14 @@ func mergeEntries(merge mergeFunc, directories []string, source DiscoverySource,
 	}
 }
 
-// desktopFileID is an entry's id: its path below the root it was read from,
-// with the separators flattened.
-func desktopFileID(root, path string) string {
-	relative, err := filepath.Rel(root, path)
-	if err != nil {
-		relative = path
-	}
-	return strings.ReplaceAll(relative, string(filepath.Separator), "-")
-}
-
-// desktopEntry is the fields a discovery reads off a desktop entry: the name
-// and description it publishes, and the command it runs.
-type desktopEntry struct {
-	Name      string
-	Comment   string
-	Exec      string
-	TryExec   string
-	Type      string
-	Hidden    bool
-	NoDisplay bool
-}
-
-// parseDesktopEntry reads an entry and answers the question a discovery asks of
-// it: is this a tool at all? `Hidden`, `NoDisplay`, a `Type` that is not an
-// application and an entry with no `Name`/`Exec` are not.
-func parseDesktopEntry(path string) (desktopEntry, bool) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return desktopEntry{}, false
-	}
-	var entry desktopEntry
-	inMain := false
-	for _, line := range textlines.Split(string(data)) {
-		line = strings.TrimSpace(line)
-		switch {
-		case line == "" || strings.HasPrefix(line, "#"):
-		case strings.HasPrefix(line, "["):
-			inMain = line == "[Desktop Entry]"
-		case inMain:
-			key, value, found := strings.Cut(line, "=")
-			if !found {
-				continue
-			}
-			key, value = strings.TrimSpace(key), strings.TrimSpace(value)
-			switch key {
-			case "Name":
-				if entry.Name == "" {
-					entry.Name = value
-				}
-			case "Comment":
-				if entry.Comment == "" {
-					entry.Comment = value
-				}
-			case "Exec":
-				entry.Exec = value
-			case "TryExec":
-				entry.TryExec = value
-			case "Type":
-				entry.Type = value
-			case "Hidden":
-				entry.Hidden = strings.EqualFold(value, "true")
-			case "NoDisplay":
-				entry.NoDisplay = strings.EqualFold(value, "true")
-			}
-		}
-	}
-	if entry.Name == "" || entry.Exec == "" || entry.Hidden || entry.NoDisplay {
-		return desktopEntry{}, false
-	}
-	// A missing `Type` defaults to an application.
-	if entry.Type != "" && entry.Type != "Application" {
-		return desktopEntry{}, false
+// parseDesktopEntry reads an entry through `internal/desktopentry` and answers
+// the question a discovery asks of it: is this a tool at all? `Hidden`,
+// `NoDisplay`, a `Type` that is not an application and an entry with no
+// `Name`/`Exec` are not.
+func parseDesktopEntry(path string) (desktopentry.Entry, bool) {
+	entry, ok := desktopentry.Parse(path)
+	if !ok || !entry.Usable() {
+		return desktopentry.Entry{}, false
 	}
 	return entry, true
 }
@@ -201,94 +137,11 @@ func readDesktopEntry(path string) (name, comment, exec string, ok bool) {
 	if !ok {
 		return "", "", "", false
 	}
-	return entry.Name, entry.Comment, desktopExecCommand(entry.Exec), true
-}
-
-// desktopExecCommand is an Exec line's first token, with the field codes
-// a desktop entry passes its arguments through dropped (`%f %F %u %U %i %c %k`).
-func desktopExecCommand(value string) string {
-	argv := desktopExecArgv(value)
+	argv := entry.ArgvFor()
 	if len(argv) == 0 {
-		return ""
+		return "", "", "", false
 	}
-	return argv[0]
-}
-
-// desktopExecArgv splits an Exec line into the argv it declares: quotes group,
-// a backslash escapes, and the field codes are stripped — the candidate is the
-// bare command, not the arguments a launcher would pass it. A malformed line
-// yields nothing.
-func desktopExecArgv(value string) []string {
-	var (
-		argv    []string
-		current strings.Builder
-		quoted  bool
-		open    bool
-	)
-	flush := func() bool {
-		if !open && current.Len() == 0 {
-			return true
-		}
-		token, ok := stripDesktopFieldCodes(current.String())
-		current.Reset()
-		open = false
-		if !ok {
-			return false
-		}
-		if token != "" {
-			argv = append(argv, token)
-		}
-		return true
-	}
-	for index := 0; index < len(value); index++ {
-		character := value[index]
-		switch {
-		case character == '"':
-			quoted = !quoted
-			open = true
-		case character == '\\' && index+1 < len(value):
-			index++
-			current.WriteByte(value[index])
-			open = true
-		case (character == ' ' || character == '\t') && !quoted:
-			if !flush() {
-				return nil
-			}
-		default:
-			current.WriteByte(character)
-			open = true
-		}
-	}
-	if quoted || !flush() {
-		return nil
-	}
-	return argv
-}
-
-// stripDesktopFieldCodes drops the field codes a desktop entry interpolates
-// its arguments through, and keeps a literal `%%` as `%`. An unknown code
-// makes the line invalid.
-func stripDesktopFieldCodes(value string) (string, bool) {
-	var output strings.Builder
-	for index := 0; index < len(value); index++ {
-		character := value[index]
-		if character != '%' {
-			output.WriteByte(character)
-			continue
-		}
-		index++
-		if index >= len(value) {
-			return "", false
-		}
-		switch value[index] {
-		case '%':
-			output.WriteByte('%')
-		case 'f', 'F', 'u', 'U', 'i', 'c', 'k':
-		default:
-			return "", false
-		}
-	}
-	return output.String(), true
+	return entry.Name, entry.Comment, argv[0], true
 }
 
 // desktopLookup is the search path a bare Exec program is resolved through: the
@@ -329,13 +182,13 @@ var desktopProgram = func(program string) (string, bool) {
 // on `/usr/bin/flatpak` and overwrote the `flatpak` row's description with the
 // application's, and a bare `Exec=firefox` never met the PATH row that already
 // carried it.
-func desktopEntryTarget(entry desktopEntry) (string, bool) {
+func desktopEntryTarget(entry desktopentry.Entry) (string, bool) {
 	if entry.TryExec != "" {
 		if _, ok := desktopProgram(entry.TryExec); !ok {
 			return "", false
 		}
 	}
-	argv := unwrapDesktopEnv(desktopExecArgv(entry.Exec))
+	argv := unwrapDesktopEnv(entry.ArgvFor())
 	if len(argv) == 0 {
 		return "", false
 	}

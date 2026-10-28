@@ -6,6 +6,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"floter/internal/desktopentry"
 )
 
 // writeFile writes a fixture and returns its path.
@@ -43,8 +45,10 @@ func stubDesktopSeams(t *testing.T, resolve func(string) (string, bool), flatpak
 }
 
 // The Exec line is an argv declaration, not a string split on spaces: quotes
-// group, a backslash escapes, the field codes are stripped and an unknown code
-// or an unterminated quote makes the line unusable.
+// group, a backslash escapes, the field codes are stripped, an unknown code is
+// kept as written, and an unterminated quote makes the line unusable. The
+// reading itself lives in `internal/desktopentry`; this pins that the tool
+// inventory reads an Exec line through it.
 func TestTheDesktopExecIsAnArgvNotASplitOnSpaces(t *testing.T) {
 	for _, testCase := range []struct {
 		name string
@@ -56,13 +60,15 @@ func TestTheDesktopExecIsAnArgvNotASplitOnSpaces(t *testing.T) {
 		{"an env prefix stays one argument list", "env A=1 /snap/bin/x %u", []string{"env", "A=1", "/snap/bin/x"}},
 		{"a shell command string is quoted", `sh -c "firefox %u"`, []string{"sh", "-c", "firefox "}},
 		{"a literal percent", "100%%done %f", []string{"100%done"}},
-		{"an unknown field code", "rg %z", nil},
+		// P11-s 重定基线：旧值 nil（整行作废）→ 原样保留，参考 `strip_field_codes`
+		// 不解释规范未定义的码。
+		{"an unknown field code", "rg %z", []string{"rg", "%z"}},
 		{"an unterminated quote", `rg "unclosed`, nil},
 		{"blank", "   ", nil},
 	} {
-		got := desktopExecArgv(testCase.exec)
+		got := desktopentry.Argv(testCase.exec)
 		if strings.Join(got, "\x00") != strings.Join(testCase.want, "\x00") {
-			t.Errorf("%s: desktopExecArgv(%q) = %q, want %q", testCase.name, testCase.exec, got, testCase.want)
+			t.Errorf("%s: desktopentry.Argv(%q) = %q, want %q", testCase.name, testCase.exec, got, testCase.want)
 		}
 	}
 }

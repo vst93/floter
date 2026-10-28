@@ -19,8 +19,8 @@ import (
 
 	"floter/internal/spawn"
 
+	"floter/internal/desktopentry"
 	"floter/internal/pathlist"
-	"floter/internal/textlines"
 	"floter/internal/xdg"
 )
 
@@ -497,192 +497,35 @@ func executableAvailable(program string) bool {
 	return found
 }
 
-// desktopLocales is the locale ladder for a `.desktop` entry's localized
-// `Name[locale]`/`Comment[locale]`, Chinese first: the old build
-// (`src-tauri/src/commands/apps/linux.rs`) read `Name[zh_CN]` ahead of every
-// other locale, so a Chinese desktop shows the same localized/original name
-// pair macOS does. Only these five spellings are recognized; anything else
-// (`Name[fr]`) is ignored, exactly as the original did.
-var desktopLocales = []string{"zh_CN", "zh_SG", "zh", "zh_TW", "zh_HK"}
-
-// desktopLocaleRank is the position of a locale in the ladder, or -1 when the
-// ladder does not know it.
-func desktopLocaleRank(locale string) int {
-	for i, candidate := range desktopLocales {
-		if candidate == locale {
-			return i
-		}
-	}
-	return -1
-}
-
-// unescapeDesktop applies the Desktop Entry Specification's string escapes to
-// a `Name=`/`Comment=` value (`\s`, `\n`, `\t`, `\r`, `\\`); an unknown escape
-// keeps its backslash, as the original's `unescape` did.
-func unescapeDesktop(value string) string {
-	if !strings.Contains(value, "\\") {
-		return value
-	}
-	var out strings.Builder
-	out.Grow(len(value))
-	for i := 0; i < len(value); i++ {
-		if value[i] != '\\' || i+1 >= len(value) {
-			out.WriteByte(value[i])
-			continue
-		}
-		i++
-		switch value[i] {
-		case 's':
-			out.WriteByte(' ')
-		case 'n':
-			out.WriteByte('\n')
-		case 't':
-			out.WriteByte('\t')
-		case 'r':
-			out.WriteByte('\r')
-		case '\\':
-			out.WriteByte('\\')
-		default:
-			out.WriteByte('\\')
-			out.WriteByte(value[i])
-		}
-	}
-	return out.String()
-}
-
-// ParseDesktopFile reads one .desktop file: its [Desktop Entry] section's
-// Name (plus the best Chinese `Name[locale]`), Comment (same ladder), Exec,
-// Icon and hidden flags, along with `Type` and `DBusActivatable`. It reports
-// false for hidden entries, entries of a type other than `Application` (a
-// `Link=` or `Directory=` entry is not something to launch), entries without an
-// Exec, or files that cannot be read. The one availability check it does not
-// make is `TryExec` — that needs the filesystem and PATH, so ScanLinux does it.
+// ParseDesktopFile reads one .desktop file through `internal/desktopentry` and
+// turns it into an App: its Name (plus the best Chinese `Name[locale]`),
+// Comment, Exec argv, Icon, `Type` and `DBusActivatable`. It reports false for
+// entries that are not launchable — hidden, `NoDisplay`, a type other than
+// `Application`, or no name or no Exec — and for files that cannot be read. The
+// one availability check it does not make is `TryExec`: that needs the
+// filesystem and PATH, so ScanLinux does it.
 func ParseDesktopFile(path string) (App, bool) {
-	data, err := os.ReadFile(path)
-	if err != nil {
+	entry, ok := desktopentry.Parse(path)
+	if !ok || !entry.Usable() {
 		return App{}, false
 	}
-
-	inEntry := false
-	hidden, noDisplay := false, false
-	var name, exec, icon, entryType string
-	dbusActivatable := false
-	// The Latin search keys a `.desktop` entry advertises besides its name:
-	// the untranslated spellings only (the original read `GenericName`,
-	// `Keywords`, `StartupWMClass` and `TryExec` with no locale suffix).
-	var genericName, keywords, startupWMClass, tryExec string
-	// The localized name/comment ladders: the lowest rank seen wins, and an
-	// unlocalized value is only a fallback that a localized one may override
-	// (the original's `best_*_locale` against `usize::MAX`).
-	var localized string
-	localizedRank := len(desktopLocales)
-	var comment string
-	commentRank := len(desktopLocales)
-	commentSet := false
-	for _, line := range textlines.Split(string(data)) {
-		line = strings.TrimSpace(line)
-		switch {
-		case line == "" || strings.HasPrefix(line, "#"):
-			continue
-		case strings.HasPrefix(line, "["):
-			inEntry = line == "[Desktop Entry]"
-			continue
-		}
-		if !inEntry {
-			continue
-		}
-		key, value, ok := strings.Cut(line, "=")
-		if !ok {
-			continue
-		}
-		key = strings.TrimSpace(key)
-		value = strings.TrimSpace(value)
-		base, locale, hasLocale := strings.Cut(key, "[")
-		if hasLocale {
-			locale = strings.TrimSuffix(locale, "]")
-		}
-		switch base {
-		case "Name":
-			if !hasLocale {
-				name = unescapeDesktop(value)
-				continue
-			}
-			if rank := desktopLocaleRank(locale); rank >= 0 && rank < localizedRank {
-				localizedRank = rank
-				localized = unescapeDesktop(value)
-			}
-		case "Comment":
-			if !hasLocale {
-				if !commentSet {
-					comment = unescapeDesktop(value)
-					commentSet = true
-				}
-				continue
-			}
-			if rank := desktopLocaleRank(locale); rank >= 0 && rank < commentRank {
-				commentRank = rank
-				comment = unescapeDesktop(value)
-				commentSet = true
-			}
-		case "Exec":
-			exec = value
-		case "Icon":
-			icon = value
-		case "GenericName":
-			if !hasLocale {
-				genericName = unescapeDesktop(value)
-			}
-		case "Keywords":
-			if !hasLocale {
-				keywords = unescapeDesktop(value)
-			}
-		case "StartupWMClass":
-			if !hasLocale {
-				startupWMClass = unescapeDesktop(value)
-			}
-		case "TryExec":
-			if !hasLocale {
-				tryExec = unescapeDesktop(value)
-			}
-		case "Hidden":
-			hidden = strings.EqualFold(value, "true")
-		case "NoDisplay":
-			noDisplay = strings.EqualFold(value, "true")
-		case "Type":
-			if !hasLocale {
-				entryType = value
-			}
-		case "DBusActivatable":
-			if !hasLocale {
-				dbusActivatable = value == "true"
-			}
-		}
-	}
-	argv := SplitDesktopExec(exec)
-	if name == "" || len(argv) == 0 || hidden || noDisplay {
-		return App{}, false
-	}
-	// Only `Application` entries launch; an absent `Type` is kept, because the
-	// original only rejected an explicit non-Application type.
-	if entryType != "" && entryType != "Application" {
-		return App{}, false
-	}
+	argv := entry.ArgvFor()
 	// A localized name equal to the plain one is not a second name (the
-	// original's `filter(|value| value != &name)`), and an empty comment is
-	// dropped rather than drawn as a blank line.
-	if localized == name {
+	// original's `filter(|value| value != &name)`).
+	localized := entry.Localized
+	if localized == entry.Name {
 		localized = ""
 	}
 	return App{
-		Name:            name,
+		Name:            entry.Name,
 		Localized:       localized,
-		Comment:         comment,
-		Aliases:         desktopAliases(path, name, localized, genericName, keywords, startupWMClass, tryExec, argv),
+		Comment:         entry.Comment,
+		Aliases:         desktopAliases(path, entry, argv),
 		Path:            path,
 		Exec:            argv,
-		Icon:            icon,
-		DBusActivatable: dbusActivatable,
-		tryExec:         tryExec,
+		Icon:            entry.Icon,
+		DBusActivatable: entry.DBusActivatable,
+		tryExec:         entry.TryExec,
 	}, true
 }
 
@@ -692,14 +535,14 @@ func ParseDesktopFile(path string) (App, bool) {
 // desktop-file id. This is the original's `into_application` candidate list
 // (`src-tauri/src/commands/apps/linux.rs:423-440`) run through
 // `build_aliases` (`src-tauri/src/commands/apps/mod.rs:326`).
-func desktopAliases(path, name, localized, genericName, keywords, startupWMClass, tryExec string, argv []string) []string {
+func desktopAliases(path string, entry desktopentry.Entry, argv []string) []string {
 	var candidates []string
-	candidates = append(candidates, genericName, startupWMClass)
+	candidates = append(candidates, entry.GenericName, entry.StartupWMClass)
 	candidates = append(candidates, executableName(argv))
-	candidates = append(candidates, executableName(SplitDesktopExec(tryExec)))
-	candidates = append(candidates, strings.Split(keywords, ";")...)
+	candidates = append(candidates, executableName(desktopentry.Argv(entry.TryExec)))
+	candidates = append(candidates, strings.Split(entry.Keywords, ";")...)
 	candidates = append(candidates, identifierAliases(desktopFileStem(path))...)
-	return buildAliases(name, localized, candidates)
+	return buildAliases(entry.Name, entry.Localized, candidates)
 }
 
 // desktopFileStem is a `.desktop` path's file name without its extension, the
@@ -715,13 +558,7 @@ func desktopFileStem(path string) string { return fileStem(filepath.Base(path)) 
 // `kde4-konsole.desktop`). It is the key the search path is unique on — the
 // same id in two roots is one application — and the reference computes it the
 // same way (`desktop_file_id`, `main:src-tauri/src/commands/apps/linux.rs:265`).
-func desktopFileID(root, path string) string {
-	rel, err := filepath.Rel(root, path)
-	if err != nil || rel == "" || rel == "." {
-		return filepath.Base(path)
-	}
-	return strings.ReplaceAll(filepath.ToSlash(rel), "/", "-")
-}
+func desktopFileID(root, path string) string { return desktopentry.FileID(root, path) }
 
 // executableName is the program an `Exec=`/`TryExec=` value runs, without its
 // path or arguments: `/usr/bin/google-chrome-stable %U` is searchable as
@@ -778,66 +615,11 @@ func hasASCIIAlnum(value string) bool {
 	return false
 }
 
-// SplitDesktopExec splits a .desktop Exec value into argv: whitespace
-// separated, with single and double quotes and backslash escapes, and with
-// the field codes (%U, %f, ...) removed as the Desktop Entry Specification
-// says.
-func SplitDesktopExec(exec string) []string {
-	var args []string
-	var current strings.Builder
-	started := false
-	quote := byte(0)
-
-	flush := func() {
-		if started {
-			args = append(args, current.String())
-			current.Reset()
-			started = false
-		}
-	}
-
-	for i := 0; i < len(exec); i++ {
-		c := exec[i]
-		switch {
-		case quote != 0:
-			if c == quote {
-				quote = 0
-				continue
-			}
-			if c == '\\' && quote == '"' && i+1 < len(exec) {
-				i++
-				current.WriteByte(exec[i])
-				continue
-			}
-			current.WriteByte(c)
-		case c == '\'' || c == '"':
-			quote = c
-			started = true
-		case c == ' ' || c == '\t':
-			flush()
-		case c == '%':
-			if i+1 < len(exec) {
-				i++
-				if exec[i] == '%' {
-					current.WriteByte('%')
-					started = true
-				}
-				// Any other field code stands for a file list the launcher
-				// has none of: leave it out.
-				continue
-			}
-		case c == '\\' && i+1 < len(exec):
-			i++
-			current.WriteByte(exec[i])
-			started = true
-		default:
-			current.WriteByte(c)
-			started = true
-		}
-	}
-	flush()
-	return args
-}
+// SplitDesktopExec splits a .desktop Exec value into argv. It forwards to
+// `desktopentry.Argv`, the one reading of an Exec line: whitespace separates,
+// double quotes group, a backslash escapes, the field codes are dropped and an
+// unknown code is kept as written.
+func SplitDesktopExec(exec string) []string { return desktopentry.Argv(exec) }
 
 // dedupe sorts the applications by name and drops duplicates of the same
 // path, keeping the shortest name.
