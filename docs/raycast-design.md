@@ -135,7 +135,15 @@ rim 见 `internal/shell/cardedge.go`（Windows/Linux 各两条，macOS 不画）
   - 按下 `RowPressed`，并 `Scale(0.986)` 沉进卡片（旧 build 的 `:active`）
 - 选中行的**前导图标不换 accent**，只把图标墨色抬到主文字；accent 在列表里一次
   都不出现。
-- 行内 padding `0 8u`，图标列 28u，标题与副标题间距 10u（`Space(2.5)`）。
+- 行内 padding `0 8u`，图标列 28u，**行自己的 gap 10u（`Space(2.5)`）**——这一个数同时
+  管着图标列与文字列之间、文字列与行尾控件之间。
+- **同一张卡里的两种列表只有一条文字列（P11-ad 定审）**：启动器列表与它自己的输出面板
+  是同一张卡的两种列表（同一个窗口、同一个 8u 卡片内缩、同一个 28u 图标列、同一个 8u
+  行内 padding），所以横向节奏必须取同一个数：**标题列 54u**。P11-ad 之前输出面板的行
+  gap 是 8u，于是它的标题列是 52u——用户在列表与输出之间来回看时文字列无缘无故错 2u。
+  输出面板的行 gap 已改成同一个 10u（`internal/launcher/output.go` 的 `Gap(t.Space(2.5))`），
+  它的分组头 `Margin-left` 跟着 36u → 38u。pin：`internal/launcher/textcolumn_test.go`
+  的 `TestTheTwoListsShareOneTextColumn`（断言两个表面的标题 x **相等**，不是字面数）。
 
 ### §4.4 分组头
 
@@ -155,6 +163,9 @@ P8-a 把行块缩进 4u→8u、行内 padding 12u→8u 之后它们一个都没�
 面板的分组头比它自己的标题左挂 32u（20u vs 52u）。pin：`internal/launcher/headingcolumn_test.go`
 的 `TestTheGroupHeadingSitsOnTheRowsTextColumn`（断言的是两个矩形的 **x 相等**，不是字面数，
 所以以后再挪列两处会一起红）。
+
+P11-ad 把「这个和」的最后一项也对齐了：输出面板的行 gap 从 8u 改成与启动器列表同一个 10u，
+于是**两种列表的标题列都是 54u**，分组头的 `Margin-left` 跟着 36u → 38u（§4.3 同一条）。
 
 ### §4.5 键帽
 
@@ -461,6 +472,16 @@ title does」），而数字对不上——因为它们从没从行里推出来�
 **图上实测**（`/tmp/floter-P11-ac-list-<light|dark>.png`、`/tmp/floter-P11-ac-output-<light|dark>.png`）：
 启动器列表的分组头与它下面标题的墨都从 **x=55** 起（浅色）；输出面板的 `Group B` 与它下面的
 `Gamma` 都从 **x=53** 起（浅色）。改前同一测量是 62/54 与 20/52。
+
+### §6.10 P11-ad · 同一张卡里的两种列表只有一条文字列（**已落地**）
+
+启动器列表与它自己的输出面板是**同一张卡里的两种列表**：同一个窗口、同一个 8u 卡片内缩、
+同一个 28u 图标列、同一个 8u 行内 padding。P11-ad 之前横向分量里唯一不同的是**行自己的
+gap**（列表 10u、面板 8u），于是标题列一个是 54u、一个是 52u——用户在列表与输出之间来回
+看时文字列错 2u。改法：面板的行 gap 取列表的同一个 10u，它的分组头 `Margin-left` 从 36u
+改成 38u（36 = 8 padding + 28 图标列 + 8 gap 的旧和）。字阶、weight、墨、band、行高、
+图标列、keycap 槽、选中/悬停档一律未动。pin：`internal/launcher/textcolumn_test.go` 的
+`TestTheTwoListsShareOneTextColumn`（断言两个表面的标题 x 相等、两个分组头的 x 相等）。
 
 ## §7 切片表
 | 片 | 范围 | 状态 |

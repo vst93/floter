@@ -535,15 +535,24 @@ func (a *App) outputRow(c *ui.Context, row extensions.Row, i int) {
 		// 标题（52u）左挂了 32u；旧注释写着「the 6u/12u/4u inset the rows use」，
 		// 而行根本没有 12u 的左 inset。现在左缩进是行自己的那一份：行内 padding
 		// 8u（下面的 `Padding(t.Space(1.5), t.Space(2))`）+ 图标列 28u
-		// （`iconPlate` 的 `Space(7)`）+ 该行自己的 gap 8u（`Gap(t.Space(2))`）
-		// = 36u 的 `Margin-left`，加上列表自己的 8u 即 52u。
+		// （`iconPlate` 的 `Space(7)`）+ 该行自己的 gap 10u（`Gap(t.Space(2.5))`）
+		// = 38u 的 `Margin-left`，加上列表自己的 8u 即 54u。
+		//
+		// P11-ad 重定基线：这个和里那一项 gap 从 8u 改成 10u，与启动器列表的行
+		// 同一条内部节奏——同一张卡里的两种列表只有一条文字列（54u），不是一个
+		// 表面 52u、一个表面 54u。旧值 → 新值：`Margin-left` 36u → 38u，标题列
+		// 52u → 54u。
 		ui.Row(c).FillWidth().Padding(t.Space(1.5), t.Space(2), t.Space(1), t.Space(2)).
 			Children(func() {
 				ui.Text(c, row.Group).FontSize(t.FontSize).FontWeight(620).
-					TextColor(t.TextMuted).Margin(0, 0, 0, t.Space(9))
+					TextColor(t.TextMuted).Margin(0, 0, 0, t.Space(9.5))
 			})
 	}
-	style := ui.Row(c.Key(row.ID)).FillWidth().Padding(t.Space(1.5), t.Space(2)).Radius(t.Radius).Gap(t.Space(2))
+	// P11-ad 重定基线：行的 gap 8u → 10u，与启动器列表的行（`launcher.go` 的
+	// `Gap(t.Space(2.5))`）同一份。这一项同时管着图标列与文字列之间、文字列与
+	// 行尾控件之间，所以两种列表的整条横向节奏是同一个数：面板/卡片 8u + 行内
+	// padding 8u + 图标列 28u + gap 10u = 标题列 54u。
+	style := ui.Row(c.Key(row.ID)).FillWidth().Padding(t.Space(1.5), t.Space(2)).Radius(t.Radius).Gap(t.Space(2.5))
 	selected := i == a.output.Selected && row.Runnable()
 	tokens := a.tokens(c)
 	switch {
