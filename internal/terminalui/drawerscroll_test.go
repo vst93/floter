@@ -134,3 +134,107 @@ func TestDumpP11AUDrawerScrolledPNGs(t *testing.T) {
 		t.Logf("wrote %s", path)
 	}
 }
+
+// P11-ax · **抽屉关闭再打开，从它自己的开头开始。**
+//
+// `DrawerScroll` 是 App 级的（像列表的 `ListState`），所以关闭再打开时上一轮
+// 滚到的偏移原样留着——一份「新打开的抽屉」出现在上次滚到的位置。这与
+// P11-ao（换设置页回顶）和 P11-ar（一份新的捕获输出从它自己的开头开始）是同一
+// 条规则：一份新内容打开时从开头开始。归零只在 `ToggleDrawer` 的「打开」动作
+// 上，逐帧路径不碰（否则滚轮每帧被清零）。
+//
+// 两条臂缺一不可：第一臂钉「重开回顶」，第二臂钉「开着时滚轮仍能滚」——后者
+// 防止用「干脆把滚动关掉」来让第一臂变绿（那会让 P11-au 的「最后几行够得到」
+// 重新坏掉）。
+func TestReopeningTheDrawerStartsAtItsTop(t *testing.T) {
+	a := New(newStore(), Actions{Close: func() {}, NewCommand: func() {}}, nil)
+	withSession(a, &terminal.Terminal{})
+	// Minimum height: the strip is taller than its viewport, so there is a
+	// real scroll range to lose.
+	tt := render(t, a, settings.MinTerminalWidth, settings.MinTerminalHeight)
+
+	// Open it, scroll to the end, close it, open it again.
+	a.ToggleDrawer()
+	tt.Frame()
+	if a.DrawerScroll.MaxY <= 0 {
+		t.Fatalf("the drawer reports no scroll range (MaxY=%.1f) at %dx%d — the fixture "+
+			"cannot exercise the reopen rule", a.DrawerScroll.MaxY,
+			settings.MinTerminalWidth, settings.MinTerminalHeight)
+	}
+	a.DrawerScroll.Y = math.MaxFloat32
+	tt.Frame()
+	scrolled := a.DrawerScroll.Y
+	if scrolled <= 0 {
+		t.Fatalf("the drawer did not scroll to its end (Y=%.1f)", scrolled)
+	}
+	a.ToggleDrawer() // close
+	tt.Frame()
+	a.ToggleDrawer() // open again
+	tt.Frame()
+	if a.DrawerScroll.Y != 0 {
+		t.Errorf("a reopened drawer starts scrolled (Y=%.1f, was %.1f at its end) — a fresh "+
+			"drawer must start at its own top (P11-ax, the same rule as P11-ao/P11-ar)",
+			a.DrawerScroll.Y, scrolled)
+	}
+
+	// Second arm: while the drawer is open, the wheel still moves it. A fix
+	// that killed the scroll range would make the first arm pass for the wrong
+	// reason and break P11-au's "the last rows are reachable".
+	a.DrawerScroll.Y = math.MaxFloat32
+	tt.Frame()
+	if a.DrawerScroll.Y <= 0 {
+		t.Errorf("the drawer no longer scrolls while it is open (Y=%.1f) — the reopen reset "+
+			"must not take the scroll range away (P11-au)", a.DrawerScroll.Y)
+	}
+}
+
+// TestDumpP11AXReopenPNGs is the round's visual evidence: the drawer scrolled
+// to its end, then closed and reopened at its top, both appearances. Opt-in
+// (`FLOTER_PNG=1`) like the other dumps.
+func TestDumpP11AXReopenPNGs(t *testing.T) {
+	if os.Getenv("FLOTER_PNG") == "" {
+		t.Skip("set FLOTER_PNG=1 to write the round's visual evidence")
+	}
+	for _, dark := range []bool{false, true} {
+		appearance := "light"
+		if dark {
+			appearance = "dark"
+		}
+		a := New(newStore(), Actions{Close: func() {}, NewCommand: func() {}}, nil)
+		withSession(a, &terminal.Terminal{})
+		tt := render(t, a, settings.MinTerminalWidth, settings.MinTerminalHeight)
+		if dark {
+			tt.SetDark(true)
+			tt.Frame()
+		}
+		a.ToggleDrawer()
+		tt.Frame()
+		a.DrawerScroll.Y = math.MaxFloat32
+		tt.Frame()
+		scrolled := "/tmp/floter-P11-ax-drawer-" + appearance + "-scrolled.png"
+		f, err := os.Create(scrolled)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := png.Encode(f, tt.Image()); err != nil {
+			f.Close()
+			t.Fatal(err)
+		}
+		f.Close()
+		a.ToggleDrawer() // close
+		tt.Frame()
+		a.ToggleDrawer() // open again
+		tt.Frame()
+		reopened := "/tmp/floter-P11-ax-drawer-" + appearance + "-reopened.png"
+		f, err = os.Create(reopened)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := png.Encode(f, tt.Image()); err != nil {
+			f.Close()
+			t.Fatal(err)
+		}
+		f.Close()
+		t.Logf("wrote %s (Y=%.1f) and %s (Y=%.1f)", scrolled, math.MaxFloat32, reopened, a.DrawerScroll.Y)
+	}
+}

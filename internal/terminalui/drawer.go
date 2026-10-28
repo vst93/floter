@@ -14,7 +14,19 @@ import (
 
 // ToggleDrawer opens or closes the terminal's own appearance drawer: the bar's
 // gear flips it, exactly as the reference's `terminalSettingsOpen` did.
-func (a *App) ToggleDrawer() { a.Drawer = !a.Drawer }
+//
+// P11-ax：**每次打开都从它自己的开头开始**。抽屉关闭再打开时，上一轮的滚动
+// 偏移原样留着（`DrawerScroll` 是 App 级的，像列表的 `ListState`），于是一份
+// 「新打开的抽屉」出现在上次滚到的位置。这与 P11-ao（换设置页回顶）和
+// P11-ar（一份新的捕获输出从它自己的开头开始）是同一条规则：一份新内容打开
+// 时从开头开始。归零**只在这里**（「打开」这个动作上），逐帧路径不碰——否则
+// 滚轮每帧被清零（见 `drawer` 的 `strip.TrackScroll`）。
+func (a *App) ToggleDrawer() {
+	a.Drawer = !a.Drawer
+	if a.Drawer {
+		a.DrawerScroll = ui.ScrollState{}
+	}
+}
 
 // CloseDrawer closes the drawer, if it is open. It is the drawer's own close
 // control's action.
