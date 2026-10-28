@@ -1,12 +1,12 @@
 package shell
 
 import (
-	"path/filepath"
 	"sync"
 	"time"
 
 	"floter/internal/extensions"
 	"floter/internal/inventory"
+	"floter/internal/pathid"
 	"floter/internal/settingsui"
 	"floter/internal/tools"
 )
@@ -138,22 +138,15 @@ func (a *App) scanDetectedTools() {
 // window or the launcher.
 func (a *App) computeDetectedTools() []settingsui.DetectedTool {
 	candidates := inventory.Shared().Candidates()
-	connected := map[string]bool{}
+	owned := map[string]bool{}
 	if a.Integrations != nil {
-		// Both spellings: the inventory records the resolved path, a candidate
-		// may be the symlink that points at it (the same pair `hasExecutable`
-		// compares).
+		// Every spelling of the recorded path, because a candidate may be the
+		// symlink that points at it (the same pair `hasExecutable` compares).
+		paths := make([]string, 0, len(a.Integrations.Inventory().Integrations))
 		for _, integration := range a.Integrations.Inventory().Integrations {
-			path := integration.Entry.ExecutablePath
-			if path == "" {
-				continue
-			}
-			connected[path] = true
-			connected[filepath.Clean(path)] = true
-			if resolved, err := filepath.EvalSymlinks(path); err == nil {
-				connected[resolved] = true
-			}
+			paths = append(paths, integration.Entry.ExecutablePath)
 		}
+		owned = connectedKeys(paths)
 	}
 	out := make([]settingsui.DetectedTool, 0, maxDetectedTools)
 	dirs := extensions.SearchDirectories()
@@ -163,7 +156,7 @@ func (a *App) computeDetectedTools() []settingsui.DetectedTool {
 		if !candidate.Available || candidate.Path == "" {
 			continue
 		}
-		if connected[candidate.Path] || connected[filepath.Clean(candidate.Path)] {
+		if connected(owned, candidate.Path) {
 			continue
 		}
 		// A GUI bundle's own helper executables are not "tools a person
@@ -181,4 +174,28 @@ func (a *App) computeDetectedTools() []settingsui.DetectedTool {
 		}
 	}
 	return out
+}
+
+// connectedKeys is every spelling of the paths the connected integrations own:
+// the set a candidate is looked up in has to hold what the lookup will ask for.
+func connectedKeys(paths []string) map[string]bool {
+	keys := map[string]bool{}
+	for _, path := range paths {
+		for _, key := range pathid.Keys(path) {
+			keys[key] = true
+		}
+	}
+	return keys
+}
+
+// connected reports whether path is one of the spellings in keys — the same
+// answer `pathid.Same` gives one pair at a time, so a tool the user connected
+// through a symlink is not offered again under the resolved binary's path.
+func connected(keys map[string]bool, path string) bool {
+	for _, key := range pathid.Keys(path) {
+		if keys[key] {
+			return true
+		}
+	}
+	return false
 }

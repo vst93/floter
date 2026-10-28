@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"floter/internal/extensions"
+	"floter/internal/pathid"
 	"floter/internal/pathlist"
 	"floter/internal/xdg"
 )
@@ -508,16 +509,11 @@ func dedupeRoots(roots []toolRoot) []toolRoot {
 }
 
 // sameRoot reports whether two roots are the same directory spelled two ways.
-// Windows accepts either separator and compares paths without case, so the
-// comparison folds both — `C:\ProgramData\chocolatey\bin` and a `%ProgramData%`
-// expanded to the same place are one root.
-func sameRoot(left, right string) bool {
-	fold := func(value string) string {
-		value = strings.ReplaceAll(value, `\`, "/")
-		return strings.ToLower(filepath.ToSlash(filepath.Clean(value)))
-	}
-	return fold(left) == fold(right)
-}
+// The answer is `pathid.SameSpelling` — fold both separators and case — because
+// these roots are Windows paths (`C:\ProgramData\chocolatey\bin`) evaluated on
+// every host: this filesystem cannot be asked about a directory it does not
+// have, and Windows accepts either separator and compares without case.
+func sameRoot(left, right string) bool { return pathid.SameSpelling(left, right) }
 
 // LookPath is the inventory's own name for "where does a discovered tool
 // live": the first directory of the search path that carries it, then

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"floter/internal/extensions"
+	"floter/internal/pathid"
 	"floter/internal/progtype"
 )
 
@@ -279,18 +280,9 @@ func discoverExecutableDirectory(merge mergeFunc, directory string, source Disco
 	}
 }
 
-// normalized is a path's identity: absolute, cleaned, and on Windows
-// lowercased (the filesystem is not case-sensitive there).
-func normalized(path string) string {
-	absolute, err := filepath.Abs(path)
-	if err != nil {
-		absolute = filepath.Clean(path)
-	}
-	if runtime.GOOS == "windows" {
-		return strings.ToLower(absolute)
-	}
-	return absolute
-}
+// normalized is a path's identity: the one answer `pathid.Key` gives (absolute,
+// cleaned, forward-slashed, lowercased on Windows only).
+func normalized(path string) string { return pathid.Key(path) }
 
 // fingerprint identifies a binary: canonical path, size, and mtime, so a
 // Homebrew upgrade that replaced the binary in place is a new tool.

@@ -22,6 +22,7 @@ import (
 	"floter/internal/clipboard"
 	"floter/internal/extensions"
 	"floter/internal/i18n"
+	"floter/internal/pathid"
 	"floter/internal/settings"
 	"floter/internal/settingsui"
 )
@@ -354,26 +355,11 @@ func (a *App) markRegisterTarget(path string) {
 // real path it points at are the same program.
 func (a *App) hasExecutable(path string) bool {
 	for _, integration := range a.Integrations.Inventory().Integrations {
-		if sameExecutable(integration.Entry.ExecutablePath, path) {
+		if pathid.Same(integration.Entry.ExecutablePath, path) {
 			return true
 		}
 	}
 	return false
-}
-
-// sameExecutable compares two executable paths, treating a symlinked pair as
-// one program (the inventory records the resolved path; the search path may
-// hand back the link).
-func sameExecutable(left, right string) bool {
-	if left == "" || right == "" {
-		return false
-	}
-	if left == right {
-		return true
-	}
-	leftResolved, leftErr := filepath.EvalSymlinks(left)
-	rightResolved, rightErr := filepath.EvalSymlinks(right)
-	return leftErr == nil && rightErr == nil && leftResolved == rightResolved
 }
 
 // firstNonEmpty is the first non-blank of the values.

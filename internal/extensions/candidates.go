@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"floter/internal/pathid"
 	"floter/internal/progname"
 	"floter/internal/progtype"
 )
@@ -82,14 +83,22 @@ func lookToolsIn(platform string, dirs []string, names ...string) []ExecutableCa
 				if !progtype.For(platform, path) {
 					continue
 				}
-				key := path
-				if resolved, err := filepath.EvalSymlinks(path); err == nil {
-					key = resolved
+				// One program, one row: `pathid.Keys` is every spelling of it, so a
+				// symlink found through two directories is still one candidate.
+				keys := pathid.Keys(path)
+				duplicate := false
+				for _, key := range keys {
+					if seen[key] {
+						duplicate = true
+						break
+					}
 				}
-				if seen[key] {
+				if duplicate {
 					continue
 				}
-				seen[key] = true
+				for _, key := range keys {
+					seen[key] = true
+				}
 				out = append(out, ExecutableCandidate{Name: probe, Path: path, Sources: []string{"path"}})
 			}
 		}
@@ -119,22 +128,10 @@ func SystemRuntimeCandidates(manifest Manifest, recordedPath string) []Executabl
 	candidates := lookTools(names...)
 	if recordedPath != "" {
 		for _, candidate := range candidates {
-			if sameExecutable(candidate.Path, recordedPath) {
+			if pathid.Same(candidate.Path, recordedPath) {
 				return []ExecutableCandidate{candidate}
 			}
 		}
 	}
 	return candidates
-}
-
-// sameExecutable reports whether two paths name the same program, following
-// symlinks when the filesystem can (a version manager's shim and the binary it
-// points at are the same tool).
-func sameExecutable(a, b string) bool {
-	if a == b {
-		return true
-	}
-	resolvedA, errA := filepath.EvalSymlinks(a)
-	resolvedB, errB := filepath.EvalSymlinks(b)
-	return errA == nil && errB == nil && resolvedA == resolvedB
 }

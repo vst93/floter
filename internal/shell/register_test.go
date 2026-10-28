@@ -8,6 +8,7 @@ import (
 
 	"floter/internal/extensions"
 	"floter/internal/i18n"
+	"floter/internal/pathid"
 	"floter/internal/settings"
 )
 
@@ -154,9 +155,9 @@ func TestTheRegisterMarkIsAMoment(t *testing.T) {
 	}
 }
 
-// sameExecutable treats a symlinked pair as one program and never matches an
-// empty path: the register link may hand back the search-path link while the
-// inventory records the resolved binary.
+// The register mark is one program wide: `pathid.Same` treats a symlinked pair
+// as one program and never matches an empty path — the register link may hand
+// back the search-path link while the inventory records the resolved binary.
 func TestSameExecutableResolvesSymlinks(t *testing.T) {
 	requirePOSIXShell(t)
 	dir := t.TempDir()
@@ -186,8 +187,8 @@ func TestSameExecutableResolvesSymlinks(t *testing.T) {
 		{"", "", false},
 	}
 	for _, tc := range cases {
-		if got := sameExecutable(tc.left, tc.right); got != tc.want {
-			t.Errorf("sameExecutable(%q, %q) = %v, want %v", tc.left, tc.right, got, tc.want)
+		if got := pathid.Same(tc.left, tc.right); got != tc.want {
+			t.Errorf("pathid.Same(%q, %q) = %v, want %v", tc.left, tc.right, got, tc.want)
 		}
 	}
 }

@@ -27,8 +27,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
-	"strings"
 
+	"floter/internal/pathid"
 	"floter/internal/xdg"
 )
 
@@ -109,7 +109,7 @@ func MigrateLegacy(newPath string, legacyPaths []string) (MigrationReport, error
 
 	source := ""
 	for _, candidate := range legacyPaths {
-		if candidate == "" || samePath(candidate, newPath) {
+		if candidate == "" || pathid.Same(candidate, newPath) {
 			continue
 		}
 		if !isEmptySettingsFile(candidate) {
@@ -186,17 +186,6 @@ func isEmptySettingsFile(path string) bool {
 func fileExists(path string) bool {
 	info, err := os.Stat(path)
 	return err == nil && !info.IsDir()
-}
-
-// samePath reports whether two names resolve to the same file name, so the
-// migration never copies a file onto itself.
-func samePath(a, b string) bool {
-	left, leftErr := filepath.Abs(a)
-	right, rightErr := filepath.Abs(b)
-	if leftErr != nil || rightErr != nil {
-		return filepath.Clean(a) == filepath.Clean(b)
-	}
-	return strings.EqualFold(left, right)
 }
 
 // platformDataDir is the per-user data directory (as opposed to the config

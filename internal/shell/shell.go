@@ -42,6 +42,7 @@ import (
 	"floter/internal/i18n"
 	"floter/internal/inventory"
 	"floter/internal/launcher"
+	"floter/internal/pathid"
 	"floter/internal/progname"
 	"floter/internal/scriptlang"
 	"floter/internal/settings"
@@ -1699,7 +1700,7 @@ func (a *App) integrationList() []settingsui.Integration {
 		item.Homepage = integration.Manifest.Homepage
 		// The `floter://register` mark rides the card whose executable the link
 		// named, nothing else (see markRegisterTarget).
-		if a.registerTarget != "" && sameExecutable(integration.Entry.ExecutablePath, a.registerTarget) {
+		if a.registerTarget != "" && pathid.Same(integration.Entry.ExecutablePath, a.registerTarget) {
 			item.Highlighted = true
 		}
 		if integration.Entry.LastErrorCode != nil {
