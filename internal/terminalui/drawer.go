@@ -53,22 +53,34 @@ func (a *App) drawer(c *ui.Context, copy i18n.Terminal) {
 	tokens := tokensOf(a, c)
 	scopy := i18n.For(a.Store.Snapshot().Language).Settings
 
-	strip := ui.Row(c).FillWidth().Shrink(0).
-		Padding(t.Space(2.5), t.Space(3)).Gap(t.Space(2.5)).AlignItems(ui.Start).
+	// P11-au：条带**自己**就是滚动容器。P11-at 只修了「不让开浮条那条带」
+	// ——抽屉排在画布之下，多出来的几行在面板底边被窗口裁掉（640×360 时
+	// `Safe paste` / `Copy on select` 只剩 4u 可见）。让它们可滚要一个会报
+	// 出自己范围的滚动容器；P11-at 试过把网格包进 `ui.Scroll`，`MaxY` 恒为
+	// 0 —— 因为那个 scroll 在**横向** Row 里 `Grow(1)`，只吃宽度，高度由
+	// `AlignItems(Start)` 定成内容的自然高，于是它自己就和内容一样高，没有
+	// 可滚的距离。把**条带本身**做成滚动容器（面板列的直接孩子）才有约束：
+	// 滚动元素在列里 `minMain` 自动为 0（`layout.go:723` 的 `!c.scrolls()`
+	// 条件），面板放不下时它被压到画布之下、并且如实地报出 `MaxY > 0`。
+	// 面与线画在**视口**上（不随内容滚走），内边距与网格在内容里（跟着滚）。
+	strip := ui.Scroll(c).FillWidth().TrackScroll(&a.DrawerScroll).
 		Background(tokens.Control).
 		BorderWidth(0, 0, 1, 0).BorderColor(tokens.HairlineSoft).
 		Label(scopy.GroupTerminal)
 	strip.Children(func() {
-		// P11-at：条带从不让开浮条那条带（画布的地板，见 View）：面板比
-		// 网格矮时它按自然高度排在画布之下，多出来的那几行在面板底边被
-		// 窗口裁掉，而不是爬到 y=0 去压标题与关闭钮。让它们可滚需要一个
-		// 会报出自己范围的滚动容器（实测本布局里 `MaxY` 恒为 0，见报告
-		// §5），那是下一条，不在本轮硬凑。
-		a.drawerGrid(c, t.Space(drawerCellFloor))
-		// The drawer's own dismiss, in the corner a card's close button lives
-		// in: the same 28u icon button the bar's gear/X is, so the module can
-		// be dismissed from where it opened or from itself.
-		a.barButton(c, "close", copy.SettingsClose, copy.SettingsClose, a.CloseDrawer)
+		// The content keeps the grid's natural height: every appearance row
+		// carries `MinHeight` (`drawerRow`), so the column cannot squeeze it
+		// into the viewport and the strip scrolls instead of clipping a row to
+		// a few units (P11-at measured `Safe paste` at 4u when it was squeezed).
+		row := ui.Row(c).FillWidth().
+			Padding(t.Space(2.5), t.Space(3)).Gap(t.Space(2.5)).AlignItems(ui.Start)
+		row.Children(func() {
+			a.drawerGrid(c, t.Space(drawerCellFloor))
+			// The drawer's own dismiss, in the corner a card's close button lives
+			// in: the same 28u icon button the bar's gear/X is, so the module can
+			// be dismissed from where it opened or from itself.
+			a.barButton(c, "close", copy.SettingsClose, copy.SettingsClose, a.CloseDrawer)
+		})
 	})
 }
 

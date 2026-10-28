@@ -122,6 +122,12 @@ type App struct {
 	// close control closes it: the session is never left to change how it
 	// looks (the old build's `.terminal-settings-drawer`).
 	Drawer bool
+	// DrawerScroll is how far the drawer's strip is scrolled when the panel
+	// is shorter than the strip's natural height (the terminal's minimum
+	// window is 360, the grid asks for 365 at the narrow widths). The strip
+	// itself is the scroll container: it scrolls only when it cannot fit, so
+	// a full-height window reports no range and the offset stays 0.
+	DrawerScroll ui.ScrollState
 
 	// Focus is the terminal view's identity, so it keeps the keyboard.
 	Focus ui.Handle
