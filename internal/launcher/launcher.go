@@ -1251,7 +1251,7 @@ func (a *App) View(c *ui.Context) {
 			Font: a.Font, Spacing: a.Spacing, Rows: rows, Held: len(rows),
 			TitleLine: a.TitleLine, SubtitleLine: a.SubtitleLine,
 			Filter:   a.filtersVisible(),
-			Feedback: a.toast != "" || a.pendingPower != "" || a.heldHint(),
+			Feedback: a.feedbackVisible(),
 			Config:   a.configSchema(),
 			Sections: sections,
 		}
@@ -3155,13 +3155,20 @@ func (a *App) heldHintRow(c *ui.Context) {
 
 // statusBand is the band the docked notice occupies at the list's bottom edge:
 // zero when nothing is docked, else the old build's `LAUNCHER_STATUS_UNITS`
-// (30u). It is the *same* predicate as `Geometry.Feedback`
-// (`launcher.go:1170`) and the same number `height.go:350` charges the window,
-// so the window, the band and the list's own tail stay one decision: the list's
-// bottom padding takes the band's height back out of the content, and the last
-// row stops at the band's top edge instead of hiding under it (P11-az).
+// (30u). It is the *same* predicate as `Geometry.Feedback` — one function now
+// (`feedbackVisible`), not three copies of one sentence — and the same number
+// `height.go:350` charges the window, so the window, the band and the list's
+// own tail stay one decision: the list's bottom padding takes the band's
+// height back out of the content, and the last row stops at the band's top
+// edge instead of hiding under it (P11-az).
+//
+// P11-cm：这里此前是判据的第二份手写拷贝，`FeedbackVisible`（shell 量窗口读的
+// 那一个）是第三份，而第三份**漏了 `pendingPower`** —— 电源确认在场时 shell 量的
+// 窗口比画面自己量的矮 30u，最低一行整行压在确认带底下（实测 720 宽、五条最近
+// 启动：shell 532 / 画面 562，`Recent 09` 在 `506..530`、带子在 `506..528`）。
+// 三处现在都读 `feedbackVisible`。
 func (a *App) statusBand(c *ui.Context) float32 {
-	if a.toast == "" && a.pendingPower == "" && !a.heldHint() {
+	if !a.feedbackVisible() {
 		return 0
 	}
 	return c.Theme().Space(launcherStatusUnits)
@@ -3183,8 +3190,27 @@ func (a *App) heldHint() bool {
 }
 
 // FeedbackVisible reports whether the docked status row is showing, for the
-// shell's window sizing.
-func (a *App) FeedbackVisible() bool { return a.toast != "" || a.heldHint() }
+// shell's window sizing. It is `feedbackVisible`, the same function the draw
+// reads for `Geometry.Feedback` and for the list's own bottom padding: the
+// shell's window and the frame that fills it are one decision, and three
+// copies of that sentence is how they drifted apart (P11-cm).
+func (a *App) FeedbackVisible() bool { return a.feedbackVisible() }
+
+// feedbackVisible is whether the panel owes its docked band this frame: a
+// toast, an unanswered power confirmation, or the held modifier's hint. It is
+// the *one* answer to that question — `View` charges the window with it,
+// `statusBand` takes the band back out of the list's content with it, and
+// `FeedbackVisible` hands it to the shell, which sizes the window with it
+// before any frame has run (P11-cm).
+//
+// The question is "is the band drawn", not "is there a message": the power
+// confirmation is a *question* and outranks the toast (see feedbackRow), but it
+// is the same band, the same 30u, and the same charge — a predicate that left it
+// out made the shell's window a band short exactly while the user was being
+// asked something destructive.
+func (a *App) feedbackVisible() bool {
+	return a.toast != "" || a.pendingPower != "" || a.heldHint()
+}
 
 // syncHeldModifier reads the app modifier's state for this frame and moves the
 // selection to (or away from) the held row at the edge where the modifier goes
