@@ -150,6 +150,18 @@ type App struct {
 	// a full-height window reports no range and the offset stays 0.
 	DrawerScroll ui.ScrollState
 
+	// debouncing marks a slider preview that has been shown but not written
+	// yet, with debounceAt the moment the window closes. The drawer's font size
+	// and line height ride the reference's 180ms window (see debounce.go): a
+	// drag emits a tick per frame, and the store writes the file on every
+	// accepted Update, so an un-debounced drag wrote it once per frame.
+	debouncing bool
+	debounceAt time.Time
+	// frameAt is the clock of the frame being built, so a preview schedules
+	// its window against the frame's own time rather than a wall clock the
+	// tester cannot move (see debounce.go).
+	frameAt time.Time
+
 	// Focus is the terminal view's identity, so it keeps the keyboard.
 	Focus ui.Handle
 	// Text is the session's text, for the pin control; nil reads it from
@@ -828,6 +840,15 @@ func (a *App) CloseAll() {
 // View builds the terminal surface: a title row over the session, or the
 // empty state when none runs.
 func (a *App) View(c *ui.Context) {
+	// The frame's clock, for the debounce window a preview schedules (see
+	// debounce.go). Reading it here rather than at each preview keeps one answer
+	// per frame, and it is the frame's own time — the tester moves it with
+	// Advance, so a pin does not have to wait 180ms.
+	a.frameAt = c.Now()
+	// A window that ran out writes the value now; while it is still running this
+	// arms the one frame that will (P11-bq: a line that changes once asks for one
+	// wake, not one build per refresh).
+	a.expireSettingsWrites(c)
 	stored := a.settings()
 	copy := i18n.For(stored.Language).Terminal
 	t := c.Theme()

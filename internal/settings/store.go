@@ -28,6 +28,12 @@ type Store struct {
 	// takes one per frame instead (P11-co). It is one increment under the lock
 	// the read already takes.
 	snapshots uint64
+	// writes counts the file writes this store has attempted: one for every
+	// `save` it hands the file path to, whichever of Update/Commit/Save made
+	// it. `Preview` does not count — it never writes. It is what a pin reads
+	// to prove a gesture wrote the file once rather than once per frame
+	// (P11-cp); the counter is bumped under the lock the write already holds.
+	writes uint64
 
 	// save is the write path, a field so tests can observe or refuse one
 	// without a real file. Production always uses Save.
@@ -82,6 +88,24 @@ func (st *Store) Snapshots() uint64 {
 	return st.snapshots
 }
 
+// Writes counts the file writes this store has attempted, by every path that
+// writes (Update, Commit, Save). A preview never writes, so a gesture that
+// previews per frame and commits once reports one write (P11-cp).
+func (st *Store) Writes() uint64 {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	return st.writes
+}
+
+// writeLocked is the store's one write: it counts the attempt and hands the
+// value to the save function. Every caller holds the lock and has already
+// checked that path is set. Counting here rather than at the call sites keeps
+// the number honest when a test replaces `save` to refuse a write.
+func (st *Store) writeLocked(s Settings) error {
+	st.writes++
+	return st.save(st.path, s)
+}
+
 // Update mutates the settings and writes them back. The mutation runs on a
 // copy; if it changed nothing the file is left alone and no listener runs.
 // The in-memory value only advances when the write succeeds: a refused write
@@ -99,7 +123,7 @@ func (st *Store) Update(mutate func(*Settings)) error {
 		return nil
 	}
 	if st.path != "" {
-		if err := st.save(st.path, next); err != nil {
+		if err := st.writeLocked(next); err != nil {
 			st.lastErr = err
 			rollback := clone(st.confirmed)
 			changed := !equal(previous, rollback)
@@ -176,7 +200,7 @@ func (st *Store) Commit() error {
 		st.mu.Unlock()
 		return nil
 	}
-	if err := st.save(st.path, st.current); err != nil {
+	if err := st.writeLocked(st.current); err != nil {
 		st.lastErr = err
 		rollback := clone(st.confirmed)
 		changed := !equal(st.current, rollback)
@@ -208,7 +232,7 @@ func (st *Store) Save() error {
 	if st.path == "" {
 		return nil
 	}
-	err := st.save(st.path, st.current)
+	err := st.writeLocked(st.current)
 	st.lastErr = err
 	if err == nil {
 		st.confirmed = clone(st.current)

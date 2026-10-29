@@ -284,3 +284,84 @@ func TestStoreSnapshotIsACopy(t *testing.T) {
 		t.Errorf("Extra() handed out the map: %v", got)
 	}
 }
+
+// P11-cp · the store says how many times it wrote the file, so a surface can be
+// held to "one write per gesture" instead of "one write per frame". The counter
+// counts attempts at the one place every path goes through, so it stays honest
+// when a test replaces `save` (the refusal test below leans on that).
+func TestTheStoreCountsOnlyTheWritesItAttempts(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "settings.json")
+	st, err := OpenStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := st.Writes(); got != 0 {
+		t.Fatalf("a freshly opened store reports %d writes, want 0", got)
+	}
+
+	// A preview is live in memory and writes nothing: that is the whole point of
+	// the gesture's first half.
+	for _, opacity := range []uint8{60, 70, 80} {
+		st.Preview(func(s *Settings) { s.MainOpacity = opacity })
+	}
+	if got := st.Writes(); got != 0 {
+		t.Fatalf("three previews wrote the file %d times, want 0", got)
+	}
+	if got := st.Snapshot().MainOpacity; got != 80 {
+		t.Fatalf("previewed opacity = %d, want 80", got)
+	}
+
+	// Commit is the second half: one write for the whole drag.
+	if err := st.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	if got := st.Writes(); got != 1 {
+		t.Fatalf("a commit wrote the file %d times, want 1", got)
+	}
+
+	// An Update that changes something writes once...
+	if err := st.Update(func(s *Settings) { s.Language = "zh" }); err != nil {
+		t.Fatal(err)
+	}
+	if got := st.Writes(); got != 2 {
+		t.Fatalf("an update wrote the file %d times, want 2", got)
+	}
+	// ...and one that changes nothing writes none: the store compares before it
+	// reaches the file, so a no-op knob cannot cost a write.
+	if err := st.Update(func(s *Settings) { s.Language = "zh" }); err != nil {
+		t.Fatal(err)
+	}
+	if got := st.Writes(); got != 2 {
+		t.Fatalf("a no-op update wrote the file (%d writes, want 2)", got)
+	}
+	if err := st.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	if got := st.Writes(); got != 2 {
+		t.Fatalf("a no-op commit wrote the file (%d writes, want 2)", got)
+	}
+
+	// Save is the forced flush, and it writes whatever is current.
+	if err := st.Save(); err != nil {
+		t.Fatal(err)
+	}
+	if got := st.Writes(); got != 3 {
+		t.Fatalf("a save wrote the file %d times, want 3", got)
+	}
+
+	// A refused write is still an attempt, and the value rolls back to the last
+	// confirmed snapshot rather than to the refused one.
+	st.save = func(string, Settings) error { return os.ErrPermission }
+	if err := st.Update(func(s *Settings) { s.Language = "en" }); err != nil {
+		if !os.IsPermission(err) {
+			t.Fatalf("the refusal came back as %v, want a permission error", err)
+		}
+	}
+	if got := st.Writes(); got != 4 {
+		t.Fatalf("a refused write reported %d writes, want 4 (the attempt counts)", got)
+	}
+	if got := st.Snapshot().Language; got != "zh" {
+		t.Fatalf("a refused write left the language %q, want the confirmed \"zh\"", got)
+	}
+}

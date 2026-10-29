@@ -671,6 +671,11 @@ func New(opts Options) *App {
 			a.Settings.Flush()
 		}
 		if a.Terminal != nil {
+			// A drawer drag in flight has a window the frames would close; quitting
+			// stops them, so write it before the process ends (P11-cp).
+			a.Terminal.Flush()
+		}
+		if a.Terminal != nil {
 			// Every session's program ends with the app: one left running
 			// behind a closed panel is a process nobody can reach.
 			a.Terminal.CloseAll()
@@ -3412,6 +3417,13 @@ func (a *App) Open(s Surface) {
 	if a.Surf == SurfaceSettings && s != SurfaceSettings && a.Settings != nil {
 		a.Settings.Flush()
 	}
+	// The terminal's appearance drawer keeps its own window (its font size and
+	// line height tick per frame). Leaving that surface, hiding the window or
+	// quitting stops the frames, so a pending drag would never reach its
+	// deadline: flush it here, for the same reason as the settings page above.
+	if a.Surf == SurfaceTerminal && s != SurfaceTerminal && a.Terminal != nil {
+		a.Terminal.Flush()
+	}
 	if s != SurfaceLauncher {
 		// Entering a surface starts the residency clock (see summon).
 		a.enteredAt = a.now()
@@ -4124,6 +4136,10 @@ func (a *App) Hide() {
 	// would never arrive: write the pending value before it goes.
 	if a.Settings != nil {
 		a.Settings.Flush()
+	}
+	// The terminal's drawer rides its own window, with the same reason.
+	if a.Terminal != nil {
+		a.Terminal.Flush()
 	}
 	if a.hideWindow != nil {
 		a.hideWindow()

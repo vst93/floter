@@ -659,6 +659,27 @@ F3 的判据只看「它是不是一块压在内容上的浮面」，不看它�
 修后同一列是画布自己的 `(255,255,255)` 与带面的 `(242,242,242)`；`(429,30/56/60)` 修前是
 画布的 `(255,255,255)`、修后是带面的 `(242,242,242)`——整宽贴边。
 
+### §6.20 P11-cp · 一次拖拽一次落盘：抽屉与设置页共用一扇 180ms 窗（**已落地**）
+
+用户报的「流畅性」在输入侧已由 P11-co / P11-cl / P11-cn 收口（一帧一份设置、一帧一遍
+目录），本轮补的是**指针侧**的最后一处：终端外观抽屉的字号 / 行高滑轴**每帧写一次文件**。
+
+| 位置 | 旧（实测） | 新（实测） | 落地 |
+|---|---|---|---|
+| `internal/terminalui/drawer.go` 的字号滑轴（`:150`）与行高滑轴（`:177`） | `a.set(...)` → `Store.Update` → **每次都写盘**；22 帧的一次拖拽 **17 次落盘** | `a.preview(...)` → `Store.Preview`（值实时、不写盘）+ 180ms 窗到点 `Commit` 一次 | `已落地` — `internal/terminalui/debounce.go`；pin `TestADrawerDragWritesTheFileOnce`（**两个半边**：`Version()` 涨 ≥3 且 `Writes()` 恰好 +1） |
+| 同文件 `set`（`:39`） | `_ = a.Store.Update(mutate)`：写失败**静默吞掉** | 成功即关窗（那次写已把 preview 的值落盘，`Commit` 是空操作）；失败 → `ShowFeedback(SaveFailed)` | `已落地` — 同处 |
+| `internal/shell/shell.go` 的三个出口（`Open` / `Hide` / `quit`） | 只 flush 设置页 | 各补 `a.Terminal.Flush()`：隐藏的窗口不再画帧，`deadline` 的唤醒永远不到，那次拖拽会**静默丢写** | `已落地` — pin `TestLeavingTheTerminalSurfaceWritesTheDraggedValue`（**修前红**）、`TestHidingTheWindowWritesTheDraggedValue` |
+
+**为什么这不是行为改动**：参考实现本来就对这两个滑轴 debounce
+（`main:src/hooks/useSettings.ts:444-500` 的 `changeFontSize` /
+`changeTerminalLineHeight`，抽屉接的正是它们，`App.tsx:3925-3926`），而其余七行是
+离散选择、参考也立即写（`changeGeneralSetting`）。值在拖拽中**始终实时**
+（`Preview` 与 `Update` 同一条 normalize 链，都推版本并通知监听者），变的只是落盘次数。
+
+**零像素**：两套外观的 900×620 dump 在干净 HEAD worktree 与本轮**md5 相同**；
+`TestAPreviewAndAWritePaintTheSameFrame` 把这条主张钉成 pin（带控制臂：未改值的帧
+必须与它们不同，否则两臂画的是出厂帧）。
+
 ## §7 切片表
 | 片 | 范围 | 状态 |
 |---|---|---|
@@ -666,4 +687,5 @@ F3 的判据只看「它是不是一块压在内容上的浮面」，不看它�
 | P8-b | 设置页（侧栏/分组块/行/控件/弹层）+ 两个空态 | **本轮完成**（`⌘K` 动作面未做，见 §4.6） |
 | P8-c | 终端表面（页签/边框/滚动边缘/抽屉）+ 集成页 + 通知/浮层 + §5 accent 预算勘误 | **本轮完成**（§6.2/§6.3 全部 `已落地`；§5 从「三处」改为四类，新增 9 条正面 pin） |
 | P8-d | accent 花名册收口：越界 9 处转中性 + 判不准 4 条定审 + §5 注脚 + 视觉 pin 处置 | **本轮完成**（§6.4 全部 `已落地`；§5 补「只约束色相、鼓励明度分层」一句与边界四条注脚；新增 10 条 pin + 2 张×2 视觉证据） |
+| P11-cp | 抽屉滑轴的 180ms 窗（与设置页同一扇）+ 三个出口的 flush | **本轮完成**（§6.20；17 次落盘 → 1，零像素；新增 6 条 pin + 4 条变异） |
 | P8-e | accent 收口最后三处：终端状态灯去色相、成功 toast 转中性、输出面板选中行改 `RowSelected` | **本轮完成**（§6.5 全部 `已落地`；§5/§6.2 同步；`AccentTintQuiet` 标 `Deprecated`；新增 4 条 pin + 3 张×2 视觉证据） |

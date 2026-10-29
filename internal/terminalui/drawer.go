@@ -3,6 +3,7 @@ package terminalui
 import (
 	"fmt"
 	"math"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -36,8 +37,26 @@ func (a *App) CloseDrawer() { a.Drawer = false }
 // store listener hands it to every running session (Refresh) and repaints, so
 // the change lands on the terminal the drawer is docked to without the session
 // ever being left.
+//
+// This is the path for the drawer's **discrete** rows (a family, a padding step,
+// a switch, a palette): one click is one choice, and the reference writes those
+// immediately (`changeGeneralSetting`, `useSettings.ts:462-478`). Its two sliders
+// take `preview` instead — they tick per frame (see debounce.go).
+//
+// An immediate write also commits anything the debounce is holding, so the two
+// paths cannot disagree about which value is current; the pending window is then
+// dropped, because that write already carried the previewed value and a
+// following Commit would be a no-op.
 func (a *App) set(mutate func(*settings.Settings)) {
-	_ = a.Store.Update(mutate)
+	a.debouncing = false
+	a.debounceAt = time.Time{}
+	if err := a.Store.Update(mutate); err != nil {
+		// The store rolled the value back to its last confirmed snapshot, so the
+		// frame cannot keep showing something the file refused. Say so in the
+		// panel's own notice rather than dropping the error: a knob that silently
+		// snaps back is the thing the settings page's banner exists to prevent.
+		a.ShowFeedback(i18n.For(a.settings().Language).Settings.SaveFailed)
+	}
 }
 
 // drawer is the terminal's appearance strip, docked at the panel's bottom edge
@@ -147,7 +166,10 @@ func (a *App) drawerGrid(c *ui.Context, cellFloor float32) {
 					}
 					drawerReadout(c, tokens, fmt.Sprintf("%d px", int(math.Round(value))))
 					if changed {
-						a.set(func(s *settings.Settings) { s.FontSize = int(math.Round(value)) })
+						// preview, not set: a drag ticks once per frame and the store writes
+						// the file on every accepted Update. The reference's own
+						// `changeFontSize` restarts a 180ms timer for exactly this slider.
+						a.preview(func(s *settings.Settings) { s.FontSize = int(math.Round(value)) })
 					}
 				})
 			},
@@ -174,7 +196,9 @@ func (a *App) drawerGrid(c *ui.Context, cellFloor float32) {
 					}
 					drawerReadout(c, tokens, fmt.Sprintf("%.2f\u00d7", value))
 					if changed {
-						a.set(func(s *settings.Settings) { s.TerminalLineHeight = value })
+						// Same window as the font size: the reference's
+						// `changeTerminalLineHeight` is the same 180ms timer.
+						a.preview(func(s *settings.Settings) { s.TerminalLineHeight = value })
 					}
 				})
 			},
