@@ -244,6 +244,18 @@ type ClipboardPayload struct {
 type App struct {
 	Store *settings.Store
 
+	// settingsMemo is this surface's copy of the settings value (P11-cq).
+	// `View` opens by resolving the appearance from it, `toastViewport` reads
+	// it for its tokens and its words, and `appShortcuts` reads it for the
+	// bindings it answers — three deep copies of one value per frame before
+	// this memo existed, since `Store.Snapshot` copies the whole value, the
+	// carried-through keys included. The other three surfaces grew the same
+	// field in P11-co; the shell was the one left reading the store per read.
+	//
+	// Event handlers that must see the store as it is right now keep reading
+	// `Store.Snapshot`; this field is for the frame.
+	settingsMemo settings.Memo
+
 	// homeDir is where the browser plugin looks for profiles.
 	homeDir string
 
@@ -1632,8 +1644,9 @@ func (a *App) RefreshIntegrations(ctx context.Context) {
 // repository's record, the manifest's copy, and why a provider failed.
 func (a *App) integrationList() []settingsui.Integration {
 	inventory := a.Integrations.Inventory()
-	switches := settings.CommandSwitchesOf(a.Store.Snapshot())
-	aliases := settings.CommandAliasesOf(a.Store.Snapshot())
+	stored := a.settings()
+	switches := settings.CommandSwitchesOf(stored)
+	aliases := settings.CommandAliasesOf(stored)
 	resolved := settings.ResolveCommandAliases(aliases)
 	commands := map[string][]settingsui.Command{}
 	// The per-integration system calls the page used to pay on every frame
@@ -4161,6 +4174,7 @@ func (a *App) Hide() {
 // Escape is each surface view's own — the terminal shell's on the terminal, a
 // question's first on the settings — and the terminal shell keeps it.
 func (a *App) appShortcuts(c *ui.Context) {
+	snapshot := a.settings()
 	// One Shortcut() call per key per frame consumes the delivered press, so
 	// the triggers are resolved per surface: the terminal asks only the
 	// new-command binding (the literal ⌘W is the shell's delete-word), the
@@ -4175,7 +4189,7 @@ func (a *App) appShortcuts(c *ui.Context) {
 	// whole panel instead of cancelling the bar.
 	switch a.Surf {
 	case SurfaceTerminal:
-		if mods, key, ok := shortcuts.Parse(settings.Shortcut(a.Store.Snapshot(), settings.ShortcutNewCommand)); ok && c.Shortcut(mods, key) {
+		if mods, key, ok := shortcuts.Parse(settings.Shortcut(snapshot, settings.ShortcutNewCommand)); ok && c.Shortcut(mods, key) {
 			a.returnToInput()
 		}
 		// The reference's terminal branch answered the external-terminal
@@ -4186,7 +4200,7 @@ func (a *App) appShortcuts(c *ui.Context) {
 		// reaching the program as an ESC-prefixed chord. The port had left
 		// this one to the program — the same promise the settings page makes
 		// and did not keep on this surface (P7-iv).
-		if mods, key, ok := shortcuts.Parse(settings.Shortcut(a.Store.Snapshot(), settings.ShortcutOpenExternalTerminal)); ok && c.Shortcut(mods, key) {
+		if mods, key, ok := shortcuts.Parse(settings.Shortcut(snapshot, settings.ShortcutOpenExternalTerminal)); ok && c.Shortcut(mods, key) {
 			a.openTerminalWindow()
 		}
 	case SurfaceSettings:
@@ -4194,7 +4208,7 @@ func (a *App) appShortcuts(c *ui.Context) {
 			a.Open(SurfaceLauncher)
 			return
 		}
-		if mods, key, ok := shortcuts.Parse(settings.Shortcut(a.Store.Snapshot(), settings.ShortcutNewCommand)); ok && c.Shortcut(mods, key) {
+		if mods, key, ok := shortcuts.Parse(settings.Shortcut(snapshot, settings.ShortcutNewCommand)); ok && c.Shortcut(mods, key) {
 			a.Open(SurfaceLauncher)
 		}
 	default:
@@ -4228,10 +4242,19 @@ func (a *App) returnToInput() {
 	a.Open(SurfaceLauncher)
 }
 
+// settings is this frame's settings value, copied once per change rather than
+// once per reader (see `App.settingsMemo` and `settings.Memo`). Draw-time
+// readers go through it — `View`'s appearance resolve, `toastViewport`'s tokens
+// and words, and `appShortcuts`' bindings. An event handler that must see the
+// store as it is right now still reads `Store.Snapshot`.
+func (a *App) settings() settings.Settings {
+	return a.settingsMemo.Get(a.Store)
+}
+
 // View builds the window: the transparent root, the inset card, its glass
 // material (or plain face for the `off` stop), and the active surface.
 func (a *App) View(c *ui.Context) {
-	s := a.Store.Snapshot()
+	s := a.settings()
 	surface := launcher.Resolve(s, c.Theme().Dark, c.Preferences())
 	c.SetTheme(surface.Tokens.Theme)
 

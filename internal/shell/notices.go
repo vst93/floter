@@ -326,10 +326,11 @@ func (a *App) toastViewport(c *ui.Context) {
 	// the one seam that replaces the theme's own bottom-centre pill.
 	collapsed := a.Surf == SurfaceLauncher
 	width, _ := c.Size()
+	stored := a.settings()
 	ui.ToastViewportBase(c, func(viewport ui.Element, toasts []ui.Toast) {
 		t := c.Theme()
-		tokens := theme.ForPreferences(a.Store.Snapshot(), t.Dark, c.Preferences())
-		copy := i18n.For(a.Store.Snapshot().Language).Settings
+		tokens := theme.ForPreferences(stored, t.Dark, c.Preferences())
+		copy := i18n.For(stored.Language).Settings
 		// The entrance: the old `.app-toast` arrived on `app-toast-in`
 		// (`src/styles/extensions.css:393-403`), a `--dur-4` travel at `--spring`
 		// from `scale(0.98) translateY(-6px)` and zero opacity to rest. React

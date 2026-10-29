@@ -407,13 +407,14 @@ func (a *App) SetTitle(title string) {
 // LabelOf is a session's name, by index: the title its program set, or the
 // localized default.
 func (a *App) LabelOf(index int) string {
+	copy := i18n.For(a.settings().Language).Terminal
 	if index < 0 || index >= len(a.Sessions) {
-		return i18n.For(a.Store.Snapshot().Language).Terminal.Title
+		return copy.Title
 	}
 	if title := a.Sessions[index].Title; title != "" {
 		return title
 	}
-	return i18n.For(a.Store.Snapshot().Language).Terminal.Title
+	return copy.Title
 }
 
 // NoteOf is a session's own state line, by index: the program is running, or
@@ -424,7 +425,7 @@ func (a *App) LabelOf(index int) string {
 // gets the ` · exit N` suffix. The resident note on the terminal surface keeps
 // the separate, always-coded `terminal.processExited` wording.
 func (a *App) NoteOf(index int) string {
-	copy := i18n.For(a.Store.Snapshot().Language).Terminal
+	copy := i18n.For(a.settings().Language).Terminal
 	if index < 0 || index >= len(a.Sessions) {
 		return ""
 	}
@@ -693,7 +694,7 @@ func (a *App) Label() string {
 	if title := a.sessionTitle(); title != "" {
 		return title
 	}
-	return i18n.For(a.Store.Snapshot().Language).Terminal.Title
+	return i18n.For(a.settings().Language).Terminal.Title
 }
 
 // options builds the plugin options from the settings. OnExit is left unset

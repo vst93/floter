@@ -680,6 +680,26 @@ F3 的判据只看「它是不是一块压在内容上的浮面」，不看它�
 `TestAPreviewAndAWritePaintTheSameFrame` 把这条主张钉成 pin（带控制臂：未改值的帧
 必须与它们不同，否则两臂画的是出厂帧）。
 
+### §6.21 P11-cq · 外壳这一帧也只拷一份设置（**已落地**）
+
+P11-co 给 `launcher` / `terminalui` / `settingsui` 三张表面都装了「一帧一份设置」的 memo，
+**漏了外壳自己**。用户报的「流畅性」在帧里还剩这一处：`Store.Snapshot` 是整份深拷贝，
+而外壳每读一次就拷一次。
+
+| 位置 | 旧（实测） | 新（实测） | 落地 |
+|---|---|---|---|
+| `internal/shell/shell.go:4234` `View` 的 `s` | 每帧一份深拷贝 | `a.settings()`（`App.settingsMemo`） | `已落地` — `shell.go:244` 的字段 + `:4244` 的方法 |
+| `internal/shell/notices.go:331-332` `toastViewport` | 每帧**两份**（tokens 与文案各一） | 闭包外一次 `a.settings()`，两处读它 | `已落地` |
+| `internal/shell/shell.go:4178/4189/4197` `appShortcuts` | 每次判定一份 | 函数开头一次 `snapshot := a.settings()` | `已落地` — 只影响设置表面（终端/启动器走不到那两支） |
+| `internal/shell/shell.go:1647-1648` `integrationList` | 每帧**两份**（命令开关与别名各一） | 一次 `stored := a.settings()` | `已落地` |
+| `internal/terminalui/terminalui.go:416/427` `LabelOf` / `NoteOf` | **每条会话两份**；16 会话（`maxSessions` 上限）= 32 份 | 读本表面已有的 `a.settings()`（P11-co 装的同一把尺子） | `已落地` — pin `TestASessionsFrameTakesNoSettingsCopy` 等五条 |
+| `internal/terminalui/terminalui.go:693` `Label` | 同一族但 `deadcode` 报它无调用点 | **只改读法、不删**（删它属于死代码清理那一轮） | `已落地`（读法一致） |
+
+**实测**：六张表面静止帧 **全部 0 份**深拷贝（修前 sessions 36 / integrations 40）；
+16 会话帧 13096 → **11368 B/op**、238 → **202 allocs/op**；闭包单独 6538 ns/op。
+**零像素**：四张 dump 修前修后逐字节相同，且深/浅两两不同。
+**尺子读 `Store.Snapshots()`，不读 `Memo.Builds()`** —— 后者在有人绕过 memo 时仍然绿。
+
 ## §7 切片表
 | 片 | 范围 | 状态 |
 |---|---|---|
@@ -688,4 +708,5 @@ F3 的判据只看「它是不是一块压在内容上的浮面」，不看它�
 | P8-c | 终端表面（页签/边框/滚动边缘/抽屉）+ 集成页 + 通知/浮层 + §5 accent 预算勘误 | **本轮完成**（§6.2/§6.3 全部 `已落地`；§5 从「三处」改为四类，新增 9 条正面 pin） |
 | P8-d | accent 花名册收口：越界 9 处转中性 + 判不准 4 条定审 + §5 注脚 + 视觉 pin 处置 | **本轮完成**（§6.4 全部 `已落地`；§5 补「只约束色相、鼓励明度分层」一句与边界四条注脚；新增 10 条 pin + 2 张×2 视觉证据） |
 | P11-cp | 抽屉滑轴的 180ms 窗（与设置页同一扇）+ 三个出口的 flush | **本轮完成**（§6.20；17 次落盘 → 1，零像素；新增 6 条 pin + 4 条变异） |
+| P11-cq | 外壳这一帧也只拷一份设置（会话行不再按行数拷） | **本轮完成**（§6.21；六张表面 0 份，零像素；新增 5 条 pin + 4 条变异） |
 | P8-e | accent 收口最后三处：终端状态灯去色相、成功 toast 转中性、输出面板选中行改 `RowSelected` | **本轮完成**（§6.5 全部 `已落地`；§5/§6.2 同步；`AccentTintQuiet` 标 `Deprecated`；新增 4 条 pin + 3 张×2 视觉证据） |
