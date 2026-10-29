@@ -63,40 +63,33 @@ func chipBandScene(t *testing.T, dark bool) (*App, *ui.Tester, float32, float32)
 	return a, tt, top, top + 5*spacing
 }
 
-func TestTheChipsBandLeavesTheRowsBeneathItToThePointer(t *testing.T) {
+// P11-bj · The chips band is *above* the scroller, so no row is ever under it.
+//
+// P11-ap's pin (kept below, second half) was about the band's pointer: the chips
+// row floated over the result list and rows passed under it, so the band had to
+// let the pointer through. P11-bj removed the premise — the field's band (and a
+// mode's chips) is reserved **in the flow** now, so the scroller's clip starts at
+// its lower edge and no row is drawn inside the band at all. The pointer
+// question answers itself; what is worth pinning is the stronger fact.
+//
+// The reference never had rows under its filter row either (`.launcher-filter`
+// is a sibling of `.launcher-results` in normal flow, `main:src/App.tsx:3407`),
+// so this is the port coming back to the reference's shape.
+func TestTheChipsBandSitsAboveTheScroller(t *testing.T) {
 	a, tt, top, bottom := chipBandScene(t, false)
 
-	// A row really is painted through the band: the first row title that falls
-	// inside it. Without this the assertions below would hold on an empty band.
-	painted := false
-	first, last := a.List.Visible()
-	for _, item := range a.Results()[first:min(last+1, len(a.Results()))] {
+	// No row of the page is drawn inside the band (they used to be: the list's
+	// padding scrolled away with its content). The rows the list *holds* are
+	// below its own top edge, and the scroller's box is below the band.
+	for _, item := range a.Results() {
 		if rect, ok := tt.Find(item.Title); ok && rect.Y < bottom {
-			painted = true
-		}
-	}
-	if !painted {
-		t.Fatalf("no row is drawn in the chips band (%.1f..%.1f), so there is nothing to test", top, bottom)
-	}
-
-	// 1. The band finds the row under it. x=340 is between the chips and the
-	// hint; 660 is over the hint's own words, whose box is the row's whole
-	// trailing span.
-	for _, px := range []float32{340, 660} {
-		for py := top + 1; py < bottom; py += 3 {
-			a.hoveredRow = -1
-			tt.Move(px, py)
-			tt.Advance(10 * time.Millisecond)
-			tt.Frame()
-			if a.hoveredRow < 0 {
-				t.Errorf("the pointer over the chips band at (%.0f, %.0f) finds no row: "+
-					"the band is taking the pointer from the rows it covers", px, py)
-			}
+			t.Errorf("the row %q is drawn at y=%.0f, inside the chips band (%.0f..%.0f): "+
+				"the band is no longer reserved in the flow", item.Title, rect.Y, top, bottom)
 		}
 	}
 
-	// 2. The chips are still the band's controls: passing the pointer through
-	// the band must not pass it through them either.
+	// 2. The chips are still the band's controls: they are the band's own
+	// children and stay clickable.
 	before := a.clipboardFilter
 	if rect, ok := tt.Find("Images"); ok {
 		tt.ClickAt(rect.X+rect.W/2, rect.Y+rect.H/2)
@@ -109,32 +102,25 @@ func TestTheChipsBandLeavesTheRowsBeneathItToThePointer(t *testing.T) {
 	}
 }
 
-// TestChipBandHoverDump writes the frame the pin reads: the pointer inside the
-// chips band, the row under it carrying its chosen pill. Before the fix the
-// same frame has no pill there — the band took the pointer.
+// TestChipBandHoverDump writes the frame the pin reads: the chips band with no
+// row inside it (P11-bj put the band above the scroller).
 func TestChipBandHoverDump(t *testing.T) {
 	if os.Getenv("FLOTER_PNG") == "" {
 		t.Skip("opt-in: FLOTER_PNG=1 writes /tmp/floter-P11-ap-chipband-<appearance>.png")
 	}
 	forEachAppearance(t, func(t *testing.T, dark bool) {
-		a, tt, top, _ := chipBandScene(t, dark)
-		// The frame has to differ, not just be hovered: the wheel leaves the choice
-		// on the row under the pointer, so both builds would paint the same pill.
-		// Park the pointer on a row *below* the band first (the pointer enters it,
-		// so the choice is there), then move it into the band: the fix moves the
-		// pill into the band (the pointer enters the row it covers), the old build
-		// leaves it below. Move the pointer, never the wheel, so the list's offset
-		// is the same in both builds.
+		a, tt, top, bottom := chipBandScene(t, dark)
+		// The pointer is parked below the band first and then inside it, so the
+		// picture shows the band with the rows stopped at its lower edge.
 		tt.Move(340, 200)
 		tt.Advance(200 * time.Millisecond)
 		tt.Frame()
-		below := a.hoveredRow
 		tt.Move(340, top+6)
 		tt.Advance(300 * time.Millisecond)
 		tt.Frame()
-		if a.hoveredRow < 0 {
-			t.Fatalf("no row under the band to photograph")
-		}
+		// P11-bj：带子已经在滚动容器之上，带子里没有行可指 —— 这里只留一张图，
+		// 记录的正是「带子里不放行」这件事（带子上沿 %.0f，下沿 %.0f）。
+		t.Logf("chips band %.0f..%.0f, hovered row %d", top, bottom, a.hoveredRow)
 		name := "light"
 		if dark {
 			name = "dark"
@@ -148,6 +134,6 @@ func TestChipBandHoverDump(t *testing.T) {
 		if err := png.Encode(f, tt.Image()); err != nil {
 			t.Fatal(err)
 		}
-		t.Logf("wrote %s (row below the band %d, row in the band %d)", path, below, a.hoveredRow)
+		t.Logf("wrote %s (row in the band %d)", path, a.hoveredRow)
 	})
 }

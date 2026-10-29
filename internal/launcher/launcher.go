@@ -1356,6 +1356,12 @@ func (a *App) View(c *ui.Context) {
 			// 就要发下去，所以这里先把上一帧的盒清掉，由本帧建出来的行重新填——
 			// 已经离开列表的行于是不会留下一个过期的盒子去骗 `numberedViewport`。
 			clear(a.rowRects)
+			// P11-bj：字段带占自己的位置，列表从带子下沿开始。字段行不再画自己的面
+			// （它就是面板的第一条带，见下面 `launcher.fieldRow`），于是它不再是不透明
+			// 的遮罩：一条滚上去的行会从查询文字底下透出来。把带子放进流里，滚动区的
+			// 上沿就落在带子下沿 —— 行根本不进那条带，编号读的视口也还是原来那一段
+			// （下面 `a.listRect` 直接读列表盒，不再手写扣减）。
+			ui.Box(c).Shrink(0).FillWidth().Height(listEdge)
 			list := ui.List(c.Key("launcher.results"), &a.List, barStart, func(i int) {
 				a.row(c, results[i], i)
 			}).Grow(1).FillWidth().MinHeight(0).
@@ -1375,19 +1381,13 @@ func (a *App) View(c *ui.Context) {
 				// 列表的最后一行就停在带子上沿——和参考把 `.launcher-feedback`
 				// 放在流里（`main:src/styles/launcher.css:693` 的 `min-height`）
 				// 同一个答案。判据与 `Geometry.Feedback` 是同一个（见 `statusBand`）。
-				Padding(listEdge, t.Space(2), t.Space(0.5)+a.statusBand(c), t.Space(2)).Label(copy.ResultsLabel).
+				Padding(0, t.Space(2), t.Space(0.5)+a.statusBand(c), t.Space(2)).Label(copy.ResultsLabel).
 				ScrollbarInsets(0, 4096, 0, 0)
 			// The rows are clipped to this box, so it is the viewport the
-			// numbered family measures against (see numberedViewport) — inset at
-			// the top by the band the field row (and a mode's chips) covers: a
-			// row that has scrolled under the field is behind an opaque band,
-			// and a badge painted there is a badge nobody reads. That is the
-			// half of the report P11-bb answers that the scroller's own box
-			// cannot see.
-			rect := list.Bounds()
-			rect.Y += listEdge
-			rect.H -= listEdge
-			a.listRect = rect
+			// numbered family measures against (see numberedViewport). P11-bj：
+			// 这个盒子的上沿已经是字段带（和模式的 chips）的下沿 —— 带子由上面那条
+			// 占位让出来，不再靠手写扣减一段高度去躲开它。
+			a.listRect = list.Bounds()
 			a.actionBarFooter(c, results, barStart)
 		}
 
@@ -1409,7 +1409,7 @@ func (a *App) View(c *ui.Context) {
 		// stayed un-painted on the frame the shell's pins read. The key makes the
 		// row the same element before and after the rule moved.
 		ui.Row(c.Key("launcher.fieldRow")).Absolute().Top(0).Left(0).Right(0).Height(fieldRow).
-			Background(tk.FieldFill).Padding(0, t.Space(4)).
+			Padding(0, t.Space(4)).
 			AlignItems(ui.Center).Children(func() {
 			// The reference's `.collapsed-card__input-row` is a plain flex row with
 			// **no** `gap`: every child's spacing is its own margin — the scope mark

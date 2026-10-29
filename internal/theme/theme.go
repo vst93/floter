@@ -189,10 +189,12 @@ type Tokens struct {
 	// turned off or that must not show the desktop (base.css's
 	// `--surface-opaque`): the `off` stop's card.
 	Opaque ui.Color
-	// FieldFill is the launcher's field block: `--glass-field` composited
-	// over `--surface-opaque`, a near-solid surface one step brighter than
-	// the card so the caret never sits over a ghost of the desktop
-	// (`.collapsed-card__input-row`, R21).
+	// FieldFill is **deprecated**: the launcher's field block used to paint its
+	// own near-solid face over the panel (`--glass-field` over
+	// `--surface-opaque`), which read as a card floating on the panel — the
+	// user's 「像一块浮在上面的卡片」/「不连续边框」 (P11-bj). The field row now
+	// paints nothing and is the panel's own first band. Kept so the token table
+	// stays one table; nothing reads it.
 	FieldFill ui.Color
 	// TextStrong is a row's own label color, one step above the body text
 	// (base.css's `--text-strong`), TextSecondary and TextTertiary the two
