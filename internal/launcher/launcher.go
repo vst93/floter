@@ -1283,7 +1283,16 @@ func (a *App) View(c *ui.Context) {
 				// padding are one sum — 8u + 8u is the 16u the row's icon column
 				// has always started on — so the column moves by nothing while the
 				// block's painted edge moves 4u in.
-				Padding(listEdge, t.Space(2), t.Space(0.5), t.Space(2)).Label(copy.ResultsLabel).
+				// P11-az：底部内边距里含那条带（`statusBand`）。窗口为带子长了
+				// `launcherStatusUnits`（`Geometry.Feedback`），列表 `Grow(1)` 也
+				// 跟着长同样多——带子却是浮在列表上的，于是「多出来的那一截」
+				// 正好是带子盖住的那一截：滚到底时列表的最后一行永远在带子底下
+				// （看不见、点不到，实测 `india` 的 `y=428..443` 落在带子
+				// `y≈410..440` 里）。带子在场时把这 30u 从列表的内容里让出来，
+				// 列表的最后一行就停在带子上沿——和参考把 `.launcher-feedback`
+				// 放在流里（`main:src/styles/launcher.css:693` 的 `min-height`）
+				// 同一个答案。判据与 `Geometry.Feedback` 是同一个（见 `statusBand`）。
+				Padding(listEdge, t.Space(2), t.Space(0.5)+a.statusBand(c), t.Space(2)).Label(copy.ResultsLabel).
 				ScrollbarInsets(0, 4096, 0, 0)
 			a.actionBarFooter(c, results, barStart)
 		}
@@ -2922,7 +2931,15 @@ const feedbackDuration = 3 * time.Second
 // same whether it is drawn or not within one message's life; the frames keep
 // coming while it shows, so it expires on time.
 func (a *App) feedbackRow(c *ui.Context) {
-	if a.toast == "" {
+	// P11-az · 一条带只有一个句子，问句赢。两条带都是 `Absolute()` 且落在**同一个
+	// 矩形**（`Bottom(a.footerBand)` + 30u），而 `Geometry.Feedback` 是 `bool`
+	// ——窗口只为**一条**带长了 30u。两条都画的时候，toast 的句子与确认句逐像素
+	// 重合（实测 `{X:40 Y:462 W:488 H:22}` 与 `{X:40 Y:462 W:664 H:22}`），确认
+	// 句的按钮还压在 toast 的字上。问句是阻塞的那一句（关机/重启，3s 窗口），
+	// toast 只是状态（4.5s）；问句在场时 toast 让位，时钟也不启动（`toast` 留着，
+	// 问句答完或过期后它照常出现）。叠成两条要改高度链（`Feedback` 改成计数），
+	// 那是红线，不碰。
+	if a.toast == "" || a.pendingPower != "" {
 		return
 	}
 	now := c.Now()
@@ -2984,6 +3001,20 @@ func (a *App) feedbackRow(c *ui.Context) {
 		ui.Icon(c, glyphAlert).Size(t.Space(4), t.Space(4)).TextColor(tone)
 		ui.Text(c, a.toast).FontSize(t.FontSize).FontWeight(weight).TextColor(tone).Grow(1)
 	})
+}
+
+// statusBand is the band the docked notice occupies at the list's bottom edge:
+// zero when nothing is docked, else the old build's `LAUNCHER_STATUS_UNITS`
+// (30u). It is the *same* predicate as `Geometry.Feedback`
+// (`launcher.go:1170`) and the same number `height.go:350` charges the window,
+// so the window, the band and the list's own tail stay one decision: the list's
+// bottom padding takes the band's height back out of the content, and the last
+// row stops at the band's top edge instead of hiding under it (P11-az).
+func (a *App) statusBand(c *ui.Context) float32 {
+	if a.toast == "" && a.pendingPower == "" {
+		return 0
+	}
+	return c.Theme().Space(launcherStatusUnits)
 }
 
 // FeedbackVisible reports whether the docked status row is showing, for the
