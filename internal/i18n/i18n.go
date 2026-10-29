@@ -102,6 +102,10 @@ type Launcher struct {
 	FilesSection  string
 	FilesMore     func(count int) string
 	FilesMoreHint string
+	// FilesEmpty is the files page with nothing on it: the mode is open and
+	// no file has been dropped yet. It is not a failed query — nothing was
+	// asked — so it does not borrow NoResults (P11-bh).
+	FilesEmpty    string
 	RecentSection string
 	// Hint is the empty result area's message.
 	Hint string

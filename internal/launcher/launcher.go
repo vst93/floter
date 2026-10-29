@@ -886,6 +886,13 @@ func (a *App) emptyMessage(copy i18n.Launcher) string {
 		}
 		return copy.CalculatorEmpty
 	case a.files:
+		// A dropped-file page with no drop on it is not a search that came
+		// back empty: nothing was asked. It says so, the way the clipboard
+		// and the calculator pages do (P11-bh). A typed needle that matches
+		// none of the dropped files is a real miss and keeps NoResults.
+		if len(a.Dropped) == 0 {
+			return copy.FilesEmpty
+		}
 		return copy.NoResults
 	default:
 		return copy.NoResults

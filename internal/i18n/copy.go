@@ -144,6 +144,7 @@ var en = Copy{
 		FilesSection:             "Dropped files",
 		FilesMore:                func(count int) string { return "\u2026and " + strconv.Itoa(count) + " more files" },
 		FilesMoreHint:            "Show every dropped file",
+		FilesEmpty:               "No files dropped yet",
 		RecentSection:            "Recently launched",
 		TriggerHintMore:          func(name string, more int) string { return name + " \u00b7 enter (+" + strconv.Itoa(more) + " more)" },
 		AliasMatch:               func(alias string) string { return "Alias: " + alias },
@@ -991,6 +992,7 @@ var zh = Copy{
 		FilesSection:             "拖入的文件",
 		FilesMore:                func(count int) string { return "等 " + strconv.Itoa(count) + " 个文件" },
 		FilesMoreHint:            "显示全部拖入的文件",
+		FilesEmpty:               "还没有拖入文件",
 		RecentSection:            "最近启动",
 		TriggerHintMore: func(name string, more int) string {
 			return name + " \u00b7 进入（还有 " + strconv.Itoa(more) + " 个）"
