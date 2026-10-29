@@ -1733,10 +1733,26 @@ func TestResultShortcutsRunTheNumberedRow(t *testing.T) {
 	if !ok {
 		t.Fatal("the tenth result's key did not parse")
 	}
+	// P11-bb：家族跟着视口走，而按下数字会把选中行滚进视野——那一滚是**动画**，
+	// 滚的每一帧编号都会挪一行。等它停稳（`Advance` + 两帧）再读，读到的就是
+	// 下一次按键要用的那张表。
+	tt.Advance(500 * time.Millisecond)
+	tt.Frame()
+	tt.Frame()
+	zero := -1
+	for i, digit := range a.numbers {
+		if digit == 0 {
+			zero = i
+		}
+	}
+	if zero < 0 {
+		t.Fatalf("no row carries 0: %v", a.numbers)
+	}
+	want := a.Results()[zero].Title
 	tt.Key(mods, ui.Key0)
 	tt.Frame()
-	if len(ran) != 2 || ran[1] != a.Results()[last].Title {
-		t.Errorf("ran %v, want the tenth numbered row %q", ran, a.Results()[last].Title)
+	if len(ran) != 2 || ran[1] != want {
+		t.Errorf("ran %v, want the row carrying 0 %q", ran, want)
 	}
 
 	// Rebinding the family moves the numbers with it.
@@ -1746,10 +1762,21 @@ func TestResultShortcutsRunTheNumberedRow(t *testing.T) {
 		t.Fatal(err)
 	}
 	tt.Frame()
+	tt.Frame()
+	third := -1
+	for i, digit := range a.numbers {
+		if digit == 3 {
+			third = i
+		}
+	}
+	if third < 0 {
+		t.Fatalf("no row carries 3 after the rebind: %v", a.numbers)
+	}
+	want = a.Results()[third].Title
 	tt.Key(ui.Alt, ui.Key3)
 	tt.Frame()
-	if len(ran) != 3 || ran[2] != "App 02" {
-		t.Errorf("after rebinding: ran %v", ran)
+	if len(ran) != 3 || ran[2] != want {
+		t.Errorf("after rebinding: ran %v, want the row carrying 3 %q", ran, want)
 	}
 }
 

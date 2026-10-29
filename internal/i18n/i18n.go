@@ -84,8 +84,12 @@ type Launcher struct {
 	FieldSettingsHint func(shortcut string) string
 	BareTerminal      string
 	BareTerminalHint  string
-	TriggerHint       func(name string) string
-	TriggerHintMore   func(name string, more int) string
+	// HeldTerminalHint is the docked band's sentence while the app modifier
+	// is held: the chord beside it (`Super+Enter`) opens a terminal session,
+	// and on a typed query the row that would say so is not drawn (P11-bb).
+	HeldTerminalHint string
+	TriggerHint      func(name string) string
+	TriggerHintMore  func(name string, more int) string
 	// AliasMatch names the user's alias when it is what carried a match
 	// ("Alias: gfm"), the old build's `launcher.aliasMatch`. It rides the
 	// row's subtitle, so a row reached by an alias explains itself instead

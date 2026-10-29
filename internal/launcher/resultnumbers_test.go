@@ -74,9 +74,21 @@ func TestResultShortcutsFollowTheScrollViewport(t *testing.T) {
 	if vf == 0 {
 		t.Fatalf("the list did not scroll: visible %d..%d", vf, vl)
 	}
-	vn := firstNumberable(a, vf)
-	if got := a.numbers[vn]; got != 1 {
-		t.Errorf("after scrolling, the first numbered row %d has number %d, want 1 (%v)", vn, got, a.numbers)
+	// P11-bb 重定基线：家族从「读得全的第一行」开始，而 `Visible()` 的第一行
+	// 只保证「还有一个像素在框里」。所以这一条 pin 读的是**家族自己的答案**
+	// （带 1 的那一行），另由 `TestTheNumberedFamilyStartsOnARowYouCanRead`
+	// 钉住它为什么不是 `Visible()` 的第一行。
+	vn := -1
+	for i, digit := range a.numbers {
+		if digit == 1 {
+			vn = i
+		}
+	}
+	if vn < 0 {
+		t.Fatalf("after scrolling, no row carries 1: %v", a.numbers)
+	}
+	if vn < vf || vn > vl {
+		t.Errorf("the row carrying 1 (%d) is outside the viewport %d..%d", vn, vf, vl)
 	}
 	if _, ok := a.numbers[0]; ok {
 		t.Errorf("row 0 (the action bar) is numbered: %v", a.numbers)

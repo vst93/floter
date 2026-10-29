@@ -442,6 +442,16 @@ type App struct {
 	// to, recomputed every frame: 1..9 then 0 for the tenth, over the rows
 	// that can be run.
 	numbers map[int]int
+	// rowRects is each row's box as the last frame laid it out, and listRect
+	// the results list's own box (the viewport the rows are clipped to). The
+	// numbered family asks them how much of a row is on screen, because the
+	// framework's Visible() answers "a pixel" and a badge on a row that is
+	// nine tenths scrolled away is a badge nobody sees (P11-bb). Filled while
+	// the rows are built (`Bounds` is the previous frame's rectangle) and
+	// cleared as the list is built, so a row that left the list leaves no
+	// stale box behind.
+	rowRects map[int]ui.Rect
+	listRect ui.Rect
 	// outputNumbers is the same family for the captured-output list: the
 	// numbered shortcuts address the output's own rows while it owns the band
 	// (see assignOutputNumbers).
@@ -608,7 +618,12 @@ func (a *App) assignNumbers(results []Item) map[int]int {
 	first, last := 0, len(results)-1
 	if resultCount > maxResultSlots {
 		first, last = 0, maxResultSlots-1
-		if visibleFirst, visibleLast := a.List.Visible(); visibleLast >= visibleFirst {
+		if visibleFirst, visibleLast, ok := a.numberedViewport(len(results)); ok {
+			first, last = visibleFirst, visibleLast
+		} else if visibleFirst, visibleLast := a.List.Visible(); visibleLast >= visibleFirst {
+			// No geometry yet (the first pass of a window, before any row has
+			// been laid out): fall back to the framework's own range, so the
+			// list opens with its badges rather than without them.
 			first, last = visibleFirst, visibleLast
 		}
 	}
@@ -629,6 +644,72 @@ func (a *App) assignNumbers(results []Item) map[int]int {
 	}
 	a.numbers = numbers
 	return numbers
+}
+
+// numberVisibleShare is how much of a row has to be on screen for the numbered
+// family to land on it: seven tenths, so a row scrolled out of the viewport by
+// three tenths or more takes no number (P11-bb, the user's own threshold:
+// 「某一项滚出可见范围达到 30% 就算作不可见项」). The slack is what makes
+// scrolling read as motion rather than as the badges blinking off and on: a row
+// keeps its number while it is mostly there and loses it as it leaves.
+//
+// The reference draws the same line the strict way — `visibleRowRange`
+// (`main:src/launcher/result-budget.ts:768-810`) skips any row its top edge
+// clips — because it measures in the DOM on the frame it paints. This port reads
+// the last frame's boxes, so it takes the threshold instead of the pixel: a
+// number is worth having only while the row is one the user can read.
+const numberVisibleShare = 0.7
+
+// numberedViewport reports the rows the numbered family may reach, from the
+// boxes the last frame laid out: the first row at least `numberVisibleShare` of
+// which lies inside the results list's own box, down to the last row with any
+// part of it there. ok is false when the frame left no geometry to read (see
+// assignNumbers).
+//
+// The two ends are read differently on purpose, and the reference reads them the
+// same way (`visibleRowRange`, `main:src/launcher/result-budget.ts:789-810`):
+// `start` skips a row the top edge clips, `end` keeps the row the bottom edge
+// only partly shows. A row leaving through the top has already been read and its
+// number would land on the row that took its place — the badge the user
+// reported as jumping. A row arriving from the bottom is the one Enter and the
+// digits should still reach: the family's tenth key (`0`) is on it.
+//
+// The range is contiguous because a list lays its rows out in one column.
+func (a *App) numberedViewport(count int) (first, last int, ok bool) {
+	viewport := a.listRect
+	if viewport.W <= 0 || viewport.H <= 0 || len(a.rowRects) == 0 {
+		return 0, 0, false
+	}
+	first, last = -1, -1
+	for i := 0; i < count; i++ {
+		box, seen := a.rowRects[i]
+		if !seen || box.W <= 0 || box.H <= 0 {
+			continue
+		}
+		share := visibleShare(box, viewport)
+		if share <= 0 {
+			continue
+		}
+		if first < 0 && share >= numberVisibleShare {
+			first = i
+		}
+		last = i
+	}
+	if first < 0 || last < first {
+		return 0, 0, false
+	}
+	return first, last, true
+}
+
+// visibleShare is how much of box lies inside viewport, as a fraction of the
+// box's own area: 1 for a row wholly on screen, 0 for one scrolled away.
+func visibleShare(box, viewport ui.Rect) float64 {
+	w := min(box.X+box.W, viewport.X+viewport.W) - max(box.X, viewport.X)
+	h := min(box.Y+box.H, viewport.Y+viewport.H) - max(box.Y, viewport.Y)
+	if w <= 0 || h <= 0 {
+		return 0
+	}
+	return float64(w*h) / float64(box.W*box.H)
 }
 
 // takePendingDigit takes the digit of the result family the field claimed, if
@@ -1167,7 +1248,7 @@ func (a *App) View(c *ui.Context) {
 			Font: a.Font, Spacing: a.Spacing, Rows: rows, Held: len(rows),
 			TitleLine: a.TitleLine, SubtitleLine: a.SubtitleLine,
 			Filter:   a.filtersVisible(),
-			Feedback: a.toast != "" || a.pendingPower != "",
+			Feedback: a.toast != "" || a.pendingPower != "" || a.heldHint(),
 			Config:   a.configSchema(),
 			Sections: sections,
 		}
@@ -1273,7 +1354,11 @@ func (a *App) View(c *ui.Context) {
 			// and never scrolls. The scroller's bottom padding is the band the
 			// footer occupies, so its last row stops above the footer instead
 			// of running under it.
-			ui.List(c.Key("launcher.results"), &a.List, barStart, func(i int) {
+			// P11-bb：行盒与视口盒都是**上一帧**的（`Bounds`），而编号在行被建出来之前
+			// 就要发下去，所以这里先把上一帧的盒清掉，由本帧建出来的行重新填——
+			// 已经离开列表的行于是不会留下一个过期的盒子去骗 `numberedViewport`。
+			clear(a.rowRects)
+			list := ui.List(c.Key("launcher.results"), &a.List, barStart, func(i int) {
 				a.row(c, results[i], i)
 			}).Grow(1).FillWidth().MinHeight(0).
 				// The list's own gutter is the row block's inset: Raycast's
@@ -1294,6 +1379,17 @@ func (a *App) View(c *ui.Context) {
 				// 同一个答案。判据与 `Geometry.Feedback` 是同一个（见 `statusBand`）。
 				Padding(listEdge, t.Space(2), t.Space(0.5)+a.statusBand(c), t.Space(2)).Label(copy.ResultsLabel).
 				ScrollbarInsets(0, 4096, 0, 0)
+			// The rows are clipped to this box, so it is the viewport the
+			// numbered family measures against (see numberedViewport) — inset at
+			// the top by the band the field row (and a mode's chips) covers: a
+			// row that has scrolled under the field is behind an opaque band,
+			// and a badge painted there is a badge nobody reads. That is the
+			// half of the report P11-bb answers that the scroller's own box
+			// cannot see.
+			rect := list.Bounds()
+			rect.Y += listEdge
+			rect.H -= listEdge
+			a.listRect = rect
 			a.actionBarFooter(c, results, barStart)
 		}
 
@@ -2172,6 +2268,14 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 		AlignItems(ui.Center).
 		Padding(0, t.Space(2)).Radius(tokens.RadiusSM).Gap(t.Space(2.5)).
 		Transition(rowTransition)
+	// P11-bb：这一行上一帧的盒子。编号家族靠它判「这一行读得全吗」——
+	// 框架的 `Visible()` 只答「还有一个像素在框里」，而一个被裁掉九成的行
+	// 拿到的徽章是没人看得见的（见 `numberedViewport`）。首帧还没有盒子，
+	// 记一个空矩形，`numberedViewport` 会跳过它。
+	if a.rowRects == nil {
+		a.rowRects = make(map[int]ui.Rect, 16)
+	}
+	a.rowRects[i] = row.Bounds()
 	// A history row is one step quieter than a match: the old build's
 	// `.launcher-result--history { opacity: 0.92 }`.
 	if item.clip != nil || item.calc != nil {
@@ -2940,6 +3044,11 @@ func (a *App) feedbackRow(c *ui.Context) {
 	// 问句答完或过期后它照常出现）。叠成两条要改高度链（`Feedback` 改成计数），
 	// 那是红线，不碰。
 	if a.toast == "" || a.pendingPower != "" {
+		// P11-bb：带子现在有三个句子，优先级是问句 > toast > 按住修饰键的提示。
+		// 前两句照旧（P11-az），第三句只在带子空着时上场。
+		if a.toast == "" && a.pendingPower == "" && a.heldHint() {
+			a.heldHintRow(c)
+		}
 		return
 	}
 	now := c.Now()
@@ -3003,6 +3112,28 @@ func (a *App) feedbackRow(c *ui.Context) {
 	})
 }
 
+// heldHintRow draws the band's third sentence: the chord that opens a terminal
+// session while the app modifier is held, as the keycaps the list itself uses
+// plus the word that says what it does (P11-bb).
+//
+// It sits in the toast's own band and geometry — the list has already reserved
+// that band (`statusBand`), so the row has nothing behind it to cover — but it
+// wears no plane, no keyline and no shadow: a hint about a key the user is
+// holding is not a message, and the amber `--system-icon-surface` would read as
+// one (the user's F3: 不要 floating/overlay 观感，元素要 inline、要贴进布局).
+func (a *App) heldHintRow(c *ui.Context) {
+	t := c.Theme()
+	tokens := a.tokens(c)
+	copy := a.copy()
+	ui.Row(c).Absolute().Bottom(a.footerBand).Left(t.Space(1)).Right(t.Space(1)).Height(t.Space(7.5)).
+		Padding(0, t.Space(3)).Gap(t.Space(2)).AlignItems(ui.Center).
+		Children(func() {
+			a.rowKeycap(c, tokens, a.enterBadge())
+			ui.Text(c, copy.HeldTerminalHint).FontSize(t.FontSize).FontWeight(540).
+				TextColor(tokens.TextSecondary).Grow(1).SingleLine()
+		})
+}
+
 // statusBand is the band the docked notice occupies at the list's bottom edge:
 // zero when nothing is docked, else the old build's `LAUNCHER_STATUS_UNITS`
 // (30u). It is the *same* predicate as `Geometry.Feedback`
@@ -3011,15 +3142,28 @@ func (a *App) feedbackRow(c *ui.Context) {
 // bottom padding takes the band's height back out of the content, and the last
 // row stops at the band's top edge instead of hiding under it (P11-az).
 func (a *App) statusBand(c *ui.Context) float32 {
-	if a.toast == "" && a.pendingPower == "" {
+	if a.toast == "" && a.pendingPower == "" && !a.heldHint() {
 		return 0
 	}
 	return c.Theme().Space(launcherStatusUnits)
 }
 
+// heldHint reports whether the docked band owes the held modifier's sentence:
+// while the app modifier is down, `Super+Enter` opens a terminal session, and on
+// a typed query the row that says so is not drawn (R64, see heldTerminalItem),
+// so the band is the only place left to say it (P11-bb, the user's own line:
+// 「当按着 M 键时，底部固定显示一行「Super+Enter 快捷进入终端」」).
+//
+// It is the *band's* third sentence, ranked below the question and the toast (see
+// feedbackRow): a message that is going somewhere wins over a hint about a key
+// the user is holding.
+func (a *App) heldHint() bool {
+	return a.modifierHeld && a.output == nil && !a.pluginModeActive()
+}
+
 // FeedbackVisible reports whether the docked status row is showing, for the
 // shell's window sizing.
-func (a *App) FeedbackVisible() bool { return a.toast != "" }
+func (a *App) FeedbackVisible() bool { return a.toast != "" || a.heldHint() }
 
 // syncHeldModifier reads the app modifier's state for this frame and moves the
 // selection to (or away from) the held row at the edge where the modifier goes
