@@ -300,6 +300,10 @@ const (
 	footerSpinnerStroke  = 1.5
 	footerSpinnerTurn    = 360
 	footerSpinnerPerTurn = 700 * time.Millisecond
+	// footerSpinnerFPS is how often the ring is painted while a page is in
+	// flight: a whole turn in 0.7 s needs a smooth angle, so the display's
+	// own cadence rather than a slow fade's.
+	footerSpinnerFPS = 60
 )
 
 // footerSpinner draws the pagination row's indicator: a hairline circle with a
@@ -309,6 +313,19 @@ const (
 // draws the ring at rest — the old build's `animation: none` — and registers
 // no loop. The framework's own Loop would go on turning whatever the
 // preference says; the app is where the preference has a meaning.
+//
+// P11-bp: **the angle is read while the frame paints, not while the view is
+// built.** Before, `Element.Loop` (called at build time) asked for
+// `Context.AnimationFrame`, which `runtime.go:744-748` turns into "build the
+// whole view again next frame" — so a page in flight rebuilt the whole
+// launcher at the display's rate, one frame after another, for a 12u ring.
+// `Painter.AnimationFrameRate` asks for the frames that *paint this view
+// again* instead, and the phase comes from `Painter.Now`. The start of the
+// turn lives on the App (`footerSpin`), because element state is lost with
+// every build while the drawing must not be. A plain Box has no `rotate` of
+// its own (that field is an icon's), so the turn is a painter transform
+// around the ring's centre: a circle's stroke width does not change under a
+// rotation, so the ink is the same 1.5px it was.
 func (a *App) footerSpinner(c *ui.Context) {
 	t := c.Theme()
 	hairline := a.tokens(c).Hairline
@@ -316,17 +333,26 @@ func (a *App) footerSpinner(c *ui.Context) {
 	ring.Draw(func(p *ui.Painter, r ui.Rect) {
 		cx, cy := r.X+r.W/2, r.Y+r.H/2
 		radius := min(r.W, r.H)/2 - footerSpinnerStroke/2
-		var full ui.Path
-		full.Circle(cx, cy, radius)
-		p.StrokePath(&full, footerSpinnerStroke, hairline)
-		var lead ui.Path
-		lead.Circle(cx, cy, radius)
-		lead.Trim(0, 0.25)
-		p.StrokePath(&lead, footerSpinnerStroke, t.TextMuted)
+		angle := footerSpinnerTurn * motion.Value(c, func() float32 {
+			if a.footerSpin.IsZero() {
+				a.footerSpin = p.Now()
+			}
+			return float32(p.Now().Sub(a.footerSpin)%footerSpinnerPerTurn) /
+				float32(footerSpinnerPerTurn)
+		})
+		if !c.Preferences().ReduceMotion {
+			p.AnimationFrameRate(footerSpinnerFPS)
+		}
+		p.Transform(ui.Rotation(angle), cx, cy, func() {
+			var full ui.Path
+			full.Circle(cx, cy, radius)
+			p.StrokePath(&full, footerSpinnerStroke, hairline)
+			var lead ui.Path
+			lead.Circle(cx, cy, radius)
+			lead.Trim(0, 0.25)
+			p.StrokePath(&lead, footerSpinnerStroke, t.TextMuted)
+		})
 	})
-	ring.Rotate(footerSpinnerTurn * motion.Value(c, func() float32 {
-		return ring.Loop("launcher.footer.spinner", footerSpinnerPerTurn, ui.Linear)
-	}))
 }
 
 // moveOutputSelection moves the list's choice by one, skipping rows that

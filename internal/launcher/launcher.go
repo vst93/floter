@@ -457,6 +457,13 @@ type App struct {
 	// rather than at the first one's offset).
 	output *OutputView
 	Output ui.ScrollState
+	// footerSpin is when the output footer's paging ring was first drawn: the
+	// start of its turn (P11-bp). It lives on the app rather than in the
+	// element's state because the angle is read while the frame paints
+	// (`Painter.Draw`), not while the view is built, so it has to survive
+	// builds the way the drawing does. Zero until a frame draws the ring; see
+	// footerSpinner.
+	footerSpin time.Time
 	// config is the open plugin-configuration overlay, which takes the result
 	// list's place (see config.go).
 	config *Config
