@@ -142,6 +142,13 @@ type App struct {
 	feedback      string
 	feedbackShown string
 	feedbackUntil time.Time
+
+	// dotBreath is when the bar's status dot was first drawn: the start of its
+	// breath. It lives on the app rather than in the element's state because
+	// the breath is now read while the frame paints (Painter.Draw), not while
+	// the view is built, so it has to survive builds the way the drawing does.
+	// Zero until a frame draws the dot; see statusDot.
+	dotBreath time.Time
 }
 
 // New builds the terminal surface.
@@ -1515,7 +1522,7 @@ func (a *App) statusDot(c *ui.Context, inks barInks, drawn bool) {
 	// `tokens.TextTertiary`，与 exited 态同一档（两者只差明度与动效）。存活由
 	// 「动」说：呼吸仍在，色相不再参与。旧值 → 新值：`t.Accent` →
 	// `tokens.TextTertiary`（深色下峰值仍读得出，两侧实测见 P8-e 报告）。
-	dot.Background(inks.Tertiary)
+	ink := inks.Tertiary
 	// P8-c 重定基线（§6.2 第 5 条 / §1）：`--elev-halo` 的 2u `AccentHalo` 环
 	// 去掉，只留这个 1.75u 的点。光环是旧 glass 语言的辉光——§1 把
 	// 光泽一律压到 alpha ≤ 0.04，而 `AccentHalo` 是 0.2（上限的 5 倍），并且
@@ -1540,12 +1547,47 @@ func (a *App) statusDot(c *ui.Context, inks barInks, drawn bool) {
 	if !drawn {
 		return
 	}
-	breath := motion.Value(c, func() float32 {
-		return dot.Loop("terminal.dot", 2400*time.Millisecond, ui.Bounce(ui.EaseInOut))
+	// P11-bn：**呼吸在画的那一帧里读，不再在构建的那一帧里读**。
+	//
+	// 之前这里读 `dot.Loop`，而 `Loop` 要的是 `Context.AnimationFrame`，
+	// `runtime.go:744-748` 把它翻成「下一帧**重建**整棵视图」——揭示态于是按
+	// 显示器刷新率重建整个终端视图（120 Hz = 每秒 120 次）为一个 1.75u 的圆点。
+	// `Painter.AnimationFrameRate`（`ui/paint.go:126-145`）要的帧是**只重画**：
+	// 「paints the elements of this one again without building the view」，
+	// 而且按请求的帧率来。所以相位改在 `Draw` 里按 `p.Now()` 读，起点落在
+	// App 的 `dotBreath` 上（元素状态随重建而丢，绘制不该丢）。
+	//
+	// 周期、缓动、两个 keyframe 与墨一个字节没动：呼吸仍是 2.4s 一回、
+	// 半程到 50%（opacity 0.5 / scale 0.88）。减少动效仍走 `internal/motion`：
+	// 它返回 0（0% keyframe）且**不读相位**，于是这一帧既不记起点，也不注册
+	// `AnimationFrameRate`——静止的桌面拿不到任何帧。
+	dot.Draw(func(p *ui.Painter, r ui.Rect) {
+		breath := motion.Value(c, func() float32 {
+			if a.dotBreath.IsZero() {
+				a.dotBreath = p.Now()
+			}
+			phase := p.Now().Sub(a.dotBreath) % dotBreathPeriod
+			return ui.Bounce(ui.EaseInOut)(float32(phase) / float32(dotBreathPeriod))
+		})
+		if !c.Preferences().ReduceMotion {
+			p.AnimationFrameRate(dotBreathFPS)
+		}
+		size := min(r.W, r.H) * (1 - 0.12*breath)
+		p.Fill(ui.Rect{
+			X: r.X + (r.W-size)/2,
+			Y: r.Y + (r.H-size)/2,
+			W: size,
+			H: size,
+		}, ink.Alpha(1-0.5*breath), size/2)
 	})
-	dot.Opacity(1 - 0.5*breath)
-	dot.Scale(1-0.12*breath, 1-0.12*breath)
 }
+
+// The breath's own numbers: the old build's 2.4 s loop, drawn at the rate a
+// slow fade needs rather than at the display's.
+const (
+	dotBreathPeriod = 2400 * time.Millisecond
+	dotBreathFPS    = 30
+)
 
 // exited reports whether the session's program has ended (its screen is still
 // on show until the surface closes).
