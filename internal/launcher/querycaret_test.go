@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/egoist/mygo/ui"
+
+	"floter/internal/extensions"
 )
 
 // P11-cf · Every text the *app* writes into the field leaves the caret at the
@@ -83,6 +85,46 @@ func TestEveryExternalWriteLeavesTheCaretAtTheEnd(t *testing.T) {
 		tt.Frame()
 		if a.Query != "git statusx" {
 			t.Errorf("typing after a history recall landed at %q, want %q", a.Query, "git statusx")
+		}
+	})
+
+	// P11-ck · The output insert is the same family's last untested path.
+	//
+	// `runOutputRow` closes the output view, puts the row's text into the field
+	// (`a.Query = row.Action.Text`), and marks the caret pending — the same three
+	// lines every external write has. The source contract (`TestEveryQueryWrite
+	// CarriesItsCaret`) caught a missing flag, but until now no behavioural arm
+	// walked the real UI: Enter on an insert row, then the next keystroke.
+	t.Run("output insert", func(t *testing.T) {
+		a := testApp()
+		// Open a one-row list output whose only action is insert.
+		a.output = &OutputView{
+			IsList:   true,
+			Selected: 0,
+			Rows: []extensions.Row{{
+				ID:     "ins1",
+				Title:  "Insert this",
+				Action: &extensions.RowAction{Type: "insert", Text: "git status --short"},
+			}},
+		}
+		tt := render(t, a)
+		// Enter fires `runOutputRow`, which calls `leaveOutput` (clears the field)
+		// and then writes the row's text.
+		tt.Key(0, ui.KeyEnter)
+		tt.Frame()
+		if a.InOutputView() {
+			t.Fatal("Enter on an insert row must leave the output view")
+		}
+		if a.Query != "git status --short" {
+			t.Fatalf("after insert the field holds %q, want \"git status --short\"", a.Query)
+		}
+		// The pending caret must have moved the field's cursor to the end; the
+		// next keystroke lands after the inserted text, not inside it.
+		tt.Type("x")
+		tt.Frame()
+		if a.Query != "git status --shortx" {
+			t.Errorf("typing after an output insert landed at %q, want %q: the caret stayed "+
+				"at the beginning of the inserted text", a.Query, "git status --shortx")
 		}
 	})
 
