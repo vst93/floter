@@ -2,7 +2,7 @@ module floter
 
 go 1.27.3
 
-require github.com/egoist/mygo v0.7.0
+require github.com/egoist/mygo v0.7.3
 
 tool github.com/egoist/mygo/cmd/mygo
 
