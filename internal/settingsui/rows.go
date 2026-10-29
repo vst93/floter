@@ -27,8 +27,23 @@ import (
 
 // tokens resolves the card language's colors for the stored appearance,
 // scaled with the interface step exactly as the CSS variables were.
+//
+// It is the frame's memo, not a fresh build: every row of every card asks for
+// it (`a.tokens(c)` has 97 call sites on this surface, all while drawing), and
+// `theme.ForPreferences` builds a whole `ui.Theme` and palette each time —
+// 29% of `BenchmarkIntegrationsFrame`'s CPU before P11-bs, plus one
+// `Store.Snapshot` per row. The memo is keyed by the store's version, the
+// appearance and the desktop's preferences, and loads the settings on a miss
+// only, so a frame reads them once.
 func (a *App) tokens(c *ui.Context) theme.Tokens {
-	return theme.ForPreferences(a.Store.Snapshot(), c.Theme().Dark, c.Preferences())
+	if a.tokensStore != a.Store {
+		// Two stores both begin at version zero, so a swap is noticed by
+		// identity rather than by the version (the panel's tests do swap the
+		// store under a built App).
+		a.tokensStore, a.tokensMemo = a.Store, theme.Memo{}
+	}
+	t := c.Theme()
+	return a.tokensMemo.Tokens(a.Store.Version(), t.Dark, c.Preferences(), a.Store.Snapshot)
 }
 
 // pageColumn is the column every settings page's body is drawn in: full

@@ -648,6 +648,13 @@ type App struct {
 	Actions Actions
 	About   About
 
+	// tokensStore and tokensMemo are the frame's card language (see `tokens`):
+	// the memo the rows read their colors from, and the store it was built
+	// for. Built once per change rather than once per row, which is where most
+	// of a settings frame's CPU went before P11-bs.
+	tokensStore *settings.Store
+	tokensMemo  theme.Memo
+
 	// Now is the panel's time source, injectable so the save-failure banner's
 	// window can be exercised without waiting for it; nil means the wall
 	// clock.

@@ -206,9 +206,7 @@ type App struct {
 	settingsVersion  uint64
 	settingsCached   settings.Settings
 	settingsValid    bool
-	tokensKey        tokensKey
-	tokensCached     theme.Tokens
-	tokensValid      bool
+	tokensMemo       theme.Memo
 	shortcutsVersion uint64
 	shortcutsCached  map[string]string
 	shortcutsValid   bool
@@ -1111,12 +1109,20 @@ func (a *App) settings() settings.Settings {
 	return s
 }
 
-// tokensKey is what the theme's tokens depend on: the settings value (by
-// version), the appearance the frame resolved, and the desktop's preferences.
-type tokensKey struct {
-	version uint64
-	dark    bool
-	prefs   ui.Preferences
+// tokens is the frame's theme tokens. `theme.ForPreferences` builds a whole
+// theme (a fresh ui.Theme plus the token ladder over it) on every call, and
+// every row asked for its own copy — ten builds of the same value per frame.
+// The row's tokens depend on the settings, the appearance and the desktop
+// preferences only, so one memo answers the whole frame (and any later frame
+// that nothing has changed for). The memo itself is shared with the settings
+// surface (theme.Memo), so both surfaces answer this question one way.
+func (a *App) tokens(c *ui.Context) theme.Tokens {
+	t := c.Theme()
+	var version uint64
+	if a.Store != nil {
+		version = a.Store.Version()
+	}
+	return a.tokensMemo.Tokens(version, t.Dark, c.Preferences(), a.settings)
 }
 
 // shortcut is settings.Shortcut over the frame's own resolved binding map.
@@ -1135,26 +1141,6 @@ func (a *App) shortcut(action string) string {
 		a.shortcutsVersion, a.shortcutsValid = version, true
 	}
 	return a.shortcutsCached[action]
-}
-
-// tokens is the frame's theme tokens. `theme.ForPreferences` builds a whole
-// theme (a fresh ui.Theme plus the token ladder over it) on every call, and
-// every row asked for its own copy — ten builds of the same value per frame.
-// The row's tokens depend on the settings, the appearance and the desktop
-// preferences only, so one memo answers the whole frame (and any later frame
-// that nothing has changed for).
-func (a *App) tokens(c *ui.Context) theme.Tokens {
-	t := c.Theme()
-	key := tokensKey{dark: t.Dark, prefs: c.Preferences()}
-	if a.Store != nil {
-		key.version = a.Store.Version()
-	}
-	if a.tokensValid && a.tokensKey == key {
-		return a.tokensCached
-	}
-	tk := theme.ForPreferences(a.settings(), t.Dark, key.prefs)
-	a.tokensKey, a.tokensCached, a.tokensValid = key, tk, true
-	return tk
 }
 
 // FocusSearch asks for the keyboard focus on the query field. The launcher
