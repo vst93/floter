@@ -1037,13 +1037,36 @@ func (a *App) cardRow(c *ui.Context, align ui.Align, lead func(), face rowFace, 
 		// What belongs *under* the row but inside the card: an unfolding
 		// audit, a configuration form. It keeps the card's own rhythm and its
 		// row counter, so a following row still draws its rule.
-		for _, extra := range below {
-			if extra != nil {
-				extra()
-			}
+		//
+		// P11-bf: it also keeps the row's *column*. Drawn as siblings of the
+		// row, these started at the card's own edge — one whole inset (8u on
+		// the integration card) left of every label above them — so a block's
+		// caption read as the caption of the row above it and a warm banner
+		// ran out to a frame no row touches. The row's content box begins one
+		// rule slot plus its own padding in, which is exactly `inset`; content
+		// that belongs to the row starts there too.
+		if anyBelow(below) {
+			ui.Column(c).FillWidth().Padding(0, inset).Children(func() {
+				for _, extra := range below {
+					if extra != nil {
+						extra()
+					}
+				}
+			})
 		}
 	})
 	return clicked
+}
+
+// anyBelow reports whether any under-the-row callback was given, so a row
+// without one draws no extra column at all.
+func anyBelow(below []func()) bool {
+	for _, extra := range below {
+		if extra != nil {
+			return true
+		}
+	}
+	return false
 }
 
 // deepLinkValueFont is the monospace stack the reference gave

@@ -613,6 +613,27 @@ must not catch clicks meant for the terminal underneath”）。本仓三处都�
 **零像素改动**（本轮是命中标志轮）：修前/修后同一帧导出 PNG 的 md5 全等
 （`/tmp/floter-P11-bd-notes-<light|dark>.png` 对 `/tmp/before/`，见报告 §5）。
 
+### §6.18 P11-bf · 卡行「下面那块」只有一个横向列（**已落地**）
+
+`cardRow` 的 `below` 槽画的是「这一行底下展开的东西」：权限审计、配置表单、批准记录的
+权限块。它曾是行的**兄弟**，直接排在卡自己的列里，于是从**卡的边**起排；而行的内容盒在
+`rule(1) + Padding(vertical, inset-1)` 之后，正好是 `rowInset`（设置卡 14u、集成卡 8u）。
+同一个问题于是有了三个答案：两块自己补了一遍 inset，其余一处没补。
+
+**判据一条**：**卡的内容列只有一个产生者——`cardRow`**。`below` 槽里的一切从行的内容盒
+左沿起排（`Padding(0, inset)`，垂直 0，y 与行高不变）；块自己不许再问 `rowInset`。
+
+| 位置 | 旧 | 新 | 落地 |
+|---|---|---|---|
+| `internal/settingsui/rows.go` 的 `cardRow` `below` 槽 | 每个回调当兄弟直排（无 Padding/Margin） | `ui.Column(c).FillWidth().Padding(0, inset)` 包住整个槽 | `已落地` — pin `TestTheApprovalBlocksPermissionsSitOnTheCardsTextColumn` / `TestTheConfigFormSitsOnTheCardsTextColumn` |
+| 同包 `permissionAudit` | 自补 `Padding(0, inset, t.Space(1), inset)` | `Padding(0, 0, t.Space(1), 0)` | `已落地` — 源码契约 `TestNoBelowBlockReappliesTheCardsInset` |
+| `internal/settingsui/config.go` 的 `configFields` | 自补 `Padding(0, inset, 0, inset)` | 不再补（像素逐字节不变） | 同上 |
+
+实测（720×900，批准记录块）：caption `Floter enforces` 192 → **200**（== 行标签 200）、
+药丸文字 201 → **209**、stale 横幅句子 204 → **212**。整帧差异包围盒
+x=188…702、y=692…824（只有那一块）；`configFields` 的帧**零像素变化**——它原本算出来的
+位置与新的逐字节相同，正是「同一件事两个答案」的证据。
+
 ## §7 切片表
 | 片 | 范围 | 状态 |
 |---|---|---|

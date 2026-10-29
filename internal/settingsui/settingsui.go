@@ -2984,14 +2984,12 @@ func (a *App) permissionAudit(c *ui.Context, copy i18n.Settings, integration Int
 		}
 		disclosure = append(disclosure, permission)
 	}
-	// The audit is a `below` block of the Permissions row: it is drawn on the
-	// card's content column, so it carries the row's own inset to put its tier
-	// labels on the same column as the row labels above them. Without it the
-	// labels sit flush against the card's edge, one whole inset left of the
-	// labels they explain (the reference's `.extension-permission-list` pads
-	// its own list, `extensions.css:1497-1503`).
-	inset := a.rowInset(t)
-	ui.Column(c).FillWidth().Gap(t.Space(3)).Padding(0, inset, t.Space(1), inset).Children(func() {
+	// The audit is a `below` block of the Permissions row. The row's own inset
+	// is applied by `cardRow` to everything drawn in that slot (P11-bf), so the
+	// block pads only its own vertical rhythm: its tier labels land on the
+	// column the row labels above them sit on, and only one place answers
+	// "where does the card's content column start?".
+	ui.Column(c).FillWidth().Gap(t.Space(3)).Padding(0, 0, t.Space(1), 0).Children(func() {
 		a.permissionTier(c, copy.PermissionsEnforcedLabel, copy.PermissionsEnforcedHint, true, language, enforced)
 		a.permissionTier(c, copy.PermissionsDisclosureLabel, copy.PermissionsDisclosureHint, false, language, disclosure)
 	})

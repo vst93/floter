@@ -158,13 +158,10 @@ func (a *App) configFields(c *ui.Context, copy i18n.Settings, integration Integr
 		return
 	}
 	draft := a.draft(integration)
-	// The form is a `below` block of the ConfigOpen row, drawn on the card's
-	// content column: it carries the row's own inset so the form's card starts
-	// on the same column as the row labels above it instead of flush against
-	// the card's edge (the reference's `.extension-config-form`,
-	// `extensions.css:2369-2373`, is inset the same way).
-	inset := a.rowInset(t)
-	ui.Column(c).FillWidth().Gap(a.cardSpace(t, 3)).Padding(0, inset, 0, inset).Children(func() {
+	// The form is a `below` block of the ConfigOpen row; `cardRow` puts every
+	// such block on the row's content column (P11-bf), so the form carries no
+	// inset of its own — one place answers where that column starts.
+	ui.Column(c).FillWidth().Gap(a.cardSpace(t, 3)).Children(func() {
 		// The reference's `.extension-config-form` is one `display: grid` with a
 		// 12px gap (`extensions.css:2369-2373`, literal px) holding the toolbar,
 		// the fields and the action row as *its own* children, in order — no
