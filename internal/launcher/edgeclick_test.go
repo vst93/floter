@@ -11,10 +11,15 @@ import (
 func TestClickingThroughTheScrollEdge(t *testing.T) {
 	a := testApp()
 	items := make([]apps.App, 12)
+	paths := make([]string, 12)
 	for i := range items {
 		items[i] = apps.App{Name: "App" + string(rune('A'+i)), Path: "/app/x"}
+		paths[i] = items[i].Path
 	}
 	a.SetApps(items)
+	// P11-bk: the empty page's rows are the recents; the built-in commands no
+	// longer stand in for them.
+	a.SetRecent(paths, true)
 	tt := render(t, a)
 	tt.Frame()
 	results := a.Results()

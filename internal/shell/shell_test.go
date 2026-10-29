@@ -168,7 +168,7 @@ func TestSurfaceSnapshots(t *testing.T) {
 			surface: SurfaceLauncher,
 			w:       launcher.InputWindowWidth,
 			h:       int(launcher.WindowHeight(s.UIScale)),
-			want:    []string{"Restart the computer", "Shut down the computer", "Terminal", "Type to search"},
+			want:    []string{"Recent 00", "Recent 02", "Type to search"},
 		},
 		{
 			name:    "settings",
@@ -191,6 +191,11 @@ func TestSurfaceSnapshots(t *testing.T) {
 
 	for _, tc := range cases {
 		a := newApp(t)
+		if tc.surface == SurfaceLauncher {
+			// P11-bk: the launcher's own rows are the recents; the built-in
+			// commands answer a typed word now.
+			recentLauncher(a, 3)
+		}
 		a.Surf = tc.surface
 		tt := ui.NewTester(a.View, tc.w, tc.h)
 		tt.Frame()
@@ -222,7 +227,17 @@ func TestSurfaceSwitchesThemeAndLanguage(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
+	// P11-bk: the empty page is the recents' own block (set after the store
+	// update, which re-reads the launch counts), so the launcher's rows speak
+	// the stored language through their heading.
+	recentLauncher(a, 1)
 	tt := ui.NewTester(a.View, launcher.InputWindowWidth, int(launcher.WindowHeight("small")))
+	tt.Frame()
+	if !tt.HasText("最近启动") {
+		t.Errorf("missing the Chinese recents heading: %q", tt.Texts())
+	}
+	// …and a built-in row answers a typed word in the same language.
+	a.Launcher.SetQuery("restart")
 	tt.Frame()
 	if !tt.HasText("重启电脑") {
 		t.Errorf("missing the Chinese command: %q", tt.Texts())

@@ -61,6 +61,11 @@ func TestNoRowScrollsUnderTheFieldBand(t *testing.T) {
 	}
 	a.SetApps(found)
 	a.SetRecent(paths, true)
+	// P11-bk: the empty page is ten recents at most, and ten rows do not
+	// overflow this frame — the built-in commands used to pad the list. A
+	// typed query keeps the same claim (rows never start above the band) over
+	// a list that really does scroll.
+	a.SetQuery("app")
 	tt := renderIn(t, a, false)
 	edge := int(float64(fieldRowUnits+breathUnits) * float64(ui.LightTheme().Spacing))
 	x, y := float32(tt.Image().Rect.Dx()/2), float32(tt.Image().Rect.Dy()/2)

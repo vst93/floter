@@ -293,8 +293,10 @@ func TestAppsJoinTheSearchOnceTyped(t *testing.T) {
 		{Name: "Terminal", Path: "/System/Applications/Utilities/Terminal.app"},
 	})
 
-	// An empty query shows the built-in commands alone.
-	if got := a.Results(); len(got) != 6 {
+	// An empty query shows no applications at all: the empty page is the
+	// recents' own block (P11-bk) and this fixture has none, so the catalogue's
+	// applications join it only once the query names them.
+	if got := a.Results(); len(got) != 0 {
 		t.Errorf("empty query shows %d rows (%v)", len(got), ids(got))
 	}
 
@@ -330,6 +332,71 @@ func TestAppsJoinTheSearchOnceTyped(t *testing.T) {
 	a.Query = "app"
 	if got := a.Results(); len(got) < 60 {
 		t.Errorf("Results returned %d rows, want the 60 applications too", len(got))
+	}
+}
+
+// P11-bk · The empty page is the recents' own block and nothing else.
+//
+// The user's report: 「未输入时不展示内置指令列表」. The built-in commands used to
+// lead the empty page (six rows) with the recents below them; the reference's
+// empty branch returns `recentRows` alone
+// (`main:src/hooks/useLauncherCatalog.ts:1138-1166`), so the page was answering
+// a question nobody asked.
+func TestTheEmptyPageShowsOnlyTheRecents(t *testing.T) {
+	a := testApp()
+	recentPage(a, 3)
+	got := a.Results()
+	want := []string{
+		"section:recent",
+		"app:/Applications/Recent00.app",
+		"app:/Applications/Recent01.app",
+		"app:/Applications/Recent02.app",
+	}
+	if len(got) != len(want) {
+		t.Fatalf("the empty page shows %v, want the heading and the three recents %v", ids(got), want)
+	}
+	for i, id := range want {
+		if got[i].ID != id {
+			t.Errorf("empty page row %d = %q, want %q", i, got[i].ID, id)
+		}
+	}
+	for _, item := range got {
+		switch item.ID {
+		case "power-restart", "power-shutdown", "clipboard", "browser", "calculator", "terminal":
+			t.Errorf("the empty page still offers the built-in command %q: a command is an answer to a typed word", item.ID)
+		}
+	}
+
+	// With no recents at all the page is simply empty: the commands are still
+	// not a suggestion list.
+	empty := testApp()
+	if rows := empty.Results(); len(rows) != 0 {
+		t.Errorf("an empty page with no recents shows %v, want nothing", ids(rows))
+	}
+}
+
+// P11-bk · The built-in commands stay reachable — they are in the catalog, so
+// any query that names them scores them, and a power word still leads.
+func TestBuiltInCommandsStayReachableByTyping(t *testing.T) {
+	a := testApp()
+	if got := a.Catalog(); len(got) != 6 {
+		t.Fatalf("the catalog carries %d rows, want the six built-in commands", len(got))
+	}
+
+	a.SetQuery("restart")
+	got := a.Results()
+	// The power word claims the query first (`powerItems` puts the restart row
+	// at the top), and the catalog's own command row is right behind it.
+	if len(got) == 0 || got[0].ID != "power:restart" {
+		t.Errorf("Results(restart) = %v, want the power row first", ids(got))
+	}
+	if indexOfID(got, "power-restart") < 0 {
+		t.Errorf("Results(restart) = %v, want the restart command row", ids(got))
+	}
+
+	a.SetQuery("ter")
+	if got := a.Results(); indexOfID(got, "terminal") < 0 {
+		t.Errorf("Results(ter) = %v, want the terminal command", ids(got))
 	}
 }
 

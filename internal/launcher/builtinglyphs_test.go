@@ -41,8 +41,11 @@ func glyphName(g *ui.SVG) string {
 // LauncherResults.tsx:223-262`'s `SystemActionIcon`, one shape per action).
 func TestEveryBuiltInRowLeadsWithItsOwnMark(t *testing.T) {
 	a := testApp()
+	// P11-bk: the set under test is the built-in rows themselves, which live
+	// in the catalog; the empty page no longer draws them (it is the recents'
+	// block), so `Results()` is not where this set comes from any more.
 	byID := map[string]Item{}
-	for _, item := range a.Results() {
+	for _, item := range a.Catalog() {
 		byID[item.ID] = item
 	}
 	cases := []struct {
@@ -59,7 +62,7 @@ func TestEveryBuiltInRowLeadsWithItsOwnMark(t *testing.T) {
 	for _, c := range cases {
 		item, ok := byID[c.id]
 		if !ok {
-			t.Errorf("the built-in row %q is missing: %v", c.id, ids(a.Results()))
+			t.Errorf("the built-in row %q is missing: %v", c.id, ids(a.Catalog()))
 			continue
 		}
 		g, ok := rowGlyph(item)
@@ -74,7 +77,7 @@ func TestEveryBuiltInRowLeadsWithItsOwnMark(t *testing.T) {
 	}
 	// A negative check: nothing in the shipped built-in list draws the clock —
 	// the fall-through the bug produced.
-	for _, item := range a.Results() {
+	for _, item := range a.Catalog() {
 		if g, ok := rowGlyph(item); ok && g == glyphClock {
 			t.Errorf("the %q row fell through to the clock glyph", item.ID)
 		}
@@ -101,6 +104,10 @@ func TestThePowerRowsWearTheWarmPlate(t *testing.T) {
 	}{{"light", false}, {"dark", true}} {
 		t.Run(tc.name, func(t *testing.T) {
 			a := testApp()
+			// P11-bk: the built-in rows are drawn for a typed word now, not on
+			// the empty page. "o" reaches the power rows (`power off`) and the
+			// clipboard row in the same frame, which is what this pin compares.
+			a.SetQuery("o")
 			tt := renderIn(t, a, tc.dark)
 			tt.Frame()
 			img := tt.Image()

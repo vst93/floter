@@ -16,25 +16,31 @@ import (
 // ever reached it.
 func TestHazeVeilLetsThePointerThrough(t *testing.T) {
 	// Each row gets a fresh app: the first arms a power confirmation, which
-	// would otherwise be the state the second row reads. The built-in list is
-	// the reference's six rows (no settings, no quit — both are tray and app
-	// menu rows), so the veil is exercised on a power row and on the terminal.
-	for _, label := range []string{"Restart the computer", "Terminal"} {
+	// would otherwise be the state the second row reads. P11-bk: the built-in
+	// rows answer a typed word now (the empty page is the recents' block), so
+	// each case types the word its row answers to. The six rows are still the
+	// reference's (no settings, no quit — both are tray and app menu rows), and
+	// the veil is still exercised on a power row and on the terminal.
+	for _, tc := range []struct{ query, label string }{
+		{"restart", "Restart the computer"},
+		{"terminal", "Terminal"},
+	} {
 		a := New(Options{Store: settings.NewStore(settings.Default())})
+		a.Launcher.SetQuery(tc.query)
 		tt := ui.NewTester(func(c *ui.Context) { a.View(c) }, 720, 420)
 		tt.Frame()
-		if err := tt.Click(label); err != nil {
-			t.Fatalf("%s: %v", label, err)
+		if err := tt.Click(tc.label); err != nil {
+			t.Fatalf("%s: %v", tc.label, err)
 		}
 		tt.Frame()
-		switch label {
+		switch tc.label {
 		case "Restart the computer":
 			if a.Launcher.PowerPending() == "" {
-				t.Errorf("%s did not arm the confirmation", label)
+				t.Errorf("%s did not arm the confirmation", tc.label)
 			}
 		case "Terminal":
 			if a.Surf != SurfaceTerminal {
-				t.Errorf("%s left surf=%v", label, a.Surf)
+				t.Errorf("%s left surf=%v", tc.label, a.Surf)
 			}
 		}
 	}

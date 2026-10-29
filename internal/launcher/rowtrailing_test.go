@@ -67,6 +67,7 @@ func TestTheRowTrailingBadgeIsTheReferenceActionSlot(t *testing.T) {
 // this one was still light-only (P9-r).
 func rowTrailingBadgePin(t *testing.T, dark bool) {
 	a := testApp()
+	recentPage(a, 2) // P11-bk: the empty page's rows are the recents
 	tt := renderIn(t, a, dark)
 
 	tokens := theme.ForPreferences(settings.Normalize(a.settings()), dark, ui.Preferences{})

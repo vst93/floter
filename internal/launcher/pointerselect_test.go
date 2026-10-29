@@ -18,42 +18,43 @@ import (
 // the one the pointer was not on.
 func TestThePointerTakesTheSelectionOnEntry(t *testing.T) {
 	a := testApp()
+	recentPage(a, 4) // P11-bk: the empty page's rows are the recents
 	tt := render(t, a)
 	tt.Frame()
-	if a.Selected != 0 {
-		t.Fatalf("the page did not start on row 0: selected=%d", a.Selected)
+	if a.Selected != resultIndex(a, "Recent 00") {
+		t.Fatalf("the page did not start on the first row: selected=%d", a.Selected)
 	}
-	// Entering the shutdown row (row 1) moves the choice to it.
-	rect, ok := tt.Find("Shut down the computer")
+	// Entering the second row moves the choice to it.
+	rect, ok := tt.Find("Recent 01")
 	if !ok {
-		t.Fatalf("no shutdown row: %q", tt.Texts())
+		t.Fatalf("no second row: %q", tt.Texts())
 	}
 	tt.Move(rect.X+rect.W/2, rect.Y+rect.H/2)
 	tt.Frame()
-	if a.Selected != 1 {
-		t.Errorf("the pointer did not select the row it entered: selected=%d want 1", a.Selected)
+	if want := resultIndex(a, "Recent 01"); a.Selected != want {
+		t.Errorf("the pointer did not select the row it entered: selected=%d want %d", a.Selected, want)
 	}
 	// Resting on the row keeps the choice there, and — the R21 half that
 	// matters — a keyboard step is not undone by a pointer that sits still on
 	// the row the selection just left.
 	tt.Key(0, ui.KeyDown)
 	tt.Frame()
-	if a.Selected != 2 {
-		t.Errorf("the arrow step was undone by the resting pointer: selected=%d want 2", a.Selected)
+	if want := resultIndex(a, "Recent 02"); a.Selected != want {
+		t.Errorf("the arrow step was undone by the resting pointer: selected=%d want %d", a.Selected, want)
 	}
 	tt.Frame()
-	if a.Selected != 2 {
-		t.Errorf("a later frame re-asserted the pointer's row: selected=%d want 2", a.Selected)
+	if want := resultIndex(a, "Recent 02"); a.Selected != want {
+		t.Errorf("a later frame re-asserted the pointer's row: selected=%d want %d", a.Selected, want)
 	}
 	// Entering another row moves it again.
-	other, ok := tt.Find("Browser history")
+	other, ok := tt.Find("Recent 03")
 	if !ok {
-		t.Fatalf("no browser row: %q", tt.Texts())
+		t.Fatalf("no fourth row: %q", tt.Texts())
 	}
 	tt.Move(other.X+other.W/2, other.Y+other.H/2)
 	tt.Frame()
-	if a.Selected != 3 {
-		t.Errorf("entering another row did not select it: selected=%d want 3", a.Selected)
+	if want := resultIndex(a, "Recent 03"); a.Selected != want {
+		t.Errorf("entering another row did not select it: selected=%d want %d", a.Selected, want)
 	}
 }
 
@@ -62,27 +63,28 @@ func TestThePointerTakesTheSelectionOnEntry(t *testing.T) {
 // point of the reference's `onPointerEnter` over `onMouseMove`.
 func TestARestingPointerDoesNotFightTheKeyboard(t *testing.T) {
 	a := testApp()
+	recentPage(a, 3) // P11-bk: the empty page's rows are the recents
 	tt := render(t, a)
-	rect, ok := tt.Find("Shut down the computer")
+	rect, ok := tt.Find("Recent 01")
 	if !ok {
-		t.Fatalf("no shutdown row: %q", tt.Texts())
+		t.Fatalf("no second row: %q", tt.Texts())
 	}
 	tt.Move(rect.X+rect.W/2, rect.Y+rect.H/2)
 	tt.Frame()
-	if a.Selected != 1 {
-		t.Fatalf("the pointer did not select the row it entered: %d", a.Selected)
+	if want := resultIndex(a, "Recent 01"); a.Selected != want {
+		t.Fatalf("the pointer did not select the row it entered: %d want %d", a.Selected, want)
 	}
 	// Up moves back to row 0 while the pointer still rests on row 1.
 	tt.Key(0, ui.KeyUp)
 	tt.Frame()
-	if a.Selected != 0 {
-		t.Errorf("Up from the pointer's row = %d, want 0", a.Selected)
+	if want := resultIndex(a, "Recent 00"); a.Selected != want {
+		t.Errorf("Up from the pointer's row = %d, want %d", a.Selected, want)
 	}
 	for i := 0; i < 3; i++ {
 		tt.Frame()
 	}
-	if a.Selected != 0 {
-		t.Errorf("the resting pointer re-asserted its row: selected=%d want 0", a.Selected)
+	if want := resultIndex(a, "Recent 00"); a.Selected != want {
+		t.Errorf("the resting pointer re-asserted its row: selected=%d want %d", a.Selected, want)
 	}
 }
 

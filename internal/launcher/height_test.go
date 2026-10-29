@@ -135,14 +135,15 @@ func roundHalf(v float64) float64 { return float64(int(v + 0.5)) }
 // on screen are where that arithmetic says they are.
 func TestDrawnPitchIsTheChargedRow(t *testing.T) {
 	a := testApp()
+	recentPage(a, 2) // P11-bk: two adjacent two-line rows, off the recents block
 	tt := render(t, a)
 	tt.Frame()
 	// Two adjacent rows of the same shape (both carry a subtitle).
 	var first, second float32
-	if rect, ok := tt.Find("Restart the computer"); ok {
+	if rect, ok := tt.Find("Recent 00"); ok {
 		first = rect.Y
 	}
-	if rect, ok := tt.Find("Shut down the computer"); ok {
+	if rect, ok := tt.Find("Recent 01"); ok {
 		second = rect.Y
 	}
 	if first == 0 || second == 0 {

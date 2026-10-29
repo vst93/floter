@@ -32,6 +32,9 @@ func renderStopOpacity(t *testing.T, theme, step string, opacity uint8) *ui.Test
 		t.Fatal(err)
 	}
 	a := New(Options{Store: store})
+	// P11-bk: the empty page draws the recents' rows now, not the built-in
+	// commands; the band this test reads is the list's, so it needs rows.
+	recentLauncher(a, 6)
 	tt := ui.NewTester(func(c *ui.Context) { a.View(c) }, 720, 420)
 	tt.Frame()
 	return tt

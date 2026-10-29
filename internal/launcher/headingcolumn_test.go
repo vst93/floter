@@ -44,9 +44,16 @@ func TestTheGroupHeadingSitsOnTheRowsTextColumn(t *testing.T) {
 		t.Errorf("launcher: the section heading starts at x=%.1f, its row's title at x=%.1f: "+
 			"a heading sits on the column of the rows it heads", heading.X, title.X)
 	}
-	// …and it is the same column the plain built-in rows above it use, so the
-	// list has one text column rather than a per-block one.
-	builtin := mustFind(t, tt, "Shut down the computer")
+	// …and it is the same column a *typed* frame's built-in row uses, so the
+	// list has one text column rather than a per-block one. P11-bk: the empty
+	// page no longer carries the built-in rows (it is the recents' own block),
+	// so the second frame asks for one by name.
+	typed := testApp()
+	typed.SetQuery("shutdown")
+	bt := ui.NewTester(func(c *ui.Context) { typed.View(c) },
+		InputWindowWidth, int(WindowHeight("small"))+200)
+	bt.Frame()
+	builtin := mustFind(t, bt, "Shut down the computer")
 	if !sameColumn(heading.X, builtin.X) {
 		t.Errorf("launcher: the section heading starts at x=%.1f, a built-in row's title at x=%.1f",
 			heading.X, builtin.X)

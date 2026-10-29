@@ -23,7 +23,7 @@ func TestChargedHeightHoldsTheList(t *testing.T) {
 		setup func(*App)
 		want  []string
 	}{
-		{"the catalog", func(a *App) {}, []string{"Restart the computer", "Terminal"}},
+		{"the catalog", func(a *App) { recentLauncher(a, 6) }, []string{"Recent 00", "Recent 05"}},
 		{"the clipboard mode's chips", func(a *App) { a.Launcher.EnterClipboard() }, []string{"All", "Favorites"}},
 		{"a plugin's configuration sheet", func(a *App) {
 			a.Launcher.EnterClipboard()

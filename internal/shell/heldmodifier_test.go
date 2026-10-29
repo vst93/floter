@@ -128,7 +128,7 @@ func hasLauncherItem(a *App, id string) bool {
 // dependency list carries no selection, so an arrow step off the row during
 // the gesture is discarded with the row.
 func TestHeldModifierReleaseRestoresThePageDefault(t *testing.T) {
-	a := appKeysApp()
+	a := appKeysAppWithRecents()
 	tt := appKeysRender(t, a)
 
 	tt.HoldModifiers(ui.Cmd)
@@ -153,12 +153,13 @@ func TestHeldModifierReleaseRestoresThePageDefault(t *testing.T) {
 
 	// Without the step, the release lands on the page's default too: the
 	// first row the keyboard can act on (the reference's
-	// `firstRunnableResultIndex`).
+	// `firstRunnableResultIndex`) — the recents' first row, past the block's
+	// heading.
 	tt.HoldModifiers(ui.Cmd)
 	tt.Frame()
 	tt.HoldModifiers(0)
 	tt.Frame()
-	if a.Launcher.Selected != 0 {
-		t.Errorf("the release selection = %d, want the page's first selectable row 0", a.Launcher.Selected)
+	if want := recentRowIndex(a.Launcher, "Recent 00"); a.Launcher.Selected != want {
+		t.Errorf("the release selection = %d, want the page's first selectable row %d", a.Launcher.Selected, want)
 	}
 }

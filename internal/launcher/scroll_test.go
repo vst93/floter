@@ -11,11 +11,16 @@ import (
 func TestScrollingTheResultList(t *testing.T) {
 	a := testApp()
 	items := make([]apps.App, 30)
+	paths := make([]string, 30)
 	for i := range items {
 		items[i] = apps.App{Name: "App" + string(rune('A'+i%26)) + string(rune('0'+i/26)), Path: "/app/i"}
+		paths[i] = items[i].Path
 	}
 	a.SetApps(items)
-	a.Query = ""
+	// P11-bk: the empty page's rows are the recents (ten at most, so this
+	// frame keeps a scrollable list by asking for an application by name).
+	a.SetRecent(paths, true)
+	a.Query = "app"
 	tt := render(t, a)
 	tt.Frame()
 	if len(a.Results()) == 0 {

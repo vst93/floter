@@ -66,9 +66,10 @@ func render(t *testing.T, a *App) *ui.Tester {
 
 func TestLauncherShowsTheCatalogWithTheFieldFocused(t *testing.T) {
 	a := testApp()
+	recentPage(a, 3) // P11-bk: the empty page's own block is the recents
 	tt := render(t, a)
 
-	for _, want := range []string{"Restart the computer", "Shut down the computer", "Terminal", "Type to search", "Search"} {
+	for _, want := range []string{"Recent 00", "Recent 01", "Recent 02", "Recently launched", "Type to search", "Search"} {
 		if !tt.HasText(want) {
 			t.Errorf("missing %q in %q", want, tt.Texts())
 		}
@@ -102,31 +103,31 @@ func TestTypingFiltersAndEnterRunsTheTopResult(t *testing.T) {
 
 func TestArrowsMoveTheChoiceAndEnterRunsIt(t *testing.T) {
 	a := testApp()
+	appList := recentPage(a, 6) // P11-bk: the empty page's rows are the recents
 	tt := render(t, a)
 
-	if a.Selected != 0 {
-		t.Fatalf("selected = %d, want 0", a.Selected)
+	if want := resultIndex(a, "Recent 00"); a.Selected != want {
+		t.Fatalf("selected = %d, want %d", a.Selected, want)
 	}
-	// The terminal is the reference's last built-in row, so walk down to it:
-	// five steps from the restart row.
+	// Walk down the six rows: five steps from the first to the last.
 	for i := 0; i < 5; i++ {
 		tt.Key(0, ui.KeyDown)
 		tt.Frame()
 	}
-	if a.Selected != 5 {
-		t.Fatalf("Down five times selected %d, want the terminal row 5", a.Selected)
+	if want := resultIndex(a, "Recent 05"); a.Selected != want {
+		t.Fatalf("Down five times selected %d, want the sixth row %d", a.Selected, want)
 	}
 	tt.Key(0, ui.KeyEnter)
 	tt.Frame()
-	if testRuns["terminal"] != 1 {
-		t.Errorf("Enter ran %v, want terminal", testRuns)
+	if testRuns["app:"+appList[5].Name] != 1 {
+		t.Errorf("Enter ran %v, want the sixth row's application", testRuns)
 	}
 
 	// Down past the last item wraps to the first.
 	tt.Key(0, ui.KeyDown)
 	tt.Frame()
-	if a.Selected != 0 {
-		t.Errorf("Down from the last row selected %d, want 0 (wrap)", a.Selected)
+	if want := resultIndex(a, "Recent 00"); a.Selected != want {
+		t.Errorf("Down from the last row selected %d, want %d (wrap)", a.Selected, want)
 	}
 }
 
@@ -153,13 +154,17 @@ func TestEscapeDismissesOnlyWithAnEmptyQuery(t *testing.T) {
 
 func TestClickingARowRunsIt(t *testing.T) {
 	a := testApp()
+	// P11-bk: a row of the empty page is a recent application; a built-in row
+	// is reached by typing, so this pin clicks the one the page now offers.
+	a.SetApps([]apps.App{{Name: "Terminal", Path: "/Applications/Terminal.app"}})
+	a.SetRecent([]string{"/Applications/Terminal.app"}, true)
 	tt := render(t, a)
 	if err := tt.Click("Terminal"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	if testRuns["terminal"] != 1 {
-		t.Errorf("click ran %v, want terminal", testRuns)
+	if testRuns["app:Terminal"] != 1 {
+		t.Errorf("click ran %v, want the Terminal application", testRuns)
 	}
 }
 
@@ -185,6 +190,9 @@ func TestLauncherLanguageFollowsTheStore(t *testing.T) {
 		t.Fatal(err)
 	}
 	tt := render(t, a)
+	// P11-bk: the built-in rows answer a typed word now, not an empty field.
+	tt.Type("terminal")
+	tt.Frame()
 	if !tt.HasText("终端") {
 		t.Errorf("missing the Chinese command: %q", tt.Texts())
 	}
@@ -559,8 +567,9 @@ func TestClipboardModeWithoutAStore(t *testing.T) {
 func TestStatusNotePaddingMatchesReference(t *testing.T) {
 	// The column, taken from an ordinary result row.
 	plain := testApp()
+	recentPage(plain, 1) // P11-bk: the empty page's rows are the recents
 	rows := render(t, plain)
-	title, ok := rows.Find(plain.Catalog()[0].Title)
+	title, ok := rows.Find("Recent 00")
 	if !ok {
 		t.Fatalf("the first result row's title was not found: %q", rows.Texts())
 	}

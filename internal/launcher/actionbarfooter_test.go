@@ -251,6 +251,7 @@ func unselectedActionBarStaysQuiet(t *testing.T, dark bool) {
 // literal: one text column, not two.
 func TestTheFieldAndTheRowsShareTheReferenceTextColumn(t *testing.T) {
 	a := testApp()
+	recentPage(a, 2) // P11-bk: the empty page's rows are the recents
 	tt := render(t, a)
 	// The empty field's caret sits on the rows' own 54u title column: 16u of
 	// row padding + the 28u icon cell + the 10u gap.
@@ -262,7 +263,7 @@ func TestTheFieldAndTheRowsShareTheReferenceTextColumn(t *testing.T) {
 		t.Fatal("the field's caret was not drawn")
 	}
 	// A result row's title starts on 16u + the 28u icon + the 10u gap = 54u.
-	if r, ok := tt.Find("Restart the computer"); ok {
+	if r, ok := tt.Find("Recent 00"); ok {
 		if got := int(r.X); got != 54 {
 			t.Errorf("a result title starts at x=%d, want the reference's 54", got)
 		}
@@ -535,11 +536,12 @@ func TestTheListIsTheCentredReferenceColumn(t *testing.T) {
 
 func listIsTheCentredReferenceColumn(t *testing.T, dark bool) {
 	a := testApp()
+	recentPage(a, 2) // P11-bk: the empty page's rows are the recents
 	tt := renderIn(t, a, dark)
 	tt.Frame()
 	// The gutter in pixels: `Space(2)` is 8 reference units (one Space is 4u).
 	gutter := int(ui.LightTheme().Space(2))
-	row, ok := tt.Find("Restart the computer") // the empty page's selected first row
+	row, ok := tt.Find("Recent 00") // the empty page's selected first row
 	if !ok {
 		t.Fatalf("the first result was not drawn: %q", tt.Texts())
 	}

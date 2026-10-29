@@ -134,10 +134,11 @@ func TestTheRowBlockIsTheInsetRoundedPill(t *testing.T) {
 
 func rowBlockIsTheInsetRoundedPill(t *testing.T, dark bool) {
 	a := testApp()
+	recentPage(a, 2) // P11-bk: the empty page's rows are the recents
 	tt := renderIn(t, a, dark)
 	tt.Frame()
 	img := tt.Image()
-	row, ok := tt.Find("Restart the computer")
+	row, ok := tt.Find("Recent 00")
 	if !ok {
 		t.Fatalf("the first row was not drawn: %q", tt.Texts())
 	}

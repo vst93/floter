@@ -45,17 +45,18 @@ func closeRGB(a, b color.RGBA) bool {
 func TestTheSelectedRowWearsThePerAppearanceQuietTint(t *testing.T) {
 	rowFill := func(themeName string) (sel, rest color.RGBA, tokens theme.Tokens) {
 		a := testApp()
+		recentPage(a, 2) // P11-bk: the empty page's rows are the recents
 		if err := a.Store.Update(func(s *settings.Settings) { s.Theme = themeName }); err != nil {
 			t.Fatal(err)
 		}
 		tt := render(t, a)
 		tt.Frame()
 		img := tt.Image()
-		first, ok := tt.Find("Restart the computer") // the empty page's selected first row
+		first, ok := tt.Find("Recent 00") // the empty page's selected first row
 		if !ok {
 			t.Fatalf("%s: the first result was not drawn: %q", themeName, tt.Texts())
 		}
-		second, ok := tt.Find("Shut down the computer") // the unselected row one band below
+		second, ok := tt.Find("Recent 01") // the unselected row one band below
 		if !ok {
 			t.Fatalf("%s: the second result was not drawn: %q", themeName, tt.Texts())
 		}
@@ -143,6 +144,9 @@ func TestThePowerGlyphsWearTheSystemIconInk(t *testing.T) {
 	}{{"light", false}, {"dark", true}} {
 		t.Run(tc.name, func(t *testing.T) {
 			a := testApp()
+			// P11-bk: the power rows are drawn for a typed word now, not on the
+			// empty page (`o` reaches `power off`).
+			a.SetQuery("o")
 			tt := renderIn(t, a, tc.dark)
 			tt.Frame()
 

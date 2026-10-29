@@ -101,7 +101,7 @@ func TestTheActionBarIsThePanelsLastBandOverATypedQuery(t *testing.T) {
 // edge returns the choice to the page's default, and the footer's band is
 // painted differently while it is selected.
 func TestTheHeldModifierMovesTheSelectionToTheFooterAndBack(t *testing.T) {
-	a := appKeysApp()
+	a := appKeysAppWithRecents()
 	tt := appKeysRender(t, a)
 	tt.Type("ter")
 	tt.Frame()
@@ -210,7 +210,7 @@ func TestTheCardReachesTheWindowsSideEdges(t *testing.T) {
 	base := appKeysApp()
 	_, right, _, left := base.inset()
 	for _, width := range []int{720, 1000} {
-		app := appKeysApp()
+		app := appKeysAppWithRecents()
 		tt := ui.NewTester(func(c *ui.Context) { app.View(c) }, width, 420)
 		tt.Frame()
 		spacing := float32(app.Launcher.Spacing)

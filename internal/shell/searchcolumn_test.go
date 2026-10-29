@@ -32,7 +32,7 @@ import (
 // box keeps the contract's 8u gutter on either side
 // (`docs/raycast-design.md` §4.3).
 func TestTheSearchColumnIsTheReferenceUnitsAtTheShippedStep(t *testing.T) {
-	a := appKeysApp()
+	a := appKeysAppWithRecents()
 	tt := appKeysRender(t, a)
 	tt.Frame()
 
@@ -57,7 +57,7 @@ func TestTheSearchColumnIsTheReferenceUnitsAtTheShippedStep(t *testing.T) {
 			field.X, want, cardLeft)
 	}
 
-	row, ok := tt.Find("Restart the computer")
+	row, ok := tt.Find("Recent 00")
 	if !ok {
 		t.Fatalf("the first result was not drawn: %q", tt.Texts())
 	}
@@ -98,7 +98,7 @@ func TestTheSearchColumnIsTheReferenceUnitsAtTheShippedStep(t *testing.T) {
 // wears the selection tint across the same column the rows above it do, not the
 // panel's own fill.
 func TestTheHeldRowIsTheLastLineOfTheShippedList(t *testing.T) {
-	a := appKeysApp()
+	a := appKeysAppWithRecents()
 	tt := appKeysRender(t, a)
 	tt.Frame()
 
@@ -465,11 +465,11 @@ func TestTheCardFillsTheWindowItIsGiven(t *testing.T) {
 	// A frame wider than the contract: the card's own edge (its 1px stroke,
 	// the first thing that is not the window's shadow) sits on the platform's
 	// inset, so no band of desktop is left inside the window beside it.
-	a := appKeysApp()
+	a := appKeysAppWithRecents()
 	tt := appKeysRender(t, a)
 	tt.SetSize(1000, 420)
 	tt.Frame()
-	row, ok := tt.Find("Restart the computer")
+	row, ok := tt.Find("Recent 00")
 	if !ok {
 		t.Fatalf("no result row on the wide frame: %q", tt.Texts())
 	}

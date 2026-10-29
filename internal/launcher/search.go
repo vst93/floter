@@ -803,10 +803,11 @@ func (a *App) recentItems(limit int) []Item {
 }
 
 // Results is what the current query shows. The calculator's answer comes
-// first when the query is a sum; an empty query shows the built-in
-// commands and then the recent applications (a wall of applications is not
-// an empty state). The rest is the ranked catalog: the list view builds only
-// the rows in view, so a broad query is as cheap a frame as a narrow one.
+// first when the query is a sum; an empty query shows only the recent
+// applications (a wall of applications is not an empty state, and the
+// built-in commands are not suggestions — they are answers to a typed word).
+// The rest is the ranked catalog: the list view builds only the rows in view,
+// so a broad query is as cheap a frame as a narrow one.
 func (a *App) Results() []Item {
 	// One count per full walk of the catalog. A frame calls this exactly once
 	// (View reuses the slice), and that is an invariant a test can read: the
@@ -831,8 +832,9 @@ func (a *App) Results() []Item {
 	var out []Item
 	// A power word claims the query before anything else matches: a user who
 	// types "restart" means the machine, so those rows lead. Then the answer
-	// itself — the calculator's, the built-in commands over an empty field, the
-	// ranked catalogue over a typed one.
+	// itself — the calculator's over any field, the recents over an empty one,
+	// the ranked catalogue over a typed one (which is where the built-in
+	// commands live: `Catalog` carries them, so typing a word finds them).
 	other := a.otherResults()
 	out = append(out, a.powerItems()...)
 	out = append(out, other...)
@@ -860,14 +862,19 @@ func (a *App) Results() []Item {
 }
 
 // otherResults is everything but the action bar and the held-modifier row:
-// the calculator, the built-in commands, the recents, and the ranked catalog.
+// the calculator, the recents (on an empty field), and the ranked catalog.
 func (a *App) otherResults() []Item {
 	var out []Item
 	if item, ok := a.calculator(); ok {
 		out = append(out, item)
 	}
 	if strings.TrimSpace(a.Query) == "" {
-		out = append(out, a.commands()...)
+		// P11-bk: the empty page is the recents and nothing else. The built-in
+		// commands are not a suggestion list — the reference's empty branch
+		// returns `recentRows` alone (`useLauncherCatalog.ts:1138-1166`) and its
+		// six `SYSTEM_COMMANDS` only enter the scored matches from `:1201` on.
+		// They stay reachable through `Catalog()`, so typing `restart` still
+		// finds the row first.
 		// The empty page's own block: the most-launched applications, under
 		// their own heading, in the order the shell ranked them (count
 		// descending, the application list's scan order between equals — the
