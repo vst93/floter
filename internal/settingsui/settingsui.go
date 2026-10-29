@@ -2156,44 +2156,55 @@ func (a *App) healthDetail(c *ui.Context, copy i18n.Settings, report *HealthRepo
 // to one ruled card row whose grey subline carried the summary and whose
 // trailing slot carried the integration's own state word (a third fact that
 // had nothing to do with the check).
+//
+// P11-be: on the settings card the block is a **row of that card**, so it wears
+// the card's frame (`cardRow`): the separator above it, the row's floor and the
+// row's inset, with the label and everything under it drawn in the card's label
+// column. Drawn as a bare `ui.Row` it had none of the three — its label sat
+// flush against the permission pills of the row above (reading as their
+// caption) and its check grid started at the card's own edge, one whole inset
+// left of every label above it (`docs/rounds/P11-be-spec.md` §1.2). The label's
+// own step is unchanged: it is still the drawer's `.extension-detail-block h4`
+// (caption 620 at the secondary ink), which `TestTheDiagnosticsBlockLabelIsTheBlocksOwnStep`
+// pins — a card row's emphasis step is *not* what a block label wears.
 func (a *App) diagnosticsSection(c *ui.Context, copy i18n.Settings, integration Integration) {
 	tokens := a.tokens(c)
 	t := a.cardTheme(c)
-	// The block label: the drawer's `.extension-detail-block h4` — sentence case
-	// at the secondary ink, caption 620 (`extensions.css:2008-2013`), one voice
-	// with the metadata grid's own `dt` labels.
-	ui.Row(c).FillWidth().Children(func() {
+	a.cardRow(c, ui.Start, nil, rowFace{}, func() {}, func() {
+		// The block label: the drawer's `.extension-detail-block h4` — sentence case
+		// at the secondary ink, caption 620 (`extensions.css:2008-2013`), one voice
+		// with the metadata grid's own `dt` labels.
 		ui.Text(c, copy.IntegrationsDiagnostics).FontSize(tokens.Caption).FontWeight(620).
 			TextColor(tokens.TextSecondary)
+		if !integration.diagnosisRan() {
+			// No check ran at all (the provider answered with nothing): the
+			// reference's own empty line (`extensions.css:2054-2059`,
+			// `--text-muted` body). A check that ran but reported no rows is *not*
+			// this state — its verdict is the summary line on its own.
+			ui.Text(c, copy.IntegrationsDiagnosticsUnavailable).FontSize(t.FontSize).
+				TextColor(t.TextMuted).Wrap()
+			return
+		}
+		// The verdict is the reference's plain summary span: `justify-self: start`,
+		// a `2px 0` padding pair, no pane, no dot and **no weight of its own** —
+		// the rule sets colour and `capitalize` alone, and the caption step
+		// inherits the body's 400 (`extensions.css:2324-2332`). The port drew it
+		// at 620, one step heavier than the reference's own summary. Its colour
+		// follows the *status word it prints*, the same classification the check
+		// rows below use (the reference ranged `--${diagnose.status}` over both,
+		// `ExtensionsPanel.tsx:2896-2899`), so a verdict the finding flag does not
+		// cover still wears its own state's ink.
+		verdict := diagnosisVerdict(integration, copy)
+		ui.Text(c, capitalizeWord(verdict)).FontSize(tokens.Caption).
+			TextColor(statusInk(verdict, tokens, t, tokens.TextSecondary))
+		// One row per check: the reference's `.extension-diagnostics > div` is a
+		// `54px minmax(0,1fr)` grid with an 8px gap, a `8px 0` padding pair and a
+		// 1px bottom hairline — dropped on the last row
+		// (`extensions.css:2344-2350,2306-2308`).
+		for i, check := range integration.DiagnosisChecks {
+			a.diagnosisCheckRow(c, check, i == len(integration.DiagnosisChecks)-1)
+		}
 	})
-	if !integration.diagnosisRan() {
-		// No check ran at all (the provider answered with nothing): the
-		// reference's own empty line (`extensions.css:2054-2059`,
-		// `--text-muted` body). A check that ran but reported no rows is *not*
-		// this state — its verdict is the summary line on its own.
-		ui.Text(c, copy.IntegrationsDiagnosticsUnavailable).FontSize(t.FontSize).
-			TextColor(t.TextMuted).Wrap()
-		return
-	}
-	// The verdict is the reference's plain summary span: `justify-self: start`,
-	// a `2px 0` padding pair, no pane, no dot and **no weight of its own** —
-	// the rule sets colour and `capitalize` alone, and the caption step
-	// inherits the body's 400 (`extensions.css:2324-2332`). The port drew it
-	// at 620, one step heavier than the reference's own summary. Its colour
-	// follows the *status word it prints*, the same classification the check
-	// rows below use (the reference ranged `--${diagnose.status}` over both,
-	// `ExtensionsPanel.tsx:2896-2899`), so a verdict the finding flag does not
-	// cover still wears its own state's ink.
-	verdict := diagnosisVerdict(integration, copy)
-	ui.Text(c, capitalizeWord(verdict)).FontSize(tokens.Caption).
-		TextColor(statusInk(verdict, tokens, t, tokens.TextSecondary))
-	// One row per check: the reference's `.extension-diagnostics > div` is a
-	// `54px minmax(0,1fr)` grid with an 8px gap, a `8px 0` padding pair and a
-	// 1px bottom hairline — dropped on the last row
-	// (`extensions.css:2344-2350,2306-2308`).
-	for i, check := range integration.DiagnosisChecks {
-		a.diagnosisCheckRow(c, check, i == len(integration.DiagnosisChecks)-1)
-	}
 }
 
 // diagnosisCheckRow is one `.extension-diagnostics > div`: the status word in
@@ -2945,15 +2956,20 @@ func (a *App) toggleAudit(id string) {
 // permissionAudit draws the per-permission explanation under a row: what each
 // permission allows, and whether the host itself decides it. The list is folded
 // away until the user asks for it, so a row stays a row.
+//
+// P11-be: the fold has **one** switch, and it is the row's own control slot
+// (the Permissions row's trailing pill, `settingsui.go:2471-2478`). This block
+// used to draw a second `actionButton(copy.IntegrationsPermissions)` as its
+// first child, which made three "Permissions" on one surface — the row's label,
+// the row's pill, and a full-width band under them. `cardRow` paints its
+// `below` callbacks every frame (`rows.go:1035-1040`), so that band was on
+// screen while the audit was *closed* too: an unexplained full-width button
+// between the Permissions row and the next one. The row's label is a hit target
+// as well (`cardRow`'s `names.Clicked()` → the row's `labelClicked`), so
+// nothing was lost by removing it.
 func (a *App) permissionAudit(c *ui.Context, copy i18n.Settings, integration Integration) {
 	t := a.cardTheme(c)
 	language := a.Store.Snapshot().Language
-	if a.actionButton(c, copy.IntegrationsPermissions).Clicked() {
-		if a.auditOpen == nil {
-			a.auditOpen = map[string]bool{}
-		}
-		a.auditOpen[integration.ID] = !a.auditOpen[integration.ID]
-	}
 	if !a.auditOpen[integration.ID] {
 		return
 	}
