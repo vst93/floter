@@ -1199,25 +1199,29 @@ func (a *App) residentNote(c *ui.Context, copy i18n.Terminal) {
 	if session.ExitCode != 0 {
 		color = t.Warning
 	}
-	// The reference's own note: a floating card 12u from the panel's edges,
-	// a 7u/10u padding pair, the control hairline and the floater's own fill
-	// and shadow (`--glass-float` / `--elev-3`), with the title at the body
-	// step in 560 — the warning colour when the program returned non-zero.
-	// The note enters as the old build's `feedback-enter` did: fading in and
-	// settling down from two units above.
-	note := ui.Row(c).Absolute().Bottom(t.Space(3)).Left(t.Space(3)).Right(t.Space(3)).
+	// The reference's own note is a floating card 12u from the panel's edges, a
+	// 7u/10u padding pair, the floater's own fill and shadow (`--glass-float` /
+	// `--elev-3`), with the title at the body step in 560 — the warning colour
+	// when the program returned non-zero.
+	//
+	// P11-bc 重定基线（用户实测 F3「不要 floating/overlay 观感，元素要 inline、
+	// 要贴进布局」）：它以前就是那张浮卡——四边各让 12u、`RadiusMD` 圆角、
+	// `Float` 面、`ElevThrow` 投影、`LensRim` 受光边，再加一段从上方 2u 落下的
+	// 160ms 入场。用户要的「轻盈」在纯白画布上读成一块压在输出上的玻璃片，
+	// 而这条便条是**常驻家具**（会话退出后一直在，直到用户自己关掉），不是
+	// 一条转瞬即逝的消息。现在它是画布底边的一条**贴边带**：整宽、贴底、无
+	// 圆角、无投影、无高光、无入场动画，面与线用抽屉自己那套说法
+	// （`Control` 面 + 上边一条 `HairlineSoft` 弱发丝，见 `drawer`）。锚点、
+	// 文字、三档墨、字号、出现条件、它在 `body` 里的父子关系、画布高度与 PTY
+	// 行数一个没动——`Absolute` 的便条不占布局高度，所以终端不被 resize。
+	//
+	// 同时补上参考的 `pointer-events: none`（`main:src/styles/terminal.css:303`）：
+	// 这条带现在横跨画布整宽，不做 `PassThrough` 就会把最后一行输出的点击、
+	// drag-select 与滚轮全吃掉（与 P11-af 浮条吃掉前两行是同一个后果）。
+	note := ui.Row(c).Absolute().Bottom(0).Left(0).Right(0).PassThrough().
 		Gap(t.Space(2)).AlignItems(ui.Center).Padding(t.Space(1.75), t.Space(2.5)).
-		Radius(tokens.RadiusMD).Border(1, tokens.ControlEdge).
-		Background(tokens.Float).
-		Transition(ui.ElementTransition{
-			Enter:    &ui.Motion{Y: -2},
-			Duration: 160 * time.Millisecond,
-		})
-	// The floater's throw and its lit top rim, as `--elev-3` composed them.
-	// P11-an：投影的 alpha 读 `--elev-shadow-scale`（`theme.ElevThrow`），
-	// 与框的透明度同进退；几何仍是 10/26 与 1/2 两步。
-	theme.ElevThrow(note, t, a.Store.Snapshot().MainOpacity)
-	note.InsetShadow(0, 1, 0, 0, tokens.LensRim)
+		Background(tokens.Control).
+		BorderWidth(1, 0, 0, 0).BorderColor(tokens.HairlineSoft)
 	note.Children(func() {
 		ui.Text(c, copy.ProcessExited(session.ExitCode)).FontSize(t.FontSize).
 			FontWeight(560).TextColor(color)
