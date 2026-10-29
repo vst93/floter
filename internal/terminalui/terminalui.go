@@ -887,7 +887,7 @@ func (a *App) View(c *ui.Context) {
 		// 像素（实测 720×360 重叠 81×8u），抽屉自己的关闭钮与浮条的 X 叠成
 		// 一个（28×18u）。带宽是画布的地板，不是抽屉的预算：抽屉放不下就在
 		// 自己那条带里滚动（`drawer` 的 `DrawerScroll`）。
-		body := ui.Box(c).Grow(1).MinHeight(t.Space(7)).FillWidth()
+		body := ui.Box(c).Grow(1).MinHeight(barHeight(t)).FillWidth()
 		body.Children(func() {
 			// The mount's fill is the terminal's background: the session's own
 			// name for the surface it is drawn on, painted here rather than by
@@ -1260,7 +1260,21 @@ func (a *App) feedbackNote(c *ui.Context) {
 	tokens := theme.ForPreferences(a.Store.Snapshot(), t.Dark, c.Preferences())
 	// The reference's own notice: 12u from the panel's top-left corner, the
 	// 7u/10u padding pair, the floater's fill, a 15u alert glyph and the body
-	// step at 560 in the warning colour.
+	// step at 560 in the warning colour. The glyph, the ink, the two padding
+	// steps and the 4.5s clock are untouched below.
+	//
+	// P11-bg 重定基线（用户 F3「不要 floating/overlay 观感，元素要 inline、要
+	// 贴进布局」）：这条提示以前是那张浮卡——12u 见方的圆角面、`ControlEdge`
+	// 描边、`Float` 填充、`ElevThrow` 投影、`LensRim` 受光边，再加一段从上方
+	// 2u 落下的 160ms 入场。P11-bc 把「进程已退出」那条常驻便条改成了画布底边
+	// 的带，这一条当时故意留着；现在它是**同一页的第二种说法里的最后一处浮面**。
+	//
+	// 现在它挂在标题条下沿、整宽贴边（`barHeight`），面与线用带子自己那套说法
+	// （`Control` 面 + **底边**一条 `HairlineSoft` 弱发丝，底边那条带是上边一条：
+	// 两条带各自朝画布内侧收口），无圆角、无投影、无受光边、无入场动画。标题条
+	// 本就浮在画布顶上（`titleBar` 的 `Top(0)`，画布不预留高度），所以这条带读作
+	// chrome 的第二行而不是压在输出上的一块玻璃片。`Absolute` 不占布局高度，
+	// **画布高度与 PTY 行数一个字节没动**。
 	//
 	// P8-c 重定基线（§6.2 第 4 条 / §5）：环 `AccentEdge` → `ControlEdge`。accent
 	// 只回答「哪个被选中/哪个是开的」，而这条是「某个动作没做成」——它的语义
@@ -1273,17 +1287,10 @@ func (a *App) feedbackNote(c *ui.Context) {
 	// 提示自己的字 (89,31) 与它的内边距 (20,30) 都拿不到）。与 P11-af 的浮条
 	// 吃掉前两行、P11-bc 的常驻便条吃掉最后两行是同一条判据：**一条没有动作
 	// 的浮层不该是命中目标**。几何、面、墨、字号、4.5s 的时钟一个字节没动。
-	notice := ui.Row(c).Absolute().Top(t.Space(3)).Left(t.Space(3)).PassThrough().
+	notice := ui.Row(c).Absolute().Top(barHeight(t)).Left(0).Right(0).PassThrough().
 		Gap(t.Space(2)).AlignItems(ui.Center).Padding(t.Space(1.75), t.Space(2.5)).
-		Radius(tokens.RadiusMD).Border(1, tokens.ControlEdge).
-		Background(tokens.Float).
-		Transition(ui.ElementTransition{
-			Enter:    &ui.Motion{Y: -2},
-			Duration: 160 * time.Millisecond,
-		})
-	// P11-an：失败提示是同一个浮动层，投景读同一条 `--elev-shadow-scale`。
-	theme.ElevThrow(notice, t, a.Store.Snapshot().MainOpacity)
-	notice.InsetShadow(0, 1, 0, 0, tokens.LensRim)
+		Background(tokens.Control).
+		BorderWidth(0, 0, 1, 0).BorderColor(tokens.HairlineSoft)
 	notice.Children(func() {
 		// `PassThrough` 不沿子树传播（框架的命中表逐个元素记），而一句 `Text`
 		// 自己就是可选中面 = 命中目标：只把外层标成透明时，点提示的**字**仍然
@@ -1360,12 +1367,18 @@ func (a *App) barButton(c *ui.Context, name, label, hint string, live bool, run 
 	}
 }
 
+// barHeight is the title bar's own band: the bar draws into it, the canvas is
+// floored at it, and the panel's notices hang from its lower edge. Three
+// readers, one number — a second spelling of it is how the failure note ends up
+// half a step off the bar it is docked to (P11-bg).
+func barHeight(t *ui.Theme) float32 { return t.Space(7) }
+
 func (a *App) titleBar(c *ui.Context, copy i18n.Terminal) {
 	t := c.Theme()
 	newCommandHint, openExternalHint := barHints(copy, a.Store.Snapshot())
 	// P11-ae：这一条（以及它里面的点与按钮）的墨来自它浮着的那块面，不是窗口。
 	inks := a.canvasInks(c)
-	bar := ui.Row(c).Absolute().Top(0).Left(0).Right(0).Height(t.Space(7)).
+	bar := ui.Row(c).Absolute().Top(0).Left(0).Right(0).Height(barHeight(t)).
 		Padding(0, t.Space(3)).Gap(t.Space(2)).AlignItems(ui.Center).PassThrough()
 	// The bar's whole content is hidden until the pointer is over it or
 	// something on it has the keyboard, so neither the title nor the buttons

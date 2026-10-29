@@ -634,6 +634,31 @@ must not catch clicks meant for the terminal underneath”）。本仓三处都�
 x=188…702、y=692…824（只有那一块）；`configFields` 的帧**零像素变化**——它原本算出来的
 位置与新的逐字节相同，正是「同一件事两个答案」的证据。
 
+### §6.19 P11-bg · 终端的失败提示也挂成画布顶边的一条带（**已落地**）
+
+F3 的判据只看「它是不是一块压在内容上的浮面」，不看它是常驻还是转瞬。P11-bc 把
+「进程已退出」的常驻便条改成了画布底边的带；动作失败时那条 4.5 秒的提示
+（`internal/terminalui/terminalui.go` 的 `feedbackNote`）当时**故意留着**，于是同一页
+有两种说法：底边是带，顶边还是 `Float` 面 + `ElevThrow` 投影 + `LensRim` 受光边 +
+`RadiusMD` 圆角 + 160ms 入场位移的浮卡，离面板左上各 12u、自然宽。
+
+**判据一条**：**终端页上贴在画布边缘的状态都是带子，没有第二档**。带子 = 整宽、贴边、
+无圆角、无投影、无受光边、无入场动画，面用 `Control`，收口是朝画布内侧的一条
+`HairlineSoft`（底边的带是上边一条，顶边的带是底边一条）。
+
+| 位置 | 旧 | 新 | 落地 |
+|---|---|---|---|
+| `feedbackNote` 的锚 | `Absolute().Top(Space(3)).Left(Space(3))`（12u 浮卡） | `Absolute().Top(barHeight(t)).Left(0).Right(0)`（挂在标题条下沿、整宽） | `已落地` — pin `TestTheFailureNoteIsADockedStrip` / `TestTheFailureNoteLetsThePointerThrough` |
+| 同处的四件套 | `Radius(RadiusMD)` / `Border(1, ControlEdge)` / `ElevThrow` / `InsetShadow` / `Transition` | 面 `tokens.Control` + `BorderWidth(0,0,1,0)` `HairlineSoft`，四件套全删 | 同上（源码契约：四件套与 `Radius(`/`Transition(` 一律不许回来） |
+| 「标题条高度」 | `titleBar` 的 `Height`、`body` 的 `MinHeight`、这条带的 `Top` 三处各写 `t.Space(7)` | `barHeight(t)` 一个答案 | 同处 |
+
+**没动的**：15u 警示字形、body 步 560、`t.Warning` 墨、7u/10u 内边距、4.5s 时钟、
+`AnimationFrame`、逐层的 `PassThrough()`（参考 `terminal.css:414` 的 `pointer-events: none`）。
+这条带是 `Absolute()`，**画布高度与 PTY 行数零改动**。实测（860×600，浅色）修前那块面
+在 `x=2` 这一列铺出一圈影子 `(251,251,251)→(248,248,248)→(244,244,244)`（y=14/20/30），
+修后同一列是画布自己的 `(255,255,255)` 与带面的 `(242,242,242)`；`(429,30/56/60)` 修前是
+画布的 `(255,255,255)`、修后是带面的 `(242,242,242)`——整宽贴边。
+
 ## §7 切片表
 | 片 | 范围 | 状态 |
 |---|---|---|
