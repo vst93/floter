@@ -355,6 +355,13 @@ type App struct {
 	// for the list — and a duplicated full match is the cheapest way to read a
 	// keystroke as a stall.
 	searchRuns int
+
+	// drawn is the row slice the current draw built, kept for the pointer edges
+	// that fire *inside* that draw (see App.row's Clicked branch). A click reads
+	// the list the frame already has instead of walking the catalog a second
+	// time for the same frame — the same rule `nextSelectableIn` states for the
+	// keyboard (P11-cl).
+	drawn []Item
 	// catalog is the built catalog and the shape of the inputs it was built
 	// from (see Catalog): the rows and their lowered search registers are made
 	// once per rescan, new command set or language, not once per keystroke.
@@ -1210,6 +1217,7 @@ func (a *App) View(c *ui.Context) {
 	// holdBarSelection).
 	a.holdBarSelection(results)
 	a.clampSelection(results)
+	a.drawn = results
 	a.assignNumbers(results)
 	// The output list, while it owns the band, carries the same numbered family
 	// over its own rows.
@@ -2653,7 +2661,7 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 	if row.Clicked() && !removed {
 		a.Selected = i
 		a.pointerChose = true
-		a.activate(a.Results())
+		a.activate(a.drawn)
 	}
 }
 

@@ -70,6 +70,24 @@ func TestADrawWalksTheCatalogOnce(t *testing.T) {
 		}},
 		{"the modifier's press", 0, func() { tt.HoldModifiers(ui.Cmd) }},
 		{"the modifier's release", 0, func() { tt.HoldModifiers(0) }},
+		// P11-cl: a pointer click is not a keystroke. The row's own `Clicked()`
+		// branch runs *inside* the draw, and it used to ask the catalog again
+		// (`a.activate(a.Results())`) after the frame had already built its list
+		// from that same slice - one draw, two full matches, no keystroke to
+		// explain the second. It now reads the slice the draw holds.
+		{"a click on a row", 0, func() {
+			// The rows come from the recents fixture (see recentPage): the page
+			// the click arm needs is one whose rows are runnable, and the field
+			// is empty after the arm above, so the recents block is what shows.
+			recentPage(a, 5)
+			tt.Frame()
+			// Only the click's own draws are measured: the settle frames above
+			// are the fixture arriving, not the pointer's price.
+			*per = (*per)[:0]
+			if err := tt.Click("Recent 02"); err != nil {
+				t.Fatalf("the click arm cannot reach its row: %v", err)
+			}
+		}},
 	}
 	for _, step := range steps {
 		*per = (*per)[:0]
