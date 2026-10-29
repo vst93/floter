@@ -2,6 +2,7 @@ package launcher
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 
@@ -108,9 +109,61 @@ func TestTheOutputNumberRunsItsRow(t *testing.T) {
 	}
 }
 
-// The output list follows the scroll viewport when it overflows the ten-slot
-// budget (R34/R72): the digits land on the runnable rows on screen, and
-// scrolling renumbers them.
+// TestATenRowOutputDump writes the frame P11-bl is about: the captured-output
+// list — exactly the ten-slot budget — scrolled so its first row is mostly off
+// screen. Opt-in (FLOTER_PNG=1), like the other screenshot dumps;
+// FLOTER_PNG_TAG names the pair ("before"/"after").
+func TestATenRowOutputDump(t *testing.T) {
+	if os.Getenv("FLOTER_PNG") == "" {
+		t.Skip("opt-in: FLOTER_PNG=1 writes /tmp/floter-P11-bl-output-<tag>-<appearance>.png")
+	}
+	tag := os.Getenv("FLOTER_PNG_TAG")
+	if tag == "" {
+		tag = "after"
+	}
+	forEachAppearance(t, func(t *testing.T, dark bool) {
+		name := "light"
+		if dark {
+			name = "dark"
+		}
+		a := testApp()
+		tt := runListOutput(t, a, outputRowsWithActions(maxResultSlots))
+		for _, step := range []float32{1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 24, 27, 30} {
+			tt.Scroll(340, 200, 0, step)
+			tt.Frame()
+			tt.Frame()
+			if got := visibleShare(a.outputRowRects[0], a.outputListRect); got > 0 && got < numberVisibleShare {
+				break
+			}
+		}
+		share := visibleShare(a.outputRowRects[0], a.outputListRect)
+		t.Logf("row 0 is %.2f visible; numbers %v; badges %q", share, a.outputNumbers, tt.Texts())
+		path := fmt.Sprintf("/tmp/floter-P11-bl-output-%s-%s.png", tag, name)
+		writePNG(t, path, tt)
+	})
+}
+
+// outputFirstMostlyVisible is the observation the numbered family is supposed
+// to follow: the first row whose own box is at least `numberVisibleShare`
+// inside the list's clip, and that share. It reads the boxes the frame laid
+// out, not the family (P11-bl).
+func outputFirstMostlyVisible(a *App) (int, float64) {
+	for i := 0; i < len(a.output.Rows); i++ {
+		box, ok := a.outputRowRects[i]
+		if !ok {
+			continue
+		}
+		if share := visibleShare(box, a.outputListRect); share >= numberVisibleShare {
+			return i, share
+		}
+	}
+	return -1, 0
+}
+
+// The output list follows the scroll viewport (R34/R72), and it follows it by
+// the same measure the result list does: a row counts while at least seven
+// tenths of it is on screen, so a row scrolled away takes no number and the
+// family starts again at `1` on the first row the user can read (P11-bl).
 func TestOutputNumbersFollowTheOutputViewport(t *testing.T) {
 	a := testApp()
 	tt := runListOutput(t, a, outputRowsWithActions(25))
@@ -121,16 +174,19 @@ func TestOutputNumbersFollowTheOutputViewport(t *testing.T) {
 	if got := len(a.output.Rows); got != 20 {
 		t.Fatalf("the first window is %d rows, want 20", got)
 	}
-	vf, vl := a.OutputList.Visible()
-	if vf != 0 {
-		t.Fatalf("the output list starts at row %d, want 0", vf)
+	first, share := outputFirstMostlyVisible(a)
+	if first != 0 {
+		t.Fatalf("the first mostly visible row is %d (share %.2f), want 0", first, share)
 	}
-	if got := a.outputNumbers[vf]; got != 1 {
-		t.Errorf("the first visible output row %d number = %d, want 1 (%v)", vf, got, a.outputNumbers)
+	if got := a.outputNumbers[first]; got != 1 {
+		t.Errorf("the first visible output row %d number = %d, want 1 (%v)", first, got, a.outputNumbers)
 	}
 	for i := range a.outputNumbers {
-		if i < vf || i > vl {
-			t.Errorf("output row %d is numbered but outside the viewport %d..%d: %v", i, vf, vl, a.outputNumbers)
+		if i < first {
+			t.Errorf("output row %d is above the first readable row but numbered: %v", i, a.outputNumbers)
+		}
+		if box, ok := a.outputRowRects[i]; ok && visibleShare(box, a.outputListRect) <= 0 {
+			t.Errorf("output row %d is off screen but numbered: %v", i, a.outputNumbers)
 		}
 	}
 
@@ -139,14 +195,95 @@ func TestOutputNumbersFollowTheOutputViewport(t *testing.T) {
 	tt.Scroll(340, 200, 0, 400)
 	tt.Frame()
 	tt.Frame()
-	vf, vl = a.OutputList.Visible()
-	if vf == 0 {
-		t.Fatalf("the output list did not scroll: visible %d..%d", vf, vl)
+	first, share = outputFirstMostlyVisible(a)
+	if first <= 0 {
+		t.Fatalf("the output list did not scroll: first mostly visible row %d (share %.2f)", first, share)
 	}
-	if got := a.outputNumbers[vf]; got != 1 {
-		t.Errorf("after scrolling, the first visible output row %d number = %d, want 1 (%v)", vf, got, a.outputNumbers)
+	if got := a.outputNumbers[first]; got != 1 {
+		t.Errorf("after scrolling, the first visible output row %d number = %d, want 1 (%v)", first, got, a.outputNumbers)
 	}
 	if _, ok := a.outputNumbers[0]; ok {
 		t.Errorf("output row 0 is off screen but still numbered: %v", a.outputNumbers)
+	}
+	for i := range a.outputNumbers {
+		if i < first {
+			t.Errorf("output row %d scrolled away but kept its number: %v", i, a.outputNumbers)
+		}
+	}
+}
+
+// A row the list still paints a sliver of is not a row the user can read: the
+// family skips it and starts on the first row that is mostly there. The
+// framework's Visible() counts the sliver — that answer is the one P11-bb
+// rejected for the result list, and the output list must not keep it (P11-bl).
+func TestAnOutputRowMostlyScrolledAwayTakesNoNumber(t *testing.T) {
+	a := testApp()
+	tt := runListOutput(t, a, outputRowsWithActions(25))
+	pitch := a.outputRowRects[1].Y - a.outputRowRects[0].Y
+	if pitch <= 0 {
+		t.Fatalf("the rows have no pitch: %v", a.outputRowRects)
+	}
+	// Walk the list down until the row leaving through the top is still on
+	// screen and less than seven tenths of it is (the wheel eases, so a single
+	// nudge lands wherever the animation is that frame).
+	top, topShare := -1, 0.0
+	for attempt := 0; attempt < 40 && top < 0; attempt++ {
+		tt.Scroll(340, 200, 0, pitch)
+		tt.Frame()
+		tt.Frame()
+		for i := 0; i < len(a.output.Rows); i++ {
+			box, ok := a.outputRowRects[i]
+			if !ok {
+				continue
+			}
+			if share := visibleShare(box, a.outputListRect); share > 0 {
+				if share < numberVisibleShare {
+					top, topShare = i, share
+				}
+				break
+			}
+		}
+	}
+	if top < 0 {
+		t.Fatalf("no row ever sat mostly off screen while still drawn: %v", a.outputRowRects)
+	}
+	if got, ok := a.outputNumbers[top]; ok {
+		t.Errorf("row %d is only %.2f on screen but carries number %d (%v)", top, topShare, got, a.outputNumbers)
+	}
+	first, firstShare := outputFirstMostlyVisible(a)
+	if got := a.outputNumbers[first]; got != 1 {
+		t.Errorf("the first readable row %d (share %.2f) number = %d, want 1 (%v)", first, firstShare, got, a.outputNumbers)
+	}
+}
+
+// Exactly ten rows — the whole numbered family — do not fit: the body charges
+// the status strip above the list, so a ten-row output list scrolls. The family
+// must renumber there too; gating the viewport on "more rows than slots" left
+// the badge on the row that scrolled away (P11-bl, P11-bi's leftover).
+func TestATenRowOutputListRenumbersWhenItScrolls(t *testing.T) {
+	a := testApp()
+	tt := runListOutput(t, a, outputRowsWithActions(maxResultSlots))
+	if !a.InOutputView() {
+		t.Fatal("the output view did not open")
+	}
+	if got := len(a.output.Rows); got != maxResultSlots {
+		t.Fatalf("the list holds %d rows, want %d", got, maxResultSlots)
+	}
+	if got := a.outputNumbers[0]; got != 1 {
+		t.Fatalf("the first frame numbers row 0 with %d, want 1 (%v)", got, a.outputNumbers)
+	}
+	tt.Scroll(340, 200, 0, 400)
+	tt.Frame()
+	tt.Frame()
+	share := visibleShare(a.outputRowRects[0], a.outputListRect)
+	if share >= numberVisibleShare {
+		t.Fatalf("the premise failed: a ten-row list did not scroll (row 0 is %.2f visible)", share)
+	}
+	if got, ok := a.outputNumbers[0]; ok {
+		t.Errorf("row 0 is %.2f on screen but still numbered %d (%v)", share, got, a.outputNumbers)
+	}
+	first, firstShare := outputFirstMostlyVisible(a)
+	if got := a.outputNumbers[first]; got != 1 {
+		t.Errorf("the first readable row %d (share %.2f) number = %d, want 1 (%v)", first, firstShare, got, a.outputNumbers)
 	}
 }

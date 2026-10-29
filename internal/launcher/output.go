@@ -116,6 +116,11 @@ func (a *App) showOutput(run extensions.CapturedRun, err error, entry *extension
 	// 这里，所以不受影响。
 	a.Output = ui.ScrollState{}
 	a.OutputList = ui.ListState{}
+	// P11-bl：行盒/视口盒也是跨视图复用的（它们是 App 级的，见 launcher.go 的
+	// outputRowRects）。上一份输出的盒子若留着，新输出的第一帧就会按上一份的
+	// 几何发号——与上面同一条规则：一份新内容从它自己的开头开始。
+	clear(a.outputRowRects)
+	a.outputListRect = ui.Rect{}
 	a.output = &view
 	a.Selected, a.chosenRow = 0, -1
 }
@@ -511,9 +516,16 @@ func (a *App) outputBody(c *ui.Context, copy i18n.Launcher, edge float32) {
 		ui.Column(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
 			if view.IsList {
 				ui.Column(c).Fill().Children(func() {
-					ui.List(c.Key("launcher.output.list"), &a.OutputList, len(view.Rows), func(i int) {
+					// P11-bl：与搜索列表同一个时机——行盒与视口盒都是上一帧的，而编号在
+					// 行被建出来之前就要发下去，所以先清掉上一帧的盒，由本帧建出来的行
+					// 重新填（离开列表的行于是不会留下过期盒子骗 viewportRange）。
+					clear(a.outputRowRects)
+					list := ui.List(c.Key("launcher.output.list"), &a.OutputList, len(view.Rows), func(i int) {
 						a.outputRow(c, view.Rows[i], i)
 					}).Fill().Padding(header, t.Space(2), 0, t.Space(2)).Label(view.Title)
+					// The rows are clipped to this box, so it is the viewport the output's
+					// numbered family measures against (see outputNumberedViewport).
+					a.outputListRect = list.Bounds()
 					// The scroll trigger: reaching the end of what is loaded asks for
 					// the next page, exactly as the reference's own list did.
 					if a.OutputList.AtEnd() {
@@ -630,6 +642,12 @@ func (a *App) outputRow(c *ui.Context, row extensions.Row, i int) {
 			a.rowActionText(c, a.resultNumber(number), selected)
 		}
 	})
+	// P11-bl：这一行上一帧的盒子，与搜索列表的 rowBody 记的是同一件事（见
+	// viewportRange）。首帧还没有盒子，记一个空矩形，viewportRange 会跳过它。
+	if a.outputRowRects == nil {
+		a.outputRowRects = make(map[int]ui.Rect, 16)
+	}
+	a.outputRowRects[i] = style.Bounds()
 	if style.Clicked() && row.Runnable() {
 		a.output.Selected = i
 		a.runOutputRow()
@@ -811,16 +829,31 @@ func (a *App) outputRows() (rows []RowInfo, held, sections int) {
 	return rows, len(rows), sections
 }
 
+// outputNumberedViewport is the captured-output list's numbered viewport: its
+// own row boxes against its own clip, read by the one rule in viewportRange
+// (P11-bl).
+func (a *App) outputNumberedViewport(count int) (first, last int, ok bool) {
+	return viewportRange(count, a.outputRowRects, a.outputListRect)
+}
+
 // assignOutputNumbers gives the captured-output list its numbered family: the
 // same `⌘1`-`⌘0` slots the launcher's results carry, over the output's own
 // rows. The old build fed the plugin view's items through the ordinary
 // `resultShortcutSlots` (`main:src/App.tsx:1602-1611`), so the rule is the
 // list's own: only a row with something to run is numbered (a status note or a
 // disabled row is information, not a door), `1`-`9` are the first nine runnable
-// rows on screen and `0` the tenth, and a list that overflows the ten-slot
-// budget follows the scroll viewport (R34/R72). A list that fits is numbered
-// whole, so a short output needs no viewport measurement — the same reason the
-// ordinary list numbers a short list whole.
+// rows on screen and `0` the tenth, and the family follows the scroll viewport
+// (R34/R72).
+//
+// The viewport is read for **every** list, not only one past the ten-slot
+// budget (P11-bl). The old gate `len(rows) > maxResultSlots` assumed a list
+// that fits cannot scroll; here it can — the body charges the status strip
+// (42u) above the list, so exactly ten rows scroll under it, and the gate then
+// skipped the viewport and pinned the badges to the top. The viewport is also
+// measured from the row boxes rather than `OutputList.Visible()`, which answers
+// "a pixel": a row scrolled nine tenths away kept a badge nobody could see
+// (P11-bb's report, on this surface). Both surfaces read the one rule in
+// `viewportRange`.
 func (a *App) assignOutputNumbers() map[int]int {
 	numbers := map[int]int{}
 	a.outputNumbers = numbers
@@ -828,12 +861,12 @@ func (a *App) assignOutputNumbers() map[int]int {
 		return numbers
 	}
 	rows := a.output.Rows
+	// The family follows the viewport whenever the last frame left geometry to
+	// read; without geometry it falls back to the whole list, and the loop's cap
+	// still bounds it at ten (see assignNumbers).
 	first, last := 0, len(rows)-1
-	if len(rows) > maxResultSlots {
-		first, last = 0, maxResultSlots-1
-		if visibleFirst, visibleLast := a.OutputList.Visible(); visibleLast >= visibleFirst {
-			first, last = visibleFirst, visibleLast
-		}
+	if visibleFirst, visibleLast, ok := a.outputNumberedViewport(len(rows)); ok {
+		first, last = visibleFirst, visibleLast
 	}
 	count := 0
 	for i, row := range rows {

@@ -456,6 +456,14 @@ type App struct {
 	// numbered shortcuts address the output's own rows while it owns the band
 	// (see assignOutputNumbers).
 	outputNumbers map[int]int
+	// outputRowRects and outputListRect are the same pair as rowRects and
+	// listRect, for the captured-output list: its rows' boxes as the last frame
+	// laid them out and the list's own clip. Both numbered families ask the same
+	// question (viewportRange), so the output's badges follow what is on screen
+	// exactly as the results' do (P11-bl). Filled while the rows are built and
+	// cleared as the list is built, so a row that left leaves no stale box.
+	outputRowRects map[int]ui.Rect
+	outputListRect ui.Rect
 	// icons caches the decoded application icons, by path, and thumbs the
 	// clipboard images'.
 	icons  map[string]*ui.Bitmap
@@ -667,13 +675,24 @@ const numberVisibleShare = 0.7
 //
 // The range is contiguous because a list lays its rows out in one column.
 func (a *App) numberedViewport(count int) (first, last int, ok bool) {
-	viewport := a.listRect
-	if viewport.W <= 0 || viewport.H <= 0 || len(a.rowRects) == 0 {
+	return viewportRange(count, a.rowRects, a.listRect)
+}
+
+// viewportRange is the one answer to "which rows of this list may carry a
+// number", asked with a list's row boxes and its viewport: the search list's
+// own (numberedViewport) and the captured-output list's
+// (outputNumberedViewport, P11-bl). The rule lives here only, so the two
+// surfaces cannot drift into two answers the way Visible() and a 70% threshold
+// would — the reference's `visibleRowRange`
+// (`main:src/launcher/result-budget.ts:768-810`) is likewise one function over
+// both its lists.
+func viewportRange(count int, rects map[int]ui.Rect, viewport ui.Rect) (first, last int, ok bool) {
+	if viewport.W <= 0 || viewport.H <= 0 || len(rects) == 0 {
 		return 0, 0, false
 	}
 	first, last = -1, -1
 	for i := 0; i < count; i++ {
-		box, seen := a.rowRects[i]
+		box, seen := rects[i]
 		if !seen || box.W <= 0 || box.H <= 0 {
 			continue
 		}
