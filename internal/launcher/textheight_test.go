@@ -47,10 +47,18 @@ func TestTheLauncherHeightsStayOnTheLadder(t *testing.T) {
 				tt := render(t, a)
 				tt.SetDark(dark)
 				tt.Frame()
-				// The empty page: recents, the field, the two icon buttons, the
-				// footer. No result row, so no 15 (keycap) and no 24 (row title).
-				frameaudit.AuditHeights(t, appearance+" "+lang+" empty", tt, nil,
-					rungs, []float32{18, 22, 25, 28}, 0.5)
+				// The empty state: the field, the sentence, the two icon buttons,
+				// the footer — and no result row, so no 15 (keycap) and no 24 (row
+				// title). P11-cd：这一臂量的是**有 needle 的空结果页**，因为
+				// 「空查询 + 没有最近启动」那个页面已经不再画句子了（`emptyMessage`
+				// 的默认分支），量它等于量一张只有字段的页。
+				// The empty page: the field, the two icon buttons, the footer. No
+				// result row, so no 15 (keycap) and no 24 (row title). P11-cd：
+				// 这一页**不再画 18**——空查询 + 没有最近启动时它没有句子可画
+				// （`emptyMessage` 的默认分支返回空串），18 那一档由这一页后面的
+				// 「有 needle 的空结果」与 match 臂守着。
+				frameaudit.AuditHeights(t, appearance+" "+lang+" empty page", tt, nil,
+					rungs, []float32{22, 25, 28}, 0.5)
 
 				tt.Type("git")
 				tt.Frame()

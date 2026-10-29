@@ -323,8 +323,11 @@ func TestModeEmptyMessages(t *testing.T) {
 	if got := a.emptyMessage(copy); got != copy.CalculatorEmptyFavorites {
 		t.Errorf("calculator favorites = %q", got)
 	}
-	// The ordinary page says plainly that a search found nothing.
+	// The ordinary page says plainly that a search found nothing. P11-cd：这句话
+	// 只在**有 needle** 的时候出现——空查询 + 没有最近启动是一个安静的空页
+	// （`emptyMessage` 的默认分支），所以这一臂给它一个真的没命中的 needle。
 	a.calculatorMode = false
+	a.Query = "zzzz"
 	if got := a.emptyMessage(copy); got != copy.NoResults {
 		t.Errorf("ordinary = %q", got)
 	}

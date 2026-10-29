@@ -885,6 +885,15 @@ func (a *App) emptyMessage(copy i18n.Launcher) string {
 		}
 		return copy.NoResults
 	default:
+		// P11-cd：空查询 + 一条最近启动都没有（首次启动、或最近记录被清空）**不是**
+		// 「搜索没有命中」——用户什么都没问。字段自己的占位句已经写着「输入命令或
+		// 应用名称」，页面再印一句「没有匹配项」是**否认一次没发生的搜索**（P11-bk
+		// 的注释以为自己让这一页留空，实际上 `len(results)==0` 落进了这条默认分支，
+		// 于是全新的 floter 一打开就报「没有匹配项」）。同 P11-bh 给「没有拖入文件」
+		// 另立一句话的规则：没有 needle 的空页不借 NoResults，它只留字段。
+		if strings.TrimSpace(a.Query) == "" {
+			return ""
+		}
 		return copy.NoResults
 	}
 }
@@ -1314,8 +1323,13 @@ func (a *App) View(c *ui.Context) {
 			ui.Column(c).FillWidth().Grow(1).Center().
 				Padding(listEdge, t.Space(3), t.Space(3), t.Space(3)).
 				Children(func() {
-					ui.Text(c, a.emptyMessage(copy)).FontSize(tk.Emphasis).
-						TextColor(tk.TextStrong).SingleLine()
+					// P11-cd：一句话都没有的空页不是空态，是一个安静的空页（见
+					// `emptyMessage`）：没有 needle、也没有最近启动时这里不画字，
+					// 页面上只剩字段自己的占位句。
+					if message := a.emptyMessage(copy); message != "" {
+						ui.Text(c, message).FontSize(tk.Emphasis).
+							TextColor(tk.TextStrong).SingleLine()
+					}
 				})
 		} else {
 			// The list builds only the rows in view, so a catalog of
