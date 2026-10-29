@@ -89,38 +89,47 @@ func maxBox(a, b float32) float32 {
 	return b
 }
 
-// All five pages, in both appearances, at the shipped size and at the two
-// window sizes the reference's surface has to survive: the default card and
-// the smallest one the settings window opens at.
+// All five pages, in both appearances and both shipped languages, at the
+// shipped size and at the two window sizes the reference's surface has to
+// survive: the default card and the smallest one the settings window opens at.
+//
+// P11-ba: the audit used to run in English only. The user reads the Chinese
+// surface, and the Chinese copy puts different-length words in the same rows,
+// so the same rule has to hold on both. Measured clean on both before this
+// change; the arms below keep it that way.
 func TestTheSettingsPagesPaintNoTextOverText(t *testing.T) {
-	for _, dark := range []bool{false, true} {
-		appearance := "light"
-		if dark {
-			appearance = "dark"
-		}
-		for _, size := range [][2]int{{860, 900}, {720, 560}} {
-			for page := 0; page < pageCount; page++ {
-				store := settings.NewStore(settings.Default())
-				if err := store.Update(func(s *settings.Settings) { s.Theme = appearance }); err != nil {
-					t.Fatal(err)
-				}
-				a := New(store, Actions{})
-				a.Integrations = func() []Integration {
-					return []Integration{{
-						ID: "dev.floter.plain", Name: "Plain Tool", Enabled: true, Running: true,
-						RuntimeAvailable: true, Version: "1.0.0", Publisher: "vst",
-						Description: "A tool that does one thing.",
-					}}
-				}
-				a.selectPage(page)
-				tt := ui.NewTester(func(c *ui.Context) {
-					c.SetTheme(a.tokens(c).Theme)
-					a.View(c)
-				}, size[0], size[1])
-				tt.SetDark(dark)
-				tt.Frame()
-				tt.Frame()
-				auditSettingsFrame(t, fmt.Sprintf("%s %s %dx%d", appearance, PageName(page), size[0], size[1]), tt)
+	for _, lang := range []string{"en", "zh"} {
+		for _, dark := range []bool{false, true} {
+			appearance := "light"
+			if dark {
+				appearance = "dark"
+			}
+			for _, size := range [][2]int{{860, 900}, {720, 560}} {
+				t.Run(fmt.Sprintf("%s %s %dx%d", lang, appearance, size[0], size[1]), func(t *testing.T) {
+					for page := 0; page < pageCount; page++ {
+						store := settings.NewStore(settings.Default())
+						if err := store.Update(func(s *settings.Settings) { s.Theme = appearance; s.Language = lang }); err != nil {
+							t.Fatal(err)
+						}
+						a := New(store, Actions{})
+						a.Integrations = func() []Integration {
+							return []Integration{{
+								ID: "dev.floter.plain", Name: "Plain Tool", Enabled: true, Running: true,
+								RuntimeAvailable: true, Version: "1.0.0", Publisher: "vst",
+								Description: "A tool that does one thing.",
+							}}
+						}
+						a.selectPage(page)
+						tt := ui.NewTester(func(c *ui.Context) {
+							c.SetTheme(a.tokens(c).Theme)
+							a.View(c)
+						}, size[0], size[1])
+						tt.SetDark(dark)
+						tt.Frame()
+						tt.Frame()
+						auditSettingsFrame(t, fmt.Sprintf("%s %s %s %dx%d", appearance, lang, PageName(page), size[0], size[1]), tt)
+					}
+				})
 			}
 		}
 	}

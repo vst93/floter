@@ -6,6 +6,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/apps"
+	"floter/internal/settings"
 )
 
 // P11-aj · **没有两段字压在同一块像素上，也没有一段字跑出窗口。**
@@ -99,29 +100,42 @@ func maxF(a, b float32) float32 {
 
 // The three pages the launcher draws from the same card — the empty page with
 // its recents, a query with matches and a trailing badge, and a query that
-// matched nothing — in both appearances. A row long enough to be ellipsized is
-// in the fixture on purpose: that is where a text run and a trailing keycap
-// meet.
+// matched nothing — in both appearances, and in both shipped languages. A row
+// long enough to be ellipsized is in the fixture on purpose: that is where a
+// text run and a trailing keycap meet.
+//
+// P11-ba: the audit used to run in English only. The user reads the Chinese
+// surface, and the two languages put different-length words in the same boxes
+// (a Chinese group label is four wide glyphs where the English one is two
+// words), so the same rule has to hold on both. Measured clean on both before
+// this change; the arms below keep it that way.
 func TestTheLauncherPaintsNoTextOverText(t *testing.T) {
-	for _, dark := range []bool{false, true} {
-		appearance := "light"
-		if dark {
-			appearance = "dark"
+	for _, lang := range []string{"en", "zh"} {
+		for _, dark := range []bool{false, true} {
+			appearance := "light"
+			if dark {
+				appearance = "dark"
+			}
+			t.Run(lang+" "+appearance, func(t *testing.T) {
+				a := testApp()
+				if err := a.Store.Update(func(s *settings.Settings) { s.Language = lang }); err != nil {
+					t.Fatal(err)
+				}
+				a.SetTools([]apps.App{
+					{Name: "git", Path: "/usr/bin/git"},
+					{Name: "Supercalifragilisticexpialidocious-Application-Launcher-With-A-Very-Long-Name", Path: "/usr/bin/long"},
+				}, true)
+				tt := render(t, a)
+				tt.SetDark(dark)
+				tt.Frame()
+				auditLauncherFrame(t, appearance+" "+lang+" empty", tt)
+				tt.Type("git")
+				tt.Frame()
+				auditLauncherFrame(t, appearance+" "+lang+" match", tt)
+				tt.Type("zzzz")
+				tt.Frame()
+				auditLauncherFrame(t, appearance+" "+lang+" no results", tt)
+			})
 		}
-		a := testApp()
-		a.SetTools([]apps.App{
-			{Name: "git", Path: "/usr/bin/git"},
-			{Name: "Supercalifragilisticexpialidocious-Application-Launcher-With-A-Very-Long-Name", Path: "/usr/bin/long"},
-		}, true)
-		tt := render(t, a)
-		tt.SetDark(dark)
-		tt.Frame()
-		auditLauncherFrame(t, appearance+" empty", tt)
-		tt.Type("git")
-		tt.Frame()
-		auditLauncherFrame(t, appearance+" match", tt)
-		tt.Type("zzzz")
-		tt.Frame()
-		auditLauncherFrame(t, appearance+" no results", tt)
 	}
 }

@@ -9,6 +9,8 @@ import (
 
 	"github.com/egoist/mygo/plugins/terminal"
 	"github.com/egoist/mygo/ui"
+
+	"floter/internal/settings"
 )
 
 // The appearance strip's rows share a wrapping grid whose cells are sized from
@@ -31,7 +33,7 @@ func TestTheDrawerRowsKeepTheirWordsInsideTheirCells(t *testing.T) {
 		if dark {
 			appearance = "dark"
 		}
-		for _, width := range []int{720, 900, 1100} {
+		for _, width := range []int{settings.MinTerminalWidth, 720, 900, 1100} {
 			a := New(newStore(), Actions{Close: func() {}, NewCommand: func() {}}, nil)
 			withSession(a, &terminal.Terminal{})
 			a.Drawer = true
