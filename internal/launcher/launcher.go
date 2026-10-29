@@ -28,12 +28,6 @@ const (
 	// InputWindowWidth is the launcher's fixed width, in DIPs.
 	InputWindowWidth = 720
 
-	// bareTerminalRowID is the held modifier's own row (the reference's
-	// BARE_TERMINAL_ROW_ID): a stable id the renderer, the scroll skip and
-	// the release edge all read, never the query that happened to be typed
-	// when the modifier went down.
-	bareTerminalRowID = "system-terminal-bare"
-
 	// The collapsed launcher's height at scale 1, per platform: the card's own
 	// chrome (66u — the field's 56u row, the 4u breath under it and the panel's
 	// 4u/2u insets) in the shell's gutters: 10px a side on Linux, 4px + 12px
@@ -339,43 +333,23 @@ type App struct {
 	// the first View measured the list.
 	HeldRows int
 
-	// modifierHeld is the app modifier's state as the last frame saw it. While
-	// the modifier is down on an empty field, the list ends with a row that
-	// opens a bare terminal session — the row the user asked for, and the one
-	// the keyboard lands on so Enter reaches it without a second key.
+	// modifierHeld is the app modifier's state as the last frame saw it. The
+	// held modifier's own line is the panel's **pinned bottom band** (see
+	// heldHintRow), never a row of the list: the user's own words are
+	// 「按住 Super 显示进入终端选项要固定底部且不重复」 and 「不属于任何列表
+	// 项…不占排序」 (F4-3), so nothing here is appended to Results().
 	modifierHeld bool
 	// heldWasDown is the modifier's state the frame before, so the press and
 	// release edges are one transition each.
 	heldWasDown bool
-	// heldRowKey is the list shape the held row's selection was last asserted
-	// for: the row count and the query, joined. The reference's own effect
-	// re-runs on `query` and `displayedResultsLength` (`main:src/App.tsx:2065-2082`,
-	// the heldBareTerminal effect), so a keystroke while the modifier is down
-	// re-takes the selection for the held row instead of letting the fresh
-	// query's default land on the first match — the report 「按住时…应该有选中
-	// 样式（当前缺失）」, where typing with the modifier held left the row on
-	// screen, unselected, and the highlight pinned to the list's first line.
-	// Empty when the modifier is up, so the next press asserts again.
-	heldRowKey string
-	// barRowKey is the same shape key for the action bar, which is the row the
-	// modifier hands the selection to when the field has text: the reference
-	// draws no held row for a typed query (R64) and the bar is the row that
-	// acts on the line. It is asserted on the same shape changes the held row
-	// is, so typing with the modifier down keeps the bar lit while an arrow
-	// step off it survives (the reference's effect re-runs on `query` and the
-	// list's length, not on the selection).
+	// barRowKey is the list shape the action bar's selection was last asserted
+	// for: the row count and the query, joined. It is the row the modifier
+	// hands the selection to when the field has text (a typed query draws no
+	// terminal line of its own), and the reference's effect re-runs on `query`
+	// and `displayedResultsLength` (`main:src/App.tsx:2065-2082`), so typing
+	// with the modifier down keeps the bar lit while an arrow step off it
+	// survives.
 	barRowKey string
-	// heldRowShown is whether the held row was the list's last line on the
-	// frame before. The release edge asks it to decide whether the selection
-	// has to be handed back to the page's default, and the answer is a fact
-	// about the *previous* frame: once the modifier is up the row is already
-	// gone, so this frame's own list cannot answer it.
-	//
-	// It is recorded here rather than recomputed by asking Results() again
-	// (which is what `heldRowShowing` did, once per frame — a second full
-	// catalog match beside the frame's own, on an idle launcher as much as a
-	// busy one; see App.searchRuns).
-	heldRowShown bool
 	// searchRuns counts the frame's own catalog work (see Results). It exists
 	// so a test can pin that a frame searches **once**: the launcher used to
 	// walk the catalog twice per frame — once for the held row's presence, once
@@ -628,7 +602,7 @@ func (a *App) assignNumbers(results []Item) map[int]int {
 	}
 	count := 0
 	for i, item := range results {
-		if item.Run == nil || strings.HasPrefix(item.ID, "bar:") || item.ID == bareTerminalRowID {
+		if item.Run == nil || strings.HasPrefix(item.ID, "bar:") {
 			continue
 		}
 		if i < first || i > last {
@@ -1213,11 +1187,13 @@ func (a *App) View(c *ui.Context) {
 	// modifier's state lands, so it is the list this frame draws and there is
 	// no second search to disagree with it (see App.searchRuns).
 	results := a.syncHeldModifier(c)
-	// The chord that put the row on screen is the chord that opens it: the
-	// modifier is still down when the user presses Enter, so the plain
-	// Enter's own path (the field's submit) is not the one that fires.
-	if item, ok := a.heldTerminalItem(); ok && c.Shortcut(ui.Cmd, ui.KeyEnter) {
-		item.Run()
+	// The held modifier's own line: the panel's pinned bottom band, not a row.
+	// The chord that puts it on screen is the chord that opens it — the modifier
+	// is still down when the user presses Enter, so the plain Enter's own path
+	// (the field's submit) is not the one that fires. It holds on the empty
+	// field and on a typed one alike: the band is drawn on both (F4-3).
+	if a.heldHint() && c.Shortcut(ui.Cmd, ui.KeyEnter) {
+		a.openBareTerminal()
 	}
 	// A query the field has not accounted for gets that query's own default
 	// before any row reads the choice (see defaultedQuery).
@@ -1225,11 +1201,10 @@ func (a *App) View(c *ui.Context) {
 		a.Selected, a.chosenRow = a.defaultSelection(results), -1
 		a.defaultedQuery = a.Query
 	}
-	// The held row's own claim on the selection is asserted last: while the
-	// modifier is down the row is on screen, and a keystroke that rebuilds the
-	// list must not leave it drawn without the highlight (see
-	// holdHeldRowSelection).
-	a.holdHeldRowSelection(results)
+	// The action bar's own claim on the selection is asserted last: on a typed
+	// query the modifier hands the choice to the bar, and a keystroke that
+	// rebuilds the list must not leave the bar drawn without the highlight (see
+	// holdBarSelection).
 	a.holdBarSelection(results)
 	a.clampSelection(results)
 	a.assignNumbers(results)
@@ -1624,23 +1599,14 @@ func (a *App) View(c *ui.Context) {
 	// Keep the chosen row in view when the keyboard moved the choice (the
 	// list leaves the scrolling to the app when it has no selection).
 	//
-	// The held modifier's own row is the one exception, the reference's R67
-	// rule (LauncherResults.tsx's isBareTerminalRow branch): the window is
-	// grown for the row, so it is visible as soon as the resize lands, and
-	// scrolling it in first — while the list is still the old, shorter box —
-	// makes the landing clamp the scroll back: the list slid up and back down
-	// on the press edge (「先上移然后再下移恢复」). The row is never scrolled
-	// into view; it is simply given the room.
-	// Read and clear in one place: the flag is set by this frame's rows, and a
-	// pointer choice must not leave it standing for a later keyboard step.
+	// The pointer's choice is scrolled into view; a keyboard step too (the
+	// pinned footer is never scrolled into view — it is not a row of the
+	// scroller at all, it is the band below it; see the action-bar split).
 	byPointer := a.pointerChose
 	a.pointerChose = false
 	if a.Selected != a.chosenRow {
 		a.chosenRow = a.Selected
-		// The held row is the list's last line and it was recorded from this
-		// frame's own list (see heldRowShown), so neither question below
-		// needs a second catalog walk.
-		if !byPointer && (!a.heldRowShown || a.Selected != len(results)-1) {
+		if !byPointer {
 			// The pinned footer is never scrolled into view: it is not a row of
 			// the scroller at all, it is the band below it, so it is on screen
 			// by construction. Asking the list for its index would land the
@@ -3166,10 +3132,12 @@ func (a *App) statusBand(c *ui.Context) float32 {
 }
 
 // heldHint reports whether the docked band owes the held modifier's sentence:
-// while the app modifier is down, `Super+Enter` opens a terminal session, and on
-// a typed query the row that says so is not drawn (R64, see heldTerminalItem),
-// so the band is the only place left to say it (P11-bb, the user's own line:
-// 「当按着 M 键时，底部固定显示一行「Super+Enter 快捷进入终端」」).
+// while the app modifier is down, `Super+Enter` opens a terminal session, and
+// the band is the one place that says so — on the empty field and on a typed
+// one alike (the user's own line: 「按住 Super 显示进入终端选项要固定底部且
+// 不重复」, F4-3). The list never carries a row of its own for it: a row would
+// take a number, a sort position and the selection, and the band is pinned to
+// the panel's bottom edge instead.
 //
 // It is the *band's* third sentence, ranked below the question and the toast (see
 // feedbackRow): a message that is going somewhere wins over a hint about a key
@@ -3196,49 +3164,31 @@ func (a *App) FeedbackVisible() bool { return a.toast != "" || a.heldHint() }
 // the row and the selection move on the same frame the modifier's state lands.
 func (a *App) syncHeldModifier(c *ui.Context) []Item {
 	down := c.Modifiers()&ui.Cmd == ui.Cmd
-	// "Was the row showing" has to be asked of the frame before: once
-	// modifierHeld is down the row is already gone (see heldRowShown).
-	rowShowing := a.heldRowShown
-	// The row's own predicate reads modifierHeld, so the state lands before
-	// the edge is handled.
+	// The state lands before the edge is handled: the band's own predicate
+	// reads modifierHeld.
 	a.modifierHeld = down
 	// The frame's **one** catalog walk, taken after the state landed so the
-	// list it returns is the list this frame draws: the held row is in it
-	// exactly when this frame's modifier state says it is. The caller reuses
-	// this slice for the rest of the frame rather than asking again — a second
+	// list it returns is the list this frame draws. The caller reuses this
+	// slice for the rest of the frame rather than asking again — a second
 	// full match per frame was the launcher's quietest cost (see
-	// App.searchRuns) and it bought nothing: the two calls disagreed by
-	// definition whenever the state had just changed.
+	// App.searchRuns) and it bought nothing.
 	results := a.Results()
-	a.heldRowShown = len(results) > 0 && results[len(results)-1].ID == bareTerminalRowID
 	if down != a.heldWasDown {
 		a.heldWasDown = down
-		if down {
-			if _, ok := a.heldTerminalItem(); ok {
-				// The held row is the list's last line, so its index is the
-				// last one. The key is recorded here so
-				// holdHeldRowSelection does not re-assert it again this frame.
-				a.Selected = len(results) - 1
-				a.heldRowKey = heldRowKey(results, a.Query)
-			} else if strings.TrimSpace(a.Query) != "" {
-				// No held row — a typed query draws none (R64), and a plugin
-				// mode or the output view owns the list — so the modifier
-				// hands the selection to the action bar, the old build's
-				// `setSelectedActionBar(true)` on the modifier's keydown. The
-				// bar is a row of this list, so it is selected by its index;
-				// it is drawn for a non-empty query now (see
-				// actionBarItemsWith).
-				if bar := actionBarIndex(results); bar >= 0 {
-					a.Selected = bar
-				}
+		if down && strings.TrimSpace(a.Query) != "" {
+			// A typed query draws no terminal line of its own (the pinned
+			// band says it instead), so the modifier hands the selection to
+			// the action bar, the old build's `setSelectedActionBar(true)` on
+			// the modifier's keydown. The bar is a row of this list, so it is
+			// selected by its index.
+			if bar := actionBarIndex(results); bar >= 0 {
+				a.Selected = bar
 			}
-		} else {
-			a.heldRowKey = ""
+		} else if !down {
 			a.barRowKey = ""
-			if rowShowing || strings.TrimSpace(a.Query) != "" {
-				// The row the modifier put on screen is gone. The selection
-				// returns to the page's own default — the reference's
-				// `firstRunnableResultIndex`.
+			if strings.TrimSpace(a.Query) != "" {
+				// The selection the press edge took goes back to the page's
+				// own default — the reference's `firstRunnableResultIndex`.
 				a.Selected = a.defaultSelection(results)
 			}
 		}
@@ -3246,39 +3196,18 @@ func (a *App) syncHeldModifier(c *ui.Context) []Item {
 	return results
 }
 
-// holdHeldRowSelection keeps the selection on the held row for as long as the
-// row is on screen and the list it lives in has changed under it.
-//
-// The reference's heldBareTerminal effect depends on `query` and
-// `displayedResultsLength` (`main:src/App.tsx:2065-2082`), so every rebuild of
-// the list re-runs it and the row takes the selection again. The port asserted
-// the selection on the modifier's press edge only, so a later rebuild could
-// leave the row drawn without the highlight — a row the user read as pinned and
-// unselected: 「…应该有选中样式（当前缺失）」. It runs after the query's own
-// default reset, so the held row wins while it is on screen.
-//
-// The row only exists on an empty field (R64, see heldTerminalItem), so this is
-// the empty page's own assertion; a typed query never has a row to keep.
-//
-// A step off the row with the arrows is *not* undone: the key only changes
-// when the list's own shape does (the row count or the query), exactly as the
-// reference's dependency list re-runs only on those changes.
-func (a *App) holdHeldRowSelection(results []Item) {
-	if !a.modifierHeld || len(results) == 0 || results[len(results)-1].ID != bareTerminalRowID {
-		a.heldRowKey = ""
-		return
+// openBareTerminal runs the held modifier's own action: a terminal session
+// with nothing to run. It is the band's action, not a row's, so it takes no
+// selection and no index — Super+Enter reaches it directly (see View).
+func (a *App) openBareTerminal() {
+	if a.Actions.OpenTerminal != nil {
+		a.Actions.OpenTerminal()
 	}
-	key := heldRowKey(results, a.Query)
-	if key == a.heldRowKey {
-		return
-	}
-	a.heldRowKey = key
-	a.Selected = len(results) - 1
 }
 
-// heldRowKey names the list shape the held row's selection was asserted for:
-// the row count and the query the row was placed over.
-func heldRowKey(results []Item, query string) string {
+// listShapeKey names the list shape a selection was asserted for: the row
+// count and the query the row was chosen over.
+func listShapeKey(results []Item, query string) string {
 	return strconv.Itoa(len(results)) + "\x00" + query
 }
 
@@ -3306,59 +3235,12 @@ func (a *App) holdBarSelection(results []Item) {
 		a.barRowKey = ""
 		return
 	}
-	key := heldRowKey(results, a.Query)
+	key := listShapeKey(results, a.Query)
 	if key == a.barRowKey {
 		return
 	}
 	a.barRowKey = key
 	a.Selected = bar
-}
-
-// heldTerminalItem is the row the held modifier offers: a bare terminal
-// session, on the ordinary page, **on an empty field**. A plugin mode owns its
-// own list and shows no row of its own; the output view owns the keys and shows
-// none either.
-//
-// The reference's own history has both shapes: R60 appended the row under the
-// modifier whatever the field held (「按住 cmd 时也自动增加底部的终端执行项」),
-// and R64 retired that half at the user's own request — 「前面加的按住在列表
-// 额外增加终端选项的逻辑要去掉」 — so `bareTerminalPlacement` returns null for
-// a non-empty field (`main:src/launcher/terminal-row.ts:77-85`) and a typed
-// query draws the row not at all. The port had kept R60's wider gesture, so
-// with a query typed the action word showed up as an ordinary result beside
-// the matches — the report 「输入框中有输入内容时出现的「在终端中打开」项：
-// 现在固定在第一项（错误）」. One placement only: the empty page, last line.
-func (a *App) heldTerminalItem() (Item, bool) {
-	if !a.modifierHeld || a.output != nil || a.pluginModeActive() {
-		return Item{}, false
-	}
-	if strings.TrimSpace(a.Query) != "" {
-		return Item{}, false
-	}
-	copy := a.copy()
-	return Item{
-		ID:     bareTerminalRowID,
-		Title:  copy.BareTerminal,
-		Detail: copy.BareTerminalHint,
-		// The trailing badge is the action bar's own chord, and R67 says so on
-		// the reference itself (`main:src/launcher/LauncherResults.tsx:1004-1018`):
-		// the row's own `shortcut` is absent and the numbered family never
-		// reaches it (its `resultShortcutSlots[index]` is null), so without this
-		// it is the only row on the page with no key hint at all — the user asked
-		// for exactly that (「按住 super 键动态添加的打开终端项也要有快捷键提示」).
-		// The port read the first half of that rule (no `shortcut`, empty slot)
-		// and dropped the `isBareTerminalRow(item) ? actionBarShortcut` branch
-		// that replaces the empty slot, so the row was the one row on the page
-		// printing nothing where every other row prints its key. The chord is the
-		// same one that opens it: ⌘ put the row on screen and ⌘⏎ runs it (see
-		// `View`).
-		Shortcut: a.enterBadge(),
-		Run: func() {
-			if a.Actions.OpenTerminal != nil {
-				a.Actions.OpenTerminal()
-			}
-		},
-	}, true
 }
 
 // scopeMark is the mode that owns the field: its mark and its name. Ok is

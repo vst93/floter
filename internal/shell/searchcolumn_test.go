@@ -102,40 +102,47 @@ func TestTheHeldRowIsTheLastLineOfTheShippedList(t *testing.T) {
 	tt := appKeysRender(t, a)
 	tt.Frame()
 
+	start := a.Launcher.Selected
 	tt.HoldModifiers(ui.Cmd)
 	tt.Frame()
 	results := a.Launcher.Results()
-	if len(results) < 2 || results[len(results)-1].ID != "system-terminal-bare" {
-		t.Fatalf("the held row is not the list's last line: %+v", results)
+	if hasLauncherItem(a, "system-terminal-bare") {
+		t.Fatalf("the modifier added a row to the shipped list: %+v", results)
 	}
-	if a.Launcher.Selected != len(results)-1 {
-		t.Errorf("the selection is on %d, want the held row %d", a.Launcher.Selected, len(results)-1)
+	if a.Launcher.Selected != start {
+		t.Errorf("the selection is on %d, want the page's own %d", a.Launcher.Selected, start)
 	}
-	row, ok := tt.Find("Open Terminal")
+	band, ok := tt.Find("Open a terminal session")
 	if !ok {
-		t.Fatalf("the held row was not drawn: %q", tt.Texts())
+		t.Fatalf("the held band was not drawn: %q", tt.Texts())
 	}
+	// The band is *below* every result row: it is the panel's pinned line, not
+	// a row that joined the list (P11-bo, the user's F4-3 「固定底部」).
 	img := tt.Image()
 	cardLeft, cardRight := cardEdges(a)
-	panel := img.RGBAAt(int(cardLeft)+1, int(row.Y+row.H/2))
+	panel := img.RGBAAt(int(cardLeft)+1, int(band.Y+band.H/2))
 	tinted := 0
 	for x := int(cardLeft) + 1; x < int(cardRight); x++ {
-		if img.RGBAAt(x, int(row.Y+row.H/2)) != panel {
+		if img.RGBAAt(x, int(band.Y+band.H/2)) != panel {
 			tinted++
 		}
 	}
-	if tinted < 60 {
-		t.Errorf("the held row's band is not tinted: %d differing pixels across the row's line", tinted)
+	if tinted != 0 && tinted < 60 {
+		t.Errorf("the band's line is half tinted (%d px): it reads as a row of the list", tinted)
+	}
+	if bottom := float32(img.Rect.Max.Y); bottom-(band.Y+band.H) > 40 {
+		t.Errorf("the band's line is %.0f px above the frame's bottom edge: it is not pinned there",
+			bottom-(band.Y+band.H))
 	}
 
-	// Released: the row is gone and the selection is back on the page's default.
+	// Released: the band is gone and nothing else moved.
 	tt.HoldModifiers(0)
 	tt.Frame()
-	if hasLauncherItem(a, "system-terminal-bare") {
-		t.Errorf("the held row survived the release: %+v", a.Launcher.Results())
+	if tt.HasText("Open a terminal session") {
+		t.Errorf("the held band survived the release: %q", tt.Texts())
 	}
-	if tt.HasText("Open Terminal") {
-		t.Errorf("the released row is still on screen: %q", tt.Texts())
+	if a.Launcher.Selected != start {
+		t.Errorf("the release moved the selection to %d, want %d", a.Launcher.Selected, start)
 	}
 }
 
@@ -171,34 +178,34 @@ func TestTheTerminalSurfaceAndTheHeldActionAreTwoRows(t *testing.T) {
 		t.Fatalf("the query did not reach the terminal surface: %+v", results)
 	}
 
-	// Held over that query: still no held row — the reference's R64 placement.
+	// Held over that query: the band says it, and the list gains no row — the
+	// reference's R64 placement, now as a pinned band rather than a row.
 	tt.HoldModifiers(ui.Cmd)
 	tt.Frame()
 	if tt.HasText("Open Terminal") {
 		t.Errorf("a typed query drew the held row: %q", tt.Texts())
 	}
+	if !tt.HasText("Open a terminal session") {
+		t.Errorf("a typed query dropped the held band: %q", tt.Texts())
+	}
 
-	// The row's one page is the empty field, where it is the last line.
+	// The band's one page is every page of the ordinary search: the empty field
+	// too, where it is pinned below the recents.
 	tt.HoldModifiers(0)
 	tt.Frame()
 	a.Launcher.Query = ""
 	tt.Frame()
 	tt.HoldModifiers(ui.Cmd)
 	tt.Frame()
-	heldRow, ok := tt.Find("Open Terminal")
+	band, ok := tt.Find("Open a terminal session")
 	if !ok {
-		t.Fatalf("the empty page drew no held row: %q", tt.Texts())
+		t.Fatalf("the empty page drew no held band: %q", tt.Texts())
 	}
-	results = a.Launcher.Results()
-	if last := results[len(results)-1].ID; last != "system-terminal-bare" {
-		t.Fatalf("the held row is not the list's last line: %+v", results)
+	if hasLauncherItem(a, "system-terminal-bare") {
+		t.Fatalf("the empty page drew a held row beside the band: %+v", a.Launcher.Results())
 	}
-	if a.Launcher.Selected != len(results)-1 {
-		t.Errorf("the selection is on %d, want the held row %d", a.Launcher.Selected, len(results)-1)
-	}
-	if row, ok := tt.Find("Restart the computer"); ok && heldRow.Y <= row.Y {
-		t.Errorf("the held row is drawn above the first row: held y=%.0f, first y=%.0f",
-			heldRow.Y, row.Y)
+	if row, ok := tt.Find("Restart the computer"); ok && band.Y <= row.Y {
+		t.Errorf("the band is drawn above the first row: band y=%.0f, first y=%.0f", band.Y, row.Y)
 	}
 }
 

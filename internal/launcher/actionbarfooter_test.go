@@ -1,6 +1,7 @@
 package launcher
 
 import (
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -78,18 +79,20 @@ func TestTheActionBarTakesNoNumber(t *testing.T) {
 	if got := a.numbers[0]; got != 1 {
 		t.Errorf("the first result's number = %d, want 1 (%v)", got, a.numbers)
 	}
-	// The held modifier's own row can never reach a number either — it is the
-	// one row the numbered family cannot reach (the reference's R67).
+	// The held modifier's own line is not a row, so the numbered family cannot
+	// reach it: holding the modifier adds nothing to number.
 	b := testApp()
+	recentPage(b, 3)
 	tb := render(t, b)
+	rowsBefore := len(b.Results())
+	numsBefore := len(b.numbers)
 	tb.HoldModifiers(ui.Cmd)
 	tb.Frame()
-	bresults := b.Results()
-	if bresults[len(bresults)-1].ID != bareTerminalRowID {
-		t.Fatalf("the held row is not the list's last line: %v", ids(bresults))
+	if got := len(b.Results()); got != rowsBefore {
+		t.Fatalf("the held modifier added %d row(s) to the list: %v", got-rowsBefore, ids(b.Results()))
 	}
-	if _, ok := b.numbers[len(bresults)-1]; ok {
-		t.Errorf("the held row was numbered: %v", b.numbers)
+	if got := len(b.numbers); got != numsBefore {
+		t.Errorf("the held modifier numbered %d row(s) more: %v", got-numsBefore, b.numbers)
 	}
 }
 
@@ -567,41 +570,30 @@ func listIsTheCentredReferenceColumn(t *testing.T, dark bool) {
 	}
 }
 
-// R-next · The held modifier's row takes the selected face. It is the row Enter
-// would run — `syncHeldModifier` puts the choice on the list's last line — so
-// the user's 「应该有选中样式（当前缺失）」 is a painted fact, not an index: the
-// band carries the row's tint rather than the panel's own fill.
+// R-next · The held modifier's line wears **no** row face: it is the panel's
+// pinned band, so it is not the row Enter runs and not a chosen row (P11-bo).
+// The old build's 「应该有选中样式」 was about a row that is now the band's
+// sentence, and a tinted band would read as a row of the list again.
 func TestTheHeldRowWearsTheSelectedFace(t *testing.T) {
 	forEachAppearance(t, heldRowWearsTheSelectedFace)
 }
 
 func heldRowWearsTheSelectedFace(t *testing.T, dark bool) {
 	a := testApp()
+	recentPage(a, 3)
 	tt := renderIn(t, a, dark)
-	// The empty page: the row's one placement (R64). It closes the list, below
-	// the built-in commands and the recents.
 	tt.HoldModifiers(ui.Cmd)
 	tt.Frame()
-	row, ok := tt.Find("Open Terminal")
+	band, ok := tt.Find(a.copy().HeldTerminalHint)
 	if !ok {
-		t.Fatalf("the held row was not drawn: %q", tt.Texts())
+		t.Fatalf("the held line was not drawn: %q", tt.Texts())
 	}
 	img := tt.Image()
-	const x = 600 // past the row's texts, where only the row's fill shows
-	sel := img.RGBAAt(x, int(row.Y+row.H/2))
-	panel := img.RGBAAt(1, int(row.Y+row.H/2))
-	if sel == panel {
-		t.Errorf("the held row is untinted: %v over the panel's %v", sel, panel)
-	}
-	// And it is specifically the *chosen-row* rung, not just any tint: the two
-	// neutral rungs above it (hover 0.045 / selected 0.085 in the dark, 0.04 /
-	// 0.06 in the light) are different fills, and "tinted" alone would pass on
-	// a row that wore the hover rung. Mutation check: `launcher.go`'s selected
-	// branch → `RowHover` reddens this line on both appearances.
-	tokens := theme.ForPreferences(settings.Normalize(a.settings()), dark, ui.Preferences{})
-	if want := over(tokens.RowSelected, panel); !closeRGB(sel, want) {
-		t.Errorf("the held row's fill is %v, want the neutral chosen-row rung %v over the panel (→ %v)",
-			sel, tokens.RowSelected, want)
+	const x = 600 // past the line's texts, where only a band's fill would show
+	seen := img.RGBAAt(x, int(band.Y+band.H/2))
+	panel := img.RGBAAt(1, int(band.Y+band.H/2))
+	if seen != panel {
+		t.Errorf("the pinned band is tinted: %v over the panel's %v", seen, panel)
 	}
 }
 
@@ -617,64 +609,86 @@ func heldRowWearsTheSelectedFace(t *testing.T, dark bool) {
 // correction, 「前面加的按住在列表额外增加终端选项的逻辑要去掉」). The port had
 // kept R60's wider gesture, so a typed query drew the action word beside the
 // matches; the row is now the empty page's alone.
-func TestTheHeldRowIsTheEmptyPagesAlone(t *testing.T) {
+func TestTheHeldLineIsTheBandsAndNeverARow(t *testing.T) {
 	a := testApp()
+	recentPage(a, 12) // enough recents that the list itself scrolls
+	opened := 0
+	a.Actions.OpenTerminal = func() { opened++ }
 	tt := render(t, a)
+	resting := ids(a.Results())
+	selectedBefore := a.Selected
+
 	tt.HoldModifiers(ui.Cmd)
 	tt.Frame()
-	if got, want := a.Selected, len(a.Results())-1; got != want {
-		t.Fatalf("the press edge did not select the held row: selected=%d want=%d", got, want)
+
+	// The user's own line (F4-3): 「额外固定在底部…不属于任何列表项…不占排序」.
+	// The modifier adds no row and moves no choice: the list is the one it was.
+	if got := ids(a.Results()); !slices.Equal(got, resting) {
+		t.Fatalf("the held modifier changed the list: %v, want the recents alone %v", got, resting)
+	}
+	if a.Selected != selectedBefore {
+		t.Errorf("the held modifier moved the selection to %d, want %d", a.Selected, selectedBefore)
 	}
 
-	// Typing gives the row up: no action word on the page, and the choice
-	// returns to the query's own default (the action bar for a command line).
+	// One line on screen, and it is the band's sentence — not a row's action
+	// word beside it (the duplicate P11-bb left: both drew the same chord).
+	if n := countTexts(tt, a.copy().HeldTerminalHint); n != 1 {
+		t.Fatalf("the held line is on screen %d times, want exactly 1: %q", n, tt.Texts())
+	}
+	if tt.HasText("Open Terminal") {
+		t.Errorf("the held row's action word is on screen beside the band: %q", tt.Texts())
+	}
+
+	// The band is pinned to the panel's bottom edge: the list scrolls under it
+	// and the line does not move (it is not a row of the scroller).
+	at, ok := tt.Find(a.copy().HeldTerminalHint)
+	if !ok {
+		t.Fatalf("the held line has no box on the empty page: %q", tt.Texts())
+	}
+	top, _ := a.List.Visible()
+	tt.Wheel(InputWindowWidth/2, 300, 0, -240)
+	// A wheel event carries no modifiers of its own: hold the key again so the
+	// frame that follows is the same gesture's, only scrolled.
+	tt.HoldModifiers(ui.Cmd)
+	tt.Frame()
+	after, ok := tt.Find(a.copy().HeldTerminalHint)
+	if !ok {
+		t.Fatalf("the held line left the frame when the list scrolled: %q", tt.Texts())
+	}
+	if after.Y != at.Y {
+		t.Errorf("the held line moved with the list: y=%.1f → y=%.1f", at.Y, after.Y)
+	}
+	if now, _ := a.List.Visible(); now == top {
+		t.Logf("the wheel did not move the list (top row %d); the pin is asserted on a still list", top)
+	}
+
+	// The chord the band prints is the chord that runs it, on the empty page.
+	tt.Key(ui.Cmd, ui.KeyEnter)
+	tt.Frame()
+	if opened != 1 {
+		t.Fatalf("Super+Enter did not open a terminal on the empty page: opened=%d", opened)
+	}
+
+	// A typed query keeps the band and still gains no row of its own.
 	tt.Type("term")
 	tt.Frame()
-	if hasItem(a.Results(), bareTerminalRowID) {
-		t.Fatalf("a typed query kept the held row: %v", ids(a.Results()))
+	if n := countTexts(tt, a.copy().HeldTerminalHint); n != 1 {
+		t.Fatalf("a typed query drew the held line %d times, want exactly 1: %q", n, tt.Texts())
 	}
-	if tt.HasText(a.copy().BareTerminal) {
-		t.Errorf("the held row's action word is still on screen: %q", tt.Texts())
+	if tt.HasText("Open Terminal") {
+		t.Errorf("a typed query drew the held row beside the band: %q", tt.Texts())
 	}
-	if a.Selected >= len(a.Results()) {
-		t.Errorf("the selection = %d, past the list's %d rows", a.Selected, len(a.Results()))
-	}
-
-	// Clearing the field brings it back — last, and selected.
-	a.Query = ""
+	tt.Key(ui.Cmd, ui.KeyEnter)
 	tt.Frame()
-	results := a.Results()
-	if last := results[len(results)-1].ID; last != bareTerminalRowID {
-		t.Fatalf("the cleared field did not bring the row back as the last line: %v", ids(results))
-	}
-	if a.Selected != len(results)-1 {
-		t.Errorf("the selection is on %d, want the held row %d", a.Selected, len(results)-1)
+	if opened != 2 {
+		t.Errorf("Super+Enter did not open a terminal on a typed field: opened=%d", opened)
 	}
 
-	// The row's trailing badge is the action bar's own chord — not the empty
-	// slot the port had, and not a number either.
-	//
-	// R67 on the reference itself (`main:src/launcher/LauncherResults.tsx:1004-1018`):
-	// the row carries no `shortcut` of its own in `bareTerminalRow`, and the
-	// numbered family never reaches it — `resultShortcutSlots[index]` is null
-	// there — so `LauncherResults` substitutes `actionBarShortcut` for exactly
-	// this row (`isBareTerminalRow(item) ? actionBarShortcut : …`). The port
-	// read only the first half of that and printed nothing where every other
-	// row on the page prints its key; this pins the substituted chord.
-	held := results[len(results)-1]
-	if want := a.enterBadge(); held.Shortcut != want {
-		t.Errorf("the held row prints %q, want the action bar's chord %q (R67)",
-			held.Shortcut, want)
-	}
-	if held.Shortcut == "" {
-		t.Error("the held row is the page's only row with no key hint at all")
-	}
-
-	// Releasing gives the row up for good — it is not a fixed item.
+	// Releasing gives the line up for good — it is not a fixed item.
 	tt.HoldModifiers(0)
 	tt.Frame()
-	if hasItem(a.Results(), bareTerminalRowID) {
-		t.Errorf("the held row survived the release: %v", ids(a.Results()))
+	if tt.HasText(a.copy().HeldTerminalHint) {
+		t.Errorf("the held line survived the release: %q", tt.Texts())
 	}
 }
 
@@ -923,4 +937,28 @@ func actionBarBand(a *App, results []Item) float64 {
 		return 0
 	}
 	return a.Spacing * actionBarUnits * float64(len(results)-bar)
+}
+
+// The held line costs the window no row: the user's 「不占排序」 read as a
+// number. The list's row budget and its numbered family are the page's own
+// with the modifier up or down (P11-bo).
+func TestTheHeldLineTakesNoRowOfTheWindow(t *testing.T) {
+	a := testApp()
+	recentPage(a, 3)
+	tt := render(t, a)
+	rows, numbers := len(a.Rows), len(a.numbers)
+
+	tt.HoldModifiers(ui.Cmd)
+	tt.Frame()
+	if got := len(a.Rows); got != rows {
+		t.Errorf("the held line took %d row(s) of the window's budget: %d → %d", got-rows, rows, got)
+	}
+	if len(a.numbers) != numbers {
+		t.Errorf("the held line added %d numbered slot(s): %d → %d", len(a.numbers)-numbers, numbers, len(a.numbers))
+	}
+	for i := range a.numbers {
+		if i >= len(a.Results()) {
+			t.Errorf("a number sits at %d, past the list's %d rows", i, len(a.Results()))
+		}
+	}
 }

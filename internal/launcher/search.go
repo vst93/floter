@@ -849,20 +849,17 @@ func (a *App) Results() []Item {
 	// 「现在固定在第一项」 was this row drawn first, above the results; the
 	// reference's footer position is the fix.
 	out = append(out, a.actionBarItemsWith(other, true)...)
-	// The held modifier's own line closes the panel — on the *empty* field only,
-	// which is the reference's one placement (R64,
-	// `main:src/launcher/terminal-row.ts:77-85`: a typed query draws the row not
-	// at all). It rides the modifier — it is gone the moment the key is
-	// released — and it is appended after the bar so it is genuinely the last
-	// line, below the recents, the way the reference appended its own held row.
-	if item, ok := a.heldTerminalItem(); ok {
-		out = append(out, item)
-	}
+	// The held modifier's own line is **not** a row of this list (P11-bo, the
+	// user's F4-3: 「额外固定在底部…不属于任何列表项…不占排序」). It is the
+	// panel's pinned bottom band (`heldHintRow`), which is drawn on the empty
+	// field and on a typed one alike and never takes a number, a sort position
+	// or the selection. Before this round the band and a list row both showed on
+	// the empty field — the same chord twice on one screen.
 	return out
 }
 
-// otherResults is everything but the action bar and the held-modifier row:
-// the calculator, the recents (on an empty field), and the ranked catalog.
+// otherResults is everything but the action bar: the calculator, the recents
+// (on an empty field), and the ranked catalog.
 func (a *App) otherResults() []Item {
 	var out []Item
 	if item, ok := a.calculator(); ok {

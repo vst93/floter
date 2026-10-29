@@ -330,61 +330,50 @@ func TestModeEmptyMessages(t *testing.T) {
 	}
 }
 
-// The held modifier's row: while the app modifier is down on an empty field,
-// the list ends with a bare terminal session and the selection is on it, so
-// Enter reaches it without a second key. A query, or a mode, shows nothing.
+// The held modifier's line is the panel's **pinned bottom band**: while the app
+// modifier is down the band says so, on the empty field and on a typed one
+// alike, and the list never gains a row for it (P11-bo; the user's F4-3:
+// 「额外固定在底部…不属于任何列表项…不占排序」). Before this round the empty page
+// drew both — a row *and* the band, the same chord twice.
 func TestHeldModifierBareTerminalRow(t *testing.T) {
 	a := testApp()
+	recentPage(a, 3)
 	opened := 0
 	a.Actions.OpenTerminal = func() { opened++ }
 	tt := render(t, a)
 	tt.Frame()
-	if got := a.Results(); hasItem(got, "system-terminal-bare") {
-		t.Errorf("the row shows with the modifier up: %+v", got)
+	if tt.HasText(a.copy().HeldTerminalHint) {
+		t.Error("the line shows with the modifier up")
 	}
+	rows := strings.Join(ids(a.Results()), "|")
 	tt.HoldModifiers(ui.Cmd)
 	tt.Frame()
-	results := a.Results()
-	if !hasItem(results, "system-terminal-bare") {
-		t.Fatalf("the row is missing while the modifier is held: %+v", results)
+	if got := strings.Join(ids(a.Results()), "|"); got != rows {
+		t.Errorf("the modifier changed the list: %v, want %v", got, rows)
 	}
-	// It is the list's last line, and the selection is on it.
-	if results[len(results)-1].ID != "system-terminal-bare" {
-		t.Errorf("the row is not last: %+v", results)
+	if !tt.HasText(a.copy().HeldTerminalHint) {
+		t.Fatalf("the band's line is missing while the modifier is held: %q", tt.Texts())
 	}
-	if a.Selected != len(results)-1 {
-		t.Errorf("the selection is on %d, want the held row %d", a.Selected, len(results)-1)
-	}
-	// The chord that put the row there opens it: the modifier is still held
-	// when Enter is pressed.
+	// The chord the band prints opens it, with no row to select first.
 	tt.Key(ui.Cmd, ui.KeyEnter)
 	tt.Frame()
 	if opened != 1 {
 		t.Errorf("Enter opened %d sessions", opened)
 	}
-	// Releasing the modifier drops the row and resets the selection to the
-	// empty page's own default (its first runnable row, the reference's R64
-	// release edge — unconditional, as the reference's is).
 	tt.HoldModifiers(0)
 	tt.Frame()
-	if hasItem(a.Results(), "system-terminal-bare") {
-		t.Errorf("the row survived the release: %+v", a.Results())
+	if tt.HasText(a.copy().HeldTerminalHint) {
+		t.Errorf("the line survived the release: %q", tt.Texts())
 	}
-	if a.Selected != a.firstSelectable() {
-		t.Errorf("the selection did not come back: %d, want the page's default %d", a.Selected, a.firstSelectable())
-	}
-	// A typed query turns the row away: the reference's one placement is the
-	// empty field (R64, `main:src/launcher/terminal-row.ts:77-85`). The port
-	// had kept R60's input-state append, so the action word showed up beside
-	// the matches — the report 「输入框中有输入内容时出现的「在终端中打开」项：
-	// 现在固定在第一项（错误）」. Type first, then hold, the order the report
-	// names.
+	// A typed query keeps the band and still gains no row.
 	tt.Type("zzz")
 	tt.HoldModifiers(ui.Cmd)
 	tt.Frame()
-	got := a.Results()
-	if hasItem(got, "system-terminal-bare") {
-		t.Fatalf("a typed query kept the held row: %+v", got)
+	if !tt.HasText(a.copy().HeldTerminalHint) {
+		t.Errorf("a typed query dropped the band's line: %q", tt.Texts())
+	}
+	if strings.Contains(strings.Join(ids(a.Results()), "|"), "system-terminal-bare") {
+		t.Fatalf("a typed query kept a held row: %+v", ids(a.Results()))
 	}
 }
 
@@ -1097,23 +1086,28 @@ func TestCalculatorTrailingResult(t *testing.T) {
 	}
 }
 
-// The held row leads with the terminal glyph, the reference's own icon for the
-// bare-terminal row (`.launcher-result__icon--system` → SystemActionIcon): the
-// recents' clock the id used to fall through to was never drawn there.
+// The held line is pinned to the frame's bottom edge: it is the band, not a row
+// of the scroller (P11-bo, the user's F4-3: 「不受滚动影响」).
 func TestHeldModifierRowCarriesTheTerminalGlyph(t *testing.T) {
 	a := testApp()
+	recentPage(a, 3)
 	tt := render(t, a)
-	tt.Frame()
 	tt.HoldModifiers(ui.Cmd)
 	tt.Frame()
-	results := a.Results()
-	item := results[len(results)-1]
-	if item.ID != "system-terminal-bare" {
-		t.Fatalf("the held row is not last: %+v", results)
+	band, ok := tt.Find(a.copy().HeldTerminalHint)
+	if !ok {
+		t.Fatalf("the band's line is missing while the modifier is held: %q", tt.Texts())
 	}
-	glyph, ok := rowGlyph(item)
-	if !ok || glyph != glyphTerminal {
-		t.Errorf("the held row's glyph = %v, want the terminal mark", ok)
+	results := a.Results()
+	if len(results) == 0 {
+		t.Fatalf("the empty page has no recents to sit above the band")
+	}
+	if last, ok := tt.Find(results[len(results)-1].Title); ok && last.Y > band.Y {
+		t.Errorf("a result row is drawn below the band: row y=%.1f, band y=%.1f", last.Y, band.Y)
+	}
+	bottom := float32(tt.Image().Rect.Max.Y)
+	if gap := bottom - (band.Y + band.H); gap > 30 {
+		t.Errorf("the band's line is %.1f px above the frame's bottom edge: it is not pinned there", gap)
 	}
 }
 
@@ -1124,6 +1118,7 @@ func TestHeldModifierRowCarriesTheTerminalGlyph(t *testing.T) {
 // is given the room; the list stays at its top.
 func TestHeldModifierRowIsNotScrolledIntoView(t *testing.T) {
 	a := testApp()
+	recentPage(a, 12) // rows to scroll: the empty page alone has none here
 	// A window that holds only part of the list: the reference's own world —
 	// the row lands below the fold, so a scroll is a scroll the user sees.
 	tt := ui.NewTester(func(c *ui.Context) { a.View(c) }, InputWindowWidth, int(WindowHeight("small"))+120)

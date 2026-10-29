@@ -18,6 +18,7 @@ package launcher
 // search back in place — which is how it survived this long.
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
@@ -99,24 +100,27 @@ func TestADrawWalksTheCatalogOnce(t *testing.T) {
 	}
 }
 
-// TestTheModifierEdgesStillOwnTheSelection is the behaviour the counting above
-// must not have bought its speed from: the press edge still puts the held row
-// in the selection and the release edge still hands it back.
-func TestTheModifierEdgesStillOwnTheSelection(t *testing.T) {
+// TestTheModifierEdgesMoveNoRowOnTheEmptyPage is the behaviour the counting
+// above must not have bought its speed from: the modifier's edges still land
+// (that state is what the band reads), and on the empty page they move
+// nothing — P11-bo, the held line is the band and not a row (F4-3).
+func TestTheModifierEdgesMoveNoRowOnTheEmptyPage(t *testing.T) {
 	a := testApp()
+	recentPage(a, 3)
 	tt := render(t, a)
+	list := ids(a.Results())
+	selected := a.Selected
 
 	tt.HoldModifiers(ui.Cmd)
 	tt.Frame()
 	if !a.modifierHeld {
 		t.Fatal("the modifier is not held after its press frame")
 	}
-	results := a.Results()
-	if len(results) == 0 || results[len(results)-1].ID != bareTerminalRowID {
-		t.Fatalf("the held row is not the list's last line: %v", ids(results))
+	if got := ids(a.Results()); !slices.Equal(got, list) {
+		t.Errorf("the press edge changed the empty page's list: %v, want %v", got, list)
 	}
-	if a.Selected != len(results)-1 {
-		t.Errorf("the press edge left the selection on %d, want the held row %d", a.Selected, len(results)-1)
+	if a.Selected != selected {
+		t.Errorf("the press edge moved the selection to %d, want %d", a.Selected, selected)
 	}
 
 	tt.HoldModifiers(0)
@@ -124,12 +128,10 @@ func TestTheModifierEdgesStillOwnTheSelection(t *testing.T) {
 	if a.modifierHeld {
 		t.Fatal("the modifier is still held after its release frame")
 	}
-	results = a.Results()
-	if len(results) > 0 && results[len(results)-1].ID == bareTerminalRowID {
-		t.Errorf("the held row survived the release: %v", ids(results))
+	if got := ids(a.Results()); !slices.Equal(got, list) {
+		t.Errorf("the release edge changed the empty page's list: %v, want %v", got, list)
 	}
-	if a.Selected != a.defaultSelection(results) {
-		t.Errorf("the release left the selection on %d, want the page's default %d",
-			a.Selected, a.defaultSelection(results))
+	if a.Selected != selected {
+		t.Errorf("the release edge moved the selection to %d, want %d", a.Selected, selected)
 	}
 }

@@ -333,14 +333,14 @@ func (a *App) defaultsToShell(results []Item) bool {
 		if item.Run == nil {
 			continue
 		}
-		// The bar's own rows and the modifier's held row are not matches the
-		// query reached: they are the field's hand-off and a gesture's row.
-		// Counting them as runnable would answer "this shell line has a result"
-		// with the row that *is* the shell line — the reference passed the
-		// matches (`otherResults`) for exactly that reason. The caller now hands
-		// the whole composed list (see defaultSelection), because a second
-		// catalog match for the difference was a whole search per keystroke.
-		if strings.HasPrefix(item.ID, "bar:") || item.ID == bareTerminalRowID {
+		// The bar's own rows are not matches the query reached: they are the
+		// field's hand-off. Counting them as runnable would answer "this shell
+		// line has a result" with the row that *is* the shell line — the
+		// reference passed the matches (`otherResults`) for exactly that reason.
+		// The caller now hands the whole composed list (see defaultSelection),
+		// because a second catalog match for the difference was a whole search
+		// per keystroke.
+		if strings.HasPrefix(item.ID, "bar:") {
 			continue
 		}
 		runnable++

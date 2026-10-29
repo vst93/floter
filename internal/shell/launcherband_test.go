@@ -165,17 +165,19 @@ func TestTheHeldRowOnlyExistsOnTheEmptyField(t *testing.T) {
 	tt := appKeysRender(t, a)
 	emptyRows := len(a.Launcher.Results())
 
+	// The modifier adds no row at all now: its line is the panel's pinned band
+	// (P11-bo), so the empty page keeps its row count and gains the band's
+	// sentence instead.
 	tt.HoldModifiers(ui.Cmd)
 	tt.Frame()
-	heldRows := a.Launcher.Results()
-	if len(heldRows) != emptyRows+1 {
-		t.Fatalf("the held empty page has %d rows, want the page's %d plus one", len(heldRows), emptyRows)
+	if got := len(a.Launcher.Results()); got != emptyRows {
+		t.Fatalf("the held empty page has %d rows, want the page's own %d", got, emptyRows)
 	}
-	if last := heldRows[len(heldRows)-1]; last.ID != "system-terminal-bare" {
-		t.Errorf("the held row is %q, not the page's last line", last.ID)
+	if !tt.HasText("Open a terminal session") {
+		t.Fatalf("the held empty page drew no band: %q", tt.Texts())
 	}
-	if a.Launcher.Selected != len(heldRows)-1 {
-		t.Errorf("the held row is not selected: selected=%d of %d", a.Launcher.Selected, len(heldRows))
+	if a.Launcher.Selected != 0 {
+		t.Errorf("the modifier moved the selection to %d, want the page's own 0", a.Launcher.Selected)
 	}
 
 	// Typed, the same gesture adds nothing: the footer takes the selection

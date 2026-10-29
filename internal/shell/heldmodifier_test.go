@@ -28,26 +28,29 @@ func TestHeldModifierRowGrowsTheWindowAndRecedes(t *testing.T) {
 		t.Fatal("the launcher did not report a height")
 	}
 
-	// Press: the row appears, the selection goes to it, the window grows.
+	// Press: the panel's pinned band says it, the window grows for the band,
+	// and no row joins the list (P11-bo).
 	tt.HoldModifiers(ui.Cmd)
 	tt.Frame()
-	if !hasLauncherItem(a, "system-terminal-bare") {
-		t.Fatalf("the held row is missing: %+v", a.Launcher.Results())
+	if hasLauncherItem(a, "system-terminal-bare") {
+		t.Fatalf("the modifier added a row to the list: %+v", a.Launcher.Results())
 	}
-	results := a.Launcher.Results()
-	if a.Launcher.Selected != len(results)-1 {
-		t.Errorf("the selection is on %d, want the held row %d", a.Launcher.Selected, len(results)-1)
+	if !tt.HasText("Open a terminal session") {
+		t.Fatalf("the held band is missing: %q", tt.Texts())
+	}
+	if a.Launcher.Selected != 0 {
+		t.Errorf("the press edge moved the selection to %d, want the page's own 0", a.Launcher.Selected)
 	}
 	grown := a.launcherTarget
 	if grown <= base {
-		t.Errorf("the window did not grow: %d -> %d", base, grown)
+		t.Errorf("the window did not grow for the band: %d -> %d", base, grown)
 	}
 
-	// Release: the row is gone and the window is back at its own height.
+	// Release: the band is gone and the window is back at its own height.
 	tt.HoldModifiers(0)
 	tt.Frame()
-	if hasLauncherItem(a, "system-terminal-bare") {
-		t.Errorf("the row survived the release: %+v", a.Launcher.Results())
+	if tt.HasText("Open a terminal session") {
+		t.Errorf("the band survived the release: %q", tt.Texts())
 	}
 	if a.launcherTarget != base {
 		t.Errorf("the window did not recede: %d -> %d -> %d", base, grown, a.launcherTarget)
@@ -86,20 +89,20 @@ func TestATypedQueryDrawsNoHeldRow(t *testing.T) {
 // The row's one placement is the empty page's last line, and it keeps the
 // selection there while the list is rebuilt under it (the empty page's list can
 // change shape — a dropped file, a clipboard row — without the modifier moving).
-func TestTheHeldRowIsTheEmptyPagesLastLine(t *testing.T) {
+func TestTheHeldBandIsTheEmptyPagesLastBand(t *testing.T) {
 	a := appKeysApp()
 	tt := appKeysRender(t, a)
+	rows := len(a.Launcher.Results())
 	tt.HoldModifiers(ui.Cmd)
 	tt.Frame()
-	results := a.Launcher.Results()
-	if !hasLauncherItem(a, "system-terminal-bare") {
-		t.Fatalf("the empty page drew no held row: %+v", results)
+	if got := len(a.Launcher.Results()); got != rows {
+		t.Errorf("the modifier added %d row(s) to the empty page: %+v", got-rows, a.Launcher.Results())
 	}
-	if results[len(results)-1].ID != "system-terminal-bare" {
-		t.Errorf("the held row is not the last line: %+v", results)
+	if !tt.HasText("Open a terminal session") {
+		t.Fatalf("the empty page drew no held band: %q", tt.Texts())
 	}
-	if a.Launcher.Selected != len(results)-1 {
-		t.Errorf("the selection is on %d, want the held row %d", a.Launcher.Selected, len(results)-1)
+	if a.Launcher.Selected != 0 {
+		t.Errorf("the selection is on %d, want the page's own first row 0", a.Launcher.Selected)
 	}
 }
 
@@ -130,36 +133,35 @@ func hasLauncherItem(a *App, id string) bool {
 func TestHeldModifierReleaseRestoresThePageDefault(t *testing.T) {
 	a := appKeysAppWithRecents()
 	tt := appKeysRender(t, a)
+	start := a.Launcher.Selected
 
+	// The press edge moves nothing: the held line is the band, not a row, so
+	// there is no row to preselect (P11-bo, the user's F4-3 「不占排序」).
 	tt.HoldModifiers(ui.Cmd)
 	tt.Frame()
-	results := a.Launcher.Results()
-	if a.Launcher.Selected != len(results)-1 {
-		t.Fatalf("the press edge did not select the held row")
+	if a.Launcher.Selected != start {
+		t.Fatalf("the press edge moved the selection to %d, want %d", a.Launcher.Selected, start)
 	}
-	// The user steps off with the arrows during the gesture: theirs now.
+	// The user steps with the arrows during the gesture: theirs stays.
 	tt.Key(0, ui.KeyDown)
 	tt.Frame()
 	moved := a.Launcher.Selected
-	if moved == len(results)-1 {
+	if moved == start {
 		t.Fatal("the arrow did not move the selection; the test cannot prove its rule")
 	}
-
 	tt.HoldModifiers(0)
 	tt.Frame()
 	if a.Launcher.Selected != moved {
-		t.Errorf("the release selection = %d, want the default %d (the reset is unconditional)", a.Launcher.Selected, moved)
+		t.Errorf("the release moved the selection to %d, want the user's %d", a.Launcher.Selected, moved)
 	}
 
-	// Without the step, the release lands on the page's default too: the
-	// first row the keyboard can act on (the reference's
-	// `firstRunnableResultIndex`) — the recents' first row, past the block's
-	// heading.
+	// A press and release with no step leaves the page's own row alone.
+	a.Launcher.Selected = recentRowIndex(a.Launcher, "Recent 00")
 	tt.HoldModifiers(ui.Cmd)
 	tt.Frame()
 	tt.HoldModifiers(0)
 	tt.Frame()
 	if want := recentRowIndex(a.Launcher, "Recent 00"); a.Launcher.Selected != want {
-		t.Errorf("the release selection = %d, want the page's first selectable row %d", a.Launcher.Selected, want)
+		t.Errorf("the release selection = %d, want the page's own %d", a.Launcher.Selected, want)
 	}
 }

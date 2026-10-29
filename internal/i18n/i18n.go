@@ -44,8 +44,6 @@ type Launcher struct {
 	// TriggerHint nudges that a typed word is a plugin command's trigger and
 	// a space enters its mode ("{name} · enter"), TriggerHintMore adding the
 	// count of commands it could still become.
-	// BareTerminal is the held modifier's own row: a terminal session with no
-	// command, and the line under it that says so.
 	// The tray menu: show the panel, open the settings, re-scan, quit.
 	TrayShow     string
 	TraySettings string
@@ -82,8 +80,6 @@ type Launcher struct {
 	// the way the old build's `settings.openHint` interpolated it.
 	FieldSessionsHint string
 	FieldSettingsHint func(shortcut string) string
-	BareTerminal      string
-	BareTerminalHint  string
 	// HeldTerminalHint is the docked band's sentence while the app modifier
 	// is held: the chord beside it (`Super+Enter`) opens a terminal session,
 	// and on a typed query the row that would say so is not drawn (P11-bb).
@@ -133,8 +129,8 @@ type Launcher struct {
 	ResultsLabel string
 	// The built-in commands the P1 catalog offers. `CommandTerminal` names the
 	// terminal *surface* (the reference's `system.terminal`), never the
-	// modifier-held row's action word — that one is `BareTerminal`
-	// (`main:src/i18n.ts:59-60,886-887`).
+	// modifier-held line — that one is `HeldTerminalHint` (the panel's pinned
+	// band, P11-bo).
 	CommandSettings       string
 	CommandTerminal       string
 	CommandTerminalHint   string

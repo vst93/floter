@@ -142,7 +142,7 @@ func numberableRow(a *App, i int) bool {
 		return false
 	}
 	item := results[i]
-	return item.Run != nil && !strings.HasPrefix(item.ID, "bar:") && item.ID != bareTerminalRowID
+	return item.Run != nil && !strings.HasPrefix(item.ID, "bar:")
 }
 
 // P11-bb · **按住修饰键时，底部那条带常驻一行 `Super+Enter 快捷进入终端`。**
