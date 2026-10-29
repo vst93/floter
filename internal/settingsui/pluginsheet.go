@@ -473,4 +473,4 @@ func stringsOf(value any) []string {
 }
 
 // language is the stored interface language, for the copy the sheet owns.
-func (a *App) language() string { return a.Store.Snapshot().Language }
+func (a *App) language() string { return a.settings().Language }

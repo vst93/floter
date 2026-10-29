@@ -166,7 +166,7 @@ func (a *App) uninstallDialog(c *ui.Context, copy i18n.Settings, integration Int
 		// the same two shadows the terminal panel's own note carries.
 		// P11-an：两条 throw 都乘 `--elev-shadow-scale`（`theme.ElevThrow`），
 		// 于是透明度滑块往下拉时，对话框的投影跟着变轻。
-		theme.ElevThrow(panel, t, a.Store.Snapshot().MainOpacity)
+		theme.ElevThrow(panel, t, a.settings().MainOpacity)
 		panel.InsetShadow(0, 1, 0, 0, tokens.LensRim)
 		// `overflow-y: auto` (`:17-34`): a short window scrolls the questions
 		// instead of pushing the actions outside the pane. The scroll viewport

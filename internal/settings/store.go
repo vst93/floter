@@ -22,6 +22,12 @@ type Store struct {
 	// that memoizes a snapshot (the launcher's frame does) can tell a stale
 	// copy from the current one without comparing the whole value.
 	version uint64
+	// snapshots counts the copies `Snapshot` has taken. A copy is a deep copy
+	// of the whole value (`clone`), so a frame that takes one per row is a
+	// measurable cost; this counter is what the pins read to prove a surface
+	// takes one per frame instead (P11-co). It is one increment under the lock
+	// the read already takes.
+	snapshots uint64
 
 	// save is the write path, a field so tests can observe or refuse one
 	// without a real file. Production always uses Save.
@@ -63,7 +69,17 @@ func (st *Store) Version() uint64 {
 func (st *Store) Snapshot() Settings {
 	st.mu.Lock()
 	defer st.mu.Unlock()
+	st.snapshots++
 	return clone(st.current)
+}
+
+// Snapshots counts the copies this store has handed out, so a test can see
+// how many a frame took: a surface that memoizes the value takes one per
+// change, however many rows read it (P11-co).
+func (st *Store) Snapshots() uint64 {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	return st.snapshots
 }
 
 // Update mutates the settings and writes them back. The mutation runs on a

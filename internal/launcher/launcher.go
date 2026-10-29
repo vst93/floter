@@ -202,10 +202,10 @@ type App struct {
 
 	// The frame's memo of the settings snapshot and of the theme tokens built
 	// from it (see `settings` and `tokens`). Both were rebuilt per row before,
-	// which is where most of a frame's allocations went.
-	settingsVersion  uint64
-	settingsCached   settings.Settings
-	settingsValid    bool
+	// which is where most of a frame's allocations went. The snapshot half is
+	// `settings.Memo` (P11-co): the same version-keyed cache the settings and
+	// terminal surfaces read, rather than a third hand-written copy of it.
+	settingsMemo     settings.Memo
 	tokensMemo       theme.Memo
 	shortcutsVersion uint64
 	shortcutsCached  map[string]string
@@ -1112,24 +1112,16 @@ func New(store *settings.Store, actions Actions) *App {
 }
 
 // settings is the current normalized settings.
+//
+// The frame reads the settings from every row it draws (the row's tokens, its
+// glyphs, the bar's faces). Snapshot copies the whole value — including the
+// map of keys this build does not own — so asking it once per row was the
+// single largest allocation source of a frame (28% of the objects in
+// BenchmarkLauncherFrame). The memo is keyed by the store's version, which is
+// exact (see `settings.Memo`), so it can never serve a value the store no
+// longer holds.
 func (a *App) settings() settings.Settings {
-	if a.Store == nil {
-		return settings.Settings{}
-	}
-	// The frame reads the settings from every row it draws (the row's tokens,
-	// its glyphs, the bar's faces). Snapshot copies the whole value — including
-	// the map of keys this build does not own — so asking it once per row was
-	// the single largest allocation source of a frame (28% of the objects in
-	// BenchmarkLauncherFrame). The store's version is the exact key: same
-	// version, same value, and a change (a slider's preview included) bumps it,
-	// so the memo can never serve a value the store no longer holds.
-	version := a.Store.Version()
-	if a.settingsValid && a.settingsVersion == version {
-		return a.settingsCached
-	}
-	s := a.Store.Snapshot()
-	a.settingsVersion, a.settingsCached, a.settingsValid = version, s, true
-	return s
+	return a.settingsMemo.Get(a.Store)
 }
 
 // tokens is the frame's theme tokens. `theme.ForPreferences` builds a whole

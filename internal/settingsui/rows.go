@@ -43,7 +43,7 @@ func (a *App) tokens(c *ui.Context) theme.Tokens {
 		a.tokensStore, a.tokensMemo = a.Store, theme.Memo{}
 	}
 	t := c.Theme()
-	return a.tokensMemo.Tokens(a.Store.Version(), t.Dark, c.Preferences(), a.Store.Snapshot)
+	return a.tokensMemo.Tokens(a.Store.Version(), t.Dark, c.Preferences(), a.settings)
 }
 
 // pageColumn is the column every settings page's body is drawn in: full

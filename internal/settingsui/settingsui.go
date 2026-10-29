@@ -655,6 +655,15 @@ type App struct {
 	tokensStore *settings.Store
 	tokensMemo  theme.Memo
 
+	// settingsMemo is this surface's copy of the settings value (P11-co). A
+	// frame read it fifteen times on the General page and fifty-three on the
+	// Integrations page — once per card, once per row, once per word — and
+	// `Store.Snapshot` deep-copies the whole value, the carried-through keys
+	// included (`settings.clone` was 9.31% of a General frame's allocated
+	// objects). Readers that run off the render thread keep asking the store
+	// directly: a Memo belongs to one reader and is not safe for concurrent use.
+	settingsMemo settings.Memo
+
 	// Now is the panel's time source, injectable so the save-failure banner's
 	// window can be exercised without waiting for it; nil means the wall
 	// clock.
@@ -1054,7 +1063,7 @@ type page struct {
 
 // page returns the i-th page's copy.
 func (a *App) page(i int) page {
-	c := i18n.For(a.Store.Snapshot().Language).Settings
+	c := i18n.For(a.settings().Language).Settings
 	switch i {
 	case PageSessions:
 		return page{c.PageSessions, c.PageSessionsHint}
@@ -1087,7 +1096,7 @@ func (a *App) syncShortcutSuspension() {
 // View builds the settings surface: the page list beside the body.
 func (a *App) View(c *ui.Context) {
 	defer a.syncShortcutSuspension()
-	copy := i18n.For(a.Store.Snapshot().Language).Settings
+	copy := i18n.For(a.settings().Language).Settings
 	t := c.Theme()
 
 	// A write the page's own controls could not commit is announced for a few
@@ -1702,7 +1711,7 @@ func (a *App) integrations(c *ui.Context, copy i18n.Settings) {
 			// panel had it: it decides whether the search offers them at all.
 			a.card(c, func() {
 				a.checkbox(c, copy.ShowCommandsInSearch, copy.ShowCommandsInSearchHint,
-					settings.ShowCommandsInSearch(a.Store.Snapshot()),
+					settings.ShowCommandsInSearch(a.settings()),
 					func(on bool) {
 						a.set(func(s *settings.Settings) { s.SetShowCommandsInSearch(on) })
 					})
@@ -1743,7 +1752,7 @@ type basePlugin struct {
 // calculator has no persisted on/off field, so it carries no switch rather
 // than a dead one.
 func (a *App) basePlugins(copy i18n.Settings) []basePlugin {
-	s := a.Store.Snapshot()
+	s := a.settings()
 	return []basePlugin{
 		{
 			ID: settings.CustomPluginClipboard, Name: copy.BaseClipboard, Hint: copy.BaseClipboardHint,
@@ -2353,7 +2362,7 @@ func (a *App) approvalDetail(c *ui.Context, copy i18n.Settings, record *Approval
 	}
 	a.row(c, copy.ApprovalRecordDigest, digest, func() {})
 	a.row(c, copy.ApprovalRecordDigestCurrent, current, func() {})
-	language := a.Store.Snapshot().Language
+	language := a.settings().Language
 	stale := extensions.ApprovalIsStale(record.ApprovedDigest, record.CurrentDigest)
 	// The changed-manifest warning is *reported*, never acted on: "the approval
 	// no longer covers the bytes on disk" is a prompt to re-approve, not a
@@ -2977,7 +2986,7 @@ func (a *App) toggleAudit(id string) {
 // nothing was lost by removing it.
 func (a *App) permissionAudit(c *ui.Context, copy i18n.Settings, integration Integration) {
 	t := a.cardTheme(c)
-	language := a.Store.Snapshot().Language
+	language := a.settings().Language
 	if !a.auditOpen[integration.ID] {
 		return
 	}
@@ -3179,7 +3188,7 @@ func firstTriggerWord(source string) string {
 // permissionLine names the package's permissions, marking the ones the host
 // itself decides.
 func (a *App) permissionLine(integration Integration, copy i18n.Settings) string {
-	language := a.Store.Snapshot().Language
+	language := a.settings().Language
 	parts := make([]string, 0, len(integration.Permissions))
 	for _, permission := range integration.Permissions {
 		label := i18n.PermissionLabel(language, permission)
@@ -3601,7 +3610,7 @@ func (a *App) shortcutWarning(action string, copy i18n.Settings) string {
 
 // binding is one action's accelerator, from the settings.
 func (a *App) binding(action string) string {
-	return settings.Shortcut(a.Store.Snapshot(), action)
+	return settings.Shortcut(a.settings(), action)
 }
 
 // shortcutRow is one shortcut: its name, its keys, and the recorder.
@@ -4015,7 +4024,7 @@ func (a *App) summonShortcut() string {
 // general is the General page: the settings the loader owns, each a real
 // control writing straight through the store.
 func (a *App) general(c *ui.Context, copy i18n.Settings) {
-	s := a.Store.Snapshot()
+	s := a.settings()
 
 	a.pageColumn(c, func() {
 		a.section(c, copy.GroupAppearance, "", func() {
@@ -4477,7 +4486,7 @@ func (a *App) text(c *ui.Context, label, description, placeholder, value string,
 // is the default). The rule is `valuedomain.NormalizeAppIcon`, the same one the
 // tray reads when it picks the artwork.
 func (a *App) appIcon() string {
-	value, _ := a.Store.Snapshot().Extra()["app_icon"].(string)
+	value, _ := a.settings().Extra()["app_icon"].(string)
 	return valuedomain.NormalizeAppIcon(value)
 }
 
@@ -4603,7 +4612,7 @@ func residencyCustomLabel(copy i18n.Settings, value uint32, selectValue string) 
 // reference's `SurfaceResidencyControl` (`GeneralPage.tsx:157-250`). The row
 // never grows a second line for the field.
 func (a *App) residencyRow(c *ui.Context, copy i18n.Settings) {
-	s := a.Store.Snapshot()
+	s := a.settings()
 	value := settings.NormalizeResidencySeconds(s.SurfaceResidencySeconds)
 	selectValue := residencySelectValue(value)
 
@@ -5192,7 +5201,7 @@ func (a *App) toolPermissionFields(c *ui.Context, copy i18n.Settings) {
 	for _, permission := range extensions.AllPermissions {
 		permission := permission
 		on := a.toolPermissions[permission]
-		label := i18n.PermissionLabel(a.Store.Snapshot().Language, permission)
+		label := i18n.PermissionLabel(a.settings().Language, permission)
 		labelClicked := a.row(c, label, "", func() {
 			if a.switchControl(c, &on).Label(label).Changed() {
 				a.toolPermissions[permission] = on
@@ -5236,7 +5245,15 @@ func (a *App) scriptRows(c *ui.Context, copy i18n.Settings, language *string, sc
 
 // copy is the settings surface's words in the stored language.
 func (a *App) copy() i18n.Settings {
-	return i18n.For(a.Store.Snapshot().Language).Settings
+	return i18n.For(a.settings().Language).Settings
+}
+
+// settings is this frame's settings value, copied once per change rather than
+// once per reader (see `App.settingsMemo` and `settings.Memo`). Draw-time
+// readers go through it; an event handler that must see the store as it is
+// right now may still read `Store.Snapshot`.
+func (a *App) settings() settings.Settings {
+	return a.settingsMemo.Get(a.Store)
 }
 
 // runtimeProbe is one language's toolchain probe, off the render thread:

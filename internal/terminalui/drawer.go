@@ -63,7 +63,7 @@ func (a *App) set(mutate func(*settings.Settings)) {
 func (a *App) drawer(c *ui.Context, copy i18n.Terminal) {
 	t := c.Theme()
 	tokens := tokensOf(a, c)
-	scopy := i18n.For(a.Store.Snapshot().Language).Settings
+	scopy := i18n.For(a.settings().Language).Settings
 
 	// P11-au：条带**自己**就是滚动容器。P11-at 只修了「不让开浮条那条带」
 	// ——抽屉排在画布之下，多出来的几行在面板底边被窗口裁掉（640×360 时
@@ -126,7 +126,7 @@ const paletteCellFloor = 95
 func (a *App) drawerGrid(c *ui.Context, cellFloor float32) {
 	t := c.Theme()
 	tokens := tokensOf(a, c)
-	s := a.Store.Snapshot()
+	s := a.settings()
 	scopy := i18n.For(s.Language).Settings
 
 	// Shrink(0): the strip scrolls this grid when the panel is shorter than

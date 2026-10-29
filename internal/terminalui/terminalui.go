@@ -114,6 +114,15 @@ type App struct {
 	tokenMemo  theme.Memo
 	tokenStore *settings.Store
 
+	// settingsMemo is this surface's copy of the settings value (P11-co).
+	// The frame reads it from the title bar, the empty page, the bar's inks and
+	// the drawer's grid — five snapshots per frame before this memo existed —
+	// and `Store.Snapshot` deep-copies the whole value, the carried-through keys
+	// included. Readers that run off the render thread (the paste callback, on
+	// the terminal's own goroutine) keep reading the store directly: a Memo is
+	// one reader's and is not safe for concurrent use.
+	settingsMemo settings.Memo
+
 	// NewTerminal creates a session, with the options built from the
 	// settings. Nil means no session can start (tests).
 	NewTerminal func(terminal.Options) (*terminal.Terminal, error)
@@ -819,7 +828,7 @@ func (a *App) CloseAll() {
 // View builds the terminal surface: a title row over the session, or the
 // empty state when none runs.
 func (a *App) View(c *ui.Context) {
-	stored := a.Store.Snapshot()
+	stored := a.settings()
 	copy := i18n.For(stored.Language).Terminal
 	t := c.Theme()
 	tokens := tokensOf(a, c)
@@ -875,7 +884,7 @@ func (a *App) View(c *ui.Context) {
 				}
 				a.emptyLine(c, copy, keyBadge("enter"), copy.EmptyNew, func() { a.EnsureSession() })
 				if a.Actions.NewCommand != nil {
-					a.emptyLine(c, copy, newCommandBadge(a.Store.Snapshot()), copy.EmptyBack, a.Actions.NewCommand)
+					a.emptyLine(c, copy, newCommandBadge(a.settings()), copy.EmptyBack, a.Actions.NewCommand)
 				}
 			})
 			// The bar floats over the blank page too: its close control is
@@ -1012,7 +1021,16 @@ func tokensOf(a *App, c *ui.Context) theme.Tokens {
 		a.tokenStore = a.Store
 		a.tokenMemo.Reset()
 	}
-	return a.tokenMemo.Tokens(a.Store.Version(), c.Theme().Dark, c.Preferences(), a.Store.Snapshot)
+	// The loader is the surface's own settings memo, not `Store.Snapshot`: a
+	// palette build reads the whole value, and routing it through the memo is
+	// what keeps a frame to one copy even when it also builds a palette.
+	return a.tokenMemo.Tokens(a.Store.Version(), c.Theme().Dark, c.Preferences(), a.settings)
+}
+
+// settings is this frame's settings value, copied once per change rather than
+// once per reader (see `App.settingsMemo` and `settings.Memo`).
+func (a *App) settings() settings.Settings {
+	return a.settingsMemo.Get(a.Store)
 }
 
 // barInks is the ink the floating terminal bar draws with, and the face it
@@ -1059,7 +1077,7 @@ func windowBarInks(f *ui.Theme, tokens theme.Tokens) barInks {
 func (a *App) canvasInks(c *ui.Context) barInks {
 	tokens := tokensOf(a, c)
 	session := a.Current()
-	return barInksFor(tokens, windowBarInks(c.Theme(), tokens), a.Store.Snapshot().TerminalTheme,
+	return barInksFor(tokens, windowBarInks(c.Theme(), tokens), a.settings().TerminalTheme,
 		session != nil && session.Term != nil)
 }
 
@@ -1408,7 +1426,7 @@ func barHeight(t *ui.Theme) float32 { return t.Space(7) }
 
 func (a *App) titleBar(c *ui.Context, copy i18n.Terminal) {
 	t := c.Theme()
-	newCommandHint, openExternalHint := barHints(copy, a.Store.Snapshot())
+	newCommandHint, openExternalHint := barHints(copy, a.settings())
 	// P11-ae：这一条（以及它里面的点与按钮）的墨来自它浮着的那块面，不是窗口。
 	inks := a.canvasInks(c)
 	bar := ui.Row(c).Absolute().Top(0).Left(0).Right(0).Height(barHeight(t)).
