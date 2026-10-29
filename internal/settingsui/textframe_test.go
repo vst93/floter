@@ -6,6 +6,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"floter/internal/frameaudit"
 	"floter/internal/settings"
 )
 
@@ -23,70 +24,10 @@ import (
 // words on top of each other, unless one box contains the other (a button's
 // label sits inside its button). A box that leaves the window was never
 // visible.
+// P11-by：整宽箱子也下场（见 `internal/frameaudit` 的包注释），规则本身只留一份。
 func auditSettingsFrame(t *testing.T, tag string, tt *ui.Tester) {
 	t.Helper()
-	img := tt.Image()
-	if img == nil {
-		t.Fatalf("%s: no frame", tag)
-	}
-	w, h := float32(img.Rect.Dx()), float32(img.Rect.Dy())
-	seen := map[string]bool{}
-	type box struct {
-		s string
-		r ui.Rect
-	}
-	var boxes []box
-	for _, s := range tt.Texts() {
-		if seen[s] {
-			continue
-		}
-		seen[s] = true
-		r, ok := tt.Find(s)
-		if !ok || r.W <= 0 || r.H <= 0 {
-			continue
-		}
-		if r.W >= w-1 {
-			continue
-		}
-		boxes = append(boxes, box{s, r})
-	}
-	for _, b := range boxes {
-		if b.r.X < -0.5 || b.r.Y < -0.5 || b.r.X+b.r.W > w+0.5 || b.r.Y+b.r.H > h+0.5 {
-			t.Errorf("%s: %q leaves the window: %+v (window %.0fx%.0f)", tag, b.s, b.r, w, h)
-		}
-	}
-	for i := 0; i < len(boxes); i++ {
-		for j := i + 1; j < len(boxes); j++ {
-			a, b := boxes[i], boxes[j]
-			if enclosesBox(a.r, b.r) || enclosesBox(b.r, a.r) {
-				continue
-			}
-			ox := minBox(a.r.X+a.r.W, b.r.X+b.r.W) - maxBox(a.r.X, b.r.X)
-			oy := minBox(a.r.Y+a.r.H, b.r.Y+b.r.H) - maxBox(a.r.Y, b.r.Y)
-			if ox > 1 && oy > 1 {
-				t.Errorf("%s: %q %+v is painted over %q %+v (overlap %.1fx%.1f)", tag, a.s, a.r, b.s, b.r, ox, oy)
-			}
-		}
-	}
-}
-
-func enclosesBox(outer, inner ui.Rect) bool {
-	return outer.X <= inner.X+0.5 && outer.Y <= inner.Y+0.5 &&
-		outer.X+outer.W >= inner.X+inner.W-0.5 && outer.Y+outer.H >= inner.Y+inner.H-0.5
-}
-
-func minBox(a, b float32) float32 {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func maxBox(a, b float32) float32 {
-	if a > b {
-		return a
-	}
-	return b
+	frameaudit.Audit(t, tag, tt, nil)
 }
 
 // All five pages, in both appearances and both shipped languages, at the

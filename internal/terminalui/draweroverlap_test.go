@@ -10,6 +10,7 @@ import (
 	"github.com/egoist/mygo/plugins/terminal"
 	"github.com/egoist/mygo/ui"
 
+	"floter/internal/frameaudit"
 	"floter/internal/settings"
 )
 
@@ -57,81 +58,23 @@ func auditDrawerBand(t *testing.T, tag string, tt *ui.Tester) {
 // auditDrawerBandFrom is auditDrawerBand with the strip's accessible name given
 // by the caller, so a language whose label is not the English one can be
 // audited by the same rule.
+//
+// P11-by：规则本身在 `internal/frameaudit`（三处共用一份）。这里只留「这个表面
+// 拥有哪一段」的过滤：条带以上的浮条与它的 toast 不归这把尺子管。**整宽箱子不再
+// 跳过** —— 条带自己的 label 是一个整宽祖先，`Encloses` 本来就会豁免它。
 func auditDrawerBandFrom(t *testing.T, tag string, tt *ui.Tester, label string) {
 	t.Helper()
-	img := tt.Image()
-	if img == nil {
-		t.Fatalf("%s: no frame", tag)
-	}
-	w, h := float32(img.Rect.Dx()), float32(img.Rect.Dy())
 	stripTop, ok := tt.Find(label)
 	if !ok {
 		t.Fatalf("%s: the drawer's strip is not on the frame: %q", tag, tt.Texts())
 	}
-	type run struct {
-		s string
-		r ui.Rect
-	}
-	seen := map[string]bool{}
-	var runs []run
-	for _, s := range tt.Texts() {
-		if seen[s] {
-			continue
-		}
-		seen[s] = true
-		r, found := tt.Find(s)
-		if !found || r.W <= 0 || r.H <= 0 {
-			continue
-		}
-		if r.W >= w-1 { // the strip's own label, the panel's, a whole row's box
-			continue
-		}
-		if r.Y+r.H <= stripTop.Y {
-			continue // the bar and its toast, above the strip
-		}
-		runs = append(runs, run{s, r})
-	}
-	for _, run := range runs {
-		if run.r.X < -0.5 || run.r.Y < -0.5 || run.r.X+run.r.W > w+0.5 || run.r.Y+run.r.H > h+0.5 {
-			t.Errorf("%s: %q leaves the window: %+v (window %.0fx%.0f)", tag, run.s, run.r, w, h)
-		}
-	}
-	for i := 0; i < len(runs); i++ {
-		for j := i + 1; j < len(runs); j++ {
-			a, b := runs[i], runs[j]
-			if encloses(a.r, b.r) || encloses(b.r, a.r) {
-				continue
-			}
-			ox := minOf(a.r.X+a.r.W, b.r.X+b.r.W) - maxOf(a.r.X, b.r.X)
-			oy := minOf(a.r.Y+a.r.H, b.r.Y+b.r.H) - maxOf(a.r.Y, b.r.Y)
-			if ox > 1 && oy > 1 {
-				t.Errorf("%s: %q %+v paints over %q %+v (overlap %.1fx%.1f)", tag, a.s, a.r, b.s, b.r, ox, oy)
-			}
-		}
-	}
+	frameaudit.Audit(t, tag, tt, func(run frameaudit.Run) bool {
+		return run.R.Y+run.R.H > stripTop.Y
+	})
 }
 
 // labelOfDrawer is the strip's own accessible name.
 func labelOfDrawer() string { return "Terminal appearance" }
-
-func encloses(outer, inner ui.Rect) bool {
-	return outer.X <= inner.X+0.5 && outer.Y <= inner.Y+0.5 &&
-		outer.X+outer.W >= inner.X+inner.W-0.5 && outer.Y+outer.H >= inner.Y+inner.H-0.5
-}
-
-func minOf(a, b float32) float32 {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func maxOf(a, b float32) float32 {
-	if a > b {
-		return a
-	}
-	return b
-}
 
 // TestDumpDrawerPNGs is the round's visual evidence: the strip in both
 // appearances with a session behind it, written to /tmp. Opt-in, as the other

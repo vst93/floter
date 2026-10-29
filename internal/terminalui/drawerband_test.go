@@ -9,6 +9,7 @@ import (
 	"github.com/egoist/mygo/plugins/terminal"
 	"github.com/egoist/mygo/ui"
 
+	"floter/internal/frameaudit"
 	"floter/internal/i18n"
 	"floter/internal/settings"
 )
@@ -62,8 +63,7 @@ func TestTheDrawerKeepsTheBarsBand(t *testing.T) {
 			if !ok {
 				t.Fatalf("%s: the drawer's close control is not on the frame: %q", tag, tt.Texts())
 			}
-			ox := minOf(drawerX.X+drawerX.W, barX.X+barX.W) - maxOf(drawerX.X, barX.X)
-			oy := minOf(drawerX.Y+drawerX.H, barX.Y+barX.H) - maxOf(drawerX.Y, barX.Y)
+			ox, oy := frameaudit.Overlap(drawerX, barX)
 			if ox > 1 && oy > 1 {
 				t.Errorf("%s: the drawer's close control %+v paints over the bar's %+v (overlap %.1fx%.1f)",
 					tag, drawerX, barX, ox, oy)
