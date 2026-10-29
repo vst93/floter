@@ -28,6 +28,18 @@ func render(t *testing.T, a *App, w, h int) *ui.Tester {
 	return tt
 }
 
+// revealBar puts the pointer on the terminal's bar and renders the frame that
+// reveals it. P11-bd: the bar's controls are hidden (and take no pointer) until
+// the pointer is over the bar or something on it has the keyboard — the
+// reference's `.terminal-bar:not(:hover):not(:focus-within)
+// .terminal-panel__actions { pointer-events: none }` — so a test that wants to
+// click one has to be looking at it, exactly as a user is.
+func revealBar(t *testing.T, tt *ui.Tester) {
+	t.Helper()
+	tt.Move(400, 14)
+	tt.Frame()
+}
+
 func TestTerminalEmptyState(t *testing.T) {
 	closed := 0
 	copy := i18n.For("en").Terminal
@@ -79,6 +91,7 @@ func TestTerminalCloseButtonCallsBack(t *testing.T) {
 	closed := 0
 	a := New(newStore(), Actions{Close: func() { closed++ }}, nil)
 	tt := render(t, a, 860, 600)
+	revealBar(t, tt)
 	if err := tt.Click(i18n.For("en").Terminal.Close); err != nil {
 		t.Fatal(err)
 	}
@@ -292,6 +305,7 @@ func TestPinControlCopiesTheSessionText(t *testing.T) {
 	if _, ok := tt.Find("Pin output"); !ok {
 		t.Fatalf("the pin control is missing: %q", tt.Texts())
 	}
+	revealBar(t, tt)
 	if err := tt.Click("Pin output"); err != nil {
 		t.Fatal(err)
 	}
@@ -393,6 +407,7 @@ func TestTerminalHeaderControls(t *testing.T) {
 		return nil, errors.New("no library in tests")
 	})
 	tt := render(t, a, 860, 600)
+	revealBar(t, tt)
 	if err := tt.Click("New command"); err != nil {
 		t.Fatal(err)
 	}
@@ -664,6 +679,7 @@ func TestTerminalBarSettingsDoor(t *testing.T) {
 	if !tt.HasText("Terminal settings") {
 		t.Fatalf("the gear is missing: %q", tt.Texts())
 	}
+	revealBar(t, tt)
 	if err := tt.Click("Terminal settings"); err != nil {
 		t.Fatalf("the gear: %v", err)
 	}

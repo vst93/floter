@@ -139,6 +139,11 @@ func TestTerminalNewCommandRowReturns(t *testing.T) {
 	a.Open(SurfaceTerminal)
 	tt := ui.NewTester(func(c *ui.Context) { a.View(c) }, 720, 420)
 	tt.Frame()
+	// P11-bd: the bar's controls are hidden (and take no pointer) until the
+	// pointer is over the bar, so the row is clicked the way a user clicks it —
+	// with the bar revealed.
+	tt.Move(360, 14)
+	tt.Frame()
 	if err := tt.Click("New command"); err != nil {
 		t.Fatalf("row: %v (texts %v)", err, tt.Texts())
 	}

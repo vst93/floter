@@ -193,6 +193,7 @@ func TestTerminalDrawerGearToggles(t *testing.T) {
 	if !tt.HasText("Terminal settings") {
 		t.Fatalf("the closed gear is not named: %q", tt.Texts())
 	}
+	revealBar(t, tt)
 
 	if err := tt.Click("Terminal settings"); err != nil {
 		t.Fatalf("the gear: %v", err)

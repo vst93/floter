@@ -99,7 +99,7 @@ func (a *App) drawer(c *ui.Context, copy i18n.Terminal) {
 			// The drawer's own dismiss, in the corner a card's close button lives
 			// in: the same 28u icon button the bar's gear/X is, so the module can
 			// be dismissed from where it opened or from itself.
-			a.barButton(c, "close", copy.SettingsClose, copy.SettingsClose, a.CloseDrawer)
+			a.barButton(c, "close", copy.SettingsClose, copy.SettingsClose, true, a.CloseDrawer)
 		})
 	})
 }

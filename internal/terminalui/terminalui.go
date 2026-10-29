@@ -1223,9 +1223,14 @@ func (a *App) residentNote(c *ui.Context, copy i18n.Terminal) {
 		Background(tokens.Control).
 		BorderWidth(1, 0, 0, 0).BorderColor(tokens.HairlineSoft)
 	note.Children(func() {
+		// P11-bd：`PassThrough` **不沿子树传播**——框架的命中表逐个元素记，而一句
+		// `Text` 自己就是可选中面 = 命中目标。只标外层时这条带的**字**仍然吃掉
+		// 指针（实测点 (322,582) 拿不到画布的焦点，点画布 (400,300) 能拿到），
+		// 参考的 `pointer-events: none` 在 CSS 里是继承的。所以两层都标，与
+		// P11-af 给 `titleBar`/identity/`statusDot` 各标一次同一个手法。
 		ui.Text(c, copy.ProcessExited(session.ExitCode)).FontSize(t.FontSize).
-			FontWeight(560).TextColor(color)
-		ui.Text(c, copy.ProcessExitedHint).FontSize(t.FontSize).TextColor(t.TextMuted)
+			FontWeight(560).TextColor(color).PassThrough()
+		ui.Text(c, copy.ProcessExitedHint).FontSize(t.FontSize).TextColor(t.TextMuted).PassThrough()
 	})
 }
 
@@ -1261,7 +1266,14 @@ func (a *App) feedbackNote(c *ui.Context) {
 	// 只回答「哪个被选中/哪个是开的」，而这条是「某个动作没做成」——它的语义
 	// 已经由那行 warning 墨和 15u 的警示字形说了，一圈 accent 环不在 §5 的
 	// 任何合法处。几何（12u 起点、28u/40u 的 padding、`RadiusMD`）零改动。
-	notice := ui.Row(c).Absolute().Top(t.Space(3)).Left(t.Space(3)).
+	// P11-bd：参考给这条提示 `pointer-events: none`（`main:src/styles/terminal.css:414`，
+	// 与常驻便条 `:303` 是同一句），本仓从来没有 `PassThrough()`。它浮在画布的
+	// 左上角、盖住前两行输出的左半边 4.5 秒——那段时间里点进去、拖选区、滚轮
+	// 全落在这块矩形上，画布拿不到键盘（实测：点 (400,400) 画布拿到焦点，点
+	// 提示自己的字 (89,31) 与它的内边距 (20,30) 都拿不到）。与 P11-af 的浮条
+	// 吃掉前两行、P11-bc 的常驻便条吃掉最后两行是同一条判据：**一条没有动作
+	// 的浮层不该是命中目标**。几何、面、墨、字号、4.5s 的时钟一个字节没动。
+	notice := ui.Row(c).Absolute().Top(t.Space(3)).Left(t.Space(3)).PassThrough().
 		Gap(t.Space(2)).AlignItems(ui.Center).Padding(t.Space(1.75), t.Space(2.5)).
 		Radius(tokens.RadiusMD).Border(1, tokens.ControlEdge).
 		Background(tokens.Float).
@@ -1273,10 +1285,15 @@ func (a *App) feedbackNote(c *ui.Context) {
 	theme.ElevThrow(notice, t, a.Store.Snapshot().MainOpacity)
 	notice.InsetShadow(0, 1, 0, 0, tokens.LensRim)
 	notice.Children(func() {
+		// `PassThrough` 不沿子树传播（框架的命中表逐个元素记），而一句 `Text`
+		// 自己就是可选中面 = 命中目标：只把外层标成透明时，点提示的**字**仍然
+		// 被它吃掉（实测 (89,31) 拿到画布的焦点前被拦下）。参考的
+		// `pointer-events: none` 在 CSS 里是继承的，所以这里把两层都标上，与
+		// P11-af 给 `titleBar`/identity/`statusDot` 各标一次是同一个手法。
 		if glyph, ok := launcher.Glyph("alert"); ok {
-			ui.Icon(c, glyph).Size(t.Space(3.75), t.Space(3.75)).TextColor(t.Warning)
+			ui.Icon(c, glyph).Size(t.Space(3.75), t.Space(3.75)).TextColor(t.Warning).PassThrough()
 		}
-		ui.Text(c, a.feedback).FontSize(t.FontSize).FontWeight(560).TextColor(t.Warning)
+		ui.Text(c, a.feedback).FontSize(t.FontSize).FontWeight(560).TextColor(t.Warning).PassThrough()
 	})
 }
 
@@ -1289,11 +1306,33 @@ func (a *App) feedbackNote(c *ui.Context) {
 // pill, which in a floating strip would be the loudest thing on the panel.
 // label is the control's accessible name, hint the sentence its tooltip
 // carries once the pointer rests (the old header's own `title=`).
-func (a *App) barButton(c *ui.Context, name, label, hint string, run func()) {
+//
+// P11-bd：`live` 是「这条浮条现在是揭示着的」。未揭示时浮条的内容是 `Opacity(0)`
+// 的——看得见的东西没有，可是**命中表不看透明度**：框架只把 `flagInvisible` /
+// `flagInert` 的元素从命中里拿掉（`ui/runtime.go:1196`），于是这些隐形按钮照样
+// 接点击（实测：静态下点右上角 `(834,14)` 把终端**关了**），也照样在指针停 0.6s
+// 后弹出自己的提示（实测静态下悬停齿轮弹出 “Appearance settings for this
+// terminal”，而屏上一个字都没画）。参考把这一半写成
+// `.terminal-bar:not(:hover):not(:focus-within) .terminal-panel__actions {
+// pointer-events: none }`（`main:src/styles/terminal.css:501-505`，注释原话是
+// “While hidden the buttons must not catch clicks meant for the terminal
+// underneath”）。
+//
+// 关键：`PassThrough` **不沿子树传播**（与 CSS 的 `pointer-events: none` 不同），
+// 所以按钮、它的字形、它的提示要各标一次——只标 `actions` 那一行是本轮修掉的
+// 那个 bug 的形状。
+func (a *App) barButton(c *ui.Context, name, label, hint string, live bool, run func()) {
 	t := c.Theme()
 	button := ui.Row(c).Focusable().Size(t.Space(7), t.Space(7)).Shrink(0).
-		Radius(tokensOf(a, c).RadiusSM).AlignItems(ui.Center).Justify(ui.Center).Label(label).
-		Tooltip(hint)
+		Radius(tokensOf(a, c).RadiusSM).AlignItems(ui.Center).Justify(ui.Center).Label(label)
+	if live {
+		button.Tooltip(hint)
+	} else {
+		// Hidden: no click, no tip. Keyboard focus still reaches it
+		// (`Focusable` is untouched), which is the reference's
+		// `:focus-within` reveal — a Tab onto the bar brings it back.
+		button.PassThrough()
+	}
 	// The bar's inks come from the canvas it floats on (see `canvasInks`): over
 	// a named palette the glyph is the palette's own ink and the hover pane is
 	// a tint of it, so a dark palette in a light window no longer paints a
@@ -1310,7 +1349,10 @@ func (a *App) barButton(c *ui.Context, name, label, hint string, run func()) {
 	}
 	button.Children(func() {
 		if glyph, ok := launcher.Glyph(name); ok {
-			ui.Icon(c, glyph).Size(t.Space(4), t.Space(4)).TextColor(inks.Muted)
+			icon := ui.Icon(c, glyph).Size(t.Space(4), t.Space(4)).TextColor(inks.Muted)
+			if !live {
+				icon.PassThrough()
+			}
 		}
 	})
 	if button.Clicked() {
@@ -1402,6 +1444,10 @@ func (a *App) titleBar(c *ui.Context, copy i18n.Terminal) {
 		// with a 4u gap, hidden and non-interactive until the bar is revealed
 		// (a hidden button must not catch a click meant for the terminal
 		// underneath).
+		//
+		// P11-bd：这一行的 `PassThrough` 只负责**行自己的盒子**（4u 的缝、行尾的
+		// 余量）；按钮与它们的字形各自标一次（见 `barButton` 的 `live`）——
+		// `PassThrough` 不沿子树传播，只标这一行正是本轮修掉的 bug 的形状。
 		actions := ui.Row(c).Gap(t.Space(1)).AlignItems(ui.Center).Shrink(0)
 		if !revealed {
 			actions.Opacity(0).PassThrough()
@@ -1415,19 +1461,19 @@ func (a *App) titleBar(c *ui.Context, copy i18n.Terminal) {
 				if a.Drawer {
 					name, label, hint = "close", copy.SettingsClose, copy.SettingsClose
 				}
-				a.barButton(c, name, label, hint, a.Actions.Settings)
+				a.barButton(c, name, label, hint, revealed, a.Actions.Settings)
 			}
 			if a.Actions.Pin != nil && a.term() != nil {
-				a.barButton(c, "text", copy.Pin, copy.Pin, func() { a.Actions.Pin(a.sessionTitle(), a.sessionText()) })
+				a.barButton(c, "text", copy.Pin, copy.Pin, revealed, func() { a.Actions.Pin(a.sessionTitle(), a.sessionText()) })
 			}
 			if a.Actions.NewCommand != nil {
-				a.barButton(c, "command", copy.NewCommand, newCommandHint, a.Actions.NewCommand)
+				a.barButton(c, "command", copy.NewCommand, newCommandHint, revealed, a.Actions.NewCommand)
 			}
 			if a.Actions.OpenExternal != nil {
-				a.barButton(c, "terminal", copy.OpenExternal, openExternalHint, a.Actions.OpenExternal)
+				a.barButton(c, "terminal", copy.OpenExternal, openExternalHint, revealed, a.Actions.OpenExternal)
 			}
 			if a.Actions.Close != nil {
-				a.barButton(c, "close", copy.Close, copy.Close, a.Actions.Close)
+				a.barButton(c, "close", copy.Close, copy.Close, revealed, a.Actions.Close)
 			}
 		})
 	})

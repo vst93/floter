@@ -586,6 +586,33 @@ pin：`internal/launcher/textframe_test.go` 的 `TestTheLauncherPaintsNoTextOver
 （五页 × 两外观 × `860×900` 与 `720×560`）。本轮实测三表面（启动器 / 设置页 / 终端页）
 零压字、零出框，产品墨与面零改动。
 
+### §6.17 P11-bd · 浮在画布上的东西要整块让出指针（`PassThrough` 不沿子树传播）（**已落地**）
+
+参考给终端页上三样「自己不接动作」的浮层都写了 `pointer-events: none`：
+`.terminal-resident`（`main:src/styles/terminal.css:303`）、`.terminal-feedback`（`:414`）、
+以及未揭示时的 `.terminal-panel__actions`（`:501-505`，注释原话 “While hidden the buttons
+must not catch clicks meant for the terminal underneath”）。本仓三处都漏在同一个地方。
+
+**根因一条**：`mygo` 的 `PassThrough()` **不沿子树传播**。框架的命中表逐个元素记
+（`ui/runtime.go:1208-1218`），只排除 `flagInvisible`/`flagInert`（同文件 `:1196`）——
+**不看透明度**，也不看父元素。而一句 `ui.Text` 自己就是可选中面（`flagSelectable`），
+所以「把外层标成透明」在这三处都静默地漏掉了字。CSS 的 `pointer-events: none` 是继承的，
+这就是移植时最容易被抹平的一处差异。
+
+| 位置 | 旧 | 新 | 落地 |
+|---|---|---|---|
+| `internal/terminalui/terminalui.go` 的 `feedbackNote` | 行没有任何 `PassThrough`（参考 `:414` 有） | 行 + `ui.Icon` + `ui.Text` 各一次 | `已落地` — pin `TestTheNoticeTakesNoPointer` |
+| 同文件的 `residentNote`（P11-bc 标的） | 只有**行**是 `PassThrough`，两句 `Text` 仍是命中目标 | 两句 `Text` 各一次 | `已落地` — pin `TestTheResidentNoteTakesNoPointer` |
+| 同文件的 `barButton` | 签名没有「揭示」这一档，只靠 `actions.Opacity(0).PassThrough()`（管不到子元素） | 新增 `live bool`：未揭示时按钮与字形各 `PassThrough()`、且不挂 tooltip；`Focusable()` 保留（参考的 `:focus-within` 揭示靠它） | `已落地` — pin `TestTheHiddenBarButtonsTakeNoClick` |
+
+判据一条：**浮在画布上、自己不接动作的东西，指针要穿过去落到画布上**——画布是这一页唯一
+响应指针的东西（聚焦、选区、滚轮回滚）。三条 pin 的观测因此是同一个：点在那个位置之后，
+画布有没有拿到键盘。源码契约 `TestTheCanvasOverlaysGoQuietWhenHidden` 钉住根因本身：
+这两个便条的 `PassThrough()` 数量必须 ≥ 1 + 它们画的 `Text`/`Icon` 数量，只标外层必红。
+
+**零像素改动**（本轮是命中标志轮）：修前/修后同一帧导出 PNG 的 md5 全等
+（`/tmp/floter-P11-bd-notes-<light|dark>.png` 对 `/tmp/before/`，见报告 §5）。
+
 ## §7 切片表
 | 片 | 范围 | 状态 |
 |---|---|---|
