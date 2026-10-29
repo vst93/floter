@@ -147,8 +147,12 @@ func (a *App) confirmPowerRow(c *ui.Context) {
 		Padding(0, t.Space(3)).Gap(t.Space(2)).AlignItems(ui.Center).
 		Radius(tokens.RadiusSM).Background(tokens.IconSurface).Children(func() {
 		ui.Icon(c, glyphAlert).Size(t.Space(4), t.Space(4)).TextColor(t.Warning)
+		// P11-cc：同一条带、同一个缺失。问句今天装得进一行（en 56 字节），但带子
+		// 是固定 30u 的 `Absolute` 行、长不高，两个按钮还在同一行里 `Shrink(0)`，
+		// 所以一句变长的i18n 只会折行越出矩形。与 `feedbackRow` 的句子和本行的
+		// 按钮标签（`confirmPowerButton` 已有 `SingleLine()`）取同一个排法。
 		ui.Text(c, a.powerMessage()).FontSize(t.FontSize).FontWeight(560).
-			TextColor(t.Warning).Grow(1)
+			TextColor(t.Warning).Grow(1).SingleLine()
 		a.confirmPowerButton(c, tokens, a.powerActionName(), true, a.confirmPower)
 		a.confirmPowerButton(c, tokens, copy.PowerCancel, false, func() { a.pendingPower = "" })
 	})

@@ -3088,7 +3088,14 @@ func (a *App) feedbackRow(c *ui.Context) {
 	feedback.Background(background)
 	feedback.Children(func() {
 		ui.Icon(c, glyphAlert).Size(t.Space(4), t.Space(4)).TextColor(tone)
-		ui.Text(c, a.toast).FontSize(t.FontSize).FontWeight(weight).TextColor(tone).Grow(1)
+		// P11-cc：带子是 30u 高的一行（`Height(t.Space(7.5))`，窗口只为它长 30u），
+		// 而句子的长度是**用户数据**（`internal/shell/notices.go` 的 `panelFeedback`
+		// 送来的是 `i18n.Notifications` 拼的安装/卸载完成句，里面带扩展名）。不钉一行的
+		// 时候，一个长名字就把句子折成两行（实测 720 宽：`{X:40 Y:404 W:664 H:44}`），
+		// 越出带子的矩形压在列表最后几行的字上（同一帧里 `app-20` 的标题被压住
+		// 54×15u）。同一条带里的 `heldHintRow` 与确认按钮的标签早就有这一行约束，
+		// 这里是把第三种说法补齐：**一条带只有一个句子、一句话只有一行**。
+		ui.Text(c, a.toast).FontSize(t.FontSize).FontWeight(weight).TextColor(tone).Grow(1).SingleLine()
 	})
 }
 
