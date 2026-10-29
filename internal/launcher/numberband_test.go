@@ -201,6 +201,128 @@ func TestHoldingTheModifierKeepsTheTerminalHint(t *testing.T) {
 	}
 }
 
+// P11-bi · **恰好十项的列表也会滚，编号必须跟着视口走。**
+//
+// P11-bb 的判据只在 `resultCount > maxResultSlots` 时读视口。本仓的窗口把搜索
+// 字段的浮带（60u）算在列表上方，所以十项列表也能滚；`resultCount` 又只数
+// 非 action-bar 行。于是十项（或「十项 + 一条 action bar」）滚动后 `1` 仍钉在
+// 被字段带盖住的第一行上，`Super+1` 跑的是屏幕外那一行——用户原话「超出屏幕的
+// 项也显示快捷键」。这条 pin 用十项（正好等于 maxResultSlots）复现它：把闸门
+// 加回去，第一行的 `share` 只有 0.53，却仍领 `1`，立刻红。
+func TestATenRowListRenumbersWhenItScrolls(t *testing.T) {
+	const readable = 0.7
+	a := testApp()
+	found := make([]apps.App, 0, maxResultSlots)
+	for i := 0; i < maxResultSlots; i++ {
+		found = append(found, apps.App{
+			Name: fmt.Sprintf("App %02d", i),
+			Path: fmt.Sprintf("/Applications/App %02d.app", i),
+		})
+	}
+	a.SetApps(found)
+	a.Query = "app"
+	tt := render(t, a)
+	tt.Frame()
+
+	// The ten-row list must be able to scroll without crossing the budget: the
+	// window charges the field's band above the rows, so the top row can slip
+	// under it. Wheel until that row is no longer readable.
+	scrolled := false
+	for _, step := range []float32{2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 24, 28} {
+		tt.Scroll(340, 200, 0, step)
+		tt.Frame()
+		tt.Frame()
+		if got := visibleShare(a.rowRects[0], a.listRect); got > 0 && got < readable {
+			scrolled = true
+			break
+		}
+	}
+	if !scrolled {
+		t.Fatalf("a ten-row list never scrolled a row under the field: row0=%+v viewport=%+v",
+			a.rowRects[0], a.listRect)
+	}
+	// The numbers of the next frame are computed from this frame's boxes.
+	boxes := make(map[int]ui.Rect, len(a.rowRects))
+	for i, box := range a.rowRects {
+		boxes[i] = box
+	}
+	viewport := a.listRect
+	tt.Frame()
+
+	lastNumbered := -1
+	for i := range a.numbers {
+		if i > lastNumbered {
+			lastNumbered = i
+		}
+	}
+	for i, digit := range a.numbers {
+		share := visibleShare(boxes[i], viewport)
+		if share >= readable {
+			continue
+		}
+		// The family's last row is the one the reference keeps while the bottom
+		// edge still shows it (that is where `0` lands). A row scrolled under
+		// the *top* edge is not that row and must carry no number.
+		if i != lastNumbered {
+			t.Errorf("row %d is numbered %d while only %.2f of it is on screen", i, digit, share)
+		}
+	}
+	firstNumbered := -1
+	for i, digit := range a.numbers {
+		if digit == 1 {
+			firstNumbered = i
+		}
+	}
+	if firstNumbered < 0 {
+		t.Fatalf("no row carries 1 after scrolling: %v", a.numbers)
+	}
+	if got := visibleShare(boxes[firstNumbered], viewport); got < readable {
+		t.Errorf("row %d carries 1 while only %.2f of it is on screen", firstNumbered, got)
+	}
+	if _, ok := a.numbers[0]; ok && firstNumbered != 0 {
+		t.Errorf("the top row scrolled under the field kept a number: %v", a.numbers)
+	}
+}
+
+// TestATenRowListDump writes the frame P11-bi is about: a ten-row list
+// (exactly the budget) scrolled under the field's band. Opt-in (FLOTER_PNG=1),
+// like the other screenshot dumps.
+func TestATenRowListDump(t *testing.T) {
+	if os.Getenv("FLOTER_PNG") == "" {
+		t.Skip("opt-in: FLOTER_PNG=1 writes /tmp/floter-P11-bi-tenrow-<appearance>.png")
+	}
+	forEachAppearance(t, func(t *testing.T, dark bool) {
+		name := "light"
+		if dark {
+			name = "dark"
+		}
+		a := testApp()
+		found := make([]apps.App, 0, maxResultSlots)
+		for i := 0; i < maxResultSlots; i++ {
+			found = append(found, apps.App{
+				Name: fmt.Sprintf("App %02d", i),
+				Path: fmt.Sprintf("/Applications/App %02d.app", i),
+			})
+		}
+		a.SetApps(found)
+		a.Query = "app"
+		tt := renderIn(t, a, dark)
+		tt.Frame()
+		for _, step := range []float32{2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 24} {
+			tt.Scroll(340, 200, 0, step)
+			tt.Frame()
+			tt.Frame()
+			if got := visibleShare(a.rowRects[0], a.listRect); got > 0 && got < 0.7 {
+				break
+			}
+		}
+		path := fmt.Sprintf("/tmp/floter-P11-bi-tenrow-%s.png", name)
+		writePNG(t, path, tt)
+		t.Logf("wrote %s (numbers %v, row0 share %.2f, viewport %+v)",
+			path, a.numbers, visibleShare(a.rowRects[0], a.listRect), a.listRect)
+	})
+}
+
 // TestNumberBandDump writes the two frames this round is about: the numbered
 // family on a scrolled list, and the band's terminal hint while the modifier is
 // held. Opt-in (FLOTER_PNG=1), like the other screenshot dumps.

@@ -581,12 +581,20 @@ const maxResultSlots = 10
 // you select"). Rows outside the viewport carry no number, and the modifier
 // plus a digit cannot reach them.
 //
-// The old build gates the viewport on the list overflowing the ten-slot
-// budget (R72, `listOverflowsBudget`): a list that fits the budget is numbered
-// purely in order off the rendered rows, because a list that fits cannot be
-// scrolled and the viewport measurement adds nothing but risk (a viewport
-// measured mid-walk once left a ten-row list with one badge and nine rows with
-// nothing). Past the budget the viewport rule stands. The viewport is the
+// The viewport is read for **every** list, not only one past the ten-slot
+// budget. The old build gated it on `listOverflowsBudget` (R72) because a list
+// that fits cannot scroll; here it can. The window charges the field's floating
+// band (60u) above the results, so a ten-row list — exactly the budget — scrolls
+// under the field, and a query that also drew an action-bar row left the old
+// `resultCount` at ten while the list held eleven rows. The gate then skipped
+// the viewport and the badges stayed pinned to the top, `1` on the row behind
+// the field (P11-bi, the user's re-report of the P11-bb family: 「超出屏幕的项也
+// 显示快捷键」). Measuring a list that fits is free: every row is on screen, so
+// the range is the rows the old path numbered, and the loop below still caps
+// the family at ten. When the frame left no geometry (the first pass, before a
+// row has been laid out) the range falls back to the whole list, which keeps a
+// mid-walk measurement from leaving a list with one badge and the rest empty
+// (the failure the old build's gate was written against). The viewport is the
 // previous frame's, exactly as the old build's key handler read the last
 // render's slots, so a scroll renumbers the family on the next frame.
 func (a *App) assignNumbers(results []Item) map[int]int {
@@ -603,29 +611,12 @@ func (a *App) assignNumbers(results []Item) map[int]int {
 	} else {
 		clear(numbers)
 	}
-	// The action bar is not a result: the old build's `resultShortcutSlots`
-	// ran over `displayedResults` (which excludes the bar), so the bar takes
-	// no number and the family starts on the first real result. Counting it
-	// here would shift every badge by one and let `⌘1` run the shell row.
-	resultCount := 0
-	for _, item := range results {
-		if !strings.HasPrefix(item.ID, "bar:") && item.ID != bareTerminalRowID {
-			resultCount++
-		}
-	}
-	// A list that fits is numbered whole; only an overflowing one consults
-	// the viewport.
+	// The family follows the viewport whenever the last frame left geometry to
+	// read; without geometry it falls back to the whole list, and the loop's
+	// `count` cap still bounds it at ten (see the function's paragraph).
 	first, last := 0, len(results)-1
-	if resultCount > maxResultSlots {
-		first, last = 0, maxResultSlots-1
-		if visibleFirst, visibleLast, ok := a.numberedViewport(len(results)); ok {
-			first, last = visibleFirst, visibleLast
-		} else if visibleFirst, visibleLast := a.List.Visible(); visibleLast >= visibleFirst {
-			// No geometry yet (the first pass of a window, before any row has
-			// been laid out): fall back to the framework's own range, so the
-			// list opens with its badges rather than without them.
-			first, last = visibleFirst, visibleLast
-		}
+	if visibleFirst, visibleLast, ok := a.numberedViewport(len(results)); ok {
+		first, last = visibleFirst, visibleLast
 	}
 	count := 0
 	for i, item := range results {
