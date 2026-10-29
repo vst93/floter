@@ -300,16 +300,13 @@ func (a *App) calculatorEnterOwnsTheField(results []Item) bool {
 	return true
 }
 
-// toggleCalculatorFavorite stars or unstars the chosen row.
-func (a *App) toggleCalculatorFavorite() {
+// toggleCalculatorFavorite stars or unstars the row it is handed: the row the
+// caller is looking at, which is the row the frame drew (`App.drawn`) rather than
+// a fresh walk of the catalog.
+func (a *App) toggleCalculatorFavorite(item Item) {
 	if a.Calculator == nil {
 		return
 	}
-	results := a.Results()
-	if a.Selected < 0 || a.Selected >= len(results) {
-		return
-	}
-	item := results[a.Selected]
 	if item.calc == nil {
 		return
 	}

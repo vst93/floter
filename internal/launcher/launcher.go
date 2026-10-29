@@ -356,11 +356,18 @@ type App struct {
 	// keystroke as a stall.
 	searchRuns int
 
-	// drawn is the row slice the current draw built, kept for the pointer edges
-	// that fire *inside* that draw (see App.row's Clicked branch). A click reads
-	// the list the frame already has instead of walking the catalog a second
-	// time for the same frame — the same rule `nextSelectableIn` states for the
-	// keyboard (P11-cl).
+	// drawn is the row slice the current draw built: **this frame's table**. Every
+	// action that fires while the draw is running — or that acts on "the row the
+	// user is looking at" — reads it instead of walking the catalog again for
+	// the same frame. A second full match per keystroke was the launcher's
+	// quietest cost (see App.searchRuns) and it bought nothing: the list a
+	// re-walk returns is the list this draw already has.
+	//
+	// P11-cl brought the pointer's click onto it; P11-cn brought the rest of
+	// the family: the arrow keys (`move`), the history star's chord
+	// (`modeShortcuts`) and the star's own click (`toggleFavorite`). The rule is
+	// the one `nextSelectableIn` states: the draw clamps its choice against the
+	// slice it built.
 	drawn []Item
 	// catalog is the built catalog and the shape of the inputs it was built
 	// from (see Catalog): the rows and their lowered search registers are made
@@ -1793,11 +1800,20 @@ func (a *App) modeShortcuts() {
 	if !favorite {
 		return
 	}
+	// The row the user is looking at is the row this frame drew, so the star
+	// reads the frame's own table rather than walking the catalog again for a
+	// row that is already on screen (see App.drawn).
+	item, ok := a.selectedHistoryRow()
+	if !ok {
+		return
+	}
 	switch {
 	case a.calculatorMode:
-		a.toggleCalculatorFavorite()
+		a.toggleCalculatorFavorite(item)
 	case a.clipboard:
-		a.toggleClipFavorite()
+		if item.clip != nil {
+			a.toggleClipFavorite(*item.clip)
+		}
 	}
 }
 
@@ -1854,22 +1870,24 @@ func rowFavorite(item Item) (bool, bool) {
 
 // toggleFavorite stars or unstars a history row's entry, whichever store it
 // came from: the row's own star and the mode's own key act through here.
+//
+// The row hands its own `Item` over. The star's click fires *inside* the draw,
+// where asking the catalog for "the selected row" a second time would be the
+// draw's second full match (see App.drawn); the chord hands over the row of the
+// table the frame drew. Either way the entry starred is the one the user is
+// looking at, and no path re-walks the catalog.
 func (a *App) toggleFavorite(item Item) {
 	switch {
 	case item.clip != nil:
-		a.toggleClipFavorite()
+		a.toggleClipFavorite(*item.clip)
 	case item.calc != nil:
-		a.toggleCalculatorFavorite()
+		a.toggleCalculatorFavorite(item)
 	}
 }
 
 // toggleClipFavorite stars or unstars the chosen clipboard entry.
-func (a *App) toggleClipFavorite() {
+func (a *App) toggleClipFavorite(entry clipboard.Entry) {
 	if a.Clipboard == nil {
-		return
-	}
-	entry, ok := a.selectedClip()
-	if !ok {
 		return
 	}
 	if err := a.Clipboard.SetFavorite(entry.ID, !entry.Favorite); err != nil {
@@ -1877,13 +1895,13 @@ func (a *App) toggleClipFavorite() {
 	}
 }
 
-// selectedClip is the clipboard entry the selection is on.
+// selectedClip is the clipboard entry the selection is on, read from the table
+// this frame drew: a row that is on screen is the row the user is looking at.
 func (a *App) selectedClip() (clipboard.Entry, bool) {
-	results := a.Results()
-	if a.Selected < 0 || a.Selected >= len(results) || results[a.Selected].clip == nil {
+	if a.Selected < 0 || a.Selected >= len(a.drawn) || a.drawn[a.Selected].clip == nil {
 		return clipboard.Entry{}, false
 	}
-	return *results[a.Selected].clip, true
+	return *a.drawn[a.Selected].clip, true
 }
 
 // enterCommand opens an extension command's mode from its own row: the scope
@@ -2835,7 +2853,7 @@ func (a *App) runMode() {
 
 // move moves the selection by delta, wrapping around the list.
 func (a *App) move(delta, n int) {
-	a.Selected = a.nextSelectable(a.Selected, delta)
+	a.Selected = nextSelectableIn(a.drawn, a.Selected, delta)
 	if a.Selected >= n && n > 0 {
 		a.Selected = ClampIndex(a.Selected, n)
 	}
@@ -2849,16 +2867,11 @@ func (a *App) move(delta, n int) {
 // of them a choice, so the arrows step over both.
 func rowSelectable(item Item) bool { return !item.heading && !item.status }
 
-// nextSelectable moves one step and lands on a row the keyboard can act on: a
-// block's heading line is a label and a plugin's status note is information,
-// neither of them a choice, so the arrows step over both.
-func (a *App) nextSelectable(from, delta int) int {
-	return nextSelectableIn(a.Results(), from, delta)
-}
-
-// nextSelectableIn is nextSelectable over a list the caller already holds: the
-// draw clamps its choice against the slice it built, and asking for a fresh
-// catalog there was the draw's second full match (see App.searchRuns).
+// nextSelectableIn is the keyboard's step, over a list the caller already
+// holds: the draw clamps its choice against the slice it built, and asking for
+// a fresh catalog there was the draw's second full match (see App.searchRuns).
+// `move` hands it the frame's own table (`App.drawn`), which is the list the
+// user is looking at when the key lands.
 func nextSelectableIn(results []Item, from, delta int) int {
 	n := len(results)
 	if n == 0 {

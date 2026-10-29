@@ -133,7 +133,7 @@ func TestSectionHeadings(t *testing.T) {
 	// The keyboard never lands on a heading.
 	a.Selected = 0
 	for i := 0; i < len(results)+2; i++ {
-		a.Selected = a.nextSelectable(a.Selected, 1)
+		a.Selected = nextSelectableIn(results, a.Selected, 1)
 		if results[a.Selected].heading {
 			t.Fatalf("the arrows landed on the heading at %d", a.Selected)
 		}

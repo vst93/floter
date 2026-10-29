@@ -258,7 +258,7 @@ func (a *App) historyDeleteKey() bool {
 	// `now - armedAt <= HISTORY_DELETE_CONFIRM_MS`).
 	if a.armedDelete == item.ID && now.Sub(a.armedDeleteAt) <= historyDeleteConfirm {
 		a.disarmDelete()
-		a.deleteHistoryRow(item.ID)
+		a.deleteHistoryRow(item)
 		return true
 	}
 	// A different row — or the same one after the window — re-arms on the new
@@ -324,32 +324,37 @@ func (a *App) historyDeleteClaimable() bool {
 // on: the rows the delete key may act upon. The calculator's answer row (the
 // pending expression, not a stored entry) and every other kind of row are not
 // one of them.
+//
+// It reads the table the frame drew (`App.drawn`) — the row on screen, which is
+// the row the user is looking at when the key lands.
 func (a *App) selectedHistoryRow() (Item, bool) {
-	results := a.Results()
-	if a.Selected < 0 || a.Selected >= len(results) {
+	if a.Selected < 0 || a.Selected >= len(a.drawn) {
 		return Item{}, false
 	}
-	item := results[a.Selected]
+	item := a.drawn[a.Selected]
 	if item.clip == nil && item.calc == nil {
 		return Item{}, false
 	}
 	return item, true
 }
 
-// deleteHistoryRow removes the history row with the given id, and hands the
+// deleteHistoryRow removes the history row it is handed, and hands the
 // selection to the row that took its place: the neighbour steps into the slot,
 // and removing the last row selects the new last one — the old build's
 // `selectionAfterRemoval`, the user's 「邻居接管选中，不跳顶」. The list never
 // jumps back to the top.
 //
-// The row is named by id rather than by index so a list that shifted under the
-// arm (a clipboard watcher adding an entry, a filter chip narrowing) can never
-// turn a confirmation into the removal of a row the user was not looking at.
-func (a *App) deleteHistoryRow(id string) {
-	results := a.Results()
+// The row arrives as the `Item` the frame drew, and the *arm* is what makes it
+// safe: the arm holds the row's id, so a list that shifted under it (a
+// clipboard watcher adding an entry, a filter chip narrowing) cannot turn a
+// confirmation into the removal of a row the user was not looking at — the
+// confirming press re-reads the frame's table and only matches by id (see
+// historyDeleteKey). The caller therefore never re-walks the catalog to find
+// the row again.
+func (a *App) deleteHistoryRow(item Item) {
 	index := -1
-	for i, item := range results {
-		if item.ID == id {
+	for i, drawn := range a.drawn {
+		if drawn.ID == item.ID {
 			index = i
 			break
 		}
@@ -357,7 +362,7 @@ func (a *App) deleteHistoryRow(id string) {
 	if index < 0 {
 		return
 	}
-	item := results[index]
+	length := len(a.drawn)
 	copy := a.copy()
 	switch {
 	case item.clip != nil && a.Clipboard != nil:
@@ -376,7 +381,7 @@ func (a *App) deleteHistoryRow(id string) {
 	default:
 		return
 	}
-	a.Selected, a.chosenRow = selectionAfterRemoval(index, len(results)), -1
+	a.Selected, a.chosenRow = selectionAfterRemoval(index, length), -1
 }
 
 // selectionAfterRemoval is where the choice lands once the row at index leaves
