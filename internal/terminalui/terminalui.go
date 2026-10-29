@@ -103,6 +103,17 @@ type App struct {
 	Store   *settings.Store
 	Actions Actions
 
+	// tokenMemo is this frame's palette, and tokenStore is the store it was
+	// read from (P11-bt). The surface asks for tokens from many places per
+	// frame — `tokensOf` alone has thirteen call sites, and two more draw
+	// straight from `theme.ForPreferences` — and a build of a `ui.Theme` plus
+	// its palette per call was measurable work on a surface that redraws on
+	// every byte the program writes. The memo is keyed by the store's version,
+	// the appearance and the desktop's preferences, so a hit is the value the
+	// miss would have built; see `theme.Memo`.
+	tokenMemo  theme.Memo
+	tokenStore *settings.Store
+
 	// NewTerminal creates a session, with the options built from the
 	// settings. Nil means no session can start (tests).
 	NewTerminal func(terminal.Options) (*terminal.Terminal, error)
@@ -988,8 +999,20 @@ func barHints(copy i18n.Terminal, s settings.Settings) (newCommand, openExternal
 }
 
 // tokensOf resolves the card language's own tokens for the stored appearance.
+//
+// It answers the frame's one palette rather than building a fresh one per call
+// (P11-bt): every reader on this surface passes the same appearance and the same
+// desktop preferences, and nothing else reaches `ForPreferences`, so the memo's
+// key is exact — a change to the settings bumps the store's version and the next
+// read builds again, which is what a preview slider on the drawer needs.
 func tokensOf(a *App, c *ui.Context) theme.Tokens {
-	return theme.ForPreferences(a.Store.Snapshot(), c.Theme().Dark, c.Preferences())
+	if a.tokenStore != a.Store {
+		// Two stores both begin at version zero, so a swap is noticed by the
+		// pointer, exactly as the settings surface's memo does it (P11-bs).
+		a.tokenStore = a.Store
+		a.tokenMemo.Reset()
+	}
+	return a.tokenMemo.Tokens(a.Store.Version(), c.Theme().Dark, c.Preferences(), a.Store.Snapshot)
 }
 
 // barInks is the ink the floating terminal bar draws with, and the face it
@@ -1202,7 +1225,7 @@ func (a *App) residentNote(c *ui.Context, copy i18n.Terminal) {
 		return
 	}
 	t := c.Theme()
-	tokens := theme.ForPreferences(a.Store.Snapshot(), t.Dark, c.Preferences())
+	tokens := tokensOf(a, c)
 	color := tokens.TextSecondary
 	if session.ExitCode != 0 {
 		color = t.Warning
@@ -1267,7 +1290,7 @@ func (a *App) feedbackNote(c *ui.Context) {
 	// `Context.AnimationFrame` asked for were builds, `ui/runtime.go:744-748`).
 	deadline.Wake(c, a.feedbackUntil.Sub(now))
 	t := c.Theme()
-	tokens := theme.ForPreferences(a.Store.Snapshot(), t.Dark, c.Preferences())
+	tokens := tokensOf(a, c)
 	// The reference's own notice: 12u from the panel's top-left corner, the
 	// 7u/10u padding pair, the floater's fill, a 15u alert glyph and the body
 	// step at 560 in the warning colour. The glyph, the ink, the two padding
