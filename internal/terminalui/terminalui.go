@@ -1435,7 +1435,7 @@ func (a *App) titleBar(c *ui.Context, copy i18n.Terminal) {
 			identity.Opacity(0)
 		}
 		identity.Children(func() {
-			a.statusDot(c, inks)
+			a.statusDot(c, inks, revealed)
 			// `.terminal-bar__title` (`terminal.css:150-161`): the body step in
 			// `--text-secondary`, 580, with the reference's `letter-spacing:
 			// -0.01em`. The identity line used to read the muted step one size
@@ -1496,7 +1496,7 @@ func (a *App) titleBar(c *ui.Context, copy i18n.Terminal) {
 // session runs, and a still grey dot once the program has ended. Its ink is the
 // bar's own tertiary rung (`canvasInks`), so it belongs to the canvas the bar
 // floats on rather than to the window behind it.
-func (a *App) statusDot(c *ui.Context, inks barInks) {
+func (a *App) statusDot(c *ui.Context, inks barInks, drawn bool) {
 	t := c.Theme()
 	// P11-af: the dot is 7u of the band's first 7u — a plain Box would still be a
 	// hit target there, so the status light follows the bar and the identity row
@@ -1528,6 +1528,18 @@ func (a *App) statusDot(c *ui.Context, inks barInks) {
 	// read through motion: a desktop that asks for less motion gets the dot at
 	// rest, exactly the 0% keyframe the old stylesheet left (`animation:
 	// none`), and registers no loop.
+	//
+	// P11-bm：**画不出来的点不读循环**。`drawn` 是浮条揭示的那一个状态
+	// （`terminalui.go` 的 `revealed`）：未揭示时上层的身份行是
+	// `identity.Opacity(0)`，点连同它的名字一起是零不透明度——可它仍然每帧
+	// 调一次 `Element.Loop`，而 `Loop`（`ui/widgets.go:69-84`）要的是
+	// `Context.AnimationFrame`，`runtime.go:744-748` 把它翻成「下一帧**重建**
+	// 整棵视图」。于是终端页一开着、指针又不在浮条上，整个终端视图就按
+	// 显示器刷新率无限重建（120 Hz 面板 = 每秒 120 次），为一个谁也看不见
+	// 的动画。停在这里不读循环，揭示时的像素与动效逐字节不变。
+	if !drawn {
+		return
+	}
 	breath := motion.Value(c, func() float32 {
 		return dot.Loop("terminal.dot", 2400*time.Millisecond, ui.Bounce(ui.EaseInOut))
 	})
