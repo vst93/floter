@@ -20,6 +20,7 @@ import (
 	"github.com/egoist/mygo/transfer"
 	"github.com/egoist/mygo/ui"
 
+	"floter/internal/deadline"
 	"floter/internal/glassmap"
 	"floter/internal/i18n"
 	"floter/internal/inputtext"
@@ -1260,9 +1261,11 @@ func (a *App) feedbackNote(c *ui.Context) {
 		a.feedback, a.feedbackShown, a.feedbackUntil = "", "", time.Time{}
 		return
 	}
-	// The notice is a timed line: frames must keep coming while it shows, or
-	// a still panel would leave the last sentence up forever.
-	c.AnimationFrame()
+	// The note is a timed line: it changes once, when its 4.5s window runs out,
+	// so the panel arms one wake at that moment instead of rebuilding the view
+	// on every refresh for a sentence that does not change (P11-bq — the frames
+	// `Context.AnimationFrame` asked for were builds, `ui/runtime.go:744-748`).
+	deadline.Wake(c, a.feedbackUntil.Sub(now))
 	t := c.Theme()
 	tokens := theme.ForPreferences(a.Store.Snapshot(), t.Dark, c.Preferences())
 	// The reference's own notice: 12u from the panel's top-left corner, the

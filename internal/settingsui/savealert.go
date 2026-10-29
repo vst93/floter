@@ -5,6 +5,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"floter/internal/deadline"
 	"floter/internal/i18n"
 )
 
@@ -41,19 +42,21 @@ func (a *App) dismissSaveFailed() {
 	a.saveAlertAnimating = false
 }
 
-// expireSaveFailed clears a banner whose window has passed, and keeps the
-// frames coming while one is up so the deadline is reached on a still page.
+// expireSaveFailed clears a banner whose window has passed, and arms one wake
+// at the deadline while it is up so a still page reaches it. The banner's
+// entrance gets its frames from its own `AnimateTo` motion; the seconds after it
+// settles are a sentence that does not change, so they are one wake and not a
+// rebuild per refresh (P11-bq).
 func (a *App) expireSaveFailed(c *ui.Context) {
 	if !a.saveFailed {
 		return
 	}
-	if a.now().Sub(a.saveFailedAt) > saveFailedWindow {
+	waited := a.now().Sub(a.saveFailedAt)
+	if waited > saveFailedWindow {
 		a.dismissSaveFailed()
 		return
 	}
-	if c != nil {
-		c.AnimationFrame()
-	}
+	deadline.Wake(c, saveFailedWindow-waited)
 }
 
 // SaveFailedVisible reports whether the write-failure banner is showing, for
@@ -108,6 +111,12 @@ func (a *App) saveAlert(c *ui.Context, copy i18n.Settings) {
 		a.saveAlertShown = true
 		banner.AnimateTo(saveAlertEnterKey, 0, saveAlertEnterAnimation)
 		a.saveAlertProgress = 0
+		// A value starts at its first target, so the motion begins on the frame
+		// *after* this one: ask for it. The frames of the travel itself are the
+		// animation's own (`AnimateTo` asks while it moves, `ui/motion.go:340`) —
+		// and the seconds after it settles belong to the banner's deadline, which
+		// is one wake and not a rebuild per refresh (P11-bq).
+		c.AnimationFrame()
 	} else {
 		a.saveAlertProgress = banner.AnimateTo(saveAlertEnterKey, 1, saveAlertEnterAnimation)
 	}

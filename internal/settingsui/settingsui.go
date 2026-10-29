@@ -23,6 +23,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/control"
+	"floter/internal/deadline"
 	"floter/internal/extensions"
 	"floter/internal/glassmap"
 	"floter/internal/i18n"
@@ -6017,13 +6018,21 @@ func (a *App) requestRemove(id string) {
 const confirmWindow = 3 * time.Second
 
 // expireConfirmations withdraws any inline question that has waited longer than
-// its window, and keeps the frames coming while one is live so the deadline is
-// reached on a still page exactly as it is with a hand on it. A band whose
-// answer is already in flight is left alone: the reference's timer was cleared
-// on unmount, but its own `busy` face outlives a press that has not landed yet.
+// its window, and arms one wake at the earliest of their deadlines while any is
+// live, so a still page reaches it exactly as it does with a hand on it (P11-bq:
+// the frames used to be rebuilds of the whole page, one per refresh, for three
+// questions that only change once). A band whose answer is already in flight is
+// left alone: the reference's timer was cleared on unmount, but its own `busy`
+// face outlives a press that has not landed yet — and the shell's report back
+// is what wakes the page when it lands.
 func (a *App) expireConfirmations(c *ui.Context) {
 	now := a.now()
-	live := false
+	var next time.Time
+	consider := func(at time.Time) {
+		if next.IsZero() || at.Before(next) {
+			next = at
+		}
+	}
 	for id, at := range a.disableConfirmAt {
 		if !a.disableConfirm[id] {
 			delete(a.disableConfirmAt, id)
@@ -6034,7 +6043,7 @@ func (a *App) expireConfirmations(c *ui.Context) {
 			delete(a.disableConfirmAt, id)
 			continue
 		}
-		live = true
+		consider(at.Add(confirmWindow))
 	}
 	for id, at := range a.removeConfirmAt {
 		if !a.removeConfirm[id] {
@@ -6046,7 +6055,7 @@ func (a *App) expireConfirmations(c *ui.Context) {
 			delete(a.removeConfirmAt, id)
 			continue
 		}
-		live = true
+		consider(at.Add(confirmWindow))
 	}
 	// The configuration form's fold-away question carries the same clock: the
 	// reference armed it with the identical `useTimedReset` and 3000 ms default
@@ -6061,10 +6070,10 @@ func (a *App) expireConfirmations(c *ui.Context) {
 			delete(a.configDiscardAt, id)
 			continue
 		}
-		live = true
+		consider(at.Add(confirmWindow))
 	}
-	if live && c != nil {
-		c.AnimationFrame()
+	if !next.IsZero() {
+		deadline.Wake(c, next.Sub(now))
 	}
 }
 
@@ -6120,9 +6129,10 @@ func (a *App) expireSessionClose(c *ui.Context) {
 		a.disarmSessionClose()
 		return
 	}
-	if c != nil {
-		c.AnimationFrame()
-	}
+	// The session's close question: a deadline like the other inline ones, so
+	// the page wakes once when it runs out rather than on every refresh
+	// (P11-bq).
+	deadline.Wake(c, sessionCloseWindow-a.now().Sub(a.armedSessionAt))
 }
 
 // anyConfirmOpen reports whether a disable or removal bar is up anywhere on

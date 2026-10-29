@@ -6,6 +6,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"floter/internal/deadline"
 	"floter/internal/theme"
 )
 
@@ -86,22 +87,22 @@ func (a *App) runPower(action string) {
 }
 
 // expirePowerConfirm drops a confirmation that has waited past its window,
-// and keeps the frames coming while one is live so the deadline is reached on
-// a still panel exactly as it is with a hand on it. A nil context (a caller
-// outside a frame) still clears a lapsed question; only the animation request
-// needs one.
+// and arms one wake at the deadline while one is live so it is reached on
+// a still panel exactly as it is with a hand on it (P11-bq: the frames used to
+// be rebuilds of the whole view, one per display refresh). A nil context (a
+// caller outside a frame) still clears a lapsed question; only the wake needs
+// one.
 func (a *App) expirePowerConfirm(c *ui.Context) {
 	if a.pendingPower == "" {
 		return
 	}
-	if a.now().Sub(a.pendingPowerAt) > powerConfirmWindow {
+	waited := a.now().Sub(a.pendingPowerAt)
+	if waited > powerConfirmWindow {
 		a.pendingPower = ""
 		a.pendingPowerAt = time.Time{}
 		return
 	}
-	if c != nil {
-		c.AnimationFrame()
-	}
+	deadline.Wake(c, powerConfirmWindow-waited)
 }
 
 // PowerPending is the power action awaiting confirmation, empty for none: the

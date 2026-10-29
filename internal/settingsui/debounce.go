@@ -6,6 +6,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"floter/internal/deadline"
 	"floter/internal/settings"
 )
 
@@ -91,19 +92,19 @@ func (a *App) flushSettingsWrites() {
 	}
 }
 
-// expireSettingsWrites flushes the window once it has passed and keeps frames
-// coming while it runs, so a still page reaches the deadline.
+// expireSettingsWrites flushes the window once it has passed and arms one wake
+// at its end while it runs, so a still page reaches the deadline without
+// rebuilding the view on every refresh (P11-bq).
 func (a *App) expireSettingsWrites(c *ui.Context) {
 	if !a.debouncing {
 		return
 	}
-	if !a.now().Before(a.debounceAt) {
+	wait := a.debounceAt.Sub(a.now())
+	if wait <= 0 {
 		a.flushSettingsWrites()
 		return
 	}
-	if c != nil {
-		c.AnimationFrame()
-	}
+	deadline.Wake(c, wait)
 }
 
 // Flush writes any pending debounced settings change immediately. The shell

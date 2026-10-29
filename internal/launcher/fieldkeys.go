@@ -6,6 +6,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"floter/internal/deadline"
 	"floter/internal/settings"
 	"floter/internal/shortcuts"
 )
@@ -267,18 +268,21 @@ func (a *App) historyDeleteKey() bool {
 }
 
 // expireArmedDelete disarms an arm that has waited longer than the window. It
-// is called once per frame from the launcher's View, and asks for the next
-// frame while an arm is live so the deadline is reached even in a still
-// window — the same shape as the docked status row's own clock.
+// is called once per frame from the launcher's View, and arms one wake at the
+// deadline while an arm is live so it is reached even in a still window — the
+// same shape as the docked status row's own clock, and the one the toast below
+// uses (P11-bq: a rebuild per refresh was 120 of them a second for an arm that
+// only changes once).
 func (a *App) expireArmedDelete(c *ui.Context) {
 	if a.armedDelete == "" {
 		return
 	}
-	if a.now().Sub(a.armedDeleteAt) > historyDeleteConfirm {
+	waited := a.now().Sub(a.armedDeleteAt)
+	if waited > historyDeleteConfirm {
 		a.disarmDelete()
 		return
 	}
-	c.AnimationFrame()
+	deadline.Wake(c, historyDeleteConfirm-waited)
 }
 
 // now is the launcher's clock: the injected one when a test set it, the wall

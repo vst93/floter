@@ -12,6 +12,7 @@ import (
 	"floter/internal/browser"
 	"floter/internal/calculator"
 	"floter/internal/clipboard"
+	"floter/internal/deadline"
 	"floter/internal/drops"
 	"floter/internal/extensions"
 	"floter/internal/i18n"
@@ -3050,7 +3051,10 @@ func (a *App) feedbackRow(c *ui.Context) {
 		a.toast, a.toastWarning, a.toastShown, a.toastUntil = "", false, "", time.Time{}
 		return
 	}
-	c.AnimationFrame()
+	// P11-bq：句子只在到点那一帧变（4.5s 后自己消失），所以它要的是「到点唤醒
+	// 一次」而不是每帧重建整棵视图（`Context.AnimationFrame` 是 rebuild，
+	// `ui/runtime.go:744-748`）——120 Hz 面板上那是一条句子一秒 120 次重建。
+	deadline.Wake(c, a.toastUntil.Sub(now))
 	t := c.Theme()
 	tokens := a.tokens(c)
 	// The old build's own row: a 30u band, the panel's 12u inset, the body
