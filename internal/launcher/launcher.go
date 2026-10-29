@@ -2114,6 +2114,15 @@ func (a *App) currentWord() string {
 // appendWord adds a completed argument to the line: it finishes the word
 // being typed, or starts a new one after a space, and leaves a space ready
 // for the next.
+//
+// P11-ce：补全要把光标**放到新行尾**。这一行是 App 自己写的（`a.Query`），
+// 而输入框里的编辑器拿着自己的缓冲区与光标，外部写入的文本只会被夹到长度
+// （mygo `ui/editor_history.go:59` 的 `ed.caret = min(ed.caret, ed.buf.n)`）
+// ——补全后的行比光标所在的位置长，于是下一个字符落进被补全的词**中间**
+// （实测补全 `-mode ` 后键入 `x` 得到 `-mxode `）。参考那边没有这个状态：
+// 它的输入是 DOM `<input>`，App 写 value 时浏览器的光标回到末尾。补全后用户
+// 就是要接着打，所以这里和 `SetQuery`/`ResetQuery`/历史的每一条路径一样置
+// `pendingCaret`（那一帧的字段把选区放到 `len(a.Query)`）。
 func (a *App) appendWord(word string) {
 	if word == "" {
 		return
@@ -2125,6 +2134,7 @@ func (a *App) appendWord(word string) {
 		a.Query = replaceLastWord(trimmed, word) + " "
 	}
 	a.Selected, a.chosenRow = 0, -1
+	a.pendingCaret = true
 	a.FocusSearch()
 }
 
