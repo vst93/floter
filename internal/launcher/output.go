@@ -121,6 +121,8 @@ func (a *App) showOutput(run extensions.CapturedRun, err error, entry *extension
 	// 几何发号——与上面同一条规则：一份新内容从它自己的开头开始。
 	clear(a.outputRowRects)
 	a.outputListRect = ui.Rect{}
+	// P13-x：分组头的盒子也属于上一份输出，跟着一起清。
+	clear(a.outputHeadingRects)
 	a.output = &view
 	a.Selected, a.chosenRow = 0, -1
 }
@@ -546,6 +548,8 @@ func (a *App) outputBody(c *ui.Context, copy i18n.Launcher, edge float32) {
 					// 行被建出来之前就要发下去，所以先清掉上一帧的盒，由本帧建出来的行
 					// 重新填（离开列表的行于是不会留下过期盒子骗 viewportRange）。
 					clear(a.outputRowRects)
+					// P13-x：分组头的盒子与行盒同一时机清掉（见 `headingRects`）。
+					clear(a.outputHeadingRects)
 					list := ui.List(c.Key("launcher.output.list"), &a.OutputList, len(view.Rows), func(i int) {
 						a.outputRow(c, view.Rows[i], i)
 					}).Fill().Padding(header, t.Space(2), 0, t.Space(2)).Label(view.Title)
@@ -607,11 +611,25 @@ func (a *App) outputRow(c *ui.Context, row extensions.Row, i int) {
 		// 同一条内部节奏——同一张卡里的两种列表只有一条文字列（54u），不是一个
 		// 表面 52u、一个表面 54u。旧值 → 新值：`Margin-left` 36u → 38u，标题列
 		// 52u → 54u。
-		ui.Row(c).FillWidth().Padding(t.Space(1.5), t.Space(2), t.Space(1), t.Space(2)).
-			Children(func() {
-				ui.Text(c, row.Group).FontSize(t.FontSize).FontWeight(620).
-					TextColor(t.TextMuted).Margin(0, 0, 0, t.Space(9.5))
-			})
+		// P13-x · 分组头也是列表的一部分，所以它也参加折边（与 `row` 的分组头臂同一个
+		// 规则、同一个纯函数）。它是 `style` 的**兄弟**，折边切到它的时候它保持满墨——
+		// 实测 `Group B` 在只剩 8/22u 时墨是 134、12/22u 时 137，与整行可见时一样；
+		// 这不是「下面还有」，这是「界面坏了」。
+		//
+		// 盒子记进 `outputHeadingRects`，不进 `outputRowRects`——后者喂
+		// `outputNumberedViewport`，一个标签混进去会占掉一个数字位。
+		heading := ui.Row(c).FillWidth().Padding(t.Space(1.5), t.Space(2), t.Space(1), t.Space(2))
+		if a.outputHeadingRects == nil {
+			a.outputHeadingRects = make(map[int]ui.Rect, 4)
+		}
+		a.outputHeadingRects[i] = heading.Bounds()
+		if fold := foldAlpha(a.outputListRect, a.outputHeadingRects[i]); fold < 1 {
+			heading.Opacity(float32(fold))
+		}
+		heading.Children(func() {
+			ui.Text(c, row.Group).FontSize(t.FontSize).FontWeight(620).
+				TextColor(t.TextMuted).Margin(0, 0, 0, t.Space(9.5))
+		})
 	}
 	// P11-ad 重定基线：行的 gap 8u → 10u，与启动器列表的行（`launcher.go` 的
 	// `Gap(t.Space(2.5))`）同一份。这一项同时管着图标列与文字列之间、文字列与

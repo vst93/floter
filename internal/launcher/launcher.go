@@ -439,6 +439,14 @@ type App struct {
 	// stale box behind.
 	rowRects map[int]ui.Rect
 	listRect ui.Rect
+	// headingRects is the same measurement for the group headings the list
+	// prints above its blocks (see `row`'s `item.heading` arm). They are
+	// **siblings** of the rows, not rows, so the fold never reached them and a
+	// heading cut by the fold kept its full ink (P13-x: the launcher's label
+	// measured 145/133 light/dark with 8 of its 22u showing). This table feeds
+	// `foldAlpha` **only**: the numbered family keeps reading `rowRects`, so
+	// adding a heading here can never move a badge or a digit chord.
+	headingRects map[int]ui.Rect
 	// outputNumbers is the same family for the captured-output list: the
 	// numbered shortcuts address the output's own rows while it owns the band
 	// (see assignOutputNumbers).
@@ -451,6 +459,11 @@ type App struct {
 	// cleared as the list is built, so a row that left leaves no stale box.
 	outputRowRects map[int]ui.Rect
 	outputListRect ui.Rect
+	// outputHeadingRects is `headingRects` for the captured-output list's group
+	// headings (`outputRow`'s `row.Group` arm). Same rule, same pure function,
+	// and the same exclusion: it feeds `foldAlpha` only, never
+	// `outputNumberedViewport` (P13-x).
+	outputHeadingRects map[int]ui.Rect
 	// icons caches the decoded application icons, by path, and thumbs the
 	// clipboard images'.
 	icons  map[string]*ui.Bitmap
@@ -1401,6 +1414,9 @@ func (a *App) View(c *ui.Context) {
 			// 就要发下去，所以这里先把上一帧的盒清掉，由本帧建出来的行重新填——
 			// 已经离开列表的行于是不会留下一个过期的盒子去骗 `numberedViewport`。
 			clear(a.rowRects)
+			// P13-x：分组头的盒子与行盒同一时机清掉——两张表都只描述**本帧**建出来
+			// 的东西，一个离开列表的标签不会留下过期盒子。
+			clear(a.headingRects)
 			// P11-bj：字段带占自己的位置，列表从带子下沿开始。字段行不再画自己的面
 			// （它就是面板的第一条带，见下面 `launcher.fieldRow`），于是它不再是不透明
 			// 的遮罩：一条滚上去的行会从查询文字底下透出来。把带子放进流里，滚动区的
@@ -2266,12 +2282,28 @@ func (a *App) row(c *ui.Context, item Item, i int) {
 		// 行自己的 gap 10u（`rowBody` 的 `Gap(t.Space(2.5))`）= 38u 的
 		// `Margin-left`，加上列表 gutter 的 8u 即合约 §3 的 54u 文本列。
 		tokens := a.tokens(c)
-		ui.Row(c).FillWidth().Padding(t.Space(1.5), t.Space(2), t.Space(1), t.Space(2)).
-			Children(func() {
-				ui.Text(c, item.Title).FontSize(t.FontSize).FontWeight(500).
-					TextColor(tokens.TextSecondary).SingleLine().
-					Margin(0, 0, 0, t.Space(9.5))
-			})
+		// P13-x · 分组头也是列表的一部分，所以它也参加折边。它是 `rowBody` 的**兄弟**
+		// （下面那个 `return` 让它从来没经过 `rowBody` 的 `Opacity`），于是折边切到它
+		// 的时候它保持满墨——实测浅色 145 / 深色 133，与整行可见时逐像素相同。
+		//
+		// 盒子记进**自己的表**（`headingRects`），不进 `rowRects`：后者喂
+		// `viewportRange` 的编号，一个标签混进去就会占掉一个数字位（P13-w「仍待」第 1
+		// 条已经把这条写死）。`Bounds()` 是上一帧的矩形，与 `rowBody` 的
+		// `a.rowRects[i] = row.Bounds()` 同一时序。
+		heading := ui.Row(c).FillWidth().Padding(t.Space(1.5), t.Space(2), t.Space(1), t.Space(2))
+		if a.headingRects == nil {
+			a.headingRects = make(map[int]ui.Rect, 4)
+		}
+		a.headingRects[i] = heading.Bounds()
+		if fold := foldAlpha(a.listRect, a.headingRects[i]); fold < 1 {
+			// 必须在 `Children` 之前：框架按建树那一刻的 opacity 画这一帧。
+			heading.Opacity(float32(fold))
+		}
+		heading.Children(func() {
+			ui.Text(c, item.Title).FontSize(t.FontSize).FontWeight(500).
+				TextColor(tokens.TextSecondary).SingleLine().
+				Margin(0, 0, 0, t.Space(9.5))
+		})
 		return
 	}
 	// A status note -- the mode's own "the plugin is off" line -- is
