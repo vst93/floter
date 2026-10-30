@@ -1835,7 +1835,10 @@ func (a *App) rowControl(c *ui.Context, name, label string, run func()) {
 		control.Background(tokens.ControlPress).Scale(0.92, 0.92)
 		ink = tokens.TextStrong
 	case control.Hovered():
-		tokens.Lens(control.Background(tokens.ControlHover))
+		// P13-h · 悬停的 20u 小格是 E1 的一个面，不是四层透镜：环（`Lens` 的
+		// 第四层）在这么小的格子上读成「带框的按钮」，正是 §2 退掉的画框分层；
+		// 与 P13-d 的终端页悬停图标按钮同一语汇。
+		tokens.LitFace(control.Background(tokens.ControlHover))
 		ink = tokens.TextStrong
 	}
 	control.Children(func() {
@@ -3370,7 +3373,9 @@ func (a *App) fieldSettingsButton(c *ui.Context, tokens theme.Tokens, label, hin
 		e = e.Background(tokens.ControlPress).Scale(0.92, 0.92)
 		ink = tokens.TextStrong
 	case e.Hovered():
-		e = tokens.Lens(e.Background(tokens.ControlHover))
+		// P13-h · 与 `rowControl` 同一语汇：悬停的 28u 格是 E1 的面（顶受光边 +
+		// 底对侧暗线），不是四层透镜（第四层是四边环）。
+		e = tokens.LitFace(e.Background(tokens.ControlHover))
 		ink = tokens.TextStrong
 	}
 	e.Children(func() { mark(ink) })

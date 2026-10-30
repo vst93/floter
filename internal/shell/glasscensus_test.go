@@ -80,16 +80,26 @@ func TestEveryNamedControlDrawsALensRung(t *testing.T) {
 		{
 			selector: ".launcher-result__icon",
 			file:     "../launcher/glyphs.go",
-			marker:   "tokens.Lens(plate)",
-			test:     "launcher.TestTheResultPlateCarriesTheStopLens",
+			// P13-h 重定基线（V）：这条 census 条目原本钉的是旧一代的**四层控件
+			// 透镜**（`tokens.Lens(plate)`），它的第四层是四边 `ControlEdge` 的环。
+			// `docs/liquid-glass.md` §2 把「画框分层」换成「面差 + 一条受光边」，
+			// 而这块 28u 的板在每一行都出现 —— 环是「macOS 旧版工具条按钮」那个
+			// 读法的来源。现在它是 E1 的一个面（`LitFace`：顶受光边 + 底对侧
+			// 暗线，无环），所以这条从「必须还有那个调用」翻成「那个调用不许
+			// 回来」，新面由 `launcher.TestTheIconPlateIsAFaceNotARing` 逐列量着。
+			marker:  "tokens.Lens(plate)",
+			dropped: "docs/liquid-glass.md §2 判据 + §6.1 第 1-4 行: the 28u icon plate is an E1 face (LitFace), not the four-layer control lens (P13-h)",
+			test:    "launcher.TestTheIconPlateIsAFaceNotARing",
 		},
 		{
 			// The action bar's rows are result rows in this build, so they lead
 			// with the same plate: one draw point serves both names.
 			selector: ".launcher-action-bar__icon",
 			file:     "../launcher/glyphs.go",
-			marker:   "tokens.Lens(plate)",
-			test:     "launcher.TestTheResultPlateCarriesTheStopLens",
+			// 同上一条：一个 draw point 服务两个名字，环退掉时两个名字一起退。
+			marker:  "tokens.Lens(plate)",
+			dropped: "docs/liquid-glass.md §2 判据 + §6.1 第 1-3/1-4 行: the action bar's plate is the same E1 face (P13-h)",
+			test:    "launcher.TestTheIconPlateIsAFaceNotARing",
 		},
 		// Segmented controls (recessed track + raised chosen slot).
 		{

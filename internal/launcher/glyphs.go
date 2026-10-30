@@ -284,11 +284,16 @@ func (a *App) iconPlate(c *ui.Context, warm bool) ui.Element {
 	} else {
 		plate.Background(tokens.Control)
 	}
-	// Raycast's plate is flat: the control lens is capped at 0.04 by the
-	// palette (`docs/raycast-design.md` §4.1), so the stack is still the stop's
-	// own (`--glass-lens-scale` grades it) but no longer reads as a lit pane of
-	// glass.
-	return tokens.Lens(plate)
+	// P13-h · 这块板是 **E1** 的一个面，不是透镜：顶一条 `LensRim`、底一条
+	// `LensEdge`，**没有** `Lens` 的第四层（四边 `ControlEdge` 的环），也没有它
+	// 第二层那条宽 sheen —— `docs/liquid-glass.md` §2 把「画框分层」换成了
+	// 「面差 + 一条受光边」，而这块板在每一行都出现，环就是那个旧读法的来源。
+	//
+	// 这里原本写着「Raycast's plate is flat: the control lens is capped at 0.04」
+	// ——那句话在 P12-a 之后是假的：`LensRim` 已重定到 0.09（§1 的旧值→新值表），
+	// 于是这块 28u 的板每一行都在画一条受光边外加一个四边环。板仍然随玻璃档
+	// 升降：`LensRim`/`LensEdge` 正是 `--glass-lens-scale` 分级的那一族。
+	return tokens.LitFace(plate)
 }
 
 // enterBadge is the key the action bar's row runs on: the select-result

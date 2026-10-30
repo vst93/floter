@@ -189,9 +189,21 @@ E1 的落地函数 `theme.Tokens.LitFace`（顶 `LensRim` + 底 `LensEdge`，无
 | 1-5 | 捕获输出页选中行（`output.go` `outputRow`） | `RowSelected`，与列表同档但无受光边 | 与 1-2 同一条规则、同一个函数 | `已落地` |
 | 1-6 | 空态（`launcher.go` 的空页） | 一句居中，无底板 | **保持 E0**，不加面 | `已落地` |
 | 1-7 | 反馈行（`launcher.go` `feedbackRow`） | 顶边 `LensRim` **只在警告档**画，静息档是一块平涂 | E1：`tokens.LitFace(feedback)` 无条件画；警告档多出来的只是 keyline 与两层影 | `已落地` |
+| 1-8 | **新增**｜28u 图标板（`glyphs.go` `iconPlate`，启动器所有页 + 捕获输出页共用） | `tokens.Lens(plate)`：四层，第四层 `ControlEdge` 环**画在最后**，把第一条 `LensRim` 压在下面——浅色档顶边实测 **212 < 面 221**（一条暗线），深色档 97（0.09 白 + 0.07 白叠在同一行） | E1：`tokens.LitFace(plate)` —— 浅色顶 224 / 底 208，深色顶 82 / 底 61，两侧回到面本身（P13-h） | `已落地` |
+| 1-9 | **新增**｜两处悬停小格（`launcher.go` `rowControl` 20u / `fieldSettingsButton` 28u 的 `Hovered()` 臂） | `tokens.Lens(…)`：同一个四边环，在 20u/28u 的格子上读成「带框的按钮」 | E1：`tokens.LitFace(…)`，与 P13-d 的终端页悬停按钮同一语汇（P13-h） | `已落地` |
 
 pin：`internal/launcher/litedge_test.go` 四条（选中块 / 键帽 / 反馈带两态 / 输出页选中行），
 每条都在深/浅两套外观上跑。出图 `/tmp/floter-P12-b-{list,note,warning}-{dark,light}-{before,after}.png`。
+
+**1-8 / 1-9 是 P13-h 补的两行（「细节打磨」队列，不是新表面）**：`Lens` 的第四层
+（四边 `ControlEdge` 环）是**最后画上去的**，于是它压在第一条 `LensRim` 之上——浅色档
+那块板的「顶边」实际是 0.06 的黑线（比面暗 9 级），深色档是 0.09 白 + 0.07 白叠在同一行
+（比面亮 32 级）。也就是说 P12-a 把 `LensRim` 抬到 0.09 之后，这块板**一次都没真正亮过**。
+退成 `LitFace` 之后它才第一次是 E1。pin：`internal/launcher/plateface_test.go` 三条
+（板的一对面 / 字段行悬停格 / 20u 悬停格），每条在深/浅两套外观上跑，并量「冠线是 E1 的
+`LensRim` 而不是 E2 的 `EdgeHighlight`」（把两条候选各自源叠加在同一个面上当参照，
+pin 里没有一处写死渲染器算出来的像素值）。census 的两条 `.launcher-result__icon` /
+`.launcher-action-bar__icon` 按 P13-d 的既有机制翻成 `dropped`。
 
 ### §6.2 设置页（settingsui）— **已落地（P12-c）**
 
@@ -354,6 +366,9 @@ pin：`internal/shell/toastthrow_test.go` 三条——影随框透明度反向�
 
 **§6 的 `未开始` 行到此清空**（0-*/1-*/2-*/3-*/4-*/5-*/6-* 全部 `已落地` 或 `故意不做`），
 这一支的选题队列收口，下一轮转回任务书的「细节打磨通用队列」。
+
+P13-h 是收口之后的第一轮细节打磨：它给 §6.1 补了 1-8 / 1-9 两行（同一条材质规则
+落到启动器的小面上），**没有开新表面**，表里仍然没有 `未开始` 行。
 
 ---
 
