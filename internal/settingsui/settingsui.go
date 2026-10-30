@@ -2433,9 +2433,18 @@ func (a *App) integrationRowFace(c *ui.Context, integration Integration) rowFace
 	t := a.cardTheme(c)
 	switch {
 	case integration.Broken:
+		// P13-e（§6.4 第 4-4 行，**故意不加**）：破损行的那条受光边已经被它的
+		// 警告色内环占住了（`Inset` 四边都在，`InsetShadow(0,0,0,1, warning)`）。
+		// §1 的不变量是「一个面只说一句话」——再叠一条白冠线会画进同一个 1px 行，
+		// 把「这块坏了」洗成「这块被选中了」。臂的顺序也维持原样（先 Broken）：
+		// 一块既坏又被链接命名的行说的是「坏的」那一句。
 		return rowFace{Face: tokens.RaisedWarm, FaceSet: true, Inset: t.Warning, Bar: t.Warning}
 	case integration.Highlighted:
-		return rowFace{Face: tokens.RowSelected, FaceSet: true}
+		// P13-e（`docs/liquid-glass.md` §6.4 第 4-1 行）：这一行是**被选中的面**，
+		// 不是一个色块。`Lit` 给它 E1 的一对线（顶 `LensRim` 受光边 + 底
+		// `LensEdge` 对侧），因为「选中」是这个应用里唯一一种「同一块地板上
+		// 又高半层」的意思。
+		return rowFace{Face: tokens.RowSelected, FaceSet: true, Lit: true}
 	}
 	return rowFace{}
 }

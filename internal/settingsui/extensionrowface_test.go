@@ -248,6 +248,16 @@ func TestTheIntegrationRowFaceFollowsItsState(t *testing.T) {
 		t.Errorf("the register row's leading rule is %v, want none (§4.3: a selected list row carries no accent)",
 			faces.register.Bar)
 	}
+	// P13-e（`docs/liquid-glass.md` §6.4 第 4-1 行）：命名行是 E1 的一个**块**，
+	// 它要的那条线是 `LitFace` 的受光边；破损行不拿（它那条线已经是警告环）。
+	if !faces.register.Lit {
+		t.Errorf("the register row does not ask for the E1 crown (Lit = false): a chosen row is a block, not a " +
+			"wash of paint (§6.4 第 4-1 行)")
+	}
+	if faces.broken.Lit {
+		t.Errorf("the broken row asks for the E1 crown: its one line already belongs to the warning keyline " +
+			"(§6.4 第 4-4 行)")
+	}
 	if !faces.broken.FaceSet || faces.broken.Face != tokens.RaisedWarm {
 		t.Errorf("the broken row's face is %v (set %v), want the warm pane %v",
 			faces.broken.Face, faces.broken.FaceSet, tokens.RaisedWarm)
@@ -297,6 +307,14 @@ func TestTheBrokenRowWearsTheWarmPane(t *testing.T) {
 // 所以两行不再共用同一套三段断言：broken 行仍要求「环与前导规则条都要站得
 // 出面」，register 行反过来要求「面站得出来，而环与前导规则条都 **在**」——
 // 这就是 §5 的禁止侧。
+//
+// P13-e 重定基线（V，`docs/liquid-glass.md` §6.4 第 4-1 行）：旧值「register 行
+// 的顶边与它自己的面同色（没有 keyline）」→ 新值「顶边**亮于**它自己的面，且
+// 是中性的一条线」。这一行现在是 E1 的一个**块**（`rowFace.Lit` → `LitFace`
+// 的顶受光边），所以「什么都不画」不再是它的目标；仍然不画的是**环**（四边）
+// 与**前导规则条**——后一条下面的断言原样保留。同一件事的像素 pin 在
+// `liteedge_extensions_test.go`（中灰底、深浅两套）也量着，因为浅色档的
+// `LensRim` 压在近白面上只抬 2 级（§3 末尾的「白压白」），这里的余量很小。
 func TestTheRowFacePaintsItsPaneAndKeyline(t *testing.T) {
 	a := New(newStore(t), Actions{})
 
@@ -334,11 +352,19 @@ func TestTheRowFacePaintsItsPaneAndKeyline(t *testing.T) {
 		return a.integrationRowFace(c, Integration{Broken: true})
 	})
 
-	// The register row's *pane* stands off the card (`RowSelected` over it),
-	// and neither the keyline nor the leading rule draws at all.
-	if channelDelta(register.pane, register.key) > 3 {
-		t.Errorf("the register row still wears a keyline: top edge %v vs its pane %v", register.key, register.pane)
+	// The register row's *pane* stands off the card (`RowSelected` over it), and
+	// its top edge is one **lit** line — E1's crown (§6.4 第 4-1 行). The crown is
+	// neutral: a lit line lifts all three channels, a warning or accent one does
+	// not.
+	if !liteBrighter(register.key, register.pane) {
+		t.Errorf("the register row has no crown: top edge %v is not brighter than its pane %v (P13-e)",
+			register.key, register.pane)
 	}
+	if warm := int(register.key.B) - int(register.key.R); warm > 8 {
+		t.Errorf("the register row's top line %v is warm (%d levels): the crown is a neutral white line, and the "+
+			"warning colour belongs to the broken row alone", register.key, warm)
+	}
+	// …and the leading rule is still not drawn.
 	if channelDelta(register.bar, register.pane) > 3 {
 		t.Errorf("the register row still draws a leading rule: %v vs its pane %v", register.bar, register.pane)
 	}

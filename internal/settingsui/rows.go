@@ -955,6 +955,16 @@ type rowFace struct {
 	// Muted dims the whole row to the reference's 0.62 — the half-made
 	// custom-shortcut row (`.settings-row--muted`, `settings.css:564-569`).
 	Muted bool
+	// Lit marks the face as an **E1 block** rather than a wash of paint on the
+	// card: the row adds the two lines `theme.Tokens.LitFace` draws (one 1px
+	// `LensRim` along its top, one 1px `LensEdge` along its bottom) and no cast
+	// (`docs/liquid-glass.md` §2 判据 2 — an E1 block lies on the ground, it does
+	// not float over it).
+	//
+	// P13-e（§6.4 第 4-1 行）：被 `floter://register` 链接命名的那一行此前只有
+	// `Face` 一层平涂，与它脚下的 E1 分组卡只差一档 alpha——读起来是「卡里又刷
+	// 了一块漆」，不是「卡上放着一个选中的块」。这是**新增**字段，零值 = 旧行为。
+	Lit bool
 }
 
 // cardRow is the frame every row helper shares: the separator inset above the
@@ -1021,6 +1031,15 @@ func (a *App) cardRow(c *ui.Context, align ui.Align, lead func(), face rowFace, 
 			// 行 hover 只抬**面**（`SurfaceHover`），前导条的颜色由行自己的状态
 			// （`face.Bar`）决定，不因指针而变。
 			row = row.Background(t.SurfaceHover)
+		}
+		if face.Lit {
+			// P13-e（`docs/liquid-glass.md` §6.4 第 4-1 行）：E1 = 面 + 顶受光边
+			// `LensRim` + 底对侧 `LensEdge`，**不画投影**。与启动器选中块（§6.1
+			// 第 1-2 行）、侧栏选中页（§6.2 第 2-2 行）、终端空态键帽（§6.3 第 3-8
+			// 行）是同一个 `theme.Tokens.LitFace`——同一个函数、同一对数值，
+			// 所以这个应用里每一块「被选中的面」都是同一个材质。压在 hover/press
+			// 之后：指针换的是**面**的色号，不是这块面的层高。
+			row = tokens.LitFace(row)
 		}
 		row.Children(func() {
 			rule := ui.Box(c).Width(1).Shrink(0)

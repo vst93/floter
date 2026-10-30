@@ -264,13 +264,41 @@ pin：`internal/terminalui/litedge_test.go` 三条（抽屉的缝 / 悬停按钮
 翻成 `dropped`（新面由上面第二条 pin 逐像素量着）。
 出图 `/tmp/floter-P13-d-drawer,bar,empty}-dark,light}-before,after}.png`。
 
-### §6.4 扩展页（extensions / 设置页内的集成面）— `未开始`（**下一轮**）
+### §6.4 扩展页（extensions / 设置页内的集成面）— **已落地（P13-e）**
 
-| # | 位置 | 现状 | 应改成 | 状态 |
+**落地的形状**：被 `floter://register` 链接命名的那一行走 `theme.Tokens.LitFace`
+（顶 `LensRim` + 底 `LensEdge`，无影），触发点是 `rowFace` 的新字段 `Lit`；动作胶囊
+走复核（像素 pin），产品代码零改动。**为什么这一页此前只有「两级半」**：底（页面）与
+面（分组卡，P12-c 的 2-3 已在场）都有了，缺的是**被选中的那一行**——它只是一层
+`RowSelected` 平涂，与脚下的 E1 卡只差一档 alpha，读起来是「卡里又刷了一块漆」。
+补上一对线之后，这一页第一次出现「底 / 面 / 选中的面」三级。
+
+**4-4 为什么给破损行写一条反面规则**：一个面的身份是**一条**受光边（§1 的不变量）；
+破损行那条线已经被它的警告色内环占住（`Inset` 四边都在）。再叠一条白冠线会画进
+同一个 1px 行，把「这块坏了」洗成「这块被选中了」。这不是少做一步，是「一个面只
+说一句话」。
+
+**4-3 复核的结论**：`extensionActionFace` 的 `tokens.Lens(button)` 第一层就是
+`LensRim`（P12-a 已重定到 0.09），所以「受光边随升代自动到位」成立——本轮补的是
+**证据**（像素 pin），不是代码。没改成 `LitFace`：胶囊的第四层 `ControlEdge` 环与它
+自己的 `Border(1, ControlEdge)` 画在相邻的两行 1px 上，是同一条边的两次上色，不是
+第二层画框；退掉它会让胶囊边缘从 2px 掉到 1px，那是几何改动，超出「只改墨与面」
+的红线（观察记录在 `docs/rounds/P13-e-report.md`）。
+
+| # | 位置 | 现状（旧） | 落成（新） | 状态 |
 |---|---|---|---|---|
-| 4-1 | 集成行面 | `RowSelected` 一档 | E1：`LensRim` 顶边 | `未开始` |
-| 4-2 | 包 chip | `Control` + `ControlEdge` | E1：与 2-9 同一条（薄 chip 不加线） | `故意不做` |
-| 4-3 | 扩展动作按钮 | `Control` + `Lens` | 受光边随 `LensRim` 升代自动到位，只需复核 | `未开始` |
+| 4-1 | 集成行面（`settingsui.go` `integrationRowFace` 的 `Highlighted` 臂 + `rows.go` `cardRow`） | `RowSelected` 一档平涂，与脚下的 E1 卡只差一档 alpha | E1：`rowFace.Lit` → `tokens.LitFace(row)`（实测浅色顶边 223→224、底边 221→208；深色 65→70 / 65→61） | `已落地` |
+| 4-2 | 包 chip（`rows.go` `packageChip`） | `Control` + `ControlEdge` | **故意不做**：与 2-9 同一条（30u 的方块加冠线就成噪点） | `故意不做`（见理由） |
+| 4-3 | 扩展动作按钮（`rows.go` `extensionActionFace`） | `Control` + `Lens`，冠线是 `LensRim` | **复核通过 + pin**：产品代码零改动，顶边是 E1 的 `LensRim` 而非 E2 的 `EdgeHighlight`，且无外投影 | `已落地` |
+| 4-4 | **新增**｜破损行（`integrationRowFace` 的 `Broken` 臂） | `RaisedWarm` + 警告色内环 + 警告前导条 | **故意不加** E1 冠线：它那条线已经是警告环，第二个面只说一句话（见上） | `故意不做`（见理由） |
+
+pin：`internal/settingsui/liteedge_extensions_test.go` 三条（命名行的 E1 一对线 /
+破损行不拿冠线 / 胶囊的冠线是 E1 的线），每条在深/浅两套外观、中灰底上跑——
+`RowSelected` 在深色是白洗、浅色是黑洗，中灰是唯一两套都能读出「面站起来」的底。
+`extensionrowface_test.go` 的 `TestTheRowFacePaintsItsPaneAndKeyline` 与
+`TestTheIntegrationRowFaceFollowsItsState` 按新值重定基线（V）。
+出图 `/tmp/floter-P13-e-integrations-{dark,light}-{before,after}.png` +
+`/tmp/floter-P13-e-pill-{dark,light}-{before,after}.png`。
 
 ### §6.5 文件页 — `未开始`
 
