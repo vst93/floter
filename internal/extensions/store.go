@@ -38,9 +38,6 @@ func OpenStore(paths Paths) *Store {
 	}
 }
 
-// Paths is the root the store reads.
-func (s *Store) Paths() Paths { return s.paths }
-
 // Refresh reloads the repository and every manifest, then asks each running
 // integration's provider for its commands. Providers run outside the lock;
 // the result is swapped in and the listeners are told.

@@ -56,13 +56,6 @@ func renderIn(t *testing.T, a *App, w, h int, dark bool) (*ui.Tester, theme.Toke
 	return tt, tokens
 }
 
-// renderThemed is the light appearance of renderIn, for the pins that are
-// about a rule rather than about an appearance.
-func renderThemed(t *testing.T, a *App, w, h int) (*ui.Tester, theme.Tokens) {
-	t.Helper()
-	return renderIn(t, a, w, h, false)
-}
-
 // subPage is the plane a sub-surface pin draws its one widget on. The light
 // half has always been white — the pins' own stable reading plane; the dark
 // half is the theme's dark base fill (`internal/theme/theme.go:489-494`), so a

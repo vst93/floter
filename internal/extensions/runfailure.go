@@ -66,10 +66,6 @@ var runErrorKeys = []RunErrorKey{
 	RunErrorTaskFailed,
 }
 
-// RunErrorKeys returns every key, for a caller that enumerates them (the i18n
-// symmetry test) without copying the list.
-func RunErrorKeys() []RunErrorKey { return append([]RunErrorKey(nil), runErrorKeys...) }
-
 // KnownRunErrorKey reports whether the key is one of the closed set.
 func KnownRunErrorKey(key RunErrorKey) bool {
 	for _, candidate := range runErrorKeys {

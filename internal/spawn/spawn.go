@@ -110,12 +110,6 @@ func Command(command string) error {
 	return start(cmd)
 }
 
-// Terminal opens the user's terminal emulator with a shell, trying
-// `$TERMINAL` first and then the emulators the platform usually has.
-func Terminal() error {
-	return TerminalAt("")
-}
-
 // TerminalAt is Terminal opened *at* a directory: the active session's own
 // (`terminalui`'s OSC 7 report), which is what a hand-off owes the user — a
 // shell that starts where the work is, not in the app's own directory or the
@@ -158,11 +152,6 @@ func TerminalAt(dir string) error {
 		lastErr = errors.New("spawn: no terminal emulator was found")
 	}
 	return lastErr
-}
-
-// terminalEmulators lists the emulators to try on this platform.
-func terminalEmulators() [][]string {
-	return terminalEmulatorsFor(runtime.GOOS)
 }
 
 // terminalLaunchersFor is the candidate table with a working directory in it:

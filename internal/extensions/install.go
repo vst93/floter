@@ -186,9 +186,8 @@ func prepare(paths Paths, spec installSpec, cleanup func()) (Prepared, error) {
 	}, nil
 }
 
-// Name and Version describe the prepared package.
-func (p Prepared) Name() string    { return p.Manifest.Name }
-func (p Prepared) Version() string { return p.spec.Version }
+// Name describes the prepared package.
+func (p Prepared) Name() string { return p.Manifest.Name }
 
 // Commit installs the prepared package. approved says whether the user
 // approved the permissions RequiresApproval asked about; without it, a

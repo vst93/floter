@@ -205,14 +205,6 @@ func ApprovalForCustom(paths Paths, id string, request CustomRequest) Permission
 	return RequiresApproval(&previous, manifest, "")
 }
 
-// Discard removes a prepared tool's package: what a caller does when the user
-// abandons the connection rather than refusing it.
-func (p PreparedCustom) Discard() {
-	if p.cleanup != nil {
-		p.cleanup()
-	}
-}
-
 // CreateCustom writes a local tool's package and installs it in one call.
 // `approved` says the user has already seen and accepted what the package
 // declares; a caller that must ask uses PrepareCustom and Commit.

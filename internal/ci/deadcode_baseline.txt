@@ -1,0 +1,45 @@
+# P11-cr 的死代码账：本轮删掉的、`deadcode` 实测零调用点的函数。
+#
+# 格式：`<相对仓库根的路径> <符号名>`，一行一个。
+#
+# 这份清单由 `internal/ci/deadcode_contract_test.go` 读：它要求清单里每一个符号
+# 在**它原来所在的包里**都不再有 `func` 定义。于是「谁把这个孤儿函数加回来」会红，
+# 而不是靠下一个人记得跑一次 `deadcode`。
+#
+# 重新量法（工具要联网，CI 里不跑）：
+#   go run golang.org/x/tools/cmd/deadcode@v0.52.0 -test ./...
+#
+# 本轮实测：25 行 → **1 行**，剩下的那一条是假阳性，见下面的注。
+internal/calculator/calculator.go SortNewestFirst
+internal/extensions/custom.go Discard
+internal/extensions/install.go Version
+internal/extensions/runfailure.go RunErrorKeys
+internal/extensions/store.go Paths
+internal/inventory/sources.go LookPath
+internal/launcher/launcher.go firstSelectable
+internal/settings/settings.go LoadDefault
+internal/settingsui/rows.go rowLines
+internal/settingsui/rows.go rowTop
+internal/settingsui/settingsui.go SelectedPage
+internal/settingsui/settingsui.go text
+internal/settingsui/settingsui.go freshnessDetail
+internal/shell/system.go numeric
+internal/spawn/spawn.go Terminal
+internal/spawn/spawn.go terminalEmulators
+internal/terminalui/terminalui.go Label
+internal/usage/usage.go FilePath
+# 测试文件里的孤儿 helper（不是 Test*，删掉不影响 PASS 计数）
+internal/launcher/filters_test.go hasItem
+internal/launcher/rowtrailing_test.go strongestInk
+internal/launcher/rowtrailing_test.go channelDiff
+internal/settingsui/raycast_test.go renderThemed
+internal/shell/detachlist_test.go detachedTokens
+internal/shell/detachlist_test.go launcherColor
+
+# 注 · 唯一留下的一条：
+# `internal/shell/chrome_other.go` 的 `dressWindowsFrame` 是 `!windows` 的**桩**，
+# 真身在 `chrome_windows.go:164`，被 `:147` 的 `stripSystemChrome` 调用。
+# `deadcode` 在 Linux 上编译，看不到 windows 那一支，所以报它「不可达」——
+# 这是工具的盲点，不是死代码。`GOOS=windows` 下 `deadcode` 自己跑不起来
+# （P11-cr 实测 `fork/exec …deadcode.exe: exec format error`），所以这一条
+# 只能靠读代码判，且**不许**加进这份清单（加进去会让断言一永远红）。

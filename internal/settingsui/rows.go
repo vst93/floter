@@ -728,13 +728,6 @@ const (
 	rowSegmentStrong
 )
 
-// rowLines is row with a second line that is itself several lines: the
-// sessions list's row keeps the shell's working directory above the state,
-// size and start time, as the old page's `.session-manager__lines` did.
-func (a *App) rowLines(c *ui.Context, label string, sublabels []rowLine, control func(), below ...func()) bool {
-	return a.rowAligned(c, ui.Center, nil, rowFace{}, label, sublabels, "", control, below...)
-}
-
 // iconRow is rowAligned with the extension rows' leading package chip: the
 // reference's `.extension-row__open` grid is `[icon | main]`, and the Detected
 // list's rows are the same `.extension-row` as the connected ones. `detected`
@@ -852,15 +845,6 @@ func (a *App) sessionKillConfirm(c *ui.Context, label string, disabled bool, run
 // (the clipboard's privacy line). An empty note draws nothing.
 func (a *App) rowNote(c *ui.Context, label, sublabel, note string, control func(), below ...func()) bool {
 	return a.rowAligned(c, ui.Center, nil, rowFace{}, label, []rowLine{{Text: sublabel}}, note, control, below...)
-}
-
-// rowTop is rowNote with the control pinned to the row's first line rather
-// than centred on it: a row whose copy runs to several lines (a base plugin's
-// name, its description and its privacy line) keeps its control beside the
-// name, as the reference's `.extensions-base-plugin` did with
-// `align-items: flex-start`.
-func (a *App) rowTop(c *ui.Context, label, sublabel, note string, control func(), below ...func()) bool {
-	return a.rowAligned(c, ui.Start, nil, rowFace{}, label, []rowLine{{Text: sublabel}}, note, control, below...)
 }
 
 // rowAligned is the row both helpers share; align places the control across

@@ -8,7 +8,6 @@ import (
 	"floter/internal/desktopentry"
 	"floter/internal/extensions"
 	"floter/internal/pathid"
-	"floter/internal/pathlist"
 	"floter/internal/xdg"
 )
 
@@ -368,11 +367,3 @@ func dedupeRoots(roots []toolRoot) []toolRoot {
 // every host: this filesystem cannot be asked about a directory it does not
 // have, and Windows accepts either separator and compares without case.
 func sameRoot(left, right string) bool { return pathid.SameSpelling(left, right) }
-
-// LookPath is the inventory's own name for "where does a discovered tool
-// live": the first directory of the search path that carries it, then
-// `exec.LookPath` as the last word. The walk itself is `pathlist.Lookup`, the
-// one answer this repository gives that question — the inventory used to spell
-// its own, which joined a name that already carried a separator to every PATH
-// directory and so reported `<PATH dir>/bin/foo` as the home of `bin/foo`.
-func LookPath(name string) (string, bool) { return pathlist.Lookup(name) }

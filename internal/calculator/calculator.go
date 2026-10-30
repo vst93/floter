@@ -559,11 +559,6 @@ func NormalizeCopyMode(mode string) string {
 	return CopyFull
 }
 
-// SortNewestFirst orders entries by their timestamp, newest first.
-func SortNewestFirst(entries []Entry) {
-	sort.SliceStable(entries, func(i, j int) bool { return entries[i].CreatedAt > entries[j].CreatedAt })
-}
-
 // newID builds an entry id: a timestamp and random bytes, so two entries made
 // in the same millisecond still differ.
 func newID() string {

@@ -264,33 +264,3 @@ func plateAround(tt *ui.Tester, text ui.Rect) ui.Rect {
 // strongestInk is the pixel farthest (in summed channels) from the light panel
 // surface inside a rect — the glyph's own colour, since text is darker than the
 // plane it is drawn on.
-func strongestInk(tt *ui.Tester, r ui.Rect) [3]int {
-	img := tt.Image()
-	var best [3]int
-	bestSum := 1 << 30
-	for y := int(r.Y); y < int(r.Y+r.H); y++ {
-		for x := int(r.X); x < int(r.X+r.W); x++ {
-			c := img.RGBAAt(x, y)
-			sum := int(c.R) + int(c.G) + int(c.B)
-			if sum < bestSum {
-				bestSum = sum
-				best = [3]int{int(c.R), int(c.G), int(c.B)}
-			}
-		}
-	}
-	return best
-}
-
-func channelDiff(a, b [3]int) int {
-	d := 0
-	for i := 0; i < 3; i++ {
-		v := a[i] - b[i]
-		if v < 0 {
-			v = -v
-		}
-		if v > d {
-			d = v
-		}
-	}
-	return d
-}

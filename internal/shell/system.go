@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	_ "embed"
-	"encoding/json"
 	stdpng "image/png"
 	"log"
 	"net/url"
@@ -411,19 +410,6 @@ const clipboardPoll = 600 * time.Millisecond
 // clipboardState reads the clipboard history's settings.
 func clipboardState(s settings.Settings) settings.ClipboardSettings {
 	return settings.ClipboardOf(s)
-}
-
-// numeric reads a JSON number of either shape the decoder may produce.
-func numeric(value any) (float64, bool) {
-	switch v := value.(type) {
-	case float64:
-		return v, true
-	case json.Number:
-		f, err := v.Float64()
-		return f, err == nil
-	default:
-		return 0, false
-	}
 }
 
 // clipboardSession is one run of the sampler: how to stop it, and how to know

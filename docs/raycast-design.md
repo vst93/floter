@@ -709,4 +709,24 @@ P11-co 给 `launcher` / `terminalui` / `settingsui` 三张表面都装了「一�
 | P8-d | accent 花名册收口：越界 9 处转中性 + 判不准 4 条定审 + §5 注脚 + 视觉 pin 处置 | **本轮完成**（§6.4 全部 `已落地`；§5 补「只约束色相、鼓励明度分层」一句与边界四条注脚；新增 10 条 pin + 2 张×2 视觉证据） |
 | P11-cp | 抽屉滑轴的 180ms 窗（与设置页同一扇）+ 三个出口的 flush | **本轮完成**（§6.20；17 次落盘 → 1，零像素；新增 6 条 pin + 4 条变异） |
 | P11-cq | 外壳这一帧也只拷一份设置（会话行不再按行数拷） | **本轮完成**（§6.21；六张表面 0 份，零像素；新增 5 条 pin + 4 条变异） |
+| P11-cr | 死代码清账：`deadcode` 量出的 24 个零调用点函数（18 生产 + 6 测试 helper） | **本轮完成**（§6.22；25 行 → 1 行，剩下那条是假阳性；零像素 6 对；新增 2 条 pin + 5 条变异） |
 | P8-e | accent 收口最后三处：终端状态灯去色相、成功 toast 转中性、输出面板选中行改 `RowSelected` | **本轮完成**（§6.5 全部 `已落地`；§5/§6.2 同步；`AccentTintQuiet` 标 `Deprecated`；新增 4 条 pin + 3 张×2 视觉证据） |
+
+### §6.22 P11-cr · 死代码清账：`deadcode` 量出来的 24 个零调用点函数（**已落地**）
+
+不是设计切片，是**账**。`deadcode -test ./...` 在 P11-cr 开工时量出 25 行，
+逐条读实现后分三类（转发壳 / 被合并掉的旧渲染路径 / 从没接上的入口），删掉 24 个
+（18 生产 + 6 测试 helper），复跑降到 **1 行**——剩下那条是假阳性，写进了账本底部。
+
+| 位置 | 旧 | 新 | 落地 |
+|---|---|---|---|
+| `internal/inventory/sources.go` `LookPath` 等 5 条转发壳 | 一行转发底层实现 | 删（调用方直接读底层那个） | `已落地` — 连带删 `inventory` 的 `pathlist` import |
+| `internal/settingsui` 的 `text` / `freshnessDetail` | 被 `configform.go` / `freshnessSection` 接手的旧渲染路径 | 删 | `已落地` — **连带发现**：`i18n.Copy.FreshnessProbeSource` 的唯一读者是它，`TestNoDeadCopy` 因此变红，该文案一并删（§3.1） |
+| `internal/terminalui/terminalui.go` `App.Label` | P11-cq 记「只改读法、不删」 | 删（外壳读的是 `LabelOf(index)`） | `已落地` — P11-cq 的账在此结清 |
+| `internal/shell/chrome_other.go` `dressWindowsFrame` | `deadcode` 报它不可达 | **不删**（`!windows` 桩，windows 那支在调） | `已落地` — 反面 pin `TestTheDeadCodeFalsePositiveStaysOut` 守它 |
+
+**pin**：`internal/ci/deadcode_contract_test.go` 两条 —— 账本里每个符号不许再长出 `func`
+定义，且账本条目数必须恰好 24（加/删都红）。**为什么是源码扫描不是跑工具**：
+`deadcode` 是 `go run …@version`（要联网），且 `GOOS=windows` 下自己 `exec format error`。
+**零像素**：三张表面 × 两外观 = 6 对 dump 修前修后**逐字节相同**。
+**变异**：5 条实跑变红并还原（含 M2/M3 账本放宽与收窄两个方向）。

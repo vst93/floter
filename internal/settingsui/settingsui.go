@@ -1048,9 +1048,6 @@ func (a *App) FocusSidebar() {
 	a.entryFocusArmed = false
 }
 
-// SelectedPage is the chosen page.
-func (a *App) SelectedPage() int { return a.Page }
-
 // SidebarEntryFocus reports whether the sidebar's entry-focus mark is up — the
 // reference's `data-entry-focus` (R152) — for the tests.
 func (a *App) SidebarEntryFocus() bool { return a.sidebarEntryFocus }
@@ -4471,17 +4468,6 @@ func (a *App) checkbox(c *ui.Context, label, description string, on bool, apply 
 	}
 }
 
-// text builds one labeled text field.
-func (a *App) text(c *ui.Context, label, description, placeholder, value string, apply func(string)) {
-	edit := value
-	a.row(c, label, description, func() {
-		e := a.textInput(c, &edit).Placeholder(placeholder).Label(label).Width(220)
-		if e.Submitted() {
-			apply(edit)
-		}
-	})
-}
-
 // appIcon is the stored app icon, normalized to the two the app ships (dark
 // is the default). The rule is `valuedomain.NormalizeAppIcon`, the same one the
 // tray reads when it picks the artwork.
@@ -5604,39 +5590,6 @@ func freshnessDeltaInk(freshness extensions.Freshness, tokens theme.Tokens, t *u
 	default:
 		return t.TextMuted
 	}
-}
-
-// freshnessDetail is the section's whole detail line, kept for the panel's own
-// readers (the shell's tests and diagnostics). The section itself draws the
-// facts in their own registers through freshnessSection.
-func (a *App) freshnessDetail(copy i18n.Settings, freshness extensions.Freshness) string {
-	parts := []string{}
-	if freshness.AtSeconds > 0 {
-		when := freshnessWhen(copy, time.Since(time.Unix(freshness.AtSeconds, 0)))
-		source := copy.FreshnessProbeSource
-		if freshness.Source == extensions.FreshnessHealth {
-			source = copy.FreshnessHealthSource
-		}
-		parts = append(parts, when+"  \u00b7  "+source)
-	} else {
-		parts = append(parts, copy.FreshnessNever)
-	}
-	commands := copy.FreshnessCommandsUnknown
-	if freshness.CommandCount != nil {
-		commands = strconv.Itoa(*freshness.CommandCount)
-	}
-	parts = append(parts, copy.FreshnessCommands+" "+commands)
-	switch freshness.Delta {
-	case extensions.DeltaIncrease:
-		parts = append(parts, copy.FreshnessDeltaIncrease(freshness.DeltaCount()))
-	case extensions.DeltaDecrease:
-		parts = append(parts, copy.FreshnessDeltaDecrease(freshness.DeltaCount()))
-	case extensions.DeltaUnchanged:
-		parts = append(parts, copy.FreshnessDeltaUnchanged)
-	default:
-		parts = append(parts, copy.FreshnessDeltaUnknown)
-	}
-	return strings.Join(parts, "  \u00b7  ")
 }
 
 // freshnessWhen renders how long ago a probe ran. Under 45 seconds it is the

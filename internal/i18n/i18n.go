@@ -908,7 +908,6 @@ type Settings struct {
 	FreshnessNever           string
 	FreshnessJustNow         string
 	FreshnessRelative        func(value int, unit RelativeUnit) string
-	FreshnessProbeSource     string
 	FreshnessHealthSource    string
 	FreshnessResultRunning   string
 	FreshnessResultSuccess   string

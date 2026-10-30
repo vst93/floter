@@ -688,15 +688,6 @@ func (a *App) sessionText() string {
 	return term.Text()
 }
 
-// Label is the current session's name: the title the program set, or the
-// localized default.
-func (a *App) Label() string {
-	if title := a.sessionTitle(); title != "" {
-		return title
-	}
-	return i18n.For(a.settings().Language).Terminal.Title
-}
-
 // options builds the plugin options from the settings. OnExit is left unset
 // here: it names the session it belongs to, which only startSession knows (see
 // its comment).

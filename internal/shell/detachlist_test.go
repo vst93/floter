@@ -1,7 +1,6 @@
 package shell
 
 import (
-	"image/color"
 	"math"
 	"strconv"
 	"strings"
@@ -15,15 +14,7 @@ import (
 	"floter/internal/i18n"
 	"floter/internal/launcher"
 	"floter/internal/settings"
-	"floter/internal/theme"
 )
-
-// detachedTokens is the theme's resolved tokens for the shell's stored
-// settings: the palette the detached and pinned windows draw with (their own
-// Contexts resolve the same way, see `detachedView`).
-func (a *App) detachedTokens() theme.Tokens {
-	return launcher.Resolve(a.Store.Snapshot(), true, ui.Preferences{}).Tokens
-}
 
 // The detached window's list arm draws the reference's row plates
 // (`DetachedPluginApp.tsx:341-350`, `.plugin-window__row`,
@@ -166,11 +157,6 @@ func TestTheDetachedBodyDrawsNoCardFrame(t *testing.T) {
 	if diff := math.Abs(float64(text.X) - want); diff > 2 {
 		t.Errorf("the body text starts at x=%.1f, want the reference's 14u inset %.1f (no frame, no second inset)", text.X, want)
 	}
-}
-
-// launcherColor reads a frame pixel as the ui.Color the tokens use.
-func launcherColor(c color.RGBA) ui.Color {
-	return ui.Color{R: c.R, G: c.G, B: c.B, A: c.A}
 }
 
 // R95 · the detached window's list arm pages exactly as the launcher's does.

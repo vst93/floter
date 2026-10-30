@@ -2879,24 +2879,6 @@ func nextSelectableIn(results []Item, from, delta int) int {
 	return from
 }
 
-// firstSelectable is the empty page's own default selection: the first row
-// the keyboard can act on, stepping over a block's heading — the reference's
-// `firstRunnableResultIndex < 0 ? 0 : ...` on the page where the held row
-// shows. Zero when the list has nothing selectable.
-//
-// The release edge applies it unconditionally, the reference's own shape: its
-// effect reads no selection, so the row an arrow step moved to during the
-// gesture goes with the row.
-func (a *App) firstSelectable() int {
-	results := a.Results()
-	for i, item := range results {
-		if rowSelectable(item) {
-			return i
-		}
-	}
-	return 0
-}
-
 // actionBarIndex is the index of the action bar's first row in the composed
 // list, -1 when the field holds no action bar. The bar is a real row of this
 // list (see actionBarItemsWith), so "the bar is the default" and "the bar is

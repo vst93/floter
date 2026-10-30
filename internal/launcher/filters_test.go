@@ -380,15 +380,6 @@ func TestHeldModifierBareTerminalRow(t *testing.T) {
 	}
 }
 
-func hasItem(items []Item, id string) bool {
-	for _, item := range items {
-		if item.ID == id {
-			return true
-		}
-	}
-	return false
-}
-
 // A built-in mode's chips row carries the door to its own configuration: the
 // gear opens the plugin's schema in the launcher's own band (the old build's
 // R29 overlay), and the gear flips to an ✕ while it shows, so the control that

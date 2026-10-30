@@ -46,9 +46,6 @@ func Open(root string) *Store {
 	return &Store{path: filepath.Join(root, fileName), now: time.Now}
 }
 
-// FilePath is where the store reads and writes.
-func (s *Store) FilePath() string { return s.path }
-
 // Record counts one launch and writes the file.
 func (s *Store) Record(id string) error {
 	if id == "" {

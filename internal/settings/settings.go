@@ -263,15 +263,6 @@ func Load(path string) (Settings, error) {
 	return Default(), err
 }
 
-// LoadDefault reads the settings file at the platform's settings path.
-func LoadDefault() (Settings, error) {
-	path, err := Path()
-	if err != nil {
-		return Default(), err
-	}
-	return Load(path)
-}
-
 // Parse decodes and normalizes a settings file. Numbers are decoded with
 // json.Number so keys carried through the struct keep their exact spelling.
 func Parse(data []byte) (Settings, error) {
