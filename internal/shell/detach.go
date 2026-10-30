@@ -246,13 +246,28 @@ func (a *App) detachedBar(c *ui.Context, detached *detachedOutput, tokens theme.
 					Padding(t.Space(detachedBarButtonY), t.Space(detachedBarButtonX)).
 					Radius(tokens.RadiusSM).Label(label)
 				if !enabled {
+					// The reference's `:disabled { opacity: 0.5 }` is the framework's
+					// one fade, not a second one: `ui/paint.go:140` multiplies a
+					// disabled subtree by 0.5 and `ui/inline.go:109-113` dims its text
+					// by the same half. This key is a **transparent face** — no pane,
+					// no edge, only its ink — and `docs/liquid-glass.md` §1's table
+					// gives that arm no material of its own: half the ink is the whole
+					// statement. The port used to add `.Opacity(0.5)` on top of the
+					// framework's 0.5, so a run in flight drew the key at an effective
+					// **0.25** (measured: ink contrast 30217 → 1928 light, 24678 →
+					// 1544 dark, i.e. a quarter, not a half — P13-y). Two fades
+					// multiplied is one fade drawn twice.
 					button.Disabled(true)
-					// The reference's `:disabled { opacity: 0.5 }`: the dim is the
-					// *key's* own, so the framework's disabled flag alone (which
-					// changes no ink) would leave the key looking live.
-					button.Opacity(0.5)
 				} else if button.Hovered() {
-					button.Background(tokens.ControlHover)
+					// P13-y · a hovered key on this bar is an E1 face: the face step
+					// plus one lit edge on top and one counter-side line at the
+					// bottom (`theme.Tokens.LitFace`), the same pair
+					// `launcher.rowControl` (P13-h), `settingsui.headerButton`
+					// (P13-i) and `terminalui.barButton` (P13-d) wear. It used to be a
+					// flat `ControlHover` wash with no line at all: measured crown =
+					// face = bottom (246/246/246 light, 20/20/20 dark). No ring and no
+					// shadow: a key on a bar is E1, not E2 (§2 判据 2).
+					button = tokens.LitFace(button.Background(tokens.ControlHover))
 				}
 				if button.Clicked() {
 					run()

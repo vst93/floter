@@ -97,7 +97,11 @@ func (a *App) pinnedBody(c *ui.Context, state *pinned, tokens theme.Tokens, t *u
 				Padding(t.Space(detachedBarButtonY), t.Space(detachedBarButtonX)).
 				Radius(tokens.RadiusSM).Label(copy.OutputWindowClose)
 			if close.Hovered() {
-				close.Background(tokens.ControlHover)
+				// P13-y · the pinned note's ✕ is the same key the detached output
+				// window draws (`detach.go` `barButton`), on the same
+				// `.plugin-window__bar`: E1's pair, not a flat wash. Two windows, one
+				// bar, one touch.
+				close = tokens.LitFace(close.Background(tokens.ControlHover))
 			}
 			close.Children(func() {
 				if glyph, ok := launcher.Glyph("close"); ok {

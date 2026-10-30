@@ -675,6 +675,25 @@ P13-o 是第四轮（P13-n 之后）：它没有开表面，而是补 §6.0 的 
 `internal/settingsui/groovepair_test.go`（两套外观 × 三个真凹槽：分段槽 / 关的开关 / 开的开关）。
 
 ---
+### §6.7 插件窗口（输出 / 便条）的 bar — **已落地（P13-y）**
+
+**落地的形状**：bar 上的键在被指针碰到时是 E1 的一个面（`theme.Tokens.LitFace`），
+静息零面；被禁用的键只留框架那一道 0.5。两个窗口画的是**同一条** `.plugin-window__bar`
+（同一个 8u 圆角、同一条 `Hairline` 底线、同一对 padding 常量），所以这是一行表面。
+
+| # | 位置 | 现状（旧） | 落成（新） | 状态 |
+|---|---|---|---|---|
+| 7-1 | `shell/detach.go` `barButton` 的 `Hovered()` 臂（输出窗口的重跑键 / 关闭键） | `Background(tokens.ControlHover)` 一块**平涂**：没有边、没有受光边，与 `launcher.rowControl`（P13-h）、`settingsui.headerButton`（P13-i）、`terminalui.barButton`（P13-d）三种读法 | E1：`tokens.LitFace(...)`。实测浅色 冠 220→**221** / 底 220→**215**；深色 冠 53→**60** / 底 53→**49** | `已落地` |
+| 7-2 | 同处 `!enabled` 臂 | `Disabled(true)`（框架 0.5）× `Opacity(0.5)` = **0.25** | 只留 `Disabled(true)`。实测墨对比 **0.25 → 0.50**（浅 30217→7603、深 24678→6081） | `已落地` |
+| 7-3 | `shell/pinned.go` 便条窗口的关闭键 | 同一个 ✕、同一个平涂 | E1：`tokens.LitFace(...)`。实测浅色 冠 220→**226** / 底 220→**218**；深色 53→**56** / 53→**51** | `已落地` |
+| 7-4 | `shell/notices.go:476` toast 里的 ✕ | 同一形状的平涂 | **故意不做**：它坐在 **E2 的 toast 面**上（§1 禁令 2 的边界另一侧），属于「弹层」那个表面，下一轮单独做 | `故意不做`（见理由） |
+
+pin：`internal/shell/pluginwindowbar_test.go` 两条（三处键的一对面 / 禁用只淡一道），
+每条在深/浅两套外观上跑；冠线的候选值由「同一个面 + 同一条 token」当场画出来再比，
+pin 里没有写死渲染器的像素。出图 `/tmp/floter-P13-y-bar-{light,dark}-{rest,hover}.png`。
+**已知缺口**：把变异打到 `theme.Tokens.LitFace` 的函数体里时 pin 没红（打到调用点会红），
+「更接近 `LensRim`」那一半还没有被证明 —— `.pending-bugs.md` P13-y 仍待第 2 条。
+
 
 ## §7 与 raycast 合约的关系
 
