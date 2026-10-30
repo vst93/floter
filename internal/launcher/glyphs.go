@@ -193,6 +193,26 @@ func rowGlyph(item Item) (*ui.SVG, bool) {
 	case item.entry != nil:
 		return glyphTerminal, true
 	}
+	// The files page's three actions are the path action bar's three actions, so
+	// they wear the same three marks (see the `bar:path-*` cases below). Their
+	// ids carry the dropped path after the action (`drop:open:/x/y`, `files.go`),
+	// so they are read by prefix rather than by the equality switch. Before P13-f
+	// none of them matched anything and every row fell through to the tail — the
+	// recents' clock: a page of five dropped files led with fifteen history marks,
+	// the one glyph none of those rows is.
+	switch {
+	case strings.HasPrefix(item.ID, "drop:open:"):
+		return glyphFolder, true // `bar:path-open`: hand it to the system's opener
+	case strings.HasPrefix(item.ID, "drop:cd:"):
+		return glyphTerminal, true // `bar:path-cd`: a terminal in its directory
+	case strings.HasPrefix(item.ID, "drop:copy:"):
+		return glyphFile, true // `bar:path-copy`: its own path, onto the clipboard
+	case item.ID == "drop:more":
+		// The tail row that collapses the rest of the drop *reveals* rows more
+		// (`files.go`'s `Run` only sets `dropsExpanded`): a disclosure mark, not
+		// a launch.
+		return glyphChevronRight, true
+	}
 	switch item.ID {
 	case "bar:url":
 		return glyphGlobe, true

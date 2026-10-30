@@ -118,6 +118,13 @@ type Session struct {
 	// closed marks a session the host has stopped serving: a client that
 	// attaches then is told the program is gone.
 	closed bool
+	// killRequested is a client's *intent* to end the program, recorded before
+	// the knife goes in. It is not the record's state: `info.State` may only say
+	// `killed` once the program is actually gone (see `watch`), or a client that
+	// reads the record the instant it kills catches the host mid-kill and is
+	// told the program is dead while it is still running (P13-f: the ordering
+	// `TestTheKillEndsTheProgram` catches under the whole repo's test load).
+	killRequested bool
 }
 
 // conn is one attached client: its socket and the queue the program's output
@@ -452,7 +459,7 @@ func (h *Host) watch() {
 		return
 	}
 	h.session.bump()
-	if h.session.info.State == StateKilled {
+	if h.session.killRequested {
 		h.session.info.State = StateKilled
 	} else {
 		h.session.info.State = StateExited
@@ -679,8 +686,12 @@ func (h *Host) readLoop(c *conn) {
 		case tagDetach:
 			return
 		case tagKill:
+			// The intent goes down first, the state only once the program is gone
+			// (`watch` reads `killRequested`). Writing `killed` here would put the
+			// record ahead of the fact: `Info()` would answer "killed" while the
+			// pty is still being torn down.
 			h.session.mu.Lock()
-			h.session.info.State = StateKilled
+			h.session.killRequested = true
 			h.session.mu.Unlock()
 			_ = h.pty.Kill()
 			return

@@ -27,6 +27,12 @@ func glyphName(g *ui.SVG) string {
 		return "restart"
 	case glyphPower:
 		return "power"
+	case glyphFolder:
+		return "folder"
+	case glyphFile:
+		return "file"
+	case glyphChevronRight:
+		return "chevron"
 	}
 	return "?"
 }

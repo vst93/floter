@@ -300,11 +300,30 @@ pin：`internal/settingsui/liteedge_extensions_test.go` 三条（命名行的 E1
 出图 `/tmp/floter-P13-e-integrations-{dark,light}-{before,after}.png` +
 `/tmp/floter-P13-e-pill-{dark,light}-{before,after}.png`。
 
-### §6.5 文件页 — `未开始`
+### §6.5 文件页 — **已落地（P13-f）**
 
-| # | 位置 | 现状 | 应改成 | 状态 |
+**落地的形状**：5-1 是**复核 + 像素 pin**（产品代码零改动）——文件页的行就是 `rowBody`
+的普通结果行（`files.go` 的 id 是 `drop:<action>:<path>`，不带 `bar:` 前缀），选中块在
+P12-b 之后**已经**是 `tokens.LitFace`；这一页缺的从来不是代码，是**证据**。5-2 / 5-3
+是这一页自己的墨：图标列此前十五个板全是**历史时钟**。
+
+**为什么这一页的「眼睛」比它的面更重要**：每行第一眼落在那块 28u 的图标板上。板上写着
+「最近用过」的时候，页面在说一件它没有的事——三个不同的动作（打开 / 进终端 / 拷路径）
+被画成同一个记号，整页读起来是「一堆一样的东西」，这正是用户说的「平、糊」；面与受光
+边的层级信号再准，也被一个说错话的图标列淹掉。换成语汇之后（与动作条同一组三个记号），
+这一页第一次能「一眼看出这行要干什么」。
+
+| # | 位置 | 现状（旧） | 落成（新） | 状态 |
 |---|---|---|---|---|
-| 5-1 | 文件列表行 | 与启动器结果行同一语汇 | 与 1-2 同一条规则 | `未开始` |
+| 5-1 | 文件列表行（`launcher.go` `rowBody` 的 `i == a.Selected` 臂） | 与启动器结果行同一语汇，但**从无量测** | E1：`tokens.LitFace(row)`（继承自 §6.1 第 1-2 行）。像素实测浅色顶边 `238→240`（+2）、底边 `238→224`（−14）；深色顶边 `43→62`（+19）、底边 `43→40` | `已落地` |
+| 5-2 | **新增**｜图标列（`glyphs.go` `rowGlyph`） | 没有 `drop:` 分支，尾巴 `return glyphClock, true`——五个文件十五个时钟 | 与动作条同一语汇：`drop:open:` → `glyphFolder`（`bar:path-open`）、`drop:cd:` → `glyphTerminal`（`bar:path-cd`）、`drop:copy:` → `glyphFile`（`bar:path-copy`）。按 id 前缀判（id 尾上带着路径） | `已落地` |
+| 5-3 | **新增**｜折叠行（`drop:more`） | 同样落进时钟 | `glyphChevronRight`——它做的是**展开**，不是「最近」 | `已落地` |
+| 5-4 | **新增**｜图标板（`glyphs.go` `iconPlate`） | `tokens.Lens(plate)` 四层，第四层是四边 `ControlEdge` 的环 | **故意不做**：这块板启动器**所有页**共用（结果行 / 剪贴板 / 计算器 / 浏览器），改它等于跨表面，违反「一个表面一轮」；留给启动器表面那一轮 | `故意不做`（见理由） |
+
+pin：`internal/launcher/filesmarks_test.go` 两条（三条动作行的记号 + 折叠行的展开符 /
+选中块的 E1 三判据），后者在深/浅两套外观上跑。出图
+`/tmp/floter-P13-f-files-{dark,light}-{before,after}.png`：整页只有**九块 16×16 的
+字形框**变（浅色 1397 px / 深色 1353 px），行盒、文字列、字号一个像素没动。
 
 ### §6.6 弹层（toast / 通知 / 对话框）— `未开始`
 
