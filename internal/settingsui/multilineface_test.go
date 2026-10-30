@@ -43,7 +43,7 @@ func TestTheMultiselectBoxIsAFaceNotARing(t *testing.T) {
 		t.Run(appearance.name, func(t *testing.T) {
 			var scroll ui.ScrollState
 			tt, ground := lensProbe(t, appearance.dark, 420, 180, func(c *ui.Context, a *App) {
-				a.configMultiselectBox(c, &scroll, func() {})
+				a.configMultiselectBox(c, &scroll, false, func() {})
 			})
 			img := tt.Image()
 			box := paintedBox(img, ground)
@@ -198,7 +198,7 @@ func TestDumpP13MFacePNGs(t *testing.T) {
 		}
 		real("real multiselect box", 420, 180, 4, func(c *ui.Context, a *App) {
 			var scroll ui.ScrollState
-			a.configMultiselectBox(c, &scroll, func() {})
+			a.configMultiselectBox(c, &scroll, false, func() {})
 		})
 		real("real command plate", 460, 280, 4, func(c *ui.Context, a *App) {
 			a.extensionMetrics(func() {

@@ -143,6 +143,27 @@ func cloneConfigValues(values map[string]any) map[string]any {
 // flight, exactly as the row's action cluster is (see `rowBusy`).
 func (a *App) configLocked(id string) bool { return a.rowBusy(id) }
 
+// lockedControl puts the **one** fade on a form control that cannot be touched
+// (`docs/rounds/P13-t-spec.md`). It is the sibling of `theme.Tokens.DimFace`:
+// there the material says "there but unlit", here the *state* says "there but
+// not now", and both mean **one fade and no second one**.
+//
+// The framework's painter already multiplies a `Disabled` subtree by 0.5
+// (`ui/paint.go:257-259`), so this helper must not add an `Opacity`: the old
+// arms multiplied that 0.5 by their own 0.6 and drew locked controls at an
+// effective 0.3 — a locked field's face stepped off the ground by 5 levels
+// instead of 9, and its E1 pair vanished (measured 230 → 242 instead of 238).
+// The multiselect box went the other way: it carried the 0.6 and *no* flag, so
+// the box and its option words sat at 0.6 while the tick boxes inside them sat
+// at 0.25 — three depths for one word, on one form.
+//
+// One flag at the control's root is what makes the whole subtree land on one
+// rung. Wheel scrolling is unaffected (`ui/input.go:515-536` scrolls a
+// disabled subtree), so a locked list of long options can still be read.
+func lockedControl(e ui.Element) ui.Element {
+	return e.Disabled(true).Cursor(ui.CursorDefault)
+}
+
 // configFields draws the form for one integration's configuration: the
 // fields and the save button, shown while the form is open. The toggle that
 // opens it is the integration row's own (see integrationRow).
@@ -504,7 +525,9 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 		a.configFieldGrid(c, field, label, copy.ConfigRequired, "", func() ui.Element {
 			e := a.switchControl(c, &on).Label(label)
 			if locked {
-				e = e.Disabled(true).Opacity(0.6).Cursor(ui.CursorDefault)
+				// P13-t（`docs/rounds/P13-t-spec.md`）：一道淡，不是两道——见
+				// `lockedControl`。旧的两道把开关轨道的台阶从 −84 压成 −52。
+				e = lockedControl(e)
 			}
 			if e.Changed() && !locked {
 				changed = true
@@ -530,7 +553,8 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 		a.configFieldGrid(c, field, label, copy.ConfigRequired, "", func() ui.Element {
 			e := a.configSelect(c, &selected, labels, label)
 			if locked {
-				e = e.Disabled(true).Opacity(0.6).Cursor(ui.CursorDefault)
+				// P13-t：一道淡（框架的 0.5），与同一张表单的字段、开关同档。
+				e = lockedControl(e)
 			}
 			if e.Changed() && !locked {
 				if noneOffered && selected == copy.ConfigNone {
@@ -567,7 +591,7 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 		// than the loose ruled rows the old port drew. A list box reads as one
 		// control, which is what the reference's `select[multiple]` is.
 		a.configFieldGrid(c, field, label, copy.ConfigRequired, "", func() ui.Element {
-			box := a.configMultiselectBox(c, a.configListScroll(integration.ID, field.Key), func() {
+			box := a.configMultiselectBox(c, a.configListScroll(integration.ID, field.Key), locked, func() {
 				for index, option := range field.Options {
 					index, option := index, option
 					on := ticked[option]
@@ -600,9 +624,6 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 					draft.values[field.Key] = tickedToValues(field.Options, ticked)
 				}
 			})
-			if locked {
-				box = box.Opacity(0.6).Cursor(ui.CursorDefault)
-			}
 			return box
 		})
 	case "number":
@@ -624,7 +645,9 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 				e = e.Error(problem)
 			}
 			if locked {
-				e = e.Disabled(true).Opacity(0.6).Cursor(ui.CursorDefault)
+				// P13-t：一道淡。0.3 下这块字段的 E1 一对面双双归零（顶内线 = 面
+				// = 242、底内线 = 面），槽读不出来；0.5 下仍是 238（−9）与 −7 的对侧。
+				e = lockedControl(e)
 			}
 			// The reference's input is controlled: every keystroke writes the
 			// field's own value back, so the bounds are checked as the user types
@@ -677,7 +700,8 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 				e = e.Error(problem)
 			}
 			if locked {
-				e = e.Disabled(true).Opacity(0.6).Cursor(ui.CursorDefault)
+				// P13-t：一道淡，与上面的数字字段、开关、下拉同档。
+				e = lockedControl(e)
 			}
 			// A text field is controlled the same way: every keystroke is the
 			// field's text, the bounds are checked at once, and the typed text —
@@ -826,7 +850,7 @@ func configOptionMatches(options []string, word string) bool {
 // viewport less the box's own 4px vertical padding, and a short list keeps the
 // same 66px floor rather than shrinking. The scroller rides the box's own
 // state, so a scroll stays where the user left it.
-func (a *App) configMultiselectBox(c *ui.Context, scroll *ui.ScrollState, fn func()) ui.Element {
+func (a *App) configMultiselectBox(c *ui.Context, scroll *ui.ScrollState, locked bool, fn func()) ui.Element {
 	tokens := a.tokens(c)
 	t := a.cardTheme(c)
 	padY, padX := a.cardSpace(t, 1), a.cardSpace(t, 2)
@@ -850,6 +874,12 @@ func (a *App) configMultiselectBox(c *ui.Context, scroll *ui.ScrollState, fn fun
 			ui.Column(c).FillWidth().Gap(a.cardSpace(t, 0.5)).Children(fn)
 		})
 	})
+	// P13-t：锁定的档位落在**控件根**上，整棵子树（箱面、选项文字、勾选框）同乘
+	// 框架的 0.5。这一臂曾经只有 `.Opacity(0.6)`、没有 `Disabled`，于是同一个
+	// 锁定表单里字段 0.3、这个框 0.6、框里的勾选框 0.25。
+	if locked {
+		box = lockedControl(box)
+	}
 	return box
 }
 
@@ -875,9 +905,11 @@ func (a *App) configOptionRow(c *ui.Context, option string, on *bool, changed *b
 			mods = word.ClickModifiers()
 		}
 		box := ui.CheckboxBase(c, on).Label(option)
-		if locked {
-			box = box.Disabled(true)
-		}
+		// P13-t：这里曾经在 `locked` 时再挂一次 `Disabled(true)`。列表框自己已经是
+		// `Disabled`（`config.go` 的 multiselect 臂），`IsDisabled` 走祖先链
+		// （`ui/element.go:1349-1356`），点击与 hover 一样被祖先挡住；再挂一次就是
+		// 0.5 × 0.5 = 0.25——一个框里的勾选框比箱面深一档，正是这一轮要收掉的
+		// 「同一件事三种深度」。`locked` 仍然只用在两条点击守卫上。
 		if box.Clicked() && !locked {
 			*changed = true
 			mods = box.ClickModifiers()

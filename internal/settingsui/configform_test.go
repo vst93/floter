@@ -323,7 +323,7 @@ func TestTheConfigMultiselectIsOneListBox(t *testing.T) {
 			c.SetTheme(tokens.Theme)
 			ui.Column(c).Padding(24).Children(func() {
 				a.extensionMetrics(func() {
-					a.configMultiselectBox(c, nil, func() {}).Bind(&ref)
+					a.configMultiselectBox(c, nil, false, func() {}).Bind(&ref)
 				})
 			})
 			rect = c.Resolve(ref).Bounds()
@@ -686,7 +686,7 @@ func TestTheConfigMultiselectScrollsInsideItsViewport(t *testing.T) {
 				a.extensionMetrics(func() {
 					a.configFieldGrid(c, field, "Tags", "", "",
 						func() ui.Element {
-							return a.configMultiselectBox(c, a.configListScroll("dev.floter.tool", field.Key), func() {
+							return a.configMultiselectBox(c, a.configListScroll("dev.floter.tool", field.Key), false, func() {
 								for _, option := range field.Options {
 									ui.Text(c, option)
 								}
