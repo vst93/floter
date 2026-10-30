@@ -119,7 +119,13 @@ func SegmentedIndex(c *ui.Context, tokens theme.Tokens, selected *int, labels []
 				// deliberately not an accent fill. The framework's `ui.Button`-
 				// less pane the whole card language builds on is a flat tint;
 				// the lens is what makes the chosen slot read as glass.
-				segment.Background(tokens.ControlHover)
+				//
+				// P13-r：面用 `Thumb`，**不能**借 `ControlHover`。凹槽里的这一格是树里
+				// 唯一「面长在槽里」的地方，而 `ControlHover` 在浅色档是黑洗：压在凹槽面
+				// 232 上得到 207，比它自己的槽还暗 24 级 —— 那是 macOS 10.x 的「槽里挖
+				// 深一层」，也是用户说的「偏旧版本」。`Thumb` 在浅色档是纸色（249 对页面
+				// 247），在深色档是原有的白洗（86 对槽 58）。
+				segment.Background(tokens.Thumb)
 				tokens.Lens(segment)
 				segment.InsetShadow(0, 0, 0, 1, tokens.AccentEdge)
 			case segment.Hovered():

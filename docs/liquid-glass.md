@@ -272,7 +272,7 @@ pin：`internal/settingsui/liteedge_test.go` 五条（侧栏 / 分组卡 / 字�
 | 9-6 | `uninstall.go` 卸载对话框动作胶囊 | `Border` + `Lens` | `LitFace` | `已落地` |
 | 9-7/8/9 | `uninstall.go` `uninstallPartRow` 的 fixed / hover / default 三臂 | `Border` + `Lens` | `LitFace`（三臂同一对线） | `已落地` |
 | 9-10 | `savealert.go` 保存告警的 ✕（24u，E2 横幅里） | hover 抬面 + `Lens` | `LitFace` | `已落地` |
-| 9-11 | `control/control.go` `SegmentedIndex` 的选中段（`.settings-option--active`） | `Lens` + **紧跟其后的** `AccentEdge` 四边环 | **故意不做**：它自己的身份线是那条 accent 环，四边都在、把 rim 与 edge 全盖住；换成 `LitFace` 画出的是立刻被遮住的两条线（像素上不可见），而 §2 也不许一个面说两句话。它是设置页与终端抽屉共用的控件（跨表面） | `故意不做`（见理由） |
+| 9-11 | `control/control.go` `SegmentedIndex` 的选中段（`.settings-option--active`） | `Lens` + **紧跟其后的** `AccentEdge` 四边环 | **透镜本身：故意不做**：它自己的身份线是那条 accent 环，四边都在、把 rim 与 edge 全盖住；换成 `LitFace` 画出的是立刻被遮住的两条线（像素上不可见），而 §2 也不许一个面说两句话。它是设置页与终端抽屉共用的控件（跨表面）。**填充另案**：这一格的填充原本借 `ControlHover`，在浅色档把「抬起」画成「槽里再挖深一层」——P13-r 落地，见 §6.2b-5 | `故意不做`（透镜）/ `已落地`（填充，§6.2b-5） |
 | 9-12 | `shell/notices.go` toast 的动作 chip（`.app-toast__action`） | `Control` 面 + `Lens`，**没有自己的边框**——环就是它唯一的边界 | E1：`tokens.LitFace`（**不补边框**：面差就是它的边界）——P13-j 落地，实测见 §6.6 第 6-3 行 | `已落地` |
 
 #### §6.2b-2 漏在 `Lens` 账本外的两处控件面（P13-l，**已落地**）
@@ -353,6 +353,40 @@ pin：`internal/settingsui/litpair_census_test.go` 四条——三块面各一�
 **V 0 / B 0 / S 0**（没有既有 pin 需要改断言：三处此前都没有 pin）。
 出图 `/tmp/floter-P13-p-{sessionbutton,refusalband,sheetpill}-{light,dark}-{before,after}.png`：
 差异的 bbox 恰好是控件自己的盒子（按钮 24×24、两条带子整宽），控件之外一个像素没动。
+
+#### §6.2b-5 凹槽里的那一格：浅色档的「抬起」方向反了（P13-r，**已落地**）
+
+§6.2b 9-11 判的是**透镜**（`Lens` ↔ `LitFace`），这一轮判的是同一格的**填充**——
+两件事，因为环盖住线、盖不住面。
+
+**根因**：选中格借 `tokens.ControlHover`，而这个 token 在两种外观上指向**相反的 z 方向**。
+浅色档的「抬起」是黑洗（`0,0,0,0.105`），压在凹槽面 216 上得到 **193**——比它自己的槽
+还暗 23 级；深色档的「抬起」是白洗（`255,255,255,0.14`），压在 78 上得到 **103**。
+于是同一枚控件在深色档说「这是抬起来的」，在浅色档说「这是挖下去的」，而代码注释与
+§2 的 E1 都写着 raised pane。「凹槽里更深的一格」正是用户点名的 macOS 10.x 读法
+（「有点偏 macOS 旧版本」）；现代 macOS/iOS 的分段滑块是**纸色抬起**。
+
+**落地**：新 token `theme.Tokens.Thumb`。浅色档 = 纸自己的颜色（`rgba(255,255,255,0.85)`，
+在卡面的凹槽 216 上复合到 **249**，页面是 247 ±2 —— 抬起的面就是那张纸穿过了凹槽）；
+深色档 = 原来那档白洗（`0.14`，**外观一个字节没动**：深色没有更亮的纸可借，页面是 39，
+所以两档不同值不是不一致，是同一条规则在两种底上的唯一解）。`Lens` 与 `AccentEdge` 环
+**不动**（9-11 的理由照旧）。
+
+实测（真 `SegmentedIndex` 画在设置页的卡面 `Control` 上）：
+
+| 外观 | 页面 | 卡面 | 槽面 | 选中格（旧 → 新） | 抬高量 | accent 环（蓝−红） |
+|---|---|---|---|---|---|---|
+| 浅色 | 247 | 230 | 216 | **193 → 249** | −23 → **+33** | 58（面 0） |
+| 深色 | 39 | 61 | 78 | 103（不动） | +25 | 31（面 4） |
+
+pin：`internal/control/thumb_test.go` 三条——①两套外观下选中格比槽面亮 ≥10 级；
+②浅色档选中格落在纸色 ±3 且高于卡面；③accent 环相对选中格面仍然「是一条蓝线」
+（蓝−红 差 ≥25；浅色档用 R 通道量会在深色档误判：深色环的底行 R 只高 6 级，但它仍是蓝的）。
+**V 0 / B 0 / S 0**（选中格的填充此前没有任何像素 pin；深色档的渲染前后逐字节相同——
+`/tmp/floter-P13-r-segment-{before,after}-dark.png` 的 diff 是 **0 像素**）。
+出图 `/tmp/floter-P13-r-segment-{before,after}-{light,dark}.png`：浅色档的差异 bbox 是
+`(150,29)-(269,55)`，**恰好是选中那一格自己的盒子**（中间段 148.8~271.2），控件之外
+一个像素没动。
 
 ### §6.3 终端页（terminalui）— **已落地（P13-d）**
 

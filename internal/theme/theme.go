@@ -178,6 +178,24 @@ type Tokens struct {
 	// quiet pane (`--glass-raised-quiet`, an alias of ControlHover).
 	ControlHover ui.Color
 	ControlPress ui.Color
+	// Thumb is the segmented control's **chosen slot** — the one raised pane in
+	// the tree that lives *inside* a groove, so it cannot borrow the control
+	// ladder: `ControlHover` lifts a pane on the light appearance by washing it
+	// black (`0,0,0,0.105`), which over the groove's own face (232) lands at
+	// 207 — 24 levels *below* the groove it sits in. The same token points the
+	// other way on the dark appearance (white 0.14 over 58 → 86), so one token
+	// was saying "raised" and "sunk" on the two appearances at once, and the
+	// light one is the macOS 10.x read the user called out (「有点偏 macOS 旧
+	// 版本」).
+	//
+	// The two appearances therefore answer the same question differently, and
+	// both answers are the platform's: on the light sheet the thumb is the
+	// **sheet's own colour** punched through the groove (0.85 of white over the
+	// card's groove composites to 249 against the page's 247), which is the
+	// iOS/macOS segmented slider; on the dark sheet there is no brighter sheet
+	// to borrow (the page is 39), so the thumb is the lifted white wash the
+	// control ladder already uses (0.14, the shipped value — unchanged).
+	Thumb ui.Color
 	// Track is the groove a switch or a segmented control is looked into
 	// (base.css's `--glass-track`), TrackEdge the quieter hairline that groove
 	// draws on its recessed lens (`--glass-track-edge`), TrackRim the line that
@@ -586,6 +604,7 @@ func ForPlatform(s settings.Settings, systemDark bool, prefs ui.Preferences, goo
 		RowPressed:        p.rowPressed,
 		KeycapFace:        p.keycapFace,
 		KeycapEdge:        p.keycapEdge,
+		Thumb:             p.thumb,
 		Track:             track,
 		TrackEdge:         p.trackEdge,
 		TrackRim:          scaleAlpha(p.trackRim, spec.LensScale),
@@ -709,6 +728,11 @@ func paletteFor(appearance Appearance) palette {
 			rowPressed:  ui.RGBA(0, 0, 0, 0.08),
 			keycapFace:  ui.RGBA(0, 0, 0, 0.05),
 			keycapEdge:  ui.RGBA(0, 0, 0, 0.06),
+			// P13-r（docs/liquid-glass.md §6.2b-5）：凹槽里的选中格在浅色档必须是
+			// **纸自己的颜色**。0.85 的白压在卡面的凹槽（216）上复合到 249，页面是
+			// 247 —— 抬起的面就是那张纸穿过了凹槽（现代 macOS/iOS 的滑块）。旧值：
+			// 借 `ControlHover`（黑 0.105）→ 207，比凹槽面 232 还暗 24 级。
+			thumb: ui.RGBA(255, 255, 255, 0.85),
 			// `::selection` 在参考里就是 `--accent-tint`（`main:src/styles/base.css:1300`）：
 			// 浅色 `rgba(6,74,166,0.10)`（`:946`）；`focus` 是 `--accent-ring`
 			// `rgba(6,74,166,0.82)`（`:956`）。旧值 → 新值：两条都随 accent 换色。
@@ -821,12 +845,16 @@ func paletteFor(appearance Appearance) palette {
 		// The keycap's plate: the fill and its hairline.
 		keycapFace: ui.RGBA(255, 255, 255, 0.075),
 		keycapEdge: ui.RGBA(255, 255, 255, 0.07),
-		selection:  ui.RGBA(143, 183, 255, 0.13),
-		focus:      ui.RGBA(122, 167, 255, 0.78),
-		warning:    ui.RGBA(255, 178, 164, 0.82),
-		scrollbar:  ui.RGBA(238, 239, 242, 0.15),
-		opaque:     ui.RGBA(20, 20, 22, 0.99),
-		fieldFill:  ui.RGBA(28, 28, 31, 0.99),
+		// P13-r：深色档的选中格**不动**（= `controlHover` 的白 0.14，实测 86 对面
+		// 58，+28，本来就是「抬起来」）。深色没有更亮的纸可借（页面是 39），所以这一档
+		// 与浅色档不同值不是不一致，是同一条规则在两种底上的唯一解。
+		thumb:     ui.RGBA(255, 255, 255, 0.14),
+		selection: ui.RGBA(143, 183, 255, 0.13),
+		focus:     ui.RGBA(122, 167, 255, 0.78),
+		warning:   ui.RGBA(255, 178, 164, 0.82),
+		scrollbar: ui.RGBA(238, 239, 242, 0.15),
+		opaque:    ui.RGBA(20, 20, 22, 0.99),
+		fieldFill: ui.RGBA(28, 28, 31, 0.99),
 		// The lens family, capped at 0.04: Raycast is a low-gloss design, so
 		// the control's own rim, sheen and shade are a whisper rather than the
 		// lens the old sheet drew (`docs/raycast-design.md` §4.1). The
@@ -961,6 +989,8 @@ type palette struct {
 	rowSelected            ui.Color
 	rowPressed             ui.Color
 	keycapFace, keycapEdge ui.Color
+	// The segmented control's chosen slot (see `Tokens.Thumb`).
+	thumb ui.Color
 }
 
 // round1 rounds to one decimal, so a scaled metric stays a value a CSS
