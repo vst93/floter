@@ -548,6 +548,11 @@ func TestLensScalesWithTheGlassStop(t *testing.T) {
 	if !(frosted.LensSheen.A < regular.LensSheen.A && regular.LensSheen.A < liquid.LensSheen.A) {
 		t.Errorf("lens sheen did not rise with the stop: %d / %d / %d", frosted.LensSheen.A, regular.LensSheen.A, liquid.LensSheen.A)
 	}
+	// P13-o: the groove's lit rim rides the same chain (`--glass-lens-scale`
+	// grades the recessed lens exactly as it grades the raised one).
+	if !(frosted.TrackRim.A < regular.TrackRim.A && regular.TrackRim.A < liquid.TrackRim.A) {
+		t.Errorf("the groove's lit rim did not rise with the stop: %d / %d / %d", frosted.TrackRim.A, regular.TrackRim.A, liquid.TrackRim.A)
+	}
 	// The regular stop is the reference's own lens strength: the palette's
 	// base value unchanged.
 	palette := paletteFor(Dark)
@@ -555,8 +560,8 @@ func TestLensScalesWithTheGlassStop(t *testing.T) {
 		t.Errorf("regular lens rim = %d, want the palette's %d", regular.LensRim.A, palette.lensRim.A)
 	}
 	// The off stop drops the lens entirely.
-	if off := For(withStep(base, "off"), true); off.LensRim.A != 0 || off.LensSheen.A != 0 || off.LensEdge.A != 0 {
-		t.Errorf("off kept a lens: %v / %v / %v", off.LensRim, off.LensSheen, off.LensEdge)
+	if off := For(withStep(base, "off"), true); off.LensRim.A != 0 || off.LensSheen.A != 0 || off.LensEdge.A != 0 || off.TrackRim.A != 0 {
+		t.Errorf("off kept a lens: %v / %v / %v / %v", off.LensRim, off.LensSheen, off.LensEdge, off.TrackRim)
 	}
 }
 
@@ -745,6 +750,7 @@ func TestHighContrastSwapsTheStrokeAndPlaceholderTokens(t *testing.T) {
 				// The three the material floor and the lens damping move.
 				tk.Sunken, tk.RaisedQuiet, tk.Float = ui.Color{}, ui.Color{}, ui.Color{}
 				tk.LensRim, tk.LensSheen, tk.LensEdge = ui.Color{}, ui.Color{}, ui.Color{}
+				tk.TrackRim = ui.Color{}
 				tk.SheenTop, tk.SheenBottom = ui.Color{}, ui.Color{}
 				// The focused pair is capped at the same frame alpha, so the
 				// material floor moves it too (see SheenAtFocus).

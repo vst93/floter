@@ -180,10 +180,20 @@ type Tokens struct {
 	ControlPress ui.Color
 	// Track is the groove a switch or a segmented control is looked into
 	// (base.css's `--glass-track`), TrackEdge the quieter hairline that groove
-	// draws on its recessed lens (`--glass-track-edge`), and Field the slot a
+	// draws on its recessed lens (`--glass-track-edge`), TrackRim the line that
+	// light pools on along that groove's *bottom* edge, and Field the slot a
 	// text field cuts into the glass (`--glass-field`).
+	//
+	// TrackRim is not `LensRim`: a raised face's lit edge and a groove's lit
+	// edge are two different lines on two different grounds (P13-o,
+	// `docs/liquid-glass.md` §3). On the light appearance a raised face's rim
+	// sits on a near-white face where 0.09 of white is all that can be spent
+	// without washing an accent fill (P13-n), while a groove's rim sits on the
+	// track *and* under the track's own 0.08 hairline — it has to be near-white
+	// just to survive the ring.
 	Track     ui.Color
 	TrackEdge ui.Color
+	TrackRim  ui.Color
 	Field     ui.Color
 	// Opaque is the near-solid stand-in for a surface whose glass has been
 	// turned off or that must not show the desktop (base.css's
@@ -578,6 +588,7 @@ func ForPlatform(s settings.Settings, systemDark bool, prefs ui.Preferences, goo
 		KeycapEdge:        p.keycapEdge,
 		Track:             track,
 		TrackEdge:         p.trackEdge,
+		TrackRim:          scaleAlpha(p.trackRim, spec.LensScale),
 		Field:             field,
 		Opaque:            p.opaque,
 		FieldFill:         p.fieldFill,
@@ -680,8 +691,16 @@ func paletteFor(appearance Appearance) palette {
 			controlEdge: ui.RGBA(0, 0, 0, 0.06),
 			track:       ui.RGBA(0, 0, 0, 0.06),
 			trackEdge:   ui.RGBA(0, 0, 0, 0.08),
-			field:       ui.RGBA(255, 255, 255, 0.5),
-			hairline:    ui.RGBA(0, 0, 0, 0.09),
+			// P13-o 重定基线（docs/liquid-glass.md §1 的 0-9 行 / §3）：凹槽的底边线
+			// 不能借 `LensRim`。浅色档的凹槽面是 232，环（`trackEdge` 0.08 黑）先把它
+			// 压到 213，再叠 0.09 的白只剩 217——**比凹槽面还暗 15 级**，于是「洞里积光」
+			// 读成「两条暗线的框」。旧值 → 新值：`0.09`（借 lensRim）→ **`0.70`**，
+			// 实测底内线 221 → 243（−11 → **+11**），仍在地面 247 之下（凹槽不许比它
+			// 被切进去的那张纸更亮）。参考实现浅色档本来就是近白
+			// （`floter-main/src/styles/base.css:899`，`--glass-lens-rim-base: 0.9`）。
+			trackRim: ui.RGBA(255, 255, 255, 0.70),
+			field:    ui.RGBA(255, 255, 255, 0.5),
+			hairline: ui.RGBA(0, 0, 0, 0.09),
 			// Raycast's weaker hairline (`docs/raycast-design.md` §1).
 			hairlineSoft: ui.RGBA(0, 0, 0, 0.055),
 			// The row's neutral ladder: hover 0.04, chosen 0.06, pressed 0.08.
@@ -784,8 +803,12 @@ func paletteFor(appearance Appearance) palette {
 		controlEdge: ui.RGBA(255, 255, 255, 0.07),
 		track:       ui.RGBA(255, 255, 255, 0.09),
 		trackEdge:   ui.RGBA(255, 255, 255, 0.075),
-		field:       ui.RGBA(255, 255, 255, 0.03),
-		hairline:    ui.RGBA(255, 255, 255, 0.09),
+		// 深色档的凹槽底边**不动**（P13-o）：这里的环是白的 0.075，两条白线相加，
+		// 实测底内线 57 对面 36（+21）——深色的凹槽本来就读得出「底下有光」。
+		// 深色缺的那一半是面·对侧，P13-n 已经用 `lensEdge` 0.20 补上了。
+		trackRim: ui.RGBA(255, 255, 255, 0.09),
+		field:    ui.RGBA(255, 255, 255, 0.03),
+		hairline: ui.RGBA(255, 255, 255, 0.09),
 		// Raycast's weaker hairline: the rule between rows and inside a block
 		// (0.055, `docs/raycast-design.md` §1).
 		hairlineSoft: ui.RGBA(255, 255, 255, 0.055),
@@ -910,26 +933,26 @@ func (p palette) contrast(app Appearance) palette {
 // palette is one appearance's token set, kept private: Tokens is the public
 // shape, and the framework theme's fields are filled from here.
 type palette struct {
-	background, text, textStrong, textMuted, textSecondary, textTertiary    ui.Color
-	accent, accentHover, accentPressed, accentText                          ui.Color
-	stroke, strokeActive                                                    ui.Color
-	control, controlHover, controlPress, controlEdge                        ui.Color
-	track, trackEdge, field, hairline, selection, focus, warning, scrollbar ui.Color
-	opaque, fieldFill                                                       ui.Color
-	lensRim, lensSheen, lensEdge                                            ui.Color
-	sheenTop, sheenBottom                                                   ui.Color
-	sheenTopActive, sheenBottomActive                                       ui.Color
-	shadowAmbient, shadowContact                                            ui.Color
-	edgeHighlight, edgeShadow, edgeHighlightX                               ui.Color
-	edgeHighlightActive                                                     ui.Color
-	keycapHighlight, keycapShadow                                           ui.Color
-	accentEdge                                                              ui.Color
-	accentEdgeStrong                                                        ui.Color
-	accentHalo                                                              ui.Color
-	accentGlow                                                              ui.Color
-	accentTintQuiet                                                         ui.Color
-	iconSurface, iconSurfaceHover                                           ui.Color
-	systemIconText                                                          ui.Color
+	background, text, textStrong, textMuted, textSecondary, textTertiary              ui.Color
+	accent, accentHover, accentPressed, accentText                                    ui.Color
+	stroke, strokeActive                                                              ui.Color
+	control, controlHover, controlPress, controlEdge                                  ui.Color
+	track, trackEdge, trackRim, field, hairline, selection, focus, warning, scrollbar ui.Color
+	opaque, fieldFill                                                                 ui.Color
+	lensRim, lensSheen, lensEdge                                                      ui.Color
+	sheenTop, sheenBottom                                                             ui.Color
+	sheenTopActive, sheenBottomActive                                                 ui.Color
+	shadowAmbient, shadowContact                                                      ui.Color
+	edgeHighlight, edgeShadow, edgeHighlightX                                         ui.Color
+	edgeHighlightActive                                                               ui.Color
+	keycapHighlight, keycapShadow                                                     ui.Color
+	accentEdge                                                                        ui.Color
+	accentEdgeStrong                                                                  ui.Color
+	accentHalo                                                                        ui.Color
+	accentGlow                                                                        ui.Color
+	accentTintQuiet                                                                   ui.Color
+	iconSurface, iconSurfaceHover                                                     ui.Color
+	systemIconText                                                                    ui.Color
 	// The Raycast surface set (`docs/raycast-design.md` §1/§4): the weak
 	// hairline and the launcher row's neutral three-rung state ladder, plus
 	// the pressable keycap's plate.
@@ -1102,11 +1125,19 @@ func (t Tokens) LitFace(e ui.Element) ui.Element {
 //
 // The layers are added last-on-top (see `InsetShadow`), so the lit rim goes in
 // last: base.css lists it first, and CSS paints the first shadow on top.
+//
+// The lit rim is `TrackRim`, not `LensRim` (P13-o, `docs/liquid-glass.md` §3):
+// on the light appearance the groove's own hairline (black 0.08) sits on the
+// same row and pulls the fill down 19 levels, so a 0.09 rim that arrives on top
+// of it lands *below* the groove's fill (measured 232 → 217, −15) and the
+// recess read as a frame of two dark lines instead of a hole with light in it.
+// 旧值 → 新值：浅色 `LensRim 0.09` → `TrackRim 0.70`（实测底内线 221 → 243）；
+// 深色两者同值 0.09，不动（那里两条线都是白的，实测 +21）。
 func (t Tokens) LensInset(e ui.Element) ui.Element {
 	e.InsetShadow(0, 0, 0, 1, t.TrackEdge)
 	e.InsetShadow(0, 1, 0, 0, t.LensEdge)
 	e.InsetShadow(0, 1, 2, 0, t.ShadowContact)
-	e.InsetShadow(0, -1, 0, 0, t.LensRim)
+	e.InsetShadow(0, -1, 0, 0, t.TrackRim)
 	return e
 }
 
