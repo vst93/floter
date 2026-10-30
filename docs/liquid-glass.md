@@ -222,6 +222,7 @@ E1 的落地函数 `theme.Tokens.LitFace`（顶 `LensRim` + 底 `LensEdge`，无
 | 1-7 | 反馈行（`launcher.go` `feedbackRow`） | 顶边 `LensRim` **只在警告档**画，静息档是一块平涂 | E1：`tokens.LitFace(feedback)` 无条件画；警告档多出来的只是 keyline 与两层影 | `已落地` |
 | 1-8 | **新增**｜28u 图标板（`glyphs.go` `iconPlate`，启动器所有页 + 捕获输出页共用） | `tokens.Lens(plate)`：四层，第四层 `ControlEdge` 环**画在最后**，把第一条 `LensRim` 压在下面——浅色档顶边实测 **212 < 面 221**（一条暗线），深色档 97（0.09 白 + 0.07 白叠在同一行） | E1：`tokens.LitFace(plate)` —— 浅色顶 224 / 底 208，深色顶 82 / 底 61，两侧回到面本身（P13-h） | `已落地` |
 | 1-9 | **新增**｜两处悬停小格（`launcher.go` `rowControl` 20u / `fieldSettingsButton` 28u 的 `Hovered()` 臂） | `tokens.Lens(…)`：同一个四边环，在 20u/28u 的格子上读成「带框的按钮」 | E1：`tokens.LitFace(…)`，与 P13-d 的终端页悬停按钮同一语汇（P13-h） | `已落地` |
+| 1-10 | **新增**｜满态折边（`launcher.go` `rowBody` + `foldAlpha`） | 折边把行**硬切**：视口下沿落在行中间，一行字被水平切成两半（实测文字盒 24 → 15 px，墨在一刀断掉） | 折边之外的行**退后**：墨 = 可见高度 / 行高（露出 23/40 → 0.575，实测最深墨 27 → 123）；页脚那一行不参加（它是钉住的 footer） | `已落地` |
 
 pin：`internal/launcher/litedge_test.go` 四条（选中块 / 键帽 / 反馈带两态 / 输出页选中行），
 每条都在深/浅两套外观上跑。出图 `/tmp/floter-P12-b-{list,note,warning}-{dark,light}-{before,after}.png`。

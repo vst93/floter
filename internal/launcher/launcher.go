@@ -912,6 +912,42 @@ func (a *App) emptyMessage(copy i18n.Launcher) string {
 	}
 }
 
+// foldAlpha is how much of a row the list actually shows: 1 for a row wholly
+// inside the viewport, the visible fraction for one the fold cuts, 0 for one
+// scrolled away.
+//
+// P13-v · 折边之外的东西是**退后**，不是**被切**。列表没有滚动条（用户定的），
+// 所以「下面还有」只能靠折边说话；而折边今天是把行硬切——视口下沿落在行的中间，
+// 一行字就被水平切成两半（实测 `Walk 09` 的文字盒 24 → 15 px，墨在下沿一刀断掉，
+// 见 `docs/rounds/P13-v-report.md`）。那不是「还有更多」，那是「界面坏了」。
+// 轻便液态玻璃的深度语汇里，越过折边的那一行**退后**：露出一半的行画一半的墨，
+// 露出一成的行几乎不见——折边于是自己就是「还剩多少」的刻度，不需要滚动条，
+// 也不需要拿背景色回放的渐变遮罩（那是冒充玻璃，§0 禁）。
+//
+// 两个盒子都是**上一帧**的（`a.listRect` 与 `a.rowRects[i]`），所以它们互相
+// 自洽；首帧还没有盒子，返回 1（一行都不退），画面不会先空一帧。
+func foldAlpha(viewport, box ui.Rect) float64 {
+	if viewport.H <= 0 || box.H <= 0 {
+		return 1
+	}
+	top := box.Y
+	if viewport.Y > top {
+		top = viewport.Y
+	}
+	bottom := box.Y + box.H
+	if fold := viewport.Y + viewport.H; fold < bottom {
+		bottom = fold
+	}
+	visible := bottom - top
+	if visible >= box.H {
+		return 1
+	}
+	if visible <= 0 {
+		return 0
+	}
+	return float64(visible) / float64(box.H)
+}
+
 // rowTransition is how a result row appears: a short fade, no movement, so
 // typing feels alive without the list jumping about.
 var rowTransition = ui.ElementTransition{
@@ -2300,8 +2336,9 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 	a.rowRects[i] = row.Bounds()
 	// A history row is one step quieter than a match: the old build's
 	// `.launcher-result--history { opacity: 0.92 }`.
+	opacity := 1.0
 	if item.clip != nil || item.calc != nil {
-		row.Opacity(0.92)
+		opacity = 0.92
 	}
 	// The action bar is the one row that is not a result: its selection is
 	// the neutral raised pane the old build's settings used (`.launcher-
@@ -2330,6 +2367,23 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 		if i > 0 {
 			row.Radius(0, 0, tokens.RadiusSM, tokens.RadiusSM)
 		}
+	}
+	// P13-v：折边之外的那一行退后（见 `foldAlpha`）。两个盒子都是上一帧的，
+	// 所以一条滚动中的行按上一帧的位置算——一帧的滞后读起来就是「它正退下去」，
+	// 不是闪。行的静息档（历史的 0.92）和折边取**更暗**的那一个：退后只会更深，
+	// 不会把一行退回来。
+	//
+	// 页脚那一行不参加：它是钉在面板底部的 footer，只是被记成列表的最后一行
+	// 好让高度链把它算进去（见 `actionBarFooter`），它的盒子永远在视口之外，
+	// 按折边算就是 0——那会把整条动作栏抹掉（实测：选中块的 tint 全丢、块从
+	// x=-1 起算）。钉住的东西不在折边上。
+	if !isBar {
+		if fold := foldAlpha(a.listRect, a.rowRects[i]); fold < opacity {
+			opacity = fold
+		}
+	}
+	if opacity < 1 {
+		row.Opacity(float32(opacity))
 	}
 	// The press is the one state a row takes on top of the tint: the control
 	// material's own press face (base.css's --glass-control-press), which is
