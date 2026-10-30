@@ -356,15 +356,26 @@ func (a *App) uninstallActionButton(c *ui.Context, label string, danger bool, bu
 	if busy {
 		// `.extensions-action-button:disabled { opacity: 0.4; cursor: default;
 		// pointer-events: none }` (`extensions.css:1369-1373`). The disabled
-		// flag carries the pointer-events half; the flatness and the cursor
-		// are the two the framework does not paint for us.
-		button.Disabled(true).Opacity(0.4).Cursor(ui.CursorDefault)
+		// flag carries the pointer-events half; the cursor is the other one the
+		// framework does not paint for us.
+		//
+		// P13-u：那个 `.4` 不再叠上去——框架的画笔已经给 `Disabled` 的子树乘了
+		// 0.5（`ui/paint.go:257-259`），两道乘起来是有效 0.2：面离地面只剩 4 级、
+		// E1 那一对线双双掉进噪声。同族的 `extensionActionFace`（P13-s）与
+		// `busyActionButton` 早就只留一道淡，这一处是同一页上的尾巴。
+		button.Disabled(true).Cursor(ui.CursorDefault)
 	}
 	// The control's own `--elev-0`: the same E1 pair the cards on the surface
 	// carry, so the pill reads as a pane of the same glass. `theme.Tokens.LitFace`
 	// rather than the four-layer `Lens`: the ring was this pill's own
 	// `Border(1, edge)` painted a second time, and it covered the 0.09 rim.
-	tokens.LitFace(button)
+	// P13-u：在飞的面换 `DimFace`——底对侧还在、受光边熄了（受光边是「这块面
+	// 可以被碰」的记号，§3），与同族其余禁用面同一句话。
+	if busy {
+		tokens.DimFace(button)
+	} else {
+		tokens.LitFace(button)
+	}
 	button.Children(func() {
 		if icon != nil {
 			ui.Icon(c, icon).Size(t.Space(3.5), t.Space(3.5))

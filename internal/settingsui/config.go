@@ -160,6 +160,10 @@ func (a *App) configLocked(id string) bool { return a.rowBusy(id) }
 // One flag at the control's root is what makes the whole subtree land on one
 // rung. Wheel scrolling is unaffected (`ui/input.go:515-536` scrolls a
 // disabled subtree), so a locked list of long options can still be read.
+//
+// P13-u：它不只服务配置表单——设置页自己的禁用控件（会话小格、确认带胶囊）也用
+// 同一条算术；区别只在材质：**面**再叠 `DimFace`（熄灯），**槽**与**透明面**
+// 什么都不叠（没有受光边可熄）。
 func lockedControl(e ui.Element) ui.Element {
 	return e.Disabled(true).Cursor(ui.CursorDefault)
 }

@@ -5857,7 +5857,14 @@ func (a *App) barButton(c *ui.Context, label string, danger, disabled bool, icon
 	// E1: the pill keeps its own `Border(1, edge)` and wears the lit pair inside
 	// it (`theme.Tokens.LitFace`), not the four-layer lens — its ring was the
 	// same edge painted twice, and it buried the 0.09 rim under `ControlEdge`.
-	tokens.LitFace(button)
+	// P13-u：禁用的那一臂换 `DimFace`（底对侧还在、受光边熄了）——与同页的
+	// `extensionActionFace`（P13-s）同一个材质，同一个理由：受光边是「这块面
+	// 可以被碰」的记号（§3），不能碰的面不戴它。
+	if disabled {
+		tokens.DimFace(button)
+	} else {
+		tokens.LitFace(button)
+	}
 	button.Children(func() {
 		if icon != nil {
 			ui.Icon(c, icon).Size(t.Space(3.5), t.Space(3.5))
@@ -5866,9 +5873,11 @@ func (a *App) barButton(c *ui.Context, label string, danger, disabled bool, icon
 	})
 	if disabled {
 		// `:disabled { opacity: 0.4; cursor: default; pointer-events: none }`:
-		// the framework's flag carries the pointer half, the flatness and the
-		// cursor are the two it does not paint.
-		button = button.Disabled(true).Opacity(0.4).Cursor(ui.CursorDefault)
+		// the framework's flag carries the pointer half and the cursor is the
+		// other one it does not paint. P13-u：那个 `.4` 不再叠上去——框架已经给
+		// `Disabled` 的子树乘了 0.5（`ui/paint.go:257-259`），两道乘起来是有效
+		// 0.2：面离地面只剩 4 级、底对侧归零（实测浅色 243 / 243 / 243）。
+		button = lockedControl(button)
 	}
 	if !disabled && button.Clicked() {
 		run()

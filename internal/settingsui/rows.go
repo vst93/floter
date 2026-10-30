@@ -664,8 +664,14 @@ func (a *App) switchControl(c *ui.Context, on *bool) ui.Element {
 // flag carries the pointer half and the press refusal, the flatness and the
 // cursor are the two it does not paint. `wait` is the one cursor the framework
 // does not expose, so a disabled switch wears the default arrow.
+//
+// P13-u（`docs/liquid-glass.md` §6.2b-6b 的规矩）：那个 `.6` 是**第二道淡**——
+// 框架已经给 `Disabled` 的子树乘了 0.5（`ui/paint.go:257-259`），两道乘起来是
+// 有效 0.3，开关轨道的台阶被压成半个的一半（实测浅色 247 → 220 而不是 231）。
+// 槽没有受光边可熄：禁用的槽靠「整块退一半、内线各留一半」说话，所以这一臂
+// 只留框架那一道，与 `lockedControl` 同一条算术。
 func disabledSwitch(sw ui.Element) ui.Element {
-	return sw.Disabled(true).Opacity(0.6).Cursor(ui.CursorDefault)
+	return sw.Disabled(true).Cursor(ui.CursorDefault)
 }
 
 // busySwitchControl draws the row's switch in its in-flight face: the same
@@ -826,7 +832,11 @@ func (a *App) sessionIconButton(c *ui.Context, glyphName, label string, danger, 
 	ink := t.TextMuted
 	switch {
 	case disabled:
-		button.Opacity(0.4).Cursor(ui.CursorDefault).Disabled(true)
+		// P13-u：这一枚是**透明面**（没有面、没有边），所以它既不需要
+		// `DimFace`（没有受光边可熄），也不需要产品自己那道 `.4`——那会让
+		// 框架的 0.5 变成有效 0.2，图标墨只剩 24 级对比（P-5 的下限是 60）。
+		// 一道淡，档位挂在控件根上：`lockedControl`。
+		button = lockedControl(button)
 	case button.Pressed():
 		// P13-q：同 28u 小格，第三档（`ControlPress` + `Scale(0.92)`）。
 		button.Border(1, tokens.ControlEdge).Background(tokens.ControlPress)
