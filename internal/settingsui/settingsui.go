@@ -3074,6 +3074,10 @@ func (a *App) commandPlate(c *ui.Context, copy i18n.Settings, extensionID string
 	// real 1px border here because the reference's own box is `border: 1px` and
 	// the plate's box was never a pinned metric.
 	plate.Border(1, tokens.Hairline)
+	// P13-m（`docs/liquid-glass.md` §6.2b-2 第 9-16 行）：命令块是扩展页命令列表里
+	// **每一条命令**的面，与 §6.2 第 2-3 行的分组卡同档（E1）——分组卡有那一对线，
+	// 它没有。外圈的 `Hairline` 是画框，一个字节不动；`LitFace` 只加两条 1px 内线。
+	plate = tokens.LitFace(plate)
 	if !command.Enabled {
 		plate.Opacity(0.62)
 	}

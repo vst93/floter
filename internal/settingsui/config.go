@@ -836,6 +836,13 @@ func (a *App) configMultiselectBox(c *ui.Context, scroll *ui.ScrollState, fn fun
 		Radius(tokens.RadiusSM).
 		Background(tokens.Control).
 		Clip()
+	// P13-m（`docs/liquid-glass.md` §6.2b-2 第 9-15 行）：这个箱子的注释一直写着
+	// 「与 `fieldFace`/`sheetFieldSlot` 同面」，而那两个字段自 P12-c 起就是 E1 的
+	// 一对面（顶受光边 + 底对侧暗线）——只有它停在了「一块被画框圈住的平涂」。
+	// P13-i / P13-l 的单行 grep 照不到它，因为 `Border(...)` 与
+	// `Background(tokens.Control)` 不在同一行。外圈 `ControlEdge` 不动：受光边是
+	// **内线**，画框是外线（§1）。
+	box = tokens.LitFace(box)
 	box.Children(func() {
 		ui.Scroll(c).FillWidth().MaxHeight(viewport - 2*padY - 2*border).TrackScroll(scroll).Children(func() {
 			ui.Column(c).FillWidth().Gap(a.cardSpace(t, 0.5)).Children(fn)

@@ -273,6 +273,29 @@ pin：`internal/settingsui/liteedge_test.go` 五条（侧栏 / 分组卡 / 字�
 | 9-14 | `settingsui.go` `noticeBand` 的**非危险臂**（`disableConfirmation`：关掉一个扩展时出现） | 同一个组件的两条臂里只有 `danger` 那条说了话（一圈 `InsetShadow(0,0,0,1, Warning)`）；非危险臂只剩发丝，比它坐着的 E1 分组卡还平（浅色档顶 = 底 = 侧 = 面 119） | E1：`else { tokens.LitFace(band) }`。实测浅色顶 **131** / 底 **112**；深色顶 **151** / 底 **133** | `已落地` |
 | 9-14b | 同处的 `danger` 臂 | `Control` + 警告环 | **故意不加** `LitFace`：`InsetShadow(0,0,0,1,…)` 的环占 padding 第一行，与 `LitFace` 的 `y=1` 受光边是同一行——加了会把环顶洗淡 9% 白、底压暗 6%（实测浅色 `156,31,24` → 顶 `165,51,45` / 底 `147,29,23`，深色 `234,171,160` → `236,179,169` / `220,161,151`），一圈同色的环就不再成立。一个面只说一句话（同 9-11、§6.4 4-4） | `故意不做`（见理由） |
 
+#### §6.2b-3 多行写法漏在单行 grep 框外的三块（P13-m，**已落地**）
+
+P13-i 与 P13-l 的排查都是**单行**匹配：
+
+```
+grep -n "tokens.Control)" internal/settingsui/*.go | grep "Border(1"
+```
+
+下面三处的 `Border(...)` 与 `Background(tokens.Control)` **不在同一行**（一个在前一行、
+一个在后一行），所以两轮都照不到它们——不是「判过之后决定不做」，是**从来没进过视野**。
+三块都停在 P12-c 第 2-4 行点名的那个状态：「一块被画框圈住的平涂」。**外圈线一律不动**
+（两处是 `Hairline`、一处是 `ControlEdge`）：受光边是**内线**，画框是外线（§1）。
+
+| # | 位置 | 现状（旧） | 落成（新） | 状态 |
+|---|---|---|---|---|
+| 9-15 | `config.go` `configMultiselectBox`（66u 多选字段箱） | `Border(1, ControlEdge)` + `Background(Control)`，无内线——而它自己的注释写着「与 `fieldFace`/`sheetFieldSlot` 同面」，那两个字段自 P12-c 起就是 E1 | `tokens.LitFace(box)`。实测浅色顶 **119 → 125**、底 **119 → 115**、两侧 = 面 119；深色顶 **141 → 146**、底 **141 → 137** | `已落地` |
+| 9-16 | `settingsui.go` `commandPlate`（扩展页命令列表的每一条命令块） | `Background(Control)` + `Border(1, Hairline)`，无内线：与 §6.2 第 2-3 行的分组卡同档，卡有那一对线它没有 | `tokens.LitFace(plate)`（放在 `Border` 之后、`Opacity(0.62)` 之前：透明度是整块的状态，不参与材质）。实测数字与 9-15 同（同一块地面） | `已落地` |
+| 9-17 | `textinput.go` `aliasField`（面板字段族） | `Background(Control)` + `Border(1, Hairline)`，无内线：它是面板里唯一没有那一对线的**能打字的槽** | `tokens.LitFace(...)`。它原来的注释说「它是 inline command-chip，不是 settings slot」——那说的是**边框**的选择（`Hairline` 而不是 `ControlEdge`），不是「不要受光边」的理由 | `已落地` |
+
+pin：`internal/settingsui/multilineface_test.go` 三条（每块一条，深+浅两套外观，走
+`lensAssertE1` 的四条判据：顶亮 / 底暗 / 两侧 = 面 / 块外无影），加一条 opt-in dump。
+出图 `/tmp/floter-P13-m-faces-{light,dark}.png`：六行「同一个画框 before/after」+ 三块真组件。
+
 pin：`internal/settingsui/bandface_test.go` 三条——录制钮与非危险带各一条像素 pin（深+浅，
 走 `lensAssertE1` 的四条判据），加一条**反面** pin 守 `danger` 臂的警告环（量顶内行的
 暖度 `r−b ≥ 25`，警告墨在两套外观上都是暖的，而 `LensRim` 的白/黑与面本身都是 `r ≈ b`）。

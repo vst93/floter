@@ -143,5 +143,10 @@ func (a *App) aliasField(c *ui.Context, value *string) ui.Element {
 	// rung (`.extension-command-alias__input { background: var(--glass-control);
 	// border: 1px solid var(--hairline) }`), not the field rung the other panel
 	// fields wear: it is an inline command-chip, not a settings slot.
-	return e.Background(tokens.Control).Border(1, tokens.Hairline)
+	//
+	// P13-m（`docs/liquid-glass.md` §6.2b-2 第 9-17 行）：上面那段说的是**边框**
+	// 的选择（`Hairline` 而不是 `ControlEdge`），不是「不要受光边」的理由——受光
+	// 边是**内线**，与画框是两件事。它是面板字段族里唯一没有 E1 一对线的字段，
+	// 于是同一个面板里「能打字的槽」有两种材质。外圈 `Hairline` 不动。
+	return tokens.LitFace(e.Background(tokens.Control).Border(1, tokens.Hairline))
 }
