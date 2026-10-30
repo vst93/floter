@@ -160,6 +160,8 @@
 
 ### §6.0 材质 / 层级 token 层（P12-a，**已落地**）
 
+E1 的落地函数 `theme.Tokens.LitFace`（顶 `LensRim` + 底 `LensEdge`，无投影）随 P12-b 加入。
+
 | # | 位置 | 现状（旧） | 应改成（新） | 状态 |
 |---|---|---|---|---|
 | 0-1 | `internal/theme/theme.go` `palette.control` | 深 0.075 / 浅 0.05：与底只差 3~4 级 | 深 **0.10** / 浅 **0.07** | `已落地` |
@@ -170,17 +172,26 @@
 | 0-6 | 同处 `shadowAmbient` / `shadowContact` | 深 0.55/0.40、浅 0.18/0.10 | 深 **0.62/0.44**、浅 **0.22/0.12** | `已落地` |
 | 0-7 | 光泽上限条文 | 全部 ≤ 0.04（「无光泽」时代） | `LensRim ≤ 0.09`，其余 ≤ 0.04，且 rim > sheen | `已落地` |
 
-### §6.1 启动器（launcher）— `未开始`
+### §6.1 启动器（launcher）— **已落地（P12-b）**
 
-| # | 位置 | 现状 | 应改成 | 状态 |
+**落地的形状是 `theme.Tokens.LitFace`**（`internal/theme/theme.go`）：顶边 1px `LensRim` +
+底边 1px `LensEdge`，不画投影。它不是 `Lens`——`Lens` 的第四层是四边 `ControlEdge` 环，
+正是这一支要退掉的「画框分层」。**为什么必须有底对侧**：浅色档的面是近白，0.09 的白线压在
+它上面只抬 2 级（实测 221→227）；让块真正站起来的是对侧那条 `LensEdge`（实测 220→203，
+17 级）。这是 §3 的「顶亮一分、底暗一分」落到组件上。
+
+| # | 位置 | 现状（旧） | 落成（新） | 状态 |
 |---|---|---|---|---|
-| 1-1 | 卡片（`shell.go` 的 card） | E0 只有 tint + 1px 边；Linux/Windows 有影，macOS 没有 | 保持 E0；macOS 由窗口服务器投影，不补 | `未开始` |
-| 1-2 | 结果行选中块 | `RowSelected` 0.085/0.06，无受光边 | E1：加 `LensRim` 1px 顶边，让选中块「站起来」 | `未开始` |
-| 1-3 | 页脚动作条 | 只有 `HairlineSoft` 上边线 | E1：`Control` 面 + `LensRim` 顶边 | `未开始` |
-| 1-4 | 键帽 | `KeycapFace` + `KeycapEdge`，无顶边 | E1：`LensRim` 顶边（键帽是最该「受光」的小面） | `未开始` |
-| 1-5 | 输出面板选中行 | `RowSelected`，与列表同档 | 与 1-2 同一条规则（同一个数） | `未开始` |
-| 1-6 | 空态 | 一句居中，无底板 | E0，不加面 | `未开始` |
-| 1-7 | 电源/反馈行（`IconSurface`） | 暖面，无顶边 | E1：`LensRim` 顶边 | `未开始` |
+| 1-1 | 卡片（`shell/cardedge.go` 的 card） | E0 只有 tint + 1px 边；Linux/Windows 有影，macOS 没有 | **保持 E0**；macOS 由窗口服务器投影，不补 | `已落地` |
+| 1-2 | 结果行选中块（`launcher.go` `rowBody`） | `RowSelected` 0.085/0.06，一块平涂，无受光边 | E1：`tokens.LitFace(row)` —— 实测顶边 `(600,94)` 61→88（深）/ 221→227（浅），底边 `(600,129)` 220→203（浅） | `已落地` |
+| 1-3 | 页脚动作条的选中块（`launcher.go` `rowBody` 的 `isBar` 臂） | 同上，一块平涂 | E1：同一个 `tokens.LitFace`（**页脚 band 自己仍不填面**，它还是卡片的一个 block） | `已落地` |
+| 1-4 | 键帽（`keycap.go` `keycap`） | `KeycapFace` + `KeycapEdge`，无顶边 | E1：`tokens.LitFace(key)` | `已落地` |
+| 1-5 | 捕获输出页选中行（`output.go` `outputRow`） | `RowSelected`，与列表同档但无受光边 | 与 1-2 同一条规则、同一个函数 | `已落地` |
+| 1-6 | 空态（`launcher.go` 的空页） | 一句居中，无底板 | **保持 E0**，不加面 | `已落地` |
+| 1-7 | 反馈行（`launcher.go` `feedbackRow`） | 顶边 `LensRim` **只在警告档**画，静息档是一块平涂 | E1：`tokens.LitFace(feedback)` 无条件画；警告档多出来的只是 keyline 与两层影 | `已落地` |
+
+pin：`internal/launcher/litedge_test.go` 四条（选中块 / 键帽 / 反馈带两态 / 输出页选中行），
+每条都在深/浅两套外观上跑。出图 `/tmp/floter-P12-b-{list,note,warning}-{dark,light}-{before,after}.png`。
 
 ### §6.2 设置页（settingsui）— `未开始`
 

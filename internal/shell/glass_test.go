@@ -124,7 +124,17 @@ func stopsShareOneTint(opacity uint8) bool {
 // while the frame's alpha stays the slider's on every stop — turning the glass
 // on does not make the window denser (「开启时又没有透明了」).
 func TestTheFrameSheenIsFixedAcrossStops(t *testing.T) {
-	const topY0, topY1 = 90, 120
+	// P12-b 重定基线（docs/liquid-glass.md §1/§2）：采样的那条带从 y=90..120
+	// （**行与键帽所在的那一段**）换成 y=300..340（面板上什么都没有的一段）。
+	//
+	// 旧带量的其实是「帧面 + 控件透镜」的混合，而这条 pin 的断言是「**帧自己
+	// 的脸**不随 stop 变」。P12-a 把 `LensRim` 抬到 0.09，P12-b 又把它落到结果
+	// 行、输出页选中行、键帽、反馈行这四处 E1 面上——控件透镜本来就是**该**
+	// 随 stop 分级的东西（`--glass-lens-scale` 0.5/1/1.6，见 glasscensus_test.go
+	// 的普查），于是旧带里那「几十分之一」的残余从 0.14 涨到 2.36 个色阶，
+	// 红的不是产品，是采样点选在了一堆控件上。新带只有面板自己的面，逐 stop
+	// 实测 0.00 色阶差（深）/ 0.02（浅），断言强度一点没松。
+	const topY0, topY1 = 300, 340
 
 	for _, theme := range []string{"dark", "light"} {
 		off := renderStop(t, theme, "off")

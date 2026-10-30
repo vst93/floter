@@ -1061,6 +1061,30 @@ func (t Tokens) Lens(e ui.Element) ui.Element {
 	return e
 }
 
+// LitFace draws the **E1** material on a face: one 1px lit edge along its top,
+// one 1px shade along its bottom, and nothing else (`docs/liquid-glass.md` §2/§3).
+//
+// It is deliberately *not* `Lens`: `Lens` is the four-layer control lens (rim,
+// broad sheen, bottom shade, and a `ControlEdge` ring on all four sides), and
+// the ring is the 「画框分层」 this generation retires — a chosen row's contract
+// says 「no border, no ring, no glow」 (`docs/raycast-design.md` §4.3). E1 is a
+// **面** that stands on its ground by three things only: the face step itself,
+// the lit line on top, and the shade under it.
+//
+// Why the pair rather than the lit line alone: on the light appearance the
+// face is itself near-white (`Control` 0.07 of black over the sunken panel), so
+// a 0.09 white line over it lifts the pixel by **1~3 levels** — measured, and
+// it is 白压白 (§3 的末尾). What makes the block read as raised there is the
+// *counter-side*: 顶亮一分、底暗一分，控件才站起来 (§3). So both are painted,
+// and a surface that shows only one of them is not this material.
+//
+// E1 casts no shadow (`§2 判据 2`) — this function adds none.
+func (t Tokens) LitFace(e ui.Element) ui.Element {
+	e.InsetShadow(0, 1, 0, 0, t.LensRim)
+	e.InsetShadow(0, -1, 0, 0, t.LensEdge)
+	return e
+}
+
 // LensInset draws the recessed lens on a groove: base.css's
 // `--glass-lens-stack-inset`, the *same* lens read backwards. The light pools
 // along the bottom edge of the groove and the top edge is the dark one — the

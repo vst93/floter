@@ -627,6 +627,11 @@ func (a *App) outputRow(c *ui.Context, row extensions.Row, i int) {
 		// 列表（P8-a）的选中行同一档 `tokens.RowSelected`，两套外观各自的 rung
 		// 由 token 自己分。旧值 → 新值：`AccentTintQuiet` → `RowSelected`。
 		style.Background(tokens.RowSelected)
+		// P12-b（§6.1 第 1-5 行）：捕获输出页的选中行与启动器列表的选中行是同
+		// 一条规则、同一个函数——`theme.Tokens.LitFace`（面 + 顶受光边 + 底对侧
+		// 暗线）。两张列表是同一张卡里的同一件东西，选中块不许一个「站起来」一个
+		// 「平躺」。
+		style = tokens.LitFace(style)
 	case row.Status || row.Disabled:
 		// A note is not a door: it stays muted and never highlights.
 	default:

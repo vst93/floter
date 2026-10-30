@@ -2353,6 +2353,10 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 		// pane and a cast shadow, which read as a second control inside the
 		// footer.
 		row.Background(tokens.RowSelected)
+		// P12-b（docs/liquid-glass.md §6.1 第 1-3 行）：页脚动作条的选中块是 E1
+		// —— 面（`RowSelected`）站起来的三个手段（面差 + 顶受光边 + 底对侧暗线，
+		// 见 `theme.Tokens.LitFace`）。E1 不画投影（§2 判据 2）。
+		row = tokens.LitFace(row)
 	case i == a.Selected:
 		// The chosen row is a *neutral* fill: Raycast's selected result is
 		// 0.085 of white over the near-black card (0.06 of black over the light
@@ -2361,6 +2365,9 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 		// fill plus the title's own weight (700) — the accent's tint
 		// (`AccentTintQuiet`) belongs to the settings surface now, not the list.
 		row.Background(tokens.RowSelected)
+		// P12-b（§6.1 第 1-2 行）：选中块 = E1 = 面 + 顶受光边 + 底对侧暗线
+		// （`theme.Tokens.LitFace`）。旧语言只有一块平涂，块与底挤在同一个 z 平面。
+		row = tokens.LitFace(row)
 	}
 	// The pointer's own rung: a hovered row that is *not* the choice takes the
 	// lighter fill, so the pointer over a row the keyboard is on does not paint
@@ -3099,12 +3106,17 @@ func (a *App) feedbackRow(c *ui.Context) {
 		// P11-an：接触边的 alpha 是 `--elev-shadow-scale` 的函数，不是字面
 		// 0.2（上面那段注释一直这么写着，但算术从来没实现过）。
 		theme.ElevContact(feedback, t, a.Store.Snapshot().MainOpacity)
-		feedback.InsetShadow(0, 1, 0, 0, tokens.LensRim)
 	}
 	// The fill lands after the variant has picked it: painting the row before
 	// the branch ran left the warning's own plane unreachable — the row read the
 	// resting amber in both states.
 	feedback.Background(background)
+	// P12-b（§6.1 第 1-7 行）：这条带是 E1 —— 暖面（`IconSurface`，警告档是
+	// 同值的 `RaisedWarm` 别名）戴上 `LitFace`（顶受光边 + 底对侧暗线）。它此前
+	// 只在**警告**档画那条顶边，静息档「carries none of them」，于是同一条带在
+	// 两个状态里是两个材质：警告时是一块浮起来的暖面，静息时是一块平涂的色块。
+	// 受光边与色相无关（§3），警告档多出来的只是 keyline 与两层影。
+	feedback = tokens.LitFace(feedback)
 	feedback.Children(func() {
 		ui.Icon(c, glyphAlert).Size(t.Space(4), t.Space(4)).TextColor(tone)
 		// P11-cc：带子是 30u 高的一行（`Height(t.Space(7.5))`，窗口只为它长 30u），

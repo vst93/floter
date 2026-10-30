@@ -85,6 +85,11 @@ func keycap(c *ui.Context, tokens theme.Tokens, t *ui.Theme, label string) ui.El
 		Padding(0, t.Space(1)).Radius(tokens.KeycapRadius).
 		Border(1, tokens.KeycapEdge).Background(tokens.KeycapFace).
 		AlignItems(ui.Center).Justify(ui.Center)
+	// P12-b（docs/liquid-glass.md §6.1 第 1-4 行）：键帽是这张卡上最小的一个**面**，
+	// 也是最应该「受光」的一个——它就是一颗被按下去的键。它戴的是 E1 的
+	// `LitFace`（顶受光边 + 底对侧暗线），不加投影（§2 判据 2）：键帽长在行上，
+	// 压不出影子。旧语言里它只有一圈 0.07 的 `KeycapEdge`，在 1x 屏上与行底分不开。
+	key = tokens.LitFace(key)
 	key.Children(func() {
 		ui.Text(c, label).FontSize(tokens.Caption).FontWeight(500).
 			TextColor(tokens.TextTertiary).SingleLine().Shrink(0)
