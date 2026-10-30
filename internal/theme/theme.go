@@ -811,9 +811,15 @@ func paletteFor(appearance Appearance) palette {
 		// P12-a 重定基线（docs/liquid-glass.md §1）：这四行曾是「无光泽」的上限 0.04，
 		// 新语言只要一条受光边（见浅色那一支的完整说明）：`LensRim` 0.04 → 0.09、
 		// `LensEdge` 0.04 → 0.06、`LensSheen` 不动。
+		//
+		// P13-n 重定基线（§1 的 0-9 行 / §3）：深色档的**对侧**一直读不出来。深色的面是
+		// 38，一条 0.06 的黑线压在它上面只降 **2 级**（浅色那一支同一条线降 13 级）——
+		// 于是深色的 E1 只有「顶亮」一半，「底暗」那一半是名义上的。旧值 → 新值：
+		// `lensEdge 0.06 → 0.20`（实测面 39 的底内线 37 → 31，−2 → −8；面 65 是 −4 → −13）。
+		// 黑线在 accent 面上会被色相吃掉（§6.2 的 2-6），所以它不会把强调面洗成「类玻璃边」。
 		lensRim:     ui.RGBA(255, 255, 255, 0.09),
 		lensSheen:   ui.RGBA(255, 255, 255, 0.04),
-		lensEdge:    ui.RGBA(0, 0, 0, 0.06),
+		lensEdge:    ui.RGBA(0, 0, 0, 0.20),
 		sheenTop:    ui.RGBA(255, 255, 255, 0.04),
 		sheenBottom: ui.RGBA(255, 255, 255, 0.01),
 		// The focus step of the same pair: a lit face, still inside the cap.

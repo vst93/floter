@@ -97,9 +97,16 @@ func TestTheCardWearsTheContractsRadiusEdgeAndCast(t *testing.T) {
 				t.Errorf("the lit edge (LensRim %d) is not brighter than the face (LensSheen %d): "+
 					"one lit line is the whole of this language's gloss", tk.LensRim.A, tk.LensSheen.A)
 			}
-			if tk.LensEdge.A > 16 {
-				t.Errorf("LensEdge is alpha %d, above its own cap 0.06: it is the lit edge's other side, not a second gloss",
-					tk.LensEdge.A)
+			// P13-n 重定基线：对侧的上限按外观分档。深色档旧值 0.06 在它自己的面（38）
+			// 上只降 2 级，等于没画；新值 0.20 降 8 级。浅色档不动（0.06 已经降 13 级，
+			// 抬它会把 accent 面洗成「类玻璃边」，§1 禁令 3）。
+			edgeCap := uint8(16) // 0.06 (light)
+			if appearance.dark {
+				edgeCap = 51 // 0.20 (dark)
+			}
+			if tk.LensEdge.A > edgeCap {
+				t.Errorf("LensEdge is alpha %d, above this appearance's counter-side cap %d (liquid-glass.md §1 的 0-9 行)",
+					tk.LensEdge.A, edgeCap)
 			}
 			if tk.LensEdge.R != 0 || tk.LensEdge.G != 0 || tk.LensEdge.B != 0 {
 				t.Errorf("LensEdge = %v, want a dark bottom shade: the other side of a lit top edge", tk.LensEdge)
