@@ -178,9 +178,33 @@ func barAssertE1(t *testing.T, appearance, name string, tokens theme.Tokens, dar
 		t.Fatalf("%s/%s: the two candidate lines composite to %v and %v — this pin cannot tell them apart",
 			appearance, name, rim, highlight)
 	}
-	if shellColorDistance(got.crown, rim) >= shellColorDistance(got.crown, highlight) {
-		t.Errorf("%s/%s: the lit edge %v is the float rung (nearer %v than %v) — a key on a bar is E1, not E2",
-			appearance, name, got.crown, highlight, rim)
+	// The probe column can sit inside the key's rounded corner, where the 1px line
+	// is drawn at **partial coverage**: the crown then carries a fraction of the
+	// token's rise (measured: 1 of LensRim's 3 levels on the light sheet, 13 of
+	// EdgeHighlight's 32 — P13-z). A covered line is still the same line, so the
+	// rung is compared as the fraction each candidate explains, which cancels the
+	// coverage out. The absolute-distance test this replaces (P13-y) let an
+	// E2-coloured crown pass: 233 sits 10 levels from LensRim's 223 but 19 from
+	// EdgeHighlight's 252, so the *diluted* E2 line read as "nearer the rim".
+	crownRise := barLuma(got.crown) - barLuma(got.face)
+	rimRise := barLuma(rim) - barLuma(got.face)
+	highlightRise := barLuma(highlight) - barLuma(got.face)
+	if rimRise <= 0 || highlightRise <= rimRise {
+		t.Fatalf("%s/%s: LensRim rises %d and EdgeHighlight %d over the face — this pin cannot tell the rungs apart",
+			appearance, name, rimRise, highlightRise)
+	}
+	ofRim := float64(crownRise) / float64(rimRise)
+	ofHighlight := float64(crownRise) / float64(highlightRise)
+	// The multiple is compared in **log** space, because coverage is
+	// multiplicative and it can go either way: the word key's top line arrives at
+	// a third of the token's rise (1 of LensRim's 3, light), while an icon key's
+	// arrives at twice it (6 of 3 — measured, `barKeyColumn`'s first column for a
+	// ✕ lands on a row that carries the line twice). Logs make a third and a
+	// double the same size of miss, so either reading is judged on which rung it
+	// is nearer to rather than on how much of it the pixel grid happened to keep.
+	if math.Abs(math.Log(ofRim)) >= math.Abs(math.Log(ofHighlight)) {
+		t.Errorf("%s/%s: the lit edge %v is %d levels over the face — %0.2f of LensRim's %d, %0.2f of EdgeHighlight's %d: the float rung, not the component's — a key on a bar is E1, not E2",
+			appearance, name, got.crown, crownRise, ofRim, rimRise, ofHighlight, highlightRise)
 	}
 }
 

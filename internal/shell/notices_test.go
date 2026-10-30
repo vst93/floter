@@ -2,6 +2,8 @@ package shell
 
 import (
 	"image"
+	"image/png"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -480,4 +482,128 @@ func shellFrameCopy(img *image.RGBA) *image.RGBA {
 // luma is a colour's brightness, for "did this get darker".
 func luma(c ui.Color) int {
 	return int(c.R)*299 + int(c.G)*587 + int(c.B)*114
+}
+
+// P13-z · the toast's ✕ (`docs/rounds/P13-z-spec.md`).
+
+// toastTester renders the settings surface with one settled toast on it: the
+// entrance runs on the app's injected clock, so stepping past `toastEnter`
+// lands the pane before anything is measured.
+func toastTester(t *testing.T, dark bool) *ui.Tester {
+	t.Helper()
+	a := newApp(t)
+	if dark {
+		if err := a.Store.Update(func(s *settings.Settings) { s.Theme = "dark" }); err != nil {
+			t.Fatal(err)
+		}
+	}
+	now := time.Unix(0, 0)
+	a.toastClock = func() time.Time { return now }
+	a.Open(SurfaceSettings)
+	tt := ui.NewTester(func(c *ui.Context) { a.View(c) }, 720, 520)
+	tt.SetDark(dark)
+	tt.Frame()
+	a.warnNotice("Where am I")
+	// The toast joins on the frame *after* the notice is queued, so its entrance
+	// starts there: step past `toastEnter` twice to be sure the spring has
+	// landed (the pane is translucent while it travels).
+	tt.Frame()
+	now = now.Add(toastEnter)
+	tt.Frame()
+	now = now.Add(toastEnter)
+	tt.Frame()
+	return tt
+}
+
+// TestTheToastDismissKeyIsAnE1Face: the ✕ sits on an **E2** pane, so it is an
+// E1 face (§2 判据 1) — hovering it raises the component rung's pair: one lit
+// edge on its top row and one counter-side line on its bottom row, the same pair
+// the plugin windows' bar keys wear (P13-y). It used to be a flat
+// `ControlHover` wash with no line at all: crown = face = bottom.
+//
+// The reading is **horizontal**: each row of the key is compared with the same
+// row a few pixels to its left, out on the pane. The toast's pane carries a
+// vertical alpha ramp of its own (the stack fades the oldest note), so an
+// absolute luma is not a face — but the ramp is the same at a given y on both
+// sides of the key's edge, so the difference across x is the key's own material
+// and nothing else.
+func TestTheToastDismissKeyIsAnE1Face(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		appearance := "light"
+		if dark {
+			appearance = "dark"
+		}
+		tt := toastTester(t, dark)
+		dismiss, ok := tt.Find(i18n.For("en").Settings.DismissNotice)
+		if !ok {
+			t.Fatalf("%s: the toast has no dismiss control: %q", appearance, tt.Texts())
+		}
+		in := int(dismiss.X + dismiss.W/2)
+		out := int(dismiss.X) - 3 // still on the pane, clear of the key's edge
+		top, bottom := int(dismiss.Y), int(dismiss.Y+dismiss.H)-1
+		mid := top + 3 // inside the key, above the ✕'s strokes
+		tt.Move(dismiss.X+dismiss.W/2, dismiss.Y+dismiss.H/2)
+		tt.Frame()
+		img := tt.Image()
+		// The key's box starts at a fractional row, so its 1px lines are spread
+		// over two rows at partial coverage: take the strongest row on each side
+		// rather than assuming which one carries the line.
+		over := func(y int) int { return barLuma(shellPixelAt(img, in, y)) - barLuma(shellPixelAt(img, out, y)) }
+		if over(mid) == 0 {
+			t.Fatalf("%s: hovering the ✕ changed nothing at (%d,%d) — the pointer never landed on it",
+				appearance, in, mid)
+		}
+		crown, shade := top, bottom
+		for y := top; y <= top+2; y++ {
+			if over(y) > over(crown) {
+				crown = y
+			}
+		}
+		for y := bottom - 2; y <= bottom; y++ {
+			if over(y) < over(shade) {
+				shade = y
+			}
+		}
+		t.Logf("%s/toast dismiss: crown y=%d %+d (face %+d) shade y=%d %+d",
+			appearance, crown, over(crown), over(mid), shade, over(shade))
+		if over(crown) <= over(mid) {
+			t.Errorf("%s: the hovered ✕ has no lit edge — its top row is %+d levels against the pane, its face %+d",
+				appearance, over(crown), over(mid))
+		}
+		if over(shade) >= over(mid) {
+			t.Errorf("%s: the hovered ✕ has no counter-side line — its bottom row is %+d levels against the pane, its face %+d",
+				appearance, over(shade), over(mid))
+		}
+	}
+}
+
+// TestDumpP13ZToastPNGs writes the round's visual evidence.
+func TestDumpP13ZToastPNGs(t *testing.T) {
+	if os.Getenv("FLOTER_PNG") == "" {
+		t.Skip("set FLOTER_PNG=1 to write the round's visual evidence")
+	}
+	for _, dark := range []bool{false, true} {
+		appearance := "light"
+		if dark {
+			appearance = "dark"
+		}
+		tt := toastTester(t, dark)
+		dismiss, ok := tt.Find(i18n.For("en").Settings.DismissNotice)
+		if !ok {
+			t.Fatalf("%s: the toast has no dismiss control", appearance)
+		}
+		tt.Move(dismiss.X+dismiss.W/2, dismiss.Y+dismiss.H/2)
+		tt.Frame()
+		path := filepath.Join("/tmp", "floter-P13-z-toast-"+appearance+".png")
+		f, err := os.Create(path) // #nosec G304 -- a fixed /tmp path this test owns
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := png.Encode(f, tt.Image()); err != nil {
+			f.Close()
+			t.Fatal(err)
+		}
+		f.Close()
+		t.Logf("%s", path)
+	}
 }

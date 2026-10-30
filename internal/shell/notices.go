@@ -473,7 +473,17 @@ func (a *App) toastViewport(c *ui.Context) {
 				// gain a tint.
 				dismissInk := tokens.TextTertiary
 				if button.Hovered() {
-					button.Background(tokens.ControlHover)
+					// P13-z · the ✕ is a key on an **E2** pane, so it is an E1 face
+					// (`docs/liquid-glass.md` §2 判据 1: everything inside a floating
+					// layer is a face). It used to be a flat `ControlHover` wash with no
+					// line at all — measured crown = face = bottom on both appearances
+					// (247/247/247 light, 20/20/20 dark) — which is the same shape the
+					// plugin windows' bar keys had before P13-y. Same pair as those keys
+					// (`detach.go` `barButton`), the toast's own action chip above
+					// (P13-j) and every other E1 face: one lit edge on top, one
+					// counter-side line at the bottom. No ring and no shadow — a key is
+					// E1, not E2 (§2 判据 2).
+					button = tokens.LitFace(button.Background(tokens.ControlHover))
 					dismissInk = tokens.TextStrong
 				}
 				button.Children(func() {
