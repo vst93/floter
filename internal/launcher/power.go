@@ -192,11 +192,23 @@ func (a *App) confirmPowerButton(c *ui.Context, tokens theme.Tokens, label strin
 		plane, edge, ink = tokens.ControlHover, tokens.ControlEdge, t.Text
 	}
 	button.Border(1, edge).Background(plane)
+	// P13-aa（§2 / §3）：带面的键戴 E1 的一对面（顶受光边 + 底对侧暗线）。
+	// 两条臂此前各缺一半——cancel 悬停是「一块被画框圈住的平涂」（§6.2b-2 判过的那个
+	// 状态，只是这里的边框写在变量 `edge` 里，单行 grep 照不到），execute 只有顶边、
+	// 没有对侧，于是同一条带上的两块面说了两种话。
+	//
+	// 透明的静息面（cancel 未悬停时 `plane` 是 `ui.Transparent`）**不戴**：一块透明的
+	// 面上画一条 0.09 的白线就是 §1 禁令 3 的「类玻璃边」，而且它没有面可以「站起来」
+	// （同 §6.2b-4 的 9-20b）。
+	if plane.A > 0 {
+		button = tokens.LitFace(button)
+	}
 	if execute {
 		// `--glass-raised-shadow` = the `--elev-2` contact step and the 1px lit
 		// top rim, exactly the action bar's own raised pane (see `rowBody`).
+		// P13-aa：那一条的受光边与对侧由 `LitFace` 给（`launcher.go` 的反馈带 / toast
+		// 也是「接触影 + 一对线」同时在场，§6.1 第 1-7 行）。
 		button.Shadow(0, t.Space(0.25), t.Space(0.5), 0, tokens.ShadowContact)
-		button.InsetShadow(0, 1, 0, 0, tokens.LensRim)
 	}
 	button.Children(func() {
 		ui.Text(c, label).FontSize(t.FontSize).FontWeight(600).TextColor(ink).SingleLine()

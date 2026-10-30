@@ -515,7 +515,12 @@ func (a *App) outputBody(c *ui.Context, copy i18n.Launcher, edge float32) {
 						Radius(tokens.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).
 						Label(label).Tooltip(hint)
 					if button.Hovered() {
-						button.Background(tokens.ControlHover)
+						// P13-aa（§2 / §3）：悬停的小键是 E1 —— 面 + 顶受光边 + 底对侧暗线。
+						// 它此前只有一层 `ControlHover` 洗色：一条线都没有，读起来是「一块颜色」
+						// 而不是「一块能被碰的面」，而同一个启动器的 `rowControl`（20u）与
+						// `fieldSettingsButton`（28u）自 P13-h 起就戴 `LitFace`。不补 `Border`：
+						// 面差就是它的边界（P13-j 的 toast chip 同一条判据）。
+						button = tokens.LitFace(button.Background(tokens.ControlHover))
 					}
 					button.Children(func() {
 						ui.Text(c, mark).FontSize(tokens.Emphasis).TextColor(t.TextMuted)
