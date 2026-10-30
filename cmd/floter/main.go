@@ -13,9 +13,23 @@ import (
 
 	"floter/internal/settings"
 	"floter/internal/shell"
+	"floter/internal/termsession"
 )
 
 func main() {
+	// The session host is this binary, called back by the app: a terminal's
+	// program has to outlive the app, and a second executable would be a
+	// second thing to ship and sign on every platform. It is a subcommand,
+	// and it comes **before** the single-instance lock: a host is not the
+	// app, so the running one must not refuse it, and it must not be handed
+	// a second launch's arguments.
+	if rest, ok := termsession.IsCommand(os.Args[1:]); ok {
+		os.Exit(termsession.Command(rest))
+	}
+	if rest, ok := termsession.IsAttachCommand(os.Args[1:]); ok {
+		os.Exit(termsession.AttachCommand(rest))
+	}
+
 	// One instance: a second launch hands its arguments (and any deep link
 	// it carried) to the running app and exits.
 	if !mygo.App.RequestSingleInstanceLock() {
