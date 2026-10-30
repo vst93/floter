@@ -167,7 +167,13 @@ func (a *App) uninstallDialog(c *ui.Context, copy i18n.Settings, integration Int
 		// P11-an：两条 throw 都乘 `--elev-shadow-scale`（`theme.ElevThrow`），
 		// 于是透明度滑块往下拉时，对话框的投影跟着变轻。
 		theme.ElevThrow(panel, t, a.settings().MainOpacity)
-		panel.InsetShadow(0, 1, 0, 0, tokens.LensRim)
+		// P12-c（§6.2 第 2-7 行）：这层浮层此前戴的是 **E1 的** `LensRim`（0.09）。
+		// `LensRim` 是「长在底上的面」的冠线，而这张面板是 **E2**——它压在其他内容
+		// 上、带着两层影、还能关掉（§2 三条判据里的第三条）。E2 的冠线是
+		// `EdgeHighlight`（深 0.20 / 浅 0.92）：比 E1 的线亮一档，因为它是浮起来的
+		// 那张纸的边，而不是贴着的那个块的边。两层影 `ElevThrow` 已经在场，这一
+		// 行只换线。
+		panel.InsetShadow(0, 1, 0, 0, tokens.EdgeHighlight)
 		// `overflow-y: auto` (`:17-34`): a short window scrolls the questions
 		// instead of pushing the actions outside the pane. The scroll viewport
 		// is the pane's content box, so the 17px padding stays put exactly as

@@ -1320,6 +1320,12 @@ func (a *App) sidebarRow(c *ui.Context, i int) {
 		// 属于旧 glass 语言（§1 的低光泽上限）。accent 仍只留在前导图标上
 		// （§5 第 1 条）。
 		row.Background(tokens.RowSelected)
+		// P12-c（§6.2 第 2-2 行）：选中页是 **E1 面**。侧栏此前是一块平涂的
+		// `RowSelected`，与它脚下的 `Sunken` 底只差一档 alpha，读起来是「同一
+		// 个 z 平面上的一个色块」。`LitFace` 给它一条顶受光边和一条底对侧暗线
+		// ——同一个函数、同一对数值，与启动器的选中行（P12-b 的 §6.1 第 1-2 行）
+		// 一字不差：两块被选中的面在这个应用里是同一个材质。
+		row = tokens.LitFace(row)
 	} else if row.Hovered() {
 		// The pointer lights the ladder's hover rung, the same neutral family
 		// one step under the chosen page.

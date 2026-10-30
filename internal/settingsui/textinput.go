@@ -73,7 +73,12 @@ func (a *App) textInput(c *ui.Context, value *string) ui.Element {
 // 没有内侧白边。旧材质在图上就是「输入框像一块玻璃砖」，这正是本片要收掉的。
 func (a *App) fieldFace(c *ui.Context, e ui.Element) ui.Element {
 	tokens := a.tokens(c)
-	return e.Background(tokens.Control).Border(1, tokens.ControlEdge)
+	// P12-c（§6.2 第 2-4 行）：字段是 **E1 面**。P8-c 把它收成「`Control` 面 +
+	// 一条 `ControlEdge` 发丝边」是对的（它去掉了 0.85 的内侧白边），但它只
+	// 停在了「一块被画框圈住的平涂」。`LitFace` 补上 E1 缺的那一对线：顶受光
+	// 边 `LensRim` + 底对侧 `LensEdge`，无投影。外圈 `ControlEdge` 不动——它是
+	// 字段与卡片之间的那道线，不是受光边。
+	return tokens.LitFace(e.Background(tokens.Control).Border(1, tokens.ControlEdge))
 }
 
 // extensionFieldMetrics is the literal box one of the extension panel's text

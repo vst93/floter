@@ -330,7 +330,10 @@ func (a *App) sheetFieldSlot(c *ui.Context) ui.Element {
 	slot := ui.Row(c).MinHeight(t.Space(7)).AlignItems(ui.Center).
 		Padding(0, t.Space(2)).Radius(tokens.RadiusSM).
 		Border(1, tokens.ControlEdge).Background(tokens.Control)
-	return slot
+	// P12-c（§6.2 第 2-4 行）：弹层的字段槽与设置页的 `fieldFace` 是同一个
+	// 材质——同一个应用里字段只有一种面。`LitFace` 的顶受光边 + 底对侧暗线
+	// 也是同一对数值，不另起一套。
+	return tokens.LitFace(slot)
 }
 
 // sheetTextField draws the overlay's own text control (R59,

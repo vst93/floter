@@ -305,6 +305,13 @@ func (a *App) cardGeometry(c *ui.Context, inset, titleFloor, lineGap float32, la
 		Radius(tokens.RadiusMD).
 		Background(tokens.Control).
 		Clip()
+	// P12-c（`docs/liquid-glass.md` §6.2 第 2-3 行）：分组卡是 **E1 面**，不是
+	// 一块平涂。它此前只有 `Control` 的填充和一圈弱发丝边——边是「画框」，
+	// 而这一支要的是「块自己站起来」。`LitFace` 只加两条 1px 内线（顶受光边
+	// `LensRim`、底对侧 `LensEdge`），不画投影（§2 判据 2：E1 长在底上，压不出
+	// 影子），也不加宽面光泽（`LensSheen` 仍 0.04，面不许反光）。外圈的
+	// `HairlineSoft` 一个字节没动：它仍是这张卡与页面之间的那圈线。
+	card = tokens.LitFace(card)
 	if label != "" {
 		card.Label(label)
 	}

@@ -102,6 +102,16 @@ func (a *App) saveAlert(c *ui.Context, copy i18n.Settings) {
 	banner := ui.Row(c).FillWidth().Padding(t.Space(2), t.Space(3)).Gap(t.Space(2)).
 		AlignItems(ui.Center).Radius(tokens.RadiusSM).
 		Background(tokens.Float)
+	// P12-c（§6.2 第 2-8 行）：这条带的面是 `Float`（浮层那一档的填充），
+	// 所以它的冠线是 **E2 的** `EdgeHighlight`，不是 E1 的 `LensRim`——
+	// 一层面配一条线，这个对应关系是 §2 的判据，不是审美选择。
+	//
+	// 它**不**加 `ElevThrow`：这条带画在页面列里、随内容一起滚（`body()` 的
+	// `Scroll` 内容），不是固定在窗口上的浮层。6.5u 的宽投影会在滚动视口与
+	// 列的内边距上被裁成一条硬边——那就是 §0 硬禁令 1 说的「假装有 blur」的
+	// 同类错误：用一个画不完整的影冒充浮起来。把它做成真浮层是布局与交互
+	// 改动（不在这支的红线内），已写进 `.pending-bugs.md` 的「需用户拍板」。
+	banner.InsetShadow(0, 1, 0, 0, tokens.EdgeHighlight)
 	// The banner comes in rather than appearing: the reference's
 	// `@keyframes settings-toast-enter` carries it from transparent, a hair
 	// small and 6px low. A value "starts at the first target", so the first

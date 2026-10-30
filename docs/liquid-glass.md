@@ -193,21 +193,38 @@ E1 的落地函数 `theme.Tokens.LitFace`（顶 `LensRim` + 底 `LensEdge`，无
 pin：`internal/launcher/litedge_test.go` 四条（选中块 / 键帽 / 反馈带两态 / 输出页选中行），
 每条都在深/浅两套外观上跑。出图 `/tmp/floter-P12-b-{list,note,warning}-{dark,light}-{before,after}.png`。
 
-### §6.2 设置页（settingsui）— `未开始`
+### §6.2 设置页（settingsui）— **已落地（P12-c）**
 
-| # | 位置 | 现状 | 应改成 | 状态 |
+**落地的形状**：四个面走 `theme.Tokens.LitFace`（顶 `LensRim` + 底 `LensEdge`，无影），
+两张 `Float` 面走 E2 的 `EdgeHighlight` 冠线。**为什么浮层要换线**：那张面板的面是
+`Float`、带 `ElevThrow` 两层影、还能关掉——§2 三条判据全中，它就是 E2；而 E1 的
+`LensRim` 是「贴着的块」的边。此前它戴的是组件级那条线，于是「浮起来的纸」与
+「贴着的块」是同一个边，这正是「空间感不够」的算术来源。
+
+**2-6 的例外**：主 CTA 胶囊本来就戴 `LensRim`（`Lens` 的第一层），本轮只加 pin 钉住
+「是 E1 的线、不是 E2 的」。它的对侧暗线**没有**补：accent 面上一条黑线会被色相吃掉，
+要不要补需拍板（`.pending-bugs.md`）。
+
+| # | 位置 | 现状（旧） | 落成（新） | 状态 |
 |---|---|---|---|---|
-| 2-1 | 内容页 `Sunken` | 底 + `contentStep` 0.09 | 保持 E0（它是底，不是面） | `未开始` |
-| 2-2 | 侧栏选中页 `RaisedQuiet` | 不透明抬起 | E1：不透明仍是必须的（要盖住框架的 accent 底），补 `LensRim` 顶边 | `未开始` |
-| 2-3 | 分组卡 | `Control` + `HairlineSoft`，无顶边 | E1：`Control` + `LensRim` 顶边 | `未开始` |
-| 2-4 | 字段（`textinput` / 弹层槽） | `Control` + `ControlEdge` | E1：补 `LensRim` 顶边 | `未开始` |
-| 2-5 | 开关 / 分段控件 | `LensInset` 凹槽 | 凹槽不画受光边（凹 ≠ 浮），`LensEdge` 底影加深到 0.06 即可 | `未开始` |
-| 2-6 | 主 CTA 胶囊 | accent 填充 + `AccentEdgeStrong` | E1：`LensRim` 顶边（受光边与色相无关） | `未开始` |
-| 2-7 | 卸载对话框 | `Float` + `ElevThrow` | E2：补 `EdgeHighlight` 顶边（现在只有 `Lens` 的 rim） | `未开始` |
-| 2-8 | 保存告警（`savealert`） | `Float` 面 | E2：`EdgeHighlight` 顶边 | `未开始` |
-| 2-9 | 状态 chip / 权限药丸 | `Control` + `ControlEdge` | E1：4px 高的药丸**不加**受光边（太薄，加一条线就成噪点） | `故意不做`（见理由） |
+| 2-1 | 内容页 `Sunken` | 底 + `contentStep` 0.09 | 保持 E0（它是底，不是面） | `已落地` |
+| 2-2 | 侧栏选中页 `sidebarRow` | `RowSelected` 一块平涂 | E1：`tokens.LitFace(row)` —— 实测深 `(130,71)` 37→51（+14）、浅 `(130,99)` 244→235（底暗 9 级） | `已落地` |
+| 2-3 | 分组卡 `cardGeometry` | `Control` + `HairlineSoft`，无顶边 | E1：`tokens.LitFace(card)`，外圈仍是弱发丝（实测深 `(x,178)` 55→61） | `已落地` |
+| 2-4 | 字段（`fieldFace` / `sheetFieldSlot`） | `Control` + `ControlEdge` | E1：同一个 `tokens.LitFace`，两处不另起数值 | `已落地` |
+| 2-5 | 开关 / 分段控件 | `LensInset` 凹槽 | **不改代码**：`LensEdge` 已随 P12-a 到 0.06；反面 pin 守住「凹槽不许有冠线」 | `已落地` |
+| 2-6 | 主 CTA 胶囊 | accent 填充 + `AccentEdgeStrong`，已有 `LensRim` | 复核通过 + pin：戴的是 E1 冠线、不是 E2 的；对侧暗线**未补**（accent 面上读不出，需拍板） | `已落地` |
+| 2-7 | 卸载对话框 | `Float` + `ElevThrow` + **E1 的** `LensRim` | E2：冠线换 `EdgeHighlight`（实测深 `(x,21)` 101→108） | `已落地` |
+| 2-8 | 保存告警（`savealert`） | `Float` 面，无冠线 | E2 冠线 `EdgeHighlight`（实测深 `(x,21)` 24→51）；**两层影故意不加**：它随内容滚，宽投影会被视口裁成硬边，做成真浮层需拍板 | `已落地` |
+| 2-9 | 状态 chip / 权限药丸 | `Control` + `ControlEdge` | **故意不做**：4px 高的药丸加一条线就成噪点 | `故意不做`（见理由） |
 
-### §6.3 终端页（terminalui）— `未开始`
+pin：`internal/settingsui/liteedge_test.go` 五条（侧栏 / 分组卡 / 字段两处 / 凹槽反面 /
+两张浮层），每条在深/浅两套外观上跑。**冠线怎么量**：`liteMeasure` 把同一个面、同一个
+底色、两条候选线（`LensRim` 与 `EdgeHighlight`）各画一遍当参照，再要求被量到的线离它
+「应该」那条更近——pin 里没有一处写死渲染器算出来的像素值。
+
+出图 `/tmp/floter-P12-c-{general,dialog,banner}-{dark,light}-{before,after}.png`。
+
+### §6.3 终端页（terminalui）— `未开始`（**下一轮**）
 
 | # | 位置 | 现状 | 应改成 | 状态 |
 |---|---|---|---|---|
