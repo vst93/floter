@@ -54,6 +54,21 @@ func ElevThrow(e ui.Element, t *ui.Theme, opacity uint8) {
 	e.Shadow(0, t.Space(0.25), t.Space(0.5), 0, ui.RGBA(0, 0, 0, 0.20*scale))
 }
 
+// ElevThrowCompact paints the same two layers at the geometry the reference
+// derived for a strip too short to carry the full `0 10px 26px`
+// (`--elev-3-compact`, `base.css:222-223`): the same alphas times the same
+// `ElevScale`, with a `0 6px 18px` ambient and the unchanged `0 1px 2px`
+// contact edge.
+//
+// P13-g · 参考的 compact 派生只丢**冠线**（20px 的带子里那条 1px 亮线读不出来），
+// 没有丢接触影；本仓 §2 判据 3 要的是「两层影同时在场才读得出浮起一张纸」，
+// 所以这里两层都画。冠线由调用方按自己的可读性决定（启动器那条带子画上）。
+func ElevThrowCompact(e ui.Element, t *ui.Theme, opacity uint8) {
+	scale := ElevScale(opacity)
+	e.Shadow(0, t.Space(1.5), t.Space(4.5), 0, ui.RGBA(0, 0, 0, 0.30*scale))
+	e.Shadow(0, t.Space(0.25), t.Space(0.5), 0, ui.RGBA(0, 0, 0, 0.20*scale))
+}
+
 // ElevContact paints only the `--elev-3` contact edge (the reference's
 // `--elev-2` step is the same `0 1px 2px` line): a raised row that sits on the
 // frame rather than floating over it carries this layer alone.

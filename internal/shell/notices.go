@@ -379,14 +379,26 @@ func (a *App) toastViewport(c *ui.Context) {
 			// The cast shadow the floating pane was missing: `--elev-3` on a
 			// full-height surface (`base.css:208-211` — `0 10px 26px` ambient,
 			// `0 1px 2px` contact, and the lit top rim) and its compact derivation
-			// `--elev-3-compact` (`:222-223` — the ambient throw alone) for the
-			// launcher's 20px strip, where a rim highlight has no room to read.
+			// `--elev-3-compact` (`:222-223`) for the launcher's 20px strip.
+			//
+			// P13-g：这一处是**第五个**浮层，也是唯一没进 `theme.ElevThrow` 那个
+			// 档的——它借的是窗口自己那对 token（`ShadowAmbient` 0.62 /
+			// `ShadowContact` 0.44，`shell.go` 给桌面窗口投影用的），于是两条
+			// 毛病一起犯：①不随 `main_opacity` 缩放（`--elev-shadow-scale`
+			// 0.45~1.26，P11-an 已在另外四处落了这条算术），框拉到最薄时别处
+			// 重了 2.8 倍，这块纹丝不动；②墨比 `--elev-3` 的 0.30/0.20 重一倍，
+			// 读成一圈黑边而不是一层薄影。两条 throw 交给 token 层，几何各自
+			// 自己的（满高 10u/26u，二十高的带子 6u/18u）。
+			//
+			// 折叠臂的冠线是本轮新画的：§2 判据 3 + §3 的表说 E2 的顶边是
+			// `EdgeHighlight`，而参考的 compact 派生丢的是冠线、不是接触影。
+			scale := stored.MainOpacity
 			if collapsed {
-				p.Root.Shadow(0, t.Space(1.5), t.Space(4.5), 0, tokens.ShadowAmbient)
+				theme.ElevThrowCompact(p.Root, t, scale)
+				p.Root.InsetShadow(0, 1, 0, 0, tokens.EdgeHighlight)
 			} else {
-				p.Root.Shadow(0, t.Space(10), t.Space(26), 0, tokens.ShadowAmbient).
-					Shadow(0, t.Space(0.25), t.Space(0.5), 0, tokens.ShadowContact).
-					InsetShadow(0, 1, 0, 0, tokens.EdgeHighlight)
+				theme.ElevThrow(p.Root, t, scale)
+				p.Root.InsetShadow(0, 1, 0, 0, tokens.EdgeHighlight)
 			}
 			// The entrance itself: one eased travel 0→1 driving all three of the
 			// keyframes' properties. The curve overshoots a touch past its target,
