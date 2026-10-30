@@ -260,6 +260,24 @@ pin：`internal/settingsui/liteedge_test.go` 五条（侧栏 / 分组卡 / 字�
 | 9-11 | `control/control.go` `SegmentedIndex` 的选中段（`.settings-option--active`） | `Lens` + **紧跟其后的** `AccentEdge` 四边环 | **故意不做**：它自己的身份线是那条 accent 环，四边都在、把 rim 与 edge 全盖住；换成 `LitFace` 画出的是立刻被遮住的两条线（像素上不可见），而 §2 也不许一个面说两句话。它是设置页与终端抽屉共用的控件（跨表面） | `故意不做`（见理由） |
 | 9-12 | `shell/notices.go` toast 的动作 chip（`.app-toast__action`） | `Control` 面 + `Lens`，**没有自己的边框**——环就是它唯一的边界 | E1：`tokens.LitFace`（**不补边框**：面差就是它的边界）——P13-j 落地，实测见 §6.6 第 6-3 行 | `已落地` |
 
+#### §6.2b-2 漏在 `Lens` 账本外的两处控件面（P13-l，**已落地**）
+
+上面九行是「`Lens` 调用点」的账；这一节是同一族的**另一面**——从来没有调过 `Lens`、
+所以 `glasscensus_test.go` 的账本照不到，但它们停在了 P12-c 第 2-4 行点名的那个状态：
+「一块被画框圈住的平涂」（`Control` + 一圈 `ControlEdge`，**没有内线**）。两处都是**面**，
+不是槽（槽是 `LensInset` 的凹槽，不许混）。
+
+| # | 位置 | 现状（旧） | 落成（新） | 状态 |
+|---|---|---|---|---|
+| 9-13 | `settingsui.go` `shortcutRecorder`（82u × 27u 录制钮，快捷键页 + 自定义工具表单共用） | `Control` + `Border(1, ControlEdge)` + `FocusRing`，**无内线**：顶内线就是边框本身，浅色档顶 125 / 侧 116 / 底 105（面 120） | E1：`tokens.LitFace(button)`，三个 rung 共用（hover / press 只换面）；`FocusRing` 不动。实测浅色顶 **131** / 侧 **119（= 面）** / 底 **112**；深色顶 **151** / 侧 **141** / 底 **133**（面 141） | `已落地` |
+| 9-14 | `settingsui.go` `noticeBand` 的**非危险臂**（`disableConfirmation`：关掉一个扩展时出现） | 同一个组件的两条臂里只有 `danger` 那条说了话（一圈 `InsetShadow(0,0,0,1, Warning)`）；非危险臂只剩发丝，比它坐着的 E1 分组卡还平（浅色档顶 = 底 = 侧 = 面 119） | E1：`else { tokens.LitFace(band) }`。实测浅色顶 **131** / 底 **112**；深色顶 **151** / 底 **133** | `已落地` |
+| 9-14b | 同处的 `danger` 臂 | `Control` + 警告环 | **故意不加** `LitFace`：`InsetShadow(0,0,0,1,…)` 的环占 padding 第一行，与 `LitFace` 的 `y=1` 受光边是同一行——加了会把环顶洗淡 9% 白、底压暗 6%（实测浅色 `156,31,24` → 顶 `165,51,45` / 底 `147,29,23`，深色 `234,171,160` → `236,179,169` / `220,161,151`），一圈同色的环就不再成立。一个面只说一句话（同 9-11、§6.4 4-4） | `故意不做`（见理由） |
+
+pin：`internal/settingsui/bandface_test.go` 三条——录制钮与非危险带各一条像素 pin（深+浅，
+走 `lensAssertE1` 的四条判据），加一条**反面** pin 守 `danger` 臂的警告环（量顶内行的
+暖度 `r−b ≥ 25`，警告墨在两套外观上都是暖的，而 `LensRim` 的白/黑与面本身都是 `r ≈ b`）。
+出图 `/tmp/floter-P13-l-faces-{light,dark}.png`。
+
 pin：`internal/settingsui/lensface_test.go` 四条——胶囊 / 30u 悬停图标钮 / 卸载组件行卡片
 三条像素 pin（每条深+浅两套外观，量「顶内线亮于面」「底内线暗于面」「两侧列 = 面」
 「块外仍是地」四条判据），加一条结构 pin（这一页的源码里不许再出现四层透镜的调用）。

@@ -3714,6 +3714,13 @@ func (a *App) shortcutRecorder(c *ui.Context, aria, label string, clicked func()
 	button := ui.Row(c).Focusable().Label(aria).MinWidth(t.Space(20.5)).MinHeight(t.Space(6.75)).
 		Padding(0, t.Space(2.5)).Radius(tokens.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).
 		Background(tokens.Control).Border(1, tokens.ControlEdge).FocusRing(true)
+	// P13-l（`docs/liquid-glass.md` §6.2b 第 9-13 行）：这枚按钮此前停在 P12-c 第
+	// 2-4 行点名的那个状态——「一块被画框圈住的平涂」。它是**面**，不是槽：外圈
+	// `ControlEdge` 是它与卡片之间那道线，`LitFace` 补的是 E1 缺的那一对内线
+	// （顶 `LensRim` / 底 `LensEdge`）。三个 rung 共用这一对线，hover 与 press 只
+	// 换面（与 `uninstall.go` 的 `uninstallPartRow` 同一写法）；`FocusRing` 是状
+	// 态，不是材质，位置与粗细都不动。
+	tokens.LitFace(button)
 	ink := tokens.TextSecondary
 	if button.Hovered() {
 		button.Background(tokens.ControlHover)
@@ -5892,6 +5899,16 @@ func (a *App) noticeBand(c *ui.Context, danger bool, sentence string, answers fu
 	// amber ring, not a second edge.
 	if danger {
 		band.InsetShadow(0, 0, 0, 1, t.Warning)
+	} else {
+		// P13-l（§6.2b 第 9-14 行）：同一个组件两条臂，此前只有 `danger` 那条说
+		// 了话（一圈警告环），非危险那条只剩发丝——`disableConfirmation` 的带子
+		// 因此比它坐着的分组卡还平。E1 的一对面补在这里。
+		//
+		// `danger` 臂**故意不加**：`InsetShadow(0,0,0,1,…)` 的环占 padding 第一行，
+		// 与 `LitFace` 的 `y=1` 受光边是同一行——加了会把那条环顶边洗淡 9% 白、
+		// 底边压暗 6%（实测浅色 `156,31,24` → 顶 `165,51,45` / 底 `147,29,23`），
+		// 一圈同色的环就不成立了，而这个面只能说一句话（同 §6.2b 9-11、§6.4 4-4）。
+		tokens.LitFace(band)
 	}
 	band.Children(func() {
 		ui.Icon(c, mustGlyph("alert")).Size(t.Space(3.75), t.Space(3.75)).
