@@ -900,7 +900,16 @@ func (a *App) sessionKillConfirm(c *ui.Context, label string, disabled bool, run
 	// `box-shadow: var(--glass-raised-shadow)`: the `--elev-2` contact cast plus
 	// the lit top rim, the same pair the launcher's raised panes wear.
 	pill.Shadow(0, t.Space(0.25), t.Space(0.5), 0, tokens.ShadowContact)
-	pill.InsetShadow(0, 1, 0, 0, tokens.LensRim)
+	// P13-ab（`docs/liquid-glass.md` §2/§3）：这枚药丸此前只有**顶**受光边
+	// （`InsetShadow(0, 1, 0, 0, LensRim)`），没有对侧——与 P13-aa 修掉的电源
+	// execute 键是同一种「半对」：一块只能看见光、看不见影的暖色抬升面，读起来是
+	// 「贴了一张纸」。`LitFace` 把对侧补上（顶 `LensRim` / 底 `LensEdge`），影
+	// **保留**（`--glass-raised-shadow` 是这块暖面的身份，§2 判据 2 管的是中性的
+	// E1，不是它）。外圈警告色 `Border` 不动：那是「不可逆」的身份线，不是 E1 的边。
+	//
+	// 悬停臂只换面（`--glass-raised-warm-hover`），一对线于是四个状态共用——这正是
+	// `internal/ci/litarm_contract_test.go` 要求的形状（臂外的共享一对）。
+	tokens.LitFace(pill)
 	if disabled {
 		pill = pill.Opacity(0.4).Cursor(ui.CursorDefault).Disabled(true)
 	} else if pill.Hovered() {
