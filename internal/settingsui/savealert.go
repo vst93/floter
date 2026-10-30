@@ -144,9 +144,11 @@ func (a *App) saveAlert(c *ui.Context, copy i18n.Settings) {
 			if button.Hovered() {
 				button.Background(tokens.ControlHover)
 				// `.settings-save-alert button`: the reference's own alert button
-				// carries the raised lens rung; this build's banner has one ✕ that
-				// is transparent at rest, so the pointer is where it can be graded.
-				tokens.Lens(button)
+				// carries the raised rung; this build's banner has one ✕ that is
+				// transparent at rest, so the pointer is where it can be graded.
+				// E1 (`theme.Tokens.LitFace`): the ✕ sits inside the E2 banner, so
+				// it is a face there — one lit edge, one shade, no ring.
+				tokens.LitFace(button)
 			}
 			button.Children(func() {
 				ui.Icon(c, mustGlyph("close")).Size(t.Space(3.5), t.Space(3.5)).TextColor(t.Warning)

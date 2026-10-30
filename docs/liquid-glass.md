@@ -236,6 +236,39 @@ pin：`internal/settingsui/liteedge_test.go` 五条（侧栏 / 分组卡 / 字�
 
 出图 `/tmp/floter-P12-c-{general,dialog,banner}-{dark,light}-{before,after}.png`。
 
+#### §6.2b 控件面：十处 `Lens` 退成 E1（P13-i，**已落地**）
+
+**根因**：`Lens` 的四层是「rim → sheen → edge → **四边 `ControlEdge` 环**」，而环画在
+最后、且落在**同一个像素行**上（mygo 的 `insetShadow` 把 hole 从 padding edge 算起：
+`spread=1` 的环占 padding 第一行，`y=1,spread=0` 的 rim 也是那一行）。于是 P12-a 抬到
+0.09 的受光边被压在下面——**这一页的控件至今一次都没亮过**，顶内线一直是
+`ControlEdge` 的暗线。P13-h 在启动器的 28u 图标板上抓到同一个根因，这一轮是同一族在
+设置页上的十处。十处控件**都各自带着 `Border(1, ControlEdge)`**（两处悬停小格是 hover
+时才加），所以环与边框本来就是同一条边的第二次上色：退掉它**不改几何**（外框还在，
+边缘仍是「边框 + 内线」两像素），只改内线那一像素的墨。
+
+| # | 位置 | 现状（旧） | 落成（新） | 状态 |
+|---|---|---|---|---|
+| 9-1 | `rows.go` `extensionActionFace`（`.extensions-action-button` 胶囊） | `Border` + `Lens`：内圈是第二条 `ControlEdge`，顶边是暗线 | `LitFace`：顶 `LensRim` + 底 `LensEdge`，无环（实测浅色侧列 115 → 面 120） | `已落地` |
+| 9-2 | `rows.go` `extensionIconButton` 的 hover 臂（30u） | 同上 | `LitFace` | `已落地` |
+| 9-3 | `parameditor.go` `paramIconButton` 的 hover 臂（28u） | 同上 | `LitFace` | `已落地` |
+| 9-4 | `settingsui.go` `headerButton` 的 hover 臂（页头两个 28u） | 静息透明，hover 抬面 + `Lens` | `LitFace` | `已落地` |
+| 9-5 | `settingsui.go` `barButton`（丢弃条胶囊） | `Border` + `Lens` | `LitFace` | `已落地` |
+| 9-6 | `uninstall.go` 卸载对话框动作胶囊 | `Border` + `Lens` | `LitFace` | `已落地` |
+| 9-7/8/9 | `uninstall.go` `uninstallPartRow` 的 fixed / hover / default 三臂 | `Border` + `Lens` | `LitFace`（三臂同一对线） | `已落地` |
+| 9-10 | `savealert.go` 保存告警的 ✕（24u，E2 横幅里） | hover 抬面 + `Lens` | `LitFace` | `已落地` |
+| 9-11 | `control/control.go` `SegmentedIndex` 的选中段（`.settings-option--active`） | `Lens` + **紧跟其后的** `AccentEdge` 四边环 | **故意不做**：它自己的身份线是那条 accent 环，四边都在、把 rim 与 edge 全盖住；换成 `LitFace` 画出的是立刻被遮住的两条线（像素上不可见），而 §2 也不许一个面说两句话。它是设置页与终端抽屉共用的控件（跨表面） | `故意不做`（见理由） |
+| 9-12 | `shell/notices.go` toast 的动作 chip（`.app-toast__action`） | `Control` 面 + `Lens`，**没有自己的边框**——环就是它唯一的边界 | 应改成 `LitFace`，但要同时决定边界怎么办（补 `Border` 会改几何）→ **下一张表面**（toast，P13-g 那一页） | `未开始` |
+
+pin：`internal/settingsui/lensface_test.go` 四条——胶囊 / 30u 悬停图标钮 / 卸载组件行卡片
+三条像素 pin（每条深+浅两套外观，量「顶内线亮于面」「底内线暗于面」「两侧列 = 面」
+「块外仍是地」四条判据），加一条结构 pin（这一页的源码里不许再出现四层透镜的调用）。
+V 2（`lens_test.go` 的玻璃档涨幅、`uninstallmetrics_test.go` 的按下丢影）/ S 1（材质从宽
+sheen 变成 1px 一对线）/ B 0。
+
+出图 `/tmp/floter-P13-i-pill-after-{light,dark}.png`（同一张图上并排画「`Lens` 之前」与
+「`LitFace` 之后」的同一枚胶囊）。
+
 ### §6.3 终端页（terminalui）— **已落地（P13-d）**
 
 **落地的形状**：抽屉的缝与空态键帽走 E1 的 `theme.Tokens.LitFace`（顶 `LensRim` +
@@ -358,14 +391,17 @@ pin：`internal/launcher/filesmarks_test.go` 两条（三条动作行的记号 +
 |---|---|---|---|---|
 | 6-1 | toast（`shell/notices.go` `toastViewport`） | `Float` + `InputStroke` + 1px `EdgeHighlight`，两层影是**窗口 token** 的固定 alpha、几何 40px/104px | 满高臂 `theme.ElevThrow`（10px/26px + 1px/2px，alpha 0.30/0.20 × `ElevScale`）；折叠臂 `theme.ElevThrowCompact`（6px/18px + 同一笔接触边）**并补上冠线** | `已落地` |
 | 6-2 | 终端失败提示 | 整宽带子 | **故意不做**（同 3-5） | `故意不做` |
+| 6-3 | **新增**｜toast 里的动作 chip（`.app-toast__action`） | `Control` 面 + 四层 `Lens`，**没有自己的边框**——环就是它唯一的边界，而环又把 rim 压住 | 应改成 `LitFace`，但需同时决定边界（补 `Border(1, ControlEdge)` 会改几何：`InsetShadow` 从 padding edge 算起，加边框会把面缩小 1px）→ 留给这一张表面的下一轮（P13-i 已把这一行记进账） | `未开始` |
 
 pin：`internal/shell/toastthrow_test.go` 三条——影随框透明度反向缩放（100% vs 10%，同一个像素、
 同一次盘点的前后帧差）/ 两条臂的冠线都是 E2 的线（深+浅两套外观，浅色是白压白那一档）/ 折叠
 带子的接触层（第一行比第五行重 1.7 倍以上，量过「只有环境影」是 1.44 倍）。
 出图 `/tmp/floter-P13-g-{settings,launcher}-{dark,light}-{before,after}.png`。
 
-**§6 的 `未开始` 行到此清空**（0-*/1-*/2-*/3-*/4-*/5-*/6-* 全部 `已落地` 或 `故意不做`），
-这一支的选题队列收口，下一轮转回任务书的「细节打磨通用队列」。
+**§6 的 `未开始` 行在 P13-g 收口之后又长出一条**：P13-i 把设置页剩下的十处 `Lens`
+退成 E1 时，清点到 toast 的动作 chip 与 `control.SegmentedIndex` 的选中段——前者是
+`未开始`（6-3，要连带决定边界），后者是 `故意不做`（9-11，accent 环就是它的身份线）。
+所以这一支**没有收口**，下一轮的第一条就是 6-3。
 
 P13-h 是收口之后的第一轮细节打磨：它给 §6.1 补了 1-8 / 1-9 两行（同一条材质规则
 落到启动器的小面上），**没有开新表面**，表里仍然没有 `未开始` 行。

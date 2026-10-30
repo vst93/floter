@@ -362,13 +362,16 @@ func TestComponentizedUninstallCardAnswersThePointer(t *testing.T) {
 	}
 }
 
-// The card's own `--elev-0` is the raised lens the resting pane carries
+// The card's own `--elev-0` is the raised material the resting pane carries
 // (`ComponentizedUninstallDialog.css:60-73`), and the press rule sets
-// `box-shadow: none` as it sinks (`:74-77`). The lens is top-weighted — the
-// lit rim and sheen over the bottom shade — so it is read as the top-minus-
-// bottom spread of the card's own scanlines, a metric the press fill's colour
-// cancels out of. A pointer held down is the one rung that shows the flat
-// press fill alone.
+// `box-shadow: none` as it sinks (`:74-77`).
+//
+// P13-i 重定基线（S：结构真变了）：这条 pin 原本量的是四层透镜那片**宽 sheen**
+// 的顶重（第 +3 行对第 −3 行），因为旧透镜的亮度主要来自 `0 6px 10px -6px` 的
+// 渐层。`docs/liquid-glass.md` §2 把卡退成 E1 的一对面（`tokens.LitFace`）——
+// 受光边只有 **1px**，落在 padding 第一行（框内第一行），对侧 `LensEdge` 在
+// 倒数第二行。所以读的行从 +3/−3 换成 **+1/−2**（旧结构 → 新结构）；量的事没变：
+// 静息有顶重的一对线，按下时整张卡退成一层平涂（spread 归零）。
 func TestComponentizedUninstallCardDropsItsShadowOnPress(t *testing.T) {
 	a := uninstallTestApp()
 	on := true
@@ -392,8 +395,8 @@ func TestComponentizedUninstallCardDropsItsShadowOnPress(t *testing.T) {
 	// them.
 	spread := func() float64 {
 		x0, x1 := int(card.X+card.W*0.3), int(card.X+card.W*0.7)
-		top := rowMeanRGB(tt, int(card.Y)+3, x0, x1)
-		bottom := rowMeanRGB(tt, int(card.Y+card.H)-3, x0, x1)
+		top := rowMeanRGB(tt, int(card.Y)+1, x0, x1)
+		bottom := rowMeanRGB(tt, int(card.Y+card.H)-2, x0, x1)
 		return top - bottom
 	}
 	rest := spread()

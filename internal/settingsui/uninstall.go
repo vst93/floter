@@ -360,9 +360,11 @@ func (a *App) uninstallActionButton(c *ui.Context, label string, danger bool, bu
 		// are the two the framework does not paint for us.
 		button.Disabled(true).Opacity(0.4).Cursor(ui.CursorDefault)
 	}
-	// The control's own `--elev-0`: the same lens the cards on the surface
-	// carry, so the pill reads as a pane of the same glass.
-	tokens.Lens(button)
+	// The control's own `--elev-0`: the same E1 pair the cards on the surface
+	// carry, so the pill reads as a pane of the same glass. `theme.Tokens.LitFace`
+	// rather than the four-layer `Lens`: the ring was this pill's own
+	// `Border(1, edge)` painted a second time, and it covered the 0.09 rim.
+	tokens.LitFace(button)
 	button.Children(func() {
 		if icon != nil {
 			ui.Icon(c, icon).Size(t.Space(3.5), t.Space(3.5))
@@ -424,7 +426,7 @@ func (a *App) uninstallPartRow(c *ui.Context, part uninstallPart) ui.Element {
 		// `:has(input:disabled) { cursor: not-allowed; opacity: 0.6 }`.
 		card.Opacity(0.6)
 		card.Cursor(ui.CursorNotAllowed)
-		tokens.Lens(card)
+		tokens.LitFace(card)
 	case card.Pressed():
 		// The press rung comes first: CSS paints `:active` over `:hover`,
 		// and a pointer held down is both. `:active` also drops the card's
@@ -436,9 +438,13 @@ func (a *App) uninstallPartRow(c *ui.Context, part uninstallPart) ui.Element {
 		// 项——边保持 `ControlEdge`，只抬面（`ControlHover`）。
 		card.Background(tokens.ControlHover)
 		card.Border(1, tokens.ControlEdge)
-		tokens.Lens(card)
+		tokens.LitFace(card)
 	default:
-		tokens.Lens(card)
+		// E1 on all three rungs (fixed / hover / resting): the card's own
+		// `Border(1, ControlEdge)` is its frame, and `LitFace` puts the lit edge
+		// above and the shade below — no ring, which was that border a second
+		// time and buried the rim (see `rows.go`'s `extensionActionFace`).
+		tokens.LitFace(card)
 	}
 	card.Children(func() {
 		// `.extensions-uninstall-component { grid-template-columns: 20px 1fr;

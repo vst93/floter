@@ -483,7 +483,13 @@ func (a *App) extensionActionFace(c *ui.Context, height, radius float32, disable
 	}
 	button.Border(1, edge).Background(plane).
 		Transition(ui.ElementTransition{Colors: true, Duration: 120 * time.Millisecond})
-	tokens.Lens(button)
+	// E1：顶受光边 + 底对侧暗线，**没有环**（`theme.Tokens.LitFace`）。四层 `Lens`
+	// 的第四层是四边 `ControlEdge` 的环，它画在第一条 `LensRim` 之后、且落在同一个
+	// 像素行上（mygo 的 `insetShadow` 把 hole 从 padding edge 算起，`spread=1` 的环
+	// 正好占 padding 第一行，`y=1,spread=0` 的 rim 也是那一行），于是 P12-a 抬到
+	// 0.09 的受光边被压在这条边下面——这枚胶囊的顶边一直是一条暗线。环与它自己的
+	// `Border(1, edge)` 本来就是同一条边的第二次上色，退掉它不改几何，只改墨。
+	tokens.LitFace(button)
 	return button, ink
 }
 
@@ -539,7 +545,8 @@ func (a *App) extensionIconButton(c *ui.Context, glyphName, label string, disabl
 		// ladder's hover fill, the resting lens and the strong ink.
 		ink = t.Text
 		button = button.Border(1, tokens.ControlEdge).Background(tokens.ControlHover)
-		tokens.Lens(button)
+		// E1 的同一对面，理由见 `extensionActionFace`：hover 的小格是面，不是环。
+		tokens.LitFace(button)
 	}
 	button.Children(func() {
 		ui.Icon(c, mustGlyph(glyphName)).Size(t.Space(3.5), t.Space(3.5)).TextColor(ink)

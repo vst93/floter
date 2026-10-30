@@ -40,8 +40,15 @@ func TestEveryNamedControlDrawsALensRung(t *testing.T) {
 		{
 			selector: ".extensions-action-button",
 			file:     "../settingsui/rows.go",
-			marker:   "tokens.Lens(button)",
-			test:     "settingsui.TestTheSettingsCardControlsCarryTheStopLens/.extensions-action-button",
+			// P13-i 重定基线（V）：这条 census 条目原本钉的是四层控件透镜
+			// （`tokens.Lens(button)`），它的第四层是四边 `ControlEdge` 的环，
+			// 而环画在第一条 `LensRim` 之后、落在同一个像素行上——P12-a 抬到
+			// 0.09 的受光边从来没亮过。§2 的 E1 是「面 + 一条受光边 + 对侧暗线」，
+			// 不是「画框分层」，所以这条从「必须还有那个调用」翻成「那个调用不许
+			// 回来」，新面由 `settingsui.TestTheActionPillIsAFaceNotARing` 逐列量着。
+			marker:  "tokens.Lens(button)",
+			dropped: "docs/liquid-glass.md §2/§6.2 第 9-1 行: the action pill is an E1 face (LitFace), not the four-layer control lens (P13-i)",
+			test:    "settingsui.TestTheActionPillIsAFaceNotARing",
 		},
 		{
 			selector: ".app-toast__action",
@@ -53,8 +60,14 @@ func TestEveryNamedControlDrawsALensRung(t *testing.T) {
 		{
 			selector: ".settings-save-alert button",
 			file:     "../settingsui/savealert.go",
-			marker:   "tokens.Lens(button)",
-			// hover-only here (see the entry's comment); no isolated frame yet.
+			// P13-i：这枚 ✕ 坐在 E2 的告警横幅里，所以它是那一层里的一个 E1
+			// 面（hover 时抬 `ControlHover` + `LitFace`），不再是四层透镜。
+			// 它没有自己的孤立渲染（要一次保存失败才有横幅），所以像素那一半
+			// 由同一支 hover 臂的 pin 量着；这一条钉的是「这个文件里那个调用
+			// 不许回来」，以及整个设置页表面都不许再叫它。
+			marker:  "tokens.Lens(button)",
+			dropped: "docs/liquid-glass.md §6.2 第 9-10 行: the save alert's ✕ is an E1 face inside the E2 banner (P13-i)",
+			test:    "settingsui.TestTheHoveredIconButtonIsAFaceNotARing",
 		},
 		{
 			selector: ".settings-option--active",
@@ -128,11 +141,14 @@ func TestEveryNamedControlDrawsALensRung(t *testing.T) {
 		// only under the pointer.
 		{
 			selector: ".extensions-icon-button:hover",
-			// This build has no separate extensions-panel icon button: the
-			// integration card's actions are all `.extensions-action-button`, so
-			// their icon lives inside the same raised-lens button. There is
-			// nothing left that is transparent at rest to grade.
-			pending: "this build draws the extensions panel's actions as .extensions-action-button (icon inside the lensed button); no resting-transparent icon button exists",
+			file:     "../settingsui/rows.go",
+			// P13-i：这条条目此前是 `pending`，理由是「本仓没有静息透明的扩展
+			// 图标钮」——那个理由早就过期了（`rows.go` 的 `extensionIconButton`
+			// 从 P8 起就在配置工具栏里）。它 hover 时抬 `ControlHover` 面 +
+			// `LitFace` 的一对线，不再是四层透镜，所以这条翻成 dropped。
+			marker:  "tokens.Lens(button)",
+			dropped: "docs/liquid-glass.md §6.2 第 9-2 行: the 30u icon button's hover rung is an E1 face (P13-i)",
+			test:    "settingsui.TestTheHoveredIconButtonIsAFaceNotARing",
 		},
 		{
 			selector: ".toolbar-button:hover",

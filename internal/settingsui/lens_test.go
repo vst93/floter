@@ -95,26 +95,42 @@ func TestTheSettingsCardControlsCarryTheStopLens(t *testing.T) {
 		t.Errorf("regular→liquid moved %.0f of colour, want a visible spread", d)
 	}
 
-	// The grouped card no longer carries the lens: its light budget is the
-	// same on every stop, because `Control` is a fixed token and a low-gloss
-	// design does not grade a card's face with `--glass-lens-scale` (§1/§6.1
-	// 第 3 条).
+	// P13-i 重定基线（V）：旧断言是「卡的涨幅 ≤ 按钮的涨幅 + 50」——它默认卡自己
+	// 的贡献恒定，而 P12-c 给分组卡戴上的 E1 一对线（2-3 行）自己也吃
+	// `--glass-lens-scale`，这个前提已经倒了（P13-i 实测：卡 27612，独立胶囊
+	// 25626）。新值：**把卡自己的涨幅量出来**——同一张卡、同一行、不带按钮，
+	// 再与同宽、同面、同一帧的参照 pane（`Control` + `LitFace`）比。四层透镜
+	// 回来会让卡自己的涨幅翻倍（透镜是 +25k 量级），2% 的容差盖不住它。
 	cards := make(map[string]float64)
+	bare := make(map[string]float64)
+	refs := make(map[string]float64)
 	for _, step := range []string{"off", "frosted", "regular", "liquid"} {
 		cards[step] = frameRGBSum(renderLensControl(t, step, 400, 120, func(c *ui.Context, a *App) {
 			a.card(c, func() {
 				a.row(c, "Row", "hint", func() { a.actionButton(c, "Go") })
 			})
 		}))
-		t.Logf("%-26s %-8s rgb sum %.1f", ".settings-section__card", step, cards[step])
+		bare[step] = frameRGBSum(renderLensControl(t, step, 400, 120, func(c *ui.Context, a *App) {
+			a.card(c, func() {
+				a.row(c, "Row", "hint", func() {})
+			})
+		}))
+		refs[step] = frameRGBSum(renderLensControl(t, step, 400, 120, func(c *ui.Context, a *App) {
+			tokens := a.tokens(c)
+			e := ui.Row(c).FillWidth().Height(c.Theme().Space(12)).Radius(tokens.RadiusMD).
+				Background(tokens.Control)
+			tokens.LitFace(e)
+		}))
+		t.Logf("%-26s %-8s rgb sum %.1f (bare %.1f, ref %.1f)",
+			".settings-section__card", step, cards[step], bare[step], refs[step])
 	}
-	// The button inside the card alone accounts for the stop's whole effect: the
-	// card's own contribution is constant, so the total may rise with the stop,
-	// but never by *more* than the button's own bare-frame rise (a card lens
-	// would add to it).
-	if rise := cards["liquid"] - cards["off"]; rise > sums["liquid"]-sums["off"]+50 {
-		t.Errorf("the card's frame rose %.0f with the stop, more than its own button's %.0f: the card is wearing a lens again",
-			rise, sums["liquid"]-sums["off"])
+	if got, want := bare["liquid"]-bare["off"], refs["liquid"]-refs["off"]; got > want+500 || got < want-500 {
+		t.Errorf("the card's own light budget rose %.0f with the stop; one E1 pair of the same width rises %.0f "+
+			"— the card is wearing something more than `LitFace`", got, want)
+	}
+	if got := (cards["liquid"] - cards["off"]) - (bare["liquid"] - bare["off"]); got > sums["liquid"]-sums["off"]+50 {
+		t.Errorf("the button inside the card added %.0f of light with the stop, more than it does standing alone "+
+			"(%.0f): the card is grading it a second time", got, sums["liquid"]-sums["off"])
 	}
 }
 

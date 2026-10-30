@@ -1191,10 +1191,12 @@ func (a *App) View(c *ui.Context) {
 					Tooltip(hint)
 				if button.Hovered() {
 					button.Background(tokens.ControlHover)
-					// The header's icon button lights the resting lens rung under
-					// the pointer (`.toolbar-button:hover`); it is transparent at
-					// rest, like the reference's own.
-					tokens.Lens(button)
+					// The header's icon button lights the resting rung under the
+					// pointer (`.toolbar-button:hover`); it is transparent at rest,
+					// like the reference's own. E1: one lit edge above and its
+					// counter-side below, no ring (`theme.Tokens.LitFace`) — the
+					// four-layer `Lens`'s ring was a second colour on the same edge.
+					tokens.LitFace(button)
 				}
 				button.Children(func() {
 					if glyph, ok := launcher.Glyph(glyphName); ok {
@@ -5829,7 +5831,10 @@ func (a *App) barButton(c *ui.Context, label string, danger, disabled bool, icon
 	// under a sentence that had already settled, so a press aimed at the pill
 	// could miss it mid-flight.
 	button.Transition(ui.ElementTransition{Colors: true, Duration: 120 * time.Millisecond})
-	tokens.Lens(button)
+	// E1: the pill keeps its own `Border(1, edge)` and wears the lit pair inside
+	// it (`theme.Tokens.LitFace`), not the four-layer lens — its ring was the
+	// same edge painted twice, and it buried the 0.09 rim under `ControlEdge`.
+	tokens.LitFace(button)
 	button.Children(func() {
 		if icon != nil {
 			ui.Icon(c, icon).Size(t.Space(3.5), t.Space(3.5))

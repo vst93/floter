@@ -269,7 +269,9 @@ func (a *App) paramIconButton(c *ui.Context, glyphName, label string) ui.Element
 	if button.Hovered() {
 		ink = t.Text
 		button = button.Border(1, tokens.ControlEdge).Background(tokens.ControlHover)
-		tokens.Lens(button)
+		// E1：顶受光边 + 底对侧暗线，无环（`theme.Tokens.LitFace`；理由见
+		// `rows.go` 的 `extensionActionFace`——`Lens` 的环与这里的 `Border` 是同一条边）。
+		tokens.LitFace(button)
 	}
 	button.Children(func() {
 		ui.Icon(c, mustGlyph(glyphName)).Size(t.Space(paramEditorGlyph), t.Space(paramEditorGlyph)).
