@@ -19,8 +19,11 @@ func startPTY(Options, int, int) (*PTY, error) { return nil, ErrUnsupported }
 func (p *PTY) Read([]byte) (int, error)    { return 0, io.EOF }
 func (p *PTY) Write(b []byte) (int, error) { return 0, ErrUnsupported }
 func (p *PTY) Resize(int, int) error       { return ErrUnsupported }
-func (p *PTY) Exited() <-chan struct{}     { c := make(chan struct{}); close(c); return c }
-func (p *PTY) ExitCode() int               { return -1 }
-func (p *PTY) Pid() int                    { return 0 }
-func (p *PTY) Kill() error                 { return ErrUnsupported }
-func (p *PTY) Close() error                { return nil }
+func (p *PTY) ResizePixels(int, int, int, int) error {
+	return ErrUnsupported
+}
+func (p *PTY) Exited() <-chan struct{} { c := make(chan struct{}); close(c); return c }
+func (p *PTY) ExitCode() int           { return -1 }
+func (p *PTY) Pid() int                { return 0 }
+func (p *PTY) Kill() error             { return ErrUnsupported }
+func (p *PTY) Close() error            { return nil }

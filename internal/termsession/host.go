@@ -121,8 +121,9 @@ type Session struct {
 }
 
 // conn is one attached client: its socket and the queue the program's output
-// waits in. A client that falls behind (more than clientQueue frames) is told
-// to resync instead of being given an unbounded backlog.
+// waits in. A client that falls behind — either its queue is full or it has
+// spent the window of output it said it would take — is told to resync instead
+// of being given an unbounded backlog.
 type conn struct {
 	c      net.Conn
 	send   chan frame
@@ -130,6 +131,26 @@ type conn struct {
 	once   sync.Once
 	mu     sync.Mutex
 	lagged bool
+	// credit is how many bytes of output this client will still take: it
+	// starts at clientWindow and the client hands it back as it consumes
+	// what it was given (tagCredit). Guarded by mu, like lagged.
+	credit int
+	// dropped is how much output has been thrown away since the client was
+	// last given a screen. Below clientBacklog it is pacing — a client
+	// drawing a screen is out of credit for a frame or two — and above it the
+	// client is behind and the screen is the cheaper answer.
+	dropped int
+}
+
+// newConn is a client's half of the host: a queue of clientQueue frames, a
+// full credit window, and nothing sent yet.
+func newConn(nc net.Conn) *conn {
+	return &conn{
+		c:      nc,
+		send:   make(chan frame, clientQueue),
+		done:   make(chan struct{}),
+		credit: clientWindow,
+	}
 }
 
 type frame struct {
@@ -160,25 +181,97 @@ func (s *Session) bump() { s.info.Seq++ }
 // broadcast sends a frame to every attached client; s.mu is held.
 func (s *Session) broadcast(tag byte, payload []byte) {
 	for c := range s.clients {
+		c.admit(frame{tag, payload})
+	}
+}
+
+// admit queues one frame for a client, or tells it to resync when it cannot
+// take it.
+//
+// Output is metered twice, by bytes and by frames: a client is given
+// clientWindow bytes of output before it has to say it consumed them, and at
+// most clientQueue frames whatever their size. Whichever runs out first, the
+// answer is the same and it is the reference daemon's — drop what the client
+// has not read and hand it the screen instead, never an unbounded backlog. The
+// screen is taken when the resync is *written*, from the ring, so nothing that
+// arrived after this point is lost: it is either in the ring by then or queued
+// behind the resync.
+func (c *conn) admit(f frame) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	// A client that was already told to resync takes nothing until it has
+	// been handed the screen: what it missed is in the ring, and sending the
+	// increment as well would draw those bytes twice — once from the screen,
+	// once from the queue behind it.
+	if c.lagged {
+		return
+	}
+	if f.tag != tagOutput {
+		// State frames are not metered: a record, a screen or an end has to
+		// reach the client whatever its credit is, or a client whose window
+		// ran out would never learn what state it is in.
 		select {
-		case c.send <- frame{tag, payload}:
+		case c.send <- f:
 		default:
-			// The client is behind: drop what it has not read and make it
-			// take the screen again. Never an unbounded backlog — a program
-			// writing a gigabyte while nobody reads is exactly the case a
-			// server has to survive.
-			c.mu.Lock()
-			if !c.lagged {
-				c.lagged = true
-				drain(c.send)
-				select {
-				case c.send <- frame{tagLag, nil}:
-				default:
-				}
-			}
-			c.mu.Unlock()
+			c.behindLocked()
+		}
+		return
+	}
+	if len(f.payload) <= c.credit {
+		c.credit -= len(f.payload)
+		select {
+		case c.send <- f:
+			return
+		default:
+			// The queue is full as well: the socket is not draining at all,
+			// so this frame goes the way of the rest (below).
 		}
 	}
+	c.dropped += len(f.payload)
+	if c.dropped >= clientBacklog {
+		c.behindLocked()
+	}
+}
+
+// behindLocked drops what a client has not read and puts one resync notice in
+// its place; c.mu is held. The notice goes out once: a client that never comes
+// back must not make the host push a frame per read for ever, and its credit
+// stays at nothing, so nothing else is queued behind the notice.
+func (c *conn) behindLocked() {
+	if c.lagged {
+		return
+	}
+	c.lagged = true
+	c.credit = 0
+	c.dropped = 0
+	drain(c.send)
+	select {
+	case c.send <- frame{tagLag, nil}:
+	default:
+	}
+}
+
+// grant is a client saying how many more bytes of output it will take; the
+// credit it is allowed to hold never exceeds one window, so a client that
+// reports more than it was given cannot make the host buffer more than that.
+func (c *conn) grant(n int) {
+	if n <= 0 {
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.credit += n
+	if c.credit > clientWindow {
+		c.credit = clientWindow
+	}
+}
+
+// clearLag ends a client's resync, which the write loop does as it takes the
+// screen; c.mu (and, for the snapshot, the session's lock) is held.
+func (c *conn) clearLag() {
+	c.mu.Lock()
+	c.lagged = false
+	c.mu.Unlock()
 }
 
 // drain empties a client's queue without blocking.
@@ -439,7 +532,7 @@ func (h *Host) linger() time.Duration {
 // attach serves one client: the record, the screen, then live output, and its
 // input back into the program.
 func (h *Host) attach(nc net.Conn) {
-	c := &conn{c: nc, send: make(chan frame, clientQueue), done: make(chan struct{})}
+	c := newConn(nc)
 	h.mu.Lock()
 	h.clients++
 	h.mu.Unlock()
@@ -502,13 +595,16 @@ func (h *Host) writeLoop(c *conn, info Info, screen [][]byte) {
 				// Behind: take the screen again, then go on with what is
 				// written after it. The ring is the screen, so a client that
 				// fell behind is a client that re-attached.
+				//
+				// The snapshot and the end of the lag are taken under the
+				// session's lock together: a broadcast that lands between them
+				// would be dropped as "lagged" while its bytes are past the
+				// snapshot, which is the one way a resync could lose output.
 				h.session.mu.Lock()
 				info := h.session.info
 				chunks := h.session.screen()
+				c.clearLag()
 				h.session.mu.Unlock()
-				c.mu.Lock()
-				c.lagged = false
-				c.mu.Unlock()
 				if err := write(tagHeader, encodeInfo(info)); err != nil {
 					c.close()
 					return
@@ -548,15 +644,21 @@ func (h *Host) readLoop(c *conn) {
 		case tagInput:
 			_, _ = h.pty.Write(payload)
 		case tagResize:
-			cols, rows := decodeSize(payload)
+			cols, rows, cellW, cellH := decodeResize(payload)
 			if cols <= 0 || rows <= 0 {
 				continue
 			}
-			_ = h.pty.Resize(cols, rows)
+			if cellW > 0 && cellH > 0 {
+				_ = h.pty.ResizePixels(cols, rows, cols*cellW, rows*cellH)
+			} else {
+				_ = h.pty.Resize(cols, rows)
+			}
 			h.session.mu.Lock()
 			h.session.bump()
 			h.session.info.Cols, h.session.info.Rows = cols, rows
 			h.session.mu.Unlock()
+		case tagCredit:
+			c.grant(decodeCredit(payload))
 		case tagDetach:
 			return
 		case tagKill:
@@ -567,6 +669,44 @@ func (h *Host) readLoop(c *conn) {
 			return
 		}
 	}
+}
+
+// decodeResize reads a resize payload: the client's size in cells, and — in
+// the eight-byte form — the size of a cell in pixels. A four-byte payload is a
+// client that knows its cells and not their pixels, which is what an older
+// client sends and what `Resize` sends here.
+func decodeResize(payload []byte) (cols, rows, cellW, cellH int) {
+	cols, rows = decodeSize(payload)
+	if len(payload) >= 8 {
+		cellW = int(payload[4])<<8 | int(payload[5])
+		cellH = int(payload[6])<<8 | int(payload[7])
+	}
+	return cols, rows, cellW, cellH
+}
+
+// encodeResize writes a resize payload; a cell of zero pixels means unknown
+// and is written as the four-byte form.
+func encodeResize(cols, rows, cellW, cellH int) []byte {
+	cells := encodeSize(cols, rows)
+	if cellW <= 0 || cellH <= 0 {
+		return cells
+	}
+	return append(cells, encodeSize(cellW, cellH)...)
+}
+
+// decodeCredit reads a credit payload: how many bytes the client will take.
+func decodeCredit(payload []byte) int {
+	if len(payload) < 4 {
+		return 0
+	}
+	return int(payload[0])<<24 | int(payload[1])<<16 | int(payload[2])<<8 | int(payload[3])
+}
+
+// encodeCredit writes a credit payload.
+func encodeCredit(n int) []byte {
+	b := make([]byte, 4)
+	putUint32(b, uint32(n))
+	return b
 }
 
 // decodeSize reads a resize payload: two big-endian uint16s.
@@ -620,11 +760,30 @@ type Client struct {
 	c    net.Conn
 	info Info
 	// mu guards pending, the bytes read from the host and not yet handed to
-	// the terminal.
+	// the terminal, and owed, the credit they earned and that has not gone
+	// back to the host yet.
 	mu      sync.Mutex
 	pending []byte
+	owed    int
+	// flushing marks a credit frame on its way to the host: one goroutine at
+	// a time, and the bytes that arrive meanwhile wait for the next batch.
+	flushing bool
 	// closed is set by Close: the host keeps the program, the client leaves.
 	closed bool
+	// wmu guards the socket's write side. Frames are a header and a payload
+	// in two writes, so two goroutines writing at once can interleave them
+	// into a frame neither side can parse — and they do: the terminal asks
+	// for a resize from its own goroutine (mygo's tellConn) while the user's
+	// typing goes out on another.
+	wmu sync.Mutex
+}
+
+// send writes one frame, which is the only way this client writes: the lock is
+// what keeps a header and its payload together.
+func (c *Client) send(tag byte, payload []byte) error {
+	c.wmu.Lock()
+	defer c.wmu.Unlock()
+	return writeFrame(c.c, tag, payload)
 }
 
 // Dial attaches to a host at path. It reads the record and the screen before
@@ -708,7 +867,27 @@ func (c *Client) Read(p []byte) (int, error) {
 		if len(c.pending) > 0 {
 			n := copy(p, c.pending)
 			c.pending = c.pending[n:]
+			// The window goes back as the bytes are consumed, not as they
+			// arrive: that is what makes "behind" mean the client's terminal
+			// has not drawn it yet. Batched at creditFlush so a terminal that
+			// draws in small reads does not put a frame per read on the wire;
+			// and a batch that does not fill still leaves the rest of the
+			// window in the client's hands, so it cannot be left waiting for
+			// credit it already holds.
+			c.owed += n
+			var grant int
+			if !c.flushing && c.owed >= creditFlush {
+				c.flushing = true
+				grant = c.owed
+				c.owed = 0
+			}
 			c.mu.Unlock()
+			if grant > 0 {
+				// On the goroutine that will want to read again, not on this
+				// one: a client whose terminal draws slower than the socket
+				// takes must not block here waiting to hand back credit.
+				go c.giveBack(grant)
+			}
 			return n, nil
 		}
 		c.mu.Unlock()
@@ -737,24 +916,39 @@ func (c *Client) Read(p []byte) (int, error) {
 	}
 }
 
+// giveBack hands the host the credit for bytes the terminal has drawn. A write
+// that fails is the connection's problem, not the caller's: the next Read
+// reports it.
+func (c *Client) giveBack(n int) {
+	defer func() {
+		c.mu.Lock()
+		c.flushing = false
+		c.mu.Unlock()
+	}()
+	_ = c.send(tagCredit, encodeCredit(n))
+}
+
 // Write types into the program.
 func (c *Client) Write(p []byte) (int, error) {
-	if err := writeFrame(c.c, tagInput, p); err != nil {
+	if err := c.send(tagInput, p); err != nil {
 		return 0, err
 	}
 	return len(p), nil
 }
 
-// Resize tells the program the client's screen changed, which is what a
-// `terminal.Options.Conn` with Resize is asked to do.
+// Resize tells the program the client's screen changed, in cells. The size of
+// a cell in pixels is unknown here, so the program's pixel queries keep
+// answering in cells (see ResizePixels, which is what a view calls).
 func (c *Client) Resize(cols, rows int) error {
-	return writeFrame(c.c, tagResize, encodeSize(cols, rows))
+	return c.send(tagResize, encodeResize(cols, rows, 0, 0))
 }
 
-// ResizePixels is Resize with the cells' size, which this slice does not
-// carry: the host's program reads its size in cells.
+// ResizePixels is Resize with the size of a cell in pixels, which is what a
+// program reads out of TIOCGWINSZ and what pointer reports in pixels (mode
+// 1016) are measured in. It is the method `terminal.Options.Conn` prefers when
+// Conn has both (mygo's tellConn).
 func (c *Client) ResizePixels(cols, rows, cellWidth, cellHeight int) error {
-	return c.Resize(cols, rows)
+	return c.send(tagResize, encodeResize(cols, rows, cellWidth, cellHeight))
 }
 
 // Close detaches: the host keeps the program for the next attach.
@@ -766,11 +960,11 @@ func (c *Client) Close() error {
 	}
 	c.closed = true
 	c.mu.Unlock()
-	_ = writeFrame(c.c, tagDetach, nil)
+	_ = c.send(tagDetach, nil)
 	return c.c.Close()
 }
 
 // Kill ends the program and the session with it.
 func (c *Client) Kill() error {
-	return writeFrame(c.c, tagKill, nil)
+	return c.send(tagKill, nil)
 }

@@ -97,35 +97,36 @@ func TestTheRecordRoundTrips(t *testing.T) {
 	}
 }
 
-// TestALaggingClientResyncsOnTheScreen pins the flow control's floor: a client
-// whose queue is full is told to resync (a `L` frame) instead of being given an
-// unbounded backlog, and it is told **once** — a client that never reads must
-// not make the host push a `L` per frame for ever.
-func TestALaggingClientResyncsOnTheScreen(t *testing.T) {
+// TestAFullQueueDropsTheFrameInsteadOfGrowingTheBacklog pins the second bound a
+// client is held to: the queue of frames. Credit bounds what a client is given
+// in bytes; this bounds how many frames may be waiting whatever their size, so a
+// program writing tiny frames cannot make the host grow a queue per client.
+//
+// P13-b 重定基线：旧行为是「队列满 = 立刻一条 `L`」，现在是「队列满 = 丢掉这一帧」——
+// 丢掉的字节本来就在环形缓冲里，而重绘的时机归 clientBacklog 管
+// （TestAStalledClientIsRedrawnOncePerBacklog）。旧名字叫
+// TestALaggingClientResyncsOnTheScreen，它守的其实是「队列有界」，不是「重绘」。
+func TestAFullQueueDropsTheFrameInsteadOfGrowingTheBacklog(t *testing.T) {
 	s := &Session{clients: map[*conn]struct{}{}, info: Info{State: StateRunning}}
-	c := &conn{send: make(chan frame, 2), done: make(chan struct{})}
+	c := &conn{send: make(chan frame, 2), done: make(chan struct{}), credit: clientWindow}
 	s.clients[c] = struct{}{}
-	// Fill the client's queue, then broadcast past it.
 	s.broadcast(tagOutput, []byte("a"))
 	s.broadcast(tagOutput, []byte("b"))
 	s.broadcast(tagOutput, []byte("c"))
-	select {
-	case f := <-c.send:
-		if f.tag != tagLag {
-			t.Fatalf("the lagging client got %c, want the resync notice %c", f.tag, tagLag)
-		}
-	default:
-		t.Fatal("the lagging client got no resync notice")
+	// The queue holds the two frames it had room for, in order, and the third
+	// was dropped rather than queued behind them.
+	if len(c.send) != 2 {
+		t.Fatalf("the queue holds %d frames, want the 2 it has room for", len(c.send))
 	}
-	// The queue now holds nothing but the notice: everything it had not read
-	// is gone, which is what "never an unbounded backlog" means.
+	if f := <-c.send; string(f.payload) != "a" {
+		t.Errorf("first frame = %q, want the first broadcast", f.payload)
+	}
+	if f := <-c.send; string(f.payload) != "b" {
+		t.Errorf("second frame = %q, want the second broadcast", f.payload)
+	}
+	// And no notice yet: one frame is pacing, not "behind".
 	if len(c.send) != 0 {
-		t.Errorf("the lagging client's queue still holds %d frames", len(c.send))
-	}
-	// A further broadcast does not push a second notice.
-	s.broadcast(tagOutput, []byte("d"))
-	if len(c.send) != 1 {
-		t.Errorf("the host pushed %d frames to a client it already warned", len(c.send))
+		t.Errorf("the host pushed %d frames to a client that only lost one frame", len(c.send))
 	}
 }
 

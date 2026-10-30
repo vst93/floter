@@ -40,7 +40,7 @@ func startPTY(o Options, cols, rows int) (*PTY, error) {
 	}
 	// The child gets its own copy; this one only existed to hand it over.
 	defer func() { _ = slave.Close() }()
-	if err := setWinSize(master, cols, rows); err != nil {
+	if err := setWinSize(master, cols, rows, 0, 0); err != nil {
 		_ = master.Close()
 		return nil, err
 	}
@@ -83,8 +83,16 @@ func (p *PTY) Read(b []byte) (int, error) {
 // Write types b into the terminal.
 func (p *PTY) Write(b []byte) (int, error) { return p.master.Write(b) }
 
-// Resize sets the terminal's size, which sends the program SIGWINCH.
-func (p *PTY) Resize(cols, rows int) error { return setWinSize(p.master, cols, rows) }
+// Resize sets the terminal's size in cells, which sends the program SIGWINCH.
+func (p *PTY) Resize(cols, rows int) error { return setWinSize(p.master, cols, rows, 0, 0) }
+
+// ResizePixels sets the terminal's size with the pixel dimensions a program
+// reads out of TIOCGWINSZ; a program that answers a size query in pixels or
+// reads a pointer report in pixels (mode 1016) has nothing to answer with
+// when these are zero, which is why they are carried through from the client.
+func (p *PTY) ResizePixels(cols, rows, xpixel, ypixel int) error {
+	return setWinSize(p.master, cols, rows, xpixel, ypixel)
+}
 
 // Exited is closed once the program ended; ExitCode is meaningful then.
 func (p *PTY) Exited() <-chan struct{} { return p.done }
@@ -136,10 +144,12 @@ func (p *PTY) Close() error {
 	return p.master.Close()
 }
 
-// setWinSize sets rows/cols on the terminal, which is how a program learns
-// its window changed.
-func setWinSize(f *os.File, cols, rows int) error {
-	ws := struct{ row, col, xpixel, ypixel uint16 }{clampCell(rows), clampCell(cols), 0, 0}
+// setWinSize sets rows/cols (and their size in pixels) on the terminal, which
+// is how a program learns its window changed.
+func setWinSize(f *os.File, cols, rows, xpixel, ypixel int) error {
+	ws := struct{ row, col, xpixel, ypixel uint16 }{
+		clampCell(rows), clampCell(cols), clampCell(xpixel), clampCell(ypixel),
+	}
 	return ioctl(f, syscall.TIOCSWINSZ, unsafe.Pointer(&ws))
 }
 

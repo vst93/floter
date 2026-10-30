@@ -72,7 +72,13 @@ var ErrUnsupported = errors.New("termsession: no pseudo-terminal on this platfor
 // and L (you fell behind: a screen follows).
 //
 // A client sends I (input, typed bytes), R (the size of the client's screen),
-// D (detach: keep the program), and K (kill the program).
+// C (credit: that many more bytes of output it will take), D (detach: keep the
+// program), and K (kill the program).
+//
+// The three state frames — H, S, E — are not output and are never held back:
+// they are what tells a client where it stands, and a client that has fallen
+// behind is given a whole screen rather than the increment it missed
+// (see Session.broadcast). Only O is metered.
 const (
 	tagHeader = 'H'
 	tagScreen = 'S'
@@ -81,6 +87,7 @@ const (
 	tagLag    = 'L'
 	tagInput  = 'I'
 	tagResize = 'R'
+	tagCredit = 'C'
 	tagDetach = 'D'
 	tagKill   = 'K'
 	// frameSize bounds a frame: the screen and the output are chunks, and
@@ -182,8 +189,31 @@ const (
 	// it ends its program: long enough to restart the app, short enough
 	// that a forgotten session does not hold a shell for ever.
 	DefaultLinger = 30 * time.Second
-	// clientQueue is how many frames a client holds before it is behind;
-	// the reference's 4 MiB backlog is this in bytes, and this many frames
-	// is the same order for a terminal that writes a frame per read.
+	// clientQueue is how many frames a client holds before it is behind.
+	// It is the second of the two bounds on what a client is owed: the
+	// first is clientWindow, by bytes, and this one catches a client that
+	// is handed many small frames.
 	clientQueue = 256
+	// clientWindow is how many bytes of output a client is given before it
+	// has to say it consumed them — the reference daemon's 256 KiB, and the
+	// same order as a screen and a half of scrollback. A client that stops
+	// reading therefore costs the host at most this much, and the next
+	// attach is given a screen instead of a backlog (Session.broadcast).
+	clientWindow = 256 << 10
+	// clientBacklog is how much output the host drops before it gives up and
+	// hands the client a screen. It is the second level of the reference's
+	// flow control (its 4 MiB backlog): spent credit alone must **not** mean
+	// "redraw", because a client drawing a screen is momentarily out of
+	// credit for every frame that arrives while it draws — redrawing then
+	// would send it a screen per frame, which is the amplification P13-b's
+	// first smoke run measured (18.8 MB delivered for a 1.9 MB output). One
+	// mebibyte is a quarter of the ring, so a redraw always recovers what it
+	// dropped.
+	clientBacklog = 1 << 20
+	// creditFlush is how many bytes a client consumes before it gives the
+	// window back: small enough that the host never waits on a batch, large
+	// enough that a terminal drawing a frame per read does not put a credit
+	// frame on the wire per read. A client that stops between batches still
+	// holds most of its window, so a short batch cannot deadlock it.
+	creditFlush = 4 << 10
 )
