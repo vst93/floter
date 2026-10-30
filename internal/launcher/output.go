@@ -619,6 +619,36 @@ func (a *App) outputRow(c *ui.Context, row extensions.Row, i int) {
 	// padding 8u + 图标列 28u + gap 10u = 标题列 54u。
 	style := ui.Row(c.Key(row.ID)).FillWidth().Padding(t.Space(1.5), t.Space(2)).Radius(t.Radius).Gap(t.Space(2.5))
 	selected := i == a.output.Selected && row.Runnable()
+	// P11-bl：这一行上一帧的盒子，与搜索列表的 rowBody 记的是同一件事（见
+	// viewportRange）。首帧还没有盒子，记一个空矩形，viewportRange 会跳过它。
+	// P13-w：`Bounds()` 是**上一帧**的矩形，所以折边退后（下面）读的与记的是
+	// 同一个盒子——与 `rowBody` 的时序逐字相同。
+	if a.outputRowRects == nil {
+		a.outputRowRects = make(map[int]ui.Rect, 16)
+	}
+	a.outputRowRects[i] = style.Bounds()
+	// P13-w · 折边之外的那一行**退后**，不是被切（`docs/rounds/P13-w-spec.md`）。
+	//
+	// P13-v 把这条规则落在了启动器列表上（`rowBody`），捕获输出页是同一张卡里的
+	// 另一张列表，却一直没接——滚到中间时实测 `Row 3` 的字母在 y=122 一刀断掉
+	// （y=111..121 有 `darkest = 25` 的墨，y=122 起是 235 的板）。同一张卡的两张
+	// 列表只有一条折边规则，所以这里调**同一个纯函数** `foldAlpha`，不另写一份。
+	//
+	// 这一页的读数与启动器那边不同：40u 的行盒里字盒从 y+9 起，折边常常切在字盒的
+	// 前导里，可见的那几像素是**图标板的顶边**（实测 y=484..487 `darkest = 235`）。
+	// 所以退后在像素上的表现是「板的顶边从 235 退到 248」——不是 P13-v 那种「半个
+	// 字变淡」。规则一条，读数两样，两边都只按自己露出的比例退。
+	//
+	// 静息档这一页是 1（没有启动器那边历史行的 0.92），所以取 min 就是取折边；
+	// 写成 min 是为了「退后只会更深，不会把一行退回来」这条规则留在原地。
+	opacity := 1.0
+	if fold := foldAlpha(a.outputListRect, a.outputRowRects[i]); fold < opacity {
+		opacity = fold
+	}
+	if opacity < 1 {
+		// 必须在 `Children` 之前：框架按建树那一刻的 opacity 画这一帧。
+		style.Opacity(float32(opacity))
+	}
 	tokens := a.tokens(c)
 	switch {
 	case selected:
@@ -673,12 +703,6 @@ func (a *App) outputRow(c *ui.Context, row extensions.Row, i int) {
 			a.rowActionText(c, a.resultNumber(number), selected)
 		}
 	})
-	// P11-bl：这一行上一帧的盒子，与搜索列表的 rowBody 记的是同一件事（见
-	// viewportRange）。首帧还没有盒子，记一个空矩形，viewportRange 会跳过它。
-	if a.outputRowRects == nil {
-		a.outputRowRects = make(map[int]ui.Rect, 16)
-	}
-	a.outputRowRects[i] = style.Bounds()
 	if style.Clicked() && row.Runnable() {
 		a.output.Selected = i
 		a.runOutputRow()
