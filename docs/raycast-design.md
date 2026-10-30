@@ -1,12 +1,27 @@
 # Raycast 设计合约（本仓的落地版）
 
+> ⚠️ **本文件已由 [`docs/liquid-glass.md`](liquid-glass.md) 升代（P12-a，2026-10-30）。**
+> 本文**只保留行为契约与已落地条目**：§1 的语义 token、§2 半径梯、§3 高度链、
+> §4 各表面规格（除光泽上限）、§5 accent 的四类用途与注脚、§6 的全部已落地条目。
+>
+> **被取代的两条**：
+> 1. §1 末尾的「低光泽上限（透镜/光泽/卡片 sheen）全部 ≤ 0.04」——那是为「**无光泽**」
+>    定的，而新总目标要「**有受光边**」，两者直接冲突。新上限见 `liquid-glass.md` §1
+>    末尾的「旧值 → 新值」表（`LensRim` 0.04 → **0.09**，其余仍 ≤ 0.04）。
+> 2. §1 的「分层靠面 + 线 + 字阶，不靠高光」——分层现在由 `liquid-glass.md` §2 的
+>    三档 elevation（底 / 面 / 浮）承担：面差 + 一条受光边 + 浮层的两层外投影。
+>
+> 视觉方向的单一来源因此变成 **`docs/liquid-glass.md`**；本文是它的行为契约底座。
+> 逐表面差距表与选题队列在 `liquid-glass.md` §6。
+>
 > 目标不是像素级复刻 Raycast，而是把「近黑底 + 1px 发丝线 + 低光泽 + 紧凑行 +
 > 中性选中 + 右侧键帽提示」这套语言落到本仓的 token 与视图上。
 >
-> 本文件是本仓的**单一来源**：视图只读 `theme.Tokens`，不写字面色值。
+> 视图只读 `theme.Tokens`，不写字面色值。
 >
 > 切片：P8-a = 合约 + token 层 + 启动器表面（已做）。P8-b = 设置页（已做）。
 > P8-c = 终端 + 集成/弹层 + accent 预算勘误（已做），§6 给出逐条落地。
+> P12-a = 升代到轻便液态玻璃：新合约 `liquid-glass.md` + 材质/层级 token 层（已做）。
 
 ---
 
@@ -25,17 +40,17 @@
 | 发丝线（强：卡片的 1px 边） | `Hairline` = `InputStroke` | `rgba(255,255,255,0.09)` | `rgba(0,0,0,0.09)` |
 | 发丝线（弱：行间/块内规则） | `HairlineSoft` | `rgba(255,255,255,0.055)` | `rgba(0,0,0,0.055)` |
 | 控件自己的边 | `ControlEdge` | `rgba(255,255,255,0.07)` | `rgba(0,0,0,0.06)` |
-| 控件静息面 | `Control` | `rgba(255,255,255,0.075)` | `rgba(0,0,0,0.05)` |
-| 控件 hover / press | `ControlHover` / `ControlPress` | `0.105` / `0.05` | `0.075` / `0.032` |
+| 控件静息面 | `Control` | `rgba(255,255,255,0.10)` | `rgba(0,0,0,0.07)` |
+| 控件 hover / press | `ControlHover` / `ControlPress` | `0.14` / `0.05` | `0.105` / `0.032` |
 | 行 hover 填充 | `RowHover` | `rgba(255,255,255,0.045)` | `rgba(0,0,0,0.04)` |
 | 行选中填充 | `RowSelected` | `rgba(255,255,255,0.085)` | `rgba(0,0,0,0.06)` |
 | 行按下填充 | `RowPressed` | `rgba(255,255,255,0.11)` | `rgba(0,0,0,0.08)` |
 | 键帽底 / 键帽边 | `KeycapFace` / `KeycapEdge` | `rgba(255,255,255,0.075)` / `0.07` | `rgba(0,0,0,0.05)` / `0.06` |
 | accent（参考的蓝） | `Theme.Accent` | `#8FB7FF` | `#064AA6` |
 | accent 静默填充 | `AccentTintQuiet` | `rgba(143,183,255,0.085)` | `rgba(6,74,166,0.065)` |
-| 卡片外阴影（环境 / 接触） | `ShadowAmbient` / `ShadowContact` | `rgba(0,0,0,0.55)` / `0.40` | `rgba(0,0,0,0.18)` / `0.10` |
-| 卡片受光边 | `EdgeHighlight` | `rgba(255,255,255,0.15)` | `rgba(255,255,255,0.92)` |
-| 低光泽上限（透镜/光泽/卡片 sheen） | `LensRim`/`LensSheen`/`LensEdge`/`SheenTop` | 全部 ≤ `0.04` | 全部 ≤ `0.04` |
+| 卡片外阴影（环境 / 接触） | `ShadowAmbient` / `ShadowContact` | `rgba(0,0,0,0.62)` / `0.44` | `rgba(0,0,0,0.22)` / `0.12` |
+| 卡片受光边 | `EdgeHighlight` | `rgba(255,255,255,0.20)` | `rgba(255,255,255,0.92)` |
+| 光泽上限（**已被升代取代**） | `LensRim` ≤ 0.09，`LensSheen`/`LensEdge`/`SheenTop` ≤ 0.04 | 见 `liquid-glass.md` §1 | 同左 |
 
 **P11-al（用户实测 F2「整体红色线条太扎眼」的根因）**：这两行曾是「品牌红」
 `#F5544E`/`#E5484D`，而参考 `main` 的 accent 从头到尾是蓝
@@ -51,8 +66,16 @@
 2. `RowHover < RowSelected < RowPressed`（按 alpha 严格递增），三档全部是
    **中性**（三通道相等），一个都不含 accent。
 
-低光泽上限是 Raycast 与「液态玻璃」的分界：旧的透镜/高光/彩色 rim 全部压到
-0.04 以内，分层靠「面 + 线 + 字阶」，不靠高光。
+**P12-a 重定基线（本表有四行已升代）**：`Control`（`0.075/0.05` → `0.10/0.07`）、
+`ControlHover`（`0.105/0.075` → `0.14/0.105`）、`ShadowAmbient`/`ShadowContact`
+（深 `0.55/0.40` → `0.62/0.44`、浅 `0.18/0.10` → `0.22/0.12`）、`EdgeHighlight`
+（深 `0.15` → `0.20`）。旧值到新值的完整理由与新上限在 `docs/liquid-glass.md` §1/§3。
+
+**旧的低光泽上限已作废**：那句「旧 build 的透镜/高光/彩色 rim 全部压到 0.04 以内，
+分层靠面 + 线 + 字阶，不靠高光」描述的是 P8 那一代的「无光泽」语言；新目标是
+「**一条受光边**」，两者直接冲突，所以上限被 `docs/liquid-glass.md` §1 显式改写
+（`LensRim` 0.04 → **0.09**，其余仍 ≤ 0.04，且 rim 必须严格亮于 sheen）。
+分层也不再靠「线」：由 §2 的三档 elevation（底 / 面 / 浮）承担。
 
 **可读性不变量（P11-aa）**：用户要求更多对比度时（系统 `prefers-contrast: more`
 → `ui.Preferences.HighContrast` → `palette.contrast()`），**四档墨**在

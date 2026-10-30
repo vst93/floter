@@ -82,10 +82,21 @@ func TestTheSearchCardFillsTheWindowLessTheInset(t *testing.T) {
 		t.Errorf("the card's content ends at x=%d, want the mirrored edge x=%d (%v blank)",
 			last, wantRight, launcher.InputWindowWidth-last)
 	}
-	// And the band beside the card is transparent, not a slice of window fill:
-	// a gap of *painted* pixels there would be the extra底色 the user saw.
-	if c := img.RGBAAt(1, y); c.A > 8 {
-		t.Errorf("the window's margin is painted (alpha %d at x=1): the card does not own the window", c.A)
+	// And the band beside the card is the inset's shadow room, never a slice of
+	// window fill: a *tinted* or near-opaque pixel there would be the extra底色
+	// the user saw. The card's cast is allowed to fall into this band (that is
+	// what the inset is for), so the assertion is not "alpha 0" but "a cast, not
+	// a fill": the pixel must be pure black (a cast carries no hue) and lighter
+	// than any fill this app paints.
+	//
+	// P12-a 重定基线：这条曾写 `c.A > 8`，而 8 是旧 `ShadowAmbient`（0.18）在
+	// 4u 模糊下第一列的实测值。`docs/liquid-glass.md` §3 把浮层两层影加厚
+	// （ambient 0.18 → 0.22），同一个像素变成 10 —— 它仍然是**影**，不是底。
+	// 所以断言改成读「影的形」而不是读它的强度：通道必须为 0（填充必带色相：
+	// 卡的填充是 `{138 138 139 142}`、窗口底色是 `#0E0E10`），且 alpha < 0.2
+	// （任何一档填充都远高于这个值）。
+	if c := img.RGBAAt(1, y); c.R != 0 || c.G != 0 || c.B != 0 || c.A >= 51 {
+		t.Errorf("the window's margin carries a fill, not the card's cast (%v at x=1): the card does not own the window", c)
 	}
 
 	// A client wider than the 720 contract is the shape the report is actually

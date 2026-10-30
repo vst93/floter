@@ -668,8 +668,12 @@ func paletteFor(appearance Appearance) palette {
 			// P11-z 重定基线：`ui.RGBA(229, 72, 77, 0.55)`（accent 0.55）→ 中性
 			// 0.16。聚焦是明度差，不是色相（见 `Tokens.InputStrokeActive`）。
 			strokeActive: ui.RGBA(0, 0, 0, 0.16),
-			control:      ui.RGBA(0, 0, 0, 0.05),
-			controlHover: ui.RGBA(0, 0, 0, 0.075),
+			// P12-a 重定基线（docs/liquid-glass.md §1）：面的台阶抬到一眼看得见。
+			// 旧值 → 新值：`0.05` → `0.07`。旧的 0.05 压在卡的 sheen 上只差 3~4 个亮度级，
+			// 用户读到的就是「所有东西挤在同一个 z 平面上」（总目标第二条：空间感）。
+			// 指针抬起的那一档跟着抬（0.075 → 0.105），两档之间的差仍是一档，不变成跳变。
+			control:      ui.RGBA(0, 0, 0, 0.07),
+			controlHover: ui.RGBA(0, 0, 0, 0.105),
 			controlPress: ui.RGBA(0, 0, 0, 0.032),
 			// A control's own edge is the keycap pair's hairline (§1: 0.06 light),
 			// one step under the card's strong 0.09.
@@ -699,16 +703,26 @@ func paletteFor(appearance Appearance) palette {
 			// the control's own rim, sheen and shade are a whisper rather than the
 			// lens the old sheet drew (`docs/raycast-design.md` §4.1). The
 			// `[data-glass]` stop still grades them through `--glass-lens-scale`.
-			lensRim:     ui.RGBA(255, 255, 255, 0.04),
+			// P12-a 重定基线（docs/liquid-glass.md §1）：这四行曾是「无光泽」的上限
+			// 0.04。新语言只要**一条**受光边：`LensRim` 是那条线（0.04 → 0.09，因为 0.04
+			// 在 1x 屏上画不出「受光」，只画得出一条噪点），`LensEdge` 是它的对侧
+			// （0.04 → 0.06，顶亮一分、底暗一分，控件才站起来）。`LensSheen` 与卡面的
+			// sheen **不动**：面不许反光，轻便玻璃的反光是「一条线」，不是「一片渐变」。
+			// 唯一材质不变量：alpha(LensRim) > alpha(LensSheen)。
+			lensRim:     ui.RGBA(255, 255, 255, 0.09),
 			lensSheen:   ui.RGBA(255, 255, 255, 0.04),
-			lensEdge:    ui.RGBA(0, 0, 0, 0.04),
+			lensEdge:    ui.RGBA(0, 0, 0, 0.06),
 			sheenTop:    ui.RGBA(255, 255, 255, 0.04),
 			sheenBottom: ui.RGBA(255, 255, 255, 0.01),
 			// The focus step of the same pair: a lit face, still inside the cap.
-			sheenTopActive:      ui.RGBA(255, 255, 255, 0.05),
-			sheenBottomActive:   ui.RGBA(255, 255, 255, 0.012),
-			shadowAmbient:       ui.RGBA(0, 0, 0, 0.18),
-			shadowContact:       ui.RGBA(0, 0, 0, 0.1),
+			sheenTopActive:    ui.RGBA(255, 255, 255, 0.05),
+			sheenBottomActive: ui.RGBA(255, 255, 255, 0.012),
+			// P12-a 重定基线（docs/liquid-glass.md §3）：浮层的两层影加厚，受光边加亮。
+			// 旧值 → 新值：ambient `0.18` → `0.22`、contact `0.10` → `0.12`、
+			// `EdgeHighlight` 的深色档 `0.15` → `0.20`（浅色档 0.92 不动：白压白，浅色
+			// 的受光边只能近白）。两者保持 Ambient > Contact，这是 base.css 的原始关系。
+			shadowAmbient:       ui.RGBA(0, 0, 0, 0.22),
+			shadowContact:       ui.RGBA(0, 0, 0, 0.12),
 			edgeHighlight:       ui.RGBA(255, 255, 255, 0.92),
 			edgeHighlightActive: ui.RGBA(255, 255, 255, 0.96),
 			edgeShadow:          ui.RGBA(0, 0, 0, 0.07),
@@ -760,8 +774,10 @@ func paletteFor(appearance Appearance) palette {
 		// P11-z 重定基线：`ui.RGBA(245, 84, 78, 0.55)`（accent 0.55）→ 中性
 		// 0.16（见 `Tokens.InputStrokeActive`）。
 		strokeActive: ui.RGBA(255, 255, 255, 0.16),
-		control:      ui.RGBA(255, 255, 255, 0.075),
-		controlHover: ui.RGBA(255, 255, 255, 0.105),
+		// P12-a 重定基线（docs/liquid-glass.md §1）：面的台阶抬到一眼看得见。
+		// 旧值 → 新值：`0.075` → `0.10`、`0.105` → `0.14`（理由见浅色那一支）。
+		control:      ui.RGBA(255, 255, 255, 0.10),
+		controlHover: ui.RGBA(255, 255, 255, 0.14),
 		controlPress: ui.RGBA(255, 255, 255, 0.05),
 		// A control's own edge is the keycap pair's hairline (§1: 0.07 dark),
 		// one step under the card's strong 0.09.
@@ -792,9 +808,12 @@ func paletteFor(appearance Appearance) palette {
 		// the control's own rim, sheen and shade are a whisper rather than the
 		// lens the old sheet drew (`docs/raycast-design.md` §4.1). The
 		// `[data-glass]` stop still grades them through `--glass-lens-scale`.
-		lensRim:     ui.RGBA(255, 255, 255, 0.04),
+		// P12-a 重定基线（docs/liquid-glass.md §1）：这四行曾是「无光泽」的上限 0.04，
+		// 新语言只要一条受光边（见浅色那一支的完整说明）：`LensRim` 0.04 → 0.09、
+		// `LensEdge` 0.04 → 0.06、`LensSheen` 不动。
+		lensRim:     ui.RGBA(255, 255, 255, 0.09),
 		lensSheen:   ui.RGBA(255, 255, 255, 0.04),
-		lensEdge:    ui.RGBA(0, 0, 0, 0.04),
+		lensEdge:    ui.RGBA(0, 0, 0, 0.06),
 		sheenTop:    ui.RGBA(255, 255, 255, 0.04),
 		sheenBottom: ui.RGBA(255, 255, 255, 0.01),
 		// The focus step of the same pair: a lit face, still inside the cap.
@@ -802,12 +821,15 @@ func paletteFor(appearance Appearance) palette {
 		sheenBottomActive: ui.RGBA(255, 255, 255, 0.012),
 		// Raycast's card cast: `0 18px 48px rgba(0,0,0,.55)` and
 		// `0 1px 2px rgba(0,0,0,.40)` (`docs/raycast-design.md` §4.1).
-		shadowAmbient: ui.RGBA(0, 0, 0, 0.55),
-		shadowContact: ui.RGBA(0, 0, 0, 0.4),
-		edgeHighlight: ui.RGBA(255, 255, 255, 0.15),
+		// P12-a 重定基线（docs/liquid-glass.md §3）：旧值 → 新值 ambient `0.55` → `0.62`、
+		// contact `0.40` → `0.44`、`EdgeHighlight` `0.15` → `0.20`（见浅色那一支）。
+		shadowAmbient: ui.RGBA(0, 0, 0, 0.62),
+		shadowContact: ui.RGBA(0, 0, 0, 0.44),
+		edgeHighlight: ui.RGBA(255, 255, 255, 0.20),
 		// The focused step (`base.css:633`): the rim nudged brighter while the
 		// card holds the keyboard, the same edge the stroke's active rung is.
-		edgeHighlightActive: ui.RGBA(255, 255, 255, 0.18),
+		// P12-a：随静息档一起抬一档（`0.18` → `0.24`），保持「聚焦比静息亮」。
+		edgeHighlightActive: ui.RGBA(255, 255, 255, 0.24),
 		edgeShadow:          ui.RGBA(0, 0, 0, 0.28),
 		edgeHighlightX:      ui.RGBA(255, 255, 255, 0.04),
 		// `--keycap-highlight` / `--keycap-shadow` (`base.css:657-658`): the

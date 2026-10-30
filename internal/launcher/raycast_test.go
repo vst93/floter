@@ -64,21 +64,45 @@ func TestTheCardWearsTheContractsRadiusEdgeAndCast(t *testing.T) {
 			if tk.ShadowAmbient == tk.ShadowContact {
 				t.Errorf("the two casts are one value %v; the contract names two", tk.ShadowAmbient)
 			}
-			// Low gloss: the whole lens family — the control's rim, sheen and
-			// shade, and the card's own sheen — stays at or under 0.04. That cap
-			// is the line between Raycast and the liquid-glass language it
-			// replaced (§1).
-			const glossCap uint8 = 10 // 0.04 of 255, rounded down
+			// 光泽：**一条受光边**，其余不反光。
+			//
+			// P12-a 重定基线（docs/liquid-glass.md §1 末尾的旧值→新值表）：这条断言
+			// 原本是「整个透镜家族一律 ≤ 0.04」，那是「无光泽」那一代的上限，与
+			// 「有受光边」直接冲突。新合约只允许**一条**线亮起来：`LensRim` 是那条
+			// 顶边（0.04 → 0.09），`LensEdge` 是它的对侧（0.04 → 0.06）；面
+			// （`LensSheen` / 卡的 `Sheen*`）仍然 ≤ 0.04 —— 轻便玻璃的反光是
+			// 「一条线」，不是「一片渐变」。
+			//
+			// 断言拆成三件，且都不是宽容差：
+			//   1. 面永远 ≤ 0.04；
+			//   2. 受光边 ≤ 0.09；
+			//   3. **受光边严格亮于面**（这是这一支唯一的材质不变量）。
+			const faceCap uint8 = 10 // 0.04 of 255, rounded down
+			const rimCap uint8 = 24  // 0.09 of 255, rounded up
 			for _, rung := range []struct {
 				name string
 				c    ui.Color
 			}{
-				{"LensRim", tk.LensRim}, {"LensSheen", tk.LensSheen}, {"LensEdge", tk.LensEdge},
+				{"LensSheen", tk.LensSheen},
 				{"SheenTop", tk.SheenTop}, {"SheenBottom", tk.SheenBottom},
 			} {
-				if rung.c.A > glossCap+1 {
-					t.Errorf("%s is alpha %d, above the low-gloss cap %d (0.04)", rung.name, rung.c.A, glossCap)
+				if rung.c.A > faceCap+1 {
+					t.Errorf("%s is alpha %d, above the face cap %d (0.04): the face must not reflect", rung.name, rung.c.A, faceCap)
 				}
+			}
+			if tk.LensRim.A > rimCap+1 {
+				t.Errorf("LensRim is alpha %d, above the lit-edge cap %d (0.09)", tk.LensRim.A, rimCap)
+			}
+			if tk.LensRim.A <= tk.LensSheen.A {
+				t.Errorf("the lit edge (LensRim %d) is not brighter than the face (LensSheen %d): "+
+					"one lit line is the whole of this language's gloss", tk.LensRim.A, tk.LensSheen.A)
+			}
+			if tk.LensEdge.A > 16 {
+				t.Errorf("LensEdge is alpha %d, above its own cap 0.06: it is the lit edge's other side, not a second gloss",
+					tk.LensEdge.A)
+			}
+			if tk.LensEdge.R != 0 || tk.LensEdge.G != 0 || tk.LensEdge.B != 0 {
+				t.Errorf("LensEdge = %v, want a dark bottom shade: the other side of a lit top edge", tk.LensEdge)
 			}
 		})
 	}

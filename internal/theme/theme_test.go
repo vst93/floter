@@ -377,14 +377,18 @@ func TestTheSurfaceLadderHasAStepToSee(t *testing.T) {
 		// 阶梯的排序断言（stroke > controlEdge > hairline > control）随之失效
 		// 在两个等值上，所以下面改成读「强发丝 > 弱发丝」这条合约真正写下的
 		// 台阶，删掉的是**旧设计的第二级**，不是断言本身。
+		// P12-a 重定基线（docs/liquid-glass.md §1）：面的台阶抬到一眼看得见。
+		// 旧值 → 新值：control `0.05` → `0.07`、controlHover `0.075` → `0.105`。
+		// 旧的 0.05 压在卡的 sheen 上只差 3~4 个亮度级，用户读到的就是「所有东西
+		// 挤在同一个 z 平面上」；抬到 0.07 之后「面」与「底」在 1x 屏上差 8~11 级。
 		{
 			name: "light", systemDark: false,
 			stroke:       ui.RGBA(0, 0, 0, 0.09),
 			controlEdge:  ui.RGBA(0, 0, 0, 0.06),
 			hairline:     ui.RGBA(0, 0, 0, 0.09),
 			hairlineSoft: ui.RGBA(0, 0, 0, 0.055),
-			control:      ui.RGBA(0, 0, 0, 0.05),
-			controlHover: ui.RGBA(0, 0, 0, 0.075),
+			control:      ui.RGBA(0, 0, 0, 0.07),
+			controlHover: ui.RGBA(0, 0, 0, 0.105),
 			controlPress: ui.RGBA(0, 0, 0, 0.032),
 			track:        ui.RGBA(0, 0, 0, 0.06),
 		},
@@ -394,8 +398,8 @@ func TestTheSurfaceLadderHasAStepToSee(t *testing.T) {
 			controlEdge:  ui.RGBA(255, 255, 255, 0.07),
 			hairline:     ui.RGBA(255, 255, 255, 0.09),
 			hairlineSoft: ui.RGBA(255, 255, 255, 0.055),
-			control:      ui.RGBA(255, 255, 255, 0.075),
-			controlHover: ui.RGBA(255, 255, 255, 0.105),
+			control:      ui.RGBA(255, 255, 255, 0.10),
+			controlHover: ui.RGBA(255, 255, 255, 0.14),
 			controlPress: ui.RGBA(255, 255, 255, 0.05),
 			track:        ui.RGBA(255, 255, 255, 0.09),
 		},
@@ -475,7 +479,11 @@ func TestTheSurfaceLadderHasAStepToSee(t *testing.T) {
 			}
 			// A control plane is a plane, not a hairline: it has to be a step a
 			// 1x display resolves over the frame it sits on.
-			if alpha(tc.control) < 0.045 {
+			//
+			// P12-a 重定基线：下界随「面」这一档一起抬（0.045 → 0.06）。0.045 是
+			// 旧「面」档 0.05 的下沿，而新面档是 0.07/0.10，门槛必须跟它走，否则
+			// 这条断言守的是旧设计的地板，不是新设计的。
+			if alpha(tc.control) < 0.06 {
 				t.Errorf("a control plane at %.3f is below the step a 1x display resolves", alpha(tc.control))
 			}
 			// And the ladder stays light-handed: the desktop that asked for more
@@ -1196,6 +1204,61 @@ func TestTheAccentFamilyAlreadyClearsTheReadableContrast(t *testing.T) {
 				t.Errorf("the accent fill against the panel = %.2f:1, want at least 3:1 for a control surface", got)
 			} else {
 				t.Logf("%s: accent fill against the panel = %.2f:1", tc.name, got)
+			}
+		})
+	}
+}
+
+// P12-a · 三档 elevation（docs/liquid-glass.md §2）：底 / 面 / 浮。
+//
+// 空间感不是「更多层」，而是「层数少、差值一眼看得见」。这条 pin 钉四件事：
+//
+//	① 面比底高：`Control` 的 alpha 必须 ≥ 0.07（1x 屏上 8 级亮度差的下沿）；
+//	② 浮比面高：`Float` 的 alpha 必须严格高于 `Control` —— 浮层是「压在其他内容上」
+//	   的那一层，它比任何长在底上的面都厚；
+//	③ 指针抬起比静息高一档：`ControlHover > Control > ControlPress`；
+//	④ **受光边严格亮于面**：`LensRim > LensSheen` —— 这是这一支唯一的材质不变量
+//	   （「一条线」而不是「一片渐变」）。同时 `LensRim ≤ 0.09`（旧的无光泽上限
+//	   0.04 已在 §1 末尾重定基线）。
+//
+// 反面臂：受光边不许靠色相说事（三通道相等 = 中性），也不许变成不透明的白线。
+func TestTheThreeElevationRungsAreVisibleAndOrdered(t *testing.T) {
+	alpha := func(c ui.Color) float32 { return float32(c.A) / 255 }
+	for _, tc := range []struct {
+		name string
+		dark bool
+	}{
+		{"dark", true}, {"light", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tk := ForPreferences(settings.Settings{Theme: "auto", GlassStep: "regular"}, tc.dark, ui.Preferences{})
+			// ① 面比底高一个看得见的台阶。0.07 是浅色那一档；深色是 0.10。
+			if a := alpha(tk.Control); a < 0.07 {
+				t.Errorf("the face rung (Control) is %.3f, below the 0.07 floor: it would read as the ground", a)
+			}
+			// ② 浮比面高。`Float` 是「窗框 tint + 0.10」，默认 47% 时是 0.57，
+			// 所以这条断言读的是「浮层的 alpha 高于面」，不是「等于某个数」。
+			if !(alpha(tk.Float) > alpha(tk.Control)) {
+				t.Errorf("the float rung (%.3f) is not above the face rung (%.3f): a floating pane must be denser than anything that sits on the ground",
+					alpha(tk.Float), alpha(tk.Control))
+			}
+			// ③ 指针阶梯：抬起一档、按下一档，静息在中间。
+			if !(alpha(tk.ControlHover) > alpha(tk.Control) && alpha(tk.ControlPress) < alpha(tk.Control)) {
+				t.Errorf("the pointer ladder is not lift/rest/sink: hover %.3f, rest %.3f, press %.3f",
+					alpha(tk.ControlHover), alpha(tk.Control), alpha(tk.ControlPress))
+			}
+			// ④ 受光边亮于面，且仍是一条「轻」的线。
+			if tk.LensRim.A <= tk.LensSheen.A {
+				t.Errorf("the lit edge (LensRim %d) is not brighter than the face (LensSheen %d)", tk.LensRim.A, tk.LensSheen.A)
+			}
+			if a := alpha(tk.LensRim); a > 0.09+0.004 {
+				t.Errorf("the lit edge is %.3f, above the contract's 0.09 cap (liquid-glass.md §1)", a)
+			}
+			if tk.LensRim.A >= 255 {
+				t.Errorf("the lit edge is opaque (%v): a rim, not a white bar", tk.LensRim)
+			}
+			if tk.LensRim.R != tk.LensRim.G || tk.LensRim.G != tk.LensRim.B {
+				t.Errorf("the lit edge %v carries a hue; light is neutral", tk.LensRim)
 			}
 		})
 	}
