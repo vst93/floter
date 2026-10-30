@@ -232,9 +232,11 @@ func TestTheUninstallPartCardIsAFaceNotARing(t *testing.T) {
 
 // TestNoSettingsSurfaceControlCallsTheFourLayerLens is the family guard: this
 // surface's controls are E1 faces (`LitFace`), and the four-layer lens must not
-// come back without the contract changing. The two remaining callers in the
-// tree are named in `docs/liquid-glass.md` §6 (`control.SegmentedIndex`'s chosen
-// slot and the toast's action chip) and are not this surface's.
+// come back without the contract changing. The one remaining caller in the tree
+// is named in `docs/liquid-glass.md` §6 (`control.SegmentedIndex`'s chosen slot,
+// row 9-11: its own accent ring is the identity line, and the ring covers both
+// the rim and the edge, so a swap is invisible in pixels) — the toast's action
+// chip used to be the other one and was retired in P13-j (§6.6 第 6-3 行).
 func TestNoSettingsSurfaceControlCallsTheFourLayerLens(t *testing.T) {
 	files, err := filepath.Glob("*.go")
 	if err != nil {

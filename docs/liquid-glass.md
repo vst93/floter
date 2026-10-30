@@ -258,7 +258,7 @@ pin：`internal/settingsui/liteedge_test.go` 五条（侧栏 / 分组卡 / 字�
 | 9-7/8/9 | `uninstall.go` `uninstallPartRow` 的 fixed / hover / default 三臂 | `Border` + `Lens` | `LitFace`（三臂同一对线） | `已落地` |
 | 9-10 | `savealert.go` 保存告警的 ✕（24u，E2 横幅里） | hover 抬面 + `Lens` | `LitFace` | `已落地` |
 | 9-11 | `control/control.go` `SegmentedIndex` 的选中段（`.settings-option--active`） | `Lens` + **紧跟其后的** `AccentEdge` 四边环 | **故意不做**：它自己的身份线是那条 accent 环，四边都在、把 rim 与 edge 全盖住；换成 `LitFace` 画出的是立刻被遮住的两条线（像素上不可见），而 §2 也不许一个面说两句话。它是设置页与终端抽屉共用的控件（跨表面） | `故意不做`（见理由） |
-| 9-12 | `shell/notices.go` toast 的动作 chip（`.app-toast__action`） | `Control` 面 + `Lens`，**没有自己的边框**——环就是它唯一的边界 | 应改成 `LitFace`，但要同时决定边界怎么办（补 `Border` 会改几何）→ **下一张表面**（toast，P13-g 那一页） | `未开始` |
+| 9-12 | `shell/notices.go` toast 的动作 chip（`.app-toast__action`） | `Control` 面 + `Lens`，**没有自己的边框**——环就是它唯一的边界 | E1：`tokens.LitFace`（**不补边框**：面差就是它的边界）——P13-j 落地，实测见 §6.6 第 6-3 行 | `已落地` |
 
 pin：`internal/settingsui/lensface_test.go` 四条——胶囊 / 30u 悬停图标钮 / 卸载组件行卡片
 三条像素 pin（每条深+浅两套外观，量「顶内线亮于面」「底内线暗于面」「两侧列 = 面」
@@ -391,20 +391,28 @@ pin：`internal/launcher/filesmarks_test.go` 两条（三条动作行的记号 +
 |---|---|---|---|---|
 | 6-1 | toast（`shell/notices.go` `toastViewport`） | `Float` + `InputStroke` + 1px `EdgeHighlight`，两层影是**窗口 token** 的固定 alpha、几何 40px/104px | 满高臂 `theme.ElevThrow`（10px/26px + 1px/2px，alpha 0.30/0.20 × `ElevScale`）；折叠臂 `theme.ElevThrowCompact`（6px/18px + 同一笔接触边）**并补上冠线** | `已落地` |
 | 6-2 | 终端失败提示 | 整宽带子 | **故意不做**（同 3-5） | `故意不做` |
-| 6-3 | **新增**｜toast 里的动作 chip（`.app-toast__action`） | `Control` 面 + 四层 `Lens`，**没有自己的边框**——环就是它唯一的边界，而环又把 rim 压住 | 应改成 `LitFace`，但需同时决定边界（补 `Border(1, ControlEdge)` 会改几何：`InsetShadow` 从 padding edge 算起，加边框会把面缩小 1px）→ 留给这一张表面的下一轮（P13-i 已把这一行记进账） | `未开始` |
+| 6-3 | **新增**｜toast 里的动作 chip（`.app-toast__action`） | `Control` 面 + 四层 `Lens`，**没有自己的边框**——环就是它唯一的边界，而环又把 rim 压住 | E1：`tokens.LitFace`，**不补边框**（P13-j）。面差本身已经是它的边界：实测浅色 `(194 对面 209)` = **15 级**、深色 `(45 对面 21)` = **24 级**，够读出一条边；而 `Border(1, ControlEdge)` 会把 padding box 缩 1px（`insetShadow` 从 padding edge 算起），那是几何改动，也正是 §1 禁的「画框分层」。一对线的实测：浅色顶 **219**（对面 194）/ 底 **182**；深色顶 **56**（面 45）/ 底 **43**；两侧 = 面（浅 195、深 45） | `已落地` |
 
 pin：`internal/shell/toastthrow_test.go` 三条——影随框透明度反向缩放（100% vs 10%，同一个像素、
 同一次盘点的前后帧差）/ 两条臂的冠线都是 E2 的线（深+浅两套外观，浅色是白压白那一档）/ 折叠
 带子的接触层（第一行比第五行重 1.7 倍以上，量过「只有环境影」是 1.44 倍）。
+**P13-j 追加**：`internal/shell/toastactionface_test.go` 一条像素 pin（6-3 的 chip：顶亮 / 底暗 /
+两侧 = 面 / 块外无影 / 面差 ≥ 4 级），深+浅两套外观，量在真 toast 上；外加 opt-in 的
+before/after 对照图。census 的 `.app-toast__action` 从「钉调用」翻成 `dropped`。
 出图 `/tmp/floter-P13-g-{settings,launcher}-{dark,light}-{before,after}.png`。
 
 **§6 的 `未开始` 行在 P13-g 收口之后又长出一条**：P13-i 把设置页剩下的十处 `Lens`
 退成 E1 时，清点到 toast 的动作 chip 与 `control.SegmentedIndex` 的选中段——前者是
 `未开始`（6-3，要连带决定边界），后者是 `故意不做`（9-11，accent 环就是它的身份线）。
-所以这一支**没有收口**，下一轮的第一条就是 6-3。
+**P13-j 把 6-3 落成 `LitFace` 且决定不补边框之后，表里再次没有 `未开始` 行**；
+剩下的唯一一个非「已落地」条目是 9-11 的 `故意不做`。全仓 `Lens` 的调用点从 12 降到 **1**
+（`control.SegmentedIndex`，它自己的 accent 环把 rim 与 edge 全盖住，像素上换不出来）。
 
 P13-h 是收口之后的第一轮细节打磨：它给 §6.1 补了 1-8 / 1-9 两行（同一条材质规则
 落到启动器的小面上），**没有开新表面**，表里仍然没有 `未开始` 行。
+
+P13-j 是第二轮：它把 §6.6 的 6-3（toast 动作 chip）收掉——那是 `Lens` 最后一个
+「控件该不该退成 E1」的悬案，也是这张表最后一个 `未开始`。
 
 ---
 

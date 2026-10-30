@@ -53,9 +53,14 @@ func TestEveryNamedControlDrawsALensRung(t *testing.T) {
 		{
 			selector: ".app-toast__action",
 			file:     "notices.go",
-			marker:   "tokens.Lens(action)",
-			// source-pinned: the toast is a floating overlay and this build has no
-			// isolated render for it, so the census pins the call and not a frame.
+			// P13-j：这枚 chip 坐在 toast 的 E2 面里，所以它是那一层的一个 E1 面
+			// （`LitFace` 的一对面），不再是四层透镜。这条条目此前写着「toast 没有
+			// 孤立渲染，所以只钉调用」——那个理由早已过期（`notices_test.go` 从 P8
+			// 起就能渲染带动作的 toast）。现在它翻成 dropped：那个调用不许回来，新面
+			// 由 `TestTheToastActionChipIsAFaceNotARing` 在真 toast 上逐像素量着。
+			marker:  "tokens.Lens(action)",
+			dropped: "docs/liquid-glass.md §6.6 第 6-3 行: the toast's action chip is an E1 face (LitFace), not the four-layer control lens (P13-j)",
+			test:    "TestTheToastActionChipIsAFaceNotARing",
 		},
 		{
 			selector: ".settings-save-alert button",

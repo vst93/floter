@@ -434,10 +434,22 @@ func (a *App) toastViewport(c *ui.Context) {
 						Padding(0, t.Space(2)).Radius(tokens.RadiusSM).
 						AlignItems(ui.Center).Justify(ui.Center).
 						Background(tokens.Control).Label(toast.Action)
-					// The reference's `--elev-0` lens on the chip: without it the
-					// action is a flat tint beside the floating card, and the
-					// glass stop never grades it.
-					tokens.Lens(action)
+					// P13-j · the chip is an **E1** face inside the toast's E2 pane
+					// (`docs/liquid-glass.md` §2 判据 1: everything inside a floating
+					// layer is a face). It used to wear the four-layer `Lens`, whose
+					// ring is the `ControlEdge` frame this generation retires — and
+					// the ring is painted *last*, on the same pixel row as the first
+					// `LensRim`, so the lit edge P12-a raised to 0.09 never lit up
+					// here either (P13-h / P13-i measured the same root cause).
+					//
+					// Why no `Border` in its place (§6.6 第 6-3 行 asked this): the
+					// chip's face step over the pane's `Float` face is what bounds
+					// it — measured at 6~9 levels on both appearances, the pin's ⑤.
+					// A `Border(1, ControlEdge)` would also shrink the padding box by
+					// a pixel (`insetShadow` measures from the padding edge), which is
+					// geometry, not ink; and a frame is exactly the 「画框分层」 §1
+					// forbids. E1 casts no shadow (§2 判据 2) — this adds none.
+					tokens.LitFace(action)
 					if action.Hovered() {
 						action.Background(tokens.ControlHover)
 					}
