@@ -325,6 +325,35 @@ sheen 变成 1px 一对线）/ B 0。
 出图 `/tmp/floter-P13-i-pill-after-{light,dark}.png`（同一张图上并排画「`Lens` 之前」与
 「`LitFace` 之后」的同一枚胶囊）。
 
+#### §6.2b-4 材质 census，不是函数名 census——最后三块（P13-p，**已落地**）
+
+前三轮的排查都是 grep：P13-i 数 `tokens.Lens(`，P13-m 数 `Border(1,` 与 `tokens.Control)`
+在不在**同一行**。下面三块面对这两种查询都不可见——它们从来没有 `Lens` 可数，面还写在
+变量里（`plane`），或者两条线分两行写。**根因不是这三处，是 census 的查询方式**：
+数「某个函数的调用」只能找到「已经这么写的」，找不到「本该这么写却没写的」。
+所以本轮除了补三块，还把 census 换成按**函数体**扫材质
+（`internal/settingsui/facecensus_test.go`，`go/ast` 取每个 `FuncDecl` 的源码文本）：
+一个函数里只要同时出现「`Control`/`ControlHover`/`ControlPress`/`Field`/`RaisedWarm`/
+`plane` 的面」与「`Border(1` 或 `InsetShadow(` 的边」，就必须出现 `LitFace` / `.Lens(` /
+`LensInset(` / 直接的 `InsetShadow(0,1,0,0,…)` 之一，否则必须在 `faceCensusAllow`
+里写明理由；允许表**反向**也钉着——某条开始戴一对线而表没删，同样红（表不许变成
+历史垃圾场）。多行写法、变量面、跨语句的材质，从此都躲不过去。
+
+| # | 位置 | 现状（旧） | 落成（新） | 状态 |
+|---|---|---|---|---|
+| 9-18 | `rows.go` `sessionIconButton` 的 `Hovered()` 臂（Sessions 页 28u 方格） | `Border(1, ControlEdge)` + `Background(ControlHover)`，**没有一对线**：它从来没有 `Lens` 调用，所以三轮 grep 都照不到 | E1：`tokens.LitFace(button)`。实测浅色顶 **221 → 224**、底 **221 → 208**（面 221）；深色顶 **48 → 67**、底 **48 → 38**（面 48）。三个同胞（30u 的 `extensionIconButton`、28u 的 `paramIconButton`、页头 28u 的 `headerButton`）自 P13-i 起就是这一对 | `已落地` |
+| 9-19 | `savealert.go` `shortcutRejectedAlert`（Shortcuts 页的拒绝条） | `Background(Control)` 与 `Border(1, ControlEdge)` **分两行写**，单行 grep 照不到 | E1：`tokens.LitFace(ui.Box(…))`。实测浅色顶 **230 → 232**、底 **230 → 216**；深色顶 **39 → 58**、底 **39 → 31**。与 `noticeBand` 的非危险臂（9-14）同一个形状、同一档；**不是 E2**（不浮、无影），所以不碰 `EdgeHighlight` | `已落地` |
+| 9-20 | `pluginsheet.go` `sheetActionButton` 的**中性**臂（弹层 28u 胶囊） | 面写在变量 `plane` 里，`Border(1, edge)` 也是变量——两种 grep 都数不到 | E1：`if plane.A > 0 { tokens.LitFace(button) }`。实测浅色顶 **230 → 232**、底 **230 → 216**；深色顶 **39 → 58**、底 **39 → 31** | `已落地` |
+| 9-20b | 同处的 `danger` 臂 | 面是 `ui.Transparent`，身份线是 45% 的警告发丝 | **故意不加**：在一块透明的面上画一条 0.09 的白线就是 §1 禁令 3 的「类玻璃边」，而且它没有面可以「站起来」。指针把面点亮（`plane = ControlHover`）之后它才戴——那时它真的是一块玻璃。反面 pin 量「上下两条内行都不许离开地面 ±2 级」 | `故意不做`（见理由） |
+
+pin：`internal/settingsui/litpair_census_test.go` 四条——三块面各一条像素 pin（深+浅，量
+「顶内行是受光边 / 底内行比面暗 ≥9 级」）+ 一条反面 pin（`danger` 臂的上下内行都贴着地面）。
+外加 `facecensus_test.go` 的材质 census 与它的允许表（11 条，每条一句话写清是 §2 的哪条
+理由：4px 药丸 / 26~30u 方格 / 14u 勾选框是噪点，警告内环与 accent 环占住那一行）。
+**V 0 / B 0 / S 0**（没有既有 pin 需要改断言：三处此前都没有 pin）。
+出图 `/tmp/floter-P13-p-{sessionbutton,refusalband,sheetpill}-{light,dark}-{before,after}.png`：
+差异的 bbox 恰好是控件自己的盒子（按钮 24×24、两条带子整宽），控件之外一个像素没动。
+
 ### §6.3 终端页（terminalui）— **已落地（P13-d）**
 
 **落地的形状**：抽屉的缝与空态键帽走 E1 的 `theme.Tokens.LitFace`（顶 `LensRim` +
@@ -469,6 +498,9 @@ P13-h 是收口之后的第一轮细节打磨：它给 §6.1 补了 1-8 / 1-9 �
 
 P13-j 是第二轮：它把 §6.6 的 6-3（toast 动作 chip）收掉——那是 `Lens` 最后一个
 「控件该不该退成 E1」的悬案，也是这张表最后一个 `未开始`。
+
+P13-p 是第五轮：它同样没有开表面，而是把「控件该不该退成 E1」这一族的**排查方式**换掉
+（函数名 grep → 函数体材质 census），顺带补上最后三块面（§6.2b-4 的 9-18…9-20b）。
 
 P13-o 是第四轮（P13-n 之后）：它没有开表面，而是补 §6.0 的 0-9——凹槽的底受光边
 （`TrackRim`）。P13-n 量的是「面」的一对线，这一轮量的是「凹槽」的一对线：两者的

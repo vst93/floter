@@ -382,6 +382,15 @@ func (a *App) sheetActionButton(c *ui.Context, label string, danger bool, run fu
 		plane = tokens.ControlHover
 	}
 	button.Border(1, edge).Background(plane)
+	// P13-p（`docs/liquid-glass.md` §6.2b-4 第 9-20 行）：弹层里的一切是 E1（§2 判据 1），
+	// 而这枚胶囊是本页唯一没戴那一对线的——同族的 `extensionActionFace`（9-1）、
+	// `barButton`（9-5）、卸载对话框的动作胶囊（9-6）都戴了。受光边只在**有面**的
+	// 时候画：`danger` 臂静息的面是透明的（`ui.Transparent`），在一块透明的面上
+	// 画一条 0.09 的白线就是 §1 禁令 3 的「类玻璃边」；指针把面点亮之后它才有一块
+	// 能站起来的玻璃（悬停档与中性臂同一个面）。外圈的发丝一个字节不动。
+	if plane.A > 0 {
+		tokens.LitFace(button)
+	}
 	button.Children(func() {
 		ui.Text(c, label).FontSize(tokens.Caption).TextColor(ink)
 	})

@@ -795,6 +795,13 @@ func (a *App) sessionIconButton(c *ui.Context, glyphName, label string, danger, 
 		button.Opacity(0.4).Cursor(ui.CursorDefault).Disabled(true)
 	case button.Hovered():
 		button.Border(1, tokens.ControlEdge).Background(tokens.ControlHover)
+		// P13-p（`docs/liquid-glass.md` §6.2b-4 第 9-18 行）：这枚 28u 方格是
+		// 这一族里唯一没戴 E1 那一对线的——`extensionIconButton`（30u，同文件
+		// `:549`）、`paramIconButton`（28u，`parameditor.go:274`）、页头的
+		// `headerButton`（28u，`settingsui.go:1199`）三块都戴了。同一个应用里
+		// 同一枚悬停小格只有一种材质：外圈 `ControlEdge` 是它与行之间的线，
+		// `LitFace` 补的是顶受光边与底对侧暗线，不画环、不画影。
+		tokens.LitFace(button)
 		if danger {
 			ink = t.Warning
 		} else {

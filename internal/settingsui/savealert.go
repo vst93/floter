@@ -171,9 +171,14 @@ func (a *App) shortcutRejectedAlert(c *ui.Context, copy i18n.Settings) {
 	}
 	t := c.Theme()
 	tokens := a.tokens(c)
-	ui.Box(c).FillWidth().Padding(t.Space(2.25), t.Space(2.5)).
+	// P13-p（`docs/liquid-glass.md` §6.2b-4 第 9-19 行）：这条拒绝条与 `noticeBand`
+	// 的非危险臂（§6.2b 第 9-14 行）是同一个形状——一条 `Control` 平涂 + 一圈
+	// `ControlEdge` 画框，坐在页面的地面上。那条已经戴上了 E1 的一对面，这条
+	// 停在「一块被画框圈住的平涂」：外圈是画框，`LitFace` 补的是两条 1px 内线。
+	// 它不是 E2（不浮、无影），所以不碰 `EdgeHighlight`。
+	tokens.LitFace(ui.Box(c).FillWidth().Padding(t.Space(2.25), t.Space(2.5)).
 		Radius(tokens.RadiusMD).Background(tokens.Control).
-		Border(1, tokens.ControlEdge).Children(func() {
+		Border(1, tokens.ControlEdge)).Children(func() {
 		ui.Text(c, copy.ShortcutRejected).FontSize(t.FontSize).FontWeight(580).TextColor(t.Warning)
 	})
 }
