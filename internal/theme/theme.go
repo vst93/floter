@@ -1144,6 +1144,33 @@ func (t Tokens) LitFace(e ui.Element) ui.Element {
 	return e
 }
 
+// DimFace draws the material of a control that is **there but cannot be
+// touched** (`docs/liquid-glass.md` §6.2b-6): the counter-side shade of an E1
+// face, and **no lit edge**.
+//
+// The lit edge is not decoration — it is the mark of a surface the pointer can
+// land on (§3: 「受光边是「这块面可以被碰」的记号」). A disabled control keeps its
+// place in the stack — its face still steps off the ground and its bottom still
+// shades, so it still occludes what is under it — but the light is off, and
+// that is what a user reads as 「不可用」.
+//
+// The face itself is the caller's and stays `Control`: the framework's painter
+// already multiplies a disabled subtree by **0.5** (`ui/paint.go:257-259`), so
+// a disabled pane's face lands at 238 on the light sheet (ground 247) and 27 on
+// the dark one (ground 15) — half of the resting step, which is exactly the
+// dim rung this material needs. The settings page used to add its own
+// `Opacity(0.4)` **on top of** that 0.5, and the product was therefore drawing
+// disabled controls at an effective 0.2: the face step fell to 4 levels and the
+// E1 pair vanished into noise (measured 247 → 243 and 14 → 19). Two fades
+// multiplied is not a design — it is one fade drawn twice.
+//
+// So: one fade (the framework's), and the material says the rest by going
+// unlit. The shade is what is left of the pair.
+func (t Tokens) DimFace(e ui.Element) ui.Element {
+	e.InsetShadow(0, -1, 0, 0, t.LensEdge)
+	return e
+}
+
 // LensInset draws the recessed lens on a groove: base.css's
 // `--glass-lens-stack-inset`, the *same* lens read backwards. The light pools
 // along the bottom edge of the groove and the top edge is the dark one — the

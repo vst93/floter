@@ -478,6 +478,13 @@ func (a *App) extensionActionFace(c *ui.Context, height, radius float32, disable
 	button := ui.ButtonBase(c).
 		MinHeight(height).Padding(0, t.Space(2.5)).Radius(radius)
 	ink, edge, plane := tokens.TextStrong, tokens.ControlEdge, tokens.Control
+	// P13-s（`docs/liquid-glass.md` §6.2b-6）：禁用面不靠「把整棵子树乘两次」说话。
+	// 框架的画笔已经给 `Disabled` 的子树乘了 **0.5**（`ui/paint.go:257-259`），而这一族
+	// 之前又在外面叠了一个 `.Opacity(0.4)`：两个淡乘起来 = 有效 0.2，面离地面的台阶从
+	// 17 级塌到 4 级（浅色 247 → 243）、从 25 级塌到 5 级（深色 14 → 19），E1 那一对线
+	// 双双掉进噪声。现在只留一道淡（框架那一遭）：面继续用 `Control`（在 0.5 之下正好
+	// 是半个台阶：浅 238 / 深 27），材质换成 `DimFace`——底对侧还在，**受光边熄了**
+	// （受光边是「这块面可以被碰」的记号）。字也回到那一道 0.5，不再被乘成 0.2。
 	if !disabled && button.Hovered() {
 		ink, edge, plane = t.Text, tokens.ControlEdge, tokens.ControlHover
 	}
@@ -502,7 +509,12 @@ func (a *App) extensionActionFace(c *ui.Context, height, radius float32, disable
 	// 正好占 padding 第一行，`y=1,spread=0` 的 rim 也是那一行），于是 P12-a 抬到
 	// 0.09 的受光边被压在这条边下面——这枚胶囊的顶边一直是一条暗线。环与它自己的
 	// `Border(1, edge)` 本来就是同一条边的第二次上色，退掉它不改几何，只改墨。
-	tokens.LitFace(button)
+	if disabled {
+		// 禁用面：熄了灯的面（只有底对侧）。
+		tokens.DimFace(button)
+	} else {
+		tokens.LitFace(button)
+	}
 	return button, ink
 }
 
@@ -581,9 +593,9 @@ func (a *App) extensionIconButton(c *ui.Context, glyphName, label string, disabl
 // (5px, `extensions.css:14,1313-1324`). The config form's "Restore defaults"
 // is its one caller today, but the shape is the shared pill so the mark and
 // the word keep the same face as every other action.
-func (a *App) extensionGlyphActionButton(c *ui.Context, glyphName, label string, height, radius, fontSize float32) ui.Element {
+func (a *App) extensionGlyphActionButton(c *ui.Context, glyphName, label string, height, radius, fontSize float32, disabled bool) ui.Element {
 	t := a.cardTheme(c)
-	button, ink := a.extensionActionFace(c, height, radius, false)
+	button, ink := a.extensionActionFace(c, height, radius, disabled)
 	button.Gap(t.Space(1.25))
 	button.Children(func() {
 		ui.Icon(c, mustGlyph(glyphName)).Size(t.Space(3.5), t.Space(3.5)).TextColor(ink)
@@ -633,9 +645,10 @@ func (a *App) busyActionButton(c *ui.Context, label, key string) ui.Element {
 	})
 	// `.extensions-action-button:disabled { opacity: 0.4; cursor: default;
 	// pointer-events: none }` (`extensions.css:1369-1373`): the framework's
-	// flag carries the pointer half, the flatness and the cursor are the other
-	// two.
-	return button.Disabled(true).Opacity(0.4).Cursor(ui.CursorDefault)
+	// flag carries the pointer half, the cursor is the other one. The 0.4 no
+	// longer rides on the whole subtree — `extensionActionFace` splits it into
+	// 「墨淡到 40%，面走 `ControlDim` 并熄灯」（P13-s，§6.2b-6）。
+	return button.Disabled(true).Cursor(ui.CursorDefault)
 }
 
 // switchControl draws one switch: the framework's Switch inside the recessed

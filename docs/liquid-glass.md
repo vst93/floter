@@ -388,6 +388,46 @@ pin：`internal/control/thumb_test.go` 三条——①两套外观下选中格�
 `(150,29)-(269,55)`，**恰好是选中那一格自己的盒子**（中间段 148.8~271.2），控件之外
 一个像素没动。
 
+#### §6.2b-6 禁用面：面还在，光熄了（P13-s，**已落地**）
+
+上一轮（P13-r）判的是凹槽里那一格的**填充**；这一轮判的是**状态反馈**的另一半——禁用 /
+忙碌面。根因不在设置页的调用点，而在**两个淡相乘**：
+
+- 框架的画笔给 `Disabled` 的子树乘 **0.5**（`ui/paint.go:257-259`，`p.opacity *= 0.5`）；
+- 产品在外面又叠了一道 `.Opacity(0.4)`（`busyActionButton` / `configActions` 的 Restore
+  defaults / `configOpenToolRow` 的 Open configuration）。
+
+有效透明度 = **0.2**。实测（真设置页地面，`extensionGlyphActionButton` 的禁用臂）：
+
+| 外观 | 地面 | 静息面 | 静息顶 / 底内线 | 禁用面 | 禁用顶 / 底内线 |
+|---|---|---|---|---|---|
+| 浅色 | 247 | 230（−17） | 232（+2）/ 216（−14） | **243（−4）** | 243（= 面）/ 240（−3） |
+| 深色 | 15 | 39（+25） | 58（+19）/ 31（−8） | **19（+4）** | 19（= 面）/ 18（−1） |
+
+面台阶只剩 4 级、底对侧只剩 1~3 级：E1 的一对线双双掉进噪声，禁用胶囊不是「一块不能碰
+的面」，是一块**几乎不存在的面**——这正是「平 / 糊 / 没有空间感」在状态反馈这一侧的算术来源。
+
+**落地**：只留一道淡（框架那一遭），材质换成 `theme.Tokens.DimFace`——**底对侧还在，受光边
+熄了**。受光边是「这块面可以被碰」的记号（§3），禁用面不戴它；面本身继续用 `Control`，
+在 0.5 之下正好是半个台阶。**不新增 token**：候选 `ControlDim`（`Control` 的一半）实测被
+框架的 0.5 再乘一次，落到浅色 243（−4），与改前逐像素相同——这一档框架已经给了。
+
+| # | 位置 | 现状（旧） | 落成（新） | 状态 |
+|---|---|---|---|---|
+| 9-21 | `theme.Tokens.DimFace`（新材质） | 不存在；禁用面沿用 `LitFace`（顶 `LensRim` + 底 `LensEdge`） | 只画底对侧 `LensEdge`，**不画受光边**；面由调用方给 `Control` | `已落地` |
+| 9-22 | `settingsui/rows.go` `extensionActionFace` 的 `disabled` 臂 | `disabled` 只影响 hover / press，材质仍 `LitFace` | 面 `Control` + `tokens.DimFace(button)`。实测浅色面 **238（−9）** / 顶 = 面 / 底 **231（−7）**；深色 **27（+12）** / 顶 = 面 / 底 **24（−3）** | `已落地` |
+| 9-23 | `rows.go` `busyActionButton`（在飞的胶囊） | `Disabled(true).Opacity(0.4)` | `Disabled(true)`（淡交给框架那一道 0.5）。墨对比 43 → **106** 级 | `已落地` |
+| 9-24 | `rows.go` `extensionGlyphActionButton` | 无 `disabled` 参数，内部恒传 `false` | 加 `disabled bool` 透传，两个调用点（`configActions` 的 Restore defaults、`configOpenToolRow`）不再自己叠 `Opacity(0.4)` | `已落地` |
+| 9-25 | accent 主按钮（`extensionPrimaryButton` / `updateButton`）的禁用臂 | `.Opacity(0.4)` / `.Opacity(0.6)` | **故意不做**：accent 面的禁用要淡的是**色相**（fill 本身），不是「面还在」的问题——那是另一条规则，另起一轮 | `故意不做`（见理由） |
+| 9-26 | `sessionKillConfirm`（警告色的 raised 胶囊） | `.Opacity(0.4)` | **故意不做**：它戴的是 `RaisedWarm` + `ShadowContact` + `LensRim` 的暖色抬升面，与中性 E1 不同族；同一个 `DimFace` 会把它的警告环洗淡 | `故意不做`（见理由） |
+
+pin：`internal/settingsui/dimface_test.go` 三条——①禁用胶囊还有面台阶（≥6 级）、顶内线**不亮**
+（受光边熄灯）、底内线还是对侧（浅 ≥5 / 深 ≥2 级），并且台阶不许大到读成静息面（≤15 级）；
+②在飞的胶囊（`busyActionButton`）同一套判据；③墨只淡了一道（对比 60~160 级，实测 106；
+双重淡时是 43，静息是 202）。每条都在深/浅两套外观上跑。**V 0 / B 0 / S 0**。
+出图 `/tmp/floter-P13-s-dimface-{light,dark}-{before,after}.png`：差异 bbox
+`(24,63)-(295,128)` **只覆盖第二、三枚胶囊**（两枚禁用面），第一枚静息胶囊一个像素没动。
+
 ### §6.3 终端页（terminalui）— **已落地（P13-d）**
 
 **落地的形状**：抽屉的缝与空态键帽走 E1 的 `theme.Tokens.LitFace`（顶 `LensRim` +

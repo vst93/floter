@@ -2952,10 +2952,11 @@ func (a *App) discardConfigChanges(id string) { a.closeConfig(id) }
 func (a *App) configOpenToolRow(c *ui.Context, copy i18n.Settings, integration Integration) {
 	a.row(c, copy.ConfigSection, "", func() {
 		openable := len(integration.ConfigOpenCommand) > 0 && a.Actions.OpenConfiguration != nil
+		// P13-s（§6.2b-6）：禁用的面不跟着字一起淡——`openable` 直接进面。
 		button := a.extensionGlyphActionButton(c, "link", copy.ConfigOpenConfiguration,
-			a.cardTheme(c).Space(7.5), a.cardTheme(c).Space(3.75), a.tokens(c).Body)
+			a.cardTheme(c).Space(7.5), a.cardTheme(c).Space(3.75), a.tokens(c).Body, !openable)
 		if !openable {
-			button = button.Disabled(true).Opacity(0.4).Cursor(ui.CursorDefault)
+			button = button.Disabled(true).Cursor(ui.CursorDefault)
 		}
 		if button.Clicked() && openable {
 			a.Actions.OpenConfiguration(integration.ID, append([]string{}, integration.ConfigOpenCommand...))

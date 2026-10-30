@@ -283,10 +283,12 @@ func (a *App) configActions(c *ui.Context, copy i18n.Settings, integration Integ
 		// where `busy` is one per-integration item held for every mutation of
 		// that row (`ExtensionsPanel.tsx:3016,3019`).
 		busy := a.configLocked(integration.ID) || a.configOperations[integration.ID] != "" || a.configSaveBusy[integration.ID]
+		// P13-s（§6.2b-6）：`busy` 不再用组透明度：它只传给面，面走 `ControlDim`
+		// 并熄灯，字自己淡到 40%。
 		defaults := a.extensionGlyphActionButton(c, "rotate-ccw", copy.ConfigDefaults,
-			t.Space(7.5), t.Space(3.75), tokens.Body)
+			t.Space(7.5), t.Space(3.75), tokens.Body, busy)
 		if busy {
-			defaults = defaults.Disabled(true).Opacity(0.4).Cursor(ui.CursorDefault)
+			defaults = defaults.Disabled(true).Cursor(ui.CursorDefault)
 		}
 		if defaults.Clicked() && !busy {
 			// The reference's `configurationDefaults` writes every field whose
