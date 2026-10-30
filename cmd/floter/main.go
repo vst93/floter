@@ -23,11 +23,13 @@ func main() {
 	// and it comes **before** the single-instance lock: a host is not the
 	// app, so the running one must not refuse it, and it must not be handed
 	// a second launch's arguments.
-	if rest, ok := termsession.IsCommand(os.Args[1:]); ok {
-		os.Exit(termsession.Command(rest))
-	}
-	if rest, ok := termsession.IsAttachCommand(os.Args[1:]); ok {
-		os.Exit(termsession.AttachCommand(rest))
+	//
+	// The whole family is dispatched through one question — `IsSessionCommand`
+	// — so that a subcommand added later cannot be forgotten here: a session
+	// subcommand that reaches the lock is one a running app swallows, and the
+	// contract test that guards this reads the same list.
+	if which, rest, ok := termsession.IsSessionCommand(os.Args[1:]); ok {
+		os.Exit(termsession.SessionCommands[which](rest))
 	}
 
 	// One instance: a second launch hands its arguments (and any deep link

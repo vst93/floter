@@ -1,6 +1,7 @@
 package termsession
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -25,6 +26,16 @@ const CommandName = "__termhost"
 // without a GUI.
 const AttachCommandName = "__termattach"
 
+// ListCommandName is the subcommand that shows this user's sessions: what a
+// list is, for the app that will draw one and for a user at a shell. It
+// answers the question the host arc could not: which sessions are there, what
+// became of them, and which of them nobody is watching (P13-c).
+const ListCommandName = "__termlist"
+
+// KillCommandName is the subcommand that ends a session by id or socket — and
+// reaps one whose host is gone.
+const KillCommandName = "__termkill"
+
 // IsCommand reports whether argv is the host subcommand, and the arguments
 // that follow it.
 func IsCommand(args []string) ([]string, bool) {
@@ -40,6 +51,155 @@ func IsAttachCommand(args []string) ([]string, bool) {
 		return nil, false
 	}
 	return args[1:], true
+}
+
+// IsListCommand is IsCommand for the list subcommand.
+func IsListCommand(args []string) ([]string, bool) { return splitCommand(args, ListCommandName) }
+
+// IsKillCommand is IsCommand for the kill subcommand.
+func IsKillCommand(args []string) ([]string, bool) { return splitCommand(args, KillCommandName) }
+
+// IsSessionCommand reports whether argv is one of the session subcommands —
+// and the arguments to hand the command that owns them.
+//
+// It exists so that the entry point asks **one** question about the whole
+// family: every one of them has to be dispatched before the single-instance
+// lock, and a new subcommand that forgets is a new subcommand that a running
+// app swallows. The contract test reads this list (see
+// internal/ci/termsession_contract_test.go).
+func IsSessionCommand(args []string) (int, []string, bool) {
+	for i, name := range SessionCommandNames {
+		if rest, ok := splitCommand(args, name); ok {
+			return i, rest, true
+		}
+	}
+	return 0, nil, false
+}
+
+// SessionCommandNames is every session subcommand, in the order
+// IsSessionCommand returns them, and SessionCommands is what runs each of
+// them. Two parallel slices rather than a switch because the entry point
+// dispatches from them: "is this the host, or a client, or a list?" has one
+// answer in one place, and the contract test that keeps every subcommand
+// ahead of the single-instance lock reads the same list.
+var SessionCommandNames = []string{CommandName, AttachCommandName, ListCommandName, KillCommandName}
+
+// SessionCommands are the bodies, one per name.
+var SessionCommands = []func([]string) int{Command, AttachCommand, ListCommand, KillCommand}
+
+// splitCommand is the one-word test every subcommand shares: the name is a
+// word of its own, never a prefix of the app's own arguments.
+func splitCommand(args []string, name string) ([]string, bool) {
+	if len(args) == 0 || args[0] != name {
+		return nil, false
+	}
+	return args[1:], true
+}
+
+// ListCommand prints this user's sessions, one line each, oldest first:
+//
+//	floter __termlist [-dir <path>] [-json]
+//
+// A session whose host is gone prints as `lost`, which is the one line a user
+// cannot get any other way: attaching to it can only fail, and failing says
+// nothing about what it was.
+func ListCommand(args []string) int {
+	fs := flag.NewFlagSet(ListCommandName, flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	dir := fs.String("dir", "", "where sessions live (empty: the user's own)")
+	asJSON := fs.Bool("json", false, "print records as JSON")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	recs, err := ListRecords(*dir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "floter: %v\n", err)
+		return 1
+	}
+	if *asJSON {
+		out, err := json.MarshalIndent(recs, "", "  ")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "floter: %v\n", err)
+			return 1
+		}
+		fmt.Println(string(out))
+		return 0
+	}
+	for _, rec := range recs {
+		fmt.Printf("%s\t%s\t%s\t%d clients\tpid %d\t%s\n",
+			rec.ID, rec.State, rec.Socket, rec.Clients, rec.HostPid, rec.Dir)
+	}
+	return 0
+}
+
+// KillCommand ends a session: the program and its host. It is the one way a
+// session whose host is gone stops being listed —
+//
+//	floter __termkill -id <id>|-socket <path> [-dir <path>]
+//
+// because a record whose host has died has nothing left to kill: the session
+// is lost, and the only thing to do about it is to stop offering it. A kill
+// that cannot reach the host therefore **reaps** rather than fails, and says
+// so (herdr-core's keep semantics, which this follows: a lost program is
+// never re-run, it is reported and forgotten).
+func KillCommand(args []string) int {
+	fs := flag.NewFlagSet(KillCommandName, flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	id := fs.String("id", "", "the session's id, as the list shows it")
+	socket := fs.String("socket", "", "the session's socket")
+	dir := fs.String("dir", "", "where sessions live (empty: the user's own)")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	target := *socket
+	if target == "" {
+		target = *id
+	}
+	if target == "" {
+		fmt.Fprintln(os.Stderr, "floter: __termkill needs -id or -socket")
+		return 2
+	}
+	rec, ok, err := LookupRecord(*dir, target)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "floter: %v\n", err)
+		return 1
+	}
+	if !ok {
+		fmt.Fprintf(os.Stderr, "floter: no session %q\n", target)
+		return 1
+	}
+	if rec.State == StateLost {
+		// Nothing to end: the host is gone, so the program is too. Take the
+		// record and the socket's leftover away and say what happened.
+		_ = RemoveRecord(rec.Socket)
+		_ = os.Remove(rec.Socket)
+		fmt.Printf("%s lost\n", rec.ID)
+		return 0
+	}
+	cl, err := Dial(rec.Socket)
+	if err != nil {
+		// The host answered the pid probe and not the socket: it is on its
+		// way out. The record is what is stale, so it goes.
+		_ = RemoveRecord(rec.Socket)
+		_ = os.Remove(rec.Socket)
+		fmt.Printf("%s unreachable: %v\n", rec.ID, err)
+		return 0
+	}
+	defer func() { _ = cl.Close() }()
+	if err := cl.Kill(); err != nil {
+		fmt.Fprintf(os.Stderr, "floter: %v\n", err)
+		return 1
+	}
+	// The host removes its own record when it stops; this waits for that so
+	// that a kill followed by a list does not see the session it just ended.
+	for i := 0; i < 200; i++ {
+		if _, err := os.Stat(RecordPath(rec.Socket)); err != nil {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	fmt.Printf("%s killed\n", rec.ID)
+	return 0
 }
 
 // AttachCommand attaches to a host, types what it was given, prints the

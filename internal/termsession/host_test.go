@@ -270,3 +270,149 @@ func processAlive(pid int) error {
 	}
 	return p.Signal(syscall.Signal(0))
 }
+
+// TestTheRecordSurvivesTheHostSoASessionCanBeListed pins the reason a record
+// exists at all: a session is something a reader can **find** without
+// attaching to it. The host writes its record as it starts, so the session is
+// in the list before anyone has ever connected to it, and the record says
+// which process holds the program (the only thing whose death is the session's).
+func TestTheRecordSurvivesTheHostSoASessionCanBeListed(t *testing.T) {
+	// A host **nobody has attached to**: the record must exist from the
+	// moment the session does, not from the moment somebody looks at it.
+	// Finding a session you are not attached to is the whole point of a
+	// list, so that is the first thing pinned here.
+	h, err := Start(Options{Path: "/bin/sh", Linger: -1, Socket: filepath.Join(t.TempDir(), "s.sock")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(h.Stop)
+	go func() { _ = h.Serve() }()
+	dir := filepath.Dir(h.Socket())
+	recs, err := ListRecords(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(recs) != 1 {
+		t.Fatalf("the list holds %d sessions, want the host's one record", len(recs))
+	}
+	rec := recs[0]
+	if rec.Clients != 0 {
+		t.Errorf("the record's clients = %d, want 0: nobody has attached", rec.Clients)
+	}
+	if rec.State != StateRunning {
+		t.Errorf("the record's state = %q, want running", rec.State)
+	}
+	if rec.Socket != h.Socket() {
+		t.Errorf("the record's socket = %q, want %q", rec.Socket, h.Socket())
+	}
+	if rec.HostPid != os.Getpid() {
+		t.Errorf("the record's host pid = %d, want this process (%d)", rec.HostPid, os.Getpid())
+	}
+	if rec.Pid != h.Session().Info().Pid {
+		t.Errorf("the record's program pid = %d, want the session's %d", rec.Pid, h.Session().Info().Pid)
+	}
+	if rec.Started.IsZero() {
+		t.Error("the record has no start time: a list cannot order sessions without one")
+	}
+	// The record is not the host's private copy: it is the session's, so it
+	// survives the host object being the only thing that knows the session.
+	if !Alive(rec.HostPid) {
+		t.Errorf("Alive(%d) = false for the host that is running this test", rec.HostPid)
+	}
+}
+
+// TestTheRecordTracksTheClientsAndTheState pins the record's two moving
+// halves: how many clients are attached, and how the program ended. Both are
+// facts a list shows and neither can be had by connecting — connecting is what
+// changes the first, and the second is over by the time anyone could.
+func TestTheRecordTracksTheClientsAndTheState(t *testing.T) {
+	h, cl := startTestHost(t, Options{Path: "/bin/sh", Linger: -1})
+	dir := filepath.Dir(h.Socket())
+	read := func() Record {
+		t.Helper()
+		recs, err := ListRecords(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(recs) != 1 {
+			t.Fatalf("the list holds %d sessions, want one", len(recs))
+		}
+		return recs[0]
+	}
+	if got := read().Clients; got != 1 {
+		t.Errorf("clients with one attached = %d, want 1", got)
+	}
+	// A second client makes the count two, and a detach takes it back: the
+	// count is a live fact, not a note written at start-up.
+	second, err := Dial(h.Socket())
+	if err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) && read().Clients != 2 {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if got := read().Clients; got != 2 {
+		t.Errorf("clients with two attached = %d, want 2", got)
+	}
+	if err := second.Close(); err != nil {
+		t.Fatal(err)
+	}
+	deadline = time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) && read().Clients != 1 {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if got := read().Clients; got != 1 {
+		t.Errorf("clients after a detach = %d, want 1", got)
+	}
+
+	// The end of the program is in the record, with the code it ended on —
+	// the one thing a client can never see, because a client sees a screen.
+	before := read().Seq
+	if _, err := cl.Write([]byte("exit 3\r")); err != nil {
+		t.Fatal(err)
+	}
+	deadline = time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		rec := read()
+		if rec.State != StateRunning {
+			if rec.State != StateExited || rec.ExitCode != 3 {
+				t.Fatalf("the record after the program ended = %+v, want exited 3", rec)
+			}
+			if rec.Seq <= before {
+				t.Errorf("the record's seq = %d, want it advanced past %d", rec.Seq, before)
+			}
+			// The host is still there (its program ended, it has not): the
+			// session is not lost, it is over. Lost is for a host that died.
+			if rec.HostPid != os.Getpid() {
+				t.Errorf("the record's host pid = %d, want the host that is still running", rec.HostPid)
+			}
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatal("the record never left running")
+}
+
+// TestTheHostTakesItsRecordWithItWhenItStops pins the difference between a
+// session that ended and one that was lost: a host that stops **on purpose**
+// removes its record, so a list stops offering it. Only a host that dies
+// without doing so leaves a record behind — and that is what StateLost means.
+func TestTheHostTakesItsRecordWithItWhenItStops(t *testing.T) {
+	h, _ := startTestHost(t, Options{Path: "/bin/sh", Linger: -1})
+	socket := h.Socket()
+	if _, err := os.Stat(RecordPath(socket)); err != nil {
+		t.Fatalf("the host has no record while it runs: %v", err)
+	}
+	h.Stop()
+	if _, err := os.Stat(RecordPath(socket)); !os.IsNotExist(err) {
+		t.Errorf("the record survived the host that wrote it: %v", err)
+	}
+	recs, err := ListRecords(filepath.Dir(socket))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(recs) != 0 {
+		t.Errorf("the list still holds %+v after the host stopped", recs)
+	}
+}

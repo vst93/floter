@@ -317,6 +317,10 @@ type Host struct {
 	mu      sync.Mutex
 	exited  chan struct{}
 	once    sync.Once
+	// started is when the program was taken: it orders a list (P13-c).
+	started time.Time
+	// regMu serialises the session's record writes (see writeRecord).
+	regMu sync.Mutex
 }
 
 // Run hosts a session until its program ends (and no client is left) or the
@@ -380,7 +384,8 @@ func Start(o Options) (*Host, error) {
 	}
 	h := &Host{
 		opts: o, pty: pty, ring: NewRing(limit), ln: ln,
-		exited: make(chan struct{}),
+		exited:  make(chan struct{}),
+		started: time.Now(),
 	}
 	h.session = &Session{
 		ring:    h.ring,
@@ -397,6 +402,10 @@ func Start(o Options) (*Host, error) {
 			Dir:   o.Dir,
 		},
 	}
+	// The record goes down before the program can be attached to: a list
+	// that misses a session because it is a moment old is a list nobody can
+	// trust, and the first thing it must be able to say is "this exists".
+	h.writeRecord()
 	go h.read()
 	go h.watch()
 	return h, nil
@@ -451,6 +460,9 @@ func (h *Host) watch() {
 	h.session.info.ExitCode = h.pty.ExitCode()
 	h.session.broadcast(tagExit, encodeInfo(h.session.info))
 	h.session.mu.Unlock()
+	// The record says how it ended, which is the one fact a list can give
+	// that attaching cannot: a client sees a screen, a record sees a cause.
+	h.writeRecord()
 	h.once.Do(func() { close(h.exited) })
 }
 
@@ -536,11 +548,15 @@ func (h *Host) attach(nc net.Conn) {
 	h.mu.Lock()
 	h.clients++
 	h.mu.Unlock()
+	// The count is written before the attach serves anything, so a list never
+	// shows a session as unattended while somebody is drawing it.
+	h.writeRecord()
 	defer func() {
 		c.close()
 		h.mu.Lock()
 		h.clients--
 		h.mu.Unlock()
+		h.writeRecord()
 	}()
 
 	// The client joins the broadcast before the screen is taken, so that no
@@ -657,6 +673,7 @@ func (h *Host) readLoop(c *conn) {
 			h.session.bump()
 			h.session.info.Cols, h.session.info.Rows = cols, rows
 			h.session.mu.Unlock()
+			h.writeRecord()
 		case tagCredit:
 			c.grant(decodeCredit(payload))
 		case tagDetach:
@@ -741,16 +758,18 @@ func (h *Host) Stop() {
 	_ = h.pty.Close()
 	_ = os.Remove(h.opts.Socket)
 	h.wg.Wait()
+	// The record goes with the socket, and it goes **last**: the clients
+	// being closed above report their own detach as they go, and a record
+	// removed before them would be written back by the last of them. A host
+	// that dies without reaching this line leaves its record behind, and
+	// that is what StateLost is: the writer is gone, the record is not.
+	_ = RemoveRecord(h.opts.Socket)
 }
 
 // DefaultSocket is where a session of this user lives: under the user's
 // cache directory, named by the program, so two shells are two sockets.
 func DefaultSocket() string {
-	dir, err := os.UserCacheDir()
-	if err != nil || dir == "" {
-		dir = os.TempDir()
-	}
-	return filepath.Join(dir, "floter", "terminal", fmt.Sprintf("session-%d.sock", os.Getpid()))
+	return filepath.Join(DefaultDir(), fmt.Sprintf("session-%d.sock", os.Getpid()))
 }
 
 // Client is an attached session: what the host sends shows, what is typed

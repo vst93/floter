@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"floter/internal/termsession"
 )
 
 // P13-a · 会话宿主的合约：宿主是**这个二进制的子命令**，而且它在单实例锁之前分流。
@@ -31,13 +33,44 @@ func TestTheSessionHostIsASubcommandBeforeTheSingleInstanceLock(t *testing.T) {
 	if lock < 0 {
 		t.Fatal("cmd/floter/main.go has no single-instance lock")
 	}
-	host := strings.Index(main, "termsession.IsCommand(")
-	if host < 0 {
-		t.Fatal("cmd/floter/main.go never asks whether it was started as the session host")
+	// P13-c: the question is asked about the **family**, not about one name.
+	// `__termhost`, `__termattach`, `__termlist` and `__termkill` are all
+	// answers to "start me as a session command, not as the app", and every
+	// one of them has to get that answer before the lock — a subcommand that
+	// reaches the lock is a subcommand a running app swallows. Dispatching
+	// through one call is what makes that checkable; the names come from the
+	// package itself, so a subcommand added there is covered here for free.
+	family := strings.Index(main, "termsession.IsSessionCommand(")
+	if family < 0 {
+		t.Fatal("cmd/floter/main.go never asks whether it was started as a session subcommand")
 	}
-	if host > lock {
-		t.Errorf("the host subcommand is dispatched at offset %d, after the single-instance lock at %d: "+
-			"a running app would refuse the host and take its arguments", host, lock)
+	if family > lock {
+		t.Errorf("the session subcommands are dispatched at offset %d, after the single-instance lock at %d: "+
+			"a running app would refuse a host or a list and take their arguments", family, lock)
+	}
+	if len(termsession.SessionCommandNames) != len(termsession.SessionCommands) {
+		t.Errorf("%d session subcommand names and %d bodies: a name without a body is a subcommand that "+
+			"reaches the lock and dies there", len(termsession.SessionCommandNames), len(termsession.SessionCommands))
+	}
+	// The table is read from the package, so what is pinned here is that the
+	// entry point really dispatches through it and that the table has the
+	// host in it: a list without a body, or a family without the host, is a
+	// subcommand that reaches the lock and dies there.
+	host := false
+	for i, name := range termsession.SessionCommandNames {
+		if name == termsession.CommandName {
+			host = true
+		}
+		if !strings.HasPrefix(name, "__term") {
+			t.Errorf("session subcommand %d is %q, want a __term name", i, name)
+		}
+	}
+	if !host {
+		t.Errorf("the host subcommand %q is not in the dispatch table", termsession.CommandName)
+	}
+	if !strings.Contains(main, "termsession.SessionCommands[") {
+		t.Error("cmd/floter/main.go does not dispatch through the package's table: " +
+			"a subcommand added to it would never run")
 	}
 	// The host is this binary: the dispatch is a subcommand of main, not a
 	// second `main` package.
