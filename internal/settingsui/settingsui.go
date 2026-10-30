@@ -1189,7 +1189,13 @@ func (a *App) View(c *ui.Context) {
 				button := ui.Row(c).Focusable().Shrink(0).Size(t.Space(7), t.Space(7)).
 					Radius(tokens.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).Label(label).
 					Tooltip(hint)
-				if button.Hovered() {
+				if button.Pressed() {
+					// P13-q（`docs/liquid-glass.md` §5）：`.toolbar-button` 的第三档。
+					// 页头这两枚 28u 方格与启动器同尺寸的格同一触感。
+					button.Background(tokens.ControlPress)
+					button.Scale(0.92, 0.92)
+					tokens.LitFace(button)
+				} else if button.Hovered() {
 					button.Background(tokens.ControlHover)
 					// The header's icon button lights the resting rung under the
 					// pointer (`.toolbar-button:hover`); it is transparent at rest,
@@ -5826,6 +5832,11 @@ func (a *App) barButton(c *ui.Context, label string, danger, disabled bool, icon
 	// same `--dur-2` transform transition. The disabled pill keeps its resting
 	// shape, exactly as the dialog's own action pill does.
 	if !disabled && button.Pressed() {
+		// P13-q：`barButton` 此前只有几何、没有面（`.extensions-action-button`
+		// 的第三档只在 `:active` 的 `scale(0.97)` 上），同族的 `extensionActionFace`
+		// 补上按下档之后，这一处也要把 `--glass-control-press` 的面画出来，
+		// 否则同一个类在同一个应用里有两种按下。
+		button = button.Background(tokens.ControlPress)
 		button.Scale(0.97, 0.97)
 	}
 	// `.extension-discard-bar .extensions-action-button` only overrides the

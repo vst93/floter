@@ -266,7 +266,14 @@ func (a *App) paramIconButton(c *ui.Context, glyphName, label string) ui.Element
 		Background(ui.Transparent).Center().
 		Transition(ui.ElementTransition{Colors: true, Duration: 120 * time.Millisecond})
 	ink := tokens.TextSecondary
-	if button.Hovered() {
+	if button.Pressed() {
+		// P13-q（`docs/liquid-glass.md` §5）：28u 小格的第三档，与启动器同尺寸的
+		// `rowControl` / 折叠卡设置格同一个触感（`ControlPress` 面 + `Scale(0.92)`）。
+		ink = t.Text
+		button = button.Border(1, tokens.ControlEdge).Background(tokens.ControlPress)
+		button = button.Scale(0.92, 0.92)
+		tokens.LitFace(button)
+	} else if button.Hovered() {
 		ink = t.Text
 		button = button.Border(1, tokens.ControlEdge).Background(tokens.ControlHover)
 		// E1：顶受光边 + 底对侧暗线，无环（`theme.Tokens.LitFace`；理由见

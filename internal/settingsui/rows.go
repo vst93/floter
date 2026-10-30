@@ -481,8 +481,21 @@ func (a *App) extensionActionFace(c *ui.Context, height, radius float32, disable
 	if !disabled && button.Hovered() {
 		ink, edge, plane = t.Text, tokens.ControlEdge, tokens.ControlHover
 	}
+	// P13-q（`docs/liquid-glass.md` §5「按下」这一档）：`.extensions-action-button`
+	// 的第三档此前只有 `barButton` 一处实现（且只有几何，没有面），同一个 CSS 类的
+	// 这一处连 `:active` 都没有——指针下去的那一下与悬停一模一样。`extensions.css:138-140`
+	// 的 `:active:not(:disabled) { transform: scale(0.97) }` 是这一族的几何，
+	// `--glass-control-press` 是这一族的面（`ControlPress`，沉到静息面之下）。
+	// 面与几何都在按下时给，与 `barButton` 同一句。
+	pressed := !disabled && button.Pressed()
+	if pressed {
+		ink, plane = tokens.TextStrong, tokens.ControlPress
+	}
 	button.Border(1, edge).Background(plane).
 		Transition(ui.ElementTransition{Colors: true, Duration: 120 * time.Millisecond})
+	if pressed {
+		button = button.Scale(0.97, 0.97)
+	}
 	// E1：顶受光边 + 底对侧暗线，**没有环**（`theme.Tokens.LitFace`）。四层 `Lens`
 	// 的第四层是四边 `ControlEdge` 的环，它画在第一条 `LensRim` 之后、且落在同一个
 	// 像素行上（mygo 的 `insetShadow` 把 hole 从 padding edge 算起，`spread=1` 的环
@@ -540,6 +553,14 @@ func (a *App) extensionIconButton(c *ui.Context, glyphName, label string, disabl
 	switch {
 	case disabled:
 		button = button.Opacity(0.42).Cursor(ui.CursorDefault).Disabled(true)
+	case button.Pressed():
+		// P13-q：28u 小格的第三档。启动器的 `rowControl`（20u）与折叠卡的设置格
+		// （28u）按下时都是 `ControlPress` 面 + `Scale(0.92)`，同一个应用里同尺寸
+		// 的小格只有一种触感；这一族此前只有静息与悬停两档。
+		ink = t.Text
+		button = button.Border(1, tokens.ControlEdge).Background(tokens.ControlPress)
+		button = button.Scale(0.92, 0.92)
+		tokens.LitFace(button)
 	case button.Hovered():
 		// `.extensions-icon-button:hover:not(:disabled)`: one keyline, the
 		// ladder's hover fill, the resting lens and the strong ink.
@@ -793,6 +814,16 @@ func (a *App) sessionIconButton(c *ui.Context, glyphName, label string, danger, 
 	switch {
 	case disabled:
 		button.Opacity(0.4).Cursor(ui.CursorDefault).Disabled(true)
+	case button.Pressed():
+		// P13-q：同 28u 小格，第三档（`ControlPress` + `Scale(0.92)`）。
+		button.Border(1, tokens.ControlEdge).Background(tokens.ControlPress)
+		button.Scale(0.92, 0.92)
+		tokens.LitFace(button)
+		if danger {
+			ink = t.Warning
+		} else {
+			ink = tokens.TextStrong
+		}
 	case button.Hovered():
 		button.Border(1, tokens.ControlEdge).Background(tokens.ControlHover)
 		// P13-p（`docs/liquid-glass.md` §6.2b-4 第 9-18 行）：这枚 28u 方格是

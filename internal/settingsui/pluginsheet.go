@@ -378,7 +378,14 @@ func (a *App) sheetActionButton(c *ui.Context, label string, danger bool, run fu
 		edge = t.Warning.Alpha(0.45)
 		plane = ui.Transparent
 	}
-	if button.Hovered() {
+	// P13-q（`docs/liquid-glass.md` §5）：弹层里的胶囊也有第三档。按下时面沉到
+	// `--glass-control-press` 并按 `.extensions-action-button` 的几何收 0.97；
+	// `danger` 臂静息的面是透明的，按下时才有一块能被压下去的面（白线仍只在
+	// 有面时画，§1 禁令 3）。
+	pressed := button.Pressed()
+	if pressed {
+		plane = tokens.ControlPress
+	} else if button.Hovered() {
 		plane = tokens.ControlHover
 	}
 	button.Border(1, edge).Background(plane)
@@ -390,6 +397,9 @@ func (a *App) sheetActionButton(c *ui.Context, label string, danger bool, run fu
 	// 能站起来的玻璃（悬停档与中性臂同一个面）。外圈的发丝一个字节不动。
 	if plane.A > 0 {
 		tokens.LitFace(button)
+	}
+	if pressed {
+		button = button.Scale(0.97, 0.97)
 	}
 	button.Children(func() {
 		ui.Text(c, label).FontSize(tokens.Caption).TextColor(ink)
