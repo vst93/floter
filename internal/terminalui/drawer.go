@@ -67,9 +67,15 @@ func (a *App) set(mutate func(*settings.Settings)) {
 //
 // P8-c 复核（§6.2 第 8 条）：面与几何全部保留（`Control` 一档 + 16u/12u 的
 // padding 对 + 10u 的 gap），只有上边那条线从 `ControlEdge` 降成 §4.1 的**弱
-// 发丝** `HairlineSoft`：抽屉是面板里的一个 block，不是一面独立的控件；块与块
-// 之间的分工在合约里由弱发丝承担（§1 的不变量一：卡的边与分区线是同一条发丝的
-// 两种宽度）。
+// 发丝** `HairlineSoft`：抽屉是面板里的一个 block，不是一面独立的控件。
+//
+// P13-d（`docs/liquid-glass.md` §6.3 第 3-3 行）：那条缝从**分区线**升成 **E1 的
+// 受光边** —— `HairlineSoft`(0.055) → `LensRim`(0.09)。判据在 §2：抽屉是**长在
+// 面板里的一个块**（画布的兄弟、占布局高度、把画布压小，**不压在内容上**），所以
+// 它是 E1，E1 的边就是 `LensRim`；而 E2 的 `EdgeHighlight` 属于「压在其他内容
+// 上、且可关闭」那一档（设置页的两张浮层，P12-c）——同一页上两种边各管一档，
+// 空间感才有算术来源。**底对侧不补**：抽屉的下边就是窗口的底边，P11-av 已经证明
+// 那条线会落进窗口最底一行、压进 12u 圆角的过渡里。面与几何**一个字节没动**。
 //
 // Only the axes this build can actually apply are drawn. The reference's strip
 // also carried the bold mode, the wheel step, select-to-copy and the scrollbar
@@ -104,7 +110,7 @@ func (a *App) drawer(c *ui.Context, copy i18n.Terminal) {
 	// 与抽屉之间 `y=338→339` 只有一条 255→239 的硬阶、没有缝。发丝换到 `top`。
 	strip := ui.Scroll(c).FillWidth().TrackScroll(&a.DrawerScroll).
 		Background(tokens.Control).
-		BorderWidth(1, 0, 0, 0).BorderColor(tokens.HairlineSoft).
+		BorderWidth(1, 0, 0, 0).BorderColor(tokens.LensRim).
 		Label(scopy.GroupTerminal)
 	strip.Children(func() {
 		// The content keeps the grid's natural height: every appearance row

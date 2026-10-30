@@ -978,10 +978,15 @@ func (a *App) emptyLine(c *ui.Context, copy i18n.Terminal, badgeText, label stri
 		// The keycap is the reference's 20u chip: the control edge and fill,
 		// the keycap bevel and the xs radius — the same bevel the settings
 		// recorder's keys wear, not a plain badge.
+		// P13-d（`docs/liquid-glass.md` §6.3 第 3-8 行）：它原先只戴了受光边的**一半**
+		// （只有顶边那条 `LensRim`），没有对侧——于是在 1x 屏上与行底分不开（浅色档
+		// 更明显：白压白，§3 末尾）。与 P12-b 给启动器键帽的是同一个
+		// `theme.Tokens.LitFace`：顶亮一分、底暗一分，**底侧那条**才是它站起来的原因。
+		// 外圈描边一个字节没动——受光边是**内线**，不是画框。
 		badge := ui.Row(c).Height(t.Space(5)).Padding(0, t.Space(1.5)).Radius(tokens.RadiusXS).
 			Border(1, tokens.ControlEdge).Background(tokens.Control).
 			AlignItems(ui.Center).Justify(ui.Center)
-		badge.InsetShadow(0, 1, 0, 0, tokens.LensRim)
+		badge = tokens.LitFace(badge)
 		badge.Children(func() {
 			ui.Text(c, badgeText).FontSize(tokens.Caption).TextColor(tokens.TextSecondary)
 		})
@@ -1414,9 +1419,12 @@ func (a *App) barButton(c *ui.Context, name, label, hint string, live bool, run 
 		// The pointer lights the resting lens rung (`.toolbar-button:hover`,
 		// the reference's hover-only variant): the bar's icon button is
 		// transparent at rest, so this is the only state it can be graded in.
-		// The lens is the window's rim at ≤0.04 alpha, below the §1 gloss cap:
-		// it reads as neither surface's material, so it stays.
-		tokensOf(a, c).Lens(button)
+		// P13-d（`docs/liquid-glass.md` §6.3 第 3-7 行）：`Lens` 那四层里的第四层是
+		// 四边 `ControlEdge` 的**环** —— 正是这一支要退掉的「画框分层」，而它顶上那条
+		// `LensRim` 也早不是 0.04 了（P12-a 重定到 0.09；上一版注释写的「≤0.04」是旧
+		// 上限，已经不成立）。悬停的 28u 图标按钮是**长在浮条上的一个小面** = E1，
+		// 戴 `LitFace`：顶受光边 + 底对侧暗线，**没有环**、也没有那片宽 sheen。
+		tokensOf(a, c).LitFace(button)
 	}
 	button.Children(func() {
 		if glyph, ok := launcher.Glyph(name); ok {
@@ -1475,10 +1483,21 @@ func (a *App) titleBar(c *ui.Context, copy i18n.Terminal) {
 	// pointer raises it; keyboard focus reveals the identity without lifting the
 	// surface, exactly as `:hover` does.
 	if hovered {
-		// P8-c 重定基线（§6.2 第 6 条）：投影读 `ShadowContact`，不再写字面
+		// P8-c 重定基线（§6.2 第 6 条）：投影读 token，不再写字面
 		// `rgba(0, 0, 0, 0.18)`。同一条 throw 在两套外观下是两档（深 0.40 /
 		// 浅 0.10），字面值把它钉成了第三档，浅色下比合约重、深色下比合约轻。
-		bar.Shadow(0, t.Space(1.5), t.Space(4), 0, tokensOf(a, c).ShadowContact)
+		//
+		// P13-d（`docs/liquid-glass.md` §6.3 第 3-4 行）：上一版把**几何与墨配错了**
+		// ——宽影（`0 6px 16px`，参考的 `--elev-bar`）配的是 §3 的**紧贴边**墨
+		// `ShadowContact`，于是这条带压出的是一团宽而重的阴影，读起来是「底下加深
+		// 一块」而不是「浮起来一张纸」（§2 判据 3：**E2 必须两层影**——只有环境影则
+		// 浮层「贴」在底上，只有接触影则它「悬」在空里）。现在宽影读
+		// `ShadowAmbient`，再补一条 `0 1px 2px` 的 `ShadowContact` 做接触影。
+		// 旧值 → 新值：`0 6px 16px ShadowContact` → `0 6px 16px ShadowAmbient` +
+		// `0 1px 2px ShadowContact`。几何、触发条件与字一个字节没动。
+		tokens := tokensOf(a, c)
+		bar.Shadow(0, t.Space(1.5), t.Space(4), 0, tokens.ShadowAmbient)
+		bar.Shadow(0, t.Space(0.25), t.Space(0.5), 0, tokens.ShadowContact)
 	}
 	bar.Children(func() {
 		// The identity line names the program on screen and, once it has ended,

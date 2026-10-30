@@ -127,9 +127,17 @@ func TestEveryNamedControlDrawsALensRung(t *testing.T) {
 		{
 			selector: ".toolbar-button:hover",
 			file:     "../terminalui/terminalui.go",
-			marker:   "tokensOf(a, c).Lens(button)",
-			// hover-only; source-pinned (the terminal's bar needs a full session
-			// to render).
+			// P13-d 重定基线（V）：这条 census 条目原本钉的是旧一代的
+			// **四层控件透镜**（`tokensOf(a, c).Lens(button)`），它的第四层是
+			// 四边 `ControlEdge` 的环。`docs/liquid-glass.md` §2 把「画框分层」
+			// 换成「面差 + 一条受光边」，§6.3 第 3-7 行就是这一处：悬停的 28u
+			// 图标按钮现在是 E1 的一个小面（`LitFace`：顶受光边 + 底对侧暗线，
+			// 无环）。所以这条从「必须还有那个调用」翻成「那个调用不许回来」，
+			// 新面由 `terminalui.TestTheHoveredBarButtonIsAFaceNotARing` 用像素
+			// 逐列量着（左右两侧的列必须与按钮自己的面同色）。
+			marker:  "tokensOf(a, c).Lens(button)",
+			dropped: "docs/liquid-glass.md §6.3 第 3-7 行: the hovered icon button is an E1 face (LitFace), not the four-layer control lens (P13-d)",
+			test:    "terminalui.TestTheHoveredBarButtonIsAFaceNotARing",
 		},
 	}
 

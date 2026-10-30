@@ -327,14 +327,21 @@ func sameProfile(a, b []int) bool {
 	return true
 }
 
-// ⑤ §6.2 第 6 条 · The bar's hover shadow is `ShadowContact`, not the literal
-// `rgba(0, 0, 0, 0.18)` the port carried: the same throw is 0.40 in the dark
-// appearance and 0.10 in the light one, and a literal pins a *third* rung that
-// is heavier than the contract in one appearance and lighter in the other.
+// ⑤ §6.2 第 6 条 · The bar's hover shadow is read from the tokens, not from the
+// literal `rgba(0, 0, 0, 0.18)` the port carried: the same throw is 0.40 in the
+// dark appearance and 0.10 in the light one, and a literal pins a *third* rung
+// that is heavier than the contract in one appearance and lighter in the other.
+//
+// P13-d 重定基线（V，`docs/liquid-glass.md` §6.3 第 3-4 行）：旧值 → 新值 =
+// 「宽影 `0 6px 16px` 配紧贴边墨 `ShadowContact`」→「宽影配 `ShadowAmbient`
+// **加**一条 `0 1px 2px` 的 `ShadowContact` 接触影」（§2 判据 3：E2 必须两层影）。
+// 那条单层的 `ShadowContact` 是**旧值**，所以它从「被钉住的那一条」变成
+// 「必须偏离的那一条」——pin 的结构（参照帧逐像素相减）与那条
+// 「不是字面值」的断言一字未改。
 //
 // The pin renders the live bar twice (pointer on it, pointer clear), then the
-// same bar with each candidate colour, and holds the two frames against each
-// other pixel for pixel.
+// same bar with each candidate stack, and holds the frames against each other
+// pixel for pixel.
 func TestTheTitleBarHoverShadowIsShadowContact(t *testing.T) {
 	canvas := ui.RGBA(184, 184, 184, 1)
 	a := New(newStore(), Actions{}, nil)
@@ -366,18 +373,27 @@ func TestTheTitleBarHoverShadowIsShadowContact(t *testing.T) {
 		t.Fatalf("the bar cast nothing under the pointer: idle and hovered agree at the row below it")
 	}
 
-	probe := func(col ui.Color) *ui.Tester {
+	// A candidate is a **stack** of throws, painted in the order the view paints
+	// them, so the pin can hold the live bar against the token pair (E2) and
+	// against the two stacks it must not be: the single-layer token throw the
+	// previous generation carried, and the port's literal.
+	probe := func(throws ...ui.Color) *ui.Tester {
 		tt := ui.NewTester(func(c *ui.Context) {
 			c.SetTheme(tokens.Theme)
 			c.Root().Background(canvas)
 			strip := ui.Row(c).Absolute().Top(0).Left(0).Right(0).Height(tokens.Theme.Space(7))
-			strip.Shadow(0, tokens.Theme.Space(1.5), tokens.Theme.Space(4), 0, col)
+			strip.Shadow(0, tokens.Theme.Space(1.5), tokens.Theme.Space(4), 0, throws[0])
+			if len(throws) > 1 {
+				strip.Shadow(0, tokens.Theme.Space(0.25), tokens.Theme.Space(0.5), 0, throws[1])
+			}
 		}, 900, 120)
 		tt.SetPreferences(ui.Preferences{ReduceMotion: true})
 		tt.Frame()
 		return tt
 	}
-	contact, literal := probe(tokens.ShadowContact), probe(ui.RGBA(0, 0, 0, 0.18))
+	pair := probe(tokens.ShadowAmbient, tokens.ShadowContact)
+	oldContact := probe(tokens.ShadowContact)
+	literal := probe(ui.RGBA(0, 0, 0, 0.18))
 	under := func(x0, y0, x1, y1 int, other *ui.Tester) int {
 		ia, ib := hovered.Image(), other.Image()
 		n := 0
@@ -393,11 +409,16 @@ func TestTheTitleBarHoverShadowIsShadowContact(t *testing.T) {
 		}
 		return n
 	}
-	toBeContact := under(100, floor, 800, floor+30, contact)
+	toBePair := under(100, floor, 800, floor+30, pair)
+	toBeOld := under(100, floor, 800, floor+30, oldContact)
 	toBeLiteral := under(100, floor, 800, floor+30, literal)
-	if toBeContact != 0 {
-		t.Errorf("%d pixels under the bar differ from a ShadowContact throw; §6.2 第 6 条 names that token",
-			toBeContact)
+	if toBePair != 0 {
+		t.Errorf("%d pixels under the bar differ from the E2 pair (ShadowAmbient + ShadowContact); "+
+			"liquid-glass.md §6.3 第 3-4 行 / §2 判据 3 names the two layers", toBePair)
+	}
+	if toBeOld == 0 {
+		t.Errorf("the bar's hover shadow is byte-identical to the single-layer ShadowContact throw " +
+			"the previous generation painted: the contact layer is missing (§2 判据 3)")
 	}
 	if toBeLiteral == 0 {
 		t.Errorf("the bar's hover shadow is byte-identical to a literal rgba(0, 0, 0, 0.18): " +
