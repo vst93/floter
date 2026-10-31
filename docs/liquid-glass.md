@@ -1515,3 +1515,53 @@ pin：`internal/settingsui/sliderrung_test.go` 三条 × 深浅两套外观 —�
 `/tmp/floter-P13-bf-slider-{light,dark}-{on,off}-{before,after}.png`）。
 **V 0 / B 0 / S 0**，变异 4 条实跑（4 红，`md5sum -c` 逐字节还原后 `touch` 复跑绿）。
 详见 `docs/rounds/P13-bf-report.md`。
+
+### §6.26 捕获输出页的状态行：三种结局长得一模一样（P13-bg，**已落地**）
+
+捕获输出页的条子（strip）在标题下面画一行 `view.Status + "  ·  " + outputHint(...)`
+（`internal/launcher/output.go`）。这一行把**两件事**塞进了**一个寄存器**：这一页的
+结局（`Finished` / `Exit code 3` / `Timed out`）与它自己的键位图例
+（`Enter copies · Esc closes`），同一档墨、同一个字重，只隔一个中点。
+
+更要紧的是**三种结局逐像素相同**——`OutputView.Status` 只是一串字，条子上没有任何
+东西知道这次运行是成功还是失败：
+
+| 臂 | 墨 | 浅 darkest / 对地面 | 深 darkest / 对地面 |
+|---|---|---|---|
+| `Finished` | `TextMuted` | **116 / 137** | **164 / 141** |
+| `Exit code 3` | `TextMuted` | **116 / 137** | **164 / 141** |
+| `Timed out` | `TextMuted` | **116 / 137** | **164 / 141** |
+| 标题（命令行，`t.Text`） | `t.Text` | 25 / 228 | 244 / 221 |
+
+（720 帧、真启动器地面；地面浅 **253** / 深 **23**。三个臂的 ink 一个字节都不差。）
+
+| # | 位置 | 现状（旧，实测） | 落成（新，实测） | 状态 |
+|---|---|---|---|---|
+| 26-1 | `OutputView` | 只有 `Status string` | 加 `Failed bool`（`run.TimedOut \|\| !run.Success`，由 `OutputFor` 自己算；没有调用方需要改） | `已落地` |
+| 26-2 | 结局（成功臂） | `TextMuted` 500（浅 116 / 深 164） | `TextSecondary` + 580（浅 **108** / 深 **156**，对地面 145 / 133） | `已落地` |
+| 26-3 | 结局（失败 / 超时臂） | 与成功臂**逐像素相同** | `t.Warning` + 580（浅 `217,119,6`（对地面 **139**）/ 深 `245,158,11`（**115**））：色相是语义不是强调（§6.19） | `已落地` |
+| 26-4 | 中点 `·` | 与两侧同墨（藏在同一个 `ui.Text` 里） | 自己的 span：`TextTertiary` 0.7（`settingsui` 事实行的同一个数） | `已落地` |
+| 26-5 | 图例（`outputHint`） | `TextMuted` 400（浅 116 / 深 164），与结局同档 | `TextTertiary` + 500（浅 **144** / 深 **112**，对地面 109 / 89） | `已落地` |
+| 26-6 | 行盒 / 字阶 / 标题 / 两枚方键 / 条子 padding | — | **一个像素不动**：三段同一个 `FontSize - 1`，`RichText` 只换墨与字重 | `已落地`（复核） |
+
+**三档成阶梯**（对地面，浅 / 深）：标题 **228 / 221** ≫ 结局 **145 / 133**（失败
+139 / 115）≫ 图例 **109 / 89**。结局压过图例 **36 / 44 级**（成功）、**30 / 26 级**
+（失败），两套外观同序。
+
+**为什么图例要退到 tertiary，而不是留在 muted**：`TextMuted`（浅 116 / 深 164）与
+`TextSecondary`（108 / 156）只差 **8** 级——那正是用户说的「差值太小，全糊在一起」。
+留在 muted 的话结局只压图例 8 级，失败臂更是**低于**图例（深色档 141 对 164 = −23）。
+三档要真的成阶梯，图例必须退一档；这同时让失败臂在色相之外还有**高度**。
+
+**重定基线**：结局 `TextMuted`（116 / 164）→ `TextSecondary`（108 / 156）；
+失败臂 `TextMuted`（与成功臂相同）→ `t.Warning`；图例 `TextMuted`（116 / 164）→
+`TextTertiary`（144 / 112）。
+
+pin：`internal/launcher/outputstatus_test.go` 三条 × 深浅两套外观 —— ①失败臂保留暖色相
+（`r−b ≥ 40`）而成功臂是中性墨（`|r−b| ≤ 12`），且两臂**不许逐像素相同**、两个失败臂
+互相一致；②结局压过自己的图例（≥20 且 ≤120 级），行盒不塌；③结构 pin：`Failed` 由运行
+结果算出、`outputStatusSpans` 在、条子走 `ui.RichText`、旧的单 `ui.Text` 那一行不在。
+另有一条 opt-in 出图（`FLOTER_P13BG_DUMP=1` / `FLOTER_P13BG_TAG=<before|after>`，
+`/tmp/floter-P13-bg-outputstatus-{light,dark}-{finished,failed,timedout}-{before,after}.png`）。
+**V 0 / B 0 / S 0**，变异 4 条实跑（4 红，`md5sum -c` 逐字节还原后 `touch` 复跑绿）。
+详见 `docs/rounds/P13-bg-report.md`。

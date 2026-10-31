@@ -40,6 +40,10 @@ type OutputView struct {
 	// Status is the one-line summary: the exit code, the duration, and
 	// whether the output was cut or the run timed out.
 	Status string
+	// Failed reports whether this run did not succeed — a non-zero exit, a
+	// timeout, or a run that never started. `Status` is the words; this is
+	// the fact the strip needs to draw them differently (P13-bg).
+	Failed bool
 	// FontFamily is the family the text is drawn in: the terminal's own, so
 	// a command's output reads the way it would in the terminal.
 	FontFamily string
@@ -142,6 +146,7 @@ func (a *App) OutputFor(run extensions.CapturedRun, err error, entry *extensions
 		Text:       ansi.Plain(raw),
 		Spans:      ansi.Parse(raw),
 		Status:     a.runStatus(copy, run),
+		Failed:     run.TimedOut || !run.Success,
 		FontFamily: a.settings().FontFamily,
 		Selected:   -1,
 	}
@@ -543,7 +548,13 @@ func (a *App) outputBody(c *ui.Context, copy i18n.Launcher, edge float32) {
 					control("\u29c9", copy.OutputDetach, copy.OutputDetachHint, func() { a.Actions.DetachOutput(*view) })
 				}
 			})
-			ui.Text(c, view.Status+"  \u00b7  "+a.outputHint(copy, view)).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+			// P13-bg（`docs/liquid-glass.md` §6.26）：这一行此前是**一件事**——
+			// 这一页的结局（`Finished` / `Exit code 3` / `Timed out`）与它自己的
+			// 键位图例（`Enter copies · Esc closes`）同一档墨、同一个字重，只隔一个
+			// 中点；而且三种结局**逐像素相同**（实测浅 116 / 深 164，三个臂一个字节
+			// 不差），一次失败的运行与一次成功的运行在条子上长得一样。现在它是三段
+			// 各自的寄存器：结局、中点、图例（见 `outputStatusSpans`）。
+			ui.RichText(c, a.outputStatusSpans(c, copy, view)...).FontSize(t.FontSize - 1)
 		})
 		// The body takes what the strip left: its own inset is the breath below
 		// the status line, not the panel's top edge — the strip already spent
@@ -579,6 +590,45 @@ func (a *App) outputBody(c *ui.Context, copy i18n.Launcher, edge float32) {
 			}
 		})
 	})
+}
+
+// outputStatusSpans is the strip's one line as the three things it actually
+// says: this run's verdict, the reference's muted `·` between them, and the
+// key legend under it.
+//
+// P13-bg（`docs/liquid-glass.md` §6.26）：此前这三件是一件事——同一个墨、同一个
+// 字重、只隔一个中点，而且三种结局逐像素相同（实测浅 116 / 深 164，`Finished`、
+// `Exit code 3`、`Timed out` 三个臂一个字节不差）。结局是这一页的**结论**，图例是
+// 它的**说明书**；它们不该是同一档。
+//
+// 三档（对启动器的地面，浅 / 深）：
+//
+//	标题（命令行，`t.Text`，12px）      228 / 221   ← 这一页的名字，不动
+//	结局 `TextSecondary` + 580          145 / 133
+//	结局（失败）`t.Warning` + 580         139 / 115   ← 色相是语义，不是强调（§6.19）
+//	图例 `TextTertiary` + 500            109 /  89   ← 这一页最轻的一件
+//
+// **为什么图例退到 tertiary 而不是留在 muted**：`TextMuted`（浅 116 / 深 164）与
+// `TextSecondary`（108 / 156）只差 **8** 级——那是「差值太小」的原样。三档要真的成阶梯，
+// 必须把图例退到 tertiary 那一档（浅 144 / 深 112），结局才第一次比它高 36 / 44 级；
+// 失败臂因此也才高过图例（30 / 26），色相之外还有高度。
+//
+// 行盒一个像素不动：三段同一个 `FontSize - 1`，RichText 只换墨与字重。
+func (a *App) outputStatusSpans(c *ui.Context, copy i18n.Launcher, view *OutputView) []ui.Span {
+	tokens := a.tokens(c)
+	t := c.Theme()
+	verdict := tokens.TextSecondary
+	if view.Failed {
+		verdict = t.Warning
+	}
+	return []ui.Span{
+		{Text: view.Status, Weight: 580, Color: verdict},
+		// The reference's own muted `·` between two facts
+		// (`extensions.css:2096-2103`); `settingsui`'s fact lines draw it at
+		// `TextTertiary` 0.7 and this line keeps that reading.
+		{Text: "  \u00b7  ", Color: tokens.TextTertiary.Alpha(0.7)},
+		{Text: a.outputHint(copy, view), Weight: 500, Color: tokens.TextTertiary},
+	}
 }
 
 // outputHint is the key line: a list can be walked and run, text can only be
