@@ -1974,13 +1974,27 @@ func (a *App) transferRow(c *ui.Context, copy i18n.Settings) {
 	ui.Row(c).FillWidth().Gap(t.Space(1)).AlignItems(ui.Center).
 		Padding(0, 0, t.Space(1), 0).Children(func() {
 		if a.Actions.ExportIntegrations != nil {
-			if a.actionButton(c, copy.IntegrationsExport).Disabled(busy).Clicked() {
+			var button ui.Element
+			if busy {
+				// P13-ba: a locked pill must not wear the lit edge that says it can
+				// be pressed; the face picks its material while it draws.
+				button = a.disabledActionButton(c, copy.IntegrationsExport)
+			} else {
+				button = a.actionButton(c, copy.IntegrationsExport)
+			}
+			if button.Clicked() {
 				a.TransferReport = nil
 				a.Actions.ExportIntegrations()
 			}
 		}
 		if a.Actions.ImportIntegrations != nil {
-			if a.actionButton(c, copy.IntegrationsImport).Disabled(busy).Clicked() {
+			var button ui.Element
+			if busy {
+				button = a.disabledActionButton(c, copy.IntegrationsImport)
+			} else {
+				button = a.actionButton(c, copy.IntegrationsImport)
+			}
+			if button.Clicked() {
 				a.TransferReport = nil
 				a.Actions.ImportIntegrations()
 			}
@@ -2754,11 +2768,12 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 		// is busy. The one button whose own work is in flight (the re-check or
 		// the reconnect) is drawn by repairAction in its busy face instead.
 		rowAction := func(label string) ui.Element {
-			button := a.actionButton(c, label)
 			if busy {
-				button = button.Disabled(true)
+				// P13-ba: `.Disabled` after the build is too late — the material was
+				// already chosen. The locked cluster goes through the disabled arm.
+				return a.disabledActionButton(c, label)
 			}
-			return button
+			return a.actionButton(c, label)
 		}
 		a.row(c, "", "", func() {
 			// The row's Run button: on a runnable row it runs the integration —
@@ -2770,12 +2785,17 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			// (`src/extensions/ExtensionRow.tsx:381-399`).
 			if a.Actions.RunWithParams != nil {
 				runnable := integration.Running && !integration.Broken
-				run := a.actionButton(c, copy.RunAction)
-				if !runnable {
-					run = tokens.Tip(c, run, copy.RunActionUnavailable).Disabled(true)
-				}
-				if busy {
-					run = run.Disabled(true)
+				// P13-ba: the locked Run is **built** disabled, not disabled after the
+				// fact, so its crown goes out with the rest of the cluster. Exactly one
+				// pill is built either way.
+				var run ui.Element
+				switch {
+				case !runnable:
+					run = tokens.Tip(c, a.disabledActionButton(c, copy.RunAction), copy.RunActionUnavailable)
+				case busy:
+					run = a.disabledActionButton(c, copy.RunAction)
+				default:
+					run = a.actionButton(c, copy.RunAction)
 				}
 				if run.Clicked() && runnable {
 					if len(integration.Params) > 0 {
@@ -3561,13 +3581,19 @@ func (a *App) repairAction(c *ui.Context, id, label, tooltip string, run func(st
 		tokens.Tip(c, a.busyActionButton(c, label, "extensions.repair."+id), tooltip)
 		return
 	}
-	button := tokens.Tip(c, a.actionButton(c, label), tooltip)
+	var button ui.Element
 	if a.rowBusyExceptRepair(id) {
 		// Another operation on the row is in flight: the reference disabled
 		// *every* control in the cluster for the duration, not only the one
 		// that was pressed (`disabled={busy}`, `src/extensions/ExtensionRow.tsx:301-419`).
-		button = button.Disabled(true)
+		// P13-ba: built disabled rather than disabled afterwards — a pill built
+		// first keeps its lit crown, and the crown is the mark of a pill that can
+		// be pressed.
+		button = a.disabledActionButton(c, label)
+	} else {
+		button = a.actionButton(c, label)
 	}
+	button = tokens.Tip(c, button, tooltip)
 	if button.Clicked() {
 		a.startRepair(id, run)
 	}
@@ -5863,7 +5889,14 @@ func (a *App) detectedAction(c *ui.Context, copy i18n.Settings, tool DetectedToo
 	if kind == detectedInstallInTerminal && a.Actions.InstallDetected == nil {
 		disabled = true
 	}
-	button := a.actionButton(c, detectedLabel(copy, kind)).Disabled(disabled)
+	var button ui.Element
+	if disabled {
+		// P13-ba: a row with nothing to offer keeps the button (it is the only
+		// sign there is nothing to press) but loses the lit edge.
+		button = a.disabledActionButton(c, detectedLabel(copy, kind))
+	} else {
+		button = a.actionButton(c, detectedLabel(copy, kind))
+	}
 	if !button.Clicked() {
 		return
 	}

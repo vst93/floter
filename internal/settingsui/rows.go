@@ -491,6 +491,34 @@ func (a *App) actionButton(c *ui.Context, label string) ui.Element {
 	return a.extensionActionButton(c, label, t.Space(7.5), t.Space(3.75), a.tokens(c).Body)
 }
 
+// disabledActionButton is `actionButton` for a pill that is on screen but
+// cannot be pressed — the row's whole action cluster while one of its
+// operations is in flight (`rowAction`), the Run button of a row that has
+// nothing to run, and the tool row with nothing to offer.
+//
+// It exists because `.Disabled(...)` **after** the pill was built is too late:
+// `extensionActionFace` picks the material while it draws, and `actionButton`
+// pinned that argument to `false`. The result was the one state this design
+// forbids — a surface wearing the mark of a pressable one: measured on the
+// light sheet the crown sat at **240 over a 238 face** and on the dark one at
+// **36 over a 26 face**, i.e. a lit edge on a pill the pointer refuses. The
+// material now goes through the same disabled arm every other locked control
+// in this package uses (`busyActionButton`, `configOpenToolRow`, P13-s):
+// `DimFace` — the counter-side shade stays, the light goes out.
+//
+// The face is the caller's and stays `Control`; the framework's painter
+// already halves a disabled subtree (`ui/paint.go:257-259`), so the step off
+// the ground is half a rung on purpose (§6.2b-6: one fade, and the material
+// says the rest by going unlit).
+func (a *App) disabledActionButton(c *ui.Context, label string) ui.Element {
+	t := a.cardTheme(c)
+	button, ink := a.extensionActionFace(c, t.Space(7.5), t.Space(3.75), true)
+	button.Children(func() {
+		ui.Text(c, label).FontSize(a.tokens(c).Body).FontWeight(600).TextColor(ink)
+	})
+	return button.Disabled(true).Cursor(ui.CursorDefault)
+}
+
 // extensionActionButton builds the panel's action pill at a chosen height,
 // corner radius and text step, so the base-plugin card's Configure control
 // can wear the reference's one-step-down variant

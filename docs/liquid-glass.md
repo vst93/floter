@@ -1295,3 +1295,44 @@ pin：`internal/settingsui/sheetcutedge_test.go` 三条（两端退让 / 两端�
 `internal/launcher/tipglass_test.go` 三条（`TestTheLaunchersTipsAreFloatingPanes` 启动器真帧上量
 「改前/改后最大的那块单色」；`TestTheTipFloatsOffItsAnchor` 平地上量 1.5u；
 `TestTheLauncherHasNoFrameworkTips` 点名七处、`.Tooltip(` 残留必须是 0）。
+
+### §6.21 行忙时那簇键的灯：`actionButton` 把禁用那一格写死成 `false`（P13-ba，**已落地**）
+
+§6.2b-6 / §6.14 / §6.15 把「禁用 = 面还在、光熄了、只淡一道」立成契约，收的是**控件**，
+一个入口一个入口地收：`busyActionButton`、`extensionGlyphActionButton(..., disabled)`、
+`configOpenToolRow`、`updateButton`、`extensionIconButton`、`disabledSwitch`。漏掉的是
+**`actionButton` 这条最常走的路**——它是 `extensionActionButton` 的简写，而后者把
+`extensionActionFace` 的 `disabled` 参数**写死成 `false`**（`rows.go:534`）。于是「建完再
+`.Disabled(true)`」的六处调用点全部绕过了那条臂：面被框架的 0.5 淡了一道，**冠线照旧在**。
+
+这是这一支 §3 判据的直接违例：「受光边是「这块面可以被碰」的记号」。一枚因为**别的**操作
+在飞而锁住的键，戴着这枚记号。
+
+| # | 位置 | 现状（旧） | 落成（新） | 状态 |
+|---|---|---|---|---|
+| 21-1 | `rows.go` `actionButton` / `extensionActionButton` | `extensionActionFace(c, h, r, false)`：禁用那一格永远走不到 | 新增 `disabledActionButton`：同一枚胶囊、`extensionActionFace(..., true)` + `.Disabled(true).Cursor(ui.CursorDefault)`；几何（`Space(7.5)` / `Space(3.75)` / `Body`）与 `actionButton` 逐字段相同 | `已落地` |
+| 21-2 | `settingsui.go` `transferRow`（导出 / 导入，行忙） | `a.actionButton(...).Disabled(busy)` | `busy` 那一臂改走 `disabledActionButton`，**只建一枚**（不在两个分支各建一次） | `已落地` |
+| 21-3 | `settingsui.go` `rowAction`（行忙时整簇） | 建完 `button = button.Disabled(true)` | `busy` 时直接返回 `disabledActionButton(c, label)` | `已落地` |
+| 21-4 | `settingsui.go` 行内 Run（不可运行 / 行忙） | `tokens.Tip(...).Disabled(true)` + 又一次 `.Disabled(true)` | `switch { case !runnable: Tip(disabledActionButton) ; case busy: disabledActionButton ; default: actionButton }`；提示仍只在「不可运行」那一档给 | `已落地` |
+| 21-5 | `settingsui.go` `repairAction`（行里别的操作在飞） | 建完再 `.Disabled(true)` | 按 `rowBusyExceptRepair` 选面，**一枚** `tokens.Tip` 收口（保持 `tipglass_test.go` 的 10 处普查不变） | `已落地` |
+| 21-6 | `settingsui.go` `detectedAction`（无可执行项） | `a.actionButton(...).Disabled(disabled)` | `disabled` 那一臂走 `disabledActionButton` | `已落地` |
+| 21-7 | 普查 | — | `TestNoActionPillIsDisabledAfterItIsBuilt`：非测试源码里 `actionButton(c` 之后 **3 行窗口内**出现 `.Disabled(` 即红，点名 file:line | `已落地` |
+
+**实测（`dimProbe`，同一个 320×160 harness、同一个地面）**
+
+| 外观 | 地面 | 面 | 冠线（改前 → 改后） | 底对侧 |
+|---|---|---|---|---|
+| 浅 | 247 | 238 | **240（+2 级）→ 238（0 级）** | 231（−7，两轮相同） |
+| 深 | 14 | 26 | **36（+10 级）→ 26（0 级）** | 23（−3，两轮相同） |
+
+对照（同一 harness 里的**可用**胶囊）：浅色冠线 236 / 面 230（+6），深色 58 / 39（+19）——
+也就是说改前的禁用胶囊戴着一条**比可用胶囊还弱、但不是零**的冠线，那正是最难读的一种：
+它不像可用，也不像不可用。
+
+**pin**：`internal/settingsui/disabledpill_test.go` 三条（复用 P13-s 的 `assertDisabledFace`
+判「面还有台阶 / 顶内线不亮 / 底对侧还在」× 深浅两套；普查一条；`FLOTER_P13BA_DUMP=1`
+出图 opt-in 一条）。**V 0 / B 0 / S 0**。
+
+**为什么这轮让它更有空间感**：z 阶梯的价值是**读起来一致**——同一页上「不可碰」必须只有
+一种画法。此前它有五种（三种熄灯、一种框架平涂、一种带灯的），行忙时那一簇键恰好在最外
+一侧：它们在一片熄了灯的控件中间仍然亮着。
