@@ -843,13 +843,21 @@ pin 里没有写死渲染器的像素。出图 `/tmp/floter-P13-y-bar-{light,dar
 | 7-6 | `shell/pinned.go` 便条 ✕ | 同上 | 同一条臂（`ControlPress` + 0.92，`LitFace` 臂内重画） | `已落地` |
 | 7-7 | `shell/notices.go` toast ✕（E2 面里的键） | 同上；墨在 hover 时 `TextStrong` | 按下臂在前：`LitFace(ControlPress)` + `Scale(0.92)`；墨保持 `TextStrong`（参考的 `:active` 继承 `:hover`） | `已落地` |
 | 7-8 | `shell/notices.go` toast 动作胶囊 | `LitFace` + hover 换面，按下无档 | 按下臂：`Background(ControlPress)` + `Scale(0.97)` + `LitFace`（胶囊的数，不是小格的） | `已落地` |
-| 7-9 | `terminalui` 浮条上的五个 28u 键 | 同样只有两档 | **故意不做（本轮）**：它的墨来自**画布**（`canvasInks` / `barInks`），板子里没有「按下的洗色」这一档，直接借 `ControlPress` 会在命名调色板的深色画布上出现一块窗口灰。补的是 `barInks` 的第六档，属材质决策，单独一轮 | `故意不做`（见理由，下一轮候选） |
+| 7-9 | `terminalui` 浮条上的五个 28u 键 | 同样只有两档（实测四套墨源 × 五枚键全部逐像素相同：浅 221↔221、深 48↔48、`ink` 33,36,38↔33,36,38、`paper` 223,219,209↔223,219,209） | **已落地（P13-am）**：补的正是 `barInks` 的第六档 `Press` —— `windowBarInks` 直接读控制阶梯的 `SurfacePressed`，命名调色板读派生洗色 `ink.Alpha(0.035)`（阶梯自己的比例 `0.032/0.105 = 0.305`、`0.05/0.14 = 0.357`，浮条 0.10 退一档取上沿）。实测浅 **221→239**、深 **48→26**、`ink` **33,36,38→19,21,24**、`paper` **223,219,209→237,232,221**；按下帧的冠线仍在（`ink` 上读作 75,77,79 压 19,21,24） | `已落地` |
+| 7-10 | 同处：按下这一档的**几何** | 族里是「面沉 + `Scale(0.92)`」 | **需拍板**：这一页只收面、不收盒子。实测带 `Scale` 会丢一个点击——浮条上的键在抽屉滑入的那两帧里被裁到 **2 DIP** 宽（盒子 `{858 314 2 28}`），绕中心缩 0.92 后左边缘往里让 0.08 DIP，把落在中心线上的点击点挤出命中框，释放时 `rt.contains` 为假，`drawer_test.go` 两条 B pin 变红。命中的账属于框架（盒宽收缩时命中框跟着动），不是视觉轮能改的语义 | `需拍板` |
 
 pin：`internal/shell/pressrung_test.go` 两条（面 / 几何，深+浅 × 三个键）+ 一条 opt-in 出图。
 **几何怎么量**：`Scale` 是渲染变换、布局盒不动，所以 pin 数的是**画出来的键宽**（45/32 DIP），
 渲染器改成挪盒子也不会蒙过；**面怎么量**：读键自己的 padding 列（材料，不是字形）。
 `internal/ci` 的臂级 census 零改动通过——四个新臂里都写了 `LitFace`，不必加豁免。
 出图 12 帧：`/tmp/floter-P13-al-<surface>-<light|dark>-<hover|press>.png`。
+
+#### §6.7b-2 终端浮条那一族（P13-am，**已落地 / 一条需拍板**）
+
+pin：`internal/terminalui/pressrung_test.go` 两条（面 ②③ / 局部性 ④，四套墨源 × 五枚键）+ 一条 opt-in 出图。
+**面怎么量**：读键自己的 padding 列（5u，字/图标之外）；**局部性怎么量**：悬停帧与按下帧的整幅差
+必须全部落在键盒（外扩 1 DIP）内、且布局盒两帧相同（实测差异 585 像素、bbox `25×25 @ (864,0)`）。
+出图 8 帧：`/tmp/floter-P13-am-<case>-<hover|press>.png`。
 
 ### §6.7 启动器两条「带」上的四个小面：各缺半套 E1（P13-aa，**已落地**）
 

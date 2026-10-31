@@ -1068,6 +1068,11 @@ type barInks struct {
 	// register), Muted the bar's glyphs, Tertiary the status dot, and Wash the
 	// pane behind a button the pointer rests on.
 	Ink, Muted, Tertiary, Wash ui.Color
+	// Press is the same pane one rung *down*: `docs/liquid-glass.md` §5 asks a
+	// pressed control to sink back toward the face it sits on, and the bar's
+	// controls sit on the canvas, so this rung is thinner than Wash, never a
+	// different material (P13-am).
+	Press ui.Color
 	// Face is the bar's own fill while it is revealed; a zero alpha means the
 	// bar owns no face and the canvas under it is what the user sees, which is
 	// the window's own case.
@@ -1082,12 +1087,26 @@ const barFaceContrast = 4.5
 // windowBarInks is the bar's four rungs as the window spells them: the shape
 // the bar has always had, and the shape it keeps wherever no palette owns the
 // face under it.
+// The bar's two lifting rungs over a named palette: the wash the pointer rests on
+// and the thinner one it leaves under the finger (P13-am). One number each, so the
+// ladder is one statement and the press is always a fixed step back from hover.
+const (
+	barWashAlpha  = 0.1
+	barPressAlpha = 0.035
+)
+
 func windowBarInks(f *ui.Theme, tokens theme.Tokens) barInks {
 	return barInks{
 		Ink:      tokens.TextSecondary,
 		Muted:    f.TextMuted,
 		Tertiary: tokens.TextTertiary,
-		Wash:     f.SurfaceHover,
+		// Over the window's own canvas the bar's two faces *are* the control
+		// ladder's two lifting rungs (`--glass-control-hover` /
+		// `--glass-control-press`): nothing has to be derived, and borrowing the
+		// pair keeps the terminal's keys on the same ladder as every other
+		// pressable in the app.
+		Wash:  f.SurfaceHover,
+		Press: f.SurfacePressed,
 	}
 }
 
@@ -1126,8 +1145,21 @@ func barInksFor(tokens theme.Tokens, window barInks, name string, running bool) 
 		Ink:      ink,
 		Muted:    quietRung(ink, onBar, 3.0),
 		Tertiary: quietRung(ink, onBar, 2.5),
-		Wash:     ink.Alpha(0.1),
-		Face:     scrim,
+		Wash:     ink.Alpha(barWashAlpha),
+		// The press rung is the same wash stepped back toward the canvas. It
+		// cannot be the window's `ControlPress`: a window-grey plate over a
+		// `contrast` canvas reads *lighter* than the black it sits on, i.e. the
+		// key would lift when pushed. Over a named palette the whole ladder is
+		// the palette's own ink, so the press is `barPressAlpha` of that ink.
+		// The two numbers are the control ladder's own ratio, not a new one:
+		// `controlPress / controlHover` is 0.032/0.105 = 0.305 on the light
+		// appearance and 0.05/0.14 = 0.357 on the dark, so a bar wash of 0.10
+		// steps back to 0.035 — the top of that band, because the bar's wash is
+		// already thinner than the settings ladder's and 0.035 of a palette ink
+		// is the least that still paints ~8 levels on the darkest canvas
+		// (`contrast`, `forest`) rather than vanishing.
+		Press: ink.Alpha(barPressAlpha),
+		Face:  scrim,
 	}
 }
 
@@ -1414,7 +1446,31 @@ func (a *App) barButton(c *ui.Context, name, label, hint string, live bool, run 
 	// a tint of it, so a dark palette in a light window no longer paints a
 	// window-grey mark on a near-black face.
 	inks := a.canvasInks(c)
-	if button.Hovered() {
+	switch {
+	case button.Pressed():
+		// P13-am · the third rung. This bar had rest and hover only, so the frame
+		// the pointer was held down on was pixel-identical to the hover frame
+		// (measured: 221/221 light, 48/48 dark, and on a named palette
+		// 33,36,38 in both states) — a key that does not move when pressed reads
+		// as a key that did not take the click. `docs/liquid-glass.md` §5 asks for
+		// the ladder to step *back down*; the rung comes from the palette the bar
+		// belongs to (`barInks.Press`), because the window's `ControlPress` would
+		// paint a window-grey plate on a palette canvas. `LitFace` is drawn again
+		// inside the arm: the crown and counter-side line are per state, and a
+		// pressed key keeps its material rather than losing it exactly when it is
+		// most obviously a solid object.
+		//
+		// 为什么这一页不跟族里那一步 `Scale(0.92)`（P13-q / P13-al）：实测它会把
+		// 「按下去再松开」丢掉一整个点击。浮条上的键在抽屉滑入的那两帧里会被
+		// 裁到 **2 DIP** 宽（`drawer_test.go` 的两条 pin 点的就是那一帧，实测
+		// 盒子 `{858 314 2 28}`）；`Scale` 绕盒子中心缩，2 DIP 的键左边缘因此
+		// 往里让 0.08 DIP，正好把落在中心线上的那个点挤出命中框，释放时
+		// `contains` 为假 —— 抽屉关不掉，两条 B pin 变红。0.08 DIP 的命中差是
+		// **框架**的账（盒宽收缩时命中框跟着动），不是一次视觉轮该在这里改的
+		// 语义：本页只收面，几何留字给框架。已记进 `liquid-glass.md` §6.7b
+		// 第 7-10 行「需拍板」。
+		button = tokensOf(a, c).LitFace(button.Background(inks.Press))
+	case button.Hovered():
 		button.Background(inks.Wash)
 		// The pointer lights the resting lens rung (`.toolbar-button:hover`,
 		// the reference's hover-only variant): the bar's icon button is
