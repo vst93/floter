@@ -106,6 +106,36 @@ pin 在 `internal/launcher/raycast_test.go`（`TestTheControlRimIsTheOneLitLine`
 | **E1 面** | `Control` | 1px `ControlEdge` | `LensRim` 1px 顶边 | **无** | 它长在底上，压不出影子 |
 | **E2 浮** | `Float` | 1px `InputStroke` | `EdgeHighlight` 顶边 | `ShadowAmbient` + `ShadowContact` 两层 | 它压在其他内容上，且可关闭 |
 
+### §2.1 阶梯沿透明度滑块还站得住吗（P13-ac，**量过，不改**）
+
+任务书「先量再改的两个数」第 1 条猜的是「透明度拉到 10% 时浮 0.20 对面 0.10 只差 0.10，
+可能要按框的 alpha 缩放面档」。量下来**方向是反的**，而且真正塌的地方在**顶端**。
+实测（`glassmap.SpecForPreferencesOS("linux", "regular", o, false)`，Linux 无平台 veil）：
+
+| 滑块 | 底 `TintAlpha` | 浮 `FloatAlpha` | 浮−底 | 相对 |
+|---|---|---|---|---|
+| 10% | 0.10 | 0.20 | **0.10** | **2.00×** |
+| 25% | 0.25 | 0.35 | 0.10 | 1.40× |
+| 47%（默认） | 0.47 | 0.57 | 0.10 | 1.21× |
+| 70% | 0.70 | 0.80 | 0.10 | 1.14× |
+| 90% | 0.90 | 1.00 | 0.10 | 1.11× |
+| 100% | 0.98 | 1.00 | **0.02** | 1.02× |
+
+1. **面档不随框的 alpha 缩放**（判 `故意不做`）。alpha 差是**常数** 0.10（`floatStep`），
+   所以相对抬升在低端最大；而浮层的颜色相对桌面是近黑/近白（`#18191D` / `#FCFCFE`），
+   框越薄、透出的桌面越多，**像素**差越大。按 alpha 缩放会把两档拉平，正是反方向。
+   `Control` / `ControlHover` / `ControlPress` / `LensRim` 是**画在 whatever 之上的洗色与线**，
+   本来就不在滑块上。
+2. **顶端那一档不靠 alpha 分家**（判 `故意不做`）。`SolidTop = 0.98` 封住底、`min(1, …)`
+   封住浮，差只剩 0.02。浮层在那里由 §2 判据 3 的**两层影** + `EdgeHighlight` 顶边承担；
+   把底从 0.98 压到 0.88 去换回 0.10 会改掉 `main_opacity` 的承诺（滑块就是框自己的 alpha），
+   那是行为契约，不是墨。
+
+pin：`internal/glassmap/floatladder_test.go`（六个档位，差值是写死的绝对数；
+`floatStep` 本身也钉成 0.1）与 `internal/theme/theme_test.go` 的
+`TestTheElevationRungsDoNotRideTheOpacitySlider`（10% / 47% / 100% 三档 × 深浅两套外观：
+面档与受光边一个字节都不许动，浮仍严格高于面）。
+
 **三条判据**：
 
 1. **一个表面只有一个 E2**。抽屉开着的时候，抽屉里的一切是 E1；弹层开着的时候，

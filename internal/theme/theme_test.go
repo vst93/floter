@@ -1269,3 +1269,43 @@ func TestTheThreeElevationRungsAreVisibleAndOrdered(t *testing.T) {
 		})
 	}
 }
+
+// P13-ac · 三档 elevation 在**透明度滑块的两端**还成不成立？
+//
+// 上面那条只量默认 47%（`settings.DefaultMainOpacity`）。任务书「先量再改的两个数」
+// 第 1 条猜的是「低透明度端太弱，可能要按框的 alpha 缩放面档」——量下来的方向是反的
+// （见 `internal/glassmap/floatladder_test.go` 的那张表：alpha 差是常数 0.10，10% 时
+// 浮层是底的两倍；塌的是顶端 0.02）。这条 pin 把结论钉住：**面档不随框的 alpha 缩放**，
+// 滑块推到 10% 或 100%，`Control` / `ControlHover` / `ControlPress` 三档一个字节都不动，
+// 浮层仍严格高于面档。
+//
+// 反面臂：面档也不许跟着框一起变淡——那会把「面」退回「底」，正是用户说的
+// 「所有东西挤在同一个 z 平面上」。
+func TestTheElevationRungsDoNotRideTheOpacitySlider(t *testing.T) {
+	alpha := func(c ui.Color) float32 { return float32(c.A) / 255 }
+	base := settings.Settings{Theme: "auto", GlassStep: "regular"}
+	reference := map[bool]struct{ face, hover, press uint8 }{}
+	for _, dark := range []bool{true, false} {
+		tk := ForPreferences(base, dark, ui.Preferences{})
+		reference[dark] = struct{ face, hover, press uint8 }{tk.Control.A, tk.ControlHover.A, tk.ControlPress.A}
+	}
+	for _, opacity := range []uint8{10, 47, 100} {
+		for _, dark := range []bool{true, false} {
+			s := base
+			s.MainOpacity = opacity
+			tk := ForPreferences(s, dark, ui.Preferences{})
+			want := reference[dark]
+			if tk.Control.A != want.face || tk.ControlHover.A != want.hover || tk.ControlPress.A != want.press {
+				t.Errorf("%d%% (dark=%v): the face rungs moved with the frame's alpha — face %d/%d, hover %d/%d, press %d/%d; a face is a wash over whatever is under it, so it does not ride the slider",
+					opacity, dark, tk.Control.A, want.face, tk.ControlHover.A, want.hover, tk.ControlPress.A, want.press)
+			}
+			if !(alpha(tk.Float) > alpha(tk.Control)) {
+				t.Errorf("%d%% (dark=%v): the float (%.3f) fell behind the face (%.3f)", opacity, dark, alpha(tk.Float), alpha(tk.Control))
+			}
+			// 受光边是「面」的一部分，也不许随框变淡：它画的是一条线，不是一层玻璃。
+			if tk.LensRim.A != ForPreferences(base, dark, ui.Preferences{}).LensRim.A {
+				t.Errorf("%d%% (dark=%v): the lit edge moved with the frame's alpha: %d", opacity, dark, tk.LensRim.A)
+			}
+		}
+	}
+}
