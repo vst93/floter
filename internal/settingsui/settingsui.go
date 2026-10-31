@@ -4549,7 +4549,16 @@ func (a *App) slider(c *ui.Context, row sliderRow) {
 			// (`.terminal-setting-control__value`).
 			ui.Row(c).FillWidth().AlignItems(ui.Center).Justify(ui.SpaceBetween).Children(func() {
 				ui.Text(c, row.label).FontSize(t.FontSize + 1).FontWeight(580).TextColor(tokens.TextStrong)
-				ui.Text(c, row.format(v)).FontSize(t.FontSize).TextColor(tokens.TextStrong).
+				// P13-bf（`docs/liquid-glass.md` §6.25）：这个读数**退了**，但只在
+				// 禁用那一档。§1 的「槽」读法是「整块退一半、内线各留一半」——轨道
+				// 已经退了（实测浅色 209 → 219、深色 58 → 49），可这个数字与行名
+				// 只差 10 级（浅 37 对 27、深 227 对 237），是整行里唯一没退的东西。
+				// 一个不会动的读数不该和它的名字一样「活着」。可用行一个像素不动。
+				ink := tokens.TextStrong
+				if row.disabled != "" {
+					ink = tokens.TextSecondary
+				}
+				ui.Text(c, row.format(v)).FontSize(t.FontSize).TextColor(ink).
 					ContentTransition(ui.ContentTransition{Numeric: true})
 			})
 			if row.description != "" {
@@ -4574,7 +4583,13 @@ func (a *App) slider(c *ui.Context, row sliderRow) {
 				})
 			}
 			if row.disabled != "" {
-				ui.Text(c, row.disabled).FontSize(tokens.Caption).FontWeight(500).TextColor(tokens.TextTertiary)
+				// P13-bf（`docs/liquid-glass.md` §6.25）：这是这一行的**状态陈述**——
+				// 「为什么这个滑不动」。它此前是全行最淡的一件（`TextTertiary`，实测
+				// 浅 142 / 深 110），比它上面解释功能的提示（128 / 133）还轻 14 / 23
+				// 级，与 `emptyState`（P8-b，§4.7）钉死的「陈述压过提示」正好相反。
+				// 抬到 `TextSecondary` + 580：与禁用读数同档（一行里的两个事实），
+				// 但字重更实（它是一句话，不是一个数）。字阶不动——改字阶=改高度链。
+				ui.Text(c, row.disabled).FontSize(tokens.Caption).FontWeight(580).TextColor(tokens.TextSecondary)
 			}
 		})
 	})
