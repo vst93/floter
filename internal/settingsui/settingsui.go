@@ -3927,21 +3927,13 @@ func (a *App) updateButton(c *ui.Context, label string, disabled bool, run func(
 	tokens := a.tokens(c)
 	t := c.Theme()
 	button := ui.ButtonBase(c).Label(label).
-		MinHeight(t.Space(7)).Padding(t.Space(1.5), t.Space(3.5)).Radius(tokens.RadiusSM).
-		Background(t.Accent)
-	// `box-shadow: inset 0 1px 0 var(--glass-raised-rim)`: the lit top rim is
-	// what makes the accent pill read as a raised control — so it belongs to the
-	// usable rungs only (P13-aq: a face that cannot be touched must not wear the
-	// mark of one that can, `docs/liquid-glass.md` §3).
-	switch {
-	case disabled:
-		button = button.Cursor(ui.CursorDefault).Disabled(true)
-	default:
-		button.InsetShadow(0, 1, 0, 0, tokens.LensRim)
-		if button.Hovered() {
-			button = button.Opacity(0.9)
-		}
-	}
+		MinHeight(t.Space(7)).Padding(t.Space(1.5), t.Space(3.5)).Radius(tokens.RadiusSM)
+	// P13-bc：面、边、冠线与按下几何走 accent 主 CTA 的同一处定义
+	// (`accentPrimaryFace`)。这里此前是 `if Hovered() { .Opacity(0.9) }`——淡的是
+	// **整棵子树**（面 + 冠线 + 墨），于是「可以被碰」的那条线在指针落上去的那一刻
+	// 自己熄了一半；而同一个淡在两种外观上方向相反（浅色淡向 247 的地面变亮、
+	// 深色淡向 14 变暗），因为透明度是相对脚下的地面解析的。
+	button = a.accentPrimaryFace(c, button, disabled)
 	button.Children(func() {
 		ui.Text(c, label).FontSize(tokens.Emphasis).FontWeight(600).TextColor(t.AccentText)
 	})

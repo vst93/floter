@@ -604,24 +604,81 @@ func (a *App) extensionPrimaryButton(c *ui.Context, label string, disabled bool)
 	tokens := a.tokens(c)
 	button := ui.ButtonBase(c).
 		MinHeight(t.Space(7.5)).Padding(0, t.Space(2.5)).Radius(t.Space(3.75))
-	button.Border(1, tokens.AccentEdgeStrong).Background(t.Accent).
+	button.Border(1, tokens.AccentEdgeStrong)
+	button = a.accentPrimaryFace(c, button, disabled)
+	button.Children(func() {
+		ui.Text(c, label).FontSize(tokens.Body).FontWeight(600).TextColor(t.AccentText)
+	})
+	return button
+}
+
+// accentPrimaryFace is the material every accent primary CTA wears, in one
+// place: the three face rungs, the lit crown, the press geometry and the
+// disabled arm. The **edge** stays with each caller, because the two members of
+// this class genuinely differ there — the reference draws
+// `.extensions-action-button--primary` with `--accent-edge-strong`
+// (`extensions.css:1347-1364`) and `.update-banner__button` with none
+// (`settings.css:1542-1568`); adding one to the About key would also grow its
+// box by 2px, which is a geometry change, not ink.
+//
+// §5 第 2 条 names 「主 CTA 填充」 as one class, and this build has exactly two
+// members — the About page's update key (`updateButton`) and the extension
+// panel's Save / Run (`extensionPrimaryButton`). Before P13-bc they answered the
+// pointer in two different ways, and neither was the ladder's answer:
+//
+//   - `extensionPrimaryButton` had **no hover rung at all**: its resting and
+//     hovered frames were pixel-identical (measured face `6/74/166` on both, in
+//     the light appearance).
+//   - `updateButton` hovered with `.Opacity(0.9)`, which multiplies the **face,
+//     the crown and the ink** together. Two consequences: the lit edge — §3's
+//     mark that this face can be touched — goes out exactly when the pointer
+//     says it can; and the same fade moves in **opposite** z directions per
+//     appearance, because transparency resolves against whatever ground is
+//     underneath (light `6/74/166` faded *towards* the 247 ground to `29/91/173`
+//     = sunk into the paper; dark `143/183/255` faded towards 14 to
+//     `130/166/232` = also sunk). That is the same arithmetic P13-r rejected on
+//     the segmented control's thumb: **opacity is not a z statement**.
+//
+// `theme` had carried `AccentHover` (`#0857C4` / `#A3C4FF`) and `AccentPressed`
+// (`#053C87` / `#7AA7FF`) since P8-a with **zero call sites** — the ladder was
+// designed and never wired. They are wired here, so both CTAs lift one rung
+// under the pointer and sink one rung under the press, exactly as the neutral
+// family already does through `Control` / `ControlHover` / `ControlPress`.
+//
+// The disabled arm is P13-aq's: the crown is the mark of a pressable face, so it
+// goes out, and the fade is only the framework's own 0.5 for a `Disabled`
+// subtree (the reference's `.4` used to be drawn *on top of* it,
+// `docs/liquid-glass.md` §6.2b-6).
+func (a *App) accentPrimaryFace(c *ui.Context, button ui.Element, disabled bool) ui.Element {
+	t := a.cardTheme(c)
+	tokens := a.tokens(c)
+	plane := t.Accent
+	if !disabled {
+		switch {
+		case button.Pressed():
+			// The ladder stepping *back down*, `--accent-pressed`: the same third
+			// rung the neutral pills wear as `ControlPress`, and the same 0.97
+			// geometry (`extensionActionFace`'s `:active`).
+			plane = t.AccentPressed
+		case button.Hovered():
+			plane = t.AccentHover
+		}
+	}
+	button.Background(plane).
 		Transition(ui.ElementTransition{Colors: true, Duration: theme.ColorStep})
-	// P13-aq（`docs/liquid-glass.md` §3 / §6.2b-6）：accent 面的冠线是「这块面可以被
-	// 碰」的记号，不可用时**熄灯**；褪色只留框架给 `Disabled` 子树的那一道 0.5。
-	// 这一族此前是「冠线无条件画 + 调用点再叠一个 `.Opacity(0.4)`」：字与冠线被乘成
-	// 有效 0.2（实测浅色 Save 的字/面对比 168 → **43** 级、深色 170 → **40**），而面
-	// 只淡了一道——同一块面上两件东西不在同一次淡里。
 	if disabled {
 		button = button.Disabled(true).Cursor(ui.CursorDefault)
 	} else {
 		// `box-shadow: inset 0 1px 0 var(--glass-raised-rim)`: the raised top rim
 		// is what makes the accent pill read as a lit control rather than a flat
-		// accent block (the neutral pill gets the same from `Lens`).
+		// accent block (the neutral pill gets the same from `Lens`). It stays on
+		// every usable rung — including hover, where the old `.Opacity(0.9)` used
+		// to fade it away.
 		button.InsetShadow(0, 1, 0, 0, tokens.LensRim)
+		if button.Pressed() {
+			button = button.Scale(0.97, 0.97)
+		}
 	}
-	button.Children(func() {
-		ui.Text(c, label).FontSize(tokens.Body).FontWeight(600).TextColor(t.AccentText)
-	})
 	return button
 }
 

@@ -1347,3 +1347,35 @@ pin：`internal/settingsui/sheetcutedge_test.go` 三条（两端退让 / 两端�
 **为什么这轮让它更有空间感**：z 阶梯的价值是**读起来一致**——同一页上「不可碰」必须只有
 一种画法。此前它有五种（三种熄灯、一种框架平涂、一种带灯的），行忙时那一簇键恰好在最外
 一侧：它们在一片熄了灯的控件中间仍然亮着。
+
+### §6.22 主 CTA 的指针阶梯：两枚同一个角色，三个不同的说法（P13-bc，**已落地**）
+
+§5 第 2 条把「主 CTA 填充」定成一类。本仓这一类的成员恰好两枚：About 页的更新键
+（`updateButton`）与扩展面板的 Save / Run（`extensionPrimaryButton`）。同一类、同一个
+角色，指针落上去时此前有**三种**说法，而三种都不是阶梯的答案：
+
+| # | 位置 | 现状（旧，实测） | 落成（新） | 状态 |
+|---|---|---|---|---|
+| 22-1 | `internal/settingsui/rows.go` `extensionPrimaryButton` | **没有 hover 那一档**：静息帧与 hover 帧逐像素相同（浅 `6/74/166` / 深 `143/183/255`） | 走新的 `accentPrimaryFace`：面抬到 `AccentHover`（浅 `8/87/196` / 深 `163/196/255`） | `已落地` |
+| 22-2 | `internal/settingsui/settingsui.go` `updateButton` | `if Hovered() { .Opacity(0.9) }`——透明度乘的是**整棵子树**，所以 ① §3 的「受光边 = 这块面可以被碰」恰在指针说「可以碰」的那一刻自己熄了一半（浅色冠线 `66/117/187` → `29/91/173`、深 `153/189/255` → `130/166/232`）；② 同一个淡在两种外观上**方向相反**（浅色淡向 247 的地面 = 变亮 = 沉进纸里；深色淡向 14 = 变暗 = 也沉） | 删掉 `.Opacity(0.9)`，改读 `AccentHover`；冠线与墨在 hover 时**一个字节不动**（实测 hover 墨 Δ 21 / 20 → **0 / 0**） | `已落地` |
+| 22-3 | 两处 | 都没有按下那一档（中性胶囊族自 P13-q 起有 `ControlPress` + `Scale(0.97)`） | `accentPrimaryFace` 的 pressed 臂：面换 `AccentPressed`（浅 `5/60/135` / 深 `122/167/255`）+ `Scale(0.97)`，与中性族同一句 | `已落地` |
+| 22-4 | `internal/theme/theme.go` | `AccentHover` / `AccentPressed` 自 P8-a 起**零调用点**——阶梯设计好了、从没接上 | 值一个数不动，由 22-1/22-3 接上 | `已落地` |
+| 22-5 | `internal/settingsui/accentcta_test.go` | — | 普查：一个函数里同时出现「accent 面」与 `.Opacity(` 即红。**用 `go/ast` 读函数体，不是 grep 行**（P13-p 定下的查询形状：行式查询漏掉折行的调用链，而这里的缺陷正好是一条调用链） | `已落地` |
+
+**边留给调用方**（不是漏抽）：参考给 `.extensions-action-button--primary` 一条
+`--accent-edge-strong`（`extensions.css:1347-1364`），给 `.update-banner__button` **没有边**
+（`settings.css:1542-1568`）；给 About 那枚补边会把盒高从 `85.2 × 28.8` 长到
+`87.2 × 30.8`，那是几何改动，不是墨。所以 `accentPrimaryFace` 只管**面 / 冠线 / 按下几何 /
+disabled 臂**，`Border` 留在各自的调用点。几何零改动（两枚的盒与改前逐像素相同）。
+
+**为什么这是「轻」而不是「更淡」**：这一支的判据里，层级只由**面差**说话。上一枚用
+透明度表达 hover，而透明度的方向由脚下的地面解析——同一句 `0.9` 在浅色档是「沉进纸里」、
+在深色档是「也沉」，两个外观说的是同一件事**纯属巧合**。这就是 P13-r 在分段控件的选中格上
+判掉的那条算术（**透明度不是一句 z 声明**）。改成三档色值之后方向恒定，且与中性族同构。
+
+pin：`internal/settingsui/accentcta_test.go` 四条（两枚都抬一档 / 只动面不动冠线与墨 /
+两枚都沉一档 / accent 面不许用 `.Opacity(` 表达深度），每条在深+浅两套外观上跑；
+另有一条 opt-in 出图（`FLOTER_P13BC_DUMP=1`，
+`/tmp/floter-P13-bc-accentcta-{light,dark}-{rest,hover,press}.png`）。
+**V 0 / B 0 / S 0**，变异 5 条实跑（5 红，`md5sum -c` 逐字节还原）。
+详见 `docs/rounds/P13-bc-report.md`。
