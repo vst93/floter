@@ -439,9 +439,20 @@ func (a *App) uninstallPartRow(c *ui.Context, part uninstallPart) ui.Element {
 	switch {
 	case part.Fixed:
 		// `:has(input:disabled) { cursor: not-allowed; opacity: 0.6 }`.
-		card.Opacity(0.6)
-		card.Cursor(ui.CursorNotAllowed)
-		tokens.LitFace(card)
+		//
+		// P13-ar 重定基线：那个 0.6 不再叠上来。它是**整棵子树**的一道淡，而里面
+		// 那个勾选框自己还挂着 `Disabled`，框架再给它的子树乘一个 0.5
+		// （`mygo@v0.7.3/ui/paint.go:257-259`）——勾选框有效 0.30（实测墨/面
+		// **46 / 148**，即可用态的 0.32）。同族的 P13-s / P13-u / P13-aq 都是
+		// 「只淡一道」。所以 `Disabled` 落在**这张卡的根上**：`node.IsDisabled`
+		// 沿父链上溯（`mygo@v0.7.3/ui/element.go:1348-1355`），里面的勾选框因此
+		// 仍然是不可用的，但画笔只在卡这一层乘一次 0.5。
+		//
+		// 灯也一起熄（`LitFace` → `DimFace`）：受光边是「这块面可以被碰」的记号
+		// （§3），一张按不动的卡不该戴着它。旧值 → 新值：冠线行 − 面 **+3 / +12**
+		// → **0**（`docs/liquid-glass.md` §6.15）。
+		card.Disabled(true).Cursor(ui.CursorNotAllowed)
+		tokens.DimFace(card)
 	case card.Pressed():
 		// The press rung comes first: CSS paints `:active` over `:hover`,
 		// and a pointer held down is both. `:active` also drops the card's
@@ -472,10 +483,13 @@ func (a *App) uninstallPartRow(c *ui.Context, part uninstallPart) ui.Element {
 		box := ui.Checkbox(c, &on, "").Label(part.Label).
 			Width(t.Space(5)).Padding(t.Space(0.5), 0, 0, 0)
 		if part.Fixed {
-			box.Disabled(true)
 			// `input[type="checkbox"]:disabled { cursor: not-allowed }`
 			// (`:92-94`): the box inside the disabled card carries the rung
 			// itself, so the whole row reads as one inert control.
+			//
+			// P13-ar：**不**再给这个勾选框挂 `Disabled`。它已经继承了卡根上的
+			// 那个（`IsDisabled` 沿父链上溯），而 `flagDisabled` 每挂一层就多乘
+			// 一次 0.5——两道淡就是这么来的。游标是它自己的记号，留着。
 			box.Cursor(ui.CursorNotAllowed)
 		} else if box.Changed() {
 			changed = true
