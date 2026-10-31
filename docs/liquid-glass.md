@@ -1720,7 +1720,7 @@ command's arguments are typed」），但 `launcher.go:1569` 的条件是
 
 | # | 位置 | 现状（旧） | 落成（新） | 状态 |
 |---|---|---|---|---|
-| 30-1 | `launcher.go:1569` 字段行的 `switch` | `case a.mode != nil \|\| a.clipboard \|\| a.browser:` | `case a.mode != nil:`——剪贴板/浏览器落进 `default`，与计算器/文件页同一答案（空查询 → `copy.Hint`；有查询 → ✕ 清除键） | `已落地` |
+| 30-1 | `launcher.go:1569` 字段行的 `switch` | 此前是 `a.mode != nil` **或** `a.clipboard` **或** `a.browser`（三者取或，Go 里写作两条竖线） | `case a.mode != nil:`——剪贴板/浏览器落进 `default`，与计算器/文件页同一答案（空查询 → `copy.Hint`；有查询 → ✕ 清除键） | `已落地` |
 | 30-2 | 同文件命令模式臂 | 空态时页面陈述与字段尾部是同一句话（两遍） | `if !quietPage` 守卫：页面说过的那一句，尾部不再重复 | `已落地` |
 | 30-3 | 同文件空态臂（`:1360`） | `} else if len(results) == 0 {` | `} else if quietPage {`，与 30-2 共用同一个局部判据 `quietPage := a.output == nil && !a.configOpen() && len(results) == 0` | `已落地` |
 | 30-4 | 五个插件模式的尾部墨阶 | 剪贴板/浏览器是命令提示（278px、三句），计算器/文件是 `copy.Hint`（94px、一句） | 一条文案、一档墨（`TextMuted`，412 / 421）、一个行盒（22px），跨页逐像素相等 | `已落地` |
