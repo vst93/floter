@@ -1608,3 +1608,50 @@ pin：`internal/settingsui/noitalic_test.go` 三条 —— ①**census**：`cmd/
 `\` 而不是 `已落地`，`TestTheLiquidGlassContractSupersedesTheRaycastOne` 在 HEAD
 `b33023ad` 上**本来就是红的**（203 行 / 202 带状态）。本轮把它写成「`run.TimedOut` 或
 `!run.Success`」，全仓 `\|` 归 0。
+
+---
+
+### §6.28 插件窗口里「同一个运行的结局」没有画出来（P13-bi，**已落地**）
+
+通用队列「状态反馈」这一格的另一半：P13-bg（§6.26）刚给捕获输出页立起「结局 / 中点 / 图例」
+三档阶梯，而**同一个运行**在插件窗口（detached / pinned output window）里**一个字节都没说**。
+差不是「小」，是 **0**——三个结局臂的 `Texts()` 都是 `["jv" "Close" "hello"]`。
+
+| # | 位置 | 现状（旧） | 落成（新） | 状态 |
+|---|---|---|---|---|
+| 28-1 | `launcher/output.go` `OutputView`（`:27-70`） | `Status` 是 `结局 + "  ·  " + 事实` 的一整句；别的表面拿到它只能整句一个墨 | 拆出 `Verdict`（`Finished` / `Exit code 3` / `Timed out`）与 `Facts`（时长 / 截断），`runStatusParts` 是两段的唯一出处；`Status` 仍由同一段拼接逻辑产出，**逐字节不变**（§6.26 的 pin 与像素不动） | `已落地` |
+| 28-2 | `shell/detach.go` `detachedView` | bar → body，中间什么都没有 | bar → **`detachedVerdict`** → body：一条结局带，坐在正文的 14u 内边那一列上 | `已落地` |
+| 28-3 | 结局带的门 | — | `ran && !running && failed == "" && Verdict != "" && detachedHasBody(view)`：**只在有正文的那两个臂（文本 / 列表）画**。`running` / `refused` / 空输出 / 未运行四条状态行本身就是这一页的结论（§6.24），再补一条会让同一页说两遍结局 | `已落地` |
+| 28-4 | 结局带的阶梯 | — | 结局 `TextSecondary` + 580；失败 → `t.Warning` + 580（色相是语义，§6.19）；中点 `TextTertiary` 0.7；事实 `TextTertiary` + 500 | `已落地` |
+| 28-5 | 同处：两半的字号 | — | 两半同一个 `tokens.Caption`（11px）：这一条是**阶梯**不是**字阶**，改字号会撞 §6.24 的行盒 pin 与高度链 | `已落地` |
+| 28-6 | `shell/pinned.go` 便条窗口 | 无运行可报 | **故意不做**：便条是一段快照文本，它没有「这一次运行」可言，硬塞一条结局带就是编数据 | `故意不做（见理由）` |
+
+**实测（`ui.Tester` 720×460，窗口地面 `tokens.Opaque` 浅 246 / 深 20，`verdictProbe` 读的是
+画出来的像素，不是 token）**：
+
+| 段 | 浅 | 深 |
+|---|---|---|
+| bar 标题（§6.24，不动） | 118 | 113 |
+| 结局（成功） | **135** | **130** |
+| 结局（失败 / 超时，`t.Warning`） | **177 / 176** | **144 / 144** |
+| 事实（时长 / 截断） | **104** | **90** |
+
+结局压事实 **31 / 40**（失败臂 **73 / 54**）；结局同时**高过它头顶的 bar 标题**
+（浅 135 > 118、深 130 > 113）——结论比 chrome 重，与 §6.24 同一条规则。
+
+**几何只加一行**：整帧像素差 bbox `light finished (12,55)-(102,91)` / `light failed (12,55)-(114,91)`
+/ `dark` 同（583 / 606 px）。正文整体下移 27px（band 高 11 + 上下各 14u 之一，见下），
+`Scroll` 的 `MaxY` 由布局自己算——**面板高度链、主窗口、设置页一个字节不动**。
+
+pin：`internal/shell/verdictband_test.go` 五条 + 一条 opt-in 出图。
+①`TestTheDetachedWindowSaysTheRunsVerdict`——三个结局都在屏幕上、且三句互不相同
+（改前三句都不存在，这条正是本轮的红）；②`TestTheVerdictOutranksItsFacts`——结局压事实
+≥ 20 级；③`TestTheFailedRunKeepsTheWarningHue`——失败臂 `r−b ≥ 25`，成功臂 `|r−b| ≤ 8`；
+④`TestTheStateLinesHaveNoVerdictBand`——四条状态行**不许**长出结局带；⑤`TestTheVerdictBandIsOneFunction`
+——结构账：band 有自己的一处调用点，且 `detach.go` 里**不许出现 `view.Status`**（画整句
+就是把两半重新压回一个墨）。出图 `/tmp/floter-P13-bi-band-{light,dark}-{finished,failed,timedout}-{before,after}.png`
+（`FLOTER_P13BI_DUMP=1 FLOTER_P13BI_TAG=<before|after>`）。
+
+**一处取舍**：结局带的左右内边取正文自己的 `detachedBodyInset`（14u），**上**也取 14u、
+**下**取 0——正文自己的 14u 上内边距就是它与结局带之间的呼吸，给两次会让这条带读成
+「第二条 bar」。

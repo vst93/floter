@@ -201,7 +201,8 @@ const (
 )
 
 // detachedView draws one detached window: its bar (the command's name and its
-// two controls), and the output itself.
+// two controls), the run's verdict when there is a body to hold it, and the
+// output itself.
 func (a *App) detachedView(c *ui.Context, detached *detachedOutput) {
 	// The window is its own Context: the shell sets the floter theme on the
 	// panel's, and a detached window that did not would paint the framework's
@@ -219,7 +220,69 @@ func (a *App) detachedView(c *ui.Context, detached *detachedOutput) {
 
 	ui.Column(c).Fill().Children(func() {
 		a.detachedBar(c, detached, tokens, t, copy)
+		a.detachedVerdict(c, detached, tokens, t)
 		a.detachedBodyView(c, detached, tokens, t, copy)
+	})
+}
+
+// detachedHasBody reports whether the body draws **content** — the text arm or
+// the list arm — rather than one of the four state lines. It is the band's gate
+// and the body's own switch written once, so the two cannot drift: a run whose
+// body says "the command wrote nothing" is already a conclusion, and a verdict
+// band above it would say the same thing twice.
+func detachedHasBody(view launcher.OutputView) bool {
+	return view.IsList || len(view.Text) > 0
+}
+
+// detachedVerdict draws the run's **outcome** as a band of its own, between the
+// window's bar and its body.
+//
+// P13-bi（`docs/liquid-glass.md` §6.28）：这一页此前只有 bar 和 body。一次失败、
+// 一次超时和一次成功，在窗口上**逐像素相同**——差不是「小」，是 **0**：结局那句
+// 话根本没有到达这个窗口。`launcher.OutputView.Status` 一直带着它，但 `Status`
+// 只在启动器自己的条子上被画过（§6.26，P13-bg），插件窗口的正文只读 `Text` /
+// `Rows` / `failed` 三样。实测（`ui.Tester` 720×460，文本臂）：三个臂的 `Texts()`
+// 都是 `["jv" "Close" "hello"]`。
+//
+// **只在「有正文」的那两个臂画**：`running` / `failed` / 空输出 / 未运行四条状态行
+// 本身就是这一页的结论（§6.24 的三档阶梯），再补一条结局带会让同一页说两遍结局。
+// 所以这一行的门是 `ran && !running && failed == "" && view.Verdict != ""`——
+// 有内容要展示，且这个内容来自一次跑完了的运行。
+//
+// 三档，与 §6.26 的前三档同一条阶梯（这一页的第三档是**事实**，不是键位图例）：
+//
+//	结局 `TextSecondary` + 580        浅 145 / 深 133   ← 这一次运行的结论
+//	结局（失败）`t.Warning` + 580       浅 139 / 深 115   ← 色相是语义，不是强调（§6.19）
+//	中点 `TextTertiary` 0.7
+//	事实 `TextTertiary` + 500          浅 109 / 深  89   ← 时长与截断，这一页最轻的一件
+func (a *App) detachedVerdict(c *ui.Context, detached *detachedOutput, tokens theme.Tokens, t *ui.Theme) {
+	view := &detached.view
+	if !detached.ran || detached.running || detached.failed != "" || view.Verdict == "" ||
+		!detachedHasBody(*view) {
+		return
+	}
+	verdict := tokens.TextSecondary
+	if view.Failed {
+		verdict = t.Warning
+	}
+	spans := []ui.Span{{Text: view.Verdict, Weight: 580, Color: verdict}}
+	if view.Facts != "" {
+		spans = append(spans,
+			// The reference's muted `·` between two facts, the same reading §6.26
+			// and the settings page's fact lines give it.
+			ui.Span{Text: "  \u00b7  ", Color: tokens.TextTertiary.Alpha(0.7)},
+			ui.Span{Text: view.Facts, Weight: 500, Color: tokens.TextTertiary},
+		)
+	}
+	// The band's inset is the body's own 14u on both sides, so the verdict starts
+	// on the same column as the text under it (the pinned window's text and this
+	// window's text are the same block, `detachedBodyInset`). Its top is 14u too:
+	// the bar's hairline needs a breath below it, and the body's own 14u top
+	// padding is what separates the band from the text — one inset, given once.
+	ui.Row(c).FillWidth().Shrink(0).
+		Padding(t.Space(detachedBodyInset), t.Space(detachedBodyInset), 0, t.Space(detachedBodyInset)).
+		AlignItems(ui.Center).Children(func() {
+		ui.RichText(c, spans...).FontSize(tokens.Caption)
 	})
 }
 

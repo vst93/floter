@@ -40,6 +40,15 @@ type OutputView struct {
 	// Status is the one-line summary: the exit code, the duration, and
 	// whether the output was cut or the run timed out.
 	Status string
+	// Verdict is the half of Status that says *how the run ended* — `Finished`,
+	// `Exit code 3`, `Timed out` — with no facts appended. A surface that has
+	// room for a ladder draws the verdict and the facts at different heights
+	// (the plugin window's band, P13-bi / §6.28); the launcher's own strip still
+	// draws the one joined sentence, because that is one line under a title.
+	Verdict string
+	// Facts is the other half: the duration and the truncation mark, in the
+	// same order `Status` joins them. Empty when the run carried neither.
+	Facts string
 	// Failed reports whether this run did not succeed — a non-zero exit, a
 	// timeout, or a run that never started. `Status` is the words; this is
 	// the fact the strip needs to draw them differently (P13-bg).
@@ -140,12 +149,15 @@ func (a *App) OutputFor(run extensions.CapturedRun, err error, entry *extensions
 	// The text is read as a terminal reads it: the styles it asked for are
 	// kept as spans, and the characters without them are what a copy takes.
 	raw := run.Text()
+	verdict, facts := a.runStatusParts(copy, run)
 	view := OutputView{
 		Entry:      entry,
 		Title:      strings.Join(run.Command, " "),
 		Text:       ansi.Plain(raw),
 		Spans:      ansi.Parse(raw),
 		Status:     a.runStatus(copy, run),
+		Verdict:    verdict,
+		Facts:      facts,
 		Failed:     run.TimedOut || !run.Success,
 		FontFamily: a.settings().FontFamily,
 		Selected:   -1,
@@ -450,24 +462,44 @@ func (a *App) outputText() string {
 	return row.Title
 }
 
-// runStatus is the output view's summary line.
+// runStatus is the output view's summary line: the verdict and the facts, joined
+// by the reference's own `·`. It is the one sentence a single line can hold (the
+// launcher's strip, §6.26); a surface with a ladder takes the two halves apart
+// instead (see runStatusParts).
 func (a *App) runStatus(copy i18n.Launcher, run extensions.CapturedRun) string {
-	parts := []string{}
+	verdict, facts := a.runStatusParts(copy, run)
+	parts := []string{verdict}
+	if facts != "" {
+		parts = append(parts, facts)
+	}
+	return strings.Join(parts, "  ·  ")
+}
+
+// runStatusParts splits the summary into the two things it says: **how the run
+// ended** and **what else is worth knowing about it** (its duration, whether its
+// output was cut).
+//
+// P13-bi (`docs/liquid-glass.md` §6.28): the split exists because the plugin
+// window has a whole band for this and the launcher has one line. Joining them at
+// the string level meant the window could draw only one ink for both — and it
+// drew neither, because the sentence never reached the window at all.
+func (a *App) runStatusParts(copy i18n.Launcher, run extensions.CapturedRun) (verdict, facts string) {
 	switch {
 	case run.TimedOut:
-		parts = append(parts, copy.OutputTimedOut)
+		verdict = copy.OutputTimedOut
 	case run.Success:
-		parts = append(parts, copy.OutputSucceeded)
+		verdict = copy.OutputSucceeded
 	default:
-		parts = append(parts, fmt.Sprintf(copy.OutputFailed, run.ExitCode))
+		verdict = fmt.Sprintf(copy.OutputFailed, run.ExitCode)
 	}
+	parts := []string{}
 	if run.Duration > 0 {
 		parts = append(parts, extensions.FormatRunDuration(run.Duration.Seconds()*1000))
 	}
 	if run.Truncated {
 		parts = append(parts, copy.OutputTruncated)
 	}
-	return strings.Join(parts, "  ·  ")
+	return verdict, strings.Join(parts, "  ·  ")
 }
 
 // leaveOutput closes the output view.
