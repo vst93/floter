@@ -72,7 +72,7 @@ func plateFace(t *testing.T, dark bool) plateProbe {
 		tokens = a.tokens(c)
 		ui.Column(c).FillWidth().FillHeight().Background(ui.RGB(ground.R, ground.G, ground.B)).
 			Justify(ui.Center).AlignItems(ui.Center).Children(func() {
-			a.iconPlate(c, false)
+			a.iconPlate(c, false, false)
 		})
 	}, 120, 80)
 	tt.SetDark(dark)

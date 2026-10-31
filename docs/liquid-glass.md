@@ -815,6 +815,17 @@ P13-o 是第四轮（P13-n 之后）：它没有开表面，而是补 §6.0 的 
 底边不是同一条，因为凹槽的那一行上多压了一条 `TrackEdge` 发丝。pin 是
 `internal/settingsui/groovepair_test.go`（两套外观 × 三个真凹槽：分段槽 / 关的开关 / 开的开关）。
 
+### 6.22 捕获输出页「不可运行行」的板（P13-bb）
+
+| # | 位置 | 现状（旧） | 落成（新） | 状态 |
+|---|---|---|---|---|
+| 22-1 | `output.go` 捕获输出页 dim 行的 plate | `a.iconPlate(c, false)`：每一行都戴 `LitFace`（顶受光边 + 底暗线），包括 `row.Status` / `row.Disabled` | `a.iconPlate(c, false, dim)` where `dim = row.Status || row.Disabled`; dim=True → `DimFace` (no crown, only counter line); plate still fades to **0.62** per reference CSS | `已落地` |
+
+读数：dim plate crown − face **+18/+30** summed (enabled) → **0** (dim); 底对侧仍可见但一同淡掉。**§3 第 2 条“lit edge is the ‘can be touched’ mark”** 在此闭环：同页上唯一的 lit edge 属于门；注释行的 plate 没有顶边。
+
+Status: `已落地`（P13-bb）。
+
+
 ---
 ### §6.7 插件窗口（输出 / 便条）的 bar — **已落地（P13-y）**
 

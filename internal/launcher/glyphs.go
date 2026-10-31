@@ -274,7 +274,16 @@ func clipboardKindOf(entry *clipboardpkg.Entry) string {
 // token, not the warning ink at a low alpha: the port had quoted
 // `t.Warning.Alpha(0.14)`, which paints the label's own hue as the plate and
 // is the wrong colour on both appearances.
-func (a *App) iconPlate(c *ui.Context, warm bool) ui.Element {
+//
+// dim is the plate's *"not a door"* register (P13-bb). A capture row that
+// cannot be run (`row.Status` / `row.Disabled`) is not a control the pointer
+// can take, so its plate must not wear the lit edge: `LensRim` on the top row
+// is the mark that says "this face can be touched" (`docs/liquid-glass.md` §3),
+// and the same pair is what P13-s / P13-ar / P13-aq / P13-ba took off the
+// disabled pill, the fixed uninstall card, the accent Save and the row-busy
+// key. The dim plate keeps only the counter-side line (`DimFace`) and the
+// reference's own 0.62 fade the caller already applies.
+func (a *App) iconPlate(c *ui.Context, warm, dim bool) ui.Element {
 	tokens := a.tokens(c)
 	t := c.Theme()
 	plate := ui.Box(c).Size(t.Space(7), t.Space(7)).Radius(tokens.RadiusXS).
@@ -293,6 +302,9 @@ func (a *App) iconPlate(c *ui.Context, warm bool) ui.Element {
 	// ——那句话在 P12-a 之后是假的：`LensRim` 已重定到 0.09（§1 的旧值→新值表），
 	// 于是这块 28u 的板每一行都在画一条受光边外加一个四边环。板仍然随玻璃档
 	// 升降：`LensRim`/`LensEdge` 正是 `--glass-lens-scale` 分级的那一族。
+	if dim {
+		return tokens.DimFace(plate)
+	}
 	return tokens.LitFace(plate)
 }
 

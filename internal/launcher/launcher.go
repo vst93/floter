@@ -2523,7 +2523,7 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 			plate = ui.Box(c).Size(t.Space(7), t.Space(7)).Shrink(0).
 				AlignItems(ui.Center).Justify(ui.Center)
 		} else {
-			plate = a.iconPlate(c, warm)
+			plate = a.iconPlate(c, warm, false)
 		}
 		plate.Children(func() {
 			switch {

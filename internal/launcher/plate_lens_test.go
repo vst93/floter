@@ -25,7 +25,7 @@ func renderPlate(t *testing.T, step string) *ui.Tester {
 		c.SetTheme(ui.DarkTheme())
 		ui.Column(c).FillWidth().FillHeight().Background(ui.RGB(28, 29, 33)).
 			Justify(ui.Center).AlignItems(ui.Center).Children(func() {
-			a.iconPlate(c, false)
+			a.iconPlate(c, false, false)
 		})
 	}, 120, 80)
 	tt.Frame()

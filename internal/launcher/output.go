@@ -696,7 +696,7 @@ func (a *App) outputRow(c *ui.Context, row extensions.Row, i int) {
 	}
 	style.Children(func() {
 		dim := row.Status || row.Disabled
-		plate := a.iconPlate(c, false)
+		plate := a.iconPlate(c, false, dim)
 		if dim {
 			plate.Opacity(0.62)
 		}
