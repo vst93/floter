@@ -4084,14 +4084,41 @@ func (a *App) linkCopied(value string, now time.Time) bool {
 // keyValue is one labeled line of read-only information: the label in a
 // fixed column, the value beside it, selectable so it can be copied.
 // keyValue is one About row: the label at the start, the selectable value at
-// the end (wrapped so a long path still reads).
+// the end.
+//
+// P13-an 重定基线（`docs/liquid-glass.md` §6.11）：这是一张**事实表**，不是一张设置
+// 列表 —— 框架版本、链接协议、设置文件在哪里，没有一行可以按，而且这一页是用户唯一
+// 能看到「设置文件到底在哪」的地方。此前它借用设置行的墨语义（`rowTitle`：名字
+// `t.FontSize+1` / 580 / `TextStrong`，值塞进控制槽 `t.TextMuted` 500），实测浅色
+// 名字 **202** / 值 **101**、深色 **198** / 值 **94** —— 和 P13-ak 的审批记录是同一个
+// 反过来的层级：小字说「它是什么」，大字说「这是什么」。
+//
+// 换过来之后名字是值的**标题**（caption / 500 / `TextSecondary`），值占 emphasis
+// （`t.FontSize+1` / 580 / `TextStrong`），实测浅 122 / **202**、深 115 / **198**。
+// **只换墨，不换盒子**：仍是 `cardRow` 框架（44px 地板、分隔线、1px 行距、左右两端），
+// 值仍是可选中的（用户要能把这条路径复制走），行高与卡片高度逐像素不变。
+//
+// 为什么不像审批记录那样叠成两行（`factRow`）：这一页的四行（三行事实 + 可点的
+// `Project` 链接）共用「左标签 / 右值」这一条语法，叠两行会让第四行成为孤例；
+// 而 `rowTitle` 那条路走不通 —— 它把 emphasis 硬编码给了名字。所以这里用 `cardRow`
+// 直接画两端，`ui.Center` 让 11px 的名字与 15px 的值落在同一条光轴上（实测两段墨
+// 重叠 8/9 与 12/12）。
+//
+// 名字带 `Ellipsis`：值变宽后标签列更早被挤（640 宽的窗下从 112px 掉到 61px，
+// 因为值从 288px 长到 339px），所以窄窗下宁可看到省略号，也不要看到半个字 ——
+// 与 `rowValue` 对「程序自己起的名字」用的是同一种截断（见 rowValue 的注释）。
 func (a *App) keyValue(c *ui.Context, label, value string) {
-	t := c.Theme()
+	tokens := a.tokens(c)
+	t := a.cardTheme(c)
 	if value == "" {
 		return
 	}
-	a.row(c, label, "", func() {
-		ui.Text(c, value).FontSize(t.FontSize).TextColor(t.TextMuted).Selectable()
+	a.cardRow(c, ui.Center, nil, rowFace{}, func() {
+		ui.Text(c, value).FontSize(t.FontSize + 1).FontWeight(580).
+			TextColor(tokens.TextStrong).Selectable()
+	}, func() {
+		ui.Text(c, label).FontSize(tokens.Caption).FontWeight(500).
+			TextColor(tokens.TextSecondary).SingleLine().Ellipsis("\u2026")
 	})
 }
 
