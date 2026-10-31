@@ -2564,9 +2564,11 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 				// the version and freshness marks out of the row; the full name
 				// rides the row as a tooltip, since the settings page is where a
 				// package identifies itself.
-				ui.Text(c, integration.Name).FontSize(t.FontSize + 1).FontWeight(580).
+				nameText := ui.Text(c, integration.Name).FontSize(t.FontSize + 1).FontWeight(580).
 					TextColor(tokens.TextStrong).SingleLine().Ellipsis("\u2026").
-					Shrink(1).MinWidth(0).Tooltip(integration.Name)
+					Shrink(1).MinWidth(0)
+				// P13-az：全名提示是浮面（§6.20 20-3）。
+				tokens.Tip(c, nameText, integration.Name)
 				if integration.Version != "" {
 					ui.Text(c, "v"+integration.Version).FontSize(t.FontSize).FontWeight(500).TextColor(tokens.TextTertiary)
 				}
@@ -2770,7 +2772,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 				runnable := integration.Running && !integration.Broken
 				run := a.actionButton(c, copy.RunAction)
 				if !runnable {
-					run = run.Tooltip(copy.RunActionUnavailable).Disabled(true)
+					run = tokens.Tip(c, run, copy.RunActionUnavailable).Disabled(true)
 				}
 				if busy {
 					run = run.Disabled(true)
@@ -2810,7 +2812,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 					}
 				case repairHomepage:
 					if a.Actions.OpenHomepage != nil {
-						if rowAction(integration.repairLabel(copy)).Tooltip(integration.repairTooltip(copy)).Clicked() {
+						if tokens.Tip(c, rowAction(integration.repairLabel(copy)), integration.repairTooltip(copy)).Clicked() {
 							a.Actions.OpenHomepage(integration.Homepage)
 						}
 					}
@@ -3554,11 +3556,12 @@ func (i Integration) repairTooltip(copy i18n.Settings) string {
 // whose icon became a turning LoaderCircle and whose `disabled={busy}` face
 // stayed until `runMutation`'s `finally`.
 func (a *App) repairAction(c *ui.Context, id, label, tooltip string, run func(string, func(error))) {
+	tokens := a.tokens(c)
 	if a.repairBusy[id] {
-		a.busyActionButton(c, label, "extensions.repair."+id).Tooltip(tooltip)
+		tokens.Tip(c, a.busyActionButton(c, label, "extensions.repair."+id), tooltip)
 		return
 	}
-	button := a.actionButton(c, label).Tooltip(tooltip)
+	button := tokens.Tip(c, a.actionButton(c, label), tooltip)
 	if a.rowBusyExceptRepair(id) {
 		// Another operation on the row is in flight: the reference disabled
 		// *every* control in the cluster for the duration, not only the one
@@ -5600,8 +5603,10 @@ func (a *App) freshnessDot(c *ui.Context, copy i18n.Settings, freshness extensio
 	// same sentence, and the state word inside it comes from a switch over the
 	// same value the colour does.
 	label := freshnessDotLabel(copy, dot)
-	ui.Box(c).Size(t.Space(2), t.Space(2)).Radius(t.Space(1)).Shrink(0).
-		Background(color).Label(label).Tooltip(label)
+	mark := ui.Box(c).Size(t.Space(2), t.Space(2)).Radius(t.Space(1)).Shrink(0).
+		Background(color).Label(label)
+	// P13-az：同一个句子的无障碍名与提示（§6.20 20-3）。
+	tokens.Tip(c, mark, label)
 }
 
 // freshnessDotLabel is the mark's whole sentence: the state's own word inside

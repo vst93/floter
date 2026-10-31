@@ -472,8 +472,9 @@ func (a *App) configFieldGrid(c *ui.Context, field ConfigField, label, requiredL
 				// (`aria-label={t("settings.extensions.required")}`,
 				// `ExtensionsPanel.tsx:3266`). A native pane has no aria label, so
 				// the word rides the tooltip the framework does draw.
-				ui.Text(c, "*").FontSize(t.FontSize).FontWeight(600).TextColor(t.Warning).
-					SingleLine().Tooltip(requiredLabel)
+				// P13-az：必填标记的提示是浮面（§6.20 20-3）。
+				star := ui.Text(c, "*").FontSize(t.FontSize).FontWeight(600).TextColor(t.Warning).SingleLine()
+				tokens.Tip(c, star, requiredLabel)
 			}
 		})
 		control().ColumnStart(2)

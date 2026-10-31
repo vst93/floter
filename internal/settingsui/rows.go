@@ -886,9 +886,11 @@ func (a *App) sessionChip(c *ui.Context) ui.Element {
 func (a *App) sessionIconButton(c *ui.Context, glyphName, label string, danger, resumable, disabled bool, run func()) {
 	tokens := a.tokens(c)
 	t := c.Theme()
-	button := ui.ButtonBase(c).Label(label).Tooltip(label).
+	button := ui.ButtonBase(c).Label(label).
 		Size(t.Space(7), t.Space(7)).Border(1, ui.Transparent).
 		Radius(tokens.RadiusSM).Background(ui.Transparent).Center()
+	// P13-az：提示走 `tokens.Tip`（§6.20 20-3），不再是框架那枚反色片子。
+	button = tokens.Tip(c, button, label)
 	ink := t.TextMuted
 	switch {
 	case disabled:
@@ -954,10 +956,12 @@ func (a *App) sessionIconButton(c *ui.Context, glyphName, label string, danger, 
 func (a *App) sessionKillConfirm(c *ui.Context, label string, disabled bool, run func()) {
 	tokens := a.tokens(c)
 	t := c.Theme()
-	pill := ui.ButtonBase(c).Label(label).Tooltip(label).
+	pill := ui.ButtonBase(c).Label(label).
 		MinHeight(t.Space(7)).Padding(0, t.Space(2.25)).Radius(999).
 		Border(1, t.Warning).Background(tokens.RaisedWarm).
 		AlignItems(ui.Center).Center().Gap(t.Space(1.25))
+	// P13-az：同 `sessionIconButton`，提示是浮面（§6.20 20-3）。
+	pill = tokens.Tip(c, pill, label)
 	// `box-shadow: var(--glass-raised-shadow)`: the `--elev-2` contact cast plus
 	// the lit top rim, the same pair the launcher's raised panes wear.
 	pill.Shadow(0, t.Space(0.25), t.Space(0.5), 0, tokens.ShadowContact)
@@ -1042,7 +1046,8 @@ func (a *App) rowTitle(c *ui.Context, align ui.Align, lead func(), face rowFace,
 		// the body step (500, muted).
 		label := ui.Text(c, name.Text).FontSize(t.FontSize + 1).FontWeight(580).TextColor(tokens.TextStrong)
 		if name.Nowrap {
-			label.SingleLine().Ellipsis("\u2026").Tooltip(name.Text)
+			// P13-az：截断名的全名提示（§6.20 20-3）——文本锚点，不是按钮。
+			tokens.Tip(c, label.SingleLine().Ellipsis("\u2026"), name.Text)
 		}
 		for _, sublabel := range sublabels {
 			if len(sublabel.Segments) > 0 {

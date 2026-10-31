@@ -1251,17 +1251,37 @@ pin：`internal/settingsui/sheetcutedge_test.go` 三条（两端退让 / 两端�
 四块滚动容器的两端都有了收口。剩下的账都不是「边」：多选箱的**宽度**（勾选框列离右沿 8px）
 与 `cardRow` 控制槽 `Shrink(0)` 同族，**需拍板**。
 
-### §6.20 提示框：全仓最后一枚平涂的白片子（P13-ax 终端页 / P13-ay 启动器 **已落地**；设置页 10 处 `未开始`）
+### §6.20 提示框：全仓最后一枚平涂的白片子（P13-ax 终端页 / P13-ay 启动器 / P13-az 设置页 **全部已落地**）
 
 | # | 表面 / 处 | 现状（实测） | 应改成 | 状态 |
 |---|---|---|---|---|
 | 20-1 | 终端页：浮条五个键的提示 + 会话标题被截断时的全名提示（**读全名的唯一位置**） | 框架 `Element.Tooltip`（`ui/tooltip.go:99-105`）：圆角 `Space(1.25)` = 5px（`KeycapRadius` 那一档，不是浮面的 8）、`Inverse` 平涂（本仓没设 `Inverse`，深色档退到 `Text` = 近白的一枚白片子）、一层 `0 2px 8px 0.2`、**没有边** | `theme.Tokens.Tip`：`Float` 面（深色压在 20/21/24 的地上实测 23/23/26）+ `RadiusSM` 8 + 1px `InputStroke` 发丝 + 顶边 `EdgeHighlight` 冠线（M2 熄掉冠线后顶行 19/20/23，比面低 4 级 → 有冠线时门槛 +6 级通过）+ 两层影 `0 6px 18px 0.30` 与 `0 1px 2px 0.20` | 已落地 |
 | 20-2 | 启动器 7 处（`launcher.go` 6、`output.go` 1） | 同上（实测深色面 level **244**、浅色 level **25**） | 同上（`tokens.Tip`）：实测深色面 **33**、浅色 **246**；顺带补回被吃掉的那 1.5u 锚点间距（`AttachTo(...).Margin(0,0,Space(1.5),0)`，改前缝 **2.0px**、改后 **5.0/6.0px**） | 已落地（P13-ay） |
-| 20-3 | 设置页 10 处（`rows.go` 3、`settingsui.go` 6、`config.go` 1） | 同上 | 同上 | 未开始 |
+| 20-3 | 设置页 10 处（`rows.go` 3、`settingsui.go` 6、`config.go` 1） | 同上（真帧实测：地面 247/247/248（浅）、14/14/16（深）；框架那枚片子的面 **27/27/29**（浅）/ **237/237/239**（深）——按构造是地面的**反极性**） | 同上（`tokens.Tip`）：实测面 **250/250/251**（浅）/ **20/20/23**（深），冠线那一行 **255**（浅，+4）/ **67**（深，+46） | 已落地（P13-az） |
 
 **为什么一层影就够了 → 现在不够**：§2 判据 3 要的是「两层影同时在场才读得出浮起一张纸」，而框架给的那一层是 `0 2px 8px 0.2`——它既不是环境影（不够宽）也不是接触影（不够紧）。`Tip` 用的是 `--elev-3-compact` 那一对（`0 6px 18px` / `0 1px 2px`）在 **scale 1** 上的字面值，**不走** `ElevThrow`：`--elev-shadow-scale` 跟的是 `main_opacity`，那是**窗框自己的玻璃**，而提示不在这张框里——它是 app 画在自己内容上的一枚浮层，用户把框拉到 10% 时它不该跟着变。
 
-**浅色档不画冠线的那一条照旧成立**：`EdgeHighlight` 浅色是 0.92 的近白，压在 `Float` 的近白面（实测 250/250/252）上就是白压白，实测**−13 级**（反而把顶行压暗了）。浅色档靠的是 `InputStroke` 发丝那一圈（§3「浅色的受光边…靠对侧才成立」），所以 pin 只在深色档断言冠线，浅色档不假装有。
+**P13-az 的读数与一件框架事实**：10 处（`rows.go` `sessionIconButton`/`sessionKillConfirm`/`rowTitle`、
+`settingsui.go` 包名/Run 的禁用理由/首页 `rowAction`/`repairAction` ×2/`freshnessDot`、`config.go` 的必填 `*`）
+全部换成 `tokens.Tip`；`.Tooltip(` 在 `internal/settingsui` 现在是 **0**，`tokens.Tip(c, ` 是 **10**
+（`internal/ci` 之外由 `internal/settingsui/tipglass_test.go` 的普查钉住，位置表过期即红）。
+
+顺带量到一条**框架行为**（本轮不改，见 `.pending-bugs.md` 的「需用户拍板」）：
+`ui/tooltip.go:133` 是 `s.tip && s.flags&flagDisabled == 0` —— **禁用元素不弹提示**。
+所以「Run 为什么不能按」那条理由（`settingsui.go:2773`）与 repair 的进行中面（`:3558`）
+在指针下**根本不会出现**；迁材质只是让可交互的那一档变对。
+
+**pin**：`internal/settingsui/tipglass_test.go` —— `TestTheSettingsTipsAreFloatingPanes`（面 ==
+`FaceOver(地面, Float)` + 冠线 + 出图）、`TestATruncatedIntegrationNameStillReadsInFull`（文本锚点仍读全名）、
+`TestTheSettingsPageHasNoFrameworkTips`（10 处普查）。
+
+**浅色冠线：P13-az 重测（旧说 −13 → 本屏 +4）**：P13-ax 量到浅色档冠线**−13 级**（0.92 近白压 250 近白面），
+于是判定「浅色不假装有冠线」。P13-az 在设置页的真实地面上量到同一枚 `Tokens.Tip` 的同一行是
+**+4**（250 → 255，因为 0.92 白压 250 就饱和到 255），同一台机器上两种读数同时存在。
+差别在于**量的是哪一行、盒子落在什么亚像素上**：把冠线那行拿掉（M3）后同一行退成 `InputStroke`
+发丝 = **227（−23）**，所以冠线本身是把那一行**提亮**的；P13-ax 量的是被抗锯齿劈成两行的顶端。
+因此本轮 pin 只说「冠线读得出（≥ +1 级）」并用 `EdgeHighlight` 冠线名钉住它，**不再**按外观分支；
+「浅色靠 `InputStroke` 那一圈」仍然成立（那圈一直在），但它不是「浅色没有冠线」的同义词。
 
 **行为零改动**：0.6s 停留、0.4s 热接力、Esc 关掉、锚点与 1.5u 间距、80u 上限、`Description` 的无障碍描述全部沿用框架；pin 里第一条就是「0.4s 时画面上一个 float 像素都没有」。
 
