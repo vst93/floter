@@ -1431,10 +1431,12 @@ func (a *App) feedbackNote(c *ui.Context) {
 // 那个 bug 的形状。
 func (a *App) barButton(c *ui.Context, name, label, hint string, live bool, run func()) {
 	t := c.Theme()
+	tokens := tokensOf(a, c)
 	button := ui.Row(c).Focusable().Size(t.Space(7), t.Space(7)).Shrink(0).
-		Radius(tokensOf(a, c).RadiusSM).AlignItems(ui.Center).Justify(ui.Center).Label(label)
+		Radius(tokens.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).Label(label)
 	if live {
-		button.Tooltip(hint)
+		// P13-ax：提示不是框架那枚白片子，是 E2 浮（`theme.Tokens.Tip`）。
+		tokens.Tip(c, button, hint)
 	} else {
 		// Hidden: no click, no tip. Keyboard focus still reaches it
 		// (`Focusable` is untouched), which is the reference's
@@ -1588,9 +1590,11 @@ func (a *App) titleBar(c *ui.Context, copy i18n.Terminal) {
 			// 按钮之间的那条带交给画布：那一段的点击与选区都不再被浮条吃掉。
 			// 提示（截断时的全名）也跟到字上：整行是 `PassThrough`，挂在行上的
 			// tooltip 永远不会被悬停到。
-			ui.Text(c, identityTitle).FontSize(t.FontSize).FontWeight(580).
-				LetterSpacing(-0.01 * t.FontSize).Tooltip(identityTitle).
-				TextColor(inks.Ink).Ellipsis("\u2026").SingleLine().DragWindow()
+			// P13-ax：全名那条提示同样改戴 E2 浮（`theme.Tokens.Tip`）：它一
+			// 直是全仓唯一一枚白片子，而这页上它是读全名的**唯一**位置。
+			tokensOf(a, c).Tip(c, ui.Text(c, identityTitle).FontSize(t.FontSize).FontWeight(580).
+				LetterSpacing(-0.01*t.FontSize).
+				TextColor(inks.Ink).Ellipsis("\u2026").SingleLine().DragWindow(), identityTitle)
 		})
 		// The controls, at the bar's trailing edge: 28u transparent squares
 		// with a 4u gap, hidden and non-interactive until the bar is revealed

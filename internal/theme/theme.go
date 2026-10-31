@@ -1256,6 +1256,47 @@ func (t Tokens) DimFace(e ui.Element) ui.Element {
 	return e
 }
 
+// Tip is `ui.Element.Tooltip` wearing this design's floating face
+// (`docs/liquid-glass.md` §2 E2 / §6.20).
+//
+// The framework's own look is the one surface this design never reached:
+// `ui/tooltip.go:99-105` paints `Radius(Space(1.25))` — 5px, which is the
+// *keycap*'s corner, not a floating pane's 8 — the inverse pair as an
+// **opaque** fill, one `0 2px 8px` blur at 0.2 as its only shadow, and no lit
+// edge at all. On the dark appearance `Inverse` is left zero and falls back to
+// `Text` (`ui/theme.go:37-40`), so every tip in the app was a **white chip**
+// over dark glass: the system-tooltip look this generation retires.
+//
+// E2 is three things (§2 判据 3): the `Float` face, one 1px `EdgeHighlight`
+// lit edge along the top, and two shadows (ambient over contact). This paints
+// exactly those, and keeps the framework's behaviour untouched — the 0.6s
+// rest, the warm 0.4s hand-off between tips, Escape to dismiss, the anchor and
+// its gap, the 80u cap, and the accessibility description (the anchor keeps
+// the words as its description, as `Tooltip` did).
+//
+// The two shadows are the `--elev-3-compact` pair at scale 1 rather than
+// `ElevThrow`: `--elev-shadow-scale` follows `main_opacity`, which is the
+// *window frame's* own glass — a tip is not part of that frame, it is painted
+// by the app over its own content at whatever frame alpha the user chose.
+func (t Tokens) Tip(c *ui.Context, anchor ui.Element, text string) ui.Element {
+	if text == "" {
+		return anchor
+	}
+	anchor.Description(text)
+	ui.TooltipBase(c, anchor, func(tip ui.Element) {
+		tip.MaxWidth(t.Theme.Space(80)).
+			Padding(t.Theme.Space(1.25), t.Theme.Space(2)).
+			Radius(t.RadiusSM).Border(1, t.InputStroke).
+			Background(t.Float).TextColor(t.Theme.Text).
+			FontSize(t.Theme.FontSize - 1)
+		tip.Shadow(0, t.Theme.Space(1.5), t.Theme.Space(4.5), 0, ui.RGBA(0, 0, 0, 0.30))
+		tip.Shadow(0, t.Theme.Space(0.25), t.Theme.Space(0.5), 0, ui.RGBA(0, 0, 0, 0.20))
+		tip.InsetShadow(0, 1, 0, 0, t.EdgeHighlight)
+		tip.Children(func() { ui.Text(c, text) })
+	})
+	return anchor
+}
+
 // LensInset draws the recessed lens on a groove: base.css's
 // `--glass-lens-stack-inset`, the *same* lens read backwards. The light pools
 // along the bottom edge of the groove and the top edge is the dark one — the
