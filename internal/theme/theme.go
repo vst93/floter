@@ -628,7 +628,7 @@ func ForPlatform(s settings.Settings, systemDark bool, prefs ui.Preferences, goo
 		Field:             field,
 		Opaque:            p.opaque,
 		FieldFill:         p.fieldFill,
-		LensRim:           scaleAlpha(p.lensRim, spec.LensScale),
+		LensRim:           litEdge(p.lensRim, spec.LensScale, prefs.HighContrast),
 		LensSheen:         scaleAlpha(p.lensSheen, spec.LensScale),
 		LensEdge:          scaleAlpha(p.lensEdge, spec.LensScale),
 		// The frame's lit face is the reference's fixed token, capped at the
@@ -1022,6 +1022,45 @@ func round1(v float32) float32 {
 // grades the control lens and nothing else.
 func scaleAlpha(c ui.Color, factor float32) ui.Color {
 	return ui.RGBA(c.R, c.G, c.B, float32(c.A)/255*factor)
+}
+
+// LitEdgeFloor is how much of its token the lit edge keeps in the contrast
+// mode. `--glass-lens-scale` already thins the lens (`frosted` 0.5), and the
+// contrast block multiplies that by another 0.6, so a rim of 0.09 reached
+// 0.027 — five levels of white on a dark face (65), i.e. the line P12-a raised
+// off 0.04 was quietly back under the 1x threshold on the one appearance
+// setting whose whole point is "show me the edges". A quarter off is a quieter
+// edge; more than that is no edge.
+const LitEdgeFloor = 0.75
+
+// litEdge is the lit edge's alpha at a glass stop. The stop grades the lens
+// (`--glass-lens-scale` 0.5 / 1 / 1.6) and the lit edge rides it — except in
+// the contrast mode, where the second damping would take it under the 1x
+// threshold (see LitEdgeFloor). The dark rim at the plain `frosted` stop is
+// deliberately left alone: 10 of 255 levels is a quiet edge, and changing it
+// would break the stop ladder the reference draws (`P13-ag` report).
+//
+// P13-ag：`LensRim` 0.09 是「1x 屏上真的看得见」那条线（P12-a 把 0.04 抬上来的
+// 就是它）。可它此前跟着 `LensScale` **双向**缩放，于是同一句话在薄档上被推翻：
+// `frosted`（0.5）落到 0.045、对比度模式下再乘 0.6 → 0.027，白线压在深色面 65 上
+// 只抬 5~8 级，正是 §1 说的「画不出」那一档。合约自己把两件事分开写过
+// （`glassmap.go` 的 `ContrastLensScale` 注：被压低的是 **sheen**，那颗
+// 「装饰性折射」），而 §3 说受光边是 E1 的**结构线**——结构线不该因为用户选了更薄的
+// 材质而消失。所以：更厚的档位照旧放大，更薄的档位保持 token 本身。
+//
+// `LensSheen` / `LensEdge` / `TrackRim` 仍然走 `scaleAlpha`：sheen 是装饰（该缩），
+// 另外两条是别的面/别的方向上的线，各有自己的账（P13-n / P13-o）。
+func litEdge(c ui.Color, factor float32, contrast bool) ui.Color {
+	// `off` (factor 0) really has no lens: the stop's whole point is that the
+	// control loses its material, so the floor must not resurrect a line the
+	// stop removed.
+	if factor <= 0 {
+		return scaleAlpha(c, 0)
+	}
+	if contrast {
+		return scaleAlpha(c, max(factor, LitEdgeFloor))
+	}
+	return scaleAlpha(c, factor)
 }
 
 // capAlpha lowers a colour's alpha to at most max, keeping its colour: the
