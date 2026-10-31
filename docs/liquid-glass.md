@@ -1537,7 +1537,7 @@ pin：`internal/settingsui/sliderrung_test.go` 三条 × 深浅两套外观 —�
 
 | # | 位置 | 现状（旧，实测） | 落成（新，实测） | 状态 |
 |---|---|---|---|---|
-| 26-1 | `OutputView` | 只有 `Status string` | 加 `Failed bool`（`run.TimedOut \|\| !run.Success`，由 `OutputFor` 自己算；没有调用方需要改） | `已落地` |
+| 26-1 | `OutputView` | 只有 `Status string` | 加 `Failed bool`（`run.TimedOut` 或 `!run.Success`，由 `OutputFor` 自己算；没有调用方需要改） | `已落地` |
 | 26-2 | 结局（成功臂） | `TextMuted` 500（浅 116 / 深 164） | `TextSecondary` + 580（浅 **108** / 深 **156**，对地面 145 / 133） | `已落地` |
 | 26-3 | 结局（失败 / 超时臂） | 与成功臂**逐像素相同** | `t.Warning` + 580（浅 `217,119,6`（对地面 **139**）/ 深 `245,158,11`（**115**））：色相是语义不是强调（§6.19） | `已落地` |
 | 26-4 | 中点 `·` | 与两侧同墨（藏在同一个 `ui.Text` 里） | 自己的 span：`TextTertiary` 0.7（`settingsui` 事实行的同一个数） | `已落地` |
@@ -1565,3 +1565,46 @@ pin：`internal/launcher/outputstatus_test.go` 三条 × 深浅两套外观 —�
 `/tmp/floter-P13-bg-outputstatus-{light,dark}-{finished,failed,timedout}-{before,after}.png`）。
 **V 0 / B 0 / S 0**，变异 4 条实跑（4 红，`md5sum -c` 逐字节还原后 `touch` 复跑绿）。
 详见 `docs/rounds/P13-bg-report.md`。
+
+### §6.27 全仓最后两处斜体，都压在中文上（P13-bh，**已落地**）
+
+通用队列「细节打磨」的**字形**这一格：不是间距、不是墨档，是**字形本身被引擎改过**。
+
+- **判据**：生产代码（`cmd/` 与 `internal/`，不含 `_test.go`）里 `.Italic()` 的调用点
+  **必须为 0**。理由不是口味，是事实：中文没有斜体字形——苹方 / 思源 / 微软雅黑都只有
+  正体，`font-style: italic` 只能落到引擎的**伪合成斜切**（pango `pangoStyleItalic`、
+  DirectWrite `fontStyleItalic`、CoreText `syntheticItalic`）。11px 的 CJK 笔画被重采样
+  一次再横向拉伸约 15°，用户读到的就是「糊」——用户说的「平、糊、旧」里那个「糊」字，
+  这一处是字面的。
+- **它违反的是两条已生效的硬规则**：用户偏好账本 **P-1**（硬禁令：界面排版禁用斜体，
+  中文尤其）与 `chinese-typography.md` §三「中文禁斜体（无斜体字形设计，强制倾斜=笔画
+  变形）」。全仓只剩这两处，两处都压在中文上。
+
+| # | 位置 | 现状（旧） | 落成（新） | 状态 |
+|---|---|---|---|---|
+| 27-1 | `settingsui.go` `runOutput` 的空输出占位（`（无输出）`） | `TextMuted` + `.Italic()` | 去掉斜体；墨仍 `t.TextMuted` | `已落地` |
+| 27-2 | 同块的截断尾（`……输出已截断（上限 64KB）`） | `TextTertiary` + `.Italic()` | 去掉斜体；墨仍 `TextTertiary` | `已落地` |
+| 27-3 | 「这不是程序输出」的载体 | 伪斜体（中文里不存在这个载体） | 两件事接管：①**字体寄存器**——真输出是 `runOutputFont` 的等宽栈，这两行是系统字体；②**文案本身**——占位被全角圆括号包住、尾行以省略号开头（参考自己的词，`extensions.css:1259-1267` / `:1268-1280`） | `已落地` |
+| 27-4 | 两行的墨档 | 占位 `--text-muted`、尾行 `--text-tertiary` | **不动**（参考自己的两档）。实测离凹槽面（`runOutputEdgeFace` 的不透明合成面）：占位浅 **96** / 深 **91**，尾行浅 **89** / 深 **75**。浅色那 7 级确实薄，**记账而不抬档**：把占位抬上去会让这块**空**凹槽的声音比它自己的标题还响 | `已落地`（记账） |
+| 27-5 | 两行的家 | 两处内联、没有共同的调用点 | 收进 `runOutputAside(c, tokens, line, ink)`：census 与像素 pin 都读这一个调用点，改一处不会漏另一处 | `已落地` |
+| 27-6 | 字阶 / 行盒 / 凹槽的面 / 两道滚动边 / `runOutputFont` / i18n 文案 | — | **一个字节不动**（`Italic` 只改字形，不改行盒；§6.17 的边与面原样） | `已落地`（复核） |
+| 27-7 | 参考 CSS 里的 `font-style: italic` | `extensions.css:1259-1267`、`:1268-1280` | **故意不做（不照抄）**：参考的载体是拉丁文的斜体字形；中文没有这个字形，照抄等于让引擎伪造。语义（「旁白，不是捕获」）由 27-3 的两件事承担 | `故意不做（见理由）` |
+
+**几何零变化，只换字形**：整帧像素差 bbox 落在两行自己身上——
+`light empty 256px (210,515)-(247,524)`、`light truncated 748px (205,578)-(332,589)`、
+`dark` 同（257 / 745px，同一 bbox）。
+
+pin：`internal/settingsui/noitalic_test.go` 三条 —— ①**census**：`cmd/` 与 `internal/`
+的生产文件里 `.Italic()` 为 0（注释里提到这个调用不算，本轮自己的说明就是一条注释）；
+②**像素**：两条旁白走页面自己的 `runOutputAside`，其归一化字形掩码与「正体」**逐格相同**，
+而「伪斜体」那一帧是**对照**（实测占位差 **77 / 407** 格、尾行整行宽出 1px），对照
+若是 0 则整条 pin 作废并报错；③**墨阶**：占位不许比自己的旁白更轻、旁白离面 ≥ 60 级，
+× 深浅两套。另有一条 opt-in 出图（`FLOTER_P13BH_DUMP=1` /
+`FLOTER_P13BH_TAG=<before|after>`，
+`/tmp/floter-P13-bh-asides-{light,dark}-{empty,truncated}-{before,after}.png`）。
+
+**顺带修的一处账**（本轮发现的 HEAD 红）：§6.26 的 26-1 行里写了 `` `run.TimedOut \|\| !run.Success` ``，
+而 `liquidglass_contract_test.go` 按 `|` 切单元格——那个转义竖线把行切成 6 段，状态列读到
+`\` 而不是 `已落地`，`TestTheLiquidGlassContractSupersedesTheRaycastOne` 在 HEAD
+`b33023ad` 上**本来就是红的**（203 行 / 202 带状态）。本轮把它写成「`run.TimedOut` 或
+`!run.Success`」，全仓 `\|` 归 0。

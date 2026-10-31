@@ -6895,8 +6895,7 @@ func (a *App) runOutput(c *ui.Context, copy i18n.Settings, integration Integrati
 					ui.Scroll(c.Key("settings.runoutput." + integration.ID)).TrackScroll(scrolled).
 						FillWidth().MaxHeight(t.Space(45)).Children(func() {
 						if !result.HasOutput() {
-							ui.Text(c, copy.RunNoOutput).FontSize(tokens.Caption).
-								TextColor(t.TextMuted).Italic()
+							a.runOutputAside(c, tokens, copy.RunNoOutput, false)
 							return
 						}
 						ui.Text(c, result.Text()).Font(runOutputFont).FontSize(tokens.Caption).
@@ -6922,11 +6921,52 @@ func (a *App) runOutput(c *ui.Context, copy i18n.Settings, integration Integrati
 				// reaches when the output stops, which the head's own mark cannot say
 				// once they have scrolled (`ExtensionRow.tsx:503-511`).
 				if result.Truncated {
-					ui.Text(c, copy.RunOutputTruncatedTail).FontSize(tokens.Caption).
-						TextColor(tokens.TextTertiary).Italic()
+					a.runOutputAside(c, tokens, copy.RunOutputTruncatedTail, true)
 				}
 			})
 	})
+}
+
+// runOutputAside draws one of the block's two aside lines: the empty capture's
+// placeholder and the truncation mark under the text.
+//
+// P13-bh（`docs/liquid-glass.md` §6.27）：这两行此前是全仓**最后两处** `.Italic()`
+// ——而且两处压的都是中文。中文没有斜体字形（苹方 / 思源 / 微软雅黑都只有正体），
+// `font-style: italic` 只能落到引擎的**伪合成斜切**（pango `pangoStyleItalic`、
+// DirectWrite `fontStyleItalic`、CoreText `syntheticItalic`）：11px 的笔画被重采样
+// 一次再横向拉伸约 15°，用户读到的就是「糊」——这正是用户偏好账本 P-1（硬禁令：
+// 界面排版禁用斜体，中文尤其）与 `chinese-typography.md` §三「中文禁斜体（无斜体
+// 字形设计，强制倾斜=笔画变形）」在全仓的最后两处违反。
+//
+// 参考的载体在中文里不存在，所以「这一行不是程序的输出，是一句旁白」改由两件事说：
+//
+//  1. **字体寄存器**——真输出是 `runOutputFont` 的等宽栈（`extensions.css:1210-1221`），
+//     因为它是程序自己的字节；这两行是系统字体，读起来不是字节。
+//  2. **文案本身**——占位被**全角圆括号**包住（`（无输出）`）、尾行以**省略号**开头
+//     （`……输出已截断（上限 64KB）`）：两种形状都不会出现在程序的输出里，而且都是
+//     参考自己的词（`extensions.css:1259-1267` / `:1268-1280`）。
+//
+// 墨档不动：占位是 `--text-muted`、尾行是 `--text-tertiary`（参考自己的两档）。
+// 实测离凹槽面的距离（`runOutputEdgeFace` 的不透明合成面）：浅 **96 / 89**、
+// 深 **91 / 75**——浅色那 7 级确实薄，记账而不抬档：把占位抬上去，会让这块**空**
+// 凹槽的声音比它自己的标题还响。
+//
+// 这两行因此有了一个家：census 与像素 pin 都读这一个调用点（`noitalic_test.go`）。
+func (a *App) runOutputAside(c *ui.Context, tokens theme.Tokens, line string, tail bool) {
+	ui.Text(c, line).FontSize(tokens.Caption).TextColor(runOutputAsideInk(tokens, tail))
+}
+
+// runOutputAsideInk is the one home for the two asides' inks: the placeholder
+// takes `--text-muted` and the truncation mark `--text-tertiary`, which is what
+// the reference's own two rules say (`extensions.css:1259-1267` /
+// `:1268-1280`). It lives here rather than at the call sites so the ladder the
+// pin measures cannot be a reconstruction of it — a caller that passed the
+// wrong colour would be a caller that could pass any colour.
+func runOutputAsideInk(tokens theme.Tokens, tail bool) ui.Color {
+	if tail {
+		return tokens.TextTertiary
+	}
+	return tokens.Theme.TextMuted
 }
 
 // runOutputToggle is the folded output block's own affordance: the reference's
