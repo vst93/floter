@@ -41,16 +41,24 @@ func (a *App) emptyState(c *ui.Context, iconName, title, hint string, iconSize, 
 	region := ui.Column(c).FillWidth().MinHeight(floor).
 		Gap(t.Space(2)).Padding(t.Space(6)).Center()
 	region.Children(func() {
-		if glyph, ok := launcher.Glyph(iconName); ok {
-			// `.settings-empty__icon`: the second ink step, quiet beneath the
-			// sentence it introduces (§4.7「图标次文字色」).
-			ui.Icon(c, glyph).Size(iconSize, iconSize).
-				TextColor(tokens.TextSecondary)
-		}
-		// `.settings-empty__title`: the emphasis step in the strong ink —
-		// one statement, not a grey line that reads as a complaint (§4.7).
-		ui.Text(c, title).FontSize(tokens.Emphasis).FontWeight(580).
-			LineHeight(1.4).TextColor(tokens.TextStrong).TextAlign(ui.Center)
+		// P13-aj（`docs/liquid-glass.md` §4.3）：标记与它引入的那句话是**一块**。
+		// 均匀的 8u 让三个部件读成三个平级的邻居——实测墨上间隙 12px（标记→
+		// 句子）对 13px（句子→理由），两者几乎相等，一枚 22u 的标记因此悬在
+		// 句子上方「自己一格」。这一对内收一档到 4u：墨上 12 → **8px**。
+		// 只动这一对；句子与理由之间仍是区域的 8u。
+		head := ui.Column(c).Center().Gap(t.Space(1))
+		head.Children(func() {
+			if glyph, ok := launcher.Glyph(iconName); ok {
+				// `.settings-empty__icon`: the second ink step, quiet beneath the
+				// sentence it introduces (§4.7「图标次文字色」).
+				ui.Icon(c, glyph).Size(iconSize, iconSize).
+					TextColor(tokens.TextSecondary)
+			}
+			// `.settings-empty__title`: the emphasis step in the strong ink —
+			// one statement, not a grey line that reads as a complaint (§4.7).
+			ui.Text(c, title).FontSize(tokens.Emphasis).FontWeight(580).
+				LineHeight(1.4).TextColor(tokens.TextStrong).TextAlign(ui.Center)
+		})
 		if hint != "" {
 			// `.settings-empty__hint`: a 320u measure, `--text-caption` in
 			// `--text-tertiary`.
