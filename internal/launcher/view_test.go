@@ -548,8 +548,16 @@ func TestClipboardModeWithoutAStore(t *testing.T) {
 	if !a.clipboard {
 		t.Fatal("the mode did not open")
 	}
-	if !tt.HasText("Enter runs it") {
-		t.Errorf("the mode hint did not show: %q", tt.Texts())
+	// P13-bk 重定基线：旧值（「Enter runs it」——命令模式的提示，这一页没有命令可跑，
+	// 且同一帧的 chips 行写着「Tab to switch」）→ 新值（字段尾部是字段自己的那句
+	// `copy.Hint`，页面陈述是本模式自己的空态句）。这仍然是「模式开了、页面说得出
+	// 自己在哪」的证据，只是证据从一句假话换成了这一页真说的两句。
+	copy := StringsFor(a.settings().Language)
+	if !tt.HasText(copy.Hint) {
+		t.Errorf("the field tail did not show: %q", tt.Texts())
+	}
+	if !tt.HasText(copy.ClipboardEmpty) {
+		t.Errorf("the mode's empty state did not show: %q", tt.Texts())
 	}
 	a.activate(nil)
 	if a.clipboard {
@@ -877,9 +885,15 @@ func TestBrowserModeWithoutASearch(t *testing.T) {
 	if !a.browser {
 		t.Fatal("the mode did not open")
 	}
-	// No action: the list is empty, and the hint explains the mode.
-	if !tt.HasText("Enter runs it") {
-		t.Errorf("the hint did not show: %q", tt.Texts())
+	// No action: the list is empty, and the page says so.
+	// P13-bk 重定基线：旧值（「Enter runs it」）→ 新值（字段尾部 `copy.Hint` +
+	// 浏览器页自己的空态句）。理由同 `TestClipboardModeWithoutAStore`。
+	copy := StringsFor(a.settings().Language)
+	if !tt.HasText(copy.Hint) {
+		t.Errorf("the field tail did not show: %q", tt.Texts())
+	}
+	if !tt.HasText(copy.BrowserNoProfile) {
+		t.Errorf("the mode's empty state did not show: %q", tt.Texts())
 	}
 	// Escape leaves it.
 	tt.Key(0, ui.KeyEscape)

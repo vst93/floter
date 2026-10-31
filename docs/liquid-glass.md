@@ -1699,3 +1699,43 @@ pin：`internal/launcher/footerink_test.go` 三条 + 一条 opt-in 出图。
 
 **一处取舍**：到底了的墨**一个字节都没动**。它本来就在静息档，这一轮要修的是「两件事
 一档墨」，不是「两件事都不够重」——把地板也抬起来只会让列表的最后一行与它的边界打架。
+
+### §6.30 字段行尾部那一格，在三页上说错了话（P13-bk，**已落地**）
+
+`copy.CommandModeHint`（「Enter runs it · Tab completes · Esc cancels」）按
+`internal/i18n/i18n.go:117-119` 的定义只属于**扩展命令模式**（「while an extension
+command's arguments are typed」），但 `launcher.go:1569` 的条件是
+`a.mode != nil || a.clipboard || a.browser`：剪贴板页与浏览器页也画它。那两页没有命令可跑
+（「Enter runs it」不成立），同一帧的 chips 行还写着「Tab to switch」（「Tab completes」也不
+成立）——**一个窗口对同一个键两个相反的说法**。命令模式的空态上，这句话还被画了两遍。
+
+实测（`ui.Tester`，地面 浅 253 / 深 23，峰值对比）：
+
+| 页 | chips 行的提示 | 字段行尾部的提示 |
+|---|---|---|
+| 剪贴板（空） | `Tab to switch · Ctrl+D to favorite` ink **144 / 112**（328 / 267） | `Enter runs it · …` rect `{390 17 278 22}` ink **116 / 164**（412 / 421） |
+| 浏览器（空） | `Tab to switch` ink **144 / 112** | 同上 |
+| 命令模式（无匹配） | — | 同一句话出现 **2 次**（页面陈述 + 字段尾部） |
+| 计算器 / 文件 / 普通页 | — | `Type to search` rect `{574 17 94 22}` ink **116 / 164** |
+
+| # | 位置 | 现状（旧） | 落成（新） | 状态 |
+|---|---|---|---|---|
+| 30-1 | `launcher.go:1569` 字段行的 `switch` | `case a.mode != nil \|\| a.clipboard \|\| a.browser:` | `case a.mode != nil:`——剪贴板/浏览器落进 `default`，与计算器/文件页同一答案（空查询 → `copy.Hint`；有查询 → ✕ 清除键） | `已落地` |
+| 30-2 | 同文件命令模式臂 | 空态时页面陈述与字段尾部是同一句话（两遍） | `if !quietPage` 守卫：页面说过的那一句，尾部不再重复 | `已落地` |
+| 30-3 | 同文件空态臂（`:1360`） | `} else if len(results) == 0 {` | `} else if quietPage {`，与 30-2 共用同一个局部判据 `quietPage := a.output == nil && !a.configOpen() && len(results) == 0` | `已落地` |
+| 30-4 | 五个插件模式的尾部墨阶 | 剪贴板/浏览器是命令提示（278px、三句），计算器/文件是 `copy.Hint`（94px、一句） | 一条文案、一档墨（`TextMuted`，412 / 421）、一个行盒（22px），跨页逐像素相等 | `已落地` |
+| 30-5 | 尾部 vs chips 旁注的**相对**墨阶 | 未立过判据 | 尾部必须比 chips 行的旁注重 **≥50 级**（实测 412 vs 328 / 421 vs 267）——同一档墨会让「输入面的指示」与「下面带子的旁注」读成一句话的两半 | `已落地` |
+| 30-6 | 插件模式字段的 **placeholder** | 恒为 `copy.Placeholder`（「输入命令或应用名称」） | **故意不做**：剪贴板页打不出应用，但改它要**新增一条 i18n 文案**（按模式分），踩 i18n 红线，等拍板 | `故意不做（需拍板）` |
+
+**几何零变化**：字段行是 `Absolute().Height(fieldRow)`（56u），尾部是 `Shrink(0)` 孩子、
+字段 `Grow(1)` 吃掉腾出的宽度。整帧像素差 bbox **`(391,22)-(667,37)`**（三页两套外观同一个
+矩形，1534 / 1534 / 1275 px），chips 行、页面陈述、列表、窗口高度一个像素没动。
+
+pin：`internal/launcher/fieldtail_test.go` 五条 × 深浅两套——①剪贴板/浏览器/计算器/文件四页
+都不许出现 `CommandModeHint`、都必须出现 `copy.Hint`（有查询时换成 ✕ 清除键）；②命令模式的
+空态这句话只出现 **1 次**且 `y ≥ 56`（活下来的是页面陈述，不是字段尾部）；③四页尾部行盒
+同高、墨差 ≤2 级；④尾部比 chips 旁注重 ≥50 级（绝对判据，也是「整族退一档」的唯一哨兵）；
+⑤结构 pin：旧条件在源码里消失、`quietPage` 与两处读点都在。
+**V 2**（`view_test.go:552` / `:882` 把「Enter runs it」当「模式开了」的证据，改到新值并注明
+重定基线）/ **B 0** / **S 0**，变异 4 条实跑全红，`md5sum -c` 逐字节还原。
+详见 `docs/rounds/P13-bk-report.md`。

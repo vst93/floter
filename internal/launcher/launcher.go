@@ -1321,6 +1321,10 @@ func (a *App) View(c *ui.Context) {
 	// docked rows below need it too.
 	var barStart int
 	barStart, a.footerBand = a.actionBarSplit(c, results)
+	// P13-bk：这一页是不是在画「安静的空页」——空态那一列。两个地方要读**同一个**
+	// 判据：页面陈述（下面 `} else if quietPage {`）与字段行尾部（命令模式那一句提示
+	// 不许把页面刚说过的话再说一遍）。两处各写一遍必然漂移，所以只写一次。
+	quietPage := a.output == nil && !a.configOpen() && len(results) == 0
 
 	// The panel is the launcher's reading surface: the old build's
 	// `--surface-sunken`, one step denser than the card's own glass, so
@@ -1357,7 +1361,7 @@ func (a *App) View(c *ui.Context) {
 		// does the field, which the sheet's own budget is measured above.
 		if a.configOpen() {
 			a.configBody(c, listEdge)
-		} else if len(results) == 0 {
+		} else if quietPage {
 			// The empty state is Raycast's quiet page: the sentence in the
 			// primary ink at the emphasis step, centred in the band, with no
 			// plate, no accent and no mark of its own
@@ -1566,8 +1570,22 @@ func (a *App) View(c *ui.Context) {
 				a.activate(results)
 			}
 			switch {
-			case a.mode != nil || a.clipboard || a.browser:
-				ui.Text(c, copy.CommandModeHint).FontSize(t.FontSize).TextColor(t.TextMuted)
+			case a.mode != nil:
+				// P13-bk：这句话只属于**扩展命令模式**（`i18n/i18n.go:117-119`：「the
+				// field's hint while an extension command's arguments are typed」）。
+				// 剪贴板页与浏览器页此前也走这一臂：那两页没有命令可跑（「Enter runs
+				// it」不成立），而同一帧的 chips 行还写着「Tab to switch」（「Tab
+				// completes」也不成立）——一个窗口对同一个键两个相反的说法。它们落进
+				// `default`，与计算器/文件页同一个答案（空查询 → `copy.Hint`，有查询 →
+				// ✕ 清除键），同一族的五页这才只有一个说法。
+				//
+				// 空态页面把这句话当**陈述**画过一次（`emptyMessage` 在命令模式返回同
+				// 一条 `CommandModeHint`，见 `:877`），所以 `quietPage` 时这里不再重复：
+				// 一句话在一个窗口里说两遍（一遍大、一遍小）不是强调，是两处各自以为
+				// 自己是唯一的那一处。
+				if !quietPage {
+					ui.Text(c, copy.CommandModeHint).FontSize(t.FontSize).TextColor(t.TextMuted)
+				}
 			default:
 				// The inline trigger nudge (R48): a word on its way to a
 				// command's mode says so here, in the field row, where it
