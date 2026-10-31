@@ -513,7 +513,9 @@ func (a *App) outputBody(c *ui.Context, copy i18n.Launcher, edge float32) {
 					}
 					button := ui.Row(c).Focusable().Shrink(0).Size(t.Space(7), t.Space(7)).
 						Radius(tokens.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).
-						Label(label).Tooltip(hint)
+						Label(label)
+					// P13-ay：页头两枚 28u 方键的提示也戴 E2 浮面。
+					button = tokens.Tip(c, button, hint)
 					if button.Hovered() {
 						// P13-aa（§2 / §3）：悬停的小键是 E1 —— 面 + 顶受光边 + 底对侧暗线。
 						// 它此前只有一层 `ControlHover` 洗色：一条线都没有，读起来是「一块颜色」

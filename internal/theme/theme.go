@@ -1289,6 +1289,11 @@ func (t Tokens) Tip(c *ui.Context, anchor ui.Element, text string) ui.Element {
 			Radius(t.RadiusSM).Border(1, t.InputStroke).
 			Background(t.Float).TextColor(t.Theme.Text).
 			FontSize(t.Theme.FontSize - 1)
+		// P13-ay：与销点的 1.5u 缝隙照旧存在。P13-ax 只搬了材质，`TooltipBase`
+		// 的默认 attach 没有那条 margin（`ui/tooltip.go:132` 的 1.5u 是框架
+		// `Tooltip` 自己写的），所以提示前一阵是**贴住销点**的——浮面贴住
+		// 销点读成徽章。这一行把它补回来。
+		tip.AttachTo(anchor, ui.AnchorTop, ui.AnchorBottom).Margin(0, 0, t.Theme.Space(1.5), 0)
 		tip.Shadow(0, t.Theme.Space(1.5), t.Theme.Space(4.5), 0, ui.RGBA(0, 0, 0, 0.30))
 		tip.Shadow(0, t.Theme.Space(0.25), t.Theme.Space(0.5), 0, ui.RGBA(0, 0, 0, 0.20))
 		tip.InsetShadow(0, 1, 0, 0, t.EdgeHighlight)

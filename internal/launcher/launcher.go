@@ -1879,8 +1879,10 @@ func (a *App) rowControl(c *ui.Context, name, label string, run func()) {
 	tokens := a.tokens(c)
 	control := ui.Row(c).Focusable().Shrink(0).Size(t.Space(5), t.Space(5)).
 		Radius(tokens.RadiusXS).AlignItems(ui.Center).Justify(ui.Center).
-		Label(label).Tooltip(label).
+		Label(label).
 		Transition(ui.ElementTransition{Duration: theme.ColorStep, Colors: true})
+	// P13-ay：提示是 E2 浮（`theme.Tokens.Tip`），不是框架那枚反色片子。
+	control = tokens.Tip(c, control, label)
 	ink := tokens.TextTertiary
 	switch {
 	case control.Pressed():
@@ -2610,9 +2612,11 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 		// The warning dot is a real 8u circle, never a glyph in truncatable
 		// text: it reads at any width (`.launcher-result__warning`).
 		if item.warning {
-			ui.Box(c).Size(t.Space(2), t.Space(2)).Shrink(0).
+			dot := ui.Box(c).Size(t.Space(2), t.Space(2)).Shrink(0).
 				Radius(t.Space(2)).Background(t.Warning).
-				Label(copy.CommandConflict).Tooltip(copy.CommandConflict)
+				Label(copy.CommandConflict)
+			// P13-ay：同一句说明戴 E2 浮面。
+			tokens.Tip(c, dot, copy.CommandConflict)
 		}
 		// The space-bar nudge: a command whose output the launcher shows itself
 		// is entered with one space, and the row says so with a keycap —
@@ -2624,7 +2628,8 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 			// key in the list draws (`docs/raycast-design.md` §4.5) — not a
 			// sentence. The whole explanation lives in the row's tooltip.
 			key := keycap(c, tokens, t, "\u2423")
-			key.Tooltip(copy.DirectOutputHint)
+			// P13-ay：说明戴 E2 浮面（`theme.Tokens.Tip`）。
+			tokens.Tip(c, key, copy.DirectOutputHint)
 		}
 		// The source word: the row's provenance, in a fixed slot at the row's
 		// right edge — the integration that contributed a command, the package
@@ -2633,7 +2638,9 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 		if item.Source != "" {
 			source := ui.Text(c, item.Source).FontSize(t.FontSize).
 				FontWeight(510).TextColor(tokens.TextTertiary).SingleLine().
-				MaxWidthPercent(30).TextAlign(ui.End).Tooltip(item.Source)
+				MaxWidthPercent(30).TextAlign(ui.End)
+			// P13-ay：被截断的来源词，读全名的那条提示戴 E2 浮面。
+			tokens.Tip(c, source, item.Source)
 			if i == a.Selected {
 				source.TextColor(tokens.TextSecondary)
 			}
@@ -2685,7 +2692,9 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 			}
 			star := ui.Row(c).Focusable().Shrink(0).
 				Size(t.Space(5), t.Space(5)).AlignItems(ui.Center).Justify(ui.Center).
-				Label(starLabel).Tooltip(starLabel)
+				Label(starLabel)
+			// P13-ay：星标的词也戴 E2 浮面。
+			tokens.Tip(c, star, starLabel)
 			shown := favorite || i == a.Selected || row.Hovered()
 			if !shown {
 				star.Opacity(0)
@@ -3446,8 +3455,10 @@ func (a *App) fieldSettingsButton(c *ui.Context, tokens theme.Tokens, label, hin
 	t := c.Theme()
 	e := ui.Row(c).Focusable().Shrink(0).Size(t.Space(7), t.Space(7)).
 		Radius(tokens.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).
-		Label(label).Tooltip(hint).Margin(0, 0, 0, t.Space(2)).
+		Label(label).Margin(0, 0, 0, t.Space(2)).
 		Transition(ui.ElementTransition{Duration: theme.ColorStep, Colors: true})
+	// P13-ay：字段行尾的三枚 28u 键，提示戴 E2 浮面。
+	e = tokens.Tip(c, e, hint)
 	// The reference's `.collapsed-card__settings` carries three faces: the
 	// resting mark in `--text-tertiary`, the hover lift (`--glass-control-hover`
 	// + `--elev-0` + `--text-strong`), and the press (the scale and
