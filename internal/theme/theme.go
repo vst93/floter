@@ -1094,6 +1094,22 @@ func blendOpaque(base, over ui.Color) ui.Color {
 	return ui.RGBA(mix(base.R, over.R), mix(base.G, over.G), mix(base.B, over.B), 1)
 }
 
+// FaceOver returns face as it composites over base, opaque: the colour a
+// veil laid over that surface must use.
+//
+// A face token is often carried as a *thin* over-frame fill whose alpha is the
+// transparency slider's step (`Sunken`, `Control`): painted straight onto a
+// fade, `ui.Color.Alpha` multiplies the fade's own 0.85 by the token's, and the
+// veil comes out at a fraction of the weight it asks for (measured on the
+// extension run-output block: 0.85 × Sunken's 0.17 → the top line of the fade
+// still read 90% of the ink it was meant to drown — see P13-at,
+// `docs/liquid-glass.md` §6.17). Compositing first keeps the veil's alpha its
+// own.
+//
+// A surface painted as a chain of such layers (ground, pane, card, block) needs
+// one call per layer, innermost last: each call assumes an opaque base.
+func FaceOver(base, face ui.Color) ui.Color { return blendOpaque(base, face) }
+
 // FaceFill is the card's face at the frame's own alpha: the tint colour as the
 // two stops of its top-down gradient, at the alpha that **composites with the
 // stop's sheen back to the frame's alpha**. The sheen is painted over it as

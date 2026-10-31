@@ -6745,6 +6745,25 @@ const runOutputFont = "SF Mono, Menlo, Monaco, Consolas, monospace"
 // read it without guessing at a composite.
 func runOutputFace(tokens theme.Tokens) ui.Color { return tokens.Sunken }
 
+// runOutputEdgeFace is the colour the block's scroll edges lay down: its own
+// face, composited opaque.
+//
+// 为什么不直接用 `runOutputFace`：`Sunken` 是一层**薄罩**（跟随透明度滑块的
+// `glassmap.Spec.ContentAlpha`），而 `ui.Color.Alpha` 是**乘**——把它交给
+// `glass.ScrollEdge`，那道 0.85 会被它自己的 0.17 乘成 0.14，边淡了个寂寞
+// （实测：视口第一行仍读到最内那一带的 90%，跟不改一样）。
+//
+// 为什么要叠三层：这块凹槽的面不是一个字面值，而是一整条链——窗口地 → 设置体
+// 面板（`Sunken`）→ 扩展卡（`Control`，一层 0.07 的黑色罩）→ 凹槽自己
+// （`Sunken`）。只把 `Control` 与 `Sunken` 混在一起会得到近黑（实测 41），只混
+// `Background` 与 `Sunken` 又太白（246）。按顺序压完整条链的不透明结果才是这块
+// 凹槽真正看上去的面。剩几级的差（实测浅 4 / 深 7）来自窗口本身是半透明的：
+// 桌面透过来多少，代码这里拿不到，所以边只能对齐到这条链，不再往下猜。
+func runOutputEdgeFace(tokens theme.Tokens, t *ui.Theme) ui.Color {
+	pane := theme.FaceOver(t.Background, runOutputFace(tokens))
+	return theme.FaceOver(theme.FaceOver(pane, tokens.Control), runOutputFace(tokens))
+}
+
 // runOutputToggleFace is the folded affordance's fill at rest and under the
 // pointer: transparent, then `--ext-bg-hover` (`extensions.css:1249,1252-1255`).
 func runOutputToggleFace(tokens theme.Tokens, hovered bool) ui.Color {
@@ -6809,15 +6828,50 @@ func (a *App) runOutput(c *ui.Context, copy i18n.Settings, integration Integrati
 				// line height and the strong ink, selectable because a reader copies out
 				// of it (`extensions.css:1238-1258`). The empty state keeps the same line
 				// box, in muted italics rather than as a blank sliver (`:1259-1267`).
-				ui.Scroll(c.Key("settings.runoutput." + integration.ID)).TrackScroll(a.runOutputScroll(integration.ID)).
-					FillWidth().MaxHeight(t.Space(45)).Children(func() {
-					if !result.HasOutput() {
-						ui.Text(c, copy.RunNoOutput).FontSize(tokens.Caption).
-							TextColor(t.TextMuted).Italic()
-						return
+				// P13-at（`docs/liquid-glass.md` §6.17）：这块凹槽的上下两条边原是**平刀切**——
+				// 内容在视口第一行与最后一行像素上被水平切断（实测滚到一半时，第一行的墨
+				// 展开 193 对最内的 202，浅色 96%；深色 180 对 188，同样 96%），框外一行
+				// 立刻归 0，说明切是 `.Clip()` 造成的，不是内容自己淡出。它和设置页的滚动体
+				// 是同一族表面，只是更小（180px 的凹槽），所以边上也走 `glass.ScrollEdge`。
+				//
+				// 与设置页那处有一处**故意不同**：那块面板的边是自门控的（边高落在它预留的
+				// 4u padding 上，滚到底时下面没有内容可淡），这里没有、也不能加 padding——
+				// `MaxHeight(45u)` 是固定的，加 padding 等于从视口里偷掉两行字。于是这两道边
+				// 按**滚动位置**开关：停在开头时第一行、滚到底时最后一行，都是用户正在读的
+				// 那一行，不许被淡；中间任意位置，两头都淡。
+				//
+				// 底色是凹槽自己的面（`runOutputFace`），不是 `t.Background`：P13-as 仍待 2
+				// 记的就是「边淡向错的底色会在静止帧留一道痕」，这里不重犯。边高取 3u(12px)，
+				// 小于一个行盒（caption 11px × 1.45 ≈ 16px），所以最多软化一行的边缘，
+				// 不会整行吞掉。
+				scrolled := a.runOutputScroll(integration.ID)
+				edge := t.Space(3)
+				ui.Column(c).FillWidth().Children(func() {
+					ui.Scroll(c.Key("settings.runoutput." + integration.ID)).TrackScroll(scrolled).
+						FillWidth().MaxHeight(t.Space(45)).Children(func() {
+						if !result.HasOutput() {
+							ui.Text(c, copy.RunNoOutput).FontSize(tokens.Caption).
+								TextColor(t.TextMuted).Italic()
+							return
+						}
+						ui.Text(c, result.Text()).Font(runOutputFont).FontSize(tokens.Caption).
+							TextColor(tokens.TextStrong).LineHeight(1.45).Wrap().Selectable()
+					})
+					// 底色是**不透明**的合成面：`runOutputFace` 是 `Sunken`，一枚跟着透明度滑块走
+					// 的薄罩（`ui.Color.Alpha` 是**乘**，所以把薄罩直接交给 `ScrollEdge`，0.85 会
+					// 被它自己的 0.12 乘成 0.10——实测第一行仍读到最内那一带的 90%，淡了个寂寞）。
+					// `theme.FaceOver(Control, Sunken)` 先把它压成不透明的面，淡的权才是它自己的。
+					// P13-as 仍待 2 记的是另一头（边淡向错的底色）；这两条一起才叫「边是一座面
+					// 的语言」，不是叠在上面的另一层罩。
+					face := runOutputEdgeFace(tokens, t)
+					if scrolled.Y > 0 {
+						ui.Box(c).Absolute().Top(0).Left(0).Right(0).Height(edge).PassThrough().
+							Material(glass.ScrollEdge{Background: face})
 					}
-					ui.Text(c, result.Text()).Font(runOutputFont).FontSize(tokens.Caption).
-						TextColor(tokens.TextStrong).LineHeight(1.45).Wrap().Selectable()
+					if scrolled.Y < scrolled.MaxY {
+						ui.Box(c).Absolute().Bottom(0).Left(0).Right(0).Height(edge).PassThrough().
+							Material(glass.ScrollEdge{Bottom: true, Background: face})
+					}
 				})
 				// The truncation mark at the *end* of the text: the place a reader
 				// reaches when the output stops, which the head's own mark cannot say
