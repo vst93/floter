@@ -499,7 +499,7 @@ func (a *App) extensionActionFace(c *ui.Context, height, radius float32, disable
 		ink, plane = tokens.TextStrong, tokens.ControlPress
 	}
 	button.Border(1, edge).Background(plane).
-		Transition(ui.ElementTransition{Colors: true, Duration: 120 * time.Millisecond})
+		Transition(ui.ElementTransition{Colors: true, Duration: theme.ColorStep})
 	if pressed {
 		button = button.Scale(0.97, 0.97)
 	}
@@ -532,7 +532,7 @@ func (a *App) extensionPrimaryButton(c *ui.Context, label string) ui.Element {
 	button := ui.ButtonBase(c).
 		MinHeight(t.Space(7.5)).Padding(0, t.Space(2.5)).Radius(t.Space(3.75))
 	button.Border(1, tokens.AccentEdgeStrong).Background(t.Accent).
-		Transition(ui.ElementTransition{Colors: true, Duration: 120 * time.Millisecond})
+		Transition(ui.ElementTransition{Colors: true, Duration: theme.ColorStep})
 	// `box-shadow: inset 0 1px 0 var(--glass-raised-rim)`: the raised top rim
 	// is what makes the accent pill read as a lit control rather than a flat
 	// accent block (the neutral pill gets the same from `Lens`).
@@ -560,7 +560,7 @@ func (a *App) extensionIconButton(c *ui.Context, glyphName, label string, disabl
 		Radius(tokens.RadiusSM).
 		Background(ui.Transparent).
 		Center().
-		Transition(ui.ElementTransition{Colors: true, Duration: 120 * time.Millisecond})
+		Transition(ui.ElementTransition{Colors: true, Duration: theme.ColorStep})
 	ink := tokens.TextSecondary
 	switch {
 	case disabled:

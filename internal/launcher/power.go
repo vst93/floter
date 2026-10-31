@@ -178,7 +178,7 @@ func (a *App) confirmPowerButton(c *ui.Context, tokens theme.Tokens, label strin
 	button := ui.Row(c).Focusable().Shrink(0).MinHeight(t.Space(6)).
 		Padding(0, t.Space(2)).Radius(tokens.RadiusXS).
 		AlignItems(ui.Center).Justify(ui.Center).Label(label).
-		Transition(ui.ElementTransition{Colors: true, Duration: 120 * time.Millisecond})
+		Transition(ui.ElementTransition{Colors: true, Duration: theme.ColorStep})
 	ink := t.Warning
 	plane := ui.Transparent
 	edge := ui.Transparent

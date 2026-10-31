@@ -1318,7 +1318,7 @@ func (a *App) sidebarRow(c *ui.Context, i int) {
 	row := ui.Row(c).FillWidth().MinHeight(t.Space(8.5)).
 		Padding(0, t.Space(2)).Gap(t.Space(2)).
 		Radius(tokens.RadiusSM).AlignItems(ui.Center).
-		Transition(ui.ElementTransition{Colors: true, Duration: 120 * time.Millisecond})
+		Transition(ui.ElementTransition{Colors: true, Duration: theme.ColorStep})
 	if selected {
 		// P8-b 重定基线：旧 `--glass-raised-quiet` + `--elev-0` 透镜 → 合约
 		// §4.3/§6.1 的**中性**选中档 `RowSelected`（0.085/0.06 的白/黑），无镜片。
@@ -5853,7 +5853,7 @@ func (a *App) barButton(c *ui.Context, label string, danger, disabled bool, icon
 	// from where its predecessor stood — the disable band's pills drifted up
 	// under a sentence that had already settled, so a press aimed at the pill
 	// could miss it mid-flight.
-	button.Transition(ui.ElementTransition{Colors: true, Duration: 120 * time.Millisecond})
+	button.Transition(ui.ElementTransition{Colors: true, Duration: theme.ColorStep})
 	// E1: the pill keeps its own `Border(1, edge)` and wears the lit pair inside
 	// it (`theme.Tokens.LitFace`), not the four-layer lens — its ring was the
 	// same edge painted twice, and it buried the 0.09 rim under `ControlEdge`.

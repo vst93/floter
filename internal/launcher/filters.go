@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"runtime"
 	"strings"
-	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -18,6 +17,7 @@ import (
 	"floter/internal/i18n"
 	"floter/internal/settings"
 	"floter/internal/shortcuts"
+	"floter/internal/theme"
 )
 
 // FilterAxis is one dimension a mode's list can be filtered by.
@@ -208,7 +208,7 @@ func (a *App) filtersRow(c *ui.Context, top float32) {
 			// or a background of its own would be a control the band never
 			// charged for.
 			chip := ui.Row(c).Focusable().Shrink(0).Radius(t.Radius).
-				Transition(ui.ElementTransition{Colors: true, Duration: 120 * time.Millisecond})
+				Transition(ui.ElementTransition{Colors: true, Duration: theme.ColorStep})
 			label := axis.LabelOf(copy, value)
 			color := t.TextMuted
 			weight := 500

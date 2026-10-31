@@ -202,7 +202,7 @@ pin：`internal/glassmap/floatladder_test.go`（六个档位，差值是写死�
 
 | 场景 | 时长 / 曲线 | 备注 |
 |---|---|---|
-| 颜色过渡（行、控件） | 90ms ease-out，只动颜色 | 按帧可预测 |
+| 颜色过渡（行、控件） | **120ms** ease-out，只动颜色 | **P13-ad 重定基线：旧值 `90ms` → 新值 `120ms`**。参考 CSS 的 `--dur-2`，常量 `theme.ColorStep`。旧值 90ms 在 `internal/` 与 `cmd/` 里从未出现过，而代码里是 11 处手写 120ms + 1 处 150ms（卸载对话框的组件行）——同一个指针动作三种速度。12 处现在都读 `theme.ColorStep`，账在 `internal/ci/colorstep_contract_test.go`。`--dur-1`（80ms）是 transform、`--dur-3`（160ms）是浮层入场，都不是这一步。 |
 | 行的进入 | 120ms 透明度 | 位置由布局决定 |
 | 按下 | `Scale(0.986)` | 唯一的几何变化 |
 | **E2 浮层入场** | 160ms，`translateY(8u→0)` + `scale(0.98→1)` + 透明度 | 材质「落下来」，不是「淡进来」 |

@@ -1,12 +1,11 @@
 package settingsui
 
 import (
-	"time"
-
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/extensions"
 	"floter/internal/i18n"
+	"floter/internal/theme"
 )
 
 // The declared-inputs editor: the reference's `.extension-param-editor`
@@ -264,7 +263,7 @@ func (a *App) paramIconButton(c *ui.Context, glyphName, label string) ui.Element
 		Size(t.Space(paramEditorIconBox), t.Space(paramEditorIconBox)).
 		Border(1, ui.Transparent).Radius(tokens.RadiusSM).
 		Background(ui.Transparent).Center().
-		Transition(ui.ElementTransition{Colors: true, Duration: 120 * time.Millisecond})
+		Transition(ui.ElementTransition{Colors: true, Duration: theme.ColorStep})
 	ink := tokens.TextSecondary
 	if button.Pressed() {
 		// P13-q（`docs/liquid-glass.md` §5）：28u 小格的第三档，与启动器同尺寸的

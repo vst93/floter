@@ -228,8 +228,16 @@ P11-ad 把「这个和」的最后一项也对齐了：输出面板的行 gap �
 
 ### §4.8 动效
 
-- 颜色过渡：`rowTransition` = 90ms ease-out（Colors only）。按帧可预测，无弹跳。
-- 行的进入：120ms 透明度（`Enter`），位置由布局决定，**不用整卡 pose
+- 颜色过渡：`theme.ColorStep` = **120ms**（参考 CSS 的 `--dur-2`，Colors only）。
+  按帧可预测，无弹跳。
+  **P13-ad 重定基线（旧值 → 新值：`90ms` → `120ms`）**：这一行此前把**行的
+  入场**（`rowTransition`，120ms 透明度、`Colors: false`）说成了颜色过渡，并且
+  给了个 90ms——那个数字在 `internal/` 与 `cmd/` 里**一次都没出现过**。实测是
+  11 处手写的 120ms 加 1 处 150ms（卸载对话框的组件行，照抄它自己的 CSS）。
+  现在 12 处都读 `theme.ColorStep`，账在 `internal/ci/colorstep_contract_test.go`。
+- 行的进入：**同一个** 120ms，但走的是 `rowTransition` 的 `Enter`（透明度从 0），
+  `Colors: false`——入场与上一条的颜色过渡是两件事，只是恰好同为 120ms。
+  位置由布局决定，**不用整卡 pose
   transform**（mygo 的渲染红线：整棵子树会掉进逐像素路径）。
 - 选中即时，不做缩放/弹跳；按下的 `0.986` 是唯一的几何变化。
 

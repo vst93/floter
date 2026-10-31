@@ -1,8 +1,6 @@
 package settingsui
 
 import (
-	"time"
-
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/i18n"
@@ -346,7 +344,7 @@ func (a *App) uninstallActionButton(c *ui.Context, label string, danger bool, bu
 		}
 	}
 	button.Border(1, edge).Background(plane).
-		Transition(ui.ElementTransition{Colors: true, Position: true, Duration: 120 * time.Millisecond})
+		Transition(ui.ElementTransition{Colors: true, Position: true, Duration: theme.ColorStep})
 	// `.extensions-action-button:active:not(:disabled) { transform: scale(0.97) }`
 	// (`extensions.css:138-140`): the press sinks the pill a hair, over the
 	// same `--dur-2` transform transition.
@@ -428,10 +426,16 @@ func (a *App) uninstallPartRow(c *ui.Context, part uninstallPart) ui.Element {
 	// `.extensions-uninstall-component { padding: 12px; gap: 4px 12px;
 	// border-radius: 8px; transition: background 150ms ease, border-color
 	// 150ms ease }` (`:60-73`).
+	//
+	// P13-ad 重定基线：那个 150ms 是**这一个组件自己的**过渡，而它旁边每一个
+	// 指针面走的都是 `--dur-2`（120ms）——一张浮纸里的行比它脚下的列表慢 25%，
+	// 指针扫过去时读成两块不同年头的界面。指针的颜色答案只有一步，所以这里
+	// 改走 `theme.ColorStep`（150 → 120）。要回退到参考组件的 150ms，请连同
+	// `theme.ColorStep` 与 `docs/liquid-glass.md` §5 一起改，别只改这一行。
 	card := ui.Row(c).FillWidth().Gap(t.Space(3)).AlignItems(ui.Start).
 		Padding(t.Space(3)).Radius(t.Space(2)).
 		Border(1, tokens.ControlEdge).Background(tokens.Control).
-		Transition(ui.ElementTransition{Colors: true, Duration: 150 * time.Millisecond})
+		Transition(ui.ElementTransition{Colors: true, Duration: theme.ColorStep})
 	switch {
 	case part.Fixed:
 		// `:has(input:disabled) { cursor: not-allowed; opacity: 0.6 }`.

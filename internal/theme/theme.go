@@ -13,6 +13,7 @@ package theme
 import (
 	"math"
 	"runtime"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -29,6 +30,22 @@ const (
 	Light Appearance = "light"
 	Dark  Appearance = "dark"
 )
+
+// ColorStep is how long a pointer's colour answer takes on every face of the
+// app: the reference stylesheet's `--dur-2` (`launcher.css:397`,
+// `color var(--dur-2) ease, background var(--dur-2) ease`). It is the *one*
+// step for this kind of change, and the other two are deliberately not it:
+// `--dur-1` (80ms) is the transform step — the framework plays `Scale` as a
+// render-time transform, not as a transition — and `--dur-3` (160ms) is a
+// floating pane's entrance, which moves material rather than recolouring it.
+//
+// P13-ad 重定基线：`docs/liquid-glass.md` §5 此前写的是「90ms ease-out」,
+// 而 `internal/` 与 `cmd/` 里从来没有出现过 90ms——实测是 12 处手写的 120ms
+// 加一处 150ms（`settingsui/uninstall.go` 的组件行，照抄组件自己的
+// `transition: background 150ms ease`）。同一个指针动作在一个应用里有三种速度，
+// 而对话框里的行比它脚下的列表慢 25%，正是「两块不同年头的界面」的一个算术来源。
+// 旧值 → 新值：文档 `90ms`（从未实现）与离群 `150ms` → 一律 `120ms`。
+const ColorStep = 120 * time.Millisecond
 
 // Resolve resolves the stored theme against the desktop's appearance. It
 // mirrors App.tsx's rule exactly: `auto` follows the system, an explicit

@@ -1880,7 +1880,7 @@ func (a *App) rowControl(c *ui.Context, name, label string, run func()) {
 	control := ui.Row(c).Focusable().Shrink(0).Size(t.Space(5), t.Space(5)).
 		Radius(tokens.RadiusXS).AlignItems(ui.Center).Justify(ui.Center).
 		Label(label).Tooltip(label).
-		Transition(ui.ElementTransition{Duration: 120 * time.Millisecond, Colors: true})
+		Transition(ui.ElementTransition{Duration: theme.ColorStep, Colors: true})
 	ink := tokens.TextTertiary
 	switch {
 	case control.Pressed():
@@ -3447,7 +3447,7 @@ func (a *App) fieldSettingsButton(c *ui.Context, tokens theme.Tokens, label, hin
 	e := ui.Row(c).Focusable().Shrink(0).Size(t.Space(7), t.Space(7)).
 		Radius(tokens.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).
 		Label(label).Tooltip(hint).Margin(0, 0, 0, t.Space(2)).
-		Transition(ui.ElementTransition{Duration: 120 * time.Millisecond, Colors: true})
+		Transition(ui.ElementTransition{Duration: theme.ColorStep, Colors: true})
 	// The reference's `.collapsed-card__settings` carries three faces: the
 	// resting mark in `--text-tertiary`, the hover lift (`--glass-control-hover`
 	// + `--elev-0` + `--text-strong`), and the press (the scale and
