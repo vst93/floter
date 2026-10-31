@@ -75,10 +75,23 @@ func TestTheCardWearsTheContractsRadiusEdgeAndCast(t *testing.T) {
 			//
 			// 断言拆成三件，且都不是宽容差：
 			//   1. 面永远 ≤ 0.04；
-			//   2. 受光边 ≤ 0.09；
+			//   2. 受光边 ≤ 本外观的上限（P13-ah：浅 0.24 / 深 0.09）；
 			//   3. **受光边严格亮于面**（这是这一支唯一的材质不变量）。
 			const faceCap uint8 = 10 // 0.04 of 255, rounded down
-			const rimCap uint8 = 24  // 0.09 of 255, rounded up
+			// P13-ah 重定基线（V）：受光边的上限按外观分档，与下面 `LensEdge` 的对侧同一条
+			// 办法。旧断言是一个全局的 0.09——那是**深色**档的级数（0.09 的白压在 39 的面
+			// 上抬 19 级）。同一条 0.09 压在浅色档的面（221 / 230）上只抬 **+3 / +2 级**，
+			// 即 1x 屏上画不出的名义像素。浅色档新值 0.24 抬 +8 级（§1 的 8 级下沿；再往上
+			// 撞两道账：accent 面的色相与窗框 alpha 就是滑块的）。旧值 → 新值：
+			// 全局 `≤ 0.09` → 浅 `≤ 0.24` / 深 `≤ 0.09`。
+			rimCap := uint8(24) // 0.09 (dark)
+			if !appearance.dark {
+				rimCap = 64 // 0.24 (light), 0.239 rounded up
+			}
+			if tk.LensRim.A > rimCap+1 {
+				t.Errorf("LensRim is alpha %d, above this appearance's lit-edge cap %d (liquid-glass.md §1 的 0-11 行)",
+					tk.LensRim.A, rimCap)
+			}
 			for _, rung := range []struct {
 				name string
 				c    ui.Color

@@ -473,9 +473,25 @@ func TestThePrimaryCTAIsAnAccentButtonAtRadiusSM(t *testing.T) {
 			// the accent starts `radius × (1 - 1/√2)` ≈ 2.3 px in for a radius-8
 			// corner, and effectively at the box's edge for a `999px` one. Reading the
 			// inset at the top row is the pixel form of "which radius is this".
+			//
+			// P13-ah（S：探针的行）：行 +1 不再是填充——它现在是**受光边**（浅色档
+			// 0.24 的白，见 theme_test 的 0-11 行），在那一行找 accent 是在冠线上找填充。
+			// 探针改读行 +3：仍在圆角弧内收 1~8px 的区间里，且冠线在它上面一行。
+			// 阈值（60）与括号（1..8）一个数不动，换来一条更强的断言：第 1 行
+			// 必须比填充亮（冠线真的在）。旧值 → 新值：探针行 `+1` → `+3`。
+			probeY := int(button.Y) + 3
+			if !appearance.dark {
+				// 浅色档的冠线就是受光边本身（+8 级）；深色档第 1 行是胶囊自己的
+				// `AccentEdgeStrong` 环（实测 {109 132 173} 比填充还暗），那边不归这条管。
+				crown := imagePixel(img, int(button.X)+6, int(button.Y)+1)
+				if litSum(crown)-litSum(fill) < 30 {
+					t.Errorf("the CTA's first row %v is not a lit line over its fill %v: the accent pill lost its crown",
+						crown, fill)
+				}
+			}
 			left := -1
 			for x := int(button.X) - 2; x < int(button.X+button.W)+2; x++ {
-				if channelDelta(imagePixel(img, x, int(button.Y)+1), tokens.Theme.Accent) < 60 {
+				if channelDelta(imagePixel(img, x, probeY), tokens.Theme.Accent) < 60 {
 					left = x
 					break
 				}

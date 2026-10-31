@@ -769,7 +769,17 @@ func paletteFor(appearance Appearance) palette {
 			// （0.04 → 0.06，顶亮一分、底暗一分，控件才站起来）。`LensSheen` 与卡面的
 			// sheen **不动**：面不许反光，轻便玻璃的反光是「一条线」，不是「一片渐变」。
 			// 唯一材质不变量：alpha(LensRim) > alpha(LensSheen)。
-			lensRim:     ui.RGBA(255, 255, 255, 0.09),
+			// P13-ah 重定基线（docs/liquid-glass.md §1 的 0-11 行 / §3）：浅色档的冠线一直
+			// 只是**名义上**的。0.09 的白压在同一支的面（221 / 230）上只抬 **+3 / +2 级**，
+			// 而深色档同一条 alpha 抬 **+19 级**——「这块面可以被碰」的记号在浅色档是一个
+			// 看不见的像素。浅色的头顶空间是 221→255 = 34 级，此前只用了 3 级。旧值 →
+			// 新值：浅色 `0.09` → **`0.24`**（`221×0.76+255×0.24 = 229.2`，**+8 级**，
+			// 即 §1 的 8 级下沿）。为什么不是深色档那个 +19：浅色的 +19 需要 alpha 0.56，
+			// 实测会撞两道已有的账——accent 面的色相（白线把最暗通道抬过 60/255，
+			// 主 CTA 的顶行就不读作 accent 了）与「窗框 alpha 就是滑块的」（顶带平均
+			// alpha 偏 +0.017，pin 的上界是 0.012）。0.24 是两道账之下的最大值。
+			// 深色档**一个数不动**：那里 0.09 已经抬 +19 级。
+			lensRim:     ui.RGBA(255, 255, 255, 0.24),
 			lensSheen:   ui.RGBA(255, 255, 255, 0.04),
 			lensEdge:    ui.RGBA(0, 0, 0, 0.06),
 			sheenTop:    ui.RGBA(255, 255, 255, 0.04),
@@ -1188,10 +1198,13 @@ func (t Tokens) Lens(e ui.Element) ui.Element {
 //
 // Why the pair rather than the lit line alone: on the light appearance the
 // face is itself near-white (`Control` 0.07 of black over the sunken panel), so
-// a 0.09 white line over it lifts the pixel by **1~3 levels** — measured, and
-// it is 白压白 (§3 的末尾). What makes the block read as raised there is the
-// *counter-side*: 顶亮一分、底暗一分，控件才站起来 (§3). So both are painted,
-// and a surface that shows only one of them is not this material.
+// the lit line has very little headroom there — the 0.09 white it carried until
+// P13-ah lifted the pixel by **1~3 levels** (§3 的末尾), which is why the
+// counter-side was doing all the work: 顶亮一分、底暗一分，控件才站起来 (§3).
+// P13-ah raised the light rim to 0.24 (+8 levels, measured: 221 → 229 on the
+// session icon button; the dark appearance's same 0.09 lifts +19, unchanged) —
+// the crown now speaks, but the shade is still half of the sentence. So both
+// are painted, and a surface that shows only one of them is not this material.
 //
 // E1 casts no shadow (`§2 判据 2`) — this function adds none.
 func (t Tokens) LitFace(e ui.Element) ui.Element {

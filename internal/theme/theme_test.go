@@ -1224,8 +1224,8 @@ func TestTheAccentFamilyAlreadyClearsTheReadableContrast(t *testing.T) {
 //	   的那一层，它比任何长在底上的面都厚；
 //	③ 指针抬起比静息高一档：`ControlHover > Control > ControlPress`；
 //	④ **受光边严格亮于面**：`LensRim > LensSheen` —— 这是这一支唯一的材质不变量
-//	   （「一条线」而不是「一片渐变」）。同时 `LensRim ≤ 0.09`（旧的无光泽上限
-//	   0.04 已在 §1 末尾重定基线）。
+//	   （「一条线」而不是「一片渐变」）。上限按外观分档：深 `≤ 0.09`、浅 `≤ 0.24`
+//	   （旧的无光泽上限 0.04 已在 §1 末尾重定基线；浅色那一条是 P13-ah 抬的，见 0-11 行）。
 //
 // 反面臂：受光边不许靠色相说事（三通道相等 = 中性），也不许变成不透明的白线。
 func TestTheThreeElevationRungsAreVisibleAndOrdered(t *testing.T) {
@@ -1254,11 +1254,23 @@ func TestTheThreeElevationRungsAreVisibleAndOrdered(t *testing.T) {
 					alpha(tk.ControlHover), alpha(tk.Control), alpha(tk.ControlPress))
 			}
 			// ④ 受光边亮于面，且仍是一条「轻」的线。
+			//
+			// P13-ah 重定基线（V）：旧断言是「`LensRim ≤ 0.09`」，那是深色档的级数。
+			// 0.09 的白在浅色档的面（221）上只抬 **+3 级**，深色档同一条 alpha 抬 +19——
+			// 「这块面可以被碰」的记号在浅色档是一个看不见的像素。浅色新值 **0.24**：
+			// `221×0.76+255×0.24 = 229.2`，+8 级（§1 的 8 级下沿）；再往上顶时两道账会红——
+			// accent 面上的色相（受光边把最暗通道抬过 60/255 就不读作 accent 了）与
+			// 「窗框的 alpha 就是滑块的」（顶带的平均 alpha 偏移超过 0.012）。
+			// 旧值 → 新值：全局 `≤ 0.09` → 深 `≤ 0.09` / 浅 `≤ 0.24`。深色档不动。
 			if tk.LensRim.A <= tk.LensSheen.A {
 				t.Errorf("the lit edge (LensRim %d) is not brighter than the face (LensSheen %d)", tk.LensRim.A, tk.LensSheen.A)
 			}
-			if a := alpha(tk.LensRim); a > 0.09+0.004 {
-				t.Errorf("the lit edge is %.3f, above the contract's 0.09 cap (liquid-glass.md §1)", a)
+			rimCap := float32(0.09)
+			if !tc.dark {
+				rimCap = 0.24
+			}
+			if a := alpha(tk.LensRim); a > rimCap+0.004 {
+				t.Errorf("the lit edge is %.3f, above this appearance's cap %.2f (liquid-glass.md §1 的 0-11 行)", a, rimCap)
 			}
 			if tk.LensRim.A >= 255 {
 				t.Errorf("the lit edge is opaque (%v): a rim, not a white bar", tk.LensRim)
