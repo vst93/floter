@@ -194,6 +194,27 @@ pin：`internal/glassmap/floatladder_test.go`（六个档位，差值是写死�
 **为什么重申**：这一支只改墨与面，不动高度链、不动水平度量。视觉轮的红线是
 「行为契约零改动」——高度链、键盘模型、会话管理、设置写回、i18n 文案、命令接线。
 
+### §4.1 一行就是一行（P13-ae，**文字行为**，不是材质）
+
+间距刻度的另一半是**文字占多少行**。一个行高 44u 的行是按「标题 18u + 灰线 15u」算出来的；
+标题多折一行，这一行就不是 44u 了，卡的节奏正好在最长的那条名字上断掉。
+
+规则只有两条，来源是参考 CSS 自己的分法（**不是**本仓的新发明）：
+
+| 行的标题是 | 行为 | 参考出处 |
+|---|---|---|
+| **本仓写的句子**（i18n 文案、说明） | **可以折行**，`min-width: 0` 就够 | `.settings-row__label` / `__sublabel`，`settings.css:522-544` |
+| **程序/别人给的值**（会话名、包名） | **一行 + 省略号**，`nowrap` + `text-overflow: ellipsis` | `.session-manager__row .settings-row__label`（`settings.css:1249-1260`）、`.extension-row__title strong`（`extensions.css:895-907`） |
+
+**旧值 → 新值**：会话行与集成行的标题此前是**裸画**（无 `SingleLine`），折几行由容器宽决定——
+460u 宽、长会话名下实测 **72u**（四行，把目录行从 `y=187.2` 推到 `y=241.2`），长包名下 **36u**
+（并把版本 chip 挤到标题行下面）。现在两者都是 **18u** 一行。
+
+落地与账：`settingsui/rows.go` 的 `rowName{Text, Nowrap}` / `rowValue()`；
+`internal/settingsui/rowname_test.go` 三条（会话名一行、截断只截画笔不截数据 + 悬停读全名、
+集成名一行且版本不掉行）。**截断的出口**：`Tooltip(全名)`（参考没有，因为它的会话在别处
+也能看到；本仓的设置页是读一个会话名的唯一位置）。
+
 ---
 
 ## §5 状态与动效
@@ -538,6 +559,7 @@ pin：`internal/settingsui/lockedform_test.go` 四条——①字段、②开关
 | 9-34 | `uninstall.go` `card.Opacity(0.6)`（`part.Fixed` 卡片） | 只有一道淡（那一臂**没挂** `Disabled`），且戴完整的一对线 | **故意不做**：不是两道淡，不在本族 | `故意不做`（见理由） |
 | 9-25b | accent 主按钮的禁用臂（`config.go` 的 Save、`updateButton`） | `.Opacity(0.4)` / `.Opacity(0.6)` | 仍 **故意不做**：accent 要淡的是色相，先拍板「禁用 accent = accent 与卡面按什么比例混」 | `故意不做`（见理由） |
 | 9-26b | `sessionKillConfirm`（警告色胶囊） | `.Opacity(0.4)` | 仍 **故意不做**：`RaisedWarm` + `ShadowContact` + `LensRim` 的暖色抬升面，`DimFace` 会把警告环洗淡 | `故意不做`（见理由） |
+| 9-35 | **非材质行**｜会话行的标题（`settingsui.go:1579` 的 `a.rowValue`，规则见 §4.1） | 裸画，长会话名在 460u 宽下折成 **72u**（四行），目录行从 `y=187.2` 被推到 `y=241.2` | `SingleLine().Ellipsis("\u2026").Tooltip(全名)`：**18u** 一行，目录行留在 `y=187.2` | `已落地`（P13-ae） |
 
 pin：`internal/settingsui/onefade_test.go` 四条——①开关的四个读数必须正好是「静息与地面
 各一半」（复用 P13-t 的 `assertOneFade`）；②会话小格的图标墨必须是静息那一半（±20 sums），
@@ -618,6 +640,7 @@ pin：`internal/terminalui/litedge_test.go` 三条（抽屉的缝 / 悬停按钮
 | 4-2 | 包 chip（`rows.go` `packageChip`） | `Control` + `ControlEdge` | **故意不做**：与 2-9 同一条（30u 的方块加冠线就成噪点） | `故意不做`（见理由） |
 | 4-3 | 扩展动作按钮（`rows.go` `extensionActionFace`） | `Control` + `Lens`，冠线是 `LensRim` | **复核通过 + pin**：产品代码零改动，顶边是 E1 的 `LensRim` 而非 E2 的 `EdgeHighlight`，且无外投影 | `已落地` |
 | 4-4 | **新增**｜破损行（`integrationRowFace` 的 `Broken` 臂） | `RaisedWarm` + 警告色内环 + 警告前导条 | **故意不加** E1 冠线：它那条线已经是警告环，第二个面只说一句话（见上） | `故意不做`（见理由） |
+| 4-5 | **非材质行**｜集成行的标题（`settingsui.go:2496` 的 `title` 行，规则见 §4.1） | `.Wrap()` 行 + 裸 `Text(integration.Name)`：长包名在 560u 宽下折成 **36u**，版本 chip 掉到标题行下面 | 行改回参考的 `nowrap` flex（`.extension-row__title`）；名字 `SingleLine().Ellipsis("\u2026").Shrink(1).MinWidth(0).Tooltip(全名)`：**18u** 一行，版本留在标题行 | `已落地`（P13-ae） |
 
 pin：`internal/settingsui/liteedge_extensions_test.go` 三条（命名行的 E1 一对线 /
 破损行不拿冠线 / 胶囊的冠线是 E1 的线），每条在深/浅两套外观、中灰底上跑——

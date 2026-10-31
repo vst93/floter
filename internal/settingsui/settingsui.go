@@ -1576,7 +1576,7 @@ func (a *App) sessions(c *ui.Context, copy i18n.Settings) {
 					// SquareTerminal (`SessionsPage.tsx:186-187`), which is the
 					// shared settings-row slot and not the extension panel's
 					// package chip.
-					activated := a.rowAligned(c, ui.Center, func() { a.sessionChip(c) }, rowFace{},
+					activated := a.rowValue(c, ui.Center, func() { a.sessionChip(c) }, rowFace{},
 						session.Title, sessionLines(session), "", func() {
 							// The trailing controls are the reference's two 28u icon
 							// buttons (`SessionsPage.tsx:203-232`): Play (disabled once
@@ -2493,9 +2493,28 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 				a.runtimeUnavailableBadge(c, copy, integration)
 			}
 		}, func() {
-			title := ui.Row(c).FillWidth().Wrap().GapX(t.Space(2)).GapY(t.Space(1)).AlignItems(ui.Center)
+			// P13-ae: the title line is a `nowrap` flex row like the reference's
+			// `.extension-row__title` (`extensions.css:884-894`: `display: flex`, no
+			// `flex-wrap`), so the name is the only child that gives: the version
+			// (`flex: 0 0 auto`) and the freshness mark keep the line they are on.
+			// A wrapping row was the old shape, and it made a long package name
+			// drop the version onto a second line — the row grew for the one title
+			// whose length was already the problem.
+			title := ui.Row(c).FillWidth().GapX(t.Space(2)).AlignItems(ui.Center)
 			title.Children(func() {
-				ui.Text(c, integration.Name).FontSize(t.FontSize + 1).FontWeight(580).TextColor(tokens.TextStrong)
+				// P13-ae: a package's name is a *value* — `com.raycast.extensions.
+				// something` is chosen by whoever published it, not by this build —
+				// so it takes one line and an ellipsis instead of wrapping into the
+				// description below it (`.extension-row__title strong { min-width: 0;
+				// overflow: hidden; text-overflow: ellipsis; white-space: nowrap }`,
+				// `main:src/styles/extensions.css:895-907`). Its `min-width: 0` is
+				// what lets the ellipsis land in the name column instead of pushing
+				// the version and freshness marks out of the row; the full name
+				// rides the row as a tooltip, since the settings page is where a
+				// package identifies itself.
+				ui.Text(c, integration.Name).FontSize(t.FontSize + 1).FontWeight(580).
+					TextColor(tokens.TextStrong).SingleLine().Ellipsis("\u2026").
+					Shrink(1).MinWidth(0).Tooltip(integration.Name)
 				if integration.Version != "" {
 					ui.Text(c, "v"+integration.Version).FontSize(t.FontSize).FontWeight(500).TextColor(tokens.TextTertiary)
 				}

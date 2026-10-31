@@ -935,12 +935,48 @@ func (a *App) rowNote(c *ui.Context, label, sublabel, note string, control func(
 // the row's axis. lead draws the row's leading mark (nil for none) and face
 // carries its own state decoration, both handed straight to cardRow.
 func (a *App) rowAligned(c *ui.Context, align ui.Align, lead func(), face rowFace, label string, sublabels []rowLine, note string, control func(), below ...func()) bool {
+	return a.rowTitle(c, align, lead, face, rowName{Text: label}, sublabels, note, control, below...)
+}
+
+// rowValue is rowAligned for a row whose *name* is a value rather than prose:
+// a string the program chose for itself (a session's title, which a shell sets
+// to `user@host: ~/where/you/are`), not a sentence this build wrote. The
+// reference draws the two differently and so does this row — `.settings-row__
+// label` wraps like any other label, while `.session-manager__row .settings-
+// row__label` is `overflow: hidden; text-overflow: ellipsis; white-space:
+// nowrap` (`main:src/styles/settings.css:1249-1260`) with the comment "a
+// daemon-chosen session name ... has to truncate rather than wrap, or one row
+// would grow and break the list's rhythm".
+//
+// The full string stays on the element, so the cut is in the paint and not in
+// the data: `Tooltip` hands it back on hover, which the reference does not do
+// (it has no second place to read a session's name) but this build's sessions
+// page is the only such place, and a name nobody can read is a name nobody
+// chose.
+func (a *App) rowValue(c *ui.Context, align ui.Align, lead func(), face rowFace, label string, sublabels []rowLine, note string, control func(), below ...func()) bool {
+	return a.rowTitle(c, align, lead, face, rowName{Text: label, Nowrap: true}, sublabels, note, control, below...)
+}
+
+// rowName is a row's emphasis line and how it behaves when it does not fit.
+// Nowrap is for names that are values (see rowValue); prose keeps wrapping so a
+// long translated sentence is never cut in half.
+type rowName struct {
+	Text   string
+	Nowrap bool
+}
+
+// rowTitle draws the row's text column — the emphasis line, its grey lines and
+// the note — and hands the state decoration to cardRow with it.
+func (a *App) rowTitle(c *ui.Context, align ui.Align, lead func(), face rowFace, name rowName, sublabels []rowLine, note string, control func(), below ...func()) bool {
 	tokens := a.tokens(c)
 	t := a.cardTheme(c)
 	return a.cardRow(c, align, lead, face, control, func() {
 		// The label is the emphasis step (580, strong) and the grey second line
 		// the body step (500, muted).
-		ui.Text(c, label).FontSize(t.FontSize + 1).FontWeight(580).TextColor(tokens.TextStrong)
+		label := ui.Text(c, name.Text).FontSize(t.FontSize + 1).FontWeight(580).TextColor(tokens.TextStrong)
+		if name.Nowrap {
+			label.SingleLine().Ellipsis("\u2026").Tooltip(name.Text)
+		}
 		for _, sublabel := range sublabels {
 			if len(sublabel.Segments) > 0 {
 				// A meta line is the old page's `.session-manager__meta`: a
