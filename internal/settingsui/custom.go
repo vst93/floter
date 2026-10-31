@@ -266,7 +266,7 @@ func (a *App) customDraftRow(c *ui.Context, copy i18n.Settings) {
 		}
 		// The heading's own "Add" opens this row; this button commits it, so it
 		// wears its own word rather than the same one twice on the page.
-		if ui.Button(c, copy.ShortcutsBind).Clicked() {
+		if a.pageButton(c, copy.ShortcutsBind).Clicked() {
 			a.addCustomShortcut()
 		}
 	}, func() {

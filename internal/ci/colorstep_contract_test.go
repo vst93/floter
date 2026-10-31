@@ -43,7 +43,7 @@ var colorStepSites = map[string]int{
 	"internal/launcher/launcher.go":      2, // the row's 20u control, the field's settings key
 	"internal/launcher/power.go":         1, // the power confirmation's rows
 	"internal/settingsui/parameditor.go": 1, // the argument editor's stepper
-	"internal/settingsui/rows.go":        3, // the two action pills and the bare note button
+	"internal/settingsui/rows.go":        4, // the two action pills, the bare note button and pageButton (P13-ai)
 	"internal/settingsui/settingsui.go":  2, // the sidebar's row and the run pill
 	"internal/settingsui/uninstall.go":   2, // the dialog's action pill and its component card
 }

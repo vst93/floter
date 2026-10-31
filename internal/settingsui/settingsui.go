@@ -1526,7 +1526,7 @@ func (a *App) sessions(c *ui.Context, copy i18n.Settings) {
 		face := sessionsEmptyFaceFor(copy, false, false)
 		a.emptyState(c, face.Icon, face.Title, face.Hint, 0, t.Space(40), func() {
 			if a.Actions.NewSession != nil {
-				if ui.Button(c, copy.SessionsNew).Clicked() {
+				if a.pageButton(c, copy.SessionsNew).Clicked() {
 					a.Actions.NewSession()
 				}
 			}
@@ -1628,7 +1628,7 @@ func (a *App) sessions(c *ui.Context, copy i18n.Settings) {
 			})
 		})
 		if a.Actions.NewSession != nil {
-			if ui.Button(c, copy.SessionsNew).Clicked() {
+			if a.pageButton(c, copy.SessionsNew).Clicked() {
 				a.Actions.NewSession()
 			}
 		}
@@ -4742,7 +4742,7 @@ func (a *App) residencyRow(c *ui.Context, copy i18n.Settings) {
 		input := a.textInput(c, &a.residencyDraft).Label(copy.SurfaceResidencyCustomLabel).
 			Placeholder(copy.SurfaceResidencyCustomUnit).Width(90)
 		ui.Text(c, copy.SurfaceResidencyCustomUnit).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
-		if input.Submitted() || ui.Button(c, copy.SurfaceResidencyCustomApply).Clicked() {
+		if input.Submitted() || a.pageButton(c, copy.SurfaceResidencyCustomApply).Clicked() {
 			a.commitResidencyDraft()
 		}
 	})

@@ -831,6 +831,41 @@ pin：`internal/launcher/stripfaces_test.go` 两条（页头方键 / 电源两�
 `Hovered()` / `Pressed()` 臂里就必须有一对线。这一族现在只能靠人肉找。
 
 
+### §6.8 框架的默认按钮面：全仓最后四枚（P13-ai，**已落地**）
+
+**落地的形状**：`internal/` 与 `cmd/` 的非测试源码里，最后**四枚**控件仍由框架的默认按钮面
+（`ui.Button`）画出来——会话页页头与空态各一枚「新会话」、自定义快捷键草稿行的「绑定」、
+自绘驻留的「应用」。框架的 `styleButton`（`mygo@v0.7.3/ui/widgets.go:152-186`）给的是
+「`Surface` 平涂 + **四边一圈同值的 `stroke`**」，没有受光边、没有底对侧、没有字重：
+实测（中灰 128 地面）浅色面 **119** / 四条边**全 108**，深色面 **141** / 四条边**全 151**。
+四条边一个值就是 §2 判据要退掉的「靠画框分层」——盒子有边界，但边界不指向任何方向，
+读不出「它在 z 上」。
+
+**为什么这四枚值得单独一轮**：它们是应用里**唯一**没有「光」的控件。同一页上其它每一个
+动作胶囊都戴 E1 的一对面（顶 `LensRim`、底 `LensEdge`），只有这四枚是框架的默认面，
+于是同一个页面里并存两套「怎么表示一块面」的语言——用户读到的是「有几块按钮像是从
+别的应用贴过来的」。
+
+| # | 位置 | 现状（旧） | 落成（新） | 状态 |
+|---|---|---|---|---|
+| 11-1 | 新 helper `settingsui.pageButton`（`rows.go`，`actionButton` 旁） | 无此函数 | `ui.ButtonBase` + **保持**框架几何（`MinHeight` 30u / `Padding` 6u·14u / `Radius` 9u）+ 面 `Control`→`ControlHover`→`ControlPress` + 边 `ControlEdge` + `tokens.LitFace` + 墨 `TextStrong`(600)→`Text`(600) + `theme.ColorStep` 过渡 + 按下 `Scale(0.97)` | `已落地` |
+| 11-2a | `settingsui.go:1529`（会话空态的「新会话」） | `ui.Button`：面 119 / 四边 108（浅） | `a.pageButton`：冠线行 **152**（+33）/ 底行 **112**（−7）/ 侧边线 112 | `已落地` |
+| 11-2b | `settingsui.go:1631`（会话页页头的「新会话」） | 同上 | 同上 | `已落地` |
+| 11-2c | `custom.go:269`（草稿行的「绑定」） | 同上 | 同上 | `已落地` |
+| 11-2d | `settingsui.go:4745`（自绘驻留的「应用」） | 同上 | 同上 | `已落地` |
+| 11-3 | 新 CI 账 `internal/ci/stockbutton_contract_test.go` | 没有这条账：四枚是「人肉 grep 才发现」 | 反向 census：非测试源码里任何 `ui.Button(` / `ui.PrimaryButton(` 都红，豁免表**空**（行尾写 `// stock-button: <理由>` 才放过） | `已落地` |
+| 11-4 | 新像素 pin `internal/settingsui/pagebutton_test.go` | 四枚从无 pin | 两条账 × 深浅两套：①冠线行亮于面（≥3 级）、对侧行暗于面、两侧是同一条边墨且冠线是这块面上**最亮**的一行；②静息/悬停/按下三档各自等于自己那个 token 合成出来的面（±3 级），两档的冠线都在 | `已落地` |
+
+暗色档的实测（同一枚，中灰地面）：面 **141** / 冠线行 **151**（+10）/ 底行 **113**（−28）。
+浅色档的底行只有 −7 级——那是 `LensEdge` 在浅色面上的**上限**（§1：抬它会把 accent 面洗成
+类玻璃边），不是缺一步。**几何一个像素没动**：`MinHeight` / `Padding` / `Radius` 逐字段照抄
+框架，出图的差异 bbox 恰好是控件自己的盒子 `(399,228)-(491,257)` = **93×30**（深浅各 867 / 865 像素）。
+
+pin：`pagebutton_test.go` 两条（§6.8 表 11-4）+ CI 的 `TestNoControlWearsTheFrameworksStockButton`
+（表 11-3）。**V 1 / B 0 / S 1**：`internal/ci/colorstep_contract_test.go` 的位置表
+`settingsui/rows.go` 3 → 4（新增了一条颜色过渡，那张表的规矩就是「新增即红、改表才绿」）。
+出图 `/tmp/floter-P13-ai-sessions-{light,dark}-{before,after}.png`。
+
 ## §7 与 raycast 合约的关系
 
 - **继续有效**：§1 的颜色语义 token 与两条不变量（发丝线同值、行态梯中性有序）、

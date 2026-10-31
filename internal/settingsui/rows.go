@@ -432,6 +432,50 @@ func (a *App) cardTheme(c *ui.Context) *ui.Theme {
 	return &t
 }
 
+// pageButton is the settings pages' own quiet action pill: the one face every
+// control a page draws for itself wears, so no view has to reach for the
+// framework's stock button.
+//
+// P13-ai 重定基线（`docs/liquid-glass.md` §6.8）：这一族此前是**四枚**
+// `ui.Button`——全仓最后四个还在用框架默认按钮面的控件（会话页页头与空态各
+// 一枚、自定义快捷键草稿行的「绑定」、自绘驻留的「应用」）。框架的
+// `styleButton`（`mygo/ui/widgets.go:152-186`）给的是「`Surface` 平涂 + 四边
+// 一圈同值的 `stroke`」：实测（中灰 128 地面）浅色面 119 / 四条边**全 108**，
+// 深色面 141 / 四条边**全 151**——四条边一个值，也就是说它是一个**画框**，
+// 不是一块面：没有任何一条线说它比地面高。同一页上其它每一个动作胶囊都戴
+// E1 的一对面，只有这四枚还是 §2 判据里被退掉的「靠画框分层」。
+//
+// 几何逐字段照抄框架（`MinHeight` 30u、`Padding` 6u/14u、`Radius` 9u），所以
+// 盒子一个像素都不动；变的只有墨与面：面还是 `Control` 三档，边换成这一族自己的
+// `ControlEdge`，再戴上 `LitFace` 的一对面（顶受光边 + 底对侧），墨抬到 600，
+// 按下收 0.97（§5 的第三档，与 `extensionActionFace` 同一句）。
+func (a *App) pageButton(c *ui.Context, label string) ui.Element {
+	t := c.Theme()
+	tokens := a.tokens(c)
+	button := ui.ButtonBase(c).
+		MinHeight(t.Space(7.5)).
+		Padding(t.Space(1.5), t.Space(3.5)).
+		Radius(t.Radius)
+	ink, plane := tokens.TextStrong, tokens.Control
+	if button.Hovered() {
+		ink, plane = t.Text, tokens.ControlHover
+	}
+	pressed := button.Pressed()
+	if pressed {
+		plane = tokens.ControlPress
+	}
+	button.Border(1, tokens.ControlEdge).Background(plane).
+		Transition(ui.ElementTransition{Colors: true, Duration: theme.ColorStep})
+	if pressed {
+		button = button.Scale(0.97, 0.97)
+	}
+	tokens.LitFace(button)
+	button.Children(func() {
+		ui.Text(c, label).FontSize(tokens.Body).FontWeight(600).TextColor(ink)
+	})
+	return button
+}
+
 // actionButton draws one of the card's action buttons — the reference's
 // `.extensions-action-button` (`extensions.css:1313-1338`): the extension
 // panel's shared pill, a 30u control (`.extensions-control-height`), 10u of
