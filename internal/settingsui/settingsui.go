@@ -1502,6 +1502,18 @@ func (a *App) body(c *ui.Context, copy i18n.Settings) {
 		})
 		ui.Box(c).Absolute().Top(0).Left(0).Right(0).Height(edge).PassThrough().
 			Material(glass.ScrollEdge{Background: t.Background})
+		// P13-as（`docs/liquid-glass.md` §6.16）：满态的下沿与上沿是**同一道**边。
+		//
+		// 只画上沿时，一页比窗口长的内容在窗口最后一行像素上被水平切断
+		// （实测 720×580 的 General 页滚到 Y=330 时，y=579 那一行仍是满对比的字：
+		// luma 27 对面板 246，展开 219）。启动器的满态早有折边（§6.1 表 1-10：
+		// 墨 = 可见高度 / 行高），这块自由滚动的面板是同一族里唯一还在刀切的表面。
+		//
+		// 这里不新增 padding：底部本来就是 6u，比边高 4u 大，滚到底时这道边落在
+		// 空白上（下面没有内容可淡），所以盒子、`MaxY`、内容位置逐像素不变——
+		// 变的是「快到底时那一行怎么退场」。
+		ui.Box(c).Absolute().Bottom(0).Left(0).Right(0).Height(edge).PassThrough().
+			Material(glass.ScrollEdge{Bottom: true, Background: t.Background})
 	})
 }
 
