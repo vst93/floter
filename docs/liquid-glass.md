@@ -1212,3 +1212,41 @@ pin：`internal/settingsui/listboxedge_test.go`（4 条 + 一条 opt-in 出图�
 
 **下一格**：同族只剩 `pluginsheet.go:64` 的插件配置弹层（浮层，§6.2 管辖）；
 多选箱自己的**宽度**（勾选框列离右沿 8px）与 `cardRow` 控制槽 `Shrink(0)` 同族，需拍板。
+
+### §6.19 插件配置浮层的两端：它此前根本滚不动（P13-aw，**已落地**）
+
+「滚动收口」这一族的最后一块面。它不是新表面，是 `pluginsheet.go` 里 `plugin.config` 那个
+scroller——启动器里点齿轮打开的那张配置表。**这一轮照出来的不是边的颜色，是它的视口**。
+
+**改前的两件事**（720×600 的窗口、14 个字段的 schema）：
+
+1. **`MaxY` 恒为 0**：`ui.Scroll(...).FillWidth()` 直接挂在 `configBody` 那个
+   `ui.Box(c).FillWidth()` 下——内容高度的父盒不给 scroller 可用高度，于是 schema 比窗口高时
+   末尾几个字段被窗口下沿切掉，**而且滚不到**（滚轮、键盘都无位移）。窗口高度本身仍由
+   `Geometry.Height` 按 `Schema.Height` 算，所以只在小屏 / 长 schema 上露出来。
+2. 一旦有了视口，内容在带子两端被 `.Clip()` 平刀切：最外 4 行的墨展开读到最内的 **100%**
+   （浅 228 / 228、深 240 / 240）。
+
+| # | 位置 | 现状（旧） | 落成（新） | 状态 |
+|---|---|---|---|---|
+| 21-1 | `internal/launcher/config.go` `configBody` | `FillWidth()`：内容高度的父盒 | `Fill()`：填满带子，scroller 才有视口（`MaxY` 0 → **500**） | `已落地` |
+| 21-2 | `pluginsheet.go` `PluginSheet` 的 scroller | 直接作为调用方的子元素、无任何边 | 包一层 `ui.Column(c).Fill()`，`Scroll` 改 `.Fill()`（与 §6.16 的 `body` 同一个写法） | `已落地` |
+| 21-3 | 两端 | 平刀切 | 顶/底各一块 `Absolute` + `PassThrough`、`Height(3u)` = 12px 的 `glass.ScrollEdge` | `已落地` |
+| 21-4 | 边的门 | — | **几何自门控**（§6.16 那条）：顶边压在 1u 顶留白 + 标题行的行盒上身（最外 12 行在这块面上一格墨都没有），底边的 3u(12px) 底留白与边高**逐像素相等**。停开头 / 滚到底时正在读的那一行不会被淡。§6.17 / §6.18 用 `ScrollState.Y` 门是因为那两处 padding 不许长，这里不必 | `已落地` |
+| 21-5 | 边的底色 | — | `sheetEdgeFace`：`theme.FaceOver(t.Background, tokens.Sunken)`，**只压一层**（浮层脚下就是面板；设置页那处要压四层是因为它真的垫着卡） | `已落地` |
+
+**改后的读数**（19 档滚动位置的最坏值）：第一 4 行 **91/228（40%）** / **95/240（40%）**、
+最后 4 行 **88/228（39%）** / **95/240（40%）**，深浅两套都 ≤ 45%。停在开头时最外 12 行
+**0**、滚到底时最后 12 行 **0**——两端真的落在空白上。
+
+**盒子零改动**：`MaxY` **500**、标题盒 `(20,63) 90×22` 与改前逐像素相同（改前的 500 是 0，
+那是这一轮修好的那个值，不是被边推动的值）。
+
+pin：`internal/settingsui/sheetcutedge_test.go` 三条（两端退让 / 两端是空白 / 盒子零改动，
+每条深+浅）+ `sheetcutedge_dump_test.go` 一条 opt-in 出图
+（`/tmp/floter-P13-aw-pluginsheet-{light,dark}-{before,after}.png`）。
+**V 0 / B 0 / S 0**，变异 4 条实跑（4 红）。详见 `docs/rounds/P13-aw-report.md`。
+
+**这一族到此结案**：§6.16 设置体 / §6.17 输出凹槽 / §6.18 多选箱 / §6.19 配置浮层，
+四块滚动容器的两端都有了收口。剩下的账都不是「边」：多选箱的**宽度**（勾选框列离右沿 8px）
+与 `cardRow` 控制槽 `Shrink(0)` 同族，**需拍板**。

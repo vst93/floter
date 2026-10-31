@@ -180,7 +180,12 @@ func (a *App) syncConfig() {
 // fields, one renderer for it.
 func (a *App) configBody(c *ui.Context, edge float32) {
 	if a.Actions.DrawConfig != nil {
-		ui.Box(c).FillWidth().Padding(edge, c.Theme().Space(1), 0, c.Theme().Space(1)).Children(func() {
+		// P13-aw：这一层要**填满**带子，不是只填宽。sheet 的 scroller 是
+		// `Fill()` 的（`settingsui.PluginSheet`），而一个内容高度的父盒不会给它
+		// 可用的高度——于是 schema 比窗口高时，滚动的 `MaxY` 恒为 0：末尾几个字段
+		// 被窗口下沿切掉且**滚不到**。填满之后 scroller 才有视口可滚，窗口高度链
+		// 仍由 `Geometry.Height` 按 `Schema.Height` 算，一行都没动。
+		ui.Box(c).Fill().Padding(edge, c.Theme().Space(1), 0, c.Theme().Space(1)).Children(func() {
 			a.Actions.DrawConfig(c, a.config)
 		})
 	}

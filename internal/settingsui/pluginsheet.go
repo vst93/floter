@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/i18n"
@@ -61,29 +62,56 @@ func (a *App) PluginSheet(c *ui.Context, sheet PluginSheet) {
 
 	// The sheet's own scroller: a schema longer than the band scrolls inside
 	// it rather than growing the window past the band it was given.
-	ui.Scroll(c.Key("plugin.config")).TrackScroll(&a.PluginScroll).FillWidth().
-		Padding(t.Space(1), t.Space(4), t.Space(3), t.Space(4)).Children(func() {
-		ui.Column(c).FillWidth().Gap(t.Space(3)).Children(func() {
-			// The header: the plugin's own name at the meta register — one
-			// step *below* a section heading, so the hierarchy a reader sees
-			// is name (meta) > section (title) > field (label) > help, as the
-			// old build's `.plugin-config__title` had it (body 600, muted).
-			ui.Row(c).FillWidth().Height(t.Space(7)).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, sheet.Schema.Title).FontSize(t.FontSize).FontWeight(600).
-					TextColor(t.TextMuted).SingleLine()
+	//
+	// It is wrapped so its two scroll edges can ride the viewport (§6.19), the
+	// way the settings body's own scroller is (§6.16): the wrapper fills the
+	// band it was given and the scroller fills the wrapper, so neither the
+	// height chain nor the scroll range moves.
+	ui.Column(c).Fill().Children(func() {
+		ui.Scroll(c.Key("plugin.config")).TrackScroll(&a.PluginScroll).Fill().
+			Padding(t.Space(1), t.Space(4), t.Space(3), t.Space(4)).Children(func() {
+			ui.Column(c).FillWidth().Gap(t.Space(3)).Children(func() {
+				// The header: the plugin's own name at the meta register — one
+				// step *below* a section heading, so the hierarchy a reader sees
+				// is name (meta) > section (title) > field (label) > help, as the
+				// old build's `.plugin-config__title` had it (body 600, muted).
+				ui.Row(c).FillWidth().Height(t.Space(7)).AlignItems(ui.Center).Children(func() {
+					ui.Text(c, sheet.Schema.Title).FontSize(t.FontSize).FontWeight(600).
+						TextColor(t.TextMuted).SingleLine()
+				})
+				if sheet.Failed {
+					// The status line is the caption step in the warning colour
+					// (`.plugin-config-action__status`): a muted line, never a
+					// red banner.
+					ui.Text(c, i18n.For(a.language()).Settings.SaveFailed).
+						FontSize(t.FontSize - 1).TextColor(t.Warning)
+				}
+				for _, section := range plugincfg.Sections(sheet.Schema) {
+					section := section
+					a.sheetSection(c, sheet, section)
+				}
 			})
-			if sheet.Failed {
-				// The status line is the caption step in the warning colour
-				// (`.plugin-config-action__status`): a muted line, never a
-				// red banner.
-				ui.Text(c, i18n.For(a.language()).Settings.SaveFailed).
-					FontSize(t.FontSize - 1).TextColor(t.Warning)
-			}
-			for _, section := range plugincfg.Sections(sheet.Schema) {
-				section := section
-				a.sheetSection(c, sheet, section)
-			}
 		})
+		// P13-aw（`docs/liquid-glass.md` §6.19）：这块浮层是「滚动收口」这一族的
+		// 最后一块面（§6.16 设置体 / §6.17 输出凹槽 / §6.18 多选箱之后）。改前
+		// 它的内容在带子的两条边上被 `.Clip()` 平刀切。
+		//
+		// 门不是条件判断，是**几何**——与 §6.16 同一条机制，而不是 §6.17 / §6.18
+		// 的 `ScrollState.Y` 门：这道边的两条都落在留白上。顶边压在 scroller 的
+		// 1u(4px) 顶留白 + 标题行的行盒上身（实测最外 12 行在这块面上是空白，墨从
+		// 第 13 行才开始）；底边的 3u(12px) 底留白与边高**逐像素相等**，滚到底时
+		// 整条边落在页尾的空白里。所以停在开头、滚到底时正在读的那一行都不会被淡，
+		// 也不必读上一帧的偏移。
+		//
+		// 另外两条取舍：边高 3u(12px) 小于一个行盒（正文 14px × 1.45 ≈ 20px），最
+		// 多软化一行；边的底色是浮层自己的面、压成不透明（`sheetEdgeFace`）——
+		// `ui.Color.Alpha` 是**乘**，把 0.17 的 `Sunken` 直接交给 `ScrollEdge` 会把
+		// 0.85 乘成 0.14，边淡了个寂寞。
+		face := sheetEdgeFace(a.tokens(c), t)
+		ui.Box(c).Absolute().Top(0).Left(0).Right(0).Height(t.Space(3)).PassThrough().
+			Material(glass.ScrollEdge{Background: face})
+		ui.Box(c).Absolute().Bottom(0).Left(0).Right(0).Height(t.Space(3)).PassThrough().
+			Material(glass.ScrollEdge{Bottom: true, Background: face})
 	})
 }
 
