@@ -1631,10 +1631,12 @@ func (a *App) titleBar(c *ui.Context, copy i18n.Terminal) {
 	})
 }
 
-// statusDot is the bar's status light: a neutral dot breathing while the
-// session runs, and a still grey dot once the program has ended. Its ink is the
-// bar's own tertiary rung (`canvasInks`), so it belongs to the canvas the bar
-// floats on rather than to the window behind it.
+// statusDot is the bar's status light. It answers one question — is a program
+// running — and answers it with **form**: a solid dot that breathes while a
+// session runs, and a hollow ring when nothing does (a program that ended, and
+// the blank page that never had one). Both wear the bar's own tertiary rung
+// (`canvasInks`), so the light belongs to the canvas the bar floats on rather
+// than to the window behind it.
 func (a *App) statusDot(c *ui.Context, inks barInks, drawn bool) {
 	t := c.Theme()
 	// P11-af: the dot is 7u of the band's first 7u — a plain Box would still be a
@@ -1642,11 +1644,20 @@ func (a *App) statusDot(c *ui.Context, inks barInks, drawn bool) {
 	// into `PassThrough` (see titleBar): only the title's own words take the
 	// pointer.
 	dot := ui.Box(c).Size(t.Space(1.75), t.Space(1.75)).Radius(t.Space(1.75)).Shrink(0).PassThrough()
-	if a.exited() {
-		// `.terminal-bar__dot--exited` (`terminal.css:163-168`): the tertiary
-		// step, the halo dropped, at the reference's 0.7 opacity. It used to
-		// read the *muted* step, one rung brighter than the reference's.
-		dot.Background(inks.Tertiary).Opacity(0.7)
+	if !a.live() {
+		// P13-ao：**暗**那一档从「更淡的实心盘」改成**空心环**。旧实现是
+		// `Background(Tertiary).Opacity(0.7)`，靠 0.30 的 alpha 差与「活着」
+		// 分开；而活着那一档的呼吸把 alpha 从 1.00 走到 0.50（下面 `1-0.5*breath`），
+		// 每个 2.4s 周期里约 40% 的时间比这一档还暗——两个状态的范围重叠，
+		// 静帧里分不出谁是谁。形不重叠：实心 vs 空心。（续见 `live`。）
+		//
+		// 环是 `Painter.Stroke` 画在盒子**内缘**的 1 DIP（`t.Space(0.25)`），
+		// 所以灯还是 1.75u、还是 `Shrink(0)`，布局一个像素没动；墨用满
+		// `Tertiary` 而不是 0.7，因为 1 DIP 的环只有圆盘一半面积，再乘 0.7
+		// 就淡成灰影（实测质量比见 `dotform_test.go`）。
+		dot.Draw(func(p *ui.Painter, r ui.Rect) {
+			p.Stroke(r, inks.Tertiary, r.W/2, t.Space(0.375))
+		})
 		return
 	}
 	// P8-e 重定基线（§5 判据）：旧值是 `t.Accent`，但「这个进程是活的」不是
@@ -1655,6 +1666,8 @@ func (a *App) statusDot(c *ui.Context, inks barInks, drawn bool) {
 	// 「动」说：呼吸仍在，色相不再参与。旧值 → 新值：`t.Accent` →
 	// `tokens.TextTertiary`（深色下峰值仍读得出，两侧实测见 P8-e 报告）。
 	ink := inks.Tertiary
+	// P8-e 之后这盏灯两档同墨（`Tertiary`），分开它们的是**形与动**：实心盘 +
+	// 呼吸 = 有程序在跑，空心环 + 静止 = 没有（P13-ao）。
 	// P8-c 重定基线（§6.2 第 5 条 / §1）：`--elev-halo` 的 2u `AccentHalo` 环
 	// 去掉，只留这个 1.75u 的点。光环是旧 glass 语言的辉光——§1 把
 	// 光泽一律压到 alpha ≤ 0.04，而 `AccentHalo` 是 0.2（上限的 5 倍），并且
@@ -1720,6 +1733,18 @@ const (
 	dotBreathPeriod = 2400 * time.Millisecond
 	dotBreathFPS    = 30
 )
+
+// live reports whether a program is running on screen: there is a session and
+// it has not ended. It is what the status dot's filled/dark pair answers, so the
+// blank page — no session at all — lands on the dark side with an ended program
+// rather than breathing a light for a process that does not exist (P13-ao).
+func (a *App) live() bool {
+	session := a.Current()
+	if session == nil {
+		return false
+	}
+	return !a.exited()
+}
 
 // exited reports whether the session's program has ended (its screen is still
 // on show until the surface closes).

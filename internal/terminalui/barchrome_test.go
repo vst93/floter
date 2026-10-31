@@ -157,8 +157,20 @@ func TestTheTerminalBarDotDropsItsHaloAndWearsTertiary(t *testing.T) {
 		t.Fatalf("the held session's bar drew no status dot: %q", ht.Texts())
 	}
 	hInk := dotCenter(ht, hMinX, hMaxX)
-	if got, want := hInk, flatColor(tok, tok.TextTertiary, 0.7); !sameRGB(got, want) {
-		t.Errorf("the exited dot's centre = %v, want --text-tertiary at 0.7 (%v)", got, want)
+	// P13-ao 重定基线（S）：exited 态从「`Teritary` @0.7 的实心盘」改成**空心环**
+	// （形差，见 `dotform_test.go`）。旧断言钉的是「中心像素 = `Teritary`@0.7」；
+	// 现在的中心是底色，环自己那一点才是墨。旧值 → 新值：`centre =TextTertiary@0.7`
+	// → `centre = 页面底色 / 环边 = TextTertiary @1.0`。
+	//
+	// 为什么不再用 alpha 分家：活着的点呼吸到 1-0.5*breath = 0.50，比旧的 0.70 还暗，
+	// 两档范围重叠，静帧分不出谁是谁。
+	if got := channelDelta(hInk, ui.RGBA(0, 0, 0, 1)); got > 6 {
+		t.Errorf("the exited dot's centre = %v, %d levels off the bar's own backdrop (the root's black): the dark rung is still a filled disc",
+			hInk, got)
+	}
+	hMidY := (dotTop(ht, (hMinX+hMaxX)/2) + dotBottom(ht, (hMinX+hMaxX)/2)) / 2
+	if got, want := sample(ht, hMinX, hMidY), tok.TextTertiary; !sameRGB(got, want) {
+		t.Errorf("the exited dot's ring = %v, want the tertiary step at full ink (%v)", got, want)
 	}
 	if muted := flatColor(tok, tok.Theme.TextMuted, 0.7); sameRGB(hInk, muted) {
 		t.Errorf("the exited dot still reads the muted step, not --text-tertiary")

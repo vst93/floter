@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/plugins/terminal"
+	"github.com/egoist/mygo/ui"
 )
 
 // P8-e §2 守卫 1：`internal/shell` 与 `internal/terminalui` 这两片的生产代码里，
@@ -112,18 +113,25 @@ func TestTheExitedStatusDotStaysAGreyDot(t *testing.T) {
 	if maxX < 0 {
 		t.Fatalf("the held session's bar drew no status dot: %q", tt.Texts())
 	}
+	// P13-ao 重定基线（S）：这一档现在是空心环，中心是底色，环上那一点才是墨。
+	// 旧值 → 新值：`centre = TextTertiary@0.7` → `centre = 底色 / ring = TextTertiary@1.0`。
 	centre := dotCenter(tt, minX, maxX)
+	if got := channelDelta(centre, ui.RGBA(0, 0, 0, 1)); got > 6 {
+		t.Errorf("the exited dot's centre is %v, %d levels off the bar's own backdrop: still a filled disc", centre, got)
+	}
+	midY := (dotTop(tt, (minX+maxX)/2) + dotBottom(tt, (minX+maxX)/2)) / 2
+	ring := sample(tt, minX, midY)
 	spread := maxInt(
-		absInt(int(centre.R)-int(centre.G)),
-		absInt(int(centre.G)-int(centre.B)),
-		absInt(int(centre.R)-int(centre.B)),
+		absInt(int(ring.R)-int(ring.G)),
+		absInt(int(ring.G)-int(ring.B)),
+		absInt(int(ring.R)-int(ring.B)),
 	)
 	if spread > 12 {
-		t.Errorf("the exited dot's centre is %v, whose channels differ by %d levels: still a hue, not a grey dot",
-			centre, spread)
+		t.Errorf("the exited dot's ring is %v, whose channels differ by %d levels: still a hue, not a grey dot",
+			ring, spread)
 	}
-	if want := flatColor(tok, tok.TextTertiary, 0.7); !sameRGB(centre, want) {
-		t.Errorf("the exited dot is %v, want --text-tertiary at 0.7 (%v)", centre, want)
+	if want := tok.TextTertiary; !sameRGB(ring, want) {
+		t.Errorf("the exited dot's ring is %v, want --text-tertiary at full ink (%v)", ring, want)
 	}
 }
 
