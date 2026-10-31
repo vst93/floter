@@ -190,6 +190,16 @@ const (
 	detachedRowPadY      = 2   // 8u
 )
 
+// The press rung's geometry: the family's own two numbers, taken from the
+// reference's `:active:not(:disabled)` rules and already in force in the
+// launcher's chips and in P13-q's settings controls — a capsule steps back to
+// 0.97, an icon key to 0.92 (`docs/liquid-glass.md` §5 「按下」). One pair of
+// numbers, not a third reading of the same gesture.
+const (
+	pressScaleChip = 0.97
+	pressScaleKey  = 0.92
+)
+
 // detachedView draws one detached window: its bar (the command's name and its
 // two controls), and the output itself.
 func (a *App) detachedView(c *ui.Context, detached *detachedOutput) {
@@ -258,6 +268,20 @@ func (a *App) detachedBar(c *ui.Context, detached *detachedOutput, tokens theme.
 					// 1544 dark, i.e. a quarter, not a half — P13-y). Two fades
 					// multiplied is one fade drawn twice.
 					button.Disabled(true)
+				} else if button.Pressed() {
+					// P13-al · the third rung. This bar had rest and hover only, so the
+					// frame the pointer was held down on was pixel-identical to the hover
+					// frame (P13-q found the same hole in the settings page's actions and
+					// filled it there): a key that does not move when pressed reads as a key
+					// that did not take the click. The press rung is the ladder stepping
+					// *back down* — `--glass-control-press` under the hover face — and the
+					// box steps with it (0.92, the icon key's number: a bar key is a small
+					// square in a 24u band, not a page-level capsule). The pair is drawn
+					// again inside the arm: `LitFace` is per state, so the pressed key keeps
+					// its lit crown and counter-side line rather than losing them exactly
+					// when it is most obviously a solid object.
+					button = tokens.LitFace(button.Background(tokens.ControlPress))
+					button = button.Scale(pressScaleKey, pressScaleKey)
 				} else if button.Hovered() {
 					// P13-y · a hovered key on this bar is an E1 face: the face step
 					// plus one lit edge on top and one counter-side line at the

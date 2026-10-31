@@ -450,7 +450,14 @@ func (a *App) toastViewport(c *ui.Context) {
 					// geometry, not ink; and a frame is exactly the 「画框分层」 §1
 					// forbids. E1 casts no shadow (§2 判据 2) — this adds none.
 					tokens.LitFace(action)
-					if action.Hovered() {
+					if action.Pressed() {
+						// P13-al · the chip's third rung (`detach.go`'s `barButton` has
+						// the same one): held down, the face sinks to `ControlPress` and the
+						// capsule steps back to 0.97 — the capsule's number, not the icon
+						// key's. `LitFace` is re-applied because the pair is per state.
+						action = action.Background(tokens.ControlPress).Scale(pressScaleChip, pressScaleChip)
+						action = tokens.LitFace(action)
+					} else if action.Hovered() {
 						action.Background(tokens.ControlHover)
 					}
 					action.Children(func() {
@@ -472,7 +479,15 @@ func (a *App) toastViewport(c *ui.Context) {
 				// `--glass-control-hover`: the control darkens, it does not just
 				// gain a tint.
 				dismissInk := tokens.TextTertiary
-				if button.Hovered() {
+				if button.Pressed() {
+					// P13-al · the ✕'s third rung, and the last key in the shell that had
+					// only two: held down it sinks to `ControlPress` and steps back to
+					// 0.92 (the icon key's number), keeping the E1 pair P13-z gave it.
+					// The ink stays at `--text-strong`: the reference moves it on
+					// `:hover` and `:active` inherits it.
+					button = tokens.LitFace(button.Background(tokens.ControlPress).Scale(pressScaleKey, pressScaleKey))
+					dismissInk = tokens.TextStrong
+				} else if button.Hovered() {
 					// P13-z · the ✕ is a key on an **E2** pane, so it is an E1 face
 					// (`docs/liquid-glass.md` §2 判据 1: everything inside a floating
 					// layer is a face). It used to be a flat `ControlHover` wash with no

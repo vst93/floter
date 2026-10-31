@@ -96,7 +96,14 @@ func (a *App) pinnedBody(c *ui.Context, state *pinned, tokens theme.Tokens, t *u
 			close := ui.Row(c).Focusable().Shrink(0).
 				Padding(t.Space(detachedBarButtonY), t.Space(detachedBarButtonX)).
 				Radius(tokens.RadiusSM).Label(copy.OutputWindowClose)
-			if close.Hovered() {
+			if close.Pressed() {
+				// P13-al · same key, same third rung (see `detach.go`'s `barButton`):
+				// the pressed note's ✕ sinks to `ControlPress` and steps back to 0.92,
+				// keeping its E1 pair. Without this arm the frame under a held pointer
+				// was the hover frame.
+				close = tokens.LitFace(close.Background(tokens.ControlPress))
+				close = close.Scale(pressScaleKey, pressScaleKey)
+			} else if close.Hovered() {
 				// P13-y · the pinned note's ✕ is the same key the detached output
 				// window draws (`detach.go` `barButton`), on the same
 				// `.plugin-window__bar`: E1's pair, not a flat wash. Two windows, one

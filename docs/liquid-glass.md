@@ -830,6 +830,27 @@ pin 里没有写死渲染器的像素。出图 `/tmp/floter-P13-y-bar-{light,dar
 **已知缺口**：把变异打到 `theme.Tokens.LitFace` 的函数体里时 pin 没红（打到调用点会红），
 「更接近 `LensRim`」那一半还没有被证明 —— `.pending-bugs.md` P13-y 仍待第 2 条。
 
+#### §6.7b 指针的第三档：这四个键此前只剩两档（P13-al，**已落地**）
+
+**根因**：P13-q 在设置页补上「按下」这一档时，账只扫了 `internal/settingsui`；同一批形状
+（插件窗口 bar 的键、便条 ✕、toast ✕ 与动作胶囊）在 `internal/shell` 里 `Pressed()` **零命中**，
+于是它们按下去的那一帧与悬停帧**逐像素相同**（M1 实测浅 220↔220、深 53↔53）。§5 早把
+这一档写死为「面沉到 `--glass-control-press` + 一次几何收档」，本轮只是把它接到这一族。
+
+| # | 位置 | 现状（旧） | 落成（新） | 状态 |
+|---|---|---|---|---|
+| 7-5 | `shell/detach.go` `barButton`（重跑键 + 关闭键） | 静息 / 悬停两档；按下 = 悬停 | `else if button.Pressed()`：`LitFace(ControlPress)` + `Scale(0.92)`。实测浅 220→**238**、深 53→**32**（严格落在静息 246/20 与悬停之间） | `已落地` |
+| 7-6 | `shell/pinned.go` 便条 ✕ | 同上 | 同一条臂（`ControlPress` + 0.92，`LitFace` 臂内重画） | `已落地` |
+| 7-7 | `shell/notices.go` toast ✕（E2 面里的键） | 同上；墨在 hover 时 `TextStrong` | 按下臂在前：`LitFace(ControlPress)` + `Scale(0.92)`；墨保持 `TextStrong`（参考的 `:active` 继承 `:hover`） | `已落地` |
+| 7-8 | `shell/notices.go` toast 动作胶囊 | `LitFace` + hover 换面，按下无档 | 按下臂：`Background(ControlPress)` + `Scale(0.97)` + `LitFace`（胶囊的数，不是小格的） | `已落地` |
+| 7-9 | `terminalui` 浮条上的五个 28u 键 | 同样只有两档 | **故意不做（本轮）**：它的墨来自**画布**（`canvasInks` / `barInks`），板子里没有「按下的洗色」这一档，直接借 `ControlPress` 会在命名调色板的深色画布上出现一块窗口灰。补的是 `barInks` 的第六档，属材质决策，单独一轮 | `故意不做`（见理由，下一轮候选） |
+
+pin：`internal/shell/pressrung_test.go` 两条（面 / 几何，深+浅 × 三个键）+ 一条 opt-in 出图。
+**几何怎么量**：`Scale` 是渲染变换、布局盒不动，所以 pin 数的是**画出来的键宽**（45/32 DIP），
+渲染器改成挪盒子也不会蒙过；**面怎么量**：读键自己的 padding 列（材料，不是字形）。
+`internal/ci` 的臂级 census 零改动通过——四个新臂里都写了 `LitFace`，不必加豁免。
+出图 12 帧：`/tmp/floter-P13-al-<surface>-<light|dark>-<hover|press>.png`。
+
 ### §6.7 启动器两条「带」上的四个小面：各缺半套 E1（P13-aa，**已落地**）
 
 P13-h / P13-i / P13-j / P13-l / P13-m / P13-p 把「悬停小格 / 控件面」收口成 E1，但那一族的
