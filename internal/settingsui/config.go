@@ -5,9 +5,11 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/i18n"
+	"floter/internal/theme"
 )
 
 // The configuration form: the settings an integration asks the host to hold,
@@ -876,6 +878,33 @@ func (a *App) configMultiselectBox(c *ui.Context, scroll *ui.ScrollState, locked
 		ui.Scroll(c).FillWidth().MaxHeight(viewport - 2*padY - 2*border).TrackScroll(scroll).Children(func() {
 			ui.Column(c).FillWidth().Gap(a.cardSpace(t, 0.5)).Children(fn)
 		})
+		// P13-av（`docs/liquid-glass.md` §6.18）：56px 的视口两端原是平刀切——
+		// 一行 20px 的选项在视口上下两条边被水平切断。它是「滚动收口」这一族的
+		// 最后一块面（§6.16 / §6.17 的同族），所以边上也走 `glass.ScrollEdge`。
+		//
+		// 与那两处**故意不同**的两点：
+		// ① 边高只取 2u(8px)。视口是原生 `select[multiple]` 的 66px 地板算出来的
+		//    56px（§6.16 的 4u 会吃掉它 29%），而一行的盒高是 20px——8px 只软化
+		//    它下面那四成，不会把一行读没。
+		// ② 门必须开在滚动位置 `0 < Y < MaxY` 上，与 §6.17 同一条：这块箱子的
+		//    66px 是原生地板，padding 不许长（长 1px 就从视口偷走一行），所以
+		//    §6.16 那条「边落在预留 padding 上」的几何自门控在这里不成立。
+		// `scroll` 可以是 nil（`configform_test` 的空滚动状态探针就传 nil）：那时
+		// 没有偏移可读，也就没有「哪一头在被切」这件事，两条边都不画。
+		face := configListEdgeFace(tokens, t)
+		// 两道边骑的是**视口**的两端，不是箱子的 padding 框：绝对定位的 y 从
+		// padding box 起算（`ui/layout.go` 的 `layoutAbsolute`），而 `.Clip()` 裁的
+		// 是 border box，所以 `Top(0)` 画在箱子的 4px 内边距上——上面那 8px 里有
+		// 4px 落在空白里，下面那 8px 整个落在空白里，视口一行都没淡到（实测贴
+		// `Top(0)/Bottom(0)` 时下沿仍是 106/106 = 100%）。
+		if scroll != nil && scroll.Y > 0 {
+			ui.Box(c).Absolute().Top(padY).Left(0).Right(0).Height(a.cardSpace(t, 3)).PassThrough().
+				Material(glass.ScrollEdge{Background: face})
+		}
+		if scroll != nil && scroll.Y < scroll.MaxY {
+			ui.Box(c).Absolute().Bottom(padY).Left(0).Right(0).Height(a.cardSpace(t, 3)).PassThrough().
+				Material(glass.ScrollEdge{Bottom: true, Background: face})
+		}
 	})
 	// P13-t：锁定的档位落在**控件根**上，整棵子树（箱面、选项文字、勾选框）同乘
 	// 框架的 0.5。这一臂曾经只有 `.Opacity(0.6)`、没有 `Disabled`，于是同一个
@@ -884,6 +913,22 @@ func (a *App) configMultiselectBox(c *ui.Context, scroll *ui.ScrollState, locked
 		box = lockedControl(box)
 	}
 	return box
+}
+
+// configListEdgeFace is the colour the list box's scroll edges lay down: its own
+// face, composited opaque.
+//
+// 为什么不直接把箱子的 `Control` 交给 `glass.ScrollEdge`：`Control` 是一层 0.07
+// 的薄罩，而 `ui.Color.Alpha` 是**乘**——那道 0.85 会被它自己的 0.07 乘成 0.06，
+// 边淡了个寂寞（§6.17 的 `runOutputEdgeFace` 是同一条反直觉的第一个受害处）。
+//
+// 为什么整条链一起压：箱子面不是一个字面值，而是一条——窗口地 → 设置体面板
+// （`Sunken`）→ 扩展卡（`Control`）→ 箱子自己（`Control`）。按顺序压完整条链的
+// 不透明结果才是这块箱子真正看上去的面；只混其中两层会得到近黑或近白。
+func configListEdgeFace(tokens theme.Tokens, t *ui.Theme) ui.Color {
+	pane := theme.FaceOver(t.Background, tokens.Sunken)
+	card := theme.FaceOver(pane, tokens.Control)
+	return theme.FaceOver(card, tokens.Control)
 }
 
 // configOptionRow draws one tick option inside the multiselect list box: the
