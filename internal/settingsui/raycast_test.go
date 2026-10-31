@@ -1087,8 +1087,12 @@ func TestTheRunningStateMarkIsTheNeutralStrongRung(t *testing.T) {
 				t.Fatal(err)
 			}
 			tt.Frame()
-			running := mustFind(t, tt, copy.IntegrationsRunning)
-			off := mustFind(t, tt, copy.IntegrationsOff)
+			// P13-af 重定基线（结构）：状态字自己带着它的 `·`（参考的
+			// `.extension-status::before`，`extensions.css:986-995`），所以节点
+			// 文本是 `· Running`。盒子宽了一格，但取样的是离面最远的那颗像素，
+			// 仍是字本身——dot 是 tertiary@.7，比这两档中性墨都淡。
+			running := mustFind(t, tt, "· "+copy.IntegrationsRunning)
+			off := mustFind(t, tt, "· "+copy.IntegrationsOff)
 			runningInk, offInk := inkColor(tt, running), inkColor(tt, off)
 			// 反面：不是 accent。
 			if d := int(runningInk.B) - int(runningInk.R); d > 14 || d < -14 {

@@ -276,11 +276,15 @@ func TestIntegrationMetaLineCombinesTheFacts(t *testing.T) {
 	tt := integrationPage(t, a, 720, 900)
 
 	name := mustFind(t, tt, "Tool")
+	// P13-af 重定基线（结构）：四个 `·` 曾经是行里的独立 flex 子节点，现在是
+	// **它引入的那条事实自己的节点**里的第一个字形（参考的 `::before`，
+	// `extensions.css:979-984`）——否则行一折行，dot 就留在上一行的末尾。
+	// 所以后三条事实的节点文本各自带前导 `· `，第一条不带。
 	meta := []ui.Rect{
 		mustFind(t, tt, "acme · 1.0.0 · dev.floter.tool"),
-		mustFind(t, tt, en.IntegrationsKindNPM),
-		mustFind(t, tt, en.IntegrationsRuntimeManaged),
-		mustFind(t, tt, en.IntegrationsRunning),
+		mustFind(t, tt, "· "+en.IntegrationsKindNPM),
+		mustFind(t, tt, "· "+en.IntegrationsRuntimeManaged),
+		mustFind(t, tt, "· "+en.IntegrationsRunning),
 	}
 	for _, r := range meta {
 		if r.Y < name.Y+name.H {

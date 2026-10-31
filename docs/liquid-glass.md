@@ -212,8 +212,32 @@ pin：`internal/glassmap/floatladder_test.go`（六个档位，差值是写死�
 
 落地与账：`settingsui/rows.go` 的 `rowName{Text, Nowrap}` / `rowValue()`；
 `internal/settingsui/rowname_test.go` 三条（会话名一行、截断只截画笔不截数据 + 悬停读全名、
-集成名一行且版本不掉行）。**截断的出口**：`Tooltip(全名)`（参考没有，因为它的会话在别处
+集成名一行且版本不掉行）。
+**截断的出口**：`Tooltip(全名)`（参考没有，因为它的会话在别处
 也能看到；本仓的设置页是读一个会话名的唯一位置）。
+
+### §4.2 分隔符属于它引入的那条事实（P13-af，**文字行为**）
+
+一行里的事实之间用 `·` 隔开时，这个 `·` **不是**行的一个独立子节点，而是**下一条事实自己的
+第一个字形**（参考的 `::before`：`content: "·"; margin-right: 6px; opacity: .7`，
+`extensions.css:979-984`）。理由只有一条：**折行是不可预测的**——dot 独立成节点，行一折它
+就留在上一行的末尾，那一行以逗号收尾、下一行以光秃秃的事实开头，读起来是「句子被切错了
+地方」。
+
+| 位置 | 规则 | 墨 |
+|---|---|---|
+| 事实之间的 `·` | 折行时跟事实走（同一个文本节点） | `TextTertiary.Alpha(0.7)`（参考的 `.7`） |
+| 状态字前的 `·` | 同上，但只给**透明**状态字 | 同上（状态字自己保持 `TextStrong` / `TextSecondary`） |
+| 盒装胶囊（破损 / 推荐）前的 `·` | **不画**（参考的两个 `:not()`，`:986-995`） | — |
+| 状态字与最后一个事实之间 | 8u 行 gap **+ 2u**（参考 `.extension-status{margin-left:2px}`） | — |
+
+**旧值 → 新值**：dot 曾是行 `Row(...).Wrap()` 的独立 flex 子节点，460u 下三行**都以 `·`
+结尾**；现在每行以 `· ` 开头（tester labels 从 `"·" "Managed"` 两个节点变成一个
+`"· Managed"`）。状态字与最后一条事实的 gap 从 8.0u → **10.0u**。
+
+pin：`internal/settingsui/metaline_test.go` 三条（dot 与事实同一节点且无裸 `·` 节点 /
+透明状态字带 dot、胶囊不带 / 状态字落在 8u+2u）。
+
 
 ---
 
@@ -641,6 +665,7 @@ pin：`internal/terminalui/litedge_test.go` 三条（抽屉的缝 / 悬停按钮
 | 4-3 | 扩展动作按钮（`rows.go` `extensionActionFace`） | `Control` + `Lens`，冠线是 `LensRim` | **复核通过 + pin**：产品代码零改动，顶边是 E1 的 `LensRim` 而非 E2 的 `EdgeHighlight`，且无外投影 | `已落地` |
 | 4-4 | **新增**｜破损行（`integrationRowFace` 的 `Broken` 臂） | `RaisedWarm` + 警告色内环 + 警告前导条 | **故意不加** E1 冠线：它那条线已经是警告环，第二个面只说一句话（见上） | `故意不做`（见理由） |
 | 4-5 | **非材质行**｜集成行的标题（`settingsui.go:2496` 的 `title` 行，规则见 §4.1） | `.Wrap()` 行 + 裸 `Text(integration.Name)`：长包名在 560u 宽下折成 **36u**，版本 chip 掉到标题行下面 | 行改回参考的 `nowrap` flex（`.extension-row__title`）；名字 `SingleLine().Ellipsis("\u2026").Shrink(1).MinWidth(0).Tooltip(全名)`：**18u** 一行，版本留在标题行 | `已落地`（P13-ae） |
+| 4-6 | **非材质行**｜集成行 meta 行的 `·`（`settingsui.go` `metaFact` / `stateMark`，规则见 §4.2） | dot 是行里独立的 flex 子节点：460u 下三行**都以 `·` 结尾**，下一行以裸事实开头 | dot 进事实/状态字自己的 `RichText` 节点（`TextTertiary.Alpha(0.7)`）；盒装胶囊不带 dot；状态字 gap 8u → **10u** | `已落地`（P13-af） |
 
 pin：`internal/settingsui/liteedge_extensions_test.go` 三条（命名行的 E1 一对线 /
 破损行不拿冠线 / 胶囊的冠线是 E1 的线），每条在深/浅两套外观、中灰底上跑——

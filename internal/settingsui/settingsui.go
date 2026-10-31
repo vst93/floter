@@ -2027,14 +2027,26 @@ func (a *App) installRow(c *ui.Context, copy i18n.Settings) {
 // 620 → 600。预热面（系统语义色）保留：它说的是「这条不工作」，而环是结构，
 // 不是语义——合约下环只有两档（`HairlineSoft` 的结构线与 `ControlEdge` 的
 // 控件边），warning 环那种「彩色描边」属于旧 glass 语言的彩色 rim。
-func (a *App) stateMark(c *ui.Context, integration Integration, copy i18n.Settings) {
+func (a *App) stateMark(c *ui.Context, integration Integration, copy i18n.Settings, lead bool) {
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 	text := integration.state(copy)
+	// The reference's `·` rules for the state word (`extensions.css:986-995`, two
+	// `:not()` selectors): a *boxed* state — `--recommended`, `--broken` — keeps
+	// no dot, because a dot inside its keyline would sit in the chip's padding
+	// rather than beside it; every transparent state gets one. The 2px
+	// `margin-left` on `.extension-status` is the half-unit that keeps the word
+	// from hugging the 8px gap it shares with the facts.
+	leadDot := func() []ui.Span {
+		if !lead {
+			return nil
+		}
+		return []ui.Span{{Text: "· ", Color: tokens.TextTertiary.Alpha(0.7)}}
+	}
 	switch {
 	case integration.Broken:
 		chip := ui.Row(c).Padding(t.Space(0.5), t.Space(1.5)).Radius(tokens.RadiusSM).
-			Background(tokens.RaisedWarm)
+			Background(tokens.RaisedWarm).Margin(0, 0, 0, t.Space(0.5))
 		chip.InsetShadow(0, 0, 0, 1, tokens.ControlEdge)
 		chip.Children(func() {
 			ui.Text(c, text).FontSize(t.FontSize - 1).FontWeight(600).TextColor(t.Warning)
@@ -2045,9 +2057,13 @@ func (a *App) stateMark(c *ui.Context, integration Integration, copy i18n.Settin
 		// `TextStrong`；`default` 分支的 `TextSecondary` 就是另一档，两档之间
 		// 靠明度分层（§5 新补的那句：中性档之间的差异不属本预算，靠明度分层
 		// 是鼓励的做法），所以「运行中 vs 关」仍然分得开，只是不再用色相。
-		ui.Text(c, text).FontSize(t.FontSize - 1).TextColor(tokens.TextStrong)
+		// The state word keeps its own ink, so it leads with the dot rather than
+		// carrying the dot in the facts' colour.
+		ui.RichText(c, append(leadDot(), ui.Span{Text: text, Color: tokens.TextStrong})...).
+			FontSize(t.FontSize-1).Margin(0, 0, 0, t.Space(0.5))
 	default:
-		ui.Text(c, text).FontSize(t.FontSize - 1).TextColor(tokens.TextSecondary)
+		ui.RichText(c, append(leadDot(), ui.Span{Text: text, Color: tokens.TextSecondary})...).
+			FontSize(t.FontSize-1).Margin(0, 0, 0, t.Space(0.5))
 	}
 }
 
@@ -2101,19 +2117,43 @@ func (a *App) integrationMeta(c *ui.Context, copy i18n.Settings, integration Int
 	if source := integration.runtimeSourceLabel(copy); source != "" {
 		facts = append(facts, source)
 	}
-	sep := "·"
 	ui.Row(c).FillWidth().Wrap().GapX(t.Space(2)).GapY(t.Space(1)).AlignItems(ui.Center).Children(func() {
 		for i, fact := range facts {
-			if i > 0 {
-				ui.Text(c, sep).FontSize(tokens.Caption).TextColor(tokens.TextTertiary).Opacity(0.7)
-			}
-			ui.Text(c, fact).FontSize(tokens.Caption).FontWeight(500).TextColor(tokens.TextTertiary)
+			a.metaFact(c, tokens, fact, i > 0)
 		}
-		if len(facts) > 0 {
-			ui.Text(c, sep).FontSize(tokens.Caption).TextColor(tokens.TextTertiary).Opacity(0.7)
-		}
-		a.stateMark(c, integration, copy)
+		// The state word closes the line the same way: `·` in front of it unless
+		// it is a *boxed* chip, which is its own separator.
+		a.stateMark(c, integration, copy, len(facts) > 0)
 	})
+}
+
+// metaFact draws one meta fact, with the `·` that introduces it inside the
+// same text node.
+//
+// The reference writes the separator as the fact span's own `::before`
+// (`main:src/styles/extensions.css:979-984`: `content: "·"`, `margin-right:
+// 6px`, `opacity: .7`), so a line that has to wrap carries the dot *ahead* of
+// the fact it introduces. Drawn as a flex child of its own, the dot stays on
+// the line where it still fits and the fact moves to the next one: the line
+// then ends in an orphan `·` with nothing after it. Measured at 460u — where
+// this meta column is 187u wide and each fact takes a line of its own — all
+// three dots sat at line ends and every line began with a bare fact.
+//
+// The dot keeps the reference's `.7` ink instead of inheriting the fact's: a
+// `RichText` span carries its own colour, so the dot is `TextTertiary` at .7
+// and the fact stays at 1.0 (`ui.Color.Alpha` multiplies, so this is the same
+// composite the old `.Opacity(0.7)` separator drew). The pair rides one text
+// node instead of a nested `ui.Row` because a nested unit is measured against
+// the line's *remaining* width here: with the dot in a row of its own, a 90u
+// fact at 460u got 82u and wrapped into two lines — a worse trade than
+// anything the dot costs.
+func (a *App) metaFact(c *ui.Context, tokens theme.Tokens, fact string, lead bool) {
+	spans := make([]ui.Span, 0, 2)
+	if lead {
+		spans = append(spans, ui.Span{Text: "· ", Color: tokens.TextTertiary.Alpha(0.7)})
+	}
+	spans = append(spans, ui.Span{Text: fact, Weight: 500, Color: tokens.TextTertiary})
+	ui.RichText(c, spans...).FontSize(tokens.Caption)
 }
 
 // healthDetail draws the stored probe report's own lines under the Health row
