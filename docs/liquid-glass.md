@@ -1379,3 +1379,38 @@ pin：`internal/settingsui/accentcta_test.go` 四条（两枚都抬一档 / 只�
 `/tmp/floter-P13-bc-accentcta-{light,dark}-{rest,hover,press}.png`）。
 **V 0 / B 0 / S 0**，变异 5 条实跑（5 红，`md5sum -c` 逐字节还原）。
 详见 `docs/rounds/P13-bc-report.md`。
+
+### §6.23 终端页的空态：这一页的阶梯是**反**的（P13-bd，**已落地**）
+
+§4.7（`docs/raycast-design.md`）给空态钉的是一句**陈述**：`Emphasis` 步 + `TextStrong`，
+无底板、无图标、无 accent。P8-b 把 `settingsui/empty.go` 抬到了这一档（会话页 / 自定义
+快捷键 / 集成页三个空态）。终端页是同一族里**唯一没抬的那一个**——而且它把阶梯画反了。
+
+| # | 位置 | 现状（旧，实测） | 落成（新） | 状态 |
+|---|---|---|---|---|
+| 23-1 | `internal/terminalui/terminalui.go` `View` 的空态臂（标题 `copy.EmptyTitle`） | `TextMuted`（§4.7 的**旧值**，合约原话「读起来像一条错误提示」）：实测浅 **114** / 深 **162** | `tokens.TextStrong`（与 `settingsui.emptyState` 的句子同一条）：实测浅 **27** / 深 **237**，对页面 **225 / 216** 级 | `已落地` |
+| 23-2 | 同文件 `emptyLine`（两条出路 `EmptyNew` / `EmptyBack` 的标签） | `tokens.TextTertiary`，hover 抬到 `TextSecondary`：浅 **118** / 深 **145**——浅色档只比标题**暗 4 级**，深色档比标题**亮 17 级**（阶梯上下颠倒） | 静息 `tokens.TextSecondary`（浅 **107** / 深 **154**），hover `tokens.TextStrong`（浅 **27** / 深 **237**，+80 / +83 级） | `已落地` |
+| 23-3 | 同文件 `emptyLine` 的键帽（badge） | `LitFace`（E1）+ `Caption` 墨 | **不动**（§6.3 表 3-8 已落地，P13-d）。实测 hover 前后冠线 `234 → 234`（浅）/ `45 → 45`（深）——材质不参与指针 | `已落地` |
+| 23-4 | 标题的字阶 `t.FontSize + 1` | — | **故意不动**：本轮试过换成 `tokens.Title`，实测把盒高从 **23 推到 19**，`TestTheTerminalPageStaysOnTheHeightLadder` 直接红（`height 19.0 is not on the ladder [15 22 23 28]`）。那是**几何**不是墨，属行为契约红线 | `故意不做（改字阶=改高度链）` |
+
+**三档成阶梯**：陈述（`TextStrong`，225 / 216）≫ 可以碰（`TextSecondary`，145 / 133）≫
+键帽图例（`TextSecondary` @ `Caption`）。相邻两档的下界钉在 **20 级**——比 `settingsui`
+同一族（P8-b 实测 222 / 139 / 94，相邻最小 45 级）的下界的一半还低一档，给最小屏留余量。
+
+**为什么这不是「更淡」而是「更轻」**：这一支的判据里层级只由**差**说话。上一版把「这页唯一的
+陈述」画成全页最淡的一件、把「可以按的两条路」画得比它更亮——两个外观上方向还相反（浅色是
+标题更暗 4 级、深色是标题更亮 17 级），读起来是「一条灰提示 + 两条亮线」。三档色值之后方向
+恒定，且与 `settingsui` 的同一族同构。
+
+pin：`internal/terminalui/emptyregister_test.go` 四条 × 深浅两套（8 个子测试）——
+① 标题是这一页最重的一件（≥ 出路 +20 级）；② 标题在陈述的对比档上（≥ 100 级）；
+③ 出路不是陈述（≤ 标题 −20 级，独立断言，不让一侧退化成另一侧的复制）；
+④ hover 抬一档（≥ +10 级）且键帽冠线**一个字节不动**。
+② 的「逐字节等于 `TextStrong`」那一半拿不到同帧参照物，所以拆成像素级对比下界 + AST 级
+token 等值（`TestTheEmptyStateRegisterIsTheStatementsRegister`，`go/ast` 读调用链，
+与 P13-p / P13-bc 的查询形状同源）。
+出图 `/tmp/floter-P13-bd-terminal-empty-{light,dark}-{before,after}.png`
+（`FLOTER_P13BD_DUMP=1`）；整帧逐像素对照只有一处区域变化
+（`x=351..509 y=257..339`，2003 / 2008 px）。
+**V 0 / B 0 / S 0**，变异 4 条实跑（4 红，`md5sum -c` 逐字节还原）。
+详见 `docs/rounds/P13-bd-report.md`。

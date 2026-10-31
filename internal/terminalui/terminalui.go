@@ -880,7 +880,7 @@ func (a *App) View(c *ui.Context) {
 				// no second sentence), so no static tip is printed between them. A
 				// failed start is the one addition: its reason is shown here instead
 				// of the lines' own silence.
-				ui.Text(c, copy.EmptyTitle).FontSize(t.FontSize + 1).TextColor(t.TextMuted)
+				ui.Text(c, copy.EmptyTitle).FontSize(t.FontSize + 1).TextColor(tokens.TextStrong)
 				if a.Err != nil {
 					ui.Text(c, a.Err.Error()).FontSize(t.FontSize).TextColor(t.TextMuted)
 				}
@@ -970,9 +970,9 @@ func (a *App) emptyLine(c *ui.Context, copy i18n.Terminal, badgeText, label stri
 	tokens := tokensOf(a, c)
 	line := ui.Row(c).Focusable().Padding(t.Space(0.5), t.Space(1)).
 		Radius(tokens.RadiusSM).Gap(t.Space(2)).AlignItems(ui.Center)
-	color := tokens.TextTertiary
+	color := tokens.TextSecondary
 	if line.Hovered() {
-		color = tokens.TextSecondary
+		color = tokens.TextStrong
 	}
 	line.Children(func() {
 		// The keycap is the reference's 20u chip: the control edge and fill,
