@@ -1170,6 +1170,16 @@ func (a *App) rowTitle(c *ui.Context, align ui.Align, lead func(), face rowFace,
 			// rather than prose — the reference sets a session's working
 			// directory in its own monospace stack at the caption step
 			// (`.session-manager__cwd`, `settings.css:1272-1276`).
+			//
+			// P13-bm：这句「ellipsizes」**不是**这一行自己写的——`SingleLine()` 只把
+			// `maxLines` 钉成 1（`mygo/ui/element.go:1322`），记号是框架给的：
+			// `mygo/internal/text/layout.go:81` 的 `Params.Ellipsis` 文档写着
+			// 「`…` when empty」，`:1194-1206` 在 `MaxLines` 用尽时无条件补上它。
+			// 所以名字那一行的 `.Ellipsis("\u2026")`（`:1136`）是把默认值又说了一遍，
+			// 而这一行什么都不写也照样有记号。实测见
+			// `rowlinecut_test.go`：文字列 233u、自然宽 511u 时尾端是低处的三个点，
+			// 533u 时尾端是真正的字形。**别**把它换成 `Clip()`——那是真的硬切，
+			// 而且会让整行折成三行。
 			size := t.FontSize
 			if sublabel.Mono {
 				size = tokens.Caption
