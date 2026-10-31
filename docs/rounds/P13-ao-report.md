@@ -47,7 +47,7 @@ P13-an「仍待 3」把「`terminalui.statusDot` 的墨在两套外观下的级�
 | `go test -count=1 ./...` | 全绿 |
 | PASS 计数 | **3050 → 3054**（+4：新测试的两条子测试 + 父 + `TestTheBlankPageDoesNotBreathe`） |
 | FAIL / SKIP | 0 / **95 → 96**（新增的是 opt-in 出图那条） |
-| 测试函数 | 2257 → **2259** |
+| 测试函数 | 2257 → **2260**（同一把尺：`grep -c "^func Test"` 只数 `cmd/` 与 `internal/`；本轮新增 3 条） |
 | 三平台 `go build` | 过 |
 
 ## 变异（实跑，全部变红并逐字节还原）
