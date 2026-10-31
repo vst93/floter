@@ -130,7 +130,7 @@ func TestTheCustomShortcutsEmptyRegionHasTheListFloor(t *testing.T) {
 	var floor, icon float32
 	tt := ui.NewTester(func(c *ui.Context) {
 		floor, icon = c.Theme().Space(23), c.Theme().Space(5.5)
-		a.emptyState(c, "keyboard", en.ShortcutsNone, en.ShortcutsEmptyHint, 0, 0, nil).Bind(&ref)
+		a.emptyState(c, "keyboard", en.ShortcutsNone, en.ShortcutsEmptyHint, 0, 0, false, nil).Bind(&ref)
 		box = c.Resolve(ref).Bounds()
 	}, 720, 300)
 	tt.Frame()

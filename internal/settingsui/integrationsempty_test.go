@@ -88,7 +88,7 @@ func TestTheIntegrationsEmptyRegionHasTheListFloor(t *testing.T) {
 	var floor, icon float32
 	tt := ui.NewTester(func(c *ui.Context) {
 		floor, icon = c.Theme().Space(23), c.Theme().Space(5)
-		a.emptyState(c, "package", en.IntegrationsEmpty, "", icon, 0, nil).Bind(&ref)
+		a.emptyState(c, "package", en.IntegrationsEmpty, "", icon, 0, false, nil).Bind(&ref)
 		box = c.Resolve(ref).Bounds()
 	}, 720, 300)
 	tt.Frame()

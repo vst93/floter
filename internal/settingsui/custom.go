@@ -47,7 +47,7 @@ func (a *App) customSection(c *ui.Context, copy i18n.Settings) {
 					// --text-secondary, the grey hint underneath, and the "Add the
 					// first one" text action (＋ mark) as the region's one way out —
 					// never a filled button.
-					a.emptyState(c, "keyboard", copy.ShortcutsNone, copy.ShortcutsEmptyHint, 0, 0, func() {
+					a.emptyState(c, "keyboard", copy.ShortcutsNone, copy.ShortcutsEmptyHint, 0, 0, false, func() {
 						a.actionWithGlyph(c, "plus", copy.ShortcutsAddFirst, func() {
 							a.beginCustomDraft()
 						})

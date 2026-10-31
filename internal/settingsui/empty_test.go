@@ -31,7 +31,7 @@ func TestTheEmptyRegionWearsTheReferenceSettingsEmptyMetrics(t *testing.T) {
 		// differently.
 		floor, gap, icon = c.Theme().Space(40), c.Theme().Space(2), c.Theme().Space(5.5)
 		a.emptyState(c, "square-terminal", en.SessionsEmpty, en.SessionsEmptyHint,
-			icon, floor, nil).Bind(&ref)
+			icon, floor, false, nil).Bind(&ref)
 		box = c.Resolve(ref).Bounds()
 	}, 720, 300)
 	tt.Frame()

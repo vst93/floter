@@ -1524,7 +1524,7 @@ func (a *App) sessions(c *ui.Context, copy i18n.Settings) {
 		// reference's three-way is reachable (see `sessionsEmptyFaceFor`); the
 		// page's own New session control stays the way out.
 		face := sessionsEmptyFaceFor(copy, false, false)
-		a.emptyState(c, face.Icon, face.Title, face.Hint, 0, t.Space(40), func() {
+		a.emptyState(c, face.Icon, face.Title, face.Hint, 0, t.Space(40), true, func() {
 			if a.Actions.NewSession != nil {
 				if a.pageButton(c, copy.SessionsNew).Clicked() {
 					a.Actions.NewSession()
@@ -1734,7 +1734,7 @@ func (a *App) integrations(c *ui.Context, copy i18n.Settings) {
 				// `EmptyState` also carries a first-load spinner and a filtered-query
 				// echo on the hint line; this build's list is in-process and has no
 				// filter, so neither has a source and only the resting arm is drawn.
-				a.emptyState(c, "package", copy.IntegrationsEmpty, "", a.cardSpace(t, 5), 0, nil)
+				a.emptyState(c, "package", copy.IntegrationsEmpty, "", a.cardSpace(t, 5), 0, false, nil)
 				return
 			}
 			a.extensionSection(c, copy.IntegrationsInstalled, len(integrations), func() {
