@@ -340,9 +340,9 @@ func (a *App) detachedBodyView(c *ui.Context, detached *detachedOutput, tokens t
 		// "done" arms, and only a list reaches the rows.
 		switch {
 		case detached.running:
-			detachedStatus(c, copy.OutputWindowRunning, false, tokens, t)
+			detachedStateLine(c, copy.OutputWindowRunning, detachedInFlight, tokens, t)
 		case detached.failed != "":
-			detachedStatus(c, detached.failed, true, tokens, t)
+			detachedStateLine(c, detached.failed, detachedFault, tokens, t)
 		case len(detached.view.Text) > 0 && !detached.view.IsList:
 			a.detachedCopyOnSelect(c, detached, detachedText(c, detached, tokens, t))
 		case detached.view.IsList:
@@ -354,9 +354,9 @@ func (a *App) detachedBodyView(c *ui.Context, detached *detachedOutput, tokens t
 			// scroll trigger (`DetachedPluginApp.tsx:248-270`) had no port at all.
 			detachedAskForMore(a, detached)
 		case detached.ran:
-			detachedStatus(c, copy.OutputWindowEmpty, false, tokens, t)
+			detachedStateLine(c, copy.OutputWindowEmpty, detachedStatement, tokens, t)
 		default:
-			detachedStatus(c, copy.OutputWindowIdle, false, tokens, t)
+			detachedStateLine(c, copy.OutputWindowIdle, detachedStatement, tokens, t)
 		}
 	})
 }
@@ -442,15 +442,60 @@ func (a *App) loadMoreDetachedPage(detached *detachedOutput) {
 	}
 }
 
-// detachedStatus draws one line of the run state machine
-// (`.plugin-window__status`): caption-sized, muted, and in the warning ink when
-// the run was refused (`launcher.css:1783-1789`).
-func detachedStatus(c *ui.Context, text string, failed bool, tokens theme.Tokens, t *ui.Theme) {
-	ink := t.TextMuted
-	if failed {
+// detachedStateKind is which of the run state machine's four lines a caller is
+// drawing. The reference gave all four one register (`.plugin-window__status`:
+// `--text-caption` in `--text-muted`, `launcher.css:1783-1789`), and the port
+// copied that literally — measured on the window's own ground the body's four
+// lines and the bar's title landed on the **same** level (light 128–131 against
+// the title's 131, dark 130–133 against 130). A window whose body says what
+// happened in the same ink as its own chrome has no second rung: the page
+// reads as "one bar plus one grey line under it" (P13-be).
+type detachedStateKind int
+
+const (
+	// detachedStatement is the page's own sentence: why this window is empty,
+	// or that the run produced nothing. It is the one thing the body has to
+	// say, so it takes §4.7's statement register — the same pair
+	// `settingsui.emptyState` draws (emphasis step, strong ink).
+	//
+	// P13-be 重定基线：旧值 `Caption` + `TextMuted`（对地面 115 / 110）→
+	// 新值 `Emphasis` + `TextStrong`（实测 216 / 214）。
+	detachedStatement detachedStateKind = iota
+	// detachedInFlight is work happening now. It is the statement's **step
+	// below**, not a second statement: same register, secondary ink, medium
+	// weight, so the frame that says "Running…" never outranks the sentence
+	// that will replace it.
+	detachedInFlight
+	// detachedFault is a run that could not start. It keeps the reference's
+	// warning hue (a semantic colour, not an accent — `docs/raycast-design.md`
+	// §6.19) and takes the statement's register, because a fault is the page's
+	// conclusion as much as an empty result is.
+	detachedFault
+)
+
+// detachedStateLine draws one line of the run state machine in its own
+// register (see detachedStateKind).
+func detachedStateLine(c *ui.Context, text string, kind detachedStateKind, tokens theme.Tokens, t *ui.Theme) {
+	ink, weight := tokens.TextStrong, 580
+	switch kind {
+	case detachedInFlight:
+		ink, weight = tokens.TextSecondary, 500
+	case detachedFault:
 		ink = t.Warning
 	}
-	ui.Text(c, text).FontSize(tokens.Caption).TextColor(ink)
+	ui.Text(c, text).FontSize(tokens.Emphasis).FontWeight(weight).TextColor(ink)
+}
+
+// detachedListNote draws one **status row inside the list** — the reference's
+// `plugin-window__row` variant that carries information about the list rather
+// than an entry in it.
+//
+// P13-be：它**故意不跟** `detachedStateLine` 一起抬。它说的不是这一页，是这个
+// 列表（「4 条里的 3 条」）——从属的一行，而列表的盘子（`tokens.Control`）才是
+// 那一档的主体。抬到陈述档会让一条列表的注与这一页的结论平起平坐，正是
+// §4.7 的反面。所以它留在参考值上：`Caption` + `TextMuted`。
+func detachedListNote(c *ui.Context, text string, tokens theme.Tokens, t *ui.Theme) {
+	ui.Text(c, text).FontSize(tokens.Caption).TextColor(t.TextMuted)
 }
 
 // detachedText draws the text arm verbatim in the terminal's monospace
@@ -556,7 +601,7 @@ func detachedList(c *ui.Context, rows []extensions.Row, tokens theme.Tokens, t *
 	return ui.Column(c).FillWidth().Gap(t.Space(detachedRowGap)).Selectable().Children(func() {
 		for _, row := range rows {
 			if row.Status {
-				detachedStatus(c, row.Title, false, tokens, t)
+				detachedListNote(c, row.Title, tokens, t)
 				continue
 			}
 			plate := ui.Column(c).FillWidth().Gap(t.Space(0.5)).

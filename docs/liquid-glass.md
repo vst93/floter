@@ -1414,3 +1414,52 @@ token 等值（`TestTheEmptyStateRegisterIsTheStatementsRegister`，`go/ast` 读
 （`x=351..509 y=257..339`，2003 / 2008 px）。
 **V 0 / B 0 / S 0**，变异 4 条实跑（4 红，`md5sum -c` 逐字节还原）。
 详见 `docs/rounds/P13-bd-report.md`。
+
+### §6.24 插件窗口正文的「一句话」：它与自己的 chrome 同级（P13-be，**已落地**）
+
+捕获输出页（`shell/detach.go` 的 detached 窗口）是**最后一个只有一档墨的表面**：
+正文里的四条状态行与它头顶的 bar 标题**逐级相同**。实测（720×460 静息，窗口自己的
+地面 `tokens.Opaque` 浅 **246** / 深 **20**）：
+
+| 位置 | 改前 | 浅 | 深 |
+|---|---|---|---|
+| bar 标题 `detached.title` | `Caption` + `TextMuted` | 131 | 130 |
+| 正文 running | `Caption` + `TextMuted` | 131 | 130 |
+| 正文 empty | 同上 | 130 | 131 |
+| 正文 idle | 同上 | 128 | 133 |
+| 列表 status 行 | 同上 | 131 | 130 |
+
+窗口读成「一条 bar + 一条同色的灰线」。参考的 `.plugin-window__status` 本来就是
+`--text-caption` + `--text-muted`（`launcher.css:1783-1789`），但 §4.7 给**一页的陈述**
+定的是 emphasis + `TextStrong` —— 两条合约在这一页上撞在一起，此前按参考那条落的地。
+
+| # | 位置 | 现状（旧，实测） | 落成（新，实测） | 状态 |
+|---|---|---|---|---|
+| 24-1 | `detach.go` `detachedStatus`（一个 `failed bool` 管四臂） | 四臂同一寄存器；一个布尔既是「换色」又是「换档」 | 拆成 `detachedStateLine(c, text, kind, …)` + 三个**命名常量** `detachedStatement` / `detachedInFlight` / `detachedFault` | `已落地` |
+| 24-2 | 陈述臂（`OutputWindowIdle` / `OutputWindowEmpty`） | `Caption` + `TextMuted`（对地面 115 / 110） | `Emphasis` + 580 + `TextStrong`（**219 / 217**） | `已落地` |
+| 24-3 | 进行臂（`OutputWindowRunning`） | 与陈述同档 | `Emphasis` + 500 + `TextSecondary`（**139 / 134**）—— 陈述的下一档 | `已落地` |
+| 24-4 | 故障臂（`detached.failed`） | `Caption` + `t.Warning`（177 / 144） | `Emphasis` + 580 + `t.Warning`（**179 / 146**）：色相不动（语义色不是 accent，§6.19），只抬到陈述的字阶 | `已落地` |
+| 24-5 | 列表的 status 行（`detachedList` 的 `row.Status`） | 与陈述同墨 | **故意不动**（新函数 `detachedListNote`）：它说的是**列表**（「4 条里的 3 条」），不是这一页的结论；列表的盘子（`tokens.Control`）才是那一档的主体。抬到陈述档会让一条注与结论平起平坐，正是 §4.7 的反面 | `故意不做（从属行）` |
+| 24-6 | bar 标题（`detached.title`） | `Caption` + `TextMuted` | **不动**：chrome 本来就该是最轻的一件（参考 `plugin-window__title`） | `已落地`（复核） |
+
+**三档成阶梯**：陈述 219 / 217 ≫ 进行 139 / 134 ≫ chrome 118 / 113。相邻两档的下界钉在
+**40 级**（进行→陈述实测 80 / 83）；「进行 → chrome」只要求**高于**（实测 21 / 21），
+因为 chrome 是这一页最轻的一件，不是第三个档。
+
+**重定基线**：正文状态行 `Caption`/`TextMuted`（115 / 110）→ `Emphasis`/`TextStrong`
+（219 / 217）。参考值只留在「列表 status 行」这一从属角色上（24-5）。
+
+**一行几何变化（如实记录）**：字阶 `Caption`(11) → `Emphasis`(13)，**行盒 15 → 18px**。
+窗口高度不变（body 是 `Fill()` 的 scroll，不在高度链上），三平台 build 与全量测试全绿。
+它是**行盒**的变化，不是「高度链」红线，但写在这里而不是藏在数字里。
+
+pin：`internal/shell/stateladder_test.go` 五条 × 深浅两套外观 —— ①正文四条线都压在陈述档
+（对地面 ≥100，故障 ≥130）且比 bar 标题重（陈述 ≥60、故障 ≥25、进行 ≥10）；
+②进行比陈述轻一档（差 ≥40 且 ≤140）且同一寄存器（行盒相同）；③故障保留暖色相
+（`r−b ≥ 25`）而陈述是中性墨（`|r−b| ≤ 8`）；④列表的注不许跟着抬（差 ≥60，行盒小于陈述
+且等于 chrome 的）；⑤结构 pin：`detach.go` 里三个命名常量与五处调用点都在，列表的注走
+**另一个**函数（`os.ReadFile` + `strings.Contains`）。
+另有一条 opt-in 出图（`FLOTER_P13BE_DUMP=1`，
+`/tmp/floter-P13-be-pluginwindow-{light,dark}-{running,failed,empty,idle,liststatus}-{before,after}.png`）。
+**V 0 / B 0 / S 0**，变异 4 条实跑（4 红，`md5sum -c` 逐字节还原）。
+详见 `docs/rounds/P13-be-report.md`。
