@@ -1073,6 +1073,35 @@ func (a *App) rowTitle(c *ui.Context, align ui.Align, lead func(), face rowFace,
 	}, below...)
 }
 
+// factRow is a card row that reports a value instead of offering a control: the
+// integration card's approval record (`ApprovalRecord` / `批准时间` / `清单摘要` /
+// `磁盘摘要`) is a spec sheet of what the host recorded, not a list of things the
+// user can change. Nothing on those rows is pressable — but they wore the plain
+// settings row, whose emphasis step belongs to the **setting's name**
+// (`rowTitle`: emphasis, 580, `TextStrong`) and whose second line is a subtitle
+// (`t.TextMuted`, 500). On a record that is backwards: the *name* of the fact
+// took the loud ink and the fact itself — the timestamp, the digest, the one
+// thing the user opened the block to read — was the quietest text on the row.
+//
+// P13-ak 重定基线（`docs/liquid-glass.md` §6.10）：两档墨对调 —— 名字退到
+// caption / `TextSecondary` 一档（它是值的标题，不是这一行的标题），值升到
+// `rowTitle` 的 emphasis 档（`t.FontSize+1` / 580 / `TextStrong`）。**只换墨，
+// 不换盒子**：行框架、44px 地板、分隔线、1px 行距、文字列都还是 `cardRow` 的
+// 那一套，所以这一族四行没有一个像素的位置改变（行为契约零改动）。
+//
+// 与「禁用」（P13-s/t/u）不是一件事：禁用的是**一个不能用的控件**，淡一道；
+// 只读的是**一个已经确定的答案**，它不淡，只是把重量交给答案本身。
+func (a *App) factRow(c *ui.Context, name, value string) {
+	tokens := a.tokens(c)
+	t := a.cardTheme(c)
+	a.cardRow(c, ui.Center, nil, rowFace{}, func() {}, func() {
+		ui.Text(c, name).FontSize(tokens.Caption).FontWeight(500).
+			TextColor(tokens.TextSecondary).SingleLine()
+		ui.Text(c, value).FontSize(t.FontSize + 1).FontWeight(580).
+			TextColor(tokens.TextStrong).SingleLine()
+	})
+}
+
 // codeRow is a card row whose label is a value rather than prose: the
 // reference's `.settings-deep-link__value`, a sunken code chip that makes a
 // `floter://` line read as data instead of copy (`DeepLinkRow.tsx:67,79`;

@@ -2398,11 +2398,11 @@ func (a *App) approvalDetail(c *ui.Context, copy i18n.Settings, record *Approval
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 	if record == nil {
-		a.row(c, copy.ApprovalRecord, copy.ApprovalRecordNone, func() {})
+		a.factRow(c, copy.ApprovalRecord, copy.ApprovalRecordNone)
 		return
 	}
 	a.row(c, copy.ApprovalRecord, "", func() {})
-	a.row(c, copy.ApprovalRecordApprovedAt, approvalApprovedAt(record.At), func() {})
+	a.factRow(c, copy.ApprovalRecordApprovedAt, approvalApprovedAt(record.At))
 	digest := copy.ApprovalRecordDigestUnknown
 	if short := extensions.ShortDigest(record.ApprovedDigest); short != "" {
 		digest = short
@@ -2411,8 +2411,8 @@ func (a *App) approvalDetail(c *ui.Context, copy i18n.Settings, record *Approval
 	if short := extensions.ShortDigest(record.CurrentDigest); short != "" {
 		current = short
 	}
-	a.row(c, copy.ApprovalRecordDigest, digest, func() {})
-	a.row(c, copy.ApprovalRecordDigestCurrent, current, func() {})
+	a.factRow(c, copy.ApprovalRecordDigest, digest)
+	a.factRow(c, copy.ApprovalRecordDigestCurrent, current)
 	language := a.settings().Language
 	stale := extensions.ApprovalIsStale(record.ApprovedDigest, record.CurrentDigest)
 	// The changed-manifest warning is *reported*, never acted on: "the approval
