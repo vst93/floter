@@ -120,5 +120,5 @@
 2. **需拍板**：按下档要不要保留那一对线，全仓仍不一致——`launcher.rowControl/Pressed` 与
    `launcher.fieldSettingsButton/Pressed` 在 `pointerFaceAllow` 里记作「需拍板」（P13-aa 仍待 2），
    而设置页（P13-q）与这一轮都**保留**了。本轮按多数派做，没有动那两行豁免。
-3. 三条抢救 stash（`afc38b24` / `114b7d15`）与 `git stash list` 里其余条目本轮未变，
+3. 两条抢救 stash（`afc38b24` / `114b7d15`）与 `git stash list` 里其余条目本轮未变，
    内容仍在 HEAD，按纪律没有静默 drop，也没有再试合。
