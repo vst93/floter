@@ -3874,7 +3874,9 @@ func (a *App) updateRow(c *ui.Context, copy i18n.Settings) {
 // updateButton is the About page's one accent control: the accent fill with
 // `--accent-contrast` ink, the lit top rim (`inset 0 1px 0`), the emphasis step
 // at 600, and no keyline at all. Hover fades the whole button to 0.9; a disabled
-// face is 0.6 with the pointer refused. It is the one thing on the page the user
+// face turns the crown off and keeps the framework's one 0.5 fade (P13-aq — the
+// reference's `.6` was drawn on top of it, effective 0.3, `docs/liquid-glass.md`
+// §6.2b-6), with the pointer refused. It is the one thing on the page the user
 // presses, so it is the page's whole accent budget (§5 第 2 条).
 //
 // P8-b 重定基线：`Radius(999)` 胶囊 → `RadiusSM`(8) 圆角矩形。accent 填充保留；
@@ -3887,13 +3889,17 @@ func (a *App) updateButton(c *ui.Context, label string, disabled bool, run func(
 		MinHeight(t.Space(7)).Padding(t.Space(1.5), t.Space(3.5)).Radius(tokens.RadiusSM).
 		Background(t.Accent)
 	// `box-shadow: inset 0 1px 0 var(--glass-raised-rim)`: the lit top rim is
-	// what makes the accent pill read as a raised control.
-	button.InsetShadow(0, 1, 0, 0, tokens.LensRim)
+	// what makes the accent pill read as a raised control — so it belongs to the
+	// usable rungs only (P13-aq: a face that cannot be touched must not wear the
+	// mark of one that can, `docs/liquid-glass.md` §3).
 	switch {
 	case disabled:
-		button = button.Opacity(0.6).Cursor(ui.CursorDefault).Disabled(true)
-	case button.Hovered():
-		button = button.Opacity(0.9)
+		button = button.Cursor(ui.CursorDefault).Disabled(true)
+	default:
+		button.InsetShadow(0, 1, 0, 0, tokens.LensRim)
+		if button.Hovered() {
+			button = button.Opacity(0.9)
+		}
 	}
 	button.Children(func() {
 		ui.Text(c, label).FontSize(tokens.Emphasis).FontWeight(600).TextColor(t.AccentText)
@@ -6632,10 +6638,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 				a.runOpen[integration.ID] = false
 				a.runError = ""
 			}
-			run := a.extensionPrimaryButton(c, copy.RunLabel)
-			if len(issues) > 0 {
-				run = run.Disabled(true)
-			}
+			run := a.extensionPrimaryButton(c, copy.RunLabel, len(issues) > 0)
 			if run.Clicked() && len(issues) == 0 {
 				a.runError = ""
 				if failure := a.Actions.RunWithParams(integration.ID, values); failure != nil {

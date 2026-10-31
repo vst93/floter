@@ -568,19 +568,29 @@ func (a *App) extensionActionFace(c *ui.Context, height, radius float32, disable
 // (`--glass-raised-rim`) and the `--accent-contrast` ink. It is the one
 // affirmative action in its block (the run form's Run, the config form's Save),
 // never a state, so it spends the accent fill the neutral pills' keyline
-// deliberately keeps for a chosen slot. A disabled primary dims to the same
-// 0.4 the reference's `:disabled` applied, keeping the accent plane.
-func (a *App) extensionPrimaryButton(c *ui.Context, label string) ui.Element {
+// deliberately keeps for a chosen slot. A disabled primary turns its crown off and
+// keeps the accent plane (P13-aq: one fade, the framework's 0.5 — the reference's
+// `.4` was drawn *on top of* it, `docs/liquid-glass.md` §6.2b-6).
+func (a *App) extensionPrimaryButton(c *ui.Context, label string, disabled bool) ui.Element {
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 	button := ui.ButtonBase(c).
 		MinHeight(t.Space(7.5)).Padding(0, t.Space(2.5)).Radius(t.Space(3.75))
 	button.Border(1, tokens.AccentEdgeStrong).Background(t.Accent).
 		Transition(ui.ElementTransition{Colors: true, Duration: theme.ColorStep})
-	// `box-shadow: inset 0 1px 0 var(--glass-raised-rim)`: the raised top rim
-	// is what makes the accent pill read as a lit control rather than a flat
-	// accent block (the neutral pill gets the same from `Lens`).
-	button.InsetShadow(0, 1, 0, 0, tokens.LensRim)
+	// P13-aq（`docs/liquid-glass.md` §3 / §6.2b-6）：accent 面的冠线是「这块面可以被
+	// 碰」的记号，不可用时**熄灯**；褪色只留框架给 `Disabled` 子树的那一道 0.5。
+	// 这一族此前是「冠线无条件画 + 调用点再叠一个 `.Opacity(0.4)`」：字与冠线被乘成
+	// 有效 0.2（实测浅色 Save 的字/面对比 168 → **43** 级、深色 170 → **40**），而面
+	// 只淡了一道——同一块面上两件东西不在同一次淡里。
+	if disabled {
+		button = button.Disabled(true).Cursor(ui.CursorDefault)
+	} else {
+		// `box-shadow: inset 0 1px 0 var(--glass-raised-rim)`: the raised top rim
+		// is what makes the accent pill read as a lit control rather than a flat
+		// accent block (the neutral pill gets the same from `Lens`).
+		button.InsetShadow(0, 1, 0, 0, tokens.LensRim)
+	}
 	button.Children(func() {
 		ui.Text(c, label).FontSize(tokens.Body).FontWeight(600).TextColor(t.AccentText)
 	})
@@ -592,8 +602,10 @@ func (a *App) extensionPrimaryButton(c *ui.Context, label string) ui.Element {
 // carries, a `--extensions-icon-size` (30px) box with the `--ext-radius` (9px)
 // corner, a transparent face and `--text-secondary` ink. Hover lights the
 // `--glass-control-edge` keyline, the `--ext-bg-hover` fill, the `--elev-0`
-// lens and `--text-primary`; a disabled button dims to the reference's 0.42
-// and keeps the resting face. It is the icon-shaped sibling of
+// lens and `--text-primary`; a disabled button keeps the resting face and turns
+// the light off — the reference's `.42` used to be drawn on top of the framework's
+// 0.5 (effective 0.21, P13-aq / `docs/liquid-glass.md` §6.2b-6). It is the
+// icon-shaped sibling of
 // `extensionActionButton`, so the toolbar's two controls share one vocabulary.
 func (a *App) extensionIconButton(c *ui.Context, glyphName, label string, disabled bool) ui.Element {
 	t := a.cardTheme(c)
@@ -608,7 +620,11 @@ func (a *App) extensionIconButton(c *ui.Context, glyphName, label string, disabl
 	ink := tokens.TextSecondary
 	switch {
 	case disabled:
-		button = button.Opacity(0.42).Cursor(ui.CursorDefault).Disabled(true)
+		// P13-aq：只淡一道。框架的画笔已经给 `Disabled` 的整棵子树乘了 0.5
+		// （`mygo@v0.7.3/ui/paint.go:257-259`），这里再叠一个 `.Opacity(0.42)` 就是
+		// 有效 0.21——实测这枚键的字/面对比从 138 掉到 **29** 级（深色 141 → 30），
+		// 恰好是 P13-s 在胶囊上判掉的那笔「一道淡画两遍」。
+		button = button.Cursor(ui.CursorDefault).Disabled(true)
 	case button.Pressed():
 		// P13-q：28u 小格的第三档。启动器的 `rowControl`（20u）与折叠卡的设置格
 		// （28u）按下时都是 `ControlPress` 面 + `Scale(0.92)`，同一个应用里同尺寸
@@ -932,8 +948,9 @@ func (a *App) sessionIconButton(c *ui.Context, glyphName, label string, danger, 
 // `--text-warning` keyline and ink, the `--glass-raised-warm` plane, the
 // `--glass-raised-shadow` lens, 9u of side padding, the caption step at 620 and
 // the Trash2 mark at 13px before the word (`SessionsPage.tsx:216-229`). Hover
-// lifts the plane to `--glass-raised-warm-hover`; a disabled question dims to
-// the reference's 0.4.
+// lifts the plane to `--glass-raised-warm-hover`; a disabled question turns its
+// crown off and keeps one fade (P13-aq: the reference's `.4` multiplied the
+// framework's 0.5 — see `docs/liquid-glass.md` §6.2b-6).
 func (a *App) sessionKillConfirm(c *ui.Context, label string, disabled bool, run func()) {
 	tokens := a.tokens(c)
 	t := c.Theme()
@@ -953,11 +970,17 @@ func (a *App) sessionKillConfirm(c *ui.Context, label string, disabled bool, run
 	//
 	// 悬停臂只换面（`--glass-raised-warm-hover`），一对线于是四个状态共用——这正是
 	// `internal/ci/litarm_contract_test.go` 要求的形状（臂外的共享一对）。
-	tokens.LitFace(pill)
+	// P13-aq：这一对的点亮曾经写在禁用臂**之外**，于是「问了也没有答案」的药丸仍然点着
+	// 受光边（实测浅 243/244、深 19/23——顶端比面亮 1~4 级）。§3 说受光边是「这块面
+	// 可以被碰」的记号，禁用时就该熄。褪色同样只留框架那一道 0.5：`.Opacity(0.4)`
+	// 再乘一次 = 有效 0.2，字的对比实测从 161 掉到 **34**（深色 135 → 29）。
 	if disabled {
-		pill = pill.Opacity(0.4).Cursor(ui.CursorDefault).Disabled(true)
-	} else if pill.Hovered() {
-		pill.Background(tokens.IconSurfaceHover)
+		pill = pill.Cursor(ui.CursorDefault).Disabled(true)
+	} else {
+		tokens.LitFace(pill)
+		if pill.Hovered() {
+			pill.Background(tokens.IconSurfaceHover)
+		}
 	}
 	pill.Children(func() {
 		ui.Icon(c, mustGlyph("trash")).Size(13, 13).TextColor(t.Warning)

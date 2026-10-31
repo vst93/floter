@@ -615,7 +615,7 @@ func TestTheAffirmativeActionWearsThePrimaryAccentFace(t *testing.T) {
 			c.Root().Background(ui.RGB(0, 0, 0))
 			ui.Row(c).Padding(24).Gap(8).Children(func() {
 				a.extensionMetrics(func() {
-					a.extensionPrimaryButton(c, "Run").Bind(&primaryRef)
+					a.extensionPrimaryButton(c, "Run", false).Bind(&primaryRef)
 					a.actionButton(c, "Cancel").Bind(&neutralRef)
 				})
 			})
