@@ -288,29 +288,60 @@ func outputFooterState(view *OutputView) string {
 // result, the spinner and a word while a page is in flight, the end word once
 // the plugin has finished. The row is not a result — it takes no selection and
 // no shortcut.
+//
+// P13-bj（`docs/liquid-glass.md` §6.29）：这一行有两个会画字的状态，而它们此前
+// **一档墨**——实测（装 app 主题，对地面峰值差）加载词浅 118 / 深 118，到底词
+// 浅 118 / 深 118，**一个字节不差**。一件「正在发生的事」和一件「到此为止的边界」
+// 用同一个声音说话，换状态时这一行没有任何一档变化，只有字变了。
+//
+// 两档（§6.26 / §6.28 的同一条阶梯，这一条落在**分页状态**上）：
+//
+//	在飞   `tokens.TextSecondary` + 500   浅 107 / 深 176   ← 这一行唯一的活物，配一枚转着的环
+//	到底了 `t.TextMuted`（不动）           浅 128 / 深 133   ← 列表的地板，退到静息档
+//
+// 字阶**不动**（两个状态仍是 `t.FontSize - 1`）：改字阶 = 改行盒 = 改高度链，
+// 这条线 §6.24 / §6.25 / §6.26 / §6.28 已经撞过五次红。
 func (a *App) outputFooter(c *ui.Context, copy i18n.Launcher, view *OutputView) {
 	state := outputFooterState(view)
 	if state == footerNone {
 		return
 	}
 	t := c.Theme()
-	text := ""
-	switch state {
-	case footerLoading:
-		text = copy.OutputLoading
-	case footerEnd:
-		text = copy.OutputEnd
-	}
+	text, ink, weight := footerWord(state, copy, a.tokens(c), t)
 	ui.Row(c).FillWidth().Shrink(0).MinHeight(t.Space(5.5)).Gap(t.Space(2)).
 		Padding(0, t.Space(3)).AlignItems(ui.Center).Justify(ui.Center).Children(func() {
 		if state == footerLoading {
 			a.footerSpinner(c)
 		}
 		if text != "" {
-			ui.Text(c, text).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+			word := ui.Text(c, text).FontSize(t.FontSize - 1).TextColor(ink)
+			// Only the live word carries a weight: `footerEnd` must keep the
+			// frame's own default (no `font-weight` set at all), so it stays
+			// byte-identical to the row it replaces.
+			if weight != 0 {
+				word = word.FontWeight(weight)
+			}
 		}
 	})
 }
+
+// footerWord is the pagination row's one word, its ink and its weight — the
+// single place the two states are told apart (P13-bj). `footerMore` draws no
+// word at all: the scroll is that state's affordance, not a label.
+func footerWord(state string, copy i18n.Launcher, tokens theme.Tokens, t *ui.Theme) (string, ui.Color, int) {
+	switch state {
+	case footerLoading:
+		return copy.OutputLoading, tokens.TextSecondary, footerLiveWeight
+	case footerEnd:
+		return copy.OutputEnd, t.TextMuted, 0
+	}
+	return "", t.TextMuted, 0
+}
+
+// footerLiveWeight is the live word's weight: it labels a turning ring rather
+// than making a statement, and one step of weight is what keeps the pair
+// (ring + word) reading as one object above the row's floor.
+const footerLiveWeight = 500
 
 // The spinner's ink: the old build's 12-unit ring (`calc(var(--u) * 12)`), so
 // it rides the interface scale, in a 1.5px hairline border — physical ink, so
@@ -347,7 +378,8 @@ const (
 // rotation, so the ink is the same 1.5px it was.
 func (a *App) footerSpinner(c *ui.Context) {
 	t := c.Theme()
-	hairline := a.tokens(c).Hairline
+	tokens := a.tokens(c)
+	hairline := tokens.Hairline
 	ring := ui.Box(c).Size(t.Space(3), t.Space(3)).Shrink(0)
 	ring.Draw(func(p *ui.Painter, r ui.Rect) {
 		cx, cy := r.X+r.W/2, r.Y+r.H/2
@@ -369,7 +401,11 @@ func (a *App) footerSpinner(c *ui.Context) {
 			var lead ui.Path
 			lead.Circle(cx, cy, radius)
 			lead.Trim(0, 0.25)
-			p.StrokePath(&lead, footerSpinnerStroke, t.TextMuted)
+			// P13-bj: the moving quarter wears the live word's own ink
+			// (`footerWord`), so the ring and its label stay one object; the
+			// track above stays the hairline, which is the part that does not
+			// move and must not get louder.
+			p.StrokePath(&lead, footerSpinnerStroke, tokens.TextSecondary)
 		})
 	})
 }

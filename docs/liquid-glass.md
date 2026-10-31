@@ -1655,3 +1655,47 @@ pin：`internal/shell/verdictband_test.go` 五条 + 一条 opt-in 出图。
 **一处取舍**：结局带的左右内边取正文自己的 `detachedBodyInset`（14u），**上**也取 14u、
 **下**取 0——正文自己的 14u 上内边距就是它与结局带之间的呼吸，给两次会让这条带读成
 「第二条 bar」。
+
+### §6.29 分页脚注的两个状态此前一档墨（P13-bj，**已落地**）
+
+通用队列「状态反馈」这一格的收尾：§6.26（P13-bg）给捕获输出页立起「结局 / 中点 / 图例」
+三档、§6.28（P13-bi）把它接到插件窗口的结局带，而**同一条阶梯还没走到列表的分页脚注**。
+那一行有两个会画字的状态——**「正在加载…」（在飞）** 与 **「没有更多结果」（到底了）**——
+HEAD 上它们**逐像素同墨**（对地面峰值差 118 / 118，浅深两套外观**一个字节不差**），
+换状态时这一行没有任何一档变化，只有字变了。
+
+| # | 位置 | 现状（旧） | 落成（新） | 状态 |
+|---|---|---|---|---|
+| 29-1 | `launcher/output.go` `outputFooter`（`:291`） | 一个 `text` 变量 + 一句写死的 `.TextColor(t.TextMuted)`（`:310`）：两个状态在代码里就已经折叠成一个「词」 | 拆出 `footerWord(state, copy, tokens, t)`：**墨与字重的唯一出处** | `已落地` |
+| 29-2 | 同处，在飞 | `t.TextMuted` + 默认字重 | **`tokens.TextSecondary` + 500**（浅 `#6B6B70` / 深 `#9A9AA0`）：这一行唯一的活物，配一枚正在转的环；它是个**标签**，不是一句话 | `已落地` |
+| 29-3 | 同处，到底了 | `t.TextMuted` | **不动**（`t.TextMuted` + 默认字重）：列表的地板，退在静息档。改前改后这一帧**逐字节相同**（md5 相同） | `已落地` |
+| 29-4 | `footerSpinner`（`:372`）的活动象限 | `t.TextMuted`，与词同墨 | **`tokens.TextSecondary`**：环 + 词是**一个物体**（词是环的标签），抬档必须一起抬，否则环和它的标签分家。轨道仍是 `tokens.Hairline`（不动的底，不动） | `已落地` |
+| 29-5 | 同处，字阶 | `t.FontSize - 1` | **不动**：改字阶 = 改行盒 = 改高度链（§6.24 / §6.25 / §6.26 / §6.28 已撞过五次红） | `已落地` |
+| 29-6 | `footerMore`（还有下一页、但没在拉） | 不画字，只画 5.5u 的空行 | **故意不做**：那个状态的 affordance 是**滚动本身**，给它一句话反而把「可以继续滚」变成「有个按钮」 | `故意不做（见理由）` |
+
+**实测**（`ui.Tester`，`InputWindowWidth` × `frameHeight(maxResultSlots)`，自评分页插件，
+**装上 app 主题**（`c.SetTheme(a.tokens(c).Theme)`，与 `shell.View` 的生产路径一致），
+读的是画出来的像素）：
+
+| 段 | 浅：地面 → 峰值 → 差 | 深：地面 → 峰值 → 差 | 墨质量（每单位面积） |
+|---|---|---|---|
+| 在飞（`Loading more…`） | 246 → **139** → **139** | 15 → **154** → **139** | **21.14** |
+| 到底了（`No more results`） | 246 → **118** → **118** | 15 → **133** → **118** | **15.81** |
+| 环的活动象限 | 246 → 139 | 15 → 154 | 7.20 |
+
+两档的差从 **0 → 21 级**（浅深同值），墨质量比 **1.00 → 1.34**。
+
+**几何零变化**：字阶、`MinHeight(5.5u)`、`Padding(0, 3u)`、`Gap(2u)`、环的 12u 直径与
+1.5px 笔画、0.7s 一转、`ReduceMotion` 的静止臂，一个字节不改。整帧像素差 bbox 是
+`(313,472)-(405,484)`——就是环和词自己那一行（`/tmp/floter-P13-bj-footer-*-{before,after}.png`）。
+
+pin：`internal/launcher/footerink_test.go` 三条 + 一条 opt-in 出图。
+①`TestThePagingFooterSeparatesTheLiveStateFromTheEnd`——在飞 ≥ 130、到底 ≤ 122、
+两者差 ≥ 12（改前两者都是 118，这条正是本轮的红）；②`TestThePagingFooterSpinnerSharesTheLiveWordInk`
+——环与词同档（±4）；③`TestThePagingFooterLiveWordIsTheHeavierOne`——墨质量比 ≥ 1.25
+（字重是**唯一**能从单词像素里读出字重的量：峰值只看最暗那一点，与字重无关）。
+出图 `/tmp/floter-P13-bj-footer-{light,dark}-{loading,end}-{before,after}.png`
+（`FLOTER_P13BJ_DUMP=1 FLOTER_P13BJ_TAG=<before|after>`）。
+
+**一处取舍**：到底了的墨**一个字节都没动**。它本来就在静息档，这一轮要修的是「两件事
+一档墨」，不是「两件事都不够重」——把地板也抬起来只会让列表的最后一行与它的边界打架。
