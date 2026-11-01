@@ -2823,3 +2823,37 @@ pin：`internal/terminalui/readoutslot_test.go` 一条三断言（盒子 `x`/`w`
 **变异**（两条实跑）：M1（去掉 `Grow(1)`）→ 红（`x 419.9 → 413.9, w 22.0 → 28.0`）；
 M2（`Grow(1)` → `Width(Space(2.5))`）→ 红（`box height 34.0 → 51.0`）。
 `md5sum -c` 逐字节还原 + `touch` 复跑绿。
+
+#### §6.59 便条板的登记是一道淡，不是两道（P13-cp，**已落地**）
+
+`launcher/output.go` 的 `drawOutputRow` 给便条行（`row.Status` / `row.Disabled`）的 28u
+图标板挂了**两道**淡：材质已经换过 `DimFace`（面在、底对侧在、**冠线熄了**），调用点又叠
+`plate.Opacity(0.62)`——参考 CSS 给**整行**的那一道，被搬到了板上。两道乘起来，一块 E1 的
+面退成地面上的一层斑。这与 P13-s / P13-aq / P13-u / P13-y 是同一条禁令：**一道淡画两遍**。
+
+| # | 位置 | 现状（旧） | 落成（新） | 状态 |
+|---|---|---|---|---|
+| 24-1 | `launcher/output.go` `drawOutputRow` 的便条臂 | `if dim { plate.Opacity(0.62) }` 骑在 `DimFace` 上：面差 **18 → 11**（浅）/ **24 → 15**（深），底对侧 **14 → 9** / **10 → 5** | 删掉那一道：面差回到与**门板逐字节相同**（浅 18 / 深 24），底对侧 14 / 10，冠线仍是 **0**（`DimFace` 的事，与 0.62 无关） | `已落地` |
+| 24-2 | 同处，板里的字形墨 | 无条件 `t.TextMuted`，便条靠 0.62 变淡（字形离面 122 × 0.62） | 便条那一臂换 `tokens.TextTertiary`（浅 `#8E8E94` / 深 `#6E6E76`）：实测字形离面 **122 → 93**（浅）/ **122 → 70**（深）——**墨阶的一步**，不是不透明度的一步 | `已落地` |
+
+**判据（本轮钉下的三条，都是像素）**：
+
+1. **面差同值**：便条板与门板的面差之差 ≤ 1 级（实测 0 / 0），且便条板的面差 ≥ 16 级。
+2. **冠线为 0**：便条板顶行等于面本身（差 **0**）；同时要求**门板**的冠线非 0，否则这条
+   断言证明不了任何事（浅 5 / 深 19）。
+3. **底对侧同值**：`DimFace` 熄的是灯，不是影（14 / 14、10 / 10）。
+
+**登记由两件东西说，不由一道不透明度说**：熄掉的冠线（§3：受光边是「这块面可以被碰」的
+记号）+ 低一档的字（标题 `TextMuted`、字形 `TextTertiary`）。于是这一列 28u 板在**同一个
+层高**上排成一列——「便条不是门」由光和墨说，板本身不塌下去。
+
+pin：`internal/launcher/noteplate_test.go` 一条四断言（面差 / 冠线 / 底对侧 / 字形墨阶），
+每条深+浅两套；出图 opt-in（`FLOTER_PNG=1`，
+`/tmp/floter-P13-cp-noteplate-<light|dark>-<before|after>.png`，前后差分 **762 px**，
+bbox `(16,204)-(44,232)` = 恰好 28×28 的**那块板**，两行门板零位移）。
+
+**变异**（三条实跑）：M1（把 `Opacity(0.62)` 放回去）→ 三红
+（`face steps 11 … door's steps 18` / `lifts only 11 levels` / `counter-side 9 … 14`）；
+M2（字形回 `t.TextMuted`）→ `glyph reads 122 … and the door's 122 (a step of 0)`；
+M3（`iconPlate` 的 dim 臂换 `LitFace`）→ `the note plate is lit: its top row lifts 5 levels`。
+`md5sum -c` 逐字节还原 + `touch` 复跑绿。

@@ -281,8 +281,10 @@ func clipboardKindOf(entry *clipboardpkg.Entry) string {
 // is the mark that says "this face can be touched" (`docs/liquid-glass.md` §3),
 // and the same pair is what P13-s / P13-ar / P13-aq / P13-ba took off the
 // disabled pill, the fixed uninstall card, the accent Save and the row-busy
-// key. The dim plate keeps only the counter-side line (`DimFace`) and the
-// reference's own 0.62 fade the caller already applies.
+// key. The dim plate keeps only the counter-side line (`DimFace`) and **no fade
+// of its own**: the register is the material going unlit plus one ink rung on the
+// glyph (`output.go`'s `drawOutputRow`), never a second opacity on top of it
+// (P13-cp, `docs/liquid-glass.md` §6.59).
 func (a *App) iconPlate(c *ui.Context, warm, dim bool) ui.Element {
 	tokens := a.tokens(c)
 	t := c.Theme()
