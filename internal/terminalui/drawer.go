@@ -327,10 +327,22 @@ func drawerRange(c *ui.Context, value *float64, lo, hi float64) ui.Element {
 // 现在的值是什么」，它不回答「哪个被选中/哪个是开的」，所以 accent 在这里
 // 越界。register与权重（body 步、mono、`tnum`、600）零改动——读到它的人仍然
 // 看得见数位对齐，只是不再靠色相吸引注意力。
+//
+// P13-co（`docs/liquid-glass.md` §6.58）：读数**住在自己的槽里**。它此前是多宽就多宽
+// ——盒子等于这一帧那个数字的自然宽。而尾部槽是 `Grow(1)` + `Justify(End)` 的
+// 右对齐簇（`drawerRow`：27.5u 滑轴、2u gap、读数），所以读数每多一个字形，滑轴就
+// 左移一个字形：字号从 8 拖到 48（或 9 拖到 10），**手指按着的那根滑轴自己挪位**。
+//
+// 槽不是量出来的常数，而是布局给的：读数 `Grow(1)` 吃掉尾部剩下的全部宽度，
+// 于是滑轴被钉在簇的左端（它的 27.5u 是固定的），读数的盒子也固定，`TextAlign(End)`
+// 让数字仍然贴在这一行的右边缘（单位对齐不破）。折行这一档**故意不挂**
+// `SingleLine`：槽被压窄时读数折成两行会被 pin 抓到（盒子高度变），而裁掉一个字
+// 的数字是看不见的错——这一支宁可吵，也不要静默截断。
 func drawerReadout(c *ui.Context, tokens theme.Tokens, text string) ui.Element {
 	return ui.Text(c, text).
 		Font(terminalSettingValueFont).FontSize(tokens.Body).
-		TextColor(tokens.TextStrong).FontWeight(600).FontFeatures("tnum")
+		TextColor(tokens.TextStrong).FontWeight(600).FontFeatures("tnum").
+		Grow(1).TextAlign(ui.End)
 }
 
 // drawerRow is one appearance row: its label at the start and its control at
