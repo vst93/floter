@@ -3311,8 +3311,15 @@ func (a *App) commandIdentity(c *ui.Context, copy i18n.Settings, extensionID str
 			// that registry, so it prints no line (`ExtensionsPanel.tsx:2824-2829`).
 			if command.Declared {
 				if words := commandTriggerWords(command); len(words) > 0 {
+					// P13-cr（`docs/liquid-glass.md` §6.61）：这一行此前是 `TextMuted`
+					// 再乘一把 0.85（参考 CSS 的 `.extension-command-list__triggers`
+					// `opacity: .85` 叠在 `span { color: var(--text-muted) }` 上，两个
+					// 旋钮一道算）。乘法不是阶梯：实测浅色 141 恰好撞上
+					// `TextTertiary` 的 142（1 级），深色 122 落在 `TextMuted` 133 与
+					// `TextTertiary` 110 之间——同一行字在两套外观上站两个梯级。
+					// 现在交给阶梯自己的第三档：浅 141 → 142（不可见），深 122 → 110。
 					ui.Text(c, copy.IntegrationsCommandsTriggers(strings.Join(words, ", "))).
-						FontSize(tokens.Caption).TextColor(t.TextMuted).Opacity(0.85).
+						FontSize(tokens.Caption).TextColor(tokens.TextTertiary).
 						SingleLine().Ellipsis("\u2026")
 				}
 			}

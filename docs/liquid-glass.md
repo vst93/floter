@@ -2894,3 +2894,42 @@ bbox 全部 `(619,136)-(700,145)`。
 **S 0**。**变异三条实跑**：M1（`Opacity(0.78)` 放回）→ rung 0.40/0.39 红；M2（press 墨退回
 `TextSecondary`）→ rung −0.10 + 「按下比静息淡」两红；M3（删 `Scale`）→ 「pressed frame is
 pixel-identical to the hovered one」红。`md5sum -c` 逐字节还原 + `touch` 复跑绿。
+
+### §6.61 命令板的第三行墨：一个乘法在两套外观上落在两个梯级（P13-cr，**已落地**）
+
+扩展页命令板（`.extension-command-list__row`）上一块板五行字：名字（`TextSecondary`）、
+描述（`TextMuted`）、`Summon with: …`（此前 `TextMuted × 0.85`）、别名 label（`TextMuted`）、
+taken 注（`TextMuted`）。**只有第三行**靠一个乘法站队——那是参考 CSS 的两个旋钮一道算
+（`.extension-command-list span { color: var(--text-muted) }` +
+`.extension-command-list__triggers { opacity: .85 }`）。
+
+| # | 位置 | 现状（实测） | 应改成 | 状态 |
+|---|---|---|---|---|
+| 61-1 | `settingsui.go:3315` `commandIdentity` | 浅 `{141,141,147}` / 深 `{122,122,129}`——深色那格落在 `TextMuted` 133 与 `TextTertiary` 110 **之间**（无人区） | `TextColor(tokens.TextTertiary)`，删掉 `.Opacity(0.85)`：浅 141 → **142**（1 级，不可见）/ 深 122 → **110** | `已落地` |
+
+**判据一句话**：墨只能来自阶梯（`TextStrong > TextSecondary > TextMuted > TextTertiary`），
+**乘法不在阶梯上**；同一个 CSS `opacity` 在网页上和它自己的底色复合，在本仓却是「面板上的
+洗色」，落到两套外观上就是两个位置——浅色那个 0.85 恰好撞上第三档（差 1 级，乘法白算），
+深色那个两个档都不在（比下一档高 12、比上一档低 11）。
+
+**量到的三档（两种外观的静息帧，离板面级数）**：
+
+| 外观 | 板面 | 名字 `TextSecondary` | 描述 `TextMuted` | Summon（改前 → 改后） |
+|---|---|---|---|---|
+| 浅 | `213` | `107`（106） | `128`（85） | `141`（72）→ **`142`（71）** |
+| 深 | `61` | `154`（97） | `133`（78） | `122`（66）→ **`110`（55）** |
+
+pin：`internal/settingsui/triggerrung_test.go` 一条三断言（墨 == `panelOver(TextTertiary, 板)`
+±6 / 仍比描述低 ≥ 8 级 / 阶梯单向：name > desc > summon），深+浅两套；出图 opt-in
+（`FLOTER_P13CR_DUMP=<before|after>`，`/tmp/floter-P13-cr-commands-<light|dark>-<before|after>.png`）。
+差分：**浅 0 px**（1 级落在抗锯齿噪声里，正是「浅色几乎不动」的证据）、深 **721 px**，
+bbox `(201,514)-(373,652)` = 两块命令板上各一行 Summon。
+
+**V 0 / B 0 / S 0**（新 pin 是新增；`commandlist_test.go` 量的是板面与开关，不量这一行的墨）。
+**变异三条实跑**：M1（`Opacity(0.85)` 放回）→ 深色 `{122,122,129}` 对 `{110,110,118}` 红，
+浅色仍绿；M2（只删乘法、不换档）→ 浅色三红（墨 128 对 142、与描述 0 级、阶梯倒挂）；
+M3（跳两档到 `TextSecondary`）→ 阶梯倒挂（summon 97 = name 97）红。`md5sum -c` 逐字节还原。
+
+**故意不做**：同一块板上的 `Opacity(0.62)`（开关关掉时整板淡，参考
+`.extension-command-list__row--off`）不动——那是**面**的淡（§1 禁用材质那一族），不是墨；
+把面与墨一起改会把「关掉的命令」读成「这行字更轻」，那是两句话。

@@ -21,6 +21,9 @@ import (
 //	.extension-command-list code       the command name, caption, secondary
 //	.extension-command-list span       description / triggers, caption, muted
 //	.extension-command-list__triggers  "Summon with: …" at opacity 0.85
+//	                                    ↑ P13-cr 重定基线：那个 0.85 的乘法已换成阶梯的
+//	                                      `TextTertiary`（浅 141→142 不可见，深 122→110），
+//	                                      理由见 `docs/liquid-glass.md` §6.61
 //	.extension-command-alias           the alias editor, full card width
 //	.extension-command-alias__label    caption, muted
 //	.extension-command-alias__taken    the muted caption note
