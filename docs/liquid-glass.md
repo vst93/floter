@@ -1810,3 +1810,95 @@ pin：`internal/settingsui/permimark_test.go` 两条 × 深浅两套（①行尾
 **V 0 / B 0 / S 0**。变异 3 条实跑全红（环加回 / `●` 换 `TextStrong` / `○` 换 `Accent`），
 `md5sum -c` 逐字节还原。**M3 原计划（字阶 11 → 9.9）实测不红**——那一格的字阶本来就对，
 按纪律不造脆弱断言，换成上面第三条同族注入。详见 `docs/rounds/P13-bn-report.md`。
+
+### §6.33 插件关闭那一页的答案：此前画在列表行的静息墨里（P13-bo，**已落地**）
+
+`clipboardItems`（`internal/launcher/search.go`）在剪贴板插件关掉时返回**一条** `status` 行，
+`Title` 是 `copy.ClipboardDisabled`。那是这一页**唯一的内容**——没有列表、没有页脚、
+没有 chips。可它走 `row()`（`internal/launcher/launcher.go`）的 `item.status` 臂，墨是
+`TextMuted` 480（实测浅 **116** / 深 **164**）。
+
+**同一件事在本仓有两条路径，落在两档墨上**：
+
+| 表面 | 路径 | 墨 | 浅 | 深 |
+|---|---|---|---|---|
+| 剪贴板关闭（`clipboard-disabled` 行） | `row()` 的 `item.status` 臂 | `TextMuted` 480 | **116** | **164** |
+| 浏览器关闭 / 无配置 / 普通无结果 | `emptyMessage` | `TextStrong`（`Emphasis` 居中） | **27** | **237** |
+
+**89 / 73 级之差**，而这一页唯一的答案恰好是轻的那一条。更糟的是它和谁同档：输入框的
+占位句「Type to search」也是 `FontSize` + `TextMuted`——实测**逐字节相同**（浅 116 / 深 164）。
+用户在这一页看到的唯一内容，读起来和「还没输入」的提示一样轻。
+
+**这一页的墨阶梯只有两颗齿**，所以本轮换的是**齿**，不是档。中间的 `TextSecondary`
+不是一个可用的中间档：
+
+| 墨 | 浅（对地面 253） | 深（对地面 23） |
+|---|---|---|
+| `TextMuted`（安静齿，占位句同齿） | 137 | 141 |
+| `TextSecondary` | **145** | **133** |
+| `TextStrong`（陈述齿） | **226** | **214** |
+
+`TextSecondary` 与 `TextMuted` 只差 **8 / 8 级**（正是 §6.26 判掉的那条「差值太小」的线），
+而且**深色档上它比 `TextMuted` 更暗**（133 对 141）——同一页的「次一档」在两个外观里方向相反。
+
+| # | 位置 | 旧（实测 浅 / 深） | 新（实测 浅 / 深） | 状态 |
+|---|---|---|---|---|
+| 33-1 | `launcher.go` `row()` 的 `item.status` 臂，句子 | `TextColor(t.TextMuted)`（116 / 164） | `TextColor(tokens.TextStrong)`（**27 / 237**） | `已落地` |
+| 33-2 | 同臂的图标列 | `TextColor(tokens.TextTertiary)`（144 / 112） | `TextColor(tokens.TextSecondary)`（**145 / 133**）——§4.7 注脚「图标次文字色」 | `已落地` |
+| 33-3 | 同臂的盒子（30u 带 / `Space(2)` 内边距 / `Space(2.5)` gap / 28u 图标列 / 字面 14 字形 / `SingleLine`） | — | **一个像素不动**（高度链红线：`height.go` 的 `RowInfo.Status`） | `已落地`（复核） |
+| 33-4 | 指针态 / 键盘 / 编号 | 无底板、`rowSelectable` 排除、`assignNumbers` 不给编号 | **不动**（行为契约红线） | `已落地`（复核） |
+| 33-5 | 参考的 `.launcher-status`（`launcher.css:1480-1491`）的 `color: var(--text-muted)` | 与 §4.7 冲突 | **显式偏离参考**：本仓的「一页的陈述」是 `TextStrong`（P8-b / P13-bd / P13-be / P13-bg 的同一条），启动器这一页因为走的是**行**的代码路径而漏在参考旧值上 | `已落地` |
+
+**为什么 33-2 必须跟着动**：`TextTertiary` 是「比**旧句子**（`TextMuted`）安静一档」的算法
+的产物。句子上了陈述齿之后，`TextTertiary`（144 / 112）在浅色档**比句子暗**、在深色档
+**比句子亮 52 级**——阶梯两个外观方向还相反。换 `TextSecondary` 后两套外观上图标都在句子
+之下 **81 级**（同值）。
+
+会不会读成一条结果？不会：结果行标题是 `FontSize+2` / **580**（墨盒 24），这一句是
+`FontSize` / **480**（墨盒 22），且它没有底板、没有编号、不在数字族与箭头路径里。同色不同齿。
+
+pin：`internal/launcher/statusnote_test.go` 五条 × 深浅两套 —— ①陈述齿（对地面 ≥180，
+旧值 137 / 141 必红）；②同一句话的**两条路径不许差 40 级以上**（实测 0）；③图标在句子之下
+**40..110 级**（实测 81 / 81；`TextTertiary` 的 117 / 125 是另一个寄存器，必红）；
+④行尾是面板自己的面（无底板、无 keyline，跨行墨跨度 ≤6 级）；⑤结构 pin（AST 级读
+`launcher.go` 的 status 臂：`FontSize(t.FontSize).FontWeight(480)` 在、`TextStrong` 在、
+`SingleLine()` 在、`TextSecondary` 在，且**不许**出现 `FontSize(t.FontSize + 2)` /
+`FontWeight(580)` / `Background(` / `LitFace(` / `Lens(`）。
+出图 `/tmp/floter-P13-bo-clipboardoff-light,dark}-before,after}.png`（`FLOTER_P13BO_DUMP=1`
+/ `FLOTER_P13BO_TAG=<before|after>`）。**V 0 / B 0 / S 0**，变异 4 条实跑（4 红，
+`md5sum -c` 逐字节还原后 `touch` 复跑绿）。详见 `docs/rounds/P13-bo-report.md`。
+
+
+
+`permissionTier` 的每一行在尾槽里画**两件东西**：一枚 `alert` 警示环（`ui.Icon(...)`，
+`:1292`），紧跟一枚 `●`/`○`。两者都染同一个墨、同一个 `enforced` 状态。
+
+那枚环**没有语义**：`alert` 在 `internal/shell/notices.go:294-299` 的 `toastMark` 里是
+`error` 的记号，而这一行说的是「这条权限属于哪一层」，不是「这里坏了」。它的来历是
+`1dc788f4`（「the permission audit is two named tiers」）——那次提交把审计从「一 id 一行 +
+一段解释」改成「两个具名层级」，同时给每一行加了这枚环，**没有写理由**。
+
+实测（`ui.Tester`，520u 卡，`slotInk` 以行面为基准扫尾槽；深浅两套）：
+
+- 浅 / enforced：`493..506`(14) + `514..521`(8)
+- 浅 / declared：`493..506`(14) + `514..520`(7)
+- 深 / enforced：`493..506`(14) + `514..521`(8)
+- 深 / declared：`493..506`(14) + `515..516`(2) + `520..520`(1)
+
+`493..506` 是那枚 16u 的环，`514..52x` 是那枚 11px 的盘，中间只隔 **7 级像素**——
+两件东西读成**一枚徽标的两个部件**。删掉环之后行尾墨的左边界从 **493 → 514**，
+宽度从 **29 → 8** 列。
+
+| 条目 | 位置 | 旧 | 新 | 状态 |
+|---|---|---|---|---|
+| 32-1 | `settingsui.go` `permissionTier` 的行尾槽 | `ui.Icon(c, mustGlyph("alert")).Size(t.Space(4), …)` + `ui.Text(mark)` | **只留 `●`/`○`**：`alert` 环整行删除 | `已落地` |
+| 32-2 | 同一格的字阶 | `FontSize(t.FontSize-3)` = **11.00px**（shipped `FontSize` 是 14.00） | **不动**：`tokens.Caption` 是 **9.90px**，换过去是降一档（盒 11×17 → 10×15、墨 11×10 → 10×9），而这是行尾唯一的状态记号 | `已落地`（量后不改） |
+| 32-3 | 同一格的墨 | `●` = `t.Accent`（实心）、`○` = `t.TextMuted`（空心） | **不动**：§5 注脚第 1 条「实心/空心即 ON/OFF」继续成立 | `已落地`（复核） |
+| 32-4 | 同一张卡上的**两个层级标题** | 审计块 `TextStrong` / 650 / `FontSize-1`；审批记录块 `TextSecondary` / 620 / `Caption`（实测同一张卡相隔 146u，两处都出现） | **需拍板**：两处都是「这一层的名字」，统一要先定「谁是权威写法」——审计块没有参考 CSS，审批记录的层级标题来自 `extensions.css`。不是墨的问题 | `需拍板` |
+
+pin：`internal/settingsui/permimark_test.go` 两条 × 深浅两套（①行尾墨的**左边界**必须落在
+记号盒子自己的左边缘 ±2 列、且总宽 ≤14 列——用**括号夹**而不是「段数」，因为空心环自己的
+抗锯齿会让一枚合法的记号报两段；②`●` 带 accent 色相（R−B ≥ 100）、`○` 不带（|R−B| ≤ 14）。
+**V 0 / B 0 / S 0**。变异 3 条实跑全红（环加回 / `●` 换 `TextStrong` / `○` 换 `Accent`），
+`md5sum -c` 逐字节还原。**M3 原计划（字阶 11 → 9.9）实测不红**——那一格的字阶本来就对，
+按纪律不造脆弱断言，换成上面第三条同族注入。详见 `docs/rounds/P13-bn-report.md`。

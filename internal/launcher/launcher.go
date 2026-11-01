@@ -2333,8 +2333,35 @@ func (a *App) row(c *ui.Context, item Item, i int) {
 	// its own 30u band rather than a result row's floor (`LAUNCHER_STATUS_UNITS`,
 	// see `windowRows`), which is why it is not drawn as an ordinary row.
 	if item.status {
-		// The icon column's own step, one quieter than the sentence: the old
-		// build's `--text-tertiary` on `.launcher-status__icon`.
+		// P13-bo · 这一句是**一页的陈述**，不是一行注。
+		//
+		// 参考的 `.launcher-status`（`main:src/styles/launcher.css:1480-1491`）确实是
+		// `color: var(--text-muted)`，`clipboardStatusRow`
+		// （`main:src/plugins/clipboard/mode.ts:52-55`）也确实走 `statusRowBase` 的
+		// muted 注——但本仓 §4.7（`docs/raycast-design.md`）把「一页的陈述」定成
+		// `Emphasis` 步 + `TextStrong`：P8-b 落在设置页、P13-bd 落在终端页、P13-be
+		// 落在插件窗口、P13-bg 落在捕获输出页。启动器这一页的**同一件事**有两条
+		// 路径，落在两档墨上：浏览器插件关掉时走 `emptyMessage`（居中陈述，浅 **27**
+		// / 深 **237**），剪贴板插件关掉时走这一臂（浅 **116** / 深 **164**）——
+		// **89 / 73 级之差**，而这一页唯一的答案恰好是轻的那一条。
+		//
+		// 更糟的是它和谁同档：输入框的占位句「Type to search」也是
+		// `FontSize` + `TextMuted`（实测**逐字节相同**，浅 116 / 深 164）。用户在
+		// 这一页看到的唯一内容，读起来和「还没输入」的提示一样轻。
+		//
+		// 本轮换的是**齿**，不是档：这一页的墨阶梯只有两颗齿——安静那颗
+		// （`TextMuted` 137 / 141，占位句与它同齿）与陈述那颗（`TextStrong`
+		// 226 / 214）。中间的 `TextSecondary` 离 `TextMuted` 只有 **8 / 8 级**
+		// （145 / 133 对 137 / 141），正是 §6.26 判掉的那条「差值太小」的线，
+		// 所以它不是一个可选的中间档。
+		//
+		// 会不会读成一条结果？不会：结果行的标题是 `FontSize+2` / **580**
+		// （墨盒 24），这一句是 `FontSize` / **480**（墨盒 22），且它没有底板、
+		// 没有编号、不在数字族与箭头路径里（`rowSelectable`）。同色不同齿。
+		//
+		// **盒子一个像素不动**：仍是 `launcherStatusUnits`（30u）的带、
+		// `Space(2)` 的左右内边距、`Space(2.5)` 的行 gap、28u 的图标列与字面 14 的
+		// 字形。改的是墨——高度链是红线（`height.go` 的 `RowInfo.Status`）。
 		tokens := a.tokens(c)
 		note := ui.Row(c).FillWidth().MinHeight(t.Space(launcherStatusUnits)).
 			AlignItems(ui.Center).Padding(0, t.Space(2)).Gap(t.Space(2.5))
@@ -2344,15 +2371,22 @@ func (a *App) row(c *ui.Context, item Item, i int) {
 			// (`<InfoIcon size={14}/>`, `main:src/launcher/LauncherResults.tsx:752-754`),
 			// not a `--u` step: the glyph stays 14px at every interface size while the
 			// column around it scales.
+			//
+			// P13-bo：图标次文字色（§4.7 的注脚，`settingsui.emptyState` 用的同一条
+			// 规则、同一个 `TextSecondary`）。此前是 `TextTertiary`，那是「比句子安静
+			// 一档」的算法——可它算的是**旧句子**（`TextMuted`）的下一档。句子上了
+			// 陈述齿之后，`TextTertiary`（浅 144 / 深 112）在浅色档反而比句子暗、在
+			// 深色档比句子**亮 52 级**，阶梯两个外观方向还相反。换 `TextSecondary`
+			// （145 / 133）后两个外观上图标都在句子之下（实测差 81 级，两套外观同值）。
 			ui.Box(c).Size(t.Space(7), t.Space(7)).Shrink(0).
 				AlignItems(ui.Center).Justify(ui.Center).Children(func() {
 				if glyph, ok := Glyph("info"); ok {
 					ui.Icon(c, glyph).Size(14, 14).
-						TextColor(tokens.TextTertiary)
+						TextColor(tokens.TextSecondary)
 				}
 			})
 			ui.Text(c, item.Title).FontSize(t.FontSize).FontWeight(480).
-				TextColor(t.TextMuted).SingleLine()
+				TextColor(tokens.TextStrong).SingleLine()
 		})
 		return
 	}
