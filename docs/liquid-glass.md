@@ -3096,3 +3096,34 @@ pin：`TestTheProbeListSeparatesItsRowsAndDoesNotCloseItself`（N−1 条 1px �
 pin：`TestTheHealthBlockSitsInTheCardsLabelColumn`（块左 = 行标签左、块右 = 卡内容右端；
 卡面/卡框从同一帧的像素读，不写死 x）与 `TestTheWarmRuleLeansOnItsLeadingEdge`
 （失败卡 2/1、陈旧横幅 2/0 的警示墨厚度，深浅各一份）。
+
+### §6.67 同一张卡上的第二块：Freshness 也挂在卡框上（P13-cx，**已落地**）
+
+§6.66 修的是集成卡详情块里「块被画成卡体列的兄弟」这一**族**的最后一个实例——当时的判断
+是对的，但不是最后一个：`freshnessSection` 是**同一个写法**的另一个实例，被 P13-cw 的
+「仍待」第 1 条点名「先渲一帧量出 x 再决定」。本轮量了，结论成立。
+
+实测（Integrations 页 720×1700，深浅两套逐像素同坐标）：
+
+| 事实 | 改前 | 改后 |
+|---|---|---|
+| 卡面横向 / 1px 框线 | `192..700` / `191`,`701` | 不变 |
+| 卡上行标签 `Health` | `200..617` | 不变 |
+| 块标签 `Freshness` | **`192..244`** | **`200..252`** |
+| 元数据标签 `Last probe` / 计数行 `Commands` | **`192`** | **`200`** |
+| 元数据网格第二格（`Result` 的值） | `452.5..701`（顶卡框） | `452.5..693`（卡内容右端） |
+| 纵向：`Freshness` / `Last probe` / `Commands` / `Health` 的 y | 394 / 409 / 449.5 / 478 | **完全一致** |
+
+**为什么必须 `Gap(0)`**：这四行本来是卡体列的**零间隔兄弟**（`Freshness` 的行盒底 409 就是
+`Last probe` 的行盒顶）。包装列一旦用主题的 8px gap，纵向会凭空长 8px —— 那是「顺手改坏」，
+不是「打磨」。所以本轮的判据是**两条同时成立**：水平进列（左 = 行标签列、右 = 卡内容右端），
+纵向一个像素不动。
+
+**改法**：`freshnessSection` 的四个直接子元素包进
+`ui.Column(c).FillWidth().Gap(0).Padding(0, a.rowInset(t))`。字阶、字重、墨、两列网格的
+`GapX(Space(3))`、那枚 `·`、健康来源注脚的 `Wrap()`、i18n 文案零改动。
+
+pin：`TestTheFreshnessBlockSitsInTheCardsLabelColumn`（块左 = 卡上行标签左、块内每一行同一列、
+元数据网格右端 = 卡内容右端，卡面与 inset 都从同一帧像素里读；另钉「元数据行盒紧贴块标签
+行盒」= 纵向零变化）与 `TestTheFreshnessNoteWrapsInsideTheColumn`（健康来源注脚在自己的列里
+换行，不许越过卡内容右端）。深浅各一份。

@@ -5813,57 +5813,67 @@ func freshnessDotLabel(copy i18n.Settings, dot extensions.FreshnessDot) string {
 func (a *App) freshnessSection(c *ui.Context, copy i18n.Settings, integration Integration, freshness extensions.Freshness) {
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
-	// The section is the extension drawer's block label: the reference's
-	// `.extension-detail-block h4` — sentence case at the *secondary* ink,
-	// caption 620 (`extensions.css:2008-2013`). It is one voice with the
-	// metadata grid's own `dt` labels one line below, not the uppercase 650 in
-	// tertiary grey the port had reached for.
-	ui.Row(c).FillWidth().Children(func() {
-		ui.Text(c, copy.Freshness).FontSize(tokens.Caption).FontWeight(620).
-			TextColor(tokens.TextSecondary)
+	// P13-cx（`docs/liquid-glass.md` §6.67）：整块此前被画成卡体列的直接子元素，于是它的
+	// 左端从卡面第一像素开始（实测 x=192，而行标签 `Health` 在 x=200），右端（`Result` 的
+	// 值）顶到卡框 701——这是 P13-cw 给 `healthDetail` 修过的同一个 bug，`freshnessSection`
+	// 是同一张卡上漏网的第二块。参考里整块住在 `.extension-detail-block` 里，和它自己的
+	// `h4` 共用同一个 padding（`floter-main:src/styles/extensions.css:1997-2002`），而本仓
+	// 那个 `h4` 就是 `Freshness` 这一行。只加水平内缩：块内四行的纵向节奏（`Gap(0)`，
+	// 与做兄弟时同一个间隔）一个像素都不动。
+	block := ui.Column(c).FillWidth().Gap(0).Padding(0, a.rowInset(t))
+	block.Children(func() {
+		// The section is the extension drawer's block label: the reference's
+		// `.extension-detail-block h4` — sentence case at the *secondary* ink,
+		// caption 620 (`extensions.css:2008-2013`). It is one voice with the
+		// metadata grid's own `dt` labels one line below, not the uppercase 650 in
+		// tertiary grey the port had reached for.
+		ui.Row(c).FillWidth().Children(func() {
+			ui.Text(c, copy.Freshness).FontSize(tokens.Caption).FontWeight(620).
+				TextColor(tokens.TextSecondary)
+		})
+		// The when/result line: the reference's two-column `.extension-metadata` grid
+		// (`extensions.css:2022-2050`) — a `dt` label at the *tertiary* caption step
+		// and its `dd` value at the *body* step in `--text-secondary`, two cells to a
+		// row with an 8u/16u gap pair. The port had flattened the pair into one
+		// ruled card row whose grey subline carried both facts in the row's register.
+		meta := ui.Row(c).FillWidth().GapX(t.Space(3)).GapY(0)
+		meta.Children(func() {
+			a.metadataCell(c, copy.FreshnessLastProbe, freshnessWhenValue(copy, freshness))
+			a.metadataCell(c, copy.FreshnessResult, freshnessState(copy, freshness))
+		})
+		// The command-count line: a flex row, not a metadata cell — the reference's
+		// `.extension-freshness__commands` (`extensions.css:2077-2111`) puts a
+		// tertiary caption label and the count at the row's own *body* step side by
+		// side with an 8u gap, then the muted `·` and the caption delta word; the
+		// port had folded both facts into the subline's prose.
+		count := copy.FreshnessCommandsUnknown
+		if freshness.CommandCount != nil {
+			count = strconv.Itoa(*freshness.CommandCount)
+		}
+		line := ui.Row(c).FillWidth().Gap(t.Space(2)).AlignItems(ui.Center)
+		line.Children(func() {
+			ui.Text(c, copy.FreshnessCommands).FontSize(tokens.Caption).
+				TextColor(tokens.TextTertiary)
+			ui.Text(c, count).FontSize(t.FontSize).FontWeight(600).
+				TextColor(tokens.TextStrong)
+			// The separator is the reference's own muted `·` between the count and the
+			// delta word (`extensions.css:2096-2103`); the delta word itself steps up
+			// one register — `--text-secondary` — only when the list actually moved,
+			// because a real movement is information and "no change" is not
+			// (`:2105-2111`).
+			ui.Text(c, "\u00b7").FontSize(tokens.Caption).TextColor(t.TextMuted)
+			ui.Text(c, freshnessDeltaWord(copy, freshness)).FontSize(tokens.Caption).
+				TextColor(freshnessDeltaInk(freshness, tokens, t)).SingleLine()
+		})
+		// The health report is the source of the time, not of the count: the
+		// reference states that once, as a *secondary* `.extension-detail-note` — one
+		// muted caption line with no pane, no rule and no border
+		// (`extensions.css:2006-2011,2114-2119`).
+		if freshness.Source == extensions.FreshnessHealth {
+			ui.Text(c, copy.FreshnessHealthSource).FontSize(tokens.Caption).
+				TextColor(t.TextMuted).Wrap()
+		}
 	})
-	// The when/result line: the reference's two-column `.extension-metadata` grid
-	// (`extensions.css:2022-2050`) — a `dt` label at the *tertiary* caption step
-	// and its `dd` value at the *body* step in `--text-secondary`, two cells to a
-	// row with an 8u/16u gap pair. The port had flattened the pair into one
-	// ruled card row whose grey subline carried both facts in the row's register.
-	meta := ui.Row(c).FillWidth().GapX(t.Space(3)).GapY(0)
-	meta.Children(func() {
-		a.metadataCell(c, copy.FreshnessLastProbe, freshnessWhenValue(copy, freshness))
-		a.metadataCell(c, copy.FreshnessResult, freshnessState(copy, freshness))
-	})
-	// The command-count line: a flex row, not a metadata cell — the reference's
-	// `.extension-freshness__commands` (`extensions.css:2077-2111`) puts a
-	// tertiary caption label and the count at the row's own *body* step side by
-	// side with an 8u gap, then the muted `·` and the caption delta word; the
-	// port had folded both facts into the subline's prose.
-	count := copy.FreshnessCommandsUnknown
-	if freshness.CommandCount != nil {
-		count = strconv.Itoa(*freshness.CommandCount)
-	}
-	line := ui.Row(c).FillWidth().Gap(t.Space(2)).AlignItems(ui.Center)
-	line.Children(func() {
-		ui.Text(c, copy.FreshnessCommands).FontSize(tokens.Caption).
-			TextColor(tokens.TextTertiary)
-		ui.Text(c, count).FontSize(t.FontSize).FontWeight(600).
-			TextColor(tokens.TextStrong)
-		// The separator is the reference's own muted `·` between the count and the
-		// delta word (`extensions.css:2096-2103`); the delta word itself steps up
-		// one register — `--text-secondary` — only when the list actually moved,
-		// because a real movement is information and "no change" is not
-		// (`:2105-2111`).
-		ui.Text(c, "\u00b7").FontSize(tokens.Caption).TextColor(t.TextMuted)
-		ui.Text(c, freshnessDeltaWord(copy, freshness)).FontSize(tokens.Caption).
-			TextColor(freshnessDeltaInk(freshness, tokens, t)).SingleLine()
-	})
-	// The health report is the source of the time, not of the count: the
-	// reference states that once, as a *secondary* `.extension-detail-note` — one
-	// muted caption line with no pane, no rule and no border
-	// (`extensions.css:2006-2011,2114-2119`).
-	if freshness.Source == extensions.FreshnessHealth {
-		ui.Text(c, copy.FreshnessHealthSource).FontSize(tokens.Caption).
-			TextColor(t.TextMuted).Wrap()
-	}
 }
 
 // metadataCell is one `.extension-metadata` cell: its `dt` at the tertiary
