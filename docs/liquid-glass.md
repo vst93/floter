@@ -2004,3 +2004,28 @@ M3 在 `settingsui.go` 造一处 `Padding(t.Space(2.75))`。详见 `docs/rounds/
 变异 3 条实跑全红并 `md5sum -c` 逐字节还原：M1 把 `gap: 10u` 放回材质组（spread 2.2px → 红）/ 
 M2 材质组 `padding` 归零（组头内缩 0 ≠ 9 → 红）/ M3 四组都戴 padding（Appearance 内缩 9 ≠ 0 → 红）。
 详见 `docs/rounds/P13-br-report.md`。
+
+### §6.37 行的文字原点：一张卡片里的两条线，并回一条（P13-bs，**已落地**）
+
+§6.35 起定的规矩是「同一个角色只许一个刻度」。这一轮量到的是**文字原点**这个角色长了两个：
+`cardRow` 的文字列此前**在行内容盒里居中**，于是有提示的行（文字列 ≈ 36.6px，比控件高，居中
+是恒等变换）标签从 **8.1px** 起，没有提示的行（文字列 18px 对 `ui.Select` 33px 的触发框）
+标签被推到 **15.6px**。General 页的 Terminal 卡正好两者都有，一张卡片里两条原点线。
+
+| # | 位置 | 现状 → 落成 | 状态 |
+|---|---|---|---|
+| 37-1 | `rows.go:1376` `cardRow` 内层 `Row` | `AlignItems(align)` → **`AlignItems(ui.Stretch)`**：文字列撑满行内容盒，标签从内容盒顶边（`Space(2.25)` = 8.1px）起；所有行类（`cardRow` / `stackedRow` / `actionRow`）从此共用一条原点线 | `已落地` |
+| 37-2 | `rows.go:1383` 前导记号（扩展行的 package chip） | 图标不参与拉伸（框架 `stretches()` 跳过 `kindIcon`），`Stretch` 下会掉到行顶 → 包一层 `Row.AlignItems(align)` 保住自己的中线 | `已落地` |
+| 37-3 | `rows.go:1396` 控件槽 | 硬写的 `ui.Center` → `AlignItems(align)`：除 `settingsui.go:2277`（`ui.Start` 且无控件）外两个实参都是 `ui.Center`，像素零变化；写明「控件在哪条轴对齐由调用方定」 | `已落地` |
+| 37-4 | `settingsui.go:4171` `keyValue`（About 页只读事实） | 这一行的名字是**旁注**，要与右边的值同一条光学线（§6.11 的 pin）。文字列从顶边起会把旁注顶上去 → 名字包一层 `Row.FillHeight().AlignItems(ui.Center)` | `已落地` |
+| 37-5 | `internal/settingsui/roworigin_test.go`（新，1 pin + 1 opt-in dump） | 「组头底 → 首行标签顶」四组同值，spread ≤ 1.5px（渲染器亚像素吸附） | `已落地` |
+
+改后实测（深/浅逐位相同）：**16.2999 / 16.2999 / 16.2999 / 16.2999**（spread 0.0001px），
+五个组盒高 **297.2 / 240.0 / 170.4 / 355.0 / 380.0——一个像素都没变**：只挪了一张卡里的一行字，
+行高与分组间距全不动。像素 diff 深浅各 **606** 点，差异盒 `x[200..268] y[935..955]`。
+
+**V 0 / B 0 / S 0**。变异 2 条实跑全红并 `md5sum -c` 逐字节还原（M1 回到 `ui.Center` → spread 5.9px；
+M2 `keyValue` 去掉 `FillHeight()` → 「旁注与值重叠 1 行」）。详见 `docs/rounds/P13-bs-report.md`。
+
+**轮末自查**（下轮的起点）：`stackedRow` / `actionRow` 的左右内边距写 `inset`、`cardRow` 写
+`inset-1` + 1px 规则槽——三者读数一致，表达式三种写法，**未改**，先记账。

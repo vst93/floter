@@ -4166,8 +4166,12 @@ func (a *App) keyValue(c *ui.Context, label, value string) {
 		ui.Text(c, value).FontSize(t.FontSize + 1).FontWeight(580).
 			TextColor(tokens.TextStrong).Selectable()
 	}, func() {
-		ui.Text(c, label).FontSize(tokens.Caption).FontWeight(500).
-			TextColor(tokens.TextSecondary).SingleLine().Ellipsis("\u2026")
+		// P13-bs：行的文字列现在从行内容盒的顶边开始（`cardRow`），而这一行是
+		// 唯一把名字当**旁注**用的：名字与右边的值读成一行，所以名字要跟着值居中。
+		ui.Row(c).FillHeight().AlignItems(ui.Center).Children(func() {
+			ui.Text(c, label).FontSize(tokens.Caption).FontWeight(500).
+				TextColor(tokens.TextSecondary).SingleLine().Ellipsis("\u2026")
+		})
 	})
 }
 

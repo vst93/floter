@@ -1373,17 +1373,27 @@ func (a *App) cardRow(c *ui.Context, align ui.Align, lead func(), face rowFace, 
 			if bar.A > 0 {
 				rule.Background(bar)
 			}
-			ui.Row(c).Grow(1).MinWidth(0).Gap(t.Space(3)).AlignItems(align).
+			ui.Row(c).Grow(1).MinWidth(0).Gap(t.Space(3)).AlignItems(ui.Stretch).
 				Padding(t.Space(2.25), inset-1).Children(func() {
 				if lead != nil {
-					lead()
+					// The leading mark keeps its own size and its own centre line: an
+					// icon never stretches (the framework's `stretches` skips icons), so
+					// without a wrapper that says where it sits it would fall to the
+					// row's top edge instead of staying beside the text.
+					ui.Row(c).Shrink(0).AlignItems(align).Children(lead)
 				}
+				// The text column starts at the row's content top in every row (P13-bs):
+				// a row with a second line is as tall as that block, a row without one
+				// is as tall as its control, and the *block* is what used to be centred —
+				// so a hint-less row's single line started lower than the same line in the
+				// row above it. Stretching the column puts every label on one origin; the
+				// control slot below keeps its own alignment.
 				names := ui.Column(c).Grow(1).MinWidth(0).Gap(a.rowLineGap())
 				names.Children(draw)
 				if names.Clicked() {
 					clicked = true
 				}
-				ui.Row(c).Shrink(0).Gap(t.Space(2)).AlignItems(ui.Center).Children(control)
+				ui.Row(c).Shrink(0).Gap(t.Space(2)).AlignItems(align).Children(control)
 			})
 		})
 		// What belongs *under* the row but inside the card: an unfolding
