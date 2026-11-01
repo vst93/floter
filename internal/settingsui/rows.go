@@ -1261,6 +1261,61 @@ func (a *App) codeRow(c *ui.Context, value string, control func(), below ...func
 	}, below...)
 }
 
+// dataRow is a card row whose whole content is a **value the program chose** —
+// the Detected list's `/usr/bin/ghost` under the tool's own name. It wore the
+// plain settings row, so the path took the emphasis step (`t.FontSize+1`, 580,
+// `TextStrong`) and measured exactly as loud as the tool's name above it
+// (ink span 208 vs 208), 87 levels louder than the description (121): on a list
+// of programs the *path* was the loudest thing on the card.
+//
+// P13-bt 重定基线（`docs/liquid-glass.md` §6.38）：a path is data, and this
+// build already has one rung for data — `rowLine{Mono: true}`, the sessions
+// page's working directory, which the reference sets in its monospace stack at
+// the caption step (`.session-manager__cwd`, `settings.css:1272-1276`). This
+// row draws its single line in exactly that rung: mono `Caption` / 500 /
+// `TextMuted`. **只换墨，不换盒子**：仍是 `cardRow`（44px 地板、分隔线、1px 行距、
+// 左右两端），行高与卡片高度逐像素不变；单行在行盒里居中（同 `keyValue` 的做法），
+// 否则一行 9.9px 的字会贴在 44px 行盒的顶边。
+func (a *App) dataRow(c *ui.Context, value string) {
+	tokens := a.tokens(c)
+	t := a.cardTheme(c)
+	a.cardRow(c, ui.Center, nil, rowFace{}, func() {}, func() {
+		ui.Row(c).FillHeight().AlignItems(ui.Center).Children(func() {
+			ui.Text(c, value).Font(deepLinkValueFont).FontSize(tokens.Caption).
+				FontWeight(500).TextColor(t.TextMuted).SingleLine()
+		})
+	})
+}
+
+// labelRow is a card row that **names the block under it** rather than
+// reporting a value or offering a control: the approval record's own title, and
+// the `Permissions` line above its pills. Both wore the settings row's emphasis
+// step, so the block's title measured exactly as loud as the answers it
+// introduces (ink span 202 vs 202 for the values, 80 levels above the values'
+// own names at 122) — a spec sheet that reads as five equally loud lines.
+//
+// P13-bt 重定基线（`docs/liquid-glass.md` §6.38）：a block label takes the rung
+// this block already gives its own group labels (`Enforced` / `Disclosure`,
+// `settingsui.go:2477`): `tokens.Caption` / 620 / `TextSecondary`. The label
+// stays a step above the names it heads by **weight** (620 vs 500), and the
+// hierarchy above it is carried by the row frame (the 44px row and its rule),
+// not by a louder ink — the same "structure, not volume" judgment §2 makes for
+// elevation. A `sublabel` (the no-record state's `None`) rides under it at the
+// same size in the quiet rung (500 / `TextMuted`), so the two lines are told
+// apart by weight, not by size. **只换墨，不换盒子**。
+func (a *App) labelRow(c *ui.Context, label, sublabel string, below ...func()) {
+	tokens := a.tokens(c)
+	t := a.cardTheme(c)
+	a.cardRow(c, ui.Center, nil, rowFace{}, func() {}, func() {
+		ui.Text(c, label).FontSize(tokens.Caption).FontWeight(620).
+			TextColor(tokens.TextSecondary).SingleLine()
+		if sublabel != "" {
+			ui.Text(c, sublabel).FontSize(tokens.Caption).FontWeight(500).
+				TextColor(t.TextMuted).SingleLine()
+		}
+	}, below...)
+}
+
 // rowFace is the decoration a card row wears on top of the shared frame: the
 // 1px leading rule the extension rows light on hover, selection and the
 // `floter://register` link, the face override a selected or broken row takes,

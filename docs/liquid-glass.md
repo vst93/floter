@@ -2029,3 +2029,41 @@ M2 `keyValue` 去掉 `FillHeight()` → 「旁注与值重叠 1 行」）。详�
 
 **轮末自查**（下轮的起点）：`stackedRow` / `actionRow` 的左右内边距写 `inset`、`cardRow` 写
 `inset-1` + 1px 规则槽——三者读数一致，表达式三种写法，**未改**，先记账。
+
+#### §6.38 只读行的墨：强调档只留给答案（P13-bt，**已落地**）
+
+P13-ak / P13-an 把「记录的名字不当标题、值占强调档」钉成了像素事实。这一轮收掉同一族里
+**最后两个反着戴**的行：集成页上**没有控件**的行仍走 `rowTitle`，于是
+
+- Detected 列表里的**路径**（`/usr/bin/ghost`）与它上面**工具名**的墨逐级相同（实测 span
+  **208 vs 208**），比描述（**121**）响 87 级——一张「程序列表」上最响的是二进制路径；
+- 审批记录块的**标题**与它下面三个**值**的墨逐级相同（实测 **202/198 vs 202/198**），
+  比这些值的名字（122/115）响 80 级——一张规格表读成四行一样响。
+
+**规矩**（本仓此后所有只读面通用）：
+
+1. **强调档（`TextStrong` / `+1pt` / 580）只留给答案**。名字、块标题、路径、旁注都不占它。
+2. **路径 = 「值是数据」那一档**：mono（`deepLinkValueFont`）+ `Caption` + 500 + `TextMuted`，
+   与会话页 cwd 的 `rowLine{Mono: true}` **同一个函数值**。
+3. **块标题 = 组标签那一档**：`Caption` + 620 + `TextSecondary`，与本块自己的 `Enforced` /
+   `Disclosure` 标签**同一个函数值**；块标题与它下面的名字靠**字重**（620 vs 500）与
+   **行框架**（44px 行 + 规则线）分家，不靠再加一档墨。
+4. **只换墨，不换盒**：行框架、44px 地板、分隔线、1px 行距、卡片高度逐像素不变。
+
+| # | 位置 | 现状 → 落成 | 状态 |
+|---|---|---|---|
+| 38-1 | `rows.go` `dataRow`（新）；调用点 `settingsui.go` `detectedSection` 的 `below` | `a.row(c, tool.Path, "", func(){})`（`rowTitle` 强调档，span 208）→ `a.dataRow(c, tool.Path)`：`cardRow` + 一行 mono `Caption`/500/`TextMuted`，单行在行盒里居中（同 `keyValue`）；实测 span **208 → 101/94** | `已落地` |
+| 38-2 | `rows.go` `labelRow`（新）；调用点 `settingsui.go` `approvalDetail` 的块标题 | `a.row(c, copy.ApprovalRecord, "", func(){})`（span 202/198）→ `a.labelRow(c, copy.ApprovalRecord, "")`：`Caption`/620/`TextSecondary`；实测 **202/198 → 121/114** | `已落地` |
+| 38-3 | 同文件 `ApprovalRecordPermissions` 行的两条臂 | 同一个「没有控件的组标签」形状却戴强调档 → `a.labelRow(...)`，与 38-2 **同一档**（实测两条都是 121/114）；无记录臂的 `None` 作为 `sublabel` 落在同一尺寸的安静档（500/`TextMuted`） | `已落地` |
+| 38-4 | `settingsui.go` `toolPermissionFields` 的边界说明（`a.row(c, "", copy.PermissionBoundary, func(){})`） | **故意不做**：说明 span **121**、它下面真正的开关行 **208**——散文比控件轻 87 级**是对的**（说明不是答案）；这条不是反着的层级 | `故意不做`（见理由） |
+
+pin：`internal/settingsui/readonlyink_test.go` 三条（路径比工具名轻 ≥ 60 级、路径 ≤ 150 且不快过
+它上面的描述、块标题 ≤ 150 且比值轻 ≥ 40 级、两条块标签同档 ≤ 8 级差、`None` ≤ 150）+ 1 条 opt-in dump。
+
+改后实测：Detected 路径 **101 / 94**（工具名 202 / 198 不动）；审批块标题 **121 / 114**、
+权限标签 **121 / 114**、事实名字 **122 / 115**、事实值 **202 / 198**。像素 diff：detected 深/浅各
+**667** 点、差异盒 `x[215..298] y[298..313]`（只有那一行）；approval 深/浅各 **1597** 点、差异盒
+`x[195..329] y[438..664]`（只有两行标签）——**卡片高度、分隔线、行距一个像素没动**。
+
+**V 0 / B 0 / S 0**（`go test ./internal/settingsui/` 一次全绿，无旧 pin 需要重定基线）。
+变异 3 条实跑全红并 `md5sum -c` 逐字节还原。详见 `docs/rounds/P13-bt-report.md`。

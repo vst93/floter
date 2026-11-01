@@ -2437,7 +2437,7 @@ func (a *App) approvalDetail(c *ui.Context, copy i18n.Settings, record *Approval
 		a.factRow(c, copy.ApprovalRecord, copy.ApprovalRecordNone)
 		return
 	}
-	a.row(c, copy.ApprovalRecord, "", func() {})
+	a.labelRow(c, copy.ApprovalRecord, "")
 	a.factRow(c, copy.ApprovalRecordApprovedAt, approvalApprovedAt(record.At))
 	digest := copy.ApprovalRecordDigestUnknown
 	if short := extensions.ShortDigest(record.ApprovedDigest); short != "" {
@@ -2463,14 +2463,14 @@ func (a *App) approvalDetail(c *ui.Context, copy i18n.Settings, record *Approval
 		}
 	}
 	if len(record.Enforced) == 0 && len(record.Disclosure) == 0 {
-		a.row(c, copy.ApprovalRecordPermissions, copy.ApprovalRecordPermissionsNone, func() {}, staleBelow)
+		a.labelRow(c, copy.ApprovalRecordPermissions, copy.ApprovalRecordPermissionsNone, staleBelow)
 	} else {
 		// The reference draws the approved permissions as *pills* under the
 		// label, never as one ruled row per id: an enforced id wears the
 		// recognizable raised-quiet + accent-keyline face its twin in the audit
 		// list has, a disclosure id the plain icon-surface face
 		// (`.extension-approval-record__permission`, `extensions.css:2149-2168`).
-		a.row(c, copy.ApprovalRecordPermissions, "", func() {}, func() {
+		a.labelRow(c, copy.ApprovalRecordPermissions, "", func() {}, func() {
 			ui.Column(c).FillWidth().Gap(t.Space(2)).Children(func() {
 				if len(record.Enforced) > 0 {
 					ui.Text(c, copy.PermissionsEnforcedLabel).FontSize(tokens.Caption).
@@ -5856,7 +5856,7 @@ func (a *App) detectedSection(c *ui.Context, copy i18n.Settings) {
 				a.iconRow(c, true, tool.Name, tool.Description, func() {
 					a.detectedAction(c, copy, tool)
 				}, func() {
-					a.row(c, tool.Path, "", func() {})
+					a.dataRow(c, tool.Path)
 				})
 			}
 		})
