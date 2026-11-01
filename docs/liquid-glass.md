@@ -3009,3 +3009,31 @@ pin：`internal/settingsui/platecrown_test.go`——① 开着的板冠线 ≥ 3
 **这轮为什么让它更轻、更有空间感**：开着的板与关着的板此前是「两盏都亮、其中一盏暗一点」；
 现在一张列表里**只有活着的那块点灯**，关着的那块靠面与暗线站住——两条命令的层级不再靠
 0.62 这个数字去猜，而是靠「亮 / 不亮」一句话分家。
+
+### §6.64 健康页的「可重试」小块：它的面是父面的同一桶漆叠两次（P13-cu，**先量，不改**）
+
+健康页的失败卡（`settingsui/healthfaces.go` `healthFailureCard`）是全仓最后一个连一个像素 pin
+都没有的暖面。卡自己 `Background(tokens.RaisedWarm)`，卡里那枚 `--retryable` 小块
+**也是** `Background(tokens.RaisedWarm)`——同一桶直 alpha 漆叠两遍，于是小块的「面档」是
+0.13→**0.169**（浅）/ 0.115→**0.197**（深），一个谁也没定过的数。实测（真设置页地面、两套外观、
+1 亮度级 = 3）：
+
+| 面 | 浅色 | 深色 |
+|---|---|---|
+| 卡对地面 | −15.7 级 | +19.3 级 |
+| 小块对卡（现状） | **−13.7 级** | **+17.3 级** |
+| 换成 `Control`（同页 `approvalPermissionPills` 的 chip 面） | −16.3 | +22.7 |
+| 换成 `IconSurfaceHover`（暖面族的上一档） | −22.7 | +31.0 |
+| 换成 `ControlHover` | −24.7 | +31.0 |
+
+**结论是「不改」，而且这正是 §2 的阶梯要求的**：一个 4px 高的词嵌在卡里，它的面差必须
+**小于**卡自己相对地面的抬升（−13.7 < −15.7 / +17.3 < +19.3），否则它比自己的父卡还响。
+阶梯上所有**命名**档都在 16…31 级，全都越线；那个「匿名」的双重洗色恰好是这张卡能装的
+最安静的一档。给它一个名字 = 让一枚 4px 的字压过整张卡，正是用户说的「空间感不够」的反面。
+
+所以本轮只立规矩不动像素：`TestTheRetryableChipPaintsTheCardPlaneTwice` 把小块的面钉在
+「卡的暖面叠两次」上，并把两个候选人（`Control` / `IconSurfaceHover`）**判成不同**（防止
+将来「顺手换个 token」静默改档）；`TestTheHealthStatusChipFaces` 是这页的第一条结构 pin
+（healthy → `Control`+`ControlEdge`+`TextStrong`，degraded/unhealthy → `RaisedWarm`+`ControlEdge`
++`Warning`，unknown → 无面无环、`TextMuted`）。
+
