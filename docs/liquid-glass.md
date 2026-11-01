@@ -2114,7 +2114,7 @@ P13-q / P13-al / P13-am 已经把设置页小键、shell 四键、终端浮条�
 |---|---|---|---|
 | 40-1 | `internal/settingsui/savealert.go` 的 ✕（24u，静息透明） | 只有 `if button.Hovered()` 一条指针臂：悬停 `ControlHover` + 一对线，**按下与悬停逐像素相同**（实测浅 `{224,224,224}` / 深 `{53,53,56}` 两帧同值）→ 面写成变量，`case Pressed: ControlPress + Scale(0.92)`，一对线提到臂外（`if plane.A > 0 { LitFace }`，`power.go` 的既有形状，`litarm_contract_test.go` 逃生口 ②）。实测按下 **242 / 32**，在横幅面（250 / 20）与悬停面之间 | `已落地` |
 | 40-2 | 同文件的注释 | 只写了「指针是它唯一能被分档的地方」→ 补第三档的存在与取舍（一对线在按下档保留，同 P13-q；`Scale(0.92)` 是小格族的几何） | `已落地` |
-| 40-3 | `internal/launcher/output.go:598` 捕获输出页页头的两枚 28u 方键 | `hover=2 / press=0`，同一个「悬停才长面」的形状 | `未开始`（下一轮候选，先量） |
+| 40-3 | `internal/launcher/output.go:598` 捕获输出页页头的两枚 28u 方键 | 只有一条 `if button.Hovered()` 臂：悬停 `ControlHover` + 一对线，**按下与悬停逐像素相同**（实测浅 `{226,226,227}` / 深 `{56,56,57}` 两帧同值，条子面 253 / 23）→ 面写成变量，`case Pressed: ControlPress + Scale(0.92)`，一对线提到臂外。实测按下 **245 / 35**，在条子面（253 / 23）与悬停面之间；条子面与键盒逐字节不变 | `已落地`（P13-bw） |
 | 40-4 | `internal/launcher/power.go` 确认带的两枚 chip | `hover=2 / press=0`；但**暖面没有按下档 token**（`RaisedWarm` / `IconSurfaceHover` 之外无第三档），先定 token 才能动 | `需拍板` |
 | 40-5 | `internal/launcher/filters.go:219` 的过滤 chip | 参考自己就没有面（R72：chip 是字不是药丸），按下要不要有档 | `需拍板` |
 
@@ -2129,4 +2129,16 @@ pin：`internal/settingsui/savealertpress_test.go` 四条判据（悬停画了�
 **同时修的一条旧账**：§6.39 的 39-2 / 39-3 两行此前多了第五格，`internal/ci` 的
 `TestTheLiquidGlassContractSupersedesTheRaycastOne` 因此在 HEAD 上是红的（「a gap-table row
 carries an unrecognised status」）。**测试零改动**，两行并回四格。
+
+**P13-bw 收尾（40-3 落地）**：捕获输出页页头的两枚 28u 方键此前是 `hover=2 / press=0`——
+`output.go` 的 `control` 闭包只有一条 `if button.Hovered()` 臂，按住不放的那一帧与悬停帧
+**逐像素相同**（实测浅 `{226,226,227}` / 深 `{56,56,57}`，两帧同值；条子面 253 / 23）。
+改法与本轮设置页那枚 ✕ 同一形状：面写成变量、`case Pressed: ControlPress + Scale(0.92)`、
+一对线提到臂外（`if plane.A > 0 { LitFace }`）。改后按下 **245 / 35**，落在条子面与悬停面
+之间；按下帧的条子面与键盒逐字节不变。
+
+pin：`internal/launcher/outputheaderpress_test.go` 四条判据（悬停画了面 / 按下画了**另一个**面 /
+按下面在条子面与悬停面之间 / 按下没重画条子也没搬盒子），深/浅各一遍 + 1 条 opt-in dump。
+**V 0 / B 0 / S 0**：旧 pin 一条没红，测试零改动（本轮只加新文件）。详见
+`docs/rounds/P13-bw-report.md`。
 

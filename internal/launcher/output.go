@@ -589,13 +589,33 @@ func (a *App) outputBody(c *ui.Context, copy i18n.Launcher, edge float32) {
 						Label(label)
 					// P13-ay：页头两枚 28u 方键的提示也戴 E2 浮面。
 					button = tokens.Tip(c, button, hint)
-					if button.Hovered() {
-						// P13-aa（§2 / §3）：悬停的小键是 E1 —— 面 + 顶受光边 + 底对侧暗线。
-						// 它此前只有一层 `ControlHover` 洗色：一条线都没有，读起来是「一块颜色」
-						// 而不是「一块能被碰的面」，而同一个启动器的 `rowControl`（20u）与
-						// `fieldSettingsButton`（28u）自 P13-h 起就戴 `LitFace`。不补 `Border`：
-						// 面差就是它的边界（P13-j 的 toast chip 同一条判据）。
-						button = tokens.LitFace(button.Background(tokens.ControlHover))
+					// P13-aa（§2 / §3）：悬停的小键是 E1 —— 面 + 顶受光边 + 底对侧暗线。
+					// 它此前只有一层 `ControlHover` 洗色：一条线都没有，读起来是「一块颜色」
+					// 而不是「一块能被碰的面」，而同一个启动器的 `rowControl`（20u）与
+					// `fieldSettingsButton`（28u）自 P13-h 起就戴 `LitFace`。不补 `Border`：
+					// 面差就是它的边界（P13-j 的 toast chip 同一条判据）。
+					//
+					// P13-bw（`docs/liquid-glass.md` §5「按下」/ §6.40 第 40-3 行）：这两枚
+					// 键此前只有静息（透明）与悬停（`ControlHover` + 一对线）**两档**——
+					// 指针按下去的那一帧与悬停帧逐像素相同（实测浅 226/226、深 56/56）。
+					// 第三档按同族规矩：`ControlPress` 的面 + `Scale(0.92)`；一对线
+					// **保留**——这一族的面是「一块能被碰的板」，压下去仍在地面之上，
+					// 不是沉进凹槽（P13-q / P13-bv 在设置页的同一个取舍）。
+					//
+					// 面写成变量、一对线提到臂外，是本仓已有的形状（`power.go` 的
+					// `if plane.A > 0 { LitFace }`）：一份面，所有状态共用一对线
+					// （`internal/ci/litarm_contract_test.go` 的逃生口 ②）。
+					plane := ui.Transparent
+					switch {
+					case button.Pressed():
+						plane = tokens.ControlPress
+						button.Scale(0.92, 0.92)
+					case button.Hovered():
+						plane = tokens.ControlHover
+					}
+					button.Background(plane)
+					if plane.A > 0 {
+						tokens.LitFace(button)
 					}
 					button.Children(func() {
 						ui.Text(c, mark).FontSize(tokens.Emphasis).TextColor(t.TextMuted)
