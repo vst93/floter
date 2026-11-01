@@ -1262,10 +1262,19 @@ func (a *App) View(c *ui.Context) {
 }
 
 // permissionTier draws one tier of the permission audit: its label and the
-// one-line explanation of what the tier means, then a row per permission. An
-// enforced permission's row is a plane with the accent edge — a *check* the
-// host owns — while a declared one is the plain neutral pane: an FYI, not a
-// promise.
+// one-line explanation of what the tier means, then a row per permission.
+//
+// The row's own state is **one mark in the row's trailing slot** (P13-bn): a
+// solid disc for a permission the host itself decides, a hollow ring for one
+// the tool only declares. Nothing else in that slot — the two tiers are told
+// apart by their heading above the card and by that one mark.
+//
+// 它此前是**两枚**：一枚 `alert` 警示环 + 一枚 `●`/`○`，两者都染同一个墨、同一个状态。
+// 那枚环没有语义——`alert` 在 `internal/shell/notices.go:294-299` 的 `toastMark`
+// 里是 `error` 的记号，而这一行说的是「这条权限属于哪一层」，不是「这里坏了」。
+// 实测（520u 卡，行尾墨段）：`493..506`(14) 是那枚环、`514..521`(8) 是那枚盘，中间只隔
+// **7 级像素**——读成一枚徽标的两个部件，而不是两件东西。删掉环之后行尾只有一段墨，
+// 且它的左边界从 493 移到 514（行尾不再有第二个物体）。
 func (a *App) permissionTier(c *ui.Context, label, hint string, enforced bool, language string, permissions []string) {
 	if len(permissions) == 0 {
 		return
@@ -1287,9 +1296,10 @@ func (a *App) permissionTier(c *ui.Context, label, hint string, enforced bool, l
 					}
 					color := t.TextMuted
 					if enforced {
+						// §5 注脚第 1 条：实心/空心即 ON/OFF，属「控件状态」那一类
+						// accent 用途。
 						color = t.Accent
 					}
-					ui.Icon(c, mustGlyph("alert")).Size(t.Space(4), t.Space(4)).TextColor(color)
 					ui.Text(c, mark).FontSize(t.FontSize - 3).TextColor(color)
 				})
 			}
