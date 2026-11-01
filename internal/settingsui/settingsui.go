@@ -3273,8 +3273,18 @@ func (a *App) commandPlate(c *ui.Context, copy i18n.Settings, extensionID string
 	// P13-m（`docs/liquid-glass.md` §6.2b-2 第 9-16 行）：命令块是扩展页命令列表里
 	// **每一条命令**的面，与 §6.2 第 2-3 行的分组卡同档（E1）——分组卡有那一对线，
 	// 它没有。外圈的 `Hairline` 是画框，一个字节不动；`LitFace` 只加两条 1px 内线。
-	plate = tokens.LitFace(plate)
-	if !command.Enabled {
+	//
+	// P13-ct（§6.63）：命令的开关关着时，这块面的材质换成 `DimFace`——**灯熄、暗线留**。
+	// 此前它先戴 `LitFace`、再被下面那道 0.62 洗一遍，于是「灯还亮着」这件事没有决定过，
+	// 只是被淡了 38%：实测冠线行 − 面 浅色 **+5 → +2**（0.62 洗在一条本来只有 5 级的
+	// 冠线上，读不出来）、深色 **+17 → +11**（还亮着）。同一句「这条命令是关的」在两套
+	// 外观上是两个说法。§3 说受光边是「这块面可以被碰」的记号，§6.15 18-1 给整张不可用
+	// 的卡片定的也是「一道淡、灯熄」——这条面不是 `Disabled`（开关与别名框仍然是活的，
+	// 参考那边也是 `--off` 而非 `:disabled`），所以它保留自己那一道 0.62，只是不再点灯。
+	if command.Enabled {
+		plate = tokens.LitFace(plate)
+	} else {
+		plate = tokens.DimFace(plate)
 		plate.Opacity(0.62)
 	}
 	plate.Children(func() {
