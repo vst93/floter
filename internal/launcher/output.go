@@ -927,22 +927,33 @@ func (a *App) outputRow(c *ui.Context, row extensions.Row, i int) {
 			// 没动，分档全靠这一行。`chosen` 的 700 仍是「门被选中」的记号
 			// （P13-cg），与启动器列表的 700 同一档。
 			//
-			// **副标题不动**（仍是框架的 400）：本轮先量过「照抄启动器的 510」——
+			// **静息档的副标题不动**（仍是框架的 400）：本轮先量过「照抄启动器的 510」——
 			// 便条行标题/副标题的墨量差从 3669 掉到 1769（比 1.26 → 1.10），
 			// 因为 12px 那行的 110 档加在字少的一行上更显眼。启动器那边是
 			// `TextStrong 580 / TextMuted 510` 两个旋钮一起给；这一页两行同墨，
 			// 只有一个旋钮，副标题必须留在静息档，差才拉得开。**rank 是规则，
-			// 数字是每个面的。**
+			// 数字是每个面的。** 选中档的副标题在 P13-cj 才接到启动器的那一档上
+			// （见下）。
 			title := ui.Text(c, row.Title).FontSize(t.FontSize).TextColor(color).FontWeight(580)
 			// P13-cg：加粗与提墨是「门被选中」的记号，不是「游标在这儿」的记号——
 			// 一句便条不该因为被游标指到就变成标题。
 			if chosen {
 				title.FontWeight(700)
 			}
+			// P13-cj · 选中行的副标题提**一档墨**，不提字重（`docs/liquid-glass.md`
+			// §6.53）。改前这里是 `t.Text`：与标题**同墨**，两行只差字重一条腿
+			// （实测选中行 标题/副标题 的墨距都是 **214**，差 0 级），而同一张卡的
+			// 启动器列表在同一状态下把副标题留在标题下一档（**131**，差 80 级）。
+			// 现在两边都落在 `TextSecondary` 上：浅 **131** / 深 **111**，逐级相同。
+			//
+			// **不提字重**是这一页自己的读法：启动器那边的选中行副标题是 600，但
+			// 它的行有 40u 的 `MinHeight` 地板；这一页的行高是**内容撑的**，加一档
+			// 字重就换一个字体面，把选中行从 54px 压到 **53px**（实测），游标一移
+			// 整张列表跟着抖 1px。`outputsubtitle_test.go` 的第 ④ 臂钉的就是这个。
 			if row.Subtitle != "" {
 				subtitle := ui.Text(c, row.Subtitle).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
 				if chosen {
-					subtitle.TextColor(t.Text)
+					subtitle.TextColor(tokens.TextSecondary)
 				}
 			}
 		})
