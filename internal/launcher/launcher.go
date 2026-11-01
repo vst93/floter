@@ -1532,7 +1532,7 @@ func (a *App) View(c *ui.Context) {
 					Margin(0, t.Space(2.5), 0, 0)
 				mark.Children(func() {
 					ui.Icon(c, glyph).Size(t.Space(4), t.Space(4)).TextColor(t.TextMuted)
-					ui.Text(c, name).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+					ui.Text(c, name).FontSize(tk.Caption).TextColor(t.TextMuted)
 				})
 			} else if glyph, ok := Glyph("search"); ok {
 				slot := ui.Box(c).Shrink(0).Size(t.Space(7), t.Space(7)).
@@ -2740,7 +2740,7 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 		// `aria-live="polite"` announced the note to screen readers
 		// when it appeared.
 		if a.armedDelete == item.ID {
-			ui.Text(c, copy.DeleteConfirm).FontSize(t.FontSize - 1).
+			ui.Text(c, copy.DeleteConfirm).FontSize(tokens.Caption).
 				FontWeight(560).TextColor(t.Warning).NoWrap().Shrink(0)
 			if !a.armedDeleteAnnounced {
 				c.Announce(copy.DeleteConfirm)

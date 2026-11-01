@@ -232,7 +232,7 @@ func (a *App) filtersRow(c *ui.Context, top float32) {
 		if hint := a.filterHint(copy); hint != "" {
 			// 提示是字，不是控件（参考 `.launcher-filter__hint` 从不吃指针），它
 			// 那一段 `Grow(1)` 的盒子盖着的行同样得能点。
-			ui.Text(c, hint).FontSize(t.FontSize - 1).FontWeight(500).
+			ui.Text(c, hint).FontSize(tokens.Caption).FontWeight(500).
 				TextColor(tokens.TextTertiary).Grow(1).TextAlign(ui.End).SingleLine().Ellipsis("\u2026").
 				PassThrough()
 		}

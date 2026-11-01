@@ -3316,7 +3316,7 @@ pin：`internal/settingsui/sheetcaptionline_test.go`
 | 73-1 | `rows.go` ×4、`settingsui.go` ×18、`transfer.go` ×1 | `t.FontSize ± N` | `tokens.Caption / Emphasis / Title` | `已落地` |
 | 73-2 | `settingsui.go` 的两枚 `●`/`○` | `t.FontSize - 3` | 具名例外 `markDot(t)`（盘是字形不是档位） | `已落地` |
 | 73-3 | `uninstall.go` 的 10.5px 提示行 | `t.FontSize - 0.5` | 保留，但写进具名例外（参考定义就是 body − 半格） | `故意不做（有理由）` |
-| 73-4 | `internal/launcher` 的同一族（8 处） | 同病 | 下一轮，量法与本轮相同 | `未开始` |
+| 73-4 | `internal/launcher` 的同一族（9 处） | 同病 | 4 处已落地，5 处卡在取景上（见 §6.74） | `部分已落地` |
 | 73-5 | `render()` 的取景（四十多条 pin 在量库存字 14） | 与生产不一致 | 收口到 `SetTheme(tokens.Theme)`，逐条重钉 | `未开始` |
 | 73-6 | 会话行 49 对参考的 56 地板 | 少 7px | 补 `min-height = Space(14)` | `未开始`（P13-da 的结论作废） |
 
@@ -3333,3 +3333,44 @@ pin：`internal/settingsui/sheetcaptionline_test.go`
 **为什么这轮让它更轻 / 更有空间感（一句话）**：同一张设置卡里的四级字（区块标题 /
 行名 / 说明 / 脚注）现在共享一条随步长缩放的阶梯，用户把界面调小一格时它们一起呼吸，
 而不是三级同时掉出阶梯、挤成一样大。
+
+### §6.74 启动器的字号：4 处落地，5 处卡在「夹具的尺子」上（P13-de）
+
+`internal/launcher` 与设置页是同一族（`t.FontSize ± N`，不随界面步长缩放）。本轮把 9 处
+逐处量过，**落地 4 处**，其余 5 处判 `未开始（被取景挡住）`——不是舍不得改，是改了会
+把「夹具的字变小了」当成「产品变了」去重钉基线。
+
+**量法先换尺子**：`MeasureText(0, …)` 走画笔默认字体，页面画出来的字是主题那一族，同一句话
+两把尺子差 **2px**（tiny 档：`body-1` 的 `MeasureText` 报 15，画出来是 13）。所以期望值是
+**同一个字符串在同一个主题下按两个寄存器各画一次的盒子**（`fontladder_test.go` 的
+`p13deProbeBox`）。tiny 档（画出来）：caption **14** 对 `body-1` **13**；title **17** 对
+`body+2` **18**；出货档（0.9）两两重合（15/15、19/19）——这正是它们一直没被发现的原因。
+
+| # | 位置 | 现状 | 判断 | 状态 |
+|---|---|---|---|---|
+| de-1 | `filters.go:235` 过滤行提示 | `t.FontSize - 1` → `tokens.Caption` | 行盒不变、跟步长走 | `已落地` |
+| de-4 | `launcher.go:1535` 作用域标记的名字 | `t.FontSize - 1` → `tk.Caption` | 同上（无 pin，见下） | `已落地` |
+| de-7 | `launcher.go:2743` 两步删除的确认句 | `t.FontSize - 1` → `tokens.Caption` | 同上 | `已落地` |
+| de-2 | `launcher.go:1303` 计费的行标题行盒 | `t.FontSize + rowTitleStep` | 换成阶梯会让 `TestLongRowTextIsCutNotWrapped` 红（行盒 22 对绘制 24）：计费与绘制在这一帧里本来就不是同一套字号 | `未开始（取景）` |
+| de-3 | `launcher.go:1306` 副标题行盒 | `t.FontSize` | 同 de-2 | `未开始（取景）` |
+| de-5 | `launcher.go:1633` 助记提示的绘制 | `t.FontSize-1` | `TestTriggerHintFits` 红（box 127 对 room 134） | `未开始（取景）` |
+| de-6 | `launcher.go:2646` 结果行标题 | `t.FontSize + 2` | `TestTheLauncherHeightsStayOnTheLadder` 红（19 不在阶梯 [15 18 22 24 25 28]，18/24 消失） | `未开始（取景）` |
+| de-8 | `output.go:345` 分页脚注的词 | `t.FontSize - 1` → `tokens.Caption` | 行盒不变、跟步长走 | `已落地` |
+| de-9 | `output.go:695` 捕获输出页状态条 | `t.FontSize - 1` | `TestTheOutputListNeverScrollsIntoTheHeaderBand` 红（带下 ink 228） | `未开始（取景）` |
+| de-10 | `output.go:980` 便条行副标题 | `t.FontSize - 1` | `TestTheChosenRowsSubtitleSitsOneRungBelowItsTitle` 红（−9 级） | `未开始（取景）` |
+| de-11 | `triggerhint.go:153` 助记提示的量算 | `size := t.FontSize - 1` | 与 de-5 必须同进同退（画的与量的同一个名字） | `未开始（取景）` |
+
+**规则（这一族的一句话）**：一个面上的小字只有**名字**，没有「比正文小一档」这个说法——
+`tokens.Caption` 跟着界面步长缩放，`t.FontSize - 1` 不跟。数目相等不等于同一个东西。
+
+**为什么这 5 处必须等 `73-5`**：`render()`（`view_test.go:56`）不 `c.SetTheme(a.tokens(c).Theme)`，
+于是同一个函数里 `t := c.Theme()` 是框架库存的 12px、`a.tokens(c)` 是设计阶梯的 10.8，夹具
+在量一个生产上不存在的混排界面。**先收口取景，再搬这 5 处，再把 `internal/ci` 的字阶账从
+`internal/settingsui` 扩到 `internal/launcher`**——现在扩过去只能给调用点开例外，那是把账写软。
+
+pin：`internal/launcher/fontladder_test.go` 的 `TestTheFilterRowsHintIsACaption`、
+`TestTheArmedDeletesConfirmIsACaption`（tiny 档、画出来的盒子、先断言两档真的不同）；
+opt-in 出图 `TestDumpP13DEFontLadderPNGs`，差分浅 **368 px** / 深 **370 px**，
+bbox `(570,83)-(657,92)`。
+**记录**：de-4 没有 pin——作用域标记只在插件模式下出现，本轮不为它加一条需要造模式夹具的 pin；
+它在 de-2..de-11 一起搬的时候由 ci 账统一守。

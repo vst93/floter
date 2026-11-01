@@ -329,7 +329,8 @@ func (a *App) outputFooter(c *ui.Context, copy i18n.Launcher, view *OutputView) 
 		return
 	}
 	t := c.Theme()
-	text, ink, weight := footerWord(state, copy, a.tokens(c), t)
+	tokens := a.tokens(c)
+	text, ink, weight := footerWord(state, copy, tokens, t)
 	ui.Row(c).FillWidth().Shrink(0).MinHeight(t.Space(5.5)).Gap(t.Space(2)).
 		Padding(0, t.Space(3)).AlignItems(ui.Center).Justify(ui.Center).Children(func() {
 		// P13-ck（`docs/liquid-glass.md` §6.54）：环**两个状态都在**，只是停下。
@@ -342,7 +343,7 @@ func (a *App) outputFooter(c *ui.Context, copy i18n.Launcher, view *OutputView) 
 			a.footerSpinner(c, state == footerLoading)
 		}
 		if text != "" {
-			word := ui.Text(c, text).FontSize(t.FontSize - 1).TextColor(ink)
+			word := ui.Text(c, text).FontSize(tokens.Caption).TextColor(ink)
 			// Only the live word carries a weight: `footerEnd` must keep the
 			// frame's own default (no `font-weight` set at all), so it stays
 			// byte-identical to the row it replaces.
