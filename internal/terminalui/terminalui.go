@@ -962,16 +962,33 @@ func (a *App) View(c *ui.Context) {
 // emptyLine is one of the empty state's two lines: its key in a keycap and
 // its label beside it, the whole line a hit target. Neutral text, never a
 // filled control — the line is furniture, not a primary button. The pointer
-// lifts the *text* one step, as `.terminal-empty__line:hover` did; it does not
-// paint a pane behind the line. `badgeText` is the keycap's already-spelled
-// text (`keyBadge("enter")`, `newCommandBadge(...)`).
+// lifts the *text* one step, as `.terminal-empty__line:hover` did; at rest and
+// on hover it paints no pane behind the line. `badgeText` is the keycap's
+// already-spelled text (`keyBadge("enter")`, `newCommandBadge(...)`).
+//
+// P13-bx（`docs/liquid-glass.md` §6.41）：抬墨是**悬停**的说法，按下要有**它自己**
+// 的那一档。此前这个函数只有 `Hovered()` 一条指针臂，按住不放的那一帧与悬停帧
+// **逐像素相同**（实测浅 `{107,107,112}` / 深 `{154,154,160}` 两帧同值）——一条能被
+// 按下去的行，按下去却不回答，读起来是「按坏了」。第三档借设置页那张卡的行
+// （`settingsui.cardRow`，`rows.go:1405-1416`）：按下换**面** `t.SurfacePressed`
+// （`theme.go:487`，与那张卡是同一个 token），并且**保留**悬停的抬墨——指针还压在
+// 上面，字不该退回去。
+//
+// 只换面、不缩放：这一行是**行**不是**键**（同 `cardRow` 的按下臂），`Scale` 会把
+// 标签与键帽一起挪动，而「按下不搬盒子」是本族的第四条判据（P13-am 的 ④）。面画得
+// 下也是这一行本来的几何：`Padding(0.5u, 1u)` + `RadiusSM` 早就给了它一块盒子的
+// 四边留白，所以这一档不需要动 `Padding`/`Gap`/`Radius` 一个数。
 func (a *App) emptyLine(c *ui.Context, copy i18n.Terminal, badgeText, label string, run func()) {
 	t := c.Theme()
 	tokens := tokensOf(a, c)
 	line := ui.Row(c).Focusable().Padding(t.Space(0.5), t.Space(1)).
 		Radius(tokens.RadiusSM).Gap(t.Space(2)).AlignItems(ui.Center)
 	color := tokens.TextSecondary
-	if line.Hovered() {
+	switch {
+	case line.Pressed():
+		color = tokens.TextStrong
+		line = line.Background(t.SurfacePressed)
+	case line.Hovered():
 		color = tokens.TextStrong
 	}
 	line.Children(func() {
