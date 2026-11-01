@@ -2067,3 +2067,38 @@ pin：`internal/settingsui/readonlyink_test.go` 三条（路径比工具名轻 �
 
 **V 0 / B 0 / S 0**（`go test ./internal/settingsui/` 一次全绿，无旧 pin 需要重定基线）。
 变异 3 条实跑全红并 `md5sum -c` 逐字节还原。详见 `docs/rounds/P13-bt-report.md`。
+
+#### §6.39 列表里的状态行：档位由邻居决定（P13-bu，**已落地**）
+
+P13-bo 把启动器列表的状态行抬到了陈述档，并在报告里留下一句判据却没落成代码：
+「列表非空时它是注，列表为空时它是结论」。这一轮把那句话写成**一个谓词**，并让插件窗口
+的列表读它——同一个形状（`3 of 4 shown`、`the history is off`）此前在两个窗口上落在两档墨上，
+而且是**无条件**的两档。
+
+**规矩**（本仓此后所有「列表里的状态行」通用）：
+
+1. **档位由邻居决定，不由自己决定**。列表里**只有**状态行（一条行盘 / 可选行都没有）→
+   它是**这一页的结论**：`tokens.Emphasis` + `TextStrong` + 580（§4.7 的陈述档，与
+   `settingsui.emptyState`、`detachedStateLine` 的 `detachedStatement` **同一对函数值**）。
+   列表里**还有别的行** → 它是**列表的从属注**：`tokens.Caption` + `TextMuted`
+   （参考值，`launcher.css:1783-1789`），因为那一档的主体是行盘，不是这句话。
+2. **判据写在列表上，不写在行上**：`detach.go` 的 `detachedStatusAlone(rows)` 读整张列表，
+   逐行绘制只消费它的答案——同一个列表里两条状态行不许落在两档。
+3. **只换墨与字阶，不换盒**：行盘、`detachedRowGap`、`detachedBodyInset`、可选中性与
+   copy-on-select 逐像素/逐行为不变。
+
+| # | 位置 | 现状 → 落成 | 状态 |
+|---|---|---|---|
+| 39-1 | `shell/detach.go` `detachedList` 的 `row.Status` 臂 | `detachedListNote` **无条件**（`Caption` + `TextMuted`，实测对地面 浅 **115** / 深 **110**，比窗口自己的 bar 标题还轻 **3** 级）→ `detachedStatusAlone(rows)` 为真时走 `detachedStateLine(..., detachedStatement, ...)`：实测 **219 / 217**，与 `empty` 臂的陈述行**逐字节同值**、同盒（18.0 vs 旧 15.0） | `已落地` |
+| 39-2 | 同文件 `detachedListNote` 的注释 | 只写了「它是列表的注」 | 补前提：**只在列表还有别的行时**成立；并新增 `detachedStatusAlone` 谓词与量测注释 | `已落地` |
+| 39-3 | `launcher/launcher.go` 的 `item.status` 臂 | 无条件陈述档（P13-bo），**代码零改动** | 补一行注释把 §6.39 引出来：启动器的状态行只由 `search.go` `clipboardItems` 的 disabled 臂发出、且只发一条，按判据恒为陈述档——两处读同一条规则，不是一个巧合 | `已落地` |
+| 39-4 | `launcher/output.go` 捕获输出页的 `row.Status` | 行盘 + 灰墨的一整行（`iconPlate` 28u + `t.TextMuted`） | **故意不做**：它不是「无盘的一句话」这个形状——它保留 28u 图标板与行盒，是这一页的**行**，属另一族 | `故意不做`（见理由） |
+
+pin：`internal/shell/statusalone_test.go` 两条（唯一一条状态行必须落在陈述档且与 `empty` 臂同盒、
+比 bar 标题重 ≥ 60；有邻居时（**两种顺序**）必须留在注档）+ 1 条 opt-in dump。
+同时 `stateladder_test.go` 的 `liststatus` 臂**重定基线**（V）：旧臂「列表里只有一条状态行」正是
+本轮判为陈述的形状，新臂给这句注一条行盘当邻居。
+
+改后实测（720×460，深/浅）：alone 臂墨 `{27,27,29}` / `{237,237,239}`（weight **219 / 217**，
+旧 **115 / 110**），盒高 15.0 → **18.0**；note 臂**逐字节不变**（md5 相同，0 像素差）。
+像素 diff 只落在那一行：差异盒 `x[12..85] y[55..66]`，深/浅各 **465** 点。

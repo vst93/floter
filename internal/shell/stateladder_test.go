@@ -48,7 +48,11 @@ func bodyArms(en i18n.Launcher) []detachedArm {
 		{"empty", false, "", true, launcher.OutputView{Title: "jv"}, detachedStatement},
 		{"idle", false, "", false, launcher.OutputView{}, detachedStatement},
 		{"liststatus", false, "", true, launcher.OutputView{IsList: true,
-			Rows: []extensions.Row{{Status: true, Title: "3 of 4 shown"}}}, detachedStatement},
+			// P13-bu 重定基线：旧臂是「列表里只有一条状态行」（`Rows: []extensions.Row{{Status: true, …}}`）
+			// ——那正是本轮判为「这一页的结论」的形状（§6.39），拿它当「注」的反例
+			// 会让两条 pin 互相矛盾。新臂给这句注一条行盘当邻居：只有旁边有东西，
+			// 它才是「关于这个列表」的一句话。
+			Rows: []extensions.Row{{Title: "row one"}, {Status: true, Title: "3 of 4 shown"}}}, detachedStatement},
 	}
 }
 

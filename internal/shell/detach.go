@@ -557,8 +557,35 @@ func detachedStateLine(c *ui.Context, text string, kind detachedStateKind, token
 // 列表（「4 条里的 3 条」）——从属的一行，而列表的盘子（`tokens.Control`）才是
 // 那一档的主体。抬到陈述档会让一条列表的注与这一页的结论平起平坐，正是
 // §4.7 的反面。所以它留在参考值上：`Caption` + `TextMuted`。
+//
+// P13-bu 补一条前提（`docs/liquid-glass.md` §6.39）：上面那句「从属」**只在列表
+// 还有别的行时**成立。列表里一条行盘都没有、只剩这一句时，它就是这一页的结论，
+// 走 `detachedStateLine(..., detachedStatement, ...)`——判据读的是整张列表，
+// 见 `detachedStatusAlone`。
 func detachedListNote(c *ui.Context, text string, tokens theme.Tokens, t *ui.Theme) {
 	ui.Text(c, text).FontSize(tokens.Caption).TextColor(t.TextMuted)
+}
+
+// detachedStatusAlone reports whether a list's only content is status rows —
+// the note-versus-conclusion predicate of §6.39.
+//
+// The rule is written on the **list**, not on the row, on purpose: a status row
+// says the same words either way, and what changes its register is whether
+// there is anything beside it for it to be a note *about*. Reading the whole
+// list also makes the answer one answer — two status rows in one list cannot
+// end up on two rungs.
+//
+// Measured (720×460, `internal/shell/statusalone_test.go`): a lone status line
+// used to land on `Caption`/`TextMuted` — light 131 / dark 130 against the
+// window's own ground, i.e. **3 levels lighter than its own bar title**
+// (128 / 133). The one sentence a page has to say was the quietest thing on it.
+func detachedStatusAlone(rows []extensions.Row) bool {
+	for _, row := range rows {
+		if !row.Status {
+			return false
+		}
+	}
+	return true
 }
 
 // detachedText draws the text arm verbatim in the terminal's monospace
@@ -675,10 +702,17 @@ func selectedText(container ui.Element) string {
 // 行盘既没有边框，也没有指针臂（列表不可选）。`internal/ci` 的材质账本轮补了
 // 一条**面级**判据把它们盖住（见 `flatface_contract_test.go`）。
 func detachedList(c *ui.Context, rows []extensions.Row, tokens theme.Tokens, t *ui.Theme) ui.Element {
+	// P13-bu（§6.39）：这一句是「列表的从属注」还是「这一页的结论」，由**旁边
+	// 有没有别的行**决定。只有一个状态行的列表，窗口上唯一的那句话就是结论。
+	alone := detachedStatusAlone(rows)
 	return ui.Column(c).FillWidth().Gap(t.Space(detachedRowGap)).Selectable().Children(func() {
 		for _, row := range rows {
 			if row.Status {
-				detachedListNote(c, row.Title, tokens, t)
+				if alone {
+					detachedStateLine(c, row.Title, detachedStatement, tokens, t)
+				} else {
+					detachedListNote(c, row.Title, tokens, t)
+				}
 				continue
 			}
 			plate := ui.Column(c).FillWidth().Gap(t.Space(0.5)).

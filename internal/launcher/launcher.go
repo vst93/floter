@@ -2362,6 +2362,15 @@ func (a *App) row(c *ui.Context, item Item, i int) {
 		// **盒子一个像素不动**：仍是 `launcherStatusUnits`（30u）的带、
 		// `Space(2)` 的左右内边距、`Space(2.5)` 的行 gap、28u 的图标列与字面 14 的
 		// 字形。改的是墨——高度链是红线（`height.go` 的 `RowInfo.Status`）。
+		//
+		// P13-bu：这一臂**不需要条件分支**，因为本仓的判据（`docs/liquid-glass.md`
+		// §6.39）读的是整张列表：「列表里只有状态行 → 它是这一页的结论；还有别的行
+		// → 它是列表的从属注」。启动器的状态行只由 `search.go` 的 `clipboardItems`
+		// 发出，而它只在插件关掉时发**一条**、一条行盘都不发（`clipboardItems` 的
+		// disabled 臂直接 `return []Item{{ID: ClipboardDisabled, …}}`），所以按判据
+		// 它恒为陈述档。插件窗口里同一个形状会**带邻居出现**，所以 `detach.go` 的
+		// `detachedStatusAlone` 在那里真的分支——两处读的是同一条规则，不是一个
+		// 巧合。
 		tokens := a.tokens(c)
 		note := ui.Row(c).FillWidth().MinHeight(t.Space(launcherStatusUnits)).
 			AlignItems(ui.Center).Padding(0, t.Space(2)).Gap(t.Space(2.5))
