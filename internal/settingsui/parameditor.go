@@ -79,15 +79,24 @@ func (a *App) toolParamsEditor(c *ui.Context, copy i18n.Settings) {
 	}
 
 	if len(a.toolParams) == 0 {
-		// `.extension-argument-editor__empty` (`:1860`): a dashed hairline box,
-		// 8px of padding and the tertiary caption — the same "a list with no
-		// rows yet" face the argument editor uses.
+		// `.extension-argument-editor__empty` (`:1860`): a dashed hairline box
+		// with 8px of padding — the same "a list with no rows yet" face the
+		// argument editor uses.
+		//
+		// P13-ch 重定基线（`docs/liquid-glass.md` §6.51）：参考把里面那句话写成
+		// `--text-caption` + `--text-tertiary`，本仓的 P8-b（§4.7「陈述压过提示」）
+		// 把空态的句子抬到 `TextStrong`，五处空态里只有这一处还留在参考旧值上
+		// ——实测它与**上面那行提示**逐像素同值（浅 100/100、深 96/96），于是
+		// 「这一段没有东西可填，而且这没问题」读起来只是第二行灰字。
+		// 旧值 → 新值：`TextTertiary` → `TextStrong`，`FontWeight` 400 → 580。
+		// 尺寸留在 `Caption`：`emptyState` 的句子是**一页的**结论，这一句是
+		// **一个槽**里的注记，13px 会把一个待填的格子读成一段正文（§6.51 判据 1）。
 		empty := ui.Column(c).FillWidth().MinHeight(t.Space(paramEditorEmptyMin)).
 			Padding(t.Space(paramEditorPlatePad)).Radius(tokens.RadiusSM).
 			Border(1, tokens.Hairline).BorderStyle(ui.BorderDashed)
 		empty.Children(func() {
-			ui.Text(c, copy.ParamsEmpty).FontSize(tokens.Caption).
-				TextColor(tokens.TextTertiary)
+			ui.Text(c, copy.ParamsEmpty).FontSize(tokens.Caption).FontWeight(580).
+				TextColor(tokens.TextStrong)
 		})
 		return
 	}
