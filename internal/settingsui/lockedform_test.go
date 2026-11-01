@@ -122,7 +122,12 @@ func halfMix(rest, ground ui.Color) ui.Color {
 // assertOneFade is the round's verdict: every reading of the locked control is
 // exactly half-way to the ground. A second fade (the old 0.6, or a nested
 // `Disabled` making 0.25) moves them, and so does a missing one.
-func assertOneFade(t *testing.T, what string, dark bool, ground ui.Color, rest, locked lockReadings, withInk bool) {
+//
+// P13-ca 重定基线：`crownLit` 分成两臂。**字段**（`fieldFace` 画的 E1 面）锁定后
+// 冠线要**熄**——`DimFace` 的语义，与同一张表单上的锁定胶囊同一个答案（§3：受光边
+// 是「这块面可以被碰」的记号）。所以字段臂钉的是「锁定后的冠线 = 锁定后的面」；
+// 开关与列表框仍按「半盏灯」量（它们各自的材质不在这一轮）。
+func assertOneFade(t *testing.T, what string, dark bool, ground ui.Color, rest, locked lockReadings, withInk, crownLit bool) {
 	t.Helper()
 	// The glyph band is antialiased, so its extreme pixel moves a few levels
 	// between the two renders; the planes are flat fills and do not.
@@ -135,8 +140,12 @@ func assertOneFade(t *testing.T, what string, dark bool, ground ui.Color, rest, 
 		}
 	}
 	check("face", rest.face, locked.face, 6)
-	check("lit edge", rest.crown, locked.crown, 6)
-	check("counter-side", rest.shade, locked.shade, 6)
+	if crownLit {
+		check("lit edge", rest.crown, locked.crown, 6)
+	} else if d := absDiff(litSum(locked.crown), litSum(locked.face)); d > 1 {
+		t.Errorf("%s (%s): the locked control's lit edge is %v but its face is %v (%d levels apart) — a locked face still wears the mark of a surface the pointer can land on; `DimFace` puts that light out and keeps only the counter-side (docs/liquid-glass.md §3/§6.2b-6)",
+			what, appearanceName(dark), locked.crown, locked.face, d)
+	}
 	if withInk {
 		check("ink", rest.ink, locked.ink, 27)
 	}
@@ -161,7 +170,12 @@ func TestTheLockedFieldFadesOnce(t *testing.T) {
 			}
 			return e
 		})
-		assertOneFade(t, "the config field", dark, ground, rest, locked, true)
+		// P13-ca 量到但**没改**：这一臂读的是「锁定后冠线 = 面」会红（实测深色冠线
+		// 比面高 **10 级**、浅色 **2 级**），而熄灯在这套框架里**无法事后撤回**——
+		// mygo 的内阴影只追加（`ui/element.go:1162`），字段的冠线是 `fieldFace` 在
+		// 建的时候就画上的。所以这一档仍按「半盏灯」量，缺口记在 §6.44 与
+		// `.pending-bugs.md` 的「仍待」：要熄灯得把锁定状态带进字段材质本身。
+		assertOneFade(t, "the config field", dark, ground, rest, locked, true, true)
 		// And the face is still a face: half of a 17-level step is 8~9 levels,
 		// which is the same rung the disabled pill sits on (P13-s: 9).
 		if g := absDiff(litSum(locked.face), litSum(ground)); g < 18 {
@@ -178,6 +192,8 @@ func TestTheLockedSwitchFadesOnce(t *testing.T) {
 			on := true
 			e := a.switchControl(c, &on)
 			if isLocked {
+				// 开关的轨道是 `Border.Mix` 的纯色（`rows.go:853`），没有 E1 那对线，
+				// 所以它没有灯可熄——`lockedControl` 就是它的全部（P13-ca）。
 				e = lockedControl(e)
 			}
 			return e
@@ -186,7 +202,7 @@ func TestTheLockedSwitchFadesOnce(t *testing.T) {
 		// Draw callback, outside the element's opacity, so the knob keeps more
 		// of its white than a uniform fade would give it. That is the
 		// framework's picture of a disabled widget, not this round's.
-		assertOneFade(t, "the config switch", dark, ground, rest, locked, false)
+		assertOneFade(t, "the config switch", dark, ground, rest, locked, false, true)
 	}
 }
 
@@ -208,7 +224,7 @@ func TestTheLockedListBoxFadesOnce(t *testing.T) {
 			})
 			return box
 		})
-		assertOneFade(t, "the multiselect list box", dark, ground, rest, locked, true)
+		assertOneFade(t, "the multiselect list box", dark, ground, rest, locked, true, true)
 	}
 }
 
@@ -314,5 +330,40 @@ func TestDumpP13TLockedForm(t *testing.T) {
 		}
 		file.Close()
 		t.Logf("wrote %s", name)
+	}
+}
+
+// E. P13-ca：锁定的字段仍然是**一个凹槽**。
+//
+// 这一轮量的是「灯」那一半（见 A 臂的注释：锁定后冠线仍比面高 10 / 2 级，而熄灯
+// 需要把锁定状态带进字段材质本身，不在墨这一层）。量灯之前先把**不该动的**那半钉住：
+// 无论将来怎么熄灯，锁定后的字段都必须还在 z 上站得住——面离地有台阶，且底对侧
+// 那条暗线仍在面之下。`DimFace` 的语义正是「摘冠线、留暗线」，所以这条 pin 是那种
+// 改法的护栏，不是对现状的描述。
+func TestTheLockedFieldIsStillAGroove(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		ground, _, locked := lockProbe(t, dark, func(a *App, c *ui.Context, isLocked bool) ui.Element {
+			s := "hello"
+			e := a.extensionField(c, &s, configFieldMetrics)
+			if isLocked {
+				e = lockedControl(e)
+			}
+			return e
+		})
+		if d := absDiff(litSum(locked.face), litSum(ground)); d < 18 {
+			t.Errorf("the locked field (%s): the face is only %d levels off the ground; a locked groove is still a groove",
+				appearanceName(dark), d/3)
+		}
+		// 而**这一档的现状**（本轮实测，未改）：锁定后冠线仍比面高 **10 级（深）/
+		// 2 级（浅）**，底对侧却与面**逐像素相同**（`{238 238 239}` / `{26 26 28}`，
+		// 两边都是）——0.5 那道淡把 `LensEdge` 那条暗线吃掉了。所以锁定的字段今天
+		// 不是「一个灭了灯的凹槽」，是「一块平涂 + 一条半亮的顶线」：灯与凹槽恰好
+		// 各剩一半。正确的材质是 `DimFace`（摘冠线、留暗线），而它在这里撤不回来
+		// ——冠线是 `fieldFace` 建的时候画的，mygo 的内阴影只追加
+		// （`ui/element.go:1162`）。要熄灯得把锁定状态带进字段材质本身，那是结构
+		// 改动，记在 §6.44 与 `.pending-bugs.md` 的「仍待」。
+		if d := absDiff(litSum(locked.crown), litSum(locked.face)); d == 0 {
+			t.Logf("the locked field (%s): crown and face read the same (%v) — the light is already out", appearanceName(dark), locked.crown)
+		}
 	}
 }

@@ -118,7 +118,7 @@ func TestTheDisabledSwitchFadesOnce(t *testing.T) {
 			}
 			return sw
 		})
-		assertOneFade(t, "the settings switch", dark, ground, rest, off, false)
+		assertOneFade(t, "the settings switch", dark, ground, rest, off, false, true)
 	}
 }
 

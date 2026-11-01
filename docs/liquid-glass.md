@@ -2229,3 +2229,28 @@ light 18 vs 13）——「不再靠 1px 描边分家」是可测的；回归钉�
 的代码片（**没有改断言**：改的是 43-5 的产品填充，pin 的 delta ≥ 12 由 4 变成 24）。
 
 出图 `/tmp/floter-P13-bz-settings-{dark,light}-{before,after}.png`。
+
+### §6.44 锁定的字段：灯还亮着一半，凹槽已经没了（P13-ca，**先量后不改 / 需结构性改动**）
+
+「状态反馈」的禁用族最后一个成员。`fieldFace`（`internal/settingsui/textinput.go:74`）画的是 E1 面
+（`LensRim` 冠线 + `LensEdge` 暗线），而三个字段的锁定臂只调 `lockedControl`
+（`config.go:563` 下拉 / `:656` 数字 / `:710` 文本），**没有** `DimFace`。
+
+实测（`lockedform_test.go` 的 `lockProbe`，地面浅 247 / 深 14）：
+
+| 读数 | 静息 | 锁定 | 判 |
+|---|---|---|---|
+| 面 | 230 / 39 | 238 / 26 | 一道淡 ✅ |
+| 冠线 − 面 | +6 / +19 | **+2 / +10** | 灯只熄了一半 ❌ |
+| 底对侧 − 面 | −7 / −12 | **0 / 0** | 凹槽没了 ❌ |
+
+对照：锁定**胶囊**冠线 **+0**（`DimFace`，P13-s）、锁定**透明面小格**无灯可熄（P13-u）。
+
+**为什么本轮不改**：熄灯要撤掉一条**已经画上的**内阴影，而 mygo 的内阴影只追加不撤回
+（`mygo@v0.7.3/ui/element.go:1162`）。试过两条路都失败并回退：`DimFace(lockedControl(e))` 冠线原样留着；
+再加 `InsetShadow(0, 1, 0, 0, Control)` 盖回去 → 浅色恰好等于面、**深色反而 36 → 47**（深色的
+`Control` 是半透明白，压上去是两层白）。真熄灯得把锁定状态带进字段材质本身（三条构建链各传一次），
+属结构改动。
+
+**落地**：`assertOneFade` 拆出 `crownLit` 参数（字段臂今天仍按半盏灯量，注释写明那不是答案）+ 新 pin
+`TestTheLockedFieldIsStillAGroove`（面离地 ≥ 6 级；将来 `DimFace` 落地时它是护栏）。
