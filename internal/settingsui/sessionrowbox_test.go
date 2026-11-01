@@ -42,7 +42,7 @@ func sessionRowFrame(t *testing.T, session Session) (tt *ui.Tester, rowTop, rowB
 		NewSession:     func() {},
 	})
 	a.Sessions = func() []Session { return []Session{session} }
-	tt = render(t, a, 720, 760)
+	tt = renderThemed(t, a, 720, 760)
 	if err := tt.Click("Sessions"); err != nil {
 		t.Fatal(err)
 	}
@@ -80,26 +80,42 @@ func productionSession() Session {
 
 // The row a session actually draws is the reference's 56u box, and it gets there
 // from its own content rather than from a floor constant: the title starts one
-// row padding (9) under the row's top in both shapes, and the box is 56 when the
+// row padding under the row's top in both shapes, and the box is 49 when the
 // session reported no directory, taller when it did.
-func TestTheSessionRowMeetsTheReferencesFloor(t *testing.T) {
+//
+// P13-dd：上面这些数（56 / 9）是 P13-da 在没有装设计主题的取景里量的（见下面
+// 第一条 pin 的注释）；生产上这一行是 **49 / 8**，参考的 56 地板没有满足。
+// P13-dd 重定基线：**56 → 49**，上一轮量的是**生产上不存在**的取景。
+//
+// `sessionRowFrame` 此前走的是 `render()`（没有 `c.SetTheme`），于是同一行里一半的字
+// 读 `a.tokens(c)`（设计阶梯，caption 9.9 / body 10.8），一半读 `c.Theme()`（框架库存
+// 14）——标题 15pt、状态行 14pt，行高被这两个库存数撑到 56。生产里 shell 在画面板
+// 之前就 `c.SetTheme(surface.Tokens.Theme)`（`internal/shell/shell.go:4262`），所以标题
+// 真正是 11.7、状态行 11.7：行 = 8（`Space(2.25)`）+ 18 + 1 + 15 + 8 = **49**。
+//
+// 也就是说：参考的 `.session-manager__row { min-height: 56px }` 在**生产的这一行上
+// 没有被满足**，少 7px——上一轮那个「由内容自然满足」的结论是拿库存字取景量的。
+// 补地板（`Space(14)`）是**下一格**（`docs/rounds/P13-dd-report.md`「仍待」第 1 条），
+// 这一轮只把已有的数换成真数，并把这个缺口钉出来，不让它继续躲在一个假取景里。
+func TestTheSessionRowsHeightAgainstTheReferencesFloor(t *testing.T) {
 	_, top, bottom, title := sessionRowFrame(t, productionSession())
-	if h := bottom - top + 1; h != 56 {
-		t.Errorf("the session row is %dpx tall (%d..%d), want the reference's 56u floor", h, top, bottom)
+	if h := bottom - top + 1; h != 49 {
+		t.Errorf("the session row is %dpx tall (%d..%d), want the production 49 (see this test's note: "+
+			"the reference asks 56 and this row does not reach it)", h, top, bottom)
 	}
-	if got := int(title.Y) - top; got != 9 {
-		t.Errorf("the title starts %dpx inside the row, want the row's own 2.25u padding (9)", got)
+	if got := int(title.Y) - top; got != 8 {
+		t.Errorf("the title starts %dpx inside the row, want the row's own 2.25u padding (8)", got)
 	}
 
 	withDir := productionSession()
 	withDir.Dir = "~/workspace/floter"
 	_, dirTop, dirBottom, dirTitle := sessionRowFrame(t, withDir)
-	if h := dirBottom - dirTop + 1; h <= 56 {
-		t.Errorf("the row with a cwd is %dpx tall (%d..%d), want it to grow past the 56u floor by its cwd line",
+	if h := dirBottom - dirTop + 1; h <= 49 {
+		t.Errorf("the row with a cwd is %dpx tall (%d..%d), want it to grow past the 49 by its cwd line",
 			h, dirTop, dirBottom)
 	}
-	if got := int(dirTitle.Y) - dirTop; got != 9 {
-		t.Errorf("with a cwd the title starts %dpx inside the row, want the same 9: the padding owns the top, the floor owns the rest", got)
+	if got := int(dirTitle.Y) - dirTop; got != 8 {
+		t.Errorf("with a cwd the title starts %dpx inside the row, want the same 8: the padding owns the top, the floor owns the rest", got)
 	}
 }
 

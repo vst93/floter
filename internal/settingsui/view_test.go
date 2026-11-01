@@ -41,6 +41,28 @@ func render(t *testing.T, a *App, w, h int) *ui.Tester {
 	return tt
 }
 
+// renderThemed is render in the frame production actually draws in: the shell
+// pins the design's `ui.Theme` on the context before the panel draws
+// (`internal/shell/shell.go:4262`), so `c.Theme().FontSize` there is the ladder's
+// body (10.8 at the shipped step), not the framework's stock 14.
+//
+// P13-dd：两条 pin 一直在量一个生产上不存在的取景——代码里一半的字读
+// `a.tokens(c)`（设计阶梯），一半读 `c.Theme()`（库存 14），于是同一行里
+// 11.7pt 和 14pt 的字混排，量出来的行高既不是生产的、也不是参考的。这一对
+// 取景差在 P13-cm / P13-db / P13-dc 之后第四次现形；本轮先给需要真数的两条
+// pin 一个装好了主题的取景，`render()` 本身的收口留给下一轮（它会影响四十多条
+// 都在量库存字的 pin）。
+func renderThemed(t *testing.T, a *App, w, h int) *ui.Tester {
+	t.Helper()
+	skipWithoutTheReferenceFont(t)
+	tt := ui.NewTester(func(c *ui.Context) {
+		c.SetTheme(a.tokens(c).Theme)
+		a.View(c)
+	}, w, h)
+	tt.Frame()
+	return tt
+}
+
 // referenceMetricTests assert absolute boxes of the shipped reference's type
 // ladder: a description on one 12u line, a 28u field slot, the caption's line
 // box. Those numbers are the *reference font's* line boxes, so a machine with

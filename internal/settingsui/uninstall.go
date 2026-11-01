@@ -391,6 +391,12 @@ func (a *App) uninstallActionButton(c *ui.Context, label string, danger bool, bu
 // under `--text-body` (11px), so the body step's own value less a half carries
 // it at every interface step; the dialog used to draw both hints at the body
 // step itself, a half point larger than the reference's line.
+//
+// P13-dd：这是字阶账里的**具名例外**（`internal/ci/fontladder_contract_test.go`
+// 的 `fontLadderExceptions`）。参考把这一档写成「正文减半格」，阶梯上没有这一档
+// ——caption 是 11px 不是 10.5px——所以它只能是一个**写得出来理由的**偏移，不能
+// 就地展开成 `t.FontSize-0.5`。实测四个步长上的行盒是 14/15/18/19，与 caption
+// 的 14/15/17/19 只在 default 档差 1px。
 func uninstallSubBody(t *ui.Theme) float32 {
 	return t.FontSize - 0.5
 }

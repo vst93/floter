@@ -198,7 +198,11 @@ func TestIntegrationTitleCarriesTheVersion(t *testing.T) {
 		ID: "dev.floter.tool", Name: "V Tools", Publisher: "vst", Version: "1.2.3",
 		Enabled: true, Running: true,
 	}, Actions{})
-	tt := integrationPage(t, a, 720, 900)
+	tt := renderThemed(t, a, 720, 900)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatalf("open Integrations: %v", err)
+	}
+	tt.Frame()
 
 	name := mustFind(t, tt, "V Tools")
 	version := mustFind(t, tt, "v1.2.3")

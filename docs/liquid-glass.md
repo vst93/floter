@@ -3303,3 +3303,33 @@ pin：`internal/settingsui/sheetcaptionline_test.go`
 
 **出图**：`/tmp/floter-P13-dc-pluginsheet-{light,dark}-{before,after}.png`（opt-in
 `FLOTER_P13DC_DUMP=1`），差分只落在分组标题那一行。
+
+### §6.73 设置页的字号是「body ± N」，不是阶梯上的档（P13-dd，**已落地**）
+
+`internal/settingsui` 的 24 处 `t.FontSize ± N`（`+1` 次级标题、`+2` 区块标题、`-1` 说明行、
+`-3` 状态盘）全部换成阶梯档位，`internal/ci` 的字阶账从 `pluginsheet.go` 扩到**整包**。
+判据与四步长实测见 `docs/rounds/P13-dd-report.md`（tiny 档三级字同时脱离阶梯：13 对 14、
+17 对 16、18 对 17）。
+
+| # | 位置 | 现状 | 应改成 | 状态 |
+|---|---|---|---|---|
+| 73-1 | `rows.go` ×4、`settingsui.go` ×18、`transfer.go` ×1 | `t.FontSize ± N` | `tokens.Caption / Emphasis / Title` | `已落地` |
+| 73-2 | `settingsui.go` 的两枚 `●`/`○` | `t.FontSize - 3` | 具名例外 `markDot(t)`（盘是字形不是档位） | `已落地` |
+| 73-3 | `uninstall.go` 的 10.5px 提示行 | `t.FontSize - 0.5` | 保留，但写进具名例外（参考定义就是 body − 半格） | `故意不做（有理由）` |
+| 73-4 | `internal/launcher` 的同一族（8 处） | 同病 | 下一轮，量法与本轮相同 | `未开始` |
+| 73-5 | `render()` 的取景（四十多条 pin 在量库存字 14） | 与生产不一致 | 收口到 `SetTheme(tokens.Theme)`，逐条重钉 | `未开始` |
+| 73-6 | 会话行 49 对参考的 56 地板 | 少 7px | 补 `min-height = Space(14)` | `未开始`（P13-da 的结论作废） |
+
+**旧值 → 新值（逐条）**
+
+1. `+1` (11.8) → `tokens.Emphasis` (11.7)；`+2` (12.8) → `tokens.Title` (12.6)；
+   `-1` (9.8) → `tokens.Caption` (9.9)。出货档上行盒各 **−1px**（19 → 18），
+   0.1 点的字宽差遍布整页（差分 50019 / 51402 px，位置移动 60 / 112 个盒子、
+   没有一处换行变化）。
+2. `settingsui` 的 `render()` 取景不动；只有会话行与集成标题两条 pin 换成
+   `renderThemed`（装好设计主题的 `render`）。**会话行 56 → 49、标题内边距 9 → 8**：
+   上一轮那条「56 由内容自然满足」是在混合取景（11.7pt 与 14pt 混排）里量的。
+
+**为什么这轮让它更轻 / 更有空间感（一句话）**：同一张设置卡里的四级字（区块标题 /
+行名 / 说明 / 脚注）现在共享一条随步长缩放的阶梯，用户把界面调小一格时它们一起呼吸，
+而不是三级同时掉出阶梯、挤成一样大。

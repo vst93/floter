@@ -1189,7 +1189,7 @@ func (a *App) View(c *ui.Context) {
 	ui.Column(c).Fill().Children(func() {
 		ui.Row(c).FillWidth().Height(t.Space(launcher.FieldRowUnits)).Padding(0, t.Space(4)).
 			Gap(t.Space(2.5)).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, copy.Title).FontSize(t.FontSize + 2).FontWeight(600).
+			ui.Text(c, copy.Title).FontSize(a.tokens(c).Title).FontWeight(600).
 				TextColor(a.tokens(c).TextStrong)
 			if version := strings.TrimSpace(a.About.Version); version != "" {
 				ui.Text(c, "v"+version).FontSize(t.FontSize).TextColor(t.TextMuted)
@@ -1307,6 +1307,18 @@ func (a *App) View(c *ui.Context) {
 	})
 }
 
+// markDot is the size the two status discs (`●` / `○`) are drawn at, in the
+// permission audit's trailing slot and on the integrations failure row.
+//
+// P13-dd：它是字阶账里的**具名例外**（`internal/ci/fontladder_contract_test.go`
+// 的 `fontLadderExceptions`）。一枚盘不是一段文字：它没有字重、不换行、也不参与
+// 任何行盒的比较，唯一的要求是**装得进它所在那一行的 caption 行盒**——所以在
+// caption 下面两档。写成 `t.FontSize-3` 与写成这里没有区别，区别在于账能把它
+// 和「一行字被写成了 body 的偏移量」分开：后者是这轮真正在修的东西。
+func markDot(t *ui.Theme) float32 {
+	return t.FontSize - 3
+}
+
 // permissionTier draws one tier of the permission audit: its label and the
 // one-line explanation of what the tier means, then a row per permission.
 //
@@ -1328,9 +1340,9 @@ func (a *App) permissionTier(c *ui.Context, label, hint string, enforced bool, l
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 	ui.Column(c).FillWidth().Gap(t.Space(1)).Children(func() {
-		ui.Text(c, label).FontSize(t.FontSize - 1).FontWeight(650).TextColor(tokens.TextStrong)
+		ui.Text(c, label).FontSize(tokens.Caption).FontWeight(650).TextColor(tokens.TextStrong)
 		if hint != "" {
-			ui.Text(c, hint).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+			ui.Text(c, hint).FontSize(tokens.Caption).TextColor(t.TextMuted)
 		}
 		a.card(c, func() {
 			for _, permission := range permissions {
@@ -1346,7 +1358,7 @@ func (a *App) permissionTier(c *ui.Context, label, hint string, enforced bool, l
 						// accent 用途。
 						color = t.Accent
 					}
-					ui.Text(c, mark).FontSize(t.FontSize - 3).TextColor(color)
+					ui.Text(c, mark).FontSize(markDot(t)).TextColor(color)
 				})
 			}
 		})
@@ -1806,7 +1818,7 @@ func (a *App) integrations(c *ui.Context, copy i18n.Settings) {
 	t := c.Theme()
 	integrations := a.installedIntegrations()
 	a.pageColumn(c, func() {
-		ui.Text(c, copy.IntegrationsHint).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+		ui.Text(c, copy.IntegrationsHint).FontSize(a.tokens(c).Caption).TextColor(t.TextMuted)
 		// The panel's own content is `extensions.css`, written in literal px, so
 		// it does not follow the interface step the way the settings pages' `--u`
 		// metrics do (the page column's own gap above still scales). Everything
@@ -2090,9 +2102,9 @@ func (a *App) transferRow(c *ui.Context, copy i18n.Settings) {
 		}
 		switch a.TransferBusy {
 		case "export":
-			ui.Text(c, copy.IntegrationsExporting).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+			ui.Text(c, copy.IntegrationsExporting).FontSize(a.tokens(c).Caption).TextColor(t.TextMuted)
 		case "import":
-			ui.Text(c, copy.IntegrationsImporting).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+			ui.Text(c, copy.IntegrationsImporting).FontSize(a.tokens(c).Caption).TextColor(t.TextMuted)
 		}
 	})
 	if a.TransferReport != nil {
@@ -2698,7 +2710,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 				// the version and freshness marks out of the row; the full name
 				// rides the row as a tooltip, since the settings page is where a
 				// package identifies itself.
-				nameText := ui.Text(c, integration.Name).FontSize(t.FontSize + 1).FontWeight(580).
+				nameText := ui.Text(c, integration.Name).FontSize(tokens.Emphasis).FontWeight(580).
 					TextColor(tokens.TextStrong).SingleLine().Ellipsis("\u2026").
 					Shrink(1).MinWidth(0)
 				// P13-az：全名提示是浮面（§6.20 20-3）。
@@ -2784,12 +2796,12 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 		}
 		if reason := failureReason(copy, integration.FailureCode, integration.FailureDetail); reason != "" {
 			a.row(c, copy.IntegrationsFailureDetail, "", func() {
-				ui.Text(c, reason).FontSize(t.FontSize - 1).TextColor(t.Danger)
+				ui.Text(c, reason).FontSize(tokens.Caption).TextColor(t.Danger)
 			})
 		}
 		if integration.Error != "" {
 			a.row(c, copy.IntegrationsDiagnostics, integration.Error, func() {
-				ui.Text(c, "\u25cf").FontSize(t.FontSize - 3).TextColor(t.Danger)
+				ui.Text(c, "\u25cf").FontSize(markDot(t)).TextColor(t.Danger)
 			})
 		}
 
@@ -4300,12 +4312,11 @@ func (a *App) linkCopied(value string, now time.Time) bool {
 // 与 `rowValue` 对「程序自己起的名字」用的是同一种截断（见 rowValue 的注释）。
 func (a *App) keyValue(c *ui.Context, label, value string) {
 	tokens := a.tokens(c)
-	t := a.cardTheme(c)
 	if value == "" {
 		return
 	}
 	a.cardRow(c, ui.Center, nil, rowFace{}, func() {
-		ui.Text(c, value).FontSize(t.FontSize + 1).FontWeight(580).
+		ui.Text(c, value).FontSize(tokens.Emphasis).FontWeight(580).
 			TextColor(tokens.TextStrong).Selectable()
 	}, func() {
 		// P13-bs：行的文字列现在从行内容盒的顶边开始（`cardRow`），而这一行是
@@ -4704,7 +4715,7 @@ func (a *App) slider(c *ui.Context, row sliderRow) {
 			// emphasis step (`.settings-row__label`), the readout the body step
 			// (`.terminal-setting-control__value`).
 			ui.Row(c).FillWidth().AlignItems(ui.Center).Justify(ui.SpaceBetween).Children(func() {
-				ui.Text(c, row.label).FontSize(t.FontSize + 1).FontWeight(580).TextColor(tokens.TextStrong)
+				ui.Text(c, row.label).FontSize(tokens.Emphasis).FontWeight(580).TextColor(tokens.TextStrong)
 				// P13-bf（`docs/liquid-glass.md` §6.25）：这个读数**退了**，但只在
 				// 禁用那一档。§1 的「槽」读法是「整块退一半、内线各留一半」——轨道
 				// 已经退了（实测浅色 209 → 219、深色 58 → 49），可这个数字与行名
@@ -4978,7 +4989,7 @@ func (a *App) residencyRow(c *ui.Context, copy i18n.Settings) {
 		}
 		input := a.textInput(c, &a.residencyDraft).Label(copy.SurfaceResidencyCustomLabel).
 			Placeholder(copy.SurfaceResidencyCustomUnit).Width(90)
-		ui.Text(c, copy.SurfaceResidencyCustomUnit).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+		ui.Text(c, copy.SurfaceResidencyCustomUnit).FontSize(a.tokens(c).Caption).TextColor(t.TextMuted)
 		if input.Submitted() || a.pageButton(c, copy.SurfaceResidencyCustomApply).Clicked() {
 			a.commitResidencyDraft()
 		}
@@ -5547,7 +5558,7 @@ func (a *App) scriptRows(c *ui.Context, copy i18n.Settings, language *string, sc
 		*language = id
 	})
 	a.row(c, copy.LocalToolLanguage, "", func() {
-		ui.Text(c, a.scriptRuntimeLine(*language)).FontSize(c.Theme().FontSize - 1).
+		ui.Text(c, a.scriptRuntimeLine(*language)).FontSize(a.tokens(c).Caption).
 			TextColor(c.Theme().TextMuted)
 	})
 	// The editor is a stacked row: a script wants the row's full width and
@@ -6777,9 +6788,9 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 		// `customRunValuesHint`), so a user meets the form as a named block rather
 		// than as rows that appear under the commands.
 		ui.Column(c).FillWidth().Gap(theme.Space(0.5)).Children(func() {
-			ui.Text(c, copy.RunValues).FontSize(theme.FontSize + 1).FontWeight(600).
+			ui.Text(c, copy.RunValues).FontSize(a.tokens(c).Emphasis).FontWeight(600).
 				TextColor(a.tokens(c).TextStrong)
-			ui.Text(c, copy.RunValuesHint).FontSize(theme.FontSize - 1).TextColor(theme.TextMuted)
+			ui.Text(c, copy.RunValuesHint).FontSize(a.tokens(c).Caption).TextColor(theme.TextMuted)
 		})
 		a.runParamsBox(c, func() {
 			for index, param := range integration.Params {
@@ -6800,7 +6811,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 				if issue, ok := issueByIndex[index]; ok {
 					below = append(below, func() {
 						ui.Text(c, paramValueIssueMessage(copy, issue)).
-							FontSize(theme.FontSize-1).TextColor(theme.Danger).
+							FontSize(a.tokens(c).Caption).TextColor(theme.Danger).
 							Margin(theme.Space(1), theme.Space(3.5))
 					})
 				}
@@ -6841,12 +6852,12 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 		// line) and the route the manifest already declares, stated before the Run
 		// button so the user knows where the output lands — the reference's
 		// `customParamInjectionNote` and its `customRunOutputHint*` pair.
-		ui.Text(c, copy.RunInjectionNote).FontSize(theme.FontSize - 1).TextColor(theme.TextMuted)
+		ui.Text(c, copy.RunInjectionNote).FontSize(a.tokens(c).Caption).TextColor(theme.TextMuted)
 		outputHint := copy.RunOutputHintBackground
 		if integration.OutputMode == extensions.RouteTerminal {
 			outputHint = copy.RunOutputHintTerminal
 		}
-		ui.Text(c, outputHint).FontSize(theme.FontSize - 1).TextColor(theme.TextMuted)
+		ui.Text(c, outputHint).FontSize(a.tokens(c).Caption).TextColor(theme.TextMuted)
 		// The reference's `.extension-run-params__actions` is a right-aligned
 		// flex row (justify-content: flex-end, a 8px gap) with Cancel first and
 		// the accent-filled Run last (`RunParamForm.tsx:129-145`;
@@ -6870,7 +6881,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 			}
 		})
 		if a.runError != "" {
-			ui.Text(c, a.runError).FontSize(theme.FontSize - 1).TextColor(theme.Danger)
+			ui.Text(c, a.runError).FontSize(a.tokens(c).Caption).TextColor(theme.Danger)
 		}
 	})
 }
@@ -7227,7 +7238,8 @@ var paramKinds = []string{
 // backend to explain a typo. A muted warning line, not a red banner.
 func (a *App) issueUnder(c *ui.Context, message string) {
 	t := a.cardTheme(c)
-	ui.Text(c, message).FontSize(t.FontSize-1).TextColor(t.Warning).
+	tokens := a.tokens(c)
+	ui.Text(c, message).FontSize(tokens.Caption).TextColor(t.Warning).
 		Padding(0, t.Space(3.5)).SingleLine()
 }
 

@@ -66,7 +66,7 @@ func (a *App) transferReport(c *ui.Context, copy i18n.Settings) {
 			for _, warning := range report.ExcludedFields {
 				names = append(names, warning.ExtensionID)
 			}
-			transferNotice(c, t.Warning, "alert", copy.IntegrationsImportExcludedFields(strings.Join(names, ", ")))
+			a.transferNotice(c, t.Warning, "alert", copy.IntegrationsImportExcludedFields(strings.Join(names, ", ")))
 		}
 		if len(report.Failed) > 0 {
 			// The reference shows the first three failures by `id: message`,
@@ -83,10 +83,10 @@ func (a *App) transferReport(c *ui.Context, copy i18n.Settings) {
 			if extra := len(lines) - len(shown); extra > 0 {
 				body += " (" + copy.IntegrationsImportFailedMore(extra) + ")"
 			}
-			transferNotice(c, t.Warning, "alert", body)
+			a.transferNotice(c, t.Warning, "alert", body)
 			return
 		}
-		transferNotice(c, tokens.TextStrong, "check", copy.IntegrationsImportSummary(report.Succeeded, report.Skipped))
+		a.transferNotice(c, tokens.TextStrong, "check", copy.IntegrationsImportSummary(report.Succeeded, report.Skipped))
 	})
 }
 
@@ -97,10 +97,10 @@ func (a *App) transferReport(c *ui.Context, copy i18n.Settings) {
 // 语义**，不是「哪个被选中 / 哪个是开的」；accent 在这里只充当「这条重要」的
 // 高亮，属于 §5 禁止的那一类。改 `TextStrong`（同一行的失败/警告仍然是
 // `t.Warning` 语义色：语义色不是 accent，不在本预算内）。
-func transferNotice(c *ui.Context, color ui.Color, mark, text string) {
+func (a *App) transferNotice(c *ui.Context, color ui.Color, mark, text string) {
 	t := c.Theme()
 	ui.Row(c).FillWidth().Gap(t.Space(2)).AlignItems(ui.Start).Children(func() {
 		ui.Icon(c, mustGlyph(mark)).Size(t.Space(4), t.Space(4)).TextColor(color)
-		ui.Text(c, text).FontSize(t.FontSize - 1).TextColor(color).Grow(1)
+		ui.Text(c, text).FontSize(a.tokens(c).Caption).TextColor(color).Grow(1)
 	})
 }

@@ -32,9 +32,13 @@ internal/usage/usage.go FilePath
 internal/launcher/filters_test.go hasItem
 internal/launcher/rowtrailing_test.go strongestInk
 internal/launcher/rowtrailing_test.go channelDiff
-internal/settingsui/raycast_test.go renderThemed
 internal/shell/detachlist_test.go detachedTokens
 internal/shell/detachlist_test.go launcherColor
+
+# P13-dd 拿掉的一条：`internal/settingsui/raycast_test.go renderThemed`（P11-cr 删掉的
+# 孤儿 helper）。P13-dd 在 `view_test.go` 里重新写了一个**同名但不同作用**的取景器
+# （装好设计主题的 `render`，有两个真实调用点：会话行与集成标题行），所以这个名字
+# 又有定义了、也有调用点了——它是账里唯一一条「因被重新用上而离账」的条目。
 
 # 注 · 唯一留下的一条：
 # `internal/shell/chrome_other.go` 的 `dressWindowsFrame` 是 `!windows` 的**桩**，

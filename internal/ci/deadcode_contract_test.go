@@ -13,6 +13,12 @@ import (
 // `deadcode` measured as having no caller (24 of them — 18 in production code,
 // 6 private helpers in test files), which that round deleted.
 //
+// P13-dd：**24 → 23**。`renderThemed`（`internal/settingsui/raycast_test.go`）
+// 是测试 helper 里的一条，P13-dd 在 `view_test.go` 里重新写了一个同名但不同作用
+// 的取景器（装好设计主题的 `render`），有两个真实调用点，于是这个名字又有定义了
+// ——按下面的规矩，它必须在同一轮离账。这是账里唯一一条「因被重新用上而离账」
+// （其余 23 条一条没动）。
+//
 // The number is pinned on purpose. `TestTheDeadCodeBaselineStaysDeleted` reads
 // the ledger next to it and requires:
 //
@@ -33,7 +39,7 @@ import (
 // `dressWindowsFrame` is the `!windows` stub of a function `chrome_windows.go`
 // calls, and `deadcode` compiles for Linux so it cannot see the windows arm
 // (see the note at the bottom of the ledger).
-const deadCodeBaselineEntries = 24
+const deadCodeBaselineEntries = 23
 
 // deadCodeBaseline is the ledger's path, relative to this package.
 const deadCodeBaseline = "deadcode_baseline.txt"

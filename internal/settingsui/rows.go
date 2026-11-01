@@ -178,7 +178,7 @@ func (a *App) sectionHeadingInline(c *ui.Context, title, inlineHint string, acti
 		ui.Column(c).Grow(1).Gap(1).Children(func() {
 			// `.settings-section__label` is the ladder's title step at 620 in the
 			// strong colour.
-			ui.Text(c, title).FontSize(t.FontSize + 2).FontWeight(620).TextColor(a.tokens(c).TextStrong)
+			ui.Text(c, title).FontSize(a.tokens(c).Title).FontWeight(620).TextColor(a.tokens(c).TextStrong)
 			if inlineHint != "" {
 				// `--inline` drops the 2u inset the group hint keeps, but is
 				// otherwise the same body step at 500 in the muted colour.
@@ -1163,7 +1163,7 @@ func (a *App) rowTitle(c *ui.Context, align ui.Align, lead func(), face rowFace,
 	return a.cardRow(c, align, lead, face, control, func() {
 		// The label is the emphasis step (580, strong) and the grey second line
 		// the body step (500, muted).
-		label := ui.Text(c, name.Text).FontSize(t.FontSize + 1).FontWeight(580).TextColor(tokens.TextStrong)
+		label := ui.Text(c, name.Text).FontSize(tokens.Emphasis).FontWeight(580).TextColor(tokens.TextStrong)
 		if name.Nowrap {
 			// P13-az：截断名的全名提示（§6.20 20-3）——文本锚点，不是按钮。
 			tokens.Tip(c, label.SingleLine().Ellipsis("\u2026"), name.Text)
@@ -1256,11 +1256,10 @@ func (a *App) rowTitle(c *ui.Context, align ui.Align, lead func(), face rowFace,
 // 只读的是**一个已经确定的答案**，它不淡，只是把重量交给答案本身。
 func (a *App) factRow(c *ui.Context, name, value string) {
 	tokens := a.tokens(c)
-	t := a.cardTheme(c)
 	a.cardRow(c, ui.Center, nil, rowFace{}, func() {}, func() {
 		ui.Text(c, name).FontSize(tokens.Caption).FontWeight(500).
 			TextColor(tokens.TextSecondary).SingleLine()
-		ui.Text(c, value).FontSize(t.FontSize + 1).FontWeight(580).
+		ui.Text(c, value).FontSize(tokens.Emphasis).FontWeight(580).
 			TextColor(tokens.TextStrong).SingleLine()
 	})
 }
@@ -1585,7 +1584,7 @@ func (a *App) stackedRow(c *ui.Context, label, sublabel string, control func()) 
 			// and `.settings-row__sublabel` is `--text-body` for both shapes
 			// (`settings.css:520-546`), and `SettingsRow` never demotes a
 			// stacked row (`SettingsRows.tsx:104-135`).
-			ui.Text(c, label).FontSize(t.FontSize + 1).FontWeight(580).TextColor(tokens.TextStrong)
+			ui.Text(c, label).FontSize(tokens.Emphasis).FontWeight(580).TextColor(tokens.TextStrong)
 			if sublabel != "" {
 				ui.Text(c, sublabel).FontSize(t.FontSize).TextColor(t.TextMuted)
 			}
