@@ -2857,3 +2857,40 @@ bbox `(16,204)-(44,232)` = 恰好 28×28 的**那块板**，两行门板零位�
 M2（字形回 `t.TextMuted`）→ `glyph reads 122 … and the door's 122 (a step of 0)`；
 M3（`iconPlate` 的 dim 臂换 `LitFace`）→ `the note plate is lit: its top row lifts 5 levels`。
 `md5sum -c` 逐字节还原 + `touch` 复跑绿。
+
+#### §6.60 文本动作的三个状态：一盏灯，不是两盏（P13-cq，**已落地**）
+
+设置页共享文本动作（`.settings-reset`：`Restore defaults` / `Add shortcut` / 两个深链复制键）
+此前**一个状态两个旋钮**：P7-gk 照抄了参考 CSS 的两个不透明度（`settings.css:713-721` 的
+`.78` / `.6`），P8-d 又把 hover 的墨抬了一档（`TextSecondary → Text`）。两者同时生效，于是
+① hover 抬起来的 80 级只剩 31 级到屏幕上（rung 0.40）；② press 先把墨**退回**静息档再乘 0.6，
+按下那一帧比静息还淡（离面 **86 / 92** 对 **137 / 141**）。这是 P13-s / P13-aq / P13-u /
+P13-y / P13-cp 同一族（§6.59 判据 1：一个意图一道淡）在**文字动作**上的最后一处。
+
+| # | 位置 | 现状（旧） | 落成（新） | 状态 |
+|---|---|---|---|---|
+| 25-1 | `settingsui/rows.go` `actionWithGlyph` 的 `Hovered()` 臂 | `row.Opacity(0.78)` + `ink = t.Text`：抬墨被自己的不透明度按回去（浅 `{77,77,79}` rung 0.40 / 深 `{186,186,188}` rung 0.39） | 只留 `ink = t.Text`：浅 `{30,30,32}` 离面 **216**、深 `{234,234,236}` 离面 **219**，rung **0.96** | `已落地` |
+| 25-2 | 同函数 `Pressed()` 臂 | `row.Opacity(0.6)`，墨退回 `TextSecondary`（浅 `{164,164,167}` 离面 86 / 深 `{97,97,102}` 离面 92） | `ink = t.Text` + `row.Scale(0.986, 0.986)`：浅 `{40,40,42}` 离面 **206**、深 `{224,224,226}` 离面 **209**，rung **0.84**（差的 0.16 是 0.986 缩放的抗锯齿损失，不是墨阶退档） | `已落地` |
+| 25-3 | 同处，第三档的**材质** | 一条 `Opacity` | **故意不戴面、不戴受光边**：这条动作是透明底（P7-gk 删掉底带是它的设计），§1 禁令 3 明说透明面上的白线就是「类玻璃边」。第三档取 §5 的几何 `Scale(0.986)`，与启动器结果行（`launcher.go:2511`）同一句话 | `故意不做`（见理由） |
+
+**判据（三条，都是像素）**：
+
+1. **rung 位置**：hover 的墨必须落在 `TextSecondary → Text` 这两档之间的 **≥ 0.85**、
+   press **≥ 0.70**（下沿留给缩放带来的抗锯齿损失）。用不透明度画出来的那一档落在 0.40 /
+   −0.10，两条都会红——这正是「第三档墨」不该存在的地方。
+2. **按下不许比静息淡**：`pressInk` 离面的级数 ≥ `restInk` 离面（实测 206 / 209 对 137 / 141）。
+3. **press ≠ hover**：两帧的差分必须 > 0，且**全部落在动作自己的盒子内**（实测 437 px，
+   bbox `{619,136,81,9}` = 那 81×9 的字带）。
+
+pin：`internal/settingsui/actionrung_test.go` 一条五断言（rung ×2 / 按下不比静息淡 / 面不动
+（hover 与 press 都不许画面）/ 局部性），每条深+浅两套；出图 opt-in（`FLOTER_PNG=1`，
+`/tmp/floter-P13-cq-textaction-<light|dark>-<rest|hover|press>-<before|after>.png`）。
+改前/改后差分：rest **0 px**（静息一帧没动）、hover 275 / 274、press 425 / 423，
+bbox 全部 `(619,136)-(700,145)`。
+
+**V 1**（`raycast_test.go` 的 `TestTheResetActionIsNeutralAtRestAndOnHover` 从
+`panelOver(Text.Alpha(0.78), page)` 钉到 `Text` 本身，注释写 `P13-cq 重定基线`）/
+**B 0**（`actionmetrics_test.go` 三条几何 + `TestTheTextActionHoverLiftsTheInkOnly` 零改动）/
+**S 0**。**变异三条实跑**：M1（`Opacity(0.78)` 放回）→ rung 0.40/0.39 红；M2（press 墨退回
+`TextSecondary`）→ rung −0.10 + 「按下比静息淡」两红；M3（删 `Scale`）→ 「pressed frame is
+pixel-identical to the hovered one」红。`md5sum -c` 逐字节还原 + `touch` 复跑绿。

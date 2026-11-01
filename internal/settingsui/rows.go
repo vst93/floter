@@ -1651,8 +1651,9 @@ func (a *App) action(c *ui.Context, label string, clicked func()) ui.Element {
 //
 // The box is the reference's `.settings-reset` itself, not an approximation of
 // it (`settings.css:682-730`): a 24u floor, a 5u gap, 2u of side padding, a
-// `--radius-xs` corner, a transparent fill, and a hover/active pair that dims
-// the *ink* rather than painting a band behind it. The old port padded the row
+// `--radius-xs` corner, a transparent fill, and a hover/press pair that moves
+// the *ink* (and, on press, the element's own scale) rather than painting a band
+// behind it. The old port padded the row
 // by 4u/6u, rounded it to `--radius-sm` and filled it on hover, so the same
 // words stood 4u taller and turned into a control the reference never drew.
 //
@@ -1668,12 +1669,22 @@ func (a *App) actionWithGlyph(c *ui.Context, glyphName, label string, clicked fu
 	if glyphName != "" {
 		row.Gap(t.Space(1.25))
 	}
+	// P13-cq（`docs/liquid-glass.md` §6.60）：这条动作此前**一个状态两个旋钮**——P7-gk 照抄了
+	// 参考 CSS 的两个不透明度（`settings.css:713-721` 的 `.78` / `.6`），P8-d 又把墨抬了一档
+	// （`TextSecondary → Text`），于是 hover 的抬墨被 0.78 吃回一半，而 press 先把墨**退回**
+	// `TextSecondary` 再乘 0.6——按下那一帧比静息还淡（实测离面 20673 对 55494 的平方和，
+	// 浅色 `{164,164,167}` 对 `{109,109,114}`）。合约的说法是**一个意图一道**（§6.59）：
+	// 抬墨就是 hover 的全部，不透明度两道都删掉。
+	//
+	// **第三档换的是几何，不是墨**（§5 + `sidebarRow` 的同一句，`settingsui.go:1419`）：
+	// 这条动作没有面（P7-gk 专门把底带删了），所以按下取 §5 的 `Scale(0.986)`——
+	// 与启动器结果行（`launcher.go:2511`）同一句话。布局盒不动，命中框不动。
 	ink := tokens.TextSecondary
 	switch {
 	case row.Pressed():
-		row.Opacity(0.6) // `.settings-reset:active { opacity: .6 }`
+		ink = t.Text
+		row.Scale(0.986, 0.986)
 	case row.Hovered():
-		row.Opacity(0.78) // `.settings-reset:not(:disabled):hover { opacity: .78 }`
 		ink = t.Text
 	}
 	row.Children(func() {

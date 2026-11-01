@@ -1191,7 +1191,6 @@ func TestTheResetActionIsNeutralAtRestAndOnHover(t *testing.T) {
 	for _, appearance := range appearanceNames {
 		t.Run(appearance.name, func(t *testing.T) {
 			dark := appearance.dark
-			page := subPage(dark)
 			a := New(newStore(t), Actions{})
 			var ref ui.Handle
 			var box ui.Rect
@@ -1248,11 +1247,13 @@ func TestTheResetActionIsNeutralAtRestAndOnHover(t *testing.T) {
 				t.Errorf("hover did not lift the action's ink: %v (contrast %d) → %v (contrast %d)",
 					restInk, contrast(restInk), hoverInk, contrast(hoverInk))
 			}
-			// Faded by the reference's own `opacity: .78`, the primary rung composites
-			// to a specific grey — read it rather than the raw token. The plane is the
-			// appearance's own page (P9-d), not always white.
-			if want := panelOver(tokens.Theme.Text.Alpha(0.78), page); channelDelta(hoverInk, want) > 16 {
-				t.Errorf("the hovered action's ink = %v, want the primary rung at .78 (%v)", hoverInk, want)
+			// P13-cq 重定基线（V，旧值 → 新值）：hover 的墨此前是 `Text` **再乘参考 CSS 的
+			// `opacity: .78`**（`panelOver(Text.Alpha(0.78), page)`，浅 `{77,77,79}` / 深
+			// `{189,189,191}`）——P8-d 的「抬墨」与 P7-gk 的「淡下去」两个旋钮同时生效，
+			// 抬起来的那一档被自己的不透明度吃回去。现在 hover 就是那一档墨本身
+			// （浅 `{28,28,30}` / 深 `{236,236,238}`），一道淡只画一遍（§6.59 / §6.60）。
+			if want := tokens.Theme.Text; channelDelta(hoverInk, want) > 16 {
+				t.Errorf("the hovered action's ink = %v, want the primary rung %v", hoverInk, want)
 			}
 		})
 	}
