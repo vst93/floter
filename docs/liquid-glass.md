@@ -1902,3 +1902,46 @@ pin：`internal/settingsui/permimark_test.go` 两条 × 深浅两套（①行尾
 **V 0 / B 0 / S 0**。变异 3 条实跑全红（环加回 / `●` 换 `TextStrong` / `○` 换 `Accent`），
 `md5sum -c` 逐字节还原。**M3 原计划（字阶 11 → 9.9）实测不红**——那一格的字阶本来就对，
 按纪律不造脆弱断言，换成上面第三条同族注入。详见 `docs/rounds/P13-bn-report.md`。
+
+### §6.34 插件窗口列表臂的行盘：这一族最后一块没戴一对线的面（P13-bp，**已落地**）
+
+§2 把 E1 写死成「面 + 顶受光边 + 底对侧暗线」，§6.1 第 1-2 / 1-8、§6.2 第 2-3、
+§6.2b-2 第 9-16 把启动器的结果行、28u 图标板、设置页分组卡与命令块一块块收进这条判据。
+`internal/shell/detach.go` 的 `detachedList`（`plugin-window__row` 行盘）是同级里
+**最后一块**没进过账的：它在 `tokens.Control` 面上直接 `Children`，一条线都没有。
+
+**同一份数据，两个表面两种读法**：插件 emit 出来的 `Row` 在启动器列表里落成 §6.1 的
+E1（P12-b），在插件窗口里落成一块平涂。用户在两处看到同一行数据，一处站得住、一处
+是一块颜色。
+
+**先量（改前，720×460，窗口自己的地面 `tokens.Opaque` 浅 246 / 深 20）**：
+
+| 外观 | 地面 | 冠线 | 面 | 底内线 | 左/右列 |
+|---|---|---|---|---|---|
+| 浅 | 246 | **229** | **229** | **229** | 229 = 面 |
+| 深 | 20 | **44** | **44** | **20** | 44 = 面 |
+
+冠 / 面 / 底三读同值 ⇒ 这个面上只有一块底，`LitFace` 的两条 1px 内线一条都不存在；
+两侧也没有线，所以它不是「画框分层」的受害者，是**完全没有层**。
+
+| # | 位置 | 现状（旧） | 落成（新） | 状态 |
+|---|---|---|---|---|
+| 34-1 | `detach.go` `detachedList` 的行盘 | `Background(tokens.Control)` 后直接 `Children` | `plate = tokens.LitFace(plate)`：顶 `LensRim` + 底 `LensEdge`。实测浅色冠 **229 → 235（+6）**、底 **229 → 216（−13）**；深色冠 **44 → 63（+19）**、底 44 → 45；左右两列回到面本身（浅 229 / 深 44） | `已落地` |
+| 34-2 | 同处的几何（`Space(0.5)` gap / `Space(2)` / `Space(2.5)` padding / `RadiusSM` / `FillWidth`） | — | **一个像素不动**（`LitFace` 只加两条内线，padding box 不变）；实测盘子包围盒 `13 52 694 46}` 两轮逐字节相同 | `已落地`（复核） |
+| 34-3 | `internal/ci/flatface_contract_test.go`（新） | 无 | **面级反向 census**（P13-aa「仍待」明写的那条）：函数体里有 `Background(<面 token>)` + `Padding(` + `Radius(` ⇒ 必须有一条线（`LitFace(` / `DimFace(` / `.Lens(` / `LensInset(` / `InsetShadow(` / `Border(`）。判据按**面的形状**而不是指针状态，所以它盖得住前两张账的共同盲区 | `已落地` |
+| 34-4 | 同处：列表的 `Selectable()` / copy-on-select / 分页触发 | — | **不动**（行为契约红线；分页读的是 `detached.scroll.MaxY`，不受内线影响） | `已落地`（复核） |
+
+**这一族的 census 为什么换了判据**（34-3 的理由，P13-aa 的「仍待」原文）：
+「census 还缺一条**反向**判据——『面』出现在 `Hovered()` / `Pressed()` 臂里就必须有
+一对线。这一族现在只能靠人肉找。」这块行盘对两张旧账都不可见——
+`settingsui/facecensus_test.go`（P13-p）要「面 **+ 边**」，`ci/litarm_contract_test.go`
+（P13-ab）只扫 `Hovered()` / `Pressed()` 臂，而这盘子**既没有边框也没有指针臂**
+（列表不可选）。`flatFaceAllow` 现在是**空表**：判据刚落地就零豁免。
+
+pin：`internal/shell/plugindowlistface_test.go` 五条 × 深浅两套外观（顶内线是受光边 /
+底内线是暗线 / **两侧 = 面** / 面仍离地面 ≥6 级 / 盘子是行盘不是洗色），另有一条
+opt-in 出图（`FLOTER_P13BP_DUMP=1`，
+`/tmp/floter-P13-bp-windowlist-light,dark}-before,after}.png`）。
+**V 0 / B 0 / S 0**，变异 4 条实跑（4 红，`md5sum -c` 逐字节还原）：
+M1 撤线 / M2 `LitFace`→`Lens`（左右两列各读到一条环线）/ M3 裸 `InsetShadow`（半对）/
+M4 census 回测点名 `shell/detach.go:677`。详见 `docs/rounds/P13-bp-report.md`。

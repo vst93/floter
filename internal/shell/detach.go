@@ -660,6 +660,20 @@ func selectedText(container ui.Element) string {
 // (`DetachedPluginApp.tsx:341-350`, `launcher.css:1792-1818`). A status row is
 // information about the list rather than an entry in it, so it wears the muted
 // status line instead of a plate (the same split the launcher's own list makes).
+//
+// P13-bp（`docs/liquid-glass.md` §2 / §6.34）：这块盘此前只有 `Background`
+// 一句，**一条线都没有**——同一份数据在启动器列表里是 E1（§6.1 第 1-2 行：
+// 面 + 顶受光边 + 底对侧暗线），在这个窗口里是一块平涂。实测（720×460，窗口
+// 自己的地面 `tokens.Opaque` 浅 246 / 深 20）：浅色 冠 / 面 / 底全 **229**、
+// 深色全 **20**，也就是说这块盘除了「面」以外什么都没有，而它的四周就是窗口的
+// 地面——浅色档它比地面**暗 17 级**、深色档与地面同值，那块盘既没有站起来，
+// 也没有浮起来。它是这一族里最后一块没戴 §2 那一对线的面。
+//
+// 这一族此前看不见，是因为两代 census 的判据都是「面 **+ 边**」：
+// `settingsui/facecensus_test.go`（P13-p）要 `Border(`/`InsetShadow(` 同时在，
+// `ci/litarm_contract_test.go`（P13-ab）只扫 `Hovered()`/`Pressed()` 臂——而这个
+// 行盘既没有边框，也没有指针臂（列表不可选）。`internal/ci` 的材质账本轮补了
+// 一条**面级**判据把它们盖住（见 `flatface_contract_test.go`）。
 func detachedList(c *ui.Context, rows []extensions.Row, tokens theme.Tokens, t *ui.Theme) ui.Element {
 	return ui.Column(c).FillWidth().Gap(t.Space(detachedRowGap)).Selectable().Children(func() {
 		for _, row := range rows {
@@ -670,6 +684,10 @@ func detachedList(c *ui.Context, rows []extensions.Row, tokens theme.Tokens, t *
 			plate := ui.Column(c).FillWidth().Gap(t.Space(0.5)).
 				Padding(t.Space(detachedRowPadY), t.Space(detachedRowPadX)).
 				Radius(tokens.RadiusSM).Background(tokens.Control)
+			// E1: 面 + 顶受光边 + 底对侧暗线（`theme.Tokens.LitFace`）。几何一个
+			// 字节不动：`LitFace` 只加两条 1px 内线，padding box 不变（同 §6.2b-2
+			// 的 `extensionActionFace`、§6.1 的 1-2）。
+			plate = tokens.LitFace(plate)
 			plate.Children(func() {
 				ui.Text(c, row.Title).FontSize(tokens.Caption).FontWeight(500).
 					TextColor(tokens.TextStrong).SingleLine().Ellipsis("\u2026")
