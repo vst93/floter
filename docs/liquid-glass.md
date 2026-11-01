@@ -3127,3 +3127,43 @@ pin：`TestTheFreshnessBlockSitsInTheCardsLabelColumn`（块左 = 卡上行标�
 元数据网格右端 = 卡内容右端，卡面与 inset 都从同一帧像素里读；另钉「元数据行盒紧贴块标签
 行盒」= 纵向零变化）与 `TestTheFreshnessNoteWrapsInsideTheColumn`（健康来源注脚在自己的列里
 换行，不许越过卡内容右端）。深浅各一份。
+
+### §6.68 meta 行的收尾词比它收尾的三个事实大一级（P13-cy，**已落地**）
+
+§6.67 的「仍待」第 1 条把 `integrationMeta` 与 `packageChip` 列成「先渲一帧量 x」的两个候选。
+量完的结论是：**这两个的列都是对的**——`packageChip` 的左沿 `200`（= 卡上行标签列），
+标题 / 描述 / meta 三行同一条文字列 `242`（= 方格右沿 `230` + `Space(3)`，参考的
+`.extension-row__icon` 30px + 12px gap）。真正的偏差在同一行**里面**：
+
+参考的 `.extension-row__meta` 声明 `font-size: var(--text-caption)`
+（`main:src/styles/extensions.css:960-970`），而 `.extension-status` 没有声明字号
+（`:1007-1015` 只有 `padding` / `line-height` / `border-radius`）——它是从 meta 行**继承**
+caption 的。本仓把状态字写成 `t.FontSize-1`（12）而三个事实写 `tokens.Caption`（11），
+于是同一行上最后那个词比前面三个词大一级，**行盒也高一级**：
+
+实测（Integrations 页 720×1700，深浅两套逐像素同坐标，同一帧）：
+
+| 事实 | 改前 | 改后 |
+|---|---|---|
+| 三个事实（identity / kind / source） | `y=392.5`，`h=15` | 三行同 `y=390`，同 `h=15` |
+| 收尾状态字 `· Running` | **`y=390`，`h=20`**（比事实高 5px） | `y=390`，`h=15` |
+| 整条 meta 行的横向尺寸 | **20**（由收尾词决定） | **15**（由 caption 决定） |
+| 标题行下方第一行（`Health` 行标签） | `y=429` | **`y=424`**（−5px） |
+| 下一块（`Checks`） | `y=464` | **`y=459`** |
+| 行内 `Tool unavailable` 暖胶囊的字 | `h=19`（12px + 上下 padding） | `h=15`（11px + 上下 padding），胶囊右端 `584..688` → `607..688` |
+
+**为什么这不是「把字调小一点」**：一行字有一个字号是本应用通篇的规矩（§4.2 墨列与字阶），
+而这条 meta 行的高度此前不是由它自己的文字决定的——它由最后那个词决定，于是**标题行
+白长 5px，卡里每一行都跟着往下挪 5px**。一行里混两个字号，行盒就归大的那个管。
+
+**改法**：`stateMark` 的三条臂（破损暖胶囊 / 开着 / 关着）与 `runtimeUnavailableBadge`
+的字号 `t.FontSize-1` → `tokens.Caption`。字重 600、墨（`TextStrong` / `TextSecondary` /
+`Warning`）、那枚 `·`、`Margin(0,0,0,Space(0.5))`、胶囊的 `Padding(Space(0.5), Space(1.5))`
+与 `ControlEdge` 内环零改动——胶囊比事实高一点点是参考自己的几何
+（`.extension-status--broken { padding: 2px 6px }`，`:1020-1025`），**不是**字号。
+
+pin：`TestTheMetaLinesClosingWordIsOneRegister`（三个事实同一行盒，收尾词与它们同高同顶，
+行内暖胶囊的字也与它们同高；深浅各一份）、`TestTheBrokenChipsLabelIsACaption`（破损胶囊的
+字是 caption，胶囊的高度来自它的 padding）。
+
+**记录**：这一族里 `rowFace.Muted` 仍是零调用点（§6.64 记），与本轮无关。

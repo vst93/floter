@@ -2142,6 +2142,13 @@ func (a *App) installRow(c *ui.Context, copy i18n.Settings) {
 // 620 → 600。预热面（系统语义色）保留：它说的是「这条不工作」，而环是结构，
 // 不是语义——合约下环只有两档（`HairlineSoft` 的结构线与 `ControlEdge` 的
 // 控件边），warning 环那种「彩色描边」属于旧 glass 语言的彩色 rim。
+// P13-cy（`docs/liquid-glass.md` §6.68）：状态字与它收尾的那三个事实**同一个字阶**
+// （`tokens.Caption`）。参考的 `.extension-row__meta` 声明了 `font-size:
+// var(--text-caption)`（`extensions.css:960-970`），而 `.extension-status` 没有声明
+// 字号（`:1007-1015` 只有 padding / line-height / radius）——它**继承** meta 行的
+// caption。本仓把它写成 `t.FontSize-1`（12）而事实是 `tokens.Caption`（11），于是
+// 同一行上最后那个词比前面三个词大一级，行盒也高一级：实测事实 `h=15`、状态字
+// `h=20`，整条 meta 行的高度被收尾那个词决定了，标题行跟着长高 5px。
 func (a *App) stateMark(c *ui.Context, integration Integration, copy i18n.Settings, lead bool) {
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
@@ -2167,7 +2174,7 @@ func (a *App) stateMark(c *ui.Context, integration Integration, copy i18n.Settin
 			Background(tokens.RaisedWarm).Margin(0, 0, 0, t.Space(0.5))
 		chip.InsetShadow(0, 0, 0, 1, tokens.ControlEdge)
 		chip.Children(func() {
-			ui.Text(c, text).FontSize(t.FontSize - 1).FontWeight(600).TextColor(t.Warning)
+			ui.Text(c, text).FontSize(tokens.Caption).FontWeight(600).TextColor(t.Warning)
 		})
 	case integration.Enabled:
 		// P8-d 重定基线（§5 判据）：「运行中」曾用 `t.Accent`。它说的是「这条
@@ -2178,10 +2185,10 @@ func (a *App) stateMark(c *ui.Context, integration Integration, copy i18n.Settin
 		// The state word keeps its own ink, so it leads with the dot rather than
 		// carrying the dot in the facts' colour.
 		ui.RichText(c, append(leadDot(), ui.Span{Text: text, Color: tokens.TextStrong})...).
-			FontSize(t.FontSize-1).Margin(0, 0, 0, t.Space(0.5))
+			FontSize(tokens.Caption).Margin(0, 0, 0, t.Space(0.5))
 	default:
 		ui.RichText(c, append(leadDot(), ui.Span{Text: text, Color: tokens.TextSecondary})...).
-			FontSize(t.FontSize-1).Margin(0, 0, 0, t.Space(0.5))
+			FontSize(tokens.Caption).Margin(0, 0, 0, t.Space(0.5))
 	}
 }
 
@@ -2210,7 +2217,7 @@ func (a *App) runtimeUnavailableBadge(c *ui.Context, copy i18n.Settings, integra
 		Background(tokens.RaisedWarm)
 	chip.InsetShadow(0, 0, 0, 1, tokens.ControlEdge)
 	chip.Children(func() {
-		ui.Text(c, label).FontSize(t.FontSize - 1).FontWeight(600).TextColor(t.Warning)
+		ui.Text(c, label).FontSize(tokens.Caption).FontWeight(600).TextColor(t.Warning)
 	})
 	return chip
 }
