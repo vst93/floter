@@ -1945,3 +1945,25 @@ opt-in 出图（`FLOTER_P13BP_DUMP=1`，
 **V 0 / B 0 / S 0**，变异 4 条实跑（4 红，`md5sum -c` 逐字节还原）：
 M1 撤线 / M2 `LitFace`→`Lens`（左右两列各读到一条环线）/ M3 裸 `InsetShadow`（半对）/
 M4 census 回测点名 `shell/detach.go:677`。详见 `docs/rounds/P13-bp-report.md`。
+
+### §6.35 设置页行的纵向刻度：这一族只有一档，账是「别再长出第二格」（P13-bq，**先量，不改**）
+
+`.pending-bugs.md` 从 P13-bo 起连着两轮把「通用队列 · 间距节奏」列成下一格，并要求
+「先量设置卡片里 8/9/11/13u 的混用（**不许先改**）」。量下来的结论与猜想**相反**：
+纵向的**行**刻度在这条链上只有一档。
+
+| # | 位置 | 量到的实况 | 结论 | 状态 |
+|---|---|---|---|---|
+| 35-1 | `rows.go` `cardRow` / `stackedRow` / `actionRow` 的纵向 `Padding` | 三条路都是 `t.Space(2.25)` = **9u / 36px**（`:1359` / `:1463` / `:1517`） | 同族**没有**两个值 | `已落地`（复核） |
+| 35-2 | 「8/9/11/13u 混用」这个猜想 | `Space(2)`=8u / `Space(3)`=12u / `Space(4)`=16u / `Space(6)`=24u 全部只出现在**块**（告警带、凹槽、空态区域、卸载卡片）；`Space(2.75)`=11u 与 `Space(3.25)`=13u 在 `internal/settingsui` 里**一次都没出现作间距**（全仓只有 `rows.go:1563` 与 `shell/notices.go:372`，两处是 `Size(t.Space(3.25), t.Space(3.25))`，**图标尺寸**） | 猜想在纵向 padding 上**不成立**；9u 是行那一族唯一的刻度 | `故意不做（量过，无需改）` |
+| 35-3 | 分组之间：`sectionGroup` 8u（`rows.go:81`）/ `sectionMaterial` 10u（`:114`）/ `pageColumn` 22u（`:56`） | 8 与 10 只差 2 个物理像素 | **下一格**：先出图看这两个角色读不读得出来（General 页两张相邻分组卡的间距，深/浅两套），**再决定改不改** | `未开始` |
+| 35-4 | `internal/ci/rowrhythm_contract_test.go`（新） | 这笔账此前只存在于人的眼睛里 | ①三条行路的**第一条 `Padding` 参数**必须同值且 = `Space(2.25)`（`Gap` / `min-height` 不进账：一个是行内部的空气，一个是行的地板）；②`internal/settingsui` 的**间距方法第一参数位**（`Padding`/`Gap`/`GapX`/`GapY`/`Margin`/`MarginX`/`MarginY`/`InsetShadow`）不许出现 `Space(2.75)` / `Space(3.25)`；逃生口 `rowRhythmSpaceAllow` 落地即**空表**，条目过期同样变红 | `已落地` |
+
+**为什么必须按「方法名 + 参数位」判，不按字面文本**：同一个数字在三条轴上不是一个东西。
+`Size(t.Space(3.25), t.Space(3.25))` 是图标边长，`max(t.Space(11), rowFloorPx)` 是行的
+**高度下限**（44u 的地板，`rows.go:1301`），两者都不是「间距」。字面 grep 会把它们读成
+混用，正是 P13-bq 一开始那个猜想的来源。
+
+**V 0 / B 0 / S 0**（本轮一个产品字节都不改，只加这张账与本节）。变异 3 条实跑全红并
+`md5sum -c` 逐字节还原：M1 `cardRow` 步 9u→10u / M2 `stackedRow` 步 9u→12u /
+M3 在 `settingsui.go` 造一处 `Padding(t.Space(2.75))`。详见 `docs/rounds/P13-bq-report.md`。
