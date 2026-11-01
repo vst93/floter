@@ -784,8 +784,13 @@ const (
 // busy rows on one page turn independently.
 func (a *App) actionSpinner(c *ui.Context, ink ui.Color, key string) {
 	t := a.cardTheme(c)
+	// P13-cl（`docs/liquid-glass.md` §6.55）：环占的是**静息 glyph 的那个盒子**
+	// （`extensionGlyphActionButton` 的 `Size(Space(3.5))`，14px），不是它自己的
+	// 10px。在飞臂与静息臂是同一枚键的两张画，槽一样宽，词才不会搬家；环比槽小
+	// 4px 时，即使补了 glyph 也还差 4px。`busySwitchControl` 的轨道是 9u×5u
+	// （36×20px），14px 的环在里面仍居中，不越界。
 	icon := ui.Icon(c, mustGlyph("loader-circle")).
-		Size(t.Space(2.5), t.Space(2.5)).TextColor(ink).Shrink(0)
+		Size(t.Space(3.5), t.Space(3.5)).TextColor(ink).Shrink(0)
 	icon.Rotate(actionSpinnerTurn * motion.Value(c, func() float32 {
 		return icon.Loop(key, actionSpinnerPerTurn, ui.Linear)
 	}))

@@ -3623,6 +3623,12 @@ func (i Integration) repairTooltip(copy i18n.Settings) string {
 	return i.repairLabel(copy)
 }
 
+// repairGlyphName is the mark the row's re-check / reconnect pill wears at rest:
+// the reference's RefreshCw (`src/extensions/ExtensionRow.tsx:305,325,364`), the
+// glyph the in-flight LoaderCircle replaces one for one. P13-cl: without it the
+// busy pill had no slot to swap into and grew 15px on the press.
+const repairGlyphName = "refresh"
+
 // repairAction draws the row's re-check / reconnect entry and holds it in the
 // in-flight face from the press until the shell calls back, so a press that
 // has not landed is visible rather than assumed. The reference drew exactly
@@ -3635,17 +3641,26 @@ func (a *App) repairAction(c *ui.Context, id, label, tooltip string, run func(st
 		tokens.Tip(c, a.busyActionButton(c, label, "extensions.repair."+id), tooltip)
 		return
 	}
-	var button ui.Element
-	if a.rowBusyExceptRepair(id) {
-		// Another operation on the row is in flight: the reference disabled
-		// *every* control in the cluster for the duration, not only the one
-		// that was pressed (`disabled={busy}`, `src/extensions/ExtensionRow.tsx:301-419`).
-		// P13-ba: built disabled rather than disabled afterwards — a pill built
-		// first keeps its lit crown, and the crown is the mark of a pill that can
-		// be pressed.
-		button = a.disabledActionButton(c, label)
-	} else {
-		button = a.actionButton(c, label)
+	// P13-cl（`docs/liquid-glass.md` §6.55）：这一枚键有三个状态——静息 / 另一操作在飞 /
+	// 自己在飞——而三个状态画的是两种内容：一行字，或一枚环加一行字。此前静息臂是
+	// **一行字**（`actionButton`），在飞臂是**环 + 一行字**（`busyActionButton`），于是
+	// 一按下，词盒 x 走 **15px**（环 10 + 间距 5），胶囊也宽出 15px。
+	//
+	// 参考那边不会动，因为环是**顶替**那枚已有的 Wrench / RefreshCw
+	// （`ExtensionRow.tsx:305,325,364`）——1:1 换，槽本来就留着。这一版丢了静息的
+	// glyph，环就成了**加**上去的东西。所以这里把那枚 glyph 补回来：两臂的语义都是
+	// 「再跑一次搜索」（`repairTooltip`：`reconnectUnboundHint` 说的就是搜索会重跑），
+	// 一个 RefreshCw 对两臂都成立。
+	//
+	// P13-ba 的规矩照旧：`disabled` 在**建造时**传入，不先建后 `.Disabled`（先建会留下
+	// 亮着的冠线，而冠线是「这枚键能按」的记号）。`extensionGlyphActionButton` 只把
+	// `disabled` 交给材质，不设框架的禁用位，所以那一臂自己补两行。
+	t := a.cardTheme(c)
+	disabled := a.rowBusyExceptRepair(id)
+	button := a.extensionGlyphActionButton(c, repairGlyphName, label,
+		t.Space(7.5), t.Space(3.75), tokens.Body, disabled)
+	if disabled {
+		button = button.Disabled(true).Cursor(ui.CursorDefault)
 	}
 	button = tokens.Tip(c, button, tooltip)
 	if button.Clicked() {
