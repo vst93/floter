@@ -1248,12 +1248,26 @@ func (a *App) factRow(c *ui.Context, name, value string) {
 // `floter://` line read as data instead of copy (`DeepLinkRow.tsx:67,79`;
 // `settings.css:1524-1535`). It is a `cardRow` with a different label column,
 // so it keeps the same rule, counters and control slot as every other row.
+// codeRow is the deep-link line: the value sits in a **code chip**, and the chip
+// is the pane's own recess showing through the card — not a thin veil over the
+// card's face.
+//
+// P13-bz 重定基线：旧填充是 `Background(tokens.Sunken)`。`Sunken` 是 0.17 的
+// 浅色薄罩，压在卡片的面上只差 **4 级**（dark 卡 39 → 片 35），浅色档只差 2 级
+// ——「凹陷」在像素上不存在。它以前看上去能过 `TestTheDeepLinkValueIsTheReferenceCodeChip`
+// 只是因为那个 pin 跑在一张**混色帧**里（app 的 token 是深色、tester 的帧主题是
+// 浅色），chip 与卡在那张帧里相差 34 级。本轮把内容页的面算成了不透明色，
+// 混色帧消失，这个假绿才露出来。现在 chip 填的是**内容页自己**那个不透明色
+// （`FaceOver(地, Sunken)`，与内容列同一个表达式）：dark 39 → **15**（−24 级）、
+// light 230 → **246**（+16 级），它真的是一块挖穿的洞。
 func (a *App) codeRow(c *ui.Context, value string, control func(), below ...func()) {
 	tokens := a.tokens(c)
 	t := c.Theme()
 	a.cardRow(c, ui.Center, nil, rowFace{}, control, func() {
 		chip := ui.Box(c).FillWidth().MinWidth(0).Padding(t.Space(1), t.Space(2)).
-			Radius(tokens.RadiusXS).Background(tokens.Sunken).Border(1, tokens.ControlEdge)
+			Radius(tokens.RadiusXS).
+			Background(theme.FaceOver(tokens.Theme.Background, tokens.Sunken)).
+			Border(1, tokens.ControlEdge)
 		chip.Children(func() {
 			ui.Text(c, value).Font(deepLinkValueFont).FontSize(tokens.Caption).
 				TextColor(tokens.TextSecondary)

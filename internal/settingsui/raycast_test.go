@@ -281,20 +281,29 @@ func TestTheSettingsRulesAreOneSolidWeakHairline(t *testing.T) {
 
 			// The sidebar's own column separator: one vertical line, the same value at
 			// the top, the middle and the bottom.
+			//
+			// P13-bz 重定基线：这条线脚下不再是一块地，而是侧栏的**面**
+			// （`Control` 戴在两栏的父行上，见 `View`）。所以①扫描从铬面的右沿
+			// 之后开始（100 起会把侧栏行块 58 当成线），②期望值算在那块面上
+			// 而不是地上：旧值 dark `27`（0.055 白压地 14）→ 新值 **`51`**
+			// （同一条白压面 39），浅色档 `233` → **`217`**。
+			chrome := imagePixel(img, 146, 300)
+			wantV := panelOver(tokens.HairlineSoft, chrome)
 			x := -1
-			for candidate := 100; candidate < 220; candidate++ {
-				if channelDelta(imagePixel(img, candidate, 300), pane) > 4 {
+			for candidate := 148; candidate < 220; candidate++ {
+				if channelDelta(imagePixel(img, candidate, 300), chrome) > 4 {
 					x = candidate
 					break
 				}
 			}
 			if x < 0 {
-				t.Fatalf("the sidebar's column separator was not drawn between x=100 and x=220")
+				t.Fatalf("the sidebar's column separator was not drawn between x=148 and x=220")
 			}
 			for _, y := range []int{60, 300, img.Rect.Dy() - 20} {
 				got := imagePixel(img, x, y)
-				if !panelClose(got, want, 5) {
-					t.Errorf("the sidebar's separator at y=%d is %v, want the weak hairline (%v)", y, got, want)
+				if !panelClose(got, wantV, 5) {
+					t.Errorf("the sidebar's separator at y=%d is %v, want the weak hairline over the chrome face (%v)",
+						y, got, wantV)
 				}
 			}
 			// The fade's own signature — a *differently* coloured first and last few

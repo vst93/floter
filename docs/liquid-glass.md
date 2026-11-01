@@ -2195,3 +2195,37 @@ pin：`internal/settingsui/pagebody_test.go` 两条——① `bodyPage` 在 `[0,
 在 `pageNames[-1]` 上 panic：`index out of range [-1]`，即夹取是承重的）/ M2 把中文那句塞回
 `SaveFailed`（`TestNoPageSaysItIsNotBuiltYet` 报 `i18n still ships "将在后续迭代中到来"`）。
 详见 `docs/rounds/P13-by-report.md`。
+
+### §6.43 设置页的侧栏与内容是同一个 z 平面（P13-bz，**已落地**）
+
+用户 2026-10-30 那句「所有东西挤在同一个 z 平面上，靠 1px 描边分家」在设置页上的
+算术来源：`Sunken` 是 0.17 的**浅色薄罩**，压在窗口地上合成后只差 **1 级**
+（dark `14,14,16 → 15,15,17`；light `247,247,248 → 246,246,248`）。侧栏那一列和内容
+那一列**都**戴着它，于是两栏之间唯一的分界是 `hairlineRule(c, true)` 那根 1px 竖发丝线。
+
+**落地的形状**：铬（侧栏 + 两侧各 11u 的列间距 + 那根线）是一整块**面**，内容页是**底**。
+面戴在**两栏的父行**上，不是 148u 的侧栏列上——否则 11u 的列间距会露出窗口地，那根线
+就漂在两块地中间（一条没有落在任何东西上的线）。这就是 macOS 设置面板的形状：
+灰铬 | 1px 线 | 白纸，线正好落在两个材质的交界处。
+
+| # | 位置 | 现状（旧） | 落成（新） | 状态 |
+|---|---|---|---|---|
+| 43-1 | `internal/settingsui/settingsui.go` `View` 的两栏父行 | 无填充（露出窗口地） | **面**：`Background(tokens.Control)`（dark 0.10 白 / light 0.07 黑），实测 dark `14 → 39`（**+25 级**）、light `247 → 230`（**−17 级**） | `已落地` |
+| 43-2 | 同处 148u 侧栏列 | `Background(Sunken)`：与内容页同一层薄罩，与地差 1 级 | 去掉自己的填充，**继承父行那块面**（叠两层 `Control` 会到 58，比卡片还亮） | `已落地` |
+| 43-3 | 同处 内容列 | `Background(Sunken)`：薄罩压在**父行**的面上会合成成 **35**（比今天的 15 亮 20 级，倒退） | `Background(FaceOver(地, Sunken))`：同一个合成值的**不透明**形式，像素**逐字节不变**（dark `15,15,17` / light `246,246,248`），与 `sheetedge.go` 的 `panelFace` 同一个函数、同一个理由 | `已落地` |
+| 43-4 | 侧栏要不要戴 `LitFace` 的冠线 | — | **故意不做**：E1 是「落在一个底上的块」（有上边也有下边）；侧栏是一列贴着窗口边的通高容器（上接页头发丝、下接窗口下沿），冠线在这里就是给面板画框（§0 硬禁令 3）。它的层级由**面差**表达（§1 第一条手段），实测 25 / 17 级 | `故意不做`（附理由） |
+| 43-5 | `internal/settingsui/rows.go` `codeRow` 的代码片（深链值） | `Background(Sunken)`：薄罩压在卡片的面上只差 **4 级**（dark 39→35），浅色档 2 级——「挖穿的洞」在像素上不存在 | `Background(FaceOver(地, Sunken))`，与 43-3 同一个值：dark 39 → **15**（−24）、light 230 → **246**（+16），它才真是内容页自己的凹陷。**这条是本轮**顺带**量出来的**：43-3 把内容页算成不透明色之后，那张 pin 一直借着的**混色帧**（app token 深色 / tester 帧主题浅色）消失了，假绿才露出来 | `已落地` |
+
+pin：`internal/settingsui/sidebarface_test.go` 四条判据 × 深/浅两套外观 + 1 条回归钉：
+① 面与内容页 ≥ 8 级（`liteFaceFloor`）；② 面与窗口地 ≥ 8 级（它是面不是薄罩）；
+③ 选中行仍站在侧栏面上 ≥ 8 级；④ 面差 ≥ 那根竖发丝线自己造成的差（dark 24 vs 12、
+light 18 vs 13）——「不再靠 1px 描边分家」是可测的；回归钉：内容页的像素必须仍等于
+`FaceOver(地, Sunken)`（±2）。
+
+**V 3 / B 0 / S 0**（三条旧 pin 重定基线，都不是产品回归）：
+`raycast_test.go` 的竖发丝线 pin（线现在压在面上，期望值 dark `27 → 51`、light `233 → 217`，
+扫描从 x=148 起，否则会把侧栏行块当成线）/ `baseplugincard_test.go` 的 `cardBox`
+（采样点从窗口地 `x=2` 改成按 token 算的 `FaceOver(地, Sunken)`）/ `deeplinkcopy_test.go`
+的代码片（**没有改断言**：改的是 43-5 的产品填充，pin 的 delta ≥ 12 由 4 变成 24）。
+
+出图 `/tmp/floter-P13-bz-settings-{dark,light}-{before,after}.png`。

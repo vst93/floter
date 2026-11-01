@@ -55,14 +55,14 @@ func basePluginApp(t *testing.T) *App {
 // does not (the neighbouring rows' planes are the same fill). It walks out
 // from the label line at a clear column until the page's plane comes back, so
 // a test reads geometry without depending on the widget tree.
-func cardBox(tt *ui.Tester, label string) (top, bottom int) {
+func cardBox(tt *ui.Tester, label string, page ui.Color) (top, bottom int) {
 	r, ok := tt.Find(label)
 	if !ok {
 		return 0, 0
 	}
 	img := tt.Image()
 	y := int(r.Y + r.H/2)
-	fill := imagePixel(img, 2, y)
+	fill := page
 	x := int(r.X + 200) // a card column, clear of the label and its controls
 	if x >= img.Rect.Dx() {
 		x = img.Rect.Dx() - 4
@@ -105,12 +105,19 @@ func TestTheBasePluginCardsAreTheirOwnBoxes(t *testing.T) {
 	// interface step (extension panel CSS is written in literal px).
 	const wantFloor = 66
 
-	calcTop, calcBottom := cardBox(tt, en.BaseCalculator)
+	// P13-bz 重定基线：旧采样点是 `imagePixel(img, 2, y)`，那是窗口的地。
+	// 侧栏现在是**面**（`Control` 戴在两栏的父行上，`settingsui.go` 的 `View`），
+	// x=2 已经不是一块空地。内容页自己也不再是「地 + 薄罩」的合成，而是那个
+	// 合成值的**不透明**形式（同一像素），所以这里直接按 token 算它：
+	// `FaceOver(地, Sunken)`。
+	tokens := theme.ForPreferences(a.Store.Snapshot(), false, ui.Preferences{})
+	page := theme.FaceOver(tokens.Theme.Background, tokens.Sunken)
+	calcTop, calcBottom := cardBox(tt, en.BaseCalculator, page)
 	calc := float32(calcBottom - calcTop + 1)
 	if calc < wantFloor-1 || calc > wantFloor+1 {
 		t.Errorf("the calculator card's box is %.0f tall, want the reference's 66px floor", calc)
 	}
-	clipTop, clipBottom := cardBox(tt, en.BaseClipboard)
+	clipTop, clipBottom := cardBox(tt, en.BaseClipboard, page)
 	clip := float32(clipBottom - clipTop + 1)
 	if calcTop < 0 || clipTop < 0 {
 		t.Fatalf("a card's box was not found: calculator %d..%d, clipboard %d..%d",

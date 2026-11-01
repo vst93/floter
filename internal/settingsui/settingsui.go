@@ -1233,8 +1233,27 @@ func (a *App) View(c *ui.Context) {
 		a.hairlineRule(c, false)
 		// The content pane carries its own fill (`.settings-card__body`'s
 		// `--surface-sunken`): the panel is a reading surface, more solid than
-		// the launcher, and the sidebar sits on the same one so the two read
-		// as one pane.
+		// the launcher. It is the **ground** of this surface — the cards that
+		// sit on it are the faces (liquid-glass.md §1).
+		//
+		// P13-bz：侧栏此前也戴着这层 `Sunken`。`Sunken` 是 0.17 的浅色**薄罩**，
+		// 压在窗口地上合成后只差 1 级（实测 dark `14→15`、light `247→246`）——
+		// 两栏于是落在**同一个 z 平面**上，唯一的分界是中间那根 1px 竖发丝线，
+		// 正是用户说的「所有东西挤在同一个 z 平面上，靠 1px 描边分家」。
+		// 侧栏改成**面**档（`Control`：dark 0.10 白 / light 0.07 黑），实测
+		// dark `14→39`（+25 级）、light `247→230`（−17 级）：交界处不再需要
+		// 那根线来分家，它退回成一条接缝。
+		//
+		// 这个面戴在**两栏的父行**上，不是侧栏那一列上：父行同时覆盖侧栏、两侧
+		// 各 11u 的列间距和那根竖发丝线，于是「铬」是一整块面，发丝线正好落在
+		// 面与内容的交界处（macOS 的设置面板就是这个形状：灰侧栏 | 1px 线 |
+		// 白纸）。若只把面戴在 148u 的侧栏列上，11u 的列间距会露出窗口地，
+		// 线就漂在两块地中间——一条没有落在任何东西上的线。
+		//
+		// 为什么侧栏不戴 `LitFace` 的冠线：E1 是「落在一个底上的块」，有上边
+		// 也有下边；侧栏是一列贴着窗口边的通高容器（上接页头发丝、下接窗口
+		// 下沿），给它画冠线就是给面板画框（§0 硬禁令 3 的那一族）。它的层级
+		// 由面差表达，§1 的第一条手段。
 		//
 		// The row *grows* into the space the header leaves instead of asking
 		// for 100% of the card: a `Fill` height resolves against the card, so
@@ -1242,30 +1261,36 @@ func (a *App) View(c *ui.Context) {
 		// then believed it had that much more viewport than the user can see,
 		// and the last rows of every page sat below the card's bottom edge and
 		// could not be scrolled to (「设置页面的列表，无法滚动到底部」).
-		ui.Row(c).Grow(1).MinHeight(0).AlignItems(ui.Stretch).Gap(t.Space(3)).Children(func() {
+		ui.Row(c).Grow(1).MinHeight(0).AlignItems(ui.Stretch).Gap(t.Space(3)).
+			Background(a.tokens(c).Control).Children(func() {
 			ui.Column(c).Width(148).Padding(t.Space(3), t.Space(2)).Gap(t.Space(0.75)).
-				Background(a.tokens(c).Sunken).Children(func() {
-				list := ui.List(c.Key("settings.sidebar"), &a.Sidebar, pageCount, func(i int) {
-					a.sidebarRow(c, i)
-				}).Grow(1).Label(copy.Title)
-				// The entry-focus mark withholds the list's own ring: the chosen
-				// pill already shows where the keyboard is, and the reference's
-				// `data-entry-focus` kept `:focus-visible` off the sidebar until
-				// the first interaction (R152). Once the keyboard leaves the
-				// sidebar — a Tab, a click on a control — the mark goes and the
-				// ring is the framework's again.
-				list.FocusRing(!a.sidebarEntryFocus)
-				switch {
-				case a.sidebarEntryFocus && a.Sidebar.Focused(c):
-					a.entryFocusArmed = true
-				case a.entryFocusArmed:
-					a.sidebarEntryFocus, a.entryFocusArmed = false, false
-				}
-			})
+				Children(func() {
+					list := ui.List(c.Key("settings.sidebar"), &a.Sidebar, pageCount, func(i int) {
+						a.sidebarRow(c, i)
+					}).Grow(1).Label(copy.Title)
+					// The entry-focus mark withholds the list's own ring: the chosen
+					// pill already shows where the keyboard is, and the reference's
+					// `data-entry-focus` kept `:focus-visible` off the sidebar until
+					// the first interaction (R152). Once the keyboard leaves the
+					// sidebar — a Tab, a click on a control — the mark goes and the
+					// ring is the framework's again.
+					list.FocusRing(!a.sidebarEntryFocus)
+					switch {
+					case a.sidebarEntryFocus && a.Sidebar.Focused(c):
+						a.entryFocusArmed = true
+					case a.entryFocusArmed:
+						a.sidebarEntryFocus, a.entryFocusArmed = false, false
+					}
+				})
 			// The sidebar's column separator is the same weak hairline, drawn
 			// vertically (same rule, §6.1).
 			a.hairlineRule(c, true)
-			ui.Column(c).Grow(1).Background(a.tokens(c).Sunken).Children(func() {
+			// 内容页是**底**，不是面：它必须是不透明的（`Sunken` 是一层薄罩，
+			// 直接压在父行的面上会得到 `39→35` 的**倒退**，而不是今天这个 15）。
+			// `FaceOver(地, Sunken)` 与今天「地 + 薄罩」的合成值**逐像素相同**
+			// （15/246 不变），只是把它算成了不透明色——与 `sheetedge.go` 的
+			// `panelFace` 同一个函数、同一个理由。
+			ui.Column(c).Grow(1).Background(theme.FaceOver(a.tokens(c).Theme.Background, a.tokens(c).Sunken)).Children(func() {
 				a.body(c, copy)
 			})
 		})
