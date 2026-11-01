@@ -665,17 +665,26 @@ func (a *App) outputBody(c *ui.Context, copy i18n.Launcher, edge float32) {
 					clear(a.outputRowRects)
 					// P13-x：分组头的盒子与行盒同一时机清掉（见 `headingRects`）。
 					clear(a.outputHeadingRects)
-					list := ui.List(c.Key("launcher.output.list"), &a.OutputList, len(view.Rows), func(i int) {
-						a.outputRow(c, view.Rows[i], i)
-					}).Fill().Padding(header, t.Space(2), 0, t.Space(2)).Label(view.Title)
-					// The rows are clipped to this box, so it is the viewport the output's
-					// numbered family measures against (see outputNumberedViewport).
-					a.outputListRect = list.Bounds()
-					// The scroll trigger: reaching the end of what is loaded asks for
-					// the next page, exactly as the reference's own list did.
-					if a.OutputList.AtEnd() {
-						a.loadMoreOutputPage()
-					}
+					// P13-ce（`docs/liquid-glass.md` §6.48）：条子下面那 4u 的呼吸属于**这一页**，
+					// 不属于内容——它留在裁剪之外。此前它是列表自己的 padding（内容侧），
+					// 于是滚一行就被内容吃掉了：实测第一行的字尾落在 y=102，而条子最后一行墨在
+					// y=100——中间只隔 **2px**，一行被折边切成两半的字贴在页头的结论上。
+					// 移到外面之后裁剪边固定在 y=118，条子下面永远有 16px 的空气；静止帧
+					// **逐像素不变**（首行仍在 118，视口下沿仍在 466——少掉的 16px 高度与
+					// 多出来的 16px 空气是同一笔）。
+					ui.Column(c).Grow(1).FillWidth().MinHeight(0).Padding(header, 0, 0, 0).Children(func() {
+						list := ui.List(c.Key("launcher.output.list"), &a.OutputList, len(view.Rows), func(i int) {
+							a.outputRow(c, view.Rows[i], i)
+						}).Fill().Padding(0, t.Space(2), 0, t.Space(2)).Label(view.Title)
+						// The rows are clipped to this box, so it is the viewport the output's
+						// numbered family measures against (see outputNumberedViewport).
+						a.outputListRect = list.Bounds()
+						// The scroll trigger: reaching the end of what is loaded asks for
+						// the next page, exactly as the reference's own list did.
+						if a.OutputList.AtEnd() {
+							a.loadMoreOutputPage()
+						}
+					})
 					a.outputFooter(c, copy, view)
 				})
 			} else if view.Empty {
@@ -690,10 +699,17 @@ func (a *App) outputBody(c *ui.Context, copy i18n.Launcher, edge float32) {
 					a.quietStatement(c, view.Text)
 				})
 			} else {
-				ui.Scroll(c.Key("launcher.output")).TrackScroll(&a.Output).Fill().
-					Padding(header, t.Space(3), t.Space(1), t.Space(3)).Children(func() {
-					ui.RichText(c, a.outputSpans(c, view)...).Font(view.FontFamily).
-						FontSize(t.FontSize).TextColor(t.Text).Selectable()
+				// P13-ce（`docs/liquid-glass.md` §6.48）：正文分支读同一条规则——条子下面的
+				// 4u 呼吸留在裁剪之外。这一支此前连折边都没有（正文不是行，`foldAlpha` 没有
+				// 可量的盒子），所以滚起来时第一行字是**满墨**贴着条子的；现在它至少和列表
+				// 分支结束在同一条线上，两端的收口不再一个在页头墨上、一个在窗口最后一行
+				// 像素上。正文的高度链、`MaxY`、可选中的墨都不动。
+				ui.Column(c).Fill().Padding(header, 0, 0, 0).Children(func() {
+					ui.Scroll(c.Key("launcher.output")).TrackScroll(&a.Output).Fill().
+						Padding(0, t.Space(3), t.Space(1), t.Space(3)).Children(func() {
+						ui.RichText(c, a.outputSpans(c, view)...).Font(view.FontFamily).
+							FontSize(t.FontSize).TextColor(t.Text).Selectable()
+					})
 				})
 			}
 		})
