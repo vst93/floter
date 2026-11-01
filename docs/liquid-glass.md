@@ -3220,3 +3220,42 @@ pin：`TestTheSessionRowMeetsTheReferencesFloor`、`TestTheSessionRowsStateLineI
 （`session.cwd || "~"`，`SessionsPage.tsx:189`）；本仓的 `TestTheSessionCwdLineIsTheBlocksOnlyMonoLine`
 反过来钉了「没报就不画」。要么照参考画 `~`（等于替 shell 断言 home 目录），要么给行补一块
 地板把差吸收掉（会让没 cwd 的行多出 16px 空带）——两条都改视觉语义，**留给用户拍板**。
+
+### §6.71 弹层里那句「这条没写进去」挂在浮层的边框列上（P13-db，**已落地**）
+
+`internal/settingsui/pluginsheet.go` 的 `PluginSheet` 上有两条「一次写被插件拒了」：
+一条是 `sheetAction` 里动作自己的（`field.Failed`），坐在字段那一**行**里；一条是
+`sheet.Failed` 臂的 `Settings.SaveFailed`，此前**没有任何横向缩进**，于是它的墨和浮层
+**标题**同一条列，比它下面那些字段还左出 16px。同一句话在一块面上有两个说法，而
+`sheetSection` 的分组标题本来就带着 `Padding(0, Space(3.5))`（注释原话：the group title
+starts on the column the row labels under it start on）。
+
+规则（§4.3「间距属于成对的两件东西」在浮层上的同一个说法）：**一条关于字段的句子，
+挂在字段那一列**；**一块面的名字，挂在浮层那一列**（`t.Space(4)` = 14.4，与设置页的
+页头行同一个 4u）。
+
+实测（`renderPluginSheet`，720×900，装了设计主题，深浅两套，墨左沿由 `inkLeft` 扫盒中线得到）：
+
+| 节点 | 改前（浅 / 深） | 改后（浅 / 深） | 状态 |
+|---|---|---|---|
+| 浮层标题 `Probe plugin` | `14.0 / 14.0` | `14.0 / 14.0` | 已落地（不动） |
+| 写失败线 `Could not save that change.` | `14.0 / 14.0` | `27.0 / 27.0` | 已落地 |
+| 字段标签 / 分组标题的列 | `30.0 / 29.0` | `30.0 / 29.0` | 已落地（不动） |
+
+**旧值 → 新值**：`FontSize(t.FontSize-1)` + 无缩进 → `FontSize(tokens.Caption)` +
+`Padding(0, t.Space(3.5))`。字号这一半在出厂档上是 `9.8 → 9.9`（同一个行盒 `h=15`，
+差分里零像素）；真正能被看见的是横向那 `12.6px`。
+
+差分（720×900 逐像素）：浅 **793 px** / 深 **794 px**，bbox `(14,42)-(152,53)`——只有那一行墨。
+
+pin：`internal/settingsui/sheetcaptionline_test.go`
+`TestTheSheetsWriteFailureHangsOnTheFieldsColumn`（墨离**哪个列**更近，而不是比盒子；
+字形 left bearing 因此不参与断言）+ opt-in 出图 `TestDumpP13DBSheetCaptionLine`。
+
+**同一轮量到、故意不做 / 先修取景的**：
+
+| 项 | 现状 | 判断 | 状态 |
+|---|---|---|---|
+| 分组标题的字号 `t.FontSize+2`（12.8）对阶梯 `tokens.Title`（12.6） | 同一个行盒 `h=18`，差分零像素 | 换阶梯本身不改像素；而 `sheetcutedge_test.go` 的 `pluginSheetFrame` **没装设计主题**，`t.FontSize` 在那里是框架库存的 14（标题盒被钉成 `90×22`，生产是 `96×17`）。**先修取景，再换字号** | 需拍板（取景不是视觉语义，但会重钉一条既有 pin 的基线） |
+| 弹层里其余三处偏移量字号（`t.FontSize+1` / `-1`） | 出厂档上恰好等于 `tokens.Emphasis` / `tokens.Caption` | 同上，取景修好后一起换 | 需拍板（同上一条） |
+| 浮层标题的字号 `t.FontSize`（body） | 与设置页页头行同一个 4u 列、同一档 | 它是这块面的名字，不是某张卡的话——不跟字段列 | 故意不做 |

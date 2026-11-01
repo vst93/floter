@@ -59,6 +59,7 @@ func (a *App) PluginSheet(c *ui.Context, sheet PluginSheet) {
 		return
 	}
 	t := c.Theme()
+	tokens := a.tokens(c)
 
 	// The sheet's own scroller: a schema longer than the band scrolls inside
 	// it rather than growing the window past the band it was given.
@@ -71,10 +72,13 @@ func (a *App) PluginSheet(c *ui.Context, sheet PluginSheet) {
 		ui.Scroll(c.Key("plugin.config")).TrackScroll(&a.PluginScroll).Fill().
 			Padding(t.Space(1), t.Space(4), t.Space(3), t.Space(4)).Children(func() {
 			ui.Column(c).FillWidth().Gap(t.Space(3)).Children(func() {
-				// The header: the plugin's own name at the meta register — one
-				// step *below* a section heading, so the hierarchy a reader sees
-				// is name (meta) > section (title) > field (label) > help, as the
-				// old build's `.plugin-config__title` had it (body 600, muted).
+				// The header: the plugin's own name at the body register — the
+				// sheet's name, so it hangs on the sheet's own column (the
+				// scroller's 4u padding), the way a settings page's header hangs on
+				// its page column (`settingsui.go` 的页头行同样是 4u)。One step
+				// *below* a section heading, so the hierarchy a reader sees is
+				// name (body, muted) > section (title) > field (label) > help, as
+				// the old build's `.plugin-config__title` had it (body 600, muted).
 				ui.Row(c).FillWidth().Height(t.Space(7)).AlignItems(ui.Center).Children(func() {
 					ui.Text(c, sheet.Schema.Title).FontSize(t.FontSize).FontWeight(600).
 						TextColor(t.TextMuted).SingleLine()
@@ -83,8 +87,18 @@ func (a *App) PluginSheet(c *ui.Context, sheet PluginSheet) {
 					// The status line is the caption step in the warning colour
 					// (`.plugin-config-action__status`): a muted line, never a
 					// red banner.
+					//
+					// P13-db（`docs/liquid-glass.md` §6.71）：它此前挂在**浮层的列**上
+					// （scroller 的 4u，实测墨左沿 `14.4`），而它说的是下面那些**字段**
+					// 写不进去——同一块面上，动作自己的失败线是坐在字段那一行里的
+					// （实测 `438.6`，行标签从 `28.0` 起）。同一句话在这儿有两个说法：
+					// 一条挂框、一条挂行。这一条收进字段列，与它下一行的分组标题同
+					// 一个 3.5u 缩进（实测 `14.4 → 27.0`，量宽 `691.2 → 664.0`，正好
+					// 是它讲的那批字段的宽度）。标题留在浮层的列上：它是这块面的
+					// 名字，不是某张卡的话。
 					ui.Text(c, i18n.For(a.language()).Settings.SaveFailed).
-						FontSize(t.FontSize - 1).TextColor(t.Warning)
+						FontSize(tokens.Caption).TextColor(t.Warning).
+						Padding(0, t.Space(3.5))
 				}
 				for _, section := range plugincfg.Sections(sheet.Schema) {
 					section := section
@@ -119,6 +133,7 @@ func (a *App) PluginSheet(c *ui.Context, sheet PluginSheet) {
 // holding its fields.
 func (a *App) sheetSection(c *ui.Context, sheet PluginSheet, section plugincfg.Section) {
 	t := c.Theme()
+	tokens := a.tokens(c)
 	// The section is the settings pages' own: an 8u gap between the title and
 	// its card, and the title at the title step (620, strong) — the old build's
 	// `.plugin-config__section` / `__section-title`.
@@ -126,8 +141,17 @@ func (a *App) sheetSection(c *ui.Context, sheet PluginSheet, section plugincfg.S
 		if section.Title != "" {
 			// The group title starts on the column the row labels under it
 			// start on: the card's own inset, added to the scroller's.
+			//
+			// P13-db 量过、**不改**：这一格的字号仍是 body 的偏移量
+			// （`t.FontSize+2` = 12.8），阶梯上是 `tokens.Title`（12.6）。
+			// 在本仓的取景里两者是**同一个行盒**（`h=18`，改后逐像素零差分），
+			// 而 `sheetcutedge_test.go` 的取景**没有装设计主题**
+			// （`pluginSheetFrame` 只用了 `tokens.Theme.Background`），那里
+			// `t.FontSize` 是框架库存的 14——换阶梯会让那条 pin 量到的盒子
+			// 从 `90×22` 变成 `96×17`，它量的是框架库存的字，不是本仓的字
+			// （P13-cm 的同一个口径教训）。取景先修，字号后改。
 			ui.Text(c, section.Title).FontSize(t.FontSize+2).FontWeight(620).
-				TextColor(a.tokens(c).TextStrong).Padding(0, t.Space(3.5))
+				TextColor(tokens.TextStrong).Padding(0, t.Space(3.5))
 		}
 		a.card(c, func() {
 			for _, field := range section.Fields {
