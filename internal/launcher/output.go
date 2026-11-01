@@ -789,9 +789,12 @@ func (a *App) outputStatusSpans(c *ui.Context, copy i18n.Launcher, view *OutputV
 	return []ui.Span{
 		{Text: view.Status, Weight: 580, Color: verdict},
 		// The reference's own muted `·` between two facts
-		// (`extensions.css:2096-2103`); `settingsui`'s fact lines draw it at
-		// `TextTertiary` 0.7 and this line keeps that reading.
-		{Text: "  \u00b7  ", Color: tokens.TextTertiary.Alpha(0.7)},
+		// (`extensions.css:2096-2103`). P13-cs（§6.62）：它是**图例那一档**，不是那一档再乘
+		// 一个 0.7——参考的 `.7` 叠在一条不透明的墨上，本仓接过它时墨本身已经是
+		// 半透明的 token，于是一次乘法变成两次：实测这枚点只到档位的 0.63，换一张
+		// 地面就换一个高度（地面 253 上 70 级、地面 229 上 48 级）。交给阶梯之后它
+		// 才是这一行里「最轻的一件」的同一档。
+		{Text: "  \u00b7  ", Color: tokens.TextTertiary},
 		{Text: a.outputHint(copy, view), Weight: 500, Color: tokens.TextTertiary},
 	}
 }

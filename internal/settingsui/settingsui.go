@@ -2152,11 +2152,14 @@ func (a *App) stateMark(c *ui.Context, integration Integration, copy i18n.Settin
 	// rather than beside it; every transparent state gets one. The 2px
 	// `margin-left` on `.extension-status` is the half-unit that keeps the word
 	// from hugging the 8px gap it shares with the facts.
+	// P13-cs（§6.62）：dot 的墨是 `TextTertiary` 本身（阶梯第四档）。参考的 `.7` 叠在一条
+	// 不透明的墨上，本仓把它接在半透明的 token 上，于是一次乘法变成两次（实测只
+	// 到档位的 0.55–0.63，且越低的地面上越淡）。
 	leadDot := func() []ui.Span {
 		if !lead {
 			return nil
 		}
-		return []ui.Span{{Text: "· ", Color: tokens.TextTertiary.Alpha(0.7)}}
+		return []ui.Span{{Text: "· ", Color: tokens.TextTertiary}}
 	}
 	switch {
 	case integration.Broken:
@@ -2254,10 +2257,14 @@ func (a *App) integrationMeta(c *ui.Context, copy i18n.Settings, integration Int
 // this meta column is 187u wide and each fact takes a line of its own — all
 // three dots sat at line ends and every line began with a bare fact.
 //
-// The dot keeps the reference's `.7` ink instead of inheriting the fact's: a
-// `RichText` span carries its own colour, so the dot is `TextTertiary` at .7
-// and the fact stays at 1.0 (`ui.Color.Alpha` multiplies, so this is the same
-// composite the old `.Opacity(0.7)` separator drew). The pair rides one text
+// P13-cs（§6.62）：dot 的墨是**事实自己那一档**（`TextTertiary`），不再乘一把 0.7。
+// 参考的 `.7` 是 CSS 里叠在一条不透明的墨上的乘法；本仓把同一个数接在半透明的 token
+// 上时，一次乘法变成了两次（token 的 alpha × 0.7），实测这枚点只到档位的 0.55–0.63，
+// 而且每换一张地面就换一个高度（地面 253 上 70 级、面板面 229 上 48 级、深色 39 上 40 级
+// —— 与 `HairlineSoft` 同级）。比它引入的事实更轻这件事仍然成立：`TextTertiary` 就是
+// 阶梅的最后一档，而事实自己已经落在那里。
+//
+// The pair rides one text
 // node instead of a nested `ui.Row` because a nested unit is measured against
 // the line's *remaining* width here: with the dot in a row of its own, a 90u
 // fact at 460u got 82u and wrapped into two lines — a worse trade than
@@ -2265,7 +2272,7 @@ func (a *App) integrationMeta(c *ui.Context, copy i18n.Settings, integration Int
 func (a *App) metaFact(c *ui.Context, tokens theme.Tokens, fact string, lead bool) {
 	spans := make([]ui.Span, 0, 2)
 	if lead {
-		spans = append(spans, ui.Span{Text: "· ", Color: tokens.TextTertiary.Alpha(0.7)})
+		spans = append(spans, ui.Span{Text: "· ", Color: tokens.TextTertiary})
 	}
 	spans = append(spans, ui.Span{Text: fact, Weight: 500, Color: tokens.TextTertiary})
 	ui.RichText(c, spans...).FontSize(tokens.Caption)

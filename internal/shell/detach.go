@@ -269,8 +269,9 @@ func (a *App) detachedVerdict(c *ui.Context, detached *detachedOutput, tokens th
 	if view.Facts != "" {
 		spans = append(spans,
 			// The reference's muted `·` between two facts, the same reading §6.26
-			// and the settings page's fact lines give it.
-			ui.Span{Text: "  \u00b7  ", Color: tokens.TextTertiary.Alpha(0.7)},
+			// and the settings page's fact lines give it. P13-cs（§6.62）：它是图例那一
+			// 档本身，不是那一档再乘一个 0.7。
+			ui.Span{Text: "  \u00b7  ", Color: tokens.TextTertiary},
 			ui.Span{Text: view.Facts, Weight: 500, Color: tokens.TextTertiary},
 		)
 	}
