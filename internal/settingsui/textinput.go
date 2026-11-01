@@ -81,6 +81,23 @@ func (a *App) textInputLit(c *ui.Context, value *string, lit bool) ui.Element {
 // 的白边是 **0.85**——上限的 21 倍；Raycast 的输入框是一档浅面 + 一条发丝边，
 // 没有内侧白边。旧材质在图上就是「输入框像一块玻璃砖」，这正是本片要收掉的。
 func (a *App) fieldFace(c *ui.Context, e ui.Element, lit bool) ui.Element {
+	return a.fieldFaceEdge(c, e, lit, a.tokens(c).ControlEdge)
+}
+
+// fieldFaceEdge is `fieldFace` with the frame as a parameter: the field family's
+// one material, and the one place its outer edge is chosen.
+//
+// P13-cc（`docs/liquid-glass.md` §6.46）：`fieldFace` 一直是「字段材质只有一处
+// 决定」的说法，但三块字段面在自己拼材质——`aliasField`（外圈 `Hairline`，参考
+// 的 `border: 1px solid var(--hairline)`）、`sheetFieldSlot` 与
+// `configMultiselectBox`（外圈 `ControlEdge`，与这里逐字节相同的两行）。前两处
+// 是纯复制，`aliasField` 只有外圈这一个合法差。所以边成了参数：面、状态臂
+// （`lit`）、受光边那一对仍然只在这里决定，调用方只能选**画框**，不能选材质。
+//
+// 为什么不让调用方自己 `Border`：`DimFace`/`LitFace` 画的是**内**阴影，外圈是
+// 另一件事（§1「受光边是内线，画框是外线」）——但两件事必须在同一处落地，否则
+// 下一次改受光边的定值，绕开的那一块就留在旧材质上，同一个面板里出现两种字段。
+func (a *App) fieldFaceEdge(c *ui.Context, e ui.Element, lit bool, edge ui.Color) ui.Element {
 	tokens := a.tokens(c)
 	// P12-c（§6.2 第 2-4 行）：字段是 **E1 面**。P8-c 把它收成「`Control` 面 +
 	// 一条 `ControlEdge` 发丝边」是对的（它去掉了 0.85 的内侧白边），但它只
@@ -99,7 +116,7 @@ func (a *App) fieldFace(c *ui.Context, e ui.Element, lit bool) ui.Element {
 	// 摘不掉它（P13-ca 试过两条路，都失败，见 §6.44）。所以状态必须在**建面**
 	// 的这一刻就到场；而 `lit` 仍然只由这一处决定材质——同一张表单上的输入框、
 	// 下拉框、参数框不会各自漂到两种面。
-	e = e.Background(tokens.Control).Border(1, tokens.ControlEdge)
+	e = e.Background(tokens.Control).Border(1, edge)
 	if !lit {
 		return tokens.DimFace(e)
 	}
@@ -180,5 +197,8 @@ func (a *App) aliasField(c *ui.Context, value *string) ui.Element {
 	// 的选择（`Hairline` 而不是 `ControlEdge`），不是「不要受光边」的理由——受光
 	// 边是**内线**，与画框是两件事。它是面板字段族里唯一没有 E1 一对线的字段，
 	// 于是同一个面板里「能打字的槽」有两种材质。外圈 `Hairline` 不动。
-	return tokens.LitFace(e.Background(tokens.Control).Border(1, tokens.Hairline))
+	//
+	// P13-cc（§6.46）：材质不再在这里拼——它走 `fieldFaceEdge`，外圈那一个合法差
+	// 作为参数传进去。像素零改动（同一个面、同一对线、同一条 `Hairline`）。
+	return a.fieldFaceEdge(c, e, true, tokens.Hairline)
 }

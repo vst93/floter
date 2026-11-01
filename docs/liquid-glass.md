@@ -2289,3 +2289,45 @@ light 18 vs 13）——「不再靠 1px 描边分家」是可测的；回归钉�
 出图：`/tmp/floter-P13-cb-lockedfield-{light,dark}-{before,after}.png`（`FLOTER_PNG=1` opt-in）。
 逐像素差分：浅色 584 px、深色 620 px，其中**整行 270 px 落在锁定控件的顶边那一行**
 （浅色 `{240 240 241}` → `{238 238 239}`，即冠线归到面），其余是圆角抗锯齿的两三像素。
+
+### §6.46 字段材质：三处自己拼材质的面收回 `fieldFace`（P13-cc，**已落地**）
+
+§6.2 第 2-4 行那句「`fieldFace` 是字段材质唯一被决定的地方」在代码里一直只是**说法**：
+三块字段面在自己拼同一行材质。
+
+| 位置 | 改前 | 改后 |
+|---|---|---|
+| `textinput.go` `aliasField` | 自己 `Background(Control).Border(1, Hairline)` + `tokens.LitFace` | `a.fieldFaceEdge(c, e, true, tokens.Hairline)` |
+| `pluginsheet.go` `sheetFieldSlot` | 自己 `Border(1, ControlEdge).Background(Control)` + `tokens.LitFace`（与 `fieldFace` 逐字节相同） | `a.fieldFace(c, slot, true)` |
+| `config.go` `configMultiselectBox` | 同上，另加行尾 `tokens.LitFace(box)` | `a.fieldFace(c, box, true)`（`Clip()` 之后，内阴影顺序不变） |
+
+`fieldFaceEdge(c, e, lit, edge)` 是新的唯一决定点：面 `Control`、外圈 `edge`、`lit` 选
+`LitFace`/`DimFace`。`fieldFace` 退成传 `tokens.ControlEdge` 的壳。**调用方只能选画框，
+不能选材质**——外圈是「字段与卡片之间那道线」，受光边是**内线**（§1），两件事在同一处落地，
+否则下一次改受光边的定值，绕开的那一块就留在旧材质上。
+
+**像素零改动**（这是这一轮的正向证据）：`FLOTER_PNG=1 go test -run TestDumpP13MFacePNGs`
+在改前/改后各出一对图，`md5sum` 逐字节相同（light `cd41341c…`、dark `b7431784…`）——
+三块面的每一行都还是那几行。所以本片 **V 0 / B 0 / S 0**，改的是「谁决定」，不是「决定成什么」。
+
+唯一保留的合法差是别名框的外圈：参考的
+`.extension-command-alias__input { border: 1px solid var(--hairline) }`，`Hairline`（0.09）
+比 `ControlEdge`（浅 0.06 / 深 0.07）强一档。它现在是**参数**而不是第二套材质，并且有像素 pin
+量着（见下）。**故意不统一**：统一成 `ControlEdge` 就是拿掉参考钉过的边框，属于墨的改动，
+不在收口轮里做。
+
+三条 pin（`internal/settingsui/fieldcensus_test.go`）：
+
+1. `TestEveryFieldFaceIsDecidedInOnePlace`：字段族六个绘制函数（`textInputLit` /
+   `configSelect` / `configMultiselectBox` / `sheetFieldSlot` / `aliasField`，`extensionFieldLit`
+   由 `textInputLit` 转手）的函数体必须出现 `a.fieldFace(` 或 `a.fieldFaceEdge(`，且**不许**
+   出现 `tokens.LitFace(`/`tokens.DimFace(`；`fieldFace` 必须把 `.ControlEdge` 送进去，
+   `fieldFaceEdge` 必须留着两条臂。扫的是**函数体**（AST），不是单行 grep——P13-i / P13-l
+   两次漏网就是单行 grep 的账。
+2. `TestTheAliasFieldKeepsItsOwnFrame`：同底同尺寸渲染别名框与兄弟字段，读**外框那一列**
+   （探针地面 128）：浅色 `Hairline 108` vs `ControlEdge 112`（差 4）、深色 `151` vs `149`（差 2）。
+   把参数换成 `ControlEdge` → 两边逐像素相同（`112/112`、`149/149`），pin 红。
+3. `TestTheMultiselectBoxIsAFaceNotARing` / `TestTheAliasFieldIsAFaceNotARing`（P13-m 的旧 pin）
+   继续全绿——收口没有把任何一块面的受光边带走。
+
+出图：`/tmp/floter-P13-cc-fields-{light,dark}-{before,after}.png`。

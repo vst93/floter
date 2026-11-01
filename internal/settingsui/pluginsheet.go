@@ -356,12 +356,15 @@ func (a *App) sheetFieldSlot(c *ui.Context) ui.Element {
 	t := c.Theme()
 	tokens := a.tokens(c)
 	slot := ui.Row(c).MinHeight(t.Space(7)).AlignItems(ui.Center).
-		Padding(0, t.Space(2)).Radius(tokens.RadiusSM).
-		Border(1, tokens.ControlEdge).Background(tokens.Control)
+		Padding(0, t.Space(2)).Radius(tokens.RadiusSM)
 	// P12-c（§6.2 第 2-4 行）：弹层的字段槽与设置页的 `fieldFace` 是同一个
 	// 材质——同一个应用里字段只有一种面。`LitFace` 的顶受光边 + 底对侧暗线
 	// 也是同一对数值，不另起一套。
-	return tokens.LitFace(slot)
+	//
+	// P13-cc（§6.46）：那两行 `Border`/`Background` 曾经在这里又写了一遍（与
+	// `fieldFace` 逐字节相同），所以「字段只有一种面」靠的是两处人肉同步。现在
+	// 面、外圈与受光边都交给 `fieldFace`：这里只剩几何。
+	return a.fieldFace(c, slot, true)
 }
 
 // sheetTextField draws the overlay's own text control (R59,

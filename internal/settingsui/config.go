@@ -872,9 +872,7 @@ func (a *App) configMultiselectBox(c *ui.Context, scroll *ui.ScrollState, locked
 	viewport := a.cardSpace(t, 16.5)
 	box := ui.Column(c).FillWidth().MinHeight(viewport).
 		Padding(padY, padX).
-		Border(1, tokens.ControlEdge).
 		Radius(tokens.RadiusSM).
-		Background(tokens.Control).
 		Clip()
 	// P13-m（`docs/liquid-glass.md` §6.2b-2 第 9-15 行）：这个箱子的注释一直写着
 	// 「与 `fieldFace`/`sheetFieldSlot` 同面」，而那两个字段自 P12-c 起就是 E1 的
@@ -882,7 +880,10 @@ func (a *App) configMultiselectBox(c *ui.Context, scroll *ui.ScrollState, locked
 	// P13-i / P13-l 的单行 grep 照不到它，因为 `Border(...)` 与
 	// `Background(tokens.Control)` 不在同一行。外圈 `ControlEdge` 不动：受光边是
 	// **内线**，画框是外线（§1）。
-	box = tokens.LitFace(box)
+	//
+	// P13-cc（§6.46）：那两行此后不再在这里重复——面、外圈与那一对线都由
+	// `fieldFace` 决定（它原本就在 `Clip()` 之后叠内阴影，顺序不变）。
+	box = a.fieldFace(c, box, true)
 	box.Children(func() {
 		ui.Scroll(c).FillWidth().MaxHeight(viewport - 2*padY - 2*border).TrackScroll(scroll).Children(func() {
 			ui.Column(c).FillWidth().Gap(a.cardSpace(t, 0.5)).Children(fn)
