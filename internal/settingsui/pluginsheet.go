@@ -111,16 +111,19 @@ func (a *App) PluginSheet(c *ui.Context, sheet PluginSheet) {
 		// 它的内容在带子的两条边上被 `.Clip()` 平刀切。
 		//
 		// 门不是条件判断，是**几何**——与 §6.16 同一条机制，而不是 §6.17 / §6.18
-		// 的 `ScrollState.Y` 门：这道边的两条都落在留白上。顶边压在 scroller 的
-		// 1u(4px) 顶留白 + 标题行的行盒上身（实测最外 12 行在这块面上是空白，墨从
-		// 第 13 行才开始）；底边的 3u(12px) 底留白与边高**逐像素相等**，滚到底时
-		// 整条边落在页尾的空白里。所以停在开头、滚到底时正在读的那一行都不会被淡，
-		// 也不必读上一帧的偏移。
+		// 的 `ScrollState.Y` 门：这道边的两条都落在留白上。
 		//
-		// 另外两条取舍：边高 3u(12px) 小于一个行盒（正文 14px × 1.45 ≈ 20px），最
-		// 多软化一行；边的底色是浮层自己的面、压成不透明（`sheetEdgeFace`）——
-		// `ui.Color.Alpha` 是**乘**，把 0.17 的 `Sunken` 直接交给 `ScrollEdge` 会把
-		// 0.85 乘成 0.14，边淡了个寂寞。
+		// P13-dc（`docs/liquid-glass.md` §6.72）在**装好设计主题**的取景里重量了一遍
+		// （此前 `pluginSheetFrame` 少了 `c.SetTheme`，量的是库存字的 14 / 4）：
+		// 停在开头时带子最上 11 行是空白（墨从第 12 行开始，那是 2u 底衬 + 1u 顶留白
+		// 与标题行的行盒上身）、滚到底时最下 11 行也是空白；边高 3u = 10.8px，
+		// **余量 0.2px**。也就是说这条几何仍然成立，但没有余量——标题行一旦变高、
+		// 顶留白一旦变窄，边就会盖进墨里，那时该换成 §6.17 那条 `Y` 门，而不是
+		// 调小窗口（`TestThePluginSheetEdgesSitOnBlankAtBothEnds` 钉的就是这个前提）。
+		//
+		// 另外两条取舍：边高 3u 小于一个行盒，最多软化一行；边的底色是浮层自己的面、
+		// 压成不透明（`sheetEdgeFace`）——`ui.Color.Alpha` 是**乘**，把 0.17 的
+		// `Sunken` 直接交给 `ScrollEdge` 会把 0.85 乘成 0.14，边淡了个寂寞。
 		face := sheetEdgeFace(a.tokens(c), t)
 		ui.Box(c).Absolute().Top(0).Left(0).Right(0).Height(t.Space(3)).PassThrough().
 			Material(glass.ScrollEdge{Background: face})
@@ -139,18 +142,15 @@ func (a *App) sheetSection(c *ui.Context, sheet PluginSheet, section plugincfg.S
 	// `.plugin-config__section` / `__section-title`.
 	ui.Column(c).FillWidth().Gap(t.Space(2)).Children(func() {
 		if section.Title != "" {
-			// The group title starts on the column the row labels under it
-			// start on: the card's own inset, added to the scroller's.
+			// 分组标题坐在它下面那些行标签的列上：卡自己的内边距，加上 scroller 的。
 			//
-			// P13-db 量过、**不改**：这一格的字号仍是 body 的偏移量
-			// （`t.FontSize+2` = 12.8），阶梯上是 `tokens.Title`（12.6）。
-			// 在本仓的取景里两者是**同一个行盒**（`h=18`，改后逐像素零差分），
-			// 而 `sheetcutedge_test.go` 的取景**没有装设计主题**
-			// （`pluginSheetFrame` 只用了 `tokens.Theme.Background`），那里
-			// `t.FontSize` 是框架库存的 14——换阶梯会让那条 pin 量到的盒子
-			// 从 `90×22` 变成 `96×17`，它量的是框架库存的字，不是本仓的字
-			// （P13-cm 的同一个口径教训）。取景先修，字号后改。
-			ui.Text(c, section.Title).FontSize(t.FontSize+2).FontWeight(620).
+			// P13-dc（`docs/liquid-glass.md` §6.72）：这一格的字号此前是 body 的
+			// **偏移量** `t.FontSize+2`（0.9 步上 12.8），阶梯上是 `tokens.Title`
+			// （12.6）。偏移量在默认步上恰好看不出区别（同一个行盒），但它**不随
+			// 界面大小缩放**：用户换一步，这一格就慢慢离开阶梯；阶梯上的档才是
+			// 用户的放大。P13-db 量过的「改为零像素差」是在一条**没装设计主题**的
+			// 夹具里量的，那条夹具本轮才修好（`pluginSheetFrame` 现在 `c.SetTheme`）。
+			ui.Text(c, section.Title).FontSize(tokens.Title).FontWeight(620).
 				TextColor(tokens.TextStrong).Padding(0, t.Space(3.5))
 		}
 		a.card(c, func() {
