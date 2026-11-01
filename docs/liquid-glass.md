@@ -831,7 +831,7 @@ P13-br 是收口之后的第六轮，也是**表里最后一条 `未开始`（35
 
 | # | 位置 | 现状（旧） | 落成（新） | 状态 |
 |---|---|---|---|---|
-| 22-1 | `output.go` 捕获输出页 dim 行的 plate | `a.iconPlate(c, false)`：每一行都戴 `LitFace`（顶受光边 + 底暗线），包括 `row.Status` / `row.Disabled` | `a.iconPlate(c, false, dim)` where `dim = row.Status || row.Disabled`; dim=True → `DimFace` (no crown, only counter line); plate still fades to **0.62** per reference CSS | `已落地` |
+| 22-1 | `output.go` 捕获输出页 dim 行的 plate | `a.iconPlate(c, false)`：每一行都戴 `LitFace`（顶受光边 + 底暗线），包括 `row.Status` / `row.Disabled` | `a.iconPlate(c, false, dim)`，`dim` 由「`row.Status` 或 `row.Disabled` 有一为真」决定；`dim` 时 → `DimFace`（不点冠线，只留对侧）；板仍按参考 CSS 淡到 **0.62** | `已落地` |
 
 读数：dim plate crown − face **+18/+30** summed (enabled) → **0** (dim); 底对侧仍可见但一同淡掉。**§3 第 2 条“lit edge is the ‘can be touched’ mark”** 在此闭环：同页上唯一的 lit edge 属于门；注释行的 plate 没有顶边。
 
@@ -3179,15 +3179,44 @@ pin：`TestTheMetaLinesClosingWordIsOneRegister`（三个事实同一行盒，�
 
 | 关系 | 实测 | 刻度 | 状态 |
 |---|---|---|---|
-| 卡底 318 → 注顶 327 | **8px** | `sectionGroupPadded` 的 `Space(2)` | `故意不改`（已在 §4.3 的「同一块」档上） |
-| 注底 349 → 胶囊顶 371 | **22px** | `pageColumn` 的 `Space(5.5)` | `故意不改`（§4.3 的「一个可以按的新东西」档） |
-| 页脚胶囊盒 | **31px** | 30u 的 `MinHeight` + 一对 1px 边 | `故意不改`（E1 的一对线在盒子算术里） |
+| 卡底 318 → 注顶 327 | **8px** | `sectionGroupPadded` 的 `Space(2)` | `故意不做`（已在 §4.3 的「同一块」档上） |
+| 注底 349 → 胶囊顶 371 | **22px** | `pageColumn` 的 `Space(5.5)` | `故意不做`（§4.3 的「一个可以按的新东西」档） |
+| 页脚胶囊盒 | **31px** | 30u 的 `MinHeight` + 一对 1px 边 | `故意不做`（E1 的一对线在盒子算术里） |
 
 两条由此钉死的规矩：① 这两档间距与空态那一支（P13-ap 的 0.5u / 3u）同一句话——**按
 「这个东西是什么」取，不按「它在第几行」取**；② 换成一枚会话后两个间隙逐值不变，
 **页脚跟着内容走**，不是 fixed 底栏，也不读行数。
 
 pin：`TestTheSessionsPageFooterRidesItsContent`、`TestTheSessionsPageFooterDoesNotReadTheRowCount`。
-**记录（不改）**：行的步距实测 46~47px，参考的 `.session-manager__row` 是
-`min-height: 56px`（`settings.css:1240-1248`）；本仓没有那道地板，行高由两行字撑出。
-补地板属高度链改动，先对参考 CSS 逐字段核过再定。
+**记录（P13-da 更正）**：这里曾写「行的步距实测 46~47px，本仓没有那道地板」——
+那个 46~47 是**夹具**（只有 `Title` 的会话）的读数。生产的会话行至少带一条状态行，
+盒高就是参考的 **56**，见 §6.70。
+
+### §6.70 会话行的高度：那道 56 的地板在生产上已经成立（P13-da，**先量，不改**）
+
+§6.69 末尾那句「行的步距实测 46~47px」是**夹具的读数**，不是生产的读数。P13-cz 的夹具
+（`sessionsFrame`）造的是只有 `Title` 的会话；生产里 `Session.Created` 永远非零
+（`internal/shell/shell.go:1070` 直接抄 `terminalui.Session.Created`），`sessionMeta`
+于是至少吐出时间那一段，每一行至少是「标题 + 状态行」两行字。
+
+三种夹具各渲一帧（浅色档、默认 interface step、720×760、`x=238` 扫盒）：
+
+| 夹具 | 卡片盒 | 行盒 | 状态 |
+|---|---|---|---|
+| 只有状态行（生产形状） | 177..235 | **178..233 = 56** | `已落地`（内容自然满足参考地板） |
+| 带 cwd（三行字） | 177..251 | 178..249 = 72 | `已落地`（比地板高出一条 caption 行） |
+| 只有标题（P13-cz 的夹具） | 177..224 | 178..222 = 45 | `故意不做`（生产不可达，不为夹具补地板） |
+
+行内几何（同一帧）：标题盒顶 = 行顶 + **9**（行自己的 `Space(2.25)`）、`h=23`；
+状态行顶 = 标题底 + **1**（`rowLineGap`）、`h=15`；带 cwd 时 cwd `h=15` 与 meta `h=15`
+同高、同列、隔 1px。所以参考那句 `min-height: 56px`（`settings.css:1237-1244`，
+注释「a taller floor, because a session is two lines of text plus a footer of metadata」）
+在本仓**由内容自然满足**：补一个 `Space(14)` 的常量在生产上**一个像素都不会变**。
+
+pin：`TestTheSessionRowMeetsTheReferencesFloor`、`TestTheSessionRowsStateLineIsOneRegisterWithItsBlock`。
+
+**需拍板（新）**：同一张列表里，报了 cwd 的行 72、没报的行 56——差 **16px**，列表的
+节拍会跟着「这条 shell 报没报 OSC 7」跳。参考不会跳，因为它**永远画那行**
+（`session.cwd || "~"`，`SessionsPage.tsx:189`）；本仓的 `TestTheSessionCwdLineIsTheBlocksOnlyMonoLine`
+反过来钉了「没报就不画」。要么照参考画 `~`（等于替 shell 断言 home 目录），要么给行补一块
+地板把差吸收掉（会让没 cwd 的行多出 16px 空带）——两条都改视觉语义，**留给用户拍板**。
