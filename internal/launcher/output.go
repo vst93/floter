@@ -918,7 +918,22 @@ func (a *App) outputRow(c *ui.Context, row extensions.Row, i int) {
 			if dim {
 				color = t.TextMuted
 			}
-			title := ui.Text(c, row.Title).FontSize(t.FontSize).TextColor(color)
+			// P13-ci · 同一张卡里的两张列表只有一套排法：启动器的结果列表给
+			// 标题 580、副标题 510（`launcher.go` 的 `rowBody`），而这一页一直是
+			// 400 / 400。便条行因此**同墨同重**（实测浅色 113 / 113）：两行读起来
+			// 是两句等价的话，标题没有说它是标题。
+			//
+			// 字重是墨级差看不见的那一半（P13-ch §6.51）：`TextMuted` 一个字节
+			// 没动，分档全靠这一行。`chosen` 的 700 仍是「门被选中」的记号
+			// （P13-cg），与启动器列表的 700 同一档。
+			//
+			// **副标题不动**（仍是框架的 400）：本轮先量过「照抄启动器的 510」——
+			// 便条行标题/副标题的墨量差从 3669 掉到 1769（比 1.26 → 1.10），
+			// 因为 12px 那行的 110 档加在字少的一行上更显眼。启动器那边是
+			// `TextStrong 580 / TextMuted 510` 两个旋钮一起给；这一页两行同墨，
+			// 只有一个旋钮，副标题必须留在静息档，差才拉得开。**rank 是规则，
+			// 数字是每个面的。**
+			title := ui.Text(c, row.Title).FontSize(t.FontSize).TextColor(color).FontWeight(580)
 			// P13-cg：加粗与提墨是「门被选中」的记号，不是「游标在这儿」的记号——
 			// 一句便条不该因为被游标指到就变成标题。
 			if chosen {
