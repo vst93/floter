@@ -2449,3 +2449,37 @@ pin：`internal/launcher/outputedges_test.go` 四条（列表带内零墨 / 正�
 
 pin：`internal/launcher/resultsedge_test.go` 两条（带内零墨 + 归属 / 两端折边按比例）
 + 一条 opt-in 出图（`/tmp/floter-P13-cf-results-{light,dark}-{rest,scrolled}.png`）。
+
+### §6.50 一张全是便条的列表没有游标（P13-cg，**已落地**）
+
+**差距**：捕获输出页的列表里 `kind:"status"` 的行是**便条**不是门
+（`extensions/rows.go:34-38`：不可运行、Enter 无动作）。一份报告式插件（只有便条行）
+今天 `firstRunnable` 返回 **-1**（`output.go:207-215`），而 `drawOutputRow` 的选中臂
+又写着 `i == Selected && row.Runnable()`（`:820`）——两处叠起来，**整页没有任何一行是
+被选中的**：方向键转一圈原地不动、Enter 什么也不做，屏幕上也没有一句话说为什么。
+读起来不是「这一页没有可运行的东西」，而是「这一页没画完」。
+
+**判据（三条，钉在像素账上）**：
+
+1. **游标与门是两件事**：`initialOutputSelection` 在没有可运行行时把游标放在**第一行**
+   （空列表仍 -1）。游标是位置，不是权限——`runOutputRow` 的 `!row.Runnable()` 提前返回、
+   `moveOutputSelection` 的跳行规则、`outputText()` 的复制内容**全都不动**。
+2. **只读游标拿面不拿灯**：便条被选中时 `Background(RowSelected)`（与门那一支**同一个
+   token**：选中是一种状态，不是一种权限），**不调 `LitFace`**——§3 的受光边是
+   「这块面可以被碰」的记号，便条碰不动。实测：面色对静息行 浅 **253 → 238（+15）** /
+   深 **23 → 43（+20）**；行顶四行在空白剖面上**没有一行**比面色更亮（灯确实没点）。
+   门那一支（`TestTheOutputSelectedRowWearsTheSameLitFace`）仍然亮着。
+3. **一句便条不会因为被游标指到就变成标题**：加粗 700 与提墨 `t.Text` 只给
+   `selected && row.Runnable()` 的行。
+
+**量法上的两条教训**（免得下一轮重踩）：① **深色臂必须切画布**：`ui.Tester` 的底默认是白的，
+而深色的窗口地面是半透明的——不 `tt.SetDark(dark)` 读到的是「深色面合成在白纸上」
+（实测地面 253 对 215，RowSelected 的台阶从 +20 缩成 **+3**，会得出「游标看不见」的假结论）。
+② **受光边要读一列，不要扫整行**：行是圆角，抗锯齿把「面色↔卡面」的中间值洒在角上，
+扫整行时 `crownOf` 把 **241** 当成受光边（面 238、真正的受光边 240）——空白剖面在行中间，
+那里没有角。
+
+pin：`internal/launcher/notecursor_test.go` 三条（全便条列表的游标 + 只读面 / 运行与复制
+仍是空操作 / 混排列表的游标仍落在门上）+ 一条 opt-in 出图
+（`/tmp/floter-P13-cg-notecursor-{light,dark}-{before,after}.png`，前后差分 **28081** 像素，
+包围盒 `8,118..711,157`——正好是第一行的 40u 行盒，其余像素零变化）。

@@ -190,7 +190,7 @@ func (a *App) OutputFor(run extensions.CapturedRun, err error, entry *extensions
 				view.Page = nil
 			}
 		}
-		view.Selected = firstRunnable(view.Rows)
+		view.Selected = initialOutputSelection(view.Rows)
 	}
 	if !view.IsList {
 		if err != nil && view.Text == "" {
@@ -204,14 +204,27 @@ func (a *App) OutputFor(run extensions.CapturedRun, err error, entry *extensions
 	return view
 }
 
-// firstRunnable is the first row Enter could run, -1 when none is.
-func firstRunnable(rows []extensions.Row) int {
+// initialOutputSelection is where the list's cursor starts: the first row Enter
+// could run, and — when the list has nothing to run at all — its first row.
+//
+// P13-cg（`docs/rounds/P13-cg-spec.md`）：这两件事曾经是同一件事（没有可运行行
+// 就 `-1`），于是一份**全是便条**的列表（报告式插件：`kind:"status"` 的行）连
+// 游标都没有——方向键转一圈原地不动、Enter 什么也不做，屏幕上也没有一行是「被
+// 选中的」，读起来不是「这一页没有可运行的东西」，而是「这一页没画完」。
+//
+// 游标（用户在哪儿）与门（这一行能不能进）是两件事：便条被选中时戴**只读游标**
+// ——面色到了、灯不点（§3 的受光边是「这块面可以被碰」的记号，见 `drawOutputRow`
+// 的 `case selected`）。空列表仍然 `-1`：没有行，就没有游标。
+func initialOutputSelection(rows []extensions.Row) int {
 	for i, row := range rows {
 		if row.Runnable() {
 			return i
 		}
 	}
-	return -1
+	if len(rows) == 0 {
+		return -1
+	}
+	return 0
 }
 
 // loadMoreOutputPage asks for the next page of an output list: a self-paging
@@ -498,6 +511,12 @@ func (a *App) outputText() string {
 		return ""
 	}
 	row := rows[a.output.Selected]
+	// P13-cg：游标现在可以落在便条上（只读游标），而「复制取的那一行」必须是
+	// 一行**内容**——这条守卫保住的是本轮之前的行为（那时 `Selected` 到不了
+	// 便条），不是新语义。
+	if !row.Runnable() {
+		return ""
+	}
 	if row.Action != nil && row.Action.Type != "open" {
 		return row.Action.Text
 	}
@@ -817,7 +836,11 @@ func (a *App) outputRow(c *ui.Context, row extensions.Row, i int) {
 	// 行尾控件之间，所以两种列表的整条横向节奏是同一个数：面板/卡片 8u + 行内
 	// padding 8u + 图标列 28u + gap 10u = 标题列 54u。
 	style := ui.Row(c.Key(row.ID)).FillWidth().Padding(t.Space(1.5), t.Space(2)).Radius(t.Radius).Gap(t.Space(2.5))
-	selected := i == a.output.Selected && row.Runnable()
+	// P13-cg：`selected` 是「游标在这儿」，`chosen` 是「这是一个被选中的门」。
+	// 便条（`row.Status` / `row.Disabled`）可以被游标指到，但它不是门——
+	// 所以它拿面色不拿灯（见下面 switch 的 `case selected`）。
+	selected := i == a.output.Selected
+	chosen := selected && row.Runnable()
 	// P11-bl：这一行上一帧的盒子，与搜索列表的 rowBody 记的是同一件事（见
 	// viewportRange）。首帧还没有盒子，记一个空矩形，viewportRange 会跳过它。
 	// P13-w：`Bounds()` 是**上一帧**的矩形，所以折边退后（下面）读的与记的是
@@ -850,7 +873,7 @@ func (a *App) outputRow(c *ui.Context, row extensions.Row, i int) {
 	}
 	tokens := a.tokens(c)
 	switch {
-	case selected:
+	case chosen:
 		// P8-e 重定基线（§5 禁止清单「列表选中行」）：旧值是
 		// `tokens.AccentTintQuiet`——一块带色相的洗。选中行是中性面，与启动器
 		// 列表（P8-a）的选中行同一档 `tokens.RowSelected`，两套外观各自的 rung
@@ -861,6 +884,17 @@ func (a *App) outputRow(c *ui.Context, row extensions.Row, i int) {
 		// 暗线）。两张列表是同一张卡里的同一件东西，选中块不许一个「站起来」一个
 		// 「平躺」。
 		style = tokens.LitFace(style)
+	case selected:
+		// P13-cg · 只读游标：游标指着一行**便条**。它拿选中行的面（`RowSelected`，
+		// 与门那一支同一个 token——「选中」是一种状态，不是一种权限），但**不点灯**：
+		// `LitFace` 的顶受光边是 §3 说的「这块面可以被碰」的记号，而便条按定义
+		// 碰不动（`extensions/rows.go` 的 `Status`：Enter 什么也不做）。
+		//
+		// 改前：全便条的列表 `Selected = -1`，整页没有任何一行被画成选中的——
+		// 用户看不到游标，也看不到「这一页没有可运行的东西」这句话（本轮实测见
+		// 报告：便条行的面色对地面 **0** 级）。改后：面色到了（浅色 +12 / 深色
+		// +13，与门那一支逐字节相同），冠线仍等于面色（差 **0**）。
+		style.Background(tokens.RowSelected)
 	case row.Status || row.Disabled:
 		// A note is not a door: it stays muted and never highlights.
 	default:
@@ -885,12 +919,14 @@ func (a *App) outputRow(c *ui.Context, row extensions.Row, i int) {
 				color = t.TextMuted
 			}
 			title := ui.Text(c, row.Title).FontSize(t.FontSize).TextColor(color)
-			if selected {
+			// P13-cg：加粗与提墨是「门被选中」的记号，不是「游标在这儿」的记号——
+			// 一句便条不该因为被游标指到就变成标题。
+			if chosen {
 				title.FontWeight(700)
 			}
 			if row.Subtitle != "" {
 				subtitle := ui.Text(c, row.Subtitle).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
-				if selected {
+				if chosen {
 					subtitle.TextColor(t.Text)
 				}
 			}
@@ -899,7 +935,7 @@ func (a *App) outputRow(c *ui.Context, row extensions.Row, i int) {
 		// launcher's own rows print it. Only rows the family can reach carry
 		// one, so a status note stays unnumbered.
 		if number, ok := a.outputNumbers[i]; ok {
-			a.rowActionText(c, a.resultNumber(number), selected)
+			a.rowActionText(c, a.resultNumber(number), chosen)
 		}
 	})
 	if style.Clicked() && row.Runnable() {
