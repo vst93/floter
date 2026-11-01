@@ -288,7 +288,6 @@ var en = Copy{
 		PageIntegrationsHint: "Built-in plugins and the tools you have connected.",
 		PageAboutHint:        "Version, updates and the link scheme.",
 
-		PagePlaceholder: "This page arrives in a later round.",
 		SaveFailed:      "Could not save that change.",
 		SaveFailedAlert: "Changes could not be applied. Check your settings and try again.",
 
@@ -1134,7 +1133,6 @@ var zh = Copy{
 		PageIntegrationsHint: "内置插件与你已接入的工具。",
 		PageAboutHint:        "版本、更新与链接协议。",
 
-		PagePlaceholder: "此页面将在后续迭代中到来。",
 		SaveFailed:      "无法保存该修改。",
 		SaveFailedAlert: "无法应用更改，请检查设置后重试。",
 

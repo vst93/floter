@@ -1058,6 +1058,17 @@ type page struct {
 	Hint  string
 }
 
+// bodyPage is the page whose body `body` draws. An index this build does not
+// know falls back to the first page — the same clamp `page` applies to the
+// title and `PageName` applies to the stored id, so the three of them can never
+// describe two different pages in one frame (P13-by).
+func bodyPage(page int) int {
+	if page < 0 || page >= pageCount {
+		return PageGeneral
+	}
+	return page
+}
+
 // page returns the i-th page's copy.
 func (a *App) page(i int) page {
 	c := i18n.For(a.settings().Language).Settings
@@ -1492,7 +1503,19 @@ func (a *App) body(c *ui.Context, copy i18n.Settings) {
 						ui.Text(c, p.Hint).FontSize(t.FontSize).FontWeight(500).TextColor(t.TextMuted)
 					}
 				})
-				switch a.Page {
+				// P13-by · 正文跟标题说同一页。
+				//
+				// 这一页的**标题**早就收敛到「不认识的页号 = 第一页」：`page`（标题与
+				// 提示）的 `default` 臂返回 `PageGeneral`，`PageName`（存进
+				// `last_settings_page` 的那个 id）也把越界值夹回 `pageNames[PageGeneral]`。
+				// 只有正文这一处例外——它的 `default` 臂画的是
+				// `copy.PagePlaceholder`（「此页面将在后续迭代中到来。」）。于是同一个
+				// 越界页号会让页头写着「常规 / 外观、启动方式与窗口行为。」，正文却
+				// 说这一页还不存在：一条永远走不到、而且与它上面那行字互相矛盾的分支。
+				//
+				// 现在三处读同一个夹取（`bodyPage`），那句「还没做完」的话也从
+				// `i18n.Copy` 里退场——它是这个应用里唯一一句对用户承认未完成的话。
+				switch bodyPage(a.Page) {
 				case PageGeneral:
 					a.general(c, copy)
 				case PageSessions:
@@ -1503,10 +1526,6 @@ func (a *App) body(c *ui.Context, copy i18n.Settings) {
 					a.shortcuts(c, copy)
 				case PageAbout:
 					a.about(c, copy)
-				default:
-					ui.Column(c).FillWidth().Padding(t.Space(4)).Center().Children(func() {
-						ui.Text(c, copy.PagePlaceholder).FontSize(t.FontSize).TextColor(t.TextMuted)
-					})
 				}
 			})
 		})

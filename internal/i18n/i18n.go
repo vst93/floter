@@ -309,9 +309,6 @@ type Settings struct {
 	PageIntegrationsHint string
 	PageAboutHint        string
 
-	// PagePlaceholder is the body of the pages P1 routes but does not fill
-	// yet: the sidebar route exists, the page says so plainly.
-	PagePlaceholder string
 	// SaveFailed is a write the plugin refused: the sheet paints the value
 	// either way and says so here.
 	SaveFailed string

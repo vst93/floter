@@ -2165,3 +2165,33 @@ pin：`internal/terminalui/emptylinesink_test.go` 三条判据（悬停不画面
 `md5sum -c` 逐字节还原（`ce95f7aa…`）：M1 按下臂不画面（即本轮之前的行为，实测 press 回到
 252 / 21）/ M2 按下把抬墨退回（press ink 回到 145 / 133）/ M3 按下加 `Scale(0.97)`（标签盒子
 `{385 287.5 123 22}` → `{386.35 287.83 119.31 21.34}`）。详见 `docs/rounds/P13-bx-report.md`。
+
+#### §6.42 正文与标题说的不是同一页，而那句话在说「这一页还没做完」（P13-by，**已落地**）
+
+§6 的差距表已经没有 `未开始` 行，选题回通用队列的「文案密度」。这一格不是墨的问题，
+是**同一帧里两处文案互相矛盾**，而且矛盾的那一处永远走不到。
+
+`body()` 的 `switch a.Page` 此前有五个实页 + 一个 `default`，`default` 画的是
+`copy.PagePlaceholder`（「此页面将在后续迭代中到来。」）。同一个 `a.Page` 在同一帧里
+还要过两次夹取，而两次夹取的结果都是**第一页**：`a.page(i)`（页头那两行字）的
+`default` 臂返回 `PageGeneral`；`PageName(i)`（存进 `last_settings_page` 的 id）把越界值
+夹回 `pageNames[PageGeneral]`。于是越界页号会让页头写「常规 / 外观、启动方式与窗口行为。」、
+正文写「此页面将在后续迭代中到来。」——三处读同一件事，两处说常规，一处说这一页不存在。
+
+| # | 位置 | 现状（旧） | 落成（新） | 状态 |
+|---|---|---|---|---|
+| 42-1 | `internal/settingsui/settingsui.go` `body()` 的 `switch` | `default:` → `ui.Text(copy.PagePlaceholder)`，与同帧页头的夹取（`page`）说的是两页 | `switch bodyPage(a.Page)`：新增 `bodyPage`，越界即 `PageGeneral`——与 `page()` 的 `default` 臂、与 `PageName()` 的夹取**同一个结果**。三处再不可能分家 | `已落地` |
+| 42-2 | `internal/i18n` `Copy.PagePlaceholder`（EN/ZH 两条） | 「This page arrives in a later round.」/「此页面将在后续迭代中到来。」——这个应用里唯一一句对用户承认未完成的话，只有上面那条走不到的臂在读 | **删掉**：字段与两条文案一起退场（`i18n` 的 `TestNoDeadCopy` 因此仍然全绿：它守的是「声明的键必须有人读」，而不是「读的地方必须留一句）」 | `已落地` |
+| 42-3 | `PagePlaceholder` 的排版（`Padding(4u)` + `Center()`） | 一句话居中的空盒子 | **故意不做**：随 42-1 一起消失。这一支的判据是「一个表面只有一个空态」（§6.9 / §6.13），而这一页的空态本来就不该存在 | `故意不做` |
+
+pin：`internal/settingsui/pagebody_test.go` 两条——① `bodyPage` 在 `[0, pageCount)` 上是恒等、
+在越界值上与 `PageName` 同解（`-1 / -7 / pageCount / pageCount+1 / 99` 五个点）；
+② 两份文案表里不许再出现那两句话（直接读 `internal/i18n/copy.go`，因为「有人读」这一条
+`TestNoDeadCopy` 已经守了，它守不到「有人**用**」）。
+
+**V 0 / B 0 / S 0**：旧 pin 一条没红，测试零改动（本轮只加新文件）。**本轮无像素改动，
+故无出图**——它改的是文案与一条死臂，不是墨、不是面、不是层级；§6 的材质阶梯一个字节没动。
+变异 2 条实跑全红并 `md5sum -c` 逐字节还原：M1 删掉 `bodyPage` 的夹取（`TestAnUnknownPage…`
+在 `pageNames[-1]` 上 panic：`index out of range [-1]`，即夹取是承重的）/ M2 把中文那句塞回
+`SaveFailed`（`TestNoPageSaysItIsNotBuiltYet` 报 `i18n still ships "将在后续迭代中到来"`）。
+详见 `docs/rounds/P13-by-report.md`。
