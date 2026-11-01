@@ -181,7 +181,13 @@ func (a *App) healthFailureCard(c *ui.Context, copy i18n.Settings, probe HealthP
 		Padding(t.Space(1.5)).Radius(tokens.RadiusSM).
 		Background(tokens.RaisedWarm)
 	card.InsetShadow(0, 0, 0, 1, t.Warning)
-	card.InsetShadow(-2, 0, 0, 0, t.Warning)
+	// P13-cw（`docs/liquid-glass.md` §6.66）：2px 那条重棱此前是 `InsetShadow(-2, …)`。
+	// 本仓框架里**负偏移把未覆盖的一条留在对侧**（`mygo/ui/paint.go:1254`：
+	// `hole.X = pad.X + sh.x*s + spread`），所以 `-2` 画的是**右边** 2px —— 参考写的是
+	// `border-left: 2px solid var(--text-warning)`
+	// （`floter-main:src/styles/extensions.css:2200`），也就是前导边。今天那条更重的线
+	// 站在它不介绍的那一侧（实测浅色 `699..700`）。正偏移把那条留在左边。
+	card.InsetShadow(2, 0, 0, 0, t.Warning)
 	card.Children(func() {
 		head := ui.Row(c).AlignItems(ui.Center).Gap(t.Space(1)).Wrap()
 		head.Children(func() {
@@ -248,12 +254,17 @@ func (a *App) approvalPermissionPills(c *ui.Context, language string, permission
 // rule and the `--ext-radius` corner, carrying the sentence at the secondary
 // caption step. The port drew it as a card row with an empty label and a lone
 // `!`, which read as an unnamed row rather than as the block's own warning.
+//
+// P13-cw: the 2px rule was on the **trailing** edge — a negative inset shadow
+// leaves its uncovered strip on the far side, so `-2` painted the right edge
+// while the reference writes `border-left` here too (`:2172`). Same fix, same
+// round, as `healthFailureCard` (§6.66).
 func (a *App) approvalStaleBanner(c *ui.Context, copy i18n.Settings) ui.Element {
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 	banner := ui.Row(c).FillWidth().Padding(t.Space(2), t.Space(3)).
 		Radius(tokens.RadiusSM).Background(tokens.RaisedWarm)
-	banner.InsetShadow(-2, 0, 0, 0, t.Warning)
+	banner.InsetShadow(2, 0, 0, 0, t.Warning)
 	banner.Children(func() {
 		ui.Text(c, copy.ApprovalRecordChanged).FontSize(tokens.Caption).
 			TextColor(tokens.TextSecondary).Wrap()

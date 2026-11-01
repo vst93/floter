@@ -2300,7 +2300,14 @@ func (a *App) healthDetail(c *ui.Context, copy i18n.Settings, report *HealthRepo
 	// both groups are dead on both sides — see the note in
 	// `internal/extensions/helpderive.go`. Its own empty state is the same
 	// dead end: the port sets `Health` and `HealthReport` together.
-	block := ui.Column(c).FillWidth().Gap(t.Space(2))
+	// P13-cw（`docs/liquid-glass.md` §6.66）：这一列此前没有水平内缩——整块（Checks / Failures /
+	// 时间戳 / 失败卡 / 探针的时长）从卡面的第一像素开始，比卡上每一个行标签左 8px，右端
+	// 一路贴到卡框（实测 720×1700：行标签 x=200，块 x=192，时长右端 x=701）。参考的
+	// `.extension-health` 住在 `.extension-detail-block` 里，和它自己的 `h4` 同一个 padding
+	// （`floter-main:src/styles/extensions.css:1997-2002`），本仓那个 `h4` 就是 `Health` 行，
+	// 所以块必须进 `rowInset` 那一列（P11-bf 给其它块修过的同一个 bug）。
+	// 只加水平内缩：纵向节奏（组间 8u、组内 4u、探针行 4u padding）一个像素都不动。
+	block := ui.Column(c).FillWidth().Gap(t.Space(2)).Padding(0, a.rowInset(t))
 	block.Children(func() {
 		if len(report.Probes) > 0 {
 			// The checks group keeps the reference's own label and then one

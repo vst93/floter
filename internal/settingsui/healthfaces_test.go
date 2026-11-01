@@ -154,20 +154,24 @@ func TestProbeLinesAreTheReferenceCompactRows(t *testing.T) {
 func TestTheFailureCardWearsTheWarmRasiedPlane(t *testing.T) {
 	skipWithoutTheReferenceFont(t)
 	tt, _ := integrationWithHealth(t, testHealthReport(), nil)
-	code, ok := tt.Find("exit: 3")
-	if !ok {
+	if _, ok := tt.Find("exit: 3"); !ok {
 		t.Fatalf("the failure's exit code is missing: %q", tt.Texts())
 	}
 	img := tt.Image()
-	// The card fills the row's whole width, so its plane is read on the exit
-	// code's own line but *left* of the code's text (which starts ~198): the
-	// block's fill is there and nowhere else.
-	cy := int(code.Y + code.H/2)
-	got := imagePixel(img, 260, cy)
+	// P13-cw 重定基线（V，取样点）：上一版在 exit code 那一行上取写死的 x=260，注释说它落在
+	// 代码文字「左边」——实际上它落在 `exit: 3` 自己的文字盒里（234..261），只是恰好压在
+	// 两道笔画之间。这一轮整块右移 8px，同一个 x 立刻读到字形（`{130 128 135}`，又恰好是
+	// 中性色，看上去像「面变了」）。取样点改成**卡自己的下 padding 带**：stderr 的最后一行
+	// 之下 3px、卡的水平中线，那里只有面，没有字号/字形可赌。断言本身一个字没改：这块面
+	// 既不是行的素面、又是暖的。
+	stderr := mustFind(t, tt, "no extras here")
+	cy := int(stderr.Y + stderr.H + 3)
+	got := imagePixel(img, 400, cy)
 	// The plain row plane is the same column on the Health row's own line — a
-	// ruled card row, which is what the block used to be.
+	// ruled card row, which is what the block used to be. Read in that row's
+	// air, right of its label column and left of its status chip.
 	health := mustFind(t, tt, "Health")
-	plain := imagePixel(img, 260, int(health.Y+health.H/2))
+	plain := imagePixel(img, 600, int(health.Y+health.H/2))
 	if panelClose(got, plain, 3) {
 		t.Errorf("the failure block is the plain row plane (%v): it did not grow the warm card", got)
 	}

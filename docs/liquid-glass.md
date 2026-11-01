@@ -3062,3 +3062,37 @@ pin：`internal/settingsui/platecrown_test.go`——① 开着的板冠线 ≥ 3
 
 pin：`TestTheProbeListSeparatesItsRowsAndDoesNotCloseItself`（N−1 条 1px 线、上下空气相等、
 结尾无线）与 `TestTheProbeRuleIsTheHairlineNotATextRule`（浅 −63 / 深 +57，文字墨会跑到 −605 / +594）。
+
+### §6.66 健康块站在卡框上，两条暖棱站在它们不介绍的那一侧（P13-cw，**已落地**）
+
+集成卡的详情块里，`healthDetail`（`settingsui.go`）是唯一一块**没有任何水平内缩**的：它被画成
+`Health` 行的**兄弟**而不是「属于这一行的内容」，于是整块（`Checks` / `Failures` / 失败卡 /
+`Checked …` / 探针右侧时长）从卡面的第一像素开始，右端一路顶到卡框。同一张卡上，
+`Health` / `Approval record` / `Diagnostics` 的行标签都在 `rowInset` 那一列（集成卡 = `Space(2)`）。
+
+实测（Integrations 页 720×1700，深浅两套逐像素同坐标）：
+
+| 事实 | 改前 | 改后 |
+|---|---|---|
+| 卡面横向 / 1px 框线 | `192..700` / `191`,`701` | 不变 |
+| `Checks` · `Failures` · `Checked …` | **`192..701`**（挂卡框） | **`200..693`**（行标签列） |
+| 探针时长 `12ms` | `675..701`（贴卡框） | `667..693` |
+| 失败卡 | `192..700`（占满卡的内容盒） | `200..692` |
+| 失败卡的警示墨 | 左 **1px** / 右 **2px** | 左 **2px**（`200..201`）/ 右 **1px**（`692`） |
+| 陈旧横幅的警示墨 | 左 **0px** / 右 **2px** | 左 **2px** / 右 **0px** |
+| 纵向（`Checks` 439 / 探针 462 / `Failures` 521 / 时间戳 598） | — | **一个像素都不动** |
+
+**为什么是 8px、为什么是左边**：参考的 `.extension-health` 住在 `.extension-detail-block` 里，
+和它自己的 `h4` 用同一个 12px padding（`floter-main:src/styles/extensions.css:1997-2002`）；
+本仓那个 `h4` 就是 `Health` 行，所以块的列必须等于行标签的列。两条暖棱的参考原文是
+`border-left: 2px solid var(--text-warning)`（失败卡 `:2200`、陈旧横幅 `:2172`），
+而本仓框架的**负偏移把未覆盖的一条留在对侧**（`mygo/ui/paint.go:1254`）——`InsetShadow(-2, …)`
+画的是**右边**。这是 §2「靠面的边界说层级」之外的另一条：**重线在它介绍的那一侧**。
+
+**改法**：`block` 列 `.Padding(0, a.rowInset(t))`；两处 `InsetShadow(-2, …)` → `InsetShadow(2, …)`。
+墨、字阶、字重、行盒、组间距、i18n 文案零改动；这是 P11-bf 给其它块修过的同一个 bug，
+`healthDetail` 是漏网的那一个。
+
+pin：`TestTheHealthBlockSitsInTheCardsLabelColumn`（块左 = 行标签左、块右 = 卡内容右端；
+卡面/卡框从同一帧的像素读，不写死 x）与 `TestTheWarmRuleLeansOnItsLeadingEdge`
+（失败卡 2/1、陈旧横幅 2/0 的警示墨厚度，深浅各一份）。
