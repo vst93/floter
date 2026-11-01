@@ -332,8 +332,14 @@ func (a *App) outputFooter(c *ui.Context, copy i18n.Launcher, view *OutputView) 
 	text, ink, weight := footerWord(state, copy, a.tokens(c), t)
 	ui.Row(c).FillWidth().Shrink(0).MinHeight(t.Space(5.5)).Gap(t.Space(2)).
 		Padding(0, t.Space(3)).AlignItems(ui.Center).Justify(ui.Center).Children(func() {
-		if state == footerLoading {
-			a.footerSpinner(c)
+		// P13-ck（`docs/liquid-glass.md` §6.54）：环**两个状态都在**，只是停下。
+		// 此前只有 `footerLoading` 建它，而这一行是居中布局：`loading` 的词在
+		// x=331，`end` 的词在 x=323.5——拉取结束的那一帧，词横移 **7.5px**，
+		// 环整个消失，一行里没有任何东西留在原地。现在轨道（hairline 一整圈）
+		// 两档都画，活动象限只在「在飞」时画、并只在「在飞」时申请帧：
+		// 一圈合上 = 到底了，一圈在转 = 还在拉。宽度不变，词因此不动。
+		if state == footerLoading || state == footerEnd {
+			a.footerSpinner(c, state == footerLoading)
 		}
 		if text != "" {
 			word := ui.Text(c, text).FontSize(t.FontSize - 1).TextColor(ink)
@@ -381,6 +387,13 @@ const (
 // footerSpinner draws the pagination row's indicator: a hairline circle with a
 // darker leading quarter, turning once every 0.7 s.
 //
+// P13-ck: `live` is whether the page is still being fetched. The **track is
+// drawn in both states** — it is the part that holds the row's composition
+// still (the word's x is the same in `loading` and `end`, see `outputFooter`),
+// and a closed circle at rest is the honest picture of "every row is here".
+// Only the live state draws the leading quarter and asks for frames; the end
+// state is one stroke on the same box, drawn once.
+//
 // The turn is read through motion, so a desktop that asked for less motion
 // draws the ring at rest — the old build's `animation: none` — and registers
 // no loop. The framework's own Loop would go on turning whatever the
@@ -398,7 +411,7 @@ const (
 // its own (that field is an icon's), so the turn is a painter transform
 // around the ring's centre: a circle's stroke width does not change under a
 // rotation, so the ink is the same 1.5px it was.
-func (a *App) footerSpinner(c *ui.Context) {
+func (a *App) footerSpinner(c *ui.Context, live bool) {
 	t := c.Theme()
 	tokens := a.tokens(c)
 	hairline := tokens.Hairline
@@ -406,6 +419,15 @@ func (a *App) footerSpinner(c *ui.Context) {
 	ring.Draw(func(p *ui.Painter, r ui.Rect) {
 		cx, cy := r.X+r.W/2, r.Y+r.H/2
 		radius := min(r.W, r.H)/2 - footerSpinnerStroke/2
+		if !live {
+			// The settled ring: the same track, closed, at rest. No frame is
+			// asked for and no quarter is drawn, so a list that has ended
+			// stops repainting this row (P13-ck).
+			var settled ui.Path
+			settled.Circle(cx, cy, radius)
+			p.StrokePath(&settled, footerSpinnerStroke, hairline)
+			return
+		}
 		angle := footerSpinnerTurn * motion.Value(c, func() float32 {
 			if a.footerSpin.IsZero() {
 				a.footerSpin = p.Now()
