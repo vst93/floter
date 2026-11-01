@@ -30,6 +30,14 @@ type OutputView struct {
 	// Text is what it wrote (standard output, with standard error appended
 	// when there is any).
 	Text string
+	// Empty reports that the run wrote nothing at all, so `Text` is the
+	// empty-state sentence rather than output. The distinction cannot be a
+	// string comparison: a command that literally prints that sentence wrote
+	// output, and it must stay output (selectable, copyable, in the body's
+	// register). P13-cd: `Text` keeps the sentence so the height chain
+	// (`pluginTextRows`) and the copy path (`PinText`) are unchanged; only the
+	// drawing differs (`quietStatement`).
+	Empty bool
 	// Rows are the list protocol's rows, when the output is a list; a nil
 	// slice with IsList false means the output is text.
 	Rows []extensions.Row
@@ -190,6 +198,7 @@ func (a *App) OutputFor(run extensions.CapturedRun, err error, entry *extensions
 		}
 		if view.Text == "" {
 			view.Text = copy.OutputEmpty
+			view.Empty = true
 		}
 	}
 	return view
@@ -668,6 +677,17 @@ func (a *App) outputBody(c *ui.Context, copy i18n.Launcher, edge float32) {
 						a.loadMoreOutputPage()
 					}
 					a.outputFooter(c, copy, view)
+				})
+			} else if view.Empty {
+				// P13-cd（`docs/liquid-glass.md` §6.47）：一条什么都没写的命令，
+				// 说的是**这一页的空态**，不是输出。此前这句话戴着正文的墨
+				// （12px `t.Text` + `Selectable()`）、坐在正文第一行上——实测墨盒
+				// `{X:12 Y:123 W:188 H:16}`，与页头那行命令行同档墨，与「命令
+				// 真的打印了这句话」在界面上无法区分。现在它与结果区的空态走
+				// 同一个函数、同一档墨，居中在这条正文带里；`Scroll` 不建了，
+				// 一行字没有可滚的东西（`view.Text` 本身不动，高度链与复制不变）。
+				ui.Column(c).Fill().Center().Children(func() {
+					a.quietStatement(c, view.Text)
 				})
 			} else {
 				ui.Scroll(c.Key("launcher.output")).TrackScroll(&a.Output).Fill().

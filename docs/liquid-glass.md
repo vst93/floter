@@ -2331,3 +2331,38 @@ light 18 vs 13）——「不再靠 1px 描边分家」是可测的；回归钉�
    继续全绿——收口没有把任何一块面的受光边带走。
 
 出图：`/tmp/floter-P13-cc-fields-{light,dark}-{before,after}.png`。
+
+### §6.47 空态族收口：同一张卡的两个空态，一句话、一处决定（P13-cd，**已落地**）
+
+§6.9 / §6.13 / §6.23 收的是**设置页 / 终端页**的空态，§4.7（`docs/raycast-design.md`）
+钉的是那句陈述本身（`Emphasis` 步 + `TextStrong`、无底板、无 accent、无图标）。
+启动器卡片里有两个页面可以「什么都没有」，而它们此前说的是两种话：
+
+| # | 位置 | 改前（实测，720×488 帧，深浅同） | 改后 |
+|---|---|---|---|
+| 47-1 | `launcher.go` 结果区空态（`emptyMessage`） | 一句陈述：墨盒 `{X:335 Y:263 W:51 H:10}`，居中在 x=360.5（帧心 360），`Emphasis` + `TextStrong` | **不动**，只是这两行被抽成 `App.quietStatement` |
+| 47-2 | `output.go` 捕获输出页空态（`copy.OutputEmpty`：命令写了个空） | **正文**：`FontSize(t.FontSize)`=12 + `t.Text` + `Selectable()`，墨盒 `{X:12 Y:123 W:188 H:16}`——贴在正文左内边距、落在正文第一行，与页头那行命令行**同档墨**（`darkest=25`） | `a.quietStatement`：墨盒 `{X:281 Y:290 W:157 H:13}`，居中在 x=359.5，行盒 22 → **18px**（`Emphasis`），落在正文带的中线（带 `100..484`，心 292，实测 296.5） |
+| 47-3 | `output.go` 正文臂 | 只有 `Scroll` 一支 | 加 `view.Empty` 一支：`Column.Fill().Center()` + 陈述，**不建 `Scroll`**（一行字没有可滚的东西） |
+| 47-4 | `OutputView.Text` | 空时写 `copy.OutputEmpty` | **照旧**。高度链（`pluginTextRows(view.Text)` → 1 band row）、复制（`PinText`）与 `outputText()` 一个字节不改——只改它被画成什么样 |
+| 47-5 | 判据 | — | 用 `OutputView.Empty bool`，**不做字符串比较**：一条命令真的打印了 `The command wrote nothing`，那是输出，必须仍是正文（可选中、可复制）。**故意不做** |
+
+**这轮为什么让它更轻、更有空间感**：空态是「这一页什么都没有」这句话的**重量**。
+它此前戴的是输出正文的墨与位置——用户读到的不是「没有输出」，而是「输出就是这行字」，
+而且它是整页最重的一档墨（与页名同档），比页头条子里那句结局（`TextSecondary`）还重。
+现在它与结果区那一句同一个函数、同一档墨、同一条中线：**空态在 z 上退后一步**，
+正文（真输出）才是这一页的前景。零像素改动的那一半（结果区）是本轮的正向证据——
+抽出共享函数没有挪动原来那句话一个像素。
+
+两条 pin（`internal/launcher/outputempty_test.go`）：
+
+1. `TestTheCapturedOutputsEmptyPageIsAStatement`（深浅两套，5 条账）：① 墨盒中线落在帧心 ±3
+   ② 墨盒左沿 > 帧宽 /3（改前 12，必红）③ 墨盒顶 > 帧高 30%（改前 123，必红）
+   ④ 墨盒竖直中线落在「页头条子下沿 → 面板底内边距」这条带的中线 ±12 ⑤ 行盒 ≤ 20px
+   （`Emphasis` 18 对正文 22——**寄存器**这一条是 M2 逼出来的：只量位置量不出字号）。
+2. `TestTheLauncherCardsEmptyStatesComeFromOneFunction`（AST 普查）：`quietStatement` 的调用点
+   **恰好两处**，分别在 `launcher.go` 与 `output.go` 的函数体里；本包其余函数不许同时出现
+   `FontSize(X.Emphasis)` 与 `TextColor(X.TextStrong)`（空态只有一处决定）。
+   另有 `TestTheResultsPageStillCentresItsEmptyState` 钉住被抽出来的那一页没有挪位。
+
+出图 `/tmp/floter-P13-cd-empty-output-{light,dark}-{before,after}.png`：前后差 **1724 px**，
+包围盒 `12,123..437,302`——页头、条子、面板一个像素没动，图上只挪了这一句话。

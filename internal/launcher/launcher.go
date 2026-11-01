@@ -868,6 +868,26 @@ func (a *App) appShortcuts() bool {
 	return true
 }
 
+// quietStatement is this card's one empty-state sentence: the state in the
+// primary ink at the emphasis step, no plate, no accent and no mark of its own
+// (`docs/raycast-design.md` §4.7, `docs/liquid-glass.md` §6.47).
+//
+// Two pages of the same card can have nothing to show — the results page
+// (`emptyMessage`) and the captured-output page (`OutputView.Empty`) — and
+// P13-cd found them speaking in two registers: the results page a centred
+// statement, the output page a 12px `Text` line at the body's first row, which
+// is the ink and the place the command's *own* output would have. One sentence,
+// one place that decides what it looks like: the caller owns the band, this
+// owns the words' register.
+func (a *App) quietStatement(c *ui.Context, message string) {
+	if message == "" {
+		return
+	}
+	tk := a.tokens(c)
+	ui.Text(c, message).FontSize(tk.Emphasis).
+		TextColor(tk.TextStrong).SingleLine()
+}
+
 // emptyMessage is what the list says when it has nothing: a plugin mode names
 // its own state (nothing copied yet, no favorites, no matches) rather than
 // claiming a search found nothing, and the ordinary page says so plainly.
@@ -1386,10 +1406,7 @@ func (a *App) View(c *ui.Context) {
 					// P11-cd：一句话都没有的空页不是空态，是一个安静的空页（见
 					// `emptyMessage`）：没有 needle、也没有最近启动时这里不画字，
 					// 页面上只剩字段自己的占位句。
-					if message := a.emptyMessage(copy); message != "" {
-						ui.Text(c, message).FontSize(tk.Emphasis).
-							TextColor(tk.TextStrong).SingleLine()
-					}
+					a.quietStatement(c, a.emptyMessage(copy))
 				})
 		} else {
 			// The list builds only the rows in view, so a catalog of
