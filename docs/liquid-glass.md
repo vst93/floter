@@ -3037,3 +3037,28 @@ pin：`internal/settingsui/platecrown_test.go`——① 开着的板冠线 ≥ 3
 （healthy → `Control`+`ControlEdge`+`TextStrong`，degraded/unhealthy → `RaisedWarm`+`ControlEdge`
 +`Warning`，unknown → 无面无环、`TextMuted`）。
 
+
+### §6.65 探针列表的分隔线：贴在字上的那一侧，和替列表收尾的那一条（P13-cv，**已落地**）
+
+健康页「Checks」组的探针行（`settingsui/healthfaces.go` `healthProbeRow`）戴的是
+`InsetShadow(0, -1, 0, 0, tokens.Hairline)`。框架里 **负 y 偏移把未覆盖的一条留在盒子的底边**
+（`mygo/ui/shadow_test.go` 的 `InsetShadow(0, 6, 0, 0)` 案例：正偏移只剩顶部），所以这条线画在
+**每行自己的下沿**，不是行上沿。实测（Integrations 页、深浅两套、逐像素同坐标）：
+
+| 事实 | 值 |
+|---|---|
+| 2 条探针画几条线 | **2 条**（最后一条下面 8px 就是下一组标题） |
+| 线到上一行文字 / 下一行文字 | **3px / 8px** |
+| 首行上方 | 无线（**不是**双线，P13-cu「下一格」的猜测不成立） |
+| 线的合成值 | 浅 229→208（−63 三通道和 = 7 级）；深 39→176（+57 = 19 级） |
+
+两个毛病都在**空间**不在墨：① 线贴着自己那一行，读起来是「这一行的下划线」，不是两行之间的
+分界；② 最后一行也收线，于是列表被一条线收尾，而它下面只有空气和下一组标题。
+
+**改法**：探针行不再带线；checks 组在**两条探针之间**插一个
+`ui.Box(c).FillWidth().Height(1).Background(tokens.Hairline).Shrink(0)`，最后一条不插——
+与同页 `diagnosisCheckRow` 的列表标点同一个写法（它也是「最后一行不画」）。改后：2 条探针 →
+1 条线、上下各 8px、列表结尾是 12px 空气；3 条探针 → 2 条线。墨一个字节没动。
+
+pin：`TestTheProbeListSeparatesItsRowsAndDoesNotCloseItself`（N−1 条 1px 线、上下空气相等、
+结尾无线）与 `TestTheProbeRuleIsTheHairlineNotATextRule`（浅 −63 / 深 +57，文字墨会跑到 −605 / +594）。

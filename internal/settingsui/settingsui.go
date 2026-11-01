@@ -2305,12 +2305,22 @@ func (a *App) healthDetail(c *ui.Context, copy i18n.Settings, report *HealthRepo
 		if len(report.Probes) > 0 {
 			// The checks group keeps the reference's own label and then one
 			// probe line each — mark, monospace id, trailing duration.
+			//
+			// P13-cv: the rows are separated by a 1px hairline *between* them
+			// and never closed by one — the same list punctuation the
+			// diagnostics grid below uses (`diagnosisCheckRow`). Drawn on the
+			// row's own bottom edge it hugged its own text (3px) and stood 8px
+			// off the next one, and the last row left a rule with nothing
+			// under it (`docs/rounds/P13-cv-report.md`).
 			ui.Column(c).FillWidth().Gap(t.Space(1)).Children(func() {
 				ui.Text(c, copy.IntegrationsHealthChecks).FontSize(tokens.Caption).
 					FontWeight(620).TextColor(tokens.TextSecondary)
-				for _, probe := range report.Probes {
+				for i, probe := range report.Probes {
 					probe := probe
 					a.healthProbeRow(c, probe)
+					if i < len(report.Probes)-1 {
+						ui.Box(c).FillWidth().Height(1).Background(tokens.Hairline).Shrink(0)
+					}
 				}
 			})
 		}

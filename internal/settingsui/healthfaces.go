@@ -134,6 +134,15 @@ func healthKindOf(copy i18n.Settings, status, raw string) healthKind {
 // literal 11px glyph (`<Check size={11}/>` / `<X size={11}/>`,
 // `ExtensionsPanel.tsx:2954-2958`), so it does not scale with the interface
 // step the way the id and duration beside it do.
+//
+// P13-cv: the row carries **no rule of its own**. It used to wear
+// `InsetShadow(0, -1, 0, 0, tokens.Hairline)`, which in this framework leaves
+// the uncovered strip on the box's *bottom* edge: the line then sat 3px under
+// its own text and 8px above the next id (a row underline, not a divider), and
+// the last probe closed the list with a rule that led nowhere. The separator is
+// now a 1px box *between* rows, drawn by the caller — the same idiom as
+// `diagnosisCheckRow` (`settingsui.go`), whose list also drops it on the last
+// row (see `docs/rounds/P13-cv-report.md`).
 func (a *App) healthProbeRow(c *ui.Context, probe HealthProbe) ui.Element {
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
@@ -143,7 +152,6 @@ func (a *App) healthProbeRow(c *ui.Context, probe HealthProbe) ui.Element {
 	}
 	row := ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(t.Space(2)).
 		Padding(t.Space(1), 0)
-	row.InsetShadow(0, -1, 0, 0, tokens.Hairline)
 	row.Children(func() {
 		if glyph, ok := launcher.Glyph(mark); ok {
 			ui.Icon(c, glyph).Size(11, 11).TextColor(ink)
