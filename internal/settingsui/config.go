@@ -499,12 +499,16 @@ func (a *App) configFieldGrid(c *ui.Context, field ConfigField, label, requiredL
 // `.extension-config-field select` shares the input's literal box
 // (`extensions.css:2402-2417`) but fills its column rather than taking the
 // settings rows' fixed width. It is `chooseSelect` without that 220px.
-func (a *App) configSelect(c *ui.Context, selected *string, labels []string, label string) ui.Element {
+//
+// `lit` is the field material's state, the same one `extensionFieldLit` takes:
+// this drop-down sits in the same form and locks with it, so it must go unlit
+// with the fields beside it (P13-cb).
+func (a *App) configSelect(c *ui.Context, selected *string, labels []string, label string, lit bool) ui.Element {
 	e := ui.Select(c, selected, labels).Label(label).FillWidth().Radius(999)
 	if a.cardUnit > 0 {
 		e = e.MinHeight(28).Padding(4, 8)
 	}
-	return a.fieldFace(c, e)
+	return a.fieldFace(c, e, lit)
 }
 
 // configField draws one field, by its type. Every field wears the reference's
@@ -557,9 +561,10 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 		}
 		chosen, cleared := "", false
 		a.configFieldGrid(c, field, label, copy.ConfigRequired, "", func() ui.Element {
-			e := a.configSelect(c, &selected, labels, label)
+			e := a.configSelect(c, &selected, labels, label, !locked)
 			if locked {
 				// P13-t：一道淡（框架的 0.5），与同一张表单的字段、开关同档。
+				// P13-cb：灯已经在 `!locked` 那一步交给材质了，这里只挂状态。
 				e = lockedControl(e)
 			}
 			if e.Changed() && !locked {
@@ -640,7 +645,7 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 		edit := draft.liveText(field, value)
 		problem := a.configFieldProblem(integration, field)
 		a.configFieldGrid(c, field, label, copy.ConfigRequired, problem, func() ui.Element {
-			e := a.extensionField(c, &edit, configFieldMetrics).Placeholder(field.Key).Label(label).FillWidth()
+			e := a.extensionFieldLit(c, &edit, configFieldMetrics, !locked).Placeholder(field.Key).Label(label).FillWidth()
 			if problem != "" {
 				// The reference handed the bounds to the native control and let
 				// the browser draw its validity state *on the field* — a red
@@ -653,6 +658,8 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 			if locked {
 				// P13-t：一道淡。0.3 下这块字段的 E1 一对面双双归零（顶内线 = 面
 				// = 242、底内线 = 面），槽读不出来；0.5 下仍是 238（−9）与 −7 的对侧。
+				// P13-cb：灯已经在上面那行的 `!locked` 里交给材质了（`fieldFace` 的
+				// `DimFace` 臂），这里只挂状态——两道判断读的是同一个 `locked`。
 				e = lockedControl(e)
 			}
 			// The reference's input is controlled: every keystroke writes the
@@ -698,7 +705,7 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 		edit := draft.liveText(field, value)
 		problem := a.configFieldProblem(integration, field)
 		a.configFieldGrid(c, field, label, copy.ConfigRequired, problem, func() ui.Element {
-			e := a.extensionField(c, &edit, configFieldMetrics).Placeholder(field.Key).Label(label).FillWidth()
+			e := a.extensionFieldLit(c, &edit, configFieldMetrics, !locked).Placeholder(field.Key).Label(label).FillWidth()
 			if kind == "password" {
 				e = e.Password()
 			}
@@ -707,6 +714,7 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 			}
 			if locked {
 				// P13-t：一道淡，与上面的数字字段、开关、下拉同档。
+				// P13-cb：同上——材质已经在 `!locked` 里定了，这里只挂状态。
 				e = lockedControl(e)
 			}
 			// A text field is controlled the same way: every keystroke is the

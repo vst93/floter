@@ -184,7 +184,7 @@ func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, is
 				box := ui.TextArea(c, &options).Label(copy.ParamsOptions).
 					FillWidth().MinHeight(t.Space(paramEditorOptionsMin)).
 					Radius(tokens.RadiusSM).Font(paramEditorMono)
-				a.fieldFace(c, box)
+				a.fieldFace(c, box, true)
 			})
 		}
 		if message := paramIssueMessage(copy, issue); message != "" {
@@ -219,7 +219,7 @@ func (a *App) paramSelect(c *ui.Context, selected *string, labels []string, labe
 		m := customFieldMetrics
 		e = e.MinHeight(m.minHeight).Padding(m.padY, m.padX)
 	}
-	return a.fieldFace(c, e)
+	return a.fieldFace(c, e, true)
 }
 
 // paramRequiredToggle is `.extension-param-editor__toggle` (`:1881-1882`): a

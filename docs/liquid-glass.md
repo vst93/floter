@@ -2230,7 +2230,7 @@ light 18 vs 13）——「不再靠 1px 描边分家」是可测的；回归钉�
 
 出图 `/tmp/floter-P13-bz-settings-{dark,light}-{before,after}.png`。
 
-### §6.44 锁定的字段：灯还亮着一半，凹槽已经没了（P13-ca，**先量后不改 / 需结构性改动**）
+### §6.44 锁定的字段：灯还亮着一半，凹槽已经没了（P13-ca 先量；**P13-cb 已落地，见 §6.45**）
 
 「状态反馈」的禁用族最后一个成员。`fieldFace`（`internal/settingsui/textinput.go:74`）画的是 E1 面
 （`LensRim` 冠线 + `LensEdge` 暗线），而三个字段的锁定臂只调 `lockedControl`
@@ -2254,3 +2254,38 @@ light 18 vs 13）——「不再靠 1px 描边分家」是可测的；回归钉�
 
 **落地**：`assertOneFade` 拆出 `crownLit` 参数（字段臂今天仍按半盏灯量，注释写明那不是答案）+ 新 pin
 `TestTheLockedFieldIsStillAGroove`（面离地 ≥ 6 级；将来 `DimFace` 落地时它是护栏）。
+
+### §6.45 锁定的字段：把「锁定」带进字段材质本身（P13-cb，**已落地**）
+
+§6.44 的缺口这一轮合上了。改的不是墨，是**材质拿到状态的时间点**：`fieldFace` 多了一个
+`lit bool`（`internal/settingsui/textinput.go:74`），假时走 `tokens.DimFace`（摘冠线、留暗线），
+真时照旧 `tokens.LitFace`。锁定状态由 `configField` 在建元素的那一行就给到
+（`extensionFieldLit(..., !locked)` / `configSelect(..., !locked)`），`lockedControl` 只挂状态。
+`textInput` / `extensionField` 保留为 `lit = true` 的壳，键盘模型（两条 `Shortcut` + 用户和弦）与
+高度链（`extensionFieldMetrics` 的 28/30/999）零改动。
+
+**为什么不叠 `DimFace` 了事**：mygo 的内阴影只追加不撤回（`ui/element.go:1162`），冠线一旦画上就摘不掉
+（§6.44 的两条失败路径）。状态必须在**建面**的那一刻到场——这就是这条参数存在的理由。
+
+实测（`lockedform_test.go` 的 `lockProbe`，地面浅 247 / 深 14）：
+
+| 读数 | 静息 | 锁定（改前） | 锁定（改后） |
+|---|---|---|---|
+| 面 | 230 / 39 | 238 / 26 | 238 / 26（不变） |
+| 冠线 − 面 | +6 / +19 | **+2 / +10** | **0 / 0** ✅ |
+| 面 − 地 | 17 / 25 | 9 / 12 | 9 / 12（不变） |
+
+三条 pin：
+
+1. `lockedform_test.go` A 臂的 `crownLit` 从 `true` 翻成 **`false`**（P13-ca 备好的那一行），
+   E 臂的 `t.Logf` 转正成断言（冠线 − 面 ≤ 1 级）。
+2. `lockedfield_test.go` `TestTheLockedSelectGoesUnlit`：同一张表单上的**下拉框**与字段一起熄灯
+   （它走同一个 `fieldFace`，静息时确实亮着 +6 / +19）。
+3. `lockedfield_test.go` `TestTheConfigFormFieldGoesUnlitWhenTheRowIsBusy`：走**产品路径**
+   （`configField` + `toggleBusy`），数帧上「静息材质那一行受光边」的像素数——
+   行闲 **313 / 314 px**（浅/深），行忙 **0 px**。这条是接线的唯一判据：把 `config.go` 里的
+   `!locked` 写死成 `true`，它立刻红。
+
+出图：`/tmp/floter-P13-cb-lockedfield-{light,dark}-{before,after}.png`（`FLOTER_PNG=1` opt-in）。
+逐像素差分：浅色 584 px、深色 620 px，其中**整行 270 px 落在锁定控件的顶边那一行**
+（浅色 `{240 240 241}` → `{238 238 239}`，即冠线归到面），其余是圆角抗锯齿的两三像素。

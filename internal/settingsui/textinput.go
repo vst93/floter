@@ -33,7 +33,16 @@ import (
 // the focus chain, and `routeKeys` (ui/input.go:730) gives a key to the
 // innermost element handling it, so a focused field wins over the window.
 func (a *App) textInput(c *ui.Context, value *string) ui.Element {
-	e := a.fieldFace(c, ui.TextInput(c, value))
+	return a.textInputLit(c, value, true)
+}
+
+// textInputLit is `textInput` with the field's lit edge under the caller's
+// control: `lit` is false when the field is locked, and the material then goes
+// out with the state (see `fieldFace`). The keyboard model is untouched — the
+// two shortcuts and the user's chord below are the same in both arms, so a
+// locked field and a resting field differ in exactly one line of ink.
+func (a *App) textInputLit(c *ui.Context, value *string, lit bool) ui.Element {
+	e := a.fieldFace(c, ui.TextInput(c, value), lit)
 	e.Shortcut(0, ui.KeyUp)
 	e.Shortcut(0, ui.KeyDown)
 	// The user's own chords are the field's, before the editor's: the
@@ -71,14 +80,30 @@ func (a *App) textInput(c *ui.Context, value *string) ui.Element {
 // §1 把光泽（rim/sheen/lens）一律压到 alpha ≤ 0.04，而 `FieldSlot` 在浅色下
 // 的白边是 **0.85**——上限的 21 倍；Raycast 的输入框是一档浅面 + 一条发丝边，
 // 没有内侧白边。旧材质在图上就是「输入框像一块玻璃砖」，这正是本片要收掉的。
-func (a *App) fieldFace(c *ui.Context, e ui.Element) ui.Element {
+func (a *App) fieldFace(c *ui.Context, e ui.Element, lit bool) ui.Element {
 	tokens := a.tokens(c)
 	// P12-c（§6.2 第 2-4 行）：字段是 **E1 面**。P8-c 把它收成「`Control` 面 +
 	// 一条 `ControlEdge` 发丝边」是对的（它去掉了 0.85 的内侧白边），但它只
 	// 停在了「一块被画框圈住的平涂」。`LitFace` 补上 E1 缺的那一对线：顶受光
 	// 边 `LensRim` + 底对侧 `LensEdge`，无投影。外圈 `ControlEdge` 不动——它是
 	// 字段与卡片之间的那道线，不是受光边。
-	return tokens.LitFace(e.Background(tokens.Control).Border(1, tokens.ControlEdge))
+	//
+	// P13-cb（§6.45）：`lit` 是**状态**交给**材质**的那一条线。锁定（`Disabled`）
+	// 的字段此前戴着一半的灯——冠线仍在（实测 +10 级深 / +2 级浅），底对侧的
+	// 暗线却被 0.5 那道淡吃掉了，于是它读起来不是「一个灭了灯的凹槽」，是
+	// 「一块平涂 + 一条半亮的顶线」。受光边是「这块面可以被碰」的记号（§3），
+	// 锁定的面不该戴着它，所以这一档走 `DimFace`：摘冠线、留暗线。
+	//
+	// 为什么是参数而不是事后叠 `DimFace`：mygo 的内阴影只追加不撤回
+	// （`ui/element.go:1162`），冠线是这里建元素时画上去的，之后再叠什么都
+	// 摘不掉它（P13-ca 试过两条路，都失败，见 §6.44）。所以状态必须在**建面**
+	// 的这一刻就到场；而 `lit` 仍然只由这一处决定材质——同一张表单上的输入框、
+	// 下拉框、参数框不会各自漂到两种面。
+	e = e.Background(tokens.Control).Border(1, tokens.ControlEdge)
+	if !lit {
+		return tokens.DimFace(e)
+	}
+	return tokens.LitFace(e)
 }
 
 // extensionFieldMetrics is the literal box one of the extension panel's text
@@ -116,7 +141,14 @@ var commandAliasMetrics = aliasFieldMetrics{padY: 4, padX: 8, radius: theme.Radi
 // a config field, a run parameter, a local-tool input and a parameter-editor
 // input cannot drift into two boxes.
 func (a *App) extensionField(c *ui.Context, value *string, m extensionFieldMetrics) ui.Element {
-	e := a.textInput(c, value)
+	return a.extensionFieldLit(c, value, m, true)
+}
+
+// extensionFieldLit is `extensionField` with the field's lit edge under the
+// caller's control: the config form's fields are the one chain that can be
+// locked (`configLocked`), so they are the one chain that passes `lit`.
+func (a *App) extensionFieldLit(c *ui.Context, value *string, m extensionFieldMetrics, lit bool) ui.Element {
+	e := a.textInputLit(c, value, lit)
 	if a.cardUnit > 0 {
 		e = e.MinHeight(m.minHeight).Padding(m.padY, m.padX).Radius(999)
 	}

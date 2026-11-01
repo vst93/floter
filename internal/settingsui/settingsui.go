@@ -4504,7 +4504,7 @@ func (a *App) chooseSelect(c *ui.Context, selected *string, labels []string, lab
 	if a.cardUnit > 0 {
 		e = e.MinHeight(28).Padding(4, 8)
 	}
-	return a.fieldFace(c, e)
+	return a.fieldFace(c, e, true)
 }
 
 // paletteRow is the terminal palette row: the labeled picker, with a
@@ -4530,7 +4530,7 @@ func (a *App) paletteRow(c *ui.Context, copy i18n.Settings, current string, appl
 	// splits the select and the preview apart (`settings.css:871-878`).
 	a.stackedRow(c, copy.Palette, "", func() {
 		ui.Row(c).FillWidth().Justify(ui.SpaceBetween).AlignItems(ui.Center).Children(func() {
-			e := a.fieldFace(c, ui.Select(c, &selected, labels).Label(copy.Palette).Width(220).Radius(999))
+			e := a.fieldFace(c, ui.Select(c, &selected, labels).Label(copy.Palette).Width(220).Radius(999), true)
 			if e.Changed() {
 				for _, option := range options {
 					if option.Label == selected {
@@ -4866,7 +4866,7 @@ func (a *App) residencyRow(c *ui.Context, copy i18n.Settings) {
 
 	t := c.Theme()
 	a.row(c, copy.SurfaceResidency, copy.SurfaceResidencyHint, func() {
-		e := a.fieldFace(c, ui.Select(c, &selected, labels).Label(copy.SurfaceResidency).Width(200).Radius(999))
+		e := a.fieldFace(c, ui.Select(c, &selected, labels).Label(copy.SurfaceResidency).Width(200).Radius(999), true)
 		if e.Changed() {
 			for i, label := range labels {
 				if label == selected {

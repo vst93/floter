@@ -164,18 +164,19 @@ func TestTheLockedFieldFadesOnce(t *testing.T) {
 	for _, dark := range []bool{false, true} {
 		ground, rest, locked := lockProbe(t, dark, func(a *App, c *ui.Context, isLocked bool) ui.Element {
 			s := "hello"
-			e := a.extensionField(c, &s, configFieldMetrics)
+			// P13-cb：锁定状态在**建面**的时候就进场（`!isLocked` → `fieldFace` 的
+			// `DimFace` 臂），与产品 `configField` 里那三处同一个判断。
+			e := a.extensionFieldLit(c, &s, configFieldMetrics, !isLocked)
 			if isLocked {
 				e = lockedControl(e)
 			}
 			return e
 		})
-		// P13-ca 量到但**没改**：这一臂读的是「锁定后冠线 = 面」会红（实测深色冠线
-		// 比面高 **10 级**、浅色 **2 级**），而熄灯在这套框架里**无法事后撤回**——
-		// mygo 的内阴影只追加（`ui/element.go:1162`），字段的冠线是 `fieldFace` 在
-		// 建的时候就画上的。所以这一档仍按「半盏灯」量，缺口记在 §6.44 与
-		// `.pending-bugs.md` 的「仍待」：要熄灯得把锁定状态带进字段材质本身。
-		assertOneFade(t, "the config field", dark, ground, rest, locked, true, true)
+		// P13-cb 重定基线：`crownLit` 从 `true` 翻成 `false`。P13-ca 量到锁定后冠线
+		// 仍比面高 **10 级（深）/ 2 级（浅）**，当时只能记在 §6.44 里，因为 mygo 的
+		// 内阴影只追加（`ui/element.go:1162`）、冠线摘不掉。这一轮把锁定状态带进
+		// 了字段材质，灯真的熄了：锁定后的冠线必须**等于面**。
+		assertOneFade(t, "the config field", dark, ground, rest, locked, true, false)
 		// And the face is still a face: half of a 17-level step is 8~9 levels,
 		// which is the same rung the disabled pill sits on (P13-s: 9).
 		if g := absDiff(litSum(locked.face), litSum(ground)); g < 18 {
@@ -235,7 +236,7 @@ func TestTheLockedFormHasOneDepth(t *testing.T) {
 	for _, dark := range []bool{false, true} {
 		_, _, field := lockProbe(t, dark, func(a *App, c *ui.Context, isLocked bool) ui.Element {
 			s := "hello"
-			e := a.extensionField(c, &s, configFieldMetrics)
+			e := a.extensionFieldLit(c, &s, configFieldMetrics, !isLocked)
 			if isLocked {
 				e = lockedControl(e)
 			}
@@ -279,7 +280,9 @@ func TestDumpP13TLockedForm(t *testing.T) {
 				for _, locked := range []bool{false, true} {
 					locked := locked
 					s := "hello"
-					f := a.extensionField(c, &s, configFieldMetrics)
+					// `before` 画的是旧材质：灯还亮着 + 第二道淡。新材质在锁定
+					// 时就熄灯（P13-cb），所以这一张的 `lit` 也跟着切。
+					f := a.extensionFieldLit(c, &s, configFieldMetrics, !locked || before)
 					if locked {
 						f = lockedControl(f)
 						if before {
@@ -344,7 +347,7 @@ func TestTheLockedFieldIsStillAGroove(t *testing.T) {
 	for _, dark := range []bool{false, true} {
 		ground, _, locked := lockProbe(t, dark, func(a *App, c *ui.Context, isLocked bool) ui.Element {
 			s := "hello"
-			e := a.extensionField(c, &s, configFieldMetrics)
+			e := a.extensionFieldLit(c, &s, configFieldMetrics, !isLocked)
 			if isLocked {
 				e = lockedControl(e)
 			}
@@ -354,16 +357,14 @@ func TestTheLockedFieldIsStillAGroove(t *testing.T) {
 			t.Errorf("the locked field (%s): the face is only %d levels off the ground; a locked groove is still a groove",
 				appearanceName(dark), d/3)
 		}
-		// 而**这一档的现状**（本轮实测，未改）：锁定后冠线仍比面高 **10 级（深）/
-		// 2 级（浅）**，底对侧却与面**逐像素相同**（`{238 238 239}` / `{26 26 28}`，
-		// 两边都是）——0.5 那道淡把 `LensEdge` 那条暗线吃掉了。所以锁定的字段今天
-		// 不是「一个灭了灯的凹槽」，是「一块平涂 + 一条半亮的顶线」：灯与凹槽恰好
-		// 各剩一半。正确的材质是 `DimFace`（摘冠线、留暗线），而它在这里撤不回来
-		// ——冠线是 `fieldFace` 建的时候画的，mygo 的内阴影只追加
-		// （`ui/element.go:1162`）。要熄灯得把锁定状态带进字段材质本身，那是结构
-		// 改动，记在 §6.44 与 `.pending-bugs.md` 的「仍待」。
-		if d := absDiff(litSum(locked.crown), litSum(locked.face)); d == 0 {
-			t.Logf("the locked field (%s): crown and face read the same (%v) — the light is already out", appearanceName(dark), locked.crown)
+		// P13-cb：灯**真的**熄了——锁定后的冠线与面必须逐像素同色（差 ≤ 1 级是
+		// 抗锯齿的余量）。这一条是上一轮那条 `t.Logf` 的转正：P13-ca 时它只能记录
+		// 「冠线还比面高 10 级（深）/ 2 级（浅）」这个缺口，因为 mygo 的内阴影只
+		// 追加不撤回（`ui/element.go:1162`）、冠线摘不掉；这一轮把锁定状态带进了
+		// `fieldFace`，缺口合上了，记录也就该变成判据。
+		if d := absDiff(litSum(locked.crown), litSum(locked.face)); d > 1 {
+			t.Errorf("the locked field (%s): the lit edge is %v but the face is %v (%d levels apart) — a locked field still wears the mark of a surface the pointer can land on; `fieldFace`'s unlit arm should have put that light out (docs/liquid-glass.md §6.45)",
+				appearanceName(dark), locked.crown, locked.face, d/3)
 		}
 	}
 }
