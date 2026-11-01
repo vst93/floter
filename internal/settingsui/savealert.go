@@ -141,13 +141,33 @@ func (a *App) saveAlert(c *ui.Context, copy i18n.Settings) {
 			button := ui.Row(c).Focusable().Shrink(0).Size(t.Space(6), t.Space(6)).
 				Radius(tokens.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).
 				Label(copy.Close)
-			if button.Hovered() {
-				button.Background(tokens.ControlHover)
-				// `.settings-save-alert button`: the reference's own alert button
-				// carries the raised rung; this build's banner has one ✕ that is
-				// transparent at rest, so the pointer is where it can be graded.
-				// E1 (`theme.Tokens.LitFace`): the ✕ sits inside the E2 banner, so
-				// it is a face there — one lit edge, one shade, no ring.
+			// `.settings-save-alert button`: the reference's own alert button
+			// carries the raised rung; this build's banner has one ✕ that is
+			// transparent at rest, so the pointer is where it can be graded.
+			// E1 (`theme.Tokens.LitFace`): the ✕ sits inside the E2 banner, so
+			// it is a face there — one lit edge, one shade, no ring.
+			//
+			// P13-bv（`docs/liquid-glass.md` §5「按下」/ §6.40）：这一枚键此前只有静息
+			// （透明）与悬停（`ControlHover` + 一对线）**两档**——指针按下去的那一帧与
+			// 悬停帧逐像素相同。它是这一族里最后一枚这样的键（设置页其余小键
+			// `headerButton` / `paramIconButton` / `sessionIconButton` 自 P13-q 起就有
+			// 第三档）。第三档按同族规矩：`ControlPress` 的面 + `Scale(0.92)`；一对线
+			// **保留**——这一族的面是「一块能被碰的板」，压下去仍在地面之上，不是沉进
+			// 凹槽（同 P13-q 在设置页的取舍）。
+			//
+			// 面写成变量、一对线提到臂外，是本仓已有的形状（`launcher/power.go` 的
+			// `if plane.A > 0 { LitFace }`）：一份面，所有状态共用一对线
+			// （`internal/ci/litarm_contract_test.go` 的逃生口 ②）。
+			plane := ui.Transparent
+			switch {
+			case button.Pressed():
+				plane = tokens.ControlPress
+				button.Scale(0.92, 0.92)
+			case button.Hovered():
+				plane = tokens.ControlHover
+			}
+			button.Background(plane)
+			if plane.A > 0 {
 				tokens.LitFace(button)
 			}
 			button.Children(func() {

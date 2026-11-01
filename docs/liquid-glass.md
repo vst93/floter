@@ -2090,8 +2090,8 @@ P13-bo 把启动器列表的状态行抬到了陈述档，并在报告里留下�
 | # | 位置 | 现状 → 落成 | 状态 |
 |---|---|---|---|
 | 39-1 | `shell/detach.go` `detachedList` 的 `row.Status` 臂 | `detachedListNote` **无条件**（`Caption` + `TextMuted`，实测对地面 浅 **115** / 深 **110**，比窗口自己的 bar 标题还轻 **3** 级）→ `detachedStatusAlone(rows)` 为真时走 `detachedStateLine(..., detachedStatement, ...)`：实测 **219 / 217**，与 `empty` 臂的陈述行**逐字节同值**、同盒（18.0 vs 旧 15.0） | `已落地` |
-| 39-2 | 同文件 `detachedListNote` 的注释 | 只写了「它是列表的注」 | 补前提：**只在列表还有别的行时**成立；并新增 `detachedStatusAlone` 谓词与量测注释 | `已落地` |
-| 39-3 | `launcher/launcher.go` 的 `item.status` 臂 | 无条件陈述档（P13-bo），**代码零改动** | 补一行注释把 §6.39 引出来：启动器的状态行只由 `search.go` `clipboardItems` 的 disabled 臂发出、且只发一条，按判据恒为陈述档——两处读同一条规则，不是一个巧合 | `已落地` |
+| 39-2 | 同文件 `detachedListNote` 的注释 | 只写了「它是列表的注」→ 补前提：**只在列表还有别的行时**成立；并新增 `detachedStatusAlone` 谓词与量测注释 | `已落地` |
+| 39-3 | `launcher/launcher.go` 的 `item.status` 臂 | 无条件陈述档（P13-bo），**代码零改动** → 补一行注释把 §6.39 引出来：启动器的状态行只由 `search.go` `clipboardItems` 的 disabled 臂发出、且只发一条，按判据恒为陈述档——两处读同一条规则，不是一个巧合 | `已落地` |
 | 39-4 | `launcher/output.go` 捕获输出页的 `row.Status` | 行盘 + 灰墨的一整行（`iconPlate` 28u + `t.TextMuted`） | **故意不做**：它不是「无盘的一句话」这个形状——它保留 28u 图标板与行盒，是这一页的**行**，属另一族 | `故意不做`（见理由） |
 
 pin：`internal/shell/statusalone_test.go` 两条（唯一一条状态行必须落在陈述档且与 `empty` 臂同盒、
@@ -2102,3 +2102,31 @@ pin：`internal/shell/statusalone_test.go` 两条（唯一一条状态行必须�
 改后实测（720×460，深/浅）：alone 臂墨 `{27,27,29}` / `{237,237,239}`（weight **219 / 217**，
 旧 **115 / 110**），盒高 15.0 → **18.0**；note 臂**逐字节不变**（md5 相同，0 像素差）。
 像素 diff 只落在那一行：差异盒 `x[12..85] y[55..66]`，深/浅各 **465** 点。
+
+#### §6.40 指针的第三档：这一族最后一枚按下去纹丝不动的键（P13-bv，**已落地**）
+
+§5 说「按下」是这一支唯一被允许的几何变化（`Scale(0.986)`，小格族 `Scale(0.92)`），
+P13-q / P13-al / P13-am 已经把设置页小键、shell 四键、终端浮条五键的三档补齐。
+普查（`Hovered()` 对 `Pressed()`，四个包，排除 `_test.go`）剩下最后一处：
+设置页保存失败横幅的 ✕——`hover=1 / press=0`，按住不放的那一帧与悬停帧**逐像素相同**。
+
+| # | 位置 | 现状 → 落成 | 状态 |
+|---|---|---|---|
+| 40-1 | `internal/settingsui/savealert.go` 的 ✕（24u，静息透明） | 只有 `if button.Hovered()` 一条指针臂：悬停 `ControlHover` + 一对线，**按下与悬停逐像素相同**（实测浅 `{224,224,224}` / 深 `{53,53,56}` 两帧同值）→ 面写成变量，`case Pressed: ControlPress + Scale(0.92)`，一对线提到臂外（`if plane.A > 0 { LitFace }`，`power.go` 的既有形状，`litarm_contract_test.go` 逃生口 ②）。实测按下 **242 / 32**，在横幅面（250 / 20）与悬停面之间 | `已落地` |
+| 40-2 | 同文件的注释 | 只写了「指针是它唯一能被分档的地方」→ 补第三档的存在与取舍（一对线在按下档保留，同 P13-q；`Scale(0.92)` 是小格族的几何） | `已落地` |
+| 40-3 | `internal/launcher/output.go:598` 捕获输出页页头的两枚 28u 方键 | `hover=2 / press=0`，同一个「悬停才长面」的形状 | `未开始`（下一轮候选，先量） |
+| 40-4 | `internal/launcher/power.go` 确认带的两枚 chip | `hover=2 / press=0`；但**暖面没有按下档 token**（`RaisedWarm` / `IconSurfaceHover` 之外无第三档），先定 token 才能动 | `需拍板` |
+| 40-5 | `internal/launcher/filters.go:219` 的过滤 chip | 参考自己就没有面（R72：chip 是字不是药丸），按下要不要有档 | `需拍板` |
+
+pin：`internal/settingsui/savealertpress_test.go` 四条判据（悬停画了面 / 按下画了**另一个**面 /
+按下面在横幅面与悬停面之间 / 按下没重排横幅也没搬盒子），深/浅各一遍 + 1 条 opt-in dump。
+
+**V 0 / B 0 / S 0**（本轮产品改动一处，旧 pin 一条没红）。变异 2 条实跑全红并 `md5sum -c`
+逐字节还原（`76a2eeca…`）：M1 按下档画成悬停面（即本轮之前的行为）/ M2 删掉臂外的共享一对线
+（`internal/ci` 的 `TestEveryPointerStateFaceNamesItsPair` 两个臂各报一条）。详见
+`docs/rounds/P13-bv-report.md`。
+
+**同时修的一条旧账**：§6.39 的 39-2 / 39-3 两行此前多了第五格，`internal/ci` 的
+`TestTheLiquidGlassContractSupersedesTheRaycastOne` 因此在 HEAD 上是红的（「a gap-table row
+carries an unrecognised status」）。**测试零改动**，两行并回四格。
+
