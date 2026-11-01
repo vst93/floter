@@ -815,6 +815,11 @@ P13-o 是第四轮（P13-n 之后）：它没有开表面，而是补 §6.0 的 
 底边不是同一条，因为凹槽的那一行上多压了一条 `TrackEdge` 发丝。pin 是
 `internal/settingsui/groovepair_test.go`（两套外观 × 三个真凹槽：分段槽 / 关的开关 / 开的开关）。
 
+P13-br 是收口之后的第六轮，也是**表里最后一条 `未开始`（35-3）被销掉的那一轮**：
+设置页分组的内 gutter 从「四组 8u + 材质组 10u」收回成**一档 8u**（§6.36），
+材质组只留 `padding: 10u 0` —— 参考实现给它的两个例外里，小的那个只值 1.8px，
+大的那个值 9px。至此 §6 的差距表**没有 `未开始` 行**。
+
 ### 6.22 捕获输出页「不可运行行」的板（P13-bb）
 
 | # | 位置 | 现状（旧） | 落成（新） | 状态 |
@@ -1956,7 +1961,7 @@ M4 census 回测点名 `shell/detach.go:677`。详见 `docs/rounds/P13-bp-report
 |---|---|---|---|---|
 | 35-1 | `rows.go` `cardRow` / `stackedRow` / `actionRow` 的纵向 `Padding` | 三条路都是 `t.Space(2.25)` = **9u / 36px**（`:1359` / `:1463` / `:1517`） | 同族**没有**两个值 | `已落地`（复核） |
 | 35-2 | 「8/9/11/13u 混用」这个猜想 | `Space(2)`=8u / `Space(3)`=12u / `Space(4)`=16u / `Space(6)`=24u 全部只出现在**块**（告警带、凹槽、空态区域、卸载卡片）；`Space(2.75)`=11u 与 `Space(3.25)`=13u 在 `internal/settingsui` 里**一次都没出现作间距**（全仓只有 `rows.go:1563` 与 `shell/notices.go:372`，两处是 `Size(t.Space(3.25), t.Space(3.25))`，**图标尺寸**） | 猜想在纵向 padding 上**不成立**；9u 是行那一族唯一的刻度 | `故意不做（量过，无需改）` |
-| 35-3 | 分组之间：`sectionGroup` 8u（`rows.go:81`）/ `sectionMaterial` 10u（`:114`）/ `pageColumn` 22u（`:56`） | 8 与 10 只差 2 个物理像素 | **下一格**：先出图看这两个角色读不读得出来（General 页两张相邻分组卡的间距，深/浅两套），**再决定改不改** | `未开始` |
+| 35-3 | 分组之间：`sectionGroup` 8u（`rows.go:81`）/ `sectionMaterial` 10u（`:114`）/ `pageColumn` 22u（`:56`） | 8 与 10 只差 2 个物理像素 | **已改判 → §6.36**：P13-br 出图量过，组内 gutter 统一到共享的 8u，材质组只留 `padding: 10u 0` | `已落地（P13-br）` |
 | 35-4 | `internal/ci/rowrhythm_contract_test.go`（新） | 这笔账此前只存在于人的眼睛里 | ①三条行路的**第一条 `Padding` 参数**必须同值且 = `Space(2.25)`（`Gap` / `min-height` 不进账：一个是行内部的空气，一个是行的地板）；②`internal/settingsui` 的**间距方法第一参数位**（`Padding`/`Gap`/`GapX`/`GapY`/`Margin`/`MarginX`/`MarginY`/`InsetShadow`）不许出现 `Space(2.75)` / `Space(3.25)`；逃生口 `rowRhythmSpaceAllow` 落地即**空表**，条目过期同样变红 | `已落地` |
 
 **为什么必须按「方法名 + 参数位」判，不按字面文本**：同一个数字在三条轴上不是一个东西。
@@ -1967,3 +1972,35 @@ M4 census 回测点名 `shell/detach.go:677`。详见 `docs/rounds/P13-bp-report
 **V 0 / B 0 / S 0**（本轮一个产品字节都不改，只加这张账与本节）。变异 3 条实跑全红并
 `md5sum -c` 逐字节还原：M1 `cardRow` 步 9u→10u / M2 `stackedRow` 步 9u→12u /
 M3 在 `settingsui.go` 造一处 `Padding(t.Space(2.75))`。详见 `docs/rounds/P13-bq-report.md`。
+
+### §6.36 分组的内 gutter：一页只有一档，材质组只留 padding（P13-br，**改值**）
+
+§6.35 的 35-3 是那张表最后一条 `未开始`，它要求「先出图，看图再决定」。这一轮就是那个决定。
+
+**量到的实况**（General 页，`ui.Tester` 720×2000，深/浅两套同值）：
+
+| 组 | 组头离自己盒顶 | 组头 → 第一张卡（实测像素） |
+|---|---|---|
+| Appearance / Window / Menu bar / Terminal | **0** | 6.7 / 6.7 / 6.9 / 6.7 |
+| Material | **9**（`padding: 10u 0`） | **8.9**（`gap: 10u`） |
+
+8u = **7.2px**、10u = **9.0px**（shipped `small` 步长下 1u = 0.9px，`theme.Space(n) = n × 3.6`）。
+也就是说：参考实现给这一个 section 写了两个例外，**小的那个只值 1.8px**（7.2 → 9.0，肉眼在 20px 的
+组间距里读不出来），**大的那个值 9px**（组头上方从 20px 变成 29px，那才是这一组「更松」的来源）。
+
+| # | 位置 | 现状 → 落成 | 状态 |
+|---|---|---|---|
+| 36-1 | `internal/settingsui/rows.go` `sectionGroupSpaced(gap, padding)` → `sectionGroupPadded(padding)` | 组的内 gutter 从签名里**消失**（编译器就是守卫）：`sectionGroup` 与 `sectionMaterial` 都走 `Space(2)`，材质组只传 `padding = Space(2.5)` | `已落地` |
+| 36-2 | 材质组的 `gap: 10u` | **重定基线：旧值 10u → 新值 8u**（组头→卡、卡→脚注、脚注→脚注）。**保留** `padding: 10u 0`，以及 `.settings-cards` 的卡与卡之间 10u（那是另一个角色，全页同值） | `已落地` |
+| 36-3 | `internal/settingsui/sectionrhythm_test.go`（新，2 条 pin + 1 条 opt-in dump） | ①五组的「组头 → 卡」像素间距必须同值（spread ≤ 1.5px，容差是渲染器的亚像素吸附：7.2 会画成 6.7 或 7.7）；②材质组的组头仍内缩 9px、其余四组为 0，且**四个组盒间距同值**（20px，`pageColumn` 的 22u） | `已落地` |
+| 36-4 | 材质组的 `padding: 10u 0` | 量过：它是这一组唯一读得出来的身份，删掉就会和别的组一模一样 | `故意不做（保留）` |
+
+**为什么这一轮值得改那 1.8px**：不是为了「看起来更好」，是因为它是**同一个角色的第二个刻度**
+（§6.35 起定的规矩）。删掉它之后，页面上的间距角色表是干净的：组内 8u / 卡与卡 10u /
+组与组 22u / 组的内缩 10u，四个角色四个值，没有哪个角色有两个说法。
+
+**V 2 / B 0 / S 0**：`materialspacing_test.go` 的两条旧 pin 按 V 处置——断言钉到新值并写明
+「P13-br 重定基线：旧值 10u → 新值 8u」，其余半边（padding 10u、卡与卡 10u）**零改动**。
+变异 3 条实跑全红并 `md5sum -c` 逐字节还原：M1 把 `gap: 10u` 放回材质组（spread 2.2px → 红）/ 
+M2 材质组 `padding` 归零（组头内缩 0 ≠ 9 → 红）/ M3 四组都戴 padding（Appearance 内缩 9 ≠ 0 → 红）。
+详见 `docs/rounds/P13-br-report.md`。

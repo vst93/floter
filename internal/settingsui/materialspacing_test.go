@@ -30,6 +30,13 @@ func contextSpace(t *testing.T, steps ...float64) []float32 {
 // `:491-495`). `sectionMaterial` reproduces it; `section` stays at the shared
 // 8u with no padding. This builds both with boxes for their cards and reads
 // every gutter and the group's own padding off the resolved boxes.
+//
+// P13-br 重定基线：`gap` 那一半的旧值 → 新值。参考实现给这一个 section 写了两个
+// 例外（`gap: 10u` 与 `padding: 10u 0`），量下来前者只值 1.8px（9px 对别组的
+// 7.2px），后者值 9px——留大的、删小的。于是这一组的**组级**gutter（组头→卡、
+// 卡→脚注、脚注→脚注）回到共享的 8u，而**卡与卡之间**仍是 `.settings-cards`
+// 的 10u（那是另一个角色，全页同值）。padding 原封不动，它才是这一组读起来更松的
+// 原因（见 `docs/liquid-glass.md` §6.36）。
 func TestTheMaterialSectionKeepsItsOwnSpacing(t *testing.T) {
 	store := newStore(t)
 	a := New(store, Actions{})
@@ -92,20 +99,23 @@ func TestTheMaterialSectionKeepsItsOwnSpacing(t *testing.T) {
 		t.Errorf("material bottom padding = %v, want the reference's 10u (%v)", gap, ten)
 	}
 
-	// The section's grid gap is 10u: heading → first card, card → card,
-	// last card → first footnote, and footnote → footnote are all the same
-	// gutter.
+	// The group's own gutter — heading → first card, last card → first footnote,
+	// footnote → footnote — is the shared 8u every section keeps (P13-br
+	// 重定基线：旧值 10u → 新值 8u). The card-to-card gutter is not that role: it
+	// is `.settings-cards { gap: 10u }`, which every section's cards column
+	// keeps, and it stays 10u.
 	for _, row := range []struct {
 		name string
 		gap  float32
+		want float32
 	}{
-		{"heading to first card", got.card1.Y - (got.title.Y + got.title.H)},
-		{"first card to second card", got.card2.Y - (got.card1.Y + got.card1.H)},
-		{"second card to first footnote", got.hintA.Y - (got.card2.Y + got.card2.H)},
-		{"first footnote to second footnote", got.hintB.Y - (got.hintA.Y + got.hintA.H)},
+		{"heading to first card", got.card1.Y - (got.title.Y + got.title.H), eight},
+		{"first card to second card", got.card2.Y - (got.card1.Y + got.card1.H), ten},
+		{"second card to first footnote", got.hintA.Y - (got.card2.Y + got.card2.H), eight},
+		{"first footnote to second footnote", got.hintB.Y - (got.hintA.Y + got.hintA.H), eight},
 	} {
-		if absFloat(row.gap-ten) > 1 {
-			t.Errorf("material %s = %v, want the reference's 10u section gap (%v)", row.name, row.gap, ten)
+		if absFloat(row.gap-row.want) > 1 {
+			t.Errorf("material %s = %v, want %v", row.name, row.gap, row.want)
 		}
 	}
 
@@ -124,14 +134,16 @@ func TestTheMaterialSectionKeepsItsOwnSpacing(t *testing.T) {
 }
 
 // On the live General page the material group is the last section and its two
-// cards and two footnotes are drawn in the reference's order with the looser
-// 10u gutter before the footnotes. The page-gap test
-// (`TestTheGeneralPageKeepsTheReferenceSectionGap`) only sees group boxes; this
-// one reads the live group's own internals.
+// cards and two footnotes are drawn in the reference's order with the shared
+// group gutter before the footnotes (P13-br 重定基线：旧值 10u → 新值 8u; the
+// 10u this section still keeps is its padding and its cards column). The
+// page-gap test (`TestTheGeneralPageKeepsTheReferenceSectionGap`) only sees
+// group boxes; this one reads the live group's own internals.
 func TestTheLiveMaterialSectionUsesItsOwnSpacing(t *testing.T) {
 	store := newStore(t)
 	a := New(store, Actions{})
 	ten := contextSpace(t, 2.5)[0]
+	eight := contextSpace(t, 2)[0]
 
 	copy := i18n.For("en").Settings
 	tt := render(t, a, 720, 2800)
@@ -154,7 +166,7 @@ func TestTheLiveMaterialSectionUsesItsOwnSpacing(t *testing.T) {
 	if hintA.Y <= glass.Y+glass.H {
 		t.Errorf("the glass footnote (Y=%v) is not after the glass row (Y=%v)", hintA.Y, glass.Y+glass.H)
 	}
-	if gap := hintB.Y - (hintA.Y + hintA.H); absFloat(gap-ten) > 1 {
-		t.Errorf("live footnote gutter = %v, want the reference's 10u (%v)", gap, ten)
+	if gap := hintB.Y - (hintA.Y + hintA.H); absFloat(gap-eight) > 1 {
+		t.Errorf("live footnote gutter = %v, want the shared 8u group gutter (%v)", gap, eight)
 	}
 }

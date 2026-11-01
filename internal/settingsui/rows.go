@@ -77,19 +77,30 @@ func (a *App) section(c *ui.Context, title, hint string, fn func()) ui.Element {
 // labelled group — and it also gives a test the group's own box: the page gap
 // between two sections is the room from one group's bottom edge to the next
 // group's top edge (`pageColumn`), which no text box shows.
+//
+// The gap is the one tick every group's *internal* rhythm wears — heading →
+// cards → hint. P13-br removed the last exception (the material group's 10u,
+// which rendered 9px against everyone else's 7.2px: a 25% step on a 7px gap
+// that no eye resolves, while the padding it kept is five times larger and is
+// what actually separates that section). See `docs/liquid-glass.md` §6.36.
 func (a *App) sectionGroup(c *ui.Context, title string, fn func()) ui.Element {
-	return a.sectionGroupSpaced(c, title, a.cardTheme(c).Space(2), 0, fn)
+	return a.sectionGroupPadded(c, title, 0, fn)
 }
 
-// sectionGroupSpaced is sectionGroup for a section that is spaced differently
-// from the shared 8u: the General page's material group is the reference's one
-// `.settings-section--material`, `gap: 10u` and `padding: 10u 0`
-// (`settings.css:767-772`). The padding is *inside* the group box, so the page
-// gap between the material section and its neighbour stays the shared 22u
-// (`pageColumn`) while the group itself keeps the reference's own breathing
-// room. A zero padding leaves the plain group.
-func (a *App) sectionGroupSpaced(c *ui.Context, title string, gap, padding float32, fn func()) ui.Element {
-	group := ui.Column(c).FillWidth().Gap(gap)
+// sectionGroupPadded is sectionGroup for a section that keeps its own breathing
+// room inside its own box: the General page's material group is the reference's
+// one `.settings-section--material`, `padding: 10u 0` (`settings.css:767-772`).
+// The padding is *inside* the group box, so the page gap between the material
+// section and its neighbour stays the shared 22u (`pageColumn`) while the group
+// itself keeps the reference's own breathing room. A zero padding leaves the
+// plain group.
+//
+// Padding is the only degree of freedom this frame takes: the reference also
+// gave that one section `gap: 10u` against the shared 8u, and that half of the
+// exception is gone (P13-br) — a gap argument here is how the second tick came
+// back the first time.
+func (a *App) sectionGroupPadded(c *ui.Context, title string, padding float32, fn func()) ui.Element {
+	group := ui.Column(c).FillWidth().Gap(a.cardTheme(c).Space(2))
 	if padding > 0 {
 		group = group.Padding(padding, 0)
 	}
@@ -103,15 +114,22 @@ func (a *App) sectionGroupSpaced(c *ui.Context, title string, gap, padding float
 func sectionLabel(title string) string { return title + "\u00a0section" }
 
 // sectionMaterial is section for the material group, the reference's one
-// section that is spaced differently: `.settings-section--material` is both
-// `gap: 10u` and `padding: 10u 0` (`settings.css:767-772`), against the 8u gap
-// every other `.settings-section` keeps (`:411-419`). Its two cards are already
-// 10u apart (`.settings-cards { gap: 10u }`, `:491-495`), the same column gap
-// section draws, so only the group's own gap and padding differ. The group's two
-// explanations are footnotes under both cards, as the reference draws them.
+// section that is spaced differently: `.settings-section--material` keeps
+// `padding: 10u 0` (`settings.css:767-772`) where every other
+// `.settings-section` (`:411-419`) sits flush in its group box. Its two cards
+// are 10u apart (`.settings-cards { gap: 10u }`, `:491-495`), the same column
+// gap section draws. The group's two explanations are footnotes under both
+// cards, as the reference draws them.
+//
+// The reference also gave this one section `gap: 10u` against the shared 8u;
+// P13-br dropped that half — measured, the 1.8px it added (9px against 7.2px)
+// is not a step any eye resolves, and it was the page's only second tick for a
+// role that already has one. The padding is what makes this section read as its
+// own: it lifts the heading 9px off the group box's top edge, so the room above
+// it is 29px against the 20px every other section gets.
 func (a *App) sectionMaterial(c *ui.Context, title string, footnotes []string, fn func()) ui.Element {
 	t := c.Theme()
-	return a.sectionGroupSpaced(c, title, t.Space(2.5), t.Space(2.5), func() {
+	return a.sectionGroupPadded(c, title, t.Space(2.5), func() {
 		a.sectionHeading(c, title, nil)
 		ui.Column(c).FillWidth().Gap(t.Space(2.5)).Children(fn)
 		for _, note := range footnotes {
