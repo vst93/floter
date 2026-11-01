@@ -2742,3 +2742,56 @@ pin：`internal/settingsui/sessionoutcome_test.go` 四条 × 深浅两套外观�
 **变异**（三条实跑）：M1（`sessionMeta` 的失败臂退回 tertiary）→ 红（`not warm`、`same colour`、
 `does not stand off the ground`）；M2（角色加了、画笔没接）→ 红（同样的三条，证明红的是**像素**
 不是枚举）；M3（运行中也画暖色）→ 双红（像素臂 + 角色账）。`md5sum -c` 逐字节还原 + `touch` 复跑绿。
+
+#### §6.57 设置页最后两个「两档的可点面」：按住不放的那一帧与悬停帧逐像素相同（P13-cn，**已落地**）
+
+P13-q（28u 小格）/ P13-al（浮条与 toast）/ P13-bv（保存失败横幅的 ✕）/ P13-bw（捕获输出页
+页头）/ P13-bx（终端空态的两条出路）修的是同一件事：**一块能被按的面只有两档**（静息 /
+悬停），按住不放的那一帧与悬停帧逐像素相同——手指按下去，界面一声不响。这一轮把账数完，
+设置页还剩两处，一起收口，**这一族结案**。
+
+全仓的账（`internal/{shell,settingsui,launcher,terminalui}` 里 `Hovered()` 有、`Pressed()`
+没有的函数）：只剩 `launcher/filters.go` 的过滤 chip 与 `launcher/power.go` 的确认带 chip，
+两条都是 §6.40-4 / §6.40-5 的**需拍板**（暖面没有按下档 token；参考自己就没有面）。其余
+两处就是本轮这两行。
+
+**1. 侧栏的导航行（`settingsui.sidebarRow`）**
+
+按下压过选中与悬停，取**行阶梯**的第三格 `RowPressed`（浅 0.08 黑 / 深 0.11 白），
+**不戴 `LitFace`**——启动器的结果行按下那一档也不戴（`launcher.go` 的 `case rowPressed:`
+只换面）：受光边是「这块面可以站起来」的记号，而按住是**沉下去**。
+
+实测（侧栏面上取像素，深浅各一遍）：浅 `230 → 221 → 212`，深 `39 → 48 → 63`
+（静息 → 悬停 → 按下）。按下与悬停差 **9 / 15** 级，与静息差 **18 / 24** 级。
+
+**2. 集成页折起的「查看输出」行（`settingsui.runOutputToggle`）**
+
+三档 `switch`：静息透明 / 悬停 `ControlHover` / 按下 `ControlPress`，一份面共用一对线
+（`if plane.A > 0`，普查逃生口 ②）。实测：浅 `229 → 205 → 222`，深 `39 → 69 → 50`
+——按下落在**静息与悬停之间**，是「把抬起来的那一档还回去」。
+
+**两条阶梯的按下方向是反的，这不是笔误**：
+
+| 阶梯 | 静息 | 悬停 | 按下 | 读法 |
+|---|---|---|---|---|
+| **行**（`RowHover/Selected/Pressed`） | 无面 | 0.045 | **0.11** | 行静息没有面，按下是**最重的一遍洗色**（离静息更远） |
+| **控制**（`ControlHover/Press`） | 已是一块面 | 0.14 | **0.05** | 控制静息已经有面，按下是**把抬起还回去**（落在静息与悬停之间） |
+
+pin 把这条写死成两条相反的不等式，免得下一轮把两条阶梯当成一个东西。
+
+**顺带补的普查漏账**：`runOutputToggle` 旧写法把状态读进变量
+（`hovered := button.Hovered()`），而 `internal/ci/litarm_contract_test.go` 的臂级普查只认
+`case X.Hovered():` / `if X.Hovered() {`——这个函数对普查**完全隐形**（`len(arms)==0` 直接
+`continue`），于是它悬停那块面一直没有一对线（§2 判据 1 的 E1 缺件）也没人发现。改成
+`switch` 之后它进入普查视野，并且当场就要求那一对线（本轮实测：第一版注释里写了
+`ControlPress` 六个字母，普查把**注释**也算进臂文本，直接判红——记在这里，下一轮别再写进去）。
+
+pin：`internal/settingsui/pressrung2_test.go` 三条 × 深浅两套外观（① 悬停真的画了面；
+② 按下 ≠ 悬停，≥ 6 级；③ 两条阶梯各自的方向不等式）+ 一条回归钉（按下只改自己那一块：
+被选中那一页的行在「悬停 About」与「按住 About」两帧里逐字节相同）。出图 opt-in
+（`FLOTER_P13CN_DUMP=1`，`/tmp/floter-P13-cn-<sidebar|outputtoggle>-<light|dark>-<state>.png`）。
+
+**变异**（三条实跑）：M1（侧栏按下臂 `if false &&`）→ 红（`0 levels off the hover face`
++ 方向不等式）；M2（折叠行的按下臂改成悬停面）→ 红（`0 levels`，浅 `205` / 深 `69` 两侧同值）；
+M3（侧栏按下臂借控制阶梯的按下档）→ 红（`2 levels` + `press is 7 levels off rest and hover
+is 9`）——M3 正是「两条阶梯不能互换」的证据。`md5sum -c` 逐字节还原 + `touch` 复跑绿。

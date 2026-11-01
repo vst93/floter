@@ -1375,7 +1375,21 @@ func (a *App) sidebarRow(c *ui.Context, i int) {
 		Padding(0, t.Space(2)).Gap(t.Space(2)).
 		Radius(tokens.RadiusSM).AlignItems(ui.Center).
 		Transition(ui.ElementTransition{Colors: true, Duration: theme.ColorStep})
-	if selected {
+	if row.Pressed() {
+		// P13-cn（`docs/liquid-glass.md` §6.57）：侧栏的导航行此前**只有两档**——
+		// 悬停 `RowHover`、选中 `RowSelected`，而按住不放的那一帧与悬停帧**逐像素
+		// 相同**：手指按下去，这一页一声不响（同 P13-q / P13-al / P13-bv / P13-bw /
+		// P13-bx 那一族）。第三档取**行阶梯**的第三格 `RowPressed`（浅 0.08 黑 /
+		// 深 0.11 白，`theme.go:745/871`），不是控制阶梯的按下档：侧栏行
+		// 与启动器的结果行是同一个东西（`RowHover` / `RowSelected` / `RowPressed`
+		// 三个 token 本来就是为「行」这一族定的），按下时两块行是同一句话——
+		// 「沉进玻璃」。
+		//
+		// **不戴 `LitFace`**：启动器的结果行按下那一档也不戴
+		// （`launcher.go` 的 `case rowPressed:` 只换面），两张列表一个说法——
+		// 受光边是「这块面可以站起来」的记号，而按住是**沉下去**。
+		row.Background(tokens.RowPressed)
+	} else if selected {
 		// P8-b 重定基线：旧 `--glass-raised-quiet` + `--elev-0` 透镜 → 合约
 		// §4.3/§6.1 的**中性**选中档 `RowSelected`（0.085/0.06 的白/黑），无镜片。
 		//
@@ -1402,7 +1416,9 @@ func (a *App) sidebarRow(c *ui.Context, i int) {
 	// `--text-strong` for the chosen page, so a pointed-at row never lit and
 	// the current one was a hair dimmer than the reference's own.
 	color := t.TextMuted
-	if selected || row.Hovered() {
+	// 按下与悬停同一档墨：第三档换的是**面**，不是墨（`row.Pressed()` 蕴含指针
+	// 在这条行上，写出来是为了让这三档在源码里也是显式的）。
+	if selected || row.Hovered() || row.Pressed() {
 		color = t.Text
 	}
 	row.Children(func() {
@@ -6901,15 +6917,6 @@ func runOutputEdgeFace(tokens theme.Tokens, t *ui.Theme) ui.Color {
 	return theme.FaceOver(theme.FaceOver(pane, tokens.Control), runOutputFace(tokens))
 }
 
-// runOutputToggleFace is the folded affordance's fill at rest and under the
-// pointer: transparent, then `--ext-bg-hover` (`extensions.css:1249,1252-1255`).
-func runOutputToggleFace(tokens theme.Tokens, hovered bool) ui.Color {
-	if hovered {
-		return tokens.ControlHover
-	}
-	return ui.Transparent
-}
-
 // runOutput is the last background run's captured output, drawn as the
 // reference's `.extension-row__output` block (`extensions.css:1199-1223`, the
 // markup at `ExtensionRow.tsx:478-512`).
@@ -7081,11 +7088,36 @@ func (a *App) runOutputToggle(c *ui.Context, copy i18n.Settings, id string) {
 			AlignItems(ui.Center).Justify(ui.Start).
 			Border(0, ui.Transparent).Radius(tokens.RadiusXS).
 			Background(ui.Transparent)
-		hovered := button.Hovered()
-		if hovered {
-			ink = t.Text
+		// P13-cn（`docs/liquid-glass.md` §6.57）：这枚折叠行此前**只有两档**——
+		// 静息透明、悬停 `ControlHover`，而按住不放的那一帧与悬停帧**逐像素相同**
+		// （同 P13-q / P13-al / P13-bv / P13-bw / P13-bx 那一族，这是这一族的最后
+		// 两处之一）。第三档是控制阶梯的**回退**：`ControlPress`（深 0.05 / 浅 0.032）
+		// 沉到悬停面之下、静息之上，指针按住时这块面「被压回去」而不是「更亮」。
+		//
+		// 顺带补一条普查漏账：旧写法把状态读进变量（`hovered := button.Hovered()`），
+		// 而 `internal/ci/litarm_contract_test.go` 的臂级普查只认 `case X.Hovered():`
+		// / `if X.Hovered() {`——这个函数对普查**完全隐形**，于是悬停那块
+		// `ControlHover` 面一直没有一对线（§2 判据 1 的 E1 缺件）也没人发现。
+		// 写成 `switch` 三档之后它进入普查视野，面的一对线按普查逃生口 ② 由
+		// 下面那句 `if plane.A > 0` 统一给（与 `savealert.go`、`launcher/power.go`
+		// 同一个形状：一份面，所有状态共用一对线）。
+		//
+		// 几何一个像素不动：参考的 `:active` 变换是给胶囊的
+		// （`.extensions-action-button:active { scale(.97) }`），而这一行是**整宽的
+		// 文字控制**（`extensions.css:1243-1256`，chevron + 一个词）；整宽收缩会把
+		// chevron 从行首往里挪，那是布局，不是墨。
+		plane := ui.Transparent
+		switch {
+		case button.Pressed():
+			plane = tokens.ControlPress
+		case button.Hovered():
+			plane = tokens.ControlHover
 		}
-		button.Background(runOutputToggleFace(tokens, hovered))
+		button.Background(plane)
+		if plane.A > 0 {
+			ink = t.Text
+			tokens.LitFace(button)
+		}
 		button.Children(func() {
 			ui.Icon(c, mustGlyph("chevron-right")).Size(t.Space(3), t.Space(3)).TextColor(ink)
 			ui.Text(c, copy.RunViewOutput).FontSize(tokens.Caption).TextColor(ink)
