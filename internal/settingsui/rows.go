@@ -948,6 +948,17 @@ const (
 	// 开的」——accent 不能回答「这是活的」。改中性后，运行中的那一段与已退出
 	// 的 `rowSegmentTertiary` 仍然差两档，靠明度分层（§5 新补的那句）。
 	rowSegmentStrong
+	// rowSegmentWarning is the rung a session's state word takes when the
+	// program ended *badly* (P13-cm). The reference's `.session-manager__meta`
+	// knew only two colours, so this one has no CSS to copy: it comes from
+	// §6.26's ruling instead — the failure of a run is a meaning, and a meaning
+	// is allowed a hue (`t.Warning`, the same one the terminal surface's
+	// resident note and the captured-output page's status line wear).
+	//
+	// It sits after `rowSegmentStrong` on purpose: the value is a rank in the
+	// line, and a failed ending reads *louder* than a quiet fact but never as
+	// the mark of a live session.
+	rowSegmentWarning
 )
 
 // iconRow is rowAligned with the extension rows' leading package chip: the
@@ -1173,8 +1184,14 @@ func (a *App) rowTitle(c *ui.Context, align ui.Align, lead func(), face rowFace,
 				meta.Children(func() {
 					for _, segment := range sublabel.Segments {
 						color := tokens.TextTertiary
-						if segment.Role == rowSegmentStrong {
+						switch segment.Role {
+						case rowSegmentStrong:
 							color = tokens.TextStrong
+						case rowSegmentWarning:
+							// P13-cm: `c.Theme().Warning` — the palette member
+							// `residentNote` and the output page's failed status
+							// already draw with, rather than a second warm ink.
+							color = t.Warning
 						}
 						ui.Text(c, segment.Text).FontSize(tokens.Caption).FontWeight(500).
 							TextColor(color)

@@ -586,6 +586,16 @@ type Session struct {
 	ID      uint64
 	Title   string
 	Running bool
+	// Failed marks a program that ended with a non-zero code, and it is what
+	// lets the state word say *how* it ended rather than only *that* it did
+	// (P13-cm). The word already carries the code (`Note`: "Exited · exit 3"),
+	// so this bit answers one question only — whether the ending is painted in
+	// the warning hue. It is the list's arm of the same rule the terminal
+	// surface's resident note follows (`terminalui.residentNote`: `ExitCode !=
+	// 0` → `t.Warning`), and of the one P13-bg pinned for the captured-output
+	// page (`docs/liquid-glass.md` §6.26: a hue is semantics, not emphasis).
+	// Meaningless while `Running`: a program still running has no ending.
+	Failed bool
 	// Active marks the session on screen: the one the terminal surface is
 	// showing, and the one "close" would end without asking which.
 	Active bool
@@ -1746,9 +1756,18 @@ func sessionLines(session Session) []rowLine {
 func sessionMeta(session Session) []rowSegment {
 	var segments []rowSegment
 	if session.Note != "" {
+		// P13-cm: three rungs, not two. A running session's state is the strong
+		// neutral (P8-d), an ended one joins the quiet grey, and an ended one
+		// that *failed* wears the warning hue — the same hue the terminal
+		// surface's resident note has used for `ExitCode != 0` since before this
+		// page had an arm for it. Running wins over failed: a program that is
+		// still running has no ending to colour.
 		role := rowSegmentTertiary
-		if session.Running {
+		switch {
+		case session.Running:
 			role = rowSegmentStrong
+		case session.Failed:
+			role = rowSegmentWarning
 		}
 		segments = append(segments, rowSegment{Text: session.Note, Role: role})
 	}

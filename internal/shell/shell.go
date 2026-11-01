@@ -1059,6 +1059,9 @@ func New(opts Options) *App {
 				ID:      sessions[i].ID,
 				Title:   a.Terminal.LabelOf(i),
 				Running: !a.Terminal.Exited(i),
+				// P13-cm：结局也进列表——「失败了」在会话页此前只是一串灰字，
+				// 而终端页的常驻便条早就是暖色（`residentNote`）。
+				Failed:  a.Terminal.Failed(i),
 				Active:  i == a.Terminal.Active,
 				Index:   i,
 				Note:    a.Terminal.NoteOf(i),

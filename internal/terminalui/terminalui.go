@@ -461,6 +461,21 @@ func (a *App) SizeOf(index int) string {
 	return strconv.Itoa(cols) + "\u00d7" + strconv.Itoa(rows)
 }
 
+// Failed reports whether a session's program ended with a non-zero code, by
+// index. It answers the sessions list's one question — whether the ending is
+// painted in the warning hue (P13-cm) — and it is the list's arm of the rule
+// `residentNote` already follows on this surface: `ExitCode != 0` → `t.Warning`.
+//
+// A session that has not ended never fails, whatever its code field holds: the
+// code is only meaningful once `Resident`, and a program still running has no
+// ending to colour.
+func (a *App) Failed(index int) bool {
+	if index < 0 || index >= len(a.Sessions) || !a.Exited(index) {
+		return false
+	}
+	return a.Sessions[index].ExitCode != 0
+}
+
 // Exited reports whether a session's program has ended, by index.
 func (a *App) Exited(index int) bool {
 	if index < 0 || index >= len(a.Sessions) {
