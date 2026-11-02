@@ -72,16 +72,29 @@ func (a *App) PluginSheet(c *ui.Context, sheet PluginSheet) {
 		ui.Scroll(c.Key("plugin.config")).TrackScroll(&a.PluginScroll).Fill().
 			Padding(t.Space(1), t.Space(4), t.Space(3), t.Space(4)).Children(func() {
 			ui.Column(c).FillWidth().Gap(t.Space(3)).Children(func() {
-				// The header: the plugin's own name at the body register — the
-				// sheet's name, so it hangs on the sheet's own column (the
-				// scroller's 4u padding), the way a settings page's header hangs on
-				// its page column (`settingsui.go` 的页头行同样是 4u)。One step
-				// *below* a section heading, so the hierarchy a reader sees is
-				// name (body, muted) > section (title) > field (label) > help, as
-				// the old build's `.plugin-config__title` had it (body 600, muted).
+				// The header: the plugin's own name — the sheet's name, so it hangs
+				// on the sheet's own column (the scroller's 4u padding), the way a
+				// settings page's header hangs on its page column (`settingsui.go`
+				// 的页头行同样是 4u)。
+				//
+				// P13-ei（`docs/liquid-glass.md` §6.104）：这一行此前是
+				// `600 / TextMuted`——**整块浮层上最淡的一条墨**（实测浅色档最暗
+				// 像素 128，而它下面每一条字段 help 是 57、它自己带的四个分组标题
+				// 是 27）。于是唯一说明「你在改哪个插件」的那一行读起来像脚注，
+				// 而文件里原本的注释还写着「name > section > field > help」——
+				// 像素给的顺序是反的，名字排最后。
+				//
+				// 同一个角色（一页的名字）在设置页是 `Display / 650 / Text`
+				// （`settingsui.go:1572`）。浮层里**字号不许跟**：这一行是
+				// `Height(Space(7))` = 25.2px 的行盒，名字的墨从视口顶第 11 行起，
+				// 而 §6.72 的顶边高正好 11 行（3u = 10.8px），余量 0.2px——字号
+				// 一旦长大，墨顶就抬进边里（`TestThePluginSheetEdgesSitOnBlankAtBothEnds`
+				// 会红）。所以只把**墨与字重**穿成页头那一档：旧值 → 新值
+				// `600 / TextMuted` → `650 / Text`，字号仍是 body，比分组标题
+				// （Title 12.6）低一级，但不再比它下面任何一行淡。
 				ui.Row(c).FillWidth().Height(t.Space(7)).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, sheet.Schema.Title).FontSize(t.FontSize).FontWeight(600).
-						TextColor(t.TextMuted).SingleLine()
+					ui.Text(c, sheet.Schema.Title).FontSize(t.FontSize).FontWeight(650).
+						TextColor(t.Text).SingleLine()
 				})
 				if sheet.Failed {
 					// The status line is the caption step in the warning colour
