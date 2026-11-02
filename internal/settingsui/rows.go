@@ -1369,9 +1369,17 @@ type rowFace struct {
 	// Inset is the 1px inner keyline a selected (accent) or broken (warning)
 	// row draws (the reference's `inset 0 0 0 1px`), transparent for none.
 	Inset ui.Color
-	// Muted dims the whole row to the reference's 0.62 — the half-made
-	// custom-shortcut row (`.settings-row--muted`, `settings.css:564-569`).
-	Muted bool
+	// Muted marked the half-made custom-shortcut row, which the reference
+	// dimmed whole (`.settings-row--muted`, `settings.css:564-569`).
+	//
+	// P13-di（`docs/liquid-glass.md` §6.78）：这一格**故意不存在**了。那道
+	// 0.62 是一个**乘法**，而这一行有两档墨：标题（`text`）与提示（`textMuted`）。
+	// 实测浅色标题 `27 → 107`（正好落在 `textSecondary` 107 上）、提示
+	// `128 → 173`（**低过阶梯最安静的一档** `textTertiary` 142）；深色
+	// `237 → 159`（`textSecondary` 154）、提示 `133 → 99`（低过 `textTertiary` 110）。
+	// 换任何因子都救不了这两档同时在线：`0.75` 时浅色标题 79／深色 187 都落在两档
+	// **之间**，`0.50` 时 133／133 又落到另一对档之间。一个乘法不可能同时是两个
+	// 档——所以「还没写完」这件事不该由整行的乘法来说。
 	// Lit marks the face as an **E1 block** rather than a wash of paint on the
 	// card: the row adds the two lines `theme.Tokens.LitFace` draws (one 1px
 	// `LensRim` along its top, one 1px `LensEdge` along its bottom) and no cast
@@ -1433,9 +1441,6 @@ func (a *App) cardRow(c *ui.Context, align ui.Align, lead func(), face rowFace, 
 		}
 		if face.Inset.A > 0 {
 			row = row.InsetShadow(0, 0, 0, 1, face.Inset)
-		}
-		if face.Muted {
-			row = row.Opacity(0.62)
 		}
 		bar := face.Bar
 		switch {

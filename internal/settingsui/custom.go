@@ -246,15 +246,18 @@ func (a *App) customShortcutRow(c *ui.Context, copy i18n.Settings, entry setting
 	})
 }
 
-// customDraftRow is the row being made: the same shape as a saved row, muted
-// while it is not whole. Its trash dismisses the draft instead of deleting a
-// saved binding, which is the reference's one row shape for both states.
+// customDraftRow is the row being made: the same shape — and the same ink — as a
+// saved row. Its trash dismisses the draft instead of deleting a saved binding,
+// which is the reference's one row shape for both states.
+//
+// P13-di（`docs/liquid-glass.md` §6.78）：这一行此前「没写完」时整行洗一道 0.62
+// （参考的 `.settings-row--muted`）。那道淡是个乘法：两档墨没法同时落在阶梯上，
+// 而它洗掉的又**正是把这一行写完所必须碰的那几个控件**——选择器的受光边、输入框的
+// 面、录制键的键帽，全都成了 62% 亮的面。这一行不是 `Disabled`（参考那边也只是
+// `--muted`），「没过完」由它唯一缺的那一格说：录制槽是空的。
 func (a *App) customDraftRow(c *ui.Context, copy i18n.Settings) {
 	tokens := a.tokens(c)
-	complete := a.customRowComplete()
-	face := rowFace{}
-	face.Muted = !complete
-	a.cardRow(c, ui.Center, nil, face, func() {
+	a.cardRow(c, ui.Center, nil, rowFace{}, func() {
 		a.customActionPicker(c, copy, a.customAction, func(action string) {
 			a.customAction = action
 		})
