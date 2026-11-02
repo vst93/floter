@@ -5,8 +5,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/egoist/mygo/ui"
-
 	"floter/internal/apps"
 	"floter/internal/settings"
 )
@@ -31,9 +29,9 @@ func TestTheTwoListsShareOneTextColumn(t *testing.T) {
 	a := testApp()
 	a.SetApps([]apps.App{{Name: "Editor", Path: "/Applications/Editor.app"}})
 	a.SetRecent([]string{"/Applications/Editor.app"}, true)
-	tt := ui.NewTester(func(c *ui.Context) { a.View(c) },
-		InputWindowWidth, int(WindowHeight("small"))+200)
-	tt.Frame()
+	// P13-dw：两半都跑出货尺。此前这一半是裸 `ui.NewTester`（库存主题，54.0）而另一半
+	// 已经换成出货尺（48.6），于是这条 pin 量的是一张生产上不存在的混排帧。
+	tt := renderShipped(t, a, false)
 	listTitle := mustFind(t, tt, "Editor")
 
 	// §2 the captured-output panel: the same window, its own list.
@@ -41,7 +39,7 @@ func TestTheTwoListsShareOneTextColumn(t *testing.T) {
 	rows := `[{"id":"r0","title":"Alpha","group":"Group A"},` +
 		`{"id":"r1","title":"Beta","group":"Group A"},` +
 		`{"id":"r2","title":"Gamma","group":"Group B"}]`
-	ot := runListOutput(t, b, rows)
+	ot := listOutputShipped(t, b, rows, false)
 	outputTitle := mustFind(t, ot, "Alpha")
 
 	if !sameColumn(listTitle.X, outputTitle.X) {
@@ -56,6 +54,15 @@ func TestTheTwoListsShareOneTextColumn(t *testing.T) {
 	if !sameColumn(listHeading.X, outputHeading.X) {
 		t.Errorf("the launcher's heading starts at x=%.1f, the output panel's at x=%.1f",
 			listHeading.X, outputHeading.X)
+	}
+	// The pin above asks the two surfaces to agree; it cannot tell a column both
+	// of them drifted to. This one anchors the column they agree on to the
+	// reference's own arithmetic — the icon column plus the row's text gap,
+	// `16u + 28u + 10u = 54u` — converted at the shipped step (`Spacing/4`),
+	// so the pin reads `48.6` on the ruler the app draws.
+	if got, want := tenths(float64(listTitle.X)), tenths(54*designUnit()); got != want {
+		t.Errorf("the shared text column is at x=%.1f, the reference puts it at %.1f (54u)",
+			listTitle.X, 54*designUnit())
 	}
 	t.Logf("text column: list title %.1f / heading %.1f, output title %.1f / heading %.1f",
 		listTitle.X, listHeading.X, outputTitle.X, outputHeading.X)
@@ -84,9 +91,7 @@ func TestDumpP11ADOutputPanelPNGs(t *testing.T) {
 		if err := a.Store.Update(func(s *settings.Settings) { s.Theme = appearance }); err != nil {
 			t.Fatal(err)
 		}
-		tt := ui.NewTester(func(c *ui.Context) { a.View(c) },
-			InputWindowWidth, int(WindowHeight("small"))+200)
-		tt.Frame()
+		tt := renderShipped(t, a, false)
 		writeDump(t, "floter-P11-ad-list-"+appearance+".png", tt, backdrop)
 
 		b := testApp()
@@ -96,7 +101,7 @@ func TestDumpP11ADOutputPanelPNGs(t *testing.T) {
 		rows := `[{"id":"r0","title":"Alpha","group":"Group A"},` +
 			`{"id":"r1","title":"Beta","group":"Group A"},` +
 			`{"id":"r2","title":"Gamma","group":"Group B"}]`
-		ot := runListOutput(t, b, rows)
+		ot := listOutputShipped(t, b, rows, false)
 		writeDump(t, "floter-P11-ad-output-"+appearance+".png", ot, backdrop)
 	}
 }

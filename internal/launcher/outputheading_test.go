@@ -3,8 +3,6 @@ package launcher
 import (
 	"testing"
 
-	"github.com/egoist/mygo/ui"
-
 	"floter/internal/apps"
 )
 
@@ -19,10 +17,10 @@ func TestOutputGroupHeadingSharesTheLauncherSectionRegister(t *testing.T) {
 	a := testApp()
 	a.SetApps([]apps.App{{Name: "Editor", Path: "/Applications/Editor.app"}})
 	a.SetRecent([]string{"/Applications/Editor.app"}, true)
-	// A taller window so the recents block and its heading are not clipped.
-	lt := ui.NewTester(func(c *ui.Context) { a.View(c) },
-		InputWindowWidth, int(WindowHeight("small"))+500)
-	lt.Frame()
+	// P13-dw：两半都跑出货尺。此前这一半是裸 `ui.NewTester` 加一个「别裁掉标题」的
+	// 高于库存帧高的窗口（22 的行盒），另一半已经是出货尺（17）—— 这条 pin 因此
+	// 量的是混排帧里一个在生产上不存在的差。
+	lt := renderShipped(t, a, false)
 	want, ok := lt.Find("Recently launched")
 	if !ok {
 		t.Fatalf("the launcher's section title is missing: %q", lt.Texts())
@@ -34,7 +32,7 @@ func TestOutputGroupHeadingSharesTheLauncherSectionRegister(t *testing.T) {
 		`{"id":"a","title":"Alpha","group":"First"},` +
 		`{"id":"b","title":"Beta"}` +
 		`]`
-	ot := runListOutput(t, b, stdout)
+	ot := listOutputShipped(t, b, stdout, false)
 	got, ok := ot.Find("First")
 	if !ok {
 		t.Fatalf("the group heading is missing: %q", ot.Texts())
@@ -42,6 +40,14 @@ func TestOutputGroupHeadingSharesTheLauncherSectionRegister(t *testing.T) {
 	if got.H != want.H {
 		t.Errorf("the output group heading is %v tall, the launcher's section title is %v",
 			got.H, want.H)
+	}
+	// Both surfaces agreeing is one thing; landing on the register the reference
+	// names is another. The section title prints at the subtitle register — the
+	// line box the app measures for its body size — and this pins it there, so a
+	// round that moves both headings together still has to say so.
+	if _, _, _, subtitle := designMetrics(); tenths(float64(got.H)) != tenths(subtitle) {
+		t.Errorf("the group heading's line box is %v tall; the subtitle register is %v",
+			got.H, subtitle)
 	}
 	// The heading is the text's own box, not the row's full width: the old
 	// heading applied its padding straight to the text, so the row stretched

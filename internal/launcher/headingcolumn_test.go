@@ -5,7 +5,6 @@ import (
 	"image/color"
 	"image/draw"
 	"image/png"
-	"math"
 	"os"
 	"path/filepath"
 	"testing"
@@ -91,7 +90,12 @@ func mustFind(t *testing.T, tt *ui.Tester, label string) ui.Rect {
 
 // sameColumn compares two layout offsets: the same sum can arrive as 54 and
 // 54.000004 through float32 arithmetic, and that is not a different column.
-func sameColumn(a, b float32) bool { return math.Abs(float64(a-b)) < 0.5 }
+//
+// P13-dw: the comparator used to be a ±0.5 band, which is a tolerance by
+// another name — it would call 48.6 and 49.0 the same column. It asks the
+// question at the painter's own resolution instead (`tenths`, §6.77/§6.84):
+// one column means one drawn position to a tenth of a pixel, no band.
+func sameColumn(a, b float32) bool { return tenths(float64(a)) == tenths(float64(b)) }
 
 // The P11-ac visual evidence: the launcher list's section heading and the
 // output panel's group heading in both appearances, so the report can point at
