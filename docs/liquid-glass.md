@@ -4602,3 +4602,48 @@ reading`。所以「页头站到阶梯顶端」是**几何**问题，不是墨�
 
 **这一支的状态**：§6 差距表**再次没有 `未开始` 行**（105-3 是最后一条）。选题回通用队列：
 间距节奏 → 状态反馈 → 空态满态 → 文案密度 → 边界情况。
+
+### §6.107 写入在飞时，状态词仍在指控（P13-el，**已落地**）
+
+§6.106 把「间距节奏」收口；这一轮进通用队列的第二格——**状态反馈的过渡态**。
+
+`configToolbar`（`internal/settingsui/config.go:220`）的状态词是这张卡上唯一回答
+「我改的东西存住了没有」的地方，而它只有**两档面**：`dirty` → `ConfigUnsaved` + `Warning`，
+否则 `ConfigSavedState` + `TextTertiary`。写入在飞期间 baseline 还没重设
+（`finishConfigSave` 才 re-baseline），`configDirty` 仍为真——于是**按下 Save 之后**，
+这张卡上最响的那一格说的还是「有未保存更改」，而同一帧里卡片底部的药丸已经在说
+`ConfigSaving` 并且熄了灯。**同一件事两个控件说两句话，响的那一句还是过时的。**
+
+| 状态 | 改前 | 改后 |
+|---|---|---|
+| 干净 | `ConfigSavedState` / `TextTertiary` | 不动 |
+| 脏 | `ConfigUnsaved` / `Warning` | 不动 |
+| **在飞** | **`ConfigUnsaved` / `Warning`（与脏逐字节相同）** | **`ConfigSaving` / `TextTertiary`** |
+| 失败 | `ConfigUnsaved` / `Warning` + notice 带 | 不动（见「仍待」） |
+
+**墨的实测**（900×1400，Integrations 页；卡面是半透明薄罩 `tokens.Control` 浅 A=18 / 深 A=26，
+所以底色必须从图上读，不能拿 token 当底色）：脏与在飞在改前是**同一个像素值**
+——浅 `{156 31 24}`、深 `{216 153 142}`（`Warning` 合成后），落地是 `{143 143 149}` / `{109 109 117}`
+（`TextTertiary`，差 1 级是抗锯齿）。改后在飞 `{142 142 148}` / `{110 110 118}`：
+与落地**同一档**。
+
+| 编号 | 位置 | 现状 | 处置 |
+|---|---|---|---|
+| 107-1 | `config.go:226-238` `configToolbar` 的 `status`/`ink` | 在飞与脏同一对值 | `已落地`：`if a.configSaveBusy[id] { status, ink = copy.ConfigSaving, tokens.TextTertiary }`（**复用已有 i18n 键，不加文案**） |
+| 107-2 | 墨的方向 | 在飞最响（`Warning`） | `已落地`：在飞 = 落地那一档 → 「在飞 → 落地」是**纯换词、零换墨**，不跳色 |
+| 107-3 | `configsaveword_test.go` | 此前没有 pin 量状态词的面（`configform_test.go:626` 只量药丸标签） | `已落地`：四条 pin（按下前最近 `Warning` / 在飞不许出现 `ConfigUnsaved` / 在飞最近 `TextTertiary`（候选含 `Warning` 与相邻的 `TextMuted`）/ 在飞与落地逐通道差 ≤3）+ opt-in 出图 |
+| 107-4 | 失败那一档（`configError` 非空时状态词仍是 `ConfigUnsaved`） | 与「还没试过保存」同一个面 | `需拍板`：换词属于文案级决定，先量再定 |
+
+**判据（这一支的新条目）**：**一次写入在飞时，那个回答「存住了没有」的格子必须跟着写入走。**
+状态词是**状态**，不是**告警**——告警属于「有东西没存」，而写入在飞恰恰是「正在把它存下去」。
+
+**为什么这是「细节打磨」而不是加功能**：没有新增控件、没有新增文案、没有改几何。
+`compare -metric AE` 在三个帧上量：`dirty` **0 / 0**、`saved` **0 / 0**、`inflight`
+**477 / 477**（浅/深），bbox **83×12+10+11**——恰好是那个词自己的框（260×31 裁图），
+框外一个像素没动。
+
+**变异 3 条**：M1 退回 → 两处同时红（词还在 + 墨仍最近 `Warning`）；M2 只换词不换墨 →
+词那条绿、墨那条红（证明 pin 钉的是面不只是词）；M3 换成相邻的 `TextMuted` →
+`nearest the muted step {128 128 135}` 红（证明不是「只要不是警告色就绿」）。
+**台账 V 0 / B 0 / S 0**（三处此前都没有 pin）。
+

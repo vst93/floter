@@ -229,6 +229,15 @@ func (a *App) configToolbar(c *ui.Context, copy i18n.Settings, integration Integ
 		if dirty {
 			status, ink = copy.ConfigUnsaved, t.Warning
 		}
+		// P13-el：写入在飞的那几秒里 baseline 还没重设（`finishConfigSave` 才
+		// re-baseline），所以 `dirty` 仍为真，这一格此前仍在用**按下之前**那句话
+		// 指控用户——而卡片底部的药丸已经在说 "Saving…" 并且熄了灯。同一件事两个
+		// 控件说两句话，响的那一句还是过时的。在飞时词换成 Save 已经在用的那个
+		// `ConfigSaving`（不新增文案），墨落到与落地后的 "Saved" **同一档**：于是
+		// 「在飞 → 落地」是纯换词、零换墨，而「按下 → 在飞」把警报关掉。
+		if a.configSaveBusy[integration.ID] {
+			status, ink = copy.ConfigSaving, tokens.TextTertiary
+		}
 		ui.Text(c, status).FontSize(tokens.Caption).FontWeight(500).TextColor(ink)
 		ui.Row(c).AlignItems(ui.Center).Gap(t.Space(0.5)).Children(func() {
 			copyDisabled := a.Actions.CopyConfiguration == nil || busy
