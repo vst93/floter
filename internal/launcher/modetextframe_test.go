@@ -138,10 +138,7 @@ func browserModeApp(t *testing.T) *App {
 // 当被测对象），但**帧里的墨**不该是第二个调色板。
 func renderAt(t *testing.T, a *App, w, h int, dark bool) *ui.Tester {
 	t.Helper()
-	tt := ui.NewTester(func(c *ui.Context) {
-		c.SetTheme(a.tokens(c).Theme)
-		a.View(c)
-	}, w, h)
+	tt := ui.NewTester(themedView(a), w, h)
 	tt.SetDark(dark)
 	tt.Frame()
 	tt.Frame()

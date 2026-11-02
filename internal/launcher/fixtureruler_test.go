@@ -300,3 +300,75 @@ func TestDumpP13EEWindowFixturePNGs(t *testing.T) {
 		}
 	}
 }
+
+// P13-ef · **直接开窗那一族也是出货尺。**
+//
+// 这一包最后 9 处 `ui.NewTester(…)` 是测试自己搭的取景（计数建帧数、数搜索次数、
+// 量窗口要的高度），它们没有共同的入口可改，于是各自把「装主题」那两行抄了一遍——
+// 抄漏的那几处仍用框架的库存墨与库存帧高（488），而帧高又按 `frameHeight` 记。
+//
+// 取景现在只有一个定义点（`themedView`）。这条 pin 钉住它的形状：直接开窗的帧高就是
+// 出货帧，字段块发丝在 49，十行列表的最后一行整行在帧里。库存尺把这三个数写成
+// 488 / 55 / 溢出一行，所以这条 pin 能分辨两把尺子。
+func TestTheDirectTestersDrawTheShippedFrame(t *testing.T) {
+	if got, want := themedFrameHeight(maxResultSlots), frameHeight(maxResultSlots); got == want {
+		t.Fatalf("the two rulers charge the same frame (%dpx): this pin cannot tell them apart", got)
+	}
+	a := testApp()
+	recentPage(a, maxResultSlots)
+	tt := ui.NewTester(themedView(a), InputWindowWidth, themedFrameHeight(maxResultSlots))
+	tt.Frame()
+	if got, want := tt.Image().Bounds().Dy(), themedFrameHeight(maxResultSlots); got != want {
+		t.Errorf("the direct tester draws a %dpx frame, want the shipped ruler's %dpx "+
+			"(the stock ruler charges %dpx)", got, want, frameHeight(maxResultSlots))
+	}
+	if got, want := hairlineAbove(tt.Image(), int(a.listRect.Y)), 49.0; got != want {
+		t.Errorf("the field block's hairline is at y=%v, want %v on the shipped ruler "+
+			"(the stock ruler puts it at 55)", got, want)
+	}
+	// The frame is exactly the room the ten rows ask for: the last row's block
+	// ends inside the frame, and nothing is clipped off its bottom.
+	last, ok := tt.Find("Recent 09")
+	if !ok {
+		t.Fatalf("the tenth row was not drawn: %q", tt.Texts())
+	}
+	if bottom := last.Y + last.H; bottom > float32(tt.Image().Bounds().Dy()) {
+		t.Errorf("the tenth row ends at y=%v, past the %dpx frame: the fixture is a row short",
+			bottom, tt.Image().Bounds().Dy())
+	}
+}
+
+// TestDumpP13EFFixturePNGs is this round's visual evidence: the frame the direct
+// testers draw, both appearances.
+//
+//	FLOTER_PNG=1 go test -run TestDumpP13EFFixture ./internal/launcher/
+func TestDumpP13EFFixturePNGs(t *testing.T) {
+	if os.Getenv("FLOTER_PNG") == "" {
+		t.Skip("opt-in: FLOTER_PNG=1 writes /tmp/floter-P13-ef-<appearance>.png")
+	}
+	for _, dark := range []bool{false, true} {
+		appearance := "light"
+		if dark {
+			appearance = "dark"
+		}
+		a := testApp()
+		recentPage(a, maxResultSlots)
+		tt := ui.NewTester(themedView(a), InputWindowWidth, themedFrameHeight(maxResultSlots))
+		if dark {
+			tt.SetDark(true)
+			tt.Advance(500 * time.Millisecond)
+		}
+		tt.Frame()
+		path := filepath.Join("/tmp", "floter-P13-ef-"+appearance+".png")
+		f, err := os.Create(path) // #nosec G304 -- a fixed /tmp path this test owns
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := png.Encode(f, tt.Image()); err != nil {
+			f.Close()
+			t.Fatal(err)
+		}
+		f.Close()
+		t.Logf("%s: image %v", path, tt.Image().Bounds())
+	}
+}

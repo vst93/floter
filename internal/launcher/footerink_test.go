@@ -66,13 +66,7 @@ func footerFrame(t *testing.T, state string, dark bool) (*ui.Tester, *App) {
 				Stdout: `{"output":[],"page":{"cursor":"","hasMore":false}}`}, nil)
 		}
 	}
-	tt := ui.NewTester(func(c *ui.Context) {
-		// The app's own palette, installed the way `shell.View` installs it:
-		// the launcher reads `t.TextMuted` off the context theme, so a frame
-		// drawn without this is drawn in the framework's stock inks.
-		c.SetTheme(a.tokens(c).Theme)
-		a.View(c)
-	}, InputWindowWidth, frameHeight(maxResultSlots))
+	tt := ui.NewTester(themedView(a), InputWindowWidth, themedFrameHeight(maxResultSlots))
 	tt.SetDark(dark)
 	tt.Frame()
 	a.Query = "paged"

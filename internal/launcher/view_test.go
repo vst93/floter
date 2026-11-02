@@ -113,13 +113,7 @@ func designUnit() float64 {
 // time.
 func renderShipped(t *testing.T, a *App, dark bool) *ui.Tester {
 	t.Helper()
-	tt := ui.NewTester(func(c *ui.Context) {
-		// Without this the launcher reads its inks, its spacing and its line
-		// boxes off the framework's stock theme: a frame drawn in inks the app
-		// does not ship.
-		c.SetTheme(a.tokens(c).Theme)
-		a.View(c)
-	}, InputWindowWidth, themedFrameHeight(maxResultSlots))
+	tt := ui.NewTester(themedView(a), InputWindowWidth, themedFrameHeight(maxResultSlots))
 	if dark {
 		// The palette follows `c.Theme().Dark` (`launcher.go`'s `tokens`), and
 		// the faces carry colour transitions, so the first frame after the
@@ -156,15 +150,28 @@ func render(t *testing.T, a *App) *ui.Tester {
 	t.Helper()
 	// The frame is the room a full list — the numbered family's ten rows —
 	// asks for, so every row the window's budget holds is drawn and numbered.
-	tt := ui.NewTester(func(c *ui.Context) {
-		// Read the inks, the spacing and the line boxes off the palette the app
-		// ships: the shell installs it before every surface draws
-		// (`internal/shell/shell.go:4262`).
-		c.SetTheme(a.tokens(c).Theme)
-		a.View(c)
-	}, InputWindowWidth, themedFrameHeight(maxResultSlots))
+	tt := ui.NewTester(themedView(a), InputWindowWidth, themedFrameHeight(maxResultSlots))
 	tt.Frame()
 	return tt
+}
+
+// themedView is the one build closure every fixture in this package draws with:
+// install the palette the app ships, then draw it.
+//
+// P13-ef · **这一包只许有一个取景入口。** 之前四个取景各自把这两行抄了一遍
+// (`render` / `renderShipped` / `renderIn` / `renderAt`)，另有一批测试直接
+// `ui.NewTester(func(c){ a.View(c) }, …)` —— 抄漏 `SetTheme` 的那几处就用框架的库存墨
+// (`Spacing 4.0` / `FontSize 14`) 画这个应用，量的还是用户看不到的帧。取景因此只有一个
+// 定义点：装主题这两行只在下面出现一次，直接开窗的测试调用 `themedView(a)`。
+//
+// The shell installs the palette before every surface draws
+// (`internal/shell/shell.go:4262`); a fixture that skips it reads the framework's
+// stock inks and spacing off the context theme.
+func themedView(a *App) func(c *ui.Context) {
+	return func(c *ui.Context) {
+		c.SetTheme(a.tokens(c).Theme)
+		a.View(c)
+	}
 }
 
 func TestLauncherShowsTheCatalogWithTheFieldFocused(t *testing.T) {

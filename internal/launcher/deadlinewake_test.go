@@ -31,10 +31,11 @@ import (
 func TestTheTimedToastWakesAtItsDeadline(t *testing.T) {
 	a := testApp()
 	builds := 0
+	draw := themedView(a)
 	tt := ui.NewTester(func(c *ui.Context) {
 		builds++
-		a.View(c)
-	}, InputWindowWidth, frameHeight(maxResultSlots))
+		draw(c)
+	}, InputWindowWidth, themedFrameHeight(maxResultSlots))
 	// The launcher's clock is the tester's, so a wait the test cannot see is a
 	// wait the launcher cannot take either.
 	a.clock = tt.Now
@@ -102,9 +103,7 @@ func TestDumpTheTimedToastPNG(t *testing.T) {
 			appearance = "dark"
 		}
 		a := testApp()
-		tt := ui.NewTester(func(c *ui.Context) {
-			a.View(c)
-		}, InputWindowWidth, frameHeight(maxResultSlots))
+		tt := ui.NewTester(themedView(a), InputWindowWidth, themedFrameHeight(maxResultSlots))
 		tt.SetDark(dark)
 		a.Feedback(sentence)
 		tt.Frame()

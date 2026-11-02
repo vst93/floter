@@ -101,10 +101,11 @@ func swung(a, b float32) float32 {
 func TestTheFootersRingTurnsWhilePaintingInsteadOfRebuilding(t *testing.T) {
 	a := pagedApp(t)
 	builds := 0
+	draw := themedView(a)
 	tt := ui.NewTester(func(c *ui.Context) {
 		builds++
-		a.View(c)
-	}, InputWindowWidth, frameHeight(maxResultSlots))
+		draw(c)
+	}, InputWindowWidth, themedFrameHeight(maxResultSlots))
 	a.Query = "paged"
 	tt.Frame()
 	tt.TypeKey(0, ui.KeyEnter, "")
@@ -158,10 +159,11 @@ func TestTheFootersRingTurnsWhilePaintingInsteadOfRebuilding(t *testing.T) {
 func TestTheFootersRingRestsUnderReduceMotion(t *testing.T) {
 	a := pagedApp(t)
 	builds := 0
+	draw := themedView(a)
 	tt := ui.NewTester(func(c *ui.Context) {
 		builds++
-		a.View(c)
-	}, InputWindowWidth, frameHeight(maxResultSlots))
+		draw(c)
+	}, InputWindowWidth, themedFrameHeight(maxResultSlots))
 	a.Query = "paged"
 	tt.Frame()
 	tt.TypeKey(0, ui.KeyEnter, "")

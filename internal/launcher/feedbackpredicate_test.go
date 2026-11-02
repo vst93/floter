@@ -39,10 +39,11 @@ func TestTheBandHasOnePredicate(t *testing.T) {
 	// The list's own reservation is read inside the frame: a Context is the
 	// frame's, not the test's.
 	var reserved float32
+	draw := themedView(a)
 	tt := ui.NewTester(func(c *ui.Context) {
-		a.View(c)
+		draw(c)
 		reserved = a.statusBand(c)
-	}, InputWindowWidth, frameHeight(maxResultSlots))
+	}, InputWindowWidth, themedFrameHeight(maxResultSlots))
 	tt.Frame()
 
 	// The four states, one row each: the band is the same 30u whatever is
@@ -78,15 +79,21 @@ func TestTheBandHasOnePredicate(t *testing.T) {
 			// one 30u band when the band is owed, and by nothing when it is not.
 			// This is the half the shell reads *and* the half the draw asks for,
 			// so one number that disagrees with the other cannot pass here.
+			//
+			// P13-ef · the band is **27**, not 30: the reference writes it in `u`
+			// and one `u` is `Spacing/4` = 0.9 at the shipped step (30u × 0.9).
+			// The 30 this pin used to hold was the stock ruler's pixel count —
+			// it only agreed because the stock `Spacing` is 4.0.
+			band := tenths(30 * designUnit())
 			base := bandHeight(a, false)
-			if got := charged - base; tc.want && got != 30 {
-				t.Fatalf("the frame asked for %d, a band over the base %d is %d (want the 30u band)", charged, base, got)
+			if got := charged - base; tc.want && tenths(float64(got)) != band {
+				t.Fatalf("the frame asked for %d, a band over the base %d is %d (want the 30u band, %.1fpx)", charged, base, got, float64(band)/10)
 			} else if !tc.want && got != 0 {
 				t.Fatalf("the frame asked for %d, the base is %d (want no band)", charged, base)
 			}
 			// And the shell's reader charges the same one band.
-			if tall := bandHeight(a, true); tc.want && tall-base != 30 {
-				t.Errorf("the band is %d tall, want the 30u status band", tall-base)
+			if tall := bandHeight(a, true); tc.want && tenths(float64(tall-base)) != band {
+				t.Errorf("the band is %d tall, want the 30u status band (%.1fpx)", tall-base, float64(band)/10)
 			}
 
 			tc.undo()

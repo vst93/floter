@@ -3,6 +3,7 @@ package launcher
 import (
 	"image"
 	"image/png"
+	"math"
 	"os"
 	"path/filepath"
 	"testing"
@@ -76,14 +77,22 @@ func contrastIn(img *image.RGBA, box, viewport ui.Rect) int {
 
 // clippedRow is the first row the fold cuts in this frame: the one with a box
 // on screen whose bottom runs past the list's clip.
+//
+// P13-ef · 「切」按**像素**判，不按比例判。`visibleShare` 是 float32 除法：出货尺上
+// 行盒 `y=100.4, h=36` 在 318.6 高的视口里算出来是 **0.99999997**，于是「整行都在
+// 视口里」的第一行也会被当成「被折边切掉一条缝」——量到的是第一行的头带，而它的
+// fold 是 1，两条读数一样，pin 就在「折边没打开」上误报。判据改成画的时候真的溢出：
+// 行的最后一行像素在视口底之下。
 func clippedRow(a *App) (int, ui.Rect, bool) {
+	clipBottom := int(math.Round(float64(a.outputListRect.Y + a.outputListRect.H)))
 	for i := 0; i < len(a.outputRowRects); i++ {
 		box, seen := a.outputRowRects[i]
 		if !seen || box.H <= 0 {
 			continue
 		}
-		share := visibleShare(box, a.outputListRect)
-		if share > 0 && share < 1 {
+		top := int(math.Round(float64(box.Y)))
+		bottom := int(math.Round(float64(box.Y + box.H)))
+		if top < clipBottom && bottom > clipBottom {
 			return i, box, true
 		}
 	}
@@ -111,7 +120,7 @@ func runListOutputAt(t *testing.T, a *App, stdout string, height int) *ui.Tester
 	a.Actions.RunCommandCaptured = func(_ extensions.CommandEntry, _ []string, done func(extensions.CapturedRun, error)) {
 		done(extensions.CapturedRun{Command: []string{"tool"}, Success: true, Stdout: stdout}, nil)
 	}
-	tt := ui.NewTester(func(c *ui.Context) { a.View(c) }, InputWindowWidth, height)
+	tt := ui.NewTester(themedView(a), InputWindowWidth, height)
 	tt.Frame()
 	a.Query = "list"
 	tt.Frame()
@@ -139,8 +148,13 @@ func TestTheFurtherTheOutputRowIsCutTheMoreItRecedes(t *testing.T) {
 	}
 	// The row the fold cuts at the shorter frame is the same row at the taller
 	// one — the rows do not move when the frame grows, only the clip does.
-	tight, tightShare := inkAt(frameHeight(maxResultSlots))
-	loose, looseShare := inkAt(frameHeight(maxResultSlots) + 20)
+	//
+	// P13-ef · 两档都读出货尺（`themedFrameHeight`）。旧的两个高度是库存尺的 488/508；
+	// 出货尺上行盒是 36px（40u × 0.9），出货帧 439 把第 10 行切在 14.6/36（实测
+	// share 0.406），再高 20 的 459 只切掉 1px（share 0.989）—— 正是这条 pin 要的
+	// 「同一行、两个折边」。
+	tight, tightShare := inkAt(themedFrameHeight(maxResultSlots))
+	loose, looseShare := inkAt(themedFrameHeight(maxResultSlots) + 20)
 	if tight < 0 || loose < 0 {
 		t.Fatalf("one of the two frames has no readable band: %d, %d", tight, loose)
 	}
@@ -232,7 +246,7 @@ func TestDumpP13WOutputFoldPNGs(t *testing.T) {
 		if err := a.Store.Update(func(s *settings.Settings) { s.Theme = appearance }); err != nil {
 			t.Fatal(err)
 		}
-		tt := ui.NewTester(func(c *ui.Context) { a.View(c) }, InputWindowWidth, frameHeight(maxResultSlots))
+		tt := ui.NewTester(themedView(a), InputWindowWidth, themedFrameHeight(maxResultSlots))
 		tt.SetDark(dark)
 		tt.Frame()
 		a.Query = "list"

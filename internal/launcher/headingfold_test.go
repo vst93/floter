@@ -66,7 +66,7 @@ func launcherHeadingAt(t *testing.T, dark bool, height int) headingEvidence {
 		t.Fatal(err)
 	}
 	recentPage(a, 20)
-	tt := ui.NewTester(func(c *ui.Context) { a.View(c) }, InputWindowWidth, height)
+	tt := ui.NewTester(themedView(a), InputWindowWidth, height)
 	tt.SetDark(dark)
 	tt.Frame()
 	// Walk the keyboard until the heading is on the fold. The list reveals the
@@ -101,7 +101,7 @@ func launcherHeadingWhole(t *testing.T, dark bool) headingEvidence {
 		t.Fatal(err)
 	}
 	recentPage(a, 20)
-	tt := ui.NewTester(func(c *ui.Context) { a.View(c) }, InputWindowWidth, frameHeight(maxResultSlots))
+	tt := ui.NewTester(themedView(a), InputWindowWidth, themedFrameHeight(maxResultSlots))
 	tt.SetDark(dark)
 	tt.Frame()
 	rect, ok := tt.Find("Recently launched")
@@ -156,7 +156,7 @@ func outputHeadingWhole(t *testing.T, dark bool) headingEvidence {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	tt := runListOutputAt(t, a, headingRows(12), frameHeight(maxResultSlots))
+	tt := runListOutputAt(t, a, headingRows(12), themedFrameHeight(maxResultSlots))
 	tt.SetDark(dark)
 	tt.Frame()
 	rect, ok := tt.Find("Group B")
@@ -181,7 +181,7 @@ func outputHeadingWhole(t *testing.T, dark bool) headingEvidence {
 func TestTheLauncherHeadingAtTheFoldRecedes(t *testing.T) {
 	forEachAppearance(t, func(t *testing.T, dark bool) {
 		whole := launcherHeadingWhole(t, dark)
-		cut := launcherHeadingAt(t, dark, 300)
+		cut := launcherHeadingAt(t, dark, 280)
 		t.Logf("whole=%+v cut=%+v", whole, cut)
 		if cut.ink > whole.ink/2 {
 			t.Errorf("the launcher's section title keeps its full ink at the fold: "+
@@ -197,8 +197,8 @@ func TestTheLauncherHeadingAtTheFoldRecedes(t *testing.T) {
 // sit 2 apart).
 func TestTheLessOfTheLauncherHeadingTheFurtherItRecedes(t *testing.T) {
 	forEachAppearance(t, func(t *testing.T, dark bool) {
-		most := launcherHeadingAt(t, dark, 408)
-		least := launcherHeadingAt(t, dark, 300)
+		most := launcherHeadingAt(t, dark, 295)
+		least := launcherHeadingAt(t, dark, 275)
 		t.Logf("most=%+v least=%+v", most, least)
 		if least.fold >= most.fold {
 			t.Fatalf("the premise failed: the folds did not open (%.3f → %.3f)", least.fold, most.fold)
@@ -215,7 +215,11 @@ func TestTheLessOfTheLauncherHeadingTheFurtherItRecedes(t *testing.T) {
 func TestTheOutputGroupHeadingAtTheFoldRecedes(t *testing.T) {
 	forEachAppearance(t, func(t *testing.T, dark bool) {
 		whole := outputHeadingWhole(t, dark)
-		cut := outputHeadingAt(t, dark, 404)
+		// P13-ef · 404 是库存尺的数。出货尺上这一页的行盒是 36px（40u × 0.9），
+		// 第二组的标题落在 y=342.4..368.4：404 的列表底在 404，标题整行都在视口里
+		// （实测 fold 1.000），而 360 只切到 17.6/26（fold 0.68，仍留 79/116 的墨，
+		// 过不了「留下的墨不到一半」那条线）。350 把这一行切在 7.6/26（fold 0.29）。
+		cut := outputHeadingAt(t, dark, 350)
 		t.Logf("whole=%+v cut=%+v", whole, cut)
 		if cut.ink > whole.ink/2 {
 			t.Errorf("the output group heading keeps its full ink at the fold: "+

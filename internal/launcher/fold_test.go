@@ -111,7 +111,7 @@ func TestTheLessOfARowTheViewportShowsTheFurtherItRecedes(t *testing.T) {
 	inkAt := func(height int) int {
 		a := testApp()
 		a.SetApps(walkApps(20))
-		tt := ui.NewTester(func(c *ui.Context) { a.View(c) }, InputWindowWidth, height)
+		tt := ui.NewTester(themedView(a), InputWindowWidth, height)
 		tt.Frame()
 		tt.Type("walk")
 		tt.Frame()
@@ -124,8 +124,8 @@ func TestTheLessOfARowTheViewportShowsTheFurtherItRecedes(t *testing.T) {
 	// The standard frame shows 23 of the row's 40u — the top fifteen pixels of
 	// its label; eight pixels shorter shows seven, which is the top of the
 	// same glyphs and nothing else.
-	most := inkAt(frameHeight(maxResultSlots))
-	least := inkAt(frameHeight(maxResultSlots) - 8)
+	most := inkAt(themedFrameHeight(maxResultSlots))
+	least := inkAt(themedFrameHeight(maxResultSlots) - 8)
 	if least < 0 || most < 0 {
 		t.Fatalf("one of the two frames has no ink in the row at all: %d, %d", least, most)
 	}

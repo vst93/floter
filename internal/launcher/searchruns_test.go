@@ -31,11 +31,12 @@ import (
 func countingRender(t *testing.T, a *App) (*ui.Tester, *[]int) {
 	t.Helper()
 	per := []int{}
+	draw := themedView(a)
 	tt := ui.NewTester(func(c *ui.Context) {
 		before := a.searchRuns
-		a.View(c)
+		draw(c)
 		per = append(per, a.searchRuns-before)
-	}, InputWindowWidth, frameHeight(maxResultSlots))
+	}, InputWindowWidth, themedFrameHeight(maxResultSlots))
 	tt.Frame()
 	return tt, &per
 }

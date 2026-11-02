@@ -4360,3 +4360,25 @@ SKIP 161 → **162**。**变异 4 条实跑变红并还原**：`renderShipped` �
 **仍开着**：`renderIn`（`appearance_test.go:19`）与 `renderAt`（`modetextframe_test.go:135`）
 仍配 `frameHeight`——那是**显式开窗**那一族（折叠 / 条带 / 页高把窗口本身当被测对象），
 换尺要先逐族判 S。
+
+## 6.101 夹具取景收成一处，最后 9 处自己搭的也换到出货尺（P13-ef）
+
+`internal/launcher` 的取景此前有四个入口（`render` / `renderShipped` / `renderIn` /
+`renderAt`）各自抄一遍「装主题」两行，另有一批测试直接 `ui.NewTester(func(c){ a.View(c) }, …)`
+——抄漏的那几处用框架库存主题（`Spacing 4.0` / 行盒 40 / 帧高 488）画这个应用。本轮把取景
+收成**一个定义点** `themedView(a)`，9 处直接开窗的测试（`bandheight_dump` / `clickdraw` /
+`deadlinewake`×2 / `footerink` / `feedbackpredicate` / `searchruns` / `spinnerframes`×2 /
+`outputfold` 出图）与折边量尺那一族全部换到出货尺（439 / 行盒 36 / 发丝 `y=49`）。
+
+**换尺暴露的一条真 bug（测试判据，不是产品）**：`clippedRow` 用 `visibleShare < 1` 判「行
+被折边切」，而 `visibleShare` 是 float32 除法——出货尺上 `y=100.4 h=36` 在 318.6 高的视口里
+算出 **0.99999997**，于是整行在视口里的第一行也被当成「被切掉一条缝」，pin 量的是第一行的
+头带（fold=1）。判据改成整数像素：行的最后一行像素真的溢出视口底。
+
+**台账**：V 3 / B 0 / S 1，产品代码 **0 行**。测试函数 +2（1 条 pin + 1 条 opt-in 出图），
+PASS 3332 → **3333**，SKIP 164 → **165**。变异 3 条实跑变红并还原（M1 不装主题 → 发丝 55、
+第十行 `y=506` 溢出 439；M2 判据退回 → `row 0 … share=1.000`；M3 状态带退回 30 → `27 (want 30u, 3.0px)`）。
+
+**仍开着**：这一包还有约 15 处 `ui.NewTester` 自己搭取景且**没装主题**（`filters` /
+`fontladder` / `headingcolumn` / `plateface` / `triggerhint` / `uiscale` / `view:1029` 等），
+那是**墨**的一族，与本轮收的**帧高**一族分开，另占一格；`dimplate` 故意用自己的地面，需判。

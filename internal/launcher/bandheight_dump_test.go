@@ -30,7 +30,7 @@ func TestDumpP11CMBandPNGs(t *testing.T) {
 			recentPage(a, 12)
 			var charged int
 			a.Actions.ResizeTo = func(h int) { charged = h }
-			tt := ui.NewTester(func(c *ui.Context) { a.View(c) }, InputWindowWidth, frameHeight(maxResultSlots))
+			tt := ui.NewTester(themedView(a), InputWindowWidth, themedFrameHeight(maxResultSlots))
 			tt.SetDark(dark)
 			tt.Frame()
 			a.runPower(PowerRestart)

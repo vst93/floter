@@ -22,10 +22,7 @@ import (
 // that reads that frame measures a blend, not a face).
 func renderIn(t *testing.T, a *App, dark bool) *ui.Tester {
 	t.Helper()
-	tt := ui.NewTester(func(c *ui.Context) {
-		c.SetTheme(a.tokens(c).Theme)
-		a.View(c)
-	}, InputWindowWidth, themedFrameHeight(maxResultSlots))
+	tt := ui.NewTester(themedView(a), InputWindowWidth, themedFrameHeight(maxResultSlots))
 	if dark {
 		tt.SetDark(true)
 		tt.Advance(500 * time.Millisecond)

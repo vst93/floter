@@ -27,11 +27,12 @@ func TestAClickRunsTheRowTheDrawBuilt(t *testing.T) {
 	a.Actions.OpenApp = func(app apps.App) { launched = append(launched, app.Name) }
 
 	searches := []int{}
+	draw := themedView(a)
 	tt := ui.NewTester(func(c *ui.Context) {
 		before := a.searchRuns
-		a.View(c)
+		draw(c)
 		searches = append(searches, a.searchRuns-before)
-	}, InputWindowWidth, frameHeight(maxResultSlots))
+	}, InputWindowWidth, themedFrameHeight(maxResultSlots))
 	tt.Frame()
 
 	// Narrow the list first: the click must run the row of *this* frame's
