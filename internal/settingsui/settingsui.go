@@ -4186,7 +4186,7 @@ func formatBytes(bytes int64) string {
 
 // about shows the build's identity and where its files live.
 func (a *App) about(c *ui.Context, copy i18n.Settings) {
-	t := c.Theme()
+	tokens := a.tokens(c)
 	about := a.About
 	a.pageColumn(c, func() {
 		// The build's identity is the panel's own header band (see View); the
@@ -4197,8 +4197,24 @@ func (a *App) about(c *ui.Context, copy i18n.Settings) {
 			a.keyValue(c, copy.AboutScheme, about.Scheme)
 			a.keyValue(c, copy.AboutSettingsFile, about.SettingsPath)
 			if about.RepoURL != "" {
-				a.row(c, copy.AboutProject, "", func() {
-					ui.Link(c, about.RepoURL, about.RepoURL).FontSize(t.FontSize)
+				// P13-dj（`docs/liquid-glass.md` §6.79）：这张卡的第四行是**唯一可点的**
+				// 一行，但它此前走的是 `a.row` —— 而 `rowTitle` 把名字硬编码在 emphasis 档
+				// （`rows.go:1166` 的 `tokens.Emphasis` / 580 / `TextStrong`）。于是同一列、
+				// 相邻四行，名字是两把尺子：前三行 11px / 500 / `TextSecondary`（122 / 115 级），
+				// 这一行 15px / 580 / `TextStrong`（**202 / 198 级**），而这个链接自己的墨只有
+				// 165 / 140 —— 全卡最重的字属于名字，最轻的字属于事实。
+				//
+				// 「可点」由**形**与**链接自己的色**说（§6.10：只读/可点不靠字阶分家），
+				// 所以名字跟着三行兄弟退到 caption 档，值仍是 `ui.Link` 画在控制槽里。
+				// 值的**字阶回到这张卡的一条尺子**（`tokens.Emphasis` / 580，与三条事实的值同
+				// 档），颜色仍是链接自己的 `Theme.Accent` —— 强调归色，不归字重。
+				// 实测：名字 `202 / 198 → **122 / 115**`（与三行兄弟逐字节相同，`litSum`
+				// 三通道，1 级 = 3）；链接墨 `165 / 140` 不动（色号没动），名字盒 `18 → 15`
+				// （caption 的行盒），行内容高度由链接自己维持 17。
+				a.cardRow(c, ui.Center, nil, rowFace{}, func() {
+					ui.Link(c, about.RepoURL, about.RepoURL).FontSize(tokens.Emphasis).FontWeight(580)
+				}, func() {
+					a.factName(c, copy.AboutProject)
 				})
 			}
 		})
@@ -4319,12 +4335,22 @@ func (a *App) keyValue(c *ui.Context, label, value string) {
 		ui.Text(c, value).FontSize(tokens.Emphasis).FontWeight(580).
 			TextColor(tokens.TextStrong).Selectable()
 	}, func() {
-		// P13-bs：行的文字列现在从行内容盒的顶边开始（`cardRow`），而这一行是
-		// 唯一把名字当**旁注**用的：名字与右边的值读成一行，所以名字要跟着值居中。
-		ui.Row(c).FillHeight().AlignItems(ui.Center).Children(func() {
-			ui.Text(c, label).FontSize(tokens.Caption).FontWeight(500).
-				TextColor(tokens.TextSecondary).SingleLine().Ellipsis("\u2026")
-		})
+		a.factName(c, label)
+	})
+}
+
+// factName is the name of a read-only fact on a card: the caption that sits over
+// its value (P13-ak §1.7's ink order, P13-an for this page).
+//
+// P13-bs：行的文字列从行内容盒的顶边开始（`cardRow`），而这一行把名字当**旁注**
+// ——名字与右边的值读成一行，所以名字要跟着值居中。P13-dj 把这一条从 `keyValue`
+// 提出来：身份卡的第四行（`Project` 链接）也要说同一句话，否则它的 caption 会
+// 贴在列顶，而三条事实的 caption 在列中心，四行名字差 3.6px。
+func (a *App) factName(c *ui.Context, label string) {
+	tokens := a.tokens(c)
+	ui.Row(c).FillHeight().AlignItems(ui.Center).Children(func() {
+		ui.Text(c, label).FontSize(tokens.Caption).FontWeight(500).
+			TextColor(tokens.TextSecondary).SingleLine().Ellipsis("\u2026")
 	})
 }
 
