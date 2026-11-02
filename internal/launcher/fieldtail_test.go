@@ -178,6 +178,13 @@ func TestTheFourPluginModesWearOneFieldTail(t *testing.T) {
 // 实测（浅 253 / 深 23 地面，峰值对比）：尾部 **412 / 421**，chips 旁注 **328 / 267**。
 // 这条 pin 也是「把尾部退到 `TextTertiary`」那种改动的唯一哨兵——四个页同时退一档时，
 // 跨页比较（`TestTheFourPluginModesWearOneFieldTail`）看不出任何差别。
+//
+// P13-ed 重定基线：`+50` 是**库存尺**上的读数（当时 `t` 是框架主题，尾部读的是框架的
+// `TextMuted`，旁注读的是本仓的 `TextTertiary`——两个调色板之间的差）。换到出货尺后
+// 两支读同一个调色板：尾部 **349 / 361**、旁注 **308 / 292**，差 **41 / 69**。
+// 阈值 50 → **30**（实测的墨差是 41 / 69，留 11 级余量）。变异实测：把尾部退回
+// `tk.TextTertiary` 后两支**逐级相等**（308 = 308、292 = 292，差 0）——这条 pin
+// 仍然只靠「墨差」变红，不靠字号。
 func TestTheFieldTailIsStrongerThanTheChipsAside(t *testing.T) {
 	forEachAppearance(t, func(t *testing.T, dark bool) {
 		a := testApp()
@@ -198,7 +205,7 @@ func TestTheFieldTailIsStrongerThanTheChipsAside(t *testing.T) {
 		}
 		_, tailDist := tailPeak(img, tail, ground)
 		_, asideDist := tailPeak(img, aside, ground)
-		if tailDist < asideDist+50 {
+		if tailDist < asideDist+30 {
 			t.Errorf("the field's own instruction is %d from the ground, the chips row's "+
 				"aside is %d: one register for two roles", tailDist, asideDist)
 		}

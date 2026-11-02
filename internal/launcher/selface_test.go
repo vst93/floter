@@ -2,6 +2,7 @@ package launcher
 
 import (
 	"image/color"
+	"math"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
@@ -163,16 +164,27 @@ func TestThePowerGlyphsWearTheSystemIconInk(t *testing.T) {
 			// row around it, and a top-edge sample lands on the row too (the
 			// plate is 28u inside a taller row).
 			img := tt.Image()
-			plane := img.RGBAAt(int(title.X)-38, int(title.Y+title.H/2))
+			// P13-ed: read the plate from *inside* the cell. The old sample sat at
+			// `title.X - 38`; on the shipped ruler that is 10.6 — a pixel left of the
+			// 28u plate's painted edge (11), i.e. the panel, not the warm face.
+			plane := img.RGBAAt(int(cell.X)+3, int(title.Y+title.H/2))
 			ink := inkOn(tt, cell, plane)
 
 			tokens := theme.ForPreferences(a.settings(), tc.dark, ui.Preferences{})
 			want := inkOver(tokens.SystemIconText, plane)
-			if !closeRGB(ink, want) {
-				t.Errorf("the power glyph is %v, want the amber system-icon ink %v over its plate %v", ink, want, plane)
+			// The glyph is drawn at the shipped 10.8px, whose 1px stroke has no
+			// fully covered pixel: the reading is that ink at whatever coverage the
+			// stroke gave it (90% on both appearances, measured). So recover the
+			// coverage from the reading itself and require the three channels to
+			// agree on it — a different ink cannot produce one alpha across three
+			// channels, which is exactly what distinguishes it from `Warning`.
+			alpha, ok := coverageOver(ink, want, plane)
+			if !ok || alpha < 0.8 {
+				t.Errorf("the power glyph is %v, want the amber system-icon ink %v over its plate %v (recovered coverage %.2f)",
+					ink, want, plane, alpha)
 			}
-			if warn := inkOver(tokens.Theme.Warning, plane); closeRGB(ink, warn) {
-				t.Errorf("the power glyph wears the warning colour %v, not the amber system-icon ink", warn)
+			if _, ok := coverageOver(ink, inkOver(tokens.Theme.Warning, plane), plane); ok {
+				t.Errorf("the power glyph wears the warning colour over its plate %v, not the amber system-icon ink", plane)
 			}
 		})
 	}
@@ -250,4 +262,40 @@ func channelGap(a, b color.RGBA) int {
 		return int(y - x)
 	}
 	return max(gap(a.R, b.R), max(gap(a.G, b.G), gap(a.B, b.B)))
+}
+
+// coverageOver recovers how much of `want` was laid over `plane` to produce
+// `ink`: one alpha per channel, and whether the channels that can measure it
+// agree (a channel whose ink barely differs from its plane carries no
+// information and is skipped).
+//
+// P13-ed: this is the probe the power glyph needs at the shipped 10.8px. The
+// old reading asked for the token colour *exactly*, which holds only if the
+// glyph's stroke has a fully covered pixel — true at the stock 14px, false at
+// the size the app draws (measured: 90% coverage on both appearances).
+func coverageOver(ink, want, plane color.RGBA) (float64, bool) {
+	alpha := -1.0
+	for _, p := range [3][3]uint8{
+		{ink.R, want.R, plane.R},
+		{ink.G, want.G, plane.G},
+		{ink.B, want.B, plane.B},
+	} {
+		got, full, base := float64(p[0]), float64(p[1]), float64(p[2])
+		span := base - full
+		if math.Abs(span) < 16 {
+			continue
+		}
+		a := (base - got) / span
+		if a < 0 || a > 1.02 {
+			return 0, false
+		}
+		if alpha >= 0 && math.Abs(a-alpha) > 0.06 {
+			return 0, false
+		}
+		alpha = a
+	}
+	if alpha < 0 {
+		return 0, false
+	}
+	return alpha, true
 }

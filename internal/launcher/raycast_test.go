@@ -316,7 +316,7 @@ func footerIsABlockWithTheWeakRule(t *testing.T, dark bool) {
 	if !ok {
 		t.Fatalf("the footer's row was not drawn: %q", tt.Texts())
 	}
-	gutter := int(ui.LightTheme().Space(2))
+	gutter := int(math.Round(8 * designUnit())) // 8u = 7.20 at the shipped step
 	panel := img.RGBAAt(1, 300)
 	// The band's top edge: the last full-width painted row above the footer.
 	top := -1

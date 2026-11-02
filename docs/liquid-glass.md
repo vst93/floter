@@ -975,6 +975,33 @@ bbox `(20,27)-(340,291)` 正好落在**禁用那四行**上，启用四行零位
 `Disabled`，褪色落在整棵子树上，里面还套着一个 `Disabled` 的勾选框（0.6 × 0.5 ≈ 0.3）。它要连带
 回答「根上禁用、还是逐件禁用」，属另一片。
 
+### §6.99 外观取景换到出货尺：`renderIn` 是最后一族「量的不是这个设计」的帧（P13-ed，**已落地**）
+
+§6.86 的 73-5 只剩这一格：`render()` 在 P13-ec 换尺后，**`renderIn`**
+（`internal/launcher/appearance_test.go:19`）仍装着框架的库存主题（`Spacing 4.0` / `FontSize 14`）
+与库存帧高（488）。它是 17 个文件、40 个调用点用的「两套外观各画一帧」取景。
+
+| # | 位置 | 现状（旧） | 落成（新） | 状态 |
+|---|---|---|---|---|
+| 99-1 | `appearance_test.go` `renderIn` | 回调不装主题，帧高 `frameHeight`（库存 488） | `c.SetTheme(a.tokens(c).Theme)` + `themedFrameHeight`（439），与 `renderShipped` 同一个寄存器 | `已落地` |
+| 99-2 | `actionbarfooter_test.go` ×4、`raycast_test.go:319` 的 `gutter` | `int(ui.LightTheme().Space(2))` = **8** | `int(math.Round(8 * designUnit()))` = **7**（8u × 0.9 = 7.20，painter 从 7 画）。**沟与尺必须同一轮动**：中间态（沟换了、尺没换）会让 `TestTheActionBarSquaresItsTopCornersOverAList` 红 | `已落地` |
+| 99-3 | `plateface_test.go` 悬停小格的两侧列 | `int(clear.X)` 截断 → 读到盒子并不拥有的那一格（615 = 地面），报出**假的**「画了一圈环」 | `[round(x), round(x+w))`：616 / 640（§6.77 的同一条教训） | `已落地` |
+| 99-4 | `selface_test.go` 电源行的板面取样 | `title.X − 38` = **10.6**，落在 28u 板的左沿**外一格**（板从 11 起），读的是面板 | 从格子内部取 `int(cell.X)+3` | `已落地` |
+| 99-5 | 同文件的图标墨判据 | 要求读数**精确等于** token 色 —— 只在描边有全覆像素时成立（库存 14px 成立） | `coverageOver`：反解覆盖率，要求三通道同意同一 alpha 且 ≥ 0.8。实测出货尺 10.8px 的覆盖率浅/深都是 **0.90**；`Warning` 反解失败（红通道 1.44、绿通道越界）——判据仍只认「哪一种墨」 | `已落地` |
+| 99-6 | `fieldtail_test.go` 尾部 vs chips 旁注 | 阈值 `+50`：那是库存尺的读数（尾部读**框架**的 `TextMuted`、旁注读**本仓**的 `TextTertiary`，跨调色板差 84） | 出货尺两支同调色板，差 **41 / 69** → 阈值 **30**。变异实测：尾部退回 `tk.TextTertiary` 后两支**逐级相等**（308=308、292=292） | `已落地` |
+
+pin：`internal/launcher/fixtureruler_test.go` 的 `TestTheAppearanceFixtureDrawsTheShippedFrame`
+（帧高 439 / 发丝 49 / 行块左沟 7，两套外观；两把尺子的帧高不相等是这条 pin 的前提）+ 一条
+opt-in 出图（`/tmp/floter-P13-ed-{stock,shipped}-{light,dark}.png`，720×439 上 diff
+**316049 / 316059**，卡面 253 → **246**（浅）/ 23 → **15**（深））。
+
+**判据（这一支的新条目）**：**夹具的取景也是合约的一部分。** 一个 pin 引用的每个坐标
+（帧高、沟、板面取样点、盒子的边缘）都必须由**出货尺**推导；引一个库存常数等于把断言
+钉在用户看不到的帧上——它绿得越久，错的越深。
+
+**下一格（不在本轮）**：`renderAt` 的 10 个调用点仍配 `frameHeight(maxResultSlots)`；
+`filesframe` / `modetextframe` 里 `size[0], size[1]` 的调用点是「窗口本身当被测对象」，另判。
+
 ## §7 与 raycast 合约的关系
 
 - **继续有效**：§1 的颜色语义 token 与两条不变量（发丝线同值、行态梯中性有序）、

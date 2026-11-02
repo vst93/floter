@@ -8,7 +8,11 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// renderIn renders the launcher on one appearance.
+// renderIn renders the launcher on one appearance, at the ruler the app ships.
+//
+// P13-ed · **换到出货尺**（`liquid-glass.md` §6.86 的 73-5 尾巴）。它此前与 `render()`
+// 同病：没装主题，帧高按库存 `Spacing 4.0` 记，于是这一族 40 个调用点量的也是用户看不到
+// 的帧。换尺后只有 6 个测试函数变红，逐条重钉见 `docs/rounds/P13-ed-report.md`。
 //
 // The appearance switch is the tester's dark flag, not the settings store: the
 // app's own tokens follow `c.Theme().Dark` (`launcher.go:1026`), so `SetDark` is
@@ -19,8 +23,9 @@ import (
 func renderIn(t *testing.T, a *App, dark bool) *ui.Tester {
 	t.Helper()
 	tt := ui.NewTester(func(c *ui.Context) {
+		c.SetTheme(a.tokens(c).Theme)
 		a.View(c)
-	}, InputWindowWidth, frameHeight(maxResultSlots))
+	}, InputWindowWidth, themedFrameHeight(maxResultSlots))
 	if dark {
 		tt.SetDark(true)
 		tt.Advance(500 * time.Millisecond)

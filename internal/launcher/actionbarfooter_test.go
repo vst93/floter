@@ -144,7 +144,7 @@ func actionBarTakesTheSelectionOnACommandLine(t *testing.T, dark bool) {
 	}
 	img := tt.Image()
 	y := int(rect.Y + rect.H/2)
-	gutter := int(ui.LightTheme().Space(2)) // the row block's 8u inset
+	gutter := int(math.Round(8 * designUnit())) // 8u = 7.20 at the shipped step
 	panel := img.RGBAAt(1, y)
 	// The pill starts on the block's own gutter, so two pixels in is inside it
 	// with no glyph over it.
@@ -453,7 +453,7 @@ func actionBarSquaresItsTopCornersOverAList(t *testing.T, dark bool) {
 	tb.Advance(200 * time.Millisecond)
 
 	tokens := theme.ForPreferences(settings.Normalize(a.settings()), dark, ui.Preferences{})
-	gutter := int(ui.LightTheme().Space(2)) // the row block's 8u inset
+	gutter := int(math.Round(8 * designUnit())) // 8u = 7.20 at the shipped step
 
 	// bandTop finds the footer's top edge: the panel's *last* full-width rule.
 	// The field block's fill and its own hairline are full-width too, so the scan
@@ -557,9 +557,10 @@ func listIsTheCentredReferenceColumn(t *testing.T, dark bool) {
 	recentPage(a, 2) // P11-bk: the empty page's rows are the recents
 	tt := renderIn(t, a, dark)
 	tt.Frame()
-	// The gutter in pixels: `Space(2)` is 8 reference units (one Space is 4u).
-	gutter := int(ui.LightTheme().Space(2))
-	row, ok := tt.Find("Recent 00") // the empty page's selected first row
+	// The gutter in pixels: the reference's 8u, charged at the step the app
+	// ships (P13-ed: 8 × 0.9 = 7.20, painted from 7).
+	gutter := int(math.Round(8 * designUnit())) // 8u = 7.20 at the shipped step
+	row, ok := tt.Find("Recent 00")             // the empty page's selected first row
 	if !ok {
 		t.Fatalf("the first result was not drawn: %q", tt.Texts())
 	}
@@ -843,7 +844,7 @@ func heldModifierKeepsTheActionBarSelectedOverAGrowingList(t *testing.T, dark bo
 	}
 	img := tt.Image()
 	y := int(rect.Y + rect.H/2)
-	gutter := int(ui.LightTheme().Space(2)) // the row block's 8u inset
+	gutter := int(math.Round(8 * designUnit())) // 8u = 7.20 at the shipped step
 	panel := img.RGBAAt(1, y)
 	pill := img.RGBAAt(gutter+2, y)
 	if pill == panel {

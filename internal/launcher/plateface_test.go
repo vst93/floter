@@ -4,6 +4,7 @@ import (
 	"image"
 	"image/color"
 	"image/png"
+	"math"
 	"os"
 	"path/filepath"
 	"testing"
@@ -226,7 +227,13 @@ func TestTheHoveredFieldControlIsAFaceNotARing(t *testing.T) {
 			tt.Frame()
 			img := tt.Image()
 			cy := int(clear.Y + clear.H/2)
-			face := img.RGBAAt(int(clear.X)+1, cy)
+			// The box is placed at 615.6 and is 25.2 wide, so its painted columns
+			// are `[round(x), round(x+w))` on the painter's grid (the box's own
+			// pixel rounding; `int()` truncation reads the pixel the box does not
+			// own — the same correction §6.77 made in `readFace`, P13-ed).
+			left := int(math.Round(float64(clear.X)))
+			right := int(math.Round(float64(clear.X+clear.W))) - 1
+			face := img.RGBAAt(left+1, cy)
 			// The hover wash must be there at all: read against the field block
 			// well clear of the control. A reading taken before the 120ms colour
 			// transition would grade the field, not the control.
@@ -239,8 +246,8 @@ func TestTheHoveredFieldControlIsAFaceNotARing(t *testing.T) {
 				what string
 				got  color.RGBA
 			}{
-				{"left", img.RGBAAt(int(clear.X), cy)},
-				{"right", img.RGBAAt(int(clear.X+clear.W)-1, cy)},
+				{"left", img.RGBAAt(left, cy)},
+				{"right", img.RGBAAt(right, cy)},
 			} {
 				if gap := channelGap(side.got, face); gap > 1 {
 					t.Errorf("the hovered control's %s column at mid height is %v but its face is %v — a ring is "+
