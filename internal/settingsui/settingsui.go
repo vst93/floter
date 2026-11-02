@@ -4346,6 +4346,44 @@ func (a *App) keyValue(c *ui.Context, label, value string) {
 	})
 }
 
+// fixedRow is the read-only row inside a card of **editable** rows: the
+// integration ID the backend minted and the form can only name (R9-3).
+//
+// P13-do 重定基线（`docs/liquid-glass.md` §6.84）：这一行此前借的是 About 事实表的
+// `keyValue`（P13-an §6.11 —— 那张卡上没有一行是按得动的，所以名字退成值的旁注、
+// 值占主角）。同一个函数放进一张可编辑的表里，那套层级就反了：标题是 caption
+// 9.9/500 /`TextSecondary`，实测 **122** 级（深 **115**），而它下面每一行可编辑的
+// 标题是 emphasis 11.8/580 /`TextStrong`，**202**（**198**）—— 同一张卡里差 80 级，
+// 第一眼读到的信号是「这一行不属于这张表」；同时 ID 的值是 emphasis/580/strong，
+// **202** 级，比它下面每个字段里的字都响。
+//
+// 现在它按这张表自己的语法画：标题是这张表每一行的标题（`rowTitle` 的 emphasis /
+// 580 / `TextStrong`），值是**程序自己起的名**那一档（P13-bt §6.38 `dataRow`：mono
+// caption / 500 / `TextMuted` —— 这串标识符和「检测到的程序路径」同类，都是后端写的）。
+// 只读的记号只剩结构：这一行没有控件面、没有描边、右边没有可点的槽。
+// **只读是一种结构，不是一种墨**（同 §2 对层级的判断）。
+//
+// 盒子一个像素没动：仍是 44px 地板的 `cardRow`（`rowFace{}`），值仍可选中
+// （用户要能把 ID 抄走）。
+func (a *App) fixedRow(c *ui.Context, label, value string) {
+	tokens := a.tokens(c)
+	t := a.cardTheme(c)
+	if value == "" {
+		return
+	}
+	a.cardRow(c, ui.Center, nil, rowFace{}, func() {
+		ui.Row(c).FillHeight().AlignItems(ui.Center).Children(func() {
+			ui.Text(c, value).Font(deepLinkValueFont).FontSize(tokens.Caption).
+				FontWeight(500).TextColor(t.TextMuted).SingleLine().Selectable()
+		})
+	}, func() {
+		ui.Row(c).FillHeight().AlignItems(ui.Center).Children(func() {
+			ui.Text(c, label).FontSize(tokens.Emphasis).FontWeight(580).
+				TextColor(tokens.TextStrong).SingleLine().Ellipsis("\u2026")
+		})
+	})
+}
+
 // factName is the name of a read-only fact on a card: the caption that sits over
 // its value (P13-ak §1.7's ink order, P13-an for this page).
 //
@@ -5145,7 +5183,7 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 			// read-only row instead of offering an editable field. A fresh
 			// connection has no id yet, so the row is absent.
 			if a.toolEditing != "" {
-				a.keyValue(c, copy.LocalToolId, a.toolEditing)
+				a.fixedRow(c, copy.LocalToolId, a.toolEditing)
 			}
 			a.row(c, copy.LocalToolName, "", func() {
 				a.extensionField(c, &name, customFieldMetrics).Label(copy.LocalToolName).Width(240).Grow(1).Placeholder("Ripgrep")

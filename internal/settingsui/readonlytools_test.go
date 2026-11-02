@@ -145,11 +145,23 @@ func TestThePermissionBoundaryNoteIsNotARow(t *testing.T) {
 }
 
 // TestTheIntegrationIdRowIsAValueNotASetting measures the other read-only face
-// and pins it as it stands: the id the backend minted is a value, so it takes
-// the value's rung (emphasis / 580 / TextStrong) at the row's end, and its name
-// is the caption over it (caption / 500 / TextSecondary). This row was measured
-// for the first time here — it is the read-only face that was already right, and
-// §6.10 13-5's judgment ("值已在 emphasis 档，无需对调") holds.
+// and pins its ink.
+//
+// P13-do 重定基线（`docs/liquid-glass.md` §6.84）：旧值 → 新值。这条 pin 此前把
+// 只读 ID 行**单独**量了一次（`keyValue` 的层级：名字 caption 122 / 值 emphasis
+// 202，深 115 / 198）就结了案，没有把它和它下面那张表里的行放在一起看。同一张
+// 卡里可编辑行的标题是 `rowTitle`（emphasis / 580 / `TextStrong`，202 / 198），
+// 于是同一列同一行距上，标题差 80 级、值却比每个字段里的字都响 —— 那是 About
+// 事实表的层级（§6.11：那张卡没有一行按得动），不是设置表单的层级。
+//
+// 现在这一行按表单自己的语法画：名字是这张表每一行的标题（emphasis / 580 /
+// `TextStrong`，202 / 198），值是程序自己起的名那一档（mono caption / 500 /
+// `TextMuted`，101 / 94，与 `rowTitle` 把值放进控制槽时同一档墨，也同 P13-bt
+// §6.38 的 `dataRow`）。只读的记号只剩结构：这行没有控件面。
+//
+// 旧断言 → 新断言：name 122 [107 107 112] → 202 [27 27 29]（深 115 [154 154 160]
+// → 198 [237 237 239]）；value 202 [27 27 29] → 101 [128 128 135]（深 198
+// [237 237 239] → 94 [133 133 141]）。「值在行的末端」那条一字未动。
 func TestTheIntegrationIdRowIsAValueNotASetting(t *testing.T) {
 	en := i18n.For("en").Settings
 	for _, dark := range []bool{false, true} {
@@ -159,18 +171,18 @@ func TestTheIntegrationIdRowIsAValueNotASetting(t *testing.T) {
 		value := mustFind(t, tt, "local.abc")
 		nameSpan, nameAt := inkPixel(tt, label, dark)
 		valueSpan, valueAt := inkPixel(tt, value, dark)
-		wantName, wantNameAt := 122, [3]uint8{107, 107, 112}
-		wantValue, wantValueAt := 202, [3]uint8{27, 27, 29}
+		wantName, wantNameAt := 202, [3]uint8{27, 27, 29}
+		wantValue, wantValueAt := 101, [3]uint8{128, 128, 135}
 		if dark {
-			wantName, wantNameAt = 115, [3]uint8{154, 154, 160}
-			wantValue, wantValueAt = 198, [3]uint8{237, 237, 239}
+			wantName, wantNameAt = 198, [3]uint8{237, 237, 239}
+			wantValue, wantValueAt = 94, [3]uint8{133, 133, 141}
 		}
 		if nameSpan != wantName || nameAt != wantNameAt {
-			t.Errorf("%s: the id's name resolves %d %v, want the caption rung %d %v",
+			t.Errorf("%s: the id's name resolves %d %v, want the form row's title rung %d %v (§6.84)",
 				appearance, nameSpan, nameAt, wantName, wantNameAt)
 		}
 		if valueSpan != wantValue || valueAt != wantValueAt {
-			t.Errorf("%s: the id's value resolves %d %v, want the emphasis rung %d %v",
+			t.Errorf("%s: the id's value resolves %d %v, want the data rung %d %v (§6.84)",
 				appearance, valueSpan, valueAt, wantValue, wantValueAt)
 		}
 		// The value is the row's *answer*, so it ends the row: it starts to the
