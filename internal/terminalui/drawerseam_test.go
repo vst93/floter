@@ -3,11 +3,13 @@ package terminalui
 import (
 	"image"
 	"image/png"
+	"math"
 	"os"
 	"strconv"
 	"testing"
 
 	"github.com/egoist/mygo/plugins/terminal"
+	"github.com/egoist/mygo/ui"
 
 	"floter/internal/i18n"
 	"floter/internal/settings"
@@ -54,7 +56,7 @@ func TestTheDrawerSeamIsOnItsTopEdge(t *testing.T) {
 			a := New(newStore(), Actions{Close: func() {}, NewCommand: func() {}}, nil)
 			withSession(a, &terminal.Terminal{})
 			a.Drawer = true
-			tt := render(t, a, size[0], size[1])
+			tt := renderThemed(t, a, size[0], size[1])
 			tt.Frame()
 			if dark {
 				tt.SetDark(true)
@@ -66,7 +68,7 @@ func TestTheDrawerSeamIsOnItsTopEdge(t *testing.T) {
 			}
 			img := tt.Image()
 			w, h := img.Rect.Dx(), img.Rect.Dy()
-			top := int(strip.Y)
+			top := drawerSeamRow(strip)
 			if top < 1 || top+int(strip.H) > h {
 				t.Fatalf("%s: the strip %+v is not inside the window %dx%d", tag, strip, w, h)
 			}
@@ -111,6 +113,22 @@ func inkAt(img image.Image, x, y int) [3]uint8 {
 	return [3]uint8{uint8(r >> 8), uint8(g >> 8), uint8(b >> 8)}
 }
 
+// drawerSeamRow is the device row the drawer's top seam is painted on, read from
+// the drawer's own frame.
+//
+// The frame's top is fractional under the design ruler (measured: 50.8 at
+// 640×360, 109.2 at 720×360, 384.4 at 900×600, 616.8 at 1200×800), and the
+// painter snaps every box to whole device pixels with `math.Round` before it
+// draws it (`ui/paint.go:163-170`, `snap`/`round`), so the 1px border lands on
+// round(Y) — never on trunc(Y).
+//
+// The pins used to read `int(strip.Y)`: at 50.8 that is the *canvas* row above
+// the drawer, and at 616.8 it is the canvas row too, so the seam pin reported its
+// own truncated reading as “the hairline is painted on the canvas” at two of its
+// five sizes while the drawer was wearing the line correctly (P13-dh). Two of the
+// sizes agreed only because their fraction happened to be below 0.5.
+func drawerSeamRow(r ui.Rect) int { return int(math.Round(float64(r.Y))) }
+
 // The two frames this round's report reads: the seam on the drawer's top edge,
 // at a size where the whole drawer fits (so the bottom of the window is the
 // drawer's face, not a scrolled row). Opt-in like the other dumps.
@@ -126,7 +144,7 @@ func TestDumpP11AVDrawerSeamPNGs(t *testing.T) {
 		a := New(newStore(), Actions{Close: func() {}, NewCommand: func() {}}, nil)
 		withSession(a, &terminal.Terminal{})
 		a.Drawer = true
-		tt := render(t, a, 900, 600)
+		tt := renderThemed(t, a, 900, 600)
 		if dark {
 			tt.SetDark(true)
 			tt.Frame()

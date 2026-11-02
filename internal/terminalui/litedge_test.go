@@ -128,8 +128,9 @@ func TestTheDockedDrawerWearsTheE1LitEdge(t *testing.T) {
 			}
 			img := tt.Image()
 			x := img.Rect.Dx() / 2
-			seam := imagePixel(img, x, int(strip.Y))
-			face := imagePixel(img, x, int(strip.Y)+1)
+			top := drawerSeamRow(strip)
+			seam := imagePixel(img, x, top)
+			face := imagePixel(img, x, top+1)
 			if seam == face {
 				t.Fatalf("[%s] the drawer's seam reads as its own face (%v): there is no line to grade",
 					appearance.name, seam)
@@ -161,9 +162,9 @@ func TestTheDockedDrawerWearsTheE1LitEdge(t *testing.T) {
 			}
 			// The line is still on the drawer's own top edge (P11-av): the canvas
 			// row above it is untouched.
-			if above := imagePixel(img, x, int(strip.Y)-1); above == seam {
+			if above := imagePixel(img, x, top-1); above == seam {
 				t.Errorf("[%s] the row above the drawer (y=%d) carries the seam colour %v: the line was painted on "+
-					"the canvas instead of on the drawer", appearance.name, int(strip.Y)-1, above)
+					"the canvas instead of on the drawer", appearance.name, top-1, above)
 			}
 		})
 	}

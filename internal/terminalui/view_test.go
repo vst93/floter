@@ -28,6 +28,24 @@ func render(t *testing.T, a *App, w, h int) *ui.Tester {
 	return tt
 }
 
+// renderThemed is `render` with the surface's own palette installed: the ruler
+// the app actually ships (P13-dg §6.76 measured `Spacing 4.0 → 3.6` and
+// `FontSize 14.00 → 10.80` between the stock theme and the design one).
+//
+// A pin that reads geometry from the stock theme is holding a page nobody sees.
+// This round only moves the seam pins onto it (P13-dh); the rest of this
+// package's pins still ride on `render`, and that debt is P13-dg-t's.
+func renderThemed(t *testing.T, a *App, w, h int) *ui.Tester {
+	t.Helper()
+	tt := ui.NewTester(func(c *ui.Context) {
+		c.SetTheme(tokensOf(a, c).Theme)
+		a.View(c)
+	}, w, h)
+	tt.SetPreferences(ui.Preferences{ReduceMotion: true})
+	tt.Frame()
+	return tt
+}
+
 // revealBar puts the pointer on the terminal's bar and renders the frame that
 // reveals it. P11-bd: the bar's controls are hidden (and take no pointer) until
 // the pointer is over the bar or something on it has the keyboard — the
