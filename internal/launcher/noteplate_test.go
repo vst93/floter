@@ -4,13 +4,18 @@ import (
 	"image"
 	"image/color"
 	"image/png"
+	"math"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
+	"floter/internal/extensions"
 	"floter/internal/settings"
+	"floter/internal/theme"
 )
 
 // P13-cp · 捕获输出页的便条行：图标板上叠了**两道淡**。
@@ -35,7 +40,7 @@ func TestTheNoteRowPlateCarriesOneFadeNotTwo(t *testing.T) {
 			appearance = "dark"
 		}
 		t.Run(appearance, func(t *testing.T) {
-			door, note := notePlateProbe(t, dark)
+			door, note, tk := notePlateProbe(t, dark)
 			// ① 面差：便条板与门板是同一块面。差一档就说明还有第二道淡骑在上面。
 			if step := levelGap(door.step - note.step); step > 1 {
 				t.Errorf("the note plate's face steps %d levels off its ground and the door plate's steps %d: "+
@@ -60,9 +65,16 @@ func TestTheNoteRowPlateCarriesOneFadeNotTwo(t *testing.T) {
 				t.Errorf("the note plate has no counter-side line at all (%v over %v)", note.face, note.face)
 			}
 			// ④ 字形墨低一档：便条的记号是**墨**的一步，不是不透明度的一步。
-			if drop := door.glyph - note.glyph; drop < 15 {
-				t.Errorf("the note plate's glyph reads %d levels off its face and the door's %d (a step of %d): "+
-					"the note's mark is one ink rung (TextMuted → TextTertiary), not a fade", note.glyph, door.glyph, drop)
+			// P13-du：不再用「差 ≥ 15 个亮度级」这个库尺魔法数（它是库存尺的产物：
+			// 库存尺浅色实测 drop 29，出货尺只有 14）。改成**身份 pin**：门板的字形墨
+			// 正好是 `TextMuted` 压在板面上，便条的正尧是 `TextTertiary`（深浅两套实测恒等）。
+			if want := channelGap(door.face, over(tk.Theme.TextMuted, door.face)); door.glyph != want {
+				t.Errorf("the door plate's glyph reads %d levels off its face, want TextMuted's %d: "+
+					"the row's mark is the ink, not a fade", door.glyph, want)
+			}
+			if want := channelGap(note.face, over(tk.TextTertiary, note.face)); note.glyph != want {
+				t.Errorf("the note plate's glyph reads %d levels off its face, want TextTertiary's %d: "+
+					"the note's mark is one ink rung (TextMuted → TextTertiary), not a fade", note.glyph, want)
 			}
 		})
 	}
@@ -81,7 +93,7 @@ type plateReading struct {
 // captured-output list and reads both plates out of the frame. The runnable row is
 // the second one, so neither plate sits on the cursor's `RowSelected` face — the
 // two readings have to share one ground to be comparable.
-func notePlateProbe(t *testing.T, dark bool) (door, note plateReading) {
+func notePlateProbe(t *testing.T, dark bool) (door, note plateReading, tk theme.Tokens) {
 	t.Helper()
 	a := testApp()
 	appearance := "light"
@@ -91,15 +103,51 @@ func notePlateProbe(t *testing.T, dark bool) (door, note plateReading) {
 	if err := a.Store.Update(func(s *settings.Settings) { s.Theme = appearance }); err != nil {
 		t.Fatal(err)
 	}
-	tt := runListOutput(t, a, doorAndNoteOutput())
-	// 深色那一臂必须让**画布**也变深：tester 的底默认是白的，深色的窗口地面是
-	// 半透明的，不切画布读到的是「深色面合成在白纸上」，那不是用户看见的那一帧。
-	tt.SetDark(dark)
-	tt.Frame()
+	// P13-du：取景换成出货尺帧（`c.SetTheme(a.tokens(c).Theme)` + `themedFrameHeight`）。
+	// 旧的 `runListOutput` 画的是框架库存主题（`Spacing 4.0`），板子是 28×28 的
+	// 整数盒；app 画的是 25.2，落 25…26 列（§6.86 的库存尺）。
+	tt := listOutputShipped(t, a, doorAndNoteOutput(), dark)
 	img := tt.Image()
 	door = readPlate(t, tt, img, "Door2")
 	note = readPlate(t, tt, img, "Note")
-	return door, note
+	// ④ 要比的是 app 自己发的那套墨（深浅各一套），不是框架库存主题的字色。
+	tk = theme.ForPreferences(settings.Normalize(a.settings()), dark, ui.Preferences{})
+	return door, note, tk
+}
+
+// listOutputShipped draws one captured-output list at the ruler the app ships.
+//
+// It is `runListOutput` with `renderShipped`'s two installation steps: the
+// launcher's own palette on the context (otherwise every face below is the
+// framework's stock ink) and the frame charged at `themedFrameHeight`.
+func listOutputShipped(t *testing.T, a *App, stdout string, dark bool) *ui.Tester {
+	t.Helper()
+	entry := extensions.CommandEntry{
+		IntegrationID: "test.ext",
+		Command:       extensions.Command{ID: "list", Name: "List things"},
+		Program:       "/bin/sh",
+		Route:         extensions.RouteBackground,
+	}
+	a.SetCommands([]extensions.CommandEntry{entry})
+	a.Actions.RunCommandCaptured = func(_ extensions.CommandEntry, _ []string, done func(extensions.CapturedRun, error)) {
+		done(extensions.CapturedRun{Command: []string{"tool"}, Success: true, Stdout: stdout}, nil)
+	}
+	tt := ui.NewTester(func(c *ui.Context) {
+		c.SetTheme(a.tokens(c).Theme)
+		a.View(c)
+	}, InputWindowWidth, themedFrameHeight(maxResultSlots))
+	// 深色那一臂必须让**画布**也变深：tester 的底默认是白的，深色的窗口地面是
+	// 半透明的，不切画布读到的是「深色面合成在白纸上」，那不是用户看见的那一帧。
+	if dark {
+		tt.SetDark(true)
+		tt.Advance(500 * time.Millisecond)
+	}
+	tt.Frame()
+	a.Query = "list"
+	tt.Frame()
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	return tt
 }
 
 // doorAndNoteOutput is one runnable row followed by one note (`kind:"status"`),
@@ -159,8 +207,18 @@ func readPlate(t *testing.T, tt *ui.Tester, img *image.RGBA, name string) plateR
 		}
 		bottom = yy
 	}
-	if w := right - left + 1; w != 28 {
-		t.Fatalf("%q: the plate is %dpx wide, want the 28u icon column", name, w)
+	// P13-du：板盒是 painter 的取整，不是 28 这个库存尺字面量。板列是
+	// 8u 块内缩 + 8u 内边距 = 16u 起、+28u 图标列 = 44u 止；painter 填
+	// `[round(x), round(x+w))`，所以首列 `round(16u)`、末列 `round(44u) − 1`。
+	// 出货尺（3.6）下 16u = 14.4、44u = 39.6 → `left=14 right=39`，宽 **26**
+	// （25.2 的盒子落 26 列，不是 28）。
+	u := designUnit()
+	plateLeft, plateRight := (8+8)*u, (8+8+28)*u
+	if want := int(math.Round(plateLeft)); left != want {
+		t.Fatalf("%q: the plate starts at x=%d, want the 28u icon column's left edge (round(16u) = %d)", name, left, want)
+	}
+	if want := int(math.Round(plateRight)) - 1; right != want {
+		t.Fatalf("%q: the plate ends at x=%d, want the 28u icon column's right edge (round(44u) − 1 = %d)", name, right, want)
 	}
 	face := modeIn(img, image.Rect(left+3, top+3, right-2, bottom-2))
 	return plateReading{
@@ -249,4 +307,42 @@ func TestDumpNotePlatePNGs(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+}
+
+// P13-du · opt-in dump：便条板与行块的**出货尺**帧，供人眼复核。
+//
+// 这一轮产品像素零改动，出图不是为了「看新样子」，而是把两条 pin 量的框子
+// 原样留下证据：板子 25.2 落 26 列（`14..39`），行块左右沟 `7` / `712`。
+// 两个表面各占一帧，各自深浅一版：`FLOTER_PNG=1 go test -run TestDumpP13DU`.
+func TestDumpP13DURoundingPNGs(t *testing.T) {
+	if os.Getenv("FLOTER_PNG") == "" {
+		t.Skip("opt-in: FLOTER_PNG=1 writes /tmp/floter-P13-du-<surface>-<appearance>.png")
+	}
+	dump := func(name string, tt *ui.Tester) {
+		path := filepath.Join("/tmp", "floter-P13-du-"+name+".png")
+		f, err := os.Create(path) // #nosec G304 -- a fixed /tmp path this test owns
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer f.Close()
+		if err := png.Encode(f, tt.Image()); err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("%s: image %v", path, tt.Image().Bounds())
+	}
+	forEachAppearance(t, func(t *testing.T, dark bool) {
+		appearance := "light"
+		if dark {
+			appearance = "dark"
+		}
+		a := testApp()
+		if err := a.Store.Update(func(s *settings.Settings) { s.Theme = appearance }); err != nil {
+			t.Fatal(err)
+		}
+		dump("plates-"+appearance, listOutputShipped(t, a, doorAndNoteOutput(), dark))
+
+		b := testApp()
+		recentPage(b, 2)
+		dump("rowblock-"+appearance, renderShipped(t, b, dark))
+	})
 }

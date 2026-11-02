@@ -102,7 +102,10 @@ func TestTheClipboardOffNoteIsChargedTheStatusBand(t *testing.T) {
 	a, _ := clipboardApp(t)
 	clipboardOff(t, a)
 	a.EnterClipboard()
-	tt := render(t, a)
+	// P13-du：取景换成 `renderShipped`（出货尺 3.6）。旧的 `render` 让 `a.Spacing`
+	// 停在框架库存主题的 4.0 上，于是 `2.5 × 4.0` 恰好是个整数，截断（`int()`）
+	// 与取整看不出区别；出货尺上 `2.5 × 3.6 = 8.999…`，`int()` 会把差报少 1。
+	tt := renderShipped(t, a, false)
 	tt.Frame()
 	if len(a.Rows) != 1 {
 		t.Fatalf("the window table is %+v, want one row", a.Rows)
@@ -126,9 +129,13 @@ func TestTheClipboardOffNoteIsChargedTheStatusBand(t *testing.T) {
 	}
 	note := geometry(a.Rows).Height()
 	plain := geometry([]RowInfo{{Lines: 1}}).Height()
-	if note != plain-int((rowUnits-launcherStatusUnits)*a.Spacing) {
-		t.Errorf("the note prices the window at %d; a status note is %d short of a one-line row (%d)",
-			note, int((rowUnits-launcherStatusUnits)*a.Spacing), plain)
+	// 两个高度各自只在尾巴上取整一次（`Height` 的 `math.Round`），所以两者的差
+	// 要和「带子的参考刻度 × 出货尺」在**同一把尺**上比：十分之一像素的整数，
+	// 不做 `int()` 截断（P13-du，§6.77 的同一条判据）。
+	band := tenths((rowUnits - launcherStatusUnits) * a.Spacing)
+	if got := tenths(float64(plain - note)); got != band {
+		t.Errorf("the note prices the window at %d; a status note is %d.%d short of a one-line row (%d)",
+			note, band/10, band%10, plain)
 	}
 	// And it is a band row in the count the window holds, not a row plus a
 	// band: one note is one row of the ten-row budget.

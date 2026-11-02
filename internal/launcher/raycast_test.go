@@ -2,6 +2,7 @@ package launcher
 
 import (
 	"image/color"
+	"math"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -179,14 +180,18 @@ func TestTheRowBlockIsTheInsetRoundedPill(t *testing.T) {
 func rowBlockIsTheInsetRoundedPill(t *testing.T, dark bool) {
 	a := testApp()
 	recentPage(a, 2) // P11-bk: the empty page's rows are the recents
-	tt := renderIn(t, a, dark)
+	// P13-du：取景从 `renderIn`（库存尺 4.0）换到 `renderShipped`（出货尺 3.6）。
+	// 行块的四条读数全部改走 painter 的取整：描出的列区间是
+	// `[round(x), round(x+w))`，所以左沟 = `round(8u)`、右沟 = `round(720−8u) − 1`。
+	tt := renderShipped(t, a, dark)
 	tt.Frame()
 	img := tt.Image()
 	row, ok := tt.Find("Recent 00")
 	if !ok {
 		t.Fatalf("the first row was not drawn: %q", tt.Texts())
 	}
-	gutter := int(ui.LightTheme().Space(2)) // 8u
+	u := designUnit()
+	gutter := int(math.Round(8 * u)) // 8u = 7.20 at the shipped step
 	y := int(row.Y + row.H/2)
 	panel := img.RGBAAt(1, y)
 	left, right := -1, -1
@@ -201,7 +206,9 @@ func rowBlockIsTheInsetRoundedPill(t *testing.T, dark bool) {
 	if left != gutter {
 		t.Errorf("the row block starts at x=%d, want the 8u gutter (x=%d)", left, gutter)
 	}
-	if want := InputWindowWidth - gutter - 1; right != want {
+	// The block ends at the mirrored gutter: the painter fills up to (not
+	// including) `round(x+w)`, so the last painted column is one short of it.
+	if want := int(math.Round(float64(InputWindowWidth)-8*u)) - 1; right != want {
 		t.Errorf("the row block ends at x=%d, want the mirrored 8u gutter (x=%d)", right, want)
 	}
 	// The pill's own top-left corner is an arc: at the block's first row the
@@ -211,7 +218,9 @@ func rowBlockIsTheInsetRoundedPill(t *testing.T, dark bool) {
 	if tokens.RadiusSM != 8 {
 		t.Errorf("the row's corner token is %v, want the contract's 8 (RadiusSM)", tokens.RadiusSM)
 	}
-	blockTop := int(row.Y - row.H/2)
+	// P13-du：块顶也是 painter 取整的那一行（`int()` 截断会落到块**外面**一行，
+	// 方形角就永远也读不到 —— 一条假绿）。
+	blockTop := int(math.Round(float64(row.Y - row.H/2)))
 	if blockTop < 0 {
 		blockTop = 0
 	}
@@ -221,8 +230,9 @@ func rowBlockIsTheInsetRoundedPill(t *testing.T, dark bool) {
 	}
 	// The text column did not move: the title still starts on the field's 54u
 	// from the card's content edge (8u block + 8u padding + 28u icon + 10u gap).
-	if want := float32(54) * float32(ui.LightTheme().Spacing/4); row.X < want-1.5 || row.X > want+1.5 {
-		t.Errorf("the title starts at x=%.1f, want the reference's 54u (%.1f)", row.X, want)
+	// P13-du：`tenths()` 整数相等，删掉旧值的 `±1.5` 容差带。
+	if got, want := tenths(float64(row.X)), tenths(54*u); got != want {
+		t.Errorf("the title starts at x=%.1f, want the reference's 54u (%.1f)", row.X, 54*u)
 	}
 }
 
