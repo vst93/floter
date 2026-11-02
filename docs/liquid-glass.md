@@ -4762,3 +4762,64 @@ PASS 3342 → **3348**，SKIP 169 → **172**。变异 3 条实跑：
 ——正好是第二组标题那一行，第一组与页头那一带零像素。图上看到的一处变化：第二组标题
 （`Second section`）此前几乎贴在上一张卡的圆角下沿，现在它下面留出了和「标题→卡」一样
 宽的一段空气，两组各自读成一张独立的卡组。
+
+### §6.110 浮层的动作胶囊是圆角矩形，而三处都写着「胶囊」（P13-eo，**已落地**）
+
+§6.109 收的是**间距**。上一轮「仍待」第 1 条把下一格指到「浮层的层级」——先量：分组标题
+（`Title` 12.6 / 620 / `TextStrong`）与它下面的字段标签（`Emphasis` 11.7 / 580 /
+`TextStrong`）只差 **0.9pt**，但**设置页的卡标题与行标签是同一个关系**（`rows.go:187`
+`sectionHeading` 对 `rows.go:1252` `rowTitle`）——那不是浮层的病，是这一代字阶本身，
+只改浮层会让两个表面说两种话（跨表面，记 `需拍板`）。
+
+于是量同一批帧里的另一格（**形状一致性**），它倒了：浮层里那枚会毁掉数据的动作胶囊，
+是整块面上唯一一枚**不是胶囊的胶囊**。
+
+**先量**（单独渲染在黑底上，读「第一行有墨的行」离盒左沿的内缩；盒高 = `Space(7)`）：
+
+| 面 | 盒高 | 首行内缩 | 曲线半径 |
+|---|---|---|---|
+| 浮层动作胶囊（改前） | 25.2 | **5** | `RadiusSM` 8 —— 圆角矩形 |
+| 浮层动作胶囊（改后） | 25.2 | **9~10** | 半高 12.6 —— 胶囊 |
+| 扩展页动作胶囊（对照，`actionButton`） | 27 | 11 | `Space(3.75)` = 半高 |
+
+三处证据都说这一枚**应该**是胶囊：① 参考 `main:src/styles/plugin-config.css:241` ——
+`border-radius: 999px`；② `pluginsheet.go` 自己的注释 ——「a `999px` corner (half the
+28u height, so the shape is a pill)」；③ 守它的 pin `pluginsheetface_test.go` 那句 ——
+「want a pill's **wide curve**」。而那条 pin 的阈值是 **5**、改前读数是 **5**：
+**卡着边过**，一条「宽曲线」的判据坐在圆角矩形的读数上。
+
+| 编号 | 位置 | 现状 | 处置 |
+|---|---|---|---|
+| 110-1 | `pluginsheet.go` `sheetActionButton` 的 `Radius` | `tokens.RadiusSM`（8，字面，不随档） | `已落地`：`t.Space(3.5)`（半高，随档；与 `actionButton` 的 `t.Space(3.75)` 对 `t.Space(7.5)` 同一条算术） |
+| 110-2 | `pluginsheetface_test.go` 的角判据 | 阈值 `inset < 5`，读数 5 | `V 重定基线`：阈值 **5 → 8**（胶囊读 9~10） |
+| 110-3 | `raycast_test.go` `TestTheOverlayButtonCornerIsLiteralAtEveryStep` | 钉「角是字面 8，两个档读数相同」 | `V 重定基线`：改名 `...IsHalfItsHeightAtEveryStep`，判「token 是半高 + 两个档读数必须**不同**」 |
+| 110-4 | 盒（28u 高 / 10u 侧 padding / 标签缩进） | — | **不动**：半径只改四角的墨，不进布局 |
+
+**为什么半径必须随档**（`raycast-design.md:326` 那一行的旧理由「literal，不随
+`--ui-scale`」在这里失效）：胶囊的半径只能是**半高**，而半高正是那个随档走的数。把半径
+钉成字面 8，换一档界面大小盒更高、8 不变，胶囊就漂成圆角矩形。参考的 `999px` 就是
+「永远半高」的写法，本仓的等价物是 `Space(3.5)`（= `Space(7)` 的一半）。**旧值 → 新值：
+`RadiusSM`(8) → 半高（`Space(3.5)`）**。
+
+**pin**：`internal/settingsui/sheetpillcorner_test.go` 的
+`TestThePluginSheetActionPillCutsAStadiumsCorner`（深浅两套 × 中性/危险两臂）：
+① 首行内缩 ≥ 8（圆角矩形过不去）；② 内缩逐行**收小**（是曲线，不是削角）；
+③ 盒高 = `Space(7)` 且标签两端各 10u（半径不进布局）。另加 opt-in 出图。
+**探针的窗口来自像素本身**：中性臂的面是半透明暗面，它第一行在黑底上没有墨——pin 读的是
+「第一行**有墨**的行」，不是写死的 row 0。
+
+**台账** V 2 / B 0 / S 0；产品代码 1 行 + 注释 1 段。测试函数 2520 → **2522**，
+PASS 3348 → **3351**，SKIP 172 → **173**。变异 3 条实跑：
+
+| # | 注入 | 原始报错串 |
+|---|---|---|
+| M1 | `Radius` 退回 `tokens.RadiusSM` | `corner insets: small 3, large 3` + `the corner did not grow with the box: small 3, large 3 — a literal radius reads the same at both steps` |
+| M2 | `Radius` 压到 `t.Space(2)`（不到半高） | `[neutral] the pill's first inked row starts 5 px in: that is the 8px rounded rectangle this round retires (it read 5), not a stadium's half-height curve (want ≥8)` |
+| M3 | 侧 padding `Space(2.5)` → `Space(4)` | `[neutral] the label's leading inset = 15.400002, want the reference's 10u (9)` |
+
+三条都实跑变红、`md5sum -c` 逐字节核对还原。
+
+**出图** `/tmp/floter-P13-eo-pill-{before,after}-{light,dark}.png`（400×160，两臂单独渲染）：
+`compare -metric AE` → 浅 **302**、深 **442**；bbox 浅 **77×67+40+41** / 深 **78×68+40+40**
+——**正好是两枚胶囊自己的矩形**，页与字一个像素没动。图上看到的一处变化：两枚胶囊的
+左右两端从「带一点圆角的矩形」变成真正的胶囊，而它们的宽、高、字位、发丝的位置都没动。

@@ -530,11 +530,16 @@ func TestThePrimaryCTAIsAnAccentButtonAtRadiusSM(t *testing.T) {
 	}
 }
 
-// §6.1 第 6 条 · The overlay button's corner is `RadiusSM` at *every* interface
-// size: a radius is literal px and does not follow `--ui-scale` (§2). The two
-// steps below differ by 22% in their `Space()` unit, so a `Space(3.5)` corner
-// cannot pass both.
-func TestTheOverlayButtonCornerIsLiteralAtEveryStep(t *testing.T) {
+// §6.1 第 6 条 · The overlay button's corner is a **stadium**: its radius is half
+// the box's height, so it follows `--ui-scale` with the height it is cutting.
+//
+// P13-eo 重定基线（`docs/liquid-glass.md` §6.110）：旧值 **`RadiusSM`(8，字面，不随档)**
+// → 新值 **半高（`t.Space(3.5)`，随档）**。P8-b 当初把这一枚从 `Space(3.5)` 钉成字面 8，
+// 理由写的是「a radius is literal px and does not follow `--ui-scale`」——但一枚**胶囊**的
+// 半径只能是半高，而半高正是那个随档走的数：字面 8 在 `large` 档就漂成圆角矩形。
+// 参考的 `plugin-config.css:241` 写的是 `border-radius: 999px`（「永远半高」），这一轮
+// 把它换回同一条算术，与扩展页 `actionButton` 的 `t.Space(3.75)` 对 `t.Space(7.5)` 一致。
+func TestTheOverlayButtonCornerIsHalfItsHeightAtEveryStep(t *testing.T) {
 	for _, appearance := range appearanceNames {
 		t.Run(appearance.name, func(t *testing.T) {
 			dark := appearance.dark
@@ -570,26 +575,33 @@ func TestTheOverlayButtonCornerIsLiteralAtEveryStep(t *testing.T) {
 			}
 			smallInset, smallTokens := cornerInset("small")
 			largeInset, largeTokens := cornerInset("large")
-			if smallTokens.RadiusSM != 8 || largeTokens.RadiusSM != 8 {
-				t.Errorf("the corner token moved with the step: small %v, large %v, want 8 at both",
-					smallTokens.RadiusSM, largeTokens.RadiusSM)
-			}
-			// The same literal corner on a taller box: the inset a radius-8 arc makes
-			// on its first painted row grows with the box only because the row is
-			// measured from a taller box's own top, and the two steps' boxes differ.
-			// What must hold is that neither corner is the `Space(3.5)` stadium the old
-			// code asked for: that would be 12.6 and 15.4, i.e. more than half the box.
+			t.Logf("corner insets: small %v, large %v", smallInset, largeInset)
+			// P13-eo 重定基线：判据从「角是字面 8」换成「角是半高」。半高随档走，所以
+			// 这条 pin 现在要求的是**token 关系**（`Space(3.5)` 恰是 `Space(7)` 的一半，
+			// 也就是盒高的一半）与**像素读数**（两道都不许是圆角矩形的 5，也不许
+			// 平到没有角）——两个档的盒高不同，所以两个档的读数必须不同。
 			for _, tc := range []struct {
-				step  string
-				inset float32
-			}{{"small", smallInset}, {"large", largeInset}} {
-				if tc.inset > 6 {
-					t.Errorf("[%s] the overlay button's first row starts %v px in: a stadium, not RadiusSM(8)",
-						tc.step, tc.inset)
+				step   string
+				inset  float32
+				tokens theme.Tokens
+			}{{"small", smallInset, smallTokens}, {"large", largeInset, largeTokens}} {
+				half := tc.tokens.Theme.Space(7) / 2
+				if got := tc.tokens.Theme.Space(3.5); got != half {
+					t.Errorf("[%s] the pill's corner token = %v, want half the 28u height (%v): a stadium's "+
+						"radius is half the box, and both numbers follow the interface step", tc.step, got, half)
 				}
-				if tc.inset < 1 {
-					t.Errorf("[%s] the overlay button has no corner (inset %v)", tc.step, tc.inset)
+				if tc.inset < 5 {
+					t.Errorf("[%s] the overlay button's first row starts %v px in: that is no curve at "+
+						"all (want ≥5)", tc.step, tc.inset)
 				}
+				if tc.inset >= half {
+					t.Errorf("[%s] the overlay button's corner inset %v reaches the box's half height %v: "+
+						"that is a cut corner, not a curve", tc.step, tc.inset, half)
+				}
+			}
+			if largeInset < smallInset+2 {
+				t.Errorf("the corner did not grow with the box: small %v, large %v — a literal radius reads "+
+					"the same at both steps, which is the value this round retires (P13-eo)", smallInset, largeInset)
 			}
 		})
 	}

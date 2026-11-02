@@ -91,6 +91,10 @@ func TestThePluginActionButtonIsTheReferenceHairlinePill(t *testing.T) {
 	// pulls the hairline in from the box's left edge at the box's own first
 	// row, while the framework's `--radius-xs` (6u) corner sit almost flush
 	// with it at that height.
+	//
+	// P13-eo 重定基线：旧阈值 **5** → 新阈值 **8**。阈值 5 与读数 5 相等，于是这枚
+	// 8px 圆角矩形在「want a pill's wide curve」那句下面**卡着边过**（`docs/liquid-glass.md`
+	// §6.110）。胶囊的半高是 12.6，它的首行读数是 **10**（改前 5）。
 	leftmost := float32(-1)
 	for x := int(box.X); x < int(box.X+box.W); x++ {
 		if sample(tt, float32(x), box.Y+0.5).R > 30 {
@@ -101,8 +105,9 @@ func TestThePluginActionButtonIsTheReferenceHairlinePill(t *testing.T) {
 	if leftmost < 0 {
 		t.Fatalf("no hairline ink found in the button's top row")
 	}
-	if inset := leftmost - box.X; inset < 5 {
-		t.Errorf("the corner inset at the top row = %v, want a pill's wide curve", inset)
+	if inset := leftmost - box.X; inset < 8 {
+		t.Errorf("the corner inset at the top row = %v, want a pill's wide curve (want ≥8: the rounded "+
+			"rectangle this round retires read 5)", inset)
 	}
 }
 

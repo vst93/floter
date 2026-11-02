@@ -323,7 +323,7 @@ keyline 属于卡片壳，不属于列表）；`AccentHalo` 在终端的状态�
 | 分组卡（`internal/settingsui/rows.go:288`） | 面 `Control`、边弱发丝 `HairlineSoft`、半径 10、无镜片 | `已落地` — `rows.go:288-292`（`cardGeometry` 的卡片框） |
 | 分隔线（`internal/settingsui/rows.go:1193`） | 渐变发丝 → **一条实弱发丝** `HairlineSoft`（1px，全宽同色） | `已落地` — `rows.go:1193`（`hairlineRule`，替换原 `fadeRule`）；调用点 `settingsui.go:1194,1228` |
 | 弹层字段槽（`internal/settingsui/pluginsheet.go:327`） | 几何保留（28u / `RadiusSM` / `ControlEdge` / 8u），面收敛到 `Control` 一档，去掉 `FieldSlot` 凹痕叠层 | `已落地` — `pluginsheet.go:327` |
-| 弹层按钮半径（`pluginsheet.go:363`） | `Radius(t.Space(3.5))` → `RadiusSM`(8)（literal，不随 `--ui-scale`） | `已落地` — `pluginsheet.go:368` |
+| 弹层按钮半径（`pluginsheet.go:363`） | `Radius(t.Space(3.5))` → `RadiusSM`(8)（literal，不随 `--ui-scale`） | **已被 `docs/liquid-glass.md` §6.110 升代（P13-eo）**：胶囊的半径只能是**半高**，而半高正是随档走的那个数——字面 8 换一档界面大小就从胶囊漂成圆角矩形。旧值 → 新值：`RadiusSM`(8) → `t.Space(3.5)`（= `Space(7)` 的一半，参考的 `999px` 就是「永远半高」的写法） |
 | 权限药丸（`internal/settingsui/healthfaces.go:212`） | 两级都中性：`Control` + `ControlEdge`；accent inset 去掉 | `已落地` — `healthfaces.go:212` |
 | 状态 chip（`settingsui.go:1983`、`healthfaces.go:47`） | 预热面保留，环降到 `ControlEdge`，字重 620 → **600**；`healthy` 的 `RaisedQuiet`+`AccentEdge` → `Control`+`ControlEdge` | `已落地` — `healthfaces.go:47,78`、`settingsui.go:1983,2014`（自加第 12 条） |
 | 主 CTA（`settingsui.go:3714`） | **保留 accent 填充**（§5 第 2 条），胶囊 → `RadiusSM`(8) | `已落地` — `settingsui.go:3717-3718`（`updateButton` 的 `Radius`/`Background`） |

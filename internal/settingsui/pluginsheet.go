@@ -469,7 +469,17 @@ func (a *App) sheetActionButton(c *ui.Context, label string, danger bool, run fu
 	button := ui.ButtonBase(c).
 		MinHeight(t.Space(7)).
 		Padding(0, t.Space(2.5)).
-		Radius(tokens.RadiusSM)
+		// P13-eo（`docs/liquid-glass.md` §6.110）：这枚胶囊的四角此前是 `RadiusSM`(8)
+		// ——**圆角矩形**，而它上面那段注释、参考的 `plugin-config.css:241`
+		// (`border-radius: 999px`) 与守它的那条 pin 都写着「胶囊」。
+		//
+		// 胶囊的半径只能是**半高**，而半高跟着 `--ui-scale` 走：把半径钉成字面 8，
+		// 换一档界面大小就从胶囊漂成圆角矩形（盒在 `large` 档更高，8 不变）。
+		// 参考的 `999px` 就是「永远半高」的写法，本仓的等价物是 `Space(3.5)`
+		// （= `Space(7)` 的一半，随档缩放），与扩展页的 `actionButton`
+		// （`t.Space(3.75)` 对 `t.Space(7.5)` 高）是同一条算术。
+		// 半径不进布局：盒高、10u 侧 padding 与标签的缩进一个字节不动。
+		Radius(t.Space(3.5))
 	ink := t.Text
 	edge := tokens.ControlEdge
 	plane := tokens.Control
