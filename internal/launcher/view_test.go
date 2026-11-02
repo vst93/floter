@@ -144,13 +144,25 @@ func tenths(v float64) int {
 
 // render draws one frame of the launcher at the given size and returns the
 // tester, so a test can type, click and read what shows.
+//
+// P13-ec · **默认取景就是出货尺**（`liquid-glass.md` §6.86 的 73-5 收尾）。它以前画的是
+// 框架的库存主题（`Spacing 4.0` / `FontSize 14`），于是 180 个调用点量的都是用户看不到
+// 的帧；`renderShipped` 从 P13-dq 起就在装主题，两套取景并存本身就是这条债的形态。
+// 换尺后只有 5 条断言变红（V 4 / S 1），逐条重钉见 `docs/rounds/P13-ec-report.md`。
+//
+// 仍留在库存尺的是**显式开窗**那一族（`renderIn` / `renderAt` + `frameHeight`）：它们把
+// 窗口本身当被测对象（折叠、条带、页高），换尺要先逐族判 S，另占一格。
 func render(t *testing.T, a *App) *ui.Tester {
 	t.Helper()
 	// The frame is the room a full list — the numbered family's ten rows —
 	// asks for, so every row the window's budget holds is drawn and numbered.
 	tt := ui.NewTester(func(c *ui.Context) {
+		// Read the inks, the spacing and the line boxes off the palette the app
+		// ships: the shell installs it before every surface draws
+		// (`internal/shell/shell.go:4262`).
+		c.SetTheme(a.tokens(c).Theme)
 		a.View(c)
-	}, InputWindowWidth, frameHeight(maxResultSlots))
+	}, InputWindowWidth, themedFrameHeight(maxResultSlots))
 	tt.Frame()
 	return tt
 }

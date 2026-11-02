@@ -166,7 +166,11 @@ func TestBrowserRowsDropTheIconPlate(t *testing.T) {
 	// bare cell must read exactly what the row itself paints (comparing to the
 	// panel's own fill would flag the selection tint as a plate).
 	cell := img.RGBAAt(int(rowRect.X)-26, y)
-	bare := img.RGBAAt(InputWindowWidth-40, y)
+	// P13-ec 取景收口：参照点本来是 `InputWindowWidth-40`，那个 x 在行尾那个元素
+	// 的边上（实测 y=81 读到 207，而行的填充是 232），库存尺下只是碰巧掠对。
+	// 这里改取**同一行里、文字列之后、行尾记号之前**的一点：与图标格同高同底，
+	// 仍是行自己画的面，所以选中的 accent 底色不会被误判成板。
+	bare := img.RGBAAt(int(rowRect.X)+int(rowRect.W)+20, y)
 	if cell != bare {
 		t.Errorf("the browser row's icon cell is plated (%v over the row's own bare fill %v)", cell, bare)
 	}

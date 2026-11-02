@@ -3317,7 +3317,7 @@ pin：`internal/settingsui/sheetcaptionline_test.go`
 | 73-2 | `settingsui.go` 的两枚 `●`/`○` | `t.FontSize - 3` | 具名例外 `markDot(t)`（盘是字形不是档位） | `已落地` |
 | 73-3 | `uninstall.go` 的 10.5px 提示行 | `t.FontSize - 0.5` | 保留，但写进具名例外（参考定义就是 body − 半格） | `故意不做（有理由）` |
 | 73-4 | `internal/launcher` 的同一族（9 处） | 同病 | 4 处已落地，5 处卡在取景上（见 §6.74） | `部分已落地` |
-| 73-5 | `render()` 的取景（四十多条 pin 在量库存字 14） | 与生产不一致 | 收口到 `SetTheme(tokens.Theme)`，逐条重钉 | `未开始` |
+| 73-5 | `render()` 的取景（四十多条 pin 在量库存字 14） | 与生产不一致 | 收口到 `SetTheme(tokens.Theme)`，逐条重钉 | `已落地（P13-ec，§6.98：`render()` 换成出货尺，5 条红按 V 4 / S 1 重钉；`renderIn`/`renderAt` 的显式开窗族另占一格）` |
 | 73-6 | 会话行 49 对参考的 56 地板 | 少 7px | 补 `min-height = Space(14)` | `已落地（P13-ea，§6.96：`sessionRowFloorPx = 56` 字面 px，不是 `Space(14)`）` |
 
 **旧值 → 新值（逐条）**
@@ -4261,4 +4261,42 @@ light **445** / dark **446** 个像素不同，全部落在 **(56,20)-(155,31)**
 `triggerHintMinCells 6 → 3`（`a box under six cells was kept`）。
 
 **仍开着（同族，需拍板）**：`de-2` / `de-3` / `de-6` 是**行盒计费**换阶梯，动它们会改窗口高度
-（高度链红线）；`73-5` 是 `internal/launcher` 其余四十多条 pin 的库存尺，另占一轮。
+（高度链红线）。`73-5` 已在 **P13-ec** 收口（§6.98）；剩下的库存尺是 `renderIn` / `renderAt`
+那一族**显式开窗**夹具（折叠 / 条带 / 页高把窗口本身当被测对象），换尺要先逐族判 S。
+
+### §6.98 默认取景换到出货尺：180 条断言量的是一张用户看不到的卡（P13-ec，**已落地**）
+
+§6.86 的 73-5 是这一包最后一条取景债：`render()`（`internal/launcher/view_test.go`）画的是
+**框架库存主题**（`Spacing 4.0` / `FontSize 14`），而生产在每一面画之前装的是这一面自己的
+调色板（`internal/shell/shell.go:4262`）。`renderShipped` 从 P13-dq 起就在装主题，于是这一包
+长期并存两条尺子——**像素断言全绿并不等于量的是这个设计**。
+
+**先量**：把 `render()` 换成 `SetTheme` + `themedFrameHeight` 之后只有 **5 个测试函数**红
+（§6.75 估的「四十多条」是 `dg-l` 之前的账；`dg-l` 那几轮已经把像素断言搬到 `renderShipped`）。
+
+| # | 位置 | 旧值 → 新值 | 判据（实测） |
+|---|---|---|---|
+| 73-5a | `render()` | `a.View` + `frameHeight`（4.0 / 14）→ `SetTheme(a.tokens(c).Theme)` + `themedFrameHeight`（3.6 / 10.8） | 帧高 **488 → 439**；卡自己的面 **253 → 246**（浅）/ **23 → 15**（深）：夹具画的不是这个应用的卡 |
+| 73-5b | `actionbarfooter_test.go` 搜索行的三列 | `16 / 44 / 54`、`y < 55`（库存 px）→ `16u / 44u / 54u`、`y < round(14u×spacing−1)` = 49 | 旧列在新尺下把**查询文字**（起于 48.6）算进了「10u 的空」，红串 `65 ink pixels in the 10u gap` |
+| 73-5c | `builtinglyphs_test.go` 浏览器行的参照点 | `InputWindowWidth-40`（`x=680`，实测 **207**）→ 标题盒右沿 + 20（`x=85`，实测 **232**） | 那个 x 是**行尾那个元素**的边缘，不是行自己的面；库存尺下只是恰好撞对。换点之后 M3 仍能抓到板（`216` 对 `232`） |
+| 73-5d | `resultsedge_test.go` 字段块的发丝与气 | `fieldRowUnits*4-1`（55）/ `breathUnits*4`（4）→ `round(14u×3.6−1)` = **49** / `round(54.0)−(49+1)` = **4** | 那个 4 是**两次取整相减**的结果，不是容差：块高 50.4、发丝行 49、裁切 54.0 |
+| 73-5e | `stripfaces_test.go` 的 28u 与 `readFace` | `27.5..28.5`（围着库存 28 的**容差带**）→ `tenths(key.W) == tenths(28u)` = 25.2；`readFace` 的 `int()` → `math.Round`（§6.77） | 带子只能装下库存尺；宽度改对之后**第二层**才露出来：截断把「顶内线」读到相邻一行（浅 `246` 亮、深 `15` 比面还暗） |
+| 73-5f | `rowweight_test.go` 便条行的门槛 | 1.35 → **1.25** | 出货尺实测 **1.28**：便条行标题画在 `t.FontSize`、副标题画在 `tokens.Body`，出货档**都是 10.8**，rank 只剩字重 580/400。**1.41 是库存尺上 14 对 10.8 的帧**，生产上不存在 |
+
+**守卫**：新 pin `TestTheDefaultFixtureDrawsTheShippedFrame` 钉三件事——默认取景的帧高就是
+`themedFrameHeight`（439）、字段块的发丝落在 49、两把尺子的帧高**必须不相等**（否则这条
+pin 会在「两边都是 488」里空过）。
+
+**为什么这轮让它更有空间感（一句话）**：180 条像素断言从此量的是 `Spacing 3.6` / 正文
+`10.8` 的那张卡——也就是「面差 / 受光边 / 阴影」三档真正落在的那张卡；在此之前它们是
+挂在框架的 `253` 面上按 4.0 排的，任何「层级更清楚了」的结论都可能是尺子的错觉。
+
+**台账**：V 5 / B 0 / S 2，产品代码 **0 行**。测试函数 2496 → **2498**，PASS 3327 → **3328**，
+SKIP 161 → **162**。**变异 4 条实跑变红并还原**：`renderShipped` 退回库存尺 → **12 红**
+（`the field's caret starts at x=54.0, want the rows' title column 48.6`）；`render()` 退回
+→ 3 红；便条门槛写回 1.35 → `ratio 1.28, want 1.35`；浏览器行还回 `iconPlate` → `plated
+({216 216 217}) over the row's own bare fill ({232 232 233})`。
+
+**仍开着**：`renderIn`（`appearance_test.go:19`）与 `renderAt`（`modetextframe_test.go:135`）
+仍配 `frameHeight`——那是**显式开窗**那一族（折叠 / 条带 / 页高把窗口本身当被测对象），
+换尺要先逐族判 S。

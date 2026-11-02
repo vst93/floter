@@ -36,10 +36,12 @@ func TestANoteRowsTitleOutweighsItsSubtitle(t *testing.T) {
 				ratio := float64(titleMass) / float64(subtitleMass)
 				t.Logf("%s %s: title ink %d, subtitle ink %d (ratio %.2f)",
 					appearance, label, titleMass, subtitleMass, ratio)
-				// 便条行两行同墨，整档 rank 全靠字重：实测 1.41（改前 1.26）。
-				// 门行还多一层墨级差：实测 2.31 / 2.26（改前 2.06 / 2.02）。
-				// 门槛取在实测值下方一点，抓的是「字重回退」与「两行又变成一档」。
-				want := 1.35
+				// 便条行两行同字号同墨，整档 rank 全靠字重。**1.41 是库存尺的读法**
+				// （标题 14 对副标题 10.8），报告里那个帧生产上不存在；出货尺实测
+				// **1.28**（P13-ec 取景收口，旧值 1.41 → 新值 1.28）。门槛 1.25 仍高于
+				// 「两行同重」的 1.00，所以 580 → 400 的变异照旧变红。
+				// 门行还多一层墨级差：实测 2.37 / 2.40（改前 2.06 / 2.02）。
+				want := 1.25
 				if !note {
 					want = 2.0
 				}

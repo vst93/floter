@@ -1,6 +1,7 @@
 package launcher
 
 import (
+	"math"
 	"slices"
 	"strings"
 	"testing"
@@ -299,15 +300,21 @@ func TestTheSearchRowLeadsWithANeutralMark(t *testing.T) {
 	// The row's own fill, read off the left padding where nothing is drawn.
 	fill := img.RGBAAt(4, 28)
 	inkInCell, inkInGap, warm := 0, 0, 0
-	// y=55 is the field row's bottom hairline (`HairlineSoft`), which runs the
-	// full width by design; the slot's own ink is above it.
-	for y := 0; y < 55; y++ {
-		for x := 16; x < 54; x++ {
+	// P13-ec 取景收口：三列都是参考的 `u`，按出货步长换算（旧值 16 / 44 / 54 / 55
+	// 是库存尺的 px）。格 = 16u..44u（14..39），空 = 44u..54u（40..48），发丝在
+	// `round(14u×spacing−1)` = 49。y=55 那句注释里的「field row bottom hairline」
+	// 在同一把尺上是 49，不再是 55。
+	u := designUnit()
+	cellEnd := int(math.Round(44 * u))
+	gapEnd := int(math.Round(54 * u))
+	hairline := int(math.Round(float64(fieldRowUnits)*u*4 - 1))
+	for y := 0; y < hairline; y++ {
+		for x := int(math.Round(16 * u)); x < gapEnd; x++ {
 			c := img.RGBAAt(x, y)
 			if c == fill {
 				continue
 			}
-			if x < 44 {
+			if x < cellEnd {
 				inkInCell++
 				// The accent is red: `#E5484D` has R−B = 152. Neutral ink on
 				// either appearance stays within a few steps.
@@ -323,7 +330,8 @@ func TestTheSearchRowLeadsWithANeutralMark(t *testing.T) {
 		t.Errorf("the search row draws no leading mark: %q", tt.Texts())
 	}
 	if inkInGap != 0 {
-		t.Errorf("%d ink pixels in the 10u gap (x=44..53): the mark is not in the icon cell", inkInGap)
+		t.Errorf("%d ink pixels in the 10u gap (x=%d..%d): the mark is not in the icon cell",
+			inkInGap, cellEnd, gapEnd-1)
 	}
 	if warm != 0 {
 		t.Errorf("%d of the leading mark's %d ink pixels are warm (R−B beyond 12): it carries accent ink", warm, inkInCell)

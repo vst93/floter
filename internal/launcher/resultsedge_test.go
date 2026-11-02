@@ -3,6 +3,7 @@ package launcher
 import (
 	"fmt"
 	"image"
+	"math"
 	"os"
 	"path/filepath"
 	"testing"
@@ -63,16 +64,24 @@ func TestTheResultListNeverScrollsIntoTheFieldBand(t *testing.T) {
 		full := ui.Rect{X: 0, Y: 0, W: 720, H: float32(tt.Image().Bounds().Dy())}
 		clip := a.listRect
 		hairline := hairlineAbove(tt.Image(), int(clip.Y))
-		if want := float64(fieldRowUnits)*4 - 1; hairline != want {
+		if want := math.Round(float64(fieldRowUnits)*designUnit()*4 - 1); hairline != want {
 			t.Fatalf("dark=%v: the field block's hairline is at y=%v, want %v — the band under the "+
 				"field is measured from that line", dark, hairline, want)
 		}
 		// The air between the hairline and the content belongs to the page: it is
 		// the height chain's breath, outside the clip, so it cannot scroll away.
-		if air := float64(clip.Y) - (hairline + 1); air != float64(breathUnits)*4 {
+		// P13-ec 取景收口：两个数都从出货尺推导，不是把 4 换成 3.6 再放一个容差。
+		// 块高 `fieldRow = 14u × spacing` = 50.4，发丝画在它的最后一像素上 → 取整行 49；
+		// 裁切沿 = 块高 + 1u = 54.0，所以发丝行与裁切行之间**整行数**是 4（50..53）。
+		// 那个 4 是两次取整相减的结果，`breathUnits × 4` 的旧写法只是库存尺下碰巧相等。
+		fieldRow := float64(fieldRowUnits) * designUnit() * 4
+		wantAir := math.Round(fieldRow+float64(breathUnits)*designUnit()*4) - (math.Round(fieldRow-1) + 1)
+		// P13-ec 取景收口：`clip.Y` 是 float32（出货尺下 53.999996），旧写法拿它直接和
+		// `breathUnits × 4` 比，量的是浮点噪声；行数要和上面的发丝行同一个域（整行）比。
+		if air := math.Round(float64(clip.Y)) - (hairline + 1); air != wantAir {
 			t.Errorf("dark=%v: %vpx of air between the field's hairline (y=%v) and the clip (y=%v), "+
 				"want the height chain's %vpx (breathUnits) — the air is not the page's own band",
-				dark, air, hairline, clip.Y, float64(breathUnits)*4)
+				dark, air, hairline, clip.Y, wantAir)
 		}
 		// The list's own top padding is zero: the first row's box starts on the
 		// clip edge. That is *why* the air below the field cannot scroll away.

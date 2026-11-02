@@ -4,6 +4,7 @@ import (
 	"image"
 	"image/color"
 	"image/png"
+	"math"
 	"os"
 	"testing"
 	"time"
@@ -44,8 +45,10 @@ type stripFace struct {
 // line is the first row of the box), 1 for a face whose `Border(1, …)` owns the
 // outermost pixel.
 func readFace(img *image.RGBA, box ui.Rect, inset int, name string) stripFace {
-	x, y := int(box.X), int(box.Y)
-	w, h := int(box.W), int(box.H)
+	// P13-ec 取景收口：`int()` 截断只在库存尺（4.0 的倍数、位置多是整数）下看不出来。
+	// 出货尺的盒顶是小数（§6.77），painter 用 `math.Round` 落设备行，pin 必须同一个取整。
+	x, y := int(math.Round(float64(box.X))), int(math.Round(float64(box.Y)))
+	w, h := int(math.Round(float64(box.W))), int(math.Round(float64(box.H)))
 	cx := x + w/2
 	cy := y + h/2
 	return stripFace{
@@ -86,8 +89,11 @@ func TestTheOutputStripControlsAreE1Faces(t *testing.T) {
 			if !ok {
 				t.Fatalf("the output strip's pin key is not drawn: %q", tt.Texts())
 			}
-			if key.W < 27.5 || key.W > 28.5 {
-				t.Fatalf("the pin key's box is %.1f wide, want the strip's own 28u", key.W)
+			// P13-ec 取景收口：`28u` 按出货步长换算是 25.2，旧断言围着库存的 28 开了
+			// ±0.5 的容差带——那条带本来就只能装下库存尺。
+			if tenths(float64(key.W)) != tenths(28*designUnit()) {
+				t.Fatalf("the pin key's box is %.1f wide, want the strip's own 28u (%.1f at the shipped step)",
+					key.W, 28*designUnit())
 			}
 			tt.Move(key.X+key.W/2, key.Y+key.H/2)
 			tt.Frame()
