@@ -38,7 +38,7 @@ func TestTheDrawerRowsKeepTheirWordsInsideTheirCells(t *testing.T) {
 			a := New(newStore(), Actions{Close: func() {}, NewCommand: func() {}}, nil)
 			withSession(a, &terminal.Terminal{})
 			a.Drawer = true
-			tt := render(t, a, width, 600)
+			tt := renderThemed(t, a, width, 600)
 			if dark {
 				tt.SetDark(true)
 				tt.Frame()
@@ -92,7 +92,7 @@ func TestDumpDrawerPNGs(t *testing.T) {
 		withSession(a, &terminal.Terminal{})
 		withTitle(a, "~/workspace/floter")
 		a.Drawer = true
-		tt := render(t, a, 900, 600)
+		tt := renderThemed(t, a, 900, 600)
 		if dark {
 			tt.SetDark(true)
 			tt.Frame()

@@ -22,16 +22,24 @@ import (
 // ——滑轴、开关、分段控件、迷你终端预览——所以它的档位与另外两个表面**没有一档相同**，
 // 本轮是**实测**出来的，不是抄的：
 //
-//	17 — 滑轴的读数（`tokens.Body` + mono，`drawer.go:302`；换成下一档
-//	     `tokens.Emphasis` 是 18，既不在阶梯上、也让 17 消失）
-//	20 — 迷你终端预览的一行（`t.FontSize - 1` + mono，`terminalui.go:1801`）
-//	22 — 行标签 / select 的当前值（`t.FontSize`，`drawer.go:318`、`:343`）
-//	28 — 抽屉右上角的关闭按钮（`barButton`，`terminalui.go:1364`）
-//	30 — 分段控件的 30u 下限（`control.go:110`），也是行自己的 `MinHeight`
-//	     （`drawer.go:315`，同值 `t.Space(7.5)`；P11-ca 的绿变异证明这一档是
-//	     控件给的——把行那一个改成 `Space(8)`，画面一个字节都不动）
+//	15 — 迷你终端预览的一行（`t.FontSize - 1` + mono，`terminalui.go:1801`）
+//	17 — 滑轴的读数（`tokens.Body` + mono，`drawer.go:302`）与行标签 / select 的
+//	     当前值（`t.FontSize`，`drawer.go:318`、`:343`）——**同一档**
+//	25.2 — 抽屉右上角的关闭按钮（`barButton`，`t.Space(7)`）
+//	27 — 分段控件的下限（`t.Space(7.5)`），也是行自己的 `MinHeight`
+//	     （`drawer.go:315`，同值）
 //
-// 16 帧（en/zh × 深/浅 × 640×360 / 720×560 / 900×600 / 1100×700）**逐帧同一组**，
+// P13-dp 取景收口：上面这五档是**库存尺**上的读数（17 / 20 / 22 / 28 / 30）。
+// 换成设计尺（`Spacing 3.6`、`FontSize 10.80`，见 §6.76）之后实测是
+// **15 / 17 / 25.2 / 27**：行盒吃 0.77（22 → 17）、空格吃 0.90（28 → 25.2、
+// 30 → 27），而预览那行 `10.80 - 1 = 9.8` 落到 15。两处「档位」塌了一档：
+// ① 预览（9.8pt）与读数（10.8pt）现在是两个高度（15 / 17），
+// ② 读数与行标签现在是**同一个** 17 —— `tokens.Body` 与 `t.FontSize` 在设计尺上
+// 都是 10.80，库存尺的 17 vs 22 是那把尺子（正文 14.00）造出来的差，不是设计。
+// 所以这条阶梯在设计尺上只有四档，且读数/标签之间不再有几何判别力：
+// 两者的区别是 **mono 字栈**，不是字号（`TestEachDrawerRungHasItsOwnProducer` 照实钉）。
+//
+// 16 帧（en/zh × 深/浅 × 640×360 / 720×560 / 900×600 / 1100×700）**逐帧同一组**。
 // 所以阶梯只有一份。640×360 是 P11-au 的最小窗口：那时条带被压到画布之下、自己滚，
 // 五档仍然都在。
 //
@@ -39,7 +47,7 @@ import (
 // `frameaudit.Heights` 的叶子规则本来就把它们排除——它们不是一行字，本轮不钉，
 // 也别把它们加进阶梯。
 func TestTheDrawerStaysOnTheHeightLadder(t *testing.T) {
-	rungs := []float32{17, 20, 22, 28, 30}
+	rungs := []float32{15, 17, 7 * designSpace, 7.5 * designSpace}
 	for _, lang := range []string{"en", "zh"} {
 		for _, dark := range []bool{false, true} {
 			appearance := "light"
@@ -97,15 +105,22 @@ func TestEachDrawerRungHasItsOwnProducer(t *testing.T) {
 				why  string
 			}{
 				// The slider's live value: the body step in the mono stack.
+				// P13-dp 取景收口：旧值 17（库存尺）→ 17（设计尺，`tokens.Body`
+				// = 10.80 画出来也是 17）——两条尺子上同数不同源，照实留着。
 				{fmt.Sprintf("%d px", s.FontSize), 17, "the font-size readout"},
 				// The miniature terminal under the palette picker.
-				{"floter --version", 20, "a line of the palette preview"},
+				// P13-dp 取景收口：旧值 20 → 15（`t.FontSize - 1` = 9.8pt）。
+				{"floter --version", 15, "a line of the palette preview"},
 				// A row's name (and a select's current value).
-				{scopy.LineHeight, 22, "a row's label"},
+				// P13-dp 取景收口：旧值 22 → 17（`t.FontSize` = 10.80）——与上面的
+				// 读数同档，因为 `tokens.Body` 也是 10.80。
+				{scopy.LineHeight, 17, "a row's label"},
 				// The drawer's own dismiss, in a card's close corner.
-				{term.SettingsClose, 28, "the drawer's close button"},
+				// P13-dp 取景收口：旧值 28 → 25.2（`t.Space(7)` = 7 × 3.6）。
+				{term.SettingsClose, 7 * designSpace, "the drawer's close button"},
 				// A segmented control: the row's box height.
-				{optionLabel(scopy.Paddings, s.TerminalPadding), 30, "a segmented control"},
+				// P13-dp 取景收口：旧值 30 → 27（`t.Space(7.5)` = 7.5 × 3.6）。
+				{optionLabel(scopy.Paddings, s.TerminalPadding), 7.5 * designSpace, "a segmented control"},
 			}
 			for _, p := range pairs {
 				box, ok := tt.Find(p.text)
@@ -137,7 +152,7 @@ func drawerHeightFrame(t *testing.T, lang string, dark bool, w, h int) (*ui.Test
 	}
 	withSession(a, &terminal.Terminal{})
 	a.Drawer = true
-	tt := render(t, a, w, h)
+	tt := renderThemed(t, a, w, h)
 	if dark {
 		tt.SetDark(true)
 		tt.Frame()

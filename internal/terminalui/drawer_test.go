@@ -34,7 +34,7 @@ func drawerApp(t *testing.T) *App {
 // can actually apply is on it, and the strip fits inside the window.
 func TestTerminalDrawerShowsTheAppearanceRows(t *testing.T) {
 	a := drawerApp(t)
-	tt := render(t, a, 860, 600)
+	tt := renderThemed(t, a, 860, 600)
 	tt.Frame()
 
 	// The drawer is the surface that carries the *full* schema
@@ -96,7 +96,7 @@ func TestTerminalDrawerShowsTheAppearanceRows(t *testing.T) {
 // the change without the surface ever being left.
 func TestTerminalDrawerWritesEachSetting(t *testing.T) {
 	a := drawerApp(t)
-	tt := render(t, a, 860, 600)
+	tt := renderThemed(t, a, 860, 600)
 	tt.Frame()
 
 	if err := tt.Click("Block"); err != nil {
@@ -161,7 +161,7 @@ func TestTerminalDrawerClosesFromItself(t *testing.T) {
 	withSession(a, &terminal.Terminal{})
 	a.Actions.Settings = a.ToggleDrawer
 	a.Drawer = true
-	tt := render(t, a, 860, 600)
+	tt := renderThemed(t, a, 860, 600)
 	tt.Frame()
 
 	// Both entries wear the same name while the drawer is open: the bar's
@@ -188,7 +188,7 @@ func TestTerminalDrawerGearToggles(t *testing.T) {
 	a := New(store, Actions{}, nil)
 	withSession(a, &terminal.Terminal{})
 	a.Actions.Settings = a.ToggleDrawer
-	tt := render(t, a, 860, 600)
+	tt := renderThemed(t, a, 860, 600)
 	tt.Frame()
 	if !tt.HasText("Terminal settings") {
 		t.Fatalf("the closed gear is not named: %q", tt.Texts())
@@ -220,7 +220,7 @@ func TestTerminalDrawerGearToggles(t *testing.T) {
 // and the strip is drawn below the canvas's own top edge.
 func TestTerminalDrawerLeavesTheCanvas(t *testing.T) {
 	a := New(drawerStore(t), Actions{Close: func() {}}, nil)
-	tt := render(t, a, 860, 600)
+	tt := renderThemed(t, a, 860, 600)
 	tt.Frame()
 	if !tt.HasText("New blank session") {
 		t.Fatalf("the empty state is missing: %q", tt.Texts())
@@ -260,7 +260,7 @@ func TestTerminalDrawerNeedsTheLanguage(t *testing.T) {
 	if err := a.Store.Update(func(s *settings.Settings) { s.Language = "zh" }); err != nil {
 		t.Fatal(err)
 	}
-	tt := render(t, a, 860, 600)
+	tt := renderThemed(t, a, 860, 600)
 	tt.Frame()
 	if !tt.HasText("字号") || !tt.HasText("关闭终端设置") {
 		t.Errorf("the drawer did not follow the language: %q", tt.Texts())

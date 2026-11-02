@@ -28,20 +28,27 @@ func render(t *testing.T, a *App, w, h int) *ui.Tester {
 	return tt
 }
 
+// designSpace is the design ruler's `Spacing` (§6.76 measured `4.0 → 3.6`
+// between the stock theme and the one the app ships). Pins that hold a box
+// built from `t.Space(n)` read through this, not through the stock 4.0: the
+// number in the assertion is the one the user's frame is drawn with.
+const designSpace = 3.6
+
 // renderThemed is `render` with the surface's own palette installed: the ruler
 // the app actually ships (P13-dg §6.76 measured `Spacing 4.0 → 3.6` and
 // `FontSize 14.00 → 10.80` between the stock theme and the design one).
 //
 // A pin that reads geometry from the stock theme is holding a page nobody sees.
-// This round only moves the seam pins onto it (P13-dh); the rest of this
-// package's pins still ride on `render`, and that debt is P13-dg-t's.
+// Every pin in this package now moves through it (P13-dp finished the sweep
+// P13-dh started); the one exception is a pin that counts palette builds, where
+// the fixture's own theme install is a second reader — see
+// `TestASwappedStoreIsANewPalette`.
 func renderThemed(t *testing.T, a *App, w, h int) *ui.Tester {
 	t.Helper()
 	tt := ui.NewTester(func(c *ui.Context) {
 		c.SetTheme(tokensOf(a, c).Theme)
 		a.View(c)
 	}, w, h)
-	tt.SetPreferences(ui.Preferences{ReduceMotion: true})
 	tt.Frame()
 	return tt
 }
@@ -65,7 +72,7 @@ func TestTerminalEmptyState(t *testing.T) {
 		Close:      func() { closed++ },
 		NewCommand: func() {},
 	}, nil)
-	tt := render(t, a, 860, 600)
+	tt := renderThemed(t, a, 860, 600)
 	if !tt.HasText("Terminal") {
 		t.Errorf("missing the title: %q", tt.Texts())
 	}
@@ -93,7 +100,7 @@ func TestTerminalSessionErrorShows(t *testing.T) {
 	if a.Err == nil {
 		t.Fatal("EnsureSession swallowed the error")
 	}
-	tt := render(t, a, 860, 600)
+	tt := renderThemed(t, a, 860, 600)
 	if !tt.HasText("libghostty-vt is missing") {
 		t.Errorf("the error did not show: %q", tt.Texts())
 	}
@@ -108,7 +115,7 @@ func TestTerminalSessionErrorShows(t *testing.T) {
 func TestTerminalCloseButtonCallsBack(t *testing.T) {
 	closed := 0
 	a := New(newStore(), Actions{Close: func() { closed++ }}, nil)
-	tt := render(t, a, 860, 600)
+	tt := renderThemed(t, a, 860, 600)
 	revealBar(t, tt)
 	if err := tt.Click(i18n.For("en").Terminal.Close); err != nil {
 		t.Fatal(err)
@@ -125,7 +132,7 @@ func TestTerminalFollowsTheLanguage(t *testing.T) {
 		t.Fatal(err)
 	}
 	a := New(store, Actions{}, nil)
-	tt := render(t, a, 860, 600)
+	tt := renderThemed(t, a, 860, 600)
 	if !tt.HasText("终端") {
 		t.Errorf("missing the Chinese title: %q", tt.Texts())
 	}
@@ -319,7 +326,7 @@ func TestPinControlCopiesTheSessionText(t *testing.T) {
 	withSession(a, &terminal.Terminal{}) // present so the control shows
 	withTitle(a, "zsh")
 
-	tt := render(t, a, 860, 600)
+	tt := renderThemed(t, a, 860, 600)
 	if _, ok := tt.Find("Pin output"); !ok {
 		t.Fatalf("the pin control is missing: %q", tt.Texts())
 	}
@@ -335,7 +342,7 @@ func TestPinControlCopiesTheSessionText(t *testing.T) {
 
 func TestNoPinControlWithoutASession(t *testing.T) {
 	a := New(newStore(), Actions{Pin: func(string, string) {}}, nil)
-	tt := render(t, a, 860, 600)
+	tt := renderThemed(t, a, 860, 600)
 	if _, ok := tt.Find("Pin output"); ok {
 		t.Errorf("the pin control shows with no session: %q", tt.Texts())
 	}
@@ -398,7 +405,7 @@ func TestTerminalEmptyStateControls(t *testing.T) {
 	}, func(terminal.Options) (*terminal.Terminal, error) {
 		return nil, errors.New("no library in tests")
 	})
-	tt := render(t, a, 860, 600)
+	tt := renderThemed(t, a, 860, 600)
 	if !tt.HasText("No terminal session yet") {
 		t.Fatalf("the empty title is missing: %q", tt.Texts())
 	}
@@ -424,7 +431,7 @@ func TestTerminalHeaderControls(t *testing.T) {
 	}, func(terminal.Options) (*terminal.Terminal, error) {
 		return nil, errors.New("no library in tests")
 	})
-	tt := render(t, a, 860, 600)
+	tt := renderThemed(t, a, 860, 600)
 	revealBar(t, tt)
 	if err := tt.Click("New command"); err != nil {
 		t.Fatal(err)
@@ -464,7 +471,7 @@ func TestTerminalBarButtonsCarryTheirHints(t *testing.T) {
 		return nil, errors.New("no library in tests")
 	})
 	stored := store.Snapshot()
-	tt := render(t, a, 860, 600)
+	tt := renderThemed(t, a, 860, 600)
 	for _, want := range []struct{ label, hint string }{
 		{copy.NewCommand, copy.NewCommandHint(shortcuts.Display(settings.Shortcut(stored, settings.ShortcutNewCommand)))},
 		{copy.OpenExternal, copy.OpenExternalHint(shortcuts.Display(settings.Shortcut(stored, settings.ShortcutOpenExternalTerminal)))},
@@ -532,7 +539,7 @@ func TestTerminalInputCarriesItsAccessibleName(t *testing.T) {
 		return nil, errors.New("no library in tests")
 	})
 	withSession(a, &terminal.Terminal{})
-	tt := render(t, a, 860, 600)
+	tt := renderThemed(t, a, 860, 600)
 	tt.Frame()
 	if label := i18n.For("en").Terminal.Input; label == "" {
 		t.Fatal("the copy has no terminal-input name")
@@ -632,7 +639,7 @@ func TestResidentSessionHoldsItsOutput(t *testing.T) {
 	a := New(newStore(), Actions{}, func(terminal.Options) (*terminal.Terminal, error) {
 		return nil, errors.New("no library in tests")
 	})
-	tt := render(t, a, 860, 600)
+	tt := renderThemed(t, a, 860, 600)
 	// No session yet: the empty state.
 	if !tt.HasText("No terminal session yet") {
 		t.Fatalf("the empty state: %q", tt.Texts())
@@ -668,7 +675,7 @@ func TestTerminalBarIdentityNamesTheExitCode(t *testing.T) {
 	})
 	withSession(a, &terminal.Terminal{})
 	a.ResidentAt(0, 3)
-	tt := render(t, a, 860, 600)
+	tt := renderThemed(t, a, 860, 600)
 	tt.Frame()
 	if want := copy.HeaderExited(3); !tt.HasText(want) {
 		t.Errorf("the identity line does not name the exit code %q: %q", want, tt.Texts())
@@ -692,7 +699,7 @@ func TestTerminalBarSettingsDoor(t *testing.T) {
 	})
 	withSession(a, &terminal.Terminal{})
 	withTitle(a, "vim")
-	tt := render(t, a, 860, 600)
+	tt := renderThemed(t, a, 860, 600)
 	tt.Frame()
 	if !tt.HasText("Terminal settings") {
 		t.Fatalf("the gear is missing: %q", tt.Texts())
@@ -708,7 +715,7 @@ func TestTerminalBarSettingsDoor(t *testing.T) {
 	// Without the action the bar draws no gear at all.
 	b := New(newStore(), Actions{}, nil)
 	withSession(b, &terminal.Terminal{})
-	tt2 := render(t, b, 860, 600)
+	tt2 := renderThemed(t, b, 860, 600)
 	tt2.Frame()
 	if tt2.HasText("Terminal settings") {
 		t.Errorf("a gear was drawn with no action: %q", tt2.Texts())

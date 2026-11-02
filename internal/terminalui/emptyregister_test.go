@@ -132,7 +132,7 @@ func emptyRegisterFrame(t *testing.T, dark bool) (*ui.Tester, i18n.Terminal, map
 		t.Fatal(err)
 	}
 	a := New(store, Actions{Close: func() {}, NewCommand: func() {}}, nil)
-	tt := render(t, a, 860, 600)
+	tt := renderThemed(t, a, 860, 600)
 	tt.SetDark(dark)
 	tt.Frame()
 	tt.Frame()

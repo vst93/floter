@@ -35,7 +35,7 @@ import (
 // on it hands it the keyboard.
 func canvasHoldsKeyboard(t *testing.T, a *App, x, y float32) bool {
 	t.Helper()
-	tt := render(t, a, 860, 600)
+	tt := renderThemed(t, a, 860, 600)
 	tt.ClickAt(x, y)
 	tt.Frame()
 	return tt.Focused(i18n.For(a.Store.Snapshot().Language).Terminal.Input)
@@ -56,7 +56,7 @@ func TestTheHiddenBarButtonsTakeNoClick(t *testing.T) {
 	}
 
 	closed, settings := 0, 0
-	tt := render(t, newApp(&closed, &settings), 860, 600)
+	tt := renderThemed(t, newApp(&closed, &settings), 860, 600)
 	closeBox, ok := tt.Find(copy.Close)
 	if !ok {
 		t.Fatalf("the close control is not on the frame: %q", tt.Texts())
@@ -84,7 +84,7 @@ func TestTheHiddenBarButtonsTakeNoClick(t *testing.T) {
 	// frame before the reveal lands) is the one the rule is about — it belongs to
 	// the canvas, not to a control nobody has seen yet.
 	closed, settings = 0, 0
-	ttGear := render(t, newApp(&closed, &settings), 860, 600)
+	ttGear := renderThemed(t, newApp(&closed, &settings), 860, 600)
 	gearBox, ok = ttGear.Find(copy.SettingsOpen)
 	if !ok {
 		t.Fatalf("the settings control is not on the frame: %q", ttGear.Texts())
@@ -97,7 +97,7 @@ func TestTheHiddenBarButtonsTakeNoClick(t *testing.T) {
 
 	// Revealed, they are buttons again: the reveal is what makes them live.
 	closed, settings = 0, 0
-	tt2 := render(t, newApp(&closed, &settings), 860, 600)
+	tt2 := renderThemed(t, newApp(&closed, &settings), 860, 600)
 	box, ok := tt2.Find(copy.Close)
 	if !ok {
 		t.Fatalf("the close control is not on the frame: %q", tt2.Texts())
@@ -121,7 +121,7 @@ func TestTheNoticeTakesNoPointer(t *testing.T) {
 		a.ShowFeedback("no emulator")
 		return a
 	}
-	tt := render(t, newApp(), 860, 600)
+	tt := renderThemed(t, newApp(), 860, 600)
 	box, ok := tt.Find("no emulator")
 	if !ok {
 		t.Fatalf("the notice is not on the frame: %q", tt.Texts())
@@ -144,7 +144,7 @@ func TestTheResidentNoteTakesNoPointer(t *testing.T) {
 	a := New(newStore(), Actions{Settings: func() {}}, nil)
 	withSession(a, &terminal.Terminal{})
 	a.ResidentAt(0, 3)
-	tt := render(t, a, 860, 600)
+	tt := renderThemed(t, a, 860, 600)
 	box, ok := tt.Find(copy.ProcessExitedHint)
 	if !ok {
 		t.Fatalf("the resident note is not on the frame: %q", tt.Texts())
@@ -209,7 +209,7 @@ func TestDumpP11BDPointerFrames(t *testing.T) {
 		withSession(a, &terminal.Terminal{})
 		a.ResidentAt(0, 3)
 		a.ShowFeedback("no emulator")
-		tt := render(t, a, 860, 600)
+		tt := renderThemed(t, a, 860, 600)
 		if dark {
 			tt.SetDark(true)
 			tt.Frame()

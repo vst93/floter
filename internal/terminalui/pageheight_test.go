@@ -38,7 +38,7 @@ import (
 // 22 与 15 跟启动器 / 抽屉的 22、15 同数不同源（那两处是 `rows.go` 的行标签
 // 与键帽图例），别把两边的常量合并——它们各自跟自己的产生者走。
 func TestTheTerminalPageStaysOnTheHeightLadder(t *testing.T) {
-	rungs := []float32{15, 22, 23, 28}
+	rungs := []float32{15, 17, 18, 7 * designSpace}
 	for _, arm := range []struct {
 		name string
 		// must are the rungs this state is required to paint: the empty state
@@ -46,10 +46,10 @@ func TestTheTerminalPageStaysOnTheHeightLadder(t *testing.T) {
 		// is no keycap and no empty title once a session is on screen).
 		must []float32
 	}{
-		{"empty", []float32{15, 22, 23, 28}},
-		{"live", []float32{22, 28}},
-		{"resident", []float32{22, 28}},
-		{"feedback", []float32{22, 28}},
+		{"empty", []float32{15, 17, 18, 7 * designSpace}},
+		{"live", []float32{17, 7 * designSpace}},
+		{"resident", []float32{17, 7 * designSpace}},
+		{"feedback", []float32{17, 7 * designSpace}},
 	} {
 		for _, lang := range []string{"en", "zh"} {
 			for _, dark := range []bool{false, true} {
@@ -84,9 +84,13 @@ type heightPair struct {
 
 // TestEachTerminalPageRungHasItsOwnProducer pins **which piece of text paints
 // which rung**, on the arm that actually draws it. The ladder alone cannot see
-// a swap (make the empty title 22 and the keycap legend 23 and the set is still
-// `{15,22,23,28}` while the design has moved), and it cannot see a rung that
+// a swap (make the empty title 17 and the keycap legend 18 and the set is still
+// `{15,17,18,25.2}` while the design has moved), and it cannot see a rung that
 // survived because a *different* surface's copy happens to be 15u tall.
+//
+// P13-dp 取景收口：本轮的每个数字都从库存尺换到了设计尺——旧值 → 新值：
+// 身份行/空态标签/常驻便条 22 → **17**、空态标题 23 → **18**、按钮 28 → **25.2**；
+// 键帽图例 15 不动。
 func TestEachTerminalPageRungHasItsOwnProducer(t *testing.T) {
 	for _, arm := range []struct {
 		lang  string
@@ -108,17 +112,17 @@ func TestEachTerminalPageRungHasItsOwnProducer(t *testing.T) {
 				identity += " \u00b7 " + term.HeaderExited(3)
 			}
 			pairs := []heightPair{
-				{identity, 22, "the bar's identity line"},
-				{term.NewCommand, 28, "a bar button"},
+				{identity, 17, "the bar's identity line"},
+				{term.NewCommand, 7 * designSpace, "a bar button"},
 			}
 			if arm.state == "empty" {
 				pairs = append(pairs,
-					heightPair{term.EmptyTitle, 23, "the empty state's title"},
+					heightPair{term.EmptyTitle, 18, "the empty state's title"},
 					heightPair{"\u21a9", 15, "a keycap's legend"},
-					heightPair{term.EmptyNew, 22, "an empty state line's label"},
+					heightPair{term.EmptyNew, 17, "an empty state line's label"},
 				)
 			} else {
-				pairs = append(pairs, heightPair{term.ProcessExited(3), 22, "the resident note's first line"})
+				pairs = append(pairs, heightPair{term.ProcessExited(3), 17, "the resident note's first line"})
 			}
 			for _, p := range pairs {
 				box, ok := tt.Find(p.text)
@@ -153,7 +157,7 @@ func pageHeightFrame(t *testing.T, state, lang string, dark bool, w, h int) *ui.
 	case "feedback":
 		a.ShowFeedback(i18n.For(lang).Terminal.Pin)
 	}
-	tt := render(t, a, w, h)
+	tt := renderThemed(t, a, w, h)
 	if state != "empty" {
 		revealBar(t, tt)
 	}

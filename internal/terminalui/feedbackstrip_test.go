@@ -36,7 +36,7 @@ func TestTheFailureNoteIsADockedStrip(t *testing.T) {
 			a := New(newStore(), Actions{}, nil)
 			withSession(a, &terminal.Terminal{})
 			a.ShowFeedback("no emulator")
-			tt := render(t, a, size[0], size[1])
+			tt := renderThemed(t, a, size[0], size[1])
 			if dark {
 				tt.SetDark(true)
 				tt.Frame()
@@ -161,7 +161,7 @@ func TestDumpP11BGFailureStripPNGs(t *testing.T) {
 		withSession(a, &terminal.Terminal{})
 		a.ResidentAt(0, 3)
 		a.ShowFeedback("no emulator")
-		tt := render(t, a, 860, 600)
+		tt := renderThemed(t, a, 860, 600)
 		if dark {
 			tt.SetDark(true)
 			tt.Frame()

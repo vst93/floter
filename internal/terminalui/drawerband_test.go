@@ -39,7 +39,7 @@ func TestTheDrawerKeepsTheBarsBand(t *testing.T) {
 			if err := a.Store.Update(func(s *settings.Settings) { s.Language = lang }); err != nil {
 				t.Fatalf("%s: %v", tag, err)
 			}
-			tt := render(t, a, size[0], size[1])
+			tt := renderThemed(t, a, size[0], size[1])
 
 			strip, ok := tt.Find(scopy.GroupTerminal)
 			if !ok {
@@ -96,7 +96,7 @@ func TestDumpP11ATDrawerBandPNGs(t *testing.T) {
 		a := New(newStore(), Actions{Close: func() {}, NewCommand: func() {}}, nil)
 		withSession(a, &terminal.Terminal{})
 		a.Drawer = true
-		tt := render(t, a, settings.MinTerminalWidth, settings.MinTerminalHeight)
+		tt := renderThemed(t, a, settings.MinTerminalWidth, settings.MinTerminalHeight)
 		if dark {
 			tt.SetDark(true)
 			tt.Frame()

@@ -298,7 +298,7 @@ func TestEmptyStateLines(t *testing.T) {
 		NewCommand: func() { newCommands++ },
 		Close:      func() { closeCalls++ },
 	}, nil)
-	tt := render(t, a, 860, 600)
+	tt := renderThemed(t, a, 860, 600)
 	tt.Frame()
 	copy := i18n.For("en").Terminal
 	wantBadge := shortcuts.Display("Alt+B")

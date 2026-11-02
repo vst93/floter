@@ -25,7 +25,7 @@ func TestATerminalFrameCopiesTheSettingsOnce(t *testing.T) {
 	a := New(store, Actions{Settings: func() {}, Close: func() {}}, nil)
 	withSession(a, &terminal.Terminal{})
 	withTitle(a, "floter — zsh")
-	tt := render(t, a, 800, 600)
+	tt := renderThemed(t, a, 800, 600)
 
 	if err := store.Update(func(s *settings.Settings) { s.Language = "zh" }); err != nil {
 		t.Fatalf("the update failed: %v", err)
@@ -49,7 +49,7 @@ func TestATerminalFrameDrawsTheChangedValue(t *testing.T) {
 	store := settings.NewStore(settings.Default())
 	a := New(store, Actions{Settings: func() {}, Close: func() {}}, nil)
 	withSession(a, &terminal.Terminal{})
-	tt := render(t, a, 800, 600)
+	tt := renderThemed(t, a, 800, 600)
 
 	if err := store.Update(func(s *settings.Settings) { s.Language = "zh" }); err != nil {
 		t.Fatalf("the update failed: %v", err)

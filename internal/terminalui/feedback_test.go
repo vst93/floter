@@ -18,7 +18,7 @@ func TestTerminalFeedbackShowsAndExpires(t *testing.T) {
 	if !a.FeedbackVisible() {
 		t.Fatal("ShowFeedback did not raise the notice")
 	}
-	tt := render(t, a, 860, 600)
+	tt := renderThemed(t, a, 860, 600)
 	if !tt.HasText(message) {
 		t.Fatalf("the notice did not show: %q", tt.Texts())
 	}
@@ -47,7 +47,7 @@ func TestTerminalFeedbackShowsAndExpires(t *testing.T) {
 func TestTerminalFeedbackRestartsOnANewerMessage(t *testing.T) {
 	a := New(newStore(), Actions{}, nil)
 	a.ShowFeedback("first")
-	tt := render(t, a, 860, 600)
+	tt := renderThemed(t, a, 860, 600)
 
 	// The first message's window runs out, but nothing has drawn the expiry
 	// yet; the second message lands in that gap.

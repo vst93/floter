@@ -33,17 +33,25 @@ import (
 // 「滚动是否真的发生」敏感——把 `TrackScroll` 去掉或把归零写进逐帧路径都会让它红。
 //
 // 窗口够高时一点都不该变：`MaxY == 0`，偏移仍是 0。
+// P13-dp：设计尺下每一行条带都是库存的 0.9×，于是最小窗口（360）上抽屉的内容
+// **装得下了**（实测 640×360 / 720×360 `MaxY=0.0`）——「条带比视口高」这个前提在
+// 那里不再成立，pin 也就无话可说。这条 pin 的前提只能在更矮的窗口上恢复，实测
+// 640×280 `MaxY=54.4`、720×240 `MaxY=36.0`（两个宽度都留着，因为网格随宽度重排：
+// 720 宽时调色板预览挪到行旁，260 就装得下了）。S 不是 V：换窗口是为了让被测状态
+// 继续存在（P13-dg 取景收口）。
+
 func TestTheDrawerScrollsItsLastRowsIntoView(t *testing.T) {
 	const eps = 0.5
-	// The grid's last row is a `MinHeight` row (drawerRow: t.Space(7.5) = 22u
-	// at the default space); when the strip clips it, its measured box is
-	// shorter than this. A whole row is >= this floor.
-	const wholeRow = 20.0
+	// The grid's last row's *text* box is the body rung: `t.FontSize` 10.80 draws
+	// 17 on the design ruler (22 on the stock one this pin used to ride). When the
+	// strip clips it, its measured box is shorter than this. A whole row is >= this
+	// floor. P13-dp 取景收口：旧值 20 → 17。
+	const wholeRow = 17.0
 	for _, lang := range []string{"en", "zh"} {
 		scopy := i18n.For(lang).Settings
 		for _, size := range [][2]int{
-			{settings.MinTerminalWidth, settings.MinTerminalHeight},
-			{720, settings.MinTerminalHeight},
+			{settings.MinTerminalWidth, 280},
+			{720, 240},
 		} {
 			a := New(newStore(), Actions{Close: func() {}, NewCommand: func() {}}, nil)
 			withSession(a, &terminal.Terminal{})
@@ -51,7 +59,7 @@ func TestTheDrawerScrollsItsLastRowsIntoView(t *testing.T) {
 			if err := a.Store.Update(func(s *settings.Settings) { s.Language = lang }); err != nil {
 				t.Fatalf("%s %dx%d: %v", lang, size[0], size[1], err)
 			}
-			tt := render(t, a, size[0], size[1])
+			tt := renderThemed(t, a, size[0], size[1])
 			strip, ok := tt.Find(scopy.GroupTerminal)
 			if !ok {
 				t.Fatalf("%s %dx%d: the drawer's strip is not on the frame: %q",
@@ -111,7 +119,7 @@ func TestTheDrawerDoesNotScrollWhenItFits(t *testing.T) {
 		a := New(newStore(), Actions{Close: func() {}, NewCommand: func() {}}, nil)
 		withSession(a, &terminal.Terminal{})
 		a.Drawer = true
-		tt := render(t, a, 720, 600)
+		tt := renderThemed(t, a, 720, 600)
 		if dark {
 			tt.SetDark(true)
 			tt.Frame()
@@ -143,7 +151,7 @@ func TestDumpP11AYDrawerLastRowPNGs(t *testing.T) {
 		a := New(newStore(), Actions{Close: func() {}, NewCommand: func() {}}, nil)
 		withSession(a, &terminal.Terminal{})
 		a.Drawer = true
-		tt := render(t, a, settings.MinTerminalWidth, settings.MinTerminalHeight)
+		tt := renderThemed(t, a, settings.MinTerminalWidth, settings.MinTerminalHeight)
 		if dark {
 			tt.SetDark(true)
 			tt.Frame()
@@ -189,7 +197,7 @@ func TestDumpP11AUDrawerScrolledPNGs(t *testing.T) {
 		a := New(newStore(), Actions{Close: func() {}, NewCommand: func() {}}, nil)
 		withSession(a, &terminal.Terminal{})
 		a.Drawer = true
-		tt := render(t, a, settings.MinTerminalWidth, settings.MinTerminalHeight)
+		tt := renderThemed(t, a, settings.MinTerminalWidth, settings.MinTerminalHeight)
 		if dark {
 			tt.SetDark(true)
 			tt.Frame()
@@ -225,9 +233,10 @@ func TestDumpP11AUDrawerScrolledPNGs(t *testing.T) {
 func TestReopeningTheDrawerStartsAtItsTop(t *testing.T) {
 	a := New(newStore(), Actions{Close: func() {}, NewCommand: func() {}}, nil)
 	withSession(a, &terminal.Terminal{})
-	// Minimum height: the strip is taller than its viewport, so there is a
-	// real scroll range to lose.
-	tt := render(t, a, settings.MinTerminalWidth, settings.MinTerminalHeight)
+	// A window shorter than the strip: there is a real scroll range to lose.
+	// Not the minimum window — the design ruler's shorter rows let the strip fit
+	// there (see the window list above).
+	tt := renderThemed(t, a, settings.MinTerminalWidth, 280)
 
 	// Open it, scroll to the end, close it, open it again.
 	a.ToggleDrawer()
@@ -235,7 +244,7 @@ func TestReopeningTheDrawerStartsAtItsTop(t *testing.T) {
 	if a.DrawerScroll.MaxY <= 0 {
 		t.Fatalf("the drawer reports no scroll range (MaxY=%.1f) at %dx%d — the fixture "+
 			"cannot exercise the reopen rule", a.DrawerScroll.MaxY,
-			settings.MinTerminalWidth, settings.MinTerminalHeight)
+			settings.MinTerminalWidth, 280)
 	}
 	a.DrawerScroll.Y = math.MaxFloat32
 	tt.Frame()
@@ -278,7 +287,7 @@ func TestDumpP11AXReopenPNGs(t *testing.T) {
 		}
 		a := New(newStore(), Actions{Close: func() {}, NewCommand: func() {}}, nil)
 		withSession(a, &terminal.Terminal{})
-		tt := render(t, a, settings.MinTerminalWidth, settings.MinTerminalHeight)
+		tt := renderThemed(t, a, settings.MinTerminalWidth, settings.MinTerminalHeight)
 		if dark {
 			tt.SetDark(true)
 			tt.Frame()
