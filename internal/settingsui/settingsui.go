@@ -4601,7 +4601,7 @@ func (a *App) glassSegmented(c *ui.Context, labels []string, current int, apply 
 
 // choose builds one labeled drop-down choice, for lists too long to line up
 // as segments.
-func (a *App) choose(c *ui.Context, label, description string, options []i18n.Option, current string, apply func(string)) {
+func (a *App) choose(c *ui.Context, label, description string, options []i18n.Option, current string, apply func(string), below ...func()) {
 	index := optionIndex(options, current)
 	labels := make([]string, len(options))
 	for i, option := range options {
@@ -4622,7 +4622,7 @@ func (a *App) choose(c *ui.Context, label, description string, options []i18n.Op
 				}
 			}
 		}
-	})
+	}, below...)
 	if chosen != "" {
 		apply(chosen)
 	}
@@ -5594,10 +5594,8 @@ func (a *App) scriptRows(c *ui.Context, copy i18n.Settings, language *string, sc
 		// holds — including a switch away from a written script, which keeps
 		// it as the old form did.
 		*language = id
-	})
-	a.row(c, copy.LocalToolLanguage, "", func() {
-		ui.Text(c, a.scriptRuntimeLine(*language)).FontSize(a.tokens(c).Caption).
-			TextColor(c.Theme().TextMuted)
+	}, func() {
+		a.scriptRuntimeNote(c, a.scriptRuntimeLine(*language))
 	})
 	// The editor is a stacked row: a script wants the row's full width and
 	// more than one line, so the label and the status sit above it. The box is
@@ -5709,6 +5707,28 @@ func (a *App) clearScriptRuntimeCache() {
 	a.scriptRuntimeEpoch++
 	a.scriptRuntime = nil
 	a.scriptRuntimeMu.Unlock()
+}
+
+// scriptRuntimeNote draws the toolchain line under the language picker: the
+// picker's own second line, at the caption rung the reference gave machine
+// facts (`.session-manager__meta`, `settings.css:1280-1286`), one step under
+// the static hint above it.
+//
+// P13-dm（`docs/liquid-glass.md` §6.82）：这一行此前是 `a.row(c, 同一个 “Language”
+// 标签, "", 句子)` —— 一句话挂在一行设置项的**控制槽**里，于是它右对齐贴到卡片
+// 右沿（720 帧：盒子 x=628.8 / 宽 61，卡片文字列到 457.8），与它解释的那个选择器
+// 隔着 470px；而且判词一变长，控制槽反手把文字列压窄（缺工具链的判词把槽撞到
+// 331px 宽），同一行的高度随一句话的长短变。它是一句话，不是一个设置项：现在占
+// 整列宽、跟着选择器走、按句子折行，行的标签也不再念第二遍。
+func (a *App) scriptRuntimeNote(c *ui.Context, text string) {
+	if text == "" {
+		return
+	}
+	t := a.cardTheme(c)
+	tokens := a.tokens(c)
+	ui.Row(c).FillWidth().Padding(t.Space(2.25), 0).Children(func() {
+		ui.Text(c, text).FontSize(tokens.Caption).FontWeight(500).TextColor(t.TextMuted)
+	})
 }
 
 // scriptRuntimeLine is the one muted line under the language picker: what this
