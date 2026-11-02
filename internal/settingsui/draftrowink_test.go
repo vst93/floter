@@ -38,16 +38,16 @@ import (
 // 所以这一行不再洗：它和一条已保存的行是同一行、同一套墨。「还没写完」由它唯一
 // 缺的那一格说——录制槽是空的（`TestCustomShortcutsPage` 钉的是那个人能看到的事实）。
 
-// rowInk is one row's scan: the plane it is drawn on, the darkest pixel inside it
+// rowScan is one row's scan: the plane it is drawn on, the darkest pixel inside it
 // and the brightest one. On the light appearance the ink is the darkest thing in
 // a row and the plane the brightest; on the dark one it is the other way round.
-type rowInk struct {
+type rowScan struct {
 	face, lo, hi int
 }
 
 // ink reports the row's ink and its distance from the row's own plane, in
 // litSum units, whichever side of the plane that ink falls on.
-func (r rowInk) ink() (value, contrast int) {
+func (r rowScan) ink() (value, contrast int) {
 	if r.face-r.lo > r.hi-r.face {
 		return r.lo, r.face - r.lo
 	}
@@ -58,7 +58,7 @@ func (r rowInk) ink() (value, contrast int) {
 // made and a saved one, from the same functions the page uses — and returns the
 // scan. `whole` fills the draft in completely; a draft that is not whole is the
 // state the muting used to be keyed on.
-func draftRowProbe(t *testing.T, dark, draft, whole bool) rowInk {
+func draftRowProbe(t *testing.T, dark, draft, whole bool) rowScan {
 	t.Helper()
 	skipWithoutTheReferenceFont(t)
 	ground := realPageGround(t, dark)
@@ -125,7 +125,7 @@ func draftRowProbe(t *testing.T, dark, draft, whole bool) rowInk {
 	if hi-lo < 6 {
 		t.Fatalf("dark=%v draft=%v: the row has no ink at all (every pixel within %d units)", dark, draft, hi-lo)
 	}
-	return rowInk{face: face, lo: lo, hi: hi}
+	return rowScan{face: face, lo: lo, hi: hi}
 }
 
 // TestTheUnfinishedShortcutRowWearsTheSameInkAsASavedOne is the round's pin: the

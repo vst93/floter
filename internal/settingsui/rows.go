@@ -909,6 +909,17 @@ func (a *App) row(c *ui.Context, label, sublabel string, control func(), below .
 	return a.rowNote(c, label, sublabel, "", control, below...)
 }
 
+// rowState is row for a row whose second line is a **state** rather than a
+// subtitle: the About page's update row says what the last check found in it
+// (`已是最新` / `最新版本: v…` / `更新失败，重试？` / `此构建没有更新源`), and those
+// four are not one kind of sentence. Only the ink differs — the label column,
+// the floor, the control slot and the 1px line gap are `row`'s own, so a row
+// that takes this helper has the same box it had before (§6.80).
+func (a *App) rowState(c *ui.Context, label, sublabel string, ink rowInk, control func(), below ...func()) bool {
+	return a.rowAligned(c, ui.Center, nil, rowFace{}, label,
+		[]rowLine{{Text: sublabel, Ink: ink}}, "", control, below...)
+}
+
 // rowLine is one grey line under a row's label. Plain text is painted in
 // the row's muted grey; a line may instead be several segments, each in a
 // role's own colour — the sessions meta line, whose state word takes the strong
@@ -925,7 +936,35 @@ type rowLine struct {
 	Text     string
 	Segments []rowSegment
 	Mono     bool
+	// Ink is the rung a plain line is painted at. The zero value is the
+	// subtitle rung every row has always had (`t.TextMuted`); a line that is a
+	// **state word** rather than a subtitle takes one of the other two. A line
+	// with Segments paints each segment's own role and ignores this.
+	Ink rowInk
 }
+
+// rowInk is the rung a plain (`rowLine.Text`) second line is painted at.
+//
+// P13-dk（`docs/liquid-glass.md` §6.80）：更新行的状态字此前和它的副标题共用
+// 一档墨 —— 「已是最新」「有新版可下」「更新失败」「此构建没有更新源」四种
+// **不同的意思**，像素上一模一样（浅 101 / 深 94 级）。§6.26 已经为会话的 meta
+// 行立过同一条判据：运行中 / 已退出 / 坏了是三档，坏了那一档借 `t.Warning`
+// 「因为一次运行的失败是一个意思，而意思允许有色相」。这一族现在也有三档。
+type rowInk uint8
+
+const (
+	// rowInkQuiet is the subtitle rung: the second line explains its row, it
+	// does not report anything that changed. Zero value — every existing
+	// `rowLine{Text: …}` keeps its ink.
+	rowInkQuiet rowInk = iota
+	// rowInkFact is for a line whose content is a value the program chose (the
+	// version an update would install): a fact, one rung above a subtitle and
+	// one below the row's own emphasis line.
+	rowInkFact
+	// rowInkWarning is for a line that reports something broke. It is a
+	// meaning, so it takes a hue (§6.26 / §1 的「意思允许有色相」).
+	rowInkWarning
+)
 
 // rowSegment is one piece of a row's meta line.
 type rowSegment struct {
@@ -1224,8 +1263,15 @@ func (a *App) rowTitle(c *ui.Context, align ui.Align, lead func(), face rowFace,
 			if sublabel.Mono {
 				size = tokens.Caption
 			}
+			color := t.TextMuted
+			switch sublabel.Ink {
+			case rowInkFact:
+				color = tokens.TextSecondary
+			case rowInkWarning:
+				color = t.Warning
+			}
 			e := ui.Text(c, sublabel.Text).FontSize(size).FontWeight(500).
-				TextColor(t.TextMuted).SingleLine()
+				TextColor(color).SingleLine()
 			if sublabel.Mono {
 				e.Font(deepLinkValueFont)
 			}

@@ -4054,15 +4054,22 @@ func (a *App) recordShortcut(action, accelerator string) {
 func (a *App) updateRow(c *ui.Context, copy i18n.Settings) {
 	state := a.Update
 	sublabel := copy.UpdateUpToDate
+	// P13-dk（`docs/liquid-glass.md` §6.80）：这一行此前把状态字当副标题画
+	// （`t.TextMuted` / body / 500），于是「已是最新」和「更新失败，重试？」在
+	// 像素上是同一档墨（浅 101 / 深 94 级）—— 更新行唯一会变的那句话，是行上
+	// 最安静的字。三档：没事（安静）、有个版本可取（事实）、坏了（意思，允许色相）。
+	ink := rowInkQuiet
 	switch {
 	case state.Disabled:
 		sublabel = copy.UpdateDisabled
 	case state.Failed:
 		sublabel = copy.UpdateFailedRetry
+		ink = rowInkWarning
 	case state.Available:
 		sublabel = copy.UpdateLatestVersion + ": v" + state.Version
+		ink = rowInkFact
 	}
-	a.row(c, copy.UpdateCurrentVersion+": v"+a.About.Version, sublabel, func() {
+	a.rowState(c, copy.UpdateCurrentVersion+": v"+a.About.Version, sublabel, ink, func() {
 		switch {
 		case state.Progress != nil:
 			a.updateProgress(c, state.Progress)
