@@ -4535,7 +4535,7 @@ reading`。所以「页头站到阶梯顶端」是**几何**问题，不是墨�
 |---|---|---|---|
 | 105-1 | `pluginsheet.go` `sheetSection` 的 `Gap` | `Space(2)`（24 对 23） | `已落地`：`Space(4)`（32 对 22） |
 | 105-2 | `sheetcutedge_test.go` / `sheetnamerung_test.go` 的 `MaxY` | 316.4 | `已落地`：**V 重定基线** 316.4 → 330.8（判据不动） |
-| 105-3 | **设置页**的每个分组标题下面（同一个 8u 的出处） | 7.2px | `未开始`：同一格的另一半，五页各量一次，一个表面一轮 |
+| 105-3 | **设置页**的每个分组标题下面（同一个 8u 的出处） | 6.7~6.9px（比同一组里两张卡之间的 9px 还紧） | `已落地`（P13-ek）：标题行加一条 `Space(2)` 的下内边距 → **14.1~14.7px**，与浮层同一格逐值相同。见 §6.106 |
 
 **pin**：`internal/settingsui/sheetpitch_test.go` 的
 `TestThePluginSheetSectionHeadingStandsOffItsFirstField`（深浅两套）：① 分组标题下的空气比
@@ -4554,3 +4554,51 @@ reading`。所以「页头站到阶梯顶端」是**几何**问题，不是墨�
 （从 `y=56`），diff **11702** 像素（深 11704），bbox `(18,66)-(500,204)`——**从分组标题
 下面那一行开始**，往上一个像素没动；名字 `11..22`、分组标题 `44..53` 逐字节相同，
 第一张卡整体下移 8px。
+
+### §6.106 设置页的分组标题比它自己的卡贴得还紧（P13-ek，**已落地**）
+
+§6.105 销掉的是浮层那一半，**105-3** 是同一格的另一半：设置页五组的标题下面也是
+`Space(2)`（7.2px）。量下来它不只是「小」，而是**反了**——同一组里两张卡之间是
+`Space(2.5)` = **9px**，标题比卡更贴卡。
+
+| 项 | 改前 | 改后 |
+|---|---|---|
+| 标题 → 第一张卡（`cardTopGap`，五组） | 6.7 / 6.7 / 6.9 / 6.7 / 6.9 | **14.7 / 14.5 / 14.5 / 14.1 / 14.1** |
+| 卡 → 卡（同一组，`Space(2.5)`） | 9px | 9px（**不动**，另一个角色） |
+| 墨上：`Window` 组标题 → 第一行标签 | 24px | **32px** |
+| 墨上：上一行 help → 下一行标签 | 21px | **21px**（不动） |
+| 卡 → 组注（`sectionGroupPadded` 的 `Gap`） | 7.2px | **7.2px**（不动） |
+| 每组高度 | — | **+7.2px**（五组：297→304 / 240→247 / 170→178 / 355→362 / 380→387） |
+| 第一组标题的 y | 130 | 130（**一个字节没动**） |
+
+**落法**：`sectionHeadingInline` 的行从 `Padding(0, Space(0.5))` 变成
+`Padding(0, Space(0.5), Space(2), Space(0.5))`——空气加在**标题下边**，不是把
+`sectionGroupPadded` 的 `Gap` 抬到 `Space(4)`。因为那一列有三个孩子（标题 / 卡列 / 组注），
+`Gap` 是**三对共用**的一个数；抬它会连「卡 → 组注」一起抬，而那一对是「同一块」
+（§4.3 的相邻一档）。这正是 §6.36 里「一个 gap 参数 = 第二个刻度回来了」的教训，
+只是这次反过来用：**空气属于那一对，就加在那一对的元素上**。
+
+| 编号 | 位置 | 现状 | 处置 |
+|---|---|---|---|
+| 106-1 | `rows.go` `sectionHeadingInline` 的 `Padding` | 7.2px（比卡与卡之间的 9px 还紧） | `已落地`：下内边距 `Space(2)` → 14.4px |
+| 106-2 | `materialspacing_test.go` 的 `heading to first card` | `Space(2)` | **V 重定基线**：旧值 `Space(2)` → 新值 `Space(4)` |
+| 106-3 | `sectionheading_test.go` 的 `action bottom` | 行的外框底 | **V 重定基线**：`flex-end` 对齐内容盒的底 → `rowBox.Y+rowBox.H-Space(2)` |
+| 106-4 | 其余四页（Sessions / Shortcuts / Integrations / About） | 同一个函数 | `已落地`（同族同源，一次改完；`105-3` 不留「下轮清空」） |
+
+**pin**：`internal/settingsui/sectionheadingair_test.go` 的
+`TestTheSectionHeadingStandsOffItsFirstCard`（深浅两套）：① 五组的标题 → 卡 = `Space(4)`±1.5；
+② 它比卡与卡之间松 ≥4px；③ 墨上 `Window` 组（唯一一组卡里只叠「标签 + help」、没有宽控件）
+标题空气比行空气多 ≥6px（改前 3px）；④ 第一组标题仍在 y=130（空气属于标题**下面**）。
+另加 opt-in 出图 `TestDumpP13EKGeneralSections`。
+
+**台账** V 2 / S 0 / B 0；产品代码 **1 行** + 注释一段。变异 3 条实跑（M1 退回 →
+`6.7px ... want 14.4px` + `heading air 24, row air 21`；M2 把空气加在标题**上面** →
+`heading sits 7.5px` + `heading moved to y=137.5, want 130`；M3 抬半档 `Space(3)` →
+`17.7 / 17.9 / 18.3px, want 14.4`，证明 pin 有上边界）。
+
+**出图** `/tmp/floter-P13-ek-sections-{before,after}-{light,dark}.png`（520×380，裁自
+`y=120`）：diff **44679**（深 47425），bbox `(187,36)-(519,378)` —— 裁图 y=36 即页面
+**y=156**，正是**第一张卡的上边**；标题墨 `138..147` 一个像素不在框里。
+
+**这一支的状态**：§6 差距表**再次没有 `未开始` 行**（105-3 是最后一条）。选题回通用队列：
+间距节奏 → 状态反馈 → 空态满态 → 文案密度 → 边界情况。

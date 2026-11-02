@@ -40,8 +40,8 @@ func contextSpace(t *testing.T, steps ...float64) []float32 {
 func TestTheMaterialSectionKeepsItsOwnSpacing(t *testing.T) {
 	store := newStore(t)
 	a := New(store, Actions{})
-	spacing := contextSpace(t, 2.5, 2)
-	ten, eight := spacing[0], spacing[1]
+	spacing := contextSpace(t, 2.5, 2, 4)
+	ten, eight, four := spacing[0], spacing[1], spacing[2]
 
 	type built struct {
 		group                ui.Rect
@@ -99,17 +99,22 @@ func TestTheMaterialSectionKeepsItsOwnSpacing(t *testing.T) {
 		t.Errorf("material bottom padding = %v, want the reference's 10u (%v)", gap, ten)
 	}
 
-	// The group's own gutter — heading → first card, last card → first footnote,
-	// footnote → footnote — is the shared 8u every section keeps (P13-br
-	// 重定基线：旧值 10u → 新值 8u). The card-to-card gutter is not that role: it
-	// is `.settings-cards { gap: 10u }`, which every section's cards column
-	// keeps, and it stays 10u.
+	// The group's own gutter — last card → first footnote, footnote → footnote —
+	// is the shared 8u every section keeps (P13-br 重定基线：旧值 10u → 新值 8u).
+	// The card-to-card gutter is not that role: it is `.settings-cards { gap: 10u }`,
+	// which every section's cards column keeps, and it stays 10u.
+	//
+	// P13-ek 重定基线：**heading → first card** 旧值 8u → 新值 16u（`Space(4)`）。
+	// 那一格是这一对**自己**的空气（§4.3），不是整列的：8u（7.2px）比同一组里两张卡
+	// 之间的 10u **还紧**，标题读成「又一张卡」。抬一整档之后它是 14.4px，与浮层里
+	// 同一格（§6.105）逐值相同。其余三条 gutter 一个字节没动。
+	// `docs/liquid-glass.md` §6.106。
 	for _, row := range []struct {
 		name string
 		gap  float32
 		want float32
 	}{
-		{"heading to first card", got.card1.Y - (got.title.Y + got.title.H), eight},
+		{"heading to first card", got.card1.Y - (got.title.Y + got.title.H), four},
 		{"first card to second card", got.card2.Y - (got.card1.Y + got.card1.H), ten},
 		{"second card to first footnote", got.hintA.Y - (got.card2.Y + got.card2.H), eight},
 		{"first footnote to second footnote", got.hintB.Y - (got.hintA.Y + got.hintA.H), eight},
@@ -128,8 +133,9 @@ func TestTheMaterialSectionKeepsItsOwnSpacing(t *testing.T) {
 	if gap := plain.title.Y - plain.group.Y; absFloat(gap) > 1 {
 		t.Errorf("plain section top padding = %v, want none", gap)
 	}
-	if gap := plain.card1.Y - (plain.title.Y + plain.title.H); absFloat(gap-eight) > 1 {
-		t.Errorf("plain heading to first card = %v, want the shared 8u section gap (%v)", gap, eight)
+	if gap := plain.card1.Y - (plain.title.Y + plain.title.H); absFloat(gap-four) > 1 {
+		t.Errorf("plain heading to first card = %v, want the heading's own 16u (%v) — P13-ek "+
+			"重定基线：旧值 8u → 新值 Space(4)", gap, four)
 	}
 }
 

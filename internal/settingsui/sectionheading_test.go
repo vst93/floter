@@ -47,11 +47,16 @@ func TestTheSectionHeadingIsTheReferenceRow(t *testing.T) {
 	}
 	// `align-items: flex-end`: the action rests on the block's bottom edge; a
 	// centred action would float half the slack above it.
-	if slack := rowBox.H - actionBox.H; slack < 8 {
+	//
+	// P13-ek：这一行现在带一条**下内边距**（`Space(2)`）——那是标题与它自己第一张卡
+	// 之间那一格的另一半（`docs/liquid-glass.md` §6.106）。`flex-end` 对齐的是**内容盒**
+	// 的底，所以断言拿内容盒的底比，不是行的外框。旧值 → 新值：行的底 → 内容盒的底。
+	contentBottom := rowBox.Y + rowBox.H - tokens.Theme.Space(2)
+	if slack := rowBox.H - tokens.Theme.Space(2) - actionBox.H; slack < 8 {
 		t.Fatalf("the action is not shorter than the block: block %v, action %v", rowBox.H, actionBox.H)
 	}
-	if got := actionBox.Y + actionBox.H; absFloat(got-(rowBox.Y+rowBox.H)) > 1 {
-		t.Errorf("action bottom = %v, want the heading's bottom %v (flex-end)", got, rowBox.Y+rowBox.H)
+	if got := actionBox.Y + actionBox.H; absFloat(got-contentBottom) > 1 {
+		t.Errorf("action bottom = %v, want the heading's bottom %v (flex-end)", got, contentBottom)
 	}
 	// `justify-content: space-between`: the action is the row's right end.
 	if actionBox.X < titleBox.X+titleBox.W {

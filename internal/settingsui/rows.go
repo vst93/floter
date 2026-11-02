@@ -170,8 +170,14 @@ func (a *App) sectionHeading(c *ui.Context, title string, action func()) ui.Elem
 // keeps the plain single-line heading the rest of the pane uses.
 func (a *App) sectionHeadingInline(c *ui.Context, title, inlineHint string, action func()) ui.Element {
 	t := a.cardTheme(c)
+	// P13-ek（`docs/liquid-glass.md` §6.106）：分组标题离它自己第一张卡的那一格是
+	// **这一对**的空气，不是整列的（§4.3）。此前它只有框架的 `Space(2)`（7.2px），
+	// 比同一组里两张卡之间的 9px **还紧**——标题读成「又一张卡」，不是「新的一组」。
+	// 所以抬的是一整档 8u，加在标题的**下边**：标题 → 卡 = 7.2 + 7.2 = `Space(4)`
+	// 14.4px，与浮层里同一格（§6.105）逐值相同；卡 → 它下面那句组注仍是 7.2px
+	// （那一对是「同一块」，§4.3 的相邻一档不许动）。
 	row := ui.Row(c).FillWidth().AlignItems(ui.End).Justify(ui.SpaceBetween).
-		Gap(t.Space(3)).Padding(0, t.Space(0.5))
+		Gap(t.Space(3)).Padding(0, t.Space(0.5), t.Space(2), t.Space(0.5))
 	row.Children(func() {
 		// `heading-main` is the reference's `display:grid; gap:1px`, so the
 		// inline hint rides one pixel under the title in the same column.
