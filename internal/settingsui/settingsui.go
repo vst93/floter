@@ -5455,6 +5455,13 @@ func scriptExportName(id, command, language string) string {
 // the window holds, and the press that puts action's value on the clipboard.
 // An empty value copies nothing and confirms nothing, the same way the
 // reference's buttons disabled on a missing value.
+//
+// P13-dn（`docs/liquid-glass.md` §6.83）：确认语比静息语长（`Copy script` 11 字
+// → `Script copied` 13 字），胶囊的宽度由孩子撑开，所以**按下的一瞬间**右边那颗
+// `Export script` 被推开：实测 720 帧、两套外观一致 —— label 墨宽 62、确认语 72，
+// 导出胶囊 x=305.0 → 315.0（10px）。一次状态反馈不许改动这一行的布局。
+// 现在胶囊的地板取两句里**更宽**的那一句（`MeasureText` 画的同一支画笔、同一档
+// 字号与字重），确认语换上时盒子一个像素都不动。
 func (a *App) contentAction(c *ui.Context, action, label, done, value string) {
 	if strings.TrimSpace(value) == "" {
 		return
@@ -5463,15 +5470,40 @@ func (a *App) contentAction(c *ui.Context, action, label, done, value string) {
 	if copied {
 		c.After(a.copiedContentUntil.Sub(c.Now()))
 	}
+	floor := a.contentActionFloor(c, label, done)
 	if copied {
 		label = done
 	}
-	if a.actionButton(c, label).Clicked() {
+	button := a.actionButton(c, label).MinWidth(floor)
+	if button.Clicked() {
 		if a.Actions.CopyText != nil {
 			a.Actions.CopyText(value)
 			a.copiedContent, a.copiedContentUntil = action, c.Now().Add(copiedContentDuration)
 		}
 	}
+}
+
+// contentActionFloor is the width a copy pill keeps across its two states: the
+// wider of the resting label and the confirmation, plus the pill's own 10u of
+// side padding on each side (`.extensions-action-button`, `extensions.css:1313`).
+// Measured rather than guessed, because both strings are localized and the pair
+// order flips between languages ("Copy script"/"Script copied" is 11/13, the
+// Chinese pair is 6/5).
+func (a *App) contentActionFloor(c *ui.Context, labels ...string) float32 {
+	t := a.cardTheme(c)
+	body := a.tokens(c).Body
+	widest := float32(0)
+	for _, label := range labels {
+		w, _ := c.MeasureText(0, ui.Span{Text: label, Size: body, Weight: 600})
+		if w > widest {
+			widest = w
+		}
+	}
+	// Two pixels of ceiling: the painter's own sub-pixel advance rounds up when
+	// the glyphs land (`MeasureText` says 71.x for a run that lays out 72 wide),
+	// and a floor one hair under the wider word would let the row move again by
+	// that hair — measured: +1 still moved the export pill by exactly 1px.
+	return float32(math.Ceil(float64(widest))) + 2*t.Space(2.5) + 2
 }
 
 // copiedContentDuration is how long a content action's button keeps its
