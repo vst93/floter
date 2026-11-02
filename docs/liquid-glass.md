@@ -4237,3 +4237,28 @@ session is two lines of text plus a footer of metadata」——地板买的不�
 - **M3** `sessionRowFloorPx` 56 → 50（把常量本身改小）：`the session row's floor is 50, want the
   reference's literal 56px` + `the session row's floor is 50, not above the u-metric Space(14)
   (50.4): a floor there draws nothing` + 空格那条。
+
+### §6.97 P13-eb · 助记提示：画的与量的读同一个寄存器（`de-5` + `de-11` 结案）
+
+§6.86 那张表里 `de-5`（`launcher.go` 助记提示的绘制）与 `de-11`（`triggerhint.go` 的量算）
+是同一条处方：「画的与量的同一个名字」。这一轮两处一起换，并把卡住它们的**尺**换成出货尺。
+
+| 键 | 位置 | 旧值 → 新值 | 判据（实测） | 状态 |
+|---|---|---|---|---|
+| `de-5` | `launcher.go:1636` | `.FontSize(t.FontSize-1)`（**9.8**）→ `.FontSize(tokens.Caption)`（**9.9**） | 出厂档 `t.FontSize = round1(12 × 0.9) = 10.8`；偏移量 9.8 与阶梯 9.9 差 0.1pt，但**不是同一个名字**——下一个改 `t.FontSize` 的人只会改到画的那一半 | `已落地` |
+| `de-11` | `triggerhint.go:160` | `size := t.FontSize - 1` → `a.tokens(c).Caption` | 与 `de-5` 必须同进同退：量算只决定「显示/隐藏」，两边尺不一致时 fit 会按一个屏幕上看不到的字号判定 | `已落地` |
+| `de-11a` | `triggerhint_test.go` 的 `wide` / `narrow` 夹具 | stock 尺（`FontSize` 14 → 量 **13**）→ `c.SetTheme(a.tokens(c).Theme)`（量 **9.9**） | pin 此前在量一个比生产大 **33%** 的字。换尺后旧前提**直接证伪**：`the nudge was not squeezed in the test window: 114 <= 135.6` | `已落地` |
+| `de-11b` | 同文件窗宽 | 宽 **300 → 240**、窄 **120 → 90** | 出货尺下 300 宽的 `room` = 135.6 > `natural` 114（不再挤）；120 宽的 `room` = 45.6 仍高过六格地板（narrow 臂会失去对象）。实测 `room(w) = (w - 28.8) / 2` | `已落地` |
+| `de-11c` | 同文件盒宽 | `box.W != room`（精确）→ `box.W == floor(room)` | `room` 是布局的 **105.6**，画出来的盒是 **105**——P13-du 的「盒读 painter 的格子」 | `已落地` |
+
+**出图证据**（`/tmp/floter-P13-eb-hint-{light,dark}-{before,after}.png`，240×317）：逐像素 diff
+light **445** / dark **446** 个像素不同，全部落在 **(56,20)-(155,31)**（提示那一行字），最大
+通道差 **118 / 125**。9.8 → 9.9 不是「看不见的一格」：整行字重新光栅化，而行盒、字段、
+右侧两枚 28u 键一个像素都没动。
+
+**变异 3 条实跑变红并还原**：`Caption × 4`（`the nudge is missing at 240px`）、拿掉
+`c.SetTheme`（`the nudge's box = 90, want the row's room 104 on the painter's pixel grid (104)`）、
+`triggerHintMinCells 6 → 3`（`a box under six cells was kept`）。
+
+**仍开着（同族，需拍板）**：`de-2` / `de-3` / `de-6` 是**行盒计费**换阶梯，动它们会改窗口高度
+（高度链红线）；`73-5` 是 `internal/launcher` 其余四十多条 pin 的库存尺，另占一轮。

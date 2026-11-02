@@ -1,6 +1,7 @@
 package launcher
 
 import (
+	"math"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
@@ -121,12 +122,18 @@ func TestTriggerHintFits(t *testing.T) {
 	wideApp.Query = "clip"
 	var line float32
 	wide := ui.NewTester(func(c *ui.Context) {
+		// P13-eb（§6.86 的 de-5 / de-11）：这一臂此前跑在**框架库存的尺**上——
+		// `c.Theme()` 是 stock（`FontSize` 14），于是 `t.FontSize - 1` = 13，而生产
+		// 画的是 `tokens.Caption` 9.9：一条 pin 在量一个比真货大 33% 的字。取景换成
+		// 出货尺，与 `renderShipped` 的同一句（`c.SetTheme(a.tokens(c).Theme)`）。
+		c.SetTheme(wideApp.tokens(c).Theme)
 		t := c.Theme()
+		size := wideApp.tokens(c).Caption
 		room = wideApp.triggerHintRoom(c, t)
-		natural, line = c.MeasureText(0, ui.Span{Text: text, Size: t.FontSize - 1})
-		cell, _ = c.MeasureText(0, ui.Span{Text: "0", Size: t.FontSize - 1})
+		natural, line = c.MeasureText(0, ui.Span{Text: text, Size: size})
+		cell, _ = c.MeasureText(0, ui.Span{Text: "0", Size: size})
 		wideApp.View(c)
-	}, 300, int(WindowHeight("small")))
+	}, 240, int(WindowHeight("small")))
 	wide.Frame()
 	if room < cell*triggerHintMinCells {
 		t.Fatalf("the test window has no room to show the nudge: %v < %v", room, cell*triggerHintMinCells)
@@ -138,12 +145,15 @@ func TestTriggerHintFits(t *testing.T) {
 	// label carries both.
 	box, ok := wide.Find("\u2423" + text)
 	if !ok {
-		t.Fatalf("the nudge is missing at 200px: %q", wide.Texts())
+		t.Fatalf("the nudge is missing at 240px: %q", wide.Texts())
 	}
 	// The row squeezed the nudge to its own leftover, and it is one line:
-	// the formula and the layout agree.
-	if box.W != room {
-		t.Errorf("the nudge's box = %v, want the row's room %v", box.W, room)
+	// the formula and the layout agree. 盒是 painter 的格子，不是公式的浮点
+	// （P13-du）：`room` 是布局算出来的 105.6，画出来的盒是 105——同一格，
+	// 向下取整到整像素。
+	if got, want := tenths(float64(box.W)), tenths(math.Floor(float64(room))); got != want {
+		t.Errorf("the nudge's box = %v, want the row's room %v on the painter's pixel grid (%v)",
+			box.W, room, math.Floor(float64(room)))
 	}
 	if box.H > line {
 		t.Errorf("the nudge wrapped instead of ellipsising: %v, one line is %v", box.H, line)
@@ -154,9 +164,10 @@ func TestTriggerHintFits(t *testing.T) {
 	narrowApp := hintApp()
 	narrowApp.Query = "clip"
 	narrow := ui.NewTester(func(c *ui.Context) {
+		c.SetTheme(narrowApp.tokens(c).Theme)
 		room = narrowApp.triggerHintRoom(c, c.Theme())
 		narrowApp.View(c)
-	}, 120, int(WindowHeight("small")))
+	}, 90, int(WindowHeight("small")))
 	narrow.Frame()
 	if room >= cell*triggerHintMinCells {
 		t.Fatalf("the narrow window still has room: %v", room)

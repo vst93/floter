@@ -146,11 +146,18 @@ func triggerHintFits(room, natural, cell float32) bool {
 // in: the row's leftover box for this text, against six cells of the nudge's
 // font. The text is measured at the size the row draws it (one step under the
 // body, `--text-caption`).
+//
+// P13-eb（`docs/liquid-glass.md` §6.86 的 de-11）：那个「一档之下」此前写成
+// `t.FontSize - 1`，而画的那一半（`launcher.go` 的 `RichText`）写的是同一个
+// 偏移量——两个 9.8 碰巧相等，所以量出来的和画出来的一致，但**名字不是同一个**：
+// 阶梯上的 caption 是 `round1(11 × 0.9)` = **9.9**，偏移量给的是 9.8。差 0.1px 在
+// 屏幕上是一个像素都没有，可是下一个改 `t.FontSize` 的人只会改到画的那一半。
+// 现在两边都读 `tokens.Caption`（画的与量的同一个名字，de-5 与 de-11 同进同退）。
 func (a *App) triggerHintShown(c *ui.Context, t *ui.Theme, text string) bool {
 	if text == "" {
 		return false
 	}
-	size := t.FontSize - 1
+	size := a.tokens(c).Caption
 	cell, _ := c.MeasureText(0, ui.Span{Text: "0", Size: size})
 	natural, _ := c.MeasureText(0, ui.Span{Text: text, Size: size})
 	return triggerHintFits(a.triggerHintRoom(c, t), natural, cell)

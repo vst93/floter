@@ -1633,7 +1633,7 @@ func (a *App) View(c *ui.Context) {
 					ui.RichText(c,
 						ui.Span{Text: "␣", Weight: 620, Color: tokens.TextTertiary},
 						ui.Span{Text: hint, Weight: 520, Color: t.TextMuted},
-					).FontSize(t.FontSize-1).SingleLine().Ellipsis("…").
+					).FontSize(tokens.Caption).SingleLine().Ellipsis("…").
 						MinWidth(0).MaxWidthPercent(50).Margin(0, 0, 0, t.Space(2))
 				}
 				if a.Query != "" {
