@@ -211,7 +211,11 @@ func TestThePluginSheetEdgesAddNoGeometry(t *testing.T) {
 			// 改前 `MaxY` 是 **0**——见 `internal/launcher/config.go` `configBody` 的注释：
 			// 内容高度的父盒不给 scroller 可用高度，schema 比窗口高时末尾几个字段被窗口
 			// 下沿切掉且滚不到。所以这里的 `MaxY` 是**修好的那个值**，不是被边推动的值。
-			if got, want := a.PluginScroll.MaxY, float32(316.4); got < want-0.05 || got > want+0.05 {
+			// P13-ej 重定基线：旧值 **316.4** → 新值 **330.8**。§6.105 把分组标题与
+			// 它那张卡之间的空气从 `Space(2)` 抬到 `Space(4)`（+7.2px），两张分组卡
+			// 各抬一次 → +14.4。这一条判的是「边是画出来的、不是几何」，所以基线跟着
+			// 内容高度走，判据本身不动。
+			if got, want := a.PluginScroll.MaxY, float32(330.8); got < want-0.05 || got > want+0.05 {
 				t.Errorf("the sheet's scroll range moved: MaxY %v, want %v (the edges are paint, not "+
 					"geometry)", got, want)
 			}

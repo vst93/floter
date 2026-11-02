@@ -100,7 +100,10 @@ func TestThePluginSheetNameIsNotTheQuietestLineOnItsOwnFace(t *testing.T) {
 				t.Errorf("the name's ink starts %d rows below the band's top, want 11: raising the ink "+
 					"must not move the line (the sheet's top edge has 0.2px of room)", got)
 			}
-			if got, want := a.PluginScroll.MaxY, float32(316.4); math.Abs(float64(got-want)) > 0.6 {
+			// P13-ej 重定基线：旧值 **316.4** → 新值 **330.8**（§6.105 的分组间距
+			// +7.2 × 两张卡）。这一条判的是「换墨不许动盒」，本轮的盒**是故意动的**
+			// ——但动的是分组标题下面那一格，名字与分组标题的 y 一个字节没动（见上面 ②）。
+			if got, want := a.PluginScroll.MaxY, float32(330.8); math.Abs(float64(got-want)) > 0.6 {
 				t.Errorf("the sheet's scroll range = %v, want %v: the ink change must not move geometry",
 					got, want)
 			}

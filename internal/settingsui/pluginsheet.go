@@ -150,10 +150,16 @@ func (a *App) PluginSheet(c *ui.Context, sheet PluginSheet) {
 func (a *App) sheetSection(c *ui.Context, sheet PluginSheet, section plugincfg.Section) {
 	t := c.Theme()
 	tokens := a.tokens(c)
-	// The section is the settings pages' own: an 8u gap between the title and
-	// its card, and the title at the title step (620, strong) — the old build's
-	// `.plugin-config__section` / `__section-title`.
-	ui.Column(c).FillWidth().Gap(t.Space(2)).Children(func() {
+	// The section is the settings pages' own: the title at the title step
+	// (620, strong) — the old build's `.plugin-config__section` /
+	// `__section-title`.
+	//
+	// P13-ej（`docs/liquid-glass.md` §6.105）：标题与它自己那张卡之间的空气此前是
+	// `Space(2)`（7.2px，参考的 8u），量出来是**标题墨 → 第一行标签墨 25px**，而同一张
+	// 卡里**上一行的 help 墨 → 下一行标签墨 23px**——分组只比两个邻居多 2px，等于没有
+	// 分组。§4.3 的规矩是「一个新的东西抬开一整档」，所以这里走 Space(2) → **Space(4)**
+	// （7.2 → 14.4），抬的是一整档 8u；改后 25 → 32px，与 23px 拉开 9px。
+	ui.Column(c).FillWidth().Gap(t.Space(4)).Children(func() {
 		if section.Title != "" {
 			// 分组标题坐在它下面那些行标签的列上：卡自己的内边距，加上 scroller 的。
 			//
