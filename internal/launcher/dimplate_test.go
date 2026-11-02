@@ -34,11 +34,9 @@ func dimPlateProbe(t *testing.T, dark, dim bool) (*ui.Tester, ui.Rect) {
 	a := testApp()
 	var box ui.Rect
 	tt := ui.NewTester(func(c *ui.Context) {
-		if dark {
-			c.SetTheme(ui.DarkTheme())
-		} else {
-			c.SetTheme(ui.LightTheme())
-		}
+		// P13-eg：地面是这一条自己钉的（它要量「面 vs 地面」的差），但**尺**必须是
+		// 出货那把——plate 的盒子由 `c.Theme()` 的间距算，库存尺画的是一个更大的板。
+		c.SetTheme(a.tokens(c).Theme)
 		ground := ui.RGB(28, 29, 33)
 		if !dark {
 			ground = ui.RGB(247, 247, 248)
@@ -53,6 +51,9 @@ func dimPlateProbe(t *testing.T, dark, dim bool) (*ui.Tester, ui.Rect) {
 			box = plate.Bounds()
 		})
 	}, 120, 80)
+	// 画布跟着外观走：`a.tokens(c)` 读的是 `c.Theme().Dark`，不切就是「深色的面
+	// 合成在白纸上」（P13-ee 的教训）。
+	tt.SetDark(dark)
 	tt.Frame()
 	tt.Frame()
 	return tt, box

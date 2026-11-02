@@ -64,16 +64,15 @@ func plateFace(t *testing.T, dark bool) plateProbe {
 	a := testApp()
 	ground := plateGround(dark)
 	var tokens theme.Tokens
+	var box ui.Rect
 	tt := ui.NewTester(func(c *ui.Context) {
-		if dark {
-			c.SetTheme(ui.DarkTheme())
-		} else {
-			c.SetTheme(ui.LightTheme())
-		}
+		// P13-eg：地面是这一条自己钉的，尺换成出货那把（plate 的盒子由 `c.Theme()`
+		// 的间距算）。`tokens` 仍是这个应用的墨。
+		c.SetTheme(a.tokens(c).Theme)
 		tokens = a.tokens(c)
 		ui.Column(c).FillWidth().FillHeight().Background(ui.RGB(ground.R, ground.G, ground.B)).
 			Justify(ui.Center).AlignItems(ui.Center).Children(func() {
-			a.iconPlate(c, false, false)
+			box = a.iconPlate(c, false, false).Bounds()
 		})
 	}, 120, 80)
 	tt.SetDark(dark)
@@ -81,7 +80,6 @@ func plateFace(t *testing.T, dark bool) plateProbe {
 	tt.Frame()
 
 	img := tt.Image()
-	size := int(ui.LightTheme().Space(7))
 	cx, cy := img.Rect.Dx()/2, img.Rect.Dy()/2
 	if got := img.RGBAAt(cx, cy); got == ground {
 		t.Fatalf("the plate was not drawn at the centre of the probe frame (pixel %v is the ground %v)", got, ground)
@@ -89,7 +87,7 @@ func plateFace(t *testing.T, dark bool) plateProbe {
 	return plateProbe{
 		img:    img,
 		tokens: tokens,
-		box:    image.Rect(cx-size/2, cy-size/2, cx-size/2+size, cy-size/2+size),
+		box:    pixelBox(box),
 		ground: ground,
 	}
 }
@@ -273,11 +271,8 @@ func TestTheHoveredRowControlIsAFaceNotARing(t *testing.T) {
 			a := testApp()
 			ground := plateGround(appearance.dark)
 			tt := ui.NewTester(func(c *ui.Context) {
-				if appearance.dark {
-					c.SetTheme(ui.DarkTheme())
-				} else {
-					c.SetTheme(ui.LightTheme())
-				}
+				// P13-eg：同上——地面自钉，尺是出货那把。
+				c.SetTheme(a.tokens(c).Theme)
 				ui.Column(c).FillWidth().FillHeight().Background(ui.RGB(ground.R, ground.G, ground.B)).
 					Justify(ui.Center).AlignItems(ui.Center).Children(func() {
 					a.rowControl(c, "text", "Pin", func() {})
@@ -292,7 +287,9 @@ func TestTheHoveredRowControlIsAFaceNotARing(t *testing.T) {
 			tt.Frame()
 
 			img := tt.Image()
-			size := int(ui.LightTheme().Space(5)) // the control's own 20u box
+			// P13-eg：20u 是参考的单位，出货尺一格 0.9px —— 库存尺的 `Space(5)` 是 20px，
+			// 出货尺是 18px。盒子按出货尺算，探针才不会读到盒子外面的地面。
+			size := int(designUnit() * 20) // the control's own 20u box
 			box := image.Rect(60-size/2, 40-size/2, 60-size/2+size, 40-size/2+size)
 			cy := (box.Min.Y + box.Max.Y) / 2
 			face := img.RGBAAt(box.Min.X+1, cy)
@@ -350,5 +347,75 @@ func TestDumpLauncherPlatePNGs(t *testing.T) {
 		f.Close()
 		img := tt.Image()
 		t.Logf("%s (%dx%d)", path, img.Rect.Dx(), img.Rect.Dy())
+	}
+}
+
+// pixelBox is a layout box on the painter's pixel grid.
+//
+// A probe cannot read a fractional box: the painter covers every pixel the
+// fractional box touches, so the drawn box is `floor(min) .. ceil(max)`. The
+// plate sits at `X 47.4 W 25.2` on the shipped ruler and paints 47..72 (26px);
+// a probe that assumed `int(Space(7))` = 28 read the ground on both sides and
+// called the face a ring (P13-eg).
+func pixelBox(b ui.Rect) image.Rectangle {
+	return image.Rect(
+		int(math.Floor(float64(b.X))), int(math.Floor(float64(b.Y))),
+		int(math.Ceil(float64(b.X+b.W))), int(math.Ceil(float64(b.Y+b.H))),
+	)
+}
+
+// TestDumpP13EGPlateRulerPNGs is P13-eg's visual evidence: the same probe frame
+// drawn on the two rulers, so the report can point at the pixels the swap moved
+// rather than at a number. The frame is the fixture, not the product — the app
+// always draws the shipped ruler — so "before" is what the pin used to measure.
+//
+// Opt-in (`FLOTER_PNG=1`), like every other dump in this package.
+func TestDumpP13EGPlateRulerPNGs(t *testing.T) {
+	if os.Getenv("FLOTER_PNG") == "" {
+		t.Skip("opt-in: FLOTER_PNG=1 writes /tmp/floter-P13-eg-plate-<ruler>-<appearance>.png")
+	}
+	for _, dark := range []bool{false, true} {
+		appearance := "light"
+		if dark {
+			appearance = "dark"
+		}
+		for _, shipped := range []bool{false, true} {
+			ruler := "stock"
+			if shipped {
+				ruler = "shipped"
+			}
+			a := testApp()
+			ground := plateGround(dark)
+			var box ui.Rect
+			tt := ui.NewTester(func(c *ui.Context) {
+				if shipped {
+					c.SetTheme(a.tokens(c).Theme)
+				}
+				ui.Column(c).FillWidth().FillHeight().Background(ui.RGB(ground.R, ground.G, ground.B)).
+					Justify(ui.Center).AlignItems(ui.Center).Children(func() {
+					box = a.iconPlate(c, false, false).Bounds()
+				})
+			}, 120, 80)
+			tt.SetDark(dark)
+			tt.Frame()
+			path := filepath.Join("/tmp", "floter-P13-eg-plate-"+ruler+"-"+appearance+".png")
+			f, err := os.Create(path) // #nosec G304 -- a fixed /tmp path this test owns
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := png.Encode(f, tt.Image()); err != nil {
+				f.Close()
+				t.Fatal(err)
+			}
+			f.Close()
+			painted := pixelBox(box)
+			img := tt.Image()
+			mid := (painted.Min.Y + painted.Max.Y) / 2
+			cx := (painted.Min.X + painted.Max.X) / 2
+			t.Logf("%s: layout %+v → painted x %d..%d y %d..%d | ground %v crown %v face %v left %v",
+				path, box, painted.Min.X, painted.Max.X-1, painted.Min.Y, painted.Max.Y-1,
+				img.RGBAAt(1, mid), img.RGBAAt(cx, painted.Min.Y), img.RGBAAt(cx, mid),
+				img.RGBAAt(painted.Min.X, mid))
+		}
 	}
 }

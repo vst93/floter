@@ -912,7 +912,9 @@ func TestTheFooterStaysPinnedOverAFullList(t *testing.T) {
 	b := testApp()
 	wide(b)
 	b.Query = "app"
-	frame := ui.NewTester(func(c *ui.Context) { b.View(c) }, InputWindowWidth, charged)
+	// P13-eg：这一臂此前裸开窗——画的是框架库存墨（Spacing 4.0 / FontSize 14），
+	// 量的「页脚在不在窗口底边之内」是那张用户看不到的帧。取景换 `themedView`。
+	frame := ui.NewTester(themedView(b), InputWindowWidth, charged)
 	frame.Frame()
 
 	rect, ok := frame.Find("Run in shell")

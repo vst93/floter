@@ -387,7 +387,7 @@ func launcherListCarriesNoAccent(t *testing.T, dark bool) {
 	// The field band is the card's first band and legitimately holds the field's
 	// own controls; below it is the list and the footer, where the accent has no
 	// business being.
-	fieldBottom := int(ui.LightTheme().Space(fieldRowUnits))
+	fieldBottom := int(spaceU(fieldRowUnits)) // P13-eg: the shipped ruler's 56u, not the stock Space()
 	// P11-am: the ruler reads the accent's own hue off the token, so this scan
 	// keeps its teeth through a recolour (it was the literal red rule and went
 	// blind when P11-al moved the accent to the reference's blue). The base is the

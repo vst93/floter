@@ -144,7 +144,7 @@ func TestTheFilesPageChosenRowStandsOnOneLitEdge(t *testing.T) {
 			}
 			// ③ E1 casts nothing: one pixel outside the block's left gutter, at
 			// the block's own height, is still the panel.
-			gutter := int(ui.LightTheme().Space(2))
+			gutter := int(spaceU(2)) // P13-eg: 8u on the shipped ruler (7.2), not the stock 8
 			if side := img.RGBAAt(gutter-2, int(row.Y+row.H/2)); side != panel {
 				t.Errorf("the chosen file row casts a shadow beside itself (%v against the panel %v): an E1 block "+
 					"lies on the ground (liquid-glass.md §2 判据 2)", side, panel)

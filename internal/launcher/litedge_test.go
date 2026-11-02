@@ -83,8 +83,9 @@ func TestTheChosenRowStandsOnOneLitEdge(t *testing.T) {
 				t.Fatalf("the first result was not drawn: %q", p.tt.Texts())
 			}
 			// The block's painted box: the row's own box, which starts on the
-			// panel's 8u gutter (`docs/raycast-design.md` §4.3).
-			gutter := int(ui.LightTheme().Space(2))
+			// panel's 8u gutter (`docs/raycast-design.md` §4.3). P13-eg：这个数
+			// 在出货尺上是 7.2，不是库存尺的 8。
+			gutter := int(spaceU(2))
 			cy := int(row.Y + row.H/2)
 			panel := img.RGBAAt(1, cy)
 			body := img.RGBAAt(litedgeColumn, cy)

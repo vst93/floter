@@ -18,7 +18,9 @@ import (
 func TestALauncherFrameCopiesTheSettingsAtMostOnce(t *testing.T) {
 	a := testApp()
 	a.Query = "application 4"
-	tt := ui.NewTester(func(c *ui.Context) { a.View(c) }, 720, 420)
+	// P13-eg：这一条量的是「一帧取几次设置快照」，与墨无关，但裸开窗量的仍是
+	// 库存墨的帧——同一个包不留下第二个取景入口（§6.86 的规矩）。
+	tt := ui.NewTester(themedView(a), 720, 420)
 	tt.Frame()
 
 	// The first frame has already taken the value; a steady frame takes none.

@@ -102,6 +102,16 @@ func designUnit() float64 {
 	return spacing / 4
 }
 
+// spaceU is `n` of the framework's space units at the ruler the app ships:
+// `Space(n)` is `n × Spacing`, and `Spacing` is four reference units (`4u`).
+//
+// A fixture that quotes `ui.LightTheme().Space(2)` reads **8** — the stock
+// ruler — while drawing on the shipped one, where the same inset is **7.2**.
+// The pins that survived the swap did so by sampling one pixel further out than
+// they meant to (P13-eg): a probe one pixel off is still green, which is exactly
+// why the constant has to be the shipped one rather than a literal.
+func spaceU(n float64) float64 { return designUnit() * 4 * n }
+
 // renderShipped draws one frame at the ruler the app ships: the launcher's own
 // palette, installed the way `shell.View` installs it, and the frame charged at
 // `themedFrameHeight`.
@@ -1026,7 +1036,7 @@ func TestEmptyQueryOffersRecentApplications(t *testing.T) {
 	// A taller window: the built-in list grew with the power rows and the
 	// calculator's own line, and the recents — with their own heading — come
 	// after them.
-	tt := ui.NewTester(func(c *ui.Context) { a.View(c) },
+	tt := ui.NewTester(themedView(a),
 		InputWindowWidth, int(WindowHeight("small"))+240)
 	tt.Frame()
 	// The built-in commands come first, then the recents, most-used first,

@@ -38,7 +38,7 @@ func BenchmarkLauncherFrame(b *testing.B) {
 // built-in commands and the recent applications.
 func BenchmarkLauncherEmptyFrame(b *testing.B) {
 	a := testApp()
-	tt := ui.NewTester(func(c *ui.Context) { a.View(c) }, 720, 420)
+	tt := ui.NewTester(themedView(a), 720, 420)
 	tt.Frame()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

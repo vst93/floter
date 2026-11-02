@@ -314,7 +314,7 @@ func TestTheTipFloatsOffItsAnchor(t *testing.T) {
 			if x1 < 0 {
 				t.Fatalf("no %v face above the anchor: the tip did not paint", face)
 			}
-			want := ui.LightTheme().Space(1.5)
+			want := float32(spaceU(1.5)) // P13-eg: 1.5 space units on the shipped ruler (5.4), not 6
 			gap := rect.Y - float32(y1+1)
 			if gap < want-1 || gap > want+1 {
 				t.Fatalf("the tip's face ends %.1fpx above its anchor, not the framework's 1.5u (%.1f): a pane that touches its anchor reads as a badge",

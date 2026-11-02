@@ -114,7 +114,7 @@ func TestSectionHeadings(t *testing.T) {
 	a.SetApps([]apps.App{{Name: "Editor", Path: "/Applications/Editor.app"}})
 	a.SetRecent([]string{"/Applications/Editor.app"}, true)
 	// A taller window: the recents and their heading sit below the built-ins.
-	tt := ui.NewTester(func(c *ui.Context) { a.View(c) },
+	tt := ui.NewTester(themedView(a),
 		InputWindowWidth, int(WindowHeight("small"))+200)
 	tt.Frame()
 	if !tt.HasText("Recently launched") {
@@ -1115,7 +1115,9 @@ func TestHeldModifierRowIsNotScrolledIntoView(t *testing.T) {
 	recentPage(a, 12) // rows to scroll: the empty page alone has none here
 	// A window that holds only part of the list: the reference's own world —
 	// the row lands below the fold, so a scroll is a scroll the user sees.
-	tt := ui.NewTester(func(c *ui.Context) { a.View(c) }, InputWindowWidth, int(WindowHeight("small"))+120)
+	// P13-eg：`+120` 这个帧高仍是库存尺的数，本轮只换墨不换帧——帧高那一族
+	// 已由 P13-ef 收口，这里再动会把「滚不滚」的判据一起换掉。
+	tt := ui.NewTester(themedView(a), InputWindowWidth, int(WindowHeight("small"))+120)
 	tt.Frame()
 	first, last := a.List.Visible()
 	if last >= len(a.Results()) {

@@ -293,7 +293,7 @@ func TestDumpP13XHeadingFoldPNGs(t *testing.T) {
 			t.Fatal(err)
 		}
 		recentPage(a, 20)
-		tt := ui.NewTester(func(c *ui.Context) { a.View(c) }, InputWindowWidth, 300)
+		tt := ui.NewTester(themedView(a), InputWindowWidth, 300)
 		tt.SetDark(dark)
 		tt.Frame()
 		for step := 0; step <= 20; step++ {

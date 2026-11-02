@@ -22,12 +22,15 @@ func renderPlate(t *testing.T, step string) *ui.Tester {
 		t.Fatal(err)
 	}
 	tt := ui.NewTester(func(c *ui.Context) {
-		c.SetTheme(ui.DarkTheme())
+		// P13-eg：地面自钉，尺是出货那把（`a.tokens(c)` 读 `c.Theme().Dark`，
+		// 下面 `SetDark(true)` 已经把它切到深色）。
+		c.SetTheme(a.tokens(c).Theme)
 		ui.Column(c).FillWidth().FillHeight().Background(ui.RGB(28, 29, 33)).
 			Justify(ui.Center).AlignItems(ui.Center).Children(func() {
 			a.iconPlate(c, false, false)
 		})
 	}, 120, 80)
+	tt.SetDark(true)
 	tt.Frame()
 	return tt
 }
