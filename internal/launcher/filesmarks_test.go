@@ -107,7 +107,7 @@ func TestTheFilesPageChosenRowStandsOnOneLitEdge(t *testing.T) {
 		}
 		t.Run(appearance, func(t *testing.T) {
 			a := filesPinApp(t, appearance)
-			tt := renderAt(t, a, InputWindowWidth, frameHeight(maxResultSlots), dark)
+			tt := renderAt(t, a, InputWindowWidth, themedFrameHeight(maxResultSlots), dark)
 			// The rows enter over 120ms (rowTransition); a frame read at opacity
 			// 0 is the panel's own fill.
 			tt.Advance(300 * time.Millisecond)
@@ -179,7 +179,7 @@ func TestDumpFilesPagePNGs(t *testing.T) {
 		if err := a.Store.Update(func(s *settings.Settings) { s.Theme = appearance }); err != nil {
 			t.Fatal(err)
 		}
-		tt := renderAt(t, a, InputWindowWidth, frameHeight(maxResultSlots), dark)
+		tt := renderAt(t, a, InputWindowWidth, themedFrameHeight(maxResultSlots), dark)
 		tt.Advance(300 * time.Millisecond)
 		tt.Frame()
 		path := filepath.Join("/tmp", "floter-P13-f-files-"+appearance+suffix+".png")

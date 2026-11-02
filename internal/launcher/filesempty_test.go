@@ -38,7 +38,7 @@ func TestTheFilesPageSaysWhyItIsEmpty(t *testing.T) {
 			t.Fatal(err)
 		}
 		a.EnterFiles()
-		tt := renderAt(t, a, InputWindowWidth, frameHeight(maxResultSlots), false)
+		tt := renderAt(t, a, InputWindowWidth, themedFrameHeight(maxResultSlots), false)
 		if !tt.HasText(want[0]) {
 			t.Fatalf("%s: the empty files page does not say %q; it drew %q", lang, want[0], tt.Texts())
 		}
@@ -56,7 +56,7 @@ func TestTheFilesPageSaysWhyItIsEmpty(t *testing.T) {
 		}})
 		b.EnterFiles()
 		b.Query = "zzzz"
-		bt := renderAt(t, b, InputWindowWidth, frameHeight(maxResultSlots), false)
+		bt := renderAt(t, b, InputWindowWidth, themedFrameHeight(maxResultSlots), false)
 		if !bt.HasText(want[1]) {
 			t.Fatalf("%s: a needle that matches no dropped file does not say %q; it drew %q",
 				lang, want[1], bt.Texts())
@@ -83,7 +83,7 @@ func TestDumpP11BHFilesPNGs(t *testing.T) {
 			t.Fatal(err)
 		}
 		a.EnterFiles()
-		tt := renderAt(t, a, InputWindowWidth, frameHeight(maxResultSlots), dark)
+		tt := renderAt(t, a, InputWindowWidth, themedFrameHeight(maxResultSlots), dark)
 		img := tt.Image()
 		if img == nil {
 			t.Fatalf("%s: no frame", appearance)

@@ -78,10 +78,9 @@ func TestTheFilesPagePaintsNoTextOverText(t *testing.T) {
 			return a
 		}},
 	}
-	sizes := [][2]int{
-		{InputWindowWidth, frameHeight(maxResultSlots)},
-		{InputWindowWidth, 360}, // settings.MinTerminalHeight, the shortest the window opens
-	}
+	// P13-ee · 两档窗口读同一个寄存器（`fixtureWindowSizes`），默认卡是**出货尺**的
+	// 帧 439；库存尺的 488 是一张用户看不到的卡。
+	sizes := fixtureWindowSizes
 	for _, lang := range []string{"en", "zh"} {
 		for _, dark := range []bool{false, true} {
 			appearance := "light"
@@ -141,7 +140,7 @@ func TestTheFilesPageAuditDrawsRealRows(t *testing.T) {
 	}
 	a := filesPageApp(t, "en", files, false)
 	copy := a.copy()
-	tt := renderAt(t, a, InputWindowWidth, frameHeight(maxResultSlots), false)
+	tt := renderAt(t, a, InputWindowWidth, themedFrameHeight(maxResultSlots), false)
 	// The first page of the list is the heading and the first files.
 	for _, want := range []string{copy.FilesSection, "Open  report.pdf"} {
 		if !tt.HasText(want) {

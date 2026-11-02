@@ -999,8 +999,41 @@ opt-in 出图（`/tmp/floter-P13-ed-{stock,shipped}-{light,dark}.png`，720×439
 （帧高、沟、板面取样点、盒子的边缘）都必须由**出货尺**推导；引一个库存常数等于把断言
 钉在用户看不到的帧上——它绿得越久，错的越深。
 
-**下一格（不在本轮）**：`renderAt` 的 10 个调用点仍配 `frameHeight(maxResultSlots)`；
-`filesframe` / `modetextframe` 里 `size[0], size[1]` 的调用点是「窗口本身当被测对象」，另判。
+**下一格（不在本轮）**：`renderAt` 的 13 个调用点仍配 `frameHeight(maxResultSlots)`
+——**已由 P13-ee 收口（§6.100）**。`filesframe` / `modetextframe` 里 `size[0], size[1]`
+的调用点是「窗口本身当被测对象」，随 P13-ee 一并换墨（帧尺寸仍由调用点给）。
+
+### §6.100 显式开窗那一族（`renderAt`）装的也是出货主题（P13-ee，**73-5 结案**）
+
+`renderAt`（`internal/launcher/modetextframe_test.go:135`）是这一包最后一个**不装主题**的
+取景。它和 `render()` / `renderIn()` 的差别只有一条：**帧的尺寸由调用点给**（这一族把窗口
+本身当被测对象——默认卡，以及窗口能缩到的最小高度 360）。帧里的**墨**没有任何理由用第二个
+调色板，可它此前就是框架的库存主题（`Spacing 4.0` / `FontSize 14`），帧高又按 `frameHeight`
+记成 **488** —— 一张用户看不到的卡。
+
+**先量**：换主题 + 换尺之后**一个测试函数都没红**（13 个调用点）。这不是「改对了」的证据，
+而是这一族的 pin 全是**相对读数**（墨带、重叠、墨跑数），对尺子不敏感 —— 所以这一轮真正
+的交付不是「重钉几条」，而是**补上那条能分辨两把尺子的 pin**，否则下一次换尺还是无声的。
+
+| # | 位置 | 现状（旧） | 落成（新） | 状态 |
+|---|---|---|---|---|
+| 100-1 | `modetextframe_test.go` `renderAt` | 回调只有 `a.View(c)`，墨跟着框架库存主题 | `c.SetTheme(a.tokens(c).Theme)` 后再 `a.View(c)`，与 `renderShipped` / `renderIn` 同一个寄存器 | `已落地` |
+| 100-2 | 13 个 `renderAt` 调用点的帧高（`filesempty` ×3、`filesframe` ×1、`filesmarks` ×2、`modetextframe` ×5、`quietclip` ×1） | `frameHeight(maxResultSlots)` = **488** | `themedFrameHeight(maxResultSlots)` = **439** | `已落地` |
+| 100-3 | `filesframe` / `modetextframe` 的两张 `sizes` 表 | 同一张表各写一遍（第二处是漂移的入口） | 一个包级寄存器 `fixtureWindowSizes`，两处 `sizes := fixtureWindowSizes`，**pin 读的就是审计读的** | `已落地` |
+| 100-4 | `quietclip_test.go` 的墨带 | 帧画 439，带子按 488 算（多出 49px 地面） | `themedFrameHeight(...)` | `已落地` |
+| 100-5 | 新 pin `TestTheExplicitWindowFixtureDrawsTheShippedInks` | 这一族没有一条 pin 读「帧里的墨是不是出货的」 | 两档窗口各钉三件事：帧高 = 调用点给的、发丝 **49**（库存 55）、选中行块左沟 **7**（库存 8）；外加寄存器臂 `fixtureWindowSizes[0][1]` = 439 | `已落地` |
+
+**出图**（`/tmp/floter-P13-ee-{stock,shipped}-{light,dark}.png`，剪贴板页，720 宽）：
+共同区域 **720×439** 上逐像素 diff 浅 **316019** / 深 **316041**，最大通道差 **247 / 230**；
+卡自己的面 **253 → 246**（浅）/ **23 → 15**（深）；发丝从 `y=55`（浅 239 / 深 36）搬到
+`y=49`（浅 232 / 深 28）—— 库存尺那张卡比出货卡高 49px，多出来的全是地面。
+
+**判据（补一条）**：**夹具换尺之后如果一条 pin 都不红，缺的不是重钉，是缺一条能分辨尺子的
+pin。** 相对读数不会因为尺子变了而变红，也正因为如此，它永远不会告诉你量错了帧。
+
+**这一族还剩**：`clickdraw` / `deadlinewake` / `footerink` / `headingfold` / `searchruns` /
+`spinnerframes` / `bandheight_dump` / `outputfold` 里 8 处**直接** `ui.NewTester(..., frameHeight(...))`
+（没有经过 `renderAt`）—— 同一把库存尺，另占一格。
 
 ## §7 与 raycast 合约的关系
 
@@ -3344,7 +3377,7 @@ pin：`internal/settingsui/sheetcaptionline_test.go`
 | 73-2 | `settingsui.go` 的两枚 `●`/`○` | `t.FontSize - 3` | 具名例外 `markDot(t)`（盘是字形不是档位） | `已落地` |
 | 73-3 | `uninstall.go` 的 10.5px 提示行 | `t.FontSize - 0.5` | 保留，但写进具名例外（参考定义就是 body − 半格） | `故意不做（有理由）` |
 | 73-4 | `internal/launcher` 的同一族（9 处） | 同病 | 4 处已落地，5 处卡在取景上（见 §6.74） | `部分已落地` |
-| 73-5 | `render()` 的取景（四十多条 pin 在量库存字 14） | 与生产不一致 | 收口到 `SetTheme(tokens.Theme)`，逐条重钉 | `已落地（P13-ec，§6.98：`render()` 换成出货尺，5 条红按 V 4 / S 1 重钉；`renderIn`/`renderAt` 的显式开窗族另占一格）` |
+| 73-5 | `render()` 的取景（四十多条 pin 在量库存字 14） | 与生产不一致 | 收口到 `SetTheme(tokens.Theme)`，逐条重钉 | `已落地（P13-ec §6.98 `render()`；P13-ed §6.99 `renderIn`；P13-ee §6.100 `renderAt` —— 三族全部收口）` |
 | 73-6 | 会话行 49 对参考的 56 地板 | 少 7px | 补 `min-height = Space(14)` | `已落地（P13-ea，§6.96：`sessionRowFloorPx = 56` 字面 px，不是 `Space(14)`）` |
 
 **旧值 → 新值（逐条）**

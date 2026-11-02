@@ -28,10 +28,9 @@ import (
 // 尺寸（默认卡，和窗口能缩到的最小高度），每条模式一个「长到会被省略号截断」的标题
 // 在夹具里（这正是文字与行尾时间戳/键帽相撞的地方），外加每个模式的空态。
 func TestThePluginModesPaintNoTextOverText(t *testing.T) {
-	sizes := [][2]int{
-		{InputWindowWidth, frameHeight(maxResultSlots)},
-		{InputWindowWidth, 360}, // settings.MinTerminalHeight, the shortest the window opens
-	}
+	// P13-ee · 两档窗口读同一个寄存器（`fixtureWindowSizes`），默认卡是**出货尺**的
+	// 帧 439；库存尺的 488 是一张用户看不到的卡。
+	sizes := fixtureWindowSizes
 	for _, dark := range []bool{false, true} {
 		appearance := "light"
 		if dark {
@@ -132,9 +131,17 @@ func browserModeApp(t *testing.T) *App {
 // renderAt draws one frame at a given size and appearance. The mode's first
 // frame asks the shell for its rows; the caller's fixture answers synchronously,
 // so a second frame draws them.
+//
+// P13-ee · **它装的也是出货主题**（`liquid-glass.md` §6.86 的 73-5 尾巴）。此前只有
+// `renderShipped` / `renderIn` 装主题，`renderAt` 让框架的库存主题（`Spacing 4.0` /
+// `FontSize 14`）画这个应用的墨与间距 —— 帧的**尺寸**由调用点显式给（这一族把窗口本身
+// 当被测对象），但**帧里的墨**不该是第二个调色板。
 func renderAt(t *testing.T, a *App, w, h int, dark bool) *ui.Tester {
 	t.Helper()
-	tt := ui.NewTester(func(c *ui.Context) { a.View(c) }, w, h)
+	tt := ui.NewTester(func(c *ui.Context) {
+		c.SetTheme(a.tokens(c).Theme)
+		a.View(c)
+	}, w, h)
 	tt.SetDark(dark)
 	tt.Frame()
 	tt.Frame()
@@ -145,17 +152,17 @@ func renderAt(t *testing.T, a *App, w, h int, dark bool) *ui.Tester {
 // silently renders empty would pass the overlap check for the wrong reason.
 func TestThePluginModesAuditDrawsRealRows(t *testing.T) {
 	a := clipboardModeApp(t)
-	tt := renderAt(t, a, InputWindowWidth, frameHeight(maxResultSlots), false)
+	tt := renderAt(t, a, InputWindowWidth, themedFrameHeight(maxResultSlots), false)
 	if !tt.HasText("clip 00") {
 		t.Fatalf("the clipboard mode drew no row: %q", tt.Texts())
 	}
 	c := calculatorModeApp(t)
-	ct := renderAt(t, c, InputWindowWidth, frameHeight(maxResultSlots), false)
+	ct := renderAt(t, c, InputWindowWidth, themedFrameHeight(maxResultSlots), false)
 	if len(ct.Texts()) == 0 {
 		t.Fatal("the calculator mode drew nothing")
 	}
 	b := browserModeApp(t)
-	bt := renderAt(t, b, InputWindowWidth, frameHeight(maxResultSlots), false)
+	bt := renderAt(t, b, InputWindowWidth, themedFrameHeight(maxResultSlots), false)
 	if !bt.HasText("Rust — Learn") && !bt.HasText("Rust Playground — an open tab with a long title too") {
 		t.Fatalf("the browser mode drew no row: %q", bt.Texts())
 	}
@@ -179,7 +186,7 @@ func TestDumpPluginModePNGs(t *testing.T) {
 				appearance = "dark"
 			}
 			a := builders[mode](t)
-			tt := renderAt(t, a, InputWindowWidth, frameHeight(maxResultSlots), dark)
+			tt := renderAt(t, a, InputWindowWidth, themedFrameHeight(maxResultSlots), dark)
 			img := tt.Image()
 			if img == nil {
 				t.Fatalf("%s/%s: no frame", mode, appearance)

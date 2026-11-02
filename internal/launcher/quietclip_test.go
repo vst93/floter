@@ -103,12 +103,12 @@ func browserOffApp(t *testing.T) *App {
 func TestTheQuietPagesSentenceIsNeverCut(t *testing.T) {
 	for _, width := range []int{520, InputWindowWidth} {
 		a := browserOffApp(t)
-		tt := renderAt(t, a, width, frameHeight(maxResultSlots), false)
+		tt := renderAt(t, a, width, themedFrameHeight(maxResultSlots), false)
 		img := tt.Image()
 		if len(tt.Texts()) == 0 {
 			t.Fatalf("%d: the quiet page drew nothing", width)
 		}
-		band := ui.Rect{X: 0, Y: 56, W: float32(width), H: float32(frameHeight(maxResultSlots)) - 56}
+		band := ui.Rect{X: 0, Y: 56, W: float32(width), H: float32(themedFrameHeight(maxResultSlots)) - 56}
 		runs := inkRuns(img, band)
 		// The chips row is the first run; the sentence is the next one, and it
 		// is the only other thing in the band.
