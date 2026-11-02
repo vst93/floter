@@ -3788,3 +3788,43 @@ pin：`internal/settingsui/contentjitter_test.go` 的 `TestTheCopyButtonsDoNotRe
 M1 标题行盒少喂 `rowTitleStep`（`title 17.00 / subtitle 17.00, want 19 / 17`）；
 M2 探针装库存主题（`title 22.00 / subtitle 22.00, want 19 / 17`）。**M3 静默**，
 照实记在上面那段（十行帧高看不见行盒）—— 这条盲点写进本节的判据，不留成「以后再说」。
+
+### §6.87 字段行一族换尺：`54u → 48.6`、`56u − 1 → 49`（P13-dr，**已落地**）
+
+§6.86 把「21 条红」摊成六类，第一类是**单位算术（10 条）**。本轮做其中**同一个表面**的那一族：
+启动器的**字段行**（文字列 `16u + 28u + 10u = 54u`）与**字段块的下沿**（`56u − 1`）。
+
+**判据（本轮新增，永久）**：参考的 `u` 在出货步子上是 `Spacing/4` = **0.9px**。夹具里任何
+「参考写 54u」的位置**必须**写成 `54 × designUnit()`，帧必须用 `renderShipped`（装
+`a.tokens(c).Theme` + `themedFrameHeight`）。写死像素的那一刻，pin 钉的就不是 app 的画面了 ——
+这正是本仓夹具 pin 的历史病灶：它们量的是框架库存主题（1u = 4px）的帧。
+
+| 量 | 库存尺（此前钉的） | 出货尺（本轮钉的） | 落点 |
+|---|---|---|---|
+| 字段行文字列 | `54.0` | **`48.6`** | `TestTheFieldAndTheRowsShareTheReferenceTextColumn` |
+| 字段块高 | `56` | **`50.4`**（落行 50） | 同上 + `TestTheFieldBlockClosesOnOneWeakHairline` |
+| 字段块底 | `55` | **`49`** | `TestTheFieldBandIsThePanelsOwnSurface`（浅/深） |
+| 列表裁剪上沿 | `60` | **`54`** | `TestNoRowScrollsUnderTheFieldBand` |
+| 十行帧高 | `488` | **`439`** | `themedFrameHeight`（§6.86） |
+
+**三个新原语**（都在 `internal/launcher` 的夹具里，产品代码零改动）：
+
+- `designUnit()` —— `Spacing/4`。参考的 `u` 从此只有**一个**定义点。
+- `renderShipped(t, a, dark)` —— 「出货尺的帧」与「app 自己的调色板」是同一件事；夹具里不再出现
+  「装一种主题、按另一种刻度算帧高」的组合。
+- `tenths(v)` —— 把画出来的落点与期望的乘积都读成十分之一像素的整数，于是「同一列」是一次整数
+  比较，**不需要容差带**（preflight 的「不许加容差」由此满足）。
+
+**锚点**：`TestTheReferenceUnitIsNineTenths` 钉 `0.9 / 48.6 / 50.4 / 49`。谁把 0.9 写回 1.0 或把
+48.6 写回 54，这里先红，不必等三个像素断言在三个文件里一起漂。
+
+**台账**：V 4 / S 1 / B 0；新增 2 条测试函数（锚点 + opt-in dump），PASS 3324 → 3325。
+变异 2 条实跑变红并还原（M1 `designUnit` 返回 `spacing`；M2 `renderShipped` 去掉装主题 ——
+后者让三个 pin 以**旧值 54 / 55** 报红，这就是「转换量的是出货尺」的直接证据）。
+**M1 的盲点照实登记**：块底那条读的是 `spacing`，不是 `designUnit`，所以 M1 下不红；
+块高与文字列是两条独立式子，「单位」由锚点钉、「块」由像素 pin 钉。
+
+**剩下的 6 条单位算术（按表面分组，各占一轮）**：历史行 pin 控件 `20u → 18`；状态带
+`30u → 27`（同文件 viewport Y 也读库存 `Space`）；空页带顶 `60 → 54`；过滤条带。每一条的手续
+都是本轮这三步：先把该表面自己的夹具换到 `renderShipped`，再把参考数乘 `designUnit()`，再跑
+一次筛子并实跑一条变异。

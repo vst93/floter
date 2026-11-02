@@ -427,16 +427,15 @@ func TestTheFieldBlockClosesOnOneWeakHairline(t *testing.T) {
 			if err := a.Store.Update(func(s *settings.Settings) { s.Theme = tc.name }); err != nil {
 				t.Fatal(err)
 			}
-			tt := render(t, a)
-			// The tester is the framework's own light theme unless the dark
-			// appearance is asked for (selface_test.go does the same).
-			if tc.dark {
-				tt.SetDark(true)
-			}
-			tt.Frame()
+			tt := renderShipped(t, a, tc.dark)
 			img := tt.Image()
 			tokens := theme.ForPreferences(a.settings(), tc.dark, ui.Preferences{})
-			fieldRow := int(ui.LightTheme().Space(fieldRowUnits))
+			// The block is the reference's 56u. At the shipped step that is
+			// 50.4px, and its last pixel is the row it closes: `fieldRow - 1` =
+			// 49 (P13-dr 重定基线：旧值 55 → 49 —— 这个数此前是库存尺的 4.0
+			// 乘出来的，app 一次也没画过).
+			spacing, _, _, _ := designMetrics()
+			fieldRow := int(fieldRowUnits * spacing)
 			// The fill the line closes, read from inside the block (four rows
 			// above its last one, clear of the rule and of the field's ink).
 			fill := img.RGBAAt(2, fieldRow-4)

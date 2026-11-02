@@ -2,13 +2,46 @@ package launcher
 
 import (
 	"fmt"
+	"image/png"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
-	"github.com/egoist/mygo/ui"
-
 	"floter/internal/apps"
 )
+
+// P13-dr visual evidence: the field row and its block drawn at the ruler the app
+// ships, in both appearances. Opt-in (`FLOTER_PNG=1`) like every other dump.
+//
+// The two numbers this round pins live above the list, so the dump is the whole
+// frame: the field's text column (54u = 48.6) and the block's floor (49) are
+// both readable off it, and the same frame on the stock ruler would read 54 / 55.
+func TestDumpP13DRFieldRowPNGs(t *testing.T) {
+	if os.Getenv("FLOTER_PNG") == "" {
+		t.Skip("set FLOTER_PNG=1 to write the round's visual evidence")
+	}
+	for _, dark := range []bool{false, true} {
+		appearance := "light"
+		if dark {
+			appearance = "dark"
+		}
+		a := testApp()
+		recentPage(a, 4)
+		tt := renderShipped(t, a, dark)
+		path := filepath.Join("/tmp", "floter-P13-dr-field-"+appearance+".png")
+		f, err := os.Create(path) // #nosec G304 -- a fixed /tmp path this test owns
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := png.Encode(f, tt.Image()); err != nil {
+			f.Close()
+			t.Fatal(err)
+		}
+		f.Close()
+		t.Logf("%s", path)
+	}
+}
 
 // P11-bj · The field band is the panel's own surface, and nothing scrolls under
 // it.
@@ -27,10 +60,13 @@ import (
 // Mutation checks: put the `Background(tk.FieldFill)` back and the first
 // assertion reads the old face (浅 250 vs the panel's 253); drop the spacer and
 // the second one finds a row above the edge.
+// P13-dr 重定基线：`floor` 旧值 55 → **49**，取景从 `renderIn`（库存尺）换成
+// `renderShipped`（出货尺）。旧值 = `int(14 × 4.0) - 1`，是框架库存主题的乘
+// 积；app 画的是 `int(14 × 3.6) - 1`（§6.86 第 1 行：单位算术）。
 func TestTheFieldBandIsThePanelsOwnSurface(t *testing.T) {
 	forEachAppearance(t, func(t *testing.T, dark bool) {
 		a := testApp()
-		tt := renderIn(t, a, dark)
+		tt := renderShipped(t, a, dark)
 		img := tt.Image()
 		band := img.RGBAAt(4, 20)
 		panel := img.RGBAAt(4, img.Rect.Dy()-6)
@@ -40,7 +76,7 @@ func TestTheFieldBandIsThePanelsOwnSurface(t *testing.T) {
 		}
 		// The floor is still drawn, and still exactly one pixel: the field's row
 		// less one (`launcher.go`'s `Top(fieldRow - 1)`), in the quiet hairline.
-		spacing := float64(ui.LightTheme().Spacing)
+		spacing, _, _, _ := designMetrics()
 		floor := int(float64(fieldRowUnits)*spacing) - 1
 		above, line, below := img.RGBAAt(4, floor-1), img.RGBAAt(4, floor), img.RGBAAt(4, floor+1)
 		if line == above || line == below {
@@ -66,8 +102,9 @@ func TestNoRowScrollsUnderTheFieldBand(t *testing.T) {
 	// typed query keeps the same claim (rows never start above the band) over
 	// a list that really does scroll.
 	a.SetQuery("app")
-	tt := renderIn(t, a, false)
-	edge := int(float64(fieldRowUnits+breathUnits) * float64(ui.LightTheme().Spacing))
+	tt := renderShipped(t, a, false)
+	spacing, _, _, _ := designMetrics()
+	edge := int(float64(fieldRowUnits+breathUnits) * spacing)
 	x, y := float32(tt.Image().Rect.Dx()/2), float32(tt.Image().Rect.Dy()/2)
 	for i := 0; i < 2; i++ {
 		tt.Wheel(x, y, 0, 120)

@@ -8,6 +8,7 @@ import (
 	"image"
 	"image/color"
 	"image/png"
+	"math"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -86,6 +87,59 @@ func designMetrics() (spacing, font, titleLine, subtitleLine float64) {
 	}, 8, 8)
 	probe.Frame()
 	return
+}
+
+// designUnit is one reference unit (`u`) at the step the app ships.
+//
+// The reference writes its chrome in `u` (`--u: 4px`; a `Space(n)` is four of
+// them), so one unit is `Spacing/4`: **0.9** at the shipped 3.6 and 1.0 on the
+// framework's stock 4.0. A pin that quotes a reference number (`54u`,
+// `56u - 1`) multiplies by this instead of restating a pixel count — §6.86's
+// first row is exactly that rewrite, and it is the only way the number stays
+// true when the ruler moves.
+func designUnit() float64 {
+	spacing, _, _, _ := designMetrics()
+	return spacing / 4
+}
+
+// renderShipped draws one frame at the ruler the app ships: the launcher's own
+// palette, installed the way `shell.View` installs it, and the frame charged at
+// `themedFrameHeight`.
+//
+// The fixtures used to draw the framework's stock theme (4.0 spacing, 14px
+// font), so every box they pinned was a box the app never draws — §6.86's
+// 库存尺. A pin that quotes a position converts to this frame; the ones still on
+// `render`/`renderIn` are the debt §6.86's table hands over one surface at a
+// time.
+func renderShipped(t *testing.T, a *App, dark bool) *ui.Tester {
+	t.Helper()
+	tt := ui.NewTester(func(c *ui.Context) {
+		// Without this the launcher reads its inks, its spacing and its line
+		// boxes off the framework's stock theme: a frame drawn in inks the app
+		// does not ship.
+		c.SetTheme(a.tokens(c).Theme)
+		a.View(c)
+	}, InputWindowWidth, themedFrameHeight(maxResultSlots))
+	if dark {
+		// The palette follows `c.Theme().Dark` (`launcher.go`'s `tokens`), and
+		// the faces carry colour transitions, so the first frame after the
+		// switch is still the previous palette easing out (the P9-c lesson).
+		tt.SetDark(true)
+		tt.Advance(500 * time.Millisecond)
+	}
+	tt.Frame()
+	return tt
+}
+
+// tenths reads a drawn position as tenths of a pixel.
+//
+// A box the view places at `Space(13.5)` is a float32 multiplication and the
+// expected value is a float64 one; comparing the two directly asks for the same
+// bits, which is not what "the same column" means. Rounding both to a tenth
+// asks the question the pin actually holds (one column, at the shipped step)
+// without any tolerance band around it.
+func tenths(v float64) int {
+	return int(math.Round(v * 10))
 }
 
 // render draws one frame of the launcher at the given size and returns the

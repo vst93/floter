@@ -71,3 +71,36 @@ func TestTheProbeResolvesTheDefaultStore(t *testing.T) {
 		t.Errorf("the probe's spacing is %.2f at the default step, want 3.6", spacing)
 	}
 }
+
+// P13-dr · 字段行一族的两个数，都是 **0.9 乘出来的**，不是写死的像素。
+//
+// §6.86 的第 1 行（单位算术）说的就是这件事：参考把窗口的墨写成 `u`
+// （`--u: 4px`；一个 `Space(n)` 是四个 `u`），而出货的步子 `Spacing` 是 3.6，
+// 所以 **1u = 0.9px**。字段行的三笔账都乘这个数：
+//
+//	文字列  16u + 28u + 10u = 54u → 48.6px（`TestTheFieldAndTheRowsShareTheReferenceTextColumn`）
+//	块高    56u                  → 50.4px（`TestTheFieldBandIsThePanelsOwnSurface`）
+//	块底    56u - 1px            → 49     （`TestTheFieldBlockClosesOnOneWeakHairline`）
+//
+// 这条 pin 只钉**尺子**：三个乘积与一个取整。谁把 0.9 写成 1.0，或者把 48.6
+// 写回 54，这里先红，不必等三个像素断言在三个文件里一起漂。
+func TestTheReferenceUnitIsNineTenths(t *testing.T) {
+	unit := designUnit()
+	if got := tenths(unit); got != 9 {
+		t.Errorf("the reference unit at the shipped step is %.3fpx, want 0.90 "+
+			"(§6.86: `Spacing` 4.0 → 3.6, one unit is `Spacing/4`)", unit)
+	}
+	// The field row's text column: the reference's 54u.
+	if got, want := tenths(54*unit), 486; got != want {
+		t.Errorf("the field row's text column is %.1f, want 48.6 (54u × 0.9)", float64(got)/10)
+	}
+	// Its band, and the row it closes: `Geometry` charges `Space(14)` and the
+	// hairline is drawn on the block's last pixel.
+	spacing, _, _, _ := designMetrics()
+	if got, want := tenths(fieldRowUnits*spacing), 504; got != want {
+		t.Errorf("the field block's band is %.1f tall, want 50.4 (56u × 0.9)", float64(got)/10)
+	}
+	if got, want := int(float64(fieldRowUnits)*spacing)-1, 49; got != want {
+		t.Errorf("the field block's floor is at y=%d, want 49 (the last pixel of a 50.4px band)", got)
+	}
+}

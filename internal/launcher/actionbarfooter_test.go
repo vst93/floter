@@ -252,23 +252,30 @@ func unselectedActionBarStaysQuiet(t *testing.T, dark bool) {
 // now takes the icon cell every result row uses (28u) plus that row's 10u gap,
 // so the query lands on the **rows' title column**. The name of this pin is now
 // literal: one text column, not two.
+//
+// P13-dr 重定基线：`54` → `54u × 0.9 =` **48.6**。这条钉的是**参考尺**上的列
+// （16u + 28u + 10u），此前却在库存尺（1u = 4px）的帧上量，48.6 被读成 54 ——
+// §6.86 第 1 行（单位算术）。取景换成 `renderShipped`，数字按 `designUnit()`
+// 乘出来，不再写死像素。
 func TestTheFieldAndTheRowsShareTheReferenceTextColumn(t *testing.T) {
 	a := testApp()
 	recentPage(a, 2) // P11-bk: the empty page's rows are the recents
-	tt := render(t, a)
-	// The empty field's caret sits on the rows' own 54u title column: 16u of
-	// row padding + the 28u icon cell + the 10u gap.
+	tt := renderShipped(t, a, false)
+	// The reference's column, in its own unit: 16u of row padding + the 28u icon
+	// cell + the 10u gap = 54u.
+	column := tenths(54 * designUnit())
 	if caret, ok := tt.TextCaret(); ok {
-		if got := int(caret.X); got != 54 {
-			t.Errorf("the field's caret starts at x=%d, want the rows' title column 54", got)
+		if got := tenths(float64(caret.X)); got != column {
+			t.Errorf("the field's caret starts at x=%.1f, want the rows' title column %.1f (54u at 0.9)",
+				float64(got)/10, float64(column)/10)
 		}
 	} else {
 		t.Fatal("the field's caret was not drawn")
 	}
-	// A result row's title starts on 16u + the 28u icon + the 10u gap = 54u.
 	if r, ok := tt.Find("Recent 00"); ok {
-		if got := int(r.X); got != 54 {
-			t.Errorf("a result title starts at x=%d, want the reference's 54", got)
+		if got := tenths(float64(r.X)); got != column {
+			t.Errorf("a result title starts at x=%.1f, want the reference's %.1f (54u at 0.9)",
+				float64(got)/10, float64(column)/10)
 		}
 	} else {
 		t.Fatal("the first result's title was not drawn")
