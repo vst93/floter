@@ -5556,7 +5556,12 @@ func (a *App) toolPermissionFields(c *ui.Context, copy i18n.Settings) {
 	if a.toolPermissions == nil {
 		a.toolPermissions = map[string]bool{}
 	}
-	a.row(c, "", copy.PermissionBoundary, func() {})
+	// The note is the honest half of the disclosure: the switches record intent
+	// and drive the audit, they do not sandbox anything — local code runs as the
+	// user either way (`settings.extensions.permissionBoundary`). It is prose, so
+	// it takes the card's prose line (P13-dl): a wrapped sentence at the hint
+	// rung, not a settings row with an empty label above it.
+	a.cardProse(c, copy.PermissionBoundary)
 	// One row per permission, the host's own two marked as the checks they are
 	// (see the permission tiers).
 	for _, permission := range extensions.AllPermissions {

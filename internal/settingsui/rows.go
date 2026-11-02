@@ -207,6 +207,35 @@ func (a *App) sectionHint(c *ui.Context, hint string) {
 	})
 }
 
+// cardProse is a card's *prose*: a sentence that explains the rows around it
+// rather than naming one of them. The permission boundary note is the card's one
+// such line — "these switches record intent, they sandbox nothing" — and it wore
+// the row it used to be drawn as: `a.row(c, "", note, …)`, i.e. an **empty
+// label** in the emphasis step above the sentence, inside a 44px-floor row with
+// its own hairline. Measured at 720×2200 (English, both appearances): the
+// sentence's text column was 448 wide, the ink ran out at 375 and the last
+// glyph was two pixels tall — the framework's ellipsis, not a letter. The
+// sentence's second half ("These controls do not create a sandbox") was never
+// painted; the honest half of the disclosure was the one part of it nobody
+// could read, and 19px of blank emphasis line sat above it saying nothing.
+//
+// P13-dl 重定基线（`docs/liquid-glass.md` §6.81）：prose wraps, and it is drawn at
+// the rung this build already gives prose under a group label — `sectionHint`: the
+// body step, weight 500, `t.TextMuted`, full width (`rows.go:200-208`). **Ink is
+// unchanged** (101 light / 94 dark, measured before and after); what changed is
+// that the line is no longer cut, and that a sentence stops being framed as a
+// setting. The row inset is kept: this helper is called from a row's `below`
+// column, which is already padded to `rowInset`.
+func (a *App) cardProse(c *ui.Context, text string) {
+	if text == "" {
+		return
+	}
+	t := a.cardTheme(c)
+	ui.Row(c).FillWidth().Padding(t.Space(2.25), 0).Children(func() {
+		ui.Text(c, text).FontSize(t.FontSize).FontWeight(500).TextColor(t.TextMuted)
+	})
+}
+
 // extensionSection is the Integrations panel's own group frame: the
 // reference's `.extensions-section-title` (`extensions.css:419-446`) — a
 // body-step, muted, 620 label with the section's count in the neutral
