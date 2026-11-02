@@ -984,8 +984,16 @@ func (a *App) outputRow(c *ui.Context, row extensions.Row, i int) {
 			// 它的行有 40u 的 `MinHeight` 地板；这一页的行高是**内容撑的**，加一档
 			// 字重就换一个字体面，把选中行从 54px 压到 **53px**（实测），游标一移
 			// 整张列表跟着抖 1px。`outputsubtitle_test.go` 的第 ④ 臂钉的就是这个。
+			//
+			// P13-dx 重定基线（§6.93）：字号 `t.FontSize - 1` → `tokens.Body`。
+			// 旧值 9.8 不是这一页自己的墨，是**另一条寄存器**：启动器列表的副标题
+			// 画在 `t.FontSize`（10.8 = `tokens.Body`），这一页画在 9.8，于是同一个
+			// `TextSecondary` 在 9.8 上**覆盖不到自己的值**（实测墨距 119，token 自己
+			// 是 125）——选中的副标题在这一页从来没画出过它自己的颜色。9.8 也不在
+			// 字阶上（`Caption` 是 9.9）：小字是阶梯上的档，不是「比正文小一档」
+			// （§6.74）。行盒随之 42 → **44.8**，行是内容撑的，窗口高度链不动。
 			if row.Subtitle != "" {
-				subtitle := ui.Text(c, row.Subtitle).FontSize(t.FontSize - 1).TextColor(t.TextMuted)
+				subtitle := ui.Text(c, row.Subtitle).FontSize(tokens.Body).TextColor(t.TextMuted)
 				if chosen {
 					subtitle.TextColor(tokens.TextSecondary)
 				}

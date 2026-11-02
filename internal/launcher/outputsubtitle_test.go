@@ -3,12 +3,16 @@ package launcher
 import (
 	"fmt"
 	"image"
+	"image/color"
 	"image/png"
 	"os"
 	"testing"
 
+	"github.com/egoist/mygo/ui"
+
 	"floter/internal/apps"
 	"floter/internal/settings"
+	"floter/internal/theme"
 )
 
 // P13-cj · 选中行把副标题提到和标题同墨——同一张卡的另一张列表只提一档
@@ -24,8 +28,16 @@ import (
 // 改前捕获输出页的选中行**两行同墨**（差 0 级），整档 rank 只剩字重一条腿；
 // 同一张卡的另一张列表在同一状态下副标题留在标题下一档（差 80 级）。所以这条
 // pin 判三件事：① 选中行的副标题必须离开标题的墨（差 ≥ 60 级）；② 它落的档位
-// 与启动器选中行**逐级相同**（跨列表，±4 级）；③ 静息行的两处副标题也相同
-// （都是 `TextMuted`，±4 级）——选中改的只是「提一档」，不是「换一套颜色」。
+// 与启动器选中行**逐级相同**（跨列表）；③ 静息行的两处副标题也相同
+// （都是 `TextMuted`）——选中改的只是「提一档」，不是「换一套颜色」。
+//
+// P13-dx（§6.93）：上面那三个 131 是**库存尺**的读数，而 app 画的是出货尺。
+// 拉到出货尺上，②③ 两臂一直是红的（选中 119 / 112 对 125 / 118，差 **6 级**）——
+// 差的不是墨（两支都是 `TextSecondary`），是**字号**：这一页把副标题画在
+// `t.FontSize - 1`（9.8），9.8 上这个 token 覆盖不到自己的值，于是「选中的副标题」
+// 从来没画出过它自己的颜色。产品改成 `tokens.Body`（10.8 = 阶梯上的一档）之后
+// 两支逐级相同，所以 ②③ 的 ±4 容差带一起删掉（§6.92：同族 pin 不许带容差带），
+// 并且新增 ⑥：副标题得**够得到自己的墨**——两条列表一起漂时 ② 是绿的，⑥ 是红的。
 //
 // 量法：`docs/liquid-glass.md` §6.51 判据 2 的同一课——深色外观下最暗的是面，
 // 不是字，所以每个字带读的是**离面色最远的像素**，不是最暗像素。
@@ -53,14 +65,14 @@ func TestTheChosenRowsSubtitleSitsOneRungBelowItsTitle(t *testing.T) {
 					"the two lines are one ink again, and only the weight is left to tell them apart "+
 					"(liquid-glass.md §4: 层级靠面差 + 字重，不靠画框)", gap)
 			}
-			// ② 两张列表的选中行给副标题的是同一个档位。
-			if d := outChosen.subFar - listSelected.subFar; d > 4 || d < -4 {
+			// ② 两张列表的选中行给副标题的是同一个档位（P13-dx：精确相等，不带容差带）。
+			if outChosen.subFar != listSelected.subFar {
 				t.Errorf("the chosen row's subtitle ink is %d levels from the selected result row's (%d vs %d): "+
-					"the same card's two lists lift a subtitle by different amounts (liquid-glass.md §6.53)",
-					d, outChosen.subFar, listSelected.subFar)
+					"the same card's two lists lift a subtitle by different amounts (liquid-glass.md §6.53/§6.93)",
+					outChosen.subFar-listSelected.subFar, outChosen.subFar, listSelected.subFar)
 			}
 			// ③ 静息行两处仍是同一个档位。
-			if d := outPlain.subFar - listPlain.subFar; d > 4 || d < -4 {
+			if outPlain.subFar != listPlain.subFar {
 				t.Errorf("the plain rows' subtitles read %d vs %d levels from their own faces: "+
 					"the resting subtitle rung drifted between the two lists", outPlain.subFar, listPlain.subFar)
 			}
@@ -77,8 +89,34 @@ func TestTheChosenRowsSubtitleSitsOneRungBelowItsTitle(t *testing.T) {
 			// ⑤ 选中行与静息行的**墨距之比**不判：两张行的面不同（选中行戴
 			// `RowSelected`），同一句话在两块面上离面的距离不同，比值随面走，
 			// 不是一条规则。规则是 ① 的「差」，不是比值。
+			//
+			// ⑥ P13-dx · 副标题得**够得到自己的墨**：选中档读到的墨距必须等于
+			// `TextSecondary` 在这个面上应有的距离，静息档同理（`TextMuted`）。
+			// ② 钉的是「两条列表相等」，两条一起漂它仍绿；⑥ 钉的是**字号**——
+			// 字号小到覆盖不足时，同一句话读到的墨比它自己的颜色浅，而这一页
+			// 此前正是这样（9.8 上浅 119 / 深 112，而 token 自己在 125 / 118）。
+			tk := theme.ForPreferences(settings.Normalize(settings.Default()), dark, ui.Preferences{})
+			if want := subInkFloor(outChosen.ground, tk.TextSecondary); outChosen.subFar != want {
+				t.Errorf("the chosen row's subtitle reads %d levels from its face, but its own ink sits at %d: "+
+					"the line is drawn at a size that cannot cover the colour it names "+
+					"(liquid-glass.md §6.93: 小字是阶梯上的档，不是「比正文小一档」)",
+					outChosen.subFar, want)
+			}
+			if want := subInkFloor(outPlain.ground, tk.Theme.TextMuted); outPlain.subFar != want {
+				t.Errorf("the plain row's subtitle reads %d levels from its face, but its own ink sits at %d",
+					outPlain.subFar, want)
+			}
 		})
 	}
+}
+
+// subInkFloor is the ink distance a subtitle token sits at over a row's own
+// face: the token composited over the face, read exactly the way `textBand`
+// reads a glyph. A line drawn at a size whose strokes never reach full
+// coverage reads *less* than this - which is what §6.93 was about.
+func subInkFloor(ground int, ink ui.Color) int {
+	face := color.RGBA{uint8(ground), uint8(ground), uint8(ground), 255}
+	return inkAway(inkOver(ink, face).R, uint8(ground))
 }
 
 // dumpChosenRows writes the capture page's chosen row and the result list's
@@ -99,10 +137,7 @@ func dumpChosenRows(t *testing.T, appearance string, dark bool) {
 	if err := a.Store.Update(func(s *settings.Settings) { s.Theme = appearance }); err != nil {
 		t.Fatal(err)
 	}
-	tt := runListOutput(t, a, rowsWithSubtitle(false))
-	tt.SetDark(dark)
-	tt.Frame()
-	tt.Frame()
+	tt := listOutputShipped(t, a, rowsWithSubtitle(false), dark)
 	row := a.outputRowRects[0]
 	crop := image.Rect(0, int(row.Y), 520, int(row.Y+row.H))
 	writeCrop(t, tt.Image(), crop, fmt.Sprintf("/tmp/floter-P13-cj-outrow%s-%s.png", tag, appearance))
@@ -121,10 +156,7 @@ func dumpChosenRows(t *testing.T, appearance string, dark bool) {
 	}
 	b.SetApps(found)
 	b.Query = "title"
-	tt2 := render(t, b)
-	tt2.SetDark(dark)
-	tt2.Frame()
-	tt2.Frame()
+	tt2 := renderShipped(t, b, dark)
 	row2 := b.rowRects[0]
 	crop2 := image.Rect(0, int(row2.Y), 520, int(row2.Y+row2.H))
 	writeCrop(t, tt2.Image(), crop2, fmt.Sprintf("/tmp/floter-P13-cj-listrow%s-%s.png", tag, appearance))
@@ -160,10 +192,15 @@ type rowBands struct {
 	subFar   int
 }
 
-// textBand reads x in the title column and y in [from, to), against ground.
+// textBand reads x in the text column and y in [from, to), against ground.
+//
+// P13-dx：列起点从字面量 54 改成 `54 × designUnit()`（出货尺上 48）——§6.87 的
+// 判据：参考写 54u 的列就乘 `designUnit`，不要写死像素（库存尺的 54 与出货尺的
+// 48.6 是两个帧上的同一个列）。
 func textBand(img *image.RGBA, from, to, ground int) (far int) {
+	x0 := int(54 * designUnit())
 	for y := from; y < to; y++ {
-		for x := 54; x < 500; x++ {
+		for x := x0; x < 500; x++ {
 			if d := inkAway(img.RGBAAt(x, y).R, uint8(ground)); d > far {
 				far = d
 			}
@@ -174,16 +211,17 @@ func textBand(img *image.RGBA, from, to, ground int) (far int) {
 
 // outputRowBands measures the chosen row (0) and the plain row (1) of the
 // capture page's list, each with a subtitle.
+//
+// P13-dx：取景从 `runListOutput`（库存尺 720×488）换成 `listOutputShipped`
+// （出货尺 720×439 + 这一面的调色板）。旧取景下两支副标题读 131 / 131（差 0），
+// 新取景下改前读 119 / 125（差 6）——这条 pin 之前量的是 app 不画的那一帧。
 func outputRowBands(t *testing.T, appearance string, dark bool) (chosen, plain rowBands) {
 	t.Helper()
 	a := testApp()
 	if err := a.Store.Update(func(s *settings.Settings) { s.Theme = appearance }); err != nil {
 		t.Fatal(err)
 	}
-	tt := runListOutput(t, a, rowsWithSubtitle(false))
-	tt.SetDark(dark)
-	tt.Frame()
-	tt.Frame()
+	tt := listOutputShipped(t, a, rowsWithSubtitle(false), dark)
 	img := tt.Image()
 	read := func(i int) rowBands {
 		row := a.outputRowRects[i]
@@ -218,10 +256,7 @@ func launcherRowBands(t *testing.T, appearance string, dark bool) (selected, pla
 	}
 	a.SetApps(found)
 	a.Query = "title"
-	tt := render(t, a)
-	tt.SetDark(dark)
-	tt.Frame()
-	tt.Frame()
+	tt := renderShipped(t, a, dark)
 	img := tt.Image()
 	read := func(i int) rowBands {
 		row := a.rowRects[i]

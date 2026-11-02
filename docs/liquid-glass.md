@@ -3357,7 +3357,7 @@ pin：`internal/settingsui/sheetcaptionline_test.go`
 | de-6 | `launcher.go:2646` 结果行标题 | `t.FontSize + 2` | `TestTheLauncherHeightsStayOnTheLadder` 红（19 不在阶梯 [15 18 22 24 25 28]，18/24 消失） | `未开始（取景）` |
 | de-8 | `output.go:345` 分页脚注的词 | `t.FontSize - 1` → `tokens.Caption` | 行盒不变、跟步长走 | `已落地` |
 | de-9 | `output.go:695` 捕获输出页状态条 | `t.FontSize - 1` | `TestTheOutputListNeverScrollsIntoTheHeaderBand` 红（带下 ink 228） | `未开始（取景）` |
-| de-10 | `output.go:980` 便条行副标题 | `t.FontSize - 1` | `TestTheChosenRowsSubtitleSitsOneRungBelowItsTitle` 红（−9 级） | `未开始（取景）` |
+| de-10 | `output.go:980` 便条行副标题 | `tokens.Body`（不是 `t.FontSize - 1`，也不是 `tokens.Caption`） | **已落地（P13-dx，§6.93）**：取景已由 P13-dq…dw 收口到出货尺，红串实测 `the chosen row's subtitle ink is -6 levels (119 vs 125)`；落到 `tokens.Body` 后逐级相同 | `已落地` |
 | de-11 | `triggerhint.go:153` 助记提示的量算 | `size := t.FontSize - 1` | 与 de-5 必须同进同退（画的与量的同一个名字） | `未开始（取景）` |
 
 **规则（这一族的一句话）**：一个面上的小字只有**名字**，没有「比正文小一档」这个说法——
@@ -3779,7 +3779,7 @@ pin：`internal/settingsui/contentjitter_test.go` 的 `TestTheCopyButtonsDoNotRe
 | 取整（V） | 2 | `the note prices the window at 104; a status note is 8 short …（113）`（`int(2.5×3.6)` = 8）；`the plate is 26px wide, want the 28u icon column`（25.2 的盒子落 26 列） | `int()` 截断改 `math.Round`，盒子宽度按 painter 的取整读（`round(x+w) − round(x)`，§6.77 的同一条判据） |
 | 前提破（S） | 5 | `the numbered family has 10 entries, want 9`；`the premise failed: the first row is only 1.000 on screen`；`the viewport's bottom edge moved to y=419.2, want 466`；`strip's last ink y=117 … band 118..133` | 换窗口（`recentPage` 行数 / 帧高 / 滚动位置），呼吸带按页面自己的 `Space(4)` 从裁剪上沿推出来，不再读 118 这个库存字面量 |
 | 混排（B 先跑） | 2 | `the launcher list's title starts at x=54.0, the output panel's at 48.6`；`the output group heading is 17 tall, the launcher's section title is 22` | 把那一半的 `ui.NewTester` 也装上这一面的调色板 |
-| 产品的墨 | 1 | `the chosen row's subtitle ink is -6 levels from the selected result row's (119 vs 125)` | 两支副标题的墨要收到**同一条公式**上，属下一轮的产品修复 |
+| 产品的墨 | 1 | `the chosen row's subtitle ink is -6 levels from the selected result row's (119 vs 125)` | **已落地（P13-dx，§6.93）**：差的不是墨（两支都是 `TextSecondary`），是**字号**——这一页画在 9.8（`t.FontSize - 1`），覆盖不到 token 自己的值；改成 `tokens.Body`（10.8）后两支读数逐级相同（125 / 118） |
 | 阶梯（V） | 1 | `rungs [15 18 22 24 25 28]` 实画 `[15 17 19 25 25.2]` | 阶梯重钉成设计尺的四档 + 键帽盒 `7 × 3.6` |
 
 **台账（本轮）**：V 0 / B 0 / S 0 —— 本轮只**新增** 2 条 pin（尺子四数与两帧高），
@@ -4009,3 +4009,86 @@ M3 行 gap `2.5u → 2.6u`（`48.6` 对 `49.0`，换回容差带即转绿）。
 **`dg-l` 21 条的账**：V 类（单位算术 / 取整）与 S 类（前提破）与混排族已全部交割，
 只剩 **1 条产品墨**（`outputsubtitle` 选中行副标题浅 119 / 深 112 对启动器 125 / 118，`dg-l-4`）
 和 **1 条阶梯**（`rungs [15 18 22 24 25 28]` 实画 `[15 17 19 25 25.2]`）。
+
+**`dg-l` 结案（P13-dx 后）**：`dg-l` 21 条里最后一条「产品的墨」已由 §6.93 交割，
+V / S / 混排 / 墨四类全部有结论，`internal/launcher` 的取景债清空。
+
+### §6.93 同一张卡两张列表的副标题差 6 级：差的不是墨，是字号（P13-dx，**已落地**）
+
+§6.86 表里「产品的墨」那一行（`dg-l-4`）：捕获输出页选中行的副标题比启动器列表同一句话
+暗 **6 级**（浅 119 / 深 112 对 125 / 118）。§6.86 当时的判断是「两支副标题要收到同一条
+公式上」——本轮先量，量出的结论把这个判断**改了**：两处的**墨是同一个 token**
+（选中档都是 `tokens.TextSecondary`，静息档都是 `t.TextMuted`），差的是**字号寄存器**。
+
+**先量（出货尺 `720×439`，改前）**：
+
+| 读数（墨距 = 字带里离行面最远的像素，§6.51 判据 2） | 浅色 | 深色 |
+|---|---|---|
+| 捕获输出页 · 选中行副标题（`t.FontSize - 1` = **9.8**） | **119** | **112** |
+| 启动器列表 · 选中行副标题（`t.FontSize` = **10.8**） | 125 | 118 |
+| 捕获输出页 · 静息行副标题（9.8） | 115 | 115 |
+| 启动器列表 · 静息行副标题（10.8） | 118 | 118 |
+| `TextSecondary` 自己离选中行面的距离 | **125** | **118** |
+| `TextMuted` 自己离静息行面的距离 | 118 | 118 |
+
+**判据（三条，永久）**：
+
+1. **1px 的字号差不只让字小一点，它让这个字够不到自己的颜色。** 9.8px 上 `TextSecondary`
+   最远的像素离面 **119**，而这个 token 自己在 125 —— 差的那 6 级不是「浅一档的墨」，
+   是**描边覆盖不足**：这一页的选中副标题从来没画出过它自己的颜色。所以「同一档墨 ×
+   两个寄存器」这条命题在像素上根本不成立，两边不可能相等。
+2. **`t.FontSize - 1` 不是一条寄存器。** 出货步子上它是 **9.8**，而阶梯上最接近的一档
+   `Caption` 是 **9.9** —— 这个数落在两档之间，不跟随界面步长缩放（0.8 档上是 7.64，
+   阶梯上是 7.92）。这正是 §6.74 判据「小字是阶梯上的档，不是「比正文小一档」」的同一个形状，
+   也是 `de-10` 那条从 P13-de 就挂着、一直卡在取景上的债务。
+3. **两条列表的副标题走同一个寄存器 = `tokens.Body`。** 启动器列表画在 `t.FontSize`
+   （就是阶梯上的 Body），所以这一页也画在 Body。改后两支读数逐级相同：选中 **125 / 118**，
+   静息 **118 / 118**，差 **0**（不是「±4 以内」）。
+
+**代价（实测，记在这里而不是藏起来）**：这一页的行是内容撑的，副标题行盒从 15 长到 17，
+行盒 **42 → 44.8**，同样 338.6 的视口里**整行可见仍是 7 行**（12 行样本实测改前改后都是 7）。
+窗口高度链不动：`Geometry.Height` 读的是启动器行的行盒，输出页的行在滚动视口里。
+
+**取景（这才是这条 pin 一直绿的原因）**：`outputsubtitle_test.go` 的两个半边跑的是
+`runListOutput` / `render`——**库存尺**（`Spacing 4.0`、字体 14）。库存尺上两支副标题读
+131 / 131（差 0），于是这条 pin 量的是 app 不会画的那一帧（§6.86 / §6.92 的同一课）。
+本轮两个半边都换上 `listOutputShipped` / `renderShipped`，字带的 x 起点也从字面量 **54**
+改成 `54 × designUnit()`（= **48**，§6.87 判据）。换尺之后改前立刻现形 −6。
+
+**pin**：`internal/launcher/outputsubtitle_test.go` 六条臂，深浅各一遍：
+
+| 臂 | 判什么 | 改后实测 |
+|---|---|---|
+| ① | 选中行副标题离开标题的墨 ≥ 60 级 | 80 / 83 |
+| ② | 两支副标题的墨距**精确相等**（删掉 ±4 容差带） | 125 = 125 / 118 = 118 |
+| ③ | 两支静息副标题**精确相等** | 118 = 118 |
+| ④ | 选中行与静息行等高（提墨不提重） | 44.8 / 44.8 |
+| ⑤ | （不判）两处墨距之比随面走，不是一条规则 | — |
+| ⑥ | **副标题够得到自己的墨**：选中档 == `TextSecondary` 在这个面上应有的距离，静息档 == `TextMuted` | 125 / 118 / 118 |
+
+⑥ 是本轮铸的新判据：② 钉的是「两条列表相等」，**两条一起漂它仍绿**；⑥ 钉的是字号——
+把 `tokens.Body` 退回 `t.FontSize - 1`，② 红（−6）而 ⑥ 也红（119 ≠ 125），两条一起漂时
+只有 ⑥ 说话。
+
+**台账**：V 2（两处取景换出货尺 + 字带列起点改 `designUnit`；②③ 两处容差带删除，一次收紧
+4 条比较）/ B 0 / S 0。产品改动 1 行（`output.go` 的副标题字号）。测试函数 2492 → **2492**
+（只加臂，不新增夹具）。
+
+**变异 3 条实跑变红并还原**（`md5sum -c` 逐字节成功 + `touch` 复跑）：
+
+- **M1** 字号退回 `t.FontSize - 1`：`the chosen row's subtitle ink is -6 levels from the
+  selected result row's (119 vs 125)` + `the plain rows' subtitles read 115 vs 118 levels` +
+  `the chosen row's subtitle reads 119 levels from its face, but its own ink sits at 125`
+  （②③⑥ 三条同时红）。
+- **M2** 选中档的 `TextSecondary` 换成 `t.Text`：`the chosen row's subtitle is 1 levels from
+  its title's ink (want ≥ 60)` + 相差 79 级（① ② ⑥ 红）。
+- **M3** 取景退回 `render` / `runListOutput`（库存尺）：**红的还是红的** —— 但红串变成了
+  `-1 levels (130 vs 131)` 与 `139 vs 140`：库存尺上两支都**差一档以内**，`±4` 的容差带
+  会把这条真缺陷整个吞掉。这是本轮换尺的实证，也是「容差带不是精度，是看不见 1px」的
+  第二个样本（第一个是 §6.92 的 M3）。
+
+**出图（肉眼复核）**：`FLOTER_P13CJ_DUMP=1 FLOTER_P13CJ_TAG=dx`（改后）/
+`FLOTER_P13CJ_TAG=dxbefore`（改前）→ `/tmp/floter-P13-cj-{outrow,listrow}-{dx,dxbefore}-{light,dark}.png`。
+逐像素读浅色那一对：改前 `outrow` 的副标题最远墨 **132**、`listrow` **138**；改后两支都是
+**138**。**这张图上看到的一处变化**：捕获输出页那一行从 43px 高变成 **45px**（行盒 42 → 44.8，
+裁图跟着长），而它副标题的最后一行墨与启动器列表那一行**落在同一个值**上。
