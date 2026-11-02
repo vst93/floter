@@ -1340,7 +1340,15 @@ func (a *App) permissionTier(c *ui.Context, label, hint string, enforced bool, l
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 	ui.Column(c).FillWidth().Gap(t.Space(1)).Children(func() {
-		ui.Text(c, label).FontSize(tokens.Caption).FontWeight(650).TextColor(tokens.TextStrong)
+		// P13-eh 重定基线：分组标题这一角色在本页有五个同族调用点，都是
+		// `Caption + 620 + TextSecondary`（`rows.go` 的 `rowTitle` 与
+		// `settingsui.go` 的四处小节标题）。这一处是**卡内**的子分组，
+		// 却用了 `650 + TextStrong`——比它上面那张卡的标题（`Title + 620 +
+		// TextStrong`）字重更重、墨也更高，于是层级是反的：子级比父级更响。
+		// 旧值 → 新值：`650 / TextStrong` → `620 / TextSecondary`；父子关系
+		// 改由**字号 + 墨**两级承担（Title 13.5 > Caption 9.9，Strong >
+		// Secondary），字重不再逆序。
+		ui.Text(c, label).FontSize(tokens.Caption).FontWeight(620).TextColor(tokens.TextSecondary)
 		if hint != "" {
 			ui.Text(c, hint).FontSize(tokens.Caption).TextColor(t.TextMuted)
 		}
