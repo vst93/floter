@@ -40,15 +40,52 @@ import (
 // and one row short of it at the row's real 40u box (see rowUnits): the tenth
 // result fell off the frame, so `\u2318 0` had no row to run.
 func frameHeight(rows int) int {
-	// The spacing these frames are drawn at is the context theme's, which in a
-	// tester is the framework's own (the shell installs the app's theme on the
-	// real window's context); the launcher reads its Space() from the same
-	// place, so the frame and the rows are one decision here too.
+	// This is the **stock** ruler's frame: the fixtures in this package call
+	// `a.View` on the framework's own theme, so their frame has to be charged
+	// at that theme's `Spacing` (4.0). `themedFrameHeight` is the same charge at
+	// the ruler the app ships (3.6) — see `frameruler_test.go` for the two
+	// numbers and §6.86 for why the 21 pins of the fixture debt are handed over
+	// one surface at a time rather than in one sweep.
 	spacing := float64(ui.LightTheme().Spacing)
 	geometry := Geometry{Spacing: spacing, Rows: make([]RowInfo, rows), Held: rows}
 	// Two pixels of slack: Height rounds its own fractions down, and a frame a
 	// fraction of a pixel short clips the last row.
 	return geometry.Height() + 2
+}
+
+// themedFrameHeight is `frameHeight` at the ruler the app ships: `Spacing 3.6`
+// and the **measured** line boxes (17 / 19), not `font = 14` fallback.
+func themedFrameHeight(rows int) int {
+	spacing, font, titleLine, subtitleLine := designMetrics()
+	geometry := Geometry{
+		Spacing: spacing, Font: font,
+		TitleLine: titleLine, SubtitleLine: subtitleLine,
+		Rows: make([]RowInfo, rows), Held: rows,
+	}
+	return geometry.Height() + 2
+}
+
+// designMetrics is the ruler the app ships, measured the way the view measures
+// it (`launcher.go` `View`: `c.MeasureText(0, Span{"Ag", …})`), not assumed:
+// the framework lays a line at the font's own ascent, descent and gap, so the
+// line boxes are not a multiple of the font size (§6.76: `Spacing` 4.0 → 3.6,
+// `FontSize` 14.00 → 10.80, `MeasureText("Ag")` 22.0 → 17.0).
+func designMetrics() (spacing, font, titleLine, subtitleLine float64) {
+	probe := ui.NewTester(func(c *ui.Context) {
+		surface := Resolve(settings.Default(), c.Theme().Dark, c.Preferences())
+		c.SetTheme(surface.Tokens.Theme)
+		t := surface.Tokens
+		spacing = float64(t.Theme.Spacing)
+		font = float64(t.Theme.FontSize)
+		if _, height := c.MeasureText(0, ui.Span{Text: "Ag", Size: t.Theme.FontSize + rowTitleStep}); height > 0 {
+			titleLine = float64(height)
+		}
+		if _, height := c.MeasureText(0, ui.Span{Text: "Ag", Size: t.Theme.FontSize}); height > 0 {
+			subtitleLine = float64(height)
+		}
+	}, 8, 8)
+	probe.Frame()
+	return
 }
 
 // render draws one frame of the launcher at the given size and returns the

@@ -3750,3 +3750,41 @@ pin：`internal/settingsui/contentjitter_test.go` 的 `TestTheCopyButtonsDoNotRe
 `t.FontSize + 1` → `t.FontSize`（`is 17.0 tall, not 18.0`）；M2 `barButton` `Space(7)` →
 `Space(7.5)`（`is 26.1 tall, not 25.2`）；M3 夹具回退 `renderThemed` → `render`
 （`height 20.0 is not on the ladder [15 17 25.2 27]`）—— 第三条证明这轮搬的尺子是真的有效。
+
+### §6.86 帧高的两条腿各有名字：库存尺 / 出货尺（P13-dq，**工具已落地，账逐面交割**）
+
+§6.76 把启动器的取景收口（`P13-dg-l`）记成「21 条红」。本轮先把它量准：**不是 21 条**，
+是 **118 条断言**散在 **17 个文件 / 21 个测试函数**里，而且其中一条是**产品的墨**
+（`outputsubtitle`：同一张卡的两条列表给选中行副标题差 6 级，`TextSecondary` 在两处
+落点不同），不是取景。一次把 `render` 换成设计尺会让 21 个函数同时红 —— 那是「下轮
+清空」式交付，本轮不做。
+
+**落地的是一条尺子，不是一个数字**：`internal/launcher/view_test.go` 里
+`frameHeight`（库存尺：`Spacing 4.0`，行盒走 `Geometry` 的 `font = 14` 兜底）与
+`themedFrameHeight`（出货尺：`Spacing 3.6` + 实测行盒 **19 / 17**）分开命名，
+`designMetrics` 按 `App.View` 自己的量法（`c.MeasureText(0, Span{"Ag", …})`）量。
+实测两帧高：**488（库存）/ 439（出货）**，十行。
+
+**为什么行上看不出差、页头上有差**（本轮实测补上 §6.76 的最后一块）：
+出货尺下 `rowUnits × 3.6 = 36` 的地板仍高于 19 的行盒，所以十个结果行的帧高差
+全在 chrome 与 page-header 上；把 `TitleLine/SubtitleLine` 喂成 0（变异 M3）**十行帧高
+一个数都不变** —— 这条 pin 在行上天生是盲的，所以它钉的是**尺子**（3.6 / 10.8 / 19 / 17）
+与**两帧的差**，不是任何一行的盒子。
+
+**21 条的处置（下一格起的队列，逐表面交割）**：
+
+| 类 | 条数 | 例（实测串） | 手续 |
+|---|---|---|---|
+| 单位算术（V） | 10 | `the field's caret starts at x=48, want 54`；`the pin's resting box is 18.0 wide, want 20u`；`the field block's floor is at y=49, want y=55`；`holding the modifier grew the window by 27, want the 30u band` | 把「参考单位 ×4」改成「× `designUnit`（0.9）」：`54 → 48.6`、`20 → 18`、`56u-1 → 49`、`30 → 27`。**不许**写成看起来对的小数 |
+| 取整（V） | 2 | `the note prices the window at 104; a status note is 8 short …（113）`（`int(2.5×3.6)` = 8）；`the plate is 26px wide, want the 28u icon column`（25.2 的盒子落 26 列） | `int()` 截断改 `math.Round`，盒子宽度按 painter 的取整读（`round(x+w) − round(x)`，§6.77 的同一条判据） |
+| 前提破（S） | 5 | `the numbered family has 10 entries, want 9`；`the premise failed: the first row is only 1.000 on screen`；`the viewport's bottom edge moved to y=419.2, want 466`；`strip's last ink y=117 … band 118..133` | 换窗口（`recentPage` 行数 / 帧高 / 滚动位置），呼吸带按页面自己的 `Space(4)` 从裁剪上沿推出来，不再读 118 这个库存字面量 |
+| 混排（B 先跑） | 2 | `the launcher list's title starts at x=54.0, the output panel's at 48.6`；`the output group heading is 17 tall, the launcher's section title is 22` | 把那一半的 `ui.NewTester` 也装上这一面的调色板 |
+| 产品的墨 | 1 | `the chosen row's subtitle ink is -6 levels from the selected result row's (119 vs 125)` | 两支副标题的墨要收到**同一条公式**上，属下一轮的产品修复 |
+| 阶梯（V） | 1 | `rungs [15 18 22 24 25 28]` 实画 `[15 17 19 25 25.2]` | 阶梯重钉成设计尺的四档 + 键帽盒 `7 × 3.6` |
+
+**台账（本轮）**：V 0 / B 0 / S 0 —— 本轮只**新增** 2 条 pin（尺子四数与两帧高），
+没有改任何既有断言；产品代码零改动（`git status` 里只有 `internal/launcher/view_test.go`
+与新增的 `frameruler_test.go`）。**变异 2 条实跑变红并还原**（`md5sum -c` 成功）：
+M1 标题行盒少喂 `rowTitleStep`（`title 17.00 / subtitle 17.00, want 19 / 17`）；
+M2 探针装库存主题（`title 22.00 / subtitle 22.00, want 19 / 17`）。**M3 静默**，
+照实记在上面那段（十行帧高看不见行盒）—— 这条盲点写进本节的判据，不留成「以后再说」。
