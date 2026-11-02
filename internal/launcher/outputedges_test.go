@@ -2,6 +2,7 @@ package launcher
 
 import (
 	"image"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -45,10 +46,17 @@ func bandInk(img *image.RGBA, box ui.Rect) int {
 	return contrastIn(img, box, ui.Rect{X: 0, Y: 0, W: float32(img.Bounds().Dx()), H: float32(img.Bounds().Dy())})
 }
 
-// outputAirBand is the band the page reserves under its status strip: 4u of
-// the page's own air, never the content's.
-func outputAirBand(stripBottom int) ui.Rect {
-	return ui.Rect{X: 0, Y: float32(stripBottom) + 1, W: 720, H: 16}
+// outputAirBand is the band the page reserves under its status strip: `Space(4)`
+// of the page's own air, never the content's.
+//
+// P13-dv: both edges come from the page's own boxes — the top of the clip the
+// rows scroll in, minus `Space(4)` — instead of the stock ruler's literal 118.
+// The band therefore reads the same rule at the shipped step (§6.86's
+// premise-break row: 呼吸带按页面自己的 `Space(4)` 从裁剪上沿推出来).
+func outputAirBand(clipTop int) ui.Rect {
+	spacing, _, _, _ := designMetrics()
+	h := int(math.Round(4 * spacing))
+	return ui.Rect{X: 0, Y: float32(clipTop - h), W: 720, H: float32(h)}
 }
 
 // The strip's breathing band is the page's, not the content's: scrolling the
@@ -58,25 +66,34 @@ func outputAirBand(stripBottom int) ui.Rect {
 func TestTheOutputListNeverScrollsIntoTheHeaderBand(t *testing.T) {
 	for _, dark := range []bool{false, true} {
 		a := testApp()
-		tt := runListOutput(t, a, outputRowsWithActions(25))
-		tt.SetDark(dark)
+		tt := listOutputShipped(t, a, outputRowsWithActions(25), dark)
 		tt.Frame()
-		tt.Frame()
-		strip := lastInkAbove(tt.Image(), 118)
+		// P13-dv: the band's edges are the page's, not the stock ruler's: the
+		// clip top the rows scroll in, and the strip's last ink above it.
+		clipTop := int(math.Round(float64(a.outputListRect.Y)))
+		strip := lastInkAbove(tt.Image(), clipTop)
 		if strip < 0 {
-			t.Fatalf("dark=%v: the status strip drew no ink", dark)
+			t.Fatalf("dark=%v: the status strip drew no ink above the clip (clip top y=%d)", dark, clipTop)
+		}
+		band := outputAirBand(clipTop)
+		if band.H <= 0 {
+			t.Fatalf("dark=%v: the page reserves no air under its strip: strip %d, clip top %d", dark, strip, clipTop)
+		}
+		if strip >= int(band.Y) {
+			t.Fatalf("dark=%v: the band overlaps the strip's own ink: strip %d, band y=%d..%d",
+				dark, strip, int(band.Y), int(band.Y+band.H)-1)
 		}
 		a.OutputList.ScrollTo(4, ui.Start)
 		tt.Frame()
 		tt.Frame()
 		img := tt.Image()
-		if band := bandInk(img, outputAirBand(strip)); band != 0 {
+		if ink := bandInk(img, band); ink != 0 {
 			t.Errorf("dark=%v: the band under the strip (y=%d..%d) carries ink %d — the "+
 				"page's own air scrolled away with the content (strip's last ink y=%d)",
-				dark, strip+1, strip+16, band, strip)
+				dark, int(band.Y), int(band.Y+band.H)-1, ink, strip)
 		}
-		t.Logf("dark=%v: strip's last ink y=%d, viewport top y=%v, band ink %d",
-			dark, strip, a.outputListRect.Y, bandInk(img, outputAirBand(strip)))
+		t.Logf("dark=%v: strip's last ink y=%d, clip top y=%d, band y=%d..%d ink %d",
+			dark, strip, clipTop, int(band.Y), int(band.Y+band.H)-1, bandInk(img, band))
 		if _, _, ok := clippedRow(a); !ok {
 			t.Fatalf("dark=%v: the premise failed — no row is cut after scrolling: %v", dark, a.outputRowRects)
 		}
@@ -94,20 +111,23 @@ func TestTheOutputTextNeverScrollsIntoTheHeaderBand(t *testing.T) {
 	}
 	for _, dark := range []bool{false, true} {
 		a := testApp()
-		tt := runListOutput(t, a, b.String())
-		tt.SetDark(dark)
+		tt := listOutputShipped(t, a, b.String(), dark)
 		tt.Frame()
-		tt.Frame()
-		strip := lastInkAbove(tt.Image(), 118)
+		clipTop := int(math.Round(float64(a.outputListRect.Y)))
+		strip := lastInkAbove(tt.Image(), clipTop)
 		if strip < 0 {
-			t.Fatalf("dark=%v: the status strip drew no ink", dark)
+			t.Fatalf("dark=%v: the status strip drew no ink above the clip (clip top y=%d)", dark, clipTop)
+		}
+		band := outputAirBand(clipTop)
+		if band.H <= 0 {
+			t.Fatalf("dark=%v: the page reserves no air under its strip: strip %d, clip top %d", dark, strip, clipTop)
 		}
 		a.Output.Y = 300
 		tt.Frame()
 		tt.Frame()
-		if band := bandInk(tt.Image(), outputAirBand(strip)); band != 0 {
+		if ink := bandInk(tt.Image(), band); ink != 0 {
 			t.Errorf("dark=%v: the text scrolled into the strip's breathing band (y=%d..%d) "+
-				"with ink %d; the strip's last ink is y=%d", dark, strip+1, strip+16, band, strip)
+				"with ink %d; the strip's last ink is y=%d", dark, int(band.Y), int(band.Y+band.H)-1, ink, strip)
 		}
 	}
 }
@@ -117,7 +137,7 @@ func TestTheOutputTextNeverScrollsIntoTheHeaderBand(t *testing.T) {
 // which is why the resting frame is unchanged while the scrolled one is not.
 func TestTheOutputViewportStartsOnItsFirstRow(t *testing.T) {
 	a := testApp()
-	tt := runListOutput(t, a, outputRowsWithActions(25))
+	tt := listOutputShipped(t, a, outputRowsWithActions(25), false)
 	tt.Frame()
 	tt.Frame()
 	first, ok := a.outputRowRects[0]
@@ -129,10 +149,11 @@ func TestTheOutputViewportStartsOnItsFirstRow(t *testing.T) {
 			"breathing band is inside the clip, so it scrolls away (P13-ce)",
 			a.outputListRect.Y, first.Y)
 	}
-	// The bottom edge is where it always was: the band is taken out of the
-	// viewport's height, not out of the page.
-	if got, want := a.outputListRect.Y+a.outputListRect.H, float32(466); got != want {
-		t.Errorf("the viewport's bottom edge moved to y=%v, want %v", got, want)
+	// The bottom edge is where the page's own geometry puts it at the shipped
+	// step: P13-dv 重定基线 466（库存尺）→ 419.2（出货尺，帧高 488 → 439）。
+	if got, want := tenths(float64(a.outputListRect.Y+a.outputListRect.H)), tenths(419.2); got != want {
+		t.Errorf("the viewport's bottom edge moved to y=%v, want %v",
+			float64(got)/10, float64(want)/10)
 	}
 }
 
@@ -240,5 +261,40 @@ func TestDumpP13CEOutputEdgesPNGs(t *testing.T) {
 		tt2.Frame()
 		tt2.Frame()
 		writePNG(t, filepath.Join("/tmp", "floter-P13-ce-text-"+name+"-"+tag+".png"), tt2)
+	}
+}
+
+// Opt-in: P13-dv 的四张图——出货尺下捕获输出页的两条分支、深浅两套。
+// 这一轮重新推导的正是条子下面那条呼吸带；图是眼睛的复核：它还是一条空气。
+func TestDumpP13DVOutputBandPNGs(t *testing.T) {
+	if os.Getenv("FLOTER_PNG") == "" {
+		t.Skip("set FLOTER_PNG=1 to write the round's visual evidence")
+	}
+	var text strings.Builder
+	for i := 0; i < 60; i++ {
+		text.WriteString("line ")
+		text.WriteString(strings.Repeat("x", 20))
+		text.WriteString("\n")
+	}
+	for _, dark := range []bool{false, true} {
+		name := "light"
+		if dark {
+			name = "dark"
+		}
+		a := testApp()
+		tt := listOutputShipped(t, a, outputRowsWithActions(25), dark)
+		tt.Frame()
+		a.OutputList.ScrollTo(4, ui.Start)
+		tt.Frame()
+		tt.Frame()
+		writePNG(t, filepath.Join("/tmp", "floter-P13-dv-list-"+name+".png"), tt)
+
+		b := testApp()
+		tb := listOutputShipped(t, b, text.String(), dark)
+		tb.Frame()
+		b.Output.Y = 300
+		tb.Frame()
+		tb.Frame()
+		writePNG(t, filepath.Join("/tmp", "floter-P13-dv-text-"+name+".png"), tb)
 	}
 }

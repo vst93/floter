@@ -747,11 +747,18 @@ func (a *App) outputBody(c *ui.Context, copy i18n.Launcher, edge float32) {
 				// 分支结束在同一条线上，两端的收口不再一个在页头墨上、一个在窗口最后一行
 				// 像素上。正文的高度链、`MaxY`、可选中的墨都不动。
 				ui.Column(c).Fill().Padding(header, 0, 0, 0).Children(func() {
-					ui.Scroll(c.Key("launcher.output")).TrackScroll(&a.Output).Fill().
+					// P13-dv：正文分支也把自己的裁剪盒记进 `outputListRect`。这一页的
+					// 「条子下面那 4u 呼吸」是页面的，不是内容的（P13-ce），而测它的夹具
+					// 此前只能读库存尺的字面量 118 —— 因为正文分支没有盒可读。同一个字段
+					// 在两个分支上都记「内容从哪里开始」，夹具才能从裁剪上沿按 `Space(4)`
+					// 推出那条呼吸带（§6.86 的前提破那一行）；`assignOutputNumbers` 对正文
+					// 早退，编号族不受影响。
+					scroll := ui.Scroll(c.Key("launcher.output")).TrackScroll(&a.Output).Fill().
 						Padding(0, t.Space(3), t.Space(1), t.Space(3)).Children(func() {
 						ui.RichText(c, a.outputSpans(c, view)...).Font(view.FontFamily).
 							FontSize(t.FontSize).TextColor(t.Text).Selectable()
 					})
+					a.outputListRect = scroll.Bounds()
 				})
 			}
 		})

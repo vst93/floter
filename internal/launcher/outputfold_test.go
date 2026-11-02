@@ -160,23 +160,36 @@ func TestTheFurtherTheOutputRowIsCutTheMoreItRecedes(t *testing.T) {
 // the viewport keeps the ink it always had.
 func TestTheOutputRowsInsideTheViewportKeepTheirInk(t *testing.T) {
 	a := testApp()
-	tt := runListOutput(t, a, outputRowsWithActions(12))
+	tt := listOutputShipped(t, a, outputRowsWithActions(12), false)
 	tt.Frame()
 	tt.Frame()
 	box, ok := a.outputRowRects[0]
 	if !ok {
 		t.Fatalf("the first row has no box: %v", a.outputRowRects)
 	}
-	if share := visibleShare(box, a.outputListRect); share != 1 {
-		t.Fatalf("the premise failed: the first row is only %.3f on screen", share)
+	// P13-dv：「整行都在视口里」是几何谓词，不是「比例 == 1」。比例在 float32
+	// 上会落在 1 的下一格（实测 0.999999769：7.2 与 705.6 相加再相减丢了 1 ulp），
+	// 而盒子的四条边是精确的——用它们问，前提才不靠容差带。
+	clip := a.outputListRect
+	if box.X < clip.X || box.X+box.W > clip.X+clip.W ||
+		box.Y < clip.Y || box.Y+box.H > clip.Y+clip.H {
+		t.Fatalf("the premise failed: the first row x=%.4f..%.4f y=%.4f..%.4f is not "+
+			"wholly inside the viewport x=%.4f..%.4f y=%.4f..%.4f",
+			box.X, box.X+box.W, box.Y, box.Y+box.H,
+			clip.X, clip.X+clip.W, clip.Y, clip.Y+clip.H)
 	}
 	// 阈值取 150 而不是「非空」：实测整行可见的行在浅色档上是 228（字 25 对面板
 	// 253），而变异 M3（整行也淡）把它压到 114——一个宽阈值会让那条变异静默通过，
 	// 这正是本轮 M3 第一次跑时抓到的事（当时阈值是 40，M3 在启动器的 pin 上红了、
 	// 在这一页的 pin 上没红）。
+	// P13-dv：出货尺下同一行的静息墨实测 **219**（库存尺的旧注释记的是 228——
+	// 帧的尺子变了，墨也跟着低 9 级）；150 这条线仍落在「整行」与「整行也淡
+	// （114）」之间。
 	if ink := contrastIn(tt.Image(), box, a.outputListRect); ink < 150 {
 		t.Errorf("a row wholly inside the viewport has faded: contrast %d, want "+
 			"the resting ink (the fold only dims what it cuts)", ink)
+	} else {
+		t.Logf("the first row's resting ink at the shipped ruler: %d", ink)
 	}
 }
 

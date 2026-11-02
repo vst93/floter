@@ -457,6 +457,9 @@ type App struct {
 	// question (viewportRange), so the output's badges follow what is on screen
 	// exactly as the results' do (P11-bl). Filled while the rows are built and
 	// cleared as the list is built, so a row that left leaves no stale box.
+	// P13-dv: the text branch records its body's scroll box here too — the page's
+	// breathing band is measured from this clip on both branches, so the fixture
+	// no longer needs the stock ruler's 118 literal.
 	outputRowRects map[int]ui.Rect
 	outputListRect ui.Rect
 	// outputHeadingRects is `headingRects` for the captured-output list's group

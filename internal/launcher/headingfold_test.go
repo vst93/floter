@@ -246,7 +246,7 @@ func TestTheHeadingsInsideTheViewportKeepTheirInk(t *testing.T) {
 func TestTheHeadingBoxesStayOutOfTheNumberedFamily(t *testing.T) {
 	a := testApp()
 	recentPage(a, 20)
-	tt := render(t, a)
+	tt := renderShipped(t, a, false)
 	tt.Frame()
 
 	if len(a.headingRects) == 0 {
@@ -259,14 +259,16 @@ func TestTheHeadingBoxesStayOutOfTheNumberedFamily(t *testing.T) {
 				"(rowRects=%v)", i, a.rowRects)
 		}
 	}
-	// The family itself is unchanged: nine recents in a ten-slot budget, 1..9.
-	for i := 1; i <= 9; i++ {
+	// The family itself is unchanged: ten recents in a ten-slot budget, 1..9
+	// then 0. P13-dv 重定基线：库存尺上只有九行装得下（9 条），出货尺上十行全在
+	// 视口里（10 条，第十条的键帽印 0）——这是尺子的差，不是编号族的差。
+	for i := 1; i <= 10; i++ {
 		if a.numbers[i] != i%10 {
 			t.Errorf("number for row %d = %d, want %d (numbers=%v)", i, a.numbers[i], i%10, a.numbers)
 		}
 	}
-	if len(a.numbers) != 9 {
-		t.Errorf("the numbered family has %d entries, want 9 (numbers=%v)", len(a.numbers), a.numbers)
+	if len(a.numbers) != 10 {
+		t.Errorf("the numbered family has %d entries, want 10 (numbers=%v)", len(a.numbers), a.numbers)
 	}
 }
 
