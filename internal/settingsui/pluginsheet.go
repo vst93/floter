@@ -113,9 +113,26 @@ func (a *App) PluginSheet(c *ui.Context, sheet PluginSheet) {
 						FontSize(tokens.Caption).TextColor(t.Warning).
 						Padding(0, t.Space(3.5))
 				}
-				for _, section := range plugincfg.Sections(sheet.Schema) {
+				// P13-en（`docs/liquid-glass.md` §6.109）：从第二组起，每一组在**自己
+				// 身上**多带一条 `Space(4)` 的上内边距——**不是**把外层这一列的 `Gap` 抬高。
+				//
+				// 病：外层 `Gap` 是 `Space(3)`（10.8px），而 `sheetSection` 里「分组标题 →
+				// 它自己的卡」是 `Space(4)`（14.4px，P13-ej）——同一张浮层上「换一组」比
+				// 「组内标题与卡」**还紧**。盒对盒实测：第一张卡底 → 第二组标题盒顶
+				// **12.2px**，而标题盒底 → 它自己那张卡顶 **14.8px**。第二组标题于是读成
+				// 第一张卡的最后一行小字。
+				//
+				// 为什么不动 `Gap`（`Space(3)` → `Space(6)` 是一个更短的手）：那一列的
+				// 孩子是「页头 / 第一组 / 第二组」，`Gap` 是**三对共用**的一个数——抬它会
+				// 把「页头 → 第一组」一起抬（实测 22.2 → 25.7px），而那一对不是「换一组」。
+				// 这正是 §6.106 已经立过的教训：**空气属于那一对，就加在那一对的元素上**。
+				// 所以第一组不动，从第二组起每组自带一条 `Space(4)` 的上内边距
+				// （14.4px = 一整档 4u）：组边界 12.2 → **22.6px**，落在 §4.3 那条
+				// 「一个可以按的新东西」的 20px 档上（与 §6.69 会话页的 22px 同一读数），
+				// 组内 14.8px 留在「同一段的下一行」档。页头 → 第一组一个字节不动。
+				for i, section := range plugincfg.Sections(sheet.Schema) {
 					section := section
-					a.sheetSection(c, sheet, section)
+					a.sheetSection(c, sheet, section, i > 0)
 				}
 			})
 		})
@@ -147,7 +164,12 @@ func (a *App) PluginSheet(c *ui.Context, sheet PluginSheet) {
 
 // sheetSection draws one group: its heading (when it has one) and the card
 // holding its fields.
-func (a *App) sheetSection(c *ui.Context, sheet PluginSheet, section plugincfg.Section) {
+//
+// P13-en：`opensGroup` says this group is not the sheet's first, so it carries the
+// extra `Space(4)` above itself (§6.109). The air rides the *group*, not the
+// column's `Gap`, because that column's gap is shared by three pairs — the same
+// rule §6.106 settled for the settings pages.
+func (a *App) sheetSection(c *ui.Context, sheet PluginSheet, section plugincfg.Section, opensGroup bool) {
 	t := c.Theme()
 	tokens := a.tokens(c)
 	// The section is the settings pages' own: the title at the title step
@@ -159,7 +181,11 @@ func (a *App) sheetSection(c *ui.Context, sheet PluginSheet, section plugincfg.S
 	// 卡里**上一行的 help 墨 → 下一行标签墨 23px**——分组只比两个邻居多 2px，等于没有
 	// 分组。§4.3 的规矩是「一个新的东西抬开一整档」，所以这里走 Space(2) → **Space(4)**
 	// （7.2 → 14.4），抬的是一整档 8u；改后 25 → 32px，与 23px 拉开 9px。
-	ui.Column(c).FillWidth().Gap(t.Space(4)).Children(func() {
+	group := ui.Column(c).FillWidth().Gap(t.Space(4))
+	if opensGroup {
+		group = group.Padding(t.Space(4), 0, 0, 0)
+	}
+	group.Children(func() {
 		if section.Title != "" {
 			// 分组标题坐在它下面那些行标签的列上：卡自己的内边距，加上 scroller 的。
 			//

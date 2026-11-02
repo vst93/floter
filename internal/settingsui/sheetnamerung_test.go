@@ -103,7 +103,10 @@ func TestThePluginSheetNameIsNotTheQuietestLineOnItsOwnFace(t *testing.T) {
 			// P13-ej 重定基线：旧值 **316.4** → 新值 **330.8**（§6.105 的分组间距
 			// +7.2 × 两张卡）。这一条判的是「换墨不许动盒」，本轮的盒**是故意动的**
 			// ——但动的是分组标题下面那一格，名字与分组标题的 y 一个字节没动（见上面 ②）。
-			if got, want := a.PluginScroll.MaxY, float32(330.8); math.Abs(float64(got-want)) > 0.6 {
+			// P13-en 重定基线：旧值 **330.8** → 新值 **345.2**。§6.109 只给**第二组**
+			// 加了一条 `Space(4)` 的上内边距（14.4px），`MaxY` 由内容自然长 +14.4。
+			// 同一条判据：边是画出来的，不是几何。
+			if got, want := a.PluginScroll.MaxY, float32(345.2); math.Abs(float64(got-want)) > 0.6 {
 				t.Errorf("the sheet's scroll range = %v, want %v: the ink change must not move geometry",
 					got, want)
 			}

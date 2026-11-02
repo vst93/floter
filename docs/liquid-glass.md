@@ -4701,3 +4701,64 @@ reading`。所以「页头站到阶梯顶端」是**几何**问题，不是墨�
 （530×268，裁自状态词左上方 10/8px）：`compare -metric AE` → `dirty` **0 / 0**（这一轮
 不碰未失败的帧）、`failed` **421 / 418**，bbox **83×12+10+11** = 恰好那个词自己的框，
 框外一个像素没动。
+
+### §6.109 浮层的分组换行比它自己组内的两行还挤（P13-en，**已落地**）
+
+§6.105 / §6.106 两轮抬的都是**同一对**——「分组标题 → 它自己的第一张卡」（浮层一半、
+设置页五组另一半）。浮层上**另一对**没人量过：「上一组最后一张卡 → 下一组标题」。
+它由外层那一列的 `Gap(t.Space(3))`（10.8px）给，而组内那一对是 `Space(4)`（14.4px）——
+**换一组比组内换一行还紧**。
+
+**量法**：盒对盒（同一种东西；墨对盒会把行盒上身算进空气）。卡的面从帧自己读——
+`x = 300` 这一列在卡内、在字右边，只读得到卡的填充与它的一圈边；名字从 `Tester.Find`
+读。`pluginSheetFrame`，深浅同值：
+
+| 对 | 改前 | 改后 |
+|---|---|---|
+| 第一张卡底 → 第二组标题盒顶 | **12.2px** | **26.6px** |
+| 第二组标题盒底 → 它自己那张卡顶 | 14.8px | **14.4px** |
+| 浮层名字盒底 → 第一组标题盒顶 | 14.9px | 14.9px（**一个字节不动**） |
+| `PluginScroll.MaxY` | 330.8 | **345.2** |
+
+**判据**：改前组边界比组内**紧 2.6px**，第二组标题于是读成第一张卡的最后一行小字。
+改后 26.6px 落在 §4.3 那条「一个可以按的新东西」的 20px 档上（与 §6.69 会话页
+「注底 → 页脚胶囊 22px」同一读数），组内 14.4px 留在「同一段的下一行」档——
+两条不同的东西拿到两条不同的档。
+
+**落法（关键取舍）**：空气加在**第二组自己身上**（`sheetSection` 的 `opensGroup` 参数 →
+`Padding(Space(4), 0, 0, 0)`），**不是**把外层 `Column` 的 `Gap` 从 `Space(3)` 抬到
+`Space(6)`。那一列的孩子是「页头 / 第一组 / 第二组」，`Gap` 是**三对共用**的一个数：
+抬它会把「页头 → 第一组」一起抬（实测 14.9 → 25.7px），而那一对不是「换一组」——
+页头是这块面的名字，第一组是它下面的第一块。这正是 §6.106 已经立过的教训：
+**空气属于那一对，就加在那一对的元素上**。§6.105 的 pin（`...StandsOffItsFirstField`
+的第 44 行判据）当场抓到了那个错误版本，本轮的落法是它的答案。
+
+| 编号 | 位置 | 现状 | 处置 |
+|---|---|---|---|
+| 109-1 | `pluginsheet.go` 的分组循环 | 外层 `Gap(Space(3))`，组边界 12.2px < 组内 14.8px | `已落地`：从第二组起 `sheetSection(…, opensGroup=true)` → 组自己 `Padding(Space(4), 0, 0, 0)` |
+| 109-2 | 外层 `Column` 的 `Gap` | `Space(3)` | **不动**（它同时是「页头 → 第一组」那一对，那一对没有病） |
+| 109-3 | `sheetSection` 的 `Gap` | `Space(4)`（P13-ej） | **不动** |
+| 109-4 | `PluginScroll.MaxY` 两条旧 pin | 钉 `330.8` | **V 重定基线**：`330.8 → 345.2`（+14.4 = 一条 `Space(4)`），见 `sheetcutedge_test.go` / `sheetnamerung_test.go` |
+
+**pin**：`internal/settingsui/sheetgroupboundary_test.go` 的
+`TestThePluginSheetOpensANewGroupWiderThanANewRow`（深浅两套，四条判据）：
+① 组边界 ≥ 组内 + 6px（一整档的下限）；② 组边界 ≤ 组内的两倍（防止「换一组」变成
+「换一章」）；③ 名字 → 第一组 ≥ 组内（这一轮不许把名字那一档压平）；
+④ `MaxY` 仍是内容自然长出来的那个值。窗口全部来自夹具自己的 `sheetBand()`，不写死像素。
+
+**台账** V 2 / B 0 / S 0。产品代码 9 行（含注释）。测试函数 2519 → **2520**，
+PASS 3342 → **3348**，SKIP 169 → **172**。变异 3 条实跑：
+
+| # | 注入 | 原始报错串 |
+|---|---|---|
+| M1 | `opensGroup` 恒 `false`（退回改前） | `the air from a group's last card to the next group's heading is 12.2px while the air from that heading to its own card is 14.8px (a -2.6px difference)` |
+| M2 | 内边距 `Space(4)` → `Space(8)`（组间过宽） | `the air between two groups is 41.0px against 14.0px inside one (293%): a group break has become a chapter break` |
+| M3 | 内边距加在**下面**（`Padding(0, 0, Space(4), 0)`） | `the sheet's scroll range moved: MaxY 359.60004, want 345.2`（空气放错了边） |
+
+三条都实跑变红、逐字节还原（`md5sum -c` 通过）、`touch` 后复跑绿。
+
+**出图** `/tmp/floter-P13-en-groups-{before,after}-{light,dark}.png`（720×600）：
+`compare -metric AE` → 浅 **14799**、深 **14769**；bbox **684×83+18+517**，**y 从 517 起**
+——正好是第二组标题那一行，第一组与页头那一带零像素。图上看到的一处变化：第二组标题
+（`Second section`）此前几乎贴在上一张卡的圆角下沿，现在它下面留出了和「标题→卡」一样
+宽的一段空气，两组各自读成一张独立的卡组。

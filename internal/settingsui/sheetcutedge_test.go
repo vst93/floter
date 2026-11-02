@@ -215,7 +215,10 @@ func TestThePluginSheetEdgesAddNoGeometry(t *testing.T) {
 			// 它那张卡之间的空气从 `Space(2)` 抬到 `Space(4)`（+7.2px），两张分组卡
 			// 各抬一次 → +14.4。这一条判的是「边是画出来的、不是几何」，所以基线跟着
 			// 内容高度走，判据本身不动。
-			if got, want := a.PluginScroll.MaxY, float32(330.8); got < want-0.05 || got > want+0.05 {
+			// P13-en 重定基线：旧值 **330.8** → 新值 **345.2**。§6.109 只给**第二组**
+			// 加了一条 `Space(4)` 的上内边距（14.4px），`MaxY` 由内容自然长 +14.4。
+			// 同一条判据：边是画出来的，不是几何。
+			if got, want := a.PluginScroll.MaxY, float32(345.2); got < want-0.05 || got > want+0.05 {
 				t.Errorf("the sheet's scroll range moved: MaxY %v, want %v (the edges are paint, not "+
 					"geometry)", got, want)
 			}
