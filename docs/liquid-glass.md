@@ -4614,7 +4614,7 @@ reading`。所以「页头站到阶梯顶端」是**几何**问题，不是墨�
 这张卡上最响的那一格说的还是「有未保存更改」，而同一帧里卡片底部的药丸已经在说
 `ConfigSaving` 并且熄了灯。**同一件事两个控件说两句话，响的那一句还是过时的。**
 
-| 状态 | 改前 | 改后 |
+| 档 | 改前 | 改后 |
 |---|---|---|
 | 干净 | `ConfigSavedState` / `TextTertiary` | 不动 |
 | 脏 | `ConfigUnsaved` / `Warning` | 不动 |
@@ -4647,3 +4647,57 @@ reading`。所以「页头站到阶梯顶端」是**几何**问题，不是墨�
 `nearest the muted step {128 128 135}` 红（证明不是「只要不是警告色就绿」）。
 **台账 V 0 / B 0 / S 0**（三处此前都没有 pin）。
 
+
+### §6.108 失败那一次，同一张卡上有两处告警（P13-em，**已落地**）
+
+§6.107 把「在飞」那一档从告警拉回陈述，留的下一格是**失败**那一档：失败后 `dirty` 仍为真
+（`finishConfigSave` 只在成功时 re-baseline），所以状态词仍是 `ConfigUnsaved` + `Warning`
+——与「还没试过保存」逐字节相同；而同一张卡里字段**下面**那条错误带子
+（`noticeLine`，`config.go:292-303`：`Control` 面 + `ControlEdge` 边 + 1px `Warning`
+内 keyline + `alert` 图标 + `Warning` 句子 @ `Body`）也在喊同一件事。**两处同色同义，
+而带子才是能读的那一处**（它有错误原文）；喊得最响的那一处（词，在字段**上面**）没有新信息。
+
+| 档 | 改前 | 改后 |
+|---|---|---|
+| 干净 | `ConfigSavedState` / `TextTertiary` | 不动 |
+| 脏（未试过保存） | `ConfigUnsaved` / `Warning` | 不动——**它是唯一的告警载体** |
+| 在飞 | `ConfigSaving` / `TextTertiary` | 不动（§6.107） |
+| **失败** | **`ConfigUnsaved` / `Warning` + 带子 `Warning`（两处）** | **`ConfigUnsaved` / `TextTertiary` + 带子 `Warning`（一处）** |
+
+**判据（§6.107 的反面）**：词只在它是**唯一载体**时才是告警。带子在场时它不是——词退回
+陈述档，与 "Saved" / "Saving…" 同一档；**词一个字不改**（`ConfigUnsaved` 在失败后仍然为真，
+换词要新增 i18n 文案 → 踩红线，见 `.pending-bugs.md` 的「需拍板」）。
+
+**墨的实测**（900×1400，Integrations 页）：失败时词的墨改前是 `Warning` 的合成值
+（浅 `{156 31 24}`、深 `{220 157 146}`，与脏**零级差**），改后落到 `TextTertiary`
+（浅 `{142 142 148}`、深 `{110 110 118}`）。带子那条句子两帧都是 `Warning`，一个字节没动。
+
+| 编号 | 位置 | 现状 | 处置 |
+|---|---|---|---|
+| 108-1 | `config.go` `configToolbar` 的 `ink` | 失败时仍 `t.Warning` | `已落地`：`a.configError[id] != ""` → `tokens.TextTertiary`（词不动） |
+| 108-2 | 状态词的盒子 | 带子插在字段与动作行之间 | `已落地`（pin 断言）：词在字段**上面**，它的盒子 y 逐字节不变 |
+| 108-3 | **§6.107 那张表的首列表头** | 叫「状态」，把 `internal/ci` 的读表器骗成差距表（4 行红） | `已落地`：表头改成「档」——**S 类文档修正**，见下 |
+
+**顺带修掉的一处红**：`internal/ci/liquidglass_contract_test.go` 把 §6 里**任何**表头含
+「状态」一列的表当成差距表，于是 §6.107 那张四行表（干净 / 脏 / 在飞 / 失败）被读成
+四个非法状态词——HEAD 上这条合约测试是**红的**（P13-el 那一轮的门槛没抓到它）。
+本轮把表头改成「档」，合约恢复全绿；这也是一条**规矩**：§6 里讲「档」的表，首列不许
+叫「状态」。
+
+**pin**：`internal/settingsui/configfailure_test.go` 的
+`TestTheFailedSaveKeepsOneAlarmOnTheCard`（深浅两套，四条）：
+① 对照组（脏、未失败）的词必须最近 `Warning`（否则这条 pin 自己就没有对照）；
+② 失败后词**仍读** `ConfigUnsaved`，且盒子与脏帧**逐字节相同**（带子不许把上面的东西推走）；
+③ 失败后词的墨必须最近 `TextTertiary`（候选里放了 `Warning` 与相邻的 `TextMuted`）；
+④ 带子那句必须最近 `Warning`（告警是**搬了家**，不是被关掉）。
+另加 opt-in 出图 `TestDumpP13EMConfigFailure`。
+
+**台账** V 0 / B 0 / S 1（S：`docs/liquid-glass.md` §6.107 的表头）。产品代码 8 行
+（含注释）。变异 3 条实跑：M1 退回 → 词那条红（浅深各一）；M2 连带子一起熄灯 →
+`the error band is painted nearest the tertiary step` 红；M3 一刀切（无条件
+`TextTertiary`）→ 对照组 `a dirty form's word is painted nearest the tertiary step` 红。
+
+**出图** `/tmp/floter-P13-em-failure-{before,after}-{light,dark}-{dirty,failed}.png`
+（530×268，裁自状态词左上方 10/8px）：`compare -metric AE` → `dirty` **0 / 0**（这一轮
+不碰未失败的帧）、`failed` **421 / 418**，bbox **83×12+10+11** = 恰好那个词自己的框，
+框外一个像素没动。

@@ -238,6 +238,16 @@ func (a *App) configToolbar(c *ui.Context, copy i18n.Settings, integration Integ
 		if a.configSaveBusy[integration.ID] {
 			status, ink = copy.ConfigSaving, tokens.TextTertiary
 		}
+		// P13-em（`docs/liquid-glass.md` §6.108）：失败时这张卡上有**两处**告警——
+		// 这个词，和字段下面那条错误带子（`noticeLine`：`Control` 面 + `Warning`
+		// keyline + `alert` 图标 + `Warning` 句子）。带子扛着全部信息（错误原文），
+		// 而词在这一格只是「改动还没存住」这条**状态**，它自己一个字都没变
+		// （失败后 `dirty` 仍为真，所以词仍是 `ConfigUnsaved`——改词要新增 i18n
+		// 文案，踩红线）。§6.107 的判据反过来用：词只在它是**唯一载体**时才是
+		// 告警；带子在场时它不是，于是退回陈述档，与 "Saved" / "Saving…" 同一档。
+		if a.configError[integration.ID] != "" {
+			ink = tokens.TextTertiary
+		}
 		ui.Text(c, status).FontSize(tokens.Caption).FontWeight(500).TextColor(ink)
 		ui.Row(c).AlignItems(ui.Center).Gap(t.Space(0.5)).Children(func() {
 			copyDisabled := a.Actions.CopyConfiguration == nil || busy
