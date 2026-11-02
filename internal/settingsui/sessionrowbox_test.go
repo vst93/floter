@@ -79,9 +79,9 @@ func productionSession() Session {
 }
 
 // The row a session actually draws is the reference's 56u box, and it gets there
-// from its own content rather than from a floor constant: the title starts one
-// row padding under the row's top in both shapes, and the box is 49 when the
-// session reported no directory, taller when it did.
+// from its own floor constant: the title starts one row padding under the row's
+// top in both shapes, and the box is 56 tall, taller when the session reported a
+// directory.
 //
 // P13-dd：上面这些数（56 / 9）是 P13-da 在没有装设计主题的取景里量的（见下面
 // 第一条 pin 的注释）；生产上这一行是 **49 / 8**，参考的 56 地板没有满足。
@@ -93,34 +93,81 @@ func productionSession() Session {
 // 之前就 `c.SetTheme(surface.Tokens.Theme)`（`internal/shell/shell.go:4262`），所以标题
 // 真正是 11.7、状态行 11.7：行 = 8（`Space(2.25)`）+ 18 + 1 + 15 + 8 = **49**。
 //
-// 也就是说：参考的 `.session-manager__row { min-height: 56px }` 在**生产的这一行上
-// 没有被满足**，少 7px——上一轮那个「由内容自然满足」的结论是拿库存字取景量的。
+// **P13-ea 重定基线：49 → 55（布局盒 56）。** 这一行现在穿参考自己那条
+// `.session-manager__row { min-height: 56px }`（`sessionRowFloorPx`，字面 px），
+// 那 7px 全落在状态行**下方**。
 //
-// **P13-dz：处方被证伪。** §6.86 的 73-6 给的修法是「补 `min-height = Space(14)`」。
-// 注进去之后**像素一个都不动**：行级 `MinHeight(50.4)`（`rowFace.Floor` 那个形状）
-// 实测卡片盒仍是 `160..208` = **49**，这条 pin 照样绿。也就是说这一行的盒**不由行
-// 元素拥有**——`cardRow` 的 `MinHeight` 被外层（卡片的盒 / 页面的列）定了高，行只是
-// 被 stretch 进去。下一格要动的是**卡片几何**，不是行；在找到那个主人之前，别再往
-// 行上挂地板。`docs/liquid-glass.md` §6.95。
+// 关于 P13-dz 的「处方被证伪」：那一轮给行注了 `MinHeight(Space(14))`（= 50.4）、
+// 量到像素不动，于是判「盒不由行元素拥有」。本轮逐档量清楚（§6.96 的表）：
+// `MinHeight(52) → 51`、`MinHeight(56) → 55`、`Height(70) → 69`——**行盒就是行给的**；
+// 不动的只有 50.4 这一个值，因为它低于/等于这一行内容自身的 50.4，而帧是按整像素
+// 扫的（比布局盒整体少 1：`44 → 43`、`60 → 59`、`70 → 69`），50.2 与 50.4 都截到 49。
+// 所以错的是 `Space(14)` 这个**值**（u = 3.6 → 50.4，不是参考写的 56），不是行级地板。
 func TestTheSessionRowsHeightAgainstTheReferencesFloor(t *testing.T) {
 	_, top, bottom, title := sessionRowFrame(t, productionSession())
-	if h := bottom - top + 1; h != 49 {
-		t.Errorf("the session row is %dpx tall (%d..%d), want the production 49 (see this test's note: "+
-			"the reference asks 56 and this row does not reach it)", h, top, bottom)
+	// 55 是帧的读数，布局盒是 56：像素扫描比布局盒整体少一行（本文件里
+	// `Height(44) → 43`、`Height(60) → 59`、`Height(70) → 69` 都是同一个偏移）。
+	if h := bottom - top + 1; h != sessionRowFloorPx-1 {
+		t.Errorf("the session row is %dpx tall (%d..%d), want %d on the frame's own reading "+
+			"(the reference's 56px floor, one pixel under the layout box)",
+			h, top, bottom, sessionRowFloorPx-1)
 	}
 	if got := int(title.Y) - top; got != 8 {
-		t.Errorf("the title starts %dpx inside the row, want the row's own 2.25u padding (8)", got)
+		t.Errorf("the title starts %dpx inside the row, want the row's own 2.25u padding (8): "+
+			"the floor's air belongs under the text, not above it", got)
 	}
 
 	withDir := productionSession()
 	withDir.Dir = "~/workspace/floter"
 	_, dirTop, dirBottom, dirTitle := sessionRowFrame(t, withDir)
-	if h := dirBottom - dirTop + 1; h <= 49 {
-		t.Errorf("the row with a cwd is %dpx tall (%d..%d), want it to grow past the 49 by its cwd line",
-			h, dirTop, dirBottom)
+	if h := dirBottom - dirTop + 1; h <= sessionRowFloorPx-1 {
+		t.Errorf("the row with a cwd is %dpx tall (%d..%d), want it to grow past the %d by its cwd line",
+			h, dirTop, dirBottom, sessionRowFloorPx-1)
 	}
 	if got := int(dirTitle.Y) - dirTop; got != 8 {
 		t.Errorf("with a cwd the title starts %dpx inside the row, want the same 8: the padding owns the top, the floor owns the rest", got)
+	}
+}
+
+// The floor is the reference's literal 56px, not the u-metric `Space(14)` that
+// §6.95's prescription used: at the shipped step 14u is 50.4, and 50.4 is what
+// this row's content already measures, so a `Space(14)` floor draws nothing at
+// all (P13-dz measured exactly that and read it as "the row does not own its
+// box"; §6.96 has the ladder that disproves it). The two pins below are the
+// numbers that keep the mistake from coming back, and the third one says where
+// the floor's extra pixels end up: **under** the metadata line.
+func TestTheSessionRowsFloorIsTheReferencesLiteral(t *testing.T) {
+	if sessionRowFloorPx != 56 {
+		t.Errorf("the session row's floor is %v, want the reference's literal 56px "+
+			"(`.session-manager__row { min-height: 56px }`)", float32(sessionRowFloorPx))
+	}
+	// `Space(14)` at the shipped step (u = 3.6) is 50.4, and this row's content
+	// already measures 50.4 — a floor at or under that is invisible on this row,
+	// which is the whole of §6.95.
+	const space14Shipped = 50.4
+	if float32(sessionRowFloorPx) <= space14Shipped {
+		t.Errorf("the session row's floor is %v, not above the u-metric `Space(14)` (%v): "+
+			"a floor there draws nothing", float32(sessionRowFloorPx), float32(space14Shipped))
+	}
+
+	session := productionSession()
+	tt, top, bottom, _ := sessionRowFrame(t, session)
+	meta, ok := tt.Find(session.Note)
+	if !ok {
+		t.Fatalf("the state line is missing: %q", tt.Texts())
+	}
+	// The floor's air: from the metadata line's bottom to the row's bottom edge.
+	// The metadata block ends 42.2 under the row's top (8.1 + 18 + 1 + 15), so the
+	// 56 row leaves **13.8** there where its content alone left the row's own
+	// 2.25u padding (8.1). The frame reads one pixel under the layout box
+	// (see the test above), so it reports 12 where it used to report 8.
+	if got := bottom - int(meta.Y+meta.H); got != 12 {
+		t.Errorf("the state line ends %dpx above the row's bottom, want 12 on the frame's reading "+
+			"(13.8 in layout: 56 − 42.2; it was 8 before the floor): "+
+			"the floor's air belongs under the metadata, not inside the two-line block", got)
+	}
+	if meta.Y <= float32(top) {
+		t.Errorf("the state line sits at y=%v, inside the row's top edge %d", meta.Y, top)
 	}
 }
 

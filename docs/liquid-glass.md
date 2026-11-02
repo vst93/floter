@@ -3318,7 +3318,7 @@ pin：`internal/settingsui/sheetcaptionline_test.go`
 | 73-3 | `uninstall.go` 的 10.5px 提示行 | `t.FontSize - 0.5` | 保留，但写进具名例外（参考定义就是 body − 半格） | `故意不做（有理由）` |
 | 73-4 | `internal/launcher` 的同一族（9 处） | 同病 | 4 处已落地，5 处卡在取景上（见 §6.74） | `部分已落地` |
 | 73-5 | `render()` 的取景（四十多条 pin 在量库存字 14） | 与生产不一致 | 收口到 `SetTheme(tokens.Theme)`，逐条重钉 | `未开始` |
-| 73-6 | 会话行 49 对参考的 56 地板 | 少 7px | 补 `min-height = Space(14)` | `未开始`（P13-da 的结论作废） |
+| 73-6 | 会话行 49 对参考的 56 地板 | 少 7px | 补 `min-height = Space(14)` | `已落地（P13-ea，§6.96：`sessionRowFloorPx = 56` 字面 px，不是 `Space(14)`）` |
 
 **旧值 → 新值（逐条）**
 
@@ -4167,7 +4167,7 @@ V / S / 混排 / 墨四类全部有结论，`internal/launcher` 的取景债清�
 |---|---|---|---|---|
 | 73-6a | `rows.go:1488` `cardRow` 的 `floor`（44） | 行级 `MinHeight(Space(14))` | 卡片盒 **49 → 49** | `故意不做（处方无效）` |
 | 73-6b | 会话行 `rowValue(...)` 的 `rowFace` | `rowFace{Floor: Space(14)}` | 同上 | `故意不做（处方无效）` |
-| 73-6c | **主人**：卡片的盒 / 页面的列（`card` / 页面列给的定高） | 未找到，未动 | — | `未开始`（下一格从这里查） |
+| 73-6c | **主人**：卡片的盒 / 页面的列（`card` / 页面列给的定高） | 未找到，未动 | — | `已落地（P13-ea）` —— 查明主人就是**行自己**：`Height(60) → 59`、`Height(70) → 69` 一像素不差地跟着走；见 §6.96 |
 
 **为什么这值得单独记一轮**：这一格已经栽过一次「量法」（P13-dd：量的是生产上不存在的
 取景），这次栽的是**修法**。两件事分开记，下一轮才不会照着同一个处方再撞一次；
@@ -4175,3 +4175,65 @@ V / S / 混排 / 墨四类全部有结论，`internal/launcher` 的取景债清�
 
 **台账**：V 0 / B 0 / S 0（产品 0 行，`sessionrowbox_test.go` 只改注释）。测试函数 2493 →
 2493，PASS 3326 → 3326。
+
+**P13-ea 追记（§6.96）**：上面这条「处方无效」的结论**作废**。按同一处方注入后像素不动，
+不是因为盒不属于行，而是因为 `Space(14)` 恰好等于这一行内容的高度（50.4），而帧按整像素
+扫描、比布局盒少 1。`sessionRowFloorPx = 56` 落下去之后行是 56、帧读 55。
+
+### §6.96 会话行的 56 地板：行盒就是行给的，错的是 `Space(14)` 这个值（P13-ea，**73-6 结案**）
+
+§6.95 把 73-6 判成「处方无效」，理由是按 `Space(14)` 注入后像素不动。这一轮把那个「不动」
+量成了八档，结论反过来了：**行级地板一直是有效的**，无效的是那个**值**。
+
+**先量**（`720×760`，`renderThemed`，en/浅色，只改 `cardRow` 的地板，其余不动）：
+
+| 注入 | 帧读数（`cardTop+1..cardBottom-2`） |
+|---|---|
+| `MinHeight(44)`（改前） | 49 |
+| `MinHeight(50.4)`（= `Space(14)`，73-6 的处方） | 49 |
+| `MinHeight(52)` | 51 |
+| `MinHeight(56)` | 55 |
+| `Height(44)` / `Height(50.4)` | 43 / 49 |
+| `Height(60)` / `Height(70)` | 59 / 69 |
+
+三件事：
+
+1. **行盒由行元素拥有**：`Height(60) → 59`、`Height(70) → 69`，一像素不差地跟着走。
+   §6.95 的「盒不是行给的」是误判。
+2. **`Space(14)` 落在盲区里**：这一行的内容自身就是 **50.4**（`Space(2.25)` 8.1 × 2 +
+   标题 18 + 行距 1 + 状态行 15），`MinHeight(50.4)` 与不打地板是同一个像素。
+3. **帧按整像素扫描，整体比布局盒少 1**（`44 → 43`、`60 → 59`、`70 → 69`），
+   所以 50.2 与 50.4 都截到 **49** —— §6.95 看到的是这个截断，不是「地板没生效」。
+
+**落地**（产品 3 处）：
+
+| # | 位置 | 现状 | 应改成 |
+|---|---|---|---|
+| 73-6 | `.session-manager__row { min-height: 56px }`（`settings.css:1237-1244`） | 行 = 内容 50.4，帧 49 | **行 = 56**（帧 55） |
+| 73-6d | `rows.go` `rowFace` | 无行级地板 | 新增 `Floor float32`；`cardRow` 里 `if face.Floor > floor { floor = face.Floor }`（排在 `cardTitleFloor` 之后） |
+| 73-6e | `rows.go` 常量 | 只有 `rowFloorPx = 44` | 新增 `const sessionRowFloorPx = 56`（**字面 px，不是 `--u × 14`**） |
+
+**为什么它更有空间感（一句话）**：参考那条地板的注释写的是「a taller floor, because a
+session is two lines of text plus a footer of metadata」——地板买的不是内容，是内容**下面**
+那口气；56 之后多出的 5.6px **全部落在状态行下方**（标题起点仍是行顶 + 8.1，逐像素核对
+`title.y` 一个字节不动），所以这一行读成「一块字 + 一段空」，而不是「一块字压在盒底」。
+
+**帧上的一处变化**：`/tmp/floter-P13-ea-sessions-{light,dark}-{before,after}.png` 逐像素 diff
+——文字列（x≈244 起的标题与状态行）逐字节相同，差的是**行右侧那对 28u 图标键**
+（`AlignItems(Center)` 的控件槽，随行盒下移 ~3px）和**卡片底边**（dark 列 250：`350/351`
+→ `356/357`）。
+
+**台账**：V 2（`sessionrowbox_test.go` 的盒读数 49 → 55、新增字面/空格两条 pin）/ B 0 / S 0；
+产品 3 处（`rowFace.Floor`、`cardRow` 一行、`sessionRowFloorPx`、会话行的 `rowFace{}`）。
+测试函数 2493 → **2495**（新增 `TestTheSessionRowsFloorIsTheReferencesLiteral` 与 opt-in 出图
+`TestDumpP13EASessionRows`），PASS 3326 → **3327**。
+
+**变异 3 条实跑变红并还原**（`md5sum -c` 逐字节相同 + `touch` 复跑全绿）：
+
+- **M1** 会话行 `rowFace{Floor: sessionRowFloorPx}` → `rowFace{Floor: 50.4}`（把 73-6 的旧处方
+  放回去）：`the session row is 49px tall (160..208), want 55 on the frame's own reading` +
+  `the state line ends 6px above the row's bottom, want 12`。
+- **M2** 删掉 `cardRow` 的 `if face.Floor > floor`：同一对红串（行级地板失效 = 回到内容 50.4）。
+- **M3** `sessionRowFloorPx` 56 → 50（把常量本身改小）：`the session row's floor is 50, want the
+  reference's literal 56px` + `the session row's floor is 50, not above the u-metric Space(14)
+  (50.4): a floor there draws nothing` + 空格那条。

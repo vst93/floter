@@ -439,6 +439,18 @@ func (a *App) rowLineGap() float32 {
 // its content fits in.
 const rowFloorPx = 44
 
+// sessionRowFloorPx is the sessions page's row floor: the reference's
+// `.session-manager__row { min-height: 56px }`
+// (`main:src/styles/settings.css:1237-1244`), whose own comment says it is
+// "a taller floor, because a session is two lines of text plus a footer of
+// metadata". Like rowFloorPx it is the literal the reference wrote and not
+// `--u * 14`: at the shipped step 14u is 50.4, which is what this row's
+// content already measures, so a `Space(14)` floor is invisible (P13-dz).
+// The 5.6px the floor adds land **under** the metadata line — the title keeps
+// its 2.25u padding from the row's top — so the row reads as a block with air
+// beneath it rather than a block pressed onto its own bottom edge.
+const sessionRowFloorPx = 56
+
 // extensionMetrics runs fn with the extension panel's own metric unit: the
 // reference's `extensions.css` is written in literal px (a 66px row, a 30px
 // chip, an 8px padding) and therefore does not follow the interface step the
@@ -1455,6 +1467,13 @@ type rowFace struct {
 	// 换任何因子都救不了这两档同时在线：`0.75` 时浅色标题 79／深色 187 都落在两档
 	// **之间**，`0.50` 时 133／133 又落到另一对档之间。一个乘法不可能同时是两个
 	// 档——所以「还没写完」这件事不该由整行的乘法来说。
+	// Floor is the row's own height floor, taller than the card's (a row whose
+	// content is two lines of text plus a footer of metadata, i.e. the
+	// reference's session row, keeps a taller box than a settings row's 44).
+	// It is the row's number, not the card's: the card-level floor in
+	// `cardGeometry` belongs to the card's *first* row only, while this one
+	// follows the row it is handed with.
+	Floor float32
 	// Lit marks the face as an **E1 block** rather than a wash of paint on the
 	// card: the row adds the two lines `theme.Tokens.LitFace` draws (one 1px
 	// `LensRim` along its top, one 1px `LensEdge` along its bottom) and no cast
@@ -1486,6 +1505,14 @@ func (a *App) cardRow(c *ui.Context, align ui.Align, lead func(), face rowFace, 
 	first := a.cardRows == 0
 	a.cardRows++
 	floor := max(t.Space(11), rowFloorPx)
+	if face.Floor > floor {
+		// P13-ea（`docs/liquid-glass.md` §6.96）：行自己的地板。参考的会话行是
+		// `min-height: 56px`（`main:src/styles/settings.css:1237-1244`），比设置
+		// 卡的 44 高一档，因为那一行是两行字加一条脚注。**字面 px，不是
+		// `--u * n`**：`u = 3.6` 时 `Space(14)` 只有 50.4，而这一行的内容自身
+		// 就是 50.4 —— 拿 `Space(14)` 打地板等于没打（§6.95 记的那次误判）。
+		floor = face.Floor
+	}
 	if first && a.cardTitleFloor > 0 {
 		// The card's title row can wear the reference extension row's 66u
 		// floor (`.extension-row { min-height: var(--extensions-row-height) }`,

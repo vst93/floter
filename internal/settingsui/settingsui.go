@@ -1680,7 +1680,10 @@ func (a *App) sessions(c *ui.Context, copy i18n.Settings) {
 					// SquareTerminal (`SessionsPage.tsx:186-187`), which is the
 					// shared settings-row slot and not the extension panel's
 					// package chip.
-					activated := a.rowValue(c, ui.Center, func() { a.sessionChip(c) }, rowFace{},
+					// P13-ea：这一行穿的是参考自己那条 56px 地板（见 sessionRowFloorPx），
+					// 不是设置卡的 44 —— 两行字加一条脚注的行比一行字需要更多空气，
+					// 且那 5.6px 全落在状态行下方。
+					activated := a.rowValue(c, ui.Center, func() { a.sessionChip(c) }, rowFace{Floor: sessionRowFloorPx},
 						session.Title, sessionLines(session), "", func() {
 							// The trailing controls are the reference's two 28u icon
 							// buttons (`SessionsPage.tsx:203-232`): Play (disabled once
