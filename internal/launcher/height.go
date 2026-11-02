@@ -314,8 +314,10 @@ func (g Geometry) Height() int {
 		}
 		if info.Status {
 			// A status note is its own 30u band (`LAUNCHER_STATUS_UNITS`),
-			// shorter than a compact result row.
-			lines += 7.5 * spacing
+			// shorter than a compact result row. One constant, not a second
+			// hand-written copy: the view draws the same band with it
+			// (`FeedbackBand`), so a change to the band moves both.
+			lines += launcherStatusUnits * spacing
 			continue
 		}
 		if info.Heading {
@@ -349,8 +351,9 @@ func (g Geometry) Height() int {
 	feedbackBand := 0.0
 	if g.Feedback {
 		// The docked status row's own band: 30u, the old build's
-		// `LAUNCHER_STATUS_UNITS`.
-		feedbackBand = 7.5 * spacing
+		// `LAUNCHER_STATUS_UNITS` — the same constant the status-note row
+		// above is charged with, and the same one the view draws it with.
+		feedbackBand = launcherStatusUnits * spacing
 	}
 	sectionBand := 0.0
 	if g.Sections > 0 {

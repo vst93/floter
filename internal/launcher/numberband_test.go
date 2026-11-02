@@ -28,6 +28,9 @@ import (
 // 这条 pin 判两件事：① 带 `1` 的行至少有七成在视口里；② 在它上面没有
 // 「读得全却没领号」的可运行行。把 `numberVisibleShare` 改成 0（旧行为）会让
 // ① 红。
+// P13-ds 重定基线：视口上沿 `60` → **54**，取景从 `render`（库存尺 4.0）换成
+// `renderShipped`（出货尺 3.6）。旧值 = `LightTheme().Space(15)` = 4.0 × 15，是框架
+// 库存主题的乘积；app 画的是 3.6 × 15（§6.86 第 1 行：单位算术）。
 func TestTheNumberedFamilyStartsOnARowYouCanRead(t *testing.T) {
 	// The user's own threshold, spelled out here rather than read from the
 	// product's constant: 「某一项滚出可见范围达到 30% 就算作不可见项」. The
@@ -43,7 +46,7 @@ func TestTheNumberedFamilyStartsOnARowYouCanRead(t *testing.T) {
 	}
 	a.SetApps(found)
 	a.Query = "app"
-	tt := render(t, a)
+	tt := renderShipped(t, a, false)
 	tt.Frame()
 
 	// Wheel the list a little at a time until its top row is mostly out of the
@@ -88,8 +91,13 @@ func TestTheNumberedFamilyStartsOnARowYouCanRead(t *testing.T) {
 	// own top edge: a row that has scrolled under the field is behind an opaque
 	// band, and its badge is painted where nobody reads it. The inset is the
 	// field's own band, not a number of this test's.
-	if want := ui.LightTheme().Space(fieldRowUnits + breathUnits); viewport.Y != want {
-		t.Errorf("the family's viewport starts at y=%.0f, want the field's band %.0f", viewport.Y, want)
+	//
+	// The expectation is the shipped step's product (`designMetrics`), not the
+	// framework's stock one: 14u + 1u = 15 spaces × 3.6 = 54 (was 4.0 × 15 = 60).
+	spacing, _, _, _ := designMetrics()
+	if want := tenths(float64(fieldRowUnits+breathUnits) * spacing); tenths(float64(viewport.Y)) != want {
+		t.Errorf("the family's viewport starts at y=%.1f, want the field's band %.1f (15 spaces at the shipped step)",
+			float64(viewport.Y), float64(want)/10)
 	}
 	if got := visibleShare(boxes[firstNumbered], viewport); got < readable {
 		t.Errorf("row %d carries 1 while only %.2f of it is on screen", firstNumbered, got)
@@ -151,12 +159,16 @@ func numberableRow(a *App, i int) bool {
 // 有查询时修饰键不画 `system-terminal-bare` 行（R64），所以除了这条带子，
 // 页面上没有任何地方说这个和弦——这就是为什么它是**常驻**的一句，而不是
 // toast 那种三秒的话。
+// P13-ds 重定基线：状态带 `30` → **27**（30u × 0.9），取景从 `render`（库存尺）
+// 换成 `renderShipped`（出货尺）。旧值 30 是 `LightTheme().Space(7.5)` = 4.0 × 7.5，
+// 是框架库存主题的乘积；`FeedbackBand()`（`launcher.go:3349`）在 app 自己的主题下
+// 画的是 3.6 × 7.5 = 27。
 func TestHoldingTheModifierKeepsTheTerminalHint(t *testing.T) {
 	a := testApp()
 	charged := 0
 	a.Actions.ResizeTo = func(h int) { charged = h }
 	a.Query = "app"
-	tt := render(t, a)
+	tt := renderShipped(t, a, false)
 	tt.Frame()
 
 	hint := a.copy().HeldTerminalHint
@@ -184,8 +196,11 @@ func TestHoldingTheModifierKeepsTheTerminalHint(t *testing.T) {
 	}
 	// The band is the list's own tail: the window grows by exactly one status
 	// band, and the list's bottom padding takes it back out of the content.
-	if got := charged - up; got != 30 {
-		t.Errorf("holding the modifier grew the window by %d, want the 30u status band", got)
+	// The band is the reference's 30u, so it is `30 × designUnit()` = 27 at the
+	// shipped step — never a pixel count.
+	if got, want := tenths(float64(charged-up)), tenths(30*designUnit()); got != want {
+		t.Errorf("holding the modifier grew the window by %.1f, want the reference's 30u status band (%.1f at the shipped step)",
+			float64(got)/10, float64(want)/10)
 	}
 
 	tt.HoldModifiers(0)
@@ -306,7 +321,7 @@ func TestATenRowListDump(t *testing.T) {
 		}
 		a.SetApps(found)
 		a.Query = "app"
-		tt := renderIn(t, a, dark)
+		tt := renderShipped(t, a, dark)
 		tt.Frame()
 		for _, step := range []float32{2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 24} {
 			tt.Scroll(340, 200, 0, step)
@@ -316,7 +331,7 @@ func TestATenRowListDump(t *testing.T) {
 				break
 			}
 		}
-		path := fmt.Sprintf("/tmp/floter-P11-bi-tenrow-%s.png", name)
+		path := fmt.Sprintf("/tmp/floter-P13-ds-tenrow-%s.png", name)
 		writePNG(t, path, tt)
 		t.Logf("wrote %s (numbers %v, row0 share %.2f, viewport %+v)",
 			path, a.numbers, visibleShare(a.rowRects[0], a.listRect), a.listRect)
@@ -348,7 +363,7 @@ func TestNumberBandDump(t *testing.T) {
 		}
 		a.SetApps(found)
 		a.Query = "app"
-		tt := renderIn(t, a, dark)
+		tt := renderShipped(t, a, dark)
 		tt.Frame()
 		// Wheel until the top row is mostly gone — the frame the old rule
 		// numbered from (the dump has to show the state the pin is about).
@@ -364,7 +379,7 @@ func TestNumberBandDump(t *testing.T) {
 				break
 			}
 		}
-		path := fmt.Sprintf("/tmp/floter-P11-bb-numbers-%s.png", name)
+		path := fmt.Sprintf("/tmp/floter-P13-ds-numbers-%s.png", name)
 		writePNG(t, path, tt)
 		first, _ := a.List.Visible()
 		t.Logf("wrote %s (numbers %v, first visible row %d at %+v, viewport %+v, share %.2f)",
@@ -373,11 +388,11 @@ func TestNumberBandDump(t *testing.T) {
 		// The band's hint, with a typed query so the held row is not drawn.
 		b := testApp()
 		b.Query = "app"
-		band := renderIn(t, b, dark)
+		band := renderShipped(t, b, dark)
 		band.Frame()
 		band.HoldModifiers(ui.Cmd)
 		band.Frame()
-		path = fmt.Sprintf("/tmp/floter-P11-bb-heldhint-%s.png", name)
+		path = fmt.Sprintf("/tmp/floter-P13-ds-heldhint-%s.png", name)
 		writePNG(t, path, band)
 		t.Logf("wrote %s (hint %q)", path, b.copy().HeldTerminalHint)
 	})
