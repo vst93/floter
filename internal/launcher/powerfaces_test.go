@@ -1,6 +1,9 @@
 package launcher
 
 import (
+	"image/png"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -208,12 +211,17 @@ func inkBounds(tt *ui.Tester, r ui.Rect) (int, int) {
 // press at all, so it was the one control in the row that did not sink under the
 // pointer.
 //
-// Mutation check: drop the press branch and the held control keeps its full 20u
-// box.
+// Mutation check: drop the press branch and the held control keeps its full
+// resting box.
+//
+// P13-dt 重定基线：这条 pin 量的是库存尺（`Spacing 4.0`）的帧 —— pin 静息盒写死成
+// `19.5 < W < 20.5` 的容差带，按下只断言「比静息小」。出货尺（`designUnit` 0.9）下
+// 同一个 20u 盒子是 **18.00**，按下是 18 × 0.92 = **16.56**（参考 `:active` 的
+// `transform: scale(0.92)`）。容差带删除，两个落点都读成十分之一像素的整数。
 func TestTheRowPinSinksLikeTheSharedFieldControl(t *testing.T) {
 	a, _ := clipboardApp(t)
 	a.Actions.PinText = func(string, string) {}
-	tt := render(t, a)
+	tt := renderShipped(t, a, false)
 	tt.Type("clipboard")
 	tt.Frame()
 	tt.TypeKey(0, ui.KeyEnter, "")
@@ -222,8 +230,11 @@ func TestTheRowPinSinksLikeTheSharedFieldControl(t *testing.T) {
 	if !ok {
 		t.Fatalf("the pin control is not drawn: %q", tt.Texts())
 	}
-	if pin.W < 19.5 || pin.W > 20.5 {
-		t.Fatalf("the pin's resting box is %.1f wide, want the reference's 20u", pin.W)
+	// 20u at the shipped step: 5 × 4 × 0.9 = 18.00.
+	rest := 5 * 4 * designUnit()
+	if got, want := tenths(float64(pin.W)), tenths(rest); got != want {
+		t.Fatalf("the pin's resting box is %.2f wide (%.1f), want the reference's 20u "+
+			"at the shipped step, %.2f (%.1f)", pin.W, float64(got)/10, rest, float64(want)/10)
 	}
 	tt.Press(pin.X+pin.W/2, pin.Y+pin.H/2)
 	tt.Frame()
@@ -231,10 +242,54 @@ func TestTheRowPinSinksLikeTheSharedFieldControl(t *testing.T) {
 	if !ok {
 		t.Fatal("the pin left the row while held")
 	}
-	if held.W >= pin.W {
-		t.Errorf("the held pin did not sink: box %.1f wide, rest %.1f", held.W, pin.W)
+	// The reference's press is `transform: scale(0.92)` (`launcher.css:407-411`),
+	// so the held box is a fixed fraction of the resting one, not merely smaller.
+	if got, want := tenths(float64(held.W)), tenths(rest*0.92); got != want {
+		t.Errorf("the held pin is %.2f wide (%.1f), want 0.92 of the resting box (%.1f)",
+			held.W, float64(got)/10, float64(want)/10)
 	}
 	tt.Release(pin.X+pin.W/2, pin.Y+pin.H/2)
+}
+
+// TestDumpP13DTPinPNGs writes the frame the pin above reads, in both
+// appearances: the clipboard row at rest, then with the pointer on the pin (the
+// hovered 20u cell — `tokens.LitFace` on `ControlHover`). Opt-in for the same
+// reason as the package's other dumps.
+func TestDumpP13DTPinPNGs(t *testing.T) {
+	if os.Getenv("FLOTER_PNG") == "" {
+		t.Skip("opt-in: FLOTER_PNG=1 writes /tmp/floter-P13-dt-pin-<appearance>.png")
+	}
+	forEachAppearance(t, func(t *testing.T, dark bool) {
+		a, _ := clipboardApp(t)
+		a.Actions.PinText = func(string, string) {}
+		tt := renderShipped(t, a, dark)
+		tt.Type("clipboard")
+		tt.Frame()
+		tt.TypeKey(0, ui.KeyEnter, "")
+		tt.Frame()
+		pin, ok := tt.Find(a.copy().HistoryPin)
+		if !ok {
+			t.Fatalf("the pin control is not drawn: %q", tt.Texts())
+		}
+		tt.Move(pin.X+pin.W/2, pin.Y+pin.H/2)
+		tt.Advance(300 * time.Millisecond)
+		tt.Frame()
+		name := "light"
+		if dark {
+			name = "dark"
+		}
+		path := filepath.Join("/tmp", "floter-P13-dt-pin-"+name+".png")
+		f, err := os.Create(path) // #nosec G304 -- a fixed /tmp path this test owns
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer f.Close()
+		if err := png.Encode(f, tt.Image()); err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("%s: pin box x=%.2f y=%.2f %.2f×%.2f, image %v",
+			path, pin.X, pin.Y, pin.W, pin.H, tt.Image().Bounds())
+	})
 }
 
 // A favourited history row's star is painted in, not just outlined.

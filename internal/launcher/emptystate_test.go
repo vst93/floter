@@ -48,7 +48,7 @@ func inkIn(img *image.RGBA, rect ui.Rect) int {
 func TestTheEmptyPageSaysSoUnderTheField(t *testing.T) {
 	a := testApp()
 	a.Query = "zzzz"
-	tt := render(t, a)
+	tt := renderShipped(t, a, false)
 
 	rect, ok := tt.Find("No results")
 	if !ok {
@@ -59,22 +59,34 @@ func TestTheEmptyPageSaysSoUnderTheField(t *testing.T) {
 			"under the field block, so the window reads as blank", rect)
 	}
 	// The band the empty state belongs to is the list's: top = the field row
-	// plus its breath (one Space unit is four reference units, see frameHeight),
-	// bottom = the panel's own 3u inset.
-	bandTop := float32(fieldRowUnits+breathUnits) * 4
-	height := float32(frameHeight(maxResultSlots))
-	want := (bandTop + (height - 3*4)) / 2
-	if got := rect.Y + rect.H/2; got < want-6 || got > want+6 {
-		t.Errorf("the sentence is centred at y=%v, want %v (the band under the field)", got, want)
+	// plus its breath (one Space unit is four reference units, and one reference
+	// unit is `designUnit()` = 0.9 at the shipped step), bottom = the panel's own
+	// 3u inset.
+	//
+	// P13-dt 重定基线：带顶 60 → **54**、帧高 488 → **439**，且中线原来带 ±6 的容差。
+	// 实测中线 241.10 与带子的几何中线 241.10 是同一个数，所以容差换成了
+	// 十分之一像素的整数相等。
+	bandTop := float32(fieldRowUnits+breathUnits) * 4 * float32(designUnit())
+	height := float32(themedFrameHeight(maxResultSlots))
+	want := (float64(bandTop) + float64(height) - 3*4*designUnit()) / 2
+	if got := tenths(float64(rect.Y + rect.H/2)); got != tenths(want) {
+		t.Errorf("the sentence is centred at y=%.2f (%.1f), want %.2f (%.1f) "+
+			"(the band under the field, %.2f..%.2f)",
+			rect.Y+rect.H/2, float64(got)/10, want, float64(tenths(want))/10,
+			bandTop, float64(height)-3*4*designUnit())
 	}
-	if rect.Y < bandTop {
-		t.Errorf("the sentence starts at y=%v, inside the field band that ends at %v", rect.Y, bandTop)
+	if got, top := tenths(float64(rect.Y)), tenths(float64(bandTop)); got < top {
+		t.Errorf("the sentence starts at y=%.2f (%.1f), inside the field band that ends at %.2f (%.1f)",
+			rect.Y, float64(got)/10, bandTop, float64(top)/10)
 	}
 }
 
 // P11-ag visual evidence: the empty page in both appearances, written to /tmp
 // so the report can point at a file. Opt-in (`FLOTER_PNG=1`) for the same
 // reason as the other dumps: a test run should not litter /tmp.
+//
+// P13-dt：取景从 `render`（库存尺帧 488）换到 `renderShipped`（出货尺帧 439）——
+// pin 量的那个中线属于这张帧，图也必须是这张帧。
 func TestDumpP11AGEmptyPagePNGs(t *testing.T) {
 	if os.Getenv("FLOTER_PNG") == "" {
 		t.Skip("set FLOTER_PNG=1 to write the round's visual evidence")
@@ -89,10 +101,8 @@ func TestDumpP11AGEmptyPagePNGs(t *testing.T) {
 			t.Fatal(err)
 		}
 		a.Query = "zzzz"
-		tt := render(t, a)
-		tt.SetDark(dark)
-		tt.Frame()
-		path := filepath.Join("/tmp", "floter-P11-ag-empty-"+appearance+".png")
+		tt := renderShipped(t, a, dark)
+		path := filepath.Join("/tmp", "floter-P13-dt-empty-"+appearance+".png")
 		f, err := os.Create(path) // #nosec G304 -- a fixed /tmp path this test owns
 		if err != nil {
 			t.Fatal(err)

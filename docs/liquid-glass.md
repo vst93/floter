@@ -3848,3 +3848,44 @@ M2 探针装库存主题（`title 22.00 / subtitle 22.00, want 19 / 17`）。**M
 变异 3 条实跑变红并还原（M1 视口 `54.0 want 60.0`；M2 带 `27.0 want 30.0`；
 M3 带 `29.0 want 27.0`，**且在收回拷贝前静默**）。**判据（永久）**：状态带与视口沿的期望值
 只能写「参考刻度 × `designUnit()` / `spacing`」，不许写像素字面量；比较走 `tenths()`，不加容差。
+
+### §6.89 夹具剩下的三条单位算术：pin `20 → 18`、空页带 `60..80 → 54..72`（P13-dt，**已落地**）
+
+§6.87 末尾列的「剩下的 6 条单位算术」在 §6.88 交割两条之后，本节交割**最后三处**。三处同族：
+pin 乘的是库存尺的 `Spacing`（4.0），而 app 出货画的是 3.6（`u = 0.9`）。
+
+| 量 | 库存尺（此前钉的） | 出货尺（本轮钉的） | 落点 |
+|---|---|---|---|
+| 行内 pin 控件静息盒 | `20`，且写成 `19.5 < W < 20.5` **容差带** | **`18.00`**（20u × 0.9） | `TestTheRowPinSinksLikeTheSharedFieldControl` |
+| pin 按下盒 | 只断言「比静息小」 | **`16.56`** = 18 × 0.92 | 同上 |
+| 空页句子中线 | 带顶 `60` + 帧 `488`，中线比较带 `±6` | 带 `54 .. 428.2`，中线 **241.10** | `TestTheEmptyPageSaysSoUnderTheField` |
+| 过滤条带 | `60 .. 80` | **`54 .. 72`**（`filtersHeight` = `Space(5)` = 18） | `TestTheChipsBandSitsAboveTheScroller` |
+
+**这一轮的真正发现：旧值不是「假红」，是「假绿」。** 过滤条带的 pin 声称「带子里没有行」，
+但它量的带子是 `60..80`，真带子是 `54..72` —— `72..80` 那 8px 里**真有行也不会红**。
+这一点比数值漂移严重：一条 pin 在自己画的框子外面量，永远不会失败。判据（永久）：
+**pin 量的框必须由 app 自己的几何原语算出来**（`fieldRowUnits` / `breathUnits` / `filtersHeight`
+/ `designUnit()`），不许写像素字面量；否则框子漂了，pin 只会安静地量空气。
+
+**删掉两条容差带**（`19.5..20.5` 与 `±6`）：三处落点现在都是 `tenths()` 的整数相等。
+按下从「比静息小」收紧成「正好是静息的 0.92」——参考的 `:active` 就是
+`transform: scale(0.92)`（`main:src/styles/launcher.css:407-411`），实测 16.56 = 166 十分之一像素。
+
+**台账**：V 3 / B 0 / S 0（V 3 中两处是断言收紧，一处是假绿改真绿）；产品代码**零改动**
+（只动 `internal/launcher` 的 `_test.go`）；新增 1 条 opt-in dump（pin 行），测试函数 2489 → 2491；
+空页 dump 的取景从库存尺帧 488 换到出货尺帧 439（`/tmp/floter-P13-dt-empty-*.png`）。
+
+**变异 2 条实跑变红并还原**（`md5sum -c` 逐字节核对成功 + `touch` 复跑）：
+M1 `designUnit()` 返回 `spacing` → `the pin's resting box is 18.00 wide (18.0), want the
+reference's 20u at the shipped step, 72.00 (72.0)` / `the sentence is centred at y=241.10 …,
+want 305.90 … (the band under the field, 216.00..395.80)` / `the row "clip 035" is drawn at
+y=72.0, inside the chips band (216.0..288.0)`。M2 `designUnit()` 返回 `1.0`（等价于退回库存尺）
+→ `… want the reference's 20u at the shipped step, 20.00 (20.0)` / `… want 243.50 (243.5)
+(the band under the field, 60.00..427.00)` / `inside the chips band (60.0..80.0)` ——
+**旧值 20 / 60 / 80 原样出现**，这就是「转换量的是出货尺」的直接证据。
+
+**还剩的夹具账**：**「画家取整」那一族**（§6.87 的「取整（V）2 条」+ 本轮查出的第三条）——
+`clipboardoff_test.go:130` 的 `int()` 截断、`noteplate_test.go:163` 的 `28u` 图标列要按 painter 的
+取整读、`raycast_test.go:216-224` 一个函数里三个库存尺读数（gutter `8 → 7.2`、镜像 gutter、
+文本列 `54 → 48.6` 且带 `±1.5` 容差带），另占一轮。**判据**：列数与列宽一律 `round(x+w) − round(x)`，
+不许 `int()` 截断，也不许容差带。

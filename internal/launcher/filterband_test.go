@@ -31,7 +31,12 @@ import (
 // chipBandScene builds that situation: clipboard mode, forty rows, two wheel
 // notches down, the pointer parked inside the band between the chips and the
 // hint. It returns the band's own top and bottom too.
-func chipBandScene(t *testing.T, dark bool) (*App, *ui.Tester, float32, float32) {
+//
+// P13-dt 重定基线：带子原来读库存尺的 `Spacing`（4.0）—— 上沿写死成 60、下沿
+// 60 + 5×4 = 80，而 app 出货画的是 `Spacing 3.6`：上沿 **54**、下沿
+// 54 + `filtersHeight`（`Space(5)` = 18）= **72**。旧值的坏处不是红，是**假绿**：
+// 72..80 那 8px 里真有行也不会被抓到。
+func chipBandScene(t *testing.T, dark bool) (*App, *ui.Tester, float64, float64) {
 	t.Helper()
 	store := clipboardpkg.NewStore(clipboardpkg.FromConfigRoot(t.TempDir()), 500)
 	for i := 0; i < 40; i++ {
@@ -42,7 +47,7 @@ func chipBandScene(t *testing.T, dark bool) (*App, *ui.Tester, float32, float32)
 	a := testApp()
 	a.Clipboard = store
 	a.EnterClipboard()
-	tt := renderIn(t, a, dark)
+	tt := renderShipped(t, a, dark)
 	bounds := tt.Image().Bounds()
 	x, y := float32(bounds.Max.X/2), float32(bounds.Max.Y*3/4)
 	tt.Move(x, y)
@@ -58,9 +63,9 @@ func chipBandScene(t *testing.T, dark bool) (*App, *ui.Tester, float32, float32)
 	// The band's own band: the field row plus the breath above it, then the
 	// chips row's height — the numbers the launcher charges for the mode's
 	// chrome (`height.go` fieldRowUnits/breathUnits, `filtersHeight` = Space(5)).
-	spacing := float32(ui.LightTheme().Spacing)
-	top := (float32(fieldRowUnits) + float32(breathUnits)) * spacing
-	return a, tt, top, top + 5*spacing
+	u := designUnit()
+	top := float64(fieldRowUnits+breathUnits) * 4 * u
+	return a, tt, top, top + 5*4*u
 }
 
 // P11-bj · The chips band is *above* the scroller, so no row is ever under it.
@@ -82,9 +87,9 @@ func TestTheChipsBandSitsAboveTheScroller(t *testing.T) {
 	// padding scrolled away with its content). The rows the list *holds* are
 	// below its own top edge, and the scroller's box is below the band.
 	for _, item := range a.Results() {
-		if rect, ok := tt.Find(item.Title); ok && rect.Y < bottom {
-			t.Errorf("the row %q is drawn at y=%.0f, inside the chips band (%.0f..%.0f): "+
-				"the band is no longer reserved in the flow", item.Title, rect.Y, top, bottom)
+		if rect, ok := tt.Find(item.Title); ok && tenths(float64(rect.Y)) < tenths(bottom) {
+			t.Errorf("the row %q is drawn at y=%.1f, inside the chips band (%.1f..%.1f): "+
+				"the band is no longer reserved in the flow", item.Title, float64(tenths(float64(rect.Y)))/10, top, bottom)
 		}
 	}
 
@@ -106,7 +111,7 @@ func TestTheChipsBandSitsAboveTheScroller(t *testing.T) {
 // row inside it (P11-bj put the band above the scroller).
 func TestChipBandHoverDump(t *testing.T) {
 	if os.Getenv("FLOTER_PNG") == "" {
-		t.Skip("opt-in: FLOTER_PNG=1 writes /tmp/floter-P11-ap-chipband-<appearance>.png")
+		t.Skip("opt-in: FLOTER_PNG=1 writes /tmp/floter-P13-dt-chipband-<appearance>.png")
 	}
 	forEachAppearance(t, func(t *testing.T, dark bool) {
 		a, tt, top, bottom := chipBandScene(t, dark)
@@ -115,17 +120,17 @@ func TestChipBandHoverDump(t *testing.T) {
 		tt.Move(340, 200)
 		tt.Advance(200 * time.Millisecond)
 		tt.Frame()
-		tt.Move(340, top+6)
+		tt.Move(340, float32(top)+6)
 		tt.Advance(300 * time.Millisecond)
 		tt.Frame()
 		// P11-bj：带子已经在滚动容器之上，带子里没有行可指 —— 这里只留一张图，
-		// 记录的正是「带子里不放行」这件事（带子上沿 %.0f，下沿 %.0f）。
-		t.Logf("chips band %.0f..%.0f, hovered row %d", top, bottom, a.hoveredRow)
+		// 记录的正是「带子里不放行」这件事（带子上沿 %.1f，下沿 %.1f）。
+		t.Logf("chips band %.1f..%.1f, hovered row %d", top, bottom, a.hoveredRow)
 		name := "light"
 		if dark {
 			name = "dark"
 		}
-		path := fmt.Sprintf("/tmp/floter-P11-ap-chipband-%s.png", name)
+		path := fmt.Sprintf("/tmp/floter-P13-dt-chipband-%s.png", name)
 		f, err := os.Create(path)
 		if err != nil {
 			t.Fatal(err)
