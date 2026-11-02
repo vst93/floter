@@ -95,8 +95,13 @@ func productionSession() Session {
 //
 // 也就是说：参考的 `.session-manager__row { min-height: 56px }` 在**生产的这一行上
 // 没有被满足**，少 7px——上一轮那个「由内容自然满足」的结论是拿库存字取景量的。
-// 补地板（`Space(14)`）是**下一格**（`docs/rounds/P13-dd-report.md`「仍待」第 1 条），
-// 这一轮只把已有的数换成真数，并把这个缺口钉出来，不让它继续躲在一个假取景里。
+//
+// **P13-dz：处方被证伪。** §6.86 的 73-6 给的修法是「补 `min-height = Space(14)`」。
+// 注进去之后**像素一个都不动**：行级 `MinHeight(50.4)`（`rowFace.Floor` 那个形状）
+// 实测卡片盒仍是 `160..208` = **49**，这条 pin 照样绿。也就是说这一行的盒**不由行
+// 元素拥有**——`cardRow` 的 `MinHeight` 被外层（卡片的盒 / 页面的列）定了高，行只是
+// 被 stretch 进去。下一格要动的是**卡片几何**，不是行；在找到那个主人之前，别再往
+// 行上挂地板。`docs/liquid-glass.md` §6.95。
 func TestTheSessionRowsHeightAgainstTheReferencesFloor(t *testing.T) {
 	_, top, bottom, title := sessionRowFrame(t, productionSession())
 	if h := bottom - top + 1; h != 49 {
