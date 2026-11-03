@@ -888,17 +888,28 @@ func (a *App) View(c *ui.Context) {
 			// it — each its own key and label, as the old build's
 			// `.terminal-empty__line` drew them (the key in a badge, the label
 			// beside it, neutral text rather than a filled control).
-			ui.Column(c).Grow(1).FillWidth().Center().Gap(t.Space(2.5)).Children(func() {
-				// The reference's empty state is exactly three things: the title and
-				// the two lines that leave the page (`main:src/App.tsx:3852-3872`
-				// draws `terminal-empty__title` over two `terminal-empty__line`s and
-				// no second sentence), so no static tip is printed between them. A
-				// failed start is the one addition: its reason is shown here instead
-				// of the lines' own silence.
-				ui.Text(c, copy.EmptyTitle).FontSize(t.FontSize + 1).TextColor(tokens.TextStrong)
-				if a.Err != nil {
-					ui.Text(c, a.Err.Error()).FontSize(t.FontSize).TextColor(t.TextMuted)
-				}
+			// P13-fc（`docs/liquid-glass.md` §6.124）：这句话是下面两条出路的**标题**，
+			// 两条出路是彼此的同级。此前三件东西共用一条 `Gap(t.Space(2.5))`，墨上
+			// 标题→出路 1 是 **11.3px**、出路 1→出路 2 是 **13.6px**——标题比自己的第一条
+			// 出路还紧，三件读成一条等距清单，句尾直接黏在第一个能按的行上。§4.3 的
+			// 规矩是「只有这一对里有一件是**可以按的面**的那一对才抬开」：外层抬一整档
+			// 到 `Space(5)`（墨上 **20.3px**），两条出路留在自己的内列里不动（13.6px），
+			// 标题与它的失败原因也留在自己的内列里（11.3px）——三档 11.3 / 13.6 / 20.3。
+			// 内列 `AlignItems(Center)`：失败句比标题宽时，标题仍居中于「标题 + 原因」
+			// 这一块，而不是被顶到左边。
+			ui.Column(c).Grow(1).FillWidth().Center().Gap(t.Space(5)).Children(func() {
+				ui.Column(c).Gap(t.Space(2.5)).AlignItems(ui.Center).Children(func() {
+					// The reference's empty state is exactly three things: the title and
+					// the two lines that leave the page (`main:src/App.tsx:3852-3872`
+					// draws `terminal-empty__title` over two `terminal-empty__line`s and
+					// no second sentence), so no static tip is printed between them. A
+					// failed start is the one addition: its reason is shown here instead
+					// of the lines' own silence.
+					ui.Text(c, copy.EmptyTitle).FontSize(t.FontSize + 1).TextColor(tokens.TextStrong)
+					if a.Err != nil {
+						ui.Text(c, a.Err.Error()).FontSize(t.FontSize).TextColor(t.TextMuted)
+					}
+				})
 				// The keys the lines print are the keys that work: Enter starts a
 				// session, and the back line is the user's own new-command binding,
 				// as the old build's `formatShortcut(shortcuts.new_command)` drew it.
@@ -910,10 +921,12 @@ func (a *App) View(c *ui.Context) {
 				if c.Shortcut(0, ui.KeyEnter) {
 					a.EnsureSession()
 				}
-				a.emptyLine(c, copy, keyBadge("enter"), copy.EmptyNew, func() { a.EnsureSession() })
-				if a.Actions.NewCommand != nil {
-					a.emptyLine(c, copy, newCommandBadge(a.settings()), copy.EmptyBack, a.Actions.NewCommand)
-				}
+				ui.Column(c).Gap(t.Space(2.5)).AlignItems(ui.Center).Children(func() {
+					a.emptyLine(c, copy, keyBadge("enter"), copy.EmptyNew, func() { a.EnsureSession() })
+					if a.Actions.NewCommand != nil {
+						a.emptyLine(c, copy, newCommandBadge(a.settings()), copy.EmptyBack, a.Actions.NewCommand)
+					}
+				})
 			})
 			// The bar floats over the blank page too: its close control is
 			// the way out the user asked for, and its dot says the page holds
