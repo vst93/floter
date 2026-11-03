@@ -2082,6 +2082,7 @@ func (a *App) recommendedRow(c *ui.Context, copy i18n.Settings) {
 // busy, one busy line, and the report block below.
 func (a *App) transferRow(c *ui.Context, copy i18n.Settings) {
 	t := a.cardTheme(c)
+	tokens := a.tokens(c)
 	busy := a.TransferBusy != ""
 	ui.Row(c).FillWidth().Gap(t.Space(1)).AlignItems(ui.Center).
 		Padding(0, 0, t.Space(1), 0).Children(func() {
@@ -2113,14 +2114,38 @@ func (a *App) transferRow(c *ui.Context, copy i18n.Settings) {
 		}
 		switch a.TransferBusy {
 		case "export":
-			ui.Text(c, copy.IntegrationsExporting).FontSize(a.tokens(c).Caption).TextColor(t.TextMuted)
+			busyLine(c, copy.IntegrationsExporting, tokens)
 		case "import":
-			ui.Text(c, copy.IntegrationsImporting).FontSize(a.tokens(c).Caption).TextColor(t.TextMuted)
+			busyLine(c, copy.IntegrationsImporting, tokens)
 		}
 	})
 	if a.TransferReport != nil {
 		a.transferReport(c, copy)
 	}
+}
+
+// busyLine is the transfer row's one in-flight word: which of the two
+// buttons is running, said beside them while both are locked.
+//
+// P13-ff（`docs/liquid-glass.md` §6.127）：这一句话此前穿的是这一页**静止帮助句**
+// 的墨（`t.TextMuted`，与卡上方那句 “Integrations are command-line tools floter
+// discovers and runs in the terminal.” 逐像素同档：实测浅色 116 / 权重 120，深色
+// 160 / 133，深浅两套都是**相等**）。于是一整页里唯一会变的那句话，读起来与一条
+// 永远不变的说明句一模一样——而它旁边那两枚胶囊此刻已经熄灯（P13-aq 的禁用面，
+// 墨权重 104），这一行唯一的信号源却是全行最安静的字。
+//
+// 本仓对「在飞的词」已经有两条规矩，这一处是唯一没跟上的：
+//
+//   - 启动器的翻页页脚（`launcher/output.go` 的 `footerWord`）：在飞用
+//     `TextSecondary` 与 500，静止用 `TextMuted` 且不带字重——**在飞比静止重一档**；
+//   - 设置页的配置工具条（`config.go` 的 `configToolbar`，P13-el）：在飞与落地
+//     **同档**（`TextTertiary`），因为它有一枚落地后的孪生词（"Saved"），换词不换墨。
+//
+// 这一句没有孪生词——导出结束它整句消失，页面上留下的是另一块报告或什么都没有，
+// 所以它走**第一条**：在飞的词抬到 `TextSecondary` + 500，比它脚下的帮助句重一档。
+// 字号、盒、位置一个字节不动（仍是 `tokens.Caption`，仍居中于两枚胶囊的中线）。
+func busyLine(c *ui.Context, word string, tokens theme.Tokens) {
+	ui.Text(c, word).FontSize(tokens.Caption).FontWeight(500).TextColor(tokens.TextSecondary)
 }
 
 // installRow is the npm install field: a package name, an optional version,

@@ -5436,3 +5436,58 @@ pin：`internal/launcher/ladderrung_test.go` 两条——① `TestTheResultRowsT
 契约账 `internal/ci/fontladder_contract_test.go` 现在跑两个包（子测试 `../settingsui` /
 `../launcher`），判据 ①②③ 一字未改。附 opt-in 出图（`FLOTER_P13FE_DIR`）：
 tiny 档深浅两套，差分 `rows` 24081/24189 px、`strip` 6531/6539 px。
+
+### §6.127 集成页的导出/导入行：在飞那一句话，比它自己按灭的两枚胶囊还安静（P13-ff，**已落地**）
+
+通用队列的**状态反馈 · 忙 / 进行中**（P13-fe「仍待」第 1 条）。表面 = **集成页（Integrations）
+的 transferRow**：两枚胶囊（Export / Import）+ 行尾那句 `Exporting…` / `Importing…`。
+
+**病（实测，生产取景 720×1600，量的是这一行的卡面）**：
+
+| 帧 | 在飞那句的墨权重 | 它自己按灭的两枚胶囊 | 差 |
+|---|---|---|---|
+| 浅色 | 107 | 105 | **+2** |
+| 深色 | **104** | 105 | **−1** |
+
+导出/导入在飞时，两枚胶囊一起熄灯（P13-aq 的禁用面：熄冠线、墨落一档，实测权重 105）。
+整行此刻只剩一个信号源——行尾那句话——而它穿的是 `t.TextMuted`，与页面上**永远不变**的
+帮助句同一档墨，在深色外观上甚至比它按灭的那两枚胶囊还安静 1 级。也就是说：**唯一说明
+「有活在跑」的那句话，是整行最安静的字**。这与 §6.80（更新行）、§6.107 / §6.108（配置
+工具条）是同一族病的第三处。
+
+**本仓对「在飞的词」本来就有两条规矩**，这一处是唯一没跟上的：
+
+- 启动器的翻页页脚（`launcher/output.go` 的 `footerWord`）：在飞 `TextSecondary` + 500、
+  静止 `TextMuted` + 无字重 —— **在飞比静止重一档**；
+- 设置页的配置工具条（`config.go`，P13-el）：在飞与落地**同档**（`TextTertiary`），
+  因为它有一枚落地后的孪生词（`Saved`），换词不换墨。
+
+这句话**没有孪生词**——导出结束它整句消失，页面上留下的是另一块报告或什么都没有——
+所以它走第一条。
+
+**落地**：`settingsui.go` 的 `transferRow` 里两臂收口到一个 `busyLine`：
+`t.TextMuted`（无字重）→ `tokens.TextSecondary` + `FontWeight(500)`。字号仍是
+`tokens.Caption`，盒、位置、行内中线一个字节不动（实测墨盒 `{313.8, 172.6, 57, 15}`，
+改动前后 x / y 相同，只有字重带来的 2px 字宽）。
+
+| # | 位置 | 旧值 → 新值 | 状态 |
+|---|---|---|---|
+| 127-1 | `settingsui.go` `transferRow` 的 export 臂 | `TextMuted`（无字重）→ `TextSecondary` + 500 | `已落地（pin）` |
+| 127-2 | 同上的 import 臂 | 同上（两臂收口到 `busyLine`） | `已落地（pin）` |
+| 127-3 | 字号 / 盒 / 行内中线 | 不动：仍是 `tokens.Caption`、仍居中于两枚胶囊的中线 | `已落地（pin）` |
+| 127-4 | 给这句话加一枚转圈环 | **未开始（需拍板）**：全仓的「在飞」几乎都带环——启动器页脚（P13-ck 的 12u 环）、忙碌胶囊（`busyActionButton` 的 `actionSpinner`）、忙碌开关（拇指换成 spinner）。这一行是唯一的例外：词有、环没有，而它的两枚胶囊此刻是**普通**禁用面（`disabledActionButton`，不带环）。要不要补，取决于「环」是每处在飞都有的**语法**，还是只有「这一处只有它一个信号」时才花的预算——环一进来，行的盒高就不再由胶囊决定（环比 15 的 caption 盒高），会顶高整行 | `未开始（需拍板）` |
+| 127-5 | `freshnessState` 的 `正在探测…`（`settingsui.go` 的 `freshnessRow`） | 不动：那是**一族状态词**（unknown / running / success / degraded / failed）共用一个墨档的**时间线**，只抬 running 一臂会让同一行的时间线断档；要改得整族一起改，属另一轮 | `未开始` |
+| 127-6 | 墨 / 面 / 动效 / 键盘模型 / i18n / 命令接线 | 一字节不动 | `已落地（不变）` |
+
+**这轮为什么让它更轻、更有空间感**：同一行里，「面」已经在说「这两枚按不动了」（熄冠线、
+墨落一档），那么「字」就必须说「所以现在在发生什么」。此前两者几乎同重（+2 / −1），行内
+没有层级，只有一个平面；现在 130 对 105（浅）与 127 对 105（深）——**面退、字进**，一行里
+出现了两个高度：熄掉的面，和站在它前面的那句话。
+
+pin：`internal/settingsui/transferlive_test.go` 两条——①
+`TestTheTransferBusyLineOutranksTheButtonsItKilled`（深浅两套：在飞句的墨权重必须比它按灭的
+两枚胶囊高 ≥ 15 级，实测 +25 / +22；改动前是 +2 / −1）；②
+`TestTheTransferBusyLineKeepsTheCaptionBoxAndTheMidline`（仍是 caption 的盒高，仍居中于
+两枚胶囊的中线，仍在它们右侧——钉「本轮只改墨」）。附 opt-in 出图（`FLOTER_P13FF_DIR`）：
+深浅两套，差分 **314 px**（两套相同），bbox `(134,22)-(189,33)`——正好是那一个词的墨盒，
+其余一个像素没动。
