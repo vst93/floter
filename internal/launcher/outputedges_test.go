@@ -298,3 +298,101 @@ func TestDumpP13DVOutputBandPNGs(t *testing.T) {
 		writePNG(t, filepath.Join("/tmp", "floter-P13-dv-text-"+name+".png"), tb)
 	}
 }
+
+// P13-es · 正文分支的下沿：这一页的上沿有**页面自己的**一格呼吸（`header` =
+// `Space(4)` = 14.4，在裁剪之外），下沿此前只有**内容的** `Space(1)` = 3.6 ——
+// 滚到底时最后一行的墨落在 y=430，窗口下沿在 439，中间只剩 **8px**（3.6 的内边距
+// + 4.4 的行尾）；同一个窗口里列表形状留的是 **25px**（6.2 的行内边距 + 19.8 的
+// 页脚带）。一页两端差 4 倍，读起来是「字写到窗口边上」。
+//
+// 规矩（§6.113 那条「下呼吸 = 软边 + 一格」代入这张面自己的软边）：卡片上的滚动体
+// 没有软边（§6.48：半透明面上没有可回放的不透明色），所以下呼吸 = 页头那一格呼吸。
+//
+// 这一条钉两件事：①**值**——末尾的墨离窗口下沿不少于页头那一格（改前 8 < 14，红；
+// 改后 19）；②**归属**——它是页面的内边距，不是最后一行行尾的巧合：多一行内容，
+// 这个距离一个像素都不许动。
+func TestTheOutputTextKeepsThePagesBreathAtItsEnd(t *testing.T) {
+	text := func(lines int) string {
+		var b strings.Builder
+		for i := 0; i < lines; i++ {
+			b.WriteString("line ")
+			b.WriteString(strings.Repeat("x", 20))
+			b.WriteString("\n")
+		}
+		return b.String()
+	}
+	spacing, _, _, _ := designMetrics()
+	breath := int(math.Round(4 * spacing)) // `header` = `Space(4)`
+	endAir := func(dark bool, lines int) int {
+		a := testApp()
+		tt := listOutputShipped(t, a, text(lines), dark)
+		tt.Frame()
+		tt.Frame()
+		if a.Output.MaxY <= 0 {
+			t.Fatalf("dark=%v lines=%d: the page cannot scroll (MaxY = %v); "+
+				"the pin would read the first line, not the last", dark, lines, a.Output.MaxY)
+		}
+		a.Output.Y = 1e6
+		tt.Frame()
+		tt.Frame()
+		img := tt.Image()
+		full := ui.Rect{X: 0, Y: 0, W: float32(img.Bounds().Dx()), H: float32(img.Bounds().Dy())}
+		clip := a.outputListRect
+		last := -1
+		for y := int(math.Round(float64(clip.Y))); y < int(math.Round(float64(clip.Y+clip.H))); y++ {
+			if contrastIn(img, ui.Rect{X: 0, Y: float32(y), W: full.W, H: 1}, full) > 8 {
+				last = y
+			}
+		}
+		if last < 0 {
+			t.Fatalf("dark=%v lines=%d: the scrolled text drew no ink at all", dark, lines)
+		}
+		return img.Bounds().Dy() - last - 1
+	}
+	for _, dark := range []bool{false, true} {
+		air := endAir(dark, 60)
+		t.Logf("dark=%v: the last line ends %d px above the window's rim (the page's breath is %d)",
+			dark, air, breath)
+		if air < breath {
+			t.Errorf("dark=%v: the last line of a scrolled output ends %d px above the window's "+
+				"rim, under the %d px this page spends above its clip — the page's air exists "+
+				"only at its top (P13-es)", dark, air, breath)
+		}
+		if longer := endAir(dark, 61); longer != air {
+			t.Errorf("dark=%v: one more line moved the end air from %d to %d px — that air is "+
+				"the content's, not the page's (P13-es)", dark, air, longer)
+		}
+	}
+}
+
+// Opt-in: P13-es 的四张图——正文分支的静止帧与满态帧，深浅两套。
+func TestDumpP13ESOutputTextEndPNGs(t *testing.T) {
+	if os.Getenv("FLOTER_PNG") == "" {
+		t.Skip("set FLOTER_PNG=1 to write the round's visual evidence")
+	}
+	tag := os.Getenv("FLOTER_PNG_TAG")
+	if tag == "" {
+		tag = "after"
+	}
+	var text strings.Builder
+	for i := 0; i < 60; i++ {
+		text.WriteString("line ")
+		text.WriteString(strings.Repeat("x", 20))
+		text.WriteString("\n")
+	}
+	for _, dark := range []bool{false, true} {
+		name := "light"
+		if dark {
+			name = "dark"
+		}
+		a := testApp()
+		tt := listOutputShipped(t, a, text.String(), dark)
+		tt.Frame()
+		tt.Frame()
+		writePNG(t, filepath.Join("/tmp", "floter-P13-es-text-"+name+"-rest-"+tag+".png"), tt)
+		a.Output.Y = 1e6
+		tt.Frame()
+		tt.Frame()
+		writePNG(t, filepath.Join("/tmp", "floter-P13-es-text-"+name+"-end-"+tag+".png"), tt)
+	}
+}

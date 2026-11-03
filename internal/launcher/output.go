@@ -753,8 +753,20 @@ func (a *App) outputBody(c *ui.Context, copy i18n.Launcher, edge float32) {
 					// 在两个分支上都记「内容从哪里开始」，夹具才能从裁剪上沿按 `Space(4)`
 					// 推出那条呼吸带（§6.86 的前提破那一行）；`assignOutputNumbers` 对正文
 					// 早退，编号族不受影响。
+					// P13-es（`docs/liquid-glass.md` §6.114）：这一页的上沿有**页面的**一格呼吸
+					// （`header` = `Space(4)` = 14.4，在裁剪之外），下沿此前只有**内容的**
+					// `Space(1)` = 3.6 —— 滚到底时最后一行的墨落在 y=430，窗口下沿在 439，
+					// 中间只剩 **8px**（3.6 的内边距 + 4.4 的行尾），同一个窗口里列表形状留的是
+					// **25px**。一页的两端于是差了 4 倍，读起来是「字写到窗口边上」而不是
+					// 「这一页到此为止」。
+					//
+					// 规矩（与 §6.113 同一条，代入这张面自己的软边）：**有软边 → 软边 + 一格
+					// `Space(2)`；无软边 → 与页头同一格呼吸**。卡片上的滚动体不能有软边
+					// （§6.48：半透明面上没有可回放的不透明色），所以这一支代入的是后者：
+					// 下呼吸 = `header`。改后末尾的墨离下沿 **18.8px**，`MaxY` 685 → 695.8；
+					// 呼吸在滚动内容的末尾，静止帧（`Y=0`）逐字节不变。
 					scroll := ui.Scroll(c.Key("launcher.output")).TrackScroll(&a.Output).Fill().
-						Padding(0, t.Space(3), t.Space(1), t.Space(3)).Children(func() {
+						Padding(0, t.Space(3), header, t.Space(3)).Children(func() {
 						ui.RichText(c, a.outputSpans(c, view)...).Font(view.FontFamily).
 							FontSize(t.FontSize).TextColor(t.Text).Selectable()
 					})
