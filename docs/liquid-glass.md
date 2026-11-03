@@ -5544,3 +5544,49 @@ pin：`internal/settingsui/freshnessladder_test.go` 两条——①
 `secondary ↔ strong` ≥ 40 级）；② `TestTheNeverProbedCellIsQuieterThanAProbedOne`（`Never probed`
 落 `TextMuted`，且它的盒与「刚探测过」那一格相同）。附 opt-in 出图（`FLOTER_P13FG_DUMP`）：
 深浅两套，差分 **151 px**（两套相同），bbox `(275,52)-(304,61)` = `Failed` 那一个词的墨盒。
+
+---
+
+### §6.129 集成页结果格最长的那句话：量在它真正会被画的那个宽度上（P13-fh，**已落地**）
+
+P13-fg「下一格」第 1 条：`Result` 格里最长的词 `Succeeded with warnings`（en）与
+`metadataCell` 里那句 `SingleLine()` 的边界——**是否被切、切在哪、要不要让标签先让位**。
+结论：**被切，但切在不可达的宽度上**，所以这一轮**不加换行、不加堆叠、不缩字号、不动标签**，
+只把余量钉成 pin。
+
+**实测（720×900 生产取景的同一块格子，宽 1600u 的那一帧取「自然宽」）**：
+
+| 面板宽 | 结果格盒宽 | 墨列 | 句子 | 余量 |
+|---|---|---|---|---|
+| 1600u（自然） | 683.5u | 129 | 整句 | — |
+| 860u | 313.5u | 129 | 整句 | 184.5u |
+| **720u（唯一生产宽）** | **243.5u** | **129** | **整句** | **114.5u** |
+| 560u | 163.5u | 129 | 被切（尾端记号为省略号） | −34.5u |
+| 460u | 113.5u | 98 | 被切 | −130u |
+
+**为什么 560/460 不可达**（两条独立的事实，任一条都够）：
+
+1. **设置面板是固定面板**：`internal/shell/shell.go:4743-4745` 的 `targetSize` 对
+   `SurfaceSettings` 一律返回 `launcher.InputWindowWidth`（= 720，`internal/launcher/launcher.go:30`），
+   只有 `SurfaceTerminal` 才读 `s.TerminalWidth`——非终端面不开 resize（`shell.go:1316-1320`）。
+   `s.UIScale` 只改**高度**（`SettingsHeight`），不改宽度。
+2. **只有两种界面语言**：`i18n.For` 的 switch 只有 `ZH` 与默认 en（`internal/i18n/i18n.go:1303-1310`），
+   而 zh 的同一句是 `成功但有警告`（更短）。
+
+**落地**：
+
+| # | 位置 | 内容 | 状态 |
+|---|---|---|---|
+| 129-1 | `internal/settingsui/freshnessanswer_test.go` | 新 pin `TestTheFreshnessAnswerFitsTheCellItIsDrawnIn`：en/zh × 深浅 × 五个结果词，在 `launcher.InputWindowWidth` 那一帧上，每个词的**墨跨**必须等于它在 1600u 下的自然宽，且格盒不窄于它 | `已落地（pin）` |
+| 129-2 | 同上 | 新 pin `TestTheFreshnessGridGivesItsAnswerRoom`：最长答案必须留出自身宽度的 ≥ 1/4 作余量（实测 114.5u / 129u = 0.89），且标签与值同列、值不压标签 | `已落地（pin）` |
+| 129-3 | `freshnessSection` / `metadataCell` 的几何 | 一字节不动（本轮零像素改动） | `已落地（不变）` |
+| 129-4 | 窄窗换行 / 两格堆叠 / 标签先让位 | **不做**：为一件在固定 720u 面板上永不发生的事，给整块多加一行、多一层高度——那正好是「空间感」的反面 | `故意不做（附理由）` |
+| 129-5 | 把面板改成可缩放 / 允许更长的结果词 | 属行为契约（窗口模型、i18n 文案），**不擅自改**；真要做，先按 §6.129 的表算出新的格宽，再回来看这条 pin | `需拍板` |
+
+**这轮为什么让它更轻、更有空间感**：这一轮的产出是「**不加**」——量完之后，块保住了两列等高、
+单行、零额外高度的形状，而不是为不可达的宽度长出一层换行。余量 114.5u 现在是可断言的数，
+下一次有人把句子写长、把字阶提一档、把面板收窄，pin 会先红，而不是等截图里出现半句话。
+
+pin：`TestTheFreshnessAnswerFitsTheCellItIsDrawnIn` + `TestTheFreshnessGridGivesItsAnswerRoom`。
+变异两条实跑：① 把 en 的 `FreshnessResultDegraded` 加长到 247u（> 243.5u）→ 两条 pin 红 4 处；
+② 把 `metadataCell` 的值字号 ×2（252u）→ 两条 pin 红 4 处；均 `md5sum -c` 还原后 `touch` 复跑全绿。
