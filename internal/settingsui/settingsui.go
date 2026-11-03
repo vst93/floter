@@ -4716,9 +4716,17 @@ func (a *App) choose(c *ui.Context, label, description string, options []i18n.Op
 // `fieldFace` rather than the opaque `--glass-control` the framework's own
 // Select draws.
 func (a *App) chooseSelect(c *ui.Context, selected *string, labels []string, label string) ui.Element {
-	e := ui.Select(c, selected, labels).Label(label).Width(220).Radius(999)
+	e := ui.Select(c, selected, labels).Label(label).Radius(999)
 	if a.cardUnit > 0 {
-		e = e.MinHeight(28).Padding(4, 8)
+		e = e.Width(220).MinHeight(28).Padding(4, 8)
+	} else {
+		// 220 是参考的 `max-width`（settings.css:919-940），读成控制列自己的
+		// 宽度——但它是**地板**不是上限。picker 显示的值是设置文件或插件写进来
+		// 的任意字符串：此前这个盒子是字面 220，值比它长就被 `SingleLine` 用省
+		// 略号切掉（实测 39 字的族名在出厂台阶上从第 189 列起被改画）。标签列
+		// 是弹性的、且留着 ≥2× 自己的墨，所以长值借它的地，行仍然是一行
+		// （P13-fn，§6.133）。
+		e = e.MinWidth(220)
 	}
 	return a.fieldFace(c, e, true)
 }
