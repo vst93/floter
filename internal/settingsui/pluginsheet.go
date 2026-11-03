@@ -68,9 +68,22 @@ func (a *App) PluginSheet(c *ui.Context, sheet PluginSheet) {
 	// way the settings body's own scroller is (§6.16): the wrapper fills the
 	// band it was given and the scroller fills the wrapper, so neither the
 	// height chain nor the scroll range moves.
+	//
+	// P13-er（`docs/liquid-glass.md` §6.113）：下内边距是 **`Space(3)` → `Space(5)`**。
+	// 这块面的底边软边（下面 `Height(t.Space(3))`）正好 10.8px 高，而它给自己的
+	// 下留白也是 10.8px——滚到底时**软边整好吃掉了那一格**：实测带子最下 11 行是空白，
+	// 第 12 行就是最后一张卡的下边，卡的边离软边上沿只剩 **1.2px**。满态于是读成
+	// 「被切开」，不是「到头了」。
+	//
+	// 同一套滚动收口在设置体上一直是对的：`Padding(edge, 0, t.Space(6), 0)`，软边
+	// `edge` = `Space(4)` = 14.4，下留白 21.6 = **软边 + 一格 `Space(2)`**
+	// （`settingsui.go:1559`）。规矩是「软边 + 一格呼吸」，每张面代入自己的软边高：
+	// 浮层 10.8 + 7.2 = **18.0 = `Space(5)`**。改后带子最下 18 行是空白，卡的边离
+	// 软边上沿 7.2px。顶端的 `Space(1)` 与页头的墨一个字节不动（那条 11 行的余量
+	// 见 §6.72）。
 	ui.Column(c).Fill().Children(func() {
 		ui.Scroll(c.Key("plugin.config")).TrackScroll(&a.PluginScroll).Fill().
-			Padding(t.Space(1), t.Space(4), t.Space(3), t.Space(4)).Children(func() {
+			Padding(t.Space(1), t.Space(4), t.Space(5), t.Space(4)).Children(func() {
 			ui.Column(c).FillWidth().Gap(t.Space(3)).Children(func() {
 				// The header: the plugin's own name — the sheet's name, so it hangs
 				// on the sheet's own column (the scroller's 4u padding), the way a

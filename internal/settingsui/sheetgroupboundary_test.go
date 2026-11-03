@@ -122,9 +122,12 @@ func TestThePluginSheetOpensANewGroupWiderThanANewRow(t *testing.T) {
 			// 一条 `Space(4)` 的上内边距（第一组不动），所以 `MaxY` 由内容自然长
 			// **+14.4**。判据本身（「边是画出来的、不是几何」）不动，基线跟着内容
 			// 高度走。
-			if got := a.PluginScroll.MaxY; got < 345.15 || got > 345.25 {
-				t.Errorf("the sheet's scroll range moved: MaxY %v, want 345.2 (one group's own "+
-					"Space(4) over the P13-ej baseline 330.8)", got)
+			// P13-er 重定基线：旧值 **345.2** → 新值 **352.4**。§6.113 把浮层的下内边距
+			// `Space(3)` → `Space(5)`（+7.2），滚到底时最后一张卡的边才不再被底边软边
+			// 吃掉。基线的增量正好是这一格，模块本身没动。
+			if got := a.PluginScroll.MaxY; got < 352.35 || got > 352.45 {
+				t.Errorf("the sheet's scroll range moved: MaxY %v, want 352.4 (one group's own "+
+					"Space(4) over the P13-ej baseline 330.8, plus the P13-er bottom breath)", got)
 			}
 			if tag := os.Getenv("FLOTER_P13EN_TAG"); tag != "" {
 				name := filepath.Join("/tmp",
