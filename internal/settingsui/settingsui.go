@@ -4875,10 +4875,17 @@ func (a *App) effectiveOpacity(c *ui.Context, copy i18n.Settings, s settings.Set
 	// P13-ew（§6.118）：这一行是**这一组的答案**，不是又一行——所以上边仍用 `Space(1)`
 	// 紧贴上面那两个滑块。但下边此前也是 `Space(1)`，而卡片里每一行都是 `Space(2.25)`：
 	// 这一行的盒底实测只离卡沿 2.0px，是整张卡唯一压在软边上的东西。下边补齐行边距。
+	// P13-ez（`docs/liquid-glass.md` §6.121）：这一行是这一组的**答案**，而它是全卡唯一
+	// 一个**比它回答的数字还小一档**的东西 —— 滑块自己的实时读数是正文档（盒高 17），
+	// 这句答案此前是 caption 档（盒高 15），与它上面那条**轴词**（「Transparent / Solid」，
+	// 卡里最不要紧的两个词）同级。同一张卡里两个同类数字（「这一组说的是什么数」）不该
+	// 穿两个档，尤其不该让答案比问题小。§6.120 的规矩：一页之内同一角色只有一个字号档，
+	// 层级由**墨**说，不由字号说。墨不动（名字 tertiary、数值 secondary 560），只把字号
+	// 抬回正文档 —— 于是卡只长 2px，卡内其它行一个像素不动。
 	ui.Row(c).FillWidth().AlignItems(ui.Center).Justify(ui.SpaceBetween).
 		Padding(t.Space(1), inset, t.Space(2.25), inset).Children(func() {
-		ui.Text(c, copy.EffectiveOpacity).FontSize(tokens.Caption).FontWeight(500).TextColor(tokens.TextTertiary)
-		ui.Text(c, copy.EffectiveOpacityValue(percent)).FontSize(tokens.Caption).FontWeight(560).
+		ui.Text(c, copy.EffectiveOpacity).FontSize(tokens.Body).FontWeight(500).TextColor(tokens.TextTertiary)
+		ui.Text(c, copy.EffectiveOpacityValue(percent)).FontSize(tokens.Body).FontWeight(560).
 			TextColor(tokens.TextSecondary).ContentTransition(ui.ContentTransition{Numeric: true})
 	})
 }
