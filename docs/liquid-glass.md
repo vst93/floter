@@ -5681,3 +5681,36 @@ pin：`TestEveryUnavailableControlIsClassified` + `TestAnUnavailableControlPoint
 pin：`TestAnEmptyRegionBreathesWithOneNumberOnBothSides` + `TestTheEmptyRegionGrowsPastItsFloor`。
 变异两条实跑：① `Padding(Space(6))` → `Space(5)`，两侧同时红 12 处（18.0 对 21.6）；
 ② `head` 加 `.Margin(Space(1),0,0,0)`，只有上空气红 6 处（25.2 对 21.6）；均 `md5sum -c` 还原后复跑全绿。
+
+### §6.132 控制槽 `Shrink(0)`：它从不吃标签列，但也没人守着（P13-fk，**已落地（pin）**）
+
+`.pending-bugs.md` 挂了十几轮的「`cardRow` 控制槽 `Shrink(0)`」（§6.18 尾巴把它与多选箱宽度
+并称「需拍板」）。**量下来它不需要改**：槽从不越界，标签列也从没被吃到危险线。真正缺的是
+**一句守着的断言**——「控件是固有宽度、标签列是弹性」这一对分工，此前只是代码里的两个 flag。
+
+实测（720×900，五页，深浅两套逐值相同；行内容盒 **515.0**，行内容右沿 **691.2**）：
+
+| 页面 | 最宽控制槽 | 剩下给标签列 | 槽右沿 − 内容右沿 |
+|---|---|---|---|
+| General（字体族 `ui.Select`） | **220.0** | **260.0** | 0.0 |
+| General（数字档） | 200.0 | 280.0 | 0.0 |
+| Shortcuts | 81.0 | 399.0 | 0.0 |
+| Integrations | 88.0 | 400.0 | 0.0 |
+| About | 67.8 | 412.2 | 0.0 |
+
+| # | 位置 | 现状（旧） | 落成（新） | 状态 |
+|---|---|---|---|---|
+| 132-1 | `internal/settingsui/controlslot_test.go` | 无 pin：`Shrink(0)` 只是 `rows.go:1620` 上的一个 flag | `TestTheControlKeepsItsWidthWhileTheLabelColumnTakesTheSlack`：picker 墨跨 720 == 1600（229 列，±1） | `已落地（pin）` |
+| 132-2 | 同上 | — | 控制列右沿贴行内容右沿（±2；picker 自己的 1px 面内缩让它的墨固定差 **1.2px**，两个宽度都是 1.2） | `已落地（pin）` |
+| 132-3 | 同上 | — | 标签列 260u 是**弹性的那一半**：1600 时控件右移 **880**（= 窗口长出来的宽），标签列 260 → 1140 | `已落地（pin）` |
+| 132-4 | 量法 | 按**盒子**量会被骗：`Width(220)` → `260` 的变异里墨跨一动不动（量的是内容不是盒），`Gap(Space(2))` → `0` 也够不着（标签墨离列尾还有 194u） | 两条**不写断言**：写了就是空断言；写进报告当「这一族不在这些格子上」的证据 | `已落地（判据）` |
+| 132-5 | `settingsui.go:4719` `chooseSelect` 的 `Width(220)` | **字面 px**，而它上面三行的注释说设置页「保留框架的 `--u` 度量、跟着缩放」 | **本轮不动**：改它会改非默认界面尺寸下 picker 的宽度，要先量那一档标签列还剩多少 | `需拍板（先量）` |
+
+**这轮为什么让它更轻、更有空间感**：右列是一条**竖线**（691.2），不是一条带——五页、每一行、
+两套外观，槽右沿都落在同一个数上（`over = 0.0`）；宽度差全被左边的标签列吃掉，所以右侧不会
+长出一条随内容锯齿的边缘。这是「空间感」最便宜的一半：**对齐本身**。
+
+pin：`TestTheControlKeepsItsWidthWhileTheLabelColumnTakesTheSlack`。变异两条实跑：
+① 控制槽 `Shrink(0)` → `Grow(1)`，三条断言全红 6 处；② 标签列 `Grow(1)` → `Grow(0)`，
+控件跑出扫描带（"paints nothing"）；均 `md5sum -c` 还原后复跑全绿。详见
+`docs/rounds/P13-fk-report.md`。
