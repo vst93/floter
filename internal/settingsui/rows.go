@@ -1708,16 +1708,23 @@ func (a *App) stackedRow(c *ui.Context, label, sublabel string, control func()) 
 		if !first {
 			ui.Box(c).FillWidth().Height(1).Background(tokens.Hairline).MarginX(inset).Shrink(0)
 		}
-		ui.Column(c).FillWidth().Gap(t.Space(1)).Padding(t.Space(2.25), inset).Children(func() {
+		// P13-ev（`docs/liquid-glass.md` §6.117）：这一列此前对**三对**都只问一个数
+		// ——`Gap(t.Space(1))`，于是「标题 → 它的解释」与「解释 → 控件」读同一条缝。
+		// 间距不属于区域，属于它两侧那一对（§4.3）：标题和它的灰线是**一句**，
+		// 控件是**一件可以按的面**。前者取这一行自己的行内缝（`rowLineGap()`，与
+		// 每一条 trailing 行同值），后者抬一档（`Space(2)`）。
+		ui.Column(c).FillWidth().Gap(t.Space(2)).Padding(t.Space(2.25), inset).Children(func() {
 			// The label and its grey line keep the same steps as any trailing
 			// row: the reference's `.settings-row__label` is `--text-emphasis`
 			// and `.settings-row__sublabel` is `--text-body` for both shapes
 			// (`settings.css:520-546`), and `SettingsRow` never demotes a
 			// stacked row (`SettingsRows.tsx:104-135`).
-			ui.Text(c, label).FontSize(tokens.Emphasis).FontWeight(580).TextColor(tokens.TextStrong)
-			if sublabel != "" {
-				ui.Text(c, sublabel).FontSize(t.FontSize).TextColor(t.TextMuted)
-			}
+			ui.Column(c).FillWidth().Gap(a.rowLineGap()).Children(func() {
+				ui.Text(c, label).FontSize(tokens.Emphasis).FontWeight(580).TextColor(tokens.TextStrong)
+				if sublabel != "" {
+					ui.Text(c, sublabel).FontSize(t.FontSize).TextColor(t.TextMuted)
+				}
+			})
 			control()
 		})
 	})
