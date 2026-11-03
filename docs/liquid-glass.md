@@ -5645,3 +5645,39 @@ pin：`TestTheFreshnessAnswerFitsTheCellItIsDrawnIn` + `TestTheFreshnessGridGive
 眼睛。
 
 pin：`TestEveryUnavailableControlIsClassified` + `TestAnUnavailableControlPointsAtItselfWithOneOfTwoShapes`。
+
+### §6.131 空态的上下空气：区域自己那 24u 就是它的呼吸（P13-fj，**已落地（pin）**）
+
+通用队列「空态满态」的最后一格（P13-fi「仍待」第 1 条）。`emptyState`（`settingsui/empty.go:36`）
+是四个调用点共用的唯一空态实现：§6.9 钉了**部件之间**的三对缝（8 / 12 / 23px），§6.13 钉了
+出口的**种类**（板 vs 一行字），而**区域自己的上下空气**从来没量过——它此前只是
+`Padding(Space(6)) + Center()` 这一句散文，加上「floor = 92u / 160u」这个读起来像高度的数。
+
+**先量**（真画法，720 宽，en，深/浅两套逐十分位相同）：
+
+| arm | 区域盒高 | 内容 + 2×24u | floor（u→px） | 上空气 | 下空气 |
+|---|---|---|---|---|---|
+| 会话页（160u + 板） | **154.6** | 154.6 | 144.0 | **21.6** | **21.6** |
+| 自定义快捷键（92u + 一行字） | **147.8** | 147.8 | 82.8 | **21.6** | **21.6** |
+| 集成页（92u，无 hint 无出口） | **84.6** | 84.6 | 82.8 | **21.6** | **21.6** |
+
+三句话：① 下空气在三个调用点上都是 21.6 = `Space(6)`——空态的密度由这一块区域挑**一次**；
+② 上空气是同一个数（`title.Y − box.Y = 45.0 = 24u + 22u + 4u`，标记盒顶正好落在内边距上）；
+③ **floor 是地板，不是高度**：只有集成页（84.6 对 82.8）差 1.8px 就生效，另两个 arm 的高度
+全由内容决定（反超 10.6 / 65）。
+
+| # | 位置 | 内容 | 状态 |
+|---|---|---|---|
+| 131-1 | `internal/settingsui/emptyair_test.go` | `TestAnEmptyRegionBreathesWithOneNumberOnBothSides`：三 arm × 深浅，上/下空气都等于区域自己的 `Space(6)`（±0.6） | `已落地（pin）` |
+| 131-2 | 同上 | `TestTheEmptyRegionGrowsPastItsFloor`：会话页 > 144、自定义 > 82.8（floor 是地板），两个区域的空气相等（一个密度） | `已落地（pin）` |
+| 131-3 | 同上 | opt-in dump `TestDumpP13FJEmptyAirPNGs`（`FLOTER_P13FJ_DIR`）：三 arm × 深浅 | `已落地（证据）` |
+| 131-4 | 量法 | 按**盒**量，不按**墨**量：板的面 29.8 对标签墨 8 行，墨上会读成「下空气 54」的假空气（差 21 = 板自己的面高） | `已落地（判据）` |
+| 131-5 | 产品代码 | **零像素改动**：三个调用点、两套外观，空气都是同一个数 | `已落地（不变）` |
+
+**这轮为什么让它更轻、更有空间感**：空态是一块只有三件东西的区域，它的「轻」全在呼吸上。
+这一轮证明那块区域的呼吸**只有一个数**（21.6，区域自己的内边距），三个调用点谁也不额外加
+一层空气——于是同一族空态在三个页面上读起来是同一个密度，而不是三块各按自己心情留白的板。
+
+pin：`TestAnEmptyRegionBreathesWithOneNumberOnBothSides` + `TestTheEmptyRegionGrowsPastItsFloor`。
+变异两条实跑：① `Padding(Space(6))` → `Space(5)`，两侧同时红 12 处（18.0 对 21.6）；
+② `head` 加 `.Margin(Space(1),0,0,0)`，只有上空气红 6 处（25.2 对 21.6）；均 `md5sum -c` 还原后复跑全绿。
