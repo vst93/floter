@@ -5786,3 +5786,47 @@ pin：`TestThePalettePickerIsAFloorNotACeiling`（`internal/settingsui/palettefl
 一枚问常数。现在两枚都只在**需要**的时候占地：出厂值画出同一列（右列是一条线），长了才借标签列
 的空。同一条规则落在同一张卡上，才叫一套材质。
 
+
+### §6.135 地板之上要有天花板：长值在自己的盒子里收口，预览块不挪（P13-fp，**已落地**）
+
+§6.134 把调色板 picker 从 `Width(220)` 改成 `MinWidth(220)`——「220 是地板不是上限」。
+那句话只说了**一半**：这一行有两个孩子，picker 右边是那块缩微终端（`palettePreview`，
+固定 `Space(37)` + `Shrink(0)`）。地板没有天花板，于是值一长，picker 就把预览块顶出行外。
+
+**先量**（真画法，行内容盒 515 = 卡内宽，四台阶 × 深浅）：
+
+| 台阶 | 值长 | 值墨 | 预览块 x | 块右沿 | 行右沿 | 溢出 |
+|---|---|---|---|---|---|---|
+| default | 8 | 49…94 | 333.0 | 481.0 | 535.0 | −54.0 |
+| default | 35 | 49…250 | 333.0 | 481.0 | 535.0 | −54.0 |
+| default | 55 | 49…358 | 392.0 | 540.0 | 535.0 | **+5.0** |
+| default | 75 | 49…479 | 511.0 | 659.0 | 535.0 | **+124.0** |
+| large | 55 | 51…390 | 427.8 | 590.6 | 535.0 | **+55.6** |
+| large | 75 | 51…522 | 558.8 | 721.6 | 535.0 | **+186.6** |
+| default | 120 | 49…568 | 770.0 | 770.0 | 535.0 | 盒宽 0（画不出来） |
+
+出厂九个调色板名（最宽 `High contrast` 80px）碰不到这条线；但 `paletteRow` 的标签表是
+**参数**（`i18n.Settings.Palettes`，调用方可以传任意 `Option.Label`），而 P13-fo 自己就是
+用 55 字标签证明地板生效的——被推出去的偏偏是**预览块**，它才是这一行存在的理由
+（R43，用户要看见调色板长什么样）。
+
+同一批测量顺带回答了 §6.134 留下的那个问题（「预览块的 `Space(37)` 会不会在更小的台阶上
+切字」）：**不会**。四个台阶 × 深浅，最长那句 `floter --version` 距块内沿
+25.6 / 26.8 / 29.0 / 32.2px，永远够用——所以这一轮不给她加地板。
+
+| # | 位置 | 现状（旧） | 落成（新） | 状态 |
+|---|---|---|---|---|
+| 135-1 | `internal/settingsui/settingsui.go` `paletteRow` | `ui.Select(...).MinWidth(220)`（只有地板） | **`.MinWidth(220).Shrink(1)`**：先借标签列的地，借完了在自己的盒子里收口（框架的省略号） | `已落地` |
+| 135-2 | 预览块（`palettePreview` → `terminalui.PalettePreview`） | 长值把它顶出行外（最多 +186.6px；120 字时盒宽 0） | 四个台阶 × 四种值长，块 rect **逐字段相同** | `已落地（pin）` |
+| 135-3 | 预览块自己的宽度 `Space(37)` | 读起来像「可能切字」的字面台阶 | 量完：最短留 25.6px，**不加地板** | `故意不做（量过）` |
+
+pin：`TestThePickerFloorHasACeiling` / `TestTheLongValueYieldsInsideItsOwnBox` /
+`TestThePreviewBlockStillHoldsItsThreeLines`（`internal/settingsui/paletteceiling_test.go`）。
+变异两条实跑：① 删 `Shrink(1)`，A 段 **11 处红**（`step=large: a 120-char value moves the
+preview block … (+525.0px)`）；② 预览块宽度 `Space(37)` → `Space(24)`，C 段 **8 处红**
+（`the command line ends 0.0px before the block's inner edge`）；均 `md5sum -c` 还原后复跑全绿。
+
+**这轮为什么让它更轻、更有空间感**：地板让盒子跟着内容长（上一轮），天花板让**长到极限的
+盒子停在行里**（这一轮）。两句话合起来才是「控件只占它需要的地，但绝不占别人的地」——
+预览块是这一行里唯一不可让的东西（它显示的就是这个选择的后果），所以让位顺序必须是
+picker 先让。

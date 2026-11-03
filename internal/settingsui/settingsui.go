@@ -4759,7 +4759,13 @@ func (a *App) paletteRow(c *ui.Context, copy i18n.Settings, current string, appl
 			// 两枚 picker 的宽度来自两个不同的地方——一枚跟着内容长，一枚钉死；
 			// 出厂的九个调色板名都装得下，所以两者碰巧画成同一个盒子，靠的是
 			// 巧合而不是规则（§6.134）。
-			e := a.fieldFace(c, ui.Select(c, &selected, labels).Label(copy.Palette).MinWidth(220).Radius(999), true)
+			// 地板之上还需要一个天花板（§6.135）：这一行有两个孩子——picker 与
+			// 预览块。预览块是 `Shrink(0)` 的固定列（`Space(37)`），picker 此前既不
+			// 收缩也不封顶，于是值一长它就一路把预览块顶出卡外（实测 default 台阶
+			// 55 字 +5.0、75 字 +124.0，large 台阶 75 字 +186.6；120 字时预览块的盒子
+			// 落在 x=808，720 宽的窗口里已经画不出来了）。`Shrink(1)` 让它先借标签列
+			// 的地、借完了就在自己的盒子边收口（框架的省略号），预览块一个像素不挪。
+			e := a.fieldFace(c, ui.Select(c, &selected, labels).Label(copy.Palette).MinWidth(220).Shrink(1).Radius(999), true)
 			if e.Changed() {
 				for _, option := range options {
 					if option.Label == selected {
