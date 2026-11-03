@@ -277,25 +277,29 @@ func (a *App) extensionSection(c *ui.Context, title string, count int, fn func()
 	})
 }
 
-// extensionHint is the Integrations panel's own explanation line, in one of
-// the reference's two registers: the Base plugins section's
-// `settings-section__hint` (body step, `--text-tertiary`, the heading's own
-// 2u inset; `ExtensionsPanel.tsx:2435-2436`) and the Detected section's
-// `.extensions-section-hint` (caption step, 4u inset; `:2542-2544`,
-// `extensions.css:711-720`). Both sit under the title and above the list —
-// the panel's own order, not the settings cards' footnotes.
-func (a *App) extensionHint(c *ui.Context, hint string, caption bool) {
+// extensionHint is the Integrations panel's own explanation line: the
+// sentence under a group's title and above its list — the panel's own order,
+// not the settings cards' footnotes.
+//
+// P13-ey 重定基线（`docs/liquid-glass.md` §6.120）：这一族此前有**两个**寄存器，
+// 而它们在同一页、同一条滚动里：Base plugins 的 `settings-section__hint`
+// （正文档、`--text-tertiary`、2u 缩进）与 Detected 的
+// `.extensions-section-hint`（**caption 档**、4u 缩进）。实测（760×1400，深浅
+// 逐值相同）：两句的字号差一档（行盒 17 vs **15**），而 Base plugins 那句的
+// 首个字形停在 X=188.8、它自己的标题在 X=190.8 —— 说明句比它解释的标题**往左
+// 探出 2px**。一句话的角色不该由它落在哪一组决定，所以两条支合成一条：正文档、
+// `--text-tertiary`（比标题的 `--text-muted` 低一档，层级靠墨不靠字号）、
+// 缩进取标题自己的 `Space(1)`（首个字形与标题同一条竖线）。
+//
+// 旧的 `caption` 参数随之消失：它只剩一个作用——把 Detected 那句画小一档。
+func (a *App) extensionHint(c *ui.Context, hint string) {
 	if hint == "" {
 		return
 	}
 	tokens := a.tokens(c)
 	t := a.cardTheme(c)
-	inset, size := t.Space(0.5), tokens.Body
-	if caption {
-		inset, size = t.Space(1), tokens.Caption
-	}
-	ui.Row(c).FillWidth().Padding(0, inset).Children(func() {
-		ui.Text(c, hint).FontSize(size).FontWeight(500).TextColor(tokens.TextTertiary)
+	ui.Row(c).FillWidth().Padding(0, t.Space(1)).Children(func() {
+		ui.Text(c, hint).FontSize(tokens.Body).FontWeight(500).TextColor(tokens.TextTertiary)
 	})
 }
 

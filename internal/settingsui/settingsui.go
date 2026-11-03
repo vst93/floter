@@ -1914,7 +1914,7 @@ func (a *App) basePluginSection(c *ui.Context, copy i18n.Settings) {
 	}
 	plugins := a.basePlugins(copy)
 	a.extensionSection(c, copy.BasePlugins, len(plugins), func() {
-		a.extensionHint(c, copy.BasePluginsHint, false)
+		a.extensionHint(c, copy.BasePluginsHint)
 		for _, plugin := range plugins {
 			plugin := plugin
 			a.card(c, func() { a.basePluginCard(c, copy, plugin) })
@@ -6167,7 +6167,7 @@ func (a *App) detectedSection(c *ui.Context, copy i18n.Settings) {
 		return
 	}
 	a.extensionSection(c, copy.DetectedTitle, len(tools), func() {
-		a.extensionHint(c, copy.DetectedHint, true)
+		a.extensionHint(c, copy.DetectedHint)
 		a.card(c, func() {
 			for _, tool := range tools {
 				tool := tool
