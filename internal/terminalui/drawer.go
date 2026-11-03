@@ -3,11 +3,14 @@ package terminalui
 import (
 	"fmt"
 	"math"
+	"runtime"
 	"time"
 
+	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/control"
+	"floter/internal/glassmap"
 	"floter/internal/i18n"
 	"floter/internal/settings"
 	"floter/internal/theme"
@@ -127,6 +130,34 @@ func (a *App) drawer(c *ui.Context, copy i18n.Terminal) {
 			a.barButton(c, "close", copy.SettingsClose, copy.SettingsClose, true, a.CloseDrawer)
 		})
 	})
+
+	// P13-ex（`docs/liquid-glass.md` §6.119）· 满态的下沿：这块自由滚动的面是
+	// 「滚动收口」那一族（§6.16–§6.19、§6.113）里最后一把刀。
+	//
+	// P11-au 让条带自己成了滚动容器，它于是有了 `MaxY > 0` 的满态；但两端都没
+	// 有边：滚到中间时，网格最后一行在条带的下沿（= 窗口的底边）被**水平切断**，
+	// 墨一点没退。设置体（§6.16 / §6.19）与浮层（§6.113）在这个位置上都是一道
+	// `glass.ScrollEdge`。
+	//
+	// 边高取 `Space(1.5)` = 5.4，与条带自己的 `Padding(t.Space(2.5))` = 9 配成
+	// 一笔账：**软边 5.4 + 净空 3.6 = 9**（`Space(1.5) + Space(1) = Space(2.5)`）。
+	// 为什么不按 §6.113 那条「内边距 = 软边 + `Space(2)`」：条带的内边距长在
+	// **高度链**上（抽屉高 = 内容 + 两条内边距，它决定画布多高、进而决定 PTY 的
+	// 行数），视觉轮只改墨与面，不许动它。于是这一轮把边压到内边距以内，**门仍
+	// 开在几何上**：滚到底时最后一行停在离下沿 9px 处，5.4 的边整个落在空白上，
+	// 空白上没有东西可淡，边自己消失（与 §6.19 的自门控同一条，而不是 §6.18 那种
+	// 读 `ScrollState` 的开合）。
+	//
+	// 面的颜色必须**不透明**：条带的面是 `Control`（一层 0.07 的薄罩）压在面板上，
+	// 而 `ui.Color.Alpha` 是乘——把 `Control` 直接交给 `ScrollEdge`，那道 0.85 会
+	// 被乘成 0.06（§6.17 / §6.18 同一条反直觉）。面板自己的面又是调色板底色乘
+	// `CanvasAlpha`，所以整条链一起压成不透明才是这块面看上去的颜色。
+	stored := a.settings()
+	spec := glassmap.SpecForPreferencesOS(runtime.GOOS, stored.GlassStep, stored.TerminalOpacity, c.Preferences().HighContrast)
+	session := a.Current()
+	panel := theme.FaceOver(t.Background, panelFill(stored.TerminalTheme, session != nil && session.Term != nil, spec, tokens))
+	ui.Box(c).Absolute().Bottom(0).Left(0).Right(0).Height(t.Space(1.5)).PassThrough().
+		Material(glass.ScrollEdge{Bottom: true, Background: theme.FaceOver(panel, tokens.Control)})
 }
 
 // drawerCellFloor is the reference's `minmax(230px, 1fr)` floor for a row's
