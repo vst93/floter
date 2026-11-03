@@ -4958,14 +4958,14 @@ PASS 3348 → **3351**，SKIP 172 → **173**。变异 3 条实跑：
 盒子。于是那句死码不是垃圾而是陷阱：下一次有人把它「修好」，选中的胶囊就贴住窗口最下沿
 （115-8），§2 的 elevation 阶梯要求浮层内的行与卡片边之间始终留一条呼吸，贴边读成「被切开」。
 
-| # | 位置 | 现状 → 落成 | 状态 |
-|---|---|---|---|
-| 115-9 | `launcher.go:2471`（旧行号） | `floor = t.Space(10.5)`，赋值在 `MinHeight` 之后 | **删掉**，原地留注释写清 115-8 与三段账 |
-| 115-10 | `height.go:46-58` | `actionBarUnits` 注释说「42u 地板 + 3u 呼吸」 | 改说三段：`actionBarBreathUnits` + `rowUnits` + `TailUnits` |
-| 115-11 | `height.go` 常量区 | 只有 `actionBarUnits`，呼吸是裸字面量 `0.75` | 新增 `actionBarBreathUnits = 0.75`，`rowBody` 改读它 |
-| 115-12 | `TestTheActionBarBandIsBreathRowAndTail`（新） | — | 三段之和 == `actionBarUnits`（任一格被改就红） |
-| 115-13 | `TestTheActionBarKeepsTheCardsTailUnderIt`（新，深浅两臂） | — | 行盒高 == `Space(rowUnits)`；行顶 == 带顶 + `Space(actionBarBreathUnits)`；行底 → 窗口下沿 == `Space(TailUnits)` |
-| 115-14 | `TestDumpP13ETBarPNGs`（opt-in `FLOTER_DUMP_P13ET=1`） | — | light / dark 各一张满态帧 |
+| # | 位置 | 现状 | 落成 | 状态 |
+|---|---|---|---|---|
+| 115-9 | `launcher.go:2471`（旧行号） | `floor = t.Space(10.5)`，赋值在 `MinHeight` 之后 | **删掉**，原地留注释写清 115-8 与三段账 | `已落地` |
+| 115-10 | `height.go:46-58` | `actionBarUnits` 注释说「42u 地板 + 3u 呼吸」 | 改说三段：`actionBarBreathUnits` + `rowUnits` + `TailUnits` | `已落地` |
+| 115-11 | `height.go` 常量区 | 只有 `actionBarUnits`，呼吸是裸字面量 `0.75` | 新增 `actionBarBreathUnits = 0.75`，`rowBody` 改读它 | `已落地` |
+| 115-12 | `TestTheActionBarBandIsBreathRowAndTail`（新） | — | 三段之和 == `actionBarUnits`（任一格被改就红） | `已落地` |
+| 115-13 | `TestTheActionBarKeepsTheCardsTailUnderIt`（新，深浅两臂） | — | 行盒高 == `Space(rowUnits)`；行顶 == 带顶 + `Space(actionBarBreathUnits)`；行底 → 窗口下沿 == `Space(TailUnits)` | `已落地` |
+| 115-14 | `TestDumpP13ETBarPNGs`（opt-in `FLOTER_DUMP_P13ET=1`） | — | light / dark 各一张满态帧 | `已落地` |
 
 **规矩**：**带子 = 呼吸 + 行 + 卡 tail**，三段缺一段都会被另一段补上而总量不变；
 **行不许有自己的地板**——它的高度只有 `rowUnits` 一个来源。
@@ -4979,3 +4979,60 @@ PASS 3348 → **3351**，SKIP 172 → **173**。变异 3 条实跑：
 
 **陷阱长什么样（眼睛复核）**：`/tmp/floter-P13-et-bar-{light,dark}-mutant.png` 与出货帧
 diff **1385 / 1454 px**，bbox `(14,446)-(705,472)` —— 整条胶囊的下半截，底边正好压在窗口沿上。
+
+### §6.116 只读行不答指针：一行按不动的东西此前在说「按我」（P13-eu，**已落地**）
+
+§6.2b-6 / §6.15 / §6.63 / §6.78 把**禁用**与**降级**说完，剩下状态反馈的另一半是**只读面**。
+§6.78 的「顺延判据」问的是「整行被洗」，这一节问的是另一句：**只读行答不答指针**。
+
+**量到的病**（`internal/settingsui` 的工具表单，720×2200，深浅各一遍；`lensMean` 读行盒中段、
+行左内边距里的一小段，1 亮度级 = 三通道和 / 3）：
+
+| 外观 | 行 | 静息面 | 指针下 | Δ |
+|---|---|---|---|---|
+| 浅 | **只读**（`fixedRow`，集成 id） | 229 | **205** | **−24** |
+| 浅 | 可编辑（`row`，Name） | 229 | 205 | −24 |
+| 深 | **只读**（`fixedRow`） | 39 | **69** | **+30** |
+| 深 | 可编辑（`row`） | 39 | 69 | +30 |
+
+两行**逐字节相同**。`cardRow` 此前对每一行都问 `Hovered()` / `Pressed()`，而这两个方法说的是
+「指针在不在这儿」，不是「这行能不能点」——只读行按下去什么都不发生，面却亮了，按下还塌。
+§3 说受光边是「这块面可以被碰」的记号；**hover 面是同一句话在行上的说法**，只读行没有资格说它。
+
+| # | 位置 | 现状 | 落成 | 状态 |
+|---|---|---|---|---|
+| 116-1 | `rows.go` `rowFace` | 没有这个字段 | 新增 `Inert bool`，注释写明「报告一件事、没有可按的东西」 | `已落地` |
+| 116-2 | `rows.go` `cardRow` 的 hover/press 分支 | 无条件 `Pressed()` / `Hovered()` | 最前一支 `case face.Inert:` —— 面留在卡片平面上 | `已落地` |
+| 116-3 | `rows.go` `factRow` / `dataRow` / `labelRow` | `rowFace{}` | `rowFace{Inert: true}` | `已落地` |
+| 116-4 | `settingsui.go` `keyValue` / `fixedRow` / `diagnosticsSection` | `rowFace{}` | `rowFace{Inert: true}` | `已落地` |
+| 116-5 | 只读行的墨、盒子、分隔线、`Selectable` | — | **一个字节不动**（只读是一种结构，不是一种墨，§6.10/§6.84） | `已落地（不变）` |
+
+**规矩**：**只读行不答指针**——它没有可按的东西，就没有 hover 面、没有按下态；指针反馈是
+「能碰」的记号，只留给真的能碰的行。**只熄面**，不动墨、不动盒、不动选中。
+
+pin：`internal/settingsui/readonlyhover_test.go` 两条——① 真页面上那行只读 id 在指针下与按下时
+面**零位移**（同时守一条对照：它下面那行可编辑的字段必须仍然抬 ≥12 级，否则说明探针根本没落到
+指针上）；② 同一张合成卡上五个只读构造器（`factRow` / `keyValue` / `dataRow` / `labelRow` /
+`fixedRow`）逐个量，全零位移，**且墨 span 前后相等**（守住 116-5：另一种「修法」是把只读行整行
+洗淡，那与 §6.10 / §6.84 直接冲突），对照行仍抬。附 opt-in 出图（`FLOTER_P13EU_DIR` /
+`FLOTER_P13EU_TAG`，四张：深/浅 × {指针在只读行, 指针在可编辑行}）。
+
+**这轮为什么让它更轻、更有空间感**：只读行此前在指针底下与它下面真的能编辑的字段**同一条读数**
+——一张卡上六行，指针走到哪儿哪儿亮，读出来是「每一行都能点」。现在**亮的那一块就是唯一能按的
+那一块**：层级不再靠猜，靠「答不答指针」一句话分家。
+
+**零副作用（图）**：`before` / `after` 两套帧，指针压在**只读**行上 diff **22580 / 22581 px**，
+bbox `(188,11)-(702,54)` 正好是一行；指针压在**可编辑**行上 diff **0 px**（那张图上本轮一个像素
+没动）。图：`/tmp/p13eu/floter-P13-eu-readonly-{light,dark}-{readonly,editable}.png`，
+`before/` 子目录是同名旧帧。
+
+**pin 失败串（M1 实跑，把 `case face.Inert:` 换成 `case false:`）**：
+`light: the read-only row's face moved {229 229 230 255} → {205 205 206 255} under the pointer (-72 levels) — nothing on that row can be pressed, so the face must stay the card's plane`
+`dark: the read-only row's face moved {39 39 41 255} → {69 69 71 255} under the pointer (+90 levels)`
+M2（只把 `dataRow` 的 `Inert` 去掉）只让族内那一条红（`light: dataRow lifted … (-72 levels)` / `dark: … (+90 levels)`），
+真页面那条仍绿；M3（`case face.Inert: row = row.Background(face.Face)`，语义等价的另一写法）**全绿**。
+
+**顺手修的既有红**：`docs/liquid-glass.md` §6.115 第二张表表头是 4 列（`# / 位置 / 现状 → 落成 / 状态`），
+数据行却有 5 格，`TestTheLiquidGlassContractSupersedesTheRaycastOne` 因此在 HEAD 上就是**红的**
+（`a gap-table row carries an unrecognised status "**删掉**，原地留注释写清 115-8 与三段账"`）。
+表头拆成 `现状 | 落成` 并给六行补上 `已落地`，文档只改这一处。

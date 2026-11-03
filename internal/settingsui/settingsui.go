@@ -2407,7 +2407,7 @@ func (a *App) healthDetail(c *ui.Context, copy i18n.Settings, report *HealthRepo
 func (a *App) diagnosticsSection(c *ui.Context, copy i18n.Settings, integration Integration) {
 	tokens := a.tokens(c)
 	t := a.cardTheme(c)
-	a.cardRow(c, ui.Start, nil, rowFace{}, func() {}, func() {
+	a.cardRow(c, ui.Start, nil, rowFace{Inert: true}, func() {}, func() {
 		// The block label: the drawer's `.extension-detail-block h4` — sentence case
 		// at the secondary ink, caption 620 (`extensions.css:2008-2013`), one voice
 		// with the metadata grid's own `dt` labels.
@@ -4349,7 +4349,7 @@ func (a *App) keyValue(c *ui.Context, label, value string) {
 	if value == "" {
 		return
 	}
-	a.cardRow(c, ui.Center, nil, rowFace{}, func() {
+	a.cardRow(c, ui.Center, nil, rowFace{Inert: true}, func() {
 		ui.Text(c, value).FontSize(tokens.Emphasis).FontWeight(580).
 			TextColor(tokens.TextStrong).Selectable()
 	}, func() {
@@ -4382,7 +4382,7 @@ func (a *App) fixedRow(c *ui.Context, label, value string) {
 	if value == "" {
 		return
 	}
-	a.cardRow(c, ui.Center, nil, rowFace{}, func() {
+	a.cardRow(c, ui.Center, nil, rowFace{Inert: true}, func() {
 		ui.Row(c).FillHeight().AlignItems(ui.Center).Children(func() {
 			ui.Text(c, value).Font(deepLinkValueFont).FontSize(tokens.Caption).
 				FontWeight(500).TextColor(t.TextMuted).SingleLine().Selectable()

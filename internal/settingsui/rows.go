@@ -1349,7 +1349,7 @@ func (a *App) rowTitle(c *ui.Context, align ui.Align, lead func(), face rowFace,
 // 只读的是**一个已经确定的答案**，它不淡，只是把重量交给答案本身。
 func (a *App) factRow(c *ui.Context, name, value string) {
 	tokens := a.tokens(c)
-	a.cardRow(c, ui.Center, nil, rowFace{}, func() {}, func() {
+	a.cardRow(c, ui.Center, nil, rowFace{Inert: true}, func() {}, func() {
 		ui.Text(c, name).FontSize(tokens.Caption).FontWeight(500).
 			TextColor(tokens.TextSecondary).SingleLine()
 		ui.Text(c, value).FontSize(tokens.Emphasis).FontWeight(580).
@@ -1407,7 +1407,7 @@ func (a *App) codeRow(c *ui.Context, value string, control func(), below ...func
 func (a *App) dataRow(c *ui.Context, value string) {
 	tokens := a.tokens(c)
 	t := a.cardTheme(c)
-	a.cardRow(c, ui.Center, nil, rowFace{}, func() {}, func() {
+	a.cardRow(c, ui.Center, nil, rowFace{Inert: true}, func() {}, func() {
 		ui.Row(c).FillHeight().AlignItems(ui.Center).Children(func() {
 			ui.Text(c, value).Font(deepLinkValueFont).FontSize(tokens.Caption).
 				FontWeight(500).TextColor(t.TextMuted).SingleLine()
@@ -1434,7 +1434,7 @@ func (a *App) dataRow(c *ui.Context, value string) {
 func (a *App) labelRow(c *ui.Context, label, sublabel string, below ...func()) {
 	tokens := a.tokens(c)
 	t := a.cardTheme(c)
-	a.cardRow(c, ui.Center, nil, rowFace{}, func() {}, func() {
+	a.cardRow(c, ui.Center, nil, rowFace{Inert: true}, func() {}, func() {
 		ui.Text(c, label).FontSize(tokens.Caption).FontWeight(620).
 			TextColor(tokens.TextSecondary).SingleLine()
 		if sublabel != "" {
@@ -1473,6 +1473,19 @@ type rowFace struct {
 	// 换任何因子都救不了这两档同时在线：`0.75` 时浅色标题 79／深色 187 都落在两档
 	// **之间**，`0.50` 时 133／133 又落到另一对档之间。一个乘法不可能同时是两个
 	// 档——所以「还没写完」这件事不该由整行的乘法来说。
+	// Inert marks a row that reports something and offers nothing to press: the
+	// read-only facts (`factRow`), the values the program chose (`dataRow`,
+	// `keyValue`, `fixedRow`) and a block's own label (`labelRow`).
+	//
+	// P13-eu（`docs/liquid-glass.md` §6.116）：这种行**不答指针**。`cardRow` 此前对
+	// 每一行都问 `Hovered()`/`Pressed()`，于是工具表单里那行只读的集成 id 在指针
+	// 底下把面抬了**浅 24 / 深 30 级**（实测 229 → 205 / 39 → 69），读数与它下面
+	// 那行真的能点的字段**逐字节相同**——指针在说「按我」，而按下去什么都不发生。
+	// §3 说受光边是「这块面可以被碰」的记号；hover 面是同一句话在行上的说法。
+	//
+	// 只熄面，不动别的：墨、盒子、分隔线、`Selectable` 的取值都照旧（只读是一种
+	// 结构，不是一种墨，§6.10/§6.84）。
+	Inert bool
 	// Floor is the row's own height floor, taller than the card's (a row whose
 	// content is two lines of text plus a footer of metadata, i.e. the
 	// reference's session row, keeps a taller box than a settings row's 44).
@@ -1552,6 +1565,10 @@ func (a *App) cardRow(c *ui.Context, align ui.Align, lead func(), face rowFace, 
 		}
 		bar := face.Bar
 		switch {
+		case face.Inert:
+			// P13-eu（§6.116）：没有可按的东西，就没有指针反馈。这一支写在最前——
+			// `Pressed()`/`Hovered()` 对任何有状态的元素都为真，那与「这行能不能点」
+			// 是两件事。
 		case row.Pressed():
 			row = row.Background(t.SurfacePressed)
 		case row.Hovered():
