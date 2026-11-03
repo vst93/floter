@@ -5476,7 +5476,7 @@ tiny 档深浅两套，差分 `rows` 24081/24189 px、`strip` 6531/6539 px。
 | 127-2 | 同上的 import 臂 | 同上（两臂收口到 `busyLine`） | `已落地（pin）` |
 | 127-3 | 字号 / 盒 / 行内中线 | 不动：仍是 `tokens.Caption`、仍居中于两枚胶囊的中线 | `已落地（pin）` |
 | 127-4 | 给这句话加一枚转圈环 | **未开始（需拍板）**：全仓的「在飞」几乎都带环——启动器页脚（P13-ck 的 12u 环）、忙碌胶囊（`busyActionButton` 的 `actionSpinner`）、忙碌开关（拇指换成 spinner）。这一行是唯一的例外：词有、环没有，而它的两枚胶囊此刻是**普通**禁用面（`disabledActionButton`，不带环）。要不要补，取决于「环」是每处在飞都有的**语法**，还是只有「这一处只有它一个信号」时才花的预算——环一进来，行的盒高就不再由胶囊决定（环比 15 的 caption 盒高），会顶高整行 | `未开始（需拍板）` |
-| 127-5 | `freshnessState` 的 `正在探测…`（`settingsui.go` 的 `freshnessRow`） | 不动：那是**一族状态词**（unknown / running / success / degraded / failed）共用一个墨档的**时间线**，只抬 running 一臂会让同一行的时间线断档；要改得整族一起改，属另一轮 | `未开始` |
+| 127-5 | `freshnessState` 的 `正在探测…`（`settingsui.go` 的 `freshnessRow`） | 曾是**一族状态词**（unknown / running / success / degraded / failed）共用一个墨档的**时间线**，只抬 running 一臂会让同一行断档；**P13-fg 整族一起改**，见 §6.128 | `已落地（§6.128）` |
 | 127-6 | 墨 / 面 / 动效 / 键盘模型 / i18n / 命令接线 | 一字节不动 | `已落地（不变）` |
 
 **这轮为什么让它更轻、更有空间感**：同一行里，「面」已经在说「这两枚按不动了」（熄冠线、
@@ -5491,3 +5491,56 @@ pin：`internal/settingsui/transferlive_test.go` 两条——①
 两枚胶囊的中线，仍在它们右侧——钉「本轮只改墨」）。附 opt-in 出图（`FLOTER_P13FF_DIR`）：
 深浅两套，差分 **314 px**（两套相同），bbox `(134,22)-(189,33)`——正好是那一个词的墨盒，
 其余一个像素没动。
+
+### §6.128 集成页的新鲜度格子：一格在说答案，一格在说「还没有答案」（P13-fg，**已落地**）
+
+通用队列的**状态反馈**（§6.127 的 `127-5`，P13-ff「仍待」第 1 条）。表面 = **集成页抽屉的
+`freshnessSection`** 的两格 metadata 网格（`Last probe` / `Result`）。命令行与健康来源注脚不动。
+
+**病（实测，720×900 生产取景，`-run TestMeasureP13FGFreshnessResultInk`）**：`metadataCell` 把
+值的墨写死成 `TextSecondary`，于是这块格子的**五个结果词**与**两种时间值**落在同一档：
+
+| 帧 | 结果 | 实测墨 | 最近档 | 距 strong | 距 muted |
+|---|---|---|---|---|---|
+| 浅 | success | `{110,110,115}` | secondary (3 off) | 86 | 20 |
+| 浅 | degraded | `{107,107,112}` | secondary (0 off) | 83 | 23 |
+| 浅 | failed | `{109,109,114}` | secondary (2 off) | 85 | 21 |
+| 浅 | running / unknown | `{107,107,112}` | secondary (0 off) | 83 | 23 |
+| 深 | success | `{151,151,157}` | secondary (3 off) | 86 | 18 |
+| 深 | failed | `{152,152,158}` | secondary (2 off) | 85 | 19 |
+| 深 | running / unknown | `{154,154,160}` | secondary (0 off) | 83 | 21 |
+
+五个状态的**格盒逐字节相同** `{451.3, 387.7, 243.5, 17}`——所以这是纯墨的问题：格子有四条
+事实（探测时间、结果、命令数、来源），其中两条在墨上不存在——「失败了」与「成功了」同重，
+「还没探测」与「探测过了」同重。
+
+**落地（整族一起改，这是 `127-5` 推迟的理由）**：
+
+| # | 位置（`internal/settingsui/settingsui.go`） | 旧值 → 新值 | 状态 |
+|---|---|---|---|
+| 128-1 | `freshnessSection` 的 `Result` 格 | 写死 `TextSecondary` → `freshnessResultInk`：`degraded` / `failed` → `TextStrong` | `已落地（pin）` |
+| 128-2 | 同上，占位臂 | 写死 `TextSecondary` → `running` / `unknown` → `t.TextMuted` | `已落地（pin）` |
+| 128-3 | `freshnessSection` 的 `Last probe` 格 | 写死 `TextSecondary` → `freshnessWhenInk`：`AtSeconds == 0`（`Never probed`）→ `t.TextMuted`，有值 → `TextSecondary` | `已落地（pin）` |
+| 128-4 | `metadataCell` | 值墨写死在函数里 → 加 `ink ui.Color` 参数（只有这两个调用点）；标签仍固定 `TextTertiary` | `已落地` |
+| 128-5 | `failed` 花不花 `Warning` | **不花**：同一张卡上语义色已被 `stateMark` 的 broken 胶囊与 `healthDetail` 的失败卡花掉两处，§6.108 立的规矩是**一个事实一处告警**；新鲜度失败在这一块里没有第二个载体，但它也不是「集成坏了」，它是**这一格的答案要读**——用中性阶梯的顶档 `TextStrong` | `故意不做（附理由）` |
+| 128-6 | 字号 / 盒 / 字重 / gap / 块的纵向节奏 / 文案 / i18n / 命令接线 | 一字节不动（只换墨） | `已落地（不变）` |
+
+**两条判据（本轮写进合约，后面按它判）**：
+
+1. **「在飞」的档位取决于它是「唯一的说话人」还是「答案位上的占位」。** §6.127 那句在飞词
+   替掉了两个熄灯按钮，是整行唯一的信号源，所以它必须**响**（`TextSecondary` + 500）；
+   这里的 `Probing…` 是答案位上的**占位**，与 `Unknown`、`Never probed` 同类（还没有答案），
+   所以它必须**静**（`TextMuted`）。两条规矩不冲突，因为它们回答的不是同一个问题。
+2. **一块格子里，占位与答案不能同墨。** 这与 §6.121（读数是这一组的答案，不许是这组最小的字）
+   是同一条判据的两端：答案要够响，占位要够静，中间才是「有答案但要读」。
+
+**这轮为什么让它更轻、更有空间感**：这块格子的四条事实此前在同一 z 平面上，读的人必须
+逐字读完才知道哪条有信息。现在它们分了三层——占位（静）< 答案（陈述）< 要读的答案（顶档）——
+扫一眼就知道「哪一格还没有答案」，而块本身的高度、盒、字号一个像素都没动。
+
+pin：`internal/settingsui/freshnessladder_test.go` 两条——①
+`TestTheFreshnessResultWordIsAnAnswerOrAPlaceholder`（深浅两套 × 五个状态：每个词必须落在
+自己的档上，且五个状态的格盒逐字节相同；另断言三档之间真的隔开——`secondary ↔ muted` ≥ 12 级、
+`secondary ↔ strong` ≥ 40 级）；② `TestTheNeverProbedCellIsQuieterThanAProbedOne`（`Never probed`
+落 `TextMuted`，且它的盒与「刚探测过」那一格相同）。附 opt-in 出图（`FLOTER_P13FG_DUMP`）：
+深浅两套，差分 **151 px**（两套相同），bbox `(275,52)-(304,61)` = `Failed` 那一个词的墨盒。

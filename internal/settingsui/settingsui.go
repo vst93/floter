@@ -5971,6 +5971,38 @@ func freshnessState(copy i18n.Settings, freshness extensions.Freshness) string {
 	}
 }
 
+// freshnessResultInk is the Result cell's own register (P13-fg, §6.128). The
+// five words are not one vocabulary: `Succeeded` is the answer, `Succeeded with
+// warnings` / `Failed` are answers that have to be read, and `Probing…` /
+// `Unknown` are placeholders where an answer would be.
+//
+// The two steps it spends are the neutral ladder's, not `Warning`: on this same
+// card the semantic colour is already spent twice — `stateMark`'s broken chip
+// (the integration itself is broken) and `healthDetail`'s failure cards /
+// `statusInk`'s `error`. §6.108 (P13-em) settled that one fact gets one alarm,
+// and a derivation that failed is *this cell's answer*, not a second alarm.
+func freshnessResultInk(freshness extensions.Freshness, tokens theme.Tokens, t *ui.Theme) ui.Color {
+	switch freshness.Result {
+	case extensions.FreshnessDegraded, extensions.FreshnessFailed:
+		return tokens.TextStrong
+	case extensions.FreshnessRunning, extensions.FreshnessUnknown:
+		return t.TextMuted
+	default:
+		return tokens.TextSecondary
+	}
+}
+
+// freshnessWhenInk is the Last probe cell's register: a probe that never ran is
+// the reference's own `Never probed` placeholder, and a placeholder is not an
+// answer (`freshnessResultInk`'s quiet step, the one `freshnessDeltaInk` already
+// uses for "nothing to report").
+func freshnessWhenInk(freshness extensions.Freshness, tokens theme.Tokens, t *ui.Theme) ui.Color {
+	if freshness.AtSeconds == 0 {
+		return t.TextMuted
+	}
+	return tokens.TextSecondary
+}
+
 // freshnessDot is the one-word mark beside an integration's name: the same
 // projection the freshness row below uses, so a user scanning the cards sees a
 // list move without reading every row's timeline. Only a change earns warmth;
@@ -6041,10 +6073,18 @@ func (a *App) freshnessSection(c *ui.Context, copy i18n.Settings, integration In
 		// and its `dd` value at the *body* step in `--text-secondary`, two cells to a
 		// row with an 8u/16u gap pair. The port had flattened the pair into one
 		// ruled card row whose grey subline carried both facts in the row's register.
+		// P13-fg（§6.128）：两格的值墨不再由 `metadataCell` 写死。这块格子同时装着
+		// **答案**（`Succeeded`、`3 min. ago`）与**占位**（`Probing…`、`Unknown`、
+		// `Never probed`），此前两者同穿 `TextSecondary`：实测五个结果词与两种时间值
+		// 一条墨（0-3 级离档），于是「失败了」与「成功了」同重、「还没探测」与「探测过了」
+		// 同重。格子自己的阶梯很宽（`secondary → strong` 83-86 级、`secondary → muted`
+		// 18-23 级），所以只要把词挂回它自己的档，一眼就分得开。
 		meta := ui.Row(c).FillWidth().GapX(t.Space(3)).GapY(0)
 		meta.Children(func() {
-			a.metadataCell(c, copy.FreshnessLastProbe, freshnessWhenValue(copy, freshness))
-			a.metadataCell(c, copy.FreshnessResult, freshnessState(copy, freshness))
+			a.metadataCell(c, copy.FreshnessLastProbe, freshnessWhenValue(copy, freshness),
+				freshnessWhenInk(freshness, tokens, t))
+			a.metadataCell(c, copy.FreshnessResult, freshnessState(copy, freshness),
+				freshnessResultInk(freshness, tokens, t))
 		})
 		// The command-count line: a flex row, not a metadata cell — the reference's
 		// `.extension-freshness__commands` (`extensions.css:2077-2111`) puts a
@@ -6086,13 +6126,16 @@ func (a *App) freshnessSection(c *ui.Context, copy i18n.Settings, integration In
 // (`extensions.css:2033-2050`). The reference sized the value one step above
 // its own label, which is what keeps the pair from reading as two rows of the
 // same register.
-func (a *App) metadataCell(c *ui.Context, label, value string) {
+//
+// P13-fg（§6.128）：值那一档由调用方给。格子的一对（标签 / 值）说的是「这一格叫什么」
+// 与「它是什么」，而「它是什么」本身还有两种：**答案**与**占位**。把后者也写死成
+// 答案的墨，就等于让格子对「这一格到底有没有答案」保持沉默。标签仍固定 tertiary。
+func (a *App) metadataCell(c *ui.Context, label, value string, ink ui.Color) {
 	tokens := a.tokens(c)
 	t := a.cardTheme(c)
 	ui.Column(c).Grow(1).MinWidth(0).Children(func() {
 		ui.Text(c, label).FontSize(tokens.Caption).TextColor(tokens.TextTertiary)
-		ui.Text(c, value).FontSize(t.FontSize).TextColor(tokens.TextSecondary).
-			SingleLine()
+		ui.Text(c, value).FontSize(t.FontSize).TextColor(ink).SingleLine()
 	})
 }
 
