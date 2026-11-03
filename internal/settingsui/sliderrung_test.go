@@ -227,9 +227,12 @@ func TestTheSliderReadoutAndReasonAreOneBranchEach(t *testing.T) {
 		}
 		return rest
 	}()
+	// P13-ew（`docs/liquid-glass.md` §6.118）S 台账：标题行从行的内列挪进
+	// `Gap(a.rowLineGap())` 的内列（与它的提示成一句），缩进因此深一级——
+	// 断言的**内容**不变，只是这一行换了深度。
 	for _, want := range []string{
 		"ink := tokens.TextStrong",
-		"if row.disabled != \"\" {\n\t\t\t\t\tink = tokens.TextSecondary",
+		"if row.disabled != \"\" {\n\t\t\t\t\t\tink = tokens.TextSecondary",
 		"FontWeight(580).TextColor(tokens.TextSecondary)",
 	} {
 		if !strings.Contains(slider, want) {

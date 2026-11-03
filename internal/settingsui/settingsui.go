@@ -4789,48 +4789,61 @@ func (a *App) slider(c *ui.Context, row sliderRow) {
 		if !first {
 			ui.Box(c).FillWidth().Height(1).Background(tokens.Hairline).MarginX(inset).Shrink(0)
 		}
-		ui.Column(c).FillWidth().Gap(t.Space(1)).Padding(t.Space(2.25), inset).Children(func() {
-			// The title line carries the value, pushed to the far end, as the
-			// reference's `.settings-slider__head` does: the number is a readout,
-			// not a second control, and a rolling counter is how the motion
-			// system shows a value changing in place. Its label is the row's own
-			// emphasis step (`.settings-row__label`), the readout the body step
-			// (`.terminal-setting-control__value`).
-			ui.Row(c).FillWidth().AlignItems(ui.Center).Justify(ui.SpaceBetween).Children(func() {
-				ui.Text(c, row.label).FontSize(tokens.Emphasis).FontWeight(580).TextColor(tokens.TextStrong)
-				// P13-bf（`docs/liquid-glass.md` §6.25）：这个读数**退了**，但只在
-				// 禁用那一档。§1 的「槽」读法是「整块退一半、内线各留一半」——轨道
-				// 已经退了（实测浅色 209 → 219、深色 58 → 49），可这个数字与行名
-				// 只差 10 级（浅 37 对 27、深 227 对 237），是整行里唯一没退的东西。
-				// 一个不会动的读数不该和它的名字一样「活着」。可用行一个像素不动。
-				ink := tokens.TextStrong
-				if row.disabled != "" {
-					ink = tokens.TextSecondary
-				}
-				ui.Text(c, row.format(v)).FontSize(t.FontSize).TextColor(ink).
-					ContentTransition(ui.ContentTransition{Numeric: true})
-			})
-			if row.description != "" {
-				ui.Text(c, row.description).FontSize(t.FontSize).TextColor(t.TextMuted)
-			}
-			track := ui.Slider(c, &v, row.lo, row.hi).FillWidth()
-			if row.disabled != "" {
-				track.Disabled(true)
-			}
-			if track.Changed() {
-				chosen = true
-			}
-			if row.low != "" || row.high != "" {
-				// The axis' words are the ladder's caption step, not "body
-				// minus two": at the shipped `small` step that offset was 7.9pt,
-				// the smallest ink on any page, and the two words that say what
-				// the track's ends mean were the hardest thing to read in the
-				// row they belong to.
+		// P13-ew（`docs/liquid-glass.md` §6.118）：一个滑块行里有**三对**，此前只有一条缝。
+		// 标题与它的提示是一句话（`rowLineGap()`，与 trailing / stacked 行同一条）；轨道与
+		// 命名它两端的两个词是**一件东西**（也是 `rowLineGap()`）；只有「那句话 → 轨道」与
+		// 「轨道组 → 原因句」这两对，第二件是可以按的面 / 这一行的状态陈述，才吃满 `Space(2)`。
+		// 旧账：五件之间全是 `Space(1)`，实测轨道→轴词读 13-14px，比轴词→原因句的 10px 还远
+		// ——轴词成了下一段的开头，而不是轨道的两端。
+		ui.Column(c).FillWidth().Gap(t.Space(2)).Padding(t.Space(2.25), inset).Children(func() {
+			ui.Column(c).FillWidth().Gap(a.rowLineGap()).Children(func() {
+				// The title line carries the value, pushed to the far end, as the
+				// reference's `.settings-slider__head` does: the number is a readout,
+				// not a second control, and a rolling counter is how the motion
+				// system shows a value changing in place. Its label is the row's own
+				// emphasis step (`.settings-row__label`), the readout the body step
+				// (`.terminal-setting-control__value`).
 				ui.Row(c).FillWidth().AlignItems(ui.Center).Justify(ui.SpaceBetween).Children(func() {
-					ui.Text(c, row.low).FontSize(tokens.Caption).FontWeight(500).TextColor(t.TextMuted)
-					ui.Text(c, row.high).FontSize(tokens.Caption).FontWeight(500).TextColor(t.TextMuted)
+					ui.Text(c, row.label).FontSize(tokens.Emphasis).FontWeight(580).TextColor(tokens.TextStrong)
+					// P13-bf（`docs/liquid-glass.md` §6.25）：这个读数**退了**，但只在
+					// 禁用那一档。§1 的「槽」读法是「整块退一半、内线各留一半」——轨道
+					// 已经退了（实测浅色 209 → 219、深色 58 → 49），可这个数字与行名
+					// 只差 10 级（浅 37 对 27、深 227 对 237），是整行里唯一没退的东西。
+					// 一个不会动的读数不该和它的名字一样「活着」。可用行一个像素不动。
+					ink := tokens.TextStrong
+					if row.disabled != "" {
+						ink = tokens.TextSecondary
+					}
+					ui.Text(c, row.format(v)).FontSize(t.FontSize).TextColor(ink).
+						ContentTransition(ui.ContentTransition{Numeric: true})
 				})
-			}
+				if row.description != "" {
+					ui.Text(c, row.description).FontSize(t.FontSize).TextColor(t.TextMuted)
+				}
+			})
+			// The track and the two words that name its ends are one object: the
+			// words are the track's own scale, so they sit in the row's tightest
+			// seam, not one step away from it.
+			ui.Column(c).FillWidth().Gap(a.rowLineGap()).Children(func() {
+				track := ui.Slider(c, &v, row.lo, row.hi).FillWidth()
+				if row.disabled != "" {
+					track.Disabled(true)
+				}
+				if track.Changed() {
+					chosen = true
+				}
+				if row.low != "" || row.high != "" {
+					// The axis' words are the ladder's caption step, not "body
+					// minus two": at the shipped `small` step that offset was 7.9pt,
+					// the smallest ink on any page, and the two words that say what
+					// the track's ends mean were the hardest thing to read in the
+					// row they belong to.
+					ui.Row(c).FillWidth().AlignItems(ui.Center).Justify(ui.SpaceBetween).Children(func() {
+						ui.Text(c, row.low).FontSize(tokens.Caption).FontWeight(500).TextColor(t.TextMuted)
+						ui.Text(c, row.high).FontSize(tokens.Caption).FontWeight(500).TextColor(t.TextMuted)
+					})
+				}
+			})
 			if row.disabled != "" {
 				// P13-bf（`docs/liquid-glass.md` §6.25）：这是这一行的**状态陈述**——
 				// 「为什么这个滑不动」。它此前是全行最淡的一件（`TextTertiary`，实测
@@ -4859,8 +4872,11 @@ func (a *App) effectiveOpacity(c *ui.Context, copy i18n.Settings, s settings.Set
 	inset := a.rowInset(t)
 	spec := glassmap.SpecForPreferencesOS(runtime.GOOS, s.GlassStep, s.MainOpacity, c.Preferences().HighContrast)
 	percent := uint8(math.Round(float64(spec.Composite()) * 100))
+	// P13-ew（§6.118）：这一行是**这一组的答案**，不是又一行——所以上边仍用 `Space(1)`
+	// 紧贴上面那两个滑块。但下边此前也是 `Space(1)`，而卡片里每一行都是 `Space(2.25)`：
+	// 这一行的盒底实测只离卡沿 2.0px，是整张卡唯一压在软边上的东西。下边补齐行边距。
 	ui.Row(c).FillWidth().AlignItems(ui.Center).Justify(ui.SpaceBetween).
-		Padding(t.Space(1), inset).Children(func() {
+		Padding(t.Space(1), inset, t.Space(2.25), inset).Children(func() {
 		ui.Text(c, copy.EffectiveOpacity).FontSize(tokens.Caption).FontWeight(500).TextColor(tokens.TextTertiary)
 		ui.Text(c, copy.EffectiveOpacityValue(percent)).FontSize(tokens.Caption).FontWeight(560).
 			TextColor(tokens.TextSecondary).ContentTransition(ui.ContentTransition{Numeric: true})
