@@ -1403,8 +1403,14 @@ func (a *App) View(c *ui.Context) {
 			// chips），`Grow(1)` 撑满面板剩下的高度，句子于是居中在**列表会占据的
 			// 那条带**里，而不是在卡片顶边。墨与字阶不动（Emphasis +
 			// `TextStrong`，§4.7），只有位置换了。
+			//
+			// P13-fd · 这一列的**底沿**此前是 `Space(3)`，而同一块面板里列表的底沿是
+			// `Space(0.5)+statusBand(c)` —— 同一个底沿，两页两个数（§6.125）。两个后果
+			// 都量得出来：① 少了 1u 的 tail（3u vs 2u），这句话比它所在的带高 7~10px
+			// 居中；② 停靠带出现时（按住 ⌘）列表一行不动，这句话却跟着往下跳 13.5px。
+			// 底沿现在与列表**同一个表达式**：面板自己的 tail + 带子。
 			ui.Column(c).FillWidth().Grow(1).Center().
-				Padding(listEdge, t.Space(3), t.Space(3), t.Space(3)).
+				Padding(listEdge, t.Space(3), t.Space(0.5)+a.statusBand(c), t.Space(3)).
 				Children(func() {
 					// P11-cd：一句话都没有的空页不是空态，是一个安静的空页（见
 					// `emptyMessage`）：没有 needle、也没有最近启动时这里不画字，

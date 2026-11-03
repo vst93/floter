@@ -68,7 +68,9 @@ func TestTheEmptyPageSaysSoUnderTheField(t *testing.T) {
 	// 十分之一像素的整数相等。
 	bandTop := float32(fieldRowUnits+breathUnits) * 4 * float32(designUnit())
 	height := float32(themedFrameHeight(maxResultSlots))
-	want := (float64(bandTop) + float64(height) - 3*4*designUnit()) / 2
+	// P13-fd 重定基线：居中的带底从「卡底 − `Space(3)`（3u = 10.8）」改成「卡底 −
+	// 面板自己的 tail（`TailUnits` = 2u = 1.8）」，与列表的下内边距同一个数（§6.125）。
+	want := (float64(bandTop) + float64(height) - TailUnits*4*designUnit()) / 2
 	if got := tenths(float64(rect.Y + rect.H/2)); got != tenths(want) {
 		t.Errorf("the sentence is centred at y=%.2f (%.1f), want %.2f (%.1f) "+
 			"(the band under the field, %.2f..%.2f)",
