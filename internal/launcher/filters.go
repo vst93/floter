@@ -17,7 +17,6 @@ import (
 	"floter/internal/i18n"
 	"floter/internal/settings"
 	"floter/internal/shortcuts"
-	"floter/internal/theme"
 )
 
 // FilterAxis is one dimension a mode's list can be filtered by.
@@ -207,8 +206,18 @@ func (a *App) filtersRow(c *ui.Context, top float32) {
 			// line box plus the breath below it, so a chip with a padding pair
 			// or a background of its own would be a control the band never
 			// charged for.
-			chip := ui.Row(c).Focusable().Shrink(0).Radius(t.Radius).
-				Transition(ui.ElementTransition{Colors: true, Duration: theme.ColorStep})
+			//
+			// P13-eq（`docs/liquid-glass.md` §6.112）：这一格此前挂了一条
+			// `Transition{Colors: true, Duration: theme.ColorStep}`。那条缓动**做不到**：
+			// 框架的 `ElementTransition` 只补间「自己的背景色与边框色」
+			// （`ui/transition.go:17-19`、`:41-43`：「its background and border colors」），
+			// 而这一格没有背景也没有边框——它的墨在**子元素** `ui.Text` 上，
+			// 文字色不在补间列表里。于是这枚 chip 的悬停是全仓唯一一处**瞬变**的
+			// 墨（同族的 `fieldSettingsButton` 有面可补，才真的有那 160ms）。
+			// 声明一条框架做不到的缓动比不写更坏：它让下一个人以为这里已经缓过了。
+			// 文字色的补间框架不提供，所以这一轮**删掉声明**、不伪造一层淡入
+			// （§0：不许拿面/渐变冒充一个没有的机制）。
+			chip := ui.Row(c).Focusable().Shrink(0).Radius(t.Radius)
 			label := axis.LabelOf(copy, value)
 			color := t.TextMuted
 			weight := 500

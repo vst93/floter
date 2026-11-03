@@ -4848,3 +4848,24 @@ PASS 3348 → **3351**，SKIP 172 → **173**。变异 3 条实跑：
 ① 这句话该占多宽（给一个宽度上限，等于替插件决定它能说多长）；
 ② 它该不该留在这一行里（挪到动作行下面自成一行，行高就会随失败而变，是几何）。
 「先量再改」在本格给出的答案就是这两条，不是一次一行的墨修补。
+
+## §6.112 过滤器 chips：一条框架做不到的缓动，与两条没人守的契约（P13-eq）
+
+**状态：已落地**（删一条空声明 + 两条 pin；零像素改动）。
+
+`internal/launcher/filters.go` 的 chip 上挂着
+`Transition{Colors: true, Duration: theme.ColorStep}`。框架（`mygo@v0.7.3/ui/transition.go:17-19`、
+`:41-43`）只补间元素**自己的背景色与边框色**；这枚 chip 没有背景也没有边框，墨在子元素
+`ui.Text` 上，**文字色不在补间列表里**。于是这条声明从来没产生过一帧动画——同族的
+`fieldSettingsButton` 有面可补，才真的有那 160ms。
+
+| # | 位置 | 现状 → 落成 | 状态 |
+|---|---|---|---|
+| 112-1 | `filters.go` chip 建树 | `Transition{Colors: true, Duration: theme.ColorStep}`（空声明）→ 删掉，理由与框架行号写在原地；`floter/internal/theme` 的 import 随之退场 | `已落地` |
+| 112-2 | `TestAChipClickKeepsTheFieldTyping`（新） | 点 `Text` chip 后 `clipboardFilter == filterText`，且随后打字仍进得了字段（实测 `a.Query "" → "zz"`）。此前零覆盖：成立靠外壳统一路由，`internal/launcher` 里 `Focus()` 只有 `FocusSearch` 一个调用点，**没有一处把焦点还给字段** | `已落地` |
+| 112-3 | `TestTheChipsHangOnTheFieldsColumnNotTheRows`（新） | chip x **14.4**（`Space(4)`，字段那一列）对结果行标题 x **48.6**（54u 文本列），差 **34.2** = 一整个图标列（`Space(7)`）。判据写成「差 ≥ 25」，所以「有人把它对齐到 54u」会红，而退一档（`Space(3)`）仍绿 | `已落地` |
+| 112-4 | 文字换墨的缓动 | 框架不补间文字色 → 这一族在本仓**做不到**（不是不做）。要做得先给 mygo 加能力，需拍板 | `需拍板` |
+
+**判据（此后这一格通用）**：① 过渡只能声明在**真的会变**的属性上——背景/边框色可以，
+文字色不可以；② 顶部 chrome（字段、chips）与列表内容列是两个原点，34.2px 的差是有意的；
+③ 可点的状态必须同时验「生效」与「键盘还在字段上」。
