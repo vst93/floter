@@ -261,6 +261,12 @@ func (g Geometry) Height() int {
 	// The rows' two line boxes, as the view measured them. A caller that has
 	// not measured (the shell before the first frame) is given the font's own
 	// size, which is the floor of every real box.
+	//
+	// P13-fe（`docs/liquid-glass.md` §6.126）：这两个回退**不进阶梯**，它们不是画出来
+	// 的寄存器，而是「还没量过时」的地板——`font` 是 `Geometry.Font`（= `t.FontSize`，
+	// 正文档），`+ rowTitleStep` 只是比正文高一点点的一个保守值。真帧里 `TitleLine` /
+	// `SubtitleLine` 永远是 `View` 量出来的 `tk.Title` / `tk.Body`，所以这里留偏移量
+	// 不会让任何一个字离开阶梯；改成 `tokens` 反而会把设计 token 拉进这个纯几何包。
 	titleLine := g.TitleLine
 	if titleLine <= 0 {
 		titleLine = font + rowTitleStep

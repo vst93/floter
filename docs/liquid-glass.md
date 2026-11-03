@@ -3411,22 +3411,24 @@ pin：`internal/settingsui/sheetcaptionline_test.go`
 | de-1 | `filters.go:235` 过滤行提示 | `t.FontSize - 1` → `tokens.Caption` | 行盒不变、跟步长走 | `已落地` |
 | de-4 | `launcher.go:1535` 作用域标记的名字 | `t.FontSize - 1` → `tk.Caption` | 同上（无 pin，见下） | `已落地` |
 | de-7 | `launcher.go:2743` 两步删除的确认句 | `t.FontSize - 1` → `tokens.Caption` | 同上 | `已落地` |
-| de-2 | `launcher.go:1303` 计费的行标题行盒 | `t.FontSize + rowTitleStep` | 换成阶梯会让 `TestLongRowTextIsCutNotWrapped` 红（行盒 22 对绘制 24）：计费与绘制在这一帧里本来就不是同一套字号 | `未开始（取景）` |
-| de-3 | `launcher.go:1306` 副标题行盒 | `t.FontSize` | 同 de-2 | `未开始（取景）` |
-| de-5 | `launcher.go:1633` 助记提示的绘制 | `t.FontSize-1` | `TestTriggerHintFits` 红（box 127 对 room 134） | `未开始（取景）` |
-| de-6 | `launcher.go:2646` 结果行标题 | `t.FontSize + 2` | `TestTheLauncherHeightsStayOnTheLadder` 红（19 不在阶梯 [15 18 22 24 25 28]，18/24 消失） | `未开始（取景）` |
+| de-2 | `launcher.go` 计费的行标题行盒 | `t.FontSize + rowTitleStep` | `MeasureText` 读 `tk.Title`（与画的是同一个名字） | `已落地（P13-fe，§6.126）` |
+| de-3 | `launcher.go` 副标题行盒 | `t.FontSize` | `tk.Body`（同值，只为名字一致） | `已落地（P13-fe，§6.126）` |
+| de-5 | `launcher.go` 助记提示的绘制 | `t.FontSize-1` | `tokens.Caption` | `已落地（P13-eb，§6.86）` |
+| de-6 | `launcher.go` 结果行标题 | `t.FontSize + 2` → `tokens.Title` | 与 de-2 同进同退（量的与画的是同一个名字） | `已落地（P13-fe，§6.126）` |
 | de-8 | `output.go:345` 分页脚注的词 | `t.FontSize - 1` → `tokens.Caption` | 行盒不变、跟步长走 | `已落地` |
-| de-9 | `output.go:695` 捕获输出页状态条 | `t.FontSize - 1` | `TestTheOutputListNeverScrollsIntoTheHeaderBand` 红（带下 ink 228） | `未开始（取景）` |
+| de-9 | `output.go` 捕获输出页状态条 | `t.FontSize - 1` → `tokens.Caption` | 条子的结局句回到 caption 档 | `已落地（P13-fe，§6.126）` |
 | de-10 | `output.go:980` 便条行副标题 | `tokens.Body`（不是 `t.FontSize - 1`，也不是 `tokens.Caption`） | **已落地（P13-dx，§6.93）**：取景已由 P13-dq…dw 收口到出货尺，红串实测 `the chosen row's subtitle ink is -6 levels (119 vs 125)`；落到 `tokens.Body` 后逐级相同 | `已落地` |
-| de-11 | `triggerhint.go:153` 助记提示的量算 | `size := t.FontSize - 1` | 与 de-5 必须同进同退（画的与量的同一个名字） | `未开始（取景）` |
+| de-11 | `triggerhint.go` 助记提示的量算 | `size := t.FontSize - 1` → `tokens.Caption` | 与 de-5 同进同退（画的与量的同一个名字） | `已落地（P13-eb，§6.86）` |
 
 **规则（这一族的一句话）**：一个面上的小字只有**名字**，没有「比正文小一档」这个说法——
 `tokens.Caption` 跟着界面步长缩放，`t.FontSize - 1` 不跟。数目相等不等于同一个东西。
 
-**为什么这 5 处必须等 `73-5`**：`render()`（`view_test.go:56`）不 `c.SetTheme(a.tokens(c).Theme)`，
+**这 5 处曾经为什么要等 `73-5`**：`render()`（`view_test.go:56`）当时不 `c.SetTheme(a.tokens(c).Theme)`，
 于是同一个函数里 `t := c.Theme()` 是框架库存的 12px、`a.tokens(c)` 是设计阶梯的 10.8，夹具
-在量一个生产上不存在的混排界面。**先收口取景，再搬这 5 处，再把 `internal/ci` 的字阶账从
-`internal/settingsui` 扩到 `internal/launcher`**——现在扩过去只能给调用点开例外，那是把账写软。
+在量一个生产上不存在的混排界面。**取景已由 P13-ec / P13-ed / P13-ee 收口**（§6.98 / §6.99 /
+§6.100），剩下四处随后在 P13-eb（de-5 / de-11）与 **P13-fe（de-2 / de-3 / de-6 / de-9，§6.126）**
+落地；`internal/ci` 的字阶账也已在 P13-fe 从 `internal/settingsui` 扩到 `internal/launcher`。
+**这一族结案：启动器里不再有任何 `… .FontSize ± …`。**
 
 pin：`internal/launcher/fontladder_test.go` 的 `TestTheFilterRowsHintIsACaption`、
 `TestTheArmedDeletesConfirmIsACaption`（tiny 档、画出来的盒子、先断言两档真的不同）；
@@ -5391,3 +5393,46 @@ pin：`internal/launcher/emptydensity_test.go` 两条——① `TestTheEmptySent
 逐十分位相等，且 charged 必须真的变大——夹具自己在场）。附 opt-in 出图（`FLOTER_P13FD_DIR`）。
 V 台账一条：`TestTheEmptyPageSaysSoUnderTheField` 把「带底 = 卡底 − `3*4*designUnit()`」写死在
 断言里，重定基线成 `TailUnits*4*designUnit()`（`P13-fd 重定基线`）。
+
+### §6.126 启动器最后两处「正文 ± N」，与把字阶账扩到这个包（P13-fe，**已落地**）
+
+通用队列的**文案密度 / 字阶**（§6.74 的前置条件「先收口取景」已由 P13-ec / P13-ed / P13-ee
+满足）。表面 = **启动器的结果行 + 捕获输出页的状态条**，外加 `internal/ci` 的那本账。
+
+**病（实测，四个界面步长的行盒，参考字体）**：
+
+| 表达式 | tiny 0.8 | small 0.9 | default 1.0 | large 1.1 |
+|---|---|---|---|---|
+| `t.FontSize + 2`（结果行标题） | 18 | 19 | 22 | 23 |
+| `tokens.Title` | **17** | 19 | 22 | 23 |
+| `t.FontSize - 1`（输出页状态条） | 13 | 15 | 17 | 19 |
+| `tokens.Caption` | **14** | 15 | 17 | 19 |
+
+出货档（0.9）上两个寄存器**恰好重合**，所以这两处在默认设置里看不出来；用户把「界面大小」
+调到最小一格，结果行的标题与输出页的结局句是这一页仅有的两件不跟步长走的东西——同一张卡里的
+四级字在 tiny 档上同时离开阶梯，只有它们留在原地。
+
+**落地**：`launcher.go` 的行盒测量 `t.FontSize + rowTitleStep` / `t.FontSize` → `tk.Title` /
+`tk.Body`（量的与画的是同一个名字），结果行标题 `t.FontSize + 2` → `tokens.Title`，
+`output.go` 的状态条 `t.FontSize - 1` → `tokens.Caption`（令牌在 `outputBody` 头部取一次，
+它本来就是记忆化的）。墨 / 字重 / 高度链 / 键盘模型 / i18n / 命令接线一字节不动。
+
+| # | 位置 | 旧值 → 新值 | 状态 |
+|---|---|---|---|
+| 126-1 | `launcher.go` `View` 的标题行盒测量 | `t.FontSize + rowTitleStep` → `tk.Title` | `已落地` |
+| 126-2 | 同上的副标题行盒 | `t.FontSize` → `tk.Body`（同值） | `已落地` |
+| 126-3 | `launcher.go` 结果行标题 | `t.FontSize + 2` → `tokens.Title` | `已落地（pin）` |
+| 126-4 | `output.go` 输出页状态条 | `t.FontSize - 1` → `tokens.Caption` | `已落地（pin）` |
+| 126-5 | `height.go` 的 `titleLine = font + rowTitleStep` 回退 | 不动：它是「还没量过时的地板」，不是画出来的寄存器 | `故意不做（附理由）` |
+| 126-6 | `internal/ci` 的字阶账 | 单包常量 → 按包的表（`settingsui` 30 处下限 + 2 条例外；`launcher` 10 处下限、**0 例外**） | `已落地` |
+
+**这轮为什么让它更轻、更有空间感**：层级不是「在出货档成立」，而是**在四个档上都成立**——
+用户把界面调小一格时，结果行的标题与输出页的结局句跟副标题、图例一起呼吸，比例尺不散架。
+这是空间感的底层：同一块面上的字必须属于同一条尺。
+
+pin：`internal/launcher/ladderrung_test.go` 两条——① `TestTheResultRowsTitleIsTheLaddersTitle`
+（tiny 档：行标题的盒 = title 探针的盒，且 ≠ body+2 的盒；先断言两个寄存器在这一档真的不同）；
+② `TestTheOutputStatusStripIsACaption`（tiny 档：状态条整行的盒 = caption 探针，≠ body-1）。
+契约账 `internal/ci/fontladder_contract_test.go` 现在跑两个包（子测试 `../settingsui` /
+`../launcher`），判据 ①②③ 一字未改。附 opt-in 出图（`FLOTER_P13FE_DIR`）：
+tiny 档深浅两套，差分 `rows` 24081/24189 px、`strip` 6531/6539 px。

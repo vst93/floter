@@ -54,11 +54,48 @@ var fontLadderExceptions = map[string]string{
 	"uninstallSubBody": "the reference defines this register as body minus half a unit",
 }
 
-const fontLadderPackage = "../settingsui"
+// fontLadderAccount is one package's entry in the account: the package's own
+// production files, the floor below which the account is measuring nothing,
+// and the sizes that are deliberately not text registers.
+//
+// P13-fe（`docs/liquid-glass.md` §6.126）：这一本账从 P13-dc 起只管 `settingsui`，
+// §6.74 把启动器那九处量完之后写死的下一步是「先收口取景，再搬这 5 处，再把字阶账
+// 从 `internal/settingsui` 扩到 `internal/launcher`——现在扩过去只能给调用点开例外，
+// 那是把账写软」。取景已由 P13-ec / P13-ed / P13-ee 收口，启动器也只剩两处偏移量
+// （结果行标题 `+2`、输出页状态条 `-1`），于是账本扩成一张表：两个包，同一个判据，
+// 零个为启动器开的例外。
+type fontLadderAccount struct {
+	pkg      string
+	minCalls int
+	// exceptions are the sizes in this package that are deliberately **not**
+	// text registers. Each is a named helper whose own doc comment says why
+	// there is no rung for it. The account accepts the *call*, and the closing
+	// over an offset inside the helper's own body — never at a call site.
+	exceptions map[string]string
+}
 
-// TestTheSettingsPackagesTextSizesAreLadderRungs is judgements ①②.
+var fontLadderAccounts = []fontLadderAccount{
+	{pkg: "../settingsui", minCalls: 30, exceptions: fontLadderExceptions},
+	// The launcher draws ~18 texts across the field row, the result rows, the
+	// status band and the captured-output page; ten is the floor that still
+	// proves the walk found the package rather than an empty directory.
+	{pkg: "../launcher", minCalls: 10},
+}
+
+// TestTheSettingsPackagesTextSizesAreLadderRungs is judgements ①②, for every
+// package in the account (`fontLadderAccounts`: the settings pages and, since
+// P13-fe, the launcher).
 func TestTheSettingsPackagesTextSizesAreLadderRungs(t *testing.T) {
-	files := fontLadderFiles(t)
+	for _, account := range fontLadderAccounts {
+		account := account
+		t.Run(account.pkg, func(t *testing.T) {
+			fontLadderAudit(t, account)
+		})
+	}
+}
+
+func fontLadderAudit(t *testing.T, account fontLadderAccount) {
+	files := fontLadderFiles(t, account.pkg)
 	fset := token.NewFileSet()
 	parsed := map[string]*ast.File{}
 	for _, name := range files {
@@ -68,7 +105,7 @@ func TestTheSettingsPackagesTextSizesAreLadderRungs(t *testing.T) {
 		}
 		parsed[name] = file
 	}
-	exceptionSpans := fontLadderExceptionSpans(fset, parsed)
+	exceptionSpans := fontLadderExceptionSpans(fset, parsed, account.exceptions)
 
 	seen := 0
 	for _, file := range parsed {
@@ -115,7 +152,7 @@ func TestTheSettingsPackagesTextSizesAreLadderRungs(t *testing.T) {
 						pos, fontLadderExpr(a))
 					return true
 				}
-				if _, isException := fontLadderExceptions[fun.Name]; !isException {
+				if _, isException := account.exceptions[fun.Name]; !isException {
 					t.Errorf("%s: the size comes from `%s`, which is neither a ladder rung nor an "+
 						"exception with a written reason (see fontLadderExceptions)", pos, fun.Name)
 				}
@@ -138,18 +175,18 @@ func TestTheSettingsPackagesTextSizesAreLadderRungs(t *testing.T) {
 			return true
 		})
 	}
-	if seen < 30 {
+	if seen < account.minCalls {
 		t.Fatalf("only %d `FontSize(...)` calls found in %s: the package moved or was renamed, and this "+
-			"account is now measuring nothing", seen, fontLadderPackage)
+			"account is now measuring nothing", seen, account.pkg)
 	}
 }
 
-// fontLadderFiles lists the package's production files.
-func fontLadderFiles(t *testing.T) []string {
+// fontLadderFiles lists one package's production files.
+func fontLadderFiles(t *testing.T, pkg string) []string {
 	t.Helper()
-	all, err := filepath.Glob(filepath.Join(fontLadderPackage, "*.go"))
+	all, err := filepath.Glob(filepath.Join(pkg, "*.go"))
 	if err != nil {
-		t.Fatalf("cannot list %s: %v", fontLadderPackage, err)
+		t.Fatalf("cannot list %s: %v", pkg, err)
 	}
 	out := make([]string, 0, len(all))
 	for _, name := range all {
@@ -159,14 +196,14 @@ func fontLadderFiles(t *testing.T) []string {
 		out = append(out, name)
 	}
 	if len(out) == 0 {
-		t.Fatalf("%s holds no production files: the package moved or was renamed", fontLadderPackage)
+		t.Fatalf("%s holds no production files: the package moved or was renamed", pkg)
 	}
 	return out
 }
 
 // fontLadderExceptionSpans is where the named exceptions are allowed to close
 // over an offset: their own function bodies, nowhere else.
-func fontLadderExceptionSpans(fset *token.FileSet, files map[string]*ast.File) []span {
+func fontLadderExceptionSpans(fset *token.FileSet, files map[string]*ast.File, exceptions map[string]string) []span {
 	var spans []span
 	for _, file := range files {
 		for _, decl := range file.Decls {
@@ -174,7 +211,7 @@ func fontLadderExceptionSpans(fset *token.FileSet, files map[string]*ast.File) [
 			if !ok || fn.Body == nil {
 				continue
 			}
-			if _, isException := fontLadderExceptions[fn.Name.Name]; !isException {
+			if _, isException := exceptions[fn.Name.Name]; !isException {
 				continue
 			}
 			spans = append(spans, span{from: fset.Position(fn.Pos()).Offset, to: fset.Position(fn.End()).Offset})
@@ -234,24 +271,26 @@ func fontLadderExpr(n ast.Node) string {
 // exception list must keep naming helpers that still exist, or it is a list of
 // reasons for code that is gone.
 func TestTheFontLadderExceptionsAreStillNamed(t *testing.T) {
-	for name, reason := range fontLadderExceptions {
-		if strings.TrimSpace(reason) == "" {
-			t.Errorf("the exception `%s` has no written reason", name)
-		}
-		found := false
-		for _, file := range fontLadderFiles(t) {
-			data, err := os.ReadFile(file)
-			if err != nil {
-				t.Fatalf("cannot read %s: %v", file, err)
+	for _, account := range fontLadderAccounts {
+		for name, reason := range account.exceptions {
+			if strings.TrimSpace(reason) == "" {
+				t.Errorf("%s: the exception `%s` has no written reason", account.pkg, name)
 			}
-			if strings.Contains(string(data), "func "+name+"(") ||
-				strings.Contains(string(data), "func (a *App) "+name+"(") {
-				found = true
+			found := false
+			for _, file := range fontLadderFiles(t, account.pkg) {
+				data, err := os.ReadFile(file)
+				if err != nil {
+					t.Fatalf("cannot read %s: %v", file, err)
+				}
+				if strings.Contains(string(data), "func "+name+"(") ||
+					strings.Contains(string(data), "func (a *App) "+name+"(") {
+					found = true
+				}
 			}
-		}
-		if !found {
-			t.Errorf("the exception `%s` is no longer a function in %s: drop the exception (or rename it)",
-				name, fontLadderPackage)
+			if !found {
+				t.Errorf("the exception `%s` is no longer a function in %s: drop the exception (or rename it)",
+					name, account.pkg)
+			}
 		}
 	}
 }

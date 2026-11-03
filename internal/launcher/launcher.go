@@ -1303,10 +1303,16 @@ func (a *App) View(c *ui.Context) {
 	// lays a line out at the font's own ascent, descent and gap, which is not
 	// a fixed multiple of the size, and the window is charged what the text
 	// takes.
-	if _, height := c.MeasureText(0, ui.Span{Text: "Ag", Size: t.FontSize + rowTitleStep}); height > 0 {
+	//
+	// P13-fe（`docs/liquid-glass.md` §6.126，§6.74 的 de-2 / de-3）：这两条此前量的是
+	// `t.FontSize + rowTitleStep` 与 `t.FontSize` —— 偏移量不随界面步长缩放，而画的
+	// 那一半（`row` 里的标题 / 副标题）改读阶梯档之后，量的与画的必须是**同一个名字**，
+	// 否则 tiny 档上盒子比墨高 1px（title 17 对 body+2 的 18），窗口为一行看不见的
+	// 字长了 1px。现在量 `tk.Title` / `tk.Body`，与 `row` 画的两个档逐字相同。
+	if _, height := c.MeasureText(0, ui.Span{Text: "Ag", Size: tk.Title}); height > 0 {
 		a.TitleLine = float64(height)
 	}
-	if _, height := c.MeasureText(0, ui.Span{Text: "Ag", Size: t.FontSize}); height > 0 {
+	if _, height := c.MeasureText(0, ui.Span{Text: "Ag", Size: tk.Body}); height > 0 {
 		a.SubtitleLine = float64(height)
 	}
 	rows, held, sections := a.windowRows(results)
@@ -2656,7 +2662,11 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 				// one step above the body) at 580, and the selected row's
 				// emphasis is its own type: 700, as
 				// `.launcher-result--selected .launcher-result__title` did.
-				title := ui.Text(c, item.Title).FontSize(t.FontSize + 2).
+				// P13-fe（§6.126，§6.74 的 de-6）：`t.FontSize + 2` 是偏移量，不随界面
+				// 步长缩放——出货档上它与 title 档重合（19 对 19），tiny 档上分家
+				// （18 对 17）。行盒那边（`View` 量 `a.TitleLine`）同一个名字，两半
+				// 必须同进同退。
+				title := ui.Text(c, item.Title).FontSize(tokens.Title).
 					FontWeight(580).TextColor(tokens.TextStrong).SingleLine()
 				// The action bar's title is the string the user is handing
 				// over — the command line, the URL, the path — so it is the

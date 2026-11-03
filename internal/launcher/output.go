@@ -609,6 +609,9 @@ func (a *App) InOutputView() bool { return a.output != nil }
 func (a *App) outputBody(c *ui.Context, copy i18n.Launcher, edge float32) {
 	view := a.output
 	t := c.Theme()
+	// P13-fe：令牌在函数头取一次（它本来就是记忆化的，`a.tokensMemo`）——状态条那一行
+	// 现在读 `tokens.Caption`，而它不在标题行那个闭包的作用域里。
+	tokens := a.tokens(c)
 	header := t.Space(4)
 	ui.Column(c).Fill().Children(func() {
 		// The strip is the view's own band, not a layer over the text. It sits
@@ -630,7 +633,6 @@ func (a *App) outputBody(c *ui.Context, copy i18n.Launcher, edge float32) {
 				// The output's own controls: 28u transparent squares with a
 				// mark, the reference's `.plugin-window__bar-button`, never
 				// filled pills in the text surface's header.
-				tokens := a.tokens(c)
 				control := func(mark, label, hint string, run func()) {
 					if run == nil {
 						return
@@ -693,7 +695,12 @@ func (a *App) outputBody(c *ui.Context, copy i18n.Launcher, edge float32) {
 			// 中点；而且三种结局**逐像素相同**（实测浅 116 / 深 164，三个臂一个字节
 			// 不差），一次失败的运行与一次成功的运行在条子上长得一样。现在它是三段
 			// 各自的寄存器：结局、中点、图例（见 `outputStatusSpans`）。
-			ui.RichText(c, a.outputStatusSpans(c, copy, view)...).FontSize(t.FontSize - 1)
+			// P13-fe（`docs/liquid-glass.md` §6.126，§6.74 的 de-9）：这一条此前是
+			// `t.FontSize - 1`——偏移量不随界面步长缩放（tiny 档 13 对 caption 的
+			// 14，出货档两者重合在 15），于是用户把界面调小一格时，这一页的**结局句**
+			// 是整页唯一不跟步长走的一行。改读阶梯的 caption 档，墨 / 字重 / 三段
+			// 寄存器（`outputStatusSpans`）一个字节不动。
+			ui.RichText(c, a.outputStatusSpans(c, copy, view)...).FontSize(tokens.Caption)
 		})
 		// The body takes what the strip left: its own inset is the breath below
 		// the status line, not the panel's top edge — the strip already spent
