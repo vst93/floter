@@ -4935,3 +4935,47 @@ PASS 3348 → **3351**，SKIP 172 → **173**。变异 3 条实跑：
 **两条反直觉**：① **`rest` 帧可以零像素改动**——呼吸在滚动内容的末尾，`Y=0` 时它在裁剪之外
 （`cmp` 无输出）；② **它守的是下限不是某个数**：对照变异 `Space(6)` = 21.6（末尾 26px）**仍绿**，
 所以「把呼吸越加越大」不会被这条 pin 拦住，那是刻意的——这一族的红线是「不许比页头那一格少」。
+
+### §6.115 动作栏：那句 42u 地板从来没落到盒子上（P13-et，**已落地**）
+
+`rowBody` 的注释说动作栏那一行「有自己的 42u 地板（`Space(10.5)`）+ 上呼吸 3u」，窗口按
+旧版的 45u 带子收费。**地板那一行是死码**：它写在 `MinHeight(floor)` **之后**，行一直是
+`rowUnits` = 40u，带子的第三段其实是**卡片自己的 2u tail**（`TailUnits`，shell 给启动器面
+单独设的 `padBottom`，`internal/shell/shell.go:4486-4489`）。
+
+| # | 量的是什么（出货尺 3.6px/`Space(1)`，满态 12 匹配 + 动作栏，720×478） | 值 |
+|---|---|---|
+| 115-1 | 带子 `Space(actionBarUnits)` = `Space(11.25)` | **40.5** |
+| 115-2 | 上呼吸 `Space(actionBarBreathUnits)` = `Space(0.75)` | **2.7** |
+| 115-3 | 行本身（实测 `rowRects[bar].H`） | **36.0** = `Space(rowUnits)` |
+| 115-4 | 卡片 tail `Space(TailUnits)` = `Space(0.5)` | **1.8** |
+| 115-5 | 115-2 + 115-3 + 115-4 | **40.5** = 115-1（逐位相等） |
+| 115-6 | 动作栏行的盒子 | `Y=440.2 H=36 bottom=476.2`（窗口下沿 478） |
+| 115-7 | 行底 → 窗口下沿 | **1.8** = 115-4（选中的胶囊的下呼吸） |
+| 115-8 | 陷阱成真时（地板真的 42u）：行高 / 行底 → 窗口下沿 | **37.8** / **0** |
+
+**病**：两种账**都算出 45u**（3 + 42 与 3 + 40 + 2），所以**总量看不出错**——错的是行自己的
+盒子。于是那句死码不是垃圾而是陷阱：下一次有人把它「修好」，选中的胶囊就贴住窗口最下沿
+（115-8），§2 的 elevation 阶梯要求浮层内的行与卡片边之间始终留一条呼吸，贴边读成「被切开」。
+
+| # | 位置 | 现状 → 落成 | 状态 |
+|---|---|---|---|
+| 115-9 | `launcher.go:2471`（旧行号） | `floor = t.Space(10.5)`，赋值在 `MinHeight` 之后 | **删掉**，原地留注释写清 115-8 与三段账 |
+| 115-10 | `height.go:46-58` | `actionBarUnits` 注释说「42u 地板 + 3u 呼吸」 | 改说三段：`actionBarBreathUnits` + `rowUnits` + `TailUnits` |
+| 115-11 | `height.go` 常量区 | 只有 `actionBarUnits`，呼吸是裸字面量 `0.75` | 新增 `actionBarBreathUnits = 0.75`，`rowBody` 改读它 |
+| 115-12 | `TestTheActionBarBandIsBreathRowAndTail`（新） | — | 三段之和 == `actionBarUnits`（任一格被改就红） |
+| 115-13 | `TestTheActionBarKeepsTheCardsTailUnderIt`（新，深浅两臂） | — | 行盒高 == `Space(rowUnits)`；行顶 == 带顶 + `Space(actionBarBreathUnits)`；行底 → 窗口下沿 == `Space(TailUnits)` |
+| 115-14 | `TestDumpP13ETBarPNGs`（opt-in `FLOTER_DUMP_P13ET=1`） | — | light / dark 各一张满态帧 |
+
+**规矩**：**带子 = 呼吸 + 行 + 卡 tail**，三段缺一段都会被另一段补上而总量不变；
+**行不许有自己的地板**——它的高度只有 `rowUnits` 一个来源。
+
+**零像素改动**：`Space(0.75)` 与旧字面量同值，`before` / `after` 两张 PNG `cmp` **无输出**
+（深浅各一张）。本轮的交付是「删掉一句会误导下一次改动的死码 + 钉住它守的那条呼吸」。
+
+**pin 失败串（M1 实跑，深浅同一条）**：
+`the action bar's row is 37.80 px tall, not the result row's 36.00 px: a bar charged a floor of its own would be 37.80 and would eat the card's tail (P13-et)`
+`the action bar's row ends 0.00 px above the window's bottom edge, not the card's tail of 1.80 px: the selected capsule has lost its last breath and sits on the rim (P13-et)`
+
+**陷阱长什么样（眼睛复核）**：`/tmp/floter-P13-et-bar-{light,dark}-mutant.png` 与出货帧
+diff **1385 / 1454 px**，bbox `(14,446)-(705,472)` —— 整条胶囊的下半截，底边正好压在窗口沿上。

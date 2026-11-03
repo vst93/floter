@@ -43,13 +43,27 @@ const (
 	// charged by `Geometry.Height` for a row the view marks `Status`.
 	launcherStatusUnits = 7.5
 
-	// actionBarUnits is one action-bar row's band: its own 42u floor plus the
-	// 3u breath above it, the old build's `LAUNCHER_ACTION_BAR_UNITS` (45u).
-	// The footer is charged per row outside the ten-row budget and the view
-	// reserves exactly this band at the scroller's bottom edge (see
-	// `actionBarFooter`), so the window, the pinned footer and the list's own
-	// tail are one number.
+	// actionBarUnits is one action-bar row's band, the old build's
+	// `LAUNCHER_ACTION_BAR_UNITS` (45u). The footer is charged per row outside
+	// the ten-row budget and the view reserves exactly this band at the
+	// scroller's bottom edge (see `actionBarFooter`), so the window, the pinned
+	// footer and the list's own tail are one number.
+	//
+	// P13-et · 45u 是**三段**，不是两段：上呼吸 `actionBarBreathUnits`（3u）+
+	// 行本身 `rowUnits`（40u）+ 卡片的 `TailUnits`（2u）。第三段容易被漏掉，
+	// 因为带子是从「列表最后一行」量到**窗口底边**的，而窗口底边到卡片内容
+	// 盒底之间还隔着 shell 给启动器面单独设的那条 `padBottom`
+	// （`internal/shell/shell.go` 的 `padBottom = t.Space(launcher.TailUnits)`）。
+	// 也就是说行**不能**再要自己的 42u 地板：42 + 3 = 45 会把 tail 算第二遍，
+	// 行会长到 37.8 并落进那 2u 的 tail 里（选中的胶囊于是贴着窗口最下沿，
+	// 丢掉它自己的下呼吸）。实测行高 36、行底离窗口下沿 1.8（正好是 tail），
+	// 2.7 + 36 + 1.8 = 40.5 逐位相等。
 	actionBarUnits = 11.25
+
+	// actionBarBreathUnits is the air above an action-bar row: the old build's
+	// `margin-top: calc(var(--u) * 3)`. It is a constant, so the panel's bottom
+	// edge never jumps when the result count crosses zero (see `rowBody`).
+	actionBarBreathUnits = 0.75
 
 	// The rows' own registers, as `.launcher-result` declared them: the title
 	// is the ladder's title step (two units above the body), the subtitle the

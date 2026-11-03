@@ -2461,15 +2461,19 @@ func (a *App) rowBody(c *ui.Context, item Item, i int, copy i18n.Launcher) {
 	// ⌘↩ badge is what says it runs on Enter.
 	isBar := strings.HasPrefix(item.ID, "bar:")
 	if isBar {
-		// The bar is the panel's own pinned footer (`.launcher-action-bar`):
-		// a floor of its own 42u — one `Space(n)` is four reference units, so
-		// that is `Space(10.5)` — and the 3u breath above it as this row's own
-		// margin (`margin-top: calc(var(--u) * 3)`). The window charges the two
-		// together as the old build's 45u band (see Height's bar arm), and the
-		// breath is a *constant*, so the bottom edge never jumps when the result
-		// count crosses zero.
-		floor = t.Space(10.5)
-		row.Margin(t.Space(0.75), 0, 0, 0)
+		// The bar is the panel's own pinned footer (`.launcher-action-bar`).
+		//
+		// P13-et · 这一行就是列表的普通 `rowUnits` 行（40u），**没有自己的
+		// 42u 地板**。这里曾经写着一句 `floor = t.Space(10.5)`，但它落在
+		// `MinHeight(floor)` 之后（本函数开头那行），从来没有落到盒子上——
+		// 行一直是 36。那句是死代码，也是陷阱：把它「修」成真的 42u，行就
+		// 会长到 37.8，行底离窗口下沿的那一格 `TailUnits`（1.8）归零，选中的
+		// 胶囊贴着窗口最下沿（实测 36 → 37.8、1.8 → 0，见
+		// `TestTheActionBarKeepsTheCardsTailUnderIt`）。带子的三段账写在
+		// `actionBarUnits` 上（3u 呼吸 + 40u 行 + 2u 卡 tail = 45u）。
+		//
+		// 上呼吸是这一行自己的 margin，宽度按 `actionBarBreathUnits` 读。
+		row.Margin(t.Space(actionBarBreathUnits), 0, 0, 0)
 		// The bar is welded to the list above it: the old build turned the
 		// footer's top corners square whenever a result list preceded it
 		// (`.launcher-results + .launcher-action-bar { border-radius: 0 0
