@@ -24,7 +24,10 @@ import (
 //
 //	15 — 迷你终端预览的一行（`t.FontSize - 1` + mono，`terminalui.go:1801`）
 //	17 — 滑轴的读数（`tokens.Body` + mono，`drawer.go:302`）与行标签 / select 的
-//	     当前值（`t.FontSize`，`drawer.go:318`、`:343`）——**同一档**
+//	     当前值（`t.FontSize`，`drawer.go:391`、`:416`、`:434`）——**同一档**。
+//	     P13-fb 实测再确认：抽屉的行名**不是**设置页那个角色（见 §6.123）；
+//	     抬到 `tokens.Emphasis` 会把它推成 18，且抽条高度 +2px（= PTY 的 2px），
+//	     所以这里永远是 17。
 //	25.2 — 抽屉右上角的关闭按钮（`barButton`，`t.Space(7)`）
 //	27 — 分段控件的下限（`t.Space(7.5)`），也是行自己的 `MinHeight`
 //	     （`drawer.go:315`，同值）
@@ -114,6 +117,8 @@ func TestEachDrawerRungHasItsOwnProducer(t *testing.T) {
 				// A row's name (and a select's current value).
 				// P13-dp 取景收口：旧值 22 → 17（`t.FontSize` = 10.80）——与上面的
 				// 读数同档，因为 `tokens.Body` 也是 10.80。
+				// P13-fb：这一档**故意**与读数同高（§6.123：抽屉的读数才是响的那一半），
+				// 抬到 emphasis 会让条带 +2px，而条带高 = 画布高 = PTY 的行数。
 				{scopy.LineHeight, 17, "a row's label"},
 				// The drawer's own dismiss, in a card's close corner.
 				// P13-dp 取景收口：旧值 28 → 25.2（`t.Space(7)` = 7 × 3.6）。
