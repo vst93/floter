@@ -5739,7 +5739,7 @@ pin：`TestTheControlKeepsItsWidthWhileTheLabelColumnTakesTheSlack`。变异两�
 | 133-1 | `internal/settingsui/settingsui.go:4718` `chooseSelect` | `Width(220)`（设置页与扩展面板同一个字面 px） | 设置页（`cardUnit == 0`）走 **`MinWidth(220)`**：220 是**地板**，值更长就借标签列的地；扩展面板（`cardUnit > 0`，`extensions.css` 是字面 px、卡片更窄）**保持** `Width(220)` | `已落地` |
 | 133-2 | 同上 | 长值在出厂台阶上从第 189 列被省略号切 | 盒增长 = 值溢出：small 214 → **237**、default 212 → **261**、large 212 → **284**；tiny 不动（值本来就装得下） | `已落地` |
 | 133-3 | `a.row` 的标签列（`rows.go:1615`） | 长值下缩到 236.4 / 201.0 / 168.6（small / default / large） | 标签墨**一字未少**（66 列，长值与短值逐列相同）；最紧一档（large）标签列仍是标签墨的 **2.1 倍** | `已落地（pin）` |
-| 133-4 | `settingsui.go:4757` `paletteRow` 的字面 `Width(220)` | 同族另一半 | **不动**：调色板名都短（净宽 171.6…184.8 装得下），且旁边是 `Space(37)`=148u 的预览块——那是**终端外观卡**自己的一轮（按「一个表面一轮」） | `故意不做（表面归属）` |
+| 133-4 | `settingsui.go:4757` `paletteRow` 的字面 `Width(220)` | 同族另一半 | **已由 §6.134（P13-fo）结账**：改 `MinWidth(220)`，与 `chooseSelect` 同源同规则 | `已落地（P13-fo）` |
 | 133-5 | `a.row` 标签列的地板 | 本轮量到：长标签 + 长值同时出现时，标签列会缩到 168.6u | **现在不改**：出厂内容够不到；真出现时该给标签列一条地板（约 120u），而不是让值无限借地 | `故意不做（够不到）` |
 
 pin：`TestALongPickerValueGrowsTheBoxInsteadOfBeingCut`（`internal/settingsui/pickerfloor_test.go`）。
@@ -5751,3 +5751,38 @@ pin：`TestALongPickerValueGrowsTheBoxInsteadOfBeingCut`（`internal/settingsui/
 空出一大截——同一个控件在四个界面台阶上是四种密度。现在它只在**需要**的时候占地：出厂值一律
 220（右列是一条线），长了才借标签列那 240u 的空。**空间跟着内容走，不跟着一个常数走**，这是
 「轻」在控件层唯一说得清的一条。
+### §6.134 调色板 picker 的宽度也走同一条规则（P13-fo，**已落地**）
+
+§6.133 把字体族 picker 的 `Width(220)` 改成了 `MinWidth(220)`，但同一张 Terminal appearance
+卡上的另一枚 picker——`paletteRow`（`internal/settingsui/settingsui.go` 里自己拼的那一行）——
+还留着字面 `Width(220)`。同一个盒子的宽度，一半来自「内容需要多少」，一半来自一个常数。
+
+出厂内容看不出差别，所以这一轮落地的是**规则**，不是像素：
+
+| 台阶 | 最宽出厂调色板名（`High contrast`）墨 | 盒内净宽 | 盒子 |
+|---|---|---|---|
+| tiny 0.8 | 58 | 184.8 | 218 |
+| small 0.9（出厂） | 66 | 180.4 | 218 |
+| default 1.0 | 73 | 176.0 | 216 |
+| large 1.1 | 80 | 171.6 | 220 |
+
+九个出厂调色板名全部装得下（最宽的 80px 对最紧的 171.6px）。但一个 55 字的标签
+（`i18n.Settings.Palettes` 是 `paletteRow` 的参数，调用方可以传任意 `Option.Label`）
+在 `Width(220)` 上只画出 **160…176px**，自然墨 **310…374px**——被 `SingleLine` 切掉一半以上。
+
+| # | 位置 | 现状（旧） | 落成（新） | 状态 |
+|---|---|---|---|---|
+| 134-1 | `internal/settingsui/settingsui.go` `paletteRow` | `ui.Select(...).Width(220)`（字面 px，与同卡片另一枚 picker 的规则不同） | **`MinWidth(220)`**：220 是地板，与 `chooseSelect`（§6.133）同源同规则 | `已落地` |
+| 134-2 | 出厂九个调色板名 | 碰巧画成同一个盒子（因为都装得下） | 九个名字 × 四台阶 × 深浅**画出同一个盒子**（右列是一条线），由 pin 守着 | `已落地（pin）` |
+| 134-3 | 长标签（> 盒内净宽） | 从盒边起被省略号切（实测 160…176 画 / 310…374 自然宽） | 盒子长大到装下整句（small 351→503 / default 385→499 / large 423→495，深浅同值） | `已落地` |
+
+pin：`TestThePalettePickerIsAFloorNotACeiling`（`internal/settingsui/palettefloor_test.go`）。
+变异两条实跑：① `MinWidth(220)` → `Width(220)`，B 段 small/default/large × 深浅六处红
+（`the long palette label paints 176 of its 310px natural ink`）；② `MinWidth(220)` →
+`MinWidth(120)`，B 段六处红（`the box stayed 351px (floor 503)`——盒子缩到地板，长标签装不下）；
+均 `md5sum -c` 还原后复跑全绿。
+
+**这轮为什么让它更轻、更有空间感**：同一张卡上的两枚 picker 此前是两种宽度来源——一枚问内容，
+一枚问常数。现在两枚都只在**需要**的时候占地：出厂值画出同一列（右列是一条线），长了才借标签列
+的空。同一条规则落在同一张卡上，才叫一套材质。
+

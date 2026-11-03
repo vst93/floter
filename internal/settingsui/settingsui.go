@@ -4754,7 +4754,12 @@ func (a *App) paletteRow(c *ui.Context, copy i18n.Settings, current string, appl
 	// splits the select and the preview apart (`settings.css:871-878`).
 	a.stackedRow(c, copy.Palette, "", func() {
 		ui.Row(c).FillWidth().Justify(ui.SpaceBetween).AlignItems(ui.Center).Children(func() {
-			e := a.fieldFace(c, ui.Select(c, &selected, labels).Label(copy.Palette).Width(220).Radius(999), true)
+			// 220 与同卡片上那一枚字体族 picker 同源、同规则（`chooseSelect`，§6.133）：
+			// 它是**地板**不是上限。此前这一枚写的是 `Width(220)`，于是同一张卡上
+			// 两枚 picker 的宽度来自两个不同的地方——一枚跟着内容长，一枚钉死；
+			// 出厂的九个调色板名都装得下，所以两者碰巧画成同一个盒子，靠的是
+			// 巧合而不是规则（§6.134）。
+			e := a.fieldFace(c, ui.Select(c, &selected, labels).Label(copy.Palette).MinWidth(220).Radius(999), true)
 			if e.Changed() {
 				for _, option := range options {
 					if option.Label == selected {
