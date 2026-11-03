@@ -94,6 +94,18 @@ pin 在 `internal/launcher/raycast_test.go`（`TestTheControlRimIsTheOneLitLine`
 禁用的**档位属于控件根**（`settingsui.lockedControl`）：一个 `Disabled(true)` 挂在根上，
 整棵子树同乘 0.5；一个表单里出现 0.3 / 0.6 / 0.25 三种深度 = 同一句话说了三遍。
 
+**指针那一半（P13-fi）**：这一句在**墨**上说完就完了，指针**不是**第二个说法——全仓
+14 个 `Disabled` 调用点，13 处 `CursorDefault`，1 处 `CursorNotAllowed`（卸载对话框里那张
+锁着勾选框的固定行卡，参考 `ComponentizedUninstallDialog.css:60-83` 的
+`:has(input:disabled)` 那一臂；它是一张表单卡，不是一枚键）。另有 `slider` 的轨道与
+`detachedBar` 的键**不写** `Cursor`——量过：两个 widget 自己都不设光标，解析器
+（`mygo@v0.7.3/ui/runtime.go:1286-1324`）落到默认箭头，写了是废话。
+
+这张表现在是**可执行**的：`internal/settingsui/pointercensus_test.go` 的
+`disabledSites` 登记 14 个站点（`file:func` + 四档：面 / 槽 / 透明面 / 根），
+`TestEveryUnavailableControlIsClassified` 守住「新加一个 `Disabled` 必须归到其中一档」，
+`TestAnUnavailableControlPointsAtItselfWithOneOfTwoShapes` 守住指针的两句话（§6.130）。
+
 ---
 
 ## §2 elevation 阶梯（三档，判据一句话）
@@ -5590,3 +5602,46 @@ P13-fg「下一格」第 1 条：`Result` 格里最长的词 `Succeeded with war
 pin：`TestTheFreshnessAnswerFitsTheCellItIsDrawnIn` + `TestTheFreshnessGridGivesItsAnswerRoom`。
 变异两条实跑：① 把 en 的 `FreshnessResultDegraded` 加长到 247u（> 243.5u）→ 两条 pin 红 4 处；
 ② 把 `metadataCell` 的值字号 ×2（252u）→ 两条 pin 红 4 处；均 `md5sum -c` 还原后 `touch` 复跑全绿。
+
+### §6.130 禁用面：十四个 `Disabled` 调用点，一套说法（P13-fi，**已落地（pin）**）
+
+§1 的「禁用的材质」表是 P13-s / P13-t / P13-u / P13-aq 写下的，但它是**散文**：三种读法
+点得清，却没有东西守着「新加一个 `Disabled(true)` 必须归到其中一档」。任务书把这一格列为
+「状态反馈的另一半」，入口是 `rows.go:568-588` 那枚建时就禁用的胶囊。
+
+**先量（真设置页地面，ON = 可用 / OFF = 不可用；crown = 顶内线 − 面，shade = 底内线 − 面）**：
+
+| 控件 | 外观 | 面 | crown | shade | ink 对比 |
+|---|---|---|---|---|---|
+| 动作胶囊 `disabledActionButton` | 浅 | 230 → **238** | +6 → **+0** | −14 → −7 | 202 → **105**（0.52） |
+| 同上 | 深 | 39 → **26** | +19 → **+0** | −8 → −3 | 198 → **106**（0.54） |
+| accent 主 CTA | 浅 | 82 → 164 | +41 → **+0** | 0 | 168 → 43 |
+| 同上 | 深 | 193 → 104 | +5 → **+0** | 0 | 170 → 40 |
+| 图标格（透明面） | 浅 | 247 → 247 | 0 | 0 | 138 → **69**（0.50） |
+| 同上 | 深 | 14 → 14 | 0 | 0 | 141 → **70**（0.50） |
+| 开关（槽） | 浅 | 79 → 161 | +1 → +1 | 0 | 175 → 48 |
+| 同上 | 深 | 187 → 103 | 0 | 0 | 68 → 77 |
+| 组件卡（面） | 浅 | 230 → **238** | +6 → **+0** | −14 → −7 | 202 → **105** |
+| 同上 | 深 | 39 → **26** | +19 → **+0** | −8 → −3 | 198 → **106** |
+
+三句话：面档离地面仍 9 级（浅）/ 12 级（深）、底对侧还在、**顶内线 +0**；槽档内线不动、
+整块退一半；透明面档面就是地面、只有墨退一半。**没有一个站点需要改。**
+
+**落地**：
+
+| # | 位置 | 内容 | 状态 |
+|---|---|---|---|
+| 130-1 | `internal/settingsui/pointercensus_test.go` | `disabledSites` 登记 14 个真调用点（`file:func` + 四档：面 / 槽 / 透明面 / 根），`TestEveryUnavailableControlIsClassified` 扫 `internal/settingsui` 与 `internal/shell` 的 AST：未登记的 `X.Disabled(...)`（含闭包里的）即红，登记了却不再调用也红 | `已落地（pin）` |
+| 130-2 | 同上 | `TestAnUnavailableControlPointsAtItselfWithOneOfTwoShapes`：六种形状真 hover，五处默认箭头 + 一处 `not-allowed`（那张锁着勾选框的卡） | `已落地（pin）` |
+| 130-3 | 同上 | opt-in dump `TestDumpP13FIDisabledSheet`（`FLOTER_P13FI_DUMP=1`）：可用 / 不可用两列并排，深浅两套 | `已落地（证据）` |
+| 130-4 | 产品代码 | **零像素改动**：量完四处材质、两种指针都已是 §1 的说法 | `已落地（不变）` |
+| 130-5 | 那张固定行卡的 `not-allowed` | 参考自己写着 `:has(input:disabled)` 那一臂，且它是一张**含锁勾选框的表单卡**、不是键；全仓无拖放目标，这个形状没有第二种用法 | `故意不做（附理由）` |
+| 130-6 | 给 `slider` / `detachedBar` 补 `Cursor(ui.CursorDefault)` | 两个 widget 都不设光标，解析器本来就给默认箭头（`runtime.go:1286-1324`）——补上是把一句真话写两遍 | `故意不做（附理由）` |
+| 130-7 | `theme.Tokens` 立一个 `DisabledInk` 档 | 墨的深度不是站点挑的，是框架那一道 0.5 乘出来的（实测 0.50 / 0.52 / 0.54）；立一个 token 只会给第二道淡开门（P13-s 判掉的那笔） | `故意不做（附理由）` |
+
+**这轮为什么让它更轻、更有空间感**：这一轮买的是「**不会再长出第四种深度**」。禁用的面现在是
+一套可数的账——面熄灯、槽退一半、透明面只剩墨、指针只有两句——所以层级靠的是**面差与受光边
+的有无**，而不是又一层描边或又一个灰。下一次有人新加一个 `Disabled`，红的是普查，不是用户的
+眼睛。
+
+pin：`TestEveryUnavailableControlIsClassified` + `TestAnUnavailableControlPointsAtItselfWithOneOfTwoShapes`。
