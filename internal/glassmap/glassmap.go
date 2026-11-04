@@ -397,13 +397,29 @@ func (s Spec) ContentAlpha() float32 {
 }
 
 // FloatAlpha is the fill alpha of a floating pane (`--glass-float`): the
-// frame's tint plus floatStep, capped at opaque. A pane that floats over the
-// frame is always denser than it, at every stop, and still follows the slider.
+// frame's **visible** alpha plus floatStep, capped at opaque. A pane that
+// floats over the frame is always denser than it, at every stop, and still
+// follows the slider.
+//
+// P13-gb 重定基线：旧值是 `min(1, s.TintAlpha+floatStep)` —— 把 0.10 加在应用
+// **自己画的那一笔填充**上。`TintAlpha` 在 macOS 上是被 `MaterialVeil` 补偿过的
+// （`compensate` 把窗口材质的 alpha 从填充里扣掉），于是同一条 §1 契约换算成**可见**
+// 抬升时被乘了 `(1 − veil)`：默认 47% 滑块上，浮层离框 linux 0.302、darwin
+// `frosted` 0.264、`regular` 0.223、`liquid` 0.210 —— 材质越厚，浮层离框越近，
+// 阶梯方向是反的；10% 滑块 + `liquid` 只剩 0.066（linux 同滑块 0.180 的 37%）。
+// 旧值 → 新值：`TintAlpha` → **`Composite()`**（框的可见 alpha）。
+//
+// 为什么是 `Composite`：浮层压在框上，眼睛量的是「浮层比它压着的那张面亮多少」，
+// 而那张面的可见 alpha 是 `Composite()`（veil 已经把填充补成目标值）；`(1-C)` 是
+// 框之上还剩多少桌面，浮层的填充乘的就是它。同一个文件里的 `ContentAlpha` 早就用
+// `overFrame` 把它的 0.09 表达成「可见 alpha 上的一步」，只有 `FloatAlpha` 在填充
+// 空间里做加法——两个兄弟方法对同一条契约有两种读法，而分歧只长在有材质的平台上。
+// `Material == 0`（linux / windows / `off`）时 `TintAlpha == Composite`，结果逐位不变。
 func (s Spec) FloatAlpha() float32 {
 	if !s.Translucent {
 		return 1
 	}
-	return min(1, s.TintAlpha+floatStep)
+	return min(1, s.Composite()+floatStep)
 }
 
 // TerminalFrameShare is the share of the terminal's alpha the **card face**

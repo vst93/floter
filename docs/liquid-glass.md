@@ -49,7 +49,7 @@
 | **面** face | `Control` | `rgba(255,255,255,0.10)` | `rgba(0,0,0,0.07)` | 分组卡、字段、控件静息、行块底 |
 | 面·指针抬起 | `ControlHover` | `rgba(255,255,255,0.14)` | `rgba(0,0,0,0.105)` | hover 抬一档 |
 | 面·指针按下 | `ControlPress` | `rgba(255,255,255,0.05)` | `rgba(0,0,0,0.032)` | 按下沉到静息**之下** |
-| **浮** float | `Float` = 窗框 tint + `glassmap.floatStep`（0.10），色 `#18191D` / `#FCFCFE` | 滑块+0.10 | 滑块+0.10 | 抽屉、弹层、toast、便条 |
+| **浮** float | `Float` = 窗框**可见** tint + `glassmap.floatStep`（0.10），色 `#18191D` / `#FCFCFE` | 滑块+0.10 | 滑块+0.10 | 抽屉、弹层、toast、便条 |
 
 **为什么「面」要抬到 0.10 / 0.07**：旧的 0.075 / 0.05 压在卡片自己的 sheen 上，
 实测在默认 47% 的框上只差 3~4 个亮度级——用户读到的就是「所有东西挤在同一个 z 平面上」。
@@ -156,6 +156,33 @@ pin：`internal/glassmap/floatladder_test.go`（六个档位，差值是写死�
    已经守着「投影必须走 `ElevThrow`/`ElevContact`」这条，本轮补的是「E1 根本不画影」）。
 3. **E2 必须两层影**。只有环境影 = 浮层「贴」在底上；只有接触影 = 浮层「悬」在空里。
    两层同时在场才读得出「浮起来一张纸」。
+
+### §2.2 「浮」那一档量的是框的可见 alpha，不是应用自己画的那笔填充（P13-gb）
+
+`floatStep` 的加法对象从 `TintAlpha` 换成 `Composite()`。**只在有窗口材质的平台上改变结果**：
+`Material == 0` 时两者逐位相同，linux / windows 一个字节不动。
+
+旧值 → 新值：`min(1, TintAlpha+0.10)` → `min(1, Composite()+0.10)`。
+
+可见抬升 = `(1−C)·F`（`C` = 框的可见 alpha，`F` = 浮层填充）。默认 47% 滑块实测：
+
+| 平台 / 档 | veil | `TintAlpha` | 旧 `F` | 旧可见抬升 | 新 `F` | 新可见抬升 |
+|---|---|---|---|---|---|---|
+| linux / windows | 0 | 0.470 | 0.570 | **0.302** | 0.570 | **0.302** |
+| darwin `frosted` | 0.12 | 0.398 | 0.498 | 0.264（−13%） | 0.570 | 0.302 |
+| darwin `regular` | 0.22 | 0.321 | 0.421 | 0.223（−26%） | 0.570 | 0.302 |
+| darwin `liquid` | 0.34 | 0.197 | 0.297 | 0.210（−30%） | 0.570 | 0.302 |
+
+**为什么这是错的而不是「macOS 的静息更安静」**：抬升随材质**反**走——`frosted` 最高、
+`liquid` 最低，而厚材质本该让层级更清楚；10% 滑块 + `liquid` 只剩 **0.066**（linux 同滑块的
+37%），也就是「最漂亮的玻璃档，浮层离框最近」。同一个 spec 里的 `ContentAlpha()` 早就用
+`overFrame` 把它的 0.09 表达成「可见 alpha 上的一步」，只有浮层在填充空间里做加法——
+两个兄弟方法对同一条 §1 契约有两种读法，而分歧只长在有材质的平台上。
+
+**`Sunken` 那条 pin（`theme_test.go`：darwin 填充必须比 linux 薄）不动**：内容页是
+「可见结果相同、填充更薄」，浮层是「可见抬升相同、填充相同」——同一个原理的两个量。
+谁把两者合成一条规则，就会把内容页也抬成 linux 的填充（可见结果翻倍）。
+
 
 ---
 
@@ -6296,4 +6323,58 @@ pin：`internal/settingsui/focusring_test.go`（3 个函数，含 opt-in dump）
 **V 0 / B 0 / S 0**，产品代码零改动。变异 2 条实跑（M1 调色板 focus → 灰，8 处红；
 M2 `rows.go:1807` 加 `.FocusRing(false)`，普查红），`md5sum -c` 还原（`4789e242…` /
 `11fdeeef…`）+ `touch` 复跑全绿。
+
+### §6.147 浮层那一档的 0.10：量的是框的**可见** alpha，还是应用自己画的那笔填充（P13-gb，**已落地**）
+
+通用队列「三平台一致性」那一格。`Spec.FloatAlpha()` 把 `floatStep`（0.10）加在
+`TintAlpha` 上，而 `TintAlpha` 在 macOS 上是**被 `MaterialVeil` 补偿过的**
+（`compensate` 把窗口材质的 alpha 从填充里扣掉）。于是 §1 那条「浮 = 框 tint + 0.10」
+在 macOS 上换算成**可见**抬升时要再乘 `(1 − veil)`：材质越厚，浮层离框越近。
+
+实测（`internal/glassmap/floatplatform_test.go` + `internal/theme/floatlift_test.go`，
+两套外观逐值相同；填充的字节取真 `Tokens.Float.A`）：
+
+| 平台 / 档 | veil | `TintAlpha` | 旧 `F` | 旧可见抬升 | 新 `F` | 新可见抬升 |
+|---|---|---|---|---|---|---|
+| linux / windows（任意档） | 0 | 0.470 | 145 | **0.302** | 145 | **0.302** |
+| darwin `frosted` | 0.12 | 0.398 | 127 | 0.264（−13%） | 145 | 0.302 |
+| darwin `regular` | 0.22 | 0.321 | 107 | 0.223（−26%） | 145 | 0.302 |
+| darwin `liquid` | 0.34 | 0.197 | 76 | 0.210（−30%） | 145 | 0.302 |
+
+滑块 10%（材质把框的可见 alpha 托在 veil 那一格，§1 已写明）：
+
+| 平台 / 档 | `C` | 旧 `F` | 旧可见抬升 | 新 `F` | 新可见抬升 |
+|---|---|---|---|---|---|
+| linux `regular` | 0.10 | 51 | 0.180 | 51 | 0.180 |
+| darwin `regular` | 0.22 | 26 | 0.078 | 82 | 0.250 |
+| darwin `liquid` | 0.34 | 26 | **0.066** | 112 | 0.290 |
+
+量出来的两条事实：
+
+1. **阶梯方向是反的**：macOS 上材质越厚（`frosted` → `liquid`），浮层离框越近
+   （0.264 → 0.210）。「厚材质 = 更立体的玻璃」本该让层级更清楚，而这里相反。
+2. **最厚那一档在最薄的那一格最糟**：10% 滑块 + `liquid` 只剩 **0.066**，是 linux 同滑块
+   （0.180）的 **37%**——同一句「浮起来」在三个平台上差三倍。
+
+| # | 位置 | 现状 | 落成 | 状态 |
+|---|---|---|---|---|
+| 147-1 | `internal/glassmap/glassmap.go` `Spec.FloatAlpha` | `min(1, TintAlpha+floatStep)`（填充空间加法） | `min(1, Composite()+floatStep)`（可见 alpha 上的一步）；`Material == 0` 时逐位不变 | `已落地` |
+| 147-2 | `internal/glassmap/floatplatform_test.go`（新） | 浮层那一档只有 linux 一条 pin，跨平台零覆盖 | 三平台 × 四档 × 六滑块档的**字面量表** + 两条不变量（浮 > 框；同 `C` 则同 `F`）+ 反面臂（材质把框抬起时，浮跟着抬后的框走） | `已落地（pin）` |
+| 147-3 | `internal/theme/theme_test.go` 的 `darwin.Float.A < linux.Float.A` | 旧基线的 V：断言「darwin 的浮层填充更薄」 | 改成相等（`P13-gb 重定基线：旧值 107 < 145 → 新值两者相等`）；`Sunken` 那一条**不动** | `已落地（V 重定基线）` |
+| 147-4 | `internal/theme/floatlift_test.go`（新）+ opt-in dump | 无图 | 真 `Tokens` 的两套外观 × 四格，填充分字节 + 可见抬升双钉；`FLOTER_P13GB_DUMP=1` → `/tmp/floter-P13-gb-floatlift-{light,dark}.png` | `已落地` |
+
+**图上的变化**（三格并排：linux 47% ｜ darwin 47% 新 ｜ darwin 47% 旧填充；
+浮层那一块 20×10 的均值）：深 `(61,61,63)` / `(61,61,63)` / **`(84,84,86)`**（旧填充亮 23 级）；
+浅 `(206,206,208)` / `(206,206,208)` / **`(178,178,180)`**（旧填充暗 28 级）。
+新构下 darwin 与 linux **逐字节相同**，旧填充在两张图上都明显离开另外两格。
+（窗口服务器的 veil 不在这张图里：应用不画它，headless tester 也不画——图比的是应用自己
+那两笔填充，正是本轮改掉的量。）
+
+pin：`internal/glassmap/floatplatform_test.go`（2 个函数）、`internal/theme/floatlift_test.go`
+（1 个 pin + 1 个 opt-in dump）。台账 **V 1 / B 0 / S 0**。变异 2 条实跑：
+M1（`FloatAlpha` 退回 `TintAlpha+floatStep`）→ glassmap 9 格 + theme 3 处红
+（`the darwin float = 26, want 82` / `= 107, want 145`）；M2（`floatStep` 0.1 → 0.05）→
+两包共 **55** 行红（含 linux 那一臂，证明不是「只有 macOS 的 pin」）。
+`md5sum -c` 还原（`8a468eea…` / `5f6c2fd7…` / `4dc55e0d…` / `d36b8ba8…`）+ `touch` 复跑全绿。
+
 
