@@ -1191,7 +1191,21 @@ func (a *App) sessionKillConfirm(c *ui.Context, label string, disabled bool, run
 		pill = pill.Cursor(ui.CursorDefault).Disabled(true)
 	} else {
 		tokens.LitFace(pill)
-		if pill.Hovered() {
+		// P13-gt · 第三档。这枚药丸此前只有静息与悬停两档（悬停把面抬到
+		// `IconSurfaceHover`），按住的那一帧与悬停帧**逐像素相同**——「确认删除
+		// 这个会话」最需要回手的那一下，墨上没有回答。同族的暖色面（电源确认的
+		// execute 键）走的是同一条阶梯：按下时面退回**暖色族的静息面**
+		// （`RaisedWarm`），一对线与影保留（这是块「能被碰的面」沉下去一档，
+		// 不是沉进凹槽），几何收 0.92（同 `sessionIconButton`）。
+		//
+		// 为什么是 `RaisedWarm` 而不是 `ControlPress`：`ControlPress` 是**中性**
+		// 阶梯的第三格（浅 0.032 黑 / 深 0.05 白），压在这块暖色面上会把它洗成
+		// 一块灰——按下时就丢了「不可逆」的身份色相。暖色族自己的三档只有
+		// `RaisedWarm` / `IconSurfaceHover` 两格，按下就是回到底下那一格。
+		if pill.Pressed() {
+			pill.Background(tokens.RaisedWarm)
+			pill.Scale(0.92, 0.92)
+		} else if pill.Hovered() {
 			pill.Background(tokens.IconSurfaceHover)
 		}
 	}

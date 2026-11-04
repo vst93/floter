@@ -289,6 +289,14 @@ const (
 	footerEnd     = "end"
 )
 
+// resultPressScale is the geometric step a result row takes while the pointer
+// holds it down. It is the launcher list's own number (`.launcher-result:active
+// { transform: scale(0.986) }`, `main:src/styles/launcher.css:1512-1519`) and
+// this page is the same list in the same card, so the two must not carry two
+// different ones: a row that sinks 0.986 on one page and does not sink at all on
+// the next reads as two different materials.
+const resultPressScale = 0.986
+
 // outputFooterState is the footer's one state for a view. A list that is
 // complete in one emission has no page block at all and gets no row; a list
 // the launcher windows in memory loses its page block when the window reaches
@@ -924,7 +932,21 @@ func (a *App) outputRow(c *ui.Context, row extensions.Row, i int) {
 		style.Opacity(float32(opacity))
 	}
 	tokens := a.tokens(c)
+	// P13-gt · 指针的第三档。这一页的行此前只有「静息 / 悬停 / 选中」三格，
+	// 而按住的那一帧与悬停帧**逐像素相同**：`style.Pressed()` 从来没被问过。
+	// 同一张卡的启动器列表（`launcher.go` 的 `rowPressed`）自 P13-q 起就有
+	// `RowPressed` + `Scale(0.986)`；两张列表是同一件东西，只一个有三档。
+	//
+	// 第三档取**行阶梯**的第三格（与启动器逐值相同），不取控制阶梯：行不是键。
+	// 便条（`row.Status` / `row.Disabled`）不吃这一档——它们不可运行，指针按下
+	// 去也没有任何事会发生，给它们一个「按下」的面就是给一块石头一个触感。
+	pressed := style.Pressed()
+	if pressed {
+		style.Scale(resultPressScale, resultPressScale)
+	}
 	switch {
+	case pressed && row.Runnable():
+		style.Background(tokens.RowPressed)
 	case chosen:
 		// P8-e 重定基线（§5 禁止清单「列表选中行」）：旧值是
 		// `tokens.AccentTintQuiet`——一块带色相的洗。选中行是中性面，与启动器
@@ -951,7 +973,19 @@ func (a *App) outputRow(c *ui.Context, row extensions.Row, i int) {
 		// A note is not a door: it stays muted and never highlights.
 	default:
 		if style.Hovered() {
-			style.Background(t.SurfaceHover)
+			// P13-gt · 悬停用**行**阶梯的第一格，不是控制阶梯。
+			//
+			// 这一页此前借的是 `t.SurfaceHover`（= 控制阶梯的 `ControlHover`：
+			// 浅 0.105 黑 / 深 0.14 白），比它自己的选中档 `RowSelected`
+			// （0.06 / 0.085）**还重**——指针悬在一行上时，那一行比键盘选中的
+			// 那一行更像「被选中的」。行阶梯是 `RowHover 0.04 < RowSelected 0.06
+			// < RowPressed 0.08`（深 0.045 / 0.085 / 0.11），`docs/raycast-design.md`
+			// §1 与 `docs/liquid-glass.md` §5 的表把这三档写死为**严格递增**；
+			// 借控制档就把这个序反了过来。
+			//
+			// 同一张卡的启动器结果列表用的就是 `RowHover`（`launcher.go` 的
+			// `rowBody`），两张列表是同一件东西，悬停也该是同一个数。
+			style.Background(tokens.RowHover)
 		}
 	}
 	style.Children(func() {

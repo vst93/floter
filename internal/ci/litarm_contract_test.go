@@ -67,6 +67,17 @@ var pointerFaceAllow = map[string]string{
 	// （`Thumb` + `Lens` + accent 环，P13-r / §6.2b 第 9-11 行）：一个凹槽里只有一格
 	// 能站起来。
 	"control.SegmentedIndex/Hovered": "§6.2b 第 9-11 行：凹槽里只有选中的那一格能站起来（P13-r）",
+	// 同一个凹槽的**按下**档（P13-gt）：未选中的那一格按下时换的是控制阶梯的第三格
+	// `ControlPress`，与悬停档同一条理由——一对线是「这一格站起来了」的说法，而凹槽里
+	// 只有选中格（`Thumb` + `Lens` + accent 环）能说这句。给它一对线就等于让两格同时
+	// 站起来。几何也不收（命中框是整块轨道，`Scale` 会把点击点挪走）。
+	"control.SegmentedIndex/Pressed": "§6.2b 第 9-11 行：凹槽里只有选中的那一格能站起来（P13-r / P13-gt）",
+	// 捕获输出页的结果行**悬停**档（P13-gt）：`RowHover` 是行 wash，不是键的面。
+	// 同一张卡的启动器结果行（`launcher.rowBody`）悬停时也只有 `RowHover`、没有一对线
+	// ——行是纸上的一个色块，不是一块抬起来的面（§2 判据 2 只管 E1 的面，行 wash 不在
+	// 其中）。这一臂的注释里写着 `ControlHover`（它借错了阶梯的那段历史），普查按源码
+	// 文本匹配，所以这里必须显式记账。
+	"launcher.outputRow/Hovered": "行 wash 不戴一对线（与 `launcher.rowBody` 的 `RowHover` 同句，P13-gt）",
 	// 启动器这两枚小格的**按下**档：`ControlPress` 面 + `Scale(0.92)`，没有一对线。
 	// 这一档要不要保留一对线**需拍板**（P13-aa「仍待」第 2 条：按下是「沉进玻璃」，
 	// 参考自己也去掉了影；设置页同族的 `P13-q` 反过来在按下档保留了那一对）。

@@ -30,6 +30,13 @@ const (
 	PowerShutdown = "shutdown"
 )
 
+// pressScale is the geometric step a control takes while the pointer holds it
+// down, as the launcher's own 28u cells and its action-bar chips use it
+// (`0.92`, §5 「按下」). A confirmation key is a 24u chip in a band, so it
+// steps with the same number rather than inventing a smaller one: one ladder,
+// not one per surface.
+const pressScale = 0.92
+
 // powerItems is the power rows for a query that is exactly one of their words.
 func (a *App) powerItems() []Item {
 	query := strings.ToLower(strings.TrimSpace(a.Query))
@@ -185,7 +192,23 @@ func (a *App) confirmPowerButton(c *ui.Context, tokens theme.Tokens, label strin
 	if execute {
 		plane, edge = tokens.RaisedWarm, tokens.ControlEdge
 	}
+	// P13-gt · 第三档。这条带上的两枚键此前只有静息与悬停：按住的那一帧与悬停
+	// 帧**逐像素相同**（`button.Pressed()` 从没被问过），于是「关机 / 重启」那个
+	// 确认按钮——一个按下去就会发生不可逆事情的面——在指针压住时一声不响。
+	//
+	// 两臂的面各自取**自己族**的第三格：execute 是暖色面，按下退回暖色族的静息
+	// 面（`RaisedWarm`，与它悬停的 `IconSurfaceHover` 同一族、下一档）；cancel 的
+	// 静息面是**透明**，按下才第一次有一块能被压下去的面（`ControlPress`，与它
+	// 悬停的 `ControlHover` 同一族、下一档）。一对线由下面的 `plane.A > 0` 共享，
+	// 几何同启动器的小格（`pressScale`）。
 	switch {
+	case button.Pressed():
+		if execute {
+			plane = tokens.RaisedWarm
+		} else {
+			plane, edge, ink = tokens.ControlPress, tokens.ControlEdge, t.Text
+		}
+		button.Scale(pressScale, pressScale)
 	case execute && button.Hovered():
 		plane = tokens.IconSurfaceHover
 	case !execute && button.Hovered():

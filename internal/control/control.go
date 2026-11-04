@@ -128,6 +128,17 @@ func SegmentedIndex(c *ui.Context, tokens theme.Tokens, selected *int, labels []
 				segment.Background(tokens.Thumb)
 				tokens.Lens(segment)
 				segment.InsetShadow(0, 0, 0, 1, tokens.AccentEdge)
+			case segment.Pressed():
+				// P13-gt · 第三档。未选中的那一格此前只有悬停（`ControlHover`）：
+				// 按住的那一帧与悬停帧**逐像素相同**，于是「我这一下按到了吗」在
+				// 墨上没有答案，而分段控件正是要「按下去选这一格」的东西。
+				//
+				// 面取控制阶梯的第三格 `ControlPress`（悬停之下、静息之上）——
+				// 与同族的 `pageButton` 同一句。**不收盒子**：这一格的盒子就是
+				// 它的命中框，`Scale` 会把点击点从指针下挪走（§6.151 的 7-10 在
+				// 终端浮条上量到过同样的账），而分段控件是整块轨道里一个像素
+				// 都不能丢的地方。
+				segment.Background(tokens.ControlPress)
 			case segment.Hovered():
 				segment.Background(tokens.ControlHover)
 			}
