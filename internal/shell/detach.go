@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/egoist/mygo"
+	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/clipboard"
@@ -185,9 +186,14 @@ const (
 	detachedBarButtonX   = 2.5 // 10u
 	detachedBarButtonY   = 1   // 4u
 	detachedBodyInset    = 3.5 // 14u
-	detachedRowGap       = 1   // 4u
-	detachedRowPadX      = 2.5 // 10u
-	detachedRowPadY      = 2   // 8u
+	// detachedEdgeInset is the plugin window's bottom scroll edge (P13-fz,
+	// `docs/liquid-glass.md` §6.145). It must stay **under** `detachedBodyInset`:
+	// that padding is what the last line of the body stops on, so a band no
+	// taller than it can never land on a glyph at the end of the scroll.
+	detachedEdgeInset = 2.5 // 10u
+	detachedRowGap    = 1   // 4u
+	detachedRowPadX   = 2.5 // 10u
+	detachedRowPadY   = 2   // 8u
 )
 
 // The press rung's geometry: the family's own two numbers, taken from the
@@ -423,6 +429,20 @@ func (a *App) detachedBodyView(c *ui.Context, detached *detachedOutput, tokens t
 			detachedStateLine(c, copy.OutputWindowIdle, detachedStatement, tokens, t)
 		}
 	})
+	// P13-fz（`docs/liquid-glass.md` §6.145）· 插件窗口的下沿：这块自由滚动的面，
+	// 下沿**就是窗口自己的底边**，此前什么都没有——滚到中间时正文最后一行在窗口
+	// 底边被水平切断，墨一点没退。设置页（§6.16 的 P13-as）与抽屉（§6.141）都有这道
+	// 边，两个插件窗口（这个和便条 `pinned.go`）是同一族里最后两个刀口。
+	//
+	// 边高 `Space(2.5)` = 10.0，正文内边距 `Space(detachedBodyInset)` = 14.0，于是
+	// **边 10.0 < 内边距 14.0**：滚到底时最后一行停在离下沿 14px 处，10.0 的边整个
+	// 落在空白上，空白上没有东西可淡，边自己消失——门开在几何上（§6.19），不读
+	// `ScrollState`（§6.18）。静止帧（`Y=0`）逐字节不变。
+	//
+	// 面不用 §6.17 / §6.18 那条 `FaceOver` 链：这个窗口本来就是**不透明**的
+	// （`detachedView` 给根节点上 `tokens.Opaque`），薄罩被乘成 0.06 那笔账在这里不成立。
+	ui.Box(c).Absolute().Bottom(0).Left(0).Right(0).Height(t.Space(detachedEdgeInset)).PassThrough().
+		Material(glass.ScrollEdge{Bottom: true, Background: tokens.Opaque})
 }
 
 // detachedAskForMore runs the window's scroll trigger: while the list has

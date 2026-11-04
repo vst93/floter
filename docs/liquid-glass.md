@@ -6222,3 +6222,41 @@ M2 `Space(2)`→`Space(4)`（节奏 195.00 / 间隔 16 行），两臂各 2 处�
 只在有两个东西时才存在。N=1 的页面上没有空气可数，所以这一格守的不是间距，是**边界本身
 仍被画出来**——一张卡即使后面什么都没有，下沿也仍是两行；一张卡都没有时，画的是空态，
 而不是一个「已安装 0」的空组。
+
+### §6.145 插件窗口的下沿：同一族里最后两个刀口（P13-fz，**已落地**）
+
+这个应用里每一块**自由滚动**的面都有下沿：设置页内容区（§6.16 / P13-as）、启动器满态
+（§6.1 表 1-10 的折边）、会话抽屉（§6.141）、浮条（§6.20）。剩下两块没有——
+`detachedView` 的正文（捕获输出页）和 `pinnedView` 的便条。它们是同一个 `.plugin-window`
+表面（两个窗口的根节点都刷 `tokens.Opaque`），也是同一族里最后两个刀口：滚到中间时正文
+最后一行在窗口**最后一行像素**上被水平切断，墨一点没退（720×460、90 行正文、`MaxY`
+1151.7999，最后一行 spread **139 / 134**，与它上方那一带同值）。
+
+| # | 位置 | 现状 | 落成 | 状态 |
+|---|---|---|---|---|
+| 145-1 | `internal/shell/detach.go` `detachedBodyView` | 无下沿 | 正文之后 `Absolute().Bottom(0).Left(0).Right(0).Height(Space(detachedEdgeInset)).PassThrough()` + `glass.ScrollEdge{Bottom: true, Background: tokens.Opaque}`：最后一行 139/134 → **28/28**（20% / 21%），渐变 **9 行** | `已落地` |
+| 145-2 | `internal/shell/pinned.go` `pinnedBody` | 同一个滚动器、同一个内边距，同样没有下沿 | 同一道边、同一常数：最后一行 → **0 / 0**（上方 137 / 132） | `已落地` |
+| 145-3 | `internal/shell/detach.go` 常量块 | 边高无处可读 | `detachedEdgeInset = 2.5`（10.0），注释写明**必须 < `detachedBodyInset`（14.0）**：那是最后一行停下的地方，边不许高过它 | `已落地` |
+| 145-4 | 自门控 | — | 滚到底时带上均值 == 带上方的均值（浅 **246/246**、深 **20/20**，差 0）；最后一行墨停在离底 **31px** | `已落地（pin）` |
+| 145-5 | 叠层不吃布局 | — | `MaxY` 仍 **1151.7999**；去掉 `.Absolute()` → **1160.7999**（+9） | `已落地（pin）` |
+| 145-6 | `internal/ci/liquidglass_contract_test.go` 的分隔行检测 | 只认无空格的分隔行前缀；带空格的分隔行（`§6.144` 表那种写法）被当成「状态 = `---`」的数据行，P13-fy 那一轮在 HEAD 上就是红的 | 按单元格读：全是 `-` 或 `:` 即分隔行（510 → 509 行，断言未放宽） | `已落地` |
+
+**为什么面是 `tokens.Opaque` 而不是主题 `Background`**：两个窗口的根节点都被刷成
+`tokens.Opaque`（`detachedView:219` / `pinnedView:79`），窗口本来就是不透明的；
+设置页那条 `FaceOver` 链（§6.17 / §6.18）在这里不成立（薄罩会被乘成 0.06）。
+
+**一条量出来的事实（防误判）**：软边的 alpha 斜坡让「更高的边」在每一行**更淡**，
+所以像素剖面**无法**区分「边更高」与「斜坡更缓」——`band < inset` 只能靠同一主题台阶上的
+两个刻度来守（判据 3 读的就是 `Space(detachedEdgeInset)` 与 `Space(detachedBodyInset)`）。
+M2（`2.5 → 4`）因此由那条刻度判据抓，而不是由像素判据抓。
+
+pin：`internal/shell/pluginwindowedge_test.go` —— `TestTheOutputWindowFadesAtItsBottomEdge`、
+`TestThePinnedNoteFadesAtItsBottomEdge`、`TestTheEdgeCostsTheBodyNoLayout`，外加 opt-in dump
+（`FLOTER_P13FZ_DUMP=1`）。台账 **V 0 / B 0 / S 0**。变异 4 条实跑（M1 边 → 0、M2 常数 → 4、
+M3 面 → `Control`、M4 去掉 `.Absolute()`），全部变红并 `md5sum -c` 还原
+（`7ad4fed5…`）+ `touch` 复跑全绿。
+
+**这轮为什么让它更轻、更有空间感**：一个面的「重」往往不是因为它有边框，而是因为它的内容
+**撞在**边框上——文字写到窗口最后一行像素，读者看到的是「被裁掉」而不是「还有」。这道 10px
+的边把「还有 / 到头了」这句话从**内容有没有被切**改成了**内容怎么退场**，而它自己一行像素
+都不占布局（`MaxY` 一字不差）。轻，是把该退的东西退掉，而不是把该有的东西加厚。

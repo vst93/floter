@@ -2,6 +2,7 @@ package shell
 
 import (
 	"github.com/egoist/mygo"
+	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/i18n"
@@ -124,5 +125,10 @@ func (a *App) pinnedBody(c *ui.Context, state *pinned, tokens theme.Tokens, t *u
 			ui.Text(c, state.text).FontSize(tokens.Body).LineHeight(1.45).
 				TextColor(tokens.TextSecondary).Wrap().Selectable()
 		})
+		// P13-fz（`docs/liquid-glass.md` §6.145）· 与捕获输出窗口同一道下沿：便条是
+		// 同一个 `.plugin-window` 表面（`pinnedView` 也把根节点刷成 `tokens.Opaque`），
+		// 所以同一块自由滚动的面用同一条边、同一个高度、同一条自门控算术。
+		ui.Box(c).Absolute().Bottom(0).Left(0).Right(0).Height(t.Space(detachedEdgeInset)).PassThrough().
+			Material(glass.ScrollEdge{Bottom: true, Background: tokens.Opaque})
 	})
 }

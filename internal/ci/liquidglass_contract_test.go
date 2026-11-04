@@ -70,7 +70,7 @@ func TestTheLiquidGlassContractSupersedesTheRaycastOne(t *testing.T) {
 			}
 			continue
 		}
-		if statusColumn < 0 || strings.HasPrefix(trimmed, "|---") {
+		if statusColumn < 0 || isTableRule(trimmed) {
 			continue
 		}
 		rows++
@@ -99,4 +99,29 @@ func TestTheLiquidGlassContractSupersedesTheRaycastOne(t *testing.T) {
 		t.Fatalf("the gap table parsed %d rows (%d with a status): the reader found nothing to check", rows, withStatus)
 	}
 	t.Logf("the gap table has %d rows, %d of them carry a status", rows, withStatus)
+}
+
+// isTableRule reports whether a table line is markdown's rule row (the one under
+// the header). It has to be read as a row of cells rather than by a prefix: the
+// contract writes its rules both `|---|---|` and `| --- | --- |`, and a
+// prefix test on the second spelling counts the rule as a data row whose status
+// is "---" (that is what made this check red on the P13-fy table).
+func isTableRule(trimmed string) bool {
+	if !strings.HasPrefix(trimmed, "|") {
+		return false
+	}
+	empty := true
+	for _, cell := range strings.Split(trimmed, "|") {
+		cell = strings.TrimSpace(cell)
+		if cell == "" {
+			continue
+		}
+		empty = false
+		for _, r := range cell {
+			if r != '-' && r != ':' {
+				return false
+			}
+		}
+	}
+	return !empty
 }
