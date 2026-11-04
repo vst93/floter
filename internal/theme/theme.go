@@ -366,9 +366,22 @@ type Tokens struct {
 	// plus a small recess (glassmap.Spec.ContentAlpha), so the app's whole
 	// background - the bottom included - stays the slider's single sheet.
 	Sunken ui.Color
-	// RaisedQuiet is the sidebar's chosen page: the control-hover lift
+	// RaisedQuiet was the sidebar's chosen page: the control-hover lift
 	// composited opaque over the content pane, so the framework's own accent
-	// fill behind a chosen list row cannot bleed through as a blue pill.
+	// fill behind a chosen list row could not bleed through as a blue pill
+	// (base.css's `--glass-raised-quiet`).
+	//
+	// Deprecated: P8-b / P8-c 把它的四处生产调用点（命名行、`healthy` 集成的面、
+	// 快捷键录制行、侧栏选中行）全部换成了 `Control` / `RowSelected`——材质语言换成
+	// 「选中只比悬停深一格」。P13-gd 实测：`grep -rn RaisedQuiet --include=*.go internal/ cmd/`
+	// 的非 theme 命中**全是注释**（`settingsui.go:2677/3983`、`custom.go:75`、
+	// `healthfaces.go:73/221`），一条 `SelectorExpr` 都没有。也就是说它是一个
+	// **零生产调用点**的 token：P13-gc 报告「仍待」第 2 条提议的「`RaisedQuiet` 在
+	// `Sunken` 变厚之后的面差」没有可量的对象——那个面已经不画了。
+	//
+	// 字段保留不删（同 `AccentTintQuiet`、`AccentGlow` 的先例）：本次是视觉收敛轮，
+	// 删字段留给下一次清理轮；`theme_test.go` 仍 pin 它的值（不透明 + 中性抬起），
+	// 五个 `_test.go` 仍把它当**变异靶子**（「退回到旧 RaisedQuiet 面」）。
 	RaisedQuiet ui.Color
 	// RaisedWarm is the warm branch of the raised pane (base.css's
 	// `--glass-raised-warm`, an alias of `--system-icon-surface`): the amber

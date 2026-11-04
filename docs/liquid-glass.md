@@ -6451,3 +6451,37 @@ M1（`FloatAlpha` 退回 `TintAlpha+floatStep`）→ glassmap 9 格 + theme 3 �
 
 pin：`internal/glassmap/contentplatform_test.go`（2 个函数）、`internal/theme/sunkenveil_test.go`
 （2 个 pin + 1 个 opt-in dump）。
+
+## §6.149 受光边只有一个来源：视图里那条内线，颜色必须来自 token（P13-gd，**已落地**）
+
+选题落在纪律第 5 档（结构性小活），因为 0-4 都空：§6 表没有 `未开始` 行、用户实测没有新条目、
+合约「下轮」注脚全落、通用队列每格已有专轮、剩下的候选全在「需拍板」表里。这一轮只做
+**能证明「这一族到此为止」的那一条**，外加把上轮「仍待」里那条幻影选题销掉。
+
+### 台账
+
+| # | 项 | 现状（实测） | 处置 | 状态 |
+|---|---|---|---|---|
+| 149-1 | `Tokens.RaisedQuiet` 的生产调用点 | `grep -rn "RaisedQuiet" --include=*.go internal/ cmd/` 的非 theme 命中 **5 处、全是注释**（`settingsui.go:2677/3983`、`custom.go:75`、`healthfaces.go:73/221`）；AST 层面 **0 个 `SelectorExpr`**。P8-b / P8-c 已把四处面换成 `Control` / `RowSelected` | 字段文档加 `Deprecated:`（零调用点的证据 + 保留不删的理由，同 `AccentTintQuiet` 先例）。**P13-gc 报告「仍待」第 2 条（量 `RaisedQuiet` 在 `Sunken` 变厚之后的面差）就此证伪**：那个面已经不画了 | `已落地` |
+| 149-2 | 视图层内线的取色来源 | `InsetShadow(` 在 `internal/`+`cmd/` 的生产文件里 43 行 grep 命中：`internal/theme` 17 行（含 `LensInset` 那一对**字面值** `0.85` / `0.06`，那是镜片的原始数值）、视图树 26 行。AST 在视图树实见 **21 条**（另 5 行只存在于散文注释里）。**21 条全部用 token 取色**，一条字面量都没有 | 新增 `internal/ci/litedgecolour_contract_test.go`：每个 `.InsetShadow(...)` 的颜色实参不许是 `ui.RGBA` / `ui.RGB` / `ui.Hex` / `ui.Color{}` 字面量；`internal/theme` 这一层（定义处）不在视野内 | `已落地` |
+| 149-3 | 前置断言（census 不许静默变空） | — | 扫到的站点数 < **18** 就 `Fatal`（实测 21）。扫描器写坏了（改名 / 换 API / walk 少根）必须大声红 | `已落地` |
+| 149-4 | 视图层的 `ui.RGBA(` 总量 | **14 处**，无一处是材质线：`terminalui.go` 8 处是终端主题的 selection 色、`theme/elevation.go` 5 处是投影（`0.30*scale` / `0.20*scale`，本来就该随 `main_opacity` 缩放）、`uninstall.go` 1 处是模态遮罩 | **故意不做**：这三族各有自己的账（终端主题是配色不是材质；投影随滑块缩放是 §2.1 的结论；遮罩是 `main_opacity` 之外的一层） | `故意不做（附理由）` |
+| 149-5 | 逃生口 `litedgeLiteralAllow` | 空表 | 登记了却已不违规 ⇒ 报「过期」并变红（同 `litarm_contract_test.go` 的约定）。空表才是健康读数 | `已落地` |
+
+### 为什么这一条值得守
+
+`LensRim` 被重定基线四次（P12-a `0.04 → 0.09`、P13-ag 薄档不再缩放、P13-ah 浅色
+`0.09 → 0.24`、P13-o 凹槽不借它）。每一次的病根都是**同一个**：某个视图里那条线的颜色
+是**手写**的，于是 token 改了、测试全绿、屏幕上那条线还是旧的（或根本看不见）。
+这条守卫把「改 token 就能改到全仓每一帧」变成一条可执行的断言——这才是 §3
+「受光边是结构线」这句话的机器可读版本。
+
+### 门槛与变异（实测）
+
+- 门槛：gofmt 空 / `go vet` 三平台净 / **PASS 3463 / 0 FAIL / 207 SKIP**（基线 3462）/
+  测试函数 **2630**（基线 2629）/ 三平台 build 过。
+- 变异 2 条实跑变红并 `md5sum -c` 还原（`76a2eeca…` / `7ad4fed5…`）+ `touch` 复跑全绿：
+  - **M1** `savealert.go:114` 的 `tokens.EdgeHighlight` → `ui.RGBA(255, 255, 255, 0.92)`
+    （值相同、只是离开 token）：`settingsui/savealert.go:114 <- ui.RGBA(255, 255, 255, 0.92)`。
+  - **M2** `detach.go:340` 前插一条裸 `InsetShadow(0, 1, 0, 0, ui.RGBA(0, 0, 0, 0.06))`：
+    `shell/detach.go:340 <- ui.RGBA(0, 0, 0, 0.06)`。
