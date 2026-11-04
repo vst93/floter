@@ -982,6 +982,9 @@ type App struct {
 	// the field re-reads its value (the framework's `ui.NumberInput` did the
 	// same with its own local draft).
 	pluginNumberDrafts map[string]string
+	// Text fields commit on Enter, so their unsubmitted edit must survive
+	// frames independently of the stored value, just like number drafts.
+	pluginTextDrafts map[string]string
 
 	// installName and installVersion are the npm install field's contents.
 	installName    string

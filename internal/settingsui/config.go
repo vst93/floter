@@ -2,6 +2,7 @@ package settingsui
 
 import (
 	"encoding/json"
+	"math"
 	"strconv"
 	"strings"
 
@@ -346,6 +347,8 @@ func (a *App) configActions(c *ui.Context, copy i18n.Settings, integration Integ
 			for _, field := range integration.Config {
 				if field.Default != nil {
 					draft.values[field.Key] = field.Default
+					// The old edit's validity does not describe the restored default.
+					a.clearConfigFieldError(integration.ID, field.Key)
 				}
 			}
 		}
@@ -496,7 +499,9 @@ func (a *App) configFieldGrid(c *ui.Context, field ConfigField, label, requiredL
 				tokens.Tip(c, star, requiredLabel)
 			}
 		})
-		control().ColumnStart(2)
+		// Grid percentages resolve against the whole grid in mygo. Give the
+		// control a cell-sized parent so FillWidth excludes the label and gap.
+		ui.Column(c).ColumnStart(2).MinWidth(0).Children(func() { control() })
 		if field.Description != "" {
 			ui.Text(c, field.Description).FontSize(tokens.Caption).FontWeight(500).
 				TextColor(tokens.TextTertiary).ColumnStart(2)
@@ -697,7 +702,7 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 				// stored, so the host's own save-time validation is what refuses
 				// an out-of-range number.
 				text := strings.TrimSpace(edit)
-				if number, err := strconv.ParseFloat(text, 64); err == nil && text != "" {
+				if number, err := strconv.ParseFloat(text, 64); err == nil && text != "" && !math.IsNaN(number) && !math.IsInf(number, 0) {
 					draft.values[field.Key] = number
 				} else {
 					draft.values[field.Key] = nil
@@ -780,7 +785,7 @@ func ConfigValueProblem(field ConfigField, edit string, copy i18n.Settings) (any
 			return nil, ""
 		}
 		number, err := strconv.ParseFloat(strings.TrimSpace(edit), 64)
-		if err != nil {
+		if err != nil || math.IsNaN(number) || math.IsInf(number, 0) {
 			return nil, copy.ConfigNumber
 		}
 		if field.Minimum != nil && number < *field.Minimum || field.Maximum != nil && number > *field.Maximum {
@@ -977,12 +982,15 @@ func (a *App) configOptionRow(c *ui.Context, option string, on *bool, changed *b
 	var mods ui.Modifiers
 	ui.Row(c).FillWidth().AlignItems(ui.Center).Justify(ui.SpaceBetween).
 		Gap(a.cardSpace(t, 2)).MinHeight(a.cardSpace(t, 5)).Children(func() {
-		word := ui.Text(c, option).FontSize(tokens.Body).FontWeight(500).TextColor(tokens.TextSecondary)
+		word := ui.Text(c, option).FontSize(tokens.Body).FontWeight(500).TextColor(tokens.TextSecondary).
+			Grow(1).MinWidth(0)
 		if word.Clicked() && !locked {
 			clicked = true
 			mods = word.ClickModifiers()
 		}
-		box := ui.CheckboxBase(c, on).Label(option)
+		// CheckboxBase alone has neither a face nor a hit area. Keep the
+		// existing native checkbox's size, check mark and focus treatment.
+		box := ui.Checkbox(c, on, "").Label(option)
 		// P13-t：这里曾经在 `locked` 时再挂一次 `Disabled(true)`。列表框自己已经是
 		// `Disabled`（`config.go` 的 multiselect 臂），`IsDisabled` 走祖先链
 		// （`ui/element.go:1349-1356`），点击与 hover 一样被祖先挡住；再挂一次就是

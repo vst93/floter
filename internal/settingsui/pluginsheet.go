@@ -145,7 +145,9 @@ func (a *App) PluginSheet(c *ui.Context, sheet PluginSheet) {
 				// 组内 14.8px 留在「同一段的下一行」档。页头 → 第一组一个字节不动。
 				for i, section := range plugincfg.Sections(sheet.Schema) {
 					section := section
-					a.sheetSection(c, sheet, section, i > 0)
+					// Inserting the write-failure sentence must not replace every
+					// field's identity and drop the focused edit before a retry.
+					a.sheetSection(c.Key("plugin.section."+strconv.Itoa(i)), sheet, section, i > 0)
 				}
 			})
 		})
@@ -246,14 +248,29 @@ func (a *App) sheetField(c *ui.Context, sheet PluginSheet, field plugincfg.Field
 	case plugincfg.Text:
 		text, _ := value.(string)
 		edit := text
+		key := sheet.Schema.Plugin + "\x00" + field.Key
+		if draft, ok := a.pluginTextDrafts[key]; ok {
+			edit = draft
+		}
 		// The reference stacks a free-text field: it takes the row's full
 		// width, not a trailing slot (`.plugin-config-text { width: 100% }`,
 		// `plugin-config.css:110-113`; `STACKED_KINDS` in
 		// `plugins/controls.tsx:291-296`).
 		a.stackedRow(c, field.Label, field.Help, func() {
 			input := a.sheetTextField(c, field.Placeholder, &edit).Label(field.Label)
+			if input.Changed() {
+				if a.pluginTextDrafts == nil {
+					a.pluginTextDrafts = map[string]string{}
+				}
+				a.pluginTextDrafts[key] = edit
+			}
 			if input.Submitted() {
 				sheet.Change(field.Key, edit)
+			}
+			// A refused write must leave the focused edit available for retry.
+			// On blur, read the host's confirmed (possibly normalized) value.
+			if !input.Focused() {
+				delete(a.pluginTextDrafts, key)
 			}
 		})
 	case plugincfg.Action:
@@ -405,7 +422,7 @@ func (a *App) sheetNumberSlot(c *ui.Context, field plugincfg.Field, value *float
 			TextAlign(ui.End).FontFeatures("tnum").Label(field.Label)
 		if in.Changed() {
 			a.pluginNumberDrafts[field.Key] = text
-			if parsed, err := strconv.ParseFloat(strings.TrimSpace(text), 64); err == nil {
+			if parsed, err := strconv.ParseFloat(strings.TrimSpace(text), 64); err == nil && !math.IsNaN(parsed) && !math.IsInf(parsed, 0) {
 				*value = parsed
 				changed = true
 			}
@@ -459,10 +476,13 @@ func (a *App) sheetFieldSlot(c *ui.Context) ui.Element {
 // not fight the slot.
 func (a *App) sheetTextField(c *ui.Context, placeholder string, value *string) ui.Element {
 	slot := a.sheetFieldSlot(c).FillWidth()
+	var input ui.Element
 	slot.Children(func() {
-		ui.TextInputBase(c, value).Placeholder(placeholder).Grow(1)
+		input = ui.TextInputBase(c, value).Placeholder(placeholder).Grow(1)
 	})
-	return slot
+	// Submitted and Label belong to the editor; input events do not bubble
+	// through the decorative slot.
+	return input
 }
 
 // sheetActionButton draws one of the overlay's action buttons (R38,
