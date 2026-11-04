@@ -201,3 +201,87 @@ func TestPluginNumberInputDoesNotDispatchNonFiniteValues(t *testing.T) {
 		})
 	}
 }
+
+// A number field's in-progress text is keyed by the plugin id **plus** the
+// field key, exactly as the text field's `pluginTextDrafts` is. One settings
+// App draws every plugin's sheet in turn (`shell/pluginconfig.go`), and a field
+// key such as `size` is not unique across plugins: keyed by the field key alone,
+// plugin A's half-typed `1e` survived the switch and painted inside plugin B's
+// box in place of B's own stored value.
+func TestPluginNumberDraftDoesNotBleedAcrossPlugins(t *testing.T) {
+	schema := func(plugin string) *plugincfg.Schema {
+		return &plugincfg.Schema{Plugin: plugin, Title: plugin, Fields: []plugincfg.Field{
+			{Key: "size", Label: "size", Kind: plugincfg.Number, Min: 1, Max: 99, Step: 1, Unit: "items"},
+		}}
+	}
+	a := New(newStore(t), Actions{})
+	var changes []change
+	// One sheet the test redraws with a swapped schema, as the shell does when
+	// the user moves from one plugin's config to the next.
+	sheet := PluginSheet{Schema: schema("plug.a"), Values: plugincfg.Values{"size": 2.0},
+		Change: func(key string, value any) { changes = append(changes, change{key, value}) }}
+	tt := ui.NewTester(func(c *ui.Context) {
+		c.SetTheme(a.tokens(c).Theme)
+		c.Root().Background(ui.Transparent)
+		a.PluginSheet(c, sheet)
+	}, 720, 300)
+	tt.Frame()
+	tt.Frame()
+
+	// Focus plugin A's number box (the unit rides beside it) and type a
+	// half-parseable `1e`: it lands in A's draft and reaches no callback.
+	unit := mustFind(t, tt, "items")
+	tt.ClickAt(unit.X-30, unit.Y+unit.H/2)
+	tt.Frame()
+	if !tt.Focused("size") {
+		t.Fatalf("plugin A's number input did not take focus: %q", tt.Texts())
+	}
+	tt.Key(0, ui.KeyEnd)
+	for range 8 {
+		tt.Key(0, ui.KeyBackspace)
+	}
+	tt.Type("1e")
+	tt.Frame()
+	if len(changes) != 0 {
+		t.Fatalf("a half-typed number reached the plugin callback: %v", changes)
+	}
+	if got := a.pluginNumberDrafts["plug.a\x00size"]; got != "1e" {
+		t.Fatalf("plugin A's draft was not stored under its own scoped key: %v", a.pluginNumberDrafts)
+	}
+	if _, ok := a.pluginNumberDrafts["size"]; ok {
+		t.Fatalf("plugin A's draft leaked into the unscoped key: %v", a.pluginNumberDrafts)
+	}
+
+	// Swap to plugin B: same field key, its own stored value 7.
+	sheet.Schema = schema("plug.b")
+	sheet.Values = plugincfg.Values{"size": 7.0}
+	tt.Frame()
+	tt.Frame()
+
+	// B's draft map holds nothing of its own yet, so B's box must read its
+	// stored 7 — not A's stranded `1e`. A bleed would leave `1e` under the
+	// shared key `size` and B's render would pick it up.
+	if got, ok := a.pluginNumberDrafts["plug.b\x00size"]; ok {
+		t.Errorf("plugin B inherited a draft it never typed: %q", got)
+	}
+	if _, ok := a.pluginNumberDrafts["size"]; ok {
+		t.Errorf("plugin B still resolves the unscoped key A wrote: %v", a.pluginNumberDrafts)
+	}
+
+	// Typing in B now lands under B's own scoped key and reports B's value.
+	unitB := mustFind(t, tt, "items")
+	tt.ClickAt(unitB.X-30, unitB.Y+unitB.H/2)
+	tt.Frame()
+	tt.Key(0, ui.KeyEnd)
+	for range 8 {
+		tt.Key(0, ui.KeyBackspace)
+	}
+	tt.Type("9")
+	tt.Frame()
+	if len(changes) == 0 || changes[len(changes)-1] != (change{"size", float64(9)}) {
+		t.Errorf("plugin B's own edit did not report: %v", changes)
+	}
+	if got := a.pluginNumberDrafts["plug.a\x00size"]; got != "1e" {
+		t.Errorf("editing B disturbed A's draft: %v", a.pluginNumberDrafts)
+	}
+}

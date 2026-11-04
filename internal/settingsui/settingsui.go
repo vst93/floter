@@ -980,7 +980,9 @@ type App struct {
 	// has the keyboard, so a half-typed or emptied value is not overwritten by
 	// the stored one mid-edit; an entry is dropped when the box loses focus and
 	// the field re-reads its value (the framework's `ui.NumberInput` did the
-	// same with its own local draft).
+	// same with its own local draft). Both draft maps are keyed by the plugin id
+	// plus the field key: one App draws every plugin's sheet in turn and a field
+	// key is not unique across plugins.
 	pluginNumberDrafts map[string]string
 	// Text fields commit on Enter, so their unsubmitted edit must survive
 	// frames independently of the stored value, just like number drafts.

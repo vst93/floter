@@ -378,7 +378,7 @@ func (a *App) sheetNumber(c *ui.Context, sheet PluginSheet, field plugincfg.Fiel
 	changed := false
 	a.row(c, field.Label, field.Help, func() {
 		var slotChanged bool
-		_, slotChanged = a.sheetNumberSlot(c, field, &v)
+		_, slotChanged = a.sheetNumberSlot(c, sheet.Schema.Plugin, field, &v)
 		changed = slotChanged
 	})
 	if changed {
@@ -396,15 +396,23 @@ func (a *App) sheetNumber(c *ui.Context, sheet PluginSheet, field plugincfg.Fiel
 // the keyboard, its in-progress text lives in `pluginNumberDrafts` so a
 // half-typed or emptied value is not overwritten by the stored one mid-edit.
 //
+// The draft is keyed by `plugin` + the field key, exactly as the text field's
+// `pluginTextDrafts` is (`sheetField`): one settings App draws every plugin's
+// sheet in turn (`shell/pluginconfig.go`), and a field key such as `size` is
+// not unique across plugins. Keying the number draft by the field key alone
+// let plugin A's half-typed `1e` survive the switch and paint inside plugin B's
+// box in place of B's own stored value.
+//
 // It returns the slot for a caller that wants to bind it, and whether the
 // frame's typing changed the value.
-func (a *App) sheetNumberSlot(c *ui.Context, field plugincfg.Field, value *float64) (ui.Element, bool) {
+func (a *App) sheetNumberSlot(c *ui.Context, plugin string, field plugincfg.Field, value *float64) (ui.Element, bool) {
 	t := c.Theme()
 	tokens := a.tokens(c)
 	if a.pluginNumberDrafts == nil {
 		a.pluginNumberDrafts = map[string]string{}
 	}
-	draft, ok := a.pluginNumberDrafts[field.Key]
+	key := plugin + "\x00" + field.Key
+	draft, ok := a.pluginNumberDrafts[key]
 	if !ok {
 		draft = formatFieldNumber(*value)
 	}
@@ -421,7 +429,7 @@ func (a *App) sheetNumberSlot(c *ui.Context, field plugincfg.Field, value *float
 		in := ui.TextInputBase(c, &text).Width(t.Space(13)).
 			TextAlign(ui.End).FontFeatures("tnum").Label(field.Label)
 		if in.Changed() {
-			a.pluginNumberDrafts[field.Key] = text
+			a.pluginNumberDrafts[key] = text
 			if parsed, err := strconv.ParseFloat(strings.TrimSpace(text), 64); err == nil && !math.IsNaN(parsed) && !math.IsInf(parsed, 0) {
 				*value = parsed
 				changed = true
@@ -429,7 +437,7 @@ func (a *App) sheetNumberSlot(c *ui.Context, field plugincfg.Field, value *float
 		} else if !in.Focused() {
 			// The keyboard is elsewhere: the field reads the stored value
 			// again, so a refused write never strands a half-typed one.
-			delete(a.pluginNumberDrafts, field.Key)
+			delete(a.pluginNumberDrafts, key)
 		}
 		if field.Unit != "" {
 			// `.plugin-config-number__unit` is the caption step in the muted
