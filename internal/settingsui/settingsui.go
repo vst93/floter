@@ -1555,6 +1555,16 @@ func (a *App) body(c *ui.Context, copy i18n.Settings) {
 	// sits below the band and only content that actually scrolls passes
 	// through it.
 	edge := t.Space(4)
+	// P13-fv（`docs/liquid-glass.md` §6.141）：软边要淡向**它脚下的面**，不是窗口地。
+	//
+	// 这块滚动区坐在 `FaceOver(地, Sunken)` 上（见 `View` 里那层 `ui.Column`），
+	// 而两端的 `glass.ScrollEdge` 此前拿的是 `t.Background` —— 窗口地本身。浅色实测：
+	// 面 246、地 255，于是滚到底时那 16px 被**提亮**成 246→253（最深 253，比脚下高
+	// 7 级），页尾凭空多出一条白雾带；反过来，淡向 255 的那一帧里，内容也被推向一个
+	// 它从没坐过的颜色。同族的另外四处（`sheetedge.go`、`config.go:932`、
+	// `pluginsheet.go:172`、`terminalui/drawer.go:160`）早就按「面」给色，只有设置页
+	// 正文这一处给的是地。
+	face := theme.FaceOver(a.tokens(c).Theme.Background, a.tokens(c).Sunken)
 	ui.Column(c).Fill().Children(func() {
 		ui.Scroll(c.Key("settings.body")).TrackScroll(&a.Body).Fill().
 			Padding(edge, 0, t.Space(6), 0).Children(func() {
@@ -1601,7 +1611,7 @@ func (a *App) body(c *ui.Context, copy i18n.Settings) {
 			})
 		})
 		ui.Box(c).Absolute().Top(0).Left(0).Right(0).Height(edge).PassThrough().
-			Material(glass.ScrollEdge{Background: t.Background})
+			Material(glass.ScrollEdge{Background: face})
 		// P13-as（`docs/liquid-glass.md` §6.16）：满态的下沿与上沿是**同一道**边。
 		//
 		// 只画上沿时，一页比窗口长的内容在窗口最后一行像素上被水平切断
@@ -1613,7 +1623,7 @@ func (a *App) body(c *ui.Context, copy i18n.Settings) {
 		// 空白上（下面没有内容可淡），所以盒子、`MaxY`、内容位置逐像素不变——
 		// 变的是「快到底时那一行怎么退场」。
 		ui.Box(c).Absolute().Bottom(0).Left(0).Right(0).Height(edge).PassThrough().
-			Material(glass.ScrollEdge{Bottom: true, Background: t.Background})
+			Material(glass.ScrollEdge{Bottom: true, Background: face})
 	})
 }
 
