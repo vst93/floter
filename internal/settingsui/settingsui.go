@@ -2894,12 +2894,25 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 		// a command the launcher does not accept (see the shell's
 		// `launcherCommands`), i.e. two controls that could not do anything.
 		if commands := declaredCommands(integration.Commands); len(commands) > 0 && !integration.Orphan {
-			// The per-command switches' caption and the one line that says
-			// what a switch does, printed above the list rather than repeated
-			// on every row (the old build's R39).
-			a.sectionHeading(c, copy.IntegrationsCommands, nil)
-			a.sectionHint(c, copy.IntegrationsCommandsHint)
-			a.commandList(c, copy, integration.ID, commands)
+			// P13-fw（`docs/liquid-glass.md` §6.142）：命令这一块（标题 / 说明 / 每一块板）
+			// 戴的是**这张卡自己的 8u 缩进**，与卡里其他每一行同一条竖线。
+			//
+			// 此前这三样是卡的直接子节点，一个缩进都不戴：实测 720 宽、浅色，卡的左边框
+			// 在 x=187（216），命令板的左边框紧贴 x=188（194）——两块 1px 线中间**没有面**。
+			// 一条命令时这只是「板的边框盖住了卡的边框」；24 条命令时它是**沿整张卡左右
+			// 两侧从上贯到下的一条 2px 双线**（216 + 194），读起来是一圈画框，正好是 §1
+			// 「靠画框分层」要拆掉的那种东西。卡里的其他行（标题、权限、新鲜度）都在
+			// x=196，所以命令板也回到 196，卡片自己的面在两者之间露出 8px 的沟。
+			//
+			// `Gap(0)` 是必须的：卡的子节点列本来就是 0 间隔，包一层不许顺手加一条。
+			ui.Column(c).FillWidth().Gap(0).Padding(0, a.rowInset(t)).Children(func() {
+				// The per-command switches' caption and the one line that says
+				// what a switch does, printed above the list rather than repeated
+				// on every row (the old build's R39).
+				a.sectionHeading(c, copy.IntegrationsCommands, nil)
+				a.sectionHint(c, copy.IntegrationsCommandsHint)
+				a.commandList(c, copy, integration.ID, commands)
+			})
 		}
 
 		if len(integration.Params) > 0 {
