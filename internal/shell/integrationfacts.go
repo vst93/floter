@@ -226,9 +226,14 @@ func refreshIntegrationFacts(
 		m.pending = true
 		m.mu.Unlock()
 		if start {
+			// Keep the frame's clock domain through publication. Switching to
+			// time.Now here made a completed pass stale to an injected clock,
+			// so the very next frame could start the same work again (P13-gp).
+			// Include elapsed work so the TTL still begins at completion.
+			started := time.Now()
 			go func() {
 				fresh := compute(items)
-				m.publish(fresh, time.Now())
+				m.publish(fresh, now.Add(time.Since(started)))
 				if invalidate != nil {
 					invalidate()
 				}
