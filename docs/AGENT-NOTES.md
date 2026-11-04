@@ -69,6 +69,13 @@ Tauri + Rust + React 实现（见 `docs/archive/` 与 git 历史），那套代�
 
 ## 门槛（每次改动都要过）
 
+**P13-go 环境交接**：这台开发机的历史视觉 pin 使用中文 locale 的字体选择。
+若 Codex 进程带 `LC_ALL=C.UTF-8`，它会覆盖 `LANG=zh_CN.UTF-8`，`fc-match sans-serif`
+从 Noto Sans CJK JP 变成 Noto Sans，标题/正文行盒从 19/17 变为 17/14。
+先用 `LC_ALL=zh_CN.UTF-8` 复核，不能把字体环境错误当作视觉改版重钉断言。
+本轮同一 HEAD 实测：C locale 3271 PASS 且多项失败，中文 locale 3487 PASS / 0 FAIL。
+不要设置 `CI` 规避这些断言；截图与 mutation 也要使用同一 locale。
+
 ```sh
 gofmt -l cmd internal     # 必须为空
 go vet ./...

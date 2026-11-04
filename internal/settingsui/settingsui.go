@@ -3234,8 +3234,10 @@ func (a *App) discardConfigChanges(id string) { a.closeConfig(id) }
 // it is disabled when the provider declared no `openCommand` — the
 // reference's `disabled={!configuration.openPlan}`.
 func (a *App) configOpenToolRow(c *ui.Context, copy i18n.Settings, integration Integration) {
-	a.row(c, copy.ConfigSection, "", func() {
-		openable := len(integration.ConfigOpenCommand) > 0 && a.Actions.OpenConfiguration != nil
+	openable := len(integration.ConfigOpenCommand) > 0 && a.Actions.OpenConfiguration != nil
+	// P13-go: the row and its only control share availability. A disabled
+	// outlet keeps the card's plane; it must not lift or sink under the pointer.
+	a.rowAligned(c, ui.Center, nil, rowFace{Inert: !openable}, copy.ConfigSection, nil, "", func() {
 		// P13-s（§6.2b-6）：禁用的面不跟着字一起淡——`openable` 直接进面。
 		button := a.extensionGlyphActionButton(c, "link", copy.ConfigOpenConfiguration,
 			a.cardTheme(c).Space(7.5), a.cardTheme(c).Space(3.75), a.tokens(c).Body, !openable)
