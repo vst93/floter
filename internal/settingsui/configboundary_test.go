@@ -166,6 +166,71 @@ func TestConfigDefaultsClearOnlyRestoredFieldErrors(t *testing.T) {
 	}
 }
 
+// Restore defaults leaves a field with no default exactly as the reference left
+// it (`ExtensionsPanel.tsx:2013-2016`), including the text the user is still
+// typing. Before P13-gr the reset dropped *every* field's live text
+// (`draft.clearLive()`), so a no-default number mid-edit ("1e") snapped its
+// display back to empty even though its value was untouched — a field that
+// reads as if the keystrokes never happened, while the schema-bound field beside
+// it correctly showed its restored default. The reset now clears the live text
+// only for the fields it actually restores (`clearLiveField`).
+func TestConfigDefaultsKeepsANoDefaultFieldHalfTyped(t *testing.T) {
+	en := i18n.For("en").Settings
+	minimum, maximum := 1.0, 99.0
+	fields := []ConfigField{
+		{Key: "size", Label: "Size", Type: "number", Minimum: &minimum, Maximum: &maximum, Default: float64(5)},
+		{Key: "retries", Label: "Retries", Type: "number", Minimum: &minimum, Maximum: &maximum},
+	}
+	a, _ := configFormApp(t, fields, map[string]any{"size": float64(2)})
+	integration := a.Integrations()[0]
+	draft := a.draft(integration)
+	a.selectPage(PageIntegrations)
+	tt := renderThemed(t, a, 900, 1400)
+
+	// Type a half-parseable value into the no-default field, no Enter.
+	label := mustFind(t, tt, "Retries")
+	tt.ClickAt(label.X+240, label.Y+label.H/2)
+	tt.Frame()
+	tt.Type("1e")
+	tt.Frame()
+	if got := draft.liveText(fields[1], ""); got != "1e" {
+		t.Fatalf("the half-typed text did not survive the redraw: live = %q, want %q", got, "1e")
+	}
+
+	if err := tt.Click(en.ConfigDefaults); err != nil {
+		t.Fatalf("press %q: %v", en.ConfigDefaults, err)
+	}
+	tt.Frame()
+
+	// The no-default field the reset did not touch keeps its half-typed display;
+	// its value stays what the unparsable edit left (nil), untouched by the reset.
+	if got := draft.liveText(fields[1], ""); got != "1e" {
+		t.Errorf("Restore defaults wiped a no-default field's half-typed text: live = %q, want %q", got, "1e")
+	}
+	if draft.values["retries"] != nil {
+		t.Errorf("Restore defaults moved a no-default field's value: %v, want nil", draft.values["retries"])
+	}
+	// The field it *did* restore carries its default, and has no stale live text
+	// shadowing it: a defaulted field that was mid-edit must show the default, so
+	// its live entry is dropped and the display falls back to the value.
+	if draft.values["size"] != float64(5) {
+		t.Errorf("Restore defaults did not restore the defaulted field: size = %v, want 5", draft.values["size"])
+	}
+	if _, stale := draft.live["size"]; stale {
+		t.Errorf("Restore defaults left stale live text on the field it restored: %v", draft.live)
+	}
+	// A defaulted field that *was* mid-edit also drops its text. Set one and
+	// confirm the reset clears it, so the default is not hidden behind an edit.
+	draft.setLive(fields[0], "7")
+	if err := tt.Click(en.ConfigDefaults); err != nil {
+		t.Fatalf("press %q again: %v", en.ConfigDefaults, err)
+	}
+	tt.Frame()
+	if _, stale := draft.live["size"]; stale {
+		t.Errorf("Restore defaults kept a restored field's half-typed text: %v", draft.live)
+	}
+}
+
 func boundaryConfigPage(t *testing.T, dark bool, language string) *ui.Tester {
 	t.Helper()
 	labels := []string{"Service authentication endpoint", "Access token", "Working directory", "Result limit", "Mode", "Output formats"}

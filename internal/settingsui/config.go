@@ -70,9 +70,22 @@ func (d *configDraft) setLive(field ConfigField, text string) {
 }
 
 // clearLive drops every field's live text, so the fields fall back to their
-// `values`: what Restore defaults and a landed Save need, since both move the
-// values behind the fields' backs.
+// `values`: what a landed Save needs, since the write moves every value behind
+// the fields' backs at once.
 func (d *configDraft) clearLive() { d.live = nil }
+
+// clearLiveField drops one field's live text, so that field falls back to its
+// `value`. Restore defaults uses this rather than `clearLive`: it writes back
+// only the fields whose schema declared a default and leaves the others as they
+// are (`ExtensionsPanel.tsx:2013-2016`), so a field it does not touch must keep
+// the half-typed text the user was still editing. Dropping every field's live
+// text would strand a no-default field mid-edit — its value stays untouched but
+// its display snaps back to empty, losing what the user had typed.
+func (d *configDraft) clearLiveField(field ConfigField) {
+	if d.live != nil {
+		delete(d.live, field.Key)
+	}
+}
 
 // multiAnchorAt is one multiselect field's last clicked option index, or -1
 // when it has none yet.
@@ -340,12 +353,14 @@ func (a *App) configActions(c *ui.Context, copy i18n.Settings, integration Integ
 		if defaults.Clicked() && !busy {
 			// The reference's `configurationDefaults` writes every field whose
 			// schema declared a default back to it, leaving the others as they
-			// are (`ExtensionsPanel.tsx:2013-2016`). A field mid-edit shows its
-			// live text, so the reset also drops that text: otherwise the new
-			// default would sit behind a stale half-typed value.
-			draft.clearLive()
+			// are (`ExtensionsPanel.tsx:2013-2016`). A restored field shows its
+			// live text, so the reset also drops *that field's* text: otherwise
+			// the new default would sit behind a stale half-typed value. A field
+			// with no default is left exactly as the reference left it — including
+			// the text the user is still typing — so its live entry is untouched.
 			for _, field := range integration.Config {
 				if field.Default != nil {
+					draft.clearLiveField(field)
 					draft.values[field.Key] = field.Default
 					// The old edit's validity does not describe the restored default.
 					a.clearConfigFieldError(integration.ID, field.Key)
