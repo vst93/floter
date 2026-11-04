@@ -917,9 +917,17 @@ func TestThePlatformsMaterialReachesTheTokens(t *testing.T) {
 	linux := ForPlatform(s, true, ui.Preferences{}, "linux")
 	windows := ForPlatform(s, true, ui.Preferences{}, "windows")
 
-	// The fill is thinner under a material...
-	if darwin.Sunken.A >= linux.Sunken.A {
-		t.Errorf("the darwin content pane = %d, want thinner than the material-free %d", darwin.Sunken.A, linux.Sunken.A)
+	// The content pane is the same step on both platforms.
+	//
+	// P13-gc 重定基线（V）：旧断言是 `darwin.Sunken.A >= linux.Sunken.A`（「内容页
+	// 的填充在材质底下更薄」），旧值 darwin 38 / linux 43。那是把 `contentStep` 加在
+	// **应用自己画的那笔填充**上的结果：`overFrame(TintAlpha, TintAlpha+0.09)` 换算成
+	// 眼睛看到的那一步时要乘 `(1 − veil)`（linux 0.090、darwin frosted 0.079 /
+	// regular 0.070 / liquid 0.059），于是材质越厚，内容页那一档越读不出来。
+	// 面档和浮层是**同一笔账**（P13-gb 的孪生），一个都不能留在填充空间里。
+	// 旧值 → 新值：darwin 38 / linux 43 → **两者相等（43）**。
+	if darwin.Sunken.A != linux.Sunken.A {
+		t.Errorf("the darwin content pane = %d, want the material-free %d (the rung is a visible-alpha step, not a fill step — §2.3 P13-gc)", darwin.Sunken.A, linux.Sunken.A)
 	}
 	if darwin.Float.A != linux.Float.A {
 		// P13-gb 重定基线（V）：旧断言是 `darwin.Float.A < linux.Float.A`（「浮层
@@ -928,8 +936,8 @@ func TestThePlatformsMaterialReachesTheTokens(t *testing.T) {
 		// 被乘了 (1 − veil)：linux 0.302、darwin 0.223。浮层承诺的是「比它压着的
 		// 那张面高 0.10」，而那张面的可见 alpha 是 `Spec.Composite()`（材质已经把
 		// 填充补成目标值）→ 新值两者相等（145），可见抬升两边都是 0.302。
-		// `Sunken` 那一条（上面）不动：内容页是「可见结果相同、填充更薄」，浮层是
-		// 「可见抬升相同、填充相同」——同一个原理的两个量。
+		// `Sunken` 那一条（上面）在 P13-gc 里按同一个原理改成了相等：面档的 0.09 也是
+		// 一场**可见** alpha 上的步，不是填充空间里的一次加法。
 		t.Errorf("the darwin floating pane = %d, want the material-free %d (the rung is a visible-alpha step, not a fill step — §1 P13-gb)", darwin.Float.A, linux.Float.A)
 	}
 	// ...and the sheen is capped to that thinner fill, or `FaceFill` could not

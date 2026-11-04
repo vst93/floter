@@ -389,11 +389,34 @@ func overFrame(frame, target float32) float32 {
 // moves, not a second full tint that halves the slider's effect. Every stop
 // rides the slider, `off` included: the pane is as translucent as the frame
 // it sits on.
+//
+// P13-gc 重定基线：旧值是 `overFrame(s.TintAlpha, min(1, s.TintAlpha+contentStep))`
+// —— 把 0.09 加在应用**自己画的那一笔填充**上。`TintAlpha` 在 macOS 上是被
+// `MaterialVeil` 补偿过的（`compensate` 把窗口材质的 alpha 从填充里扣掉），于是
+// 同一条 §1 契约换算成**可见** recess 时被乘了 `(1 − veil)`：47% 滑块上 linux 0.090、
+// darwin `frosted` 0.079 / `regular` 0.070 / `liquid` **0.059**（−34%）。
+//
+// 换算成 1x 屏上的级数（§1 判据：面与它压着的面 ≥ 8 级；探针地面中灰 `RGB(128,128,128)`）：
+// 浅色面 `243,244,247` → `liquid` 只剩 **6.8 级**、`regular` 8.1；深色面 `17,18,20` →
+// **6.6 / 7.8**。「材质越厚，内容页那一档越读不出来」——和 P13-gb 修掉的浮层 0.10
+// 是同一笔账的孪生（同一个文件、同一个 `overFrame`、同一条契约、同一个平台分歧）。
+//
+// 旧值 → 新值：`TintAlpha` → **`Composite()`**（框的可见 alpha）。理由与 `FloatAlpha`
+// 同源：面画在框的**可见像素**上，而框的可见 alpha 是 `Composite()`（材质已经把填充
+// 补成目标值）；`(1−C)` 是框之上还剩多少桌面，面的填充乘的就是它。
+//
+// 为什么 `TerminalFrameAlpha` / `CanvasAlpha` **不动**：它们的目标是那个**绝对** alpha
+// `TintAlpha`（「终端画布 = 滑块的那个数」），而绝对 alpha 在填充空间里本来就对
+// （`1-(1-v)(1-t) == Composite`）。`ContentAlpha` 的目标是一**步**（框 + 0.09），一步
+// 必须落在可见 alpha 上——这是同一个 `overFrame` 唯一会分歧的地方。
+//
+// `Material == 0`（linux / windows / `off`）时 `TintAlpha == Composite`，逐位不变。
 func (s Spec) ContentAlpha() float32 {
 	if !s.Translucent {
 		return 1
 	}
-	return overFrame(s.TintAlpha, min(1, s.TintAlpha+contentStep))
+	frame := s.Composite()
+	return overFrame(frame, min(1, frame+contentStep))
 }
 
 // FloatAlpha is the fill alpha of a floating pane (`--glass-float`): the

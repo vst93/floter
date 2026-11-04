@@ -183,6 +183,38 @@ pin：`internal/glassmap/floatladder_test.go`（六个档位，差值是写死�
 「可见结果相同、填充更薄」，浮层是「可见抬升相同、填充相同」——同一个原理的两个量。
 谁把两者合成一条规则，就会把内容页也抬成 linux 的填充（可见结果翻倍）。
 
+### §2.3 内容页那一档的 0.09，也是「框的可见 alpha」上的一步（P13-gc）
+
+§2.2 的孪生账，慢了一轮。`Spec.ContentAlpha()` 用的是同一个 `overFrame`，但它把
+`contentStep`（0.09）加在 `TintAlpha` 上——同样是**填充空间**里的加法，于是同一条
+「内容页比它压着的框深一步」在 macOS 上换算成**可见** recess 时被乘了 `(1 − veil)`。
+
+旧值 → 新值：`overFrame(TintAlpha, min(1, TintAlpha+contentStep))` →
+`overFrame(Composite(), min(1, Composite()+contentStep))`。
+
+| 平台 / 档（47% 滑块） | veil | `TintAlpha` | 旧填充 | 旧可见 recess | 新填充 | 新可见 recess |
+|---|---|---|---|---|---|---|
+| linux / windows | 0 | 0.470 | 43 | 0.090 | 43 | 0.090 |
+| darwin `frosted` | 0.12 | 0.398 | 38 | 0.079（−12%） | 43 | 0.090 |
+| darwin `regular` | 0.22 | 0.321 | 38 | 0.070（−22%） | 43 | 0.090 |
+| darwin `liquid` | 0.34 | 0.197 | 38 | **0.059（−34%）** | 43 | 0.090 |
+
+换算成 1x 屏上的级数（§1 判据 ≥ 8 级；探针地面中灰 `RGB(128,128,128)`，与 §6.146 同一块底）：
+
+| 外观（面自有颜色） | `liquid` 旧 | `regular` 旧 | `frosted` 旧 | 三档新 |
+|---|---|---|---|---|
+| 浅 `243,244,247` | **6.8** | 8.1 | 9.1 | 10.4 |
+| 深 `17,18,20` | **6.6** | 7.8 | 8.8 | 10.0 |
+
+**为什么 `TerminalFrameAlpha` / `CanvasAlpha` 不动**：它们的目标是那个**绝对** alpha
+`TintAlpha`（「终端画布 = 滑块的那个数」），绝对 alpha 在填充空间里本来就对
+（`1-(1-v)(1-t) == Composite`）。`ContentAlpha` 的目标是一**步**，一步必须落在可见
+alpha 上——这是同一个 `overFrame` 唯一会分歧的地方。
+
+**`Control` 那一档不受影响**（量过，不改）：它是应用自己画在面之上的一笔（§2.1 第 1 条），
+veil 只把它脚下的地面挪动，不动它自己的 alpha。实测（渲染像素，中灰地面）面板与框
+8~11 级、控制与面板 13~24 级，最极端的那一格（`darwin` + `liquid` + 10%）是 10 / 18 级。
+
 
 ---
 
@@ -6377,4 +6409,45 @@ M1（`FloatAlpha` 退回 `TintAlpha+floatStep`）→ glassmap 9 格 + theme 3 �
 两包共 **55** 行红（含 linux 那一臂，证明不是「只有 macOS 的 pin」）。
 `md5sum -c` 还原（`8a468eea…` / `5f6c2fd7…` / `4dc55e0d…` / `d36b8ba8…`）+ `touch` 复跑全绿。
 
+### §6.148 内容页那一档的 0.09：材质底下它只剩 6~7 级（P13-gc，**已落地**）
 
+通用队列「三平台一致性」那一格，§2.2 的孪生账。`Spec.ContentAlpha()` 把 `contentStep`
+加在被 veil 补偿过的 `TintAlpha` 上，于是 macOS 上「内容页比框深一步」换算成可见 recess
+时要乘 `(1 − veil)`：`liquid` 只剩 0.059（linux 的 66%），渲染出来是 **7/7 级**
+（浅/深，中灰地面）——低于 §1 的 8 级下沿，也就是「最漂亮的玻璃档里，内容页读不出来」。
+
+量（`internal/glassmap/contentplatform_test.go` 的字面量表 +
+`internal/theme/sunkenveil_test.go` 的渲染像素）：
+
+| 格（47% 滑块） | 框 `C` | 旧填充 | 旧级数（浅/深） | 新填充 | 新级数（浅/深） |
+|---|---|---|---|---|---|
+| linux `liquid` | 0.47 | 43 | 11 / 10 | 43 | 11 / 10 |
+| darwin `frosted` | 0.47 | 38 | — | 43 | 11 / 10 |
+| darwin `regular` | 0.47 | 38 | — | 43 | 11 / 10 |
+| darwin `liquid` | 0.47 | 38 | **7 / 7** | 43 | 11 / 10 |
+| darwin `liquid` 10% | 0.34 | 23 | **7 / 6** | 35 | 11 / 10 |
+
+| # | 位置 | 现状 | 落成 | 状态 |
+|---|---|---|---|---|
+| 148-1 | `internal/glassmap/glassmap.go` `Spec.ContentAlpha` | `overFrame(TintAlpha, TintAlpha+0.09)`（填充空间加法） | `overFrame(Composite(), Composite()+0.09)`（可见 alpha 上的一步）；`Material == 0` 时逐位不变；`TerminalFrameAlpha` / `CanvasAlpha` 不在本轮（目标是**绝对** alpha，本来就对） | `已落地` |
+| 148-2 | `internal/glassmap/contentplatform_test.go`（新） | 内容页只有 linux 一条 pin（`TestContentAndFloatRideTheSlider`），跨平台零覆盖 | 三平台 × 四档 × 六滑块档的**字面量** `ContentAlpha` + 「可见 recess 恒为 0.09」+ 反面臂（面 ≠ 框的填充、`off` 两平台同值） | `已落地（pin）` |
+| 148-3 | `internal/theme/theme_test.go` 的 `darwin.Sunken.A >= linux.Sunken.A` | 旧基线的 V：断言「darwin 的内容页填充更薄」 | 改成相等（`P13-gc 重定基线：旧值 darwin 38 / linux 43 → 新值两者相等`）；P13-gb 那句「`Sunken` 不动」改写成指向本轮 | `已落地（V 重定基线）` |
+| 148-4 | `internal/theme/sunkenveil_test.go`（新）+ opt-in dump | 面档在 veil 之下的 1x 可辨性零覆盖 | `ui.NewTester` 渲染真 token（框 / 面 / 控制三层），14 格 × 深浅两套：面 vs 框 ≥ 8 级、控制 vs 面 ≥ 8 级；`FLOTER_P13GC_DUMP=1` → `/tmp/floter-P13-gc-veilpane-{light,dark}.png` | `已落地` |
+
+**图上的变化**（一排六格：左三格出厂 ｜ 右三格旧填充；读面那一块的像素）：
+
+- 深：linux `(65,65,66)` ｜ darwin 47% 新 `(65,65,66)` ｜ darwin 10% 新 `(79,79,80)` ‖
+  darwin 47% 旧 `(68,68,69)` ｜ darwin 10% 旧 `(83,83,83)`；框是 `(75,75,76)` / `(89,89,89)`。
+- 浅：linux `(194,194,196)` ｜ darwin 47% 新 `(194,194,196)` ｜ darwin 10% 新 `(178,178,180)` ‖
+  darwin 47% 旧 `(191,191,192)` ｜ darwin 10% 旧 `(175,175,176)`；框是 `(184,184,185)` / `(168,168,169)`。
+
+新构下 darwin 与 linux 在同一个滑块档上**逐字节相同**（同一个框 + 同一笔面），旧填充
+在两张图上都往框的方向缩了 3~4 级。
+
+**设置体那一笔只挪 1 级，而且挪对了方向**：设置体把面合成成不透明再画
+（`settingsui.go:1303`，`FaceOver(地, Sunken)`），所以它跟的是面**自有**的 alpha，不是
+「面相对框的深度」。实测 darwin `liquid` 47%：浅 **247 → 246**、深 **14 → 15**（各 1 级），
+正好落在 linux 的同名字节上——三平台在**不透明合成**这一层也终于是同一个数。
+
+pin：`internal/glassmap/contentplatform_test.go`（2 个函数）、`internal/theme/sunkenveil_test.go`
+（2 个 pin + 1 个 opt-in dump）。
