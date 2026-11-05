@@ -1142,20 +1142,21 @@ func (a *App) sessionIconButton(c *ui.Context, glyphName, label string, danger, 
 	}
 	button.Children(func() {
 		ui.Icon(c, mustGlyph(glyphName)).Size(t.Space(3.5), t.Space(3.5)).TextColor(ink)
+		if resumable {
+			// The micro-badge that marks a running-but-detached session as
+			// resumable (`.session-manager__resume-dot`): 5u in the button's own
+			// top-right corner.
+			//
+			// P8-d 重定基线（§5 判据）：它曾是 `t.Accent`。它说的是「这条可以
+			// 恢复」——一个动作的**机会**，既不是「这条被选中」，也不是「这个控件
+			// 是开的」，更不属于主 CTA（§5 四类一个都不沾）。改 `TextSecondary`；
+			// 召唤力交给位置（按钮自己的右上角）与按钮本身的 hover 档，不用色相。
+			// P13-gz: the marker belongs to this button, including its transform.
+			ui.Box(c).Absolute().Top(t.Space(0.75)).Right(t.Space(0.75)).
+				Size(t.Space(1.25), t.Space(1.25)).Radius(t.Space(1.25)).
+				Background(tokens.TextSecondary).PassThrough()
+		}
 	})
-	if resumable {
-		// The micro-badge that marks a running-but-detached session as
-		// resumable (`.session-manager__resume-dot`): 5u in the button's own
-		// top-right corner.
-		//
-		// P8-d 重定基线（§5 判据）：它曾是 `t.Accent`。它说的是「这条可以
-		// 恢复」——一个动作的**机会**，既不是「这条被选中」，也不是「这个控件
-		// 是开的」，更不属于主 CTA（§5 四类一个都不沾）。改 `TextSecondary`；
-		// 召唤力交给位置（按钮自己的右上角）与按钮本身的 hover 档，不用色相。
-		ui.Box(c).Absolute().Top(t.Space(0.75)).Right(t.Space(0.75)).
-			Size(t.Space(1.25), t.Space(1.25)).Radius(t.Space(1.25)).
-			Background(tokens.TextSecondary).PassThrough()
-	}
 	if button.Clicked() && !disabled {
 		run()
 	}
