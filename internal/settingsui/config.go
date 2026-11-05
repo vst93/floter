@@ -135,6 +135,22 @@ func (a *App) draft(integration Integration) *configDraft {
 		// values it was created with, so the dirty check has a baseline.
 		draft.saved = cloneConfigValues(draft.values)
 	}
+	// A refreshed schema may introduce fields after this draft was opened.
+	// Initialize only absent keys; an explicit nil is an existing empty/invalid
+	// edit and must not be replaced by the default on the next frame.
+	for _, field := range integration.Config {
+		if _, exists := draft.values[field.Key]; exists {
+			continue
+		}
+		value, exists := integration.ConfigValues[field.Key]
+		if !exists {
+			value = field.Default
+		}
+		if exists || value != nil {
+			draft.values[field.Key] = value
+			draft.saved[field.Key] = value
+		}
+	}
 	return draft
 }
 
@@ -202,7 +218,8 @@ func (a *App) configFields(c *ui.Context, copy i18n.Settings, integration Integr
 	// The form is a `below` block of the ConfigOpen row; `cardRow` puts every
 	// such block on the row's content column (P11-bf), so the form carries no
 	// inset of its own — one place answers where that column starts.
-	ui.Column(c).FillWidth().Gap(a.cardSpace(t, 3)).Children(func() {
+	// The draft's lifetime owns the editors' undo history as well as the values.
+	ui.Column(c.Key(draft)).FillWidth().Gap(a.cardSpace(t, 3)).Children(func() {
 		// The reference's `.extension-config-form` is one `display: grid` with a
 		// 12px gap (`extensions.css:2369-2373`, literal px) holding the toolbar,
 		// the fields and the action row as *its own* children, in order — no

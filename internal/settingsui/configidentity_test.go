@@ -107,3 +107,68 @@ func TestConfigIdentityErrorUsesCurrentLanguage(t *testing.T) {
 		})
 	}
 }
+
+func TestConfigIdentityHistoryBelongsToTheIntegration(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			integration := Integration{ID: "local.search", Config: []ConfigField{
+				{Key: "directory", Label: "工作目录", Type: "path"},
+			}, ConfigValues: map[string]any{"directory": "/workspace/search"}}
+			a, tt := configIdentityFrame(t, dark, &integration)
+			configIdentityFocus(t, tt, "工作目录")
+			tt.Type("/workspace/changed")
+			tt.Frame()
+			integration.ID = "local.notes"
+			integration.ConfigValues = map[string]any{"directory": "/workspace/notes"}
+			a.configOpen[integration.ID] = true
+			tt.Frame()
+			configIdentityFocus(t, tt, "工作目录")
+			tt.Key(ui.Cmd, ui.KeyZ)
+			tt.Frame()
+			configIdentityDump(t, tt, "config-integration-history", dark)
+			if got := a.draft(integration).values["directory"]; got != "/workspace/notes" {
+				t.Errorf("integration inherited another undo history: %v", got)
+			}
+			tt.Type("/workspace/notes-edited")
+			tt.Frame()
+			tt.Key(ui.Cmd, ui.KeyZ)
+			tt.Frame()
+			if got := a.draft(integration).values["directory"]; got != "/workspace/notes" {
+				t.Errorf("integration lost its own undo history: %v", got)
+			}
+		})
+	}
+}
+
+func TestConfigIdentityAddedFieldsReadTheirInitialValues(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			integration := Integration{ID: "local.search", Config: []ConfigField{
+				{Key: "directory", Label: "工作目录", Type: "path"},
+			}, ConfigValues: map[string]any{"directory": "/workspace/search"}}
+			a, tt := configIdentityFrame(t, dark, &integration)
+			configIdentityFocus(t, tt, "工作目录")
+			tt.Type("/workspace/edited")
+			tt.Frame()
+			integration.Config = append(integration.Config,
+				ConfigField{Key: "limit", Label: "结果上限", Type: "number", Default: float64(25)},
+				ConfigField{Key: "endpoint", Label: "服务地址", Type: "text", Default: "https://localhost"})
+			integration.ConfigValues["endpoint"] = "https://localhost:8080"
+			tt.Frame()
+			configIdentityDump(t, tt, "config-added-fields", dark)
+			draft := a.draft(integration)
+			if draft.values["limit"] != float64(25) || draft.values["endpoint"] != "https://localhost:8080" {
+				t.Errorf("new schema fields lost their initial values: %v", draft.values)
+			}
+			if draft.saved["limit"] != float64(25) || draft.saved["endpoint"] != "https://localhost:8080" || draft.values["directory"] != "/workspace/edited" {
+				t.Errorf("schema refresh lost baseline or existing edit: values=%v saved=%v", draft.values, draft.saved)
+			}
+			configIdentityFocus(t, tt, "结果上限")
+			tt.Type("1e")
+			tt.Frame()
+			if draft.values["limit"] != nil || draft.liveText(integration.Config[1], "") != "1e" {
+				t.Error("schema default overwrote an invalid in-progress edit")
+			}
+		})
+	}
+}

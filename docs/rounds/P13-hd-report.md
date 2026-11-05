@@ -23,3 +23,8 @@
 2. **切换中文后错误仍是英文**：无效数字 `1e` 后换语言，仍画 `a number is expected` → 三种本地校验错误按当前语言显示，宿主错误原样保留 → 深浅均画「这里要填数字」，随后键入 12 清除错误并更新值。原始红串 `field error kept previous language`。
 
 第一批相关回归 **43 PASS / 0 FAIL**，internal/ci 通过。V/B/S **0/0/0**，旧断言零改。两场景深浅 before/after 已导出；浅色错误图已目视：中文错误紧贴原字段，未添加第二层面。
+
+3. **换集成后 Undo 恢复上一集成路径**：编辑 search 后切到 notes，撤销得到 `/workspace/search` → 表单以现有 draft 对象区分控件历史 → notes 保持 `/workspace/notes`，自己的后续编辑仍可撤销。原始红串 `integration inherited another undo history: /workspace/search`。
+4. **schema 新字段显示空值**：已有草稿刷新 schema，新增结果上限与服务地址没有读取默认 25 与已保存地址 → 仅初始化缺失 key，并同步该字段 baseline → 显示 25 与 `https://localhost:8080`，旧路径编辑保留；键入无效 `1e` 后不会被默认值覆盖。原始红串 `new schema fields lost their initial values: map[directory:/workspace/edited]`。
+
+第二批相关回归结果见提交前原始日志 `/tmp/floter-P13-hd/batch2-after.log`。V/B/S 0/0/0，旧断言零改。候选「关闭后隔帧重开继承撤销」原实现通过，未计入八项。首批 ae79c5f3 已推送。
