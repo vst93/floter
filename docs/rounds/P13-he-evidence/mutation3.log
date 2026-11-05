@@ -1,0 +1,37 @@
+=== RUN   TestChoiceIdentityUnknownSelectValue
+=== RUN   TestChoiceIdentityUnknownSelectValue/light
+    choicelabel_test.go:18: unknown stored option is displayed as the first choice: ["搜索配置" "搜索方式" "搜索方式" ""]
+    choicelabel_test.go:24: ui: no element shows "bookmarks"
+=== RUN   TestChoiceIdentityUnknownSelectValue/dark
+    choicelabel_test.go:18: unknown stored option is displayed as the first choice: ["搜索配置" "搜索方式" "搜索方式" ""]
+    choicelabel_test.go:24: ui: no element shows "bookmarks"
+--- FAIL: TestChoiceIdentityUnknownSelectValue (0.08s)
+    --- FAIL: TestChoiceIdentityUnknownSelectValue/light (0.08s)
+    --- FAIL: TestChoiceIdentityUnknownSelectValue/dark (0.00s)
+=== RUN   TestChoiceIdentityUnlabelledSelect
+=== RUN   TestChoiceIdentityUnlabelledSelect/light
+    choicelabel_test.go:95: select option with empty label has no visible name: ["搜索配置" "搜索来源" "搜索来源" ""]
+=== RUN   TestChoiceIdentityUnlabelledSelect/dark
+    choicelabel_test.go:95: select option with empty label has no visible name: ["搜索配置" "搜索来源" "搜索来源" ""]
+--- FAIL: TestChoiceIdentityUnlabelledSelect (0.00s)
+    --- FAIL: TestChoiceIdentityUnlabelledSelect/light (0.00s)
+    --- FAIL: TestChoiceIdentityUnlabelledSelect/dark (0.00s)
+=== RUN   TestChoiceIdentityUnlabelledRadio
+=== RUN   TestChoiceIdentityUnlabelledRadio/light
+    choicelabel_test.go:101: radio option with empty label has no visible name: ["搜索配置" "搜索来源" "" "应用" "应用"]
+=== RUN   TestChoiceIdentityUnlabelledRadio/dark
+    choicelabel_test.go:101: radio option with empty label has no visible name: ["搜索配置" "搜索来源" "" "应用" "应用"]
+--- FAIL: TestChoiceIdentityUnlabelledRadio (0.00s)
+    --- FAIL: TestChoiceIdentityUnlabelledRadio/light (0.00s)
+    --- FAIL: TestChoiceIdentityUnlabelledRadio/dark (0.00s)
+=== RUN   TestChoiceIdentityUnlabelledCheckboxes
+=== RUN   TestChoiceIdentityUnlabelledCheckboxes/light
+    choicelabel_test.go:107: checkboxes option with empty label has no visible name: ["搜索配置" "搜索来源" "应用"]
+=== RUN   TestChoiceIdentityUnlabelledCheckboxes/dark
+    choicelabel_test.go:107: checkboxes option with empty label has no visible name: ["搜索配置" "搜索来源" "应用"]
+--- FAIL: TestChoiceIdentityUnlabelledCheckboxes (0.00s)
+    --- FAIL: TestChoiceIdentityUnlabelledCheckboxes/light (0.00s)
+    --- FAIL: TestChoiceIdentityUnlabelledCheckboxes/dark (0.00s)
+FAIL
+FAIL	floter/internal/settingsui	0.102s
+FAIL

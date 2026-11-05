@@ -1,0 +1,21 @@
+=== RUN   TestChoiceIdentityMultiFocusFollowsOption
+=== RUN   TestChoiceIdentityMultiFocusFollowsOption/light
+    choiceidentity_test.go:71: multiselect focus moved to another option after reorder
+    choiceidentity_test.go:77: reordered checkbox keyboard changed another option: [应用 文件]
+=== RUN   TestChoiceIdentityMultiFocusFollowsOption/dark
+    choiceidentity_test.go:71: multiselect focus moved to another option after reorder
+    choiceidentity_test.go:77: reordered checkbox keyboard changed another option: [应用 文件]
+--- FAIL: TestChoiceIdentityMultiFocusFollowsOption (0.12s)
+    --- FAIL: TestChoiceIdentityMultiFocusFollowsOption/light (0.10s)
+    --- FAIL: TestChoiceIdentityMultiFocusFollowsOption/dark (0.01s)
+=== RUN   TestChoiceIdentityPluginCheckboxFocus
+=== RUN   TestChoiceIdentityPluginCheckboxFocus/light
+    choiceidentity_test.go:100: plugin checkbox keyboard changed another option: [apps files]
+=== RUN   TestChoiceIdentityPluginCheckboxFocus/dark
+    choiceidentity_test.go:100: plugin checkbox keyboard changed another option: [apps files]
+--- FAIL: TestChoiceIdentityPluginCheckboxFocus (0.07s)
+    --- FAIL: TestChoiceIdentityPluginCheckboxFocus/light (0.06s)
+    --- FAIL: TestChoiceIdentityPluginCheckboxFocus/dark (0.01s)
+FAIL
+FAIL	floter/internal/settingsui	0.203s
+FAIL

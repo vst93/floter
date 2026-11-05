@@ -1,0 +1,19 @@
+=== RUN   TestChoiceIdentityMultiRangeFollowsOption
+=== RUN   TestChoiceIdentityMultiRangeFollowsOption/light
+    choicerange_test.go:26: reordered range selected the wrong options: [应用 文件 书签]
+=== RUN   TestChoiceIdentityMultiRangeFollowsOption/dark
+    choicerange_test.go:26: reordered range selected the wrong options: [应用 文件 书签]
+--- FAIL: TestChoiceIdentityMultiRangeFollowsOption (0.07s)
+    --- FAIL: TestChoiceIdentityMultiRangeFollowsOption/light (0.06s)
+    --- FAIL: TestChoiceIdentityMultiRangeFollowsOption/dark (0.00s)
+=== RUN   TestChoiceIdentityRemovedAnchorDoesNotSelectItsReplacement
+=== RUN   TestChoiceIdentityRemovedAnchorDoesNotSelectItsReplacement/light
+    choicerange_test.go:49: removed anchor selected an unrequested replacement: [应用 书签]
+=== RUN   TestChoiceIdentityRemovedAnchorDoesNotSelectItsReplacement/dark
+    choicerange_test.go:49: removed anchor selected an unrequested replacement: [应用 书签]
+--- FAIL: TestChoiceIdentityRemovedAnchorDoesNotSelectItsReplacement (0.01s)
+    --- FAIL: TestChoiceIdentityRemovedAnchorDoesNotSelectItsReplacement/light (0.00s)
+    --- FAIL: TestChoiceIdentityRemovedAnchorDoesNotSelectItsReplacement/dark (0.00s)
+FAIL
+FAIL	floter/internal/settingsui	0.090s
+FAIL

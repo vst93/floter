@@ -1,0 +1,14 @@
+=== RUN   TestChoiceIdentityMultiRangeFollowsOption
+=== RUN   TestChoiceIdentityMultiRangeFollowsOption/light
+=== RUN   TestChoiceIdentityMultiRangeFollowsOption/dark
+--- PASS: TestChoiceIdentityMultiRangeFollowsOption (0.05s)
+    --- PASS: TestChoiceIdentityMultiRangeFollowsOption/light (0.05s)
+    --- PASS: TestChoiceIdentityMultiRangeFollowsOption/dark (0.00s)
+=== RUN   TestChoiceIdentityRemovedAnchorDoesNotSelectItsReplacement
+=== RUN   TestChoiceIdentityRemovedAnchorDoesNotSelectItsReplacement/light
+=== RUN   TestChoiceIdentityRemovedAnchorDoesNotSelectItsReplacement/dark
+--- PASS: TestChoiceIdentityRemovedAnchorDoesNotSelectItsReplacement (0.01s)
+    --- PASS: TestChoiceIdentityRemovedAnchorDoesNotSelectItsReplacement/light (0.00s)
+    --- PASS: TestChoiceIdentityRemovedAnchorDoesNotSelectItsReplacement/dark (0.00s)
+PASS
+ok  	floter/internal/settingsui	0.075s
