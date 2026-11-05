@@ -630,7 +630,7 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 		selected := configChoice{value: current, none: current == "" && !field.Required}
 		changed := false
 		a.configFieldGrid(c, field, label, copy.ConfigRequired, "", func() ui.Element {
-			e := valueSelect(c, &selected, labels, values, current, a.tokens(c)).Label(label).FillWidth().Radius(999)
+			e := valueSelect(c, &selected, labels, values, current, a.tokens(c), !locked && len(values) > 0).Label(label).FillWidth().Radius(999)
 			e = a.configSelectFace(c, e, !locked)
 			if locked {
 				// P13-t：一道淡（框架的 0.5），与同一张表单的字段、开关同档。

@@ -15,10 +15,17 @@ type selectHighlight[T comparable] struct {
 // valueSelect keeps the framework's Select geometry and keyboard model while
 // separating a choice's identity from its display name. Labels need not be
 // unique; an unavailable stored value remains visible until explicitly replaced.
-func valueSelect[T comparable](c *ui.Context, selected *T, labels []string, values []T, fallback string, tokens theme.Tokens) ui.Element {
+func valueSelect[T comparable](c *ui.Context, selected *T, labels []string, values []T, fallback string, tokens theme.Tokens, enabled bool) ui.Element {
 	t := c.Theme()
+	// Retire the active popup with its trigger while it is unavailable.
+	if !enabled {
+		c = c.Key("select.unavailable")
+	}
 	sel := ui.SelectBase(c, selected)
 	b := sel.Trigger
+	if !enabled {
+		b.Disabled(true).Cursor(ui.CursorDefault)
+	}
 	highlight := ui.Local(b, "floter.highlight", func() selectHighlight[T] { return selectHighlight[T]{} })
 	reordered := highlight.valid && !slices.Equal(highlight.values, values)
 	target := highlight.value
@@ -48,23 +55,29 @@ func valueSelect[T comparable](c *ui.Context, selected *T, labels []string, valu
 			p.StrokePath(&path, 1.5, t.TextMuted)
 		})
 	})
-	sel.Popup(func(panel ui.Element) {
-		panel.Margin(t.Space(1), 0, 0, 0).Padding(t.Space(1)).Radius(t.Radius+2).
-			Background(t.Background).Border(1, t.Border).Shadow(0, 6, 20, 0, tokens.ShadowAmbient)
-		ui.Scroll(c).Shrink(1).Children(func() {
-			for i, value := range values {
-				item := sel.Item(value).Padding(t.Space(1.5), t.Space(2.5)).Radius(t.Radius)
-				switch {
-				case item.Highlighted():
-					current, hasCurrent = value, true
-					item.Background(t.Accent).TextColor(t.AccentText)
-				case value == *selected:
-					item.Background(t.Surface)
+	if enabled {
+		sel.Popup(func(panel ui.Element) {
+			panel.Margin(t.Space(1), 0, 0, 0).Padding(t.Space(1)).Radius(t.Radius+2).
+				Background(t.Background).Border(1, t.Border).Shadow(0, 6, 20, 0, tokens.ShadowAmbient)
+			anchor, frame := b.Bounds(), c.Root().Bounds()
+			room := max(anchor.Y-frame.Y, frame.Y+frame.H-anchor.Y-anchor.H)
+			// The popup itself is window-clamped by SelectBase; its inner
+			// scroller also needs a bound so ScrollIntoView can move the list.
+			ui.Scroll(c).MaxHeight(max(0, room-t.Space(3)-2)).Shrink(1).Children(func() {
+				for i, value := range values {
+					item := sel.Item(value).Padding(t.Space(1.5), t.Space(2.5)).Radius(t.Radius)
+					switch {
+					case item.Highlighted():
+						current, hasCurrent = value, true
+						item.Background(t.Accent).TextColor(t.AccentText)
+					case value == *selected:
+						item.Background(t.Surface)
+					}
+					item.Children(func() { ui.Text(c, labels[i]).SingleLine() })
 				}
-				item.Children(func() { ui.Text(c, labels[i]).SingleLine() })
-			}
+			})
 		})
-	})
+	}
 	// SelectBase stores an index. Reapply the previously highlighted value
 	// after Popup has published this frame's order, before the next input.
 	if reordered && sel.Open() {

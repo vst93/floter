@@ -4775,7 +4775,8 @@ func (a *App) chooseSelect(c *ui.Context, selected *string, labels []string, lab
 	if len(ids) > 0 {
 		values = ids[0]
 	}
-	e := valueSelect(c, selected, labels, values, *selected, a.tokens(c)).Label(label).Radius(999)
+	enabled := len(values) > 0
+	e := valueSelect(c, selected, labels, values, *selected, a.tokens(c), enabled).Label(label).Radius(999)
 	if a.cardUnit > 0 {
 		e = e.Width(220).MinHeight(28).Padding(4, 8)
 	} else {
@@ -4787,7 +4788,7 @@ func (a *App) chooseSelect(c *ui.Context, selected *string, labels []string, lab
 		// （P13-fn，§6.133）。
 		e = e.MinWidth(220)
 	}
-	return a.fieldFace(c, e, true)
+	return a.fieldFace(c, e, enabled)
 }
 
 // paletteRow is the terminal palette row: the labeled picker, with a

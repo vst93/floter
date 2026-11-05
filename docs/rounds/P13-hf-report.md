@@ -41,3 +41,10 @@
 6. **schema 空项是一行无效空白**：可选字段 files 上按 Up/Enter 落到空项却仍为 files → 空 schema 值与已有清空入口合并 → 深浅都写 nil，菜单少一行空白。原串 `empty schema choice did not clear the optional field: got "files", want nil`。
 
 第三批新增与相关回归 **59 PASS / 0 FAIL**；旧断言零改，V/B/S 0/0/0。保留原有 null 清空语义和字段 28px 地板。
+
+第三批 `0193a958` 已推送。同名清空的真实原串为 `reserved display name removed the clear action: got "None", want nil`。
+
+7. **没有选项仍弹空菜单**：空集合接受焦点并画空浮层，选项到来后旧浮层还自动出现 → 空集合触发器禁用、熄受光边，值仍可读 → 深浅拒绝空菜单，补入选项后重新点击能提交 apps。原串 `empty select still accepts focus and opens a blank menu`。
+8. **锁定后菜单仍悬在页面上**：触发器变淡但已开浮层继续显示，解锁复活旧菜单 → 不可用时退役活动触发器及菜单，恢复后从关闭态开始 → 深浅锁定帧不见 apps，解锁再开正常提交。原串 `locked field left its live option popup on screen`。
+
+第四批八项与相关回归 **65 PASS / 0 FAIL**；额外加入 80 项长菜单的 End 滚入视口、Enter 选择与 Escape 不写值守卫，不计第九项修复。旧断言零改。锁定触发器只走框架一次 0.5 淡化；未改变保存期间字段是否可编辑的拍板项。
