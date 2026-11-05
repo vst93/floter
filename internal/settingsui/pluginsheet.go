@@ -360,7 +360,7 @@ func (a *App) sheetCheckboxes(c *ui.Context, sheet PluginSheet, field plugincfg.
 			for i, option := range field.Options {
 				i, option := i, option
 				checked := on[i]
-				if ui.Checkbox(c, &checked, option.Label).Changed() {
+				if ui.Checkbox(c.Key("plugin.option."+option.Value), &checked, option.Label).Changed() {
 					on[i] = checked
 					pressed = i
 				}

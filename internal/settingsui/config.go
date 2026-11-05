@@ -665,7 +665,7 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 					index, option := index, option
 					on := ticked[option]
 					boxChanged := false
-					labelClicked, mods := a.configOptionRow(c, option, &on, &boxChanged, locked)
+					labelClicked, mods := a.configOptionRow(c.Key("config.option."+option), option, &on, &boxChanged, locked)
 					if labelClicked {
 						on = !on
 						boxChanged = true
