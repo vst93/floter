@@ -1073,6 +1073,9 @@ func (a *App) configOptionRow(c *ui.Context, option string, on *bool, changed *b
 		// CheckboxBase alone has neither a face nor a hit area. Keep the
 		// existing native checkbox's size, check mark and focus treatment.
 		box := ui.Checkbox(c, on, "").Label(option)
+		if clicked {
+			box.Focus()
+		}
 		// P13-t：这里曾经在 `locked` 时再挂一次 `Disabled(true)`。列表框自己已经是
 		// `Disabled`（`config.go` 的 multiselect 臂），`IsDisabled` 走祖先链
 		// （`ui/element.go:1349-1356`），点击与 hover 一样被祖先挡住；再挂一次就是

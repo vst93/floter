@@ -7,9 +7,10 @@ import (
 )
 
 type selectHighlight[T comparable] struct {
-	values []T
-	value  T
-	valid  bool
+	values   []T
+	value    T
+	valid    bool
+	selected T
 }
 
 // valueSelect keeps the framework's Select geometry and keyboard model while
@@ -27,8 +28,12 @@ func valueSelect[T comparable](c *ui.Context, selected *T, labels []string, valu
 		b = lockedControl(b)
 	}
 	highlight := ui.Local(b, "floter.highlight", func() selectHighlight[T] { return selectHighlight[T]{} })
-	reordered := highlight.valid && !slices.Equal(highlight.values, values)
+	external := highlight.valid && highlight.selected != *selected && !b.Changed()
+	reordered := highlight.valid && (!slices.Equal(highlight.values, values) || external)
 	target := highlight.value
+	if external {
+		target = *selected
+	}
 	if reordered && !slices.Contains(values, target) {
 		target = *selected
 		if !slices.Contains(values, target) && len(values) > 0 {
@@ -87,5 +92,6 @@ func valueSelect[T comparable](c *ui.Context, selected *T, labels []string, valu
 	}
 	highlight.values = append(highlight.values[:0], values...)
 	highlight.value, highlight.valid = current, hasCurrent
+	highlight.selected = *selected
 	return b
 }
