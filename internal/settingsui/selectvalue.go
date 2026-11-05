@@ -2,6 +2,7 @@ package settingsui
 
 import (
 	"floter/internal/theme"
+	"fmt"
 	"github.com/egoist/mygo/ui"
 	"slices"
 )
@@ -31,6 +32,12 @@ func valueSelect[T comparable](c *ui.Context, selected *T, labels []string, valu
 		}
 	}
 	values, labels = uniqueValues, uniqueLabels
+	// An unavailable value has no implicit replacement. Retire any open
+	// menu when its unknown value or option set changes; reopening still
+	// starts without a highlight and requires an explicit choice.
+	if !slices.Contains(values, *selected) {
+		c = c.Key(fmt.Sprintf("select.unknown.%#v.%#v", *selected, values))
+	}
 	// Retire the active popup with its trigger while it is unavailable.
 	if !enabled {
 		c = c.Key("select.unavailable")
