@@ -33,6 +33,9 @@ type configDraft struct {
 	// native pane keeps the text in this map so it survives the redraw the same
 	// way, while `values` holds what a save would carry.
 	live map[string]string
+	// kinds retires editor-only state when a schema reuses a key for another
+	// control. Stored values remain owned by the existing save contract.
+	kinds map[string]string
 	// multiAnchor is each multiselect list box's last clicked option value,
 	// keyed by the field. A native `select[multiple]` extends a range from that
 	// anchor on Shift-click (`Ctrl`/`Cmd`-click toggles one, a plain click
@@ -593,12 +596,20 @@ func (a *App) configSelectFace(c *ui.Context, e ui.Element, lit bool) ui.Element
 // column and the description sat on the wrong side of the field.
 func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integration, draft *configDraft, field ConfigField) {
 	// A schema reorder moves the field, not its keyboard selection or history.
-	c = c.Key("config.field." + field.Key)
+	kind := strings.ToLower(field.Type)
+	if draft.kinds == nil {
+		draft.kinds = map[string]string{}
+	}
+	if previous, exists := draft.kinds[field.Key]; exists && previous != kind {
+		draft.clearLiveField(field)
+		a.clearConfigFieldError(integration.ID, field.Key)
+	}
+	draft.kinds[field.Key] = kind
+	c = c.Key("config.field." + field.Key + "\x00" + kind)
 	label := field.Label
 	if label == "" {
 		label = field.Key
 	}
-	kind := strings.ToLower(field.Type)
 	locked := a.configLocked(integration.ID)
 
 	switch kind {
