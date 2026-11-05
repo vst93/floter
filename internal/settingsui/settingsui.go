@@ -4728,14 +4728,15 @@ func (a *App) glassSegmented(c *ui.Context, labels []string, current int, apply 
 // choose builds one labeled drop-down choice, for lists too long to line up
 // as segments.
 func (a *App) choose(c *ui.Context, label, description string, options []i18n.Option, current string, apply func(string), below ...func()) {
-	index := optionIndex(options, current)
 	labels := make([]string, len(options))
+	// Keep an unavailable stored value visible until the user replaces it.
+	// optionIndex's fallback to zero would claim the first option was saved.
+	selected := current
 	for i, option := range options {
 		labels[i] = option.Label
-	}
-	selected := ""
-	if index >= 0 && index < len(options) {
-		selected = options[index].Label
+		if option.ID == current {
+			selected = option.Label
+		}
 	}
 	chosen, picked := "", false
 	a.row(c, label, description, func() {

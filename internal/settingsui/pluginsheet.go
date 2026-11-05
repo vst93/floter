@@ -651,9 +651,17 @@ func (a *App) sheetAction(c *ui.Context, sheet PluginSheet, field plugincfg.Fiel
 func optionsOf(options []plugincfg.Option) []i18n.Option {
 	out := make([]i18n.Option, 0, len(options))
 	for _, option := range options {
-		out = append(out, i18n.Option{ID: option.Value, Label: option.Label})
+		out = append(out, i18n.Option{ID: option.Value, Label: pluginOptionLabel(option)})
 	}
 	return out
+}
+
+// Schemas may omit a display label; the stored value still names the choice.
+func pluginOptionLabel(option plugincfg.Option) string {
+	if option.Label != "" {
+		return option.Label
+	}
+	return option.Value
 }
 
 // boundedText is a bounded value with its unit: "300 items", "30 days".

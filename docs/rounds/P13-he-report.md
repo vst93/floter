@@ -30,3 +30,8 @@
 4. **删除锚点后邻项继承范围起点**：删除文件后 Shift 点书签，应用也被选上 → 找不到原值即失效并清除锚点 → 深浅只选书签，下一次 Shift 从新的书签锚点正常扩展。原始红串 `removed anchor selected an unrequested replacement: [应用 书签]`。
 
 第二批相关回归 **30 PASS / 0 FAIL**。一项守换序的延续，一项守删除后的失效与恢复；同一批一次修完，旧 B 断言零改。
+
+第二批 `36fa4dee` 已推送。第一轮目视：浅色范围图里应用的误勾消失；深色插件图里焦点环跟随文件，两个框不再都被选中。工程视角选项身份已修；任务视角仍需修下拉伪报当前值；读者视角仍需补空标签；艺术视角检查保持单一 E1 面，不用额外警告框填空白。
+
+5. **未知保存值伪装成第一项**：保存的是 bookmarks，触发器却显示文件 → choose 只在 ID 匹配时取标签，缺失时显示原值 → 深浅均显示 bookmarks，点击文件后写回 files。原始红串 `unknown stored option is displayed as the first choice: ["搜索配置" "搜索方式" "搜索方式" "文件"]`。
+6. **插件下拉的空标签成为空白项**：有 Value=files、Label 为空时，触发器与菜单没有名字 → 显示回落到 Value → 深浅可见 files，应用→files 两次选择均写回对应 ID。原始红串 `select option with empty label has no visible name`。
