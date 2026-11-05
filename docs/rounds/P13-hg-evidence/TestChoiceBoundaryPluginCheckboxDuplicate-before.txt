@@ -1,0 +1,115 @@
+=== RUN   TestChoiceBoundaryPluginCheckboxDuplicate
+=== RUN   TestChoiceBoundaryPluginCheckboxDuplicate/light
+--- FAIL: TestChoiceBoundaryPluginCheckboxDuplicate (0.00s)
+    --- FAIL: TestChoiceBoundaryPluginCheckboxDuplicate/light (0.00s)
+panic: ui: two elements under one parent have the key "plugin.option.files", and share one state: give each a key of its own (/home/tar/workspace/floter/internal/settingsui/pluginsheet.go:363) [recovered, repanicked]
+
+goroutine 9 [running]:
+testing.tRunner.func1.2({0x13b5c40, 0x1a1ac48ff400})
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2125 +0x232
+testing.tRunner.func1()
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2128 +0x329
+panic({0x13b5c40?, 0x1a1ac48ff400?})
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/runtime/panic.go:859 +0x125
+github.com/egoist/mygo/ui.(*engine).duplicateKey(0x1a1ac4af8008, 0x3808a636477edeb9, {0x13b5c40?, 0x1a1ac48ff3f0?})
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/diagnostics.go:25 +0x319
+github.com/egoist/mygo/ui.(*context).newElement(0x1a1ac4af8138, 0x0)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/context.go:244 +0x1fd
+github.com/egoist/mygo/ui.coreRow(0x0?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/widgets.go:20 +0x15
+github.com/egoist/mygo/ui.toggle(0x42248a?, 0x1a1ac4ab16ed, 0x6, {0xc0b66f, 0x8})
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/base.go:49 +0x30
+github.com/egoist/mygo/ui.coreCheckboxBase(0x13?, 0x5?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/base.go:40 +0xd2
+github.com/egoist/mygo/ui.coreCheckbox(0x1a1ac4af8138, 0x1a1ac4ab16ed, {0xc0ef1a, 0xc})
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/widgets.go:216 +0x37
+github.com/egoist/mygo/ui.Checkbox(0x1a1ac48ee4c8?, 0x13?, {0xc0ef1a?, 0xc0905c?})
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/api_gen.go:826 +0x65
+floter/internal/settingsui.(*App).sheetCheckboxes.func1.1()
+	/home/tar/workspace/floter/internal/settingsui/pluginsheet.go:363 +0x1b4
+github.com/egoist/mygo/ui.(*node).Children(0x1a1ac4b05340, 0x71beb8?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0x4e
+github.com/egoist/mygo/ui.Element.Children({0x1a1ac48ff370?, 0x0?, 0x0?}, 0x1a1ac4b10190)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x3e
+floter/internal/settingsui.(*App).sheetCheckboxes.func1()
+	/home/tar/workspace/floter/internal/settingsui/pluginsheet.go:359 +0xf2
+floter/internal/settingsui.(*App).stackedRow.func1.1()
+	/home/tar/workspace/floter/internal/settingsui/rows.go:1759 +0x10f
+github.com/egoist/mygo/ui.(*node).Children(0x1a1ac4b03e70, 0x1a1ac4b10320?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0x4e
+github.com/egoist/mygo/ui.Element.Children({0x1a1ac48ff370?, 0x40acdb?, 0x0?}, 0x1a1ac4b10368)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x3e
+floter/internal/settingsui.(*App).stackedRow.func1()
+	/home/tar/workspace/floter/internal/settingsui/rows.go:1747 +0x293
+github.com/egoist/mygo/ui.(*node).Children(0x1a1ac4b03780, 0x7184f8?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0x4e
+github.com/egoist/mygo/ui.Element.Children({0x1a1ac48ff370?, 0x5?, 0x0?}, 0x1a1ac4b108d0)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x3e
+floter/internal/settingsui.(*App).stackedRow(0x1a1ac4ae2008, 0x1a1ac48ff380, {0xc0ef0e, 0xc}, {0x0, 0x0}, 0x1a1ac4b10a08)
+	/home/tar/workspace/floter/internal/settingsui/rows.go:1737 +0x25e
+floter/internal/settingsui.(*App).sheetCheckboxes(_, _, {0x1a1ac4ac1440, 0x1a1ac4aca7b0, {0x0, 0x0}, 0x0, {0x0, 0x0}, 0x1a1ac48ff350, ...}, ...)
+	/home/tar/workspace/floter/internal/settingsui/pluginsheet.go:358 +0x305
+floter/internal/settingsui.(*App).sheetField(_, _, {0x1a1ac4ac1440, 0x1a1ac4aca7b0, {0x0, 0x0}, 0x0, {0x0, 0x0}, 0x1a1ac48ff350, ...}, ...)
+	/home/tar/workspace/floter/internal/settingsui/pluginsheet.go:280 +0x49c
+floter/internal/settingsui.(*App).sheetSection.func1.1()
+	/home/tar/workspace/floter/internal/settingsui/pluginsheet.go:245 +0x18a
+github.com/egoist/mygo/ui.(*node).Children(0x1a1ac4b03090, 0x0?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0x4e
+github.com/egoist/mygo/ui.Element.Children({0x1a1ac48ff370?, 0x5?, 0x0?}, 0x1a1ac4b11608)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x3e
+floter/internal/settingsui.(*App).cardGeometry(0x1a1ac4ae2008, 0x1a1ac48ff380, 0x0, 0x0, 0x0, {0x0, 0x0}, 0x1a1ac4b11608)
+	/home/tar/workspace/floter/internal/settingsui/rows.go:375 +0x298
+floter/internal/settingsui.(*App).cardLabeled(...)
+	/home/tar/workspace/floter/internal/settingsui/rows.go:320
+floter/internal/settingsui.(*App).card(...)
+	/home/tar/workspace/floter/internal/settingsui/rows.go:313
+floter/internal/settingsui.(*App).sheetSection.func1()
+	/home/tar/workspace/floter/internal/settingsui/pluginsheet.go:242 +0x257
+github.com/egoist/mygo/ui.(*node).Children(0x1a1ac4b029a0, 0x718c9e?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0x4e
+github.com/egoist/mygo/ui.Element.Children({0x1a1ac48ff370?, 0x5?, 0x0?}, 0x1a1ac4b11bb8)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x3e
+floter/internal/settingsui.(*App).sheetSection(0x1a1ac4ae2008, 0x1a1ac48ff380, {0x1a1ac4ac1440, 0x1a1ac4aca7b0, {0x0, 0x0}, 0x0, {0x0, 0x0}, 0x1a1ac48ff350, ...}, ...)
+	/home/tar/workspace/floter/internal/settingsui/pluginsheet.go:228 +0x2a5
+floter/internal/settingsui.(*App).PluginSheet.func1.1.1()
+	/home/tar/workspace/floter/internal/settingsui/pluginsheet.go:175 +0x4c5
+github.com/egoist/mygo/ui.(*node).Children(0x1a1ac4b014d0, 0x718c9e?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0x4e
+github.com/egoist/mygo/ui.Element.Children({0x1a1ac48ff370?, 0x3?, 0x0?}, 0x1a1ac4902760)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x3e
+floter/internal/settingsui.(*App).PluginSheet.func1.1()
+	/home/tar/workspace/floter/internal/settingsui/pluginsheet.go:104 +0x150
+github.com/egoist/mygo/ui.(*node).Children(0x1a1ac4b00de0, 0x1a1ac4902af8?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0x4e
+github.com/egoist/mygo/ui.Element.Children({0x1a1ac48ff370?, 0x0?, 0x0?}, 0x1a1ac4902fb0)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x3e
+floter/internal/settingsui.(*App).PluginSheet.func1()
+	/home/tar/workspace/floter/internal/settingsui/pluginsheet.go:103 +0x272
+github.com/egoist/mygo/ui.(*node).Children(0x1a1ac4b006f0, 0x718398?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0x4e
+github.com/egoist/mygo/ui.Element.Children({0x1a1ac48ff370?, 0x5?, 0x0?}, 0x1a1ac4903540)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x3e
+floter/internal/settingsui.(*App).PluginSheet(0x1a1ac4ae2008, 0x1a1ac48ff380, {0x1a1ac4ac1440, 0x1a1ac4aca7b0, {0x0, 0x0}, 0x0, {0x0, 0x0}, 0x1a1ac48ff350, ...})
+	/home/tar/workspace/floter/internal/settingsui/pluginsheet.go:101 +0x232
+floter/internal/settingsui.pluginIdentityFrame.func2(0x1a1ac48ff380)
+	/home/tar/workspace/floter/internal/settingsui/pluginidentity_test.go:21 +0x17b
+github.com/egoist/mygo/ui.NewTester.func1(0x1a1ac4af8138?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/api_gen.go:1399 +0x26
+github.com/egoist/mygo/ui.(*engine).runFrame(0x1a1ac4af8008)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/runtime.go:597 +0x67a
+github.com/egoist/mygo/ui.(*Tester).settle(0x1a1ac4accb60)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/headless.go:263 +0x89
+github.com/egoist/mygo/ui.coreNewTester(0x1a1ac48ff360, 0x2d0, 0x190)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/headless.go:252 +0x1df
+github.com/egoist/mygo/ui.NewTester(...)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/api_gen.go:1399
+floter/internal/settingsui.pluginIdentityFrame(0x1a1ac4ac4d88?, 0x0, 0x1a1ac4abb3e0)
+	/home/tar/workspace/floter/internal/settingsui/pluginidentity_test.go:18 +0x3ec
+floter/internal/settingsui.TestChoiceBoundaryPluginCheckboxDuplicate.func1(0x1a1ac4ac4d88)
+	/home/tar/workspace/floter/internal/settingsui/choiceboundary_test.go:151 +0x406
+testing.tRunner(0x1a1ac4ac4d88, 0x1a1ac4ab16c0)
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2195 +0xea
+created by testing.(*T).Run in goroutine 8
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2260 +0x4d4
+FAIL	floter/internal/settingsui	0.009s
+FAIL

@@ -1,0 +1,17 @@
+=== RUN   TestChoiceBoundaryExternalValue
+=== RUN   TestChoiceBoundaryExternalValue/light
+    choiceboundary_test.go:42: Enter overwrote the externally refreshed value: got files, want notes
+=== RUN   TestChoiceBoundaryExternalValue/dark
+    choiceboundary_test.go:42: Enter overwrote the externally refreshed value: got files, want notes
+--- FAIL: TestChoiceBoundaryExternalValue (0.18s)
+    --- FAIL: TestChoiceBoundaryExternalValue/light (0.15s)
+    --- FAIL: TestChoiceBoundaryExternalValue/dark (0.02s)
+=== RUN   TestChoiceBoundaryLongMenu
+=== RUN   TestChoiceBoundaryLongMenu/light
+=== RUN   TestChoiceBoundaryLongMenu/dark
+--- PASS: TestChoiceBoundaryLongMenu (0.05s)
+    --- PASS: TestChoiceBoundaryLongMenu/light (0.02s)
+    --- PASS: TestChoiceBoundaryLongMenu/dark (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.232s
+FAIL

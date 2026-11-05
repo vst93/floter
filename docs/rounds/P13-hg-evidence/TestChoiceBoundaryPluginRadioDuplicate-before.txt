@@ -1,0 +1,11 @@
+=== RUN   TestChoiceBoundaryPluginRadioDuplicate
+=== RUN   TestChoiceBoundaryPluginRadioDuplicate/light
+    choiceboundary_test.go:175: duplicate radio ID still draws an unselectable segment
+=== RUN   TestChoiceBoundaryPluginRadioDuplicate/dark
+    choiceboundary_test.go:175: duplicate radio ID still draws an unselectable segment
+--- FAIL: TestChoiceBoundaryPluginRadioDuplicate (0.15s)
+    --- FAIL: TestChoiceBoundaryPluginRadioDuplicate/light (0.12s)
+    --- FAIL: TestChoiceBoundaryPluginRadioDuplicate/dark (0.03s)
+FAIL
+FAIL	floter/internal/settingsui	0.158s
+FAIL

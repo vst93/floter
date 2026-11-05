@@ -1,0 +1,111 @@
+=== RUN   TestChoiceBoundaryMultiLongLabel
+=== RUN   TestChoiceBoundaryMultiLongLabel/light
+    choiceboundary_test.go:106: long multi option pushed the next choice out: label={159 67 509.59998 56} next={159 138.5 0 0}
+    choiceboundary_test.go:113: next choice unreachable under long option: <nil>
+=== RUN   TestChoiceBoundaryMultiLongLabel/dark
+    choiceboundary_test.go:106: long multi option pushed the next choice out: label={159 67 509.59998 56} next={159 138.5 0 0}
+    choiceboundary_test.go:113: next choice unreachable under long option: <nil>
+--- FAIL: TestChoiceBoundaryMultiLongLabel (0.11s)
+    --- FAIL: TestChoiceBoundaryMultiLongLabel/light (0.09s)
+    --- FAIL: TestChoiceBoundaryMultiLongLabel/dark (0.01s)
+=== RUN   TestChoiceBoundaryMultiDuplicate
+=== RUN   TestChoiceBoundaryMultiDuplicate/light
+--- FAIL: TestChoiceBoundaryMultiDuplicate (0.00s)
+    --- FAIL: TestChoiceBoundaryMultiDuplicate/light (0.00s)
+panic: ui: two elements under one parent have the key "config.option.文件", and share one state: give each a key of its own (/home/tar/workspace/floter/internal/settingsui/config.go:1065) [recovered, repanicked]
+
+goroutine 5 [running]:
+testing.tRunner.func1.2({0x13b4200, 0x1b751f8220e0})
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2125 +0x232
+testing.tRunner.func1()
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2128 +0x329
+panic({0x13b4200?, 0x1b751f8220e0?})
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/runtime/panic.go:859 +0x125
+github.com/egoist/mygo/ui.(*engine).duplicateKey(0x1b751f85a008, 0x6884e67b674ffe14, {0x13b4200?, 0x1b751f8220d0?})
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/diagnostics.go:25 +0x319
+github.com/egoist/mygo/ui.(*context).newElement(0x1b751f85a138, 0x0)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/context.go:244 +0x1fd
+github.com/egoist/mygo/ui.coreRow(0x4188cccd4149999a?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/widgets.go:20 +0x15
+github.com/egoist/mygo/ui.Row(0xc073e0?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/api_gen.go:1710 +0x65
+floter/internal/settingsui.(*App).configOptionRow(0x1b751f83c008, 0x1b751f822070, {0xc08056, 0x6}, 0x1b751f784071, 0x1b751f86753e, 0x0)
+	/home/tar/workspace/floter/internal/settingsui/config.go:1065 +0x171
+floter/internal/settingsui.(*App).configField.func3.1()
+	/home/tar/workspace/floter/internal/settingsui/config.go:679 +0x21e
+github.com/egoist/mygo/ui.(*node).Children(0x1b751f7ecf00, 0x718c9e?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0x4e
+github.com/egoist/mygo/ui.Element.Children({0x1b751f822060?, 0x1f867778?, 0x1b75?}, 0x1b751f8681b0)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x3e
+floter/internal/settingsui.(*App).configMultiselectBox.func1.1()
+	/home/tar/workspace/floter/internal/settingsui/config.go:995 +0x94
+github.com/egoist/mygo/ui.(*node).Children(0x1b751f7ec810, 0x71b92f?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0x4e
+github.com/egoist/mygo/ui.Element.Children({0x1b751f822060?, 0x0?, 0x38000000?}, 0x1b751f867a90)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x3e
+floter/internal/settingsui.(*App).configMultiselectBox.func1()
+	/home/tar/workspace/floter/internal/settingsui/config.go:994 +0x135
+github.com/egoist/mygo/ui.(*node).Children(0x1b751f7ec120, 0x411e666600000000?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0x4e
+github.com/egoist/mygo/ui.Element.Children({0x1b751f822060?, 0x1f822070?, 0x1b75?}, 0x1b751f8680c0)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x3e
+floter/internal/settingsui.(*App).configMultiselectBox(0x1b751f83c008, 0x1b751f822070, 0x1b751f794080, 0x0, 0x1b751f8681b0)
+	/home/tar/workspace/floter/internal/settingsui/config.go:993 +0x385
+floter/internal/settingsui.(*App).configField.func3()
+	/home/tar/workspace/floter/internal/settingsui/config.go:674 +0x215
+floter/internal/settingsui.(*App).configFieldGrid.func1.2()
+	/home/tar/workspace/floter/internal/settingsui/config.go:547 +0x13
+github.com/egoist/mygo/ui.(*node).Children(0x1b751f7eba30, 0x719ffe?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0x4e
+github.com/egoist/mygo/ui.Element.Children({0x1b751f822060?, 0x40ac45?, 0x0?}, 0x1b751f8682e8)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x3e
+floter/internal/settingsui.(*App).configFieldGrid.func1()
+	/home/tar/workspace/floter/internal/settingsui/config.go:547 +0x1ce
+github.com/egoist/mygo/ui.(*node).Children(0x1b751f7ea560, 0x716d5d?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0x4e
+github.com/egoist/mygo/ui.Element.Children({0x1b751f822060?, 0x5?, 0x0?}, 0x1b751f868938)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x3e
+floter/internal/settingsui.(*App).configFieldGrid(0x1b751f83c008, 0x1b751f822070, {{0xc08f39, 0x7}, {0xc0df0e, 0xc}, {0xc0d06c, 0xb}, {0x0, 0x0}, ...}, ...)
+	/home/tar/workspace/floter/internal/settingsui/config.go:530 +0x3ab
+floter/internal/settingsui.(*App).configField(_, _, {{0xc0a2d7, 0x8}, {0xc105af, 0xe}, {0xc1717d, 0x14}, {0xc0d3b0, 0xb}, ...}, ...)
+	/home/tar/workspace/floter/internal/settingsui/config.go:673 +0x1233
+floter/internal/settingsui.(*App).configFields.func1()
+	/home/tar/workspace/floter/internal/settingsui/config.go:242 +0x230
+github.com/egoist/mygo/ui.(*node).Children(0x1b751f7e6de0, 0x718c9e?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0x4e
+github.com/egoist/mygo/ui.Element.Children({0x1b751f822060?, 0xc?, 0x0?}, 0x1b751f7f91b8)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x3e
+floter/internal/settingsui.(*App).configFields(_, _, {{0xc0a2d7, 0x8}, {0xc105af, 0xe}, {0xc1717d, 0x14}, {0xc0d3b0, 0xb}, ...}, ...)
+	/home/tar/workspace/floter/internal/settingsui/config.go:233 +0x307
+floter/internal/settingsui.configIdentityFrame.func1.1.1()
+	/home/tar/workspace/floter/internal/settingsui/configidentity_test.go:23 +0x129
+floter/internal/settingsui.(*App).extensionMetrics(0x1b751f74b008?, 0x1b751f61f1f0?)
+	/home/tar/workspace/floter/internal/settingsui/rows.go:476 +0x5a
+floter/internal/settingsui.configIdentityFrame.func1.1()
+	/home/tar/workspace/floter/internal/settingsui/configidentity_test.go:23 +0x3f
+github.com/egoist/mygo/ui.(*node).Children(0x1b751f7e66f0, 0x1b751f61f48c?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0x4e
+github.com/egoist/mygo/ui.Element.Children({0x1b751f822060?, 0x0?, 0x0?}, 0x1b751f61f4a0)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x3e
+floter/internal/settingsui.configIdentityFrame.func1(0x1b751f822070)
+	/home/tar/workspace/floter/internal/settingsui/configidentity_test.go:22 +0x15b
+github.com/egoist/mygo/ui.NewTester.func1(0x1b751f85a138?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/api_gen.go:1399 +0x26
+github.com/egoist/mygo/ui.(*engine).runFrame(0x1b751f85a008)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/runtime.go:597 +0x67a
+github.com/egoist/mygo/ui.(*Tester).settle(0x1b751f832230)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/headless.go:263 +0x89
+github.com/egoist/mygo/ui.coreNewTester(0x1b751f822050, 0x2d0, 0x140)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/headless.go:252 +0x1df
+github.com/egoist/mygo/ui.NewTester(...)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/api_gen.go:1399
+floter/internal/settingsui.configIdentityFrame(0x30?, 0x0, 0x1b751f67a6c8)
+	/home/tar/workspace/floter/internal/settingsui/configidentity_test.go:19 +0x3f8
+floter/internal/settingsui.TestChoiceBoundaryMultiDuplicate.func1(0x1b751f67a488)
+	/home/tar/workspace/floter/internal/settingsui/choiceboundary_test.go:124 +0x2a5
+testing.tRunner(0x1b751f67a488, 0x1b751f784020)
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2195 +0xea
+created by testing.(*T).Run in goroutine 50
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2260 +0x4d4
+FAIL	floter/internal/settingsui	0.118s
+FAIL

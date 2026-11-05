@@ -1,0 +1,9 @@
+gofmt empty
+vet linux PASS
+build linux PASS
+vet windows PASS
+build windows PASS
+vet darwin PASS
+build darwin PASS
+test PASS
+test verbose PASS; cases=3737

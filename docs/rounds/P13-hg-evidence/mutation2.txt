@@ -1,0 +1,13 @@
+=== RUN   TestChoiceBoundaryMultiLabelFocus
+=== RUN   TestChoiceBoundaryMultiLabelFocus/light
+    choiceboundary_test.go:86: label click did not focus its checkbox
+    choiceboundary_test.go:91: Space after label click changed the wrong option: [文件 应用]
+=== RUN   TestChoiceBoundaryMultiLabelFocus/dark
+    choiceboundary_test.go:86: label click did not focus its checkbox
+    choiceboundary_test.go:91: Space after label click changed the wrong option: [文件 应用]
+--- FAIL: TestChoiceBoundaryMultiLabelFocus (0.11s)
+    --- FAIL: TestChoiceBoundaryMultiLabelFocus/light (0.10s)
+    --- FAIL: TestChoiceBoundaryMultiLabelFocus/dark (0.01s)
+FAIL
+FAIL	floter/internal/settingsui	0.118s
+FAIL
