@@ -343,6 +343,9 @@ func (a *App) uninstallActionButton(c *ui.Context, label string, danger bool, bu
 			ink = t.Text
 		}
 	}
+	if !busy && button.Pressed() {
+		plane = tokens.ControlPress
+	}
 	button.Border(1, edge).Background(plane).
 		Transition(ui.ElementTransition{Colors: true, Position: true, Duration: theme.ColorStep})
 	// `.extensions-action-button:active:not(:disabled) { transform: scale(0.97) }`
@@ -376,7 +379,7 @@ func (a *App) uninstallActionButton(c *ui.Context, label string, danger bool, bu
 	}
 	button.Children(func() {
 		if icon != nil {
-			ui.Icon(c, icon).Size(t.Space(3.5), t.Space(3.5))
+			ui.Icon(c, icon).Size(t.Space(3.5), t.Space(3.5)).TextColor(ink)
 		}
 		// `.extensions-action-button { line-height: 1 }`
 		// (`extensions.css:1338`).

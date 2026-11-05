@@ -5,6 +5,7 @@ import (
 	"image/png"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -161,6 +162,56 @@ func TestBusyIntegrationActionClusterStaysStill(t *testing.T) {
 		actionStateDump(t, tt, "cluster-busy", dark)
 		if hover != rest {
 			t.Errorf("busy action cluster lifted under disabled Run: %v -> %v", rest, hover)
+		}
+	}
+}
+
+func TestUninstallActionHasItsOwnPressedFace(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		for _, danger := range []bool{false, true} {
+			tt, ground := lensProbe(t, dark, 260, 120, func(c *ui.Context, a *App) {
+				a.uninstallActionButton(c, "Remove", danger, false, nil)
+			})
+			box := mustFind(t, tt, "Remove")
+			read := func() ui.Color {
+				return lensMean(tt.Image(), int(box.X)+12, int(box.Y)+5, int(box.X+box.W)-12, int(box.Y)+6)
+			}
+			settlePointer(tt, box)
+			hover := read()
+			tt.Press(box.X+box.W/2, box.Y+box.H/2)
+			tt.Frame()
+			tt.Advance(300 * time.Millisecond)
+			tt.Frame()
+			pressed := read()
+			if channelDelta(pressed, ground) >= channelDelta(hover, ground) {
+				t.Errorf("uninstall press did not sink: hover=%v press=%v ground=%v", hover, pressed, ground)
+			}
+			if danger {
+				actionStateDump(t, tt, "uninstall-press", dark)
+			}
+		}
+	}
+}
+
+func TestUninstallDangerIconKeepsWarningInk(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		tt, _ := lensProbe(t, dark, 260, 120, func(c *ui.Context, a *App) {
+			a.uninstallActionButton(c, "Remove", true, false, checkIcon)
+		})
+		box := mustFind(t, tt, "Remove")
+		red := 0
+		img := tt.Image()
+		for y := int(box.Y) + 3; y < int(box.Y+box.H)-3; y++ {
+			for x := int(box.X) + 9; x < int(box.X)+22; x++ {
+				p := img.RGBAAt(x, y)
+				if int(p.R)-int(p.B) > 20 {
+					red++
+				}
+			}
+		}
+		actionStateDump(t, tt, "uninstall-ink", dark)
+		if red < 12 {
+			t.Errorf("uninstall warning icon has %d warm pixels, want at least 12", red)
 		}
 	}
 }
