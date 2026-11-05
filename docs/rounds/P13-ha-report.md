@@ -8,8 +8,8 @@
 
 | 开盘 ref / SHA | 判断 | 处置 |
 |---|---|---|
-| stash@{0} / 92315415 | P13-ha 首批两项独有工作 | 接续，门槛后单独提交；提交后核对并 drop |
-| stash@{1} / ff170912 | 与上一条代码及第三父完全相同 | 不重复套用，核对覆盖后 drop |
+| stash@{0} / 92315415 | P13-ha 首批两项独有工作 | `c6d0d6d6` 单独提交；产品补丁 reverse-check 通过，原件归档后已 drop |
+| stash@{1} / ff170912 | 与上一条代码及第三父完全相同 | 未重复套用，原件归档后已 drop |
 | stash@{2} / 422483b4 | P7 keycap/旧主题 WIP | 沿用 P13-gq/gz 语义审核，保留原件 |
 | stash@{3} / 8af94a07 | 行距/边缘旧刻度草稿 | 后续已有正式刻度，保留原件 |
 | stash@{4} / 7e4aa710 | 卸载布局与 scratch 探针 | 保留原件 |
@@ -49,4 +49,83 @@
 
 为什么更轻、更有空间感：不可操作的面退回静息层，只有可操作控件承担受光反馈；输出沿用现有凹槽，不叠加玻璃或阴影。
 
-已实际读取 qiaomu-design / user-preferences / craft-loop / preflight / chinese-typography，以及 Apple 供体的颜色、字阶、按钮章节。实际借用值、逐项 preflight、图片与正式 mutation 在后续批次补齐；未完成项不预记 PASS。
+已实际读取 qiaomu-design / user-preferences / craft-loop / preflight / chinese-typography，以及 Apple 供体的颜色、字阶、按钮章节。当前 Codex 独立执行，未调用 K3 或子代理。
+
+## 偷了什么
+
+- `craft-loop.md` **#12 材质细节**：文字参数建面时 `DimFace` 熄受光边，根由框架乘 **0.5**，保留 **1px** 外边与底侧线；布尔/分段根同样只淡一次。
+- **#4 签名交互**：保留既有 **120ms** 指针反馈，但忙态父行附加 hover 为 **0**；两主题布尔/分段父行实测回到 **246/15** 的静息红通道值，点击不改值，解锁后一次生效。
+- **#3 focus**：复用现有 focus 面，禁用文本参数不获焦；表单/参数分别按对象 ID 定位，重排后焦点仍为 Target，`first` + `-tail` 完整落到同一输入。没有新增焦点样式。
+- **#6 编辑细节**：每个集成独立保存 **1** 份运行错误；参数表单与输出仍沿用 **8px** 控件圆角、**1px** 发丝线，不新增状态卡片。借的是信息归属和现成刻度，不是装饰编号。
+- **#9 滚动细节**：复用已有 **180px** 最大输出视口、**12px** 上下软边；新文档滚动 **300→0**，其他集成的 **37** 原样保留。没有另造滚动条，也没有改既有刻度。
+- Apple 供体取单一动作色、胶囊与 1px 边：保留项目 accent；Run 的 **30px** 高对应 **15px** 半高圆角，框线 **1px**。未移植官网大字号、纯黑或 blur。
+
+## 图片与两轮复核
+
+本轮 **48 张原始 PNG**（24 个深浅场景 × before/after）在 `rounds/P13-ha/`，ui.Tester 软件渲染；没有原生窗口或 Windows/macOS 真机验收。标准 `/tmp/floter-P13-ha-<表面>-<dark|light>.png` 指向本次 after 副本。
+
+| 表面 | 深色前后 | 浅色前后 |
+|---|---|---|
+| 忙态文本参数 | [前](P13-ha/floter-P13-ha-input-text-dark-before.png) / [后](P13-ha/floter-P13-ha-input-text-dark-after.png) | [前](P13-ha/floter-P13-ha-input-text-light-before.png) / [后](P13-ha/floter-P13-ha-input-text-light-after.png) |
+| 忙态布尔参数 | [前](P13-ha/floter-P13-ha-boolean-switch-dark-before.png) / [后](P13-ha/floter-P13-ha-boolean-switch-dark-after.png) | [前](P13-ha/floter-P13-ha-boolean-switch-light-before.png) / [后](P13-ha/floter-P13-ha-boolean-switch-light-after.png) |
+| 参数身份 | [前](P13-ha/floter-P13-ha-input-identity-dark-before.png) / [后](P13-ha/floter-P13-ha-input-identity-dark-after.png) | [前](P13-ha/floter-P13-ha-input-identity-light-before.png) / [后](P13-ha/floter-P13-ha-input-identity-light-after.png) |
+| 输出首行 | [前](P13-ha/floter-P13-ha-output-reset-success-dark-before.png) / [后](P13-ha/floter-P13-ha-output-reset-success-dark-after.png) | [前](P13-ha/floter-P13-ha-output-reset-success-light-before.png) / [后](P13-ha/floter-P13-ha-output-reset-success-light-after.png) |
+| ANSI 输出 | [前](P13-ha/floter-P13-ha-output-ansi-dark-before.png) / [后](P13-ha/floter-P13-ha-output-ansi-dark-after.png) | [前](P13-ha/floter-P13-ha-output-ansi-light-before.png) / [后](P13-ha/floter-P13-ha-output-ansi-light-after.png) |
+
+第一轮四视角：艺术——忙态父行整带提亮抢注意；工程——参数重排后焦点跟错对象；任务——新输出丢首行；读者——ANSI 控制串抢占行内文字。第二轮分别关闭父行假反馈、定位参数身份、归零新输出、接回已有 ANSI 样式。自行看图看到：深色输入的亮灰整带已退掉而 Target 标签保留；新输出的 `NEW RUN FIRST LINE` 回到顶端，滚动条回顶；深浅 ANSI 图上均只保留红色 ALERT 和普通 plain，控制码消失。
+
+## preflight A / B / C / D2
+
+| 条目 | 结论 |
+|---|---|
+| A1 渐变/纯黑/霓虹 | 无新增；沿用项目近黑与近白，通过 |
+| A2 每轮换非系统字体 | 不采用；中文系统字族及原有高度链优先 |
+| A3 斜体 | 产品 UI 无新增斜体；程序 ANSI 样式按已有输出契约解析 |
+| A4 Hero | 不适用，原生参数与输出组件 |
+| A5 卡片模板 | 无新增容器，通过 |
+| A6 假名/假数字 | 产品无假数据；Runner/Target 为测试夹具 |
+| A7 空词/感叹号 | i18n 产品文案未变 |
+| A8 眉批 | 无新增 |
+| A9 H1 | 不适用 |
+| A10 网格空洞 | 未改布局；既有行盒和输出几何断言保留 |
+| A11 左装饰线 | 无新增 |
+| B1 读取/拨盘 | 2/2/6，与既定轻玻璃和紧凑密度一致 |
+| B2 主题锁定 | 深浅分别渲染并复核 |
+| B3 记忆点 | 可操作控件承担受光，结果各归其主 |
+| B4 动效气质 | 沿用短反馈，无新动效 |
+| C1 目的/频率 | 无新增键盘动画 |
+| C2 all/ease-in/scale(0) | 无新增 |
+| C3 时长/按压 | 保留既有 120ms；新锁定状态拒绝按压反馈 |
+| C4 origin | 无新浮层，不适用 |
+| C5 reduced-motion | 回归使用 ui.Preferences.ReduceMotion；既有框架降级保留 |
+| C6 hover 媒体条件 | 原生指针系统，不适用 Web 媒体查询 |
+| C7 属性 | 无新增布局动画 |
+| C8 快速触发 | 沿用 transition，不重播 keyframes |
+| C9 手势 | 无新增，不适用 |
+| C10 Framer Motion | 不适用 |
+| C11 逐帧/真机 | 已检静息、点击、禁用和恢复；未宣称真机动效验收 |
+| D2-1 字体栈 | 中文系统字体保留；未下载字体 |
+| D2-2 行高/字号/字重 | 现有 Body 10.8px、Caption 9.9px 不达 ≥14px，580 标签字重也超出该建议；继续列入既有拍板项，不能宣称全过 |
+| D2-3 混排空格 | 无新产品文案，沿用 i18n；输出是程序自带文本 |
+| D2-4 标点/对比 | i18n 标点未变；项目既有安静墨与字号限制保留，不宣称全达 7:1 |
+
+## 最终 mutation 与台账
+
+M1/M2 的原始串与恢复证据见前文。后续在完整产品上额外实跑：
+
+- M3 删除参数行 `c.Key(param.ID)`：两主题红，`parameter reorder lost edit target: target="first" note="-tail"`。
+- M4 删除 SetRunResult 的 scroll 清零：四场景红，`new output starts at stale Y=300`。
+
+两次恢复 `md5sum -c` 均 OK，最终产品 MD5 **750b6422b6b536afc8a07d69c30e5046**，touch 后启动全量非缓存复跑。另尝试只删布尔根 Disabled 时写入保护仍阻止变值，该试验未红，不计入四条正式 mutation。
+
+最终 **V 0 / B 0 / S 1**：全量发现 `TestTheEmptyCaptureStaysAheadOfTheTruncationAside` 的源码 pin 钉着 `ui.Text`，实际输出已改为 RichText 但仍取 runOutputFont。按 S 类改为精确匹配 RichText → Font(runOutputFont) 链，并写明旧结构→新结构；其余字体、行高、选择与空态断言不变。没有新增 Skip、放宽容差、删除测试或弱化成非空。
+
+## 最终门槛
+
+中文 locale、`GOMAXPROCS=4` 下：`gofmt -l cmd internal` 空；`go vet ./...` 与 `GOOS=windows/darwin go vet ./...` 净；Linux/Windows/macOS `go build ./...` 通过；普通 `go test -count=1 ./...` 与 verbose 全量均 **3592 PASS / 0 FAIL**。函数数由接续前 **2705** 增至 **2713**（新增 8 个实测回归函数），没有减少测试。最终产品 MD5 `internal/settingsui/settingsui.go` = `750b6422b6b536afc8a07d69c30e5046`。
+
+## 仍待
+
+- 本轮八项全部落地；未变更终端 S1b/S1c/S2 尾、176-9/161-4 保存语义及字号/行盒拍板项。
+- 下轮沿设置输入通用队列，先复现本地工具编辑表单的运行时探测切换与错误恢复；只计真实可见缺陷，不开新系统。
+- shell 的 rescan 测试瞬时 pending 偶发红已记录，后续若处理须固定可控时序，不能通过放宽断言消红。
