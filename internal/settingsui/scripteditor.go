@@ -3,6 +3,7 @@ package settingsui
 import (
 	"github.com/egoist/mygo/ui"
 	"github.com/egoist/mygo/ui/editor"
+	"math"
 
 	"floter/internal/i18n"
 	"floter/internal/scriptlang"
@@ -94,16 +95,16 @@ func (a *App) scriptEditorView(c *ui.Context, copy i18n.Settings, language, scri
 	return e
 }
 
-// scriptLineHeight is the editor's line height as a multiple of the font size
-// that reproduces the old TextArea's `FixedLineHeight(t.Space(2.25))` DIPs: the
-// editor's State.LineHeight is a multiple of the font's size (mygo
-// ui/editor/state.go), while the old fixed height was DIPs outright.
+// P13-hb: the old 9px pitch was smaller than the 10.8px font and overprinted
+// adjacent lines. Keep the editor box fixed while its text uses a readable
+// 1.5 line-height, rounded upward so the rasterizer cannot round below that
+// minimum at fractional font sizes. The editor's outer height is unchanged.
 func scriptLineHeight(t *ui.Theme) float32 {
 	size := t.FontSize
 	if size <= 0 {
 		size = 13
 	}
-	return t.Space(2.25) / size
+	return float32(math.Ceil(float64(size*1.5))) / size
 }
 
 // editorLanguage is the editor's highlighter for a scriptlang id: by the file

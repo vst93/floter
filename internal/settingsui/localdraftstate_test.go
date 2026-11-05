@@ -165,3 +165,43 @@ func TestLocalDraftCopyConfirmationBelongsToTool(t *testing.T) {
 		})
 	}
 }
+
+func TestLocalDraftScriptLinesDoNotOverlap(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			a := localDraftApp()
+			a.toolMode, a.toolScript = routeScript, "// 第一行 FIRST\n// 第二行 SECOND\n// 第三行 THIRD\n// 第四行 FOURTH\n"
+			tt := localDraftFrame(t, a, dark)
+			st := a.scriptEditor.state
+			advance := st.LineTop(1) - st.LineTop(0)
+			localDraftDump(t, tt, "script-lines", dark)
+			if advance < float64(st.Font.Size*1.5) {
+				t.Errorf("script line advance %.2f is below readable %.2f", advance, st.Font.Size*1.5)
+			}
+		})
+	}
+}
+
+func TestLocalDraftCopyConfirmationMatchesCurrentContent(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			a := localDraftApp()
+			a.toolCommand = "weather"
+			tt := localDraftFrame(t, a, dark)
+			copy := a.copy()
+			if err := tt.Click(copy.LocalToolCopyCommand); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			if !tt.HasText(copy.LocalToolCommandCopied) {
+				t.Fatal("copy did not confirm")
+			}
+			a.toolCommand = "forecast"
+			tt.Frame()
+			localDraftDump(t, tt, "changed-content", dark)
+			if tt.HasText(copy.LocalToolCommandCopied) {
+				t.Error("changed content still claims copied")
+			}
+		})
+	}
+}

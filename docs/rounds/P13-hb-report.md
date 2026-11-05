@@ -32,3 +32,8 @@
 4. **另一工具未经复制就显示已复制**：复制第一工具后切到第二工具，按钮仍确认成功 → beginEdit/endEdit 清除旧确认与到期时间 → 深浅两主题新工具都显示可复制标签。原始红串：`new tool inherited copied confirmation`、`completed tool kept copied confirmation`。
 
 第二批相关回归 **21 PASS / 0 FAIL**，V/B/S 0/0/0，旧断言零改。第一批提交 `9e32937d` 已推送。
+
+5. **脚本文字上下重叠**：截图发现字号 10.8px、实际行距仅 8px，中英文行墨互相覆盖 → 编辑器内部改为字号 ×1.5 向上取整（默认 17px），外框高度不动 → 深浅两套 LineTop 与截图确认四行不再重叠。原始红串：`script line advance 8.00 is below readable 16.20`。这是截图发现的真实可读性问题，替换规格中尚未证实的主表单焦点候选；不改变面板高度链。
+6. **修改内容仍声称已复制**：复制 weather 后改成 forecast，按钮仍显示成功 → 确认同时绑定 action 与复制值，值不同立即清除 → 深浅两套旧实现 `changed content still claims copied` 变绿；保持原 1600ms 期限和按钮宽度。
+
+第三批相关回归 **33 PASS / 0 FAIL**，V/B/S 0/0/0。未改旧断言。前两批 `9e32937d`、`5ebc90b6` 均已推送。

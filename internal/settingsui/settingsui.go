@@ -915,6 +915,7 @@ type App struct {
 	// `customContentOperation` plus one `showSuccess` per press).
 	copiedContent      string
 	copiedContentUntil time.Time
+	copiedContentValue string
 	// uninstallOpen is which integrations have the componentized uninstall
 	// dialog open, and uninstallDraft its checkboxes.
 	uninstallOpen  map[string]bool
@@ -5630,6 +5631,9 @@ func scriptExportName(id, command, language string) string {
 // 现在胶囊的地板取两句里**更宽**的那一句（`MeasureText` 画的同一支画笔、同一档
 // 字号与字重），确认语换上时盒子一个像素都不动。
 func (a *App) contentAction(c *ui.Context, action, label, done, value string) {
+	if a.copiedContent == action && a.copiedContentValue != value {
+		a.copiedContent, a.copiedContentValue = "", ""
+	}
 	if strings.TrimSpace(value) == "" {
 		return
 	}
@@ -5646,6 +5650,7 @@ func (a *App) contentAction(c *ui.Context, action, label, done, value string) {
 		if a.Actions.CopyText != nil {
 			a.Actions.CopyText(value)
 			a.copiedContent, a.copiedContentUntil = action, c.Now().Add(copiedContentDuration)
+			a.copiedContentValue = value
 		}
 	}
 }
@@ -7644,6 +7649,7 @@ func (a *App) beginEdit(id string, tool CustomTool) {
 	a.toolOpen = true
 	a.scriptEditor = nil
 	a.copiedContent, a.copiedContentUntil = "", time.Time{}
+	a.copiedContentValue = ""
 	// Editing fills a fresh form, so it gets a fresh toolchain verdict too.
 	a.clearScriptRuntimeCache()
 	a.toolEditing = id
@@ -7683,6 +7689,7 @@ func (a *App) endEdit() {
 	a.clearScriptRuntimeCache()
 	a.scriptEditor = nil
 	a.copiedContent, a.copiedContentUntil = "", time.Time{}
+	a.copiedContentValue = ""
 	a.toolOutput = ""
 	a.toolEditing = ""
 	a.toolAdvanced = false
