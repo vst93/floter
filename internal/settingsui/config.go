@@ -654,6 +654,8 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 			draft.values[field.Key] = selected.value
 		}
 	case "multiselect":
+		// A value has one row and one range position even if a schema repeats it.
+		field.Options = uniqueConfigOptions(field.Options)
 		ticked := map[string]bool{}
 		if values, ok := draft.values[field.Key].([]any); ok {
 			for _, value := range values {
@@ -1065,7 +1067,7 @@ func (a *App) configOptionRow(c *ui.Context, option string, on *bool, changed *b
 	ui.Row(c).FillWidth().AlignItems(ui.Center).Justify(ui.SpaceBetween).
 		Gap(a.cardSpace(t, 2)).MinHeight(a.cardSpace(t, 5)).Children(func() {
 		word := ui.Text(c, option).FontSize(tokens.Body).FontWeight(500).TextColor(tokens.TextSecondary).
-			Grow(1).MinWidth(0)
+			Grow(1).MinWidth(0).SingleLine()
 		if word.Clicked() && !locked {
 			clicked = true
 			mods = word.ClickModifiers()
@@ -1099,6 +1101,18 @@ func tickedToValues(options []string, ticked map[string]bool) []any {
 		}
 	}
 	return out
+}
+
+func uniqueConfigOptions(options []string) []string {
+	seen := make(map[string]bool, len(options))
+	unique := make([]string, 0, len(options))
+	for _, option := range options {
+		if !seen[option] {
+			seen[option] = true
+			unique = append(unique, option)
+		}
+	}
+	return unique
 }
 
 // configListScroll keeps one multiselect list box's offset, so an option list
