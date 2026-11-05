@@ -25,6 +25,6 @@ qiaomu-design SKILL、偏好、craft-loop、preflight、chinese-typography 已�
 
 为什么更轻/更有空间感：移除过期错误行和过期焦点，保留已有三档面与单行字段节奏，让异常提示只在当前约束真的失败时占空间。
 
-基线全量正在实测；tracked Go 测试函数 2773。统一 LC_ALL=zh_CN.UTF-8、GOMAXPROCS=4。轮末 gofmt -l cmd internal 为空，三平台 vet/build，普通与 verbose 两次全量；函数与 PASS 不降。
+基线全量实测 **3764 PASS / 0 FAIL**；tracked Go 测试函数 **2773**。统一 LC_ALL=zh_CN.UTF-8、GOMAXPROCS=4。轮末 gofmt -l cmd internal 为空，三平台 vet/build，普通与 verbose 两次全量；函数与 PASS 不降。
 
 变异计划：M1 去掉改型清理，使旧半输入 pin 红；M2 去掉约束刷新，使旧错误 pin 红；M3 去掉插件消失字段清理，使恢复第一帧 pin 红。实跑、MD5 还原、touch 复跑。ui.Tester 导出 /tmp/floter-P13-hi-状态-dark|light-before|after.png，深浅目视与前后图入库。

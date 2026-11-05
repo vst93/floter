@@ -28,3 +28,8 @@
 4. 文字长度放宽后仍显示超长 → 已有文本按当前长度约束校验 → 2→6 消错、6→3 报错；“工作索引”与焦点保留，输入“索引”恢复。原串：`relaxed text length left a stale error line`。
 
 目视首批深浅图：旧文字字段仍带 `1e` 与数字错误红边；改型后回到中性槽面、下方错误行消失，动作带上移到正确间距。未改字号、行盒与材质。
+
+第二批相关 **28 PASS / 0 FAIL**，提交 ebfcf611 已推送。开盘完整基线实测 **3764 PASS / 0 FAIL / 2773 函数**。
+
+5. 插件文字字段暂时改成开关再恢复，旧未提交草稿仍被保留 → 离开 Text 类型即清草稿，类型进入控件身份 → 深浅变型周期退役 `/workspace/unsent`，恢复后可输入并提交 `/workspace/recovered`。原串：`retired text kind kept its unsent draft for the next text field`。
+6. 插件数字字段改成开关再恢复仍保留 `1e` → 离开 Number 类型即清半输入，恢复读取宿主值 8 → 深浅恢复后可输入并提交 9。原串：`retired number kind kept its half-input for the next number field`。

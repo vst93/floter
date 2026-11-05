@@ -5,6 +5,8 @@ import (
 	"os"
 	"testing"
 
+	"floter/internal/plugincfg"
+	"floter/internal/settings"
 	"github.com/egoist/mygo/ui"
 )
 
@@ -19,6 +21,89 @@ func schemaRefreshDump(t *testing.T, tt *ui.Tester, name string, dark bool) {
 		if err := png.Encode(f, tt.Image()); err != nil {
 			t.Fatal(err)
 		}
+	}
+}
+
+func schemaPluginFrame(t *testing.T, dark bool, sheet *PluginSheet) (*App, *ui.Tester) {
+	t.Helper()
+	s := settings.Default()
+	s.Theme, s.Language = appearanceName(dark), "zh"
+	a := New(settings.NewStore(s), Actions{})
+	sheet.Change = func(key string, value any) { sheet.Values[key] = value }
+	tt := ui.NewTester(func(c *ui.Context) {
+		c.SetTheme(a.tokens(c).Theme)
+		c.Root().Background(c.Theme().Background)
+		a.PluginSheet(c, *sheet)
+	}, 720, 400)
+	tt.SetDark(dark)
+	tt.SetPreferences(ui.Preferences{ReduceMotion: true})
+	tt.Frame()
+	return a, tt
+}
+
+func TestSchemaRefreshPluginTextRetiresOnTypeChange(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			sheet := pluginIdentitySheet()
+			sheet.Schema.Fields = sheet.Schema.Fields[2:]
+			a, tt := schemaPluginFrame(t, dark, &sheet)
+			pluginIdentityFocus(t, tt, "工作目录")
+			tt.Type("/workspace/unsent")
+			tt.Frame()
+			sheet.Schema.Fields[0].Kind = plugincfg.Toggle
+			tt.Frame()
+			_, stale := a.pluginTextDrafts["local.search\x00directory"]
+			sheet.Schema.Fields[0].Kind = plugincfg.Text
+			sheet.Values["directory"] = "/workspace/current"
+			tt.Frame()
+			schemaRefreshDump(t, tt, "plugin-text-type", dark)
+			if stale {
+				t.Error("retired text kind kept its unsent draft for the next text field")
+			}
+			pluginIdentityFocus(t, tt, "工作目录")
+			tt.Type("/workspace/recovered")
+			tt.Key(0, ui.KeyEnter)
+			tt.Frame()
+			if sheet.Values["directory"] != "/workspace/recovered" {
+				t.Error("text field did not recover after type change")
+			}
+		})
+	}
+}
+
+func TestSchemaRefreshPluginNumberRetiresOnTypeChange(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			sheet := PluginSheet{Schema: &plugincfg.Schema{Plugin: "local.search", Title: "搜索配置", Fields: []plugincfg.Field{{Key: "limit", Label: "结果上限", Kind: plugincfg.Number, Min: 0, Max: 100, Unit: "条"}}}, Values: plugincfg.Values{"limit": float64(5)}}
+			a, tt := schemaPluginFrame(t, dark, &sheet)
+			unit := mustFind(t, tt, "条")
+			tt.ClickAt(unit.X-25, unit.Y+unit.H/2)
+			tt.Frame()
+			if !tt.Focused("结果上限") {
+				t.Fatal("number field did not take focus")
+			}
+			tt.Key(ui.Cmd, ui.KeyA)
+			tt.Type("1e")
+			tt.Frame()
+			sheet.Schema.Fields[0].Kind = plugincfg.Toggle
+			tt.Frame()
+			_, stale := a.pluginNumberDrafts["local.search\x00limit"]
+			sheet.Schema.Fields[0].Kind = plugincfg.Number
+			sheet.Values["limit"] = float64(8)
+			tt.Frame()
+			schemaRefreshDump(t, tt, "plugin-number-type", dark)
+			if stale {
+				t.Error("retired number kind kept its half-input for the next number field")
+			}
+			unit = mustFind(t, tt, "条")
+			tt.ClickAt(unit.X-25, unit.Y+unit.H/2)
+			tt.Key(ui.Cmd, ui.KeyA)
+			tt.Type("9")
+			tt.Frame()
+			if sheet.Values["limit"] != float64(9) {
+				t.Error("number field did not recover after type change")
+			}
+		})
 	}
 }
 
