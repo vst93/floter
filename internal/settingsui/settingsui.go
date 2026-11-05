@@ -7121,12 +7121,16 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 				switch param.Kind {
 				case extensions.ParamBoolean:
 					on := truthyValue(values[param.ID])
-					labelClicked := a.row(c, label, sublabel, func() {
-						if a.switchControl(c, &on).Label(label).Changed() {
+					labelClicked := a.rowAligned(c, ui.Center, nil, rowFace{Inert: locked}, label, []rowLine{{Text: sublabel}}, "", func() {
+						sw := a.switchControl(c, &on).Label(label)
+						if locked {
+							lockedControl(sw)
+						}
+						if sw.Changed() && !locked {
 							values[param.ID] = boolValue(on)
 						}
 					}, below...)
-					if labelClicked {
+					if labelClicked && !locked {
 						values[param.ID] = boolValue(!on)
 					}
 				case extensions.ParamSelect:
@@ -7136,8 +7140,12 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 							index = i
 						}
 					}
-					a.row(c, label, sublabel, func() {
-						if a.segmentedControl(c, &index, param.Options...).Changed() &&
+					a.rowAligned(c, ui.Center, nil, rowFace{Inert: locked}, label, []rowLine{{Text: sublabel}}, "", func() {
+						picker := a.segmentedControl(c, &index, param.Options...)
+						if locked {
+							lockedControl(picker)
+						}
+						if picker.Changed() && !locked &&
 							index >= 0 && index < len(param.Options) {
 							values[param.ID] = param.Options[index]
 						}

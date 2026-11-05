@@ -28,6 +28,11 @@
 
 正式 M1 把 runDisabled 恢复成只看 issues，16 场景红；正式 M2 将行锁读数替换为 false，6 场景红。原始串分别同上两项；每次恢复 `md5sum -c` 均 OK（settingsui.go `a4eec1370b22cb5622a559175292a0e5`），touch 后非缓存回归 65 PASS。V/B/S 台账 **0/0/0**，未改旧断言。
 
+3. **布尔参数漏锁**：忙态点开关或标题仍把 false 改成 true，父行浅色 246→220、深色 15→49 → 两入口遵守 rowBusy，控件根禁用、父行 Inert → 深浅 × 两入口保持 false 和静息像素；解锁后一次点击变 true。原始红测：`busy boolean changed through switch` / `busy boolean changed through label`。
+4. **分段参数漏锁**：忙态点击/方向键仍可把 fast 改为 careful，父行也抬升 → 整个分段根禁用，写值与父行都遵守行锁 → 两主题拒绝点击/方向键，解除后正常选择 careful。原始红测：`busy select changed to "careful"`。
+
+第二批相关回归 **73 PASS / 0 FAIL**（`choice-after.log`）。所有旧断言零改动。首批提交 `c6d0d6d6` 已推送；两个相同 orphan 的产品补丁 reverse-check 通过，已创建 `refs/archive/floter/P13-ha/<完整 SHA>` 保存原始报告/图片/测试，再按开盘 ref 1、0 顺序 drop；活动清单回到八条早期 WIP。
+
 ## 设计与验证计划
 
 读取为：面向桌面工具用户的原生参数表单与输出凹槽，轻便液态玻璃。拨盘 2/2/6，保留高度链、键盘、会话、写回与 i18n。三秒内能分清可操作项、错误所属表单和最新输出的开头。
