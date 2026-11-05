@@ -36,4 +36,17 @@
 5. **单选换序后 Space 操作旧位置** → 插件 Radio 将真实 Value 传给原分段控件的身份 → 焦点留在应用、Space 保持 apps；原串 `radio focus moved to a different value after reorder` / `radio Space selected the old position: files`。
 6. **移除聚焦单选后 Space 激活替代项** → 被删 Value 的焦点随元素退役 → 保留有效当前值 files；原串 `removed radio focus activated its replacement: notes`。
 
-未知 Radio 的既有拍板语义未改；两项只修已存在的焦点错配。相关结果随提交登记。
+未知 Radio 的既有拍板语义未改；两项只修已存在的焦点错配。第三批相关 **109 PASS / 0 FAIL**，f9c81c1d 已推送。提交正文遗漏该数，报告补录原始实测。
+
+7. **单选长名撑成 90px 高，邻项也跟着长高** → 原分段文字单行省略 → 原 30u 地板恢复，应用与长名保持同一基线；原串 `long radio label inflated or displaced segments: long={29.8 75.70001 329.30002 90} next={360.9 107.20001 329.30002 27}`。
+8. **多选焦点换序后留在不可见的末项** → 仅位置变化时把聚焦行滚入视口 → 原 0×0 裁切目标重新可见，Space 仍操作文件。原串 `reordered focused option is outside its viewport: {159 442.5 0 0}`。
+
+第二轮图审发现只 reveal checkbox 会切掉比方框更高的中文标签尾部 1.3px，改为 reveal 整行。新 pin 比较修改前自然字高与修改后可见字高，并相对真实字段标签中心检查 66px 视口；撤销最初误把视口固定为 y=20..86 的探针假设，原 0×0 仍必红。
+
+第四批相关回归 **115 PASS / 0 FAIL**；八项产品修复均有深浅原实现失败证据。V/B/S 0/0/0，无旧测试删除/放宽。
+
+## 正式变异
+
+M1：未知值隔离条件强制 false，实跑退出 1，四个深浅场景红：`Enter silently replaced unknown external value: files`、`removed current and highlight silently chose neighbour: notes`。
+
+M2：撤掉逐帧锚点校验，实跑退出 1，深浅两场景红：`reappeared option resurrected its old range: [文件 应用 书签]`。两个注入点分别跑各自测试，恢复后 MD5 与 touch 复跑结果另记。

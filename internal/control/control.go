@@ -153,7 +153,7 @@ func SegmentedIndex(c *ui.Context, tokens theme.Tokens, selected *int, labels []
 			// state is carried by the raised pane and the accent keyline above,
 			// never by dimming the label: an unchosen segment is not muted text.
 			segment.Children(func() {
-				ui.Text(c, label).FontSize(tokens.Emphasis).FontWeight(580).TextColor(tokens.TextStrong)
+				ui.Text(c, label).FontSize(tokens.Emphasis).FontWeight(580).TextColor(tokens.TextStrong).SingleLine()
 			})
 		}
 	})

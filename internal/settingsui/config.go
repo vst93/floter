@@ -681,7 +681,7 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 					index, option := index, option
 					on := ticked[option]
 					boxChanged := false
-					labelClicked, mods := a.configOptionRow(c.Key("config.option."+option), option, &on, &boxChanged, locked)
+					labelClicked, mods := a.configOptionRow(c.Key("config.option."+option), option, &on, &boxChanged, locked, index)
 					if labelClicked {
 						on = !on
 						boxChanged = true
@@ -1065,7 +1065,7 @@ func configListEdgeFace(tokens theme.Tokens, t *ui.Theme) ui.Color {
 // `select[multiple]` does. A locked box refuses every tick, the whole-row
 // `busy` the reference handed the native `select[multiple]`
 // (`disabled={disabled}`, `ExtensionsPanel.tsx:3222,3234`).
-func (a *App) configOptionRow(c *ui.Context, option string, on *bool, changed *bool, locked bool) (bool, ui.Modifiers) {
+func (a *App) configOptionRow(c *ui.Context, option string, on *bool, changed *bool, locked bool, index ...int) (bool, ui.Modifiers) {
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 	clicked := false
@@ -1074,8 +1074,14 @@ func (a *App) configOptionRow(c *ui.Context, option string, on *bool, changed *b
 	if label == "" {
 		label = a.copy().ConfigNone
 	}
-	ui.Row(c).FillWidth().AlignItems(ui.Center).Justify(ui.SpaceBetween).
-		Gap(a.cardSpace(t, 2)).MinHeight(a.cardSpace(t, 5)).Children(func() {
+	row := ui.Row(c).FillWidth().AlignItems(ui.Center).Justify(ui.SpaceBetween).
+		Gap(a.cardSpace(t, 2)).MinHeight(a.cardSpace(t, 5))
+	position := ui.Local(row, "option.position", func() int { return -1 })
+	moved := len(index) > 0 && *position != index[0]
+	if len(index) > 0 {
+		*position = index[0]
+	}
+	row.Children(func() {
 		word := ui.Text(c, label).FontSize(tokens.Body).FontWeight(500).TextColor(tokens.TextSecondary).
 			Grow(1).MinWidth(0).SingleLine()
 		if word.Clicked() && !locked {
@@ -1087,6 +1093,11 @@ func (a *App) configOptionRow(c *ui.Context, option string, on *bool, changed *b
 		box := ui.Checkbox(c, on, "").Label(label)
 		if clicked {
 			box.Focus()
+		}
+		// Reveal a moved keyboard target once. Ordinary wheel scrolling
+		// remains free to move past an unchanged focused option.
+		if moved && box.Focused() {
+			row.ScrollIntoView()
 		}
 		// P13-t：这里曾经在 `locked` 时再挂一次 `Disabled(true)`。列表框自己已经是
 		// `Disabled`（`config.go` 的 multiselect 臂），`IsDisabled` 走祖先链

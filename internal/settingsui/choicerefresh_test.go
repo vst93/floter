@@ -1,6 +1,7 @@
 package settingsui
 
 import (
+	"fmt"
 	"image/png"
 	"os"
 	"strings"
@@ -162,6 +163,59 @@ func TestChoiceRefreshRadioRemovedFocus(t *testing.T) {
 			tt.Frame()
 			if sheet.Values["mode"] != "files" {
 				t.Errorf("removed radio focus activated its replacement: %v", sheet.Values["mode"])
+			}
+		})
+	}
+}
+
+func TestChoiceRefreshRadioLongLabel(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			long := strings.Repeat("工作目录", 30)
+			sheet := selectValueSheet("apps", []plugincfg.Option{{Value: "files", Label: long}, {Value: "apps", Label: "应用"}})
+			sheet.Schema.Fields[0].Kind = plugincfg.Radio
+			tt := pluginIdentityFrame(t, dark, &sheet)
+			choiceRefreshDump(t, tt, "radio-long", dark)
+			r := mustFind(t, tt, long)
+			next := mustFind(t, tt, "应用")
+			if r.H > 30 || next.H > 30 || next.W < 22 || next.X+next.W > 692 {
+				t.Errorf("long radio label inflated or displaced segments: long=%v next=%v", r, next)
+			}
+			if err := tt.Click(long); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			if sheet.Values["mode"] != "files" {
+				t.Errorf("long radio cannot be selected: %v", sheet.Values["mode"])
+			}
+		})
+	}
+}
+
+func TestChoiceRefreshMultiMovedFocusVisible(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			integration := choiceMultiIntegration()
+			for i := 0; i < 15; i++ {
+				integration.Config[0].Options = append(integration.Config[0].Options, fmt.Sprintf("来源 %02d", i))
+			}
+			a, tt := configIdentityFrame(t, dark, &integration)
+			choiceMultiFocus(t, tt, "文件")
+			natural := mustFind(t, tt, "文件")
+			options := integration.Config[0].Options
+			integration.Config[0].Options = append(append([]string{}, options[1:]...), "文件")
+			tt.Frame()
+			choiceRefreshDump(t, tt, "multi-moved-focus", dark)
+			r := mustFind(t, tt, "文件")
+			label := mustFind(t, tt, "搜索来源")
+			center := label.Y + label.H/2
+			if r.H != natural.H || r.Y < center-33 || r.Y+r.H > center+33 {
+				t.Errorf("reordered focused option is outside its viewport: %v", r)
+			}
+			tt.Key(0, ui.KeySpace)
+			tt.Frame()
+			if got := a.draft(integration).values["sources"]; !configValuesEqual(got, nil) {
+				t.Errorf("moved focus changed another value: %v", got)
 			}
 		})
 	}
