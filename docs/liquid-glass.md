@@ -7177,3 +7177,56 @@ R91 的前半句是「窗口属于它的内容」，后半句一直没落地：`
 | # | 位置 | 现状（旧） | 应改成（新） | 状态 |
 |---|---|---|---|---|
 | 174-1 | `pinned` / `PinText` | 便条结构里没有字族字段，正文画在 UI 的默认字上 | `newPinned` 记下 `NormalizeFontFamily(settings.FontFamily)`，正文 `.Font(state.family)`；空白设置回落 `monospace` | `已落地` |
+
+## §6.175 一个指针答案，一个速度（P13-gy）
+
+§5 第一行只给一个速度（`theme.ColorStep` = 120ms，参考的 `--dur-2`），而
+`internal/ci/colorstep_contract_test.go` 的账本此前只记到 **13 处**。这一轮把剩下
+**九处**收进来——它们都在**指针落下的那一帧**直接跳到答案（`f0 == f400`）：
+
+| # | 位置 | 现状（旧） | 应改成（新） | 状态 |
+|---|---|---|---|---|
+| 175-1 | `settingsui/pluginsheet.go` `sheetActionButton` | 弹层胶囊一帧跳到悬停面 | `Transition{Colors: true, Duration: theme.ColorStep}` | `已落地` |
+| 175-2 | `settingsui/rows.go` `sessionIconButton` | 会话行那枚 28u 小格一帧跳 | 同上 | `已落地` |
+| 175-3 | `settingsui/rows.go` `sessionKillConfirm` | 暖色问句药丸一帧跳（同族的电源确认键走 120ms） | 同上 | `已落地` |
+| 175-4 | `settingsui/settingsui.go` `shortcutRecorder` | 录制钮的三个 rung 只换面、一帧到站 | 同上 | `已落地` |
+| 175-5 | `settingsui/settingsui.go` `runOutputToggle` | 运行输出折叠行一帧跳 | 同上 | `已落地` |
+| 175-6 | `shell/detach.go` `barButton` | 捕获输出窗口条子上的 Rerun / Close 一帧跳 | 同上 | `已落地` |
+| 175-7 | `shell/notices.go` toast 动作 chip | 浮层里一帧跳 | 同上 | `已落地` |
+| 175-8 | `shell/notices.go` toast ✕ | 同一块浮面上两个控件两种速度 | 同上 | `已落地` |
+| 175-9 | `shell/pinned.go` 便条的 Close | 与 175-6 同一根条子、同一个键 | 同上 | `已落地` |
+| 175-10 | `internal/ci/colorstep_contract_test.go` 账本 | 7 个文件 / 13 处 | **旧值 13 → 新值 22**，按文件钉死（新增一处即红）：`pluginsheet 1 / rows 6 / settingsui 4 / detach 1 / notices 2 / pinned 1` | `已落地` |
+
+**动态证据**（`internal/shell/pointerstep_test.go` / `internal/settingsui/pointerstep_test.go`，
+每个面深浅两套；条子键读键盒左 padding 带、盒中线偏上两行；toast 读**同一行盒内与盒外之差**，
+把浮面自己的 alpha 斜坡抵掉）：
+
+| 面 | 浅 rest → f0 → 落定 | 深 rest → f0 → 落定 |
+|---|---|---|
+| 捕获窗口 Rerun / Close、便条 Close（同一 `barButton`） | 246114 → 246114 → 220114 | 20228 → 20228 → 53228 |
+| toast ✕ | 0 → 0 → −26114 | 0 → 0 → 32886 |
+| toast 动作 chip | −14000 → −14000 → −21114 | −14000 → −14000 → −21114 |
+| 弹层胶囊（逐字节比） | rest→f0 相同，rest→落定 不同 | 同 |
+| 会话 28u 小格 | 742 → 742 → 664 | 44 → 44 → 146 |
+| 杀掉会话的暖色问句 | 695 → 695 → 664 | 102 → 102 → 147 |
+| 快捷键录制钮 | 690 → 690 → 664 | 118 → 118 → 146 |
+
+**这轮的变异**（注入 → 看到红 → `md5sum -c` 逐字节还原 → `touch` 复跑）：
+
+- M1 把 `sessionIconButton` 的 `Transition` 整条删掉（= 改前的实现）：`pointerstep_test.go:142`
+  红——`light: 742 → 664 (-78)` / `dark: 44 → 146 (+102)`，同时 `internal/ci` 的账本
+  `rows.go: 5 colour transitions, want 6` 红。
+- M2 把 toast ✕ 的 `Transition` 删掉：`light: 0 → -26114 (-26114)` / `dark: 0 → 32886` 红。
+- M3 把 `Duration` 写成 `0`（`sessionIconButton`）：账本红（`want 6` → 5 处匹配不到常量），
+  而**动态** pin 仍绿——这条是量出来的事实：**「f0 还是静息面」不能区分 0ms 与 120ms**
+  （框架在指针落下的那一帧先画静息、次帧才起算），能区分的是「有没有这一档」。
+  所以这一族 pin 的两半各守一件事：① 守「不是一帧跳过去」，② 守「它真的回答了指针」。
+- 顺带：这条改动让**探针的取样时机**必须改——`litpair_census_test.go` 的 `litFrame`、
+  `sessionrow_test.go` 的问句、`notices_test.go` 与 `pressure`/`pluginwindowbar` 那一族
+  在指针落下就读面，改前读得到只因为它们**一帧跳过去**。数值一个没改，改的是取样时机
+  （`tt.Advance(300ms)`）。
+
+**为什么更轻、更有空间感**：不是加面，是让**同一个指针动作在整个应用里只讲一个速度**。
+面差仍然由 §1 的三档说，这一轮只把「面怎么从一档走到另一档」对齐——轻，是因为反馈
+不再有生硬的瞬移；有空间感，是因为每一枚面都有同一段过渡时间，读者读到的是「一片面在动」，
+不是「一个像素被替换」。
