@@ -40,3 +40,10 @@
 6. **危险动作图标掉语义色**：确认文字用 Warning，前导确认图标却是默认文字墨（图标区暖色像素 0）→ 图标与标签同取 ink → 深浅都能测到 Warning 图标，禁用仍只淡一次。
 
 开工全量基线已完成：**3530 PASS / 0 FAIL / 2697 测试函数**。最早一遍误用 C locale 的测试已停止，不拿它计基线；中文 locale 完整通过。
+
+第三批定向 **16 PASS / 0 FAIL**，提交 `8d1d072e` 已推送。
+
+7. **命令开关漏锁**：卸载进行中命令开关仍派发 1 次写入 → 复用同行 rowBusy + disabledSwitch → 忙态 0 次写入，解锁后 1 次，开关仍显示原开关状态。原始失败：`busy command switch dispatched 1 writes`。
+8. **命令别名漏锁**：复检中别名仍获焦并把 search 写入 debounce 队列 → 使用 rowBusy 锁输入，建面时传 !locked → 不获焦、不生成新草稿、Flush 不派发；解锁后输入正常保存。原始失败：`busy command alias accepted editing: focused=true pending=map[tool\x00scan:{tool scan search}]`。
+
+截至第四批，旧测试断言没有改动，V/B/S 为 0/0/0。8 项跨会话行、集成动作行、命令编辑区、卸载确认组件；未增加页面、依赖或系统。

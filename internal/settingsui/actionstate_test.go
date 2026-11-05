@@ -215,3 +215,83 @@ func TestUninstallDangerIconKeepsWarningInk(t *testing.T) {
 		}
 	}
 }
+
+func commandLockFrame(t *testing.T, dark bool, a *App, command Command) *ui.Tester {
+	t.Helper()
+	tt := ui.NewTester(func(c *ui.Context) {
+		c.SetTheme(a.tokens(c).Theme)
+		c.Root().Background(realPageGround(t, dark))
+		ui.Column(c).Width(500).Padding(20).Children(func() {
+			a.extensionMetrics(func() {
+				a.commandIdentity(c, i18n.For("en").Settings, "tool", command)
+				a.commandAliasEditor(c, i18n.For("en").Settings, "tool", command)
+			})
+		})
+	}, 540, 200)
+	tt.SetDark(dark)
+	tt.SetPreferences(ui.Preferences{ReduceMotion: true})
+	tt.Frame()
+	tt.Frame()
+	return tt
+}
+
+func TestCommandEnableHonorsTheRowLock(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		calls := 0
+		a := New(newStore(t), Actions{SetCommandEnabled: func(string, string, bool) { calls++ }})
+		a.uninstallBusy = map[string]bool{"tool": true}
+		tt := commandLockFrame(t, dark, a, Command{ID: "scan", Name: "Scan", Enabled: true})
+		label := i18n.For("en").Settings.IntegrationsCommandEnable("Scan")
+		if err := tt.Click(label); err != nil {
+			t.Fatal(err)
+		}
+		tt.Frame()
+		if calls != 0 {
+			t.Errorf("busy command switch dispatched %d writes", calls)
+		}
+		actionStateDump(t, tt, "command", dark)
+		a.uninstallBusy["tool"] = false
+		tt.Frame()
+		if err := tt.Click(label); err != nil {
+			t.Fatal(err)
+		}
+		tt.Frame()
+		if calls != 1 {
+			t.Errorf("unlocked command switch writes=%d, want 1", calls)
+		}
+	}
+}
+
+func TestCommandAliasHonorsTheRowLock(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		calls := 0
+		a := New(newStore(t), Actions{SetCommandAlias: func(string, string, string) { calls++ }})
+		a.repairBusy = map[string]bool{"tool": true}
+		tt := commandLockFrame(t, dark, a, Command{ID: "scan", Name: "Scan", Enabled: true})
+		label := i18n.For("en").Settings.IntegrationsCommandAliasFor("Scan")
+		if err := tt.Click(label); err != nil {
+			t.Fatal(err)
+		}
+		tt.Type("search")
+		tt.Frame()
+		if tt.Focused(label) || len(a.pendingAliases) != 0 {
+			t.Errorf("busy command alias accepted editing: focused=%v pending=%v", tt.Focused(label), a.pendingAliases)
+		}
+		a.Flush()
+		if calls != 0 {
+			t.Errorf("busy command alias dispatched %d writes", calls)
+		}
+		actionStateDump(t, tt, "alias", dark)
+		a.repairBusy["tool"] = false
+		tt.Frame()
+		if err := tt.Click(label); err != nil {
+			t.Fatal(err)
+		}
+		tt.Type("go")
+		tt.Frame()
+		a.Flush()
+		if calls != 1 {
+			t.Errorf("unlocked command alias writes=%d, want 1", calls)
+		}
+	}
+}

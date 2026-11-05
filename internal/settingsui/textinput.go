@@ -179,6 +179,11 @@ func (a *App) extensionFieldLit(c *ui.Context, value *string, m extensionFieldMe
 // `extensionField` pins its fields, so the alias keeps one box at every
 // interface step and does not follow the settings pages' `--u`.
 func (a *App) aliasField(c *ui.Context, value *string) ui.Element {
+	return a.aliasFieldLit(c, value, true)
+}
+
+// aliasFieldLit chooses the material before the row lock dims the control.
+func (a *App) aliasFieldLit(c *ui.Context, value *string, lit bool) ui.Element {
 	e := ui.TextInput(c, value)
 	tokens := a.tokens(c)
 	if a.cardUnit > 0 {
@@ -200,5 +205,5 @@ func (a *App) aliasField(c *ui.Context, value *string) ui.Element {
 	//
 	// P13-cc（§6.46）：材质不再在这里拼——它走 `fieldFaceEdge`，外圈那一个合法差
 	// 作为参数传进去。像素零改动（同一个面、同一对线、同一条 `Hairline`）。
-	return a.fieldFaceEdge(c, e, true, tokens.Hairline)
+	return a.fieldFaceEdge(c, e, lit, tokens.Hairline)
 }

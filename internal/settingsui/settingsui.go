@@ -3409,6 +3409,7 @@ func (a *App) commandPlate(c *ui.Context, copy i18n.Settings, extensionID string
 func (a *App) commandIdentity(c *ui.Context, copy i18n.Settings, extensionID string, command Command) {
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
+	locked := a.rowBusy(extensionID)
 	on := command.Enabled
 	toggled := false
 	name := command.Name
@@ -3451,8 +3452,12 @@ func (a *App) commandIdentity(c *ui.Context, copy i18n.Settings, extensionID str
 		// `align-items: flex-start` + `margin-top: 2px`). Its own click is the
 		// toggle — never the whole line's, or the label would toggle too and
 		// the two would cancel.
-		if a.switchControl(c, &on).Label(copy.IntegrationsCommandEnable(name)).
-			Margin(t.Space(0.5), 0, 0, 0).Changed() {
+		switcher := a.switchControl(c, &on).Label(copy.IntegrationsCommandEnable(name)).
+			Margin(t.Space(0.5), 0, 0, 0)
+		if locked {
+			switcher = disabledSwitch(switcher)
+		}
+		if switcher.Changed() && !locked {
 			toggled = true
 		}
 	})
@@ -3470,6 +3475,7 @@ func (a *App) commandIdentity(c *ui.Context, copy i18n.Settings, extensionID str
 func (a *App) commandAliasEditor(c *ui.Context, copy i18n.Settings, extensionID string, command Command) {
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
+	locked := a.rowBusy(extensionID)
 	ui.Column(c).FillWidth().Gap(t.Space(0.5)).Children(func() {
 		ui.Text(c, copy.IntegrationsCommandAlias).FontSize(tokens.Caption).TextColor(t.TextMuted)
 		alias := command.Alias
@@ -3477,8 +3483,12 @@ func (a *App) commandAliasEditor(c *ui.Context, copy i18n.Settings, extensionID 
 		if name == "" {
 			name = command.ID
 		}
-		if a.aliasField(c, &alias).Placeholder(copy.IntegrationsCommandAliasPlaceholder).
-			Label(copy.IntegrationsCommandAliasFor(name)).FillWidth().Changed() &&
+		input := a.aliasFieldLit(c, &alias, !locked).Placeholder(copy.IntegrationsCommandAliasPlaceholder).
+			Label(copy.IntegrationsCommandAliasFor(name)).FillWidth()
+		if locked {
+			input = lockedControl(input)
+		}
+		if input.Changed() && !locked &&
 			a.Actions.SetCommandAlias != nil {
 			a.debounceAlias(extensionID, command.ID, alias)
 		}
