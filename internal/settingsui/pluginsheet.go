@@ -249,6 +249,8 @@ func (a *App) sheetSection(c *ui.Context, sheet PluginSheet, section plugincfg.S
 
 // sheetField draws one field with the control its kind names.
 func (a *App) sheetField(c *ui.Context, sheet PluginSheet, field plugincfg.Field) {
+	// Field state follows its plugin and schema key, never its sibling index.
+	c = c.Key("plugin.field." + sheet.Schema.Plugin + "\x00" + field.Key)
 	// P13-gu：没有标签的字段回落到它的 key，与集成配置表单同一条规则
 	// (`config.go` 的 `configField`：`if label == "" { label = field.Key }`)。
 	// `Label` 是 schema 里的自由文本，空串合法：此前浮层给这种字段画一格

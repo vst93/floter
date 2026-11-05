@@ -27,4 +27,9 @@
 3. **换集成后 Undo 恢复上一集成路径**：编辑 search 后切到 notes，撤销得到 `/workspace/search` → 表单以现有 draft 对象区分控件历史 → notes 保持 `/workspace/notes`，自己的后续编辑仍可撤销。原始红串 `integration inherited another undo history: /workspace/search`。
 4. **schema 新字段显示空值**：已有草稿刷新 schema，新增结果上限与服务地址没有读取默认 25 与已保存地址 → 仅初始化缺失 key，并同步该字段 baseline → 显示 25 与 `https://localhost:8080`，旧路径编辑保留；键入无效 `1e` 后不会被默认值覆盖。原始红串 `new schema fields lost their initial values: map[directory:/workspace/edited]`。
 
-第二批相关回归结果见提交前原始日志 `/tmp/floter-P13-hd/batch2-after.log`。V/B/S 0/0/0，旧断言零改。候选「关闭后隔帧重开继承撤销」原实现通过，未计入八项。首批 ae79c5f3 已推送。
+第二批相关回归 **42 PASS / 0 FAIL**，原始日志 `/tmp/floter-P13-hd/batch2-after.log`。V/B/S 0/0/0，旧断言零改。候选「关闭后隔帧重开继承撤销」原实现通过，未计入八项。首批 ae79c5f3 已推送。
+
+5. **插件字段换序丢失未提交文本**：目录键入 `/workspace/edited` 后换序，Enter 仍留下 `/workspace/search` → 字段使用自己的 schema key → 深浅均将原编辑提交到 directory，endpoint 不变。原始红串 `plugin reorder lost or misdirected edit: map[directory:/workspace/search enabled:true endpoint:https://localhost]`。
+6. **插件 Undo 带回另一插件的路径**：从搜索切便条后撤销恢复搜索路径 → 字段身份同时包含插件 ID → 便条保持自身值，便条自己的后续编辑仍能撤销。原始红串 `plugin inherited another undo history: /workspace/search`。
+
+第三批两项深浅 before/after 已导出，旧断言零改。第二批 6f717a67 已推送。插件相关回归通过，计数在本批提交中记录。
