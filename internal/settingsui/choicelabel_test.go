@@ -95,3 +95,15 @@ func TestChoiceIdentityUnlabelledSelect(t *testing.T) {
 		t.Run(appearanceName(dark), func(t *testing.T) { choiceUnlabelledOption(t, plugincfg.Select, dark) })
 	}
 }
+
+func TestChoiceIdentityUnlabelledRadio(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) { choiceUnlabelledOption(t, plugincfg.Radio, dark) })
+	}
+}
+
+func TestChoiceIdentityUnlabelledCheckboxes(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) { choiceUnlabelledOption(t, plugincfg.Checkboxes, dark) })
+	}
+}

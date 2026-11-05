@@ -323,7 +323,7 @@ func (a *App) sheetRadio(c *ui.Context, sheet PluginSheet, field plugincfg.Field
 	labels := make([]string, len(field.Options))
 	index := 0
 	for i, option := range field.Options {
-		labels[i] = option.Label
+		labels[i] = pluginOptionLabel(option)
 		if option.Value == current {
 			index = i
 		}
@@ -360,7 +360,7 @@ func (a *App) sheetCheckboxes(c *ui.Context, sheet PluginSheet, field plugincfg.
 			for i, option := range field.Options {
 				i, option := i, option
 				checked := on[i]
-				if ui.Checkbox(c.Key("plugin.option."+option.Value), &checked, option.Label).Changed() {
+				if ui.Checkbox(c.Key("plugin.option."+option.Value), &checked, pluginOptionLabel(option)).Changed() {
 					on[i] = checked
 					pressed = i
 				}

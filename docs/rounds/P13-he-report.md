@@ -35,3 +35,10 @@
 
 5. **未知保存值伪装成第一项**：保存的是 bookmarks，触发器却显示文件 → choose 只在 ID 匹配时取标签，缺失时显示原值 → 深浅均显示 bookmarks，点击文件后写回 files。原始红串 `unknown stored option is displayed as the first choice: ["搜索配置" "搜索方式" "搜索方式" "文件"]`。
 6. **插件下拉的空标签成为空白项**：有 Value=files、Label 为空时，触发器与菜单没有名字 → 显示回落到 Value → 深浅可见 files，应用→files 两次选择均写回对应 ID。原始红串 `select option with empty label has no visible name`。
+
+第三批相关回归 **35 PASS / 0 FAIL**，`12638064` 已推送。前后图已目视：浅色触发器从错误的「文件」变为 bookmarks；深色空白触发器出现 files，胶囊、箭头与原材质位置保持。
+
+7. **插件单选分段留下无名选择**：空标签画出能选中却没有名称的分段 → Radio 标签共用 Value 回退 → 深浅可见 files，应用→files 切换分别提交 apps/files。原始红串 `radio option with empty label has no visible name`。
+8. **插件复选框只剩无名方框**：空标签仅画方框，不知道它控制什么 → Checkbox 标签共用 Value 回退 → 深浅可见 files，点击清除再点击选中都写回原 ID。原始红串 `checkboxes option with empty label has no visible name`。
+
+第四批八项及旧选择相关回归 **43 PASS / 0 FAIL**，internal/ci 通过；旧断言全部零改，V/B/S 0/0/0。八项跨集成多选、插件多选、下拉与分段控件。单选未知值的旧夹取规则继续留在拍板队列。

@@ -63,7 +63,7 @@ func TestChoiceIdentityMultiFocusFollowsOption(t *testing.T) {
 	for _, dark := range []bool{false, true} {
 		t.Run(appearanceName(dark), func(t *testing.T) {
 			integration := choiceMultiIntegration()
-			_, tt := configIdentityFrame(t, dark, &integration)
+			a, tt := configIdentityFrame(t, dark, &integration)
 			choiceMultiFocus(t, tt, "文件")
 			integration.Config[0].Options = []string{"应用", "文件", "书签"}
 			tt.Frame()
@@ -73,6 +73,9 @@ func TestChoiceIdentityMultiFocusFollowsOption(t *testing.T) {
 			tt.Key(0, ui.KeySpace)
 			tt.Frame()
 			choiceIdentityDump(t, tt, "multi-focus", dark)
+			if got := a.draft(integration).values["sources"]; !configValuesEqual(got, nil) {
+				t.Errorf("reordered checkbox keyboard changed another option: %v", got)
+			}
 		})
 	}
 }
