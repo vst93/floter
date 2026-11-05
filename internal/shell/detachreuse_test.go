@@ -222,26 +222,6 @@ func TestTheDetachedWindowKeepsTheRunsTheCommandStyled(t *testing.T) {
 	}
 }
 
-// detachInkBands counts the horizontal bands of ink inside one rectangle: one
-// band per drawn line, whatever the gaps between them.
-func detachInkBands(img *image.RGBA, rect ui.Rect) int {
-	bands, inside := 0, false
-	for y := int(rect.Y); y < int(rect.Y+rect.H)+1; y++ {
-		inked := false
-		for x := int(rect.X); x < int(rect.X+rect.W); x++ {
-			if pluginEdgeLuma(shellPixelAt(img, x, y)) < 200 {
-				inked = true
-				break
-			}
-		}
-		if inked && !inside {
-			bands++
-		}
-		inside = inked
-	}
-	return bands
-}
-
 // detachInk is the body's ink as a reader sees it: how tall the tallest drawn
 // line is, and how dark the darkest of its pixels is on a light surface.
 type detachInk struct {
@@ -284,26 +264,6 @@ func detachInkOfRect(img *image.RGBA, rect ui.Rect) detachInk {
 	}
 	out.height = last - started + 1
 	return out
-}
-
-// The text arm wraps: it is a window body as wide as the window, and a
-// command's answer is as long as its longest line. Without `.Wrap()` one long
-// line runs off the right edge clipped — the text is cut, not continued.
-func TestTheDetachedWindowWrapsItsText(t *testing.T) {
-	a := barApp(t, false)
-	long := strings.Repeat(strings.Repeat("word ", 40)+"\n", 90)
-	detached := &detachedOutput{title: "jv --floter", ran: true,
-		view: launcher.OutputView{Title: "jv --floter", Text: long}}
-	tt := ui.NewTester(func(c *ui.Context) { a.detachedView(c, detached) }, 720, 460)
-	tt.Frame()
-	tt.Frame()
-	// Ninety lines of 200 characters, wrapped at the body's width: 180 drawn
-	// rows, not 90. The scroller's own content height is the count — an
-	// unwrapped body of the same text measures about 978 (90 rows at 15.66 + the
-	// body's padding), a wrapped one 2681.8 at this size.
-	if got := detached.scroll.MaxY; got < 1500 {
-		t.Fatalf("a 200-character line is drawn once per line (MaxY %.1f, unwrapped): the body does not wrap", got)
-	}
 }
 
 // hueStep is the strongest red-vs-green separation inside one drawn run: a

@@ -658,17 +658,15 @@ func detachedText(c *ui.Context, detached *detachedOutput, tokens theme.Tokens, 
 	// same characters with every sequence stripped, so a coloured `ls` or diff
 	// arrived here in one flat ink. The plain case is one unstyled span over the
 	// same `TextSecondary`, so a command that asked for nothing is unchanged.
-	// P13-gw · `.Wrap()` is not optional here. `RichText` does not wrap by
-	// default (the panel's own body sits inside a scroller that measures its
-	// width for it, but a window body is as wide as the window): without it one
-	// long line of `ls -l` runs off the right edge clipped and never a second
-	// row, and `MaxY` stays zero on a body far taller than the window. Measured
-	// in this window at 720×460: 40 words of one line = **9 ink rows, MaxY 0**
-	// without it, against the wrapped body below.
+	//
+	// P13-gw · no `.Wrap()` is needed: a text node wraps by default in this
+	// framework (`.NoWrap()` is the opt-out, `ui/layout.go:200`). Measured on
+	// this window at 720×460: 90 lines of 200 characters measure `MaxY` 2681.8
+	// with and without the call, byte identical.
 	return ui.RichText(c, detached.view.TextSpans(tokens.Appearance, tokens.TextSecondary, tokens.Body)...).
 		Font(detached.view.FontFamily).
 		FontSize(tokens.Body).LineHeight(1.45).
-		TextColor(tokens.TextSecondary).Wrap().Selectable()
+		TextColor(tokens.TextSecondary).Selectable()
 }
 
 // detachSelectionSettle is how long a selection has to stay unchanged before
