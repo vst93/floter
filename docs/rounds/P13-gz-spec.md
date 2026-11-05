@@ -23,7 +23,7 @@
 
 ## 验证
 
-统一 `LC_ALL=zh_CN.UTF-8`（AGENT-NOTES 的字体环境约束）。当前基线正在实跑，数字完成后录入报告。每 1–2 项运行对应回归验证并提交推送；最终一次完整门槛：gofmt 空、三平台 vet、全量非缓存测试及 PASS 计数、三平台 build。测试函数数开工实测 2697。
+统一 `LC_ALL=zh_CN.UTF-8`（AGENT-NOTES 的字体环境约束）。开工实测 **3530 PASS / 0 FAIL / 2697 测试函数**。每 1–2 项运行对应回归验证并提交推送；最终一次完整门槛：gofmt 空、三平台 vet、全量非缓存测试及 PASS 计数、三平台 build。
 
 新增判据必须能在旧产品上变红；至少两条 mutation 用备份注入旧实现，实跑红、恢复、md5sum -c、touch 再跑。ui.Tester 导出深浅 before/after 到 `/tmp/floter-P13-gz-*` 并入轮次证据目录。
 

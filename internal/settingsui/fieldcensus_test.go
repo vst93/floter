@@ -28,7 +28,7 @@ var fieldFaceOwners = []string{
 	"configSelect",         // 设置页的下拉框
 	"configMultiselectBox", // 设置页的多选箱
 	"sheetFieldSlot",       // 弹层的字段槽
-	"aliasField",           // 命令别名编辑器
+	"aliasFieldLit",        // P13-gz S：aliasField → 带禁用材质参数的 aliasFieldLit
 }
 
 // TestEveryFieldFaceIsDecidedInOnePlace pins the routing.
@@ -79,6 +79,10 @@ func TestEveryFieldFaceIsDecidedInOnePlace(t *testing.T) {
 	// The two material functions themselves, so the routing above cannot be
 	// satisfied by an empty shell: the shell keeps the family's edge, the edge
 	// variant keeps both arms.
+	// P13-gz S：旧入口现在转交状态参数；两段路由都要守，不能只改表中名字。
+	if !strings.Contains(bodies["aliasField"], "return a.aliasFieldLit(c, value, true)") {
+		t.Error("aliasField no longer delegates its enabled face to aliasFieldLit")
+	}
 	if !strings.Contains(bodies["fieldFace"], "a.fieldFaceEdge(") ||
 		!strings.Contains(bodies["fieldFace"], ".ControlEdge") {
 		t.Error("fieldFace no longer routes the family's own edge into fieldFaceEdge")
