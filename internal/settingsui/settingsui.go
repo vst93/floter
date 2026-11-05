@@ -7643,6 +7643,7 @@ func paramIssueMessage(copy i18n.Settings, issue extensions.ParamRowIssue) strin
 func (a *App) beginEdit(id string, tool CustomTool) {
 	a.toolOpen = true
 	a.scriptEditor = nil
+	a.copiedContent, a.copiedContentUntil = "", time.Time{}
 	// Editing fills a fresh form, so it gets a fresh toolchain verdict too.
 	a.clearScriptRuntimeCache()
 	a.toolEditing = id
@@ -7681,6 +7682,8 @@ func (a *App) beginEdit(id string, tool CustomTool) {
 func (a *App) endEdit() {
 	a.clearScriptRuntimeCache()
 	a.scriptEditor = nil
+	a.copiedContent, a.copiedContentUntil = "", time.Time{}
+	a.toolOutput = ""
 	a.toolEditing = ""
 	a.toolAdvanced = false
 	a.toolIssue = false

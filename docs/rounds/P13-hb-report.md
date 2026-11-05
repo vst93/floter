@@ -27,3 +27,8 @@
 首批 V/B/S = 0/0/0，旧测试零改。红测日志 `/tmp/floter-P13-hb-pair1-before.log`，通过日志 `pair1-after.log`。深浅截图已通过 ui.Tester 导出，图上可见脚本编辑器从 9 行模板回到仅第 1 行空稿；完整尺寸和错误验证保留。
 
 首批定向回归 **24 PASS / 0 FAIL**；internal/ci 通过。旧 copy/export 回归曾发现点击切换到 Script 的同帧未初始化模板，已将一次初始化归到 editor 创建路径修复，未改旧断言。
+
+3. **新建工具继承后台输出**：上一工具选后台输出并完成后，新表单仍选后台 → endEdit 清除 toolOutput → 旧工具收到 background，新表单恢复终端默认。原始红串：`fresh connection inherited output "background"`。
+4. **另一工具未经复制就显示已复制**：复制第一工具后切到第二工具，按钮仍确认成功 → beginEdit/endEdit 清除旧确认与到期时间 → 深浅两主题新工具都显示可复制标签。原始红串：`new tool inherited copied confirmation`、`completed tool kept copied confirmation`。
+
+第二批相关回归 **21 PASS / 0 FAIL**，V/B/S 0/0/0，旧断言零改。第一批提交 `9e32937d` 已推送。

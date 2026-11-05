@@ -113,3 +113,55 @@ func TestLocalDraftNewToolHasItsOwnUndoHistory(t *testing.T) {
 		t.Errorf("undo escaped current tool: %q", a.toolScript)
 	}
 }
+
+func TestLocalDraftNewConnectionDefaultsToTerminal(t *testing.T) {
+	a := localDraftApp()
+	a.toolName, a.toolProgram, a.toolCommand = "Weather", "/bin/weather", "weather"
+	a.toolOutput = routeBackground
+	var got CustomTool
+	a.Actions.ConnectLocalTool = func(tool CustomTool) { got = tool }
+	tt := localDraftFrame(t, a, true)
+	if err := tt.Click(a.copy().LocalToolConnect); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if got.Output != routeBackground {
+		t.Fatalf("submitted output=%q", got.Output)
+	}
+	if err := tt.Click(a.copy().LocalToolAdd); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if a.toolOutput != "" {
+		t.Errorf("fresh connection inherited output %q", a.toolOutput)
+	}
+}
+
+func TestLocalDraftCopyConfirmationBelongsToTool(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			a := localDraftApp()
+			tool := CustomTool{Name: "Weather", Program: "/bin/weather", Command: "weather"}
+			a.beginEdit("first", tool)
+			tt := localDraftFrame(t, a, dark)
+			copy := a.copy()
+			if err := tt.Click(copy.LocalToolCopyCommand); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			if !tt.HasText(copy.LocalToolCommandCopied) {
+				t.Fatal("copy did not confirm")
+			}
+			a.beginEdit("second", tool)
+			tt.Frame()
+			localDraftDump(t, tt, "new-tool-copy", dark)
+			if tt.HasText(copy.LocalToolCommandCopied) {
+				t.Error("new tool inherited copied confirmation")
+			}
+			a.endEdit()
+			if a.copiedContent != "" {
+				t.Error("completed tool kept copied confirmation")
+			}
+		})
+	}
+}
