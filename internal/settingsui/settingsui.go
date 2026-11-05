@@ -5350,7 +5350,7 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 					}
 				})
 			}
-			a.row(c, copy.LocalToolCommand, copy.LocalToolCommandHint, func() {
+			a.row(c.Key("local-command"), copy.LocalToolCommand, copy.LocalToolCommandHint, func() {
 				a.extensionField(c, &command, customFieldMetrics).Label(copy.LocalToolCommand).Width(160).Placeholder("rg")
 			}, func() {
 				a.toolIssueUnder(c, copy, issues, extensions.CustomFieldCommand)
@@ -5363,7 +5363,7 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 					a.extensionField(c, &versionArgs, customFieldMetrics).Label(copy.LocalToolVersionArgs).Width(160).Placeholder("--version")
 				})
 			}
-			a.row(c, copy.LocalToolVersion, copy.LocalToolVersionHint, func() {
+			a.row(c.Key("local-version"), copy.LocalToolVersion, copy.LocalToolVersionHint, func() {
 				a.extensionField(c, &version, customFieldMetrics).Label(copy.LocalToolVersion).Width(120).Placeholder("0.0.1")
 			}, func() {
 				a.toolIssueUnder(c, copy, issues, extensions.CustomFieldVersion)
