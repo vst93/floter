@@ -104,3 +104,63 @@ func TestSessionReadOnlyTitleDoesNotInviteActivation(t *testing.T) {
 		}
 	}
 }
+
+func TestToolConfigurationEntryHonorsTheRowLock(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		calls := 0
+		a := New(newStore(t), Actions{OpenConfiguration: func(string, []string) { calls++ }})
+		a.repairBusy = map[string]bool{"tool": true}
+		copy := i18n.For("en").Settings
+		integration := Integration{ID: "tool", ConfigOpenCommand: []string{"tool", "config"}}
+		tt := ui.NewTester(func(c *ui.Context) {
+			c.SetTheme(a.tokens(c).Theme)
+			ui.Column(c).Padding(20).Children(func() { a.card(c, func() { a.configOpenToolRow(c, copy, integration) }) })
+		}, 720, 160)
+		tt.SetDark(dark)
+		tt.SetPreferences(ui.Preferences{ReduceMotion: true})
+		tt.Frame()
+		label := mustFind(t, tt, copy.ConfigSection)
+		rest := rowInsetFace(tt.Image(), label)
+		settlePointer(tt, label)
+		if got := rowInsetFace(tt.Image(), label); got != rest {
+			t.Errorf("busy tool configuration row lifted: %v -> %v", rest, got)
+		}
+		if err := tt.Click(copy.ConfigOpenConfiguration); err != nil {
+			t.Fatal(err)
+		}
+		tt.Frame()
+		if calls != 0 {
+			t.Errorf("busy tool configuration launched %d commands", calls)
+		}
+		actionStateDump(t, tt, "config-busy", dark)
+		a.repairBusy["tool"] = false
+		tt.Frame()
+		if err := tt.Click(copy.ConfigOpenConfiguration); err != nil {
+			t.Fatal(err)
+		}
+		tt.Frame()
+		if calls != 1 {
+			t.Errorf("unlocked tool configuration calls=%d, want 1", calls)
+		}
+	}
+}
+
+func TestBusyIntegrationActionClusterStaysStill(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		calls := []string{}
+		a := lockedRowApp(&calls, func(a *App) { a.repairBusy = map[string]bool{"v": true} })
+		tt, _ := renderIn(t, a, 720, 1200, dark)
+		if err := tt.Click(i18n.For("en").Settings.PageIntegrations); err != nil {
+			t.Fatal(err)
+		}
+		tt.Frame()
+		label := mustFind(t, tt, i18n.For("en").Settings.RunAction)
+		rest := rowInsetFace(tt.Image(), label)
+		settlePointer(tt, label)
+		hover := rowInsetFace(tt.Image(), label)
+		actionStateDump(t, tt, "cluster-busy", dark)
+		if hover != rest {
+			t.Errorf("busy action cluster lifted under disabled Run: %v -> %v", rest, hover)
+		}
+	}
+}

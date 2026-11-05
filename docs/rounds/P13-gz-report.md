@@ -28,3 +28,8 @@
 2. **只读会话标题误反馈**：active / exited / 缺恢复回调时标题不能恢复，却把浅色面 229 抬到 205、深色 39 抬到 69 → 用现有 rowFace.Inert 表达不可恢复 → 六组无动作状态保持静息，可恢复的两组仍有 hover 且单击只调用一次。原始失败：`read-only title feedback: available=false rest={229 229 230 ...} hover={205 205 206 ...}`。
 
 首批台账 V 0 / B 0 / S 0（未改旧断言）。截图由新回归用 ui.Tester 生成深浅 before/after。
+
+首批定向实测 **31 PASS / 0 FAIL**，提交 `6b1a7678` 已推送。
+
+3. **外部配置漏锁**：同一集成复检中仍能启动外部配置命令，浅色父行 230→206、深色 39→69 → 入口并入 rowBusy 状态 → 忙态点击回调 0 次、父行像素不变；解除忙态后恰好 1 次。旧实现原始失败：`busy tool configuration launched 1 commands`。
+4. **禁用动作的父行误抬升**：Run 已禁用，父行还把按钮旁的浅色 221→198、深色 50→78 → 动作行忙态使用 Inert → 同一取样区域 rest==hover，保留子控件原有禁用淡化与按钮接线。原始失败：`busy action cluster lifted under disabled Run: {221 221 222 ...} -> {198 198 199 ...}`。

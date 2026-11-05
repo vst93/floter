@@ -2975,7 +2975,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			}
 			return a.actionButton(c, label)
 		}
-		a.row(c, "", "", func() {
+		a.rowAligned(c, ui.Center, nil, rowFace{Inert: busy}, "", nil, "", func() {
 			// The row's Run button: on a runnable row it runs the integration —
 			// straight away when it declares no inputs, or unfolding the inline
 			// parameter form when it does (the same button is the disclosure, so
@@ -3243,7 +3243,7 @@ func (a *App) discardConfigChanges(id string) { a.closeConfig(id) }
 // it is disabled when the provider declared no `openCommand` — the
 // reference's `disabled={!configuration.openPlan}`.
 func (a *App) configOpenToolRow(c *ui.Context, copy i18n.Settings, integration Integration) {
-	openable := len(integration.ConfigOpenCommand) > 0 && a.Actions.OpenConfiguration != nil
+	openable := len(integration.ConfigOpenCommand) > 0 && a.Actions.OpenConfiguration != nil && !a.rowBusy(integration.ID)
 	// P13-go: the row and its only control share availability. A disabled
 	// outlet keeps the card's plane; it must not lift or sink under the pointer.
 	a.rowAligned(c, ui.Center, nil, rowFace{Inert: !openable}, copy.ConfigSection, nil, "", func() {
