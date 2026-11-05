@@ -156,3 +156,9 @@ V/B/S：**0/0/0**。既有视觉 pin、行为断言与结构断言未修改，�
 2. 176-9、161-4 保存期间草稿归属、未知 Radio 值表现、字号/行盒与终端 S1b/S1c/S2 尾沿用需拍板；不擅自实现。
 3. 八条早期独立 WIP 继续保留。新的 e63176d3 抢救稿接续本轮验收；旧 stale-kill 归档不重复试合。
 4. shell rescan 瞬时 pending 与 DeepLink TempDir 异步清理的历史竞态仍按实测处理，禁止放宽断言。
+
+## 提交与抢救结案
+
+四批产品提交 `8375f206 / efc1d0fa / f9c81c1d / fdf0edf6` 均已在远端；本次接续修复和全部证据提交 **`f7c243f1`** 已推送 `origin/mygo-rewrite`。补修保持同一轮编号，完整交付原有八项。
+
+新抢救稿 `e63176d377f28512a8c81003fa93173dd2a6b91b` 已单独接续提交，清理前确认 HEAD 等于 origin，并确认 archive ref 与原 stash SHA 完全相同后 drop。原对象留在 `refs/archive/floter/P13-hh/e63176d377f28512a8c81003fa93173dd2a6b91b`；活动 stash **9 → 8**，剩余八条编号恢复报告首次开盘表。没有静默丢弃独有内容。
