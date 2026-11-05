@@ -606,6 +606,15 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 	}
 	draft.kinds[field.Key] = kind
 	c = c.Key("config.field." + field.Key + "\x00" + kind)
+	// Bounds can change while the same editor stays focused. Revalidate only
+	// an existing edit; untouched values retain their save-time validation.
+	if edit, exists := draft.live[field.Key]; exists {
+		if _, problem := ConfigValueProblem(field, edit, copy); problem != "" {
+			a.noteConfigFieldError(integration.ID, field.Key, problem)
+		} else {
+			a.clearConfigFieldError(integration.ID, field.Key)
+		}
+	}
 	label := field.Label
 	if label == "" {
 		label = field.Key

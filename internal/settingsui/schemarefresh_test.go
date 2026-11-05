@@ -71,3 +71,75 @@ func TestSchemaRefreshConfigTypeRetiresUndo(t *testing.T) {
 		})
 	}
 }
+
+func TestSchemaRefreshNumberBoundsUpdateError(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			limit := float64(10)
+			integration := Integration{ID: "local.search", Config: []ConfigField{{Key: "value", Label: "结果上限", Type: "number", Maximum: &limit}}, ConfigValues: map[string]any{"value": float64(5)}}
+			a, tt := configIdentityFrame(t, dark, &integration)
+			configIdentityFocus(t, tt, "结果上限")
+			tt.Type("12")
+			tt.Frame()
+			if !tt.HasText(a.copy().ConfigOutOfRange) {
+				t.Fatal("invalid number did not show its error")
+			}
+			limit = 20
+			tt.Frame()
+			schemaRefreshDump(t, tt, "number-bounds", dark)
+			if tt.HasText(a.copy().ConfigOutOfRange) {
+				t.Error("relaxed number bound left a stale error line")
+			}
+			limit = 8
+			tt.Frame()
+			if !tt.HasText(a.copy().ConfigOutOfRange) {
+				t.Error("tightened number bound did not mark the existing edit")
+			}
+			if !tt.Focused("结果上限") || a.draft(integration).values["value"] != float64(12) {
+				t.Error("constraint refresh changed focus or edited value")
+			}
+			tt.Key(ui.Cmd, ui.KeyA)
+			tt.Type("6")
+			tt.Frame()
+			if tt.HasText(a.copy().ConfigOutOfRange) {
+				t.Error("valid number did not recover")
+			}
+		})
+	}
+}
+
+func TestSchemaRefreshTextBoundsUpdateError(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			limit := 2
+			integration := Integration{ID: "local.search", Config: []ConfigField{{Key: "value", Label: "搜索名称", Type: "text", MaxLength: &limit}}, ConfigValues: map[string]any{"value": "索引"}}
+			a, tt := configIdentityFrame(t, dark, &integration)
+			configIdentityFocus(t, tt, "搜索名称")
+			tt.Type("工作索引")
+			tt.Frame()
+			if !tt.HasText(a.copy().ConfigOutOfLength) {
+				t.Fatal("long text did not show its error")
+			}
+			limit = 6
+			tt.Frame()
+			schemaRefreshDump(t, tt, "text-bounds", dark)
+			if tt.HasText(a.copy().ConfigOutOfLength) {
+				t.Error("relaxed text length left a stale error line")
+			}
+			limit = 3
+			tt.Frame()
+			if !tt.HasText(a.copy().ConfigOutOfLength) {
+				t.Error("tightened text length did not mark the existing edit")
+			}
+			if !tt.Focused("搜索名称") || a.draft(integration).values["value"] != "工作索引" {
+				t.Error("constraint refresh changed focus or edited text")
+			}
+			tt.Key(ui.Cmd, ui.KeyA)
+			tt.Type("索引")
+			tt.Frame()
+			if tt.HasText(a.copy().ConfigOutOfLength) {
+				t.Error("valid text did not recover")
+			}
+		})
+	}
+}

@@ -22,4 +22,9 @@
 1. 数字改文字后仍显示半输入与数字错误 → 改型清掉旧 live 和错误 → 深浅数字输入 `1e` 后改文字，旧提示消失，重新输入“搜索”成功。原串：`text field inherited the number half-input or error`。
 2. 文字改数字后撤销写回旧文字历史的 12 → 编辑器身份包含类型 → 深浅 Ctrl/Cmd+Z 不改已有值，重新输入 56 得到数字。原串：`number field inherited text undo and wrote an unrequested value: 12`。
 
-第一批相关测试 36 PASS / 0 FAIL（包含新增两项深浅测试），V/B/S 0/0/0，旧断言零改。全量基线仍在运行，未借用旧报告数字。
+第一批相关测试 **32 PASS / 0 FAIL**（包含新增两项深浅测试），V/B/S 0/0/0，旧断言零改。初稿 36 为抄录笔误，以 batch1-after 原始输出的 32 为准。全量基线仍在运行，未借用旧报告数字。
+
+3. 数字上限放宽后红色错误行不消失 → 每帧对已有编辑按新边界校验 → 放宽 10→20 消错、收紧至 8 报错；12 与焦点均保留，输入 6 恢复。原串：`relaxed number bound left a stale error line`。
+4. 文字长度放宽后仍显示超长 → 已有文本按当前长度约束校验 → 2→6 消错、6→3 报错；“工作索引”与焦点保留，输入“索引”恢复。原串：`relaxed text length left a stale error line`。
+
+目视首批深浅图：旧文字字段仍带 `1e` 与数字错误红边；改型后回到中性槽面、下方错误行消失，动作带上移到正确间距。未改字号、行盒与材质。
