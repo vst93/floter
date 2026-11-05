@@ -1,4 +1,4 @@
-# P13-hc · 本地工具主表单的输入归属与恢复
+# P13-hc · 设置编辑中的输入与反馈归属
 
 起点 cb345a63，2026-11-05；pull --ff-only 已同步、工作树空。唯一执行者 Codex，无外部模型和子代理。done.log 开盘不存在，收尾创建。
 
@@ -34,4 +34,9 @@
 5. **删前一条后录制改写错误绑定**：原第二条录制中删除第一条，Ctrl+Shift+R 被写到 clipboard 那条 → 删除/转为命令草稿时同步录制行索引 → 键只写到原 say original 绑定，clipboard 保持 Ctrl+Shift+C。原始红串 `recording moved to another binding: [{Key:Ctrl+Shift+B Action:say original} {Key:Ctrl+Shift+R Action:plugin:clipboard}]`。
 6. **删除正在录制的行仍继续录制**：原第一条被删，后续按键改写存活的第二条 → 删除录制对象立即取消录制 → 录制提示消失，余下两条键值与草稿都保持。原始红串 `removed binding left recorder armed`、`removed recorder rewrote surviving binding`。
 
-第三批相关快捷键回归通过，具体计数见提交正文与最终日志。删除和「转为命令草稿」两条移除路径共用修复，键盘格式/持久化回调保持。V/B/S 0/0/0。
+第三批相关快捷键回归 **23 PASS / 0 FAIL**。删除和「转为命令草稿」两条移除路径共用修复，键盘格式/持久化回调保持。V/B/S 0/0/0。
+
+7. **冲突提示跑到下一条绑定**：第二条提示沿用旧下标，删除前一条后警告出现在 clipboard 行 → 同步提示索引，删除提示对象清空提示 → 深浅两套只在原命令行显示冲突，删除该行后提示消失。原始红串 `conflict moved to another binding: row=1`、`removed binding left conflict behind`。
+8. **删除前一绑定后命令编辑丢失**：选中 say original 后删前一行，输入和 Enter 没有更新命令 → 保存行按绑定 key、草稿行按固定身份构建，cardRow 内部主体也保持身份 → 深浅实际输入提交 say edited，clipboard 不变。原始红串 `remaining command lost edit: [{Key:Ctrl+Shift+B Action:say original} {Key:Ctrl+Shift+C Action:plugin:clipboard}]`。第一版仅给外行加 key 仍红，定位为首行取消分隔线导致内部主体次序改变；修主体身份后通过，分隔线像素与尺寸不变。
+
+第四批回归 **57 PASS / 0 FAIL**；V/B/S 0/0/0。前三批 a70e682f、8f3dd208、f32742e9 均已推送。八项均有原实现红测与修后断言，跨主表单、参数板、快捷键录制与编辑组件。

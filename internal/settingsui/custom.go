@@ -56,10 +56,10 @@ func (a *App) customSection(c *ui.Context, copy i18n.Settings) {
 				}
 				for index, entry := range entries {
 					index, entry := index, entry
-					a.customShortcutRow(c, copy, entry, index)
+					a.customShortcutRow(c.Key(entry.Key), copy, entry, index)
 				}
 				if a.customDraftOpen {
-					a.customDraftRow(c, copy)
+					a.customDraftRow(c.Key("custom-draft"), copy)
 				}
 			})
 		})
@@ -452,6 +452,11 @@ func (a *App) rebaseCustomRecorder(removed int) {
 		a.customRecordRow = customDraftRow
 	} else if a.customRecordRow > removed {
 		a.customRecordRow--
+	}
+	if a.customDuplicateRow == removed {
+		a.customDuplicate, a.customDuplicateRow = "", customDraftRow
+	} else if a.customDuplicateRow > removed {
+		a.customDuplicateRow--
 	}
 }
 

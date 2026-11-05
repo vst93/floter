@@ -1585,7 +1585,8 @@ func (a *App) cardRow(c *ui.Context, align ui.Align, lead func(), face rowFace, 
 		// included) while the content keeps its inset: the 1px slot plus the
 		// content's own `inset-1` padding add back up to the old inset, so a
 		// plain row's content does not move.
-		row := ui.Row(c).FillWidth().AlignItems(ui.Stretch).MinHeight(floor)
+		// A row becoming first loses its separator, not its input identity.
+		row := ui.Row(c.Key("card-row-body")).FillWidth().AlignItems(ui.Stretch).MinHeight(floor)
 		if face.FaceSet {
 			row = row.Background(face.Face)
 		}
