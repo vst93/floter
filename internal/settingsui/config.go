@@ -557,6 +557,8 @@ func (a *App) configSelect(c *ui.Context, selected *string, labels []string, lab
 // description under the *label*), so a form's controls did not share one
 // column and the description sat on the wrong side of the field.
 func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integration, draft *configDraft, field ConfigField) {
+	// A schema reorder moves the field, not its keyboard selection or history.
+	c = c.Key("config.field." + field.Key)
 	label := field.Label
 	if label == "" {
 		label = field.Key
@@ -682,7 +684,7 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 			value = strconv.FormatFloat(number, 'f', -1, 64)
 		}
 		edit := draft.liveText(field, value)
-		problem := a.configFieldProblem(integration, field)
+		problem := configProblemText(a.configFieldProblem(integration, field), copy)
 		a.configFieldGrid(c, field, label, copy.ConfigRequired, problem, func() ui.Element {
 			e := a.extensionFieldLit(c, &edit, configFieldMetrics, !locked).Placeholder(field.Key).Label(label).FillWidth()
 			if problem != "" {
@@ -742,7 +744,7 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 	default: // text, password, path
 		value, _ := draft.values[field.Key].(string)
 		edit := draft.liveText(field, value)
-		problem := a.configFieldProblem(integration, field)
+		problem := configProblemText(a.configFieldProblem(integration, field), copy)
 		a.configFieldGrid(c, field, label, copy.ConfigRequired, problem, func() ui.Element {
 			e := a.extensionFieldLit(c, &edit, configFieldMetrics, !locked).Placeholder(field.Key).Label(label).FillWidth()
 			if kind == "password" {
@@ -826,6 +828,22 @@ func ConfigValueProblem(field ConfigField, edit string, copy i18n.Settings) (any
 // configFieldProblem is the sentence shown at one field, or empty.
 func (a *App) configFieldProblem(integration Integration, field ConfigField) string {
 	return a.configFieldErrors[configFieldErrorKey(integration.ID, field.Key)]
+}
+
+// Only the three local validation messages follow the current locale. Host
+// errors remain verbatim, and switching language does not edit the draft.
+func configProblemText(problem string, copy i18n.Settings) string {
+	en, zh := i18n.For("en").Settings, i18n.For("zh").Settings
+	switch problem {
+	case en.ConfigNumber, zh.ConfigNumber:
+		return copy.ConfigNumber
+	case en.ConfigOutOfRange, zh.ConfigOutOfRange:
+		return copy.ConfigOutOfRange
+	case en.ConfigOutOfLength, zh.ConfigOutOfLength:
+		return copy.ConfigOutOfLength
+	default:
+		return problem
+	}
 }
 
 // configFieldErrorKey names one field's own hint, so two integrations — or two
