@@ -37,3 +37,8 @@
 6. **修改内容仍声称已复制**：复制 weather 后改成 forecast，按钮仍显示成功 → 确认同时绑定 action 与复制值，值不同立即清除 → 深浅两套旧实现 `changed content still claims copied` 变绿；保持原 1600ms 期限和按钮宽度。
 
 第三批相关回归 **33 PASS / 0 FAIL**，V/B/S 0/0/0。未改旧断言。前两批 `9e32937d`、`5ebc90b6` 均已推送。
+
+7. **删前一参数后丢掉剩余输入的焦点与选择**：第二项 Label 已全选，前一项移除后输入不再落到第二项 → 参数板分配只存内存的稳定身份，不使用可编辑 ID 或数组下标 → 原始红串 `remaining parameter lost edit: "Second"`，修后值恰为 `Remaining`。
+8. **类型切换把默认值输入写进 flag**：全选 Default 后将参数变成布尔，placeholder 消失使后续输入按序号串位 → 每个字段按自己的标签设定身份 → 原始红串 `kind switch moved default edit: default="old" flag="truearget"`，修后 Default=`true`、Flag=`--target`。
+
+第四批相关回归 **34 PASS / 0 FAIL**，V/B/S 0/0/0，全部旧断言零改。至此八项实际修复，跨脚本编辑器、表单、参数板和复制动作四个组件。

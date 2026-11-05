@@ -7551,6 +7551,8 @@ func boolValue(on bool) string {
 
 // toolParam is one declared input the connect form is editing.
 type toolParam struct {
+	// Draft identity survives edits to ID and shifts in the parameter slice.
+	key         *int
 	ID          string
 	Label       string
 	Kind        string

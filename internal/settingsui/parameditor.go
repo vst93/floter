@@ -110,7 +110,10 @@ func (a *App) toolParamsEditor(c *ui.Context, copy i18n.Settings) {
 		for index := range a.toolParams {
 			index := index
 			param := &a.toolParams[index]
-			if a.paramPlate(c, copy, param, issues[index]) {
+			if param.key == nil {
+				param.key = new(int)
+			}
+			if a.paramPlate(c.Key(param.key), copy, param, issues[index]) {
 				removed = index
 			}
 		}
@@ -211,7 +214,7 @@ func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, is
 func (a *App) paramField(c *ui.Context, label string, field func()) {
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
-	ui.Column(c).MinWidth(t.Space(paramEditorFieldMin)).Grow(1).
+	ui.Column(c.Key(label)).MinWidth(t.Space(paramEditorFieldMin)).Grow(1).
 		Gap(t.Space(0.75)).Children(func() {
 		ui.Text(c, label).FontSize(tokens.Caption).FontWeight(600).
 			TextColor(t.TextMuted).SingleLine()
