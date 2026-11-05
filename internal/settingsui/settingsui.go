@@ -5302,9 +5302,6 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 			language = scriptlang.Languages[0].ID
 		}
 		script := a.toolScript
-		if script == "" && mode == routeScript {
-			script = scriptlang.Template(language)
-		}
 		// The rules the host will apply, read here first: a row that broke one
 		// says so under itself rather than a banner bounced back from the
 		// backend. The same function gates the submit, so the two cannot drift.
@@ -7645,6 +7642,7 @@ func paramIssueMessage(copy i18n.Settings, issue extensions.ParamRowIssue) strin
 // remembers that the form is editing it rather than connecting something new.
 func (a *App) beginEdit(id string, tool CustomTool) {
 	a.toolOpen = true
+	a.scriptEditor = nil
 	// Editing fills a fresh form, so it gets a fresh toolchain verdict too.
 	a.clearScriptRuntimeCache()
 	a.toolEditing = id
@@ -7682,6 +7680,7 @@ func (a *App) beginEdit(id string, tool CustomTool) {
 // endEdit clears the edit state, so the next connection starts a new package.
 func (a *App) endEdit() {
 	a.clearScriptRuntimeCache()
+	a.scriptEditor = nil
 	a.toolEditing = ""
 	a.toolAdvanced = false
 	a.toolIssue = false

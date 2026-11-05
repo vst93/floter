@@ -49,7 +49,14 @@ func (a *App) scriptEditorView(c *ui.Context, copy i18n.Settings, language, scri
 	}
 	se := a.scriptEditor
 	if se.state == nil {
-		se.state = &editor.State{Buffer: editor.NewBuffer("")}
+		if *script == "" && a.toolEditing == "" {
+			*script = scriptlang.Template(*language)
+		}
+		// Loading a tool starts a document, not an undoable edit of the
+		// previous tool. Empty saved scripts stay empty for validation.
+		se.state = &editor.State{Buffer: editor.NewBuffer(*script)}
+		se.state.Buffer.SetLanguage(editorLanguage(*language))
+		se.language, se.written = *language, *script
 	}
 	st := se.state
 
