@@ -1,0 +1,20 @@
+P13-he, start 674724d0
+LC_ALL=zh_CN.UTF-8 GOMAXPROCS=4
+Baseline: go test -count=1 -v ./... exit 0, 3648 PASS, 0 FAIL
+Baseline func Test count: 2735
+gofmt -l cmd internal: empty
+GOOS=linux go vet ./...: exit 0, empty output
+GOOS=windows go vet ./...: exit 0, empty output
+GOOS=darwin go vet ./...: exit 0, empty output
+GOOS=linux go build ./...: exit 0, empty output
+GOOS=windows go build ./...: exit 0, empty output
+GOOS=darwin go build ./...: exit 0, empty output
+go test -count=1 ./...: exit 0
+go test -count=1 -v ./...: exit 0, 3675 PASS, 0 FAIL
+Final func Test count: 2744
+Batch focused PASS counts: 24, 30, 35, 44
+M1: exit 1; md5sum -c OK; touch; restored 6 PASS, exit 0
+M2: exit 1; md5sum -c OK; touch; restored 6 PASS, exit 0
+M3: exit 1; md5sum -c OK; touch; all new tests 27 PASS, exit 0
+Old tests changed: 0. V/B/S: 0/0/0.
+PNG artifacts: 54 files, 729452 bytes (32 originals, 16 comparisons, 4 review sheets, 2 details).
