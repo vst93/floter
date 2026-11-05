@@ -34,3 +34,10 @@
 4. **删除高亮项后误选邻居**：删除应用后原索引落到便条 → 原高亮消失时回到仍有效的当前值 → 深浅保留文件，再主动 End/Enter 能选便条。原串 `removed highlight selected an unrequested neighbour: got notes, want files`。
 
 第二批选择相关回归 39 PASS / 0 FAIL（四项新修复 12，前轮守卫 27）。旧断言零改。
+
+第二批 `47e868fb` 已推送。第一轮目视：浅色换序菜单高亮从文件移回应用；深色删除菜单高亮回到文件。艺术视角继续保持单一列表面；工程视角关注动态列表身份；任务视角下一步补清空出口；读者视角同名的清空动作与真实值需要可辨认。
+
+5. **实际值与“未设置”同名时无法清空**：旧实现为避碰直接删除清空入口 → 清空以独立 none 身份表示，真实同名值加引号区分 → Home/Enter 写 nil，再 Down/Enter 可写真实词条。首次夹具误写“Not set”而非实际词条，旧实现通过，未计修复；改为读取 a.copy().ConfigNone，使用 Go overlay 实跑 HEAD 原文件复现红。
+6. **schema 空项是一行无效空白**：可选字段 files 上按 Up/Enter 落到空项却仍为 files → 空 schema 值与已有清空入口合并 → 深浅都写 nil，菜单少一行空白。原串 `empty schema choice did not clear the optional field: got "files", want nil`。
+
+第三批新增与相关回归 **59 PASS / 0 FAIL**；旧断言零改，V/B/S 0/0/0。保留原有 null 清空语义和字段 28px 地板。

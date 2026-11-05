@@ -572,6 +572,10 @@ func (a *App) configFieldGrid(c *ui.Context, field ConfigField, label, requiredL
 // with the fields beside it (P13-cb).
 func (a *App) configSelect(c *ui.Context, selected *string, labels []string, label string, lit bool) ui.Element {
 	e := ui.Select(c, selected, labels).Label(label).FillWidth().Radius(999)
+	return a.configSelectFace(c, e, lit)
+}
+
+func (a *App) configSelectFace(c *ui.Context, e ui.Element, lit bool) ui.Element {
 	if a.cardUnit > 0 {
 		e = e.MinHeight(28).Padding(4, 8)
 	}
@@ -621,37 +625,30 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 		// empty option for a non-required field (`{!field.required && <option
 		// value="">}` with `configNone`, `ExtensionsPanel.tsx:3226-3228`), so a
 		// non-required choice can be cleared back to "not set".
-		labels := configSelectLabels(field, copy.ConfigNone)
-		noneOffered := !field.Required && len(labels) == len(field.Options)+1
+		labels, values := configSelectChoices(field, copy.ConfigNone)
 		current, _ := draft.values[field.Key].(string)
-		selected := current
-		if selected == "" && noneOffered {
-			selected = copy.ConfigNone
-		}
-		chosen, cleared := "", false
+		selected := configChoice{value: current, none: current == "" && !field.Required}
+		changed := false
 		a.configFieldGrid(c, field, label, copy.ConfigRequired, "", func() ui.Element {
-			e := a.configSelect(c, &selected, labels, label, !locked)
+			e := valueSelect(c, &selected, labels, values, current, a.tokens(c)).Label(label).FillWidth().Radius(999)
+			e = a.configSelectFace(c, e, !locked)
 			if locked {
 				// P13-t：一道淡（框架的 0.5），与同一张表单的字段、开关同档。
 				// P13-cb：灯已经在 `!locked` 那一步交给材质了，这里只挂状态。
 				e = lockedControl(e)
 			}
 			if e.Changed() && !locked {
-				if noneOffered && selected == copy.ConfigNone {
-					cleared = true
-					return e
-				}
-				chosen = selected
+				changed = true
 			}
 			return e
 		})
-		if cleared {
+		if changed && selected.none {
 			// The reference writes `null` for the empty option
 			// (`event.target.value === "" ? null : …`), which the schema reads
 			// back as "unset".
 			draft.values[field.Key] = nil
-		} else if chosen != "" {
-			draft.values[field.Key] = chosen
+		} else if changed {
+			draft.values[field.Key] = selected.value
 		}
 	case "multiselect":
 		ticked := map[string]bool{}
@@ -904,18 +901,39 @@ func (a *App) clearConfigFieldError(id, key string) {
 // clearing it is not a legal value. It is a named helper rather than inline
 // so the rule is one place a test can read.
 //
-// An option whose own text already is the `none` word drops the sentinel: the
-// reference tells the two apart by the DOM value (`""` against the option's
-// own text), which a label-only widget cannot. Rather than misread a real
-// option as "clear", the empty option is simply not offered and the label
-// stands for its own value.
+// Clearing has its own identity, so a real value may equal the translated
+// none word. Quote that real value to distinguish it visually from the action.
 func configSelectLabels(field ConfigField, none string) []string {
-	labels := make([]string, 0, len(field.Options)+1)
-	if !field.Required && !configOptionMatches(field.Options, none) {
-		labels = append(labels, none)
-	}
-	labels = append(labels, field.Options...)
+	labels, _ := configSelectChoices(field, none)
 	return labels
+}
+
+type configChoice struct {
+	value string
+	none  bool
+}
+
+func configSelectChoices(field ConfigField, none string) ([]string, []configChoice) {
+	labels := make([]string, 0, len(field.Options)+1)
+	values := make([]configChoice, 0, len(field.Options)+1)
+	if !field.Required {
+		labels = append(labels, none)
+		values = append(values, configChoice{none: true})
+	}
+	for _, option := range field.Options {
+		// The optional empty schema value is the same clear action, not an
+		// extra blank row whose selection gets swallowed by an empty guard.
+		if option == "" && !field.Required {
+			continue
+		}
+		label := option
+		if option == none && !field.Required {
+			label = strconv.Quote(option)
+		}
+		labels = append(labels, label)
+		values = append(values, configChoice{value: option})
+	}
+	return labels, values
 }
 
 // configOptionMatches reports whether any of the field's options already is
