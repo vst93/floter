@@ -24,7 +24,7 @@ func valueSelect[T comparable](c *ui.Context, selected *T, labels []string, valu
 	sel := ui.SelectBase(c, selected)
 	b := sel.Trigger
 	if !enabled {
-		b.Disabled(true).Cursor(ui.CursorDefault)
+		b = lockedControl(b)
 	}
 	highlight := ui.Local(b, "floter.highlight", func() selectHighlight[T] { return selectHighlight[T]{} })
 	reordered := highlight.valid && !slices.Equal(highlight.values, values)
@@ -47,6 +47,7 @@ func valueSelect[T comparable](c *ui.Context, selected *T, labels []string, valu
 			break
 		}
 	}
+	b.Value(display)
 	b.Children(func() {
 		ui.Text(c, display).SingleLine()
 		ui.Box(c).Size(t.Space(2.5), t.Space(2.5)).Shrink(0).Draw(func(p *ui.Painter, r ui.Rect) {

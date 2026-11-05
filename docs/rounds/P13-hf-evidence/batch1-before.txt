@@ -1,0 +1,19 @@
+=== RUN   TestSelectValueDuplicateNames
+=== RUN   TestSelectValueDuplicateNames/light
+    selectvalue_test.go:47: same-name option was not selected by ID: got apps, want files
+=== RUN   TestSelectValueDuplicateNames/dark
+    selectvalue_test.go:47: same-name option was not selected by ID: got apps, want files
+--- FAIL: TestSelectValueDuplicateNames (0.16s)
+    --- FAIL: TestSelectValueDuplicateNames/light (0.14s)
+    --- FAIL: TestSelectValueDuplicateNames/dark (0.02s)
+=== RUN   TestSelectValueUnknownIDMatchingALabel
+=== RUN   TestSelectValueUnknownIDMatchingALabel/light
+    selectvalue_test.go:67: unknown ID matching a label could not be replaced: got 文件, want files
+=== RUN   TestSelectValueUnknownIDMatchingALabel/dark
+    selectvalue_test.go:67: unknown ID matching a label could not be replaced: got 文件, want files
+--- FAIL: TestSelectValueUnknownIDMatchingALabel (0.04s)
+    --- FAIL: TestSelectValueUnknownIDMatchingALabel/light (0.02s)
+    --- FAIL: TestSelectValueUnknownIDMatchingALabel/dark (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.204s
+FAIL

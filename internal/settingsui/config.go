@@ -572,7 +572,10 @@ func (a *App) configFieldGrid(c *ui.Context, field ConfigField, label, requiredL
 // with the fields beside it (P13-cb).
 func (a *App) configSelect(c *ui.Context, selected *string, labels []string, label string, lit bool) ui.Element {
 	e := ui.Select(c, selected, labels).Label(label).FillWidth().Radius(999)
-	return a.configSelectFace(c, e, lit)
+	if a.cardUnit > 0 {
+		e = e.MinHeight(28).Padding(4, 8)
+	}
+	return a.fieldFace(c, e, lit)
 }
 
 func (a *App) configSelectFace(c *ui.Context, e ui.Element, lit bool) ui.Element {
@@ -631,7 +634,7 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 		changed := false
 		a.configFieldGrid(c, field, label, copy.ConfigRequired, "", func() ui.Element {
 			e := valueSelect(c, &selected, labels, values, current, a.tokens(c), !locked && len(values) > 0).Label(label).FillWidth().Radius(999)
-			e = a.configSelectFace(c, e, !locked)
+			e = a.configSelectFace(c, e, !locked && len(values) > 0)
 			if locked {
 				// P13-t：一道淡（框架的 0.5），与同一张表单的字段、开关同档。
 				// P13-cb：灯已经在 `!locked` 那一步交给材质了，这里只挂状态。

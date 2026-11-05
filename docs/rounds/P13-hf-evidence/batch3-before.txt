@@ -1,0 +1,19 @@
+=== RUN   TestSelectClearReservedDisplayName
+=== RUN   TestSelectClearReservedDisplayName/light
+    selectclear_test.go:26: reserved display name removed the clear action: got "None", want nil
+=== RUN   TestSelectClearReservedDisplayName/dark
+    selectclear_test.go:26: reserved display name removed the clear action: got "None", want nil
+--- FAIL: TestSelectClearReservedDisplayName (0.22s)
+    --- FAIL: TestSelectClearReservedDisplayName/light (0.16s)
+    --- FAIL: TestSelectClearReservedDisplayName/dark (0.06s)
+=== RUN   TestSelectClearEmptySchemaOption
+=== RUN   TestSelectClearEmptySchemaOption/light
+    selectclear_test.go:57: empty schema choice did not clear the optional field: got "files", want nil
+=== RUN   TestSelectClearEmptySchemaOption/dark
+    selectclear_test.go:57: empty schema choice did not clear the optional field: got "files", want nil
+--- FAIL: TestSelectClearEmptySchemaOption (0.11s)
+    --- FAIL: TestSelectClearEmptySchemaOption/light (0.06s)
+    --- FAIL: TestSelectClearEmptySchemaOption/dark (0.05s)
+FAIL
+FAIL	floter/internal/settingsui	0.344s
+FAIL

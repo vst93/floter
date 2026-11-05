@@ -1,0 +1,139 @@
+=== RUN   TestChoiceIdentityMultiKeyboard
+=== RUN   TestChoiceIdentityMultiKeyboard/light
+=== RUN   TestChoiceIdentityMultiKeyboard/dark
+--- PASS: TestChoiceIdentityMultiKeyboard (0.11s)
+    --- PASS: TestChoiceIdentityMultiKeyboard/light (0.10s)
+    --- PASS: TestChoiceIdentityMultiKeyboard/dark (0.00s)
+=== RUN   TestChoiceIdentityMultiFocusFollowsOption
+=== RUN   TestChoiceIdentityMultiFocusFollowsOption/light
+=== RUN   TestChoiceIdentityMultiFocusFollowsOption/dark
+--- PASS: TestChoiceIdentityMultiFocusFollowsOption (0.01s)
+    --- PASS: TestChoiceIdentityMultiFocusFollowsOption/light (0.00s)
+    --- PASS: TestChoiceIdentityMultiFocusFollowsOption/dark (0.00s)
+=== RUN   TestChoiceIdentityPluginCheckboxFocus
+=== RUN   TestChoiceIdentityPluginCheckboxFocus/light
+=== RUN   TestChoiceIdentityPluginCheckboxFocus/dark
+--- PASS: TestChoiceIdentityPluginCheckboxFocus (0.05s)
+    --- PASS: TestChoiceIdentityPluginCheckboxFocus/light (0.05s)
+    --- PASS: TestChoiceIdentityPluginCheckboxFocus/dark (0.00s)
+=== RUN   TestChoiceIdentityUnknownSelectValue
+=== RUN   TestChoiceIdentityUnknownSelectValue/light
+=== RUN   TestChoiceIdentityUnknownSelectValue/dark
+--- PASS: TestChoiceIdentityUnknownSelectValue (0.01s)
+    --- PASS: TestChoiceIdentityUnknownSelectValue/light (0.01s)
+    --- PASS: TestChoiceIdentityUnknownSelectValue/dark (0.01s)
+=== RUN   TestChoiceIdentityUnlabelledSelect
+=== RUN   TestChoiceIdentityUnlabelledSelect/light
+=== RUN   TestChoiceIdentityUnlabelledSelect/dark
+--- PASS: TestChoiceIdentityUnlabelledSelect (0.02s)
+    --- PASS: TestChoiceIdentityUnlabelledSelect/light (0.01s)
+    --- PASS: TestChoiceIdentityUnlabelledSelect/dark (0.01s)
+=== RUN   TestChoiceIdentityUnlabelledRadio
+=== RUN   TestChoiceIdentityUnlabelledRadio/light
+=== RUN   TestChoiceIdentityUnlabelledRadio/dark
+--- PASS: TestChoiceIdentityUnlabelledRadio (0.01s)
+    --- PASS: TestChoiceIdentityUnlabelledRadio/light (0.01s)
+    --- PASS: TestChoiceIdentityUnlabelledRadio/dark (0.01s)
+=== RUN   TestChoiceIdentityUnlabelledCheckboxes
+=== RUN   TestChoiceIdentityUnlabelledCheckboxes/light
+=== RUN   TestChoiceIdentityUnlabelledCheckboxes/dark
+--- PASS: TestChoiceIdentityUnlabelledCheckboxes (0.00s)
+    --- PASS: TestChoiceIdentityUnlabelledCheckboxes/light (0.00s)
+    --- PASS: TestChoiceIdentityUnlabelledCheckboxes/dark (0.00s)
+=== RUN   TestChoiceIdentityMultiRangeFollowsOption
+=== RUN   TestChoiceIdentityMultiRangeFollowsOption/light
+=== RUN   TestChoiceIdentityMultiRangeFollowsOption/dark
+--- PASS: TestChoiceIdentityMultiRangeFollowsOption (0.01s)
+    --- PASS: TestChoiceIdentityMultiRangeFollowsOption/light (0.00s)
+    --- PASS: TestChoiceIdentityMultiRangeFollowsOption/dark (0.00s)
+=== RUN   TestChoiceIdentityRemovedAnchorDoesNotSelectItsReplacement
+=== RUN   TestChoiceIdentityRemovedAnchorDoesNotSelectItsReplacement/light
+=== RUN   TestChoiceIdentityRemovedAnchorDoesNotSelectItsReplacement/dark
+--- PASS: TestChoiceIdentityRemovedAnchorDoesNotSelectItsReplacement (0.01s)
+    --- PASS: TestChoiceIdentityRemovedAnchorDoesNotSelectItsReplacement/light (0.01s)
+    --- PASS: TestChoiceIdentityRemovedAnchorDoesNotSelectItsReplacement/dark (0.00s)
+=== RUN   TestTheConfigSelectCarriesTheNoneOptionOnlyWhenNotRequired
+--- PASS: TestTheConfigSelectCarriesTheNoneOptionOnlyWhenNotRequired (0.14s)
+=== RUN   TestTheExtensionFieldKeepsItsMetricsAtEveryInterfaceStep
+--- PASS: TestTheExtensionFieldKeepsItsMetricsAtEveryInterfaceStep (0.01s)
+=== RUN   TestTheExtensionSelectKeepsItsMetricsAtEveryInterfaceStep
+--- PASS: TestTheExtensionSelectKeepsItsMetricsAtEveryInterfaceStep (0.00s)
+=== RUN   TestTheExtensionPickerWearsTheSameStadiumShapeAsTheSettingsPicker
+--- PASS: TestTheExtensionPickerWearsTheSameStadiumShapeAsTheSettingsPicker (0.00s)
+=== RUN   TestTheLockedSelectGoesUnlit
+--- PASS: TestTheLockedSelectGoesUnlit (0.08s)
+=== RUN   TestThePickerFloorHasACeiling
+--- PASS: TestThePickerFloorHasACeiling (0.06s)
+=== RUN   TestDumpP13FPPaletteCeiling
+    paletteceiling_test.go:219: set FLOTER_PNG=1 to write the round's visual evidence
+--- SKIP: TestDumpP13FPPaletteCeiling (0.00s)
+=== RUN   TestThePalettePickerIsAFloorNotACeiling
+--- PASS: TestThePalettePickerIsAFloorNotACeiling (2.63s)
+=== RUN   TestDumpP13FOPaletteFloor
+    palettefloor_test.go:182: set FLOTER_PNG=1 to write the round's visual evidence
+--- SKIP: TestDumpP13FOPaletteFloor (0.00s)
+=== RUN   TestThePalettePickerSharesTheCardsPickerBox
+--- PASS: TestThePalettePickerSharesTheCardsPickerBox (0.25s)
+=== RUN   TestThePaletteHoleIsARemainderNotAToken
+    palettepair_test.go:211: tiny: row 194.8…693.4 (498.6) | picker 194.8…414.8 (220) | block 575.0 (118.4) | hole 160.2
+    palettepair_test.go:211: small: row 200.4…690.2 (489.8) | picker 200.4…420.4 (220) | block 557.0 (133.2) | hole 136.6
+    palettepair_test.go:211: default: row 206.0…687.0 (481.0) | picker 206.0…426.0 (220) | block 539.0 (148.0) | hole 113.0
+    palettepair_test.go:211: large: row 211.6…683.8 (472.2) | picker 211.6…431.6 (220) | block 521.0 (162.8) | hole 89.4
+--- PASS: TestThePaletteHoleIsARemainderNotAToken (0.04s)
+=== RUN   TestDumpP13FQPaletteGap
+    palettepair_test.go:233: set FLOTER_PNG=1 to write the round's visual evidence
+--- SKIP: TestDumpP13FQPaletteGap (0.00s)
+=== RUN   TestThePickerNeverPaintsPastTheRowColumn
+--- PASS: TestThePickerNeverPaintsPastTheRowColumn (0.47s)
+=== RUN   TestTheLabelColumnYieldsFirstAndThePickerHasNoCeilingOfItsOwn
+--- PASS: TestTheLabelColumnYieldsFirstAndThePickerHasNoCeilingOfItsOwn (0.40s)
+=== RUN   TestDumpP13FRPickerCeiling
+    pickerceil_test.go:194: set FLOTER_PNG=1 to write the round's visual evidence
+--- SKIP: TestDumpP13FRPickerCeiling (0.00s)
+=== RUN   TestALongPickerValueGrowsTheBoxInsteadOfBeingCut
+--- PASS: TestALongPickerValueGrowsTheBoxInsteadOfBeingCut (1.27s)
+=== RUN   TestDumpP13FNPickerFloor
+    pickerfloor_test.go:180: set FLOTER_PNG=1 to write the round's visual evidence
+--- SKIP: TestDumpP13FNPickerFloor (0.00s)
+=== RUN   TestTheSidebarSelectionIsTheNeutralRowSelected
+=== RUN   TestTheSidebarSelectionIsTheNeutralRowSelected/light
+=== RUN   TestTheSidebarSelectionIsTheNeutralRowSelected/dark
+--- PASS: TestTheSidebarSelectionIsTheNeutralRowSelected (0.03s)
+    --- PASS: TestTheSidebarSelectionIsTheNeutralRowSelected/light (0.01s)
+    --- PASS: TestTheSidebarSelectionIsTheNeutralRowSelected/dark (0.02s)
+=== RUN   TestTheRegisterRowIsTheNeutralSelectedRung
+=== RUN   TestTheRegisterRowIsTheNeutralSelectedRung/light
+=== RUN   TestTheRegisterRowIsTheNeutralSelectedRung/dark
+--- PASS: TestTheRegisterRowIsTheNeutralSelectedRung (0.12s)
+    --- PASS: TestTheRegisterRowIsTheNeutralSelectedRung/light (0.05s)
+    --- PASS: TestTheRegisterRowIsTheNeutralSelectedRung/dark (0.07s)
+=== RUN   TestTheToolchainLineSitsUnderItsPicker
+    runtimeline_test.go:181: [dark/ready] x=201.8 y=408.1 w=67.0 ink=201..267
+    runtimeline_test.go:181: [dark/missing] x=201.8 y=408.1 w=340.0 ink=201..540
+    runtimeline_test.go:181: [dark/checking] x=201.8 y=408.1 w=145.0 ink=201..344
+    runtimeline_test.go:181: [light/ready] x=201.8 y=408.1 w=67.0 ink=201..267
+    runtimeline_test.go:181: [light/missing] x=201.8 y=408.1 w=340.0 ink=201..540
+    runtimeline_test.go:181: [light/checking] x=201.8 y=408.1 w=145.0 ink=201..344
+--- PASS: TestTheToolchainLineSitsUnderItsPicker (1.03s)
+=== RUN   TestSelectValueDuplicateNames
+=== RUN   TestSelectValueDuplicateNames/light
+=== RUN   TestSelectValueDuplicateNames/dark
+--- PASS: TestSelectValueDuplicateNames (0.03s)
+    --- PASS: TestSelectValueDuplicateNames/light (0.02s)
+    --- PASS: TestSelectValueDuplicateNames/dark (0.01s)
+=== RUN   TestSelectValueUnknownIDMatchingALabel
+=== RUN   TestSelectValueUnknownIDMatchingALabel/light
+=== RUN   TestSelectValueUnknownIDMatchingALabel/dark
+--- PASS: TestSelectValueUnknownIDMatchingALabel (0.02s)
+    --- PASS: TestSelectValueUnknownIDMatchingALabel/light (0.01s)
+    --- PASS: TestSelectValueUnknownIDMatchingALabel/dark (0.01s)
+=== RUN   TestTheSidebarItemLiftsItsInkOnHoverAndSelection
+--- PASS: TestTheSidebarItemLiftsItsInkOnHoverAndSelection (0.06s)
+=== RUN   TestThePaletteRowSharesOneLineWithItsPreview
+--- PASS: TestThePaletteRowSharesOneLineWithItsPreview (0.01s)
+=== RUN   TestThePaletteRowPreviewsItsColors
+--- PASS: TestThePaletteRowPreviewsItsColors (0.03s)
+=== RUN   TestThePalettePreviewFollowsTheAppearanceForInherit
+--- PASS: TestThePalettePreviewFollowsTheAppearanceForInherit (0.06s)
+PASS
+ok  	floter/internal/settingsui	7.012s

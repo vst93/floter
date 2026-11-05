@@ -1,0 +1,6 @@
+gofmt empty; vet/build linux windows darwin passed
+normal full suite passed
+verbose full suite passed
+3702
+2755
+ALL GATES PASSED

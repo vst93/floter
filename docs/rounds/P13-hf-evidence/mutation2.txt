@@ -1,0 +1,21 @@
+=== RUN   TestSelectDynamicReorderKeepsHighlightedValue
+=== RUN   TestSelectDynamicReorderKeepsHighlightedValue/light
+    selectdynamic_test.go:32: menu reorder moved the keyboard choice: got files, want apps
+=== RUN   TestSelectDynamicReorderKeepsHighlightedValue/dark
+    selectdynamic_test.go:32: menu reorder moved the keyboard choice: got files, want apps
+--- FAIL: TestSelectDynamicReorderKeepsHighlightedValue (0.12s)
+    --- FAIL: TestSelectDynamicReorderKeepsHighlightedValue/light (0.11s)
+    --- FAIL: TestSelectDynamicReorderKeepsHighlightedValue/dark (0.01s)
+=== RUN   TestSelectDynamicRemovedHighlightDoesNotChooseNeighbour
+=== RUN   TestSelectDynamicRemovedHighlightDoesNotChooseNeighbour/light
+    selectdynamic_test.go:57: removed highlight selected an unrequested neighbour: got notes, want files
+    selectdynamic_test.go:60: ui: no element shows "文件"
+=== RUN   TestSelectDynamicRemovedHighlightDoesNotChooseNeighbour/dark
+    selectdynamic_test.go:57: removed highlight selected an unrequested neighbour: got notes, want files
+    selectdynamic_test.go:60: ui: no element shows "文件"
+--- FAIL: TestSelectDynamicRemovedHighlightDoesNotChooseNeighbour (0.02s)
+    --- FAIL: TestSelectDynamicRemovedHighlightDoesNotChooseNeighbour/light (0.01s)
+    --- FAIL: TestSelectDynamicRemovedHighlightDoesNotChooseNeighbour/dark (0.01s)
+FAIL
+FAIL	floter/internal/settingsui	0.151s
+FAIL

@@ -1,0 +1,27 @@
+=== RUN   TestSelectAvailabilityEmptyOptions
+=== RUN   TestSelectAvailabilityEmptyOptions/light
+    selectavailability_test.go:61: empty select still accepts focus and opens a blank menu
+    selectavailability_test.go:66: empty menu reopened itself when options arrived
+    selectavailability_test.go:76: populated select did not recover: files
+=== RUN   TestSelectAvailabilityEmptyOptions/dark
+    selectavailability_test.go:61: empty select still accepts focus and opens a blank menu
+    selectavailability_test.go:66: empty menu reopened itself when options arrived
+    selectavailability_test.go:76: populated select did not recover: files
+--- FAIL: TestSelectAvailabilityEmptyOptions (0.15s)
+    --- FAIL: TestSelectAvailabilityEmptyOptions/light (0.14s)
+    --- FAIL: TestSelectAvailabilityEmptyOptions/dark (0.01s)
+=== RUN   TestSelectAvailabilityLockClosesOpenMenu
+=== RUN   TestSelectAvailabilityLockClosesOpenMenu/light
+    selectavailability_test.go:98: locked field left its live option popup on screen
+    selectavailability_test.go:108: unlock resurrected the old popup
+    selectavailability_test.go:115: ui: no element shows "apps"
+=== RUN   TestSelectAvailabilityLockClosesOpenMenu/dark
+    selectavailability_test.go:98: locked field left its live option popup on screen
+    selectavailability_test.go:108: unlock resurrected the old popup
+    selectavailability_test.go:115: ui: no element shows "apps"
+--- FAIL: TestSelectAvailabilityLockClosesOpenMenu (0.04s)
+    --- FAIL: TestSelectAvailabilityLockClosesOpenMenu/light (0.03s)
+    --- FAIL: TestSelectAvailabilityLockClosesOpenMenu/dark (0.01s)
+FAIL
+FAIL	floter/internal/settingsui	0.194s
+FAIL
