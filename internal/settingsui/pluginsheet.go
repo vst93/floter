@@ -61,6 +61,22 @@ func (a *App) PluginSheet(c *ui.Context, sheet PluginSheet) {
 	t := c.Theme()
 	tokens := a.tokens(c)
 
+	// P13-gu（`docs/liquid-glass.md` §6.163）：这块浮层的滚动位置**跨插件串味**。
+	// `a.PluginScroll` 是 App 上的一格，而 `ui.Scroll` 的 key 是常量
+	// (`"plugin.config"`)——一个 App 依次画每个插件的浮层（`shell/pluginconfig.go`），
+	// 于是插件 A 滚到底之后切到插件 B，B 一开帧就落在 A 的偏移上（内容短的那张
+	// 直接顶到底部，页头被切在带子上沿）。与 P13-gs 的数字草稿是同一族：
+	// **一格全局状态，被 N 个插件轮流用**。
+	//
+	// 处置取最小的一手：插件变了就把偏移归零（换一张面 = 从头读），而不是把
+	// `ui.ScrollState` 拆成每插件一格——后者要把 `PluginScroll` 从 App 上搬进
+	// map，六个既有量尺（`sheetcutedge` / `sheetpitch` / `sheetnamerung` / …）
+	// 都直接读 `a.PluginScroll.MaxY`，那是结构真变（S），换不来多一个像素。
+	if sheet.Schema.Plugin != a.sheetPlugin {
+		a.sheetPlugin = sheet.Schema.Plugin
+		a.PluginScroll.Y = 0
+	}
+
 	// The sheet's own scroller: a schema longer than the band scrolls inside
 	// it rather than growing the window past the band it was given.
 	//
@@ -105,10 +121,18 @@ func (a *App) PluginSheet(c *ui.Context, sheet PluginSheet) {
 				// 会红）。所以只把**墨与字重**穿成页头那一档：旧值 → 新值
 				// `600 / TextMuted` → `650 / Text`，字号仍是 body，比分组标题
 				// （Title 12.6）低一级，但不再比它下面任何一行淡。
-				ui.Row(c).FillWidth().Height(t.Space(7)).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, sheet.Schema.Title).FontSize(t.FontSize).FontWeight(650).
-						TextColor(t.Text).SingleLine()
-				})
+				// P13-gu：没有名字的 schema 不再留一格 25.2px 的**空行盒**。
+				// `Title` 是插件自己声明的字段，空串是合法的（`plugincfg.Schema`），
+				// 而这一行此前无条件画：浮层顶上于是先空出 25.2px + `Space(3)` 的
+				// 空气，第一组标题看起来被推下去了——「什么都没有」被画成「有一行」
+				// （与 §6.104 那一轮修的是同一行的另一半：有名字时它的墨必须够重）。
+				// 名字在时一个字节不动（`Height(Space(7))` 是顶边余量的唯一来源）。
+				if sheet.Schema.Title != "" {
+					ui.Row(c).FillWidth().Height(t.Space(7)).AlignItems(ui.Center).Children(func() {
+						ui.Text(c, sheet.Schema.Title).FontSize(t.FontSize).FontWeight(650).
+							TextColor(t.Text).SingleLine()
+					})
+				}
 				if sheet.Failed {
 					// The status line is the caption step in the warning colour
 					// (`.plugin-config-action__status`): a muted line, never a
@@ -224,6 +248,17 @@ func (a *App) sheetSection(c *ui.Context, sheet PluginSheet, section plugincfg.S
 
 // sheetField draws one field with the control its kind names.
 func (a *App) sheetField(c *ui.Context, sheet PluginSheet, field plugincfg.Field) {
+	// P13-gu：没有标签的字段回落到它的 key，与集成配置表单同一条规则
+	// (`config.go` 的 `configField`：`if label == "" { label = field.Key }`)。
+	// `Label` 是 schema 里的自由文本，空串合法：此前浮层给这种字段画一格
+	// **空的标签列**（行高照旧、右边控件照旧），而同一个应用的另一张表单给
+	// 同一个字段画的是 key。同一个字段两种说法，是这一族里最便宜的一条。
+	//
+	// 回落发生在**这一份副本**上，所以下面每一种 kind 与 `sheetAction` 的按钮
+	// 文字都一起接住（action 的胶囊此前是一枚零宽的空药丸）。
+	if field.Label == "" {
+		field.Label = field.Key
+	}
 	value := sheet.Values[field.Key]
 	switch field.Kind {
 	case plugincfg.Toggle:
@@ -431,8 +466,17 @@ func (a *App) sheetNumberSlot(c *ui.Context, plugin string, field plugincfg.Fiel
 		if in.Changed() {
 			a.pluginNumberDrafts[key] = text
 			if parsed, err := strconv.ParseFloat(strings.TrimSpace(text), 64); err == nil && !math.IsNaN(parsed) && !math.IsInf(parsed, 0) {
-				*value = parsed
+				// P13-gu：框里写的必须是插件**真正拿到**的那个数。越界的输入
+				// 此前被 `clampNumber` 悄悄夹到边界再派发，而框里还留着原样的
+				// `999`——用户以为存了 999，插件收到 100，直到失焦才跳回。
+				// 现在越界的那一帧就把夹后的数写回草稿，框与值同帧对齐；
+				// 界内的输入一个字节不动（半输入 `1e` 仍然留在框里，§6.162）。
+				clamped := clampNumber(field, parsed)
+				*value = clamped
 				changed = true
+				if clamped != parsed {
+					a.pluginNumberDrafts[key] = formatFieldNumber(clamped)
+				}
 			}
 		} else if !in.Focused() {
 			// The keyboard is elsewhere: the field reads the stored value
@@ -605,8 +649,21 @@ func optionsOf(options []plugincfg.Option) []i18n.Option {
 }
 
 // boundedText is a bounded value with its unit: "300 items", "30 days".
+//
+// P13-gu（`docs/liquid-glass.md` §6.164）：读数此前是 `int(math.Round(v))`，两条账
+// 都错，而它们说的是同一件事——**读数必须是会被保存的那个数**。
+//
+//	① `Step < 1` 的字段把分数抹成整数：第三方 schema 可以声明 0.1 的步长
+//	   （`plugincfg.Schema` 不限制 Step 的粒度），0.4 读成「0 items」。
+//	② 读数取的是拖拽中的**未量化**值，而 `sheetSlider` 派发的是
+//	   `quantize(v, Step)`：Step 10 拖到 12.7，框里写「13 items」、插件存 10。
+//
+// 现在先量化（`quantize`，Step 0 时原样），再按六位小数收口（与 `clampStep`
+// 同一条，避免 `0.1 × 4` 打印成 `0.4000000000000001`），最后用最短写法。
+// 整数值的读数逐字节不变（`300` → "300"）。
 func boundedText(field plugincfg.Field, value float64) string {
-	text := strconv.Itoa(int(math.Round(value)))
+	value = math.Round(quantize(value, field.Step)*1e6) / 1e6
+	text := formatFieldNumber(value)
 	if field.Unit != "" {
 		text += " " + field.Unit
 	}

@@ -976,6 +976,10 @@ type App struct {
 	// PluginScroll keeps the plugin configuration sheet's offset, so a long
 	// schema scrolls where the user left it.
 	PluginScroll ui.ScrollState
+	// sheetPlugin is the plugin id the current `PluginScroll` belongs to.
+	// P13-gu：一个 App 依次画每个插件的浮层，而 `ui.Scroll` 的 key 是常量；
+	// 插件一变就把偏移归零，免得 A 的滚动位置接到 B 身上（§6.163）。
+	sheetPlugin string
 	// pluginNumberDrafts holds a number field's in-progress text while its box
 	// has the keyboard, so a half-typed or emptied value is not overwritten by
 	// the stored one mid-edit; an entry is dropped when the box loses focus and
@@ -4715,19 +4719,24 @@ func (a *App) choose(c *ui.Context, label, description string, options []i18n.Op
 	if index >= 0 && index < len(options) {
 		selected = options[index].Label
 	}
-	chosen := ""
+	chosen, picked := "", false
 	a.row(c, label, description, func() {
 		e := a.chooseSelect(c, &selected, labels, label)
 		if e.Changed() {
 			for _, option := range options {
 				if option.Label == selected {
 					chosen = option.ID
+					picked = true
 					break
 				}
 			}
 		}
 	}, below...)
-	if chosen != "" {
+	// P13-gu：`picked` 取代了 `chosen != ""` 这条守卫。ID 是调用方给的身份，
+	// 空串是合法的一个（「不设置」/「off」那一档就是空值），而旧写法把「选了
+	// 一个 ID 为空串的选项」当成「没有选」——点击落了地，回调却一次都没发，
+	// 下拉框显示新值而设置没变。现在只有「真的选到了某一项」才派发。
+	if picked {
 		apply(chosen)
 	}
 }
