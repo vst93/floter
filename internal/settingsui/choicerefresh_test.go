@@ -116,3 +116,53 @@ func TestChoiceRefreshLongPluginCheckbox(t *testing.T) {
 		})
 	}
 }
+
+func TestChoiceRefreshRadioReorderKeepsFocus(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			sheet := selectDynamicSheet()
+			sheet.Schema.Fields[0].Kind = plugincfg.Radio
+			tt := pluginIdentityFrame(t, dark, &sheet)
+			if err := tt.Click("应用"); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			opts := sheet.Schema.Fields[0].Options
+			opts[0], opts[1] = opts[1], opts[0]
+			tt.Frame()
+			choiceRefreshDump(t, tt, "radio-reorder", dark)
+			if !tt.Focused("应用") {
+				t.Error("radio focus moved to a different value after reorder")
+			}
+			tt.Key(0, ui.KeySpace)
+			tt.Frame()
+			if sheet.Values["mode"] != "apps" {
+				t.Errorf("radio Space selected the old position: %v", sheet.Values["mode"])
+			}
+		})
+	}
+}
+
+func TestChoiceRefreshRadioRemovedFocus(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			sheet := selectDynamicSheet()
+			sheet.Schema.Fields[0].Kind = plugincfg.Radio
+			tt := pluginIdentityFrame(t, dark, &sheet)
+			if err := tt.Click("应用"); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			sheet.Values["mode"] = "files"
+			opts := sheet.Schema.Fields[0].Options
+			sheet.Schema.Fields[0].Options = []plugincfg.Option{opts[0], opts[2]}
+			tt.Frame()
+			choiceRefreshDump(t, tt, "radio-removed", dark)
+			tt.Key(0, ui.KeySpace)
+			tt.Frame()
+			if sheet.Values["mode"] != "files" {
+				t.Errorf("removed radio focus activated its replacement: %v", sheet.Values["mode"])
+			}
+		})
+	}
+}

@@ -8,6 +8,7 @@ import (
 	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
 
+	"floter/internal/control"
 	"floter/internal/i18n"
 	"floter/internal/plugincfg"
 	"floter/internal/theme"
@@ -322,9 +323,11 @@ func (a *App) sheetField(c *ui.Context, sheet PluginSheet, field plugincfg.Field
 func (a *App) sheetRadio(c *ui.Context, sheet PluginSheet, field plugincfg.Field, current string) {
 	field.Options = uniquePluginOptions(field.Options)
 	labels := make([]string, len(field.Options))
+	keys := make([]string, len(field.Options))
 	index := 0
 	for i, option := range field.Options {
 		labels[i] = pluginOptionLabel(option, a.copy().ConfigNone)
+		keys[i] = option.Value
 		if option.Value == current {
 			index = i
 		}
@@ -332,12 +335,12 @@ func (a *App) sheetRadio(c *ui.Context, sheet PluginSheet, field plugincfg.Field
 	chosen := index
 	changed := false
 	a.stackedRow(c, field.Label, field.Help, func() {
-		a.segmented(c, labels, chosen, func(i int) {
+		control.SegmentedFill(c, a.tokens(c), labels, chosen, func(i int) {
 			if i >= 0 && i < len(field.Options) {
 				chosen = i
 				changed = true
 			}
-		})
+		}, keys)
 	})
 	if changed {
 		sheet.Change(field.Key, field.Options[chosen].Value)

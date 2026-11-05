@@ -28,8 +28,8 @@ func Segmented(c *ui.Context, tokens theme.Tokens, labels []string, current int,
 // inline track's `repeat(auto-fit, minmax(0, 1fr))`), where the track spans the
 // card and the segments share the line. The trailing form sizes to its labels;
 // this one is the choice under its own label.
-func SegmentedFill(c *ui.Context, tokens theme.Tokens, labels []string, current int, apply func(int)) {
-	segmented(c, tokens, labels, current, apply, true, false)
+func SegmentedFill(c *ui.Context, tokens theme.Tokens, labels []string, current int, apply func(int), keys ...[]string) {
+	segmented(c, tokens, labels, current, apply, true, false, keys...)
 }
 
 // SegmentedGlassFill is the material picker's own variant of the full-width
@@ -48,12 +48,12 @@ func SegmentedGlassFill(c *ui.Context, tokens theme.Tokens, labels []string, cur
 // segmented is the one implementation every form shares; fill only changes how
 // the track and its segments take their width, glass only the label's alignment
 // and the segment's horizontal inset.
-func segmented(c *ui.Context, tokens theme.Tokens, labels []string, current int, apply func(int), fill, glass bool) {
+func segmented(c *ui.Context, tokens theme.Tokens, labels []string, current int, apply func(int), fill, glass bool, keys ...[]string) {
 	t := c.Theme()
 	// The settings-side track's own inset: `.settings-options--inline { padding:
 	// calc(var(--u) * 2); gap: calc(var(--u) * 2) }` (`settings.css:1016-1022`).
 	selected := current
-	track := SegmentedIndex(c, tokens, &selected, labels, fill, glass, t.Space(0.5), t.Space(0.5))
+	track := SegmentedIndex(c, tokens, &selected, labels, fill, glass, t.Space(0.5), t.Space(0.5), keys...)
 	if track.Changed() {
 		apply(selected)
 	}
@@ -71,7 +71,7 @@ func segmented(c *ui.Context, tokens theme.Tokens, labels []string, current int,
 // `.extension-custom-mode` writes a literal 3px pad and a 2px gap
 // (`extensions.css:1752`), so it passes its own pair in. The shape — the 999px
 // stadium and the accent-keyline chosen pane — is the same for both.
-func SegmentedIndex(c *ui.Context, tokens theme.Tokens, selected *int, labels []string, fill, glass bool, pad, gap float32) ui.Element {
+func SegmentedIndex(c *ui.Context, tokens theme.Tokens, selected *int, labels []string, fill, glass bool, pad, gap float32, keys ...[]string) ui.Element {
 	t := c.Theme()
 	parts := ui.SegmentedBase(c, selected, len(labels))
 	track := parts.Track
@@ -102,6 +102,11 @@ func SegmentedIndex(c *ui.Context, tokens theme.Tokens, selected *int, labels []
 	track.Children(func() {
 		for i, label := range labels {
 			i, label := i, label
+			// Dynamic schemas identify a segment by value, so a reorder or
+			// removal cannot hand its keyboard focus to a different choice.
+			if len(keys) > 0 && i < len(keys[0]) {
+				c.Key(keys[0][i])
+			}
 			// The segment's box is the reference's `.settings-option`: a
 			// `min-height` of 30u (R43's tightened step) with a `padding: 0 9u`
 			// — the height comes from the floor, not from vertical padding, so

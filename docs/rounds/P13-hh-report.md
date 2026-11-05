@@ -30,3 +30,10 @@
 4. **插件复选长名称直抵卡片右边界、末字被切** → 原 Checkbox 保留，标签单行省略、控件最大宽为父容器 100% → 深浅标签右端落在原内边距内，下一项仍可点；原标签右端 704.6，图上文字贴边，修后留白与省略号可见。初始探针的 700 是估测，正式 pin 采用卡内边界 692；没有放宽旧断言。
 
 第二批相关回归 **74 PASS / 0 FAIL**，V/B/S 0/0/0。目视浅色长复选名称已从硬裁切变为省略，勾选框和应用下一行保持。
+
+第二批 efc1d0fa 已推送。
+
+5. **单选换序后 Space 操作旧位置** → 插件 Radio 将真实 Value 传给原分段控件的身份 → 焦点留在应用、Space 保持 apps；原串 `radio focus moved to a different value after reorder` / `radio Space selected the old position: files`。
+6. **移除聚焦单选后 Space 激活替代项** → 被删 Value 的焦点随元素退役 → 保留有效当前值 files；原串 `removed radio focus activated its replacement: notes`。
+
+未知 Radio 的既有拍板语义未改；两项只修已存在的焦点错配。相关结果随提交登记。
