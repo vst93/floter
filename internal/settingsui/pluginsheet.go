@@ -238,7 +238,8 @@ func (a *App) sheetSection(c *ui.Context, sheet PluginSheet, section plugincfg.S
 			ui.Text(c, section.Title).FontSize(tokens.Title).FontWeight(620).
 				TextColor(tokens.TextStrong).Padding(0, t.Space(3.5))
 		}
-		a.card(c, func() {
+		// An optional heading must not become part of the fields' identity.
+		a.card(c.Key("plugin.section.fields"), func() {
 			for _, field := range section.Fields {
 				field := field
 				a.sheetField(c, sheet, field)

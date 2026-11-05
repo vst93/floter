@@ -100,3 +100,56 @@ func TestPluginIdentityHistoryDoesNotCrossPlugins(t *testing.T) {
 		})
 	}
 }
+
+func TestPluginIdentityFirstRowKeepsItsInput(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			sheet := pluginIdentitySheet()
+			tt := pluginIdentityFrame(t, dark, &sheet)
+			pluginIdentityFocus(t, tt, "工作目录")
+			tt.Type("/workspace/edited")
+			tt.Frame()
+			sheet.Schema.Fields = sheet.Schema.Fields[2:]
+			tt.Frame()
+			tt.Key(0, ui.KeyEnter)
+			tt.Frame()
+			configIdentityDump(t, tt, "plugin-first-row", dark)
+			if sheet.Values["directory"] != "/workspace/edited" || !tt.Focused("工作目录") {
+				t.Errorf("first row lost its active edit: %v, focused=%v", sheet.Values["directory"], tt.Focused("工作目录"))
+			}
+		})
+	}
+}
+
+func TestPluginIdentitySectionHeadingKeepsItsInput(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			sheet := pluginIdentitySheet()
+			tt := pluginIdentityFrame(t, dark, &sheet)
+			pluginIdentityFocus(t, tt, "工作目录")
+			tt.Type("/workspace/edited")
+			tt.Frame()
+			for i := range sheet.Schema.Fields {
+				sheet.Schema.Fields[i].Section = "搜索数据"
+			}
+			tt.Frame()
+			tt.Key(0, ui.KeyEnter)
+			tt.Frame()
+			configIdentityDump(t, tt, "plugin-heading", dark)
+			if sheet.Values["directory"] != "/workspace/edited" || !tt.Focused("工作目录") {
+				t.Errorf("section heading lost its active edit: %v, focused=%v", sheet.Values["directory"], tt.Focused("工作目录"))
+			}
+			tt.Key(ui.Cmd, ui.KeyA)
+			tt.Type("/workspace/without-heading")
+			for i := range sheet.Schema.Fields {
+				sheet.Schema.Fields[i].Section = ""
+			}
+			tt.Frame()
+			tt.Key(0, ui.KeyEnter)
+			tt.Frame()
+			if sheet.Values["directory"] != "/workspace/without-heading" {
+				t.Errorf("removing section heading lost its edit: %v", sheet.Values["directory"])
+			}
+		})
+	}
+}

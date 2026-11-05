@@ -32,4 +32,9 @@
 5. **插件字段换序丢失未提交文本**：目录键入 `/workspace/edited` 后换序，Enter 仍留下 `/workspace/search` → 字段使用自己的 schema key → 深浅均将原编辑提交到 directory，endpoint 不变。原始红串 `plugin reorder lost or misdirected edit: map[directory:/workspace/search enabled:true endpoint:https://localhost]`。
 6. **插件 Undo 带回另一插件的路径**：从搜索切便条后撤销恢复搜索路径 → 字段身份同时包含插件 ID → 便条保持自身值，便条自己的后续编辑仍能撤销。原始红串 `plugin inherited another undo history: /workspace/search`。
 
-第三批两项深浅 before/after 已导出，旧断言零改。第二批 6f717a67 已推送。插件相关回归通过，计数在本批提交中记录。
+第三批 **94 PASS / 0 FAIL**，两项深浅 before/after 已导出，旧断言零改。第二批 6f717a67 已推送。
+
+7. **字段成为首行后丢掉编辑**：删掉目录前的两个字段，目录成为首行，Enter 不再提交、焦点消失 → stackedRow 主体使用固定身份，分隔线有无不影响主体 → 深浅都保留 `/workspace/edited` 与原焦点。原始红串 `first row lost its active edit: /workspace/search, focused=false`。
+8. **增减分组标题后丢掉编辑**：原无标题分组增加「搜索数据」，目录输入丢失；随后移除标题仍丢输入 → 分组卡片使用固定身份 → 增标题提交 `/workspace/edited`，移除标题后提交 `/workspace/without-heading`，焦点持续。原始红串 `section heading lost its active edit: /workspace/search, focused=false`、`removing section heading lost its edit: /workspace/search`。
+
+第四批插件、配置身份、本地表单与堆叠行相关回归通过，原始日志 `/tmp/floter-P13-hd/batch4-after.log`。V/B/S 0/0/0，八项均为真实行为修复，跨集成配置、插件浮层及堆叠字段组件；旧测试全部未改。第三批 62efd2a4 已推送。

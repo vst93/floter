@@ -1743,7 +1743,8 @@ func (a *App) stackedRow(c *ui.Context, label, sublabel string, control func()) 
 		// 间距不属于区域，属于它两侧那一对（§4.3）：标题和它的灰线是**一句**，
 		// 控件是**一件可以按的面**。前者取这一行自己的行内缝（`rowLineGap()`，与
 		// 每一条 trailing 行同值），后者抬一档（`Space(2)`）。
-		ui.Column(c).FillWidth().Gap(t.Space(2)).Padding(t.Space(2.25), inset).Children(func() {
+		// Becoming the first row removes only the separator, not this body.
+		ui.Column(c.Key("stacked-row-body")).FillWidth().Gap(t.Space(2)).Padding(t.Space(2.25), inset).Children(func() {
 			// The label and its grey line keep the same steps as any trailing
 			// row: the reference's `.settings-row__label` is `--text-emphasis`
 			// and `.settings-row__sublabel` is `--text-body` for both shapes
