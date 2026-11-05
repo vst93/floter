@@ -149,13 +149,13 @@ func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, is
 		// last cell taking the line's remainder.
 		ui.Row(c).FillWidth().Wrap().GapX(t.Space(2)).GapY(t.Space(paramEditorPlateGap)).
 			Children(func() {
-				a.paramField(c, copy.ParamsLabel, func() {
+				a.paramField(c, "label", copy.ParamsLabel, func() {
 					a.extensionField(c, &label, customFieldMetrics).Label(copy.ParamsLabel)
 				})
-				a.paramField(c, copy.ParamsID, func() {
+				a.paramField(c, "id", copy.ParamsID, func() {
 					a.extensionField(c, &id, customFieldMetrics).Label(copy.ParamsID).Placeholder("target")
 				})
-				a.paramField(c, copy.ParamsKind, func() {
+				a.paramField(c, "kind", copy.ParamsKind, func() {
 					labels := paramKindLabels(copy)
 					chosen := runParamKindLabel(copy, kind)
 					a.paramSelect(c, &chosen, labels, copy.ParamsKind)
@@ -166,14 +166,14 @@ func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, is
 				// The reference hides the placeholder field for a boolean: its
 				// value is its flag, so a field hint means nothing.
 				if kind != extensions.ParamBoolean {
-					a.paramField(c, copy.ParamsPlaceholder, func() {
+					a.paramField(c, "placeholder", copy.ParamsPlaceholder, func() {
 						a.extensionField(c, &placeholder, customFieldMetrics).Label(copy.ParamsPlaceholder)
 					})
 				}
-				a.paramField(c, copy.ParamsDefault, func() {
+				a.paramField(c, "default", copy.ParamsDefault, func() {
 					a.extensionField(c, &def, customFieldMetrics).Label(copy.ParamsDefault)
 				})
-				a.paramField(c, copy.ParamsFlag, func() {
+				a.paramField(c, "flag", copy.ParamsFlag, func() {
 					a.extensionField(c, &flag, customFieldMetrics).Label(copy.ParamsFlag).Placeholder("--target")
 				})
 			})
@@ -211,10 +211,10 @@ func (a *App) paramPlate(c *ui.Context, copy i18n.Settings, param *toolParam, is
 
 // paramField is one cell of the plate's fields grid: the caption label above
 // its control, a 3px stack (`extensions.css:1872`: `display:grid; gap:3px`).
-func (a *App) paramField(c *ui.Context, label string, field func()) {
+func (a *App) paramField(c *ui.Context, key, label string, field func()) {
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
-	ui.Column(c.Key(label)).MinWidth(t.Space(paramEditorFieldMin)).Grow(1).
+	ui.Column(c.Key(key)).MinWidth(t.Space(paramEditorFieldMin)).Grow(1).
 		Gap(t.Space(0.75)).Children(func() {
 		ui.Text(c, label).FontSize(tokens.Caption).FontWeight(600).
 			TextColor(t.TextMuted).SingleLine()

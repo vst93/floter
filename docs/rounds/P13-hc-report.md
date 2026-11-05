@@ -25,3 +25,8 @@
 2. **类型切换后版本输入丢失**：选中 Version 后切换模式，输入仍是 1.2.3 → Version 行保持自己的身份 → 输入恰为 2.0.0。原始红串 `mode switch lost version edit: "1.2.3"`。
 
 第一批相关回归 **33 PASS / 0 FAIL**，internal/ci 通过。V/B/S 0/0/0，旧断言零改。深浅 Command 前后 PNG 已实际导出。校验提示插入和 Advanced 展开两候选实测通过，未计入修复。
+
+3. **撤销带回上一工具名称**：第二个工具点 Undo 得到 First → 表单每次 beginEdit/endEdit 分配独立编辑身份 → 第二工具旧历史为空、自己的编辑仍能撤销回 Second。原始红串 `new tool inherited text undo: "First"`。
+4. **界面翻译变化后参数输入丢失**：英文参数 Label 全选后切换中文，输入仍是 Target → 六个参数字段使用不依赖翻译的语义 key → 深浅两套均接受 Destination，类型切换与删除参数的旧回归保持。
+
+第二批相关回归 **37 PASS / 0 FAIL**；旧断言零改，V/B/S 0/0/0。首批 a70e682f 已推送。参数语言切换深浅前后图已导出。

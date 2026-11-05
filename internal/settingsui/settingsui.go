@@ -771,6 +771,8 @@ type App struct {
 	// permissions they have ticked. It lives on the panel so a keystroke
 	// survives the rebuild, and it is cleared once the tool is connected.
 	toolOpen bool
+	// Each editing session owns the toolkit's field histories and selections.
+	toolFormKey *int
 	// toolAdvanced is whether the form's declaration/audit switches are
 	// unfolded: they sit behind a default-closed Advanced disclosure (R161),
 	// so a brand-new integration does not open on a list of permission rows.
@@ -5267,6 +5269,10 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 	if a.Actions.ConnectLocalTool == nil {
 		return
 	}
+	if a.toolFormKey == nil {
+		a.toolFormKey = new(int)
+	}
+	c = c.Key(a.toolFormKey)
 	a.section(c, copy.LocalToolTitle, copy.LocalToolHint, func() {
 		if a.actionButton(c, copy.LocalToolAdd).Clicked() {
 			a.toolOpen = !a.toolOpen
@@ -7649,6 +7655,7 @@ func paramIssueMessage(copy i18n.Settings, issue extensions.ParamRowIssue) strin
 // remembers that the form is editing it rather than connecting something new.
 func (a *App) beginEdit(id string, tool CustomTool) {
 	a.toolOpen = true
+	a.toolFormKey = nil
 	a.scriptEditor = nil
 	a.copiedContent, a.copiedContentUntil = "", time.Time{}
 	a.copiedContentValue = ""
@@ -7689,6 +7696,7 @@ func (a *App) beginEdit(id string, tool CustomTool) {
 // endEdit clears the edit state, so the next connection starts a new package.
 func (a *App) endEdit() {
 	a.clearScriptRuntimeCache()
+	a.toolFormKey = nil
 	a.scriptEditor = nil
 	a.copiedContent, a.copiedContentUntil = "", time.Time{}
 	a.copiedContentValue = ""
