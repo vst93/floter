@@ -656,6 +656,9 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 	case "multiselect":
 		// A value has one row and one range position even if a schema repeats it.
 		field.Options = uniqueConfigOptions(field.Options)
+		// Observe removals even when no click occurs in that frame. A value
+		// reintroduced later must not resurrect a retired range anchor.
+		draft.multiAnchorAt(field)
 		ticked := map[string]bool{}
 		if values, ok := draft.values[field.Key].([]any); ok {
 			for _, value := range values {

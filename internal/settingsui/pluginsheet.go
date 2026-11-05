@@ -362,7 +362,10 @@ func (a *App) sheetCheckboxes(c *ui.Context, sheet PluginSheet, field plugincfg.
 			for i, option := range field.Options {
 				i, option := i, option
 				checked := on[i]
-				if ui.Checkbox(c.Key("plugin.option."+option.Value), &checked, pluginOptionLabel(option, a.copy().ConfigNone)).Changed() {
+				label := pluginOptionLabel(option, a.copy().ConfigNone)
+				box := ui.Checkbox(c.Key("plugin.option."+option.Value), &checked, "").Label(label).MaxWidthPercent(100)
+				box.Children(func() { ui.Text(c, label).MinWidth(0).SingleLine() })
+				if box.Changed() {
 					on[i] = checked
 					pressed = i
 				}
