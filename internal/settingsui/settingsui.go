@@ -7052,6 +7052,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 	if !a.runOpen[integration.ID] {
 		return
 	}
+	locked := a.rowBusy(integration.ID)
 	params := make([]extensions.ParamDefinition, 0, len(integration.Params))
 	for _, param := range integration.Params {
 		params = append(params, extensions.ParamDefinition{
@@ -7143,10 +7144,15 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 					}, below...)
 				default:
 					value := values[param.ID]
-					a.row(c, label, sublabel, func() {
-						a.extensionField(c, &value, configFieldMetrics).Label(label).Width(220).Placeholder(param.Placeholder)
+					a.rowAligned(c, ui.Center, nil, rowFace{Inert: locked}, label, []rowLine{{Text: sublabel}}, "", func() {
+						input := a.extensionFieldLit(c, &value, configFieldMetrics, !locked).Label(label).Width(220).Placeholder(param.Placeholder)
+						if locked {
+							lockedControl(input)
+						}
 					}, below...)
-					values[param.ID] = value
+					if !locked {
+						values[param.ID] = value
+					}
 				}
 			}
 		})
@@ -7174,8 +7180,9 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 				a.runOpen[integration.ID] = false
 				a.runError = ""
 			}
-			run := a.extensionPrimaryButton(c, copy.RunLabel, len(issues) > 0)
-			if run.Clicked() && len(issues) == 0 {
+			runDisabled := len(issues) > 0 || locked || !integration.Running || integration.Broken || integration.Orphan
+			run := a.extensionPrimaryButton(c, copy.RunLabel, runDisabled)
+			if run.Clicked() && !runDisabled {
 				a.runError = ""
 				if failure := a.Actions.RunWithParams(integration.ID, values); failure != nil {
 					a.runError = paramFailureMessage(copy, params, failure)
