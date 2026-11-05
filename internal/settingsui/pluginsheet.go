@@ -270,7 +270,7 @@ func (a *App) sheetField(c *ui.Context, sheet PluginSheet, field plugincfg.Field
 		a.checkbox(c, field.Label, field.Help, on, func(next bool) { sheet.Change(field.Key, next) })
 	case plugincfg.Select:
 		current, _ := value.(string)
-		a.choose(c, field.Label, field.Help, optionsOf(field.Options), current,
+		a.choose(c, field.Label, field.Help, optionsOf(field.Options, a.copy().ConfigNone), current,
 			func(next string) { sheet.Change(field.Key, next) })
 	case plugincfg.Radio:
 		current, _ := value.(string)
@@ -324,7 +324,7 @@ func (a *App) sheetRadio(c *ui.Context, sheet PluginSheet, field plugincfg.Field
 	labels := make([]string, len(field.Options))
 	index := 0
 	for i, option := range field.Options {
-		labels[i] = pluginOptionLabel(option)
+		labels[i] = pluginOptionLabel(option, a.copy().ConfigNone)
 		if option.Value == current {
 			index = i
 		}
@@ -362,7 +362,7 @@ func (a *App) sheetCheckboxes(c *ui.Context, sheet PluginSheet, field plugincfg.
 			for i, option := range field.Options {
 				i, option := i, option
 				checked := on[i]
-				if ui.Checkbox(c.Key("plugin.option."+option.Value), &checked, pluginOptionLabel(option)).Changed() {
+				if ui.Checkbox(c.Key("plugin.option."+option.Value), &checked, pluginOptionLabel(option, a.copy().ConfigNone)).Changed() {
 					on[i] = checked
 					pressed = i
 				}
@@ -662,20 +662,23 @@ func uniquePluginOptions(options []plugincfg.Option) []plugincfg.Option {
 	return unique
 }
 
-func optionsOf(options []plugincfg.Option) []i18n.Option {
+func optionsOf(options []plugincfg.Option, empty ...string) []i18n.Option {
 	out := make([]i18n.Option, 0, len(options))
 	for _, option := range options {
-		out = append(out, i18n.Option{ID: option.Value, Label: pluginOptionLabel(option)})
+		out = append(out, i18n.Option{ID: option.Value, Label: pluginOptionLabel(option, empty...)})
 	}
 	return out
 }
 
 // Schemas may omit a display label; the stored value still names the choice.
-func pluginOptionLabel(option plugincfg.Option) string {
+func pluginOptionLabel(option plugincfg.Option, empty ...string) string {
 	if option.Label != "" {
 		return option.Label
 	}
-	return option.Value
+	if option.Value != "" || len(empty) == 0 {
+		return option.Value
+	}
+	return empty[0]
 }
 
 // boundedText is a bounded value with its unit: "300 items", "30 days".

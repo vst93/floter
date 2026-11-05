@@ -33,3 +33,12 @@
 
 5. **插件复选组重复 ID 直接崩溃** → 构建前按 Value 保留首个选项 → 深浅能显示并选择文件，只提交一个 files；原串 `ui: two elements under one parent have the key "plugin.option.files", and share one state`。原实现无法出图，同样记录缺证。
 6. **插件单选重复 ID 形成无法独立选择的分段** → 按 Value 保留首项及其名字 → 深浅移除“文件副本”，点击文件稳定保存 files；原串 `duplicate radio ID still draws an unselectable segment`。
+
+第三批相关实测 49 PASS / 0 FAIL，包含第二批全部回归；b4faf46e 已推送。
+
+7. **插件及集成下拉重复 ID 多占一格键盘位置** → 共享下拉按值保留第一名字且不修改调用方列表 → 深浅 Home/Down/Enter 均选择第二个真实值 apps；原串 `duplicate ID consumed a keyboard step: files`、`config duplicate consumed a keyboard step: files`。
+8. **空值且空名称的选项没有可见名字** → 插件下拉/单选/复选和集成必填下拉/多选共五处复用本地化 ConfigNone，身份不改 → 五种控件×深浅都可点击“无 / None”且提交原空字符串；原串 `empty select choice has no visible name` 等十处。
+
+第四批相关实测 90 PASS / 0 FAIL。最初新测试将枚举 Kind 当 string，被 vet 拒绝；修为显式测试名，重新以 Go overlay 加载 b4faf46e 三个原产品文件取得真实行为反证。batch4-before.txt 是编译通过后的原行为失败，未把编译错误算产品缺陷。所有既有断言零改。
+
+第一轮四视角复核：艺术视角看到重复选项使同一动作占两块面，已去重；工程视角发现重复键 panic，已覆盖真实构建；任务视角发现外部刷新后 Enter 撤销新值，已同步；读者视角长名字把下一项藏起来，已单行裁切。第二轮目视深浅：菜单少一行、radio 从三格变两格，点击文件后的选中面与焦点环回到同一格；空复选项现在有“无”字，勾选框仍在原位置。

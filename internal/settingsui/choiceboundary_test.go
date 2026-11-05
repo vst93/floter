@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"floter/internal/i18n"
 	"floter/internal/plugincfg"
 	"github.com/egoist/mygo/ui"
 )
@@ -184,5 +185,117 @@ func TestChoiceBoundaryPluginRadioDuplicate(t *testing.T) {
 				t.Error("radio did not select files")
 			}
 		})
+	}
+}
+
+func TestChoiceBoundarySelectDuplicate(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			sheet := selectValueSheet("apps", []plugincfg.Option{{Value: "files", Label: "文件"}, {Value: "files", Label: "文件副本"}, {Value: "apps", Label: "应用"}})
+			tt := pluginIdentityFrame(t, dark, &sheet)
+			if err := tt.Click("应用"); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			choiceBoundaryDump(t, tt, "select-duplicate", dark)
+			if tt.HasText("文件副本") {
+				t.Error("dropdown repeats the same stored ID")
+			}
+			tt.Key(0, ui.KeyHome)
+			tt.Key(0, ui.KeyDown)
+			tt.Key(0, ui.KeyEnter)
+			tt.Frame()
+			if got := sheet.Values["mode"]; got != "apps" {
+				t.Errorf("duplicate ID consumed a keyboard step: %v", got)
+			}
+			integration := Integration{ID: "local.search", Config: []ConfigField{{Key: "mode", Label: "搜索方式", Type: "select", Required: true, Options: []string{"files", "files", "apps"}}}, ConfigValues: map[string]any{"mode": "apps"}}
+			a, ct := configIdentityFrame(t, dark, &integration)
+			if err := ct.Click("apps"); err != nil {
+				t.Fatal(err)
+			}
+			ct.Frame()
+			ct.Key(0, ui.KeyHome)
+			ct.Key(0, ui.KeyDown)
+			ct.Key(0, ui.KeyEnter)
+			ct.Frame()
+			if got := a.draft(integration).values["mode"]; got != "apps" {
+				t.Errorf("config duplicate consumed a keyboard step: %v", got)
+			}
+		})
+	}
+}
+
+func TestChoiceBoundaryEmptyChoiceName(t *testing.T) {
+	for _, sample := range []struct {
+		kind plugincfg.Kind
+		name string
+	}{{plugincfg.Select, "select"}, {plugincfg.Radio, "radio"}, {plugincfg.Checkboxes, "checkboxes"}} {
+		kind, name := sample.kind, sample.name
+		for _, dark := range []bool{false, true} {
+			t.Run(name+"/"+appearanceName(dark), func(t *testing.T) {
+				sheet := selectValueSheet("apps", []plugincfg.Option{{Value: "", Label: ""}, {Value: "apps", Label: "应用"}})
+				sheet.Schema.Fields[0].Kind = kind
+				if kind == plugincfg.Checkboxes {
+					sheet.Values["mode"] = []string{}
+				}
+				tt := pluginIdentityFrame(t, dark, &sheet)
+				if kind == plugincfg.Select {
+					if err := tt.Click("应用"); err != nil {
+						t.Fatal(err)
+					}
+					tt.Frame()
+				}
+				choiceBoundaryDump(t, tt, "empty-name-"+name, dark)
+				none := i18n.For("zh").Settings.ConfigNone
+				if !tt.HasText(none) {
+					t.Errorf("empty %s choice has no visible name", name)
+					return
+				}
+				if err := tt.Click(none); err != nil {
+					t.Fatal(err)
+				}
+				tt.Frame()
+				got := sheet.Values["mode"]
+				if kind == plugincfg.Checkboxes {
+					if !configValuesEqual(got, []string{""}) {
+						t.Errorf("empty checkbox ID changed: %#v", got)
+					}
+				} else if got != "" {
+					t.Errorf("empty choice ID changed: %#v", got)
+				}
+			})
+		}
+	}
+	for _, kind := range []string{"select", "multiselect"} {
+		for _, dark := range []bool{false, true} {
+			t.Run("config-"+kind+"/"+appearanceName(dark), func(t *testing.T) {
+				integration := Integration{ID: "local.search", Config: []ConfigField{{Key: "mode", Label: "搜索方式", Type: kind, Required: true, Options: []string{"", "apps"}}}, ConfigValues: map[string]any{"mode": "apps"}}
+				a, tt := configIdentityFrame(t, dark, &integration)
+				if kind == "select" {
+					if err := tt.Click("apps"); err != nil {
+						t.Fatal(err)
+					}
+					tt.Frame()
+				}
+				choiceBoundaryDump(t, tt, "empty-name-config-"+kind, dark)
+				none := a.copy().ConfigNone
+				if !tt.HasText(none) {
+					t.Errorf("empty config %s choice has no visible name", kind)
+					return
+				}
+				if err := tt.Click(none); err != nil {
+					t.Fatal(err)
+				}
+				tt.Frame()
+				got := a.draft(integration).values["mode"]
+				if kind == "multiselect" {
+					if !configValuesEqual(got, []any{""}) {
+						t.Errorf("empty config multi ID changed: %#v", got)
+					}
+				} else if got != "" {
+					t.Errorf("empty config ID changed: %#v", got)
+				}
+			})
+		}
 	}
 }

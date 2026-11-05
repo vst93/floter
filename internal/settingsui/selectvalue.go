@@ -18,6 +18,19 @@ type selectHighlight[T comparable] struct {
 // unique; an unavailable stored value remains visible until explicitly replaced.
 func valueSelect[T comparable](c *ui.Context, selected *T, labels []string, values []T, fallback string, tokens theme.Tokens, enabled bool) ui.Element {
 	t := c.Theme()
+	// Distinct names may share an ID in an external schema. They are still
+	// one action; preserve the first name and the caller's slices.
+	seen := make(map[T]bool, len(values))
+	uniqueValues := make([]T, 0, len(values))
+	uniqueLabels := make([]string, 0, len(labels))
+	for i, value := range values {
+		if !seen[value] {
+			seen[value] = true
+			uniqueValues = append(uniqueValues, value)
+			uniqueLabels = append(uniqueLabels, labels[i])
+		}
+	}
+	values, labels = uniqueValues, uniqueLabels
 	// Retire the active popup with its trigger while it is unavailable.
 	if !enabled {
 		c = c.Key("select.unavailable")

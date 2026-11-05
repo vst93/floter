@@ -932,6 +932,9 @@ func configSelectChoices(field ConfigField, none string) ([]string, []configChoi
 			continue
 		}
 		label := option
+		if label == "" {
+			label = none
+		}
 		if option == none && !field.Required {
 			label = strconv.Quote(option)
 		}
@@ -1064,9 +1067,13 @@ func (a *App) configOptionRow(c *ui.Context, option string, on *bool, changed *b
 	tokens := a.tokens(c)
 	clicked := false
 	var mods ui.Modifiers
+	label := option
+	if label == "" {
+		label = a.copy().ConfigNone
+	}
 	ui.Row(c).FillWidth().AlignItems(ui.Center).Justify(ui.SpaceBetween).
 		Gap(a.cardSpace(t, 2)).MinHeight(a.cardSpace(t, 5)).Children(func() {
-		word := ui.Text(c, option).FontSize(tokens.Body).FontWeight(500).TextColor(tokens.TextSecondary).
+		word := ui.Text(c, label).FontSize(tokens.Body).FontWeight(500).TextColor(tokens.TextSecondary).
 			Grow(1).MinWidth(0).SingleLine()
 		if word.Clicked() && !locked {
 			clicked = true
@@ -1074,7 +1081,7 @@ func (a *App) configOptionRow(c *ui.Context, option string, on *bool, changed *b
 		}
 		// CheckboxBase alone has neither a face nor a hit area. Keep the
 		// existing native checkbox's size, check mark and focus treatment.
-		box := ui.Checkbox(c, on, "").Label(option)
+		box := ui.Checkbox(c, on, "").Label(label)
 		if clicked {
 			box.Focus()
 		}
