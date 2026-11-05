@@ -33,6 +33,11 @@
 
 第二批相关回归 **73 PASS / 0 FAIL**（`choice-after.log`）。所有旧断言零改动。首批提交 `c6d0d6d6` 已推送；两个相同 orphan 的产品补丁 reverse-check 通过，已创建 `refs/archive/floter/P13-ha/<完整 SHA>` 保存原始报告/图片/测试，再按开盘 ref 1、0 顺序 drop；活动清单回到八条早期 WIP。
 
+5. **错误跨表单串用**：A 的失败在 B 出现，取消或运行 B 又清掉/替换 A 的错误 → runError 按 integration.ID 存，取消、重试与入口展开只清自己 → 深浅均验证错误不串用，A/B 的失败可同时保留。原始串：`first run failure leaked into second form`、`canceling second form erased first failure`、`second run replaced first failure`。
+6. **参数重排写错字段**：Target 输入 first 后参数顺序改变，继续输入 -tail 却写入 Note → 表单根以集成 ID、参数行以参数 ID 定位 → 两主题均保留 Target 焦点，最终 Target=`first-tail`、Note 为空。原始串：`parameter reorder lost edit target: target="first" note="-tail"`。原规格“前行错误插入”只是线索，没有算修复；此项以真实重排复现替代。
+
+第三批相关回归 **79 PASS / 0 FAIL**，日志 `owner-{before,after}.log`。第二批提交 `eb0d857c` 已推送。
+
 ## 设计与验证计划
 
 读取为：面向桌面工具用户的原生参数表单与输出凹槽，轻便液态玻璃。拨盘 2/2/6，保留高度链、键盘、会话、写回与 i18n。三秒内能分清可操作项、错误所属表单和最新输出的开头。

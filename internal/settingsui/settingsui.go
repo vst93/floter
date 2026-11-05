@@ -722,7 +722,7 @@ type App struct {
 	// destructive button was pressed and is likewise waiting — the old
 	// panel's removal bar (`RemovalConfirmation`), asked inline rather than
 	// through a native dialog. runValues holds the run form's
-	// answers per integration and runError its last refusal. runOpen is
+	// answers and last refusals per integration. runOpen is
 	// which integrations have their run form unfolded: the row's Run
 	// button is the disclosure (the reference's `runFormOpen`), so an
 	// integration that declares inputs does not wear the form until it is
@@ -760,7 +760,7 @@ type App struct {
 	// disableBusy: its answer comes from the confirmation band, not the switch.
 	toggleBusy   map[string]bool
 	runValues    map[string]map[string]string
-	runError     string
+	runError     map[string]string
 	runOpen      map[string]bool
 	runOutputs   map[string]RunResult
 	outputOpen   map[string]bool
@@ -3003,7 +3003,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 							a.runOpen = map[string]bool{}
 						}
 						a.runOpen[integration.ID] = !a.runOpen[integration.ID]
-						a.runError = ""
+						delete(a.runError, integration.ID)
 					} else {
 						// No inputs: run at once. There is no form to print a
 						// refusal under, and a run with no declared parameters
@@ -7085,7 +7085,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 	// flush against the card's edge (the reference's `.extension-run-params`
 	// box, `extensions.css:1224-1236`, sits inside the row's own padding).
 	inset := a.rowInset(theme)
-	ui.Column(c).FillWidth().Padding(0, inset, 0, inset).Children(func() {
+	ui.Column(c.Key("settings.runform."+integration.ID)).FillWidth().Padding(0, inset, 0, inset).Children(func() {
 		// The form's own frame: the heading and hint the reference drew above the
 		// inputs (`RunParamForm.tsx`: `.extension-run-params__head` +
 		// `customRunValuesHint`), so a user meets the form as a named block rather
@@ -7118,6 +7118,9 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 							Margin(theme.Space(1), theme.Space(3.5))
 					})
 				}
+				// Keep focus and the editor's state on this parameter when a
+				// refreshed manifest changes its position in the form.
+				c.Key(param.ID)
 				switch param.Kind {
 				case extensions.ParamBoolean:
 					on := truthyValue(values[param.ID])
@@ -7186,19 +7189,22 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 			// `runParamMemory`, session memory seeded only on a fresh open.
 			if a.actionButton(c, copy.RunCancel).Clicked() {
 				a.runOpen[integration.ID] = false
-				a.runError = ""
+				delete(a.runError, integration.ID)
 			}
 			runDisabled := len(issues) > 0 || locked || !integration.Running || integration.Broken || integration.Orphan
 			run := a.extensionPrimaryButton(c, copy.RunLabel, runDisabled)
 			if run.Clicked() && !runDisabled {
-				a.runError = ""
+				delete(a.runError, integration.ID)
 				if failure := a.Actions.RunWithParams(integration.ID, values); failure != nil {
-					a.runError = paramFailureMessage(copy, params, failure)
+					if a.runError == nil {
+						a.runError = map[string]string{}
+					}
+					a.runError[integration.ID] = paramFailureMessage(copy, params, failure)
 				}
 			}
 		})
-		if a.runError != "" {
-			ui.Text(c, a.runError).FontSize(a.tokens(c).Caption).TextColor(theme.Danger)
+		if runError := a.runError[integration.ID]; runError != "" {
+			ui.Text(c, runError).FontSize(a.tokens(c).Caption).TextColor(theme.Danger)
 		}
 	})
 }
