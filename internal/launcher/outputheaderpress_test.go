@@ -41,14 +41,17 @@ type outputHeaderState struct {
 }
 
 // outputHeaderFrame draws the capture-output page with both header keys present.
-// The strip's own plane never changes between the three frames, so the pointer's
-// state is the only thing that moves.
+//
+// P13-gv · 这一帧此前用**列表**夹具打开捕获输出页。列表页自本轮起不再画钉住键
+// （`output.go` 的门：列表的 `Text` 是序列化协议，参考实现也拒绝给列表发钉住），
+// 所以这枚键的指针三档改在**正文臂**上量——同一个页头、同一个 28u 方键、同一条
+// `tokens.LitFace`，下面四条判据一个字不动。
 func outputHeaderFrame(t *testing.T, dark bool) (*ui.Tester, string) {
 	t.Helper()
 	a := testApp()
 	a.Actions.PinText = func(string, string) {}
 	a.Actions.DetachOutput = func(OutputView) {}
-	tt := runListOutput(t, a, `[{"id":"r0","title":"Alpha"}]`)
+	tt := runTextOutput(t, a, "hello")
 	tt.SetDark(dark)
 	tt.Frame()
 	return tt, a.copy().HistoryPin

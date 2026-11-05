@@ -139,6 +139,29 @@ func (a *App) detachOutput(view launcher.OutputView) {
 		existing.title = title
 		existing.running = false
 		existing.loadingMore = false
+		// P13-gv · the rest of the window's own state belongs to the content it
+		// was carrying, and the content just changed. Everything below was left
+		// behind by the previous run, so none of it is true of this one:
+		//
+		//   failed       the body draws a fault *before* its text
+		//                (`detach.go`'s switch), so a replaced window kept the old
+		//                sentence over the new output.
+		//   scroll       a new content starts at its own beginning — the rule
+		//                `showOutput` already follows for the panel's own scroller
+		//                (P11-ar), and the plugin sheet follows for its scroll
+		//                (P13-gu).
+		//   frames       `detachedAskForMore` reads `frames <= 1` as "the body has
+		//                not been measured yet"; a reused window was measured long
+		//                ago, so a fresh paged list's first frame (`MaxY` still 0)
+		//                looked like an end-of-list and pulled page two at once.
+		//   selection*   the copy-on-select ledger: a fresh content whose selection
+		//                happens to equal the old one was treated as already
+		//                copied and never reached the clipboard.
+		existing.failed = ""
+		existing.scroll = ui.ScrollState{}
+		existing.frames = 0
+		existing.selectionText, existing.selectionCopied = "", ""
+		existing.selectionAt = time.Time{}
 		existing.generation++
 		if existing.win != nil {
 			existing.win.SetTitle(detachWindowTitle(title))
@@ -414,7 +437,18 @@ func (a *App) detachedBodyView(c *ui.Context, detached *detachedOutput, tokens t
 		case detached.failed != "":
 			detachedStateLine(c, detached.failed, detachedFault, tokens, t)
 		case len(detached.view.Text) > 0 && !detached.view.IsList:
-			a.detachedCopyOnSelect(c, detached, detachedText(c, detached, tokens, t))
+			// P13-gv · `Empty` says this text is not output at all: it is the
+			// sentence the view wrote in place of an answer (`OutputFor`). The
+			// panel has drawn that sentence in the statement register since
+			// P13-cd (`launcher.quietStatement`: centered, emphasis, strong ink);
+			// this window drew it as output — selectable body text, one step
+			// under the bar, the same ink as a real answer. Same words, same
+			// register, two surfaces.
+			if detached.view.Empty {
+				detachedStateLine(c, detached.view.Text, detachedStatement, tokens, t)
+			} else {
+				a.detachedCopyOnSelect(c, detached, detachedText(c, detached, tokens, t))
+			}
 		case detached.view.IsList:
 			a.detachedCopyOnSelect(c, detached, detachedList(c, detached.view.Rows, tokens, t))
 			// R95 · the list arm pages exactly as the launcher's does: reaching
@@ -618,9 +652,16 @@ func detachedStatusAlone(rows []extensions.Row) bool {
 // The element is returned so the caller can run the copy-on-select gesture on
 // it (see detachedCopyOnSelect).
 func detachedText(c *ui.Context, detached *detachedOutput, tokens theme.Tokens, t *ui.Theme) ui.Element {
-	return ui.Text(c, detached.view.Text).Font(detached.view.FontFamily).
+	// P13-gv · the runs the view parsed are the text's styles: a colour, a weight,
+	// a half-intensity dim. The panel's own text surface has always drawn them
+	// (`launcher.outputSpans` → `output.go`); this window drew `view.Text`, the
+	// same characters with every sequence stripped, so a coloured `ls` or diff
+	// arrived here in one flat ink. The plain case is one unstyled span over the
+	// same `TextSecondary`, so a command that asked for nothing is unchanged.
+	return ui.RichText(c, detached.view.TextSpans(tokens.Appearance, tokens.TextSecondary, tokens.Body)...).
+		Font(detached.view.FontFamily).
 		FontSize(tokens.Body).LineHeight(1.45).
-		TextColor(tokens.TextSecondary).Wrap().Selectable()
+		TextColor(tokens.TextSecondary).Selectable()
 }
 
 // detachSelectionSettle is how long a selection has to stay unchanged before

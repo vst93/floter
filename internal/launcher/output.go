@@ -687,7 +687,16 @@ func (a *App) outputBody(c *ui.Context, copy i18n.Launcher, edge float32) {
 				}
 				// The output can be shown in a window of its own: the old
 				// build's own pin, on the surface that holds the text.
-				if a.Actions.PinText != nil {
+				//
+				// P13-gv · only the text arm earns it. A list's `Text` is the
+				// *serialized protocol* (`{"output":[…]}`), which is what this
+				// key used to pin: the window then showed the plugin's wire
+				// format. The reference refuses a pin for list content by the
+				// same rule that decides which rows are pinnable
+				// (`main:src/plugin-window/pin-entry.ts`: `resolvePluginView`
+				// answers "list" → `null` → no pin), and the list arm has its
+				// own key beside it (the detach key, which keeps the list).
+				if a.Actions.PinText != nil && !view.IsList {
 					control("\u2197", copy.HistoryPin, copy.HistoryPin, func() { a.Actions.PinText(view.Title, view.Text) })
 				}
 				// And a command's page can be detached into a window that
@@ -1070,17 +1079,28 @@ func (a *App) outputRow(c *ui.Context, row extensions.Row, i int) {
 // and the decorations, with the surface's own colour for whatever the command
 // left unsaid.
 func (a *App) outputSpans(c *ui.Context, view *OutputView) []ui.Span {
-	appearance := a.tokens(c).Appearance
-	base := c.Theme().Text
-	out := make([]ui.Span, 0, len(view.Spans))
-	for _, span := range view.Spans {
+	return view.TextSpans(a.tokens(c).Appearance, c.Theme().Text, c.Theme().FontSize)
+}
+
+// TextSpans is the text arm's runs as a surface draws them: the parsed ANSI
+// styles resolved over base at size, or one plain span when the run asked for
+// nothing (or when the view was built without a parse, as a note is).
+//
+// P13-gv · it is a method on the view because the same view is drawn by two
+// surfaces — the panel's own text body (`outputSpans`) and the captured-output
+// window (`shell.detachedText`) — and only the first one ever resolved the
+// runs: the window printed `Text`, the characters with every sequence removed.
+// One view, one reading of its styles.
+func (v OutputView) TextSpans(appearance theme.Appearance, base ui.Color, size float32) []ui.Span {
+	out := make([]ui.Span, 0, len(v.Spans))
+	for _, span := range v.Spans {
 		if span.Text == "" {
 			continue
 		}
-		out = append(out, resolveOutputSpan(appearance, span.Style, base, c.Theme().FontSize, span.Text))
+		out = append(out, resolveOutputSpan(appearance, span.Style, base, size, span.Text))
 	}
 	if len(out) == 0 {
-		out = append(out, ui.Span{Text: view.Text, Size: c.Theme().FontSize, Color: base})
+		out = append(out, ui.Span{Text: v.Text, Size: size, Color: base})
 	}
 	return out
 }

@@ -1,12 +1,15 @@
 package shell
 
 import (
+	"strings"
+
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/i18n"
 	"floter/internal/launcher"
+	"floter/internal/settings"
 	"floter/internal/theme"
 )
 
@@ -17,6 +20,15 @@ type pinned struct {
 	title string
 	text  string
 	win   *mygo.Window
+}
+
+// pinnedStateKey is the key a note's geometry is remembered under: one per
+// note, keyed by its title, the way a command-less detached run is keyed by its
+// own trimmed title (`detachContentKey`). R91's rule is why: *a window belongs
+// to its content* — and a note's content is what it is called. One shared key
+// made every note open on the last note's rectangle and fight over it.
+func pinnedStateKey(title string) string {
+	return settings.DetachedStateKeyPrefix + "text\x00" + strings.TrimSpace(title)
 }
 
 // PinText opens a window holding a copy of some text — a terminal session's
@@ -44,7 +56,7 @@ func (a *App) PinText(title, text string) {
 		Title:    state.title,
 		Width:    720,
 		Height:   480,
-		StateKey: "pinned",
+		StateKey: pinnedStateKey(state.title),
 		Content: ui.View(func(c *ui.Context) {
 			a.pinnedView(c, state)
 		}),

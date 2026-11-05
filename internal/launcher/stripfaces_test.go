@@ -81,7 +81,7 @@ func TestTheOutputStripControlsAreE1Faces(t *testing.T) {
 			a := testApp()
 			a.Actions.PinText = func(string, string) {}
 			a.Actions.DetachOutput = func(OutputView) {}
-			tt := runListOutput(t, a, `[{"id":"r0","title":"Alpha"}]`)
+			tt := runTextOutput(t, a, "hello")
 			tt.SetDark(appearance.dark)
 			tt.Frame()
 
@@ -236,8 +236,7 @@ func TestDumpLauncherStripPNGs(t *testing.T) {
 		a := testApp()
 		a.Actions.PinText = func(string, string) {}
 		a.Actions.DetachOutput = func(OutputView) {}
-		tt := runListOutput(t, a, `[{"id":"r0","title":"Alpha","group":"Group A"},`+
-			`{"id":"r1","title":"Beta","group":"Group A"}]`)
+		tt := runTextOutput(t, a, "hello")
 		tt.SetDark(dark)
 		tt.Frame()
 		if key, ok := tt.Find(a.copy().HistoryPin); ok {

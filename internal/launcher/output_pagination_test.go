@@ -45,6 +45,31 @@ func runListOutput(t *testing.T, a *App, stdout string) *ui.Tester {
 	return tt
 }
 
+// runTextOutput opens the output view on one captured emission of the *text*
+// arm — the same window as runListOutput, but the payload is not the list
+// protocol, so the page draws body text and (since P13-gv) the strip's own
+// pin key is offered. The two arms differ in exactly that, which is why the
+// strip's pointer pins are measured on this one.
+func runTextOutput(t *testing.T, a *App, stdout string) *ui.Tester {
+	t.Helper()
+	entry := extensions.CommandEntry{
+		IntegrationID: "test.ext",
+		Command:       extensions.Command{ID: "text", Name: "Print text"},
+		Program:       "/bin/sh",
+		Route:         extensions.RouteBackground,
+	}
+	a.SetCommands([]extensions.CommandEntry{entry})
+	a.Actions.RunCommandCaptured = func(_ extensions.CommandEntry, _ []string, done func(extensions.CapturedRun, error)) {
+		done(extensions.CapturedRun{Command: []string{"tool"}, Success: true, Stdout: stdout}, nil)
+	}
+	tt := render(t, a)
+	a.Query = "text"
+	tt.Frame()
+	tt.TypeKey(0, ui.KeyEnter, "")
+	tt.Frame()
+	return tt
+}
+
 // A plugin that hands over its whole list is windowed in memory: the first
 // emission loads two pages, the footer says more exist, and the window grows
 // by one page when the end is reached. A complete list carries no footer.
