@@ -38,6 +38,11 @@
 
 第三批相关回归 **79 PASS / 0 FAIL**，日志 `owner-{before,after}.log`。第二批提交 `eb0d857c` 已推送。
 
+7. **新输出沿用旧滚动**：读过长输出后，新成功/失败结果均停在 Y=300，首行不可见 → SetRunResult 只重置本集成既有 ScrollState → 两主题 × 成功/失败均 Y=0，其他集成 Y=37 原样保留，已展开状态保留。原始红测：`new output starts at stale Y=300`。
+8. **ANSI 原串泄露**：捕获区把 ESC[31m、ESC[0m、ESC[2K 当作文本 → 复用已有 ansi 解析与 OutputView.TextSpans/RichText → 两主题得到红色 ALERT 与普通正文，复制为 `ALERT plain`，LastRun 原始字节不变；空串及只有控制序列时保留原空态。原始红测：`captured output exposes ANSI bytes`。
+
+第四批相关回归 **107 PASS / 0 FAIL**。初次替换 RichText 时空串被 Parse 表示为一个空 span，既有空态两条 B 断言报红；已修产品的可见文本判定，两条原断言保持原样转绿。第三批提交 `08586e80` 已推送。
+
 ## 设计与验证计划
 
 读取为：面向桌面工具用户的原生参数表单与输出凹槽，轻便液态玻璃。拨盘 2/2/6，保留高度链、键盘、会话、写回与 i18n。三秒内能分清可操作项、错误所属表单和最新输出的开头。

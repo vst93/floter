@@ -22,6 +22,7 @@ import (
 	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
 
+	"floter/internal/ansi"
 	"floter/internal/control"
 	"floter/internal/deadline"
 	"floter/internal/extensions"
@@ -7002,6 +7003,11 @@ func (a *App) SetRunResult(id string, result RunResult) {
 		a.runOutputs = map[string]RunResult{}
 	}
 	a.runOutputs[id] = result
+	// A result is a new document. Repaints and disclosure toggles retain the
+	// reading position; replacing this integration's capture starts at its head.
+	if scroll := a.outputScroll[id]; scroll != nil {
+		*scroll = ui.ScrollState{}
+	}
 	if !result.Success {
 		a.setRunOutputOpen(id, true)
 	}
@@ -7385,11 +7391,13 @@ func (a *App) runOutput(c *ui.Context, copy i18n.Settings, integration Integrati
 				ui.Column(c).FillWidth().Children(func() {
 					ui.Scroll(c.Key("settings.runoutput." + integration.ID)).TrackScroll(scrolled).
 						FillWidth().MaxHeight(t.Space(45)).Children(func() {
-						if !result.HasOutput() {
+						view := launcher.OutputView{Text: ansi.Plain(result.Text()), Spans: ansi.Parse(result.Text())}
+						if view.Text == "" {
 							a.runOutputAside(c, tokens, copy.RunNoOutput, false)
 							return
 						}
-						ui.Text(c, result.Text()).Font(runOutputFont).FontSize(tokens.Caption).
+						ui.RichText(c, view.TextSpans(tokens.Appearance, tokens.TextStrong, tokens.Caption)...).
+							Font(runOutputFont).FontSize(tokens.Caption).
 							TextColor(tokens.TextStrong).LineHeight(1.45).Wrap().Selectable()
 					})
 					// 底色是**不透明**的合成面：`runOutputFace` 是 `Sunken`，一枚跟着透明度滑块走
