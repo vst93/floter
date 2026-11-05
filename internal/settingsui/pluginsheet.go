@@ -320,6 +320,7 @@ func (a *App) sheetField(c *ui.Context, sheet PluginSheet, field plugincfg.Field
 // sheetRadio is a stacked row: the label and help above, the choices under
 // them, as the old build's radio group drew.
 func (a *App) sheetRadio(c *ui.Context, sheet PluginSheet, field plugincfg.Field, current string) {
+	field.Options = uniquePluginOptions(field.Options)
 	labels := make([]string, len(field.Options))
 	index := 0
 	for i, option := range field.Options {
@@ -345,6 +346,7 @@ func (a *App) sheetRadio(c *ui.Context, sheet PluginSheet, field plugincfg.Field
 
 // sheetCheckboxes is the same stacked shape, with a check box per option.
 func (a *App) sheetCheckboxes(c *ui.Context, sheet PluginSheet, field plugincfg.Field, current []string) {
+	field.Options = uniquePluginOptions(field.Options)
 	t := c.Theme()
 	on := make([]bool, len(field.Options))
 	for i, option := range field.Options {
@@ -648,6 +650,18 @@ func (a *App) sheetAction(c *ui.Context, sheet PluginSheet, field plugincfg.Fiel
 
 // optionsOf converts a schema's choices to the settings pages' option shape,
 // so one dropdown helper serves both.
+func uniquePluginOptions(options []plugincfg.Option) []plugincfg.Option {
+	seen := make(map[string]bool, len(options))
+	unique := make([]plugincfg.Option, 0, len(options))
+	for _, option := range options {
+		if !seen[option.Value] {
+			seen[option.Value] = true
+			unique = append(unique, option)
+		}
+	}
+	return unique
+}
+
 func optionsOf(options []plugincfg.Option) []i18n.Option {
 	out := make([]i18n.Option, 0, len(options))
 	for _, option := range options {

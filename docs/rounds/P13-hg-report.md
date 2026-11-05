@@ -28,3 +28,8 @@
 
 3. **多选长名字换行挤掉下一项** → 单行省略保持原行高 → 深浅长项高度和下一项间隔断言通过，下一项真实点击可提交；前后图中应用从视口外回到第二行。
 4. **重复多选值让表单直接 panic** → 每个真实值保留一个行、一个范围位置 → 重复 schema 能完整打开并仅提交一次文件；原串 `duplicate` 的完整框架堆栈归档 batch2-before.txt。崩溃前无法导出重复项 before 图，明确缺证，不伪造截图。
+
+第二批 78b44f84 已推送，但过程有一次门槛违规：第一批命令异步运行时追加了第二批测试，随后第二批计数 pin 仍红时过早提交。原始日志保留；原因是 Tester.Texts 同时包含可见词与勾选框的辅助功能 Label，应为一对 2 条而非 1 条。修正的是本轮新增断言的观测口径，旧测试未动。重复 schema 原实现仍会 panic，防崩与单次提交断言保持。
+
+5. **插件复选组重复 ID 直接崩溃** → 构建前按 Value 保留首个选项 → 深浅能显示并选择文件，只提交一个 files；原串 `ui: two elements under one parent have the key "plugin.option.files", and share one state`。原实现无法出图，同样记录缺证。
+6. **插件单选重复 ID 形成无法独立选择的分段** → 按 Value 保留首项及其名字 → 深浅移除“文件副本”，点击文件稳定保存 files；原串 `duplicate radio ID still draws an unselectable segment`。

@@ -129,8 +129,9 @@ func TestChoiceBoundaryMultiDuplicate(t *testing.T) {
 					count++
 				}
 			}
-			if count != 1 {
-				t.Errorf("same multi value drawn %d times, want once", count)
+			// Texts includes the visible word and the checkbox's accessible label.
+			if count != 2 {
+				t.Errorf("same multi value has %d text/accessible labels, want one pair", count)
 			}
 			if err := tt.Click("文件"); err != nil {
 				t.Fatal(err)
@@ -138,6 +139,49 @@ func TestChoiceBoundaryMultiDuplicate(t *testing.T) {
 			tt.Frame()
 			if got := a.draft(integration).values["sources"]; !configValuesEqual(got, []any{"文件"}) {
 				t.Errorf("duplicate multi value submitted: %v", got)
+			}
+		})
+	}
+}
+
+func TestChoiceBoundaryPluginCheckboxDuplicate(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			sheet := pluginIdentitySheet()
+			sheet.Schema.Fields = []plugincfg.Field{{Key: "sources", Label: "搜索来源", Kind: plugincfg.Checkboxes, Options: []plugincfg.Option{{Value: "files", Label: "文件"}, {Value: "files", Label: "文件副本"}, {Value: "apps", Label: "应用"}}}}
+			tt := pluginIdentityFrame(t, dark, &sheet)
+			choiceBoundaryDump(t, tt, "checkbox-duplicate", dark)
+			if tt.HasText("文件副本") {
+				t.Error("duplicate checkbox ID still draws a second control")
+			}
+			if err := tt.Click("文件"); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			if got := sheet.Values["sources"]; !configValuesEqual(got, []string{"files"}) {
+				t.Errorf("checkbox submitted repeated ID: %v", got)
+			}
+		})
+	}
+}
+
+func TestChoiceBoundaryPluginRadioDuplicate(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			sheet := selectValueSheet("apps", []plugincfg.Option{{Value: "files", Label: "文件"}, {Value: "files", Label: "文件副本"}, {Value: "apps", Label: "应用"}})
+			sheet.Schema.Fields[0].Kind = plugincfg.Radio
+			tt := pluginIdentityFrame(t, dark, &sheet)
+			choiceBoundaryDump(t, tt, "radio-duplicate", dark)
+			if tt.HasText("文件副本") {
+				t.Error("duplicate radio ID still draws an unselectable segment")
+			}
+			if err := tt.Click("文件"); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			choiceBoundaryDump(t, tt, "radio-duplicate-chosen", dark)
+			if sheet.Values["mode"] != "files" {
+				t.Error("radio did not select files")
 			}
 		})
 	}
