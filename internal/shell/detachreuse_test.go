@@ -340,3 +340,26 @@ func TestANotesGeometryIsItsOwn(t *testing.T) {
 		t.Errorf("a note and a command-less run share one geometry key: %q", first)
 	}
 }
+
+// A note draws its text in the family the pin was made under — the settings'
+// terminal family, normalized the way the terminal normalizes it. It used to
+// draw in the UI's sans face while its sibling window (`detach.go`) drew the
+// same text in the terminal's: two plugin windows, two typefaces for one body
+// register.
+func TestANotesBodyTakesTheTerminalFamily(t *testing.T) {
+	blank := detachReuseApp(t)
+	if got, want := blank.newPinned("note", "x").family, settings.NormalizeFontFamily(""); got != want {
+		t.Fatalf("a blank setting gives the note %q, the terminal draws %q", got, want)
+	}
+	if got := settings.NormalizeFontFamily(""); got == "" {
+		t.Fatalf("the shipped family is the empty string: this pin cannot tell the two apart")
+	}
+
+	custom := detachReuseApp(t)
+	if err := custom.Store.Update(func(s *settings.Settings) { s.FontFamily = "  Iosevka  " }); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := custom.newPinned("note", "x").family, "Iosevka"; got != want {
+		t.Fatalf("the note draws in %q, the terminal in %q", got, want)
+	}
+}

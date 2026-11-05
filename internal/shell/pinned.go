@@ -19,7 +19,12 @@ import (
 type pinned struct {
 	title string
 	text  string
-	win   *mygo.Window
+	// family is the family the text is drawn in, taken from the settings the pin
+	// was made under: a note holds terminal output or a clipboard clip, and its
+	// sibling window (`detach.go`) draws the same text in the terminal's own
+	// family (P13-gw).
+	family string
+	win    *mygo.Window
 }
 
 // pinnedStateKey is the key a note's geometry is remembered under: one per
@@ -48,10 +53,7 @@ func (a *App) PinText(title, text string) {
 		a.openPinned(title, text)
 		return
 	}
-	state := &pinned{title: title, text: text}
-	if title == "" {
-		state.title = "floter"
-	}
+	state := a.newPinned(title, text)
 	win := mygo.NewWindow(mygo.WindowOptions{
 		Title:    state.title,
 		Width:    720,
@@ -73,6 +75,19 @@ func (a *App) PinText(title, text string) {
 	}
 	a.pins[win] = state
 	a.pinMu.Unlock()
+}
+
+// newPinned is the note that will be drawn in a window: its title (a blank one
+// falls back to the app's name), its text, and the family that text is drawn in
+// — the settings' own, normalized the way the terminal normalizes it, so a
+// blank setting means the shipped monospace on both surfaces (P13-gw).
+func (a *App) newPinned(title, text string) *pinned {
+	state := &pinned{title: strings.TrimSpace(title), text: text,
+		family: settings.NormalizeFontFamily(a.Store.Snapshot().FontFamily)}
+	if state.title == "" {
+		state.title = "floter"
+	}
+	return state
 }
 
 // pinnedView draws one pinned window's whole frame: the theme it resolves for
@@ -134,7 +149,7 @@ func (a *App) pinnedBody(c *ui.Context, state *pinned, tokens theme.Tokens, t *u
 		})
 		body := ui.Scroll(c.Key("pinned.output")).Fill().Padding(t.Space(detachedBodyInset))
 		body.Children(func() {
-			ui.Text(c, state.text).FontSize(tokens.Body).LineHeight(1.45).
+			ui.Text(c, state.text).Font(state.family).FontSize(tokens.Body).LineHeight(1.45).
 				TextColor(tokens.TextSecondary).Wrap().Selectable()
 		})
 		// P13-fz（`docs/liquid-glass.md` §6.145）· 与捕获输出窗口同一道下沿：便条是

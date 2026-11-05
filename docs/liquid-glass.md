@@ -7166,3 +7166,14 @@ R91 的前半句是「窗口属于它的内容」，后半句一直没落地：`
 的旧账不再盖在新内容上（四格状态归零）、一张面只解析一次样式（`TextSpans`）、同一句结论
 在两张面上同一个寄存器、一条便条的几何只属于它自己。逐项证据、变异与截图见
 `docs/rounds/P13-gw-report.md`。
+
+## §6.174 便条的正文用终端字族，与兄弟窗口同一副字（P13-gw）
+
+便条（`pinned.go`）与捕获输出窗口（`detach.go`）是同一个 `.plugin-window` 表面的两条臂，
+正文是同一个寄存器（`Body` / 1.45 / `TextSecondary`）。兄弟窗口正文一直带 `.Font(view.FontFamily)`，
+便条不带：同一段终端输出，放进便条就换成 UI 的无衬线字。便条从不认识「这条文字当初用什么字写的」，
+所以它取设置里那一格（`settings.NormalizeFontFamily`），与终端自己归一化的方式一致。
+
+| # | 位置 | 现状（旧） | 应改成（新） | 状态 |
+|---|---|---|---|---|
+| 174-1 | `pinned` / `PinText` | 便条结构里没有字族字段，正文画在 UI 的默认字上 | `newPinned` 记下 `NormalizeFontFamily(settings.FontFamily)`，正文 `.Font(state.family)`；空白设置回落 `monospace` | `已落地` |
