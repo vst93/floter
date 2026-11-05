@@ -27,3 +27,10 @@
 开盘全量实测 **3674 PASS / 1 FAIL**；失败为未改 shell 的 `TestDeepLinkConnectAndRegister` 临时目录清理与异步连接写入竞态：`TempDir RemoveAll cleanup: unlinkat ... directory not empty`。函数实测 2746。不能把此前 3675/0 冒称本轮基线。第一批提交前复跑该项并记录结果。
 
 前轮补档推送已成功：远端 bb89669a → f8433521。
+
+第一批 `e7b4201d` 已推送；CI 与身份回归通过。基线清理竞态单项复跑 3 次均通过。
+
+3. **打开后换序把 Enter 交给另一项**：应用高亮时换到首行，原来 Enter 选择文件 → 保存高亮的真实值并在新列表发布后定位 → 深浅均选应用。原串 `menu reorder moved the keyboard choice: got files, want apps`。
+4. **删除高亮项后误选邻居**：删除应用后原索引落到便条 → 原高亮消失时回到仍有效的当前值 → 深浅保留文件，再主动 End/Enter 能选便条。原串 `removed highlight selected an unrequested neighbour: got notes, want files`。
+
+第二批选择相关回归 39 PASS / 0 FAIL（四项新修复 12，前轮守卫 27）。旧断言零改。

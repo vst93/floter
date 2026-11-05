@@ -3,7 +3,14 @@ package settingsui
 import (
 	"floter/internal/theme"
 	"github.com/egoist/mygo/ui"
+	"slices"
 )
+
+type selectHighlight[T comparable] struct {
+	values []T
+	value  T
+	valid  bool
+}
 
 // valueSelect keeps the framework's Select geometry and keyboard model while
 // separating a choice's identity from its display name. Labels need not be
@@ -12,6 +19,17 @@ func valueSelect[T comparable](c *ui.Context, selected *T, labels []string, valu
 	t := c.Theme()
 	sel := ui.SelectBase(c, selected)
 	b := sel.Trigger
+	highlight := ui.Local(b, "floter.highlight", func() selectHighlight[T] { return selectHighlight[T]{} })
+	reordered := highlight.valid && !slices.Equal(highlight.values, values)
+	target := highlight.value
+	if reordered && !slices.Contains(values, target) {
+		target = *selected
+		if !slices.Contains(values, target) && len(values) > 0 {
+			target = values[0]
+		}
+	}
+	var current T
+	hasCurrent := false
 	b.Padding(t.Space(1.5), t.Space(3.5)).Gap(t.Space(1.5)).Radius(t.Radius).
 		Background(t.Surface).TextColor(t.Text).Border(1, t.Border).
 		Justify(ui.SpaceBetween).MinWidth(t.Space(35))
@@ -38,6 +56,7 @@ func valueSelect[T comparable](c *ui.Context, selected *T, labels []string, valu
 				item := sel.Item(value).Padding(t.Space(1.5), t.Space(2.5)).Radius(t.Radius)
 				switch {
 				case item.Highlighted():
+					current, hasCurrent = value, true
 					item.Background(t.Accent).TextColor(t.AccentText)
 				case value == *selected:
 					item.Background(t.Surface)
@@ -46,5 +65,13 @@ func valueSelect[T comparable](c *ui.Context, selected *T, labels []string, valu
 			}
 		})
 	})
+	// SelectBase stores an index. Reapply the previously highlighted value
+	// after Popup has published this frame's order, before the next input.
+	if reordered && sel.Open() {
+		sel.Highlight(target)
+		current, hasCurrent = target, true
+	}
+	highlight.values = append(highlight.values[:0], values...)
+	highlight.value, highlight.valid = current, hasCurrent
 	return b
 }
