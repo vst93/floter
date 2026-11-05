@@ -4729,21 +4729,18 @@ func (a *App) glassSegmented(c *ui.Context, labels []string, current int, apply 
 // as segments.
 func (a *App) choose(c *ui.Context, label, description string, options []i18n.Option, current string, apply func(string), below ...func()) {
 	labels := make([]string, len(options))
-	// Keep an unavailable stored value visible until the user replaces it.
-	// optionIndex's fallback to zero would claim the first option was saved.
+	values := make([]string, len(options))
 	selected := current
 	for i, option := range options {
 		labels[i] = option.Label
-		if option.ID == current {
-			selected = option.Label
-		}
+		values[i] = option.ID
 	}
 	chosen, picked := "", false
 	a.row(c, label, description, func() {
-		e := a.chooseSelect(c, &selected, labels, label)
+		e := a.chooseSelect(c, &selected, labels, label, values)
 		if e.Changed() {
 			for _, option := range options {
-				if option.Label == selected {
+				if option.ID == selected {
 					chosen = option.ID
 					picked = true
 					break
@@ -4773,8 +4770,12 @@ func (a *App) choose(c *ui.Context, label, description string, options []i18n.Op
 // `--glass-field` under `--glass-field-shadow`, so the trigger wears
 // `fieldFace` rather than the opaque `--glass-control` the framework's own
 // Select draws.
-func (a *App) chooseSelect(c *ui.Context, selected *string, labels []string, label string) ui.Element {
-	e := ui.Select(c, selected, labels).Label(label).Radius(999)
+func (a *App) chooseSelect(c *ui.Context, selected *string, labels []string, label string, ids ...[]string) ui.Element {
+	values := labels
+	if len(ids) > 0 {
+		values = ids[0]
+	}
+	e := valueSelect(c, selected, labels, values, *selected, a.tokens(c)).Label(label).Radius(999)
 	if a.cardUnit > 0 {
 		e = e.Width(220).MinHeight(28).Padding(4, 8)
 	} else {
