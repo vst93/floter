@@ -1,0 +1,19 @@
+=== RUN   TestChoiceRefreshRadioLongLabel
+=== RUN   TestChoiceRefreshRadioLongLabel/light
+    choicerefresh_test.go:182: long radio label inflated or displaced segments: long={29.8 75.70001 329.30002 90} next={360.9 107.20001 329.30002 27}
+=== RUN   TestChoiceRefreshRadioLongLabel/dark
+    choicerefresh_test.go:182: long radio label inflated or displaced segments: long={29.8 75.70001 329.30002 90} next={360.9 107.20001 329.30002 27}
+--- FAIL: TestChoiceRefreshRadioLongLabel (0.10s)
+    --- FAIL: TestChoiceRefreshRadioLongLabel/light (0.08s)
+    --- FAIL: TestChoiceRefreshRadioLongLabel/dark (0.03s)
+=== RUN   TestChoiceRefreshMultiMovedFocusVisible
+=== RUN   TestChoiceRefreshMultiMovedFocusVisible/light
+    choicerefresh_test.go:210: reordered focused option is outside its viewport: {159 442.5 0 0}
+=== RUN   TestChoiceRefreshMultiMovedFocusVisible/dark
+    choicerefresh_test.go:210: reordered focused option is outside its viewport: {159 442.5 0 0}
+--- FAIL: TestChoiceRefreshMultiMovedFocusVisible (0.06s)
+    --- FAIL: TestChoiceRefreshMultiMovedFocusVisible/light (0.04s)
+    --- FAIL: TestChoiceRefreshMultiMovedFocusVisible/dark (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.172s
+FAIL

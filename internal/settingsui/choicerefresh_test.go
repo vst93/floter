@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"floter/internal/plugincfg"
+	"floter/internal/settings"
 	"github.com/egoist/mygo/ui"
 )
 
@@ -42,6 +43,30 @@ func TestChoiceRefreshUnknownExternalValue(t *testing.T) {
 			if got := sheet.Values["mode"]; got != "remote-source" {
 				t.Errorf("Enter silently replaced unknown external value: %v", got)
 			}
+			if tt.HasText("应用") {
+				t.Error("unknown external value left the stale menu visible")
+			}
+			if err := tt.Click("remote-source"); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			tt.Key(0, ui.KeyEnd)
+			tt.Key(0, ui.KeyEnter)
+			tt.Frame()
+			if got := sheet.Values["mode"]; got != "notes" {
+				t.Fatalf("unknown value could not be explicitly replaced: %v", got)
+			}
+			if !tt.Focused("便条") {
+				t.Error("correcting unknown value lost the select keyboard focus")
+			}
+			choiceRefreshDump(t, tt, "recovered-unknown", dark)
+			tt.Key(0, ui.KeyDown)
+			tt.Key(0, ui.KeyHome)
+			tt.Key(0, ui.KeyEnter)
+			tt.Frame()
+			if sheet.Values["mode"] != "files" || !tt.Focused("文件") {
+				t.Error("recovered select could not continue with the keyboard")
+			}
 		})
 	}
 }
@@ -64,6 +89,64 @@ func TestChoiceRefreshBothValuesRemoved(t *testing.T) {
 			tt.Frame()
 			if got := sheet.Values["mode"]; got != "files" {
 				t.Errorf("removed current and highlight silently chose neighbour: %v", got)
+			}
+			if err := tt.Click("files"); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			tt.Key(0, ui.KeyHome)
+			tt.Key(0, ui.KeyEnter)
+			tt.Frame()
+			if got := sheet.Values["mode"]; got != "notes" {
+				t.Fatalf("removed choice could not be explicitly replaced: %v", got)
+			}
+			if !tt.Focused("便条") {
+				t.Error("replacing removed choice lost the select keyboard focus")
+			}
+			choiceRefreshDump(t, tt, "recovered-removed", dark)
+		})
+	}
+}
+
+func TestChoiceRefreshSelectLifetimesAreIndependent(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			s := settings.Default()
+			s.Theme, s.Language = appearanceName(dark), "zh"
+			a := New(settings.NewStore(s), Actions{})
+			first, second := "missing", "files"
+			tt := ui.NewTester(func(c *ui.Context) {
+				c.SetTheme(a.tokens(c).Theme)
+				ui.Row(c).Children(func() {
+					a.chooseSelect(c, &first, []string{"文件", "应用"}, "第一项", []string{"files", "apps"})
+					a.chooseSelect(c, &second, []string{"文件", "应用"}, "第二项", []string{"files", "apps"})
+				})
+			}, 720, 180)
+			tt.SetDark(dark)
+			tt.SetPreferences(ui.Preferences{ReduceMotion: true})
+			tt.Frame()
+			if err := tt.Click("第一项"); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			if err := tt.Click("应用"); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			if first != "apps" || second != "files" {
+				t.Fatalf("sibling selects shared their selection: %q / %q", first, second)
+			}
+			if err := tt.Click("第二项"); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			first = "remote-source"
+			tt.Frame()
+			tt.Key(0, ui.KeyEnd)
+			tt.Key(0, ui.KeyEnter)
+			tt.Frame()
+			if first != "remote-source" || second != "apps" || !tt.Focused("第二项") {
+				t.Fatalf("invalidating another select stole focus or value: %q / %q", first, second)
 			}
 		})
 	}

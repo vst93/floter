@@ -1,0 +1,55 @@
+=== RUN   TestChoiceRefreshUnknownExternalValue
+=== RUN   TestChoiceRefreshUnknownExternalValue/light
+    choicerefresh_test.go:59: correcting unknown value lost the select keyboard focus
+=== RUN   TestChoiceRefreshUnknownExternalValue/dark
+    choicerefresh_test.go:59: correcting unknown value lost the select keyboard focus
+--- FAIL: TestChoiceRefreshUnknownExternalValue (0.07s)
+    --- FAIL: TestChoiceRefreshUnknownExternalValue/light (0.06s)
+    --- FAIL: TestChoiceRefreshUnknownExternalValue/dark (0.01s)
+=== RUN   TestChoiceRefreshBothValuesRemoved
+=== RUN   TestChoiceRefreshBothValuesRemoved/light
+    choicerefresh_test.go:95: replacing removed choice lost the select keyboard focus
+=== RUN   TestChoiceRefreshBothValuesRemoved/dark
+    choicerefresh_test.go:95: replacing removed choice lost the select keyboard focus
+--- FAIL: TestChoiceRefreshBothValuesRemoved (0.01s)
+    --- FAIL: TestChoiceRefreshBothValuesRemoved/light (0.01s)
+    --- FAIL: TestChoiceRefreshBothValuesRemoved/dark (0.01s)
+=== RUN   TestChoiceRefreshRemovedAnchorStaysRetired
+=== RUN   TestChoiceRefreshRemovedAnchorStaysRetired/light
+=== RUN   TestChoiceRefreshRemovedAnchorStaysRetired/dark
+--- PASS: TestChoiceRefreshRemovedAnchorStaysRetired (0.02s)
+    --- PASS: TestChoiceRefreshRemovedAnchorStaysRetired/light (0.02s)
+    --- PASS: TestChoiceRefreshRemovedAnchorStaysRetired/dark (0.00s)
+=== RUN   TestChoiceRefreshLongPluginCheckbox
+=== RUN   TestChoiceRefreshLongPluginCheckbox/light
+=== RUN   TestChoiceRefreshLongPluginCheckbox/dark
+--- PASS: TestChoiceRefreshLongPluginCheckbox (0.00s)
+    --- PASS: TestChoiceRefreshLongPluginCheckbox/light (0.00s)
+    --- PASS: TestChoiceRefreshLongPluginCheckbox/dark (0.00s)
+=== RUN   TestChoiceRefreshRadioReorderKeepsFocus
+=== RUN   TestChoiceRefreshRadioReorderKeepsFocus/light
+=== RUN   TestChoiceRefreshRadioReorderKeepsFocus/dark
+--- PASS: TestChoiceRefreshRadioReorderKeepsFocus (0.01s)
+    --- PASS: TestChoiceRefreshRadioReorderKeepsFocus/light (0.00s)
+    --- PASS: TestChoiceRefreshRadioReorderKeepsFocus/dark (0.00s)
+=== RUN   TestChoiceRefreshRadioRemovedFocus
+=== RUN   TestChoiceRefreshRadioRemovedFocus/light
+=== RUN   TestChoiceRefreshRadioRemovedFocus/dark
+--- PASS: TestChoiceRefreshRadioRemovedFocus (0.01s)
+    --- PASS: TestChoiceRefreshRadioRemovedFocus/light (0.00s)
+    --- PASS: TestChoiceRefreshRadioRemovedFocus/dark (0.00s)
+=== RUN   TestChoiceRefreshRadioLongLabel
+=== RUN   TestChoiceRefreshRadioLongLabel/light
+=== RUN   TestChoiceRefreshRadioLongLabel/dark
+--- PASS: TestChoiceRefreshRadioLongLabel (0.01s)
+    --- PASS: TestChoiceRefreshRadioLongLabel/light (0.01s)
+    --- PASS: TestChoiceRefreshRadioLongLabel/dark (0.00s)
+=== RUN   TestChoiceRefreshMultiMovedFocusVisible
+=== RUN   TestChoiceRefreshMultiMovedFocusVisible/light
+=== RUN   TestChoiceRefreshMultiMovedFocusVisible/dark
+--- PASS: TestChoiceRefreshMultiMovedFocusVisible (0.01s)
+    --- PASS: TestChoiceRefreshMultiMovedFocusVisible/light (0.00s)
+    --- PASS: TestChoiceRefreshMultiMovedFocusVisible/dark (0.00s)
+FAIL
+FAIL	floter/internal/settingsui	0.140s
+FAIL

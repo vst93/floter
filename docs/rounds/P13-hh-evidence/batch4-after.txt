@@ -1,0 +1,234 @@
+=== RUN   TestSegmentedDrawsEveryChoice
+--- PASS: TestSegmentedDrawsEveryChoice (0.06s)
+=== RUN   TestSegmentedReportsTheChosenIndex
+--- PASS: TestSegmentedReportsTheChosenIndex (0.00s)
+=== RUN   TestSegmentedKeepsTheChosenOptionMarked
+--- PASS: TestSegmentedKeepsTheChosenOptionMarked (0.00s)
+=== RUN   TestEverySegmentLabelIsTextStrong
+--- PASS: TestEverySegmentLabelIsTextStrong (0.01s)
+PASS
+ok  	floter/internal/control	0.080s
+=== RUN   TestChoiceBoundaryExternalValue
+=== RUN   TestChoiceBoundaryExternalValue/light
+=== RUN   TestChoiceBoundaryExternalValue/dark
+--- PASS: TestChoiceBoundaryExternalValue (0.07s)
+    --- PASS: TestChoiceBoundaryExternalValue/light (0.06s)
+    --- PASS: TestChoiceBoundaryExternalValue/dark (0.01s)
+=== RUN   TestChoiceBoundaryLongMenu
+=== RUN   TestChoiceBoundaryLongMenu/light
+=== RUN   TestChoiceBoundaryLongMenu/dark
+--- PASS: TestChoiceBoundaryLongMenu (0.02s)
+    --- PASS: TestChoiceBoundaryLongMenu/light (0.01s)
+    --- PASS: TestChoiceBoundaryLongMenu/dark (0.01s)
+=== RUN   TestChoiceBoundaryMultiLabelFocus
+=== RUN   TestChoiceBoundaryMultiLabelFocus/light
+=== RUN   TestChoiceBoundaryMultiLabelFocus/dark
+--- PASS: TestChoiceBoundaryMultiLabelFocus (0.03s)
+    --- PASS: TestChoiceBoundaryMultiLabelFocus/light (0.03s)
+    --- PASS: TestChoiceBoundaryMultiLabelFocus/dark (0.00s)
+=== RUN   TestChoiceBoundaryMultiLongLabel
+=== RUN   TestChoiceBoundaryMultiLongLabel/light
+=== RUN   TestChoiceBoundaryMultiLongLabel/dark
+--- PASS: TestChoiceBoundaryMultiLongLabel (0.01s)
+    --- PASS: TestChoiceBoundaryMultiLongLabel/light (0.00s)
+    --- PASS: TestChoiceBoundaryMultiLongLabel/dark (0.00s)
+=== RUN   TestChoiceBoundaryMultiDuplicate
+=== RUN   TestChoiceBoundaryMultiDuplicate/light
+=== RUN   TestChoiceBoundaryMultiDuplicate/dark
+--- PASS: TestChoiceBoundaryMultiDuplicate (0.01s)
+    --- PASS: TestChoiceBoundaryMultiDuplicate/light (0.00s)
+    --- PASS: TestChoiceBoundaryMultiDuplicate/dark (0.00s)
+=== RUN   TestChoiceBoundaryPluginCheckboxDuplicate
+=== RUN   TestChoiceBoundaryPluginCheckboxDuplicate/light
+=== RUN   TestChoiceBoundaryPluginCheckboxDuplicate/dark
+--- PASS: TestChoiceBoundaryPluginCheckboxDuplicate (0.01s)
+    --- PASS: TestChoiceBoundaryPluginCheckboxDuplicate/light (0.00s)
+    --- PASS: TestChoiceBoundaryPluginCheckboxDuplicate/dark (0.00s)
+=== RUN   TestChoiceBoundaryPluginRadioDuplicate
+=== RUN   TestChoiceBoundaryPluginRadioDuplicate/light
+=== RUN   TestChoiceBoundaryPluginRadioDuplicate/dark
+--- PASS: TestChoiceBoundaryPluginRadioDuplicate (0.01s)
+    --- PASS: TestChoiceBoundaryPluginRadioDuplicate/light (0.01s)
+    --- PASS: TestChoiceBoundaryPluginRadioDuplicate/dark (0.01s)
+=== RUN   TestChoiceBoundarySelectDuplicate
+=== RUN   TestChoiceBoundarySelectDuplicate/light
+=== RUN   TestChoiceBoundarySelectDuplicate/dark
+--- PASS: TestChoiceBoundarySelectDuplicate (0.03s)
+    --- PASS: TestChoiceBoundarySelectDuplicate/light (0.01s)
+    --- PASS: TestChoiceBoundarySelectDuplicate/dark (0.01s)
+=== RUN   TestChoiceBoundaryEmptyChoiceName
+=== RUN   TestChoiceBoundaryEmptyChoiceName/select/light
+=== RUN   TestChoiceBoundaryEmptyChoiceName/select/dark
+=== RUN   TestChoiceBoundaryEmptyChoiceName/radio/light
+=== RUN   TestChoiceBoundaryEmptyChoiceName/radio/dark
+=== RUN   TestChoiceBoundaryEmptyChoiceName/checkboxes/light
+=== RUN   TestChoiceBoundaryEmptyChoiceName/checkboxes/dark
+=== RUN   TestChoiceBoundaryEmptyChoiceName/config-select/light
+=== RUN   TestChoiceBoundaryEmptyChoiceName/config-select/dark
+=== RUN   TestChoiceBoundaryEmptyChoiceName/config-multiselect/light
+=== RUN   TestChoiceBoundaryEmptyChoiceName/config-multiselect/dark
+--- PASS: TestChoiceBoundaryEmptyChoiceName (0.05s)
+    --- PASS: TestChoiceBoundaryEmptyChoiceName/select/light (0.01s)
+    --- PASS: TestChoiceBoundaryEmptyChoiceName/select/dark (0.01s)
+    --- PASS: TestChoiceBoundaryEmptyChoiceName/radio/light (0.01s)
+    --- PASS: TestChoiceBoundaryEmptyChoiceName/radio/dark (0.01s)
+    --- PASS: TestChoiceBoundaryEmptyChoiceName/checkboxes/light (0.00s)
+    --- PASS: TestChoiceBoundaryEmptyChoiceName/checkboxes/dark (0.00s)
+    --- PASS: TestChoiceBoundaryEmptyChoiceName/config-select/light (0.01s)
+    --- PASS: TestChoiceBoundaryEmptyChoiceName/config-select/dark (0.01s)
+    --- PASS: TestChoiceBoundaryEmptyChoiceName/config-multiselect/light (0.00s)
+    --- PASS: TestChoiceBoundaryEmptyChoiceName/config-multiselect/dark (0.00s)
+=== RUN   TestChoiceIdentityMultiKeyboard
+=== RUN   TestChoiceIdentityMultiKeyboard/light
+=== RUN   TestChoiceIdentityMultiKeyboard/dark
+--- PASS: TestChoiceIdentityMultiKeyboard (0.01s)
+    --- PASS: TestChoiceIdentityMultiKeyboard/light (0.00s)
+    --- PASS: TestChoiceIdentityMultiKeyboard/dark (0.00s)
+=== RUN   TestChoiceIdentityMultiFocusFollowsOption
+=== RUN   TestChoiceIdentityMultiFocusFollowsOption/light
+=== RUN   TestChoiceIdentityMultiFocusFollowsOption/dark
+--- PASS: TestChoiceIdentityMultiFocusFollowsOption (0.01s)
+    --- PASS: TestChoiceIdentityMultiFocusFollowsOption/light (0.00s)
+    --- PASS: TestChoiceIdentityMultiFocusFollowsOption/dark (0.00s)
+=== RUN   TestChoiceIdentityPluginCheckboxFocus
+=== RUN   TestChoiceIdentityPluginCheckboxFocus/light
+=== RUN   TestChoiceIdentityPluginCheckboxFocus/dark
+--- PASS: TestChoiceIdentityPluginCheckboxFocus (0.00s)
+    --- PASS: TestChoiceIdentityPluginCheckboxFocus/light (0.00s)
+    --- PASS: TestChoiceIdentityPluginCheckboxFocus/dark (0.00s)
+=== RUN   TestChoiceIdentityUnknownSelectValue
+=== RUN   TestChoiceIdentityUnknownSelectValue/light
+=== RUN   TestChoiceIdentityUnknownSelectValue/dark
+--- PASS: TestChoiceIdentityUnknownSelectValue (0.01s)
+    --- PASS: TestChoiceIdentityUnknownSelectValue/light (0.01s)
+    --- PASS: TestChoiceIdentityUnknownSelectValue/dark (0.01s)
+=== RUN   TestChoiceIdentityUnlabelledSelect
+=== RUN   TestChoiceIdentityUnlabelledSelect/light
+=== RUN   TestChoiceIdentityUnlabelledSelect/dark
+--- PASS: TestChoiceIdentityUnlabelledSelect (0.02s)
+    --- PASS: TestChoiceIdentityUnlabelledSelect/light (0.01s)
+    --- PASS: TestChoiceIdentityUnlabelledSelect/dark (0.01s)
+=== RUN   TestChoiceIdentityUnlabelledRadio
+=== RUN   TestChoiceIdentityUnlabelledRadio/light
+=== RUN   TestChoiceIdentityUnlabelledRadio/dark
+--- PASS: TestChoiceIdentityUnlabelledRadio (0.02s)
+    --- PASS: TestChoiceIdentityUnlabelledRadio/light (0.01s)
+    --- PASS: TestChoiceIdentityUnlabelledRadio/dark (0.01s)
+=== RUN   TestChoiceIdentityUnlabelledCheckboxes
+=== RUN   TestChoiceIdentityUnlabelledCheckboxes/light
+=== RUN   TestChoiceIdentityUnlabelledCheckboxes/dark
+--- PASS: TestChoiceIdentityUnlabelledCheckboxes (0.00s)
+    --- PASS: TestChoiceIdentityUnlabelledCheckboxes/light (0.00s)
+    --- PASS: TestChoiceIdentityUnlabelledCheckboxes/dark (0.00s)
+=== RUN   TestChoiceIdentityMultiRangeFollowsOption
+=== RUN   TestChoiceIdentityMultiRangeFollowsOption/light
+=== RUN   TestChoiceIdentityMultiRangeFollowsOption/dark
+--- PASS: TestChoiceIdentityMultiRangeFollowsOption (0.01s)
+    --- PASS: TestChoiceIdentityMultiRangeFollowsOption/light (0.00s)
+    --- PASS: TestChoiceIdentityMultiRangeFollowsOption/dark (0.01s)
+=== RUN   TestChoiceIdentityRemovedAnchorDoesNotSelectItsReplacement
+=== RUN   TestChoiceIdentityRemovedAnchorDoesNotSelectItsReplacement/light
+=== RUN   TestChoiceIdentityRemovedAnchorDoesNotSelectItsReplacement/dark
+--- PASS: TestChoiceIdentityRemovedAnchorDoesNotSelectItsReplacement (0.01s)
+    --- PASS: TestChoiceIdentityRemovedAnchorDoesNotSelectItsReplacement/light (0.01s)
+    --- PASS: TestChoiceIdentityRemovedAnchorDoesNotSelectItsReplacement/dark (0.00s)
+=== RUN   TestChoiceRefreshUnknownExternalValue
+=== RUN   TestChoiceRefreshUnknownExternalValue/light
+=== RUN   TestChoiceRefreshUnknownExternalValue/dark
+--- PASS: TestChoiceRefreshUnknownExternalValue (0.04s)
+    --- PASS: TestChoiceRefreshUnknownExternalValue/light (0.02s)
+    --- PASS: TestChoiceRefreshUnknownExternalValue/dark (0.02s)
+=== RUN   TestChoiceRefreshBothValuesRemoved
+=== RUN   TestChoiceRefreshBothValuesRemoved/light
+=== RUN   TestChoiceRefreshBothValuesRemoved/dark
+--- PASS: TestChoiceRefreshBothValuesRemoved (0.04s)
+    --- PASS: TestChoiceRefreshBothValuesRemoved/light (0.02s)
+    --- PASS: TestChoiceRefreshBothValuesRemoved/dark (0.02s)
+=== RUN   TestChoiceRefreshRemovedAnchorStaysRetired
+=== RUN   TestChoiceRefreshRemovedAnchorStaysRetired/light
+=== RUN   TestChoiceRefreshRemovedAnchorStaysRetired/dark
+--- PASS: TestChoiceRefreshRemovedAnchorStaysRetired (0.03s)
+    --- PASS: TestChoiceRefreshRemovedAnchorStaysRetired/light (0.02s)
+    --- PASS: TestChoiceRefreshRemovedAnchorStaysRetired/dark (0.02s)
+=== RUN   TestChoiceRefreshLongPluginCheckbox
+=== RUN   TestChoiceRefreshLongPluginCheckbox/light
+=== RUN   TestChoiceRefreshLongPluginCheckbox/dark
+--- PASS: TestChoiceRefreshLongPluginCheckbox (0.03s)
+    --- PASS: TestChoiceRefreshLongPluginCheckbox/light (0.01s)
+    --- PASS: TestChoiceRefreshLongPluginCheckbox/dark (0.01s)
+=== RUN   TestChoiceRefreshRadioReorderKeepsFocus
+=== RUN   TestChoiceRefreshRadioReorderKeepsFocus/light
+=== RUN   TestChoiceRefreshRadioReorderKeepsFocus/dark
+--- PASS: TestChoiceRefreshRadioReorderKeepsFocus (0.04s)
+    --- PASS: TestChoiceRefreshRadioReorderKeepsFocus/light (0.02s)
+    --- PASS: TestChoiceRefreshRadioReorderKeepsFocus/dark (0.02s)
+=== RUN   TestChoiceRefreshRadioRemovedFocus
+=== RUN   TestChoiceRefreshRadioRemovedFocus/light
+=== RUN   TestChoiceRefreshRadioRemovedFocus/dark
+--- PASS: TestChoiceRefreshRadioRemovedFocus (0.03s)
+    --- PASS: TestChoiceRefreshRadioRemovedFocus/light (0.02s)
+    --- PASS: TestChoiceRefreshRadioRemovedFocus/dark (0.02s)
+=== RUN   TestChoiceRefreshRadioLongLabel
+=== RUN   TestChoiceRefreshRadioLongLabel/light
+=== RUN   TestChoiceRefreshRadioLongLabel/dark
+--- PASS: TestChoiceRefreshRadioLongLabel (0.03s)
+    --- PASS: TestChoiceRefreshRadioLongLabel/light (0.02s)
+    --- PASS: TestChoiceRefreshRadioLongLabel/dark (0.02s)
+=== RUN   TestChoiceRefreshMultiMovedFocusVisible
+=== RUN   TestChoiceRefreshMultiMovedFocusVisible/light
+=== RUN   TestChoiceRefreshMultiMovedFocusVisible/dark
+--- PASS: TestChoiceRefreshMultiMovedFocusVisible (0.03s)
+    --- PASS: TestChoiceRefreshMultiMovedFocusVisible/light (0.02s)
+    --- PASS: TestChoiceRefreshMultiMovedFocusVisible/dark (0.02s)
+=== RUN   TestPluginIdentityReorderKeepsUnsubmittedInput
+=== RUN   TestPluginIdentityReorderKeepsUnsubmittedInput/light
+=== RUN   TestPluginIdentityReorderKeepsUnsubmittedInput/dark
+--- PASS: TestPluginIdentityReorderKeepsUnsubmittedInput (0.01s)
+    --- PASS: TestPluginIdentityReorderKeepsUnsubmittedInput/light (0.01s)
+    --- PASS: TestPluginIdentityReorderKeepsUnsubmittedInput/dark (0.00s)
+=== RUN   TestPluginIdentityHistoryDoesNotCrossPlugins
+=== RUN   TestPluginIdentityHistoryDoesNotCrossPlugins/light
+=== RUN   TestPluginIdentityHistoryDoesNotCrossPlugins/dark
+--- PASS: TestPluginIdentityHistoryDoesNotCrossPlugins (0.02s)
+    --- PASS: TestPluginIdentityHistoryDoesNotCrossPlugins/light (0.01s)
+    --- PASS: TestPluginIdentityHistoryDoesNotCrossPlugins/dark (0.01s)
+=== RUN   TestPluginIdentityFirstRowKeepsItsInput
+=== RUN   TestPluginIdentityFirstRowKeepsItsInput/light
+=== RUN   TestPluginIdentityFirstRowKeepsItsInput/dark
+--- PASS: TestPluginIdentityFirstRowKeepsItsInput (0.01s)
+    --- PASS: TestPluginIdentityFirstRowKeepsItsInput/light (0.00s)
+    --- PASS: TestPluginIdentityFirstRowKeepsItsInput/dark (0.00s)
+=== RUN   TestPluginIdentitySectionHeadingKeepsItsInput
+=== RUN   TestPluginIdentitySectionHeadingKeepsItsInput/light
+=== RUN   TestPluginIdentitySectionHeadingKeepsItsInput/dark
+--- PASS: TestPluginIdentitySectionHeadingKeepsItsInput (0.02s)
+    --- PASS: TestPluginIdentitySectionHeadingKeepsItsInput/light (0.01s)
+    --- PASS: TestPluginIdentitySectionHeadingKeepsItsInput/dark (0.01s)
+=== RUN   TestPluginTextInputSubmitsToItsExistingCallback
+--- PASS: TestPluginTextInputSubmitsToItsExistingCallback (0.02s)
+=== RUN   TestPluginTextRefusedWriteKeepsTheEditForRetry
+--- PASS: TestPluginTextRefusedWriteKeepsTheEditForRetry (0.02s)
+=== RUN   TestPluginNumberInputDoesNotDispatchNonFiniteValues
+=== RUN   TestPluginNumberInputDoesNotDispatchNonFiniteValues/NaN
+=== RUN   TestPluginNumberInputDoesNotDispatchNonFiniteValues/Inf
+=== RUN   TestPluginNumberInputDoesNotDispatchNonFiniteValues/-Inf
+--- PASS: TestPluginNumberInputDoesNotDispatchNonFiniteValues (0.11s)
+    --- PASS: TestPluginNumberInputDoesNotDispatchNonFiniteValues/NaN (0.05s)
+    --- PASS: TestPluginNumberInputDoesNotDispatchNonFiniteValues/Inf (0.03s)
+    --- PASS: TestPluginNumberInputDoesNotDispatchNonFiniteValues/-Inf (0.03s)
+=== RUN   TestPluginNumberDraftDoesNotBleedAcrossPlugins
+--- PASS: TestPluginNumberDraftDoesNotBleedAcrossPlugins (0.01s)
+=== RUN   TestPluginSheetRendersAndReportsChanges
+--- PASS: TestPluginSheetRendersAndReportsChanges (0.02s)
+=== RUN   TestPluginSheetActionArmsThenRuns
+--- PASS: TestPluginSheetActionArmsThenRuns (0.04s)
+=== RUN   TestPluginSheetReportsARefusedWrite
+--- PASS: TestPluginSheetReportsARefusedWrite (0.00s)
+=== RUN   TestPluginSheetSliderShowsItsUnit
+--- PASS: TestPluginSheetSliderShowsItsUnit (0.01s)
+=== RUN   TestPluginSheetWithoutASchemaDrawsNothing
+--- PASS: TestPluginSheetWithoutASchemaDrawsNothing (0.00s)
+=== RUN   TestPluginSheetActionFailureHasItsOwnLine
+--- PASS: TestPluginSheetActionFailureHasItsOwnLine (0.01s)
+PASS
+ok  	floter/internal/settingsui	0.924s

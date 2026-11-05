@@ -1,0 +1,13 @@
+=== RUN   TestChoiceRefreshUnknownExternalValue
+=== RUN   TestChoiceRefreshUnknownExternalValue/light
+    choicerefresh_test.go:60: correcting unknown value lost the select keyboard focus
+    choicerefresh_test.go:68: recovered select could not continue with the keyboard
+=== RUN   TestChoiceRefreshUnknownExternalValue/dark
+    choicerefresh_test.go:60: correcting unknown value lost the select keyboard focus
+    choicerefresh_test.go:68: recovered select could not continue with the keyboard
+--- FAIL: TestChoiceRefreshUnknownExternalValue (0.22s)
+    --- FAIL: TestChoiceRefreshUnknownExternalValue/light (0.19s)
+    --- FAIL: TestChoiceRefreshUnknownExternalValue/dark (0.03s)
+FAIL
+FAIL	floter/internal/settingsui	0.238s
+FAIL

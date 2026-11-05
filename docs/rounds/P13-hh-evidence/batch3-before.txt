@@ -1,0 +1,21 @@
+=== RUN   TestChoiceRefreshRadioReorderKeepsFocus
+=== RUN   TestChoiceRefreshRadioReorderKeepsFocus/light
+    choicerefresh_test.go:135: radio focus moved to a different value after reorder
+    choicerefresh_test.go:140: radio Space selected the old position: files
+=== RUN   TestChoiceRefreshRadioReorderKeepsFocus/dark
+    choicerefresh_test.go:135: radio focus moved to a different value after reorder
+    choicerefresh_test.go:140: radio Space selected the old position: files
+--- FAIL: TestChoiceRefreshRadioReorderKeepsFocus (0.10s)
+    --- FAIL: TestChoiceRefreshRadioReorderKeepsFocus/light (0.09s)
+    --- FAIL: TestChoiceRefreshRadioReorderKeepsFocus/dark (0.01s)
+=== RUN   TestChoiceRefreshRadioRemovedFocus
+=== RUN   TestChoiceRefreshRadioRemovedFocus/light
+    choicerefresh_test.go:164: removed radio focus activated its replacement: notes
+=== RUN   TestChoiceRefreshRadioRemovedFocus/dark
+    choicerefresh_test.go:164: removed radio focus activated its replacement: notes
+--- FAIL: TestChoiceRefreshRadioRemovedFocus (0.03s)
+    --- FAIL: TestChoiceRefreshRadioRemovedFocus/light (0.02s)
+    --- FAIL: TestChoiceRefreshRadioRemovedFocus/dark (0.01s)
+FAIL
+FAIL	floter/internal/settingsui	0.134s
+FAIL

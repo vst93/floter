@@ -1,0 +1,19 @@
+=== RUN   TestChoiceRefreshUnknownExternalValue
+=== RUN   TestChoiceRefreshUnknownExternalValue/light
+    choicerefresh_test.go:41: Enter silently replaced unknown external value: files
+=== RUN   TestChoiceRefreshUnknownExternalValue/dark
+    choicerefresh_test.go:41: Enter silently replaced unknown external value: files
+--- FAIL: TestChoiceRefreshUnknownExternalValue (0.10s)
+    --- FAIL: TestChoiceRefreshUnknownExternalValue/light (0.09s)
+    --- FAIL: TestChoiceRefreshUnknownExternalValue/dark (0.01s)
+=== RUN   TestChoiceRefreshBothValuesRemoved
+=== RUN   TestChoiceRefreshBothValuesRemoved/light
+    choicerefresh_test.go:64: removed current and highlight silently chose neighbour: notes
+=== RUN   TestChoiceRefreshBothValuesRemoved/dark
+    choicerefresh_test.go:64: removed current and highlight silently chose neighbour: notes
+--- FAIL: TestChoiceRefreshBothValuesRemoved (0.03s)
+    --- FAIL: TestChoiceRefreshBothValuesRemoved/light (0.01s)
+    --- FAIL: TestChoiceRefreshBothValuesRemoved/dark (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.132s
+FAIL

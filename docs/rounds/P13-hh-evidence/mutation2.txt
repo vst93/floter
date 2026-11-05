@@ -1,0 +1,11 @@
+=== RUN   TestChoiceRefreshRemovedAnchorStaysRetired
+=== RUN   TestChoiceRefreshRemovedAnchorStaysRetired/light
+    choicerefresh_test.go:91: reappeared option resurrected its old range: [文件 应用 书签]
+=== RUN   TestChoiceRefreshRemovedAnchorStaysRetired/dark
+    choicerefresh_test.go:91: reappeared option resurrected its old range: [文件 应用 书签]
+--- FAIL: TestChoiceRefreshRemovedAnchorStaysRetired (0.07s)
+    --- FAIL: TestChoiceRefreshRemovedAnchorStaysRetired/light (0.07s)
+    --- FAIL: TestChoiceRefreshRemovedAnchorStaysRetired/dark (0.00s)
+FAIL
+FAIL	floter/internal/settingsui	0.074s
+FAIL

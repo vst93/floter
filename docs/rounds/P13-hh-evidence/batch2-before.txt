@@ -1,0 +1,19 @@
+=== RUN   TestChoiceRefreshRemovedAnchorStaysRetired
+=== RUN   TestChoiceRefreshRemovedAnchorStaysRetired/light
+    choicerefresh_test.go:90: reappeared option resurrected its old range: [文件 应用 书签]
+=== RUN   TestChoiceRefreshRemovedAnchorStaysRetired/dark
+    choicerefresh_test.go:90: reappeared option resurrected its old range: [文件 应用 书签]
+--- FAIL: TestChoiceRefreshRemovedAnchorStaysRetired (0.13s)
+    --- FAIL: TestChoiceRefreshRemovedAnchorStaysRetired/light (0.11s)
+    --- FAIL: TestChoiceRefreshRemovedAnchorStaysRetired/dark (0.02s)
+=== RUN   TestChoiceRefreshLongPluginCheckbox
+=== RUN   TestChoiceRefreshLongPluginCheckbox/light
+    choicerefresh_test.go:107: long checkbox displaced its neighbours: label={49.6 73.899994 655.00006 17} next={49.6 101.7 22 17}
+=== RUN   TestChoiceRefreshLongPluginCheckbox/dark
+    choicerefresh_test.go:107: long checkbox displaced its neighbours: label={49.6 73.899994 655.00006 17} next={49.6 101.7 22 17}
+--- FAIL: TestChoiceRefreshLongPluginCheckbox (0.07s)
+    --- FAIL: TestChoiceRefreshLongPluginCheckbox/light (0.05s)
+    --- FAIL: TestChoiceRefreshLongPluginCheckbox/dark (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.210s
+FAIL

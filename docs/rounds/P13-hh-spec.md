@@ -23,6 +23,10 @@
 
 qiaomu-design 的 SKILL、偏好账本、craft-loop、preflight、chinese-typography 已读。Apple DESIGN 的单交互色 #0071e3、近白/近黑 #f5f5f7/#1d1d1f、胶囊圆角映射现有 Accent/背景/999px；不换主题。菜单 3=2px 焦点环、4=0ms 键盘反馈、6=单行标签、9=66px 单滚动区、12=1px 受光边，沿用已有材质。
 
-中文 locale，GOMAXPROCS=4。基线全量实测 3737 PASS / 0 FAIL，tracked func Test 2762。轮末 gofmt -l cmd internal 为空；Linux/Windows/macOS vet 与 build；普通和 verbose 两次全量测试，PASS/函数数不降。每批只跑相关范围，不反复全量。
+中文 locale，GOMAXPROCS=4。基线全量实测 3737 PASS / 0 FAIL，tracked func Test 2764（接续按 628bf3c4 复数，修正初稿 2762 的计数笔误）。轮末 gofmt -l cmd internal 为空；Linux/Windows/macOS vet 与 build；普通和 verbose 两次全量测试，PASS/函数数不降。每批只跑相关范围，不反复全量。
+
+接续收尾补验第 1/2 项的恢复出口：在未知值或已移除值上主动重开菜单，选有效项后焦点仍留在触发器，接着可用原键盘模型继续选择；先复现，再修正同项实现，不另计凑数。
+
+最终接续定位：`selectvalue.go:35` 的未知值 key 在纠正后被替换，`choicerefresh_test.go:59/95` 的保焦点断言实跑红。修复生命周期与选择值的耦合，保持原 SelectBase 的快捷键和几何；以同父两个选择器验证状态互不串扰。追加 M3：把未知/有效状态重新放进身份，须让保焦点和连续键盘选择断言变红。函数计数口径统一为所有 tracked `*.go` 中行首 `func Test`；只扫 cmd/internal 会漏掉另外两条，不采用该口径。
 
 mutation 至少两条：恢复失效高亮回落路径使 Enter 保值 pin 红；撤掉锚点失效使消失重现 pin 红。备份、实跑红、md5sum -c、touch 后复跑。ui.Tester 深浅前后图与局部目视，原始输出入仓库。

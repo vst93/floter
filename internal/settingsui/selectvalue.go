@@ -2,7 +2,6 @@ package settingsui
 
 import (
 	"floter/internal/theme"
-	"fmt"
 	"github.com/egoist/mygo/ui"
 	"slices"
 )
@@ -12,6 +11,13 @@ type selectHighlight[T comparable] struct {
 	value    T
 	valid    bool
 	selected T
+}
+
+type selectLifetime[T comparable] struct {
+	values     []T
+	selected   T
+	enabled    bool
+	generation uint64
 }
 
 // valueSelect keeps the framework's Select geometry and keyboard model while
@@ -32,17 +38,22 @@ func valueSelect[T comparable](c *ui.Context, selected *T, labels []string, valu
 		}
 	}
 	values, labels = uniqueValues, uniqueLabels
-	// An unavailable value has no implicit replacement. Retire any open
-	// menu when its unknown value or option set changes; reopening still
-	// starts without a highlight and requires an explicit choice.
-	if !slices.Contains(values, *selected) {
-		c = c.Key(fmt.Sprintf("select.unknown.%#v.%#v", *selected, values))
+	// Keep the trigger's lifetime separate from the selected value. A
+	// non-layout marker remembers invalidations without wrapping the field
+	// or changing its sizing. Only stale/unavailable menus get a new identity;
+	// explicitly replacing an unknown value keeps the same keyboard target.
+	marker := ui.Box(c).Absolute().Size(0, 0).PassThrough()
+	lifetime := ui.Local(marker, "select.lifetime", func() selectLifetime[T] { return selectLifetime[T]{} })
+	unknownChanged := !slices.Contains(values, *selected) &&
+		(lifetime.selected != *selected || !slices.Equal(lifetime.values, values))
+	if unknownChanged || lifetime.enabled != enabled {
+		lifetime.generation++
 	}
-	// Retire the active popup with its trigger while it is unavailable.
-	if !enabled {
-		c = c.Key("select.unavailable")
-	}
-	sel := ui.SelectBase(c, selected)
+	identity := struct {
+		owner      *selectLifetime[T]
+		generation uint64
+	}{lifetime, lifetime.generation}
+	sel := ui.SelectBase(c.Key(identity), selected)
 	b := sel.Trigger
 	if !enabled {
 		b = lockedControl(b)
@@ -113,5 +124,7 @@ func valueSelect[T comparable](c *ui.Context, selected *T, labels []string, valu
 	highlight.values = append(highlight.values[:0], values...)
 	highlight.value, highlight.valid = current, hasCurrent
 	highlight.selected = *selected
+	lifetime.values = append(lifetime.values[:0], values...)
+	lifetime.selected, lifetime.enabled = *selected, enabled
 	return b
 }

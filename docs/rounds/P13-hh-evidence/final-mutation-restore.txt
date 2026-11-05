@@ -1,0 +1,4 @@
+internal/settingsui/selectvalue.go: OK
+internal/settingsui/config.go: OK
+internal/settingsui/selectvalue.go: OK
+internal/settingsui/config.go: OK
