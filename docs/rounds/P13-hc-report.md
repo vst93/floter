@@ -30,3 +30,8 @@
 4. **界面翻译变化后参数输入丢失**：英文参数 Label 全选后切换中文，输入仍是 Target → 六个参数字段使用不依赖翻译的语义 key → 深浅两套均接受 Destination，类型切换与删除参数的旧回归保持。
 
 第二批相关回归 **37 PASS / 0 FAIL**；旧断言零改，V/B/S 0/0/0。首批 a70e682f 已推送。参数语言切换深浅前后图已导出。
+
+5. **删前一条后录制改写错误绑定**：原第二条录制中删除第一条，Ctrl+Shift+R 被写到 clipboard 那条 → 删除/转为命令草稿时同步录制行索引 → 键只写到原 say original 绑定，clipboard 保持 Ctrl+Shift+C。原始红串 `recording moved to another binding: [{Key:Ctrl+Shift+B Action:say original} {Key:Ctrl+Shift+R Action:plugin:clipboard}]`。
+6. **删除正在录制的行仍继续录制**：原第一条被删，后续按键改写存活的第二条 → 删除录制对象立即取消录制 → 录制提示消失，余下两条键值与草稿都保持。原始红串 `removed binding left recorder armed`、`removed recorder rewrote surviving binding`。
+
+第三批相关快捷键回归通过，具体计数见提交正文与最终日志。删除和「转为命令草稿」两条移除路径共用修复，键盘格式/持久化回调保持。V/B/S 0/0/0。

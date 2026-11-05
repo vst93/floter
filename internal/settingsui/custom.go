@@ -423,6 +423,7 @@ func (a *App) updateCustomShortcut(index int, entry settings.CustomShortcut) {
 	if entry.Action == commandAction {
 		a.customKey, a.customCommand, a.customAction = entry.Key, "", commandAction
 		a.customDraftOpen = true
+		a.rebaseCustomRecorder(index)
 		entries = append(entries[:index], entries[index+1:]...)
 		a.commitCustomShortcuts(entries)
 		return
@@ -438,8 +439,20 @@ func (a *App) removeCustomShortcut(index int) {
 		return
 	}
 	delete(a.customEdits, entries[index].Key)
+	a.rebaseCustomRecorder(index)
 	entries = append(entries[:index], entries[index+1:]...)
 	a.commitCustomShortcuts(entries)
+}
+
+// Removing a saved row must not lend its recorder to the next binding. The
+// same removal happens when a saved action becomes a command draft.
+func (a *App) rebaseCustomRecorder(removed int) {
+	if a.customRecordRow == removed {
+		a.customRecording = false
+		a.customRecordRow = customDraftRow
+	} else if a.customRecordRow > removed {
+		a.customRecordRow--
+	}
 }
 
 // commitCustomShortcuts hands the list to the shell, which persists it and
