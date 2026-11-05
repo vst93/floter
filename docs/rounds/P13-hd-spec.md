@@ -27,9 +27,11 @@
 
 基线：LC_ALL=zh_CN.UTF-8 GOMAXPROCS=4 verbose 全量实测 **3624 PASS / 0 FAIL**，测试函数 **2727**，日志 /tmp/floter-P13-hd/baseline.log。每 1–2 项相关回归通过即 commit && push；轮末一次 gofmt -l cmd internal、三平台 go vet ./...、普通及 verbose go test -count=1 ./...、三平台 go build ./...。
 
-Mutation：M1 撤销字段身份，使重排输入 pin 红；M2 撤销表单会话身份，使跨对象/重开撤销 pin 红；M3 撤销 stackedRow 主体身份，使首行边界 pin 红。每条实跑、还原、md5sum -c、touch 后复跑。
+Mutation：M1 撤销两种表单的字段身份，使重排输入 pin 红；M2 撤销配置 draft 身份，使跨集成撤销 pin 红；M3 撤销 stackedRow 主体与分组卡身份，使首行/标题边界 pin 红。每条实跑、还原、md5sum -c、touch 后复跑。
 
 截图由 ui.Tester 导出 /tmp/floter-P13-hd-<场景>-<light|dark>-<before|after>.png，深浅前后与放大图入库。更轻/更有空间感来自焦点和错误只落到所属位置，保留现有面差、不额外叠玻璃。
+
+最终实测门槛：**3648 PASS / 0 FAIL / 2735 测试函数**；普通与 verbose 全量、三平台 vet/build 均通过，gofmt 空。三条 mutation 实跑红，三文件逐字节恢复，touch 后新增回归 24 PASS。四批每批两项提交已推送，50 张原图/比较/细节图入库。逐项证据和 preflight 限制见同轮报告。
 
 ## skill 转译
 
