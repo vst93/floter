@@ -23,3 +23,10 @@
 2. **插件多选换序后空格改错选项**：文件已选，交换顺序后按空格得到 `[apps files]` → Checkbox 以 option.Value 为身份 → 深浅都取消文件，值为 `[]`。原始红串 `plugin checkbox keyboard changed another option: [apps files]`。
 
 键盘 Space 单独候选原实现已通过，保留为守卫但不计修复。第一批相关回归与 internal/ci 通过后提交；旧断言未改，V/B/S 0/0/0。所有原实现红串保存在 `/tmp/floter-P13-he/probe.log`。
+
+第一批 **24 PASS / 0 FAIL**，internal/ci 通过，`e18a191b` 已推送。
+
+3. **换序后 Shift 选中无关项**：以文件为锚，换序再 Shift 点书签得到 `[应用 文件 书签]` → 锚点保存选项值，使用时按当前顺序定位 → 深浅都只选 `[文件 书签]`。原始红串 `reordered range selected the wrong options: [应用 文件 书签]`。
+4. **删除锚点后邻项继承范围起点**：删除文件后 Shift 点书签，应用也被选上 → 找不到原值即失效并清除锚点 → 深浅只选书签，下一次 Shift 从新的书签锚点正常扩展。原始红串 `removed anchor selected an unrequested replacement: [应用 书签]`。
+
+第二批相关回归 **30 PASS / 0 FAIL**。一项守换序的延续，一项守删除后的失效与恢复；同一批一次修完，旧 B 断言零改。

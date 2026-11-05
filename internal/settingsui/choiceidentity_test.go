@@ -67,10 +67,12 @@ func TestChoiceIdentityMultiFocusFollowsOption(t *testing.T) {
 			choiceMultiFocus(t, tt, "文件")
 			integration.Config[0].Options = []string{"应用", "文件", "书签"}
 			tt.Frame()
-			choiceIdentityDump(t, tt, "multi-focus", dark)
 			if !tt.Focused("文件") || tt.Focused("应用") {
 				t.Error("multiselect focus moved to another option after reorder")
 			}
+			tt.Key(0, ui.KeySpace)
+			tt.Frame()
+			choiceIdentityDump(t, tt, "multi-focus", dark)
 		})
 	}
 }

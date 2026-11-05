@@ -33,12 +33,12 @@ type configDraft struct {
 	// native pane keeps the text in this map so it survives the redraw the same
 	// way, while `values` holds what a save would carry.
 	live map[string]string
-	// multiAnchor is each multiselect list box's last clicked option index,
+	// multiAnchor is each multiselect list box's last clicked option value,
 	// keyed by the field. A native `select[multiple]` extends a range from that
 	// anchor on Shift-click (`Ctrl`/`Cmd`-click toggles one, a plain click
 	// starts over), and the toolkit hands the click's modifiers through, so a
 	// range is the one selection habit this box can keep.
-	multiAnchor map[string]int
+	multiAnchor map[string]string
 	// saved is the values the form last wrote (or read), the baseline the
 	// dirty check compares against. The shell refreshes the integration list
 	// off the main thread, so until that lands `integration.ConfigValues` is
@@ -93,19 +93,30 @@ func (d *configDraft) multiAnchorAt(field ConfigField) int {
 	if d.multiAnchor == nil {
 		return -1
 	}
-	index, ok := d.multiAnchor[field.Key]
+	value, ok := d.multiAnchor[field.Key]
 	if !ok {
 		return -1
 	}
-	return index
+	for index, option := range field.Options {
+		if option == value {
+			return index
+		}
+	}
+	// A removed option cannot lend its anchor to the next option in the list.
+	delete(d.multiAnchor, field.Key)
+	return -1
 }
 
 // setMultiAnchor records the option a range extends from.
 func (d *configDraft) setMultiAnchor(field ConfigField, index int) {
 	if d.multiAnchor == nil {
-		d.multiAnchor = map[string]int{}
+		d.multiAnchor = map[string]string{}
 	}
-	d.multiAnchor[field.Key] = index
+	if index < 0 || index >= len(field.Options) {
+		delete(d.multiAnchor, field.Key)
+		return
+	}
+	d.multiAnchor[field.Key] = field.Options[index]
 }
 
 // draft is the form state for an integration, seeded from its loaded values
