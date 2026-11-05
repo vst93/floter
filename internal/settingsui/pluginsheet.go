@@ -261,7 +261,7 @@ func (a *App) sheetField(c *ui.Context, sheet PluginSheet, field plugincfg.Field
 	if field.Kind != plugincfg.Number {
 		delete(a.pluginNumberDrafts, key)
 	}
-	c = c.Key("plugin.field." + key + "\x00" + string(field.Kind))
+	c = c.Key("plugin.field." + key + "\x00" + strconv.Itoa(int(field.Kind)))
 	// P13-gu：没有标签的字段回落到它的 key，与集成配置表单同一条规则
 	// (`config.go` 的 `configField`：`if label == "" { label = field.Key }`)。
 	// `Label` 是 schema 里的自由文本，空串合法：此前浮层给这种字段画一格
