@@ -347,7 +347,11 @@ func (a *App) detachedBar(c *ui.Context, detached *detachedOutput, tokens theme.
 			barButton := func(label string, enabled bool, run func()) ui.Element {
 				button := ui.Row(c).Focusable().Shrink(0).
 					Padding(t.Space(detachedBarButtonY), t.Space(detachedBarButtonX)).
-					Radius(tokens.RadiusSM).Label(label)
+					Radius(tokens.RadiusSM).Label(label).
+					// P13-gv（`docs/liquid-glass.md` §6.169）：这根条子上的键也有三档面，
+					// 而它此前**一帧跳过去**（实测 f0 == f400），同族的设置页小格、
+					// 启动器小格都在 120ms 里走完。§5 第一行只给一个速度。
+					Transition(ui.ElementTransition{Colors: true, Duration: theme.ColorStep})
 				if !enabled {
 					// The reference's `:disabled { opacity: 0.5 }` is the framework's
 					// one fade, not a second one: `ui/paint.go:140` multiplies a

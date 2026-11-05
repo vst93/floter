@@ -4058,7 +4058,11 @@ func (a *App) shortcutRecorder(c *ui.Context, aria, label string, clicked func()
 	tokens := a.tokens(c)
 	button := ui.Row(c).Focusable().Label(aria).MinWidth(t.Space(20.5)).MinHeight(t.Space(6.75)).
 		Padding(0, t.Space(2.5)).Radius(tokens.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).
-		Background(tokens.Control).Border(1, tokens.ControlEdge).FocusRing(true)
+		Background(tokens.Control).Border(1, tokens.ControlEdge).FocusRing(true).
+		// P13-gv（`docs/liquid-glass.md` §6.169）：录制钮的三个 rung 只换面，而它
+		// 此前**一帧跳过去**（实测 `f0 == f60 == f400`），同页的 `pageButton`、
+		// 侧栏行、`barButton` 都在 120ms 里走完。§5 第一行只给一个速度。
+		Transition(ui.ElementTransition{Colors: true, Duration: theme.ColorStep})
 	// P13-l（`docs/liquid-glass.md` §6.2b 第 9-13 行）：这枚按钮此前停在 P12-c 第
 	// 2-4 行点名的那个状态——「一块被画框圈住的平涂」。它是**面**，不是槽：外圈
 	// `ControlEdge` 是它与卡片之间那道线，`LitFace` 补的是 E1 缺的那一对内线
@@ -7444,7 +7448,9 @@ func (a *App) runOutputToggle(c *ui.Context, copy i18n.Settings, id string) {
 			MinHeight(t.Space(7)).Gap(t.Space(1)).Padding(0, t.Space(2)).
 			AlignItems(ui.Center).Justify(ui.Start).
 			Border(0, ui.Transparent).Radius(tokens.RadiusXS).
-			Background(ui.Transparent)
+			Background(ui.Transparent).
+			// P13-gv（§6.169）：这一行也有三档面，而它此前一帧跳过去。
+			Transition(ui.ElementTransition{Colors: true, Duration: theme.ColorStep})
 		// P13-cn（`docs/liquid-glass.md` §6.57）：这枚折叠行此前**只有两档**——
 		// 静息透明、悬停 `ControlHover`，而按住不放的那一帧与悬停帧**逐像素相同**
 		// （同 P13-q / P13-al / P13-bv / P13-bw / P13-bx 那一族，这是这一族的最后

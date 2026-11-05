@@ -123,7 +123,10 @@ func (a *App) pinnedBody(c *ui.Context, state *pinned, tokens theme.Tokens, t *u
 				SingleLine().Ellipsis("\u2026")
 			close := ui.Row(c).Focusable().Shrink(0).
 				Padding(t.Space(detachedBarButtonY), t.Space(detachedBarButtonX)).
-				Radius(tokens.RadiusSM).Label(copy.OutputWindowClose)
+				Radius(tokens.RadiusSM).Label(copy.OutputWindowClose).
+				// P13-gv（`docs/liquid-glass.md` §6.169）：与 `detach.go` 的 `barButton`
+				// 同一根条子上的同一个键——两处一帧跳过去，同一个指针动作两种速度。
+				Transition(ui.ElementTransition{Colors: true, Duration: theme.ColorStep})
 			if close.Pressed() {
 				// P13-al · same key, same third rung (see `detach.go`'s `barButton`):
 				// the pressed note's ✕ sinks to `ControlPress` and steps back to 0.92,

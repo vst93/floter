@@ -433,7 +433,11 @@ func (a *App) toastViewport(c *ui.Context) {
 					action := ui.Row(c).Focusable().Shrink(0).Height(t.Space(5.5)).
 						Padding(0, t.Space(2)).Radius(tokens.RadiusSM).
 						AlignItems(ui.Center).Justify(ui.Center).
-						Background(tokens.Control).Label(toast.Action)
+						Background(tokens.Control).Label(toast.Action).
+						// P13-gv（`docs/liquid-glass.md` §6.169）：浮层里的这枚 chip 与它
+						// 右边那枚 ✕ 此前都是**一帧**换面，而同族的浮层控件（插件窗口
+						// 的条子键、弹层的胶囊）在 120ms 里走完。
+						Transition(ui.ElementTransition{Colors: true, Duration: theme.ColorStep})
 					// P13-j · the chip is an **E1** face inside the toast's E2 pane
 					// (`docs/liquid-glass.md` §2 判据 1: everything inside a floating
 					// layer is a face). It used to wear the four-layer `Lens`, whose
@@ -473,7 +477,9 @@ func (a *App) toastViewport(c *ui.Context) {
 				}
 				button := ui.Row(c).Focusable().Shrink(0).Size(dismiss, dismiss).
 					Radius(tokens.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).
-					Label(copy.DismissNotice)
+					Label(copy.DismissNotice).
+					// P13-gv（§6.169）：同上——同一块浮面上两个控件，一个走 120ms 一个跳。
+					Transition(ui.ElementTransition{Colors: true, Duration: theme.ColorStep})
 				// `.app-toast__dismiss:hover` (`extensions.css:383-386`) moves the
 				// glyph's ink to `--text-strong` as well as the fill to
 				// `--glass-control-hover`: the control darkens, it does not just

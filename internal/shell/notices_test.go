@@ -544,6 +544,8 @@ func TestTheToastDismissKeyIsAnE1Face(t *testing.T) {
 		mid := top + 3 // inside the key, above the ✕'s strokes
 		tt.Move(dismiss.X+dismiss.W/2, dismiss.Y+dismiss.H/2)
 		tt.Frame()
+		tt.Advance(300 * time.Millisecond) // P13-gv: the key's face rides theme.ColorStep
+		tt.Frame()
 		img := tt.Image()
 		// The key's box starts at a fractional row, so its 1px lines are spread
 		// over two rows at partial coverage: take the strongest row on each side
@@ -593,6 +595,8 @@ func TestDumpP13ZToastPNGs(t *testing.T) {
 			t.Fatalf("%s: the toast has no dismiss control", appearance)
 		}
 		tt.Move(dismiss.X+dismiss.W/2, dismiss.Y+dismiss.H/2)
+		tt.Frame()
+		tt.Advance(300 * time.Millisecond) // P13-gv: the key's face rides theme.ColorStep
 		tt.Frame()
 		path := filepath.Join("/tmp", "floter-P13-z-toast-"+appearance+".png")
 		f, err := os.Create(path) // #nosec G304 -- a fixed /tmp path this test owns

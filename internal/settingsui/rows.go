@@ -1097,7 +1097,14 @@ func (a *App) sessionIconButton(c *ui.Context, glyphName, label string, danger, 
 	t := c.Theme()
 	button := ui.ButtonBase(c).Label(label).
 		Size(t.Space(7), t.Space(7)).Border(1, ui.Transparent).
-		Radius(tokens.RadiusSM).Background(ui.Transparent).Center()
+		Radius(tokens.RadiusSM).Background(ui.Transparent).Center().
+		// P13-gv（`docs/liquid-glass.md` §6.169）：这一族的**每一枚**小格（30u 的
+		// `extensionIconButton`、28u 的 `paramIconButton`、页头的 `headerButton`、
+		// 弹层里的 `sheetActionButton`）都在 120ms 里走到悬停面，只有这一枚与
+		// `sessionKillConfirm` 是**一帧跳过去**的（实测：`f0 == f60 == f400`，
+		// 而 `pageButton` 的 `f0 ≠ f60`）。同一个指针动作在一个应用里两种速度，
+		// 正是 §5 第一行「颜色过渡 120ms」要收掉的东西。
+		Transition(ui.ElementTransition{Colors: true, Duration: theme.ColorStep})
 	// P13-az：提示走 `tokens.Tip`（§6.20 20-3），不再是框架那枚反色片子。
 	button = tokens.Tip(c, button, label)
 	ink := t.TextMuted
@@ -1168,7 +1175,10 @@ func (a *App) sessionKillConfirm(c *ui.Context, label string, disabled bool, run
 	pill := ui.ButtonBase(c).Label(label).
 		MinHeight(t.Space(7)).Padding(0, t.Space(2.25)).Radius(999).
 		Border(1, t.Warning).Background(tokens.RaisedWarm).
-		AlignItems(ui.Center).Center().Gap(t.Space(1.25))
+		AlignItems(ui.Center).Center().Gap(t.Space(1.25)).
+		// P13-gv（§6.169）：同族的暖色面（电源确认带的 execute 键）与它上面那枚
+		// 28u 小格都走 120ms，这一枚此前一帧跳过去。
+		Transition(ui.ElementTransition{Colors: true, Duration: theme.ColorStep})
 	// P13-az：同 `sessionIconButton`，提示是浮面（§6.20 20-3）。
 	pill = tokens.Tip(c, pill, label)
 	// `box-shadow: var(--glass-raised-shadow)`: the `--elev-2` contact cast plus

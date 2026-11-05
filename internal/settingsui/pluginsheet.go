@@ -10,6 +10,7 @@ import (
 
 	"floter/internal/i18n"
 	"floter/internal/plugincfg"
+	"floter/internal/theme"
 )
 
 // The generic plugin configuration sheet: the old build's R29 overlay, in the
@@ -554,6 +555,10 @@ func (a *App) sheetActionButton(c *ui.Context, label string, danger bool, run fu
 	button := ui.ButtonBase(c).
 		MinHeight(t.Space(7)).
 		Padding(0, t.Space(2.5)).
+		// P13-gv（`docs/liquid-glass.md` §6.169）：弹层里的胶囊此前一帧跳到悬停面，
+		// 而同族的 `extensionActionFace` / `barButton` / `uninstallActionButton`
+		// 都在 120ms 里走过去（§5 第一行）。面与边都只动颜色，所以是 `Colors`。
+		Transition(ui.ElementTransition{Colors: true, Duration: theme.ColorStep}).
 		// P13-eo（`docs/liquid-glass.md` §6.110）：这枚胶囊的四角此前是 `RadiusSM`(8)
 		// ——**圆角矩形**，而它上面那段注释、参考的 `plugin-config.css:241`
 		// (`border-radius: 999px`) 与守它的那条 pin 都写着「胶囊」。

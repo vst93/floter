@@ -2,6 +2,7 @@ package settingsui
 
 import (
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -111,6 +112,11 @@ func TestTheSessionKillQuestionWearsTheWarmPill(t *testing.T) {
 	if err := tt.Click(en.SessionsKill); err != nil {
 		t.Fatalf("arm: %v", err)
 	}
+	tt.Frame()
+	// P13-gy（`docs/liquid-glass.md` §6.169 169-9）：这枚药丸的两个面现在也走
+	// `theme.ColorStep`（120ms），按下那一帧仍在静息/悬停面上；要量它的暖面，
+	// 得等这一步走完。读数一个没改。
+	tt.Advance(300 * time.Millisecond)
 	tt.Frame()
 	ask, ok := tt.Find(en.SessionsKillArm)
 	if !ok {

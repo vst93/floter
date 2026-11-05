@@ -20,7 +20,7 @@ import (
 //     的组件行，照抄那个组件自己的 `transition: background 150ms ease`）。
 //
 // 于是同一个指针动作在应用里有三种速度，而对话框里那一族最慢——一张浮纸里的
-// 行比它脚下的列表慢 25%。这一轮把 12 处收成 `theme.ColorStep`，这条账守两件事：
+// 行比它脚下的列表慢 25%。这一轮把 13 处收成 `theme.ColorStep`，这条账守两件事：
 //
 //	① 常量本身是参考 CSS 的 `--dur-2`，写死 120ms。**不能拿 ColorStep 判 ColorStep**
 //	   （P13-ac 的第一次变异就是这么没红的：常量判常量，改常量时 pin 跟着改）。
@@ -43,9 +43,13 @@ var colorStepSites = map[string]int{
 	"internal/launcher/launcher.go":      2, // the row's 20u control, the field's settings key
 	"internal/launcher/power.go":         1, // the power confirmation's rows
 	"internal/settingsui/parameditor.go": 1, // the argument editor's stepper
-	"internal/settingsui/rows.go":        4, // the two action pills, the bare note button and pageButton (P13-ai)
-	"internal/settingsui/settingsui.go":  2, // the sidebar's row and the run pill
+	"internal/settingsui/pluginsheet.go": 1, // the sheet's action pill (P13-gv)
+	"internal/settingsui/rows.go":        6, // the two action pills, the bare note button, pageButton (P13-ai), the session icon and the kill pill (P13-gv)
+	"internal/settingsui/settingsui.go":  4, // the sidebar's row, the run pill, the shortcut recorder and the run-output toggle (P13-gv)
 	"internal/settingsui/uninstall.go":   2, // the dialog's action pill and its component card
+	"internal/shell/detach.go":           1, // the plugin windows' bar keys (P13-gv)
+	"internal/shell/notices.go":          2, // the toast's action chip and its dismiss key (P13-gv)
+	"internal/shell/pinned.go":           1, // the pinned note's close key (P13-gv)
 }
 
 func TestEveryColorTransitionRidesOneStep(t *testing.T) {

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -87,13 +88,15 @@ func pressReading(t *testing.T, surface pressSurface, dark, down bool) (ui.Color
 	x, y := int(box.X)+surface.probe, int(box.Y+box.H/2)
 	tt.Move(float32(x), float32(y))
 	tt.Frame()
+	// P13-gv · these keys now ride `theme.ColorStep` (120ms) like every other
+	// pointer answer in the app: the frame the pointer lands is still the
+	// resting face, so each state is read after the step has run out.
+	tt.Advance(300 * time.Millisecond)
+	tt.Frame()
 	if down {
 		tt.Press(float32(x), float32(y))
-		// These keys carry no colour transition (`Transition` is not set on
-		// them), so the frame after the press is already the settled press
-		// face; the second frame only proves it is a state, not a one-frame
-		// artefact of the dispatch.
 		tt.Frame()
+		tt.Advance(300 * time.Millisecond)
 		tt.Frame()
 	}
 	return shellPixelAt(tt.Image(), x, y), box
@@ -187,8 +190,12 @@ func pressPaintedWidth(t *testing.T, surface pressSurface, dark, down bool) int 
 	barFace := shellPixelAt(tt.Image(), int(box.X)-8, y)
 	tt.Move(float32(x), float32(y))
 	tt.Frame()
+	tt.Advance(300 * time.Millisecond) // P13-gv: the pointer answer rides 120ms
+	tt.Frame()
 	if down {
 		tt.Press(float32(x), float32(y))
+		tt.Frame()
+		tt.Advance(300 * time.Millisecond)
 		tt.Frame()
 	}
 	img := tt.Image()

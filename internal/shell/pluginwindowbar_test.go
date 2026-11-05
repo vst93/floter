@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -107,6 +108,10 @@ type barReading struct {
 // without assuming any geometry: the run *is* the key.
 func barTryRead(tt *ui.Tester, x, y int) (barReading, bool) {
 	tt.Move(float32(x), float32(y))
+	tt.Frame()
+	// P13-gv · the key's colour answer rides `theme.ColorStep` (120ms): read the
+	// column after the step, not on the frame the pointer lands.
+	tt.Advance(300 * time.Millisecond)
 	tt.Frame()
 	top, bottom := y-20, y+20
 	img := tt.Image()

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -135,6 +136,12 @@ func litFrame(t *testing.T, dark, hover bool, build func(a *App, c *ui.Context) 
 	tt.Frame()
 	if hover {
 		tt.Move(box.X+box.W/2, box.Y+box.H/2)
+		tt.Frame()
+		// P13-gy（`docs/liquid-glass.md` §6.169 169-9）：这些面现在真的**走**那 120ms
+		// （§5 第一行）。读悬停面的 pin 必须等它落定，否则量的是淡入的半路 ——
+		// 改前它们读得到，只是因为产品当时是**一帧跳过去**的。数值一个没改，
+		// 改的是探针的取样时机（同 `killConfirmProbe` 早就在做的那一步）。
+		tt.Advance(300 * time.Millisecond)
 		tt.Frame()
 	}
 	return tt, box
