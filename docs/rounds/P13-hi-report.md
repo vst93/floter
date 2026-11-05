@@ -35,3 +35,8 @@
 6. 插件数字字段改成开关再恢复仍保留 `1e` → 离开 Number 类型即清半输入，恢复读取宿主值 8 → 深浅恢复后可输入并提交 9。原串：`retired number kind kept its half-input for the next number field`。
 
 第三批执行偏差：09ccca03 被提前推送时相关命令因 `conversion from Kind (int) to string yields a string of one rune, not a string of digits` 失败；不得把该提交记为过门槛。已改成 `strconv.Itoa(int(field.Kind))`，重新验证后单独补推修正，完整门槛仍在最终实现上执行。
+
+修正后第三批相关 **38 PASS / 0 FAIL**，47eb4669 补推通过。
+
+7. 多选字段整体移除再恢复，Shift 把中间“应用”也选中 → 在表单早退前退役不再存在的多选锚点 → 恢复后 Shift 只新增“书签”，随后新的范围选择可用。原串：`removed field resurrected a stale range: [文件 应用 书签]`。
+8. 聚焦插件文字字段被移除，没有 blur 清理，恢复时画回旧路径 → 绘制 schema 前清理消失字段的编辑草稿，数字同路径一起覆盖 → 深浅恢复显示 `/workspace/restored`，重新输入并提交成功。原串：`removed plugin field kept a draft and repainted stale text on return`。

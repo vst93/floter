@@ -219,6 +219,21 @@ func lockedControl(e ui.Element) ui.Element {
 // opens it is the integration row's own (see integrationRow).
 func (a *App) configFields(c *ui.Context, copy i18n.Settings, integration Integration) {
 	t := a.cardTheme(c)
+	// A removed list never renders another frame to retire its range anchor.
+	// Keep values and saved edits; only range gestures belong to visible lists.
+	if draft := a.configDrafts[integration.ID]; draft != nil {
+		active := make(map[string]bool)
+		for _, field := range integration.Config {
+			if strings.EqualFold(field.Type, "multiselect") {
+				active[field.Key] = true
+			}
+		}
+		for key := range draft.multiAnchor {
+			if !active[key] {
+				delete(draft.multiAnchor, key)
+			}
+		}
+	}
 	if len(integration.Config) == 0 {
 		return
 	}

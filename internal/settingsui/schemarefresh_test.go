@@ -228,3 +228,66 @@ func TestSchemaRefreshTextBoundsUpdateError(t *testing.T) {
 		})
 	}
 }
+
+func TestSchemaRefreshRemovedMultiRetiresAnchor(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			integration := choiceMultiIntegration()
+			a, tt := configIdentityFrame(t, dark, &integration)
+			if err := tt.Click("文件"); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			field := integration.Config[0]
+			integration.Config = nil
+			tt.Frame()
+			integration.Config = []ConfigField{field}
+			tt.Frame()
+			if err := tt.ClickWith(ui.Shift, "书签"); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			schemaRefreshDump(t, tt, "removed-multi", dark)
+			if got := a.draft(integration).values["sources"]; !configValuesEqual(got, []any{"文件", "书签"}) {
+				t.Errorf("removed field resurrected a stale range: %v", got)
+			}
+			if err := tt.ClickWith(ui.Shift, "应用"); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			if got := a.draft(integration).values["sources"]; !configValuesEqual(got, []any{"文件", "应用", "书签"}) {
+				t.Errorf("restored multi could not start a fresh range: %v", got)
+			}
+		})
+	}
+}
+
+func TestSchemaRefreshRemovedPluginTextRetiresDraft(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			sheet := pluginIdentitySheet()
+			a, tt := schemaPluginFrame(t, dark, &sheet)
+			pluginIdentityFocus(t, tt, "工作目录")
+			tt.Type("/workspace/removed")
+			tt.Frame()
+			field := sheet.Schema.Fields[2]
+			sheet.Schema.Fields = sheet.Schema.Fields[:2]
+			tt.Frame()
+			_, stale := a.pluginTextDrafts["local.search\x00directory"]
+			sheet.Schema.Fields = append(sheet.Schema.Fields, field)
+			sheet.Values["directory"] = "/workspace/restored"
+			tt.Frame()
+			schemaRefreshDump(t, tt, "removed-plugin-text", dark)
+			if stale {
+				t.Error("removed plugin field kept a draft and repainted stale text on return")
+			}
+			pluginIdentityFocus(t, tt, "工作目录")
+			tt.Type("/workspace/recovered")
+			tt.Key(0, ui.KeyEnter)
+			tt.Frame()
+			if sheet.Values["directory"] != "/workspace/recovered" {
+				t.Error("restored text field could not commit")
+			}
+		})
+	}
+}
