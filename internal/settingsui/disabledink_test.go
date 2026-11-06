@@ -61,6 +61,14 @@ func TestDisabledExtensionIconSharesInk(t *testing.T) {
 	assertDisabledInk(t, disabledLabelSites()[3].draw)
 }
 
+func TestDisabledSessionIconSharesInk(t *testing.T) {
+	assertDisabledInk(t, disabledLabelSites()[4].draw)
+}
+
+func TestDisabledConfirmationLabelSharesInk(t *testing.T) {
+	assertDisabledInk(t, disabledLabelSites()[5].draw)
+}
+
 // Opt-in evidence uses actual component builders and identical geometry.
 func TestDumpP13HLDisabledInk(t *testing.T) {
 	if os.Getenv("FLOTER_P13HL_DUMP") == "" {

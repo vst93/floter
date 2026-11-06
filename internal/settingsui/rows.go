@@ -1118,6 +1118,7 @@ func (a *App) sessionIconButton(c *ui.Context, glyphName, label string, danger, 
 		// `DimFace`（没有受光边可熄），也不需要产品自己那道 `.4`——那会让
 		// 框架的 0.5 变成有效 0.2，图标墨只剩 24 级对比（P-5 的下限是 60）。
 		// 一道淡，档位挂在控件根上：`lockedControl`。
+		ink = tokens.Disabled
 		button = lockedControl(button)
 	case button.Pressed():
 		// P13-q：同 28u 小格，第三档（`ControlPress` + `Scale(0.92)`）。

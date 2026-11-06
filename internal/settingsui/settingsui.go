@@ -6482,6 +6482,9 @@ func (a *App) barButton(c *ui.Context, label string, danger, disabled bool, icon
 	if danger {
 		ink = t.Warning
 	}
+	if disabled && !danger {
+		ink = tokens.Disabled
+	}
 	button := ui.ButtonBase(c).
 		Height(t.Space(6)).
 		Padding(0, t.Space(2)).

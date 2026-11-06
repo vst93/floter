@@ -155,11 +155,17 @@ func TestTheDisabledSessionIconFadesOnce(t *testing.T) {
 			t.Errorf("the disabled session icon (%s): it wears a lit edge %v over its transparent face (%d levels)",
 				appearanceName(dark), off.crown, over/3)
 		}
-		// One fade: half of the enabled ink, ±20 of a three-channel sum.
-		want := on.inkContrast / 2
-		if d := absDiff(want, off.inkContrast); d > 20 {
-			t.Errorf("the disabled session icon (%s): the glyph is %d levels off the ground, but one fade of the enabled %d is %d (off by %d); the control is faded twice — or not at all",
-				appearanceName(dark), off.inkContrast/3, on.inkContrast/3, want/3, d/3)
+		// P13-hl V 重定基线：TextMuted 的一半 59/61 → Disabled 79/85。
+		// The face and crown checks above still apply; the new ink is exact.
+		want := 79
+		if dark {
+			want = 85
+		}
+		if got := off.inkContrast / 3; got != want {
+			t.Errorf("%s: disabled session ink = %d, want %d", appearanceName(dark), got, want)
+		}
+		if off.inkContrast >= on.inkContrast {
+			t.Errorf("%s: disabled session ink is not quieter than enabled", appearanceName(dark))
 		}
 	}
 }
