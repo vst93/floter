@@ -1,0 +1,19 @@
+=== RUN   TestConflictRecoveryDefaultsRetireOldSelectionRange
+=== RUN   TestConflictRecoveryDefaultsRetireOldSelectionRange/light
+    conflictrecovery_test.go:134: defaults-range resurrected old range: [文件 应用], want [应用]
+=== RUN   TestConflictRecoveryDefaultsRetireOldSelectionRange/dark
+    conflictrecovery_test.go:134: defaults-range resurrected old range: [文件 应用], want [应用]
+--- FAIL: TestConflictRecoveryDefaultsRetireOldSelectionRange (0.05s)
+    --- FAIL: TestConflictRecoveryDefaultsRetireOldSelectionRange/light (0.04s)
+    --- FAIL: TestConflictRecoveryDefaultsRetireOldSelectionRange/dark (0.02s)
+=== RUN   TestConflictRecoveryExternalSelectionRetiresOldRange
+=== RUN   TestConflictRecoveryExternalSelectionRetiresOldRange/light
+    conflictrecovery_test.go:134: external-range resurrected old range: [文件 应用 书签], want [应用 书签]
+=== RUN   TestConflictRecoveryExternalSelectionRetiresOldRange/dark
+    conflictrecovery_test.go:134: external-range resurrected old range: [文件 应用 书签], want [应用 书签]
+--- FAIL: TestConflictRecoveryExternalSelectionRetiresOldRange (0.01s)
+    --- FAIL: TestConflictRecoveryExternalSelectionRetiresOldRange/light (0.01s)
+    --- FAIL: TestConflictRecoveryExternalSelectionRetiresOldRange/dark (0.01s)
+FAIL
+FAIL	floter/internal/settingsui	0.073s
+FAIL

@@ -1,0 +1,19 @@
+=== RUN   TestConflictRecoveryIntegrationExtremeNumberReadable
+=== RUN   TestConflictRecoveryIntegrationExtremeNumberReadable/light
+    conflictrecovery_test.go:37: integration number expands to 309 characters, want 1e+308
+=== RUN   TestConflictRecoveryIntegrationExtremeNumberReadable/dark
+    conflictrecovery_test.go:37: integration number expands to 309 characters, want 1e+308
+--- FAIL: TestConflictRecoveryIntegrationExtremeNumberReadable (0.04s)
+    --- FAIL: TestConflictRecoveryIntegrationExtremeNumberReadable/light (0.03s)
+    --- FAIL: TestConflictRecoveryIntegrationExtremeNumberReadable/dark (0.01s)
+=== RUN   TestConflictRecoveryPluginTinyNumberReadable
+=== RUN   TestConflictRecoveryPluginTinyNumberReadable/light
+    conflictrecovery_test.go:56: tiny number expands to 310 characters, want 1e-308
+=== RUN   TestConflictRecoveryPluginTinyNumberReadable/dark
+    conflictrecovery_test.go:56: tiny number expands to 310 characters, want 1e-308
+--- FAIL: TestConflictRecoveryPluginTinyNumberReadable (0.02s)
+    --- FAIL: TestConflictRecoveryPluginTinyNumberReadable/light (0.02s)
+    --- FAIL: TestConflictRecoveryPluginTinyNumberReadable/dark (0.01s)
+FAIL
+FAIL	floter/internal/settingsui	0.069s
+FAIL

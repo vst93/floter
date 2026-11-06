@@ -1,0 +1,23 @@
+=== RUN   TestConflictRecoveryTextUsesCurrentSavedValue
+=== RUN   TestConflictRecoveryTextUsesCurrentSavedValue/light
+    conflictrecovery_test.go:43: returning to external text still says Unsaved changes
+    conflictrecovery_test.go:49: obsolete original text falsely says Saved
+=== RUN   TestConflictRecoveryTextUsesCurrentSavedValue/dark
+    conflictrecovery_test.go:43: returning to external text still says Unsaved changes
+    conflictrecovery_test.go:49: obsolete original text falsely says Saved
+--- FAIL: TestConflictRecoveryTextUsesCurrentSavedValue (0.04s)
+    --- FAIL: TestConflictRecoveryTextUsesCurrentSavedValue/light (0.03s)
+    --- FAIL: TestConflictRecoveryTextUsesCurrentSavedValue/dark (0.01s)
+=== RUN   TestConflictRecoveryNumberDefaultUsesCurrentSavedValue
+=== RUN   TestConflictRecoveryNumberDefaultUsesCurrentSavedValue/light
+    conflictrecovery_test.go:75: restoring obsolete default falsely says Saved
+    conflictrecovery_test.go:81: returning to external number still says Unsaved changes
+=== RUN   TestConflictRecoveryNumberDefaultUsesCurrentSavedValue/dark
+    conflictrecovery_test.go:75: restoring obsolete default falsely says Saved
+    conflictrecovery_test.go:81: returning to external number still says Unsaved changes
+--- FAIL: TestConflictRecoveryNumberDefaultUsesCurrentSavedValue (0.04s)
+    --- FAIL: TestConflictRecoveryNumberDefaultUsesCurrentSavedValue/light (0.02s)
+    --- FAIL: TestConflictRecoveryNumberDefaultUsesCurrentSavedValue/dark (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.078s
+FAIL

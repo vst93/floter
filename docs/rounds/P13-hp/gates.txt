@@ -1,0 +1,11 @@
+gofmt_bytes=0
+linux_vet=0
+linux_build=0
+windows_vet=0
+windows_build=0
+darwin_vet=0
+darwin_build=0
+test_exit=0
+verbose_exit=0
+PASS=3923
+functions=2842

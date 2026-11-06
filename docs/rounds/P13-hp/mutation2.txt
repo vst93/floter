@@ -1,0 +1,19 @@
+=== RUN   TestConflictRecoveryPluginWithdrawnTextFollowsHost
+=== RUN   TestConflictRecoveryPluginWithdrawnTextFollowsHost/light
+    conflictrecovery_test.go:42: withdrawn plugin text masks host: "/old"
+=== RUN   TestConflictRecoveryPluginWithdrawnTextFollowsHost/dark
+    conflictrecovery_test.go:42: withdrawn plugin text masks host: "/old"
+--- FAIL: TestConflictRecoveryPluginWithdrawnTextFollowsHost (0.05s)
+    --- FAIL: TestConflictRecoveryPluginWithdrawnTextFollowsHost/light (0.04s)
+    --- FAIL: TestConflictRecoveryPluginWithdrawnTextFollowsHost/dark (0.00s)
+=== RUN   TestConflictRecoveryPluginMatchingHostReleasesText
+=== RUN   TestConflictRecoveryPluginMatchingHostReleasesText/light
+    conflictrecovery_test.go:65: host-confirmed plugin text masks next value: "/shared"
+=== RUN   TestConflictRecoveryPluginMatchingHostReleasesText/dark
+    conflictrecovery_test.go:65: host-confirmed plugin text masks next value: "/shared"
+--- FAIL: TestConflictRecoveryPluginMatchingHostReleasesText (0.01s)
+    --- FAIL: TestConflictRecoveryPluginMatchingHostReleasesText/light (0.01s)
+    --- FAIL: TestConflictRecoveryPluginMatchingHostReleasesText/dark (0.01s)
+FAIL
+FAIL	floter/internal/settingsui	0.062s
+FAIL
