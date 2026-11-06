@@ -1,0 +1,22 @@
+=== RUN   TestNoticeDisableSlowFailureCanRetry
+=== RUN   TestNoticeDisableSlowFailureCanRetry/light/disable-slow-failure
+=== RUN   TestNoticeDisableSlowFailureCanRetry/light/disable-slow-failure-cancelled
+=== RUN   TestNoticeDisableSlowFailureCanRetry/dark/disable-slow-failure
+=== RUN   TestNoticeDisableSlowFailureCanRetry/dark/disable-slow-failure-cancelled
+--- PASS: TestNoticeDisableSlowFailureCanRetry (0.13s)
+    --- PASS: TestNoticeDisableSlowFailureCanRetry/light/disable-slow-failure (0.08s)
+    --- PASS: TestNoticeDisableSlowFailureCanRetry/light/disable-slow-failure-cancelled (0.01s)
+    --- PASS: TestNoticeDisableSlowFailureCanRetry/dark/disable-slow-failure (0.02s)
+    --- PASS: TestNoticeDisableSlowFailureCanRetry/dark/disable-slow-failure-cancelled (0.01s)
+=== RUN   TestNoticeRemoveSlowFailureCanRetry
+=== RUN   TestNoticeRemoveSlowFailureCanRetry/light/remove-slow-failure
+=== RUN   TestNoticeRemoveSlowFailureCanRetry/light/remove-slow-failure-cancelled
+=== RUN   TestNoticeRemoveSlowFailureCanRetry/dark/remove-slow-failure
+=== RUN   TestNoticeRemoveSlowFailureCanRetry/dark/remove-slow-failure-cancelled
+--- PASS: TestNoticeRemoveSlowFailureCanRetry (0.27s)
+    --- PASS: TestNoticeRemoveSlowFailureCanRetry/light/remove-slow-failure (0.08s)
+    --- PASS: TestNoticeRemoveSlowFailureCanRetry/light/remove-slow-failure-cancelled (0.06s)
+    --- PASS: TestNoticeRemoveSlowFailureCanRetry/dark/remove-slow-failure (0.08s)
+    --- PASS: TestNoticeRemoveSlowFailureCanRetry/dark/remove-slow-failure-cancelled (0.06s)
+PASS
+ok  	floter/internal/settingsui	0.400s

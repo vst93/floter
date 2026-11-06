@@ -36,3 +36,12 @@
 4. 现象：配置丢弃在 3 秒到期后丢失 Configure 焦点。改动：沿用跨帧答案 Handle，仅在离场答案持有键盘时还给入口。验证：同样八场景，检查按钮上的焦点不受影响。
 
 相关回归 **103 PASS / 0 FAIL**；M2 原始红串 `discard exit closed settings or lost draft: closed=1 armed=true open=true value=edited saved=0`、`discard exit lost Configure focus`；恢复 MD5 与 touch 后 **18 PASS**，settingsui vet 净。V/B/S 0/0/0，旧断言不改。
+
+第二批 `83a8b09f` 已推送。
+
+### 第三批：慢失败的阅读与重试窗口
+
+5. 现象：停用操作等待 5 秒后失败，下一帧立即撤掉错误，用户既读不到原因也不能 Space 重试。改动：仅问题仍开着时，从失败到达时重新开始原有 3 秒回答窗口。验证：两主题等待 5 秒、失败显示、2 秒后仍显示、Space 第二次派发、3 秒后正常撤回；已 Escape 取消的迟到失败不复开。
+6. 现象：移除操作同样被提问时钟吞掉失败。改动：同族重启回答窗口，不改执行与取消语义。验证：同上四场景，实际回调计数 1→2，取消场景不显示迟到失败。
+
+相关回归 **112 PASS / 0 FAIL**；M3 回注旧时钟，原始红串 `slow failure vanished before it could be read`、`slow failure cannot retry from keyboard: calls=1`，四场景红。MD5 还原并 touch 后 **10 PASS**；settingsui vet 净。V/B/S 0/0/0。

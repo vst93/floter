@@ -6738,6 +6738,14 @@ func (a *App) finishDisableConfirmation(id string, err error) {
 		delete(a.disableBusy, id)
 	}
 	if err != nil {
+		// The result is a new answer to read. A slow write must not spend
+		// its retry window while the confirmation was still busy.
+		if a.disableConfirm[id] {
+			if a.disableConfirmAt == nil {
+				a.disableConfirmAt = map[string]time.Time{}
+			}
+			a.disableConfirmAt[id] = a.now()
+		}
 		if a.disableError == nil {
 			a.disableError = map[string]string{}
 		}
@@ -7039,6 +7047,14 @@ func (a *App) finishRemoveConfirmation(id string, err error) {
 		delete(a.removeBusy, id)
 	}
 	if err != nil {
+		// Keep the existing three-second answer window, starting when the
+		// failure arrives; a question already cancelled stays cancelled.
+		if a.removeConfirm[id] {
+			if a.removeConfirmAt == nil {
+				a.removeConfirmAt = map[string]time.Time{}
+			}
+			a.removeConfirmAt[id] = a.now()
+		}
 		if a.removeError == nil {
 			a.removeError = map[string]string{}
 		}

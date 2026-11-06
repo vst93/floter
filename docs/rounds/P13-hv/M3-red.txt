@@ -1,0 +1,35 @@
+=== RUN   TestNoticeDisableSlowFailureCanRetry
+=== RUN   TestNoticeDisableSlowFailureCanRetry/light/disable-slow-failure
+    noticeresult_test.go:69: slow failure vanished before it could be read
+    noticeresult_test.go:73: failure did not get its existing three-second answer window
+    noticeresult_test.go:78: slow failure cannot retry from keyboard: calls=1
+=== RUN   TestNoticeDisableSlowFailureCanRetry/light/disable-slow-failure-cancelled
+=== RUN   TestNoticeDisableSlowFailureCanRetry/dark/disable-slow-failure
+    noticeresult_test.go:69: slow failure vanished before it could be read
+    noticeresult_test.go:73: failure did not get its existing three-second answer window
+    noticeresult_test.go:78: slow failure cannot retry from keyboard: calls=1
+=== RUN   TestNoticeDisableSlowFailureCanRetry/dark/disable-slow-failure-cancelled
+--- FAIL: TestNoticeDisableSlowFailureCanRetry (0.11s)
+    --- FAIL: TestNoticeDisableSlowFailureCanRetry/light/disable-slow-failure (0.07s)
+    --- PASS: TestNoticeDisableSlowFailureCanRetry/light/disable-slow-failure-cancelled (0.01s)
+    --- FAIL: TestNoticeDisableSlowFailureCanRetry/dark/disable-slow-failure (0.01s)
+    --- PASS: TestNoticeDisableSlowFailureCanRetry/dark/disable-slow-failure-cancelled (0.01s)
+=== RUN   TestNoticeRemoveSlowFailureCanRetry
+=== RUN   TestNoticeRemoveSlowFailureCanRetry/light/remove-slow-failure
+    noticeresult_test.go:69: slow failure vanished before it could be read
+    noticeresult_test.go:73: failure did not get its existing three-second answer window
+    noticeresult_test.go:78: slow failure cannot retry from keyboard: calls=1
+=== RUN   TestNoticeRemoveSlowFailureCanRetry/light/remove-slow-failure-cancelled
+=== RUN   TestNoticeRemoveSlowFailureCanRetry/dark/remove-slow-failure
+    noticeresult_test.go:69: slow failure vanished before it could be read
+    noticeresult_test.go:73: failure did not get its existing three-second answer window
+    noticeresult_test.go:78: slow failure cannot retry from keyboard: calls=1
+=== RUN   TestNoticeRemoveSlowFailureCanRetry/dark/remove-slow-failure-cancelled
+--- FAIL: TestNoticeRemoveSlowFailureCanRetry (0.23s)
+    --- FAIL: TestNoticeRemoveSlowFailureCanRetry/light/remove-slow-failure (0.06s)
+    --- PASS: TestNoticeRemoveSlowFailureCanRetry/light/remove-slow-failure-cancelled (0.06s)
+    --- FAIL: TestNoticeRemoveSlowFailureCanRetry/dark/remove-slow-failure (0.06s)
+    --- PASS: TestNoticeRemoveSlowFailureCanRetry/dark/remove-slow-failure-cancelled (0.06s)
+FAIL
+FAIL	floter/internal/settingsui	0.346s
+FAIL
