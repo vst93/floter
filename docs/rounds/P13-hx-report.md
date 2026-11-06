@@ -36,3 +36,14 @@ M1 回注旧条件八场景实跑红：`discard question survived changed clean 
 4. 现象：已提问移除的目标刷新成 orphan，维护入口提前返回，但问题仍阻挡 Escape，恢复登记后复活。改动：清除未派发的移除问题、时钟与错误；在飞移除仍交原回调结算。验证：四场景，退出 1 次或恢复后问题为关，不派发移除。
 
 M2 回注旧条件八场景红：`discard question survived changed owner condition`、`remove question revived when orphan condition returned`、两类 `invalid … question swallowed Escape: close=0`。MD5 恢复 OK，touch 后相关回归 220 PASS / 0 FAIL，包 vet 净。旧 V/B/S 0/0/0。
+
+第二批 fae5f208 已提交推送。
+
+### 第三批：停用前提不再成立
+
+5. 现象：停用问题展开时，外部状态已经 Disabled，旧确认仍可见可答。改动：未派发的问题随 Enabled=false 退役，清时钟与旧错误。验证：深浅 × 返回/退出四场景，刷新不派发动作，目标再次启用不带旧问题。
+6. 现象：目标变 Broken 后开关已不可操作，旧停用答案却仍可用。改动：沿用开关的可用条件撤旧问题；同时覆盖 orphan 的同源提前返回。验证：四场景，Escape 关闭设置 1 次，恢复正常后不复活旧停用答案。
+
+M3 回注旧条件八场景红：`disable question survived changed disabled condition`、`disable question revived when broken condition returned`、`invalid disable question swallowed Escape: close=0`。MD5 恢复 OK，touch 后相关 230 PASS / 0 FAIL，包 vet 净；旧 V/B/S 0/0/0。
+
+最初整包运行编译的是尚未校正的输入夹具，最终仅两条新测试的八场景失败（Token 未命中）；原 B 测试均无失败。校正后的相关测试已绿，最终普通/verbose 全量将使用最终代码重跑，不把该次失败计作成功。

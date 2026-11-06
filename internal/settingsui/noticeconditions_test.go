@@ -164,3 +164,6 @@ func TestNoticeConditionDiscardSchema(t *testing.T) { checkNoticeCondition(t, "d
 
 func TestNoticeConditionDiscardOwner(t *testing.T) { checkNoticeCondition(t, "discard", "owner") }
 func TestNoticeConditionRemoveOrphan(t *testing.T) { checkNoticeCondition(t, "remove", "orphan") }
+
+func TestNoticeConditionDisableDisabled(t *testing.T) { checkNoticeCondition(t, "disable", "disabled") }
+func TestNoticeConditionDisableBroken(t *testing.T)   { checkNoticeCondition(t, "disable", "broken") }

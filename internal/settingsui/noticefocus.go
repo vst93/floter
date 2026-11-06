@@ -22,6 +22,11 @@ func (a *App) retireMissingConfirmations() {
 			delete(a.removeConfirmAt, in.ID)
 			delete(a.removeError, in.ID)
 		}
+		if !a.disableBusy[in.ID] && (!in.Enabled || in.Broken || in.Orphan) {
+			delete(a.disableConfirm, in.ID)
+			delete(a.disableConfirmAt, in.ID)
+			delete(a.disableError, in.ID)
+		}
 	}
 	for id := range a.disableConfirm {
 		if !present[id] {
