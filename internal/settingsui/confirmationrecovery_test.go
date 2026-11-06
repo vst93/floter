@@ -34,6 +34,7 @@ func checkConfigRecovery(t *testing.T, discard bool) {
 				tt.Key(0, ui.KeyTab)
 				tt.Frame()
 				if !tt.Focused(copy.ConfigDiscard) {
+					recoveryDump(t, tt, name, dark)
 					t.Fatal("Tab could not reach Discard")
 				}
 			}

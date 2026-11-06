@@ -7,6 +7,7 @@ import (
 
 	"floter/internal/extensions"
 	"floter/internal/i18n"
+	"floter/internal/settings"
 	"github.com/egoist/mygo/ui"
 )
 
@@ -135,5 +136,41 @@ func TestRunRecoveryCommandOwnsSubmittedAnswers(t *testing.T) {
 	}
 	if calls != 1 {
 		t.Errorf("runs=%d, want 1", calls)
+	}
+}
+
+func TestRunRecoveryCancelReturnsToDisclosure(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			a, integration := runStateApp(Param{ID: "target", Label: "Target", Kind: extensions.ParamText, Default: "stored"})
+			a.Integrations = func() []Integration { return []Integration{*integration} }
+			a.Store.Update(func(s *settings.Settings) { s.Theme = appearanceName(dark) })
+			calls := 0
+			a.Actions.RunWithParams = func(string, map[string]string) *extensions.ParamFailure { calls++; return nil }
+			tt := integrationPage(t, a, 900, 1400)
+			tt.SetDark(dark)
+			tt.SetPreferences(ui.Preferences{ReduceMotion: true})
+			copy := i18n.For("en").Settings
+			a.runValues["runner"]["target"] = "edited"
+			tt.Frame()
+			if err := tt.Click(copy.RunCancel); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			tt.Frame()
+			recoveryDump(t, tt, "run-cancel", dark)
+			if !tt.Focused(copy.RunAction) {
+				t.Error("cancelled run form lost disclosure focus")
+			}
+			if a.runOpen["runner"] || calls != 0 {
+				t.Errorf("cancel open=%v runs=%d", a.runOpen["runner"], calls)
+			}
+			tt.Key(0, ui.KeySpace)
+			tt.Frame()
+			tt.Frame()
+			if !a.runOpen["runner"] || a.runValues["runner"]["target"] != "edited" {
+				t.Error("keyboard reopen lost parameter draft")
+			}
+		})
 	}
 }

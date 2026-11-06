@@ -140,12 +140,12 @@ func (a *App) uninstallDialog(c *ui.Context, copy i18n.Settings, integration Int
 	// while a removal is in flight (`ComponentizedUninstallDialog.tsx:126,142`).
 	busy := a.uninstallBusy[integration.ID]
 	open := true
-	// pane and cancel are the focus bookkeeping: the reference gives the
+	// The panel and cancel are the focus bookkeeping: the reference gives the
 	// cancel button the focus on mount, and the request must land after the
 	// overlay has recorded its opener, or closing would restore the focus to
-	// the dialog itself. Binding the pane lets the request stop once the
+	// the dialog itself. Querying the panel lets the request stop once the
 	// focus is in it, so Tab still reaches the confirm button.
-	var pane, cancel ui.Handle
+	var cancel ui.Handle
 	panelEl, dismissed := a.modalDialog(c, &open, func(backdrop, panel ui.Element) {
 		// `.extensions-dialog-overlay { inset: 0; place-items: center; padding:
 		// 20px; background: var(--surface-scrim) }` (`:6-16`). The scrim is the
@@ -159,7 +159,7 @@ func (a *App) uninstallDialog(c *ui.Context, copy i18n.Settings, integration Int
 		panel.FillWidth().MaxHeightPercent(100).
 			Padding(t.Space(4.25)).MinWidth(t.Space(105)).MaxWidth(t.Space(120)).
 			Radius(tokens.RadiusSM).Border(1, tokens.InputStroke).
-			Background(tokens.Float).TextColor(t.Text).Bind(&pane)
+			Background(tokens.Float).TextColor(t.Text)
 		// The floater's throw and its lit top rim, as `--elev-3` composed them —
 		// the same two shadows the terminal panel's own note carries.
 		// P11-an：两条 throw 都乘 `--elev-shadow-scale`（`theme.ElevThrow`），
@@ -205,7 +205,9 @@ func (a *App) uninstallDialog(c *ui.Context, copy i18n.Settings, integration Int
 			}
 			// `.extensions-dialog-actions { justify-content: flex-end; gap: 7px }`
 			// (`:74-78`): the pair sits at the row's right end, seven units apart.
-			ui.Row(c).FillWidth().Gap(t.Space(1.75)).Justify(ui.End).AlignItems(ui.Center).Children(func() {
+			// A failure inserts a notice before this row. Keep the answers'
+			// identity so the keyboard can retry or cancel from its current slot.
+			ui.Row(c.Key("uninstall.actions")).FillWidth().Gap(t.Space(1.75)).Justify(ui.End).AlignItems(ui.Center).Children(func() {
 				// The reference focuses Cancel on mount
 				// (`cancelRef.current?.focus({ preventScroll: true })`), the one
 				// target that keeps the answer to "remove all of this?" a deliberate
@@ -260,7 +262,9 @@ func (a *App) uninstallDialog(c *ui.Context, copy i18n.Settings, integration Int
 	// Give Cancel the focus while the pane does not already hold it: the
 	// request applies after the overlay recorded its opener, so closing gives
 	// the focus back to the control that opened the dialog.
-	if panelEl.Valid() && !pane.FocusWithin(c) {
+	// A new local Handle has no committed identity until the frame ends;
+	// querying it here would return false every frame and trap Tab on Cancel.
+	if panelEl.Valid() && !panelEl.FocusWithin() {
 		cancel.Focus(c)
 	}
 	// A close answered this frame (Cancel or Escape) must not be undone by the

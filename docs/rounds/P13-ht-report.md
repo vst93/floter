@@ -47,3 +47,14 @@ V/B/S 0/0/0。M2 回退本批产品变动，实际红；恢复后 MD5 校验、t
 M3 HEAD 回注两缺陷实跑红，MD5 恢复与 touch 后配置族回归。V/B/S 0/0/0。
 
 候选修正：卸载“取消后重开旧错”探针绕过真实入口；真实 removalConfirmation:6957 已清错误，排除该候选、不改产品、不计修复。第 7 项改查真实 runForm 取消焦点（已复现），第 8 项继续卸载失败重试。
+
+第三批 `546de9d0` 已推送；配置族 42 PASS，settingsui vet 净。
+
+### 第四批：运行退出与卸载重试
+
+7. 现象：参数表单取消后没有键盘落点，Space 不能重新展开。改动：原动作行绘制时，若同帧由表单取消而收起，将焦点交回 Run 入口。验证：真实集成页取消派发 0 次，随后 Space 重开，edited 参数仍在；原红串 `cancelled run form lost disclosure focus` / `keyboard reopen lost parameter draft`。
+8. 现象：卸载局部 Handle 每帧新建，FocusWithin 永远读不到已提交身份，Tab 八次仍困在取消；失败插入错误带还会改变动作行 ID。改动：查询当前 panel Element 的 FocusWithin，保留延迟 focus 请求；给动作行稳定 key。验证：从真实 opener 打开仍先聚焦 Cancel，Tab 可达卸载，失败句插入后焦点仍在卸载，同步与延迟失败均可 Space 重试；错误原文保留、两次确认恰好派发两次。原红串 `Tab did not reach uninstall`，逐帧探针八次 `cancel=true`。
+
+V/B/S 0/0/0，旧行为断言零改。八项跨运行参数、配置确认、卸载对话框三个组件；未新增页面/系统/依赖。
+
+运行取消还需固定 `integration.actions` 行身份：仅同帧 Focus 会在下一帧因上方表单消失而失效，真实键盘 pin 抓到后补齐。M4 首次还原校验发现卸载注释从 Binding 改成 Querying 没进入备份；按 MD5 恢复该注释后再次逐字节核对和 touch 复跑，不隐瞒中间失败。

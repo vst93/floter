@@ -2959,6 +2959,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			})
 		}
 
+		runWasOpen := a.runOpen[integration.ID]
 		if len(integration.Params) > 0 {
 			a.runForm(c, copy, integration)
 		}
@@ -3010,7 +3011,9 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			}
 			return a.actionButton(c, label)
 		}
-		a.rowAligned(c, ui.Center, nil, rowFace{Inert: busy}, "", nil, "", func() {
+		// The inline run form above can disappear; the disclosure's identity
+		// must survive that sibling removal for returned focus to remain valid.
+		a.rowAligned(c.Key("integration.actions"), ui.Center, nil, rowFace{Inert: busy}, "", nil, "", func() {
 			// The row's Run button: on a runnable row it runs the integration —
 			// straight away when it declares no inputs, or unfolding the inline
 			// parameter form when it does (the same button is the disclosure, so
@@ -3031,6 +3034,9 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 					run = a.disabledActionButton(c, copy.RunAction)
 				default:
 					run = a.actionButton(c, copy.RunAction)
+				}
+				if runWasOpen && !a.runOpen[integration.ID] {
+					run.Focus()
 				}
 				if run.Clicked() && runnable {
 					if len(integration.Params) > 0 {

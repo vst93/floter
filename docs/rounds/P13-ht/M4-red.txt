@@ -1,0 +1,29 @@
+=== RUN   TestRunRecoveryCancelReturnsToDisclosure
+=== RUN   TestRunRecoveryCancelReturnsToDisclosure/light
+    runrecovery_test.go:163: cancelled run form lost disclosure focus
+    runrecovery_test.go:172: keyboard reopen lost parameter draft
+=== RUN   TestRunRecoveryCancelReturnsToDisclosure/dark
+    runrecovery_test.go:163: cancelled run form lost disclosure focus
+    runrecovery_test.go:172: keyboard reopen lost parameter draft
+--- FAIL: TestRunRecoveryCancelReturnsToDisclosure (0.52s)
+    --- FAIL: TestRunRecoveryCancelReturnsToDisclosure/light (0.30s)
+    --- FAIL: TestRunRecoveryCancelReturnsToDisclosure/dark (0.22s)
+=== RUN   TestUninstallRecoveryFailureKeepsKeyboardRetry
+=== RUN   TestUninstallRecoveryFailureKeepsKeyboardRetry/light
+    uninstallrecovery_test.go:61: Tab did not reach uninstall
+=== RUN   TestUninstallRecoveryFailureKeepsKeyboardRetry/dark
+    uninstallrecovery_test.go:61: Tab did not reach uninstall
+--- FAIL: TestUninstallRecoveryFailureKeepsKeyboardRetry (0.08s)
+    --- FAIL: TestUninstallRecoveryFailureKeepsKeyboardRetry/light (0.05s)
+    --- FAIL: TestUninstallRecoveryFailureKeepsKeyboardRetry/dark (0.04s)
+=== RUN   TestUninstallRecoveryDelayedFailureKeepsKeyboardRetry
+=== RUN   TestUninstallRecoveryDelayedFailureKeepsKeyboardRetry/light
+    uninstallrecovery_test.go:61: Tab did not reach uninstall
+=== RUN   TestUninstallRecoveryDelayedFailureKeepsKeyboardRetry/dark
+    uninstallrecovery_test.go:61: Tab did not reach uninstall
+--- FAIL: TestUninstallRecoveryDelayedFailureKeepsKeyboardRetry (0.07s)
+    --- FAIL: TestUninstallRecoveryDelayedFailureKeepsKeyboardRetry/light (0.03s)
+    --- FAIL: TestUninstallRecoveryDelayedFailureKeepsKeyboardRetry/dark (0.03s)
+FAIL
+FAIL	floter/internal/settingsui	0.680s
+FAIL

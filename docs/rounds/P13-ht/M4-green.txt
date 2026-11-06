@@ -1,0 +1,20 @@
+=== RUN   TestRunRecoveryCancelReturnsToDisclosure
+=== RUN   TestRunRecoveryCancelReturnsToDisclosure/light
+=== RUN   TestRunRecoveryCancelReturnsToDisclosure/dark
+--- PASS: TestRunRecoveryCancelReturnsToDisclosure (0.61s)
+    --- PASS: TestRunRecoveryCancelReturnsToDisclosure/light (0.37s)
+    --- PASS: TestRunRecoveryCancelReturnsToDisclosure/dark (0.24s)
+=== RUN   TestUninstallRecoveryFailureKeepsKeyboardRetry
+=== RUN   TestUninstallRecoveryFailureKeepsKeyboardRetry/light
+=== RUN   TestUninstallRecoveryFailureKeepsKeyboardRetry/dark
+--- PASS: TestUninstallRecoveryFailureKeepsKeyboardRetry (0.09s)
+    --- PASS: TestUninstallRecoveryFailureKeepsKeyboardRetry/light (0.05s)
+    --- PASS: TestUninstallRecoveryFailureKeepsKeyboardRetry/dark (0.04s)
+=== RUN   TestUninstallRecoveryDelayedFailureKeepsKeyboardRetry
+=== RUN   TestUninstallRecoveryDelayedFailureKeepsKeyboardRetry/light
+=== RUN   TestUninstallRecoveryDelayedFailureKeepsKeyboardRetry/dark
+--- PASS: TestUninstallRecoveryDelayedFailureKeepsKeyboardRetry (0.08s)
+    --- PASS: TestUninstallRecoveryDelayedFailureKeepsKeyboardRetry/light (0.04s)
+    --- PASS: TestUninstallRecoveryDelayedFailureKeepsKeyboardRetry/dark (0.04s)
+PASS
+ok  	floter/internal/settingsui	0.795s
