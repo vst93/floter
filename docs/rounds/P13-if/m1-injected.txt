@@ -1,0 +1,13 @@
+--- FAIL: TestRunResultOptionsChangedInsideCallback (0.36s)
+    --- FAIL: TestRunResultOptionsChangedInsideCallback/light (0.26s)
+        runresult_test.go:57: options callback left obsolete refusal on current answer
+    --- FAIL: TestRunResultOptionsChangedInsideCallback/dark (0.10s)
+        runresult_test.go:57: options callback left obsolete refusal on current answer
+--- FAIL: TestRunResultValueChangedInsideCallback (0.24s)
+    --- FAIL: TestRunResultValueChangedInsideCallback/light (0.12s)
+        runresult_test.go:57: value callback left obsolete refusal on current answer
+    --- FAIL: TestRunResultValueChangedInsideCallback/dark (0.13s)
+        runresult_test.go:57: value callback left obsolete refusal on current answer
+FAIL
+FAIL	floter/internal/settingsui	0.625s
+FAIL

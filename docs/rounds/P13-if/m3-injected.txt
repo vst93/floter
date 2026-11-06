@@ -1,0 +1,85 @@
+=== RUN   TestWriteResultOwnerChangedInsideCallback
+=== RUN   TestWriteResultOwnerChangedInsideCallback/light/accepted=false
+    writeresult_test.go:99: refreshed field inherited old write refusal
+    writeresult_test.go:104: new owner values overwritten: map[enabled:true format:text limit:10]
+=== RUN   TestWriteResultOwnerChangedInsideCallback/dark/accepted=false
+    writeresult_test.go:99: refreshed field inherited old write refusal
+    writeresult_test.go:104: new owner values overwritten: map[enabled:true format:text limit:10]
+=== RUN   TestWriteResultOwnerChangedInsideCallback/light/accepted=true
+    writeresult_test.go:104: new owner values overwritten: map[enabled:true format:text limit:10]
+=== RUN   TestWriteResultOwnerChangedInsideCallback/dark/accepted=true
+    writeresult_test.go:104: new owner values overwritten: map[enabled:true format:text limit:10]
+--- FAIL: TestWriteResultOwnerChangedInsideCallback (0.71s)
+    --- FAIL: TestWriteResultOwnerChangedInsideCallback/light/accepted=false (0.40s)
+    --- FAIL: TestWriteResultOwnerChangedInsideCallback/dark/accepted=false (0.13s)
+    --- FAIL: TestWriteResultOwnerChangedInsideCallback/light/accepted=true (0.09s)
+    --- FAIL: TestWriteResultOwnerChangedInsideCallback/dark/accepted=true (0.09s)
+=== RUN   TestWriteResultFieldChangedInsideCallback
+=== RUN   TestWriteResultFieldChangedInsideCallback/kind
+=== RUN   TestWriteResultFieldChangedInsideCallback/kind/light/accepted=false
+    writeresult_test.go:99: refreshed field inherited old write refusal
+    writeresult_test.go:108: new field kind values overwritten: map[enabled:true format:text limit:10]
+=== RUN   TestWriteResultFieldChangedInsideCallback/kind/dark/accepted=false
+    writeresult_test.go:99: refreshed field inherited old write refusal
+    writeresult_test.go:108: new field kind values overwritten: map[enabled:true format:text limit:10]
+=== RUN   TestWriteResultFieldChangedInsideCallback/kind/light/accepted=true
+    writeresult_test.go:108: new field kind values overwritten: map[enabled:true format:text limit:10]
+=== RUN   TestWriteResultFieldChangedInsideCallback/kind/dark/accepted=true
+    writeresult_test.go:108: new field kind values overwritten: map[enabled:true format:text limit:10]
+=== RUN   TestWriteResultFieldChangedInsideCallback/removed
+=== RUN   TestWriteResultFieldChangedInsideCallback/removed/light/accepted=false
+    writeresult_test.go:99: refreshed field inherited old write refusal
+    writeresult_test.go:112: removed field resurrected by result: map[enabled:true format:text limit:10]
+=== RUN   TestWriteResultFieldChangedInsideCallback/removed/dark/accepted=false
+    writeresult_test.go:99: refreshed field inherited old write refusal
+    writeresult_test.go:112: removed field resurrected by result: map[enabled:true format:text limit:10]
+=== RUN   TestWriteResultFieldChangedInsideCallback/removed/light/accepted=true
+    writeresult_test.go:112: removed field resurrected by result: map[enabled:true format:text limit:10]
+=== RUN   TestWriteResultFieldChangedInsideCallback/removed/dark/accepted=true
+    writeresult_test.go:112: removed field resurrected by result: map[enabled:true format:text limit:10]
+=== RUN   TestWriteResultFieldChangedInsideCallback/bounds
+=== RUN   TestWriteResultFieldChangedInsideCallback/bounds/light/accepted=false
+    writeresult_test.go:99: refreshed field inherited old write refusal
+    writeresult_test.go:116: new bounds values overwritten: map[enabled:true format:text limit:10]
+=== RUN   TestWriteResultFieldChangedInsideCallback/bounds/dark/accepted=false
+    writeresult_test.go:99: refreshed field inherited old write refusal
+    writeresult_test.go:116: new bounds values overwritten: map[enabled:true format:text limit:10]
+=== RUN   TestWriteResultFieldChangedInsideCallback/bounds/light/accepted=true
+    writeresult_test.go:116: new bounds values overwritten: map[enabled:true format:text limit:10]
+=== RUN   TestWriteResultFieldChangedInsideCallback/bounds/dark/accepted=true
+    writeresult_test.go:116: new bounds values overwritten: map[enabled:true format:text limit:10]
+=== RUN   TestWriteResultFieldChangedInsideCallback/options
+=== RUN   TestWriteResultFieldChangedInsideCallback/options/light/accepted=false
+    writeresult_test.go:99: refreshed field inherited old write refusal
+    writeresult_test.go:120: new options values overwritten: map[enabled:true format:text limit:10]
+=== RUN   TestWriteResultFieldChangedInsideCallback/options/dark/accepted=false
+    writeresult_test.go:99: refreshed field inherited old write refusal
+    writeresult_test.go:120: new options values overwritten: map[enabled:true format:text limit:10]
+=== RUN   TestWriteResultFieldChangedInsideCallback/options/light/accepted=true
+    writeresult_test.go:120: new options values overwritten: map[enabled:true format:text limit:10]
+=== RUN   TestWriteResultFieldChangedInsideCallback/options/dark/accepted=true
+    writeresult_test.go:120: new options values overwritten: map[enabled:true format:text limit:10]
+--- FAIL: TestWriteResultFieldChangedInsideCallback (1.77s)
+    --- FAIL: TestWriteResultFieldChangedInsideCallback/kind (0.48s)
+        --- FAIL: TestWriteResultFieldChangedInsideCallback/kind/light/accepted=false (0.13s)
+        --- FAIL: TestWriteResultFieldChangedInsideCallback/kind/dark/accepted=false (0.14s)
+        --- FAIL: TestWriteResultFieldChangedInsideCallback/kind/light/accepted=true (0.10s)
+        --- FAIL: TestWriteResultFieldChangedInsideCallback/kind/dark/accepted=true (0.11s)
+    --- FAIL: TestWriteResultFieldChangedInsideCallback/removed (0.39s)
+        --- FAIL: TestWriteResultFieldChangedInsideCallback/removed/light/accepted=false (0.12s)
+        --- FAIL: TestWriteResultFieldChangedInsideCallback/removed/dark/accepted=false (0.09s)
+        --- FAIL: TestWriteResultFieldChangedInsideCallback/removed/light/accepted=true (0.08s)
+        --- FAIL: TestWriteResultFieldChangedInsideCallback/removed/dark/accepted=true (0.10s)
+    --- FAIL: TestWriteResultFieldChangedInsideCallback/bounds (0.53s)
+        --- FAIL: TestWriteResultFieldChangedInsideCallback/bounds/light/accepted=false (0.12s)
+        --- FAIL: TestWriteResultFieldChangedInsideCallback/bounds/dark/accepted=false (0.11s)
+        --- FAIL: TestWriteResultFieldChangedInsideCallback/bounds/light/accepted=true (0.13s)
+        --- FAIL: TestWriteResultFieldChangedInsideCallback/bounds/dark/accepted=true (0.17s)
+    --- FAIL: TestWriteResultFieldChangedInsideCallback/options (0.37s)
+        --- FAIL: TestWriteResultFieldChangedInsideCallback/options/light/accepted=false (0.15s)
+        --- FAIL: TestWriteResultFieldChangedInsideCallback/options/dark/accepted=false (0.09s)
+        --- FAIL: TestWriteResultFieldChangedInsideCallback/options/light/accepted=true (0.07s)
+        --- FAIL: TestWriteResultFieldChangedInsideCallback/options/dark/accepted=true (0.07s)
+FAIL
+FAIL	floter/internal/settingsui	2.507s
+FAIL

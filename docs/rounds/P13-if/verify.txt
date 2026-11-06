@@ -1,0 +1,9 @@
+vet linux PASS
+build linux PASS
+vet windows PASS
+build windows PASS
+vet darwin PASS
+build darwin PASS
+ordinary exit=0
+verbose exit=0 PASS=4585
+2987

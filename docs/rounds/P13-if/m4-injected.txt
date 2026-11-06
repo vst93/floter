@@ -1,0 +1,15 @@
+--- FAIL: TestWriteResultOlderRefusalCannotUndoNewerSuccess (0.27s)
+    --- FAIL: TestWriteResultOlderRefusalCannotUndoNewerSuccess/light/accepted=false (0.23s)
+        writeresult_test.go:119: older-refused result overwrote newer write: values=map[enabled:true format:text limit:10] failed=true
+        writeresult_test.go:122: current write feedback is not visible
+    --- FAIL: TestWriteResultOlderRefusalCannotUndoNewerSuccess/dark/accepted=false (0.04s)
+        writeresult_test.go:119: older-refused result overwrote newer write: values=map[enabled:true format:text limit:10] failed=true
+        writeresult_test.go:122: current write feedback is not visible
+--- FAIL: TestWriteResultOlderSuccessCannotUndoNewerRefusal (0.07s)
+    --- FAIL: TestWriteResultOlderSuccessCannotUndoNewerRefusal/light/accepted=false (0.03s)
+        writeresult_test.go:119: older-accepted result overwrote newer write: values=map[enabled:true format:text limit:80] failed=true
+    --- FAIL: TestWriteResultOlderSuccessCannotUndoNewerRefusal/dark/accepted=false (0.03s)
+        writeresult_test.go:119: older-accepted result overwrote newer write: values=map[enabled:true format:text limit:80] failed=true
+FAIL
+FAIL	floter/internal/settingsui	0.352s
+FAIL
