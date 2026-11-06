@@ -1,0 +1,8 @@
+=== RUN   TestDraftLifetimeHostAcknowledgesMatchingEdit
+=== RUN   TestDraftLifetimeHostAcknowledgesMatchingEdit/bounds-recovery
+    draftlifetime_test.go:117: host-acknowledged valid value retains obsolete range error
+--- FAIL: TestDraftLifetimeHostAcknowledgesMatchingEdit (0.11s)
+    --- FAIL: TestDraftLifetimeHostAcknowledgesMatchingEdit/bounds-recovery (0.11s)
+FAIL
+FAIL	floter/internal/settingsui	0.123s
+FAIL

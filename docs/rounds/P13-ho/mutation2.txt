@@ -1,0 +1,23 @@
+=== RUN   TestDraftLifetimeRemovedNumberRetiresPartialInput
+=== RUN   TestDraftLifetimeRemovedNumberRetiresPartialInput/light
+    draftlifetime_test.go:85: removed number resurrected partial text: "1e"
+    draftlifetime_test.go:88: removed number resurrected old parse error
+=== RUN   TestDraftLifetimeRemovedNumberRetiresPartialInput/dark
+    draftlifetime_test.go:85: removed number resurrected partial text: "1e"
+    draftlifetime_test.go:88: removed number resurrected old parse error
+--- FAIL: TestDraftLifetimeRemovedNumberRetiresPartialInput (0.04s)
+    --- FAIL: TestDraftLifetimeRemovedNumberRetiresPartialInput/light (0.03s)
+    --- FAIL: TestDraftLifetimeRemovedNumberRetiresPartialInput/dark (0.00s)
+=== RUN   TestDraftLifetimeHostAcknowledgesMatchingEdit
+=== RUN   TestDraftLifetimeHostAcknowledgesMatchingEdit/light
+    draftlifetime_test.go:112: host-confirmed edit still says Unsaved changes
+    draftlifetime_test.go:117: host-confirmed edit masks next generation: "/workspace/shared"
+=== RUN   TestDraftLifetimeHostAcknowledgesMatchingEdit/dark
+    draftlifetime_test.go:112: host-confirmed edit still says Unsaved changes
+    draftlifetime_test.go:117: host-confirmed edit masks next generation: "/workspace/shared"
+--- FAIL: TestDraftLifetimeHostAcknowledgesMatchingEdit (0.00s)
+    --- FAIL: TestDraftLifetimeHostAcknowledgesMatchingEdit/light (0.00s)
+    --- FAIL: TestDraftLifetimeHostAcknowledgesMatchingEdit/dark (0.00s)
+FAIL
+FAIL	floter/internal/settingsui	0.045s
+FAIL

@@ -174,6 +174,7 @@ func (a *App) draft(integration Integration) *configDraft {
 			if parsed, problem := ConfigValueProblem(field, edit, a.copy()); !editing || (problem == "" && configValuesEqual(parsed, value)) {
 				draft.saved[field.Key] = value
 				draft.clearLiveField(field)
+				a.clearConfigFieldError(integration.ID, field.Key)
 				continue
 			}
 		}
@@ -183,6 +184,7 @@ func (a *App) draft(integration Integration) *configDraft {
 			parsed, problem := ConfigValueProblem(field, edit, a.copy())
 			if problem == "" && hasCurrent == hasSaved && configValuesEqual(current, saved) && configValuesEqual(parsed, saved) {
 				draft.clearLiveField(field)
+				a.clearConfigFieldError(integration.ID, field.Key)
 				editing = false
 			}
 		}

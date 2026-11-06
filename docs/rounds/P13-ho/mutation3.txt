@@ -1,0 +1,23 @@
+=== RUN   TestDraftLifetimeRemovedListStartsAtTop
+=== RUN   TestDraftLifetimeRemovedListStartsAtTop/light
+    draftlifetime_test.go:146: readded list starts at old offset 206
+=== RUN   TestDraftLifetimeRemovedListStartsAtTop/dark
+    draftlifetime_test.go:146: readded list starts at old offset 206
+--- FAIL: TestDraftLifetimeRemovedListStartsAtTop (0.03s)
+    --- FAIL: TestDraftLifetimeRemovedListStartsAtTop/light (0.02s)
+    --- FAIL: TestDraftLifetimeRemovedListStartsAtTop/dark (0.00s)
+=== RUN   TestDraftLifetimeNormalizedTextDoesNotWrite
+=== RUN   TestDraftLifetimeNormalizedTextDoesNotWrite/light
+    draftlifetime_test.go:165: normalized same text wrote 1 times and failed=true
+    draftlifetime_test.go:168: confirmed text keeps redundant whitespace: "  /workspace/current  "
+    draftlifetime_test.go:174: different text dispatched 2 writes, want 1
+=== RUN   TestDraftLifetimeNormalizedTextDoesNotWrite/dark
+    draftlifetime_test.go:165: normalized same text wrote 1 times and failed=true
+    draftlifetime_test.go:168: confirmed text keeps redundant whitespace: "  /workspace/current  "
+    draftlifetime_test.go:174: different text dispatched 2 writes, want 1
+--- FAIL: TestDraftLifetimeNormalizedTextDoesNotWrite (0.02s)
+    --- FAIL: TestDraftLifetimeNormalizedTextDoesNotWrite/light (0.02s)
+    --- FAIL: TestDraftLifetimeNormalizedTextDoesNotWrite/dark (0.00s)
+FAIL
+FAIL	floter/internal/settingsui	0.048s
+FAIL

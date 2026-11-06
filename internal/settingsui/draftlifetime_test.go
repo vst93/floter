@@ -99,6 +99,24 @@ func TestDraftLifetimeRemovedNumberRetiresPartialInput(t *testing.T) {
 }
 
 func TestDraftLifetimeHostAcknowledgesMatchingEdit(t *testing.T) {
+	t.Run("bounds-recovery", func(t *testing.T) {
+		limit := 10.0
+		field := ConfigField{Key: "limit", Label: "结果上限", Type: "number", Maximum: &limit}
+		integration := Integration{ID: "local.lifetime", Config: []ConfigField{field}, ConfigValues: map[string]any{"limit": 5.0}}
+		a, tt := configIdentityFrame(t, false, &integration)
+		configIdentityFocus(t, tt, field.Label)
+		tt.Type("12")
+		tt.Frame()
+		if !tt.HasText(a.copy().ConfigOutOfRange) {
+			t.Fatal("out-of-range edit did not show its error")
+		}
+		limit = 20
+		integration.ConfigValues[field.Key] = 12.0
+		tt.Frame()
+		if tt.HasText(a.copy().ConfigOutOfRange) {
+			t.Error("host-acknowledged valid value retains obsolete range error")
+		}
+	})
 	for _, dark := range []bool{false, true} {
 		t.Run(appearanceName(dark), func(t *testing.T) {
 			field := ConfigField{Key: "directory", Label: "工作目录", Type: "text"}
