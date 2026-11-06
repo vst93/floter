@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"floter/internal/plugincfg"
 	"github.com/egoist/mygo/ui"
 )
 
@@ -19,6 +20,58 @@ func conflictDump(t *testing.T, tt *ui.Tester, name string, dark bool) {
 		if err := png.Encode(f, tt.Image()); err != nil {
 			t.Fatal(err)
 		}
+	}
+}
+
+func TestConflictRecoveryPluginWithdrawnTextFollowsHost(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			field := plugincfg.Field{Key: "directory", Label: "工作目录", Kind: plugincfg.Text}
+			_, sheet, tt := inputStateSheet(t, dark, field, "/old")
+			calls := 0
+			sheet.Change = func(string, any) { calls++ }
+			pluginIdentityFocus(t, tt, field.Label)
+			tt.Type("/local")
+			tt.Key(ui.Cmd, ui.KeyA)
+			tt.Type("/old")
+			tt.Frame()
+			sheet.Values[field.Key] = "/external"
+			tt.Frame()
+			conflictDump(t, tt, "plugin-withdrawn", dark)
+			if got := refreshRead(tt); got != "/external" {
+				t.Errorf("withdrawn plugin text masks host: %q", got)
+			}
+			if calls != 0 || !tt.Focused(field.Label) {
+				t.Error("refresh wrote or stole focus")
+			}
+		})
+	}
+}
+
+func TestConflictRecoveryPluginMatchingHostReleasesText(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			field := plugincfg.Field{Key: "directory", Label: "工作目录", Kind: plugincfg.Text}
+			_, sheet, tt := inputStateSheet(t, dark, field, "/old")
+			pluginIdentityFocus(t, tt, field.Label)
+			tt.Type("/shared")
+			tt.Frame()
+			sheet.Values[field.Key] = "/shared"
+			tt.Frame()
+			sheet.Values[field.Key] = "/latest"
+			tt.Frame()
+			conflictDump(t, tt, "plugin-confirmed", dark)
+			if got := refreshRead(tt); got != "/latest" {
+				t.Errorf("host-confirmed plugin text masks next value: %q", got)
+			}
+			tt.Type("/unsent")
+			tt.Frame()
+			sheet.Values[field.Key] = "/other"
+			tt.Frame()
+			if got := refreshRead(tt); got != "/unsent" {
+				t.Errorf("conflict discarded plugin text: %q", got)
+			}
+		})
 	}
 }
 

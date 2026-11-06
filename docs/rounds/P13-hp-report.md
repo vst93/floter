@@ -27,3 +27,11 @@ backlog 明确这八条是早期独立 WIP，stale-kill 抢救稿已归档/接�
 M1 回退 config.go，两项深浅全红；原文 `returning to external text still says Unsaved changes`、
 `restoring obsolete default falsely says Saved`。MD5 还原成功，touch 后相关测试与 vet 通过；
 日志 mutation1.txt、batch1-after.txt。V/B/S 0/0/0，旧断言零改动。
+
+第一批相关 93 PASS；0c0d38d5 已推送。
+
+3. 插件文本改走再改回原文、不按回车，外部刷新被旧草稿挡住 → 按上一代宿主值辨认撤回 → 深浅复制得到 external、0 次保存且焦点仍在。
+4. 外部已写入同一份插件草稿，后续值仍被旧文字挡住 → 新宿主代际同值确认后退役草稿 → 下一代 latest 可见，真正冲突的 unsent 继续保留。
+
+M2 回退 pluginsheet/settingsui 两文件，原文 `withdrawn plugin text masks host`、
+`host-confirmed plugin text masks next value`；MD5 恢复并 touch，相关回归与 vet 通过。V/B/S 0/0/0。

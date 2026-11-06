@@ -996,6 +996,8 @@ type App struct {
 	// Text fields commit on Enter, so their unsubmitted edit must survive
 	// frames independently of the stored value, just like number drafts.
 	pluginTextDrafts map[string]string
+	// Last host text, used to distinguish withdrawn edits from real conflicts.
+	pluginTextObserved map[string]string
 	// pluginTextCommits holds the text a text field handed the host on its
 	// submit frame, until the next frame can read the host's own answer to it.
 	// The host normalizes what a field sends (`plugincfg.coerce` trims a text

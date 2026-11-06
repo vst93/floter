@@ -64,6 +64,7 @@ type PluginSheet struct {
 // left. Called when the overlay closes, not between frames of one open.
 func (a *App) ClosePluginSheet() {
 	a.pluginTextDrafts = nil
+	a.pluginTextObserved = nil
 	a.pluginNumberDrafts = nil
 	a.pluginNumberObserved = nil
 	a.PluginScroll.Y = 0
@@ -87,6 +88,14 @@ func (a *App) PluginSheet(c *ui.Context, sheet PluginSheet) {
 		}
 		if kind, exists := active[key]; !exists || kind != plugincfg.Text {
 			delete(a.pluginTextDrafts, key)
+		}
+	}
+	for key := range a.pluginTextObserved {
+		if !strings.HasPrefix(key, prefix) {
+			continue
+		}
+		if kind, exists := active[key]; !exists || kind != plugincfg.Text {
+			delete(a.pluginTextObserved, key)
 		}
 	}
 	for key := range a.pluginNumberDrafts {
@@ -351,6 +360,19 @@ func (a *App) sheetField(c *ui.Context, sheet PluginSheet, field plugincfg.Field
 		a.sheetNumber(c, sheet, field, number)
 	case plugincfg.Text:
 		text, _ := value.(string)
+		if previous, observed := a.pluginTextObserved[key]; observed && previous != text {
+			if draft, editing := a.pluginTextDrafts[key]; editing {
+				// A withdrawn edit or an edit acknowledged by the host must
+				// not hide later values. Conflicting local input stays intact.
+				if normalized := strings.TrimSpace(draft); normalized == previous || normalized == text {
+					delete(a.pluginTextDrafts, key)
+				}
+			}
+		}
+		if a.pluginTextObserved == nil {
+			a.pluginTextObserved = map[string]string{}
+		}
+		a.pluginTextObserved[key] = text
 		// The host's answer to the last submit is in this frame's values.
 		//
 		// P13-hk（`docs/liquid-glass.md` §6.186）：文本字段在**回车那一帧**把框里
