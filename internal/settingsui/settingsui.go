@@ -3000,6 +3000,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 				}
 			})
 			a.noticeFocus(c, integration.ID, "disable").restore(c, false, adoptOpener)
+			a.noticeFocus(c, integration.ID, "remove").restore(c, false, adoptOpener)
 			return
 		}
 
@@ -7001,7 +7002,8 @@ func (a *App) removeConfirmation(c *ui.Context, copy i18n.Settings, integration 
 	// at all (`:43`) — a question you cannot cancel while it is being answered
 	// is a different question.
 	componentized := integration.componentizedRemoval() && a.Actions.UninstallComponents != nil
-	busy := a.removeBusy[id] && !componentized
+	// A refreshed kind cannot unlock an already dispatched plain removal.
+	busy := a.removeBusy[id]
 	sentence := integration.removalSentence(copy)
 	if message := a.removeError[id]; message != "" {
 		// A failed removal stays on the band, in the family's own error
