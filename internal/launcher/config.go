@@ -89,7 +89,14 @@ func (a *App) openConfig(plugin string) {
 		return
 	}
 	a.configGeneration++
-	a.config = a.Actions.ConfigFor(plugin)
+	opening := a.configGeneration
+	config := a.Actions.ConfigFor(plugin)
+	// A lookup may itself open or close a sheet. The most recent request
+	// owns the band, including a newer lookup that found no configuration.
+	if a.configGeneration != opening {
+		return
+	}
+	a.config = config
 	a.FocusSearch()
 }
 
