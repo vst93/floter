@@ -1177,7 +1177,7 @@ func (a *App) View(c *ui.Context) {
 	// reference's own `stopImmediatePropagation`: the removal/disable bars and
 	// the sessions page's kill arm each installed a capture-phase Escape
 	// listener that cancelled the question and swallowed the key).
-	if c.Shortcut(0, ui.KeyEscape) {
+	escape := func() {
 		switch {
 		case a.recording:
 			// The armed recorder owns the first bare Escape even after the
@@ -1198,6 +1198,9 @@ func (a *App) View(c *ui.Context) {
 		case a.Actions.Close != nil:
 			a.Actions.Close()
 		}
+	}
+	if c.Shortcut(0, ui.KeyEscape) {
+		escape()
 	}
 
 	// ↑/↓ walk the sidebar from anywhere on the surface — a header button, a
@@ -1250,6 +1253,12 @@ func (a *App) View(c *ui.Context) {
 					Tooltip(hint)
 				if label == copy.Close {
 					button.Bind(noticeExit(c))
+					// A returned keyboard focus shows this button's tooltip.
+					// Escape still follows the settings priority above, before
+					// that hint can consume the key meant for the way out.
+					if button.Shortcut(0, ui.KeyEscape) {
+						escape()
+					}
 				}
 				if button.Pressed() {
 					// P13-q（`docs/liquid-glass.md` §5）：`.toolbar-button` 的第三档。

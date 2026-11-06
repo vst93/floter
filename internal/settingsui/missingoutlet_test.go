@@ -27,177 +27,191 @@ func missingOutletDump(t *testing.T, tt *ui.Tester, kind string, dark bool) {
 // a row that still renders. A returning ID must not inherit abandoned focus.
 func checkMissingOutlet(t *testing.T, kind string) {
 	t.Helper()
-	for _, dark := range []bool{false, true} {
-		for _, elsewhere := range []bool{false, true} {
-			place := "entry"
-			if elsewhere {
-				place = "elsewhere"
-			}
-			t.Run(appearanceName(dark)+"/"+place, func(t *testing.T) {
-				a := noticeApp(t, dark)
-				in := Integration{ID: "local", Name: "Workspace Tools", Enabled: true, Running: true, RuntimeAvailable: true, DistributionSource: "local"}
-				switch kind {
-				case "save", "discard":
-					in.Config = []ConfigField{{Key: "token", Label: "Token", Type: "text"}}
-					in.ConfigValues = map[string]any{"token": "stored"}
-				case "repair":
-					in.Broken = true
-				case "reconnect":
-					in.RuntimeAvailable, in.Running, in.RuntimeOwnership = false, false, "system"
-				case "toggle":
-					in.Enabled = false
-				case "uninstall":
-					in.DistributionSource = "npm"
+	for _, sibling := range []bool{false, true} {
+		layout := "empty"
+		if sibling {
+			layout = "survivor"
+		}
+		for _, dark := range []bool{false, true} {
+			for _, elsewhere := range []bool{false, true} {
+				place := "entry"
+				if elsewhere {
+					place = "elsewhere"
 				}
-				present := true
-				a.Integrations = func() []Integration {
-					if present {
-						return []Integration{in}
+				t.Run(layout+"/"+appearanceName(dark)+"/"+place, func(t *testing.T) {
+					a := noticeApp(t, dark)
+					in := Integration{ID: "local", Name: "Workspace Tools", Enabled: true, Running: true, RuntimeAvailable: true, DistributionSource: "local"}
+					switch kind {
+					case "save", "discard":
+						in.Config = []ConfigField{{Key: "token", Label: "Token", Type: "text"}}
+						in.ConfigValues = map[string]any{"token": "stored"}
+					case "repair":
+						in.Broken = true
+					case "reconnect":
+						in.RuntimeAvailable, in.Running, in.RuntimeOwnership = false, false, "system"
+					case "toggle":
+						in.Enabled = false
+					case "uninstall":
+						in.DistributionSource = "npm"
 					}
-					return nil
-				}
-				calls, closed, checked := 0, 0, 0
-				var finish func(error)
-				start := func(id string, done func(error)) {
-					if id != in.ID {
-						t.Errorf("wrong operation target: %q", id)
+					present := true
+					a.Integrations = func() []Integration {
+						var rows []Integration
+						if present {
+							rows = append(rows, in)
+						}
+						if sibling {
+							rows = append(rows, Integration{ID: "peer", Name: "Documentation Tools", Enabled: true, Running: true, RuntimeAvailable: true, DistributionSource: "local"})
+						}
+						return rows
 					}
-					calls++
-					finish = done
-				}
-				a.Actions.SaveConfiguration = func(id string, _ map[string]any, done func(error)) { start(id, done) }
-				a.Actions.RepairIntegration = start
-				a.Actions.ReconnectIntegration = start
-				a.Actions.SetIntegrationEnabled = func(id string, _ bool, done func(error)) { start(id, done) }
-				a.Actions.UninstallIntegration = func(id, _, _ string, done func(error)) { start(id, done) }
-				a.Actions.UninstallComponents = func(id, _, _ string, _ UninstallComponents, done func(error)) { start(id, done) }
-				a.Actions.DiagnoseIntegration = func(string) { checked++ }
-				a.Actions.Close = func() { closed++ }
-				copy := a.copy()
-				tt := noticeExitPage(t, a, dark)
-				focus := func(label string) {
-					t.Helper()
-					for i := 0; i < 35 && !tt.Focused(label); i++ {
-						tt.Key(0, ui.KeyTab)
+					calls, closed, checked := 0, 0, 0
+					var finish func(error)
+					start := func(id string, done func(error)) {
+						if id != in.ID {
+							t.Errorf("wrong operation target: %q", id)
+						}
+						calls++
+						finish = done
+					}
+					a.Actions.SaveConfiguration = func(id string, _ map[string]any, done func(error)) { start(id, done) }
+					a.Actions.RepairIntegration = start
+					a.Actions.ReconnectIntegration = start
+					a.Actions.SetIntegrationEnabled = func(id string, _ bool, done func(error)) { start(id, done) }
+					a.Actions.UninstallIntegration = func(id, _, _ string, done func(error)) { start(id, done) }
+					a.Actions.UninstallComponents = func(id, _, _ string, _ UninstallComponents, done func(error)) { start(id, done) }
+					a.Actions.DiagnoseIntegration = func(string) { checked++ }
+					a.Actions.Close = func() { closed++ }
+					copy := a.copy()
+					tt := noticeExitPage(t, a, dark)
+					focus := func(label string) {
+						t.Helper()
+						for i := 0; i < 35 && !tt.Focused(label); i++ {
+							tt.Key(0, ui.KeyTab)
+							tt.Frame()
+						}
+						if !tt.Focused(label) {
+							t.Fatalf("cannot reach %q", label)
+						}
+					}
+					activate := func() { tt.Key(0, ui.KeySpace); tt.Frame(); tt.Frame() }
+					opener := copy.IntegrationsRecheck
+					switch kind {
+					case "save", "discard":
+						if err := tt.Click(copy.ConfigOpen); err != nil {
+							t.Fatal(err)
+						}
 						tt.Frame()
+						tt.Frame()
+						word := mustFind(t, tt, "Token")
+						tt.ClickAt(word.X+240, word.Y+word.H/2)
+						tt.Frame()
+						if !tt.Focused("Token") {
+							t.Fatal("field not focused")
+						}
+						tt.Key(ui.Cmd, ui.KeyA)
+						tt.Type("edited")
+						tt.Frame()
+						opener = copy.ConfigSave
+						if kind == "discard" {
+							opener = copy.ConfigOpen
+						}
+					case "reconnect":
+						opener = copy.IntegrationsReconnect
+					case "toggle", "disable":
+						opener = copy.IntegrationsEnable
+					case "remove", "uninstall":
+						opener = in.removalLabel(copy)
 					}
-					if !tt.Focused(label) {
-						t.Fatalf("cannot reach %q", label)
-					}
-				}
-				activate := func() { tt.Key(0, ui.KeySpace); tt.Frame(); tt.Frame() }
-				opener := copy.IntegrationsRecheck
-				switch kind {
-				case "save", "discard":
-					if err := tt.Click(copy.ConfigOpen); err != nil {
-						t.Fatal(err)
-					}
-					tt.Frame()
-					tt.Frame()
-					word := mustFind(t, tt, "Token")
-					tt.ClickAt(word.X+240, word.Y+word.H/2)
-					tt.Frame()
-					if !tt.Focused("Token") {
-						t.Fatal("field not focused")
-					}
-					tt.Key(ui.Cmd, ui.KeyA)
-					tt.Type("edited")
-					tt.Frame()
-					opener = copy.ConfigSave
-					if kind == "discard" {
-						opener = copy.ConfigOpen
-					}
-				case "reconnect":
-					opener = copy.IntegrationsReconnect
-				case "toggle", "disable":
-					opener = copy.IntegrationsEnable
-				case "remove", "uninstall":
-					opener = in.removalLabel(copy)
-				}
-				focus(opener)
-				activate()
-				if kind == "disable" || kind == "remove" || kind == "uninstall" {
-					if !tt.Focused(copy.IntegrationsCancel) {
-						t.Fatal("confirmation did not open")
-					}
-					tt.Key(0, ui.KeyTab)
-					tt.Frame()
+					focus(opener)
 					activate()
-					if kind == "uninstall" {
+					if kind == "disable" || kind == "remove" || kind == "uninstall" {
+						if !tt.Focused(copy.IntegrationsCancel) {
+							t.Fatal("confirmation did not open")
+						}
 						tt.Key(0, ui.KeyTab)
 						tt.Frame()
 						activate()
+						if kind == "uninstall" {
+							tt.Key(0, ui.KeyTab)
+							tt.Frame()
+							activate()
+						}
 					}
-				}
-				wantCalls := 1
-				if kind == "discard" {
-					wantCalls = 0
-					if !a.configDiscard[in.ID] {
-						t.Fatal("discard question did not open")
+					wantCalls := 1
+					if kind == "discard" {
+						wantCalls = 0
+						if !a.configDiscard[in.ID] {
+							t.Fatal("discard question did not open")
+						}
+					} else if finish == nil {
+						t.Fatal("operation did not dispatch")
 					}
-				} else if finish == nil {
-					t.Fatal("operation did not dispatch")
-				}
-				if calls != wantCalls {
-					t.Fatalf("unexpected initial dispatches: %d", calls)
-				}
-				if elsewhere {
-					// Move outside the row while it still exists. Discovery must
-					// respect this explicit move instead of moving to the header.
-					if kind == "uninstall" {
-						// The modal traps focus, so this control case settles first.
-						finish(nil)
-						finish = nil
-						tt.Frame()
-						tt.Frame()
+					if calls != wantCalls {
+						t.Fatalf("unexpected initial dispatches: %d", calls)
 					}
-					focus(copy.ShowCommandsInSearch)
-				}
-				present = false
-				tt.Frame()
-				tt.Frame()
-				if !elsewhere {
-					missingOutletDump(t, tt, kind, dark)
-				}
-				want := copy.Close
-				if elsewhere {
-					want = copy.ShowCommandsInSearch
-				}
-				if !tt.Focused(want) {
-					t.Errorf("missing %s row lost keyboard outlet %q", kind, want)
-				}
-				if calls != wantCalls || closed != 0 || checked != 0 {
-					t.Error("discovery dispatched an action")
-				}
-				present = true
-				tt.Frame()
-				tt.Frame()
-				if !tt.Focused(want) {
-					t.Errorf("returning %s ID reclaimed abandoned focus", kind)
-				}
-				if finish != nil {
-					finish(errors.New("The operation could not finish"))
+					if elsewhere {
+						// Move outside the row while it still exists. Discovery must
+						// respect this explicit move instead of moving to the header.
+						if kind == "uninstall" {
+							// The modal traps focus, so this control case settles first.
+							finish(nil)
+							finish = nil
+							tt.Frame()
+							tt.Frame()
+						}
+						focus(copy.ShowCommandsInSearch)
+					}
+					present = false
+					tt.Frame()
+					tt.Frame()
+					if !elsewhere {
+						name := kind
+						if sibling {
+							name += "-survivor"
+						}
+						missingOutletDump(t, tt, name, dark)
+					}
+					want := copy.Close
+					if elsewhere {
+						want = copy.ShowCommandsInSearch
+					}
+					if !tt.Focused(want) {
+						t.Errorf("missing %s row lost keyboard outlet %q", kind, want)
+					}
+					if calls != wantCalls || closed != 0 || checked != 0 {
+						t.Error("discovery dispatched an action")
+					}
+					present = true
 					tt.Frame()
 					tt.Frame()
 					if !tt.Focused(want) {
-						t.Errorf("late %s result stole keyboard focus", kind)
+						t.Errorf("returning %s ID reclaimed abandoned focus", kind)
 					}
-				}
-				if kind == "save" || kind == "discard" {
-					if a.configDrafts[in.ID].values["token"] != "edited" {
-						t.Error("disappearance changed draft")
+					if finish != nil {
+						finish(errors.New("The operation could not finish"))
+						tt.Frame()
+						tt.Frame()
+						if !tt.Focused(want) {
+							t.Errorf("late %s result stole keyboard focus", kind)
+						}
 					}
-				}
-				if !elsewhere {
-					activate()
-					if closed != 1 {
-						t.Errorf("missing %s outlet cannot close settings: %d", kind, closed)
+					if kind == "save" || kind == "discard" {
+						if a.configDrafts[in.ID].values["token"] != "edited" {
+							t.Error("disappearance changed draft")
+						}
 					}
-				}
-				if calls != wantCalls || checked != 0 {
-					t.Error("return or callback repeated the operation")
-				}
-			})
+					if !elsewhere {
+						activate()
+						if closed != 1 {
+							t.Errorf("missing %s outlet cannot close settings: %d", kind, closed)
+						}
+					}
+					if calls != wantCalls || checked != 0 {
+						t.Error("return or callback repeated the operation")
+					}
+				})
+			}
 		}
 	}
 }
@@ -210,3 +224,47 @@ func TestMissingOutletReconnect(t *testing.T) { checkMissingOutlet(t, "reconnect
 
 func TestMissingOutletToggle(t *testing.T)  { checkMissingOutlet(t, "toggle") }
 func TestMissingOutletDisable(t *testing.T) { checkMissingOutlet(t, "disable") }
+
+func TestMissingOutletRemove(t *testing.T)    { checkMissingOutlet(t, "remove") }
+func TestMissingOutletUninstall(t *testing.T) { checkMissingOutlet(t, "uninstall") }
+
+func TestMissingOutletHeaderEscapeKeepsQuestionPriority(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			a := noticeApp(t, dark)
+			in := Integration{ID: "local", Name: "Workspace Tools", Enabled: true, DistributionSource: "local"}
+			a.Integrations = func() []Integration { return []Integration{in} }
+			calls, closed := 0, 0
+			a.Actions.SetIntegrationEnabled = func(string, bool, func(error)) { calls++ }
+			a.Actions.Close = func() { closed++ }
+			copy := a.copy()
+			tt := noticeExitPage(t, a, dark)
+			if err := tt.Click(copy.IntegrationsEnable); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			tt.Frame()
+			for i := 0; i < 35 && !tt.Focused(copy.Close); i++ {
+				tt.Key(ui.Shift, ui.KeyTab)
+				tt.Frame()
+			}
+			tt.HoldModifiers(0)
+			tt.Frame()
+			tt.Frame()
+			if !tt.Focused(copy.Close) || !a.disableConfirm[in.ID] {
+				t.Fatal("header did not focus over an open question")
+			}
+			tt.Key(0, ui.KeyEscape)
+			tt.Frame()
+			tt.Frame()
+			if a.anyConfirmOpen() || closed != 0 || calls != 0 {
+				t.Fatal("header Escape bypassed the existing question priority")
+			}
+			tt.Key(0, ui.KeyEscape)
+			tt.Frame()
+			if closed != 1 || calls != 0 {
+				t.Fatal("second Escape did not close settings exactly once")
+			}
+		})
+	}
+}

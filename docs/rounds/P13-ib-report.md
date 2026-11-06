@@ -43,3 +43,16 @@ V/B/S 旧断言修改 0/0/0，无新增 Skip。全量基线运行中，不提前
 6. 现象：停用答案已派发、仍处忙态时目标消失，在重新出现之前没有可用焦点。改动：同样归还 disable 答案焦点，既有 busy 与回调保持。验证：点击开关开问题 → Tab/Space 答案 → 整行退场；旧串 `missing disable row lost keyboard outlet "Close settings"`，失败后原动作结算、页头仍可键盘关闭。
 
 第三批相关 **288 PASS / 0 FAIL**、包 vet 净。M3 暂时撤去 toggle/disable 交接，四个 entry 场景红，已有页面焦点的对照不受影响；恢复后 MD5 与 touch 复跑结果随本批保存。图片继续使用原始 Tester 事件。
+
+## 第四批：移除与卸载
+
+第三批 **f3bda08f** 已推送，M3 还原复验 **10 PASS**。
+
+7. 现象：移除答案已经派发时目标从列表撤下，在它回来前键盘没有落点。改动：移除答案的旧句柄随目标退役，焦点归还已存在的返回键。验证：真实移除确认 → Tab/Space → 列表变空 → 同 ID 重现 → 延迟失败；旧串 `missing remove row lost keyboard outlet "Close settings"`，全程只派发一次移除。
+8. 现象：组件卸载忙态浮层随目标消失，旧对话框焦点悬空，目标回来后可能重新接管。改动：卸载 panel 句柄也随目标消失退役，原在飞操作继续由回调结算。验证：两级确认实际进入浮层并提交 → 消失/重现 → 延迟失败；旧串 `missing uninstall row lost keyboard outlet "Close settings"`。对照场景尊重模态焦点陷阱，先让卸载完成再移到页面复选框。
+
+最终测试增加“另一个集成仍在”的矩阵，检查列表未变空时同样正确；没有新增第九项来凑数。已有重复 ID 的 B 测试继续纳入每批回归。
+
+第四批提交前捕获旧 B 回归：`TestNoticeVanishedUninstallRetiresDialog` 深浅两例报 `invisible uninstall question swallowed Escape: close=0`。新增焦点交给返回键后，框架 Tooltip 的 Escape 抢先隐藏提示而没有退出设置。修正：返回键也注册现有 Escape 路由，复用原录制/确认/会话/关闭优先级；没有改旧断言，没有跳测。第四批首次失败日志保留为 batch4-initial.txt，修正后结果另录。此为第八项的兼容修正，不另计数量。
+
+修正后第四批相关 **360 PASS / 0 FAIL**、包 vet 净；包含原有 Escape、录制与重复 ID 回归。M4 八个 entry 场景实跑红（空列表/有剩余行 × 深浅 × 两项），MD5 还原后 touch，连同新增页头 Escape 优先级对照共 **21 PASS / 0 FAIL**。新增对照真实打开问题、Tab 到页头，第一 Escape 只取消问题、第二次才关闭，不把页头的出口修复变成绕过确认。

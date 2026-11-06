@@ -1,0 +1,59 @@
+=== RUN   TestMissingOutletRemove
+=== RUN   TestMissingOutletRemove/empty/light/entry
+    missingoutlet_test.go:180: missing remove row lost keyboard outlet "Close settings"
+=== RUN   TestMissingOutletRemove/empty/light/elsewhere
+=== RUN   TestMissingOutletRemove/empty/dark/entry
+    missingoutlet_test.go:180: missing remove row lost keyboard outlet "Close settings"
+=== RUN   TestMissingOutletRemove/empty/dark/elsewhere
+=== RUN   TestMissingOutletRemove/survivor/light/entry
+    missingoutlet_test.go:180: missing remove row lost keyboard outlet "Close settings"
+=== RUN   TestMissingOutletRemove/survivor/light/elsewhere
+=== RUN   TestMissingOutletRemove/survivor/dark/entry
+    missingoutlet_test.go:180: missing remove row lost keyboard outlet "Close settings"
+=== RUN   TestMissingOutletRemove/survivor/dark/elsewhere
+--- FAIL: TestMissingOutletRemove (0.57s)
+    --- FAIL: TestMissingOutletRemove/empty/light/entry (0.22s)
+    --- PASS: TestMissingOutletRemove/empty/light/elsewhere (0.05s)
+    --- FAIL: TestMissingOutletRemove/empty/dark/entry (0.04s)
+    --- PASS: TestMissingOutletRemove/empty/dark/elsewhere (0.04s)
+    --- FAIL: TestMissingOutletRemove/survivor/light/entry (0.05s)
+    --- PASS: TestMissingOutletRemove/survivor/light/elsewhere (0.06s)
+    --- FAIL: TestMissingOutletRemove/survivor/dark/entry (0.05s)
+    --- PASS: TestMissingOutletRemove/survivor/dark/elsewhere (0.06s)
+=== RUN   TestMissingOutletUninstall
+=== RUN   TestMissingOutletUninstall/empty/light/entry
+    missingoutlet_test.go:180: missing uninstall row lost keyboard outlet "Close settings"
+    missingoutlet_test.go:189: returning uninstall ID reclaimed abandoned focus
+    missingoutlet_test.go:196: late uninstall result stole keyboard focus
+    missingoutlet_test.go:207: missing uninstall outlet cannot close settings: 0
+=== RUN   TestMissingOutletUninstall/empty/light/elsewhere
+=== RUN   TestMissingOutletUninstall/empty/dark/entry
+    missingoutlet_test.go:180: missing uninstall row lost keyboard outlet "Close settings"
+    missingoutlet_test.go:189: returning uninstall ID reclaimed abandoned focus
+    missingoutlet_test.go:196: late uninstall result stole keyboard focus
+    missingoutlet_test.go:207: missing uninstall outlet cannot close settings: 0
+=== RUN   TestMissingOutletUninstall/empty/dark/elsewhere
+=== RUN   TestMissingOutletUninstall/survivor/light/entry
+    missingoutlet_test.go:180: missing uninstall row lost keyboard outlet "Close settings"
+    missingoutlet_test.go:189: returning uninstall ID reclaimed abandoned focus
+    missingoutlet_test.go:196: late uninstall result stole keyboard focus
+    missingoutlet_test.go:207: missing uninstall outlet cannot close settings: 0
+=== RUN   TestMissingOutletUninstall/survivor/light/elsewhere
+=== RUN   TestMissingOutletUninstall/survivor/dark/entry
+    missingoutlet_test.go:180: missing uninstall row lost keyboard outlet "Close settings"
+    missingoutlet_test.go:189: returning uninstall ID reclaimed abandoned focus
+    missingoutlet_test.go:196: late uninstall result stole keyboard focus
+    missingoutlet_test.go:207: missing uninstall outlet cannot close settings: 0
+=== RUN   TestMissingOutletUninstall/survivor/dark/elsewhere
+--- FAIL: TestMissingOutletUninstall (0.53s)
+    --- FAIL: TestMissingOutletUninstall/empty/light/entry (0.07s)
+    --- PASS: TestMissingOutletUninstall/empty/light/elsewhere (0.06s)
+    --- FAIL: TestMissingOutletUninstall/empty/dark/entry (0.05s)
+    --- PASS: TestMissingOutletUninstall/empty/dark/elsewhere (0.06s)
+    --- FAIL: TestMissingOutletUninstall/survivor/light/entry (0.06s)
+    --- PASS: TestMissingOutletUninstall/survivor/light/elsewhere (0.10s)
+    --- FAIL: TestMissingOutletUninstall/survivor/dark/entry (0.06s)
+    --- PASS: TestMissingOutletUninstall/survivor/dark/elsewhere (0.08s)
+FAIL
+FAIL	floter/internal/settingsui	1.104s
+FAIL

@@ -1,0 +1,45 @@
+internal/settingsui/noticefocus.go: OK
+=== RUN   TestMissingOutletRemove
+=== RUN   TestMissingOutletRemove/empty/light/entry
+=== RUN   TestMissingOutletRemove/empty/light/elsewhere
+=== RUN   TestMissingOutletRemove/empty/dark/entry
+=== RUN   TestMissingOutletRemove/empty/dark/elsewhere
+=== RUN   TestMissingOutletRemove/survivor/light/entry
+=== RUN   TestMissingOutletRemove/survivor/light/elsewhere
+=== RUN   TestMissingOutletRemove/survivor/dark/entry
+=== RUN   TestMissingOutletRemove/survivor/dark/elsewhere
+--- PASS: TestMissingOutletRemove (0.95s)
+    --- PASS: TestMissingOutletRemove/empty/light/entry (0.33s)
+    --- PASS: TestMissingOutletRemove/empty/light/elsewhere (0.08s)
+    --- PASS: TestMissingOutletRemove/empty/dark/entry (0.07s)
+    --- PASS: TestMissingOutletRemove/empty/dark/elsewhere (0.08s)
+    --- PASS: TestMissingOutletRemove/survivor/light/entry (0.09s)
+    --- PASS: TestMissingOutletRemove/survivor/light/elsewhere (0.10s)
+    --- PASS: TestMissingOutletRemove/survivor/dark/entry (0.09s)
+    --- PASS: TestMissingOutletRemove/survivor/dark/elsewhere (0.11s)
+=== RUN   TestMissingOutletUninstall
+=== RUN   TestMissingOutletUninstall/empty/light/entry
+=== RUN   TestMissingOutletUninstall/empty/light/elsewhere
+=== RUN   TestMissingOutletUninstall/empty/dark/entry
+=== RUN   TestMissingOutletUninstall/empty/dark/elsewhere
+=== RUN   TestMissingOutletUninstall/survivor/light/entry
+=== RUN   TestMissingOutletUninstall/survivor/light/elsewhere
+=== RUN   TestMissingOutletUninstall/survivor/dark/entry
+=== RUN   TestMissingOutletUninstall/survivor/dark/elsewhere
+--- PASS: TestMissingOutletUninstall (1.03s)
+    --- PASS: TestMissingOutletUninstall/empty/light/entry (0.13s)
+    --- PASS: TestMissingOutletUninstall/empty/light/elsewhere (0.11s)
+    --- PASS: TestMissingOutletUninstall/empty/dark/entry (0.10s)
+    --- PASS: TestMissingOutletUninstall/empty/dark/elsewhere (0.11s)
+    --- PASS: TestMissingOutletUninstall/survivor/light/entry (0.12s)
+    --- PASS: TestMissingOutletUninstall/survivor/light/elsewhere (0.16s)
+    --- PASS: TestMissingOutletUninstall/survivor/dark/entry (0.12s)
+    --- PASS: TestMissingOutletUninstall/survivor/dark/elsewhere (0.17s)
+=== RUN   TestMissingOutletHeaderEscapeKeepsQuestionPriority
+=== RUN   TestMissingOutletHeaderEscapeKeepsQuestionPriority/light
+=== RUN   TestMissingOutletHeaderEscapeKeepsQuestionPriority/dark
+--- PASS: TestMissingOutletHeaderEscapeKeepsQuestionPriority (0.12s)
+    --- PASS: TestMissingOutletHeaderEscapeKeepsQuestionPriority/light (0.06s)
+    --- PASS: TestMissingOutletHeaderEscapeKeepsQuestionPriority/dark (0.06s)
+PASS
+ok  	floter/internal/settingsui	2.112s
