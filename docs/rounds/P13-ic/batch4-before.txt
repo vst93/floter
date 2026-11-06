@@ -1,0 +1,97 @@
+=== RUN   TestFormOutletToolOwner
+=== RUN   TestFormOutletToolOwner/light/entry
+    formoutlet_test.go:144: tool-owner lost usable focus "Check"
+    formoutlet_test.go:155: tool-owner callback lost focus "Check"
+    formoutlet_test.go:178: Check outlet did not dispatch once
+=== RUN   TestFormOutletToolOwner/light/elsewhere
+=== RUN   TestFormOutletToolOwner/dark/entry
+    formoutlet_test.go:144: tool-owner lost usable focus "Check"
+    formoutlet_test.go:155: tool-owner callback lost focus "Check"
+    formoutlet_test.go:178: Check outlet did not dispatch once
+=== RUN   TestFormOutletToolOwner/dark/elsewhere
+--- FAIL: TestFormOutletToolOwner (1.60s)
+    --- FAIL: TestFormOutletToolOwner/light/entry (0.59s)
+    --- PASS: TestFormOutletToolOwner/light/elsewhere (0.39s)
+    --- FAIL: TestFormOutletToolOwner/dark/entry (0.27s)
+    --- PASS: TestFormOutletToolOwner/dark/elsewhere (0.35s)
+=== RUN   TestFormOutletFold
+=== RUN   TestFormOutletFold/light/entry
+    formoutlet_test.go:144: fold lost usable focus "Configure"
+    formoutlet_test.go:155: fold callback lost focus "Configure"
+    formoutlet_test.go:170: Configure outlet did not toggle
+    formoutlet_test.go:194: Space did not reopen folded form
+=== RUN   TestFormOutletFold/light/elsewhere
+    formoutlet_test.go:144: fold lost usable focus "Configure"
+    formoutlet_test.go:155: fold callback lost focus "Configure"
+    formoutlet_test.go:170: Configure outlet did not toggle
+    formoutlet_test.go:194: Space did not reopen folded form
+=== RUN   TestFormOutletFold/dark/entry
+    formoutlet_test.go:144: fold lost usable focus "Configure"
+    formoutlet_test.go:155: fold callback lost focus "Configure"
+    formoutlet_test.go:170: Configure outlet did not toggle
+    formoutlet_test.go:194: Space did not reopen folded form
+=== RUN   TestFormOutletFold/dark/elsewhere
+    formoutlet_test.go:144: fold lost usable focus "Configure"
+    formoutlet_test.go:155: fold callback lost focus "Configure"
+    formoutlet_test.go:170: Configure outlet did not toggle
+    formoutlet_test.go:194: Space did not reopen folded form
+--- FAIL: TestFormOutletFold (2.64s)
+    --- FAIL: TestFormOutletFold/light/entry (0.54s)
+    --- FAIL: TestFormOutletFold/light/elsewhere (0.75s)
+    --- FAIL: TestFormOutletFold/dark/entry (0.56s)
+    --- FAIL: TestFormOutletFold/dark/elsewhere (0.79s)
+=== RUN   TestFormOutletCopyFold
+=== RUN   TestFormOutletCopyFold/light/entry
+    formoutlet_test.go:144: copy-fold lost usable focus "Configure"
+    formoutlet_test.go:155: copy-fold callback lost focus "Configure"
+    formoutlet_test.go:170: Configure outlet did not toggle
+    formoutlet_test.go:194: Space did not reopen folded form
+=== RUN   TestFormOutletCopyFold/light/elsewhere
+    formoutlet_test.go:144: copy-fold lost usable focus "Configure"
+    formoutlet_test.go:155: copy-fold callback lost focus "Configure"
+    formoutlet_test.go:170: Configure outlet did not toggle
+    formoutlet_test.go:194: Space did not reopen folded form
+=== RUN   TestFormOutletCopyFold/dark/entry
+    formoutlet_test.go:144: copy-fold lost usable focus "Configure"
+    formoutlet_test.go:155: copy-fold callback lost focus "Configure"
+    formoutlet_test.go:170: Configure outlet did not toggle
+    formoutlet_test.go:194: Space did not reopen folded form
+=== RUN   TestFormOutletCopyFold/dark/elsewhere
+    formoutlet_test.go:144: copy-fold lost usable focus "Configure"
+    formoutlet_test.go:155: copy-fold callback lost focus "Configure"
+    formoutlet_test.go:170: Configure outlet did not toggle
+    formoutlet_test.go:194: Space did not reopen folded form
+--- FAIL: TestFormOutletCopyFold (2.39s)
+    --- FAIL: TestFormOutletCopyFold/light/entry (0.56s)
+    --- FAIL: TestFormOutletCopyFold/light/elsewhere (0.60s)
+    --- FAIL: TestFormOutletCopyFold/dark/entry (0.59s)
+    --- FAIL: TestFormOutletCopyFold/dark/elsewhere (0.64s)
+=== RUN   TestFormOutletExportFold
+=== RUN   TestFormOutletExportFold/light/entry
+    formoutlet_test.go:144: export-fold lost usable focus "Configure"
+    formoutlet_test.go:155: export-fold callback lost focus "Configure"
+    formoutlet_test.go:170: Configure outlet did not toggle
+    formoutlet_test.go:194: Space did not reopen folded form
+=== RUN   TestFormOutletExportFold/light/elsewhere
+    formoutlet_test.go:144: export-fold lost usable focus "Configure"
+    formoutlet_test.go:155: export-fold callback lost focus "Configure"
+    formoutlet_test.go:170: Configure outlet did not toggle
+    formoutlet_test.go:194: Space did not reopen folded form
+=== RUN   TestFormOutletExportFold/dark/entry
+    formoutlet_test.go:144: export-fold lost usable focus "Configure"
+    formoutlet_test.go:155: export-fold callback lost focus "Configure"
+    formoutlet_test.go:170: Configure outlet did not toggle
+    formoutlet_test.go:194: Space did not reopen folded form
+=== RUN   TestFormOutletExportFold/dark/elsewhere
+    formoutlet_test.go:144: export-fold lost usable focus "Configure"
+    formoutlet_test.go:155: export-fold callback lost focus "Configure"
+    formoutlet_test.go:170: Configure outlet did not toggle
+    formoutlet_test.go:194: Space did not reopen folded form
+--- FAIL: TestFormOutletExportFold (2.70s)
+    --- FAIL: TestFormOutletExportFold/light/entry (0.63s)
+    --- FAIL: TestFormOutletExportFold/light/elsewhere (0.65s)
+    --- FAIL: TestFormOutletExportFold/dark/entry (0.69s)
+    --- FAIL: TestFormOutletExportFold/dark/elsewhere (0.73s)
+FAIL
+FAIL	floter/internal/settingsui	9.352s
+FAIL

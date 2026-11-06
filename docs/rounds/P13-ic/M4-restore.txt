@@ -1,0 +1,43 @@
+internal/settingsui/settingsui.go: OK
+=== RUN   TestFormOutletToolOwner
+=== RUN   TestFormOutletToolOwner/light/entry
+=== RUN   TestFormOutletToolOwner/light/elsewhere
+=== RUN   TestFormOutletToolOwner/dark/entry
+=== RUN   TestFormOutletToolOwner/dark/elsewhere
+--- PASS: TestFormOutletToolOwner (0.70s)
+    --- PASS: TestFormOutletToolOwner/light/entry (0.20s)
+    --- PASS: TestFormOutletToolOwner/light/elsewhere (0.20s)
+    --- PASS: TestFormOutletToolOwner/dark/entry (0.12s)
+    --- PASS: TestFormOutletToolOwner/dark/elsewhere (0.18s)
+=== RUN   TestFormOutletFold
+=== RUN   TestFormOutletFold/light/entry
+=== RUN   TestFormOutletFold/light/elsewhere
+=== RUN   TestFormOutletFold/dark/entry
+=== RUN   TestFormOutletFold/dark/elsewhere
+--- PASS: TestFormOutletFold (1.25s)
+    --- PASS: TestFormOutletFold/light/entry (0.23s)
+    --- PASS: TestFormOutletFold/light/elsewhere (0.40s)
+    --- PASS: TestFormOutletFold/dark/entry (0.23s)
+    --- PASS: TestFormOutletFold/dark/elsewhere (0.39s)
+=== RUN   TestFormOutletCopyFold
+=== RUN   TestFormOutletCopyFold/light/entry
+=== RUN   TestFormOutletCopyFold/light/elsewhere
+=== RUN   TestFormOutletCopyFold/dark/entry
+=== RUN   TestFormOutletCopyFold/dark/elsewhere
+--- PASS: TestFormOutletCopyFold (1.38s)
+    --- PASS: TestFormOutletCopyFold/light/entry (0.23s)
+    --- PASS: TestFormOutletCopyFold/light/elsewhere (0.31s)
+    --- PASS: TestFormOutletCopyFold/dark/entry (0.33s)
+    --- PASS: TestFormOutletCopyFold/dark/elsewhere (0.50s)
+=== RUN   TestFormOutletExportFold
+=== RUN   TestFormOutletExportFold/light/entry
+=== RUN   TestFormOutletExportFold/light/elsewhere
+=== RUN   TestFormOutletExportFold/dark/entry
+=== RUN   TestFormOutletExportFold/dark/elsewhere
+--- PASS: TestFormOutletExportFold (2.37s)
+    --- PASS: TestFormOutletExportFold/light/entry (0.41s)
+    --- PASS: TestFormOutletExportFold/light/elsewhere (0.74s)
+    --- PASS: TestFormOutletExportFold/dark/entry (0.70s)
+    --- PASS: TestFormOutletExportFold/dark/elsewhere (0.51s)
+PASS
+ok  	floter/internal/settingsui	5.698s

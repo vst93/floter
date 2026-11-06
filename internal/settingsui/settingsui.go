@@ -2938,6 +2938,11 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			})
 			if opened {
 				a.toggleConfig(integration.ID)
+				// Clicking the disclosure's title focuses its text column. The
+				// same action must leave a keyboard-operable disclosure behind.
+				if !a.configDiscard[integration.ID] {
+					opener.Focus(c)
+				}
 			}
 			// Both answers remove the focused confirmation button. Hand the
 			// keyboard back to the existing disclosure in the same frame.
@@ -2950,6 +2955,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			a.restoreNotice(c, integration.ID, "field", c.Resolve(fieldFocus.panel).Valid(), c.Resolve(opener))
 			transfer := c.Resolve(a.noticeFocus(c, integration.ID, "transfer").panel)
 			a.restoreNotice(c, integration.ID, "transfer", a.configOperations[integration.ID] != "" || transfer.Valid() && !transfer.IsDisabled(), c.Resolve(opener))
+			discardOpener = c.Resolve(opener)
 		} else if configOwnerIsTool(integration) && !integration.Orphan {
 			// A tool-owned configuration has no host form: the reference drew an
 			// "Open configuration" button instead, running the provider's own
@@ -3026,6 +3032,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			a.restoreNotice(c, integration.ID, "save", false, adoptOpener)
 			a.restoreNotice(c, integration.ID, "repair", false, adoptOpener)
 			a.restoreNotice(c, integration.ID, "toggle", false, adoptOpener)
+			a.restoreNotice(c, integration.ID, "editor", false, adoptOpener)
 			return
 		}
 
@@ -3200,8 +3207,12 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 		// the existing header return, without waiting on or moving the reply.
 		repairFocus := a.noticeFocus(c, integration.ID, "repair")
 		a.restoreNotice(c, integration.ID, "repair", c.Resolve(repairFocus.panel).Valid(), checkOpener)
-		if configOwnerIsTool(integration) && !discardOpener.Valid() {
-			a.restoreNotice(c, integration.ID, "editor", false, checkOpener)
+		if !configOwnerIsTool(integration) || !discardOpener.Valid() {
+			editorOutlet := discardOpener
+			if !editorOutlet.Valid() {
+				editorOutlet = checkOpener
+			}
+			a.restoreNotice(c, integration.ID, "editor", false, editorOutlet)
 		}
 		if !configOwnerIsHost(integration) {
 			// The old form can disappear while its discard answer owns focus.

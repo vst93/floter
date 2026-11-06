@@ -1,0 +1,4 @@
+bde82a4423f02372c681e9d30b498d10  internal/settingsui/config.go
+89a8a2cdfc9657ce036026e3831db794  internal/settingsui/settingsui.go
+f8d9a83f83a33634f8d14f67308e12ae  internal/settingsui/noticefocus.go
+54268b3fb0f401935850754d5c4b492f  internal/settingsui/formoutlet_test.go

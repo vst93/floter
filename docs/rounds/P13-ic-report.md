@@ -53,3 +53,14 @@ M2 撤回本批两处交接代码再跑单撤回/双撤回，之后 MD5、touch 
 6. 现象：命令仍在但宿主 OpenConfiguration callback 撤回，入口同样无法执行。改动：按当前 openable 判定交接，callback 和命令两个源分别验收。验证：Tab → callback=nil → Check；不执行已撤回的编辑命令。原串 `tool-action lost usable focus "Check"`。
 
 第三批完整相关回归 **386 PASS / 0 FAIL**，包 vet 退出 0。M3 六个 entry（command/action/no-check × 深浅）实跑红，MD5 还原、touch 后 **15 PASS / 0 FAIL**。第二批深浅图目视确认：旧灰色 Copy 仍戴环，修后环落在可用 Export；两个图标的大小与间距不变。
+
+## 第四批：归属撤回与主动折叠
+
+第三批 **61de80bd** 已推送。
+
+7. 现象：持焦 tool 编辑入口变为 host 且无 schema，配置行撤下但集成目标仍在，焦点没有归处。改动：editor 不再只处理 tool 分支内的不可用；改 owner 后按当前 Configure / Check / 页头寻找可用出口，Orphan 沿既有 Adopt。验证：Tab 到 Open configuration → host+空 schema → Check → Space 一次，原串 `tool-owner lost usable focus "Check"`；有 schema 的 owner 对照开盘已绿，不记额外修复。
+8. 现象：点击 Configuration 行标题折叠干净表单，焦点停在没有键盘动作的文字列，Space 不能重开；Copy/Export 在飞也相同。改动：标题触发完成后，若未打开丢弃问题，则把焦点交给同一行 Configure；脏稿仍走原确认。验证：真实字段 / Copy / Export → 点击标题折叠 → 回调结算 → Space 重开；原串 `fold lost usable focus "Configure"` 和 `Space did not reopen folded form`。折叠是用户主动点击，不错误要求维持点击前别处的焦点。
+
+第四批 before 日志补测了 tool→host 无 schema 与修正后的真实点击对照；图片在重开尝试后采样，可直观看到旧版仍折叠、修后表单可重开。原 3000ms、草稿删除/重读、传输次数保持。
+
+第四批相关回归 **406 PASS / 0 FAIL**，包 vet 退出 0；M4 14 个场景实跑红（owner 两个 entry + 三种标题点击各四个），MD5 还原、touch 后 **20 PASS / 0 FAIL**。四批八项均已实现，接下来只做完整门槛与结案，不扩题。工具调用预算已超 40（含异步 wait）；后续仅用于已授权工作的必要验收、修红和交接，记录此流程偏差。

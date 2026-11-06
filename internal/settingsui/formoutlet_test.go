@@ -132,7 +132,7 @@ func checkFormOutlet(t *testing.T, change string) {
 				default:
 					t.Fatal("unknown change")
 				}
-				if elsewhere {
+				if elsewhere && change != "fold" && change != "copy-fold" && change != "export-fold" {
 					want = copy.ShowCommandsInSearch
 				}
 				tt.Frame()
@@ -159,7 +159,7 @@ func checkFormOutlet(t *testing.T, change string) {
 						t.Error("row did not fold form")
 					}
 				}
-				if !elsewhere {
+				if !elsewhere || change == "fold" || change == "copy-fold" || change == "export-fold" {
 					beforeCalls, beforeOpen := calls, a.configOpen[in.ID]
 					tt.Key(0, ui.KeySpace)
 					tt.Frame()
@@ -186,6 +186,17 @@ func checkFormOutlet(t *testing.T, change string) {
 							t.Error("tool outlet did not dispatch once")
 						}
 					}
+					if change == "fold" || change == "copy-fold" || change == "export-fold" {
+						if calls != beforeCalls {
+							t.Error("reopen repeated transfer")
+						}
+						if !tt.HasText("Token") {
+							t.Error("Space did not reopen folded form")
+						}
+						if !elsewhere {
+							formOutletDump(t, tt, change, dark)
+						}
+					}
 				}
 			})
 		}
@@ -205,3 +216,7 @@ func TestFormOutletExportSchema(t *testing.T) { checkFormOutlet(t, "export-schem
 func TestFormOutletToolCommand(t *testing.T)  { checkFormOutlet(t, "tool-command") }
 func TestFormOutletToolAction(t *testing.T)   { checkFormOutlet(t, "tool-action") }
 func TestFormOutletToolNoCheck(t *testing.T)  { checkFormOutlet(t, "tool-no-check") }
+func TestFormOutletToolOwner(t *testing.T)    { checkFormOutlet(t, "tool-owner") }
+func TestFormOutletFold(t *testing.T)         { checkFormOutlet(t, "fold") }
+func TestFormOutletCopyFold(t *testing.T)     { checkFormOutlet(t, "copy-fold") }
+func TestFormOutletExportFold(t *testing.T)   { checkFormOutlet(t, "export-fold") }
