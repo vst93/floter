@@ -1,6 +1,7 @@
 package settingsui
 
 import (
+	"bytes"
 	"image/png"
 	"os"
 	"testing"
@@ -93,6 +94,67 @@ func TestInputStateNumberDisplaysSnappedValue(t *testing.T) {
 			tt.Frame()
 			if a.pluginNumberDrafts["local.input\x00limit"] != "1e" || sheet.Values[field.Key] != 4.0 {
 				t.Error("normalization destroyed half-typed number or wrote it")
+			}
+		})
+	}
+}
+
+func TestInputStateNumberAdoptsRefreshedBounds(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			field := plugincfg.Field{Key: "limit", Label: "结果上限", Kind: plugincfg.Number, Max: 100, Step: 1, Unit: "项"}
+			a, sheet, tt := inputStateSheet(t, dark, field, 5.0)
+			inputStateNumberFocus(t, tt, field.Label)
+			tt.Type("25")
+			tt.Frame()
+			calls := 0
+			sheet.Change = func(key string, value any) { calls++; sheet.Values[key] = value }
+			sheet.Schema.Fields[0].Max = 10
+			tt.Frame()
+			inputStateDump(t, tt, "bounds-refresh", dark)
+			tt.Key(ui.Cmd, ui.KeyA)
+			tt.Key(ui.Cmd, ui.KeyC)
+			if got := tt.Clipboard(); got != "10" {
+				t.Errorf("refreshed bounds display %q, want 10", got)
+			}
+			if calls != 0 || sheet.Values[field.Key] != 25.0 {
+				t.Error("schema refresh unexpectedly wrote a value")
+			}
+			tt.Type("1e")
+			tt.Frame()
+			sheet.Schema.Fields[0].Max = 50
+			tt.Frame()
+			if a.pluginNumberDrafts["local.input\x00limit"] != "1e" {
+				t.Error("schema refresh discarded half input")
+			}
+			tt.Key(ui.Cmd, ui.KeyA)
+			tt.Type("6")
+			tt.Frame()
+			if sheet.Values[field.Key] != 6.0 {
+				t.Error("input did not recover after refresh")
+			}
+		})
+	}
+}
+
+func TestInputStateSliderPositionMatchesItsReadout(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			field := plugincfg.Field{Key: "limit", Label: "结果上限", Kind: plugincfg.Slider, Max: 100, Step: 20, Unit: "项"}
+			_, sheet, tt := inputStateSheet(t, dark, field, 30.0)
+			calls := 0
+			sheet.Change = func(string, any) { calls++ }
+			tt.Frame()
+			_, _, expected := inputStateSheet(t, dark, field, 40.0)
+			inputStateDump(t, tt, "slider-position", dark)
+			if !tt.HasText("40 项") {
+				t.Fatal("slider readout is not on its grid")
+			}
+			if !bytes.Equal(tt.Image().Pix, expected.Image().Pix) {
+				t.Error("slider says 40 but its position differs from the 40 frame")
+			}
+			if calls != 0 {
+				t.Error("display normalization dispatched a write")
 			}
 		})
 	}

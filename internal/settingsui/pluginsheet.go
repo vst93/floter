@@ -473,7 +473,9 @@ func (a *App) sheetCheckboxes(c *ui.Context, sheet PluginSheet, field plugincfg.
 func (a *App) sheetSlider(c *ui.Context, sheet PluginSheet, field plugincfg.Field, value float64) {
 	t := c.Theme()
 	tokens := a.tokens(c)
-	v := value
+	// Position and readout describe the same value, including values loaded
+	// from an older configuration that are between the current step marks.
+	v := boundedValue(field, value)
 	changed := false
 	a.stackedRow(c, field.Label, field.Help, func() {
 		// The reference's track-and-readout row: a 10u gap between the track
@@ -547,6 +549,13 @@ func (a *App) sheetNumberSlot(c *ui.Context, plugin string, field plugincfg.Fiel
 	draft, ok := a.pluginNumberDrafts[key]
 	if !ok {
 		draft = initialNumberText(field, *value)
+	} else if parsed, err := strconv.ParseFloat(strings.TrimSpace(draft), 64); err == nil && !math.IsNaN(parsed) && !math.IsInf(parsed, 0) {
+		// A refreshed schema can move the bounds while the input keeps focus.
+		// Rebase only a complete number; partial input remains the user's.
+		if bounded := boundedValue(field, parsed); bounded != parsed {
+			draft = formatFieldNumber(bounded)
+			a.pluginNumberDrafts[key] = draft
+		}
 	}
 	changed := false
 	// The number box is the field slot plus the reference's 4u gap between
@@ -566,7 +575,7 @@ func (a *App) sheetNumberSlot(c *ui.Context, plugin string, field plugincfg.Fiel
 				// P13-gu：框里写的必须是插件**真正拿到**的那个数。越界的输入
 				// 此前被 `clampNumber` 悄悄夹到边界再派发，而框里还留着原样的
 				// `999`——用户以为存了 999，插件收到 100，直到失焦才跳回。
-				// 现在越界的那一帧就把夹后的数写回草稿，框与值同帧对齐；
+				// 现在夹界与步长量化都把结果写回草稿，框与值同帧对齐；
 				// 界内的输入一个字节不动（半输入 `1e` 仍然留在框里，§6.162）。
 				clamped := boundedValue(field, parsed)
 				*value = clamped

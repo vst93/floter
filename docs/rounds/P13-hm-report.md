@@ -30,3 +30,12 @@
 
 浅色 after 图肉眼看到右侧槽内是单个 4，取代 3.7；行高和单位位置未变。框架 Tester.Texts 不含编辑器内部文字，初版探针对此作了错误假设，已改为验证真实事件驱动的草稿与宿主值，并导出像素；没有修改旧测试或产品以迎合探针。
 M1 注入原产品，两个新测试均红，恢复后 md5sum -c OK、touch 复跑。V/B/S 0/0/0，完整门槛留待末批，当前仅称受影响回归通过。
+
+第一批受影响回归 **14 PASS / 0 FAIL**，settingsui vet 与 diff-check 净；8bd9c36d 已推送。
+
+### 第二批（3–4）
+
+3. 现象：数字框聚焦编辑为 25 后，schema 将 Max 改成 10，仍显示 25。改动：重绘时仅将可解析草稿按当前约束重算，半输入保持。验证：从真实编辑器全选复制得到 10；不因 schema 刷新派发写回；1e 保留、后续 6 正常写入。旧代码原串 `refreshed bounds display "25", want 10`，深浅均红。
+4. 现象：Step=20、存量 30 时读数为 40，但滑块停在 30。改动：轨道初值使用与读数相同的 boundedValue。验证：深浅整帧逐字节等于存量 40 的参考帧，未触发 Change。旧代码原串 `slider says 40 but its position differs from the 40 frame`。
+
+两项均由 ui.Tester 导出深浅 before/after。V/B/S 0/0/0；旧断言未动。M2 将两条产品路径回退到第一批，再跑本批两条 pin，恢复时按 MD5 核对并 touch；精确结果随门槛日志归档。
