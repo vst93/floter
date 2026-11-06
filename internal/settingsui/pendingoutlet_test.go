@@ -140,7 +140,9 @@ func checkPendingOutlet(t *testing.T, kind, change string) {
 					in.ConfigOwner = "tool"
 				case "healthy":
 					in.Broken, in.RuntimeAvailable, in.Running = false, true, true
-					finish(nil)
+					// Discovery refreshes can arrive before the mutation callback.
+					// All peer actions are still disabled until that reply lands.
+					want = copy.Close
 				default:
 					t.Fatal("unknown refresh")
 				}
@@ -158,13 +160,11 @@ func checkPendingOutlet(t *testing.T, kind, change string) {
 				if calls != 1 || opened+checked+adopted+closed != 0 {
 					t.Error("refresh dispatched an action")
 				}
-				if change != "healthy" {
-					finish(errors.New("The operation could not finish"))
-					tt.Frame()
-					tt.Frame()
-					if !tt.Focused(want) {
-						t.Errorf("late %s result changed keyboard outlet %q", kind, want)
-					}
+				finish(errors.New("The operation could not finish"))
+				tt.Frame()
+				tt.Frame()
+				if !tt.Focused(want) {
+					t.Errorf("late %s result changed keyboard outlet %q", kind, want)
 				}
 				if a.rowBusy(in.ID) || a.configSaveBusy[in.ID] {
 					t.Error("callback did not release busy state")
@@ -175,7 +175,7 @@ func checkPendingOutlet(t *testing.T, kind, change string) {
 				tt.Key(0, ui.KeySpace)
 				tt.Frame()
 				tt.Frame()
-				if elsewhere {
+				if want == copy.Close {
 					if closed != 1 || opened+checked+adopted != 0 {
 						t.Error("header exit did not activate exactly once")
 					}
@@ -192,6 +192,9 @@ func checkPendingOutlet(t *testing.T, kind, change string) {
 
 func TestPendingOutletSaveOwner(t *testing.T)  { checkPendingOutlet(t, "save", "owner") }
 func TestPendingOutletSaveSchema(t *testing.T) { checkPendingOutlet(t, "save", "schema") }
+
+func TestPendingOutletRecheckHealthy(t *testing.T)   { checkPendingOutlet(t, "repair", "healthy") }
+func TestPendingOutletReconnectHealthy(t *testing.T) { checkPendingOutlet(t, "reconnect", "healthy") }
 
 func TestPendingOutletSaveOrphan(t *testing.T)         { checkPendingOutlet(t, "save", "orphan") }
 func TestPendingOutletEditingUnavailable(t *testing.T) { checkPendingOutlet(t, "save", "unopenable") }

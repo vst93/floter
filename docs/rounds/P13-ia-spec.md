@@ -12,8 +12,8 @@
 | 2 | 同上；settingsui.go:3174 | schema 清空后保存入口消失 → 可用 Check 接焦 |
 | 3 | settingsui.go:3002 | 保存中目标变 Orphan → Adopt 接焦 |
 | 4 | config.go:306,363；settingsui.go:2935,3174 | 保存时允许继续编辑；字段正持焦时变 tool 且无 openCommand → Check 接焦，禁用编辑入口不接焦 |
-| 5 | settingsui.go:3918,3078 | Recheck 完成后 Broken 解除，入口消失 → Check 接焦 |
-| 6 | settingsui.go:3918,3083 | Reconnect 完成后运行时可用，入口消失 → Check 接焦 |
+| 5 | settingsui.go:3918,3078 | Recheck 回调未返但刷新已解除 Broken，入口消失且 Check 仍禁用 → 现有页头返回接焦 |
+| 6 | settingsui.go:3918,3083 | Reconnect 回调未返但刷新已找到运行时，入口消失且 Check 仍禁用 → 现有页头返回接焦 |
 | 7 | settingsui.go:3002,3918 | 修复在飞时目标变 Orphan → Adopt 接焦，迟到回调不抢新焦点 |
 | 8 | settingsui.go:3135,4003 | 启用在飞时目标变 Orphan → Adopt 接焦，迟到回调不抢新焦点 |
 

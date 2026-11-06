@@ -1,0 +1,35 @@
+=== RUN   TestPendingOutletRecheckHealthy
+=== RUN   TestPendingOutletRecheckHealthy/light/entry
+    pendingoutlet_test.go:158: pending repair-healthy lost keyboard outlet "Close settings"
+    pendingoutlet_test.go:167: late repair result changed keyboard outlet "Close settings"
+    pendingoutlet_test.go:180: header exit did not activate exactly once
+=== RUN   TestPendingOutletRecheckHealthy/light/elsewhere
+=== RUN   TestPendingOutletRecheckHealthy/dark/entry
+    pendingoutlet_test.go:158: pending repair-healthy lost keyboard outlet "Close settings"
+    pendingoutlet_test.go:167: late repair result changed keyboard outlet "Close settings"
+    pendingoutlet_test.go:180: header exit did not activate exactly once
+=== RUN   TestPendingOutletRecheckHealthy/dark/elsewhere
+--- FAIL: TestPendingOutletRecheckHealthy (0.15s)
+    --- FAIL: TestPendingOutletRecheckHealthy/light/entry (0.09s)
+    --- PASS: TestPendingOutletRecheckHealthy/light/elsewhere (0.02s)
+    --- FAIL: TestPendingOutletRecheckHealthy/dark/entry (0.03s)
+    --- PASS: TestPendingOutletRecheckHealthy/dark/elsewhere (0.02s)
+=== RUN   TestPendingOutletReconnectHealthy
+=== RUN   TestPendingOutletReconnectHealthy/light/entry
+    pendingoutlet_test.go:158: pending reconnect-healthy lost keyboard outlet "Close settings"
+    pendingoutlet_test.go:167: late reconnect result changed keyboard outlet "Close settings"
+    pendingoutlet_test.go:180: header exit did not activate exactly once
+=== RUN   TestPendingOutletReconnectHealthy/light/elsewhere
+=== RUN   TestPendingOutletReconnectHealthy/dark/entry
+    pendingoutlet_test.go:158: pending reconnect-healthy lost keyboard outlet "Close settings"
+    pendingoutlet_test.go:167: late reconnect result changed keyboard outlet "Close settings"
+    pendingoutlet_test.go:180: header exit did not activate exactly once
+=== RUN   TestPendingOutletReconnectHealthy/dark/elsewhere
+--- FAIL: TestPendingOutletReconnectHealthy (0.10s)
+    --- FAIL: TestPendingOutletReconnectHealthy/light/entry (0.03s)
+    --- PASS: TestPendingOutletReconnectHealthy/light/elsewhere (0.02s)
+    --- FAIL: TestPendingOutletReconnectHealthy/dark/entry (0.03s)
+    --- PASS: TestPendingOutletReconnectHealthy/dark/elsewhere (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.255s
+FAIL

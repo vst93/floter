@@ -32,3 +32,10 @@
 4. 现象：保存期间按原契约可以继续编辑，用户回到 Token 字段后 owner 变 tool 且无编辑命令，保存按钮之外的焦点仍丢失。改动：记录整张 host 表单的 FocusWithin，把字段焦点也交给当前 Check。验证：真实 Shift+Tab 回字段再刷新；旧实现报 `pending save-unopenable lost keyboard outlet "Check"`，不是直接篡改焦点状态。草稿保持 edited，禁用“打开配置”不执行。
 
 第二批相关 **84 PASS / 0 FAIL**、settingsui vet 退出 0；旧 V/B/S 断言零改。四项深浅前后图随本批保留，基线 pin 不修改。M1 已实跑，新增整张表单与孤立分支将在最终 M2 一并回注核验。
+
+第二批 **d1f6d196** 已推送。修复“回调与健康刷新同时抵达”的候选实测全部通过，保留为 settled-repair-control.txt，不算 bug。缺陷只在刷新先到、回调仍未返回的真实顺序出现。
+
+5. 现象：Recheck 在飞期间 Broken 已被刷新解除，入口消失，同行 Check 仍禁用，键盘无可用出口。改动：保留修复按钮句柄，在它本帧不再构建时选当前可用出口，全部忙时回页头。验证：深浅真实 Recheck → 健康刷新 → 两帧 → 延迟失败；原串 `pending repair-healthy lost keyboard outlet "Close settings"`。
+6. 现象：Reconnect 在飞期间运行时已刷新可用，同样失去按钮与可用键盘位置。改动：重新连接的静息/忙态都绑定同一交接句柄，入口撤下时使用同一可用性检查。验证：深浅真实 Reconnect → runtime 可用刷新；原串 `pending reconnect-healthy lost keyboard outlet "Close settings"`。两项均保留页头原焦点，回调后不重复修复、不抢焦。
+
+第三批相关 **94 PASS / 0 FAIL**，settingsui vet 退出 0；焦点交接立即完成，回调只结算原操作，不承担延迟抢焦。V/B/S 旧断言修改仍为 0/0/0。

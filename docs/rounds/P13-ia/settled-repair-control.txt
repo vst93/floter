@@ -1,0 +1,22 @@
+=== RUN   TestPendingOutletRecheckHealthy
+=== RUN   TestPendingOutletRecheckHealthy/light/entry
+=== RUN   TestPendingOutletRecheckHealthy/light/elsewhere
+=== RUN   TestPendingOutletRecheckHealthy/dark/entry
+=== RUN   TestPendingOutletRecheckHealthy/dark/elsewhere
+--- PASS: TestPendingOutletRecheckHealthy (0.29s)
+    --- PASS: TestPendingOutletRecheckHealthy/light/entry (0.19s)
+    --- PASS: TestPendingOutletRecheckHealthy/light/elsewhere (0.03s)
+    --- PASS: TestPendingOutletRecheckHealthy/dark/entry (0.04s)
+    --- PASS: TestPendingOutletRecheckHealthy/dark/elsewhere (0.03s)
+=== RUN   TestPendingOutletReconnectHealthy
+=== RUN   TestPendingOutletReconnectHealthy/light/entry
+=== RUN   TestPendingOutletReconnectHealthy/light/elsewhere
+=== RUN   TestPendingOutletReconnectHealthy/dark/entry
+=== RUN   TestPendingOutletReconnectHealthy/dark/elsewhere
+--- PASS: TestPendingOutletReconnectHealthy (0.14s)
+    --- PASS: TestPendingOutletReconnectHealthy/light/entry (0.04s)
+    --- PASS: TestPendingOutletReconnectHealthy/light/elsewhere (0.03s)
+    --- PASS: TestPendingOutletReconnectHealthy/dark/entry (0.04s)
+    --- PASS: TestPendingOutletReconnectHealthy/dark/elsewhere (0.03s)
+PASS
+ok  	floter/internal/settingsui	0.438s
