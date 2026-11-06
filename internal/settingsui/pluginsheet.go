@@ -83,6 +83,16 @@ func (a *App) PluginSheet(c *ui.Context, sheet PluginSheet) {
 			delete(a.pluginNumberDrafts, key)
 		}
 	}
+	// A submit waiting for the host's answer is retired with its field: a
+	// record left behind would rebase whatever takes the same key next.
+	for key := range a.pluginTextCommits {
+		if !strings.HasPrefix(key, prefix) {
+			continue
+		}
+		if kind, exists := active[key]; !exists || kind != plugincfg.Text {
+			delete(a.pluginTextCommits, key)
+		}
+	}
 	t := c.Theme()
 	tokens := a.tokens(c)
 
@@ -319,6 +329,23 @@ func (a *App) sheetField(c *ui.Context, sheet PluginSheet, field plugincfg.Field
 		a.sheetNumber(c, sheet, field, number)
 	case plugincfg.Text:
 		text, _ := value.(string)
+		// The host's answer to the last submit is in this frame's values.
+		//
+		// P13-hk（`docs/liquid-glass.md` §6.186）：文本字段在**回车那一帧**把框里
+		// 的原文交上去，而宿主会把值收一遍（`plugincfg.coerce`：去首尾空白，全空白
+		// 记成空值）。框里此前一直画着交上去的原文，于是「框写 ` /tmp/x `、插件存
+		// `/tmp/x`」要等到失焦才对齐——同一个字段在**同一帧**有两个说法。
+		//
+		// 现在：交上去的原文记在 `pluginTextCommits` 里，下一帧拿它对照宿主回给
+		// 这块面的值。宿主换了值（收过/清空）就把草稿交回去，框改画宿主的值；
+		// 一个字节没动说明写被拒（`sheet.Failed`）——那时草稿留着给用户重试
+		// （§6.45），这条契约不动。
+		if sent, ok := a.pluginTextCommits[key]; ok {
+			delete(a.pluginTextCommits, key)
+			if !sheet.Failed && text != sent {
+				delete(a.pluginTextDrafts, key)
+			}
+		}
 		edit := text
 		if draft, ok := a.pluginTextDrafts[key]; ok {
 			edit = draft
@@ -336,7 +363,17 @@ func (a *App) sheetField(c *ui.Context, sheet PluginSheet, field plugincfg.Field
 				a.pluginTextDrafts[key] = edit
 			}
 			if input.Submitted() {
-				sheet.Change(field.Key, edit)
+				// P13-hk（§6.186）：回车交一份**和宿主一样**的文本不是一次改动。
+				// 此前它照样派发：宿主再写一遍同一个值，写成功就是白写一遍，写
+				// 被拒就在一块没改过的面上亮出「保存失败」。现在只有真的不一样
+				// 才交上去。
+				if edit != text {
+					sheet.Change(field.Key, edit)
+					if a.pluginTextCommits == nil {
+						a.pluginTextCommits = map[string]string{}
+					}
+					a.pluginTextCommits[key] = edit
+				}
 			}
 			// A refused write must leave the focused edit available for retry.
 			// On blur, read the host's confirmed (possibly normalized) value.

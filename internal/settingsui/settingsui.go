@@ -995,6 +995,13 @@ type App struct {
 	// Text fields commit on Enter, so their unsubmitted edit must survive
 	// frames independently of the stored value, just like number drafts.
 	pluginTextDrafts map[string]string
+	// pluginTextCommits holds the text a text field handed the host on its
+	// submit frame, until the next frame can read the host's own answer to it.
+	// The host normalizes what a field sends (`plugincfg.coerce` trims a text
+	// value and an all-space one becomes empty), so without this record the box
+	// keeps painting the text that was sent while the plugin holds something
+	// else — until the box loses the focus and re-reads the value.
+	pluginTextCommits map[string]string
 
 	// installName and installVersion are the npm install field's contents.
 	installName    string
