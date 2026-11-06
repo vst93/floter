@@ -45,3 +45,12 @@
 6. 现象：焦点位于已武装动作的取消按钮时，移组后 Space 无效。改动：原确认按钮行绑定字段句柄，识别其内部焦点。验证：Tab 到取消→移组→Space，仅 Unarm 1 次、Run 0 次；旧实现报 `group move lost cancellation: cancels=0 runs=0 armed="value"`。确认/取消机制未变。
 
 相关回归 **206 PASS / 0 FAIL**，settingsui/control vet 净。M3 回退两条绑定，两项事件实跑红，MD5 还原与 touch 后 **6 PASS**。V/B/S 0/0/0。
+
+第三批 `1bbdc9ed` 已推送。
+
+### 第四批：已收起下拉的外部刷新
+
+7. 现象：下拉用 Escape 收起后，外部把当前值换成未知值，字段焦点丢失，方向键无法重新选择。改动：记录菜单是否展开和触发器句柄，仅对仍可用、原先已收起且拥有焦点的控件交接焦点。验证：外部值先原样显示、配置不脏、菜单不自动打开；Down→End→Enter 可改为便条。旧实现报 `closed select refresh lost keyboard focus` / `refreshed select cannot recover with keyboard: 远程来源, want 便条`。
+8. 现象：下拉已收起，schema 删除当前选项，也会使整个字段退出键盘操作。改动：同一交接路径覆盖选项撤回。验证：未显式选择前旧值保留、未写回，随后键盘可选便条；旧实现报 `refreshed select cannot recover with keyboard: 文件, want 便条`。已展开菜单、禁用控件、其他字段焦点继续由原回归守住。
+
+相关回归 **212 PASS / 0 FAIL**，settingsui/control vet 净。M4 回退 selectvalue.go，两项实跑红，MD5 还原与 touch 后 **6 PASS**。V/B/S 0/0/0；测试迁到 selectrefreshfocus_test.go 后产品前红证据中的旧文件行号仍保留。

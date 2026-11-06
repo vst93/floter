@@ -18,6 +18,8 @@ type selectLifetime[T comparable] struct {
 	selected   T
 	enabled    bool
 	generation uint64
+	open       bool
+	trigger    ui.Handle
 }
 
 // valueSelect keeps the framework's Select geometry and keyboard model while
@@ -46,6 +48,10 @@ func valueSelect[T comparable](c *ui.Context, selected *T, labels []string, valu
 	lifetime := ui.Local(marker, "select.lifetime", func() selectLifetime[T] { return selectLifetime[T]{} })
 	unknownChanged := !slices.Contains(values, *selected) &&
 		(lifetime.selected != *selected || !slices.Equal(lifetime.values, values))
+	// An already closed select has no stale menu to dismiss. Carry its
+	// keyboard target across invalidation without reopening it or changing
+	// the value. An open invalidated menu keeps its existing dismissal path.
+	keepFocus := enabled && unknownChanged && !lifetime.open && lifetime.trigger.Focused(c)
 	if unknownChanged || lifetime.enabled != enabled {
 		lifetime.generation++
 	}
@@ -55,6 +61,10 @@ func valueSelect[T comparable](c *ui.Context, selected *T, labels []string, valu
 	}{lifetime, lifetime.generation}
 	sel := ui.SelectBase(c.Key(identity), selected)
 	b := sel.Trigger
+	b.Bind(&lifetime.trigger)
+	if keepFocus {
+		lifetime.trigger.Focus(c)
+	}
 	if !enabled {
 		b = lockedControl(b)
 	}
@@ -126,5 +136,6 @@ func valueSelect[T comparable](c *ui.Context, selected *T, labels []string, valu
 	highlight.selected = *selected
 	lifetime.values = append(lifetime.values[:0], values...)
 	lifetime.selected, lifetime.enabled = *selected, enabled
+	lifetime.open = sel.Open()
 	return b
 }

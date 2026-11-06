@@ -1,0 +1,14 @@
+=== RUN   TestControlRefreshClosedSelectExternalValue
+=== RUN   TestControlRefreshClosedSelectExternalValue/light
+=== RUN   TestControlRefreshClosedSelectExternalValue/dark
+--- PASS: TestControlRefreshClosedSelectExternalValue (0.04s)
+    --- PASS: TestControlRefreshClosedSelectExternalValue/light (0.03s)
+    --- PASS: TestControlRefreshClosedSelectExternalValue/dark (0.00s)
+=== RUN   TestControlRefreshClosedSelectRemovedValue
+=== RUN   TestControlRefreshClosedSelectRemovedValue/light
+=== RUN   TestControlRefreshClosedSelectRemovedValue/dark
+--- PASS: TestControlRefreshClosedSelectRemovedValue (0.01s)
+    --- PASS: TestControlRefreshClosedSelectRemovedValue/light (0.00s)
+    --- PASS: TestControlRefreshClosedSelectRemovedValue/dark (0.00s)
+PASS
+ok  	floter/internal/settingsui	0.050s

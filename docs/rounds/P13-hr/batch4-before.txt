@@ -1,0 +1,27 @@
+=== RUN   TestControlRefreshClosedSelectExternalValue
+=== RUN   TestControlRefreshClosedSelectExternalValue/light
+    controlrefresh_test.go:223: closed select refresh lost keyboard focus
+    controlrefresh_test.go:234: refreshed select cannot recover with keyboard: 远程来源, want 便条
+    controlrefresh_test.go:237: select recovery lost focus
+=== RUN   TestControlRefreshClosedSelectExternalValue/dark
+    controlrefresh_test.go:223: closed select refresh lost keyboard focus
+    controlrefresh_test.go:234: refreshed select cannot recover with keyboard: 远程来源, want 便条
+    controlrefresh_test.go:237: select recovery lost focus
+--- FAIL: TestControlRefreshClosedSelectExternalValue (0.12s)
+    --- FAIL: TestControlRefreshClosedSelectExternalValue/light (0.09s)
+    --- FAIL: TestControlRefreshClosedSelectExternalValue/dark (0.03s)
+=== RUN   TestControlRefreshClosedSelectRemovedValue
+=== RUN   TestControlRefreshClosedSelectRemovedValue/light
+    controlrefresh_test.go:223: closed select refresh lost keyboard focus
+    controlrefresh_test.go:234: refreshed select cannot recover with keyboard: 文件, want 便条
+    controlrefresh_test.go:237: select recovery lost focus
+=== RUN   TestControlRefreshClosedSelectRemovedValue/dark
+    controlrefresh_test.go:223: closed select refresh lost keyboard focus
+    controlrefresh_test.go:234: refreshed select cannot recover with keyboard: 文件, want 便条
+    controlrefresh_test.go:237: select recovery lost focus
+--- FAIL: TestControlRefreshClosedSelectRemovedValue (0.05s)
+    --- FAIL: TestControlRefreshClosedSelectRemovedValue/light (0.03s)
+    --- FAIL: TestControlRefreshClosedSelectRemovedValue/dark (0.03s)
+FAIL
+FAIL	floter/internal/settingsui	0.181s
+FAIL
