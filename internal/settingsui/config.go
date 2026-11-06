@@ -372,7 +372,8 @@ func (a *App) configFields(c *ui.Context, copy i18n.Settings, integration Integr
 			// (`ExtensionsPanel.tsx:2674`), not a bare red line.
 			a.noticeLine(c, a.configError[integration.ID])
 		}
-		a.configActions(c, copy, integration, draft)
+		// Keep the actions' identity when a failure notice is inserted above it.
+		a.configActions(c.Key("config.actions"), copy, integration, draft)
 	})
 }
 
@@ -541,6 +542,7 @@ func (a *App) configActions(c *ui.Context, copy i18n.Settings, integration Integ
 				a.configSaveBusy = map[string]bool{}
 			}
 			a.configSaveBusy[integration.ID] = true
+			delete(a.configError, integration.ID)
 			a.Actions.SaveConfiguration(integration.ID, draft.values, func(err error) {
 				a.finishConfigSave(integration.ID, err, copy)
 			})
