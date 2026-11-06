@@ -35,3 +35,14 @@ M1 回退 config.go，两项深浅全红；原文 `returning to external text st
 
 M2 回退 pluginsheet/settingsui 两文件，原文 `withdrawn plugin text masks host`、
 `host-confirmed plugin text masks next value`；MD5 恢复并 touch，相关回归与 vet 通过。V/B/S 0/0/0。
+
+第二批相关 99 PASS；060ae37e 已推送。
+
+5. 集成数字存 1e308 却展开 309 个字符，槽内只见尾零 → 采用已有数字显示格式 → 深浅复制完整 1e+308，dirty=false，宿主值不变。
+6. 插件无步长数 1e-308 展开 310 个字符 → 非零绝对值小于 1e-6 用科学计数法 → 完整 1e-308，最小次正规数、负数和阈值逐值往返解析，0 次写入。
+
+M3 原文 `integration number expands to 309 characters, want 1e+308`、
+`tiny number expands to 310 characters, want 1e-308`。MD5 还原、touch 后相关 105 PASS，vet 通过。
+V/B/S 0/0/0；第三批只改显示，保存精度与步长不变。
+
+侦察撤回：关闭插件浮层两帧后重开，文本/数字 Ctrl+Z 均不复活旧输入，四场景已 PASS；不计修复。

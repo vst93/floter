@@ -823,7 +823,7 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 	case "number":
 		value := ""
 		if number, ok := draft.values[field.Key].(float64); ok {
-			value = strconv.FormatFloat(number, 'f', -1, 64)
+			value = formatFieldNumber(number)
 		}
 		edit := draft.liveText(field, value)
 		problem := configProblemText(a.configFieldProblem(integration, field), copy)

@@ -2,10 +2,13 @@ package settingsui
 
 import (
 	"image/png"
+	"math"
 	"os"
+	"strconv"
 	"testing"
 
 	"floter/internal/plugincfg"
+	"floter/internal/settings"
 	"github.com/egoist/mygo/ui"
 )
 
@@ -20,6 +23,112 @@ func conflictDump(t *testing.T, tt *ui.Tester, name string, dark bool) {
 		if err := png.Encode(f, tt.Image()); err != nil {
 			t.Fatal(err)
 		}
+	}
+}
+
+func checkPluginReopenHistory(t *testing.T, kind plugincfg.Kind, initial any, edit, external string, next any) {
+	t.Helper()
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			s := settings.Default()
+			s.Theme, s.Language = appearanceName(dark), "zh"
+			a := New(settings.NewStore(s), Actions{})
+			field := plugincfg.Field{Key: "value", Label: "配置值", Kind: kind}
+			sheet := PluginSheet{Schema: &plugincfg.Schema{Plugin: "local.reopen", Title: "配置", Fields: []plugincfg.Field{field}}, Values: plugincfg.Values{"value": initial}}
+			calls := 0
+			sheet.Change = func(key string, value any) { calls++; sheet.Values[key] = value }
+			open := true
+			tt := ui.NewTester(func(c *ui.Context) {
+				c.SetTheme(a.tokens(c).Theme)
+				c.Root().Background(c.Theme().Background)
+				if open {
+					a.PluginSheet(c, sheet)
+				}
+			}, 720, 220)
+			tt.SetDark(dark)
+			tt.SetPreferences(ui.Preferences{ReduceMotion: true})
+			tt.Frame()
+			focus := pluginIdentityFocus
+			name := "text-reopen"
+			if kind == plugincfg.Number {
+				focus = inputStateNumberFocus
+				name = "number-reopen"
+			}
+			focus(t, tt, field.Label)
+			tt.Type(edit)
+			tt.Frame()
+			open = false
+			a.ClosePluginSheet()
+			tt.Frame()
+			tt.Frame()
+			sheet.Values[field.Key] = next
+			calls = 0
+			open = true
+			tt.Frame()
+			focus(t, tt, field.Label)
+			tt.Key(ui.Cmd, ui.KeyZ)
+			tt.Frame()
+			conflictDump(t, tt, name, dark)
+			if got := refreshRead(tt); got != external {
+				t.Errorf("reopened %s resurrected old undo: %q, want %q", name, got, external)
+			}
+			if calls != 0 {
+				t.Errorf("reopened undo rewrote host %d times", calls)
+			}
+		})
+	}
+}
+
+func TestConflictRecoveryPluginTextReopenRetiresUndo(t *testing.T) {
+	checkPluginReopenHistory(t, plugincfg.Text, "/old", "/abandoned", "/external", "/external")
+}
+
+func TestConflictRecoveryPluginNumberReopenRetiresUndo(t *testing.T) {
+	checkPluginReopenHistory(t, plugincfg.Number, 5.0, "1e", "40", 40.0)
+}
+
+func TestConflictRecoveryIntegrationExtremeNumberReadable(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			field := ConfigField{Key: "limit", Label: "结果上限", Type: "number"}
+			in := Integration{ID: "local.extreme", Config: []ConfigField{field}, ConfigValues: map[string]any{field.Key: 1e308}}
+			a, tt := configIdentityFrame(t, dark, &in)
+			configIdentityFocus(t, tt, field.Label)
+			conflictDump(t, tt, "integration-extreme", dark)
+			if got := refreshRead(tt); got != "1e+308" {
+				t.Errorf("integration number expands to %d characters, want 1e+308", len(got))
+			}
+			if a.configDirty(in, a.draft(in)) || in.ConfigValues[field.Key] != 1e308 {
+				t.Error("display changed stored value")
+			}
+		})
+	}
+}
+
+func TestConflictRecoveryPluginTinyNumberReadable(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			field := plugincfg.Field{Key: "ratio", Label: "换算系数", Kind: plugincfg.Number}
+			_, sheet, tt := inputStateSheet(t, dark, field, 1e-308)
+			calls := 0
+			sheet.Change = func(string, any) { calls++ }
+			inputStateNumberFocus(t, tt, field.Label)
+			conflictDump(t, tt, "plugin-tiny", dark)
+			if got := refreshRead(tt); got != "1e-308" {
+				t.Errorf("tiny number expands to %d characters, want 1e-308", len(got))
+			}
+			for _, value := range []float64{math.SmallestNonzeroFloat64, -1e-308, 1e-7, 1e-6, 0, -1e308} {
+				sheet.Values[field.Key] = value
+				tt.Frame()
+				got, err := strconv.ParseFloat(refreshRead(tt), 64)
+				if err != nil || got != value {
+					t.Errorf("number round trip = %g, %v, want %g", got, err, value)
+				}
+			}
+			if calls != 0 {
+				t.Errorf("display wrote %d times", calls)
+			}
+		})
 	}
 }
 

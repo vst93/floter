@@ -25,3 +25,7 @@
 
 skill：已读 qiaomu-design、偏好、craft-loop、preflight、chinese-typography；Apple 供体仅映射已有单一交互色、8u 圆角与 0.5 禁用。
 craft-loop #6 编辑细节用于退役无效状态（目标 0 条过期提示）；#3 1px 焦点边与 #12 8u 槽圆角为保留验收，不凑新装饰。
+
+第三批选择修已确认的数值显示边界：config.go:824 的固定小数展开大数；
+formatFieldNumber 的无步长极小数展开零串。转科学计数法但 ParseFloat 必须逐值等于原数，0 次写回。
+跨分组移动依赖框架父节点身份，先留验证线索，不为凑数重构分组。

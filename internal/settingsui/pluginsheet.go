@@ -929,7 +929,9 @@ func quantize(field plugincfg.Field, value float64) float64 {
 // formatFieldNumber is the number a number field edits: the shortest decimal
 // spelling of the value, so "30" shows as "30" and not "30.000000".
 func formatFieldNumber(value float64) string {
-	if math.Abs(value) >= 1e21 {
+	// Scientific notation keeps both ends of the finite range readable.
+	// Unlike rounding, this spelling preserves the exact stored float.
+	if magnitude := math.Abs(value); magnitude >= 1e21 || (magnitude > 0 && magnitude < 1e-6) {
 		return strconv.FormatFloat(value, 'g', -1, 64)
 	}
 	return strconv.FormatFloat(value, 'f', -1, 64)
