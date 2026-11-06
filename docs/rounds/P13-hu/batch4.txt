@@ -1,0 +1,202 @@
+=== RUN   TestUninstallActionHasItsOwnPressedFace
+--- PASS: TestUninstallActionHasItsOwnPressedFace (0.17s)
+=== RUN   TestUninstallDangerIconKeepsWarningInk
+--- PASS: TestUninstallDangerIconKeepsWarningInk (0.00s)
+=== RUN   TestNoticeBandSpacing
+--- PASS: TestNoticeBandSpacing (0.19s)
+=== RUN   TestTheFixedUninstallPartGoesUnlitNotWashed
+    fixedpartdim_test.go:125: light: fixed crown +0 over the face, enabled +6; face off ground 9 vs 17; label 74 vs 202
+    fixedpartdim_test.go:125: dark: fixed crown +0 over the face, enabled +19; face off ground 12 vs 24; label 78 vs 198
+--- PASS: TestTheFixedUninstallPartGoesUnlitNotWashed (0.10s)
+=== RUN   TestTheFixedUninstallPartsCheckboxIsFadedOnce
+    fixedpartdim_test.go:161: light: box inside the fixed card reads 78 levels off the face, the enabled twin's 148
+    fixedpartdim_test.go:161: dark: box inside the fixed card reads 84 levels off the face, the enabled twin's 154
+--- PASS: TestTheFixedUninstallPartsCheckboxIsFadedOnce (0.07s)
+=== RUN   TestTheUninstallPartCardIsAFaceNotARing
+=== RUN   TestTheUninstallPartCardIsAFaceNotARing/light
+=== RUN   TestTheUninstallPartCardIsAFaceNotARing/dark
+--- PASS: TestTheUninstallPartCardIsAFaceNotARing (0.00s)
+    --- PASS: TestTheUninstallPartCardIsAFaceNotARing/light (0.00s)
+    --- PASS: TestTheUninstallPartCardIsAFaceNotARing/dark (0.00s)
+=== RUN   TestNoticeBandKeepsBothInsets
+=== RUN   TestNoticeBandKeepsBothInsets/light/danger=false/420
+    noticebounds_test.go:36: band={X:35 Y:24 W:350 H:33} left=11.00 right=11.00 margin=10.80
+=== RUN   TestNoticeBandKeepsBothInsets/light/danger=false/720
+    noticebounds_test.go:36: band={X:35 Y:24 W:650 H:33} left=11.00 right=11.00 margin=10.80
+=== RUN   TestNoticeBandKeepsBothInsets/light/danger=true/420
+    noticebounds_test.go:36: band={X:35 Y:24 W:350 H:33} left=11.00 right=11.00 margin=10.80
+=== RUN   TestNoticeBandKeepsBothInsets/light/danger=true/720
+    noticebounds_test.go:36: band={X:35 Y:24 W:650 H:33} left=11.00 right=11.00 margin=10.80
+=== RUN   TestNoticeBandKeepsBothInsets/dark/danger=false/420
+    noticebounds_test.go:36: band={X:35 Y:24 W:350 H:33} left=11.00 right=11.00 margin=10.80
+=== RUN   TestNoticeBandKeepsBothInsets/dark/danger=false/720
+    noticebounds_test.go:36: band={X:35 Y:24 W:650 H:33} left=11.00 right=11.00 margin=10.80
+=== RUN   TestNoticeBandKeepsBothInsets/dark/danger=true/420
+    noticebounds_test.go:36: band={X:35 Y:24 W:350 H:33} left=11.00 right=11.00 margin=10.80
+=== RUN   TestNoticeBandKeepsBothInsets/dark/danger=true/720
+    noticebounds_test.go:36: band={X:35 Y:24 W:650 H:33} left=11.00 right=11.00 margin=10.80
+--- PASS: TestNoticeBandKeepsBothInsets (0.07s)
+    --- PASS: TestNoticeBandKeepsBothInsets/light/danger=false/420 (0.01s)
+    --- PASS: TestNoticeBandKeepsBothInsets/light/danger=false/720 (0.01s)
+    --- PASS: TestNoticeBandKeepsBothInsets/light/danger=true/420 (0.01s)
+    --- PASS: TestNoticeBandKeepsBothInsets/light/danger=true/720 (0.01s)
+    --- PASS: TestNoticeBandKeepsBothInsets/dark/danger=false/420 (0.01s)
+    --- PASS: TestNoticeBandKeepsBothInsets/dark/danger=false/720 (0.01s)
+    --- PASS: TestNoticeBandKeepsBothInsets/dark/danger=true/420 (0.01s)
+    --- PASS: TestNoticeBandKeepsBothInsets/dark/danger=true/720 (0.01s)
+=== RUN   TestNoticeLongSentencePreservesAnswers
+=== RUN   TestNoticeLongSentencePreservesAnswers/light/420
+    noticebounds_test.go:74: short cancel/confirm={X:200.09999 Y:32.2 W:49.4 H:21.599998} / {X:256.69998 Y:32.2 W:118.5 H:21.599998} long={X:200.09999 Y:148.9 W:49.4 H:21.599998} / {X:256.69998 Y:148.9 W:118.5 H:21.599998}
+=== RUN   TestNoticeLongSentencePreservesAnswers/light/720
+    noticebounds_test.go:74: short cancel/confirm={X:500.10004 Y:32.2 W:49.4 H:21.599998} / {X:556.7 Y:32.2 W:118.5 H:21.599998} long={X:500.10004 Y:55.4 W:49.4 H:21.599998} / {X:556.7 Y:55.4 W:118.5 H:21.599998}
+=== RUN   TestNoticeLongSentencePreservesAnswers/dark/420
+    noticebounds_test.go:74: short cancel/confirm={X:200.09999 Y:32.2 W:49.4 H:21.599998} / {X:256.69998 Y:32.2 W:118.5 H:21.599998} long={X:200.09999 Y:148.9 W:49.4 H:21.599998} / {X:256.69998 Y:148.9 W:118.5 H:21.599998}
+=== RUN   TestNoticeLongSentencePreservesAnswers/dark/720
+    noticebounds_test.go:74: short cancel/confirm={X:500.10004 Y:32.2 W:49.4 H:21.599998} / {X:556.7 Y:32.2 W:118.5 H:21.599998} long={X:500.10004 Y:55.4 W:49.4 H:21.599998} / {X:556.7 Y:55.4 W:118.5 H:21.599998}
+--- PASS: TestNoticeLongSentencePreservesAnswers (0.07s)
+    --- PASS: TestNoticeLongSentencePreservesAnswers/light/420 (0.02s)
+    --- PASS: TestNoticeLongSentencePreservesAnswers/light/720 (0.02s)
+    --- PASS: TestNoticeLongSentencePreservesAnswers/dark/420 (0.01s)
+    --- PASS: TestNoticeLongSentencePreservesAnswers/dark/720 (0.02s)
+=== RUN   TestNoticeDisableFailureUsesErrorInk
+=== RUN   TestNoticeDisableFailureUsesErrorInk/light
+=== RUN   TestNoticeDisableFailureUsesErrorInk/dark
+--- PASS: TestNoticeDisableFailureUsesErrorInk (0.05s)
+    --- PASS: TestNoticeDisableFailureUsesErrorInk/light (0.03s)
+    --- PASS: TestNoticeDisableFailureUsesErrorInk/dark (0.02s)
+=== RUN   TestNoticeDisableCancelReturnsToSwitch
+=== RUN   TestNoticeDisableCancelReturnsToSwitch/light
+=== RUN   TestNoticeDisableCancelReturnsToSwitch/dark
+--- PASS: TestNoticeDisableCancelReturnsToSwitch (0.05s)
+    --- PASS: TestNoticeDisableCancelReturnsToSwitch/light (0.03s)
+    --- PASS: TestNoticeDisableCancelReturnsToSwitch/dark (0.02s)
+=== RUN   TestNoticeRemoveCancelReturnsToOpener
+=== RUN   TestNoticeRemoveCancelReturnsToOpener/light
+=== RUN   TestNoticeRemoveCancelReturnsToOpener/dark
+--- PASS: TestNoticeRemoveCancelReturnsToOpener (0.13s)
+    --- PASS: TestNoticeRemoveCancelReturnsToOpener/light (0.06s)
+    --- PASS: TestNoticeRemoveCancelReturnsToOpener/dark (0.06s)
+=== RUN   TestNoticeDisableKeyboardConfirmAndRetry
+=== RUN   TestNoticeDisableKeyboardConfirmAndRetry/light/en/sync
+=== RUN   TestNoticeDisableKeyboardConfirmAndRetry/light/en/delayed
+=== RUN   TestNoticeDisableKeyboardConfirmAndRetry/light/zh/sync
+=== RUN   TestNoticeDisableKeyboardConfirmAndRetry/light/zh/delayed
+=== RUN   TestNoticeDisableKeyboardConfirmAndRetry/dark/en/sync
+=== RUN   TestNoticeDisableKeyboardConfirmAndRetry/dark/en/delayed
+=== RUN   TestNoticeDisableKeyboardConfirmAndRetry/dark/zh/sync
+=== RUN   TestNoticeDisableKeyboardConfirmAndRetry/dark/zh/delayed
+--- PASS: TestNoticeDisableKeyboardConfirmAndRetry (0.12s)
+    --- PASS: TestNoticeDisableKeyboardConfirmAndRetry/light/en/sync (0.01s)
+    --- PASS: TestNoticeDisableKeyboardConfirmAndRetry/light/en/delayed (0.01s)
+    --- PASS: TestNoticeDisableKeyboardConfirmAndRetry/light/zh/sync (0.04s)
+    --- PASS: TestNoticeDisableKeyboardConfirmAndRetry/light/zh/delayed (0.01s)
+    --- PASS: TestNoticeDisableKeyboardConfirmAndRetry/dark/en/sync (0.01s)
+    --- PASS: TestNoticeDisableKeyboardConfirmAndRetry/dark/en/delayed (0.01s)
+    --- PASS: TestNoticeDisableKeyboardConfirmAndRetry/dark/zh/sync (0.01s)
+    --- PASS: TestNoticeDisableKeyboardConfirmAndRetry/dark/zh/delayed (0.01s)
+=== RUN   TestNoticeRemoveKeyboardConfirmAndRetry
+=== RUN   TestNoticeRemoveKeyboardConfirmAndRetry/light/en/sync
+=== RUN   TestNoticeRemoveKeyboardConfirmAndRetry/light/en/delayed
+=== RUN   TestNoticeRemoveKeyboardConfirmAndRetry/light/zh/sync
+=== RUN   TestNoticeRemoveKeyboardConfirmAndRetry/light/zh/delayed
+=== RUN   TestNoticeRemoveKeyboardConfirmAndRetry/dark/en/sync
+=== RUN   TestNoticeRemoveKeyboardConfirmAndRetry/dark/en/delayed
+=== RUN   TestNoticeRemoveKeyboardConfirmAndRetry/dark/zh/sync
+=== RUN   TestNoticeRemoveKeyboardConfirmAndRetry/dark/zh/delayed
+--- PASS: TestNoticeRemoveKeyboardConfirmAndRetry (0.07s)
+    --- PASS: TestNoticeRemoveKeyboardConfirmAndRetry/light/en/sync (0.01s)
+    --- PASS: TestNoticeRemoveKeyboardConfirmAndRetry/light/en/delayed (0.01s)
+    --- PASS: TestNoticeRemoveKeyboardConfirmAndRetry/light/zh/sync (0.01s)
+    --- PASS: TestNoticeRemoveKeyboardConfirmAndRetry/light/zh/delayed (0.01s)
+    --- PASS: TestNoticeRemoveKeyboardConfirmAndRetry/dark/en/sync (0.01s)
+    --- PASS: TestNoticeRemoveKeyboardConfirmAndRetry/dark/en/delayed (0.01s)
+    --- PASS: TestNoticeRemoveKeyboardConfirmAndRetry/dark/zh/sync (0.01s)
+    --- PASS: TestNoticeRemoveKeyboardConfirmAndRetry/dark/zh/delayed (0.01s)
+=== RUN   TestTheBusyUninstallPillWearsTheDimFace
+--- PASS: TestTheBusyUninstallPillWearsTheDimFace (0.07s)
+=== RUN   TestUninstallCancelForgetsThePartialSelection
+--- PASS: TestUninstallCancelForgetsThePartialSelection (0.05s)
+=== RUN   TestUninstallEscapeForgetsThePartialSelection
+--- PASS: TestUninstallEscapeForgetsThePartialSelection (0.03s)
+=== RUN   TestComponentizedUninstallListsAllFourComponents
+--- PASS: TestComponentizedUninstallListsAllFourComponents (0.00s)
+=== RUN   TestComponentizedUninstallDrawsTheReferenceRows
+--- PASS: TestComponentizedUninstallDrawsTheReferenceRows (0.28s)
+=== RUN   TestComponentizedUninstallKeepsCancelFirst
+--- PASS: TestComponentizedUninstallKeepsCancelFirst (0.24s)
+=== RUN   TestComponentizedUninstallScrimCoversTheWindow
+--- PASS: TestComponentizedUninstallScrimCoversTheWindow (0.01s)
+=== RUN   TestComponentizedUninstallEscapeClosesTheDialog
+--- PASS: TestComponentizedUninstallEscapeClosesTheDialog (0.01s)
+=== RUN   TestComponentizedUninstallManagesFocus
+--- PASS: TestComponentizedUninstallManagesFocus (0.02s)
+=== RUN   TestComponentizedUninstallActionsDisableWhileBusy
+=== RUN   TestComponentizedUninstallActionsDisableWhileBusy/busy=false
+=== RUN   TestComponentizedUninstallActionsDisableWhileBusy/busy=true
+--- PASS: TestComponentizedUninstallActionsDisableWhileBusy (0.01s)
+    --- PASS: TestComponentizedUninstallActionsDisableWhileBusy/busy=false (0.01s)
+    --- PASS: TestComponentizedUninstallActionsDisableWhileBusy/busy=true (0.00s)
+=== RUN   TestComponentizedUninstallHoldsTheBusyFaceUntilTheShellAnswers
+--- PASS: TestComponentizedUninstallHoldsTheBusyFaceUntilTheShellAnswers (0.06s)
+=== RUN   TestComponentizedUninstallFailureKeepsTheDialogOpen
+--- PASS: TestComponentizedUninstallFailureKeepsTheDialogOpen (0.07s)
+=== RUN   TestComponentizedUninstallScrimPressDoesNotCloseTheDialog
+--- PASS: TestComponentizedUninstallScrimPressDoesNotCloseTheDialog (0.01s)
+=== RUN   TestUninstallFocusRingFitsScrollViewport
+=== RUN   TestUninstallFocusRingFitsScrollViewport/light/640
+    uninstallbounds_test.go:54: button={X:473.59998 Y:499.59998 W:86.099976 H:27} point=(561,513) pixel={43 99 175 255}
+    uninstallbounds_test.go:54: button={X:473.59998 Y:499.59998 W:86.099976 H:27} point=(516,528) pixel={43 99 175 255}
+=== RUN   TestUninstallFocusRingFitsScrollViewport/light/300
+    uninstallbounds_test.go:54: button={X:473.59998 Y:251 W:86.099976 H:27} point=(561,264) pixel={43 99 175 255}
+    uninstallbounds_test.go:54: button={X:473.59998 Y:251 W:86.099976 H:27} point=(516,280) pixel={43 99 175 255}
+=== RUN   TestUninstallFocusRingFitsScrollViewport/dark/640
+    uninstallbounds_test.go:54: button={X:473.59998 Y:499.59998 W:86.099976 H:27} point=(561,513) pixel={99 134 204 255}
+    uninstallbounds_test.go:54: button={X:473.59998 Y:499.59998 W:86.099976 H:27} point=(516,528) pixel={99 134 204 255}
+=== RUN   TestUninstallFocusRingFitsScrollViewport/dark/300
+    uninstallbounds_test.go:54: button={X:473.59998 Y:251 W:86.099976 H:27} point=(561,264) pixel={99 134 204 255}
+    uninstallbounds_test.go:54: button={X:473.59998 Y:251 W:86.099976 H:27} point=(516,280) pixel={99 134 204 255}
+--- PASS: TestUninstallFocusRingFitsScrollViewport (0.13s)
+    --- PASS: TestUninstallFocusRingFitsScrollViewport/light/640 (0.03s)
+    --- PASS: TestUninstallFocusRingFitsScrollViewport/light/300 (0.03s)
+    --- PASS: TestUninstallFocusRingFitsScrollViewport/dark/640 (0.03s)
+    --- PASS: TestUninstallFocusRingFitsScrollViewport/dark/300 (0.04s)
+=== RUN   TestUninstallErrorLeavesRoomForAnswers
+=== RUN   TestUninstallErrorLeavesRoomForAnswers/light/17
+    uninstallbounds_test.go:87: error-to-actions gap=7.200 want=7.200
+=== RUN   TestUninstallErrorLeavesRoomForAnswers/light/185
+    uninstallbounds_test.go:87: error-to-actions gap=7.200 want=7.200
+=== RUN   TestUninstallErrorLeavesRoomForAnswers/dark/17
+    uninstallbounds_test.go:87: error-to-actions gap=7.200 want=7.200
+=== RUN   TestUninstallErrorLeavesRoomForAnswers/dark/185
+    uninstallbounds_test.go:87: error-to-actions gap=7.200 want=7.200
+--- PASS: TestUninstallErrorLeavesRoomForAnswers (0.17s)
+    --- PASS: TestUninstallErrorLeavesRoomForAnswers/light/17 (0.04s)
+    --- PASS: TestUninstallErrorLeavesRoomForAnswers/light/185 (0.04s)
+    --- PASS: TestUninstallErrorLeavesRoomForAnswers/dark/17 (0.04s)
+    --- PASS: TestUninstallErrorLeavesRoomForAnswers/dark/185 (0.04s)
+=== RUN   TestComponentizedUninstallDialogIsTheReferenceFloatingPane
+--- PASS: TestComponentizedUninstallDialogIsTheReferenceFloatingPane (0.02s)
+=== RUN   TestComponentizedUninstallDialogSpacing
+--- PASS: TestComponentizedUninstallDialogSpacing (0.01s)
+=== RUN   TestComponentizedUninstallActionsAreTheReferencePill
+--- PASS: TestComponentizedUninstallActionsAreTheReferencePill (0.01s)
+=== RUN   TestComponentizedUninstallTypeRegisters
+--- PASS: TestComponentizedUninstallTypeRegisters (0.02s)
+=== RUN   TestComponentizedUninstallCardAnswersThePointer
+--- PASS: TestComponentizedUninstallCardAnswersThePointer (0.05s)
+=== RUN   TestComponentizedUninstallCardDropsItsShadowOnPress
+--- PASS: TestComponentizedUninstallCardDropsItsShadowOnPress (0.01s)
+=== RUN   TestUninstallRecoveryFailureKeepsKeyboardRetry
+=== RUN   TestUninstallRecoveryFailureKeepsKeyboardRetry/light
+=== RUN   TestUninstallRecoveryFailureKeepsKeyboardRetry/dark
+--- PASS: TestUninstallRecoveryFailureKeepsKeyboardRetry (0.04s)
+    --- PASS: TestUninstallRecoveryFailureKeepsKeyboardRetry/light (0.02s)
+    --- PASS: TestUninstallRecoveryFailureKeepsKeyboardRetry/dark (0.02s)
+=== RUN   TestUninstallRecoveryDelayedFailureKeepsKeyboardRetry
+=== RUN   TestUninstallRecoveryDelayedFailureKeepsKeyboardRetry/light
+=== RUN   TestUninstallRecoveryDelayedFailureKeepsKeyboardRetry/dark
+--- PASS: TestUninstallRecoveryDelayedFailureKeepsKeyboardRetry (0.04s)
+    --- PASS: TestUninstallRecoveryDelayedFailureKeepsKeyboardRetry/light (0.02s)
+    --- PASS: TestUninstallRecoveryDelayedFailureKeepsKeyboardRetry/dark (0.02s)
+PASS
+ok  	floter/internal/settingsui	2.465s

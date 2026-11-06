@@ -1,0 +1,47 @@
+=== RUN   TestUninstallFocusRingFitsScrollViewport
+=== RUN   TestUninstallFocusRingFitsScrollViewport/light/640
+    uninstallbounds_test.go:54: button={X:473.59998 Y:495.99997 W:86.099976 H:27.00003} point=(561,509) pixel={213 213 214 255}
+    uninstallbounds_test.go:56: focused uninstall ring clipped at (561,509): {213 213 214 255}
+    uninstallbounds_test.go:54: button={X:473.59998 Y:495.99997 W:86.099976 H:27.00003} point=(516,525) pixel={213 213 214 255}
+    uninstallbounds_test.go:56: focused uninstall ring clipped at (516,525): {213 213 214 255}
+=== RUN   TestUninstallFocusRingFitsScrollViewport/light/300
+    uninstallbounds_test.go:54: button={X:473.59998 Y:238.7 W:86.099976 H:26.999985} point=(561,252) pixel={213 213 214 255}
+    uninstallbounds_test.go:56: focused uninstall ring clipped at (561,252): {213 213 214 255}
+    uninstallbounds_test.go:54: button={X:473.59998 Y:238.7 W:86.099976 H:26.999985} point=(516,267) pixel={213 213 214 255}
+    uninstallbounds_test.go:56: focused uninstall ring clipped at (516,267): {213 213 214 255}
+=== RUN   TestUninstallFocusRingFitsScrollViewport/dark/640
+    uninstallbounds_test.go:54: button={X:473.59998 Y:495.99997 W:86.099976 H:27.00003} point=(561,509) pixel={18 18 21 255}
+    uninstallbounds_test.go:56: focused uninstall ring clipped at (561,509): {18 18 21 255}
+    uninstallbounds_test.go:54: button={X:473.59998 Y:495.99997 W:86.099976 H:27.00003} point=(516,525) pixel={18 18 21 255}
+    uninstallbounds_test.go:56: focused uninstall ring clipped at (516,525): {18 18 21 255}
+=== RUN   TestUninstallFocusRingFitsScrollViewport/dark/300
+    uninstallbounds_test.go:54: button={X:473.59998 Y:238.7 W:86.099976 H:26.999985} point=(561,252) pixel={18 18 21 255}
+    uninstallbounds_test.go:56: focused uninstall ring clipped at (561,252): {18 18 21 255}
+    uninstallbounds_test.go:54: button={X:473.59998 Y:238.7 W:86.099976 H:26.999985} point=(516,267) pixel={18 18 21 255}
+    uninstallbounds_test.go:56: focused uninstall ring clipped at (516,267): {18 18 21 255}
+--- FAIL: TestUninstallFocusRingFitsScrollViewport (0.25s)
+    --- FAIL: TestUninstallFocusRingFitsScrollViewport/light/640 (0.14s)
+    --- FAIL: TestUninstallFocusRingFitsScrollViewport/light/300 (0.04s)
+    --- FAIL: TestUninstallFocusRingFitsScrollViewport/dark/640 (0.03s)
+    --- FAIL: TestUninstallFocusRingFitsScrollViewport/dark/300 (0.04s)
+=== RUN   TestUninstallErrorLeavesRoomForAnswers
+=== RUN   TestUninstallErrorLeavesRoomForAnswers/light/17
+    uninstallbounds_test.go:87: error-to-actions gap=-0.000 want=7.200
+    uninstallbounds_test.go:89: failure band touches answers: gap=-0.000 want=7.200
+=== RUN   TestUninstallErrorLeavesRoomForAnswers/light/185
+    uninstallbounds_test.go:87: error-to-actions gap=0.000 want=7.200
+    uninstallbounds_test.go:89: failure band touches answers: gap=0.000 want=7.200
+=== RUN   TestUninstallErrorLeavesRoomForAnswers/dark/17
+    uninstallbounds_test.go:87: error-to-actions gap=-0.000 want=7.200
+    uninstallbounds_test.go:89: failure band touches answers: gap=-0.000 want=7.200
+=== RUN   TestUninstallErrorLeavesRoomForAnswers/dark/185
+    uninstallbounds_test.go:87: error-to-actions gap=0.000 want=7.200
+    uninstallbounds_test.go:89: failure band touches answers: gap=0.000 want=7.200
+--- FAIL: TestUninstallErrorLeavesRoomForAnswers (0.15s)
+    --- FAIL: TestUninstallErrorLeavesRoomForAnswers/light/17 (0.04s)
+    --- FAIL: TestUninstallErrorLeavesRoomForAnswers/light/185 (0.04s)
+    --- FAIL: TestUninstallErrorLeavesRoomForAnswers/dark/17 (0.04s)
+    --- FAIL: TestUninstallErrorLeavesRoomForAnswers/dark/185 (0.04s)
+FAIL
+FAIL	floter/internal/settingsui	0.411s
+FAIL

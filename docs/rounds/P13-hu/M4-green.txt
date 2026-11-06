@@ -1,0 +1,34 @@
+=== RUN   TestUninstallFocusRingFitsScrollViewport
+=== RUN   TestUninstallFocusRingFitsScrollViewport/light/640
+    uninstallbounds_test.go:54: button={X:473.59998 Y:499.59998 W:86.099976 H:27} point=(561,513) pixel={43 99 175 255}
+    uninstallbounds_test.go:54: button={X:473.59998 Y:499.59998 W:86.099976 H:27} point=(516,528) pixel={43 99 175 255}
+=== RUN   TestUninstallFocusRingFitsScrollViewport/light/300
+    uninstallbounds_test.go:54: button={X:473.59998 Y:251 W:86.099976 H:27} point=(561,264) pixel={43 99 175 255}
+    uninstallbounds_test.go:54: button={X:473.59998 Y:251 W:86.099976 H:27} point=(516,280) pixel={43 99 175 255}
+=== RUN   TestUninstallFocusRingFitsScrollViewport/dark/640
+    uninstallbounds_test.go:54: button={X:473.59998 Y:499.59998 W:86.099976 H:27} point=(561,513) pixel={99 134 204 255}
+    uninstallbounds_test.go:54: button={X:473.59998 Y:499.59998 W:86.099976 H:27} point=(516,528) pixel={99 134 204 255}
+=== RUN   TestUninstallFocusRingFitsScrollViewport/dark/300
+    uninstallbounds_test.go:54: button={X:473.59998 Y:251 W:86.099976 H:27} point=(561,264) pixel={99 134 204 255}
+    uninstallbounds_test.go:54: button={X:473.59998 Y:251 W:86.099976 H:27} point=(516,280) pixel={99 134 204 255}
+--- PASS: TestUninstallFocusRingFitsScrollViewport (0.11s)
+    --- PASS: TestUninstallFocusRingFitsScrollViewport/light/640 (0.06s)
+    --- PASS: TestUninstallFocusRingFitsScrollViewport/light/300 (0.02s)
+    --- PASS: TestUninstallFocusRingFitsScrollViewport/dark/640 (0.01s)
+    --- PASS: TestUninstallFocusRingFitsScrollViewport/dark/300 (0.02s)
+=== RUN   TestUninstallErrorLeavesRoomForAnswers
+=== RUN   TestUninstallErrorLeavesRoomForAnswers/light/17
+    uninstallbounds_test.go:87: error-to-actions gap=7.200 want=7.200
+=== RUN   TestUninstallErrorLeavesRoomForAnswers/light/185
+    uninstallbounds_test.go:87: error-to-actions gap=7.200 want=7.200
+=== RUN   TestUninstallErrorLeavesRoomForAnswers/dark/17
+    uninstallbounds_test.go:87: error-to-actions gap=7.200 want=7.200
+=== RUN   TestUninstallErrorLeavesRoomForAnswers/dark/185
+    uninstallbounds_test.go:87: error-to-actions gap=7.200 want=7.200
+--- PASS: TestUninstallErrorLeavesRoomForAnswers (0.06s)
+    --- PASS: TestUninstallErrorLeavesRoomForAnswers/light/17 (0.01s)
+    --- PASS: TestUninstallErrorLeavesRoomForAnswers/light/185 (0.02s)
+    --- PASS: TestUninstallErrorLeavesRoomForAnswers/dark/17 (0.01s)
+    --- PASS: TestUninstallErrorLeavesRoomForAnswers/dark/185 (0.02s)
+PASS
+ok  	floter/internal/settingsui	0.183s

@@ -157,7 +157,7 @@ func (a *App) uninstallDialog(c *ui.Context, copy i18n.Settings, integration Int
 		// its content box exactly that expression, so the pane can never grow
 		// past the window it centers in.
 		panel.FillWidth().MaxHeightPercent(100).
-			Padding(t.Space(4.25)).MinWidth(t.Space(105)).MaxWidth(t.Space(120)).
+			MinWidth(t.Space(105)).MaxWidth(t.Space(120)).
 			Radius(tokens.RadiusSM).Border(1, tokens.InputStroke).
 			Background(tokens.Float).TextColor(t.Text)
 		// The floater's throw and its lit top rim, as `--elev-3` composed them —
@@ -174,9 +174,10 @@ func (a *App) uninstallDialog(c *ui.Context, copy i18n.Settings, integration Int
 		panel.InsetShadow(0, 1, 0, 0, tokens.EdgeHighlight)
 		// `overflow-y: auto` (`:17-34`): a short window scrolls the questions
 		// instead of pushing the actions outside the pane. The scroll viewport
-		// is the pane's content box, so the 17px padding stays put exactly as
-		// the reference's scroll container keeps it.
-		ui.Scroll(c).FillWidth().Grow(1).Children(func() {
+		// includes the pane's 17px inset: putting that padding on the scroll
+		// keeps the same content coordinates while leaving room to paint the
+		// buttons' outside focus rings before the pane's clipping edge.
+		ui.Scroll(c).FillWidth().Grow(1).Padding(t.Space(4.25)).Children(func() {
 			// `.extensions-dialog-title { color: var(--text-strong); font-size: 13px }`
 			// (`:41-45`): the ladder's title step, not the body step this dialog
 			// used to draw its heading at.
@@ -202,18 +203,26 @@ func (a *App) uninstallDialog(c *ui.Context, copy i18n.Settings, integration Int
 			// (`.extensions-notice--error`, `src/styles/extensions.css:174-178`).
 			if message := a.uninstallError[integration.ID]; message != "" {
 				a.noticeBand(c, true, message, func(*ui.Element) {})
+				ui.Box(c).Height(t.Space(2)).Shrink(0)
 			}
 			// `.extensions-dialog-actions { justify-content: flex-end; gap: 7px }`
 			// (`:74-78`): the pair sits at the row's right end, seven units apart.
 			// A failure inserts a notice before this row. Keep the answers'
 			// identity so the keyboard can retry or cancel from its current slot.
-			ui.Row(c.Key("uninstall.actions")).FillWidth().Gap(t.Space(1.75)).Justify(ui.End).AlignItems(ui.Center).Children(func() {
+			actions := ui.Row(c.Key("uninstall.actions")).FillWidth().Gap(t.Space(1.75)).Justify(ui.End).AlignItems(ui.Center).
+				Padding(0, 0, 3, 0).Margin(0, 0, -3, 0)
+			focused := 0
+			actions.Children(func() {
 				// The reference focuses Cancel on mount
 				// (`cancelRef.current?.focus({ preventScroll: true })`), the one
 				// target that keeps the answer to "remove all of this?" a deliberate
 				// one. Both actions carry the reference's `busy` prop, so a question
 				// already being answered cannot be answered again.
-				if a.uninstallActionButton(c, copy.PermissionsCancel, false, busy, nil).Bind(&cancel).Clicked() {
+				cancelButton := a.uninstallActionButton(c, copy.PermissionsCancel, false, busy, nil).Bind(&cancel)
+				if cancelButton.Focused() {
+					focused = 1
+				}
+				if cancelButton.Clicked() {
 					a.uninstallOpen[integration.ID] = false
 					a.resetUninstallDraft(integration.ID)
 					return
@@ -222,7 +231,11 @@ func (a *App) uninstallDialog(c *ui.Context, copy i18n.Settings, integration Int
 				// `settings.extensions.uninstall` — one word for every kind the
 				// dialog serves (`ComponentizedUninstallDialog.tsx:161`), not the
 				// per-kind verb the row and the bar carry.
-				if a.uninstallActionButton(c, copy.IntegrationsUninstall, true, busy, checkIcon).Clicked() {
+				confirmButton := a.uninstallActionButton(c, copy.IntegrationsUninstall, true, busy, checkIcon)
+				if confirmButton.Focused() {
+					focused = 2
+				}
+				if confirmButton.Clicked() {
 					if a.Actions.UninstallComponents == nil {
 						// The dialog only opens when the shell wired the componentized
 						// action, so this arm is the headless-test fallback.
@@ -250,6 +263,24 @@ func (a *App) uninstallDialog(c *ui.Context, copy i18n.Settings, integration Int
 					return
 				}
 			})
+			revealed := ui.Local(actions, "focus-reveal", func() struct {
+				focus int
+				error string
+			} {
+				return struct {
+					focus int
+					error string
+				}{}
+			})
+			message := a.uninstallError[integration.ID]
+			if focused != 0 && (revealed.focus != focused || revealed.error != message) {
+				// Reveal the existing 2px focus ring plus its 1px gap too.
+				// Negative margin keeps the dialog's content height unchanged.
+				// Only a new keyboard target or result reveals; wheel scrolling
+				// while a button stays focused remains under the user's control.
+				actions.ScrollIntoView()
+			}
+			revealed.focus, revealed.error = focused, message
 		})
 	})
 	if dismissed {
