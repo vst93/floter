@@ -1,0 +1,23 @@
+internal/settingsui/noticefocus.go: OK
+=== RUN   TestMissingOutletToggle
+=== RUN   TestMissingOutletToggle/light/entry
+=== RUN   TestMissingOutletToggle/light/elsewhere
+=== RUN   TestMissingOutletToggle/dark/entry
+=== RUN   TestMissingOutletToggle/dark/elsewhere
+--- PASS: TestMissingOutletToggle (0.15s)
+    --- PASS: TestMissingOutletToggle/light/entry (0.10s)
+    --- PASS: TestMissingOutletToggle/light/elsewhere (0.02s)
+    --- PASS: TestMissingOutletToggle/dark/entry (0.02s)
+    --- PASS: TestMissingOutletToggle/dark/elsewhere (0.02s)
+=== RUN   TestMissingOutletDisable
+=== RUN   TestMissingOutletDisable/light/entry
+=== RUN   TestMissingOutletDisable/light/elsewhere
+=== RUN   TestMissingOutletDisable/dark/entry
+=== RUN   TestMissingOutletDisable/dark/elsewhere
+--- PASS: TestMissingOutletDisable (0.10s)
+    --- PASS: TestMissingOutletDisable/light/entry (0.03s)
+    --- PASS: TestMissingOutletDisable/light/elsewhere (0.02s)
+    --- PASS: TestMissingOutletDisable/dark/entry (0.02s)
+    --- PASS: TestMissingOutletDisable/dark/elsewhere (0.02s)
+PASS
+ok  	floter/internal/settingsui	0.251s

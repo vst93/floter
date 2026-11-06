@@ -34,3 +34,12 @@ V/B/S 旧断言修改 0/0/0，无新增 Skip。全量基线运行中，不提前
 4. 现象：系统拥有的工具 Reconnect 在飞时退场，同样丢失当前可用出口。改动：连接修复和重新检查共享既有 repair 焦点归属，两个入口均在行消失时归还。验证：运行时不可用 → Reconnect → 消失/重现 → 延迟失败；旧串 `missing reconnect row lost keyboard outlet "Close settings"`，主动移焦对照不受影响。
 
 第一批 **a7d619df** 已推送，MD5 还原后 touch 复验 **10 PASS**。第二批相关 **278 PASS / 0 FAIL**、包 vet 净；M2 撤销 repair 交接后四个深浅 entry 红，elsewhere 全绿。还原、touch 复验与图片随本批落盘。V/B/S 旧断言仍为 0/0/0。
+
+## 第三批：启停入口
+
+第二批 **55a34832** 已推送，M2 还原复验 **10 PASS**。
+
+5. 现象：启用写回未返回时整行消失，键盘失效；重现后旧开关焦点可能重新接管。改动：退役失踪目标的 toggle UI 句柄，真实持焦时归还页头。验证：关闭的开关 → Tab/Space 启用 → 消失/返回 → 失败；旧串 `missing toggle row lost keyboard outlet "Close settings"`，整个序列只写入一次。
+6. 现象：停用答案已派发、仍处忙态时目标消失，在重新出现之前没有可用焦点。改动：同样归还 disable 答案焦点，既有 busy 与回调保持。验证：点击开关开问题 → Tab/Space 答案 → 整行退场；旧串 `missing disable row lost keyboard outlet "Close settings"`，失败后原动作结算、页头仍可键盘关闭。
+
+第三批相关 **288 PASS / 0 FAIL**、包 vet 净。M3 暂时撤去 toggle/disable 交接，四个 entry 场景红，已有页面焦点的对照不受影响；恢复后 MD5 与 touch 复跑结果随本批保存。图片继续使用原始 Tester 事件。
