@@ -1141,6 +1141,7 @@ func (a *App) View(c *ui.Context) {
 	defer a.syncShortcutSuspension()
 	copy := i18n.For(a.settings().Language).Settings
 	t := c.Theme()
+	a.retireMissingConfirmations()
 
 	// A write the page's own controls could not commit is announced for a few
 	// seconds; while one is up the frame keeps coming so the deadline is

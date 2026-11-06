@@ -1,6 +1,6 @@
 # P13-hw：确认在列表刷新与忙态下的归属
 
-开盘 ac1575a3，pull 已最新、工作树干净。15:04 UTC 开始。Codex 独立执行；不使用其他执行器。基线中文 locale 正在实跑；最初继承 C.UTF-8 的运行不作为设计基线，保留原始输出。
+开盘 ac1575a3，pull 已最新、工作树干净。15:04 UTC 开始。Codex 独立执行；不使用其他执行器。基线中文 locale 实测 **4135 PASS / 0 FAIL / 2896 函数**；最初继承 C.UTF-8 的运行不作为设计基线，保留原始输出。
 
 ## Stash 清点
 
@@ -27,3 +27,12 @@
 2. 现象：移除 busy 同样让后开丢弃丢掉唤醒。改动：移除忙态采用同族规则。验证：相同真实事件与深浅两场景，运行操作不取消、错误不丢失。
 
 定向回归 **101 PASS / 0 FAIL**，包 vet 净。M1 回注旧分支，四场景实跑红：`later discard missed its deadline behind a busy confirmation`；恢复后 md5sum -c 通过，touch 后 **6 PASS**。旧 V/B/S 0/0/0。
+
+第一批 53ee1228 已提交推送。
+
+### 第二批：消失目标的停用/移除问题退场
+
+3. 现象：已打开停用确认的集成从列表消失后，Escape 只关掉看不见的问题；同 ID 重新出现还带着旧问题。改动：View 在路由 Escape 前按当前安装列表退役不存在目标的停用问题、时钟和旧错误，不动 busy。验证：深浅 × 消失后 Escape/重新出现四场景，Close=1 或旧 Cancel 不复活，破坏性调用 0 次。
+4. 现象：移除确认同样吞键并在刷新后复活。改动：按同一列表事实清理移除确认。验证：同上四场景，原移除入口仍存在，未派发操作。
+
+相关回归 **111 PASS / 0 FAIL**，包 vet 净。M2 撤销清理入口后八场景红：`stale disable question revived after list refresh`、`invisible remove question swallowed Escape: close=0`（另外两种同族报错也在原日志）。MD5 恢复与 touch 后 **10 PASS**。旧 V/B/S 0/0/0。

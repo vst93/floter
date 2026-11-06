@@ -27,7 +27,7 @@
 
 ## 门槛与变异
 
-中文 locale 与 GOMAXPROCS=4 统一；开盘全量在运行，实测结束即补基线。函数数开盘 2896。
+中文 locale 与 GOMAXPROCS=4 统一；开盘实测 **4135 PASS / 0 FAIL / 2896 函数**。
 
 `gofmt -l cmd internal` 空；linux/windows/darwin `go vet ./...` 净；普通与 verbose `go test -count=1 ./...` 全绿；三平台 `go build ./...`。PASS 不下降。
 
