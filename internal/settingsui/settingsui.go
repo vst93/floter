@@ -7261,6 +7261,27 @@ type runRefusal struct {
 	failure    extensions.ParamFailure
 }
 
+// A manifest may refresh synchronously inside RunWithParams. Compare semantic
+// input constraints by ID, allowing labels and ordering to change freely.
+func runParametersMatch(submitted []extensions.ParamDefinition, current []Param) bool {
+	if len(submitted) != len(current) {
+		return false
+	}
+	for _, old := range submitted {
+		found := false
+		for _, param := range current {
+			if param.ID == old.ID {
+				found = param.Kind == old.Kind && param.Required == old.Required && param.Flag == old.Flag && slices.Equal(param.Options, old.Options)
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
+}
+
 func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration) {
 	if a.Actions.RunWithParams == nil || len(integration.Params) == 0 {
 		// Retire feedback with the form, but preserve its session answers.
@@ -7443,6 +7464,17 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 					answers[key] = value
 				}
 				if failure := a.Actions.RunWithParams(integration.ID, submitted); failure != nil {
+					// Closing the form or replacing its inputs retires this result
+					// before it can flash under the old controls for one frame.
+					if !a.runOpen[integration.ID] || a.Actions.RunWithParams == nil {
+						return
+					}
+					if a.Integrations != nil {
+						current, exists := a.integrationByID(integration.ID)
+						if !exists || !runParametersMatch(params, current.Params) {
+							return
+						}
+					}
 					if a.runError == nil {
 						a.runError = map[string]string{}
 					}
