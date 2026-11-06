@@ -6807,7 +6807,12 @@ func (a *App) expireConfirmations(c *ui.Context) {
 			delete(a.disableConfirmAt, id)
 			continue
 		}
-		if now.Sub(at) > confirmWindow && !a.disableBusy[id] {
+		// The result wakes a busy question. Its expired ask-time must not
+		// hide a later, unanswered question's deadline (P13-hw).
+		if a.disableBusy[id] {
+			continue
+		}
+		if now.Sub(at) > confirmWindow {
 			a.disableConfirm[id] = false
 			delete(a.disableConfirmAt, id)
 			continue
@@ -6819,7 +6824,10 @@ func (a *App) expireConfirmations(c *ui.Context) {
 			delete(a.removeConfirmAt, id)
 			continue
 		}
-		if now.Sub(at) > confirmWindow && !a.removeBusy[id] {
+		if a.removeBusy[id] {
+			continue
+		}
+		if now.Sub(at) > confirmWindow {
 			a.removeConfirm[id] = false
 			delete(a.removeConfirmAt, id)
 			continue
