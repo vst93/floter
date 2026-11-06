@@ -1,0 +1,27 @@
+=== RUN   TestConfigRefreshRemovedValueUsesCurrentDefault
+=== RUN   TestConfigRefreshRemovedValueUsesCurrentDefault/light
+    configrefresh_test.go:24: removed host value remains visible: "/workspace/old", want ""
+=== RUN   TestConfigRefreshRemovedValueUsesCurrentDefault/light/workspace/default
+    configrefresh_test.go:24: removed host value remains visible: "/workspace/old", want "/workspace/default"
+=== RUN   TestConfigRefreshRemovedValueUsesCurrentDefault/dark
+    configrefresh_test.go:24: removed host value remains visible: "/workspace/old", want ""
+=== RUN   TestConfigRefreshRemovedValueUsesCurrentDefault/dark/workspace/default
+    configrefresh_test.go:24: removed host value remains visible: "/workspace/old", want "/workspace/default"
+--- FAIL: TestConfigRefreshRemovedValueUsesCurrentDefault (0.05s)
+    --- FAIL: TestConfigRefreshRemovedValueUsesCurrentDefault/light (0.03s)
+    --- FAIL: TestConfigRefreshRemovedValueUsesCurrentDefault/light/workspace/default (0.01s)
+    --- FAIL: TestConfigRefreshRemovedValueUsesCurrentDefault/dark (0.01s)
+    --- FAIL: TestConfigRefreshRemovedValueUsesCurrentDefault/dark/workspace/default (0.01s)
+=== RUN   TestConfigRefreshUpdatesOnlyUntouchedValues
+=== RUN   TestConfigRefreshUpdatesOnlyUntouchedValues/light
+    configrefresh_test.go:54: external host value hidden by old draft: "/workspace/old"
+    configrefresh_test.go:76: new host generation remains hidden after save: "/workspace/local"
+=== RUN   TestConfigRefreshUpdatesOnlyUntouchedValues/dark
+    configrefresh_test.go:54: external host value hidden by old draft: "/workspace/old"
+    configrefresh_test.go:76: new host generation remains hidden after save: "/workspace/local"
+--- FAIL: TestConfigRefreshUpdatesOnlyUntouchedValues (0.02s)
+    --- FAIL: TestConfigRefreshUpdatesOnlyUntouchedValues/light (0.01s)
+    --- FAIL: TestConfigRefreshUpdatesOnlyUntouchedValues/dark (0.01s)
+FAIL
+FAIL	floter/internal/settingsui	0.075s
+FAIL

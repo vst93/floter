@@ -50,6 +50,9 @@ type configDraft struct {
 	// reference's `setSavedConfigValues(saved.values)` did
 	// (`ExtensionsPanel.tsx:2001`).
 	saved map[string]any
+	// observed is the last effective host generation, separate from saved:
+	// a successful save can precede the shell's refreshed integration list.
+	observed map[string]any
 }
 
 // liveText is one field's displayed text: what the user has typed, or the
@@ -149,6 +152,35 @@ func (a *App) draft(integration Integration) *configDraft {
 		// values it was created with, so the dirty check has a baseline.
 		draft.saved = cloneConfigValues(draft.values)
 	}
+	incoming := make(map[string]any, len(integration.Config))
+	for _, field := range integration.Config {
+		value, exists := integration.ConfigValues[field.Key]
+		if !exists {
+			value, exists = field.Default, field.Default != nil
+		}
+		if exists {
+			incoming[field.Key] = value
+		}
+		previous, hadPrevious := draft.observed[field.Key]
+		if draft.observed == nil || (hadPrevious == exists && configValuesEqual(previous, value)) {
+			continue
+		}
+		current, hasCurrent := draft.values[field.Key]
+		saved, hasSaved := draft.saved[field.Key]
+		_, editing := draft.live[field.Key]
+		if editing || hasCurrent != hasSaved || !configValuesEqual(current, saved) {
+			continue
+		}
+		// Only a genuinely new host generation can replace an untouched
+		// field. Local edits and partial text keep their existing ownership.
+		if exists {
+			draft.values[field.Key], draft.saved[field.Key] = value, value
+		} else {
+			delete(draft.values, field.Key)
+			delete(draft.saved, field.Key)
+		}
+	}
+	draft.observed = incoming
 	// A refreshed schema may introduce fields after this draft was opened.
 	// Initialize only absent keys; an explicit nil is an existing empty/invalid
 	// edit and must not be replaced by the default on the next frame.

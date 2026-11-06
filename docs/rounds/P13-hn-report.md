@@ -65,3 +65,12 @@ M2 实跑回退这两处产品代码：`same number dispatched 1 writes`、`same
 M3 实跑产品回退：`finite slider readout became "+Inf"` 与 `stored decimal paints floating tail: "0.30000000000000004"`；md5sum 还原 OK，touch 后相关回归 55 PASS / 0 FAIL。V/B/S 0/0/0。
 
 规格纠正：小于 1e-6 的步长在宿主 clampStep 已丢精度，不能只改界面伪装支持。本轮不改变宿主存储语义。未知单选值属于原待拍板项，不实现原规格第 6 条，改为集成配置被外部删除后的显示同步。
+
+第三批提交 0972038a 已推送，相关 vet 通过。
+
+## 第四批（6–7）
+
+6. 现象：集成配置的目录键被外部移除，框仍显示 /workspace/old。改动：记录有效宿主值的代际，仅更新未编辑字段；移除后回到默认值或空值。验证：深浅 × 有/无默认值，实际聚焦复制得到当前值，表单不被误标为 dirty。
+7. 现象：外部更新目录，已经打开的表单仍显示旧目录。改动：区分最后观察到的宿主值与保存基线，真实新一代只同步未编辑字段。验证：外部目录立即可见，数字半输入 1e 与本地目录保留；保存后未刷新的旧列表不回滚，新一代仍能跟随。
+
+M4 原始错误：`removed host value remains visible: "/workspace/old", want ""`、`external host value hidden by old draft: "/workspace/old"`、`new host generation remains hidden after save: "/workspace/local"`。回退产品实跑红，MD5 还原 OK，touch 后相关回归 20 PASS / 0 FAIL。V/B/S 0/0/0。
