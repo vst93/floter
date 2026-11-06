@@ -1,6 +1,7 @@
 package settingsui
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
@@ -266,5 +267,98 @@ func TestClosingThePluginSheetForgetsItsScroll(t *testing.T) {
 	}
 	if a.sheetPlugin != "" {
 		t.Errorf("the closed sheet kept its plugin id: %q", a.sheetPlugin)
+	}
+}
+
+// A failed disable leaves its sentence on the band, which is right while the
+// question is up. Once the question is answered "cancel", that failure belongs
+// to a question that no longer exists: asking again must open on the question,
+// not on last time's error.
+func TestAFreshDisableQuestionDropsTheOldFailure(t *testing.T) {
+	en := i18n.For("en").Settings
+	a := New(newStore(t), Actions{
+		SetIntegrationEnabled: func(id string, enabled bool, done func(error)) {
+			if done != nil {
+				done(errors.New("disk is full"))
+			}
+		},
+	})
+	a.Integrations = func() []Integration {
+		return []Integration{{ID: "v", Name: "V Tools", Enabled: true, Running: true}}
+	}
+	tt := render(t, a, 720, 900)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if err := tt.Click("Enabled"); err != nil {
+		t.Fatalf("the enable switch: %v", err)
+	}
+	tt.Frame()
+	if err := tt.Click("Disable integration"); err != nil {
+		t.Fatalf("the confirm: %v", err)
+	}
+	tt.Frame()
+	if !tt.HasText("disk is full") {
+		t.Fatalf("the failure is not on the band: %q", tt.Texts())
+	}
+	if err := tt.Click(en.IntegrationsCancel); err != nil {
+		t.Fatalf("cancel: %v", err)
+	}
+	tt.Frame()
+	if err := tt.Click("Enabled"); err != nil {
+		t.Fatalf("the switch again: %v", err)
+	}
+	tt.Frame()
+	question := en.DisableTitle("V Tools") + " " + en.DisableDescription
+	if !tt.HasText(question) {
+		t.Errorf("the fresh question is missing: %q", tt.Texts())
+	}
+	if tt.HasText("disk is full") {
+		t.Errorf("the fresh question still carries the previous failure: %q", tt.Texts())
+	}
+}
+
+// The removal bar is the same family and the same rule.
+func TestAFreshRemovalQuestionDropsTheOldFailure(t *testing.T) {
+	en := i18n.For("en").Settings
+	a := New(newStore(t), Actions{
+		UninstallIntegration: func(id, name, kind string, done func(error)) {
+			if done != nil {
+				done(errors.New("permission denied"))
+			}
+		},
+	})
+	a.Integrations = func() []Integration {
+		return []Integration{{ID: "pkg", Name: "V Tools", DistributionSource: "local"}}
+	}
+	tt := render(t, a, 720, 1200)
+	if err := tt.Click("Integrations"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if err := tt.Click(en.IntegrationsRemovePackage); err != nil {
+		t.Fatalf("the removal button: %v", err)
+	}
+	tt.Frame()
+	cancel := mustFind(t, tt, en.IntegrationsCancel)
+	tt.ClickAt(cancel.X+cancel.W+30, cancel.Y+cancel.H/2)
+	tt.Frame()
+	if !tt.HasText("permission denied") {
+		t.Fatalf("the failure is not on the band: %q", tt.Texts())
+	}
+	if err := tt.Click(en.IntegrationsCancel); err != nil {
+		t.Fatalf("cancel: %v", err)
+	}
+	tt.Frame()
+	if err := tt.Click(en.IntegrationsRemovePackage); err != nil {
+		t.Fatalf("the removal button again: %v", err)
+	}
+	tt.Frame()
+	if !tt.HasText("Remove V Tools?") {
+		t.Errorf("the fresh question is missing: %q", tt.Texts())
+	}
+	if tt.HasText("permission denied") {
+		t.Errorf("the fresh question still carries the previous failure: %q", tt.Texts())
 	}
 }

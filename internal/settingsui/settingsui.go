@@ -6707,7 +6707,9 @@ func (a *App) finishDisableConfirmation(id string, err error) {
 	}
 }
 
-// requestRemove opens the confirmation for deleting an integration.
+// requestRemove opens the confirmation for deleting an integration. Like the
+// disable bar, a fresh ask starts clean: a failure that belonged to the
+// previous question does not stand in for this one's.
 func (a *App) requestRemove(id string) {
 	if a.removeConfirm == nil {
 		a.removeConfirm = map[string]bool{}
@@ -6715,6 +6717,7 @@ func (a *App) requestRemove(id string) {
 	if a.removeConfirmAt == nil {
 		a.removeConfirmAt = map[string]time.Time{}
 	}
+	delete(a.removeError, id)
 	a.removeConfirm[id] = true
 	a.removeConfirmAt[id] = a.now()
 }
