@@ -168,6 +168,15 @@ func (a *App) draft(integration Integration) *configDraft {
 		current, hasCurrent := draft.values[field.Key]
 		saved, hasSaved := draft.saved[field.Key]
 		edit, editing := draft.live[field.Key]
+		if exists && hasCurrent && configValuesEqual(current, value) {
+			// An external writer can land the exact same edit. It is now
+			// saved too; only partial/invalid display text keeps its ownership.
+			if parsed, problem := ConfigValueProblem(field, edit, a.copy()); !editing || (problem == "" && configValuesEqual(parsed, value)) {
+				draft.saved[field.Key] = value
+				draft.clearLiveField(field)
+				continue
+			}
+		}
 		if editing {
 			// Returning to the saved value withdraws this edit. A numeric
 			// spelling such as 5.0 is the same value, but 1e is still a draft.
@@ -264,9 +273,17 @@ func (a *App) configFields(c *ui.Context, copy i18n.Settings, integration Integr
 	// Keep values and saved edits; only range gestures belong to visible lists.
 	if draft := a.configDrafts[integration.ID]; draft != nil {
 		active := make(map[string]bool)
+		fields := make(map[string]bool)
 		for _, field := range integration.Config {
+			fields[field.Key] = true
 			if strings.EqualFold(field.Type, "multiselect") {
 				active[field.Key] = true
+			}
+		}
+		for key := range draft.live {
+			if !fields[key] {
+				delete(draft.live, key)
+				a.clearConfigFieldError(integration.ID, key)
 			}
 		}
 		for key := range draft.multiAnchor {

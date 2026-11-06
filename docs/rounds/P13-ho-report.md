@@ -35,3 +35,14 @@ chinese-typography 与 Apple 供体已读。未调用外部模型或子代理。
 M1 回退 config.go 实跑：`reverted text masks host update: "/workspace/initial", want "/workspace/external"`；
 `reverted number masks host update: "5.0", want "40"`。恢复 md5sum OK，touch 后相关回归 50 PASS / 0 FAIL，settingsui vet 通过。
 V/B/S 0/0/0，旧测试零修改；新增 2 函数，截图 before/after 深浅均生成。
+
+## 第二批（3–4）
+
+3. 现象：数字输入 1e，schema 移除字段又重新加入，旧半输入和解析错误一起复活。
+   改动：移除字段时退役 live 与其错误，保留已有 values 保存语义。验证：重加后显示空值，错误消失，可输入 8。
+4. 现象：外部写入已与本地路径相同，状态仍显示 Unsaved changes，下一代路径仍被遮住。
+   改动：仅当新宿主代际与合法编辑同值时确认 saved、释放 live。验证：Saved 恢复，下一代 latest 可见。
+
+M2 原文：`removed number resurrected partial text: "1e"`、`removed number resurrected old parse error`、
+`host-confirmed edit still says Unsaved changes`、`host-confirmed edit masks next generation: "/workspace/shared"`。
+两项深浅实跑红，md5sum OK、touch 后相关 56 PASS / 0 FAIL，vet 通过。V/B/S 0/0/0。
