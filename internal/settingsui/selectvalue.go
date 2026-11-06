@@ -51,7 +51,7 @@ func valueSelect[T comparable](c *ui.Context, selected *T, labels []string, valu
 	// An already closed select has no stale menu to dismiss. Carry its
 	// keyboard target across invalidation without reopening it or changing
 	// the value. An open invalidated menu keeps its existing dismissal path.
-	keepFocus := enabled && unknownChanged && !lifetime.open && lifetime.trigger.Focused(c)
+	keepFocus := enabled && unknownChanged && lifetime.trigger.Focused(c)
 	if unknownChanged || lifetime.enabled != enabled {
 		lifetime.generation++
 	}
