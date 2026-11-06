@@ -123,3 +123,54 @@ func TestConfigEpochReopenedAction(t *testing.T) {
 		})
 	}
 }
+
+func checkConfigEpochSibling(t *testing.T, scenario string) {
+	t.Helper()
+	for _, dark := range []bool{false, true} {
+		for _, accept := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/accepted=%v", appearanceName(dark), accept), func(t *testing.T) {
+				a, owner, config := configEpochApp(dark)
+				calls := 0
+				owner.Actions.ConfigChange = func(_ string, key string, value any) plugincfg.Values {
+					calls++
+					if key != "enabled" || value != false {
+						t.Errorf("wrong write %s=%v", key, value)
+					}
+					if scenario == "added" {
+						config.Schema.Fields = append(config.Schema.Fields, plugincfg.Field{Key: "format", Kind: plugincfg.Radio, Label: "保存格式", Options: []plugincfg.Option{{Value: "text", Label: "文字"}, {Value: "html", Label: "网页"}}})
+						config.Values = plugincfg.Values{"enabled": false, "limit": float64(25), "format": "html"}
+					} else {
+						config.Schema.Fields = append(config.Schema.Fields[:1:1], config.Schema.Fields[2:]...)
+						config.Values = plugincfg.Values{"enabled": false}
+					}
+					if accept {
+						return plugincfg.Values{"enabled": true, "limit": float64(80)}
+					}
+					return nil
+				}
+				tt := configEpochFrame(t, dark, owner, a)
+				if err := tt.Click("记录历史"); err != nil {
+					t.Fatal(err)
+				}
+				tt.Frame()
+				epochDump(t, tt, fmt.Sprintf("sibling-%s-%v", scenario, accept), dark)
+				if calls != 1 {
+					t.Fatalf("writes=%d", calls)
+				}
+				if config.Failed || config.Values["enabled"] != false {
+					t.Errorf("%s refresh inherited obsolete outcome: %v failed=%v", scenario, config.Values, config.Failed)
+				}
+				if scenario == "added" {
+					if config.Values["format"] != "html" || config.Values["limit"] != float64(25) {
+						t.Errorf("new sibling lost its current value: %v", config.Values)
+					}
+				} else if _, exists := config.Values["limit"]; exists {
+					t.Errorf("retired sibling resurrected in values: %v", config.Values)
+				}
+			})
+		}
+	}
+}
+
+func TestConfigEpochSiblingAdded(t *testing.T)   { checkConfigEpochSibling(t, "added") }
+func TestConfigEpochSiblingRemoved(t *testing.T) { checkConfigEpochSibling(t, "removed") }

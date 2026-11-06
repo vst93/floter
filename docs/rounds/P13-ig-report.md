@@ -45,3 +45,12 @@ M2 撤回第二批产品修改，原串 `schema refresh retained obsolete unknow
 M3 撤回显示代次核对，6 叶子实红，原串 `reopened sheet inherited old write: values=map[enabled:true limit:10] failed=true` / `reopened sheet inherited old action refusal: calls=1 failed="clear"`。MD5 还原和 touch 复验通过，相关 vet 净；精确 PASS 计数见归档 batch3-green.txt。
 
 过程偏差：第三批新增夹具最初把 launcher Escape 误当作仅取消动作；实际既有契约是关闭配置面，已修正新断言，未改产品键盘模型或旧 B 断言。第一次 M3 复验失败期间曾启动第二次脚本，造成检查进程重叠；最终脚本退出与源码 diff 独立核对，不把失败算 PASS。第二批首次 push 被 GitHub 500 拒绝，重试成功；没有丢本地提交。
+
+第三批最终 70 PASS / 0 FAIL，提交 6644d780 已推送。基线 HEAD f0ef7c33 的测试函数实测 2987。
+
+## 第四批（7–8）
+
+7. 现象：写入记录开关时回调新增保存格式，旧成功/拒绝返回整表值，新增 html 值丢失且上限被改回。改动：派发前复制整张字段约束，返回核对兄弟字段。验证：深浅 × 两种返回，新增 html、上限 25 和开关 false 均保留，只写 1 次。
+8. 现象：同一写入期间移除保留上限，旧返回把 limit 键重新带回并可能报错。改动：整表约束失配时不回滚旧快照、不接纳旧整表成功值。验证：深浅 × 两种返回，limit 不复活、开关 false、无旧失败，写入 1 次。
+
+M4 撤回整表核对，8 叶子实红；原串 `new sibling lost its current value: map[enabled:true limit:80]` / `retired sibling resurrected in values: map[enabled:true limit:10]`。MD5 还原、touch 复验通过，相关 vet 净；精确 PASS 数见 batch4-green.txt。所有八项均有独立事件断言；旧 V/B/S 0/0/0、Skip 新增 0。
