@@ -983,7 +983,9 @@ type App struct {
 	// sheetPlugin is the plugin id the current `PluginScroll` belongs to.
 	// P13-gu：一个 App 依次画每个插件的浮层，而 `ui.Scroll` 的 key 是常量；
 	// 插件一变就把偏移归零，免得 A 的滚动位置接到 B 身上（§6.163）。
-	sheetPlugin string
+	sheetPlugin      string
+	pluginSections   []*pluginSectionIdentity
+	pluginEditorRefs map[string]*ui.Handle
 	// pluginNumberDrafts holds a number field's in-progress text while its box
 	// has the keyboard, so a half-typed or emptied value is not overwritten by
 	// the stored one mid-edit; an entry is dropped when the box loses focus and

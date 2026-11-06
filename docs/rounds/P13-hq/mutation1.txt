@@ -1,0 +1,25 @@
+=== RUN   TestGroupRefreshTextPrependKeepsEdit
+=== RUN   TestGroupRefreshTextPrependKeepsEdit/light
+    grouprefresh_test.go:62: text-prepend lost focus on group refresh
+    grouprefresh_test.go:65: text-prepend lost draft: "", want "/local"
+    grouprefresh_test.go:74: preserved edit did not commit to its own field: map[value:/old], 0
+=== RUN   TestGroupRefreshTextPrependKeepsEdit/dark
+    grouprefresh_test.go:62: text-prepend lost focus on group refresh
+    grouprefresh_test.go:65: text-prepend lost draft: "", want "/local"
+    grouprefresh_test.go:74: preserved edit did not commit to its own field: map[value:/old], 0
+--- FAIL: TestGroupRefreshTextPrependKeepsEdit (0.10s)
+    --- FAIL: TestGroupRefreshTextPrependKeepsEdit/light (0.09s)
+    --- FAIL: TestGroupRefreshTextPrependKeepsEdit/dark (0.01s)
+=== RUN   TestGroupRefreshNumberMoveKeepsEdit
+=== RUN   TestGroupRefreshNumberMoveKeepsEdit/light
+    grouprefresh_test.go:62: number-move lost focus on group refresh
+    grouprefresh_test.go:65: number-move lost draft: "", want "1e"
+=== RUN   TestGroupRefreshNumberMoveKeepsEdit/dark
+    grouprefresh_test.go:62: number-move lost focus on group refresh
+    grouprefresh_test.go:65: number-move lost draft: "", want "1e"
+--- FAIL: TestGroupRefreshNumberMoveKeepsEdit (0.02s)
+    --- FAIL: TestGroupRefreshNumberMoveKeepsEdit/light (0.01s)
+    --- FAIL: TestGroupRefreshNumberMoveKeepsEdit/dark (0.01s)
+FAIL
+FAIL	floter/internal/settingsui	0.130s
+FAIL

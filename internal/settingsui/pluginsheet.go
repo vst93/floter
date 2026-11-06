@@ -69,6 +69,8 @@ func (a *App) ClosePluginSheet() {
 	a.pluginNumberObserved = nil
 	a.PluginScroll.Y = 0
 	a.sheetPlugin = ""
+	a.pluginSections = nil
+	a.pluginEditorRefs = nil
 }
 
 func (a *App) PluginSheet(c *ui.Context, sheet PluginSheet) {
@@ -141,7 +143,11 @@ func (a *App) PluginSheet(c *ui.Context, sheet PluginSheet) {
 	if sheet.Schema.Plugin != a.sheetPlugin {
 		a.sheetPlugin = sheet.Schema.Plugin
 		a.PluginScroll.Y = 0
+		a.pluginSections = nil
+		a.pluginEditorRefs = nil
 	}
+	sections := plugincfg.Sections(sheet.Schema)
+	sectionIDs := a.pluginSectionIDs(c, sections)
 
 	// The sheet's own scroller: a schema longer than the band scrolls inside
 	// it rather than growing the window past the band it was given.
@@ -233,11 +239,11 @@ func (a *App) PluginSheet(c *ui.Context, sheet PluginSheet) {
 				// （14.4px = 一整档 4u）：组边界 12.2 → **22.6px**，落在 §4.3 那条
 				// 「一个可以按的新东西」的 20px 档上（与 §6.69 会话页的 22px 同一读数），
 				// 组内 14.8px 留在「同一段的下一行」档。页头 → 第一组一个字节不动。
-				for i, section := range plugincfg.Sections(sheet.Schema) {
+				for i, section := range sections {
 					section := section
 					// Inserting the write-failure sentence must not replace every
 					// field's identity and drop the focused edit before a retry.
-					a.sheetSection(c.Key("plugin.section."+strconv.Itoa(i)), sheet, section, i > 0)
+					a.sheetSection(c.Key(sectionIDs[i]), sheet, section, i > 0)
 				}
 			})
 		})
@@ -398,7 +404,7 @@ func (a *App) sheetField(c *ui.Context, sheet PluginSheet, field plugincfg.Field
 		// `plugin-config.css:110-113`; `STACKED_KINDS` in
 		// `plugins/controls.tsx:291-296`).
 		a.stackedRow(c, field.Label, field.Help, func() {
-			input := a.sheetTextField(c, field.Placeholder, &edit).Label(field.Label)
+			input := a.sheetTextField(c, field.Placeholder, &edit).Label(field.Label).Bind(a.pluginEditorRef(field.Key))
 			if input.Changed() {
 				if a.pluginTextDrafts == nil {
 					a.pluginTextDrafts = map[string]string{}
@@ -621,7 +627,7 @@ func (a *App) sheetNumberSlot(c *ui.Context, plugin string, field plugincfg.Fiel
 		// the box).
 		text := draft
 		in := ui.TextInputBase(c, &text).Width(t.Space(13)).
-			TextAlign(ui.End).FontFeatures("tnum").Label(field.Label)
+			TextAlign(ui.End).FontFeatures("tnum").Label(field.Label).Bind(a.pluginEditorRef(field.Key))
 		if in.Changed() {
 			a.pluginNumberDrafts[key] = text
 			if parsed, err := strconv.ParseFloat(strings.TrimSpace(text), 64); err == nil && !math.IsNaN(parsed) && !math.IsInf(parsed, 0) {
