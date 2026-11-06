@@ -1,0 +1,17 @@
+=== RUN   TestConfirmationIconUsesLabelSemantics
+    disabledink_test.go:88: light disabled=false: strongest ink {R:27 G:27 B:29 A:255 wide:[0 0 0]}
+    disabledink_test.go:90: light disabled=false: confirmation icon lost warning hue: {R:27 G:27 B:29 A:255 wide:[0 0 0]}
+    disabledink_test.go:88: light disabled=true: strongest ink {R:132 G:132 B:134 A:255 wide:[0 0 0]}
+    disabledink_test.go:90: light disabled=true: confirmation icon lost warning hue: {R:132 G:132 B:134 A:255 wide:[0 0 0]}
+    disabledink_test.go:88: dark disabled=false: strongest ink {R:237 G:237 B:239 A:255 wide:[0 0 0]}
+    disabledink_test.go:90: dark disabled=false: confirmation icon lost warning hue: {R:237 G:237 B:239 A:255 wide:[0 0 0]}
+    disabledink_test.go:88: dark disabled=true: strongest ink {R:132 G:132 B:134 A:255 wide:[0 0 0]}
+    disabledink_test.go:90: dark disabled=true: confirmation icon lost warning hue: {R:132 G:132 B:134 A:255 wide:[0 0 0]}
+    disabledink_test.go:94: light: ink contrast 105
+    disabledink_test.go:94: light: disabled ink contrast = 105, want shared 70..88 rung
+    disabledink_test.go:94: dark: ink contrast 106
+    disabledink_test.go:94: dark: disabled ink contrast = 106, want shared 70..88 rung
+--- FAIL: TestConfirmationIconUsesLabelSemantics (0.16s)
+FAIL
+FAIL	floter/internal/settingsui	0.171s
+FAIL

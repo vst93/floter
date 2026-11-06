@@ -1,0 +1,23 @@
+=== RUN   TestDisabledActionLabelsShareInk
+=== RUN   TestDisabledActionLabelsShareInk/action
+    disabledink_test.go:56: light: ink contrast 105
+    disabledink_test.go:56: light: disabled ink contrast = 105, want shared 70..88 rung
+    disabledink_test.go:56: dark: ink contrast 106
+    disabledink_test.go:56: dark: disabled ink contrast = 106, want shared 70..88 rung
+=== RUN   TestDisabledActionLabelsShareInk/busy
+    disabledink_test.go:56: light: ink contrast 105
+    disabledink_test.go:56: light: disabled ink contrast = 105, want shared 70..88 rung
+    disabledink_test.go:56: dark: ink contrast 106
+    disabledink_test.go:56: dark: disabled ink contrast = 106, want shared 70..88 rung
+=== RUN   TestDisabledActionLabelsShareInk/configuration
+    disabledink_test.go:56: light: ink contrast 105
+    disabledink_test.go:56: light: disabled ink contrast = 105, want shared 70..88 rung
+    disabledink_test.go:56: dark: ink contrast 106
+    disabledink_test.go:56: dark: disabled ink contrast = 106, want shared 70..88 rung
+--- FAIL: TestDisabledActionLabelsShareInk (0.44s)
+    --- FAIL: TestDisabledActionLabelsShareInk/action (0.29s)
+    --- FAIL: TestDisabledActionLabelsShareInk/busy (0.08s)
+    --- FAIL: TestDisabledActionLabelsShareInk/configuration (0.07s)
+FAIL
+FAIL	floter/internal/settingsui	0.456s
+FAIL

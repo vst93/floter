@@ -1,0 +1,29 @@
+=== RUN   TestFixedUninstallHintKeepsReadableInk
+    disabledink_test.go:104: light Always removed: hint contrast 54
+    disabledink_test.go:106: light: fixed hint contrast 54, want 70..88
+    disabledink_test.go:104: light 应用本体始终移除: hint contrast 54
+    disabledink_test.go:106: light: fixed hint contrast 54, want 70..88
+    disabledink_test.go:104: dark Always removed: hint contrast 53
+    disabledink_test.go:106: dark: fixed hint contrast 53, want 70..88
+    disabledink_test.go:104: dark 应用本体始终移除: hint contrast 53
+    disabledink_test.go:106: dark: fixed hint contrast 53, want 70..88
+--- FAIL: TestFixedUninstallHintKeepsReadableInk (0.32s)
+=== RUN   TestDumpP13HLDisabledInk
+    disabledink_test.go:166: /tmp/floter-P13-hl-disabled-ink-light-before.png
+    disabledink_test.go:166: /tmp/floter-P13-hl-disabled-ink-dark-before.png
+--- PASS: TestDumpP13HLDisabledInk (0.12s)
+FAIL
+FAIL	floter/internal/settingsui	0.469s
+=== RUN   TestDumpP13HLRunningOutput
+    disabledink_test.go:35: /tmp/floter-P13-hl-output-light-before.png
+    disabledink_test.go:35: /tmp/floter-P13-hl-output-dark-before.png
+--- PASS: TestDumpP13HLRunningOutput (0.17s)
+=== RUN   TestTheDisabledBarKeyDimsOnce
+    pluginwindowbar_test.go:316: light: idle 30217 running 7603, disabled levels 50
+    pluginwindowbar_test.go:318: light: disabled rerun ink = 50, want 78
+    pluginwindowbar_test.go:316: dark: idle 24678 running 6081, disabled levels 45
+    pluginwindowbar_test.go:318: dark: disabled rerun ink = 45, want 81
+--- FAIL: TestTheDisabledBarKeyDimsOnce (0.07s)
+FAIL
+FAIL	floter/internal/shell	0.264s
+FAIL

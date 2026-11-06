@@ -1,0 +1,6 @@
+linux vet/build PASS
+windows vet/build PASS
+darwin vet/build PASS
+ordinary tests PASS
+verbose tests PASS
+3816
