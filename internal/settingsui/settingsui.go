@@ -3146,7 +3146,16 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			}
 			if integration.Generated && a.Actions.EditCustomTool != nil && a.Actions.ToolForEdit != nil {
 				if rowAction(copy.EditLabel).Clicked() {
-					if tool, ok := a.Actions.ToolForEdit(integration.ID); ok {
+					form := a.toolFormKey
+					tool, ok := a.Actions.ToolForEdit(integration.ID)
+					// Fetching may replace the editor or refresh the target's
+					// eligibility. Its old answer cannot reopen either one.
+					current, exists := integration, true
+					if a.Integrations != nil {
+						current, exists = a.integrationByID(integration.ID)
+					}
+					if ok && a.toolFormKey == form && exists && current.Generated && !current.Orphan &&
+						a.Actions.EditCustomTool != nil && !a.rowBusy(integration.ID) {
 						a.beginEdit(integration.ID, tool)
 					}
 				}
@@ -7974,7 +7983,7 @@ func paramIssueMessage(copy i18n.Settings, issue extensions.ParamRowIssue) strin
 // remembers that the form is editing it rather than connecting something new.
 func (a *App) beginEdit(id string, tool CustomTool) {
 	a.toolOpen = true
-	a.toolFormKey = nil
+	a.toolFormKey = new(int)
 	a.scriptEditor = nil
 	a.copiedContent, a.copiedContentUntil = "", time.Time{}
 	a.copiedContentValue = ""
@@ -8015,7 +8024,7 @@ func (a *App) beginEdit(id string, tool CustomTool) {
 // endEdit clears the edit state, so the next connection starts a new package.
 func (a *App) endEdit() {
 	a.clearScriptRuntimeCache()
-	a.toolFormKey = nil
+	a.toolFormKey = new(int)
 	a.scriptEditor = nil
 	a.copiedContent, a.copiedContentUntil = "", time.Time{}
 	a.copiedContentValue = ""

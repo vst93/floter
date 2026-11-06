@@ -45,3 +45,12 @@ M2 原串 `picker overwrote new draft: editing="local.new" name="oldtool" progra
 6. 现象：新建连接回调打开编辑目标，同样被旧连接的 endEdit 清空。改动：连接与保存共用已有表单身份约束。验证：深浅真实“连接”后 local.new 可见、可保存，原提交只发一次。
 
 M3 四叶子实红，原串 `save-new completion erased newer editor: open=false id="" name="" program=""`、`connect-new completion erased newer editor: open=false id="" name="" program=""`。MD5 还原与 touch 复验，相关 vet 净；精确 PASS 见 batch3 日志和提交正文。旧 V/B/S 0/0/0。
+
+第三批 **50 PASS / 0 FAIL**，0321fcec 已推送。
+
+## 第四批：编辑工具获取（7–8）
+
+7. 现象：点击旧工具“编辑”，获取回调里已打开 local.new，旧结果仍抢回 local.old。改动：beginEdit/endEdit 当场更新既有表单 key，获取返回核对该身份。验证：深浅真实编辑点击保留 local.new 与 newtool，后续明确点击可再编辑旧工具。
+8. 现象：获取回调刷新目标使 Generated=false，旧结果仍打开本应不可编辑的表单。改动：返回按 ID 重读当前目标，核对存在、Generated、非 Orphan、写入能力和忙态。验证：深浅不出现失效编辑器；恢复资格只刷新不获取，下一次明确点击才打开且只调用一次。
+
+M4 四叶子实红：`old tool lookup replaced newer editor: id="local.old" name="oldtool"`、`retired generated tool opened stale editor`。MD5 还原、touch 复验，相关 vet 净；精确 PASS 见 batch4 日志和本批提交正文。八项均有独立事件验收，旧 V/B/S 0/0/0、无新增 Skip。

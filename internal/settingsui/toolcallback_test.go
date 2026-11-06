@@ -152,3 +152,82 @@ func checkToolSubmission(t *testing.T, editing bool) {
 
 func TestToolCallbackSaveKeepsNewEditor(t *testing.T)    { checkToolSubmission(t, true) }
 func TestToolCallbackConnectKeepsNewEditor(t *testing.T) { checkToolSubmission(t, false) }
+
+func checkToolLookup(t *testing.T, retired bool) {
+	t.Helper()
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			a := New(newStore(t), Actions{ConnectLocalTool: func(CustomTool) {}, EditCustomTool: func(string, CustomTool) {}})
+			in := Integration{ID: "local.old", Name: "旧工具", Generated: true, Running: true, Enabled: true}
+			a.Integrations = func() []Integration { return []Integration{in} }
+			calls := 0
+			a.Actions.ToolForEdit = func(id string) (CustomTool, bool) {
+				calls++
+				if id != "local.old" {
+					t.Errorf("wrong lookup %q", id)
+				}
+				if retired {
+					in.Generated = false
+				} else {
+					a.beginEdit("local.new", callbackTool("newtool"))
+				}
+				return callbackTool("oldtool"), true
+			}
+			if err := a.Store.Update(func(s *settings.Settings) { s.Theme = appearanceName(dark); s.Language = "zh" }); err != nil {
+				t.Fatal(err)
+			}
+			copy := i18n.For("zh").Settings
+			ground := realPageGround(t, dark)
+			tt := ui.NewTester(func(c *ui.Context) {
+				c.SetTheme(a.tokens(c).Theme)
+				c.Root().Background(ground)
+				ui.Column(c).Padding(20).Children(func() {
+					a.extensionMetrics(func() {
+						a.integrationRow(c, copy, in)
+						a.localToolSection(c, copy)
+					})
+				})
+			}, 720, 1400)
+			tt.SetDark(dark)
+			tt.SetPreferences(ui.Preferences{ReduceMotion: true})
+			tt.Frame()
+			if err := tt.Click(copy.EditLabel); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			name := "lookup-new"
+			if retired {
+				name = "lookup-retired"
+			}
+			fetchDump(t, tt, name, dark)
+			if calls != 1 {
+				t.Fatalf("lookups=%d", calls)
+			}
+			if retired {
+				if a.toolOpen || a.toolEditing != "" || tt.HasText(copy.LocalToolSave) {
+					t.Error("retired generated tool opened stale editor")
+				}
+			} else if !a.toolOpen || a.toolEditing != "local.new" || a.toolName != "newtool" || !tt.HasText("local.new") {
+				t.Errorf("old tool lookup replaced newer editor: id=%q name=%q", a.toolEditing, a.toolName)
+			}
+			// Restoring eligibility permits a fresh explicit edit, without any
+			// automatic lookup or save during the intervening refresh.
+			in.Generated = true
+			a.Actions.ToolForEdit = func(string) (CustomTool, bool) { calls++; return callbackTool("restored"), true }
+			tt.Frame()
+			if calls != 1 {
+				t.Error("refresh fetched a tool without a click")
+			}
+			if err := tt.Click(copy.EditLabel); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			if calls != 2 || a.toolEditing != "local.old" || a.toolName != "restored" {
+				t.Error("fresh eligible edit failed to open")
+			}
+		})
+	}
+}
+
+func TestToolCallbackLookupKeepsNewEditor(t *testing.T)      { checkToolLookup(t, false) }
+func TestToolCallbackLookupRechecksEligibility(t *testing.T) { checkToolLookup(t, true) }
