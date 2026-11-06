@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"math"
 	"runtime"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -7256,8 +7257,10 @@ func (a *App) runOutputScroll(id string) *ui.ScrollState {
 // the shell, which builds the argv — so a value with a space or a quote
 // reaches the tool exactly as typed.
 type runRefusal struct {
-	param string
-	value string
+	param      string
+	value      string
+	definition extensions.ParamDefinition
+	failure    extensions.ParamFailure
 }
 
 func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration) {
@@ -7448,7 +7451,8 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 								a.runRefusals = map[string]runRefusal{}
 							}
 							// Keep the submitted value, not a map the callback may own.
-							a.runRefusals[integration.ID] = runRefusal{param: param.ID, value: values[param.ID]}
+							param.Options = slices.Clone(param.Options)
+							a.runRefusals[integration.ID] = runRefusal{param: param.ID, value: values[param.ID], definition: param, failure: *failure}
 							break
 						}
 					}
@@ -7458,9 +7462,21 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 		// A field refusal describes one submitted answer. Once that answer or
 		// its field is gone, it must not keep accusing the current form.
 		if refusal, ok := a.runRefusals[integration.ID]; ok {
-			if value, exists := values[refusal.param]; !exists || value != refusal.value {
+			valid := a.runError[integration.ID] != ""
+			for _, param := range params {
+				if param.ID == refusal.param {
+					old := refusal.definition
+					valid = valid && param.Kind == old.Kind && param.Required == old.Required && param.Flag == old.Flag && slices.Equal(param.Options, old.Options)
+					break
+				}
+			}
+			if value, exists := values[refusal.param]; !exists || value != refusal.value || !valid {
 				delete(a.runError, integration.ID)
 				delete(a.runRefusals, integration.ID)
+			} else {
+				// Names and language are presentation: keep the refusal but
+				// explain it using the current field instead of a stale string.
+				a.runError[integration.ID] = paramFailureMessage(copy, params, &refusal.failure)
 			}
 		}
 		if runError := a.runError[integration.ID]; runError != "" {

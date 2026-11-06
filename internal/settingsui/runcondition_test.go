@@ -60,12 +60,20 @@ func checkRunCondition(t *testing.T, scenario string) {
 				tt.Type("fixed")
 			case "removed":
 				in.Params = in.Params[1:]
+			case "constraints":
+				in.Params[0].Kind = extensions.ParamSelect
+				in.Params[0].Options = []string{"old", "new"}
+			case "renamed":
+				in.Params[0].Label = "Destination"
 			}
 			tt.Frame()
 			tt.Frame()
 			runConditionDump(t, tt, "run-"+scenario, dark)
 			if tt.HasText(message) {
 				t.Errorf("%s parameter left obsolete refusal visible", scenario)
+			}
+			if scenario == "renamed" && !tt.HasText(copy.RunParamInvalid("Destination")) {
+				t.Error("renamed parameter lost current refusal wording")
 			}
 			if calls != 1 {
 				t.Errorf("refresh submitted %d runs, want 1", calls)
@@ -81,5 +89,7 @@ func checkRunCondition(t *testing.T, scenario string) {
 	}
 }
 
-func TestRunConditionEditedValue(t *testing.T)  { checkRunCondition(t, "edited") }
-func TestRunConditionRemovedField(t *testing.T) { checkRunCondition(t, "removed") }
+func TestRunConditionEditedValue(t *testing.T)        { checkRunCondition(t, "edited") }
+func TestRunConditionRemovedField(t *testing.T)       { checkRunCondition(t, "removed") }
+func TestRunConditionChangedConstraints(t *testing.T) { checkRunCondition(t, "constraints") }
+func TestRunConditionRenamedField(t *testing.T)       { checkRunCondition(t, "renamed") }
