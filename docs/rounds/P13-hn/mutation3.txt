@@ -1,0 +1,21 @@
+=== RUN   TestInputRefreshLargeSliderStaysFinite
+=== RUN   TestInputRefreshLargeSliderStaysFinite/light
+    inputprecision_test.go:16: finite slider readout became "+Inf"
+    inputprecision_test.go:19: finite slider paints infinity
+=== RUN   TestInputRefreshLargeSliderStaysFinite/dark
+    inputprecision_test.go:16: finite slider readout became "+Inf"
+    inputprecision_test.go:19: finite slider paints infinity
+--- FAIL: TestInputRefreshLargeSliderStaysFinite (0.09s)
+    --- FAIL: TestInputRefreshLargeSliderStaysFinite/light (0.08s)
+    --- FAIL: TestInputRefreshLargeSliderStaysFinite/dark (0.00s)
+=== RUN   TestInputRefreshNumberUsesSavedDecimalPrecision
+=== RUN   TestInputRefreshNumberUsesSavedDecimalPrecision/light
+    inputprecision_test.go:33: stored decimal paints floating tail: "0.30000000000000004"
+=== RUN   TestInputRefreshNumberUsesSavedDecimalPrecision/dark
+    inputprecision_test.go:33: stored decimal paints floating tail: "0.30000000000000004"
+--- FAIL: TestInputRefreshNumberUsesSavedDecimalPrecision (0.02s)
+    --- FAIL: TestInputRefreshNumberUsesSavedDecimalPrecision/light (0.01s)
+    --- FAIL: TestInputRefreshNumberUsesSavedDecimalPrecision/dark (0.01s)
+FAIL
+FAIL	floter/internal/settingsui	0.113s
+FAIL

@@ -578,7 +578,7 @@ func (a *App) sheetNumberSlot(c *ui.Context, plugin string, field plugincfg.Fiel
 		// A refreshed schema can move the bounds while the input keeps focus.
 		// Rebase only a complete number; partial input remains the user's.
 		if bounded := boundedValue(field, parsed); bounded != parsed {
-			draft = formatFieldNumber(bounded)
+			draft = initialNumberText(field, bounded)
 			a.pluginNumberDrafts[key] = draft
 		}
 	}
@@ -606,7 +606,7 @@ func (a *App) sheetNumberSlot(c *ui.Context, plugin string, field plugincfg.Fiel
 				changed = clamped != boundedValue(field, *value)
 				*value = clamped
 				if clamped != parsed {
-					a.pluginNumberDrafts[key] = formatFieldNumber(clamped)
+					a.pluginNumberDrafts[key] = initialNumberText(field, clamped)
 				}
 			}
 		} else if !in.Focused() {
@@ -826,7 +826,7 @@ func pluginOptionLabel(option plugincfg.Option, empty ...string) string {
 // 「9999 items」。收进界之后，读数就是拖一下会存下的那个数（也是 `coerce` 的
 // `clampStep` 会保留的那个）。
 func boundedText(field plugincfg.Field, value float64) string {
-	value = math.Round(boundedValue(field, value)*1e6) / 1e6
+	value = roundedNumberTextValue(boundedValue(field, value))
 	text := formatFieldNumber(value)
 	if field.Unit != "" {
 		text += " " + field.Unit
@@ -840,7 +840,21 @@ func boundedText(field plugincfg.Field, value float64) string {
 // the box used to print that raw, so the first paint disagreed with every write
 // the field can make.
 func initialNumberText(field plugincfg.Field, value float64) string {
-	return formatFieldNumber(boundedValue(field, value))
+	value = boundedValue(field, value)
+	if field.Step > 0 {
+		// Match the host's six-decimal grid spelling without altering writes.
+		value = roundedNumberTextValue(value)
+	}
+	return formatFieldNumber(value)
+}
+
+// Scaling a finite large value by 1e6 can overflow. At that magnitude it has
+// no fractional digits to round, so preserve its finite decimal spelling.
+func roundedNumberTextValue(value float64) float64 {
+	if math.Abs(value) > math.MaxFloat64/1e6 {
+		return value
+	}
+	return math.Round(value*1e6) / 1e6
 }
 
 // boundedValue is the number a bounded control hands the host: the value on the
