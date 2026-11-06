@@ -12,11 +12,14 @@ func TestInputRefreshLargeSliderStaysFinite(t *testing.T) {
 			field := plugincfg.Field{Key: "capacity", Label: "容量", Kind: plugincfg.Slider, Max: 1e308}
 			_, _, tt := inputStateSheet(t, dark, field, 1e308)
 			refreshDump(t, tt, "large-slider", dark)
-			if got := boundedText(field, 1e308); got != formatFieldNumber(1e308) {
+			if got := boundedText(field, 1e308); got != "1e+308" {
 				t.Errorf("finite slider readout became %q", got)
 			}
 			if tt.HasText("+Inf") {
 				t.Error("finite slider paints infinity")
+			}
+			if r := mustFind(t, tt, "1e+308"); r.W > 100 {
+				t.Errorf("finite readout crowds slider: width %g", r.W)
 			}
 		})
 	}

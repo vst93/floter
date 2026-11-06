@@ -828,6 +828,10 @@ func pluginOptionLabel(option plugincfg.Option, empty ...string) string {
 func boundedText(field plugincfg.Field, value float64) string {
 	value = roundedNumberTextValue(boundedValue(field, value))
 	text := formatFieldNumber(value)
+	if math.Abs(value) >= 1e21 {
+		// Keep an extreme finite readout from taking the slider's width.
+		text = strconv.FormatFloat(value, 'g', -1, 64)
+	}
 	if field.Unit != "" {
 		text += " " + field.Unit
 	}
