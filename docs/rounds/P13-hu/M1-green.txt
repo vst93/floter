@@ -1,0 +1,38 @@
+=== RUN   TestNoticeDisableKeyboardConfirmAndRetry
+=== RUN   TestNoticeDisableKeyboardConfirmAndRetry/light/en/sync
+=== RUN   TestNoticeDisableKeyboardConfirmAndRetry/light/en/delayed
+=== RUN   TestNoticeDisableKeyboardConfirmAndRetry/light/zh/sync
+=== RUN   TestNoticeDisableKeyboardConfirmAndRetry/light/zh/delayed
+=== RUN   TestNoticeDisableKeyboardConfirmAndRetry/dark/en/sync
+=== RUN   TestNoticeDisableKeyboardConfirmAndRetry/dark/en/delayed
+=== RUN   TestNoticeDisableKeyboardConfirmAndRetry/dark/zh/sync
+=== RUN   TestNoticeDisableKeyboardConfirmAndRetry/dark/zh/delayed
+--- PASS: TestNoticeDisableKeyboardConfirmAndRetry (0.07s)
+    --- PASS: TestNoticeDisableKeyboardConfirmAndRetry/light/en/sync (0.05s)
+    --- PASS: TestNoticeDisableKeyboardConfirmAndRetry/light/en/delayed (0.00s)
+    --- PASS: TestNoticeDisableKeyboardConfirmAndRetry/light/zh/sync (0.01s)
+    --- PASS: TestNoticeDisableKeyboardConfirmAndRetry/light/zh/delayed (0.00s)
+    --- PASS: TestNoticeDisableKeyboardConfirmAndRetry/dark/en/sync (0.00s)
+    --- PASS: TestNoticeDisableKeyboardConfirmAndRetry/dark/en/delayed (0.00s)
+    --- PASS: TestNoticeDisableKeyboardConfirmAndRetry/dark/zh/sync (0.00s)
+    --- PASS: TestNoticeDisableKeyboardConfirmAndRetry/dark/zh/delayed (0.00s)
+=== RUN   TestNoticeRemoveKeyboardConfirmAndRetry
+=== RUN   TestNoticeRemoveKeyboardConfirmAndRetry/light/en/sync
+=== RUN   TestNoticeRemoveKeyboardConfirmAndRetry/light/en/delayed
+=== RUN   TestNoticeRemoveKeyboardConfirmAndRetry/light/zh/sync
+=== RUN   TestNoticeRemoveKeyboardConfirmAndRetry/light/zh/delayed
+=== RUN   TestNoticeRemoveKeyboardConfirmAndRetry/dark/en/sync
+=== RUN   TestNoticeRemoveKeyboardConfirmAndRetry/dark/en/delayed
+=== RUN   TestNoticeRemoveKeyboardConfirmAndRetry/dark/zh/sync
+=== RUN   TestNoticeRemoveKeyboardConfirmAndRetry/dark/zh/delayed
+--- PASS: TestNoticeRemoveKeyboardConfirmAndRetry (0.02s)
+    --- PASS: TestNoticeRemoveKeyboardConfirmAndRetry/light/en/sync (0.00s)
+    --- PASS: TestNoticeRemoveKeyboardConfirmAndRetry/light/en/delayed (0.00s)
+    --- PASS: TestNoticeRemoveKeyboardConfirmAndRetry/light/zh/sync (0.00s)
+    --- PASS: TestNoticeRemoveKeyboardConfirmAndRetry/light/zh/delayed (0.00s)
+    --- PASS: TestNoticeRemoveKeyboardConfirmAndRetry/dark/en/sync (0.00s)
+    --- PASS: TestNoticeRemoveKeyboardConfirmAndRetry/dark/en/delayed (0.00s)
+    --- PASS: TestNoticeRemoveKeyboardConfirmAndRetry/dark/zh/sync (0.00s)
+    --- PASS: TestNoticeRemoveKeyboardConfirmAndRetry/dark/zh/delayed (0.00s)
+PASS
+ok  	floter/internal/settingsui	0.095s

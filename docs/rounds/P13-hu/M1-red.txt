@@ -1,0 +1,55 @@
+=== RUN   TestNoticeDisableKeyboardConfirmAndRetry
+=== RUN   TestNoticeDisableKeyboardConfirmAndRetry/light/en/sync
+    noticekeyboard_test.go:105: Tab cannot leave cancel for the confirmation action
+=== RUN   TestNoticeDisableKeyboardConfirmAndRetry/light/en/delayed
+    noticekeyboard_test.go:105: Tab cannot leave cancel for the confirmation action
+=== RUN   TestNoticeDisableKeyboardConfirmAndRetry/light/zh/sync
+    noticekeyboard_test.go:105: Tab cannot leave cancel for the confirmation action
+=== RUN   TestNoticeDisableKeyboardConfirmAndRetry/light/zh/delayed
+    noticekeyboard_test.go:105: Tab cannot leave cancel for the confirmation action
+=== RUN   TestNoticeDisableKeyboardConfirmAndRetry/dark/en/sync
+    noticekeyboard_test.go:105: Tab cannot leave cancel for the confirmation action
+=== RUN   TestNoticeDisableKeyboardConfirmAndRetry/dark/en/delayed
+    noticekeyboard_test.go:105: Tab cannot leave cancel for the confirmation action
+=== RUN   TestNoticeDisableKeyboardConfirmAndRetry/dark/zh/sync
+    noticekeyboard_test.go:105: Tab cannot leave cancel for the confirmation action
+=== RUN   TestNoticeDisableKeyboardConfirmAndRetry/dark/zh/delayed
+    noticekeyboard_test.go:105: Tab cannot leave cancel for the confirmation action
+--- FAIL: TestNoticeDisableKeyboardConfirmAndRetry (0.03s)
+    --- FAIL: TestNoticeDisableKeyboardConfirmAndRetry/light/en/sync (0.02s)
+    --- FAIL: TestNoticeDisableKeyboardConfirmAndRetry/light/en/delayed (0.00s)
+    --- FAIL: TestNoticeDisableKeyboardConfirmAndRetry/light/zh/sync (0.00s)
+    --- FAIL: TestNoticeDisableKeyboardConfirmAndRetry/light/zh/delayed (0.00s)
+    --- FAIL: TestNoticeDisableKeyboardConfirmAndRetry/dark/en/sync (0.00s)
+    --- FAIL: TestNoticeDisableKeyboardConfirmAndRetry/dark/en/delayed (0.00s)
+    --- FAIL: TestNoticeDisableKeyboardConfirmAndRetry/dark/zh/sync (0.00s)
+    --- FAIL: TestNoticeDisableKeyboardConfirmAndRetry/dark/zh/delayed (0.00s)
+=== RUN   TestNoticeRemoveKeyboardConfirmAndRetry
+=== RUN   TestNoticeRemoveKeyboardConfirmAndRetry/light/en/sync
+    noticekeyboard_test.go:105: Tab cannot leave cancel for the confirmation action
+=== RUN   TestNoticeRemoveKeyboardConfirmAndRetry/light/en/delayed
+    noticekeyboard_test.go:105: Tab cannot leave cancel for the confirmation action
+=== RUN   TestNoticeRemoveKeyboardConfirmAndRetry/light/zh/sync
+    noticekeyboard_test.go:105: Tab cannot leave cancel for the confirmation action
+=== RUN   TestNoticeRemoveKeyboardConfirmAndRetry/light/zh/delayed
+    noticekeyboard_test.go:105: Tab cannot leave cancel for the confirmation action
+=== RUN   TestNoticeRemoveKeyboardConfirmAndRetry/dark/en/sync
+    noticekeyboard_test.go:105: Tab cannot leave cancel for the confirmation action
+=== RUN   TestNoticeRemoveKeyboardConfirmAndRetry/dark/en/delayed
+    noticekeyboard_test.go:105: Tab cannot leave cancel for the confirmation action
+=== RUN   TestNoticeRemoveKeyboardConfirmAndRetry/dark/zh/sync
+    noticekeyboard_test.go:105: Tab cannot leave cancel for the confirmation action
+=== RUN   TestNoticeRemoveKeyboardConfirmAndRetry/dark/zh/delayed
+    noticekeyboard_test.go:105: Tab cannot leave cancel for the confirmation action
+--- FAIL: TestNoticeRemoveKeyboardConfirmAndRetry (0.01s)
+    --- FAIL: TestNoticeRemoveKeyboardConfirmAndRetry/light/en/sync (0.00s)
+    --- FAIL: TestNoticeRemoveKeyboardConfirmAndRetry/light/en/delayed (0.00s)
+    --- FAIL: TestNoticeRemoveKeyboardConfirmAndRetry/light/zh/sync (0.00s)
+    --- FAIL: TestNoticeRemoveKeyboardConfirmAndRetry/light/zh/delayed (0.00s)
+    --- FAIL: TestNoticeRemoveKeyboardConfirmAndRetry/dark/en/sync (0.00s)
+    --- FAIL: TestNoticeRemoveKeyboardConfirmAndRetry/dark/en/delayed (0.00s)
+    --- FAIL: TestNoticeRemoveKeyboardConfirmAndRetry/dark/zh/sync (0.00s)
+    --- FAIL: TestNoticeRemoveKeyboardConfirmAndRetry/dark/zh/delayed (0.00s)
+FAIL
+FAIL	floter/internal/settingsui	0.043s
+FAIL

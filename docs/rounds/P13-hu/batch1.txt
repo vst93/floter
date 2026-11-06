@@ -1,0 +1,82 @@
+=== RUN   TestDisableBarIsOneNoticeSentence
+--- PASS: TestDisableBarIsOneNoticeSentence (0.37s)
+=== RUN   TestRemovalBarIsTheSameNoticeBand
+--- PASS: TestRemovalBarIsTheSameNoticeBand (0.19s)
+=== RUN   TestDisableBarClosesOnlyWhenTheShellAnswers
+--- PASS: TestDisableBarClosesOnlyWhenTheShellAnswers (0.20s)
+=== RUN   TestDisableBarKeepsAFailureOnIt
+--- PASS: TestDisableBarKeepsAFailureOnIt (0.24s)
+=== RUN   TestRemovalBarClosesOnlyWhenTheShellAnswers
+--- PASS: TestRemovalBarClosesOnlyWhenTheShellAnswers (0.63s)
+=== RUN   TestRemovalConfirmWearsWarningNotDanger
+--- PASS: TestRemovalConfirmWearsWarningNotDanger (0.17s)
+=== RUN   TestInlineConfirmationsWithdrawWhenTheirWindowPasses
+--- PASS: TestInlineConfirmationsWithdrawWhenTheirWindowPasses (0.20s)
+=== RUN   TestABusyConfirmationOutlivesTheWindow
+--- PASS: TestABusyConfirmationOutlivesTheWindow (0.19s)
+=== RUN   TestDisabledActionLabelsShareInk
+=== RUN   TestDisabledActionLabelsShareInk/action
+    disabledink_test.go:62: light: ink contrast 75
+    disabledink_test.go:62: dark: ink contrast 79
+=== RUN   TestDisabledActionLabelsShareInk/busy
+    disabledink_test.go:62: light: ink contrast 75
+    disabledink_test.go:62: dark: ink contrast 79
+=== RUN   TestDisabledActionLabelsShareInk/configuration
+    disabledink_test.go:62: light: ink contrast 75
+    disabledink_test.go:62: dark: ink contrast 79
+--- PASS: TestDisabledActionLabelsShareInk (0.17s)
+    --- PASS: TestDisabledActionLabelsShareInk/action (0.07s)
+    --- PASS: TestDisabledActionLabelsShareInk/busy (0.05s)
+    --- PASS: TestDisabledActionLabelsShareInk/configuration (0.05s)
+=== RUN   TestDisabledExtensionIconSharesInk
+    disabledink_test.go:67: light: ink contrast 79
+    disabledink_test.go:67: dark: ink contrast 85
+--- PASS: TestDisabledExtensionIconSharesInk (0.05s)
+=== RUN   TestDisabledSessionIconSharesInk
+    disabledink_test.go:71: light: ink contrast 79
+    disabledink_test.go:71: dark: ink contrast 85
+--- PASS: TestDisabledSessionIconSharesInk (0.04s)
+=== RUN   TestDisabledConfirmationLabelSharesInk
+    disabledink_test.go:75: light: ink contrast 75
+    disabledink_test.go:75: dark: ink contrast 79
+--- PASS: TestDisabledConfirmationLabelSharesInk (0.05s)
+=== RUN   TestNoticeDisableKeyboardConfirmAndRetry
+=== RUN   TestNoticeDisableKeyboardConfirmAndRetry/light/en/sync
+=== RUN   TestNoticeDisableKeyboardConfirmAndRetry/light/en/delayed
+=== RUN   TestNoticeDisableKeyboardConfirmAndRetry/light/zh/sync
+=== RUN   TestNoticeDisableKeyboardConfirmAndRetry/light/zh/delayed
+=== RUN   TestNoticeDisableKeyboardConfirmAndRetry/dark/en/sync
+=== RUN   TestNoticeDisableKeyboardConfirmAndRetry/dark/en/delayed
+=== RUN   TestNoticeDisableKeyboardConfirmAndRetry/dark/zh/sync
+=== RUN   TestNoticeDisableKeyboardConfirmAndRetry/dark/zh/delayed
+--- PASS: TestNoticeDisableKeyboardConfirmAndRetry (0.12s)
+    --- PASS: TestNoticeDisableKeyboardConfirmAndRetry/light/en/sync (0.02s)
+    --- PASS: TestNoticeDisableKeyboardConfirmAndRetry/light/en/delayed (0.02s)
+    --- PASS: TestNoticeDisableKeyboardConfirmAndRetry/light/zh/sync (0.02s)
+    --- PASS: TestNoticeDisableKeyboardConfirmAndRetry/light/zh/delayed (0.01s)
+    --- PASS: TestNoticeDisableKeyboardConfirmAndRetry/dark/en/sync (0.01s)
+    --- PASS: TestNoticeDisableKeyboardConfirmAndRetry/dark/en/delayed (0.02s)
+    --- PASS: TestNoticeDisableKeyboardConfirmAndRetry/dark/zh/sync (0.01s)
+    --- PASS: TestNoticeDisableKeyboardConfirmAndRetry/dark/zh/delayed (0.01s)
+=== RUN   TestNoticeRemoveKeyboardConfirmAndRetry
+=== RUN   TestNoticeRemoveKeyboardConfirmAndRetry/light/en/sync
+=== RUN   TestNoticeRemoveKeyboardConfirmAndRetry/light/en/delayed
+=== RUN   TestNoticeRemoveKeyboardConfirmAndRetry/light/zh/sync
+=== RUN   TestNoticeRemoveKeyboardConfirmAndRetry/light/zh/delayed
+=== RUN   TestNoticeRemoveKeyboardConfirmAndRetry/dark/en/sync
+=== RUN   TestNoticeRemoveKeyboardConfirmAndRetry/dark/en/delayed
+=== RUN   TestNoticeRemoveKeyboardConfirmAndRetry/dark/zh/sync
+=== RUN   TestNoticeRemoveKeyboardConfirmAndRetry/dark/zh/delayed
+--- PASS: TestNoticeRemoveKeyboardConfirmAndRetry (0.13s)
+    --- PASS: TestNoticeRemoveKeyboardConfirmAndRetry/light/en/sync (0.01s)
+    --- PASS: TestNoticeRemoveKeyboardConfirmAndRetry/light/en/delayed (0.01s)
+    --- PASS: TestNoticeRemoveKeyboardConfirmAndRetry/light/zh/sync (0.02s)
+    --- PASS: TestNoticeRemoveKeyboardConfirmAndRetry/light/zh/delayed (0.02s)
+    --- PASS: TestNoticeRemoveKeyboardConfirmAndRetry/dark/en/sync (0.02s)
+    --- PASS: TestNoticeRemoveKeyboardConfirmAndRetry/dark/en/delayed (0.02s)
+    --- PASS: TestNoticeRemoveKeyboardConfirmAndRetry/dark/zh/sync (0.02s)
+    --- PASS: TestNoticeRemoveKeyboardConfirmAndRetry/dark/zh/delayed (0.02s)
+=== RUN   TestDisableAsksFirst
+--- PASS: TestDisableAsksFirst (0.22s)
+PASS
+ok  	floter/internal/settingsui	3.033s

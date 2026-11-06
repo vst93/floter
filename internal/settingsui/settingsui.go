@@ -6692,7 +6692,7 @@ func (a *App) disableConfirmation(c *ui.Context, copy i18n.Settings, integration
 	// The reference's useEffect focuses the Cancel button on open, so the
 	// first Enter or Escape answers the question without the pointer moving.
 	// A zero-value Element's Focus is a no-op, so no nil check is needed.
-	cancel.Focus()
+	cancel.AutoFocus()
 }
 
 // markDisableBusy records that a disable is in flight and drops the last
@@ -6986,7 +6986,7 @@ func (a *App) removeConfirmation(c *ui.Context, copy i18n.Settings, integration 
 	// The reference's useEffect focuses the Cancel button on open, so the
 	// first Enter or Escape answers the question without the pointer moving.
 	// A zero-value Element's Focus is a no-op, so no nil check is needed.
-	cancel.Focus()
+	cancel.AutoFocus()
 }
 
 // markRemoveBusy records that a plain removal is in flight and drops the last
