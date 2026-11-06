@@ -33,6 +33,22 @@ type Config struct {
 	// build's `ActionControl` keeping its own `failed` state rather than
 	// borrowing the overlay's write line.
 	ActionFailed string
+	armedAction  configActionIdentity
+	failedAction configActionIdentity
+}
+
+// An action key alone does not identify the question the user saw. Keep the
+// scope and wording by value so an in-place schema refresh cannot rewrite it.
+type configActionIdentity struct {
+	plugin, key, label, help, confirm string
+}
+
+func (config *Config) actionIdentity(key string) configActionIdentity {
+	if !config.hasAction(key) {
+		return configActionIdentity{}
+	}
+	field, _ := config.Schema.Field(key)
+	return configActionIdentity{config.Schema.Plugin, key, field.Label, field.Help, field.Confirm}
 }
 
 // configOpen reports whether the overlay owns the list's band.
@@ -135,6 +151,7 @@ func (a *App) ChangeConfig(key string, value any) {
 func (a *App) ArmConfig(key string) {
 	if a.config.hasAction(key) {
 		a.config.Armed = key
+		a.config.armedAction = a.config.actionIdentity(key)
 		if a.config.ActionFailed == key {
 			a.config.ActionFailed = ""
 		}
@@ -157,6 +174,10 @@ func (a *App) RunConfig(key string) {
 		return
 	}
 	config := a.config
+	if config.actionIdentity(key) != config.armedAction {
+		config.Armed = ""
+		return
+	}
 	config.Armed = ""
 	config.ActionFailed = ""
 	if a.Actions.ConfigAction == nil {
@@ -166,6 +187,7 @@ func (a *App) RunConfig(key string) {
 	}
 	if !a.Actions.ConfigAction(config.Schema.Plugin, key) && a.config == config {
 		config.ActionFailed = key
+		config.failedAction = config.actionIdentity(key)
 	}
 }
 
@@ -182,10 +204,10 @@ func (a *App) syncConfig() {
 	}
 	// An action's confirmation and refusal belong to that visible action.
 	// Removing it or replacing it with a value field ends both lifetimes.
-	if !a.config.hasAction(a.config.Armed) {
+	if !a.config.hasAction(a.config.Armed) || a.config.actionIdentity(a.config.Armed) != a.config.armedAction {
 		a.config.Armed = ""
 	}
-	if !a.config.hasAction(a.config.ActionFailed) {
+	if !a.config.hasAction(a.config.ActionFailed) || a.config.actionIdentity(a.config.ActionFailed) != a.config.failedAction {
 		a.config.ActionFailed = ""
 	}
 }

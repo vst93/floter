@@ -36,3 +36,12 @@
 4. 现象：同一参数改名后，错误仍点名已不存在的 Target。改动：保存结构化拒绝，按当前字段标签与语言重新解释，保留错误本身。验证：Target → Destination 后只出现当前名称的拒绝，深浅通过。
 
 定向回归 **71 PASS / 0 FAIL**，settingsui vet 退出 0。M2 撤回这批产品后四叶子实红：`constraints parameter left obsolete refusal visible`、`renamed parameter left obsolete refusal visible`、`renamed parameter lost current refusal wording`；MD5 OK、touch 后以上 71 PASS。旧 V/B/S 0/0/0。
+
+## 第三批（5–6）
+
+5. 现象：已问“确认清理”后，schema 把范围改成“包括收藏”，同 key 仍处于已确认第一步的状态。改动：确认绑定 plugin/key/label/help/confirm 的值副本，刷新或派发前不匹配即退役。验证：真实行点击打开确认，原地刷新问题，回到首按入口、自动执行 0 次；深浅通过。
+6. 现象：动作拒绝后更新范围，同一行仍显示旧动作的失败。改动：拒绝也绑定动作定义，定义变化退役。验证：行点击 → 确认点击 → 拒绝 → 刷新范围，旧失败消失、执行总数仍为 1；深浅通过。
+
+定向回归 **141 PASS / 0 FAIL**，settingsui/launcher vet 退出 0。M3 四叶子实红：`changed question inherited old confirmation`、`changed action inherited old refusal`；MD5 OK、touch 复验通过。初版完整启动器夹具 Tab 留在搜索入口，未到动作，已改真实行点击；该夹具失败不算变异证据。目视深色 after：新范围说明下只剩“清理历史”首按胶囊，旧问题与取消按钮退场，无新增面。
+
+开盘全量 **4507 PASS / 0 FAIL**，起点 2cfe705d 测试函数 **2970**。基线 shell 收尾统计一度读到已新增的函数数 2974，该值不是起点；以 git grep 起点树实测 2970 为准。
