@@ -1,0 +1,2 @@
+full-test exit=0
+verbose exit=0 PASS=3947

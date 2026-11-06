@@ -1,0 +1,73 @@
+?   	floter/cmd/floter	[no test files]
+ok  	floter/internal/ansi	0.007s
+ok  	floter/internal/apps	0.192s
+ok  	floter/internal/browser	0.010s
+ok  	floter/internal/calc	0.002s
+ok  	floter/internal/calculator	0.007s
+ok  	floter/internal/ci	4.925s
+ok  	floter/internal/clipboard	0.039s
+ok  	floter/internal/control	0.134s
+?   	floter/internal/deadline	[no test files]
+ok  	floter/internal/desktopentry	0.002s
+ok  	floter/internal/drops	0.003s
+ok  	floter/internal/extensions	26.761s
+ok  	floter/internal/extensions/recommended	0.044s
+ok  	floter/internal/frameaudit	0.053s
+ok  	floter/internal/glassmap	0.005s
+ok  	floter/internal/homepath	0.003s
+ok  	floter/internal/i18n	0.506s
+ok  	floter/internal/inputtext	0.017s
+ok  	floter/internal/inventory	0.048s
+ok  	floter/internal/launcher	40.320s
+ok  	floter/internal/motion	0.024s
+ok  	floter/internal/pathid	0.011s
+ok  	floter/internal/pathlist	0.007s
+ok  	floter/internal/pinyin	0.004s
+ok  	floter/internal/plist	0.007s
+ok  	floter/internal/plugincfg	0.010s
+ok  	floter/internal/progname	0.012s
+ok  	floter/internal/progtype	0.006s
+ok  	floter/internal/scriptlang	0.004s
+ok  	floter/internal/semver	0.005s
+ok  	floter/internal/settings	2.890s
+--- FAIL: TestGroupRefreshTextRelaxationClearsValidation (0.00s)
+    --- FAIL: TestGroupRefreshTextRelaxationClearsValidation/light (0.00s)
+        grouprefresh_test.go:139: text-relax retains obsolete validation: "outside its allowed length"
+    --- FAIL: TestGroupRefreshTextRelaxationClearsValidation/dark (0.00s)
+        grouprefresh_test.go:139: text-relax retains obsolete validation: "outside its allowed length"
+--- FAIL: TestGroupRefreshNumberRelaxationClearsValidation (0.00s)
+    --- FAIL: TestGroupRefreshNumberRelaxationClearsValidation/light (0.00s)
+        grouprefresh_test.go:139: number-relax retains obsolete validation: "outside its allowed range"
+    --- FAIL: TestGroupRefreshNumberRelaxationClearsValidation/dark (0.00s)
+        grouprefresh_test.go:139: number-relax retains obsolete validation: "outside its allowed range"
+--- FAIL: TestGroupRefreshRemovedTextRetiresValidation (0.01s)
+    --- FAIL: TestGroupRefreshRemovedTextRetiresValidation/light (0.00s)
+        grouprefresh_test.go:185: text-remove retained removed field error
+        grouprefresh_test.go:191: text-remove resurrected validation before interaction
+    --- FAIL: TestGroupRefreshRemovedTextRetiresValidation/dark (0.00s)
+        grouprefresh_test.go:185: text-remove retained removed field error
+        grouprefresh_test.go:191: text-remove resurrected validation before interaction
+--- FAIL: TestGroupRefreshRemovedNumberRetiresValidation (0.01s)
+    --- FAIL: TestGroupRefreshRemovedNumberRetiresValidation/light (0.00s)
+        grouprefresh_test.go:185: number-remove retained removed field error
+        grouprefresh_test.go:191: number-remove resurrected validation before interaction
+    --- FAIL: TestGroupRefreshRemovedNumberRetiresValidation/dark (0.00s)
+        grouprefresh_test.go:185: number-remove retained removed field error
+        grouprefresh_test.go:191: number-remove resurrected validation before interaction
+FAIL
+FAIL	floter/internal/settingsui	225.702s
+ok  	floter/internal/shell	40.050s
+ok  	floter/internal/shortcuts	0.007s
+ok  	floter/internal/spawn	0.161s
+ok  	floter/internal/statefile	0.004s
+ok  	floter/internal/terminalui	16.042s
+ok  	floter/internal/termsession	4.348s
+ok  	floter/internal/textlines	0.002s
+ok  	floter/internal/theme	0.027s
+ok  	floter/internal/tools	0.005s
+ok  	floter/internal/usage	0.004s
+ok  	floter/internal/valuedomain	0.002s
+ok  	floter/internal/versioning	0.002s
+?   	floter/internal/versioning/cmd/next-version	[no test files]
+ok  	floter/internal/xdg	0.003s
+FAIL

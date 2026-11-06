@@ -36,6 +36,8 @@ type configDraft struct {
 	// kinds retires editor-only state when a schema reuses a key for another
 	// control. Stored values remain owned by the existing save contract.
 	kinds map[string]string
+	// Snapshot pointer-valued bounds so an in-place schema update is visible.
+	constraints map[string]configConstraints
 	// multiAnchor is each multiselect list box's last clicked option value,
 	// keyed by the field. A native `select[multiple]` extends a range from that
 	// anchor on Shift-click (`Ctrl`/`Cmd`-click toggles one, a plain click
@@ -53,6 +55,27 @@ type configDraft struct {
 	// observed is the last effective host generation, separate from saved:
 	// a successful save can precede the shell's refreshed integration list.
 	observed map[string]any
+}
+
+type configConstraints struct {
+	numbers [2]float64
+	lengths [2]int
+	present [4]bool
+}
+
+func constraintsOf(field ConfigField) configConstraints {
+	var out configConstraints
+	for i, value := range []*float64{field.Minimum, field.Maximum} {
+		if value != nil {
+			out.numbers[i], out.present[i] = *value, true
+		}
+	}
+	for i, value := range []*int{field.MinLength, field.MaxLength} {
+		if value != nil {
+			out.lengths[i], out.present[i+2] = *value, true
+		}
+	}
+	return out
 }
 
 // liveText is one field's displayed text: what the user has typed, or the
@@ -706,16 +729,23 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 	}
 	draft.kinds[field.Key] = kind
 	c = c.Key("config.field." + field.Key + "\x00" + kind)
-	// Bounds can change while the same editor stays focused. Revalidate an
-	// edit or an already displayed error; untouched values stay unvalidated.
+	// Recheck a stored-value error only when its constraints actually change.
+	// Host errors and untouched fields retain their existing validation state.
+	constraints := constraintsOf(field)
+	previous, observed := draft.constraints[field.Key]
+	if draft.constraints == nil {
+		draft.constraints = map[string]configConstraints{}
+	}
+	draft.constraints[field.Key] = constraints
+	recheck := observed && previous != constraints && a.configFieldProblem(integration, field) != ""
 	edit, editing := draft.live[field.Key]
-	if !editing && a.configFieldProblem(integration, field) != "" {
+	if !editing && recheck {
 		edit, _ = draft.values[field.Key].(string)
 		if number, ok := draft.values[field.Key].(float64); ok {
 			edit = formatFieldNumber(number)
 		}
 	}
-	if editing || a.configFieldProblem(integration, field) != "" {
+	if editing || recheck {
 		if _, problem := ConfigValueProblem(field, edit, copy); problem != "" {
 			a.noteConfigFieldError(integration.ID, field.Key, problem)
 		} else {

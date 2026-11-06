@@ -1,0 +1,5 @@
+ef636518a873ccac2ee4291e1c79ece5  internal/settingsui/config.go
+3c4170520a9df790d14ae702e79b8961  internal/settingsui/pluginsheet.go
+0e18744dc14f5731fc2b6a80bf22286c  internal/settingsui/settingsui.go
+ebcef6e081b908836a340ad7e7145e41  internal/settingsui/pluginsection.go
+346f50c8e2928184bca39aef7d095761  internal/settingsui/grouprefresh_test.go
