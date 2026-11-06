@@ -991,7 +991,8 @@ type App struct {
 	// same with its own local draft). Both draft maps are keyed by the plugin id
 	// plus the field key: one App draws every plugin's sheet in turn and a field
 	// key is not unique across plugins.
-	pluginNumberDrafts map[string]string
+	pluginNumberDrafts   map[string]string
+	pluginNumberObserved map[string]float64
 	// Text fields commit on Enter, so their unsubmitted edit must survive
 	// frames independently of the stored value, just like number drafts.
 	pluginTextDrafts map[string]string

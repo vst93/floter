@@ -65,6 +65,7 @@ type PluginSheet struct {
 func (a *App) ClosePluginSheet() {
 	a.pluginTextDrafts = nil
 	a.pluginNumberDrafts = nil
+	a.pluginNumberObserved = nil
 	a.PluginScroll.Y = 0
 	a.sheetPlugin = ""
 }
@@ -94,6 +95,14 @@ func (a *App) PluginSheet(c *ui.Context, sheet PluginSheet) {
 		}
 		if kind, exists := active[key]; !exists || kind != plugincfg.Number {
 			delete(a.pluginNumberDrafts, key)
+		}
+	}
+	for key := range a.pluginNumberObserved {
+		if !strings.HasPrefix(key, prefix) {
+			continue
+		}
+		if kind, exists := active[key]; !exists || kind != plugincfg.Number {
+			delete(a.pluginNumberObserved, key)
 		}
 	}
 	// A submit waiting for the host's answer is retired with its field: a
@@ -385,6 +394,11 @@ func (a *App) sheetField(c *ui.Context, sheet PluginSheet, field plugincfg.Field
 						a.pluginTextCommits = map[string]string{}
 					}
 					a.pluginTextCommits[key] = edit
+				} else {
+					// The user confirmed the already stored value. It must not
+					// mask subsequent external updates while focus stays here.
+					delete(a.pluginTextDrafts, key)
+					delete(a.pluginTextCommits, key)
 				}
 			}
 			// A refused write must leave the focused edit available for retry.
@@ -546,6 +560,18 @@ func (a *App) sheetNumberSlot(c *ui.Context, plugin string, field plugincfg.Fiel
 	}
 	key := plugin + "\x00" + field.Key
 	draft, ok := a.pluginNumberDrafts[key]
+	if previous, observed := a.pluginNumberObserved[key]; observed && previous != *value && ok {
+		// Only a draft matching the previously confirmed value can follow a
+		// later host update. Partial and refused edits remain the user's.
+		if parsed, err := strconv.ParseFloat(strings.TrimSpace(draft), 64); err == nil && parsed == previous {
+			delete(a.pluginNumberDrafts, key)
+			ok = false
+		}
+	}
+	if a.pluginNumberObserved == nil {
+		a.pluginNumberObserved = map[string]float64{}
+	}
+	a.pluginNumberObserved[key] = *value
 	if !ok {
 		draft = initialNumberText(field, *value)
 	} else if parsed, err := strconv.ParseFloat(strings.TrimSpace(draft), 64); err == nil && !math.IsNaN(parsed) && !math.IsInf(parsed, 0) {
