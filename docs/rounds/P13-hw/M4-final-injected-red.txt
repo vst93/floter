@@ -1,0 +1,39 @@
+=== RUN   TestNoticeReorderedDisableKeepsAnswerOwner
+=== RUN   TestNoticeReorderedDisableKeepsAnswerOwner/light/disable-reorder
+    noticereorder_test.go:62: refresh lost the original answer focus
+    noticereorder_test.go:71: refreshed disable answer lost its owner: disabled=[] removed=[]
+=== RUN   TestNoticeReorderedDisableKeepsAnswerOwner/light/disable-reorder-insert
+    noticereorder_test.go:62: refresh lost the original answer focus
+    noticereorder_test.go:71: refreshed disable answer lost its owner: disabled=[] removed=[]
+=== RUN   TestNoticeReorderedDisableKeepsAnswerOwner/dark/disable-reorder
+    noticereorder_test.go:62: refresh lost the original answer focus
+    noticereorder_test.go:71: refreshed disable answer lost its owner: disabled=[] removed=[]
+=== RUN   TestNoticeReorderedDisableKeepsAnswerOwner/dark/disable-reorder-insert
+    noticereorder_test.go:62: refresh lost the original answer focus
+    noticereorder_test.go:71: refreshed disable answer lost its owner: disabled=[] removed=[]
+--- FAIL: TestNoticeReorderedDisableKeepsAnswerOwner (0.10s)
+    --- FAIL: TestNoticeReorderedDisableKeepsAnswerOwner/light/disable-reorder (0.06s)
+    --- FAIL: TestNoticeReorderedDisableKeepsAnswerOwner/light/disable-reorder-insert (0.01s)
+    --- FAIL: TestNoticeReorderedDisableKeepsAnswerOwner/dark/disable-reorder (0.01s)
+    --- FAIL: TestNoticeReorderedDisableKeepsAnswerOwner/dark/disable-reorder-insert (0.01s)
+=== RUN   TestNoticeReorderedRemoveKeepsAnswerOwner
+=== RUN   TestNoticeReorderedRemoveKeepsAnswerOwner/light/remove-reorder
+    noticereorder_test.go:62: refresh lost the original answer focus
+    noticereorder_test.go:68: refreshed removal answer lost its owner: removed=[] disabled=[]
+=== RUN   TestNoticeReorderedRemoveKeepsAnswerOwner/light/remove-reorder-insert
+    noticereorder_test.go:62: refresh lost the original answer focus
+    noticereorder_test.go:68: refreshed removal answer lost its owner: removed=[] disabled=[]
+=== RUN   TestNoticeReorderedRemoveKeepsAnswerOwner/dark/remove-reorder
+    noticereorder_test.go:62: refresh lost the original answer focus
+    noticereorder_test.go:68: refreshed removal answer lost its owner: removed=[] disabled=[]
+=== RUN   TestNoticeReorderedRemoveKeepsAnswerOwner/dark/remove-reorder-insert
+    noticereorder_test.go:62: refresh lost the original answer focus
+    noticereorder_test.go:68: refreshed removal answer lost its owner: removed=[] disabled=[]
+--- FAIL: TestNoticeReorderedRemoveKeepsAnswerOwner (0.26s)
+    --- FAIL: TestNoticeReorderedRemoveKeepsAnswerOwner/light/remove-reorder (0.07s)
+    --- FAIL: TestNoticeReorderedRemoveKeepsAnswerOwner/light/remove-reorder-insert (0.06s)
+    --- FAIL: TestNoticeReorderedRemoveKeepsAnswerOwner/dark/remove-reorder (0.07s)
+    --- FAIL: TestNoticeReorderedRemoveKeepsAnswerOwner/dark/remove-reorder-insert (0.06s)
+FAIL
+FAIL	floter/internal/settingsui	0.366s
+FAIL

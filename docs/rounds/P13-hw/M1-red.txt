@@ -1,0 +1,19 @@
+=== RUN   TestNoticeBusyDisableDoesNotStarveDiscardDeadline
+=== RUN   TestNoticeBusyDisableDoesNotStarveDiscardDeadline/light
+    noticebusydeadline_test.go:85: later discard missed its deadline behind a busy confirmation
+=== RUN   TestNoticeBusyDisableDoesNotStarveDiscardDeadline/dark
+    noticebusydeadline_test.go:85: later discard missed its deadline behind a busy confirmation
+--- FAIL: TestNoticeBusyDisableDoesNotStarveDiscardDeadline (0.59s)
+    --- FAIL: TestNoticeBusyDisableDoesNotStarveDiscardDeadline/light (0.41s)
+    --- FAIL: TestNoticeBusyDisableDoesNotStarveDiscardDeadline/dark (0.18s)
+=== RUN   TestNoticeBusyRemoveDoesNotStarveDiscardDeadline
+=== RUN   TestNoticeBusyRemoveDoesNotStarveDiscardDeadline/light
+    noticebusydeadline_test.go:85: later discard missed its deadline behind a busy confirmation
+=== RUN   TestNoticeBusyRemoveDoesNotStarveDiscardDeadline/dark
+    noticebusydeadline_test.go:85: later discard missed its deadline behind a busy confirmation
+--- FAIL: TestNoticeBusyRemoveDoesNotStarveDiscardDeadline (0.62s)
+    --- FAIL: TestNoticeBusyRemoveDoesNotStarveDiscardDeadline/light (0.30s)
+    --- FAIL: TestNoticeBusyRemoveDoesNotStarveDiscardDeadline/dark (0.32s)
+FAIL
+FAIL	floter/internal/settingsui	1.212s
+FAIL

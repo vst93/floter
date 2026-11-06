@@ -1,0 +1,330 @@
+?   	floter/cmd/floter	[no test files]
+ok  	floter/internal/ansi	0.018s
+ok  	floter/internal/apps	0.280s
+ok  	floter/internal/browser	0.051s
+ok  	floter/internal/calc	0.014s
+ok  	floter/internal/calculator	0.033s
+ok  	floter/internal/ci	4.138s
+ok  	floter/internal/clipboard	0.073s
+ok  	floter/internal/control	0.307s
+?   	floter/internal/deadline	[no test files]
+ok  	floter/internal/desktopentry	0.011s
+ok  	floter/internal/drops	0.016s
+ok  	floter/internal/extensions	32.631s
+ok  	floter/internal/extensions/recommended	0.129s
+ok  	floter/internal/frameaudit	0.086s
+ok  	floter/internal/glassmap	0.028s
+ok  	floter/internal/homepath	0.003s
+ok  	floter/internal/i18n	0.601s
+ok  	floter/internal/inputtext	0.031s
+ok  	floter/internal/inventory	0.086s
+ok  	floter/internal/launcher	61.947s
+ok  	floter/internal/motion	0.028s
+ok  	floter/internal/pathid	0.010s
+ok  	floter/internal/pathlist	0.014s
+ok  	floter/internal/pinyin	0.006s
+ok  	floter/internal/plist	0.005s
+ok  	floter/internal/plugincfg	0.011s
+ok  	floter/internal/progname	0.004s
+ok  	floter/internal/progtype	0.007s
+ok  	floter/internal/scriptlang	0.005s
+ok  	floter/internal/semver	0.003s
+ok  	floter/internal/settings	1.912s
+--- FAIL: TestASettingsFrameCopiesTheSettingsOnce (0.03s)
+panic: ui: two elements under one parent have the key "ext", and share one state: give each a key of its own (/home/tar/workspace/floter/internal/settingsui/rows.go:360) [recovered, repanicked]
+
+goroutine 1540 [running]:
+testing.tRunner.func1.2({0x14cf230, 0x1ee94d47f220})
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2125 +0x232
+testing.tRunner.func1()
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2128 +0x329
+panic({0x14cf230?, 0x1ee94d47f220?})
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/runtime/panic.go:859 +0x125
+github.com/egoist/mygo/ui.(*engine).duplicateKey(0x1ee94ddf6008, 0xcf59ee66d69b9901, {0x14cf230?, 0x1ee94d47f210?})
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/diagnostics.go:25 +0x319
+github.com/egoist/mygo/ui.(*context).newElement(0x1ee94ddf6138, 0x0)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/context.go:244 +0x1fd
+github.com/egoist/mygo/ui.coreColumn(...)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/widgets.go:16
+github.com/egoist/mygo/ui.Column(0xc9d4c8?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/api_gen.go:944 +0x65
+floter/internal/settingsui.(*App).cardGeometry(0x1ee94d9fd308, 0x1ee94d47f180, 0x41000000, 0x42840000, 0x40800000, {0x0, 0x0}, 0x1ee94ddc3460)
+	/home/tar/workspace/floter/internal/settingsui/rows.go:360 +0x185
+floter/internal/settingsui.(*App).integrationRow(_, _, {{0xca05d2, 0x8}, {0xca6f2d, 0xe}, {0xcae2c9, 0x14}, {0xca3901, 0xb}, ...}, ...)
+	/home/tar/workspace/floter/internal/settingsui/settingsui.go:2761 +0x35f
+floter/internal/settingsui.(*App).integrations.func1.1.2()
+	/home/tar/workspace/floter/internal/settingsui/settingsui.go:1916 +0xc7
+floter/internal/settingsui.(*App).extensionSection.func1()
+	/home/tar/workspace/floter/internal/settingsui/rows.go:276 +0x16f
+github.com/egoist/mygo/ui.(*node).Children(0x1ee94de57ce0, 0x721e66?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0x4e
+github.com/egoist/mygo/ui.Element.Children({0x1ee94d47f170?, 0xca1347?, 0x0?}, 0x1ee94ddc5f08)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x3e
+floter/internal/settingsui.(*App).sectionGroupPadded(0x1ee94d9fd308, 0x1ee94d47f180, {0xca1347, 0x9}, 0x0, 0x1ee94ddc5f08)
+	/home/tar/workspace/floter/internal/settingsui/rows.go:108 +0x1d4
+floter/internal/settingsui.(*App).sectionGroup(...)
+	/home/tar/workspace/floter/internal/settingsui/rows.go:87
+floter/internal/settingsui.(*App).extensionSection(0x1ee94d9fd308, 0x1ee94d47f180, {0xca1347, 0x9}, 0x14, 0x1ee94ddc7d40)
+	/home/tar/workspace/floter/internal/settingsui/rows.go:262 +0x1eb
+floter/internal/settingsui.(*App).integrations.func1.1()
+	/home/tar/workspace/floter/internal/settingsui/settingsui.go:1912 +0x305
+floter/internal/settingsui.(*App).extensionMetrics(0xff7a7171?, 0x0?)
+	/home/tar/workspace/floter/internal/settingsui/rows.go:476 +0x5a
+floter/internal/settingsui.(*App).integrations.func1()
+	/home/tar/workspace/floter/internal/settingsui/settingsui.go:1885 +0x196
+github.com/egoist/mygo/ui.(*node).Children(0x1ee94de522b0, 0x72133e?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0x4e
+github.com/egoist/mygo/ui.Element.Children({0x1ee94d47f170?, 0x4dd02908?, 0x1ee9?}, 0x1ee94ddc8170)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x3e
+floter/internal/settingsui.(*App).pageColumn(0xcd742c?, 0x1ee94d47f180, 0x1ee94ddc8170)
+	/home/tar/workspace/floter/internal/settingsui/rows.go:56 +0xa5
+floter/internal/settingsui.(*App).integrations(_, _, {{0xca05d2, 0x8}, {0xca6f2d, 0xe}, {0xcae2c9, 0x14}, {0xca3901, 0xb}, ...})
+	/home/tar/workspace/floter/internal/settingsui/settingsui.go:1879 +0xe5
+floter/internal/settingsui.(*App).body.func1.1.1()
+	/home/tar/workspace/floter/internal/settingsui/settingsui.go:1643 +0x23d
+github.com/egoist/mygo/ui.(*node).Children(0x1ee94de506f0, 0x72133e?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0x4e
+github.com/egoist/mygo/ui.Element.Children({0x1ee94d47f170?, 0x8?, 0x0?}, 0x1ee94ddcbe50)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x3e
+floter/internal/settingsui.(*App).body.func1.1()
+	/home/tar/workspace/floter/internal/settingsui/settingsui.go:1612 +0x165
+github.com/egoist/mygo/ui.(*node).Children(0x1ee94de50000, 0x1ee94ddcbf58?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0x4e
+github.com/egoist/mygo/ui.Element.Children({0x1ee94d47f170?, 0x0?, 0x0?}, 0x1ee94ddcbfb0)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x3e
+floter/internal/settingsui.(*App).body.func1()
+	/home/tar/workspace/floter/internal/settingsui/settingsui.go:1608 +0x206
+github.com/egoist/mygo/ui.(*node).Children(0x1ee94de3b710, 0x720a38?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0x4e
+github.com/egoist/mygo/ui.Element.Children({0x1ee94d47f170?, 0xf4f30000?, 0x2bf7?}, 0x1ee94ddcc320)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x3e
+floter/internal/settingsui.(*App).body(_, _, {{0xca05d2, 0x8}, {0xca6f2d, 0xe}, {0xcae2c9, 0x14}, {0xca3901, 0xb}, ...})
+	/home/tar/workspace/floter/internal/settingsui/settingsui.go:1606 +0x348
+floter/internal/settingsui.(*App).View.func1.2.2()
+	/home/tar/workspace/floter/internal/settingsui/settingsui.go:1342 +0x39
+github.com/egoist/mygo/ui.(*node).Children(0x1ee94de3b020, 0x71f7fc?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0x4e
+github.com/egoist/mygo/ui.Element.Children({0x1ee94d47f170?, 0xf4f30000?, 0x2bf7?}, 0x1ee94ddce8e0)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x3e
+floter/internal/settingsui.(*App).View.func1.2()
+	/home/tar/workspace/floter/internal/settingsui/settingsui.go:1341 +0x359
+github.com/egoist/mygo/ui.(*node).Children(0x1ee94de309a0, 0x71f7fc?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0x4e
+github.com/egoist/mygo/ui.Element.Children({0x1ee94d47f170?, 0x0?, 0x0?}, 0x1ee94ddcf0c0)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x3e
+floter/internal/settingsui.(*App).View.func1()
+	/home/tar/workspace/floter/internal/settingsui/settingsui.go:1313 +0x305
+github.com/egoist/mygo/ui.(*node).Children(0x1ee94de2e6f0, 0x720a38?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0x4e
+github.com/egoist/mygo/ui.Element.Children({0x1ee94d47f170?, 0xe0000?, 0x0?}, 0x1ee94ddd39b8)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x3e
+floter/internal/settingsui.(*App).View(0x1ee94d9fd308, 0x1ee94d47f180)
+	/home/tar/workspace/floter/internal/settingsui/settingsui.go:1227 +0x46d
+floter/internal/settingsui.TestASettingsFrameCopiesTheSettingsOnce.func5(0x0?)
+	/home/tar/workspace/floter/internal/settingsui/snapshotpin_test.go:55 +0x1d
+github.com/egoist/mygo/ui.NewTester.func1(0x1ee94ddf6138?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/api_gen.go:1399 +0x26
+github.com/egoist/mygo/ui.(*engine).runFrame(0x1ee94ddf6008)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/runtime.go:597 +0x67a
+github.com/egoist/mygo/ui.(*Tester).settle(0x1ee94d4c77a0)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/headless.go:263 +0x89
+github.com/egoist/mygo/ui.coreNewTester(0x1ee94d47f160, 0x2d0, 0x244)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/headless.go:252 +0x1df
+github.com/egoist/mygo/ui.NewTester(...)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/api_gen.go:1399
+floter/internal/settingsui.TestASettingsFrameCopiesTheSettingsOnce(0x1ee94da566c8)
+	/home/tar/workspace/floter/internal/settingsui/snapshotpin_test.go:55 +0x385
+testing.tRunner(0x1ee94da566c8, 0x15767e8)
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2195 +0xea
+created by testing.(*T).Run in goroutine 1
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2260 +0x4d4
+FAIL	floter/internal/settingsui	204.955s
+2026/11/06 23:18:20 floter: Ghost was not connected: extensions: runtime-unavailable: runtime-unavailable:{"names":["floter-test-no-such-program"]}
+2026/11/06 23:18:20 floter: connected Linked local
+2026/11/06 23:18:21 floter: Declined was not connected: open /tmp/TestTheLinkedConnectThatIsDeclinedStaysQuiet694394034/001/extensions/dev.floter.declined/floter.extension.json: no such file or directory
+2026/11/06 23:18:26 floter: could not re-probe dev.floter.drifttool on version drift: extensions: the tool did not produce usable help output
+2026/11/06 23:18:39 floter: could not open /tmp/TestOpenPathResolvesAndRequiresExistence414137754/002/missing.txt: stat /tmp/TestOpenPathResolvesAndRequiresExistence414137754/002/missing.txt: no such file or directory
+2026/11/06 23:18:40 floter: the connected manifest is not a .json file: /tmp/TestAConnectLinkTakesAJSONFileOrThePackageDirectory3815059833/001/extensions/dev.floter.jsononly/notes.txt
+2026/11/06 23:18:41 floter: connected JSON only local
+2026/11/06 23:18:41 floter: the connected manifest is not there: stat /tmp/TestAConnectLinkRefusesAParameterItDoesNotName1758045343/005/tool.json: no such file or directory
+2026/11/06 23:18:43 floter: the connected manifest is not there: stat /tmp/TestConnectThatFailedSaysSo3940634688/002/missing.json: no such file or directory
+2026/11/06 23:18:47 floter: browser tabs: browser: the browser's tabs are not readable: tab capture is off in the browser plugin's settings
+2026/11/06 23:18:48 floter: could not clear the clipboard history: mkdir /tmp/TestPluginConfigActionFailureReportsOnTheActionLine3532680133/001/not-a-dir: not a directory
+2026/11/06 23:18:56 floter: could not reconnect dev.floter.moved: extensions: runtime-unavailable: runtime-unavailable:{"names":["systool"]}
+2026/11/06 23:18:57 floter: could not reconnect dev.floter.moved: extensions: runtime-unavailable: runtime-unavailable:{"names":["systool"]}
+2026/11/06 23:18:58 floter: could not prepare the local tool rg: open /tmp/TestTheRegisterMarkIsAMoment439025303/001/extension-data/local.37d2eeea/integration/floter.extension.json: no such file or directory
+2026/11/06 23:19:05 floter: could not run jv: no library in tests
+2026/11/06 23:19:05 floter: installed NPM Tool 1.0.0
+2026/11/06 23:19:06 floter: NPM Tool was not approved, so it was not installed
+2026/11/06 23:19:06 floter: installed NPM Tool 1.0.0
+2026/11/06 23:19:06 floter: could not run [/usr/sbin/7z]: no terminal library in tests
+2026/11/06 23:19:06 floter: could not register Cmd+F1: taken
+2026/11/06 23:19:06 floter: "Hyper+X" is not a shortcut
+2026/11/06 23:19:06 floter: "something_else" is not an action this build knows
+2026/11/06 23:19:06 floter: custom shortcut Cmd+Shift+T: occupied
+2026/11/06 23:19:06 floter: custom shortcut Cmd+W: conflict
+2026/11/06 23:19:06 floter: custom shortcut Cmd+Shift+T: occupied
+2026/11/06 23:19:06 floter: could not change test.ext: extensions: no such integration
+2026/11/06 23:19:07 floter: could not run jv: no library in tests
+2026/11/06 23:19:07 floter: could not read /tmp/TestIntegrationExportAndImport3750608976/002/backup.json: extensions: invalid import document: invalid character 'o' in literal null (expecting 'u')
+2026/11/06 23:19:07 floter: could not pick a path for local.abc-script.py: no disk
+2026/11/06 23:19:08 floter: Linked was not connected: extensions: the package needs its permissions approved: Linked declares environment
+2026/11/06 23:19:08 floter: connected Linked local
+2026/11/06 23:19:08 floter: Linked was not connected: open /tmp/TestDeepLinkConnectAndRegister2841729629/001/extensions/dev.floter.linked/floter.extension.json: no such file or directory
+2026/11/06 23:19:09 floter: could not open a terminal: no emulator
+2026/11/06 23:19:10 floter: could not register Cmd+Shift+G: taken
+2026/11/06 23:19:10 floter: could not register Ctrl+Space: taken
+--- FAIL: TestEverySurfacesFrameTakesNoSettingsCopy (0.14s)
+    --- FAIL: TestEverySurfacesFrameTakesNoSettingsCopy/settings/integrations (0.00s)
+panic: ui: two elements under one parent have the key "ext", and share one state: give each a key of its own (/home/tar/workspace/floter/internal/settingsui/rows.go:360) [recovered, repanicked]
+
+goroutine 959 [running]:
+testing.tRunner.func1.2({0x161fc28, 0x2c1ded5ca50})
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2125 +0x232
+testing.tRunner.func1()
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2128 +0x329
+panic({0x161fc28?, 0x2c1ded5ca50?})
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/runtime/panic.go:859 +0x125
+github.com/egoist/mygo/ui.(*engine).duplicateKey(0x2c1de8e1008, 0x80e162da2591aa61, {0x161fc28?, 0x2c1ded5ca30?})
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/diagnostics.go:25 +0x319
+github.com/egoist/mygo/ui.(*context).newElement(0x2c1de8e1138, 0x0)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/context.go:244 +0x1fd
+github.com/egoist/mygo/ui.coreColumn(...)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/widgets.go:16
+github.com/egoist/mygo/ui.Column(0xd96860?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/api_gen.go:944 +0x65
+floter/internal/settingsui.(*App).cardGeometry(0x2c1def34008, 0x2c1ded5c8b0, 0x41000000, 0x42840000, 0x40800000, {0x0, 0x0}, 0x2c1df556800)
+	/home/tar/workspace/floter/internal/settingsui/rows.go:360 +0x185
+floter/internal/settingsui.(*App).integrationRow(_, _, {{0xd99cb3, 0x8}, {0xda1971, 0xe}, {0xda98cb, 0x14}, {0xd9ddc7, 0xb}, ...}, ...)
+	/home/tar/workspace/floter/internal/settingsui/settingsui.go:2761 +0x35f
+floter/internal/settingsui.(*App).integrations.func1.1.2()
+	/home/tar/workspace/floter/internal/settingsui/settingsui.go:1916 +0xc7
+floter/internal/settingsui.(*App).extensionSection.func1()
+	/home/tar/workspace/floter/internal/settingsui/rows.go:276 +0x16f
+github.com/egoist/mygo/ui.(*node).Children(0x2c1df63f1b0, 0x73d746?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0x4e
+github.com/egoist/mygo/ui.Element.Children({0x2c1ded5c880?, 0xd9b62e?, 0x0?}, 0x2c1df5592a8)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x3e
+floter/internal/settingsui.(*App).sectionGroupPadded(0x2c1def34008, 0x2c1ded5c8b0, {0xd9b62e, 0x9}, 0x0, 0x2c1df5592a8)
+	/home/tar/workspace/floter/internal/settingsui/rows.go:108 +0x1d4
+floter/internal/settingsui.(*App).sectionGroup(...)
+	/home/tar/workspace/floter/internal/settingsui/rows.go:87
+floter/internal/settingsui.(*App).extensionSection(0x2c1def34008, 0x2c1ded5c8b0, {0xd9b62e, 0x9}, 0x14, 0x2c1df55b0e0)
+	/home/tar/workspace/floter/internal/settingsui/rows.go:262 +0x1eb
+floter/internal/settingsui.(*App).integrations.func1.1()
+	/home/tar/workspace/floter/internal/settingsui/settingsui.go:1912 +0x305
+floter/internal/settingsui.(*App).extensionMetrics(0xff878080?, 0x0?)
+	/home/tar/workspace/floter/internal/settingsui/rows.go:476 +0x5a
+floter/internal/settingsui.(*App).integrations.func1()
+	/home/tar/workspace/floter/internal/settingsui/settingsui.go:1885 +0x196
+github.com/egoist/mygo/ui.(*node).Children(0x2c1df168f00, 0x73ccbe?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0x4e
+github.com/egoist/mygo/ui.Element.Children({0x2c1ded5c880?, 0xdea2a9a0?, 0x2c1?}, 0x2c1df55b510)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x3e
+floter/internal/settingsui.(*App).pageColumn(0xdd5752?, 0x2c1ded5c8b0, 0x2c1df55b510)
+	/home/tar/workspace/floter/internal/settingsui/rows.go:56 +0xa5
+floter/internal/settingsui.(*App).integrations(_, _, {{0xd99cb3, 0x8}, {0xda1971, 0xe}, {0xda98cb, 0x14}, {0xd9ddc7, 0xb}, ...})
+	/home/tar/workspace/floter/internal/settingsui/settingsui.go:1879 +0xe5
+floter/internal/settingsui.(*App).body.func1.1.1()
+	/home/tar/workspace/floter/internal/settingsui/settingsui.go:1643 +0x23d
+github.com/egoist/mygo/ui.(*node).Children(0x2c1df167340, 0x73ccbe?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0x4e
+github.com/egoist/mygo/ui.Element.Children({0x2c1ded5c880?, 0x8?, 0x0?}, 0x2c1df2af1f0)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x3e
+floter/internal/settingsui.(*App).body.func1.1()
+	/home/tar/workspace/floter/internal/settingsui/settingsui.go:1612 +0x165
+github.com/egoist/mygo/ui.(*node).Children(0x2c1df166c50, 0x2c1df2af2f8?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0x4e
+github.com/egoist/mygo/ui.Element.Children({0x2c1ded5c880?, 0x0?, 0x0?}, 0x2c1df2af350)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x3e
+floter/internal/settingsui.(*App).body.func1()
+	/home/tar/workspace/floter/internal/settingsui/settingsui.go:1608 +0x206
+github.com/egoist/mygo/ui.(*node).Children(0x2c1df166560, 0x73c3b8?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0x4e
+github.com/egoist/mygo/ui.Element.Children({0x2c1ded5c880?, 0xf4f30000?, 0x2bf7?}, 0x2c1df2af6c0)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x3e
+floter/internal/settingsui.(*App).body(_, _, {{0xd99cb3, 0x8}, {0xda1971, 0xe}, {0xda98cb, 0x14}, {0xd9ddc7, 0xb}, ...})
+	/home/tar/workspace/floter/internal/settingsui/settingsui.go:1606 +0x348
+floter/internal/settingsui.(*App).View.func1.2.2()
+	/home/tar/workspace/floter/internal/settingsui/settingsui.go:1342 +0x39
+github.com/egoist/mygo/ui.(*node).Children(0x2c1df165e70, 0x73af5c?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0x4e
+github.com/egoist/mygo/ui.Element.Children({0x2c1ded5c880?, 0xf4f30000?, 0x2bf7?}, 0x2c1df2b1c80)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x3e
+floter/internal/settingsui.(*App).View.func1.2()
+	/home/tar/workspace/floter/internal/settingsui/settingsui.go:1341 +0x359
+github.com/egoist/mygo/ui.(*node).Children(0x2c1df1475f0, 0x73af5c?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0x4e
+github.com/egoist/mygo/ui.Element.Children({0x2c1ded5c880?, 0x0?, 0x0?}, 0x2c1df2b2460)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x3e
+floter/internal/settingsui.(*App).View.func1()
+	/home/tar/workspace/floter/internal/settingsui/settingsui.go:1313 +0x305
+github.com/egoist/mygo/ui.(*node).Children(0x2c1df143780, 0x73c3b8?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0x4e
+github.com/egoist/mygo/ui.Element.Children({0x2c1ded5c880?, 0xe0000?, 0x0?}, 0x2c1df2b6d58)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x3e
+floter/internal/settingsui.(*App).View(0x2c1def34008, 0x2c1ded5c8b0)
+	/home/tar/workspace/floter/internal/settingsui/settingsui.go:1227 +0x46d
+floter/internal/shell.(*App).surface(0xbafb84a633378083?, 0x2c1de82b508?)
+	/home/tar/workspace/floter/internal/shell/shell.go:4532 +0x53
+floter/internal/shell.(*App).View.func1.1.1.1()
+	/home/tar/workspace/floter/internal/shell/shell.go:4522 +0x1b
+github.com/egoist/mygo/ui.(*node).Children(0x2c1df143090, 0x2c1df2b6ef4?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0x4e
+github.com/egoist/mygo/ui.Element.Children({0x2c1ded5c880?, 0xffff0000?, 0x3ff?}, 0x2c1df2b6f60)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x3e
+floter/internal/shell.(*App).View.func1.1.1()
+	/home/tar/workspace/floter/internal/shell/shell.go:4522 +0x1c5
+github.com/egoist/mygo/ui.(*node).Children(0x2c1df1422b0, 0x73bef8?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0x4e
+github.com/egoist/mygo/ui.Element.Children({0x2c1ded5c880?, 0xf7f70000?, 0x76f8?}, 0x2c1df2b7320)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x3e
+floter/internal/shell.(*App).View.func1.1()
+	/home/tar/workspace/floter/internal/shell/shell.go:4515 +0x4cf
+github.com/egoist/mygo/ui.(*node).Children(0x2c1df141bc0, 0x0?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0x4e
+github.com/egoist/mygo/ui.Element.Children({0x2c1ded5c880?, 0x5?, 0x0?}, 0x2c1df2b7700)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x3e
+floter/internal/shell.(*App).View.func1()
+	/home/tar/workspace/floter/internal/shell/shell.go:4469 +0x71b
+github.com/egoist/mygo/ui.(*node).Children(0x2c1df1414d0, 0x74041e?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/element.go:653 +0x4e
+github.com/egoist/mygo/ui.Element.Children({0x2c1ded5c880?, 0xded50000?, 0x2c1?}, 0x2c1df2b90d8)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/frame.go:124 +0x3e
+floter/internal/shell.(*App).View(0x2c1de82b508, 0x2c1ded5c8b0)
+	/home/tar/workspace/floter/internal/shell/shell.go:4372 +0x89d
+floter/internal/shell.settledFrame.func1(0x0?)
+	/home/tar/workspace/floter/internal/shell/snapshotcost_test.go:57 +0x1d
+github.com/egoist/mygo/ui.NewTester.func1(0x2c1de8e1138?)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/api_gen.go:1399 +0x26
+github.com/egoist/mygo/ui.(*engine).runFrame(0x2c1de8e1008)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/runtime.go:597 +0x67a
+github.com/egoist/mygo/ui.(*Tester).settle(0x2c1de864700)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/headless.go:263 +0x89
+github.com/egoist/mygo/ui.coreNewTester(0x2c1ded5c870, 0x2d0, 0x244)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/headless.go:252 +0x1df
+github.com/egoist/mygo/ui.NewTester(...)
+	/home/tar/go/pkg/mod/github.com/egoist/mygo@v0.7.3/ui/api_gen.go:1399
+floter/internal/shell.settledFrame(0xf?, 0x2c1de82b508, 0x2c1deb48508)
+	/home/tar/workspace/floter/internal/shell/snapshotcost_test.go:57 +0xc5
+floter/internal/shell.TestEverySurfacesFrameTakesNoSettingsCopy.func1(0x2c1de7ce488)
+	/home/tar/workspace/floter/internal/shell/snapshotcost_test.go:135 +0xa9
+testing.tRunner(0x2c1de7ce488, 0x2c1df06ae70)
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2195 +0xea
+created by testing.(*T).Run in goroutine 957
+	/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2260 +0x4d4
+FAIL	floter/internal/shell	53.603s
+ok  	floter/internal/shortcuts	0.010s
+ok  	floter/internal/spawn	0.167s
+ok  	floter/internal/statefile	0.008s
+ok  	floter/internal/terminalui	32.666s
+ok  	floter/internal/termsession	4.410s
+ok  	floter/internal/textlines	0.006s
+ok  	floter/internal/theme	0.050s
+ok  	floter/internal/tools	0.008s
+ok  	floter/internal/usage	0.005s
+ok  	floter/internal/valuedomain	0.004s
+ok  	floter/internal/versioning	0.003s
+?   	floter/internal/versioning/cmd/next-version	[no test files]
+ok  	floter/internal/xdg	0.004s
+FAIL

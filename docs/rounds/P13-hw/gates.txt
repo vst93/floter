@@ -1,0 +1,17 @@
+P13-hw final product 9109360a
+LC_ALL=zh_CN.UTF-8 GOMAXPROCS=4
+baseline: 4135 PASS / 0 FAIL / 2896 test functions
+final: 4171 PASS / 0 FAIL / 2904 test functions
+go test -count=1 ./...: exit 0
+go test -count=1 -v ./...: exit 0
+gofmt -l cmd internal: empty
+GOOS=linux go vet ./...: PASS
+GOOS=windows go vet ./...: PASS
+GOOS=darwin go vet ./...: PASS
+GOOS=linux go build ./...: PASS
+GOOS=windows go build ./...: PASS
+GOOS=darwin go build ./...: PASS
+old V/B/S assertions changed: 0/0/0
+new Skip: 0
+mutation restored PASS: M1=6 M2=10 M3=10 M4=10 final-M4=10
+final-source.md5: all five files OK

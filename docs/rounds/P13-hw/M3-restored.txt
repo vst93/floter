@@ -1,0 +1,22 @@
+=== RUN   TestNoticeVanishedDiscardRetiresQuestion
+=== RUN   TestNoticeVanishedDiscardRetiresQuestion/light/discard-return
+=== RUN   TestNoticeVanishedDiscardRetiresQuestion/light/discard-missing-escape
+=== RUN   TestNoticeVanishedDiscardRetiresQuestion/dark/discard-return
+=== RUN   TestNoticeVanishedDiscardRetiresQuestion/dark/discard-missing-escape
+--- PASS: TestNoticeVanishedDiscardRetiresQuestion (0.18s)
+    --- PASS: TestNoticeVanishedDiscardRetiresQuestion/light/discard-return (0.08s)
+    --- PASS: TestNoticeVanishedDiscardRetiresQuestion/light/discard-missing-escape (0.03s)
+    --- PASS: TestNoticeVanishedDiscardRetiresQuestion/dark/discard-return (0.04s)
+    --- PASS: TestNoticeVanishedDiscardRetiresQuestion/dark/discard-missing-escape (0.03s)
+=== RUN   TestNoticeVanishedUninstallRetiresDialog
+=== RUN   TestNoticeVanishedUninstallRetiresDialog/light/uninstall-return
+=== RUN   TestNoticeVanishedUninstallRetiresDialog/light/uninstall-missing-escape
+=== RUN   TestNoticeVanishedUninstallRetiresDialog/dark/uninstall-return
+=== RUN   TestNoticeVanishedUninstallRetiresDialog/dark/uninstall-missing-escape
+--- PASS: TestNoticeVanishedUninstallRetiresDialog (0.27s)
+    --- PASS: TestNoticeVanishedUninstallRetiresDialog/light/uninstall-return (0.08s)
+    --- PASS: TestNoticeVanishedUninstallRetiresDialog/light/uninstall-missing-escape (0.06s)
+    --- PASS: TestNoticeVanishedUninstallRetiresDialog/dark/uninstall-return (0.07s)
+    --- PASS: TestNoticeVanishedUninstallRetiresDialog/dark/uninstall-missing-escape (0.06s)
+PASS
+ok  	floter/internal/settingsui	0.461s

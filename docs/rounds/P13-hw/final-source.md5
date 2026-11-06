@@ -1,0 +1,5 @@
+ac60af3d2e65a315d9aa68832b5523c9  internal/settingsui/settingsui.go
+9597595d095623e8b2b414973b5248d6  internal/settingsui/noticefocus.go
+e7d29c0ed6accb3c8b033fcc1961f619  internal/settingsui/noticebusydeadline_test.go
+4085b1e61170d4d3baf0e3a11527b3b0  internal/settingsui/noticerefresh_test.go
+244db23f63c9cfee16b9adc87df4d30a  internal/settingsui/noticereorder_test.go

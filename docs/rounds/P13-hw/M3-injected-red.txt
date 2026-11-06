@@ -1,0 +1,31 @@
+=== RUN   TestNoticeVanishedDiscardRetiresQuestion
+=== RUN   TestNoticeVanishedDiscardRetiresQuestion/light/discard-return
+    noticerefresh_test.go:87: stale discard question revived after list refresh
+=== RUN   TestNoticeVanishedDiscardRetiresQuestion/light/discard-missing-escape
+    noticerefresh_test.go:80: invisible discard question swallowed Escape: close=0
+=== RUN   TestNoticeVanishedDiscardRetiresQuestion/dark/discard-return
+    noticerefresh_test.go:87: stale discard question revived after list refresh
+=== RUN   TestNoticeVanishedDiscardRetiresQuestion/dark/discard-missing-escape
+    noticerefresh_test.go:80: invisible discard question swallowed Escape: close=0
+--- FAIL: TestNoticeVanishedDiscardRetiresQuestion (0.19s)
+    --- FAIL: TestNoticeVanishedDiscardRetiresQuestion/light/discard-return (0.09s)
+    --- FAIL: TestNoticeVanishedDiscardRetiresQuestion/light/discard-missing-escape (0.03s)
+    --- FAIL: TestNoticeVanishedDiscardRetiresQuestion/dark/discard-return (0.04s)
+    --- FAIL: TestNoticeVanishedDiscardRetiresQuestion/dark/discard-missing-escape (0.03s)
+=== RUN   TestNoticeVanishedUninstallRetiresDialog
+=== RUN   TestNoticeVanishedUninstallRetiresDialog/light/uninstall-return
+    noticerefresh_test.go:87: stale uninstall question revived after list refresh
+=== RUN   TestNoticeVanishedUninstallRetiresDialog/light/uninstall-missing-escape
+    noticerefresh_test.go:80: invisible uninstall question swallowed Escape: close=0
+=== RUN   TestNoticeVanishedUninstallRetiresDialog/dark/uninstall-return
+    noticerefresh_test.go:87: stale uninstall question revived after list refresh
+=== RUN   TestNoticeVanishedUninstallRetiresDialog/dark/uninstall-missing-escape
+    noticerefresh_test.go:80: invisible uninstall question swallowed Escape: close=0
+--- FAIL: TestNoticeVanishedUninstallRetiresDialog (0.26s)
+    --- FAIL: TestNoticeVanishedUninstallRetiresDialog/light/uninstall-return (0.07s)
+    --- FAIL: TestNoticeVanishedUninstallRetiresDialog/light/uninstall-missing-escape (0.06s)
+    --- FAIL: TestNoticeVanishedUninstallRetiresDialog/dark/uninstall-return (0.06s)
+    --- FAIL: TestNoticeVanishedUninstallRetiresDialog/dark/uninstall-missing-escape (0.06s)
+FAIL
+FAIL	floter/internal/settingsui	0.454s
+FAIL

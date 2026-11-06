@@ -1,0 +1,22 @@
+=== RUN   TestNoticeReorderedDisableKeepsAnswerOwner
+=== RUN   TestNoticeReorderedDisableKeepsAnswerOwner/light/disable-reorder
+=== RUN   TestNoticeReorderedDisableKeepsAnswerOwner/light/disable-reorder-insert
+=== RUN   TestNoticeReorderedDisableKeepsAnswerOwner/dark/disable-reorder
+=== RUN   TestNoticeReorderedDisableKeepsAnswerOwner/dark/disable-reorder-insert
+--- PASS: TestNoticeReorderedDisableKeepsAnswerOwner (0.12s)
+    --- PASS: TestNoticeReorderedDisableKeepsAnswerOwner/light/disable-reorder (0.06s)
+    --- PASS: TestNoticeReorderedDisableKeepsAnswerOwner/light/disable-reorder-insert (0.02s)
+    --- PASS: TestNoticeReorderedDisableKeepsAnswerOwner/dark/disable-reorder (0.02s)
+    --- PASS: TestNoticeReorderedDisableKeepsAnswerOwner/dark/disable-reorder-insert (0.02s)
+=== RUN   TestNoticeReorderedRemoveKeepsAnswerOwner
+=== RUN   TestNoticeReorderedRemoveKeepsAnswerOwner/light/remove-reorder
+=== RUN   TestNoticeReorderedRemoveKeepsAnswerOwner/light/remove-reorder-insert
+=== RUN   TestNoticeReorderedRemoveKeepsAnswerOwner/dark/remove-reorder
+=== RUN   TestNoticeReorderedRemoveKeepsAnswerOwner/dark/remove-reorder-insert
+--- PASS: TestNoticeReorderedRemoveKeepsAnswerOwner (0.27s)
+    --- PASS: TestNoticeReorderedRemoveKeepsAnswerOwner/light/remove-reorder (0.07s)
+    --- PASS: TestNoticeReorderedRemoveKeepsAnswerOwner/light/remove-reorder-insert (0.06s)
+    --- PASS: TestNoticeReorderedRemoveKeepsAnswerOwner/dark/remove-reorder (0.07s)
+    --- PASS: TestNoticeReorderedRemoveKeepsAnswerOwner/dark/remove-reorder-insert (0.06s)
+PASS
+ok  	floter/internal/settingsui	0.388s

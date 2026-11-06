@@ -1,0 +1,14 @@
+=== RUN   TestNoticeBusyDisableDoesNotStarveDiscardDeadline
+=== RUN   TestNoticeBusyDisableDoesNotStarveDiscardDeadline/light
+=== RUN   TestNoticeBusyDisableDoesNotStarveDiscardDeadline/dark
+--- PASS: TestNoticeBusyDisableDoesNotStarveDiscardDeadline (0.35s)
+    --- PASS: TestNoticeBusyDisableDoesNotStarveDiscardDeadline/light (0.22s)
+    --- PASS: TestNoticeBusyDisableDoesNotStarveDiscardDeadline/dark (0.13s)
+=== RUN   TestNoticeBusyRemoveDoesNotStarveDiscardDeadline
+=== RUN   TestNoticeBusyRemoveDoesNotStarveDiscardDeadline/light
+=== RUN   TestNoticeBusyRemoveDoesNotStarveDiscardDeadline/dark
+--- PASS: TestNoticeBusyRemoveDoesNotStarveDiscardDeadline (0.46s)
+    --- PASS: TestNoticeBusyRemoveDoesNotStarveDiscardDeadline/light (0.23s)
+    --- PASS: TestNoticeBusyRemoveDoesNotStarveDiscardDeadline/dark (0.23s)
+PASS
+ok  	floter/internal/settingsui	0.817s

@@ -1,0 +1,318 @@
+=== RUN   TestConfigRecoveryCancelReturnsToOpener
+=== RUN   TestConfigRecoveryCancelReturnsToOpener/light
+=== RUN   TestConfigRecoveryCancelReturnsToOpener/dark
+--- PASS: TestConfigRecoveryCancelReturnsToOpener (0.36s)
+    --- PASS: TestConfigRecoveryCancelReturnsToOpener/light (0.24s)
+    --- PASS: TestConfigRecoveryCancelReturnsToOpener/dark (0.12s)
+=== RUN   TestConfigRecoveryDiscardReturnsToOpener
+=== RUN   TestConfigRecoveryDiscardReturnsToOpener/light
+=== RUN   TestConfigRecoveryDiscardReturnsToOpener/dark
+--- PASS: TestConfigRecoveryDiscardReturnsToOpener (0.25s)
+    --- PASS: TestConfigRecoveryDiscardReturnsToOpener/light (0.12s)
+    --- PASS: TestConfigRecoveryDiscardReturnsToOpener/dark (0.12s)
+=== RUN   TestTheSaveFailureBannerWakesAtItsDeadline
+--- PASS: TestTheSaveFailureBannerWakesAtItsDeadline (0.40s)
+=== RUN   TestNoticeBandSpacing
+--- PASS: TestNoticeBandSpacing (0.04s)
+=== RUN   TestConfigDiscardEscapeKeepsDraftAndKeyboard
+=== RUN   TestConfigDiscardEscapeKeepsDraftAndKeyboard/light/discard-escape-en
+=== RUN   TestConfigDiscardEscapeKeepsDraftAndKeyboard/light/discard-escape-elsewhere-en
+=== RUN   TestConfigDiscardEscapeKeepsDraftAndKeyboard/light/discard-escape-zh
+=== RUN   TestConfigDiscardEscapeKeepsDraftAndKeyboard/light/discard-escape-elsewhere-zh
+=== RUN   TestConfigDiscardEscapeKeepsDraftAndKeyboard/dark/discard-escape-en
+=== RUN   TestConfigDiscardEscapeKeepsDraftAndKeyboard/dark/discard-escape-elsewhere-en
+=== RUN   TestConfigDiscardEscapeKeepsDraftAndKeyboard/dark/discard-escape-zh
+=== RUN   TestConfigDiscardEscapeKeepsDraftAndKeyboard/dark/discard-escape-elsewhere-zh
+--- PASS: TestConfigDiscardEscapeKeepsDraftAndKeyboard (0.43s)
+    --- PASS: TestConfigDiscardEscapeKeepsDraftAndKeyboard/light/discard-escape-en (0.08s)
+    --- PASS: TestConfigDiscardEscapeKeepsDraftAndKeyboard/light/discard-escape-elsewhere-en (0.07s)
+    --- PASS: TestConfigDiscardEscapeKeepsDraftAndKeyboard/light/discard-escape-zh (0.05s)
+    --- PASS: TestConfigDiscardEscapeKeepsDraftAndKeyboard/light/discard-escape-elsewhere-zh (0.04s)
+    --- PASS: TestConfigDiscardEscapeKeepsDraftAndKeyboard/dark/discard-escape-en (0.07s)
+    --- PASS: TestConfigDiscardEscapeKeepsDraftAndKeyboard/dark/discard-escape-elsewhere-en (0.07s)
+    --- PASS: TestConfigDiscardEscapeKeepsDraftAndKeyboard/dark/discard-escape-zh (0.02s)
+    --- PASS: TestConfigDiscardEscapeKeepsDraftAndKeyboard/dark/discard-escape-elsewhere-zh (0.04s)
+=== RUN   TestConfigDiscardExpiryKeepsDraftAndKeyboard
+=== RUN   TestConfigDiscardExpiryKeepsDraftAndKeyboard/light/discard-timeout-en
+=== RUN   TestConfigDiscardExpiryKeepsDraftAndKeyboard/light/discard-timeout-elsewhere-en
+=== RUN   TestConfigDiscardExpiryKeepsDraftAndKeyboard/light/discard-timeout-zh
+=== RUN   TestConfigDiscardExpiryKeepsDraftAndKeyboard/light/discard-timeout-elsewhere-zh
+=== RUN   TestConfigDiscardExpiryKeepsDraftAndKeyboard/dark/discard-timeout-en
+=== RUN   TestConfigDiscardExpiryKeepsDraftAndKeyboard/dark/discard-timeout-elsewhere-en
+=== RUN   TestConfigDiscardExpiryKeepsDraftAndKeyboard/dark/discard-timeout-zh
+=== RUN   TestConfigDiscardExpiryKeepsDraftAndKeyboard/dark/discard-timeout-elsewhere-zh
+--- PASS: TestConfigDiscardExpiryKeepsDraftAndKeyboard (0.30s)
+    --- PASS: TestConfigDiscardExpiryKeepsDraftAndKeyboard/light/discard-timeout-en (0.04s)
+    --- PASS: TestConfigDiscardExpiryKeepsDraftAndKeyboard/light/discard-timeout-elsewhere-en (0.06s)
+    --- PASS: TestConfigDiscardExpiryKeepsDraftAndKeyboard/light/discard-timeout-zh (0.01s)
+    --- PASS: TestConfigDiscardExpiryKeepsDraftAndKeyboard/light/discard-timeout-elsewhere-zh (0.03s)
+    --- PASS: TestConfigDiscardExpiryKeepsDraftAndKeyboard/dark/discard-timeout-en (0.04s)
+    --- PASS: TestConfigDiscardExpiryKeepsDraftAndKeyboard/dark/discard-timeout-elsewhere-en (0.06s)
+    --- PASS: TestConfigDiscardExpiryKeepsDraftAndKeyboard/dark/discard-timeout-zh (0.01s)
+    --- PASS: TestConfigDiscardExpiryKeepsDraftAndKeyboard/dark/discard-timeout-elsewhere-zh (0.03s)
+=== RUN   TestNoticeBandKeepsBothInsets
+=== RUN   TestNoticeBandKeepsBothInsets/light/danger=false/420
+    noticebounds_test.go:36: band={X:35 Y:24 W:350 H:33} left=11.00 right=11.00 margin=10.80
+=== RUN   TestNoticeBandKeepsBothInsets/light/danger=false/720
+    noticebounds_test.go:36: band={X:35 Y:24 W:650 H:33} left=11.00 right=11.00 margin=10.80
+=== RUN   TestNoticeBandKeepsBothInsets/light/danger=true/420
+    noticebounds_test.go:36: band={X:35 Y:24 W:350 H:33} left=11.00 right=11.00 margin=10.80
+=== RUN   TestNoticeBandKeepsBothInsets/light/danger=true/720
+    noticebounds_test.go:36: band={X:35 Y:24 W:650 H:33} left=11.00 right=11.00 margin=10.80
+=== RUN   TestNoticeBandKeepsBothInsets/dark/danger=false/420
+    noticebounds_test.go:36: band={X:35 Y:24 W:350 H:33} left=11.00 right=11.00 margin=10.80
+=== RUN   TestNoticeBandKeepsBothInsets/dark/danger=false/720
+    noticebounds_test.go:36: band={X:35 Y:24 W:650 H:33} left=11.00 right=11.00 margin=10.80
+=== RUN   TestNoticeBandKeepsBothInsets/dark/danger=true/420
+    noticebounds_test.go:36: band={X:35 Y:24 W:350 H:33} left=11.00 right=11.00 margin=10.80
+=== RUN   TestNoticeBandKeepsBothInsets/dark/danger=true/720
+    noticebounds_test.go:36: band={X:35 Y:24 W:650 H:33} left=11.00 right=11.00 margin=10.80
+--- PASS: TestNoticeBandKeepsBothInsets (0.02s)
+    --- PASS: TestNoticeBandKeepsBothInsets/light/danger=false/420 (0.00s)
+    --- PASS: TestNoticeBandKeepsBothInsets/light/danger=false/720 (0.00s)
+    --- PASS: TestNoticeBandKeepsBothInsets/light/danger=true/420 (0.00s)
+    --- PASS: TestNoticeBandKeepsBothInsets/light/danger=true/720 (0.00s)
+    --- PASS: TestNoticeBandKeepsBothInsets/dark/danger=false/420 (0.00s)
+    --- PASS: TestNoticeBandKeepsBothInsets/dark/danger=false/720 (0.00s)
+    --- PASS: TestNoticeBandKeepsBothInsets/dark/danger=true/420 (0.00s)
+    --- PASS: TestNoticeBandKeepsBothInsets/dark/danger=true/720 (0.00s)
+=== RUN   TestNoticeLongSentencePreservesAnswers
+=== RUN   TestNoticeLongSentencePreservesAnswers/light/420
+    noticebounds_test.go:74: short cancel/confirm={X:200.09999 Y:32.2 W:49.4 H:21.599998} / {X:256.69998 Y:32.2 W:118.5 H:21.599998} long={X:200.09999 Y:148.9 W:49.4 H:21.599998} / {X:256.69998 Y:148.9 W:118.5 H:21.599998}
+=== RUN   TestNoticeLongSentencePreservesAnswers/light/720
+    noticebounds_test.go:74: short cancel/confirm={X:500.10004 Y:32.2 W:49.4 H:21.599998} / {X:556.7 Y:32.2 W:118.5 H:21.599998} long={X:500.10004 Y:55.4 W:49.4 H:21.599998} / {X:556.7 Y:55.4 W:118.5 H:21.599998}
+=== RUN   TestNoticeLongSentencePreservesAnswers/dark/420
+    noticebounds_test.go:74: short cancel/confirm={X:200.09999 Y:32.2 W:49.4 H:21.599998} / {X:256.69998 Y:32.2 W:118.5 H:21.599998} long={X:200.09999 Y:148.9 W:49.4 H:21.599998} / {X:256.69998 Y:148.9 W:118.5 H:21.599998}
+=== RUN   TestNoticeLongSentencePreservesAnswers/dark/720
+    noticebounds_test.go:74: short cancel/confirm={X:500.10004 Y:32.2 W:49.4 H:21.599998} / {X:556.7 Y:32.2 W:118.5 H:21.599998} long={X:500.10004 Y:55.4 W:49.4 H:21.599998} / {X:556.7 Y:55.4 W:118.5 H:21.599998}
+--- PASS: TestNoticeLongSentencePreservesAnswers (0.01s)
+    --- PASS: TestNoticeLongSentencePreservesAnswers/light/420 (0.00s)
+    --- PASS: TestNoticeLongSentencePreservesAnswers/light/720 (0.00s)
+    --- PASS: TestNoticeLongSentencePreservesAnswers/dark/420 (0.00s)
+    --- PASS: TestNoticeLongSentencePreservesAnswers/dark/720 (0.00s)
+=== RUN   TestNoticeDisableFailureUsesErrorInk
+=== RUN   TestNoticeDisableFailureUsesErrorInk/light
+=== RUN   TestNoticeDisableFailureUsesErrorInk/dark
+--- PASS: TestNoticeDisableFailureUsesErrorInk (0.02s)
+    --- PASS: TestNoticeDisableFailureUsesErrorInk/light (0.01s)
+    --- PASS: TestNoticeDisableFailureUsesErrorInk/dark (0.01s)
+=== RUN   TestNoticeBusyDisableDoesNotStarveDiscardDeadline
+=== RUN   TestNoticeBusyDisableDoesNotStarveDiscardDeadline/light
+=== RUN   TestNoticeBusyDisableDoesNotStarveDiscardDeadline/dark
+--- PASS: TestNoticeBusyDisableDoesNotStarveDiscardDeadline (0.14s)
+    --- PASS: TestNoticeBusyDisableDoesNotStarveDiscardDeadline/light (0.08s)
+    --- PASS: TestNoticeBusyDisableDoesNotStarveDiscardDeadline/dark (0.07s)
+=== RUN   TestNoticeBusyRemoveDoesNotStarveDiscardDeadline
+=== RUN   TestNoticeBusyRemoveDoesNotStarveDiscardDeadline/light
+=== RUN   TestNoticeBusyRemoveDoesNotStarveDiscardDeadline/dark
+--- PASS: TestNoticeBusyRemoveDoesNotStarveDiscardDeadline (0.23s)
+    --- PASS: TestNoticeBusyRemoveDoesNotStarveDiscardDeadline/light (0.11s)
+    --- PASS: TestNoticeBusyRemoveDoesNotStarveDiscardDeadline/dark (0.11s)
+=== RUN   TestNoticeDisableExternalExitKeepsKeyboard
+=== RUN   TestNoticeDisableExternalExitKeepsKeyboard/light/disable-escape
+=== RUN   TestNoticeDisableExternalExitKeepsKeyboard/light/disable-escape-elsewhere
+=== RUN   TestNoticeDisableExternalExitKeepsKeyboard/light/disable-timeout
+=== RUN   TestNoticeDisableExternalExitKeepsKeyboard/light/disable-timeout-elsewhere
+=== RUN   TestNoticeDisableExternalExitKeepsKeyboard/dark/disable-escape
+=== RUN   TestNoticeDisableExternalExitKeepsKeyboard/dark/disable-escape-elsewhere
+=== RUN   TestNoticeDisableExternalExitKeepsKeyboard/dark/disable-timeout
+=== RUN   TestNoticeDisableExternalExitKeepsKeyboard/dark/disable-timeout-elsewhere
+--- PASS: TestNoticeDisableExternalExitKeepsKeyboard (0.19s)
+    --- PASS: TestNoticeDisableExternalExitKeepsKeyboard/light/disable-escape (0.01s)
+    --- PASS: TestNoticeDisableExternalExitKeepsKeyboard/light/disable-escape-elsewhere (0.04s)
+    --- PASS: TestNoticeDisableExternalExitKeepsKeyboard/light/disable-timeout (0.01s)
+    --- PASS: TestNoticeDisableExternalExitKeepsKeyboard/light/disable-timeout-elsewhere (0.03s)
+    --- PASS: TestNoticeDisableExternalExitKeepsKeyboard/dark/disable-escape (0.01s)
+    --- PASS: TestNoticeDisableExternalExitKeepsKeyboard/dark/disable-escape-elsewhere (0.04s)
+    --- PASS: TestNoticeDisableExternalExitKeepsKeyboard/dark/disable-timeout (0.01s)
+    --- PASS: TestNoticeDisableExternalExitKeepsKeyboard/dark/disable-timeout-elsewhere (0.03s)
+=== RUN   TestNoticeRemoveExternalExitKeepsKeyboard
+=== RUN   TestNoticeRemoveExternalExitKeepsKeyboard/light/remove-escape
+=== RUN   TestNoticeRemoveExternalExitKeepsKeyboard/light/remove-escape-elsewhere
+=== RUN   TestNoticeRemoveExternalExitKeepsKeyboard/light/remove-timeout
+=== RUN   TestNoticeRemoveExternalExitKeepsKeyboard/light/remove-timeout-elsewhere
+=== RUN   TestNoticeRemoveExternalExitKeepsKeyboard/dark/remove-escape
+=== RUN   TestNoticeRemoveExternalExitKeepsKeyboard/dark/remove-escape-elsewhere
+=== RUN   TestNoticeRemoveExternalExitKeepsKeyboard/dark/remove-timeout
+=== RUN   TestNoticeRemoveExternalExitKeepsKeyboard/dark/remove-timeout-elsewhere
+--- PASS: TestNoticeRemoveExternalExitKeepsKeyboard (0.35s)
+    --- PASS: TestNoticeRemoveExternalExitKeepsKeyboard/light/remove-escape (0.05s)
+    --- PASS: TestNoticeRemoveExternalExitKeepsKeyboard/light/remove-escape-elsewhere (0.05s)
+    --- PASS: TestNoticeRemoveExternalExitKeepsKeyboard/light/remove-timeout (0.03s)
+    --- PASS: TestNoticeRemoveExternalExitKeepsKeyboard/light/remove-timeout-elsewhere (0.04s)
+    --- PASS: TestNoticeRemoveExternalExitKeepsKeyboard/dark/remove-escape (0.05s)
+    --- PASS: TestNoticeRemoveExternalExitKeepsKeyboard/dark/remove-escape-elsewhere (0.05s)
+    --- PASS: TestNoticeRemoveExternalExitKeepsKeyboard/dark/remove-timeout (0.03s)
+    --- PASS: TestNoticeRemoveExternalExitKeepsKeyboard/dark/remove-timeout-elsewhere (0.04s)
+=== RUN   TestNoticeRemoveSurvivesEarlierQuestionExpiry
+=== RUN   TestNoticeRemoveSurvivesEarlierQuestionExpiry/light
+=== RUN   TestNoticeRemoveSurvivesEarlierQuestionExpiry/dark
+--- PASS: TestNoticeRemoveSurvivesEarlierQuestionExpiry (0.13s)
+    --- PASS: TestNoticeRemoveSurvivesEarlierQuestionExpiry/light (0.06s)
+    --- PASS: TestNoticeRemoveSurvivesEarlierQuestionExpiry/dark (0.06s)
+=== RUN   TestNoticeNewDisableDoesNotInheritRemovalAnswer
+=== RUN   TestNoticeNewDisableDoesNotInheritRemovalAnswer/light
+=== RUN   TestNoticeNewDisableDoesNotInheritRemovalAnswer/dark
+--- PASS: TestNoticeNewDisableDoesNotInheritRemovalAnswer (0.12s)
+    --- PASS: TestNoticeNewDisableDoesNotInheritRemovalAnswer/light (0.06s)
+    --- PASS: TestNoticeNewDisableDoesNotInheritRemovalAnswer/dark (0.06s)
+=== RUN   TestNoticeDisableCancelReturnsToSwitch
+=== RUN   TestNoticeDisableCancelReturnsToSwitch/light
+=== RUN   TestNoticeDisableCancelReturnsToSwitch/dark
+--- PASS: TestNoticeDisableCancelReturnsToSwitch (0.01s)
+    --- PASS: TestNoticeDisableCancelReturnsToSwitch/light (0.01s)
+    --- PASS: TestNoticeDisableCancelReturnsToSwitch/dark (0.01s)
+=== RUN   TestNoticeRemoveCancelReturnsToOpener
+=== RUN   TestNoticeRemoveCancelReturnsToOpener/light
+=== RUN   TestNoticeRemoveCancelReturnsToOpener/dark
+--- PASS: TestNoticeRemoveCancelReturnsToOpener (0.05s)
+    --- PASS: TestNoticeRemoveCancelReturnsToOpener/light (0.03s)
+    --- PASS: TestNoticeRemoveCancelReturnsToOpener/dark (0.02s)
+=== RUN   TestNoticeDisableKeyboardConfirmAndRetry
+=== RUN   TestNoticeDisableKeyboardConfirmAndRetry/light/en/sync
+=== RUN   TestNoticeDisableKeyboardConfirmAndRetry/light/en/delayed
+=== RUN   TestNoticeDisableKeyboardConfirmAndRetry/light/zh/sync
+=== RUN   TestNoticeDisableKeyboardConfirmAndRetry/light/zh/delayed
+=== RUN   TestNoticeDisableKeyboardConfirmAndRetry/dark/en/sync
+=== RUN   TestNoticeDisableKeyboardConfirmAndRetry/dark/en/delayed
+=== RUN   TestNoticeDisableKeyboardConfirmAndRetry/dark/zh/sync
+=== RUN   TestNoticeDisableKeyboardConfirmAndRetry/dark/zh/delayed
+--- PASS: TestNoticeDisableKeyboardConfirmAndRetry (0.02s)
+    --- PASS: TestNoticeDisableKeyboardConfirmAndRetry/light/en/sync (0.00s)
+    --- PASS: TestNoticeDisableKeyboardConfirmAndRetry/light/en/delayed (0.00s)
+    --- PASS: TestNoticeDisableKeyboardConfirmAndRetry/light/zh/sync (0.00s)
+    --- PASS: TestNoticeDisableKeyboardConfirmAndRetry/light/zh/delayed (0.00s)
+    --- PASS: TestNoticeDisableKeyboardConfirmAndRetry/dark/en/sync (0.00s)
+    --- PASS: TestNoticeDisableKeyboardConfirmAndRetry/dark/en/delayed (0.00s)
+    --- PASS: TestNoticeDisableKeyboardConfirmAndRetry/dark/zh/sync (0.00s)
+    --- PASS: TestNoticeDisableKeyboardConfirmAndRetry/dark/zh/delayed (0.00s)
+=== RUN   TestNoticeRemoveKeyboardConfirmAndRetry
+=== RUN   TestNoticeRemoveKeyboardConfirmAndRetry/light/en/sync
+=== RUN   TestNoticeRemoveKeyboardConfirmAndRetry/light/en/delayed
+=== RUN   TestNoticeRemoveKeyboardConfirmAndRetry/light/zh/sync
+=== RUN   TestNoticeRemoveKeyboardConfirmAndRetry/light/zh/delayed
+=== RUN   TestNoticeRemoveKeyboardConfirmAndRetry/dark/en/sync
+=== RUN   TestNoticeRemoveKeyboardConfirmAndRetry/dark/en/delayed
+=== RUN   TestNoticeRemoveKeyboardConfirmAndRetry/dark/zh/sync
+=== RUN   TestNoticeRemoveKeyboardConfirmAndRetry/dark/zh/delayed
+--- PASS: TestNoticeRemoveKeyboardConfirmAndRetry (0.01s)
+    --- PASS: TestNoticeRemoveKeyboardConfirmAndRetry/light/en/sync (0.00s)
+    --- PASS: TestNoticeRemoveKeyboardConfirmAndRetry/light/en/delayed (0.00s)
+    --- PASS: TestNoticeRemoveKeyboardConfirmAndRetry/light/zh/sync (0.00s)
+    --- PASS: TestNoticeRemoveKeyboardConfirmAndRetry/light/zh/delayed (0.00s)
+    --- PASS: TestNoticeRemoveKeyboardConfirmAndRetry/dark/en/sync (0.00s)
+    --- PASS: TestNoticeRemoveKeyboardConfirmAndRetry/dark/en/delayed (0.00s)
+    --- PASS: TestNoticeRemoveKeyboardConfirmAndRetry/dark/zh/sync (0.00s)
+    --- PASS: TestNoticeRemoveKeyboardConfirmAndRetry/dark/zh/delayed (0.00s)
+=== RUN   TestNoticeVanishedDisableRetiresQuestion
+=== RUN   TestNoticeVanishedDisableRetiresQuestion/light/disable-return
+=== RUN   TestNoticeVanishedDisableRetiresQuestion/light/disable-missing-escape
+=== RUN   TestNoticeVanishedDisableRetiresQuestion/dark/disable-return
+=== RUN   TestNoticeVanishedDisableRetiresQuestion/dark/disable-missing-escape
+--- PASS: TestNoticeVanishedDisableRetiresQuestion (0.08s)
+    --- PASS: TestNoticeVanishedDisableRetiresQuestion/light/disable-return (0.02s)
+    --- PASS: TestNoticeVanishedDisableRetiresQuestion/light/disable-missing-escape (0.02s)
+    --- PASS: TestNoticeVanishedDisableRetiresQuestion/dark/disable-return (0.02s)
+    --- PASS: TestNoticeVanishedDisableRetiresQuestion/dark/disable-missing-escape (0.02s)
+=== RUN   TestNoticeVanishedRemoveRetiresQuestion
+=== RUN   TestNoticeVanishedRemoveRetiresQuestion/light/remove-return
+=== RUN   TestNoticeVanishedRemoveRetiresQuestion/light/remove-missing-escape
+=== RUN   TestNoticeVanishedRemoveRetiresQuestion/dark/remove-return
+=== RUN   TestNoticeVanishedRemoveRetiresQuestion/dark/remove-missing-escape
+--- PASS: TestNoticeVanishedRemoveRetiresQuestion (0.16s)
+    --- PASS: TestNoticeVanishedRemoveRetiresQuestion/light/remove-return (0.04s)
+    --- PASS: TestNoticeVanishedRemoveRetiresQuestion/light/remove-missing-escape (0.04s)
+    --- PASS: TestNoticeVanishedRemoveRetiresQuestion/dark/remove-return (0.04s)
+    --- PASS: TestNoticeVanishedRemoveRetiresQuestion/dark/remove-missing-escape (0.03s)
+=== RUN   TestNoticeVanishedDiscardRetiresQuestion
+=== RUN   TestNoticeVanishedDiscardRetiresQuestion/light/discard-return
+=== RUN   TestNoticeVanishedDiscardRetiresQuestion/light/discard-missing-escape
+=== RUN   TestNoticeVanishedDiscardRetiresQuestion/dark/discard-return
+=== RUN   TestNoticeVanishedDiscardRetiresQuestion/dark/discard-missing-escape
+--- PASS: TestNoticeVanishedDiscardRetiresQuestion (0.19s)
+    --- PASS: TestNoticeVanishedDiscardRetiresQuestion/light/discard-return (0.06s)
+    --- PASS: TestNoticeVanishedDiscardRetiresQuestion/light/discard-missing-escape (0.04s)
+    --- PASS: TestNoticeVanishedDiscardRetiresQuestion/dark/discard-return (0.06s)
+    --- PASS: TestNoticeVanishedDiscardRetiresQuestion/dark/discard-missing-escape (0.04s)
+=== RUN   TestNoticeVanishedUninstallRetiresDialog
+=== RUN   TestNoticeVanishedUninstallRetiresDialog/light/uninstall-return
+=== RUN   TestNoticeVanishedUninstallRetiresDialog/light/uninstall-missing-escape
+=== RUN   TestNoticeVanishedUninstallRetiresDialog/dark/uninstall-return
+=== RUN   TestNoticeVanishedUninstallRetiresDialog/dark/uninstall-missing-escape
+--- PASS: TestNoticeVanishedUninstallRetiresDialog (0.33s)
+    --- PASS: TestNoticeVanishedUninstallRetiresDialog/light/uninstall-return (0.09s)
+    --- PASS: TestNoticeVanishedUninstallRetiresDialog/light/uninstall-missing-escape (0.08s)
+    --- PASS: TestNoticeVanishedUninstallRetiresDialog/dark/uninstall-return (0.08s)
+    --- PASS: TestNoticeVanishedUninstallRetiresDialog/dark/uninstall-missing-escape (0.07s)
+=== RUN   TestNoticeReorderedDisableKeepsAnswerOwner
+=== RUN   TestNoticeReorderedDisableKeepsAnswerOwner/light/disable-reorder
+=== RUN   TestNoticeReorderedDisableKeepsAnswerOwner/light/disable-reorder-insert
+=== RUN   TestNoticeReorderedDisableKeepsAnswerOwner/dark/disable-reorder
+=== RUN   TestNoticeReorderedDisableKeepsAnswerOwner/dark/disable-reorder-insert
+--- PASS: TestNoticeReorderedDisableKeepsAnswerOwner (0.13s)
+    --- PASS: TestNoticeReorderedDisableKeepsAnswerOwner/light/disable-reorder (0.03s)
+    --- PASS: TestNoticeReorderedDisableKeepsAnswerOwner/light/disable-reorder-insert (0.03s)
+    --- PASS: TestNoticeReorderedDisableKeepsAnswerOwner/dark/disable-reorder (0.03s)
+    --- PASS: TestNoticeReorderedDisableKeepsAnswerOwner/dark/disable-reorder-insert (0.03s)
+=== RUN   TestNoticeReorderedRemoveKeepsAnswerOwner
+=== RUN   TestNoticeReorderedRemoveKeepsAnswerOwner/light/remove-reorder
+=== RUN   TestNoticeReorderedRemoveKeepsAnswerOwner/light/remove-reorder-insert
+=== RUN   TestNoticeReorderedRemoveKeepsAnswerOwner/dark/remove-reorder
+=== RUN   TestNoticeReorderedRemoveKeepsAnswerOwner/dark/remove-reorder-insert
+--- PASS: TestNoticeReorderedRemoveKeepsAnswerOwner (0.33s)
+    --- PASS: TestNoticeReorderedRemoveKeepsAnswerOwner/light/remove-reorder (0.08s)
+    --- PASS: TestNoticeReorderedRemoveKeepsAnswerOwner/light/remove-reorder-insert (0.08s)
+    --- PASS: TestNoticeReorderedRemoveKeepsAnswerOwner/dark/remove-reorder (0.09s)
+    --- PASS: TestNoticeReorderedRemoveKeepsAnswerOwner/dark/remove-reorder-insert (0.08s)
+=== RUN   TestNoticeDisableSlowFailureCanRetry
+=== RUN   TestNoticeDisableSlowFailureCanRetry/light/disable-slow-failure
+=== RUN   TestNoticeDisableSlowFailureCanRetry/light/disable-slow-failure-cancelled
+=== RUN   TestNoticeDisableSlowFailureCanRetry/dark/disable-slow-failure
+=== RUN   TestNoticeDisableSlowFailureCanRetry/dark/disable-slow-failure-cancelled
+--- PASS: TestNoticeDisableSlowFailureCanRetry (0.06s)
+    --- PASS: TestNoticeDisableSlowFailureCanRetry/light/disable-slow-failure (0.02s)
+    --- PASS: TestNoticeDisableSlowFailureCanRetry/light/disable-slow-failure-cancelled (0.01s)
+    --- PASS: TestNoticeDisableSlowFailureCanRetry/dark/disable-slow-failure (0.02s)
+    --- PASS: TestNoticeDisableSlowFailureCanRetry/dark/disable-slow-failure-cancelled (0.01s)
+=== RUN   TestNoticeRemoveSlowFailureCanRetry
+=== RUN   TestNoticeRemoveSlowFailureCanRetry/light/remove-slow-failure
+=== RUN   TestNoticeRemoveSlowFailureCanRetry/light/remove-slow-failure-cancelled
+=== RUN   TestNoticeRemoveSlowFailureCanRetry/dark/remove-slow-failure
+=== RUN   TestNoticeRemoveSlowFailureCanRetry/dark/remove-slow-failure-cancelled
+--- PASS: TestNoticeRemoveSlowFailureCanRetry (0.27s)
+    --- PASS: TestNoticeRemoveSlowFailureCanRetry/light/remove-slow-failure (0.08s)
+    --- PASS: TestNoticeRemoveSlowFailureCanRetry/light/remove-slow-failure-cancelled (0.06s)
+    --- PASS: TestNoticeRemoveSlowFailureCanRetry/dark/remove-slow-failure (0.08s)
+    --- PASS: TestNoticeRemoveSlowFailureCanRetry/dark/remove-slow-failure-cancelled (0.06s)
+=== RUN   TestASettingsFrameCopiesTheSettingsOnce
+--- PASS: TestASettingsFrameCopiesTheSettingsOnce (0.05s)
+=== RUN   TestUninstallRecoveryFailureKeepsKeyboardRetry
+=== RUN   TestUninstallRecoveryFailureKeepsKeyboardRetry/light
+=== RUN   TestUninstallRecoveryFailureKeepsKeyboardRetry/dark
+--- PASS: TestUninstallRecoveryFailureKeepsKeyboardRetry (0.02s)
+    --- PASS: TestUninstallRecoveryFailureKeepsKeyboardRetry/light (0.01s)
+    --- PASS: TestUninstallRecoveryFailureKeepsKeyboardRetry/dark (0.01s)
+=== RUN   TestUninstallRecoveryDelayedFailureKeepsKeyboardRetry
+=== RUN   TestUninstallRecoveryDelayedFailureKeepsKeyboardRetry/light
+=== RUN   TestUninstallRecoveryDelayedFailureKeepsKeyboardRetry/dark
+--- PASS: TestUninstallRecoveryDelayedFailureKeepsKeyboardRetry (0.02s)
+    --- PASS: TestUninstallRecoveryDelayedFailureKeepsKeyboardRetry/light (0.01s)
+    --- PASS: TestUninstallRecoveryDelayedFailureKeepsKeyboardRetry/dark (0.01s)
+PASS
+ok  	floter/internal/settingsui	4.737s
+=== RUN   TestEverySurfacesFrameTakesNoSettingsCopy
+=== RUN   TestEverySurfacesFrameTakesNoSettingsCopy/launcher
+=== RUN   TestEverySurfacesFrameTakesNoSettingsCopy/terminal
+=== RUN   TestEverySurfacesFrameTakesNoSettingsCopy/settings/general
+=== RUN   TestEverySurfacesFrameTakesNoSettingsCopy/settings/sessions
+=== RUN   TestEverySurfacesFrameTakesNoSettingsCopy/settings/integrations
+=== RUN   TestEverySurfacesFrameTakesNoSettingsCopy/settings/about
+--- PASS: TestEverySurfacesFrameTakesNoSettingsCopy (0.19s)
+    --- PASS: TestEverySurfacesFrameTakesNoSettingsCopy/launcher (0.06s)
+    --- PASS: TestEverySurfacesFrameTakesNoSettingsCopy/terminal (0.01s)
+    --- PASS: TestEverySurfacesFrameTakesNoSettingsCopy/settings/general (0.04s)
+    --- PASS: TestEverySurfacesFrameTakesNoSettingsCopy/settings/sessions (0.02s)
+    --- PASS: TestEverySurfacesFrameTakesNoSettingsCopy/settings/integrations (0.03s)
+    --- PASS: TestEverySurfacesFrameTakesNoSettingsCopy/settings/about (0.02s)
+PASS
+ok  	floter/internal/shell	0.208s

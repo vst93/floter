@@ -1,0 +1,31 @@
+=== RUN   TestNoticeVanishedDisableRetiresQuestion
+=== RUN   TestNoticeVanishedDisableRetiresQuestion/light/disable-return
+    noticerefresh_test.go:61: stale disable question revived after list refresh
+=== RUN   TestNoticeVanishedDisableRetiresQuestion/light/disable-missing-escape
+    noticerefresh_test.go:54: invisible disable question swallowed Escape: close=0
+=== RUN   TestNoticeVanishedDisableRetiresQuestion/dark/disable-return
+    noticerefresh_test.go:61: stale disable question revived after list refresh
+=== RUN   TestNoticeVanishedDisableRetiresQuestion/dark/disable-missing-escape
+    noticerefresh_test.go:54: invisible disable question swallowed Escape: close=0
+--- FAIL: TestNoticeVanishedDisableRetiresQuestion (0.15s)
+    --- FAIL: TestNoticeVanishedDisableRetiresQuestion/light/disable-return (0.09s)
+    --- FAIL: TestNoticeVanishedDisableRetiresQuestion/light/disable-missing-escape (0.02s)
+    --- FAIL: TestNoticeVanishedDisableRetiresQuestion/dark/disable-return (0.02s)
+    --- FAIL: TestNoticeVanishedDisableRetiresQuestion/dark/disable-missing-escape (0.02s)
+=== RUN   TestNoticeVanishedRemoveRetiresQuestion
+=== RUN   TestNoticeVanishedRemoveRetiresQuestion/light/remove-return
+    noticerefresh_test.go:61: stale remove question revived after list refresh
+=== RUN   TestNoticeVanishedRemoveRetiresQuestion/light/remove-missing-escape
+    noticerefresh_test.go:54: invisible remove question swallowed Escape: close=0
+=== RUN   TestNoticeVanishedRemoveRetiresQuestion/dark/remove-return
+    noticerefresh_test.go:61: stale remove question revived after list refresh
+=== RUN   TestNoticeVanishedRemoveRetiresQuestion/dark/remove-missing-escape
+    noticerefresh_test.go:54: invisible remove question swallowed Escape: close=0
+--- FAIL: TestNoticeVanishedRemoveRetiresQuestion (0.16s)
+    --- FAIL: TestNoticeVanishedRemoveRetiresQuestion/light/remove-return (0.04s)
+    --- FAIL: TestNoticeVanishedRemoveRetiresQuestion/light/remove-missing-escape (0.03s)
+    --- FAIL: TestNoticeVanishedRemoveRetiresQuestion/dark/remove-return (0.05s)
+    --- FAIL: TestNoticeVanishedRemoveRetiresQuestion/dark/remove-missing-escape (0.03s)
+FAIL
+FAIL	floter/internal/settingsui	0.314s
+FAIL

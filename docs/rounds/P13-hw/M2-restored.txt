@@ -1,0 +1,22 @@
+=== RUN   TestNoticeVanishedDisableRetiresQuestion
+=== RUN   TestNoticeVanishedDisableRetiresQuestion/light/disable-return
+=== RUN   TestNoticeVanishedDisableRetiresQuestion/light/disable-missing-escape
+=== RUN   TestNoticeVanishedDisableRetiresQuestion/dark/disable-return
+=== RUN   TestNoticeVanishedDisableRetiresQuestion/dark/disable-missing-escape
+--- PASS: TestNoticeVanishedDisableRetiresQuestion (0.08s)
+    --- PASS: TestNoticeVanishedDisableRetiresQuestion/light/disable-return (0.06s)
+    --- PASS: TestNoticeVanishedDisableRetiresQuestion/light/disable-missing-escape (0.01s)
+    --- PASS: TestNoticeVanishedDisableRetiresQuestion/dark/disable-return (0.01s)
+    --- PASS: TestNoticeVanishedDisableRetiresQuestion/dark/disable-missing-escape (0.01s)
+=== RUN   TestNoticeVanishedRemoveRetiresQuestion
+=== RUN   TestNoticeVanishedRemoveRetiresQuestion/light/remove-return
+=== RUN   TestNoticeVanishedRemoveRetiresQuestion/light/remove-missing-escape
+=== RUN   TestNoticeVanishedRemoveRetiresQuestion/dark/remove-return
+=== RUN   TestNoticeVanishedRemoveRetiresQuestion/dark/remove-missing-escape
+--- PASS: TestNoticeVanishedRemoveRetiresQuestion (0.11s)
+    --- PASS: TestNoticeVanishedRemoveRetiresQuestion/light/remove-return (0.03s)
+    --- PASS: TestNoticeVanishedRemoveRetiresQuestion/light/remove-missing-escape (0.02s)
+    --- PASS: TestNoticeVanishedRemoveRetiresQuestion/dark/remove-return (0.03s)
+    --- PASS: TestNoticeVanishedRemoveRetiresQuestion/dark/remove-missing-escape (0.02s)
+PASS
+ok  	floter/internal/settingsui	0.195s
