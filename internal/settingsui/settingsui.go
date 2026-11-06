@@ -2985,9 +2985,11 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			// An orphan is a package directory the repository does not name:
 			// the row offers to graft it in or to remove it, and nothing
 			// else — there is no record to enable, check or uninstall.
+			var adoptOpener ui.Element
 			a.row(c, copy.IntegrationsOrphan, copy.IntegrationsAdoptHint, func() {
 				if a.Actions.AdoptIntegration != nil {
-					if a.actionButton(c, copy.IntegrationsAdopt).Clicked() {
+					adoptOpener = a.actionButton(c, copy.IntegrationsAdopt)
+					if adoptOpener.Clicked() {
 						a.Actions.AdoptIntegration(integration.ID)
 					}
 				}
@@ -2997,6 +2999,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 					}
 				}
 			})
+			a.noticeFocus(c, integration.ID, "disable").restore(c, false, adoptOpener)
 			return
 		}
 
@@ -3025,7 +3028,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 		}
 		// The inline run form above can disappear; the disclosure's identity
 		// must survive that sibling removal for returned focus to remain valid.
-		var removeOpener, disableOpener ui.Element
+		var removeOpener, disableOpener, checkOpener ui.Element
 		a.rowAligned(c.Key("integration.actions"), ui.Center, nil, rowFace{Inert: busy}, "", nil, "", func() {
 			// The row's Run button: on a runnable row it runs the integration —
 			// straight away when it declares no inputs, or unfolding the inline
@@ -3093,7 +3096,8 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 				}
 			}
 			if a.Actions.DiagnoseIntegration != nil {
-				if rowAction(copy.IntegrationsCheck).Clicked() {
+				checkOpener = rowAction(copy.IntegrationsCheck)
+				if checkOpener.Clicked() {
 					a.Actions.DiagnoseIntegration(integration.ID)
 				}
 			}
@@ -3164,6 +3168,9 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 		})
 		if enableChanged && a.Actions.SetIntegrationEnabled != nil {
 			a.startToggle(integration.ID, enabled)
+		}
+		if !disableOpener.Valid() && integration.Broken {
+			disableOpener = checkOpener
 		}
 		a.noticeFocus(c, integration.ID, "disable").restore(c, a.disableConfirm[integration.ID], disableOpener)
 		if !a.uninstallOpen[integration.ID] {

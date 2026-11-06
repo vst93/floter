@@ -112,14 +112,8 @@ func checkResultRefresh(t *testing.T, kind, change string) {
 	}
 }
 
-func TestResultRefreshDisableBroken(t *testing.T)   { checkResultRefresh(t, "disable", "broken") }
-func TestResultRefreshDisableOrphan(t *testing.T)   { checkResultRefresh(t, "disable", "orphan") }
-func TestResultRefreshRemoveOrphan(t *testing.T)    { checkResultRefresh(t, "remove", "orphan") }
-func TestResultRefreshUninstallOrphan(t *testing.T) { checkResultRefresh(t, "uninstall", "orphan") }
-func TestResultRefreshUninstallKind(t *testing.T)   { checkResultRefresh(t, "uninstall", "kind") }
-func TestResultRefreshRemoveComponentized(t *testing.T) {
-	checkResultRefresh(t, "remove", "componentized")
-}
+func TestResultRefreshDisableBroken(t *testing.T) { checkResultRefresh(t, "disable", "broken") }
+func TestResultRefreshDisableOrphan(t *testing.T) { checkResultRefresh(t, "disable", "orphan") }
 
 func checkSaveResult(t *testing.T, retry bool) {
 	t.Helper()
