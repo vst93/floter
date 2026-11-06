@@ -619,6 +619,9 @@ func (a *App) extensionActionFace(c *ui.Context, height, radius float32, disable
 	button := ui.ButtonBase(c).
 		MinHeight(height).Padding(0, t.Space(2.5)).Radius(radius)
 	ink, edge, plane := tokens.TextStrong, tokens.ControlEdge, tokens.Control
+	if disabled {
+		ink = tokens.Disabled
+	}
 	// P13-s（`docs/liquid-glass.md` §6.2b-6）：禁用面不靠「把整棵子树乘两次」说话。
 	// 框架的画笔已经给 `Disabled` 的子树乘了 **0.5**（`ui/paint.go:257-259`），而这一族
 	// 之前又在外面叠了一个 `.Opacity(0.4)`：两个淡乘起来 = 有效 0.2，面离地面的台阶从
@@ -774,6 +777,7 @@ func (a *App) extensionIconButton(c *ui.Context, glyphName, label string, disabl
 	ink := tokens.TextSecondary
 	switch {
 	case disabled:
+		ink = tokens.Disabled
 		// P13-aq：只淡一道。框架的画笔已经给 `Disabled` 的整棵子树乘了 0.5
 		// （`mygo@v0.7.3/ui/paint.go:257-259`），这里再叠一个 `.Opacity(0.42)` 就是
 		// 有效 0.21——实测这枚键的字/面对比从 138 掉到 **29** 级（深色 141 → 30），

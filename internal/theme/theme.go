@@ -247,6 +247,10 @@ type Tokens struct {
 	TextStrong    ui.Color
 	TextSecondary ui.Color
 	TextTertiary  ui.Color
+	// Disabled is neutral label ink before mygo's single 0.5 disabled fade.
+	// P13-hl: share an ink rung across faces and transparent keys; danger and
+	// accent controls retain their semantic colors. See liquid-glass.md §6.187.
+	Disabled ui.Color
 	// The control lens family (base.css's `--glass-lens-*`): a control's top
 	// rim, its broad sheen and its bottom shade. The framework draws no such
 	// layers, and without them a translucent pane reads as a flat tint with
@@ -667,6 +671,7 @@ func ForPlatform(s settings.Settings, systemDark bool, prefs ui.Preferences, goo
 		TextStrong:          textStrong,
 		TextSecondary:       textSecondary,
 		TextTertiary:        textTertiary,
+		Disabled:            p.disabled,
 		// The warm plane is a fixed per-appearance token in base.css — unlike
 		// the frame's tint it does not follow the transparency slider.
 		IconSurface:      p.iconSurface,
@@ -703,6 +708,7 @@ func paletteFor(appearance Appearance) palette {
 			textStrong:    ui.Hex("#1B1B1D"),
 			textSecondary: ui.Hex("#6B6B70"),
 			textTertiary:  ui.Hex("#8E8E94"),
+			disabled:      ui.Hex("#57575B"),
 			// The soft rung between the two: base.css's `--text-muted` sat
 			// between `--text-secondary` and `--text-tertiary` too, and the
 			// framework has a fourth slot for it (`ui.Theme.TextMuted`, the
@@ -838,6 +844,7 @@ func paletteFor(appearance Appearance) palette {
 		textStrong:    ui.Hex("#EDEDEF"),
 		textSecondary: ui.Hex("#9A9AA0"),
 		textTertiary:  ui.Hex("#6E6E76"),
+		disabled:      ui.Hex("#B5B5BD"),
 		// The soft rung between them (see the light palette's note): the
 		// midpoint of the contract's `#9A9AA0` and `#6E6E76`.
 		textMuted: ui.Hex("#85858D"),
@@ -1002,6 +1009,7 @@ func (p palette) contrast(app Appearance) palette {
 // shape, and the framework theme's fields are filled from here.
 type palette struct {
 	background, text, textStrong, textMuted, textSecondary, textTertiary              ui.Color
+	disabled                                                                          ui.Color
 	accent, accentHover, accentPressed, accentText                                    ui.Color
 	stroke, strokeActive                                                              ui.Color
 	control, controlHover, controlPress, controlEdge                                  ui.Color
