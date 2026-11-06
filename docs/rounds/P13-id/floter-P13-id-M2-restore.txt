@@ -1,0 +1,36 @@
+=== RUN   TestOptionExitSelectExternal
+=== RUN   TestOptionExitSelectExternal/light
+=== RUN   TestOptionExitSelectExternal/dark
+--- PASS: TestOptionExitSelectExternal (0.06s)
+    --- PASS: TestOptionExitSelectExternal/light (0.05s)
+    --- PASS: TestOptionExitSelectExternal/dark (0.01s)
+=== RUN   TestOptionExitSelectRemoved
+=== RUN   TestOptionExitSelectRemoved/light
+=== RUN   TestOptionExitSelectRemoved/dark
+--- PASS: TestOptionExitSelectRemoved (0.01s)
+    --- PASS: TestOptionExitSelectRemoved/light (0.01s)
+    --- PASS: TestOptionExitSelectRemoved/dark (0.01s)
+=== RUN   TestOptionExitSelectEmpty
+=== RUN   TestOptionExitSelectEmpty/light
+=== RUN   TestOptionExitSelectEmpty/dark
+--- PASS: TestOptionExitSelectEmpty (0.01s)
+    --- PASS: TestOptionExitSelectEmpty/light (0.01s)
+    --- PASS: TestOptionExitSelectEmpty/dark (0.01s)
+=== RUN   TestOptionExitSelectUnlock
+=== RUN   TestOptionExitSelectUnlock/light
+=== RUN   TestOptionExitSelectUnlock/dark
+--- PASS: TestOptionExitSelectUnlock (0.01s)
+    --- PASS: TestOptionExitSelectUnlock/light (0.01s)
+    --- PASS: TestOptionExitSelectUnlock/dark (0.01s)
+=== RUN   TestOptionExitSelectDoesNotReclaimFocus
+=== RUN   TestOptionExitSelectDoesNotReclaimFocus/light/busy
+=== RUN   TestOptionExitSelectDoesNotReclaimFocus/dark/busy
+=== RUN   TestOptionExitSelectDoesNotReclaimFocus/light/empty
+=== RUN   TestOptionExitSelectDoesNotReclaimFocus/dark/empty
+--- PASS: TestOptionExitSelectDoesNotReclaimFocus (0.02s)
+    --- PASS: TestOptionExitSelectDoesNotReclaimFocus/light/busy (0.01s)
+    --- PASS: TestOptionExitSelectDoesNotReclaimFocus/dark/busy (0.01s)
+    --- PASS: TestOptionExitSelectDoesNotReclaimFocus/light/empty (0.01s)
+    --- PASS: TestOptionExitSelectDoesNotReclaimFocus/dark/empty (0.01s)
+PASS
+ok  	floter/internal/settingsui	0.125s

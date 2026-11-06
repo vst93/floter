@@ -51,8 +51,13 @@ func valueSelect[T comparable](c *ui.Context, selected *T, labels []string, valu
 		(lifetime.selected != *selected || !slices.Equal(lifetime.values, values))
 	// Preserve an active keyboard path when a stale menu closes. Mouse-only
 	// dismissal retains its existing behavior: Enter must not reopen it.
-	keepFocus := enabled && unknownChanged && (!lifetime.open || lifetime.keyboard) && lifetime.trigger.Focused(c)
-	if unknownChanged || lifetime.enabled != enabled {
+	invalidated := unknownChanged || lifetime.enabled != enabled
+	focused := lifetime.trigger.Focused(c)
+	keepFocus := enabled && invalidated && (!lifetime.open || lifetime.keyboard) && focused
+	// Keep a keyboard-owned trigger's identity while unavailable. It cannot
+	// open or accept input; re-enabling replaces its stale menu and focus
+	// follows only if the user has not moved to another control meanwhile.
+	if invalidated && !(!enabled && lifetime.keyboard && focused) {
 		lifetime.generation++
 	}
 	identity := struct {

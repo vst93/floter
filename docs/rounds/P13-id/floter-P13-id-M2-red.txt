@@ -1,0 +1,23 @@
+=== RUN   TestOptionExitSelectEmpty
+=== RUN   TestOptionExitSelectEmpty/light
+    optionexit_test.go:71: empty refresh lost select keyboard exit
+    optionexit_test.go:82: empty cannot choose after refresh: 文件
+=== RUN   TestOptionExitSelectEmpty/dark
+    optionexit_test.go:71: empty refresh lost select keyboard exit
+    optionexit_test.go:82: empty cannot choose after refresh: 文件
+--- FAIL: TestOptionExitSelectEmpty (0.16s)
+    --- FAIL: TestOptionExitSelectEmpty/light (0.15s)
+    --- FAIL: TestOptionExitSelectEmpty/dark (0.01s)
+=== RUN   TestOptionExitSelectUnlock
+=== RUN   TestOptionExitSelectUnlock/light
+    optionexit_test.go:71: unlock refresh lost select keyboard exit
+    optionexit_test.go:82: unlock cannot choose after refresh: 文件
+=== RUN   TestOptionExitSelectUnlock/dark
+    optionexit_test.go:71: unlock refresh lost select keyboard exit
+    optionexit_test.go:82: unlock cannot choose after refresh: 文件
+--- FAIL: TestOptionExitSelectUnlock (0.03s)
+    --- FAIL: TestOptionExitSelectUnlock/light (0.01s)
+    --- FAIL: TestOptionExitSelectUnlock/dark (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.199s
+FAIL

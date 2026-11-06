@@ -87,6 +87,38 @@ func checkOptionExitSelect(t *testing.T, scenario string) {
 
 func TestOptionExitSelectExternal(t *testing.T) { checkOptionExitSelect(t, "external") }
 func TestOptionExitSelectRemoved(t *testing.T)  { checkOptionExitSelect(t, "removed") }
+func TestOptionExitSelectEmpty(t *testing.T)    { checkOptionExitSelect(t, "empty") }
+func TestOptionExitSelectUnlock(t *testing.T)   { checkOptionExitSelect(t, "unlock") }
+
+func TestOptionExitSelectDoesNotReclaimFocus(t *testing.T) {
+	for _, empty := range []bool{false, true} {
+		for _, dark := range []bool{false, true} {
+			t.Run(appearanceName(dark)+map[bool]string{false: "/busy", true: "/empty"}[empty], func(t *testing.T) {
+				in := Integration{ID: "local.options", Config: []ConfigField{{Key: "mode", Label: "搜索方式", Type: "select", Required: true, Options: []string{"文件", "应用"}}, {Key: "other", Label: "其他字段", Type: "text"}}, ConfigValues: map[string]any{"mode": "文件"}}
+				a, tt := configIdentityFrame(t, dark, &in)
+				a.Actions.CopyConfiguration = func(string, map[string]any, func(error)) {}
+				optionExitFocus(t, tt, "搜索方式")
+				tt.Key(0, ui.KeyDown)
+				if empty {
+					in.Config[0].Options = nil
+				} else {
+					a.repairBusy = map[string]bool{in.ID: true}
+				}
+				tt.Frame()
+				optionExitFocus(t, tt, a.copy().ConfigCopy)
+				in.Config[0].Options = []string{"文件", "应用"}
+				delete(a.repairBusy, in.ID)
+				tt.Frame()
+				if !tt.Focused(a.copy().ConfigCopy) {
+					t.Error("refresh reclaimed deliberately moved focus")
+				}
+				if a.configDirty(in, a.draft(in)) || tt.HasText("应用") {
+					t.Error("refresh opened or selected")
+				}
+			})
+		}
+	}
+}
 
 func checkOptionExitMulti(t *testing.T, empty bool) {
 	t.Helper()
