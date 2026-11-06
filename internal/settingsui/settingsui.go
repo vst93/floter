@@ -3520,7 +3520,7 @@ func (a *App) commandAliasEditor(c *ui.Context, copy i18n.Settings, extensionID 
 		input := a.aliasFieldLit(c, &alias, !locked).Placeholder(copy.IntegrationsCommandAliasPlaceholder).
 			Label(copy.IntegrationsCommandAliasFor(name)).FillWidth()
 		if locked {
-			input = lockedControl(input)
+			input = lockedControl(input.TextColor(tokens.Disabled))
 		}
 		if input.Changed() && !locked &&
 			a.Actions.SetCommandAlias != nil {
@@ -7214,7 +7214,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 					a.rowAligned(c, ui.Center, nil, rowFace{Inert: locked}, label, []rowLine{{Text: sublabel}}, "", func() {
 						input := a.extensionFieldLit(c, &value, configFieldMetrics, !locked).Label(label).Width(220).Placeholder(param.Placeholder)
 						if locked {
-							lockedControl(input)
+							lockedControl(input.TextColor(a.tokens(c).Disabled))
 						}
 					}, below...)
 					if !locked {

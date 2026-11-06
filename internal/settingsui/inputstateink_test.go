@@ -5,10 +5,11 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"floter/internal/extensions"
 	"floter/internal/settings"
 )
 
-func inputStateInk(t *testing.T, dark bool, name string, draw func(*App, *ui.Context)) {
+func inputStateInkFrame(t *testing.T, dark bool, draw func(*App, *ui.Context)) (*App, *ui.Tester) {
 	t.Helper()
 	s := settings.Default()
 	s.Theme, s.Language = appearanceName(dark), "zh"
@@ -24,6 +25,12 @@ func inputStateInk(t *testing.T, dark bool, name string, draw func(*App, *ui.Con
 	tt.SetDark(dark)
 	tt.SetPreferences(ui.Preferences{ReduceMotion: true})
 	tt.Frame()
+	return a, tt
+}
+
+func inputStateInk(t *testing.T, dark bool, name string, draw func(*App, *ui.Context)) {
+	t.Helper()
+	_, tt := inputStateInkFrame(t, dark, draw)
 	inputStateDump(t, tt, name, dark)
 	// The configuration label ends at x=138. Sample the text-bearing middle
 	// of its trailing input, excluding the border and outer focus band.
@@ -50,5 +57,58 @@ func TestInputStateLockedConfigUsesDisabledInk(t *testing.T) {
 				})
 			})
 		}
+	}
+}
+
+func TestInputStateLockedAliasUsesDisabledInk(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			a, tt := inputStateInkFrame(t, dark, func(a *App, c *ui.Context) {
+				a.commandAliasEditor(c, a.copy(), "local.input", Command{ID: "scan", Name: "扫描", Alias: "1234567890"})
+			})
+			inputStateDump(t, tt, "locked-alias", dark)
+			r := mustFind(t, tt, a.copy().IntegrationsCommandAliasFor("扫描"))
+			levels := inkSpan(tt, ui.Rect{X: r.X + 10, Y: r.Y + 3, W: 200, H: r.H - 6})
+			t.Logf("%s alias: disabled ink=%d", appearanceName(dark), levels)
+			if levels < 70 || levels > 88 {
+				t.Errorf("alias disabled ink=%d, want shared 70..88 rung", levels)
+			}
+			if err := tt.Click(a.copy().IntegrationsCommandAliasFor("扫描")); err != nil {
+				t.Fatal(err)
+			}
+			tt.Type("blocked")
+			tt.Frame()
+			if len(a.pendingAliases) != 0 {
+				t.Fatal("locked alias queued a write")
+			}
+		})
+	}
+}
+
+func TestInputStateLockedRunParameterUsesDisabledInk(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			a, tt := inputStateInkFrame(t, dark, func(a *App, c *ui.Context) {
+				a.Actions.RunWithParams = func(string, map[string]string) *extensions.ParamFailure { return nil }
+				a.runOpen = map[string]bool{"local.input": true}
+				if a.runValues == nil {
+					a.runValues = map[string]map[string]string{"local.input": {"target": "1234567890"}}
+				}
+				a.runForm(c, a.copy(), Integration{ID: "local.input", Running: true, Enabled: true, Params: []Param{{ID: "target", Label: "锁定字段", Kind: extensions.ParamText}}})
+			})
+			inputStateDump(t, tt, "locked-run", dark)
+			r := mustFind(t, tt, "锁定字段")
+			levels := inkSpan(tt, ui.Rect{X: 480, Y: r.Y, W: 195, H: r.H})
+			t.Logf("%s run: disabled ink=%d", appearanceName(dark), levels)
+			if levels < 70 || levels > 88 {
+				t.Errorf("run parameter disabled ink=%d, want shared 70..88 rung", levels)
+			}
+			tt.ClickAt(568, r.Y+r.H/2)
+			tt.Type("blocked")
+			tt.Frame()
+			if a.runValues["local.input"]["target"] != "1234567890" {
+				t.Fatal("locked run parameter changed")
+			}
+		})
 	}
 }
