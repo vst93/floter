@@ -44,3 +44,12 @@ M1 强制视字段仍有效，两个主题的两个 entry 场景重新报上述�
 M2 撤回本批两处交接代码再跑单撤回/双撤回，之后 MD5、touch 复验。旧 V/B/S 断言 0/0/0；新增场景检验真实派发次数与不可用焦点出口。
 
 第二批相关回归 **371 PASS / 0 FAIL**，包 vet 退出 0；M2 八个 entry（单撤回/双撤回 × 深浅 × Copy/Export）实跑红，MD5 还原、touch 后 **21 PASS / 0 FAIL**。
+
+流程偏差：第二批 **fbdaaf98** 在 batch2 命令退出前已 commit/push，当时提交的 batch2.txt 不完整；这是门槛顺序违规。随后等待原进程完整退出，实测 **371 PASS / 0 FAIL** 与包 vet 退出 **0**；M2 还原 **21 PASS**。本批补入完整原日志，不以事后绿替代对顺序偏差的记录。后续批次等待完整退出再提交。
+
+## 第三批：工具配置入口失效
+
+5. 现象：Open configuration 持焦时 provider 撤回 openCommand，按钮转禁用，Space 仍落在无效入口。改动：记录真实持焦 editor，工具入口不可用时交给当前 Check，Check 也缺席则回页头。验证：Tab → command=nil → 当前可用出口 → Space 仅派发一次；elsewhere 不抢焦。原串 `tool-command lost usable focus "Check"`。
+6. 现象：命令仍在但宿主 OpenConfiguration callback 撤回，入口同样无法执行。改动：按当前 openable 判定交接，callback 和命令两个源分别验收。验证：Tab → callback=nil → Check；不执行已撤回的编辑命令。原串 `tool-action lost usable focus "Check"`。
+
+第三批完整相关回归 **386 PASS / 0 FAIL**，包 vet 退出 0。M3 六个 entry（command/action/no-check × 深浅）实跑红，MD5 还原、touch 后 **15 PASS / 0 FAIL**。第二批深浅图目视确认：旧灰色 Copy 仍戴环，修后环落在可用 Export；两个图标的大小与间距不变。

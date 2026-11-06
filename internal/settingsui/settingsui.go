@@ -3200,6 +3200,9 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 		// the existing header return, without waiting on or moving the reply.
 		repairFocus := a.noticeFocus(c, integration.ID, "repair")
 		a.restoreNotice(c, integration.ID, "repair", c.Resolve(repairFocus.panel).Valid(), checkOpener)
+		if configOwnerIsTool(integration) && !discardOpener.Valid() {
+			a.restoreNotice(c, integration.ID, "editor", false, checkOpener)
+		}
 		if !configOwnerIsHost(integration) {
 			// The old form can disappear while its discard answer owns focus.
 			// A tool without an editor still has the row's diagnostic outlet.
@@ -3378,6 +3381,7 @@ func (a *App) configOpenToolRow(c *ui.Context, copy i18n.Settings, integration I
 		// P13-s（§6.2b-6）：禁用的面不跟着字一起淡——`openable` 直接进面。
 		button := a.extensionGlyphActionButton(c, "link", copy.ConfigOpenConfiguration,
 			a.cardTheme(c).Space(7.5), a.cardTheme(c).Space(3.75), a.tokens(c).Body, !openable)
+		a.rememberOperationFocus(c, integration.ID, "editor", button)
 		if !openable {
 			button = button.Disabled(true).Cursor(ui.CursorDefault)
 		} else {

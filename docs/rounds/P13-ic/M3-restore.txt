@@ -1,0 +1,33 @@
+internal/settingsui/settingsui.go: OK
+=== RUN   TestFormOutletToolCommand
+=== RUN   TestFormOutletToolCommand/light/entry
+=== RUN   TestFormOutletToolCommand/light/elsewhere
+=== RUN   TestFormOutletToolCommand/dark/entry
+=== RUN   TestFormOutletToolCommand/dark/elsewhere
+--- PASS: TestFormOutletToolCommand (1.40s)
+    --- PASS: TestFormOutletToolCommand/light/entry (0.42s)
+    --- PASS: TestFormOutletToolCommand/light/elsewhere (0.36s)
+    --- PASS: TestFormOutletToolCommand/dark/entry (0.27s)
+    --- PASS: TestFormOutletToolCommand/dark/elsewhere (0.35s)
+=== RUN   TestFormOutletToolAction
+=== RUN   TestFormOutletToolAction/light/entry
+=== RUN   TestFormOutletToolAction/light/elsewhere
+=== RUN   TestFormOutletToolAction/dark/entry
+=== RUN   TestFormOutletToolAction/dark/elsewhere
+--- PASS: TestFormOutletToolAction (1.47s)
+    --- PASS: TestFormOutletToolAction/light/entry (0.26s)
+    --- PASS: TestFormOutletToolAction/light/elsewhere (0.39s)
+    --- PASS: TestFormOutletToolAction/dark/entry (0.32s)
+    --- PASS: TestFormOutletToolAction/dark/elsewhere (0.50s)
+=== RUN   TestFormOutletToolNoCheck
+=== RUN   TestFormOutletToolNoCheck/light/entry
+=== RUN   TestFormOutletToolNoCheck/light/elsewhere
+=== RUN   TestFormOutletToolNoCheck/dark/entry
+=== RUN   TestFormOutletToolNoCheck/dark/elsewhere
+--- PASS: TestFormOutletToolNoCheck (1.33s)
+    --- PASS: TestFormOutletToolNoCheck/light/entry (0.30s)
+    --- PASS: TestFormOutletToolNoCheck/light/elsewhere (0.37s)
+    --- PASS: TestFormOutletToolNoCheck/dark/entry (0.26s)
+    --- PASS: TestFormOutletToolNoCheck/dark/elsewhere (0.41s)
+PASS
+ok  	floter/internal/settingsui	4.226s

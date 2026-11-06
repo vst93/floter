@@ -1,0 +1,51 @@
+=== RUN   TestFormOutletToolCommand
+=== RUN   TestFormOutletToolCommand/light/entry
+    formoutlet_test.go:144: tool-command lost usable focus "Check"
+    formoutlet_test.go:155: tool-command callback lost focus "Check"
+    formoutlet_test.go:178: Check outlet did not dispatch once
+=== RUN   TestFormOutletToolCommand/light/elsewhere
+=== RUN   TestFormOutletToolCommand/dark/entry
+    formoutlet_test.go:144: tool-command lost usable focus "Check"
+    formoutlet_test.go:155: tool-command callback lost focus "Check"
+    formoutlet_test.go:178: Check outlet did not dispatch once
+=== RUN   TestFormOutletToolCommand/dark/elsewhere
+--- FAIL: TestFormOutletToolCommand (1.73s)
+    --- FAIL: TestFormOutletToolCommand/light/entry (0.60s)
+    --- PASS: TestFormOutletToolCommand/light/elsewhere (0.41s)
+    --- FAIL: TestFormOutletToolCommand/dark/entry (0.35s)
+    --- PASS: TestFormOutletToolCommand/dark/elsewhere (0.37s)
+=== RUN   TestFormOutletToolAction
+=== RUN   TestFormOutletToolAction/light/entry
+    formoutlet_test.go:144: tool-action lost usable focus "Check"
+    formoutlet_test.go:155: tool-action callback lost focus "Check"
+    formoutlet_test.go:178: Check outlet did not dispatch once
+=== RUN   TestFormOutletToolAction/light/elsewhere
+=== RUN   TestFormOutletToolAction/dark/entry
+    formoutlet_test.go:144: tool-action lost usable focus "Check"
+    formoutlet_test.go:155: tool-action callback lost focus "Check"
+    formoutlet_test.go:178: Check outlet did not dispatch once
+=== RUN   TestFormOutletToolAction/dark/elsewhere
+--- FAIL: TestFormOutletToolAction (1.43s)
+    --- FAIL: TestFormOutletToolAction/light/entry (0.33s)
+    --- PASS: TestFormOutletToolAction/light/elsewhere (0.39s)
+    --- FAIL: TestFormOutletToolAction/dark/entry (0.32s)
+    --- PASS: TestFormOutletToolAction/dark/elsewhere (0.38s)
+=== RUN   TestFormOutletToolNoCheck
+=== RUN   TestFormOutletToolNoCheck/light/entry
+    formoutlet_test.go:144: tool-no-check lost usable focus "Close settings"
+    formoutlet_test.go:155: tool-no-check callback lost focus "Close settings"
+    formoutlet_test.go:182: header outlet did not close once
+=== RUN   TestFormOutletToolNoCheck/light/elsewhere
+=== RUN   TestFormOutletToolNoCheck/dark/entry
+    formoutlet_test.go:144: tool-no-check lost usable focus "Close settings"
+    formoutlet_test.go:155: tool-no-check callback lost focus "Close settings"
+    formoutlet_test.go:182: header outlet did not close once
+=== RUN   TestFormOutletToolNoCheck/dark/elsewhere
+--- FAIL: TestFormOutletToolNoCheck (1.43s)
+    --- FAIL: TestFormOutletToolNoCheck/light/entry (0.32s)
+    --- PASS: TestFormOutletToolNoCheck/light/elsewhere (0.40s)
+    --- FAIL: TestFormOutletToolNoCheck/dark/entry (0.35s)
+    --- PASS: TestFormOutletToolNoCheck/dark/elsewhere (0.37s)
+FAIL
+FAIL	floter/internal/settingsui	4.600s
+FAIL

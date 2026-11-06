@@ -72,7 +72,7 @@ func checkFormOutlet(t *testing.T, change string) {
 					entry = copy.ConfigCopy
 				case "export-schema", "export-fold", "export-unavailable", "export-both":
 					entry = copy.ConfigExport
-				case "tool-command", "tool-action", "tool-owner":
+				case "tool-command", "tool-action", "tool-owner", "tool-no-check":
 					in.ConfigOwner, in.ConfigOpenCommand = "tool", []string{"settings"}
 					tt.Frame()
 					tt.Frame()
@@ -121,6 +121,10 @@ func checkFormOutlet(t *testing.T, change string) {
 				case "tool-action":
 					a.Actions.OpenConfiguration = nil
 					want = copy.IntegrationsCheck
+				case "tool-no-check":
+					in.ConfigOpenCommand = nil
+					a.Actions.DiagnoseIntegration = nil
+					want = copy.Close
 				case "tool-owner":
 					in.ConfigOwner = "host"
 					in.Config = nil
@@ -173,6 +177,10 @@ func checkFormOutlet(t *testing.T, change string) {
 						if checked != 1 {
 							t.Error("Check outlet did not dispatch once")
 						}
+					case copy.Close:
+						if closed != 1 {
+							t.Error("header outlet did not close once")
+						}
 					case copy.ConfigOpenConfiguration:
 						if opened != 1 {
 							t.Error("tool outlet did not dispatch once")
@@ -194,3 +202,6 @@ func TestFormOutletTransfersUnavailable(t *testing.T) {
 }
 func TestFormOutletCopyOwner(t *testing.T)    { checkFormOutlet(t, "copy-owner") }
 func TestFormOutletExportSchema(t *testing.T) { checkFormOutlet(t, "export-schema") }
+func TestFormOutletToolCommand(t *testing.T)  { checkFormOutlet(t, "tool-command") }
+func TestFormOutletToolAction(t *testing.T)   { checkFormOutlet(t, "tool-action") }
+func TestFormOutletToolNoCheck(t *testing.T)  { checkFormOutlet(t, "tool-no-check") }

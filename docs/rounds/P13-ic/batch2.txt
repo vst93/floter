@@ -519,3 +519,238 @@
 === RUN   TestNoticeOutletDiscardOrphan
 === RUN   TestNoticeOutletDiscardOrphan/light/answer
 === RUN   TestNoticeOutletDiscardOrphan/light/elsewhere
+=== RUN   TestNoticeOutletDiscardOrphan/dark/answer
+=== RUN   TestNoticeOutletDiscardOrphan/dark/elsewhere
+--- PASS: TestNoticeOutletDiscardOrphan (2.58s)
+    --- PASS: TestNoticeOutletDiscardOrphan/light/answer (0.35s)
+    --- PASS: TestNoticeOutletDiscardOrphan/light/elsewhere (0.92s)
+    --- PASS: TestNoticeOutletDiscardOrphan/dark/answer (0.36s)
+    --- PASS: TestNoticeOutletDiscardOrphan/dark/elsewhere (0.94s)
+=== RUN   TestNoticeOutletDiscardSchema
+=== RUN   TestNoticeOutletDiscardSchema/light/answer
+=== RUN   TestNoticeOutletDiscardSchema/light/elsewhere
+=== RUN   TestNoticeOutletDiscardSchema/dark/answer
+=== RUN   TestNoticeOutletDiscardSchema/dark/elsewhere
+--- PASS: TestNoticeOutletDiscardSchema (2.69s)
+    --- PASS: TestNoticeOutletDiscardSchema/light/answer (0.36s)
+    --- PASS: TestNoticeOutletDiscardSchema/light/elsewhere (0.96s)
+    --- PASS: TestNoticeOutletDiscardSchema/dark/answer (0.38s)
+    --- PASS: TestNoticeOutletDiscardSchema/dark/elsewhere (0.99s)
+=== RUN   TestNoticeOutletDiscardUnavailable
+=== RUN   TestNoticeOutletDiscardUnavailable/light/answer
+=== RUN   TestNoticeOutletDiscardUnavailable/light/elsewhere
+=== RUN   TestNoticeOutletDiscardUnavailable/dark/answer
+=== RUN   TestNoticeOutletDiscardUnavailable/dark/elsewhere
+--- PASS: TestNoticeOutletDiscardUnavailable (2.87s)
+    --- PASS: TestNoticeOutletDiscardUnavailable/light/answer (0.55s)
+    --- PASS: TestNoticeOutletDiscardUnavailable/light/elsewhere (0.94s)
+    --- PASS: TestNoticeOutletDiscardUnavailable/dark/answer (0.46s)
+    --- PASS: TestNoticeOutletDiscardUnavailable/dark/elsewhere (0.92s)
+=== RUN   TestNoticeOutletDisableNoAdopt
+=== RUN   TestNoticeOutletDisableNoAdopt/light/answer
+=== RUN   TestNoticeOutletDisableNoAdopt/light/elsewhere
+=== RUN   TestNoticeOutletDisableNoAdopt/dark/answer
+=== RUN   TestNoticeOutletDisableNoAdopt/dark/elsewhere
+--- PASS: TestNoticeOutletDisableNoAdopt (0.25s)
+    --- PASS: TestNoticeOutletDisableNoAdopt/light/answer (0.05s)
+    --- PASS: TestNoticeOutletDisableNoAdopt/light/elsewhere (0.07s)
+    --- PASS: TestNoticeOutletDisableNoAdopt/dark/answer (0.04s)
+    --- PASS: TestNoticeOutletDisableNoAdopt/dark/elsewhere (0.08s)
+=== RUN   TestNoticeOutletRemoveNoAdopt
+=== RUN   TestNoticeOutletRemoveNoAdopt/light/answer
+=== RUN   TestNoticeOutletRemoveNoAdopt/light/elsewhere
+=== RUN   TestNoticeOutletRemoveNoAdopt/dark/answer
+=== RUN   TestNoticeOutletRemoveNoAdopt/dark/elsewhere
+--- PASS: TestNoticeOutletRemoveNoAdopt (1.23s)
+    --- PASS: TestNoticeOutletRemoveNoAdopt/light/answer (0.13s)
+    --- PASS: TestNoticeOutletRemoveNoAdopt/light/elsewhere (0.49s)
+    --- PASS: TestNoticeOutletRemoveNoAdopt/dark/answer (0.13s)
+    --- PASS: TestNoticeOutletRemoveNoAdopt/dark/elsewhere (0.47s)
+=== RUN   TestNoticeOutletUninstallNoAdopt
+=== RUN   TestNoticeOutletUninstallNoAdopt/light/answer
+=== RUN   TestNoticeOutletUninstallNoAdopt/light/elsewhere
+=== RUN   TestNoticeOutletUninstallNoAdopt/dark/answer
+=== RUN   TestNoticeOutletUninstallNoAdopt/dark/elsewhere
+--- PASS: TestNoticeOutletUninstallNoAdopt (1.31s)
+    --- PASS: TestNoticeOutletUninstallNoAdopt/light/answer (0.30s)
+    --- PASS: TestNoticeOutletUninstallNoAdopt/light/elsewhere (0.36s)
+    --- PASS: TestNoticeOutletUninstallNoAdopt/dark/answer (0.26s)
+    --- PASS: TestNoticeOutletUninstallNoAdopt/dark/elsewhere (0.39s)
+=== RUN   TestNoticeOutletDisableNoCheck
+=== RUN   TestNoticeOutletDisableNoCheck/light/answer
+=== RUN   TestNoticeOutletDisableNoCheck/light/elsewhere
+=== RUN   TestNoticeOutletDisableNoCheck/dark/answer
+=== RUN   TestNoticeOutletDisableNoCheck/dark/elsewhere
+--- PASS: TestNoticeOutletDisableNoCheck (0.23s)
+    --- PASS: TestNoticeOutletDisableNoCheck/light/answer (0.04s)
+    --- PASS: TestNoticeOutletDisableNoCheck/light/elsewhere (0.07s)
+    --- PASS: TestNoticeOutletDisableNoCheck/dark/answer (0.04s)
+    --- PASS: TestNoticeOutletDisableNoCheck/dark/elsewhere (0.08s)
+=== RUN   TestNoticeVanishedDisableRetiresQuestion
+=== RUN   TestNoticeVanishedDisableRetiresQuestion/light/disable-return
+=== RUN   TestNoticeVanishedDisableRetiresQuestion/light/disable-missing-escape
+=== RUN   TestNoticeVanishedDisableRetiresQuestion/dark/disable-return
+=== RUN   TestNoticeVanishedDisableRetiresQuestion/dark/disable-missing-escape
+--- PASS: TestNoticeVanishedDisableRetiresQuestion (0.13s)
+    --- PASS: TestNoticeVanishedDisableRetiresQuestion/light/disable-return (0.04s)
+    --- PASS: TestNoticeVanishedDisableRetiresQuestion/light/disable-missing-escape (0.03s)
+    --- PASS: TestNoticeVanishedDisableRetiresQuestion/dark/disable-return (0.04s)
+    --- PASS: TestNoticeVanishedDisableRetiresQuestion/dark/disable-missing-escape (0.02s)
+=== RUN   TestNoticeVanishedRemoveRetiresQuestion
+=== RUN   TestNoticeVanishedRemoveRetiresQuestion/light/remove-return
+=== RUN   TestNoticeVanishedRemoveRetiresQuestion/light/remove-missing-escape
+=== RUN   TestNoticeVanishedRemoveRetiresQuestion/dark/remove-return
+=== RUN   TestNoticeVanishedRemoveRetiresQuestion/dark/remove-missing-escape
+--- PASS: TestNoticeVanishedRemoveRetiresQuestion (0.39s)
+    --- PASS: TestNoticeVanishedRemoveRetiresQuestion/light/remove-return (0.11s)
+    --- PASS: TestNoticeVanishedRemoveRetiresQuestion/light/remove-missing-escape (0.08s)
+    --- PASS: TestNoticeVanishedRemoveRetiresQuestion/dark/remove-return (0.12s)
+    --- PASS: TestNoticeVanishedRemoveRetiresQuestion/dark/remove-missing-escape (0.07s)
+=== RUN   TestNoticeVanishedDiscardRetiresQuestion
+=== RUN   TestNoticeVanishedDiscardRetiresQuestion/light/discard-return
+=== RUN   TestNoticeVanishedDiscardRetiresQuestion/light/discard-missing-escape
+=== RUN   TestNoticeVanishedDiscardRetiresQuestion/dark/discard-return
+=== RUN   TestNoticeVanishedDiscardRetiresQuestion/dark/discard-missing-escape
+--- PASS: TestNoticeVanishedDiscardRetiresQuestion (0.50s)
+    --- PASS: TestNoticeVanishedDiscardRetiresQuestion/light/discard-return (0.15s)
+    --- PASS: TestNoticeVanishedDiscardRetiresQuestion/light/discard-missing-escape (0.10s)
+    --- PASS: TestNoticeVanishedDiscardRetiresQuestion/dark/discard-return (0.14s)
+    --- PASS: TestNoticeVanishedDiscardRetiresQuestion/dark/discard-missing-escape (0.10s)
+=== RUN   TestNoticeVanishedUninstallRetiresDialog
+=== RUN   TestNoticeVanishedUninstallRetiresDialog/light/uninstall-return
+=== RUN   TestNoticeVanishedUninstallRetiresDialog/light/uninstall-missing-escape
+=== RUN   TestNoticeVanishedUninstallRetiresDialog/dark/uninstall-return
+=== RUN   TestNoticeVanishedUninstallRetiresDialog/dark/uninstall-missing-escape
+--- PASS: TestNoticeVanishedUninstallRetiresDialog (0.95s)
+    --- PASS: TestNoticeVanishedUninstallRetiresDialog/light/uninstall-return (0.27s)
+    --- PASS: TestNoticeVanishedUninstallRetiresDialog/light/uninstall-missing-escape (0.22s)
+    --- PASS: TestNoticeVanishedUninstallRetiresDialog/dark/uninstall-return (0.25s)
+    --- PASS: TestNoticeVanishedUninstallRetiresDialog/dark/uninstall-missing-escape (0.21s)
+=== RUN   TestNoticeReorderedDisableKeepsAnswerOwner
+=== RUN   TestNoticeReorderedDisableKeepsAnswerOwner/light/disable-reorder
+=== RUN   TestNoticeReorderedDisableKeepsAnswerOwner/light/disable-reorder-insert
+=== RUN   TestNoticeReorderedDisableKeepsAnswerOwner/dark/disable-reorder
+=== RUN   TestNoticeReorderedDisableKeepsAnswerOwner/dark/disable-reorder-insert
+--- PASS: TestNoticeReorderedDisableKeepsAnswerOwner (0.28s)
+    --- PASS: TestNoticeReorderedDisableKeepsAnswerOwner/light/disable-reorder (0.07s)
+    --- PASS: TestNoticeReorderedDisableKeepsAnswerOwner/light/disable-reorder-insert (0.06s)
+    --- PASS: TestNoticeReorderedDisableKeepsAnswerOwner/dark/disable-reorder (0.08s)
+    --- PASS: TestNoticeReorderedDisableKeepsAnswerOwner/dark/disable-reorder-insert (0.06s)
+=== RUN   TestNoticeReorderedRemoveKeepsAnswerOwner
+=== RUN   TestNoticeReorderedRemoveKeepsAnswerOwner/light/remove-reorder
+=== RUN   TestNoticeReorderedRemoveKeepsAnswerOwner/light/remove-reorder-insert
+=== RUN   TestNoticeReorderedRemoveKeepsAnswerOwner/dark/remove-reorder
+=== RUN   TestNoticeReorderedRemoveKeepsAnswerOwner/dark/remove-reorder-insert
+--- PASS: TestNoticeReorderedRemoveKeepsAnswerOwner (0.88s)
+    --- PASS: TestNoticeReorderedRemoveKeepsAnswerOwner/light/remove-reorder (0.22s)
+    --- PASS: TestNoticeReorderedRemoveKeepsAnswerOwner/light/remove-reorder-insert (0.21s)
+    --- PASS: TestNoticeReorderedRemoveKeepsAnswerOwner/dark/remove-reorder (0.21s)
+    --- PASS: TestNoticeReorderedRemoveKeepsAnswerOwner/dark/remove-reorder-insert (0.23s)
+=== RUN   TestNoticeDisableSlowFailureCanRetry
+=== RUN   TestNoticeDisableSlowFailureCanRetry/light/disable-slow-failure
+=== RUN   TestNoticeDisableSlowFailureCanRetry/light/disable-slow-failure-cancelled
+=== RUN   TestNoticeDisableSlowFailureCanRetry/dark/disable-slow-failure
+=== RUN   TestNoticeDisableSlowFailureCanRetry/dark/disable-slow-failure-cancelled
+--- PASS: TestNoticeDisableSlowFailureCanRetry (0.21s)
+    --- PASS: TestNoticeDisableSlowFailureCanRetry/light/disable-slow-failure (0.05s)
+    --- PASS: TestNoticeDisableSlowFailureCanRetry/light/disable-slow-failure-cancelled (0.05s)
+    --- PASS: TestNoticeDisableSlowFailureCanRetry/dark/disable-slow-failure (0.07s)
+    --- PASS: TestNoticeDisableSlowFailureCanRetry/dark/disable-slow-failure-cancelled (0.04s)
+=== RUN   TestNoticeRemoveSlowFailureCanRetry
+=== RUN   TestNoticeRemoveSlowFailureCanRetry/light/remove-slow-failure
+=== RUN   TestNoticeRemoveSlowFailureCanRetry/light/remove-slow-failure-cancelled
+=== RUN   TestNoticeRemoveSlowFailureCanRetry/dark/remove-slow-failure
+=== RUN   TestNoticeRemoveSlowFailureCanRetry/dark/remove-slow-failure-cancelled
+--- PASS: TestNoticeRemoveSlowFailureCanRetry (0.88s)
+    --- PASS: TestNoticeRemoveSlowFailureCanRetry/light/remove-slow-failure (0.27s)
+    --- PASS: TestNoticeRemoveSlowFailureCanRetry/light/remove-slow-failure-cancelled (0.16s)
+    --- PASS: TestNoticeRemoveSlowFailureCanRetry/dark/remove-slow-failure (0.25s)
+    --- PASS: TestNoticeRemoveSlowFailureCanRetry/dark/remove-slow-failure-cancelled (0.19s)
+=== RUN   TestPendingOutletSaveOwner
+=== RUN   TestPendingOutletSaveOwner/light/entry
+=== RUN   TestPendingOutletSaveOwner/light/elsewhere
+=== RUN   TestPendingOutletSaveOwner/dark/entry
+=== RUN   TestPendingOutletSaveOwner/dark/elsewhere
+--- PASS: TestPendingOutletSaveOwner (2.70s)
+    --- PASS: TestPendingOutletSaveOwner/light/entry (0.50s)
+    --- PASS: TestPendingOutletSaveOwner/light/elsewhere (0.98s)
+    --- PASS: TestPendingOutletSaveOwner/dark/entry (0.47s)
+    --- PASS: TestPendingOutletSaveOwner/dark/elsewhere (0.75s)
+=== RUN   TestPendingOutletSaveSchema
+=== RUN   TestPendingOutletSaveSchema/light/entry
+=== RUN   TestPendingOutletSaveSchema/light/elsewhere
+=== RUN   TestPendingOutletSaveSchema/dark/entry
+=== RUN   TestPendingOutletSaveSchema/dark/elsewhere
+--- PASS: TestPendingOutletSaveSchema (1.76s)
+    --- PASS: TestPendingOutletSaveSchema/light/entry (0.27s)
+    --- PASS: TestPendingOutletSaveSchema/light/elsewhere (0.62s)
+    --- PASS: TestPendingOutletSaveSchema/dark/entry (0.30s)
+    --- PASS: TestPendingOutletSaveSchema/dark/elsewhere (0.58s)
+=== RUN   TestPendingOutletRecheckHealthy
+=== RUN   TestPendingOutletRecheckHealthy/light/entry
+=== RUN   TestPendingOutletRecheckHealthy/light/elsewhere
+=== RUN   TestPendingOutletRecheckHealthy/dark/entry
+=== RUN   TestPendingOutletRecheckHealthy/dark/elsewhere
+--- PASS: TestPendingOutletRecheckHealthy (0.17s)
+    --- PASS: TestPendingOutletRecheckHealthy/light/entry (0.04s)
+    --- PASS: TestPendingOutletRecheckHealthy/light/elsewhere (0.04s)
+    --- PASS: TestPendingOutletRecheckHealthy/dark/entry (0.04s)
+    --- PASS: TestPendingOutletRecheckHealthy/dark/elsewhere (0.05s)
+=== RUN   TestPendingOutletReconnectHealthy
+=== RUN   TestPendingOutletReconnectHealthy/light/entry
+=== RUN   TestPendingOutletReconnectHealthy/light/elsewhere
+=== RUN   TestPendingOutletReconnectHealthy/dark/entry
+=== RUN   TestPendingOutletReconnectHealthy/dark/elsewhere
+--- PASS: TestPendingOutletReconnectHealthy (0.17s)
+    --- PASS: TestPendingOutletReconnectHealthy/light/entry (0.05s)
+    --- PASS: TestPendingOutletReconnectHealthy/light/elsewhere (0.04s)
+    --- PASS: TestPendingOutletReconnectHealthy/dark/entry (0.03s)
+    --- PASS: TestPendingOutletReconnectHealthy/dark/elsewhere (0.05s)
+=== RUN   TestPendingOutletSaveOrphan
+=== RUN   TestPendingOutletSaveOrphan/light/entry
+=== RUN   TestPendingOutletSaveOrphan/light/elsewhere
+=== RUN   TestPendingOutletSaveOrphan/dark/entry
+=== RUN   TestPendingOutletSaveOrphan/dark/elsewhere
+--- PASS: TestPendingOutletSaveOrphan (1.62s)
+    --- PASS: TestPendingOutletSaveOrphan/light/entry (0.25s)
+    --- PASS: TestPendingOutletSaveOrphan/light/elsewhere (0.52s)
+    --- PASS: TestPendingOutletSaveOrphan/dark/entry (0.25s)
+    --- PASS: TestPendingOutletSaveOrphan/dark/elsewhere (0.60s)
+=== RUN   TestPendingOutletEditingUnavailable
+=== RUN   TestPendingOutletEditingUnavailable/light/entry
+=== RUN   TestPendingOutletEditingUnavailable/light/elsewhere
+=== RUN   TestPendingOutletEditingUnavailable/dark/entry
+=== RUN   TestPendingOutletEditingUnavailable/dark/elsewhere
+--- PASS: TestPendingOutletEditingUnavailable (2.40s)
+    --- PASS: TestPendingOutletEditingUnavailable/light/entry (0.43s)
+    --- PASS: TestPendingOutletEditingUnavailable/light/elsewhere (0.69s)
+    --- PASS: TestPendingOutletEditingUnavailable/dark/entry (0.52s)
+    --- PASS: TestPendingOutletEditingUnavailable/dark/elsewhere (0.77s)
+=== RUN   TestPendingOutletRepairOrphan
+=== RUN   TestPendingOutletRepairOrphan/light/entry
+=== RUN   TestPendingOutletRepairOrphan/light/elsewhere
+=== RUN   TestPendingOutletRepairOrphan/dark/entry
+=== RUN   TestPendingOutletRepairOrphan/dark/elsewhere
+--- PASS: TestPendingOutletRepairOrphan (0.17s)
+    --- PASS: TestPendingOutletRepairOrphan/light/entry (0.04s)
+    --- PASS: TestPendingOutletRepairOrphan/light/elsewhere (0.05s)
+    --- PASS: TestPendingOutletRepairOrphan/dark/entry (0.04s)
+    --- PASS: TestPendingOutletRepairOrphan/dark/elsewhere (0.05s)
+=== RUN   TestPendingOutletToggleOrphan
+=== RUN   TestPendingOutletToggleOrphan/light/entry
+=== RUN   TestPendingOutletToggleOrphan/light/elsewhere
+=== RUN   TestPendingOutletToggleOrphan/dark/entry
+=== RUN   TestPendingOutletToggleOrphan/dark/elsewhere
+--- PASS: TestPendingOutletToggleOrphan (0.17s)
+    --- PASS: TestPendingOutletToggleOrphan/light/entry (0.03s)
+    --- PASS: TestPendingOutletToggleOrphan/light/elsewhere (0.05s)
+    --- PASS: TestPendingOutletToggleOrphan/dark/entry (0.03s)
+    --- PASS: TestPendingOutletToggleOrphan/dark/elsewhere (0.06s)
+=== RUN   TestSelectValueDuplicateNames
+=== RUN   TestSelectValueDuplicateNames/light
+=== RUN   TestSelectValueDuplicateNames/dark
+--- PASS: TestSelectValueDuplicateNames (0.02s)
+    --- PASS: TestSelectValueDuplicateNames/light (0.01s)
+    --- PASS: TestSelectValueDuplicateNames/dark (0.01s)
+PASS
+ok  	floter/internal/settingsui	83.800s
