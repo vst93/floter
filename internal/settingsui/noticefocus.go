@@ -68,6 +68,12 @@ type noticeFocusState struct {
 	panel           ui.Handle
 }
 
+// The header's existing return control remains a safe outlet when a refresh
+// leaves no usable action for the former question's target.
+func noticeExit(c *ui.Context) *ui.Handle {
+	return ui.Local(c.Root(), "settings.notice-exit", func() ui.Handle { return ui.Handle{} })
+}
+
 func (a *App) noticeFocus(c *ui.Context, id, kind string) *noticeFocusState {
 	key := struct {
 		app      *App

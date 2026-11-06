@@ -1248,6 +1248,9 @@ func (a *App) View(c *ui.Context) {
 				button := ui.Row(c).Focusable().Shrink(0).Size(t.Space(7), t.Space(7)).
 					Radius(tokens.RadiusSM).AlignItems(ui.Center).Justify(ui.Center).Label(label).
 					Tooltip(hint)
+				if label == copy.Close {
+					button.Bind(noticeExit(c))
+				}
 				if button.Pressed() {
 					// P13-q（`docs/liquid-glass.md` §5）：`.toolbar-button` 的第三档。
 					// 页头这两枚 28u 方格与启动器同尺寸的格同一触感。
@@ -3000,8 +3003,12 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 					}
 				}
 			})
-			a.noticeFocus(c, integration.ID, "disable").restore(c, false, adoptOpener)
-			a.noticeFocus(c, integration.ID, "remove").restore(c, false, adoptOpener)
+			safeOpener := adoptOpener
+			if !safeOpener.Valid() {
+				safeOpener = c.Resolve(*noticeExit(c))
+			}
+			a.noticeFocus(c, integration.ID, "disable").restore(c, false, safeOpener)
+			a.noticeFocus(c, integration.ID, "remove").restore(c, false, safeOpener)
 			a.noticeFocus(c, integration.ID, "uninstall").restore(c, false, adoptOpener)
 			a.noticeFocus(c, integration.ID, "discard").restore(c, false, adoptOpener)
 			return

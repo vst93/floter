@@ -146,11 +146,11 @@ func checkNoticeOutlet(t *testing.T, kind, change string) {
 				case "no-adopt":
 					in.Orphan = true
 					a.Actions.AdoptIntegration = nil
-					want = a.page(PageIntegrations).Title
+					want = copy.Close
 				case "no-check":
 					in.Broken = true
 					a.Actions.DiagnoseIntegration = nil
-					want = a.page(PageIntegrations).Title
+					want = copy.Close
 				default:
 					t.Fatal("unknown outlet change")
 				}
@@ -180,7 +180,7 @@ func checkNoticeOutlet(t *testing.T, kind, change string) {
 						t.Error("retired dialog kept abandoned choices")
 					}
 				}
-				if !elsewhere && want != a.page(PageIntegrations).Title {
+				if !elsewhere && want != copy.Close {
 					tt.Key(0, ui.KeySpace)
 					tt.Frame()
 					tt.Frame()
@@ -188,7 +188,7 @@ func checkNoticeOutlet(t *testing.T, kind, change string) {
 						t.Errorf("keyboard outlet dispatched wrong actions: open=%d check=%d adopt=%d destructive=%d save=%d", opened, checked, adopted, destructive, saved)
 					}
 				}
-				if elsewhere && kind != "uninstall" {
+				if want == copy.Close {
 					// Activate the header the user chose; its tooltip can own
 					// the first Escape, independently of confirmation recovery.
 					tt.Key(0, ui.KeySpace)
@@ -209,3 +209,6 @@ func TestNoticeOutletDiscardOrphan(t *testing.T) { checkNoticeOutlet(t, "discard
 
 func TestNoticeOutletDiscardSchema(t *testing.T)      { checkNoticeOutlet(t, "discard", "schema") }
 func TestNoticeOutletDiscardUnavailable(t *testing.T) { checkNoticeOutlet(t, "discard", "unopenable") }
+
+func TestNoticeOutletDisableNoAdopt(t *testing.T) { checkNoticeOutlet(t, "disable", "no-adopt") }
+func TestNoticeOutletRemoveNoAdopt(t *testing.T)  { checkNoticeOutlet(t, "remove", "no-adopt") }

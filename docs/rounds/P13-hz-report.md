@@ -32,3 +32,8 @@
 4. 现象：owner 变 tool 但没有 openCommand，只剩禁用配置入口；丢弃答案焦点悬空。改动：只返回可用配置入口，无入口时同样交接 Check。验证：深浅 Check 持焦、Space 一次，edited 草稿保留，禁用配置不派发；两项均有页头已持焦的不抢焦点对照。
 
 规格修正：settingsui.go:1065 明确侧栏为 click-only，不能作为兜底而改其键盘模型；后四项无可用同行出口时转交已有页头 Close。此次属于退场后恢复出口，不改变任何键位。
+
+第二批 2c5211c8 已推送；相关 209 PASS，vet 净。M2 四场景实跑红 `retired discard-schema lost available keyboard outlet "Check"` / `retired discard-unopenable lost available keyboard outlet "Check"`，MD5 恢复 OK，touch 后相关 209 PASS。
+
+5. 现象：停用问题打开时目标变 Orphan 且 Adopt 未接线，答案与原开关消失，焦点悬空。改动：保持已可用 Adopt 优先，无该入口时用已有页头 Close。验证：深浅刷新后 Close 持焦、Space 关闭恰好一次，删除/停用/保存 0 次。
+6. 现象：移除问题同样在无 Adopt 的 Orphan 状态失去键盘出口。改动：同族安全出口覆盖移除带。验证：深浅答案与用户已在页头两条路径都只关闭一次，不派发任何移除；旧问题退场。

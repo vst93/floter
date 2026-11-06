@@ -1,0 +1,31 @@
+=== RUN   TestNoticeOutletDisableNoAdopt
+=== RUN   TestNoticeOutletDisableNoAdopt/light/answer
+    noticeoutlet_test.go:170: retired disable-no-adopt lost available keyboard outlet "Close settings"
+    noticeoutlet_test.go:200: retired question swallowed Escape: 0
+=== RUN   TestNoticeOutletDisableNoAdopt/light/elsewhere
+=== RUN   TestNoticeOutletDisableNoAdopt/dark/answer
+    noticeoutlet_test.go:170: retired disable-no-adopt lost available keyboard outlet "Close settings"
+    noticeoutlet_test.go:200: retired question swallowed Escape: 0
+=== RUN   TestNoticeOutletDisableNoAdopt/dark/elsewhere
+--- FAIL: TestNoticeOutletDisableNoAdopt (0.14s)
+    --- FAIL: TestNoticeOutletDisableNoAdopt/light/answer (0.08s)
+    --- PASS: TestNoticeOutletDisableNoAdopt/light/elsewhere (0.02s)
+    --- FAIL: TestNoticeOutletDisableNoAdopt/dark/answer (0.02s)
+    --- PASS: TestNoticeOutletDisableNoAdopt/dark/elsewhere (0.02s)
+=== RUN   TestNoticeOutletRemoveNoAdopt
+=== RUN   TestNoticeOutletRemoveNoAdopt/light/answer
+    noticeoutlet_test.go:170: retired remove-no-adopt lost available keyboard outlet "Close settings"
+    noticeoutlet_test.go:200: retired question swallowed Escape: 0
+=== RUN   TestNoticeOutletRemoveNoAdopt/light/elsewhere
+=== RUN   TestNoticeOutletRemoveNoAdopt/dark/answer
+    noticeoutlet_test.go:170: retired remove-no-adopt lost available keyboard outlet "Close settings"
+    noticeoutlet_test.go:200: retired question swallowed Escape: 0
+=== RUN   TestNoticeOutletRemoveNoAdopt/dark/elsewhere
+--- FAIL: TestNoticeOutletRemoveNoAdopt (0.31s)
+    --- FAIL: TestNoticeOutletRemoveNoAdopt/light/answer (0.04s)
+    --- PASS: TestNoticeOutletRemoveNoAdopt/light/elsewhere (0.11s)
+    --- FAIL: TestNoticeOutletRemoveNoAdopt/dark/answer (0.04s)
+    --- PASS: TestNoticeOutletRemoveNoAdopt/dark/elsewhere (0.12s)
+FAIL
+FAIL	floter/internal/settingsui	0.454s
+FAIL
