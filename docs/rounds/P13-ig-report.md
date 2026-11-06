@@ -34,3 +34,14 @@
 4. 现象：同类未知参数拒绝在用户修改答案后仍留在表单底部。改动：未匹配拒绝同时绑定独立答案快照，编辑后退役。验证：真实文本选中与输入 corrected，深浅旧红字退场、答案保留；未编辑的对照帧仍保留有效错误。
 
 M2 撤回第二批产品修改，原串 `schema refresh retained obsolete unknown-parameter refusal` / `answer refresh retained obsolete unknown-parameter refusal`，四叶子实红；MD5 还原和 touch 复验通过。相关 vet 净，PASS 数详 batch2-green.txt（随收尾归档）。
+
+第二批实测 59 PASS / 0 FAIL，提交 1e9472df。开盘基线完整退出 0：4585 PASS / 0 FAIL。基线命令结束后才数函数已包含本轮新增 4 个，因此输出 2991；基线 HEAD 的函数数按 git 对象单独计数，不能把这个末尾数冒充原基线。
+
+## 第三批（5–6）
+
+5. 现象：配置接口复用 Config 对象，写入回调重开后旧拒绝回滚到 true/10，旧成功覆盖成 true/80。改动：每次打开/关闭递增显示代次，写入结果只归派发时的显示期。验证：深浅 × 成功/拒绝，保留新表单 false/25、无旧失败，写入 1 次。
+6. 现象：危险动作回调重开同对象后，旧失败显示在新面板。改动：动作返回同样核对显示代次。验证：深浅真实两次点击，重新打开无旧红字；再次第一击只询问，Escape 关闭面板且不执行。
+
+M3 撤回显示代次核对，6 叶子实红，原串 `reopened sheet inherited old write: values=map[enabled:true limit:10] failed=true` / `reopened sheet inherited old action refusal: calls=1 failed="clear"`。MD5 还原和 touch 复验通过，相关 vet 净；精确 PASS 计数见归档 batch3-green.txt。
+
+过程偏差：第三批新增夹具最初把 launcher Escape 误当作仅取消动作；实际既有契约是关闭配置面，已修正新断言，未改产品键盘模型或旧 B 断言。第一次 M3 复验失败期间曾启动第二次脚本，造成检查进程重叠；最终脚本退出与源码 diff 独立核对，不把失败算 PASS。第二批首次 push 被 GitHub 500 拒绝，重试成功；没有丢本地提交。

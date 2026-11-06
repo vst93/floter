@@ -495,7 +495,8 @@ type App struct {
 	footerSpin time.Time
 	// config is the open plugin-configuration overlay, which takes the result
 	// list's place (see config.go).
-	config *Config
+	config           *Config
+	configGeneration uint64 // Each opening owns its callback results, even for a reused Config.
 	// modeWord is the trigger word the mode on screen was entered with: the
 	// scope marker draws it as the icon and the name beside the field, and
 	// leaving the mode restores it as an ordinary query.
