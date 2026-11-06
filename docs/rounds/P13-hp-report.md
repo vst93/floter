@@ -46,3 +46,12 @@ M3 原文 `integration number expands to 309 characters, want 1e+308`、
 V/B/S 0/0/0；第三批只改显示，保存精度与步长不变。
 
 侦察撤回：关闭插件浮层两帧后重开，文本/数字 Ctrl+Z 均不复活旧输入，四场景已 PASS；不计修复。
+
+第三批 a1554b73 已推送。
+
+7. 多选恢复空默认后 Shift 点击应用，已清掉的文件又被选上 → 恢复有默认值字段时结束其旧范围锚点 → 深浅结果仅 [应用]，不再 [文件 应用]。
+8. 外部把选择从文件换成书签，Shift 点击应用又选回文件 → 未编辑字段采用新宿主值时结束旧范围锚点 → 深浅结果 [应用 书签]，不再 [文件 应用 书签]。
+
+M4 回退 config.go，原文 `defaults-range resurrected old range: [文件 应用], want [应用]`、
+`external-range resurrected old range: [文件 应用 书签], want [应用 书签]`。
+MD5 还原并 touch；本批相关测试和多选既有范围/键盘/刷新测试通过，settingsui vet 通过。V/B/S 0/0/0。

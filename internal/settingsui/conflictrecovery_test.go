@@ -87,6 +87,56 @@ func TestConflictRecoveryPluginNumberReopenRetiresUndo(t *testing.T) {
 	checkPluginReopenHistory(t, plugincfg.Number, 5.0, "1e", "40", 40.0)
 }
 
+func TestConflictRecoveryDefaultsRetireOldSelectionRange(t *testing.T) {
+	checkSelectionReplacement(t, true)
+}
+
+func TestConflictRecoveryExternalSelectionRetiresOldRange(t *testing.T) {
+	checkSelectionReplacement(t, false)
+}
+
+func checkSelectionReplacement(t *testing.T, restore bool) {
+	t.Helper()
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			field := ConfigField{Key: "sources", Label: "搜索来源", Type: "multiselect", Options: []string{"文件", "应用", "书签"}, Default: []any{}}
+			in := Integration{ID: "local.range", Config: []ConfigField{field}, ConfigValues: map[string]any{field.Key: []any{}}}
+			a, tt := configIdentityFrame(t, dark, &in)
+			if err := tt.Click("文件"); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			name := "defaults-range"
+			if restore {
+				if err := tt.Click(a.copy().ConfigDefaults); err != nil {
+					t.Fatal(err)
+				}
+			} else {
+				// A landed save makes the selection untouched. A later host
+				// replacement starts a new selection, not the old range.
+				a.finishConfigSave(in.ID, nil, a.copy())
+				in.ConfigValues[field.Key] = []any{"文件"}
+				tt.Frame()
+				in.ConfigValues[field.Key] = []any{"书签"}
+				name = "external-range"
+			}
+			tt.Frame()
+			if err := tt.ClickWith(ui.Shift, "应用"); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			conflictDump(t, tt, name, dark)
+			want := []any{"应用"}
+			if !restore {
+				want = append(want, "书签")
+			}
+			if got := a.draft(in).values[field.Key]; !configValuesEqual(got, want) {
+				t.Errorf("%s resurrected old range: %v, want %v", name, got, want)
+			}
+		})
+	}
+}
+
 func TestConflictRecoveryIntegrationExtremeNumberReadable(t *testing.T) {
 	for _, dark := range []bool{false, true} {
 		t.Run(appearanceName(dark), func(t *testing.T) {

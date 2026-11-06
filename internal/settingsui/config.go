@@ -201,6 +201,8 @@ func (a *App) draft(integration Integration) *configDraft {
 		}
 		// Only a genuinely new host generation can replace an untouched
 		// field. Local edits and partial text keep their existing ownership.
+		// Replacing a selection ends the old Shift-click gesture too.
+		delete(draft.multiAnchor, field.Key)
 		if exists {
 			draft.values[field.Key], draft.saved[field.Key] = value, value
 		} else {
@@ -481,6 +483,7 @@ func (a *App) configActions(c *ui.Context, copy i18n.Settings, integration Integ
 			for _, field := range integration.Config {
 				if field.Default != nil {
 					draft.clearLiveField(field)
+					delete(draft.multiAnchor, field.Key)
 					draft.values[field.Key] = field.Default
 					// The old edit's validity does not describe the restored default.
 					a.clearConfigFieldError(integration.ID, field.Key)
