@@ -7136,6 +7136,23 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 		values = extensions.ParamDefaults(params)
 		a.runValues[integration.ID] = values
 	}
+	// Manifest refreshes can add or retire inputs while the form is open.
+	// Keep answers for surviving parameters, seed new ones, and never send
+	// the backend keys that the current form no longer lets the user edit.
+	current := make(map[string]bool, len(params))
+	for _, param := range params {
+		current[param.ID] = true
+	}
+	for key, value := range extensions.ParamDefaults(params) {
+		if _, exists := values[key]; !exists {
+			values[key] = value
+		}
+	}
+	for key := range values {
+		if !current[key] {
+			delete(values, key)
+		}
+	}
 	// The form's own validation, recomputed every frame: the reasons are shown
 	// under the inputs that caused them, and the Run button is disabled while
 	// any remains — the old form's live `paramValueIssues`, so a typo is never

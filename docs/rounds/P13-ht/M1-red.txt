@@ -1,0 +1,21 @@
+=== RUN   TestRunRecoveryNewParameterDefaults
+=== RUN   TestRunRecoveryNewParameterDefaults/light
+    runrecovery_test.go:41: new parameters did not receive defaults without replacing edits: map[limit: target:my edit]
+=== RUN   TestRunRecoveryNewParameterDefaults/dark
+    runrecovery_test.go:41: new parameters did not receive defaults without replacing edits: map[limit: target:my edit]
+--- FAIL: TestRunRecoveryNewParameterDefaults (0.08s)
+    --- FAIL: TestRunRecoveryNewParameterDefaults/light (0.06s)
+    --- FAIL: TestRunRecoveryNewParameterDefaults/dark (0.02s)
+=== RUN   TestRunRecoveryRemovedParameterCannotReachCommand
+=== RUN   TestRunRecoveryRemovedParameterCannotReachCommand/light
+    runrecovery_test.go:61: removed parameter reached command: map[obsolete:old target:current]
+    runrecovery_test.go:76: re-added parameter resurrected old answer: "old"
+=== RUN   TestRunRecoveryRemovedParameterCannotReachCommand/dark
+    runrecovery_test.go:61: removed parameter reached command: map[obsolete:old target:current]
+    runrecovery_test.go:76: re-added parameter resurrected old answer: "old"
+--- FAIL: TestRunRecoveryRemovedParameterCannotReachCommand (0.05s)
+    --- FAIL: TestRunRecoveryRemovedParameterCannotReachCommand/light (0.02s)
+    --- FAIL: TestRunRecoveryRemovedParameterCannotReachCommand/dark (0.03s)
+FAIL
+FAIL	floter/internal/settingsui	0.139s
+FAIL

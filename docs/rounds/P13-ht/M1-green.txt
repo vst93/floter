@@ -1,0 +1,14 @@
+=== RUN   TestRunRecoveryNewParameterDefaults
+=== RUN   TestRunRecoveryNewParameterDefaults/light
+=== RUN   TestRunRecoveryNewParameterDefaults/dark
+--- PASS: TestRunRecoveryNewParameterDefaults (0.08s)
+    --- PASS: TestRunRecoveryNewParameterDefaults/light (0.06s)
+    --- PASS: TestRunRecoveryNewParameterDefaults/dark (0.02s)
+=== RUN   TestRunRecoveryRemovedParameterCannotReachCommand
+=== RUN   TestRunRecoveryRemovedParameterCannotReachCommand/light
+=== RUN   TestRunRecoveryRemovedParameterCannotReachCommand/dark
+--- PASS: TestRunRecoveryRemovedParameterCannotReachCommand (0.05s)
+    --- PASS: TestRunRecoveryRemovedParameterCannotReachCommand/light (0.02s)
+    --- PASS: TestRunRecoveryRemovedParameterCannotReachCommand/dark (0.03s)
+PASS
+ok  	floter/internal/settingsui	0.143s
