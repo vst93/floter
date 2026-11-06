@@ -127,7 +127,7 @@ func (a *App) ChangeConfig(key string, value any) {
 // build's `ActionControl` cleared `failed` as it armed, so a refused run does
 // not leave the button looking broken after the user asks again.
 func (a *App) ArmConfig(key string) {
-	if a.configOpen() {
+	if a.config.hasAction(key) {
 		a.config.Armed = key
 		if a.config.ActionFailed == key {
 			a.config.ActionFailed = ""
@@ -147,7 +147,7 @@ func (a *App) UnarmConfig(key string) {
 // the overlay's `settings.saveFailed` line belongs to the write path (the old
 // build's R113), and the old build's `ActionControl` kept the two apart.
 func (a *App) RunConfig(key string) {
-	if !a.configOpen() {
+	if !a.config.hasAction(key) || a.config.Armed != key {
 		return
 	}
 	a.config.Armed = ""

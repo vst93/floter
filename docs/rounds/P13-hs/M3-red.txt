@@ -1,0 +1,14 @@
+=== RUN   TestConfigLifetimeRunRequiresConfirmation
+    configlifetime_test.go:61: unconfirmed action ran 1 times
+    configlifetime_test.go:67: one confirmation dispatched 3 commands
+--- FAIL: TestConfigLifetimeRunRequiresConfirmation (0.00s)
+=== RUN   TestConfigLifetimeStaleActionCannotConsumeAnother
+    configlifetime_test.go:78: stale arm replaced current confirmation: "removed"
+    configlifetime_test.go:82: stale run consumed current confirmation: runs=1 armed=""
+    configlifetime_test.go:89: value field consumed current confirmation
+    configlifetime_test.go:93: valid confirmation dispatched 3 commands
+    configlifetime_test.go:100: retyped action ran before the next sync frame
+--- FAIL: TestConfigLifetimeStaleActionCannotConsumeAnother (0.00s)
+FAIL
+FAIL	floter/internal/launcher	0.051s
+FAIL

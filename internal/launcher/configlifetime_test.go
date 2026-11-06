@@ -51,3 +51,52 @@ func checkConfigActionRetirement(t *testing.T, retype bool) {
 
 func TestConfigLifetimeRemovedAction(t *testing.T) { checkConfigActionRetirement(t, false) }
 func TestConfigLifetimeRetypedAction(t *testing.T) { checkConfigActionRetirement(t, true) }
+
+func TestConfigLifetimeRunRequiresConfirmation(t *testing.T) {
+	runs := 0
+	a := actionApp(func() bool { runs++; return true })
+	a.OpenConfig("clipboard")
+	a.RunConfig("clear_history")
+	if runs != 0 {
+		t.Errorf("unconfirmed action ran %d times", runs)
+	}
+	a.ArmConfig("clear_history")
+	a.RunConfig("clear_history")
+	a.RunConfig("clear_history")
+	if runs != 1 {
+		t.Errorf("one confirmation dispatched %d commands", runs)
+	}
+}
+
+func TestConfigLifetimeStaleActionCannotConsumeAnother(t *testing.T) {
+	runs := 0
+	a := actionApp(func() bool { runs++; return true })
+	a.OpenConfig("clipboard")
+	a.ArmConfig("clear_history")
+	a.ArmConfig("removed")
+	if a.Config().Armed != "clear_history" {
+		t.Errorf("stale arm replaced current confirmation: %q", a.Config().Armed)
+	}
+	a.RunConfig("removed")
+	if runs != 0 || a.Config().Armed != "clear_history" {
+		t.Errorf("stale run consumed current confirmation: runs=%d armed=%q", runs, a.Config().Armed)
+	}
+	// An existing value field is not an action either.
+	a.Config().Schema.Fields = append(a.Config().Schema.Fields, plugincfg.Field{Key: "enabled", Kind: plugincfg.Toggle})
+	a.ArmConfig("enabled")
+	a.RunConfig("enabled")
+	if runs != 0 || a.Config().Armed != "clear_history" {
+		t.Error("value field consumed current confirmation")
+	}
+	a.RunConfig("clear_history")
+	if runs != 1 {
+		t.Errorf("valid confirmation dispatched %d commands", runs)
+	}
+	// A schema can retire an armed action before the next drawing frame.
+	a.ArmConfig("clear_history")
+	a.Config().Schema.Fields[0].Kind = plugincfg.Text
+	a.RunConfig("clear_history")
+	if runs != 1 {
+		t.Error("retyped action ran before the next sync frame")
+	}
+}

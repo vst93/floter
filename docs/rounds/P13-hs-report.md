@@ -36,3 +36,12 @@ M1 回退 pluginsheet.go 两项修复，两个事件深浅实跑红；MD5 恢复
 4. 现象：动作改为开关再改回，也继承旧确认/失败。改动：存在同名字段也必须仍为 Action 才保留状态。验证：真实 Click→Toggle→Action 后必须重新确认；原红串 `re-added action still asks to run the retired confirmation`。未改模式退出/高度链。
 
 M2 回退状态清理，两个真实 UI 场景深浅实跑红；MD5 恢复 OK，touch 后 6 PASS。定向回归与两包 vet 通过。V/B/S 0/0/0。
+
+第二批 `480e78c5` 已推送，相关回归 30 PASS / 0 FAIL。
+
+### 第三批
+
+5. 现象：RunConfig 没核对是否确认，首次直接调用与一次确认后的重复回调都会执行。改动：只接受当前 Armed 对应 key；执行前消费这次确认。验证：未确认 Run=0，一次 Arm 后连续两次 Run 总共只派发 1 次。缺陷回退红串 `unconfirmed action ran 1 times`、`one confirmation dispatched 3 commands`。
+6. 现象：已删除字段的 Arm/Run 会覆盖、消费另一个动作的确认，普通值字段也能进入动作链。改动：Arm/Run 同时核对当前 schema 字段必须为 Action；不匹配的调用保留其他动作的确认。验证：stale key 与 Toggle 均不能派发或夺走确认，合法动作仍只执行一次；改型到 Text 即使尚未画下一帧也拒绝旧回调。原红串 `stale arm replaced current confirmation: "removed"`、`stale run consumed current confirmation: runs=1 armed=""`。
+
+M3 回退两入口校验，两项实跑红，MD5 还原与 touch 后 2 PASS。相关回归和 launcher vet 通过，V/B/S 0/0/0。这两项是入口回调计数证据，不伪称普通静态截图能证明重复派发。
