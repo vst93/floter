@@ -1,0 +1,21 @@
+=== RUN   TestRunConditionChangedConstraints
+=== RUN   TestRunConditionChangedConstraints/light
+    runcondition_test.go:73: constraints parameter left obsolete refusal visible
+=== RUN   TestRunConditionChangedConstraints/dark
+    runcondition_test.go:73: constraints parameter left obsolete refusal visible
+--- FAIL: TestRunConditionChangedConstraints (0.47s)
+    --- FAIL: TestRunConditionChangedConstraints/light (0.34s)
+    --- FAIL: TestRunConditionChangedConstraints/dark (0.13s)
+=== RUN   TestRunConditionRenamedField
+=== RUN   TestRunConditionRenamedField/light
+    runcondition_test.go:73: renamed parameter left obsolete refusal visible
+    runcondition_test.go:76: renamed parameter lost current refusal wording
+=== RUN   TestRunConditionRenamedField/dark
+    runcondition_test.go:73: renamed parameter left obsolete refusal visible
+    runcondition_test.go:76: renamed parameter lost current refusal wording
+--- FAIL: TestRunConditionRenamedField (0.23s)
+    --- FAIL: TestRunConditionRenamedField/light (0.12s)
+    --- FAIL: TestRunConditionRenamedField/dark (0.11s)
+FAIL
+FAIL	floter/internal/settingsui	0.729s
+FAIL

@@ -1,0 +1,19 @@
+=== RUN   TestActionConditionCallbackReplacement
+=== RUN   TestActionConditionCallbackReplacement/light
+    actioncondition_test.go:70: replaced action inherited callback's obsolete refusal
+=== RUN   TestActionConditionCallbackReplacement/dark
+    actioncondition_test.go:70: replaced action inherited callback's obsolete refusal
+--- FAIL: TestActionConditionCallbackReplacement (0.13s)
+    --- FAIL: TestActionConditionCallbackReplacement/light (0.10s)
+    --- FAIL: TestActionConditionCallbackReplacement/dark (0.03s)
+=== RUN   TestActionConditionCallbackRearm
+=== RUN   TestActionConditionCallbackRearm/light
+    actioncondition_test.go:70: rearmed action inherited callback's obsolete refusal
+=== RUN   TestActionConditionCallbackRearm/dark
+    actioncondition_test.go:70: rearmed action inherited callback's obsolete refusal
+--- FAIL: TestActionConditionCallbackRearm (0.08s)
+    --- FAIL: TestActionConditionCallbackRearm/light (0.03s)
+    --- FAIL: TestActionConditionCallbackRearm/dark (0.05s)
+FAIL
+FAIL	floter/internal/settingsui	0.221s
+FAIL

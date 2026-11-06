@@ -1,0 +1,19 @@
+=== RUN   TestActionConditionChangedQuestion
+=== RUN   TestActionConditionChangedQuestion/light
+    actioncondition_test.go:60: changed question inherited old confirmation
+=== RUN   TestActionConditionChangedQuestion/dark
+    actioncondition_test.go:60: changed question inherited old confirmation
+--- FAIL: TestActionConditionChangedQuestion (0.18s)
+    --- FAIL: TestActionConditionChangedQuestion/light (0.14s)
+    --- FAIL: TestActionConditionChangedQuestion/dark (0.04s)
+=== RUN   TestActionConditionChangedFailure
+=== RUN   TestActionConditionChangedFailure/light
+    actioncondition_test.go:67: changed action inherited old refusal
+=== RUN   TestActionConditionChangedFailure/dark
+    actioncondition_test.go:67: changed action inherited old refusal
+--- FAIL: TestActionConditionChangedFailure (0.08s)
+    --- FAIL: TestActionConditionChangedFailure/light (0.04s)
+    --- FAIL: TestActionConditionChangedFailure/dark (0.05s)
+FAIL
+FAIL	floter/internal/settingsui	0.273s
+FAIL

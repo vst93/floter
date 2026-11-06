@@ -1,0 +1,70 @@
+=== RUN   TestActionConditionChangedQuestion
+=== RUN   TestActionConditionChangedQuestion/light
+=== RUN   TestActionConditionChangedQuestion/dark
+--- PASS: TestActionConditionChangedQuestion (0.21s)
+    --- PASS: TestActionConditionChangedQuestion/light (0.18s)
+    --- PASS: TestActionConditionChangedQuestion/dark (0.03s)
+=== RUN   TestActionConditionChangedFailure
+=== RUN   TestActionConditionChangedFailure/light
+=== RUN   TestActionConditionChangedFailure/dark
+--- PASS: TestActionConditionChangedFailure (0.08s)
+    --- PASS: TestActionConditionChangedFailure/light (0.03s)
+    --- PASS: TestActionConditionChangedFailure/dark (0.05s)
+=== RUN   TestActionConditionCallbackReplacement
+=== RUN   TestActionConditionCallbackReplacement/light
+=== RUN   TestActionConditionCallbackReplacement/dark
+--- PASS: TestActionConditionCallbackReplacement (0.07s)
+    --- PASS: TestActionConditionCallbackReplacement/light (0.03s)
+    --- PASS: TestActionConditionCallbackReplacement/dark (0.04s)
+=== RUN   TestActionConditionCallbackRearm
+=== RUN   TestActionConditionCallbackRearm/light
+=== RUN   TestActionConditionCallbackRearm/dark
+--- PASS: TestActionConditionCallbackRearm (0.12s)
+    --- PASS: TestActionConditionCallbackRearm/light (0.06s)
+    --- PASS: TestActionConditionCallbackRearm/dark (0.06s)
+=== RUN   TestRunConditionEditedValue
+=== RUN   TestRunConditionEditedValue/light
+=== RUN   TestRunConditionEditedValue/dark
+--- PASS: TestRunConditionEditedValue (0.44s)
+    --- PASS: TestRunConditionEditedValue/light (0.26s)
+    --- PASS: TestRunConditionEditedValue/dark (0.19s)
+=== RUN   TestRunConditionRemovedField
+=== RUN   TestRunConditionRemovedField/light
+=== RUN   TestRunConditionRemovedField/dark
+--- PASS: TestRunConditionRemovedField (0.27s)
+    --- PASS: TestRunConditionRemovedField/light (0.14s)
+    --- PASS: TestRunConditionRemovedField/dark (0.14s)
+=== RUN   TestRunConditionChangedConstraints
+=== RUN   TestRunConditionChangedConstraints/light
+=== RUN   TestRunConditionChangedConstraints/dark
+--- PASS: TestRunConditionChangedConstraints (0.21s)
+    --- PASS: TestRunConditionChangedConstraints/light (0.11s)
+    --- PASS: TestRunConditionChangedConstraints/dark (0.10s)
+=== RUN   TestRunConditionRenamedField
+=== RUN   TestRunConditionRenamedField/light
+=== RUN   TestRunConditionRenamedField/dark
+--- PASS: TestRunConditionRenamedField (0.23s)
+    --- PASS: TestRunConditionRenamedField/light (0.11s)
+    --- PASS: TestRunConditionRenamedField/dark (0.12s)
+=== RUN   TestRunConditionValidationRefreshVariants
+=== RUN   TestRunConditionValidationRefreshVariants/required
+=== RUN   TestRunConditionValidationRefreshVariants/required/light
+=== RUN   TestRunConditionValidationRefreshVariants/required/dark
+=== RUN   TestRunConditionValidationRefreshVariants/flag
+=== RUN   TestRunConditionValidationRefreshVariants/flag/light
+=== RUN   TestRunConditionValidationRefreshVariants/flag/dark
+=== RUN   TestRunConditionValidationRefreshVariants/options
+=== RUN   TestRunConditionValidationRefreshVariants/options/light
+=== RUN   TestRunConditionValidationRefreshVariants/options/dark
+--- PASS: TestRunConditionValidationRefreshVariants (0.73s)
+    --- PASS: TestRunConditionValidationRefreshVariants/required (0.25s)
+        --- PASS: TestRunConditionValidationRefreshVariants/required/light (0.13s)
+        --- PASS: TestRunConditionValidationRefreshVariants/required/dark (0.12s)
+    --- PASS: TestRunConditionValidationRefreshVariants/flag (0.24s)
+        --- PASS: TestRunConditionValidationRefreshVariants/flag/light (0.12s)
+        --- PASS: TestRunConditionValidationRefreshVariants/flag/dark (0.12s)
+    --- PASS: TestRunConditionValidationRefreshVariants/options (0.24s)
+        --- PASS: TestRunConditionValidationRefreshVariants/options/light (0.11s)
+        --- PASS: TestRunConditionValidationRefreshVariants/options/dark (0.13s)
+PASS
+ok  	floter/internal/settingsui	2.384s

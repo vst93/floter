@@ -63,6 +63,12 @@ func checkRunCondition(t *testing.T, scenario string) {
 			case "constraints":
 				in.Params[0].Kind = extensions.ParamSelect
 				in.Params[0].Options = []string{"old", "new"}
+			case "required":
+				in.Params[0].Required = true
+			case "flag":
+				in.Params[0].Flag = "--target"
+			case "options":
+				in.Params[0].Options = []string{"old", "new"}
 			case "renamed":
 				in.Params[0].Label = "Destination"
 			}
@@ -93,3 +99,9 @@ func TestRunConditionEditedValue(t *testing.T)        { checkRunCondition(t, "ed
 func TestRunConditionRemovedField(t *testing.T)       { checkRunCondition(t, "removed") }
 func TestRunConditionChangedConstraints(t *testing.T) { checkRunCondition(t, "constraints") }
 func TestRunConditionRenamedField(t *testing.T)       { checkRunCondition(t, "renamed") }
+
+func TestRunConditionValidationRefreshVariants(t *testing.T) {
+	for _, scenario := range []string{"required", "flag", "options"} {
+		t.Run(scenario, func(t *testing.T) { checkRunCondition(t, scenario) })
+	}
+}

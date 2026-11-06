@@ -1,0 +1,23 @@
+P13-ie gate record
+LC_ALL=zh_CN.UTF-8 GOMAXPROCS=4
+gofmt -l cmd internal: empty
+linux go vet ./...: exit 0
+windows go vet ./...: exit 0
+darwin go vet ./...: exit 0
+linux go build ./...: exit 0
+windows go build ./...: exit 0
+darwin go build ./...: exit 0
+Baseline verbose: exit 0, 4507 PASS, 2970 test functions at 2cfe705d
+Batch 1: 65 PASS, settingsui vet exit 0
+Batch 2: 71 PASS, settingsui vet exit 0
+Batch 3: 141 PASS, settingsui/launcher vet exit 0
+Batch 4: 147 PASS, settingsui/launcher vet exit 0
+Final new events: 34 PASS
+M1/M2/M3/M4: four failing dark/light leaves each; MD5 restored OK, touch, count=1 green
+Final test functions: 2979
+Existing assertions modified V/B/S: 0/0/0
+New Skip: 0
+Final ordinary go test -count=1 ./...: exit 0
+Final environment: GOTMPDIR=/home/tar/.fie TMPDIR=/home/tar/.fie
+Final verbose go test -count=1 -v ./...: exit 0, 4541 PASS / 0 FAIL
+Final product MD5 matches gate-start hashes

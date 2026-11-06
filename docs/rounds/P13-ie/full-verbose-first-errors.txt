@@ -1,0 +1,15 @@
+# floter/internal/ci.test
+/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/pkg/tool/linux_amd64/link: running gcc failed: exit status 1
+/usr/sbin/gcc -m64 -s -Wl,--build-id=0x5df5b6205a40bafc558de4aed1d46b395967690c -o $WORK/b345/ci.test -Wl,--export-dynamic-symbol=_cgo_panic -Wl,--export-dynamic-symbol=_cgo_topofstack -Wl,--export-dynamic-symbol=crosscall2 -Wl,--compress-debug-sections=zlib /tmp/go-link-2467398164/go.o /tmp/go-link-2467398164/000000.o /tmp/go-link-2467398164/000001.o /tmp/go-link-2467398164/000002.o /tmp/go-link-2467398164/000003.o /tmp/go-link-2467398164/000004.o /tmp/go-link-2467398164/000005.o /tmp/go-link-2467398164/000006.o /tmp/go-link-2467398164/000007.o /tmp/go-link-2467398164/000008.o /tmp/go-link-2467398164/000009.o /tmp/go-link-2467398164/000010.o /tmp/go-link-2467398164/000011.o /tmp/go-link-2467398164/000012.o /tmp/go-link-2467398164/000013.o /tmp/go-link-2467398164/000014.o /tmp/go-link-2467398164/000015.o /tmp/go-link-2467398164/000016.o /tmp/go-link-2467398164/000017.o /tmp/go-link-2467398164/000018.o /tmp/go-link-2467398164/000019.o /tmp/go-link-2467398164/000020.o /tmp/go-link-2467398164/000021.o /tmp/go-link-2467398164/000022.o /tmp/go-link-2467398164/000023.o /tmp/go-link-2467398164/000024.o /tmp/go-link-2467398164/000025.o -O2 -g -lresolv -O2 -g -O2 -g -lpthread -O2 -g -ldl -no-pie
+/usr/bin/ld: final link failed: 设备上没有空间
+collect2: error: ld 返回 1
+
+?   	floter/cmd/floter	[no test files]
+=== RUN   TestPlainTextIsOneSpan
+--- PASS: TestPlainTextIsOneSpan (0.00s)
+=== RUN   TestColourAndReset
+--- PASS: TestColourAndReset (0.00s)
+=== RUN   TestWeightsAndDecorations
+--- PASS: TestWeightsAndDecorations (0.00s)
+=== RUN   TestBrightBackgroundAndInverse
+--- PASS: TestBrightBackgroundAndInverse (0.00s)

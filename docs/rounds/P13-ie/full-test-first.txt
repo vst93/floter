@@ -1,0 +1,41 @@
+# floter/internal/control.test
+/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/pkg/tool/linux_amd64/link: mapping output file failed: no space left on device
+?   	floter/cmd/floter	[no test files]
+ok  	floter/internal/ansi	0.128s
+ok  	floter/internal/apps	2.008s
+ok  	floter/internal/browser	0.368s
+ok  	floter/internal/calc	0.066s
+ok  	floter/internal/calculator	0.225s
+ok  	floter/internal/ci	27.230s
+ok  	floter/internal/clipboard	0.991s
+FAIL	floter/internal/control [build failed]
+?   	floter/internal/deadline	[no test files]
+ok  	floter/internal/desktopentry	0.232s
+ok  	floter/internal/drops	0.108s
+ok  	floter/internal/extensions	66.135s
+ok  	floter/internal/extensions/recommended	0.495s
+ok  	floter/internal/frameaudit	0.405s
+ok  	floter/internal/glassmap	0.019s
+ok  	floter/internal/homepath	0.025s
+ok  	floter/internal/i18n	6.043s
+ok  	floter/internal/inputtext	0.114s
+ok  	floter/internal/inventory	0.840s
+# floter/internal/terminalui.test
+/home/tar/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/pkg/tool/linux_amd64/link: running gcc failed: exit status 1
+/usr/sbin/gcc -m64 -s -Wl,--build-id=0xa8dad0054576939d124e2329e075e42775609337 -o $WORK/b425/terminalui.test -Wl,--export-dynamic-symbol=_cgo_panic -Wl,--export-dynamic-symbol=_cgo_topofstack -Wl,--export-dynamic-symbol=crosscall2 -Wl,--compress-debug-sections=zlib /tmp/go-link-1821232125/go.o /tmp/go-link-1821232125/000000.o /tmp/go-link-1821232125/000001.o /tmp/go-link-1821232125/000002.o /tmp/go-link-1821232125/000003.o /tmp/go-link-1821232125/000004.o /tmp/go-link-1821232125/000005.o /tmp/go-link-1821232125/000006.o /tmp/go-link-1821232125/000007.o /tmp/go-link-1821232125/000008.o /tmp/go-link-1821232125/000009.o /tmp/go-link-1821232125/000010.o /tmp/go-link-1821232125/000011.o /tmp/go-link-1821232125/000012.o /tmp/go-link-1821232125/000013.o /tmp/go-link-1821232125/000014.o /tmp/go-link-1821232125/000015.o /tmp/go-link-1821232125/000016.o /tmp/go-link-1821232125/000017.o /tmp/go-link-1821232125/000018.o /tmp/go-link-1821232125/000019.o /tmp/go-link-1821232125/000020.o /tmp/go-link-1821232125/000021.o /tmp/go-link-1821232125/000022.o /tmp/go-link-1821232125/000023.o /tmp/go-link-1821232125/000024.o /tmp/go-link-1821232125/000025.o -O2 -g -lresolv -O2 -g -lpthread -O2 -g -ldl -O2 -g -no-pie
+/usr/bin/ld: final link failed: 设备上没有空间
+collect2: error: ld 返回 1
+
+signal: terminated
+FAIL	floter/internal/launcher	107.510s
+ok  	floter/internal/motion	0.050s
+ok  	floter/internal/pathid	0.035s
+ok  	floter/internal/pathlist	0.018s
+ok  	floter/internal/pinyin	0.017s
+ok  	floter/internal/plist	0.062s
+ok  	floter/internal/plugincfg	0.036s
+ok  	floter/internal/progname	0.013s
+ok  	floter/internal/progtype	0.023s
+ok  	floter/internal/scriptlang	0.009s
+ok  	floter/internal/semver	0.118s
+ok  	floter/internal/settings	7.604s
