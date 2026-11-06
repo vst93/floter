@@ -38,6 +38,7 @@ type Config struct {
 	armedAction      configActionIdentity
 	failedAction     configActionIdentity
 	actionGeneration uint64
+	writeGeneration  uint64
 }
 
 // An action key alone does not identify the question the user saw. Keep the
@@ -123,6 +124,8 @@ func (a *App) ChangeConfig(key string, value any) {
 		return
 	}
 	config := a.config
+	config.writeGeneration++
+	generation := config.writeGeneration
 	plugin := config.Schema.Plugin
 	field, _ := config.Schema.Field(key)
 	field.Options = slices.Clone(field.Options)
@@ -136,7 +139,7 @@ func (a *App) ChangeConfig(key string, value any) {
 	stored := a.Actions.ConfigChange(plugin, key, next[key])
 	// A callback may close this overlay or open a different plugin's. Its
 	// answer belongs only to the sheet that dispatched the write.
-	if a.config != config || config.Schema == nil || config.Schema.Plugin != plugin {
+	if a.config != config || config.writeGeneration != generation || config.Schema == nil || config.Schema.Plugin != plugin {
 		return
 	}
 	current, exists := config.Schema.Field(key)

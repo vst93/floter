@@ -30,6 +30,19 @@ func checkWriteResult(t *testing.T, scenario string, accepted bool) {
 			var lastValue any
 			owner.Actions.ConfigChange = func(plugin, key string, value any) plugincfg.Values {
 				calls++
+				if scenario == "older-refused" || scenario == "older-accepted" {
+					if calls == 1 {
+						owner.ChangeConfig("limit", float64(25))
+						if scenario == "older-accepted" {
+							return plugincfg.Values{"enabled": true, "limit": float64(80), "format": "text"}
+						}
+						return nil
+					}
+					if scenario == "older-refused" {
+						return plugincfg.Values{"enabled": false, "limit": float64(25), "format": "text"}
+					}
+					return nil
+				}
 				lastValue = value
 				if plugin != settings.CustomPluginClipboard {
 					t.Errorf("wrong owner %q", plugin)
@@ -94,6 +107,22 @@ func checkWriteResult(t *testing.T, scenario string, accepted bool) {
 			tt.Frame()
 			tt.Frame()
 			resultDump(t, tt, fmt.Sprintf("write-%s-%v", scenario, accepted), dark)
+			if scenario == "older-refused" || scenario == "older-accepted" {
+				if calls != 2 {
+					t.Fatalf("nested writes=%d, want 2", calls)
+				}
+				failed, limit := scenario == "older-accepted", float64(25)
+				if failed {
+					limit = 10
+				}
+				if config.Values["enabled"] != false || config.Values["limit"] != limit || config.Failed != failed {
+					t.Errorf("%s result overwrote newer write: values=%v failed=%v", scenario, config.Values, config.Failed)
+				}
+				if tt.HasText(i18n.For("zh").Settings.SaveFailed) != failed {
+					t.Error("current write feedback is not visible")
+				}
+				return
+			}
 			if calls != 1 {
 				t.Fatalf("write dispatched %d times, want 1; texts=%v", calls, tt.Texts())
 			}
@@ -143,6 +172,13 @@ func TestWriteResultOwnerChangedInsideCallback(t *testing.T) {
 	for _, accept := range []bool{false, true} {
 		checkWriteResult(t, "owner", accept)
 	}
+}
+
+func TestWriteResultOlderRefusalCannotUndoNewerSuccess(t *testing.T) {
+	checkWriteResult(t, "older-refused", false)
+}
+func TestWriteResultOlderSuccessCannotUndoNewerRefusal(t *testing.T) {
+	checkWriteResult(t, "older-accepted", false)
 }
 
 func TestWriteResultFieldChangedInsideCallback(t *testing.T) {
