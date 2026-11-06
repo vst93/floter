@@ -39,3 +39,12 @@ M1 注入原产品，两个新测试均红，恢复后 md5sum -c OK、touch 复�
 4. 现象：Step=20、存量 30 时读数为 40，但滑块停在 30。改动：轨道初值使用与读数相同的 boundedValue。验证：深浅整帧逐字节等于存量 40 的参考帧，未触发 Change。旧代码原串 `slider says 40 but its position differs from the 40 frame`。
 
 两项均由 ui.Tester 导出深浅 before/after。V/B/S 0/0/0；旧断言未动。M2 将两条产品路径回退到第一批，再跑本批两条 pin，恢复时按 MD5 核对并 touch；精确结果随门槛日志归档。
+
+第二批回归 **32 PASS / 0 FAIL**，M2 两条深浅全红、MD5 OK，touch 后 32 PASS；a99cfc2f 已推送。
+
+### 第三批（5–6）
+
+5. 现象：插件文本成功提交 `/workspace/submitted` 后，外部值换成 `/workspace/external`，聚焦框仍复制出旧值。改动：成功确认退役与 sent 相同的草稿，失败/后续新草稿保留。验证：真实全选复制读出 external，拒绝提交仍保留 retry。M3 原串 `accepted text masks external value: "/workspace/submitted"`，深浅均红。
+6. 现象：锁定集成配置文本/数字的文字对比均为 102，重于已统一的禁用档。改动：两类输入用既有 Disabled 墨；框架只淡一次、DimFace 不变。验证：真实 configField 像素进入原有 70..88 档，锁定/字段材质旧 pin 保持通过。M3 原串 `locked-config-text: disabled input ink=102, want shared 70..88 rung`（数字同红）。
+
+两轮复核：艺术侧看到数字槽的读数与滑块位置相互矛盾，已同步；工程侧聚焦草稿遮住新值，已复现修复；任务侧禁用输入仍像主操作，统一退让；读者侧深色小字仍受既有字号约束，保留拍板项。没有增加容器、描边、阴影或动效。

@@ -349,13 +349,12 @@ func (a *App) sheetField(c *ui.Context, sheet PluginSheet, field plugincfg.Field
 		// 记成空值）。框里此前一直画着交上去的原文，于是「框写 ` /tmp/x `、插件存
 		// `/tmp/x`」要等到失焦才对齐——同一个字段在**同一帧**有两个说法。
 		//
-		// 现在：交上去的原文记在 `pluginTextCommits` 里，下一帧拿它对照宿主回给
-		// 这块面的值。宿主换了值（收过/清空）就把草稿交回去，框改画宿主的值；
-		// 一个字节没动说明写被拒（`sheet.Failed`）——那时草稿留着给用户重试
-		// （§6.45），这条契约不动。
+		// 成功确认后退役这次提交的草稿，即使宿主原样接受，也交回宿主值。
+		// 否则后续外部刷新永远被旧草稿遮住。失败留给重试，提交后新打的
+		// 文字也保留：只能退役与 sent 相同的那份草稿。
 		if sent, ok := a.pluginTextCommits[key]; ok {
 			delete(a.pluginTextCommits, key)
-			if !sheet.Failed && text != sent {
+			if !sheet.Failed && a.pluginTextDrafts[key] == sent {
 				delete(a.pluginTextDrafts, key)
 			}
 		}

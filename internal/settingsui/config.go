@@ -769,7 +769,7 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 				// = 242、底内线 = 面），槽读不出来；0.5 下仍是 238（−9）与 −7 的对侧。
 				// P13-cb：灯已经在上面那行的 `!locked` 里交给材质了（`fieldFace` 的
 				// `DimFace` 臂），这里只挂状态——两道判断读的是同一个 `locked`。
-				e = lockedControl(e)
+				e = lockedControl(e.TextColor(a.tokens(c).Disabled))
 			}
 			// The reference's input is controlled: every keystroke writes the
 			// field's own value back, so the bounds are checked as the user types
@@ -824,7 +824,7 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 			if locked {
 				// P13-t：一道淡，与上面的数字字段、开关、下拉同档。
 				// P13-cb：同上——材质已经在 `!locked` 里定了，这里只挂状态。
-				e = lockedControl(e)
+				e = lockedControl(e.TextColor(a.tokens(c).Disabled))
 			}
 			// A text field is controlled the same way: every keystroke is the
 			// field's text, the bounds are checked at once, and the typed text —

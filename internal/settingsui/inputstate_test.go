@@ -159,3 +159,37 @@ func TestInputStateSliderPositionMatchesItsReadout(t *testing.T) {
 		})
 	}
 }
+
+func TestInputStateAcceptedTextAllowsExternalRefresh(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			field := plugincfg.Field{Key: "directory", Label: "工作目录", Kind: plugincfg.Text}
+			_, sheet, tt := inputStateSheet(t, dark, field, "/workspace/initial")
+			pluginIdentityFocus(t, tt, field.Label)
+			tt.Type("/workspace/submitted")
+			tt.Key(0, ui.KeyEnter)
+			tt.Frame()
+			if sheet.Values[field.Key] != "/workspace/submitted" {
+				t.Fatal("text was not submitted")
+			}
+			sheet.Values[field.Key] = "/workspace/external"
+			tt.Frame()
+			inputStateDump(t, tt, "text-refresh", dark)
+			tt.Key(ui.Cmd, ui.KeyA)
+			tt.Key(ui.Cmd, ui.KeyC)
+			if got := tt.Clipboard(); got != "/workspace/external" {
+				t.Errorf("accepted text masks external value: %q", got)
+			}
+			// A refused submit still keeps the user's text for the existing retry.
+			sheet.Change = func(string, any) { sheet.Failed = true }
+			tt.Type("/workspace/retry")
+			tt.Key(0, ui.KeyEnter)
+			tt.Frame()
+			tt.Key(ui.Cmd, ui.KeyA)
+			tt.Key(ui.Cmd, ui.KeyC)
+			if got := tt.Clipboard(); got != "/workspace/retry" {
+				t.Errorf("refused text lost its retry: %q", got)
+			}
+		})
+	}
+}
