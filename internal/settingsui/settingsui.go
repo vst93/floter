@@ -1910,10 +1910,17 @@ func (a *App) integrations(c *ui.Context, copy i18n.Settings) {
 				return
 			}
 			a.extensionSection(c, copy.IntegrationsInstalled, len(integrations), func() {
+				occurrences := make(map[string]int)
 				for _, integration := range integrations {
 					// Refreshes can reorder or insert rows while an answer holds
 					// the keyboard. Its identity follows the target, not the slot.
-					a.integrationRow(c.Key(integration.ID), copy, integration)
+					// Retain repeated/empty-ID rows without duplicate node keys.
+					key := struct {
+						ID         string
+						Occurrence int
+					}{integration.ID, occurrences[integration.ID]}
+					occurrences[integration.ID]++
+					a.integrationRow(c.Key(key), copy, integration)
 				}
 			})
 		})
