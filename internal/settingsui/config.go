@@ -167,7 +167,16 @@ func (a *App) draft(integration Integration) *configDraft {
 		}
 		current, hasCurrent := draft.values[field.Key]
 		saved, hasSaved := draft.saved[field.Key]
-		_, editing := draft.live[field.Key]
+		edit, editing := draft.live[field.Key]
+		if editing {
+			// Returning to the saved value withdraws this edit. A numeric
+			// spelling such as 5.0 is the same value, but 1e is still a draft.
+			parsed, problem := ConfigValueProblem(field, edit, a.copy())
+			if problem == "" && hasCurrent == hasSaved && configValuesEqual(current, saved) && configValuesEqual(parsed, saved) {
+				draft.clearLiveField(field)
+				editing = false
+			}
+		}
 		if editing || hasCurrent != hasSaved || !configValuesEqual(current, saved) {
 			continue
 		}
