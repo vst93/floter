@@ -1,0 +1,29 @@
+=== RUN   TestConfigLifetimeWriteAnswerBelongsToItsSheet
+=== RUN   TestConfigLifetimeWriteAnswerBelongsToItsSheet/close-refused
+    configcallback_test.go:24: write answer crashed after close-refused: runtime error: invalid memory address or nil pointer dereference
+=== RUN   TestConfigLifetimeWriteAnswerBelongsToItsSheet/close-accepted
+    configcallback_test.go:24: write answer crashed after close-accepted: runtime error: invalid memory address or nil pointer dereference
+=== RUN   TestConfigLifetimeWriteAnswerBelongsToItsSheet/switch-refused
+    configcallback_test.go:55: old write answer contaminated new sheet: failed=true enabled=true
+=== RUN   TestConfigLifetimeWriteAnswerBelongsToItsSheet/switch-accepted
+    configcallback_test.go:55: old write answer contaminated new sheet: failed=false enabled=false
+--- FAIL: TestConfigLifetimeWriteAnswerBelongsToItsSheet (0.00s)
+    --- FAIL: TestConfigLifetimeWriteAnswerBelongsToItsSheet/close-refused (0.00s)
+    --- FAIL: TestConfigLifetimeWriteAnswerBelongsToItsSheet/close-accepted (0.00s)
+    --- FAIL: TestConfigLifetimeWriteAnswerBelongsToItsSheet/switch-refused (0.00s)
+    --- FAIL: TestConfigLifetimeWriteAnswerBelongsToItsSheet/switch-accepted (0.00s)
+=== RUN   TestConfigLifetimeActionAnswerBelongsToItsSheet
+=== RUN   TestConfigLifetimeActionAnswerBelongsToItsSheet/close-refused
+    configcallback_test.go:77: action answer crashed after close-refused: runtime error: invalid memory address or nil pointer dereference
+=== RUN   TestConfigLifetimeActionAnswerBelongsToItsSheet/close-accepted
+=== RUN   TestConfigLifetimeActionAnswerBelongsToItsSheet/switch-refused
+    configcallback_test.go:107: old action answer contaminated new sheet: failed="clear_history" armed="clear_history"
+=== RUN   TestConfigLifetimeActionAnswerBelongsToItsSheet/switch-accepted
+--- FAIL: TestConfigLifetimeActionAnswerBelongsToItsSheet (0.00s)
+    --- FAIL: TestConfigLifetimeActionAnswerBelongsToItsSheet/close-refused (0.00s)
+    --- PASS: TestConfigLifetimeActionAnswerBelongsToItsSheet/close-accepted (0.00s)
+    --- FAIL: TestConfigLifetimeActionAnswerBelongsToItsSheet/switch-refused (0.00s)
+    --- PASS: TestConfigLifetimeActionAnswerBelongsToItsSheet/switch-accepted (0.00s)
+FAIL
+FAIL	floter/internal/launcher	0.018s
+FAIL

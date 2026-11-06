@@ -45,3 +45,12 @@ M2 回退状态清理，两个真实 UI 场景深浅实跑红；MD5 恢复 OK，
 6. 现象：已删除字段的 Arm/Run 会覆盖、消费另一个动作的确认，普通值字段也能进入动作链。改动：Arm/Run 同时核对当前 schema 字段必须为 Action；不匹配的调用保留其他动作的确认。验证：stale key 与 Toggle 均不能派发或夺走确认，合法动作仍只执行一次；改型到 Text 即使尚未画下一帧也拒绝旧回调。原红串 `stale arm replaced current confirmation: "removed"`、`stale run consumed current confirmation: runs=1 armed=""`。
 
 M3 回退两入口校验，两项实跑红，MD5 还原与 touch 后 2 PASS。相关回归和 launcher vet 通过，V/B/S 0/0/0。这两项是入口回调计数证据，不伪称普通静态截图能证明重复派发。
+
+第三批 `bb91c79d` 已推送，相关回归 34 PASS / 0 FAIL。
+
+### 第四批
+
+7. 现象：写回回调内关闭配置，返回后解引用 nil；回调内换配置，旧接受值或失败标记覆盖新浮层。改动：保存发起写入的 Config 实例，返回后仅向仍为该实例的浮层发布答案。验证：关闭/切换 × 接受/拒绝四场景；写回只调用一次，目标 plugin/key/value 正确，新值不变、失败标记不串。原红串 `write answer crashed after close-refused: runtime error: invalid memory address or nil pointer dereference`、`old write answer contaminated new sheet: failed=false enabled=false`。
+8. 现象：动作失败回调关闭配置后崩溃；切换配置后错误挂到新动作。改动：动作返回时同样检查发起实例。验证：关闭/切换 × 成功/失败四场景，新浮层的确认保留、ActionFailed 为空，命令只调用一次。原红串 `action answer crashed after close-refused: runtime error: invalid memory address or nil pointer dereference`、`old action answer contaminated new sheet: failed="clear_history" armed="clear_history"`。
+
+M4 回退实例归属，两测试含八子场景实跑，六子场景红；MD5 还原、touch 后 10 PASS。定向回归与 launcher vet 通过。V/B/S 0/0/0，旧断言零改；八项均已实现，完整门槛固定源码后执行。

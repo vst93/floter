@@ -103,23 +103,29 @@ func (a *App) ChangeConfig(key string, value any) {
 	if !a.configOpen() || a.Actions.ConfigChange == nil {
 		return
 	}
-	committed := a.config.Values
-	next := a.config.Schema.Apply(committed, key, value)
-	a.config.Values = next
-	a.config.Failed = false
+	config := a.config
+	committed := config.Values
+	next := config.Schema.Apply(committed, key, value)
+	config.Values = next
+	config.Failed = false
 	// A change does not touch the action row's own failure line: the old
 	// build's `handleChange` and `ActionControl` are separate pieces of
 	// state.
-	stored := a.Actions.ConfigChange(a.config.Schema.Plugin, key, next[key])
+	stored := a.Actions.ConfigChange(config.Schema.Plugin, key, next[key])
+	// A callback may close this overlay or open a different plugin's. Its
+	// answer belongs only to the sheet that dispatched the write.
+	if a.config != config {
+		return
+	}
 	values, failed := plugincfg.ConfigChangeOutcome(next, committed, stored != nil)
 	if failed {
-		a.config.Values = values
-		a.config.Failed = true
+		config.Values = values
+		config.Failed = true
 		return
 	}
 	// The plugin's own normalization has the last word: the sheet commits what
 	// the settings actually hold, not what was asked for.
-	a.config.Values = stored
+	config.Values = stored
 }
 
 // ArmConfig arms an action field: the first press of a destructive button only
@@ -150,15 +156,16 @@ func (a *App) RunConfig(key string) {
 	if !a.config.hasAction(key) || a.config.Armed != key {
 		return
 	}
-	a.config.Armed = ""
-	a.config.ActionFailed = ""
+	config := a.config
+	config.Armed = ""
+	config.ActionFailed = ""
 	if a.Actions.ConfigAction == nil {
 		// Nothing was wired to run: no command was attempted, so there is
 		// nothing to report (the old build's `onRun?.()` no-op).
 		return
 	}
-	if !a.Actions.ConfigAction(a.config.Schema.Plugin, key) {
-		a.config.ActionFailed = key
+	if !a.Actions.ConfigAction(config.Schema.Plugin, key) && a.config == config {
+		config.ActionFailed = key
 	}
 }
 
