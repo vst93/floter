@@ -54,3 +54,75 @@ M3 回退两入口校验，两项实跑红，MD5 还原与 touch 后 2 PASS。�
 8. 现象：动作失败回调关闭配置后崩溃；切换配置后错误挂到新动作。改动：动作返回时同样检查发起实例。验证：关闭/切换 × 成功/失败四场景，新浮层的确认保留、ActionFailed 为空，命令只调用一次。原红串 `action answer crashed after close-refused: runtime error: invalid memory address or nil pointer dereference`、`old action answer contaminated new sheet: failed="clear_history" armed="clear_history"`。
 
 M4 回退实例归属，两测试含八子场景实跑，六子场景红；MD5 还原、touch 后 10 PASS。定向回归与 launcher vet 通过。V/B/S 0/0/0，旧断言零改；八项均已实现，完整门槛固定源码后执行。
+
+第四批 `43d22172` 已推送，相关回归 44 PASS / 0 FAIL。产品源码固定后启动三平台与全量门槛，后续不再注入 mutation。
+
+## 偷了什么
+
+已按要求读取 qiaomu-design 的 SKILL → user-preferences → craft-loop、preflight、chinese-typography；Apple DESIGN 仅取单一交互蓝、弱化墨 .48、柔和圆角的角色，映射现有 accent、框架禁用 .5、RadiusSM=8。不是重设计，不替换本仓 token，也未调用外部执行器。
+
+- craft-loop 工艺密度菜单第 3 项「品牌 focus 环」：取消/失败后键盘目标仍为 1 个，恢复原蓝色焦点环，新增焦点动画 0ms。见 cancel 与 failure 的深浅图。
+- 第 4 项「签名交互」：额外等待 0ms，取消 Run=0，一次确认最多 Run=1；Space 直接恢复下一次确认，失败句退场不再拆掉控件身份。
+- 第 12 项「材质细节」：按钮保留原半高圆角 `Space(3.5)`、原 1px 边与受光条件，新增材质层 0、布局包装 0。旧确认退场后画面减少一枚无效取消按钮，层次属于当前动作。
+
+未为凑五项密度增加装饰；用户临时主线禁止功能扩张，已有方向的打磨路径优先。设计记忆落本仓 §6.194 与事件 pin，未修改全局 skill 偏好。
+
+## 两轮看图与预检
+
+第一轮旧实现 ui.Tester 导图定位丢焦点与复活确认；第二轮同事件重放深浅图复核。16 张原始图覆盖四条可见路径，左右对照图左旧右新。第 5–8 项属于命令与回调边界，用调用计数、崩溃与实例断言验收，不用无差别静态图冒充证据。
+
+四视角：艺术总监看旧确认与取消是否在退役后多占注意力；工程师看取消焦点消失与失败插句引起身份改变；任务使用者看能否持续 Space 重试、一次确认是否只执行一次；读者看失败句是否保留完整并有当前按钮可操作。修复后取消与失败蓝环完整，动作重加只显示初始按钮，底面和行高相同。测试以 ReduceMotion=true 渲染，不声称三平台真机或系统桌面透明混合实测。
+
+4× 检视：原焦点环没有切进卡片边缘；失败句与按钮之间的原间距仍完整，没有因焦点交接新增边或面。[取消浅色局部](P13-hs/cancel-light-detail.png)、[失败深色局部](P13-hs/failure-dark-detail.png)。
+
+前后图（左旧右新）：[取消·浅](P13-hs/cancel-light-comparison.png) / [深](P13-hs/cancel-dark-comparison.png)，[失败·浅](P13-hs/failure-light-comparison.png) / [深](P13-hs/failure-dark-comparison.png)，[移除重加·浅](P13-hs/removed-light-comparison.png) / [深](P13-hs/removed-dark-comparison.png)，[改型恢复·浅](P13-hs/retyped-light-comparison.png) / [深](P13-hs/retyped-dark-comparison.png)。
+
+| 检查 | 结论 |
+| --- | --- |
+| A1 紫蓝渐变/纯黑/霓虹/渐变字 | 无新增；原生近黑底沿用 |
+| A2 不用系统字体 | 不适用，用户现有合约与中文 D2 优先，保留系统中文字体 |
+| A3 斜体 | 无 |
+| A4 居中 Hero | 不适用，原生配置表单 |
+| A5 三等分/卡片海 | 无新增卡片或容器 |
+| A6 假数据 | 无产品假指标；夹具使用真实 schema 形状 |
+| A7 空词/感叹号 | 产品文案零改 |
+| A8 编号眉批 | 无新增 |
+| A9 H1 换行 | 页头未改，截图完整 |
+| A10 Bento 空洞 | 不适用 |
+| A11 左侧竖线强调 | 无 |
+| B1 读取/拨盘 | 克制、即时、原密度，与规格一致 |
+| B2 主题锁定 | 深浅独立渲染，无混搭 |
+| B3 记忆点 | 当前动作始终有键盘落点，过期确认及时退场 |
+| B4 动效气质 | 额外过渡 0ms，不打断键盘连续性 |
+| C1 目的/频率 | 高频键盘不加动画 |
+| C2 all/ease-in/scale(0)/纯 fade | 无新增 |
+| C3 时长/按压 | 原 120ms 颜色过渡与 0.97 按压沿用 |
+| C4 浮层来源 | 未新增浮层；按钮仍在原行尾 |
+| C5 reduced-motion | 深浅事件均以 ReduceMotion=true 跑 |
+| C6 hover 条件 | CSS 不适用，原生指针逻辑未改 |
+| C7 布局动画 | 无新增 |
+| C8 快速触发 | 一次确认只执行一次，不重播动画 |
+| C9 手势 | 未增改手势 |
+| C10 Framer/Motion | 不适用，Go/mygo |
+| C11 动效抽查 | 未修改动效，无真机慢放证据，不虚报 |
+| D2.1 中文系统字体 | 沿用；测试与截图统一 zh_CN.UTF-8 |
+| D2.2 ≥14px/1.5/字重 | 未通过，现有字号/行盒属用户保留拍板项，本轮不越权 |
+| D2.3 混排空格 | 产品文案零改，本轮中文标签无新增混排问题 |
+| D2.4 标点/暗色7:1 | 文案未改；默认弱墨不保证7:1，沿用对比度合约与拍板项，未声称通过 |
+
+## 仍待与证据边界
+
+1. 下一轮首选集成设置已有动作的取消/失败恢复：runForm 参数、配置折叠确认、卸载取消的焦点和忙态交接；只是线索，必须先复现。
+2. 第 5–8 项直接调用已有配置入口、注入同步回调验证；它们证明边界故障可复现，不等于在系统插件上重现了用户真实崩溃。前四项以真实 UI 事件与图验证。
+3. 终端 S1b/S1c/S2 尾、字号/行盒、禁用 accent、未知 Radio、多选未列举值、保存期间草稿归属继续待拍板。八条早期 stash 保留。
+4. 无新增依赖、页面、系统或架构重构。V/B/S 0/0/0，旧测试零修改，新增测试全部执行，无新增 Skip。
+
+## 最终门槛
+
+基线 **3971 PASS / 0 FAIL / 2858 Test 函数**；最终 **4007 PASS / 0 FAIL / 2870 Test 函数**，增加 36 PASS、12 函数。普通全量和 verbose 全量分别完整退出 0；最终源码 MD5 五项逐字节 OK。gofmt 输出 0 字节，linux/windows/darwin 的 vet/build 均退出 0，合约增补后 internal/ci 另跑通过。未修改旧断言、未减少测试、无新增 Skip。
+
+四批产品 commit/push：`41c51dac`、`480e78c5`、`bb91c79d`、`43d22172`。每批先定向回归与对应包 vet，再提交推送；完整三平台与两次全量按用户“一轮一次”在第四批后集中执行，未声称每批都跑完整门槛。
+
+证据：[门槛汇总](P13-hs/gates.txt)、[普通全量](P13-hs/full-test.txt)、[文档检查](P13-hs/docs-ci.txt)、[源码校验](P13-hs/final-source.md5)。verbose 原始完整日志 `/tmp/floter-P13-hs/full-verbose.txt`；基线 `/tmp/floter-P13-hs/baseline.log`。四组 mutation 的红/绿原文在本目录 M1–M4-red/green.txt，对应 MD5 文件保留；M1/M2/M3/M4 恢复后分别 6/6/2/10 PASS。
+
+本轮从 12:49 UTC 开盘至完整门槛结束约 24 分钟，低于 45–75 分钟目标；已完成八项并分四批推送，未为延长时间另开系统或重复跑门槛。

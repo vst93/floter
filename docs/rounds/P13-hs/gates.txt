@@ -1,0 +1,10 @@
+vet linux PASS
+build linux PASS
+vet windows PASS
+build windows PASS
+vet darwin PASS
+build darwin PASS
+full ordinary PASS
+full verbose PASS
+4007
+Test functions 2870

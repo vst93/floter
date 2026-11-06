@@ -1,0 +1,5 @@
+fb8f967e90876b93e36d74e1636736ae  internal/launcher/config.go
+14feedc45e204b900a3e98920a3ec39f  internal/settingsui/pluginsheet.go
+6dd4cdd2b67ded8227af8589d43698cd  internal/launcher/configcallback_test.go
+a86189e86e9a66607a4d4f68a2e3da47  internal/launcher/configlifetime_test.go
+d36b12a2da9cdd53176d431362d79b13  internal/settingsui/actionlifetime_test.go
