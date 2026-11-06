@@ -1,0 +1,10 @@
+=== RUN   TestRunRecoveryRetypedParameterForgetsUndo
+=== RUN   TestRunRecoveryRetypedParameterForgetsUndo/light
+=== RUN   TestRunRecoveryRetypedParameterForgetsUndo/dark
+--- PASS: TestRunRecoveryRetypedParameterForgetsUndo (0.11s)
+    --- PASS: TestRunRecoveryRetypedParameterForgetsUndo/light (0.06s)
+    --- PASS: TestRunRecoveryRetypedParameterForgetsUndo/dark (0.04s)
+=== RUN   TestRunRecoveryCommandOwnsSubmittedAnswers
+--- PASS: TestRunRecoveryCommandOwnsSubmittedAnswers (0.04s)
+PASS
+ok  	floter/internal/settingsui	0.150s

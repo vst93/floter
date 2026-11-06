@@ -7204,7 +7204,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 				}
 				// Keep focus and the editor's state on this parameter when a
 				// refreshed manifest changes its position in the form.
-				c.Key(param.ID)
+				c.Key(param.ID + "\x00" + param.Kind)
 				switch param.Kind {
 				case extensions.ParamBoolean:
 					on := truthyValue(values[param.ID])
@@ -7279,7 +7279,13 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 			run := a.extensionPrimaryButton(c, copy.RunLabel, runDisabled)
 			if run.Clicked() && !runDisabled {
 				delete(a.runError, integration.ID)
-				if failure := a.Actions.RunWithParams(integration.ID, values); failure != nil {
+				// A run owns the answers at the instant of submission. Further
+				// editing or host-side normalization must not mutate the other map.
+				submitted := make(map[string]string, len(values))
+				for key, value := range values {
+					submitted[key] = value
+				}
+				if failure := a.Actions.RunWithParams(integration.ID, submitted); failure != nil {
 					if a.runError == nil {
 						a.runError = map[string]string{}
 					}

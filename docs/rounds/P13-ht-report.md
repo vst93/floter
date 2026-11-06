@@ -27,3 +27,12 @@
 2. 现象：删除参数后运行仍携带旧 key，重新加入也复活旧答案。改动：按当前完整 ID 集清除退役答案（含无默认值参数，不能用 defaults 的 key 集代替 schema）。验证：真实点击 Run 只派发当前 target，重加采用 fresh；旧实现报 `removed parameter reached command: map[obsolete:old target:current]` 与 `re-added parameter resurrected old answer: "old"`。
 
 V/B/S 0/0/0，旧测试零改。M1 用 HEAD 产品回注两缺陷，红/绿原始日志与 MD5 校验落轮次目录；深浅新增参数前后图已导出。
+
+第一批 `364ef2b8` 已推送；run 相关回归 69 PASS，M1 缺陷注入退出 1、恢复后 6 PASS，settingsui vet 净。
+
+### 第二批：编辑与已提交答案分开
+
+3. 现象：文字参数输入 24 后改成数字，Cmd/Ctrl+Z 将答案撤销回旧的 8。改动：参数编辑器身份包含 kind，改型时退役旧编辑历史，值仍保留 24。验证：两主题真实键盘事件；旧实现 `new number editor resurrected text undo: "8"`，新实现撤销不再引入旧答案；原参数重排保焦回归仍通过。
+4. 现象：运行回调拿到表单 map，后续输入 second 把已提交 first 改掉；回调修改 map 又污染当前输入。改动：提交时拷贝字符串答案 map。验证：真实 Run 后继续编辑，命令快照仍 first、表单仍 second，派发恰好 1 次；原红串 `later edit rewrote submitted command: map[target:second]` / `command map mutated live form: "host-owned"`。
+
+V/B/S 0/0/0。M2 回退本批产品变动，实际红；恢复后 MD5 校验、touch 复跑，原始日志随本批入库。

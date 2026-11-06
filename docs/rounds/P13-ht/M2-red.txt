@@ -1,0 +1,15 @@
+=== RUN   TestRunRecoveryRetypedParameterForgetsUndo
+=== RUN   TestRunRecoveryRetypedParameterForgetsUndo/light
+    runrecovery_test.go:102: new number editor resurrected text undo: "8"
+=== RUN   TestRunRecoveryRetypedParameterForgetsUndo/dark
+    runrecovery_test.go:102: new number editor resurrected text undo: "8"
+--- FAIL: TestRunRecoveryRetypedParameterForgetsUndo (0.12s)
+    --- FAIL: TestRunRecoveryRetypedParameterForgetsUndo/light (0.07s)
+    --- FAIL: TestRunRecoveryRetypedParameterForgetsUndo/dark (0.05s)
+=== RUN   TestRunRecoveryCommandOwnsSubmittedAnswers
+    runrecovery_test.go:129: later edit rewrote submitted command: map[target:second]
+    runrecovery_test.go:134: command map mutated live form: "host-owned"
+--- FAIL: TestRunRecoveryCommandOwnsSubmittedAnswers (0.04s)
+FAIL
+FAIL	floter/internal/settingsui	0.163s
+FAIL
