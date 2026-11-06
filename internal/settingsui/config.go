@@ -203,6 +203,7 @@ func (a *App) draft(integration Integration) *configDraft {
 		// field. Local edits and partial text keep their existing ownership.
 		// Replacing a selection ends the old Shift-click gesture too.
 		delete(draft.multiAnchor, field.Key)
+		a.clearConfigFieldError(integration.ID, field.Key)
 		if exists {
 			draft.values[field.Key], draft.saved[field.Key] = value, value
 		} else {

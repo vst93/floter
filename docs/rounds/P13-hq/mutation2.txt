@@ -1,0 +1,19 @@
+=== RUN   TestGroupRefreshTextCorrectionClearsValidation
+=== RUN   TestGroupRefreshTextCorrectionClearsValidation/light
+    grouprefresh_test.go:116: text-correct retains obsolete validation: "outside its allowed length"
+=== RUN   TestGroupRefreshTextCorrectionClearsValidation/dark
+    grouprefresh_test.go:116: text-correct retains obsolete validation: "outside its allowed length"
+--- FAIL: TestGroupRefreshTextCorrectionClearsValidation (0.06s)
+    --- FAIL: TestGroupRefreshTextCorrectionClearsValidation/light (0.05s)
+    --- FAIL: TestGroupRefreshTextCorrectionClearsValidation/dark (0.01s)
+=== RUN   TestGroupRefreshNumberCorrectionClearsValidation
+=== RUN   TestGroupRefreshNumberCorrectionClearsValidation/light
+    grouprefresh_test.go:116: number-correct retains obsolete validation: "outside its allowed range"
+=== RUN   TestGroupRefreshNumberCorrectionClearsValidation/dark
+    grouprefresh_test.go:116: number-correct retains obsolete validation: "outside its allowed range"
+--- FAIL: TestGroupRefreshNumberCorrectionClearsValidation (0.02s)
+    --- FAIL: TestGroupRefreshNumberCorrectionClearsValidation/light (0.01s)
+    --- FAIL: TestGroupRefreshNumberCorrectionClearsValidation/dark (0.01s)
+FAIL
+FAIL	floter/internal/settingsui	0.077s
+FAIL

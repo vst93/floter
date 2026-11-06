@@ -22,6 +22,13 @@
 1. 前置分组后文本失焦、未提交内容丢失 → 分组身份按存活字段匹配 → 原实现深浅均红：`text-prepend lost focus on group refresh`、`lost draft: "", want "/local"`。
 2. 数字跨分组后半输入丢失 → 优先沿用聚焦字段原分组身份 → 原实现深浅均红：`number-move lost focus on group refresh`、`lost draft: "", want "1e"`。
 
-第一批两项通过，相关事件回归 93 PASS / 0 FAIL，settingsui vet 通过；旧 V/B/S 断言零改动。M1 回退 pluginsheet.go 后两条深浅场景确实报上述失焦/丢草稿，md5sum -c 两文件均 OK，touch 后复跑通过。第一次变异误将 App 新成员一起撤回导致编译失败，该次不计有效变异；已纠正注入范围并以真实断言红日志覆盖。文本保留后 Enter 只向自己的字段提交一次；数字夹具覆盖从非首行移入已有分组。
+第一批两项通过，相关事件回归 **80 PASS / 0 FAIL**，settingsui vet 通过；旧 V/B/S 断言零改动。M1 回退 pluginsheet.go 后两条深浅场景确实报上述失焦/丢草稿，md5sum -c 两文件均 OK，touch 后复跑通过。第一次变异误将 App 新成员一起撤回导致编译失败，该次不计有效变异；已纠正注入范围并以真实断言红日志覆盖。文本保留后 Enter 只向自己的字段提交一次；数字夹具覆盖从非首行移入已有分组。
+
+第一批提交 e2bd2905 正文将相关 PASS 误录为 93；原始 batch1.txt 实测为 80，本报告更正。基线 3923 与变异结果无误。
 
 后续两组旧校验路径已有原实现红证据，移除重加路径待本批实测。完整门槛在八项完成后运行一次。
+
+3. 已存文本按 Enter 显示长度错误后，外部纠正为 ok，仍留旧红句 → 未编辑字段接纳新宿主值时清理旧校验 → 深浅字段 clean、旧句消失。
+4. 已存数字 25 按 Enter 显示范围错误后，外部纠正为 5，旧红句仍在 → 同一宿主刷新路径清旧校验 → 深浅值 5、状态 clean、旧句消失。
+
+第二批相关 80 PASS / 0 FAIL、settingsui vet 净。M2 回退 config.go 两项均红：`text-correct retains obsolete validation: "outside its allowed length"`、`number-correct retains obsolete validation: "outside its allowed range"`；md5sum -c OK、touch 后复跑。V/B/S 0/0/0。

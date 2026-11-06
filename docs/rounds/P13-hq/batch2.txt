@@ -1,0 +1,162 @@
+=== RUN   TestConfigIdentityReorderingKeepsTheActiveField
+=== RUN   TestConfigIdentityReorderingKeepsTheActiveField/light
+=== RUN   TestConfigIdentityReorderingKeepsTheActiveField/dark
+--- PASS: TestConfigIdentityReorderingKeepsTheActiveField (0.09s)
+    --- PASS: TestConfigIdentityReorderingKeepsTheActiveField/light (0.08s)
+    --- PASS: TestConfigIdentityReorderingKeepsTheActiveField/dark (0.00s)
+=== RUN   TestConfigIdentityErrorUsesCurrentLanguage
+=== RUN   TestConfigIdentityErrorUsesCurrentLanguage/light
+=== RUN   TestConfigIdentityErrorUsesCurrentLanguage/dark
+--- PASS: TestConfigIdentityErrorUsesCurrentLanguage (0.02s)
+    --- PASS: TestConfigIdentityErrorUsesCurrentLanguage/light (0.02s)
+    --- PASS: TestConfigIdentityErrorUsesCurrentLanguage/dark (0.00s)
+=== RUN   TestConfigIdentityHistoryBelongsToTheIntegration
+=== RUN   TestConfigIdentityHistoryBelongsToTheIntegration/light
+=== RUN   TestConfigIdentityHistoryBelongsToTheIntegration/dark
+--- PASS: TestConfigIdentityHistoryBelongsToTheIntegration (0.01s)
+    --- PASS: TestConfigIdentityHistoryBelongsToTheIntegration/light (0.00s)
+    --- PASS: TestConfigIdentityHistoryBelongsToTheIntegration/dark (0.00s)
+=== RUN   TestConfigIdentityAddedFieldsReadTheirInitialValues
+=== RUN   TestConfigIdentityAddedFieldsReadTheirInitialValues/light
+=== RUN   TestConfigIdentityAddedFieldsReadTheirInitialValues/dark
+--- PASS: TestConfigIdentityAddedFieldsReadTheirInitialValues (0.01s)
+    --- PASS: TestConfigIdentityAddedFieldsReadTheirInitialValues/light (0.00s)
+    --- PASS: TestConfigIdentityAddedFieldsReadTheirInitialValues/dark (0.00s)
+=== RUN   TestConfigRefreshRemovedValueUsesCurrentDefault
+=== RUN   TestConfigRefreshRemovedValueUsesCurrentDefault/light
+=== RUN   TestConfigRefreshRemovedValueUsesCurrentDefault/light/workspace/default
+=== RUN   TestConfigRefreshRemovedValueUsesCurrentDefault/dark
+=== RUN   TestConfigRefreshRemovedValueUsesCurrentDefault/dark/workspace/default
+--- PASS: TestConfigRefreshRemovedValueUsesCurrentDefault (0.01s)
+    --- PASS: TestConfigRefreshRemovedValueUsesCurrentDefault/light (0.00s)
+    --- PASS: TestConfigRefreshRemovedValueUsesCurrentDefault/light/workspace/default (0.00s)
+    --- PASS: TestConfigRefreshRemovedValueUsesCurrentDefault/dark (0.00s)
+    --- PASS: TestConfigRefreshRemovedValueUsesCurrentDefault/dark/workspace/default (0.00s)
+=== RUN   TestConfigRefreshUpdatesOnlyUntouchedValues
+=== RUN   TestConfigRefreshUpdatesOnlyUntouchedValues/light
+=== RUN   TestConfigRefreshUpdatesOnlyUntouchedValues/dark
+--- PASS: TestConfigRefreshUpdatesOnlyUntouchedValues (0.01s)
+    --- PASS: TestConfigRefreshUpdatesOnlyUntouchedValues/light (0.00s)
+    --- PASS: TestConfigRefreshUpdatesOnlyUntouchedValues/dark (0.00s)
+=== RUN   TestConflictRecoveryPluginTextReopenRetiresUndo
+=== RUN   TestConflictRecoveryPluginTextReopenRetiresUndo/light
+=== RUN   TestConflictRecoveryPluginTextReopenRetiresUndo/dark
+--- PASS: TestConflictRecoveryPluginTextReopenRetiresUndo (0.02s)
+    --- PASS: TestConflictRecoveryPluginTextReopenRetiresUndo/light (0.02s)
+    --- PASS: TestConflictRecoveryPluginTextReopenRetiresUndo/dark (0.00s)
+=== RUN   TestConflictRecoveryPluginNumberReopenRetiresUndo
+=== RUN   TestConflictRecoveryPluginNumberReopenRetiresUndo/light
+=== RUN   TestConflictRecoveryPluginNumberReopenRetiresUndo/dark
+--- PASS: TestConflictRecoveryPluginNumberReopenRetiresUndo (0.01s)
+    --- PASS: TestConflictRecoveryPluginNumberReopenRetiresUndo/light (0.00s)
+    --- PASS: TestConflictRecoveryPluginNumberReopenRetiresUndo/dark (0.00s)
+=== RUN   TestConflictRecoveryDefaultsRetireOldSelectionRange
+=== RUN   TestConflictRecoveryDefaultsRetireOldSelectionRange/light
+=== RUN   TestConflictRecoveryDefaultsRetireOldSelectionRange/dark
+--- PASS: TestConflictRecoveryDefaultsRetireOldSelectionRange (0.03s)
+    --- PASS: TestConflictRecoveryDefaultsRetireOldSelectionRange/light (0.01s)
+    --- PASS: TestConflictRecoveryDefaultsRetireOldSelectionRange/dark (0.01s)
+=== RUN   TestConflictRecoveryExternalSelectionRetiresOldRange
+=== RUN   TestConflictRecoveryExternalSelectionRetiresOldRange/light
+=== RUN   TestConflictRecoveryExternalSelectionRetiresOldRange/dark
+--- PASS: TestConflictRecoveryExternalSelectionRetiresOldRange (0.00s)
+    --- PASS: TestConflictRecoveryExternalSelectionRetiresOldRange/light (0.00s)
+    --- PASS: TestConflictRecoveryExternalSelectionRetiresOldRange/dark (0.00s)
+=== RUN   TestConflictRecoveryIntegrationExtremeNumberReadable
+=== RUN   TestConflictRecoveryIntegrationExtremeNumberReadable/light
+=== RUN   TestConflictRecoveryIntegrationExtremeNumberReadable/dark
+--- PASS: TestConflictRecoveryIntegrationExtremeNumberReadable (0.00s)
+    --- PASS: TestConflictRecoveryIntegrationExtremeNumberReadable/light (0.00s)
+    --- PASS: TestConflictRecoveryIntegrationExtremeNumberReadable/dark (0.00s)
+=== RUN   TestConflictRecoveryPluginTinyNumberReadable
+=== RUN   TestConflictRecoveryPluginTinyNumberReadable/light
+=== RUN   TestConflictRecoveryPluginTinyNumberReadable/dark
+--- PASS: TestConflictRecoveryPluginTinyNumberReadable (0.01s)
+    --- PASS: TestConflictRecoveryPluginTinyNumberReadable/light (0.00s)
+    --- PASS: TestConflictRecoveryPluginTinyNumberReadable/dark (0.00s)
+=== RUN   TestConflictRecoveryPluginWithdrawnTextFollowsHost
+=== RUN   TestConflictRecoveryPluginWithdrawnTextFollowsHost/light
+=== RUN   TestConflictRecoveryPluginWithdrawnTextFollowsHost/dark
+--- PASS: TestConflictRecoveryPluginWithdrawnTextFollowsHost (0.00s)
+    --- PASS: TestConflictRecoveryPluginWithdrawnTextFollowsHost/light (0.00s)
+    --- PASS: TestConflictRecoveryPluginWithdrawnTextFollowsHost/dark (0.00s)
+=== RUN   TestConflictRecoveryPluginMatchingHostReleasesText
+=== RUN   TestConflictRecoveryPluginMatchingHostReleasesText/light
+=== RUN   TestConflictRecoveryPluginMatchingHostReleasesText/dark
+--- PASS: TestConflictRecoveryPluginMatchingHostReleasesText (0.00s)
+    --- PASS: TestConflictRecoveryPluginMatchingHostReleasesText/light (0.00s)
+    --- PASS: TestConflictRecoveryPluginMatchingHostReleasesText/dark (0.00s)
+=== RUN   TestConflictRecoveryTextUsesCurrentSavedValue
+=== RUN   TestConflictRecoveryTextUsesCurrentSavedValue/light
+=== RUN   TestConflictRecoveryTextUsesCurrentSavedValue/dark
+--- PASS: TestConflictRecoveryTextUsesCurrentSavedValue (0.01s)
+    --- PASS: TestConflictRecoveryTextUsesCurrentSavedValue/light (0.00s)
+    --- PASS: TestConflictRecoveryTextUsesCurrentSavedValue/dark (0.00s)
+=== RUN   TestConflictRecoveryNumberDefaultUsesCurrentSavedValue
+=== RUN   TestConflictRecoveryNumberDefaultUsesCurrentSavedValue/light
+=== RUN   TestConflictRecoveryNumberDefaultUsesCurrentSavedValue/dark
+--- PASS: TestConflictRecoveryNumberDefaultUsesCurrentSavedValue (0.03s)
+    --- PASS: TestConflictRecoveryNumberDefaultUsesCurrentSavedValue/light (0.02s)
+    --- PASS: TestConflictRecoveryNumberDefaultUsesCurrentSavedValue/dark (0.01s)
+=== RUN   TestGroupRefreshTextPrependKeepsEdit
+=== RUN   TestGroupRefreshTextPrependKeepsEdit/light
+=== RUN   TestGroupRefreshTextPrependKeepsEdit/dark
+--- PASS: TestGroupRefreshTextPrependKeepsEdit (0.02s)
+    --- PASS: TestGroupRefreshTextPrependKeepsEdit/light (0.01s)
+    --- PASS: TestGroupRefreshTextPrependKeepsEdit/dark (0.01s)
+=== RUN   TestGroupRefreshNumberMoveKeepsEdit
+=== RUN   TestGroupRefreshNumberMoveKeepsEdit/light
+=== RUN   TestGroupRefreshNumberMoveKeepsEdit/dark
+--- PASS: TestGroupRefreshNumberMoveKeepsEdit (0.02s)
+    --- PASS: TestGroupRefreshNumberMoveKeepsEdit/light (0.01s)
+    --- PASS: TestGroupRefreshNumberMoveKeepsEdit/dark (0.01s)
+=== RUN   TestGroupRefreshTextCorrectionClearsValidation
+=== RUN   TestGroupRefreshTextCorrectionClearsValidation/light
+=== RUN   TestGroupRefreshTextCorrectionClearsValidation/dark
+--- PASS: TestGroupRefreshTextCorrectionClearsValidation (0.01s)
+    --- PASS: TestGroupRefreshTextCorrectionClearsValidation/light (0.01s)
+    --- PASS: TestGroupRefreshTextCorrectionClearsValidation/dark (0.01s)
+=== RUN   TestGroupRefreshNumberCorrectionClearsValidation
+=== RUN   TestGroupRefreshNumberCorrectionClearsValidation/light
+=== RUN   TestGroupRefreshNumberCorrectionClearsValidation/dark
+--- PASS: TestGroupRefreshNumberCorrectionClearsValidation (0.02s)
+    --- PASS: TestGroupRefreshNumberCorrectionClearsValidation/light (0.01s)
+    --- PASS: TestGroupRefreshNumberCorrectionClearsValidation/dark (0.01s)
+=== RUN   TestInputRefreshLargeSliderStaysFinite
+=== RUN   TestInputRefreshLargeSliderStaysFinite/light
+=== RUN   TestInputRefreshLargeSliderStaysFinite/dark
+--- PASS: TestInputRefreshLargeSliderStaysFinite (0.01s)
+    --- PASS: TestInputRefreshLargeSliderStaysFinite/light (0.00s)
+    --- PASS: TestInputRefreshLargeSliderStaysFinite/dark (0.00s)
+=== RUN   TestInputRefreshNumberUsesSavedDecimalPrecision
+=== RUN   TestInputRefreshNumberUsesSavedDecimalPrecision/light
+=== RUN   TestInputRefreshNumberUsesSavedDecimalPrecision/dark
+--- PASS: TestInputRefreshNumberUsesSavedDecimalPrecision (0.00s)
+    --- PASS: TestInputRefreshNumberUsesSavedDecimalPrecision/light (0.00s)
+    --- PASS: TestInputRefreshNumberUsesSavedDecimalPrecision/dark (0.00s)
+=== RUN   TestInputRefreshUnchangedTextEnterReleasesDraft
+=== RUN   TestInputRefreshUnchangedTextEnterReleasesDraft/light
+=== RUN   TestInputRefreshUnchangedTextEnterReleasesDraft/dark
+--- PASS: TestInputRefreshUnchangedTextEnterReleasesDraft (0.01s)
+    --- PASS: TestInputRefreshUnchangedTextEnterReleasesDraft/light (0.00s)
+    --- PASS: TestInputRefreshUnchangedTextEnterReleasesDraft/dark (0.00s)
+=== RUN   TestInputRefreshAcceptedNumberFollowsHost
+=== RUN   TestInputRefreshAcceptedNumberFollowsHost/light
+=== RUN   TestInputRefreshAcceptedNumberFollowsHost/dark
+--- PASS: TestInputRefreshAcceptedNumberFollowsHost (0.01s)
+    --- PASS: TestInputRefreshAcceptedNumberFollowsHost/light (0.01s)
+    --- PASS: TestInputRefreshAcceptedNumberFollowsHost/dark (0.00s)
+=== RUN   TestInputRefreshSameNumberDoesNotWrite
+=== RUN   TestInputRefreshSameNumberDoesNotWrite/light
+=== RUN   TestInputRefreshSameNumberDoesNotWrite/dark
+--- PASS: TestInputRefreshSameNumberDoesNotWrite (0.01s)
+    --- PASS: TestInputRefreshSameNumberDoesNotWrite/light (0.00s)
+    --- PASS: TestInputRefreshSameNumberDoesNotWrite/dark (0.00s)
+=== RUN   TestInputRefreshSameSliderStepDoesNotWrite
+=== RUN   TestInputRefreshSameSliderStepDoesNotWrite/light
+=== RUN   TestInputRefreshSameSliderStepDoesNotWrite/dark
+--- PASS: TestInputRefreshSameSliderStepDoesNotWrite (0.01s)
+    --- PASS: TestInputRefreshSameSliderStepDoesNotWrite/light (0.00s)
+    --- PASS: TestInputRefreshSameSliderStepDoesNotWrite/dark (0.00s)
+PASS
+ok  	floter/internal/settingsui	0.393s

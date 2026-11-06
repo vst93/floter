@@ -121,3 +121,11 @@ func checkGroupRefreshValidation(t *testing.T, number, schema bool) {
 		})
 	}
 }
+
+func TestGroupRefreshTextCorrectionClearsValidation(t *testing.T) {
+	checkGroupRefreshValidation(t, false, false)
+}
+
+func TestGroupRefreshNumberCorrectionClearsValidation(t *testing.T) {
+	checkGroupRefreshValidation(t, true, false)
+}
