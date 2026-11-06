@@ -79,6 +79,36 @@ func TestBusyUninstallLabelSharesInk(t *testing.T) {
 	assertDisabledInk(t, disabledLabelSites()[6].draw)
 }
 
+func TestFixedUninstallHintKeepsReadableInk(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		for _, hint := range []string{"Always removed", "应用本体始终移除"} {
+			store := settings.NewStore(settings.Default())
+			if err := store.Update(func(s *settings.Settings) { s.Theme = appearanceName(dark) }); err != nil {
+				t.Fatal(err)
+			}
+			a := New(store, Actions{})
+			ground := realPageGround(t, dark)
+			tt := ui.NewTester(func(c *ui.Context) {
+				c.SetTheme(a.tokens(c).Theme)
+				c.Root().Background(ground)
+				ui.Column(c).Padding(24).Width(360).Children(func() {
+					a.uninstallPartRow(c, uninstallPart{Label: "Floter", Hint: hint, Fixed: true})
+				})
+			}, 420, 160)
+			tt.SetDark(dark)
+			tt.SetPreferences(ui.Preferences{ReduceMotion: true})
+			tt.Frame()
+			box := mustFind(t, tt, hint)
+			face := pageLuma(tt, 330, box.Y+box.H/2)
+			ink := transferBusyInk(tt, face, box)
+			t.Logf("%s %s: hint contrast %d", appearanceName(dark), hint, ink)
+			if ink < 70 || ink > 88 {
+				t.Errorf("%s: fixed hint contrast %d, want 70..88", appearanceName(dark), ink)
+			}
+		}
+	}
+}
+
 func TestConfirmationIconUsesLabelSemantics(t *testing.T) {
 	for _, dark := range []bool{false, true} {
 		for _, disabled := range []bool{false, true} {

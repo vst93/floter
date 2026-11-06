@@ -1,70 +1,45 @@
-# P13-hl · 禁用墨：一个状态，一个深度
+# P13-hl · 禁用墨：八处现有控件的状态细节
 
-起点 `1765f2cd`（P13-hk），开盘工作区为空。规格日期 2026-11-06。
+起点 `1765f2cd`，2026-11-06；开盘工作区为空且已 pull。接续 `e0f58d758c` 抢救稿，原稿数字有误，以下以本次复测取代。基线日志 **3806 PASS / 0 FAIL / 2797 测试函数**，进程退出状态的异常记录见报告。
 
-## 接续校正
+## 意图与证据
 
-本规格来自 e0f58d758c 抢救稿，旧测量不是本次验收数字。当前行号已读核对：
-theme.go:247/667/703/838、rows.go:616/764/1095、settingsui.go:6476/6543、
-uninstall.go:335/444、shell/detach.go:398。基线日志 3806 PASS / 0 FAIL / 2797 函数，退出状态说明见报告。
-八项可见修复：胶囊、扩展图标、会话图标、中性确认键、确认键图标、卸载忙态键、固定卡说明、输出窗口重跑键。
-每两项提交推送一次；token 为实现手段，不单独凑项。分批相关回归，最终整套门槛。
+让同一种中性禁用状态可辨且可读：弱文字适度增强，过强的禁用文字退让；沿用已有 E0/E1/E2 和单次 0.5 禁用衰减。现有薄面不变，文字只保留一条清晰的状态层级。
 
-设计读取：桌面设置和输出工具条，面向高频键盘用户；轻便液态玻璃，冒险度 2/10（稳定）、
-动效 2/10（沿用）、密度 7/10（紧凑）。禁用仍可读动作名，不误认作可点；可用态照常操作。
-Apple 供体 48% 退让墨转译为框架已有 0.5；近黑/近白沿用 #1B1B1D/#F7F7F8；
-交互蓝继续只服务可操作状态，不给禁用态加蓝。
-craft-loop #6 用语义墨区分状态；#11 图标与标签同色；#12 保留 DimFace，禁用受光边为 0。
-不为凑五项新增装饰。高度链、键盘、保存、会话、文案、接线均不改。
+设计读取：桌面设置控件和输出窗口工具条，面向高频键盘用户，方向为轻便液态玻璃。冒险度 2/10（稳定）、动效 2/10（沿用）、密度 7/10（紧凑）。用户需立即辨认动作名与当前可用性。
 
-## 意图
+## 八项规格（开盘已读代码行号）
 
-禁用面的**材质**已经在 P13-s / P13-t / P13-u / P13-aq / P13-ba 收成「框架那一道 0.5」；
-这一轮修的是同一族的另一半——**淡之前的墨**：每个调用点挑自己那一档
-（`TextStrong` / `TextSecondary` / `TextMuted` / `TextTertiary` / `Warning`），0.5 之后
-同一个「现在不能用」在同一页上有 47~113 级的六种深浅，其中三处低于本仓自己用了十几轮的
-60 级可读性地板。
+| 项 | 位置 | 现状 → 目标 |
+|---|---|---|
+| 1 | rows.go:616 extensionActionFace | 禁用胶囊 105/106 → 统一中性墨；普通、忙态、配置入口一并修 |
+| 2 | rows.go:764 extensionIconButton | 透明扩展图标 69/70 → 同一中性禁用墨 |
+| 3 | rows.go:1095 sessionIconButton | 会话图标 59/61 → 清楚且弱于启用态 |
+| 4 | settingsui.go:6476 barButton | 中性确认标签 105/106 → 同一中性禁用墨；危险色保留 |
+| 5 | settingsui.go:6543 图标子树 | 警告字旁边是主墨图标 → 图标明确取标签的 ink |
+| 6 | uninstall.go:335 uninstallActionButton | 忙态中性胶囊 105/106 → 同一中性禁用墨 |
+| 7 | uninstall.go:444 uninstallPartRow | 固定卡提示单独取样仅 54/53 → 提示和标题都使用 Disabled |
+| 8 | shell/detach.go:398 detachedBar | 运行中重跑键对比 50/45 → 中性禁用墨，仍弱于可用态 |
 
-证据（都是本轮实测，浅 / 深，对比级）：
+前七处在 internal/settingsui，第八处在 internal/shell。theme.go:247/667/703/838 新增语义墨是实现手段，不独立计项。
+最终 token 为浅 **#57575B** / 深 **#B5B5BD**（框架衰减前）。草稿 #58585C/#B4B4BC 会让导入/导出旧严格相等 pin 红；校准产品颜色后原断言不动。
 
-- `rows.go:616` `extensionActionFace` 的 `disabled` 臂：`ink = TextStrong` → 105 / 113；
-- `rows.go:764` `extensionIconButton` 的 `disabled` 臂：`ink = TextSecondary` → 70 / 69；
-- `rows.go:1095` `sessionIconButton` 的 `disabled` 臂：`ink = TextMuted` → **59 / 61**；
-- `uninstall.go:444` `uninstallPartRow` 的 `Fixed` 卡：标题 105、提示 **55**；
-- `shell/detach.go:355` 的「重跑」键：`TextTertiary` → **47 / 53**（全仓最低）；
-- `settingsui/settingsui.go:6476` `barButton`：禁用臂 `TextStrong`（105）且**图标没有
-  `TextColor`**——danger 键「字是警告红、图标是主题黑」，禁用键的图标停在 105。
+## 行为红线与交付
 
-## 逐条落地
+高度链、键盘模型、会话管理、设置写回、i18n 文案、命令接线不动；面差、受光边、阴影、圆角、间距不动。Disabled/lockedControl 仍只负责既有禁用位和单次衰减。
+每两项提交推送，相关回归每批过；最终 gofmt 空、三平台 vet/build 净、普通及 verbose 全量测试通过，PASS 与函数数量不减。V pin 明确旧值→新值，B/S 不改。
 
-1. **新档 `theme.Tokens.Disabled`**（`internal/theme/theme.go`）：**淡之前**的墨，浅
-   `#58585C` / 深 `#B4B4BC`。0.5 之后落 74~84 级。
-2. **胶囊族**（`rows.go` `extensionActionFace`）：禁用 ink → `Disabled`（105/113 → 74/78）。
-   六个调用点共用：`disabledActionButton` / `busyActionButton` / `extensionGlyphActionButton`
-   ×3 / `configActions` 的 defaults。
-3. **30u 透明小格**（`extensionIconButton`）：70/69 → 79/84。
-4. **28u 会话小格**（`sessionIconButton`）：59/61 → 79/84（跨过地板）。
-5. **确认带胶囊**（`settingsui.go` `barButton`）：105/113 → 74/78；danger 保留 `Warning`。
-6. **确认带胶囊的图标**（同处）：补 `.TextColor(ink)`——图标跟着字走（danger → 警告族；
-   禁用 → 74/78）。
-7. **在飞卸载胶囊**（`uninstall.go` `uninstallActionButton`）：中性 105 → 74/78。
-8. **固定卸载卡**（`uninstallPartRow` 的 `Fixed` 臂）：标题 105 → 78、提示 55 → 84。
-9. **插件窗口「重跑」键**（`shell/detach.go`）：47/53 → 78/80。
+截图使用 ui.Tester 的实际构造器：两套主题、两个组件组、同几何的 before/after。以开盘提交的原始产品文件重拍 before，再 MD5 还原当前代码；无合成假 UI。
 
-## 行为契约零改动红线
+## Mutation 计划与落地
 
-只改墨：高度链、键盘模型、会话管理、设置写回、i18n 文案、命令接线、面差/受光边/外投影/
-圆角/间距全部零改动。`DimFace`、`lockedControl`、`Cursor` 语义不动。
+- M1：胶囊墨退回 TextStrong → TestDisabledActionLabelsShareInk 红；还原 MD5 + touch 后复跑。
+- M2：移除确认图标 TextColor → TestConfirmationIconUsesLabelSemantics 四态红；同上。
+- M3：固定卡退回旧提示墨 → TestFixedUninstallHintKeepsReadableInk 的英文/中文、深浅四处红；同上。
+- M4：输出窗口退回 TextTertiary → TestTheDisabledBarKeyDimsOnce 深浅精确值红；同上。
 
-## 门槛
+## Skill 的具体使用
 
-`gofmt -l cmd internal` 空；`go vet ./...` 三平台净；`go test -count=1 ./...` 全绿；
-PASS 计数只许涨；三平台 `go build ./...` 过。
-
-## 变异计划（≥2）
-
-- M1：把 `rows.go` 三处 `ink = tokens.Disabled` 换回 `tokens.TextStrong` →
-  `TestEveryDisabledLabelLandsOnOneRung` 红（胶囊 105/106 越上沿、小格越过下沿）。
-- M2：把浅色 `Disabled` 换成 `#A8A8AC` → 同一 pin 红（胶囊 34 级，越过下沿）。
-- M3：删掉 `barButton` 图标的 `.TextColor(ink)` → `TestTheBarButtonsIconWearsTheWordsInk`
-  红（danger 读 83 = 主墨，禁用图标读 105）。
+读取 qiaomu-design、user-preferences、craft-loop、preflight、chinese-typography，走既定方向打磨。
+Apple 供体的 48% 退让墨转译为框架已有 0.5；近黑/近白延续 #1B1B1D/#F7F7F8；交互蓝不加到禁用态。
+工艺菜单 #6 语义文字层级、#11 图标语义色、#12 禁用面受光边为 0；具体数值与逐条 preflight 结论见报告。不为凑五项增加装饰，用户范围优先。

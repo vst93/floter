@@ -136,10 +136,16 @@ func TestTheFixedUninstallPartGoesUnlitNotWashed(t *testing.T) {
 		if on.labelContrast <= 0 {
 			t.Fatalf("the enabled component card (%s) has no ink to compare against", appearanceName(dark))
 		}
-		if ratio := float64(off.labelContrast) / float64(on.labelContrast); ratio < oneFadeRatio {
-			t.Errorf("the fixed component card (%s): its label is %d levels off the face, %.2f of the enabled %d — "+
-				"that is one fade drawn twice; want one fade (≥%.2f)",
-				appearanceName(dark), off.labelContrast/3, ratio, on.labelContrast/3, oneFadeRatio)
+		// P13-hl V 重定基线：主墨的一半 105/106 → Disabled 的 74/78。
+		want := 74
+		if dark {
+			want = 78
+		}
+		if got := off.labelContrast / 3; got != want {
+			t.Errorf("%s: fixed card label = %d, want %d", appearanceName(dark), got, want)
+		}
+		if off.labelContrast >= on.labelContrast {
+			t.Errorf("%s: fixed card label is not quieter than enabled", appearanceName(dark))
 		}
 	}
 }

@@ -502,6 +502,10 @@ func (a *App) uninstallPartRow(c *ui.Context, part uninstallPart) ui.Element {
 		tokens.LitFace(card)
 	}
 	card.Children(func() {
+		partInk, hintInk := tokens.TextStrong, t.TextMuted
+		if part.Fixed {
+			partInk, hintInk = tokens.Disabled, tokens.Disabled
+		}
 		// `.extensions-uninstall-component { grid-template-columns: 20px 1fr;
 		// gap: 4px 12px }` with the checkbox itself `width: 16px; height:
 		// 16px; margin-top: 2px` (`:60-91`). The 20px column is what keeps
@@ -526,11 +530,11 @@ func (a *App) uninstallPartRow(c *ui.Context, part uninstallPart) ui.Element {
 		ui.Column(c).Grow(1).Gap(t.Space(1)).Children(func() {
 			// `.extensions-component-label { font-size: 12px; font-weight: 600 }`
 			// — the ladder's emphasis step, not the body step plus one.
-			ui.Text(c, part.Label).FontSize(tokens.Emphasis).FontWeight(600).TextColor(tokens.TextStrong)
+			ui.Text(c, part.Label).FontSize(tokens.Emphasis).FontWeight(600).TextColor(partInk)
 			if part.Hint != "" {
 				// `.extensions-component-hint { line-height: 1.4 }`
 				// (`:113-118`).
-				ui.Text(c, part.Hint).FontSize(uninstallSubBody(t)).TextColor(t.TextMuted).LineHeight(1.4)
+				ui.Text(c, part.Hint).FontSize(uninstallSubBody(t)).TextColor(hintInk).LineHeight(1.4)
 			}
 		})
 	})

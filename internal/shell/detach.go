@@ -398,11 +398,15 @@ func (a *App) detachedBar(c *ui.Context, detached *detachedOutput, tokens theme.
 			// The re-run key is a text mark the reference disables for the whole
 			// run (`DetachedPluginApp.tsx:293-306`).
 			if detached.entry != nil {
+				rerunInk := tokens.TextTertiary
+				if detached.running {
+					rerunInk = tokens.Disabled
+				}
 				barButton(copy.OutputWindowRerun, !detached.running, func() {
 					a.rerunDetached(detached)
 				}).Children(func() {
 					ui.Text(c, copy.OutputWindowRerun).FontSize(tokens.Caption).
-						TextColor(tokens.TextTertiary)
+						TextColor(rerunInk)
 				})
 			}
 			// The close key is the reference's icon key, not a word

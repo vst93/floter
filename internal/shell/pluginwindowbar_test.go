@@ -286,12 +286,9 @@ func TestThePluginWindowBarKeysAreE1Faces(t *testing.T) {
 	}
 }
 
-// TestTheDisabledBarKeyDimsOnce: the re-run key's disabled arm is the
-// framework's one 0.5, not a second fade multiplied into it (0.25).
-//
-// `shellColorDistance` is a squared distance, so a half-alpha ink reads as a
-// quarter of the contrast: the ratio is compared as its square root, which is
-// the ink's own alpha.
+// TestTheDisabledBarKeyDimsOnce retains one framework fade. P13-hl changes
+// its source from TextTertiary to Disabled: measured contrast 50/45 → 78/81.
+// Squared RGB distance is converted to a per-channel magnitude before pinning.
 func TestTheDisabledBarKeyDimsOnce(t *testing.T) {
 	copy := i18n.For("en").Launcher
 	for _, dark := range []bool{false, true} {
@@ -310,12 +307,18 @@ func TestTheDisabledBarKeyDimsOnce(t *testing.T) {
 		if idle == 0 {
 			t.Fatalf("%s: the resting re-run key drew no ink", appearance)
 		}
-		ratio := math.Sqrt(float64(run) / float64(idle))
-		t.Logf("%s: idle %d running %d ratio %.2f", appearance, idle, run, ratio)
-		if ratio < 0.40 || ratio > 0.60 {
-			t.Errorf("%s: the disabled re-run key's ink is %.2f of the live one — one fade is 0.50 "+
-				"(the framework's), two multiplied are 0.25 (idle contrast %d, running %d)",
-				appearance, ratio, idle, run)
+		// P13-hl V 重定基线：TextTertiary 的一半 → 共享 Disabled 墨。
+		levels := int(math.Round(math.Sqrt(float64(run) / 3)))
+		want := 78
+		if dark {
+			want = 81
+		}
+		t.Logf("%s: idle %d running %d, disabled levels %d", appearance, idle, run, levels)
+		if levels != want {
+			t.Errorf("%s: disabled rerun ink = %d, want %d", appearance, levels, want)
+		}
+		if run >= idle {
+			t.Errorf("%s: disabled rerun is not quieter than enabled", appearance)
 		}
 	}
 }

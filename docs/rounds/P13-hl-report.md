@@ -52,3 +52,23 @@ M1 实跑：将胶囊墨退回 TextStrong，失败原串 `light: disabled ink co
 6. 现象：卸载对话框忙态的中性按钮仍用 105/106 级主墨。改动：忙态中性标签统一 Disabled，危险卸载标签仍走 Warning。验证：中性按钮为 **75/79**，卸载和禁用相关回归 **89 PASS / 0 FAIL**，vet 净。
 
 累计 V/B/S **1/0/0**。M2 注入去掉图标 TextColor，原串 `light disabled=false: confirmation icon lost warning hue: {R:27 G:27 B:29 A:255 wide:[0 0 0]}`；另三态与中性禁用墨同时红。MD5 逐字节还原 OK，touch 后两条新 pin **2 PASS / 0 FAIL**。
+
+### 第四批（7–8）
+
+7. 现象：固定卸载卡标题还有 105/106 级，提示仅 54/53，解释信息过淡。改动：固定分支的两行都使用 Disabled，非固定卡仍按原层级。验证：单独取样英文提示 **75/77**、中文 **74/76**；原卡片标题量尺精确 **74/78**，勾选框和材质原断言未改。
+8. 现象：运行中输出窗口的“重跑”字样在 RGB 距离量尺上仅 50/45。改动：运行分支用 Disabled，静止仍取 TextTertiary。验证：精确 **78/81**，且严格弱于启用态；可用性接线和几何测试仍过。
+
+本批相关回归 **37 PASS / 0 FAIL**（含两条 opt-in 出图）；累计 V/B/S **3/0/0**：onefade 会话墨、fixedpartdim 固定卡墨、pluginwindowbar 重跑墨。三处都采用精确新数值，没有新增容差，测试函数未删。
+M3 原串 `light: fixed hint contrast 54, want 70..88`，深色 53，英文/中文共四处红。M4 原串 `light: disabled rerun ink = 50, want 78` / `dark: disabled rerun ink = 45, want 81`。四个产品文件 MD5 逐字节还原均 OK，touch 后上述 37 PASS。
+
+## 前后图与两轮复核
+
+每张对照图左为 1765f2cd，右为最终代码。设置图是实际组件的验收排列，输出图是实际窗口夹具；均由 ui.Tester 导出。八张原图及四张拼图已入仓。
+
+| 组件 | 浅色 | 深色 |
+|---|---|---|
+| 设置禁用控件 | [对照图](P13-hl/disabled-ink-light-compare.png) | [对照图](P13-hl/disabled-ink-dark-compare.png) |
+| 输出窗口 | [对照图](P13-hl/output-light-compare.png) | [对照图](P13-hl/output-dark-compare.png) |
+
+肉眼复核：浅色图中的“Always removed”现在能与固定卡标题一起读出；深色图的会话三角形更清楚；Remove 图标已和字同属警告色。输出窗口两套图的 Rerun 都更可读，右上角位置未变。
+第二轮只调整墨值与图标取色，没有增加任何装饰面。受光边保持禁用熄灭；较重的胶囊文字退让后，启用的危险动作更容易辨认。
