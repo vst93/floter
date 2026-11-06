@@ -3153,6 +3153,10 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 		if enableChanged && a.Actions.SetIntegrationEnabled != nil {
 			a.startToggle(integration.ID, enabled)
 		}
+		a.noticeFocus(c, integration.ID, "disable").restore(c, a.disableConfirm[integration.ID], disableOpener)
+		if !a.uninstallOpen[integration.ID] {
+			a.noticeFocus(c, integration.ID, "remove").restore(c, a.removeConfirm[integration.ID], removeOpener)
+		}
 		if a.disableConfirm[integration.ID] {
 			a.disableConfirmation(c, copy, integration)
 			if !a.disableConfirm[integration.ID] {
@@ -6677,6 +6681,7 @@ func (a *App) noticeBand(c *ui.Context, danger bool, sentence string, answers fu
 // callback the shell calls on the main thread.
 func (a *App) disableConfirmation(c *ui.Context, copy i18n.Settings, integration Integration) {
 	id := integration.ID
+	focus := a.noticeFocus(c, id, "disable")
 	busy := a.disableBusy[id]
 	sentence := copy.DisableTitle(integration.Name) + " " + copy.DisableDescription
 	if message := a.disableError[id]; message != "" {
@@ -6688,7 +6693,7 @@ func (a *App) disableConfirmation(c *ui.Context, copy i18n.Settings, integration
 	cancel := a.noticeBand(c, a.disableError[id] != "", sentence, func(cancel *ui.Element) {
 		*cancel = a.barButton(c, copy.IntegrationsCancel, false, false, nil, func() {
 			a.disableConfirm[id] = false
-		})
+		}).Bind(&focus.cancel)
 		a.barButton(c, copy.DisableConfirm, false, busy, mustGlyph("power"), func() {
 			if a.Actions.SetIntegrationEnabled == nil {
 				a.disableConfirm[id] = false
@@ -6698,7 +6703,7 @@ func (a *App) disableConfirmation(c *ui.Context, copy i18n.Settings, integration
 			a.Actions.SetIntegrationEnabled(id, false, func(err error) {
 				a.finishDisableConfirmation(id, err)
 			})
-		})
+		}).Bind(&focus.confirm)
 	})
 	// The reference's useEffect focuses the Cancel button on open, so the
 	// first Enter or Escape answers the question without the pointer moving.
@@ -6936,6 +6941,7 @@ func (a *App) cancelConfirmations() {
 // "Uninstall?".
 func (a *App) removeConfirmation(c *ui.Context, copy i18n.Settings, integration Integration) {
 	id := integration.ID
+	focus := a.noticeFocus(c, id, "remove")
 	// The reference's confirm button leads with the kind's own mark: a system
 	// integration is unplugged (`<Unplug size={14} />`), every other kind is
 	// trashed (`<Trash2 size={14} />`) — `RemovalConfirmation.tsx:47`.
@@ -6963,7 +6969,7 @@ func (a *App) removeConfirmation(c *ui.Context, copy i18n.Settings, integration 
 	cancel := a.noticeBand(c, true, sentence, func(cancel *ui.Element) {
 		*cancel = a.barButton(c, copy.IntegrationsCancel, false, false, nil, func() {
 			a.removeConfirm[id] = false
-		})
+		}).Bind(&focus.cancel)
 		a.barButton(c, integration.removalLabel(copy), true, busy, confirmIcon, func() {
 			// The reference's confirm branches by kind
 			// (`src/ExtensionsPanel.tsx:1286-1304`): npm and custom go on to
@@ -6992,7 +6998,7 @@ func (a *App) removeConfirmation(c *ui.Context, copy i18n.Settings, integration 
 			a.Actions.UninstallIntegration(id, integration.Name, integration.removalKind(), func(err error) {
 				a.finishRemoveConfirmation(id, err)
 			})
-		})
+		}).Bind(&focus.confirm)
 	})
 	// The reference's useEffect focuses the Cancel button on open, so the
 	// first Enter or Escape answers the question without the pointer moving.
