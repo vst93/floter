@@ -2898,6 +2898,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			})
 		}
 
+		var discardOpener ui.Element
 		if configOwnerIsHost(integration) && !integration.Orphan {
 			// The row *is* the reference's configuration block title: the panel
 			// drew `<h4>{t("settings.extensions.configuration")}</h4>` above the
@@ -2936,7 +2937,8 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			// `openCommand` (`ExtensionsPanel.tsx:2977-2986`). The button is
 			// disabled when the provider declared no `openCommand`, exactly as
 			// the reference's `disabled={!configuration.openPlan}` did.
-			a.configOpenToolRow(c, copy, integration)
+			discardOpener = a.configOpenToolRow(c, copy, integration)
+			a.noticeFocus(c, integration.ID, "discard").restore(c, a.configDiscard[integration.ID], discardOpener)
 		}
 
 		// Only the commands the provider's descriptor declared are *commands* to
@@ -3002,6 +3004,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			a.noticeFocus(c, integration.ID, "disable").restore(c, false, adoptOpener)
 			a.noticeFocus(c, integration.ID, "remove").restore(c, false, adoptOpener)
 			a.noticeFocus(c, integration.ID, "uninstall").restore(c, false, adoptOpener)
+			a.noticeFocus(c, integration.ID, "discard").restore(c, false, adoptOpener)
 			return
 		}
 
@@ -3329,8 +3332,9 @@ func (a *App) discardConfigChanges(id string) { a.closeConfig(id) }
 // action pill, carrying the reference's ExternalLink mark then the word, and
 // it is disabled when the provider declared no `openCommand` — the
 // reference's `disabled={!configuration.openPlan}`.
-func (a *App) configOpenToolRow(c *ui.Context, copy i18n.Settings, integration Integration) {
+func (a *App) configOpenToolRow(c *ui.Context, copy i18n.Settings, integration Integration) ui.Element {
 	openable := len(integration.ConfigOpenCommand) > 0 && a.Actions.OpenConfiguration != nil && !a.rowBusy(integration.ID)
+	var opener ui.Element
 	// P13-go: the row and its only control share availability. A disabled
 	// outlet keeps the card's plane; it must not lift or sink under the pointer.
 	a.rowAligned(c, ui.Center, nil, rowFace{Inert: !openable}, copy.ConfigSection, nil, "", func() {
@@ -3339,11 +3343,14 @@ func (a *App) configOpenToolRow(c *ui.Context, copy i18n.Settings, integration I
 			a.cardTheme(c).Space(7.5), a.cardTheme(c).Space(3.75), a.tokens(c).Body, !openable)
 		if !openable {
 			button = button.Disabled(true).Cursor(ui.CursorDefault)
+		} else {
+			opener = button
 		}
 		if button.Clicked() && openable {
 			a.Actions.OpenConfiguration(integration.ID, append([]string{}, integration.ConfigOpenCommand...))
 		}
 	})
+	return opener
 }
 
 // configDiscardBar draws the reference's `.extension-discard-bar`

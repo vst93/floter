@@ -1,0 +1,31 @@
+=== RUN   TestNoticeOutletDiscardOwner
+=== RUN   TestNoticeOutletDiscardOwner/light/answer
+    noticeoutlet_test.go:170: retired discard-owner lost available keyboard outlet "Open configuration"
+    noticeoutlet_test.go:188: keyboard outlet dispatched wrong actions: open=0 check=0 adopt=0 destructive=0 save=0
+=== RUN   TestNoticeOutletDiscardOwner/light/elsewhere
+=== RUN   TestNoticeOutletDiscardOwner/dark/answer
+    noticeoutlet_test.go:170: retired discard-owner lost available keyboard outlet "Open configuration"
+    noticeoutlet_test.go:188: keyboard outlet dispatched wrong actions: open=0 check=0 adopt=0 destructive=0 save=0
+=== RUN   TestNoticeOutletDiscardOwner/dark/elsewhere
+--- FAIL: TestNoticeOutletDiscardOwner (0.88s)
+    --- FAIL: TestNoticeOutletDiscardOwner/light/answer (0.24s)
+    --- PASS: TestNoticeOutletDiscardOwner/light/elsewhere (0.25s)
+    --- FAIL: TestNoticeOutletDiscardOwner/dark/answer (0.13s)
+    --- PASS: TestNoticeOutletDiscardOwner/dark/elsewhere (0.26s)
+=== RUN   TestNoticeOutletDiscardOrphan
+=== RUN   TestNoticeOutletDiscardOrphan/light/answer
+    noticeoutlet_test.go:170: retired discard-orphan lost available keyboard outlet "Adopt"
+    noticeoutlet_test.go:188: keyboard outlet dispatched wrong actions: open=0 check=0 adopt=0 destructive=0 save=0
+=== RUN   TestNoticeOutletDiscardOrphan/light/elsewhere
+=== RUN   TestNoticeOutletDiscardOrphan/dark/answer
+    noticeoutlet_test.go:170: retired discard-orphan lost available keyboard outlet "Adopt"
+    noticeoutlet_test.go:188: keyboard outlet dispatched wrong actions: open=0 check=0 adopt=0 destructive=0 save=0
+=== RUN   TestNoticeOutletDiscardOrphan/dark/elsewhere
+--- FAIL: TestNoticeOutletDiscardOrphan (0.69s)
+    --- FAIL: TestNoticeOutletDiscardOrphan/light/answer (0.11s)
+    --- PASS: TestNoticeOutletDiscardOrphan/light/elsewhere (0.24s)
+    --- FAIL: TestNoticeOutletDiscardOrphan/dark/answer (0.10s)
+    --- PASS: TestNoticeOutletDiscardOrphan/dark/elsewhere (0.24s)
+FAIL
+FAIL	floter/internal/settingsui	1.574s
+FAIL
