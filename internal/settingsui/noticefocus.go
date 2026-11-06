@@ -27,6 +27,17 @@ func (a *App) retireMissingConfirmations() {
 			delete(a.removeError, id)
 		}
 	}
+	for id := range a.configDiscard {
+		if !present[id] {
+			// The question is gone; its editable draft is not an answer.
+			a.disarmConfigDiscard(id)
+		}
+	}
+	for id := range a.uninstallOpen {
+		if !present[id] {
+			delete(a.uninstallOpen, id)
+		}
+	}
 }
 
 // Each question remembers its two answers across builds. Escape and expiry

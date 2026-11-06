@@ -36,3 +36,14 @@
 4. 现象：移除确认同样吞键并在刷新后复活。改动：按同一列表事实清理移除确认。验证：同上四场景，原移除入口仍存在，未派发操作。
 
 相关回归 **111 PASS / 0 FAIL**，包 vet 净。M2 撤销清理入口后八场景红：`stale disable question revived after list refresh`、`invisible remove question swallowed Escape: close=0`（另外两种同族报错也在原日志）。MD5 恢复与 touch 后 **10 PASS**。旧 V/B/S 0/0/0。
+
+第二批 fd376999 已提交推送。
+
+### 第三批：消失目标的丢弃与卸载问题退场
+
+5. 现象：配置丢弃随目标暂时消失而隐藏，却继续吞 Escape，目标回来时重新提问。改动：只 disarm 失效问题，保留 configOpen 与原 draft。验证：两主题 × Escape/返回四场景，问题退场、edited 草稿保留，不派发破坏操作。
+6. 现象：组件卸载浮层失去目标后仍保留 open，目标回来时旧浮层盖住页面。改动：不存在目标的 uninstallOpen 退役，不替在飞卸载作完成或取消决定。验证：真实点击移除、Tab/Space 进入组件浮层，再让目标消失；四场景 Escape 正常关闭设置或返回时旧浮层不复活，卸载派发 0 次。
+
+相关回归 **133 PASS / 0 FAIL**，包 vet 净。M3 回注旧的两项遗漏，八场景红：`stale discard question revived after list refresh`、`stale uninstall question revived after list refresh`、两类 `invisible … question swallowed Escape: close=0`。MD5 恢复与 touch 后 **10 PASS**。旧 V/B/S 0/0/0。
+
+第一次目视：浅色 busy-disable 图中，过期的丢弃带已撤回，Token 的 edited 留在原字段，仍在执行的停用带单独留下。没有加材质或提高表面层数；待重排事件完成后再查深浅焦点局部。
