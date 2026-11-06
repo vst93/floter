@@ -1,0 +1,162 @@
+package settingsui
+
+import (
+	"image/png"
+	"os"
+	"testing"
+
+	"github.com/egoist/mygo/ui"
+)
+
+func formOutletDump(t *testing.T, tt *ui.Tester, name string, dark bool) {
+	t.Helper()
+	if tag := os.Getenv("FLOTER_P13IC_DUMP"); tag != "" {
+		f, err := os.Create("/tmp/floter-P13-ic-" + name + "-" + appearanceName(dark) + "-" + tag + ".png")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer f.Close()
+		if err := png.Encode(f, tt.Image()); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func checkFormOutlet(t *testing.T, change string) {
+	t.Helper()
+	for _, dark := range []bool{false, true} {
+		for _, elsewhere := range []bool{false, true} {
+			place := "entry"
+			if elsewhere {
+				place = "elsewhere"
+			}
+			t.Run(appearanceName(dark)+"/"+place, func(t *testing.T) {
+				a := noticeApp(t, dark)
+				in := Integration{ID: "local", Name: "Workspace Tools", Enabled: true, Running: true, RuntimeAvailable: true, DistributionSource: "local",
+					Config:       []ConfigField{{Key: "token", Label: "Token", Type: "text"}, {Key: "region", Label: "Region", Type: "text"}},
+					ConfigValues: map[string]any{"token": "stored", "region": "local"}}
+				a.Integrations = func() []Integration { return []Integration{in} }
+				calls, opened, checked, closed := 0, 0, 0, 0
+				var finish func(error)
+				a.Actions.CopyConfiguration = func(id string, values map[string]any, done func(error)) {
+					if id != in.ID || values["token"] != "stored" {
+						t.Errorf("wrong transfer: %s %v", id, values)
+					}
+					calls++
+					finish = done
+				}
+				a.Actions.ExportConfiguration = a.Actions.CopyConfiguration
+				a.Actions.OpenConfiguration = func(string, []string) { opened++ }
+				a.Actions.DiagnoseIntegration = func(string) { checked++ }
+				a.Actions.Close = func() { closed++ }
+				copy := a.copy()
+				tt := noticeExitPage(t, a, dark)
+				focus := func(label string) {
+					t.Helper()
+					for i := 0; i < 40 && !tt.Focused(label); i++ {
+						tt.Key(0, ui.KeyTab)
+						tt.Frame()
+					}
+					if !tt.Focused(label) {
+						t.Fatalf("cannot reach %q", label)
+					}
+				}
+				if err := tt.Click(copy.ConfigOpen); err != nil {
+					t.Fatal(err)
+				}
+				tt.Frame()
+				tt.Frame()
+				entry := "Token"
+				switch change {
+				case "copy-owner", "copy-fold", "copy-unavailable":
+					entry = copy.ConfigCopy
+				case "export-schema", "export-fold", "export-unavailable":
+					entry = copy.ConfigExport
+				case "tool-command", "tool-action", "tool-owner":
+					in.ConfigOwner, in.ConfigOpenCommand = "tool", []string{"settings"}
+					tt.Frame()
+					tt.Frame()
+					entry = copy.ConfigOpenConfiguration
+				}
+				focus(entry)
+				if change == "copy-owner" || change == "export-schema" || change == "copy-fold" || change == "export-fold" {
+					tt.Key(0, ui.KeySpace)
+					tt.Frame()
+					tt.Frame()
+					if finish == nil || calls != 1 {
+						t.Fatal("transfer did not start once")
+					}
+				}
+				if elsewhere {
+					focus(copy.ShowCommandsInSearch)
+				}
+				want := copy.ConfigOpen
+				switch change {
+				case "fold", "copy-fold", "export-fold":
+					// The row itself is an existing disclosure target. Its label
+					// does not take focus away from the editor before collapsing.
+					r := mustFind(t, tt, copy.ConfigSection)
+					tt.ClickAt(r.X+2, r.Y+r.H/2)
+				case "field-remove":
+					in.Config = in.Config[1:]
+				case "field-type":
+					in.Config[0].Type = "boolean"
+				case "copy-owner":
+					in.ConfigOwner, in.ConfigOpenCommand = "tool", []string{"settings"}
+					want = copy.ConfigOpenConfiguration
+				case "export-schema":
+					in.Config = nil
+					want = copy.IntegrationsCheck
+				case "copy-unavailable":
+					a.Actions.CopyConfiguration = nil
+					want = copy.ConfigExport
+				case "export-unavailable":
+					a.Actions.ExportConfiguration = nil
+					want = copy.ConfigCopy
+				case "tool-command":
+					in.ConfigOpenCommand = nil
+					want = copy.IntegrationsCheck
+				case "tool-action":
+					a.Actions.OpenConfiguration = nil
+					want = copy.IntegrationsCheck
+				case "tool-owner":
+					in.ConfigOwner = "host"
+					in.Config = nil
+					want = copy.IntegrationsCheck
+				default:
+					t.Fatal("unknown change")
+				}
+				if elsewhere {
+					want = copy.ShowCommandsInSearch
+				}
+				tt.Frame()
+				tt.Frame()
+				if !elsewhere {
+					formOutletDump(t, tt, change, dark)
+				}
+				if !tt.Focused(want) {
+					t.Errorf("%s lost usable focus %q", change, want)
+				}
+				if opened+checked+closed != 0 {
+					t.Error("refresh dispatched action")
+				}
+				if finish != nil {
+					finish(nil)
+					tt.Frame()
+					tt.Frame()
+				}
+				if !tt.Focused(want) {
+					t.Errorf("%s callback lost focus %q", change, want)
+				}
+				if change == "fold" || change == "copy-fold" || change == "export-fold" {
+					if a.configOpen[in.ID] || tt.HasText("Token") {
+						t.Error("row did not fold form")
+					}
+				}
+			})
+		}
+	}
+}
+
+func TestFormOutletFieldRemove(t *testing.T) { checkFormOutlet(t, "field-remove") }
+func TestFormOutletFieldType(t *testing.T)   { checkFormOutlet(t, "field-type") }

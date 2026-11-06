@@ -1,0 +1,31 @@
+=== RUN   TestFormOutletFieldRemove
+=== RUN   TestFormOutletFieldRemove/light/entry
+    formoutlet_test.go:138: field-remove lost usable focus "Configure"
+    formoutlet_test.go:149: field-remove callback lost focus "Configure"
+=== RUN   TestFormOutletFieldRemove/light/elsewhere
+=== RUN   TestFormOutletFieldRemove/dark/entry
+    formoutlet_test.go:138: field-remove lost usable focus "Configure"
+    formoutlet_test.go:149: field-remove callback lost focus "Configure"
+=== RUN   TestFormOutletFieldRemove/dark/elsewhere
+--- FAIL: TestFormOutletFieldRemove (2.82s)
+    --- FAIL: TestFormOutletFieldRemove/light/entry (0.70s)
+    --- PASS: TestFormOutletFieldRemove/light/elsewhere (0.93s)
+    --- FAIL: TestFormOutletFieldRemove/dark/entry (0.42s)
+    --- PASS: TestFormOutletFieldRemove/dark/elsewhere (0.77s)
+=== RUN   TestFormOutletFieldType
+=== RUN   TestFormOutletFieldType/light/entry
+    formoutlet_test.go:138: field-type lost usable focus "Configure"
+    formoutlet_test.go:149: field-type callback lost focus "Configure"
+=== RUN   TestFormOutletFieldType/light/elsewhere
+=== RUN   TestFormOutletFieldType/dark/entry
+    formoutlet_test.go:138: field-type lost usable focus "Configure"
+    formoutlet_test.go:149: field-type callback lost focus "Configure"
+=== RUN   TestFormOutletFieldType/dark/elsewhere
+--- FAIL: TestFormOutletFieldType (2.23s)
+    --- FAIL: TestFormOutletFieldType/light/entry (0.41s)
+    --- PASS: TestFormOutletFieldType/light/elsewhere (0.87s)
+    --- FAIL: TestFormOutletFieldType/dark/entry (0.40s)
+    --- PASS: TestFormOutletFieldType/dark/elsewhere (0.54s)
+FAIL
+FAIL	floter/internal/settingsui	5.067s
+FAIL

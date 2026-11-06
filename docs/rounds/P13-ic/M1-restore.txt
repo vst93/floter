@@ -1,0 +1,23 @@
+internal/settingsui/settingsui.go: OK
+=== RUN   TestFormOutletFieldRemove
+=== RUN   TestFormOutletFieldRemove/light/entry
+=== RUN   TestFormOutletFieldRemove/light/elsewhere
+=== RUN   TestFormOutletFieldRemove/dark/entry
+=== RUN   TestFormOutletFieldRemove/dark/elsewhere
+--- PASS: TestFormOutletFieldRemove (1.86s)
+    --- PASS: TestFormOutletFieldRemove/light/entry (0.44s)
+    --- PASS: TestFormOutletFieldRemove/light/elsewhere (0.60s)
+    --- PASS: TestFormOutletFieldRemove/dark/entry (0.26s)
+    --- PASS: TestFormOutletFieldRemove/dark/elsewhere (0.55s)
+=== RUN   TestFormOutletFieldType
+=== RUN   TestFormOutletFieldType/light/entry
+=== RUN   TestFormOutletFieldType/light/elsewhere
+=== RUN   TestFormOutletFieldType/dark/entry
+=== RUN   TestFormOutletFieldType/dark/elsewhere
+--- PASS: TestFormOutletFieldType (1.72s)
+    --- PASS: TestFormOutletFieldType/light/entry (0.29s)
+    --- PASS: TestFormOutletFieldType/light/elsewhere (0.56s)
+    --- PASS: TestFormOutletFieldType/dark/entry (0.29s)
+    --- PASS: TestFormOutletFieldType/dark/elsewhere (0.57s)
+PASS
+ok  	floter/internal/settingsui	3.586s

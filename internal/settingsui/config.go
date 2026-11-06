@@ -365,7 +365,8 @@ func (a *App) configFields(c *ui.Context, copy i18n.Settings, integration Integr
 		// integration card rather than the reference's flat grid.
 		a.configToolbar(c, copy, integration, draft)
 		for _, field := range integration.Config {
-			a.configField(c, copy, integration, draft, field)
+			grid := a.configField(c, copy, integration, draft, field)
+			a.rememberOperationFocus(c, integration.ID, "field", grid)
 		}
 		if a.configError[integration.ID] != "" {
 			// The failure the shell reported on the Save is the reference's own
@@ -649,7 +650,7 @@ func configValuesEqual(a, b any) bool {
 // field wears, as the reference's `<b>` did. The 118px column and the 12px/
 // 4px gaps are the panel's literal px, taken through `cardSpace`, so the grid
 // keeps one geometry at every interface step.
-func (a *App) configFieldGrid(c *ui.Context, field ConfigField, label, requiredLabel, hint string, control func() ui.Element) {
+func (a *App) configFieldGrid(c *ui.Context, field ConfigField, label, requiredLabel, hint string, control func() ui.Element) ui.Element {
 	t := a.cardTheme(c)
 	tokens := a.tokens(c)
 	grid := ui.Grid(c).FillWidth().
@@ -689,6 +690,7 @@ func (a *App) configFieldGrid(c *ui.Context, field ConfigField, label, requiredL
 				TextColor(t.Warning).ColumnStart(2)
 		}
 	})
+	return grid
 }
 
 // configSelect is the config field's drop-down, on the grid's second column:
@@ -720,7 +722,7 @@ func (a *App) configSelectFace(c *ui.Context, e ui.Element, lit bool) ui.Element
 // old port drew each field as a settings row (label left, control right, the
 // description under the *label*), so a form's controls did not share one
 // column and the description sat on the wrong side of the field.
-func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integration, draft *configDraft, field ConfigField) {
+func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integration, draft *configDraft, field ConfigField) ui.Element {
 	// A schema reorder moves the field, not its keyboard selection or history.
 	kind := strings.ToLower(field.Type)
 	if draft.kinds == nil {
@@ -760,6 +762,7 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 		label = field.Key
 	}
 	locked := a.configLocked(integration.ID)
+	var grid ui.Element
 
 	switch kind {
 	case "boolean":
@@ -768,7 +771,7 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 			on = value
 		}
 		changed := false
-		a.configFieldGrid(c, field, label, copy.ConfigRequired, "", func() ui.Element {
+		grid = a.configFieldGrid(c, field, label, copy.ConfigRequired, "", func() ui.Element {
 			e := a.switchControl(c, &on).Label(label)
 			if locked {
 				// P13-t（`docs/rounds/P13-t-spec.md`）：一道淡，不是两道——见
@@ -792,7 +795,7 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 		current, _ := draft.values[field.Key].(string)
 		selected := configChoice{value: current, none: current == "" && !field.Required}
 		changed := false
-		a.configFieldGrid(c, field, label, copy.ConfigRequired, "", func() ui.Element {
+		grid = a.configFieldGrid(c, field, label, copy.ConfigRequired, "", func() ui.Element {
 			e := valueSelect(c, &selected, labels, values, current, a.tokens(c), !locked && len(values) > 0).Label(label).FillWidth().Radius(999)
 			e = a.configSelectFace(c, e, !locked && len(values) > 0)
 			if locked {
@@ -835,7 +838,7 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 		// and the 66px floor — holding the tick options as rows inside it, rather
 		// than the loose ruled rows the old port drew. A list box reads as one
 		// control, which is what the reference's `select[multiple]` is.
-		a.configFieldGrid(c, field, label, copy.ConfigRequired, "", func() ui.Element {
+		grid = a.configFieldGrid(c, field, label, copy.ConfigRequired, "", func() ui.Element {
 			box := a.configMultiselectBox(c, a.configListScroll(integration.ID, field.Key), locked, func() {
 				for index, option := range field.Options {
 					index, option := index, option
@@ -878,7 +881,7 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 		}
 		edit := draft.liveText(field, value)
 		problem := configProblemText(a.configFieldProblem(integration, field), copy)
-		a.configFieldGrid(c, field, label, copy.ConfigRequired, problem, func() ui.Element {
+		grid = a.configFieldGrid(c, field, label, copy.ConfigRequired, problem, func() ui.Element {
 			e := a.extensionFieldLit(c, &edit, configFieldMetrics, !locked).Placeholder(field.Key).Label(label).FillWidth()
 			if problem != "" {
 				// The reference handed the bounds to the native control and let
@@ -938,7 +941,7 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 		value, _ := draft.values[field.Key].(string)
 		edit := draft.liveText(field, value)
 		problem := configProblemText(a.configFieldProblem(integration, field), copy)
-		a.configFieldGrid(c, field, label, copy.ConfigRequired, problem, func() ui.Element {
+		grid = a.configFieldGrid(c, field, label, copy.ConfigRequired, problem, func() ui.Element {
 			e := a.extensionFieldLit(c, &edit, configFieldMetrics, !locked).Placeholder(field.Key).Label(label).FillWidth()
 			if kind == "password" {
 				e = e.Password()
@@ -975,6 +978,7 @@ func (a *App) configField(c *ui.Context, copy i18n.Settings, integration Integra
 			return e
 		})
 	}
+	return grid
 }
 
 // ConfigValueProblem checks one field's submitted text against the schema bounds

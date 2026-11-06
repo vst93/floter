@@ -1,0 +1,161 @@
+=== RUN   TestFormOutletFold
+=== RUN   TestFormOutletFold/light/entry
+    formoutlet_test.go:134: fold lost usable focus "Configure"
+    formoutlet_test.go:145: fold callback lost focus "Configure"
+=== RUN   TestFormOutletFold/light/elsewhere
+    formoutlet_test.go:134: fold lost usable focus "Show PATH commands in search"
+    formoutlet_test.go:145: fold callback lost focus "Show PATH commands in search"
+=== RUN   TestFormOutletFold/dark/entry
+    formoutlet_test.go:134: fold lost usable focus "Configure"
+    formoutlet_test.go:145: fold callback lost focus "Configure"
+=== RUN   TestFormOutletFold/dark/elsewhere
+    formoutlet_test.go:134: fold lost usable focus "Show PATH commands in search"
+    formoutlet_test.go:145: fold callback lost focus "Show PATH commands in search"
+--- FAIL: TestFormOutletFold (3.15s)
+    --- FAIL: TestFormOutletFold/light/entry (0.57s)
+    --- FAIL: TestFormOutletFold/light/elsewhere (0.79s)
+    --- FAIL: TestFormOutletFold/dark/entry (0.77s)
+    --- FAIL: TestFormOutletFold/dark/elsewhere (1.02s)
+=== RUN   TestFormOutletCopyFold
+=== RUN   TestFormOutletCopyFold/light/entry
+    formoutlet_test.go:134: copy-fold lost usable focus "Configure"
+    formoutlet_test.go:145: copy-fold callback lost focus "Configure"
+=== RUN   TestFormOutletCopyFold/light/elsewhere
+    formoutlet_test.go:134: copy-fold lost usable focus "Show PATH commands in search"
+    formoutlet_test.go:145: copy-fold callback lost focus "Show PATH commands in search"
+=== RUN   TestFormOutletCopyFold/dark/entry
+    formoutlet_test.go:134: copy-fold lost usable focus "Configure"
+    formoutlet_test.go:145: copy-fold callback lost focus "Configure"
+=== RUN   TestFormOutletCopyFold/dark/elsewhere
+    formoutlet_test.go:134: copy-fold lost usable focus "Show PATH commands in search"
+    formoutlet_test.go:145: copy-fold callback lost focus "Show PATH commands in search"
+--- FAIL: TestFormOutletCopyFold (2.56s)
+    --- FAIL: TestFormOutletCopyFold/light/entry (0.60s)
+    --- FAIL: TestFormOutletCopyFold/light/elsewhere (0.80s)
+    --- FAIL: TestFormOutletCopyFold/dark/entry (0.64s)
+    --- FAIL: TestFormOutletCopyFold/dark/elsewhere (0.52s)
+=== RUN   TestFormOutletExportFold
+=== RUN   TestFormOutletExportFold/light/entry
+    formoutlet_test.go:134: export-fold lost usable focus "Configure"
+    formoutlet_test.go:145: export-fold callback lost focus "Configure"
+=== RUN   TestFormOutletExportFold/light/elsewhere
+    formoutlet_test.go:134: export-fold lost usable focus "Show PATH commands in search"
+    formoutlet_test.go:145: export-fold callback lost focus "Show PATH commands in search"
+=== RUN   TestFormOutletExportFold/dark/entry
+    formoutlet_test.go:134: export-fold lost usable focus "Configure"
+    formoutlet_test.go:145: export-fold callback lost focus "Configure"
+=== RUN   TestFormOutletExportFold/dark/elsewhere
+    formoutlet_test.go:134: export-fold lost usable focus "Show PATH commands in search"
+    formoutlet_test.go:145: export-fold callback lost focus "Show PATH commands in search"
+--- FAIL: TestFormOutletExportFold (2.17s)
+    --- FAIL: TestFormOutletExportFold/light/entry (0.50s)
+    --- FAIL: TestFormOutletExportFold/light/elsewhere (0.57s)
+    --- FAIL: TestFormOutletExportFold/dark/entry (0.57s)
+    --- FAIL: TestFormOutletExportFold/dark/elsewhere (0.53s)
+=== RUN   TestFormOutletFieldRemove
+=== RUN   TestFormOutletFieldRemove/light/entry
+    formoutlet_test.go:134: field-remove lost usable focus "Configure"
+    formoutlet_test.go:145: field-remove callback lost focus "Configure"
+=== RUN   TestFormOutletFieldRemove/light/elsewhere
+=== RUN   TestFormOutletFieldRemove/dark/entry
+    formoutlet_test.go:134: field-remove lost usable focus "Configure"
+    formoutlet_test.go:145: field-remove callback lost focus "Configure"
+=== RUN   TestFormOutletFieldRemove/dark/elsewhere
+--- FAIL: TestFormOutletFieldRemove (1.66s)
+    --- FAIL: TestFormOutletFieldRemove/light/entry (0.29s)
+    --- PASS: TestFormOutletFieldRemove/light/elsewhere (0.51s)
+    --- FAIL: TestFormOutletFieldRemove/dark/entry (0.35s)
+    --- PASS: TestFormOutletFieldRemove/dark/elsewhere (0.51s)
+=== RUN   TestFormOutletFieldType
+=== RUN   TestFormOutletFieldType/light/entry
+    formoutlet_test.go:134: field-type lost usable focus "Configure"
+    formoutlet_test.go:145: field-type callback lost focus "Configure"
+=== RUN   TestFormOutletFieldType/light/elsewhere
+=== RUN   TestFormOutletFieldType/dark/entry
+    formoutlet_test.go:134: field-type lost usable focus "Configure"
+    formoutlet_test.go:145: field-type callback lost focus "Configure"
+=== RUN   TestFormOutletFieldType/dark/elsewhere
+--- FAIL: TestFormOutletFieldType (1.35s)
+    --- FAIL: TestFormOutletFieldType/light/entry (0.26s)
+    --- PASS: TestFormOutletFieldType/light/elsewhere (0.43s)
+    --- FAIL: TestFormOutletFieldType/dark/entry (0.24s)
+    --- PASS: TestFormOutletFieldType/dark/elsewhere (0.42s)
+=== RUN   TestFormOutletCopyOwner
+=== RUN   TestFormOutletCopyOwner/light/entry
+=== RUN   TestFormOutletCopyOwner/light/elsewhere
+=== RUN   TestFormOutletCopyOwner/dark/entry
+=== RUN   TestFormOutletCopyOwner/dark/elsewhere
+--- PASS: TestFormOutletCopyOwner (1.14s)
+    --- PASS: TestFormOutletCopyOwner/light/entry (0.28s)
+    --- PASS: TestFormOutletCopyOwner/light/elsewhere (0.30s)
+    --- PASS: TestFormOutletCopyOwner/dark/entry (0.27s)
+    --- PASS: TestFormOutletCopyOwner/dark/elsewhere (0.29s)
+=== RUN   TestFormOutletExportSchema
+=== RUN   TestFormOutletExportSchema/light/entry
+=== RUN   TestFormOutletExportSchema/light/elsewhere
+=== RUN   TestFormOutletExportSchema/dark/entry
+=== RUN   TestFormOutletExportSchema/dark/elsewhere
+--- PASS: TestFormOutletExportSchema (1.24s)
+    --- PASS: TestFormOutletExportSchema/light/entry (0.25s)
+    --- PASS: TestFormOutletExportSchema/light/elsewhere (0.33s)
+    --- PASS: TestFormOutletExportSchema/dark/entry (0.28s)
+    --- PASS: TestFormOutletExportSchema/dark/elsewhere (0.38s)
+=== RUN   TestFormOutletCopyUnavailable
+=== RUN   TestFormOutletCopyUnavailable/light/entry
+    formoutlet_test.go:134: copy-unavailable lost usable focus "Export configuration"
+    formoutlet_test.go:145: copy-unavailable callback lost focus "Export configuration"
+=== RUN   TestFormOutletCopyUnavailable/light/elsewhere
+=== RUN   TestFormOutletCopyUnavailable/dark/entry
+    formoutlet_test.go:134: copy-unavailable lost usable focus "Export configuration"
+    formoutlet_test.go:145: copy-unavailable callback lost focus "Export configuration"
+=== RUN   TestFormOutletCopyUnavailable/dark/elsewhere
+--- FAIL: TestFormOutletCopyUnavailable (1.16s)
+    --- FAIL: TestFormOutletCopyUnavailable/light/entry (0.18s)
+    --- PASS: TestFormOutletCopyUnavailable/light/elsewhere (0.44s)
+    --- FAIL: TestFormOutletCopyUnavailable/dark/entry (0.16s)
+    --- PASS: TestFormOutletCopyUnavailable/dark/elsewhere (0.38s)
+=== RUN   TestFormOutletExportUnavailable
+=== RUN   TestFormOutletExportUnavailable/light/entry
+    formoutlet_test.go:134: export-unavailable lost usable focus "Copy configuration"
+    formoutlet_test.go:145: export-unavailable callback lost focus "Copy configuration"
+=== RUN   TestFormOutletExportUnavailable/light/elsewhere
+=== RUN   TestFormOutletExportUnavailable/dark/entry
+    formoutlet_test.go:134: export-unavailable lost usable focus "Copy configuration"
+    formoutlet_test.go:145: export-unavailable callback lost focus "Copy configuration"
+=== RUN   TestFormOutletExportUnavailable/dark/elsewhere
+--- FAIL: TestFormOutletExportUnavailable (1.20s)
+    --- FAIL: TestFormOutletExportUnavailable/light/entry (0.19s)
+    --- PASS: TestFormOutletExportUnavailable/light/elsewhere (0.40s)
+    --- FAIL: TestFormOutletExportUnavailable/dark/entry (0.21s)
+    --- PASS: TestFormOutletExportUnavailable/dark/elsewhere (0.40s)
+=== RUN   TestFormOutletToolCommand
+=== RUN   TestFormOutletToolCommand/light/entry
+    formoutlet_test.go:134: tool-command lost usable focus "Check"
+    formoutlet_test.go:145: tool-command callback lost focus "Check"
+=== RUN   TestFormOutletToolCommand/light/elsewhere
+=== RUN   TestFormOutletToolCommand/dark/entry
+    formoutlet_test.go:134: tool-command lost usable focus "Check"
+    formoutlet_test.go:145: tool-command callback lost focus "Check"
+=== RUN   TestFormOutletToolCommand/dark/elsewhere
+--- FAIL: TestFormOutletToolCommand (0.86s)
+    --- FAIL: TestFormOutletToolCommand/light/entry (0.17s)
+    --- PASS: TestFormOutletToolCommand/light/elsewhere (0.27s)
+    --- FAIL: TestFormOutletToolCommand/dark/entry (0.20s)
+    --- PASS: TestFormOutletToolCommand/dark/elsewhere (0.22s)
+=== RUN   TestFormOutletToolAction
+=== RUN   TestFormOutletToolAction/light/entry
+    formoutlet_test.go:134: tool-action lost usable focus "Check"
+    formoutlet_test.go:145: tool-action callback lost focus "Check"
+=== RUN   TestFormOutletToolAction/light/elsewhere
+=== RUN   TestFormOutletToolAction/dark/entry
+    formoutlet_test.go:134: tool-action lost usable focus "Check"
+    formoutlet_test.go:145: tool-action callback lost focus "Check"
+=== RUN   TestFormOutletToolAction/dark/elsewhere
+--- FAIL: TestFormOutletToolAction (0.72s)
+    --- FAIL: TestFormOutletToolAction/light/entry (0.19s)
+    --- PASS: TestFormOutletToolAction/light/elsewhere (0.21s)
+    --- FAIL: TestFormOutletToolAction/dark/entry (0.13s)
+    --- PASS: TestFormOutletToolAction/dark/elsewhere (0.19s)
+FAIL
+FAIL	floter/internal/settingsui	17.235s
+FAIL

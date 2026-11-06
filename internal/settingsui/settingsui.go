@@ -2944,6 +2944,10 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			if wasAsking && !a.configDiscard[integration.ID] {
 				opener.Focus(c)
 			}
+			// The form can survive a schema refresh that removes just its
+			// focused editor. Return to its disclosure without touching values.
+			fieldFocus := a.noticeFocus(c, integration.ID, "field")
+			a.restoreNotice(c, integration.ID, "field", c.Resolve(fieldFocus.panel).Valid(), c.Resolve(opener))
 		} else if configOwnerIsTool(integration) && !integration.Orphan {
 			// A tool-owned configuration has no host form: the reference drew an
 			// "Open configuration" button instead, running the provider's own

@@ -1,0 +1,12 @@
+=== RUN   TestFormOutletToolOwner
+=== RUN   TestFormOutletToolOwner/light/entry
+=== RUN   TestFormOutletToolOwner/light/elsewhere
+=== RUN   TestFormOutletToolOwner/dark/entry
+=== RUN   TestFormOutletToolOwner/dark/elsewhere
+--- PASS: TestFormOutletToolOwner (0.82s)
+    --- PASS: TestFormOutletToolOwner/light/entry (0.32s)
+    --- PASS: TestFormOutletToolOwner/light/elsewhere (0.19s)
+    --- PASS: TestFormOutletToolOwner/dark/entry (0.13s)
+    --- PASS: TestFormOutletToolOwner/dark/elsewhere (0.18s)
+PASS
+ok  	floter/internal/settingsui	0.837s
