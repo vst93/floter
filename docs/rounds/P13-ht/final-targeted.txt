@@ -1,0 +1,52 @@
+=== RUN   TestConfigRecoveryCancelReturnsToOpener
+=== RUN   TestConfigRecoveryCancelReturnsToOpener/light
+=== RUN   TestConfigRecoveryCancelReturnsToOpener/dark
+--- PASS: TestConfigRecoveryCancelReturnsToOpener (0.60s)
+    --- PASS: TestConfigRecoveryCancelReturnsToOpener/light (0.35s)
+    --- PASS: TestConfigRecoveryCancelReturnsToOpener/dark (0.26s)
+=== RUN   TestConfigRecoveryDiscardReturnsToOpener
+=== RUN   TestConfigRecoveryDiscardReturnsToOpener/light
+=== RUN   TestConfigRecoveryDiscardReturnsToOpener/dark
+--- PASS: TestConfigRecoveryDiscardReturnsToOpener (0.51s)
+    --- PASS: TestConfigRecoveryDiscardReturnsToOpener/light (0.25s)
+    --- PASS: TestConfigRecoveryDiscardReturnsToOpener/dark (0.26s)
+=== RUN   TestRunRecoveryNewParameterDefaults
+=== RUN   TestRunRecoveryNewParameterDefaults/light
+=== RUN   TestRunRecoveryNewParameterDefaults/dark
+--- PASS: TestRunRecoveryNewParameterDefaults (0.08s)
+    --- PASS: TestRunRecoveryNewParameterDefaults/light (0.05s)
+    --- PASS: TestRunRecoveryNewParameterDefaults/dark (0.03s)
+=== RUN   TestRunRecoveryRemovedParameterCannotReachCommand
+=== RUN   TestRunRecoveryRemovedParameterCannotReachCommand/light
+=== RUN   TestRunRecoveryRemovedParameterCannotReachCommand/dark
+--- PASS: TestRunRecoveryRemovedParameterCannotReachCommand (0.09s)
+    --- PASS: TestRunRecoveryRemovedParameterCannotReachCommand/light (0.05s)
+    --- PASS: TestRunRecoveryRemovedParameterCannotReachCommand/dark (0.05s)
+=== RUN   TestRunRecoveryRetypedParameterForgetsUndo
+=== RUN   TestRunRecoveryRetypedParameterForgetsUndo/light
+=== RUN   TestRunRecoveryRetypedParameterForgetsUndo/dark
+--- PASS: TestRunRecoveryRetypedParameterForgetsUndo (0.06s)
+    --- PASS: TestRunRecoveryRetypedParameterForgetsUndo/light (0.03s)
+    --- PASS: TestRunRecoveryRetypedParameterForgetsUndo/dark (0.03s)
+=== RUN   TestRunRecoveryCommandOwnsSubmittedAnswers
+--- PASS: TestRunRecoveryCommandOwnsSubmittedAnswers (0.07s)
+=== RUN   TestRunRecoveryCancelReturnsToDisclosure
+=== RUN   TestRunRecoveryCancelReturnsToDisclosure/light
+=== RUN   TestRunRecoveryCancelReturnsToDisclosure/dark
+--- PASS: TestRunRecoveryCancelReturnsToDisclosure (0.43s)
+    --- PASS: TestRunRecoveryCancelReturnsToDisclosure/light (0.22s)
+    --- PASS: TestRunRecoveryCancelReturnsToDisclosure/dark (0.21s)
+=== RUN   TestUninstallRecoveryFailureKeepsKeyboardRetry
+=== RUN   TestUninstallRecoveryFailureKeepsKeyboardRetry/light
+=== RUN   TestUninstallRecoveryFailureKeepsKeyboardRetry/dark
+--- PASS: TestUninstallRecoveryFailureKeepsKeyboardRetry (0.04s)
+    --- PASS: TestUninstallRecoveryFailureKeepsKeyboardRetry/light (0.03s)
+    --- PASS: TestUninstallRecoveryFailureKeepsKeyboardRetry/dark (0.01s)
+=== RUN   TestUninstallRecoveryDelayedFailureKeepsKeyboardRetry
+=== RUN   TestUninstallRecoveryDelayedFailureKeepsKeyboardRetry/light
+=== RUN   TestUninstallRecoveryDelayedFailureKeepsKeyboardRetry/dark
+--- PASS: TestUninstallRecoveryDelayedFailureKeepsKeyboardRetry (0.04s)
+    --- PASS: TestUninstallRecoveryDelayedFailureKeepsKeyboardRetry/light (0.02s)
+    --- PASS: TestUninstallRecoveryDelayedFailureKeepsKeyboardRetry/dark (0.02s)
+PASS
+ok  	floter/internal/settingsui	1.935s

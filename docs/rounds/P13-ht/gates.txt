@@ -1,0 +1,23 @@
+P13-ht, LC_ALL=zh_CN.UTF-8 GOMAXPROCS=4
+baseline full verbose: exit 0, PASS 4007, FAIL 0, Test functions 2870
+final full normal: exit 0
+final full verbose: exit 0, PASS 4032, FAIL 0, Test functions 2879
+gofmt -l cmd internal: empty
+linux go vet ./...: exit 0
+windows go vet ./...: exit 0
+darwin go vet ./...: exit 0
+linux go build ./...: exit 0
+windows go build ./...: exit 0
+darwin go build ./...: exit 0
+internal/ci docs validation: exit 0
+batch 1 run regression: PASS 69
+batch 2 run regression: PASS 73
+batch 3 config regression: PASS 42
+batch 4 run/uninstall regression: PASS 100
+M1 restored targeted: PASS 6
+M2 restored targeted: PASS 4
+M3 restored config regression: PASS 42
+M4 restored targeted: PASS 9
+Final explicit-theme fixture regression: PASS 25, FAIL 0
+Final settingsui vet linux/windows/darwin: exit 0
+Product source MD5 unchanged after full gates and overlay render.

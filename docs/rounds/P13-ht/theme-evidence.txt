@@ -1,0 +1,28 @@
+=== RUN   TestRunRecoveryNewParameterDefaults
+=== RUN   TestRunRecoveryNewParameterDefaults/light
+=== RUN   TestRunRecoveryNewParameterDefaults/dark
+--- PASS: TestRunRecoveryNewParameterDefaults (0.22s)
+    --- PASS: TestRunRecoveryNewParameterDefaults/light (0.18s)
+    --- PASS: TestRunRecoveryNewParameterDefaults/dark (0.04s)
+=== RUN   TestRunRecoveryRemovedParameterCannotReachCommand
+=== RUN   TestRunRecoveryRemovedParameterCannotReachCommand/light
+=== RUN   TestRunRecoveryRemovedParameterCannotReachCommand/dark
+--- PASS: TestRunRecoveryRemovedParameterCannotReachCommand (0.09s)
+    --- PASS: TestRunRecoveryRemovedParameterCannotReachCommand/light (0.05s)
+    --- PASS: TestRunRecoveryRemovedParameterCannotReachCommand/dark (0.04s)
+=== RUN   TestRunRecoveryRetypedParameterForgetsUndo
+=== RUN   TestRunRecoveryRetypedParameterForgetsUndo/light
+=== RUN   TestRunRecoveryRetypedParameterForgetsUndo/dark
+--- PASS: TestRunRecoveryRetypedParameterForgetsUndo (0.08s)
+    --- PASS: TestRunRecoveryRetypedParameterForgetsUndo/light (0.04s)
+    --- PASS: TestRunRecoveryRetypedParameterForgetsUndo/dark (0.04s)
+=== RUN   TestRunRecoveryCommandOwnsSubmittedAnswers
+--- PASS: TestRunRecoveryCommandOwnsSubmittedAnswers (0.07s)
+=== RUN   TestRunRecoveryCancelReturnsToDisclosure
+=== RUN   TestRunRecoveryCancelReturnsToDisclosure/light
+=== RUN   TestRunRecoveryCancelReturnsToDisclosure/dark
+--- PASS: TestRunRecoveryCancelReturnsToDisclosure (0.49s)
+    --- PASS: TestRunRecoveryCancelReturnsToDisclosure/light (0.26s)
+    --- PASS: TestRunRecoveryCancelReturnsToDisclosure/dark (0.23s)
+PASS
+ok  	floter/internal/settingsui	0.949s

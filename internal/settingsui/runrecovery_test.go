@@ -25,11 +25,19 @@ func recoveryDump(t *testing.T, tt *ui.Tester, name string, dark bool) {
 	}
 }
 
+func runRecoveryFrame(t *testing.T, a *App, integration *Integration, dark bool) *ui.Tester {
+	t.Helper()
+	if err := a.Store.Update(func(s *settings.Settings) { s.Theme = appearanceName(dark) }); err != nil {
+		t.Fatal(err)
+	}
+	return runStateFrame(t, a, integration, dark)
+}
+
 func TestRunRecoveryNewParameterDefaults(t *testing.T) {
 	for _, dark := range []bool{false, true} {
 		t.Run(appearanceName(dark), func(t *testing.T) {
 			a, integration := runStateApp(Param{ID: "target", Label: "Target", Kind: extensions.ParamText, Default: "original"})
-			tt := runStateFrame(t, a, integration, dark)
+			tt := runRecoveryFrame(t, a, integration, dark)
 			a.runValues["runner"]["target"] = "my edit"
 			integration.Params = append(integration.Params,
 				Param{ID: "format", Label: "Format", Kind: extensions.ParamSelect, Default: "json", Options: []string{"text", "json"}},
@@ -52,7 +60,7 @@ func TestRunRecoveryRemovedParameterCannotReachCommand(t *testing.T) {
 				Param{ID: "target", Label: "Target", Kind: extensions.ParamText, Default: "current"},
 				Param{ID: "obsolete", Label: "Obsolete", Kind: extensions.ParamText, Default: "old"},
 			)
-			tt := runStateFrame(t, a, integration, dark)
+			tt := runRecoveryFrame(t, a, integration, dark)
 			integration.Params = integration.Params[:1]
 			tt.Frame()
 			calls := 0
@@ -84,7 +92,7 @@ func TestRunRecoveryRetypedParameterForgetsUndo(t *testing.T) {
 	for _, dark := range []bool{false, true} {
 		t.Run(appearanceName(dark), func(t *testing.T) {
 			a, integration := runStateApp(Param{ID: "target", Label: "Target", Kind: extensions.ParamText, Default: "8"})
-			tt := runStateFrame(t, a, integration, dark)
+			tt := runRecoveryFrame(t, a, integration, dark)
 			label := mustFind(t, tt, "Target")
 			tt.ClickAt(568, label.Y+label.H/2)
 			tt.Frame()
@@ -115,7 +123,7 @@ func TestRunRecoveryCommandOwnsSubmittedAnswers(t *testing.T) {
 		submitted = values
 		return nil
 	}
-	tt := runStateFrame(t, a, integration, false)
+	tt := runRecoveryFrame(t, a, integration, false)
 	if err := tt.Click(i18n.For("en").Settings.RunLabel); err != nil {
 		t.Fatal(err)
 	}

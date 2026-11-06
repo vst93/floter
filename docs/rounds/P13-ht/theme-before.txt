@@ -1,0 +1,27 @@
+=== RUN   TestConfigRecoveryDiscardReturnsToOpener
+=== RUN   TestConfigRecoveryDiscardReturnsToOpener/light
+    confirmationrecovery_test.go:38: Tab could not reach Discard
+=== RUN   TestConfigRecoveryDiscardReturnsToOpener/dark
+    confirmationrecovery_test.go:38: Tab could not reach Discard
+--- FAIL: TestConfigRecoveryDiscardReturnsToOpener (0.59s)
+    --- FAIL: TestConfigRecoveryDiscardReturnsToOpener/light (0.35s)
+    --- FAIL: TestConfigRecoveryDiscardReturnsToOpener/dark (0.24s)
+=== RUN   TestRunRecoveryNewParameterDefaults
+=== RUN   TestRunRecoveryNewParameterDefaults/light
+    runrecovery_test.go:50: new parameters did not receive defaults without replacing edits: map[limit: target:my edit]
+=== RUN   TestRunRecoveryNewParameterDefaults/dark
+    runrecovery_test.go:50: new parameters did not receive defaults without replacing edits: map[limit: target:my edit]
+--- FAIL: TestRunRecoveryNewParameterDefaults (0.11s)
+    --- FAIL: TestRunRecoveryNewParameterDefaults/light (0.06s)
+    --- FAIL: TestRunRecoveryNewParameterDefaults/dark (0.04s)
+=== RUN   TestRunRecoveryRetypedParameterForgetsUndo
+=== RUN   TestRunRecoveryRetypedParameterForgetsUndo/light
+    runrecovery_test.go:111: new number editor resurrected text undo: "8"
+=== RUN   TestRunRecoveryRetypedParameterForgetsUndo/dark
+    runrecovery_test.go:111: new number editor resurrected text undo: "8"
+--- FAIL: TestRunRecoveryRetypedParameterForgetsUndo (0.08s)
+    --- FAIL: TestRunRecoveryRetypedParameterForgetsUndo/light (0.04s)
+    --- FAIL: TestRunRecoveryRetypedParameterForgetsUndo/dark (0.04s)
+FAIL
+FAIL	floter/internal/settingsui	0.780s
+FAIL
