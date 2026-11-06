@@ -90,3 +90,54 @@ func TestInputRefreshAcceptedNumberFollowsHost(t *testing.T) {
 		})
 	}
 }
+
+func TestInputRefreshSameNumberDoesNotWrite(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			field := plugincfg.Field{Key: "limit", Label: "结果上限", Kind: plugincfg.Number, Max: 100, Step: 1, Unit: "项"}
+			_, sheet, tt := inputStateSheet(t, dark, field, 25.0)
+			calls := 0
+			sheet.Change = func(string, any) { calls++; sheet.Failed = true }
+			inputStateNumberFocus(t, tt, field.Label)
+			tt.Type("25.0")
+			tt.Frame()
+			refreshDump(t, tt, "number-noop", dark)
+			if calls != 0 {
+				t.Errorf("same number dispatched %d writes", calls)
+			}
+			tt.Key(ui.Cmd, ui.KeyA)
+			tt.Type("26")
+			tt.Frame()
+			if calls != 1 {
+				t.Errorf("real number change dispatched %d writes, want 1", calls)
+			}
+		})
+	}
+}
+
+func TestInputRefreshSameSliderStepDoesNotWrite(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			field := plugincfg.Field{Key: "limit", Label: "结果上限", Kind: plugincfg.Slider, Max: 100, Step: 20, Unit: "项"}
+			_, sheet, tt := inputStateSheet(t, dark, field, 40.0)
+			var sent []any
+			sheet.Change = func(_ string, value any) { sent = append(sent, value); sheet.Failed = true }
+			r := mustFind(t, tt, "40 项")
+			tt.ClickAt(280, r.Y+r.H/2)
+			tt.Frame()
+			refreshDump(t, tt, "slider-noop", dark)
+			if len(sent) != 0 {
+				t.Errorf("same slider step dispatched %v", sent)
+			}
+			// Accept the real move so its new host value can settle. Refusing
+			// every drag frame intentionally leaves the host at the old step.
+			sheet.Failed = false
+			sheet.Change = func(key string, value any) { sent = append(sent, value); sheet.Values[key] = value }
+			tt.ClickAt(520, r.Y+r.H/2)
+			tt.Frame()
+			if len(sent) != 1 || sent[0] == 40.0 {
+				t.Errorf("real slider move did not write once: %v", sent)
+			}
+		})
+	}
+}

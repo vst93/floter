@@ -1,0 +1,23 @@
+=== RUN   TestInputRefreshSameNumberDoesNotWrite
+=== RUN   TestInputRefreshSameNumberDoesNotWrite/light
+    inputrefresh_test.go:106: same number dispatched 1 writes
+    inputrefresh_test.go:112: real number change dispatched 2 writes, want 1
+=== RUN   TestInputRefreshSameNumberDoesNotWrite/dark
+    inputrefresh_test.go:106: same number dispatched 1 writes
+    inputrefresh_test.go:112: real number change dispatched 2 writes, want 1
+--- FAIL: TestInputRefreshSameNumberDoesNotWrite (0.07s)
+    --- FAIL: TestInputRefreshSameNumberDoesNotWrite/light (0.07s)
+    --- FAIL: TestInputRefreshSameNumberDoesNotWrite/dark (0.01s)
+=== RUN   TestInputRefreshSameSliderStepDoesNotWrite
+=== RUN   TestInputRefreshSameSliderStepDoesNotWrite/light
+    inputrefresh_test.go:130: same slider step dispatched [40 40 40]
+    inputrefresh_test.go:139: real slider move did not write once: [40 40 40]
+=== RUN   TestInputRefreshSameSliderStepDoesNotWrite/dark
+    inputrefresh_test.go:130: same slider step dispatched [40 40 40]
+    inputrefresh_test.go:139: real slider move did not write once: [40 40 40]
+--- FAIL: TestInputRefreshSameSliderStepDoesNotWrite (0.01s)
+    --- FAIL: TestInputRefreshSameSliderStepDoesNotWrite/light (0.01s)
+    --- FAIL: TestInputRefreshSameSliderStepDoesNotWrite/dark (0.01s)
+FAIL
+FAIL	floter/internal/settingsui	0.092s
+FAIL

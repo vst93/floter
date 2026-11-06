@@ -509,8 +509,8 @@ func (a *App) sheetSlider(c *ui.Context, sheet PluginSheet, field plugincfg.Fiel
 			})
 		})
 	})
-	if changed {
-		sheet.Change(field.Key, boundedValue(field, v))
+	if next := boundedValue(field, v); changed && next != boundedValue(field, value) {
+		sheet.Change(field.Key, next)
 	}
 }
 
@@ -603,8 +603,8 @@ func (a *App) sheetNumberSlot(c *ui.Context, plugin string, field plugincfg.Fiel
 				// 现在夹界与步长量化都把结果写回草稿，框与值同帧对齐；
 				// 界内的输入一个字节不动（半输入 `1e` 仍然留在框里，§6.162）。
 				clamped := boundedValue(field, parsed)
+				changed = clamped != boundedValue(field, *value)
 				*value = clamped
-				changed = true
 				if clamped != parsed {
 					a.pluginNumberDrafts[key] = formatFieldNumber(clamped)
 				}
