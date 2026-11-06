@@ -68,9 +68,9 @@ func checkFormOutlet(t *testing.T, change string) {
 				tt.Frame()
 				entry := "Token"
 				switch change {
-				case "copy-owner", "copy-fold", "copy-unavailable":
+				case "copy-owner", "copy-fold", "copy-unavailable", "copy-both":
 					entry = copy.ConfigCopy
-				case "export-schema", "export-fold", "export-unavailable":
+				case "export-schema", "export-fold", "export-unavailable", "export-both":
 					entry = copy.ConfigExport
 				case "tool-command", "tool-action", "tool-owner":
 					in.ConfigOwner, in.ConfigOpenCommand = "tool", []string{"settings"}
@@ -113,6 +113,8 @@ func checkFormOutlet(t *testing.T, change string) {
 				case "export-unavailable":
 					a.Actions.ExportConfiguration = nil
 					want = copy.ConfigCopy
+				case "copy-both", "export-both":
+					a.Actions.CopyConfiguration, a.Actions.ExportConfiguration = nil, nil
 				case "tool-command":
 					in.ConfigOpenCommand = nil
 					want = copy.IntegrationsCheck
@@ -153,10 +155,42 @@ func checkFormOutlet(t *testing.T, change string) {
 						t.Error("row did not fold form")
 					}
 				}
+				if !elsewhere {
+					beforeCalls, beforeOpen := calls, a.configOpen[in.ID]
+					tt.Key(0, ui.KeySpace)
+					tt.Frame()
+					tt.Frame()
+					switch want {
+					case copy.ConfigOpen:
+						if a.configOpen[in.ID] == beforeOpen {
+							t.Error("Configure outlet did not toggle")
+						}
+					case copy.ConfigCopy, copy.ConfigExport:
+						if calls != beforeCalls+1 {
+							t.Error("transfer outlet did not dispatch exactly once")
+						}
+					case copy.IntegrationsCheck:
+						if checked != 1 {
+							t.Error("Check outlet did not dispatch once")
+						}
+					case copy.ConfigOpenConfiguration:
+						if opened != 1 {
+							t.Error("tool outlet did not dispatch once")
+						}
+					}
+				}
 			})
 		}
 	}
 }
 
-func TestFormOutletFieldRemove(t *testing.T) { checkFormOutlet(t, "field-remove") }
-func TestFormOutletFieldType(t *testing.T)   { checkFormOutlet(t, "field-type") }
+func TestFormOutletFieldRemove(t *testing.T)       { checkFormOutlet(t, "field-remove") }
+func TestFormOutletFieldType(t *testing.T)         { checkFormOutlet(t, "field-type") }
+func TestFormOutletCopyUnavailable(t *testing.T)   { checkFormOutlet(t, "copy-unavailable") }
+func TestFormOutletExportUnavailable(t *testing.T) { checkFormOutlet(t, "export-unavailable") }
+func TestFormOutletTransfersUnavailable(t *testing.T) {
+	t.Run("copy", func(t *testing.T) { checkFormOutlet(t, "copy-both") })
+	t.Run("export", func(t *testing.T) { checkFormOutlet(t, "export-both") })
+}
+func TestFormOutletCopyOwner(t *testing.T)    { checkFormOutlet(t, "copy-owner") }
+func TestFormOutletExportSchema(t *testing.T) { checkFormOutlet(t, "export-schema") }

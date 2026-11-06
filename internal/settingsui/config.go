@@ -422,6 +422,7 @@ func (a *App) configToolbar(c *ui.Context, copy i18n.Settings, integration Integ
 		ui.Row(c).AlignItems(ui.Center).Gap(t.Space(0.5)).Children(func() {
 			copyDisabled := a.Actions.CopyConfiguration == nil || busy
 			copyButton := a.extensionIconButton(c, "copy", copy.ConfigCopy, copyDisabled)
+			a.rememberOperationFocus(c, integration.ID, "transfer", copyButton)
 			if copyButton.Clicked() && !copyDisabled {
 				a.startConfigOperation(integration.ID, "copy", func(done func(error)) {
 					a.Actions.CopyConfiguration(integration.ID, draft.values, done)
@@ -429,10 +430,20 @@ func (a *App) configToolbar(c *ui.Context, copy i18n.Settings, integration Integ
 			}
 			exportDisabled := a.Actions.ExportConfiguration == nil || busy
 			exportButton := a.extensionIconButton(c, "file-down", copy.ConfigExport, exportDisabled)
+			a.rememberOperationFocus(c, integration.ID, "transfer", exportButton)
 			if exportButton.Clicked() && !exportDisabled {
 				a.startConfigOperation(integration.ID, "export", func(done func(error)) {
 					a.Actions.ExportConfiguration(integration.ID, draft.values, done)
 				})
+			}
+			// A withdrawn host capability has no future retry on this icon.
+			// A busy transfer does: keep that operation's keyboard identity.
+			if !busy {
+				if copyButton.Focused() && copyDisabled && !exportDisabled {
+					exportButton.Focus()
+				} else if exportButton.Focused() && exportDisabled && !copyDisabled {
+					copyButton.Focus()
+				}
 			}
 		})
 	})

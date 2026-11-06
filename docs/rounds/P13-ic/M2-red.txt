@@ -1,0 +1,69 @@
+=== RUN   TestFormOutletCopyUnavailable
+=== RUN   TestFormOutletCopyUnavailable/light/entry
+    formoutlet_test.go:140: copy-unavailable lost usable focus "Export configuration"
+    formoutlet_test.go:151: copy-unavailable callback lost focus "Export configuration"
+    formoutlet_test.go:170: transfer outlet did not dispatch exactly once
+=== RUN   TestFormOutletCopyUnavailable/light/elsewhere
+=== RUN   TestFormOutletCopyUnavailable/dark/entry
+    formoutlet_test.go:140: copy-unavailable lost usable focus "Export configuration"
+    formoutlet_test.go:151: copy-unavailable callback lost focus "Export configuration"
+    formoutlet_test.go:170: transfer outlet did not dispatch exactly once
+=== RUN   TestFormOutletCopyUnavailable/dark/elsewhere
+--- FAIL: TestFormOutletCopyUnavailable (2.09s)
+    --- FAIL: TestFormOutletCopyUnavailable/light/entry (0.40s)
+    --- PASS: TestFormOutletCopyUnavailable/light/elsewhere (0.66s)
+    --- FAIL: TestFormOutletCopyUnavailable/dark/entry (0.35s)
+    --- PASS: TestFormOutletCopyUnavailable/dark/elsewhere (0.68s)
+=== RUN   TestFormOutletExportUnavailable
+=== RUN   TestFormOutletExportUnavailable/light/entry
+    formoutlet_test.go:140: export-unavailable lost usable focus "Copy configuration"
+    formoutlet_test.go:151: export-unavailable callback lost focus "Copy configuration"
+    formoutlet_test.go:170: transfer outlet did not dispatch exactly once
+=== RUN   TestFormOutletExportUnavailable/light/elsewhere
+=== RUN   TestFormOutletExportUnavailable/dark/entry
+    formoutlet_test.go:140: export-unavailable lost usable focus "Copy configuration"
+    formoutlet_test.go:151: export-unavailable callback lost focus "Copy configuration"
+    formoutlet_test.go:170: transfer outlet did not dispatch exactly once
+=== RUN   TestFormOutletExportUnavailable/dark/elsewhere
+--- FAIL: TestFormOutletExportUnavailable (1.66s)
+    --- FAIL: TestFormOutletExportUnavailable/light/entry (0.40s)
+    --- PASS: TestFormOutletExportUnavailable/light/elsewhere (0.55s)
+    --- FAIL: TestFormOutletExportUnavailable/dark/entry (0.29s)
+    --- PASS: TestFormOutletExportUnavailable/dark/elsewhere (0.42s)
+=== RUN   TestFormOutletTransfersUnavailable
+=== RUN   TestFormOutletTransfersUnavailable/copy
+=== RUN   TestFormOutletTransfersUnavailable/copy/light/entry
+    formoutlet_test.go:140: copy-both lost usable focus "Configure"
+    formoutlet_test.go:151: copy-both callback lost focus "Configure"
+    formoutlet_test.go:166: Configure outlet did not toggle
+=== RUN   TestFormOutletTransfersUnavailable/copy/light/elsewhere
+=== RUN   TestFormOutletTransfersUnavailable/copy/dark/entry
+    formoutlet_test.go:140: copy-both lost usable focus "Configure"
+    formoutlet_test.go:151: copy-both callback lost focus "Configure"
+    formoutlet_test.go:166: Configure outlet did not toggle
+=== RUN   TestFormOutletTransfersUnavailable/copy/dark/elsewhere
+=== RUN   TestFormOutletTransfersUnavailable/export
+=== RUN   TestFormOutletTransfersUnavailable/export/light/entry
+    formoutlet_test.go:140: export-both lost usable focus "Configure"
+    formoutlet_test.go:151: export-both callback lost focus "Configure"
+    formoutlet_test.go:166: Configure outlet did not toggle
+=== RUN   TestFormOutletTransfersUnavailable/export/light/elsewhere
+=== RUN   TestFormOutletTransfersUnavailable/export/dark/entry
+    formoutlet_test.go:140: export-both lost usable focus "Configure"
+    formoutlet_test.go:151: export-both callback lost focus "Configure"
+    formoutlet_test.go:166: Configure outlet did not toggle
+=== RUN   TestFormOutletTransfersUnavailable/export/dark/elsewhere
+--- FAIL: TestFormOutletTransfersUnavailable (3.02s)
+    --- FAIL: TestFormOutletTransfersUnavailable/copy (1.60s)
+        --- FAIL: TestFormOutletTransfersUnavailable/copy/light/entry (0.29s)
+        --- PASS: TestFormOutletTransfersUnavailable/copy/light/elsewhere (0.53s)
+        --- FAIL: TestFormOutletTransfersUnavailable/copy/dark/entry (0.29s)
+        --- PASS: TestFormOutletTransfersUnavailable/copy/dark/elsewhere (0.48s)
+    --- FAIL: TestFormOutletTransfersUnavailable/export (1.41s)
+        --- FAIL: TestFormOutletTransfersUnavailable/export/light/entry (0.30s)
+        --- PASS: TestFormOutletTransfersUnavailable/export/light/elsewhere (0.43s)
+        --- FAIL: TestFormOutletTransfersUnavailable/export/dark/entry (0.24s)
+        --- PASS: TestFormOutletTransfersUnavailable/export/dark/elsewhere (0.44s)
+FAIL
+FAIL	floter/internal/settingsui	6.778s
+FAIL

@@ -1,0 +1,46 @@
+internal/settingsui/config.go: OK
+internal/settingsui/settingsui.go: OK
+=== RUN   TestFormOutletCopyUnavailable
+=== RUN   TestFormOutletCopyUnavailable/light/entry
+=== RUN   TestFormOutletCopyUnavailable/light/elsewhere
+=== RUN   TestFormOutletCopyUnavailable/dark/entry
+=== RUN   TestFormOutletCopyUnavailable/dark/elsewhere
+--- PASS: TestFormOutletCopyUnavailable (1.63s)
+    --- PASS: TestFormOutletCopyUnavailable/light/entry (0.33s)
+    --- PASS: TestFormOutletCopyUnavailable/light/elsewhere (0.49s)
+    --- PASS: TestFormOutletCopyUnavailable/dark/entry (0.27s)
+    --- PASS: TestFormOutletCopyUnavailable/dark/elsewhere (0.53s)
+=== RUN   TestFormOutletExportUnavailable
+=== RUN   TestFormOutletExportUnavailable/light/entry
+=== RUN   TestFormOutletExportUnavailable/light/elsewhere
+=== RUN   TestFormOutletExportUnavailable/dark/entry
+=== RUN   TestFormOutletExportUnavailable/dark/elsewhere
+--- PASS: TestFormOutletExportUnavailable (1.45s)
+    --- PASS: TestFormOutletExportUnavailable/light/entry (0.24s)
+    --- PASS: TestFormOutletExportUnavailable/light/elsewhere (0.50s)
+    --- PASS: TestFormOutletExportUnavailable/dark/entry (0.23s)
+    --- PASS: TestFormOutletExportUnavailable/dark/elsewhere (0.49s)
+=== RUN   TestFormOutletTransfersUnavailable
+=== RUN   TestFormOutletTransfersUnavailable/copy
+=== RUN   TestFormOutletTransfersUnavailable/copy/light/entry
+=== RUN   TestFormOutletTransfersUnavailable/copy/light/elsewhere
+=== RUN   TestFormOutletTransfersUnavailable/copy/dark/entry
+=== RUN   TestFormOutletTransfersUnavailable/copy/dark/elsewhere
+=== RUN   TestFormOutletTransfersUnavailable/export
+=== RUN   TestFormOutletTransfersUnavailable/export/light/entry
+=== RUN   TestFormOutletTransfersUnavailable/export/light/elsewhere
+=== RUN   TestFormOutletTransfersUnavailable/export/dark/entry
+=== RUN   TestFormOutletTransfersUnavailable/export/dark/elsewhere
+--- PASS: TestFormOutletTransfersUnavailable (4.04s)
+    --- PASS: TestFormOutletTransfersUnavailable/copy (1.92s)
+        --- PASS: TestFormOutletTransfersUnavailable/copy/light/entry (0.26s)
+        --- PASS: TestFormOutletTransfersUnavailable/copy/light/elsewhere (0.68s)
+        --- PASS: TestFormOutletTransfersUnavailable/copy/dark/entry (0.29s)
+        --- PASS: TestFormOutletTransfersUnavailable/copy/dark/elsewhere (0.69s)
+    --- PASS: TestFormOutletTransfersUnavailable/export (2.13s)
+        --- PASS: TestFormOutletTransfersUnavailable/export/light/entry (0.38s)
+        --- PASS: TestFormOutletTransfersUnavailable/export/light/elsewhere (0.68s)
+        --- PASS: TestFormOutletTransfersUnavailable/export/dark/entry (0.39s)
+        --- PASS: TestFormOutletTransfersUnavailable/export/dark/elsewhere (0.67s)
+PASS
+ok  	floter/internal/settingsui	7.133s

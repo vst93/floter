@@ -32,4 +32,15 @@
 
 M1 强制视字段仍有效，两个主题的两个 entry 场景重新报上述错误；恢复原源码、MD5 核验、touch 后复验。具体回归数字按落盘日志补录。新增样式 0；图中 Configure 重新有可见键盘位置，旧字段消失后不残留交互层。
 
-首批相关回归 **342 PASS / 0 FAIL**，包 vet 退出 0；M1 MD5 还原、touch 复验 **10 PASS / 0 FAIL**。已目视浅 after 与深 before：Region 和操作行位置保持，Configure 外新增既有蓝色焦点环，未添加容器。V/B/S 旧断言仍为 0/0/0。
+首批相关回归 **340 PASS / 0 FAIL**，包 vet 退出 0；M1 MD5 还原、touch 复验 **10 PASS / 0 FAIL**。已目视浅 after 与深 before：Region 和操作行位置保持，Configure 外新增既有蓝色焦点环，未添加容器。V/B/S 旧断言仍为 0/0/0。首批报告曾笔误写 342，原 batch1.txt 始终为 340，本批纠正。
+
+## 第二批：传输工具栏
+
+第一批 **a48ae567** 已推送。以下只处理能力撤回，Copy/Export 正常在飞锁定契约继续保留。
+
+3. 现象：Copy 持焦期间宿主撤下 CopyConfiguration，图标变灰却继续接住键盘，Space 无结果。改动：忙态之外检测 capability 撤回，交给仍可用的 Export；两项都撤回则 Configure。验证：Tab 到 Copy → 撤 callback → Export 可见焦点 → Space 正好导出一次；双撤回与用户主动移焦均有对照。原串 `copy-unavailable lost usable focus "Export configuration"`。
+4. 现象：Export 的宿主 callback 撤下时同样留下不可用焦点。改动：对称归还当前 Copy，双撤回时归还 Configure；不因 transfer busy 误认为能力消失。验证：Export → callback nil → Copy → Space 正好复制一次，Copy-owner / Export-schema 在飞对照继续绿。原串 `export-unavailable lost usable focus "Copy configuration"`。
+
+M2 撤回本批两处交接代码再跑单撤回/双撤回，之后 MD5、touch 复验。旧 V/B/S 断言 0/0/0；新增场景检验真实派发次数与不可用焦点出口。
+
+第二批相关回归 **371 PASS / 0 FAIL**，包 vet 退出 0；M2 八个 entry（单撤回/双撤回 × 深浅 × Copy/Export）实跑红，MD5 还原、touch 后 **21 PASS / 0 FAIL**。
