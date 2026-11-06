@@ -1,0 +1,22 @@
+=== RUN   TestNoticeConditionDiscardClean
+=== RUN   TestNoticeConditionDiscardClean/light/return
+=== RUN   TestNoticeConditionDiscardClean/light/escape
+=== RUN   TestNoticeConditionDiscardClean/dark/return
+=== RUN   TestNoticeConditionDiscardClean/dark/escape
+--- PASS: TestNoticeConditionDiscardClean (1.24s)
+    --- PASS: TestNoticeConditionDiscardClean/light/return (0.47s)
+    --- PASS: TestNoticeConditionDiscardClean/light/escape (0.24s)
+    --- PASS: TestNoticeConditionDiscardClean/dark/return (0.30s)
+    --- PASS: TestNoticeConditionDiscardClean/dark/escape (0.23s)
+=== RUN   TestNoticeConditionDiscardSchema
+=== RUN   TestNoticeConditionDiscardSchema/light/return
+=== RUN   TestNoticeConditionDiscardSchema/light/escape
+=== RUN   TestNoticeConditionDiscardSchema/dark/return
+=== RUN   TestNoticeConditionDiscardSchema/dark/escape
+--- PASS: TestNoticeConditionDiscardSchema (0.86s)
+    --- PASS: TestNoticeConditionDiscardSchema/light/return (0.24s)
+    --- PASS: TestNoticeConditionDiscardSchema/light/escape (0.19s)
+    --- PASS: TestNoticeConditionDiscardSchema/dark/return (0.24s)
+    --- PASS: TestNoticeConditionDiscardSchema/dark/escape (0.19s)
+PASS
+ok  	floter/internal/settingsui	2.108s

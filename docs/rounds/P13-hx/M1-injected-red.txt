@@ -1,0 +1,41 @@
+=== RUN   TestNoticeConditionDiscardClean
+=== RUN   TestNoticeConditionDiscardClean/light/return
+    noticeconditions_test.go:113: discard question survived changed clean condition
+    noticeconditions_test.go:124: clean draft lost its configuration opener focus
+    noticeconditions_test.go:142: discard question revived when clean condition returned
+=== RUN   TestNoticeConditionDiscardClean/light/escape
+    noticeconditions_test.go:113: discard question survived changed clean condition
+    noticeconditions_test.go:119: invalid discard question swallowed Escape: close=0
+=== RUN   TestNoticeConditionDiscardClean/dark/return
+    noticeconditions_test.go:113: discard question survived changed clean condition
+    noticeconditions_test.go:124: clean draft lost its configuration opener focus
+    noticeconditions_test.go:142: discard question revived when clean condition returned
+=== RUN   TestNoticeConditionDiscardClean/dark/escape
+    noticeconditions_test.go:113: discard question survived changed clean condition
+    noticeconditions_test.go:119: invalid discard question swallowed Escape: close=0
+--- FAIL: TestNoticeConditionDiscardClean (1.13s)
+    --- FAIL: TestNoticeConditionDiscardClean/light/return (0.40s)
+    --- FAIL: TestNoticeConditionDiscardClean/light/escape (0.23s)
+    --- FAIL: TestNoticeConditionDiscardClean/dark/return (0.29s)
+    --- FAIL: TestNoticeConditionDiscardClean/dark/escape (0.22s)
+=== RUN   TestNoticeConditionDiscardSchema
+=== RUN   TestNoticeConditionDiscardSchema/light/return
+    noticeconditions_test.go:113: discard question survived changed schema condition
+    noticeconditions_test.go:142: discard question revived when schema condition returned
+=== RUN   TestNoticeConditionDiscardSchema/light/escape
+    noticeconditions_test.go:113: discard question survived changed schema condition
+    noticeconditions_test.go:119: invalid discard question swallowed Escape: close=0
+=== RUN   TestNoticeConditionDiscardSchema/dark/return
+    noticeconditions_test.go:113: discard question survived changed schema condition
+    noticeconditions_test.go:142: discard question revived when schema condition returned
+=== RUN   TestNoticeConditionDiscardSchema/dark/escape
+    noticeconditions_test.go:113: discard question survived changed schema condition
+    noticeconditions_test.go:119: invalid discard question swallowed Escape: close=0
+--- FAIL: TestNoticeConditionDiscardSchema (0.82s)
+    --- FAIL: TestNoticeConditionDiscardSchema/light/return (0.24s)
+    --- FAIL: TestNoticeConditionDiscardSchema/light/escape (0.18s)
+    --- FAIL: TestNoticeConditionDiscardSchema/dark/return (0.23s)
+    --- FAIL: TestNoticeConditionDiscardSchema/dark/escape (0.17s)
+FAIL
+FAIL	floter/internal/settingsui	1.964s
+FAIL

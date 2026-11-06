@@ -1,0 +1,39 @@
+=== RUN   TestNoticeConditionDisableDisabled
+=== RUN   TestNoticeConditionDisableDisabled/light/return
+    noticeconditions_test.go:113: disable question survived changed disabled condition
+    noticeconditions_test.go:142: disable question revived when disabled condition returned
+=== RUN   TestNoticeConditionDisableDisabled/light/escape
+    noticeconditions_test.go:113: disable question survived changed disabled condition
+    noticeconditions_test.go:119: invalid disable question swallowed Escape: close=0
+=== RUN   TestNoticeConditionDisableDisabled/dark/return
+    noticeconditions_test.go:113: disable question survived changed disabled condition
+    noticeconditions_test.go:142: disable question revived when disabled condition returned
+=== RUN   TestNoticeConditionDisableDisabled/dark/escape
+    noticeconditions_test.go:113: disable question survived changed disabled condition
+    noticeconditions_test.go:119: invalid disable question swallowed Escape: close=0
+--- FAIL: TestNoticeConditionDisableDisabled (0.13s)
+    --- FAIL: TestNoticeConditionDisableDisabled/light/return (0.10s)
+    --- FAIL: TestNoticeConditionDisableDisabled/light/escape (0.01s)
+    --- FAIL: TestNoticeConditionDisableDisabled/dark/return (0.02s)
+    --- FAIL: TestNoticeConditionDisableDisabled/dark/escape (0.01s)
+=== RUN   TestNoticeConditionDisableBroken
+=== RUN   TestNoticeConditionDisableBroken/light/return
+    noticeconditions_test.go:113: disable question survived changed broken condition
+    noticeconditions_test.go:142: disable question revived when broken condition returned
+=== RUN   TestNoticeConditionDisableBroken/light/escape
+    noticeconditions_test.go:113: disable question survived changed broken condition
+    noticeconditions_test.go:119: invalid disable question swallowed Escape: close=0
+=== RUN   TestNoticeConditionDisableBroken/dark/return
+    noticeconditions_test.go:113: disable question survived changed broken condition
+    noticeconditions_test.go:142: disable question revived when broken condition returned
+=== RUN   TestNoticeConditionDisableBroken/dark/escape
+    noticeconditions_test.go:113: disable question survived changed broken condition
+    noticeconditions_test.go:119: invalid disable question swallowed Escape: close=0
+--- FAIL: TestNoticeConditionDisableBroken (0.07s)
+    --- FAIL: TestNoticeConditionDisableBroken/light/return (0.02s)
+    --- FAIL: TestNoticeConditionDisableBroken/light/escape (0.01s)
+    --- FAIL: TestNoticeConditionDisableBroken/dark/return (0.03s)
+    --- FAIL: TestNoticeConditionDisableBroken/dark/escape (0.01s)
+FAIL
+FAIL	floter/internal/settingsui	0.210s
+FAIL

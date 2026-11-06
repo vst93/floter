@@ -1,0 +1,39 @@
+=== RUN   TestNoticeConditionDiscardOwner
+=== RUN   TestNoticeConditionDiscardOwner/light/return
+    noticeconditions_test.go:113: discard question survived changed owner condition
+    noticeconditions_test.go:142: discard question revived when owner condition returned
+=== RUN   TestNoticeConditionDiscardOwner/light/escape
+    noticeconditions_test.go:113: discard question survived changed owner condition
+    noticeconditions_test.go:119: invalid discard question swallowed Escape: close=0
+=== RUN   TestNoticeConditionDiscardOwner/dark/return
+    noticeconditions_test.go:113: discard question survived changed owner condition
+    noticeconditions_test.go:142: discard question revived when owner condition returned
+=== RUN   TestNoticeConditionDiscardOwner/dark/escape
+    noticeconditions_test.go:113: discard question survived changed owner condition
+    noticeconditions_test.go:119: invalid discard question swallowed Escape: close=0
+--- FAIL: TestNoticeConditionDiscardOwner (1.06s)
+    --- FAIL: TestNoticeConditionDiscardOwner/light/return (0.39s)
+    --- FAIL: TestNoticeConditionDiscardOwner/light/escape (0.22s)
+    --- FAIL: TestNoticeConditionDiscardOwner/dark/return (0.24s)
+    --- FAIL: TestNoticeConditionDiscardOwner/dark/escape (0.21s)
+=== RUN   TestNoticeConditionRemoveOrphan
+=== RUN   TestNoticeConditionRemoveOrphan/light/return
+    noticeconditions_test.go:113: remove question survived changed orphan condition
+    noticeconditions_test.go:142: remove question revived when orphan condition returned
+=== RUN   TestNoticeConditionRemoveOrphan/light/escape
+    noticeconditions_test.go:113: remove question survived changed orphan condition
+    noticeconditions_test.go:119: invalid remove question swallowed Escape: close=0
+=== RUN   TestNoticeConditionRemoveOrphan/dark/return
+    noticeconditions_test.go:113: remove question survived changed orphan condition
+    noticeconditions_test.go:142: remove question revived when orphan condition returned
+=== RUN   TestNoticeConditionRemoveOrphan/dark/escape
+    noticeconditions_test.go:113: remove question survived changed orphan condition
+    noticeconditions_test.go:119: invalid remove question swallowed Escape: close=0
+--- FAIL: TestNoticeConditionRemoveOrphan (0.29s)
+    --- FAIL: TestNoticeConditionRemoveOrphan/light/return (0.10s)
+    --- FAIL: TestNoticeConditionRemoveOrphan/light/escape (0.05s)
+    --- FAIL: TestNoticeConditionRemoveOrphan/dark/return (0.09s)
+    --- FAIL: TestNoticeConditionRemoveOrphan/dark/escape (0.05s)
+FAIL
+FAIL	floter/internal/settingsui	1.362s
+FAIL

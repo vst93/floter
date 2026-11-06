@@ -1,0 +1,47 @@
+=== RUN   TestNoticeConditionUninstallOrphan
+=== RUN   TestNoticeConditionUninstallOrphan/light/return
+    noticeconditions_test.go:121: uninstall question survived changed orphan condition
+    noticeconditions_test.go:125: invalid dialog retained abandoned component choices
+    noticeconditions_test.go:155: uninstall question revived when orphan condition returned
+=== RUN   TestNoticeConditionUninstallOrphan/light/escape
+    noticeconditions_test.go:121: uninstall question survived changed orphan condition
+    noticeconditions_test.go:125: invalid dialog retained abandoned component choices
+    noticeconditions_test.go:132: invalid uninstall question swallowed Escape: close=0
+=== RUN   TestNoticeConditionUninstallOrphan/dark/return
+    noticeconditions_test.go:121: uninstall question survived changed orphan condition
+    noticeconditions_test.go:125: invalid dialog retained abandoned component choices
+    noticeconditions_test.go:155: uninstall question revived when orphan condition returned
+=== RUN   TestNoticeConditionUninstallOrphan/dark/escape
+    noticeconditions_test.go:121: uninstall question survived changed orphan condition
+    noticeconditions_test.go:125: invalid dialog retained abandoned component choices
+    noticeconditions_test.go:132: invalid uninstall question swallowed Escape: close=0
+--- FAIL: TestNoticeConditionUninstallOrphan (0.49s)
+    --- FAIL: TestNoticeConditionUninstallOrphan/light/return (0.22s)
+    --- FAIL: TestNoticeConditionUninstallOrphan/light/escape (0.08s)
+    --- FAIL: TestNoticeConditionUninstallOrphan/dark/return (0.11s)
+    --- FAIL: TestNoticeConditionUninstallOrphan/dark/escape (0.08s)
+=== RUN   TestNoticeConditionUninstallKind
+=== RUN   TestNoticeConditionUninstallKind/light/return
+    noticeconditions_test.go:121: uninstall question survived changed kind condition
+    noticeconditions_test.go:125: invalid dialog retained abandoned component choices
+    noticeconditions_test.go:155: uninstall question revived when kind condition returned
+=== RUN   TestNoticeConditionUninstallKind/light/escape
+    noticeconditions_test.go:121: uninstall question survived changed kind condition
+    noticeconditions_test.go:125: invalid dialog retained abandoned component choices
+    noticeconditions_test.go:132: invalid uninstall question swallowed Escape: close=0
+=== RUN   TestNoticeConditionUninstallKind/dark/return
+    noticeconditions_test.go:121: uninstall question survived changed kind condition
+    noticeconditions_test.go:125: invalid dialog retained abandoned component choices
+    noticeconditions_test.go:155: uninstall question revived when kind condition returned
+=== RUN   TestNoticeConditionUninstallKind/dark/escape
+    noticeconditions_test.go:121: uninstall question survived changed kind condition
+    noticeconditions_test.go:125: invalid dialog retained abandoned component choices
+    noticeconditions_test.go:132: invalid uninstall question swallowed Escape: close=0
+--- FAIL: TestNoticeConditionUninstallKind (0.43s)
+    --- FAIL: TestNoticeConditionUninstallKind/light/return (0.12s)
+    --- FAIL: TestNoticeConditionUninstallKind/light/escape (0.10s)
+    --- FAIL: TestNoticeConditionUninstallKind/dark/return (0.11s)
+    --- FAIL: TestNoticeConditionUninstallKind/dark/escape (0.10s)
+FAIL
+FAIL	floter/internal/settingsui	0.923s
+FAIL
