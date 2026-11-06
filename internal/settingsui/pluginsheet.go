@@ -462,7 +462,7 @@ func (a *App) sheetRadio(c *ui.Context, sheet PluginSheet, field plugincfg.Field
 				chosen = i
 				changed = true
 			}
-		}, keys)
+		}, keys).Bind(a.pluginEditorRef(field.Key))
 	})
 	if changed {
 		sheet.Change(field.Key, field.Options[chosen].Value)
@@ -483,7 +483,7 @@ func (a *App) sheetCheckboxes(c *ui.Context, sheet PluginSheet, field plugincfg.
 	}
 	pressed := -1
 	a.stackedRow(c, field.Label, field.Help, func() {
-		ui.Row(c).FillWidth().Gap(t.Space(3)).Wrap().Children(func() {
+		ui.Row(c).FillWidth().Gap(t.Space(3)).Wrap().Bind(a.pluginEditorRef(field.Key)).Children(func() {
 			for i, option := range field.Options {
 				i, option := i, option
 				checked := on[i]

@@ -89,3 +89,52 @@ func TestControlRefreshToggleKeepsKeyboard(t *testing.T) {
 		})
 	}
 }
+
+func TestControlRefreshRadioKeepsKeyboard(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			sheet := controlRefreshSheet(plugincfg.Radio)
+			tt := pluginIdentityFrame(t, dark, &sheet)
+			if err := tt.Click("文件"); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			if !tt.Focused("文件") {
+				t.Fatal("radio did not take focus")
+			}
+			controlRefreshMove(&sheet)
+			tt.Frame()
+			tt.Key(0, ui.KeyRight)
+			tt.Frame()
+			controlRefreshDump(t, tt, "radio-move", dark)
+			if sheet.Values["value"] != "apps" {
+				t.Errorf("group move lost radio keyboard: %v, want apps", sheet.Values["value"])
+			}
+		})
+	}
+}
+
+func TestControlRefreshCheckboxesKeepKeyboard(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			sheet := controlRefreshSheet(plugincfg.Checkboxes)
+			sheet.Values["value"] = []string{}
+			tt := pluginIdentityFrame(t, dark, &sheet)
+			if err := tt.Click("文件"); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			if !tt.Focused("文件") {
+				t.Fatal("checkbox did not take focus")
+			}
+			controlRefreshMove(&sheet)
+			tt.Frame()
+			tt.Key(0, ui.KeySpace)
+			tt.Frame()
+			controlRefreshDump(t, tt, "checkboxes-move", dark)
+			if got := sheet.Values["value"]; !configValuesEqual(got, []string{}) || !tt.Focused("文件") {
+				t.Errorf("group move lost checkbox keyboard: value=%v focus=%v", got, tt.Focused("文件"))
+			}
+		})
+	}
+}

@@ -1,0 +1,19 @@
+=== RUN   TestControlRefreshRadioKeepsKeyboard
+=== RUN   TestControlRefreshRadioKeepsKeyboard/light
+    controlrefresh_test.go:111: group move lost radio keyboard: files, want apps
+=== RUN   TestControlRefreshRadioKeepsKeyboard/dark
+    controlrefresh_test.go:111: group move lost radio keyboard: files, want apps
+--- FAIL: TestControlRefreshRadioKeepsKeyboard (0.16s)
+    --- FAIL: TestControlRefreshRadioKeepsKeyboard/light (0.15s)
+    --- FAIL: TestControlRefreshRadioKeepsKeyboard/dark (0.01s)
+=== RUN   TestControlRefreshCheckboxesKeepKeyboard
+=== RUN   TestControlRefreshCheckboxesKeepKeyboard/light
+    controlrefresh_test.go:136: group move lost checkbox keyboard: value=[files] focus=false
+=== RUN   TestControlRefreshCheckboxesKeepKeyboard/dark
+    controlrefresh_test.go:136: group move lost checkbox keyboard: value=[files] focus=false
+--- FAIL: TestControlRefreshCheckboxesKeepKeyboard (0.03s)
+    --- FAIL: TestControlRefreshCheckboxesKeepKeyboard/light (0.02s)
+    --- FAIL: TestControlRefreshCheckboxesKeepKeyboard/dark (0.01s)
+FAIL
+FAIL	floter/internal/settingsui	0.193s
+FAIL

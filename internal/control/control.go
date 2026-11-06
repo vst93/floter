@@ -28,8 +28,8 @@ func Segmented(c *ui.Context, tokens theme.Tokens, labels []string, current int,
 // inline track's `repeat(auto-fit, minmax(0, 1fr))`), where the track spans the
 // card and the segments share the line. The trailing form sizes to its labels;
 // this one is the choice under its own label.
-func SegmentedFill(c *ui.Context, tokens theme.Tokens, labels []string, current int, apply func(int), keys ...[]string) {
-	segmented(c, tokens, labels, current, apply, true, false, keys...)
+func SegmentedFill(c *ui.Context, tokens theme.Tokens, labels []string, current int, apply func(int), keys ...[]string) ui.Element {
+	return segmented(c, tokens, labels, current, apply, true, false, keys...)
 }
 
 // SegmentedGlassFill is the material picker's own variant of the full-width
@@ -48,7 +48,7 @@ func SegmentedGlassFill(c *ui.Context, tokens theme.Tokens, labels []string, cur
 // segmented is the one implementation every form shares; fill only changes how
 // the track and its segments take their width, glass only the label's alignment
 // and the segment's horizontal inset.
-func segmented(c *ui.Context, tokens theme.Tokens, labels []string, current int, apply func(int), fill, glass bool, keys ...[]string) {
+func segmented(c *ui.Context, tokens theme.Tokens, labels []string, current int, apply func(int), fill, glass bool, keys ...[]string) ui.Element {
 	t := c.Theme()
 	// The settings-side track's own inset: `.settings-options--inline { padding:
 	// calc(var(--u) * 2); gap: calc(var(--u) * 2) }` (`settings.css:1016-1022`).
@@ -57,6 +57,7 @@ func segmented(c *ui.Context, tokens theme.Tokens, labels []string, current int,
 	if track.Changed() {
 		apply(selected)
 	}
+	return track
 }
 
 // SegmentedIndex is `segmented` over the caller's own index pointer: it draws

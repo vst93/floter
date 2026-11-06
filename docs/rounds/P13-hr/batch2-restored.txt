@@ -1,0 +1,14 @@
+=== RUN   TestControlRefreshRadioKeepsKeyboard
+=== RUN   TestControlRefreshRadioKeepsKeyboard/light
+=== RUN   TestControlRefreshRadioKeepsKeyboard/dark
+--- PASS: TestControlRefreshRadioKeepsKeyboard (0.06s)
+    --- PASS: TestControlRefreshRadioKeepsKeyboard/light (0.05s)
+    --- PASS: TestControlRefreshRadioKeepsKeyboard/dark (0.01s)
+=== RUN   TestControlRefreshCheckboxesKeepKeyboard
+=== RUN   TestControlRefreshCheckboxesKeepKeyboard/light
+=== RUN   TestControlRefreshCheckboxesKeepKeyboard/dark
+--- PASS: TestControlRefreshCheckboxesKeepKeyboard (0.02s)
+    --- PASS: TestControlRefreshCheckboxesKeepKeyboard/light (0.01s)
+    --- PASS: TestControlRefreshCheckboxesKeepKeyboard/dark (0.01s)
+PASS
+ok  	floter/internal/settingsui	0.084s

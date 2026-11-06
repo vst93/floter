@@ -22,6 +22,6 @@
 高度链、键盘模型、保存触发/格式、会话管理、i18n 文案、命令接线和尺寸 token 不变；只让既有交互在刷新后继续有效。不增加依赖或布局容器。
 已读 qiaomu-design、偏好账本、craft-loop、preflight、chinese-typography。Apple DESIGN 提取单一交互蓝、8px 控件圆角、克制的弱化色：映射现有 accent、RadiusSM=8、框架禁用 0.5。工艺菜单 #3 保住已有焦点边，#4 键盘刷新 0ms 连续，#12 保持原槽面与分层，新增装饰层 0；不为凑五项扩张效果。
 
-基线完整 verbose 测试运行中，实测结果随后补入。每批先跑相关事件与回归、settingsui vet，再提交；全轮完成后一次完整门槛：gofmt 空，linux/windows/darwin vet，普通和 verbose 全量测试，三平台 build。测试函数与 PASS 数不下降，旧 B 断言零修改。
+基线中文 locale 完整 verbose 实测 **3947 PASS / 0 FAIL / 2850 Test 函数**。每批先跑相关事件与回归、settingsui vet，再提交；全轮完成后一次完整门槛：gofmt 空，linux/windows/darwin vet，普通和 verbose 全量测试，三平台 build。测试函数与 PASS 数不下降，旧 B 断言零修改。
 
 mutation 至少两条：撤销分组焦点绑定，使跨组键盘 pin 红；撤销 select 焦点交接，使未知值/撤选 pin 红。每批保存产品原件，注入旧实现，记录原始错误，恢复后 md5sum -c、touch、复跑。ui.Tester 同场景导出深/浅 before/after PNG，人工复核。

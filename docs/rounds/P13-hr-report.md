@@ -27,3 +27,12 @@
 2. 现象：开关跨组后焦点消失，Space 不再切换。改动：checkbox 返回原开关，绑定同一分组焦点路径。验证：点击→移组→Space 后 true 回 false，深浅均保焦点；原实现报 `group move lost toggle keyboard: value=true focus=false`。
 
 相关回归 **146 PASS / 0 FAIL**，settingsui vet 净。M1 回退 pluginsheet.go 两条绑定，新增两函数六个 PASS 项变红，恢复后 MD5 OK、touch 后 **6 PASS**。日志和深浅图在 P13-hr/。旧 V/B/S 断言修改数 0/0/0。
+
+第一批 `a1e2fe9c` 已推送。开盘完整 verbose 实测 **3947 PASS / 0 FAIL / 2850 测试函数**。
+
+### 第二批：单选与复选
+
+3. 现象：单选跨组后 Right 不再选下一项，files 原地不动。改动：原分段轨道绑定字段句柄，分组匹配改用 FocusWithin 识别内部选项。验证：Click 文件→移组→Right 得 apps，深浅均通过；旧实现报 `group move lost radio keyboard: files, want apps`。
+4. 现象：复选跨组后 Space 不再取消刚勾选项，焦点丢失。改动：原复选行绑定同一字段句柄，用子树焦点保住组身份。验证：Click 文件→移组→Space 得空列表且焦点仍在文件；旧实现报 `group move lost checkbox keyboard: value=[files] focus=false`。
+
+相关回归 **171 PASS / 0 FAIL**，settingsui/control vet 净。M2 将 FocusWithin 退为 Focused，两项事件实跑红；MD5 还原与 touch 后 **6 PASS**。没有新布局包装，也没有修改旧断言；V/B/S 0/0/0。

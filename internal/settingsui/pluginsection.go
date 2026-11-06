@@ -28,7 +28,7 @@ func (a *App) pluginSectionIDs(c *ui.Context, sections []plugincfg.Section) []*p
 	for i, section := range sections {
 		for _, field := range section.Fields {
 			keys[i] = append(keys[i], field.Key)
-			if ref := a.pluginEditorRefs[field.Key]; ref != nil && ref.Focused(c) {
+			if ref := a.pluginEditorRefs[field.Key]; ref != nil && ref.FocusWithin(c) {
 				focused = field.Key
 			}
 		}
