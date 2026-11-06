@@ -568,7 +568,7 @@ func (a *App) sheetNumberSlot(c *ui.Context, plugin string, field plugincfg.Fiel
 				// `999`——用户以为存了 999，插件收到 100，直到失焦才跳回。
 				// 现在越界的那一帧就把夹后的数写回草稿，框与值同帧对齐；
 				// 界内的输入一个字节不动（半输入 `1e` 仍然留在框里，§6.162）。
-				clamped := clampNumber(field, parsed)
+				clamped := boundedValue(field, parsed)
 				*value = clamped
 				changed = true
 				if clamped != parsed {
