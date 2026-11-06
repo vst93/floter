@@ -27,3 +27,12 @@
 2. 现象：问题展开期间 schema 清空，集成仍在；Escape 被吞，恢复 schema 后旧问题重现。改动：无字段时撤问题与时钟，保留原 draft/configOpen。验证：深浅四场景，恢复后 Token 仍为 edited，旧确认不出现。
 
 M1 回注旧条件八场景实跑红：`discard question survived changed clean condition`、`clean draft lost its configuration opener focus`、`invalid discard question swallowed Escape: close=0`、`discard question revived when schema condition returned`。MD5 恢复 OK，touch 后 10 PASS。V/B/S 旧断言修改 0/0/0；未新增 Skip。
+
+第一批相关回归 210 PASS / 0 FAIL、包 vet 净；6bf0242d 已提交推送。浅色第一次目视：第二次输入 second edit 仍在原字段，旧丢弃带撤走，输入焦点不再被 Cancel 夺走。
+
+### 第二批：owner 与 orphan 分支
+
+3. 现象：host 配置切到 tool owner 后旧丢弃问题藏在外部配置入口后面，Escape 只取消看不见的问题；切回 host 后又问。改动：按 host 配置块的实际可见条件撤旧问题，保留草稿。验证：深浅 × 返回/退出四场景，edited 保留、操作 0 次。
+4. 现象：已提问移除的目标刷新成 orphan，维护入口提前返回，但问题仍阻挡 Escape，恢复登记后复活。改动：清除未派发的移除问题、时钟与错误；在飞移除仍交原回调结算。验证：四场景，退出 1 次或恢复后问题为关，不派发移除。
+
+M2 回注旧条件八场景红：`discard question survived changed owner condition`、`remove question revived when orphan condition returned`、两类 `invalid … question swallowed Escape: close=0`。MD5 恢复 OK，touch 后相关回归 220 PASS / 0 FAIL，包 vet 净。旧 V/B/S 0/0/0。
