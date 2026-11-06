@@ -56,6 +56,19 @@ type PluginSheet struct {
 // PluginSheet draws a plugin's configuration: the title, the failure line,
 // and each section's heading and card of rows. It is drawn where the result
 // list would be — the launcher gives it the band and scrolls it.
+// ClosePluginSheet retires the editor state that belongs to an open sheet.
+// The shell keeps one settings App for the whole run and draws every plugin's
+// sheet through it, so the drafts and the scroll offset would otherwise wait
+// for the next open: a text field's abandoned edit would come back as if it
+// were the stored value, and a long sheet would reopen where the last one was
+// left. Called when the overlay closes, not between frames of one open.
+func (a *App) ClosePluginSheet() {
+	a.pluginTextDrafts = nil
+	a.pluginNumberDrafts = nil
+	a.PluginScroll.Y = 0
+	a.sheetPlugin = ""
+}
+
 func (a *App) PluginSheet(c *ui.Context, sheet PluginSheet) {
 	if sheet.Schema == nil {
 		return

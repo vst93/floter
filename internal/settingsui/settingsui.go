@@ -1171,8 +1171,20 @@ func (a *App) View(c *ui.Context) {
 	// reference's own `stopImmediatePropagation`: the removal/disable bars and
 	// the sessions page's kill arm each installed a capture-phase Escape
 	// listener that cancelled the question and swallowed the key).
-	if !a.recording && !a.customRecording && c.Shortcut(0, ui.KeyEscape) {
+	if c.Shortcut(0, ui.KeyEscape) {
 		switch {
+		case a.recording:
+			// The armed recorder owns the first bare Escape even after the
+			// keyboard has moved elsewhere. Its capture pane only sees the key
+			// while it still holds the focus; without this arm, clicking any
+			// other control left the recorder armed (and the global shortcuts
+			// suspended) with no way to give it up.
+			a.recording = false
+		case a.customRecording:
+			// Same for the custom-shortcuts row: its recorder is armed on the
+			// page, not on whichever control happens to hold the keyboard now.
+			a.customRecording = false
+			a.customRecordRow = customDraftRow
 		case a.anyConfirmOpen():
 			a.cancelConfirmations()
 		case a.anySessionArmed():
@@ -3236,6 +3248,17 @@ func (a *App) closeConfig(id string) {
 		for key := range a.configFieldErrors {
 			if strings.HasPrefix(key, prefix) {
 				delete(a.configFieldErrors, key)
+			}
+		}
+	}
+	// The list boxes' offsets belong to the form that was open. Keeping them
+	// after the draft is dropped would reopen the same schema mid-list, over a
+	// value map the user has never scrolled.
+	if a.configListScrolls != nil {
+		prefix := id + "\x00"
+		for key := range a.configListScrolls {
+			if strings.HasPrefix(key, prefix) {
+				delete(a.configListScrolls, key)
 			}
 		}
 	}

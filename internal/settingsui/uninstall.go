@@ -213,6 +213,7 @@ func (a *App) uninstallDialog(c *ui.Context, copy i18n.Settings, integration Int
 				// already being answered cannot be answered again.
 				if a.uninstallActionButton(c, copy.PermissionsCancel, false, busy, nil).Bind(&cancel).Clicked() {
 					a.uninstallOpen[integration.ID] = false
+					a.resetUninstallDraft(integration.ID)
 					return
 				}
 				// The confirm verb is the reference's own
@@ -224,6 +225,7 @@ func (a *App) uninstallDialog(c *ui.Context, copy i18n.Settings, integration Int
 						// The dialog only opens when the shell wired the componentized
 						// action, so this arm is the headless-test fallback.
 						a.uninstallOpen[integration.ID] = false
+						a.resetUninstallDraft(integration.ID)
 						return
 					}
 					if a.uninstallBusy == nil {
@@ -253,6 +255,7 @@ func (a *App) uninstallDialog(c *ui.Context, copy i18n.Settings, integration Int
 			a.uninstallOpen = map[string]bool{}
 		}
 		a.uninstallOpen[integration.ID] = false
+		a.resetUninstallDraft(integration.ID)
 	}
 	// Give Cancel the focus while the pane does not already hold it: the
 	// request applies after the overlay recorded its opener, so closing gives
@@ -260,8 +263,21 @@ func (a *App) uninstallDialog(c *ui.Context, copy i18n.Settings, integration Int
 	if panelEl.Valid() && !pane.FocusWithin(c) {
 		cancel.Focus(c)
 	}
-	a.uninstallDraft[integration.ID] = draft
+	// A close answered this frame (Cancel or Escape) must not be undone by the
+	// write-back below: the dialog is gone, and its abandoned ticks are not the
+	// next open's starting state.
+	if a.uninstallOpen[integration.ID] {
+		a.uninstallDraft[integration.ID] = draft
+	}
 	return panelEl
+}
+
+// resetUninstallDraft forgets the component ticks of a dialog that was closed
+// without removing anything. The next open asks the same four questions from
+// their defaults; keeping the abandoned answer would make a cancelled
+// uninstall remember a partial selection the user never confirmed.
+func (a *App) resetUninstallDraft(id string) {
+	delete(a.uninstallDraft, id)
 }
 
 // finishComponentizedUninstall settles the dialog after the shell reports a
@@ -287,6 +303,7 @@ func (a *App) finishComponentizedUninstall(id string, err error) {
 			a.uninstallOpen = map[string]bool{}
 		}
 		a.uninstallOpen[id] = false
+		a.resetUninstallDraft(id)
 	}
 	if a.Actions.Invalidate != nil {
 		a.Actions.Invalidate()

@@ -543,6 +543,10 @@ type App struct {
 	// residencyOn is the residency surface the last frame noted, so entering
 	// one starts the clock exactly once (see noteResidency).
 	residencyOn string
+	// pluginConfigOpen is whether the plugin configuration sheet was open last
+	// frame. Its editor drafts belong to one open: closing the sheet retires
+	// them, so the next open reads the stored values (see noteResidency).
+	pluginConfigOpen bool
 	// spawnAt is when each kind of process hand-off last ran, so a key held
 	// down (or a global shortcut the desktop repeats) cannot start one per
 	// repeat. Every route that starts a process asks allowSpawn first (see
@@ -3977,6 +3981,15 @@ func (a *App) currentResidencySurface() string {
 // `useSurfaceResidency`, which noted the same transition on every render; the
 // View calls it once a frame.
 func (a *App) noteResidency() {
+	// One settings App draws every plugin sheet, so the draft an open sheet
+	// leaves behind would otherwise be read as the next open's value. Retire
+	// it on the frame the launcher stops reporting an open sheet, before the
+	// next overlay can be drawn.
+	open := a.Launcher.ConfigOpen()
+	if a.pluginConfigOpen && !open {
+		a.Settings.ClosePluginSheet()
+	}
+	a.pluginConfigOpen = open
 	surface := a.currentResidencySurface()
 	if surface == a.residencyOn {
 		return

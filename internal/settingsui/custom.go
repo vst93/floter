@@ -399,7 +399,14 @@ func (a *App) addCustomShortcut() {
 func (a *App) commitCustomCommand(index int, text string) {
 	next := strings.TrimSpace(text)
 	entries := a.customShortcuts()
-	if index < 0 || index >= len(entries) || next == "" || next == entries[index].Action {
+	if index < 0 || index >= len(entries) {
+		return
+	}
+	if next == "" || next == entries[index].Action {
+		// Enter is a commit gesture even when it changes nothing. The row keeps
+		// the stored action and drops the editor's draft, so a trailing space or
+		// an emptied field cannot leave the row showing text the store never got.
+		delete(a.customEdits, entries[index].Key)
 		return
 	}
 	a.updateCustomShortcut(index, settings.CustomShortcut{Key: entries[index].Key, Action: next})
