@@ -1,0 +1,10 @@
+=== RUN   TestTheSummonLineStandsOnTheInkLadder
+=== RUN   TestTheSummonLineStandsOnTheInkLadder/light
+    triggerrung_test.go:63: light: plate {213 213 214 255 [0 0 0]} · name {107 107 112 255 [0 0 0]} (106) · description {128 128 135 255 [0 0 0]} (85) · summon {142 142 148 255 [0 0 0]} (71)
+=== RUN   TestTheSummonLineStandsOnTheInkLadder/dark
+    triggerrung_test.go:63: dark: plate {61 61 63 255 [0 0 0]} · name {154 154 160 255 [0 0 0]} (97) · description {133 133 141 255 [0 0 0]} (78) · summon {110 110 118 255 [0 0 0]} (55)
+--- PASS: TestTheSummonLineStandsOnTheInkLadder (272.49s)
+    --- PASS: TestTheSummonLineStandsOnTheInkLadder/light (118.86s)
+    --- PASS: TestTheSummonLineStandsOnTheInkLadder/dark (153.63s)
+PASS
+ok  	floter/internal/settingsui	272.504s

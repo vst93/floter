@@ -1,0 +1,18 @@
+=== RUN   TestTheTextActionTakesOneRungPerState
+=== RUN   TestTheTextActionTakesOneRungPerState/light
+    actionrung_test.go:113: light: rest {109 109 114 255 [0 0 0]} (137 levels off {246 246 248 255 [0 0 0]}) · hover {30 30 32 255 [0 0 0]} (216, rung 0.96) · press {40 40 42 255 [0 0 0]} (206, rung 0.84) · press↔hover 437 px in {619 136 81 9}
+=== RUN   TestTheTextActionTakesOneRungPerState/dark
+    actionrung_test.go:113: dark: rest {152 152 158 255 [0 0 0]} (141 levels off {15 15 17 255 [0 0 0]}) · hover {234 234 236 255 [0 0 0]} (219, rung 0.96) · press {224 224 226 255 [0 0 0]} (209, rung 0.84) · press↔hover 434 px in {619 136 81 9}
+--- PASS: TestTheTextActionTakesOneRungPerState (0.54s)
+    --- PASS: TestTheTextActionTakesOneRungPerState/light (0.37s)
+    --- PASS: TestTheTextActionTakesOneRungPerState/dark (0.17s)
+=== RUN   TestTheSummonLineStandsOnTheInkLadder
+=== RUN   TestTheSummonLineStandsOnTheInkLadder/light
+    triggerrung_test.go:63: light: plate {213 213 214 255 [0 0 0]} · name {107 107 112 255 [0 0 0]} (106) · description {128 128 135 255 [0 0 0]} (85) · summon {142 142 148 255 [0 0 0]} (71)
+=== RUN   TestTheSummonLineStandsOnTheInkLadder/dark
+    triggerrung_test.go:63: dark: plate {61 61 63 255 [0 0 0]} · name {154 154 160 255 [0 0 0]} (97) · description {133 133 141 255 [0 0 0]} (78) · summon {110 110 118 255 [0 0 0]} (55)
+--- PASS: TestTheSummonLineStandsOnTheInkLadder (0.28s)
+    --- PASS: TestTheSummonLineStandsOnTheInkLadder/light (0.11s)
+    --- PASS: TestTheSummonLineStandsOnTheInkLadder/dark (0.16s)
+PASS
+ok  	floter/internal/settingsui	0.860s

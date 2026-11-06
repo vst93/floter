@@ -1,0 +1,10 @@
+gofmt: exit=0 elapsed=0.429s
+linux-vet: exit=0 elapsed=20.332s
+linux-build: exit=0 elapsed=10.497s
+windows-vet: exit=0 elapsed=19.246s
+windows-build: exit=0 elapsed=10.352s
+darwin-vet: exit=0 elapsed=20.701s
+darwin-build: exit=0 elapsed=9.304s
+full-test: exit=0 elapsed=312.096s
+verbose: exit=0 elapsed=214.746s PASS=4397 FAIL=0
+Test functions: 2946

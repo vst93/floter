@@ -125,12 +125,19 @@ func TestTheTextActionTakesOneRungPerState(t *testing.T) {
 // label band's farthest pixel from that plane is the glyph core (antialiased
 // edges sit between the two, so "farthest" is the ink).
 func actionRungProbe(tt *ui.Tester, label ui.Rect) (plane, ink ui.Color) {
+	// Read this immutable frame once. Tester.Image converts the whole raster;
+	// repeating it for each glyph pixel made this probe take several minutes.
+	img := tt.Image()
+	pixel := func(x, y float32) ui.Color {
+		i := int(y)*img.Stride + int(x)*4
+		return ui.Color{R: img.Pix[i], G: img.Pix[i+1], B: img.Pix[i+2], A: img.Pix[i+3]}
+	}
 	midY := label.Y + label.H/2
-	plane = sample(tt, label.X-1, midY)
+	plane = pixel(label.X-1, midY)
 	far := -1
 	for x := int(label.X); x < int(label.X+label.W); x++ {
 		for y := int(label.Y); y < int(label.Y+label.H); y++ {
-			p := sample(tt, float32(x), float32(y))
+			p := pixel(float32(x), float32(y))
 			if d := colorDistance(p, plane); d > far {
 				far, ink = d, p
 			}

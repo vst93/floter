@@ -1,0 +1,154 @@
+internal/settingsui/noticefocus.go: OK
+internal/settingsui/settingsui.go: OK
+=== RUN   TestMissingOutletSave
+=== RUN   TestMissingOutletSave/empty/light/entry
+=== RUN   TestMissingOutletSave/empty/light/elsewhere
+=== RUN   TestMissingOutletSave/empty/dark/entry
+=== RUN   TestMissingOutletSave/empty/dark/elsewhere
+=== RUN   TestMissingOutletSave/survivor/light/entry
+=== RUN   TestMissingOutletSave/survivor/light/elsewhere
+=== RUN   TestMissingOutletSave/survivor/dark/entry
+=== RUN   TestMissingOutletSave/survivor/dark/elsewhere
+--- PASS: TestMissingOutletSave (4.65s)
+    --- PASS: TestMissingOutletSave/empty/light/entry (0.65s)
+    --- PASS: TestMissingOutletSave/empty/light/elsewhere (0.61s)
+    --- PASS: TestMissingOutletSave/empty/dark/entry (0.49s)
+    --- PASS: TestMissingOutletSave/empty/dark/elsewhere (0.55s)
+    --- PASS: TestMissingOutletSave/survivor/light/entry (0.57s)
+    --- PASS: TestMissingOutletSave/survivor/light/elsewhere (0.66s)
+    --- PASS: TestMissingOutletSave/survivor/dark/entry (0.54s)
+    --- PASS: TestMissingOutletSave/survivor/dark/elsewhere (0.58s)
+=== RUN   TestMissingOutletDiscard
+=== RUN   TestMissingOutletDiscard/empty/light/entry
+=== RUN   TestMissingOutletDiscard/empty/light/elsewhere
+=== RUN   TestMissingOutletDiscard/empty/dark/entry
+=== RUN   TestMissingOutletDiscard/empty/dark/elsewhere
+=== RUN   TestMissingOutletDiscard/survivor/light/entry
+=== RUN   TestMissingOutletDiscard/survivor/light/elsewhere
+=== RUN   TestMissingOutletDiscard/survivor/dark/entry
+=== RUN   TestMissingOutletDiscard/survivor/dark/elsewhere
+--- PASS: TestMissingOutletDiscard (8.68s)
+    --- PASS: TestMissingOutletDiscard/empty/light/entry (0.71s)
+    --- PASS: TestMissingOutletDiscard/empty/light/elsewhere (0.99s)
+    --- PASS: TestMissingOutletDiscard/empty/dark/entry (0.80s)
+    --- PASS: TestMissingOutletDiscard/empty/dark/elsewhere (1.00s)
+    --- PASS: TestMissingOutletDiscard/survivor/light/entry (1.05s)
+    --- PASS: TestMissingOutletDiscard/survivor/light/elsewhere (1.60s)
+    --- PASS: TestMissingOutletDiscard/survivor/dark/entry (0.97s)
+    --- PASS: TestMissingOutletDiscard/survivor/dark/elsewhere (1.55s)
+=== RUN   TestMissingOutletRecheck
+=== RUN   TestMissingOutletRecheck/empty/light/entry
+=== RUN   TestMissingOutletRecheck/empty/light/elsewhere
+=== RUN   TestMissingOutletRecheck/empty/dark/entry
+=== RUN   TestMissingOutletRecheck/empty/dark/elsewhere
+=== RUN   TestMissingOutletRecheck/survivor/light/entry
+=== RUN   TestMissingOutletRecheck/survivor/light/elsewhere
+=== RUN   TestMissingOutletRecheck/survivor/dark/entry
+=== RUN   TestMissingOutletRecheck/survivor/dark/elsewhere
+--- PASS: TestMissingOutletRecheck (0.74s)
+    --- PASS: TestMissingOutletRecheck/empty/light/entry (0.09s)
+    --- PASS: TestMissingOutletRecheck/empty/light/elsewhere (0.06s)
+    --- PASS: TestMissingOutletRecheck/empty/dark/entry (0.10s)
+    --- PASS: TestMissingOutletRecheck/empty/dark/elsewhere (0.07s)
+    --- PASS: TestMissingOutletRecheck/survivor/light/entry (0.12s)
+    --- PASS: TestMissingOutletRecheck/survivor/light/elsewhere (0.09s)
+    --- PASS: TestMissingOutletRecheck/survivor/dark/entry (0.11s)
+    --- PASS: TestMissingOutletRecheck/survivor/dark/elsewhere (0.09s)
+=== RUN   TestMissingOutletReconnect
+=== RUN   TestMissingOutletReconnect/empty/light/entry
+=== RUN   TestMissingOutletReconnect/empty/light/elsewhere
+=== RUN   TestMissingOutletReconnect/empty/dark/entry
+=== RUN   TestMissingOutletReconnect/empty/dark/elsewhere
+=== RUN   TestMissingOutletReconnect/survivor/light/entry
+=== RUN   TestMissingOutletReconnect/survivor/light/elsewhere
+=== RUN   TestMissingOutletReconnect/survivor/dark/entry
+=== RUN   TestMissingOutletReconnect/survivor/dark/elsewhere
+--- PASS: TestMissingOutletReconnect (0.80s)
+    --- PASS: TestMissingOutletReconnect/empty/light/entry (0.10s)
+    --- PASS: TestMissingOutletReconnect/empty/light/elsewhere (0.06s)
+    --- PASS: TestMissingOutletReconnect/empty/dark/entry (0.10s)
+    --- PASS: TestMissingOutletReconnect/empty/dark/elsewhere (0.06s)
+    --- PASS: TestMissingOutletReconnect/survivor/light/entry (0.12s)
+    --- PASS: TestMissingOutletReconnect/survivor/light/elsewhere (0.09s)
+    --- PASS: TestMissingOutletReconnect/survivor/dark/entry (0.16s)
+    --- PASS: TestMissingOutletReconnect/survivor/dark/elsewhere (0.10s)
+=== RUN   TestMissingOutletToggle
+=== RUN   TestMissingOutletToggle/empty/light/entry
+=== RUN   TestMissingOutletToggle/empty/light/elsewhere
+=== RUN   TestMissingOutletToggle/empty/dark/entry
+=== RUN   TestMissingOutletToggle/empty/dark/elsewhere
+=== RUN   TestMissingOutletToggle/survivor/light/entry
+=== RUN   TestMissingOutletToggle/survivor/light/elsewhere
+=== RUN   TestMissingOutletToggle/survivor/dark/entry
+=== RUN   TestMissingOutletToggle/survivor/dark/elsewhere
+--- PASS: TestMissingOutletToggle (0.64s)
+    --- PASS: TestMissingOutletToggle/empty/light/entry (0.09s)
+    --- PASS: TestMissingOutletToggle/empty/light/elsewhere (0.06s)
+    --- PASS: TestMissingOutletToggle/empty/dark/entry (0.08s)
+    --- PASS: TestMissingOutletToggle/empty/dark/elsewhere (0.05s)
+    --- PASS: TestMissingOutletToggle/survivor/light/entry (0.11s)
+    --- PASS: TestMissingOutletToggle/survivor/light/elsewhere (0.08s)
+    --- PASS: TestMissingOutletToggle/survivor/dark/entry (0.10s)
+    --- PASS: TestMissingOutletToggle/survivor/dark/elsewhere (0.08s)
+=== RUN   TestMissingOutletDisable
+=== RUN   TestMissingOutletDisable/empty/light/entry
+=== RUN   TestMissingOutletDisable/empty/light/elsewhere
+=== RUN   TestMissingOutletDisable/empty/dark/entry
+=== RUN   TestMissingOutletDisable/empty/dark/elsewhere
+=== RUN   TestMissingOutletDisable/survivor/light/entry
+=== RUN   TestMissingOutletDisable/survivor/light/elsewhere
+=== RUN   TestMissingOutletDisable/survivor/dark/entry
+=== RUN   TestMissingOutletDisable/survivor/dark/elsewhere
+--- PASS: TestMissingOutletDisable (0.81s)
+    --- PASS: TestMissingOutletDisable/empty/light/entry (0.11s)
+    --- PASS: TestMissingOutletDisable/empty/light/elsewhere (0.08s)
+    --- PASS: TestMissingOutletDisable/empty/dark/entry (0.10s)
+    --- PASS: TestMissingOutletDisable/empty/dark/elsewhere (0.08s)
+    --- PASS: TestMissingOutletDisable/survivor/light/entry (0.12s)
+    --- PASS: TestMissingOutletDisable/survivor/light/elsewhere (0.10s)
+    --- PASS: TestMissingOutletDisable/survivor/dark/entry (0.13s)
+    --- PASS: TestMissingOutletDisable/survivor/dark/elsewhere (0.10s)
+=== RUN   TestMissingOutletRemove
+=== RUN   TestMissingOutletRemove/empty/light/entry
+=== RUN   TestMissingOutletRemove/empty/light/elsewhere
+=== RUN   TestMissingOutletRemove/empty/dark/entry
+=== RUN   TestMissingOutletRemove/empty/dark/elsewhere
+=== RUN   TestMissingOutletRemove/survivor/light/entry
+=== RUN   TestMissingOutletRemove/survivor/light/elsewhere
+=== RUN   TestMissingOutletRemove/survivor/dark/entry
+=== RUN   TestMissingOutletRemove/survivor/dark/elsewhere
+--- PASS: TestMissingOutletRemove (0.77s)
+    --- PASS: TestMissingOutletRemove/empty/light/entry (0.10s)
+    --- PASS: TestMissingOutletRemove/empty/light/elsewhere (0.07s)
+    --- PASS: TestMissingOutletRemove/empty/dark/entry (0.10s)
+    --- PASS: TestMissingOutletRemove/empty/dark/elsewhere (0.07s)
+    --- PASS: TestMissingOutletRemove/survivor/light/entry (0.13s)
+    --- PASS: TestMissingOutletRemove/survivor/light/elsewhere (0.09s)
+    --- PASS: TestMissingOutletRemove/survivor/dark/entry (0.12s)
+    --- PASS: TestMissingOutletRemove/survivor/dark/elsewhere (0.09s)
+=== RUN   TestMissingOutletUninstall
+=== RUN   TestMissingOutletUninstall/empty/light/entry
+=== RUN   TestMissingOutletUninstall/empty/light/elsewhere
+=== RUN   TestMissingOutletUninstall/empty/dark/entry
+=== RUN   TestMissingOutletUninstall/empty/dark/elsewhere
+=== RUN   TestMissingOutletUninstall/survivor/light/entry
+=== RUN   TestMissingOutletUninstall/survivor/light/elsewhere
+=== RUN   TestMissingOutletUninstall/survivor/dark/entry
+=== RUN   TestMissingOutletUninstall/survivor/dark/elsewhere
+--- PASS: TestMissingOutletUninstall (1.28s)
+    --- PASS: TestMissingOutletUninstall/empty/light/entry (0.18s)
+    --- PASS: TestMissingOutletUninstall/empty/light/elsewhere (0.14s)
+    --- PASS: TestMissingOutletUninstall/empty/dark/entry (0.16s)
+    --- PASS: TestMissingOutletUninstall/empty/dark/elsewhere (0.14s)
+    --- PASS: TestMissingOutletUninstall/survivor/light/entry (0.18s)
+    --- PASS: TestMissingOutletUninstall/survivor/light/elsewhere (0.15s)
+    --- PASS: TestMissingOutletUninstall/survivor/dark/entry (0.16s)
+    --- PASS: TestMissingOutletUninstall/survivor/dark/elsewhere (0.16s)
+=== RUN   TestMissingOutletHeaderEscapeKeepsQuestionPriority
+=== RUN   TestMissingOutletHeaderEscapeKeepsQuestionPriority/light
+=== RUN   TestMissingOutletHeaderEscapeKeepsQuestionPriority/dark
+--- PASS: TestMissingOutletHeaderEscapeKeepsQuestionPriority (0.11s)
+    --- PASS: TestMissingOutletHeaderEscapeKeepsQuestionPriority/light (0.06s)
+    --- PASS: TestMissingOutletHeaderEscapeKeepsQuestionPriority/dark (0.05s)
+PASS
+ok  	floter/internal/settingsui	18.509s

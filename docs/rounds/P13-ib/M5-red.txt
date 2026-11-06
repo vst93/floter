@@ -1,0 +1,269 @@
+=== RUN   TestMissingOutletSave
+=== RUN   TestMissingOutletSave/empty/light/entry
+    missingoutlet_test.go:180: missing save row lost keyboard outlet "Close settings"
+    missingoutlet_test.go:189: returning save ID reclaimed abandoned focus
+    missingoutlet_test.go:196: late save result stole keyboard focus
+    missingoutlet_test.go:207: missing save outlet cannot close settings: 0
+    missingoutlet_test.go:211: return or callback repeated the operation
+=== RUN   TestMissingOutletSave/empty/light/elsewhere
+=== RUN   TestMissingOutletSave/empty/dark/entry
+    missingoutlet_test.go:180: missing save row lost keyboard outlet "Close settings"
+    missingoutlet_test.go:189: returning save ID reclaimed abandoned focus
+    missingoutlet_test.go:196: late save result stole keyboard focus
+    missingoutlet_test.go:207: missing save outlet cannot close settings: 0
+    missingoutlet_test.go:211: return or callback repeated the operation
+=== RUN   TestMissingOutletSave/empty/dark/elsewhere
+=== RUN   TestMissingOutletSave/survivor/light/entry
+    missingoutlet_test.go:180: missing save row lost keyboard outlet "Close settings"
+    missingoutlet_test.go:189: returning save ID reclaimed abandoned focus
+    missingoutlet_test.go:196: late save result stole keyboard focus
+    missingoutlet_test.go:207: missing save outlet cannot close settings: 0
+    missingoutlet_test.go:211: return or callback repeated the operation
+=== RUN   TestMissingOutletSave/survivor/light/elsewhere
+=== RUN   TestMissingOutletSave/survivor/dark/entry
+    missingoutlet_test.go:180: missing save row lost keyboard outlet "Close settings"
+    missingoutlet_test.go:189: returning save ID reclaimed abandoned focus
+    missingoutlet_test.go:196: late save result stole keyboard focus
+    missingoutlet_test.go:207: missing save outlet cannot close settings: 0
+    missingoutlet_test.go:211: return or callback repeated the operation
+=== RUN   TestMissingOutletSave/survivor/dark/elsewhere
+--- FAIL: TestMissingOutletSave (3.99s)
+    --- FAIL: TestMissingOutletSave/empty/light/entry (0.60s)
+    --- PASS: TestMissingOutletSave/empty/light/elsewhere (0.43s)
+    --- FAIL: TestMissingOutletSave/empty/dark/entry (0.42s)
+    --- PASS: TestMissingOutletSave/empty/dark/elsewhere (0.45s)
+    --- FAIL: TestMissingOutletSave/survivor/light/entry (0.50s)
+    --- PASS: TestMissingOutletSave/survivor/light/elsewhere (0.58s)
+    --- FAIL: TestMissingOutletSave/survivor/dark/entry (0.50s)
+    --- PASS: TestMissingOutletSave/survivor/dark/elsewhere (0.51s)
+=== RUN   TestMissingOutletDiscard
+=== RUN   TestMissingOutletDiscard/empty/light/entry
+    missingoutlet_test.go:180: missing discard row lost keyboard outlet "Close settings"
+    missingoutlet_test.go:189: returning discard ID reclaimed abandoned focus
+    missingoutlet_test.go:207: missing discard outlet cannot close settings: 0
+=== RUN   TestMissingOutletDiscard/empty/light/elsewhere
+=== RUN   TestMissingOutletDiscard/empty/dark/entry
+    missingoutlet_test.go:180: missing discard row lost keyboard outlet "Close settings"
+    missingoutlet_test.go:189: returning discard ID reclaimed abandoned focus
+    missingoutlet_test.go:207: missing discard outlet cannot close settings: 0
+=== RUN   TestMissingOutletDiscard/empty/dark/elsewhere
+=== RUN   TestMissingOutletDiscard/survivor/light/entry
+    missingoutlet_test.go:180: missing discard row lost keyboard outlet "Close settings"
+    missingoutlet_test.go:189: returning discard ID reclaimed abandoned focus
+    missingoutlet_test.go:207: missing discard outlet cannot close settings: 0
+=== RUN   TestMissingOutletDiscard/survivor/light/elsewhere
+=== RUN   TestMissingOutletDiscard/survivor/dark/entry
+    missingoutlet_test.go:180: missing discard row lost keyboard outlet "Close settings"
+    missingoutlet_test.go:189: returning discard ID reclaimed abandoned focus
+    missingoutlet_test.go:207: missing discard outlet cannot close settings: 0
+=== RUN   TestMissingOutletDiscard/survivor/dark/elsewhere
+--- FAIL: TestMissingOutletDiscard (9.38s)
+    --- FAIL: TestMissingOutletDiscard/empty/light/entry (0.69s)
+    --- PASS: TestMissingOutletDiscard/empty/light/elsewhere (1.03s)
+    --- FAIL: TestMissingOutletDiscard/empty/dark/entry (0.75s)
+    --- PASS: TestMissingOutletDiscard/empty/dark/elsewhere (1.03s)
+    --- FAIL: TestMissingOutletDiscard/survivor/light/entry (1.11s)
+    --- PASS: TestMissingOutletDiscard/survivor/light/elsewhere (1.76s)
+    --- FAIL: TestMissingOutletDiscard/survivor/dark/entry (1.36s)
+    --- PASS: TestMissingOutletDiscard/survivor/dark/elsewhere (1.65s)
+=== RUN   TestMissingOutletRecheck
+=== RUN   TestMissingOutletRecheck/empty/light/entry
+    missingoutlet_test.go:180: missing repair row lost keyboard outlet "Close settings"
+    missingoutlet_test.go:189: returning repair ID reclaimed abandoned focus
+    missingoutlet_test.go:196: late repair result stole keyboard focus
+    missingoutlet_test.go:207: missing repair outlet cannot close settings: 0
+    missingoutlet_test.go:211: return or callback repeated the operation
+=== RUN   TestMissingOutletRecheck/empty/light/elsewhere
+=== RUN   TestMissingOutletRecheck/empty/dark/entry
+    missingoutlet_test.go:180: missing repair row lost keyboard outlet "Close settings"
+    missingoutlet_test.go:189: returning repair ID reclaimed abandoned focus
+    missingoutlet_test.go:196: late repair result stole keyboard focus
+    missingoutlet_test.go:207: missing repair outlet cannot close settings: 0
+    missingoutlet_test.go:211: return or callback repeated the operation
+=== RUN   TestMissingOutletRecheck/empty/dark/elsewhere
+=== RUN   TestMissingOutletRecheck/survivor/light/entry
+    missingoutlet_test.go:180: missing repair row lost keyboard outlet "Close settings"
+    missingoutlet_test.go:189: returning repair ID reclaimed abandoned focus
+    missingoutlet_test.go:196: late repair result stole keyboard focus
+    missingoutlet_test.go:207: missing repair outlet cannot close settings: 0
+    missingoutlet_test.go:211: return or callback repeated the operation
+=== RUN   TestMissingOutletRecheck/survivor/light/elsewhere
+=== RUN   TestMissingOutletRecheck/survivor/dark/entry
+    missingoutlet_test.go:180: missing repair row lost keyboard outlet "Close settings"
+    missingoutlet_test.go:189: returning repair ID reclaimed abandoned focus
+    missingoutlet_test.go:196: late repair result stole keyboard focus
+    missingoutlet_test.go:207: missing repair outlet cannot close settings: 0
+    missingoutlet_test.go:211: return or callback repeated the operation
+=== RUN   TestMissingOutletRecheck/survivor/dark/elsewhere
+--- FAIL: TestMissingOutletRecheck (0.78s)
+    --- FAIL: TestMissingOutletRecheck/empty/light/entry (0.11s)
+    --- PASS: TestMissingOutletRecheck/empty/light/elsewhere (0.07s)
+    --- FAIL: TestMissingOutletRecheck/empty/dark/entry (0.10s)
+    --- PASS: TestMissingOutletRecheck/empty/dark/elsewhere (0.06s)
+    --- FAIL: TestMissingOutletRecheck/survivor/light/entry (0.13s)
+    --- PASS: TestMissingOutletRecheck/survivor/light/elsewhere (0.09s)
+    --- FAIL: TestMissingOutletRecheck/survivor/dark/entry (0.13s)
+    --- PASS: TestMissingOutletRecheck/survivor/dark/elsewhere (0.08s)
+=== RUN   TestMissingOutletReconnect
+=== RUN   TestMissingOutletReconnect/empty/light/entry
+    missingoutlet_test.go:180: missing reconnect row lost keyboard outlet "Close settings"
+    missingoutlet_test.go:189: returning reconnect ID reclaimed abandoned focus
+    missingoutlet_test.go:196: late reconnect result stole keyboard focus
+    missingoutlet_test.go:207: missing reconnect outlet cannot close settings: 0
+    missingoutlet_test.go:211: return or callback repeated the operation
+=== RUN   TestMissingOutletReconnect/empty/light/elsewhere
+=== RUN   TestMissingOutletReconnect/empty/dark/entry
+    missingoutlet_test.go:180: missing reconnect row lost keyboard outlet "Close settings"
+    missingoutlet_test.go:189: returning reconnect ID reclaimed abandoned focus
+    missingoutlet_test.go:196: late reconnect result stole keyboard focus
+    missingoutlet_test.go:207: missing reconnect outlet cannot close settings: 0
+    missingoutlet_test.go:211: return or callback repeated the operation
+=== RUN   TestMissingOutletReconnect/empty/dark/elsewhere
+=== RUN   TestMissingOutletReconnect/survivor/light/entry
+    missingoutlet_test.go:180: missing reconnect row lost keyboard outlet "Close settings"
+    missingoutlet_test.go:189: returning reconnect ID reclaimed abandoned focus
+    missingoutlet_test.go:196: late reconnect result stole keyboard focus
+    missingoutlet_test.go:207: missing reconnect outlet cannot close settings: 0
+    missingoutlet_test.go:211: return or callback repeated the operation
+=== RUN   TestMissingOutletReconnect/survivor/light/elsewhere
+=== RUN   TestMissingOutletReconnect/survivor/dark/entry
+    missingoutlet_test.go:180: missing reconnect row lost keyboard outlet "Close settings"
+    missingoutlet_test.go:189: returning reconnect ID reclaimed abandoned focus
+    missingoutlet_test.go:196: late reconnect result stole keyboard focus
+    missingoutlet_test.go:207: missing reconnect outlet cannot close settings: 0
+    missingoutlet_test.go:211: return or callback repeated the operation
+=== RUN   TestMissingOutletReconnect/survivor/dark/elsewhere
+--- FAIL: TestMissingOutletReconnect (0.86s)
+    --- FAIL: TestMissingOutletReconnect/empty/light/entry (0.10s)
+    --- PASS: TestMissingOutletReconnect/empty/light/elsewhere (0.07s)
+    --- FAIL: TestMissingOutletReconnect/empty/dark/entry (0.10s)
+    --- PASS: TestMissingOutletReconnect/empty/dark/elsewhere (0.07s)
+    --- FAIL: TestMissingOutletReconnect/survivor/light/entry (0.14s)
+    --- PASS: TestMissingOutletReconnect/survivor/light/elsewhere (0.10s)
+    --- FAIL: TestMissingOutletReconnect/survivor/dark/entry (0.17s)
+    --- PASS: TestMissingOutletReconnect/survivor/dark/elsewhere (0.11s)
+=== RUN   TestMissingOutletToggle
+=== RUN   TestMissingOutletToggle/empty/light/entry
+    missingoutlet_test.go:180: missing toggle row lost keyboard outlet "Close settings"
+    missingoutlet_test.go:189: returning toggle ID reclaimed abandoned focus
+    missingoutlet_test.go:196: late toggle result stole keyboard focus
+    missingoutlet_test.go:207: missing toggle outlet cannot close settings: 0
+    missingoutlet_test.go:211: return or callback repeated the operation
+=== RUN   TestMissingOutletToggle/empty/light/elsewhere
+=== RUN   TestMissingOutletToggle/empty/dark/entry
+    missingoutlet_test.go:180: missing toggle row lost keyboard outlet "Close settings"
+    missingoutlet_test.go:189: returning toggle ID reclaimed abandoned focus
+    missingoutlet_test.go:196: late toggle result stole keyboard focus
+    missingoutlet_test.go:207: missing toggle outlet cannot close settings: 0
+    missingoutlet_test.go:211: return or callback repeated the operation
+=== RUN   TestMissingOutletToggle/empty/dark/elsewhere
+=== RUN   TestMissingOutletToggle/survivor/light/entry
+    missingoutlet_test.go:180: missing toggle row lost keyboard outlet "Close settings"
+    missingoutlet_test.go:189: returning toggle ID reclaimed abandoned focus
+    missingoutlet_test.go:196: late toggle result stole keyboard focus
+    missingoutlet_test.go:207: missing toggle outlet cannot close settings: 0
+    missingoutlet_test.go:211: return or callback repeated the operation
+=== RUN   TestMissingOutletToggle/survivor/light/elsewhere
+=== RUN   TestMissingOutletToggle/survivor/dark/entry
+    missingoutlet_test.go:180: missing toggle row lost keyboard outlet "Close settings"
+    missingoutlet_test.go:189: returning toggle ID reclaimed abandoned focus
+    missingoutlet_test.go:196: late toggle result stole keyboard focus
+    missingoutlet_test.go:207: missing toggle outlet cannot close settings: 0
+    missingoutlet_test.go:211: return or callback repeated the operation
+=== RUN   TestMissingOutletToggle/survivor/dark/elsewhere
+--- FAIL: TestMissingOutletToggle (0.67s)
+    --- FAIL: TestMissingOutletToggle/empty/light/entry (0.09s)
+    --- PASS: TestMissingOutletToggle/empty/light/elsewhere (0.06s)
+    --- FAIL: TestMissingOutletToggle/empty/dark/entry (0.08s)
+    --- PASS: TestMissingOutletToggle/empty/dark/elsewhere (0.06s)
+    --- FAIL: TestMissingOutletToggle/survivor/light/entry (0.12s)
+    --- PASS: TestMissingOutletToggle/survivor/light/elsewhere (0.08s)
+    --- FAIL: TestMissingOutletToggle/survivor/dark/entry (0.11s)
+    --- PASS: TestMissingOutletToggle/survivor/dark/elsewhere (0.07s)
+=== RUN   TestMissingOutletDisable
+=== RUN   TestMissingOutletDisable/empty/light/entry
+    missingoutlet_test.go:180: missing disable row lost keyboard outlet "Close settings"
+=== RUN   TestMissingOutletDisable/empty/light/elsewhere
+=== RUN   TestMissingOutletDisable/empty/dark/entry
+    missingoutlet_test.go:180: missing disable row lost keyboard outlet "Close settings"
+=== RUN   TestMissingOutletDisable/empty/dark/elsewhere
+=== RUN   TestMissingOutletDisable/survivor/light/entry
+    missingoutlet_test.go:180: missing disable row lost keyboard outlet "Close settings"
+=== RUN   TestMissingOutletDisable/survivor/light/elsewhere
+=== RUN   TestMissingOutletDisable/survivor/dark/entry
+    missingoutlet_test.go:180: missing disable row lost keyboard outlet "Close settings"
+=== RUN   TestMissingOutletDisable/survivor/dark/elsewhere
+--- FAIL: TestMissingOutletDisable (0.83s)
+    --- FAIL: TestMissingOutletDisable/empty/light/entry (0.11s)
+    --- PASS: TestMissingOutletDisable/empty/light/elsewhere (0.08s)
+    --- FAIL: TestMissingOutletDisable/empty/dark/entry (0.11s)
+    --- PASS: TestMissingOutletDisable/empty/dark/elsewhere (0.08s)
+    --- FAIL: TestMissingOutletDisable/survivor/light/entry (0.12s)
+    --- PASS: TestMissingOutletDisable/survivor/light/elsewhere (0.10s)
+    --- FAIL: TestMissingOutletDisable/survivor/dark/entry (0.13s)
+    --- PASS: TestMissingOutletDisable/survivor/dark/elsewhere (0.10s)
+=== RUN   TestMissingOutletRemove
+=== RUN   TestMissingOutletRemove/empty/light/entry
+    missingoutlet_test.go:180: missing remove row lost keyboard outlet "Close settings"
+=== RUN   TestMissingOutletRemove/empty/light/elsewhere
+=== RUN   TestMissingOutletRemove/empty/dark/entry
+    missingoutlet_test.go:180: missing remove row lost keyboard outlet "Close settings"
+=== RUN   TestMissingOutletRemove/empty/dark/elsewhere
+=== RUN   TestMissingOutletRemove/survivor/light/entry
+    missingoutlet_test.go:180: missing remove row lost keyboard outlet "Close settings"
+=== RUN   TestMissingOutletRemove/survivor/light/elsewhere
+=== RUN   TestMissingOutletRemove/survivor/dark/entry
+    missingoutlet_test.go:180: missing remove row lost keyboard outlet "Close settings"
+=== RUN   TestMissingOutletRemove/survivor/dark/elsewhere
+--- FAIL: TestMissingOutletRemove (0.76s)
+    --- FAIL: TestMissingOutletRemove/empty/light/entry (0.10s)
+    --- PASS: TestMissingOutletRemove/empty/light/elsewhere (0.07s)
+    --- FAIL: TestMissingOutletRemove/empty/dark/entry (0.09s)
+    --- PASS: TestMissingOutletRemove/empty/dark/elsewhere (0.07s)
+    --- FAIL: TestMissingOutletRemove/survivor/light/entry (0.12s)
+    --- PASS: TestMissingOutletRemove/survivor/light/elsewhere (0.09s)
+    --- FAIL: TestMissingOutletRemove/survivor/dark/entry (0.12s)
+    --- PASS: TestMissingOutletRemove/survivor/dark/elsewhere (0.09s)
+=== RUN   TestMissingOutletUninstall
+=== RUN   TestMissingOutletUninstall/empty/light/entry
+    missingoutlet_test.go:180: missing uninstall row lost keyboard outlet "Close settings"
+    missingoutlet_test.go:189: returning uninstall ID reclaimed abandoned focus
+    missingoutlet_test.go:196: late uninstall result stole keyboard focus
+    missingoutlet_test.go:207: missing uninstall outlet cannot close settings: 0
+=== RUN   TestMissingOutletUninstall/empty/light/elsewhere
+=== RUN   TestMissingOutletUninstall/empty/dark/entry
+    missingoutlet_test.go:180: missing uninstall row lost keyboard outlet "Close settings"
+    missingoutlet_test.go:189: returning uninstall ID reclaimed abandoned focus
+    missingoutlet_test.go:196: late uninstall result stole keyboard focus
+    missingoutlet_test.go:207: missing uninstall outlet cannot close settings: 0
+=== RUN   TestMissingOutletUninstall/empty/dark/elsewhere
+=== RUN   TestMissingOutletUninstall/survivor/light/entry
+    missingoutlet_test.go:180: missing uninstall row lost keyboard outlet "Close settings"
+    missingoutlet_test.go:189: returning uninstall ID reclaimed abandoned focus
+    missingoutlet_test.go:196: late uninstall result stole keyboard focus
+    missingoutlet_test.go:207: missing uninstall outlet cannot close settings: 0
+=== RUN   TestMissingOutletUninstall/survivor/light/elsewhere
+=== RUN   TestMissingOutletUninstall/survivor/dark/entry
+    missingoutlet_test.go:180: missing uninstall row lost keyboard outlet "Close settings"
+    missingoutlet_test.go:189: returning uninstall ID reclaimed abandoned focus
+    missingoutlet_test.go:196: late uninstall result stole keyboard focus
+    missingoutlet_test.go:207: missing uninstall outlet cannot close settings: 0
+=== RUN   TestMissingOutletUninstall/survivor/dark/elsewhere
+--- FAIL: TestMissingOutletUninstall (1.65s)
+    --- FAIL: TestMissingOutletUninstall/empty/light/entry (0.16s)
+    --- PASS: TestMissingOutletUninstall/empty/light/elsewhere (0.14s)
+    --- FAIL: TestMissingOutletUninstall/empty/dark/entry (0.17s)
+    --- PASS: TestMissingOutletUninstall/empty/dark/elsewhere (0.15s)
+    --- FAIL: TestMissingOutletUninstall/survivor/light/entry (0.25s)
+    --- PASS: TestMissingOutletUninstall/survivor/light/elsewhere (0.28s)
+    --- FAIL: TestMissingOutletUninstall/survivor/dark/entry (0.27s)
+    --- PASS: TestMissingOutletUninstall/survivor/dark/elsewhere (0.22s)
+=== RUN   TestMissingOutletHeaderEscapeKeepsQuestionPriority
+=== RUN   TestMissingOutletHeaderEscapeKeepsQuestionPriority/light
+=== RUN   TestMissingOutletHeaderEscapeKeepsQuestionPriority/dark
+--- PASS: TestMissingOutletHeaderEscapeKeepsQuestionPriority (0.18s)
+    --- PASS: TestMissingOutletHeaderEscapeKeepsQuestionPriority/light (0.09s)
+    --- PASS: TestMissingOutletHeaderEscapeKeepsQuestionPriority/dark (0.09s)
+FAIL
+FAIL	floter/internal/settingsui	19.110s
+FAIL
