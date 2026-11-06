@@ -74,7 +74,12 @@ md5sum 还原 OK，touch 后相关回归 112 PASS / 0 FAIL，vet 通过。
 ## 当前验收状态
 
 八项均完成，四批每批两项；32 张原始 before/after PNG 与四张对照板已入轮次目录。
-普通、verbose 全量与三平台 vet/build 正在运行；最终数只按落盘日志补录。
+普通、verbose 全量与三平台 vet/build 已完成：3893 PASS / 0 FAIL，详见最终门槛。
+
+最终代码的普通全量已通过（settingsui 实跑 294.599s），三平台 vet/build 再跑均退出 0；
+gofmt 与三平台 vet 输出均 0 字节。verbose 最终计数 3893 PASS / 0 FAIL，退出 0。
+中途那份失效旧版本 verbose 已主动终止（exit 143，部分计数 1603 不作验收），保留终止事实。
+本轮新增测试文件 251 行，旧测试文件没有删除/改动，函数 2824 → 2832；无新增 Skip。
 
 ## 偷了什么
 
@@ -130,3 +135,15 @@ D2-3 新数字为 ASCII，单位原有空格保留，未新增中文句子；D2-
 2. 插件字段跨分组移动的焦点与草稿需真实事件验证，尚未确认为缺陷；原地增加/删除组标题已有旧测试覆盖。
 3. 字号/行盒、accent 禁用填充、保存期间草稿归属、未知 Radio、多选宿主过滤、小于 1e-6 存储精度、终端 S1b/S1c/S2 尾继续沿用需拍板。
 4. 八条早期非 stale-kill WIP 保留，已清点；无新增待抢救内容。
+
+## 最终门槛与提交
+
+- 基线 3868 PASS / 0 FAIL / 2824 函数；最终 **3893 PASS / 0 FAIL / 2832 函数**，增加 25 PASS 与 8 函数。
+- 普通与 verbose 均 `-count=1` 实跑退出 0，统一 `LC_ALL=zh_CN.UTF-8 GOMAXPROCS=4`。
+- gofmt 输出 0 字节；Linux/Windows/Darwin vet 与 build 全部退出 0，vet 输出均 0 字节。
+- 五组 mutation 覆盖八项及第 4 项修正，全部实跑红，逐字节 MD5 恢复、touch 后复跑。旧测试与 V/B/S 均零改动，无新增 Skip。
+- 日志 `P13-ho/full-test.txt`、`targeted-test.txt`、`gates.txt` 与 `mutation1–5.{txt,md5}`；完整 verbose 在 `/tmp/floter-P13-ho/verbose-final.txt`。
+- 四批八项 `8b6d4b0e`、`c714405b`、`6777c0cb`、`f5af4c5b`，补验修正 `0969f822`，均已推送 `origin/mygo-rewrite`；最终文档随收尾提交。
+
+过程偏差：本轮工具编排调用超过 40 次；超预算后仅继续必要验收与归档，没有新开选题。
+重复的旧版本 verbose 因补验修正而作废并终止；最终数字只来自最后一版完整成功运行。
