@@ -1,0 +1,263 @@
+=== RUN   TestFormOutletFieldRemove
+=== RUN   TestFormOutletFieldRemove/light/entry
+    formoutlet_test.go:148: field-remove lost usable focus "Configure"
+    formoutlet_test.go:159: field-remove callback lost focus "Configure"
+    formoutlet_test.go:174: Configure outlet did not toggle
+=== RUN   TestFormOutletFieldRemove/light/elsewhere
+=== RUN   TestFormOutletFieldRemove/dark/entry
+    formoutlet_test.go:148: field-remove lost usable focus "Configure"
+    formoutlet_test.go:159: field-remove callback lost focus "Configure"
+    formoutlet_test.go:174: Configure outlet did not toggle
+=== RUN   TestFormOutletFieldRemove/dark/elsewhere
+--- FAIL: TestFormOutletFieldRemove (2.92s)
+    --- FAIL: TestFormOutletFieldRemove/light/entry (0.82s)
+    --- PASS: TestFormOutletFieldRemove/light/elsewhere (0.80s)
+    --- FAIL: TestFormOutletFieldRemove/dark/entry (0.57s)
+    --- PASS: TestFormOutletFieldRemove/dark/elsewhere (0.72s)
+=== RUN   TestFormOutletFieldType
+=== RUN   TestFormOutletFieldType/light/entry
+    formoutlet_test.go:148: field-type lost usable focus "Configure"
+    formoutlet_test.go:159: field-type callback lost focus "Configure"
+    formoutlet_test.go:174: Configure outlet did not toggle
+=== RUN   TestFormOutletFieldType/light/elsewhere
+=== RUN   TestFormOutletFieldType/dark/entry
+    formoutlet_test.go:148: field-type lost usable focus "Configure"
+    formoutlet_test.go:159: field-type callback lost focus "Configure"
+    formoutlet_test.go:174: Configure outlet did not toggle
+=== RUN   TestFormOutletFieldType/dark/elsewhere
+--- FAIL: TestFormOutletFieldType (2.67s)
+    --- FAIL: TestFormOutletFieldType/light/entry (0.53s)
+    --- PASS: TestFormOutletFieldType/light/elsewhere (0.79s)
+    --- FAIL: TestFormOutletFieldType/dark/entry (0.53s)
+    --- PASS: TestFormOutletFieldType/dark/elsewhere (0.82s)
+=== RUN   TestFormOutletCopyUnavailable
+=== RUN   TestFormOutletCopyUnavailable/light/entry
+    formoutlet_test.go:148: copy-unavailable lost usable focus "Export configuration"
+    formoutlet_test.go:159: copy-unavailable callback lost focus "Export configuration"
+    formoutlet_test.go:178: transfer outlet did not dispatch exactly once
+=== RUN   TestFormOutletCopyUnavailable/light/elsewhere
+=== RUN   TestFormOutletCopyUnavailable/dark/entry
+    formoutlet_test.go:148: copy-unavailable lost usable focus "Export configuration"
+    formoutlet_test.go:159: copy-unavailable callback lost focus "Export configuration"
+    formoutlet_test.go:178: transfer outlet did not dispatch exactly once
+=== RUN   TestFormOutletCopyUnavailable/dark/elsewhere
+--- FAIL: TestFormOutletCopyUnavailable (2.06s)
+    --- FAIL: TestFormOutletCopyUnavailable/light/entry (0.43s)
+    --- PASS: TestFormOutletCopyUnavailable/light/elsewhere (0.65s)
+    --- FAIL: TestFormOutletCopyUnavailable/dark/entry (0.35s)
+    --- PASS: TestFormOutletCopyUnavailable/dark/elsewhere (0.63s)
+=== RUN   TestFormOutletExportUnavailable
+=== RUN   TestFormOutletExportUnavailable/light/entry
+    formoutlet_test.go:148: export-unavailable lost usable focus "Copy configuration"
+    formoutlet_test.go:159: export-unavailable callback lost focus "Copy configuration"
+    formoutlet_test.go:178: transfer outlet did not dispatch exactly once
+=== RUN   TestFormOutletExportUnavailable/light/elsewhere
+=== RUN   TestFormOutletExportUnavailable/dark/entry
+    formoutlet_test.go:148: export-unavailable lost usable focus "Copy configuration"
+    formoutlet_test.go:159: export-unavailable callback lost focus "Copy configuration"
+    formoutlet_test.go:178: transfer outlet did not dispatch exactly once
+=== RUN   TestFormOutletExportUnavailable/dark/elsewhere
+--- FAIL: TestFormOutletExportUnavailable (2.00s)
+    --- FAIL: TestFormOutletExportUnavailable/light/entry (0.39s)
+    --- PASS: TestFormOutletExportUnavailable/light/elsewhere (0.62s)
+    --- FAIL: TestFormOutletExportUnavailable/dark/entry (0.38s)
+    --- PASS: TestFormOutletExportUnavailable/dark/elsewhere (0.60s)
+=== RUN   TestFormOutletTransfersUnavailable
+=== RUN   TestFormOutletTransfersUnavailable/copy
+=== RUN   TestFormOutletTransfersUnavailable/copy/light/entry
+    formoutlet_test.go:148: copy-both lost usable focus "Configure"
+    formoutlet_test.go:159: copy-both callback lost focus "Configure"
+    formoutlet_test.go:174: Configure outlet did not toggle
+=== RUN   TestFormOutletTransfersUnavailable/copy/light/elsewhere
+=== RUN   TestFormOutletTransfersUnavailable/copy/dark/entry
+    formoutlet_test.go:148: copy-both lost usable focus "Configure"
+    formoutlet_test.go:159: copy-both callback lost focus "Configure"
+    formoutlet_test.go:174: Configure outlet did not toggle
+=== RUN   TestFormOutletTransfersUnavailable/copy/dark/elsewhere
+=== RUN   TestFormOutletTransfersUnavailable/export
+=== RUN   TestFormOutletTransfersUnavailable/export/light/entry
+    formoutlet_test.go:148: export-both lost usable focus "Configure"
+    formoutlet_test.go:159: export-both callback lost focus "Configure"
+    formoutlet_test.go:174: Configure outlet did not toggle
+=== RUN   TestFormOutletTransfersUnavailable/export/light/elsewhere
+=== RUN   TestFormOutletTransfersUnavailable/export/dark/entry
+    formoutlet_test.go:148: export-both lost usable focus "Configure"
+    formoutlet_test.go:159: export-both callback lost focus "Configure"
+    formoutlet_test.go:174: Configure outlet did not toggle
+=== RUN   TestFormOutletTransfersUnavailable/export/dark/elsewhere
+--- FAIL: TestFormOutletTransfersUnavailable (3.85s)
+    --- FAIL: TestFormOutletTransfersUnavailable/copy (1.80s)
+        --- FAIL: TestFormOutletTransfersUnavailable/copy/light/entry (0.33s)
+        --- PASS: TestFormOutletTransfersUnavailable/copy/light/elsewhere (0.55s)
+        --- FAIL: TestFormOutletTransfersUnavailable/copy/dark/entry (0.31s)
+        --- PASS: TestFormOutletTransfersUnavailable/copy/dark/elsewhere (0.60s)
+    --- FAIL: TestFormOutletTransfersUnavailable/export (2.05s)
+        --- FAIL: TestFormOutletTransfersUnavailable/export/light/entry (0.37s)
+        --- PASS: TestFormOutletTransfersUnavailable/export/light/elsewhere (0.62s)
+        --- FAIL: TestFormOutletTransfersUnavailable/export/dark/entry (0.42s)
+        --- PASS: TestFormOutletTransfersUnavailable/export/dark/elsewhere (0.64s)
+=== RUN   TestFormOutletCopyOwner
+=== RUN   TestFormOutletCopyOwner/light/entry
+=== RUN   TestFormOutletCopyOwner/light/elsewhere
+=== RUN   TestFormOutletCopyOwner/dark/entry
+=== RUN   TestFormOutletCopyOwner/dark/elsewhere
+--- PASS: TestFormOutletCopyOwner (1.64s)
+    --- PASS: TestFormOutletCopyOwner/light/entry (0.40s)
+    --- PASS: TestFormOutletCopyOwner/light/elsewhere (0.42s)
+    --- PASS: TestFormOutletCopyOwner/dark/entry (0.41s)
+    --- PASS: TestFormOutletCopyOwner/dark/elsewhere (0.40s)
+=== RUN   TestFormOutletExportSchema
+=== RUN   TestFormOutletExportSchema/light/entry
+=== RUN   TestFormOutletExportSchema/light/elsewhere
+=== RUN   TestFormOutletExportSchema/dark/entry
+=== RUN   TestFormOutletExportSchema/dark/elsewhere
+--- PASS: TestFormOutletExportSchema (2.00s)
+    --- PASS: TestFormOutletExportSchema/light/entry (0.45s)
+    --- PASS: TestFormOutletExportSchema/light/elsewhere (0.49s)
+    --- PASS: TestFormOutletExportSchema/dark/entry (0.51s)
+    --- PASS: TestFormOutletExportSchema/dark/elsewhere (0.56s)
+=== RUN   TestFormOutletToolCommand
+=== RUN   TestFormOutletToolCommand/light/entry
+    formoutlet_test.go:148: tool-command lost usable focus "Check"
+    formoutlet_test.go:159: tool-command callback lost focus "Check"
+    formoutlet_test.go:182: Check outlet did not dispatch once
+=== RUN   TestFormOutletToolCommand/light/elsewhere
+=== RUN   TestFormOutletToolCommand/dark/entry
+    formoutlet_test.go:148: tool-command lost usable focus "Check"
+    formoutlet_test.go:159: tool-command callback lost focus "Check"
+    formoutlet_test.go:182: Check outlet did not dispatch once
+=== RUN   TestFormOutletToolCommand/dark/elsewhere
+--- FAIL: TestFormOutletToolCommand (1.96s)
+    --- FAIL: TestFormOutletToolCommand/light/entry (0.48s)
+    --- PASS: TestFormOutletToolCommand/light/elsewhere (0.53s)
+    --- FAIL: TestFormOutletToolCommand/dark/entry (0.47s)
+    --- PASS: TestFormOutletToolCommand/dark/elsewhere (0.49s)
+=== RUN   TestFormOutletToolAction
+=== RUN   TestFormOutletToolAction/light/entry
+    formoutlet_test.go:148: tool-action lost usable focus "Check"
+    formoutlet_test.go:159: tool-action callback lost focus "Check"
+    formoutlet_test.go:182: Check outlet did not dispatch once
+=== RUN   TestFormOutletToolAction/light/elsewhere
+=== RUN   TestFormOutletToolAction/dark/entry
+    formoutlet_test.go:148: tool-action lost usable focus "Check"
+    formoutlet_test.go:159: tool-action callback lost focus "Check"
+    formoutlet_test.go:182: Check outlet did not dispatch once
+=== RUN   TestFormOutletToolAction/dark/elsewhere
+--- FAIL: TestFormOutletToolAction (1.95s)
+    --- FAIL: TestFormOutletToolAction/light/entry (0.44s)
+    --- PASS: TestFormOutletToolAction/light/elsewhere (0.50s)
+    --- FAIL: TestFormOutletToolAction/dark/entry (0.49s)
+    --- PASS: TestFormOutletToolAction/dark/elsewhere (0.52s)
+=== RUN   TestFormOutletToolNoCheck
+=== RUN   TestFormOutletToolNoCheck/light/entry
+    formoutlet_test.go:148: tool-no-check lost usable focus "Close settings"
+    formoutlet_test.go:159: tool-no-check callback lost focus "Close settings"
+    formoutlet_test.go:186: header outlet did not close once
+=== RUN   TestFormOutletToolNoCheck/light/elsewhere
+=== RUN   TestFormOutletToolNoCheck/dark/entry
+    formoutlet_test.go:148: tool-no-check lost usable focus "Close settings"
+    formoutlet_test.go:159: tool-no-check callback lost focus "Close settings"
+    formoutlet_test.go:186: header outlet did not close once
+=== RUN   TestFormOutletToolNoCheck/dark/elsewhere
+--- FAIL: TestFormOutletToolNoCheck (2.01s)
+    --- FAIL: TestFormOutletToolNoCheck/light/entry (0.46s)
+    --- PASS: TestFormOutletToolNoCheck/light/elsewhere (0.54s)
+    --- FAIL: TestFormOutletToolNoCheck/dark/entry (0.49s)
+    --- PASS: TestFormOutletToolNoCheck/dark/elsewhere (0.52s)
+=== RUN   TestFormOutletToolOwner
+=== RUN   TestFormOutletToolOwner/light/entry
+    formoutlet_test.go:148: tool-owner lost usable focus "Check"
+    formoutlet_test.go:159: tool-owner callback lost focus "Check"
+    formoutlet_test.go:182: Check outlet did not dispatch once
+=== RUN   TestFormOutletToolOwner/light/elsewhere
+=== RUN   TestFormOutletToolOwner/dark/entry
+    formoutlet_test.go:148: tool-owner lost usable focus "Check"
+    formoutlet_test.go:159: tool-owner callback lost focus "Check"
+    formoutlet_test.go:182: Check outlet did not dispatch once
+=== RUN   TestFormOutletToolOwner/dark/elsewhere
+--- FAIL: TestFormOutletToolOwner (1.83s)
+    --- FAIL: TestFormOutletToolOwner/light/entry (0.50s)
+    --- PASS: TestFormOutletToolOwner/light/elsewhere (0.53s)
+    --- FAIL: TestFormOutletToolOwner/dark/entry (0.41s)
+    --- PASS: TestFormOutletToolOwner/dark/elsewhere (0.39s)
+=== RUN   TestFormOutletFold
+=== RUN   TestFormOutletFold/light/entry
+    formoutlet_test.go:148: fold lost usable focus "Configure"
+    formoutlet_test.go:159: fold callback lost focus "Configure"
+    formoutlet_test.go:174: Configure outlet did not toggle
+    formoutlet_test.go:198: Space did not reopen folded form
+=== RUN   TestFormOutletFold/light/elsewhere
+    formoutlet_test.go:148: fold lost usable focus "Configure"
+    formoutlet_test.go:159: fold callback lost focus "Configure"
+    formoutlet_test.go:174: Configure outlet did not toggle
+    formoutlet_test.go:198: Space did not reopen folded form
+=== RUN   TestFormOutletFold/dark/entry
+    formoutlet_test.go:148: fold lost usable focus "Configure"
+    formoutlet_test.go:159: fold callback lost focus "Configure"
+    formoutlet_test.go:174: Configure outlet did not toggle
+    formoutlet_test.go:198: Space did not reopen folded form
+=== RUN   TestFormOutletFold/dark/elsewhere
+    formoutlet_test.go:148: fold lost usable focus "Configure"
+    formoutlet_test.go:159: fold callback lost focus "Configure"
+    formoutlet_test.go:174: Configure outlet did not toggle
+    formoutlet_test.go:198: Space did not reopen folded form
+--- FAIL: TestFormOutletFold (1.92s)
+    --- FAIL: TestFormOutletFold/light/entry (0.41s)
+    --- FAIL: TestFormOutletFold/light/elsewhere (0.58s)
+    --- FAIL: TestFormOutletFold/dark/entry (0.41s)
+    --- FAIL: TestFormOutletFold/dark/elsewhere (0.50s)
+=== RUN   TestFormOutletCopyFold
+=== RUN   TestFormOutletCopyFold/light/entry
+    formoutlet_test.go:148: copy-fold lost usable focus "Configure"
+    formoutlet_test.go:159: copy-fold callback lost focus "Configure"
+    formoutlet_test.go:174: Configure outlet did not toggle
+    formoutlet_test.go:198: Space did not reopen folded form
+=== RUN   TestFormOutletCopyFold/light/elsewhere
+    formoutlet_test.go:148: copy-fold lost usable focus "Configure"
+    formoutlet_test.go:159: copy-fold callback lost focus "Configure"
+    formoutlet_test.go:174: Configure outlet did not toggle
+    formoutlet_test.go:198: Space did not reopen folded form
+=== RUN   TestFormOutletCopyFold/dark/entry
+    formoutlet_test.go:148: copy-fold lost usable focus "Configure"
+    formoutlet_test.go:159: copy-fold callback lost focus "Configure"
+    formoutlet_test.go:174: Configure outlet did not toggle
+    formoutlet_test.go:198: Space did not reopen folded form
+=== RUN   TestFormOutletCopyFold/dark/elsewhere
+    formoutlet_test.go:148: copy-fold lost usable focus "Configure"
+    formoutlet_test.go:159: copy-fold callback lost focus "Configure"
+    formoutlet_test.go:174: Configure outlet did not toggle
+    formoutlet_test.go:198: Space did not reopen folded form
+--- FAIL: TestFormOutletCopyFold (1.60s)
+    --- FAIL: TestFormOutletCopyFold/light/entry (0.40s)
+    --- FAIL: TestFormOutletCopyFold/light/elsewhere (0.39s)
+    --- FAIL: TestFormOutletCopyFold/dark/entry (0.40s)
+    --- FAIL: TestFormOutletCopyFold/dark/elsewhere (0.40s)
+=== RUN   TestFormOutletExportFold
+=== RUN   TestFormOutletExportFold/light/entry
+    formoutlet_test.go:148: export-fold lost usable focus "Configure"
+    formoutlet_test.go:159: export-fold callback lost focus "Configure"
+    formoutlet_test.go:174: Configure outlet did not toggle
+    formoutlet_test.go:198: Space did not reopen folded form
+=== RUN   TestFormOutletExportFold/light/elsewhere
+    formoutlet_test.go:148: export-fold lost usable focus "Configure"
+    formoutlet_test.go:159: export-fold callback lost focus "Configure"
+    formoutlet_test.go:174: Configure outlet did not toggle
+    formoutlet_test.go:198: Space did not reopen folded form
+=== RUN   TestFormOutletExportFold/dark/entry
+    formoutlet_test.go:148: export-fold lost usable focus "Configure"
+    formoutlet_test.go:159: export-fold callback lost focus "Configure"
+    formoutlet_test.go:174: Configure outlet did not toggle
+    formoutlet_test.go:198: Space did not reopen folded form
+=== RUN   TestFormOutletExportFold/dark/elsewhere
+    formoutlet_test.go:148: export-fold lost usable focus "Configure"
+    formoutlet_test.go:159: export-fold callback lost focus "Configure"
+    formoutlet_test.go:174: Configure outlet did not toggle
+    formoutlet_test.go:198: Space did not reopen folded form
+--- FAIL: TestFormOutletExportFold (1.80s)
+    --- FAIL: TestFormOutletExportFold/light/entry (0.44s)
+    --- FAIL: TestFormOutletExportFold/light/elsewhere (0.46s)
+    --- FAIL: TestFormOutletExportFold/dark/entry (0.44s)
+    --- FAIL: TestFormOutletExportFold/dark/elsewhere (0.46s)
+FAIL
+FAIL	floter/internal/settingsui	30.232s
+FAIL

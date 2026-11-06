@@ -1,0 +1,16 @@
+light field-remove changed pixels 500
+light field-type changed pixels 500
+light copy-unavailable changed pixels 580
+light export-unavailable changed pixels 580
+light tool-command changed pixels 1204
+light tool-action changed pixels 1204
+light tool-owner changed pixels 424
+light fold changed pixels 84525
+dark field-remove changed pixels 500
+dark field-type changed pixels 500
+dark copy-unavailable changed pixels 580
+dark export-unavailable changed pixels 580
+dark tool-command changed pixels 1204
+dark tool-action changed pixels 1204
+dark tool-owner changed pixels 424
+dark fold changed pixels 84527

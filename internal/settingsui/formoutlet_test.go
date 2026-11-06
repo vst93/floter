@@ -53,6 +53,10 @@ func checkFormOutlet(t *testing.T, change string) {
 				tt := noticeExitPage(t, a, dark)
 				focus := func(label string) {
 					t.Helper()
+					// An owner refresh may reuse the clicked disclosure's node.
+					// Enter keyboard modality even if that node already has focus.
+					tt.Key(0, ui.KeyTab)
+					tt.Frame()
 					for i := 0; i < 40 && !tt.Focused(label); i++ {
 						tt.Key(0, ui.KeyTab)
 						tt.Frame()

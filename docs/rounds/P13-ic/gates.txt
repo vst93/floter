@@ -1,0 +1,22 @@
+P13-ic final gates, 2026-11-06 20:53:04 UTC
+Baseline: 4397 PASS / 0 FAIL / 2946 test functions
+Final: 4473 PASS / 0 FAIL / 2960 test functions
+LC_ALL=zh_CN.UTF-8 GOMAXPROCS=4
+gofmt -l cmd internal: empty
+go test -count=1 ./...: exit 0
+go test -count=1 -v ./...: exit 0
+linux/windows/darwin go vet ./...: exit 0 each
+linux/windows/darwin go build ./...: exit 0 each
+Batch regressions: 340 / 371 / 386 / 406 PASS, no FAIL
+M1/M2/M3/M4/M5: injected failures, MD5 restored, touched, retested
+Restored passes: 10 / 21 / 15 / 20 / 76
+M5 failing leaf scenarios: 32, plus 2 group summaries
+Old V/B/S assertion changes: 0/0/0
+Old test files changed: 0
+New Skip: 0
+Final source MD5: all OK
+Raw Tester PNGs: 60, plus 2 comparison boards
+All 16 core before/after pairs have nonzero pixel differences
+Platform interaction evidence: Linux software UI only
+First full gate processes terminated with exit 143; final rerun passed
+Batch 2 was committed before command exit; completed result is 371 PASS
