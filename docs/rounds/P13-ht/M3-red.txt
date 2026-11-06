@@ -1,0 +1,21 @@
+=== RUN   TestConfigRecoveryCancelReturnsToOpener
+=== RUN   TestConfigRecoveryCancelReturnsToOpener/light
+    confirmationrecovery_test.go:45: config-cancel lost focus instead of returning to Configure
+    confirmationrecovery_test.go:61: cancel could not reopen question with draft intact
+=== RUN   TestConfigRecoveryCancelReturnsToOpener/dark
+    confirmationrecovery_test.go:45: config-cancel lost focus instead of returning to Configure
+    confirmationrecovery_test.go:61: cancel could not reopen question with draft intact
+--- FAIL: TestConfigRecoveryCancelReturnsToOpener (0.43s)
+    --- FAIL: TestConfigRecoveryCancelReturnsToOpener/light (0.28s)
+    --- FAIL: TestConfigRecoveryCancelReturnsToOpener/dark (0.15s)
+=== RUN   TestConfigRecoveryDiscardReturnsToOpener
+=== RUN   TestConfigRecoveryDiscardReturnsToOpener/light
+    confirmationrecovery_test.go:37: Tab could not reach Discard
+=== RUN   TestConfigRecoveryDiscardReturnsToOpener/dark
+    confirmationrecovery_test.go:37: Tab could not reach Discard
+--- FAIL: TestConfigRecoveryDiscardReturnsToOpener (0.21s)
+    --- FAIL: TestConfigRecoveryDiscardReturnsToOpener/light (0.09s)
+    --- FAIL: TestConfigRecoveryDiscardReturnsToOpener/dark (0.11s)
+FAIL
+FAIL	floter/internal/settingsui	0.644s
+FAIL

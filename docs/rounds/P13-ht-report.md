@@ -36,3 +36,14 @@ V/B/S 0/0/0，旧测试零改。M1 用 HEAD 产品回注两缺陷，红/绿原�
 4. 现象：运行回调拿到表单 map，后续输入 second 把已提交 first 改掉；回调修改 map 又污染当前输入。改动：提交时拷贝字符串答案 map。验证：真实 Run 后继续编辑，命令快照仍 first、表单仍 second，派发恰好 1 次；原红串 `later edit rewrote submitted command: map[target:second]` / `command map mutated live form: "host-owned"`。
 
 V/B/S 0/0/0。M2 回退本批产品变动，实际红；恢复后 MD5 校验、touch 复跑，原始日志随本批入库。
+
+第二批 `dfa8ef77` 已推送；相关回归 73 PASS，M2 恢复后 4 PASS。
+
+### 第三批：配置折叠确认的键盘出口
+
+5. 现象：取消确认后焦点落空，下一次 Space 无法再打开确认。改动：确认退场当帧将焦点交回同一配置入口。验证：深浅真实取消后 Configure 有焦点，Space 再次打开确认，edited 草稿保留、保存次数 0。原红串 `config-cancel lost focus instead of returning to Configure`。
+6. 现象：每帧强制聚焦取消，Tab 到不了丢弃；即便鼠标点丢弃，折叠后入口也无焦点。改动：取消只在确认初次出现时 AutoFocus，丢弃后沿同一出口归还入口。验证：Tab→Space 丢弃、Space 重开得到 stored，保存次数 0；原红串 `Tab could not reach Discard`。不是新增键盘模型，而是让既有可聚焦按钮可达。
+
+M3 HEAD 回注两缺陷实跑红，MD5 恢复与 touch 后配置族回归。V/B/S 0/0/0。
+
+候选修正：卸载“取消后重开旧错”探针绕过真实入口；真实 removalConfirmation:6957 已清错误，排除该候选、不改产品、不计修复。第 7 项改查真实 runForm 取消焦点（已复现），第 8 项继续卸载失败重试。

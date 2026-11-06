@@ -1,0 +1,86 @@
+=== RUN   TestConfigControlsStayInsideTheirGridColumn
+=== RUN   TestConfigControlsStayInsideTheirGridColumn/text
+=== RUN   TestConfigControlsStayInsideTheirGridColumn/select
+=== RUN   TestConfigControlsStayInsideTheirGridColumn/multiselect
+--- PASS: TestConfigControlsStayInsideTheirGridColumn (0.08s)
+    --- PASS: TestConfigControlsStayInsideTheirGridColumn/text (0.08s)
+    --- PASS: TestConfigControlsStayInsideTheirGridColumn/select (0.00s)
+    --- PASS: TestConfigControlsStayInsideTheirGridColumn/multiselect (0.00s)
+=== RUN   TestConfigRequiredMarkerSurvivesLongLabels
+--- PASS: TestConfigRequiredMarkerSurvivesLongLabels (0.02s)
+=== RUN   TestConfigLongOptionKeepsItsCheckboxClickable
+--- PASS: TestConfigLongOptionKeepsItsCheckboxClickable (0.00s)
+=== RUN   TestConfigCheckboxRemainsVisibleCheckedAndLocked
+--- PASS: TestConfigCheckboxRemainsVisibleCheckedAndLocked (0.07s)
+=== RUN   TestConfigDefaultsClearOnlyRestoredFieldErrors
+--- PASS: TestConfigDefaultsClearOnlyRestoredFieldErrors (0.08s)
+=== RUN   TestConfigDefaultsKeepsANoDefaultFieldHalfTyped
+--- PASS: TestConfigDefaultsKeepsANoDefaultFieldHalfTyped (0.09s)
+=== RUN   TestFoldingADirtyConfigFormAsksFirst
+--- PASS: TestFoldingADirtyConfigFormAsksFirst (0.22s)
+=== RUN   TestFoldingACleanConfigFormDoesNotAsk
+--- PASS: TestFoldingACleanConfigFormDoesNotAsk (0.08s)
+=== RUN   TestConfigIdentityReorderingKeepsTheActiveField
+=== RUN   TestConfigIdentityReorderingKeepsTheActiveField/light
+=== RUN   TestConfigIdentityReorderingKeepsTheActiveField/dark
+--- PASS: TestConfigIdentityReorderingKeepsTheActiveField (0.01s)
+    --- PASS: TestConfigIdentityReorderingKeepsTheActiveField/light (0.00s)
+    --- PASS: TestConfigIdentityReorderingKeepsTheActiveField/dark (0.00s)
+=== RUN   TestConfigIdentityErrorUsesCurrentLanguage
+=== RUN   TestConfigIdentityErrorUsesCurrentLanguage/light
+=== RUN   TestConfigIdentityErrorUsesCurrentLanguage/dark
+--- PASS: TestConfigIdentityErrorUsesCurrentLanguage (0.03s)
+    --- PASS: TestConfigIdentityErrorUsesCurrentLanguage/light (0.03s)
+    --- PASS: TestConfigIdentityErrorUsesCurrentLanguage/dark (0.01s)
+=== RUN   TestConfigIdentityHistoryBelongsToTheIntegration
+=== RUN   TestConfigIdentityHistoryBelongsToTheIntegration/light
+=== RUN   TestConfigIdentityHistoryBelongsToTheIntegration/dark
+--- PASS: TestConfigIdentityHistoryBelongsToTheIntegration (0.01s)
+    --- PASS: TestConfigIdentityHistoryBelongsToTheIntegration/light (0.01s)
+    --- PASS: TestConfigIdentityHistoryBelongsToTheIntegration/dark (0.01s)
+=== RUN   TestConfigIdentityAddedFieldsReadTheirInitialValues
+=== RUN   TestConfigIdentityAddedFieldsReadTheirInitialValues/light
+=== RUN   TestConfigIdentityAddedFieldsReadTheirInitialValues/dark
+--- PASS: TestConfigIdentityAddedFieldsReadTheirInitialValues (0.01s)
+    --- PASS: TestConfigIdentityAddedFieldsReadTheirInitialValues/light (0.01s)
+    --- PASS: TestConfigIdentityAddedFieldsReadTheirInitialValues/dark (0.01s)
+=== RUN   TestConfigRefreshRemovedValueUsesCurrentDefault
+=== RUN   TestConfigRefreshRemovedValueUsesCurrentDefault/light
+=== RUN   TestConfigRefreshRemovedValueUsesCurrentDefault/light/workspace/default
+=== RUN   TestConfigRefreshRemovedValueUsesCurrentDefault/dark
+=== RUN   TestConfigRefreshRemovedValueUsesCurrentDefault/dark/workspace/default
+--- PASS: TestConfigRefreshRemovedValueUsesCurrentDefault (0.01s)
+    --- PASS: TestConfigRefreshRemovedValueUsesCurrentDefault/light (0.00s)
+    --- PASS: TestConfigRefreshRemovedValueUsesCurrentDefault/light/workspace/default (0.00s)
+    --- PASS: TestConfigRefreshRemovedValueUsesCurrentDefault/dark (0.00s)
+    --- PASS: TestConfigRefreshRemovedValueUsesCurrentDefault/dark/workspace/default (0.00s)
+=== RUN   TestConfigRefreshUpdatesOnlyUntouchedValues
+=== RUN   TestConfigRefreshUpdatesOnlyUntouchedValues/light
+=== RUN   TestConfigRefreshUpdatesOnlyUntouchedValues/dark
+--- PASS: TestConfigRefreshUpdatesOnlyUntouchedValues (0.01s)
+    --- PASS: TestConfigRefreshUpdatesOnlyUntouchedValues/light (0.01s)
+    --- PASS: TestConfigRefreshUpdatesOnlyUntouchedValues/dark (0.01s)
+=== RUN   TestConfigRecoveryCancelReturnsToOpener
+=== RUN   TestConfigRecoveryCancelReturnsToOpener/light
+=== RUN   TestConfigRecoveryCancelReturnsToOpener/dark
+--- PASS: TestConfigRecoveryCancelReturnsToOpener (0.42s)
+    --- PASS: TestConfigRecoveryCancelReturnsToOpener/light (0.21s)
+    --- PASS: TestConfigRecoveryCancelReturnsToOpener/dark (0.20s)
+=== RUN   TestConfigRecoveryDiscardReturnsToOpener
+=== RUN   TestConfigRecoveryDiscardReturnsToOpener/light
+=== RUN   TestConfigRecoveryDiscardReturnsToOpener/dark
+--- PASS: TestConfigRecoveryDiscardReturnsToOpener (0.41s)
+    --- PASS: TestConfigRecoveryDiscardReturnsToOpener/light (0.21s)
+    --- PASS: TestConfigRecoveryDiscardReturnsToOpener/dark (0.20s)
+=== RUN   TestConfigNumberInvalidTextStaysLocalAndRecovers
+--- PASS: TestConfigNumberInvalidTextStaysLocalAndRecovers (0.01s)
+=== RUN   TestConfigNumbersRejectNonFiniteInput
+--- PASS: TestConfigNumbersRejectNonFiniteInput (0.00s)
+=== RUN   TestClosingTheConfigFormForgetsItsListOffsets
+--- PASS: TestClosingTheConfigFormForgetsItsListOffsets (0.06s)
+=== RUN   TestClosingThePluginSheetForgetsItsScroll
+--- PASS: TestClosingThePluginSheetForgetsItsScroll (0.00s)
+=== RUN   TestConfigurationForm
+--- PASS: TestConfigurationForm (0.19s)
+PASS
+ok  	floter/internal/settingsui	1.816s

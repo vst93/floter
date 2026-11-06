@@ -2896,8 +2896,10 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			// "Configure" twice on one line and gave the block a different name
 			// from its tool-owned sibling, which already leads with
 			// `ConfigSection` (see configOpenToolRow).
+			var opener ui.Handle
+			wasAsking := a.configDiscard[integration.ID]
 			opened := a.row(c, copy.ConfigSection, "", func() {
-				if a.actionButton(c, copy.ConfigOpen).Clicked() {
+				if a.actionButton(c, copy.ConfigOpen).Bind(&opener).Clicked() {
 					a.toggleConfig(integration.ID)
 				}
 			}, func() { a.configFields(c, copy, integration) }, func() {
@@ -2910,6 +2912,11 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			})
 			if opened {
 				a.toggleConfig(integration.ID)
+			}
+			// Both answers remove the focused confirmation button. Hand the
+			// keyboard back to the existing disclosure in the same frame.
+			if wasAsking && !a.configDiscard[integration.ID] {
+				opener.Focus(c)
 			}
 		} else if configOwnerIsTool(integration) && !integration.Orphan {
 			// A tool-owned configuration has no host form: the reference drew an
@@ -3314,7 +3321,7 @@ func (a *App) configDiscardBar(c *ui.Context, copy i18n.Settings, integration In
 	})
 	// The reference's own effect puts focus on Cancel, so the first Enter or
 	// Escape answers "keep" without the pointer moving.
-	band.Focus()
+	band.AutoFocus()
 }
 
 // toggleAudit folds or unfolds one integration's permission audit.
