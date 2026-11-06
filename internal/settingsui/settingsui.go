@@ -6437,6 +6437,8 @@ func (a *App) detectedAction(c *ui.Context, copy i18n.Settings, tool DetectedToo
 }
 
 // requestDisable opens the confirmation for turning an integration off.
+// A fresh ask starts clean: the last attempt's failure was about a question
+// the user already dismissed, so it must not replace this one's sentence.
 func (a *App) requestDisable(id string) {
 	if a.disableConfirm == nil {
 		a.disableConfirm = map[string]bool{}
@@ -6444,6 +6446,7 @@ func (a *App) requestDisable(id string) {
 	if a.disableConfirmAt == nil {
 		a.disableConfirmAt = map[string]time.Time{}
 	}
+	delete(a.disableError, id)
 	a.disableConfirm[id] = true
 	a.disableConfirmAt[id] = a.now()
 }
