@@ -3008,6 +3008,8 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			a.restoreNotice(c, integration.ID, "uninstall", false, adoptOpener)
 			a.restoreNotice(c, integration.ID, "discard", false, adoptOpener)
 			a.restoreNotice(c, integration.ID, "save", false, adoptOpener)
+			a.restoreNotice(c, integration.ID, "repair", false, adoptOpener)
+			a.restoreNotice(c, integration.ID, "toggle", false, adoptOpener)
 			return
 		}
 
@@ -3156,14 +3158,14 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 					// thumb for a turning LoaderCircle and set `aria-busy` until
 					// `runMutation`'s `finally` (`settings-switch--loading`,
 					// `src/extensions/ExtensionRow.tsx:443-455`).
-					a.busySwitchControl(c, &on, "extensions.toggle."+integration.ID).Label(copy.IntegrationsEnable)
+					a.busySwitchControl(c, &on, "extensions.toggle."+integration.ID).Label(copy.IntegrationsEnable).Bind(&a.noticeFocus(c, integration.ID, "toggle").confirm)
 				case busy || integration.Broken:
 					// Another operation is in flight, or the row is broken: the
 					// reference disabled the switch for both
 					// (`disabled={busy || extension.state === "broken"}`).
-					disabledSwitch(a.switchControl(c, &on)).Label(copy.IntegrationsEnable)
+					disabledSwitch(a.switchControl(c, &on)).Label(copy.IntegrationsEnable).Bind(&a.noticeFocus(c, integration.ID, "toggle").confirm)
 				default:
-					disableOpener = a.switchControl(c, &on).Label(copy.IntegrationsEnable)
+					disableOpener = a.switchControl(c, &on).Label(copy.IntegrationsEnable).Bind(&a.noticeFocus(c, integration.ID, "toggle").confirm)
 					if disableOpener.Changed() {
 						if !on {
 							a.requestDisable(integration.ID)

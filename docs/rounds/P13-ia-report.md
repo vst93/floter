@@ -39,3 +39,10 @@
 6. 现象：Reconnect 在飞期间运行时已刷新可用，同样失去按钮与可用键盘位置。改动：重新连接的静息/忙态都绑定同一交接句柄，入口撤下时使用同一可用性检查。验证：深浅真实 Reconnect → runtime 可用刷新；原串 `pending reconnect-healthy lost keyboard outlet "Close settings"`。两项均保留页头原焦点，回调后不重复修复、不抢焦。
 
 第三批相关 **94 PASS / 0 FAIL**，settingsui vet 退出 0；焦点交接立即完成，回调只结算原操作，不承担延迟抢焦。V/B/S 旧断言修改仍为 0/0/0。
+
+第三批 **2f84f6d6** 提交完成；第一次 push 被 GitHub 断开 SSH，已原样重试，不重写提交。
+
+7. 现象：修复仍在飞时集成变 Orphan，原按钮被整行撤下，Adopt 没接焦点。改动：孤立分支归还 repair 句柄。验证：深浅真实 Recheck → Orphan → 延迟失败，旧实现报 `pending repair-orphan lost keyboard outlet "Adopt"`；认领只在用户按 Space 后派发一次。
+8. 现象：启用写入仍在飞时集成变 Orphan，开关消失、焦点悬空。改动：现有开关的正常/忙/禁用三态绑定同一个句柄，孤立分支交给当前 Adopt。验证：深浅真实关态开关 → Space 启用 → Orphan，旧实现报 `pending toggle-orphan lost keyboard outlet "Adopt"`；原启用只执行一次，迟到结果不抢用户页头焦点。
+
+第四批相关 **263 PASS / 0 FAIL**、settingsui vet 退出 0。八项全部真实复现并修复，跨配置表单、修复按钮、启用开关。第三批重推已成功。最终全量、M2 和图像复核随后执行。

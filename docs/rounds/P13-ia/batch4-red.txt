@@ -1,0 +1,35 @@
+=== RUN   TestPendingOutletRepairOrphan
+=== RUN   TestPendingOutletRepairOrphan/light/entry
+    pendingoutlet_test.go:158: pending repair-orphan lost keyboard outlet "Adopt"
+    pendingoutlet_test.go:167: late repair result changed keyboard outlet "Adopt"
+    pendingoutlet_test.go:183: outlet dispatch: open=0 check=0 adopt=0 close=0
+=== RUN   TestPendingOutletRepairOrphan/light/elsewhere
+=== RUN   TestPendingOutletRepairOrphan/dark/entry
+    pendingoutlet_test.go:158: pending repair-orphan lost keyboard outlet "Adopt"
+    pendingoutlet_test.go:167: late repair result changed keyboard outlet "Adopt"
+    pendingoutlet_test.go:183: outlet dispatch: open=0 check=0 adopt=0 close=0
+=== RUN   TestPendingOutletRepairOrphan/dark/elsewhere
+--- FAIL: TestPendingOutletRepairOrphan (0.17s)
+    --- FAIL: TestPendingOutletRepairOrphan/light/entry (0.09s)
+    --- PASS: TestPendingOutletRepairOrphan/light/elsewhere (0.02s)
+    --- FAIL: TestPendingOutletRepairOrphan/dark/entry (0.03s)
+    --- PASS: TestPendingOutletRepairOrphan/dark/elsewhere (0.02s)
+=== RUN   TestPendingOutletToggleOrphan
+=== RUN   TestPendingOutletToggleOrphan/light/entry
+    pendingoutlet_test.go:158: pending toggle-orphan lost keyboard outlet "Adopt"
+    pendingoutlet_test.go:167: late toggle result changed keyboard outlet "Adopt"
+    pendingoutlet_test.go:183: outlet dispatch: open=0 check=0 adopt=0 close=0
+=== RUN   TestPendingOutletToggleOrphan/light/elsewhere
+=== RUN   TestPendingOutletToggleOrphan/dark/entry
+    pendingoutlet_test.go:158: pending toggle-orphan lost keyboard outlet "Adopt"
+    pendingoutlet_test.go:167: late toggle result changed keyboard outlet "Adopt"
+    pendingoutlet_test.go:183: outlet dispatch: open=0 check=0 adopt=0 close=0
+=== RUN   TestPendingOutletToggleOrphan/dark/elsewhere
+--- FAIL: TestPendingOutletToggleOrphan (0.10s)
+    --- FAIL: TestPendingOutletToggleOrphan/light/entry (0.03s)
+    --- PASS: TestPendingOutletToggleOrphan/light/elsewhere (0.02s)
+    --- FAIL: TestPendingOutletToggleOrphan/dark/entry (0.03s)
+    --- PASS: TestPendingOutletToggleOrphan/dark/elsewhere (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.273s
+FAIL

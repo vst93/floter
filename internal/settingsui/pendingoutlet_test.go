@@ -198,3 +198,6 @@ func TestPendingOutletReconnectHealthy(t *testing.T) { checkPendingOutlet(t, "re
 
 func TestPendingOutletSaveOrphan(t *testing.T)         { checkPendingOutlet(t, "save", "orphan") }
 func TestPendingOutletEditingUnavailable(t *testing.T) { checkPendingOutlet(t, "save", "unopenable") }
+
+func TestPendingOutletRepairOrphan(t *testing.T) { checkPendingOutlet(t, "repair", "orphan") }
+func TestPendingOutletToggleOrphan(t *testing.T) { checkPendingOutlet(t, "toggle", "orphan") }
