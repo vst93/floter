@@ -27,3 +27,10 @@
 2. 现象：运行回调已把答案 old 修正成 next，旧拒绝却绑定 next。改动：提交答案保存独立快照，既不读取回调改过的 live map，也不读取回调拥有的参数 map。验证：深浅真实点击，next 保留，旧拒绝消失。
 
 相关事件 **82 PASS / 0 FAIL**，settingsui vet 退出 0。M1 撤回两项产品修改，深浅四叶子实红：`options callback left obsolete refusal on current answer` / `value callback left obsolete refusal on current answer`；恢复后 MD5 OK，touch 后 82 PASS。目视浅色前后：fresh 已在选择器中，修后底部过期红字消失，操作行位置不变。
+
+## 第二批（3–4）
+
+3. 现象：参数全部移除再恢复，字段重新出现时旧运行拒绝也复活。改动：集成行仍让 runForm 处理退场，空表单清理拒绝与显示错误，答案记忆不动。验证：真实提交失败 → 空参数帧 → 恢复；深浅无旧红字，remembered 答案保留，未自动运行。
+4. 现象：RunWithParams 撤回再接上，恢复入口仍携带之前的失败。改动：无运行回调时同步退役拒绝。验证：真实提交失败 → 回调撤回 → 恢复；深浅无旧红字且答案不丢。
+
+相关事件 **88 PASS / 0 FAIL**、settingsui vet 退出 0。M2 四叶子实红：`empty form resurrected retired refusal` / `unwired form resurrected retired refusal`；MD5 OK、touch 后 88 PASS。第三批测试初稿误用 KeyReturn 导致一次编译失败，修正为 KeyEnter 并暂存该未完成测试后复跑；未将编译失败算为 mutation。

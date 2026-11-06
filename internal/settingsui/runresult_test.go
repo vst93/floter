@@ -66,5 +66,55 @@ func checkRunResult(t *testing.T, scenario string) {
 	}
 }
 
+func checkRunRetirement(t *testing.T, scenario string) {
+	t.Helper()
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			a, in := runStateApp(Param{ID: "target", Label: "Target", Kind: extensions.ParamText, Default: "remembered"})
+			calls := 0
+			run := func(string, map[string]string) *extensions.ParamFailure {
+				calls++
+				return &extensions.ParamFailure{Key: extensions.RunErrorParamInvalid, Param: "target"}
+			}
+			a.Actions.RunWithParams = run
+			tt := runRecoveryFrame(t, a, in, dark)
+			copy := i18n.For("en").Settings
+			if err := tt.Click(copy.RunLabel); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			if !tt.HasText(copy.RunParamInvalid("Target")) {
+				t.Fatal("initial refusal missing")
+			}
+			params := in.Params
+			if scenario == "empty" {
+				in.Params = nil
+			} else {
+				a.Actions.RunWithParams = nil
+			}
+			tt.Frame()
+			if tt.HasText(copy.RunLabel) {
+				t.Fatal("unavailable form stayed visible")
+			}
+			in.Params, a.Actions.RunWithParams = params, run
+			tt.Frame()
+			tt.Frame()
+			resultDump(t, tt, "run-"+scenario, dark)
+			if tt.HasText(copy.RunParamInvalid("Target")) {
+				t.Errorf("%s form resurrected retired refusal", scenario)
+			}
+			if a.runValues[in.ID]["target"] != "remembered" {
+				t.Error("retiring refusal erased session answer")
+			}
+			if calls != 1 {
+				t.Errorf("restoring form dispatched %d runs, want 1", calls)
+			}
+		})
+	}
+}
+
+func TestRunResultAllParametersRetired(t *testing.T) { checkRunRetirement(t, "empty") }
+func TestRunResultCallbackWithdrawn(t *testing.T)    { checkRunRetirement(t, "unwired") }
+
 func TestRunResultOptionsChangedInsideCallback(t *testing.T) { checkRunResult(t, "options") }
 func TestRunResultValueChangedInsideCallback(t *testing.T)   { checkRunResult(t, "value") }

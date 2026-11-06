@@ -3000,9 +3000,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 		}
 
 		runWasOpen := a.runOpen[integration.ID]
-		if len(integration.Params) > 0 {
-			a.runForm(c, copy, integration)
-		}
+		a.runForm(c, copy, integration)
 
 		// The last background run's output rides the row it came from: the
 		// panel run that took the background route leaves it here (see
@@ -7265,6 +7263,9 @@ type runRefusal struct {
 
 func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration) {
 	if a.Actions.RunWithParams == nil || len(integration.Params) == 0 {
+		// Retire feedback with the form, but preserve its session answers.
+		delete(a.runError, integration.ID)
+		delete(a.runRefusals, integration.ID)
 		return
 	}
 	// The form is not resident: the row's Run button unfolds it (the
