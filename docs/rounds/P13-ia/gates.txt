@@ -1,0 +1,11 @@
+gofmt=0 bytes
+vet linux=0
+vet windows=0
+vet darwin=0
+test=0
+verbose=0
+PASS=4322 FAIL=0
+build linux=0
+build windows=0
+build darwin=0
+test_functions=2937

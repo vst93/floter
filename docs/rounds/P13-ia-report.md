@@ -101,3 +101,35 @@
 | D2-4 标点/对比 | 原标点与墨值保持，未声称所有旧次要墨达到 7:1 |
 
 没有为满足通用网页门禁添加装饰、素材或网页布局。可复现问题归档到本仓 §6.202 和事件断言，不升级为全局 skill 偏好。
+
+## 最终变异与图像证据
+
+兼容补修 **04ff48f0** 已推送。M2 把三份产品源码回注开盘 a7f1fb39，同一最终测试八项全部红，16 个 entry 子场景失败，用户已移焦页头的对照保持通过。随后 `git apply` 还原、三文件 `md5sum -c` 全 OK、`touch` 后本轮 **40 PASS / 0 FAIL**。记录见 [M2-red](P13-ia/M2-red.txt)、[M2-restore](P13-ia/M2-restore.txt) 与 [源码指纹](P13-ia/M2-source.md5)。M1 为早期保存句柄缺失，四个 entry 场景红，恢复后 10 PASS；最终由 M2 覆盖兼容修正后的实现。
+
+代表原始报错除逐项条目外，还有 `late save result changed keyboard outlet "Check"`、`outlet dispatch: open=0 check=0 adopt=0 close=0`，不是编译失败。两组 mutation 均实跑、还原与复验；旧 V/B/S 断言修改 **0/0/0**，旧测试函数未删，新增 Skip **0**。
+
+最终 **32 张 720×900** ui.Tester 原图；before/after 使用同一最终测试，仅替换产品源码。对照板：[浅色表单](P13-ia/comparison-light-1.png)、[深色表单](P13-ia/comparison-dark-1.png)、[浅色操作](P13-ia/comparison-light-2.png)、[深色操作](P13-ia/comparison-dark-2.png)。[像素差](P13-ia/image-differences.txt) 逐对非零；代表原图另在 `/tmp/floter-P13-ia-pending-{dark,light}.png`。来源是 Linux 软件自绘，其他平台只有编译证据。
+
+逐图目视：①工具编辑胶囊出现完整蓝环；②schema 清空后 Check 环仍在；③保存变孤立时 Adopt 接环；④禁用工具编辑保持灰淡，环落在 Check；⑤Recheck 提前退出后页头返回出现环；⑥Reconnect 同样回到页头；⑦旧修复行撤下后 Adopt 持环；⑧忙态启用开关撤下后 Adopt 持环。深浅各一套一致，页头 tooltip 是既有焦点提示。
+
+## 仍待
+
+1. 下一轮首选：异步操作的目标整行消失、随后以相同 ID 重现时，旧焦点句柄是否串到新行；以及保存期间 host 表单主动折叠/重开后的键盘位置。这里只是代码线索，先事件复现，不重复本轮仍存在目标的 owner/schema/Orphan 刷新。
+2. 不改变错误呈现期限、保存时机与保存中草稿归属。176-9/161-4、字号/行盒、accent 禁用填充、未知多选/Radio、小步长六位存储、终端 S1b/S1c/S2 尾继续需拍板。
+3. Windows/macOS 没有真机交互证据；早期八条 WIP 原样保留。参数全部移除再恢复仍为未复现线索。
+
+## 完整门槛与流程记录
+
+最终产品 04ff48f0：gofmt 输出 0 字节，Linux/Windows/macOS vet 全部退出 0。普通全量退出 0（settingsui 575.421 秒；开盘基线同包 329.629 秒），verbose 全量计数及三平台 build 仍在执行；不将等待状态记作通过。每批提交前运行相关事件与包 vet，完整门槛在最终产品集中执行。
+
+流程偏差：40 次工具调用预算未能守住，额外调用用于定位并补修重复 ID 的既有 B 回归、等待完整验收和收尾；发现预算超额后停止扩题。重复 ID 崩溃在第四批推送后被定向复查捕获，已由 04ff48f0 补修；没有修改旧断言、隐去失败或将补修算作第九项。第三批推送一次 SSH 断开，原样重推成功。
+
+## 最终结果
+
+最终产品 **04ff48f0**，四批每两项提交推送 **7b9008b6 / d1f6d196 / 2f84f6d6 / 132d72f1**，随后独立兼容补修。普通与 verbose 全量均退出 **0**；最终 **4322 PASS / 0 FAIL / 2937 测试函数**，对比基线 **4282 / 0 / 2929**，增加 **40 PASS / 8 函数**。三平台 vet/build 全部退出 0，gofmt **0 字节**；旧 V/B/S **0/0/0**，新增 Skip **0**。
+
+两组 mutation 真实变红，MD5 逐字节还原后 touch 复跑 **10/40 PASS**；最终相关含重复 ID B 回归 **265 PASS / 0 FAIL**。八项都有同事件深浅 before/after，16 对像素变化均非零，最小 **420 像素**。Linux 软件自绘已验，Windows/macOS 仅 vet/build。
+
+原始记录：[门槛汇总](P13-ia/gates.txt)、[普通全量](P13-ia/full-test.txt)、[开盘基线](P13-ia/baseline.txt)、[最终源码指纹](P13-ia/final-source.md5)。完整 verbose 和平台原始输出在 `/tmp/floter-P13-ia-gates/`；单项说明、stash 表、工艺取值和逐条 preflight 均见上文。
+
+验收完成时间 **2026-11-06 18:58:24 UTC**；从开盘记录 18:20 UTC 至此约 **38 分钟**，低于 45–75 分钟目标，不追加无关改动填时长。八项与完整门槛均完成；本轮存在调用超预算与提交后兼容补修的过程偏差，已如实记录。下一轮队列已替换待办顶部，done.log 记录最终结案 SHA。
