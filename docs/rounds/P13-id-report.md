@@ -47,3 +47,12 @@ M1 两条深浅共四个叶子实红，cp 还原后 md5sum -c 为 OK，并 touch
 6. 现象：选项全部清空后再恢复，Tab 同样从整表重走。改动：中性列表框只在拥有焦点时保持临时遍历位置，恢复列表不挪焦、不写值。验证：清空 → Space 无写入 → 恢复 → Tab 应用 → 正确勾选。原串 `multi-empty Tab did not continue at remaining options`。
 
 M3 撤掉退场交接后四叶子实红，MD5 OK、touch 后同族回归已完成；最终数字见 batch3.txt。无旧断言修改。
+
+第三批实测 162 PASS / 0 FAIL，包 vet 退出 0，a8652567 已推送。
+
+## 第四批
+
+7. 现象：插件 Checkbox 当前项移除后，Tab 回前面的无关开关。改动：原组选项实际持焦时才记录，退场交给同一组容器；用户移焦不抢回。验证：应用 → 删除应用 → Space 不写入 → Tab 文件 → Space 只勾文件；深浅通过。原串 `checkbox-removed Tab did not return to the surviving group`。
+8. 现象：Radio 当前键盘项移除后同样丢组内遍历位置。改动：共享分段控件保存实际持焦项，退场后临时回轨道；Tab 再入当前选项后恢复原单一 Tab 停靠与方向键选值。验证：文件 → Right 应用 → 宿主回写文件并移除应用 → Space 不误选 → Tab 文件 → Right 便条；深浅通过。原串 `radio-removed Tab did not return to the surviving group`。
+
+M4 四叶子实红，两份产品 MD5 OK，touch 后全套新增事件 34 PASS。旧 V/B/S 0/0/0，无新增 Skip；组容器仅持焦时参加遍历，普通键盘模型保持。

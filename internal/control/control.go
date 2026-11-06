@@ -76,6 +76,8 @@ func SegmentedIndex(c *ui.Context, tokens theme.Tokens, selected *int, labels []
 	t := c.Theme()
 	parts := ui.SegmentedBase(c, selected, len(labels))
 	track := parts.Track
+	focus := ui.Local(track, "segment.focus", func() ui.Handle { return ui.Handle{} })
+	hadFocus := focus.Focused(c)
 	// The track is the reference's stadium: a 999px corner, not the ladder's
 	// control step (`.settings-options--inline { border-radius: 999px }`,
 	// `settings.css:1016-1029`; `.extension-custom-mode { border-radius: 999px }`,
@@ -115,6 +117,9 @@ func SegmentedIndex(c *ui.Context, tokens theme.Tokens, selected *int, labels []
 			// `AlignItems(ui.Center)` is what puts the line box on the middle.
 			segment := parts.Segment(i).Padding(0, inset).MinHeight(t.Space(7.5)).
 				Radius(999).AlignItems(ui.Center).Justify(justify).Label(label)
+			if segment.Focused() {
+				segment.Bind(focus)
+			}
 			if fill {
 				segment.Grow(1)
 			}
@@ -158,6 +163,15 @@ func SegmentedIndex(c *ui.Context, tokens theme.Tokens, selected *int, labels []
 			})
 		}
 	})
+	// Retiring a focused segment must not choose its replacement. Keep a
+	// neutral Tab origin only while the track owns focus; ordinary radio
+	// navigation and its single Tab stop otherwise remain unchanged.
+	if hadFocus && !c.Resolve(*focus).Valid() {
+		track.Focus()
+	}
+	if track.Focused() {
+		track.Focusable().FocusGroup(0)
+	}
 	return track
 }
 

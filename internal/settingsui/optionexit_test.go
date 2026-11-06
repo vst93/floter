@@ -137,7 +137,9 @@ func checkOptionExitMulti(t *testing.T, empty bool) {
 			}
 			tt.Frame()
 			optionExitDump(t, tt, name, dark)
-			if !tt.Focused("搜索来源") { t.Error("removed option did not return focus to its group") }
+			if !tt.Focused("搜索来源") {
+				t.Error("removed option did not return focus to its group")
+			}
 			tt.Key(0, ui.KeySpace)
 			tt.Frame()
 			if a.configDirty(in, a.draft(in)) {
@@ -205,9 +207,47 @@ func checkOptionExitPlugin(t *testing.T, kind plugincfg.Kind) {
 			if !tt.Focused("文件") {
 				t.Errorf("%s Tab did not return to the surviving group", name)
 			}
+			if kind == plugincfg.Radio {
+				tt.Key(0, ui.KeyRight)
+				tt.Frame()
+				if sheet.Values["mode"] != "notes" || !tt.Focused("便条") {
+					t.Error("radio did not recover its normal arrow model")
+				}
+			} else {
+				tt.Key(0, ui.KeySpace)
+				tt.Frame()
+				if !configValuesEqual(sheet.Values["mode"], []string{"files"}) {
+					t.Error("checkbox did not recover its normal Space action")
+				}
+			}
 		})
 	}
 }
 
-func TestOptionExitMultiRemoved(t *testing.T) { checkOptionExitMulti(t, false) }
-func TestOptionExitMultiEmpty(t *testing.T)   { checkOptionExitMulti(t, true) }
+func TestOptionExitMultiRemoved(t *testing.T)   { checkOptionExitMulti(t, false) }
+func TestOptionExitMultiEmpty(t *testing.T)     { checkOptionExitMulti(t, true) }
+func TestOptionExitPluginCheckbox(t *testing.T) { checkOptionExitPlugin(t, plugincfg.Checkboxes) }
+func TestOptionExitPluginRadio(t *testing.T)    { checkOptionExitPlugin(t, plugincfg.Radio) }
+
+func TestOptionExitGroupsDoNotReclaimFocus(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		for _, kind := range []plugincfg.Kind{plugincfg.Radio, plugincfg.Checkboxes} {
+			t.Run(appearanceName(dark)+map[plugincfg.Kind]string{plugincfg.Radio: "/radio", plugincfg.Checkboxes: "/checkbox"}[kind], func(t *testing.T) {
+				sheet := selectDynamicSheet()
+				sheet.Schema.Fields[0].Kind = kind
+				sheet.Schema.Fields = append([]plugincfg.Field{{Key: "before", Label: "前项", Kind: plugincfg.Toggle}}, sheet.Schema.Fields...)
+				if kind == plugincfg.Checkboxes {
+					sheet.Values["mode"] = []string{}
+				}
+				tt := pluginIdentityFrame(t, dark, &sheet)
+				optionExitFocus(t, tt, "文件")
+				optionExitFocus(t, tt, "前项")
+				sheet.Schema.Fields[1].Options = sheet.Schema.Fields[1].Options[1:]
+				tt.Frame()
+				if !tt.Focused("前项") {
+					t.Error("option retirement stole sibling focus")
+				}
+			})
+		}
+	}
+}

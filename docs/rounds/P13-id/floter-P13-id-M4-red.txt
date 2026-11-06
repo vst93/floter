@@ -1,0 +1,23 @@
+=== RUN   TestOptionExitPluginCheckbox
+=== RUN   TestOptionExitPluginCheckbox/light
+    optionexit_test.go:208: checkbox-removed Tab did not return to the surviving group
+    optionexit_test.go:220: checkbox did not recover its normal Space action
+=== RUN   TestOptionExitPluginCheckbox/dark
+    optionexit_test.go:208: checkbox-removed Tab did not return to the surviving group
+    optionexit_test.go:220: checkbox did not recover its normal Space action
+--- FAIL: TestOptionExitPluginCheckbox (0.15s)
+    --- FAIL: TestOptionExitPluginCheckbox/light (0.14s)
+    --- FAIL: TestOptionExitPluginCheckbox/dark (0.01s)
+=== RUN   TestOptionExitPluginRadio
+=== RUN   TestOptionExitPluginRadio/light
+    optionexit_test.go:208: radio-removed Tab did not return to the surviving group
+    optionexit_test.go:214: radio did not recover its normal arrow model
+=== RUN   TestOptionExitPluginRadio/dark
+    optionexit_test.go:208: radio-removed Tab did not return to the surviving group
+    optionexit_test.go:214: radio did not recover its normal arrow model
+--- FAIL: TestOptionExitPluginRadio (0.03s)
+    --- FAIL: TestOptionExitPluginRadio/light (0.02s)
+    --- FAIL: TestOptionExitPluginRadio/dark (0.01s)
+FAIL
+FAIL	floter/internal/settingsui	0.190s
+FAIL

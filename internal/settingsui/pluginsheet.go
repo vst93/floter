@@ -462,7 +462,7 @@ func (a *App) sheetRadio(c *ui.Context, sheet PluginSheet, field plugincfg.Field
 				chosen = i
 				changed = true
 			}
-		}, keys).Bind(a.pluginEditorRef(field.Key))
+		}, keys).Label(field.Label).Bind(a.pluginEditorRef(field.Key))
 	})
 	if changed {
 		sheet.Change(field.Key, field.Options[chosen].Value)
@@ -483,19 +483,31 @@ func (a *App) sheetCheckboxes(c *ui.Context, sheet PluginSheet, field plugincfg.
 	}
 	pressed := -1
 	a.stackedRow(c, field.Label, field.Help, func() {
-		ui.Row(c).FillWidth().Gap(t.Space(3)).Wrap().Bind(a.pluginEditorRef(field.Key)).Children(func() {
+		group := ui.Row(c).FillWidth().Gap(t.Space(3)).Wrap().Label(field.Label).Bind(a.pluginEditorRef(field.Key))
+		focus := ui.Local(group, "option.focus", func() ui.Handle { return ui.Handle{} })
+		hadFocus := focus.Focused(c)
+		group.Children(func() {
 			for i, option := range field.Options {
 				i, option := i, option
 				checked := on[i]
 				label := pluginOptionLabel(option, a.copy().ConfigNone)
 				box := ui.Checkbox(c.Key("plugin.option."+option.Value), &checked, "").Label(label).MaxWidthPercent(100)
 				box.Children(func() { ui.Text(c, label).MinWidth(0).SingleLine() })
+				if box.Focused() {
+					box.Bind(focus)
+				}
 				if box.Changed() {
 					on[i] = checked
 					pressed = i
 				}
 			}
 		})
+		if hadFocus && !c.Resolve(*focus).Valid() {
+			group.Focus()
+		}
+		if group.Focused() {
+			group.Focusable()
+		}
 	})
 	if pressed >= 0 {
 		next := make([]string, 0, len(field.Options))
