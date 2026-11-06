@@ -1,0 +1,19 @@
+=== RUN   TestActionLifetimeRemovedSchema
+=== RUN   TestActionLifetimeRemovedSchema/light
+    actionlifetime_test.go:154: re-added action still asks to run the retired confirmation
+=== RUN   TestActionLifetimeRemovedSchema/dark
+    actionlifetime_test.go:154: re-added action still asks to run the retired confirmation
+--- FAIL: TestActionLifetimeRemovedSchema (0.10s)
+    --- FAIL: TestActionLifetimeRemovedSchema/light (0.08s)
+    --- FAIL: TestActionLifetimeRemovedSchema/dark (0.02s)
+=== RUN   TestActionLifetimeRetypedSchema
+=== RUN   TestActionLifetimeRetypedSchema/light
+    actionlifetime_test.go:154: re-added action still asks to run the retired confirmation
+=== RUN   TestActionLifetimeRetypedSchema/dark
+    actionlifetime_test.go:154: re-added action still asks to run the retired confirmation
+--- FAIL: TestActionLifetimeRetypedSchema (0.03s)
+    --- FAIL: TestActionLifetimeRetypedSchema/light (0.01s)
+    --- FAIL: TestActionLifetimeRetypedSchema/dark (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.126s
+FAIL

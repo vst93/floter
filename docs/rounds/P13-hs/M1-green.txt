@@ -1,0 +1,14 @@
+=== RUN   TestActionLifetimeCancelKeyboard
+=== RUN   TestActionLifetimeCancelKeyboard/light
+=== RUN   TestActionLifetimeCancelKeyboard/dark
+--- PASS: TestActionLifetimeCancelKeyboard (0.05s)
+    --- PASS: TestActionLifetimeCancelKeyboard/light (0.04s)
+    --- PASS: TestActionLifetimeCancelKeyboard/dark (0.01s)
+=== RUN   TestActionLifetimeFailureKeyboard
+=== RUN   TestActionLifetimeFailureKeyboard/light
+=== RUN   TestActionLifetimeFailureKeyboard/dark
+--- PASS: TestActionLifetimeFailureKeyboard (0.01s)
+    --- PASS: TestActionLifetimeFailureKeyboard/light (0.01s)
+    --- PASS: TestActionLifetimeFailureKeyboard/dark (0.01s)
+PASS
+ok  	floter/internal/settingsui	0.068s

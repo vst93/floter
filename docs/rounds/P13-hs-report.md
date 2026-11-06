@@ -27,3 +27,12 @@
 2. 现象：运行失败插入错误句，按钮身份改变，键盘不能重试。改动：主按钮在初始/确认/失败三态共用显式 key，错误句不再挤掉身份。验证：失败后原焦点仍在，Space 能重新 Arm，Run 只发生一次；成功返回、初次 Arm 与跨组操作回归通过。原红串 `failure lost action keyboard focus`、`failure cannot rearm by keyboard: arms=1 armed=""`。
 
 M1 回退 pluginsheet.go 两项修复，两个事件深浅实跑红；MD5 恢复 OK，touch 后 6 PASS。旧断言 V/B/S 修改数 0/0/0。深浅 before/after 已落盘；人工看图：取消后主按钮重新出现蓝色焦点环，失败句保留，右侧按钮的焦点环不再消失。基线 3971 PASS / 0 FAIL / 2858 函数。
+
+第一批 `41c51dac` 已推送，相关回归 38 PASS / 0 FAIL，settingsui vet 净。
+
+### 第二批
+
+3. 现象：确认后的动作被 schema 删除，再加入同 key 时仍显示“确认清理”，已失败的提示也会复活。改动：每帧同步配置时，持有者对照当前 Action 字段清理 Armed/ActionFailed。验证：真实 Click→移除→重加后是初始按钮；持有者同时覆盖 armed/failed 两种状态。原红串 `retired action kept state: armed="clear_history" failed=""`、`re-added action resurrected confirmation or failure`。
+4. 现象：动作改为开关再改回，也继承旧确认/失败。改动：存在同名字段也必须仍为 Action 才保留状态。验证：真实 Click→Toggle→Action 后必须重新确认；原红串 `re-added action still asks to run the retired confirmation`。未改模式退出/高度链。
+
+M2 回退状态清理，两个真实 UI 场景深浅实跑红；MD5 恢复 OK，touch 后 6 PASS。定向回归与两包 vet 通过。V/B/S 0/0/0。

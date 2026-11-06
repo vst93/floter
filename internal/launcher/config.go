@@ -171,7 +171,28 @@ func (a *App) syncConfig() {
 	}
 	if plugin := a.filterPluginID(); plugin != a.config.Schema.Plugin {
 		a.closeConfig()
+		return
 	}
+	// An action's confirmation and refusal belong to that visible action.
+	// Removing it or replacing it with a value field ends both lifetimes.
+	if !a.config.hasAction(a.config.Armed) {
+		a.config.Armed = ""
+	}
+	if !a.config.hasAction(a.config.ActionFailed) {
+		a.config.ActionFailed = ""
+	}
+}
+
+func (config *Config) hasAction(key string) bool {
+	if config == nil || config.Schema == nil || key == "" {
+		return false
+	}
+	for _, field := range config.Schema.Fields {
+		if field.Key == key {
+			return field.Kind == plugincfg.Action
+		}
+	}
+	return false
 }
 
 // configBody draws the sheet in the band the list would have taken, below the

@@ -1,0 +1,14 @@
+=== RUN   TestActionLifetimeRemovedSchema
+=== RUN   TestActionLifetimeRemovedSchema/light
+=== RUN   TestActionLifetimeRemovedSchema/dark
+--- PASS: TestActionLifetimeRemovedSchema (0.06s)
+    --- PASS: TestActionLifetimeRemovedSchema/light (0.04s)
+    --- PASS: TestActionLifetimeRemovedSchema/dark (0.01s)
+=== RUN   TestActionLifetimeRetypedSchema
+=== RUN   TestActionLifetimeRetypedSchema/light
+=== RUN   TestActionLifetimeRetypedSchema/dark
+--- PASS: TestActionLifetimeRetypedSchema (0.02s)
+    --- PASS: TestActionLifetimeRetypedSchema/light (0.01s)
+    --- PASS: TestActionLifetimeRetypedSchema/dark (0.01s)
+PASS
+ok  	floter/internal/settingsui	0.086s

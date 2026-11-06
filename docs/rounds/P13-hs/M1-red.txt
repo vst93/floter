@@ -1,0 +1,23 @@
+=== RUN   TestActionLifetimeCancelKeyboard
+=== RUN   TestActionLifetimeCancelKeyboard/light
+    actionlifetime_test.go:84: cancel lost action keyboard focus
+    actionlifetime_test.go:90: cancel cannot rearm by keyboard: arms=1 armed=""
+=== RUN   TestActionLifetimeCancelKeyboard/dark
+    actionlifetime_test.go:84: cancel lost action keyboard focus
+    actionlifetime_test.go:90: cancel cannot rearm by keyboard: arms=1 armed=""
+--- FAIL: TestActionLifetimeCancelKeyboard (0.04s)
+    --- FAIL: TestActionLifetimeCancelKeyboard/light (0.04s)
+    --- FAIL: TestActionLifetimeCancelKeyboard/dark (0.01s)
+=== RUN   TestActionLifetimeFailureKeyboard
+=== RUN   TestActionLifetimeFailureKeyboard/light
+    actionlifetime_test.go:84: failure lost action keyboard focus
+    actionlifetime_test.go:90: failure cannot rearm by keyboard: arms=1 armed=""
+=== RUN   TestActionLifetimeFailureKeyboard/dark
+    actionlifetime_test.go:84: failure lost action keyboard focus
+    actionlifetime_test.go:90: failure cannot rearm by keyboard: arms=1 armed=""
+--- FAIL: TestActionLifetimeFailureKeyboard (0.02s)
+    --- FAIL: TestActionLifetimeFailureKeyboard/light (0.01s)
+    --- FAIL: TestActionLifetimeFailureKeyboard/dark (0.01s)
+FAIL
+FAIL	floter/internal/settingsui	0.065s
+FAIL

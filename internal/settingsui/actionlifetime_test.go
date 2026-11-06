@@ -5,7 +5,9 @@ import (
 	"os"
 	"testing"
 
+	"floter/internal/launcher"
 	"floter/internal/plugincfg"
+	"floter/internal/settings"
 	"github.com/egoist/mygo/ui"
 )
 
@@ -103,3 +105,57 @@ func TestActionLifetimeArmKeyboard(t *testing.T)     { checkActionLifetimeKeyboa
 func TestActionLifetimeCancelKeyboard(t *testing.T)  { checkActionLifetimeKeyboard(t, "cancel") }
 func TestActionLifetimeFailureKeyboard(t *testing.T) { checkActionLifetimeKeyboard(t, "failure") }
 func TestActionLifetimeSuccessKeyboard(t *testing.T) { checkActionLifetimeKeyboard(t, "success") }
+
+func checkActionLifetimeSchema(t *testing.T, retype bool) {
+	t.Helper()
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			s := settings.Default()
+			s.Theme, s.Language = appearanceName(dark), "zh"
+			store := settings.NewStore(s)
+			a := New(store, Actions{})
+			owner := launcher.New(store, launcher.Actions{})
+			sheet := actionLifetimeSheet()
+			sheet.Schema.Plugin = settings.CustomPluginClipboard
+			owner.Actions.ConfigFor = func(string) *launcher.Config { return &launcher.Config{Schema: sheet.Schema, Values: sheet.Values} }
+			owner.Actions.ConfigAction = func(string, string) bool { return false }
+			owner.Actions.DrawConfig = func(c *ui.Context, config *launcher.Config) {
+				a.PluginSheet(c, PluginSheet{Schema: config.Schema, Values: config.Values, Armed: config.Armed, ActionFailed: config.ActionFailed, Arm: owner.ArmConfig, Run: owner.RunConfig, Unarm: owner.UnarmConfig})
+			}
+			owner.EnterClipboard()
+			owner.OpenConfig(settings.CustomPluginClipboard)
+			tt := ui.NewTester(owner.View, 720, 400)
+			tt.SetDark(dark)
+			tt.SetPreferences(ui.Preferences{ReduceMotion: true})
+			tt.Frame()
+			// The row label is the first-press target. Use the actual UI event.
+			if err := tt.Click("清理历史"); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			tt.Frame()
+			if !tt.HasText("确认清理") {
+				t.Fatal("action did not ask for confirmation")
+			}
+			field := sheet.Schema.Fields[0]
+			name := "removed"
+			if retype {
+				sheet.Schema.Fields[0].Kind = plugincfg.Toggle
+				name = "retyped"
+			} else {
+				sheet.Schema.Fields = nil
+			}
+			tt.Frame()
+			sheet.Schema.Fields = []plugincfg.Field{field}
+			tt.Frame()
+			tt.Frame()
+			actionLifetimeDump(t, tt, name, dark)
+			if tt.HasText("确认清理") || owner.Config().Armed != "" {
+				t.Error("re-added action still asks to run the retired confirmation")
+			}
+		})
+	}
+}
+
+func TestActionLifetimeRemovedSchema(t *testing.T) { checkActionLifetimeSchema(t, false) }
+func TestActionLifetimeRetypedSchema(t *testing.T) { checkActionLifetimeSchema(t, true) }
