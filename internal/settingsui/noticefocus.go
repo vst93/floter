@@ -12,6 +12,11 @@ func (a *App) retireMissingConfirmations() {
 	present := make(map[string]bool)
 	for _, in := range a.installedIntegrations() {
 		present[in.ID] = true
+		// A question that no longer has unsaved fields must leave the
+		// keyboard path as well as the painted form. Keep the draft itself.
+		if a.configDiscard[in.ID] && (len(in.Config) == 0 || !a.configDirty(in, a.draft(in))) {
+			a.disarmConfigDiscard(in.ID)
+		}
 	}
 	for id := range a.disableConfirm {
 		if !present[id] {
