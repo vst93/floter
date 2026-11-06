@@ -482,7 +482,7 @@ func (a *App) sheetSlider(c *ui.Context, sheet PluginSheet, field plugincfg.Fiel
 		})
 	})
 	if changed {
-		sheet.Change(field.Key, quantize(v, field.Step))
+		sheet.Change(field.Key, boundedValue(field, v))
 	}
 }
 
@@ -497,7 +497,11 @@ func (a *App) sheetNumber(c *ui.Context, sheet PluginSheet, field plugincfg.Fiel
 		changed = slotChanged
 	})
 	if changed {
-		sheet.Change(field.Key, clampNumber(field, v))
+		// P13-hk（§6.186）：数字框交给宿主的数与滑块交给宿主的是同一条账—
+		// 落在这个字段自己的网格上、收进它声明过的界。此前只 `clampNumber`，
+		// `Step: 1` 的字段可以交上去一个 3.7，宿主再按网格收成 4：这一帧的
+		// 派发值（3.7）与插件实际存下的数（4）不是同一个。
+		sheet.Change(field.Key, boundedValue(field, v))
 	}
 }
 
@@ -529,7 +533,7 @@ func (a *App) sheetNumberSlot(c *ui.Context, plugin string, field plugincfg.Fiel
 	key := plugin + "\x00" + field.Key
 	draft, ok := a.pluginNumberDrafts[key]
 	if !ok {
-		draft = formatFieldNumber(*value)
+		draft = initialNumberText(field, *value)
 	}
 	changed := false
 	// The number box is the field slot plus the reference's 4u gap between
@@ -768,8 +772,14 @@ func pluginOptionLabel(option plugincfg.Option, empty ...string) string {
 // 现在先量化（`quantize`，Step 0 时原样），再按六位小数收口（与 `clampStep`
 // 同一条，避免 `0.1 × 4` 打印成 `0.4000000000000001`），最后用最短写法。
 // 整数值的读数逐字节不变（`300` → "300"）。
+//
+// P13-hk（§6.186）：读数还要先**收进 schema 自己的界**。同一条账的第三笔：一个
+// 手改过的配置文件（或旧版本写下的值）把 `max_items` 放到界外时，轨道按框架自己的
+// 区间停在头上，而读数照样印着界外的那个数——一条横线说「到这里了」，旁边说
+// 「9999 items」。收进界之后，读数就是拖一下会存下的那个数（也是 `coerce` 的
+// `clampStep` 会保留的那个）。
 func boundedText(field plugincfg.Field, value float64) string {
-	value = math.Round(quantize(value, field.Step)*1e6) / 1e6
+	value = math.Round(boundedValue(field, value)*1e6) / 1e6
 	text := formatFieldNumber(value)
 	if field.Unit != "" {
 		text += " " + field.Unit
@@ -777,13 +787,50 @@ func boundedText(field plugincfg.Field, value float64) string {
 	return text
 }
 
+// initialNumberText is what a number box with no draft of its own reads: the
+// stored value, held inside the field's declared bounds and on its step grid.
+// A hand-edited settings file can hold 70000 in a field whose maximum is 65535;
+// the box used to print that raw, so the first paint disagreed with every write
+// the field can make.
+func initialNumberText(field plugincfg.Field, value float64) string {
+	return formatFieldNumber(boundedValue(field, value))
+}
+
+// boundedValue is the number a bounded control hands the host: the value on the
+// field's own step grid, held inside the field's declared bounds. The readout
+// draws this same number (§6.164: the readout is what gets saved), so the two
+// cannot drift.
+//
+// P13-hk（§6.186）：两条账。
+//
+//  1. 网格锚在 `Min` 上（见 `quantize`），与 `plugincfg.coerce` 的 `clampStep`
+//     同一条；`Min` 落在网格上时逐字节不变。
+//  2. 量化之后还要收进**声明过的**界：网格四舍五入能把 96 取到 100，而字段的
+//     `Max` 是 99——`coerce` 会夹回 99，于是框里的读数（100）和插件真正存下的
+//     数（99）就差着一格。声明过的界 = `Max > Min`：零宽的 `Min`/`Max` 是
+//     「没写界」的零值（`plugincfg.Field` 的默认），不是「必须等于 0」。
+func boundedValue(field plugincfg.Field, value float64) float64 {
+	value = quantize(field, value)
+	if field.Max > field.Min {
+		value = clampNumber(field, value)
+	}
+	return value
+}
+
 // quantize rounds a dragged value to the schema's step, so a slider that
 // steps by ten lands on round numbers.
-func quantize(value, step float64) float64 {
-	if step <= 0 {
+//
+// P13-hk（§6.186）：网格**锚在该字段自己的 `Min` 上**，不是锚在 0 上。
+// `plugincfg.coerce` 的 `clampStep` 用的是 `round((n-lo)/step)*step + lo`，同一条
+// 规则；而这里此前是 `round(v/step)*step`。`Min` 落在步长网格上时两者逐字节相同
+// （本仓内置的 `max_items`、`history_days` 都是这种），但 `Field.Min` / `Step`
+// 是自由浮点：`Min: 1, Step: 10` 的字段在 1.5 处会量化成 **0**——一个比下界还小、
+// 宿主立刻夹回 1 的数，而这一帧的读数、滑块位置和派发值都在说 0。
+func quantize(field plugincfg.Field, value float64) float64 {
+	if field.Step <= 0 {
 		return value
 	}
-	return math.Round(value/step) * step
+	return math.Round((value-field.Min)/field.Step)*field.Step + field.Min
 }
 
 // formatFieldNumber is the number a number field edits: the shortest decimal
