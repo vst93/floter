@@ -1,0 +1,170 @@
+=== RUN   TestConfigIdentityReorderingKeepsTheActiveField
+=== RUN   TestConfigIdentityReorderingKeepsTheActiveField/light
+=== RUN   TestConfigIdentityReorderingKeepsTheActiveField/dark
+--- PASS: TestConfigIdentityReorderingKeepsTheActiveField (0.09s)
+    --- PASS: TestConfigIdentityReorderingKeepsTheActiveField/light (0.08s)
+    --- PASS: TestConfigIdentityReorderingKeepsTheActiveField/dark (0.00s)
+=== RUN   TestConfigIdentityErrorUsesCurrentLanguage
+=== RUN   TestConfigIdentityErrorUsesCurrentLanguage/light
+=== RUN   TestConfigIdentityErrorUsesCurrentLanguage/dark
+--- PASS: TestConfigIdentityErrorUsesCurrentLanguage (0.02s)
+    --- PASS: TestConfigIdentityErrorUsesCurrentLanguage/light (0.02s)
+    --- PASS: TestConfigIdentityErrorUsesCurrentLanguage/dark (0.00s)
+=== RUN   TestConfigIdentityHistoryBelongsToTheIntegration
+=== RUN   TestConfigIdentityHistoryBelongsToTheIntegration/light
+=== RUN   TestConfigIdentityHistoryBelongsToTheIntegration/dark
+--- PASS: TestConfigIdentityHistoryBelongsToTheIntegration (0.01s)
+    --- PASS: TestConfigIdentityHistoryBelongsToTheIntegration/light (0.00s)
+    --- PASS: TestConfigIdentityHistoryBelongsToTheIntegration/dark (0.00s)
+=== RUN   TestConfigIdentityAddedFieldsReadTheirInitialValues
+=== RUN   TestConfigIdentityAddedFieldsReadTheirInitialValues/light
+=== RUN   TestConfigIdentityAddedFieldsReadTheirInitialValues/dark
+--- PASS: TestConfigIdentityAddedFieldsReadTheirInitialValues (0.01s)
+    --- PASS: TestConfigIdentityAddedFieldsReadTheirInitialValues/light (0.00s)
+    --- PASS: TestConfigIdentityAddedFieldsReadTheirInitialValues/dark (0.00s)
+=== RUN   TestGroupRefreshTextPrependKeepsEdit
+=== RUN   TestGroupRefreshTextPrependKeepsEdit/light
+=== RUN   TestGroupRefreshTextPrependKeepsEdit/dark
+--- PASS: TestGroupRefreshTextPrependKeepsEdit (0.04s)
+    --- PASS: TestGroupRefreshTextPrependKeepsEdit/light (0.03s)
+    --- PASS: TestGroupRefreshTextPrependKeepsEdit/dark (0.01s)
+=== RUN   TestGroupRefreshNumberMoveKeepsEdit
+=== RUN   TestGroupRefreshNumberMoveKeepsEdit/light
+=== RUN   TestGroupRefreshNumberMoveKeepsEdit/dark
+--- PASS: TestGroupRefreshNumberMoveKeepsEdit (0.02s)
+    --- PASS: TestGroupRefreshNumberMoveKeepsEdit/light (0.01s)
+    --- PASS: TestGroupRefreshNumberMoveKeepsEdit/dark (0.01s)
+=== RUN   TestGroupRefreshTextCorrectionClearsValidation
+=== RUN   TestGroupRefreshTextCorrectionClearsValidation/light
+=== RUN   TestGroupRefreshTextCorrectionClearsValidation/dark
+--- PASS: TestGroupRefreshTextCorrectionClearsValidation (0.02s)
+    --- PASS: TestGroupRefreshTextCorrectionClearsValidation/light (0.01s)
+    --- PASS: TestGroupRefreshTextCorrectionClearsValidation/dark (0.01s)
+=== RUN   TestGroupRefreshNumberCorrectionClearsValidation
+=== RUN   TestGroupRefreshNumberCorrectionClearsValidation/light
+=== RUN   TestGroupRefreshNumberCorrectionClearsValidation/dark
+--- PASS: TestGroupRefreshNumberCorrectionClearsValidation (0.02s)
+    --- PASS: TestGroupRefreshNumberCorrectionClearsValidation/light (0.01s)
+    --- PASS: TestGroupRefreshNumberCorrectionClearsValidation/dark (0.01s)
+=== RUN   TestGroupRefreshTextRelaxationClearsValidation
+=== RUN   TestGroupRefreshTextRelaxationClearsValidation/light
+=== RUN   TestGroupRefreshTextRelaxationClearsValidation/dark
+--- PASS: TestGroupRefreshTextRelaxationClearsValidation (0.02s)
+    --- PASS: TestGroupRefreshTextRelaxationClearsValidation/light (0.01s)
+    --- PASS: TestGroupRefreshTextRelaxationClearsValidation/dark (0.01s)
+=== RUN   TestGroupRefreshNumberRelaxationClearsValidation
+=== RUN   TestGroupRefreshNumberRelaxationClearsValidation/light
+=== RUN   TestGroupRefreshNumberRelaxationClearsValidation/dark
+--- PASS: TestGroupRefreshNumberRelaxationClearsValidation (0.02s)
+    --- PASS: TestGroupRefreshNumberRelaxationClearsValidation/light (0.01s)
+    --- PASS: TestGroupRefreshNumberRelaxationClearsValidation/dark (0.01s)
+=== RUN   TestInputStateUnboundedNumberKeepsTypedValue
+=== RUN   TestInputStateUnboundedNumberKeepsTypedValue/light
+=== RUN   TestInputStateUnboundedNumberKeepsTypedValue/dark
+--- PASS: TestInputStateUnboundedNumberKeepsTypedValue (0.01s)
+    --- PASS: TestInputStateUnboundedNumberKeepsTypedValue/light (0.01s)
+    --- PASS: TestInputStateUnboundedNumberKeepsTypedValue/dark (0.00s)
+=== RUN   TestInputStateNumberDisplaysSnappedValue
+=== RUN   TestInputStateNumberDisplaysSnappedValue/light
+=== RUN   TestInputStateNumberDisplaysSnappedValue/dark
+--- PASS: TestInputStateNumberDisplaysSnappedValue (0.00s)
+    --- PASS: TestInputStateNumberDisplaysSnappedValue/light (0.00s)
+    --- PASS: TestInputStateNumberDisplaysSnappedValue/dark (0.00s)
+=== RUN   TestInputStateNumberAdoptsRefreshedBounds
+=== RUN   TestInputStateNumberAdoptsRefreshedBounds/light
+=== RUN   TestInputStateNumberAdoptsRefreshedBounds/dark
+--- PASS: TestInputStateNumberAdoptsRefreshedBounds (0.01s)
+    --- PASS: TestInputStateNumberAdoptsRefreshedBounds/light (0.00s)
+    --- PASS: TestInputStateNumberAdoptsRefreshedBounds/dark (0.00s)
+=== RUN   TestInputStateSliderPositionMatchesItsReadout
+=== RUN   TestInputStateSliderPositionMatchesItsReadout/light
+=== RUN   TestInputStateSliderPositionMatchesItsReadout/dark
+--- PASS: TestInputStateSliderPositionMatchesItsReadout (0.01s)
+    --- PASS: TestInputStateSliderPositionMatchesItsReadout/light (0.00s)
+    --- PASS: TestInputStateSliderPositionMatchesItsReadout/dark (0.00s)
+=== RUN   TestInputStateAcceptedTextAllowsExternalRefresh
+=== RUN   TestInputStateAcceptedTextAllowsExternalRefresh/light
+=== RUN   TestInputStateAcceptedTextAllowsExternalRefresh/dark
+--- PASS: TestInputStateAcceptedTextAllowsExternalRefresh (0.01s)
+    --- PASS: TestInputStateAcceptedTextAllowsExternalRefresh/light (0.01s)
+    --- PASS: TestInputStateAcceptedTextAllowsExternalRefresh/dark (0.00s)
+=== RUN   TestInputStateLockedConfigUsesDisabledInk
+=== RUN   TestInputStateLockedConfigUsesDisabledInk/light/text
+    inputstateink_test.go:49: locked-config-text/light: disabled ink=73
+=== RUN   TestInputStateLockedConfigUsesDisabledInk/light/number
+    inputstateink_test.go:49: locked-config-number/light: disabled ink=73
+=== RUN   TestInputStateLockedConfigUsesDisabledInk/dark/text
+    inputstateink_test.go:49: locked-config-text/dark: disabled ink=75
+=== RUN   TestInputStateLockedConfigUsesDisabledInk/dark/number
+    inputstateink_test.go:49: locked-config-number/dark: disabled ink=75
+--- PASS: TestInputStateLockedConfigUsesDisabledInk (0.01s)
+    --- PASS: TestInputStateLockedConfigUsesDisabledInk/light/text (0.00s)
+    --- PASS: TestInputStateLockedConfigUsesDisabledInk/light/number (0.00s)
+    --- PASS: TestInputStateLockedConfigUsesDisabledInk/dark/text (0.00s)
+    --- PASS: TestInputStateLockedConfigUsesDisabledInk/dark/number (0.00s)
+=== RUN   TestInputStateLockedAliasUsesDisabledInk
+=== RUN   TestInputStateLockedAliasUsesDisabledInk/light
+    inputstateink_test.go:72: light alias: disabled ink=74
+=== RUN   TestInputStateLockedAliasUsesDisabledInk/dark
+    inputstateink_test.go:72: dark alias: disabled ink=76
+--- PASS: TestInputStateLockedAliasUsesDisabledInk (0.00s)
+    --- PASS: TestInputStateLockedAliasUsesDisabledInk/light (0.00s)
+    --- PASS: TestInputStateLockedAliasUsesDisabledInk/dark (0.00s)
+=== RUN   TestInputStateLockedRunParameterUsesDisabledInk
+=== RUN   TestInputStateLockedRunParameterUsesDisabledInk/light
+    inputstateink_test.go:102: light run: disabled ink=81
+=== RUN   TestInputStateLockedRunParameterUsesDisabledInk/dark
+    inputstateink_test.go:102: dark run: disabled ink=86
+--- PASS: TestInputStateLockedRunParameterUsesDisabledInk (0.01s)
+    --- PASS: TestInputStateLockedRunParameterUsesDisabledInk/light (0.01s)
+    --- PASS: TestInputStateLockedRunParameterUsesDisabledInk/dark (0.00s)
+=== RUN   TestSchemaRefreshPluginTextRetiresOnTypeChange
+=== RUN   TestSchemaRefreshPluginTextRetiresOnTypeChange/light
+=== RUN   TestSchemaRefreshPluginTextRetiresOnTypeChange/dark
+--- PASS: TestSchemaRefreshPluginTextRetiresOnTypeChange (0.01s)
+    --- PASS: TestSchemaRefreshPluginTextRetiresOnTypeChange/light (0.00s)
+    --- PASS: TestSchemaRefreshPluginTextRetiresOnTypeChange/dark (0.00s)
+=== RUN   TestSchemaRefreshPluginNumberRetiresOnTypeChange
+=== RUN   TestSchemaRefreshPluginNumberRetiresOnTypeChange/light
+=== RUN   TestSchemaRefreshPluginNumberRetiresOnTypeChange/dark
+--- PASS: TestSchemaRefreshPluginNumberRetiresOnTypeChange (0.01s)
+    --- PASS: TestSchemaRefreshPluginNumberRetiresOnTypeChange/light (0.00s)
+    --- PASS: TestSchemaRefreshPluginNumberRetiresOnTypeChange/dark (0.00s)
+=== RUN   TestSchemaRefreshConfigTypeRetiresHalfInput
+=== RUN   TestSchemaRefreshConfigTypeRetiresHalfInput/light
+=== RUN   TestSchemaRefreshConfigTypeRetiresHalfInput/dark
+--- PASS: TestSchemaRefreshConfigTypeRetiresHalfInput (0.01s)
+    --- PASS: TestSchemaRefreshConfigTypeRetiresHalfInput/light (0.00s)
+    --- PASS: TestSchemaRefreshConfigTypeRetiresHalfInput/dark (0.00s)
+=== RUN   TestSchemaRefreshConfigTypeRetiresUndo
+=== RUN   TestSchemaRefreshConfigTypeRetiresUndo/light
+=== RUN   TestSchemaRefreshConfigTypeRetiresUndo/dark
+--- PASS: TestSchemaRefreshConfigTypeRetiresUndo (0.01s)
+    --- PASS: TestSchemaRefreshConfigTypeRetiresUndo/light (0.00s)
+    --- PASS: TestSchemaRefreshConfigTypeRetiresUndo/dark (0.00s)
+=== RUN   TestSchemaRefreshNumberBoundsUpdateError
+=== RUN   TestSchemaRefreshNumberBoundsUpdateError/light
+=== RUN   TestSchemaRefreshNumberBoundsUpdateError/dark
+--- PASS: TestSchemaRefreshNumberBoundsUpdateError (0.01s)
+    --- PASS: TestSchemaRefreshNumberBoundsUpdateError/light (0.00s)
+    --- PASS: TestSchemaRefreshNumberBoundsUpdateError/dark (0.00s)
+=== RUN   TestSchemaRefreshTextBoundsUpdateError
+=== RUN   TestSchemaRefreshTextBoundsUpdateError/light
+=== RUN   TestSchemaRefreshTextBoundsUpdateError/dark
+--- PASS: TestSchemaRefreshTextBoundsUpdateError (0.01s)
+    --- PASS: TestSchemaRefreshTextBoundsUpdateError/light (0.00s)
+    --- PASS: TestSchemaRefreshTextBoundsUpdateError/dark (0.00s)
+=== RUN   TestSchemaRefreshRemovedMultiRetiresAnchor
+=== RUN   TestSchemaRefreshRemovedMultiRetiresAnchor/light
+=== RUN   TestSchemaRefreshRemovedMultiRetiresAnchor/dark
+--- PASS: TestSchemaRefreshRemovedMultiRetiresAnchor (0.01s)
+    --- PASS: TestSchemaRefreshRemovedMultiRetiresAnchor/light (0.00s)
+    --- PASS: TestSchemaRefreshRemovedMultiRetiresAnchor/dark (0.00s)
+=== RUN   TestSchemaRefreshRemovedPluginTextRetiresDraft
+=== RUN   TestSchemaRefreshRemovedPluginTextRetiresDraft/light
+=== RUN   TestSchemaRefreshRemovedPluginTextRetiresDraft/dark
+--- PASS: TestSchemaRefreshRemovedPluginTextRetiresDraft (0.01s)
+    --- PASS: TestSchemaRefreshRemovedPluginTextRetiresDraft/light (0.00s)
+    --- PASS: TestSchemaRefreshRemovedPluginTextRetiresDraft/dark (0.00s)
+PASS
+ok  	floter/internal/settingsui	0.379s

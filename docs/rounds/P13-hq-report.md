@@ -32,3 +32,8 @@
 4. 已存数字 25 按 Enter 显示范围错误后，外部纠正为 5，旧红句仍在 → 同一宿主刷新路径清旧校验 → 深浅值 5、状态 clean、旧句消失。
 
 第二批相关 80 PASS / 0 FAIL、settingsui vet 净。M2 回退 config.go 两项均红：`text-correct retains obsolete validation: "outside its allowed length"`、`number-correct retains obsolete validation: "outside its allowed range"`；md5sum -c OK、touch 后复跑。V/B/S 0/0/0。
+
+5. 存量文本按 Enter 报错后放宽长度，仍显示旧错误 → 对已显示的错误按当前 schema 重验，未验证值仍不主动验证 → 深浅放宽后旧句退出、值与 dirty 不变。
+6. 存量数字按 Enter 报错后放宽范围，仍显示旧错误 → 同上覆盖数字 → 深浅放宽后旧句退出，不触发写回。
+
+第三批相关 80 PASS / 0 FAIL、settingsui vet 净。M3 原文 `text-relax retains obsolete validation: "outside its allowed length"` 与 `number-relax retains obsolete validation: "outside its allowed range"`；两文件日志留存，MD5 还原 OK、touch 复跑。V/B/S 0/0/0。

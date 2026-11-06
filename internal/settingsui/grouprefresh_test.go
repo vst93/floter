@@ -129,3 +129,11 @@ func TestGroupRefreshTextCorrectionClearsValidation(t *testing.T) {
 func TestGroupRefreshNumberCorrectionClearsValidation(t *testing.T) {
 	checkGroupRefreshValidation(t, true, false)
 }
+
+func TestGroupRefreshTextRelaxationClearsValidation(t *testing.T) {
+	checkGroupRefreshValidation(t, false, true)
+}
+
+func TestGroupRefreshNumberRelaxationClearsValidation(t *testing.T) {
+	checkGroupRefreshValidation(t, true, true)
+}

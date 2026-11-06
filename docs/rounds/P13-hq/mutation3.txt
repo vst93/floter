@@ -1,0 +1,19 @@
+=== RUN   TestGroupRefreshTextRelaxationClearsValidation
+=== RUN   TestGroupRefreshTextRelaxationClearsValidation/light
+    grouprefresh_test.go:116: text-relax retains obsolete validation: "outside its allowed length"
+=== RUN   TestGroupRefreshTextRelaxationClearsValidation/dark
+    grouprefresh_test.go:116: text-relax retains obsolete validation: "outside its allowed length"
+--- FAIL: TestGroupRefreshTextRelaxationClearsValidation (0.05s)
+    --- FAIL: TestGroupRefreshTextRelaxationClearsValidation/light (0.05s)
+    --- FAIL: TestGroupRefreshTextRelaxationClearsValidation/dark (0.01s)
+=== RUN   TestGroupRefreshNumberRelaxationClearsValidation
+=== RUN   TestGroupRefreshNumberRelaxationClearsValidation/light
+    grouprefresh_test.go:116: number-relax retains obsolete validation: "outside its allowed range"
+=== RUN   TestGroupRefreshNumberRelaxationClearsValidation/dark
+    grouprefresh_test.go:116: number-relax retains obsolete validation: "outside its allowed range"
+--- FAIL: TestGroupRefreshNumberRelaxationClearsValidation (0.02s)
+    --- FAIL: TestGroupRefreshNumberRelaxationClearsValidation/light (0.01s)
+    --- FAIL: TestGroupRefreshNumberRelaxationClearsValidation/dark (0.01s)
+FAIL
+FAIL	floter/internal/settingsui	0.076s
+FAIL
