@@ -785,11 +785,15 @@ func (a *App) sheetAction(c *ui.Context, sheet PluginSheet, field plugincfg.Fiel
 	clicked := a.row(c, field.Label, field.Help, func() {
 		// The reference's cluster: inline-flex, flex-end, a 6u gap
 		// (`.plugin-config-action`, `plugin-config.css:218-224`).
-		ui.Row(c).Gap(t.Space(1.5)).AlignItems(ui.Center).Wrap().Bind(a.pluginEditorRef(field.Key)).Children(func() {
+		cluster := ui.Row(c).Gap(t.Space(1.5)).AlignItems(ui.Center).Wrap().Bind(a.pluginEditorRef(field.Key))
+		wasArmed := ui.Local(cluster, "action.armed", func() bool { return armed })
+		returnFocus := *wasArmed && !armed && a.pluginEditorRef(field.Key).FocusWithin(c)
+		*wasArmed = armed
+		cluster.Children(func() {
 			if armed {
 				// The armed button is the old build's danger button: the
 				// same quiet hairline pill, its own warning face.
-				a.sheetActionButton(c, field.Confirm, true, func() { sheet.Run(field.Key) })
+				a.sheetActionButton(c.Key("action.primary"), field.Confirm, true, func() { sheet.Run(field.Key) })
 				a.sheetActionButton(c, field.Cancel, false, func() { sheet.Unarm(field.Key) })
 				return
 			}
@@ -799,7 +803,12 @@ func (a *App) sheetAction(c *ui.Context, sheet PluginSheet, field plugincfg.Fiel
 				// `.plugin-config-action__status`, the field's own wording.
 				ui.Text(c, field.Failed).FontSize(a.tokens(c).Caption).TextColor(t.Warning)
 			}
-			a.sheetActionButton(c, field.Label, true, func() { sheet.Arm(field.Key) })
+			primary := a.sheetActionButton(c.Key("action.primary"), field.Label, true, func() { sheet.Arm(field.Key) })
+			if returnFocus {
+				var ref ui.Handle
+				primary.Bind(&ref)
+				ref.Focus(c)
+			}
 		})
 	})
 	if clicked && !armed {
