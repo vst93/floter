@@ -90,3 +90,65 @@ func checkToolPicker(t *testing.T, closed bool) {
 
 func TestToolCallbackPickerKeepsNewDraft(t *testing.T)         { checkToolPicker(t, false) }
 func TestToolCallbackPickerKeepsClosedDraftEmpty(t *testing.T) { checkToolPicker(t, true) }
+
+func checkToolSubmission(t *testing.T, editing bool) {
+	t.Helper()
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			a := New(newStore(t), Actions{})
+			calls := 0
+			replace := func(tool CustomTool) {
+				calls++
+				if tool.Name != "oldtool" || tool.Program != "/usr/bin/oldtool" {
+					t.Errorf("wrong submitted tool: %+v", tool)
+				}
+				a.beginEdit("local.new", callbackTool("newtool"))
+			}
+			a.Actions.ConnectLocalTool = replace
+			a.Actions.EditCustomTool = func(id string, tool CustomTool) {
+				if id != "local.old" {
+					t.Errorf("wrong submitted id %q", id)
+				}
+				replace(tool)
+			}
+			id, name := "", "connect-new"
+			label := i18n.For("zh").Settings.LocalToolConnect
+			if editing {
+				id, name, label = "local.old", "save-new", i18n.For("zh").Settings.LocalToolSave
+			}
+			a.beginEdit(id, callbackTool("oldtool"))
+			tt := toolCallbackFrame(t, a, dark)
+			if err := tt.Click(label); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			fetchDump(t, tt, name, dark)
+			if calls != 1 {
+				t.Fatalf("submissions=%d, want 1", calls)
+			}
+			if !a.toolOpen || a.toolEditing != "local.new" || a.toolName != "newtool" || a.toolProgram != "/usr/bin/newtool" || a.toolArgs != "--newtool" {
+				t.Errorf("%s completion erased newer editor: open=%v id=%q name=%q program=%q", name, a.toolOpen, a.toolEditing, a.toolName, a.toolProgram)
+				return
+			}
+			if !tt.HasText("local.new") {
+				t.Error("new editor identity is not visible")
+			}
+			a.Actions.EditCustomTool = func(id string, tool CustomTool) {
+				calls++
+				if id != "local.new" || tool.Name != "newtool" {
+					t.Error("new editor submitted old target")
+				}
+			}
+			if err := tt.Click(i18n.For("zh").Settings.LocalToolSave); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			if calls != 2 || a.toolOpen || a.toolEditing != "" {
+				t.Error("ordinary successful save did not close its own form")
+			}
+		})
+	}
+}
+
+func TestToolCallbackSaveKeepsNewEditor(t *testing.T)    { checkToolSubmission(t, true) }
+func TestToolCallbackConnectKeepsNewEditor(t *testing.T) { checkToolSubmission(t, false) }

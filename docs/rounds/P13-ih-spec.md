@@ -29,7 +29,7 @@ qiaomu-design 按用户授权走 craft-loop + preflight + chinese-typography。A
 
 ## 验证
 
-基线已启动 LC_ALL=zh_CN.UTF-8 GOMAXPROCS=4 go test -count=1 -v ./...，完成后填入实测；前轮记录 4615 不冒充本轮实测。
+基线 LC_ALL=zh_CN.UTF-8 GOMAXPROCS=4 go test -count=1 -v ./... 已完整退出 0，实测 4615 PASS / 0 FAIL；开盘对象 b6a77746 实测 2995 测试函数。
 每批运行本轮及相关旧事件测试、相关包 vet；最终一次完整 gofmt -l cmd internal、三平台 vet、普通与 verbose 全量测试、三平台 build。旧 V/B/S 断言不改，函数数不减。
 
 Mutation M1–M4：逐批撤回对应产品 diff，运行当批两项事件 pin 必须变红；复制备份恢复，md5sum -c，touch，再 count=1 复验。每项深浅 ui.Tester 原图 /tmp/floter-P13-ih-<场景>-<dark|light>-<before|after>.png，最终复制进轮次目录。

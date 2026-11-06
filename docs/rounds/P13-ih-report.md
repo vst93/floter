@@ -36,3 +36,12 @@
 4. 现象：选择器内结束编辑，关闭后又回写旧草稿，再展开新连接出现旧名字和路径。改动：已关闭或换代的表单不接纳旧帧局部值。验证：关闭时草稿为空，真实点击展开仍为空，再选择当前路径成功。
 
 M2 原串 `picker overwrote new draft: editing="local.new" name="oldtool" program="/usr/bin/selected-for-old" args="--oldtool"`、`closed picker resurrected draft: open=false name="oldtool" program="/usr/bin/selected-for-old" command="oldtool"`。四叶子实红，MD5 还原、touch 复验，旧 V/B/S 0/0/0；精确 PASS 见 batch2-green.txt 与本批提交正文。
+
+第二批 **50 PASS / 0 FAIL**，384d26de 已推送。基线完整退出 0：**4615 PASS / 0 FAIL**；开盘 b6a77746 对象实测 **2995 测试函数**。基线脚本完成后数到 2999 包含当时新增的四个，不能冒充开盘值。
+
+## 第三批：提交收尾（5–6）
+
+5. 现象：保存 local.old 的回调打开 local.new，旧保存收尾又关闭并清空 local.new。改动：收尾核对提交表单身份。验证：深浅真实“保存”后保留新编辑器、名字、路径、参数；再保存新目标仅调用一次并正常关闭。
+6. 现象：新建连接回调打开编辑目标，同样被旧连接的 endEdit 清空。改动：连接与保存共用已有表单身份约束。验证：深浅真实“连接”后 local.new 可见、可保存，原提交只发一次。
+
+M3 四叶子实红，原串 `save-new completion erased newer editor: open=false id="" name="" program=""`、`connect-new completion erased newer editor: open=false id="" name="" program=""`。MD5 还原与 touch 复验，相关 vet 净；精确 PASS 见 batch3 日志和提交正文。旧 V/B/S 0/0/0。

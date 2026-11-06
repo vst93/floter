@@ -5654,6 +5654,11 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 			} else {
 				a.Actions.ConnectLocalTool(tool)
 			}
+			// The completed submission may have opened the next editor. Only
+			// retire the form that actually dispatched this submission.
+			if a.toolFormKey != form {
+				return
+			}
 			a.toolOpen = false
 			a.toolIssue = false
 			a.endEdit()
