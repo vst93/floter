@@ -1,0 +1,21 @@
+=== RUN   TestNoticeRemoveSurvivesEarlierQuestionExpiry
+=== RUN   TestNoticeRemoveSurvivesEarlierQuestionExpiry/light
+    noticeidentity_test.go:45: earlier question expiry lost removal answer focus
+    noticeidentity_test.go:50: remaining answer no longer executes removal: disable=0 remove=0
+=== RUN   TestNoticeRemoveSurvivesEarlierQuestionExpiry/dark
+    noticeidentity_test.go:45: earlier question expiry lost removal answer focus
+    noticeidentity_test.go:50: remaining answer no longer executes removal: disable=0 remove=0
+--- FAIL: TestNoticeRemoveSurvivesEarlierQuestionExpiry (0.44s)
+    --- FAIL: TestNoticeRemoveSurvivesEarlierQuestionExpiry/light (0.31s)
+    --- FAIL: TestNoticeRemoveSurvivesEarlierQuestionExpiry/dark (0.13s)
+=== RUN   TestNoticeNewDisableDoesNotInheritRemovalAnswer
+=== RUN   TestNoticeNewDisableDoesNotInheritRemovalAnswer/light
+    noticeidentity_test.go:84: new question default cancels the wrong band: disableOpen=true removeOpen=false disable=0 remove=0
+=== RUN   TestNoticeNewDisableDoesNotInheritRemovalAnswer/dark
+    noticeidentity_test.go:84: new question default cancels the wrong band: disableOpen=true removeOpen=false disable=0 remove=0
+--- FAIL: TestNoticeNewDisableDoesNotInheritRemovalAnswer (0.32s)
+    --- FAIL: TestNoticeNewDisableDoesNotInheritRemovalAnswer/light (0.16s)
+    --- FAIL: TestNoticeNewDisableDoesNotInheritRemovalAnswer/dark (0.16s)
+FAIL
+FAIL	floter/internal/settingsui	0.774s
+FAIL

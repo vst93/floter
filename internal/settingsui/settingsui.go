@@ -3160,13 +3160,13 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			a.noticeFocus(c, integration.ID, "remove").restore(c, a.removeConfirm[integration.ID], removeOpener)
 		}
 		if a.disableConfirm[integration.ID] {
-			a.disableConfirmation(c, copy, integration)
+			a.disableConfirmation(c.Key("integration.disable-confirmation"), copy, integration)
 			if !a.disableConfirm[integration.ID] {
 				disableOpener.Focus()
 			}
 		}
 		if a.removeConfirm[integration.ID] {
-			a.removeConfirmation(c, copy, integration)
+			a.removeConfirmation(c.Key("integration.remove-confirmation"), copy, integration)
 			if !a.removeConfirm[integration.ID] && !a.uninstallOpen[integration.ID] {
 				removeOpener.Focus()
 			}

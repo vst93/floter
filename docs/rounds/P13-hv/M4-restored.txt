@@ -1,0 +1,14 @@
+=== RUN   TestNoticeRemoveSurvivesEarlierQuestionExpiry
+=== RUN   TestNoticeRemoveSurvivesEarlierQuestionExpiry/light
+=== RUN   TestNoticeRemoveSurvivesEarlierQuestionExpiry/dark
+--- PASS: TestNoticeRemoveSurvivesEarlierQuestionExpiry (0.41s)
+    --- PASS: TestNoticeRemoveSurvivesEarlierQuestionExpiry/light (0.26s)
+    --- PASS: TestNoticeRemoveSurvivesEarlierQuestionExpiry/dark (0.15s)
+=== RUN   TestNoticeNewDisableDoesNotInheritRemovalAnswer
+=== RUN   TestNoticeNewDisableDoesNotInheritRemovalAnswer/light
+=== RUN   TestNoticeNewDisableDoesNotInheritRemovalAnswer/dark
+--- PASS: TestNoticeNewDisableDoesNotInheritRemovalAnswer (0.29s)
+    --- PASS: TestNoticeNewDisableDoesNotInheritRemovalAnswer/light (0.14s)
+    --- PASS: TestNoticeNewDisableDoesNotInheritRemovalAnswer/dark (0.14s)
+PASS
+ok  	floter/internal/settingsui	0.706s

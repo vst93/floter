@@ -45,3 +45,12 @@
 6. 现象：移除操作同样被提问时钟吞掉失败。改动：同族重启回答窗口，不改执行与取消语义。验证：同上四场景，实际回调计数 1→2，取消场景不显示迟到失败。
 
 相关回归 **112 PASS / 0 FAIL**；M3 回注旧时钟，原始红串 `slow failure vanished before it could be read`、`slow failure cannot retry from keyboard: calls=1`，四场景红。MD5 还原并 touch 后 **10 PASS**；settingsui vet 净。V/B/S 0/0/0。
+
+第三批 `d9924ea6` 已推送。
+
+### 第四批：两种确认并存的身份
+
+7. 现象：先开停用、2 秒后再开移除并 Tab 到确认；停用到期后移除按钮失焦，Space 派发 0 次。改动：两条确认使用各自稳定的根 key，移除不再继承前一条的节点。验证：深浅完整页面真实事件，停用撤回、移除仍开且 Space 恰好移除 1 次，停用 0 次。
+8. 现象：先开移除再点开关询问停用，新问题默认焦点却落在旧移除的取消；Space 取消了错误的问题。改动：给新停用独立身份，首次 AutoFocus 作用于它自己的 Cancel。验证：深浅 Space 只收起停用，移除仍保留，两种破坏性回调均 0 次。
+
+相关回归 **118 PASS / 0 FAIL**；M4 四场景实跑红：`earlier question expiry lost removal answer focus`、`new question default cancels the wrong band: disableOpen=true removeOpen=false disable=0 remove=0`。MD5 校验、touch 后 **6 PASS**，settingsui vet 净。第二轮看图将第 8 项截图时点移到 Space 之后，让图上直接看见留下的是哪个问题；断言不变。
