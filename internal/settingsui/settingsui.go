@@ -762,6 +762,7 @@ type App struct {
 	toggleBusy   map[string]bool
 	runValues    map[string]map[string]string
 	runError     map[string]string
+	runRefusals  map[string]runRefusal
 	runOpen      map[string]bool
 	runOutputs   map[string]RunResult
 	outputOpen   map[string]bool
@@ -7254,6 +7255,11 @@ func (a *App) runOutputScroll(id string) *ui.ScrollState {
 // button. No value is ever turned into a command string here — the map goes to
 // the shell, which builds the argv — so a value with a space or a quote
 // reaches the tool exactly as typed.
+type runRefusal struct {
+	param string
+	value string
+}
+
 func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration) {
 	if a.Actions.RunWithParams == nil || len(integration.Params) == 0 {
 		return
@@ -7435,9 +7441,28 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 						a.runError = map[string]string{}
 					}
 					a.runError[integration.ID] = paramFailureMessage(copy, params, failure)
+					delete(a.runRefusals, integration.ID)
+					for _, param := range params {
+						if param.ID == failure.Param {
+							if a.runRefusals == nil {
+								a.runRefusals = map[string]runRefusal{}
+							}
+							// Keep the submitted value, not a map the callback may own.
+							a.runRefusals[integration.ID] = runRefusal{param: param.ID, value: values[param.ID]}
+							break
+						}
+					}
 				}
 			}
 		})
+		// A field refusal describes one submitted answer. Once that answer or
+		// its field is gone, it must not keep accusing the current form.
+		if refusal, ok := a.runRefusals[integration.ID]; ok {
+			if value, exists := values[refusal.param]; !exists || value != refusal.value {
+				delete(a.runError, integration.ID)
+				delete(a.runRefusals, integration.ID)
+			}
+		}
 		if runError := a.runError[integration.ID]; runError != "" {
 			ui.Text(c, runError).FontSize(a.tokens(c).Caption).TextColor(theme.Danger)
 		}
