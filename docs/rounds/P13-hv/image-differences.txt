@@ -1,0 +1,20 @@
+disable-escape light changed bounds: None
+disable-escape dark changed bounds: None
+disable-timeout light changed bounds: None
+disable-timeout dark changed bounds: None
+remove-escape light changed bounds: None
+remove-escape dark changed bounds: None
+remove-timeout light changed bounds: None
+remove-timeout dark changed bounds: None
+discard-escape-zh light changed bounds: (187, 575, 704, 667)
+discard-escape-zh dark changed bounds: (187, 575, 704, 667)
+discard-timeout-zh light changed bounds: None
+discard-timeout-zh dark changed bounds: None
+disable-slow-failure light changed bounds: (187, 427, 704, 506)
+disable-slow-failure dark changed bounds: (187, 427, 704, 506)
+remove-slow-failure light changed bounds: (187, 421, 704, 506)
+remove-slow-failure dark changed bounds: (187, 421, 704, 506)
+remove-survives-expiry light changed bounds: (555, 469, 683, 499)
+remove-survives-expiry dark changed bounds: (555, 469, 683, 499)
+disable-inserted light changed bounds: (187, 421, 704, 567)
+disable-inserted dark changed bounds: (187, 421, 704, 567)
