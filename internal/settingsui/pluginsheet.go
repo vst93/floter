@@ -579,7 +579,13 @@ func (a *App) sheetNumberSlot(c *ui.Context, plugin string, field plugincfg.Fiel
 		// Rebase only a complete number; partial input remains the user's.
 		if bounded := boundedValue(field, parsed); bounded != parsed {
 			draft = initialNumberText(field, bounded)
-			a.pluginNumberDrafts[key] = draft
+			if parsed == *value {
+				// A confirmed value constrained only for display is no longer
+				// an edit. Let a later schema relaxation read the host again.
+				delete(a.pluginNumberDrafts, key)
+			} else {
+				a.pluginNumberDrafts[key] = draft
+			}
 		}
 	}
 	changed := false
@@ -901,6 +907,9 @@ func quantize(field plugincfg.Field, value float64) float64 {
 // formatFieldNumber is the number a number field edits: the shortest decimal
 // spelling of the value, so "30" shows as "30" and not "30.000000".
 func formatFieldNumber(value float64) string {
+	if math.Abs(value) >= 1e21 {
+		return strconv.FormatFloat(value, 'g', -1, 64)
+	}
 	return strconv.FormatFloat(value, 'f', -1, 64)
 }
 

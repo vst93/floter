@@ -179,3 +179,55 @@ func TestDraftLifetimeNormalizedTextDoesNotWrite(t *testing.T) {
 		})
 	}
 }
+
+func TestDraftLifetimeAcceptedNumberFollowsRelaxedBounds(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			field := plugincfg.Field{Key: "limit", Label: "结果上限", Kind: plugincfg.Number, Max: 100, Step: 1, Unit: "项"}
+			_, sheet, tt := inputStateSheet(t, dark, field, 5.0)
+			inputStateNumberFocus(t, tt, field.Label)
+			tt.Type("25")
+			tt.Frame()
+			calls := 0
+			sheet.Change = func(string, any) { calls++ }
+			sheet.Schema.Fields[0].Max = 10
+			tt.Frame()
+			if got := refreshRead(tt); got != "10" {
+				t.Errorf("tight bound displays %q", got)
+			}
+			sheet.Schema.Fields[0].Max = 100
+			tt.Frame()
+			lifetimeDump(t, tt, "relaxed-number", dark)
+			if got := refreshRead(tt); got != "25" {
+				t.Errorf("relaxed bounds keep obsolete clamped draft: %q", got)
+			}
+			if calls != 0 || sheet.Values[field.Key] != 25.0 {
+				t.Error("schema refresh wrote a value")
+			}
+			tt.Type("1e")
+			tt.Frame()
+			sheet.Schema.Fields[0].Max = 10
+			tt.Frame()
+			if got := refreshRead(tt); got != "1e" {
+				t.Errorf("partial draft lost on schema refresh: %q", got)
+			}
+		})
+	}
+}
+
+func TestDraftLifetimeExtremeNumberFitsItsSlot(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			field := plugincfg.Field{Key: "capacity", Label: "容量", Kind: plugincfg.Number}
+			_, sheet, tt := inputStateSheet(t, dark, field, 1e308)
+			inputStateNumberFocus(t, tt, field.Label)
+			lifetimeDump(t, tt, "extreme-number", dark)
+			if got := refreshRead(tt); got != "1e+308" {
+				t.Errorf("extreme number spills %d characters into narrow slot: %q", len(got), got)
+			}
+			if sheet.Values[field.Key] != 1e308 {
+				t.Error("formatting changed stored number")
+			}
+		})
+	}
+}

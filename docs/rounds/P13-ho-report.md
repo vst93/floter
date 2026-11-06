@@ -57,3 +57,21 @@ M2 原文：`removed number resurrected partial text: "1e"`、`removed number re
 M3 原文：`readded list starts at old offset 206`、`normalized same text wrote 1 times and failed=true`。
 实跑回退两文件，深浅均红；MD5 还原 OK，touch 后相关回归与 vet 通过，PASS 数随提交记录。
 V/B/S 0/0/0，已有断言未改。
+
+## 第四批（7–8）
+
+7. 现象：已接受 25，上限收紧到 10 后再放回 100，框仍画 10，宿主却一直存 25。
+   改动：确认值仅为显示而收界时不继续占用编辑草稿。验证：10 → 25，整个 schema 刷新 0 次写入；1e 半输入不丢。
+8. 现象：有限数字 1e308 在数字槽画成 309 个字符，只能看到零。
+   改动：绝对值 ≥1e21 的数字框沿用滑块的科学计数法，1e+308 共 6 字符。
+   验证：真实框复制读到 1e+308，宿主值仍为 1e308；深浅截图核对。
+
+M4 原文：`relaxed bounds keep obsolete clamped draft: "10"`、
+`extreme number spills 309 characters into narrow slot`。回退 pluginsheet.go 实跑深浅全红，
+md5sum 还原 OK，touch 后相关回归 112 PASS / 0 FAIL，vet 通过。
+第三批相关回归为 106 PASS；第四批 V/B/S 0/0/0，旧断言未改。
+
+## 当前验收状态
+
+八项均完成，四批每批两项；32 张原始 before/after PNG 与四张对照板已入轮次目录。
+普通、verbose 全量与三平台 vet/build 正在运行；最终数只按落盘日志补录。
