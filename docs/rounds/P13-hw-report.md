@@ -47,3 +47,14 @@
 相关回归 **133 PASS / 0 FAIL**，包 vet 净。M3 回注旧的两项遗漏，八场景红：`stale discard question revived after list refresh`、`stale uninstall question revived after list refresh`、两类 `invisible … question swallowed Escape: close=0`。MD5 恢复与 touch 后 **10 PASS**。旧 V/B/S 0/0/0。
 
 第一次目视：浅色 busy-disable 图中，过期的丢弃带已撤回，Token 的 edited 留在原字段，仍在执行的停用带单独留下。没有加材质或提高表面层数；待重排事件完成后再查深浅焦点局部。
+
+第三批 80ff83fd 已提交推送。
+
+### 第四批：列表重排时答案身份跟随集成
+
+7. 现象：停用答案拿到键盘后，列表调换顺序或前插一个集成，答案失焦，Space 派发 0 次。改动：列表行按集成 ID 建立稳定节点身份。验证：深浅 × 重排/插入四场景，答案保持 Focused，Space 只对 first 派发停用 1 次，移除 0 次。
+8. 现象：移除答案在相同刷新下也失焦。改动：相同节点归属覆盖移除答案。验证：四场景保留焦点，仅向 first 派发移除 1 次、停用 0 次；不是只看按钮文案。
+
+相关回归 **143 PASS / 0 FAIL**，包 vet 净。M4 撤销行 key 后八场景红：`refresh lost the original answer focus`、`refreshed disable answer lost its owner: disabled=[] removed=[]`、`refreshed removal answer lost its owner: removed=[] disabled=[]`。MD5 恢复与 touch 后 **10 PASS**。旧 V/B/S 0/0/0。
+
+第二次目视：浅色重排图里，Workspace Tools 已移到第二行，蓝色焦点环仍圈住它自己的移除答案；深色忙态移除对照中，原先滞留的丢弃带撤走，表单草稿和仍忙的移除带保留。

@@ -1911,7 +1911,9 @@ func (a *App) integrations(c *ui.Context, copy i18n.Settings) {
 			}
 			a.extensionSection(c, copy.IntegrationsInstalled, len(integrations), func() {
 				for _, integration := range integrations {
-					a.integrationRow(c, copy, integration)
+					// Refreshes can reorder or insert rows while an answer holds
+					// the keyboard. Its identity follows the target, not the slot.
+					a.integrationRow(c.Key(integration.ID), copy, integration)
 				}
 			})
 		})
