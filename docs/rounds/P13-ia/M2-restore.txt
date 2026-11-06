@@ -1,0 +1,85 @@
+internal/settingsui/config.go: OK
+internal/settingsui/settingsui.go: OK
+internal/settingsui/noticefocus.go: OK
+=== RUN   TestPendingOutletSaveOwner
+=== RUN   TestPendingOutletSaveOwner/light/entry
+=== RUN   TestPendingOutletSaveOwner/light/elsewhere
+=== RUN   TestPendingOutletSaveOwner/dark/entry
+=== RUN   TestPendingOutletSaveOwner/dark/elsewhere
+--- PASS: TestPendingOutletSaveOwner (2.72s)
+    --- PASS: TestPendingOutletSaveOwner/light/entry (0.59s)
+    --- PASS: TestPendingOutletSaveOwner/light/elsewhere (0.77s)
+    --- PASS: TestPendingOutletSaveOwner/dark/entry (0.48s)
+    --- PASS: TestPendingOutletSaveOwner/dark/elsewhere (0.88s)
+=== RUN   TestPendingOutletSaveSchema
+=== RUN   TestPendingOutletSaveSchema/light/entry
+=== RUN   TestPendingOutletSaveSchema/light/elsewhere
+=== RUN   TestPendingOutletSaveSchema/dark/entry
+=== RUN   TestPendingOutletSaveSchema/dark/elsewhere
+--- PASS: TestPendingOutletSaveSchema (2.48s)
+    --- PASS: TestPendingOutletSaveSchema/light/entry (0.47s)
+    --- PASS: TestPendingOutletSaveSchema/light/elsewhere (0.85s)
+    --- PASS: TestPendingOutletSaveSchema/dark/entry (0.42s)
+    --- PASS: TestPendingOutletSaveSchema/dark/elsewhere (0.73s)
+=== RUN   TestPendingOutletRecheckHealthy
+=== RUN   TestPendingOutletRecheckHealthy/light/entry
+=== RUN   TestPendingOutletRecheckHealthy/light/elsewhere
+=== RUN   TestPendingOutletRecheckHealthy/dark/entry
+=== RUN   TestPendingOutletRecheckHealthy/dark/elsewhere
+--- PASS: TestPendingOutletRecheckHealthy (0.40s)
+    --- PASS: TestPendingOutletRecheckHealthy/light/entry (0.13s)
+    --- PASS: TestPendingOutletRecheckHealthy/light/elsewhere (0.08s)
+    --- PASS: TestPendingOutletRecheckHealthy/dark/entry (0.13s)
+    --- PASS: TestPendingOutletRecheckHealthy/dark/elsewhere (0.06s)
+=== RUN   TestPendingOutletReconnectHealthy
+=== RUN   TestPendingOutletReconnectHealthy/light/entry
+=== RUN   TestPendingOutletReconnectHealthy/light/elsewhere
+=== RUN   TestPendingOutletReconnectHealthy/dark/entry
+=== RUN   TestPendingOutletReconnectHealthy/dark/elsewhere
+--- PASS: TestPendingOutletReconnectHealthy (0.39s)
+    --- PASS: TestPendingOutletReconnectHealthy/light/entry (0.12s)
+    --- PASS: TestPendingOutletReconnectHealthy/light/elsewhere (0.07s)
+    --- PASS: TestPendingOutletReconnectHealthy/dark/entry (0.14s)
+    --- PASS: TestPendingOutletReconnectHealthy/dark/elsewhere (0.06s)
+=== RUN   TestPendingOutletSaveOrphan
+=== RUN   TestPendingOutletSaveOrphan/light/entry
+=== RUN   TestPendingOutletSaveOrphan/light/elsewhere
+=== RUN   TestPendingOutletSaveOrphan/dark/entry
+=== RUN   TestPendingOutletSaveOrphan/dark/elsewhere
+--- PASS: TestPendingOutletSaveOrphan (2.40s)
+    --- PASS: TestPendingOutletSaveOrphan/light/entry (0.42s)
+    --- PASS: TestPendingOutletSaveOrphan/light/elsewhere (0.81s)
+    --- PASS: TestPendingOutletSaveOrphan/dark/entry (0.40s)
+    --- PASS: TestPendingOutletSaveOrphan/dark/elsewhere (0.76s)
+=== RUN   TestPendingOutletEditingUnavailable
+=== RUN   TestPendingOutletEditingUnavailable/light/entry
+=== RUN   TestPendingOutletEditingUnavailable/light/elsewhere
+=== RUN   TestPendingOutletEditingUnavailable/dark/entry
+=== RUN   TestPendingOutletEditingUnavailable/dark/elsewhere
+--- PASS: TestPendingOutletEditingUnavailable (3.30s)
+    --- PASS: TestPendingOutletEditingUnavailable/light/entry (0.71s)
+    --- PASS: TestPendingOutletEditingUnavailable/light/elsewhere (0.89s)
+    --- PASS: TestPendingOutletEditingUnavailable/dark/entry (0.76s)
+    --- PASS: TestPendingOutletEditingUnavailable/dark/elsewhere (0.94s)
+=== RUN   TestPendingOutletRepairOrphan
+=== RUN   TestPendingOutletRepairOrphan/light/entry
+=== RUN   TestPendingOutletRepairOrphan/light/elsewhere
+=== RUN   TestPendingOutletRepairOrphan/dark/entry
+=== RUN   TestPendingOutletRepairOrphan/dark/elsewhere
+--- PASS: TestPendingOutletRepairOrphan (0.38s)
+    --- PASS: TestPendingOutletRepairOrphan/light/entry (0.12s)
+    --- PASS: TestPendingOutletRepairOrphan/light/elsewhere (0.07s)
+    --- PASS: TestPendingOutletRepairOrphan/dark/entry (0.10s)
+    --- PASS: TestPendingOutletRepairOrphan/dark/elsewhere (0.08s)
+=== RUN   TestPendingOutletToggleOrphan
+=== RUN   TestPendingOutletToggleOrphan/light/entry
+=== RUN   TestPendingOutletToggleOrphan/light/elsewhere
+=== RUN   TestPendingOutletToggleOrphan/dark/entry
+=== RUN   TestPendingOutletToggleOrphan/dark/elsewhere
+--- PASS: TestPendingOutletToggleOrphan (0.34s)
+    --- PASS: TestPendingOutletToggleOrphan/light/entry (0.11s)
+    --- PASS: TestPendingOutletToggleOrphan/light/elsewhere (0.06s)
+    --- PASS: TestPendingOutletToggleOrphan/dark/entry (0.10s)
+    --- PASS: TestPendingOutletToggleOrphan/dark/elsewhere (0.06s)
+PASS
+ok  	floter/internal/settingsui	12.420s

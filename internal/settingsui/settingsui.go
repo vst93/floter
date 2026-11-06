@@ -3158,14 +3158,14 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 					// thumb for a turning LoaderCircle and set `aria-busy` until
 					// `runMutation`'s `finally` (`settings-switch--loading`,
 					// `src/extensions/ExtensionRow.tsx:443-455`).
-					a.busySwitchControl(c, &on, "extensions.toggle."+integration.ID).Label(copy.IntegrationsEnable).Bind(&a.noticeFocus(c, integration.ID, "toggle").confirm)
+					a.rememberOperationFocus(c, integration.ID, "toggle", a.busySwitchControl(c, &on, "extensions.toggle."+integration.ID).Label(copy.IntegrationsEnable))
 				case busy || integration.Broken:
 					// Another operation is in flight, or the row is broken: the
 					// reference disabled the switch for both
 					// (`disabled={busy || extension.state === "broken"}`).
-					disabledSwitch(a.switchControl(c, &on)).Label(copy.IntegrationsEnable).Bind(&a.noticeFocus(c, integration.ID, "toggle").confirm)
+					a.rememberOperationFocus(c, integration.ID, "toggle", disabledSwitch(a.switchControl(c, &on)).Label(copy.IntegrationsEnable))
 				default:
-					disableOpener = a.switchControl(c, &on).Label(copy.IntegrationsEnable).Bind(&a.noticeFocus(c, integration.ID, "toggle").confirm)
+					disableOpener = a.rememberOperationFocus(c, integration.ID, "toggle", a.switchControl(c, &on).Label(copy.IntegrationsEnable))
 					if disableOpener.Changed() {
 						if !on {
 							a.requestDisable(integration.ID)
@@ -3183,7 +3183,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 		// the row. A disabled Check is not an outlet; restoreNotice then uses
 		// the existing header return, without waiting on or moving the reply.
 		repairFocus := a.noticeFocus(c, integration.ID, "repair")
-		a.restoreNotice(c, integration.ID, "repair", c.Resolve(repairFocus.confirm).Valid(), checkOpener)
+		a.restoreNotice(c, integration.ID, "repair", c.Resolve(repairFocus.panel).Valid(), checkOpener)
 		if !configOwnerIsHost(integration) {
 			// The old form can disappear while its discard answer owns focus.
 			// A tool without an editor still has the row's diagnostic outlet.
@@ -3928,9 +3928,8 @@ const repairGlyphName = "refresh"
 // stayed until `runMutation`'s `finally`.
 func (a *App) repairAction(c *ui.Context, id, label, tooltip string, run func(string, func(error))) {
 	tokens := a.tokens(c)
-	focus := a.noticeFocus(c, id, "repair")
 	if a.repairBusy[id] {
-		tokens.Tip(c, a.busyActionButton(c, label, "extensions.repair."+id), tooltip).Bind(&focus.confirm)
+		a.rememberOperationFocus(c, id, "repair", tokens.Tip(c, a.busyActionButton(c, label, "extensions.repair."+id), tooltip))
 		return
 	}
 	// P13-cl（`docs/liquid-glass.md` §6.55）：这一枚键有三个状态——静息 / 另一操作在飞 /
@@ -3954,7 +3953,7 @@ func (a *App) repairAction(c *ui.Context, id, label, tooltip string, run func(st
 	if disabled {
 		button = button.Disabled(true).Cursor(ui.CursorDefault)
 	}
-	button = tokens.Tip(c, button, tooltip).Bind(&focus.confirm)
+	button = a.rememberOperationFocus(c, id, "repair", tokens.Tip(c, button, tooltip))
 	if button.Clicked() {
 		a.startRepair(id, run)
 	}

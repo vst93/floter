@@ -74,6 +74,16 @@ func noticeExit(c *ui.Context) *ui.Handle {
 	return ui.Local(c.Root(), "settings.notice-exit", func() ui.Handle { return ui.Handle{} })
 }
 
+// Only the operation that owns the keyboard needs a return path. Repeated
+// integration IDs can draw several rows; an unfocused sibling must neither
+// bind the same handle twice nor replace the focused row's identity.
+func (a *App) rememberOperationFocus(c *ui.Context, id, kind string, entry ui.Element) ui.Element {
+	if entry.FocusWithin() {
+		entry.Bind(&a.noticeFocus(c, id, kind).panel)
+	}
+	return entry
+}
+
 func (a *App) restoreNotice(c *ui.Context, id, kind string, open bool, opener ui.Element) {
 	if !opener.Valid() || opener.IsDisabled() {
 		opener = c.Resolve(*noticeExit(c))

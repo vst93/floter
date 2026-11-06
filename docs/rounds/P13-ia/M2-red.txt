@@ -1,0 +1,131 @@
+=== RUN   TestPendingOutletSaveOwner
+=== RUN   TestPendingOutletSaveOwner/light/entry
+    pendingoutlet_test.go:158: pending save-owner lost keyboard outlet "Open configuration"
+    pendingoutlet_test.go:167: late save result changed keyboard outlet "Open configuration"
+    pendingoutlet_test.go:183: outlet dispatch: open=0 check=0 adopt=0 close=0
+=== RUN   TestPendingOutletSaveOwner/light/elsewhere
+=== RUN   TestPendingOutletSaveOwner/dark/entry
+    pendingoutlet_test.go:158: pending save-owner lost keyboard outlet "Open configuration"
+    pendingoutlet_test.go:167: late save result changed keyboard outlet "Open configuration"
+    pendingoutlet_test.go:183: outlet dispatch: open=0 check=0 adopt=0 close=0
+=== RUN   TestPendingOutletSaveOwner/dark/elsewhere
+--- FAIL: TestPendingOutletSaveOwner (3.84s)
+    --- FAIL: TestPendingOutletSaveOwner/light/entry (0.93s)
+    --- PASS: TestPendingOutletSaveOwner/light/elsewhere (1.11s)
+    --- FAIL: TestPendingOutletSaveOwner/dark/entry (0.65s)
+    --- PASS: TestPendingOutletSaveOwner/dark/elsewhere (1.15s)
+=== RUN   TestPendingOutletSaveSchema
+=== RUN   TestPendingOutletSaveSchema/light/entry
+    pendingoutlet_test.go:158: pending save-schema lost keyboard outlet "Check"
+    pendingoutlet_test.go:167: late save result changed keyboard outlet "Check"
+    pendingoutlet_test.go:183: outlet dispatch: open=0 check=0 adopt=0 close=0
+=== RUN   TestPendingOutletSaveSchema/light/elsewhere
+=== RUN   TestPendingOutletSaveSchema/dark/entry
+    pendingoutlet_test.go:158: pending save-schema lost keyboard outlet "Check"
+    pendingoutlet_test.go:167: late save result changed keyboard outlet "Check"
+    pendingoutlet_test.go:183: outlet dispatch: open=0 check=0 adopt=0 close=0
+=== RUN   TestPendingOutletSaveSchema/dark/elsewhere
+--- FAIL: TestPendingOutletSaveSchema (3.05s)
+    --- FAIL: TestPendingOutletSaveSchema/light/entry (0.57s)
+    --- PASS: TestPendingOutletSaveSchema/light/elsewhere (0.98s)
+    --- FAIL: TestPendingOutletSaveSchema/dark/entry (0.46s)
+    --- PASS: TestPendingOutletSaveSchema/dark/elsewhere (1.03s)
+=== RUN   TestPendingOutletRecheckHealthy
+=== RUN   TestPendingOutletRecheckHealthy/light/entry
+    pendingoutlet_test.go:158: pending repair-healthy lost keyboard outlet "Close settings"
+    pendingoutlet_test.go:167: late repair result changed keyboard outlet "Close settings"
+    pendingoutlet_test.go:180: header exit did not activate exactly once
+=== RUN   TestPendingOutletRecheckHealthy/light/elsewhere
+=== RUN   TestPendingOutletRecheckHealthy/dark/entry
+    pendingoutlet_test.go:158: pending repair-healthy lost keyboard outlet "Close settings"
+    pendingoutlet_test.go:167: late repair result changed keyboard outlet "Close settings"
+    pendingoutlet_test.go:180: header exit did not activate exactly once
+=== RUN   TestPendingOutletRecheckHealthy/dark/elsewhere
+--- FAIL: TestPendingOutletRecheckHealthy (0.49s)
+    --- FAIL: TestPendingOutletRecheckHealthy/light/entry (0.15s)
+    --- PASS: TestPendingOutletRecheckHealthy/light/elsewhere (0.11s)
+    --- FAIL: TestPendingOutletRecheckHealthy/dark/entry (0.13s)
+    --- PASS: TestPendingOutletRecheckHealthy/dark/elsewhere (0.10s)
+=== RUN   TestPendingOutletReconnectHealthy
+=== RUN   TestPendingOutletReconnectHealthy/light/entry
+    pendingoutlet_test.go:158: pending reconnect-healthy lost keyboard outlet "Close settings"
+    pendingoutlet_test.go:167: late reconnect result changed keyboard outlet "Close settings"
+    pendingoutlet_test.go:180: header exit did not activate exactly once
+=== RUN   TestPendingOutletReconnectHealthy/light/elsewhere
+=== RUN   TestPendingOutletReconnectHealthy/dark/entry
+    pendingoutlet_test.go:158: pending reconnect-healthy lost keyboard outlet "Close settings"
+    pendingoutlet_test.go:167: late reconnect result changed keyboard outlet "Close settings"
+    pendingoutlet_test.go:180: header exit did not activate exactly once
+=== RUN   TestPendingOutletReconnectHealthy/dark/elsewhere
+--- FAIL: TestPendingOutletReconnectHealthy (0.42s)
+    --- FAIL: TestPendingOutletReconnectHealthy/light/entry (0.12s)
+    --- PASS: TestPendingOutletReconnectHealthy/light/elsewhere (0.09s)
+    --- FAIL: TestPendingOutletReconnectHealthy/dark/entry (0.12s)
+    --- PASS: TestPendingOutletReconnectHealthy/dark/elsewhere (0.09s)
+=== RUN   TestPendingOutletSaveOrphan
+=== RUN   TestPendingOutletSaveOrphan/light/entry
+    pendingoutlet_test.go:158: pending save-orphan lost keyboard outlet "Adopt"
+    pendingoutlet_test.go:167: late save result changed keyboard outlet "Adopt"
+    pendingoutlet_test.go:183: outlet dispatch: open=0 check=0 adopt=0 close=0
+=== RUN   TestPendingOutletSaveOrphan/light/elsewhere
+=== RUN   TestPendingOutletSaveOrphan/dark/entry
+    pendingoutlet_test.go:158: pending save-orphan lost keyboard outlet "Adopt"
+    pendingoutlet_test.go:167: late save result changed keyboard outlet "Adopt"
+    pendingoutlet_test.go:183: outlet dispatch: open=0 check=0 adopt=0 close=0
+=== RUN   TestPendingOutletSaveOrphan/dark/elsewhere
+--- FAIL: TestPendingOutletSaveOrphan (2.96s)
+    --- FAIL: TestPendingOutletSaveOrphan/light/entry (0.55s)
+    --- PASS: TestPendingOutletSaveOrphan/light/elsewhere (0.98s)
+    --- FAIL: TestPendingOutletSaveOrphan/dark/entry (0.44s)
+    --- PASS: TestPendingOutletSaveOrphan/dark/elsewhere (0.99s)
+=== RUN   TestPendingOutletEditingUnavailable
+=== RUN   TestPendingOutletEditingUnavailable/light/entry
+    pendingoutlet_test.go:158: pending save-unopenable lost keyboard outlet "Check"
+    pendingoutlet_test.go:167: late save result changed keyboard outlet "Check"
+    pendingoutlet_test.go:183: outlet dispatch: open=0 check=0 adopt=0 close=0
+=== RUN   TestPendingOutletEditingUnavailable/light/elsewhere
+=== RUN   TestPendingOutletEditingUnavailable/dark/entry
+    pendingoutlet_test.go:158: pending save-unopenable lost keyboard outlet "Check"
+    pendingoutlet_test.go:167: late save result changed keyboard outlet "Check"
+    pendingoutlet_test.go:183: outlet dispatch: open=0 check=0 adopt=0 close=0
+=== RUN   TestPendingOutletEditingUnavailable/dark/elsewhere
+--- FAIL: TestPendingOutletEditingUnavailable (3.84s)
+    --- FAIL: TestPendingOutletEditingUnavailable/light/entry (0.82s)
+    --- PASS: TestPendingOutletEditingUnavailable/light/elsewhere (1.11s)
+    --- FAIL: TestPendingOutletEditingUnavailable/dark/entry (0.83s)
+    --- PASS: TestPendingOutletEditingUnavailable/dark/elsewhere (1.08s)
+=== RUN   TestPendingOutletRepairOrphan
+=== RUN   TestPendingOutletRepairOrphan/light/entry
+    pendingoutlet_test.go:158: pending repair-orphan lost keyboard outlet "Adopt"
+    pendingoutlet_test.go:167: late repair result changed keyboard outlet "Adopt"
+    pendingoutlet_test.go:183: outlet dispatch: open=0 check=0 adopt=0 close=0
+=== RUN   TestPendingOutletRepairOrphan/light/elsewhere
+=== RUN   TestPendingOutletRepairOrphan/dark/entry
+    pendingoutlet_test.go:158: pending repair-orphan lost keyboard outlet "Adopt"
+    pendingoutlet_test.go:167: late repair result changed keyboard outlet "Adopt"
+    pendingoutlet_test.go:183: outlet dispatch: open=0 check=0 adopt=0 close=0
+=== RUN   TestPendingOutletRepairOrphan/dark/elsewhere
+--- FAIL: TestPendingOutletRepairOrphan (0.43s)
+    --- FAIL: TestPendingOutletRepairOrphan/light/entry (0.13s)
+    --- PASS: TestPendingOutletRepairOrphan/light/elsewhere (0.10s)
+    --- FAIL: TestPendingOutletRepairOrphan/dark/entry (0.11s)
+    --- PASS: TestPendingOutletRepairOrphan/dark/elsewhere (0.09s)
+=== RUN   TestPendingOutletToggleOrphan
+=== RUN   TestPendingOutletToggleOrphan/light/entry
+    pendingoutlet_test.go:158: pending toggle-orphan lost keyboard outlet "Adopt"
+    pendingoutlet_test.go:167: late toggle result changed keyboard outlet "Adopt"
+    pendingoutlet_test.go:183: outlet dispatch: open=0 check=0 adopt=0 close=0
+=== RUN   TestPendingOutletToggleOrphan/light/elsewhere
+=== RUN   TestPendingOutletToggleOrphan/dark/entry
+    pendingoutlet_test.go:158: pending toggle-orphan lost keyboard outlet "Adopt"
+    pendingoutlet_test.go:167: late toggle result changed keyboard outlet "Adopt"
+    pendingoutlet_test.go:183: outlet dispatch: open=0 check=0 adopt=0 close=0
+=== RUN   TestPendingOutletToggleOrphan/dark/elsewhere
+--- FAIL: TestPendingOutletToggleOrphan (0.40s)
+    --- FAIL: TestPendingOutletToggleOrphan/light/entry (0.13s)
+    --- PASS: TestPendingOutletToggleOrphan/light/elsewhere (0.07s)
+    --- FAIL: TestPendingOutletToggleOrphan/dark/entry (0.12s)
+    --- PASS: TestPendingOutletToggleOrphan/dark/elsewhere (0.08s)
+FAIL
+FAIL	floter/internal/settingsui	15.452s
+FAIL

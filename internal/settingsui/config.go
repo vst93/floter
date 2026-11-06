@@ -355,7 +355,8 @@ func (a *App) configFields(c *ui.Context, copy i18n.Settings, integration Integr
 	// such block on the row's content column (P11-bf), so the form carries no
 	// inset of its own — one place answers where that column starts.
 	// The draft's lifetime owns the editors' undo history as well as the values.
-	ui.Column(c.Key(draft)).FillWidth().Gap(a.cardSpace(t, 3)).Bind(&a.noticeFocus(c, integration.ID, "save").panel).Children(func() {
+	form := ui.Column(c.Key(draft)).FillWidth().Gap(a.cardSpace(t, 3))
+	a.rememberOperationFocus(c, integration.ID, "save", form).Children(func() {
 		// The reference's `.extension-config-form` is one `display: grid` with a
 		// 12px gap (`extensions.css:2369-2373`, literal px) holding the toolbar,
 		// the fields and the action row as *its own* children, in order — no
@@ -536,7 +537,7 @@ func (a *App) configActions(c *ui.Context, copy i18n.Settings, integration Integ
 		}
 		// P13-aq：Save 的 disabled 现在由 `extensionPrimaryButton` 自己给（它同时负责
 		// 熄灯）；这里不再叠一道 `.Opacity(0.4)`——那是框架 0.5 之外的第二次淡。
-		save := a.extensionPrimaryButton(c, saveLabel, saveDisabled).Bind(&a.noticeFocus(c, integration.ID, "save").confirm)
+		save := a.extensionPrimaryButton(c, saveLabel, saveDisabled)
 		if save.Clicked() && !saveDisabled {
 			if a.configSaveBusy == nil {
 				a.configSaveBusy = map[string]bool{}
