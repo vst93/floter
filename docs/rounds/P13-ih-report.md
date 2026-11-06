@@ -27,3 +27,12 @@
 2. 现象：内层最新获取返回 nil，外层仍复活旧配置控件。改动：最新空结果也拥有显示期。验证：深浅旧“保留上限”控件消失，下一次正常打开成功。
 
 原版四叶子实红：`fetch-new lookup overwrote latest configuration: open=true`、`empty latest lookup resurrected old controls`。M1 撤回同一产品 diff 实跑、MD5 还原、touch 复验；结果见 batch1 日志。旧 V/B/S 修改 0/0/0。
+
+第一批最终定向 **50 PASS / 0 FAIL**，相关 vet 净，d546dad4 已推送。
+
+## 第二批：文件选择返回（3–4）
+
+3. 现象：选择器内换到 local.new，画面却保留 oldtool 和 selected-for-old 路径。改动：整帧字段回写前核对既有表单身份。验证：深浅真实“选择”点击后保留 newtool、/usr/bin/newtool、--newtool；下一次普通选择仍准确接纳一次。
+4. 现象：选择器内结束编辑，关闭后又回写旧草稿，再展开新连接出现旧名字和路径。改动：已关闭或换代的表单不接纳旧帧局部值。验证：关闭时草稿为空，真实点击展开仍为空，再选择当前路径成功。
+
+M2 原串 `picker overwrote new draft: editing="local.new" name="oldtool" program="/usr/bin/selected-for-old" args="--oldtool"`、`closed picker resurrected draft: open=false name="oldtool" program="/usr/bin/selected-for-old" command="oldtool"`。四叶子实红，MD5 还原、touch 复验，旧 V/B/S 0/0/0；精确 PASS 见 batch2-green.txt 与本批提交正文。

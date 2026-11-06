@@ -5425,6 +5425,7 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 	if a.toolFormKey == nil {
 		a.toolFormKey = new(int)
 	}
+	form := a.toolFormKey
 	c = c.Key(a.toolFormKey)
 	a.section(c, copy.LocalToolTitle, copy.LocalToolHint, func() {
 		if a.actionButton(c, copy.LocalToolAdd).Clicked() {
@@ -5601,6 +5602,11 @@ func (a *App) localToolSection(c *ui.Context, copy i18n.Settings) {
 				a.toolAdvanced = !a.toolAdvanced
 			}
 		})
+		// A native picker or content callback may have opened another tool
+		// while this frame still holds the old field values in local variables.
+		if a.toolFormKey != form || !a.toolOpen {
+			return
+		}
 		a.toolParamsEditor(c, copy)
 		action := copy.LocalToolConnect
 		if a.toolEditing != "" {
