@@ -1,0 +1,4 @@
+internal/settingsui/config.go: OK
+internal/settingsui/settingsui.go: OK
+internal/settingsui/noticefocus.go: OK
+internal/settingsui/uninstall.go: OK

@@ -1,0 +1,14 @@
+=== RUN   TestResultRefreshUninstallOrphan
+=== RUN   TestResultRefreshUninstallOrphan/light
+=== RUN   TestResultRefreshUninstallOrphan/dark
+--- PASS: TestResultRefreshUninstallOrphan (0.26s)
+    --- PASS: TestResultRefreshUninstallOrphan/light (0.16s)
+    --- PASS: TestResultRefreshUninstallOrphan/dark (0.11s)
+=== RUN   TestResultRefreshUninstallKind
+=== RUN   TestResultRefreshUninstallKind/light
+=== RUN   TestResultRefreshUninstallKind/dark
+--- PASS: TestResultRefreshUninstallKind (0.27s)
+    --- PASS: TestResultRefreshUninstallKind/light (0.14s)
+    --- PASS: TestResultRefreshUninstallKind/dark (0.14s)
+PASS
+ok  	floter/internal/settingsui	0.542s

@@ -1,0 +1,21 @@
+=== RUN   TestResultSaveFailureKeyboard
+=== RUN   TestResultSaveFailureKeyboard/light
+    resultrefresh_test.go:184: save failure insertion lost keyboard retry focus
+    resultrefresh_test.go:190: keyboard retry dispatched 1 calls
+=== RUN   TestResultSaveFailureKeyboard/dark
+    resultrefresh_test.go:184: save failure insertion lost keyboard retry focus
+    resultrefresh_test.go:190: keyboard retry dispatched 1 calls
+--- FAIL: TestResultSaveFailureKeyboard (0.68s)
+    --- FAIL: TestResultSaveFailureKeyboard/light (0.41s)
+    --- FAIL: TestResultSaveFailureKeyboard/dark (0.28s)
+=== RUN   TestResultSaveRetryClearsFailure
+=== RUN   TestResultSaveRetryClearsFailure/light
+    resultrefresh_test.go:180: retry still paints the previous failed attempt
+=== RUN   TestResultSaveRetryClearsFailure/dark
+    resultrefresh_test.go:180: retry still paints the previous failed attempt
+--- FAIL: TestResultSaveRetryClearsFailure (0.55s)
+    --- FAIL: TestResultSaveRetryClearsFailure/light (0.27s)
+    --- FAIL: TestResultSaveRetryClearsFailure/dark (0.27s)
+FAIL
+FAIL	floter/internal/settingsui	1.237s
+FAIL

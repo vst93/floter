@@ -1,0 +1,19 @@
+=== RUN   TestResultRefreshRemoveOrphan
+=== RUN   TestResultRefreshRemoveOrphan/light
+    resultrefresh_test.go:101: changed remove orphan result lost keyboard destination "Adopt"
+=== RUN   TestResultRefreshRemoveOrphan/dark
+    resultrefresh_test.go:101: changed remove orphan result lost keyboard destination "Adopt"
+--- FAIL: TestResultRefreshRemoveOrphan (0.30s)
+    --- FAIL: TestResultRefreshRemoveOrphan/light (0.22s)
+    --- FAIL: TestResultRefreshRemoveOrphan/dark (0.08s)
+=== RUN   TestResultRefreshRemoveComponentized
+=== RUN   TestResultRefreshRemoveComponentized/light
+    resultrefresh_test.go:91: kind refresh allowed a second removal answer while busy
+=== RUN   TestResultRefreshRemoveComponentized/dark
+    resultrefresh_test.go:91: kind refresh allowed a second removal answer while busy
+--- FAIL: TestResultRefreshRemoveComponentized (0.27s)
+    --- FAIL: TestResultRefreshRemoveComponentized/light (0.14s)
+    --- FAIL: TestResultRefreshRemoveComponentized/dark (0.13s)
+FAIL
+FAIL	floter/internal/settingsui	0.579s
+FAIL

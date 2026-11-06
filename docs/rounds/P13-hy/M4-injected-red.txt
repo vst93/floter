@@ -1,0 +1,19 @@
+=== RUN   TestResultRefreshUninstallOrphan
+=== RUN   TestResultRefreshUninstallOrphan/light
+    resultrefresh_test.go:101: changed uninstall orphan result lost keyboard destination "Adopt"
+=== RUN   TestResultRefreshUninstallOrphan/dark
+    resultrefresh_test.go:101: changed uninstall orphan result lost keyboard destination "Adopt"
+--- FAIL: TestResultRefreshUninstallOrphan (0.33s)
+    --- FAIL: TestResultRefreshUninstallOrphan/light (0.22s)
+    --- FAIL: TestResultRefreshUninstallOrphan/dark (0.11s)
+=== RUN   TestResultRefreshUninstallKind
+=== RUN   TestResultRefreshUninstallKind/light
+    resultrefresh_test.go:101: changed uninstall kind result lost keyboard destination "Remove package"
+=== RUN   TestResultRefreshUninstallKind/dark
+    resultrefresh_test.go:101: changed uninstall kind result lost keyboard destination "Remove package"
+--- FAIL: TestResultRefreshUninstallKind (0.27s)
+    --- FAIL: TestResultRefreshUninstallKind/light (0.14s)
+    --- FAIL: TestResultRefreshUninstallKind/dark (0.13s)
+FAIL
+FAIL	floter/internal/settingsui	0.601s
+FAIL

@@ -1,0 +1,14 @@
+=== RUN   TestResultRefreshDisableBroken
+=== RUN   TestResultRefreshDisableBroken/light
+=== RUN   TestResultRefreshDisableBroken/dark
+--- PASS: TestResultRefreshDisableBroken (0.11s)
+    --- PASS: TestResultRefreshDisableBroken/light (0.09s)
+    --- PASS: TestResultRefreshDisableBroken/dark (0.02s)
+=== RUN   TestResultRefreshDisableOrphan
+=== RUN   TestResultRefreshDisableOrphan/light
+=== RUN   TestResultRefreshDisableOrphan/dark
+--- PASS: TestResultRefreshDisableOrphan (0.04s)
+    --- PASS: TestResultRefreshDisableOrphan/light (0.02s)
+    --- PASS: TestResultRefreshDisableOrphan/dark (0.02s)
+PASS
+ok  	floter/internal/settingsui	0.156s

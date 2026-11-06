@@ -1,0 +1,14 @@
+=== RUN   TestResultRefreshRemoveOrphan
+=== RUN   TestResultRefreshRemoveOrphan/light
+=== RUN   TestResultRefreshRemoveOrphan/dark
+--- PASS: TestResultRefreshRemoveOrphan (0.23s)
+    --- PASS: TestResultRefreshRemoveOrphan/light (0.15s)
+    --- PASS: TestResultRefreshRemoveOrphan/dark (0.08s)
+=== RUN   TestResultRefreshRemoveComponentized
+=== RUN   TestResultRefreshRemoveComponentized/light
+=== RUN   TestResultRefreshRemoveComponentized/dark
+--- PASS: TestResultRefreshRemoveComponentized (0.22s)
+    --- PASS: TestResultRefreshRemoveComponentized/light (0.11s)
+    --- PASS: TestResultRefreshRemoveComponentized/dark (0.11s)
+PASS
+ok  	floter/internal/settingsui	0.455s

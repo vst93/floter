@@ -1,0 +1,69 @@
+=== RUN   TestResultRefreshDisableBroken
+=== RUN   TestResultRefreshDisableBroken/light
+    resultrefresh_test.go:101: changed disable broken result lost keyboard destination "Check"
+=== RUN   TestResultRefreshDisableBroken/dark
+    resultrefresh_test.go:101: changed disable broken result lost keyboard destination "Check"
+--- FAIL: TestResultRefreshDisableBroken (0.13s)
+    --- FAIL: TestResultRefreshDisableBroken/light (0.10s)
+    --- FAIL: TestResultRefreshDisableBroken/dark (0.03s)
+=== RUN   TestResultRefreshDisableOrphan
+=== RUN   TestResultRefreshDisableOrphan/light
+    resultrefresh_test.go:101: changed disable orphan result lost keyboard destination "Adopt"
+=== RUN   TestResultRefreshDisableOrphan/dark
+    resultrefresh_test.go:101: changed disable orphan result lost keyboard destination "Adopt"
+--- FAIL: TestResultRefreshDisableOrphan (0.05s)
+    --- FAIL: TestResultRefreshDisableOrphan/light (0.03s)
+    --- FAIL: TestResultRefreshDisableOrphan/dark (0.03s)
+=== RUN   TestResultRefreshRemoveOrphan
+=== RUN   TestResultRefreshRemoveOrphan/light
+    resultrefresh_test.go:101: changed remove orphan result lost keyboard destination "Adopt"
+=== RUN   TestResultRefreshRemoveOrphan/dark
+    resultrefresh_test.go:101: changed remove orphan result lost keyboard destination "Adopt"
+--- FAIL: TestResultRefreshRemoveOrphan (0.13s)
+    --- FAIL: TestResultRefreshRemoveOrphan/light (0.07s)
+    --- FAIL: TestResultRefreshRemoveOrphan/dark (0.06s)
+=== RUN   TestResultRefreshUninstallOrphan
+=== RUN   TestResultRefreshUninstallOrphan/light
+    resultrefresh_test.go:101: changed uninstall orphan result lost keyboard destination "Adopt"
+=== RUN   TestResultRefreshUninstallOrphan/dark
+    resultrefresh_test.go:101: changed uninstall orphan result lost keyboard destination "Adopt"
+--- FAIL: TestResultRefreshUninstallOrphan (0.25s)
+    --- FAIL: TestResultRefreshUninstallOrphan/light (0.13s)
+    --- FAIL: TestResultRefreshUninstallOrphan/dark (0.12s)
+=== RUN   TestResultRefreshUninstallKind
+=== RUN   TestResultRefreshUninstallKind/light
+    resultrefresh_test.go:101: changed uninstall kind result lost keyboard destination "Remove package"
+=== RUN   TestResultRefreshUninstallKind/dark
+    resultrefresh_test.go:101: changed uninstall kind result lost keyboard destination "Remove package"
+--- FAIL: TestResultRefreshUninstallKind (0.29s)
+    --- FAIL: TestResultRefreshUninstallKind/light (0.15s)
+    --- FAIL: TestResultRefreshUninstallKind/dark (0.15s)
+=== RUN   TestResultRefreshRemoveComponentized
+=== RUN   TestResultRefreshRemoveComponentized/light
+    resultrefresh_test.go:91: kind refresh allowed a second removal answer while busy
+=== RUN   TestResultRefreshRemoveComponentized/dark
+    resultrefresh_test.go:91: kind refresh allowed a second removal answer while busy
+--- FAIL: TestResultRefreshRemoveComponentized (0.20s)
+    --- FAIL: TestResultRefreshRemoveComponentized/light (0.10s)
+    --- FAIL: TestResultRefreshRemoveComponentized/dark (0.10s)
+=== RUN   TestResultSaveFailureKeyboard
+=== RUN   TestResultSaveFailureKeyboard/light
+    resultrefresh_test.go:182: save failure insertion lost keyboard retry focus
+    resultrefresh_test.go:188: keyboard retry dispatched 1 calls
+=== RUN   TestResultSaveFailureKeyboard/dark
+    resultrefresh_test.go:182: save failure insertion lost keyboard retry focus
+    resultrefresh_test.go:188: keyboard retry dispatched 1 calls
+--- FAIL: TestResultSaveFailureKeyboard (0.30s)
+    --- FAIL: TestResultSaveFailureKeyboard/light (0.15s)
+    --- FAIL: TestResultSaveFailureKeyboard/dark (0.15s)
+=== RUN   TestResultSaveRetryClearsFailure
+=== RUN   TestResultSaveRetryClearsFailure/light
+    resultrefresh_test.go:178: retry still paints the previous failed attempt
+=== RUN   TestResultSaveRetryClearsFailure/dark
+    resultrefresh_test.go:178: retry still paints the previous failed attempt
+--- FAIL: TestResultSaveRetryClearsFailure (0.33s)
+    --- FAIL: TestResultSaveRetryClearsFailure/light (0.16s)
+    --- FAIL: TestResultSaveRetryClearsFailure/dark (0.16s)
+FAIL
+FAIL	floter/internal/settingsui	1.698s
+FAIL

@@ -1,0 +1,14 @@
+=== RUN   TestResultSaveFailureKeyboard
+=== RUN   TestResultSaveFailureKeyboard/light
+=== RUN   TestResultSaveFailureKeyboard/dark
+--- PASS: TestResultSaveFailureKeyboard (0.61s)
+    --- PASS: TestResultSaveFailureKeyboard/light (0.35s)
+    --- PASS: TestResultSaveFailureKeyboard/dark (0.27s)
+=== RUN   TestResultSaveRetryClearsFailure
+=== RUN   TestResultSaveRetryClearsFailure/light
+=== RUN   TestResultSaveRetryClearsFailure/dark
+--- PASS: TestResultSaveRetryClearsFailure (0.53s)
+    --- PASS: TestResultSaveRetryClearsFailure/light (0.26s)
+    --- PASS: TestResultSaveRetryClearsFailure/dark (0.26s)
+PASS
+ok  	floter/internal/settingsui	1.148s

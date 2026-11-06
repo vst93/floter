@@ -1,0 +1,19 @@
+=== RUN   TestResultRefreshDisableBroken
+=== RUN   TestResultRefreshDisableBroken/light
+    resultrefresh_test.go:101: changed disable broken result lost keyboard destination "Check"
+=== RUN   TestResultRefreshDisableBroken/dark
+    resultrefresh_test.go:101: changed disable broken result lost keyboard destination "Check"
+--- FAIL: TestResultRefreshDisableBroken (0.19s)
+    --- FAIL: TestResultRefreshDisableBroken/light (0.16s)
+    --- FAIL: TestResultRefreshDisableBroken/dark (0.02s)
+=== RUN   TestResultRefreshDisableOrphan
+=== RUN   TestResultRefreshDisableOrphan/light
+    resultrefresh_test.go:101: changed disable orphan result lost keyboard destination "Adopt"
+=== RUN   TestResultRefreshDisableOrphan/dark
+    resultrefresh_test.go:101: changed disable orphan result lost keyboard destination "Adopt"
+--- FAIL: TestResultRefreshDisableOrphan (0.04s)
+    --- FAIL: TestResultRefreshDisableOrphan/light (0.02s)
+    --- FAIL: TestResultRefreshDisableOrphan/dark (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.236s
+FAIL
