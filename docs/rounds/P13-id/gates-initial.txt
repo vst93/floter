@@ -1,0 +1,11 @@
+linux vet PASS
+linux build PASS
+windows vet PASS
+windows build PASS
+darwin vet PASS
+darwin build PASS
+ordinary exit=1
+已终止                  go test -count=1 -v ./... > /tmp/floter-P13-id-final-verbose.txt 2>&1
+verbose exit=143 PASS=1621
+FAIL=0
+functions=2970

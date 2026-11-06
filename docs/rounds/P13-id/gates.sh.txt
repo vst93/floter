@@ -1,0 +1,23 @@
+#!/bin/bash
+set -u
+export LC_ALL=zh_CN.UTF-8 GOMAXPROCS=4
+gofmt -l cmd internal > /tmp/floter-P13-id-gofmt.txt
+test ! -s /tmp/floter-P13-id-gofmt.txt || exit 1
+for platform in linux windows darwin; do
+  GOOS="$platform" go vet ./... || exit 1
+  printf '%s vet PASS\n' "$platform"
+  GOOS="$platform" go build ./... || exit 1
+  printf '%s build PASS\n' "$platform"
+done
+go test -count=1 ./... > /tmp/floter-P13-id-full-test.txt 2>&1
+ordinary=$?
+printf 'ordinary exit=%s\n' "$ordinary"
+go test -count=1 -v ./... > /tmp/floter-P13-id-final-verbose.txt 2>&1
+verbose=$?
+printf 'verbose exit=%s PASS=' "$verbose"
+grep -c -- '--- PASS' /tmp/floter-P13-id-final-verbose.txt
+printf 'FAIL='
+grep -c -- '--- FAIL' /tmp/floter-P13-id-final-verbose.txt
+printf 'functions='
+git grep -h '^func Test' -- '*_test.go' | wc -l
+test "$ordinary" -eq 0 && test "$verbose" -eq 0

@@ -1,0 +1,36 @@
+package main
+
+import (
+ "fmt"
+ "image"
+ "image/draw"
+ "image/png"
+ "os"
+)
+
+func read(path string) image.Image {
+ f,err:=os.Open(path); if err!=nil {panic(err)}; defer f.Close()
+ im,err:=png.Decode(f); if err!=nil {panic(err)}; return im
+}
+func write(path string, im image.Image) {
+ f,err:=os.Create(path); if err!=nil {panic(err)}; defer f.Close()
+ if err:=png.Encode(f,im);err!=nil {panic(err)}
+}
+func main() {
+ names:=[]string{"select-external","select-removed","select-empty","select-unlock","multi-removed","multi-empty","checkbox-removed","radio-removed"}
+ for _,theme:=range []string{"light","dark"} {
+  board:=image.NewRGBA(image.Rect(0,0,1440,8*400))
+  for i,name:=range names {
+   before:=read("/tmp/floter-P13-id-"+name+"-"+theme+"-before.png")
+   after:=read("/tmp/floter-P13-id-"+name+"-"+theme+"-after.png")
+   if before.Bounds()!=after.Bounds() {panic("geometry changed")}
+   count:=0
+   for y:=0;y<after.Bounds().Dy();y++ {for x:=0;x<after.Bounds().Dx();x++ { if before.At(x,y)!=after.At(x,y) {count++} }}
+   fmt.Printf("%s %s %dx%d changed=%d\n",theme,name,after.Bounds().Dx(),after.Bounds().Dy(),count)
+   if count==0 {panic("no visible change")}
+   draw.Draw(board,image.Rect(0,i*400,720,i*400+before.Bounds().Dy()),before,image.Point{},draw.Src)
+   draw.Draw(board,image.Rect(720,i*400,1440,i*400+after.Bounds().Dy()),after,image.Point{},draw.Src)
+  }
+  write("docs/rounds/P13-id/comparison-"+theme+".png",board)
+ }
+}

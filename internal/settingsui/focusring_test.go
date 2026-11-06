@@ -188,10 +188,14 @@ func TestNoOneTakesTheKeyboardRingAway(t *testing.T) {
 		"savealert.go":  1,
 		"settingsui.go": 3,
 		"rows.go":       1,
-		"notices.go":    2,
-		"pinned.go":     1,
-		"detach.go":     1,
-		"terminalui.go": 2,
+		// P13-id S: no group focus -> one temporary recovery target per
+		// surface, only while a removed option's original group owns focus.
+		"config.go":      1, // integration multiselect's existing list box
+		"pluginsheet.go": 1, // plugin checkbox group's existing row
+		"notices.go":     2,
+		"pinned.go":      1,
+		"detach.go":      1,
+		"terminalui.go":  2,
 	}
 	got := map[string]int{}
 	unpaired := []string{}

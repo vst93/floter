@@ -1,0 +1,10 @@
+linux vet PASS
+linux build PASS
+windows vet PASS
+windows build PASS
+darwin vet PASS
+darwin build PASS
+ordinary exit=0
+verbose exit=0 PASS=4507
+FAIL=0
+functions=2970
