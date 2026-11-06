@@ -1,0 +1,18 @@
+P13-hn final validation 2026-11-06
+Product commit: 0aa09178696781c5b1ab54dd5b3d2cf607aaced8
+Locale: LC_ALL=zh_CN.UTF-8
+Round baseline: 3842 PASS / 0 FAIL / 2816 test functions
+Resumed HEAD baseline: 3848 PASS / 0 FAIL / 2818 test functions
+Final: 3868 PASS / 0 FAIL / 2824 test functions
+gofmt -l cmd internal: empty (0 bytes)
+go vet ./...: exit 0, empty output
+GOOS=windows go vet ./...: exit 0, empty output
+GOOS=darwin go vet ./...: exit 0, empty output
+go test -count=1 ./...: exit 0
+go test -count=1 -v ./...: exit 0
+GOOS=linux go build ./...: exit 0, empty output
+GOOS=windows go build ./...: exit 0, empty output
+GOOS=darwin go build ./...: exit 0, empty output
+V/B/S existing-pin changes: 0/0/0
+Mutation groups: 4, all red; md5 restored; touch and tests rerun
+PNG: 36 originals + 6 comparisons + 2 detail images = 44

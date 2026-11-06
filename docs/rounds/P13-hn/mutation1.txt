@@ -1,0 +1,19 @@
+=== RUN   TestInputRefreshUnchangedTextEnterReleasesDraft
+=== RUN   TestInputRefreshUnchangedTextEnterReleasesDraft/light
+    inputrefresh_test.go:49: unchanged Enter masks external text: "/workspace/initial"
+=== RUN   TestInputRefreshUnchangedTextEnterReleasesDraft/dark
+    inputrefresh_test.go:49: unchanged Enter masks external text: "/workspace/initial"
+--- FAIL: TestInputRefreshUnchangedTextEnterReleasesDraft (0.06s)
+    --- FAIL: TestInputRefreshUnchangedTextEnterReleasesDraft/light (0.06s)
+    --- FAIL: TestInputRefreshUnchangedTextEnterReleasesDraft/dark (0.01s)
+=== RUN   TestInputRefreshAcceptedNumberFollowsHost
+=== RUN   TestInputRefreshAcceptedNumberFollowsHost/light
+    inputrefresh_test.go:73: accepted number masks external value: "25"
+=== RUN   TestInputRefreshAcceptedNumberFollowsHost/dark
+    inputrefresh_test.go:73: accepted number masks external value: "25"
+--- FAIL: TestInputRefreshAcceptedNumberFollowsHost (0.03s)
+    --- FAIL: TestInputRefreshAcceptedNumberFollowsHost/light (0.02s)
+    --- FAIL: TestInputRefreshAcceptedNumberFollowsHost/dark (0.01s)
+FAIL
+FAIL	floter/internal/settingsui	0.099s
+FAIL
