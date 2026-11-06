@@ -1,6 +1,8 @@
 package launcher
 
 import (
+	"slices"
+
 	"github.com/egoist/mygo/ui"
 
 	"floter/internal/plugincfg"
@@ -121,6 +123,9 @@ func (a *App) ChangeConfig(key string, value any) {
 		return
 	}
 	config := a.config
+	plugin := config.Schema.Plugin
+	field, _ := config.Schema.Field(key)
+	field.Options = slices.Clone(field.Options)
 	committed := config.Values
 	next := config.Schema.Apply(committed, key, value)
 	config.Values = next
@@ -128,10 +133,15 @@ func (a *App) ChangeConfig(key string, value any) {
 	// A change does not touch the action row's own failure line: the old
 	// build's `handleChange` and `ActionControl` are separate pieces of
 	// state.
-	stored := a.Actions.ConfigChange(config.Schema.Plugin, key, next[key])
+	stored := a.Actions.ConfigChange(plugin, key, next[key])
 	// A callback may close this overlay or open a different plugin's. Its
 	// answer belongs only to the sheet that dispatched the write.
-	if a.config != config {
+	if a.config != config || config.Schema == nil || config.Schema.Plugin != plugin {
+		return
+	}
+	current, exists := config.Schema.Field(key)
+	if !exists || current.Kind != field.Kind || current.Min != field.Min ||
+		current.Max != field.Max || current.Step != field.Step || !sameConfigOptionValues(current.Options, field.Options) {
 		return
 	}
 	values, failed := plugincfg.ConfigChangeOutcome(next, committed, stored != nil)
@@ -143,6 +153,12 @@ func (a *App) ChangeConfig(key string, value any) {
 	// The plugin's own normalization has the last word: the sheet commits what
 	// the settings actually hold, not what was asked for.
 	config.Values = stored
+}
+
+// Labels may refresh with the locale; only the stored option values constrain
+// this write. Compare against the copy taken before the callback ran.
+func sameConfigOptionValues(a, b []plugincfg.Option) bool {
+	return slices.EqualFunc(a, b, func(a, b plugincfg.Option) bool { return a.Value == b.Value })
 }
 
 // ArmConfig arms an action field: the first press of a destructive button only

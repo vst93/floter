@@ -25,7 +25,7 @@ qiaomu-design 已读 SKILL、偏好账本、craft-loop、preflight、chinese-typ
 
 ## 门槛
 
-开盘全量 verbose 正在实跑，PASS 基线完成后补录；起点测试函数以 d89ef7ec 树计数。每两项定向事件测试、相关包 vet 通过后 commit/push；全量门槛每轮一次：gofmt -l cmd internal 空；三平台 go vet ./...；普通与 verbose go test -count=1 ./...；三平台 go build ./...。
+开盘全量 verbose 实测 **4541 PASS / 0 FAIL**；起点 d89ef7ec 树实测 **2979 测试函数**（运行末尾工作树已有新增测试，不用该时刻的 2983 当基线）。每两项定向事件测试、相关包 vet 通过后 commit/push；全量门槛每轮一次：gofmt -l cmd internal 空；三平台 go vet ./...；普通与 verbose go test -count=1 ./...；三平台 go build ./...。
 
 ## Mutation
 

@@ -34,3 +34,12 @@
 4. 现象：RunWithParams 撤回再接上，恢复入口仍携带之前的失败。改动：无运行回调时同步退役拒绝。验证：真实提交失败 → 回调撤回 → 恢复；深浅无旧红字且答案不丢。
 
 相关事件 **88 PASS / 0 FAIL**、settingsui vet 退出 0。M2 四叶子实红：`empty form resurrected retired refusal` / `unwired form resurrected retired refusal`；MD5 OK、touch 后 88 PASS。第三批测试初稿误用 KeyReturn 导致一次编译失败，修正为 KeyEnter 并暂存该未完成测试后复跑；未将编译失败算为 mutation。
+
+## 第三批（5–6）
+
+5. 现象：同一 Config 对象在写回调里换 owner 和值，旧返回仍回滚或覆盖新 owner 的值，甚至显示旧失败。改动：返回核对派发 owner 与当前 schema 是否存在。验证：真实开关点击，成功/拒绝 × 深浅四场景保留新 owner 的 false/25，不显示旧失败。
+6. 现象：同 key 改型、移除、数字边界或选项值原地更新后，旧写返回覆盖新字段的值。改动：派发前复制字段选项，返回核对 Kind、Min/Max/Step、Options 值；标签更新不作为失效条件。验证：开关、数字输入及下拉真实事件，四种刷新 × 成功/拒绝 × 深浅，旧结果不进入新字段；改型后再输入提交以核对输入缓冲。
+
+M3 撤销产品核对，20 个深浅/返回叶子实红；原串 `new owner values overwritten`、`new field kind values overwritten`、`removed field resurrected by result`、`new bounds values overwritten`、`new options values overwritten`；MD5 OK、touch 复验。夹具曾把数字标签当输入入口，调整到实测输入 x=660；HasText 不收集 TextInput 缓冲，改用输入/提交事件核对实际内容，未弱化旧断言。目视深色前后：改型输入由空白恢复“当前配置”，上限 10→25，错误提示退场。
+
+开盘完整实测 **4541 PASS / 0 FAIL / 2979 测试函数**；普通/verbose 最终全量尚待轮末运行。
