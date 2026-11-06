@@ -46,3 +46,14 @@ V/B/S 0/0/0，旧测试零修改；新增 2 函数，截图 before/after 深浅�
 M2 原文：`removed number resurrected partial text: "1e"`、`removed number resurrected old parse error`、
 `host-confirmed edit still says Unsaved changes`、`host-confirmed edit masks next generation: "/workspace/shared"`。
 两项深浅实跑红，md5sum OK、touch 后相关 56 PASS / 0 FAIL，vet 通过。V/B/S 0/0/0。
+
+## 第三批（5–6）
+
+5. 现象：移除已滚动的多选字段再加回，新列表仍从旧偏移 206 开始，第一项藏在上方。
+   改动：字段移除或变为非多选时退役其 ScrollState。验证：同一字段重加 Y=0，存储值不变。
+6. 现象：已保存路径两端加空格后 Enter，又写一次同值，拒绝写入就显示 Save failed。
+   改动：提交比较沿用宿主 TrimSpace 规范化，无变化时退役草稿。验证：0 次写入、框回到规范值；不同路径仍提交一次，拒绝后原草稿可重试。
+
+M3 原文：`readded list starts at old offset 206`、`normalized same text wrote 1 times and failed=true`。
+实跑回退两文件，深浅均红；MD5 还原 OK，touch 后相关回归与 vet 通过，PASS 数随提交记录。
+V/B/S 0/0/0，已有断言未改。

@@ -1,10 +1,12 @@
 package settingsui
 
 import (
+	"fmt"
 	"image/png"
 	"os"
 	"testing"
 
+	"floter/internal/plugincfg"
 	"github.com/egoist/mygo/ui"
 )
 
@@ -115,6 +117,64 @@ func TestDraftLifetimeHostAcknowledgesMatchingEdit(t *testing.T) {
 			tt.Frame()
 			if got := refreshRead(tt); got != "/workspace/latest" {
 				t.Errorf("host-confirmed edit masks next generation: %q", got)
+			}
+		})
+	}
+}
+
+func TestDraftLifetimeRemovedListStartsAtTop(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			field := ConfigField{Key: "sources", Label: "搜索来源", Type: "multiselect"}
+			for i := 0; i < 12; i++ {
+				field.Options = append(field.Options, fmt.Sprintf("来源 %02d", i))
+			}
+			integration := Integration{ID: "local.lifetime", Config: []ConfigField{field}}
+			a, tt := configIdentityFrame(t, dark, &integration)
+			state := a.configListScroll(integration.ID, field.Key)
+			state.Y = state.MaxY
+			tt.Frame()
+			if state.Y <= 0 {
+				t.Fatal("list did not scroll")
+			}
+			integration.Config = nil
+			tt.Frame()
+			integration.Config = []ConfigField{field}
+			tt.Frame()
+			lifetimeDump(t, tt, "removed-list", dark)
+			if got := a.configListScroll(integration.ID, field.Key).Y; got != 0 {
+				t.Errorf("readded list starts at old offset %g", got)
+			}
+		})
+	}
+}
+
+func TestDraftLifetimeNormalizedTextDoesNotWrite(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			field := plugincfg.Field{Key: "directory", Label: "工作目录", Kind: plugincfg.Text}
+			_, sheet, tt := inputStateSheet(t, dark, field, "/workspace/current")
+			calls := 0
+			sheet.Change = func(string, any) { calls++; sheet.Failed = true }
+			pluginIdentityFocus(t, tt, field.Label)
+			tt.Type("  /workspace/current  ")
+			tt.Key(0, ui.KeyEnter)
+			tt.Frame()
+			lifetimeDump(t, tt, "normalized-text", dark)
+			if calls != 0 || sheet.Failed {
+				t.Errorf("normalized same text wrote %d times and failed=%v", calls, sheet.Failed)
+			}
+			if got := refreshRead(tt); got != "/workspace/current" {
+				t.Errorf("confirmed text keeps redundant whitespace: %q", got)
+			}
+			tt.Type(" /workspace/new ")
+			tt.Key(0, ui.KeyEnter)
+			tt.Frame()
+			if calls != 1 {
+				t.Errorf("different text dispatched %d writes, want 1", calls)
+			}
+			if got := refreshRead(tt); got != " /workspace/new " {
+				t.Errorf("failed real edit was discarded: %q", got)
 			}
 		})
 	}

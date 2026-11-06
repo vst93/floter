@@ -388,7 +388,7 @@ func (a *App) sheetField(c *ui.Context, sheet PluginSheet, field plugincfg.Field
 				// 此前它照样派发：宿主再写一遍同一个值，写成功就是白写一遍，写
 				// 被拒就在一块没改过的面上亮出「保存失败」。现在只有真的不一样
 				// 才交上去。
-				if edit != text {
+				if strings.TrimSpace(edit) != text {
 					sheet.Change(field.Key, edit)
 					if a.pluginTextCommits == nil {
 						a.pluginTextCommits = map[string]string{}

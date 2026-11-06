@@ -291,6 +291,12 @@ func (a *App) configFields(c *ui.Context, copy i18n.Settings, integration Integr
 				delete(draft.multiAnchor, key)
 			}
 		}
+		prefix := integration.ID + "\x00"
+		for key := range a.configListScrolls {
+			if strings.HasPrefix(key, prefix) && !active[strings.TrimPrefix(key, prefix)] {
+				delete(a.configListScrolls, key)
+			}
+		}
 	}
 	if len(integration.Config) == 0 {
 		return
