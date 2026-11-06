@@ -1,0 +1,65 @@
+=== RUN   TestNoticeBandSpacing
+--- PASS: TestNoticeBandSpacing (0.24s)
+=== RUN   TestNoticeBandKeepsBothInsets
+=== RUN   TestNoticeBandKeepsBothInsets/light/danger=false/420
+    noticebounds_test.go:36: band={X:35 Y:24 W:372 H:33} left=11.00 right=-11.00 margin=10.80
+    noticebounds_test.go:38: notice escaped symmetric gutters: left=11.00 right=-11.00 want=10.80
+=== RUN   TestNoticeBandKeepsBothInsets/light/danger=false/720
+    noticebounds_test.go:36: band={X:35 Y:24 W:672 H:33} left=11.00 right=-11.00 margin=10.80
+    noticebounds_test.go:38: notice escaped symmetric gutters: left=11.00 right=-11.00 want=10.80
+=== RUN   TestNoticeBandKeepsBothInsets/light/danger=true/420
+    noticebounds_test.go:36: band={X:35 Y:24 W:372 H:33} left=11.00 right=-11.00 margin=10.80
+    noticebounds_test.go:38: notice escaped symmetric gutters: left=11.00 right=-11.00 want=10.80
+=== RUN   TestNoticeBandKeepsBothInsets/light/danger=true/720
+    noticebounds_test.go:36: band={X:35 Y:24 W:672 H:33} left=11.00 right=-11.00 margin=10.80
+    noticebounds_test.go:38: notice escaped symmetric gutters: left=11.00 right=-11.00 want=10.80
+=== RUN   TestNoticeBandKeepsBothInsets/dark/danger=false/420
+    noticebounds_test.go:36: band={X:35 Y:24 W:372 H:33} left=11.00 right=-11.00 margin=10.80
+    noticebounds_test.go:38: notice escaped symmetric gutters: left=11.00 right=-11.00 want=10.80
+=== RUN   TestNoticeBandKeepsBothInsets/dark/danger=false/720
+    noticebounds_test.go:36: band={X:35 Y:24 W:672 H:33} left=11.00 right=-11.00 margin=10.80
+    noticebounds_test.go:38: notice escaped symmetric gutters: left=11.00 right=-11.00 want=10.80
+=== RUN   TestNoticeBandKeepsBothInsets/dark/danger=true/420
+    noticebounds_test.go:36: band={X:35 Y:24 W:372 H:33} left=11.00 right=-11.00 margin=10.80
+    noticebounds_test.go:38: notice escaped symmetric gutters: left=11.00 right=-11.00 want=10.80
+=== RUN   TestNoticeBandKeepsBothInsets/dark/danger=true/720
+    noticebounds_test.go:36: band={X:35 Y:24 W:672 H:33} left=11.00 right=-11.00 margin=10.80
+    noticebounds_test.go:38: notice escaped symmetric gutters: left=11.00 right=-11.00 want=10.80
+--- FAIL: TestNoticeBandKeepsBothInsets (0.07s)
+    --- FAIL: TestNoticeBandKeepsBothInsets/light/danger=false/420 (0.01s)
+    --- FAIL: TestNoticeBandKeepsBothInsets/light/danger=false/720 (0.01s)
+    --- FAIL: TestNoticeBandKeepsBothInsets/light/danger=true/420 (0.01s)
+    --- FAIL: TestNoticeBandKeepsBothInsets/light/danger=true/720 (0.01s)
+    --- FAIL: TestNoticeBandKeepsBothInsets/dark/danger=false/420 (0.01s)
+    --- FAIL: TestNoticeBandKeepsBothInsets/dark/danger=false/720 (0.01s)
+    --- FAIL: TestNoticeBandKeepsBothInsets/dark/danger=true/420 (0.01s)
+    --- FAIL: TestNoticeBandKeepsBothInsets/dark/danger=true/720 (0.01s)
+=== RUN   TestNoticeLongSentencePreservesAnswers
+=== RUN   TestNoticeLongSentencePreservesAnswers/light/420
+    noticebounds_test.go:74: short cancel/confirm={X:221.7 Y:32.2 W:49.4 H:21.599998} / {X:278.3 Y:32.2 W:118.5 H:21.599998} long={X:221.7 Y:106.399994 W:49.4 H:21.599998} / {X:278.3 Y:106.399994 W:118.5 H:21.599998}
+    noticebounds_test.go:80: sentence or answers overlap/escape: text={X:65.5 Y:32.2 W:149 H:170} cancel={X:221.7 Y:106.399994 W:49.4 H:21.599998} confirm={X:278.3 Y:106.399994 W:118.5 H:21.599998}
+=== RUN   TestNoticeLongSentencePreservesAnswers/light/720
+    noticebounds_test.go:74: short cancel/confirm={X:521.7 Y:32.2 W:49.4 H:21.599998} / {X:578.3 Y:32.2 W:118.5 H:21.599998} long={X:521.7 Y:55.4 W:49.4 H:21.599998} / {X:578.3 Y:55.4 W:118.5 H:21.599998}
+    noticebounds_test.go:80: sentence or answers overlap/escape: text={X:65.5 Y:32.2 W:449 H:68} cancel={X:521.7 Y:55.4 W:49.4 H:21.599998} confirm={X:578.3 Y:55.4 W:118.5 H:21.599998}
+=== RUN   TestNoticeLongSentencePreservesAnswers/dark/420
+    noticebounds_test.go:74: short cancel/confirm={X:221.7 Y:32.2 W:49.4 H:21.599998} / {X:278.3 Y:32.2 W:118.5 H:21.599998} long={X:221.7 Y:106.399994 W:49.4 H:21.599998} / {X:278.3 Y:106.399994 W:118.5 H:21.599998}
+    noticebounds_test.go:80: sentence or answers overlap/escape: text={X:65.5 Y:32.2 W:149 H:170} cancel={X:221.7 Y:106.399994 W:49.4 H:21.599998} confirm={X:278.3 Y:106.399994 W:118.5 H:21.599998}
+=== RUN   TestNoticeLongSentencePreservesAnswers/dark/720
+    noticebounds_test.go:74: short cancel/confirm={X:521.7 Y:32.2 W:49.4 H:21.599998} / {X:578.3 Y:32.2 W:118.5 H:21.599998} long={X:521.7 Y:55.4 W:49.4 H:21.599998} / {X:578.3 Y:55.4 W:118.5 H:21.599998}
+    noticebounds_test.go:80: sentence or answers overlap/escape: text={X:65.5 Y:32.2 W:449 H:68} cancel={X:521.7 Y:55.4 W:49.4 H:21.599998} confirm={X:578.3 Y:55.4 W:118.5 H:21.599998}
+--- FAIL: TestNoticeLongSentencePreservesAnswers (0.06s)
+    --- FAIL: TestNoticeLongSentencePreservesAnswers/light/420 (0.01s)
+    --- FAIL: TestNoticeLongSentencePreservesAnswers/light/720 (0.02s)
+    --- FAIL: TestNoticeLongSentencePreservesAnswers/dark/420 (0.01s)
+    --- FAIL: TestNoticeLongSentencePreservesAnswers/dark/720 (0.02s)
+=== RUN   TestNoticeDisableFailureUsesErrorInk
+=== RUN   TestNoticeDisableFailureUsesErrorInk/light
+    noticebounds_test.go:118: failed disable still wears neutral question ink: ring warmth=0
+=== RUN   TestNoticeDisableFailureUsesErrorInk/dark
+    noticebounds_test.go:118: failed disable still wears neutral question ink: ring warmth=-1
+--- FAIL: TestNoticeDisableFailureUsesErrorInk (0.04s)
+    --- FAIL: TestNoticeDisableFailureUsesErrorInk/light (0.02s)
+    --- FAIL: TestNoticeDisableFailureUsesErrorInk/dark (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.417s
+FAIL

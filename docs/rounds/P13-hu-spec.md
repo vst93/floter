@@ -13,7 +13,7 @@
 | 3 | settingsui.go:3139 / 6679 | 停用取消后入口没有焦点 → 还给原开关，Space 可重开 |
 | 4 | settingsui.go:3113 / 6954 | 移除取消后入口没有焦点 → 还给原移除键，Space 可重开 |
 | 5 | settingsui.go:6619–6620 | FillWidth 加左右 margin 超出容器 → 两侧内缩对称且不越界 |
-| 6 | settingsui.go:6645–6651 / 6512 | 长错误句争抢按钮和图标宽度 → 句子换行、动作与警示标记保持可读 |
+| 6 | settingsui.go:6677 | 停用失败仍强制传 danger=false，错误与普通问题同墨 → 已有失败状态采用同族错误墨；清错还原 |
 | 7 | uninstall.go:184 / 210 | 滚动内容贴着裁切边，末尾焦点环被截 → 保留原内容坐标并为环让出绘制余量 |
 | 8 | uninstall.go:203–210 | 失败带紧贴动作行 → 用既有间距刻度分开错误面与动作，清错时撤回空隙 |
 
@@ -21,7 +21,9 @@
 
 ## 验证与变异
 
-基线在中文 locale 实跑中，结果写报告。每两项定向事件/像素回归与 vet 后提交推送；最终固定源码后集中跑 gofmt、三平台 vet/build、普通与 verbose 全量及 PASS 计数。统一 `LC_ALL=zh_CN.UTF-8 GOMAXPROCS=4`。
+基线在中文 locale 实测 **4032 PASS / 0 FAIL / 2879 测试函数**。每两项定向事件/像素回归与 vet 后提交推送；最终固定源码后集中跑 gofmt、三平台 vet/build、普通与 verbose 全量及 PASS 计数。统一 `LC_ALL=zh_CN.UTF-8 GOMAXPROCS=4`。
+
+候选 6 修正：长句实测不会挤压按钮，宽度始终 Cancel=49.4 / Remove=118.5；它只复现第 5 项的右沿越界，不计独立修复。改为同一确认带已有错误状态漏掉错误墨，另设像素 pin；长句测试仍保留用于守住第 5 项。
 
 Mutation 至少两条：恢复每帧 Focus 应让 Tab 事件红；恢复 FillWidth+margin 应让边界像素红；卸载裁切余量回退应让完整焦点环红。产品文件备份后注入，保存原始失败，恢复 `md5sum -c`、touch 后重跑。ui.Tester 深浅前后 PNG 写 `/tmp/floter-P13-hu-*`，随轮次入库。
 

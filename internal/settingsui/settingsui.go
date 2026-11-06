@@ -6624,7 +6624,9 @@ func (a *App) noticeBand(c *ui.Context, danger bool, sentence string, answers fu
 		ink = t.Warning
 	}
 	var cancel ui.Element
-	band := ui.Row(c).FillWidth().Gap(t.Space(2)).AlignItems(ui.Center).
+	// Stretch uses the available width after margins; 100% plus margins
+	// extended the right edge into the parent's clipping boundary.
+	band := ui.Row(c).AlignSelf(ui.Stretch).Gap(t.Space(2)).AlignItems(ui.Center).
 		Padding(t.Space(2), t.Space(2.5)).Margin(0, t.Space(3)).
 		Radius(tokens.RadiusSM).Background(tokens.Control).Border(1, tokens.ControlEdge)
 	// `.extensions-notice--error` keeps the band's `--ext-border` and layers
@@ -6683,7 +6685,7 @@ func (a *App) disableConfirmation(c *ui.Context, copy i18n.Settings, integration
 		// kept mounted said nothing (`src/ExtensionsPanel.tsx:1274-1283`).
 		sentence = message
 	}
-	cancel := a.noticeBand(c, false, sentence, func(cancel *ui.Element) {
+	cancel := a.noticeBand(c, a.disableError[id] != "", sentence, func(cancel *ui.Element) {
 		*cancel = a.barButton(c, copy.IntegrationsCancel, false, false, nil, func() {
 			a.disableConfirm[id] = false
 		})

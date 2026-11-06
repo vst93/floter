@@ -1,6 +1,6 @@
 # P13-hu：确认带的键盘出口与可见边界
 
-开盘 `f3514951`，pull 最新，工作树干净。done.log 与 stash-backlog 文件在本机不存在。基线实跑中。逐批落盘，完成项才记为修复。
+开盘 `f3514951`，pull 最新，工作树干净。done.log 与 stash-backlog 文件在本机不存在。中文 locale 基线 **4032 PASS / 0 FAIL / 2879 测试函数**。逐批落盘，完成项才记为修复。
 
 ## Stash 清点
 
@@ -36,3 +36,14 @@
 4. 现象：移除取消后原按钮没有焦点。改动：同样还给原移除按钮，进入卸载对话框时不抢走浮层焦点。验证：深浅完整入口事件重开确认，派发 0 次；旧实现 `keyboard reopen failed: open=false cancel=false mutations=0`。
 
 相关回归 **46 PASS / 0 FAIL**；M2 回注第一批产品，四场景红，MD5 恢复与 touch 后 **6 PASS**，settingsui vet 通过。V/B/S 0/0/0，旧断言不改。
+
+第二批 `5453ae9f` 已推送。
+
+### 第三批：提示带边界与失败语义
+
+5. 现象：100% 宽度另加左右 margin，右边距实测 -11px，左边距 11px，卸载滚动容器中右沿被裁。改动：用 AlignSelf(Stretch) 在扣除外边距后的可用宽度内展开。验证：420/720 宽 × 深浅 × 中性/危险八场景像素边界对称；长句仍保留按钮自然宽度。旧红串 `notice escaped symmetric gutters: left=11.00 right=-11.00 want=10.80`。
+6. 现象：停用失败只换错误句，仍画普通确认的中性墨与冠线。改动：已有 disableError 非空时使用 noticeBand 的错误臂，清错恢复中性面。验证：两主题错误环的暖色差与普通确认分开，清错后无旧警告；旧实现 `failed disable still wears neutral question ink: ring warmth=0`（具体读数以 M3 日志为准）。
+
+未凑数：原长句挤压按钮候选排除，Cancel=49.4、Remove=118.5 在长短句中相等；长句的越界归第 5 项。
+
+第三批相关回归 **64 PASS / 0 FAIL**；M3 回注旧宽度和中性错误臂，边界/长句/错误墨均实跑红，MD5 恢复与 touch 后 **17 PASS**，settingsui vet 通过。V/B/S 0/0/0，旧行为与材质 pin 不改。
