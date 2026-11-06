@@ -4762,7 +4762,7 @@ func (a *App) glassSegmented(c *ui.Context, labels []string, current int, apply 
 
 // choose builds one labeled drop-down choice, for lists too long to line up
 // as segments.
-func (a *App) choose(c *ui.Context, label, description string, options []i18n.Option, current string, apply func(string), below ...func()) {
+func (a *App) choose(c *ui.Context, label, description string, options []i18n.Option, current string, apply func(string), below ...func()) ui.Element {
 	labels := make([]string, len(options))
 	values := make([]string, len(options))
 	selected := current
@@ -4771,8 +4771,10 @@ func (a *App) choose(c *ui.Context, label, description string, options []i18n.Op
 		values[i] = option.ID
 	}
 	chosen, picked := "", false
+	var trigger ui.Element
 	a.row(c, label, description, func() {
 		e := a.chooseSelect(c, &selected, labels, label, values)
+		trigger = e
 		if e.Changed() {
 			for _, option := range options {
 				if option.ID == selected {
@@ -4790,6 +4792,7 @@ func (a *App) choose(c *ui.Context, label, description string, options []i18n.Op
 	if picked {
 		apply(chosen)
 	}
+	return trigger
 }
 
 // chooseSelect builds the drop-down `choose` draws: the framework's Select at
@@ -5033,14 +5036,16 @@ func (a *App) effectiveOpacity(c *ui.Context, copy i18n.Settings, s settings.Set
 // the switch of the old panel, in the control this toolkit makes directly
 // clickable by its own text. The description is the row's grey second line,
 // as every other row kind draws it.
-func (a *App) checkbox(c *ui.Context, label, description string, on bool, apply func(bool)) {
+func (a *App) checkbox(c *ui.Context, label, description string, on bool, apply func(bool)) ui.Element {
 	value := on
 	changed := false
+	var toggle ui.Element
 	// The label is the row's own (the reference puts it at the start) and
 	// the control is the switch at the end, so the check box here is the
 	// switch alone.
 	if a.row(c, label, description, func() {
-		if a.switchControl(c, &value).Label(label).Changed() {
+		toggle = a.switchControl(c, &value).Label(label)
+		if toggle.Changed() {
 			changed = true
 		}
 	}) {
@@ -5052,6 +5057,7 @@ func (a *App) checkbox(c *ui.Context, label, description string, on bool, apply 
 	if changed {
 		apply(value)
 	}
+	return toggle
 }
 
 // appIcon is the stored app icon, normalized to the two the app ships (dark

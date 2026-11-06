@@ -347,11 +347,11 @@ func (a *App) sheetField(c *ui.Context, sheet PluginSheet, field plugincfg.Field
 	switch field.Kind {
 	case plugincfg.Toggle:
 		on, _ := value.(bool)
-		a.checkbox(c, field.Label, field.Help, on, func(next bool) { sheet.Change(field.Key, next) })
+		a.checkbox(c, field.Label, field.Help, on, func(next bool) { sheet.Change(field.Key, next) }).Bind(a.pluginEditorRef(field.Key))
 	case plugincfg.Select:
 		current, _ := value.(string)
 		a.choose(c, field.Label, field.Help, optionsOf(field.Options, a.copy().ConfigNone), current,
-			func(next string) { sheet.Change(field.Key, next) })
+			func(next string) { sheet.Change(field.Key, next) }).Bind(a.pluginEditorRef(field.Key))
 	case plugincfg.Radio:
 		current, _ := value.(string)
 		a.sheetRadio(c, sheet, field, current)

@@ -1,0 +1,14 @@
+=== RUN   TestControlRefreshSelectKeepsOpenChoice
+=== RUN   TestControlRefreshSelectKeepsOpenChoice/light
+=== RUN   TestControlRefreshSelectKeepsOpenChoice/dark
+--- PASS: TestControlRefreshSelectKeepsOpenChoice (0.07s)
+    --- PASS: TestControlRefreshSelectKeepsOpenChoice/light (0.06s)
+    --- PASS: TestControlRefreshSelectKeepsOpenChoice/dark (0.01s)
+=== RUN   TestControlRefreshToggleKeepsKeyboard
+=== RUN   TestControlRefreshToggleKeepsKeyboard/light
+=== RUN   TestControlRefreshToggleKeepsKeyboard/dark
+--- PASS: TestControlRefreshToggleKeepsKeyboard (0.02s)
+    --- PASS: TestControlRefreshToggleKeepsKeyboard/light (0.01s)
+    --- PASS: TestControlRefreshToggleKeepsKeyboard/dark (0.01s)
+PASS
+ok  	floter/internal/settingsui	0.093s

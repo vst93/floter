@@ -1,0 +1,23 @@
+=== RUN   TestControlRefreshSelectKeepsOpenChoice
+=== RUN   TestControlRefreshSelectKeepsOpenChoice/light
+    controlrefresh_test.go:55: group move closed the active select menu
+    controlrefresh_test.go:60: group move lost pending choice: files, want apps
+    controlrefresh_test.go:63: group move lost select focus
+=== RUN   TestControlRefreshSelectKeepsOpenChoice/dark
+    controlrefresh_test.go:55: group move closed the active select menu
+    controlrefresh_test.go:60: group move lost pending choice: files, want apps
+    controlrefresh_test.go:63: group move lost select focus
+--- FAIL: TestControlRefreshSelectKeepsOpenChoice (0.19s)
+    --- FAIL: TestControlRefreshSelectKeepsOpenChoice/light (0.16s)
+    --- FAIL: TestControlRefreshSelectKeepsOpenChoice/dark (0.03s)
+=== RUN   TestControlRefreshToggleKeepsKeyboard
+=== RUN   TestControlRefreshToggleKeepsKeyboard/light
+    controlrefresh_test.go:87: group move lost toggle keyboard: value=true focus=false
+=== RUN   TestControlRefreshToggleKeepsKeyboard/dark
+    controlrefresh_test.go:87: group move lost toggle keyboard: value=true focus=false
+--- FAIL: TestControlRefreshToggleKeepsKeyboard (0.05s)
+    --- FAIL: TestControlRefreshToggleKeepsKeyboard/light (0.02s)
+    --- FAIL: TestControlRefreshToggleKeepsKeyboard/dark (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.240s
+FAIL
