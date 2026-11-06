@@ -1,0 +1,10 @@
+gofmt exit=0
+vet-linux exit=0
+vet-windows exit=0
+vet-darwin exit=0
+full-test exit=0
+full-verbose exit=0
+build-linux exit=0
+build-windows exit=0
+build-darwin exit=0
+PASS=4282 FAIL=0 functions=2929 baseline_PASS=4242 baseline_functions=2921
