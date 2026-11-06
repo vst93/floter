@@ -11,6 +11,7 @@ package settingsui
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"math"
 	"runtime"
 	"slices"
@@ -7259,6 +7260,10 @@ type runRefusal struct {
 	value      string
 	definition extensions.ParamDefinition
 	failure    extensions.ParamFailure
+	// A backend may name a parameter absent from the submitted manifest.
+	// Such feedback belongs to the whole submission, not a nonexistent row.
+	parameters []extensions.ParamDefinition
+	answers    map[string]string
 }
 
 // A manifest may refresh synchronously inside RunWithParams. Compare semantic
@@ -7479,12 +7484,12 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 						a.runError = map[string]string{}
 					}
 					a.runError[integration.ID] = paramFailureMessage(copy, params, failure)
-					delete(a.runRefusals, integration.ID)
+					if a.runRefusals == nil {
+						a.runRefusals = map[string]runRefusal{}
+					}
+					a.runRefusals[integration.ID] = runRefusal{failure: *failure, parameters: params, answers: answers}
 					for _, param := range params {
 						if param.ID == failure.Param {
-							if a.runRefusals == nil {
-								a.runRefusals = map[string]runRefusal{}
-							}
 							// Both the definition and answer predate the callback;
 							// neither its argument nor the live form owns this snapshot.
 							a.runRefusals[integration.ID] = runRefusal{param: param.ID, value: answers[param.ID], definition: param, failure: *failure}
@@ -7498,14 +7503,20 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 		// its field is gone, it must not keep accusing the current form.
 		if refusal, ok := a.runRefusals[integration.ID]; ok {
 			valid := a.runError[integration.ID] != ""
-			for _, param := range params {
-				if param.ID == refusal.param {
-					old := refusal.definition
-					valid = valid && param.Kind == old.Kind && param.Required == old.Required && param.Flag == old.Flag && slices.Equal(param.Options, old.Options)
-					break
+			if refusal.parameters != nil {
+				valid = valid && runParametersMatch(refusal.parameters, integration.Params) && maps.Equal(values, refusal.answers)
+			} else {
+				for _, param := range params {
+					if param.ID == refusal.param {
+						old := refusal.definition
+						valid = valid && param.Kind == old.Kind && param.Required == old.Required && param.Flag == old.Flag && slices.Equal(param.Options, old.Options)
+						break
+					}
 				}
+				value, exists := values[refusal.param]
+				valid = valid && exists && value == refusal.value
 			}
-			if value, exists := values[refusal.param]; !exists || value != refusal.value || !valid {
+			if !valid {
 				delete(a.runError, integration.ID)
 				delete(a.runRefusals, integration.ID)
 			} else {

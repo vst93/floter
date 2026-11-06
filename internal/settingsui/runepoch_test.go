@@ -84,3 +84,56 @@ func checkRunEpoch(t *testing.T, scenario string) {
 
 func TestRunEpochClosedDuringCallback(t *testing.T)             { checkRunEpoch(t, "closed") }
 func TestRunEpochParametersReplacedDuringCallback(t *testing.T) { checkRunEpoch(t, "replaced") }
+
+func checkUnknownRunRefusal(t *testing.T, scenario string) {
+	t.Helper()
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			a, in := runStateApp(Param{ID: "target", Label: "Target", Kind: extensions.ParamText, Default: "remembered"})
+			calls := 0
+			a.Actions.RunWithParams = func(string, map[string]string) *extensions.ParamFailure {
+				calls++
+				return &extensions.ParamFailure{Key: extensions.RunErrorParamUnknown, Param: "fresh"}
+			}
+			tt := runRecoveryFrame(t, a, in, dark)
+			copy := i18n.For("en").Settings
+			if err := tt.Click(copy.RunLabel); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			if !tt.HasText(copy.RunParamUnknown("fresh")) {
+				t.Fatal("initial unknown-parameter refusal missing")
+			}
+			// An unchanged form must keep the useful error until its premise changes.
+			tt.Frame()
+			if !tt.HasText(copy.RunParamUnknown("fresh")) {
+				t.Fatal("unchanged refusal disappeared")
+			}
+			if scenario == "schema" {
+				in.Params = append(in.Params, Param{ID: "fresh", Label: "Fresh", Kind: extensions.ParamText, Default: "current"})
+			} else {
+				r := mustFind(t, tt, "Target")
+				tt.ClickAt(568, r.Y+r.H/2)
+				tt.Key(ui.Cmd, ui.KeyA)
+				tt.Type("corrected")
+			}
+			tt.Frame()
+			epochDump(t, tt, "unknown-"+scenario, dark)
+			if tt.HasText(copy.RunParamUnknown("fresh")) {
+				t.Errorf("%s refresh retained obsolete unknown-parameter refusal", scenario)
+			}
+			if calls != 1 {
+				t.Errorf("refresh ran command %d times", calls)
+			}
+			if scenario == "schema" && a.runValues[in.ID]["fresh"] != "current" {
+				t.Error("new default missing")
+			}
+			if scenario == "answer" && a.runValues[in.ID]["target"] != "corrected" {
+				t.Error("edited answer lost")
+			}
+		})
+	}
+}
+
+func TestRunEpochUnknownParameterNowExists(t *testing.T)  { checkUnknownRunRefusal(t, "schema") }
+func TestRunEpochUnknownRefusalAfterEditing(t *testing.T) { checkUnknownRunRefusal(t, "answer") }
