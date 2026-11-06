@@ -7279,7 +7279,7 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 		params = append(params, extensions.ParamDefinition{
 			ID: param.ID, Label: param.Label, Kind: param.Kind,
 			Default: param.Default, Required: param.Required,
-			Placeholder: param.Placeholder, Options: param.Options, Flag: param.Flag,
+			Placeholder: param.Placeholder, Options: slices.Clone(param.Options), Flag: param.Flag,
 		})
 	}
 	if a.runValues == nil {
@@ -7436,8 +7436,10 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 				// A run owns the answers at the instant of submission. Further
 				// editing or host-side normalization must not mutate the other map.
 				submitted := make(map[string]string, len(values))
+				answers := make(map[string]string, len(values))
 				for key, value := range values {
 					submitted[key] = value
+					answers[key] = value
 				}
 				if failure := a.Actions.RunWithParams(integration.ID, submitted); failure != nil {
 					if a.runError == nil {
@@ -7450,9 +7452,9 @@ func (a *App) runForm(c *ui.Context, copy i18n.Settings, integration Integration
 							if a.runRefusals == nil {
 								a.runRefusals = map[string]runRefusal{}
 							}
-							// Keep the submitted value, not a map the callback may own.
-							param.Options = slices.Clone(param.Options)
-							a.runRefusals[integration.ID] = runRefusal{param: param.ID, value: values[param.ID], definition: param, failure: *failure}
+							// Both the definition and answer predate the callback;
+							// neither its argument nor the live form owns this snapshot.
+							a.runRefusals[integration.ID] = runRefusal{param: param.ID, value: answers[param.ID], definition: param, failure: *failure}
 							break
 						}
 					}
