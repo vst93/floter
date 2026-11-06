@@ -1,0 +1,7 @@
+internal/settingsui/settingsui.go: OK
+internal/settingsui/pluginsheet.go: OK
+internal/settingsui/pluginsection.go: OK
+internal/settingsui/selectvalue.go: OK
+internal/settingsui/controlrefresh_test.go: OK
+internal/settingsui/selectrefreshfocus_test.go: OK
+internal/control/control.go: OK

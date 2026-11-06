@@ -1,0 +1,14 @@
+error: patch failed: internal/shortcuts/shortcuts_test.go:357
+error: internal/shortcuts/shortcuts_test.go: patch does not apply
+error: patch failed: internal/settingsui/view_test.go:1473
+error: internal/settingsui/view_test.go: patch does not apply
+error: patch failed: internal/settingsui/settingsui.go:679
+error: internal/settingsui/settingsui.go: patch does not apply
+error: patch failed: internal/settingsui/custom.go:199
+error: internal/settingsui/custom.go: patch does not apply
+error: patch failed: internal/settings/shortcutmap.go:115
+error: internal/settings/shortcutmap.go: patch does not apply
+error: patch failed: internal/i18n/i18n.go:926
+error: internal/i18n/i18n.go: patch does not apply
+error: patch failed: internal/i18n/copy.go:2
+error: internal/i18n/copy.go: patch does not apply

@@ -1,0 +1,7 @@
+f7f21fa3b9c5fa32121491ac113a8756  internal/settingsui/settingsui.go
+2dedd5dea50d524fffd45f549b155c72  internal/settingsui/pluginsheet.go
+93aeefe542729b1683cdd78dcbca956f  internal/settingsui/pluginsection.go
+20ba46db3bd8253e3f31858748557332  internal/settingsui/selectvalue.go
+aa440a9bced312903afaf0dc9adf6f2a  internal/settingsui/controlrefresh_test.go
+29f880fd9edf48d67caffcf3bfc70473  internal/settingsui/selectrefreshfocus_test.go
+290613ca98e328beab7b9e84bdedf371  internal/control/control.go
