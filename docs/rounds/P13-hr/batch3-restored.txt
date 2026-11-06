@@ -1,0 +1,14 @@
+=== RUN   TestControlRefreshSliderKeepsKeyboard
+=== RUN   TestControlRefreshSliderKeepsKeyboard/light
+=== RUN   TestControlRefreshSliderKeepsKeyboard/dark
+--- PASS: TestControlRefreshSliderKeepsKeyboard (0.14s)
+    --- PASS: TestControlRefreshSliderKeepsKeyboard/light (0.14s)
+    --- PASS: TestControlRefreshSliderKeepsKeyboard/dark (0.01s)
+=== RUN   TestControlRefreshActionKeepsCancelKeyboard
+=== RUN   TestControlRefreshActionKeepsCancelKeyboard/light
+=== RUN   TestControlRefreshActionKeepsCancelKeyboard/dark
+--- PASS: TestControlRefreshActionKeepsCancelKeyboard (0.02s)
+    --- PASS: TestControlRefreshActionKeepsCancelKeyboard/light (0.01s)
+    --- PASS: TestControlRefreshActionKeepsCancelKeyboard/dark (0.01s)
+PASS
+ok  	floter/internal/settingsui	0.172s

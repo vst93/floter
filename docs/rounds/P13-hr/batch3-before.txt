@@ -1,0 +1,19 @@
+=== RUN   TestControlRefreshSliderKeepsKeyboard
+=== RUN   TestControlRefreshSliderKeepsKeyboard/light
+    controlrefresh_test.go:162: group move lost slider keyboard: 0, want 100
+=== RUN   TestControlRefreshSliderKeepsKeyboard/dark
+    controlrefresh_test.go:162: group move lost slider keyboard: 0, want 100
+--- FAIL: TestControlRefreshSliderKeepsKeyboard (0.12s)
+    --- FAIL: TestControlRefreshSliderKeepsKeyboard/light (0.10s)
+    --- FAIL: TestControlRefreshSliderKeepsKeyboard/dark (0.02s)
+=== RUN   TestControlRefreshActionKeepsCancelKeyboard
+=== RUN   TestControlRefreshActionKeepsCancelKeyboard/light
+    controlrefresh_test.go:191: group move lost cancellation: cancels=0 runs=0 armed="value"
+=== RUN   TestControlRefreshActionKeepsCancelKeyboard/dark
+    controlrefresh_test.go:191: group move lost cancellation: cancels=0 runs=0 armed="value"
+--- FAIL: TestControlRefreshActionKeepsCancelKeyboard (0.04s)
+    --- FAIL: TestControlRefreshActionKeepsCancelKeyboard/light (0.02s)
+    --- FAIL: TestControlRefreshActionKeepsCancelKeyboard/dark (0.02s)
+FAIL
+FAIL	floter/internal/settingsui	0.171s
+FAIL

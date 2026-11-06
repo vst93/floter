@@ -523,7 +523,7 @@ func (a *App) sheetSlider(c *ui.Context, sheet PluginSheet, field plugincfg.Fiel
 		// and its value (`.plugin-config-slider { gap: 10u }`,
 		// `plugin-config.css:165-172`).
 		ui.Row(c).FillWidth().Gap(t.Space(2.5)).AlignItems(ui.Center).Children(func() {
-			e := ui.Slider(c, &v, field.Min, field.Max).Grow(1)
+			e := ui.Slider(c, &v, field.Min, field.Max).Grow(1).Bind(a.pluginEditorRef(field.Key))
 			if e.Changed() {
 				changed = true
 			}
@@ -785,7 +785,7 @@ func (a *App) sheetAction(c *ui.Context, sheet PluginSheet, field plugincfg.Fiel
 	clicked := a.row(c, field.Label, field.Help, func() {
 		// The reference's cluster: inline-flex, flex-end, a 6u gap
 		// (`.plugin-config-action`, `plugin-config.css:218-224`).
-		ui.Row(c).Gap(t.Space(1.5)).AlignItems(ui.Center).Wrap().Children(func() {
+		ui.Row(c).Gap(t.Space(1.5)).AlignItems(ui.Center).Wrap().Bind(a.pluginEditorRef(field.Key)).Children(func() {
 			if armed {
 				// The armed button is the old build's danger button: the
 				// same quiet hairline pill, its own warning face.

@@ -36,3 +36,12 @@
 4. 现象：复选跨组后 Space 不再取消刚勾选项，焦点丢失。改动：原复选行绑定同一字段句柄，用子树焦点保住组身份。验证：Click 文件→移组→Space 得空列表且焦点仍在文件；旧实现报 `group move lost checkbox keyboard: value=[files] focus=false`。
 
 相关回归 **171 PASS / 0 FAIL**，settingsui/control vet 净。M2 将 FocusWithin 退为 Focused，两项事件实跑红；MD5 还原与 touch 后 **6 PASS**。没有新布局包装，也没有修改旧断言；V/B/S 0/0/0。
+
+第二批 `0805b4b9` 已推送。
+
+### 第三批：滑块与动作取消
+
+5. 现象：滑块跨组后 End 不再响应，数值停在 0。改动：原滑块绑定字段焦点句柄。验证：点击轨道→Home=0→移组→End=100，深浅通过；旧实现报 `group move lost slider keyboard: 0, want 100`。
+6. 现象：焦点位于已武装动作的取消按钮时，移组后 Space 无效。改动：原确认按钮行绑定字段句柄，识别其内部焦点。验证：Tab 到取消→移组→Space，仅 Unarm 1 次、Run 0 次；旧实现报 `group move lost cancellation: cancels=0 runs=0 armed="value"`。确认/取消机制未变。
+
+相关回归 **206 PASS / 0 FAIL**，settingsui/control vet 净。M3 回退两条绑定，两项事件实跑红，MD5 还原与 touch 后 **6 PASS**。V/B/S 0/0/0。

@@ -138,3 +138,58 @@ func TestControlRefreshCheckboxesKeepKeyboard(t *testing.T) {
 		})
 	}
 }
+
+func TestControlRefreshSliderKeepsKeyboard(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			sheet := controlRefreshSheet(plugincfg.Slider)
+			sheet.Values["value"] = 50.0
+			tt := pluginIdentityFrame(t, dark, &sheet)
+			r := mustFind(t, tt, "当前配置")
+			tt.ClickAt(340, r.Y+r.H+16)
+			tt.Frame()
+			tt.Key(0, ui.KeyHome)
+			tt.Frame()
+			if sheet.Values["value"] != 0.0 {
+				t.Fatalf("slider did not take keyboard: %v", sheet.Values["value"])
+			}
+			controlRefreshMove(&sheet)
+			tt.Frame()
+			tt.Key(0, ui.KeyEnd)
+			tt.Frame()
+			controlRefreshDump(t, tt, "slider-move", dark)
+			if sheet.Values["value"] != 100.0 {
+				t.Errorf("group move lost slider keyboard: %v, want 100", sheet.Values["value"])
+			}
+		})
+	}
+}
+
+func TestControlRefreshActionKeepsCancelKeyboard(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			sheet := controlRefreshSheet(plugincfg.Action)
+			sheet.Armed = "value"
+			runs, cancels := 0, 0
+			sheet.Run = func(string) { runs++ }
+			sheet.Unarm = func(string) { cancels++; sheet.Armed = "" }
+			tt := pluginIdentityFrame(t, dark, &sheet)
+			// Tab to the two existing confirmation buttons without activating them.
+			for i := 0; i < 6 && !tt.Focused("取消清理"); i++ {
+				tt.Key(0, ui.KeyTab)
+				tt.Frame()
+			}
+			if !tt.Focused("取消清理") {
+				t.Fatal("cancel did not take keyboard focus")
+			}
+			controlRefreshMove(&sheet)
+			tt.Frame()
+			controlRefreshDump(t, tt, "action-move", dark)
+			tt.Key(0, ui.KeySpace)
+			tt.Frame()
+			if cancels != 1 || runs != 0 || sheet.Armed != "" {
+				t.Errorf("group move lost cancellation: cancels=%d runs=%d armed=%q", cancels, runs, sheet.Armed)
+			}
+		})
+	}
+}
