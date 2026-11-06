@@ -2,6 +2,30 @@ package settingsui
 
 import "github.com/egoist/mygo/ui"
 
+type noticeTargetsKey struct{ app *App }
+
+// A row cannot return focus after discovery stops building it. Compare this
+// page's consecutive lists while the previous frame still owns the keyboard,
+// and retire only its UI handles; callbacks retain their in-flight work.
+func (a *App) restoreMissingNoticeFocus(c *ui.Context, integrations []Integration) {
+	previous := ui.Local(c.Root(), noticeTargetsKey{a}, func() map[string]bool { return nil })
+	present := make(map[string]bool, len(integrations))
+	for _, in := range integrations {
+		present[in.ID] = true
+	}
+	for id := range *previous {
+		if present[id] {
+			continue
+		}
+		for _, kind := range []string{"save", "discard"} {
+			focus := a.noticeFocus(c, id, kind)
+			focus.restore(c, false, c.Resolve(*noticeExit(c)))
+			*focus = noticeFocusState{}
+		}
+	}
+	*previous = present
+}
+
 // Questions belong to an installed target and the conditions that made the
 // question applicable. A refresh can withdraw either without an answer.
 // Retire invalid questions before Escape; keep in-flight work with its callback.

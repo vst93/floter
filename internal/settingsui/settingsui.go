@@ -1879,6 +1879,7 @@ func sessionMeta(session Session) []rowSegment {
 func (a *App) integrations(c *ui.Context, copy i18n.Settings) {
 	t := c.Theme()
 	integrations := a.installedIntegrations()
+	a.restoreMissingNoticeFocus(c, integrations)
 	a.pageColumn(c, func() {
 		ui.Text(c, copy.IntegrationsHint).FontSize(a.tokens(c).Caption).TextColor(t.TextMuted)
 		// The panel's own content is `extensions.css`, written in literal px, so

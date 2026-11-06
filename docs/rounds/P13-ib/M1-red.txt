@@ -1,0 +1,39 @@
+=== RUN   TestMissingOutletSave
+=== RUN   TestMissingOutletSave/light/entry
+    missingoutlet_test.go:167: missing save row lost keyboard outlet "Close settings"
+    missingoutlet_test.go:176: returning save ID reclaimed abandoned focus
+    missingoutlet_test.go:183: late save result stole keyboard focus
+    missingoutlet_test.go:194: missing save outlet cannot close settings: 0
+    missingoutlet_test.go:198: return or callback repeated the operation
+=== RUN   TestMissingOutletSave/light/elsewhere
+=== RUN   TestMissingOutletSave/dark/entry
+    missingoutlet_test.go:167: missing save row lost keyboard outlet "Close settings"
+    missingoutlet_test.go:176: returning save ID reclaimed abandoned focus
+    missingoutlet_test.go:183: late save result stole keyboard focus
+    missingoutlet_test.go:194: missing save outlet cannot close settings: 0
+    missingoutlet_test.go:198: return or callback repeated the operation
+=== RUN   TestMissingOutletSave/dark/elsewhere
+--- FAIL: TestMissingOutletSave (0.64s)
+    --- FAIL: TestMissingOutletSave/light/entry (0.21s)
+    --- PASS: TestMissingOutletSave/light/elsewhere (0.16s)
+    --- FAIL: TestMissingOutletSave/dark/entry (0.13s)
+    --- PASS: TestMissingOutletSave/dark/elsewhere (0.15s)
+=== RUN   TestMissingOutletDiscard
+=== RUN   TestMissingOutletDiscard/light/entry
+    missingoutlet_test.go:167: missing discard row lost keyboard outlet "Close settings"
+    missingoutlet_test.go:176: returning discard ID reclaimed abandoned focus
+    missingoutlet_test.go:194: missing discard outlet cannot close settings: 0
+=== RUN   TestMissingOutletDiscard/light/elsewhere
+=== RUN   TestMissingOutletDiscard/dark/entry
+    missingoutlet_test.go:167: missing discard row lost keyboard outlet "Close settings"
+    missingoutlet_test.go:176: returning discard ID reclaimed abandoned focus
+    missingoutlet_test.go:194: missing discard outlet cannot close settings: 0
+=== RUN   TestMissingOutletDiscard/dark/elsewhere
+--- FAIL: TestMissingOutletDiscard (1.33s)
+    --- FAIL: TestMissingOutletDiscard/light/entry (0.22s)
+    --- PASS: TestMissingOutletDiscard/light/elsewhere (0.38s)
+    --- FAIL: TestMissingOutletDiscard/dark/entry (0.29s)
+    --- PASS: TestMissingOutletDiscard/dark/elsewhere (0.44s)
+FAIL
+FAIL	floter/internal/settingsui	1.977s
+FAIL
