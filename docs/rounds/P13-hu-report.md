@@ -27,3 +27,12 @@
 2. 现象：移除确认同样困住 Tab。改动：同族入口只在挂载时聚焦取消。验证：上述八场景覆盖移除，明确两次确认恰好两次回调；新开仍默认取消，错误原文保留。
 
 相关回归 **34 PASS / 0 FAIL**。M1 将两处 AutoFocus 注回 Focus 实跑，16 场景红；恢复源码 MD5 与 touch 后复跑。全量基线仍运行中，不填估计数。旧 V/B/S 断言修改 0/0/0。
+
+第一批 `9f8c781c` 已推送；M1 恢复后 **18 PASS**，settingsui vet 通过。
+
+### 第二批：取消后的键盘出口
+
+3. 现象：停用取消后焦点消失，Space 无法再次询问。改动：确认退场当帧还给原开关。验证：完整 integrationRow 真实入口→Space 取消→Space 重开，深浅都重新聚焦取消，派发 0 次；旧实现 `cancel lost its original keyboard opener`。
+4. 现象：移除取消后原按钮没有焦点。改动：同样还给原移除按钮，进入卸载对话框时不抢走浮层焦点。验证：深浅完整入口事件重开确认，派发 0 次；旧实现 `keyboard reopen failed: open=false cancel=false mutations=0`。
+
+相关回归 **46 PASS / 0 FAIL**；M2 回注第一批产品，四场景红，MD5 恢复与 touch 后 **6 PASS**，settingsui vet 通过。V/B/S 0/0/0，旧断言不改。

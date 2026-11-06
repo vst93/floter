@@ -3013,6 +3013,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 		}
 		// The inline run form above can disappear; the disclosure's identity
 		// must survive that sibling removal for returned focus to remain valid.
+		var removeOpener, disableOpener ui.Element
 		a.rowAligned(c.Key("integration.actions"), ui.Center, nil, rowFace{Inert: busy}, "", nil, "", func() {
 			// The row's Run button: on a runnable row it runs the integration —
 			// straight away when it declares no inputs, or unfolding the inline
@@ -3110,7 +3111,8 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			// some kinds skipped the bar, which handed npm and custom rows one
 			// question fewer than the reference asked.
 			if (a.Actions.UninstallIntegration != nil || a.Actions.UninstallComponents != nil) && !integration.Orphan {
-				if rowAction(integration.removalLabel(copy)).Clicked() {
+				removeOpener = rowAction(integration.removalLabel(copy))
+				if removeOpener.Clicked() {
 					a.requestRemove(integration.ID)
 				}
 			}
@@ -3137,7 +3139,8 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 					// (`disabled={busy || extension.state === "broken"}`).
 					disabledSwitch(a.switchControl(c, &on)).Label(copy.IntegrationsEnable)
 				default:
-					if a.switchControl(c, &on).Label(copy.IntegrationsEnable).Changed() {
+					disableOpener = a.switchControl(c, &on).Label(copy.IntegrationsEnable)
+					if disableOpener.Changed() {
 						if !on {
 							a.requestDisable(integration.ID)
 						} else {
@@ -3152,9 +3155,15 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 		}
 		if a.disableConfirm[integration.ID] {
 			a.disableConfirmation(c, copy, integration)
+			if !a.disableConfirm[integration.ID] {
+				disableOpener.Focus()
+			}
 		}
 		if a.removeConfirm[integration.ID] {
 			a.removeConfirmation(c, copy, integration)
+			if !a.removeConfirm[integration.ID] && !a.uninstallOpen[integration.ID] {
+				removeOpener.Focus()
+			}
 		}
 	})
 }

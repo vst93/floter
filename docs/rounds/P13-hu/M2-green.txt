@@ -1,0 +1,14 @@
+=== RUN   TestNoticeDisableCancelReturnsToSwitch
+=== RUN   TestNoticeDisableCancelReturnsToSwitch/light
+=== RUN   TestNoticeDisableCancelReturnsToSwitch/dark
+--- PASS: TestNoticeDisableCancelReturnsToSwitch (0.07s)
+    --- PASS: TestNoticeDisableCancelReturnsToSwitch/light (0.06s)
+    --- PASS: TestNoticeDisableCancelReturnsToSwitch/dark (0.01s)
+=== RUN   TestNoticeRemoveCancelReturnsToOpener
+=== RUN   TestNoticeRemoveCancelReturnsToOpener/light
+=== RUN   TestNoticeRemoveCancelReturnsToOpener/dark
+--- PASS: TestNoticeRemoveCancelReturnsToOpener (0.10s)
+    --- PASS: TestNoticeRemoveCancelReturnsToOpener/light (0.05s)
+    --- PASS: TestNoticeRemoveCancelReturnsToOpener/dark (0.05s)
+PASS
+ok  	floter/internal/settingsui	0.183s

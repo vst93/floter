@@ -34,6 +34,69 @@ func noticeApp(t *testing.T, dark bool) *App {
 	return a
 }
 
+func TestNoticeDisableCancelReturnsToSwitch(t *testing.T) {
+	checkNoticeCancel(t, false)
+}
+
+func TestNoticeRemoveCancelReturnsToOpener(t *testing.T) {
+	checkNoticeCancel(t, true)
+}
+
+func checkNoticeCancel(t *testing.T, remove bool) {
+	t.Helper()
+	for _, dark := range []bool{false, true} {
+		t.Run(appearanceName(dark), func(t *testing.T) {
+			a := noticeApp(t, dark)
+			copy := i18n.For("en").Settings
+			integration := Integration{ID: "local", Name: "Workspace Tools", Enabled: true, Running: true, DistributionSource: "local"}
+			calls := 0
+			a.Actions.SetIntegrationEnabled = func(string, bool, func(error)) { calls++ }
+			a.Actions.UninstallIntegration = func(string, string, string, func(error)) { calls++ }
+			tt := ui.NewTester(func(c *ui.Context) {
+				c.SetTheme(a.tokens(c).Theme)
+				c.Root().Background(c.Theme().Background)
+				ui.Column(c).FillWidth().Padding(24).Children(func() {
+					a.extensionMetrics(func() { a.integrationRow(c, copy, integration) })
+				})
+			}, 720, 420)
+			tt.SetDark(dark)
+			tt.SetPreferences(ui.Preferences{ReduceMotion: true})
+			tt.Frame()
+			tt.Frame()
+			opener, name := copy.IntegrationsEnable, "disable-cancel"
+			if remove {
+				opener, name = integration.removalLabel(copy), "remove-cancel"
+			}
+			if err := tt.Click(opener); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			tt.Frame()
+			if !tt.Focused(copy.IntegrationsCancel) {
+				t.Fatal("opener did not reach confirmation")
+			}
+			// Space answers the default cancellation, never the mutation.
+			tt.Key(0, ui.KeySpace)
+			tt.Frame()
+			tt.Frame()
+			noticeDump(t, tt, name, dark)
+			if !tt.Focused(opener) {
+				t.Error("cancel lost its original keyboard opener")
+			}
+			tt.Key(0, ui.KeySpace)
+			tt.Frame()
+			tt.Frame()
+			open := a.disableConfirm[integration.ID]
+			if remove {
+				open = a.removeConfirm[integration.ID]
+			}
+			if !open || !tt.Focused(copy.IntegrationsCancel) || calls != 0 {
+				t.Errorf("keyboard reopen failed: open=%v cancel=%v mutations=%d", open, tt.Focused(copy.IntegrationsCancel), calls)
+			}
+		})
+	}
+}
+
 func TestNoticeDisableKeyboardConfirmAndRetry(t *testing.T) {
 	checkNoticeKeyboard(t, false)
 }
