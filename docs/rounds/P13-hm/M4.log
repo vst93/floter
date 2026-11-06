@@ -1,0 +1,23 @@
+=== RUN   TestInputStateLockedAliasUsesDisabledInk
+=== RUN   TestInputStateLockedAliasUsesDisabledInk/light
+    inputstateink_test.go:72: light alias: disabled ink=104
+    inputstateink_test.go:74: alias disabled ink=104, want shared 70..88 rung
+=== RUN   TestInputStateLockedAliasUsesDisabledInk/dark
+    inputstateink_test.go:72: dark alias: disabled ink=104
+    inputstateink_test.go:74: alias disabled ink=104, want shared 70..88 rung
+--- FAIL: TestInputStateLockedAliasUsesDisabledInk (0.08s)
+    --- FAIL: TestInputStateLockedAliasUsesDisabledInk/light (0.07s)
+    --- FAIL: TestInputStateLockedAliasUsesDisabledInk/dark (0.01s)
+=== RUN   TestInputStateLockedRunParameterUsesDisabledInk
+=== RUN   TestInputStateLockedRunParameterUsesDisabledInk/light
+    inputstateink_test.go:102: light run: disabled ink=110
+    inputstateink_test.go:104: run parameter disabled ink=110, want shared 70..88 rung
+=== RUN   TestInputStateLockedRunParameterUsesDisabledInk/dark
+    inputstateink_test.go:102: dark run: disabled ink=113
+    inputstateink_test.go:104: run parameter disabled ink=113, want shared 70..88 rung
+--- FAIL: TestInputStateLockedRunParameterUsesDisabledInk (0.10s)
+    --- FAIL: TestInputStateLockedRunParameterUsesDisabledInk/light (0.07s)
+    --- FAIL: TestInputStateLockedRunParameterUsesDisabledInk/dark (0.03s)
+FAIL
+FAIL	floter/internal/settingsui	0.203s
+FAIL

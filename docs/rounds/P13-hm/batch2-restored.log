@@ -1,0 +1,66 @@
+=== RUN   TestInputStateUnboundedNumberKeepsTypedValue
+=== RUN   TestInputStateUnboundedNumberKeepsTypedValue/light
+=== RUN   TestInputStateUnboundedNumberKeepsTypedValue/dark
+--- PASS: TestInputStateUnboundedNumberKeepsTypedValue (0.06s)
+    --- PASS: TestInputStateUnboundedNumberKeepsTypedValue/light (0.06s)
+    --- PASS: TestInputStateUnboundedNumberKeepsTypedValue/dark (0.00s)
+=== RUN   TestInputStateNumberDisplaysSnappedValue
+=== RUN   TestInputStateNumberDisplaysSnappedValue/light
+=== RUN   TestInputStateNumberDisplaysSnappedValue/dark
+--- PASS: TestInputStateNumberDisplaysSnappedValue (0.01s)
+    --- PASS: TestInputStateNumberDisplaysSnappedValue/light (0.01s)
+    --- PASS: TestInputStateNumberDisplaysSnappedValue/dark (0.00s)
+=== RUN   TestInputStateNumberAdoptsRefreshedBounds
+=== RUN   TestInputStateNumberAdoptsRefreshedBounds/light
+=== RUN   TestInputStateNumberAdoptsRefreshedBounds/dark
+--- PASS: TestInputStateNumberAdoptsRefreshedBounds (0.01s)
+    --- PASS: TestInputStateNumberAdoptsRefreshedBounds/light (0.01s)
+    --- PASS: TestInputStateNumberAdoptsRefreshedBounds/dark (0.01s)
+=== RUN   TestInputStateSliderPositionMatchesItsReadout
+=== RUN   TestInputStateSliderPositionMatchesItsReadout/light
+=== RUN   TestInputStateSliderPositionMatchesItsReadout/dark
+--- PASS: TestInputStateSliderPositionMatchesItsReadout (0.02s)
+    --- PASS: TestInputStateSliderPositionMatchesItsReadout/light (0.01s)
+    --- PASS: TestInputStateSliderPositionMatchesItsReadout/dark (0.01s)
+=== RUN   TestPluginIdentityReorderKeepsUnsubmittedInput
+=== RUN   TestPluginIdentityReorderKeepsUnsubmittedInput/light
+=== RUN   TestPluginIdentityReorderKeepsUnsubmittedInput/dark
+--- PASS: TestPluginIdentityReorderKeepsUnsubmittedInput (0.02s)
+    --- PASS: TestPluginIdentityReorderKeepsUnsubmittedInput/light (0.01s)
+    --- PASS: TestPluginIdentityReorderKeepsUnsubmittedInput/dark (0.01s)
+=== RUN   TestPluginIdentityHistoryDoesNotCrossPlugins
+=== RUN   TestPluginIdentityHistoryDoesNotCrossPlugins/light
+=== RUN   TestPluginIdentityHistoryDoesNotCrossPlugins/dark
+--- PASS: TestPluginIdentityHistoryDoesNotCrossPlugins (0.03s)
+    --- PASS: TestPluginIdentityHistoryDoesNotCrossPlugins/light (0.01s)
+    --- PASS: TestPluginIdentityHistoryDoesNotCrossPlugins/dark (0.01s)
+=== RUN   TestPluginIdentityFirstRowKeepsItsInput
+=== RUN   TestPluginIdentityFirstRowKeepsItsInput/light
+=== RUN   TestPluginIdentityFirstRowKeepsItsInput/dark
+--- PASS: TestPluginIdentityFirstRowKeepsItsInput (0.02s)
+    --- PASS: TestPluginIdentityFirstRowKeepsItsInput/light (0.01s)
+    --- PASS: TestPluginIdentityFirstRowKeepsItsInput/dark (0.01s)
+=== RUN   TestPluginIdentitySectionHeadingKeepsItsInput
+=== RUN   TestPluginIdentitySectionHeadingKeepsItsInput/light
+=== RUN   TestPluginIdentitySectionHeadingKeepsItsInput/dark
+--- PASS: TestPluginIdentitySectionHeadingKeepsItsInput (0.04s)
+    --- PASS: TestPluginIdentitySectionHeadingKeepsItsInput/light (0.02s)
+    --- PASS: TestPluginIdentitySectionHeadingKeepsItsInput/dark (0.01s)
+=== RUN   TestPluginNumberInputDoesNotDispatchNonFiniteValues
+=== RUN   TestPluginNumberInputDoesNotDispatchNonFiniteValues/NaN
+=== RUN   TestPluginNumberInputDoesNotDispatchNonFiniteValues/Inf
+=== RUN   TestPluginNumberInputDoesNotDispatchNonFiniteValues/-Inf
+--- PASS: TestPluginNumberInputDoesNotDispatchNonFiniteValues (0.17s)
+    --- PASS: TestPluginNumberInputDoesNotDispatchNonFiniteValues/NaN (0.08s)
+    --- PASS: TestPluginNumberInputDoesNotDispatchNonFiniteValues/Inf (0.04s)
+    --- PASS: TestPluginNumberInputDoesNotDispatchNonFiniteValues/-Inf (0.05s)
+=== RUN   TestPluginNumberDraftDoesNotBleedAcrossPlugins
+--- PASS: TestPluginNumberDraftDoesNotBleedAcrossPlugins (0.01s)
+=== RUN   TestTheBoundedReadoutStaysInsideTheSchemaBounds
+--- PASS: TestTheBoundedReadoutStaysInsideTheSchemaBounds (0.01s)
+=== RUN   TestTheStepGridIsAnchoredAtTheMinimum
+--- PASS: TestTheStepGridIsAnchoredAtTheMinimum (0.00s)
+=== RUN   TestTheNumberBoxHandsOverTheSnappedValue
+--- PASS: TestTheNumberBoxHandsOverTheSnappedValue (0.01s)
+PASS
+ok  	floter/internal/settingsui	0.433s

@@ -1,0 +1,94 @@
+=== RUN   TestCommandAliasHonorsTheRowLock
+--- PASS: TestCommandAliasHonorsTheRowLock (0.69s)
+=== RUN   TestTheCommandAliasFieldKeepsItsLiteralBoxAndCorner
+--- PASS: TestTheCommandAliasFieldKeepsItsLiteralBoxAndCorner (0.01s)
+=== RUN   TestTheAliasFieldKeepsItsOwnFrame
+=== RUN   TestTheAliasFieldKeepsItsOwnFrame/light
+    fieldcensus_test.go:137: light: alias frame {108 108 108 255 [0 0 0]}, sibling field frame {112 112 112 255 [0 0 0]}, gap 4
+=== RUN   TestTheAliasFieldKeepsItsOwnFrame/dark
+    fieldcensus_test.go:137: dark: alias frame {151 151 151 255 [0 0 0]}, sibling field frame {149 149 149 255 [0 0 0]}, gap 2
+--- PASS: TestTheAliasFieldKeepsItsOwnFrame (0.01s)
+    --- PASS: TestTheAliasFieldKeepsItsOwnFrame/light (0.00s)
+    --- PASS: TestTheAliasFieldKeepsItsOwnFrame/dark (0.00s)
+=== RUN   TestInputStateUnboundedNumberKeepsTypedValue
+=== RUN   TestInputStateUnboundedNumberKeepsTypedValue/light
+=== RUN   TestInputStateUnboundedNumberKeepsTypedValue/dark
+--- PASS: TestInputStateUnboundedNumberKeepsTypedValue (0.04s)
+    --- PASS: TestInputStateUnboundedNumberKeepsTypedValue/light (0.03s)
+    --- PASS: TestInputStateUnboundedNumberKeepsTypedValue/dark (0.01s)
+=== RUN   TestInputStateNumberDisplaysSnappedValue
+=== RUN   TestInputStateNumberDisplaysSnappedValue/light
+=== RUN   TestInputStateNumberDisplaysSnappedValue/dark
+--- PASS: TestInputStateNumberDisplaysSnappedValue (0.02s)
+    --- PASS: TestInputStateNumberDisplaysSnappedValue/light (0.01s)
+    --- PASS: TestInputStateNumberDisplaysSnappedValue/dark (0.01s)
+=== RUN   TestInputStateNumberAdoptsRefreshedBounds
+=== RUN   TestInputStateNumberAdoptsRefreshedBounds/light
+=== RUN   TestInputStateNumberAdoptsRefreshedBounds/dark
+--- PASS: TestInputStateNumberAdoptsRefreshedBounds (0.02s)
+    --- PASS: TestInputStateNumberAdoptsRefreshedBounds/light (0.01s)
+    --- PASS: TestInputStateNumberAdoptsRefreshedBounds/dark (0.01s)
+=== RUN   TestInputStateSliderPositionMatchesItsReadout
+=== RUN   TestInputStateSliderPositionMatchesItsReadout/light
+=== RUN   TestInputStateSliderPositionMatchesItsReadout/dark
+--- PASS: TestInputStateSliderPositionMatchesItsReadout (0.03s)
+    --- PASS: TestInputStateSliderPositionMatchesItsReadout/light (0.01s)
+    --- PASS: TestInputStateSliderPositionMatchesItsReadout/dark (0.01s)
+=== RUN   TestInputStateAcceptedTextAllowsExternalRefresh
+=== RUN   TestInputStateAcceptedTextAllowsExternalRefresh/light
+=== RUN   TestInputStateAcceptedTextAllowsExternalRefresh/dark
+--- PASS: TestInputStateAcceptedTextAllowsExternalRefresh (0.03s)
+    --- PASS: TestInputStateAcceptedTextAllowsExternalRefresh/light (0.02s)
+    --- PASS: TestInputStateAcceptedTextAllowsExternalRefresh/dark (0.01s)
+=== RUN   TestInputStateLockedConfigUsesDisabledInk
+=== RUN   TestInputStateLockedConfigUsesDisabledInk/light/text
+    inputstateink_test.go:49: locked-config-text/light: disabled ink=73
+=== RUN   TestInputStateLockedConfigUsesDisabledInk/light/number
+    inputstateink_test.go:49: locked-config-number/light: disabled ink=73
+=== RUN   TestInputStateLockedConfigUsesDisabledInk/dark/text
+    inputstateink_test.go:49: locked-config-text/dark: disabled ink=75
+=== RUN   TestInputStateLockedConfigUsesDisabledInk/dark/number
+    inputstateink_test.go:49: locked-config-number/dark: disabled ink=75
+--- PASS: TestInputStateLockedConfigUsesDisabledInk (0.05s)
+    --- PASS: TestInputStateLockedConfigUsesDisabledInk/light/text (0.02s)
+    --- PASS: TestInputStateLockedConfigUsesDisabledInk/light/number (0.01s)
+    --- PASS: TestInputStateLockedConfigUsesDisabledInk/dark/text (0.01s)
+    --- PASS: TestInputStateLockedConfigUsesDisabledInk/dark/number (0.01s)
+=== RUN   TestInputStateLockedAliasUsesDisabledInk
+=== RUN   TestInputStateLockedAliasUsesDisabledInk/light
+    inputstateink_test.go:72: light alias: disabled ink=74
+=== RUN   TestInputStateLockedAliasUsesDisabledInk/dark
+    inputstateink_test.go:72: dark alias: disabled ink=76
+--- PASS: TestInputStateLockedAliasUsesDisabledInk (0.02s)
+    --- PASS: TestInputStateLockedAliasUsesDisabledInk/light (0.01s)
+    --- PASS: TestInputStateLockedAliasUsesDisabledInk/dark (0.01s)
+=== RUN   TestInputStateLockedRunParameterUsesDisabledInk
+=== RUN   TestInputStateLockedRunParameterUsesDisabledInk/light
+    inputstateink_test.go:102: light run: disabled ink=81
+=== RUN   TestInputStateLockedRunParameterUsesDisabledInk/dark
+    inputstateink_test.go:102: dark run: disabled ink=86
+--- PASS: TestInputStateLockedRunParameterUsesDisabledInk (0.04s)
+    --- PASS: TestInputStateLockedRunParameterUsesDisabledInk/light (0.03s)
+    --- PASS: TestInputStateLockedRunParameterUsesDisabledInk/dark (0.02s)
+=== RUN   TestTheAliasFieldIsAFaceNotARing
+=== RUN   TestTheAliasFieldIsAFaceNotARing/light
+=== RUN   TestTheAliasFieldIsAFaceNotARing/dark
+--- PASS: TestTheAliasFieldIsAFaceNotARing (0.00s)
+    --- PASS: TestTheAliasFieldIsAFaceNotARing/light (0.00s)
+    --- PASS: TestTheAliasFieldIsAFaceNotARing/dark (0.00s)
+=== RUN   TestRunFormTextInputsHonorRowLock
+=== RUN   TestRunFormTextInputsHonorRowLock/light/text
+=== RUN   TestRunFormTextInputsHonorRowLock/light/number
+=== RUN   TestRunFormTextInputsHonorRowLock/light/path
+=== RUN   TestRunFormTextInputsHonorRowLock/dark/text
+=== RUN   TestRunFormTextInputsHonorRowLock/dark/number
+=== RUN   TestRunFormTextInputsHonorRowLock/dark/path
+--- PASS: TestRunFormTextInputsHonorRowLock (0.35s)
+    --- PASS: TestRunFormTextInputsHonorRowLock/light/text (0.04s)
+    --- PASS: TestRunFormTextInputsHonorRowLock/light/number (0.03s)
+    --- PASS: TestRunFormTextInputsHonorRowLock/light/path (0.02s)
+    --- PASS: TestRunFormTextInputsHonorRowLock/dark/text (0.08s)
+    --- PASS: TestRunFormTextInputsHonorRowLock/dark/number (0.09s)
+    --- PASS: TestRunFormTextInputsHonorRowLock/dark/path (0.09s)
+PASS
+ok  	floter/internal/settingsui	1.348s

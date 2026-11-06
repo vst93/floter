@@ -1,0 +1,70 @@
+=== RUN   TestConfigCheckboxRemainsVisibleCheckedAndLocked
+--- PASS: TestConfigCheckboxRemainsVisibleCheckedAndLocked (0.19s)
+=== RUN   TestInputStateUnboundedNumberKeepsTypedValue
+=== RUN   TestInputStateUnboundedNumberKeepsTypedValue/light
+=== RUN   TestInputStateUnboundedNumberKeepsTypedValue/dark
+--- PASS: TestInputStateUnboundedNumberKeepsTypedValue (0.05s)
+    --- PASS: TestInputStateUnboundedNumberKeepsTypedValue/light (0.04s)
+    --- PASS: TestInputStateUnboundedNumberKeepsTypedValue/dark (0.00s)
+=== RUN   TestInputStateNumberDisplaysSnappedValue
+=== RUN   TestInputStateNumberDisplaysSnappedValue/light
+=== RUN   TestInputStateNumberDisplaysSnappedValue/dark
+--- PASS: TestInputStateNumberDisplaysSnappedValue (0.01s)
+    --- PASS: TestInputStateNumberDisplaysSnappedValue/light (0.01s)
+    --- PASS: TestInputStateNumberDisplaysSnappedValue/dark (0.01s)
+=== RUN   TestInputStateNumberAdoptsRefreshedBounds
+=== RUN   TestInputStateNumberAdoptsRefreshedBounds/light
+=== RUN   TestInputStateNumberAdoptsRefreshedBounds/dark
+--- PASS: TestInputStateNumberAdoptsRefreshedBounds (0.01s)
+    --- PASS: TestInputStateNumberAdoptsRefreshedBounds/light (0.01s)
+    --- PASS: TestInputStateNumberAdoptsRefreshedBounds/dark (0.01s)
+=== RUN   TestInputStateSliderPositionMatchesItsReadout
+=== RUN   TestInputStateSliderPositionMatchesItsReadout/light
+=== RUN   TestInputStateSliderPositionMatchesItsReadout/dark
+--- PASS: TestInputStateSliderPositionMatchesItsReadout (0.02s)
+    --- PASS: TestInputStateSliderPositionMatchesItsReadout/light (0.01s)
+    --- PASS: TestInputStateSliderPositionMatchesItsReadout/dark (0.01s)
+=== RUN   TestInputStateAcceptedTextAllowsExternalRefresh
+=== RUN   TestInputStateAcceptedTextAllowsExternalRefresh/light
+=== RUN   TestInputStateAcceptedTextAllowsExternalRefresh/dark
+--- PASS: TestInputStateAcceptedTextAllowsExternalRefresh (0.02s)
+    --- PASS: TestInputStateAcceptedTextAllowsExternalRefresh/light (0.01s)
+    --- PASS: TestInputStateAcceptedTextAllowsExternalRefresh/dark (0.01s)
+=== RUN   TestInputStateLockedConfigUsesDisabledInk
+=== RUN   TestInputStateLockedConfigUsesDisabledInk/light/text
+    inputstateink_test.go:42: locked-config-text/light: disabled ink=73
+=== RUN   TestInputStateLockedConfigUsesDisabledInk/light/number
+    inputstateink_test.go:42: locked-config-number/light: disabled ink=73
+=== RUN   TestInputStateLockedConfigUsesDisabledInk/dark/text
+    inputstateink_test.go:42: locked-config-text/dark: disabled ink=75
+=== RUN   TestInputStateLockedConfigUsesDisabledInk/dark/number
+    inputstateink_test.go:42: locked-config-number/dark: disabled ink=75
+--- PASS: TestInputStateLockedConfigUsesDisabledInk (0.02s)
+    --- PASS: TestInputStateLockedConfigUsesDisabledInk/light/text (0.01s)
+    --- PASS: TestInputStateLockedConfigUsesDisabledInk/light/number (0.00s)
+    --- PASS: TestInputStateLockedConfigUsesDisabledInk/dark/text (0.00s)
+    --- PASS: TestInputStateLockedConfigUsesDisabledInk/dark/number (0.00s)
+=== RUN   TestTheLockedSelectGoesUnlit
+--- PASS: TestTheLockedSelectGoesUnlit (0.21s)
+=== RUN   TestTheConfigFormFieldGoesUnlitWhenTheRowIsBusy
+--- PASS: TestTheConfigFormFieldGoesUnlitWhenTheRowIsBusy (0.09s)
+=== RUN   TestTheLockedFieldFadesOnce
+--- PASS: TestTheLockedFieldFadesOnce (0.16s)
+=== RUN   TestTheLockedSwitchFadesOnce
+--- PASS: TestTheLockedSwitchFadesOnce (0.16s)
+=== RUN   TestTheLockedListBoxFadesOnce
+--- PASS: TestTheLockedListBoxFadesOnce (0.15s)
+=== RUN   TestTheLockedFormHasOneDepth
+--- PASS: TestTheLockedFormHasOneDepth (0.31s)
+=== RUN   TestTheLockedFieldIsStillAGroove
+--- PASS: TestTheLockedFieldIsStillAGroove (0.15s)
+=== RUN   TestPluginTextInputSubmitsToItsExistingCallback
+--- PASS: TestPluginTextInputSubmitsToItsExistingCallback (0.03s)
+=== RUN   TestPluginTextRefusedWriteKeepsTheEditForRetry
+--- PASS: TestPluginTextRefusedWriteKeepsTheEditForRetry (0.03s)
+=== RUN   TestTheTextBoxShowsTheValueTheHostStored
+--- PASS: TestTheTextBoxShowsTheValueTheHostStored (0.04s)
+=== RUN   TestEnterOnUnchangedTextDoesNotWrite
+--- PASS: TestEnterOnUnchangedTextDoesNotWrite (0.02s)
+PASS
+ok  	floter/internal/settingsui	1.743s

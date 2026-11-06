@@ -1,0 +1,29 @@
+=== RUN   TestInputStateAcceptedTextAllowsExternalRefresh
+=== RUN   TestInputStateAcceptedTextAllowsExternalRefresh/light
+    inputstate_test.go:181: accepted text masks external value: "/workspace/submitted"
+=== RUN   TestInputStateAcceptedTextAllowsExternalRefresh/dark
+    inputstate_test.go:181: accepted text masks external value: "/workspace/submitted"
+--- FAIL: TestInputStateAcceptedTextAllowsExternalRefresh (0.08s)
+    --- FAIL: TestInputStateAcceptedTextAllowsExternalRefresh/light (0.08s)
+    --- FAIL: TestInputStateAcceptedTextAllowsExternalRefresh/dark (0.01s)
+=== RUN   TestInputStateLockedConfigUsesDisabledInk
+=== RUN   TestInputStateLockedConfigUsesDisabledInk/light/text
+    inputstateink_test.go:42: locked-config-text/light: disabled ink=102
+    inputstateink_test.go:42: locked-config-text: disabled input ink=102, want shared 70..88 rung
+=== RUN   TestInputStateLockedConfigUsesDisabledInk/light/number
+    inputstateink_test.go:42: locked-config-number/light: disabled ink=102
+    inputstateink_test.go:42: locked-config-number: disabled input ink=102, want shared 70..88 rung
+=== RUN   TestInputStateLockedConfigUsesDisabledInk/dark/text
+    inputstateink_test.go:42: locked-config-text/dark: disabled ink=102
+    inputstateink_test.go:42: locked-config-text: disabled input ink=102, want shared 70..88 rung
+=== RUN   TestInputStateLockedConfigUsesDisabledInk/dark/number
+    inputstateink_test.go:42: locked-config-number/dark: disabled ink=102
+    inputstateink_test.go:42: locked-config-number: disabled input ink=102, want shared 70..88 rung
+--- FAIL: TestInputStateLockedConfigUsesDisabledInk (0.03s)
+    --- FAIL: TestInputStateLockedConfigUsesDisabledInk/light/text (0.01s)
+    --- FAIL: TestInputStateLockedConfigUsesDisabledInk/light/number (0.01s)
+    --- FAIL: TestInputStateLockedConfigUsesDisabledInk/dark/text (0.00s)
+    --- FAIL: TestInputStateLockedConfigUsesDisabledInk/dark/number (0.01s)
+FAIL
+FAIL	floter/internal/settingsui	0.139s
+FAIL

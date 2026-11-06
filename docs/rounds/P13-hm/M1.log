@@ -1,0 +1,21 @@
+=== RUN   TestInputStateUnboundedNumberKeepsTypedValue
+=== RUN   TestInputStateUnboundedNumberKeepsTypedValue/light
+    inputstate_test.go:67: unbounded input stored 0, want 42
+    inputstate_test.go:70: unbounded input displays "0", want 42
+=== RUN   TestInputStateUnboundedNumberKeepsTypedValue/dark
+    inputstate_test.go:67: unbounded input stored 0, want 42
+    inputstate_test.go:70: unbounded input displays "0", want 42
+--- FAIL: TestInputStateUnboundedNumberKeepsTypedValue (0.11s)
+    --- FAIL: TestInputStateUnboundedNumberKeepsTypedValue/light (0.11s)
+    --- FAIL: TestInputStateUnboundedNumberKeepsTypedValue/dark (0.00s)
+=== RUN   TestInputStateNumberDisplaysSnappedValue
+=== RUN   TestInputStateNumberDisplaysSnappedValue/light
+    inputstate_test.go:89: snapped input displays "3.7", want 4
+=== RUN   TestInputStateNumberDisplaysSnappedValue/dark
+    inputstate_test.go:89: snapped input displays "3.7", want 4
+--- FAIL: TestInputStateNumberDisplaysSnappedValue (0.01s)
+    --- FAIL: TestInputStateNumberDisplaysSnappedValue/light (0.01s)
+    --- FAIL: TestInputStateNumberDisplaysSnappedValue/dark (0.01s)
+FAIL
+FAIL	floter/internal/settingsui	0.127s
+FAIL

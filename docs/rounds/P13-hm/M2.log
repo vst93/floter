@@ -1,0 +1,19 @@
+=== RUN   TestInputStateNumberAdoptsRefreshedBounds
+=== RUN   TestInputStateNumberAdoptsRefreshedBounds/light
+    inputstate_test.go:118: refreshed bounds display "25", want 10
+=== RUN   TestInputStateNumberAdoptsRefreshedBounds/dark
+    inputstate_test.go:118: refreshed bounds display "25", want 10
+--- FAIL: TestInputStateNumberAdoptsRefreshedBounds (0.08s)
+    --- FAIL: TestInputStateNumberAdoptsRefreshedBounds/light (0.07s)
+    --- FAIL: TestInputStateNumberAdoptsRefreshedBounds/dark (0.01s)
+=== RUN   TestInputStateSliderPositionMatchesItsReadout
+=== RUN   TestInputStateSliderPositionMatchesItsReadout/light
+    inputstate_test.go:154: slider says 40 but its position differs from the 40 frame
+=== RUN   TestInputStateSliderPositionMatchesItsReadout/dark
+    inputstate_test.go:154: slider says 40 but its position differs from the 40 frame
+--- FAIL: TestInputStateSliderPositionMatchesItsReadout (0.02s)
+    --- FAIL: TestInputStateSliderPositionMatchesItsReadout/light (0.01s)
+    --- FAIL: TestInputStateSliderPositionMatchesItsReadout/dark (0.01s)
+FAIL
+FAIL	floter/internal/settingsui	0.116s
+FAIL
