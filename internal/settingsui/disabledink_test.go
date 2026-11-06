@@ -48,6 +48,12 @@ func disabledLabelSites() []struct {
 		{"fixed-part", func(a *App, c *ui.Context) ui.Element {
 			return a.uninstallPartRow(c, uninstallPart{Label: "Floter program", Hint: "Always removed", Fixed: true})
 		}},
+		{"danger-icon", func(a *App, c *ui.Context) ui.Element {
+			return a.barButton(c, "Remove", true, false, mustGlyph("power"), nil)
+		}},
+		{"disabled-icon-label", func(a *App, c *ui.Context) ui.Element {
+			return a.barButton(c, "Remove", false, true, mustGlyph("power"), nil)
+		}},
 	}
 }
 
@@ -67,6 +73,25 @@ func TestDisabledSessionIconSharesInk(t *testing.T) {
 
 func TestDisabledConfirmationLabelSharesInk(t *testing.T) {
 	assertDisabledInk(t, disabledLabelSites()[5].draw)
+}
+
+func TestBusyUninstallLabelSharesInk(t *testing.T) {
+	assertDisabledInk(t, disabledLabelSites()[6].draw)
+}
+
+func TestConfirmationIconUsesLabelSemantics(t *testing.T) {
+	for _, dark := range []bool{false, true} {
+		for _, disabled := range []bool{false, true} {
+			_, r := oneFadeProbe(t, dark, func(a *App, c *ui.Context) ui.Element {
+				return a.barButton(c, "Remove", true, disabled, mustGlyph("power"), nil)
+			})
+			t.Logf("%s disabled=%v: strongest ink %+v", appearanceName(dark), disabled, r.ink)
+			if r.ink.R <= r.ink.G || r.ink.R <= r.ink.B {
+				t.Errorf("%s disabled=%v: confirmation icon lost warning hue: %+v", appearanceName(dark), disabled, r.ink)
+			}
+		}
+	}
+	assertDisabledInk(t, disabledLabelSites()[9].draw)
 }
 
 // Opt-in evidence uses actual component builders and identical geometry.

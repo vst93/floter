@@ -344,6 +344,9 @@ func (a *App) uninstallActionButton(c *ui.Context, label string, danger bool, bu
 	if danger {
 		ink = t.Warning
 	}
+	if busy && !danger {
+		ink = tokens.Disabled
+	}
 	// `:hover:not(:disabled)` (`extensions.css:1340-1344`): a disabled pill
 	// keeps its resting face under the pointer.
 	//

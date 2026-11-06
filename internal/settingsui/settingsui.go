@@ -6543,7 +6543,7 @@ func (a *App) barButton(c *ui.Context, label string, danger, disabled bool, icon
 	}
 	button.Children(func() {
 		if icon != nil {
-			ui.Icon(c, icon).Size(t.Space(3.5), t.Space(3.5))
+			ui.Icon(c, icon).Size(t.Space(3.5), t.Space(3.5)).TextColor(ink)
 		}
 		ui.Text(c, label).FontSize(tokens.Caption).FontWeight(600).TextColor(ink).LineHeight(1)
 	})
