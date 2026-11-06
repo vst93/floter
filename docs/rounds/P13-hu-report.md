@@ -1,6 +1,8 @@
 # P13-hu：确认带的键盘出口与可见边界
 
-开盘 `f3514951`，pull 最新，工作树干净。done.log 与 stash-backlog 文件在本机不存在。中文 locale 基线 **4032 PASS / 0 FAIL / 2879 测试函数**。逐批落盘，完成项才记为修复。
+开盘 `f3514951`，pull 最新，工作树干净。done.log 开盘不存在。中文 locale 基线 **4032 PASS / 0 FAIL / 2879 测试函数**。逐批落盘，完成项才记为修复。
+
+补正开盘读取：第一次串行读取在缺失 done.log 处退出，未读到 stash-backlog，不能据此说后者不存在。收尾已单独读取实际存在的 `~/.hermes/state/iteration/stash-backlog-floter.md`，它确认 P13-gq/ha/hh/hl/hn 的抢救归档与本轮保留八条早期 WIP 的处置一致。
 
 ## Stash 清点
 
@@ -54,3 +56,86 @@
 8. 现象：卸载错误带直接接动作行，带边与焦点环碰在一起，实测间距 0。改动：仅错误存在时留 `Space(2)=7.2px`；清错同时撤回。验证：短句/185 字符长句 × 深浅，间距精确 7.2px，清错后的按钮坐标与从未报错帧一致。旧红串 `failure band touches answers: gap=0.000 want=7.200`。
 
 第二轮自查修正：焦点环采样应落在 2px 蓝环内而非 1px 留白带，新增 pin 的取样点纠正为框外 +2px；旧断言未动。首次修复在短窗口仍漏底边，补露出范围；每帧 ScrollIntoView 会干扰手动滚轮，最终限制为焦点/错误变化并增加真实滚轮断言。最终定向回归 **86 PASS / 0 FAIL**；M4 正式使用最终 pin 回注旧产品后实跑，恢复 MD5、touch 后复验，原始日志随批提交。
+
+第四批 `5e2fb023` 已推送，M4 恢复后 **10 PASS / 0 FAIL**，settingsui vet 通过。四批各两项；产品固定后开始普通/verbose 全量与三平台门槛。
+
+## 偷了什么
+
+真实读取 qiaomu-design SKILL → user-preferences → craft-loop / preflight / chinese-typography。唯一方向按任务书直接执行，不开四方向网页。Apple DESIGN 取单一交互色、2px focus、8px 常规圆角三个具体角色：落到已有主题 Focus、框架 2px 环 + 1px 间隙、RadiusSM=8，保留本仓字体与液态玻璃合约。
+
+- craft-loop 菜单 **#3 品牌 focus 环**：保持一个当前键盘目标；外置范围 **3px**，短窗口也画完整。取消归还焦点额外等待 **0ms**。
+- **#4 签名交互**：Tab 到确认、Space 取消/重开、失败重试；取消派发 **0 次**，两次明确确认派发 **2 次**，忙态重复 Space 不增加次数。
+- **#6 编辑细节**：提示带两侧像素边距 **11/11px**（原 **11/-11px**），卸载失败与动作间距 **0→7.2px**，清错后空隙 **0**。
+- **#12 材质细节**：停用失败使用已有警告环，普通确认保留既有 1px 受光边；新增材质层 **0**、新增阴影 **0**。没有为凑五项菜单添加装饰，用户“修现有功能”优先。
+
+为什么更轻、更有空间感：面有完整边界、错误与按钮之间有清楚留白，焦点始终有归属。只恢复已有层次，没有堆更多玻璃。
+
+## 两轮看图
+
+第一轮真实事件与截图看到：Tab 困住取消、取消后落空、提示带右移、错误带贴住断裂的焦点环。第二轮修正短窗口自动露出范围，并用滚轮断言确认不会为了保环而锁住滚动。
+
+四视角：艺术总监检查错误与按钮是否挤在同一边（加入 7.2px）；工程师检查右沿与 2px 环（修左右 margin 与裁切）；任务用户检查取消后的下一次 Space（回到入口）；读者检查长句是否挤掉动作（长短按钮宽度相等，不把已正确行为算修复）。4× 细节图可见原来缺右边和底边的蓝环现在闭合，错误带与环不再相碰。
+
+深浅原图 `/tmp/floter-P13-hu-*` 已入本目录，左右图统一为旧→新：
+
+| 场景 | 浅色 | 深色 | 图上可见变化 |
+| --- | --- | --- | --- |
+| 停用 Tab | [对照](P13-hu/disable-tab-en-light-comparison.png) | [对照](P13-hu/disable-tab-en-dark-comparison.png) | 蓝环从取消移动到停用 |
+| 移除 Tab | [对照](P13-hu/remove-tab-en-light-comparison.png) | [对照](P13-hu/remove-tab-en-dark-comparison.png) | 蓝环可落到移除动作 |
+| 停用取消 | [对照](P13-hu/disable-cancel-light-comparison.png) | [对照](P13-hu/disable-cancel-dark-comparison.png) | 原开关重新有焦点环 |
+| 移除取消 | [对照](P13-hu/remove-cancel-light-comparison.png) | [对照](P13-hu/remove-cancel-dark-comparison.png) | 原移除按钮重新有焦点环 |
+| 提示带边界 | [对照](P13-hu/band-true-420-light-comparison.png) | [对照](P13-hu/band-true-420-dark-comparison.png) | 右沿收回，与左边距相等 |
+| 停用失败 | [对照](P13-hu/disable-error-light-comparison.png) | [对照](P13-hu/disable-error-dark-comparison.png) | 警示标、句子与环转为已有错误墨 |
+| 卸载焦点 | [对照](P13-hu/uninstall-focus-640-light-comparison.png) | [对照](P13-hu/uninstall-focus-640-dark-comparison.png) | 蓝环右/下边完整，错误与按钮分开 |
+| 短窗卸载 | [对照](P13-hu/uninstall-focus-300-light-comparison.png) | [对照](P13-hu/uninstall-focus-300-dark-comparison.png) | 滚到按钮时蓝环底部仍可见 |
+
+[4× 焦点与错误间距](P13-hu/focus-detail-comparison.png)。图片来自 Linux ui.Tester 原生渲染；没有冒充 macOS/Windows 真机或浏览器截图。
+
+## Preflight A / B / C / D2
+
+| 项 | 结论 |
+| --- | --- |
+| A1 渐变/纯黑/霓虹/渐变字 | 无新增，保留近黑主题 |
+| A2 非系统字体 | 不适用；本仓既有字体与中文系统字体优先 |
+| A3 斜体 | 无新增 |
+| A4 Hero | 不适用，原生桌面确认 |
+| A5 三等分/卡片海 | 无新增卡片 |
+| A6 假数据 | 无产品假指标；测试名和错误为夹具输入 |
+| A7 空词/感叹号 | i18n 文案零改 |
+| A8 眉批 | 无新增 |
+| A9 H1 | 现有页头完整，未改 |
+| A10 Bento | 不适用 |
+| A11 左竖线 | 无新增 |
+| B1 读取/拨盘 | 克制、即时、保持原密度 |
+| B2 单主题 | 深浅分别渲染，明确设置 Theme |
+| B3 记忆点 | 错误、动作与焦点都有完整边界 |
+| B4 动效气质 | 焦点即时交接，无新增动效 |
+| C1 高频/目的 | 键盘路径不加等待 |
+| C2 all/ease-in/scale(0)/fade | 无新增 |
+| C3 ≤300ms/按压 | 沿用 120ms 颜色与 0.97 按压 |
+| C4 origin | 原 modal 居中；无新浮层 |
+| C5 reduced-motion | 真实事件/像素使用 ReduceMotion=true，原降级保留 |
+| C6 hover 媒体查询 | 不适用 Go 自绘，沿用指针路由 |
+| C7 布局动画 | 无新增，原 uninstall Position 过渡保留 |
+| C8 重播 keyframes | 无新增 |
+| C9 手势/拖拽 | 无新增手势；真实滚轮可滚离焦点按钮 |
+| C10 Framer | 不适用 Go 自绘 |
+| C11 慢放 | 本轮无新增动效；验 reduced-motion 实帧，不声称慢放证据 |
+| D2-1 中文字体 | 沿用系统字体，无 webfont |
+| D2-2 字号/行高/字重 | 通用 ≥14px 未满足；Caption 9.9/Body 10.8 与旧行高沿用需拍板，不擅改 |
+| D2-3 混排空格 | 产品 i18n 零改，中英文事件均验 |
+| D2-4 标点/对比 | 文案零改；使用既有错误色，不声称所有旧墨达到 7:1 |
+
+skill 通用五项工艺密度、网页 viewport 与字体换装不适用于本轮受限修复；没有为了这些条目增加系统或等待确认。可复现规则与 pin 落本仓 §6.196，不修改全局 skill 偏好。
+
+## 仍待
+
+下一轮首选内联确认的 Escape/定时收起出口与多条确认并存，先用真实事件复现再定修复；原 3s 过期窗口不改。运行参数全部移除/恢复继续保留为线索。字号/行盒、保存期间草稿归属及终端 S1b/S1c/S2 尾仍待拍板。本轮无 macOS/Windows 真机交互证据。
+
+## 门槛
+
+最终 **4083 PASS / 0 FAIL**（基线 4032，+51）；普通与 verbose 全量均退出 **0**。三平台 vet/build 已通过，gofmt 空，文档契约通过。V/B/S 旧断言修改 **0/0/0**，无新增 Skip。测试函数 **2888**（基线 2879，+9）。完整门槛后产品源码 MD5 再次核对通过。
+
+证据：[普通全量](P13-hu/full-test.txt)、[三平台门槛](P13-hu/gates.txt)、[文档契约](P13-hu/docs-ci.txt)、[最终源码 MD5](P13-hu/final-source.md5)、[M1 红](P13-hu/M1-red.txt)、[M2 红](P13-hu/M2-red.txt)、[M3 红](P13-hu/M3-red.txt)、[M4 红](P13-hu/M4-red.txt)。基线与完整 verbose 保留在 `/tmp/floter-P13-hu/`。
+
+过程记录：13:58 UTC 开盘，14:25 UTC 全量完成，约 28 分钟，低于 45–75 分钟目标时长；八项均已完成，未用重复运行或无关改动凑时长。四批每两项通过定向回归/vet 后立即提交推送，完整门槛固定产品后集中跑一次；没有声称每批跑了完整三平台测试。实际工具调用控制在 40 次以内，收尾不再扩展选题。

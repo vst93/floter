@@ -1,0 +1,7 @@
+gofmt empty
+linux vet PASS
+linux build PASS
+windows vet PASS
+windows build PASS
+darwin vet PASS
+darwin build PASS
