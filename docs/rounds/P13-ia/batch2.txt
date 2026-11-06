@@ -1,0 +1,170 @@
+=== RUN   TestNoticeOutletDiscardOwner
+=== RUN   TestNoticeOutletDiscardOwner/light/answer
+=== RUN   TestNoticeOutletDiscardOwner/light/elsewhere
+=== RUN   TestNoticeOutletDiscardOwner/dark/answer
+=== RUN   TestNoticeOutletDiscardOwner/dark/elsewhere
+--- PASS: TestNoticeOutletDiscardOwner (2.17s)
+    --- PASS: TestNoticeOutletDiscardOwner/light/answer (0.50s)
+    --- PASS: TestNoticeOutletDiscardOwner/light/elsewhere (0.68s)
+    --- PASS: TestNoticeOutletDiscardOwner/dark/answer (0.32s)
+    --- PASS: TestNoticeOutletDiscardOwner/dark/elsewhere (0.67s)
+=== RUN   TestNoticeOutletDiscardOrphan
+=== RUN   TestNoticeOutletDiscardOrphan/light/answer
+=== RUN   TestNoticeOutletDiscardOrphan/light/elsewhere
+=== RUN   TestNoticeOutletDiscardOrphan/dark/answer
+=== RUN   TestNoticeOutletDiscardOrphan/dark/elsewhere
+--- PASS: TestNoticeOutletDiscardOrphan (1.75s)
+    --- PASS: TestNoticeOutletDiscardOrphan/light/answer (0.25s)
+    --- PASS: TestNoticeOutletDiscardOrphan/light/elsewhere (0.68s)
+    --- PASS: TestNoticeOutletDiscardOrphan/dark/answer (0.23s)
+    --- PASS: TestNoticeOutletDiscardOrphan/dark/elsewhere (0.58s)
+=== RUN   TestNoticeOutletDiscardSchema
+=== RUN   TestNoticeOutletDiscardSchema/light/answer
+=== RUN   TestNoticeOutletDiscardSchema/light/elsewhere
+=== RUN   TestNoticeOutletDiscardSchema/dark/answer
+=== RUN   TestNoticeOutletDiscardSchema/dark/elsewhere
+--- PASS: TestNoticeOutletDiscardSchema (1.48s)
+    --- PASS: TestNoticeOutletDiscardSchema/light/answer (0.22s)
+    --- PASS: TestNoticeOutletDiscardSchema/light/elsewhere (0.54s)
+    --- PASS: TestNoticeOutletDiscardSchema/dark/answer (0.20s)
+    --- PASS: TestNoticeOutletDiscardSchema/dark/elsewhere (0.52s)
+=== RUN   TestNoticeOutletDiscardUnavailable
+=== RUN   TestNoticeOutletDiscardUnavailable/light/answer
+=== RUN   TestNoticeOutletDiscardUnavailable/light/elsewhere
+=== RUN   TestNoticeOutletDiscardUnavailable/dark/answer
+=== RUN   TestNoticeOutletDiscardUnavailable/dark/elsewhere
+--- PASS: TestNoticeOutletDiscardUnavailable (1.59s)
+    --- PASS: TestNoticeOutletDiscardUnavailable/light/answer (0.25s)
+    --- PASS: TestNoticeOutletDiscardUnavailable/light/elsewhere (0.54s)
+    --- PASS: TestNoticeOutletDiscardUnavailable/dark/answer (0.25s)
+    --- PASS: TestNoticeOutletDiscardUnavailable/dark/elsewhere (0.54s)
+=== RUN   TestNoticeOutletDisableNoAdopt
+=== RUN   TestNoticeOutletDisableNoAdopt/light/answer
+=== RUN   TestNoticeOutletDisableNoAdopt/light/elsewhere
+=== RUN   TestNoticeOutletDisableNoAdopt/dark/answer
+=== RUN   TestNoticeOutletDisableNoAdopt/dark/elsewhere
+--- PASS: TestNoticeOutletDisableNoAdopt (0.12s)
+    --- PASS: TestNoticeOutletDisableNoAdopt/light/answer (0.02s)
+    --- PASS: TestNoticeOutletDisableNoAdopt/light/elsewhere (0.04s)
+    --- PASS: TestNoticeOutletDisableNoAdopt/dark/answer (0.02s)
+    --- PASS: TestNoticeOutletDisableNoAdopt/dark/elsewhere (0.04s)
+=== RUN   TestNoticeOutletRemoveNoAdopt
+=== RUN   TestNoticeOutletRemoveNoAdopt/light/answer
+=== RUN   TestNoticeOutletRemoveNoAdopt/light/elsewhere
+=== RUN   TestNoticeOutletRemoveNoAdopt/dark/answer
+=== RUN   TestNoticeOutletRemoveNoAdopt/dark/elsewhere
+--- PASS: TestNoticeOutletRemoveNoAdopt (0.68s)
+    --- PASS: TestNoticeOutletRemoveNoAdopt/light/answer (0.07s)
+    --- PASS: TestNoticeOutletRemoveNoAdopt/light/elsewhere (0.27s)
+    --- PASS: TestNoticeOutletRemoveNoAdopt/dark/answer (0.07s)
+    --- PASS: TestNoticeOutletRemoveNoAdopt/dark/elsewhere (0.27s)
+=== RUN   TestNoticeOutletUninstallNoAdopt
+=== RUN   TestNoticeOutletUninstallNoAdopt/light/answer
+=== RUN   TestNoticeOutletUninstallNoAdopt/light/elsewhere
+=== RUN   TestNoticeOutletUninstallNoAdopt/dark/answer
+=== RUN   TestNoticeOutletUninstallNoAdopt/dark/elsewhere
+--- PASS: TestNoticeOutletUninstallNoAdopt (0.74s)
+    --- PASS: TestNoticeOutletUninstallNoAdopt/light/answer (0.17s)
+    --- PASS: TestNoticeOutletUninstallNoAdopt/light/elsewhere (0.21s)
+    --- PASS: TestNoticeOutletUninstallNoAdopt/dark/answer (0.15s)
+    --- PASS: TestNoticeOutletUninstallNoAdopt/dark/elsewhere (0.21s)
+=== RUN   TestNoticeOutletDisableNoCheck
+=== RUN   TestNoticeOutletDisableNoCheck/light/answer
+=== RUN   TestNoticeOutletDisableNoCheck/light/elsewhere
+=== RUN   TestNoticeOutletDisableNoCheck/dark/answer
+=== RUN   TestNoticeOutletDisableNoCheck/dark/elsewhere
+--- PASS: TestNoticeOutletDisableNoCheck (0.12s)
+    --- PASS: TestNoticeOutletDisableNoCheck/light/answer (0.02s)
+    --- PASS: TestNoticeOutletDisableNoCheck/light/elsewhere (0.04s)
+    --- PASS: TestNoticeOutletDisableNoCheck/dark/answer (0.02s)
+    --- PASS: TestNoticeOutletDisableNoCheck/dark/elsewhere (0.04s)
+=== RUN   TestPendingOutletSaveOwner
+=== RUN   TestPendingOutletSaveOwner/light/entry
+=== RUN   TestPendingOutletSaveOwner/light/elsewhere
+=== RUN   TestPendingOutletSaveOwner/dark/entry
+=== RUN   TestPendingOutletSaveOwner/dark/elsewhere
+--- PASS: TestPendingOutletSaveOwner (1.47s)
+    --- PASS: TestPendingOutletSaveOwner/light/entry (0.28s)
+    --- PASS: TestPendingOutletSaveOwner/light/elsewhere (0.46s)
+    --- PASS: TestPendingOutletSaveOwner/dark/entry (0.27s)
+    --- PASS: TestPendingOutletSaveOwner/dark/elsewhere (0.46s)
+=== RUN   TestPendingOutletSaveSchema
+=== RUN   TestPendingOutletSaveSchema/light/entry
+=== RUN   TestPendingOutletSaveSchema/light/elsewhere
+=== RUN   TestPendingOutletSaveSchema/dark/entry
+=== RUN   TestPendingOutletSaveSchema/dark/elsewhere
+--- PASS: TestPendingOutletSaveSchema (1.26s)
+    --- PASS: TestPendingOutletSaveSchema/light/entry (0.22s)
+    --- PASS: TestPendingOutletSaveSchema/light/elsewhere (0.41s)
+    --- PASS: TestPendingOutletSaveSchema/dark/entry (0.22s)
+    --- PASS: TestPendingOutletSaveSchema/dark/elsewhere (0.41s)
+=== RUN   TestPendingOutletSaveOrphan
+=== RUN   TestPendingOutletSaveOrphan/light/entry
+=== RUN   TestPendingOutletSaveOrphan/light/elsewhere
+=== RUN   TestPendingOutletSaveOrphan/dark/entry
+=== RUN   TestPendingOutletSaveOrphan/dark/elsewhere
+--- PASS: TestPendingOutletSaveOrphan (1.36s)
+    --- PASS: TestPendingOutletSaveOrphan/light/entry (0.22s)
+    --- PASS: TestPendingOutletSaveOrphan/light/elsewhere (0.47s)
+    --- PASS: TestPendingOutletSaveOrphan/dark/entry (0.24s)
+    --- PASS: TestPendingOutletSaveOrphan/dark/elsewhere (0.43s)
+=== RUN   TestPendingOutletEditingUnavailable
+=== RUN   TestPendingOutletEditingUnavailable/light/entry
+=== RUN   TestPendingOutletEditingUnavailable/light/elsewhere
+=== RUN   TestPendingOutletEditingUnavailable/dark/entry
+=== RUN   TestPendingOutletEditingUnavailable/dark/elsewhere
+--- PASS: TestPendingOutletEditingUnavailable (1.64s)
+    --- PASS: TestPendingOutletEditingUnavailable/light/entry (0.36s)
+    --- PASS: TestPendingOutletEditingUnavailable/light/elsewhere (0.46s)
+    --- PASS: TestPendingOutletEditingUnavailable/dark/entry (0.35s)
+    --- PASS: TestPendingOutletEditingUnavailable/dark/elsewhere (0.47s)
+=== RUN   TestResultRefreshDisableBroken
+=== RUN   TestResultRefreshDisableBroken/light
+=== RUN   TestResultRefreshDisableBroken/dark
+--- PASS: TestResultRefreshDisableBroken (0.05s)
+    --- PASS: TestResultRefreshDisableBroken/light (0.03s)
+    --- PASS: TestResultRefreshDisableBroken/dark (0.02s)
+=== RUN   TestResultRefreshDisableOrphan
+=== RUN   TestResultRefreshDisableOrphan/light
+=== RUN   TestResultRefreshDisableOrphan/dark
+--- PASS: TestResultRefreshDisableOrphan (0.05s)
+    --- PASS: TestResultRefreshDisableOrphan/light (0.02s)
+    --- PASS: TestResultRefreshDisableOrphan/dark (0.02s)
+=== RUN   TestResultRefreshRemoveOrphan
+=== RUN   TestResultRefreshRemoveOrphan/light
+=== RUN   TestResultRefreshRemoveOrphan/dark
+--- PASS: TestResultRefreshRemoveOrphan (0.20s)
+    --- PASS: TestResultRefreshRemoveOrphan/light (0.10s)
+    --- PASS: TestResultRefreshRemoveOrphan/dark (0.10s)
+=== RUN   TestResultRefreshRemoveComponentized
+=== RUN   TestResultRefreshRemoveComponentized/light
+=== RUN   TestResultRefreshRemoveComponentized/dark
+--- PASS: TestResultRefreshRemoveComponentized (0.27s)
+    --- PASS: TestResultRefreshRemoveComponentized/light (0.14s)
+    --- PASS: TestResultRefreshRemoveComponentized/dark (0.13s)
+=== RUN   TestResultRefreshUninstallOrphan
+=== RUN   TestResultRefreshUninstallOrphan/light
+=== RUN   TestResultRefreshUninstallOrphan/dark
+--- PASS: TestResultRefreshUninstallOrphan (0.35s)
+    --- PASS: TestResultRefreshUninstallOrphan/light (0.18s)
+    --- PASS: TestResultRefreshUninstallOrphan/dark (0.17s)
+=== RUN   TestResultRefreshUninstallKind
+=== RUN   TestResultRefreshUninstallKind/light
+=== RUN   TestResultRefreshUninstallKind/dark
+--- PASS: TestResultRefreshUninstallKind (0.42s)
+    --- PASS: TestResultRefreshUninstallKind/light (0.21s)
+    --- PASS: TestResultRefreshUninstallKind/dark (0.21s)
+=== RUN   TestResultSaveFailureKeyboard
+=== RUN   TestResultSaveFailureKeyboard/light
+=== RUN   TestResultSaveFailureKeyboard/dark
+--- PASS: TestResultSaveFailureKeyboard (0.40s)
+    --- PASS: TestResultSaveFailureKeyboard/light (0.20s)
+    --- PASS: TestResultSaveFailureKeyboard/dark (0.20s)
+=== RUN   TestResultSaveRetryClearsFailure
+=== RUN   TestResultSaveRetryClearsFailure/light
+=== RUN   TestResultSaveRetryClearsFailure/dark
+--- PASS: TestResultSaveRetryClearsFailure (0.41s)
+    --- PASS: TestResultSaveRetryClearsFailure/light (0.21s)
+    --- PASS: TestResultSaveRetryClearsFailure/dark (0.21s)
+PASS
+ok  	floter/internal/settingsui	16.569s

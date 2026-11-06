@@ -11,7 +11,7 @@
 | 1 | config.go:538；settingsui.go:2935 | 保存按钮未记录交接句柄，owner 变 tool → 可用打开配置接焦 |
 | 2 | 同上；settingsui.go:3174 | schema 清空后保存入口消失 → 可用 Check 接焦 |
 | 3 | settingsui.go:3002 | 保存中目标变 Orphan → Adopt 接焦 |
-| 4 | settingsui.go:2935,3174 | 保存中变 tool 且无 openCommand → Check 接焦，禁用编辑入口不接焦 |
+| 4 | config.go:306,363；settingsui.go:2935,3174 | 保存时允许继续编辑；字段正持焦时变 tool 且无 openCommand → Check 接焦，禁用编辑入口不接焦 |
 | 5 | settingsui.go:3918,3078 | Recheck 完成后 Broken 解除，入口消失 → Check 接焦 |
 | 6 | settingsui.go:3918,3083 | Reconnect 完成后运行时可用，入口消失 → Check 接焦 |
 | 7 | settingsui.go:3002,3918 | 修复在飞时目标变 Orphan → Adopt 接焦，迟到回调不抢新焦点 |
@@ -32,6 +32,8 @@ craft-loop #3 保住原 2px 焦点环及 1px 间隙；#4 交接 0ms、刷新自�
 ## 验收与 mutation
 
 中文 locale / GOMAXPROCS=4；开盘函数数实测 2929，全量 verbose 基线已启动，结果落盘后补录。每批相关事件与 settingsui vet 通过后提交推送；最终 gofmt、三平台 vet/build、普通与 verbose 全量各跑一次。旧 V/B/S 断言零改、计数不减。
+
+开盘全量已完成：4282 PASS / 0 FAIL，退出 0。
 
 M1 撤回保存句柄或交接：owner/schema 的真实 Focused + Space pin 应红。M2 撤回修复/启用入口的交接：集成状态刷新后 pin 应红。每组先 MD5、注入、记录原始失败、还原、md5sum -c、touch 后重跑。
 ui.Tester 深浅 before/after PNG 入 docs/rounds/P13-ia，代表图同时留 /tmp/floter-P13-ia-*-dark.png / light.png。

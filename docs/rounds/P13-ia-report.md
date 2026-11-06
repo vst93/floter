@@ -25,3 +25,10 @@
 2. 现象：同一保存中 schema 被清空，当前 Check 未接键盘。改动：沿用已存在的可用操作选择链，把保存入口交给 Check。验证：同事件与 schema 清空，断言当前 Check 的焦点和一次派发，不重复保存；修后结果待本批日志。
 
 第一批相关 **74 PASS / 0 FAIL**，settingsui vet 退出 0。M1 撤回保存句柄，四个 entry 场景实跑红（owner/schema × 深浅），页头已持焦的对照仍通过。原串：`pending save-schema lost keyboard outlet "Check"`；恢复 MD5 与 touch 复验见 M1-restore.txt。浅色原图中“打开配置”原本没有键盘轮廓，修后出现完整 accent 环；没有改变布局。
+
+第一批 **7b9008b6** 已推送。开盘全量基线结束：**4282 PASS / 0 FAIL / 2929 测试函数**，退出 0。
+
+3. 现象：保存仍在飞时集成变 Orphan，host 表单撤下，Adopt 没接住键盘。改动：孤立集成分支也归还原保存/表单焦点。验证：深浅真实保存后刷新，旧实现报 `pending save-orphan lost keyboard outlet "Adopt"`；迟到失败不重开表单、不重复保存，用户已移到页头则保持。
+4. 现象：保存期间按原契约可以继续编辑，用户回到 Token 字段后 owner 变 tool 且无编辑命令，保存按钮之外的焦点仍丢失。改动：记录整张 host 表单的 FocusWithin，把字段焦点也交给当前 Check。验证：真实 Shift+Tab 回字段再刷新；旧实现报 `pending save-unopenable lost keyboard outlet "Check"`，不是直接篡改焦点状态。草稿保持 edited，禁用“打开配置”不执行。
+
+第二批相关 **84 PASS / 0 FAIL**、settingsui vet 退出 0；旧 V/B/S 断言零改。四项深浅前后图随本批保留，基线 pin 不修改。M1 已实跑，新增整张表单与孤立分支将在最终 M2 一并回注核验。

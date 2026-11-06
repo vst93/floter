@@ -114,6 +114,18 @@ func checkPendingOutlet(t *testing.T, kind, change string) {
 					}
 					tt.HoldModifiers(0)
 				}
+				if change == "unopenable" && !elsewhere {
+					// Saving still permits editing by contract. Move back to the
+					// field before its host form is replaced by a tool editor.
+					for i := 0; i < 12 && !tt.Focused("Token"); i++ {
+						tt.Key(ui.Shift, ui.KeyTab)
+						tt.Frame()
+					}
+					if !tt.Focused("Token") {
+						t.Fatal("pending field did not focus")
+					}
+					tt.HoldModifiers(0)
+				}
 				want := copy.IntegrationsCheck
 				switch change {
 				case "owner":
@@ -180,3 +192,6 @@ func checkPendingOutlet(t *testing.T, kind, change string) {
 
 func TestPendingOutletSaveOwner(t *testing.T)  { checkPendingOutlet(t, "save", "owner") }
 func TestPendingOutletSaveSchema(t *testing.T) { checkPendingOutlet(t, "save", "schema") }
+
+func TestPendingOutletSaveOrphan(t *testing.T)         { checkPendingOutlet(t, "save", "orphan") }
+func TestPendingOutletEditingUnavailable(t *testing.T) { checkPendingOutlet(t, "save", "unopenable") }

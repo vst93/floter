@@ -3007,6 +3007,7 @@ func (a *App) integrationRow(c *ui.Context, copy i18n.Settings, integration Inte
 			a.restoreNotice(c, integration.ID, "remove", false, adoptOpener)
 			a.restoreNotice(c, integration.ID, "uninstall", false, adoptOpener)
 			a.restoreNotice(c, integration.ID, "discard", false, adoptOpener)
+			a.restoreNotice(c, integration.ID, "save", false, adoptOpener)
 			return
 		}
 

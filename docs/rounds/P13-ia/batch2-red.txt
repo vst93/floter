@@ -1,0 +1,35 @@
+=== RUN   TestPendingOutletSaveOrphan
+=== RUN   TestPendingOutletSaveOrphan/light/entry
+    pendingoutlet_test.go:156: pending save-orphan lost keyboard outlet "Adopt"
+    pendingoutlet_test.go:166: late save result changed keyboard outlet "Adopt"
+    pendingoutlet_test.go:183: outlet dispatch: open=0 check=0 adopt=0 close=0
+=== RUN   TestPendingOutletSaveOrphan/light/elsewhere
+=== RUN   TestPendingOutletSaveOrphan/dark/entry
+    pendingoutlet_test.go:156: pending save-orphan lost keyboard outlet "Adopt"
+    pendingoutlet_test.go:166: late save result changed keyboard outlet "Adopt"
+    pendingoutlet_test.go:183: outlet dispatch: open=0 check=0 adopt=0 close=0
+=== RUN   TestPendingOutletSaveOrphan/dark/elsewhere
+--- FAIL: TestPendingOutletSaveOrphan (1.56s)
+    --- FAIL: TestPendingOutletSaveOrphan/light/entry (0.41s)
+    --- PASS: TestPendingOutletSaveOrphan/light/elsewhere (0.47s)
+    --- FAIL: TestPendingOutletSaveOrphan/dark/entry (0.24s)
+    --- PASS: TestPendingOutletSaveOrphan/dark/elsewhere (0.44s)
+=== RUN   TestPendingOutletEditingUnavailable
+=== RUN   TestPendingOutletEditingUnavailable/light/entry
+    pendingoutlet_test.go:156: pending save-unopenable lost keyboard outlet "Check"
+    pendingoutlet_test.go:166: late save result changed keyboard outlet "Check"
+    pendingoutlet_test.go:183: outlet dispatch: open=0 check=0 adopt=0 close=0
+=== RUN   TestPendingOutletEditingUnavailable/light/elsewhere
+=== RUN   TestPendingOutletEditingUnavailable/dark/entry
+    pendingoutlet_test.go:156: pending save-unopenable lost keyboard outlet "Check"
+    pendingoutlet_test.go:166: late save result changed keyboard outlet "Check"
+    pendingoutlet_test.go:183: outlet dispatch: open=0 check=0 adopt=0 close=0
+=== RUN   TestPendingOutletEditingUnavailable/dark/elsewhere
+--- FAIL: TestPendingOutletEditingUnavailable (1.69s)
+    --- FAIL: TestPendingOutletEditingUnavailable/light/entry (0.37s)
+    --- PASS: TestPendingOutletEditingUnavailable/light/elsewhere (0.48s)
+    --- FAIL: TestPendingOutletEditingUnavailable/dark/entry (0.37s)
+    --- PASS: TestPendingOutletEditingUnavailable/dark/elsewhere (0.47s)
+FAIL
+FAIL	floter/internal/settingsui	3.261s
+FAIL
